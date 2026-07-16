@@ -66,9 +66,10 @@ use std::collections::HashMap;
 let mut query = HashMap::new();
 query.insert("workspaceId".to_string(), serde_json::json!("1"));
 query.insert("projectId".to_string(), serde_json::json!("1"));
+query.insert("runtimeLocationId".to_string(), serde_json::json!("1"));
 query.insert("engineId".to_string(), serde_json::json!("codex"));
-query.insert("page".to_string(), serde_json::json!(4));
-query.insert("page_size".to_string(), serde_json::json!(5));
+query.insert("page".to_string(), serde_json::json!(5));
+query.insert("page_size".to_string(), serde_json::json!(6));
 let result = client.intelligence().coding_sessions_list(Some(&query)).await?;
 println!("{result:?}");
 ```

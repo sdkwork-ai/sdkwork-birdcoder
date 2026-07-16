@@ -79,12 +79,16 @@ export function buildBirdCoderCodingServerOpenApiDocument(
         responses: operationDefinition?.responses ?? buildOpenApiDefaultResponses(),
         security,
         'x-sdkwork-auth-mode': buildOpenApiOperationAuthMode(route, operationId),
+        ...(operationDefinition?.auditEvent
+          ? { 'x-sdkwork-audit-event': operationDefinition.auditEvent }
+          : {}),
         'x-sdkwork-data-scope': governanceMetadata.dataScope,
         'x-sdkwork-deployment': governanceMetadata.deployment,
         'x-sdkwork-domain': governanceMetadata.domain,
         ...(isCredentialEntryOpenApiOperation(operationId)
           ? { 'x-sdkwork-forbid-credential-headers': true }
           : {}),
+        ...(operationDefinition?.idempotent ? { 'x-sdkwork-idempotent': true } : {}),
         ...(governanceMetadata.permission
           ? { 'x-sdkwork-permission': governanceMetadata.permission }
           : {}),

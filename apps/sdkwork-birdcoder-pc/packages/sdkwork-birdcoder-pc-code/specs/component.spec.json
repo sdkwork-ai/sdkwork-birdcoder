@@ -110,6 +110,7 @@
     }
   ],
   "contracts": {
+    "layerRole": "frontend-feature",
     "publicExports": [
       "."
     ],

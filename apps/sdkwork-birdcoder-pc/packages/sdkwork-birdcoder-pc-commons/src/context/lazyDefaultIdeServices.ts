@@ -12,6 +12,7 @@ const APP_IDE_SERVICE_KEYS = [
   'deploymentService',
   'documentService',
   'fileSystemService',
+  'projectRuntimeLocationService',
   'gitService',
   'promptService',
   'projectService',
@@ -164,6 +165,9 @@ export function createLazyDefaultIdeServices(): AppIdeServices {
           subscribeToFileChanges: createDeferredCleanupSubscriptionBridge,
         },
       },
+    ),
+    projectRuntimeLocationService: createLazyServiceProxy(
+      async () => loadDefaultIdeService('projectRuntimeLocationService'),
     ),
     gitService: createLazyServiceProxy(async () => loadDefaultIdeService('gitService')),
     promptService: createLazyServiceProxy(async () => loadDefaultIdeService('promptService')),

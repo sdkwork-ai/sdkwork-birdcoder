@@ -231,6 +231,145 @@ impl ProjectCollaboratorRow {
     }
 }
 
+#[derive(Clone)]
+pub struct ProjectRuntimeLocationRow {
+    pub id: String,
+    pub uuid: String,
+    pub tenant_id: i64,
+    pub organization_id: i64,
+    pub project_id: i64,
+    pub registered_by_user_id: i64,
+    pub runtime_target_id: String,
+    pub runtime_target_kind: String,
+    pub location_kind: String,
+    pub path_flavor: String,
+    pub root_locator: String,
+    pub display_name: String,
+    pub encrypted_absolute_path: String,
+    pub path_encryption_key_id: String,
+    pub path_fingerprint: String,
+    pub terminal_available: bool,
+    pub git_available: bool,
+    pub build_available: bool,
+    pub file_system_available: bool,
+    pub health_status: String,
+    pub last_verified_at: Option<String>,
+    pub last_seen_at: Option<String>,
+    pub verified_by_user_id: Option<i64>,
+    pub git_repository_url: Option<String>,
+    pub git_remote_name: Option<String>,
+    pub git_branch: Option<String>,
+    pub git_commit: Option<String>,
+    pub git_worktree_key: Option<String>,
+    pub version: i64,
+    pub created_at: String,
+    pub updated_at: String,
+    pub is_deleted: i64,
+}
+
+impl ProjectRuntimeLocationRow {
+    pub fn from_row(row: &sqlx::any::AnyRow) -> Result<Self, sqlx::Error> {
+        Ok(Self {
+            id: row.try_get("id")?,
+            uuid: row.try_get("uuid")?,
+            tenant_id: row.try_get("tenant_id")?,
+            organization_id: row.try_get("organization_id")?,
+            project_id: row.try_get("project_id")?,
+            registered_by_user_id: row.try_get("registered_by_user_id")?,
+            runtime_target_id: row.try_get("runtime_target_id")?,
+            runtime_target_kind: row.try_get("runtime_target_kind")?,
+            location_kind: row.try_get("location_kind")?,
+            path_flavor: row.try_get("path_flavor")?,
+            root_locator: row.try_get("root_locator")?,
+            display_name: row.try_get("display_name")?,
+            encrypted_absolute_path: row.try_get("encrypted_absolute_path")?,
+            path_encryption_key_id: row.try_get("path_encryption_key_id")?,
+            path_fingerprint: row.try_get("path_fingerprint")?,
+            terminal_available: row_get_bool_as_i64(row, "terminal_available")? != 0,
+            git_available: row_get_bool_as_i64(row, "git_available")? != 0,
+            build_available: row_get_bool_as_i64(row, "build_available")? != 0,
+            file_system_available: row_get_bool_as_i64(row, "file_system_available")? != 0,
+            health_status: row.try_get("health_status")?,
+            last_verified_at: row.try_get("last_verified_at")?,
+            last_seen_at: row.try_get("last_seen_at")?,
+            verified_by_user_id: row.try_get("verified_by_user_id")?,
+            git_repository_url: row.try_get("git_repository_url")?,
+            git_remote_name: row.try_get("git_remote_name")?,
+            git_branch: row.try_get("git_branch")?,
+            git_commit: row.try_get("git_commit")?,
+            git_worktree_key: row.try_get("git_worktree_key")?,
+            version: row.try_get("version")?,
+            created_at: row.try_get("created_at")?,
+            updated_at: row.try_get("updated_at")?,
+            is_deleted: row_get_bool_as_i64(row, "is_deleted")?,
+        })
+    }
+}
+
+#[derive(Clone)]
+pub struct ProjectRuntimeLocationPreferenceRow {
+    pub id: String,
+    pub uuid: String,
+    pub tenant_id: i64,
+    pub organization_id: i64,
+    pub project_id: i64,
+    pub subject_user_id: i64,
+    pub capability: String,
+    pub runtime_location_id: String,
+    pub version: i64,
+    pub created_at: String,
+    pub updated_at: String,
+    pub is_deleted: i64,
+}
+
+impl ProjectRuntimeLocationPreferenceRow {
+    pub fn from_row(row: &sqlx::any::AnyRow) -> Result<Self, sqlx::Error> {
+        Ok(Self {
+            id: row.try_get("id")?,
+            uuid: row.try_get("uuid")?,
+            tenant_id: row.try_get("tenant_id")?,
+            organization_id: row.try_get("organization_id")?,
+            project_id: row.try_get("project_id")?,
+            subject_user_id: row.try_get("subject_user_id")?,
+            capability: row.try_get("capability")?,
+            runtime_location_id: row.try_get("runtime_location_id")?,
+            version: row.try_get("version")?,
+            created_at: row.try_get("created_at")?,
+            updated_at: row.try_get("updated_at")?,
+            is_deleted: row_get_bool_as_i64(row, "is_deleted")?,
+        })
+    }
+}
+
+#[derive(Clone)]
+pub struct ProjectWorkspaceBindingRow {
+    pub id: String,
+    pub project_id: i64,
+    pub sandbox_id: String,
+    pub root_entry_id: String,
+    pub logical_path: String,
+    pub lifecycle_status: String,
+    pub version: i64,
+    pub created_at: String,
+    pub updated_at: String,
+}
+
+impl ProjectWorkspaceBindingRow {
+    pub fn from_row(row: &sqlx::any::AnyRow) -> Result<Self, sqlx::Error> {
+        Ok(Self {
+            id: row.try_get("id")?,
+            project_id: row.try_get("project_id")?,
+            sandbox_id: row.try_get("sandbox_id")?,
+            root_entry_id: row.try_get("root_entry_id")?,
+            logical_path: row.try_get("logical_path")?,
+            lifecycle_status: row.try_get("lifecycle_status")?,
+            version: row.try_get("version")?,
+            created_at: row.try_get("created_at")?,
+            updated_at: row.try_get("updated_at")?,
+        })
+    }
+}
+
 #[derive(Clone, Debug)]
 pub struct DeploymentTargetRow {
     pub id: String,

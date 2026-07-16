@@ -61,6 +61,9 @@ const eventFixture: BirdCoderCodingSessionEvent = {
   sequence: '3',
   payload: {
     approvalId,
+    interactionId: approvalId,
+    interactionKind: 'approval',
+    reason: 'Review patch before applying',
     toolName: 'apply_patch',
     runtimeStatus: 'awaiting_approval',
   },
@@ -75,8 +78,11 @@ const approvalDecisionEventFixture: BirdCoderCodingSessionEvent = {
   kind: 'operation.updated',
   sequence: '4',
   payload: {
+    interactionEventId: 'approval-consumer-contract-event',
+    interactionId: approvalId,
+    interactionKind: 'approval',
     approvalId,
-    checkpointId: 'approval-consumer-contract-checkpoint',
+    checkpointId: 'approval-consumer-contract-event',
     approvalDecision: 'approved',
     runtimeStatus: 'awaiting_tool',
     operationStatus: 'running',
@@ -101,12 +107,11 @@ const permissionIdApprovalDecisionEventFixture: BirdCoderCodingSessionEvent = {
   ...approvalDecisionEventFixture,
   id: 'approval-consumer-contract-permission-id-decision-event',
   payload: {
-    toolName: 'permission_request',
-    toolArguments: JSON.stringify({
-      permissionId: approvalId,
-      decision: 'approved',
-      runtimeStatus: 'awaiting_tool',
-    }),
+    interactionEventId: 'approval-consumer-contract-event',
+    interactionId: approvalId,
+    interactionKind: 'approval',
+    status: 'approved',
+    runtimeStatus: 'awaiting_tool',
   },
 };
 
@@ -162,6 +167,7 @@ const approvalResultFixture: BirdCoderApprovalDecisionResult = {
 
 const observedApprovals: Array<{
   approvalId: string;
+  codingSessionId: string;
   decision: string;
   reason?: string;
 }> = [];
@@ -236,9 +242,10 @@ const codingRuntimeClient: BirdCoderAppRuntimeWriteSdkApiClient = {
   async createCodingSessionTurn() {
     throw new Error('not needed');
   },
-  async submitApprovalDecision(requestApprovalId, request) {
+  async submitApprovalDecision(requestCodingSessionId, requestApprovalId, request) {
     observedApprovals.push({
       approvalId: requestApprovalId,
+      codingSessionId: requestCodingSessionId,
       decision: request.decision,
       reason: request.reason,
     });
@@ -299,8 +306,8 @@ assert.deepEqual(approvals, [
   {
     approvalId,
     artifactIds: ['approval-consumer-contract-artifact'],
-    checkpointId: 'approval-consumer-contract-checkpoint',
     codingSessionId: sessionId,
+    interactionEventId: 'approval-consumer-contract-event',
     operationId: 'approval-consumer-contract-turn:operation',
     reason: 'Review patch before applying',
     runtimeId: 'approval-consumer-contract-runtime',
@@ -347,7 +354,7 @@ const permissionIdDecidedApprovals = await projectionModule.loadCodingSessionApp
 assert.deepEqual(
   permissionIdDecidedApprovals,
   [],
-  'approval settlement must resolve provider permissionId aliases so stale checkpoints do not keep approval UI pending.',
+  'canonical interactionEventId settlement must remove stale approval UI state.',
 );
 
 const unsafeLongApprovalAppRuntimeReadService: IAppRuntimeReadService = {
@@ -371,12 +378,13 @@ const unsafeLongApprovals = await projectionModule.loadCodingSessionApprovalStat
 assert.deepEqual(
   unsafeLongApprovals,
   [],
-  'approval lifecycle toolArguments parsing must preserve unquoted Long approvalId values so stale checkpoints are settled.',
+  'a legacy provider-only approval identifier must not create a replyable interaction.',
 );
 
 const approvalResult = await projectionModule.submitCodingSessionApprovalDecision(
   services.appRuntimeWriteService as Pick<IAppRuntimeWriteService, 'submitApprovalDecision'>,
-  approvalId,
+  sessionId,
+  'approval-consumer-contract-event',
   {
     decision: 'approved',
     reason: 'Looks safe',
@@ -385,7 +393,9 @@ const approvalResult = await projectionModule.submitCodingSessionApprovalDecisio
 
 assert.deepEqual(observedApprovals, [
   {
-    approvalId,
+    // The composed SDK receives the durable source-event id, never the provider id.
+    approvalId: 'approval-consumer-contract-event',
+    codingSessionId: sessionId,
     decision: 'approved',
     reason: 'Looks safe',
   },

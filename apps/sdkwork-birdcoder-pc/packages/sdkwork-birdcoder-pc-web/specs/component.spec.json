@@ -119,7 +119,9 @@
     ],
     "sdkClients": [],
     "events": [],
-    "configKeys": [],
+    "configKeys": [
+      "VITE_SDKWORK_BIRDCODER_REALTIME_TRANSPORT"
+    ],
     "routeManifest": null,
     "sdkDependencies": [],
     "dependencyApiExports": [],

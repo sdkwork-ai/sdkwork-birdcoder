@@ -288,6 +288,7 @@ pub struct SucceededCodingSessionTurnEventInput<'a> {
     pub turn_id: &'a str,
     pub operation_id: &'a str,
     pub assistant_content: &'a str,
+    pub stream_deltas: &'a [String],
     pub commands: Option<&'a [NativeSessionCommandPayload]>,
     pub base_sequence: usize,
     pub completed_at: &'a str,
@@ -303,6 +304,7 @@ pub fn build_succeeded_coding_session_turn_events(
         turn_id,
         operation_id,
         assistant_content,
+        stream_deltas,
         commands,
         base_sequence,
         completed_at,
@@ -338,38 +340,64 @@ pub fn build_succeeded_coding_session_turn_events(
     insert_payload_string(&mut completed_payload, "runtimeStatus", "completed");
     attach_native_session_id(&mut completed_payload, native_session_id);
 
-    vec![
+    let mut events = Vec::with_capacity(stream_deltas.len() + 3);
+    for content_delta in stream_deltas
+        .iter()
+        .filter(|content_delta| !content_delta.is_empty())
+    {
+        let sequence = base_sequence + events.len();
+        let mut delta_payload = CodingSessionEventPayloadMap::new();
+        insert_payload_string(&mut delta_payload, "role", "assistant");
+        insert_payload_string(&mut delta_payload, "contentDelta", content_delta);
+        insert_payload_string(&mut delta_payload, "operationId", operation_id);
+        insert_payload_string(&mut delta_payload, "runtimeStatus", "streaming");
+        attach_native_session_id(&mut delta_payload, native_session_id);
+        events.push(CodingSessionEventPayload {
+            id: build_projection_turn_event_id(runtime_id, turn_id, sequence),
+            coding_session_id: coding_session_id.to_owned(),
+            turn_id: Some(turn_id.to_owned()),
+            runtime_id: Some(runtime_id.to_owned()),
+            kind: "message.delta".to_owned(),
+            sequence,
+            payload: delta_payload,
+            created_at: completed_at.to_owned(),
+        });
+    }
+
+    let terminal_sequence = base_sequence + events.len();
+    events.extend([
         CodingSessionEventPayload {
-            id: build_projection_turn_event_id(runtime_id, turn_id, base_sequence),
+            id: build_projection_turn_event_id(runtime_id, turn_id, terminal_sequence),
             coding_session_id: coding_session_id.to_owned(),
             turn_id: Some(turn_id.to_owned()),
             runtime_id: Some(runtime_id.to_owned()),
             kind: "message.completed".to_owned(),
-            sequence: base_sequence,
+            sequence: terminal_sequence,
             payload: assistant_message_payload,
             created_at: completed_at.to_owned(),
         },
         CodingSessionEventPayload {
-            id: build_projection_turn_event_id(runtime_id, turn_id, base_sequence + 1),
+            id: build_projection_turn_event_id(runtime_id, turn_id, terminal_sequence + 1),
             coding_session_id: coding_session_id.to_owned(),
             turn_id: Some(turn_id.to_owned()),
             runtime_id: Some(runtime_id.to_owned()),
             kind: "operation.updated".to_owned(),
-            sequence: base_sequence + 1,
+            sequence: terminal_sequence + 1,
             payload: operation_payload,
             created_at: completed_at.to_owned(),
         },
         CodingSessionEventPayload {
-            id: build_projection_turn_event_id(runtime_id, turn_id, base_sequence + 2),
+            id: build_projection_turn_event_id(runtime_id, turn_id, terminal_sequence + 2),
             coding_session_id: coding_session_id.to_owned(),
             turn_id: Some(turn_id.to_owned()),
             runtime_id: Some(runtime_id.to_owned()),
             kind: "turn.completed".to_owned(),
-            sequence: base_sequence + 2,
+            sequence: terminal_sequence + 2,
             payload: completed_payload,
             created_at: completed_at.to_owned(),
         },
-    ]
+    ]);
+    events
 }
 
 pub fn build_native_session_events_for_coding_session(

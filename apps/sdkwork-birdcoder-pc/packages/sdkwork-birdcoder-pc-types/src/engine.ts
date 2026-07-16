@@ -197,16 +197,10 @@ export type BirdCoderCodeEngineModelConfigSource =
   | 'server'
   | (string & {});
 
-export interface BirdCoderCodeEngineModelConfigCustomModel {
-  id: string;
-  label: string;
-}
-
 export interface BirdCoderCodeEngineModelConfigEngine {
   engineId: BirdCoderCodeEngineKey;
   defaultModelId: string;
   selectedModelId: string;
-  customModels: readonly BirdCoderCodeEngineModelConfigCustomModel[];
   models: readonly BirdCoderModelCatalogEntry[];
 }
 

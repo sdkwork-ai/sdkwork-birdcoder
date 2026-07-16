@@ -13,7 +13,7 @@ class OauthApi {
   /// Resolve OAuth authorization URL for SDKWork IAM sign-in
   Future<BirdCoderIamOAuthAuthorizationEnvelope?> authorizationUrlsCreate(BirdCoderIamOAuthAuthorizationCreateRequest body) async {
     final payload = body.toJson();
-    final response = await _client.post(ApiPaths.appPath('/oauth/authorization_urls'), body: payload, contentType: 'application/json');
+    final response = await _client.request('POST', ApiPaths.appPath('/oauth/authorization_urls'), body: payload, contentType: 'application/json', skipAuth: true);
     return (() {
       final map = sdkworkResponseAsMap(response);
       return map == null ? null : BirdCoderIamOAuthAuthorizationEnvelope.fromJson(map);
@@ -23,7 +23,7 @@ class OauthApi {
   /// Create SDKWork IAM session with OAuth authorization code
   Future<BirdCoderIamSessionEnvelope?> sessionsCreate(BirdCoderIamOAuthSessionCreateRequest body) async {
     final payload = body.toJson();
-    final response = await _client.post(ApiPaths.appPath('/oauth/sessions'), body: payload, contentType: 'application/json');
+    final response = await _client.request('POST', ApiPaths.appPath('/oauth/sessions'), body: payload, contentType: 'application/json', skipAuth: true);
     return (() {
       final map = sdkworkResponseAsMap(response);
       return map == null ? null : BirdCoderIamSessionEnvelope.fromJson(map);
@@ -33,7 +33,7 @@ class OauthApi {
   /// Create SDKWork IAM OAuth device authorization
   Future<BirdCoderIamDeviceAuthorizationEnvelope?> deviceAuthorizationsCreate(BirdCoderIamDeviceAuthorizationCreateRequest body) async {
     final payload = body.toJson();
-    final response = await _client.post(ApiPaths.appPath('/oauth/device_authorizations'), body: payload, contentType: 'application/json');
+    final response = await _client.request('POST', ApiPaths.appPath('/oauth/device_authorizations'), body: payload, contentType: 'application/json', skipAuth: true);
     return (() {
       final map = sdkworkResponseAsMap(response);
       return map == null ? null : BirdCoderIamDeviceAuthorizationEnvelope.fromJson(map);
@@ -42,7 +42,7 @@ class OauthApi {
 
   /// Get SDKWork IAM OAuth device authorization
   Future<BirdCoderIamDeviceAuthorizationEnvelope?> deviceAuthorizationsRetrieve(String deviceAuthorizationId) async {
-    final response = await _client.get(ApiPaths.appPath('/oauth/device_authorizations/${serializePathParameter(deviceAuthorizationId, const PathParameterSpec('deviceAuthorizationId', 'simple', false))}'));
+    final response = await _client.request('GET', ApiPaths.appPath('/oauth/device_authorizations/${serializePathParameter(deviceAuthorizationId, const PathParameterSpec('deviceAuthorizationId', 'simple', false))}'), skipAuth: true);
     return (() {
       final map = sdkworkResponseAsMap(response);
       return map == null ? null : BirdCoderIamDeviceAuthorizationEnvelope.fromJson(map);
@@ -52,7 +52,7 @@ class OauthApi {
   /// Create SDKWork IAM OAuth device authorization scan
   Future<BirdCoderBooleanSuccessEnvelope?> deviceAuthorizationsScansCreate(String deviceAuthorizationId, [BirdCoderIamDeviceAuthorizationScanRequest? body]) async {
     final payload = body?.toJson();
-    final response = await _client.post(ApiPaths.appPath('/oauth/device_authorizations/${serializePathParameter(deviceAuthorizationId, const PathParameterSpec('deviceAuthorizationId', 'simple', false))}/scans'), body: payload, contentType: 'application/json');
+    final response = await _client.request('POST', ApiPaths.appPath('/oauth/device_authorizations/${serializePathParameter(deviceAuthorizationId, const PathParameterSpec('deviceAuthorizationId', 'simple', false))}/scans'), body: payload, contentType: 'application/json', skipAuth: true);
     return (() {
       final map = sdkworkResponseAsMap(response);
       return map == null ? null : BirdCoderBooleanSuccessEnvelope.fromJson(map);
@@ -62,7 +62,7 @@ class OauthApi {
   /// Complete SDKWork IAM OAuth device authorization with password
   Future<BirdCoderIamSessionEnvelope?> deviceAuthorizationsPasswordCompletionsCreate(String deviceAuthorizationId, BirdCoderIamDeviceAuthorizationPasswordCompletionRequest body) async {
     final payload = body.toJson();
-    final response = await _client.post(ApiPaths.appPath('/oauth/device_authorizations/${serializePathParameter(deviceAuthorizationId, const PathParameterSpec('deviceAuthorizationId', 'simple', false))}/password_completions'), body: payload, contentType: 'application/json');
+    final response = await _client.request('POST', ApiPaths.appPath('/oauth/device_authorizations/${serializePathParameter(deviceAuthorizationId, const PathParameterSpec('deviceAuthorizationId', 'simple', false))}/password_completions'), body: payload, contentType: 'application/json', skipAuth: true);
     return (() {
       final map = sdkworkResponseAsMap(response);
       return map == null ? null : BirdCoderIamSessionEnvelope.fromJson(map);
@@ -72,7 +72,7 @@ class OauthApi {
   /// Exchange SDKWork IAM OAuth device authorization for a session
   Future<BirdCoderIamSessionEnvelope?> deviceAuthorizationsSessionExchangesCreate(String deviceAuthorizationId, BirdCoderIamDeviceAuthorizationSessionExchangeRequest body) async {
     final payload = body.toJson();
-    final response = await _client.post(ApiPaths.appPath('/oauth/device_authorizations/${serializePathParameter(deviceAuthorizationId, const PathParameterSpec('deviceAuthorizationId', 'simple', false))}/session_exchanges'), body: payload, contentType: 'application/json');
+    final response = await _client.request('POST', ApiPaths.appPath('/oauth/device_authorizations/${serializePathParameter(deviceAuthorizationId, const PathParameterSpec('deviceAuthorizationId', 'simple', false))}/session_exchanges'), body: payload, contentType: 'application/json', skipAuth: true);
     return (() {
       final map = sdkworkResponseAsMap(response);
       return map == null ? null : BirdCoderIamSessionEnvelope.fromJson(map);

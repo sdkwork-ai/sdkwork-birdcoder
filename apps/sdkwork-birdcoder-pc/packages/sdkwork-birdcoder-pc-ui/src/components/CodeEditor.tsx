@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Editor, { useMonaco } from '@monaco-editor/react';
 import { AlignLeft, Check, Copy, Loader2, Map, WrapText } from 'lucide-react';
-import { globalEventBus, useToast } from '@sdkwork/birdcoder-pc-commons';
+import { useToast } from '@sdkwork/birdcoder-pc-commons/contexts/ToastProvider';
+import { globalEventBus } from '@sdkwork/birdcoder-pc-commons/utils/EventBus';
 import { copyTextToClipboard } from './clipboard';
 import { resolveMonacoOverflowWidgetsDomNode } from './monacoOverflowWidgets';
 import {

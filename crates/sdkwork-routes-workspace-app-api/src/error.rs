@@ -70,6 +70,12 @@ pub fn map_project_error(error: ProjectError, trace_id: Option<&str>) -> Problem
         ProjectError::InvalidInput(msg) => {
             traced_platform_problem(SdkWorkResultCode::ValidationError, msg, trace_id)
         }
+        ProjectError::PreconditionRequired(msg) => {
+            traced_platform_problem(SdkWorkResultCode::PreconditionRequired, msg, trace_id)
+        }
+        ProjectError::PreconditionFailed(msg) => {
+            traced_platform_problem(SdkWorkResultCode::PreconditionFailed, msg, trace_id)
+        }
         ProjectError::Conflict(msg) => {
             traced_platform_problem(SdkWorkResultCode::Conflict, msg, trace_id)
         }
@@ -144,6 +150,17 @@ pub fn map_not_found(message: impl Into<String>, trace_id: Option<&str>) -> Prob
     traced_platform_problem(SdkWorkResultCode::NotFound, message, trace_id)
 }
 
+pub fn map_precondition_required(
+    message: impl Into<String>,
+    trace_id: Option<&str>,
+) -> ProblemJsonBody {
+    traced_platform_problem(SdkWorkResultCode::PreconditionRequired, message, trace_id)
+}
+
+pub fn map_unavailable(message: impl Into<String>, trace_id: Option<&str>) -> ProblemJsonBody {
+    traced_platform_problem(SdkWorkResultCode::ServiceUnavailable, message, trace_id)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -173,7 +190,7 @@ mod tests {
         assert_eq!(problem.code, SdkWorkResultCode::ServiceUnavailable.as_i32());
         assert_eq!(
             problem.detail.as_deref(),
-            Some(PROJECT_DEPLOYMENT_UNAVAILABLE_DETAIL)
+            Some("A required dependency is temporarily unavailable")
         );
         assert_eq!(problem.trace_id, "0195f2a0-7c44-7b2e-9f3a-2a6f5d8e91ab");
     }

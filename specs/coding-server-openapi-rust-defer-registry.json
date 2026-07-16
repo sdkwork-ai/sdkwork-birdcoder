@@ -1,14 +1,14 @@
 {
   "schemaVersion": 2,
-  "updatedAt": "2026-07-08",
+  "updatedAt": "2026-07-16",
   "openApiSnapshotPath": "deployments/server-windows/x64/openapi/coding-server-v1.json",
   "summary": {
-    "contractOperationCount": 161,
-    "rustProductManifestRouteCount": 80,
+    "contractOperationCount": 174,
+    "rustProductManifestRouteCount": 93,
     "iamFederationManifestRouteCount": 198,
     "commerceGatewayRouteCount": 15,
-    "hostManifestRouteCount": 293,
-    "implementedOperationCount": 161,
+    "hostManifestRouteCount": 306,
+    "implementedOperationCount": 174,
     "deferredOperationCount": 0
   },
   "federation": {
@@ -53,6 +53,18 @@
       "method": "DELETE",
       "path": "/app/v3/api/projects/{projectId}",
       "operationId": "projects.delete",
+      "surface": "app"
+    },
+    {
+      "method": "DELETE",
+      "path": "/app/v3/api/projects/{projectId}/runtime_locations/{runtimeLocationId}",
+      "operationId": "projects.runtimeLocations.delete",
+      "surface": "app"
+    },
+    {
+      "method": "DELETE",
+      "path": "/app/v3/api/projects/{projectId}/workspace_binding",
+      "operationId": "projects.workspaceBinding.delete",
       "surface": "app"
     },
     {
@@ -393,8 +405,38 @@
     },
     {
       "method": "GET",
+      "path": "/app/v3/api/projects/{projectId}/git/diff",
+      "operationId": "projects.git.diff.retrieve",
+      "surface": "app"
+    },
+    {
+      "method": "GET",
       "path": "/app/v3/api/projects/{projectId}/git/overview",
       "operationId": "projects.git.overview.retrieve",
+      "surface": "app"
+    },
+    {
+      "method": "GET",
+      "path": "/app/v3/api/projects/{projectId}/runtime_location_preferences",
+      "operationId": "projects.runtimeLocations.preferences.list",
+      "surface": "app"
+    },
+    {
+      "method": "GET",
+      "path": "/app/v3/api/projects/{projectId}/runtime_locations",
+      "operationId": "projects.runtimeLocations.list",
+      "surface": "app"
+    },
+    {
+      "method": "GET",
+      "path": "/app/v3/api/projects/{projectId}/runtime_locations/{runtimeLocationId}",
+      "operationId": "projects.runtimeLocations.retrieve",
+      "surface": "app"
+    },
+    {
+      "method": "GET",
+      "path": "/app/v3/api/projects/{projectId}/workspace_binding",
+      "operationId": "projects.workspaceBinding.retrieve",
       "surface": "app"
     },
     {
@@ -580,7 +622,7 @@
     {
       "method": "GET",
       "path": "/backend/v3/api/projects/{projectId}/deployment_targets",
-      "operationId": "projects.deploymentTargets.list",
+      "operationId": "deploymentGovernance.targets.list",
       "surface": "backend"
     },
     {
@@ -617,6 +659,12 @@
       "method": "PATCH",
       "path": "/app/v3/api/projects/{projectId}",
       "operationId": "projects.update",
+      "surface": "app"
+    },
+    {
+      "method": "PATCH",
+      "path": "/app/v3/api/projects/{projectId}/runtime_locations/{runtimeLocationId}",
+      "operationId": "projects.runtimeLocations.update",
       "surface": "app"
     },
     {
@@ -897,6 +945,24 @@
     },
     {
       "method": "POST",
+      "path": "/app/v3/api/projects/{projectId}/runtime_locations",
+      "operationId": "projects.runtimeLocations.create",
+      "surface": "app"
+    },
+    {
+      "method": "POST",
+      "path": "/app/v3/api/projects/{projectId}/runtime_locations/{runtimeLocationId}/rebind",
+      "operationId": "projects.runtimeLocations.rebind",
+      "surface": "app"
+    },
+    {
+      "method": "POST",
+      "path": "/app/v3/api/projects/{projectId}/runtime_locations/{runtimeLocationId}/request_verification",
+      "operationId": "projects.runtimeLocations.requestVerification",
+      "surface": "app"
+    },
+    {
+      "method": "POST",
       "path": "/app/v3/api/skill_packages/{packageId}/installations",
       "operationId": "skillPackages.installations.create",
       "surface": "app"
@@ -983,6 +1049,18 @@
       "method": "PUT",
       "path": "/app/v3/api/model_config",
       "operationId": "modelConfig.update",
+      "surface": "app"
+    },
+    {
+      "method": "PUT",
+      "path": "/app/v3/api/projects/{projectId}/runtime_location_preferences/{capability}",
+      "operationId": "projects.runtimeLocations.preferences.update",
+      "surface": "app"
+    },
+    {
+      "method": "PUT",
+      "path": "/app/v3/api/projects/{projectId}/workspace_binding",
+      "operationId": "projects.workspaceBinding.update",
       "surface": "app"
     }
   ],

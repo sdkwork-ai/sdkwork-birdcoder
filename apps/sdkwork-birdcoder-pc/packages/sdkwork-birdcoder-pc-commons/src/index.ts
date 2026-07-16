@@ -13,6 +13,7 @@ export * from './hooks/useCodingServerOverview.ts';
 export * from './hooks/useCodingSessionProjection.ts';
 export * from './hooks/useFileSystem.ts';
 export * from './hooks/useProjectLocalWorkingDirectory.ts';
+export * from './hooks/useProjectRuntimeLocation.ts';
 export * from './hooks/usePersistedState.ts';
 export * from './hooks/useProjectGitOverview.ts';
 export * from './hooks/useProjectGitMutationActions.ts';
@@ -31,6 +32,7 @@ export * from './contexts/ToastProvider.ts';
 export * from './events/projectMountRecoveryEvents.ts';
 export * from './events/projectDeviceMountEvents.ts';
 export * from './events/projectGitOverview.ts';
+export * from './events/projectFileSystemSynchronization.ts';
 export * from './legalLinks.ts';
 export * from './utils/EventBus.ts';
 export * from './components/ErrorBoundary.tsx';
@@ -52,7 +54,7 @@ export {
 } from './terminal/registry.ts';
 export * from './terminal/runtime.ts';
 export * from './terminal/auditStore.ts';
-export * from './terminal/runConfigStorage.ts';
+export * from './terminal/runConfigDefinitions.ts';
 export {
   buildRunConfigurationTerminalRequest,
   resolveRunConfigurationDirectory,
@@ -72,6 +74,7 @@ export * from './workbench/importedProjectHydration.ts';
 export * from './workbench/localFolderProjectImport.ts';
 export * from './workbench/localFolderProjectWorkspace.ts';
 export * from './workbench/projectMountRecovery.ts';
+export * from './workbench/projectRuntimeLocationResolution.ts';
 export * from './workbench/gitBranches.ts';
 export * from './workbench/gitWorktrees.ts';
 export * from './workbench/fileSelectionMutation.ts';

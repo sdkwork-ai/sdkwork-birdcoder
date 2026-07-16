@@ -8,8 +8,8 @@ const universalChatSource = fs.readFileSync(
 
 assert.match(
   universalChatSource,
-  /layout === 'main' \? \(\s*<div className=\"flex min-h-full w-full px-4 md:px-8\">[\s\S]*max-w-3xl mx-auto[\s\S]*justify-center/s,
-  'UniversalChat main-layout empty state must use the same centered max-width frame as the message transcript so the chat surface width stays stable before and after the first message.',
+  /layout === 'main' \? \(\s*<div className=\"flex min-h-full w-full px-5\">[\s\S]*max-w-\[880px\][\s\S]*justify-center/s,
+  'UniversalChat main-layout empty state must use the same 880px centered frame and padding as the message transcript and composer.',
 );
 
 console.log('universal chat empty state layout contract passed.');

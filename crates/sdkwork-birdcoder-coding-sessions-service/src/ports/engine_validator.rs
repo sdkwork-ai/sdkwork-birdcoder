@@ -8,4 +8,10 @@ pub trait EngineValidator: Send + Sync {
         engine_id: &str,
         host_mode: &str,
     ) -> Result<AuthoritativeEngineRuntimeProfile, CodingSessionError>;
+
+    fn validate_engine_model(
+        &self,
+        engine_id: &str,
+        model_id: &str,
+    ) -> Result<(), CodingSessionError>;
 }

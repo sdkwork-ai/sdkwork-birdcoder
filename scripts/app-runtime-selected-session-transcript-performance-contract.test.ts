@@ -11,6 +11,7 @@ import {
 const workspaceId = 'workspace-app-runtime-selected-transcript';
 const projectId = 'project-app-runtime-selected-transcript';
 const codingSessionId = 'session-app-runtime-selected-transcript';
+const runtimeLocationId = 'runtime-location-app-runtime-selected-transcript';
 const timestamp = '2026-04-29T09:00:00.000Z';
 
 function buildMessage(id: string, content: string, createdAt: string): BirdCoderChatMessage {
@@ -41,6 +42,7 @@ const inventorySession: BirdCoderCodingSession = {
   modelId: 'gpt-5.4',
   pinned: false,
   projectId,
+  runtimeLocationId,
   sortTimestamp: String(Date.parse(timestamp)),
   status: 'active',
   title: 'Core selected transcript',
@@ -89,12 +91,12 @@ const projectService = {
 const appClient = createBirdCoderAppSdkApiClient({
   transport: createBirdCoderInProcessAppRuntimeTransport({
     nativeSessionProvider: {
-      async getNativeSession() {
+      async getNativeSession(_nativeSessionId: string, request: { runtimeLocationId: string }) {
+        assert.equal(request.runtimeLocationId, runtimeLocationId);
         return {
           summary: {
             ...inventorySession,
             kind: 'coding',
-            nativeCwd: 'E:/workspace/performance-contract',
             sortTimestamp: inventorySession.updatedAt,
           },
           messages: transcriptMessages,
@@ -111,6 +113,7 @@ const appClient = createBirdCoderAppSdkApiClient({
 const nativeSession = await appClient.getNativeSession(codingSessionId, {
   workspaceId,
   projectId,
+  runtimeLocationId,
 });
 assert.deepEqual(
   nativeSession.messages.map((message) => message.id),

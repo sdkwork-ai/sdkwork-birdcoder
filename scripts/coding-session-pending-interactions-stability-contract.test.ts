@@ -52,24 +52,34 @@ const duplicateApprovalCheckpoints: BirdCoderCodingSessionCheckpoint[] = [
 
 const duplicateQuestionEvents: BirdCoderCodingSessionEvent[] = [
   {
+    id: 'approval-event-duplicate',
+    codingSessionId: sessionId,
+    turnId: 'turn-pending-approval',
+    runtimeId: 'runtime-pending-approval',
+    kind: 'approval.required',
+    sequence: '0',
+    payload: {
+      approvalId: 'approval-duplicate',
+      interactionId: 'approval-duplicate',
+      interactionKind: 'approval',
+      reason: 'Canonical approval projection',
+      runtimeStatus: 'awaiting_approval',
+    },
+    createdAt: '2026-04-28T10:00:30.000Z',
+  },
+  {
     id: 'question-event-older',
     codingSessionId: sessionId,
     turnId: 'turn-pending-question',
     runtimeId: 'runtime-pending-question',
-    kind: 'tool.call.requested',
+    kind: 'user.question.required',
     sequence: '1',
     payload: {
-      toolCallId: 'tool-question-older',
-      toolName: 'question',
+      interactionId: 'question-duplicate',
+      interactionKind: 'user_question',
+      toolCallId: 'tool-question-duplicate',
       runtimeStatus: 'awaiting_user',
-      toolArguments: JSON.stringify({
-        requestId: 'question-duplicate',
-        questions: [
-          {
-            question: 'Older question projection',
-          },
-        ],
-      }),
+      questions: [{ question: 'Older question projection' }],
     },
     createdAt: '2026-04-28T10:01:00.000Z',
   },
@@ -78,20 +88,14 @@ const duplicateQuestionEvents: BirdCoderCodingSessionEvent[] = [
     codingSessionId: sessionId,
     turnId: 'turn-pending-question',
     runtimeId: 'runtime-pending-question',
-    kind: 'tool.call.requested',
+    kind: 'user.question.required',
     sequence: '2',
     payload: {
-      toolCallId: 'tool-question-newer',
-      toolName: 'question',
+      interactionId: 'question-duplicate',
+      interactionKind: 'user_question',
+      toolCallId: 'tool-question-duplicate',
       runtimeStatus: 'awaiting_user',
-      toolArguments: JSON.stringify({
-        requestId: 'question-duplicate',
-        questions: [
-          {
-            question: 'Newer question projection',
-          },
-        ],
-      }),
+      questions: [{ question: 'Newer question projection' }],
     },
     createdAt: '2026-04-28T10:02:00.000Z',
   },
@@ -194,33 +198,35 @@ const deduplicated = await loadCodingSessionPendingInteractionState(
 assert.deepEqual(
   deduplicated.approvals.map((approval) => ({
     approvalId: approval.approvalId,
-    checkpointId: approval.checkpointId,
+    interactionEventId: approval.interactionEventId,
     reason: approval.reason,
   })),
   [
     {
       approvalId: 'approval-duplicate',
-      checkpointId: 'approval-checkpoint-newer',
-      reason: 'Newer approval projection',
+      interactionEventId: 'approval-event-duplicate',
+      reason: 'Canonical approval projection',
     },
   ],
-  'duplicate approval checkpoints with the same approvalId must collapse to the newest pending approval before React renders key={approvalId}.',
+  'checkpoint snapshots must not replace the canonical approval source-event identity.',
 );
 
 assert.deepEqual(
   deduplicated.questions.map((question) => ({
+    interactionEventId: question.interactionEventId,
     questionId: question.questionId,
     prompt: question.prompt,
     toolCallId: question.toolCallId,
   })),
   [
     {
+      interactionEventId: 'question-event-newer',
       questionId: 'question-duplicate',
       prompt: 'Newer question projection',
-      toolCallId: 'tool-question-newer',
+      toolCallId: 'tool-question-duplicate',
     },
   ],
-  'duplicate user_question events with the same questionId must collapse to the newest pending question before React renders key={questionId}.',
+  'duplicate canonical user_question events must collapse by provider interaction while retaining the newest durable source-event id.',
 );
 
 readCalls.length = 0;
@@ -230,13 +236,13 @@ const reverseOrderedDeduplicated = await loadCodingSessionPendingInteractionStat
 );
 
 assert.equal(
-  reverseOrderedDeduplicated.approvals[0]?.checkpointId,
-  'approval-checkpoint-newer',
-  'duplicate approval deduplication must choose the newest checkpoint by timestamp even when the repository returns checkpoints out of order.',
+  reverseOrderedDeduplicated.approvals[0]?.interactionEventId,
+  'approval-event-duplicate',
+  'approval projection must retain the durable source-event id when checkpoint rows arrive out of order.',
 );
 assert.equal(
   reverseOrderedDeduplicated.questions[0]?.toolCallId,
-  'tool-question-newer',
+  'tool-question-duplicate',
   'duplicate user-question deduplication must choose the newest event by sequence even when the repository returns events out of order.',
 );
 

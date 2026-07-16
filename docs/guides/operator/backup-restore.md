@@ -1,6 +1,6 @@
 # Backup and Restore
 
-Updated: 2026-06-24  
+Updated: 2026-07-16
 Specs: `DATABASE_FRAMEWORK_SPEC.md`, `DEPLOYMENT_SPEC.md`
 
 ## SQLite (default K8s profile)
@@ -13,57 +13,51 @@ kubectl exec -n <namespace> deploy/sdkwork-birdcoder -- \
 kubectl cp <namespace>/<pod>:/tmp/birdcoder-backup.sqlite3 ./birdcoder-backup-$(date +%Y%m%d).sqlite3
 ```
 
-Prefer volume snapshots when your storage class supports consistent PVC snapshots.
+Prefer consistent volume snapshots when the storage class supports them.
 
 ### Restore
 
-1. Scale deployment to 0 replicas.
-2. Replace PVC data or restore snapshot into `/var/lib/sdkwork-birdcoder/data.sqlite3`.
+1. Scale the deployment to 0 replicas.
+2. Replace PVC data or restore the snapshot into `/var/lib/sdkwork-birdcoder/data.sqlite3`.
 3. Scale back to 1 replica.
 4. Verify `GET /readyz` returns `"status":"ready"`.
+5. Verify a known coding session has monotonic event sequences and a terminal event.
 
 ## PostgreSQL (HA profile)
 
-### Backup (manual)
+### Backup
 
 ```bash
 pg_dump --format=custom --no-owner --dbname="$DATABASE_URL" \
   > birdcoder-$(date +%Y%m%d).dump
 ```
 
-### Backup (Helm CronJob)
-
-When `backup.enabled: true` and `database.engine: postgresql`, the chart renders `templates/backup-cronjob.yaml`. Configure:
-
-```yaml
-backup:
-  enabled: true
-  schedule: "0 3 * * *"
-  retentionDays: 14
-database:
-  engine: postgresql
-  url: postgres://birdcoder:SECRET@postgresql:5432/birdcoder
-```
-
-Dump files land in the configured PVC or object storage hook (operator must mount writable storage at `/backup`).
+When `backup.enabled: true` and `database.engine: postgresql`, the Helm chart renders
+`templates/backup-cronjob.yaml`. Dump files must land in a writable `/backup` volume or the
+operator-provided object-storage hook.
 
 ### Restore
 
-1. Put API deployment in maintenance (scale to 0 or ingress drain).
-2. Drop and recreate database schema from `database/ddl/baseline/postgres/` if corruption is suspected.
-3. Restore dump:
-
-```bash
-pg_restore --clean --if-exists --no-owner --dbname="$DATABASE_URL" birdcoder-YYYYMMDD.dump
-```
-
-4. Run database lifecycle bootstrap/migrations if schema version drifted.
-5. Run `pnpm release:smoke:postgresql-live` before traffic restore.
+1. Put the API deployment in maintenance mode.
+2. Recreate the schema from `database/ddl/baseline/postgres/` only when corruption requires it.
+3. Run `pg_restore --clean --if-exists --no-owner --dbname="$DATABASE_URL" <dump>`.
+4. Run database bootstrap/migrations when the schema version changed.
+5. Run `pnpm release:smoke:postgresql-live` before restoring traffic.
+6. Verify coding-session replay from a cursor on both SSE and WebSocket.
 
 ## Redis (realtime HA)
 
-Redis holds ephemeral workspace fan-out state only. Rebuild empty on loss; clients reconnect with exponential backoff. No backup required for correctness of persisted product data.
+Redis holds ephemeral workspace fan-out state only. Canonical coding-session events live in the
+application database, so Redis can be rebuilt empty. Session-scoped clients reconnect with
+`codingSessionId` and their last applied database sequence, replay the missing range, and then
+return to live fan-out. Redis backup is not required for coding-session event correctness.
+
+After rebuilding Redis, verify a session with known traffic over both transports. JSON
+`eventId`, `codingSessionEventSequence`, event kind, and payload must match the database and be
+identical across SSE and WebSocket. Workspace lifecycle notifications are live-only; reconcile
+workspace/project inventory from authenticated list APIs after an outage.
 
 ## Release artifact backup
 
-Retain finalized release bundles (`release-manifest.json`, OpenAPI sidecar, SHA256SUMS) per `RELEASE_SPEC.md` for rollback correlation.
+Retain finalized release bundles (`release-manifest.json`, OpenAPI sidecar, and `SHA256SUMS`) per
+`RELEASE_SPEC.md` for rollback correlation.

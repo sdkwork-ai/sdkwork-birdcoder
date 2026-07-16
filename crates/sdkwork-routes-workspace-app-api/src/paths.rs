@@ -4,6 +4,20 @@ pub const WORKSPACE_REALTIME_PATH: &str = "/app/v3/api/workspaces/{workspaceId}/
 pub const WORKSPACE_MEMBERS_PATH: &str = "/app/v3/api/workspaces/{workspaceId}/members";
 pub const PROJECTS_PATH: &str = "/app/v3/api/projects";
 pub const PROJECT_DETAIL_PATH: &str = "/app/v3/api/projects/{projectId}";
+pub const PROJECT_WORKSPACE_BINDING_PATH: &str =
+    "/app/v3/api/projects/{projectId}/workspace_binding";
+pub const PROJECT_RUNTIME_LOCATIONS_PATH: &str =
+    "/app/v3/api/projects/{projectId}/runtime_locations";
+pub const PROJECT_RUNTIME_LOCATION_DETAIL_PATH: &str =
+    "/app/v3/api/projects/{projectId}/runtime_locations/{runtimeLocationId}";
+pub const PROJECT_RUNTIME_LOCATION_REBIND_PATH: &str =
+    "/app/v3/api/projects/{projectId}/runtime_locations/{runtimeLocationId}/rebind";
+pub const PROJECT_RUNTIME_LOCATION_VERIFICATION_REQUEST_PATH: &str =
+    "/app/v3/api/projects/{projectId}/runtime_locations/{runtimeLocationId}/request_verification";
+pub const PROJECT_RUNTIME_LOCATION_PREFERENCES_PATH: &str =
+    "/app/v3/api/projects/{projectId}/runtime_location_preferences";
+pub const PROJECT_RUNTIME_LOCATION_PREFERENCE_PATH: &str =
+    "/app/v3/api/projects/{projectId}/runtime_location_preferences/{capability}";
 pub const PROJECT_GIT_OVERVIEW_PATH: &str = "/app/v3/api/projects/{projectId}/git/overview";
 pub const PROJECT_GIT_DIFF_PATH: &str = "/app/v3/api/projects/{projectId}/git/diff";
 pub const PROJECT_GIT_BRANCHES_PATH: &str = "/app/v3/api/projects/{projectId}/git/branches";

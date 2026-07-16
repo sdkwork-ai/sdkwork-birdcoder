@@ -315,9 +315,9 @@
     "standardOwner": "sdkwork-platform",
     "initializedAt": "2026-05-07T00:00:00Z",
     "preLaunch": true,
-    "releaseEvidenceStatus": "contract-gates-green-release-rehearsal-http-openapi-161-route-catalog-162-agents-95-app-sdk-catalog-prelaunch-artifacts-pending-2026-07-08",
+    "releaseEvidenceStatus": "contract-gates-green-release-rehearsal-http-openapi-174-route-catalog-175-agents-95-app-sdk-catalog-prelaunch-artifacts-pending-2026-07-16",
     "commercialReadiness": {
-      "pcPrivateBeta": "iam-federation-http-openapi-161-route-catalog-162-aligned-agents-app-sdk-catalog-runtime-facade-private-beta-ready",
+      "pcPrivateBeta": "iam-federation-http-openapi-174-route-catalog-175-aligned-agents-app-sdk-catalog-runtime-facade-private-beta-ready",
       "enterpriseK8s": "postgresql-ha-backup-template-liveness-readiness-split-redis-rate-limit-aligned-ci-smoke-pending-release-runbook",
       "saasPublicCloud": "governance-pr-ci-aligned-release-rehearsal-openapi-complete-agent-crud-ui-memory-task-run-streaming-pending-prelaunch-artifacts-pending",
       "mobileProductParity": "h5-flutter-chat-api-ci-smoke-capacitor-sync-android-assemble-aligned-prelaunch-secure-storage-remediation-complete",

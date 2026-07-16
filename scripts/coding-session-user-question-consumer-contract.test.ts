@@ -36,7 +36,8 @@ const projectionModulePath = new URL(
 );
 
 const sessionId = 'user-question-consumer-contract-session';
-const questionId = 'question-request-1';
+const questionId = 'user-question-consumer-contract-event';
+const providerQuestionId = 'question-request-1';
 const unsafeQuestionId = '101777208078558013';
 
 const sessionFixture: BirdCoderCodingSessionSummary = {
@@ -55,19 +56,19 @@ const sessionFixture: BirdCoderCodingSessionSummary = {
 };
 
 const questionEventFixture: BirdCoderCodingSessionEvent = {
-  id: 'user-question-consumer-contract-event',
+  id: questionId,
   codingSessionId: sessionId,
   turnId: 'user-question-consumer-contract-turn',
   runtimeId: 'user-question-consumer-contract-runtime',
-  kind: 'tool.call.requested',
+  kind: 'user.question.required',
   sequence: '3',
   payload: {
+    interactionId: providerQuestionId,
+    interactionKind: 'user_question',
     toolCallId: 'tool-user-question',
-    toolName: 'question',
-    runtimeStatus: 'awaiting_user',
-    toolArguments: JSON.stringify({
-      requestId: questionId,
-      sessionID: 'native-session-1',
+    toolName: 'user_question',
+    runtimeStatus: 'awaiting_tool',
+    toolArguments: {
       questions: [
         {
           header: 'Test scope',
@@ -80,7 +81,7 @@ const questionEventFixture: BirdCoderCodingSessionEvent = {
           ],
         },
       ],
-    }),
+    },
   },
   createdAt: '2026-04-22T13:05:00.000Z',
 };
@@ -94,6 +95,8 @@ const answeredQuestionEventFixture: BirdCoderCodingSessionEvent = {
   sequence: '4',
   payload: {
     questionId,
+    interactionId: providerQuestionId,
+    interactionKind: 'user_question',
     toolCallId: 'tool-user-question',
     answer: 'Unit',
     runtimeStatus: 'awaiting_tool',
@@ -109,10 +112,12 @@ const toolArgumentsAnsweredQuestionEventFixture: BirdCoderCodingSessionEvent = {
   kind: 'tool.call.completed',
   sequence: '4',
   payload: {
+    questionId,
+    interactionId: providerQuestionId,
+    interactionKind: 'user_question',
     toolCallId: 'tool-user-question',
     toolName: 'user_question',
     toolArguments: JSON.stringify({
-      requestId: questionId,
       status: 'completed',
       runtimeStatus: 'awaiting_tool',
       answer: 'Unit',
@@ -129,6 +134,9 @@ const rejectedQuestionEventFixture: BirdCoderCodingSessionEvent = {
   kind: 'tool.call.progress',
   sequence: '4',
   payload: {
+    questionId,
+    interactionId: providerQuestionId,
+    interactionKind: 'user_question',
     toolCallId: 'tool-user-question',
     toolName: 'user_question',
     toolArguments: JSON.stringify({
@@ -209,7 +217,7 @@ const answerResultFixture: BirdCoderUserQuestionAnswerResult = {
 };
 
 const rejectionResultFixture: BirdCoderUserQuestionAnswerResult = {
-  questionId: 'question-request-reject',
+  questionId: 'user-question-consumer-contract-reject-event',
   codingSessionId: sessionId,
   rejected: true,
   answeredAt: '2026-04-22T13:07:00.000Z',
@@ -220,6 +228,7 @@ const rejectionResultFixture: BirdCoderUserQuestionAnswerResult = {
 
 const observedAnswers: Array<{
   answer?: string;
+  codingSessionId: string;
   optionLabel?: string;
   questionId: string;
   rejected?: boolean;
@@ -298,8 +307,9 @@ const codingRuntimeClient: BirdCoderAppRuntimeWriteSdkApiClient = {
   async submitApprovalDecision() {
     throw new Error('not needed');
   },
-  async submitUserQuestionAnswer(requestQuestionId, request) {
+  async submitUserQuestionAnswer(requestCodingSessionId, requestQuestionId, request) {
     observedAnswers.push({
+      codingSessionId: requestCodingSessionId,
       questionId: requestQuestionId,
       answer: request.answer,
       optionLabel: request.optionLabel,
@@ -360,10 +370,10 @@ const questions = await projectionModule.loadCodingSessionUserQuestionState(
 
 assert.deepEqual(questions, [
   {
-    questionId,
-    checkpointId: undefined,
     codingSessionId: sessionId,
+    interactionEventId: questionId,
     prompt: 'Which tests should I run?',
+    questionId: providerQuestionId,
     runtimeId: 'user-question-consumer-contract-runtime',
     toolCallId: 'tool-user-question',
     turnId: 'user-question-consumer-contract-turn',
@@ -481,10 +491,10 @@ const deduplicatedQuestions = await projectionModule.loadCodingSessionUserQuesti
   sessionId,
 );
 
-assert.equal(
-  deduplicatedQuestions.length,
-  1,
-  'requested/progress events for the same user_question tool call must collapse into one pending prompt.',
+assert.deepEqual(
+  deduplicatedQuestions,
+  [],
+  'a user_question progress event that advances to awaiting_tool must settle the pending prompt.',
 );
 
 const opencodeRequestIdQuestionAppRuntimeReadService: IAppRuntimeReadService = {
@@ -503,19 +513,9 @@ const opencodeRequestIdQuestions = await projectionModule.loadCodingSessionUserQ
 );
 
 assert.deepEqual(
-  opencodeRequestIdQuestions.map((question) => ({
-    questionId: question.questionId,
-    toolCallId: question.toolCallId,
-    prompt: question.prompt,
-  })),
-  [
-    {
-      questionId,
-      toolCallId: 'tool-opencode-user-question',
-      prompt: 'Use OpenCode requestID?',
-    },
-  ],
-  'user_question consumers must resolve provider requestID/callID aliases into canonical question and tool-call identity.',
+  opencodeRequestIdQuestions,
+  [],
+  'provider requestID/callID aliases must not create replyable questions without a canonical source event.',
 );
 
 const opencodeRequestIdAnsweredAppRuntimeReadService: IAppRuntimeReadService = {
@@ -558,14 +558,15 @@ const unsafeLongQuestions = await projectionModule.loadCodingSessionUserQuestion
   sessionId,
 );
 
-assert.equal(
-  unsafeLongQuestions[0]?.questionId,
-  unsafeQuestionId,
-  'user_question toolArguments parsing must preserve unquoted Long requestId values as exact strings.',
+assert.deepEqual(
+  unsafeLongQuestions,
+  [],
+  'legacy unquoted provider request ids must not bypass the canonical interaction boundary.',
 );
 
 const answerResult = await projectionModule.submitCodingSessionUserQuestionAnswer(
   services.appRuntimeWriteService as Pick<IAppRuntimeWriteService, 'submitUserQuestionAnswer'>,
+  sessionId,
   questionId,
   {
     answer: 'Unit',
@@ -575,7 +576,8 @@ const answerResult = await projectionModule.submitCodingSessionUserQuestionAnswe
 
 const rejectionResult = await projectionModule.submitCodingSessionUserQuestionAnswer(
   services.appRuntimeWriteService as Pick<IAppRuntimeWriteService, 'submitUserQuestionAnswer'>,
-  'question-request-reject',
+  sessionId,
+  'user-question-consumer-contract-reject-event',
   {
     rejected: true,
   },
@@ -583,13 +585,15 @@ const rejectionResult = await projectionModule.submitCodingSessionUserQuestionAn
 
 assert.deepEqual(observedAnswers, [
   {
+    codingSessionId: sessionId,
     questionId,
     answer: 'Unit',
     optionLabel: 'Unit',
     rejected: undefined,
   },
   {
-    questionId: 'question-request-reject',
+    codingSessionId: sessionId,
+    questionId: 'user-question-consumer-contract-reject-event',
     answer: undefined,
     optionLabel: undefined,
     rejected: true,

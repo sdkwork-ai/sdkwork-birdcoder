@@ -1,0 +1,110 @@
+{
+  "kind": "sdkwork.gateway.assembly",
+  "schemaVersion": 1,
+  "applicationCode": "birdcoder",
+  "packageName": "sdkwork-birdcoder-gateway-assembly",
+  "crateDir": "crates/sdkwork-birdcoder-gateway-assembly",
+  "generatedAt": "2026-07-16T07:42:03.585Z",
+  "routeCrates": [
+    {
+      "packageName": "sdkwork-routes-chat-app-api",
+      "memberDir": "crates/sdkwork-routes-chat-app-api",
+      "libName": "sdkwork_routes_chat_app_api",
+      "surface": "app-api",
+      "pathPrefix": null,
+      "mountOrder": 0,
+      "hasGatewayMount": true,
+      "hasGatewayRouteManifest": true
+    },
+    {
+      "packageName": "sdkwork-routes-coding-sessions-app-api",
+      "memberDir": "crates/sdkwork-routes-coding-sessions-app-api",
+      "libName": "sdkwork_routes_coding_sessions_app_api",
+      "surface": "app-api",
+      "pathPrefix": null,
+      "mountOrder": 1,
+      "hasGatewayMount": true,
+      "hasGatewayRouteManifest": true
+    },
+    {
+      "packageName": "sdkwork-routes-commerce-app-api",
+      "memberDir": "crates/sdkwork-routes-commerce-app-api",
+      "libName": "sdkwork_routes_commerce_app_api",
+      "surface": "app-api",
+      "pathPrefix": null,
+      "mountOrder": 2,
+      "hasGatewayMount": true,
+      "hasGatewayRouteManifest": true
+    },
+    {
+      "packageName": "sdkwork-routes-deployment-backend-api",
+      "memberDir": "crates/sdkwork-routes-deployment-backend-api",
+      "libName": "sdkwork_routes_deployment_backend_api",
+      "surface": "backend-api",
+      "pathPrefix": null,
+      "mountOrder": 3,
+      "hasGatewayMount": true,
+      "hasGatewayRouteManifest": true
+    },
+    {
+      "packageName": "sdkwork-routes-document-app-api",
+      "memberDir": "crates/sdkwork-routes-document-app-api",
+      "libName": "sdkwork_routes_document_app_api",
+      "surface": "app-api",
+      "pathPrefix": null,
+      "mountOrder": 4,
+      "hasGatewayMount": true,
+      "hasGatewayRouteManifest": true
+    },
+    {
+      "packageName": "sdkwork-routes-engine-catalog-app-api",
+      "memberDir": "crates/sdkwork-routes-engine-catalog-app-api",
+      "libName": "sdkwork_routes_engine_catalog_app_api",
+      "surface": "app-api",
+      "pathPrefix": null,
+      "mountOrder": 5,
+      "hasGatewayMount": true,
+      "hasGatewayRouteManifest": true
+    },
+    {
+      "packageName": "sdkwork-routes-membership-app-api",
+      "memberDir": "crates/sdkwork-routes-membership-app-api",
+      "libName": "sdkwork_routes_membership_app_api",
+      "surface": "app-api",
+      "pathPrefix": null,
+      "mountOrder": 6,
+      "hasGatewayMount": true,
+      "hasGatewayRouteManifest": true
+    },
+    {
+      "packageName": "sdkwork-routes-skill-packages-app-api",
+      "memberDir": "crates/sdkwork-routes-skill-packages-app-api",
+      "libName": "sdkwork_routes_skill_packages_app_api",
+      "surface": "app-api",
+      "pathPrefix": null,
+      "mountOrder": 7,
+      "hasGatewayMount": true,
+      "hasGatewayRouteManifest": true
+    },
+    {
+      "packageName": "sdkwork-routes-system-app-api",
+      "memberDir": "crates/sdkwork-routes-system-app-api",
+      "libName": "sdkwork_routes_system_app_api",
+      "surface": "app-api",
+      "pathPrefix": null,
+      "mountOrder": 8,
+      "hasGatewayMount": true,
+      "hasGatewayRouteManifest": true
+    },
+    {
+      "packageName": "sdkwork-routes-workspace-app-api",
+      "memberDir": "crates/sdkwork-routes-workspace-app-api",
+      "libName": "sdkwork_routes_workspace_app_api",
+      "surface": "app-api",
+      "pathPrefix": null,
+      "mountOrder": 9,
+      "hasGatewayMount": true,
+      "hasGatewayRouteManifest": true
+    }
+  ]
+}

@@ -1,5 +1,4 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Plus, Trash2 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import type {
   BirdCoderEngineAccessLane,
@@ -9,7 +8,6 @@ import type {
 import {
   BIRDCODER_STANDARD_DEFAULT_ENGINE_ID,
   getWorkbenchCodeEngineKernel,
-  hasWorkbenchCodeModel,
   listWorkbenchCodeEngines,
   normalizeWorkbenchServerImplementedCodeEngineId,
   resolveWorkbenchServerEngineSupportState,
@@ -17,21 +15,14 @@ import {
 } from '@sdkwork/birdcoder-pc-codeengine';
 import {
   listTerminalCliProfileAvailability,
-  removeWorkbenchCodeEngineCustomModel,
   setWorkbenchActiveCodeEngine,
   setWorkbenchCodeEngineDefaultModel,
   type TerminalCliProfileAvailability,
-  upsertWorkbenchCodeEngineCustomModel,
   useToast,
 } from '@sdkwork/birdcoder-pc-commons';
 import { Button, WorkbenchCodeEngineIcon } from '@sdkwork/birdcoder-pc-ui-shell';
 
 import type { SettingsProps } from './types';
-
-interface EngineDraftState {
-  label: string;
-  modelId: string;
-}
 
 type EngineCliAvailabilityMap = Partial<
   Record<WorkbenchCodeEngineId, TerminalCliProfileAvailability>
@@ -317,7 +308,6 @@ export function CodeEngineSettings({
   CodeEngineSettingsSelectionProps) {
   const { t } = useTranslation();
   const { addToast } = useToast();
-  const [draftByEngineId, setDraftByEngineId] = useState<Record<string, EngineDraftState>>({});
   const [internalActiveEngineId, setInternalActiveEngineId] = useState(
     BIRDCODER_STANDARD_DEFAULT_ENGINE_ID,
   );
@@ -385,33 +375,6 @@ export function CodeEngineSettings({
   const activePrimaryLane = activeTopology.primaryLane;
   const activeFallbackLanes = activeTopology.fallbackLanes;
   const activeOfficialIntegration = activeTopology.officialIntegration;
-  const activeDraft = draftByEngineId[activeEngine.id] ?? { label: '', modelId: '' };
-
-  const updateDraft = (
-    engineId: string,
-    key: keyof EngineDraftState,
-    value: string,
-  ) => {
-    setDraftByEngineId((previousState) => ({
-      ...previousState,
-      [engineId]: {
-        label: previousState[engineId]?.label ?? '',
-        modelId: previousState[engineId]?.modelId ?? '',
-        [key]: value,
-      },
-    }));
-  };
-
-  const clearDraft = (engineId: string) => {
-    setDraftByEngineId((previousState) => ({
-      ...previousState,
-      [engineId]: {
-        label: '',
-        modelId: '',
-      },
-    }));
-  };
-
   if (!workbenchPreferences || !updateWorkbenchPreferences) {
     return null;
   }
@@ -671,110 +634,12 @@ export function CodeEngineSettings({
                   <span className="font-medium">{model.label}</span>
                   <span className="text-gray-500">{model.id}</span>
                   <span
-                    className={`rounded px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide ${
-                      model.source === 'custom'
-                        ? 'bg-violet-500/10 text-violet-300'
-                        : 'bg-white/5 text-gray-400'
-                    }`}
+                    className="rounded bg-white/5 px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide text-gray-400"
                   >
-                    {model.source === 'custom'
-                      ? t('settings.engines.customModel')
-                      : t('settings.engines.builtInModel')}
+                    {t('settings.engines.builtInModel')}
                   </span>
-                  {model.source === 'custom' ? (
-                    <button
-                      type="button"
-                      className="rounded p-1 text-gray-500 transition-colors hover:bg-red-500/10 hover:text-red-300"
-                      title={t('settings.engines.removeCustomModel')}
-                      onClick={() => {
-                        updateWorkbenchPreferences((previousState) =>
-                          removeWorkbenchCodeEngineCustomModel(
-                            previousState,
-                            activeEngine.id,
-                            model.id,
-                          ),
-                        );
-                        addToast(
-                          t('settings.engines.modelRemoved', {
-                            engine: activeEngine.label,
-                          }),
-                          'success',
-                        );
-                      }}
-                    >
-                      <Trash2 size={12} />
-                    </button>
-                  ) : null}
                 </div>
               ))}
-            </div>
-
-            <div className="mt-4 rounded-xl border border-dashed border-white/10 bg-[#0e0e11]/70 p-4">
-              <div className="mb-2 text-sm font-medium text-white">
-                {t('settings.engines.addCustomModel')}
-              </div>
-              <div className="mb-4 text-xs text-gray-500">
-                {t('settings.engines.addCustomModelDesc')}
-              </div>
-              <div className="grid gap-3 md:grid-cols-[minmax(0,1fr),minmax(0,1fr),auto]">
-                <input
-                  type="text"
-                  value={activeDraft.modelId}
-                  onChange={(event) =>
-                    updateDraft(activeEngine.id, 'modelId', event.target.value)
-                  }
-                  placeholder={t('settings.engines.modelIdPlaceholder')}
-                  className="rounded-lg border border-white/10 bg-[#0e0e11] px-3 py-2 text-sm text-white outline-none transition-colors placeholder:text-gray-600 hover:border-gray-500 focus:border-blue-500"
-                />
-                <input
-                  type="text"
-                  value={activeDraft.label}
-                  onChange={(event) =>
-                    updateDraft(activeEngine.id, 'label', event.target.value)
-                  }
-                  placeholder={t('settings.engines.modelLabelPlaceholder')}
-                  className="rounded-lg border border-white/10 bg-[#0e0e11] px-3 py-2 text-sm text-white outline-none transition-colors placeholder:text-gray-600 hover:border-gray-500 focus:border-blue-500"
-                />
-                <Button
-                  size="sm"
-                  className="h-10 gap-2"
-                  disabled={!activeDraft.modelId.trim()}
-                  onClick={() => {
-                    if (
-                      hasWorkbenchCodeModel(
-                        activeEngine.id,
-                        activeDraft.modelId,
-                        workbenchPreferences,
-                      )
-                    ) {
-                      addToast(
-                        t('settings.engines.modelAlreadyExists', {
-                          engine: activeEngine.label,
-                        }),
-                        'info',
-                      );
-                      return;
-                    }
-
-                    updateWorkbenchPreferences((previousState) =>
-                      upsertWorkbenchCodeEngineCustomModel(previousState, activeEngine.id, {
-                        id: activeDraft.modelId,
-                        label: activeDraft.label,
-                      }),
-                    );
-                    clearDraft(activeEngine.id);
-                    addToast(
-                      t('settings.engines.modelAdded', {
-                        engine: activeEngine.label,
-                      }),
-                      'success',
-                    );
-                  }}
-                >
-                  <Plus size={14} />
-                  {t('settings.engines.addModel')}
-                </Button>
-              </div>
             </div>
           </div>
         </div>

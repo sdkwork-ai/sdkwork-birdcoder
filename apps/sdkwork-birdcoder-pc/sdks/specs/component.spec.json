@@ -20,7 +20,8 @@
       "specs/domain-catalog.json"
     ],
     "manifests": [
-      ".sdkwork-assembly.json"
+      "sdkwork-birdcoder-app-sdk/sdk-manifest.json",
+      "sdkwork-birdcoder-backend-sdk/sdk-manifest.json"
     ]
   },
   "canonicalSpecs": [
@@ -93,7 +94,8 @@
       "sdkwork_birdcoder_backend_sdk"
     ],
     "runtimeEntrypoints": [
-      ".sdkwork-assembly.json",
+      "sdkwork-birdcoder-app-sdk/sdk-manifest.json",
+      "sdkwork-birdcoder-backend-sdk/sdk-manifest.json",
       "package.json#scripts.generate:sdk:birdcoder",
       "package.json#scripts.check:sdk-family-standard",
       "package.json#scripts.check:sdk-family-generated"
@@ -160,10 +162,14 @@
       }
     ],
     "configKeys": [
-      ".sdkwork-assembly.json#standardProfile",
-      ".sdkwork-assembly.json#surfaces"
+      "sdkwork-birdcoder-app-sdk/sdk-manifest.json#standardProfile",
+      "sdkwork-birdcoder-backend-sdk/sdk-manifest.json#standardProfile"
     ],
-    "routeManifest": null
+    "routeManifest": null,
+    "generation": {
+      "canonicalOpenApi": "deployments/server-windows/x64/openapi/coding-server-v1.json",
+      "familyDiscovery": "sdks/*/sdk-manifest.json"
+    }
   },
   "integration": {
     "authority": "OpenAPI documents under sdks/specs/openapi are the SDK source of truth and must follow API_SPEC.md.",

@@ -12,6 +12,7 @@ assert.equal(BIRDCODER_CODING_SESSION_RUNTIME_STATUSES.includes('awaiting_approv
 assert.equal(BIRDCODER_CODING_SESSION_RUNTIME_STATUSES.includes('failed'), true);
 assert.equal(BIRDCODER_CODING_SESSION_RUNTIME_STATUSES.includes('terminated'), true);
 assert.equal(BIRDCODER_CODING_SESSION_EVENT_KINDS.includes('approval.required'), true);
+assert.equal(BIRDCODER_CODING_SESSION_EVENT_KINDS.includes('user.question.required'), true);
 assert.equal(BIRDCODER_CODING_SESSION_EVENT_KINDS.includes('turn.failed'), true);
 assert.equal(BIRDCODER_CODING_SESSION_EVENT_KINDS.includes('operation.updated'), true);
 

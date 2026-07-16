@@ -6,4 +6,3 @@ export * from './appSessionToken.ts';
 export * from './appSessionTokenManager.ts';
 export * from './appSessionPersistence.ts';
 export * from './appSessionAuthRedirect.ts';
-export * from './birdCoderApiTransportError.ts';

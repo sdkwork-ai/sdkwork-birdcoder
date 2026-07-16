@@ -28,10 +28,11 @@ impl RuntimeApi {
     }
 
     /// Get discovered native engine session detail
-    pub async fn native_sessions_retrieve(&self, id: &str, workspace_id: &str, project_id: &str, engine_id: Option<&str>) -> Result<BirdCoderNativeSessionDetailEnvelope, SdkworkError> {
+    pub async fn native_sessions_retrieve(&self, id: &str, workspace_id: &str, project_id: &str, runtime_location_id: &str, engine_id: Option<&str>) -> Result<BirdCoderNativeSessionDetailEnvelope, SdkworkError> {
         let query = build_query_string(&[
             QueryParameterSpec::new("workspaceId", workspace_id, "form", true, false, None),
             QueryParameterSpec::new("projectId", project_id, "form", true, false, None),
+            QueryParameterSpec::new("runtimeLocationId", runtime_location_id, "form", true, false, None),
             QueryParameterSpec::new("engineId", engine_id, "form", true, false, None),
         ]);
         let path = append_query_string(app_path(&format!("/native_sessions/{}", serialize_path_parameter(id, PathParameterSpec::new("id", "simple", false)))), &query);
@@ -45,10 +46,11 @@ impl RuntimeApi {
     }
 
     /// List discovered native engine sessions
-    pub async fn native_sessions_list(&self, workspace_id: &str, project_id: &str, engine_id: Option<&str>, page: Option<i64>, page_size: Option<i64>) -> Result<BirdCoderNativeSessionSummaryListEnvelope, SdkworkError> {
+    pub async fn native_sessions_list(&self, workspace_id: &str, project_id: &str, runtime_location_id: &str, engine_id: Option<&str>, page: Option<i64>, page_size: Option<i64>) -> Result<BirdCoderNativeSessionSummaryListEnvelope, SdkworkError> {
         let query = build_query_string(&[
             QueryParameterSpec::new("workspaceId", workspace_id, "form", true, false, None),
             QueryParameterSpec::new("projectId", project_id, "form", true, false, None),
+            QueryParameterSpec::new("runtimeLocationId", runtime_location_id, "form", true, false, None),
             QueryParameterSpec::new("engineId", engine_id, "form", true, false, None),
             QueryParameterSpec::new("page", page, "form", true, false, None),
             QueryParameterSpec::new("page_size", page_size, "form", true, false, None),

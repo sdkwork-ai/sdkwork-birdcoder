@@ -25,9 +25,8 @@ export interface ProjectsStoreSnapshot {
 
 export interface ProjectsStoreRealtimeBinding {
   close(): void;
-  reconnectAttempt: number;
-  reconnectTimer: ReturnType<typeof setTimeout> | null;
-  subscription: { close(): void } | null;
+  start(): void;
+  synchronize(): void;
 }
 
 export interface ProjectsStore {
@@ -41,6 +40,10 @@ export interface ProjectsStore {
 }
 
 const projectStoresByScopeKey = new Map<string, ProjectsStore>();
+
+export function peekProjectsStore(scopeKey: string): ProjectsStore | null {
+  return projectStoresByScopeKey.get(scopeKey) ?? null;
+}
 
 export function normalizeProjectsStoreUserScope(
   userId: string | null | undefined,
@@ -699,6 +702,7 @@ export function updateProjectsStoreSnapshot(
 
   store.snapshot = nextSnapshot;
   emitProjectsStoreSnapshot(store);
+  store.realtime?.synchronize();
 }
 
 export function mutateProjectsStore(

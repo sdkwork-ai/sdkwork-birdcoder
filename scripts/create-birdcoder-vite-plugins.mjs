@@ -98,6 +98,7 @@ const BIRDCODER_PUBLIC_RUNTIME_ENV_ALLOWED_KEYS = new Set([
   'VITE_SDKWORK_BIRDCODER_DEPLOYMENT_PROFILE',
   'VITE_SDKWORK_BIRDCODER_IAM_DEPLOYMENT_MODE',
   'VITE_SDKWORK_BIRDCODER_OFFICIAL_WEBSITE_URL',
+  'VITE_SDKWORK_BIRDCODER_REALTIME_TRANSPORT',
   'VITE_SDKWORK_BIRDCODER_PRIVACY_POLICY_URL',
   'VITE_SDKWORK_BIRDCODER_RUNTIME_TARGET',
   'VITE_SDKWORK_BIRDCODER_SUPPORT_URL',
@@ -223,10 +224,14 @@ function resolveSdkworkTerminalInfrastructureEntryPath(
 }
 
 function resolveSdkworkTerminalLocalRuntimeAppSdkEntryPath() {
-  return resolveDependencyPath(
-    'sdkwork-terminal',
+  const relativeCandidates = [
+    'apps/sdkwork-terminal-pc/sdks/sdkwork-terminal-app-sdk/sdkwork-terminal-app-sdk-typescript/src/index.ts',
     'apps/sdkwork-terminal-pc/sdks/sdkwork-terminal-local-runtime-app-sdk/sdkwork-terminal-local-runtime-app-sdk-typescript/src/index.ts',
-  );
+  ];
+  return relativeCandidates
+    .map((relativePath) => resolveDependencyPath('sdkwork-terminal', relativePath))
+    .find((candidatePath) => existsSync(candidatePath))
+    ?? resolveDependencyPath('sdkwork-terminal', relativeCandidates[0]);
 }
 
 function resolveSdkworkCorePcReactBrowserFacadePath() {
@@ -583,6 +588,18 @@ function createBirdcoderWorkspaceAliasEntries(appRootDir = defaultBirdcoderAppRo
       replacement: resolveDependencyPath('sdkwork-drive', 'sdks/sdkwork-drive-app-sdk/sdkwork-drive-app-sdk-typescript/src/index.ts'),
     },
     {
+      find: '@sdkwork/drive-pc-sandbox-contracts',
+      replacement: resolveDependencyPath('sdkwork-drive', 'apps/sdkwork-drive-pc/packages/sdkwork-drive-pc-sandbox-contracts/src/index.ts'),
+    },
+    {
+      find: '@sdkwork/drive-pc-sandbox-explorer',
+      replacement: resolveDependencyPath('sdkwork-drive', 'apps/sdkwork-drive-pc/packages/sdkwork-drive-pc-sandbox-explorer/src/index.ts'),
+    },
+    {
+      find: '@sdkwork/drive-pc-sandbox-explorer-sdk-adapter',
+      replacement: resolveDependencyPath('sdkwork-drive', 'apps/sdkwork-drive-pc/packages/sdkwork-drive-pc-sandbox-explorer-sdk-adapter/src/index.ts'),
+    },
+    {
       find: '@sdkwork/messaging-app-sdk',
       replacement: resolveDependencyPath('sdkwork-messaging', 'sdks/sdkwork-messaging-app-sdk/sdkwork-messaging-app-sdk-typescript/src/index.ts'),
     },
@@ -604,6 +621,10 @@ function createBirdcoderWorkspaceAliasEntries(appRootDir = defaultBirdcoderAppRo
     },
     {
       find: '@sdkwork/terminal-local-runtime-app-sdk',
+      replacement: resolveSdkworkTerminalLocalRuntimeAppSdkEntryPath(),
+    },
+    {
+      find: '@sdkwork/terminal-app-sdk',
       replacement: resolveSdkworkTerminalLocalRuntimeAppSdkEntryPath(),
     },
     {

@@ -9,6 +9,11 @@ export interface ProjectedActivityFileChange extends FileChange {
   updateStatus?: string;
 }
 
+export interface ChatTurnActivitySummary {
+  commands: readonly NonNullable<ChatMessageViewSource['commands']>[number][];
+  fileChanges: readonly NonNullable<ChatMessageViewSource['fileChanges']>[number][];
+}
+
 interface FileUpdateSummaryBlock {
   endLineIndex: number;
   fileChanges: ProjectedActivityFileChange[];
@@ -100,6 +105,97 @@ export function parseFileUpdateSummaryContent(content: string): ProjectedActivit
 
 function normalizeActivityFileChangePathKey(path: string): string {
   return normalizeFileUpdateSummaryPath(path).replace(/\\/g, '/').toLowerCase();
+}
+
+function readActivityCommandKey(command: unknown, index: number): string | null {
+  if (typeof command !== 'object' || command === null) {
+    return null;
+  }
+
+  const record = command as Record<string, unknown>;
+  const commandText = typeof record.command === 'string' ? record.command.trim() : '';
+  if (!commandText) {
+    return null;
+  }
+
+  const toolCallId = typeof record.toolCallId === 'string' ? record.toolCallId.trim() : '';
+  const kind = typeof record.kind === 'string' ? record.kind.trim() : '';
+  return toolCallId || `${commandText}\u0001${kind}\u0001${index}`;
+}
+
+function isTurnCompletionReply(message: ChatMessageViewSource): boolean {
+  return message.role === 'assistant' || message.role === 'planner' || message.role === 'reviewer';
+}
+
+/**
+ * Builds the activity card for the final reply in a turn. Engine adapters often
+ * emit tool results independently from the final assistant message, so reading
+ * only the final message would hide changes and verification commands after a
+ * completed turn.
+ */
+export function resolveChatTurnActivitySummary(
+  messages: readonly ChatMessageViewSource[],
+  message: ChatMessageViewSource,
+): ChatTurnActivitySummary | null {
+  const turnId = message.turnId?.trim() ?? '';
+  if (!turnId || !isTurnCompletionReply(message)) {
+    return null;
+  }
+
+  let lastReplyIndex = -1;
+  for (let index = 0; index < messages.length; index += 1) {
+    const candidate = messages[index]!;
+    if (candidate.turnId?.trim() === turnId && isTurnCompletionReply(candidate)) {
+      lastReplyIndex = index;
+    }
+  }
+
+  if (lastReplyIndex < 0 || messages[lastReplyIndex] !== message) {
+    return null;
+  }
+
+  const fileChangesByPath = new Map<
+    string,
+    NonNullable<ChatMessageViewSource['fileChanges']>[number]
+  >();
+  const commandsByKey = new Map<
+    string,
+    NonNullable<ChatMessageViewSource['commands']>[number]
+  >();
+
+  for (const candidate of messages) {
+    if (candidate.turnId?.trim() !== turnId) {
+      continue;
+    }
+
+    for (const fileChange of candidate.fileChanges ?? []) {
+      if (typeof fileChange !== 'object' || fileChange === null) {
+        continue;
+      }
+      const path = (fileChange as FileChange).path;
+      if (typeof path !== 'string' || !path.trim()) {
+        continue;
+      }
+      fileChangesByPath.set(normalizeActivityFileChangePathKey(path), fileChange);
+    }
+
+    for (let index = 0; index < (candidate.commands?.length ?? 0); index += 1) {
+      const command = candidate.commands?.[index];
+      const commandKey = readActivityCommandKey(command, index);
+      if (commandKey) {
+        commandsByKey.set(commandKey, command!);
+      }
+    }
+  }
+
+  if (fileChangesByPath.size === 0 && commandsByKey.size === 0) {
+    return null;
+  }
+
+  return {
+    commands: [...commandsByKey.values()],
+    fileChanges: [...fileChangesByPath.values()],
+  };
 }
 
 export function resolveProjectedActivityFileChanges(

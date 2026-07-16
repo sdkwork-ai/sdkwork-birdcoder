@@ -33,7 +33,6 @@
     "./appSessionTokenManager": "./src/appSessionTokenManager.ts",
     "./appSessionPersistence": "./src/appSessionPersistence.ts",
     "./appSessionAuthRedirect": "./src/appSessionAuthRedirect.ts",
-    "./birdCoderApiTransportError": "./src/birdCoderApiTransportError.ts",
     "./sdk": {
       "types": "./src/sdk/index.ts",
       "import": "./src/sdk/index.ts",

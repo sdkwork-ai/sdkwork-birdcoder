@@ -1304,6 +1304,163 @@ pub mod platform {
             tenant_scope: "tenant",
         };
 
+        pub mod runtime_locations {
+            pub const CREATE: crate::SdkOperation = crate::SdkOperation {
+                data_scope: "organization",
+                deployment: "all",
+                domain: "platform",
+                key: "platform.projects.runtimeLocations.create",
+                method: "POST",
+                operation_id: "projects.runtimeLocations.create",
+                path: "/app/v3/api/projects/{projectId}/runtime_locations",
+                path_param_names: &["projectId"],
+                permission: Some("birdcoder.platform-projects-runtime-locations.create"),
+                public: false,
+                resource: "birdcoder.platform-projects-runtime-locations",
+                summary: "Register project runtime location",
+                tag: "platform",
+                tenant_scope: "tenant",
+            };
+
+            pub const DELETE: crate::SdkOperation = crate::SdkOperation {
+                data_scope: "organization",
+                deployment: "all",
+                domain: "platform",
+                key: "platform.projects.runtimeLocations.delete",
+                method: "DELETE",
+                operation_id: "projects.runtimeLocations.delete",
+                path: "/app/v3/api/projects/{projectId}/runtime_locations/{runtimeLocationId}",
+                path_param_names: &["projectId", "runtimeLocationId"],
+                permission: Some("birdcoder.platform-projects-runtime-locations.delete"),
+                public: false,
+                resource: "birdcoder.platform-projects-runtime-locations",
+                summary: "Delete project runtime location",
+                tag: "platform",
+                tenant_scope: "tenant",
+            };
+
+            pub const LIST: crate::SdkOperation = crate::SdkOperation {
+                data_scope: "organization",
+                deployment: "all",
+                domain: "platform",
+                key: "platform.projects.runtimeLocations.list",
+                method: "GET",
+                operation_id: "projects.runtimeLocations.list",
+                path: "/app/v3/api/projects/{projectId}/runtime_locations",
+                path_param_names: &["projectId"],
+                permission: Some("birdcoder.platform-projects-runtime-locations.read"),
+                public: false,
+                resource: "birdcoder.platform-projects-runtime-locations",
+                summary: "List project runtime locations",
+                tag: "platform",
+                tenant_scope: "tenant",
+            };
+
+            pub mod preferences {
+                pub const LIST: crate::SdkOperation = crate::SdkOperation {
+                    data_scope: "organization",
+                    deployment: "all",
+                    domain: "platform",
+                    key: "platform.projects.runtimeLocations.preferences.list",
+                    method: "GET",
+                    operation_id: "projects.runtimeLocations.preferences.list",
+                    path: "/app/v3/api/projects/{projectId}/runtime_location_preferences",
+                    path_param_names: &["projectId"],
+                    permission: Some("birdcoder.platform-projects-runtime-locations-preferences.read"),
+                    public: false,
+                    resource: "birdcoder.platform-projects-runtime-locations-preferences",
+                    summary: "List project runtime-location preferences",
+                    tag: "platform",
+                    tenant_scope: "tenant",
+                };
+
+                pub const UPDATE: crate::SdkOperation = crate::SdkOperation {
+                    data_scope: "organization",
+                    deployment: "all",
+                    domain: "platform",
+                    key: "platform.projects.runtimeLocations.preferences.update",
+                    method: "PUT",
+                    operation_id: "projects.runtimeLocations.preferences.update",
+                    path: "/app/v3/api/projects/{projectId}/runtime_location_preferences/{capability}",
+                    path_param_names: &["projectId", "capability"],
+                    permission: Some("birdcoder.platform-projects-runtime-locations-preferences.update"),
+                    public: false,
+                    resource: "birdcoder.platform-projects-runtime-locations-preferences",
+                    summary: "Update project runtime-location preference",
+                    tag: "platform",
+                    tenant_scope: "tenant",
+                };
+            }
+
+            pub const REBIND: crate::SdkOperation = crate::SdkOperation {
+                data_scope: "organization",
+                deployment: "all",
+                domain: "platform",
+                key: "platform.projects.runtimeLocations.rebind",
+                method: "POST",
+                operation_id: "projects.runtimeLocations.rebind",
+                path: "/app/v3/api/projects/{projectId}/runtime_locations/{runtimeLocationId}/rebind",
+                path_param_names: &["projectId", "runtimeLocationId"],
+                permission: Some("birdcoder.platform-projects-runtime-locations.create"),
+                public: false,
+                resource: "birdcoder.platform-projects-runtime-locations",
+                summary: "Rebind project runtime location",
+                tag: "platform",
+                tenant_scope: "tenant",
+            };
+
+            pub const REQUEST_VERIFICATION: crate::SdkOperation = crate::SdkOperation {
+                data_scope: "organization",
+                deployment: "all",
+                domain: "platform",
+                key: "platform.projects.runtimeLocations.requestVerification",
+                method: "POST",
+                operation_id: "projects.runtimeLocations.requestVerification",
+                path: "/app/v3/api/projects/{projectId}/runtime_locations/{runtimeLocationId}/request_verification",
+                path_param_names: &["projectId", "runtimeLocationId"],
+                permission: Some("birdcoder.platform-projects-runtime-locations.create"),
+                public: false,
+                resource: "birdcoder.platform-projects-runtime-locations",
+                summary: "Request project runtime-location verification",
+                tag: "platform",
+                tenant_scope: "tenant",
+            };
+
+            pub const RETRIEVE: crate::SdkOperation = crate::SdkOperation {
+                data_scope: "organization",
+                deployment: "all",
+                domain: "platform",
+                key: "platform.projects.runtimeLocations.retrieve",
+                method: "GET",
+                operation_id: "projects.runtimeLocations.retrieve",
+                path: "/app/v3/api/projects/{projectId}/runtime_locations/{runtimeLocationId}",
+                path_param_names: &["projectId", "runtimeLocationId"],
+                permission: Some("birdcoder.platform-projects-runtime-locations.read"),
+                public: false,
+                resource: "birdcoder.platform-projects-runtime-locations",
+                summary: "Get project runtime location",
+                tag: "platform",
+                tenant_scope: "tenant",
+            };
+
+            pub const UPDATE: crate::SdkOperation = crate::SdkOperation {
+                data_scope: "organization",
+                deployment: "all",
+                domain: "platform",
+                key: "platform.projects.runtimeLocations.update",
+                method: "PATCH",
+                operation_id: "projects.runtimeLocations.update",
+                path: "/app/v3/api/projects/{projectId}/runtime_locations/{runtimeLocationId}",
+                path_param_names: &["projectId", "runtimeLocationId"],
+                permission: Some("birdcoder.platform-projects-runtime-locations.update"),
+                public: false,
+                resource: "birdcoder.platform-projects-runtime-locations",
+                summary: "Update project runtime location",
+                tag: "platform",
+                tenant_scope: "tenant",
+            };
+        }
+
         pub const UPDATE: crate::SdkOperation = crate::SdkOperation {
             data_scope: "organization",
             deployment: "all",
@@ -1320,6 +1477,59 @@ pub mod platform {
             tag: "platform",
             tenant_scope: "tenant",
         };
+
+        pub mod workspace_binding {
+            pub const DELETE: crate::SdkOperation = crate::SdkOperation {
+                data_scope: "organization",
+                deployment: "all",
+                domain: "platform",
+                key: "platform.projects.workspaceBinding.delete",
+                method: "DELETE",
+                operation_id: "projects.workspaceBinding.delete",
+                path: "/app/v3/api/projects/{projectId}/workspace_binding",
+                path_param_names: &["projectId"],
+                permission: Some("birdcoder.platform-projects-workspace-binding.delete"),
+                public: false,
+                resource: "birdcoder.platform-projects-workspace-binding",
+                summary: "Delete project workspace binding",
+                tag: "platform",
+                tenant_scope: "tenant",
+            };
+
+            pub const RETRIEVE: crate::SdkOperation = crate::SdkOperation {
+                data_scope: "organization",
+                deployment: "all",
+                domain: "platform",
+                key: "platform.projects.workspaceBinding.retrieve",
+                method: "GET",
+                operation_id: "projects.workspaceBinding.retrieve",
+                path: "/app/v3/api/projects/{projectId}/workspace_binding",
+                path_param_names: &["projectId"],
+                permission: Some("birdcoder.platform-projects-workspace-binding.read"),
+                public: false,
+                resource: "birdcoder.platform-projects-workspace-binding",
+                summary: "Get project workspace binding",
+                tag: "platform",
+                tenant_scope: "tenant",
+            };
+
+            pub const UPDATE: crate::SdkOperation = crate::SdkOperation {
+                data_scope: "organization",
+                deployment: "all",
+                domain: "platform",
+                key: "platform.projects.workspaceBinding.update",
+                method: "PUT",
+                operation_id: "projects.workspaceBinding.update",
+                path: "/app/v3/api/projects/{projectId}/workspace_binding",
+                path_param_names: &["projectId"],
+                permission: Some("birdcoder.platform-projects-workspace-binding.update"),
+                public: false,
+                resource: "birdcoder.platform-projects-workspace-binding",
+                summary: "Create or update project workspace binding",
+                tag: "platform",
+                tenant_scope: "tenant",
+            };
+        }
     }
 
     pub mod workspaces {
@@ -1935,7 +2145,19 @@ pub const OPERATIONS: &[SdkOperation] = &[
     platform::projects::LIST,
     platform::projects::publish::PUBLISH,
     platform::projects::RETRIEVE,
+    platform::projects::runtime_locations::CREATE,
+    platform::projects::runtime_locations::DELETE,
+    platform::projects::runtime_locations::LIST,
+    platform::projects::runtime_locations::preferences::LIST,
+    platform::projects::runtime_locations::preferences::UPDATE,
+    platform::projects::runtime_locations::REBIND,
+    platform::projects::runtime_locations::REQUEST_VERIFICATION,
+    platform::projects::runtime_locations::RETRIEVE,
+    platform::projects::runtime_locations::UPDATE,
     platform::projects::UPDATE,
+    platform::projects::workspace_binding::DELETE,
+    platform::projects::workspace_binding::RETRIEVE,
+    platform::projects::workspace_binding::UPDATE,
     platform::workspaces::CREATE,
     platform::workspaces::DELETE,
     platform::workspaces::LIST,

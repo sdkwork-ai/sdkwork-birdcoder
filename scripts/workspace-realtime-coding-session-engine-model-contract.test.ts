@@ -46,6 +46,7 @@ function createRealtimeEvent(
     codingSessionHostMode: 'desktop',
     codingSessionEngineId: 'codex',
     codingSessionModelId: 'gpt-5.4',
+    codingSessionRuntimeLocationId: 'runtime-location-realtime-contract',
     occurredAt: '2026-04-20T10:01:00.000Z',
     projectUpdatedAt: '2026-04-20T10:01:00.000Z',
     codingSessionUpdatedAt: '2026-04-20T10:01:00.000Z',
@@ -117,6 +118,11 @@ assert.ok(createdProjects, 'workspace realtime must materialize coding sessions 
 assert.equal(createdProjects?.[0]?.codingSessions[0]?.engineId, 'codex');
 assert.equal(createdProjects?.[0]?.codingSessions[0]?.modelId, 'gpt-5.4');
 assert.equal(
+  createdProjects?.[0]?.codingSessions[0]?.runtimeLocationId,
+  'runtime-location-realtime-contract',
+  'workspace realtime must project the opaque server-issued runtime-location binding for newly observed sessions.',
+);
+assert.equal(
   createdProjects?.[0]?.codingSessions[0]?.lastTurnAt,
   undefined,
   'creating a session without a turn must not invent a latest-turn timestamp.',
@@ -170,6 +176,7 @@ const updatedProjects = applyWorkspaceRealtimeEventToProjects(
     codingSessionTitle: 'Realtime Contract Session Updated',
     codingSessionEngineId: 'claude-code',
     codingSessionModelId: 'claude-sonnet-4.5',
+    codingSessionRuntimeLocationId: 'runtime-location-must-not-replace-existing-binding',
     nativeSessionId: 'realtime-native-session-update',
     codingSessionRuntimeStatus: 'completed',
     occurredAt: '2026-04-20T10:02:00.000Z',
@@ -194,6 +201,53 @@ assert.equal(
   updatedProjects?.[0]?.codingSessions[0]?.nativeSessionId,
   'realtime-native-session-update',
   'workspace realtime must attach the provider-native session id from coding-session updates so the session context menu can resume in terminal.',
+);
+assert.equal(
+  updatedProjects?.[0]?.codingSessions[0]?.runtimeLocationId,
+  'runtime-location-realtime-contract',
+  'realtime updates must preserve the exact existing runtime-location binding instead of silently rebinding a coding session.',
+);
+
+const legacyRealtimeProject: BirdCoderProject = {
+  ...baseProject,
+  codingSessions: [
+    {
+      ...createdProjects![0]!.codingSessions[0]!,
+      runtimeLocationId: undefined,
+    },
+  ],
+};
+const legacyBindingBackfill = applyWorkspaceRealtimeEventToProjects(
+  [legacyRealtimeProject],
+  createRealtimeEvent({
+    eventId: 'event-realtime-contract-legacy-binding-backfill',
+    eventKind: 'coding-session.updated',
+    codingSessionRuntimeLocationId: 'runtime-location-legacy-backfill',
+    occurredAt: '2026-04-20T10:02:30.000Z',
+    projectUpdatedAt: '2026-04-20T10:02:30.000Z',
+    codingSessionUpdatedAt: '2026-04-20T10:02:30.000Z',
+  }),
+);
+assert.equal(
+  legacyBindingBackfill?.[0]?.codingSessions[0]?.runtimeLocationId,
+  'runtime-location-legacy-backfill',
+  'an unbound legacy projection may acquire the opaque server binding from a trusted realtime event.',
+);
+const rejectedPathShapedRealtimeBinding = applyWorkspaceRealtimeEventToProjects(
+  [legacyRealtimeProject],
+  createRealtimeEvent({
+    eventId: 'event-realtime-contract-path-shaped-binding',
+    eventKind: 'coding-session.updated',
+    codingSessionRuntimeLocationId: 'C:/workspace/must-not-be-a-runtime-location-id',
+    occurredAt: '2026-04-20T10:02:31.000Z',
+    projectUpdatedAt: '2026-04-20T10:02:31.000Z',
+    codingSessionUpdatedAt: '2026-04-20T10:02:31.000Z',
+  }),
+);
+assert.equal(
+  rejectedPathShapedRealtimeBinding?.[0]?.codingSessions[0]?.runtimeLocationId,
+  undefined,
+  'realtime projections must reject path-shaped values in the opaque runtime-location field.',
 );
 assert.equal(
   updatedProjects?.[0]?.codingSessions[0]?.lastTurnAt,

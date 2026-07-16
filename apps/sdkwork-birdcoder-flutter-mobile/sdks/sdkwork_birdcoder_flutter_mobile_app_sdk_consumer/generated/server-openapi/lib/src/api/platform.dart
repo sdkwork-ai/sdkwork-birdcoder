@@ -22,13 +22,12 @@ class PlatformApi {
   }
 
   /// List projects
-  Future<BirdCoderProjectSummaryListEnvelope?> projectsList([String? userId, String? workspaceId, String? rootPath, int? limit, int? offset]) async {
+  Future<BirdCoderProjectSummaryListEnvelope?> projectsList([String? userId, String? workspaceId, int? page, int? pageSize]) async {
     final query = buildQueryString([
       QueryParameterSpec('userId', userId, 'form', true, false, null),
       QueryParameterSpec('workspaceId', workspaceId, 'form', true, false, null),
-      QueryParameterSpec('rootPath', rootPath, 'form', true, false, null),
-      QueryParameterSpec('limit', limit, 'form', true, false, null),
-      QueryParameterSpec('offset', offset, 'form', true, false, null)
+      QueryParameterSpec('page', page, 'form', true, false, null),
+      QueryParameterSpec('page_size', pageSize, 'form', true, false, null)
     ]);
     final response = await _client.get(ApiPaths.appendQueryString(ApiPaths.appPath('/projects'), query));
     return (() {
@@ -38,7 +37,7 @@ class PlatformApi {
   }
 
   /// Upsert project collaborator
-  Future<BirdCoderProjectCollaboratorSummaryEnvelope?> projectsCollaboratorsUpsert(String projectId, BirdCoderUpsertProjectCollaboratorRequest body) async {
+  Future<BirdCoderProjectCollaboratorSummaryEnvelope?> projectsCollaboratorsCreate(String projectId, BirdCoderUpsertProjectCollaboratorRequest body) async {
     final payload = body.toJson();
     final response = await _client.post(ApiPaths.appPath('/projects/${serializePathParameter(projectId, const PathParameterSpec('projectId', 'simple', false))}/collaborators'), body: payload, contentType: 'application/json');
     return (() {
@@ -48,8 +47,12 @@ class PlatformApi {
   }
 
   /// List project collaborators
-  Future<BirdCoderProjectCollaboratorSummaryListEnvelope?> projectsCollaboratorsList(String projectId) async {
-    final response = await _client.get(ApiPaths.appPath('/projects/${serializePathParameter(projectId, const PathParameterSpec('projectId', 'simple', false))}/collaborators'));
+  Future<BirdCoderProjectCollaboratorSummaryListEnvelope?> projectsCollaboratorsList(String projectId, [int? page, int? pageSize]) async {
+    final query = buildQueryString([
+      QueryParameterSpec('page', page, 'form', true, false, null),
+      QueryParameterSpec('page_size', pageSize, 'form', true, false, null)
+    ]);
+    final response = await _client.get(ApiPaths.appendQueryString(ApiPaths.appPath('/projects/${serializePathParameter(projectId, const PathParameterSpec('projectId', 'simple', false))}/collaborators'), query));
     return (() {
       final map = sdkworkResponseAsMap(response);
       return map == null ? null : BirdCoderProjectCollaboratorSummaryListEnvelope.fromJson(map);
@@ -67,11 +70,11 @@ class PlatformApi {
   }
 
   /// List workspaces
-  Future<BirdCoderWorkspaceSummaryListEnvelope?> workspacesList([String? userId, int? limit, int? offset]) async {
+  Future<BirdCoderWorkspaceSummaryListEnvelope?> workspacesList([String? userId, int? page, int? pageSize]) async {
     final query = buildQueryString([
       QueryParameterSpec('userId', userId, 'form', true, false, null),
-      QueryParameterSpec('limit', limit, 'form', true, false, null),
-      QueryParameterSpec('offset', offset, 'form', true, false, null)
+      QueryParameterSpec('page', page, 'form', true, false, null),
+      QueryParameterSpec('page_size', pageSize, 'form', true, false, null)
     ]);
     final response = await _client.get(ApiPaths.appendQueryString(ApiPaths.appPath('/workspaces'), query));
     return (() {
@@ -81,12 +84,8 @@ class PlatformApi {
   }
 
   /// Delete project
-  Future<BirdCoderDeletedResourceEnvelope?> projectsDelete(String projectId) async {
-    final response = await _client.delete(ApiPaths.appPath('/projects/${serializePathParameter(projectId, const PathParameterSpec('projectId', 'simple', false))}'));
-    return (() {
-      final map = sdkworkResponseAsMap(response);
-      return map == null ? null : BirdCoderDeletedResourceEnvelope.fromJson(map);
-    })();
+  Future<void> projectsDelete(String projectId) async {
+    await _client.delete(ApiPaths.appPath('/projects/${serializePathParameter(projectId, const PathParameterSpec('projectId', 'simple', false))}'));
   }
 
   /// Get project
@@ -109,12 +108,8 @@ class PlatformApi {
   }
 
   /// Delete workspace
-  Future<BirdCoderDeletedResourceEnvelope?> workspacesDelete(String workspaceId) async {
-    final response = await _client.delete(ApiPaths.appPath('/workspaces/${serializePathParameter(workspaceId, const PathParameterSpec('workspaceId', 'simple', false))}'));
-    return (() {
-      final map = sdkworkResponseAsMap(response);
-      return map == null ? null : BirdCoderDeletedResourceEnvelope.fromJson(map);
-    })();
+  Future<void> workspacesDelete(String workspaceId) async {
+    await _client.delete(ApiPaths.appPath('/workspaces/${serializePathParameter(workspaceId, const PathParameterSpec('workspaceId', 'simple', false))}'));
   }
 
   /// Get workspace
@@ -136,21 +131,13 @@ class PlatformApi {
     })();
   }
 
-  /// Subscribe to workspace realtime invalidation events
-  Future<ProblemDetail?> workspacesRealtimeSubscribe(String workspaceId, [String? sessionId]) async {
-    final query = buildQueryString([
-      QueryParameterSpec('sessionId', sessionId, 'form', true, false, null)
-    ]);
-    final response = await _client.get(ApiPaths.appendQueryString(ApiPaths.appPath('/workspaces/${serializePathParameter(workspaceId, const PathParameterSpec('workspaceId', 'simple', false))}/realtime'), query));
-    return (() {
-      final map = sdkworkResponseAsMap(response);
-      return map == null ? null : ProblemDetail.fromJson(map);
-    })();
-  }
-
   /// List deployments
-  Future<BirdCoderDeploymentRecordSummaryListEnvelope?> deploymentsList() async {
-    final response = await _client.get(ApiPaths.appPath('/deployments'));
+  Future<BirdCoderDeploymentRecordSummaryListEnvelope?> deploymentsList([int? page, int? pageSize]) async {
+    final query = buildQueryString([
+      QueryParameterSpec('page', page, 'form', true, false, null),
+      QueryParameterSpec('page_size', pageSize, 'form', true, false, null)
+    ]);
+    final response = await _client.get(ApiPaths.appendQueryString(ApiPaths.appPath('/deployments'), query));
     return (() {
       final map = sdkworkResponseAsMap(response);
       return map == null ? null : BirdCoderDeploymentRecordSummaryListEnvelope.fromJson(map);
@@ -158,20 +145,205 @@ class PlatformApi {
   }
 
   /// List project deployment targets
-  Future<BirdCoderDeploymentTargetSummaryListEnvelope?> projectsDeploymentTargetsList(String projectId) async {
-    final response = await _client.get(ApiPaths.appPath('/projects/${serializePathParameter(projectId, const PathParameterSpec('projectId', 'simple', false))}/deployment_targets'));
+  Future<BirdCoderDeploymentTargetSummaryListEnvelope?> projectsDeploymentTargetsList(String projectId, [int? page, int? pageSize]) async {
+    final query = buildQueryString([
+      QueryParameterSpec('page', page, 'form', true, false, null),
+      QueryParameterSpec('page_size', pageSize, 'form', true, false, null)
+    ]);
+    final response = await _client.get(ApiPaths.appendQueryString(ApiPaths.appPath('/projects/${serializePathParameter(projectId, const PathParameterSpec('projectId', 'simple', false))}/deployment_targets'), query));
     return (() {
       final map = sdkworkResponseAsMap(response);
       return map == null ? null : BirdCoderDeploymentTargetSummaryListEnvelope.fromJson(map);
     })();
   }
 
+  /// Get project workspace binding
+  Future<BirdCoderProjectWorkspaceBindingEnvelope?> projectsWorkspaceBindingRetrieve(String projectId) async {
+    final response = await _client.get(ApiPaths.appPath('/projects/${serializePathParameter(projectId, const PathParameterSpec('projectId', 'simple', false))}/workspace_binding'));
+    return (() {
+      final map = sdkworkResponseAsMap(response);
+      return map == null ? null : BirdCoderProjectWorkspaceBindingEnvelope.fromJson(map);
+    })();
+  }
+
+  /// Create or update project workspace binding
+  Future<BirdCoderProjectWorkspaceBindingEnvelope?> projectsWorkspaceBindingUpdate(String projectId, BirdCoderUpsertProjectWorkspaceBindingRequest body, String idempotencyKey, [String? ifMatch]) async {
+    final requestHeaders = buildRequestHeaders(
+      <String, HeaderParameterSpec>{
+        'If-Match': HeaderParameterSpec(ifMatch, 'simple', false, null),
+        'Idempotency-Key': HeaderParameterSpec(idempotencyKey, 'simple', false, null),
+      },
+      <String, HeaderParameterSpec>{},
+    );
+    final payload = body.toJson();
+    final response = await _client.put(ApiPaths.appPath('/projects/${serializePathParameter(projectId, const PathParameterSpec('projectId', 'simple', false))}/workspace_binding'), body: payload, headers: requestHeaders, contentType: 'application/json');
+    return (() {
+      final map = sdkworkResponseAsMap(response);
+      return map == null ? null : BirdCoderProjectWorkspaceBindingEnvelope.fromJson(map);
+    })();
+  }
+
+  /// Delete project workspace binding
+  Future<void> projectsWorkspaceBindingDelete(String projectId, String ifMatch) async {
+    final requestHeaders = buildRequestHeaders(
+      <String, HeaderParameterSpec>{
+        'If-Match': HeaderParameterSpec(ifMatch, 'simple', false, null),
+      },
+      <String, HeaderParameterSpec>{},
+    );
+    await _client.delete(ApiPaths.appPath('/projects/${serializePathParameter(projectId, const PathParameterSpec('projectId', 'simple', false))}/workspace_binding'), headers: requestHeaders);
+  }
+
+  /// List project runtime locations
+  Future<BirdCoderProjectRuntimeLocationListEnvelope?> projectsRuntimeLocationsList(String projectId, [int? page, int? pageSize]) async {
+    final query = buildQueryString([
+      QueryParameterSpec('page', page, 'form', true, false, null),
+      QueryParameterSpec('page_size', pageSize, 'form', true, false, null)
+    ]);
+    final response = await _client.get(ApiPaths.appendQueryString(ApiPaths.appPath('/projects/${serializePathParameter(projectId, const PathParameterSpec('projectId', 'simple', false))}/runtime_locations'), query));
+    return (() {
+      final map = sdkworkResponseAsMap(response);
+      return map == null ? null : BirdCoderProjectRuntimeLocationListEnvelope.fromJson(map);
+    })();
+  }
+
+  /// Register project runtime location
+  Future<BirdCoderProjectRuntimeLocationEnvelope?> projectsRuntimeLocationsCreate(String projectId, BirdCoderCreateProjectRuntimeLocationRequest body, String idempotencyKey) async {
+    final requestHeaders = buildRequestHeaders(
+      <String, HeaderParameterSpec>{
+        'Idempotency-Key': HeaderParameterSpec(idempotencyKey, 'simple', false, null),
+      },
+      <String, HeaderParameterSpec>{},
+    );
+    final payload = body.toJson();
+    final response = await _client.post(ApiPaths.appPath('/projects/${serializePathParameter(projectId, const PathParameterSpec('projectId', 'simple', false))}/runtime_locations'), body: payload, headers: requestHeaders, contentType: 'application/json');
+    return (() {
+      final map = sdkworkResponseAsMap(response);
+      return map == null ? null : BirdCoderProjectRuntimeLocationEnvelope.fromJson(map);
+    })();
+  }
+
+  /// Get project runtime location
+  Future<BirdCoderProjectRuntimeLocationEnvelope?> projectsRuntimeLocationsRetrieve(String projectId, String runtimeLocationId) async {
+    final response = await _client.get(ApiPaths.appPath('/projects/${serializePathParameter(projectId, const PathParameterSpec('projectId', 'simple', false))}/runtime_locations/${serializePathParameter(runtimeLocationId, const PathParameterSpec('runtimeLocationId', 'simple', false))}'));
+    return (() {
+      final map = sdkworkResponseAsMap(response);
+      return map == null ? null : BirdCoderProjectRuntimeLocationEnvelope.fromJson(map);
+    })();
+  }
+
+  /// Update project runtime location
+  Future<BirdCoderProjectRuntimeLocationEnvelope?> projectsRuntimeLocationsUpdate(String projectId, String runtimeLocationId, BirdCoderUpdateProjectRuntimeLocationRequest body, String ifMatch, String idempotencyKey) async {
+    final requestHeaders = buildRequestHeaders(
+      <String, HeaderParameterSpec>{
+        'If-Match': HeaderParameterSpec(ifMatch, 'simple', false, null),
+        'Idempotency-Key': HeaderParameterSpec(idempotencyKey, 'simple', false, null),
+      },
+      <String, HeaderParameterSpec>{},
+    );
+    final payload = body.toJson();
+    final response = await _client.patch(ApiPaths.appPath('/projects/${serializePathParameter(projectId, const PathParameterSpec('projectId', 'simple', false))}/runtime_locations/${serializePathParameter(runtimeLocationId, const PathParameterSpec('runtimeLocationId', 'simple', false))}'), body: payload, headers: requestHeaders, contentType: 'application/json');
+    return (() {
+      final map = sdkworkResponseAsMap(response);
+      return map == null ? null : BirdCoderProjectRuntimeLocationEnvelope.fromJson(map);
+    })();
+  }
+
+  /// Delete project runtime location
+  Future<void> projectsRuntimeLocationsDelete(String projectId, String runtimeLocationId, String ifMatch) async {
+    final requestHeaders = buildRequestHeaders(
+      <String, HeaderParameterSpec>{
+        'If-Match': HeaderParameterSpec(ifMatch, 'simple', false, null),
+      },
+      <String, HeaderParameterSpec>{},
+    );
+    await _client.delete(ApiPaths.appPath('/projects/${serializePathParameter(projectId, const PathParameterSpec('projectId', 'simple', false))}/runtime_locations/${serializePathParameter(runtimeLocationId, const PathParameterSpec('runtimeLocationId', 'simple', false))}'), headers: requestHeaders);
+  }
+
+  /// Rebind project runtime location
+  Future<BirdCoderProjectRuntimeLocationCommandEnvelope?> projectsRuntimeLocationsRebind(String projectId, String runtimeLocationId, BirdCoderRebindProjectRuntimeLocationRequest body, String ifMatch, String idempotencyKey) async {
+    final requestHeaders = buildRequestHeaders(
+      <String, HeaderParameterSpec>{
+        'If-Match': HeaderParameterSpec(ifMatch, 'simple', false, null),
+        'Idempotency-Key': HeaderParameterSpec(idempotencyKey, 'simple', false, null),
+      },
+      <String, HeaderParameterSpec>{},
+    );
+    final payload = body.toJson();
+    final response = await _client.post(ApiPaths.appPath('/projects/${serializePathParameter(projectId, const PathParameterSpec('projectId', 'simple', false))}/runtime_locations/${serializePathParameter(runtimeLocationId, const PathParameterSpec('runtimeLocationId', 'simple', false))}/rebind'), body: payload, headers: requestHeaders, contentType: 'application/json');
+    return (() {
+      final map = sdkworkResponseAsMap(response);
+      return map == null ? null : BirdCoderProjectRuntimeLocationCommandEnvelope.fromJson(map);
+    })();
+  }
+
+  /// Request project runtime-location verification
+  Future<BirdCoderProjectRuntimeLocationCommandEnvelope?> projectsRuntimeLocationsRequestVerification(String projectId, String runtimeLocationId, String ifMatch, String idempotencyKey) async {
+    final requestHeaders = buildRequestHeaders(
+      <String, HeaderParameterSpec>{
+        'If-Match': HeaderParameterSpec(ifMatch, 'simple', false, null),
+        'Idempotency-Key': HeaderParameterSpec(idempotencyKey, 'simple', false, null),
+      },
+      <String, HeaderParameterSpec>{},
+    );
+    final response = await _client.post(ApiPaths.appPath('/projects/${serializePathParameter(projectId, const PathParameterSpec('projectId', 'simple', false))}/runtime_locations/${serializePathParameter(runtimeLocationId, const PathParameterSpec('runtimeLocationId', 'simple', false))}/request_verification'), headers: requestHeaders);
+    return (() {
+      final map = sdkworkResponseAsMap(response);
+      return map == null ? null : BirdCoderProjectRuntimeLocationCommandEnvelope.fromJson(map);
+    })();
+  }
+
+  /// List project runtime-location preferences
+  Future<BirdCoderProjectRuntimeLocationPreferenceListEnvelope?> projectsRuntimeLocationsPreferencesList(String projectId, [int? page, int? pageSize]) async {
+    final query = buildQueryString([
+      QueryParameterSpec('page', page, 'form', true, false, null),
+      QueryParameterSpec('page_size', pageSize, 'form', true, false, null)
+    ]);
+    final response = await _client.get(ApiPaths.appendQueryString(ApiPaths.appPath('/projects/${serializePathParameter(projectId, const PathParameterSpec('projectId', 'simple', false))}/runtime_location_preferences'), query));
+    return (() {
+      final map = sdkworkResponseAsMap(response);
+      return map == null ? null : BirdCoderProjectRuntimeLocationPreferenceListEnvelope.fromJson(map);
+    })();
+  }
+
+  /// Update project runtime-location preference
+  Future<BirdCoderProjectRuntimeLocationPreferenceEnvelope?> projectsRuntimeLocationsPreferencesUpdate(String projectId, String capability, BirdCoderSetProjectRuntimeLocationPreferenceRequest body, String idempotencyKey, [String? ifMatch]) async {
+    final requestHeaders = buildRequestHeaders(
+      <String, HeaderParameterSpec>{
+        'If-Match': HeaderParameterSpec(ifMatch, 'simple', false, null),
+        'Idempotency-Key': HeaderParameterSpec(idempotencyKey, 'simple', false, null),
+      },
+      <String, HeaderParameterSpec>{},
+    );
+    final payload = body.toJson();
+    final response = await _client.put(ApiPaths.appPath('/projects/${serializePathParameter(projectId, const PathParameterSpec('projectId', 'simple', false))}/runtime_location_preferences/${serializePathParameter(capability, const PathParameterSpec('capability', 'simple', false))}'), body: payload, headers: requestHeaders, contentType: 'application/json');
+    return (() {
+      final map = sdkworkResponseAsMap(response);
+      return map == null ? null : BirdCoderProjectRuntimeLocationPreferenceEnvelope.fromJson(map);
+    })();
+  }
+
   /// Get project Git overview
-  Future<BirdCoderProjectGitOverviewEnvelope?> projectsGitOverviewRetrieve(String projectId) async {
-    final response = await _client.get(ApiPaths.appPath('/projects/${serializePathParameter(projectId, const PathParameterSpec('projectId', 'simple', false))}/git/overview'));
+  Future<BirdCoderProjectGitOverviewEnvelope?> projectsGitOverviewRetrieve(String projectId, String runtimeLocationId) async {
+    final query = buildQueryString([
+      QueryParameterSpec('runtime_location_id', runtimeLocationId, 'form', true, false, null)
+    ]);
+    final response = await _client.get(ApiPaths.appendQueryString(ApiPaths.appPath('/projects/${serializePathParameter(projectId, const PathParameterSpec('projectId', 'simple', false))}/git/overview'), query));
     return (() {
       final map = sdkworkResponseAsMap(response);
       return map == null ? null : BirdCoderProjectGitOverviewEnvelope.fromJson(map);
+    })();
+  }
+
+  /// Get project Git diff
+  Future<BirdCoderProjectGitDiffEnvelope?> projectsGitDiffRetrieve(String projectId, String runtimeLocationId) async {
+    final query = buildQueryString([
+      QueryParameterSpec('runtime_location_id', runtimeLocationId, 'form', true, false, null)
+    ]);
+    final response = await _client.get(ApiPaths.appendQueryString(ApiPaths.appPath('/projects/${serializePathParameter(projectId, const PathParameterSpec('projectId', 'simple', false))}/git/diff'), query));
+    return (() {
+      final map = sdkworkResponseAsMap(response);
+      return map == null ? null : BirdCoderProjectGitDiffEnvelope.fromJson(map);
     })();
   }
 
@@ -206,8 +378,8 @@ class PlatformApi {
   }
 
   /// Push project Git branch
-  Future<BirdCoderProjectGitOverviewEnvelope?> projectsGitPushesCreate(String projectId, [BirdCoderPushProjectGitBranchRequest? body]) async {
-    final payload = body?.toJson();
+  Future<BirdCoderProjectGitOverviewEnvelope?> projectsGitPushesCreate(String projectId, BirdCoderPushProjectGitBranchRequest body) async {
+    final payload = body.toJson();
     final response = await _client.post(ApiPaths.appPath('/projects/${serializePathParameter(projectId, const PathParameterSpec('projectId', 'simple', false))}/git/pushes'), body: payload, contentType: 'application/json');
     return (() {
       final map = sdkworkResponseAsMap(response);
@@ -236,8 +408,9 @@ class PlatformApi {
   }
 
   /// Prune project Git worktrees
-  Future<BirdCoderProjectGitOverviewEnvelope?> projectsGitWorktreePruneCreate(String projectId) async {
-    final response = await _client.post(ApiPaths.appPath('/projects/${serializePathParameter(projectId, const PathParameterSpec('projectId', 'simple', false))}/git/worktree_prune'));
+  Future<BirdCoderProjectGitOverviewEnvelope?> projectsGitWorktreePruneCreate(String projectId, BirdCoderPruneProjectGitWorktreesRequest body) async {
+    final payload = body.toJson();
+    final response = await _client.post(ApiPaths.appPath('/projects/${serializePathParameter(projectId, const PathParameterSpec('projectId', 'simple', false))}/git/worktree_prune'), body: payload, contentType: 'application/json');
     return (() {
       final map = sdkworkResponseAsMap(response);
       return map == null ? null : BirdCoderProjectGitOverviewEnvelope.fromJson(map);
@@ -245,7 +418,7 @@ class PlatformApi {
   }
 
   /// Publish project release flow
-  Future<BirdCoderProjectPublishResultEnvelope?> projectsPublishCreate(String projectId, [BirdCoderPublishProjectRequest? body]) async {
+  Future<BirdCoderProjectPublishResultEnvelope?> projectsPublish(String projectId, [BirdCoderPublishProjectRequest? body]) async {
     final payload = body?.toJson();
     final response = await _client.post(ApiPaths.appPath('/projects/${serializePathParameter(projectId, const PathParameterSpec('projectId', 'simple', false))}/publish'), body: payload, contentType: 'application/json');
     return (() {
@@ -458,3 +631,75 @@ String encodeQueryValue(String value, bool allowReserved) {
 }
 
 String urlEncode(String value) => Uri.encodeQueryComponent(value);
+class HeaderParameterSpec {
+  final dynamic value;
+  final String style;
+  final bool explode;
+  final String? contentType;
+
+  HeaderParameterSpec(this.value, this.style, this.explode, this.contentType);
+}
+
+Map<String, String>? buildRequestHeaders(
+  Map<String, HeaderParameterSpec> headers, [
+  Map<String, HeaderParameterSpec> cookies = const {},
+]) {
+  final requestHeaders = <String, String>{};
+
+  headers.forEach((name, parameter) {
+    final serialized = serializeParameterValue(parameter);
+    if (serialized != null) {
+      requestHeaders[name] = serialized;
+    }
+  });
+
+  final cookieHeader = buildCookieHeader(cookies);
+  if (cookieHeader != null && cookieHeader.isNotEmpty) {
+    requestHeaders['Cookie'] = requestHeaders.containsKey('Cookie')
+        ? '${requestHeaders['Cookie']}; $cookieHeader'
+        : cookieHeader;
+  }
+
+  return requestHeaders.isEmpty ? null : requestHeaders;
+}
+
+String? buildCookieHeader(Map<String, HeaderParameterSpec> cookies) {
+  final pairs = <String>[];
+  cookies.forEach((name, parameter) {
+    final serialized = serializeParameterValue(parameter);
+    if (serialized != null) {
+      pairs.add('${Uri.encodeComponent(name)}=${Uri.encodeComponent(serialized)}');
+    }
+  });
+  return pairs.isEmpty ? null : pairs.join('; ');
+}
+
+String? serializeParameterValue(HeaderParameterSpec? parameter) {
+  final value = parameter?.value;
+  if (value == null) return null;
+  if (parameter!.contentType != null && parameter.contentType!.trim().isNotEmpty) {
+    return jsonEncode(value);
+  }
+  if (value is DateTime) return value.toIso8601String();
+  if (value is Iterable) {
+    return value
+        .where((item) => item != null)
+        .map((item) => item.toString())
+        .whereType<String>()
+        .join(',');
+  }
+  if (value is Map) {
+    final serialized = <String>[];
+    value.forEach((key, item) {
+      if (item == null) return;
+      if (parameter.explode) {
+        serialized.add('$key=$item');
+      } else {
+        serialized.add(key.toString());
+        serialized.add(item.toString());
+      }
+    });
+    return serialized.join(',');
+  }
+  return value.toString();
+}

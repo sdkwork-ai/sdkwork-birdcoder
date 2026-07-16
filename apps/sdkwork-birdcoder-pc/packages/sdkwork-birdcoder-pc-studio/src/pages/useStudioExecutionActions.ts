@@ -4,11 +4,14 @@ import {
   buildTerminalProfileBlockedMessage,
   emitOpenTerminalRequest,
   getDefaultRunConfigurations,
+  getProjectRuntimeLocationFailureMessage,
+  getResolvedProjectRuntimeLocationWorkingDirectory,
   globalEventBus,
   resolveRunConfigurationTerminalLaunch,
   type RunConfigurationRecord,
   type TerminalProfileBlockedAction,
   type TerminalProfileLaunchPresentation,
+  type ProjectRuntimeLocationResolver,
 } from '@sdkwork/birdcoder-pc-commons';
 
 import { resolveStudioBuildProfile } from '../build/profiles';
@@ -40,7 +43,7 @@ interface UseStudioExecutionActionsOptions {
   activeTab: StudioTab;
   addToast: (message: string, variant: ToastVariant) => void;
   currentProjectId: string;
-  resolveLocalWorkingDirectory: (projectId: string) => Promise<string | null>;
+  resolveProjectRuntimeLocation: ProjectRuntimeLocationResolver;
   previewAppPlatform: PreviewAppPlatform;
   previewDeviceModel: string;
   previewIsLandscape: boolean;
@@ -76,7 +79,7 @@ export function useStudioExecutionActions({
   activeTab,
   addToast,
   currentProjectId,
-  resolveLocalWorkingDirectory,
+  resolveProjectRuntimeLocation,
   previewAppPlatform,
   previewDeviceModel,
   previewIsLandscape,
@@ -100,14 +103,24 @@ export function useStudioExecutionActions({
       return null;
     }
 
-    const localWorkingDirectory = await resolveLocalWorkingDirectory(currentProjectId);
+    const resolution = await resolveProjectRuntimeLocation(currentProjectId, {
+      allowFolderSelection: true,
+      capability: 'build',
+    });
+    const localWorkingDirectory = getResolvedProjectRuntimeLocationWorkingDirectory(resolution);
     if (!localWorkingDirectory) {
-      addToast('A local desktop folder must be mounted before starting a local execution.', 'error');
+      const message = getProjectRuntimeLocationFailureMessage(
+        resolution,
+        'A local desktop folder must be mounted before starting a local execution.',
+      );
+      if (message) {
+        addToast(message, 'error');
+      }
       return null;
     }
 
     return localWorkingDirectory;
-  }, [addToast, currentProjectId, resolveLocalWorkingDirectory]);
+  }, [addToast, currentProjectId, resolveProjectRuntimeLocation]);
 
   const dispatchBlockedLaunch = useCallback(
     (

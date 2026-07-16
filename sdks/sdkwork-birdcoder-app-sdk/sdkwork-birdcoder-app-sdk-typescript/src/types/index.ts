@@ -176,16 +176,10 @@ export interface BirdCoderCodeEngineModelConfig {
   engines: Record<string, BirdCoderCodeEngineModelConfigEngine>;
 }
 
-export interface BirdCoderCodeEngineModelConfigCustomModel {
-  id: string;
-  label: string;
-}
-
 export interface BirdCoderCodeEngineModelConfigEngine {
   engineId: "codex" | "claude-code" | "gemini" | "opencode";
   defaultModelId: string;
   selectedModelId: string;
-  customModels: Array<BirdCoderCodeEngineModelConfigCustomModel>;
   models: Array<BirdCoderModelCatalogEntry>;
 }
 
@@ -263,7 +257,7 @@ export interface BirdCoderCodingSessionEvent {
   codingSessionId: string;
   turnId?: string;
   runtimeId?: string;
-  kind: "session.started" | "turn.started" | "message.delta" | "message.completed" | "message.deleted" | "message.edited" | "tool.call.requested" | "tool.call.progress" | "tool.call.completed" | "artifact.upserted" | "approval.required" | "operation.updated" | "turn.completed" | "turn.failed";
+  kind: "session.started" | "turn.started" | "message.delta" | "message.completed" | "message.deleted" | "message.edited" | "tool.call.requested" | "tool.call.progress" | "tool.call.completed" | "artifact.upserted" | "approval.required" | "user.question.required" | "operation.updated" | "turn.completed" | "turn.failed";
   sequence: string;
   payload: Record<string, unknown>;
   createdAt: string;
@@ -279,6 +273,7 @@ export interface BirdCoderCodingSessionSummary {
   id: string;
   workspaceId: string;
   projectId: string;
+  runtimeLocationId?: string;
   title: string;
   status: "draft" | "active" | "paused" | "completed" | "archived";
   hostMode: "web" | "desktop" | "server";
@@ -488,6 +483,7 @@ export interface BirdCoderCommercePaymentSummaryListEnvelope {
 }
 
 export interface BirdCoderCommitProjectGitChangesRequest {
+  runtimeLocationId: string;
   includeUnstaged?: boolean;
   message: string;
 }
@@ -530,6 +526,7 @@ export interface BirdCoderCreateChatMessageRequest {
 export interface BirdCoderCreateCodingSessionRequest {
   workspaceId: string;
   projectId: string;
+  runtimeLocationId: string;
   title?: string;
   hostMode?: "web" | "desktop" | "server";
   engineId: "codex" | "claude-code" | "gemini" | "opencode";
@@ -538,8 +535,6 @@ export interface BirdCoderCreateCodingSessionRequest {
 
 export interface BirdCoderCreateCodingSessionTurnRequest {
   runtimeId?: string;
-  engineId?: string;
-  modelId?: string;
   requestKind: "chat" | "plan" | "tool" | "review" | "apply";
   inputSummary: string;
   stream?: boolean;
@@ -564,10 +559,12 @@ export interface BirdCoderCreateCommercePaymentRequest {
 }
 
 export interface BirdCoderCreateProjectGitBranchRequest {
+  runtimeLocationId: string;
   branchName: string;
 }
 
 export interface BirdCoderCreateProjectGitWorktreeRequest {
+  runtimeLocationId: string;
   branchName: string;
 }
 
@@ -575,6 +572,16 @@ export interface BirdCoderCreateProjectRequest {
   description?: string;
   name: string;
   workspaceId: string;
+}
+
+export interface BirdCoderCreateProjectRuntimeLocationRequest {
+  runtimeTargetId: string;
+  runtimeTargetKind: "desktop_device" | "server" | "runner" | "container" | "remote_workspace";
+  locationKind: "desktop_checkout" | "server_workspace" | "runner_worktree" | "container_volume" | "remote_workspace";
+  pathFlavor: "windows" | "posix";
+  rootLocator: string;
+  absolutePath: string;
+  displayName?: string;
 }
 
 export interface BirdCoderCreateWorkspaceRequest {
@@ -1038,7 +1045,6 @@ export interface BirdCoderNativeSessionAttributes {
   providerVersion?: string;
   modelProvider?: string;
   projectId?: string;
-  cwd?: string;
   gitBranch?: string;
   gitCommit?: string;
   gitRepositoryUrl?: string;
@@ -1105,6 +1111,7 @@ export interface BirdCoderNativeSessionSummary {
   id: string;
   workspaceId: string;
   projectId: string;
+  runtimeLocationId?: string;
   title: string;
   status: "draft" | "active" | "paused" | "completed" | "archived";
   hostMode: "web" | "desktop" | "server";
@@ -1118,7 +1125,6 @@ export interface BirdCoderNativeSessionSummary {
   sortTimestamp: string;
   transcriptUpdatedAt?: string | unknown;
   kind: "coding";
-  nativeCwd?: string | unknown;
 }
 
 export interface BirdCoderNativeSessionSummaryListEnvelope {
@@ -1233,6 +1239,81 @@ export interface BirdCoderProjectPublishResultEnvelope {
   traceId: string;
 }
 
+export interface BirdCoderProjectRuntimeLocation {
+  id: string;
+  uuid?: string;
+  projectId: string;
+  runtimeTargetId: string;
+  runtimeTargetKind: "desktop_device" | "server" | "runner" | "container" | "remote_workspace";
+  locationKind: "desktop_checkout" | "server_workspace" | "runner_worktree" | "container_volume" | "remote_workspace";
+  pathFlavor: "windows" | "posix";
+  rootLocator: string;
+  displayName: string;
+  hasAbsolutePath: boolean;
+  terminalAvailable: boolean;
+  gitAvailable: boolean;
+  buildAvailable: boolean;
+  fileSystemAvailable: boolean;
+  healthStatus: "pending_verification" | "local_observed" | "healthy" | "degraded" | "unavailable" | "revoked";
+  lastVerifiedAt?: string;
+  lastSeenAt?: string;
+  gitRepositoryUrl?: string;
+  gitRemoteName?: string;
+  gitBranch?: string;
+  gitCommit?: string;
+  gitWorktreeKey?: string;
+  version: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface BirdCoderProjectRuntimeLocationCommandAccepted {
+  accepted: boolean;
+  resourceId: string;
+  status: "pending_verification" | "local_observed" | "healthy" | "degraded" | "unavailable" | "revoked";
+}
+
+export interface BirdCoderProjectRuntimeLocationCommandEnvelope {
+  code: 0;
+  data: BirdCoderProjectRuntimeLocationCommandAccepted;
+  traceId: string;
+}
+
+export interface BirdCoderProjectRuntimeLocationEnvelope {
+  code: 0;
+  data: Record<string, unknown>;
+  traceId: string;
+}
+
+export interface BirdCoderProjectRuntimeLocationListEnvelope {
+  code: 0;
+  data: Record<string, unknown>;
+  traceId: string;
+}
+
+export interface BirdCoderProjectRuntimeLocationPreference {
+  id: string;
+  projectId: string;
+  subjectUserId: string;
+  capability: "terminal" | "git" | "build" | "file_system";
+  runtimeLocationId: string;
+  version: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface BirdCoderProjectRuntimeLocationPreferenceEnvelope {
+  code: 0;
+  data: Record<string, unknown>;
+  traceId: string;
+}
+
+export interface BirdCoderProjectRuntimeLocationPreferenceListEnvelope {
+  code: 0;
+  data: Record<string, unknown>;
+  traceId: string;
+}
+
 export interface BirdCoderProjectSummary {
   createdAt: string;
   id: string;
@@ -1281,6 +1362,28 @@ export interface BirdCoderProjectSummaryListEnvelope {
   traceId: string;
 }
 
+export interface BirdCoderProjectWorkspaceBinding {
+  id: string;
+  projectId: string;
+  sandboxId: string;
+  rootEntryId: string;
+  logicalPath: string;
+  lifecycleStatus: "active";
+  version: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface BirdCoderProjectWorkspaceBindingEnvelope {
+  code: 0;
+  data: Record<string, unknown>;
+  traceId: string;
+}
+
+export interface BirdCoderPruneProjectGitWorktreesRequest {
+  runtimeLocationId: string;
+}
+
 export interface BirdCoderPublishProjectRequest {
   endpointUrl?: string;
   environmentKey?: string;
@@ -1293,8 +1396,16 @@ export interface BirdCoderPublishProjectRequest {
 }
 
 export interface BirdCoderPushProjectGitBranchRequest {
+  runtimeLocationId: string;
   branchName?: string;
   remoteName?: string;
+}
+
+export interface BirdCoderRebindProjectRuntimeLocationRequest {
+  pathFlavor: "windows" | "posix";
+  rootLocator: string;
+  absolutePath: string;
+  displayName?: string;
 }
 
 export interface BirdCoderReleaseSummary {
@@ -1312,8 +1423,13 @@ export interface BirdCoderReleaseSummary {
 }
 
 export interface BirdCoderRemoveProjectGitWorktreeRequest {
+  runtimeLocationId: string;
   force?: boolean;
   worktreeKey: string;
+}
+
+export interface BirdCoderSetProjectRuntimeLocationPreferenceRequest {
+  runtimeLocationId: string;
 }
 
 export interface BirdCoderSkillCatalogEntrySummary {
@@ -1398,6 +1514,7 @@ export interface BirdCoderSubmitUserQuestionAnswerRequest {
 }
 
 export interface BirdCoderSwitchProjectGitBranchRequest {
+  runtimeLocationId: string;
   branchName: string;
 }
 
@@ -1451,6 +1568,10 @@ export interface BirdCoderUpdateProjectRequest {
   status?: "active" | "archived";
 }
 
+export interface BirdCoderUpdateProjectRuntimeLocationRequest {
+  displayName?: string;
+}
+
 export interface BirdCoderUpdateWorkspaceRequest {
   description?: string;
   dataScope?: "DEFAULT" | "PRIVATE" | "ORGANIZATION" | "TENANT" | "PUBLIC";
@@ -1480,6 +1601,12 @@ export interface BirdCoderUpsertProjectCollaboratorRequest {
   userId: string;
   role?: "owner" | "admin" | "member" | "viewer";
   status?: "invited" | "active" | "suspended";
+}
+
+export interface BirdCoderUpsertProjectWorkspaceBindingRequest {
+  sandboxId: string;
+  rootEntryId: string;
+  logicalPath: string;
 }
 
 export interface BirdCoderUpsertWorkspaceMemberRequest {
@@ -1693,6 +1820,7 @@ export interface IntelligenceCodingSessionsForksCreatePathParams {
 export interface IntelligenceCodingSessionsListQuery extends Record<string, BirdcoderSdkQueryValue> {
   workspaceId?: string;
   projectId?: string;
+  runtimeLocationId?: string;
   engineId?: "codex" | "claude-code" | "gemini" | "opencode";
   page?: number;
   page_size?: number;
@@ -1788,8 +1916,16 @@ export interface PlatformProjectsGitDiffRetrievePathParams {
   projectId: string;
 }
 
+export interface PlatformProjectsGitDiffRetrieveQuery extends Record<string, BirdcoderSdkQueryValue> {
+  runtime_location_id: string;
+}
+
 export interface PlatformProjectsGitOverviewRetrievePathParams {
   projectId: string;
+}
+
+export interface PlatformProjectsGitOverviewRetrieveQuery extends Record<string, BirdcoderSdkQueryValue> {
+  runtime_location_id: string;
 }
 
 export interface PlatformProjectsGitPushesCreatePathParams {
@@ -1823,7 +1959,71 @@ export interface PlatformProjectsRetrievePathParams {
   projectId: string;
 }
 
+export interface PlatformProjectsRuntimeLocationsCreatePathParams {
+  projectId: string;
+}
+
+export interface PlatformProjectsRuntimeLocationsDeletePathParams {
+  projectId: string;
+  runtimeLocationId: string;
+}
+
+export interface PlatformProjectsRuntimeLocationsListPathParams {
+  projectId: string;
+}
+
+export interface PlatformProjectsRuntimeLocationsListQuery extends Record<string, BirdcoderSdkQueryValue> {
+  page?: number;
+  page_size?: number;
+}
+
+export interface PlatformProjectsRuntimeLocationsPreferencesListPathParams {
+  projectId: string;
+}
+
+export interface PlatformProjectsRuntimeLocationsPreferencesListQuery extends Record<string, BirdcoderSdkQueryValue> {
+  page?: number;
+  page_size?: number;
+}
+
+export interface PlatformProjectsRuntimeLocationsPreferencesUpdatePathParams {
+  projectId: string;
+  capability: string;
+}
+
+export interface PlatformProjectsRuntimeLocationsRebindPathParams {
+  projectId: string;
+  runtimeLocationId: string;
+}
+
+export interface PlatformProjectsRuntimeLocationsRequestVerificationPathParams {
+  projectId: string;
+  runtimeLocationId: string;
+}
+
+export interface PlatformProjectsRuntimeLocationsRetrievePathParams {
+  projectId: string;
+  runtimeLocationId: string;
+}
+
+export interface PlatformProjectsRuntimeLocationsUpdatePathParams {
+  projectId: string;
+  runtimeLocationId: string;
+}
+
 export interface PlatformProjectsUpdatePathParams {
+  projectId: string;
+}
+
+export interface PlatformProjectsWorkspaceBindingDeletePathParams {
+  projectId: string;
+}
+
+export interface PlatformProjectsWorkspaceBindingRetrievePathParams {
+  projectId: string;
+}
+
+export interface PlatformProjectsWorkspaceBindingUpdatePathParams {
   projectId: string;
 }
 
@@ -1852,6 +2052,7 @@ export interface RuntimeEnginesCapabilitiesRetrievePathParams {
 export interface RuntimeNativeSessionsListQuery extends Record<string, BirdcoderSdkQueryValue> {
   workspaceId: string;
   projectId: string;
+  runtimeLocationId: string;
   engineId?: "codex" | "claude-code" | "gemini" | "opencode";
   page?: number;
   page_size?: number;
@@ -1864,6 +2065,7 @@ export interface RuntimeNativeSessionsRetrievePathParams {
 export interface RuntimeNativeSessionsRetrieveQuery extends Record<string, BirdcoderSdkQueryValue> {
   workspaceId: string;
   projectId: string;
+  runtimeLocationId: string;
   engineId?: "codex" | "claude-code" | "gemini" | "opencode";
 }
 
@@ -3069,6 +3271,174 @@ export const BIRDCODER_APP_SDK_OPERATIONS = [
     "tenantScope": "tenant"
   },
   {
+    "key": "platform.projects.runtimeLocations.create",
+    "method": "POST",
+    "operationId": "projects.runtimeLocations.create",
+    "path": "/app/v3/api/projects/{projectId}/runtime_locations",
+    "pathParamNames": [
+      "projectId"
+    ],
+    "dataScope": "organization",
+    "deployment": "all",
+    "domain": "platform",
+    "permission": "birdcoder.platform-projects-runtime-locations.create",
+    "public": false,
+    "resource": "birdcoder.platform-projects-runtime-locations",
+    "summary": "Register project runtime location",
+    "tag": "platform",
+    "tenantScope": "tenant"
+  },
+  {
+    "key": "platform.projects.runtimeLocations.delete",
+    "method": "DELETE",
+    "operationId": "projects.runtimeLocations.delete",
+    "path": "/app/v3/api/projects/{projectId}/runtime_locations/{runtimeLocationId}",
+    "pathParamNames": [
+      "projectId",
+      "runtimeLocationId"
+    ],
+    "dataScope": "organization",
+    "deployment": "all",
+    "domain": "platform",
+    "permission": "birdcoder.platform-projects-runtime-locations.delete",
+    "public": false,
+    "resource": "birdcoder.platform-projects-runtime-locations",
+    "summary": "Delete project runtime location",
+    "tag": "platform",
+    "tenantScope": "tenant"
+  },
+  {
+    "key": "platform.projects.runtimeLocations.list",
+    "method": "GET",
+    "operationId": "projects.runtimeLocations.list",
+    "path": "/app/v3/api/projects/{projectId}/runtime_locations",
+    "pathParamNames": [
+      "projectId"
+    ],
+    "dataScope": "organization",
+    "deployment": "all",
+    "domain": "platform",
+    "permission": "birdcoder.platform-projects-runtime-locations.read",
+    "public": false,
+    "resource": "birdcoder.platform-projects-runtime-locations",
+    "summary": "List project runtime locations",
+    "tag": "platform",
+    "tenantScope": "tenant"
+  },
+  {
+    "key": "platform.projects.runtimeLocations.preferences.list",
+    "method": "GET",
+    "operationId": "projects.runtimeLocations.preferences.list",
+    "path": "/app/v3/api/projects/{projectId}/runtime_location_preferences",
+    "pathParamNames": [
+      "projectId"
+    ],
+    "dataScope": "organization",
+    "deployment": "all",
+    "domain": "platform",
+    "permission": "birdcoder.platform-projects-runtime-locations-preferences.read",
+    "public": false,
+    "resource": "birdcoder.platform-projects-runtime-locations-preferences",
+    "summary": "List project runtime-location preferences",
+    "tag": "platform",
+    "tenantScope": "tenant"
+  },
+  {
+    "key": "platform.projects.runtimeLocations.preferences.update",
+    "method": "PUT",
+    "operationId": "projects.runtimeLocations.preferences.update",
+    "path": "/app/v3/api/projects/{projectId}/runtime_location_preferences/{capability}",
+    "pathParamNames": [
+      "projectId",
+      "capability"
+    ],
+    "dataScope": "organization",
+    "deployment": "all",
+    "domain": "platform",
+    "permission": "birdcoder.platform-projects-runtime-locations-preferences.update",
+    "public": false,
+    "resource": "birdcoder.platform-projects-runtime-locations-preferences",
+    "summary": "Update project runtime-location preference",
+    "tag": "platform",
+    "tenantScope": "tenant"
+  },
+  {
+    "key": "platform.projects.runtimeLocations.rebind",
+    "method": "POST",
+    "operationId": "projects.runtimeLocations.rebind",
+    "path": "/app/v3/api/projects/{projectId}/runtime_locations/{runtimeLocationId}/rebind",
+    "pathParamNames": [
+      "projectId",
+      "runtimeLocationId"
+    ],
+    "dataScope": "organization",
+    "deployment": "all",
+    "domain": "platform",
+    "permission": "birdcoder.platform-projects-runtime-locations.create",
+    "public": false,
+    "resource": "birdcoder.platform-projects-runtime-locations",
+    "summary": "Rebind project runtime location",
+    "tag": "platform",
+    "tenantScope": "tenant"
+  },
+  {
+    "key": "platform.projects.runtimeLocations.requestVerification",
+    "method": "POST",
+    "operationId": "projects.runtimeLocations.requestVerification",
+    "path": "/app/v3/api/projects/{projectId}/runtime_locations/{runtimeLocationId}/request_verification",
+    "pathParamNames": [
+      "projectId",
+      "runtimeLocationId"
+    ],
+    "dataScope": "organization",
+    "deployment": "all",
+    "domain": "platform",
+    "permission": "birdcoder.platform-projects-runtime-locations.create",
+    "public": false,
+    "resource": "birdcoder.platform-projects-runtime-locations",
+    "summary": "Request project runtime-location verification",
+    "tag": "platform",
+    "tenantScope": "tenant"
+  },
+  {
+    "key": "platform.projects.runtimeLocations.retrieve",
+    "method": "GET",
+    "operationId": "projects.runtimeLocations.retrieve",
+    "path": "/app/v3/api/projects/{projectId}/runtime_locations/{runtimeLocationId}",
+    "pathParamNames": [
+      "projectId",
+      "runtimeLocationId"
+    ],
+    "dataScope": "organization",
+    "deployment": "all",
+    "domain": "platform",
+    "permission": "birdcoder.platform-projects-runtime-locations.read",
+    "public": false,
+    "resource": "birdcoder.platform-projects-runtime-locations",
+    "summary": "Get project runtime location",
+    "tag": "platform",
+    "tenantScope": "tenant"
+  },
+  {
+    "key": "platform.projects.runtimeLocations.update",
+    "method": "PATCH",
+    "operationId": "projects.runtimeLocations.update",
+    "path": "/app/v3/api/projects/{projectId}/runtime_locations/{runtimeLocationId}",
+    "pathParamNames": [
+      "projectId",
+      "runtimeLocationId"
+    ],
+    "dataScope": "organization",
+    "deployment": "all",
+    "domain": "platform",
+    "permission": "birdcoder.platform-projects-runtime-locations.update",
+    "public": false,
+    "resource": "birdcoder.platform-projects-runtime-locations",
+    "summary": "Update project runtime location",
+    "tag": "platform",
+    "tenantScope": "tenant"
+  },
+  {
     "key": "platform.projects.update",
     "method": "PATCH",
     "operationId": "projects.update",
@@ -3083,6 +3453,60 @@ export const BIRDCODER_APP_SDK_OPERATIONS = [
     "public": false,
     "resource": "birdcoder.platform-projects",
     "summary": "Update project",
+    "tag": "platform",
+    "tenantScope": "tenant"
+  },
+  {
+    "key": "platform.projects.workspaceBinding.delete",
+    "method": "DELETE",
+    "operationId": "projects.workspaceBinding.delete",
+    "path": "/app/v3/api/projects/{projectId}/workspace_binding",
+    "pathParamNames": [
+      "projectId"
+    ],
+    "dataScope": "organization",
+    "deployment": "all",
+    "domain": "platform",
+    "permission": "birdcoder.platform-projects-workspace-binding.delete",
+    "public": false,
+    "resource": "birdcoder.platform-projects-workspace-binding",
+    "summary": "Delete project workspace binding",
+    "tag": "platform",
+    "tenantScope": "tenant"
+  },
+  {
+    "key": "platform.projects.workspaceBinding.retrieve",
+    "method": "GET",
+    "operationId": "projects.workspaceBinding.retrieve",
+    "path": "/app/v3/api/projects/{projectId}/workspace_binding",
+    "pathParamNames": [
+      "projectId"
+    ],
+    "dataScope": "organization",
+    "deployment": "all",
+    "domain": "platform",
+    "permission": "birdcoder.platform-projects-workspace-binding.read",
+    "public": false,
+    "resource": "birdcoder.platform-projects-workspace-binding",
+    "summary": "Get project workspace binding",
+    "tag": "platform",
+    "tenantScope": "tenant"
+  },
+  {
+    "key": "platform.projects.workspaceBinding.update",
+    "method": "PUT",
+    "operationId": "projects.workspaceBinding.update",
+    "path": "/app/v3/api/projects/{projectId}/workspace_binding",
+    "pathParamNames": [
+      "projectId"
+    ],
+    "dataScope": "organization",
+    "deployment": "all",
+    "domain": "platform",
+    "permission": "birdcoder.platform-projects-workspace-binding.update",
+    "public": false,
+    "resource": "birdcoder.platform-projects-workspace-binding",
+    "summary": "Create or update project workspace binding",
     "tag": "platform",
     "tenantScope": "tenant"
   },

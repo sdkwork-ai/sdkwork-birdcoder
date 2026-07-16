@@ -32,8 +32,14 @@ assert.match(
 
 assert.match(
   hookSource,
-  /const synchronizationRequestKey =\s*`\$\{synchronizationScopeKey\}:\$\{selectionRefreshToken\}:\$\{authorityFallbackRefreshTick\}`;/,
-  'Selected-session hydration must key reselection retries by initial/manual refresh and slow fallback ticks instead of local transcript mutations.',
+  /const synchronizationRequestKey =\s*`\$\{synchronizationScopeKey\}:\$\{selectionSynchronizationEpoch\}:\$\{selectionRefreshToken\}:\$\{authorityFallbackRefreshTick\}`;/,
+  'Selected-session hydration must key reselection retries by selection epoch, manual refresh, and slow fallback ticks instead of local transcript mutations.',
+);
+
+assert.match(
+  hookSource,
+  /if \(activeSelectionScopeKeyRef\.current !== synchronizationScopeKey\) \{[\s\S]*allocateSelectionSynchronizationEpoch\(\);[\s\S]*\}/s,
+  'Switching away from and back to a session must allocate a new selection epoch so its authoritative history is loaded again.',
 );
 
 assert.doesNotMatch(

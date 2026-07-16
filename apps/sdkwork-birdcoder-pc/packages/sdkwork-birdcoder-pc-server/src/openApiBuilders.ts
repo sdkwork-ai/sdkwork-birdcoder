@@ -317,6 +317,24 @@ export function createOpenApiListEnvelopeSchema(itemSchema: BirdCoderOpenApiSche
   return createOpenApiListResponseSchema(itemSchema);
 }
 
+export function createOpenApiCommandEnvelopeSchema(
+  commandSchema: BirdCoderOpenApiSchema = createOpenApiSchemaReference('SdkWorkCommandData'),
+): BirdCoderOpenApiSchema {
+  return {
+    allOf: [
+      createOpenApiSchemaReference('SdkWorkApiResponse'),
+      createOpenApiObjectSchema(
+        {
+          data: commandSchema,
+        },
+        {
+          required: ['data'],
+        },
+      ),
+    ],
+  };
+}
+
 export function createOpenApiPathParameter(
   name: string,
   description: string,
@@ -343,6 +361,53 @@ export function createOpenApiQueryParameter(
     ...(required ? { required: true } : {}),
     schema,
   };
+}
+
+export function createOpenApiHeaderParameter(
+  name: string,
+  description: string,
+  schema: BirdCoderOpenApiSchema,
+  required = false,
+): BirdCoderOpenApiParameterObject {
+  return {
+    name,
+    in: 'header',
+    description,
+    ...(required ? { required: true } : {}),
+    schema,
+  };
+}
+
+export function createOpenApiIdempotencyKeyParameter(
+  required = true,
+): BirdCoderOpenApiParameterObject {
+  return createOpenApiHeaderParameter(
+    'Idempotency-Key',
+    'Client-generated idempotency key scoped to the authenticated principal and operation.',
+    {
+      ...createOpenApiStringSchema(),
+      maxLength: 128,
+      minLength: 8,
+      pattern: '^[A-Za-z0-9._:@-]+$',
+    },
+    required,
+  );
+}
+
+export function createOpenApiIfMatchParameter(
+  required = true,
+): BirdCoderOpenApiParameterObject {
+  return createOpenApiHeaderParameter(
+    'If-Match',
+    'Current resource version required for optimistic concurrency.',
+    {
+      ...createOpenApiStringSchema(),
+      maxLength: 32,
+      minLength: 1,
+      pattern: '[0-9]+',
+    },
+    required,
+  );
 }
 
 export function createProblemResponse(description: string): BirdCoderOpenApiResponseObject {

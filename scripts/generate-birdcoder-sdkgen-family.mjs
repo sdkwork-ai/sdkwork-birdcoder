@@ -142,9 +142,6 @@ function resolveLanguageOutput(familyRoot, sdkFamily, language) {
 }
 
 function createGenerationPlans(rootDir, options) {
-  const assembly = readJson(path.join(rootDir, 'sdks', '.sdkwork-assembly.json'));
-  assert.equal(assembly.standardProfile, STANDARD_PROFILE);
-
   const requestedLanguages = new Set(options.languages.length > 0 ? options.languages : SUPPORTED_LANGUAGES);
   for (const language of requestedLanguages) {
     if (!SUPPORTED_LANGUAGES.has(language)) {
@@ -152,34 +149,42 @@ function createGenerationPlans(rootDir, options) {
     }
   }
 
-  return (assembly.surfaces ?? [])
-    .filter((surface) => !options.surface || surface.surface === options.surface)
-    .flatMap((surface) => {
-      const familyRoot = resolveFamilyRoot(surface);
-      const familyManifestPath = path.join(rootDir, ...familyRoot.split('/'), 'sdk-manifest.json');
-      const familyManifest = readJson(familyManifestPath);
+  const sdksRoot = path.join(rootDir, 'sdks');
+  const familyManifests = fs.readdirSync(sdksRoot, { withFileTypes: true })
+    .filter((entry) => entry.isDirectory())
+    .map((entry) => ({
+      familyRoot: `sdks/${entry.name}`,
+      manifestPath: path.join(sdksRoot, entry.name, 'sdk-manifest.json'),
+    }))
+    .filter((entry) => fs.existsSync(entry.manifestPath))
+    .map((entry) => ({ ...entry, manifest: readJson(entry.manifestPath) }))
+    .filter((entry) => entry.manifest.sdkOwner === 'sdkwork-birdcoder');
+
+  return familyManifests
+    .filter(({ manifest }) => !options.surface || manifest.discoverySurface?.sdkTarget === options.surface)
+    .flatMap(({ familyRoot, manifest: familyManifest }) => {
+      const surface = familyManifest.discoverySurface?.sdkTarget;
       assert.equal(familyManifest.sdkOwner, 'sdkwork-birdcoder');
-      assert.equal(familyManifest.workspace, surface.sdkFamily);
-      assert.equal(familyManifest.sdkFamily, surface.sdkFamily);
-      assert.equal(familyManifest.apiAuthority, surface.apiAuthority);
-      assert.equal(familyManifest.generationInputSpec, `openapi/${surface.apiAuthority}.sdkgen.json`);
+      assert.equal(familyManifest.workspace, familyManifest.sdkFamily);
+      assert.equal(familyManifest.standardProfile, STANDARD_PROFILE);
+      assert.equal(familyManifest.generationInputSpec, `openapi/${familyManifest.apiAuthority}.sdkgen.json`);
 
       const languages = new Map((familyManifest.languages ?? []).map((entry) => [entry.language, entry]));
       return [...requestedLanguages].map((language) => {
         const languageEntry = languages.get(language);
-        assert.ok(languageEntry, `${surface.sdkFamily} must declare ${language} in sdk-manifest.json.`);
-        const names = resolveSurfacePackageNames(surface);
+        assert.ok(languageEntry, `${familyManifest.sdkFamily} must declare ${language} in sdk-manifest.json.`);
+        const names = resolveSurfacePackageNames(familyManifest);
         return {
-          apiPrefix: surface.apiPrefix,
-          fixedSdkVersion: String(languageEntry.version ?? familyManifest.apiVersion ?? surface.version ?? '0.1.0'),
+          apiPrefix: familyManifest.discoverySurface.apiPrefix,
+          fixedSdkVersion: String(languageEntry.version ?? familyManifest.apiVersion ?? '0.1.0'),
           input: path.join(rootDir, ...familyRoot.split('/'), familyManifest.generationInputSpec),
           language,
-          output: path.join(rootDir, ...resolveLanguageOutput(familyRoot, surface.sdkFamily, language).split('/')),
+          output: path.join(rootDir, ...resolveLanguageOutput(familyRoot, familyManifest.sdkFamily, language).split('/')),
           packageName: names.consumerPackageName,
           consumerPackageName: names.consumerPackageName,
           transportPackageName: names.transportPackageName,
-          sdkName: surface.sdkFamily,
-          surface: surface.surface,
+          sdkName: familyManifest.sdkFamily,
+          surface,
         };
       });
     });

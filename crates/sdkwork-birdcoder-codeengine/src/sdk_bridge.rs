@@ -168,7 +168,7 @@ fn sdk_bridge_session_home_directory() -> PathBuf {
     }
 
     default_user_home_directory()
-        .unwrap_or_else(|| env::current_dir().unwrap_or_else(|_| PathBuf::from(".")))
+        .unwrap_or_else(env::temp_dir)
         .join(".sdkwork-birdcoder")
         .join("codeengine-sdk-bridge")
 }

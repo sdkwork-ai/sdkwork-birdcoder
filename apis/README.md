@@ -19,6 +19,25 @@ BirdCoder materializes HTTP OpenAPI authority under the PC application SDK works
 
 Commerce `/api/v1/*` routes (api-keys, notifications, usage) are authored in `routeCatalog.ts`, implemented in `crates/sdkwork-birdcoder-standalone-gateway/src/routes/`, and included in the exported OpenAPI snapshot.
 
+## Project Runtime Location Contract
+
+ProjectRuntimeLocation is an app-api resource owned by the workspace/project
+route authority. It persists one target-specific project root and exposes
+separate location list, registration, retrieval, update, delete, verification,
+and subject-capability preference operations.
+
+- Registration carries an authenticated write-only absolutePath input. The
+  control plane encrypts it before persistence.
+- Generic Project and runtime-location response DTOs contain only safe
+  metadata; they never return plaintext paths, browser handles, secrets, or
+  credential-bearing Git URLs.
+- A client supplies runtimeLocationId as the opaque selector for a terminal,
+  Git, build, worktree, or file capability. Only the authenticated owning
+  target resolves the protected root internally.
+- OpenAPI/route ownership changes are authored in the canonical route/API
+  source and regenerated into all SDK authority and generated-output mirrors.
+  Do not hand-edit generated SDK output.
+
 ## RPC / Discovery
 
 BirdCoder is HTTP-first. No first-party gRPC/RPC service catalog is published from this repository, so `sdkwork-discovery` registration is not required until RPC services are introduced.
@@ -59,3 +78,5 @@ SDKWork Birdcoder team.
 - [x] `pnpm run check:web-framework-standard` passes for framework OpenAPI extensions
 - [x] `pnpm run check:api-response-envelope` passes for SdkWorkApiResponse / ProblemDetail alignment
 - [x] `pnpm run check:app-composition` passes for native composition architecture
+- [ ] `node ../sdkwork-specs/tools/check-api-operation-patterns.mjs --workspace .` passes after runtime-location routes are materialized
+- [ ] `node ../sdkwork-specs/tools/check-pagination.mjs --workspace .` passes after runtime-location list implementation is materialized

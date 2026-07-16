@@ -10,6 +10,7 @@ function read(relativePath) {
 }
 
 const codePageSource = read('apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-code/src/pages/CodePage.tsx');
+const topBarSource = read('apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-code/src/components/TopBar.tsx');
 const hookPath = path.join(
   rootDir,
   'apps',
@@ -54,7 +55,6 @@ assert.doesNotMatch(
 );
 
 for (const commandName of [
-  'toggleDiffPanel',
   'startDebugging',
   'runWithoutDebugging',
   'addRunConfiguration',
@@ -68,5 +68,16 @@ for (const commandName of [
     `useCodeWorkbenchCommands must subscribe to ${commandName}.`,
   );
 }
+
+assert.match(
+  topBarSource,
+  /globalEventBus\.on\('toggleDiffPanel'/,
+  'TopBar must subscribe to toggleDiffPanel because it owns the Git diff dialog state and rendering.',
+);
+assert.doesNotMatch(
+  hookSource,
+  /globalEventBus\.on\('toggleDiffPanel'/,
+  'useCodeWorkbenchCommands must not duplicate the TopBar Git diff subscription.',
+);
 
 console.log('code workbench command boundary contract passed.');

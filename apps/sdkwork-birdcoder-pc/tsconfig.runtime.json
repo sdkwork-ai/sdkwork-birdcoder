@@ -99,7 +99,7 @@
         "./node_modules/lucide-react"
       ],
       "@sdkwork/terminal-local-runtime-app-sdk": [
-        "../../../sdkwork-terminal/apps/sdkwork-terminal-pc/sdks/sdkwork-terminal-local-runtime-app-sdk/sdkwork-terminal-local-runtime-app-sdk-typescript/src/index.ts"
+        "../../../sdkwork-terminal/apps/sdkwork-terminal-pc/sdks/sdkwork-terminal-app-sdk/sdkwork-terminal-app-sdk-typescript/src/index.ts"
       ],
       "@sdkwork/terminal-*": [
         "../../../sdkwork-terminal/apps/sdkwork-terminal-pc/packages/sdkwork-terminal-pc-*/src"

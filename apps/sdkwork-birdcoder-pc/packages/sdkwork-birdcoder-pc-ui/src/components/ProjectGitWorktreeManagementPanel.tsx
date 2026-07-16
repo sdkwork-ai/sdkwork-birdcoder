@@ -1,14 +1,16 @@
 import { useEffect, useMemo, useState } from 'react';
 import { GitBranch, Loader2, Plus, RefreshCw, Trash2 } from 'lucide-react';
 import {
+  useProjectGitOverview,
+} from '@sdkwork/birdcoder-pc-commons/hooks/useProjectGitOverview';
+import { useProjectGitMutationActions } from '@sdkwork/birdcoder-pc-commons/hooks/useProjectGitMutationActions';
+import { useToast } from '@sdkwork/birdcoder-pc-commons/contexts/ToastProvider';
+import {
   getProjectGitWorktreeDisplayName,
   getProjectGitWorktreeKey,
   isProjectGitWorktreePrunable,
   isProjectGitWorktreeRemovable,
-  useProjectGitMutationActions,
-  useProjectGitOverview,
-  useToast,
-} from '@sdkwork/birdcoder-pc-commons';
+} from '@sdkwork/birdcoder-pc-commons/workbench/gitWorktrees';
 import type { BirdCoderGitWorktreeSummary } from '@sdkwork/birdcoder-pc-commons/chat/types';
 import { useTranslation } from 'react-i18next';
 

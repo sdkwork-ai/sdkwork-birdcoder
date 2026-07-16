@@ -1,5 +1,4 @@
 import assert from 'node:assert/strict';
-import { createHash } from 'node:crypto';
 import { execFileSync } from 'node:child_process';
 import fs from 'node:fs';
 import os from 'node:os';
@@ -7,6 +6,7 @@ import path from 'node:path';
 import {
   createDeploymentWorkspaceHostRuntime,
 } from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-web/src-host/deploymentWorkspacePlugin.ts';
+import { sha256Value } from './sdkwork-utils-digest.mjs';
 
 function runGit(repositoryRoot: string, args: readonly string[]): string {
   return execFileSync('git', ['-C', repositoryRoot, ...args], {
@@ -107,7 +107,7 @@ try {
     operation: 'createWorktree',
     branchName: 'feature/existing',
   });
-  const existingWorktreeKey = createHash('sha256').update('feature/existing').digest('hex');
+  const existingWorktreeKey = sha256Value('feature/existing');
   assert.ok(
     existingWorktreeOverview.worktrees.some(
       (worktree) => worktree.branch === 'feature/existing'
@@ -124,7 +124,7 @@ try {
     operation: 'createWorktree',
     branchName: 'feature/new-worktree',
   });
-  const newWorktreeKey = createHash('sha256').update('feature/new-worktree').digest('hex');
+  const newWorktreeKey = sha256Value('feature/new-worktree');
   assert.ok(
     newWorktreeOverview.worktrees.some(
       (worktree) => worktree.branch === 'feature/new-worktree'

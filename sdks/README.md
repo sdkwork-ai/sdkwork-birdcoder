@@ -17,7 +17,7 @@ SDKWork Birdcoder team.
 - Derived sdkgen inputs
 - Generated SDK language workspaces
 - SDK component specs
-- .sdkwork-assembly.json files
+- Family-root sdk-manifest.json files
 
 ## Forbidden Content
 - Authored API contracts (belongs in apis/)
@@ -57,7 +57,7 @@ const auditEvents = await client.iam.auditEvents.list();
 - [ ] SDK families follow SDKWork naming conventions
 - [ ] Generated SDK output is properly structured
 - [ ] No authored API contracts in sdks/
-- [ ] .sdkwork-assembly.json files are valid
+- [ ] Family-root sdk-manifest.json files are valid
 
 ## Notes
 API contracts and materialization inputs should be in apis/, while SDK family workspaces and generated SDK output should be in sdks/.

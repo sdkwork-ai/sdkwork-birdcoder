@@ -1,13 +1,13 @@
 use std::{
     collections::BTreeMap,
     env,
-    sync::{Mutex, OnceLock},
+    sync::{Arc, Mutex, OnceLock},
     time::{SystemTime, UNIX_EPOCH},
 };
 
 use crate::{
     session_id_targets_engine, standard_native_session_provider_registry,
-    CodeEngineSessionDetailRecord, CodeEngineSessionSummaryRecord,
+    CodeEngineSessionDetailRecord, CodeEngineSessionSummaryRecord, NativeSessionProviderPlugin,
 };
 
 const NATIVE_SESSION_CATALOG_CACHE_TTL_MILLIS: u128 = 10_000;
@@ -41,11 +41,19 @@ struct CachedNativeProviderFailure {
 struct NativeSessionCatalogCache {
     failures: BTreeMap<String, CachedNativeProviderFailure>,
     providers: BTreeMap<String, CachedNativeProviderSessionSnapshot>,
+    refresh_gates: BTreeMap<String, Arc<Mutex<()>>>,
 }
 
 struct CachedNativeProviderRead {
     sessions: Vec<CodeEngineSessionSummaryRecord>,
     stale_error: Option<String>,
+}
+
+enum CachedNativeProviderCacheState {
+    Fresh(CachedNativeProviderRead),
+    Refresh {
+        stale_sessions: Option<Vec<CodeEngineSessionSummaryRecord>>,
+    },
 }
 
 static NATIVE_SESSION_CATALOG_CACHE: OnceLock<Mutex<NativeSessionCatalogCache>> = OnceLock::new();
@@ -55,23 +63,31 @@ pub fn list_codeengine_native_session_summaries(
 ) -> Result<Vec<CodeEngineSessionSummaryRecord>, String> {
     let registry = standard_native_session_provider_registry();
     let providers = registry.resolve_provider(engine_id)?;
+    let is_explicit_provider_request = matches!(engine_id, Some(value) if !value.trim().is_empty());
     let environment_signature = native_session_catalog_environment_signature();
-    // Keep the cache lock while a stale provider snapshot is refreshed. Native
-    // project hydration fans out several scoped HTTP reads concurrently; a
-    // single refresh owner prevents every project from rescanning the same
-    // provider histories at startup or on one Show more click.
-    let mut cache = native_session_catalog_cache()
-        .lock()
-        .map_err(|_| "lock native session catalog cache failed.".to_owned())?;
-    let now_millis = current_system_millis();
+    list_native_session_summaries_from_providers(
+        native_session_catalog_cache(),
+        providers.as_slice(),
+        is_explicit_provider_request,
+        environment_signature.as_str(),
+        current_system_millis(),
+    )
+}
+
+fn list_native_session_summaries_from_providers(
+    cache: &Mutex<NativeSessionCatalogCache>,
+    providers: &[&dyn NativeSessionProviderPlugin],
+    is_explicit_provider_request: bool,
+    environment_signature: &str,
+    now_millis: u128,
+) -> Result<Vec<CodeEngineSessionSummaryRecord>, String> {
     let mut sessions = Vec::new();
-    let mut provider_errors = Vec::new();
     for provider in providers {
         let provider_id = provider.registration().engine_id.as_str();
         match resolve_cached_native_provider_sessions(
-            &mut cache,
+            cache,
             provider_id,
-            environment_signature.as_str(),
+            environment_signature,
             now_millis,
             || provider.list_sessions(),
         ) {
@@ -86,20 +102,18 @@ pub fn list_codeengine_native_session_summaries(
                 sessions.extend(provider_read.sessions);
             }
             Err(error) => {
-                provider_errors.push(format!("{provider_id}: {error}"));
                 tracing::warn!(
                     provider_id,
                     error = %error,
                     "native session provider inventory is temporarily unavailable"
                 );
+                if is_explicit_provider_request {
+                    return Err(format!(
+                        "failed to list native sessions for provider \"{provider_id}\": {error}"
+                    ));
+                }
             }
         }
-    }
-    if !provider_errors.is_empty() {
-        return Err(format!(
-            "failed to build a complete native session inventory: {}",
-            provider_errors.join("; ")
-        ));
     }
     sessions.sort_by(|left, right| {
         right
@@ -138,12 +152,112 @@ fn native_session_catalog_environment_signature() -> String {
 }
 
 fn resolve_cached_native_provider_sessions(
-    cache: &mut NativeSessionCatalogCache,
+    cache: &Mutex<NativeSessionCatalogCache>,
     provider_id: &str,
     environment_signature: &str,
     now_millis: u128,
     load: impl FnOnce() -> Result<Vec<CodeEngineSessionSummaryRecord>, String>,
 ) -> Result<CachedNativeProviderRead, String> {
+    let refresh_gate = native_session_provider_refresh_gate(cache, provider_id)?;
+    // This gate serializes only one Provider's refresh. The global catalog
+    // mutex is released before calling the external Provider implementation.
+    let _refresh_guard = refresh_gate
+        .lock()
+        .map_err(|_| "lock native session provider refresh gate failed.".to_owned())?;
+    let cache_state = {
+        let cache = cache
+            .lock()
+            .map_err(|_| "lock native session catalog cache failed.".to_owned())?;
+        inspect_cached_native_provider_sessions(
+            &cache,
+            provider_id,
+            environment_signature,
+            now_millis,
+        )?
+    };
+    let stale_sessions = match cache_state {
+        CachedNativeProviderCacheState::Fresh(provider_read) => return Ok(provider_read),
+        CachedNativeProviderCacheState::Refresh { stale_sessions } => stale_sessions,
+    };
+
+    // Provider I/O deliberately happens after the global cache guard above is
+    // dropped. A slow or unavailable provider must not block unrelated cache
+    // hits or Provider refreshes.
+    match load() {
+        Ok(sessions) => {
+            let mut cache = cache
+                .lock()
+                .map_err(|_| "lock native session catalog cache failed.".to_owned())?;
+            cache.failures.remove(provider_id);
+            cache.providers.insert(
+                provider_id.to_owned(),
+                CachedNativeProviderSessionSnapshot {
+                    environment_signature: environment_signature.to_owned(),
+                    refreshed_at_millis: now_millis,
+                    sessions: sessions.clone(),
+                },
+            );
+            Ok(CachedNativeProviderRead {
+                sessions,
+                stale_error: None,
+            })
+        }
+        Err(error) => {
+            if let Some(sessions) = stale_sessions {
+                let mut cache = cache
+                    .lock()
+                    .map_err(|_| "lock native session catalog cache failed.".to_owned())?;
+                if let Some(snapshot) = cache
+                    .providers
+                    .get_mut(provider_id)
+                    .filter(|snapshot| snapshot.environment_signature == environment_signature)
+                {
+                    // Back off repeated provider retries for the same TTL
+                    // window while retaining the last complete snapshot.
+                    snapshot.refreshed_at_millis = now_millis;
+                }
+                cache.failures.remove(provider_id);
+                return Ok(CachedNativeProviderRead {
+                    sessions,
+                    stale_error: Some(error),
+                });
+            }
+            let mut cache = cache
+                .lock()
+                .map_err(|_| "lock native session catalog cache failed.".to_owned())?;
+            cache.failures.insert(
+                provider_id.to_owned(),
+                CachedNativeProviderFailure {
+                    environment_signature: environment_signature.to_owned(),
+                    refreshed_at_millis: now_millis,
+                    error: error.clone(),
+                },
+            );
+            Err(error)
+        }
+    }
+}
+
+fn native_session_provider_refresh_gate(
+    cache: &Mutex<NativeSessionCatalogCache>,
+    provider_id: &str,
+) -> Result<Arc<Mutex<()>>, String> {
+    let mut cache = cache
+        .lock()
+        .map_err(|_| "lock native session catalog cache failed.".to_owned())?;
+    Ok(cache
+        .refresh_gates
+        .entry(provider_id.to_owned())
+        .or_insert_with(|| Arc::new(Mutex::new(())))
+        .clone())
+}
+
+fn inspect_cached_native_provider_sessions(
+    cache: &NativeSessionCatalogCache,
+    provider_id: &str,
+    environment_signature: &str,
+    now_millis: u128,
+) -> Result<CachedNativeProviderCacheState, String> {
     if let Some(failure) = cache.failures.get(provider_id).filter(|failure| {
         failure.environment_signature == environment_signature
             && now_millis.saturating_sub(failure.refreshed_at_millis)
@@ -162,55 +276,15 @@ fn resolve_cached_native_provider_sessions(
             && now_millis.saturating_sub(snapshot.refreshed_at_millis)
                 <= NATIVE_SESSION_CATALOG_CACHE_TTL_MILLIS
     }) {
-        return Ok(CachedNativeProviderRead {
-            sessions: snapshot.sessions.clone(),
-            stale_error: None,
-        });
+        return Ok(CachedNativeProviderCacheState::Fresh(
+            CachedNativeProviderRead {
+                sessions: snapshot.sessions.clone(),
+                stale_error: None,
+            },
+        ));
     }
 
-    match load() {
-        Ok(sessions) => {
-            cache.failures.remove(provider_id);
-            cache.providers.insert(
-                provider_id.to_owned(),
-                CachedNativeProviderSessionSnapshot {
-                    environment_signature: environment_signature.to_owned(),
-                    refreshed_at_millis: now_millis,
-                    sessions: sessions.clone(),
-                },
-            );
-            Ok(CachedNativeProviderRead {
-                sessions,
-                stale_error: None,
-            })
-        }
-        Err(error) => {
-            if let Some(sessions) = stale_sessions {
-                if let Some(snapshot) = cache
-                    .providers
-                    .get_mut(provider_id)
-                    .filter(|snapshot| snapshot.environment_signature == environment_signature)
-                {
-                    // Back off repeated provider retries for the same TTL
-                    // window while retaining the last complete snapshot.
-                    snapshot.refreshed_at_millis = now_millis;
-                }
-                return Ok(CachedNativeProviderRead {
-                    sessions,
-                    stale_error: Some(error),
-                });
-            }
-            cache.failures.insert(
-                provider_id.to_owned(),
-                CachedNativeProviderFailure {
-                    environment_signature: environment_signature.to_owned(),
-                    refreshed_at_millis: now_millis,
-                    error: error.clone(),
-                },
-            );
-            Err(error)
-        }
-    }
+    Ok(CachedNativeProviderCacheState::Refresh { stale_sessions })
 }
 
 pub fn get_codeengine_native_session_detail(
@@ -246,46 +320,45 @@ pub fn get_codeengine_native_session_summary(
 #[cfg(test)]
 mod tests {
     use super::{
-        resolve_cached_native_provider_sessions, NativeSessionCatalogCache,
-        NATIVE_SESSION_CATALOG_CACHE_TTL_MILLIS,
+        list_native_session_summaries_from_providers, resolve_cached_native_provider_sessions,
+        NativeSessionCatalogCache, NATIVE_SESSION_CATALOG_CACHE_TTL_MILLIS,
     };
-    use crate::CodeEngineSessionSummaryRecord;
+    use crate::{
+        known_standard_provider_registration, CodeEngineSessionDetailRecord,
+        CodeEngineSessionSummaryRecord, NativeSessionProviderPlugin,
+        NativeSessionProviderRegistration,
+    };
+    use std::sync::Mutex;
 
     #[test]
     fn provider_catalog_reuses_fresh_snapshot_and_retains_stale_snapshot_on_error() {
-        let mut cache = NativeSessionCatalogCache::default();
+        let cache = Mutex::new(NativeSessionCatalogCache::default());
         let mut loads = 0usize;
-        let first = resolve_cached_native_provider_sessions(
-            &mut cache,
-            "codex",
-            "environment-a",
-            100,
-            || {
+        let first =
+            resolve_cached_native_provider_sessions(&cache, "codex", "environment-a", 100, || {
+                assert!(
+                    cache.try_lock().is_ok(),
+                    "provider I/O must not hold the global catalog cache mutex"
+                );
                 loads += 1;
                 Ok(vec![summary("session-1", 10)])
-            },
-        )
-        .expect("initial provider snapshot");
+            })
+            .expect("initial provider snapshot");
         assert_eq!(first.sessions.len(), 1);
         assert!(first.stale_error.is_none());
 
-        let cached = resolve_cached_native_provider_sessions(
-            &mut cache,
-            "codex",
-            "environment-a",
-            101,
-            || {
+        let cached =
+            resolve_cached_native_provider_sessions(&cache, "codex", "environment-a", 101, || {
                 loads += 1;
                 Err("fresh cache must skip this loader".to_owned())
-            },
-        )
-        .expect("fresh provider snapshot");
+            })
+            .expect("fresh provider snapshot");
         assert_eq!(loads, 1);
         assert_eq!(cached.sessions[0].id, "session-1");
         assert!(cached.stale_error.is_none());
 
         let stale = resolve_cached_native_provider_sessions(
-            &mut cache,
+            &cache,
             "codex",
             "environment-a",
             101 + NATIVE_SESSION_CATALOG_CACHE_TTL_MILLIS,
@@ -303,7 +376,7 @@ mod tests {
         );
 
         let backed_off = resolve_cached_native_provider_sessions(
-            &mut cache,
+            &cache,
             "codex",
             "environment-a",
             102 + NATIVE_SESSION_CATALOG_CACHE_TTL_MILLIS,
@@ -320,31 +393,28 @@ mod tests {
 
     #[test]
     fn provider_catalog_does_not_reuse_snapshot_from_another_environment() {
-        let mut cache = NativeSessionCatalogCache::default();
-        resolve_cached_native_provider_sessions(&mut cache, "gemini", "environment-a", 100, || {
+        let cache = Mutex::new(NativeSessionCatalogCache::default());
+        resolve_cached_native_provider_sessions(&cache, "gemini", "environment-a", 100, || {
             Ok(vec![summary("session-a", 10)])
         })
         .expect("initial Gemini provider snapshot");
 
-        let error = resolve_cached_native_provider_sessions(
-            &mut cache,
-            "gemini",
-            "environment-b",
-            101,
-            || Err("new environment is unavailable".to_owned()),
-        )
-        .err()
-        .expect("changed environment must not reuse stale provider data");
+        let error =
+            resolve_cached_native_provider_sessions(&cache, "gemini", "environment-b", 101, || {
+                Err("new environment is unavailable".to_owned())
+            })
+            .err()
+            .expect("changed environment must not reuse stale provider data");
         assert_eq!(error, "new environment is unavailable");
     }
 
     #[test]
     fn provider_catalog_throttles_repeated_failures_without_a_snapshot() {
-        let mut cache = NativeSessionCatalogCache::default();
+        let cache = Mutex::new(NativeSessionCatalogCache::default());
         let mut loads = 0usize;
         for now_millis in [100, 101] {
             let error = resolve_cached_native_provider_sessions(
-                &mut cache,
+                &cache,
                 "claude-code",
                 "environment-a",
                 now_millis,
@@ -358,6 +428,80 @@ mod tests {
             assert_eq!(error, "provider unavailable");
         }
         assert_eq!(loads, 1);
+    }
+
+    #[test]
+    fn global_provider_inventory_keeps_successful_results_when_another_provider_fails() {
+        let cache = Mutex::new(NativeSessionCatalogCache::default());
+        let unavailable_provider = TestNativeSessionProvider {
+            registration: known_standard_provider_registration("claude-code"),
+            list_result: Err("Claude history is unavailable".to_owned()),
+        };
+        let successful_provider = TestNativeSessionProvider {
+            registration: known_standard_provider_registration("gemini"),
+            list_result: Ok(vec![summary("session-z", 20), summary("session-a", 20)]),
+        };
+        let providers: [&dyn NativeSessionProviderPlugin; 2] =
+            [&unavailable_provider, &successful_provider];
+
+        let sessions = list_native_session_summaries_from_providers(
+            &cache,
+            &providers,
+            false,
+            "environment-a",
+            100,
+        )
+        .expect("global inventory should retain successful provider sessions");
+
+        let ids = sessions
+            .iter()
+            .map(|session| session.id.as_str())
+            .collect::<Vec<_>>();
+        assert_eq!(ids, vec!["session-a", "session-z"]);
+    }
+
+    #[test]
+    fn explicit_provider_inventory_surfaces_that_provider_failure() {
+        let cache = Mutex::new(NativeSessionCatalogCache::default());
+        let unavailable_provider = TestNativeSessionProvider {
+            registration: known_standard_provider_registration("opencode"),
+            list_result: Err("OpenCode service is unavailable".to_owned()),
+        };
+        let providers: [&dyn NativeSessionProviderPlugin; 1] = [&unavailable_provider];
+
+        let error = list_native_session_summaries_from_providers(
+            &cache,
+            &providers,
+            true,
+            "environment-a",
+            100,
+        )
+        .expect_err("explicit Provider inventory must surface the Provider failure");
+
+        assert!(error.contains("opencode"));
+        assert!(error.contains("OpenCode service is unavailable"));
+    }
+
+    struct TestNativeSessionProvider {
+        registration: &'static NativeSessionProviderRegistration,
+        list_result: Result<Vec<CodeEngineSessionSummaryRecord>, String>,
+    }
+
+    impl NativeSessionProviderPlugin for TestNativeSessionProvider {
+        fn registration(&self) -> &'static NativeSessionProviderRegistration {
+            self.registration
+        }
+
+        fn list_sessions(&self) -> Result<Vec<CodeEngineSessionSummaryRecord>, String> {
+            self.list_result.clone()
+        }
+
+        fn get_session(
+            &self,
+            _session_id: &str,
+        ) -> Result<Option<CodeEngineSessionDetailRecord>, String> {
+            Ok(None)
+        }
     }
 
     fn summary(id: &str, sort_timestamp: i64) -> CodeEngineSessionSummaryRecord {

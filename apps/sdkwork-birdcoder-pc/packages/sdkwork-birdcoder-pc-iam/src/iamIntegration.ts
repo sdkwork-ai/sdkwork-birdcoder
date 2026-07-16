@@ -9,9 +9,9 @@ import {
 import {
   clearAppSession,
   createAppSession,
-  getBirdCoderIamRuntime,
   revokeAppSession,
-} from '@sdkwork/birdcoder-pc-infrastructure';
+} from '@sdkwork/birdcoder-pc-infrastructure/services/sessionService';
+import { getBirdCoderIamRuntime } from '@sdkwork/birdcoder-pc-infrastructure/services/iamRuntime';
 
 export type BirdCoderIamDeploymentMode = 'local' | 'private' | 'saas';
 export type BirdCoderIamEnvironment = 'dev' | 'prod' | 'test';

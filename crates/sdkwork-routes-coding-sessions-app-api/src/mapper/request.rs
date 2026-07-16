@@ -6,6 +6,7 @@ use serde::Deserialize;
 pub struct ListSessionsQuery {
     pub workspace_id: Option<String>,
     pub project_id: Option<String>,
+    pub runtime_location_id: Option<String>,
     pub engine_id: Option<String>,
 }
 
@@ -16,6 +17,7 @@ impl ListSessionsQuery {
         CodingSessionListQuery {
             workspace_id: self.workspace_id,
             project_id: self.project_id,
+            runtime_location_id: self.runtime_location_id,
             engine_id: self.engine_id,
             page_size: Some(page_size),
             offset: Some(offset),
@@ -52,6 +54,7 @@ mod tests {
 pub struct CreateCodingSessionRequest {
     pub workspace_id: String,
     pub project_id: String,
+    pub runtime_location_id: String,
     pub title: Option<String>,
     pub host_mode: Option<String>,
     pub engine_id: Option<String>,
@@ -65,6 +68,7 @@ impl From<CreateCodingSessionRequest>
         Self {
             workspace_id: r.workspace_id,
             project_id: r.project_id,
+            runtime_location_id: r.runtime_location_id,
             title: r.title,
             host_mode: r.host_mode,
             engine_id: r.engine_id,
@@ -74,13 +78,11 @@ impl From<CreateCodingSessionRequest>
 }
 
 #[derive(Clone, Debug, Deserialize)]
-#[serde(rename_all = "camelCase")]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct UpdateCodingSessionRequest {
     pub title: Option<String>,
     pub status: Option<String>,
     pub host_mode: Option<String>,
-    pub engine_id: Option<String>,
-    pub model_id: Option<String>,
 }
 
 impl From<UpdateCodingSessionRequest>
@@ -91,8 +93,6 @@ impl From<UpdateCodingSessionRequest>
             title: r.title,
             status: r.status,
             host_mode: r.host_mode,
-            engine_id: r.engine_id,
-            model_id: r.model_id,
         }
     }
 }
@@ -126,11 +126,9 @@ impl From<EditCodingSessionMessageRequest>
 }
 
 #[derive(Clone, Debug, Deserialize)]
-#[serde(rename_all = "camelCase")]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct CreateCodingSessionTurnRequest {
     pub runtime_id: Option<String>,
-    pub engine_id: Option<String>,
-    pub model_id: Option<String>,
     pub request_kind: String,
     pub input_summary: String,
     pub stream: Option<bool>,
@@ -146,8 +144,6 @@ impl From<CreateCodingSessionTurnRequest>
     fn from(r: CreateCodingSessionTurnRequest) -> Self {
         Self {
             runtime_id: r.runtime_id,
-            engine_id: r.engine_id,
-            model_id: r.model_id,
             request_kind: r.request_kind,
             input_summary: r.input_summary,
             stream: r.stream,

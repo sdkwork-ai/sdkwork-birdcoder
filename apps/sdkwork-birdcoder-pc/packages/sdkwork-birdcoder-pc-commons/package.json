@@ -27,6 +27,10 @@
       "import": "./src/chat/*.ts",
       "types": "./src/chat/*.ts"
     },
+    "./i18n": {
+      "import": "./src/i18n/index.ts",
+      "types": "./src/i18n/index.ts"
+    },
     "./contexts/*": {
       "import": "./src/contexts/*.ts",
       "types": "./src/contexts/*.ts"
@@ -51,6 +55,10 @@
       "import": "./src/platform/fileSystem.ts",
       "types": "./src/platform/fileSystem.ts"
     },
+    "./platform/tauriFileManager": {
+      "import": "./src/platform/tauriFileManager.ts",
+      "types": "./src/platform/tauriFileManager.ts"
+    },
     "./terminal/*": {
       "import": "./src/terminal/*.ts",
       "types": "./src/terminal/*.ts"
@@ -70,23 +78,28 @@
     "./settings/appSettings": {
       "import": "./src/settings/appSettings.ts",
       "types": "./src/settings/appSettings.ts"
+    },
+    "./services/birdcoderDriveUpload": {
+      "import": "./src/services/birdcoderDriveUpload.ts",
+      "types": "./src/services/birdcoderDriveUpload.ts"
     }
   },
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
-    "typecheck": "node ../../../../scripts/run-local-typescript.mjs --noEmit"
+    "typecheck": "node ../../../../scripts/run-local-typescript.mjs --noEmit",
+    "test": "vitest run"
   },
   "dependencies": {
     "@tauri-apps/api": "catalog:",
     "@sdkwork/birdcoder-pc-codeengine": "workspace:*",
-    "@sdkwork/birdcoder-pc-core": "workspace:*",
     "@sdkwork/birdcoder-pc-projection": "workspace:*",
     "@sdkwork/birdcoder-pc-i18n": "workspace:*",
     "@sdkwork/birdcoder-pc-infrastructure": "workspace:*",
     "@sdkwork/birdcoder-pc-infrastructure-runtime": "workspace:*",
     "@sdkwork/birdcoder-pc-types": "workspace:*",
     "@sdkwork/utils": "workspace:*",
+    "@sdkwork/drive-pc-sandbox-contracts": "workspace:*",
     "@sdkwork/terminal-pc-infrastructure": "workspace:*",
     "@sdkwork/terminal-pc-shell": "workspace:*",
     "@sdkwork/terminal-pc-desktop": "workspace:*",
@@ -96,7 +109,8 @@
     "@types/react": "catalog:",
     "@types/react-dom": "catalog:",
     "@vitejs/plugin-react": "catalog:",
-    "typescript": "catalog:"
+    "typescript": "catalog:",
+    "vitest": "catalog:"
   },
   "peerDependencies": {
     "react": "catalog:",

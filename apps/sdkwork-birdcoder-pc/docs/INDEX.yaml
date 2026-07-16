@@ -1,6 +1,7 @@
 schemaVersion: 1
 kind: sdkwork.docs.index
 repository: sdkwork-birdcoder-pc
+status: active
 canon:
   prd: docs/product/prd/PRD.md
   techArchitecture: docs/architecture/tech/TECH_ARCHITECTURE.md

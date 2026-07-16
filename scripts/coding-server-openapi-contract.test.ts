@@ -7,9 +7,59 @@ import { buildBirdCoderCodingServerOpenApiDocument } from '../apps/sdkwork-birdc
 
 const document = buildBirdCoderCodingServerOpenApiDocument();
 const rustServerSource = readCanonicalTurnStreamBundle();
+const pcServerApiSource = readFileSync(
+  new URL(
+    '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-types/src/server-api.ts',
+    import.meta.url,
+  ),
+  'utf8',
+);
 
 function readJsonFixture<T>(url: URL): T {
   return JSON.parse(readFileSync(url, 'utf8').replace(/^\uFEFF/u, '')) as T;
+}
+
+type OpenApiParameterLike = {
+  in?: string;
+  name?: string;
+  required?: boolean;
+};
+
+type OpenApiOperationWithParameters = {
+  parameters?: OpenApiParameterLike[];
+};
+
+type OpenApiSchemaProperties = {
+  additionalProperties?: boolean;
+  allOf?: OpenApiSchemaProperties[];
+  properties?: Record<
+    string,
+    {
+      enum?: string[];
+      maxLength?: number;
+      minLength?: number;
+      pattern?: string;
+      writeOnly?: boolean;
+    }
+  >;
+  required?: string[];
+};
+
+function assertOpenApiParameter(
+  operation: OpenApiOperationWithParameters | undefined,
+  name: string,
+  location: string,
+  required: boolean,
+): void {
+  const parameter = operation?.parameters?.find(
+    (candidate) => candidate.name === name && candidate.in === location,
+  );
+  assert.ok(parameter, `OpenAPI operation must declare ${location} parameter ${name}.`);
+  assert.equal(
+    parameter.required === true,
+    required,
+    `OpenAPI ${location} parameter ${name} required state must remain stable.`,
+  );
 }
 
 assert.equal(document.openapi, '3.1.0');
@@ -179,6 +229,11 @@ const publishedOperationIds = Object.values(document.paths).flatMap((methods) =>
 );
 assert.equal(
   publishedOperationIds.length,
+  174,
+  'OpenAPI must publish 174 HTTP operations; workspace realtime remains catalog-only WebSocket transport.',
+);
+assert.equal(
+  publishedOperationIds.length,
   new Set(publishedOperationIds).size,
   'coding-server OpenAPI operationIds must stay globally unique without implementation-detail aliases.',
 );
@@ -202,6 +257,273 @@ assert.equal(
   false,
   'phone-code login must reuse POST /auth/sessions through sessions.create instead of publishing a duplicate OpenAPI operation.',
 );
+const runtimeLocationCollectionPath = '/app/v3/api/projects/{projectId}/runtime_locations';
+const workspaceBindingPath = '/app/v3/api/projects/{projectId}/workspace_binding';
+const workspaceBinding = document.paths[workspaceBindingPath];
+
+assert.equal(workspaceBinding?.get?.operationId, 'projects.workspaceBinding.retrieve');
+assert.equal(workspaceBinding?.put?.operationId, 'projects.workspaceBinding.update');
+assert.equal(workspaceBinding?.delete?.operationId, 'projects.workspaceBinding.delete');
+assertOpenApiParameter(workspaceBinding?.put, 'If-Match', 'header', false);
+assertOpenApiParameter(workspaceBinding?.put, 'Idempotency-Key', 'header', true);
+assertOpenApiParameter(workspaceBinding?.delete, 'If-Match', 'header', true);
+assert.equal(workspaceBinding?.put?.['x-sdkwork-idempotent'], true);
+assert.equal(
+  workspaceBinding?.put?.['x-sdkwork-audit-event'],
+  'project.workspace_binding.upsert',
+);
+assert.equal(
+  workspaceBinding?.delete?.['x-sdkwork-audit-event'],
+  'project.workspace_binding.delete',
+);
+assert.equal(
+  workspaceBinding?.get?.responses['200']?.content['application/json']?.schema?.$ref,
+  '#/components/schemas/BirdCoderProjectWorkspaceBindingEnvelope',
+);
+assert.equal(
+  workspaceBinding?.put?.requestBody?.content['application/json']?.schema?.$ref,
+  '#/components/schemas/BirdCoderUpsertProjectWorkspaceBindingRequest',
+);
+assert.equal(
+  workspaceBinding?.put?.responses['200']?.content['application/json']?.schema?.$ref,
+  '#/components/schemas/BirdCoderProjectWorkspaceBindingEnvelope',
+);
+assert.equal(
+  workspaceBinding?.delete?.responses['204']?.content,
+  undefined,
+  'Workspace-binding delete must use 204 with no JSON success body.',
+);
+
+const runtimeLocationResourcePath =
+  '/app/v3/api/projects/{projectId}/runtime_locations/{runtimeLocationId}';
+const runtimeLocationRebindPath = `${runtimeLocationResourcePath}/rebind`;
+const runtimeLocationVerificationPath = `${runtimeLocationResourcePath}/request_verification`;
+const runtimeLocationPreferencesPath =
+  '/app/v3/api/projects/{projectId}/runtime_location_preferences';
+const runtimeLocationPreferencePath = `${runtimeLocationPreferencesPath}/{capability}`;
+
+const runtimeLocationCollection = document.paths[runtimeLocationCollectionPath];
+const runtimeLocationResource = document.paths[runtimeLocationResourcePath];
+const runtimeLocationRebind = document.paths[runtimeLocationRebindPath];
+const runtimeLocationVerification = document.paths[runtimeLocationVerificationPath];
+const runtimeLocationPreferences = document.paths[runtimeLocationPreferencesPath];
+const runtimeLocationPreference = document.paths[runtimeLocationPreferencePath];
+
+assert.equal(runtimeLocationCollection?.get?.operationId, 'projects.runtimeLocations.list');
+assert.equal(runtimeLocationCollection?.post?.operationId, 'projects.runtimeLocations.create');
+assert.equal(runtimeLocationResource?.get?.operationId, 'projects.runtimeLocations.retrieve');
+assert.equal(runtimeLocationResource?.patch?.operationId, 'projects.runtimeLocations.update');
+assert.equal(runtimeLocationResource?.delete?.operationId, 'projects.runtimeLocations.delete');
+assert.equal(runtimeLocationRebind?.post?.operationId, 'projects.runtimeLocations.rebind');
+assert.equal(
+  runtimeLocationVerification?.post?.operationId,
+  'projects.runtimeLocations.requestVerification',
+);
+assert.equal(
+  runtimeLocationPreferences?.get?.operationId,
+  'projects.runtimeLocations.preferences.list',
+);
+assert.equal(
+  runtimeLocationPreference?.put?.operationId,
+  'projects.runtimeLocations.preferences.update',
+);
+
+assertOpenApiParameter(runtimeLocationCollection?.get, 'page', 'query', false);
+assertOpenApiParameter(runtimeLocationCollection?.get, 'page_size', 'query', false);
+assertOpenApiParameter(runtimeLocationCollection?.post, 'Idempotency-Key', 'header', true);
+assertOpenApiParameter(runtimeLocationResource?.patch, 'If-Match', 'header', true);
+assertOpenApiParameter(runtimeLocationResource?.delete, 'If-Match', 'header', true);
+assertOpenApiParameter(runtimeLocationRebind?.post, 'If-Match', 'header', true);
+assertOpenApiParameter(runtimeLocationRebind?.post, 'Idempotency-Key', 'header', true);
+assertOpenApiParameter(runtimeLocationVerification?.post, 'If-Match', 'header', true);
+assertOpenApiParameter(runtimeLocationVerification?.post, 'Idempotency-Key', 'header', true);
+assertOpenApiParameter(runtimeLocationPreferences?.get, 'page', 'query', false);
+assertOpenApiParameter(runtimeLocationPreferences?.get, 'page_size', 'query', false);
+assertOpenApiParameter(runtimeLocationPreference?.put, 'If-Match', 'header', false);
+assertOpenApiParameter(runtimeLocationPreference?.put, 'Idempotency-Key', 'header', true);
+
+assert.equal(
+  runtimeLocationCollection?.get?.responses['200']?.content['application/json']?.schema?.$ref,
+  '#/components/schemas/BirdCoderProjectRuntimeLocationListEnvelope',
+);
+assert.equal(
+  runtimeLocationCollection?.post?.requestBody?.content['application/json']?.schema?.$ref,
+  '#/components/schemas/BirdCoderCreateProjectRuntimeLocationRequest',
+);
+assert.equal(
+  runtimeLocationCollection?.post?.responses['201']?.content['application/json']?.schema?.$ref,
+  '#/components/schemas/BirdCoderProjectRuntimeLocationEnvelope',
+);
+assert.equal(
+  runtimeLocationResource?.get?.responses['200']?.content['application/json']?.schema?.$ref,
+  '#/components/schemas/BirdCoderProjectRuntimeLocationEnvelope',
+);
+assert.equal(
+  runtimeLocationResource?.patch?.requestBody?.content['application/json']?.schema?.$ref,
+  '#/components/schemas/BirdCoderUpdateProjectRuntimeLocationRequest',
+);
+assert.equal(
+  runtimeLocationResource?.patch?.responses['200']?.content['application/json']?.schema?.$ref,
+  '#/components/schemas/BirdCoderProjectRuntimeLocationEnvelope',
+);
+assert.equal(
+  runtimeLocationResource?.delete?.responses['204']?.content,
+  undefined,
+  'Runtime-location delete must use 204 with no JSON success body.',
+);
+assert.equal(
+  runtimeLocationRebind?.post?.requestBody?.content['application/json']?.schema?.$ref,
+  '#/components/schemas/BirdCoderRebindProjectRuntimeLocationRequest',
+);
+assert.equal(
+  runtimeLocationRebind?.post?.responses['200']?.content['application/json']?.schema?.$ref,
+  '#/components/schemas/BirdCoderProjectRuntimeLocationCommandEnvelope',
+);
+assert.equal(
+  runtimeLocationVerification?.post?.requestBody,
+  undefined,
+  'Verification must request trusted-target work, not accept renderer-supplied health or path payloads.',
+);
+assert.equal(
+  runtimeLocationVerification?.post?.responses['200']?.content['application/json']?.schema?.$ref,
+  '#/components/schemas/BirdCoderProjectRuntimeLocationCommandEnvelope',
+);
+assert.equal(
+  runtimeLocationPreferences?.get?.responses['200']?.content['application/json']?.schema?.$ref,
+  '#/components/schemas/BirdCoderProjectRuntimeLocationPreferenceListEnvelope',
+);
+assert.equal(
+  runtimeLocationPreference?.put?.requestBody?.content['application/json']?.schema?.$ref,
+  '#/components/schemas/BirdCoderSetProjectRuntimeLocationPreferenceRequest',
+);
+assert.equal(
+  runtimeLocationPreference?.put?.responses['200']?.content['application/json']?.schema?.$ref,
+  '#/components/schemas/BirdCoderProjectRuntimeLocationPreferenceEnvelope',
+);
+
+const runtimeLocationResponseSchema = document.components.schemas
+  .BirdCoderProjectRuntimeLocation as OpenApiSchemaProperties;
+const workspaceBindingResponseSchema = document.components.schemas
+  .BirdCoderProjectWorkspaceBinding as OpenApiSchemaProperties;
+const workspaceBindingRequestSchema = document.components.schemas
+  .BirdCoderUpsertProjectWorkspaceBindingRequest as OpenApiSchemaProperties;
+const runtimeLocationPreferenceSchema = document.components.schemas
+  .BirdCoderProjectRuntimeLocationPreference as OpenApiSchemaProperties;
+const projectSummarySchema = document.components.schemas
+  .BirdCoderProjectSummary as OpenApiSchemaProperties;
+const createRuntimeLocationRequestSchema = document.components.schemas
+  .BirdCoderCreateProjectRuntimeLocationRequest as OpenApiSchemaProperties;
+const updateRuntimeLocationRequestSchema = document.components.schemas
+  .BirdCoderUpdateProjectRuntimeLocationRequest as OpenApiSchemaProperties;
+const rebindRuntimeLocationRequestSchema = document.components.schemas
+  .BirdCoderRebindProjectRuntimeLocationRequest as OpenApiSchemaProperties;
+const createRuntimeLocationProperties = Object.assign(
+  {},
+  ...(createRuntimeLocationRequestSchema.allOf ?? []).map((schema) => schema.properties ?? {}),
+);
+
+assert.equal(workspaceBindingResponseSchema.additionalProperties, false);
+assert.equal(workspaceBindingRequestSchema.additionalProperties, false);
+assert.deepEqual(workspaceBindingRequestSchema.required, [
+  'logicalPath',
+  'rootEntryId',
+  'sandboxId',
+]);
+assert.equal(workspaceBindingRequestSchema.properties?.sandboxId?.minLength, 1);
+assert.equal(workspaceBindingRequestSchema.properties?.sandboxId?.maxLength, 512);
+assert.equal(workspaceBindingRequestSchema.properties?.rootEntryId?.minLength, 1);
+assert.equal(workspaceBindingRequestSchema.properties?.rootEntryId?.maxLength, 512);
+
+const opaqueDriveIdPattern = new RegExp(
+  workspaceBindingRequestSchema.properties?.sandboxId?.pattern ?? '',
+  'u',
+);
+assert.equal(opaqueDriveIdPattern.test('sandbox:primary'), true);
+assert.equal(opaqueDriveIdPattern.test(' sandbox:primary'), false);
+assert.equal(opaqueDriveIdPattern.test('sandbox:primary '), false);
+
+const workspaceBindingLogicalPathPattern = new RegExp(
+  workspaceBindingRequestSchema.properties?.logicalPath?.pattern ?? '',
+  'u',
+);
+for (const acceptedLogicalPath of ['', 'src', 'source files/ feature ']) {
+  assert.equal(
+    workspaceBindingLogicalPathPattern.test(acceptedLogicalPath),
+    true,
+    `Workspace-binding logical path must accept canonical value ${JSON.stringify(acceptedLogicalPath)}.`,
+  );
+}
+for (const rejectedLogicalPath of ['/absolute', 'src//feature', 'src/../feature', 'src\\feature', 'src/\u0000feature']) {
+  assert.equal(
+    workspaceBindingLogicalPathPattern.test(rejectedLogicalPath),
+    false,
+    `Workspace-binding logical path must reject non-canonical value ${JSON.stringify(rejectedLogicalPath)}.`,
+  );
+}
+
+for (const sensitiveBindingField of [
+  'absolutePath',
+  'browserHandle',
+  'filesystemHandle',
+  'physicalPath',
+  'providerRoot',
+  'providerRootRef',
+  'tauriPath',
+]) {
+  assert.equal(
+    workspaceBindingResponseSchema.properties?.[sensitiveBindingField],
+    undefined,
+    `Workspace-binding responses must not reveal ${sensitiveBindingField}.`,
+  );
+  assert.equal(
+    workspaceBindingRequestSchema.properties?.[sensitiveBindingField],
+    undefined,
+    `Workspace-binding requests must not persist ${sensitiveBindingField}.`,
+  );
+}
+
+assert.equal(
+  createRuntimeLocationProperties.absolutePath?.writeOnly,
+  true,
+  'Runtime-location create must declare absolutePath as a write-only sensitive input.',
+);
+assert.equal(
+  createRuntimeLocationRequestSchema.allOf?.some((schema) => schema.required?.includes('absolutePath')),
+  true,
+  'Runtime-location create must require the write-only absolutePath input.',
+);
+assert.equal(
+  rebindRuntimeLocationRequestSchema.properties?.absolutePath?.writeOnly,
+  true,
+  'Runtime-location rebind must declare replacement absolutePath as write-only.',
+);
+assert.equal(
+  rebindRuntimeLocationRequestSchema.required?.includes('absolutePath'),
+  true,
+  'Runtime-location rebind must require replacement absolutePath.',
+);
+assert.equal(
+  updateRuntimeLocationRequestSchema.properties?.absolutePath,
+  undefined,
+  'Generic runtime-location update must not silently replace the protected root.',
+);
+assert.deepEqual(
+  runtimeLocationPreferenceSchema.properties?.capability?.enum,
+  ['terminal', 'git', 'build', 'file_system'],
+  'Runtime-location preferences must use the canonical terminal/git/build/file_system capability vocabulary.',
+);
+for (const sensitivePathField of ['absolutePath', 'cwd', 'rootPath', 'sitePath']) {
+  assert.equal(
+    runtimeLocationResponseSchema.properties?.[sensitivePathField],
+    undefined,
+    `Runtime-location responses must not reveal ${sensitivePathField}.`,
+  );
+  assert.equal(
+    projectSummarySchema.properties?.[sensitivePathField],
+    undefined,
+    `Generic Project responses must not reveal ${sensitivePathField}.`,
+  );
+}
 for (const oldAppbasePath of [
   '/app/v3/api/auth/email_login',
   '/app/v3/api/auth/password_login',
@@ -415,6 +737,18 @@ assert.equal(
 );
 assert.equal(document.paths['/app/v3/api/projects']?.get?.operationId, 'projects.list');
 assert.equal(document.paths['/app/v3/api/projects']?.post?.operationId, 'projects.create');
+assertOpenApiParameter(
+  document.paths['/app/v3/api/projects/{projectId}/git/overview']?.get,
+  'runtime_location_id',
+  'query',
+  true,
+);
+assertOpenApiParameter(
+  document.paths['/app/v3/api/projects/{projectId}/git/diff']?.get,
+  'runtime_location_id',
+  'query',
+  true,
+);
 assert.equal(
   document.paths['/app/v3/api/projects/{projectId}/git/overview']?.get?.operationId,
   'projects.git.overview.retrieve',
@@ -459,7 +793,7 @@ assert.equal(document.paths['/app/v3/api/workspaces/{workspaceId}']?.delete?.ope
 assert.equal(
   document.paths['/app/v3/api/workspaces/{workspaceId}/realtime'],
   undefined,
-  'WebSocket realtime subscribe remains in the route catalog and must not be emitted as an HTTP OpenAPI operation.',
+  'SSE/WebSocket realtime subscribe remains in the route catalog and must not be emitted as a request/response OpenAPI operation.',
 );
 assert.equal(document.paths['/app/v3/api/teams']?.get?.operationId, 'workspaceTeams.list');
 assert.equal(document.paths['/app/v3/api/teams']?.get?.['x-sdkwork-domain'], 'collaboration');
@@ -574,8 +908,9 @@ const createCodingSessionRequestRequired = Array.isArray(
   : [];
 assert.ok(
   createCodingSessionRequestRequired.includes('engineId') &&
-    createCodingSessionRequestRequired.includes('modelId'),
-  'create coding session request schema must require explicit engineId and modelId.',
+    createCodingSessionRequestRequired.includes('modelId') &&
+    createCodingSessionRequestRequired.includes('runtimeLocationId'),
+  'create coding session request schema must require explicit engineId, modelId, and runtimeLocationId.',
 );
 assert.ok(document.components.schemas?.BirdCoderUpdateCodingSessionRequest);
 assert.ok(document.components.schemas?.BirdCoderForkCodingSessionRequest);
@@ -599,6 +934,8 @@ const createCodingSessionTurnRequestProperties = document.components.schemas
   .BirdCoderCreateCodingSessionTurnRequest.properties as Record<string, { type?: string }>;
 const nativeSessionSummaryProperties = document.components.schemas.BirdCoderNativeSessionSummary
   .properties as Record<string, { type?: string }>;
+const nativeSessionAttributesProperties = document.components.schemas.BirdCoderNativeSessionAttributes
+  .properties as Record<string, { type?: string }>;
 const createProjectRequestProperties = document.components.schemas.BirdCoderCreateProjectRequest
   .properties as Record<string, { type?: string }>;
 const updateProjectRequestProperties = document.components.schemas.BirdCoderUpdateProjectRequest
@@ -610,6 +947,26 @@ const skillPackageProperties = document.components.schemas.BirdCoderSkillPackage
 const commerceMembershipCurrentProperties = document.components.schemas.BirdCoderCommerceMembershipCurrentSummary
   .properties as Record<string, { type?: string }>;
 const standardDataScopeEnum = ['DEFAULT', 'PRIVATE', 'ORGANIZATION', 'TENANT', 'PUBLIC'];
+assert.equal(
+  codingSessionSummaryProperties.runtimeLocationId?.type,
+  'string',
+  'coding session summaries must expose the opaque runtime-location binding when one was persisted.',
+);
+assert.equal(
+  codingSessionSummaryRequired.includes('runtimeLocationId'),
+  false,
+  'legacy coding sessions may omit runtimeLocationId and must remain readable while execution fails closed.',
+);
+assert.equal(
+  nativeSessionAttributesProperties.cwd,
+  undefined,
+  'public native session attributes must not expose a local cwd.',
+);
+assert.equal(
+  nativeSessionSummaryProperties.nativeCwd,
+  undefined,
+  'public native session summaries must not expose a local nativeCwd.',
+);
 for (const [schemaName, properties] of [
   ['BirdCoderWorkspaceSummary', workspaceSummaryProperties],
   ['BirdCoderCreateWorkspaceRequest', createWorkspaceRequestProperties],
@@ -740,14 +1097,39 @@ assertPublicSchemaShape(
   ['branches', 'detachedHead', 'status', 'statusCounts', 'worktrees'],
 );
 assertPublicSchemaShape(
+  'BirdCoderCreateProjectGitBranchRequest',
+  ['branchName', 'runtimeLocationId'],
+  ['branchName', 'runtimeLocationId'],
+);
+assertPublicSchemaShape(
+  'BirdCoderSwitchProjectGitBranchRequest',
+  ['branchName', 'runtimeLocationId'],
+  ['branchName', 'runtimeLocationId'],
+);
+assertPublicSchemaShape(
+  'BirdCoderCommitProjectGitChangesRequest',
+  ['includeUnstaged', 'message', 'runtimeLocationId'],
+  ['message', 'runtimeLocationId'],
+);
+assertPublicSchemaShape(
+  'BirdCoderPushProjectGitBranchRequest',
+  ['branchName', 'remoteName', 'runtimeLocationId'],
+  ['runtimeLocationId'],
+);
+assertPublicSchemaShape(
   'BirdCoderCreateProjectGitWorktreeRequest',
-  ['branchName'],
-  ['branchName'],
+  ['branchName', 'runtimeLocationId'],
+  ['branchName', 'runtimeLocationId'],
 );
 assertPublicSchemaShape(
   'BirdCoderRemoveProjectGitWorktreeRequest',
-  ['force', 'worktreeKey'],
-  ['worktreeKey'],
+  ['force', 'runtimeLocationId', 'worktreeKey'],
+  ['runtimeLocationId', 'worktreeKey'],
+);
+assertPublicSchemaShape(
+  'BirdCoderPruneProjectGitWorktreesRequest',
+  ['runtimeLocationId'],
+  ['runtimeLocationId'],
 );
 assertPublicSchemaShape(
   'BirdCoderUpsertProjectCollaboratorRequest',
@@ -788,6 +1170,33 @@ assert.equal(
   createCodingSessionTurnRequestProperties.stream?.type,
   'boolean',
   'create coding session turn request schema must expose stream as a compatibility hint while the server standard always executes streamed turns.',
+);
+assert.equal(
+  createCodingSessionTurnRequestProperties.engineId,
+  undefined,
+  'A turn must inherit its immutable engine from the persisted coding session instead of accepting an engine override.',
+);
+assert.equal(
+  createCodingSessionTurnRequestProperties.modelId,
+  undefined,
+  'A turn must inherit its immutable model from the persisted coding session instead of accepting a model override.',
+);
+const authoredCreateCodingSessionTurnRequest =
+  pcServerApiSource.match(/export interface BirdCoderCreateCodingSessionTurnRequest \{[\s\S]*?\n\}/)?.[0] ?? '';
+assert.match(
+  authoredCreateCodingSessionTurnRequest,
+  /runtimeId\?: string;[\s\S]*requestKind:[\s\S]*inputSummary:[\s\S]*stream\?: boolean;/,
+  'The authored PC turn contract must retain runtime and streaming controls.',
+);
+assert.doesNotMatch(
+  authoredCreateCodingSessionTurnRequest,
+  /engineId\?:/,
+  'The authored PC turn contract must not expose a per-turn engine override.',
+);
+assert.doesNotMatch(
+  authoredCreateCodingSessionTurnRequest,
+  /modelId\?:/,
+  'The authored PC turn contract must not expose a per-turn model override.',
 );
 assert.match(
   rustServerSource,
@@ -959,6 +1368,39 @@ assert.equal(
   ]?.schema?.['$ref'],
   '#/components/schemas/BirdCoderCodingSessionSummaryListEnvelope',
 );
+const codingSessionListParameters = (document.paths['/app/v3/api/intelligence/coding_sessions']?.get
+  ?.parameters ?? []) as Array<{ name?: string; required?: boolean }>;
+const nativeSessionListParameters = (document.paths['/app/v3/api/native_sessions']?.get?.parameters ??
+  []) as Array<{ name?: string; required?: boolean }>;
+const nativeSessionRetrieveParameters = (document.paths['/app/v3/api/native_sessions/{id}']?.get
+  ?.parameters ?? []) as Array<{ name?: string; required?: boolean }>;
+assert.equal(
+  codingSessionListParameters.find((parameter) => parameter.name === 'runtimeLocationId')?.required,
+  false,
+  'coding-session list may omit runtimeLocationId only when it intentionally skips native discovery.',
+);
+assert.equal(
+  nativeSessionListParameters.find((parameter) => parameter.name === 'runtimeLocationId')?.required,
+  true,
+  'native-session list must require an explicit runtimeLocationId.',
+);
+assert.equal(
+  nativeSessionRetrieveParameters.find((parameter) => parameter.name === 'runtimeLocationId')?.required,
+  true,
+  'native-session retrieve must require an explicit runtimeLocationId.',
+);
+for (const [path, method] of [
+  ['/app/v3/api/intelligence/coding_sessions', 'get'],
+  ['/app/v3/api/intelligence/coding_sessions', 'post'],
+  ['/app/v3/api/native_sessions', 'get'],
+  ['/app/v3/api/native_sessions/{id}', 'get'],
+] as const) {
+  const operation = document.paths[path]?.[method];
+  assert.ok(
+    operation?.responses['503']?.content['application/problem+json'],
+    `${method.toUpperCase()} ${path} must declare a typed 503 unavailable response for an unverified or unavailable runtime location.`,
+  );
+}
 assert.equal(
   document.paths['/app/v3/api/native_sessions/{id}']?.get?.responses['200']?.content[
     'application/json'
@@ -1040,10 +1482,15 @@ assert.equal(
   '#/components/schemas/BirdCoderCreateProjectGitWorktreeRequest',
 );
 assert.equal(
-  document.paths[
-    '/app/v3/api/projects/{projectId}/git/worktree_removals'
-  ]?.post?.requestBody?.content['application/json']?.schema?.['$ref'],
+    document.paths[
+      '/app/v3/api/projects/{projectId}/git/worktree_removals'
+    ]?.post?.requestBody?.content['application/json']?.schema?.['$ref'],
   '#/components/schemas/BirdCoderRemoveProjectGitWorktreeRequest',
+);
+assert.equal(
+  document.paths['/app/v3/api/projects/{projectId}/git/worktree_prune']?.post?.requestBody
+    ?.content['application/json']?.schema?.['$ref'],
+  '#/components/schemas/BirdCoderPruneProjectGitWorktreesRequest',
 );
 assert.equal(
   document.paths['/app/v3/api/projects/{projectId}/git/branches']?.post?.responses['200']?.content[

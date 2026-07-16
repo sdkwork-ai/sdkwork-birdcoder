@@ -9,6 +9,11 @@ import {
 } from '@sdkwork/birdcoder-pc-codeengine';
 import type { BirdCoderCodingSession } from '@sdkwork/birdcoder-pc-types';
 import { copyTextToClipboard } from '@sdkwork/birdcoder-pc-ui/components/clipboard';
+import {
+  getProjectRuntimeLocationFailureMessage,
+  getResolvedProjectRuntimeLocationWorkingDirectory,
+} from '@sdkwork/birdcoder-pc-commons/workbench/projectRuntimeLocationResolution';
+import type { ProjectRuntimeLocationResolver } from '@sdkwork/birdcoder-pc-commons/hooks/useProjectRuntimeLocation';
 import { buildCodingSessionTerminalLaunchPlan } from './codingSessionTerminal';
 
 interface CodePageTerminalProjectLike {
@@ -27,7 +32,7 @@ interface UseCodePageTerminalActionsOptions {
   resolveProjectActionTarget: (
     project?: CodePageTerminalProjectLike | null,
   ) => CodePageTerminalProjectLike | null;
-  resolveLocalWorkingDirectory: (projectId: string) => Promise<string | null>;
+  resolveProjectRuntimeLocation: ProjectRuntimeLocationResolver;
   resolveCodingSessionNativeSessionId: (
     codingSessionId: string,
     projectId?: string | null,
@@ -53,7 +58,7 @@ export function useCodePageTerminalActions({
   addToast,
   currentProjectId,
   resolveCodingSessionNativeSessionId,
-  resolveLocalWorkingDirectory,
+  resolveProjectRuntimeLocation,
   resolveProjectActionTarget,
   resolveProjectById,
   resolveSession,
@@ -61,13 +66,32 @@ export function useCodePageTerminalActions({
   setTerminalRequest,
   t,
 }: UseCodePageTerminalActionsOptions) {
+  const resolveTerminalWorkingDirectory = useCallback(async (projectId: string) => {
+    const resolution = await resolveProjectRuntimeLocation(projectId, {
+      allowFolderSelection: true,
+      capability: 'terminal',
+    });
+    const localWorkingDirectory = getResolvedProjectRuntimeLocationWorkingDirectory(resolution);
+    if (localWorkingDirectory) {
+      return localWorkingDirectory;
+    }
+
+    const message = getProjectRuntimeLocationFailureMessage(
+      resolution,
+      'A local desktop folder must be mounted before opening a terminal.',
+    );
+    if (message) {
+      addToast(message, 'error');
+    }
+    return null;
+  }, [addToast, resolveProjectRuntimeLocation]);
+
   const handleTopBarTerminalVisibilityChange = useCallback(async (nextIsOpen: boolean) => {
     if (nextIsOpen) {
       const localWorkingDirectory = currentProjectId
-        ? await resolveLocalWorkingDirectory(currentProjectId)
+        ? await resolveTerminalWorkingDirectory(currentProjectId)
         : null;
       if (!localWorkingDirectory) {
-        addToast('A local desktop folder must be mounted before opening a terminal.', 'error');
         return;
       }
       setTerminalRequest({
@@ -79,9 +103,8 @@ export function useCodePageTerminalActions({
 
     setIsTerminalOpen(nextIsOpen);
   }, [
-    addToast,
     currentProjectId,
-    resolveLocalWorkingDirectory,
+    resolveTerminalWorkingDirectory,
     setIsTerminalOpen,
     setTerminalRequest,
   ]);
@@ -92,9 +115,8 @@ export function useCodePageTerminalActions({
       return;
     }
 
-    const localWorkingDirectory = await resolveLocalWorkingDirectory(target.id);
+    const localWorkingDirectory = await resolveTerminalWorkingDirectory(target.id);
     if (!localWorkingDirectory) {
-      addToast('A local desktop folder must be mounted before opening a terminal.', 'error');
       return;
     }
 
@@ -111,7 +133,7 @@ export function useCodePageTerminalActions({
         : `Opened project in terminal: ${target.name}`,
       'info',
     );
-  }, [addToast, resolveLocalWorkingDirectory, resolveProjectActionTarget, resolveProjectById]);
+  }, [addToast, resolveProjectActionTarget, resolveProjectById, resolveTerminalWorkingDirectory]);
 
   const handleOpenCodingSessionInTerminal = useCallback(async (
     codingSessionId: string,
@@ -125,9 +147,8 @@ export function useCodePageTerminalActions({
       return;
     }
 
-    const localWorkingDirectory = await resolveLocalWorkingDirectory(target.id);
+    const localWorkingDirectory = await resolveTerminalWorkingDirectory(target.id);
     if (!localWorkingDirectory) {
-      addToast('A local desktop folder must be mounted before opening a terminal.', 'error');
       return;
     }
 
@@ -157,9 +178,9 @@ export function useCodePageTerminalActions({
   }, [
     addToast,
     resolveCodingSessionNativeSessionId,
-    resolveLocalWorkingDirectory,
     resolveProjectActionTarget,
     resolveSession,
+    resolveTerminalWorkingDirectory,
     t,
   ]);
 

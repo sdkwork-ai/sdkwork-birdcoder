@@ -9,6 +9,7 @@ import type {
   IDocumentService,
   IFileSystemService,
   IGitService,
+  IProjectRuntimeLocationService,
   IPromptService,
   IProjectService,
   IReleaseService,
@@ -31,6 +32,7 @@ export interface IIDEContext {
   teamService: ITeamService;
   vipMembershipService: IVipMembershipService;
   fileSystemService: IFileSystemService;
+  projectRuntimeLocationService: IProjectRuntimeLocationService;
   gitService: IGitService;
   authService: IAuthService;
   promptService: IPromptService;
@@ -51,6 +53,7 @@ export function createDefaultIdeContextValue(): IIDEContext {
     teamService: defaultIdeServices.teamService,
     vipMembershipService: defaultIdeServices.vipMembershipService,
     fileSystemService: defaultIdeServices.fileSystemService,
+    projectRuntimeLocationService: defaultIdeServices.projectRuntimeLocationService,
     gitService: defaultIdeServices.gitService,
     authService: defaultIdeServices.authService,
     promptService: defaultIdeServices.promptService,

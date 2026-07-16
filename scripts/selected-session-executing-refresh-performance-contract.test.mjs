@@ -83,8 +83,8 @@ assert.match(
 
 assert.match(
   hookSource,
-  /const synchronizationRequestKey =\s*`\$\{synchronizationScopeKey\}:\$\{selectionRefreshToken\}:\$\{authorityFallbackRefreshTick\}`;/,
-  'Selected-session authority refreshes must be keyed by initial/manual refresh and the slow fallback tick, not by every realtime transcript mutation.',
+  /const synchronizationRequestKey =\s*`\$\{synchronizationScopeKey\}:\$\{selectionSynchronizationEpoch\}:\$\{selectionRefreshToken\}:\$\{authorityFallbackRefreshTick\}`;/,
+  'Selected-session authority refreshes must be keyed by selection epoch, manual refresh, and the slow fallback tick, not by every realtime transcript mutation.',
 );
 
 assert.doesNotMatch(

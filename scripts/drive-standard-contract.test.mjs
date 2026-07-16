@@ -53,6 +53,15 @@ const pnpmWorkspace = read('pnpm-workspace.yaml');
 if (!pnpmWorkspace.includes('../sdkwork-drive/sdks/sdkwork-drive-app-sdk/sdkwork-drive-app-sdk-typescript')) {
   fail('pnpm-workspace.yaml must include sdkwork-drive-app-sdk package');
 }
+for (const packagePath of [
+  '../sdkwork-drive/apps/sdkwork-drive-pc/packages/sdkwork-drive-pc-sandbox-contracts',
+  '../sdkwork-drive/apps/sdkwork-drive-pc/packages/sdkwork-drive-pc-sandbox-explorer',
+  '../sdkwork-drive/apps/sdkwork-drive-pc/packages/sdkwork-drive-pc-sandbox-explorer-sdk-adapter',
+]) {
+  if (!pnpmWorkspace.includes(packagePath)) {
+    fail(`pnpm-workspace.yaml must include ${packagePath}`);
+  }
+}
 
 const iamRuntime = read(
   'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/src/services/iamRuntime.ts',
@@ -62,6 +71,69 @@ if (!iamRuntime.includes('createDriveAppClient')) {
 }
 if (!iamRuntime.includes('getBirdCoderDriveAppClient')) {
   fail('iamRuntime must expose getBirdCoderDriveAppClient');
+}
+
+const sandboxExplorerRuntime = read(
+  'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/src/services/driveSandboxExplorerRuntime.ts',
+);
+if (!sandboxExplorerRuntime.includes('createDriveSandboxExplorerSdkPort')) {
+  fail('BirdCoder runtime must adapt the composed Drive app SDK to SandboxExplorerPort');
+}
+if (!sandboxExplorerRuntime.includes('configureDriveSandboxExplorerRuntime')) {
+  fail('BirdCoder runtime must configure the reusable Drive sandbox explorer');
+}
+
+const birdcoderApp = read(
+  'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-shell/src/application/app/BirdcoderApp.tsx',
+);
+if (!birdcoderApp.includes('SandboxDirectoryPickerProvider')) {
+  fail('BirdCoder shell must mount SandboxDirectoryPickerProvider');
+}
+
+const appContent = read(
+  'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-shell/src/application/app/birdcoderAppContent.tsx',
+);
+if (!appContent.includes('useSandboxDirectoryPicker')) {
+  fail('BirdCoder shell folder import must invoke the reusable server directory picker');
+}
+if (!appContent.includes('importSandboxDirectoryProject')) {
+  fail('BirdCoder shell folder import must bind the selected Drive sandbox directory');
+}
+if (appContent.includes('openLocalFolder')) {
+  fail('BirdCoder shell Open Folder command must not resolve a browser-client local directory');
+}
+
+const codeServerDirectoryImport = read(
+  'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-code/src/pages/useCodeServerDirectoryProjectImport.ts',
+);
+if (!codeServerDirectoryImport.includes('useSandboxDirectoryPicker')) {
+  fail('Code project import must invoke the reusable server directory picker');
+}
+if (!codeServerDirectoryImport.includes('rootEntryId: selectedDirectory.entryId')) {
+  fail('Code project import must bind the opaque selected Drive root entry');
+}
+if (/absolutePath|physicalPath|providerRootRef|fileSystemHandle/u.test(codeServerDirectoryImport)) {
+  fail('Code server directory import must not accept or persist physical provider paths');
+}
+
+const sdkClients = read(
+  'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/src/services/sdkClients.ts',
+);
+if (!sdkClients.includes('client.platform.projects.workspaceBinding.update')) {
+  fail('BirdCoder project workspace binding must use the composed app SDK resource');
+}
+if (!sdkClients.includes("'Idempotency-Key': idempotencyKey")) {
+  fail('BirdCoder project workspace binding must send an idempotency key through SDK options');
+}
+
+for (const localePath of [
+  'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-i18n/src/locales/en/app/workspace.ts',
+  'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-i18n/src/locales/zh/app/workspace.ts',
+]) {
+  const locale = read(localePath);
+  if (!locale.includes('selectServerDirectory') || !locale.includes('serverDirectory')) {
+    fail(`${localePath} must localize the server directory selection workflow`);
+  }
 }
 
 const driveUploadService = read(

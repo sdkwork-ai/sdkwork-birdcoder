@@ -1,21 +1,16 @@
 # SDKWork BirdCoder Flutter Mobile SDKs
 
-This directory contains SDK family workspaces and generation manifests for the Flutter mobile application.
-
-## SDK Families
-
-Surface composition is declared in the root `.sdkwork-assembly.json`. Each Dart consumer SDK family declares its generation metadata in its own `sdk-manifest.json` under `sdks/sdkwork_birdcoder_flutter_mobile_*_sdk_consumer/`.
+This directory contains SDK consumer workspaces and generation manifests for the Flutter mobile
+application. Surface composition is declared in `specs/component.spec.json`. Each Dart consumer SDK
+family declares its generation metadata in its own `sdk-manifest.json`.
 
 ## Expected Structure
 
-```
+```text
 sdks/
-  .sdkwork-assembly.json
   README.md
   specs/
     component.spec.json
-    domain-catalog.json
-    openapi/
   sdkwork_birdcoder_flutter_mobile_app_sdk_consumer/
     sdk-manifest.json
     generated/server-openapi/
@@ -29,6 +24,7 @@ sdks/
 ## Generation
 
 To generate Dart SDK families, run:
+
 ```bash
 flutter pub run build_runner build
 ```

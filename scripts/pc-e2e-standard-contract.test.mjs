@@ -84,6 +84,16 @@ assert.match(
   /e2e-password/u,
   'PC e2e fixtures must define the canonical password credential.',
 );
+assert.match(
+  mockFixtures,
+  /data:\s*\{\s*items,\s*pageInfo:/u,
+  'PC e2e list fixtures must use the SDKWork v3 data.items and data.pageInfo envelope.',
+);
+assert.match(
+  mockFixtures,
+  /code:\s*0/u,
+  'PC e2e success fixtures must use the numeric SDKWork v3 success code.',
+);
 
 assert.match(
   playwrightConfig,
@@ -102,8 +112,23 @@ assert.match(
 );
 assert.match(
   playwrightConfig,
+  /PC_E2E_MOCK_API_PORT \?\? 11240/u,
+  'PC Playwright mock API must use a dedicated port instead of reusing the standalone gateway port.',
+);
+assert.match(
+  playwrightConfig,
   /VITE_BIRDCODER_API_BASE_URL/u,
   'PC Playwright must inject the mock API base URL for browser bootstrap.',
+);
+assert.match(
+  playwrightConfig,
+  /BIRDCODER_DEV_PROXY_TARGET: mockApiBaseUrl/u,
+  'PC Playwright must route the Vite development proxy to the isolated mock API.',
+);
+assert.match(
+  mockServer,
+  /PC_E2E_MOCK_API_PORT \?\? 11240/u,
+  'PC e2e mock API server must default to the dedicated Playwright port.',
 );
 
 assert.match(

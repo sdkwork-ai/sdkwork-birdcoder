@@ -11,7 +11,9 @@ use sdkwork_birdcoder_codeengine::{
     CodeEngineUserQuestionAnswerRecord,
 };
 
-use crate::turn_executor::execute_kernel_turn;
+use crate::turn_executor::{
+    execute_kernel_turn, execute_kernel_turn_with_stream_sink, BirdcoderTurnStreamSink,
+};
 
 struct OpenCodeLiveInteraction;
 
@@ -80,6 +82,17 @@ impl BirdcoderKernelHost {
             .slot(request.engine_id.as_str())
             .ok_or_else(|| format!("unsupported engineId \"{}\".", request.engine_id))?;
         execute_kernel_turn(slot, request)
+    }
+
+    pub fn execute_turn_with_stream_sink(
+        &self,
+        request: &CodeEngineTurnRequestRecord,
+        sink: &mut dyn BirdcoderTurnStreamSink,
+    ) -> Result<CodeEngineTurnResultRecord, String> {
+        let slot = self
+            .slot(request.engine_id.as_str())
+            .ok_or_else(|| format!("unsupported engineId \"{}\".", request.engine_id))?;
+        execute_kernel_turn_with_stream_sink(slot, request, sink)
     }
 
     pub fn submit_approval_decision(

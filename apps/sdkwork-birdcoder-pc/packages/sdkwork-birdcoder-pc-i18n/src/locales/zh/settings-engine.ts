@@ -4,8 +4,7 @@ export default defineLocaleModule('settings/engine', {
   settings: {
     engines: {
       title: '\u4ee3\u7801\u5f15\u64ce\u4e0e\u6a21\u578b',
-      description:
-        '\u4e3a\u6bcf\u4e2a\u5f15\u64ce\u5b9a\u4e49\u9ed8\u8ba4\u6a21\u578b\uff0c\u5e76\u901a\u8fc7\u81ea\u5b9a\u4e49\u6761\u76ee\u6269\u5c55\u53ef\u7528\u6a21\u578b\u5217\u8868\u3002',
+      description: '\u4e3a\u6bcf\u4e2a\u4ee3\u7801\u5f15\u64ce\u9009\u62e9\u5185\u7f6e\u9ed8\u8ba4\u6a21\u578b\u3002',
       sidebarTitle: '\u4ee3\u7801\u5f15\u64ce',
       sidebarLabel: '\u4ee3\u7801\u5f15\u64ce\u5217\u8868',
       workspaceDefaultEngine: '\u9ed8\u8ba4\u4ee3\u7801\u5f15\u64ce',
@@ -65,17 +64,6 @@ export default defineLocaleModule('settings/engine', {
       serverUnavailable:
         '{{engine}} \u7684 server adapter \u5728\u5f53\u524d\u8fd0\u884c\u73af\u5883\u4e0d\u53ef\u7528\u3002\u8bf7\u68c0\u67e5\u5f15\u64ce\u63a5\u5165\u65b9\u6848\uff0c\u5e76\u5b89\u88c5\u6216\u914d\u7f6e\u6240\u9700\u7684 SDK \u6216 CLI runtime \u540e\u518d\u542f\u52a8 coding turn\u3002',
       builtInModel: '\u5185\u7f6e',
-      customModel: '\u81ea\u5b9a\u4e49',
-      removeCustomModel: '\u79fb\u9664\u81ea\u5b9a\u4e49\u6a21\u578b',
-      addCustomModel: '\u6dfb\u52a0\u81ea\u5b9a\u4e49\u6a21\u578b',
-      addCustomModelDesc:
-        '\u4e3a\u79c1\u6709\u5316\u90e8\u7f72\uff0c\u65b0\u7684 server adapter\uff0c\u6216\u7070\u5ea6\u53d1\u5e03\u6ce8\u518c\u989d\u5916\u7684 model ID\u3002',
-      modelIdPlaceholder: '\u6a21\u578b ID\uff0c\u4f8b\u5982 codex-pro',
-      modelLabelPlaceholder: '\u663e\u793a\u540d\u79f0\uff0c\u53ef\u9009',
-      addModel: '\u6dfb\u52a0\u6a21\u578b',
-      modelAdded: '{{engine}} \u7684\u6a21\u578b\u5217\u8868\u5df2\u66f4\u65b0\u3002',
-      modelAlreadyExists: '{{engine}} \u4e2d\u5df2\u5b58\u5728\u8be5\u6a21\u578b\u3002',
-      modelRemoved: '{{engine}} \u7684\u6a21\u578b\u5df2\u79fb\u9664\u3002',
       defaultModelUpdated: '{{engine}} \u7684\u9ed8\u8ba4\u6a21\u578b\u5df2\u66f4\u65b0\u3002',
     },
   },

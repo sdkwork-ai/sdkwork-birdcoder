@@ -127,21 +127,19 @@ function createGenerationPlans(rootDir, options) {
     throw new Error(`Unsupported Flutter mobile SDK language: ${options.language}.`);
   }
 
-  const assembly = readJson(path.join(rootDir, FLUTTER_MOBILE_ROOT, 'sdks', '.sdkwork-assembly.json'));
-  assert.ok(assembly.standardProfile === STANDARD_PROFILE || assembly.standardProfile === undefined);
-
-  return (assembly.surfaces ?? [])
-    .filter((surface) => !options.surface || surface.surface === options.surface)
-    .map((surface) => {
-      const plan = SURFACE_PLAN[surface.surface];
-      assert.ok(plan, `Unsupported Flutter mobile SDK surface: ${surface.surface}.`);
+  return Object.values(SURFACE_PLAN)
+    .filter((plan) => !options.surface || plan.surface === options.surface)
+    .map((plan) => {
+      const familyManifest = readJson(path.join(rootDir, PC_SDK_ROOT, plan.pcFamily, 'sdk-manifest.json'));
+      assert.equal(familyManifest.sdkOwner, 'sdkwork-birdcoder');
+      assert.equal(familyManifest.standardProfile, STANDARD_PROFILE);
+      assert.equal(familyManifest.apiAuthority, plan.pcApiAuthority);
 
       const input = path.join(
         rootDir,
         PC_SDK_ROOT,
         plan.pcFamily,
-        'openapi',
-        `${surface.apiAuthority ?? plan.pcApiAuthority}.sdkgen.json`,
+        ...familyManifest.generationInputSpec.split('/'),
       );
       const output = path.join(
         rootDir,
@@ -154,7 +152,7 @@ function createGenerationPlans(rootDir, options) {
 
       return {
         apiPrefix: plan.apiPrefix,
-        fixedSdkVersion: String(surface.version ?? assembly.version ?? '0.1.0'),
+        fixedSdkVersion: String(familyManifest.apiVersion ?? '0.1.0'),
         input,
         language: options.language,
         output,

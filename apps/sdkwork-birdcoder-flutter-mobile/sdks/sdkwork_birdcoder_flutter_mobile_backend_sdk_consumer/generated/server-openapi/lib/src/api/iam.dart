@@ -58,12 +58,8 @@ class IamApi {
   }
 
   /// Delete SDKWork IAM organization
-  Future<BirdCoderDeletedResourceEnvelope?> organizationsDelete(String organizationId) async {
-    final response = await _client.delete(ApiPaths.backendPath('/iam/organizations/${serializePathParameter(organizationId, const PathParameterSpec('organizationId', 'simple', false))}'));
-    return (() {
-      final map = sdkworkResponseAsMap(response);
-      return map == null ? null : BirdCoderDeletedResourceEnvelope.fromJson(map);
-    })();
+  Future<void> organizationsDelete(String organizationId) async {
+    await _client.delete(ApiPaths.backendPath('/iam/organizations/${serializePathParameter(organizationId, const PathParameterSpec('organizationId', 'simple', false))}'));
   }
 
   /// Create SDKWork IAM organization
@@ -135,12 +131,8 @@ class IamApi {
   }
 
   /// Delete SDKWork IAM permission
-  Future<BirdCoderDeletedResourceEnvelope?> permissionsDelete(String permissionId) async {
-    final response = await _client.delete(ApiPaths.backendPath('/iam/permissions/${serializePathParameter(permissionId, const PathParameterSpec('permissionId', 'simple', false))}'));
-    return (() {
-      final map = sdkworkResponseAsMap(response);
-      return map == null ? null : BirdCoderDeletedResourceEnvelope.fromJson(map);
-    })();
+  Future<void> permissionsDelete(String permissionId) async {
+    await _client.delete(ApiPaths.backendPath('/iam/permissions/${serializePathParameter(permissionId, const PathParameterSpec('permissionId', 'simple', false))}'));
   }
 
   /// List SDKWork IAM policies
@@ -182,12 +174,8 @@ class IamApi {
   }
 
   /// Delete SDKWork IAM policy
-  Future<BirdCoderDeletedResourceEnvelope?> policiesDelete(String policyId) async {
-    final response = await _client.delete(ApiPaths.backendPath('/iam/policies/${serializePathParameter(policyId, const PathParameterSpec('policyId', 'simple', false))}'));
-    return (() {
-      final map = sdkworkResponseAsMap(response);
-      return map == null ? null : BirdCoderDeletedResourceEnvelope.fromJson(map);
-    })();
+  Future<void> policiesDelete(String policyId) async {
+    await _client.delete(ApiPaths.backendPath('/iam/policies/${serializePathParameter(policyId, const PathParameterSpec('policyId', 'simple', false))}'));
   }
 
   /// List SDKWork IAM roles
@@ -229,12 +217,8 @@ class IamApi {
   }
 
   /// Delete SDKWork IAM role
-  Future<BirdCoderDeletedResourceEnvelope?> rolesDelete(String roleId) async {
-    final response = await _client.delete(ApiPaths.backendPath('/iam/roles/${serializePathParameter(roleId, const PathParameterSpec('roleId', 'simple', false))}'));
-    return (() {
-      final map = sdkworkResponseAsMap(response);
-      return map == null ? null : BirdCoderDeletedResourceEnvelope.fromJson(map);
-    })();
+  Future<void> rolesDelete(String roleId) async {
+    await _client.delete(ApiPaths.backendPath('/iam/roles/${serializePathParameter(roleId, const PathParameterSpec('roleId', 'simple', false))}'));
   }
 
   /// List SDKWork IAM role permissions
@@ -257,12 +241,8 @@ class IamApi {
   }
 
   /// Delete SDKWork IAM role permission
-  Future<BirdCoderBooleanSuccessEnvelope?> rolesPermissionsDelete(String roleId, String permissionId) async {
-    final response = await _client.delete(ApiPaths.backendPath('/iam/roles/${serializePathParameter(roleId, const PathParameterSpec('roleId', 'simple', false))}/permissions/${serializePathParameter(permissionId, const PathParameterSpec('permissionId', 'simple', false))}'));
-    return (() {
-      final map = sdkworkResponseAsMap(response);
-      return map == null ? null : BirdCoderBooleanSuccessEnvelope.fromJson(map);
-    })();
+  Future<void> rolesPermissionsDelete(String roleId, String permissionId) async {
+    await _client.delete(ApiPaths.backendPath('/iam/roles/${serializePathParameter(roleId, const PathParameterSpec('roleId', 'simple', false))}/permissions/${serializePathParameter(permissionId, const PathParameterSpec('permissionId', 'simple', false))}'));
   }
 
   /// List SDKWork IAM security events
@@ -313,12 +293,8 @@ class IamApi {
   }
 
   /// Delete SDKWork IAM tenant
-  Future<BirdCoderDeletedResourceEnvelope?> tenantsDelete(String tenantId) async {
-    final response = await _client.delete(ApiPaths.backendPath('/iam/tenants/${serializePathParameter(tenantId, const PathParameterSpec('tenantId', 'simple', false))}'));
-    return (() {
-      final map = sdkworkResponseAsMap(response);
-      return map == null ? null : BirdCoderDeletedResourceEnvelope.fromJson(map);
-    })();
+  Future<void> tenantsDelete(String tenantId) async {
+    await _client.delete(ApiPaths.backendPath('/iam/tenants/${serializePathParameter(tenantId, const PathParameterSpec('tenantId', 'simple', false))}'));
   }
 
   /// List SDKWork IAM tenant members
@@ -351,12 +327,8 @@ class IamApi {
   }
 
   /// Delete SDKWork IAM tenant member
-  Future<BirdCoderBooleanSuccessEnvelope?> tenantsMembersDelete(String tenantId, String userId) async {
-    final response = await _client.delete(ApiPaths.backendPath('/iam/tenants/${serializePathParameter(tenantId, const PathParameterSpec('tenantId', 'simple', false))}/members/${serializePathParameter(userId, const PathParameterSpec('userId', 'simple', false))}'));
-    return (() {
-      final map = sdkworkResponseAsMap(response);
-      return map == null ? null : BirdCoderBooleanSuccessEnvelope.fromJson(map);
-    })();
+  Future<void> tenantsMembersDelete(String tenantId, String userId) async {
+    await _client.delete(ApiPaths.backendPath('/iam/tenants/${serializePathParameter(tenantId, const PathParameterSpec('tenantId', 'simple', false))}/members/${serializePathParameter(userId, const PathParameterSpec('userId', 'simple', false))}'));
   }
 
   /// List SDKWork IAM users
@@ -398,12 +370,8 @@ class IamApi {
   }
 
   /// Delete SDKWork IAM user
-  Future<BirdCoderDeletedResourceEnvelope?> usersDelete(String userId) async {
-    final response = await _client.delete(ApiPaths.backendPath('/iam/users/${serializePathParameter(userId, const PathParameterSpec('userId', 'simple', false))}'));
-    return (() {
-      final map = sdkworkResponseAsMap(response);
-      return map == null ? null : BirdCoderDeletedResourceEnvelope.fromJson(map);
-    })();
+  Future<void> usersDelete(String userId) async {
+    await _client.delete(ApiPaths.backendPath('/iam/users/${serializePathParameter(userId, const PathParameterSpec('userId', 'simple', false))}'));
   }
 
   /// Create SDKWork IAM user role binding
@@ -417,12 +385,8 @@ class IamApi {
   }
 
   /// Delete SDKWork IAM user role binding
-  Future<BirdCoderBooleanSuccessEnvelope?> roleBindingsDelete(String roleBindingId) async {
-    final response = await _client.delete(ApiPaths.backendPath('/iam/role_bindings/${serializePathParameter(roleBindingId, const PathParameterSpec('roleBindingId', 'simple', false))}'));
-    return (() {
-      final map = sdkworkResponseAsMap(response);
-      return map == null ? null : BirdCoderBooleanSuccessEnvelope.fromJson(map);
-    })();
+  Future<void> roleBindingsDelete(String roleBindingId) async {
+    await _client.delete(ApiPaths.backendPath('/iam/role_bindings/${serializePathParameter(roleBindingId, const PathParameterSpec('roleBindingId', 'simple', false))}'));
   }
 
   /// List team members

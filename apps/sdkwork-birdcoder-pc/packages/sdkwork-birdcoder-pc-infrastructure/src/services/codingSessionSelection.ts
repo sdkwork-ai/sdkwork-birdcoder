@@ -34,10 +34,14 @@ export function resolveRequiredCodingSessionSelection(
     );
   }
 
-  const resolvedModelId =
-    engine.modelCatalog.find(
-      (candidate) => candidate.id.toLowerCase() === requestedModelId.toLowerCase(),
-    )?.id ?? requestedModelId;
+  const resolvedModelId = engine.modelCatalog.find(
+    (candidate) => candidate.id.toLowerCase() === requestedModelId.toLowerCase(),
+  )?.id;
+  if (!resolvedModelId) {
+    throw new Error(
+      `Coding session creation requires a model registered for engine "${engine.id}". Received "${requestedModelId}".`,
+    );
+  }
 
   return {
     engineId: engine.id,

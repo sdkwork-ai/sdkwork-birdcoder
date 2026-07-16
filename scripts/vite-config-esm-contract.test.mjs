@@ -373,6 +373,11 @@ assert.deepEqual(
   expectedDependencyFsAllowList,
   'Root Vite config should preserve the BirdCoder, dependency SDK, search, shared UI, and terminal workspace dependency fs allow-list under ESM-native loading.',
 );
+assert.equal(
+  rootConfig.server?.proxy?.['/app']?.ws,
+  true,
+  'Root Vite config must proxy realtime WebSocket upgrades through the same-origin /app boundary.',
+);
 
 const webConfig = await loadConfigModule('apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-web/vite.config.ts');
 const webViteConfigSource = readFileSync(
@@ -414,6 +419,11 @@ for (const apiPrefix of ['/app', '/backend', '/api', '/readyz', '/healthz', '/li
     `Web Vite config must proxy ${apiPrefix} through the same-origin development gateway.`,
   );
 }
+assert.equal(
+  webConfig.server?.proxy?.['/app']?.ws,
+  true,
+  'Web Vite config must proxy realtime WebSocket upgrades through the same-origin /app boundary.',
+);
 assertSharedCoreBrowserFacadeAlias(webConfig.resolve?.alias, 'Web Vite config');
 assertXtermCssAlias(webConfig.resolve?.alias, 'Web Vite config');
 assertTauriApiAlias(webConfig.resolve?.alias, 'Web Vite config');
@@ -709,7 +719,8 @@ for (const productSurfaceModule of [
   {
     chunkName: 'birdcoder-code-project-runtime',
     moduleIds: [
-      '/repo/apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-code/src/pages/useCodeLocalFolderProjectImport.ts',
+      '/repo/apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-code/src/pages/useCodeEffectiveWorkspaceId.ts',
+      '/repo/apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-code/src/pages/useCodeServerDirectoryProjectImport.ts',
     ],
   },
   {
@@ -752,6 +763,31 @@ for (const productSurfaceModule of [
     chunkName: 'birdcoder-code-commands-runtime',
     moduleIds: [
       '/repo/apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-code/src/pages/useCodeWorkbenchCommands.ts',
+    ],
+  },
+  {
+    chunkName: 'birdcoder-terminal-requests',
+    moduleIds: [
+      '/repo/apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-commons/src/terminal/requests.ts',
+    ],
+  },
+  {
+    chunkName: 'birdcoder-terminal-profile-availability',
+    moduleIds: [
+      '/repo/apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-commons/src/terminal/profileAvailability.ts',
+    ],
+  },
+  {
+    chunkName: 'birdcoder-run-config-definitions',
+    moduleIds: [
+      '/repo/apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-commons/src/terminal/runConfigDefinitions.ts',
+    ],
+  },
+  {
+    chunkName: 'birdcoder-run-config-storage',
+    moduleIds: [
+      '/repo/apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-commons/src/terminal/runConfigStorage.ts',
+      '/repo/apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-workbench-state/src/runConfigurations.ts',
     ],
   },
   {

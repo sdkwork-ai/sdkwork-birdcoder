@@ -400,7 +400,7 @@ async function mountAndSubscribe(
   return service.subscribeToFileChanges('shared-project', listener);
 }
 
-async function verifyUnauthenticatedLocalMountCompatibility(): Promise<void> {
+async function verifyUnauthenticatedLocalMountIsRejected(): Promise<void> {
   const registry = new ProjectDeviceMountRegistry();
   const registration = await registry.register('local-project', {
     path: 'C:\\local-project',
@@ -410,20 +410,20 @@ async function verifyUnauthenticatedLocalMountCompatibility(): Promise<void> {
 
   const tauriRuntime = createTestTauriRuntime({ watchMode: 'succeed' });
   const service = new RuntimeFileSystemService({ tauriRuntime: tauriRuntime.runtime });
-  await service.mountFolder('local-project', {
-    path: 'C:\\local-project',
-    type: 'tauri',
-  });
-  assert.equal(
-    (await service.getFiles('local-project')).length,
-    1,
-    'No-subject local mode must retain the existing in-memory mount behavior.',
+  await assert.rejects(
+    service.mountFolder('local-project', {
+      path: 'C:\\local-project',
+      type: 'tauri',
+    }),
+    /Sign in before binding a local project folder/u,
+    'An unpersisted local mount must not become a restart-unsafe in-memory project root.',
   );
+  assert.deepEqual(await service.getFiles('local-project'), []);
 }
 
 await verifyRegistrySubjectSwitchIsolation();
 await verifyStaleMountCompletionIsolation();
 await verifyStaleRealtimeGenerationIsolation();
-await verifyUnauthenticatedLocalMountCompatibility();
+await verifyUnauthenticatedLocalMountIsRejected();
 
 console.log('project device mount subject isolation contract passed.');

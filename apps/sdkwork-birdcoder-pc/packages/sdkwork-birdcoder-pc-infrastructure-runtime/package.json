@@ -10,6 +10,22 @@
     ".": {
       "import": "./src/index.ts",
       "types": "./src/index.ts"
+    },
+    "./defaultIdeServices": {
+      "import": "./src/defaultIdeServices.ts",
+      "types": "./src/defaultIdeServices.ts"
+    },
+    "./membershipSdkBootstrap": {
+      "import": "./src/membershipSdkBootstrap.ts",
+      "types": "./src/membershipSdkBootstrap.ts"
+    },
+    "./driveSandboxExplorer": {
+      "import": "./src/driveSandboxExplorer.ts",
+      "types": "./src/driveSandboxExplorer.ts"
+    },
+    "./workspaceRealtime": {
+      "import": "./src/workspaceRealtime.ts",
+      "types": "./src/workspaceRealtime.ts"
     }
   },
   "dependencies": {

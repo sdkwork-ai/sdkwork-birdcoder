@@ -127,9 +127,11 @@ try {
     engineId: string;
     modelId: string;
     projectId: string;
+    runtimeLocationId: string;
     title?: string;
     workspaceId: string;
   }> = [];
+  const runtimeLocationId = 'runtime-location-app-runtime-turn-contract';
   const postTurnSyncLagSessionId = '101777208078558000';
   const nonBlockingPostTurnSyncSessionId = '101777208078558001';
   const coalescedPostTurnSyncSessionId = '101777208078558002';
@@ -149,13 +151,14 @@ try {
 
   const codingRuntimeWriteClient: BirdCoderAppRuntimeWriteSdkApiClient = {
     async createCodingSession(request) {
-      if (!request.engineId || !request.modelId) {
-        throw new Error('expected explicit engineId and modelId');
+      if (!request.engineId || !request.modelId || !request.runtimeLocationId) {
+        throw new Error('expected explicit engineId, modelId, and runtimeLocationId');
       }
       observedRemoteSessionCreates.push({
         engineId: request.engineId,
         modelId: request.modelId,
         projectId: request.projectId,
+        runtimeLocationId: request.runtimeLocationId,
         title: request.title,
         workspaceId: request.workspaceId,
       });
@@ -165,6 +168,7 @@ try {
           id: 'coding-session-turn-recovered',
           workspaceId: request.workspaceId,
           projectId: request.projectId,
+          runtimeLocationId: request.runtimeLocationId,
           title: request.title,
           status: 'active',
           hostMode: request.hostMode ?? 'server',
@@ -180,6 +184,7 @@ try {
         id: 'coding-session-app-runtime-turn-contract',
         workspaceId: request.workspaceId,
         projectId: request.projectId,
+        runtimeLocationId: request.runtimeLocationId,
         title: request.title ?? 'App Runtime Turn Contract Session',
         status: 'active',
         hostMode: request.hostMode ?? 'server',
@@ -265,6 +270,7 @@ try {
         id: codingSessionId,
         workspaceId: 'workspace-app-runtime-turn-contract',
         projectId: 'project-app-runtime-turn-contract',
+        runtimeLocationId,
         title: 'Turn Contract Session',
         status: 'active',
         hostMode: 'server',
@@ -432,12 +438,32 @@ try {
     return lastCodingSession;
   };
 
+  await assert.rejects(
+    () =>
+      services.projectService.createCodingSession(
+        'project-app-runtime-turn-contract',
+        'Missing Runtime Location Session',
+        {
+          engineId: 'codex',
+          modelId: 'gpt-5-codex',
+        } as never,
+      ),
+    /no runtime-location binding/i,
+    'new coding sessions without an explicit runtime-location id must fail closed before calling the remote SDK.',
+  );
+  assert.equal(
+    observedRemoteSessionCreates.length,
+    0,
+    'missing runtime-location ids must never be substituted from project metadata, local paths, or process CWD.',
+  );
+
   const createdSession = await services.projectService.createCodingSession(
     'project-app-runtime-turn-contract',
     'Turn Contract Session',
     {
       engineId: 'codex',
       modelId: 'gpt-5-codex',
+      runtimeLocationId,
     },
   );
   const createdMessage = await services.projectService.addCodingSessionMessage(
@@ -464,6 +490,7 @@ try {
       engineId: 'codex',
       modelId: 'gpt-5-codex',
       projectId: 'project-app-runtime-turn-contract',
+      runtimeLocationId,
       title: 'Turn Contract Session',
       workspaceId: 'workspace-app-runtime-turn-contract',
     },
@@ -533,6 +560,7 @@ try {
       id: 'coding-session-turn-stale-local',
       workspaceId: 'workspace-app-runtime-turn-contract',
       projectId: 'project-app-runtime-turn-contract',
+      runtimeLocationId,
       title: 'Stale Local Session',
       status: 'active',
       hostMode: 'server',
@@ -562,6 +590,11 @@ try {
     'send should recover a stale local mirror session by creating a new authoritative core session instead of surfacing a not-found toast.',
   );
   assert.equal(recoveredMessage.turnId, 'coding-turn-server-authoritative');
+  assert.equal(
+    observedRemoteSessionCreates.at(-1)?.runtimeLocationId,
+    runtimeLocationId,
+    'authoritative recovery must recreate a session with the exact persisted runtime-location id.',
+  );
   assert.deepEqual(
     observedRemoteTurnCreates.map((entry) => entry.codingSessionId),
     [
@@ -577,6 +610,7 @@ try {
       id: postTurnSyncLagSessionId,
       workspaceId: 'workspace-app-runtime-turn-contract',
       projectId: 'project-app-runtime-turn-contract',
+      runtimeLocationId,
       title: 'Post Turn Sync Lag Session',
       status: 'active',
       hostMode: 'server',
@@ -614,6 +648,7 @@ try {
       id: nonBlockingPostTurnSyncSessionId,
       workspaceId: 'workspace-app-runtime-turn-contract',
       projectId: 'project-app-runtime-turn-contract',
+      runtimeLocationId,
       title: 'Non Blocking Post Turn Sync Session',
       status: 'active',
       hostMode: 'server',
@@ -666,6 +701,7 @@ try {
       id: coalescedPostTurnSyncSessionId,
       workspaceId: 'workspace-app-runtime-turn-contract',
       projectId: 'project-app-runtime-turn-contract',
+      runtimeLocationId,
       title: 'Coalesced Post Turn Sync Session',
       status: 'active',
       hostMode: 'server',

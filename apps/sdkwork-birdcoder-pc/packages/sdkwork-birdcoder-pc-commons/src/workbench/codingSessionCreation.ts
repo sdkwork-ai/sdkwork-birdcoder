@@ -38,14 +38,6 @@ export interface WorkbenchCodingSessionSelectionContext {
   title?: string;
 }
 
-export interface WorkbenchCodingSessionTurnModelSelection {
-  engineId?: string | null;
-  modelId?: string | null;
-}
-
-export const WORKBENCH_CODING_SESSION_TURN_MODEL_SELECTION_METADATA_KEY =
-  'codeEngineSelection';
-
 export type ShouldSelectWorkbenchCodingSession = (
   codingSession: BirdCoderCodingSession,
   context: WorkbenchCodingSessionSelectionContext,
@@ -173,23 +165,6 @@ export function buildWorkbenchCodingSessionTurnContext({
           },
         }
       : {}),
-  };
-}
-
-export function buildWorkbenchCodingSessionTurnModelSelectionMetadata(
-  selection?: WorkbenchCodingSessionTurnModelSelection | null,
-): Record<string, unknown> | undefined {
-  const engineId = selection?.engineId?.trim() ?? '';
-  const modelId = selection?.modelId?.trim() ?? '';
-  if (!engineId && !modelId) {
-    return undefined;
-  }
-
-  return {
-    [WORKBENCH_CODING_SESSION_TURN_MODEL_SELECTION_METADATA_KEY]: {
-      ...(engineId ? { engineId } : {}),
-      ...(modelId ? { modelId } : {}),
-    },
   };
 }
 

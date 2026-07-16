@@ -2,9 +2,9 @@ use std::collections::BTreeMap;
 
 use sdkwork_birdcoder_coding_sessions_service::context::CodingSessionContext;
 use sdkwork_birdcoder_coding_sessions_service::domain::commands::{
-    CreateCodingSessionInput, CreateCodingSessionTurnInput, EditCodingSessionMessageInput,
-    ForkCodingSessionInput, SubmitApprovalDecisionInput, SubmitUserQuestionAnswerInput,
-    UpdateCodingSessionInput,
+    AppendCodingSessionRealtimeEventInput, CodingSessionInteractionKind, CreateCodingSessionInput,
+    CreateCodingSessionTurnInput, EditCodingSessionMessageInput, ForkCodingSessionInput,
+    SubmitApprovalDecisionInput, SubmitUserQuestionAnswerInput, UpdateCodingSessionInput,
 };
 use sdkwork_birdcoder_coding_sessions_service::domain::models::CodingSessionListQuery;
 use sdkwork_birdcoder_coding_sessions_service::domain::models::{
@@ -13,14 +13,17 @@ use sdkwork_birdcoder_coding_sessions_service::domain::models::{
     FailCodingSessionOperationInput, RenewCodingSessionOperationLeaseInput,
 };
 use sdkwork_birdcoder_coding_sessions_service::domain::results::{
-    ApprovalDecisionPayload, CodingSessionArtifactPayload, CodingSessionCheckpointPayload,
-    CodingSessionEventPayload, CodingSessionListPage, CodingSessionPayload,
-    CodingSessionTurnPayload, DeleteCodingSessionMessagePayload, EditCodingSessionMessagePayload,
-    FinalizedProjectionTurnExecution, OperationPayload, UserQuestionAnswerPayload,
+    ApprovalDecisionPayload, ClaimedCodingSessionInteraction, CodingSessionArtifactPayload,
+    CodingSessionCheckpointPayload, CodingSessionEventPayload, CodingSessionListPage,
+    CodingSessionPayload, CodingSessionReplayPage, CodingSessionTurnPayload,
+    DeleteCodingSessionMessagePayload, EditCodingSessionMessagePayload,
+    FinalizedProjectionTurnExecution, OperationPayload, PersistedCodingSessionMutation,
+    PersistedProjectionTurnExecution, ResolvedCodingSessionInteraction, UserQuestionAnswerPayload,
 };
 use sdkwork_birdcoder_coding_sessions_service::error::CodingSessionError;
 use sdkwork_birdcoder_coding_sessions_service::ports::repository::CodingSessionRepository;
 use sdkwork_birdcoder_sqlx_repository_pool::dialect::IS_NOT_DELETED;
+use sdkwork_utils_rust::is_blank;
 use sqlx::{AnyPool, Row, Transaction};
 use time::OffsetDateTime;
 use uuid::Uuid;
@@ -33,13 +36,53 @@ use crate::repository::session_history_copy;
 use crate::repository::sqlx_helpers::{
     append_session_owner_scope_sql, ensure_session_in_tenant_scope,
     ensure_session_in_tenant_scope_in_transaction, ensure_workspace_in_tenant_scope,
-    parse_scoped_tenant_id, session_owner_scope,
+    session_owner_scope, SessionOwnerScope,
 };
 
 #[derive(Clone)]
 pub struct SqliteCodingSessionRepository {
     pool: AnyPool,
 }
+
+struct ResolvedStoredCodingSessionInteraction {
+    resolution: ResolvedCodingSessionInteraction,
+    source_event_version: i64,
+    source_payload: BTreeMap<String, serde_json::Value>,
+}
+
+#[derive(Clone, Copy)]
+struct CodingSessionEventStreamScope<'a> {
+    owner: SessionOwnerScope,
+    session_id: &'a str,
+}
+
+impl<'a> CodingSessionEventStreamScope<'a> {
+    fn new(owner: SessionOwnerScope, session_id: &'a str) -> Self {
+        Self { owner, session_id }
+    }
+}
+
+const INTERACTION_CLAIM_LEASE_SECONDS: i64 = 120;
+const INTERNAL_INTERACTION_CLAIM_PAYLOAD_FIELDS: &[&str] = &[
+    "claimId",
+    "claimedAt",
+    "claimExpiresAt",
+    "releasedClaimId",
+    "releasedAt",
+    "settledClaimId",
+];
+const MUTABLE_INTERACTION_STATE_PAYLOAD_FIELDS: &[&str] = &[
+    "answer",
+    "answeredAt",
+    "decision",
+    "decisionReason",
+    "decidedAt",
+    "optionId",
+    "optionLabel",
+    "rejected",
+    "settledAt",
+    "status",
+];
 
 impl SqliteCodingSessionRepository {
     pub fn new(pool: AnyPool) -> Self {
@@ -62,6 +105,12 @@ impl SqliteCodingSessionRepository {
         }
         if query.project_id.is_some() {
             sql.push_str(&format!(" AND s.{} = ?", columns::session::PROJECT_ID));
+        }
+        if query.runtime_location_id.is_some() {
+            sql.push_str(&format!(
+                " AND s.{} = ?",
+                columns::session::RUNTIME_LOCATION_ID
+            ));
         }
         if query.workspace_id.is_some() {
             sql.push_str(&format!(" AND s.{} = ?", columns::session::WORKSPACE_ID));
@@ -129,22 +178,40 @@ impl SqliteCodingSessionRepository {
     /// could obtain the same sequence number.
     async fn next_event_sequence_on_executor(
         tx: &mut Transaction<'_, sqlx::Any>,
+        owner_scope: SessionOwnerScope,
         session_id: &str,
     ) -> Result<usize, CodingSessionError> {
         let max_sequence = map_sqlx_error(
             sqlx::query_scalar::<sqlx::Any, i64>(&format!(
-                "SELECT COALESCE(MAX({}), 0) FROM {} WHERE {} = ? AND {} = 0",
+                "SELECT COALESCE(MAX({}), 0) FROM {} \
+                 WHERE {} = ? AND {} = ? AND {} = ? AND {IS_NOT_DELETED}",
                 columns::event::SEQUENCE_NO,
                 columns::event::TABLE,
+                columns::event::TENANT_ID,
+                columns::event::USER_ID,
                 columns::event::CODING_SESSION_ID,
-                columns::event::IS_DELETED,
             ))
+            .bind(owner_scope.tenant_id)
+            .bind(owner_scope.user_id)
             .bind(session_id)
             .fetch_one(&mut **tx)
             .await,
         )?;
 
-        Ok((max_sequence + 1) as usize)
+        let next_sequence = max_sequence
+            .checked_add(1)
+            .filter(|sequence| *sequence <= i64::from(i32::MAX))
+            .ok_or_else(|| {
+                CodingSessionError::Conflict(format!(
+                    "event sequence space is exhausted for session {session_id}"
+                ))
+            })?;
+
+        usize::try_from(next_sequence).map_err(|_| {
+            CodingSessionError::Internal(format!(
+                "event sequence cannot be represented for session {session_id}"
+            ))
+        })
     }
 
     /// Inserts a coding session event within an existing database transaction.
@@ -152,27 +219,33 @@ impl SqliteCodingSessionRepository {
     /// guarantee atomicity.
     async fn insert_coding_session_event_on_executor(
         tx: &mut Transaction<'_, sqlx::Any>,
-        session_id: &str,
+        stream_scope: CodingSessionEventStreamScope<'_>,
         turn_id: Option<String>,
         runtime_id: Option<String>,
         kind: &str,
         payload: BTreeMap<String, serde_json::Value>,
-    ) -> Result<(), CodingSessionError> {
+        created_at: &str,
+    ) -> Result<CodingSessionEventPayload, CodingSessionError> {
+        let CodingSessionEventStreamScope {
+            owner: owner_scope,
+            session_id,
+        } = stream_scope;
         let event_id = Uuid::new_v4().to_string();
-        let now = Self::now_iso();
-        let sequence = Self::next_event_sequence_on_executor(tx, session_id).await?;
+        let sequence = Self::next_event_sequence_on_executor(tx, owner_scope, session_id).await?;
         let payload_json = serde_json::to_string(&payload)
             .map_err(|error| RepositoryError::Insert(error.to_string()))?;
 
         sqlx::query(&format!(
-            "INSERT INTO {} ({}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}) \
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            "INSERT INTO {} ({}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}) \
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
             columns::event::TABLE,
             columns::event::ID,
             columns::event::CREATED_AT,
             columns::event::UPDATED_AT,
             columns::event::VERSION,
             columns::event::IS_DELETED,
+            columns::event::TENANT_ID,
+            columns::event::USER_ID,
             columns::event::CODING_SESSION_ID,
             columns::event::TURN_ID,
             columns::event::RUNTIME_ID,
@@ -181,10 +254,12 @@ impl SqliteCodingSessionRepository {
             columns::event::PAYLOAD_JSON,
         ))
         .bind(&event_id)
-        .bind(&now)
-        .bind(&now)
+        .bind(created_at)
+        .bind(created_at)
         .bind(0i64)
         .bind(0i64)
+        .bind(owner_scope.tenant_id)
+        .bind(owner_scope.user_id)
         .bind(session_id)
         .bind(&turn_id)
         .bind(&runtime_id)
@@ -195,35 +270,283 @@ impl SqliteCodingSessionRepository {
         .await
         .map_err(|error: sqlx::Error| RepositoryError::Insert(error.to_string()))?;
 
-        Ok(())
+        Ok(CodingSessionEventPayload {
+            id: event_id,
+            coding_session_id: session_id.to_owned(),
+            turn_id,
+            runtime_id,
+            kind: kind.to_owned(),
+            sequence,
+            payload,
+            created_at: created_at.to_owned(),
+        })
     }
 
-    /// Updates transcript timestamps within an existing database transaction.
+    /// Updates transcript freshness and acquires a session-scoped write lock
+    /// before allocating an event sequence. This makes `MAX(sequence_no) + 1`
+    /// safe for concurrent writers on both SQLite and PostgreSQL.
     async fn touch_session_transcript_on_executor(
         tx: &mut Transaction<'_, sqlx::Any>,
+        owner_scope: SessionOwnerScope,
         session_id: &str,
+        updated_at: &str,
+        refresh_sort_timestamp: bool,
     ) -> Result<(), CodingSessionError> {
-        let now = Self::now_iso();
-        let sort_timestamp = Self::sort_timestamp_now();
+        let sort_assignment = if refresh_sort_timestamp {
+            format!(", {} = ?", columns::session::SORT_TIMESTAMP)
+        } else {
+            String::new()
+        };
 
-        sqlx::query(&format!(
-            "UPDATE {} SET {} = ?, {} = ?, {} = ?, {} = {} + 1 WHERE {} = ? AND {} = 0",
+        let sql = format!(
+            "UPDATE {} SET {} = ?, {} = ?, {} = {} + 1{sort_assignment} \
+             WHERE {} = ? AND {} = ? AND {} = ? AND {IS_NOT_DELETED} \
+             AND EXISTS (SELECT 1 FROM studio_workspace w \
+                 WHERE CAST(w.id AS TEXT) = {}.{} AND w.tenant_id = ? AND w.{IS_NOT_DELETED})",
             columns::session::TABLE,
             columns::session::TRANSCRIPT_UPDATED_AT,
             columns::session::UPDATED_AT,
-            columns::session::SORT_TIMESTAMP,
             columns::session::VERSION,
             columns::session::VERSION,
             columns::session::ID,
-            columns::session::IS_DELETED,
+            columns::session::TENANT_ID,
+            columns::session::USER_ID,
+            columns::session::TABLE,
+            columns::session::WORKSPACE_ID,
+        );
+        let mut query = sqlx::query(&sql).bind(updated_at).bind(updated_at);
+        if refresh_sort_timestamp {
+            query = query.bind(Self::sort_timestamp_now());
+        }
+        let result = query
+            .bind(session_id)
+            .bind(owner_scope.tenant_id)
+            .bind(owner_scope.user_id)
+            .bind(owner_scope.tenant_id)
+            .execute(&mut **tx)
+            .await
+            .map_err(|error: sqlx::Error| RepositoryError::Update(error.to_string()))?;
+        if result.rows_affected() != 1 {
+            return Err(
+                RepositoryError::NotFound(format!("session {session_id} not found")).into(),
+            );
+        }
+
+        Ok(())
+    }
+
+    async fn load_realtime_event_turn_runtime_id_on_executor(
+        tx: &mut Transaction<'_, sqlx::Any>,
+        owner_scope: SessionOwnerScope,
+        session_id: &str,
+        turn_id: &str,
+    ) -> Result<String, CodingSessionError> {
+        map_sqlx_error(
+            sqlx::query_scalar::<sqlx::Any, String>(&format!(
+                "SELECT {} FROM {} WHERE {} = ? AND {} = ? AND {} = ? AND {} = ? AND {IS_NOT_DELETED}",
+                columns::turn::RUNTIME_ID,
+                columns::turn::TABLE,
+                columns::turn::ID,
+                columns::turn::CODING_SESSION_ID,
+                columns::turn::TENANT_ID,
+                columns::turn::USER_ID,
+            ))
+            .bind(turn_id)
+            .bind(session_id)
+            .bind(owner_scope.tenant_id)
+            .bind(owner_scope.user_id)
+            .fetch_optional(&mut **tx)
+            .await,
+        )?
+        .ok_or_else(|| RepositoryError::NotFound(format!("turn {turn_id} not found")).into())
+    }
+
+    async fn ensure_realtime_event_turn_in_scope_on_executor(
+        tx: &mut Transaction<'_, sqlx::Any>,
+        owner_scope: SessionOwnerScope,
+        session_id: &str,
+        turn_id: &str,
+        runtime_id: Option<&str>,
+    ) -> Result<(), CodingSessionError> {
+        let persisted_runtime_id = Self::load_realtime_event_turn_runtime_id_on_executor(
+            tx,
+            owner_scope,
+            session_id,
+            turn_id,
+        )
+        .await?;
+
+        if let Some(runtime_id) = runtime_id {
+            if runtime_id != persisted_runtime_id {
+                return Err(CodingSessionError::Conflict(format!(
+                    "runtime {runtime_id} does not belong to turn {turn_id}"
+                )));
+            }
+        }
+
+        Ok(())
+    }
+
+    /// Resolves the internal provider-neutral interaction identifier from the
+    /// durable event used by the public mutation path. The query deliberately
+    /// scopes by the event primary key and ownership columns; payload JSON is
+    /// parsed only after the canonical event has been selected.
+    async fn resolve_durable_interaction_on_executor(
+        tx: &mut Transaction<'_, sqlx::Any>,
+        owner_scope: SessionOwnerScope,
+        session_id: &str,
+        interaction_event_id: &str,
+        interaction_kind: CodingSessionInteractionKind,
+        require_unsettled: bool,
+    ) -> Result<ResolvedStoredCodingSessionInteraction, CodingSessionError> {
+        let interaction_event_id = normalize_optional_realtime_event_reference(
+            Some(interaction_event_id),
+            "interaction_event_id",
+        )?
+        .ok_or_else(|| {
+            CodingSessionError::InvalidInput("interaction_event_id is required".to_owned())
+        })?;
+
+        let row = map_sqlx_error(
+            sqlx::query(&format!(
+                "SELECT * FROM {} WHERE {} = ? AND {} = ? AND {} = ? AND {} = ? \
+                 AND {} = ? AND {IS_NOT_DELETED}",
+                columns::event::TABLE,
+                columns::event::ID,
+                columns::event::CODING_SESSION_ID,
+                columns::event::TENANT_ID,
+                columns::event::USER_ID,
+                columns::event::EVENT_KIND,
+            ))
+            .bind(&interaction_event_id)
+            .bind(session_id)
+            .bind(owner_scope.tenant_id)
+            .bind(owner_scope.user_id)
+            .bind(interaction_kind.source_event_kind())
+            .fetch_optional(&mut **tx)
+            .await,
+        )?
+        .ok_or_else(|| {
+            RepositoryError::NotFound(format!(
+                "{} interaction event {interaction_event_id} not found",
+                interaction_kind.source_event_kind()
+            ))
+        })?;
+
+        let event = map_sqlx_error(EventRow::from_row(&row))?;
+        let turn_id = require_stored_interaction_reference(
+            &event.id,
+            event.turn_id.as_deref(),
+            columns::event::TURN_ID,
+        )?;
+        let runtime_id = require_stored_interaction_reference(
+            &event.id,
+            event.runtime_id.as_deref(),
+            columns::event::RUNTIME_ID,
+        )?;
+        Self::ensure_realtime_event_turn_in_scope_on_executor(
+            tx,
+            owner_scope,
+            session_id,
+            &turn_id,
+            Some(&runtime_id),
+        )
+        .await?;
+
+        let source_payload =
+            serde_json::from_str::<BTreeMap<String, serde_json::Value>>(&event.payload_json)
+                .map_err(|error| {
+                    CodingSessionError::Conflict(format!(
+                        "interaction event {} has malformed canonical payload: {error}",
+                        event.id
+                    ))
+                })?;
+        let interaction_id = require_canonical_interaction_payload_string(
+            &source_payload,
+            &event.id,
+            "interactionId",
+        )?;
+        let payload_kind = require_canonical_interaction_payload_string(
+            &source_payload,
+            &event.id,
+            "interactionKind",
+        )?;
+        if payload_kind != interaction_kind.payload_kind() {
+            return Err(CodingSessionError::Conflict(format!(
+                "interaction event {} has interactionKind {payload_kind:?}; expected {:?}",
+                event.id,
+                interaction_kind.payload_kind(),
+            )));
+        }
+        if require_unsettled && source_payload.contains_key("settledAt") {
+            return Err(CodingSessionError::Conflict(format!(
+                "interaction event {} is already settled",
+                event.id
+            )));
+        }
+
+        Ok(ResolvedStoredCodingSessionInteraction {
+            resolution: ResolvedCodingSessionInteraction {
+                event_id: event.id,
+                coding_session_id: event.coding_session_id,
+                turn_id,
+                runtime_id,
+                interaction_id,
+                interaction_kind,
+            },
+            source_event_version: event.version,
+            source_payload,
+        })
+    }
+
+    /// Marks a canonical interaction source event as settled while retaining
+    /// the normalized interaction fields. The optimistic version predicate
+    /// makes a second decision/answer fail instead of allocating another
+    /// durable `operation.updated` event.
+    async fn update_durable_interaction_source_event_on_executor(
+        tx: &mut Transaction<'_, sqlx::Any>,
+        owner_scope: SessionOwnerScope,
+        source: &ResolvedStoredCodingSessionInteraction,
+        payload: &BTreeMap<String, serde_json::Value>,
+        updated_at: &str,
+    ) -> Result<(), CodingSessionError> {
+        ensure_interaction_payload_evolution_is_valid(source, payload)?;
+        let payload_json = serde_json::to_string(payload)
+            .map_err(|error| RepositoryError::Update(error.to_string()))?;
+        let result = sqlx::query(&format!(
+            "UPDATE {} SET {} = ?, {} = ?, {} = {} + 1 \
+             WHERE {} = ? AND {} = ? AND {} = ? AND {} = ? AND {} = ? \
+             AND {} = ? AND {IS_NOT_DELETED}",
+            columns::event::TABLE,
+            columns::event::PAYLOAD_JSON,
+            columns::event::UPDATED_AT,
+            columns::event::VERSION,
+            columns::event::VERSION,
+            columns::event::ID,
+            columns::event::CODING_SESSION_ID,
+            columns::event::TENANT_ID,
+            columns::event::USER_ID,
+            columns::event::EVENT_KIND,
+            columns::event::VERSION,
         ))
-        .bind(&now)
-        .bind(&now)
-        .bind(sort_timestamp)
-        .bind(session_id)
+        .bind(&payload_json)
+        .bind(updated_at)
+        .bind(&source.resolution.event_id)
+        .bind(&source.resolution.coding_session_id)
+        .bind(owner_scope.tenant_id)
+        .bind(owner_scope.user_id)
+        .bind(source.resolution.interaction_kind.source_event_kind())
+        .bind(source.source_event_version)
         .execute(&mut **tx)
         .await
         .map_err(|error: sqlx::Error| RepositoryError::Update(error.to_string()))?;
+
+        if result.rows_affected() != 1 {
+            return Err(CodingSessionError::Conflict(format!(
+                "interaction event {} was already settled or changed",
+                source.resolution.event_id
+            )));
+        }
 
         Ok(())
     }
@@ -236,6 +559,214 @@ impl SqliteCodingSessionRepository {
             .map_err(|error| RepositoryError::Connection(error.to_string()))?;
         Ok(connection.backend_name().eq_ignore_ascii_case("PostgreSQL"))
     }
+}
+
+fn normalize_realtime_event_kind(value: &str) -> Result<String, CodingSessionError> {
+    if is_blank(Some(value)) {
+        return Err(CodingSessionError::InvalidInput(
+            "event kind is required".into(),
+        ));
+    }
+    Ok(value.trim().to_owned())
+}
+
+/// Public event projection never exposes the repository-only lease fields.
+/// Event identity, owner scope, sequence, kind, and canonical interaction
+/// fields remain immutable; interaction status annotations are the only
+/// source-payload fields allowed to evolve under an optimistic version check.
+fn project_public_coding_session_event(
+    mut event: CodingSessionEventPayload,
+) -> CodingSessionEventPayload {
+    for field in INTERNAL_INTERACTION_CLAIM_PAYLOAD_FIELDS {
+        event.payload.remove(*field);
+    }
+    event
+}
+
+fn is_internal_interaction_claim_field(field: &str) -> bool {
+    INTERNAL_INTERACTION_CLAIM_PAYLOAD_FIELDS.contains(&field)
+}
+
+fn is_mutable_interaction_state_field(field: &str) -> bool {
+    MUTABLE_INTERACTION_STATE_PAYLOAD_FIELDS.contains(&field)
+}
+
+fn ensure_interaction_payload_evolution_is_valid(
+    source: &ResolvedStoredCodingSessionInteraction,
+    updated_payload: &BTreeMap<String, serde_json::Value>,
+) -> Result<(), CodingSessionError> {
+    for (field, source_value) in &source.source_payload {
+        if !is_internal_interaction_claim_field(field)
+            && !is_mutable_interaction_state_field(field)
+            && updated_payload.get(field) != Some(source_value)
+        {
+            return Err(CodingSessionError::Conflict(format!(
+                "interaction event {} attempted to change immutable payload field {field}",
+                source.resolution.event_id
+            )));
+        }
+    }
+    for field in updated_payload.keys() {
+        if !source.source_payload.contains_key(field)
+            && !is_internal_interaction_claim_field(field)
+            && !is_mutable_interaction_state_field(field)
+        {
+            return Err(CodingSessionError::Conflict(format!(
+                "interaction event {} attempted to add immutable payload field {field}",
+                source.resolution.event_id
+            )));
+        }
+    }
+
+    Ok(())
+}
+
+fn event_sequence_to_i64(sequence: usize, field: &str) -> Result<i64, CodingSessionError> {
+    i64::try_from(sequence).map_err(|_| {
+        CodingSessionError::InvalidInput(format!("{field} is outside the durable event range"))
+    })
+}
+
+fn event_sequence_to_usize(sequence: i64, field: &str) -> Result<usize, CodingSessionError> {
+    usize::try_from(sequence).map_err(|_| {
+        CodingSessionError::Internal(format!("stored {field} is outside the supported range"))
+    })
+}
+
+fn normalize_optional_realtime_event_reference(
+    value: Option<&str>,
+    field: &str,
+) -> Result<Option<String>, CodingSessionError> {
+    let Some(value) = value else {
+        return Ok(None);
+    };
+    if is_blank(Some(value)) {
+        return Err(CodingSessionError::InvalidInput(format!(
+            "{field} must not be blank when supplied"
+        )));
+    }
+    Ok(Some(value.trim().to_owned()))
+}
+
+fn require_stored_interaction_reference(
+    event_id: &str,
+    value: Option<&str>,
+    field: &str,
+) -> Result<String, CodingSessionError> {
+    let Some(value) = value else {
+        return Err(CodingSessionError::Conflict(format!(
+            "interaction event {event_id} has no {field}"
+        )));
+    };
+    if is_blank(Some(value)) {
+        return Err(CodingSessionError::Conflict(format!(
+            "interaction event {event_id} has a blank {field}"
+        )));
+    }
+    Ok(value.trim().to_owned())
+}
+
+fn require_canonical_interaction_payload_string(
+    payload: &BTreeMap<String, serde_json::Value>,
+    event_id: &str,
+    field: &str,
+) -> Result<String, CodingSessionError> {
+    let Some(value) = payload.get(field).and_then(serde_json::Value::as_str) else {
+        return Err(CodingSessionError::Conflict(format!(
+            "interaction event {event_id} is missing string payload field {field}"
+        )));
+    };
+    if is_blank(Some(value)) {
+        return Err(CodingSessionError::Conflict(format!(
+            "interaction event {event_id} has a blank payload field {field}"
+        )));
+    }
+    Ok(value.trim().to_owned())
+}
+
+fn active_interaction_claim_id(
+    payload: &BTreeMap<String, serde_json::Value>,
+    event_id: &str,
+) -> Result<Option<String>, CodingSessionError> {
+    let claim_fields_present = ["claimId", "claimedAt", "claimExpiresAt"]
+        .iter()
+        .any(|field| payload.contains_key(*field));
+    let Some(claim_id) = payload.get("claimId") else {
+        if claim_fields_present {
+            return Err(CodingSessionError::Conflict(format!(
+                "interaction event {event_id} has an incomplete claim record"
+            )));
+        }
+        return Ok(None);
+    };
+    let Some(claim_id) = claim_id.as_str() else {
+        return Err(CodingSessionError::Conflict(format!(
+            "interaction event {event_id} has a non-string claimId"
+        )));
+    };
+    if is_blank(Some(claim_id)) {
+        return Err(CodingSessionError::Conflict(format!(
+            "interaction event {event_id} has a blank claimId"
+        )));
+    }
+    let claimed_at = require_canonical_interaction_payload_string(payload, event_id, "claimedAt")?;
+    let claim_expires_at =
+        require_canonical_interaction_payload_string(payload, event_id, "claimExpiresAt")?;
+    let parse_claim_instant = |value: &str, field: &str| {
+        OffsetDateTime::parse(
+            value,
+            &time::format_description::well_known::Iso8601::DEFAULT,
+        )
+        .map_err(|error| {
+            CodingSessionError::Conflict(format!(
+                "interaction event {event_id} has an invalid {field}: {error}"
+            ))
+        })
+    };
+    let claimed_at = parse_claim_instant(&claimed_at, "claimedAt")?;
+    let expires_at = parse_claim_instant(&claim_expires_at, "claimExpiresAt")?;
+    if expires_at <= claimed_at {
+        return Err(CodingSessionError::Conflict(format!(
+            "interaction event {event_id} has a non-positive claim lease"
+        )));
+    }
+    if expires_at > OffsetDateTime::now_utc() {
+        return Ok(Some(claim_id.trim().to_owned()));
+    }
+
+    Ok(None)
+}
+
+fn require_owned_interaction_claim(
+    payload: &BTreeMap<String, serde_json::Value>,
+    event_id: &str,
+    claim_id: &str,
+) -> Result<String, CodingSessionError> {
+    if is_blank(Some(claim_id)) {
+        return Err(CodingSessionError::InvalidInput(
+            "interaction_claim_id is required".to_owned(),
+        ));
+    }
+    let expected_claim_id = claim_id.trim();
+    let active_claim_id = active_interaction_claim_id(payload, event_id)?.ok_or_else(|| {
+        CodingSessionError::Conflict(format!(
+            "interaction event {event_id} claim has expired or was released"
+        ))
+    })?;
+    if active_claim_id != expected_claim_id {
+        return Err(CodingSessionError::Conflict(format!(
+            "interaction event {event_id} is claimed by another request"
+        )));
+    }
+    Ok(expected_claim_id.to_owned())
+}
+
+fn interaction_claim_expires_at() -> Result<String, CodingSessionError> {
+    (OffsetDateTime::now_utc() + time::Duration::seconds(INTERACTION_CLAIM_LEASE_SECONDS))
+        .format(&time::format_description::well_known::Iso8601::DEFAULT)
+        .map_err(|error| {
+            CodingSessionError::Internal(format!("cannot format claim expiry: {error}"))
+        })
 }
 
 fn normalize_operation_instant(value: &str, field: &str) -> Result<String, CodingSessionError> {
@@ -327,31 +858,6 @@ fn durable_operation_from_row(
     })
 }
 
-fn resolve_project_root_path(
-    config_data: Option<&str>,
-    site_path: Option<&str>,
-) -> Result<Option<String>, RepositoryError> {
-    if let Some(config_data) = config_data.map(str::trim).filter(|value| !value.is_empty()) {
-        let config: serde_json::Value = serde_json::from_str(config_data).map_err(|error| {
-            RepositoryError::Query(format!("invalid project config_data: {error}"))
-        })?;
-        if let Some(root_path) = config
-            .get("rootPath")
-            .or_else(|| config.get("root_path"))
-            .and_then(serde_json::Value::as_str)
-            .map(str::trim)
-            .filter(|value| !value.is_empty())
-        {
-            return Ok(Some(root_path.to_owned()));
-        }
-    }
-
-    Ok(site_path
-        .map(str::trim)
-        .filter(|value| !value.is_empty())
-        .map(str::to_owned))
-}
-
 #[async_trait::async_trait]
 impl CodingSessionRepository for SqliteCodingSessionRepository {
     async fn list_sessions(
@@ -373,6 +879,9 @@ impl CodingSessionRepository for SqliteCodingSessionRepository {
         }
         if let Some(ref project_id) = query.project_id {
             count_query = count_query.bind(project_id);
+        }
+        if let Some(ref runtime_location_id) = query.runtime_location_id {
+            count_query = count_query.bind(runtime_location_id);
         }
         if let Some(ref workspace_id) = query.workspace_id {
             count_query = count_query.bind(workspace_id);
@@ -402,6 +911,9 @@ impl CodingSessionRepository for SqliteCodingSessionRepository {
         }
         if let Some(ref project_id) = query.project_id {
             list_query = list_query.bind(project_id);
+        }
+        if let Some(ref runtime_location_id) = query.runtime_location_id {
+            list_query = list_query.bind(runtime_location_id);
         }
         if let Some(ref workspace_id) = query.workspace_id {
             list_query = list_query.bind(workspace_id);
@@ -470,41 +982,6 @@ impl CodingSessionRepository for SqliteCodingSessionRepository {
         Ok(row_mapper::session_row_to_payload(session, runtime_status))
     }
 
-    async fn resolve_project_working_directory(
-        &self,
-        ctx: &CodingSessionContext,
-        project_id: &str,
-    ) -> Result<Option<String>, CodingSessionError> {
-        let project_id = project_id.trim();
-        if project_id.is_empty() {
-            return Ok(None);
-        }
-        let tenant_id = parse_scoped_tenant_id(ctx)?;
-        let project_is_not_deleted =
-            sdkwork_birdcoder_sqlx_repository_pool::dialect::qualified_is_not_deleted("p");
-        let sql = sdkwork_birdcoder_sqlx_repository_pool::dialect::any_sql(&format!(
-            "SELECT p.site_path, pc.config_data \
-             FROM studio_project p \
-             LEFT JOIN studio_project_content pc ON pc.project_id = p.id \
-             WHERE CAST(p.id AS TEXT) = ?1 AND p.tenant_id = ?2 AND {project_is_not_deleted} \
-             ORDER BY pc.updated_at DESC LIMIT 1"
-        ));
-        let row = sqlx::query(&sql)
-            .bind(project_id)
-            .bind(tenant_id)
-            .fetch_optional(&self.pool)
-            .await
-            .map_err(|error| RepositoryError::Query(error.to_string()))?;
-        let Some(row) = row else {
-            return Ok(None);
-        };
-
-        let site_path = map_sqlx_error(row.try_get::<Option<String>, _>("site_path"))?;
-        let config_data = map_sqlx_error(row.try_get::<Option<String>, _>("config_data"))?;
-        resolve_project_root_path(config_data.as_deref(), site_path.as_deref())
-            .map_err(CodingSessionError::from)
-    }
-
     async fn create_session(
         &self,
         ctx: &CodingSessionContext,
@@ -514,6 +991,7 @@ impl CodingSessionRepository for SqliteCodingSessionRepository {
         let id = Uuid::new_v4().to_string();
         let workspace_id = input.workspace_id.clone();
         let project_id = input.project_id.clone();
+        let runtime_location_id = input.runtime_location_id.clone();
         let title = input.title.clone();
         let host_mode = input.host_mode.clone();
         let engine_id = input.engine_id.clone();
@@ -526,8 +1004,8 @@ impl CodingSessionRepository for SqliteCodingSessionRepository {
             .map_err(CodingSessionError::from)?;
 
         sqlx::query(&format!(
-            "INSERT INTO {} ({}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}) \
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            "INSERT INTO {} ({}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}) \
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
             columns::session::TABLE,
             columns::session::ID,
             columns::session::UUID,
@@ -539,6 +1017,7 @@ impl CodingSessionRepository for SqliteCodingSessionRepository {
             columns::session::USER_ID,
             columns::session::WORKSPACE_ID,
             columns::session::PROJECT_ID,
+            columns::session::RUNTIME_LOCATION_ID,
             columns::session::TITLE,
             columns::session::STATUS,
             columns::session::ENTRY_SURFACE,
@@ -557,6 +1036,7 @@ impl CodingSessionRepository for SqliteCodingSessionRepository {
         .bind(owner_scope.user_id)
         .bind(&workspace_id)
         .bind(&project_id)
+        .bind(&runtime_location_id)
         .bind(&title)
         .bind("active")
         .bind("unknown")
@@ -572,6 +1052,7 @@ impl CodingSessionRepository for SqliteCodingSessionRepository {
             id,
             workspace_id,
             project_id,
+            runtime_location_id: Some(runtime_location_id),
             title,
             status: "active".to_string(),
             host_mode,
@@ -608,12 +1089,6 @@ impl CodingSessionRepository for SqliteCodingSessionRepository {
         if input.host_mode.is_some() {
             sets.push(format!("{} = ?", columns::session::HOST_MODE));
         }
-        if input.engine_id.is_some() {
-            sets.push(format!("{} = ?", columns::session::ENGINE_ID));
-        }
-        if input.model_id.is_some() {
-            sets.push(format!("{} = ?", columns::session::MODEL_ID));
-        }
         sets.push(format!("{} = ?", columns::session::UPDATED_AT));
         sets.push(format!(
             "{} = {} + 1",
@@ -638,12 +1113,6 @@ impl CodingSessionRepository for SqliteCodingSessionRepository {
         }
         if let Some(ref host_mode) = input.host_mode {
             q = q.bind(host_mode);
-        }
-        if let Some(ref engine_id) = input.engine_id {
-            q = q.bind(engine_id);
-        }
-        if let Some(ref model_id) = input.model_id {
-            q = q.bind(model_id);
         }
         q = q.bind(&now).bind(session_id);
 
@@ -742,8 +1211,8 @@ impl CodingSessionRepository for SqliteCodingSessionRepository {
 
         map_sqlx_error(
             sqlx::query(&format!(
-                "INSERT INTO {} ({}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}) \
-                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            "INSERT INTO {} ({}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}) \
+                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
                 columns::session::TABLE,
                 columns::session::ID,
                 columns::session::UUID,
@@ -755,6 +1224,7 @@ impl CodingSessionRepository for SqliteCodingSessionRepository {
                 columns::session::USER_ID,
                 columns::session::WORKSPACE_ID,
                 columns::session::PROJECT_ID,
+                columns::session::RUNTIME_LOCATION_ID,
                 columns::session::TITLE,
                 columns::session::STATUS,
                 columns::session::ENTRY_SURFACE,
@@ -773,6 +1243,7 @@ impl CodingSessionRepository for SqliteCodingSessionRepository {
             .bind(owner_scope.user_id)
             .bind(&original.workspace_id)
             .bind(&original.project_id)
+            .bind(&original.runtime_location_id)
             .bind(&title)
             .bind("active")
             .bind(&original.entry_surface)
@@ -788,6 +1259,7 @@ impl CodingSessionRepository for SqliteCodingSessionRepository {
             id: new_id.clone(),
             workspace_id: original.workspace_id,
             project_id: original.project_id,
+            runtime_location_id: original.runtime_location_id,
             title,
             status: "active".to_string(),
             host_mode: original.host_mode,
@@ -1039,6 +1511,7 @@ impl CodingSessionRepository for SqliteCodingSessionRepository {
         let message = self.load_message_row(ctx, session_id, message_id).await?;
         let content = input.content.clone();
         let now = Self::now_iso();
+        let owner_scope = session_owner_scope(ctx)?;
 
         let mut tx = map_sqlx_error(self.pool.begin().await)?;
 
@@ -1075,16 +1548,18 @@ impl CodingSessionRepository for SqliteCodingSessionRepository {
             serde_json::Value::String(message.role.clone()),
         );
 
-        Self::insert_coding_session_event_on_executor(
+        Self::touch_session_transcript_on_executor(&mut tx, owner_scope, session_id, &now, true)
+            .await?;
+        let _ = Self::insert_coding_session_event_on_executor(
             &mut tx,
-            session_id,
+            CodingSessionEventStreamScope::new(owner_scope, session_id),
             message.turn_id.clone(),
             None,
             "message.edited",
             payload,
+            &now,
         )
         .await?;
-        Self::touch_session_transcript_on_executor(&mut tx, session_id).await?;
 
         map_sqlx_error(tx.commit().await)?;
 
@@ -1103,6 +1578,7 @@ impl CodingSessionRepository for SqliteCodingSessionRepository {
     ) -> Result<DeleteCodingSessionMessagePayload, CodingSessionError> {
         let message = self.load_message_row(ctx, session_id, message_id).await?;
         let now = Self::now_iso();
+        let owner_scope = session_owner_scope(ctx)?;
 
         let mut tx = map_sqlx_error(self.pool.begin().await)?;
 
@@ -1134,16 +1610,18 @@ impl CodingSessionRepository for SqliteCodingSessionRepository {
             serde_json::Value::String(message.role.clone()),
         );
 
-        Self::insert_coding_session_event_on_executor(
+        Self::touch_session_transcript_on_executor(&mut tx, owner_scope, session_id, &now, true)
+            .await?;
+        let _ = Self::insert_coding_session_event_on_executor(
             &mut tx,
-            session_id,
+            CodingSessionEventStreamScope::new(owner_scope, session_id),
             message.turn_id.clone(),
             None,
             "message.deleted",
             payload,
+            &now,
         )
         .await?;
-        Self::touch_session_transcript_on_executor(&mut tx, session_id).await?;
 
         map_sqlx_error(tx.commit().await)?;
 
@@ -1161,9 +1639,12 @@ impl CodingSessionRepository for SqliteCodingSessionRepository {
         limit: usize,
     ) -> Result<(Vec<CodingSessionEventPayload>, usize), CodingSessionError> {
         ensure_session_in_tenant_scope(&self.pool, ctx, session_id).await?;
+        let owner_scope = session_owner_scope(ctx)?;
 
         let where_sql = format!(
-            " WHERE {} = ? AND {}",
+            " WHERE {} = ? AND {} = ? AND {} = ? AND {}",
+            columns::event::TENANT_ID,
+            columns::event::USER_ID,
             columns::event::CODING_SESSION_ID,
             IS_NOT_DELETED,
         );
@@ -1173,6 +1654,8 @@ impl CodingSessionRepository for SqliteCodingSessionRepository {
                 columns::event::TABLE,
                 where_sql
             ))
+            .bind(owner_scope.tenant_id)
+            .bind(owner_scope.user_id)
             .bind(session_id)
             .fetch_one(&self.pool)
             .await,
@@ -1185,6 +1668,8 @@ impl CodingSessionRepository for SqliteCodingSessionRepository {
                 where_sql,
                 columns::event::SEQUENCE_NO,
             ))
+            .bind(owner_scope.tenant_id)
+            .bind(owner_scope.user_id)
             .bind(session_id)
             .bind(limit as i64)
             .bind(offset as i64)
@@ -1195,13 +1680,178 @@ impl CodingSessionRepository for SqliteCodingSessionRepository {
         let items = rows
             .iter()
             .map(|row| {
-                Ok(row_mapper::event_row_to_payload(map_sqlx_error(
-                    EventRow::from_row(row),
-                )?))
+                Ok(project_public_coding_session_event(
+                    row_mapper::event_row_to_payload(map_sqlx_error(EventRow::from_row(row))?),
+                ))
             })
             .collect::<Result<Vec<_>, CodingSessionError>>()?;
 
         Ok((items, total))
+    }
+
+    async fn replay_events(
+        &self,
+        ctx: &CodingSessionContext,
+        session_id: &str,
+        after_sequence: Option<usize>,
+        high_watermark: Option<usize>,
+        limit: usize,
+    ) -> Result<CodingSessionReplayPage, CodingSessionError> {
+        if !(1..=200).contains(&limit) {
+            return Err(CodingSessionError::InvalidInput(
+                "replay page size must be between 1 and 200".to_owned(),
+            ));
+        }
+        let after_sequence = after_sequence
+            .map(|sequence| event_sequence_to_i64(sequence, "after_sequence"))
+            .transpose()?;
+        let high_watermark = high_watermark
+            .map(|sequence| event_sequence_to_i64(sequence, "high_watermark"))
+            .transpose()?;
+        let owner_scope = session_owner_scope(ctx)?;
+        let mut tx = map_sqlx_error(self.pool.begin().await)?;
+        ensure_session_in_tenant_scope_in_transaction(&mut tx, ctx, session_id).await?;
+
+        let replay_high_watermark = match high_watermark {
+            Some(high_watermark) => Some(high_watermark),
+            None => map_sqlx_error(
+                sqlx::query_scalar::<_, Option<i64>>(&format!(
+                    "SELECT MAX({}) FROM {} WHERE {} = ? AND {} = ? AND {} = ? AND {IS_NOT_DELETED}",
+                    columns::event::SEQUENCE_NO,
+                    columns::event::TABLE,
+                    columns::event::TENANT_ID,
+                    columns::event::USER_ID,
+                    columns::event::CODING_SESSION_ID,
+                ))
+                .bind(owner_scope.tenant_id)
+                .bind(owner_scope.user_id)
+                .bind(session_id)
+                .fetch_one(&mut *tx)
+                .await,
+            )?,
+        };
+        if let Some(after_sequence) = after_sequence {
+            if replay_high_watermark
+                .map(|high| after_sequence > high)
+                .unwrap_or(after_sequence != 0)
+            {
+                return Err(CodingSessionError::InvalidInput(
+                    "replay cursor is ahead of the durable stream".to_owned(),
+                ));
+            }
+        }
+        let Some(replay_high_watermark) = replay_high_watermark else {
+            map_sqlx_error(tx.commit().await)?;
+            return Ok(CodingSessionReplayPage {
+                events: Vec::new(),
+                high_watermark: None,
+                has_more: false,
+            });
+        };
+
+        let mut sql = format!(
+            "SELECT * FROM {} WHERE {} = ? AND {} = ? AND {} = ? AND {IS_NOT_DELETED} \
+             AND {} <= ?",
+            columns::event::TABLE,
+            columns::event::TENANT_ID,
+            columns::event::USER_ID,
+            columns::event::CODING_SESSION_ID,
+            columns::event::SEQUENCE_NO,
+        );
+        if after_sequence.is_some() {
+            sql.push_str(&format!(" AND {} > ?", columns::event::SEQUENCE_NO));
+        }
+        sql.push_str(&format!(
+            " ORDER BY {} ASC LIMIT ?",
+            columns::event::SEQUENCE_NO,
+        ));
+        let mut query = sqlx::query(&sql)
+            .bind(owner_scope.tenant_id)
+            .bind(owner_scope.user_id)
+            .bind(session_id)
+            .bind(replay_high_watermark);
+        if let Some(after_sequence) = after_sequence {
+            query = query.bind(after_sequence);
+        }
+        let fetch_limit = limit.checked_add(1).ok_or_else(|| {
+            CodingSessionError::InvalidInput(
+                "replay page size is outside the supported range".into(),
+            )
+        })?;
+        let mut rows = map_sqlx_error(
+            query
+                .bind(event_sequence_to_i64(fetch_limit, "replay page size")?)
+                .fetch_all(&mut *tx)
+                .await,
+        )?;
+        let has_more = rows.len() > limit;
+        if has_more {
+            rows.pop();
+        }
+        let events = rows
+            .iter()
+            .map(|row| {
+                Ok(project_public_coding_session_event(
+                    row_mapper::event_row_to_payload(map_sqlx_error(EventRow::from_row(row))?),
+                ))
+            })
+            .collect::<Result<Vec<_>, CodingSessionError>>()?;
+        map_sqlx_error(tx.commit().await)?;
+
+        Ok(CodingSessionReplayPage {
+            events,
+            high_watermark: Some(event_sequence_to_usize(
+                replay_high_watermark,
+                "event sequence",
+            )?),
+            has_more,
+        })
+    }
+
+    async fn append_realtime_event(
+        &self,
+        ctx: &CodingSessionContext,
+        session_id: &str,
+        input: &AppendCodingSessionRealtimeEventInput,
+    ) -> Result<CodingSessionEventPayload, CodingSessionError> {
+        let kind = normalize_realtime_event_kind(&input.kind)?;
+        let turn_id =
+            normalize_optional_realtime_event_reference(input.turn_id.as_deref(), "turn_id")?;
+        let runtime_id =
+            normalize_optional_realtime_event_reference(input.runtime_id.as_deref(), "runtime_id")?;
+        let owner_scope = session_owner_scope(ctx)?;
+        let now = Self::now_iso();
+
+        let mut tx = map_sqlx_error(self.pool.begin().await)?;
+        // This scoped update acquires the per-session write lock before the
+        // sequence read, so concurrent writers cannot allocate the same value.
+        Self::touch_session_transcript_on_executor(&mut tx, owner_scope, session_id, &now, false)
+            .await?;
+
+        if let Some(turn_id) = turn_id.as_deref() {
+            Self::ensure_realtime_event_turn_in_scope_on_executor(
+                &mut tx,
+                owner_scope,
+                session_id,
+                turn_id,
+                runtime_id.as_deref(),
+            )
+            .await?;
+        }
+
+        let event = Self::insert_coding_session_event_on_executor(
+            &mut tx,
+            CodingSessionEventStreamScope::new(owner_scope, session_id),
+            turn_id,
+            runtime_id,
+            &kind,
+            input.payload.clone(),
+            &now,
+        )
+        .await?;
+
+        map_sqlx_error(tx.commit().await)?;
+        Ok(event)
     }
 
     async fn list_artifacts(
@@ -1306,94 +1956,415 @@ impl CodingSessionRepository for SqliteCodingSessionRepository {
         Ok((items, total))
     }
 
+    async fn resolve_durable_interaction(
+        &self,
+        ctx: &CodingSessionContext,
+        session_id: &str,
+        interaction_event_id: &str,
+        interaction_kind: CodingSessionInteractionKind,
+    ) -> Result<ResolvedCodingSessionInteraction, CodingSessionError> {
+        let session_id =
+            normalize_optional_realtime_event_reference(Some(session_id), "session_id")?
+                .ok_or_else(|| {
+                    CodingSessionError::InvalidInput("session_id is required".to_owned())
+                })?;
+        let owner_scope = session_owner_scope(ctx)?;
+        let mut tx = map_sqlx_error(self.pool.begin().await)?;
+        ensure_session_in_tenant_scope_in_transaction(&mut tx, ctx, &session_id).await?;
+        let resolved = Self::resolve_durable_interaction_on_executor(
+            &mut tx,
+            owner_scope,
+            &session_id,
+            interaction_event_id,
+            interaction_kind,
+            true,
+        )
+        .await?;
+        map_sqlx_error(tx.commit().await)?;
+
+        Ok(resolved.resolution)
+    }
+
+    async fn claim_durable_interaction(
+        &self,
+        ctx: &CodingSessionContext,
+        session_id: &str,
+        interaction_event_id: &str,
+        interaction_kind: CodingSessionInteractionKind,
+    ) -> Result<ClaimedCodingSessionInteraction, CodingSessionError> {
+        let session_id =
+            normalize_optional_realtime_event_reference(Some(session_id), "session_id")?
+                .ok_or_else(|| {
+                    CodingSessionError::InvalidInput("session_id is required".to_owned())
+                })?;
+        let owner_scope = session_owner_scope(ctx)?;
+        let now = Self::now_iso();
+        let claim_expires_at = interaction_claim_expires_at()?;
+        let mut tx = map_sqlx_error(self.pool.begin().await)?;
+        Self::touch_session_transcript_on_executor(&mut tx, owner_scope, &session_id, &now, false)
+            .await?;
+        let resolved = Self::resolve_durable_interaction_on_executor(
+            &mut tx,
+            owner_scope,
+            &session_id,
+            interaction_event_id,
+            interaction_kind,
+            true,
+        )
+        .await?;
+        if active_interaction_claim_id(&resolved.source_payload, &resolved.resolution.event_id)?
+            .is_some()
+        {
+            return Err(CodingSessionError::Conflict(format!(
+                "interaction event {} is already being processed",
+                resolved.resolution.event_id
+            )));
+        }
+
+        let claim_id = Uuid::new_v4().to_string();
+        let mut source_payload = resolved.source_payload.clone();
+        source_payload.insert(
+            "claimId".to_owned(),
+            serde_json::Value::String(claim_id.clone()),
+        );
+        source_payload.insert(
+            "claimedAt".to_owned(),
+            serde_json::Value::String(now.clone()),
+        );
+        source_payload.insert(
+            "claimExpiresAt".to_owned(),
+            serde_json::Value::String(claim_expires_at),
+        );
+        Self::update_durable_interaction_source_event_on_executor(
+            &mut tx,
+            owner_scope,
+            &resolved,
+            &source_payload,
+            &now,
+        )
+        .await?;
+        map_sqlx_error(tx.commit().await)?;
+
+        Ok(ClaimedCodingSessionInteraction {
+            interaction: resolved.resolution,
+            claim_id,
+        })
+    }
+
+    async fn release_durable_interaction_claim(
+        &self,
+        ctx: &CodingSessionContext,
+        session_id: &str,
+        interaction_event_id: &str,
+        interaction_kind: CodingSessionInteractionKind,
+        claim_id: &str,
+    ) -> Result<(), CodingSessionError> {
+        let session_id =
+            normalize_optional_realtime_event_reference(Some(session_id), "session_id")?
+                .ok_or_else(|| {
+                    CodingSessionError::InvalidInput("session_id is required".to_owned())
+                })?;
+        let claim_id = normalize_optional_realtime_event_reference(Some(claim_id), "claim_id")?
+            .ok_or_else(|| CodingSessionError::InvalidInput("claim_id is required".to_owned()))?;
+        let owner_scope = session_owner_scope(ctx)?;
+        let now = Self::now_iso();
+        let mut tx = map_sqlx_error(self.pool.begin().await)?;
+        ensure_session_in_tenant_scope_in_transaction(&mut tx, ctx, &session_id).await?;
+        let resolved = Self::resolve_durable_interaction_on_executor(
+            &mut tx,
+            owner_scope,
+            &session_id,
+            interaction_event_id,
+            interaction_kind,
+            false,
+        )
+        .await?;
+        if resolved.source_payload.contains_key("settledAt")
+            || resolved
+                .source_payload
+                .get("claimId")
+                .and_then(serde_json::Value::as_str)
+                .map(str::trim)
+                != Some(claim_id.as_str())
+        {
+            map_sqlx_error(tx.commit().await)?;
+            return Ok(());
+        }
+
+        let mut source_payload = resolved.source_payload.clone();
+        source_payload.remove("claimId");
+        source_payload.remove("claimedAt");
+        source_payload.remove("claimExpiresAt");
+        source_payload.insert(
+            "releasedClaimId".to_owned(),
+            serde_json::Value::String(claim_id),
+        );
+        source_payload.insert(
+            "releasedAt".to_owned(),
+            serde_json::Value::String(now.clone()),
+        );
+
+        match Self::update_durable_interaction_source_event_on_executor(
+            &mut tx,
+            owner_scope,
+            &resolved,
+            &source_payload,
+            &now,
+        )
+        .await
+        {
+            Ok(()) => map_sqlx_error(tx.commit().await)?,
+            Err(CodingSessionError::Conflict(_)) => {
+                // A different claimant or finalizer won the version race. Its
+                // state must be left intact, so this release becomes a no-op.
+                map_sqlx_error(tx.rollback().await)?;
+            }
+            Err(error) => return Err(error),
+        }
+
+        Ok(())
+    }
+
     async fn submit_approval_decision(
         &self,
         ctx: &CodingSessionContext,
         session_id: &str,
-        checkpoint_id: &str,
+        interaction_event_id: &str,
+        interaction_claim_id: &str,
         input: &SubmitApprovalDecisionInput,
-    ) -> Result<ApprovalDecisionPayload, CodingSessionError> {
+    ) -> Result<PersistedCodingSessionMutation<ApprovalDecisionPayload>, CodingSessionError> {
         let decision = input.decision.clone();
         let reason = input.reason.clone();
-
-        ensure_session_in_tenant_scope(&self.pool, ctx, session_id).await?;
+        let owner_scope = session_owner_scope(ctx)?;
+        let now = Self::now_iso();
 
         let mut tx = map_sqlx_error(self.pool.begin().await)?;
+        Self::touch_session_transcript_on_executor(&mut tx, owner_scope, session_id, &now, false)
+            .await?;
+
+        let resolved = Self::resolve_durable_interaction_on_executor(
+            &mut tx,
+            owner_scope,
+            session_id,
+            interaction_event_id,
+            CodingSessionInteractionKind::Approval,
+            true,
+        )
+        .await?;
+        let claim_id = require_owned_interaction_claim(
+            &resolved.source_payload,
+            &resolved.resolution.event_id,
+            interaction_claim_id,
+        )?;
 
         let row = map_sqlx_error(
             sqlx::query(&format!(
-                "SELECT * FROM {} WHERE {} = ? AND {} = ? AND {} = 0",
+                "SELECT * FROM {} WHERE {} = ? AND {} = ? AND {} = ? AND {} = ? AND {IS_NOT_DELETED}",
                 columns::checkpoint::TABLE,
                 columns::checkpoint::ID,
                 columns::checkpoint::CODING_SESSION_ID,
-                columns::checkpoint::IS_DELETED,
+                columns::checkpoint::TENANT_ID,
+                columns::checkpoint::USER_ID,
             ))
-            .bind(checkpoint_id)
+            .bind(&resolved.resolution.interaction_id)
             .bind(session_id)
+            .bind(owner_scope.tenant_id)
+            .bind(owner_scope.user_id)
             .fetch_optional(&mut *tx)
             .await,
         )?
         .ok_or_else(|| {
-            RepositoryError::NotFound(format!("checkpoint {checkpoint_id} not found"))
+            RepositoryError::NotFound(format!(
+                "approval checkpoint for interaction {} not found",
+                resolved.resolution.event_id
+            ))
         })?;
-
         let checkpoint = map_sqlx_error(CheckpointRow::from_row(&row))?;
-        let runtime_id = checkpoint.runtime_id.clone();
+        if checkpoint.checkpoint_kind != "approval" {
+            return Err(CodingSessionError::Conflict(format!(
+                "interaction event {} resolved a non-approval checkpoint",
+                resolved.resolution.event_id
+            )));
+        }
+        if checkpoint.runtime_id.as_deref() != Some(resolved.resolution.runtime_id.as_str()) {
+            return Err(CodingSessionError::Conflict(format!(
+                "approval checkpoint for interaction {} has a different runtime",
+                resolved.resolution.event_id
+            )));
+        }
         let mut state: BTreeMap<String, serde_json::Value> =
-            serde_json::from_str(&checkpoint.state_json).unwrap_or_default();
-
-        let approval_id = Uuid::new_v4().to_string();
-        let now = Self::now_iso();
-
-        let mut approvals: Vec<serde_json::Value> = state
-            .get("approvals")
-            .and_then(|v| serde_json::from_value(v.clone()).ok())
-            .unwrap_or_default();
-
+            serde_json::from_str(&checkpoint.state_json).map_err(|error| {
+                CodingSessionError::Conflict(format!(
+                    "approval checkpoint for interaction {} has malformed state: {error}",
+                    resolved.resolution.event_id
+                ))
+            })?;
+        let mut approvals: Vec<serde_json::Value> = match state.get("approvals") {
+            Some(approvals) => serde_json::from_value(approvals.clone()).map_err(|error| {
+                CodingSessionError::Conflict(format!(
+                    "approval checkpoint for interaction {} has malformed approvals: {error}",
+                    resolved.resolution.event_id
+                ))
+            })?,
+            None => Vec::new(),
+        };
+        if approvals.iter().any(|approval| {
+            approval
+                .get("interactionId")
+                .and_then(serde_json::Value::as_str)
+                == Some(resolved.resolution.interaction_id.as_str())
+        }) {
+            return Err(CodingSessionError::Conflict(format!(
+                "approval interaction {} is already settled",
+                resolved.resolution.event_id
+            )));
+        }
         approvals.push(serde_json::json!({
-            "approvalId": approval_id,
-            "decision": decision,
-            "reason": reason,
-            "decidedAt": now,
+            "approvalId": resolved.resolution.event_id.clone(),
+            "interactionId": resolved.resolution.interaction_id.clone(),
+            "decision": decision.clone(),
+            "reason": reason.clone(),
+            "decidedAt": now.clone(),
         }));
-
         state.insert(
-            "approvals".to_string(),
-            serde_json::to_value(&approvals).unwrap_or_default(),
+            "approvals".to_owned(),
+            serde_json::to_value(&approvals)
+                .map_err(|error| RepositoryError::Update(error.to_string()))?,
         );
-
-        let new_state_json = serde_json::to_string(&state).unwrap_or_else(|_| "{}".to_string());
-        sqlx::query(&format!(
-            "UPDATE {} SET {} = ?, {} = ?, {} = {} + 1 WHERE {} = ?",
+        let state_json = serde_json::to_string(&state)
+            .map_err(|error| RepositoryError::Update(error.to_string()))?;
+        let checkpoint_update = sqlx::query(&format!(
+            "UPDATE {} SET {} = ?, {} = ?, {} = {} + 1 \
+             WHERE {} = ? AND {} = ? AND {} = ? AND {} = ? AND {} = ? AND {IS_NOT_DELETED}",
             columns::checkpoint::TABLE,
             columns::checkpoint::STATE_JSON,
             columns::checkpoint::UPDATED_AT,
             columns::checkpoint::VERSION,
             columns::checkpoint::VERSION,
+            columns::checkpoint::VERSION,
             columns::checkpoint::ID,
+            columns::checkpoint::CODING_SESSION_ID,
+            columns::checkpoint::TENANT_ID,
+            columns::checkpoint::USER_ID,
         ))
-        .bind(&new_state_json)
+        .bind(&state_json)
         .bind(&now)
-        .bind(checkpoint_id)
+        .bind(checkpoint.version)
+        .bind(&resolved.resolution.interaction_id)
+        .bind(session_id)
+        .bind(owner_scope.tenant_id)
+        .bind(owner_scope.user_id)
         .execute(&mut *tx)
         .await
-        .map_err(|e| RepositoryError::Update(e.to_string()))?;
+        .map_err(|error: sqlx::Error| RepositoryError::Update(error.to_string()))?;
+        if checkpoint_update.rows_affected() != 1 {
+            return Err(CodingSessionError::Conflict(format!(
+                "approval interaction {} was already settled or changed",
+                resolved.resolution.event_id
+            )));
+        }
+
+        let mut source_payload = resolved.source_payload.clone();
+        source_payload.remove("claimId");
+        source_payload.remove("claimedAt");
+        source_payload.remove("claimExpiresAt");
+        source_payload.insert(
+            "decision".to_owned(),
+            serde_json::Value::String(decision.clone()),
+        );
+        if let Some(reason) = &reason {
+            source_payload.insert(
+                "decisionReason".to_owned(),
+                serde_json::Value::String(reason.clone()),
+            );
+        }
+        source_payload.insert(
+            "decidedAt".to_owned(),
+            serde_json::Value::String(now.clone()),
+        );
+        source_payload.insert(
+            "settledAt".to_owned(),
+            serde_json::Value::String(now.clone()),
+        );
+        source_payload.insert(
+            "status".to_owned(),
+            serde_json::Value::String(decision.clone()),
+        );
+        source_payload.insert(
+            "settledClaimId".to_owned(),
+            serde_json::Value::String(claim_id),
+        );
+        Self::update_durable_interaction_source_event_on_executor(
+            &mut tx,
+            owner_scope,
+            &resolved,
+            &source_payload,
+            &now,
+        )
+        .await?;
+
+        let payload = ApprovalDecisionPayload {
+            approval_id: resolved.resolution.event_id.clone(),
+            checkpoint_id: resolved.resolution.event_id.clone(),
+            coding_session_id: session_id.to_string(),
+            runtime_id: Some(resolved.resolution.runtime_id.clone()),
+            turn_id: Some(resolved.resolution.turn_id.clone()),
+            operation_id: None,
+            decision: decision.clone(),
+            reason: reason.clone(),
+            decided_at: now.clone(),
+            runtime_status: decision.clone(),
+            operation_status: decision,
+        };
+        let mut event_payload = BTreeMap::new();
+        event_payload.insert(
+            "interactionId".to_owned(),
+            serde_json::Value::String(resolved.resolution.interaction_id.clone()),
+        );
+        event_payload.insert(
+            "interactionKind".to_owned(),
+            serde_json::Value::String(
+                resolved
+                    .resolution
+                    .interaction_kind
+                    .payload_kind()
+                    .to_owned(),
+            ),
+        );
+        event_payload.insert(
+            "interactionEventId".to_owned(),
+            serde_json::Value::String(resolved.resolution.event_id.clone()),
+        );
+        event_payload.insert(
+            "approvalId".to_owned(),
+            serde_json::Value::String(payload.approval_id.clone()),
+        );
+        event_payload.insert(
+            "checkpointId".to_owned(),
+            serde_json::Value::String(payload.checkpoint_id.clone()),
+        );
+        event_payload.insert(
+            "status".to_owned(),
+            serde_json::Value::String(payload.operation_status.clone()),
+        );
+        event_payload.insert(
+            "runtimeStatus".to_owned(),
+            serde_json::Value::String(payload.runtime_status.clone()),
+        );
+        let event = Self::insert_coding_session_event_on_executor(
+            &mut tx,
+            CodingSessionEventStreamScope::new(owner_scope, session_id),
+            Some(resolved.resolution.turn_id.clone()),
+            Some(resolved.resolution.runtime_id.clone()),
+            "operation.updated",
+            event_payload,
+            &now,
+        )
+        .await?;
 
         map_sqlx_error(tx.commit().await)?;
 
-        Ok(ApprovalDecisionPayload {
-            approval_id,
-            checkpoint_id: checkpoint_id.to_string(),
-            coding_session_id: session_id.to_string(),
-            runtime_id,
-            turn_id: None,
-            operation_id: None,
-            decision,
-            reason,
-            decided_at: now,
-            runtime_status: "approved".to_string(),
-            operation_status: "approved".to_string(),
-        })
+        Ok(PersistedCodingSessionMutation { payload, event })
     }
 
     async fn submit_user_question_answer(
@@ -1401,92 +2372,144 @@ impl CodingSessionRepository for SqliteCodingSessionRepository {
         ctx: &CodingSessionContext,
         session_id: &str,
         question_id: &str,
+        interaction_claim_id: &str,
         input: &SubmitUserQuestionAnswerInput,
-    ) -> Result<UserQuestionAnswerPayload, CodingSessionError> {
+    ) -> Result<PersistedCodingSessionMutation<UserQuestionAnswerPayload>, CodingSessionError> {
         let answer = input.answer.clone();
         let option_id = input.option_id.clone();
         let option_label = input.option_label.clone();
         let rejected = input.rejected;
-
-        ensure_session_in_tenant_scope(&self.pool, ctx, session_id).await?;
+        let owner_scope = session_owner_scope(ctx)?;
+        let now = Self::now_iso();
 
         let mut tx = map_sqlx_error(self.pool.begin().await)?;
+        Self::touch_session_transcript_on_executor(&mut tx, owner_scope, session_id, &now, false)
+            .await?;
 
-        let row = map_sqlx_error(
-            sqlx::query(&format!(
-                "SELECT * FROM {} WHERE {} = ? AND {} = ? AND {} = 0",
-                columns::event::TABLE,
-                columns::event::CODING_SESSION_ID,
-                columns::event::ID,
-                columns::event::IS_DELETED,
-            ))
-            .bind(session_id)
-            .bind(question_id)
-            .fetch_optional(&mut *tx)
-            .await,
-        )?
-        .ok_or_else(|| {
-            RepositoryError::NotFound(format!("question event {question_id} not found"))
-        })?;
+        let resolved = Self::resolve_durable_interaction_on_executor(
+            &mut tx,
+            owner_scope,
+            session_id,
+            question_id,
+            CodingSessionInteractionKind::UserQuestion,
+            true,
+        )
+        .await?;
+        let claim_id = require_owned_interaction_claim(
+            &resolved.source_payload,
+            &resolved.resolution.event_id,
+            interaction_claim_id,
+        )?;
 
-        let event = map_sqlx_error(EventRow::from_row(&row))?;
-        let runtime_id = event.runtime_id.clone();
-        let turn_id = event.turn_id.clone();
-        let mut payload: BTreeMap<String, serde_json::Value> =
-            serde_json::from_str(&event.payload_json).unwrap_or_default();
-
-        let now = Self::now_iso();
-        if let Some(a) = &answer {
-            payload.insert("answer".to_string(), serde_json::Value::String(a.clone()));
-        }
-        if let Some(oid) = &option_id {
-            payload.insert(
-                "optionId".to_string(),
-                serde_json::Value::String(oid.clone()),
+        let status = if rejected { "rejected" } else { "answered" }.to_owned();
+        let mut source_payload = resolved.source_payload.clone();
+        source_payload.remove("claimId");
+        source_payload.remove("claimedAt");
+        source_payload.remove("claimExpiresAt");
+        if let Some(answer) = &answer {
+            source_payload.insert(
+                "answer".to_owned(),
+                serde_json::Value::String(answer.clone()),
             );
         }
-        if let Some(ol) = &option_label {
-            payload.insert(
-                "optionLabel".to_string(),
-                serde_json::Value::String(ol.clone()),
+        if let Some(option_id) = &option_id {
+            source_payload.insert(
+                "optionId".to_owned(),
+                serde_json::Value::String(option_id.clone()),
             );
         }
-        payload.insert("rejected".to_string(), serde_json::Value::Bool(rejected));
-        payload.insert(
-            "answeredAt".to_string(),
+        if let Some(option_label) = &option_label {
+            source_payload.insert(
+                "optionLabel".to_owned(),
+                serde_json::Value::String(option_label.clone()),
+            );
+        }
+        source_payload.insert("rejected".to_owned(), serde_json::Value::Bool(rejected));
+        source_payload.insert(
+            "answeredAt".to_owned(),
             serde_json::Value::String(now.clone()),
         );
+        source_payload.insert(
+            "settledAt".to_owned(),
+            serde_json::Value::String(now.clone()),
+        );
+        source_payload.insert(
+            "status".to_owned(),
+            serde_json::Value::String(status.clone()),
+        );
+        source_payload.insert(
+            "settledClaimId".to_owned(),
+            serde_json::Value::String(claim_id),
+        );
+        Self::update_durable_interaction_source_event_on_executor(
+            &mut tx,
+            owner_scope,
+            &resolved,
+            &source_payload,
+            &now,
+        )
+        .await?;
 
-        let new_payload_json = serde_json::to_string(&payload).unwrap_or_else(|_| "{}".to_string());
-        sqlx::query(&format!(
-            "UPDATE {} SET {} = ?, {} = ?, {} = {} + 1 WHERE {} = ?",
-            columns::event::TABLE,
-            columns::event::PAYLOAD_JSON,
-            columns::event::UPDATED_AT,
-            columns::event::VERSION,
-            columns::event::VERSION,
-            columns::event::ID,
-        ))
-        .bind(&new_payload_json)
-        .bind(&now)
-        .bind(question_id)
-        .execute(&mut *tx)
-        .await
-        .map_err(|e| RepositoryError::Update(e.to_string()))?;
+        let payload = UserQuestionAnswerPayload {
+            question_id: resolved.resolution.event_id.clone(),
+            coding_session_id: session_id.to_string(),
+            answer: answer.clone(),
+            answered_at: now.clone(),
+            option_id: option_id.clone(),
+            option_label: option_label.clone(),
+            rejected,
+            runtime_id: Some(resolved.resolution.runtime_id.clone()),
+            runtime_status: status.clone(),
+            turn_id: Some(resolved.resolution.turn_id.clone()),
+        };
+        let mut event_payload = BTreeMap::new();
+        event_payload.insert(
+            "interactionId".to_owned(),
+            serde_json::Value::String(resolved.resolution.interaction_id.clone()),
+        );
+        event_payload.insert(
+            "interactionKind".to_owned(),
+            serde_json::Value::String(
+                resolved
+                    .resolution
+                    .interaction_kind
+                    .payload_kind()
+                    .to_owned(),
+            ),
+        );
+        event_payload.insert(
+            "interactionEventId".to_owned(),
+            serde_json::Value::String(resolved.resolution.event_id.clone()),
+        );
+        event_payload.insert(
+            "questionId".to_owned(),
+            serde_json::Value::String(payload.question_id.clone()),
+        );
+        event_payload.insert("status".to_owned(), serde_json::Value::String(status));
+        event_payload.insert(
+            "rejected".to_owned(),
+            serde_json::Value::Bool(payload.rejected),
+        );
+        event_payload.insert(
+            "runtimeStatus".to_owned(),
+            serde_json::Value::String(payload.runtime_status.clone()),
+        );
+        let persisted_event = Self::insert_coding_session_event_on_executor(
+            &mut tx,
+            CodingSessionEventStreamScope::new(owner_scope, session_id),
+            Some(resolved.resolution.turn_id.clone()),
+            Some(resolved.resolution.runtime_id.clone()),
+            "operation.updated",
+            event_payload,
+            &now,
+        )
+        .await?;
 
         map_sqlx_error(tx.commit().await)?;
 
-        Ok(UserQuestionAnswerPayload {
-            question_id: question_id.to_string(),
-            coding_session_id: session_id.to_string(),
-            answer,
-            answered_at: now,
-            option_id,
-            option_label,
-            rejected,
-            runtime_id,
-            runtime_status: "answered".to_string(),
-            turn_id,
+        Ok(PersistedCodingSessionMutation {
+            payload,
+            event: persisted_event,
         })
     }
 
@@ -1921,6 +2944,10 @@ impl CodingSessionRepository for SqliteCodingSessionRepository {
         })?;
         let operation =
             durable_operation_from_row(map_sqlx_error(DurableOperationRow::from_row(&row))?)?;
+        let owner_scope = SessionOwnerScope {
+            tenant_id: operation.tenant_id,
+            user_id: operation.user_id,
+        };
         if input.finalized.turn.id != operation.turn_id
             || input.finalized.turn.coding_session_id != operation.coding_session_id
         {
@@ -1938,21 +2965,32 @@ impl CodingSessionRepository for SqliteCodingSessionRepository {
         {
             let result = map_sqlx_error(
                 sqlx::query(&format!(
-                    "UPDATE ai_coding_session SET native_session_id = ?, updated_at = {updated_value},  version = version + 1 WHERE id = ? AND tenant_id = ? AND user_id = ?  AND is_deleted IS NOT TRUE"
+                    "UPDATE ai_coding_session SET native_session_id = ?, transcript_updated_at = {updated_value}, updated_at = {updated_value},  version = version + 1 WHERE id = ? AND tenant_id = ? AND user_id = ?  AND is_deleted IS NOT TRUE AND (native_session_id IS NULL OR native_session_id = ?)"
                 ))
                 .bind(native_session_id)
+                .bind(&completed_at)
                 .bind(&completed_at)
                 .bind(&operation.coding_session_id)
                 .bind(operation.tenant_id)
                 .bind(operation.user_id)
+                .bind(native_session_id)
                 .execute(&mut *tx)
                 .await,
             )?;
             if result.rows_affected() != 1 {
                 return Err(CodingSessionError::Conflict(
-                    "claimed operation owner no longer owns the session".into(),
+                    "claimed operation owner no longer owns the session or attempted to replace its provider-native session binding".into(),
                 ));
             }
+        } else {
+            Self::touch_session_transcript_on_executor(
+                &mut tx,
+                owner_scope,
+                &operation.coding_session_id,
+                &completed_at,
+                false,
+            )
+            .await?;
         }
 
         let started_at = input
@@ -1984,11 +3022,6 @@ impl CodingSessionRepository for SqliteCodingSessionRepository {
             ));
         }
 
-        let event_time_value = if is_postgres {
-            "CAST(? AS TIMESTAMPTZ)"
-        } else {
-            "?"
-        };
         for event in &input.finalized.events {
             if event.coding_session_id != operation.coding_session_id
                 || event.turn_id.as_deref() != Some(operation.turn_id.as_str())
@@ -1997,28 +3030,29 @@ impl CodingSessionRepository for SqliteCodingSessionRepository {
                     "finalized event does not belong to the claimed operation".into(),
                 ));
             }
-            let created_at = normalize_operation_instant(&event.created_at, "event.created_at")?;
-            let payload_json = serde_json::to_string(&event.payload)
-                .map_err(|error| RepositoryError::Insert(error.to_string()))?;
-            let insert_event_sql = format!(
-                "INSERT INTO ai_coding_session_event  (id, tenant_id, user_id, created_at, updated_at, version, is_deleted,  coding_session_id, turn_id, runtime_id, event_kind, sequence_no, payload_json)  VALUES (?, ?, ?, {event_time_value}, {event_time_value}, 0, FALSE, ?, ?, ?, ?, ?, ?)"
-            );
-            map_sqlx_error(
-                sqlx::query(&insert_event_sql)
-                    .bind(&event.id)
-                    .bind(operation.tenant_id)
-                    .bind(operation.user_id)
-                    .bind(&created_at)
-                    .bind(&created_at)
-                    .bind(&operation.coding_session_id)
-                    .bind(&event.turn_id)
-                    .bind(&event.runtime_id)
-                    .bind(&event.kind)
-                    .bind(event.sequence as i64)
-                    .bind(&payload_json)
-                    .execute(&mut *tx)
-                    .await,
+            let kind = normalize_realtime_event_kind(&event.kind)?;
+            let runtime_id = normalize_optional_realtime_event_reference(
+                event.runtime_id.as_deref(),
+                "runtime_id",
             )?;
+            Self::ensure_realtime_event_turn_in_scope_on_executor(
+                &mut tx,
+                owner_scope,
+                &operation.coding_session_id,
+                &operation.turn_id,
+                runtime_id.as_deref(),
+            )
+            .await?;
+            let _ = Self::insert_coding_session_event_on_executor(
+                &mut tx,
+                CodingSessionEventStreamScope::new(owner_scope, &operation.coding_session_id),
+                Some(operation.turn_id.clone()),
+                runtime_id,
+                &kind,
+                event.payload.clone(),
+                &completed_at,
+            )
+            .await?;
         }
         map_sqlx_error(tx.commit().await)?;
         Ok(operation)
@@ -2099,6 +3133,10 @@ impl CodingSessionRepository for SqliteCodingSessionRepository {
             })?;
         let operation =
             durable_operation_from_row(map_sqlx_error(DurableOperationRow::from_row(&row))?)?;
+        let owner_scope = SessionOwnerScope {
+            tenant_id: operation.tenant_id,
+            user_id: operation.user_id,
+        };
         let terminal = operation.status == "failed";
         let turn_status = if terminal { "failed" } else { "queued" };
         let turn_completed_at = if terminal {
@@ -2128,6 +3166,14 @@ impl CodingSessionRepository for SqliteCodingSessionRepository {
         }
 
         if terminal {
+            Self::touch_session_transcript_on_executor(
+                &mut tx,
+                owner_scope,
+                &operation.coding_session_id,
+                &failed_at,
+                false,
+            )
+            .await?;
             let runtime_id = map_sqlx_error(
                 sqlx::query_scalar::<_, Option<String>>(
                     "SELECT runtime_id FROM ai_coding_session_turn  WHERE id = ? AND coding_session_id = ? AND tenant_id = ? AND user_id = ?",
@@ -2140,47 +3186,30 @@ impl CodingSessionRepository for SqliteCodingSessionRepository {
                 .await,
             )?
             .flatten();
-            let max_sequence = map_sqlx_error(
-                sqlx::query_scalar::<_, i64>(
-                    "SELECT COALESCE(MAX(sequence_no), 0) FROM ai_coding_session_event  WHERE coding_session_id = ? AND tenant_id = ? AND user_id = ?  AND is_deleted IS NOT TRUE",
-                )
-                .bind(&operation.coding_session_id)
-                .bind(operation.tenant_id)
-                .bind(operation.user_id)
-                .fetch_one(&mut *tx)
-                .await,
-            )?;
-            let payload_json = serde_json::json!({
-                "operationId": operation.id,
-                "runtimeStatus": "failed",
-                "status": "failed",
-                "problem": input.problem,
-            })
-            .to_string();
-            let event_time_value = if is_postgres {
-                "CAST(? AS TIMESTAMPTZ)"
-            } else {
-                "?"
-            };
-            let event_id = Uuid::new_v4().to_string();
-            let event_sql = format!(
-                "INSERT INTO ai_coding_session_event  (id, tenant_id, user_id, created_at, updated_at, version, is_deleted,  coding_session_id, turn_id, runtime_id, event_kind, sequence_no, payload_json)  VALUES (?, ?, ?, {event_time_value}, {event_time_value}, 0, FALSE, ?, ?, ?,  'turn.failed', ?, ?)"
+            let mut payload = BTreeMap::new();
+            payload.insert(
+                "operationId".to_owned(),
+                serde_json::Value::String(operation.id.clone()),
             );
-            map_sqlx_error(
-                sqlx::query(&event_sql)
-                    .bind(event_id)
-                    .bind(operation.tenant_id)
-                    .bind(operation.user_id)
-                    .bind(&failed_at)
-                    .bind(&failed_at)
-                    .bind(&operation.coding_session_id)
-                    .bind(&operation.turn_id)
-                    .bind(runtime_id)
-                    .bind(max_sequence + 1)
-                    .bind(payload_json)
-                    .execute(&mut *tx)
-                    .await,
-            )?;
+            payload.insert(
+                "runtimeStatus".to_owned(),
+                serde_json::Value::String("failed".to_owned()),
+            );
+            payload.insert(
+                "status".to_owned(),
+                serde_json::Value::String("failed".to_owned()),
+            );
+            payload.insert("problem".to_owned(), input.problem.clone());
+            let _ = Self::insert_coding_session_event_on_executor(
+                &mut tx,
+                CodingSessionEventStreamScope::new(owner_scope, &operation.coding_session_id),
+                Some(operation.turn_id.clone()),
+                runtime_id,
+                "turn.failed",
+                payload,
+                &failed_at,
+            )
+            .await?;
         }
 
         map_sqlx_error(tx.commit().await)?;
@@ -2192,13 +3221,30 @@ impl CodingSessionRepository for SqliteCodingSessionRepository {
         ctx: &CodingSessionContext,
         session_id: &str,
         finalized: &FinalizedProjectionTurnExecution,
-    ) -> Result<CodingSessionTurnPayload, CodingSessionError> {
+    ) -> Result<PersistedProjectionTurnExecution, CodingSessionError> {
         let turn = finalized.turn.clone();
         let turn_id = turn.id.clone();
         let now = Self::now_iso();
+        let owner_scope = session_owner_scope(ctx)?;
 
         let mut tx = map_sqlx_error(self.pool.begin().await)?;
         ensure_session_in_tenant_scope_in_transaction(&mut tx, ctx, session_id).await?;
+        let existing_native_session_id = map_sqlx_error(
+            sqlx::query_scalar::<sqlx::Any, Option<String>>(&format!(
+                "SELECT {} FROM {} WHERE {} = ? AND {} = ? AND {} = ? AND {IS_NOT_DELETED}",
+                columns::session::NATIVE_SESSION_ID,
+                columns::session::TABLE,
+                columns::session::ID,
+                columns::session::TENANT_ID,
+                columns::session::USER_ID,
+            ))
+            .bind(session_id)
+            .bind(owner_scope.tenant_id)
+            .bind(owner_scope.user_id)
+            .fetch_optional(&mut *tx)
+            .await,
+        )?
+        .flatten();
 
         let started_at = turn.started_at.clone().unwrap_or_else(|| now.clone());
         let completed_at = turn.completed_at.clone().unwrap_or_else(|| now.clone());
@@ -2208,10 +3254,13 @@ impl CodingSessionRepository for SqliteCodingSessionRepository {
             .as_deref()
             .map(str::trim)
             .filter(|value| !value.is_empty());
+        let persisted_native_session_id = native_session_id
+            .map(str::to_owned)
+            .or(existing_native_session_id);
         if let Some(native_session_id) = native_session_id {
-            sqlx::query(&format!(
+            let result = sqlx::query(&format!(
                 "UPDATE {} SET {} = ?, {} = ?, {} = ?, {} = {} + 1 \
-                 WHERE {} = ? AND {} = 0",
+                 WHERE {} = ? AND {} = ? AND {} = ? AND {} = 0 AND ({} IS NULL OR {} = ?)",
                 columns::session::TABLE,
                 columns::session::NATIVE_SESSION_ID,
                 columns::session::TRANSCRIPT_UPDATED_AT,
@@ -2219,38 +3268,59 @@ impl CodingSessionRepository for SqliteCodingSessionRepository {
                 columns::session::VERSION,
                 columns::session::VERSION,
                 columns::session::ID,
+                columns::session::TENANT_ID,
+                columns::session::USER_ID,
                 columns::session::IS_DELETED,
+                columns::session::NATIVE_SESSION_ID,
+                columns::session::NATIVE_SESSION_ID,
             ))
             .bind(native_session_id)
             .bind(&now)
             .bind(&now)
             .bind(session_id)
+            .bind(owner_scope.tenant_id)
+            .bind(owner_scope.user_id)
+            .bind(native_session_id)
             .execute(&mut *tx)
             .await
             .map_err(|e| RepositoryError::Update(e.to_string()))?;
+            if result.rows_affected() != 1 {
+                return Err(CodingSessionError::Conflict(
+                    "provider-native session binding is immutable once established".into(),
+                ));
+            }
         } else {
-            sqlx::query(&format!(
+            let result = sqlx::query(&format!(
                 "UPDATE {} SET {} = ?, {} = ?, {} = {} + 1 \
-                 WHERE {} = ? AND {} = 0",
+                 WHERE {} = ? AND {} = ? AND {} = ? AND {} = 0",
                 columns::session::TABLE,
                 columns::session::TRANSCRIPT_UPDATED_AT,
                 columns::session::UPDATED_AT,
                 columns::session::VERSION,
                 columns::session::VERSION,
                 columns::session::ID,
+                columns::session::TENANT_ID,
+                columns::session::USER_ID,
                 columns::session::IS_DELETED,
             ))
             .bind(&now)
             .bind(&now)
             .bind(session_id)
+            .bind(owner_scope.tenant_id)
+            .bind(owner_scope.user_id)
             .execute(&mut *tx)
             .await
             .map_err(|e| RepositoryError::Update(e.to_string()))?;
+            if result.rows_affected() != 1 {
+                return Err(
+                    RepositoryError::NotFound(format!("session {session_id} not found")).into(),
+                );
+            }
         }
 
-        sqlx::query(&format!(
+        let turn_result = sqlx::query(&format!(
             "UPDATE {} SET {} = ?, {} = ?, {} = ?, {} = ?, {} = {} + 1 \
-             WHERE {} = ? AND {} = ? AND {} = 0",
+             WHERE {} = ? AND {} = ? AND {} = ? AND {} = ? AND {} = 0",
             columns::turn::TABLE,
             columns::turn::STATUS,
             columns::turn::STARTED_AT,
@@ -2260,6 +3330,8 @@ impl CodingSessionRepository for SqliteCodingSessionRepository {
             columns::turn::VERSION,
             columns::turn::ID,
             columns::turn::CODING_SESSION_ID,
+            columns::turn::TENANT_ID,
+            columns::turn::USER_ID,
             columns::turn::IS_DELETED,
         ))
         .bind(&turn.status)
@@ -2268,13 +3340,20 @@ impl CodingSessionRepository for SqliteCodingSessionRepository {
         .bind(&now)
         .bind(&turn_id)
         .bind(session_id)
+        .bind(owner_scope.tenant_id)
+        .bind(owner_scope.user_id)
         .execute(&mut *tx)
         .await
         .map_err(|e| RepositoryError::Update(e.to_string()))?;
+        if turn_result.rows_affected() != 1 {
+            return Err(CodingSessionError::Conflict(
+                "completed turn no longer exists in the current session scope".into(),
+            ));
+        }
 
         let operation_result = sqlx::query(&format!(
             "UPDATE {} SET {} = 'succeeded', {} = ?, {} = {} + 1 \
-             WHERE {} = ? AND {} = ? AND {} = 0",
+             WHERE {} = ? AND {} = ? AND {} = ? AND {} = ? AND {} = 0",
             columns::operation::TABLE,
             columns::operation::STATUS,
             columns::operation::UPDATED_AT,
@@ -2282,11 +3361,15 @@ impl CodingSessionRepository for SqliteCodingSessionRepository {
             columns::operation::VERSION,
             columns::operation::CODING_SESSION_ID,
             columns::operation::TURN_ID,
+            columns::operation::TENANT_ID,
+            columns::operation::USER_ID,
             columns::operation::IS_DELETED,
         ))
         .bind(&now)
         .bind(session_id)
         .bind(&turn_id)
+        .bind(owner_scope.tenant_id)
+        .bind(owner_scope.user_id)
         .execute(&mut *tx)
         .await
         .map_err(|e| RepositoryError::Update(e.to_string()))?;
@@ -2297,44 +3380,56 @@ impl CodingSessionRepository for SqliteCodingSessionRepository {
             .into());
         }
 
+        let mut persisted_events = Vec::with_capacity(finalized.events.len());
         for event in &finalized.events {
-            let payload_json = serde_json::to_string(&event.payload)
-                .map_err(|e| RepositoryError::Insert(e.to_string()))?;
-            sqlx::query(&format!(
-                "INSERT INTO {} ({}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}) \
-                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-                columns::event::TABLE,
-                columns::event::ID,
-                columns::event::CREATED_AT,
-                columns::event::UPDATED_AT,
-                columns::event::VERSION,
-                columns::event::IS_DELETED,
-                columns::event::CODING_SESSION_ID,
-                columns::event::TURN_ID,
-                columns::event::RUNTIME_ID,
-                columns::event::EVENT_KIND,
-                columns::event::SEQUENCE_NO,
-                columns::event::PAYLOAD_JSON,
-            ))
-            .bind(&event.id)
-            .bind(&event.created_at)
-            .bind(&event.created_at)
-            .bind(0i64)
-            .bind(0i64)
-            .bind(session_id)
-            .bind(&event.turn_id)
-            .bind(&event.runtime_id)
-            .bind(&event.kind)
-            .bind(event.sequence as i64)
-            .bind(&payload_json)
-            .execute(&mut *tx)
-            .await
-            .map_err(|e| RepositoryError::Insert(e.to_string()))?;
+            if event.coding_session_id != session_id
+                || event.turn_id.as_deref() != Some(turn_id.as_str())
+            {
+                return Err(CodingSessionError::Conflict(
+                    "finalized event does not belong to the completed turn".into(),
+                ));
+            }
+            let kind = normalize_realtime_event_kind(&event.kind)?;
+            let runtime_id = normalize_optional_realtime_event_reference(
+                event.runtime_id.as_deref(),
+                "runtime_id",
+            )?;
+            Self::ensure_realtime_event_turn_in_scope_on_executor(
+                &mut tx,
+                owner_scope,
+                session_id,
+                &turn_id,
+                runtime_id.as_deref(),
+            )
+            .await?;
+            // Event ids, sequence numbers, and timestamps from the provider
+            // projection are intentionally discarded. They are durable-store
+            // concerns and must not collide with streamed events.
+            persisted_events.push(
+                Self::insert_coding_session_event_on_executor(
+                    &mut tx,
+                    CodingSessionEventStreamScope::new(owner_scope, session_id),
+                    Some(turn_id.clone()),
+                    runtime_id,
+                    &kind,
+                    event.payload.clone(),
+                    &now,
+                )
+                .await?,
+            );
         }
 
         map_sqlx_error(tx.commit().await)?;
 
-        Ok(turn)
+        Ok(PersistedProjectionTurnExecution {
+            turn: CodingSessionTurnPayload {
+                started_at: Some(started_at),
+                completed_at: Some(completed_at),
+                ..turn
+            },
+            events: persisted_events,
+            native_session_id: persisted_native_session_id,
+        })
     }
 
     async fn mark_turn_failed(
@@ -2342,46 +3437,128 @@ impl CodingSessionRepository for SqliteCodingSessionRepository {
         ctx: &CodingSessionContext,
         session_id: &str,
         turn_id: &str,
-    ) -> Result<(), CodingSessionError> {
+    ) -> Result<Option<CodingSessionEventPayload>, CodingSessionError> {
         let now = Self::now_iso();
+        let owner_scope = session_owner_scope(ctx)?;
 
         let mut tx = map_sqlx_error(self.pool.begin().await)?;
         ensure_session_in_tenant_scope_in_transaction(&mut tx, ctx, session_id).await?;
+        Self::touch_session_transcript_on_executor(&mut tx, owner_scope, session_id, &now, false)
+            .await?;
+        let runtime_id = Self::load_realtime_event_turn_runtime_id_on_executor(
+            &mut tx,
+            owner_scope,
+            session_id,
+            turn_id,
+        )
+        .await?;
 
-        sqlx::query(&format!(
-            "UPDATE {} SET {} = 'failed', {} = ?, {} = {} + 1 \
-             WHERE {} = ? AND {} = ? AND {} = 0",
+        let operation_row = map_sqlx_error(
+            sqlx::query(&format!(
+                "SELECT {}, {} FROM {} WHERE {} = ? AND {} = ? AND {} = ? AND {} = ? AND {IS_NOT_DELETED}",
+                columns::operation::ID,
+                columns::operation::STATUS,
+                columns::operation::TABLE,
+                columns::operation::CODING_SESSION_ID,
+                columns::operation::TURN_ID,
+                columns::operation::TENANT_ID,
+                columns::operation::USER_ID,
+            ))
+            .bind(session_id)
+            .bind(turn_id)
+            .bind(owner_scope.tenant_id)
+            .bind(owner_scope.user_id)
+            .fetch_optional(&mut *tx)
+            .await,
+        )?
+        .ok_or_else(|| {
+            RepositoryError::NotFound(format!("operation for turn {turn_id} was not found"))
+        })?;
+        let operation_id: String = map_sqlx_error(operation_row.try_get(columns::operation::ID))?;
+        let operation_status: String =
+            map_sqlx_error(operation_row.try_get(columns::operation::STATUS))?;
+        if operation_status == "succeeded" {
+            return Err(CodingSessionError::Conflict(format!(
+                "succeeded operation {operation_id} cannot transition to failed"
+            )));
+        }
+
+        let already_persisted = map_sqlx_error(
+            sqlx::query_scalar::<sqlx::Any, i64>(&format!(
+                "SELECT 1 FROM {} WHERE {} = ? AND {} = ? AND {} = ? AND {} = ? AND {} = 'turn.failed' AND {IS_NOT_DELETED} LIMIT 1",
+                columns::event::TABLE,
+                columns::event::CODING_SESSION_ID,
+                columns::event::TURN_ID,
+                columns::event::TENANT_ID,
+                columns::event::USER_ID,
+                columns::event::EVENT_KIND,
+            ))
+            .bind(session_id)
+            .bind(turn_id)
+            .bind(owner_scope.tenant_id)
+            .bind(owner_scope.user_id)
+            .fetch_optional(&mut *tx)
+            .await,
+        )?
+        .is_some();
+        if already_persisted {
+            map_sqlx_error(tx.commit().await)?;
+            return Ok(None);
+        }
+
+        let turn_result = sqlx::query(&format!(
+            "UPDATE {} SET {} = 'failed', {} = ?, {} = ?, {} = {} + 1 \
+             WHERE {} = ? AND {} = ? AND {} = ? AND {} = ? AND {IS_NOT_DELETED} AND {} <> 'succeeded'",
             columns::turn::TABLE,
             columns::turn::STATUS,
+            columns::turn::COMPLETED_AT,
             columns::turn::UPDATED_AT,
             columns::turn::VERSION,
             columns::turn::VERSION,
             columns::turn::ID,
             columns::turn::CODING_SESSION_ID,
-            columns::turn::IS_DELETED,
+            columns::turn::TENANT_ID,
+            columns::turn::USER_ID,
+            columns::turn::STATUS,
         ))
+        .bind(&now)
         .bind(&now)
         .bind(turn_id)
         .bind(session_id)
+        .bind(owner_scope.tenant_id)
+        .bind(owner_scope.user_id)
         .execute(&mut *tx)
         .await
         .map_err(|e| RepositoryError::Update(e.to_string()))?;
+        if turn_result.rows_affected() != 1 {
+            return Err(CodingSessionError::Conflict(format!(
+                "turn {turn_id} cannot transition to failed"
+            )));
+        }
 
         let operation_result = sqlx::query(&format!(
-            "UPDATE {} SET {} = 'failed', {} = ?, {} = {} + 1 \
-             WHERE {} = ? AND {} = ? AND {} = 0",
+            "UPDATE {} SET {} = 'failed', {} = ?, {} = NULL, {} = NULL, {} = ?, {} = {} + 1 \
+             WHERE {} = ? AND {} = ? AND {} = ? AND {} = ? AND {IS_NOT_DELETED} AND {} <> 'succeeded'",
             columns::operation::TABLE,
             columns::operation::STATUS,
+            columns::operation::COMPLETED_AT,
+            columns::operation::LEASE_OWNER,
+            columns::operation::LEASE_EXPIRES_AT,
             columns::operation::UPDATED_AT,
             columns::operation::VERSION,
             columns::operation::VERSION,
             columns::operation::CODING_SESSION_ID,
             columns::operation::TURN_ID,
-            columns::operation::IS_DELETED,
+            columns::operation::TENANT_ID,
+            columns::operation::USER_ID,
+            columns::operation::STATUS,
         ))
+        .bind(&now)
         .bind(&now)
         .bind(session_id)
         .bind(turn_id)
+        .bind(owner_scope.tenant_id)
+        .bind(owner_scope.user_id)
         .execute(&mut *tx)
         .await
         .map_err(|e| RepositoryError::Update(e.to_string()))?;
@@ -2392,9 +3569,33 @@ impl CodingSessionRepository for SqliteCodingSessionRepository {
             .into());
         }
 
+        let mut payload = BTreeMap::new();
+        payload.insert(
+            "operationId".to_owned(),
+            serde_json::Value::String(operation_id),
+        );
+        payload.insert(
+            "runtimeStatus".to_owned(),
+            serde_json::Value::String("failed".to_owned()),
+        );
+        payload.insert(
+            "status".to_owned(),
+            serde_json::Value::String("failed".to_owned()),
+        );
+        let event = Self::insert_coding_session_event_on_executor(
+            &mut tx,
+            CodingSessionEventStreamScope::new(owner_scope, session_id),
+            Some(turn_id.to_owned()),
+            Some(runtime_id),
+            "turn.failed",
+            payload,
+            &now,
+        )
+        .await?;
+
         map_sqlx_error(tx.commit().await)?;
 
-        Ok(())
+        Ok(Some(event))
     }
 }
 
@@ -2405,6 +3606,7 @@ mod tests {
     use sdkwork_birdcoder_coding_sessions_service::domain::results::{
         CodingSessionTurnPayload, FinalizedProjectionTurnExecution,
     };
+    use sdkwork_birdcoder_coding_sessions_service::error::CodingSessionError;
     use sdkwork_birdcoder_coding_sessions_service::ports::repository::CodingSessionRepository;
     use sqlx::{any::AnyPoolOptions, Row as _};
 
@@ -2450,6 +3652,7 @@ mod tests {
 
         let context = CodingSessionContext {
             tenant_id: "7".to_owned(),
+            organization_id: "0".to_owned(),
             user_id: "42".to_owned(),
             session_id: "query-plan-session".to_owned(),
         };
@@ -2512,10 +3715,10 @@ mod tests {
         .expect("seed scoped workspace");
         sqlx::query(
             "INSERT INTO ai_coding_session \
-             (id, tenant_id, user_id, created_at, updated_at, workspace_id, project_id, title, status, \
+             (id, tenant_id, user_id, created_at, updated_at, workspace_id, project_id, runtime_location_id, title, status, \
               entry_surface, host_mode, engine_id, model_id) \
              VALUES ('session-1', 7, 42, '2026-07-11T00:00:00Z', '2026-07-11T00:00:00Z', \
-                     '101', 'project-1', 'Turn session', 'active', 'pc', 'standalone', \
+                     '101', 'project-1', 'runtime-location-1', 'Turn session', 'active', 'pc', 'standalone', \
                      'codex', 'gpt-5-codex')",
         )
         .execute(&pool)
@@ -2524,6 +3727,7 @@ mod tests {
         let repository = SqliteCodingSessionRepository::new(pool.clone());
         let context = CodingSessionContext {
             tenant_id: "7".to_owned(),
+            organization_id: "0".to_owned(),
             user_id: "42".to_owned(),
             session_id: "request-session".to_owned(),
         };
@@ -2533,8 +3737,6 @@ mod tests {
                 "session-1",
                 &CreateCodingSessionTurnInput {
                     runtime_id: Some("runtime-1".to_owned()),
-                    engine_id: Some("codex".to_owned()),
-                    model_id: Some("gpt-5-codex".to_owned()),
                     request_kind: "user_message".to_owned(),
                     input_summary: "first turn".to_owned(),
                     stream: false,
@@ -2589,7 +3791,7 @@ mod tests {
             42
         );
 
-        repository
+        let completion_without_native_session = repository
             .finalize_turn_execution(
                 &context,
                 "session-1",
@@ -2644,8 +3846,6 @@ mod tests {
                 "session-1",
                 &CreateCodingSessionTurnInput {
                     runtime_id: Some("runtime-without-native".to_owned()),
-                    engine_id: Some("codex".to_owned()),
-                    model_id: Some("gpt-5-codex".to_owned()),
                     request_kind: "user_message".to_owned(),
                     input_summary: "turn without native session result".to_owned(),
                     stream: false,
@@ -2683,6 +3883,13 @@ mod tests {
             )
             .await
             .expect("finalize turn without native session result");
+        assert_eq!(
+            completion_without_native_session
+                .native_session_id
+                .as_deref(),
+            Some("provider-session-1"),
+            "the persisted completion must expose the existing immutable native-session binding",
+        );
         let activity_after_completion_without_native = sqlx::query(
             "SELECT sort_timestamp, transcript_updated_at FROM ai_coding_session WHERE id = ?",
         )
@@ -2711,8 +3918,6 @@ mod tests {
                 "session-1",
                 &CreateCodingSessionTurnInput {
                     runtime_id: Some("runtime-2".to_owned()),
-                    engine_id: Some("codex".to_owned()),
-                    model_id: Some("gpt-5-codex".to_owned()),
                     request_kind: "user_message".to_owned(),
                     input_summary: "failed turn".to_owned(),
                     stream: false,
@@ -2722,10 +3927,11 @@ mod tests {
             )
             .await
             .expect("create operation that will fail");
-        repository
+        let failed_event = repository
             .mark_turn_failed(&context, "session-1", &failed_turn.id)
             .await
-            .expect("mark turn and operation failed");
+            .expect("mark turn and operation failed")
+            .expect("persist the first canonical failure event");
         let failed_operation = repository
             .get_operation(
                 &context,
@@ -2735,6 +3941,30 @@ mod tests {
             .await
             .expect("load failed operation");
         assert_eq!(failed_operation.status, "failed");
+        assert_eq!(failed_event.kind, "turn.failed");
+        assert_eq!(
+            failed_event.turn_id.as_deref(),
+            Some(failed_turn.id.as_str())
+        );
+        assert_eq!(failed_event.runtime_id, failed_turn.runtime_id);
+        assert!(
+            repository
+                .mark_turn_failed(&context, "session-1", &failed_turn.id)
+                .await
+                .expect("repeat failure must be idempotent")
+                .is_none(),
+            "a repeated failure must not allocate or publish a second terminal event",
+        );
+        let failure_event_count: i64 = sqlx::query_scalar(
+            "SELECT COUNT(*) FROM ai_coding_session_event \
+             WHERE coding_session_id = ? AND turn_id = ? AND event_kind = 'turn.failed'",
+        )
+        .bind("session-1")
+        .bind(&failed_turn.id)
+        .fetch_one(&pool)
+        .await
+        .expect("count canonical failure events");
+        assert_eq!(failure_event_count, 1);
 
         let resumed_session = repository
             .get_session(&context, "session-1")
@@ -2743,6 +3973,52 @@ mod tests {
         assert_eq!(
             resumed_session.native_session_id.as_deref(),
             Some("provider-session-1")
+        );
+
+        let conflicting_native_session_turn = repository
+            .create_turn(
+                &context,
+                "session-1",
+                &CreateCodingSessionTurnInput {
+                    runtime_id: Some("runtime-conflicting-native-session".to_owned()),
+                    request_kind: "user_message".to_owned(),
+                    input_summary: "must not replace the native session".to_owned(),
+                    stream: false,
+                    ide_context: None,
+                    options: None,
+                },
+            )
+            .await
+            .expect("create turn with an established native session");
+        let conflict = repository
+            .finalize_turn_execution(
+                &context,
+                "session-1",
+                &FinalizedProjectionTurnExecution {
+                    turn: CodingSessionTurnPayload {
+                        status: "completed".to_owned(),
+                        started_at: Some("2026-07-11T00:00:05Z".to_owned()),
+                        completed_at: Some("2026-07-11T00:00:06Z".to_owned()),
+                        ..conflicting_native_session_turn
+                    },
+                    events: Vec::new(),
+                    native_session_id: Some("provider-session-2".to_owned()),
+                },
+            )
+            .await
+            .expect_err("a completed turn must not replace an established native session");
+        assert!(matches!(conflict, CodingSessionError::Conflict(_)));
+        let native_session_after_conflict = sqlx::query_scalar::<_, Option<String>>(
+            "SELECT native_session_id FROM ai_coding_session WHERE id = ?",
+        )
+        .bind("session-1")
+        .fetch_one(&pool)
+        .await
+        .expect("read native session after rejected replacement");
+        assert_eq!(
+            native_session_after_conflict.as_deref(),
+            Some("provider-session-1"),
+            "a rejected provider-native session replacement must leave the original binding intact",
         );
 
         let other_user = CodingSessionContext {
@@ -2762,67 +4038,6 @@ mod tests {
                 .await
                 .is_err(),
             "a different user in the same tenant must not read the operation",
-        );
-    }
-
-    #[tokio::test]
-    async fn project_working_directory_uses_scoped_project_config_root() {
-        sqlx::any::install_default_drivers();
-        let pool = AnyPoolOptions::new()
-            .max_connections(1)
-            .connect("sqlite::memory:")
-            .await
-            .expect("open project root database");
-        sqlx::raw_sql(PROVIDER_AUTHORITY_SCHEMA)
-            .execute(&pool)
-            .await
-            .expect("create provider authority schema");
-
-        sqlx::query(
-            "INSERT INTO studio_project (\
-                 id, uuid, created_at, updated_at, tenant_id, organization_id, data_scope, \
-                 name, title, code, type, site_path, status, is_deleted, is_template\
-             ) VALUES (201, 'project-201', '2026-07-11T00:00:00Z', \
-                       '2026-07-11T00:00:00Z', 7, 0, 1, 'Project', 'Project', \
-                       'project', 1, 'D:/fallback-project', 2, 0, 0)",
-        )
-        .execute(&pool)
-        .await
-        .expect("seed scoped project");
-        sqlx::query(
-            "INSERT INTO studio_project_content (\
-                 id, uuid, created_at, updated_at, tenant_id, organization_id, data_scope, \
-                 project_id, project_uuid, config_data, content_version\
-             ) VALUES (202, 'project-content-202', '2026-07-11T00:00:00Z', \
-                       '2026-07-11T00:00:00Z', 7, 0, 1, 201, 'project-201', \
-                       '{\"rootPath\":\"D:/authorized/project-201\"}', '1.0')",
-        )
-        .execute(&pool)
-        .await
-        .expect("seed project root config");
-
-        let repository = SqliteCodingSessionRepository::new(pool);
-        let context = CodingSessionContext {
-            tenant_id: "7".to_owned(),
-            user_id: "42".to_owned(),
-            session_id: "request-session".to_owned(),
-        };
-        let root = repository
-            .resolve_project_working_directory(&context, "201")
-            .await
-            .expect("resolve project root");
-        assert_eq!(root.as_deref(), Some("D:/authorized/project-201"));
-
-        let other_tenant = CodingSessionContext {
-            tenant_id: "8".to_owned(),
-            ..context
-        };
-        assert_eq!(
-            repository
-                .resolve_project_working_directory(&other_tenant, "201")
-                .await
-                .expect("hide another tenant project"),
-            None
         );
     }
 }

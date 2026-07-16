@@ -1,4 +1,4 @@
-import { openLocalFolder as openInfrastructureLocalFolder } from '@sdkwork/birdcoder-pc-infrastructure-runtime';
+import { openLocalFolder as openInfrastructureLocalFolder } from '@sdkwork/birdcoder-pc-infrastructure/platform/openLocalFolder';
 import type {
   LocalFolderMountSource,
   LocalFolderPickerResult,

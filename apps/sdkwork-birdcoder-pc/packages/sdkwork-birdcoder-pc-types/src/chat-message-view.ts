@@ -20,8 +20,10 @@ export {
 };
 import {
   hasParsedFileUpdateSummary,
+  resolveChatTurnActivitySummary,
   resolveProjectedActivityFileChanges,
   resolveVisibleMarkdownBlockContent,
+  type ChatTurnActivitySummary,
 } from './chat-message-activity-projection.ts';
 import { resolveTaskProgressDisplayState } from './chat-message-task-progress.ts';
 import {
@@ -99,6 +101,7 @@ export interface BirdCoderChatMessageView {
 }
 
 export interface ResolveChatMessageViewOptions {
+  activitySummary?: ChatTurnActivitySummary | null;
   engineId?: BirdCoderCodeEngineKey;
   layout?: 'sidebar' | 'main';
 }
@@ -156,13 +159,22 @@ function countTranscriptContentLines(content: string): number {
   return lineCount;
 }
 
-function hasStructuredActivity(message: ChatMessageViewSource): boolean {
+function hasStructuredActivity(
+  message: ChatMessageViewSource,
+  activitySummary?: ChatTurnActivitySummary | null,
+): boolean {
+  if (activitySummary && (activitySummary.fileChanges.length > 0 || activitySummary.commands.length > 0)) {
+    return true;
+  }
   return filterStructuredFileChanges(message).length > 0
     || filterStructuredCommands(message).length > 0
     || hasParsedFileUpdateSummary(message.content);
 }
 
-function inferChatMessageViewKind(message: ChatMessageViewSource): BirdCoderChatMessageViewKind {
+function inferChatMessageViewKind(
+  message: ChatMessageViewSource,
+  activitySummary?: ChatTurnActivitySummary | null,
+): BirdCoderChatMessageViewKind {
   switch (message.role) {
     case 'user':
       return 'user.text';
@@ -175,7 +187,7 @@ function inferChatMessageViewKind(message: ChatMessageViewSource): BirdCoderChat
     case 'reviewer':
       return 'reviewer.feedback';
     case 'assistant':
-      if (hasStructuredActivity(message) || hasParsedFileUpdateSummary(message.content)) {
+      if (hasStructuredActivity(message, activitySummary) || hasParsedFileUpdateSummary(message.content)) {
         return 'assistant.activity';
       }
       return 'assistant.text';
@@ -187,6 +199,7 @@ function inferChatMessageViewKind(message: ChatMessageViewSource): BirdCoderChat
 function buildChatMessageContentBlocks(
   message: ChatMessageViewSource,
   kind: BirdCoderChatMessageViewKind,
+  activitySummary?: ChatTurnActivitySummary | null,
 ): ChatMessageContentBlock[] {
   const blocks: ChatMessageContentBlock[] = [];
   const markdownMode: 'basic' | 'rich' = message.role === 'user' ? 'basic' : 'rich';
@@ -200,8 +213,8 @@ function buildChatMessageContentBlocks(
     });
   }
 
-  const fileChanges = resolveProjectedActivityFileChanges(message);
-  const commands = filterStructuredCommands(message);
+  const fileChanges = activitySummary?.fileChanges ?? resolveProjectedActivityFileChanges(message);
+  const commands = activitySummary?.commands ?? filterStructuredCommands(message);
 
   if (kind === 'assistant.activity' && (fileChanges.length > 0 || commands.length > 0)) {
     blocks.push({
@@ -337,8 +350,8 @@ export function resolveChatMessageView(
   options: ResolveChatMessageViewOptions = {},
 ): BirdCoderChatMessageView {
   const layout = options.layout ?? 'main';
-  const kind = inferChatMessageViewKind(message);
-  const blocks = buildChatMessageContentBlocks(message, kind);
+  const kind = inferChatMessageViewKind(message, options.activitySummary);
+  const blocks = buildChatMessageContentBlocks(message, kind, options.activitySummary);
 
   return {
     messageId: message.id,

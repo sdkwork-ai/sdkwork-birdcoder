@@ -11,6 +11,7 @@ const nativeSummary: BirdCoderNativeSessionSummary = {
   id: 'codex-native:thread-1',
   workspaceId: 'workspace-1',
   projectId: 'project-1',
+  runtimeLocationId: 'runtime-location-1',
   title: 'Codex thread',
   status: 'active',
   runtimeStatus: 'ready',
@@ -24,7 +25,6 @@ const nativeSummary: BirdCoderNativeSessionSummary = {
   transcriptUpdatedAt: '2026-07-15T00:01:00.000Z',
   sortTimestamp: '1752537660000',
   kind: 'coding',
-  nativeCwd: 'E:/workspace/project-1',
 };
 const nativeDetail: BirdCoderNativeSessionDetail = {
   summary: nativeSummary,
@@ -59,46 +59,17 @@ const remoteClient = {
   },
 } as never;
 
-let localListCalls = 0;
-let localGetCalls = 0;
-const localService = new ApiBackedAppRuntimeReadService({
-  client: remoteClient,
-  nativeSessionReadPort: {
-    async getNativeSession() {
-      localGetCalls += 1;
-      return nativeDetail;
-    },
-    async listNativeSessionPage() {
-      localListCalls += 1;
-      return nativePage;
-    },
-  },
-});
-
-const request = { projectId: 'project-1', workspaceId: 'workspace-1' };
-assert.deepEqual(await localService.listNativeSessions(request), [nativeSummary]);
-assert.deepEqual(await localService.listNativeSessionPage(request), nativePage);
-assert.deepEqual(await localService.getNativeSession(nativeSummary.id, request), nativeDetail);
-assert.equal(localListCalls, 2);
-assert.equal(localGetCalls, 1);
-assert.equal(remoteListCalls, 0, 'a mounted native provider must own native thread listing');
-assert.equal(remoteGetCalls, 0, 'a mounted native provider must own native thread detail');
-
-const fallbackService = new ApiBackedAppRuntimeReadService({
-  client: remoteClient,
-  nativeSessionReadPort: {
-    async getNativeSession() {
-      return null;
-    },
-    async listNativeSessionPage() {
-      return null;
-    },
-  },
-});
-await fallbackService.listNativeSessionPage(request);
-await fallbackService.getNativeSession(nativeSummary.id, request);
-assert.equal(remoteListCalls, 1, 'unmounted/browser sessions must preserve generated SDK fallback');
-assert.equal(remoteGetCalls, 1, 'unmounted/browser detail must preserve generated SDK fallback');
+const request = {
+  projectId: 'project-1',
+  runtimeLocationId: 'runtime-location-1',
+  workspaceId: 'workspace-1',
+};
+const appApiService = new ApiBackedAppRuntimeReadService({ client: remoteClient });
+assert.deepEqual(await appApiService.listNativeSessions(request), [nativeSummary]);
+assert.deepEqual(await appApiService.listNativeSessionPage(request), nativePage);
+assert.deepEqual(await appApiService.getNativeSession(nativeSummary.id, request), nativeDetail);
+assert.equal(remoteListCalls, 2, 'native inventory must be served only by the App SDK client');
+assert.equal(remoteGetCalls, 1, 'native session detail must be served only by the App SDK client');
 
 const desktopEntrySource = fs.readFileSync(
   new URL(
@@ -107,17 +78,97 @@ const desktopEntrySource = fs.readFileSync(
   ),
   'utf8',
 );
-for (const command of ['desktop_native_session_list', 'desktop_native_session_get']) {
-  assert.match(
-    desktopEntrySource,
-    new RegExp(`async fn ${command}\\b`, 'u'),
-    `${command} must be an async Tauri command so provider scans never block the UI thread`,
-  );
-  assert.match(
-    desktopEntrySource,
-    new RegExp(`generate_handler!\\[[\\s\\S]*\\b${command},`, 'u'),
-    `${command} must be registered in the desktop invoke handler`,
+const hostCommandSource = fs.readFileSync(
+  new URL(
+    '../crates/sdkwork-birdcoder-tauri-host/src/commands/session_commands.rs',
+    import.meta.url,
+  ),
+  'utf8',
+);
+const runtimeReadServiceSource = fs.readFileSync(
+  new URL(
+    '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/src/services/impl/ApiBackedAppRuntimeReadService.ts',
+    import.meta.url,
+  ),
+  'utf8',
+);
+const infrastructurePackageSource = fs.readFileSync(
+  new URL(
+    '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/package.json',
+    import.meta.url,
+  ),
+  'utf8',
+);
+const infrastructureComponentSpecSource = fs.readFileSync(
+  new URL(
+    '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/specs/component.spec.json',
+    import.meta.url,
+  ),
+  'utf8',
+);
+const infrastructureReadmeSource = fs.readFileSync(
+  new URL(
+    '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/specs/README.md',
+    import.meta.url,
+  ),
+  'utf8',
+);
+const pcArchitectureSource = fs.readFileSync(
+  new URL(
+    '../apps/sdkwork-birdcoder-pc/docs/architecture/tech/TECH_ARCHITECTURE.md',
+    import.meta.url,
+  ),
+  'utf8',
+);
+
+for (const source of [desktopEntrySource, hostCommandSource]) {
+  assert.equal(
+    source.includes('desktop_native_session_'),
+    false,
+    'Tauri must not expose provider-native session reads that accept a renderer path.',
   );
 }
+assert.equal(
+  runtimeReadServiceSource.includes('nativeSessionReadPort'),
+  false,
+  'The application runtime reader must not accept a client-side native session override.',
+);
+assert.equal(
+  infrastructurePackageSource.includes('tauriNativeSessions'),
+  false,
+  'The retired path-based Tauri native session adapter must not remain exported.',
+);
+for (const source of [infrastructureComponentSpecSource, infrastructureReadmeSource]) {
+  assert.equal(
+    source.includes('tauriNativeSessions'),
+    false,
+    'Component contracts and documentation must not advertise the retired Tauri native-session adapter.',
+  );
+}
+assert.equal(
+  pcArchitectureSource.includes('Tauri native detail reads'),
+  false,
+  'PC architecture documentation must not describe Tauri as a provider-native session read path.',
+);
+assert.match(
+  pcArchitectureSource,
+  /authenticated\s+BirdCoder App API/u,
+  'PC architecture documentation must describe the authenticated App API authorization boundary.',
+);
+assert.match(
+  infrastructureComponentSpecSource,
+  /"@sdkwork\/birdcoder-app-sdk"/u,
+  'The infrastructure component contract must declare its composed BirdCoder App SDK dependency.',
+);
+assert.equal(
+  fs.existsSync(
+    new URL(
+      '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/src/platform/tauriNativeSessions.ts',
+      import.meta.url,
+    ),
+  ),
+  false,
+  'The retired path-based Tauri native session adapter must not remain in the source tree.',
+);
 
-console.log('tauri native session composition contract passed');
+console.log('tauri native session authorization contract passed');

@@ -1,10 +1,15 @@
 import { useEffect, useRef } from 'react';
 import { buildProjectCodingSessionIndex, buildCodingSessionProjectScopedKey } from '@sdkwork/birdcoder-pc-commons/workbench/codingSessionSelection';
-import { emitOpenTerminalRequest } from '@sdkwork/birdcoder-pc-commons/terminal/runtime';
+import { emitOpenTerminalRequest } from '@sdkwork/birdcoder-pc-commons/terminal/requests';
 import { globalEventBus } from '@sdkwork/birdcoder-pc-commons/utils/EventBus';
 import type { BirdCoderProjectCodingSessionIndex } from '@sdkwork/birdcoder-pc-commons/workbench/codingSessionSelection';
-import type { TerminalCommandRequest } from '@sdkwork/birdcoder-pc-commons/terminal/runtime';
+import type { TerminalCommandRequest } from '@sdkwork/birdcoder-pc-commons/terminal/requests';
 import type { ToastType } from '@sdkwork/birdcoder-pc-commons/contexts/ToastProvider';
+import type { ProjectRuntimeLocationResolver } from '@sdkwork/birdcoder-pc-commons/hooks/useProjectRuntimeLocation';
+import {
+  getProjectRuntimeLocationFailureMessage,
+  getResolvedProjectRuntimeLocationWorkingDirectory,
+} from '@sdkwork/birdcoder-pc-commons/workbench/projectRuntimeLocationResolution';
 import type { BirdCoderProject } from '@sdkwork/birdcoder-pc-types';
 import { useTranslation } from 'react-i18next';
 
@@ -13,7 +18,7 @@ interface UseCodeWorkbenchCommandsOptions {
   projects: BirdCoderProject[];
   selectedCodingSessionId: string | null;
   selectedProjectId: string | null;
-  resolveLocalWorkingDirectory: (projectId: string) => Promise<string | null>;
+  resolveProjectRuntimeLocation: ProjectRuntimeLocationResolver;
   selectCodingSession: (
     codingSessionId: string,
     options?: { projectId?: string },
@@ -36,7 +41,7 @@ export function useCodeWorkbenchCommands({
   projects,
   selectedCodingSessionId,
   selectedProjectId,
-  resolveLocalWorkingDirectory,
+  resolveProjectRuntimeLocation,
   selectCodingSession,
   setIsTerminalOpen,
   setTerminalRequest,
@@ -55,7 +60,7 @@ export function useCodeWorkbenchCommands({
   const projectCodingSessionIndexRef = useRef<BirdCoderProjectCodingSessionIndex | null>(null);
   const selectedCodingSessionIdRef = useRef(selectedCodingSessionId);
   const selectedProjectIdRef = useRef(selectedProjectId);
-  const resolveLocalWorkingDirectoryRef = useRef(resolveLocalWorkingDirectory);
+  const resolveProjectRuntimeLocationRef = useRef(resolveProjectRuntimeLocation);
   const selectCodingSessionRef = useRef(selectCodingSession);
   const onRunWithoutDebuggingRef = useRef(onRunWithoutDebugging);
   const flushPendingAutosaveRef = useRef(flushPendingAutosave);
@@ -78,12 +83,12 @@ export function useCodeWorkbenchCommands({
   useEffect(() => {
     selectedCodingSessionIdRef.current = selectedCodingSessionId;
     selectedProjectIdRef.current = selectedProjectId;
-    resolveLocalWorkingDirectoryRef.current = resolveLocalWorkingDirectory;
+    resolveProjectRuntimeLocationRef.current = resolveProjectRuntimeLocation;
     selectCodingSessionRef.current = selectCodingSession;
     onRunWithoutDebuggingRef.current = onRunWithoutDebugging;
     flushPendingAutosaveRef.current = flushPendingAutosave;
   }, [
-    resolveLocalWorkingDirectory,
+    resolveProjectRuntimeLocation,
     onRunWithoutDebugging,
     flushPendingAutosave,
     selectCodingSession,
@@ -183,9 +188,19 @@ export function useCodeWorkbenchCommands({
         return;
       }
 
-      void resolveLocalWorkingDirectoryRef.current(currentProjectId).then((localWorkingDirectory) => {
+      void resolveProjectRuntimeLocationRef.current(currentProjectId, {
+        allowFolderSelection: true,
+        capability: 'build',
+      }).then((resolution) => {
+        const localWorkingDirectory = getResolvedProjectRuntimeLocationWorkingDirectory(resolution);
         if (!localWorkingDirectory) {
-          addToast('A local desktop folder must be mounted before running this project.', 'error');
+          const message = getProjectRuntimeLocationFailureMessage(
+            resolution,
+            'A local desktop folder must be mounted before running this project.',
+          );
+          if (message) {
+            addToast(message, 'error');
+          }
           return;
         }
 

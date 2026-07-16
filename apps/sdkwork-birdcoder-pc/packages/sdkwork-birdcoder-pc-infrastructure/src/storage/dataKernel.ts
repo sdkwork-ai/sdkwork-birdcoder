@@ -6,10 +6,7 @@ import type {
   BirdCoderStorageProvider,
   BirdCoderUnitOfWork,
 } from '@sdkwork/birdcoder-pc-types';
-import {
-  createBirdCoderStorageDialect,
-  getBirdCoderSchemaMigrationDefinition,
-} from './providers.ts';
+import { createBirdCoderStorageDialect } from './dialects.ts';
 import {
   type BirdCoderForkableSqlExecutor,
   type BirdCoderSqlExecutionResult,
@@ -382,6 +379,7 @@ class LocalBirdCoderStorageProvider implements BirdCoderTransactionalStorageProv
     );
     const appliedMigrationIds = new Set(history.map((entry) => entry.migrationId));
     const nextHistory = [...history];
+    const { getBirdCoderSchemaMigrationDefinition } = await import('./providers.ts');
     const runtimeKernelDefinition = getBirdCoderSchemaMigrationDefinition('runtime-data-kernel-v1');
     const resolvedDefinitions =
       this.sqlExecutor &&

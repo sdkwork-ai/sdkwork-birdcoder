@@ -25,9 +25,9 @@ const codeCommandsHookSource = fs.readFileSync(
   new URL('../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-code/src/pages/useCodeWorkbenchCommands.ts', import.meta.url),
   'utf8',
 );
-const codeLocalFolderProjectImportHookSource = fs.readFileSync(
+const codeEffectiveWorkspaceHookSource = fs.readFileSync(
   new URL(
-    '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-code/src/pages/useCodeLocalFolderProjectImport.ts',
+    '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-code/src/pages/useCodeEffectiveWorkspaceId.ts',
     import.meta.url,
   ),
   'utf8',
@@ -48,7 +48,7 @@ assert.match(
 );
 
 assert.match(
-  codeLocalFolderProjectImportHookSource,
+  codeEffectiveWorkspaceHookSource,
   /useWorkspaces\(\{\s*isActive:\s*isVisible\s*\}\)/s,
   'useCodeEffectiveWorkspaceId must gate workspace-store subscriptions behind page visibility before deriving the effective workspace.',
 );

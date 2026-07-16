@@ -17,6 +17,7 @@ fn birdcoder_product_app_api_routes_slice() -> &'static [HttpRoute] {
             sdkwork_routes_membership_app_api::manifest::MEMBERSHIP_APP_API_ROUTES,
             sdkwork_routes_commerce_app_api::manifest::COMMERCE_APP_API_ROUTES,
             sdkwork_routes_deployment_backend_api::manifest::DEPLOYMENT_BACKEND_API_ROUTES,
+            sdkwork_routes_terminal_app_api::manifest::TERMINAL_APP_API_ROUTES,
         ]
         .into_iter()
         .flat_map(|slice| slice.iter().copied())
@@ -32,4 +33,29 @@ pub fn birdcoder_product_app_api_routes() -> &'static [HttpRoute] {
 pub fn birdcoder_product_app_api_route_manifest() -> HttpRouteManifest {
     static MANIFEST: OnceLock<HttpRouteManifest> = OnceLock::new();
     *MANIFEST.get_or_init(|| HttpRouteManifest::new(birdcoder_product_app_api_routes_slice()))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use sdkwork_web_contract::{HttpMethod, RouteAuth};
+
+    #[test]
+    fn terminal_routes_are_registered_as_protected_app_api_operations() {
+        let routes = birdcoder_product_app_api_routes();
+        let create = routes
+            .iter()
+            .find(|route| {
+                route.method == HttpMethod::Post
+                    && route.path == "/app/v3/api/device/terminal/sessions"
+            })
+            .expect("Terminal App API create route must be registered");
+
+        assert_eq!(create.auth, RouteAuth::DualToken);
+        assert_eq!(create.operation_id, "device.terminal.sessions.create");
+        assert_eq!(create.rate_limit_tier, None);
+        assert!(routes
+            .iter()
+            .all(|route| !route.path.starts_with("/terminal/api/v1")));
+    }
 }

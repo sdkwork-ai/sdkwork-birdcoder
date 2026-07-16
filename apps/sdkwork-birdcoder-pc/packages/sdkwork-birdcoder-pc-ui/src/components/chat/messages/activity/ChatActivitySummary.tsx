@@ -12,7 +12,7 @@ import {
 } from 'lucide-react';
 import { resolveBirdCoderCodeEngineCommandInteractionState } from '@sdkwork/birdcoder-pc-commons/chat/types';
 import type { CommandExecution, FileChange } from '@sdkwork/birdcoder-pc-commons/chat/types';
-import { hasRestorableFileChanges } from '@sdkwork/birdcoder-pc-commons';
+import { hasRestorableFileChanges } from '@sdkwork/birdcoder-pc-commons/workbench/fileChangeRestore';
 import type { ActivityFileChange } from '../messageActivity.ts';
 import type { ChatMessageEnvironment, ChatMessageTranslate } from '../types.ts';
 

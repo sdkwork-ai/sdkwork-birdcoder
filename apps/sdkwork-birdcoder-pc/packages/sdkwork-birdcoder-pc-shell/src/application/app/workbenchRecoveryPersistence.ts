@@ -3,7 +3,8 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { setStoredJson, type WorkbenchRecoverySnapshot } from '@sdkwork/birdcoder-pc-commons';
+import { setStoredJson } from '@sdkwork/birdcoder-pc-commons/storage/localStore';
+import type { WorkbenchRecoverySnapshot } from '@sdkwork/birdcoder-pc-commons/workbench/recovery';
 import { randomString } from '@sdkwork/utils/id';
 
 export type DesktopWindowHandle = {

@@ -153,8 +153,16 @@ export function resolveBirdCoderBrowserServerBaseUrl(
   const normalizedBrowserLocationUrl = normalizeBirdCoderServerBaseUrl(
     options.browserLocationUrl,
   );
-  if (!normalizedApiBaseUrl || !normalizedBrowserLocationUrl) {
+  if (!normalizedBrowserLocationUrl) {
     return normalizedApiBaseUrl;
+  }
+
+  const browserUrl = new URL(normalizedBrowserLocationUrl);
+  if (options.preferSameOrigin && !normalizedApiBaseUrl) {
+    return browserUrl.origin;
+  }
+  if (!normalizedApiBaseUrl) {
+    return undefined;
   }
 
   const apiUrl = new URL(normalizedApiBaseUrl);
@@ -162,7 +170,6 @@ export function resolveBirdCoderBrowserServerBaseUrl(
     return normalizedApiBaseUrl;
   }
 
-  const browserUrl = new URL(normalizedBrowserLocationUrl);
   if (options.preferSameOrigin) {
     return browserUrl.origin;
   }

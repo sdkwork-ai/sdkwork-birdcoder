@@ -15,7 +15,6 @@ import {
 
 export interface StoredCodingSessionInventoryRecord extends BirdCoderCodingSessionSummary {
   kind: 'coding';
-  nativeCwd?: string | null;
   sortTimestamp: BirdCoderLongIntegerString;
   transcriptUpdatedAt?: string | null;
 }
@@ -41,18 +40,12 @@ export function isAuthorityBackedNativeSessionId(
     return true;
   }
 
-  const normalizedCodingSessionId = normalizeBirdCoderCodeEngineNativeSessionId(
-    codingSessionId,
-    engineId,
-  );
   const normalizedNativeSessionId = normalizeBirdCoderCodeEngineNativeSessionId(
     nativeSessionId,
     engineId,
   );
-  return (
-    !!normalizedCodingSessionId &&
-    !!normalizedNativeSessionId &&
-    normalizedCodingSessionId === normalizedNativeSessionId
+  return Boolean(
+    normalizedNativeSessionId && resolveAuthorityBackedNativeSessionIdPrefix(engineId),
   );
 }
 
@@ -60,10 +53,10 @@ export type NativeSessionAuthorityAppRuntimeReadService = Pick<
   {
     getNativeSession(
       codingSessionId: string,
-      request?: BirdCoderGetNativeSessionRequest,
+      request: BirdCoderGetNativeSessionRequest,
     ): Promise<BirdCoderNativeSessionDetail>;
     listNativeSessions(
-      request?: BirdCoderListNativeSessionsRequest,
+      request: BirdCoderListNativeSessionsRequest,
     ): Promise<BirdCoderNativeSessionSummary[]>;
   },
   'getNativeSession' | 'listNativeSessions'
@@ -87,11 +80,11 @@ function toStoredNativeSessionSummary(
     lastTurnAt: summary.lastTurnAt,
     modelId: summary.modelId,
     nativeSessionId,
-    nativeCwd: summary.nativeCwd ?? null,
     nativeAttributes: summary.nativeAttributes
       ? structuredClone(summary.nativeAttributes)
       : undefined,
     projectId: summary.projectId,
+    runtimeLocationId: summary.runtimeLocationId,
     runtimeStatus: summary.runtimeStatus,
     sortTimestamp: summary.sortTimestamp,
     status: summary.status,
@@ -132,11 +125,19 @@ function toNativeChatMessage(message: BirdCoderNativeSessionDetail['messages'][n
 
 function toAuthorityBackedNativeSessionRecord(
   detail: BirdCoderNativeSessionDetail,
+  codingSessionId: string,
 ): AuthorityBackedNativeSessionRecord {
+  const summary = toStoredNativeSessionSummary(detail.summary);
   return {
     filePath: '',
-    messages: detail.messages.map(toNativeChatMessage),
-    summary: toStoredNativeSessionSummary(detail.summary),
+    messages: detail.messages.map((message) => ({
+      ...toNativeChatMessage(message),
+      codingSessionId,
+    })),
+    summary: {
+      ...summary,
+      id: codingSessionId,
+    },
   };
 }
 
@@ -146,6 +147,7 @@ export interface ListAuthorityBackedNativeSessionsOptions {
   limit?: number;
   offset?: number;
   projectId?: string | null;
+  runtimeLocationId?: string | null;
   workspaceId?: string | null;
 }
 
@@ -156,8 +158,9 @@ export async function listAuthorityBackedNativeSessions(
     return [];
   }
   const projectId = options.projectId?.trim();
+  const runtimeLocationId = options.runtimeLocationId?.trim();
   const workspaceId = options.workspaceId?.trim();
-  if (!projectId || !workspaceId) {
+  if (!projectId || !runtimeLocationId || !workspaceId) {
     return [];
   }
 
@@ -167,6 +170,7 @@ export async function listAuthorityBackedNativeSessions(
       limit: options.limit,
       offset: options.offset,
       projectId,
+      runtimeLocationId,
       workspaceId,
     });
 
@@ -182,7 +186,9 @@ export async function listAuthorityBackedNativeSessions(
 export interface ReadAuthorityBackedNativeSessionRecordOptions {
   appRuntimeReadService?: NativeSessionAuthorityAppRuntimeReadService;
   engineId?: string;
+  nativeSessionId?: string | null;
   projectId?: string;
+  runtimeLocationId?: string;
   workspaceId?: string;
 }
 
@@ -194,18 +200,27 @@ export async function readAuthorityBackedNativeSessionRecord(
     return null;
   }
   const projectId = options.projectId?.trim();
+  const runtimeLocationId = options.runtimeLocationId?.trim();
   const workspaceId = options.workspaceId?.trim();
-  if (!projectId || !workspaceId) {
+  if (!projectId || !runtimeLocationId || !workspaceId) {
+    return null;
+  }
+  const nativeSessionId = normalizeBirdCoderCodeEngineNativeSessionId(
+    options.nativeSessionId ?? codingSessionId,
+    options.engineId,
+  );
+  if (!nativeSessionId) {
     return null;
   }
 
   try {
-    const detail = await options.appRuntimeReadService.getNativeSession(codingSessionId, {
+    const detail = await options.appRuntimeReadService.getNativeSession(nativeSessionId, {
       engineId: options.engineId,
       projectId,
+      runtimeLocationId,
       workspaceId,
     });
-    return toAuthorityBackedNativeSessionRecord(detail);
+    return toAuthorityBackedNativeSessionRecord(detail, codingSessionId);
   } catch (error) {
     console.error('Failed to read native session from server authority', error);
     return null;

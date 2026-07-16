@@ -9,7 +9,6 @@ export interface BirdCoderNativeSessionAttributes {
   providerVersion?: string;
   modelProvider?: string;
   projectId?: string;
-  cwd?: string;
   gitBranch?: string;
   gitCommit?: string;
   gitRepositoryUrl?: string;

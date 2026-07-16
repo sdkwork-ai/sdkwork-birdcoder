@@ -110,6 +110,10 @@
       {
         "name": "workspaceApplicationState",
         "export": "sdkwork_routes_workspace_app_api::WorkspaceAppState"
+      },
+      {
+        "name": "projectWorkspaceBindingApplicationService",
+        "export": "sdkwork_birdcoder_project_service::service::project_workspace_binding_service::ProjectWorkspaceBindingService"
       }
     ],
     "runtimeEntrypoints": [
@@ -145,4 +149,3 @@
     ]
   }
 }
-

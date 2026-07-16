@@ -10,7 +10,7 @@ import { applyWebFrameworkOpenApiExtensions } from './web-framework-openapi-exte
 
 const HTTP_METHODS = new Set(['delete', 'get', 'patch', 'post', 'put']);
 const rootDir = process.cwd();
-const assemblyPath = path.join(rootDir, 'sdks', '.sdkwork-assembly.json');
+const sdkWorkspaceComponentPath = path.join(rootDir, 'sdks', 'specs', 'component.spec.json');
 const SDK_OWNER = 'sdkwork-birdcoder';
 const AUTH_TOKEN_SCHEME = 'AuthToken';
 const ACCESS_TOKEN_SCHEME = 'AccessToken';
@@ -205,7 +205,7 @@ function resolveSurfaceFamilyRoot(surface) {
   const sdkFamily = normalizeRelativePath(surface.sdkFamily ?? '');
   assert.ok(
     sdkFamily,
-    `SDK assembly surface ${surface.id ?? surface.surface} must declare sdkFamily for family-root OpenAPI output.`,
+    `SDK family ${surface.id ?? surface.surface} must declare sdkFamily for family-root OpenAPI output.`,
   );
   return `sdks/${sdkFamily}`;
 }
@@ -224,7 +224,7 @@ function assertSurfaceSdkFamily(surface) {
   const sdkFamily = String(surface.sdkFamily ?? '').trim();
   assert.ok(
     sdkFamily,
-    `SDK assembly surface ${surface.id ?? surface.surface} must declare sdkFamily for family assembly output.`,
+    `SDK family ${surface.id ?? surface.surface} must declare sdkFamily for manifest output.`,
   );
   return sdkFamily;
 }
@@ -432,19 +432,40 @@ function createSurfaceOpenApi(canonicalDocument, surface) {
 }
 
 export function syncBirdcoderSdkOpenApi({ check = false } = {}) {
-  const assembly = readJson(assemblyPath);
+  const componentSpec = readJson(sdkWorkspaceComponentPath);
   const canonicalOpenApiRelativePath = normalizeRelativePath(
-    assembly.sourceOfTruth?.canonicalOpenApi,
+    componentSpec.contracts?.generation?.canonicalOpenApi,
   );
   assert.ok(
     canonicalOpenApiRelativePath,
-    'SDK assembly sourceOfTruth.canonicalOpenApi must declare the canonical OpenAPI snapshot.',
+    'SDK workspace component spec must declare contracts.generation.canonicalOpenApi.',
   );
   const canonicalOpenApiPath = path.join(rootDir, ...canonicalOpenApiRelativePath.split('/'));
   const canonicalDocument = readJson(canonicalOpenApiPath);
   const mismatches = [];
 
-  for (const surface of assembly.surfaces ?? []) {
+  const surfaces = fs.readdirSync(path.join(rootDir, 'sdks'), { withFileTypes: true })
+    .filter((entry) => entry.isDirectory())
+    .map((entry) => path.join(rootDir, 'sdks', entry.name, 'sdk-manifest.json'))
+    .filter((manifestPath) => fs.existsSync(manifestPath))
+    .map(readJson)
+    .filter((manifest) => manifest.sdkOwner === SDK_OWNER)
+    .map((manifest) => ({
+      apiAuthority: manifest.apiAuthority,
+      apiPrefix: manifest.discoverySurface?.apiPrefix,
+      id: manifest.sdkFamily,
+      inputSpecPath: manifest.metadata?.generation?.sourceSpec,
+      packageName: manifest.packageName,
+      rootDir: `sdks/${manifest.sdkFamily}`,
+      sdkDependencies: manifest.sdkDependencies,
+      sdkFamily: manifest.sdkFamily,
+      standardProfile: manifest.standardProfile,
+      surface: manifest.discoverySurface?.sdkTarget,
+      version: manifest.apiVersion,
+    }));
+
+  for (const surface of surfaces) {
+    assert.ok(surface.inputSpecPath, `${surface.sdkFamily} must declare metadata.generation.sourceSpec.`);
     const surfaceDocument = createSurfaceOpenApi(canonicalDocument, surface);
     applyWebFrameworkOpenApiExtensions(
       surfaceDocument,

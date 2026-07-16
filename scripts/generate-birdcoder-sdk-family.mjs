@@ -176,42 +176,47 @@ function removeStaleGeneratedFiles(outputDir, expectedRelativePaths, { check = f
   }
 }
 
-function loadAssembly(rootDir) {
-  return readJsonFile(path.join(rootDir, 'sdks', '.sdkwork-assembly.json'));
+function discoverFamilyManifests(rootDir) {
+  const sdksRoot = path.join(rootDir, 'sdks');
+  return fs.readdirSync(sdksRoot, { withFileTypes: true })
+    .filter((entry) => entry.isDirectory())
+    .map((entry) => path.join(sdksRoot, entry.name, 'sdk-manifest.json'))
+    .filter((manifestPath) => fs.existsSync(manifestPath))
+    .map(readJsonFile)
+    .filter((manifest) => manifest.sdkOwner === 'sdkwork-birdcoder');
 }
 
-function resolveSurfacePlansFromAssembly(rootDir, requestedSurface = '') {
-  const assembly = loadAssembly(rootDir);
-  if (assembly.standardProfile !== STANDARD_PROFILE) {
-    throw new Error(`BirdCoder SDK assembly must use ${STANDARD_PROFILE}.`);
-  }
-
-  return (assembly.surfaces ?? [])
-    .filter((surface) => !requestedSurface || surface.surface === requestedSurface)
-    .map((surface) => {
-      const outputs = new Map((surface.outputs ?? []).map((output) => [output.language, output]));
-      const typescriptOutput = outputs.get('typescript');
-      const rustOutput = outputs.get('rust');
-      if (!typescriptOutput || !rustOutput) {
-        throw new Error(`Surface ${surface.id} must declare TypeScript and Rust outputs.`);
+function resolveSurfacePlansFromManifests(rootDir, requestedSurface = '') {
+  return discoverFamilyManifests(rootDir)
+    .map((manifest) => {
+      const surface = manifest.discoverySurface?.sdkTarget;
+      const languages = new Map((manifest.languages ?? []).map((entry) => [entry.language, entry]));
+      const typescript = languages.get('typescript');
+      const rust = languages.get('rust');
+      const input = manifest.metadata?.generation?.sourceSpec;
+      if (!surface || !typescript || !rust || !input) {
+        throw new Error(`${manifest.sdkFamily} must declare its surface, source spec, TypeScript, and Rust workspaces.`);
       }
-
+      if (manifest.standardProfile !== STANDARD_PROFILE) {
+        throw new Error(`${manifest.sdkFamily} must use ${STANDARD_PROFILE}.`);
+      }
       return {
-        apiPrefix: surface.apiPrefix,
-        crateName: rustOutput.crateName,
-        input: surface.inputSpecPath,
-        packageName: surface.packageName,
-        rustOutput: rustOutput.path,
-        standardProfile: surface.standardProfile,
-        surface: surface.surface,
-        typescriptOutput: typescriptOutput.path,
+        apiPrefix: manifest.discoverySurface.apiPrefix,
+        crateName: String(rust.name ?? manifest.sdkFamily).replace(/-/gu, '_'),
+        input,
+        packageName: manifest.packageName,
+        rustOutput: `sdks/${manifest.sdkFamily}/${rust.workspace}`,
+        standardProfile: manifest.standardProfile,
+        surface,
+        typescriptOutput: `sdks/${manifest.sdkFamily}/${typescript.workspace}`,
       };
-    });
+    })
+    .filter((plan) => !requestedSurface || plan.surface === requestedSurface);
 }
 
 function resolvePlans(rootDir, options) {
   if (!options.input && !options.typescriptOutput && !options.rustOutput) {
-    return resolveSurfacePlansFromAssembly(rootDir, options.surface);
+    return resolveSurfacePlansFromManifests(rootDir, options.surface);
   }
 
   const required = [

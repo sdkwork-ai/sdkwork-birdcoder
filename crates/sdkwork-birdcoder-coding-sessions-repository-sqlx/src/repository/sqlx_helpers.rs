@@ -146,6 +146,7 @@ mod tests {
 
         let context = CodingSessionContext {
             tenant_id: "1".to_owned(),
+            organization_id: "0".to_owned(),
             user_id: "1".to_owned(),
             session_id: "scope-test".to_owned(),
         };

@@ -6,14 +6,12 @@ import {
   isBirdCoderCodeEngineUserQuestionToolName,
   parseBirdCoderApiJson,
   resolveBirdCoderCodeEngineApprovalId,
-  resolveBirdCoderCodeEngineCheckpointId,
   resolveBirdCoderCodeEngineToolCallId,
   resolveBirdCoderCodeEngineUserQuestionId,
 } from '@sdkwork/birdcoder-pc-types';
 import type {
   BirdCoderApprovalDecisionResult,
   BirdCoderCodingSessionArtifact,
-  BirdCoderCodingSessionCheckpoint,
   BirdCoderCodingSessionEvent,
   BirdCoderSubmitApprovalDecisionRequest,
   BirdCoderSubmitUserQuestionAnswerRequest,
@@ -49,8 +47,8 @@ export interface BirdCoderCodingSessionProjectionState
 export interface BirdCoderCodingSessionPendingApproval {
   approvalId: string;
   artifactIds: string[];
-  checkpointId: string;
   codingSessionId: string;
+  interactionEventId: string;
   operationId?: string;
   reason?: string;
   runtimeId?: string;
@@ -76,8 +74,8 @@ export interface BirdCoderCodingSessionPendingUserQuestionPrompt {
 }
 
 export interface BirdCoderCodingSessionPendingUserQuestion {
-  checkpointId?: string;
   codingSessionId: string;
+  interactionEventId: string;
   prompt: string;
   questionId: string;
   questions: BirdCoderCodingSessionPendingUserQuestionPrompt[];
@@ -168,18 +166,6 @@ function compareCodingSessionEventChronology(
   return left.id.localeCompare(right.id);
 }
 
-function compareCodingSessionCheckpointChronology(
-  left: BirdCoderCodingSessionCheckpoint,
-  right: BirdCoderCodingSessionCheckpoint,
-): number {
-  const createdAtComparison = compareOptionalTimestamp(left.createdAt, right.createdAt);
-  if (createdAtComparison !== 0) {
-    return createdAtComparison;
-  }
-
-  return left.id.localeCompare(right.id);
-}
-
 function normalizePendingApprovals(
   approvals: BirdCoderCodingSessionPendingApproval[],
 ): BirdCoderCodingSessionPendingApproval[] {
@@ -189,14 +175,17 @@ function normalizePendingApprovals(
 
   const pendingByApprovalId = new Map<string, BirdCoderCodingSessionPendingApproval>();
   for (const approval of approvals) {
+    const interactionEventId = approval.interactionEventId.trim();
     const approvalId = approval.approvalId.trim();
-    if (!approvalId) {
+    if (!interactionEventId || !approvalId) {
       continue;
     }
 
     pendingByApprovalId.set(
       approvalId,
-      approvalId === approval.approvalId ? approval : { ...approval, approvalId },
+      interactionEventId === approval.interactionEventId && approvalId === approval.approvalId
+        ? approval
+        : { ...approval, approvalId, interactionEventId },
     );
   }
 
@@ -213,14 +202,17 @@ function normalizePendingUserQuestions(
 
   const pendingByQuestionId = new Map<string, BirdCoderCodingSessionPendingUserQuestion>();
   for (const question of questions) {
+    const interactionEventId = question.interactionEventId.trim();
     const questionId = question.questionId.trim();
-    if (!questionId) {
+    if (!interactionEventId || !questionId) {
       continue;
     }
 
     pendingByQuestionId.set(
       questionId,
-      questionId === question.questionId ? question : { ...question, questionId },
+      interactionEventId === question.interactionEventId && questionId === question.questionId
+        ? question
+        : { ...question, interactionEventId, questionId },
     );
   }
 
@@ -370,17 +362,25 @@ function readUserQuestionPrompts(
 }
 
 function isUserQuestionEvent(event: BirdCoderCodingSessionEvent): boolean {
-  if (event.kind !== 'tool.call.requested' && event.kind !== 'tool.call.progress') {
-    return false;
-  }
+  return (
+    event.kind === 'user.question.required' &&
+    readStringRecordField(event.payload, 'interactionKind') === 'user_question' &&
+    Boolean(readStringRecordField(event.payload, 'interactionId'))
+  );
+}
 
-  const toolName =
-    readStringRecordField(event.payload, 'toolName') ??
-    readStringRecordField(event.payload, 'name');
-  return isBirdCoderCodeEngineUserQuestionToolName(toolName);
+function readInteractionEventId(
+  event: BirdCoderCodingSessionEvent,
+  toolArguments: Record<string, unknown> | null = readEventToolArguments(event),
+): string | undefined {
+  return (
+    readStringRecordField(event.payload, 'interactionEventId') ??
+    readStringRecordField(toolArguments ?? undefined, 'interactionEventId')
+  );
 }
 
 function readUserQuestionEventIdentity(event: BirdCoderCodingSessionEvent): {
+  interactionEventId?: string;
   questionId?: string;
   toolCallId?: string;
 } {
@@ -389,13 +389,17 @@ function readUserQuestionEventIdentity(event: BirdCoderCodingSessionEvent): {
     payload: event.payload,
     toolArguments: args,
   });
-  const questionId = resolveBirdCoderCodeEngineUserQuestionId({
-    payload: event.payload,
-    toolArguments: args,
-    toolCallId,
-  });
+  const interactionEventId = event.id.trim() || undefined;
+  const questionId =
+    readStringRecordField(event.payload, 'interactionId') ??
+    resolveBirdCoderCodeEngineUserQuestionId({
+      payload: event.payload,
+      toolArguments: args,
+      toolCallId,
+    });
 
   return {
+    interactionEventId,
     questionId,
     toolCallId,
   };
@@ -486,6 +490,10 @@ function deriveSettledUserQuestionKeys(
     if (toolCallId) {
       settledKeys.add(`tool:${toolCallId}`);
     }
+    const interactionEventId = readInteractionEventId(event, args);
+    if (interactionEventId) {
+      settledKeys.add(`event:${interactionEventId}`);
+    }
   }
 
   return settledKeys;
@@ -532,20 +540,21 @@ function deriveSettledApprovalKeys(
       continue;
     }
 
-    const approvalId = resolveBirdCoderCodeEngineApprovalId({
-      payload: event.payload,
-      toolArguments: args,
-    });
-    const checkpointId = resolveBirdCoderCodeEngineCheckpointId({
-      payload: event.payload,
-      toolArguments: args,
-    });
+    const approvalId =
+      resolveBirdCoderCodeEngineApprovalId({
+        payload: event.payload,
+        toolArguments: args,
+      }) ??
+      (readStringRecordField(event.payload, 'interactionKind') === 'approval'
+        ? readStringRecordField(event.payload, 'interactionId')
+        : undefined);
+    const interactionEventId = readInteractionEventId(event, args);
 
     if (approvalId) {
       settledKeys.add(`approval:${approvalId}`);
     }
-    if (checkpointId) {
-      settledKeys.add(`checkpoint:${checkpointId}`);
+    if (interactionEventId) {
+      settledKeys.add(`event:${interactionEventId}`);
     }
   }
 
@@ -593,6 +602,10 @@ function deriveSettledPendingInteractionKeys(
       if (toolCallId) {
         userQuestionKeys.add(`tool:${toolCallId}`);
       }
+      const interactionEventId = readInteractionEventId(event, args);
+      if (interactionEventId) {
+        userQuestionKeys.add(`event:${interactionEventId}`);
+      }
     }
 
     if (hasSettledApprovalLifecycle(event, args)) {
@@ -600,16 +613,13 @@ function deriveSettledPendingInteractionKeys(
         payload: event.payload,
         toolArguments: args,
       });
-      const checkpointId = resolveBirdCoderCodeEngineCheckpointId({
-        payload: event.payload,
-        toolArguments: args,
-      });
+      const interactionEventId = readInteractionEventId(event, args);
 
       if (approvalId) {
         approvalKeys.add(`approval:${approvalId}`);
       }
-      if (checkpointId) {
-        approvalKeys.add(`checkpoint:${checkpointId}`);
+      if (interactionEventId) {
+        approvalKeys.add(`event:${interactionEventId}`);
       }
     }
   }
@@ -620,14 +630,7 @@ function deriveSettledPendingInteractionKeys(
   };
 }
 
-interface PendingApprovalIndexedEvent {
-  event: BirdCoderCodingSessionEvent;
-  order: number;
-}
-
 interface PendingApprovalDerivationIndex {
-  approvalEventsByApprovalId: Map<string, PendingApprovalIndexedEvent>;
-  approvalEventsByRuntimeId: Map<string, PendingApprovalIndexedEvent>;
   artifactIdsByOperationId: Map<string, string[]>;
   artifactIdsByTurnId: Map<string, string[]>;
   artifactOrderById: Map<string, number>;
@@ -642,8 +645,6 @@ interface PendingInteractionDerivationIndex {
 }
 
 const EMPTY_PENDING_APPROVAL_DERIVATION_INDEX: PendingApprovalDerivationIndex = {
-  approvalEventsByApprovalId: new Map<string, PendingApprovalIndexedEvent>(),
-  approvalEventsByRuntimeId: new Map<string, PendingApprovalIndexedEvent>(),
   artifactIdsByOperationId: new Map<string, string[]>(),
   artifactIdsByTurnId: new Map<string, string[]>(),
   artifactOrderById: new Map<string, number>(),
@@ -668,51 +669,13 @@ function appendPendingApprovalArtifactId(
   index.set(key, [artifactId]);
 }
 
-function keepNewestPendingApprovalEvent(
-  index: Map<string, PendingApprovalIndexedEvent>,
-  key: string | undefined,
-  event: PendingApprovalIndexedEvent,
-): void {
-  if (!key || index.has(key)) {
-    return;
-  }
-
-  index.set(key, event);
-}
-
 function buildPendingApprovalDerivationIndex(
   projection: BirdCoderCodingSessionProjection,
-  eventsByChronology: readonly BirdCoderCodingSessionEvent[] =
-    [...projection.events].sort(compareCodingSessionEventChronology),
 ): PendingApprovalDerivationIndex {
-  const approvalEventsByApprovalId = new Map<string, PendingApprovalIndexedEvent>();
-  const approvalEventsByRuntimeId = new Map<string, PendingApprovalIndexedEvent>();
   const artifactIdsByOperationId = new Map<string, string[]>();
   const artifactIdsByTurnId = new Map<string, string[]>();
   const artifactOrderById = new Map<string, number>();
   const firstOperationIdByTurnId = new Map<string, string>();
-
-  let order = 0;
-  for (let index = eventsByChronology.length - 1; index >= 0; index -= 1) {
-    const event = eventsByChronology[index]!;
-    if (event.kind !== 'approval.required') {
-      continue;
-    }
-
-    const toolArguments = readEventToolArguments(event);
-    const approvalId = resolveBirdCoderCodeEngineApprovalId({
-      payload: event.payload,
-      toolArguments,
-    });
-    const runtimeId = event.runtimeId?.trim() || undefined;
-    const indexedEvent = {
-      event,
-      order,
-    };
-    keepNewestPendingApprovalEvent(approvalEventsByApprovalId, approvalId, indexedEvent);
-    keepNewestPendingApprovalEvent(approvalEventsByRuntimeId, runtimeId, indexedEvent);
-    order += 1;
-  }
 
   projection.artifacts.forEach((artifact, order) => {
     artifactOrderById.set(artifact.id, order);
@@ -726,8 +689,6 @@ function buildPendingApprovalDerivationIndex(
   });
 
   return {
-    approvalEventsByApprovalId,
-    approvalEventsByRuntimeId,
     artifactIdsByOperationId,
     artifactIdsByTurnId,
     artifactOrderById,
@@ -744,29 +705,10 @@ function buildPendingInteractionDerivationIndex(
 
   return {
     eventsByChronology,
-    pendingApprovalIndex: buildPendingApprovalDerivationIndex(projection, eventsByChronology),
+    pendingApprovalIndex: buildPendingApprovalDerivationIndex(projection),
     settledApprovalKeys: settledKeys.approvalKeys,
     settledUserQuestionKeys: settledKeys.userQuestionKeys,
   };
-}
-
-function resolvePendingApprovalEvent(
-  index: PendingApprovalDerivationIndex,
-  approvalId: string,
-  runtimeId: string | undefined,
-): BirdCoderCodingSessionEvent | undefined {
-  const approvalEvent = index.approvalEventsByApprovalId.get(approvalId);
-  const runtimeEvent = runtimeId ? index.approvalEventsByRuntimeId.get(runtimeId) : undefined;
-  if (!approvalEvent) {
-    return runtimeEvent?.event;
-  }
-  if (!runtimeEvent) {
-    return approvalEvent.event;
-  }
-
-  return approvalEvent.order <= runtimeEvent.order
-    ? approvalEvent.event
-    : runtimeEvent.event;
 }
 
 function resolvePendingApprovalArtifactIds(
@@ -800,12 +742,11 @@ function resolvePendingApprovalArtifactIds(
 export function deriveCodingSessionPendingApprovals(
   projection: BirdCoderCodingSessionProjection,
 ): BirdCoderCodingSessionPendingApproval[] {
-  const pendingApprovalIndex = buildPendingApprovalDerivationIndex(projection);
+  const eventsByChronology = [...projection.events].sort(compareCodingSessionEventChronology);
   return deriveCodingSessionPendingApprovalsFromIndex(
-    projection,
     {
-      eventsByChronology: projection.events,
-      pendingApprovalIndex,
+      eventsByChronology,
+      pendingApprovalIndex: buildPendingApprovalDerivationIndex(projection),
       settledApprovalKeys: deriveSettledApprovalKeys(projection.events),
       settledUserQuestionKeys: EMPTY_SETTLED_USER_QUESTION_KEYS,
     },
@@ -815,62 +756,64 @@ export function deriveCodingSessionPendingApprovals(
 const EMPTY_SETTLED_USER_QUESTION_KEYS = new Set<string>();
 
 function deriveCodingSessionPendingApprovalsFromIndex(
-  projection: BirdCoderCodingSessionProjection,
   index: PendingInteractionDerivationIndex,
 ): BirdCoderCodingSessionPendingApproval[] {
-  const approvals = [...projection.checkpoints]
-    .sort(compareCodingSessionCheckpointChronology)
-    .filter((checkpoint) => checkpoint.checkpointKind === 'approval' && checkpoint.resumable)
-    .map<BirdCoderCodingSessionPendingApproval | null>((checkpoint) => {
-      const state = checkpoint.state ?? {};
-      const approvalId = resolveBirdCoderCodeEngineApprovalId({
-        checkpointState: state,
+  const pendingByInteractionEventId = new Map<
+    string,
+    BirdCoderCodingSessionPendingApproval
+  >();
+
+  for (const event of index.eventsByChronology) {
+    if (
+      event.kind !== 'approval.required' ||
+      readStringRecordField(event.payload, 'interactionKind') !== 'approval'
+    ) {
+      continue;
+    }
+
+    const interactionEventId = event.id.trim();
+    const toolArguments = readEventToolArguments(event);
+    const approvalId =
+      readStringRecordField(event.payload, 'interactionId') ??
+      resolveBirdCoderCodeEngineApprovalId({
+        payload: event.payload,
+        toolArguments,
       });
-      if (!approvalId) {
-        return null;
-      }
-      if (
-        index.settledApprovalKeys.has(`approval:${approvalId}`) ||
-        index.settledApprovalKeys.has(`checkpoint:${checkpoint.id}`)
-      ) {
-        return null;
-      }
+    if (
+      !interactionEventId ||
+      !approvalId ||
+      readStringRecordField(event.payload, 'settledAt') ||
+      index.settledApprovalKeys.has(`event:${interactionEventId}`) ||
+      index.settledApprovalKeys.has(`approval:${approvalId}`)
+    ) {
+      continue;
+    }
 
-      const approvalEvent = resolvePendingApprovalEvent(
-        index.pendingApprovalIndex,
-        approvalId,
-        checkpoint.runtimeId,
-      );
-      const runtimeId =
-        readStringRecordField(state, 'runtimeId') ??
-        checkpoint.runtimeId ??
-        approvalEvent?.runtimeId ??
-        undefined;
-      const turnId =
-        readStringRecordField(state, 'turnId') ?? approvalEvent?.turnId ?? undefined;
-      const operationId =
-        readStringRecordField(state, 'operationId') ??
-        readStringRecordField(approvalEvent?.payload, 'operationId') ??
-        index.pendingApprovalIndex.firstOperationIdByTurnId.get(turnId ?? '');
-      const artifactIds = resolvePendingApprovalArtifactIds(
-        index.pendingApprovalIndex,
-        turnId,
-        operationId,
-      );
+    const turnId = event.turnId?.trim() || undefined;
+    const operationId =
+      readStringRecordField(event.payload, 'operationId') ??
+      readStringRecordField(toolArguments ?? undefined, 'operationId') ??
+      index.pendingApprovalIndex.firstOperationIdByTurnId.get(turnId ?? '');
+    const artifactIds = resolvePendingApprovalArtifactIds(
+      index.pendingApprovalIndex,
+      turnId,
+      operationId,
+    );
+    pendingByInteractionEventId.set(interactionEventId, {
+      approvalId,
+      artifactIds,
+      codingSessionId: event.codingSessionId,
+      interactionEventId,
+      operationId,
+      reason:
+        readStringRecordField(event.payload, 'reason') ??
+        readStringRecordField(toolArguments ?? undefined, 'reason'),
+      runtimeId: event.runtimeId?.trim() || undefined,
+      turnId,
+    });
+  }
 
-      return {
-        approvalId,
-        artifactIds,
-        checkpointId: checkpoint.id,
-        codingSessionId: checkpoint.codingSessionId,
-        operationId,
-        reason: readStringRecordField(state, 'reason'),
-        runtimeId,
-        turnId,
-      } satisfies BirdCoderCodingSessionPendingApproval;
-    })
-    .filter((approval): approval is BirdCoderCodingSessionPendingApproval => approval !== null);
-  return normalizePendingApprovals(approvals);
+  return normalizePendingApprovals([...pendingByInteractionEventId.values()]);
 }
 
 export function deriveCodingSessionPendingUserQuestions(
@@ -889,36 +832,40 @@ const EMPTY_SETTLED_APPROVAL_KEYS = new Set<string>();
 function deriveCodingSessionPendingUserQuestionsFromIndex(
   index: PendingInteractionDerivationIndex,
 ): BirdCoderCodingSessionPendingUserQuestion[] {
-  const pendingByQuestionKey = new Map<string, BirdCoderCodingSessionPendingUserQuestion>();
+  const pendingByInteractionEventId = new Map<
+    string,
+    BirdCoderCodingSessionPendingUserQuestion
+  >();
 
   for (const event of index.eventsByChronology) {
     if (!isUserQuestionEvent(event)) {
       continue;
     }
 
-    const args = readEventToolArguments(event);
+    const args = readEventToolArguments(event) ?? event.payload;
     const questions = readUserQuestionPrompts(args);
     if (questions.length === 0) {
       continue;
     }
 
-    const { questionId, toolCallId } = readUserQuestionEventIdentity(event);
-    if (!questionId) {
+    const { interactionEventId, questionId, toolCallId } = readUserQuestionEventIdentity(event);
+    if (!interactionEventId || !questionId) {
       continue;
     }
     if (
+      readStringRecordField(event.payload, 'settledAt') ||
+      index.settledUserQuestionKeys.has(`event:${interactionEventId}`) ||
       index.settledUserQuestionKeys.has(`question:${questionId}`) ||
       (toolCallId ? index.settledUserQuestionKeys.has(`tool:${toolCallId}`) : false)
     ) {
       continue;
     }
 
-    const key = toolCallId ? `tool:${toolCallId}` : `question:${questionId}`;
-    pendingByQuestionKey.set(key, {
-      questionId,
-      checkpointId: undefined,
+    pendingByInteractionEventId.set(interactionEventId, {
       codingSessionId: event.codingSessionId,
+      interactionEventId,
       prompt: questions[0]?.question ?? questionId,
+      questionId,
       runtimeId: event.runtimeId,
       toolCallId,
       turnId: event.turnId,
@@ -926,7 +873,7 @@ function deriveCodingSessionPendingUserQuestionsFromIndex(
     });
   }
 
-  return normalizePendingUserQuestions([...pendingByQuestionKey.values()]);
+  return normalizePendingUserQuestions([...pendingByInteractionEventId.values()]);
 }
 
 type BirdCoderCodingSessionApprovalReader = BirdCoderCodingSessionProjectionReader;
@@ -982,7 +929,7 @@ export async function loadCodingSessionPendingInteractionState(
 
   const pendingInteractionIndex = buildPendingInteractionDerivationIndex(projection);
   return normalizePendingInteractions({
-    approvals: deriveCodingSessionPendingApprovalsFromIndex(projection, pendingInteractionIndex),
+    approvals: deriveCodingSessionPendingApprovalsFromIndex(pendingInteractionIndex),
     questions: deriveCodingSessionPendingUserQuestionsFromIndex(pendingInteractionIndex),
   });
 }
@@ -990,19 +937,27 @@ export async function loadCodingSessionPendingInteractionState(
 export async function submitCodingSessionApprovalDecision(
   appRuntimeWriteService: Pick<IAppRuntimeWriteService, 'submitApprovalDecision'>,
   codingSessionId: string,
-  checkpointId: string,
+  interactionEventId: string,
   request: BirdCoderSubmitApprovalDecisionRequest,
 ): Promise<BirdCoderApprovalDecisionResult> {
-  return appRuntimeWriteService.submitApprovalDecision(codingSessionId, checkpointId, request);
+  return appRuntimeWriteService.submitApprovalDecision(
+    codingSessionId,
+    interactionEventId,
+    request,
+  );
 }
 
 export async function submitCodingSessionUserQuestionAnswer(
   appRuntimeWriteService: Pick<IAppRuntimeWriteService, 'submitUserQuestionAnswer'>,
   codingSessionId: string,
-  questionId: string,
+  interactionEventId: string,
   request: BirdCoderSubmitUserQuestionAnswerRequest,
 ): Promise<BirdCoderUserQuestionAnswerResult> {
-  return appRuntimeWriteService.submitUserQuestionAnswer(codingSessionId, questionId, request);
+  return appRuntimeWriteService.submitUserQuestionAnswer(
+    codingSessionId,
+    interactionEventId,
+    request,
+  );
 }
 
 export function useCodingSessionProjection(
@@ -1144,15 +1099,19 @@ export function useCodingSessionApprovalState(
   }, [codingSessionId, appRuntimeReadService]);
 
   const submitApprovalDecision = useCallback(
-    async (approvalId: string, request: BirdCoderSubmitApprovalDecisionRequest) => {
-      const pendingApproval = state.approvals.find((approval) => approval.approvalId === approvalId);
+    async (interactionEventId: string, request: BirdCoderSubmitApprovalDecisionRequest) => {
+      const pendingApproval = state.approvals.find(
+        (approval) => approval.interactionEventId === interactionEventId,
+      );
       if (!pendingApproval) {
-        throw new Error(`Approval ${approvalId} was not found in the current coding session.`);
+        throw new Error(
+          `Approval interaction ${interactionEventId} was not found in the current coding session.`,
+        );
       }
       const decision = await submitCodingSessionApprovalDecision(
         appRuntimeWriteService,
         pendingApproval.codingSessionId,
-        pendingApproval.checkpointId,
+        pendingApproval.interactionEventId,
         request,
       );
       await refreshApprovals();
@@ -1246,15 +1205,19 @@ export function useCodingSessionPendingInteractionState(
   }, [codingSessionId, appRuntimeReadService, expectedProjectId, normalizedScopeKey]);
 
   const submitApprovalDecision = useCallback(
-    async (approvalId: string, request: BirdCoderSubmitApprovalDecisionRequest) => {
-      const pendingApproval = state.approvals.find((approval) => approval.approvalId === approvalId);
+    async (interactionEventId: string, request: BirdCoderSubmitApprovalDecisionRequest) => {
+      const pendingApproval = state.approvals.find(
+        (approval) => approval.interactionEventId === interactionEventId,
+      );
       if (!pendingApproval) {
-        throw new Error(`Approval ${approvalId} was not found in the current coding session.`);
+        throw new Error(
+          `Approval interaction ${interactionEventId} was not found in the current coding session.`,
+        );
       }
       const decision = await submitCodingSessionApprovalDecision(
         appRuntimeWriteService,
         pendingApproval.codingSessionId,
-        pendingApproval.checkpointId,
+        pendingApproval.interactionEventId,
         request,
       );
       await refreshPendingInteractions();
@@ -1264,20 +1227,25 @@ export function useCodingSessionPendingInteractionState(
   );
 
   const submitUserQuestionAnswer = useCallback(
-    async (questionId: string, request: BirdCoderSubmitUserQuestionAnswerRequest) => {
-      if (!codingSessionId) {
-        throw new Error('Coding session id is required to submit a user-question answer.');
+    async (interactionEventId: string, request: BirdCoderSubmitUserQuestionAnswerRequest) => {
+      const pendingQuestion = state.questions.find(
+        (question) => question.interactionEventId === interactionEventId,
+      );
+      if (!pendingQuestion) {
+        throw new Error(
+          `User-question interaction ${interactionEventId} was not found in the current coding session.`,
+        );
       }
       const answer = await submitCodingSessionUserQuestionAnswer(
         appRuntimeWriteService,
-        codingSessionId,
-        questionId,
+        pendingQuestion.codingSessionId,
+        pendingQuestion.interactionEventId,
         request,
       );
       await refreshPendingInteractions();
       return answer;
     },
-    [appRuntimeWriteService, codingSessionId, refreshPendingInteractions],
+    [appRuntimeWriteService, refreshPendingInteractions, state.questions],
   );
 
   useEffect(() => {
@@ -1356,20 +1324,25 @@ export function useCodingSessionUserQuestionState(
   }, [codingSessionId, appRuntimeReadService]);
 
   const submitUserQuestionAnswer = useCallback(
-    async (questionId: string, request: BirdCoderSubmitUserQuestionAnswerRequest) => {
-      if (!codingSessionId) {
-        throw new Error('Coding session id is required to submit a user-question answer.');
+    async (interactionEventId: string, request: BirdCoderSubmitUserQuestionAnswerRequest) => {
+      const pendingQuestion = state.questions.find(
+        (question) => question.interactionEventId === interactionEventId,
+      );
+      if (!pendingQuestion) {
+        throw new Error(
+          `User-question interaction ${interactionEventId} was not found in the current coding session.`,
+        );
       }
       const answer = await submitCodingSessionUserQuestionAnswer(
         appRuntimeWriteService,
-        codingSessionId,
-        questionId,
+        pendingQuestion.codingSessionId,
+        pendingQuestion.interactionEventId,
         request,
       );
       await refreshQuestions();
       return answer;
     },
-    [appRuntimeWriteService, codingSessionId, refreshQuestions],
+    [appRuntimeWriteService, refreshQuestions, state.questions],
   );
 
   useEffect(() => {

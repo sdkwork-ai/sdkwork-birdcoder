@@ -1,12 +1,15 @@
 use sdkwork_birdcoder_coding_sessions_repository_sqlx::db::schema::PROVIDER_AUTHORITY_SCHEMA;
 use sdkwork_birdcoder_coding_sessions_repository_sqlx::repository::coding_session_repository::SqliteCodingSessionRepository;
 use sdkwork_birdcoder_coding_sessions_service::context::CodingSessionContext;
+use std::collections::BTreeMap;
+
+use sdkwork_birdcoder_coding_sessions_service::domain::commands::AppendCodingSessionRealtimeEventInput;
 use sdkwork_birdcoder_coding_sessions_service::domain::models::{
     ClaimCodingSessionOperationInput, CompleteCodingSessionOperationInput,
     EnqueueCodingSessionOperationInput, FailCodingSessionOperationInput,
 };
 use sdkwork_birdcoder_coding_sessions_service::domain::results::{
-    CodingSessionTurnPayload, FinalizedProjectionTurnExecution,
+    CodingSessionEventPayload, CodingSessionTurnPayload, FinalizedProjectionTurnExecution,
 };
 use sdkwork_birdcoder_coding_sessions_service::error::CodingSessionError;
 use sdkwork_birdcoder_coding_sessions_service::ports::repository::CodingSessionRepository;
@@ -24,14 +27,22 @@ async fn setup_repository() -> (SqliteCodingSessionRepository, AnyPool) {
         .await
         .expect("create provider authority schema");
     sqlx::query(
-        "INSERT INTO studio_workspace +         (id, tenant_id, created_at, updated_at, name, owner_id, status) +         VALUES (101, 7, '2026-07-11T00:00:00Z', '2026-07-11T00:00:00Z', +                 'Queue workspace', 42, 'active')",
+        "INSERT INTO studio_workspace \
+         (id, tenant_id, created_at, updated_at, name, owner_id, status) \
+         VALUES (101, 7, '2026-07-11T00:00:00Z', '2026-07-11T00:00:00Z', \
+                 'Queue workspace', 42, 'active')",
     )
     .execute(&pool)
     .await
     .expect("seed workspace");
     for (session_id, user_id) in [("session-1", 42_i64), ("session-2", 43_i64)] {
         sqlx::query(
-            "INSERT INTO ai_coding_session +             (id, tenant_id, user_id, created_at, updated_at, workspace_id, project_id, title, +              status, entry_surface, host_mode, engine_id, model_id) +             VALUES (?, 7, ?, '2026-07-11T00:00:00Z', '2026-07-11T00:00:00Z', +                     '101', 'project-1', 'Queue session', 'active', 'pc', 'server', +                     'codex', 'gpt-5-codex')",
+            "INSERT INTO ai_coding_session \
+             (id, tenant_id, user_id, created_at, updated_at, workspace_id, project_id, runtime_location_id, title, \
+              status, entry_surface, host_mode, engine_id, model_id) \
+             VALUES (?, 7, ?, '2026-07-11T00:00:00Z', '2026-07-11T00:00:00Z', \
+                     '101', 'project-1', 'runtime-location-1', 'Queue session', 'active', 'pc', 'server', \
+                     'codex', 'gpt-5-codex')",
         )
         .bind(session_id)
         .bind(user_id)
@@ -45,7 +56,11 @@ async fn setup_repository() -> (SqliteCodingSessionRepository, AnyPool) {
         ("turn-3", "session-2", 43_i64),
     ] {
         sqlx::query(
-            "INSERT INTO ai_coding_session_turn +             (id, tenant_id, user_id, created_at, updated_at, coding_session_id, runtime_id, +              request_kind, status, input_summary) +             VALUES (?, 7, ?, '2026-07-11T00:00:00Z', '2026-07-11T00:00:00Z', +                     ?, ?, 'user_message', 'queued', 'durable request')",
+            "INSERT INTO ai_coding_session_turn \
+             (id, tenant_id, user_id, created_at, updated_at, coding_session_id, runtime_id, \
+              request_kind, status, input_summary) \
+             VALUES (?, 7, ?, '2026-07-11T00:00:00Z', '2026-07-11T00:00:00Z', \
+                     ?, ?, 'user_message', 'queued', 'durable request')",
         )
         .bind(turn_id)
         .bind(user_id)
@@ -61,6 +76,7 @@ async fn setup_repository() -> (SqliteCodingSessionRepository, AnyPool) {
 fn context(user_id: i64) -> CodingSessionContext {
     CodingSessionContext {
         tenant_id: "7".to_owned(),
+        organization_id: "0".to_owned(),
         user_id: user_id.to_string(),
         session_id: format!("request-{user_id}"),
     }
@@ -81,7 +97,7 @@ fn enqueue_input(
         request_payload: serde_json::json!({
             "codingSessionId": session_id,
             "turnId": turn_id,
-            "workingDirectory": "C:/workspace/project",
+            "runtimeLocationId": "runtime-location-1",
         }),
         request_fingerprint: fingerprint.to_owned(),
         idempotency_key: idempotency_key.to_owned(),
@@ -121,9 +137,27 @@ fn finalized_turn(session_id: &str, turn_id: &str) -> FinalizedProjectionTurnExe
     }
 }
 
+fn durable_delta(turn_id: &str, content_delta: &str) -> AppendCodingSessionRealtimeEventInput {
+    let mut payload = BTreeMap::new();
+    payload.insert(
+        "contentDelta".to_owned(),
+        serde_json::Value::String(content_delta.to_owned()),
+    );
+    payload.insert(
+        "role".to_owned(),
+        serde_json::Value::String("assistant".to_owned()),
+    );
+    AppendCodingSessionRealtimeEventInput {
+        turn_id: Some(turn_id.to_owned()),
+        runtime_id: Some(format!("runtime-{turn_id}")),
+        kind: "message.delta".to_owned(),
+        payload,
+    }
+}
+
 #[tokio::test]
 async fn enqueue_is_idempotent_and_owner_scoped() {
-    let (repository, _) = setup_repository().await;
+    let (repository, pool) = setup_repository().await;
     let owner = context(42);
     let input = enqueue_input(
         "operation-1",
@@ -144,6 +178,25 @@ async fn enqueue_is_idempotent_and_owner_scoped() {
         .expect("return original operation");
     assert_eq!(duplicate.id, first.id);
     assert_eq!(duplicate.idempotency_key.as_deref(), Some("request-1"));
+
+    let persisted_request_payload: String = sqlx::query_scalar(
+        "SELECT request_payload_json FROM ai_coding_session_operation WHERE id = ?",
+    )
+    .bind(&first.id)
+    .fetch_one(&pool)
+    .await
+    .expect("load durable operation request payload");
+    let persisted_request_payload: serde_json::Value =
+        serde_json::from_str(&persisted_request_payload)
+            .expect("parse durable operation request payload");
+    assert_eq!(
+        persisted_request_payload["runtimeLocationId"],
+        "runtime-location-1"
+    );
+    assert!(
+        persisted_request_payload.get("workingDirectory").is_none(),
+        "durable coding-session operations must never persist a filesystem execution path"
+    );
 
     let conflicting = EnqueueCodingSessionOperationInput {
         request_fingerprint: "hash-2".to_owned(),
@@ -364,12 +417,225 @@ async fn claim_recovery_and_fencing_preserve_single_user_execution() {
             .expect("load failed turn");
     assert_eq!(turn_status, "failed");
     let event = sqlx::query(
-        "SELECT event_kind, tenant_id, user_id FROM ai_coding_session_event +         WHERE coding_session_id = 'session-1' AND turn_id = 'turn-2'",
+        "SELECT event_kind, tenant_id, user_id FROM ai_coding_session_event \
+         WHERE coding_session_id = 'session-1' AND turn_id = 'turn-2'",
     )
     .fetch_one(&pool)
     .await
     .expect("load terminal event");
     assert_eq!(event.get::<String, _>("event_kind"), "turn.failed");
+    assert_eq!(event.get::<i64, _>("tenant_id"), 7);
+    assert_eq!(event.get::<i64, _>("user_id"), 42);
+}
+
+#[tokio::test]
+async fn complete_operation_rejects_provider_native_session_rebinding() {
+    let (repository, pool) = setup_repository().await;
+    sqlx::query(
+        "UPDATE ai_coding_session SET native_session_id = 'provider-session-1' WHERE id = 'session-1'",
+    )
+    .execute(&pool)
+    .await
+    .expect("bind the initial provider-native session");
+
+    repository
+        .enqueue_operation(
+            &context(42),
+            &enqueue_input(
+                "operation-native-conflict",
+                "session-1",
+                "turn-2",
+                "request-native-conflict",
+                "hash-native-conflict",
+                1,
+            ),
+        )
+        .await
+        .expect("enqueue native session conflict operation");
+    let operation = repository
+        .claim_operation(&claim_input(
+            "worker-native-conflict",
+            "runner-native-conflict",
+            "2026-07-11T00:01:00Z",
+            "2026-07-11T00:02:00Z",
+        ))
+        .await
+        .expect("claim native session conflict operation")
+        .expect("queued operation");
+
+    assert!(matches!(
+        repository
+            .complete_operation(&CompleteCodingSessionOperationInput {
+                operation_id: operation.id,
+                lease_owner: operation.lease_owner.expect("lease owner"),
+                fencing_token: operation.fencing_token,
+                completed_at: "2026-07-11T00:01:10Z".to_owned(),
+                finalized: FinalizedProjectionTurnExecution {
+                    native_session_id: Some("provider-session-2".to_owned()),
+                    ..finalized_turn("session-1", "turn-2")
+                },
+            })
+            .await,
+        Err(CodingSessionError::Conflict(_))
+    ));
+
+    let persisted_native_session_id: Option<String> = sqlx::query_scalar(
+        "SELECT native_session_id FROM ai_coding_session WHERE id = 'session-1'",
+    )
+    .fetch_one(&pool)
+    .await
+    .expect("load provider-native session binding");
+    assert_eq!(
+        persisted_native_session_id.as_deref(),
+        Some("provider-session-1"),
+        "a durable completion must not rebind a logical coding session to a different provider session",
+    );
+}
+
+#[tokio::test]
+async fn complete_operation_reassigns_worker_event_identity_and_sequence() {
+    let (repository, pool) = setup_repository().await;
+    let owner = context(42);
+    repository
+        .append_realtime_event(&owner, "session-1", &durable_delta("turn-1", "first"))
+        .await
+        .expect("append streamed event before worker completion");
+    repository
+        .enqueue_operation(
+            &owner,
+            &enqueue_input(
+                "operation-worker-complete",
+                "session-1",
+                "turn-1",
+                "worker-complete-request",
+                "worker-complete-fingerprint",
+                1,
+            ),
+        )
+        .await
+        .expect("enqueue worker completion operation");
+    let operation = repository
+        .claim_operation(&claim_input(
+            "worker-complete",
+            "runner-complete",
+            "2026-07-11T00:01:00Z",
+            "2026-07-11T00:02:00Z",
+        ))
+        .await
+        .expect("claim worker completion operation")
+        .expect("queued operation");
+
+    let mut finalized = finalized_turn("session-1", "turn-1");
+    finalized.events.push(CodingSessionEventPayload {
+        id: "provider-controlled-event-id".to_owned(),
+        coding_session_id: "session-1".to_owned(),
+        turn_id: Some("turn-1".to_owned()),
+        runtime_id: Some("runtime-turn-1".to_owned()),
+        kind: "message.completed".to_owned(),
+        sequence: usize::MAX,
+        payload: BTreeMap::from([(
+            "content".to_owned(),
+            serde_json::Value::String("completed by worker".to_owned()),
+        )]),
+        created_at: "not-a-server-timestamp".to_owned(),
+    });
+    repository
+        .complete_operation(&CompleteCodingSessionOperationInput {
+            operation_id: operation.id,
+            lease_owner: operation.lease_owner.expect("lease owner"),
+            fencing_token: operation.fencing_token,
+            completed_at: "2026-07-11T00:01:10Z".to_owned(),
+            finalized,
+        })
+        .await
+        .expect("complete worker operation with durable terminal event");
+
+    let event = sqlx::query(
+        "SELECT id, sequence_no, created_at, tenant_id, user_id \
+         FROM ai_coding_session_event \
+         WHERE coding_session_id = 'session-1' AND turn_id = 'turn-1' \
+           AND event_kind = 'message.completed'",
+    )
+    .fetch_one(&pool)
+    .await
+    .expect("load durable worker terminal event");
+    assert_ne!(
+        event.get::<String, _>("id"),
+        "provider-controlled-event-id",
+        "worker input must not control durable event identity",
+    );
+    assert_eq!(event.get::<i64, _>("sequence_no"), 2);
+    assert_eq!(
+        event.get::<String, _>("created_at"),
+        "2026-07-11T00:01:10.000000000Z"
+    );
+    assert_eq!(event.get::<i64, _>("tenant_id"), 7);
+    assert_eq!(event.get::<i64, _>("user_id"), 42);
+}
+
+#[tokio::test]
+async fn terminal_failure_uses_the_next_durable_sequence_after_a_stream_delta() {
+    let (repository, pool) = setup_repository().await;
+    let owner = context(42);
+    repository
+        .append_realtime_event(&owner, "session-1", &durable_delta("turn-2", "first"))
+        .await
+        .expect("append streamed event before worker failure");
+    repository
+        .enqueue_operation(
+            &owner,
+            &enqueue_input(
+                "operation-worker-failure",
+                "session-1",
+                "turn-2",
+                "worker-failure-request",
+                "worker-failure-fingerprint",
+                1,
+            ),
+        )
+        .await
+        .expect("enqueue worker failure operation");
+    let operation = repository
+        .claim_operation(&claim_input(
+            "worker-failure",
+            "runner-failure",
+            "2026-07-11T00:01:00Z",
+            "2026-07-11T00:02:00Z",
+        ))
+        .await
+        .expect("claim worker failure operation")
+        .expect("queued operation");
+
+    repository
+        .fail_operation(&FailCodingSessionOperationInput {
+            operation_id: operation.id,
+            lease_owner: operation.lease_owner.expect("lease owner"),
+            fencing_token: operation.fencing_token,
+            failed_at: "2026-07-11T00:01:10Z".to_owned(),
+            retry_at: None,
+            problem: serde_json::json!({"code": 50001, "detail": "worker failed"}),
+        })
+        .await
+        .expect("fail worker operation terminally");
+
+    let event = sqlx::query(
+        "SELECT id, sequence_no, created_at, tenant_id, user_id \
+         FROM ai_coding_session_event \
+         WHERE coding_session_id = 'session-1' AND turn_id = 'turn-2' \
+           AND event_kind = 'turn.failed'",
+    )
+    .fetch_one(&pool)
+    .await
+    .expect("load durable worker failure event");
+    assert!(
+        uuid::Uuid::parse_str(&event.get::<String, _>("id")).is_ok(),
+        "the repository must generate durable event identity",
+    );
+    assert_eq!(event.get::<i64, _>("sequence_no"), 2);
+    assert_eq!(
+        event.get::<String, _>("created_at"),
+        "2026-07-11T00:01:10.000000000Z"
+    );
     assert_eq!(event.get::<i64, _>("tenant_id"), 7);
     assert_eq!(event.get::<i64, _>("user_id"), 42);
 }

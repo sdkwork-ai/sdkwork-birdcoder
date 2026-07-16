@@ -186,8 +186,8 @@ assert.match(
 );
 assert.match(
   hookSource,
-  /const shouldSynchronizeAuthority =[\s\S]*shouldBootstrapFromAuthority[\s\S]*authorityFallbackRefreshTick > 0[\s\S]*!canUseWorkspaceRealtime/s,
-  'Selected-session automatic authority reads must be gated behind bootstrap, realtime-unavailable fallback, or explicit refresh policy instead of every click.',
+  /shouldSynchronizeSelectedSessionAuthoritySnapshot\(\{[\s\S]*authorityAvailable: Boolean\(appRuntimeReadService\),[\s\S]*hasSynchronizedCurrentRequest,[\s\S]*shouldBootstrapFromAuthority,/s,
+  'Selected-session hydration must load one authority snapshot for each new selection request before realtime owns subsequent updates.',
 );
 
 console.log('selected session local transcript hydration contract passed.');

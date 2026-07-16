@@ -13,11 +13,16 @@ use sdkwork_routes_membership_app_api::MembershipAppState;
 use sdkwork_routes_skill_packages_app_api::SkillPackagesAppState;
 use sdkwork_routes_system_app_api::SystemAppState;
 use sdkwork_routes_workspace_app_api::WorkspaceAppState;
+use sdkwork_terminal_runtime_node::RuntimeNodeHost;
 
-use crate::bootstrap::auth::{build_protected_app_router, with_gateway_cors};
+use crate::bootstrap::auth::{
+    build_protected_app_router, with_gateway_cors, with_gateway_realtime_websocket_credentials,
+};
 use crate::bootstrap::config::BirdServerConfig;
+use crate::bootstrap::realtime_hub::CodingSessionRealtimeReplayProvider;
 use crate::bootstrap::route_manifest::birdcoder_product_app_api_routes;
 use crate::bootstrap::state::AppState;
+use crate::bootstrap::terminal_execution::wire_project_terminal_execution_resolver;
 use crate::business_metrics::BusinessMetricsRegistry;
 use crate::health;
 use crate::observability;
@@ -104,15 +109,19 @@ pub async fn build_router(
         .with_state(WorkspaceAppState {
             workspace_service: state.services.workspace.clone(),
             project_service: state.services.project.clone(),
+            runtime_location_service: state.services.runtime_location.clone(),
+            workspace_binding_service: state.services.workspace_binding.clone(),
             deployment_service: state.services.deployment.clone(),
             team_service: state.services.team.clone(),
             realtime_hub: state.services.realtime_hub.clone(),
+            realtime_replay_provider: Some(Arc::new(CodingSessionRealtimeReplayProvider::new(
+                state.services.coding_session.clone(),
+            ))),
         });
 
     let engine_catalog_router =
         sdkwork_routes_engine_catalog_app_api::build_engine_catalog_app_router().with_state(
             EngineCatalogAppState {
-                coding_session_service: Some(Arc::new(state.services.coding_session.clone())),
                 project_service: Some(Arc::new(state.services.project.clone())),
                 ..EngineCatalogAppState::default()
             },
@@ -158,6 +167,21 @@ pub async fn build_router(
         .map_err(|error| -> Box<dyn std::error::Error> { error.into() })?;
 
     let commerce_router = build_commerce_router(&state, config);
+    let terminal_host = Arc::new(
+        RuntimeNodeHost::new_default()
+            .map_err(|error| -> Box<dyn std::error::Error> { Box::new(error) })?,
+    );
+    let terminal_execution_resolver = wire_project_terminal_execution_resolver(
+        Arc::new(state.services.project.clone()),
+        Arc::new(state.services.runtime_location.clone()),
+    );
+    let terminal_state =
+        sdkwork_routes_terminal_app_api::TerminalAppState::with_project_execution_resolver(
+            terminal_host,
+            terminal_execution_resolver,
+        );
+    let terminal_router =
+        sdkwork_routes_terminal_app_api::build_terminal_app_api_router().with_state(terminal_state);
 
     let protected = Router::new()
         .merge(system_router)
@@ -171,6 +195,7 @@ pub async fn build_router(
         .merge(membership_router)
         .merge(commerce_transactions_router)
         .merge(deployment_backend_router)
+        .merge(terminal_router)
         .merge(commerce_router);
 
     let database_pool = state.database_pool.clone();
@@ -201,6 +226,7 @@ pub async fn build_router(
             .with_readiness_check(Arc::new(readiness_check))
             .skip_metrics(),
     );
+    let app = with_gateway_realtime_websocket_credentials(app);
     let app = with_gateway_cors(app, config);
     let app = observability::with_business_metrics(app, business_metrics);
     Ok(app)

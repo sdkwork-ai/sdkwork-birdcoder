@@ -1,6 +1,6 @@
 import { useCallback, useState } from 'react';
 import type { BirdCoderProject } from '@sdkwork/birdcoder-pc-types';
-import { deleteWorkbenchCodingSessionMessages } from '@sdkwork/birdcoder-pc-commons';
+import { deleteWorkbenchCodingSessionMessages } from '@sdkwork/birdcoder-pc-commons/workbench/codingSessionCreation';
 import type { CodeDeleteConfirmation } from './CodePageDialogs';
 
 type ToastTone = 'error' | 'success';

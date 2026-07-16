@@ -50,7 +50,6 @@ const records = [
     providerVersion: '0.144.3',
     modelProvider: 'openai',
     projectId: 'codex-provider-project',
-    cwd: 'E:/workspace/codex',
     gitBranch: 'main',
     gitCommit: 'abc123',
     gitRepositoryUrl: 'https://example.invalid/codex.git',
@@ -66,7 +65,6 @@ const records = [
     preview: 'Claude last prompt',
     source: 'cli',
     providerVersion: '2.1.172',
-    cwd: 'E:/workspace/claude',
     gitBranch: 'feature/claude',
     isEphemeral: false,
     isSidechain: false,
@@ -77,7 +75,6 @@ const records = [
     title: 'Gemini summary',
     modelProvider: 'google',
     projectId: 'gemini-project-hash',
-    cwd: 'E:/workspace/gemini',
     agentRole: 'main',
     isEphemeral: false,
     isSidechain: false,
@@ -90,7 +87,6 @@ const records = [
     providerVersion: '1.17.4',
     modelProvider: 'anthropic',
     projectId: 'opencode-project-id',
-    cwd: 'E:/workspace/opencode',
     isEphemeral: false,
     isSidechain: false,
     metadata: { futureOpenCodeField: ['preserved'] },
@@ -110,7 +106,51 @@ for (const expected of records) {
   assert.equal(loaded?.nativeAttributes?.projectId, expected.nativeAttributes?.projectId);
   assert.equal(loaded?.modelId, `${expected.engineId}-model`);
   assert.equal(loaded?.nativeAttributes?.modelProvider, expected.nativeAttributes?.modelProvider);
+  assert.equal(
+    'cwd' in ((loaded?.nativeAttributes ?? {}) as Record<string, unknown>),
+    false,
+    'public native session attributes must not persist or expose a local working directory.',
+  );
 }
+
+const unsafeMetadataRecord = session('unsafe-native-metadata', 'codex', {
+  schemaVersion: 1,
+  gitRepositoryUrl: 'https://token:secret@example.invalid/private.git',
+  isEphemeral: false,
+  isSidechain: false,
+  metadata: {
+    cwd: 'C:/private/project',
+    nested: {
+      browserHandle: { opaque: true },
+      safe: 'preserved',
+      workingDirectory: 'C:/private/project/packages',
+    },
+    values: [{ nativeCwd: 'C:/private/project/src' }, { safe: true }],
+  },
+});
+
+await repositories.sessions.saveMany([unsafeMetadataRecord]);
+const sanitizedUnsafeMetadataRecord = await repositories.sessions.findById(
+  unsafeMetadataRecord.id,
+);
+const sanitizedMetadata = sanitizedUnsafeMetadataRecord?.nativeAttributes?.metadata ?? {};
+assert.equal(sanitizedMetadata.cwd, undefined);
+assert.equal((sanitizedMetadata.nested as Record<string, unknown>).browserHandle, undefined);
+assert.equal((sanitizedMetadata.nested as Record<string, unknown>).workingDirectory, undefined);
+assert.equal((sanitizedMetadata.nested as Record<string, unknown>).safe, 'preserved');
+assert.equal(
+  ((sanitizedMetadata.values as Array<Record<string, unknown>>)[0] ?? {}).nativeCwd,
+  undefined,
+);
+assert.equal(
+  ((sanitizedMetadata.values as Array<Record<string, unknown>>)[1] ?? {}).safe,
+  true,
+);
+assert.equal(
+  sanitizedUnsafeMetadataRecord?.nativeAttributes?.gitRepositoryUrl,
+  undefined,
+  'credential-bearing native Git URLs must not persist in local projections.',
+);
 
 const upsertPlan = sqlExecutor.history.find(
   (plan) => plan.meta?.kind === 'table-upsert' && plan.meta.tableName === 'ai_coding_session',

@@ -7,6 +7,7 @@ import {
 import {
   BIRDCODER_STANDARD_DEFAULT_ENGINE_ID,
   getWorkbenchCodeEngineDefinition,
+  hasWorkbenchCodeModel,
   listWorkbenchCodeEngines,
   normalizeWorkbenchCodeEngineId,
   resolveWorkbenchCodeEngineSelectedModelId,
@@ -103,13 +104,36 @@ export function resolveWorkbenchPreferredNewSessionSelection(
   input: WorkbenchPreferredNewSessionInput = {},
   carrier?: WorkbenchCodeEngineSettingsCarrier | null,
 ): WorkbenchNewSessionSelection {
+  const requestedEngineId = normalizeWorkbenchCodeEngineId(input.requestedEngineId);
+  const requestedModelCandidate = String(input.preferredModelId ?? '').trim();
+  const requestedModelId =
+    requestedEngineId &&
+    requestedModelCandidate &&
+    hasWorkbenchCodeModel(requestedEngineId, requestedModelCandidate, carrier ?? input)
+      ? requestedModelCandidate
+      : '';
+
+  // An explicit new-session provider selection must not be replaced by the
+  // provider of the currently open session. The latter is only a default.
+  if (requestedEngineId) {
+    return {
+      engineId: requestedEngineId,
+      modelId:
+        requestedModelId ||
+        resolveWorkbenchCodeEngineSelectedModelId(requestedEngineId, carrier ?? input),
+      engine: getWorkbenchCodeEngineDefinition(requestedEngineId, carrier ?? input),
+      supported: isWorkbenchServerImplementedEngineId(requestedEngineId),
+    };
+  }
+
   const currentEngineId = normalizeWorkbenchCodeEngineId(input.currentSessionEngineId);
   const currentModelId = String(input.currentSessionModelId ?? '').trim();
 
   if (
     currentEngineId &&
     isWorkbenchServerImplementedEngineId(currentEngineId) &&
-    currentModelId
+    currentModelId &&
+    hasWorkbenchCodeModel(currentEngineId, currentModelId, carrier ?? input)
   ) {
     return {
       engineId: currentEngineId,
@@ -120,10 +144,9 @@ export function resolveWorkbenchPreferredNewSessionSelection(
   }
 
   const preferredEngineId =
-    normalizeWorkbenchCodeEngineId(input.requestedEngineId) ??
     normalizeWorkbenchCodeEngineId(input.preferredEngineId) ??
     BIRDCODER_STANDARD_DEFAULT_ENGINE_ID;
-  const preferredModelId = String(input.preferredModelId ?? '').trim();
+  const preferredModelId = requestedModelId;
 
   return {
     engineId: preferredEngineId,

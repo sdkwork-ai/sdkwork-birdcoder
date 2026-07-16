@@ -145,7 +145,7 @@ export const ToolCallsContentBlockRenderer = memo(function ToolCallsContentBlock
   const compact = context.layout === 'sidebar';
 
   return (
-    <div className={`flex flex-col gap-2 ${compact ? 'mt-1.5' : 'mt-2'}`}>
+    <div className={`flex flex-col gap-0.5 ${compact ? 'mt-1.5' : 'mt-2'}`}>
       {block.calls.map((toolCall) => (
         <ToolCallCard
           key={toolCall.id}

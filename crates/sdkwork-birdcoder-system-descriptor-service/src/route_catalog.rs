@@ -42,7 +42,7 @@ fn route_catalog_surface_label(surface: ApiSurface) -> &'static str {
         ApiSurface::BackendApi => "backend",
         ApiSurface::OpenApi => "open-api",
         ApiSurface::GatewayApi => "gateway",
-        ApiSurface::Unknown => "unknown",
+        _ => "unknown",
     }
 }
 
@@ -54,7 +54,7 @@ fn route_catalog_auth_mode(auth: RouteAuth, surface: ApiSurface) -> &'static str
     match surface {
         ApiSurface::BackendApi => "admin",
         ApiSurface::AppApi | ApiSurface::OpenApi | ApiSurface::GatewayApi => "user",
-        ApiSurface::Unknown => "user",
+        _ => "user",
     }
 }
 

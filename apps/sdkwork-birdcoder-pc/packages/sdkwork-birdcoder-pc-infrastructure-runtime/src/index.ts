@@ -6,7 +6,6 @@ export {
   getDefaultBirdCoderIdeServicesRuntimeConfig,
   resetDefaultBirdCoderIdeServicesRuntimeForTests,
 } from '@sdkwork/birdcoder-pc-infrastructure/services/defaultIdeServicesRuntime';
-
 export { loadDefaultBirdCoderIdeService } from '@sdkwork/birdcoder-pc-infrastructure/services/lazyDefaultIdeServices';
 
 export {
@@ -15,9 +14,22 @@ export {
 } from '@sdkwork/birdcoder-pc-infrastructure/services/membershipSdkBootstrap';
 
 export {
+  bootstrapBirdCoderDriveSandboxExplorer,
+  createBirdCoderDriveSandboxExplorerPort,
+} from '@sdkwork/birdcoder-pc-infrastructure/services/driveSandboxExplorerRuntime';
+export type { BirdCoderDriveSandboxExplorerRuntimeOptions } from '@sdkwork/birdcoder-pc-infrastructure/services/driveSandboxExplorerRuntime';
+
+export {
   canSubscribeBirdCoderWorkspaceRealtime,
+  resolveBirdCoderRealtimeTransportOrder,
   resolveBirdCoderWorkspaceRealtimeUrl,
   subscribeBirdCoderWorkspaceRealtime,
+} from '@sdkwork/birdcoder-pc-infrastructure/services/workspaceRealtimeClient';
+export type {
+  BirdCoderRealtimeAgentCapabilities,
+  BirdCoderRealtimeTransport,
+  BirdCoderWorkspaceRealtimeSubscription,
+  SubscribeBirdCoderWorkspaceRealtimeOptions,
 } from '@sdkwork/birdcoder-pc-infrastructure/services/workspaceRealtimeClient';
 
 export type {
@@ -47,6 +59,20 @@ export type { ICollaborationService } from '@sdkwork/birdcoder-pc-infrastructure
 export type { IDeploymentService } from '@sdkwork/birdcoder-pc-infrastructure/services/interfaces/IDeploymentService';
 export type { IDocumentService, DocumentListOptions } from '@sdkwork/birdcoder-pc-infrastructure/services/interfaces/IDocumentService';
 export type { IFileSystemService } from '@sdkwork/birdcoder-pc-infrastructure/services/interfaces/IFileSystemService';
+export type {
+  IProjectRuntimeLocationService,
+  ProjectRuntimeLocationBindingResult,
+  ProjectRuntimeLocationCapability,
+  ProjectRuntimeLocationExecutionUnavailableCode,
+  ProjectRuntimeLocationRegistrationPort,
+  ProjectRuntimeLocationResolution,
+  ProjectRuntimeLocationResolutionRequest,
+  ResolvedProjectRuntimeLocation,
+} from '@sdkwork/birdcoder-pc-infrastructure/services/interfaces/IProjectRuntimeLocationService';
+export {
+  ProjectRuntimeLocationExecutionUnavailableError,
+  requireProjectRuntimeLocationExecutionId,
+} from '@sdkwork/birdcoder-pc-infrastructure/services/interfaces/IProjectRuntimeLocationService';
 export type { IGitService } from '@sdkwork/birdcoder-pc-infrastructure/services/interfaces/IGitService';
 export type { IPromptService } from '@sdkwork/birdcoder-pc-infrastructure/services/interfaces/IPromptService';
 export type { IProjectService } from '@sdkwork/birdcoder-pc-infrastructure/services/interfaces/IProjectService';

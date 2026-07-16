@@ -7,52 +7,59 @@ import React, { startTransition, useCallback, useEffect, useMemo, useRef, useSta
 import { Settings, Terminal } from 'lucide-react';
 import {
   DEFAULT_WORKBENCH_RECOVERY_SNAPSHOT,
-  buildDefaultTerminalCommandRequest,
-  buildCodingSessionProjectScopedKey,
-  buildProjectCodingSessionIndex,
   buildWorkbenchRecoveryAnnouncement,
   buildWorkbenchRecoverySnapshot,
-  emitRevealProjectInFileManager,
-  subscribeCopyProjectLocalPath,
-  subscribeOpenProjectTerminal,
-  subscribeRevealProjectInFileManager,
-  emitOpenTerminalRequest,
-  globalEventBus,
-  hydrateImportedProjectFromAuthority,
-  importLocalFolderProject,
   isWorkbenchRecoverySelectionResolutionReady,
   normalizeWorkbenchRecoverySnapshot,
   normalizeWorkbenchRecoveryUserScope,
-  openLocalFolder,
-  revealTauriPathInFileManager,
   recoverySnapshotsEqual,
-  resolveEffectiveWorkspaceId,
-  resolveLocalFolderImportWorkspaceId,
   resolveWorkbenchRecoverySnapshotForUser,
   resolveStartupCodingSessionId,
   resolveStartupProjectId,
   resolveStartupWorkspaceId,
   resolveWorkbenchRecoveryPersistenceSelection,
-  ToastProvider,
-  type TerminalCommandRequest,
-  type ProjectDeviceMountTarget,
-  useIDEServices,
-  usePersistedState,
-  useProjects,
-  useAuth,
-  useToast,
-  useWorkbenchChatSelection,
-  useWorkbenchCodingSessionCreationActions,
-  useWorkbenchPreferences,
-  useWorkspaces,
   type WorkbenchRecoverySnapshot,
-  type ProjectMountRecoveryEventPayload,
+} from '@sdkwork/birdcoder-pc-commons/workbench/recovery';
+import {
+  buildCodingSessionProjectScopedKey,
+  buildProjectCodingSessionIndex,
+} from '@sdkwork/birdcoder-pc-commons/workbench/codingSessionSelection';
+import { hydrateImportedProjectFromAuthority } from '@sdkwork/birdcoder-pc-commons/workbench/importedProjectHydration';
+import { importSandboxDirectoryProject } from '@sdkwork/birdcoder-pc-commons/workbench/sandboxDirectoryProjectImport';
+import { resolveProjectImportWorkspaceId } from '@sdkwork/birdcoder-pc-commons/workbench/projectImportWorkspace';
+import { resolveEffectiveWorkspaceId } from '@sdkwork/birdcoder-pc-commons/workbench/workspaceBootstrap';
+import {
+  buildDefaultTerminalCommandRequest,
+  emitOpenTerminalRequest,
+  type TerminalCommandRequest,
+} from '@sdkwork/birdcoder-pc-commons/terminal/runtime';
+import {
+  emitRevealProjectInFileManager,
+  subscribeCopyProjectLocalPath,
+  subscribeOpenProjectTerminal,
+  subscribeRevealProjectInFileManager,
+  type ProjectDeviceMountTarget,
+} from '@sdkwork/birdcoder-pc-commons/events/projectDeviceMountEvents';
+import {
   subscribeProjectMountRecoveryState,
-} from '@sdkwork/birdcoder-pc-commons';
+  type ProjectMountRecoveryEventPayload,
+} from '@sdkwork/birdcoder-pc-commons/events/projectMountRecoveryEvents';
+import { globalEventBus } from '@sdkwork/birdcoder-pc-commons/utils/EventBus';
+import { revealTauriPathInFileManager } from '@sdkwork/birdcoder-pc-commons/platform/tauriFileManager';
+import { ToastProvider, useToast } from '@sdkwork/birdcoder-pc-commons/contexts/ToastProvider';
+import { useIDEServices } from '@sdkwork/birdcoder-pc-commons/context/IDEContext';
+import { useAuth } from '@sdkwork/birdcoder-pc-commons/context/AuthContext';
+import { usePersistedState } from '@sdkwork/birdcoder-pc-commons/hooks/usePersistedState';
+import { useProjects } from '@sdkwork/birdcoder-pc-commons/hooks/useProjects';
+import { useWorkbenchChatSelection } from '@sdkwork/birdcoder-pc-commons/hooks/useWorkbenchChatSelection';
+import { useWorkbenchCodingSessionCreationActions } from '@sdkwork/birdcoder-pc-commons/hooks/useWorkbenchCodingSessionCreationActions';
+import { useWorkbenchPreferences } from '@sdkwork/birdcoder-pc-commons/hooks/useWorkbenchPreferences';
+import { useWorkspaces } from '@sdkwork/birdcoder-pc-commons/hooks/useWorkspaces';
 import { Button, TopMenu, type TopMenuItem } from '@sdkwork/birdcoder-pc-ui-shell';
 import { copyTextToClipboard } from '@sdkwork/birdcoder-pc-ui/components/clipboard';
 import type { AppTab, BirdCoderProject } from '@sdkwork/birdcoder-pc-types';
 import { resolveWorkbenchNewSessionEngineCatalog } from '@sdkwork/birdcoder-pc-codeengine';
+import { useSandboxDirectoryPicker } from '@sdkwork/drive-pc-sandbox-explorer';
 import { useTranslation } from 'react-i18next';
 import {
   createAppHeaderWindowDragController,
@@ -86,7 +93,13 @@ import {
 
 export function AppContent() {
   const { t } = useTranslation();
-  const { appRuntimeReadService, fileSystemService, projectService } = useIDEServices();
+  const { pickDirectory } = useSandboxDirectoryPicker();
+  const {
+    appRuntimeReadService,
+    fileSystemService,
+    projectRuntimeLocationService,
+    projectService,
+  } = useIDEServices();
   const { user, isLoading: isAuthLoading, logout } = useAuth();
   const { addToast } = useToast();
   const { preferences, updatePreferences } = useWorkbenchPreferences();
@@ -110,6 +123,16 @@ export function AppContent() {
     ),
     [currentWorkbenchUserScope, normalizedStoredRecoverySnapshot],
   );
+  const [activeWorkspaceId, setActiveWorkspaceId] = useState<string>('');
+  const [activeProjectId, setActiveProjectId] = useState<string>('');
+  const [activeCodingSessionId, setActiveCodingSessionId] = useState<string>('');
+  const previousWorkbenchUserScopeRef = useRef(currentWorkbenchUserScope);
+  const isWorkbenchSelectionForCurrentUser =
+    previousWorkbenchUserScopeRef.current === currentWorkbenchUserScope;
+  const scopedActiveWorkspaceId = isWorkbenchSelectionForCurrentUser ? activeWorkspaceId : '';
+  const scopedActiveProjectId = isWorkbenchSelectionForCurrentUser ? activeProjectId : '';
+  const scopedActiveCodingSessionId =
+    isWorkbenchSelectionForCurrentUser ? activeCodingSessionId : '';
   const {
     workspaces,
     error: workspacesError,
@@ -124,7 +147,8 @@ export function AppContent() {
     refreshWorkspaces,
   } = useWorkspaces({
     isActive: Boolean(user),
-    targetWorkspaceId: normalizedRecoverySnapshot.activeWorkspaceId,
+    targetWorkspaceId:
+      scopedActiveWorkspaceId || normalizedRecoverySnapshot.activeWorkspaceId,
   });
 
   useEffect(() => {
@@ -132,16 +156,6 @@ export function AppContent() {
       addToast(workspacesError, 'error');
     }
   }, [addToast, workspacesError]);
-  const [activeWorkspaceId, setActiveWorkspaceId] = useState<string>('');
-  const [activeProjectId, setActiveProjectId] = useState<string>('');
-  const [activeCodingSessionId, setActiveCodingSessionId] = useState<string>('');
-  const previousWorkbenchUserScopeRef = useRef(currentWorkbenchUserScope);
-  const isWorkbenchSelectionForCurrentUser =
-    previousWorkbenchUserScopeRef.current === currentWorkbenchUserScope;
-  const scopedActiveWorkspaceId = isWorkbenchSelectionForCurrentUser ? activeWorkspaceId : '';
-  const scopedActiveProjectId = isWorkbenchSelectionForCurrentUser ? activeProjectId : '';
-  const scopedActiveCodingSessionId =
-    isWorkbenchSelectionForCurrentUser ? activeCodingSessionId : '';
   const workspacesById = useMemo(
     () => new Map(workspaces.map((workspace) => [workspace.id, workspace])),
     [workspaces],
@@ -346,6 +360,7 @@ export function AppContent() {
       refreshWorkspaces,
       workspaces,
     });
+    const requestedWorkspaceId = scopedActiveWorkspaceId.trim();
     workspaceBootstrapPromiseRef.current = request;
     let isCancelled = false;
     void request
@@ -356,24 +371,28 @@ export function AppContent() {
 
         setActiveWorkspaceId((currentWorkspaceId) => {
           const normalizedCurrentWorkspaceId = currentWorkspaceId.trim();
+          if (
+            normalizedCurrentWorkspaceId &&
+            normalizedCurrentWorkspaceId !== requestedWorkspaceId
+          ) {
+            return currentWorkspaceId;
+          }
           return normalizedCurrentWorkspaceId === resolvedWorkspaceId
             ? currentWorkspaceId
             : resolvedWorkspaceId;
         });
         setMenuActiveWorkspaceId((currentWorkspaceId) => {
           const normalizedCurrentWorkspaceId = currentWorkspaceId.trim();
+          if (
+            normalizedCurrentWorkspaceId &&
+            normalizedCurrentWorkspaceId !== requestedWorkspaceId
+          ) {
+            return currentWorkspaceId;
+          }
           return normalizedCurrentWorkspaceId === resolvedWorkspaceId
             ? currentWorkspaceId
             : resolvedWorkspaceId;
         });
-
-        if (
-          scopedActiveWorkspaceId &&
-          scopedActiveWorkspaceId !== resolvedWorkspaceId
-        ) {
-          setActiveProjectId('');
-          clearActiveCodingSessionSelection();
-        }
       })
       .catch((error) => {
         console.error('Failed to initialize workspace selection', error);
@@ -394,7 +413,6 @@ export function AppContent() {
     normalizedRecoverySnapshot.activeWorkspaceId,
     refreshWorkspaces,
     scopedActiveWorkspaceId,
-    clearActiveCodingSessionSelection,
     user,
     workspaces,
     workspacesById,
@@ -431,13 +449,16 @@ export function AppContent() {
 
   const previewWorkspaceSelection = useCallback((workspaceId: string) => {
     const normalizedWorkspaceId = workspaceId.trim();
-    if (!normalizedWorkspaceId) {
+    if (
+      !normalizedWorkspaceId ||
+      normalizedWorkspaceId === effectiveMenuWorkspaceId
+    ) {
       return;
     }
 
     setMenuActiveWorkspaceId(normalizedWorkspaceId);
     setProjectActionsMenuId(null);
-  }, []);
+  }, [effectiveMenuWorkspaceId]);
 
   const closeWorkspaceMenuSurface = useCallback(() => {
     setShowWorkspaceMenu(false);
@@ -664,6 +685,10 @@ export function AppContent() {
   ]);
 
   useEffect(() => {
+    if (!workspacesHasFetched) {
+      return;
+    }
+
     if (workspaces.length === 0) {
       if (activeWorkspaceId) {
         setActiveWorkspaceId('');
@@ -671,10 +696,21 @@ export function AppContent() {
       return;
     }
 
+    if (hasMoreWorkspaces) {
+      return;
+    }
+
     if (!workspacesById.has(activeWorkspaceId) && resolvedWorkspaceId) {
       setActiveWorkspaceId(resolvedWorkspaceId);
     }
-  }, [activeWorkspaceId, resolvedWorkspaceId, workspaces.length, workspacesById]);
+  }, [
+    activeWorkspaceId,
+    hasMoreWorkspaces,
+    resolvedWorkspaceId,
+    workspaces.length,
+    workspacesById,
+    workspacesHasFetched,
+  ]);
 
   useEffect(() => {
     if (effectiveWorkspaceId.length > 0 && !activeProjectsHasFetched) {
@@ -692,6 +728,14 @@ export function AppContent() {
     }
 
     if (
+      activeProjectId &&
+      !activeProjectsIndex.projectsById.has(activeProjectId) &&
+      activeProjectsHasMore
+    ) {
+      return;
+    }
+
+    if (
       pendingImportedProjectIdRef.current &&
       activeProjectsIndex.projectsById.has(pendingImportedProjectIdRef.current)
     ) {
@@ -704,6 +748,7 @@ export function AppContent() {
     }
   }, [
     activeProjectId,
+    activeProjectsHasMore,
     activeProjectsHasFetched,
     activeProjectsIndex,
     effectiveWorkspaceId.length,
@@ -918,17 +963,29 @@ export function AppContent() {
     };
     const copyLocalPath = copyTextToClipboard;
     const handleOpenProjectTerminal = async (target: ProjectDeviceMountTarget) => {
-      const localWorkingDirectory = await fileSystemService.resolveLocalWorkingDirectory(
+      const resolution = await projectRuntimeLocationService.resolveProjectRuntimeLocation(
         target.projectId,
-        target.mountedPath,
+        {
+          allowFolderSelection: true,
+          capability: 'terminal',
+          mountedPath: target.mountedPath,
+        },
       );
-      if (!localWorkingDirectory) {
-        addToast(t('app.revealInExplorerDesktopOnly'), 'info');
+      if (resolution.status === 'cancelled') {
+        return;
+      }
+      if (resolution.status !== 'resolved') {
+        addToast(
+          resolution.status === 'unsupported'
+            ? resolution.message
+            : resolution.message || t('app.revealInExplorerDesktopOnly'),
+          'error',
+        );
         return;
       }
 
       emitOpenTerminalRequest({
-        path: localWorkingDirectory,
+        path: resolution.location.localWorkingDirectory,
         surface: 'workspace',
         timestamp: Date.now(),
       });
@@ -1018,13 +1075,50 @@ export function AppContent() {
       unsubscribeSettings();
       unsubscribeTerminalReq();
     };
-  }, [addToast, fileSystemService, t]);
+  }, [addToast, fileSystemService, projectRuntimeLocationService, t]);
 
   const hasOpenWorkspaceMenuSurface =
     showWorkspaceMenu ||
     isCreatingWorkspace ||
     isCreatingProject ||
     projectActionsMenuId !== null;
+
+  const handleCreateTerminal = useCallback(async () => {
+    if (!effectiveProjectId) {
+      addToast('Select a project before opening a terminal.', 'error');
+      return;
+    }
+
+    try {
+      const resolution = await projectRuntimeLocationService.resolveProjectRuntimeLocation(
+        effectiveProjectId,
+        {
+          allowFolderSelection: true,
+          capability: 'terminal',
+        },
+      );
+      if (resolution.status === 'cancelled') {
+        return;
+      }
+      if (resolution.status !== 'resolved') {
+        addToast(resolution.message, 'error');
+        return;
+      }
+      emitOpenTerminalRequest(
+        buildDefaultTerminalCommandRequest({
+          path: resolution.location.localWorkingDirectory,
+        }),
+      );
+    } catch (error) {
+      console.error('Failed to create a project terminal', error);
+      addToast(
+        error instanceof Error && error.message.trim()
+          ? error.message
+          : 'Unable to prepare the selected project folder for terminal access.',
+        'error',
+      );
+    }
+  }, [addToast, effectiveProjectId, projectRuntimeLocationService]);
 
   const handleWorkspaceMenuClickOutside = useCallback(
     (event: MouseEvent) => {
@@ -1111,25 +1205,23 @@ export function AppContent() {
         globalEventBus.emit('runWithoutDebugging');
       } else if (cmdOrCtrl && e.shiftKey && e.key === '`') {
         e.preventDefault();
-        emitOpenTerminalRequest(buildDefaultTerminalCommandRequest());
+        void handleCreateTerminal();
       }
     };
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, []);
+  }, [handleCreateTerminal]);
 
   const selectFolderAndImportProject = async (fallbackProjectName: string) => {
-    const pickerResult = await openLocalFolder();
-    if (pickerResult.status === 'cancelled') {
-      return null;
-    }
-    if (pickerResult.status === 'unsupported') {
-      addToast(pickerResult.message, 'error');
+    const selection = await pickDirectory({
+      title: t('app.selectServerDirectory'),
+    });
+    if (!selection) {
       return null;
     }
 
-    const targetWorkspaceId = await resolveLocalFolderImportWorkspaceId({
+    const targetWorkspaceId = await resolveProjectImportWorkspaceId({
       createWorkspace,
       effectiveWorkspaceId:
         effectiveMenuWorkspaceId ||
@@ -1158,16 +1250,40 @@ export function AppContent() {
       }
       return projectService.createProject(normalizedTargetWorkspaceId, name, options);
     };
-    const importedProject = await importLocalFolderProject({
+    const bindProjectWorkspace = projectService.bindProjectWorkspace?.bind(projectService);
+    if (!bindProjectWorkspace) {
+      throw new Error(
+        'The BirdCoder project service does not provide the server workspace binding capability.',
+      );
+    }
+    const importedProject = await importSandboxDirectoryProject({
+      bindingPort: {
+        bindProjectWorkspace: (projectId, selectedDirectory) =>
+          bindProjectWorkspace(projectId, {
+            logicalPath: selectedDirectory.logicalPath,
+            rootEntryId: selectedDirectory.entryId,
+            sandboxId: selectedDirectory.sandboxId,
+          }),
+      },
       createProject: createProjectForTargetWorkspace,
+      deleteCreatedProject: async (projectId) => {
+        if (normalizedTargetWorkspaceId === menuProjectsScopeWorkspaceId) {
+          await deleteDistinctMenuProject(projectId);
+          return;
+        }
+        if (normalizedTargetWorkspaceId === projectsWorkspaceId) {
+          await deleteActiveProject(projectId);
+          return;
+        }
+        await projectService.deleteProject(projectId);
+      },
       fallbackProjectName,
-      folderInfo: pickerResult.source,
-      mountFolder: (projectId, nextFolderInfo) =>
-        fileSystemService.mountFolder(projectId, nextFolderInfo),
+      selection,
     });
 
     return {
       ...importedProject,
+      reusedExistingProject: false,
       workspaceId: targetWorkspaceId,
     };
   };
@@ -1313,9 +1429,17 @@ export function AppContent() {
     (projectId: string) => {
       const nextWorkspaceId = effectiveMenuWorkspaceId.trim();
       const nextProjectId = projectId.trim();
+      const nextProjectIndex = resolveImmediateProjectIndex(nextWorkspaceId);
+      if (
+        !nextWorkspaceId ||
+        !nextProjectId ||
+        !nextProjectIndex?.projectsById.has(nextProjectId)
+      ) {
+        return;
+      }
+
       const nextCodingSessionId =
-        resolveImmediateProjectIndex(nextWorkspaceId)
-          ?.latestCodingSessionIdByProjectId.get(nextProjectId) ?? '';
+        nextProjectIndex.latestCodingSessionIdByProjectId.get(nextProjectId) ?? '';
       const shouldResetCodingSession =
         nextWorkspaceId !== effectiveWorkspaceId || nextProjectId !== effectiveProjectId;
 
@@ -1769,7 +1893,7 @@ export function AppContent() {
 
   const handleOpenFolder = useCallback(async () => {
     try {
-      const importedProject = await selectFolderAndImportProject(t('app.localFolder'));
+      const importedProject = await selectFolderAndImportProject(t('app.serverDirectory'));
       if (importedProject) {
         activateImportedProject(importedProject.workspaceId, importedProject.projectId);
         hydrateImportedProjectSelectionInBackground(
@@ -2158,12 +2282,12 @@ export function AppContent() {
       {
         label: t('app.menu.newTerminal'),
         shortcut: 'Ctrl+Shift+`',
-        onClick: () => emitOpenTerminalRequest(buildDefaultTerminalCommandRequest()),
+        onClick: () => void handleCreateTerminal(),
       },
       { label: '', divider: true },
       { label: t('app.menu.runTask'), onClick: () => globalEventBus.emit('runTask') },
     ],
-    [t],
+    [handleCreateTerminal, t],
   );
 
   const windowMenuItems = useMemo<TopMenuItem[]>(
@@ -2330,7 +2454,7 @@ export function AppContent() {
         isDesktopWindowMaximized={isDesktopWindowMaximized}
         isDesktopWindowMinimized={isDesktopWindowMinimized}
         leftAddon={shouldShowWorkbenchHeaderChrome ? (
-          <>
+          <div className="hidden md:contents">
             <TopMenu label={t('app.menu.file')} items={fileMenuItems} />
             <TopMenu label={t('app.menu.edit')} items={editMenuItems} />
             <TopMenu label={t('app.menu.view')} items={viewMenuItems} />
@@ -2339,7 +2463,7 @@ export function AppContent() {
             <TopMenu label={t('app.menu.terminal')} items={terminalMenuItems} />
             <TopMenu label={t('app.menu.window')} items={windowMenuItems} />
             <TopMenu label={t('app.menu.help')} items={helpMenuItems} />
-          </>
+          </div>
         ) : null}
         maximizeButtonRef={maximizeWindowControlButtonRef}
         minimizeButtonRef={minimizeWindowControlButtonRef}

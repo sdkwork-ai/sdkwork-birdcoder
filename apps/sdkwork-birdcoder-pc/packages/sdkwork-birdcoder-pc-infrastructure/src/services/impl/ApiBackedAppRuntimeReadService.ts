@@ -6,12 +6,10 @@ import {
 import type { IAuthService } from '../interfaces/IAuthService.ts';
 import type { IAppRuntimeReadService } from '../interfaces/IAppRuntimeReadService.ts';
 import type { BirdCoderAppRuntimeReadSdkApiClient } from '../sdkClients.ts';
-import type { BirdCoderNativeSessionReadPort } from '../../platform/tauriNativeSessions.ts';
 
 export interface ApiBackedAppRuntimeReadServiceOptions {
   client: BirdCoderAppRuntimeReadSdkApiClient;
   currentUserProvider?: Pick<IAuthService, 'getCurrentUser'>;
-  nativeSessionReadPort?: BirdCoderNativeSessionReadPort;
 }
 
 interface ReadCacheEntry<T> {
@@ -62,16 +60,13 @@ export class ApiBackedAppRuntimeReadService implements IAppRuntimeReadService {
   readonly codingSessionListIncludesNativeSessions = true;
   private readonly client: BirdCoderAppRuntimeReadSdkApiClient;
   private readonly currentUserScopeResolver: CurrentUserScopeResolver;
-  private readonly nativeSessionReadPort?: BirdCoderNativeSessionReadPort;
   private readonly readCache = new Map<string, ReadCacheEntry<unknown>>();
 
   constructor({
     client,
     currentUserProvider,
-    nativeSessionReadPort,
   }: ApiBackedAppRuntimeReadServiceOptions) {
     this.client = client;
-    this.nativeSessionReadPort = nativeSessionReadPort;
     this.currentUserScopeResolver = new CurrentUserScopeResolver({
       currentUserProvider,
     });
@@ -213,9 +208,7 @@ export class ApiBackedAppRuntimeReadService implements IAppRuntimeReadService {
     return this.readThroughCache(
       cacheKey.key,
       cacheKey.cacheable ? SESSION_DETAIL_TTL_MS : INFLIGHT_ONLY_TTL_MS,
-      async () =>
-        (await this.nativeSessionReadPort?.getNativeSession(codingSessionId, request)) ??
-        this.client.getNativeSession(codingSessionId, request),
+      () => this.client.getNativeSession(codingSessionId, request),
     );
   }
 
@@ -321,12 +314,9 @@ export class ApiBackedAppRuntimeReadService implements IAppRuntimeReadService {
     return this.readThroughCache(
       cacheKey.key,
       cacheKey.cacheable ? SESSION_INVENTORY_TTL_MS : INFLIGHT_ONLY_TTL_MS,
-      async () =>
-        (await this.nativeSessionReadPort?.listNativeSessionPage(request))?.items ??
-        this.client.listNativeSessions(request),
+      () => this.client.listNativeSessions(request),
     );
   }
-
 
   async listNativeSessionPage(
     request: Parameters<BirdCoderAppRuntimeReadSdkApiClient['listNativeSessionPage']>[0],
@@ -335,9 +325,7 @@ export class ApiBackedAppRuntimeReadService implements IAppRuntimeReadService {
     return this.readThroughCache(
       cacheKey.key,
       cacheKey.cacheable ? SESSION_INVENTORY_TTL_MS : INFLIGHT_ONLY_TTL_MS,
-      async () =>
-        (await this.nativeSessionReadPort?.listNativeSessionPage(request)) ??
-        this.client.listNativeSessionPage(request),
+      () => this.client.listNativeSessionPage(request),
     );
   }
 

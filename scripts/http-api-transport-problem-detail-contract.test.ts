@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 
-import { BirdCoderApiTransportError } from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-core/src/birdCoderApiTransportError.ts';
+import { BirdCoderApiTransportError } from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-types/src/apiTransportError.ts';
 import { createBirdCoderHttpApiTransport } from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/src/services/sdkTransportShared.ts';
 
 const transport = createBirdCoderHttpApiTransport({

@@ -1,7 +1,11 @@
-import type { WebRuntimeBridgeClient } from '@sdkwork/terminal-pc-infrastructure';
 import {
-  readBirdCoderRuntimePublicEnv,
-} from '@sdkwork/birdcoder-pc-infrastructure';
+  createAuthorizedFetchEventSourceFactory,
+  createWebRuntimeBridgeClient,
+  type WebRuntimeBridgeClient,
+} from '@sdkwork/terminal-pc-infrastructure';
+import { getBirdCoderGlobalTokenManager } from '@sdkwork/birdcoder-pc-infrastructure/services/appSessionTokenManager';
+import { readBirdCoderRuntimePublicEnv } from '@sdkwork/birdcoder-pc-infrastructure/services/runtimeTopology';
+export { isBirdcoderTauriRuntime } from './runtimeTarget.ts';
 
 export interface BirdcoderBrowserTerminalScope {
   projectId?: string;
@@ -17,41 +21,51 @@ export interface BirdcoderBrowserTerminalTarget {
   tags: string[];
 }
 
-function readRuntimeTarget() {
-  return readBirdCoderRuntimePublicEnv('VITE_SDKWORK_BIRDCODER_RUNTIME_TARGET') ||
-    readBirdCoderRuntimePublicEnv('VITE_SDKWORK_RUNTIME_TARGET');
-}
-
-export function isBirdcoderTauriRuntime(): boolean {
-  if (typeof window === 'undefined') return false;
-  const runtimeTarget = readRuntimeTarget();
-  if (runtimeTarget && runtimeTarget !== 'desktop') return false;
-
-  const host = window as Window & {
-    __TAURI__?: { core?: { invoke?: unknown } };
-    __TAURI_INTERNALS__?: { invoke?: unknown };
-  };
-  const hasInvoke = typeof host.__TAURI__?.core?.invoke === 'function' ||
-    typeof host.__TAURI_INTERNALS__?.invoke === 'function';
-  return hasInvoke && (runtimeTarget === 'desktop' || window.location.protocol === 'tauri:');
-}
-
 export function resolveBirdcoderBrowserTerminalTarget(
-  _scope: BirdcoderBrowserTerminalScope,
+  scope: BirdcoderBrowserTerminalScope,
 ): BirdcoderBrowserTerminalTarget | undefined {
-  // Browser execution stays fail-closed until the reviewed device Internal API
-  // control plane is available. The product-local runtime-node protocol must
-  // never fall back to the BirdCoder application API origin.
-  return undefined;
+  const workspaceId = scope.workspaceId?.trim() || scope.projectId?.trim() || 'birdcoder-default';
+  return {
+    workspaceId,
+    authority: 'birdcoder-application-ingress',
+    target: 'server-runtime-node',
+    modeTags: ['cli-native'],
+    tags: [
+      'surface:browser',
+      ...(scope.projectId?.trim() ? [`project:${scope.projectId.trim()}`] : []),
+    ],
+  };
 }
 
-export function useBirdcoderBrowserTerminalClient(): WebRuntimeBridgeClient | undefined {
-  return undefined;
+export function resolveBirdcoderBrowserTerminalClient(): WebRuntimeBridgeClient | undefined {
+  const tokenManager = getBirdCoderGlobalTokenManager();
+  const tokens = tokenManager.getTokens();
+  const authToken = tokens?.authToken?.trim();
+  const accessToken = tokens?.accessToken?.trim();
+  if (!authToken || !accessToken) {
+    return undefined;
+  }
+
+  const baseUrl = readBirdCoderRuntimePublicEnv('VITE_SDKWORK_BIRDCODER_APPLICATION_PUBLIC_HTTP_URL')
+    || readBirdCoderRuntimePublicEnv('VITE_BIRDCODER_API_BASE_URL')
+    || '';
+  return createWebRuntimeBridgeClient({
+    baseUrl,
+    authToken,
+    accessToken,
+    tokenManager,
+    createEventSource: createAuthorizedFetchEventSourceFactory(authToken, {
+      accessToken,
+      tokenManager,
+    }),
+  });
 }
+
+export const useBirdcoderBrowserTerminalClient = resolveBirdcoderBrowserTerminalClient;
 
 export function resolveBirdcoderTerminalUnavailableMessage(): string {
   const locale = typeof navigator === 'undefined' ? '' : navigator.language.toLowerCase();
   return locale.startsWith('zh')
-    ? 'Browser \u8fdc\u7a0b\u7ec8\u7aef\u5c1a\u672a\u90e8\u7f72\u5df2\u5ba1\u6279\u7684 device Internal API \u63a7\u5236\u9762\u3002'
-    : 'Browser remote terminal is unavailable until the approved device Internal API control plane is deployed.';
+    ? 'Browser \u7ec8\u7aef\u9700\u8981\u6709\u6548\u7684\u767b\u5f55\u4f1a\u8bdd\u548c\u53ef\u7528\u7684 Terminal App API\u3002'
+    : 'Browser terminal requires an authenticated session and an available Terminal App API.';
 }

@@ -1,8 +1,8 @@
 use crate::context::CodingSessionContext;
 use crate::domain::commands::{
-    CreateCodingSessionInput, CreateCodingSessionTurnInput, EditCodingSessionMessageInput,
-    ForkCodingSessionInput, SubmitApprovalDecisionInput, SubmitUserQuestionAnswerInput,
-    UpdateCodingSessionInput,
+    AppendCodingSessionRealtimeEventInput, CodingSessionInteractionKind, CreateCodingSessionInput,
+    CreateCodingSessionTurnInput, EditCodingSessionMessageInput, ForkCodingSessionInput,
+    SubmitApprovalDecisionInput, SubmitUserQuestionAnswerInput, UpdateCodingSessionInput,
 };
 use crate::domain::models::{
     ClaimCodingSessionOperationInput, CodingSessionListQuery, CompleteCodingSessionOperationInput,
@@ -10,10 +10,11 @@ use crate::domain::models::{
     FailCodingSessionOperationInput, RenewCodingSessionOperationLeaseInput,
 };
 use crate::domain::results::{
-    ApprovalDecisionPayload, CodingSessionArtifactPayload, CodingSessionCheckpointPayload,
-    CodingSessionEventPayload, CodingSessionListPage, CodingSessionPayload,
-    CodingSessionTurnPayload, DeleteCodingSessionMessagePayload, EditCodingSessionMessagePayload,
-    OperationPayload, UserQuestionAnswerPayload,
+    ApprovalDecisionPayload, ClaimedCodingSessionInteraction, CodingSessionArtifactPayload,
+    CodingSessionCheckpointPayload, CodingSessionEventPayload, CodingSessionListPage,
+    CodingSessionPayload, CodingSessionReplayPage, CodingSessionTurnPayload,
+    DeleteCodingSessionMessagePayload, EditCodingSessionMessagePayload, OperationPayload,
+    PersistedCodingSessionMutation, ResolvedCodingSessionInteraction, UserQuestionAnswerPayload,
 };
 use crate::error::CodingSessionError;
 
@@ -30,12 +31,6 @@ pub trait CodingSessionRepository: Send + Sync {
         ctx: &CodingSessionContext,
         session_id: &str,
     ) -> Result<CodingSessionPayload, CodingSessionError>;
-
-    async fn resolve_project_working_directory(
-        &self,
-        ctx: &CodingSessionContext,
-        project_id: &str,
-    ) -> Result<Option<String>, CodingSessionError>;
 
     async fn create_session(
         &self,
@@ -118,6 +113,28 @@ pub trait CodingSessionRepository: Send + Sync {
         limit: usize,
     ) -> Result<(Vec<CodingSessionEventPayload>, usize), CodingSessionError>;
 
+    /// Reads one stable replay window using sequence keyset pagination. The
+    /// first page supplies `None` for `high_watermark`; later pages reuse the
+    /// returned value to exclude concurrently appended events.
+    async fn replay_events(
+        &self,
+        ctx: &CodingSessionContext,
+        session_id: &str,
+        after_sequence: Option<usize>,
+        high_watermark: Option<usize>,
+        limit: usize,
+    ) -> Result<CodingSessionReplayPage, CodingSessionError>;
+
+    /// Appends one provider-neutral realtime event after assigning its durable
+    /// session sequence in the same transaction. A caller may publish the
+    /// returned event only after this method succeeds.
+    async fn append_realtime_event(
+        &self,
+        ctx: &CodingSessionContext,
+        session_id: &str,
+        input: &AppendCodingSessionRealtimeEventInput,
+    ) -> Result<CodingSessionEventPayload, CodingSessionError>;
+
     async fn list_artifacts(
         &self,
         ctx: &CodingSessionContext,
@@ -134,21 +151,57 @@ pub trait CodingSessionRepository: Send + Sync {
         limit: usize,
     ) -> Result<(Vec<CodingSessionCheckpointPayload>, usize), CodingSessionError>;
 
+    /// Resolves a mutation target by durable event UUID. The repository enforces
+    /// event kind, tenant, user, session, turn, runtime, and canonical payload
+    /// pairing before the service can invoke a provider.
+    async fn resolve_durable_interaction(
+        &self,
+        ctx: &CodingSessionContext,
+        session_id: &str,
+        interaction_event_id: &str,
+        interaction_kind: CodingSessionInteractionKind,
+    ) -> Result<ResolvedCodingSessionInteraction, CodingSessionError>;
+
+    /// Atomically resolves and reserves an unresolved interaction before a
+    /// provider call. A successful claim is exclusive across service
+    /// processes until it is settled, released, or expires.
+    async fn claim_durable_interaction(
+        &self,
+        ctx: &CodingSessionContext,
+        session_id: &str,
+        interaction_event_id: &str,
+        interaction_kind: CodingSessionInteractionKind,
+    ) -> Result<ClaimedCodingSessionInteraction, CodingSessionError>;
+
+    /// Releases a pre-provider claim only when it is still owned by
+    /// `claim_id`. This is used after a definite provider rejection; unknown
+    /// provider outcomes intentionally retain the claim until expiry.
+    async fn release_durable_interaction_claim(
+        &self,
+        ctx: &CodingSessionContext,
+        session_id: &str,
+        interaction_event_id: &str,
+        interaction_kind: CodingSessionInteractionKind,
+        claim_id: &str,
+    ) -> Result<(), CodingSessionError>;
+
     async fn submit_approval_decision(
         &self,
         ctx: &CodingSessionContext,
         session_id: &str,
-        checkpoint_id: &str,
+        interaction_event_id: &str,
+        interaction_claim_id: &str,
         input: &SubmitApprovalDecisionInput,
-    ) -> Result<ApprovalDecisionPayload, CodingSessionError>;
+    ) -> Result<PersistedCodingSessionMutation<ApprovalDecisionPayload>, CodingSessionError>;
 
     async fn submit_user_question_answer(
         &self,
         ctx: &CodingSessionContext,
         session_id: &str,
         question_id: &str,
+        interaction_claim_id: &str,
         input: &SubmitUserQuestionAnswerInput,
-    ) -> Result<UserQuestionAnswerPayload, CodingSessionError>;
+    ) -> Result<PersistedCodingSessionMutation<UserQuestionAnswerPayload>, CodingSessionError>;
 
     async fn get_operation(
         &self,
@@ -197,12 +250,12 @@ pub trait CodingSessionRepository: Send + Sync {
         ctx: &CodingSessionContext,
         session_id: &str,
         finalized: &crate::domain::results::FinalizedProjectionTurnExecution,
-    ) -> Result<CodingSessionTurnPayload, CodingSessionError>;
+    ) -> Result<crate::domain::results::PersistedProjectionTurnExecution, CodingSessionError>;
 
     async fn mark_turn_failed(
         &self,
         ctx: &CodingSessionContext,
         session_id: &str,
         turn_id: &str,
-    ) -> Result<(), CodingSessionError>;
+    ) -> Result<Option<CodingSessionEventPayload>, CodingSessionError>;
 }

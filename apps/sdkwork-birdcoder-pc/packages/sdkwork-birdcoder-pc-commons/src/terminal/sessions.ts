@@ -2,8 +2,10 @@ import { getTerminalProfile, type TerminalProfileId } from './profiles.ts';
 import type {
   DesktopRuntimeBridgeClient,
   DesktopTerminalSessionInventorySnapshot,
+  WebRuntimeBridgeClient,
 } from './contracts/sdkworkTerminalInfrastructure.d.ts';
-import { isBirdcoderTauriRuntime } from './birdcoderTerminalRuntime.ts';
+import { resolveBirdcoderBrowserTerminalClient } from './birdcoderTerminalRuntime.ts';
+import { isBirdcoderTauriRuntime } from './runtimeTarget.ts';
 
 export type TerminalSessionStatus = 'idle' | 'running' | 'error' | 'closed';
 
@@ -39,8 +41,58 @@ async function resolveDesktopRuntimeClient(): Promise<DesktopRuntimeBridgeClient
   }
 }
 
+interface BrowserRuntimeSessionDescriptor {
+  sessionId: string;
+  workspaceId: string;
+  state: string;
+  createdAt: string;
+  lastActiveAt: string;
+  tags?: string[];
+}
+
+interface BrowserRuntimeSessionIndexSnapshot {
+  sessions?: BrowserRuntimeSessionDescriptor[];
+}
+
+function readSessionTag(tags: readonly string[] | undefined, prefix: string): string {
+  return tags
+    ?.find((tag) => tag.startsWith(prefix))
+    ?.slice(prefix.length)
+    .trim() ?? '';
+}
+
+export function normalizeBrowserRuntimeSessionRecord(
+  record: BrowserRuntimeSessionDescriptor,
+): TerminalSessionRecord {
+  const profileId = getTerminalProfile(readSessionTag(record.tags, 'profile:') || 'bash').id;
+  const profile = getTerminalProfile(profileId);
+  const updatedAt = Date.parse(record.lastActiveAt || record.createdAt);
+
+  return {
+    id: record.sessionId,
+    title: profile.title,
+    profileId,
+    cwd: '',
+    updatedAt: Number.isNaN(updatedAt) ? 0 : updatedAt,
+    workspaceId: record.workspaceId?.trim() || '',
+    projectId: readSessionTag(record.tags, 'project:'),
+    status: normalizeTerminalSessionStatus(record.state),
+    lastExitCode: null,
+  };
+}
+
 async function listBrowserRuntimeSessions(): Promise<TerminalSessionRecord[]> {
-  return [];
+  const client = resolveBirdcoderBrowserTerminalClient() as WebRuntimeBridgeClient | undefined;
+  if (!client) {
+    return [];
+  }
+
+  try {
+    const snapshot = await client.sessionIndex() as BrowserRuntimeSessionIndexSnapshot;
+    return (snapshot.sessions ?? []).map(normalizeBrowserRuntimeSessionRecord);
+  } catch {
+    return [];
+  }
 }
 
 function normalizeTerminalSessionStatus(value: string): TerminalSessionStatus {

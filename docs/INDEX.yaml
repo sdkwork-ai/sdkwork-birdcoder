@@ -5,11 +5,26 @@ canon:
   prd: docs/product/prd/PRD.md
   techArchitecture: docs/architecture/tech/TECH_ARCHITECTURE.md
 entries:
+  - id: REQ-2026-0001
+    path: docs/product/requirements/REQ-2026-0001-distributed-project-runtime-locations.md
+    layer: work
+    audience: [product, architecture, engineering, security, operations]
+    status: in-progress
+  - id: ADR-20260716
+    path: docs/architecture/decisions/ADR-20260716-distributed-project-runtime-locations.md
+    layer: work
+    audience: [architecture, engineering, security, operations]
+    status: accepted
   - id: ADR-20260713
     path: docs/architecture/decisions/ADR-20260713-unified-project-runtime-boundary.md
     layer: work
     audience: [architecture, engineering, security, operations]
-    status: accepted
+    status: superseded
+  - id: MIG-2026-0001
+    path: docs/migrations/MIG-2026-0001-distributed-project-runtime-locations.md
+    layer: evidence
+    audience: [architecture, engineering, security, operations]
+    status: active
 domains:
   - id: product
     title: Product

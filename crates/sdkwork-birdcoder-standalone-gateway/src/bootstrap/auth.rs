@@ -1,6 +1,6 @@
 use axum::extract::{Request, State};
 use axum::http::StatusCode;
-use axum::middleware::{from_fn_with_state, Next};
+use axum::middleware::{from_fn, from_fn_with_state, Next};
 use axum::response::Response;
 use axum::Router;
 use sdkwork_iam_web_adapter::{
@@ -18,6 +18,7 @@ use crate::bootstrap::config::{
     default_loopback_browser_origins, is_loopback_bind_host, is_wildcard_bind_host,
     BirdDeploymentProfile, BirdServerConfig,
 };
+use crate::bootstrap::realtime_websocket_auth::realtime_websocket_credential_middleware;
 use crate::bootstrap::route_manifest::birdcoder_product_app_api_route_manifest;
 
 pub fn birdcoder_public_path_prefixes() -> Vec<String> {
@@ -45,6 +46,13 @@ pub async fn build_protected_app_router(
         .with_metrics(metrics);
 
     Ok(with_web_request_context(router, layer))
+}
+
+pub(crate) fn with_gateway_realtime_websocket_credentials<S>(router: Router<S>) -> Router<S>
+where
+    S: Clone + Send + Sync + 'static,
+{
+    router.layer(from_fn(realtime_websocket_credential_middleware))
 }
 
 /// Gateway-wide CORS middleware.

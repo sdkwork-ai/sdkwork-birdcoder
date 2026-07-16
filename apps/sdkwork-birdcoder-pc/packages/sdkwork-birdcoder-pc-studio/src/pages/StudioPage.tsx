@@ -3,7 +3,6 @@ import {
   buildCodingSessionProjectScopedKey,
   buildProjectCodingSessionIndex,
   buildWorkbenchCodingSessionTurnContext,
-  buildWorkbenchCodingSessionTurnModelSelectionMetadata,
   createIdleProjectMountRecoveryState,
   deleteWorkbenchCodingSessionMessages,
   emitProjectMountRecoveryState,
@@ -23,6 +22,7 @@ import {
   useFileSystem,
   useIDEServices,
   useProjectLocalWorkingDirectory,
+  useProjectRuntimeLocation,
   useProjects,
   useProjectGitOverview,
   useProjectRunConfigurations,
@@ -95,6 +95,7 @@ function StudioPageComponent({
     createProject,
     createCodingSession,
     updateProject,
+    deleteProject,
     editCodingSessionMessage,
     deleteCodingSessionMessage,
     loadMoreProjects,
@@ -106,9 +107,11 @@ function StudioPageComponent({
   const {
     collaborationService,
     appRuntimeReadService,
+    projectRuntimeLocationService,
     projectService,
   } = useIDEServices();
   const resolveProjectLocalWorkingDirectory = useProjectLocalWorkingDirectory();
+  const resolveProjectRuntimeLocation = useProjectRuntimeLocation();
   const { user } = useAuth();
   const { addToast } = useToast();
   const [sessionId, setSessionId] = useState<string>('');
@@ -414,7 +417,7 @@ function StudioPageComponent({
     activeTab,
     addToast,
     currentProjectId,
-    resolveLocalWorkingDirectory: resolveProjectLocalWorkingDirectory,
+    resolveProjectRuntimeLocation,
     previewAppPlatform,
     previewDeviceModel,
     previewIsLandscape,
@@ -553,7 +556,6 @@ function StudioPageComponent({
     deleteFolder,
     renameNode,
     searchFiles,
-    mountFolder,
     restoreProjectMount,
     flushPendingAutosave,
   } = useFileSystem(currentProjectId, {
@@ -568,7 +570,7 @@ function StudioPageComponent({
     saveError,
     currentProjectIdRef,
     projectsRef,
-    resolveLocalWorkingDirectory: resolveProjectLocalWorkingDirectory,
+    resolveProjectRuntimeLocation,
     runConfigurationsRef,
     selectedCodingSessionIdRef,
     selectCodingSessionRef,
@@ -596,12 +598,14 @@ function StudioPageComponent({
     }
 
     return importLocalFolderProject({
+      bindLocalProjectRuntimeLocation: (projectId, source) =>
+        projectRuntimeLocationService.bindLocalProjectRuntimeLocation(projectId, source),
       createProject,
+      deleteCreatedProject: deleteProject,
       fallbackProjectName,
       folderInfo: pickerResult.source,
-      mountFolder,
     });
-  }, [addToast, createProject, mountFolder]);
+  }, [addToast, createProject, deleteProject, projectRuntimeLocationService]);
 
   useEffect(() => {
     if (
@@ -892,11 +896,14 @@ function StudioPageComponent({
       throw new Error(t('chat.sendMessageBusy'));
     }
     const requestedEngineId = composerSelection?.engineId?.trim() ?? '';
+    const requestedModelId = composerSelection?.modelId?.trim() ?? '';
     const currentSessionEngineId = selectedSession?.engineId?.trim() ?? '';
+    const currentSessionModelId = selectedSession?.modelId?.trim() ?? '';
     const currentCodingSessionId =
-      currentSessionEngineId &&
-      requestedEngineId &&
-      requestedEngineId.toLowerCase() !== currentSessionEngineId.toLowerCase()
+      (requestedEngineId &&
+        requestedEngineId.toLowerCase() !== currentSessionEngineId.toLowerCase()) ||
+      (requestedModelId &&
+        requestedModelId.toLowerCase() !== currentSessionModelId.toLowerCase())
         ? null
         : sessionId;
     const bootstrappedSession = await ensureWorkbenchCodingSessionForMessage({
@@ -935,16 +942,11 @@ function StudioPageComponent({
         sessionId: bootstrappedSession.codingSessionId,
         workspaceId,
       });
-      const turnModelSelectionMetadata =
-        buildWorkbenchCodingSessionTurnModelSelectionMetadata(composerSelection);
       const sentMessage = await sendMessage(
         bootstrappedSession.projectId,
         bootstrappedSession.codingSessionId,
         trimmedContent,
         context,
-        turnModelSelectionMetadata
-          ? { metadata: turnModelSelectionMetadata }
-          : undefined,
       );
       if (
         sentMessage?.codingSessionId &&
@@ -968,6 +970,7 @@ function StudioPageComponent({
     selectCodingSession,
     selectFolderAndImportProject,
     selectedSession?.engineId,
+    selectedSession?.modelId,
     selectedFile,
     sendMessage,
     setSelectionRefreshToken,
@@ -1117,10 +1120,11 @@ function StudioPageComponent({
       }
 
       const reboundProject = await rebindLocalFolderProject({
+        bindLocalProjectRuntimeLocation: (projectId, source) =>
+          projectRuntimeLocationService.bindLocalProjectRuntimeLocation(projectId, source),
         projectId: currentProjectId,
         fallbackProjectName: currentProject?.name ?? t('studio.localFolder'),
         folderInfo: pickerResult.source,
-        mountFolder,
       });
 
       syncImportedProjectInBackground(currentProjectId);
@@ -1136,7 +1140,14 @@ function StudioPageComponent({
     } finally {
       setIsMountRecoveryActionPending(false);
     }
-  }, [addToast, currentProject?.name, currentProjectId, mountFolder, syncImportedProjectInBackground, t]);
+  }, [
+    addToast,
+    currentProject?.name,
+    currentProjectId,
+    projectRuntimeLocationService,
+    syncImportedProjectInBackground,
+    t,
+  ]);
 
   const studioChatEmptyState = useMemo(
     () => (isSelectedCodingSessionHydrating ? <StudioSessionTranscriptLoadingState /> : undefined),

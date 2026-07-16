@@ -31,12 +31,12 @@ pub use native_session_catalog::{
 };
 
 pub use catalog::{
-    find_codeengine_descriptor, find_native_session_provider_catalog_entry,
-    list_codeengine_descriptors, list_codeengine_model_catalog_entries,
-    list_native_session_provider_catalog_entries, native_session_provider_catalog_entries,
-    register_provider, shared_codeengine_catalog, CatalogError, CodeEngineAccessLaneStatusRecord,
-    CodeEngineAccessStrategyKindRecord, CodeEngineBridgeProtocolRecord,
-    CodeEngineCapabilityMatrixRecord, CodeEngineDescriptorRecord,
+    find_codeengine_descriptor, find_codeengine_model_catalog_entry,
+    find_native_session_provider_catalog_entry, list_codeengine_descriptors,
+    list_codeengine_model_catalog_entries, list_native_session_provider_catalog_entries,
+    native_session_provider_catalog_entries, register_provider, shared_codeengine_catalog,
+    CatalogError, CodeEngineAccessLaneStatusRecord, CodeEngineAccessStrategyKindRecord,
+    CodeEngineBridgeProtocolRecord, CodeEngineCapabilityMatrixRecord, CodeEngineDescriptorRecord,
     CodeEngineModelCatalogEntryRecord, CodeEngineRuntimeOwnerRecord,
     NativeSessionDiscoveryModeRecord as NativeSessionDiscoveryMode,
     NativeSessionProviderCatalogRecord,
@@ -91,8 +91,8 @@ pub use sdk_bridge::{
     CODEENGINE_SDK_BRIDGE_HOME_ENV,
 };
 pub use session_records::{
-    sanitize_codeengine_session_metadata, CodeEngineSessionCommandRecord,
-    CodeEngineSessionDetailRecord, CodeEngineSessionMessageRecord,
+    sanitize_codeengine_git_repository_url, sanitize_codeengine_session_metadata,
+    CodeEngineSessionCommandRecord, CodeEngineSessionDetailRecord, CodeEngineSessionMessageRecord,
     CodeEngineSessionNativeAttributesRecord, CodeEngineSessionSummaryRecord,
     CODE_ENGINE_NATIVE_SESSION_SCHEMA_VERSION,
 };

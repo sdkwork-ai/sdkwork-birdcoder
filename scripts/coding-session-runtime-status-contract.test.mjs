@@ -96,6 +96,18 @@ assert.match(
 
 assert.match(
   serverApiSource,
+  /codingSessionRuntimeLocationId\?: string;/,
+  'Workspace realtime event contracts must carry only the optional opaque coding-session runtime-location id.',
+);
+
+assert.match(
+  workspaceRealtimeSource,
+  /function normalizeRealtimeRuntimeLocationId\(/,
+  'Workspace realtime projections must validate opaque runtime-location ids before persisting an event value.',
+);
+
+assert.match(
+  serverApiSource,
   /export interface BirdCoderIamRuntimeSettingsSummary \{[\s\S]*loginMethods: BirdCoderIamLoginMethod\[];[\s\S]*verificationPolicy: BirdCoderIamVerificationPolicySummary;/,
   'BirdCoder server-api contracts must expose standard SDKWork IAM runtime settings instead of a user-center deployment selector.',
 );

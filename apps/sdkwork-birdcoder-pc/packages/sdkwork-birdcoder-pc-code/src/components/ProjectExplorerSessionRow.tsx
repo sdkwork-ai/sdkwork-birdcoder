@@ -79,7 +79,7 @@ export const ProjectExplorerSessionRow = React.memo(function ProjectExplorerSess
 
   return (
     <div
-      className={`birdcoder-session-row ${isSelected ? 'birdcoder-session-selected' : ''} ${paddingClassName} py-1.5 relative group flex w-full min-w-0 max-w-full items-center justify-between overflow-hidden cursor-pointer rounded-md transition-colors ${
+      className={`${paddingClassName} py-1.5 relative group flex w-full min-w-0 max-w-full items-center justify-between overflow-hidden birdcoder-session-row ${isSelected ? 'birdcoder-session-selected' : ''} cursor-pointer rounded-md transition-colors ${
         isSelected ? 'text-white' : 'text-gray-400'
       }`}
       style={buildProjectExplorerSurfaceStyle('36px')}

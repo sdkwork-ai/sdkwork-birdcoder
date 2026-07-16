@@ -58,6 +58,22 @@ async fn production_repository_supports_postgresql_schema_transactions_and_scope
             .execute(&pool)
             .await
             .expect("apply generated PostgreSQL schema");
+        let event_sequence_index: String = sqlx::query_scalar(
+            "SELECT indexdef FROM pg_indexes \
+             WHERE schemaname = current_schema() \
+               AND tablename = 'ai_coding_session_event' \
+               AND indexname = 'uk_ai_coding_session_event_scope_sequence'",
+        )
+        .fetch_one(&pool)
+        .await
+        .expect("load PostgreSQL durable event sequence index");
+        assert!(event_sequence_index.contains(
+            "UNIQUE INDEX uk_ai_coding_session_event_scope_sequence"
+        ));
+        assert!(event_sequence_index.contains(
+            "(tenant_id, user_id, coding_session_id, sequence_no)"
+        ));
+        assert!(event_sequence_index.contains("WHERE (is_deleted IS NOT TRUE)"));
 
         sqlx::query(
             "INSERT INTO studio_workspace \
@@ -84,8 +100,8 @@ async fn production_repository_supports_postgresql_schema_transactions_and_scope
         ] {
             sqlx::query(
                 "INSERT INTO ai_coding_session \
-                 (id, tenant_id, organization_id, user_id, created_at, updated_at, workspace_id, project_id, title, status, entry_surface, host_mode, engine_id, model_id, sort_timestamp) \
-                 VALUES (?, ?, 0, ?, ?, ?, '101', 'project-smoke', ?, 'active', 'pc', 'server', 'codex', 'gpt-5', ?)",
+                 (id, tenant_id, organization_id, user_id, created_at, updated_at, workspace_id, project_id, runtime_location_id, title, status, entry_surface, host_mode, engine_id, model_id, sort_timestamp) \
+                 VALUES (?, ?, 0, ?, ?, ?, '101', 'project-smoke', 'runtime-location-smoke', ?, 'active', 'pc', 'server', 'codex', 'gpt-5', ?)",
             )
             .bind(id)
             .bind(tenant_id)
@@ -104,12 +120,14 @@ async fn production_repository_supports_postgresql_schema_transactions_and_scope
             .list_sessions(
                 &CodingSessionContext {
                     tenant_id: "7".to_owned(),
+                    organization_id: "0".to_owned(),
                     user_id: "42".to_owned(),
                     session_id: "postgres-live-smoke".to_owned(),
                 },
                 &CodingSessionListQuery {
                     engine_id: Some("codex".to_owned()),
                     project_id: Some("project-smoke".to_owned()),
+                    runtime_location_id: None,
                     workspace_id: Some("101".to_owned()),
                     page_size: Some(20),
                     offset: Some(0),

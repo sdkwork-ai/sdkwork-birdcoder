@@ -17,6 +17,14 @@
     "./dataScopes": {
       "import": "./src/dataScopes.ts",
       "types": "./src/dataScopes.ts"
+    },
+    "./apiTransportError": {
+      "import": "./src/apiTransportError.ts",
+      "types": "./src/apiTransportError.ts"
+    },
+    "./runConfigurationStorage": {
+      "import": "./src/runConfigurationStorage.ts",
+      "types": "./src/runConfigurationStorage.ts"
     }
   },
   "scripts": {

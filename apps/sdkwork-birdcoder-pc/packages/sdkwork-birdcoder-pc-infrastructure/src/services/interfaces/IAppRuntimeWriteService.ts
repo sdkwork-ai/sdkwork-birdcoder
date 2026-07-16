@@ -40,12 +40,12 @@ export interface IAppRuntimeWriteService {
   ): Promise<BirdCoderCodingSessionTurn>;
   submitApprovalDecision(
     codingSessionId: string,
-    checkpointId: string,
+    interactionEventId: string,
     request: BirdCoderSubmitApprovalDecisionRequest,
   ): Promise<BirdCoderApprovalDecisionResult>;
   submitUserQuestionAnswer(
     codingSessionId: string,
-    questionId: string,
+    interactionEventId: string,
     request: BirdCoderSubmitUserQuestionAnswerRequest,
   ): Promise<BirdCoderUserQuestionAnswerResult>;
   syncModelConfig(

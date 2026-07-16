@@ -114,6 +114,7 @@ async fn list_sessions_returns_each_sessions_latest_runtime_status() {
         .list_sessions(
             &CodingSessionContext {
                 tenant_id: "7".to_owned(),
+                organization_id: "0".to_owned(),
                 user_id: "42".to_owned(),
                 session_id: "request-session".to_owned(),
             },
@@ -243,6 +244,7 @@ async fn list_sessions_does_not_evaluate_runtime_status_for_sessions_outside_the
         .list_sessions(
             &CodingSessionContext {
                 tenant_id: "7".to_owned(),
+                organization_id: "0".to_owned(),
                 user_id: "42".to_owned(),
                 session_id: "paged-request-session".to_owned(),
             },

@@ -17,8 +17,12 @@ const workspacePanelTypesPath = new URL(
   '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-code/src/pages/codeEditorWorkspacePanel.types.ts',
   import.meta.url,
 );
-const codeLocalFolderImportHookPath = new URL(
-  '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-code/src/pages/useCodeLocalFolderProjectImport.ts',
+const codeServerDirectoryImportHookPath = new URL(
+  '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-code/src/pages/useCodeServerDirectoryProjectImport.ts',
+  import.meta.url,
+);
+const codeEffectiveWorkspaceHookPath = new URL(
+  '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-code/src/pages/useCodeEffectiveWorkspaceId.ts',
   import.meta.url,
 );
 const fileExplorerPath = new URL(
@@ -30,16 +34,22 @@ const codePageSource = fs.readFileSync(codePagePath, 'utf8');
 const sidebarSource = fs.readFileSync(sidebarPath, 'utf8');
 const workspacePanelSource = fs.readFileSync(workspacePanelPath, 'utf8');
 const workspacePanelTypesSource = fs.readFileSync(workspacePanelTypesPath, 'utf8');
-const codeLocalFolderImportHookSource = fs.readFileSync(codeLocalFolderImportHookPath, 'utf8');
+const codeServerDirectoryImportHookSource = fs.readFileSync(codeServerDirectoryImportHookPath, 'utf8');
+const codeEffectiveWorkspaceHookSource = fs.readFileSync(codeEffectiveWorkspaceHookPath, 'utf8');
 const fileExplorerSource = fs.readFileSync(fileExplorerPath, 'utf8');
-const localFolderImportStart = codeLocalFolderImportHookSource.indexOf('return importLocalFolderProject({');
-const localFolderImportEnd =
-  localFolderImportStart >= 0
-    ? codeLocalFolderImportHookSource.indexOf('    });', localFolderImportStart)
+const serverDirectoryImportStart = codeServerDirectoryImportHookSource.indexOf(
+  'const importedProject = await importSandboxDirectoryProject({',
+);
+const serverDirectoryImportEnd =
+  serverDirectoryImportStart >= 0
+    ? codeServerDirectoryImportHookSource.indexOf('    });', serverDirectoryImportStart)
     : -1;
-const localFolderImportBlock =
-  localFolderImportStart >= 0 && localFolderImportEnd >= 0
-    ? codeLocalFolderImportHookSource.slice(localFolderImportStart, localFolderImportEnd)
+const serverDirectoryImportBlock =
+  serverDirectoryImportStart >= 0 && serverDirectoryImportEnd >= 0
+    ? codeServerDirectoryImportHookSource.slice(
+        serverDirectoryImportStart,
+        serverDirectoryImportEnd,
+      )
     : '';
 
 assert.equal(
@@ -51,31 +61,39 @@ assert.equal(
 assert.equal(
   codePageSource.includes("selectFolderAndImportProject('New Project')"),
   true,
-  'New project creation must delegate folder selection and device-mount registration to the shared local-folder import hook.',
+  'New project creation must delegate server-directory selection and workspace binding to the dedicated import hook.',
 );
 
 assert.equal(
-  codeLocalFolderImportHookSource.includes('importLocalFolderProject({'),
+  codeServerDirectoryImportHookSource.includes('importSandboxDirectoryProject({'),
   true,
-  'New project creation must import the selected local folder into the project record.',
+  'New project creation must import the selected Drive sandbox directory into the project record.',
 );
 
 assert.equal(
-  codeLocalFolderImportHookSource.includes('useWorkspaces({ isActive: isVisible })'),
+  codeEffectiveWorkspaceHookSource.includes('useWorkspaces({ isActive: isVisible })'),
   true,
-  'CodePage local folder imports must be able to resolve a default workspace when no workspaceId prop is available.',
+  'CodePage must gate workspace resolution by visibility before a server-directory import resolves its target workspace.',
 );
 
 assert.equal(
-  codeLocalFolderImportHookSource.includes('const targetWorkspaceId = await resolveLocalFolderImportWorkspaceId();'),
+  codeServerDirectoryImportHookSource.includes(
+    'const targetWorkspaceId = await resolveTargetWorkspaceId();',
+  ),
   true,
-  'CodePage local folder imports must resolve a concrete workspace id before creating a project.',
+  'CodePage server-directory imports must resolve a concrete workspace id before creating a project.',
 );
 
 assert.equal(
-  /^\s*createProject,\s*$/m.test(localFolderImportBlock),
+  /^\s*createProject,\s*$/m.test(serverDirectoryImportBlock),
   false,
-  'CodePage must not pass a workspace-unbound createProject function into local folder import.',
+  'CodePage must not pass a workspace-unbound createProject function into server-directory import.',
+);
+
+assert.equal(
+  /absolutePath|localWorkingDirectory|folderInfo\.path/u.test(serverDirectoryImportBlock),
+  false,
+  'Server-directory import must bind sandbox identifiers and must not project an OS path into the remote project contract.',
 );
 
 assert.equal(

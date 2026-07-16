@@ -52,19 +52,10 @@ pub struct NativeSessionProviderPayload {
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct CodeEngineModelConfigCustomModelPayload {
-    pub id: String,
-    pub label: String,
-}
-
-#[derive(Clone, Debug, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
 pub struct CodeEngineModelConfigEnginePayload {
     pub engine_id: String,
     pub default_model_id: String,
     pub selected_model_id: String,
-    #[serde(default)]
-    pub custom_models: Vec<CodeEngineModelConfigCustomModelPayload>,
     #[serde(default)]
     pub models: Vec<ModelCatalogEntryPayload>,
 }
@@ -192,7 +183,6 @@ impl<P: EngineCatalogProvider> EngineCatalogService<P> {
                     engine_id: engine.engine_key.clone(),
                     default_model_id: engine.default_model_id.clone(),
                     selected_model_id: engine.default_model_id,
-                    custom_models: Vec::new(),
                     models: engine_models,
                 };
                 (engine.engine_key, engine_config)
@@ -213,6 +203,7 @@ impl<P: EngineCatalogProvider> EngineCatalogService<P> {
         local_config: CodeEngineModelConfigPayload,
     ) -> Result<SyncModelConfigResultPayload, EngineCatalogError> {
         let server_config = self.get_model_config()?;
+        let local_config = normalize_client_model_config(local_config, &server_config);
         let comparison = compare_model_config_versions(&local_config, &server_config);
 
         let result = match comparison {
@@ -253,6 +244,54 @@ impl<P: EngineCatalogProvider> EngineCatalogService<P> {
     }
 }
 
+fn normalize_client_model_config(
+    client_config: CodeEngineModelConfigPayload,
+    server_config: &CodeEngineModelConfigPayload,
+) -> CodeEngineModelConfigPayload {
+    let engines = server_config
+        .engines
+        .iter()
+        .map(|(engine_key, server_engine)| {
+            let client_engine = client_config.engines.get(engine_key);
+            let requested_model_id = client_engine
+                .map(|engine| engine.selected_model_id.as_str())
+                .filter(|model_id| !model_id.trim().is_empty())
+                .or_else(|| {
+                    client_engine
+                        .map(|engine| engine.default_model_id.as_str())
+                        .filter(|model_id| !model_id.trim().is_empty())
+                });
+            let selected_model_id = requested_model_id
+                .and_then(|model_id| {
+                    server_engine
+                        .models
+                        .iter()
+                        .find(|model| model.model_id == model_id)
+                        .map(|model| model.model_id.clone())
+                })
+                .unwrap_or_else(|| server_engine.default_model_id.clone());
+
+            (
+                engine_key.clone(),
+                CodeEngineModelConfigEnginePayload {
+                    engine_id: engine_key.clone(),
+                    default_model_id: selected_model_id.clone(),
+                    selected_model_id,
+                    models: server_engine.models.clone(),
+                },
+            )
+        })
+        .collect();
+
+    CodeEngineModelConfigPayload {
+        schema_version: server_config.schema_version,
+        source: client_config.source,
+        version: client_config.version,
+        updated_at: client_config.updated_at,
+        engines,
+    }
+}
+
 fn compare_model_config_versions(
     left: &CodeEngineModelConfigPayload,
     right: &CodeEngineModelConfigPayload,
@@ -267,6 +306,78 @@ fn compare_model_config_versions(
 mod tests {
     use super::*;
 
+    #[derive(Clone)]
+    struct TestCatalogProvider;
+
+    impl EngineCatalogProvider for TestCatalogProvider {
+        fn list_engine_descriptors(&self) -> Result<Vec<EngineDescriptorPayload>, String> {
+            Ok(vec![
+                EngineDescriptorPayload {
+                    engine_key: "codex".to_string(),
+                    name: "Codex".to_string(),
+                    description: "OpenAI".to_string(),
+                    default_model_id: "gpt-5.4".to_string(),
+                    capability_matrix: EngineCapabilityMatrixPayload {
+                        engine_key: "codex".to_string(),
+                        capabilities: Vec::new(),
+                    },
+                },
+                EngineDescriptorPayload {
+                    engine_key: "gemini".to_string(),
+                    name: "Gemini".to_string(),
+                    description: "Google".to_string(),
+                    default_model_id: "auto-gemini-3".to_string(),
+                    capability_matrix: EngineCapabilityMatrixPayload {
+                        engine_key: "gemini".to_string(),
+                        capabilities: Vec::new(),
+                    },
+                },
+            ])
+        }
+
+        fn find_engine_descriptor(
+            &self,
+            engine_key: &str,
+        ) -> Result<Option<EngineDescriptorPayload>, String> {
+            Ok(self
+                .list_engine_descriptors()?
+                .into_iter()
+                .find(|engine| engine.engine_key == engine_key))
+        }
+
+        fn list_model_catalog_entries(&self) -> Result<Vec<ModelCatalogEntryPayload>, String> {
+            Ok(vec![
+                ModelCatalogEntryPayload {
+                    engine_key: "codex".to_string(),
+                    model_id: "gpt-5.4".to_string(),
+                    label: "GPT-5.4".to_string(),
+                    description: "Codex default".to_string(),
+                    updated_at: "2026-07-16T00:00:00.000Z".to_string(),
+                },
+                ModelCatalogEntryPayload {
+                    engine_key: "gemini".to_string(),
+                    model_id: "auto-gemini-3".to_string(),
+                    label: "Auto Gemini 3".to_string(),
+                    description: "Gemini default".to_string(),
+                    updated_at: "2026-07-16T00:00:00.000Z".to_string(),
+                },
+                ModelCatalogEntryPayload {
+                    engine_key: "gemini".to_string(),
+                    model_id: "gemini-2.5-pro".to_string(),
+                    label: "Gemini 2.5 Pro".to_string(),
+                    description: "Gemini alternate".to_string(),
+                    updated_at: "2026-07-16T00:00:00.000Z".to_string(),
+                },
+            ])
+        }
+
+        fn list_native_session_provider_entries(
+            &self,
+        ) -> Result<Vec<NativeSessionProviderPayload>, String> {
+            Ok(Vec::new())
+        }
+    }
+
     #[test]
     fn bounded_catalog_guard_accepts_the_cap_and_rejects_larger_collections() {
         let bounded = ensure_bounded_catalog(vec![(); MAX_BOUNDED_CATALOG_ITEMS], "engine")
@@ -276,5 +387,55 @@ mod tests {
         let error = ensure_bounded_catalog(vec![(); MAX_BOUNDED_CATALOG_ITEMS + 1], "engine")
             .expect_err("catalog above the documented cap must fail closed");
         assert!(matches!(error, EngineCatalogError::Internal(_)));
+    }
+
+    #[test]
+    fn sync_model_config_discards_legacy_custom_models_and_unknown_selections() {
+        let local_config: CodeEngineModelConfigPayload =
+            serde_json::from_value(serde_json::json!({
+                "schemaVersion": 1,
+                "source": "home-file",
+                "version": "v2",
+                "updatedAt": "2026-07-16T00:01:00.000Z",
+                "engines": {
+                    "gemini": {
+                        "engineId": "gemini",
+                        "defaultModelId": "gemini-custom",
+                        "selectedModelId": "gemini-custom",
+                        "customModels": [{ "id": "gemini-custom", "label": "Legacy Gemini" }],
+                        "models": []
+                    },
+                    "unknown-engine": {
+                        "engineId": "unknown-engine",
+                        "defaultModelId": "unknown-model",
+                        "selectedModelId": "unknown-model",
+                        "models": []
+                    }
+                }
+            }))
+            .expect(
+                "legacy custom-model payload must remain readable at the compatibility boundary",
+            );
+        let service = EngineCatalogService::new(TestCatalogProvider, "v1".to_string());
+
+        let result = service
+            .sync_model_config(local_config)
+            .expect("model-config synchronization must sanitize legacy client input");
+
+        assert_eq!(result.action, "push-local");
+        assert_eq!(
+            result
+                .config
+                .engines
+                .get("gemini")
+                .map(|engine| engine.selected_model_id.as_str()),
+            Some("auto-gemini-3"),
+        );
+        assert_eq!(result.config.engines.len(), 2);
+        assert!(!result.config.engines.contains_key("unknown-engine"));
+
+        let serialized = serde_json::to_value(&result.config)
+            .expect("sanitized model config must remain serializable");
+        assert!(serialized.pointer("/engines/gemini/customModels").is_none());
     }
 }

@@ -189,6 +189,48 @@
       "lifecycle_status": "active"
     },
     {
+      "table_name": "studio_project_runtime_location",
+      "owner": "birdcoder-platform",
+      "compliance_level": "L2",
+      "lifecycle_status": "active"
+    },
+    {
+      "table_name": "studio_project_runtime_location_preference",
+      "owner": "birdcoder-platform",
+      "compliance_level": "L2",
+      "lifecycle_status": "active"
+    },
+    {
+      "table_name": "studio_project_runtime_location_idempotency",
+      "owner": "birdcoder-platform",
+      "compliance_level": "L2",
+      "lifecycle_status": "active"
+    },
+    {
+      "table_name": "ops_project_runtime_location_audit",
+      "owner": "birdcoder-platform",
+      "compliance_level": "L2",
+      "lifecycle_status": "active"
+    },
+    {
+      "table_name": "studio_project_workspace_binding",
+      "owner": "birdcoder-platform",
+      "compliance_level": "L2",
+      "lifecycle_status": "active"
+    },
+    {
+      "table_name": "studio_project_workspace_binding_idempotency",
+      "owner": "birdcoder-platform",
+      "compliance_level": "L2",
+      "lifecycle_status": "active"
+    },
+    {
+      "table_name": "ops_project_workspace_binding_audit",
+      "owner": "birdcoder-platform",
+      "compliance_level": "L2",
+      "lifecycle_status": "active"
+    },
+    {
       "table_name": "ops_release_record",
       "owner": "birdcoder-platform",
       "compliance_level": "L2",

@@ -131,6 +131,23 @@ const crates = [
       ['Get', 'PROJECT_DETAIL_PATH', 'projects'],
       ['Patch', 'PROJECT_DETAIL_PATH', 'projects'],
       ['Delete', 'PROJECT_DETAIL_PATH', 'projects'],
+      ['Get', 'PROJECT_WORKSPACE_BINDING_PATH', 'projects'],
+      ['Put', 'PROJECT_WORKSPACE_BINDING_PATH', 'projects', { idempotent: true }],
+      ['Delete', 'PROJECT_WORKSPACE_BINDING_PATH', 'projects'],
+      ['Get', 'PROJECT_RUNTIME_LOCATIONS_PATH', 'projects'],
+      ['Post', 'PROJECT_RUNTIME_LOCATIONS_PATH', 'projects', { idempotent: true }],
+      ['Get', 'PROJECT_RUNTIME_LOCATION_DETAIL_PATH', 'projects'],
+      ['Patch', 'PROJECT_RUNTIME_LOCATION_DETAIL_PATH', 'projects', { idempotent: true }],
+      ['Delete', 'PROJECT_RUNTIME_LOCATION_DETAIL_PATH', 'projects'],
+      ['Post', 'PROJECT_RUNTIME_LOCATION_REBIND_PATH', 'projects', { idempotent: true }],
+      [
+        'Post',
+        'PROJECT_RUNTIME_LOCATION_VERIFICATION_REQUEST_PATH',
+        'projects',
+        { idempotent: true },
+      ],
+      ['Get', 'PROJECT_RUNTIME_LOCATION_PREFERENCES_PATH', 'projects'],
+      ['Put', 'PROJECT_RUNTIME_LOCATION_PREFERENCE_PATH', 'projects', { idempotent: true }],
       ['Get', 'PROJECT_GIT_OVERVIEW_PATH', 'projects'],
       ['Get', 'PROJECT_GIT_DIFF_PATH', 'projects'],
       ['Post', 'PROJECT_GIT_BRANCHES_PATH', 'projects'],
@@ -220,12 +237,15 @@ const crates = [
 
 function renderRoute(method, pathConst, tag, pathConstants, routeOptions = {}) {
   const resolved = resolveOperation(method, pathConst, pathConstants, routeOptions);
+  const idempotency = routeOptions.idempotent === true
+    ? '\n    .with_idempotent(true)'
+    : '';
   return `    HttpRoute::dual_token(
         HttpMethod::${method},
         paths::${pathConst},
         "${tag}",
         "${resolved.operationId}",
-    )
+    )${idempotency}
     .with_required_permission("${resolved.permission}"),`;
 }
 

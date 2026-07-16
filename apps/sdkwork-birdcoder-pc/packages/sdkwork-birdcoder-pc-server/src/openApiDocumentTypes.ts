@@ -103,7 +103,7 @@ export interface BirdCoderOpenApiGovernanceMetadata {
 
 export interface BirdCoderOpenApiParameterObject {
   name: string;
-  in: 'path' | 'query';
+  in: 'header' | 'path' | 'query';
   required?: boolean;
   description?: string;
   schema: BirdCoderOpenApiSchema;
@@ -127,6 +127,9 @@ export interface BirdCoderOpenApiResponseObject {
     'application/problem+json'?: {
       schema: BirdCoderOpenApiSchema;
     };
+    'text/event-stream'?: {
+      schema: BirdCoderOpenApiSchema;
+    };
   };
 }
 
@@ -143,7 +146,9 @@ export interface BirdCoderOpenApiOperationObject {
   'x-sdkwork-data-scope': BirdCoderOpenApiScope;
   'x-sdkwork-deployment': 'all';
   'x-sdkwork-domain': BirdCoderOpenApiDomain;
+  'x-sdkwork-audit-event'?: string;
   'x-sdkwork-forbid-credential-headers'?: boolean;
+  'x-sdkwork-idempotent'?: boolean;
   'x-sdkwork-permission'?: string;
   'x-sdkwork-public': boolean;
   'x-sdkwork-resource': string;
@@ -203,6 +208,8 @@ export interface BirdCoderCodingServerOpenApiDocument {
 }
 
 export interface BirdCoderOpenApiOperationDefinition {
+  auditEvent?: string;
+  idempotent?: boolean;
   parameters?: BirdCoderOpenApiParameterObject[];
   requestBody?: BirdCoderOpenApiRequestBodyObject;
   responses: Record<string, BirdCoderOpenApiResponseObject>;

@@ -18,6 +18,7 @@ const allowedInternalDependencies = new Map([
   ['@sdkwork/birdcoder-pc-auth', new Set([
     '@sdkwork/birdcoder-pc-commons',
     '@sdkwork/birdcoder-pc-types',
+    '@sdkwork/birdcoder-pc-ui-shell',
   ])],
   ['@sdkwork/birdcoder-pc-projection', new Set([
     '@sdkwork/birdcoder-pc-types',
@@ -113,6 +114,7 @@ const allowedInternalDependencies = new Map([
     '@sdkwork/birdcoder-pc-host-core',
     '@sdkwork/birdcoder-pc-infrastructure-runtime',
     '@sdkwork/birdcoder-pc-types',
+    '@sdkwork/birdcoder-pc-ui-shell',
     '@sdkwork/birdcoder-pc-workbench-state',
     '@sdkwork/birdcoder-pc-workbench-storage',
   ])],

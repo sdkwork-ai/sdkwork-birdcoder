@@ -44,6 +44,8 @@ permissions = [
   # Host bridge commands
   "allow-host-mode",
   "allow-desktop-runtime-config",
+  "allow-desktop-runtime-location-install-identity",
+  "allow-desktop-runtime-location-create-root-locator",
 
   # Local store commands
   "allow-local-store-get",
@@ -76,6 +78,18 @@ permissions = [
   "allow-fs-rename-entry",
   "allow-fs-watch-start",
   "allow-fs-watch-stop",
+
+  # Native Git bridge commands. Branch, commit, push, and worktree operations
+  # are production-only because they mutate the checked-out repository.
+  "allow-git-project-overview",
+  "allow-git-project-diff",
+  "allow-git-create-branch",
+  "allow-git-switch-branch",
+  "allow-git-commit-changes",
+  "allow-git-push-branch",
+  "allow-git-create-worktree",
+  "allow-git-remove-worktree",
+  "allow-git-prune-worktrees",
 
   # Desktop shell host bridge commands
   "allow-terminal-cli-profile-detect",

@@ -6,6 +6,7 @@ import {
 } from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-types/src/chat-message-view.ts';
 import {
   resolveMessageCopyContent,
+  resolveChatTurnActivitySummary,
   resolveProjectedActivityFileChanges,
   resolveVisibleAssistantMessageContent,
 } from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-types/src/chat-message-activity-projection.ts';
@@ -61,6 +62,68 @@ assert.equal(
   resolveProjectedActivityFileChanges(parsedSummaryMessage).length,
   1,
   'parsed file summaries must become structured activity file changes.',
+);
+
+const turnMessages: ChatMessageViewSource[] = [
+  {
+    id: 'turn-user',
+    codingSessionId: 'session-1',
+    turnId: 'turn-1',
+    role: 'user',
+    content: 'Update the app and verify it.',
+    createdAt: '2026-06-22T00:00:03.000Z',
+  },
+  {
+    id: 'turn-tool',
+    codingSessionId: 'session-1',
+    turnId: 'turn-1',
+    role: 'tool',
+    content: 'ok',
+    createdAt: '2026-06-22T00:00:04.000Z',
+    commands: [{ command: 'pnpm typecheck', status: 'success' }],
+    fileChanges: [{ path: 'src/App.tsx', additions: 2, deletions: 1 }],
+  },
+  {
+    id: 'turn-assistant',
+    codingSessionId: 'session-1',
+    turnId: 'turn-1',
+    role: 'assistant',
+    content: 'Completed the update.',
+    createdAt: '2026-06-22T00:00:05.000Z',
+  },
+];
+const finalTurnMessage = turnMessages[2]!;
+const turnActivitySummary = resolveChatTurnActivitySummary(turnMessages, finalTurnMessage);
+assert.deepEqual(
+  turnActivitySummary,
+  {
+    commands: [{ command: 'pnpm typecheck', status: 'success' }],
+    fileChanges: [{ path: 'src/App.tsx', additions: 2, deletions: 1 }],
+  },
+  'the final assistant reply must collect tool activity from its completed turn for one end-of-turn summary card.',
+);
+assert.equal(
+  resolveChatTurnActivitySummary(turnMessages, turnMessages[1]!),
+  null,
+  'tool messages must not render a duplicate turn-end summary before the final assistant reply.',
+);
+const completedTurnView = resolveChatMessageView(finalTurnMessage, {
+  activitySummary: turnActivitySummary,
+});
+assert.equal(
+  completedTurnView.kind,
+  'assistant.activity',
+  'a final reply with collected tool activity must render through the activity summary surface.',
+);
+assert.deepEqual(
+  completedTurnView.blocks.find((block) => block.type === 'activity'),
+  {
+    type: 'activity',
+    messageId: 'turn-assistant',
+    commands: [{ command: 'pnpm typecheck', status: 'success' }],
+    fileChanges: [{ path: 'src/App.tsx', additions: 2, deletions: 1 }],
+  },
+  'the turn-end activity card must expose both commands and file changes from the completed turn.',
 );
 
 const parsedOnlyView = resolveChatMessageView(parsedSummaryMessage);

@@ -5,7 +5,7 @@ import type {
   BirdCoderCodingSessionEvent,
   BirdCoderCodingSessionSummary,
 } from '@sdkwork/birdcoder-pc-types';
-import { BirdCoderApiTransportError } from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-core/src/birdCoderApiTransportError.ts';
+import { BirdCoderApiTransportError } from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-types/src/apiTransportError.ts';
 import {
   loadCodingSessionProjection,
   loadCodingSessionProjectionIfAvailable,

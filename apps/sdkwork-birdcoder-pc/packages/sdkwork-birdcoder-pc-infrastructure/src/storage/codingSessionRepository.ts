@@ -19,12 +19,16 @@ import {
 import { normalizeBirdCoderCodeEngineNativeSessionId } from '@sdkwork/birdcoder-pc-codeengine';
 import { clampListPageSize, MAX_LIST_PAGE_SIZE } from '@sdkwork/utils/pagination';
 import {
+  sanitizeBirdCoderNativeSessionGitRepositoryUrl,
+  sanitizeBirdCoderNativeSessionMetadata,
+} from '../services/nativeSessionPrivacy.ts';
+import {
   createBirdCoderTableRecordRepository,
   type BirdCoderStorageAccess,
   type BirdCoderSqlPlanStorageAccess,
   type BirdCoderTableRecordRepository,
 } from './dataKernel.ts';
-import { createBirdCoderStorageDialect } from './providers.ts';
+import { createBirdCoderStorageDialect } from './dialects.ts';
 import {
   createBirdCoderCodingSessionPromptHistoryRepository,
   type BirdCoderCodingSessionPromptHistoryRepository,
@@ -133,6 +137,7 @@ export interface BirdCoderPersistedCodingSessionRecord {
   nativeAttributes?: BirdCoderCodingSession['nativeAttributes'];
   pinned: boolean;
   projectId: string;
+  runtimeLocationId?: string;
   sortTimestamp?: string;
   status: BirdCoderCodingSession['status'];
   title: string;
@@ -167,15 +172,14 @@ function normalizeNativeSessionAttributes(
     providerVersion: normalizeOptionalSessionAttribute(value.providerVersion),
     modelProvider: normalizeOptionalSessionAttribute(value.modelProvider),
     projectId: normalizeOptionalSessionAttribute(value.projectId),
-    cwd: normalizeOptionalSessionAttribute(value.cwd),
     gitBranch: normalizeOptionalSessionAttribute(value.gitBranch),
     gitCommit: normalizeOptionalSessionAttribute(value.gitCommit),
-    gitRepositoryUrl: normalizeOptionalSessionAttribute(value.gitRepositoryUrl),
+    gitRepositoryUrl: sanitizeBirdCoderNativeSessionGitRepositoryUrl(value.gitRepositoryUrl),
     agentName: normalizeOptionalSessionAttribute(value.agentName),
     agentRole: normalizeOptionalSessionAttribute(value.agentRole),
     isEphemeral: value.isEphemeral === true,
     isSidechain: value.isSidechain === true,
-    metadata: isRecord(value.metadata) ? value.metadata : {},
+    metadata: sanitizeBirdCoderNativeSessionMetadata(value.metadata),
   };
 }
 
@@ -193,7 +197,6 @@ function nativeSessionAttributesFromRow(
     providerVersion: row.provider_version,
     modelProvider: row.model_provider,
     projectId: row.native_project_id,
-    cwd: row.native_cwd,
     gitBranch: row.native_git_branch,
     gitCommit: row.native_git_commit,
     gitRepositoryUrl: row.native_git_repository_url,
@@ -350,6 +353,7 @@ function normalizeCodingSessionStorageRecord(
       id: value.id,
       workspaceId: value.workspaceId,
       projectId: value.projectId,
+      runtimeLocationId: normalizeOptionalSessionAttribute(value.runtimeLocationId),
       title:
         typeof value.title === 'string' && value.title.trim().length > 0
           ? value.title.trim()
@@ -414,6 +418,7 @@ function normalizeCodingSessionStorageRecord(
     id: String(row.id),
     workspaceId: String(row.workspace_id),
     projectId: String(row.project_id),
+    runtimeLocationId: normalizeOptionalSessionAttribute(row.runtime_location_id),
     title: typeof row.title === 'string' && row.title.trim().length > 0 ? row.title.trim() : 'New Session',
     status: normalizeCodingSessionStatus(row.status),
     hostMode: normalizeHostMode(row.host_mode),
@@ -508,6 +513,7 @@ function toCodingSessionStorageRow(
     id: value.id,
     workspace_id: value.workspaceId,
     project_id: value.projectId,
+    runtime_location_id: value.runtimeLocationId ?? null,
     title: value.title,
     status: value.status,
     entry_surface: 'code',
@@ -524,16 +530,16 @@ function toCodingSessionStorageRow(
     provider_version: value.nativeAttributes?.providerVersion ?? null,
     model_provider: value.nativeAttributes?.modelProvider ?? null,
     native_project_id: value.nativeAttributes?.projectId ?? null,
-    native_cwd: value.nativeAttributes?.cwd ?? null,
     native_git_branch: value.nativeAttributes?.gitBranch ?? null,
     native_git_commit: value.nativeAttributes?.gitCommit ?? null,
-    native_git_repository_url: value.nativeAttributes?.gitRepositoryUrl ?? null,
+    native_git_repository_url:
+      sanitizeBirdCoderNativeSessionGitRepositoryUrl(value.nativeAttributes?.gitRepositoryUrl) ?? null,
     native_agent_name: value.nativeAttributes?.agentName ?? null,
     native_agent_role: value.nativeAttributes?.agentRole ?? null,
     native_is_ephemeral: value.nativeAttributes?.isEphemeral === true,
     native_is_sidechain: value.nativeAttributes?.isSidechain === true,
     native_schema_version: value.nativeAttributes?.schemaVersion ?? 1,
-    native_metadata_json: value.nativeAttributes?.metadata ?? {},
+    native_metadata_json: sanitizeBirdCoderNativeSessionMetadata(value.nativeAttributes?.metadata),
     last_turn_at: value.lastTurnAt ?? null,
     sort_timestamp: value.sortTimestamp ?? null,
     transcript_updated_at: value.transcriptUpdatedAt ?? null,

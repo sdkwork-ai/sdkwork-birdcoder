@@ -102,6 +102,12 @@ export function createAppSdkClientContractStub(
     ): Promise<BirdCoderProjectSummary> {
       throw createUnexpectedMethodError('createProject');
     },
+    async createProjectRuntimeLocation(
+      _projectId: string,
+      _request: Parameters<BirdCoderAppSdkApiClient['createProjectRuntimeLocation']>[1],
+    ): Promise<Awaited<ReturnType<BirdCoderAppSdkApiClient['createProjectRuntimeLocation']>>> {
+      throw createUnexpectedMethodError('createProjectRuntimeLocation');
+    },
     async createProjectGitBranch(
       _projectId: string,
       _request: BirdCoderCreateProjectGitBranchRequest,
@@ -168,7 +174,7 @@ export function createAppSdkClientContractStub(
     },
     async getNativeSession(
       _codingSessionId: string,
-      _request?: BirdCoderGetNativeSessionRequest,
+      _request: BirdCoderGetNativeSessionRequest,
     ): Promise<BirdCoderNativeSessionDetail> {
       throw createUnexpectedMethodError('getNativeSession');
     },
@@ -180,6 +186,12 @@ export function createAppSdkClientContractStub(
     },
     async getProjectGitOverview(_projectId: string): Promise<BirdCoderProjectGitOverview> {
       throw createUnexpectedMethodError('getProjectGitOverview');
+    },
+    async getProjectRuntimeLocation(
+      _projectId: string,
+      _runtimeLocationId: string,
+    ): Promise<Awaited<ReturnType<BirdCoderAppSdkApiClient['getProjectRuntimeLocation']>>> {
+      throw createUnexpectedMethodError('getProjectRuntimeLocation');
     },
     async getRuntime(): Promise<BirdCoderCoreRuntimeSummary> {
       throw createUnexpectedMethodError('getRuntime');
@@ -229,7 +241,7 @@ export function createAppSdkClientContractStub(
       return [];
     },
     async listNativeSessions(
-      _request?: BirdCoderListNativeSessionsRequest,
+      _request: BirdCoderListNativeSessionsRequest,
     ): Promise<BirdCoderNativeSessionSummary[]> {
       return [];
     },
@@ -288,6 +300,13 @@ export function createAppSdkClientContractStub(
       _request: BirdCoderRemoveProjectGitWorktreeRequest,
     ): Promise<BirdCoderProjectGitOverview> {
       throw createUnexpectedMethodError('removeProjectGitWorktree');
+    },
+    async rebindProjectRuntimeLocation(
+      _projectId: string,
+      _runtimeLocationId: string,
+      _request: Parameters<BirdCoderAppSdkApiClient['rebindProjectRuntimeLocation']>[2],
+    ): Promise<Awaited<ReturnType<BirdCoderAppSdkApiClient['rebindProjectRuntimeLocation']>>> {
+      throw createUnexpectedMethodError('rebindProjectRuntimeLocation');
     },
     async submitApprovalDecision(
       _approvalId: string,

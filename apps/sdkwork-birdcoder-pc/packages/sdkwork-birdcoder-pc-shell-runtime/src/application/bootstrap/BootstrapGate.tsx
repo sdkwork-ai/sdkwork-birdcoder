@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
-import { StartupScreen } from './StartupScreen';
+import { StartupScreen } from '@sdkwork/birdcoder-pc-ui-shell';
 import { BirdCoderApiReadyError } from './bootstrapServerApiReady';
 
 type BootstrapStatus = 'booting' | 'failed' | 'ready';

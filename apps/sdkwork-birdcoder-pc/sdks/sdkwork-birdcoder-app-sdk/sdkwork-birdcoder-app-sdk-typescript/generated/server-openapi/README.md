@@ -90,9 +90,10 @@ const client = new SdkworkAppClient({
 const params = {
   workspaceId: 'workspaceId',
   projectId: 'projectId',
+  runtimeLocationId: 'runtimeLocationId',
   engineId: 'codex',
-  page: 4,
-  page_size: 5,
+  page: 5,
+  page_size: 6,
 };
 const result = await client.intelligence.codingSessions.list(params);
 ```

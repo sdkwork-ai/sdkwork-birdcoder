@@ -38,6 +38,7 @@ assert.doesNotMatch(
 
 const workspaceId = 'workspace-session-authority-sync';
 const projectId = 'project-session-authority-sync';
+const runtimeLocationId = 'runtime-location-session-authority-sync';
 
 function buildSession(
   overrides: Partial<BirdCoderCodingSession> = {},
@@ -52,6 +53,7 @@ function buildSession(
     engineId: 'codex',
     modelId: 'gpt-5.4',
     nativeSessionId: 'shared-native-session',
+    runtimeLocationId,
     createdAt: '2026-07-15T00:00:00.000Z',
     updatedAt: '2026-07-15T00:01:00.000Z',
     lastTurnAt: '2026-07-15T00:01:00.000Z',
@@ -76,7 +78,6 @@ function buildNativeSummary(
   return {
     ...buildProjectionSummary(),
     kind: 'coding',
-    nativeCwd: 'E:/workspace/session-authority-sync',
     ...overrides,
   };
 }
@@ -142,7 +143,8 @@ const appRuntimeReadService = {
       }),
     ];
   },
-  async listNativeSessions() {
+  async listNativeSessions(request: { runtimeLocationId: string }) {
+    assert.equal(request.runtimeLocationId, runtimeLocationId);
     return [
       buildNativeSummary({
         id: 'codex-native:shared-native-session',
@@ -176,6 +178,7 @@ const firstSync = await synchronizeProjectSessionsFromAuthority({
   appRuntimeReadService: appRuntimeReadService as never,
   project,
   projectService,
+  runtimeLocationId,
 });
 
 assert.equal(firstSync.project.codingSessions.length, 3);
@@ -224,6 +227,11 @@ assert.equal(
 );
 assert.equal(preservedLocalNewerSession?.runtimeStatus, 'streaming');
 assert.equal(
+  mergedProjectionSession?.runtimeLocationId,
+  runtimeLocationId,
+  'authority synchronization must retain the exact opaque runtime-location binding.',
+);
+assert.equal(
   preservedLocalNewerSession?.sortTimestamp,
   localNewerSession.sortTimestamp,
   'an older authority snapshot must not move a locally newer session backwards.',
@@ -234,6 +242,7 @@ const secondSync = await synchronizeProjectSessionsFromAuthority({
   appRuntimeReadService: appRuntimeReadService as never,
   project: firstSync.project,
   projectService,
+  runtimeLocationId,
 });
 assert.equal(
   upserts.length,
@@ -243,6 +252,52 @@ assert.equal(
 assert.deepEqual(
   secondSync.project.codingSessions.map((session) => session.id),
   firstSync.project.codingSessions.map((session) => session.id),
+);
+
+let projectionOnlyNativeReads = 0;
+const legacyProjectionSync = await synchronizeProjectSessionsFromAuthority({
+  appRuntimeReadService: {
+    async listCodingSessions() {
+      return [
+        buildProjectionSummary({
+          id: 'legacy-visible-session',
+          nativeSessionId: 'legacy-visible-native-session',
+          runtimeLocationId: undefined,
+        }),
+      ];
+    },
+    async listNativeSessions() {
+      projectionOnlyNativeReads += 1;
+      return [
+        buildNativeSummary({
+          id: 'codex-native:must-not-be-discovered',
+          nativeSessionId: 'codex-native:must-not-be-discovered',
+        }),
+      ];
+    },
+  } as never,
+  project: {
+    ...project,
+    codingSessions: [],
+  },
+  projectService: {
+    async upsertCodingSession() {},
+  } as IProjectService,
+});
+assert.equal(
+  projectionOnlyNativeReads,
+  0,
+  'without an explicitly supplied runtime-location id, synchronization must not discover native sessions.',
+);
+assert.equal(
+  legacyProjectionSync.project.codingSessions.length,
+  1,
+  'a legacy session without a runtime-location binding must remain visible in the persisted projection.',
+);
+assert.equal(
+  legacyProjectionSync.project.codingSessions[0]?.runtimeLocationId,
+  undefined,
+  'legacy projections must not synthesize a runtime-location binding.',
 );
 
 const boundedProjectionSummaries = Array.from({ length: 150 }, (_, index) =>
@@ -280,6 +335,7 @@ const boundedSync = await synchronizeProjectSessionsFromAuthority({
       boundedUpserts.push(codingSession);
     },
   } as IProjectService,
+  runtimeLocationId,
 });
 assert.equal(
   boundedSync.project.codingSessions.length,
@@ -311,6 +367,7 @@ const expandedToFifteen = await synchronizeProjectSessionsFromAuthority({
   projectService: {
     async upsertCodingSession() {},
   } as IProjectService,
+  runtimeLocationId,
   sessionLimit: 16,
 });
 assert.equal(
@@ -333,6 +390,7 @@ const expandedToTwentyFive = await synchronizeProjectSessionsFromAuthority({
   projectService: {
     async upsertCodingSession() {},
   } as IProjectService,
+  runtimeLocationId,
   sessionLimit: 26,
 });
 assert.equal(
@@ -432,6 +490,7 @@ const pagedSync = await synchronizeProjectSessionsFromAuthority({
     async listCodingSessionPage(request) {
       assert.equal(request?.workspaceId, workspaceId);
       assert.equal(request?.projectId, projectId);
+      assert.equal(request?.runtimeLocationId, runtimeLocationId);
       projectionPageRequests.push({ limit: request?.limit, offset: request?.offset });
       return buildRuntimePage(pagedProjectionSummaries, request);
     },
@@ -441,6 +500,7 @@ const pagedSync = await synchronizeProjectSessionsFromAuthority({
     async listNativeSessionPage(request) {
       assert.equal(request?.workspaceId, workspaceId);
       assert.equal(request?.projectId, projectId);
+      assert.equal(request?.runtimeLocationId, runtimeLocationId);
       nativePageRequests.push({ limit: request?.limit, offset: request?.offset });
       return buildRuntimePage(pagedNativeSummaries, request);
     },
@@ -454,6 +514,7 @@ const pagedSync = await synchronizeProjectSessionsFromAuthority({
       pagedUpserts.push(codingSession);
     },
   } as IProjectService,
+  runtimeLocationId,
   sessionLimit: 300,
 });
 
@@ -541,6 +602,7 @@ const firstStagedSync = await synchronizeProjectSessionsFromAuthority({
   projectService: {
     async upsertCodingSession() {},
   } as IProjectService,
+  runtimeLocationId,
 });
 const firstStagedId = firstStagedSync.project.codingSessions[0]?.id;
 assert.equal(
@@ -570,6 +632,7 @@ const secondStagedSync = await synchronizeProjectSessionsFromAuthority({
   projectService: {
     async upsertCodingSession() {},
   } as IProjectService,
+  runtimeLocationId,
 });
 assert.equal(
   secondStagedSync.project.codingSessions.find((session) => session.engineId === 'codex')?.id,
@@ -634,8 +697,8 @@ assert.equal(
 );
 assert.equal(
   batchNativeReads,
-  2,
-  'project-list synchronization must issue one scoped native-provider read per project.',
+  0,
+  'project-list synchronization must remain projection-only until a trusted runtime-location id is explicitly supplied for each project.',
 );
 assert.equal(
   batchProjects.find((candidate) => candidate.id === projectId)?.codingSessions[0]?.id,

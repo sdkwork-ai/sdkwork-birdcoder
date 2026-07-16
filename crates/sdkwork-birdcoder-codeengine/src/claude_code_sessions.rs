@@ -647,9 +647,6 @@ fn build_claude_message_metadata(
     if let Some(model_id) = normalize_value_string(message.and_then(|value| value.get("model"))) {
         metadata.insert("modelId".to_owned(), model_id);
     }
-    if let Some(cwd) = normalize_value_string(envelope.get("cwd")) {
-        metadata.insert("cwd".to_owned(), cwd);
-    }
     if let Some(git_branch) = normalize_value_string(envelope.get("gitBranch")) {
         metadata.insert("gitBranch".to_owned(), git_branch);
     }

@@ -10,6 +10,8 @@ export default defineLocaleModule('app/workspace', {
     "failedToDeleteProject": "Failed to delete project",
     "failedToRemoveProject": "Failed to remove project",
     "localFolder": "Local Folder",
+    "serverDirectory": "Server Directory",
+    "selectServerDirectory": "Select a server project directory",
     "openedFolder": "Opened folder: {{name}}",
     "failedToOpenFolder": "Failed to open folder",
     "traceRecordingStopped": "Trace recording stopped",

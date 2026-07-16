@@ -5,6 +5,16 @@ pub mod mapper;
 pub mod paths;
 pub mod routes;
 
+use sdkwork_web_core::HttpRouteManifest;
+
 pub use handlers::MembershipAppState;
 pub use manifest::membership_app_api_route_manifest;
 pub use routes::build_membership_app_router;
+
+pub fn gateway_route_manifest() -> HttpRouteManifest {
+    membership_app_api_route_manifest()
+}
+
+pub fn gateway_mount() -> axum::Router<MembershipAppState> {
+    build_membership_app_router()
+}

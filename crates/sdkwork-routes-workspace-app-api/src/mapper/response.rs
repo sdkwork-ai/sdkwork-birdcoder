@@ -5,6 +5,10 @@ pub use sdkwork_birdcoder_deployment_service::domain::results::{
 pub use sdkwork_birdcoder_project_service::domain::results::{
     DeleteEntityPayload as ProjectDeletePayload, ProjectCollaboratorPayload, ProjectPayload,
 };
+pub use sdkwork_birdcoder_project_service::domain::runtime_location::{
+    ProjectRuntimeLocationCommandAcceptedPayload, ProjectRuntimeLocationPayload,
+    ProjectRuntimeLocationPreferencePayload, ProjectRuntimeLocationVerificationAcceptedPayload,
+};
 pub use sdkwork_birdcoder_workspace_service::domain::results::{
     DeleteEntityPayload as WorkspaceDeletePayload, TeamMemberPayload, TeamPayload,
     WorkspaceMemberPayload, WorkspacePayload,

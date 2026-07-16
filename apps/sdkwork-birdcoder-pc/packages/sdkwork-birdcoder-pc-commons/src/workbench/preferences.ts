@@ -17,6 +17,7 @@ import {
   createBirdCoderCodeEngineModelConfigSyncPlan,
   findWorkbenchCodeEngineDefinition,
   modelConfigToWorkbenchCodeEngineSettingsMap,
+  normalizeBirdCoderCodeEngineModelConfig,
   normalizeWorkbenchCodeEngineSettingsMap,
   normalizeWorkbenchCodeModelId,
   normalizeWorkbenchServerImplementedCodeEngineId,
@@ -25,7 +26,6 @@ import {
   type WorkbenchChatSelection,
   type WorkbenchCodeEngineSettingsMap,
   type WorkbenchCodeEngineId,
-  type WorkbenchCustomCodeEngineModelInput,
 } from '@sdkwork/birdcoder-pc-codeengine';
 import {
   BIRDCODER_WORKBENCH_PREFERENCES_STORAGE_BINDING,
@@ -142,21 +142,6 @@ const TERMINAL_PROFILE_SETTING_ALIASES: Readonly<Record<string, TerminalProfileI
   'node.js': 'node',
   ...ENGINE_TERMINAL_PROFILE_SETTING_ALIASES,
 };
-
-function createCustomModelRecord(
-  input: WorkbenchCustomCodeEngineModelInput | null | undefined,
-) {
-  const id = input?.id?.trim() || input?.modelId?.trim() || '';
-  if (!id) {
-    return null;
-  }
-
-  const label = input?.label?.trim() || id;
-  return {
-    id,
-    label,
-  };
-}
 
 export function normalizeWorkbenchTerminalProfileId(
   value: string | null | undefined,
@@ -373,15 +358,12 @@ async function readWorkbenchCodeEngineModelConfigSettings(): Promise<
     return null;
   }
 
-  const parsedConfig = deserializeStoredValue<BirdCoderCodeEngineModelConfig | null>(
-    rawConfig,
-    null,
-  );
-  if (!parsedConfig) {
+  const modelConfig = await readWorkbenchCodeEngineModelConfig();
+  if (!modelConfig) {
     return null;
   }
 
-  return modelConfigToWorkbenchCodeEngineSettingsMap(parsedConfig);
+  return modelConfigToWorkbenchCodeEngineSettingsMap(modelConfig);
 }
 
 async function writeWorkbenchCodeEngineModelConfigSettings(
@@ -404,7 +386,7 @@ async function writeWorkbenchCodeEngineModelConfig(
 ): Promise<void> {
   await writeUserHomeTextFile(
     BIRDCODER_CODE_ENGINE_MODEL_CONFIG_HOME_RELATIVE_PATH,
-    serializeStoredValue(modelConfig),
+    serializeStoredValue(normalizeBirdCoderCodeEngineModelConfig(modelConfig)),
   );
 }
 
@@ -418,7 +400,20 @@ async function readWorkbenchCodeEngineModelConfig(): Promise<
     return null;
   }
 
-  return deserializeStoredValue<BirdCoderCodeEngineModelConfig | null>(rawConfig, null);
+  const parsedConfig = deserializeStoredValue<BirdCoderCodeEngineModelConfig | null>(
+    rawConfig,
+    null,
+  );
+  if (!parsedConfig) {
+    return null;
+  }
+
+  const normalizedConfig = normalizeBirdCoderCodeEngineModelConfig(parsedConfig);
+  if (serializeStoredValue(parsedConfig) !== serializeStoredValue(normalizedConfig)) {
+    await writeWorkbenchCodeEngineModelConfig(normalizedConfig);
+  }
+
+  return normalizedConfig;
 }
 
 export async function syncWorkbenchCodeEngineModelConfig({
@@ -488,7 +483,6 @@ export function setWorkbenchCodeEngineDefaultModel(
   if (!normalizedEngineId) {
     return normalizedPreferences;
   }
-  const existingEntry = normalizedPreferences.codeEngineSettings[normalizedEngineId];
   const resolvedModelId = normalizeWorkbenchCodeModelId(
     normalizedEngineId,
     modelId,
@@ -498,7 +492,6 @@ export function setWorkbenchCodeEngineDefaultModel(
     ...normalizedPreferences.codeEngineSettings,
     [normalizedEngineId]: {
       defaultModelId: resolvedModelId,
-      customModels: existingEntry?.customModels ?? [],
     },
   });
 
@@ -553,12 +546,10 @@ export function setWorkbenchActiveChatSelection(
     },
     normalizedPreferences,
   );
-  const existingEntry = normalizedPreferences.codeEngineSettings[resolvedEngineId];
   const nextSettings = normalizeWorkbenchCodeEngineSettingsMap({
     ...normalizedPreferences.codeEngineSettings,
     [resolvedEngineId]: {
       defaultModelId: resolvedSelection.codeModelId,
-      customModels: existingEntry?.customModels ?? [],
     },
   });
 
@@ -575,85 +566,6 @@ export function setWorkbenchActiveCodeModel(
   engineId?: string | null,
 ): WorkbenchPreferences {
   return setWorkbenchActiveChatSelection(preferences, engineId, modelId);
-}
-
-export function upsertWorkbenchCodeEngineCustomModel(
-  preferences: WorkbenchPreferences,
-  engineId: string | null | undefined,
-  model: WorkbenchCustomCodeEngineModelInput | null | undefined,
-): WorkbenchPreferences {
-  const normalizedPreferences = normalizeWorkbenchPreferences(preferences);
-  const normalizedEngineId = resolveKnownWorkbenchCodeEngineId(
-    engineId,
-    normalizedPreferences,
-  );
-  if (!normalizedEngineId) {
-    return normalizedPreferences;
-  }
-  const existingEntry = normalizedPreferences.codeEngineSettings[normalizedEngineId];
-  const nextCustomModel = createCustomModelRecord(model);
-  if (!nextCustomModel) {
-    return normalizedPreferences;
-  }
-
-  const nextSettings = normalizeWorkbenchCodeEngineSettingsMap({
-    ...normalizedPreferences.codeEngineSettings,
-    [normalizedEngineId]: {
-      defaultModelId: existingEntry?.defaultModelId,
-      customModels: [...(existingEntry?.customModels ?? []), nextCustomModel],
-    },
-  });
-
-  return normalizeWorkbenchPreferences({
-    ...normalizedPreferences,
-    codeEngineSettings: nextSettings,
-  });
-}
-
-export function removeWorkbenchCodeEngineCustomModel(
-  preferences: WorkbenchPreferences,
-  engineId: string | null | undefined,
-  modelId: string | null | undefined,
-): WorkbenchPreferences {
-  const normalizedPreferences = normalizeWorkbenchPreferences(preferences);
-  const normalizedEngineId = resolveKnownWorkbenchCodeEngineId(
-    engineId,
-    normalizedPreferences,
-  );
-  if (!normalizedEngineId) {
-    return normalizedPreferences;
-  }
-  const existingEntry = normalizedPreferences.codeEngineSettings[normalizedEngineId];
-  if (!existingEntry) {
-    return normalizedPreferences;
-  }
-
-  const normalizedModelId = modelId?.trim().toLowerCase() || '';
-  if (!normalizedModelId) {
-    return normalizedPreferences;
-  }
-
-  const nextSettings = normalizeWorkbenchCodeEngineSettingsMap({
-    ...normalizedPreferences.codeEngineSettings,
-    [normalizedEngineId]: {
-      defaultModelId: existingEntry.defaultModelId,
-      customModels: existingEntry.customModels.filter(
-        (candidate) => candidate.id.toLowerCase() !== normalizedModelId,
-      ),
-    },
-  });
-
-  return normalizeWorkbenchPreferences({
-    ...normalizedPreferences,
-    codeEngineSettings: nextSettings,
-    codeModelId:
-      normalizedPreferences.codeEngineId === normalizedEngineId &&
-      normalizedPreferences.codeModelId.toLowerCase() === normalizedModelId
-        ? normalizeWorkbenchCodeModelId(normalizedEngineId, null, {
-            codeEngineSettings: nextSettings,
-          })
-        : normalizedPreferences.codeModelId,
-  });
 }
 
 const workbenchPreferencesTableRepository: BirdCoderTableRecordRepository<PersistedWorkbenchPreferencesRecord> =

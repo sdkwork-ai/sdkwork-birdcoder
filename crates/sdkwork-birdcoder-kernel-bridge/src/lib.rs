@@ -10,6 +10,7 @@ mod boundaries;
 mod chat_assistant;
 mod engine_registry;
 mod host;
+mod interaction_projection;
 mod kernel_turn_io;
 mod turn_executor;
 
@@ -27,6 +28,10 @@ pub use engine_registry::{
     KernelBootstrapError, KernelEngineSlot,
 };
 pub use host::{submit_approval_decision, submit_user_question_answer, BirdcoderKernelHost};
+pub use interaction_projection::{
+    project_provider_neutral_interactions, BirdcoderInteractionProjection,
+    InteractionProjectionError,
+};
 pub use kernel_turn_io::{
     read_bounded_turn_request, serialize_bounded_turn_result, KernelTurnIoError,
     MAX_KERNEL_TURN_REQUEST_BYTES, MAX_KERNEL_TURN_RESPONSE_BYTES,
@@ -36,4 +41,4 @@ pub use sdkwork_agents_runtime_facade::{
     CodeEngineTurnInput, CodeEngineTurnOutput, EngineLiveInteraction, LiveInteractionRegistry,
     UserQuestionAnswer,
 };
-pub use turn_executor::execute_kernel_turn;
+pub use turn_executor::{execute_kernel_turn, BirdcoderTurnStreamSink};

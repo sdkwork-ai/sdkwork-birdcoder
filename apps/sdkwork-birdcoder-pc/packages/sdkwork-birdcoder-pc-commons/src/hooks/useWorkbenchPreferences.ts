@@ -42,21 +42,6 @@ function areWorkbenchCodeEngineSettingsEqual(
       return false;
     }
 
-    if (leftEntry.customModels.length !== rightEntry.customModels.length) {
-      return false;
-    }
-
-    for (let index = 0; index < leftEntry.customModels.length; index += 1) {
-      const leftModel = leftEntry.customModels[index];
-      const rightModel = rightEntry.customModels[index];
-      if (!rightModel) {
-        return false;
-      }
-
-      if (leftModel.id !== rightModel.id || leftModel.label !== rightModel.label) {
-        return false;
-      }
-    }
   }
 
   return true;

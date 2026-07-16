@@ -22,7 +22,7 @@ const sseFunctionEnd = coreSessionExecutionSource.indexOf(
 );
 const sseFunctionBody = sseFunctionStart >= 0 && sseFunctionEnd > sseFunctionStart
   ? coreSessionExecutionSource.slice(sseFunctionStart, sseFunctionEnd)
-  : '';
+  : coreSessionExecutionSource.slice(Math.max(sseFunctionStart, 0));
 
 assert.match(
   serverSource,
@@ -99,7 +99,7 @@ await withMockCodexCliJsonl(async () => {
 
   assert.equal(projection.runtime.engineId, 'codex');
   assert.equal(projection.runtime.hostMode, 'server');
-  assert.equal(projection.runtime.nativeRef.transportKind, 'sdk-stream');
+  assert.equal(projection.runtime.nativeRef.transportKind, 'cli-jsonl');
   assert.equal(projection.events[0]?.kind, 'session.started');
   assert.equal(projection.events[1]?.kind, 'turn.started');
   assert.equal(
@@ -137,10 +137,17 @@ await withMockCodexCliJsonl(async () => {
   }
 
   assert.equal(envelopes.length > 0, true, 'coding-server SSE contract must emit envelopes');
-  assert.equal(envelopes[0]?.meta.version, 'v1');
-  assert.equal(envelopes[0]?.data.kind, 'session.started');
-  assert.equal(envelopes.some((envelope) => envelope.data.kind === 'message.completed'), true);
-  assert.equal(envelopes.some((envelope) => envelope.data.kind === 'turn.completed'), true);
+  assert.equal(envelopes[0]?.code, 0);
+  assert.equal(typeof envelopes[0]?.traceId, 'string');
+  assert.equal(envelopes[0]?.data.item.kind, 'session.started');
+  assert.equal(
+    envelopes.some((envelope) => envelope.data.item.kind === 'message.completed'),
+    true,
+  );
+  assert.equal(
+    envelopes.some((envelope) => envelope.data.item.kind === 'turn.completed'),
+    true,
+  );
 }, {
   stdoutLines: fakeCodexJsonlLines,
   kernelTurnAssistantContent: 'Codex server SSE response.',
@@ -209,17 +216,17 @@ await withMockCodexCliJsonl(async () => {
   }
 
   assert.equal(
-    failedEnvelopes.at(-1)?.data.kind,
+    failedEnvelopes.at(-1)?.data.item.kind,
     'turn.failed',
     'coding-server SSE must close through a terminal turn.failed envelope instead of rethrowing provider stream errors after yielding it',
   );
   assert.equal(
-    failedEnvelopes.at(-1)?.data.payload.runtimeStatus,
+    failedEnvelopes.at(-1)?.data.item.payload.runtimeStatus,
     'failed',
     'coding-server SSE failed envelopes must carry the failed runtime status used by projection consumers',
   );
   assert.equal(
-    failedEnvelopes.filter((envelope) => envelope.data.kind === 'turn.failed').length,
+    failedEnvelopes.filter((envelope) => envelope.data.item.kind === 'turn.failed').length,
     1,
     'coding-server SSE must not duplicate turn.failed when the canonical runtime yields a failure event and then rethrows for direct debuggers',
   );

@@ -8,6 +8,10 @@ pub struct BirdCoderCreateCodingSessionRequest {
     #[serde(rename = "projectId")]
     pub project_id: String,
 
+    /// Verified project runtime-location identifier required for coding-session execution.
+    #[serde(rename = "runtimeLocationId")]
+    pub runtime_location_id: String,
+
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub title: Option<String>,
 

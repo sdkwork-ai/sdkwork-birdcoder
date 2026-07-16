@@ -1,0 +1,101 @@
+{
+  "schemaVersion": 1,
+  "kind": "sdkwork.component.spec",
+  "component": {
+    "name": "sdkwork-birdcoder-workspace-repository-sqlx",
+    "displayName": "SDKWork BirdCoder Workspace SQLx Repository",
+    "version": "0.1.0",
+    "type": "rust-crate",
+    "root": "sdkwork-birdcoder/crates/sdkwork-birdcoder-workspace-repository-sqlx",
+    "domain": "workspace",
+    "declaredDomain": null,
+    "capability": "workspace-persistence",
+    "surface": "service",
+    "status": "ACTIVE",
+    "languages": [
+      "rust"
+    ],
+    "generated": false,
+    "private": true,
+    "manifests": [
+      "Cargo.toml"
+    ]
+  },
+  "canonicalSpecs": [
+    {
+      "file": "COMPONENT_SPEC.md",
+      "path": "../../../../sdkwork-specs/COMPONENT_SPEC.md",
+      "purpose": "Component-local contract and discovery rules."
+    },
+    {
+      "file": "CODE_STYLE_SPEC.md",
+      "path": "../../../../sdkwork-specs/CODE_STYLE_SPEC.md",
+      "purpose": "Authored source structure and generated-code boundaries."
+    },
+    {
+      "file": "NAMING_SPEC.md",
+      "path": "../../../../sdkwork-specs/NAMING_SPEC.md",
+      "purpose": "Canonical SDKWork naming rules."
+    },
+    {
+      "file": "RUST_CODE_SPEC.md",
+      "path": "../../../../sdkwork-specs/RUST_CODE_SPEC.md",
+      "purpose": "Rust repository-layer ownership rules."
+    },
+    {
+      "file": "DATABASE_SPEC.md",
+      "path": "../../../../sdkwork-specs/DATABASE_SPEC.md",
+      "purpose": "Portable schema, tenant isolation, idempotency, and repository rules."
+    },
+    {
+      "file": "SECURITY_SPEC.md",
+      "path": "../../../../sdkwork-specs/SECURITY_SPEC.md",
+      "purpose": "Tenant and object authorization rules."
+    },
+    {
+      "file": "TEST_SPEC.md",
+      "path": "../../../../sdkwork-specs/TEST_SPEC.md",
+      "purpose": "Repository verification rules."
+    }
+  ],
+  "contracts": {
+    "layerRole": "backend-repository",
+    "publicExports": [
+      ".",
+      "sdkwork_birdcoder_workspace_repository_sqlx::repository::project_workspace_binding::SqliteProjectWorkspaceBindingRepository"
+    ],
+    "providedPorts": [
+      {
+        "name": "projectWorkspaceBindingRepository",
+        "export": "sdkwork_birdcoder_workspace_repository_sqlx::repository::project_workspace_binding::SqliteProjectWorkspaceBindingRepository"
+      }
+    ],
+    "requiredPorts": [
+      {
+        "name": "projectWorkspaceBindingRepositoryPort",
+        "export": "sdkwork_birdcoder_project_service::ports::workspace_binding_repository::ProjectWorkspaceBindingRepository"
+      },
+      {
+        "name": "databasePool",
+        "export": "sqlx::AnyPool"
+      }
+    ],
+    "runtimeEntrypoints": [],
+    "routeManifest": null,
+    "sdkClients": [],
+    "sdkDependencies": [],
+    "permissionComposition": {},
+    "dependencyApiExports": [],
+    "dependencyApiSurfaces": [],
+    "events": [],
+    "configKeys": []
+  },
+  "integration": {
+    "authority": "Implements SQLx persistence ports declared by BirdCoder workspace/project services. Project workspace bindings persist only opaque Drive sandbox and entry identifiers plus canonical logical paths; physical paths and host handles are forbidden."
+  },
+  "verification": {
+    "commands": [
+      "cargo test --offline -p sdkwork-birdcoder-workspace-repository-sqlx --test project_workspace_binding_repository_tests -- --nocapture"
+    ]
+  }
+}

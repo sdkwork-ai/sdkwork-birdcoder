@@ -1,7 +1,7 @@
 import {
   normalizeWorkbenchCodeEditorChatWidth,
   type WorkbenchPreferences,
-} from '@sdkwork/birdcoder-pc-commons';
+} from '@sdkwork/birdcoder-pc-commons/workbench/preferences';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { resolveCodeEditorResponsiveChatWidth } from './codeEditorChatLayout';
 

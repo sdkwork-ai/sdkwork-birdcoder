@@ -15,6 +15,10 @@ import {
 } from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-codeengine/src/kernel.ts';
 import { readCanonicalServerRustSource, CANONICAL_CODEENGINE_RUST_PATHS } from './birdcoder-canonical-server-rust-sources.mjs';
 import { normalizeBirdCoderCodeEngineNativeSessionId } from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-codeengine/src/catalog.ts';
+import {
+  listBirdCoderCodeEngineModels,
+  listBirdCoderCodeEngineNativeSessionProviders,
+} from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-codeengine/src/catalog.ts';
 import { listBirdCoderCodeEngineManifests } from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-codeengine/src/manifest.ts';
 import {
   getWorkbenchCodeEngineSessionSummary,
@@ -23,10 +27,57 @@ import {
 } from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-codeengine/src/preferences.ts';
 import { resolveWorkbenchPreferredNewSessionSelection } from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-codeengine/src/serverSupport.ts';
 import { createChatEngineById } from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-codeengine/src/engines.ts';
+import { resolveRequiredCodingSessionSelection } from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/src/services/codingSessionSelection.ts';
+import {
+  isAuthorityBackedNativeSessionId,
+  readAuthorityBackedNativeSessionRecord,
+} from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-commons/src/workbench/nativeSessionAuthority.ts';
 
 assert.deepEqual(
   WORKBENCH_ENGINE_KERNELS.map((engine) => engine.id),
   ['codex', 'claude-code', 'gemini', 'opencode'],
+);
+
+const rustEngineCatalog = JSON.parse(
+  fs.readFileSync(
+    path.join(process.cwd(), 'crates', 'sdkwork-birdcoder-codeengine', 'generated', 'engine-catalog.json'),
+    'utf8',
+  ),
+) as {
+  engines: Array<{ engineKey: string; defaultModelId: string }>;
+  models: Array<{ engineKey: string; modelId: string; defaultForEngine: boolean; status: string }>;
+  nativeProviders: Array<{ engineId: string; discoveryMode: string }>;
+};
+assert.deepEqual(
+  listWorkbenchCodeEngineDescriptors().map((descriptor) => ({
+    engineKey: descriptor.engineKey,
+    defaultModelId: descriptor.defaultModelId,
+  })),
+  rustEngineCatalog.engines.map(({ engineKey, defaultModelId }) => ({ engineKey, defaultModelId })),
+  'PC engine defaults must stay aligned with the Rust codeengine catalog used by gateway validation.',
+);
+assert.deepEqual(
+  listBirdCoderCodeEngineModels().map((model) => ({
+    engineKey: model.engineKey,
+    modelId: model.modelId,
+    defaultForEngine: model.defaultForEngine,
+    status: model.status,
+  })),
+  rustEngineCatalog.models.map(({ engineKey, modelId, defaultForEngine, status }) => ({
+    engineKey,
+    modelId,
+    defaultForEngine,
+    status,
+  })),
+  'PC model selection must expose exactly the engine-owned active model catalog accepted by gateway creation.',
+);
+assert.deepEqual(
+  listBirdCoderCodeEngineNativeSessionProviders().map((provider) => ({
+    engineId: provider.engineId,
+    discoveryMode: provider.discoveryMode,
+  })),
+  rustEngineCatalog.nativeProviders.map(({ engineId, discoveryMode }) => ({ engineId, discoveryMode })),
+  'Native session discovery policy must remain identical between PC and Rust codeengine catalogs.',
 );
 
 for (const manifest of listBirdCoderCodeEngineManifests()) {
@@ -298,16 +349,16 @@ assert.equal(
     preferredEngineId: 'codex',
     preferredModelId: 'gpt-5.4',
   }).modelId,
-  'gpt-5.4-preview',
-  'New session selection must preserve the authoritative current session model instead of silently coercing it to the engine default.',
+  'gpt-5.4',
+  'New session selection must discard an unregistered current model before it can become a new session request.',
 );
 assert.equal(
   resolveWorkbenchPreferredNewSessionSelection({
     preferredEngineId: 'codex',
     preferredModelId: 'gpt-5.4-preview',
   }).modelId,
-  'gpt-5.4-preview',
-  'New session selection must preserve an explicit preferred model for the selected engine instead of silently coercing it to the default.',
+  'gpt-5.4',
+  'New session selection must discard an unregistered preferred model and use the selected engine canonical default.',
 );
 assert.equal(
   resolveWorkbenchPreferredNewSessionSelection({
@@ -317,7 +368,151 @@ assert.equal(
     preferredModelId: 'gpt-5.4',
   }).modelId,
   'claude-3-opus',
-  'New session selection must preserve the authoritative current session model when that engine is server-ready.',
+  'A catalog-registered current-session model must remain authoritative until the user makes an explicit engine selection.',
+);
+for (const requestedEngineId of ['claude-code', 'gemini', 'opencode'] as const) {
+  const selection = resolveWorkbenchPreferredNewSessionSelection({
+    currentSessionEngineId: 'codex',
+    currentSessionModelId: 'gpt-5.4-preview',
+    requestedEngineId,
+  });
+  assert.equal(
+    selection.engineId,
+    requestedEngineId,
+    `An explicit ${requestedEngineId} new-session choice must not inherit the active Codex session provider.`,
+  );
+  assert.equal(
+    selection.modelId,
+    getWorkbenchCodeEngineKernel(requestedEngineId).defaultModelId,
+    `An explicit ${requestedEngineId} new-session choice without a model must use that engine's default rather than the active Codex model.`,
+  );
+}
+assert.equal(
+  resolveWorkbenchPreferredNewSessionSelection({
+    requestedEngineId: 'gemini',
+    preferredModelId: 'gpt-5.4',
+  }).modelId,
+  geminiKernel.defaultModelId,
+  'A model from another engine must not be carried into an explicit new-session provider selection.',
+);
+
+assert.equal(
+  isAuthorityBackedNativeSessionId('birdcoder-session-42', 'gemini', 'provider-session-42'),
+  true,
+  'A persisted provider-native session id must be authoritative even when it differs from BirdCoder logical session id.',
+);
+let readNativeSessionId: string | undefined;
+let readRuntimeLocationId: string | undefined;
+const authorityBackedRecord = await readAuthorityBackedNativeSessionRecord('birdcoder-session-42', {
+  appRuntimeReadService: {
+    async getNativeSession(nativeSessionId, request) {
+      readNativeSessionId = nativeSessionId;
+      readRuntimeLocationId = request.runtimeLocationId;
+      return {
+        messages: [],
+        summary: {
+          createdAt: '2026-01-01T00:00:00.000Z',
+          engineId: 'gemini',
+          hostMode: 'standalone',
+          id: nativeSessionId,
+          kind: 'coding',
+          lastTurnAt: null,
+          modelId: 'gemini-3-pro',
+          nativeSessionId,
+          projectId: 'project-42',
+          runtimeStatus: 'ready',
+          sortTimestamp: '1767225600000',
+          status: 'active',
+          title: 'Provider session',
+          updatedAt: '2026-01-01T00:00:00.000Z',
+          workspaceId: 'workspace-42',
+        },
+      };
+    },
+    async listNativeSessions() {
+      return [];
+    },
+  },
+  engineId: 'gemini',
+  nativeSessionId: 'provider-session-42',
+  projectId: 'project-42',
+  runtimeLocationId: 'runtime-location-42',
+  workspaceId: 'workspace-42',
+});
+assert.equal(
+  readNativeSessionId,
+  'provider-session-42',
+  'Native detail reads must use the provider-native session id rather than BirdCoder logical session id.',
+);
+assert.equal(authorityBackedRecord?.summary.id, 'birdcoder-session-42');
+assert.equal(readRuntimeLocationId, 'runtime-location-42');
+
+assert.deepEqual(
+  resolveRequiredCodingSessionSelection({ engineId: 'gemini', modelId: 'GEMINI-2.5-PRO' }),
+  { engineId: 'gemini', modelId: 'gemini-2.5-pro' },
+  'Local session creation must canonicalize an engine-owned model id.',
+);
+assert.throws(
+  () => resolveRequiredCodingSessionSelection({ engineId: 'gemini', modelId: 'gpt-5.4' }),
+  /model registered for engine "gemini"/i,
+  'Local and in-process creation must reject a model owned by another provider instead of deferring failure to a turn.',
+);
+
+const apiBackedProjectServiceSource = fs.readFileSync(
+  path.join(
+    process.cwd(),
+    'apps',
+    'sdkwork-birdcoder-pc',
+    'packages',
+    'sdkwork-birdcoder-pc-infrastructure',
+    'src',
+    'services',
+    'impl',
+    'ApiBackedProjectService.ts',
+  ),
+  'utf8',
+);
+const codePageSource = fs.readFileSync(
+  path.join(
+    process.cwd(),
+    'apps',
+    'sdkwork-birdcoder-pc',
+    'packages',
+    'sdkwork-birdcoder-pc-code',
+    'src',
+    'pages',
+    'CodePage.tsx',
+  ),
+  'utf8',
+);
+const generatedTurnRequestSource = fs.readFileSync(
+  path.join(
+    process.cwd(),
+    'sdks',
+    'sdkwork-birdcoder-app-sdk',
+    'sdkwork-birdcoder-app-sdk-typescript',
+    'generated',
+    'server-openapi',
+    'src',
+    'types',
+    'bird-coder-create-coding-session-turn-request.ts',
+  ),
+  'utf8',
+);
+assert.doesNotMatch(
+  apiBackedProjectServiceSource,
+  /codeEngineSelection|readRemoteCodingSessionTurnModelSelection/,
+  'PC turn serialization must not read composer engine/model metadata for an immutable coding session.',
+);
+assert.doesNotMatch(
+  generatedTurnRequestSource,
+  /engineId\??:|modelId\??:/,
+  'The generated app SDK turn request must not expose engine or model overrides.',
+);
+assert.match(
+  codePageSource,
+  /requestedModelId[\s\S]*currentSessionModelId[\s\S]*requestedModelId\.toLowerCase\(\) !== currentSessionModelId\.toLowerCase\(\)[\s\S]*\? null\s*:\s*sessionId/,
+  'Changing a composer model must create a new logical coding session instead of resuming the old provider thread.',
 );
 
 for (const engine of listWorkbenchCliEngines()) {

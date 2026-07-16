@@ -5,27 +5,26 @@ import {
   type BirdCoderTableRecordRepository,
 } from '../storage/dataKernel.ts';
 import { getTerminalProfile, type TerminalProfileId } from './profiles.ts';
+import {
+  getDefaultRunConfigurations,
+  type RunConfigurationCwdMode,
+  type RunConfigurationGroup,
+  type RunConfigurationRecord,
+} from './runConfigDefinitions.ts';
+export {
+  getDefaultRunConfigurations,
+  type RunConfigurationCwdMode,
+  type RunConfigurationGroup,
+  type RunConfigurationRecord,
+} from './runConfigDefinitions.ts';
 import { uuid } from '@sdkwork/utils/id';
 import {
   BIRDCODER_RUN_CONFIGURATION_STORAGE_BINDING,
-  getBirdCoderEntityDefinition,
-} from '@sdkwork/birdcoder-pc-types';
+  BIRDCODER_RUN_CONFIGURATION_ENTITY_DEFINITION,
+} from '@sdkwork/birdcoder-pc-types/runConfigurationStorage';
 
 const RUN_CONFIGURATION_LIMIT = 20;
 const RUN_CONFIGURATION_GLOBAL_SCOPE_ID = 'global';
-
-export type RunConfigurationGroup = 'dev' | 'build' | 'test' | 'custom';
-export type RunConfigurationCwdMode = 'project' | 'workspace' | 'custom';
-
-export interface RunConfigurationRecord {
-  id: string;
-  name: string;
-  command: string;
-  profileId: TerminalProfileId;
-  group: RunConfigurationGroup;
-  cwdMode: RunConfigurationCwdMode;
-  customCwd: string;
-}
 
 interface PersistedRunConfigurationRecord extends RunConfigurationRecord {
   createdAt: string;
@@ -45,37 +44,7 @@ interface RunConfigurationScope {
   scopeType: PersistedRunConfigurationRecord['scopeType'];
 }
 
-const RUN_CONFIGURATION_DEFINITION = getBirdCoderEntityDefinition('run_configuration');
-
-const DEFAULT_RUN_CONFIGURATIONS: ReadonlyArray<RunConfigurationRecord> = [
-  {
-    id: 'dev',
-    name: 'Start Development Server',
-    command: 'npm run dev',
-    profileId: 'powershell',
-    group: 'dev',
-    cwdMode: 'project',
-    customCwd: '',
-  },
-  {
-    id: 'build',
-    name: 'Build Project',
-    command: 'npm run build',
-    profileId: 'powershell',
-    group: 'build',
-    cwdMode: 'project',
-    customCwd: '',
-  },
-  {
-    id: 'test',
-    name: 'Run Tests',
-    command: 'npm test',
-    profileId: 'powershell',
-    group: 'test',
-    cwdMode: 'project',
-    customCwd: '',
-  },
-] as const;
+const RUN_CONFIGURATION_DEFINITION = BIRDCODER_RUN_CONFIGURATION_ENTITY_DEFINITION;
 
 const runConfigurationRepositoryCache = new Map<
   string,
@@ -489,10 +458,6 @@ export function getRunConfigurationRepository(
   const repository = createRunConfigurationRepository(projectId);
   runConfigurationRepositoryCache.set(key, repository);
   return repository;
-}
-
-export function getDefaultRunConfigurations(): RunConfigurationRecord[] {
-  return DEFAULT_RUN_CONFIGURATIONS.map((config) => ({ ...config }));
 }
 
 export function normalizeRunConfigurations(value: unknown): RunConfigurationRecord[] {

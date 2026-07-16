@@ -62,6 +62,15 @@
       "@sdkwork/drive-app-sdk": [
         "../../../sdkwork-drive/sdks/sdkwork-drive-app-sdk/sdkwork-drive-app-sdk-typescript/src/index.ts"
       ],
+      "@sdkwork/drive-pc-sandbox-contracts": [
+        "../../../sdkwork-drive/apps/sdkwork-drive-pc/packages/sdkwork-drive-pc-sandbox-contracts/src/index.ts"
+      ],
+      "@sdkwork/drive-pc-sandbox-explorer": [
+        "../../../sdkwork-drive/apps/sdkwork-drive-pc/packages/sdkwork-drive-pc-sandbox-explorer/src/index.ts"
+      ],
+      "@sdkwork/drive-pc-sandbox-explorer-sdk-adapter": [
+        "../../../sdkwork-drive/apps/sdkwork-drive-pc/packages/sdkwork-drive-pc-sandbox-explorer-sdk-adapter/src/index.ts"
+      ],
       "@sdkwork/messaging-app-sdk": [
         "../../../sdkwork-messaging/sdks/sdkwork-messaging-app-sdk/sdkwork-messaging-app-sdk-typescript/src/index.ts"
       ],
@@ -153,7 +162,7 @@
         "./node_modules/lucide-react"
       ],
       "@sdkwork/terminal-local-runtime-app-sdk": [
-        "../../../sdkwork-terminal/apps/sdkwork-terminal-pc/sdks/sdkwork-terminal-local-runtime-app-sdk/sdkwork-terminal-local-runtime-app-sdk-typescript/src/index.ts"
+        "../../../sdkwork-terminal/apps/sdkwork-terminal-pc/sdks/sdkwork-terminal-app-sdk/sdkwork-terminal-app-sdk-typescript/src/index.ts"
       ],
       "@sdkwork/terminal-*": [
         "../../../sdkwork-terminal/apps/sdkwork-terminal-pc/packages/sdkwork-terminal-pc-*/src"

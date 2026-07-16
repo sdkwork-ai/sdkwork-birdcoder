@@ -34,10 +34,11 @@ impl IntelligenceApi {
     }
 
     /// List coding sessions
-    pub async fn coding_sessions_list(&self, workspace_id: Option<&str>, project_id: Option<&str>, engine_id: Option<&str>, page: Option<i64>, page_size: Option<i64>) -> Result<BirdCoderCodingSessionSummaryListEnvelope, SdkworkError> {
+    pub async fn coding_sessions_list(&self, workspace_id: Option<&str>, project_id: Option<&str>, runtime_location_id: Option<&str>, engine_id: Option<&str>, page: Option<i64>, page_size: Option<i64>) -> Result<BirdCoderCodingSessionSummaryListEnvelope, SdkworkError> {
         let query = build_query_string(&[
             QueryParameterSpec::new("workspaceId", workspace_id, "form", true, false, None),
             QueryParameterSpec::new("projectId", project_id, "form", true, false, None),
+            QueryParameterSpec::new("runtimeLocationId", runtime_location_id, "form", true, false, None),
             QueryParameterSpec::new("engineId", engine_id, "form", true, false, None),
             QueryParameterSpec::new("page", page, "form", true, false, None),
             QueryParameterSpec::new("page_size", page_size, "form", true, false, None),

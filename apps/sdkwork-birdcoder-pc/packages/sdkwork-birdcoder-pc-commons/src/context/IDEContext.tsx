@@ -9,6 +9,7 @@ import type {
   IDocumentService,
   IFileSystemService,
   IGitService,
+  IProjectRuntimeLocationService,
   IPromptService,
   IProjectService,
   IReleaseService,
@@ -40,6 +41,7 @@ export interface IDEProviderProps {
   teamService?: ITeamService;
   vipMembershipService?: IVipMembershipService;
   fileSystemService?: IFileSystemService;
+  projectRuntimeLocationService?: IProjectRuntimeLocationService;
   gitService?: IGitService;
   authService?: IAuthService;
   promptService?: IPromptService;
@@ -59,6 +61,7 @@ export const IDEProvider: React.FC<IDEProviderProps> = ({
   teamService,
   vipMembershipService,
   fileSystemService,
+  projectRuntimeLocationService,
   gitService,
   authService,
   promptService,
@@ -82,6 +85,8 @@ export const IDEProvider: React.FC<IDEProviderProps> = ({
         teamService: teamService ?? defaultContext.teamService,
         vipMembershipService: vipMembershipService ?? defaultContext.vipMembershipService,
         fileSystemService: fileSystemService ?? defaultContext.fileSystemService,
+        projectRuntimeLocationService:
+          projectRuntimeLocationService ?? defaultContext.projectRuntimeLocationService,
         gitService: gitService ?? defaultContext.gitService,
         authService: authService ?? defaultContext.authService,
         promptService: promptService ?? defaultContext.promptService,

@@ -1,6 +1,6 @@
 import { Check, ChevronDown } from 'lucide-react';
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { useWorkbenchPreferences } from '@sdkwork/birdcoder-pc-commons';
+import { useWorkbenchPreferences } from '@sdkwork/birdcoder-pc-commons/hooks/useWorkbenchPreferences';
 import {
   getWorkbenchCodeModelLabel,
   resolveWorkbenchCodeEngineSelectedModelId,

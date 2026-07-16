@@ -1,19 +1,21 @@
 import { useCallback } from 'react';
-import { useIDEServices } from '../context/IDEContext.ts';
+import { useProjectRuntimeLocation } from './useProjectRuntimeLocation.ts';
 
 /**
- * Resolves a device-private working directory for local host actions.
- * Remote project metadata never participates in this lookup.
+ * Reads an existing local working directory without prompting. User actions
+ * that may bind a folder use useProjectRuntimeLocation directly so cancellation
+ * remains a non-error state instead of a missing-path error.
  */
 export function useProjectLocalWorkingDirectory(): (projectId: string) => Promise<string | null> {
-  const { fileSystemService } = useIDEServices();
+  const resolveProjectRuntimeLocation = useProjectRuntimeLocation();
 
   return useCallback(async (projectId: string): Promise<string | null> => {
-    const normalizedProjectId = projectId.trim();
-    if (!normalizedProjectId) {
-      return null;
-    }
-
-    return await fileSystemService.resolveLocalWorkingDirectory(normalizedProjectId);
-  }, [fileSystemService]);
+    const resolution = await resolveProjectRuntimeLocation(projectId, {
+      allowFolderSelection: false,
+      capability: 'terminal',
+    });
+    return resolution.status === 'resolved'
+      ? resolution.location.localWorkingDirectory
+      : null;
+  }, [resolveProjectRuntimeLocation]);
 }

@@ -17,10 +17,10 @@ const appContentSource = fs.readFileSync(
   ),
   'utf8',
 );
-const localImportSource = fs.readFileSync(
+const codeEffectiveWorkspaceSource = fs.readFileSync(
   path.join(
     rootDir,
-    'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-code/src/pages/useCodeLocalFolderProjectImport.ts',
+    'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-code/src/pages/useCodeEffectiveWorkspaceId.ts',
   ),
   'utf8',
 );
@@ -80,9 +80,9 @@ assert.match(
 );
 
 assert.match(
-  localImportSource,
+  codeEffectiveWorkspaceSource,
   /error: workspacesError[\s\S]*!hasFetched \|\|\s*workspacesError \|\|/u,
-  'Code local-folder import must not create a default workspace after a failed workspace inventory request.',
+  'Code workspace bootstrap must not create a default workspace after a failed workspace inventory request.',
 );
 
 console.log('workspaces pagination and error contract passed.');

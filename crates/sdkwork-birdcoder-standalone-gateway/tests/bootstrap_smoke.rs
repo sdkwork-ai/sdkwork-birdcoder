@@ -22,6 +22,14 @@ const SMOKE_ENV_VALUES: &[(&str, &str)] = &[
     ("SDKWORK_IAM_DATABASE_ACQUIRE_TIMEOUT", "2"),
     ("SDKWORK_BIRDCODER_REALTIME_BACKEND", "memory"),
     ("SDKWORK_BIRDCODER_REDIS_ENABLED", "false"),
+    (
+        "SDKWORK_BIRDCODER_RUNTIME_LOCATION_MASTER_KEY",
+        "handler-smoke-runtime-location-master-key-material",
+    ),
+    (
+        "SDKWORK_BIRDCODER_RUNTIME_LOCATION_KEY_ID",
+        "handler-smoke-v1",
+    ),
 ];
 
 const SMOKE_ENV_REMOVALS: &[&str] = &[
@@ -424,6 +432,531 @@ async fn legacy_health_endpoints_are_not_mounted_after_standard_cutover() {
         );
     }
 
+    cleanup_smoke_database(&config.sqlite_file);
+}
+
+#[tokio::test]
+async fn workspace_realtime_websocket_upgrade_requires_real_dual_token_headers() {
+    use base64::engine::general_purpose::URL_SAFE_NO_PAD;
+    use base64::Engine;
+    use tokio_tungstenite::tungstenite::client::IntoClientRequest;
+    use tokio_tungstenite::tungstenite::Error as WebSocketError;
+
+    let config = smoke_config("bootstrap-smoke-realtime-websocket-auth.db");
+    let app = build_smoke_app(&config)
+        .await
+        .expect("build_app should succeed with valid config");
+    let session_id = "realtime-websocket-auth-session";
+    let auth_token = sdkwork_web_core::jwt_fixtures::auth_token_jwt(
+        "100001",
+        "31",
+        session_id,
+        "sdkwork-birdcoder",
+    );
+    let access_token = sdkwork_web_core::jwt_fixtures::access_token_jwt(
+        "100001",
+        "31",
+        session_id,
+        "sdkwork-birdcoder",
+    );
+    let workspace_response = app
+        .request(
+            Request::builder()
+                .method("POST")
+                .uri("/app/v3/api/workspaces")
+                .header("Authorization", format!("Bearer {auth_token}"))
+                .header("Access-Token", &access_token)
+                .header("Content-Type", "application/json")
+                .body(Body::from(r#"{"name":"Realtime auth workspace"}"#))
+                .expect("build workspace create request"),
+        )
+        .await
+        .expect("create workspace");
+    assert_eq!(workspace_response.status(), StatusCode::OK);
+    let workspace_body = axum::body::to_bytes(workspace_response.into_body(), usize::MAX)
+        .await
+        .expect("read workspace create response");
+    let workspace_json: serde_json::Value =
+        serde_json::from_slice(&workspace_body).expect("parse workspace create response");
+    let workspace_id = workspace_json["data"]["item"]["id"]
+        .as_str()
+        .expect("workspace id");
+
+    let preflight_response = app
+        .request(
+            Request::builder()
+                .method("OPTIONS")
+                .uri(format!(
+                    "/app/v3/api/workspaces/{workspace_id}/realtime?transport=sse"
+                ))
+                .header("Origin", "http://127.0.0.1:5173")
+                .header("Access-Control-Request-Method", "GET")
+                .header(
+                    "Access-Control-Request-Headers",
+                    "authorization,access-token",
+                )
+                .body(Body::empty())
+                .expect("build realtime SSE preflight request"),
+        )
+        .await
+        .expect("serve realtime SSE preflight request");
+    assert!(preflight_response.status().is_success());
+    let allowed_headers = preflight_response
+        .headers()
+        .get("Access-Control-Allow-Headers")
+        .and_then(|value| value.to_str().ok())
+        .unwrap_or_default()
+        .to_ascii_lowercase();
+    assert!(allowed_headers
+        .split(',')
+        .any(|value| value.trim() == "authorization"));
+    assert!(allowed_headers
+        .split(',')
+        .any(|value| value.trim() == "access-token"));
+
+    let listener = tokio::net::TcpListener::bind("127.0.0.1:0")
+        .await
+        .expect("bind realtime websocket smoke listener");
+    let address = listener.local_addr().expect("read smoke listener address");
+    let router = app.router.clone();
+    let server = tokio::spawn(async move { axum::serve(listener, router).await });
+    let realtime_url =
+        format!("ws://{address}/app/v3/api/workspaces/{workspace_id}/realtime?transport=websocket");
+    assert!(!realtime_url.contains(&auth_token));
+    assert!(!realtime_url.contains(&access_token));
+
+    let mut unauthenticated_request = realtime_url
+        .as_str()
+        .into_client_request()
+        .expect("build unauthenticated websocket request");
+    unauthenticated_request.headers_mut().insert(
+        "Origin",
+        "http://127.0.0.1:5173"
+            .parse()
+            .expect("valid browser origin header"),
+    );
+    unauthenticated_request.headers_mut().insert(
+        "Sec-WebSocket-Protocol",
+        "sdkwork-realtime-v1"
+            .parse()
+            .expect("valid websocket protocol header"),
+    );
+    let unauthenticated_error = tokio_tungstenite::connect_async(unauthenticated_request)
+        .await
+        .expect_err("websocket upgrade without dual-token headers must fail");
+    let unauthenticated_response = match unauthenticated_error {
+        WebSocketError::Http(response) => response,
+        error => panic!("unexpected unauthenticated websocket error: {error:?}"),
+    };
+    assert_eq!(
+        unauthenticated_response.status(),
+        StatusCode::UNAUTHORIZED,
+        "unexpected unauthenticated websocket response: {unauthenticated_response:?}"
+    );
+
+    let mut unversioned_standard_request = realtime_url
+        .as_str()
+        .into_client_request()
+        .expect("build unversioned standard-header websocket request");
+    unversioned_standard_request.headers_mut().insert(
+        "Origin",
+        "http://127.0.0.1:5173"
+            .parse()
+            .expect("valid browser origin header"),
+    );
+    unversioned_standard_request.headers_mut().insert(
+        "Authorization",
+        format!("Bearer {auth_token}")
+            .parse()
+            .expect("valid authorization header"),
+    );
+    unversioned_standard_request.headers_mut().insert(
+        "Access-Token",
+        access_token.parse().expect("valid access-token header"),
+    );
+    let unversioned_error = tokio_tungstenite::connect_async(unversioned_standard_request)
+        .await
+        .expect_err("standard dual-token websocket without application protocol must fail");
+    let unversioned_response = match unversioned_error {
+        WebSocketError::Http(response) => response,
+        error => panic!("unexpected unversioned websocket error: {error:?}"),
+    };
+    assert_eq!(unversioned_response.status(), StatusCode::UNAUTHORIZED);
+
+    let mut authenticated_request = realtime_url
+        .as_str()
+        .into_client_request()
+        .expect("build authenticated websocket request");
+    authenticated_request.headers_mut().insert(
+        "Origin",
+        "http://127.0.0.1:5173"
+            .parse()
+            .expect("valid browser origin header"),
+    );
+    authenticated_request.headers_mut().insert(
+        "Sec-WebSocket-Protocol",
+        "sdkwork-realtime-v1"
+            .parse()
+            .expect("valid websocket protocol header"),
+    );
+    authenticated_request.headers_mut().insert(
+        "Authorization",
+        format!("Bearer {auth_token}")
+            .parse()
+            .expect("valid authorization header"),
+    );
+    authenticated_request.headers_mut().insert(
+        "Access-Token",
+        access_token.parse().expect("valid access-token header"),
+    );
+    let (socket, response) = tokio_tungstenite::connect_async(authenticated_request)
+        .await
+        .expect("dual-token websocket upgrade must succeed");
+    assert_eq!(response.status(), StatusCode::SWITCHING_PROTOCOLS);
+    assert_eq!(
+        response
+            .headers()
+            .get("Sec-WebSocket-Protocol")
+            .and_then(|value| value.to_str().ok()),
+        Some("sdkwork-realtime-v1")
+    );
+    drop(socket);
+
+    let auth_protocol = format!(
+        "sdkwork-realtime-auth-v1.{}",
+        URL_SAFE_NO_PAD.encode(auth_token.as_bytes())
+    );
+    let access_protocol = format!(
+        "sdkwork-realtime-access-v1.{}",
+        URL_SAFE_NO_PAD.encode(access_token.as_bytes())
+    );
+    let carrier_protocols = format!("sdkwork-realtime-v1, {auth_protocol}, {access_protocol}");
+
+    let non_realtime_url = format!("ws://{address}/healthz");
+    let mut non_realtime_carrier_request = non_realtime_url
+        .as_str()
+        .into_client_request()
+        .expect("build non-realtime browser-carrier websocket request");
+    non_realtime_carrier_request.headers_mut().insert(
+        "Origin",
+        "http://127.0.0.1:5173"
+            .parse()
+            .expect("valid browser origin header"),
+    );
+    non_realtime_carrier_request.headers_mut().insert(
+        "Sec-WebSocket-Protocol",
+        carrier_protocols
+            .parse()
+            .expect("valid browser credential carrier header"),
+    );
+    let non_realtime_error = tokio_tungstenite::connect_async(non_realtime_carrier_request)
+        .await
+        .expect_err("credential carrier must be rejected on non-realtime routes");
+    let non_realtime_response = match non_realtime_error {
+        WebSocketError::Http(response) => response,
+        error => panic!("unexpected non-realtime carrier websocket error: {error:?}"),
+    };
+    assert_eq!(non_realtime_response.status(), StatusCode::UNAUTHORIZED);
+
+    let mut partial_carrier_request = realtime_url
+        .as_str()
+        .into_client_request()
+        .expect("build partial browser-carrier websocket request");
+    partial_carrier_request.headers_mut().insert(
+        "Origin",
+        "http://127.0.0.1:5173"
+            .parse()
+            .expect("valid browser origin header"),
+    );
+    partial_carrier_request.headers_mut().insert(
+        "Sec-WebSocket-Protocol",
+        format!("sdkwork-realtime-v1, {auth_protocol}")
+            .parse()
+            .expect("valid partial carrier header"),
+    );
+    let partial_error = tokio_tungstenite::connect_async(partial_carrier_request)
+        .await
+        .expect_err("partial browser credential carrier must fail closed");
+    let partial_response = match partial_error {
+        WebSocketError::Http(response) => response,
+        error => panic!("unexpected partial carrier websocket error: {error:?}"),
+    };
+    assert_eq!(partial_response.status(), StatusCode::UNAUTHORIZED);
+
+    let mut malformed_carrier_request = realtime_url
+        .as_str()
+        .into_client_request()
+        .expect("build malformed browser-carrier websocket request");
+    malformed_carrier_request.headers_mut().insert(
+        "Origin",
+        "http://127.0.0.1:5173"
+            .parse()
+            .expect("valid browser origin header"),
+    );
+    malformed_carrier_request.headers_mut().insert(
+        "Sec-WebSocket-Protocol",
+        format!("sdkwork-realtime-v1, sdkwork-realtime-auth-v1.***, {access_protocol}")
+            .parse()
+            .expect("syntactically valid malformed carrier header"),
+    );
+    let malformed_error = tokio_tungstenite::connect_async(malformed_carrier_request)
+        .await
+        .expect_err("malformed browser credential carrier must fail closed");
+    let malformed_response = match malformed_error {
+        WebSocketError::Http(response) => response,
+        error => panic!("unexpected malformed carrier websocket error: {error:?}"),
+    };
+    assert_eq!(malformed_response.status(), StatusCode::UNAUTHORIZED);
+
+    let mut browser_carrier_request = realtime_url
+        .as_str()
+        .into_client_request()
+        .expect("build browser-carrier websocket request");
+    browser_carrier_request.headers_mut().insert(
+        "Origin",
+        "http://127.0.0.1:5173"
+            .parse()
+            .expect("valid browser origin header"),
+    );
+    browser_carrier_request.headers_mut().insert(
+        "Sec-WebSocket-Protocol",
+        carrier_protocols
+            .parse()
+            .expect("valid browser credential carrier header"),
+    );
+    let (browser_socket, browser_response) =
+        tokio_tungstenite::connect_async(browser_carrier_request)
+            .await
+            .expect("browser credential carrier websocket upgrade must succeed");
+    assert_eq!(browser_response.status(), StatusCode::SWITCHING_PROTOCOLS);
+    let negotiated_protocol = browser_response
+        .headers()
+        .get("Sec-WebSocket-Protocol")
+        .and_then(|value| value.to_str().ok());
+    assert_eq!(negotiated_protocol, Some("sdkwork-realtime-v1"));
+    assert!(!negotiated_protocol
+        .unwrap_or_default()
+        .contains("realtime-auth-v1"));
+    assert!(!negotiated_protocol
+        .unwrap_or_default()
+        .contains("realtime-access-v1"));
+    drop(browser_socket);
+
+    server.abort();
+    let _ = server.await;
+    cleanup_smoke_database(&config.sqlite_file);
+}
+
+#[tokio::test]
+async fn terminal_app_api_requires_a_project_runtime_location_and_legacy_runtime_path_is_not_mounted(
+) {
+    let config = smoke_config("bootstrap-smoke-terminal-app-api.db");
+    let app = build_smoke_app(&config)
+        .await
+        .expect("build_app should succeed with valid config");
+    let session_id = "terminal-app-api-smoke-session";
+    let auth_token = sdkwork_web_core::jwt_fixtures::auth_token_jwt(
+        "100001",
+        "30",
+        session_id,
+        "sdkwork-birdcoder",
+    );
+    let access_token = sdkwork_web_core::jwt_fixtures::access_token_jwt(
+        "100001",
+        "30",
+        session_id,
+        "sdkwork-birdcoder",
+    );
+    let command = if cfg!(windows) {
+        serde_json::json!(["cmd.exe", "/Q"])
+    } else {
+        serde_json::json!(["/bin/sh"])
+    };
+    let workspace_response = app
+        .request(
+            Request::builder()
+                .method("POST")
+                .uri("/app/v3/api/workspaces")
+                .header("Authorization", format!("Bearer {auth_token}"))
+                .header("Access-Token", &access_token)
+                .header("Content-Type", "application/json")
+                .body(Body::from(r#"{"name":"Terminal smoke workspace"}"#))
+                .expect("build workspace create request"),
+        )
+        .await
+        .expect("create workspace");
+    assert_eq!(workspace_response.status(), StatusCode::OK);
+    let workspace_body = axum::body::to_bytes(workspace_response.into_body(), usize::MAX)
+        .await
+        .expect("read workspace create response");
+    let workspace_json: serde_json::Value =
+        serde_json::from_slice(&workspace_body).expect("parse workspace create response");
+    let workspace_id = workspace_json["data"]["item"]["id"]
+        .as_str()
+        .expect("workspace id")
+        .to_owned();
+
+    let project_response = app
+        .request(
+            Request::builder()
+                .method("POST")
+                .uri("/app/v3/api/projects")
+                .header("Authorization", format!("Bearer {auth_token}"))
+                .header("Access-Token", &access_token)
+                .header("Content-Type", "application/json")
+                .body(Body::from(
+                    serde_json::json!({
+                        "workspaceId": workspace_id,
+                        "name": "Terminal smoke project",
+                    })
+                    .to_string(),
+                ))
+                .expect("build project create request"),
+        )
+        .await
+        .expect("create project");
+    assert_eq!(project_response.status(), StatusCode::OK);
+    let project_body = axum::body::to_bytes(project_response.into_body(), usize::MAX)
+        .await
+        .expect("read project create response");
+    let project_json: serde_json::Value =
+        serde_json::from_slice(&project_body).expect("parse project create response");
+    let project_id = project_json["data"]["item"]["id"]
+        .as_str()
+        .expect("project id")
+        .to_owned();
+
+    let absolute_path = std::env::temp_dir().to_string_lossy().into_owned();
+    let runtime_location_response = app
+        .request(
+            Request::builder()
+                .method("POST")
+                .uri(format!(
+                    "/app/v3/api/projects/{project_id}/runtime_locations"
+                ))
+                .header("Authorization", format!("Bearer {auth_token}"))
+                .header("Access-Token", &access_token)
+                .header(
+                    "Idempotency-Key",
+                    format!("terminal-smoke-{}", uuid::Uuid::new_v4()),
+                )
+                .header("Content-Type", "application/json")
+                .body(Body::from(
+                    serde_json::json!({
+                        "runtimeTargetId": "terminal-smoke-server",
+                        "runtimeTargetKind": "server",
+                        "locationKind": "server_workspace",
+                        "pathFlavor": if cfg!(windows) { "windows" } else { "posix" },
+                        "rootLocator": "terminal-smoke-root",
+                        "absolutePath": absolute_path.clone(),
+                        "displayName": "Terminal smoke location",
+                    })
+                    .to_string(),
+                ))
+                .expect("build runtime location create request"),
+        )
+        .await
+        .expect("create runtime location");
+    assert_eq!(runtime_location_response.status(), StatusCode::CREATED);
+    let runtime_location_body =
+        axum::body::to_bytes(runtime_location_response.into_body(), usize::MAX)
+            .await
+            .expect("read runtime location create response");
+    let runtime_location_json: serde_json::Value = serde_json::from_slice(&runtime_location_body)
+        .expect("parse runtime location create response");
+    assert!(runtime_location_json["data"]["item"]
+        .get("absolutePath")
+        .is_none());
+    let runtime_location_id = runtime_location_json["data"]["item"]["id"]
+        .as_str()
+        .expect("runtime location id")
+        .to_owned();
+
+    let body = serde_json::json!({
+        "projectId": project_id,
+        "runtimeLocationId": runtime_location_id,
+        "command": command,
+        "cols": 100,
+        "rows": 30,
+        "modeTags": ["cli-native"],
+        "tags": ["surface:browser", "profile:shell"]
+    });
+
+    let caller_directory = serde_json::json!({
+        "projectId": body["projectId"],
+        "runtimeLocationId": body["runtimeLocationId"],
+        "workingDirectory": absolute_path,
+        "command": body["command"],
+    });
+    let directory_response = app
+        .request(
+            Request::builder()
+                .method("POST")
+                .uri("/app/v3/api/device/terminal/sessions")
+                .header("Authorization", format!("Bearer {auth_token}"))
+                .header("Access-Token", &access_token)
+                .header("Content-Type", "application/json")
+                .body(Body::from(caller_directory.to_string()))
+                .expect("build path-injection terminal request"),
+        )
+        .await
+        .expect("serve path-injection terminal request");
+    assert_eq!(directory_response.status(), StatusCode::BAD_REQUEST);
+
+    let response = app
+        .request(
+            Request::builder()
+                .method("POST")
+                .uri("/app/v3/api/device/terminal/sessions")
+                .header("Authorization", format!("Bearer {auth_token}"))
+                .header("Access-Token", &access_token)
+                .header("Content-Type", "application/json")
+                .body(Body::from(body.to_string()))
+                .expect("build Terminal App API request"),
+        )
+        .await
+        .expect("serve Terminal App API request");
+
+    let response_status = response.status();
+    let response_body = axum::body::to_bytes(response.into_body(), usize::MAX)
+        .await
+        .expect("read Terminal App API response");
+    let response_json: serde_json::Value =
+        serde_json::from_slice(&response_body).expect("parse Terminal App API response");
+    assert_eq!(
+        response_status,
+        StatusCode::SERVICE_UNAVAILABLE,
+        "unexpected terminal response: {response_json}"
+    );
+    assert_eq!(response_json["code"], 50301);
+    assert!(response_json["detail"]
+        .as_str()
+        .is_some_and(|detail| !detail.contains(&absolute_path)));
+
+    let legacy = app
+        .request(
+            Request::builder()
+                .method("POST")
+                .uri("/terminal/api/v1/sessions")
+                .header("Authorization", format!("Bearer {auth_token}"))
+                .header("Access-Token", access_token)
+                .header("Content-Type", "application/json")
+                .body(Body::from(body.to_string()))
+                .expect("build legacy Terminal request"),
+        )
+        .await
+        .expect("serve legacy Terminal request");
+
+    assert_eq!(legacy.status(), StatusCode::UNAUTHORIZED);
+    let legacy_body = axum::body::to_bytes(legacy.into_body(), usize::MAX)
+        .await
+        .expect("read unclassified legacy Terminal response");
+    let legacy_problem: serde_json::Value =
+        serde_json::from_slice(&legacy_body).expect("parse unclassified legacy Terminal problem");
+    assert_eq!(legacy_problem["code"], 40101);
+    assert!(legacy_problem["detail"]
+        .as_str()
+        .is_some_and(|detail| detail.contains("unclassified API surfaces")));
     cleanup_smoke_database(&config.sqlite_file);
 }
 

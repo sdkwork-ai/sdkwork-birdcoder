@@ -1,6 +1,5 @@
 import type {
   BirdCoderCodeEngineModelConfig,
-  BirdCoderCodeEngineModelConfigCustomModel,
   BirdCoderCodeEngineModelConfigEngine,
   BirdCoderCodeEngineModelConfigSource,
   BirdCoderCodeEngineModelConfigSyncResult,
@@ -29,18 +28,10 @@ export const BIRDCODER_CODE_ENGINE_MODEL_CONFIG_FILE_NAME = 'code-engine-models.
 export const BIRDCODER_CODE_ENGINE_MODEL_CONFIG_HOME_RELATIVE_PATH =
   `${BIRDCODER_CODE_ENGINE_MODEL_CONFIG_HOME_DIRECTORY}/${BIRDCODER_CODE_ENGINE_MODEL_CONFIG_FILE_NAME}`;
 
-const DEFAULT_CONFIG_MODEL_IDS: Record<WorkbenchCodeEngineId, string> = {
-  codex: 'gpt-5.4',
-  'claude-code': 'claude-code',
-  gemini: 'gemini',
-  opencode: 'opencode',
-};
-
 export interface BuildDefaultBirdCoderCodeEngineModelConfigInput {
   source?: BirdCoderCodeEngineModelConfigSource;
   version?: string;
   updatedAt?: string;
-  models?: readonly unknown[];
 }
 
 function nowIsoString(): string {
@@ -52,49 +43,44 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 }
 
 function listModelsForEngine(engineId: WorkbenchCodeEngineId) {
-  return BIRDCODER_CODE_ENGINE_MODELS.filter((model) => model.engineKey === engineId);
+  return BIRDCODER_CODE_ENGINE_MODELS.filter(
+    (model) => model.engineKey === engineId && model.status === 'active',
+  );
 }
 
-function normalizeCustomModels(
-  value: unknown,
-  engineId: WorkbenchCodeEngineId,
-): readonly BirdCoderCodeEngineModelConfigCustomModel[] {
-  const items = Array.isArray(value) ? value : [];
-  const builtinModelIds = new Set(listModelsForEngine(engineId).map((model) => model.modelId));
-  const seen = new Set<string>();
-  const customModels: BirdCoderCodeEngineModelConfigCustomModel[] = [];
+function getDefaultBuiltinModelId(engineId: WorkbenchCodeEngineId): string {
+  const defaultModelId = listModelsForEngine(engineId).find(
+    (model) => model.defaultForEngine,
+  )?.modelId;
 
-  for (const item of items) {
-    if (!isRecord(item)) {
-      continue;
-    }
-
-    const id = String(item.id ?? '').trim();
-
-    if (!id || builtinModelIds.has(id) || seen.has(id)) {
-      continue;
-    }
-
-    seen.add(id);
-    customModels.push({
-      id,
-      label: String(item.label ?? id).trim() || id,
-    });
+  if (!defaultModelId) {
+    throw new Error(`Missing active default model for code engine: ${engineId}`);
   }
 
-  return customModels;
+  return defaultModelId;
+}
+
+function normalizeBuiltinModelId(
+  engineId: WorkbenchCodeEngineId,
+  value: unknown,
+): string {
+  const candidate = String(value ?? '').trim();
+  const matchedModel = listModelsForEngine(engineId).find(
+    (model) => model.modelId === candidate,
+  );
+
+  return matchedModel?.modelId ?? getDefaultBuiltinModelId(engineId);
 }
 
 function buildDefaultEngineConfig(
   engineId: WorkbenchCodeEngineId,
 ): BirdCoderCodeEngineModelConfigEngine {
-  const defaultModelId = DEFAULT_CONFIG_MODEL_IDS[engineId];
+  const defaultModelId = getDefaultBuiltinModelId(engineId);
 
   return {
     engineId,
     defaultModelId,
     selectedModelId: defaultModelId,
-    customModels: [],
     models: listModelsForEngine(engineId),
   };
 }
@@ -131,16 +117,15 @@ export function normalizeBirdCoderCodeEngineModelConfig(
   for (const engineId of WORKBENCH_CODE_ENGINE_IDS) {
     const defaultEngine = defaultConfig.engines[engineId];
     const rawEngine = isRecord(sourceEngines[engineId]) ? sourceEngines[engineId] : {};
-    const customModels = normalizeCustomModels(rawEngine.customModels, engineId);
     const candidate =
       String(rawEngine.selectedModelId ?? rawEngine.defaultModelId ?? '').trim() ||
       defaultEngine.defaultModelId;
+    const selectedModelId = normalizeBuiltinModelId(engineId, candidate);
 
     engines[engineId] = {
       engineId,
-      defaultModelId: candidate,
-      selectedModelId: candidate,
-      customModels,
+      defaultModelId: selectedModelId,
+      selectedModelId,
       models: listModelsForEngine(engineId),
     };
   }
@@ -163,7 +148,6 @@ export function modelConfigToWorkbenchCodeEngineSettingsMap(
 
     settings[engineId] = {
       defaultModelId: engineConfig.selectedModelId || engineConfig.defaultModelId,
-      customModels: engineConfig.customModels,
     };
   }
 
@@ -180,14 +164,15 @@ export function workbenchCodeEngineSettingsMapToModelConfig(
 
   for (const engineId of WORKBENCH_CODE_ENGINE_IDS) {
     const defaultEngine = config.engines[engineId];
-    const selectedModelId =
-      settings[engineId]?.defaultModelId ?? defaultEngine.selectedModelId;
+    const selectedModelId = normalizeBuiltinModelId(
+      engineId,
+      settings[engineId]?.defaultModelId ?? defaultEngine.selectedModelId,
+    );
 
     engines[engineId] = {
       ...defaultEngine,
       defaultModelId: selectedModelId,
       selectedModelId,
-      customModels: settings[engineId]?.customModels ?? [],
     };
   }
 

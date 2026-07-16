@@ -61,6 +61,27 @@ assert.deepEqual(
   },
 );
 
+const legacyCustomModelPreferences = normalizeWorkbenchPreferences({
+  codeEngineId: 'gemini',
+  codeModelId: 'gemini-custom',
+  codeEngineSettings: {
+    gemini: {
+      defaultModelId: 'gemini-custom',
+      customModels: [{ id: 'gemini-custom', label: 'Legacy custom Gemini model' }],
+    },
+  },
+});
+assert.equal(
+  legacyCustomModelPreferences.codeModelId,
+  'auto-gemini-3',
+  'Legacy custom model selections must be discarded in favor of the engine-owned built-in default.',
+);
+assert.deepEqual(
+  legacyCustomModelPreferences.codeEngineSettings,
+  {},
+  'Legacy custom model records must not remain in normalized workbench preferences.',
+);
+
 const alternateServerImplementedEngine = listWorkbenchServerImplementedCodeEngines().find(
   (engine) => engine.id !== DEFAULT_WORKBENCH_PREFERENCES.codeEngineId,
 );

@@ -27,7 +27,9 @@ pub struct NativeSessionAttributesPayload {
     pub model_provider: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub project_id: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    // `cwd` is input/persistence-only authority metadata. It must never cross
+    // an app API boundary because it can disclose an absolute host path.
+    #[serde(default, skip_serializing)]
     pub cwd: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub git_branch: Option<String>,
@@ -148,8 +150,6 @@ pub struct NativeSessionSummaryPayload {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub runtime_status: Option<String>,
     pub kind: String,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub native_cwd: Option<String>,
     #[serde(
         deserialize_with = "deserialize_i64_from_decimal_string_or_number",
         serialize_with = "serialize_i64_as_decimal_string"
@@ -199,4 +199,20 @@ where
 pub struct NativeSessionDetailPayload {
     pub summary: NativeSessionSummaryPayload,
     pub messages: Vec<NativeSessionMessagePayload>,
+}
+
+#[cfg(test)]
+mod tests {
+    use super::NativeSessionAttributesPayload;
+
+    #[test]
+    fn native_attribute_cwd_is_deserializable_but_never_serialized() {
+        let payload = NativeSessionAttributesPayload {
+            cwd: Some("C:/private/project".to_owned()),
+            ..Default::default()
+        };
+
+        let serialized = serde_json::to_value(payload).expect("serialize native attributes");
+        assert!(serialized.get("cwd").is_none());
+    }
 }

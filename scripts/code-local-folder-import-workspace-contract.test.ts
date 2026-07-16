@@ -5,8 +5,8 @@ const modulePath = new URL(
   '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-commons/src/workbench/localFolderProjectWorkspace.ts',
   import.meta.url,
 );
-const codeLocalFolderImportHookPath = new URL(
-  '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-code/src/pages/useCodeLocalFolderProjectImport.ts',
+const codeServerDirectoryImportHookPath = new URL(
+  '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-code/src/pages/useCodeServerDirectoryProjectImport.ts',
   import.meta.url,
 );
 
@@ -18,7 +18,10 @@ const { readFileSync } = await import('node:fs');
 
 const appShellSource = readBirdcoderAppShellSource();
 const localFolderWorkspaceSource = readFileSync(modulePath, 'utf8');
-const codeLocalFolderImportHookSource = readFileSync(codeLocalFolderImportHookPath, 'utf8');
+const codeServerDirectoryImportHookSource = readFileSync(
+  codeServerDirectoryImportHookPath,
+  'utf8',
+);
 
 const immediateWorkspaceId = await resolveLocalFolderImportWorkspaceId({
   createWorkspace: async () => {
@@ -67,8 +70,8 @@ assert.equal(
 );
 assert.deepEqual(
   fallbackCalls,
-  ['Default Workspace:Default workspace for local folder projects.'],
-  'local folder import must create the standardized default workspace fallback.',
+  ['Default Workspace:Default workspace for imported projects.'],
+  'project import must create the standardized default workspace fallback.',
 );
 
 const createdAfterRefreshFailureWorkspaceId = await resolveLocalFolderImportWorkspaceId({
@@ -134,8 +137,8 @@ assert.deepEqual(
 );
 assert.deepEqual(
   concurrentFallbackCalls,
-  ['Default Workspace:Default workspace for local folder projects.'],
-  'local folder import must not create duplicate default workspaces for concurrent imports in the same scope.',
+  ['Default Workspace:Default workspace for imported projects.'],
+  'project import must not create duplicate default workspaces for concurrent imports in the same scope.',
 );
 
 await assert.rejects(
@@ -150,15 +153,15 @@ await assert.rejects(
 );
 
 assert.match(
-  codeLocalFolderImportHookSource,
-  /resolveLocalFolderImportWorkspaceId as resolveSharedLocalFolderImportWorkspaceId \} from '@sdkwork\/birdcoder-pc-commons\/workbench\/localFolderProjectWorkspace';/,
-  'CodePage local folder imports must use the shared workspace resolver through the governed commons workbench subpath.',
+  codeServerDirectoryImportHookSource,
+  /resolveProjectImportWorkspaceId as resolveSharedProjectImportWorkspaceId \} from '@sdkwork\/birdcoder-pc-commons\/workbench\/projectImportWorkspace';/,
+  'CodePage server-directory imports must use the canonical shared project-import workspace resolver.',
 );
 
 assert.match(
-  codeLocalFolderImportHookSource,
+  codeServerDirectoryImportHookSource,
   /return \{[\s\S]*\.\.\.importedProject,[\s\S]*workspaceId: targetWorkspaceId,[\s\S]*\};/s,
-  'CodePage local folder imports must return the concrete target workspace id with the imported project.',
+  'CodePage server-directory imports must return the concrete target workspace id with the imported project.',
 );
 
 assert.doesNotMatch(
@@ -168,21 +171,21 @@ assert.doesNotMatch(
 );
 
 assert.doesNotMatch(
-  codeLocalFolderImportHookSource,
+  codeServerDirectoryImportHookSource,
   /id:\s*string\s*\|\s*number/,
-  'CodePage local folder imports must not reintroduce numeric workspace ids after the shared resolver standardized ids as strings.',
+  'CodePage server-directory imports must not reintroduce numeric workspace ids after the shared resolver standardized ids as strings.',
 );
 
 assert.doesNotMatch(
-  codeLocalFolderImportHookSource,
-  /function resolveCodeLocalFolderImportWorkspaceId|DEFAULT_LOCAL_FOLDER_IMPORT_WORKSPACE_NAME/,
-  'CodePage must not keep a private local-folder workspace resolver after the shared commons helper exists.',
+  codeServerDirectoryImportHookSource,
+  /function resolveCodeServerDirectoryImportWorkspaceId|DEFAULT_LOCAL_FOLDER_IMPORT_WORKSPACE_NAME/,
+  'CodePage must not keep a private server-directory workspace resolver after the shared commons helper exists.',
 );
 
 assert.match(
   appShellSource,
-  /resolveLocalFolderImportWorkspaceId/,
-  'App shell local folder imports must use the same shared workspace resolver as CodePage.',
+  /resolveProjectImportWorkspaceId/,
+  'App shell project imports must use the same canonical workspace resolver as CodePage.',
 );
 
 assert.doesNotMatch(

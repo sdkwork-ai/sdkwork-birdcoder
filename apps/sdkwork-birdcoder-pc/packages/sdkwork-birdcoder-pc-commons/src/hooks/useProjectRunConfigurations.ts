@@ -1,11 +1,9 @@
 import { useCallback, useEffect, useState } from 'react';
 
 import {
-  ensureStoredRunConfigurations,
   getDefaultRunConfigurations,
   type RunConfigurationRecord,
-  upsertStoredRunConfiguration,
-} from '../terminal/runConfigs.ts';
+} from '../terminal/runConfigDefinitions.ts';
 
 export function useProjectRunConfigurations(projectId: string | null | undefined) {
   const [runConfigurations, setRunConfigurations] = useState<RunConfigurationRecord[]>(
@@ -17,7 +15,8 @@ export function useProjectRunConfigurations(projectId: string | null | undefined
     let isMounted = true;
     setIsHydrated(false);
 
-    void ensureStoredRunConfigurations(projectId)
+    void import('../terminal/runConfigStorage.ts')
+      .then(({ ensureStoredRunConfigurations }) => ensureStoredRunConfigurations(projectId))
       .then((configurations) => {
         if (!isMounted) {
           return;
@@ -40,6 +39,7 @@ export function useProjectRunConfigurations(projectId: string | null | undefined
 
   const saveRunConfiguration = useCallback(
     async (configuration: RunConfigurationRecord) => {
+      const { upsertStoredRunConfiguration } = await import('../terminal/runConfigStorage.ts');
       const configurations = await upsertStoredRunConfiguration(projectId, configuration);
       setRunConfigurations(configurations);
       return configurations;

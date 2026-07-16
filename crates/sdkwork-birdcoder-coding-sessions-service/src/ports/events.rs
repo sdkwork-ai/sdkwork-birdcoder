@@ -7,6 +7,9 @@ pub struct CodingSessionRealtimeEventInput {
     pub source_surface: String,
     pub workspace_id: String,
     pub project_id: String,
+    /// Opaque persisted runtime-location binding. This is safe to project to
+    /// clients and deliberately never carries a filesystem path.
+    pub coding_session_runtime_location_id: Option<String>,
     pub coding_session_id: String,
     pub coding_session_title: String,
     pub coding_session_status: String,
@@ -14,6 +17,10 @@ pub struct CodingSessionRealtimeEventInput {
     pub coding_session_engine_id: String,
     pub coding_session_model_id: String,
     pub coding_session_runtime_status: Option<String>,
+    pub coding_session_event_id: Option<String>,
+    pub coding_session_event_kind: Option<String>,
+    pub coding_session_event_payload: Option<serde_json::Value>,
+    pub coding_session_event_sequence: Option<String>,
     pub native_session_id: Option<String>,
     pub coding_session_updated_at: Option<String>,
     pub turn_id: Option<String>,

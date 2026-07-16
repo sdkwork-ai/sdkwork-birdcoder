@@ -6,6 +6,10 @@ import type {
   BirdCoderRemoveProjectGitWorktreeRequest,
 } from '@sdkwork/birdcoder-pc-types';
 import { useIDEServices } from '../context/ideServices.ts';
+import {
+  requestProjectFileSystemFlush,
+  requestProjectFileSystemRefresh,
+} from '../events/projectFileSystemSynchronization.ts';
 import { normalizeGitBranchName } from '../workbench/gitBranches.ts';
 
 const MAX_COMMIT_MESSAGE_CHARACTERS = 500;
@@ -128,12 +132,12 @@ export function useProjectGitMutationActions({
     const normalizedBranchName = normalizeGitBranchName(branchName);
     setIsSwitchingBranch(true);
     try {
+      await requestProjectFileSystemFlush(nextProjectId);
       const nextOverview = await gitService.switchProjectGitBranch(nextProjectId, {
         branchName: normalizedBranchName,
       });
-      applyGitOverview(
-        nextOverview,
-      );
+      applyGitOverview(nextOverview);
+      await requestProjectFileSystemRefresh(nextProjectId);
       return nextOverview.currentBranch?.trim() || normalizedBranchName;
     } finally {
       setIsSwitchingBranch(false);

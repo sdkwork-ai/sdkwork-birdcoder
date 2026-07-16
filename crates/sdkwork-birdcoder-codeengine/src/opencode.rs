@@ -670,6 +670,7 @@ fn project_opencode_permission_asked_events(
     let Some(properties) = event.get("properties") else {
         return Vec::new();
     };
+    let native_permission_id = resolve_opencode_native_request_id(properties);
     let permission_id = resolve_opencode_request_id(properties, "opencode-permission");
     let payload = json_object_from_entries([
         (
@@ -688,7 +689,7 @@ fn project_opencode_permission_asked_events(
         state,
         OpencodeToolStreamEventInput {
             tool_name: "permission_request".to_owned(),
-            tool_call_id: permission_id,
+            tool_call_id: permission_id.clone(),
             tool_arguments: Value::Object(payload),
             status: "running".to_owned(),
             runtime_status: "awaiting_approval".to_owned(),
@@ -696,9 +697,16 @@ fn project_opencode_permission_asked_events(
             requires_reply: false,
         },
     );
-    let mut approval_event = event.clone();
-    approval_event.kind = "approval.required".to_owned();
-    vec![event, approval_event]
+    let mut events = vec![event];
+    if let Some(native_permission_id) = native_permission_id {
+        events.push(build_opencode_interaction_required_event(
+            events.first().expect("tool event is present"),
+            "approval.required",
+            native_permission_id.as_str(),
+            "approval",
+        ));
+    }
+    events
 }
 
 fn project_opencode_permission_updated_events(
@@ -758,6 +766,7 @@ fn project_opencode_question_asked_events(
     let Some(properties) = event.get("properties") else {
         return Vec::new();
     };
+    let native_question_id = resolve_opencode_native_request_id(properties);
     let request_id = resolve_opencode_request_id(properties, "opencode-question");
     let payload = json_object_from_entries([
         ("status", Some(Value::String("awaiting_user".to_owned()))),
@@ -767,19 +776,30 @@ fn project_opencode_question_asked_events(
         ("tool", properties.get("tool").cloned()),
     ]);
 
-    vec![build_opencode_tool_stream_event(
+    let event = build_opencode_tool_stream_event(
         session_id,
         state,
         OpencodeToolStreamEventInput {
             tool_name: "user_question".to_owned(),
-            tool_call_id: request_id,
+            tool_call_id: request_id.clone(),
             tool_arguments: Value::Object(payload),
             status: "running".to_owned(),
             runtime_status: "awaiting_user".to_owned(),
             requires_approval: false,
             requires_reply: true,
         },
-    )]
+    );
+    let mut events = vec![event];
+    if let Some(native_question_id) = native_question_id {
+        events.push(build_opencode_interaction_required_event(
+            events.first().expect("tool event is present"),
+            "user.question.required",
+            native_question_id.as_str(),
+            "user_question",
+        ));
+    }
+
+    events
 }
 
 fn project_opencode_question_replied_events(
@@ -911,6 +931,81 @@ fn build_opencode_tool_stream_event(
     }
 }
 
+fn build_opencode_interaction_required_event(
+    source_event: &CodeEngineTurnStreamEventRecord,
+    event_kind: &str,
+    interaction_id: &str,
+    interaction_kind: &str,
+) -> CodeEngineTurnStreamEventRecord {
+    let mut payload = Value::Object(
+        source_event
+            .payload
+            .as_ref()
+            .and_then(Value::as_object)
+            .cloned()
+            .unwrap_or_default(),
+    );
+    remove_opencode_provider_identifier_aliases_from_value(&mut payload);
+    let Value::Object(mut payload) = payload else {
+        unreachable!("OpenCode interaction payload must remain a JSON object");
+    };
+    payload.insert(
+        "interactionId".to_owned(),
+        Value::String(interaction_id.to_owned()),
+    );
+    payload.insert(
+        "interactionKind".to_owned(),
+        Value::String(interaction_kind.to_owned()),
+    );
+    payload.insert(
+        "runtimeStatus".to_owned(),
+        Value::String("awaiting_tool".to_owned()),
+    );
+
+    let mut interaction_event = source_event.clone();
+    interaction_event.kind = event_kind.to_owned();
+    interaction_event.payload = Some(Value::Object(payload));
+    interaction_event
+}
+
+fn remove_opencode_provider_identifier_aliases_from_value(value: &mut Value) {
+    match value {
+        Value::Array(values) => {
+            for value in values {
+                remove_opencode_provider_identifier_aliases_from_value(value);
+            }
+        }
+        Value::Object(values) => {
+            values.retain(|key, _| !is_opencode_provider_identifier_alias(key));
+            for value in values.values_mut() {
+                remove_opencode_provider_identifier_aliases_from_value(value);
+            }
+        }
+        _ => {}
+    }
+}
+
+fn is_opencode_provider_identifier_alias(key: &str) -> bool {
+    matches!(
+        key,
+        "requestID"
+            | "requestId"
+            | "request_id"
+            | "permissionID"
+            | "permissionId"
+            | "permission_id"
+            | "sessionID"
+            | "sessionId"
+            | "session_id"
+            | "messageID"
+            | "messageId"
+            | "message_id"
+            | "callID"
+            | "callId"
+            | "call_id"
+    )
+}
+
 fn opencode_event_targets_session(session_id: &str, event: &Value) -> bool {
     match resolve_opencode_event_session_id(event) {
         Some(event_session_id) => event_session_id == session_id,
@@ -960,6 +1055,11 @@ fn read_opencode_text_value(value: Option<&Value>) -> Option<String> {
 }
 
 fn resolve_opencode_request_id(properties: &Value, fallback_prefix: &str) -> String {
+    resolve_opencode_native_request_id(properties)
+        .unwrap_or_else(|| format!("{fallback_prefix}-unknown"))
+}
+
+fn resolve_opencode_native_request_id(properties: &Value) -> Option<String> {
     normalize_value_string(properties.get("requestID"))
         .or_else(|| normalize_value_string(properties.get("requestId")))
         .or_else(|| normalize_value_string(properties.get("id")))
@@ -969,7 +1069,6 @@ fn resolve_opencode_request_id(properties: &Value, fallback_prefix: &str) -> Str
                 .get("tool")
                 .and_then(|tool| normalize_value_string(tool.get("callID")))
         })
-        .unwrap_or_else(|| format!("{fallback_prefix}-unknown"))
 }
 
 fn first_opencode_question_answer(value: Option<&Value>) -> Option<String> {
@@ -1502,12 +1601,15 @@ mod tests {
                     "permission": "bash",
                     "patterns": ["pnpm test"],
                     "metadata": {
-                        "command": "pnpm test"
+                        "command": "pnpm test",
+                        "requestId": "metadata-request-1",
+                        "sessionID": "metadata-session-1"
                     },
                     "always": [],
                     "tool": {
                         "messageID": "message-permission-1",
-                        "callID": "tool-permission-1"
+                        "callID": "tool-permission-1",
+                        "title": "Run tests"
                     }
                 }
             }),
@@ -1520,11 +1622,12 @@ mod tests {
         assert_eq!(
             events[1].payload,
             Some(json!({
+                "interactionId": "permission-1",
+                "interactionKind": "approval",
                 "toolName": "permission_request",
                 "toolCallId": "permission-1",
                 "toolArguments": {
                     "status": "awaiting_approval",
-                    "permissionId": "permission-1",
                     "permission": "bash",
                     "patterns": ["pnpm test"],
                     "metadata": {
@@ -1532,15 +1635,40 @@ mod tests {
                     },
                     "always": [],
                     "tool": {
-                        "messageID": "message-permission-1",
-                        "callID": "tool-permission-1"
+                        "title": "Run tests"
                     }
                 },
                 "status": "running",
-                "runtimeStatus": "awaiting_approval",
+                "runtimeStatus": "awaiting_tool",
                 "requiresApproval": true,
                 "requiresReply": false
             })),
+        );
+    }
+
+    #[test]
+    fn opencode_stream_projection_does_not_synthesize_a_canonical_interaction_id() {
+        let mut state = OpencodeStreamProjectionState::default();
+
+        let events = project_opencode_stream_events(
+            "session-1",
+            &json!({
+                "type": "question.asked",
+                "properties": {
+                    "sessionID": "session-1",
+                    "questions": [{"question": "Continue?"}]
+                }
+            }),
+            &mut state,
+        );
+
+        assert_eq!(events.len(), 1);
+        assert_eq!(events[0].kind, "tool.call.requested");
+        assert!(
+            events
+                .iter()
+                .all(|event| event.kind != "user.question.required"),
+            "an interaction without a provider-native request id must not become replyable"
         );
     }
 
@@ -1559,6 +1687,7 @@ mod tests {
                         {
                             "header": "Test scope",
                             "question": "Which tests should I run?",
+                            "requestId": "nested-question-request-1",
                             "options": [
                                 {
                                     "label": "Unit",
@@ -1569,7 +1698,8 @@ mod tests {
                     ],
                     "tool": {
                         "messageID": "message-question-1",
-                        "callID": "tool-question-1"
+                        "callID": "tool-question-1",
+                        "title": "Test scope"
                     }
                 }
             }),
@@ -1588,7 +1718,7 @@ mod tests {
             &mut state,
         );
 
-        assert_eq!(asked_events.len(), 1);
+        assert_eq!(asked_events.len(), 2);
         assert_eq!(asked_events[0].kind, "tool.call.requested");
         assert_eq!(
             asked_events[0]
@@ -1596,6 +1726,38 @@ mod tests {
                 .as_ref()
                 .and_then(|payload| payload.get("runtimeStatus")),
             Some(&json!("awaiting_user")),
+        );
+        assert_eq!(asked_events[1].kind, "user.question.required");
+        assert_eq!(
+            asked_events[1].payload,
+            Some(json!({
+                "interactionId": "question-request-1",
+                "interactionKind": "user_question",
+                "toolName": "user_question",
+                "toolCallId": "question-request-1",
+                "toolArguments": {
+                    "status": "awaiting_user",
+                    "questions": [
+                        {
+                            "header": "Test scope",
+                            "question": "Which tests should I run?",
+                            "options": [
+                                {
+                                    "label": "Unit",
+                                    "description": "Run unit tests only"
+                                }
+                            ]
+                        }
+                    ],
+                    "tool": {
+                        "title": "Test scope"
+                    }
+                },
+                "status": "running",
+                "runtimeStatus": "awaiting_tool",
+                "requiresApproval": false,
+                "requiresReply": true
+            })),
         );
         assert_eq!(replied_events.len(), 1);
         assert_eq!(replied_events[0].kind, "tool.call.completed");

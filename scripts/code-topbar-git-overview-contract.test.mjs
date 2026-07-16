@@ -202,8 +202,14 @@ assert.match(
 
 assert.match(
   submitDialogSource,
-  /useProjectGitMutationActions[\s\S]*useProjectGitOverview[\s\S]*from '@sdkwork\/birdcoder-pc-commons';/s,
-  'The shared Git submit dialog must own commit and push mutations through the governed commons hook.',
+  /import[\s\S]*useProjectGitOverview[\s\S]*from '@sdkwork\/birdcoder-pc-commons\/hooks\/useProjectGitOverview';/,
+  'The shared Git submit dialog must read Git state through the governed commons hook subpath.',
+);
+
+assert.match(
+  submitDialogSource,
+  /import[\s\S]*useProjectGitMutationActions[\s\S]*from '@sdkwork\/birdcoder-pc-commons\/hooks\/useProjectGitMutationActions';/,
+  'The shared Git submit dialog must own commit and push mutations through the governed commons hook subpath.',
 );
 
 assert.match(
@@ -226,8 +232,8 @@ assert.match(
 
 assert.match(
   panelSource,
-  /import[\s\S]*useProjectGitOverview[\s\S]*from '@sdkwork\/birdcoder-pc-commons';/,
-  'Shared Project Git overview panel must import the shared project Git overview hook from commons.',
+  /import[\s\S]*useProjectGitOverview[\s\S]*from '@sdkwork\/birdcoder-pc-commons\/hooks\/useProjectGitOverview';/,
+  'Shared Project Git overview panel must import the shared project Git overview hook through its governed commons subpath.',
 );
 
 assert.match(

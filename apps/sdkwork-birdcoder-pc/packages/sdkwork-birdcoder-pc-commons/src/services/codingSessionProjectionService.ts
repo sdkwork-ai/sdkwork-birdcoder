@@ -4,7 +4,7 @@ import type {
   BirdCoderCodingSessionEvent,
   BirdCoderCodingSessionSummary,
 } from '@sdkwork/birdcoder-pc-types';
-import { readBirdCoderApiTransportErrorHttpStatus } from '@sdkwork/birdcoder-pc-core/birdCoderApiTransportError';
+import { readBirdCoderApiTransportErrorHttpStatus } from '@sdkwork/birdcoder-pc-types';
 import type { IAppRuntimeReadService } from '@sdkwork/birdcoder-pc-infrastructure-runtime';
 
 export interface BirdCoderCodingSessionProjection {

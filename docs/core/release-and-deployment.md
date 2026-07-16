@@ -13,15 +13,17 @@ It is intentionally limited to currently implemented capabilities:
 
 - BirdCoder is pre-launch. Application install packages remain disabled until
   a governed release is built from real artifacts and passes readiness checks.
-- A `desktop` artifact provides the local Tauri host. Its selected folder and
-  all native mount paths remain device-private.
+- A `desktop` artifact provides the local Tauri host. Its native binding
+  remains device-private, while the corresponding ProjectRuntimeLocation
+  persists an encrypted target-specific root in the control plane.
 - `server`, `container`, and Kubernetes artifacts deploy the authenticated
   BirdCoder control plane. They do not enable a remote terminal, remote file
   browser, arbitrary-code runner, or shared user filesystem.
-- Remote project metadata and server-owned storage are authorization-bound.
-  A future remote runner needs independent scheduler, process, secret,
-  quota, audit, cleanup, and cross-tenant isolation evidence before it can be
-  released as a capability.
+- ProjectRuntimeLocation records and server-owned storage are
+  authorization-bound. Plaintext paths remain write-only/protected data. A
+  future remote runner needs independent scheduler, process, secret, quota,
+  audit, cleanup, and cross-tenant isolation evidence before it can be released
+  as a capability.
 
 The deployment profile is `standalone` or `cloud`; `browser`, `desktop`,
 `server`, and `container` are runtime targets. Use the
@@ -92,8 +94,8 @@ manifest summary:
 - `testEvidence` from `studio/test/studio-test-evidence.json`
 
 These evidence fields prove the recorded build or test activity; they do not
-turn a Browser directory handle, a Tauri local path, or server storage into a
-remote execution capability.
+turn a Browser directory handle, a Tauri local binding, a protected
+runtime-location record, or server storage into a remote execution capability.
 
 ## GitHub Workflow
 
@@ -166,16 +168,17 @@ their platform, architecture, bundle type, target, and signing evidence.
 `release:verify-trust:desktop` is the only standard command that promotes
 installer trust evidence after platform verification. A formal or
 general-availability desktop release requires completed signing/trust
-evidence. The local folder stays on the user device and is not part of a
-server archive.
+evidence. The local binding stays on the user device and is not part of a
+server archive; server-persisted runtime-location ciphertext and key references
+follow the data and secret backup policy instead.
 
 ### Server
 
 The `server` family packages the native BirdCoder control-plane host and its
 required web assets for a service-style deployment, including Windows Server.
-It must use protected configuration, authenticated API access, and
-server-derived workspace boundaries. It does not package or enable a shared
-remote runner.
+It must use protected configuration, authenticated API access, encrypted
+runtime-location storage, target-owned workspace resolution, and key-management
+evidence. It does not package or enable a shared remote runner.
 
 ### Container
 
@@ -197,8 +200,8 @@ workspace root.
 
 The `web` family packages the Browser IDE and generated documentation site.
 It consumes public endpoint configuration only. Browser File System Access
-handles, user paths, tokens, and server workspace roots are never web release
-configuration or artifact metadata.
+handles, plaintext paths, runtime-location ciphertext, tokens, and server
+workspace roots are never web release configuration or artifact metadata.
 
 ## Finalization And Operations
 
@@ -217,9 +220,10 @@ Post-release operations and writeback:
 - Stop promotion for topology drift, incomplete `releaseCoverage`, failed
   finalized smoke, absent required attestation, or incomplete desktop trust
   evidence.
-- Keep product deployment status honest: neither a control-plane package nor a
-  configured server workspace root enables remote file, terminal, run, or
-  deployment operations.
+- Keep product deployment status honest: neither a control-plane package, a
+  configured server workspace root, nor a persisted runtime location enables
+  remote file, terminal, run, build, worktree, or deployment operations without
+  verified target capability and the required isolated-runner evidence.
 - Rollback entry: use the rendered manifest rollback command when supplied;
   otherwise run `pnpm.cmd release:rollback:plan -- --release-tag <tag>
   --release-assets-dir artifacts/release` and deploy the previous compatible

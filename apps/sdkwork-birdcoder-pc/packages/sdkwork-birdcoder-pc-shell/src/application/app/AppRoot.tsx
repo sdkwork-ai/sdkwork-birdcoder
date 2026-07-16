@@ -1,7 +1,7 @@
 import { Suspense, lazy } from 'react';
 import { useTranslation } from 'react-i18next';
 import { MemoryRouter } from 'react-router-dom';
-import { StartupScreen } from '@sdkwork/birdcoder-pc-shell-runtime';
+import { StartupScreen } from '@sdkwork/birdcoder-pc-ui-shell';
 import { SdkworkSessionAuthBrowserRoot } from '@sdkwork/auth-pc-react';
 import { BirdCoderAuthGate } from '@sdkwork/birdcoder-pc-iam';
 import { AppProviders } from '../providers/AppProviders';

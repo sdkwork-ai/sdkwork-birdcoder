@@ -1,3 +1,5 @@
+import { BIRDCODER_RUN_CONFIGURATION_ENTITY_DEFINITION } from './runConfigurationStorage.ts';
+
 export const BIRDCODER_DATABASE_PROVIDER_IDS = ['sqlite', 'postgresql'] as const;
 
 export type BirdCoderDatabaseProviderId =
@@ -5144,6 +5146,11 @@ export const BIRDCODER_DATA_ENTITY_DEFINITIONS: readonly BirdCoderEntityDefiniti
     [
       { name: 'workspace_id', logicalType: 'id' },
       { name: 'project_id', logicalType: 'id' },
+      {
+        name: 'runtime_location_id',
+        logicalType: 'text',
+        nullable: true,
+      },
       { name: 'title', logicalType: 'text' },
       { name: 'status', logicalType: 'enum' },
       {
@@ -6019,48 +6026,7 @@ export const BIRDCODER_DATA_ENTITY_DEFINITIONS: readonly BirdCoderEntityDefiniti
       },
     ],
   ),
-  defineEntity(
-    'run_configuration',
-    'ops_run_configuration',
-    'ops',
-    'Unified run configuration model.',
-    [
-      { name: 'tenant_id', logicalType: 'id' },
-      {
-        name: 'organization_id',
-        logicalType: 'id',
-
-      },
-      { name: 'workspace_id', logicalType: 'id' },
-      { name: 'project_id', logicalType: 'id' },
-      { name: 'scope_type', logicalType: 'enum' },
-      { name: 'scope_id', logicalType: 'id' },
-      {
-        name: 'config_key',
-        logicalType: 'text',
-
-      },
-      { name: 'name', logicalType: 'text' },
-      { name: 'command', logicalType: 'text' },
-      { name: 'profile_id', logicalType: 'text' },
-      { name: 'group_name', logicalType: 'enum' },
-      { name: 'cwd_mode', logicalType: 'enum' },
-      { name: 'custom_cwd', logicalType: 'text' },
-    ],
-    [
-      {
-        name: 'idx_ops_run_configuration_scope_group',
-        columns: ['scope_type', 'scope_id', 'group_name'],
-
-      },
-      {
-        name: 'uk_ops_run_configuration_scope_config_key',
-        columns: ['scope_type', 'scope_id', 'config_key'],
-
-        unique: true,
-      },
-    ],
-  ),
+  BIRDCODER_RUN_CONFIGURATION_ENTITY_DEFINITION,
   defineEntity(
     'terminal_execution',
     'ops_terminal_execution',

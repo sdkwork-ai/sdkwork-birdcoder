@@ -10,6 +10,10 @@ const storageBindingsPath = new URL(
   '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-types/src/storageBindings.ts',
   import.meta.url,
 );
+const runConfigurationStorageContractPath = new URL(
+  '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-types/src/runConfigurationStorage.ts',
+  import.meta.url,
+);
 const runConfigStoragePath = new URL(
   '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-commons/src/terminal/runConfigStorage.ts',
   import.meta.url,
@@ -26,6 +30,10 @@ const providersModulePath = new URL(
 
 const dataDefinitionsSource = await readFile(dataDefinitionsPath, 'utf8');
 const storageBindingsSource = await readFile(storageBindingsPath, 'utf8');
+const runConfigurationStorageContractSource = await readFile(
+  runConfigurationStorageContractPath,
+  'utf8',
+);
 const runConfigStorageSource = await readFile(runConfigStoragePath, 'utf8');
 const workbenchPreferencesSource = await readFile(workbenchPreferencesPath, 'utf8');
 const providersModule = await import(`${providersModulePath.href}?t=${Date.now()}`);
@@ -48,6 +56,12 @@ function captureBlock(source, startPattern) {
 }
 
 function captureEntityBlock(source, entityName) {
+  if (entityName === 'run_configuration') {
+    return captureBlock(
+      runConfigurationStorageContractSource,
+      'BIRDCODER_RUN_CONFIGURATION_ENTITY_DEFINITION',
+    );
+  }
   const pattern = new RegExp(`defineEntity\\([\\s\\S]*?'${escapeRegExp(entityName)}'[\\s\\S]*?\\),`, 'm');
   const match = source.match(pattern);
   assert.ok(match?.[0], `Missing entity definition for ${entityName}.`);
@@ -139,7 +153,7 @@ assertContains(
   'workbench preference storage binding',
 );
 assertContains(
-  storageBindingsSource,
+  `${storageBindingsSource}\n${runConfigurationStorageContractSource}`,
   'export const BIRDCODER_RUN_CONFIGURATION_STORAGE_BINDING',
   ['run_configuration', "storageMode: 'table'"],
   'run configuration storage binding',

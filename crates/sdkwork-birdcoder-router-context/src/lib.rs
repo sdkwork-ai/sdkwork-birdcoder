@@ -142,8 +142,10 @@ where
 }
 
 pub fn coding_session_context(iam: &IamAppContext) -> CodingSessionContext {
+    let project = project_context(iam);
     CodingSessionContext {
         tenant_id: iam.tenant_id.clone(),
+        organization_id: project.organization_id,
         user_id: iam.user_id.clone(),
         session_id: iam.session_id.clone(),
     }

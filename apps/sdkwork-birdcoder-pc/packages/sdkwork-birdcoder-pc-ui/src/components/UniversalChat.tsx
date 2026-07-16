@@ -11,31 +11,36 @@ import {
   listWorkbenchServerImplementedCodeEngines,
   normalizeWorkbenchServerImplementedCodeEngineId,
   normalizeWorkbenchCodeModelId,
+  resolveWorkbenchCodeEngineSelectedModelId,
   useModelCatalogLoaded,
 } from '@sdkwork/birdcoder-pc-codeengine';
 import {
   deleteSavedPrompt,
   deleteSessionPromptHistoryEntry,
-  globalEventBus,
-  hasRestorableFileChanges,
   listSavedPrompts,
   listSessionPromptHistory,
+  saveSavedPrompt,
+  saveSessionPromptHistoryEntry,
+} from '@sdkwork/birdcoder-pc-commons/chat/persistence';
+import {
   canFlushWorkbenchChatQueuedMessages,
   createWorkbenchChatQueueFlushGateState,
   markWorkbenchChatQueuedTurnDispatchStarted,
   observeWorkbenchChatQueuedTurnBusyState,
-  saveSavedPrompt,
-  saveSessionPromptHistoryEntry,
   settleWorkbenchChatQueuedTurnDispatch,
-  useToast,
-  useBirdcoderAppSettings,
-  useWorkbenchChatInputDraft,
   useWorkbenchChatMessageQueue,
-  useWorkbenchPreferences,
+} from '@sdkwork/birdcoder-pc-commons/chat/messageQueueStore';
+import { useWorkbenchChatInputDraft } from '@sdkwork/birdcoder-pc-commons/chat/draftStore';
+import { globalEventBus } from '@sdkwork/birdcoder-pc-commons/utils/EventBus';
+import { hasRestorableFileChanges } from '@sdkwork/birdcoder-pc-commons/workbench/fileChangeRestore';
+import { useToast } from '@sdkwork/birdcoder-pc-commons/contexts/ToastProvider';
+import { useBirdcoderAppSettings } from '@sdkwork/birdcoder-pc-commons/hooks/useBirdcoderAppSettings';
+import { useWorkbenchPreferences } from '@sdkwork/birdcoder-pc-commons/hooks/useWorkbenchPreferences';
+import {
   buildDriveMediaResourceContentBlock,
   resolveChatAttachmentUploadProfile,
   uploadBirdCoderChatAttachmentToDrive,
-} from '@sdkwork/birdcoder-pc-commons';
+} from '@sdkwork/birdcoder-pc-commons/services/birdcoderDriveUpload';
 import type {
   BirdCoderCodingSessionPendingApproval,
   BirdCoderCodingSessionPendingUserQuestion,
@@ -62,6 +67,7 @@ import { resolveTranscriptMessageKey } from './transcriptVirtualization';
 import { UniversalChatComposerChrome } from './UniversalChatComposerChrome';
 import { UniversalChatComposerFooter } from './chat/composer/UniversalChatComposerFooter';
 import { UniversalChatPendingInteractions } from './UniversalChatPendingInteractions';
+import { ChatTranscriptAnchorRail } from './ChatTranscriptAnchorRail';
 import {
   buildWorkbenchModelPickerId,
   createWorkbenchModelPickerCatalog,
@@ -166,11 +172,11 @@ export interface UniversalChatProps {
     composerSelection?: UniversalChatComposerSelection,
   ) => void | Promise<void>;
   onSubmitApprovalDecision?: (
-    approvalId: string,
+    interactionEventId: string,
     request: BirdCoderSubmitApprovalDecisionRequest,
   ) => void | Promise<void>;
   onSubmitUserQuestionAnswer?: (
-    questionId: string,
+    interactionEventId: string,
     request: BirdCoderSubmitUserQuestionAnswerRequest,
   ) => void | Promise<void>;
   isBusy?: boolean;
@@ -509,8 +515,8 @@ const UniversalChatTranscript = memo(function UniversalChatTranscript({
       ) : null}
       {messages.length === 0 ? (
         layout === 'main' ? (
-          <div className="flex min-h-full w-full px-4 md:px-8">
-            <div className="flex w-full max-w-3xl mx-auto flex-1 items-center justify-center">
+          <div className="flex min-h-full w-full px-5">
+            <div className="mx-auto flex w-full max-w-[880px] flex-1 items-center justify-center">
               {emptyState ? (
                 <div className="w-full">{emptyState}</div>
               ) : (
@@ -797,10 +803,16 @@ export const UniversalChat = memo(function UniversalChat({
         preferences,
       )
     : controlledSelectedModelId;
-  const displayEngineId =
+  const selectedProvider =
     !showComposerEngineSelector && selectedEngineId ? selectedEngineId : resolvedSelectedEngineId;
+  const selectedProviderModelId = resolveWorkbenchCodeEngineSelectedModelId(
+    selectedProvider,
+    preferences,
+    selectedProvider === resolvedSelectedEngineId ? currentModelId : undefined,
+  );
+  const displayEngineId = selectedProvider;
   const displayModelId =
-    !showComposerEngineSelector ? (selectedModelId ?? '') : currentModelId;
+    !showComposerEngineSelector ? selectedProviderModelId : currentModelId;
   const currentModelLabel =
     getWorkbenchCodeModelLabel(
       displayEngineId,
@@ -843,7 +855,7 @@ export const UniversalChat = memo(function UniversalChat({
     setSelectedModelId,
   ]);
   const firstPendingUserQuestion = pendingUserQuestions.find(
-    (question) => question.questionId.trim().length > 0,
+    (question) => question.interactionEventId.trim().length > 0,
   );
   const hasPendingUserQuestionReplyTarget =
     Boolean(firstPendingUserQuestion && onSubmitUserQuestionAnswer);
@@ -994,22 +1006,22 @@ export const UniversalChat = memo(function UniversalChat({
   }, []);
 
   const submitPendingUserQuestionAnswer = useCallback(async (
-    questionId: string,
+    interactionEventId: string,
     request: BirdCoderSubmitUserQuestionAnswerRequest,
   ): Promise<boolean> => {
     if (disabled || !onSubmitUserQuestionAnswer) {
       return false;
     }
 
-    const interactionId = `question:${questionId}`;
-    if (!beginPendingInteractionSubmission(interactionId)) {
+    const pendingInteractionId = `question:${interactionEventId}`;
+    if (!beginPendingInteractionSubmission(pendingInteractionId)) {
       return false;
     }
 
     let didMarkQueuedTurnDispatch = false;
 
     try {
-      await Promise.resolve(onSubmitUserQuestionAnswer(questionId, request));
+      await Promise.resolve(onSubmitUserQuestionAnswer(interactionEventId, request));
       markQueuedTurnDispatchStarted();
       didMarkQueuedTurnDispatch = true;
       return true;
@@ -1022,7 +1034,7 @@ export const UniversalChat = memo(function UniversalChat({
       );
       return false;
     } finally {
-      finishPendingInteractionSubmission(interactionId);
+      finishPendingInteractionSubmission(pendingInteractionId);
       if (didMarkQueuedTurnDispatch) {
         scheduleQueuedTurnDispatchSettlementCheck();
       }
@@ -1042,41 +1054,41 @@ export const UniversalChat = memo(function UniversalChat({
     answerSnapshot: string,
   ): Promise<boolean> => {
     const pendingQuestion = pendingUserQuestions.find(
-      (question) => question.questionId.trim().length > 0,
+      (question) => question.interactionEventId.trim().length > 0,
     );
     if (!pendingQuestion) {
       return false;
     }
 
-    return submitPendingUserQuestionAnswer(pendingQuestion.questionId, {
+    return submitPendingUserQuestionAnswer(pendingQuestion.interactionEventId, {
       answer: answerSnapshot.trim(),
     });
   }, [pendingUserQuestions, submitPendingUserQuestionAnswer]);
 
   const handleSubmitPendingUserQuestionAnswer = useCallback(async (
-    questionId: string,
+    interactionEventId: string,
     request: BirdCoderSubmitUserQuestionAnswerRequest,
   ): Promise<void> => {
-    await submitPendingUserQuestionAnswer(questionId, request);
+    await submitPendingUserQuestionAnswer(interactionEventId, request);
   }, [submitPendingUserQuestionAnswer]);
 
   const submitPendingApprovalDecision = useCallback(async (
-    approvalId: string,
+    interactionEventId: string,
     request: BirdCoderSubmitApprovalDecisionRequest,
   ): Promise<boolean> => {
     if (disabled || !onSubmitApprovalDecision) {
       return false;
     }
 
-    const interactionId = `approval:${approvalId}`;
-    if (!beginPendingInteractionSubmission(interactionId)) {
+    const pendingInteractionId = `approval:${interactionEventId}`;
+    if (!beginPendingInteractionSubmission(pendingInteractionId)) {
       return false;
     }
 
     let didMarkQueuedTurnDispatch = false;
 
     try {
-      await Promise.resolve(onSubmitApprovalDecision(approvalId, request));
+      await Promise.resolve(onSubmitApprovalDecision(interactionEventId, request));
       markQueuedTurnDispatchStarted();
       didMarkQueuedTurnDispatch = true;
       return true;
@@ -1089,7 +1101,7 @@ export const UniversalChat = memo(function UniversalChat({
       );
       return false;
     } finally {
-      finishPendingInteractionSubmission(interactionId);
+      finishPendingInteractionSubmission(pendingInteractionId);
       if (didMarkQueuedTurnDispatch) {
         scheduleQueuedTurnDispatchSettlementCheck();
       }
@@ -1106,10 +1118,10 @@ export const UniversalChat = memo(function UniversalChat({
   ]);
 
   const handleSubmitPendingApprovalDecision = useCallback(async (
-    approvalId: string,
+    interactionEventId: string,
     request: BirdCoderSubmitApprovalDecisionRequest,
   ): Promise<void> => {
-    await submitPendingApprovalDecision(approvalId, request);
+    await submitPendingApprovalDecision(interactionEventId, request);
   }, [submitPendingApprovalDecision]);
 
   const syncHistoryPrompts = (nextPrompts: PromptEntry[]) => {
@@ -2389,6 +2401,33 @@ export const UniversalChat = memo(function UniversalChat({
     const nextHeight = clampComposerHeight((manualComposerHeight ?? measuredHeight) - delta);
     setManualComposerHeight(nextHeight);
   }, [manualComposerHeight]);
+  const scrollTranscriptToTurn = useCallback((messageIndex: number) => {
+    const scrollContainer = transcriptScrollContainerRef.current;
+    if (!scrollContainer || normalizedMessages.length === 0) {
+      return;
+    }
+
+    const renderedMessage = scrollContainer.querySelector<HTMLDivElement>(
+      `[data-transcript-message-index="${messageIndex}"]`,
+    );
+    if (renderedMessage) {
+      scrollContainer.scrollTo({
+        behavior: 'smooth',
+        top: Math.max(0, renderedMessage.offsetTop - 16),
+      });
+      return;
+    }
+
+    const maxScrollTop = Math.max(0, scrollContainer.scrollHeight - scrollContainer.clientHeight);
+    const messagePosition = Math.max(
+      0,
+      Math.min(normalizedMessages.length - 1, messageIndex),
+    );
+    scrollContainer.scrollTo({
+      behavior: 'smooth',
+      top: maxScrollTop * (messagePosition / Math.max(1, normalizedMessages.length - 1)),
+    });
+  }, [normalizedMessages.length]);
 
   return (
     <div className={`flex flex-1 h-full w-full min-w-0 overflow-hidden flex-col bg-[#0e0e11] relative ${className}`}>
@@ -2436,26 +2475,32 @@ export const UniversalChat = memo(function UniversalChat({
         </div>
       ) : null}
 
-      <div
-        ref={transcriptScrollContainerRef}
-        className={`flex-1 min-h-0 min-w-0 overflow-x-hidden overflow-y-auto custom-scrollbar flex flex-col ${layout === 'sidebar' ? 'gap-4 p-4 pb-4' : 'pb-6'}`}
-        style={{ overscrollBehavior: 'contain', scrollbarGutter: 'stable' }}
-      >
-        <UniversalChatTranscript
-          emptyState={emptyState}
-          engineId={resolvedSelectedEngineId}
-          environmentSignature={transcriptEnvironmentSignature}
-          environmentRef={transcriptEnvironmentRef}
-          isActive={isActive}
-          isUserControllingScrollRef={isUserControllingTranscriptScrollRef}
-          layout={layout}
-          localeKey={i18n.resolvedLanguage ?? i18n.language ?? ''}
+      <div className="relative flex-1 min-h-0 min-w-0">
+        <div
+          ref={transcriptScrollContainerRef}
+          className={`flex h-full min-h-0 min-w-0 flex-col overflow-x-hidden overflow-y-auto custom-scrollbar ${layout === 'sidebar' ? 'gap-4 p-4 pb-4 pl-11' : 'pb-6'}`}
+          style={{ overscrollBehavior: 'contain', scrollbarGutter: 'stable' }}
+        >
+          <UniversalChatTranscript
+            emptyState={emptyState}
+            engineId={resolvedSelectedEngineId}
+            environmentSignature={transcriptEnvironmentSignature}
+            environmentRef={transcriptEnvironmentRef}
+            isActive={isActive}
+            isUserControllingScrollRef={isUserControllingTranscriptScrollRef}
+            layout={layout}
+            localeKey={i18n.resolvedLanguage ?? i18n.language ?? ''}
+            messages={normalizedMessages}
+            messagesEndRef={messagesEndRef}
+            scrollContainerRef={transcriptScrollContainerRef}
+            scrollTranscriptToBottom={scrollTranscriptToBottom}
+            sessionId={normalizedTranscriptScopeKey}
+            shouldStickToBottomRef={shouldStickTranscriptToBottomRef}
+          />
+        </div>
+        <ChatTranscriptAnchorRail
           messages={normalizedMessages}
-          messagesEndRef={messagesEndRef}
-          scrollContainerRef={transcriptScrollContainerRef}
-          scrollTranscriptToBottom={scrollTranscriptToBottom}
-          sessionId={normalizedTranscriptScopeKey}
-          shouldStickToBottomRef={shouldStickTranscriptToBottomRef}
+          onSelectTurn={scrollTranscriptToTurn}
         />
       </div>
 

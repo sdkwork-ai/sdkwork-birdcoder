@@ -1546,9 +1546,11 @@ export type ProjectDeviceMountStatus =
 
 export interface ProjectDeviceMountState {
   displayName: string | null;
-  host: LocalFolderMountSource['type'] | null;
+  host: LocalFolderMountSource['type'] | 'server' | null;
   status: ProjectDeviceMountStatus;
 }
+
+export * from './apiTransportError.ts';
 
 export interface ProjectDeviceMountRecoveryResult {
   restored: boolean;

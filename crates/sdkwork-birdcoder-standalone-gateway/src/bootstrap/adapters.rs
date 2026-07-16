@@ -7,8 +7,8 @@ use tokio::sync::{OwnedSemaphorePermit, Semaphore};
 use sdkwork_birdcoder_codeengine::CodeEngineApprovalDecisionRecord;
 use sdkwork_birdcoder_codeengine::CodeEngineUserQuestionAnswerRecord;
 use sdkwork_birdcoder_codeengine::{
-    find_codeengine_descriptor, CodeEngineTurnConfigRecord, CodeEngineTurnIdeContextRecord,
-    CodeEngineTurnRequestRecord,
+    find_codeengine_descriptor, find_codeengine_model_catalog_entry, CodeEngineTurnConfigRecord,
+    CodeEngineTurnIdeContextRecord, CodeEngineTurnRequestRecord,
 };
 use sdkwork_birdcoder_coding_sessions_service::context::CodingSessionContext;
 use sdkwork_birdcoder_coding_sessions_service::domain::commands::{
@@ -22,12 +22,22 @@ use sdkwork_birdcoder_coding_sessions_service::domain::results::{
 };
 use sdkwork_birdcoder_coding_sessions_service::error::CodingSessionError;
 use sdkwork_birdcoder_coding_sessions_service::event_payload::{
-    build_succeeded_coding_session_turn_events, SucceededCodingSessionTurnEventInput,
+    build_projection_turn_event_id, build_succeeded_coding_session_turn_events,
+    SucceededCodingSessionTurnEventInput,
 };
 use sdkwork_birdcoder_coding_sessions_service::native_session_types::NativeSessionCommandPayload;
 use sdkwork_birdcoder_coding_sessions_service::ports::engine_validator::EngineValidator;
-use sdkwork_birdcoder_coding_sessions_service::ports::provider::CodeEngineProvider;
-use sdkwork_birdcoder_kernel_bridge::BirdcoderKernelHost;
+use sdkwork_birdcoder_coding_sessions_service::ports::project_execution_scope::ProjectExecutionScopeResolver;
+use sdkwork_birdcoder_coding_sessions_service::ports::provider::{
+    CodeEngineProvider, CodeEngineTurnStreamEvent, CodeEngineTurnStreamSink,
+};
+use sdkwork_birdcoder_kernel_bridge::{
+    project_provider_neutral_interactions, BirdcoderKernelHost, BirdcoderTurnStreamSink,
+};
+use sdkwork_birdcoder_project_service::context::ProjectContext;
+use sdkwork_birdcoder_project_service::domain::runtime_location::RuntimeLocationCapability;
+use sdkwork_birdcoder_project_service::error::ProjectError;
+use sdkwork_birdcoder_project_service::service::project_service::ProjectService;
 
 use crate::bootstrap::config::{BirdServerConfig, CodeExecutionCapability};
 use crate::bootstrap::runner_isolation::{ProviderRunnerBinding, ProviderRunnerIsolationError};
@@ -62,13 +72,67 @@ fn max_concurrent_code_engine_turns_per_user() -> usize {
     })
 }
 
-pub struct Adapters {
-    pub project_root: Option<String>,
+#[derive(Clone)]
+pub struct GatewayProjectExecutionScopeResolver {
+    project_service: Arc<ProjectService>,
 }
 
-pub fn wire_adapters(config: &BirdServerConfig) -> Adapters {
-    Adapters {
-        project_root: config.project_root.clone(),
+pub fn wire_project_execution_scope_resolver(
+    project_service: Arc<ProjectService>,
+) -> Arc<dyn ProjectExecutionScopeResolver> {
+    Arc::new(GatewayProjectExecutionScopeResolver { project_service })
+}
+
+#[async_trait::async_trait]
+impl ProjectExecutionScopeResolver for GatewayProjectExecutionScopeResolver {
+    async fn resolve_execution_root(
+        &self,
+        context: &CodingSessionContext,
+        workspace_id: &str,
+        project_id: &str,
+        runtime_location_id: &str,
+    ) -> Result<PathBuf, CodingSessionError> {
+        let project_context = ProjectContext {
+            tenant_id: context.tenant_id.clone(),
+            organization_id: context.organization_id.clone(),
+            user_id: context.user_id.clone(),
+        };
+        self.project_service
+            // The project service verifies workspace membership, project write
+            // authority, and project ownership before resolving this exact
+            // runtime location. It never selects a preference or root fallback.
+            .resolve_runtime_location_execution_root(
+                &project_context,
+                workspace_id,
+                project_id,
+                runtime_location_id,
+                RuntimeLocationCapability::Terminal,
+            )
+            .await
+            .map_err(map_project_execution_scope_error)
+    }
+}
+
+fn map_project_execution_scope_error(error: ProjectError) -> CodingSessionError {
+    match error {
+        ProjectError::NotFound(_) | ProjectError::Forbidden(_) => {
+            CodingSessionError::NotFound("Project was not found.".to_owned())
+        }
+        ProjectError::InvalidInput(message) => CodingSessionError::InvalidInput(message),
+        // Coding-session operations do not expose project-resource If-Match
+        // semantics, so an unexpected upstream precondition is a session
+        // state conflict at this adapter boundary.
+        ProjectError::PreconditionRequired(message) => CodingSessionError::Conflict(message),
+        ProjectError::PreconditionFailed(message) => CodingSessionError::Conflict(message),
+        ProjectError::Conflict(message) => CodingSessionError::Conflict(message),
+        ProjectError::Unavailable(_) => CodingSessionError::Unavailable(
+            "Project execution is unavailable for the selected runtime location.".to_owned(),
+        ),
+        ProjectError::Repository(message) => CodingSessionError::Repository(message),
+        ProjectError::EventPublish(message) => CodingSessionError::EventPublish(message),
+        ProjectError::GitOperation(message) | ProjectError::Internal(message) => {
+            CodingSessionError::Internal(message)
+        }
     }
 }
 
@@ -89,6 +153,8 @@ fn code_engine_turn_admission() -> Arc<Semaphore> {
         .clone()
 }
 
+type UserTurnAdmissionRegistry = HashMap<(String, String), Weak<Semaphore>>;
+
 fn user_code_engine_turn_admission(
     ctx: &CodingSessionContext,
 ) -> Result<Arc<Semaphore>, CodingSessionError> {
@@ -100,8 +166,7 @@ fn user_code_engine_turn_admission(
         ));
     }
 
-    static USER_TURN_ADMISSIONS: OnceLock<Mutex<HashMap<(String, String), Weak<Semaphore>>>> =
-        OnceLock::new();
+    static USER_TURN_ADMISSIONS: OnceLock<Mutex<UserTurnAdmissionRegistry>> = OnceLock::new();
     let mut admissions = USER_TURN_ADMISSIONS
         .get_or_init(|| Mutex::new(HashMap::new()))
         .lock()
@@ -151,22 +216,19 @@ where
     } else {
         None
     };
-    let (project_root, runner_root, turn_admission) =
+    let (runner_root, turn_admission) =
         if execution_capability == CodeExecutionCapability::LocalHost {
-            (
-                config.project_root.clone(),
-                config.provider_runner_root(),
-                code_engine_turn_admission(),
-            )
+            // The coding-session service supplies an authorization-checked runtime
+            // location for every turn. The gateway retains no project-root fallback.
+            (None, code_engine_turn_admission())
         } else {
             // The unavailable provider must not retain a local path or runner root.
-            (None, None, Arc::new(Semaphore::new(0)))
+            (None, Arc::new(Semaphore::new(0)))
         };
 
     Arc::new(KernelBridgeCodeEngineProvider {
         host,
         execution_capability,
-        project_root,
         runner_root,
         turn_admission,
     })
@@ -199,7 +261,6 @@ where
 struct KernelBridgeCodeEngineProvider {
     host: Option<Arc<BirdcoderKernelHost>>,
     execution_capability: CodeExecutionCapability,
-    project_root: Option<String>,
     runner_root: Option<PathBuf>,
     turn_admission: Arc<Semaphore>,
 }
@@ -212,6 +273,51 @@ struct CatalogEngineValidator {
 struct TurnAdmissionPermits {
     _process: OwnedSemaphorePermit,
     _user: OwnedSemaphorePermit,
+}
+
+struct GatewayCodeEngineTurnStreamSink {
+    downstream: Arc<dyn CodeEngineTurnStreamSink>,
+    emitted_delta_count: usize,
+    rejection: Option<CodingSessionError>,
+}
+
+impl GatewayCodeEngineTurnStreamSink {
+    fn new(downstream: Arc<dyn CodeEngineTurnStreamSink>) -> Self {
+        Self {
+            downstream,
+            emitted_delta_count: 0,
+            rejection: None,
+        }
+    }
+}
+
+impl BirdcoderTurnStreamSink for GatewayCodeEngineTurnStreamSink {
+    fn push_content_delta(&mut self, content_delta: String) -> Result<(), String> {
+        if content_delta.is_empty() {
+            return Ok(());
+        }
+        if self.rejection.is_some() {
+            return Ok(());
+        }
+
+        match self
+            .downstream
+            .push_event(CodeEngineTurnStreamEvent::assistant_delta(content_delta))
+        {
+            Ok(()) => {
+                self.emitted_delta_count += 1;
+                Ok(())
+            }
+            Err(error) => {
+                // The runtime facade treats an error before its first collected
+                // chunk as permission to invoke the provider again. Record the
+                // projection failure and discard later chunks so this provider
+                // execution remains exactly-once from BirdCoder's perspective.
+                self.rejection = Some(error);
+                Ok(())
+            }
+        }
+    }
 }
 
 fn require_kernel_host(
@@ -249,6 +355,141 @@ where
     .map_err(CodingSessionError::Repository)
 }
 
+fn finalize_kernel_turn_execution(
+    pending: &PendingProjectionTurnExecution,
+    result: &sdkwork_birdcoder_codeengine::CodeEngineTurnResultRecord,
+    stream_deltas: &[String],
+) -> Result<FinalizedProjectionTurnExecution, CodingSessionError> {
+    let turn_id = pending.turn.id.clone();
+    let session_id = pending.session.id.clone();
+    let runtime_id = pending
+        .turn
+        .runtime_id
+        .clone()
+        .unwrap_or_else(|| pending.operation.operation_id.clone());
+    let operation_id = pending.operation.operation_id.clone();
+    let completed_at = time::OffsetDateTime::now_utc()
+        .format(&time::format_description::well_known::Iso8601::DEFAULT)
+        .unwrap_or_else(|_| "1970-01-01T00:00:00Z".to_string());
+    let projected_commands = map_kernel_commands(result.commands.as_deref());
+    let mut events =
+        build_succeeded_coding_session_turn_events(SucceededCodingSessionTurnEventInput {
+            coding_session_id: &session_id,
+            runtime_id: &runtime_id,
+            turn_id: &turn_id,
+            operation_id: &operation_id,
+            assistant_content: &result.assistant_content,
+            stream_deltas,
+            commands: projected_commands.as_deref(),
+            base_sequence: 0,
+            completed_at: &completed_at,
+            native_session_id: result.native_session_id.as_deref(),
+        })
+        .into_iter()
+        .map(map_projection_event)
+        .collect::<Vec<_>>();
+    append_provider_neutral_interaction_events(
+        &mut events,
+        &session_id,
+        &runtime_id,
+        &turn_id,
+        &completed_at,
+        result.native_session_id.as_deref(),
+        result.commands.as_deref(),
+    )?;
+
+    let mut turn = pending.turn.clone();
+    turn.status = "completed".to_string();
+    turn.started_at = turn.started_at.or_else(|| Some(completed_at.clone()));
+    turn.completed_at = Some(completed_at);
+
+    Ok(FinalizedProjectionTurnExecution {
+        turn,
+        events,
+        native_session_id: result.native_session_id.clone(),
+    })
+}
+
+/// Inserts canonical provider interactions before terminal turn events. The
+/// durable repository owns final ids and sequences, but this projection keeps
+/// interaction events correlated with the same source turn and runtime.
+fn append_provider_neutral_interaction_events(
+    events: &mut Vec<CodingSessionEventPayload>,
+    coding_session_id: &str,
+    runtime_id: &str,
+    turn_id: &str,
+    created_at: &str,
+    native_session_id: Option<&str>,
+    commands: Option<&[sdkwork_birdcoder_codeengine::CodeEngineSessionCommandRecord]>,
+) -> Result<(), CodingSessionError> {
+    let interactions = project_provider_neutral_interactions(commands)
+        .map_err(|error| CodingSessionError::Provider(error.to_string()))?;
+    if interactions.is_empty() {
+        return Ok(());
+    }
+
+    let insertion_index = events
+        .iter()
+        .position(|event| event.kind == "message.completed")
+        .unwrap_or(events.len());
+    let projected_events = interactions.into_iter().map(|interaction| {
+        let mut payload = interaction.payload;
+        if let Some(native_session_id) = native_session_id {
+            payload
+                .entry("nativeSessionId".to_owned())
+                .or_insert_with(|| serde_json::Value::String(native_session_id.to_owned()));
+        }
+        CodingSessionEventPayload {
+            id: String::new(),
+            coding_session_id: coding_session_id.to_owned(),
+            turn_id: Some(turn_id.to_owned()),
+            runtime_id: Some(runtime_id.to_owned()),
+            kind: interaction.event_kind.to_owned(),
+            sequence: 0,
+            payload,
+            created_at: created_at.to_owned(),
+        }
+    });
+    events.splice(insertion_index..insertion_index, projected_events);
+
+    for (sequence, event) in events.iter_mut().enumerate() {
+        event.sequence = sequence;
+        event.id = build_projection_turn_event_id(runtime_id, turn_id, sequence);
+    }
+
+    Ok(())
+}
+
+/// Ensures a streaming turn has a durable delta before its terminal event.
+///
+/// Some provider capabilities establish a native session through a non-stream
+/// invoke on the first turn. That fallback is not real-time, but it must still
+/// use the same durable delta path so the completed content is replayable and
+/// matches the ordered delta aggregation.
+fn emit_terminal_output_when_stream_is_empty(
+    stream_sink: &mut GatewayCodeEngineTurnStreamSink,
+    result: &Result<sdkwork_birdcoder_codeengine::CodeEngineTurnResultRecord, String>,
+) {
+    let Ok(result) = result.as_ref() else {
+        return;
+    };
+    if stream_sink.rejection.is_some() || stream_sink.emitted_delta_count != 0 {
+        return;
+    }
+
+    for content_delta in &result.stream_deltas {
+        if stream_sink
+            .push_content_delta(content_delta.clone())
+            .is_err()
+        {
+            return;
+        }
+    }
+    if stream_sink.emitted_delta_count == 0 && !result.assistant_content.is_empty() {
+        let _ = stream_sink.push_content_delta(result.assistant_content.clone());
+    }
+}
+
 #[async_trait::async_trait]
 impl CodeEngineProvider for KernelBridgeCodeEngineProvider {
     fn ensure_execution_available(&self) -> Result<(), CodingSessionError> {
@@ -281,62 +522,78 @@ impl CodeEngineProvider for KernelBridgeCodeEngineProvider {
                 ctx,
                 &pending.session.workspace_id,
             )?;
-            let request = build_turn_request_with_runner_binding(
-                pending,
-                self.project_root.as_deref(),
-                runner_binding.as_ref(),
-            )?;
+            let request = build_turn_request_with_runner_binding(pending, runner_binding.as_ref())?;
             let host = require_kernel_host(&self.host)?;
             let turn_admission = TurnAdmissionPermits {
                 _process: process_turn_admission,
                 _user: user_turn_admission,
             };
 
-            execute_admitted_blocking_turn(turn_admission, move || host.execute_turn(&request))
+            execute_admitted_blocking_turn(turn_admission, move || Ok(host.execute_turn(&request)))
                 .await?
+                .map_err(CodingSessionError::Provider)?
         };
 
-        let turn_id = pending.turn.id.clone();
-        let session_id = pending.session.id.clone();
-        let runtime_id = pending
-            .turn
-            .runtime_id
-            .clone()
-            .unwrap_or_else(|| pending.operation.operation_id.clone());
-        let operation_id = pending.operation.operation_id.clone();
+        finalize_kernel_turn_execution(pending, &result, &result.stream_deltas)
+    }
 
-        let completed_at = time::OffsetDateTime::now_utc()
-            .format(&time::format_description::well_known::Iso8601::DEFAULT)
-            .unwrap_or_else(|_| "1970-01-01T00:00:00Z".to_string());
+    async fn execute_turn_with_stream_sink(
+        &self,
+        ctx: &CodingSessionContext,
+        pending: &PendingProjectionTurnExecution,
+        sink: Arc<dyn CodeEngineTurnStreamSink>,
+    ) -> Result<FinalizedProjectionTurnExecution, CodingSessionError> {
+        self.ensure_execution_available()?;
+        let (result, rejection, emitted_delta_count) = {
+            let process_turn_admission =
+                self.turn_admission
+                    .clone()
+                    .try_acquire_owned()
+                    .map_err(|_| {
+                        CodingSessionError::RateLimited(CODE_ENGINE_TURN_ADMISSION_SATURATED.into())
+                    })?;
+            let user_turn_admission = user_code_engine_turn_admission(ctx)?
+                .try_acquire_owned()
+                .map_err(|_| {
+                    CodingSessionError::RateLimited(
+                        CODE_ENGINE_USER_TURN_ADMISSION_SATURATED.into(),
+                    )
+                })?;
+            let runner_binding = prepare_runner_binding(
+                self.runner_root.as_deref(),
+                ctx,
+                &pending.session.workspace_id,
+            )?;
+            let request = build_turn_request_with_runner_binding(pending, runner_binding.as_ref())?;
+            let host = require_kernel_host(&self.host)?;
+            let turn_admission = TurnAdmissionPermits {
+                _process: process_turn_admission,
+                _user: user_turn_admission,
+            };
 
-        let projected_commands = map_kernel_commands(result.commands.as_deref());
-
-        let events =
-            build_succeeded_coding_session_turn_events(SucceededCodingSessionTurnEventInput {
-                coding_session_id: &session_id,
-                runtime_id: &runtime_id,
-                turn_id: &turn_id,
-                operation_id: &operation_id,
-                assistant_content: &result.assistant_content,
-                commands: projected_commands.as_deref(),
-                base_sequence: 0,
-                completed_at: &completed_at,
-                native_session_id: result.native_session_id.as_deref(),
+            execute_admitted_blocking_turn(turn_admission, move || {
+                let mut stream_sink = GatewayCodeEngineTurnStreamSink::new(sink);
+                let result = host.execute_turn_with_stream_sink(&request, &mut stream_sink);
+                emit_terminal_output_when_stream_is_empty(&mut stream_sink, &result);
+                Ok((
+                    result,
+                    stream_sink.rejection,
+                    stream_sink.emitted_delta_count,
+                ))
             })
-            .into_iter()
-            .map(map_projection_event)
-            .collect();
+            .await?
+        };
 
-        let mut turn = pending.turn.clone();
-        turn.status = "completed".to_string();
-        turn.started_at = turn.started_at.or_else(|| Some(completed_at.clone()));
-        turn.completed_at = Some(completed_at);
+        if let Some(error) = rejection {
+            return Err(error);
+        }
+        let result = result.map_err(CodingSessionError::Provider)?;
+        debug_assert!(
+            emitted_delta_count > 0,
+            "live output must have a durable delta"
+        );
 
-        Ok(FinalizedProjectionTurnExecution {
-            turn,
-            events,
-            native_session_id: result.native_session_id,
-        })
+        finalize_kernel_turn_execution(pending, &result, &[])
     }
 
     async fn submit_approval(
@@ -344,7 +601,7 @@ impl CodeEngineProvider for KernelBridgeCodeEngineProvider {
         _ctx: &CodingSessionContext,
         engine_id: &str,
         native_session_id: Option<&str>,
-        checkpoint_id: &str,
+        interaction_id: &str,
         input: &SubmitApprovalDecisionInput,
     ) -> Result<(), CodingSessionError> {
         if input.decision.is_empty() {
@@ -352,12 +609,20 @@ impl CodeEngineProvider for KernelBridgeCodeEngineProvider {
                 "decision is required.".into(),
             ));
         }
-
+        let interaction_id = interaction_id.trim();
+        if interaction_id.is_empty() {
+            return Err(CodingSessionError::InvalidInput(
+                "provider interactionId is required.".into(),
+            ));
+        }
         self.ensure_execution_available()?;
         let host = require_kernel_host(&self.host)?;
         let decision = CodeEngineApprovalDecisionRecord {
             native_session_id: native_session_id.map(str::to_string),
-            approval_id: checkpoint_id.to_string(),
+            // The service resolves a durable event UUID to this immutable
+            // provider-native id before entering the adapter. The provider
+            // uses it as both reply target and idempotency key.
+            approval_id: interaction_id.to_string(),
             decision: input.decision.clone(),
             reason: input.reason.clone(),
         };
@@ -376,7 +641,7 @@ impl CodeEngineProvider for KernelBridgeCodeEngineProvider {
         _ctx: &CodingSessionContext,
         engine_id: &str,
         native_session_id: Option<&str>,
-        question_id: &str,
+        interaction_id: &str,
         input: &SubmitUserQuestionAnswerInput,
     ) -> Result<(), CodingSessionError> {
         if input
@@ -389,12 +654,19 @@ impl CodeEngineProvider for KernelBridgeCodeEngineProvider {
                 "answer is required.".into(),
             ));
         }
-
+        let interaction_id = interaction_id.trim();
+        if interaction_id.is_empty() {
+            return Err(CodingSessionError::InvalidInput(
+                "provider interactionId is required.".into(),
+            ));
+        }
         self.ensure_execution_available()?;
         let host = require_kernel_host(&self.host)?;
         let answer = CodeEngineUserQuestionAnswerRecord {
             native_session_id: native_session_id.map(str::to_string),
-            question_id: question_id.to_string(),
+            // Do not send the durable event id to the provider. This remains
+            // the canonical provider-native reply target/idempotency key.
+            question_id: interaction_id.to_string(),
             answer: input.answer.clone().unwrap_or_default(),
             option_id: input.option_id.clone(),
             option_label: input.option_label.clone(),
@@ -457,29 +729,40 @@ impl EngineValidator for CatalogEngineValidator {
             capability_snapshot_json: "{}".to_string(),
         })
     }
+
+    fn validate_engine_model(
+        &self,
+        engine_id: &str,
+        model_id: &str,
+    ) -> Result<(), CodingSessionError> {
+        let Some(model) = find_codeengine_model_catalog_entry(engine_id, model_id) else {
+            return Err(CodingSessionError::InvalidInput(format!(
+                "modelId \"{model_id}\" is not registered for engineId \"{engine_id}\"."
+            )));
+        };
+        if !model.status.eq_ignore_ascii_case("active") {
+            return Err(CodingSessionError::InvalidInput(format!(
+                "modelId \"{model_id}\" is not active for engineId \"{engine_id}\"."
+            )));
+        }
+        Ok(())
+    }
 }
 
+#[cfg(test)]
 fn build_turn_request(
     pending: &PendingProjectionTurnExecution,
-    project_root: Option<&str>,
 ) -> Result<CodeEngineTurnRequestRecord, CodingSessionError> {
-    build_turn_request_with_runner_binding(pending, project_root, None)
+    build_turn_request_with_runner_binding(pending, None)
 }
 
 fn build_turn_request_with_runner_binding(
     pending: &PendingProjectionTurnExecution,
-    project_root: Option<&str>,
     runner_binding: Option<&ProviderRunnerBinding>,
 ) -> Result<CodeEngineTurnRequestRecord, CodingSessionError> {
-    let model_id = if pending.turn_model_id.is_empty() {
-        pending.session.model_id.clone()
-    } else {
-        pending.turn_model_id.clone()
-    };
-
     Ok(CodeEngineTurnRequestRecord {
         engine_id: pending.session.engine_id.clone(),
-        model_id,
+        model_id: pending.session.model_id.clone(),
         native_session_id: pending
             .native_session_id
             .clone()
@@ -487,11 +770,10 @@ fn build_turn_request_with_runner_binding(
         request_kind: pending.turn.request_kind.clone(),
         input_summary: pending.turn.input_summary.clone(),
         ide_context: map_ide_context(pending.ide_context.as_ref(), &pending.session.id),
-        working_directory: resolve_working_directory(
+        working_directory: Some(resolve_authorized_working_directory(
             pending.working_directory.as_deref(),
-            project_root,
             runner_binding,
-        )?,
+        )?),
         timeout_ms: Some(DEFAULT_CODE_ENGINE_TURN_TIMEOUT_MS),
         max_output_bytes: Some(DEFAULT_CODE_ENGINE_TURN_MAX_OUTPUT_BYTES),
         config: map_turn_config(pending.options.as_ref()),
@@ -517,10 +799,15 @@ fn prepare_runner_binding(
 }
 
 fn map_runner_isolation_error(error: ProviderRunnerIsolationError) -> CodingSessionError {
-    if error.is_invalid_input() {
-        CodingSessionError::InvalidInput(error.to_string())
-    } else {
-        CodingSessionError::Repository(error.to_string())
+    match error {
+        ProviderRunnerIsolationError::MissingAuthorizedWorkingDirectory => {
+            CodingSessionError::Unavailable(
+                "Project execution requires synchronized runner source, which is not configured."
+                    .to_owned(),
+            )
+        }
+        error if error.is_invalid_input() => CodingSessionError::InvalidInput(error.to_string()),
+        error => CodingSessionError::Repository(error.to_string()),
     }
 }
 
@@ -561,57 +848,33 @@ fn map_turn_config(
     config
 }
 
-fn resolve_working_directory(
+fn resolve_authorized_working_directory(
     requested_directory: Option<&Path>,
-    project_root: Option<&str>,
     runner_binding: Option<&ProviderRunnerBinding>,
-) -> Result<Option<PathBuf>, CodingSessionError> {
+) -> Result<PathBuf, CodingSessionError> {
     if let Some(runner_binding) = runner_binding {
         return runner_binding
             .resolve_working_directory(requested_directory)
-            .map(Some)
             .map_err(map_runner_isolation_error);
     }
-    let canonical_project_root = project_root
-        .map(str::trim)
-        .filter(|value| !value.is_empty())
-        .map(PathBuf::from)
-        .map(|path| canonicalize_project_root(&path))
-        .transpose()?;
 
-    let Some(requested_directory) = requested_directory else {
-        return Ok(canonical_project_root);
-    };
+    let requested_directory = requested_directory.ok_or_else(|| {
+        CodingSessionError::Unavailable(
+            "Coding session execution is unavailable until a runtime location is bound.".into(),
+        )
+    })?;
     let canonical_requested_directory =
         std::fs::canonicalize(requested_directory).map_err(|_| {
-            CodingSessionError::InvalidInput("working directory does not exist.".into())
+            CodingSessionError::Unavailable(
+                "Project execution is unavailable for the selected runtime location.".into(),
+            )
         })?;
     if !canonical_requested_directory.is_dir() {
-        return Err(CodingSessionError::InvalidInput(
-            "working directory must be a directory.".into(),
+        return Err(CodingSessionError::Unavailable(
+            "Project execution is unavailable for the selected runtime location.".into(),
         ));
     }
-    if let Some(canonical_project_root) = canonical_project_root {
-        if !canonical_requested_directory.starts_with(&canonical_project_root) {
-            return Err(CodingSessionError::InvalidInput(format!(
-                "working directory must stay within the configured project root."
-            )));
-        }
-    }
-
-    Ok(Some(canonical_requested_directory))
-}
-
-fn canonicalize_project_root(project_root: &Path) -> Result<PathBuf, CodingSessionError> {
-    let canonical_project_root = std::fs::canonicalize(project_root).map_err(|_| {
-        CodingSessionError::Repository("configured project root does not exist.".into())
-    })?;
-    if !canonical_project_root.is_dir() {
-        return Err(CodingSessionError::Repository(
-            "configured project root must be a directory.".into(),
-        ));
-    }
-    Ok(canonical_project_root)
+    Ok(canonical_requested_directory)
 }
 
 fn map_projection_event(
@@ -632,8 +895,8 @@ fn map_projection_event(
 #[cfg(test)]
 mod tests {
     use std::path::PathBuf;
-    use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
-    use std::sync::Arc;
+    use std::sync::atomic::{AtomicBool, AtomicU64, AtomicUsize, Ordering};
+    use std::sync::{Arc, Mutex};
     use std::time::Duration;
 
     use sdkwork_birdcoder_coding_sessions_service::context::CodingSessionContext;
@@ -642,7 +905,11 @@ mod tests {
         CodingSessionPayload, CodingSessionTurnPayload, OperationPayload,
         PendingProjectionTurnExecution,
     };
-    use sdkwork_birdcoder_coding_sessions_service::ports::engine_validator::EngineValidator;
+    use sdkwork_birdcoder_coding_sessions_service::ports::provider::{
+        CodeEngineTurnStreamEvent, CodeEngineTurnStreamSink,
+    };
+    use sdkwork_birdcoder_kernel_bridge::BirdcoderTurnStreamSink;
+    use serde_json::json;
     use tokio::sync::Semaphore;
 
     use crate::bootstrap::config::{
@@ -655,11 +922,146 @@ mod tests {
         build_turn_request, build_turn_request_with_runner_binding, code_engine_turn_admission,
         execute_admitted_blocking_turn, map_kernel_commands, prepare_runner_binding,
         user_code_engine_turn_admission, wire_code_engine_provider_with_kernel_host,
-        wire_engine_validator_with_kernel_host, CodeEngineProvider, CodingSessionError,
-        KernelBridgeCodeEngineProvider, TurnAdmissionPermits,
-        CODE_ENGINE_USER_TURN_ADMISSION_SATURATED, DEFAULT_CODE_ENGINE_TURN_MAX_OUTPUT_BYTES,
-        DEFAULT_CODE_ENGINE_TURN_TIMEOUT_MS,
+        wire_engine_validator_with_kernel_host, CatalogEngineValidator, CodeEngineProvider,
+        CodingSessionError, EngineValidator, GatewayCodeEngineTurnStreamSink,
+        KernelBridgeCodeEngineProvider, SubmitApprovalDecisionInput, SubmitUserQuestionAnswerInput,
+        TurnAdmissionPermits, CODE_ENGINE_USER_TURN_ADMISSION_SATURATED,
+        DEFAULT_CODE_ENGINE_TURN_MAX_OUTPUT_BYTES, DEFAULT_CODE_ENGINE_TURN_TIMEOUT_MS,
     };
+
+    #[derive(Default)]
+    struct RecordingTurnStreamSink {
+        events: Mutex<Vec<CodeEngineTurnStreamEvent>>,
+    }
+
+    impl CodeEngineTurnStreamSink for RecordingTurnStreamSink {
+        fn push_event(&self, event: CodeEngineTurnStreamEvent) -> Result<(), CodingSessionError> {
+            self.events.lock().expect("record stream event").push(event);
+            Ok(())
+        }
+    }
+
+    #[derive(Default)]
+    struct RejectingTurnStreamSink {
+        push_attempts: AtomicUsize,
+    }
+
+    impl CodeEngineTurnStreamSink for RejectingTurnStreamSink {
+        fn push_event(&self, _event: CodeEngineTurnStreamEvent) -> Result<(), CodingSessionError> {
+            self.push_attempts.fetch_add(1, Ordering::Relaxed);
+            Err(CodingSessionError::Repository(
+                "durable event append failed".to_owned(),
+            ))
+        }
+    }
+
+    #[test]
+    fn gateway_stream_sink_projects_only_non_empty_content_deltas() {
+        let downstream = Arc::new(RecordingTurnStreamSink::default());
+        let mut stream_sink = GatewayCodeEngineTurnStreamSink::new(downstream.clone());
+
+        stream_sink
+            .push_content_delta("first".to_owned())
+            .expect("first delta");
+        stream_sink
+            .push_content_delta(String::new())
+            .expect("empty provider chunk is ignored");
+        stream_sink
+            .push_content_delta(" second".to_owned())
+            .expect("second delta");
+
+        let events = downstream
+            .events
+            .lock()
+            .expect("read stream events")
+            .clone();
+        assert_eq!(
+            events
+                .iter()
+                .map(|event| event.content_delta.as_str())
+                .collect::<Vec<_>>(),
+            ["first", " second"]
+        );
+        assert_eq!(stream_sink.emitted_delta_count, 2);
+        assert!(stream_sink.rejection.is_none());
+    }
+
+    #[test]
+    fn gateway_stream_sink_records_a_non_durable_delta_without_triggering_a_provider_fallback() {
+        let downstream = Arc::new(RejectingTurnStreamSink::default());
+        let mut stream_sink = GatewayCodeEngineTurnStreamSink::new(downstream.clone());
+
+        stream_sink
+            .push_content_delta("unsafe to broadcast".to_owned())
+            .expect(
+                "the facade must not interpret projection failure as a retryable stream failure",
+            );
+        stream_sink
+            .push_content_delta("discarded after failure".to_owned())
+            .expect("subsequent chunks are discarded while the original execution drains");
+
+        assert_eq!(stream_sink.emitted_delta_count, 0);
+        assert!(matches!(
+            stream_sink.rejection,
+            Some(CodingSessionError::Repository(ref message)) if message == "durable event append failed"
+        ));
+        assert_eq!(
+            downstream.push_attempts.load(Ordering::Relaxed),
+            1,
+            "a rejected downstream sink must not receive later chunks or a second provider invocation fallback"
+        );
+    }
+
+    #[test]
+    fn gateway_stream_sink_emits_a_durable_fallback_for_invoke_only_turns() {
+        let downstream = Arc::new(RecordingTurnStreamSink::default());
+        let mut stream_sink = GatewayCodeEngineTurnStreamSink::new(downstream.clone());
+        let result = Ok(sdkwork_birdcoder_codeengine::CodeEngineTurnResultRecord {
+            assistant_content: "first streamed segment".to_owned(),
+            stream_deltas: vec!["first ".to_owned(), "streamed segment".to_owned()],
+            ..Default::default()
+        });
+
+        super::emit_terminal_output_when_stream_is_empty(&mut stream_sink, &result);
+
+        let events = downstream
+            .events
+            .lock()
+            .expect("read stream events")
+            .clone();
+        assert_eq!(
+            events
+                .iter()
+                .map(|event| event.content_delta.as_str())
+                .collect::<Vec<_>>(),
+            ["first ", "streamed segment"]
+        );
+        assert_eq!(stream_sink.emitted_delta_count, 2);
+        assert!(stream_sink.rejection.is_none());
+    }
+
+    #[test]
+    fn gateway_does_not_emit_terminal_fallback_after_a_stream_projection_rejection() {
+        let downstream = Arc::new(RejectingTurnStreamSink::default());
+        let mut stream_sink = GatewayCodeEngineTurnStreamSink::new(downstream.clone());
+        stream_sink
+            .push_content_delta("first rejected chunk".to_owned())
+            .expect("record the projection rejection without surfacing a facade stream error");
+        let result = Ok(sdkwork_birdcoder_codeengine::CodeEngineTurnResultRecord {
+            assistant_content: "terminal output must not be replayed".to_owned(),
+            stream_deltas: vec!["terminal ".to_owned(), "output".to_owned()],
+            ..Default::default()
+        });
+
+        super::emit_terminal_output_when_stream_is_empty(&mut stream_sink, &result);
+
+        assert_eq!(stream_sink.emitted_delta_count, 0);
+        assert_eq!(
+            downstream.push_attempts.load(Ordering::Relaxed),
+            1,
+            "a recorded stream rejection must suppress the terminal-output fallback"
+        );
+    }
 
     #[test]
     fn kernel_commands_are_preserved_for_session_event_projection() {
@@ -681,6 +1083,179 @@ mod tests {
         assert_eq!(projected[0].tool_name.as_deref(), Some("codex.shell"));
         assert_eq!(projected[0].tool_call_id.as_deref(), Some("call-1"));
         assert_eq!(projected[0].command, r#"{"command":"cargo test"}"#);
+    }
+
+    #[test]
+    fn finalize_persists_provider_neutral_approval_and_question_events_before_terminal_events() {
+        let commands = vec![
+            sdkwork_birdcoder_codeengine::CodeEngineSessionCommandRecord {
+                command: json!({
+                    "checkpointId": "native-approval-1",
+                    "permission": "bash",
+                    "metadata": {"command": "cargo test"},
+                    "tool": {"messageID": "approval-message-1", "callID": "approval-call-1"}
+                })
+                .to_string(),
+                status: "running".to_owned(),
+                tool_name: Some("permission_request".to_owned()),
+                tool_call_id: Some("approval-call-1".to_owned()),
+                runtime_status: Some("awaiting_approval".to_owned()),
+                requires_approval: Some(true),
+                ..Default::default()
+            },
+            sdkwork_birdcoder_codeengine::CodeEngineSessionCommandRecord {
+                command: json!({
+                    "requestID": "native-question-1",
+                    "questions": [{
+                        "header": "Test scope",
+                        "question": "Which tests should run?",
+                        "options": [{"label": "Unit", "description": "Unit tests"}]
+                    }],
+                    "tool": {"messageID": "question-message-1", "callID": "question-call-1"}
+                })
+                .to_string(),
+                status: "pending".to_owned(),
+                tool_name: Some("user_question".to_owned()),
+                tool_call_id: Some("question-call-1".to_owned()),
+                runtime_status: Some("awaiting_user".to_owned()),
+                requires_reply: Some(true),
+                ..Default::default()
+            },
+        ];
+        let result = sdkwork_birdcoder_codeengine::CodeEngineTurnResultRecord {
+            assistant_content: "I need your input before continuing.".to_owned(),
+            native_session_id: Some("native-session-1".to_owned()),
+            commands: Some(commands),
+            ..Default::default()
+        };
+
+        let finalized =
+            super::finalize_kernel_turn_execution(&pending_turn_execution(), &result, &[])
+                .expect("canonical interactions should be included in finalized projection events");
+
+        let approval = finalized
+            .events
+            .iter()
+            .find(|event| event.kind == "approval.required")
+            .expect("approval interaction event");
+        let question = finalized
+            .events
+            .iter()
+            .find(|event| event.kind == "user.question.required")
+            .expect("user question interaction event");
+        let terminal_index = finalized
+            .events
+            .iter()
+            .position(|event| event.kind == "message.completed")
+            .expect("terminal message event");
+        let approval_index = finalized
+            .events
+            .iter()
+            .position(|event| event.kind == "approval.required")
+            .expect("approval event index");
+        let question_index = finalized
+            .events
+            .iter()
+            .position(|event| event.kind == "user.question.required")
+            .expect("question event index");
+
+        assert!(approval_index < terminal_index);
+        assert!(question_index < terminal_index);
+        assert_eq!(approval.turn_id.as_deref(), Some("turn-1"));
+        assert_eq!(approval.runtime_id.as_deref(), Some("runtime-1"));
+        assert_eq!(
+            approval.payload.get("interactionId"),
+            Some(&json!("native-approval-1"))
+        );
+        assert_eq!(
+            approval.payload.get("interactionKind"),
+            Some(&json!("approval"))
+        );
+        assert_eq!(
+            question.payload.get("interactionId"),
+            Some(&json!("native-question-1"))
+        );
+        assert_eq!(
+            question.payload.get("interactionKind"),
+            Some(&json!("user_question"))
+        );
+        assert!(question.payload.contains_key("questions"));
+        assert_eq!(
+            question
+                .payload
+                .get("tool")
+                .and_then(|value| value.get("messageId")),
+            Some(&json!("question-message-1"))
+        );
+        assert_eq!(
+            question
+                .payload
+                .get("toolArguments")
+                .and_then(|value| value.get("requestID")),
+            None,
+            "provider request aliases must not leak through canonical payloads"
+        );
+        assert_eq!(
+            approval.payload.get("nativeSessionId"),
+            Some(&json!("native-session-1"))
+        );
+        assert!(
+            finalized
+                .events
+                .iter()
+                .enumerate()
+                .all(|(sequence, event)| event.sequence == sequence),
+            "canonical interaction insertion must preserve a contiguous projection order"
+        );
+    }
+
+    #[tokio::test]
+    async fn provider_rejects_blank_resolved_interaction_ids_before_external_dispatch() {
+        let provider = KernelBridgeCodeEngineProvider {
+            host: None,
+            execution_capability: CodeExecutionCapability::LocalHost,
+            runner_root: None,
+            turn_admission: Arc::new(Semaphore::new(1)),
+        };
+        let context = coding_session_context();
+
+        let approval_error = provider
+            .submit_approval(
+                &context,
+                "opencode",
+                None,
+                "  ",
+                &SubmitApprovalDecisionInput {
+                    decision: "approved".to_owned(),
+                    reason: None,
+                },
+            )
+            .await
+            .expect_err("blank provider interaction ids must be rejected before host dispatch");
+        assert!(matches!(
+            approval_error,
+            CodingSessionError::InvalidInput(_)
+        ));
+
+        let question_error = provider
+            .submit_question_answer(
+                &context,
+                "opencode",
+                None,
+                "  ",
+                &SubmitUserQuestionAnswerInput {
+                    answer: Some("Unit".to_owned()),
+                    option_id: None,
+                    option_label: None,
+                    rejected: false,
+                },
+            )
+            .await
+            .expect_err("blank provider interaction ids must be rejected before host dispatch");
+        assert!(matches!(
+            question_error,
+            CodingSessionError::InvalidInput(_)
+        ));
     }
 
     struct TestDirectory {
@@ -754,6 +1329,22 @@ mod tests {
         ));
     }
 
+    #[test]
+    fn catalog_engine_validator_rejects_models_owned_by_another_engine() {
+        let validator = CatalogEngineValidator {
+            execution_capability: CodeExecutionCapability::LocalHost,
+            host: None,
+        };
+
+        validator
+            .validate_engine_model("gemini", "gemini-2.5-pro")
+            .expect("Gemini catalog model should be accepted for Gemini");
+        assert!(matches!(
+            validator.validate_engine_model("gemini", "gpt-5.4"),
+            Err(CodingSessionError::InvalidInput(_))
+        ));
+    }
+
     #[tokio::test]
     async fn execute_turn_rejects_a_saturated_admission_gate_before_resolving_the_kernel_host() {
         let turn_admission = Arc::new(Semaphore::new(1));
@@ -764,7 +1355,6 @@ mod tests {
         let provider = KernelBridgeCodeEngineProvider {
             host: None,
             execution_capability: CodeExecutionCapability::LocalHost,
-            project_root: None,
             runner_root: None,
             turn_admission,
         };
@@ -792,13 +1382,15 @@ mod tests {
         let provider = KernelBridgeCodeEngineProvider {
             host: None,
             execution_capability: CodeExecutionCapability::LocalHost,
-            project_root: None,
             runner_root: None,
             turn_admission: turn_admission.clone(),
         };
+        let project = TestDirectory::new();
+        let mut pending = pending_turn_execution();
+        pending.working_directory = Some(project.root.clone());
 
         let result = provider
-            .execute_turn(&coding_session_context(), &pending_turn_execution())
+            .execute_turn(&coding_session_context(), &pending)
             .await;
 
         assert!(matches!(result, Err(CodingSessionError::Repository(_))));
@@ -925,7 +1517,6 @@ mod tests {
         let provider = KernelBridgeCodeEngineProvider {
             host: None,
             execution_capability: CodeExecutionCapability::LocalHost,
-            project_root: None,
             runner_root: None,
             turn_admission: turn_admission.clone(),
         };
@@ -956,8 +1547,7 @@ mod tests {
             max_tokens: Some(4096),
         });
 
-        let request = build_turn_request(&pending, root.root.to_str())
-            .expect("build a project-scoped turn request");
+        let request = build_turn_request(&pending).expect("build a project-scoped turn request");
 
         assert_eq!(
             request.working_directory,
@@ -984,35 +1574,32 @@ mod tests {
             request.max_output_bytes,
             Some(DEFAULT_CODE_ENGINE_TURN_MAX_OUTPUT_BYTES)
         );
+        assert_eq!(request.engine_id, pending.session.engine_id);
+        assert_eq!(request.model_id, pending.session.model_id);
     }
 
     #[test]
-    fn build_turn_request_falls_back_to_the_canonical_project_root() {
-        let root = TestDirectory::new();
+    fn build_turn_request_rejects_a_missing_authorized_runtime_location_directory() {
         let pending = pending_turn_execution();
 
-        let request = build_turn_request(&pending, root.root.to_str())
-            .expect("build a project-root turn request");
-
-        assert_eq!(
-            request.working_directory,
-            Some(std::fs::canonicalize(&root.root).expect("canonical project root"))
-        );
+        assert!(matches!(
+            build_turn_request(&pending),
+            Err(CodingSessionError::Unavailable(ref message))
+                if message.contains("runtime location")
+        ));
     }
 
     #[test]
-    fn build_turn_request_rejects_a_directory_outside_the_project_root() {
-        let root = TestDirectory::new();
-        let outside = TestDirectory::new();
+    fn build_turn_request_rejects_an_unavailable_authorized_runtime_location_directory() {
         let mut pending = pending_turn_execution();
-        pending.working_directory = Some(outside.root.clone());
+        pending.working_directory = Some(PathBuf::from("missing-authorized-runtime-location"));
 
-        let result = build_turn_request(&pending, root.root.to_str());
+        let result = build_turn_request(&pending);
 
         assert!(matches!(
             result,
-            Err(CodingSessionError::InvalidInput(ref message))
-                if message.contains("configured project root")
+            Err(CodingSessionError::Unavailable(ref message))
+                if message.contains("selected runtime location")
         ));
     }
 
@@ -1022,8 +1609,8 @@ mod tests {
         let mut pending = pending_turn_execution();
         pending.working_directory = Some(project.root.clone());
 
-        let request =
-            build_turn_request(&pending, None).expect("accept a server-resolved project directory");
+        let request = build_turn_request(&pending)
+            .expect("accept a server-resolved project runtime-location directory");
 
         assert_eq!(
             request.working_directory,
@@ -1032,9 +1619,8 @@ mod tests {
     }
 
     #[test]
-    fn build_turn_request_uses_the_runner_bound_workspace_root() {
+    fn build_turn_request_rejects_an_unsynchronized_runner_root() {
         let runner_root = TestDirectory::new();
-        let unrelated_local_project = TestDirectory::new();
         let pending = pending_turn_execution();
         let runner_binding = ProviderRunnerBinding::prepare(
             &runner_root.root,
@@ -1044,17 +1630,9 @@ mod tests {
         )
         .expect("prepare cloud runner binding");
 
-        let request = build_turn_request_with_runner_binding(
-            &pending,
-            unrelated_local_project.root.to_str(),
-            Some(&runner_binding),
-        )
-        .expect("build isolated cloud turn request");
+        let result = build_turn_request_with_runner_binding(&pending, Some(&runner_binding));
 
-        assert_eq!(
-            request.working_directory,
-            Some(runner_binding.workspace_root)
-        );
+        assert!(matches!(result, Err(CodingSessionError::Unavailable(_))));
     }
 
     #[test]
@@ -1071,7 +1649,7 @@ mod tests {
         )
         .expect("prepare cloud runner binding");
 
-        let result = build_turn_request_with_runner_binding(&pending, None, Some(&runner_binding));
+        let result = build_turn_request_with_runner_binding(&pending, Some(&runner_binding));
 
         assert!(matches!(
             result,
@@ -1085,6 +1663,7 @@ mod tests {
         let runner_root = TestDirectory::new();
         let context = CodingSessionContext {
             tenant_id: "000100000000000001".to_owned(),
+            organization_id: "0".to_owned(),
             user_id: "000100000000000002".to_owned(),
             session_id: "session-1".to_owned(),
         };
@@ -1106,6 +1685,7 @@ mod tests {
         static NEXT_USER_ID: AtomicU64 = AtomicU64::new(100_000_000_000_000_002);
         CodingSessionContext {
             tenant_id: "100000000000000001".to_string(),
+            organization_id: "0".to_string(),
             user_id: NEXT_USER_ID.fetch_add(1, Ordering::Relaxed).to_string(),
             session_id: "session-1".to_string(),
         }
@@ -1117,6 +1697,7 @@ mod tests {
                 id: "session-1".to_string(),
                 workspace_id: "workspace-1".to_string(),
                 project_id: "project-1".to_string(),
+                runtime_location_id: Some("runtime-location-1".to_string()),
                 title: "Admission test".to_string(),
                 status: "running".to_string(),
                 host_mode: "standalone".to_string(),
@@ -1129,6 +1710,7 @@ mod tests {
                 runtime_status: None,
                 sort_timestamp: 0,
                 transcript_updated_at: None,
+                native_attributes: Default::default(),
             },
             turn: CodingSessionTurnPayload {
                 id: "turn-1".to_string(),
@@ -1148,7 +1730,6 @@ mod tests {
                 stream_kind: "sse".to_string(),
             },
             native_session_id: None,
-            turn_model_id: "gpt-5".to_string(),
             ide_context: None,
             options: None,
             working_directory: None,

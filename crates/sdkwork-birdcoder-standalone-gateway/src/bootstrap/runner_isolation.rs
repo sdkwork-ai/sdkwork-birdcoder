@@ -31,29 +31,23 @@ pub struct ProviderRunnerEnvironmentBinding {
     pub sdkwork_credentials_root: PathBuf,
 }
 
-/// Server-owned project root resolver for remote project sources and Git.
+/// Server-owned project root resolver for synchronized runner workspaces.
 ///
-/// By default the root is derived from authenticated scope plus database-issued
-/// IDs. Local browser/server development may explicitly bind one deployment
-/// directory; that value is server configuration and never comes from a
-/// client request.
+/// A runner isolation root alone is not a project source. It only creates the
+/// private directory layout used by a future synchronized runner. Until a
+/// source mount, checkout, or verified synchronization boundary exists, the
+/// resolver must reject every unbound root instead of creating an empty project
+/// directory. A global bootstrap directory has no project, workspace, tenant,
+/// organization, or subject binding and therefore cannot be an execution
+/// authorization grant.
 #[derive(Clone, Debug)]
 pub struct ServerProjectWorkspaceRootResolver {
     configured_root: Option<PathBuf>,
-    deployment_project_root: Option<PathBuf>,
 }
 
 impl ServerProjectWorkspaceRootResolver {
     pub fn new(configured_root: Option<PathBuf>) -> Self {
-        Self {
-            configured_root,
-            deployment_project_root: None,
-        }
-    }
-
-    pub fn with_deployment_project_root(mut self, project_root: Option<PathBuf>) -> Self {
-        self.deployment_project_root = project_root;
-        self
+        Self { configured_root }
     }
 }
 
@@ -61,6 +55,7 @@ impl ServerProjectWorkspaceRootResolver {
 pub enum ProviderRunnerIsolationError {
     InvalidIdentity(&'static str),
     InvalidWorkspaceId,
+    MissingAuthorizedWorkingDirectory,
     InvalidWorkingDirectory,
     WorkingDirectoryOutsideWorkspace,
     InvalidRoot,
@@ -89,6 +84,10 @@ impl fmt::Display for ProviderRunnerIsolationError {
             Self::InvalidWorkspaceId => write!(
                 formatter,
                 "workspace id must use only ASCII letters, digits, hyphens, or underscores"
+            ),
+            Self::MissingAuthorizedWorkingDirectory => write!(
+                formatter,
+                "runner execution requires a synchronized, server-authorized project working directory"
             ),
             Self::InvalidWorkingDirectory => {
                 write!(formatter, "working directory must be an existing directory")
@@ -171,22 +170,12 @@ impl ProviderRunnerBinding {
         }
     }
 
-    pub fn resolve_project_root(
-        &self,
-        project_id: &str,
-    ) -> Result<PathBuf, ProviderRunnerIsolationError> {
-        let project_id = normalize_numeric_identity(project_id, "project id")?;
-        let projects_root =
-            ensure_descendant_directory(&self.workspace_root, &self.workspace_root, "projects")?;
-        ensure_descendant_directory(&self.workspace_root, &projects_root, &project_id)
-    }
-
     pub fn resolve_working_directory(
         &self,
         requested_directory: Option<&Path>,
     ) -> Result<PathBuf, ProviderRunnerIsolationError> {
         let Some(requested_directory) = requested_directory else {
-            return Ok(self.workspace_root.clone());
+            return Err(ProviderRunnerIsolationError::MissingAuthorizedWorkingDirectory);
         };
         let requested_directory = std::fs::canonicalize(requested_directory)
             .map_err(|_| ProviderRunnerIsolationError::InvalidWorkingDirectory)?;
@@ -207,33 +196,17 @@ impl ProjectWorkspaceRootResolver for ServerProjectWorkspaceRootResolver {
         workspace_id: &str,
         project_id: &str,
     ) -> Result<PathBuf, ProjectError> {
-        if let Some(deployment_project_root) = self.deployment_project_root.as_deref() {
-            let canonical_root = std::fs::canonicalize(deployment_project_root).map_err(|_| {
-                ProjectError::Unavailable("Server project workspace is unavailable.".to_owned())
-            })?;
-            if !canonical_root.is_dir() {
-                return Err(ProjectError::Unavailable(
-                    "Server project workspace is unavailable.".to_owned(),
-                ));
-            }
-            return Ok(canonical_root);
+        let _ = (context, workspace_id, project_id);
+        if self.configured_root.is_some() {
+            return Err(ProjectError::Unavailable(
+                "Project execution requires runner source synchronization, which is not configured."
+                    .to_owned(),
+            ));
         }
 
-        let configured_root = self.configured_root.as_deref().ok_or_else(|| {
-            ProjectError::Unavailable("Server project workspace is unavailable.".to_owned())
-        })?;
-        let binding = ProviderRunnerBinding::prepare(
-            configured_root,
-            &context.tenant_id,
-            &context.user_id,
-            workspace_id,
-        )
-        .map_err(|_| {
-            ProjectError::Unavailable("Server project workspace is unavailable.".to_owned())
-        })?;
-        binding.resolve_project_root(project_id).map_err(|_| {
-            ProjectError::Unavailable("Server project workspace is unavailable.".to_owned())
-        })
+        Err(ProjectError::Unavailable(
+            "Server project workspace is unavailable.".to_owned(),
+        ))
     }
 }
 
@@ -348,14 +321,14 @@ fn create_private_directory(path: &Path) -> std::io::Result<()> {
 
 #[cfg(test)]
 mod tests {
-    use std::ffi::OsStr;
-    use std::path::{Path, PathBuf};
+    use std::path::PathBuf;
 
     use sdkwork_birdcoder_project_service::context::ProjectContext;
     use sdkwork_birdcoder_project_service::ports::project_workspace_root::ProjectWorkspaceRootResolver;
 
     use super::{
-        ProviderRunnerBinding, ProviderRunnerIsolationError, ServerProjectWorkspaceRootResolver,
+        ProjectError, ProviderRunnerBinding, ProviderRunnerIsolationError,
+        ServerProjectWorkspaceRootResolver,
     };
 
     struct TestDirectory {
@@ -427,54 +400,61 @@ mod tests {
     }
 
     #[test]
-    fn derives_distinct_server_owned_project_roots() {
-        let root = TestDirectory::new();
-        let binding = ProviderRunnerBinding::prepare(
-            &root.root,
-            "100000000000000001",
-            "100000000000000002",
-            "workspace-alpha",
-        )
-        .expect("prepare runner binding");
-
-        let first = binding
-            .resolve_project_root("100000000000000003")
-            .expect("derive first project root");
-        let second = binding
-            .resolve_project_root("100000000000000004")
-            .expect("derive second project root");
-
-        assert!(first.is_dir());
-        assert!(first.starts_with(&binding.workspace_root));
-        assert_ne!(first, second);
-        assert_eq!(
-            first.parent().and_then(Path::file_name),
-            Some(OsStr::new("projects"))
-        );
-        assert!(matches!(
-            binding.resolve_project_root("../escape"),
-            Err(ProviderRunnerIsolationError::InvalidIdentity("project id"))
-        ));
-    }
-
-    #[test]
-    fn explicit_deployment_project_root_overrides_isolated_project_directory() {
-        let deployment_root = TestDirectory::new();
-        let resolver = ServerProjectWorkspaceRootResolver::new(None)
-            .with_deployment_project_root(Some(deployment_root.root.clone()));
+    fn runner_only_configuration_fails_closed_without_creating_an_empty_project_root() {
+        let runner_root = TestDirectory::new();
+        let resolver = ServerProjectWorkspaceRootResolver::new(Some(runner_root.root.clone()));
         let context = ProjectContext {
             tenant_id: "100000000000000001".to_owned(),
             organization_id: "0".to_owned(),
             user_id: "100000000000000002".to_owned(),
         };
 
-        let resolved = resolver
+        let error = resolver
             .resolve_project_root(&context, "workspace-alpha", "100000000000000003")
-            .expect("resolve explicit deployment project root");
+            .expect_err("an unsynchronized runner must not receive an empty project directory");
 
-        assert_eq!(
-            resolved,
-            std::fs::canonicalize(&deployment_root.root).expect("canonical deployment root")
+        assert!(matches!(
+            error,
+            ProjectError::Unavailable(ref message) if message.contains("synchronization")
+        ));
+        assert!(
+            std::fs::read_dir(&runner_root.root)
+                .expect("read unchanged runner root")
+                .next()
+                .is_none(),
+            "resolving an unavailable runner must not provision a project directory"
+        );
+    }
+
+    #[test]
+    fn unbound_configured_root_cannot_cross_authorize_multiple_projects() {
+        let configured_root = TestDirectory::new();
+        let resolver = ServerProjectWorkspaceRootResolver::new(Some(configured_root.root.clone()));
+        let context = ProjectContext {
+            tenant_id: "100000000000000001".to_owned(),
+            organization_id: "0".to_owned(),
+            user_id: "100000000000000002".to_owned(),
+        };
+
+        for (workspace_id, project_id) in [
+            ("workspace-alpha", "100000000000000003"),
+            ("workspace-beta", "100000000000000004"),
+        ] {
+            let error = resolver
+                .resolve_project_root(&context, workspace_id, project_id)
+                .expect_err("an unbound configured directory must not authorize any project");
+            assert!(matches!(
+                error,
+                ProjectError::Unavailable(ref message) if message.contains("synchronization")
+            ));
+        }
+
+        assert!(
+            std::fs::read_dir(&configured_root.root)
+                .expect("read unchanged configured root")
+                .next()
+                .is_none(),
+            "failed authorization must not manufacture a project checkout"
         );
     }
 
@@ -561,7 +541,7 @@ mod tests {
     }
 
     #[test]
-    fn resolves_only_directories_inside_the_bound_workspace() {
+    fn requires_an_authorized_working_directory_inside_the_bound_workspace() {
         let root = TestDirectory::new();
         let outside = TestDirectory::new();
         let binding = ProviderRunnerBinding::prepare(
@@ -577,8 +557,12 @@ mod tests {
         assert_eq!(
             binding
                 .resolve_working_directory(None)
-                .expect("resolve the workspace root"),
-            binding.workspace_root
+                .expect_err("an isolated runner root is not a synchronized checkout"),
+            ProviderRunnerIsolationError::MissingAuthorizedWorkingDirectory
+        );
+        assert!(
+            !binding.workspace_root.join("projects").exists(),
+            "rejecting an omitted working directory must not manufacture an empty project checkout"
         );
         assert_eq!(
             binding

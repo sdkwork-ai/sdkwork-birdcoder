@@ -20,7 +20,9 @@ import {
   resolveBirdCoderSessionSortTimestampString,
   stringifyBirdCoderLongInteger,
 } from '@sdkwork/birdcoder-pc-types';
+import { sanitizeBirdCoderNativeSessionAttributes } from '../nativeSessionPrivacy.ts';
 import type { IProjectSessionMirror } from '../interfaces/IProjectSessionMirror.ts';
+import { ProjectRuntimeLocationExecutionUnavailableError } from '../interfaces/IProjectRuntimeLocationService.ts';
 import type {
   BirdCoderCodingSessionMirrorSnapshot,
   BirdCoderCodingSessionListResult,
@@ -608,11 +610,20 @@ function createCodingSession(
   const createdAt = createTimestamp();
   const sortTimestamp = stringifyBirdCoderLongInteger(Date.parse(createdAt));
   const selection = resolveRequiredCodingSessionSelection(options);
+  const runtimeLocationId = options.runtimeLocationId.trim();
+  if (!runtimeLocationId) {
+    throw new ProjectRuntimeLocationExecutionUnavailableError({
+      code: 'missing_runtime_location_id',
+      message: 'A runtime-location binding is required before creating a coding session.',
+      projectId: projectRecord.id,
+    });
+  }
 
   return {
     id: createBirdCoderLocalEntityId('coding-session'),
     workspaceId: projectRecord.workspaceId,
     projectId: projectRecord.id,
+    runtimeLocationId,
     title: title.trim() || 'New Session',
     status: 'active',
     hostMode: options.hostMode ?? 'desktop',
@@ -2272,6 +2283,7 @@ export class ProviderBackedProjectService implements IProjectService, IProjectSe
       id: session.id,
       workspaceId: session.workspaceId,
       projectId: session.projectId,
+      runtimeLocationId: session.runtimeLocationId,
       title: session.title,
       status: session.status,
       hostMode: session.hostMode,
@@ -2279,7 +2291,7 @@ export class ProviderBackedProjectService implements IProjectService, IProjectSe
       modelId: session.modelId,
       nativeSessionId: session.nativeSessionId,
       nativeAttributes: session.nativeAttributes
-        ? structuredClone(session.nativeAttributes)
+        ? sanitizeBirdCoderNativeSessionAttributes(structuredClone(session.nativeAttributes))
         : undefined,
       createdAt: session.createdAt,
       updatedAt: session.updatedAt,
@@ -2304,6 +2316,7 @@ export class ProviderBackedProjectService implements IProjectService, IProjectSe
       id: codingSession.id,
       workspaceId: codingSession.workspaceId,
       projectId: codingSession.projectId,
+      runtimeLocationId: codingSession.runtimeLocationId,
       title: codingSession.title,
       status: codingSession.status,
       hostMode: codingSession.hostMode,
@@ -2311,7 +2324,7 @@ export class ProviderBackedProjectService implements IProjectService, IProjectSe
       modelId: codingSession.modelId,
       nativeSessionId: codingSession.nativeSessionId,
       nativeAttributes: codingSession.nativeAttributes
-        ? structuredClone(codingSession.nativeAttributes)
+        ? sanitizeBirdCoderNativeSessionAttributes(structuredClone(codingSession.nativeAttributes))
         : undefined,
       createdAt: codingSession.createdAt,
       updatedAt: codingSession.updatedAt,

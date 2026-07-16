@@ -5,6 +5,10 @@ import type {
   ProjectFileSystemChangeEvent,
 } from '@sdkwork/birdcoder-pc-types';
 import { useIDEServices } from '../context/IDEContext.ts';
+import {
+  subscribeProjectFileSystemFlushRequest,
+  subscribeProjectFileSystemRefreshRequest,
+} from '../events/projectFileSystemSynchronization.ts';
 import { getStoredJson, removeStoredValue, setStoredJson } from '../storage/localStore.ts';
 import {
   buildEditorSelectionStorageKey,
@@ -1919,6 +1923,45 @@ export function useFileSystem(projectId: string, options?: UseFileSystemOptions)
     normalizedProjectId,
     readCurrentEditorOpenFileState,
     syncFilesAndSelection,
+  ]);
+
+  useEffect(() => subscribeProjectFileSystemFlushRequest((request) => {
+    if (
+      request.projectId !== normalizedProjectId ||
+      !isProjectActive(request.projectId)
+    ) {
+      return;
+    }
+
+    request.waitUntil(flushPendingAutosave());
+  }), [flushPendingAutosave, isProjectActive, normalizedProjectId]);
+
+  useEffect(() => subscribeProjectFileSystemRefreshRequest((request) => {
+    if (
+      request.projectId !== normalizedProjectId ||
+      !isProjectActive(request.projectId)
+    ) {
+      return;
+    }
+
+    request.waitUntil((async () => {
+      await refreshFiles();
+      if (!isProjectActive(request.projectId)) {
+        return;
+      }
+
+      const activeSelectedFile = selectedFileRef.current;
+      if (activeSelectedFile) {
+        await syncSelectedFileFromSource(request.projectId, activeSelectedFile);
+      }
+      await syncInactiveOpenFilesFromSource(request.projectId);
+    })());
+  }), [
+    isProjectActive,
+    normalizedProjectId,
+    refreshFiles,
+    syncInactiveOpenFilesFromSource,
+    syncSelectedFileFromSource,
   ]);
 
   useEffect(() => {

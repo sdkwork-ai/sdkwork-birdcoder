@@ -52,11 +52,11 @@ export interface CodeEditorWorkspacePanelProps {
     composerSelection?: UniversalChatComposerSelection,
   ) => void | Promise<void>;
   onSubmitApprovalDecision: (
-    approvalId: string,
+    interactionEventId: string,
     request: BirdCoderSubmitApprovalDecisionRequest,
   ) => void | Promise<void>;
   onSubmitUserQuestionAnswer: (
-    questionId: string,
+    interactionEventId: string,
     request: BirdCoderSubmitUserQuestionAnswerRequest,
   ) => void | Promise<void>;
   onViewChanges: (file: FileChange) => void;
@@ -92,11 +92,11 @@ export interface WorkspaceChatProps {
     composerSelection?: UniversalChatComposerSelection,
   ) => void | Promise<void>;
   onSubmitApprovalDecision: (
-    approvalId: string,
+    interactionEventId: string,
     request: BirdCoderSubmitApprovalDecisionRequest,
   ) => void | Promise<void>;
   onSubmitUserQuestionAnswer: (
-    questionId: string,
+    interactionEventId: string,
     request: BirdCoderSubmitUserQuestionAnswerRequest,
   ) => void | Promise<void>;
   onViewChanges: (file: FileChange) => void;

@@ -53,6 +53,7 @@ import {
   type BirdCoderListNativeSessionsRequest,
   type BirdCoderNativeSessionDetail,
   type BirdCoderNativeSessionProviderSummary,
+  type BirdCoderNativeSessionSummary,
   type BirdCoderProject,
   type BirdCoderSubmitApprovalDecisionRequest,
   type BirdCoderSubmitUserQuestionAnswerRequest,
@@ -63,6 +64,7 @@ import type {
   BirdCoderCodingSessionListResult,
   IProjectService,
 } from './interfaces/IProjectService.ts';
+import { ProjectRuntimeLocationExecutionUnavailableError } from './interfaces/IProjectRuntimeLocationService.ts';
 import type { IAppRuntimeReadService } from './interfaces/IAppRuntimeReadService.ts';
 import { resolveRequiredCodingSessionSelection } from './codingSessionSelection.ts';
 import { createBirdCoderLocalServerRequestId } from './localServerRequestId.ts';
@@ -138,14 +140,12 @@ const DEFAULT_RUNTIME_SUMMARY: BirdCoderCoreRuntimeSummary = {
 };
 
 function buildInProcessCodeEngineModelConfig(): BirdCoderCodeEngineModelConfig {
-  const models = listBirdCoderCodeEngineModels();
   const updatedAt =
-    models
+    listBirdCoderCodeEngineModels()
       .map((model) => Date.parse(model.updatedAt))
       .filter((timestamp) => Number.isFinite(timestamp))
       .sort((left, right) => right - left)[0] ?? Date.parse('2026-01-01T00:00:00.000Z');
   return buildDefaultBirdCoderCodeEngineModelConfig({
-    models,
     source: 'server',
     updatedAt: new Date(updatedAt).toISOString(),
     version: BIRDCODER_CODING_SERVER_API_VERSION,
@@ -182,8 +182,6 @@ const MESSAGE_ROLE_BY_REQUEST_KIND: Record<
   apply: 'user',
 };
 
-const IN_PROCESS_CODING_SESSION_TURN_MODEL_SELECTION_METADATA_KEY = 'codeEngineSelection';
-
 function createEnvelope<TData>(data: TData): BirdCoderApiEnvelope<TData> {
   return {
     code: 0,
@@ -201,23 +199,6 @@ function readRecord(value: unknown): Record<string, unknown> | null {
   return value && typeof value === 'object' && !Array.isArray(value)
     ? (value as Record<string, unknown>)
     : null;
-}
-
-function readInProcessCodingSessionTurnModelSelection(
-  metadata: BirdCoderCodingSession['messages'][number]['metadata'],
-): { engineId?: string; modelId?: string } {
-  const metadataRecord = readRecord(metadata);
-  const selectionRecord = readRecord(
-    metadataRecord?.[IN_PROCESS_CODING_SESSION_TURN_MODEL_SELECTION_METADATA_KEY],
-  );
-  return {
-    engineId: normalizeText(
-      typeof selectionRecord?.engineId === 'string' ? selectionRecord.engineId : undefined,
-    ),
-    modelId: normalizeText(
-      typeof selectionRecord?.modelId === 'string' ? selectionRecord.modelId : undefined,
-    ),
-  };
 }
 
 function normalizePositiveIntegerQueryValue(value: BirdCoderApiQueryValue): number | undefined {
@@ -298,6 +279,7 @@ function toCodingSessionSummary(
     id: session.id,
     workspaceId: session.workspaceId,
     projectId: session.projectId,
+    runtimeLocationId: session.runtimeLocationId,
     title: session.title,
     status: session.status,
     hostMode: session.hostMode,
@@ -355,11 +337,10 @@ function buildProjectionEvents(
       index + 1 < messages.length ? normalizeText(messages[index + 1]?.turnId) : undefined;
 
     if (turnId && turnId !== previousTurnId) {
-      const turnModelSelection = readInProcessCodingSessionTurnModelSelection(message.metadata);
       events.push(
         createTurnEvent(session, turnId, sequence, message.createdAt, 'turn.started', {
-          engineId: turnModelSelection.engineId ?? session.engineId,
-          modelId: turnModelSelection.modelId ?? session.modelId,
+          engineId: session.engineId,
+          modelId: session.modelId,
           inputSummary: message.content,
           requestKind: REQUEST_KIND_BY_MESSAGE_ROLE[message.role] ?? 'chat',
           runtimeStatus: 'streaming' satisfies BirdCoderCodingSessionRuntimeStatus,
@@ -628,6 +609,122 @@ function compareRuntimeCodingSessions(
   );
 }
 
+function resolveNativeSessionProviderPrefix(engineId: string): string {
+  return (
+    listBirdCoderCodeEngineNativeSessionProviders().find(
+      (provider) => provider.engineId === engineId,
+    )?.nativeSessionIdPrefix ?? `${engineId}-native:`
+  );
+}
+
+function resolveLogicalNativeSessionIdentity(
+  summary: BirdCoderCodingSessionSummary,
+): string | null {
+  const engineId = normalizeText(summary.engineId)?.toLowerCase();
+  const nativeSessionId = normalizeText(summary.nativeSessionId);
+  return engineId && nativeSessionId ? `native:${engineId}:${nativeSessionId}` : null;
+}
+
+function resolveNativeInventorySessionIdentity(
+  summary: BirdCoderNativeSessionSummary,
+): string | null {
+  const engineId = normalizeText(summary.engineId)?.toLowerCase();
+  const providerPrefix = engineId
+    ? resolveNativeSessionProviderPrefix(summary.engineId)
+    : undefined;
+  const candidate = normalizeText(summary.nativeSessionId) ?? normalizeText(summary.id);
+  const nativeSessionId =
+    providerPrefix && candidate?.startsWith(providerPrefix)
+      ? candidate.slice(providerPrefix.length).trim()
+      : candidate;
+  return engineId && nativeSessionId ? `native:${engineId}:${nativeSessionId}` : null;
+}
+
+function resolveLatestTimestamp(
+  left: string | null | undefined,
+  right: string | null | undefined,
+): string | undefined {
+  if (!left) {
+    return right || undefined;
+  }
+  if (!right) {
+    return left;
+  }
+  return Date.parse(right) > Date.parse(left) ? right : left;
+}
+
+function mergeLogicalAndNativeSessionSummaries(
+  logical: BirdCoderCodingSessionSummary,
+  native: BirdCoderCodingSessionSummary,
+): BirdCoderCodingSessionSummary {
+  const nativeHasNewerActivity = compareBirdCoderSessionSortTimestamp(native, logical) > 0;
+  const activity = nativeHasNewerActivity ? native : logical;
+  return {
+    ...logical,
+    // The logical session owns selection and scope. A native inventory item is
+    // only allowed to contribute provider activity after both identities match.
+    status: activity.status,
+    hostMode: activity.hostMode,
+    runtimeStatus: activity.runtimeStatus ?? logical.runtimeStatus,
+    nativeSessionId: logical.nativeSessionId,
+    nativeAttributes: native.nativeAttributes ?? logical.nativeAttributes,
+    updatedAt: resolveLatestTimestamp(logical.updatedAt, native.updatedAt) ?? logical.updatedAt,
+    lastTurnAt: resolveLatestTimestamp(logical.lastTurnAt, native.lastTurnAt),
+    sortTimestamp: nativeHasNewerActivity
+      ? native.sortTimestamp ?? logical.sortTimestamp
+      : logical.sortTimestamp ?? native.sortTimestamp,
+    transcriptUpdatedAt:
+      resolveLatestTimestamp(logical.transcriptUpdatedAt, native.transcriptUpdatedAt) ?? null,
+  };
+}
+
+function mergeNativeInventorySessionSummaries(
+  existing: BirdCoderCodingSessionSummary,
+  incoming: BirdCoderCodingSessionSummary,
+): BirdCoderCodingSessionSummary {
+  const incomingHasNewerActivity = compareBirdCoderSessionSortTimestamp(incoming, existing) > 0;
+  const activity = incomingHasNewerActivity ? incoming : existing;
+  return {
+    ...existing,
+    title: activity.title,
+    status: activity.status,
+    hostMode: activity.hostMode,
+    modelId: activity.modelId,
+    nativeSessionId: existing.nativeSessionId ?? incoming.nativeSessionId,
+    runtimeStatus: activity.runtimeStatus ?? existing.runtimeStatus,
+    nativeAttributes: activity.nativeAttributes ?? existing.nativeAttributes,
+    updatedAt: resolveLatestTimestamp(existing.updatedAt, incoming.updatedAt) ?? existing.updatedAt,
+    lastTurnAt: resolveLatestTimestamp(existing.lastTurnAt, incoming.lastTurnAt),
+    sortTimestamp: incomingHasNewerActivity
+      ? incoming.sortTimestamp ?? existing.sortTimestamp
+      : existing.sortTimestamp ?? incoming.sortTimestamp,
+    transcriptUpdatedAt:
+      resolveLatestTimestamp(existing.transcriptUpdatedAt, incoming.transcriptUpdatedAt) ?? null,
+  };
+}
+
+function resolveNativeOnlySessionRecordId(
+  summary: BirdCoderCodingSessionSummary,
+  records: ReadonlyMap<string, BirdCoderCodingSessionSummary>,
+): string {
+  if (!records.has(summary.id)) {
+    return summary.id;
+  }
+  const providerPrefix = resolveNativeSessionProviderPrefix(summary.engineId);
+  const candidate = normalizeText(summary.nativeSessionId) ?? normalizeText(summary.id) ?? 'session';
+  const rawNativeSessionId = candidate.startsWith(providerPrefix)
+    ? candidate.slice(providerPrefix.length).trim()
+    : candidate;
+  const baseId = `${providerPrefix}${rawNativeSessionId || 'session'}`;
+  let resolvedId = baseId;
+  let suffix = 2;
+  while (records.has(resolvedId)) {
+    resolvedId = `${baseId}:${suffix}`;
+    suffix += 1;
+  }
+  return resolvedId;
+}
+
 /**
  * The coding-session list is the workbench inventory authority. Native
  * providers still expose their dedicated route for detail/recovery, but list
@@ -647,10 +744,11 @@ async function listUnifiedCodingSessionsForRuntime(
     limit: targetEnd,
   });
   const nativePage =
-    nativeSessionProvider && request.projectId && request.workspaceId
+    nativeSessionProvider && request.projectId && request.runtimeLocationId && request.workspaceId
       ? await nativeSessionProvider.listNativeSessionPage({
           engineId: request.engineId,
           projectId: request.projectId,
+          runtimeLocationId: request.runtimeLocationId,
           workspaceId: request.workspaceId,
           offset: 0,
           limit: targetEnd,
@@ -658,25 +756,47 @@ async function listUnifiedCodingSessionsForRuntime(
       : null;
 
   const records = new Map<string, BirdCoderCodingSessionSummary>();
-  const nativeIdentities = new Map<string, string>();
+  const logicalSessionIdsByNativeIdentity = new Map<string, string>();
+  const nativeSessionIdsByIdentity = new Map<string, string>();
   let matchedNativeCount = 0;
   for (const summary of projectionPage.items.map(toCodingSessionSummary)) {
     records.set(summary.id, summary);
-    if (summary.nativeSessionId) {
-      nativeIdentities.set(`native:${summary.engineId}:${summary.nativeSessionId}`, summary.id);
+    const nativeIdentity = resolveLogicalNativeSessionIdentity(summary);
+    if (nativeIdentity) {
+      logicalSessionIdsByNativeIdentity.set(nativeIdentity, summary.id);
     }
   }
   for (const summary of nativePage?.items ?? []) {
-    const identity = `native:${summary.engineId}:${summary.nativeSessionId ?? summary.id}`;
-    const existingId = nativeIdentities.get(identity) ?? (records.has(summary.id) ? summary.id : undefined);
-    const existing = existingId ? records.get(existingId) : undefined;
-    if (existing) {
+    const identity = resolveNativeInventorySessionIdentity(summary);
+    const logicalSessionId = identity
+      ? logicalSessionIdsByNativeIdentity.get(identity)
+      : undefined;
+    const logical = logicalSessionId ? records.get(logicalSessionId) : undefined;
+    if (logical && logical.engineId === summary.engineId) {
       matchedNativeCount += 1;
-      records.set(existing.id, { ...existing, ...summary, id: existing.id });
-      nativeIdentities.set(identity, existing.id);
-    } else {
-      records.set(summary.id, summary);
-      nativeIdentities.set(identity, summary.id);
+      records.set(logical.id, mergeLogicalAndNativeSessionSummaries(logical, summary));
+      continue;
+    }
+
+    const existingNativeSessionId = identity
+      ? nativeSessionIdsByIdentity.get(identity)
+      : undefined;
+    const existingNative = existingNativeSessionId
+      ? records.get(existingNativeSessionId)
+      : undefined;
+    if (existingNative && existingNative.engineId === summary.engineId) {
+      records.set(
+        existingNative.id,
+        mergeNativeInventorySessionSummaries(existingNative, summary),
+      );
+      continue;
+    }
+
+    const id = resolveNativeOnlySessionRecordId(summary, records);
+    const nativeOnlySummary = id === summary.id ? summary : { ...summary, id };
+    records.set(nativeOnlySummary.id, nativeOnlySummary);
+    if (identity) {
+      nativeSessionIdsByIdentity.set(identity, nativeOnlySummary.id);
     }
   }
 
@@ -1104,6 +1224,7 @@ export function createBirdCoderInProcessAppRuntimeTransport({
               | BirdCoderListCodingSessionsRequest['engineId']
               | undefined,
             projectId: readTextQueryValue(request.query?.projectId),
+            runtimeLocationId: readTextQueryValue(request.query?.runtimeLocationId),
             workspaceId: readTextQueryValue(request.query?.workspaceId),
             offset,
             limit: pageSize,
@@ -1145,6 +1266,10 @@ export function createBirdCoderInProcessAppRuntimeTransport({
               | BirdCoderListNativeSessionsRequest['engineId']
               | undefined,
             projectId: readRequiredTextQueryValue(request.query?.projectId, 'projectId'),
+            runtimeLocationId: readRequiredTextQueryValue(
+              request.query?.runtimeLocationId,
+              'runtimeLocationId',
+            ),
             workspaceId: readRequiredTextQueryValue(request.query?.workspaceId, 'workspaceId'),
             offset,
             limit: pageSize,
@@ -1168,6 +1293,10 @@ export function createBirdCoderInProcessAppRuntimeTransport({
                 | BirdCoderGetNativeSessionRequest['engineId']
                 | undefined,
               projectId: readRequiredTextQueryValue(request.query?.projectId, 'projectId'),
+              runtimeLocationId: readRequiredTextQueryValue(
+                request.query?.runtimeLocationId,
+                'runtimeLocationId',
+              ),
               workspaceId: readRequiredTextQueryValue(request.query?.workspaceId, 'workspaceId'),
             },
           );
@@ -1224,6 +1353,14 @@ export function createBirdCoderInProcessAppRuntimeTransport({
             engineId: normalizeText(body.engineId),
             modelId: normalizeText(body.modelId),
           });
+          const runtimeLocationId = normalizeText(body.runtimeLocationId);
+          if (!runtimeLocationId) {
+            throw new ProjectRuntimeLocationExecutionUnavailableError({
+              code: 'missing_runtime_location_id',
+              message: 'Coding-session creation requires a runtime-location binding.',
+              projectId: body.projectId,
+            });
+          }
           assertWorkbenchServerImplementedEngineId(selection.engineId);
           const createdSession = await projectService.createCodingSession(
             body.projectId,
@@ -1232,6 +1369,7 @@ export function createBirdCoderInProcessAppRuntimeTransport({
               engineId: selection.engineId,
               hostMode: body.hostMode ?? hostMode,
               modelId: selection.modelId,
+              runtimeLocationId,
             },
           );
           if (createdSession.workspaceId !== body.workspaceId) {

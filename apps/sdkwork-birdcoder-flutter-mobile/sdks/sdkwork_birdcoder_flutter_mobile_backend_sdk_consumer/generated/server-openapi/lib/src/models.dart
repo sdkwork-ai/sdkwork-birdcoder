@@ -486,78 +486,6 @@ class BirdCoderCreateIamUserRoleRequest {
   }
 }
 
-class BirdCoderDeletedResourceEnvelope {
-  final int code;
-  final dynamic data;
-  final String traceId;
-
-  BirdCoderDeletedResourceEnvelope({
-    required this.code,
-    required this.data,
-    required this.traceId
-  });
-
-  factory BirdCoderDeletedResourceEnvelope.fromJson(Map<String, dynamic> json) {
-    return BirdCoderDeletedResourceEnvelope(
-      code: (() {
-        final value = json['code'];
-        if (value is! int) {
-          throw FormatException('BirdCoderDeletedResourceEnvelope.code is required');
-        }
-        return value;
-      })(),
-      data: (() {
-        final map = _sdkworkAsMap(json['data']);
-        if (map == null) {
-          throw FormatException('BirdCoderDeletedResourceEnvelope.data is required');
-        }
-        return map;
-      })(),
-      traceId: (() {
-        final value = json['traceId']?.toString();
-        if (value == null) {
-          throw FormatException('BirdCoderDeletedResourceEnvelope.traceId is required');
-        }
-        return value;
-      })()
-    );
-  }
-
-  Map<String, dynamic> toJson() {
-    return <String, dynamic>{
-      'code': code,
-      'data': data,
-      'traceId': traceId,
-    };
-  }
-}
-
-class BirdCoderDeletedResourceResult {
-  final String id;
-
-  BirdCoderDeletedResourceResult({
-    required this.id
-  });
-
-  factory BirdCoderDeletedResourceResult.fromJson(Map<String, dynamic> json) {
-    return BirdCoderDeletedResourceResult(
-      id: (() {
-        final value = json['id']?.toString();
-        if (value == null) {
-          throw FormatException('BirdCoderDeletedResourceResult.id is required');
-        }
-        return value;
-      })()
-    );
-  }
-
-  Map<String, dynamic> toJson() {
-    return <String, dynamic>{
-      'id': id,
-    };
-  }
-}
-
 class BirdCoderDeploymentRecordSummary {
   final String id;
   final String? uuid;
@@ -983,7 +911,7 @@ class BirdCoderIamAuditEventSummary {
   final String action;
   final String resourceType;
   final String resourceId;
-  final String? requestId;
+  final String? traceId;
   final String? appId;
   final String? environment;
   final String? shardingKey;
@@ -998,7 +926,7 @@ class BirdCoderIamAuditEventSummary {
     required this.action,
     required this.resourceType,
     required this.resourceId,
-    this.requestId,
+    this.traceId,
     this.appId,
     this.environment,
     this.shardingKey,
@@ -1045,7 +973,7 @@ class BirdCoderIamAuditEventSummary {
         }
         return value;
       })(),
-      requestId: json['requestId']?.toString(),
+      traceId: json['traceId']?.toString(),
       appId: json['appId']?.toString(),
       environment: json['environment']?.toString(),
       shardingKey: json['shardingKey']?.toString(),
@@ -1075,7 +1003,7 @@ class BirdCoderIamAuditEventSummary {
       'action': action,
       'resourceType': resourceType,
       'resourceId': resourceId,
-      'requestId': requestId,
+      'traceId': traceId,
       'appId': appId,
       'environment': environment,
       'shardingKey': shardingKey,

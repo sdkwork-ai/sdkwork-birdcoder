@@ -5,7 +5,7 @@ export default defineLocaleModule('app/menu', {
     menu: {
       file: 'File',
       newSession: 'New Session',
-      openFolder: 'Open Folder...',
+      openFolder: 'Open Server Folder...',
       save: 'Save',
       saveAll: 'Save All',
       logOut: 'Log Out',

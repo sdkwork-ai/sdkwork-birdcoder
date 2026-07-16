@@ -66,6 +66,7 @@
     "@sdkwork/birdcoder-pc-types": "workspace:*",
     "@sdkwork/birdcoder-pc-ui-shell": "workspace:*",
     "@sdkwork/birdcoder-pc-ui": "workspace:*",
+    "@sdkwork/drive-pc-sandbox-explorer": "workspace:*",
     "@sdkwork/terminal-pc-desktop": "workspace:*",
     "space-separated-tokens": "catalog:",
     "stringify-entities": "catalog:",
@@ -90,6 +91,5 @@
     "react-dom": "catalog:"
   }
 }
-
 
 

@@ -1222,54 +1222,16 @@ class BirdCoderCodeEngineModelConfig {
   }
 }
 
-class BirdCoderCodeEngineModelConfigCustomModel {
-  final String id;
-  final String label;
-
-  BirdCoderCodeEngineModelConfigCustomModel({
-    required this.id,
-    required this.label
-  });
-
-  factory BirdCoderCodeEngineModelConfigCustomModel.fromJson(Map<String, dynamic> json) {
-    return BirdCoderCodeEngineModelConfigCustomModel(
-      id: (() {
-        final value = json['id']?.toString();
-        if (value == null) {
-          throw FormatException('BirdCoderCodeEngineModelConfigCustomModel.id is required');
-        }
-        return value;
-      })(),
-      label: (() {
-        final value = json['label']?.toString();
-        if (value == null) {
-          throw FormatException('BirdCoderCodeEngineModelConfigCustomModel.label is required');
-        }
-        return value;
-      })()
-    );
-  }
-
-  Map<String, dynamic> toJson() {
-    return <String, dynamic>{
-      'id': id,
-      'label': label,
-    };
-  }
-}
-
 class BirdCoderCodeEngineModelConfigEngine {
   final String engineId;
   final String defaultModelId;
   final String selectedModelId;
-  final List<BirdCoderCodeEngineModelConfigCustomModel> customModels;
   final List<BirdCoderModelCatalogEntry> models;
 
   BirdCoderCodeEngineModelConfigEngine({
     required this.engineId,
     required this.defaultModelId,
     required this.selectedModelId,
-    required this.customModels,
     required this.models
   });
 
@@ -1296,19 +1258,6 @@ class BirdCoderCodeEngineModelConfigEngine {
         }
         return value;
       })(),
-      customModels: (() {
-        final list = _sdkworkAsList(json['customModels']);
-        if (list == null) {
-          throw FormatException('BirdCoderCodeEngineModelConfigEngine.customModels is required');
-        }
-        return list
-            .map((item) => (() {
-        final map = _sdkworkAsMap(item);
-        return map == null ? null : BirdCoderCodeEngineModelConfigCustomModel.fromJson(map);
-      })())
-            .whereType<BirdCoderCodeEngineModelConfigCustomModel>()
-            .toList();
-      })(),
       models: (() {
         final list = _sdkworkAsList(json['models']);
         if (list == null) {
@@ -1330,7 +1279,6 @@ class BirdCoderCodeEngineModelConfigEngine {
       'engineId': engineId,
       'defaultModelId': defaultModelId,
       'selectedModelId': selectedModelId,
-      'customModels': customModels.map((item) => item.toJson()).toList(),
       'models': models.map((item) => item.toJson()).toList(),
     };
   }
@@ -2007,12 +1955,14 @@ class BirdCoderCodingSessionSummary {
   final String id;
   final String workspaceId;
   final String projectId;
+  final String? runtimeLocationId;
   final String title;
   final String status;
   final String hostMode;
   final String engineId;
   final String modelId;
   final String? nativeSessionId;
+  final BirdCoderNativeSessionAttributes? nativeAttributes;
   final String createdAt;
   final String updatedAt;
   final String? lastTurnAt;
@@ -2023,12 +1973,14 @@ class BirdCoderCodingSessionSummary {
     required this.id,
     required this.workspaceId,
     required this.projectId,
+    this.runtimeLocationId,
     required this.title,
     required this.status,
     required this.hostMode,
     required this.engineId,
     required this.modelId,
     this.nativeSessionId,
+    this.nativeAttributes,
     required this.createdAt,
     required this.updatedAt,
     this.lastTurnAt,
@@ -2059,6 +2011,7 @@ class BirdCoderCodingSessionSummary {
         }
         return value;
       })(),
+      runtimeLocationId: json['runtimeLocationId']?.toString(),
       title: (() {
         final value = json['title']?.toString();
         if (value == null) {
@@ -2095,6 +2048,10 @@ class BirdCoderCodingSessionSummary {
         return value;
       })(),
       nativeSessionId: json['nativeSessionId']?.toString(),
+      nativeAttributes: (() {
+        final map = _sdkworkAsMap(json['nativeAttributes']);
+        return map == null ? null : BirdCoderNativeSessionAttributes.fromJson(map);
+      })(),
       createdAt: (() {
         final value = json['createdAt']?.toString();
         if (value == null) {
@@ -2120,12 +2077,14 @@ class BirdCoderCodingSessionSummary {
       'id': id,
       'workspaceId': workspaceId,
       'projectId': projectId,
+      'runtimeLocationId': runtimeLocationId,
       'title': title,
       'status': status,
       'hostMode': hostMode,
       'engineId': engineId,
       'modelId': modelId,
       'nativeSessionId': nativeSessionId,
+      'nativeAttributes': nativeAttributes?.toJson(),
       'createdAt': createdAt,
       'updatedAt': updatedAt,
       'lastTurnAt': lastTurnAt,
@@ -2444,6 +2403,212 @@ class BirdCoderCodingSessionTurnOptions {
       'temperature': temperature,
       'topP': topP,
       'maxTokens': maxTokens,
+    };
+  }
+}
+
+class BirdCoderCommerceInvoiceSummary {
+  final String id;
+  final String invoiceNo;
+  final String orderId;
+  final String userId;
+  final String amount;
+  final String tax;
+  final String status;
+  final String? issuedAt;
+  final String? pdfUrl;
+  final String createdAt;
+  final String updatedAt;
+
+  BirdCoderCommerceInvoiceSummary({
+    required this.id,
+    required this.invoiceNo,
+    required this.orderId,
+    required this.userId,
+    required this.amount,
+    required this.tax,
+    required this.status,
+    this.issuedAt,
+    this.pdfUrl,
+    required this.createdAt,
+    required this.updatedAt
+  });
+
+  factory BirdCoderCommerceInvoiceSummary.fromJson(Map<String, dynamic> json) {
+    return BirdCoderCommerceInvoiceSummary(
+      id: (() {
+        final value = json['id']?.toString();
+        if (value == null) {
+          throw FormatException('BirdCoderCommerceInvoiceSummary.id is required');
+        }
+        return value;
+      })(),
+      invoiceNo: (() {
+        final value = json['invoiceNo']?.toString();
+        if (value == null) {
+          throw FormatException('BirdCoderCommerceInvoiceSummary.invoiceNo is required');
+        }
+        return value;
+      })(),
+      orderId: (() {
+        final value = json['orderId']?.toString();
+        if (value == null) {
+          throw FormatException('BirdCoderCommerceInvoiceSummary.orderId is required');
+        }
+        return value;
+      })(),
+      userId: (() {
+        final value = json['userId']?.toString();
+        if (value == null) {
+          throw FormatException('BirdCoderCommerceInvoiceSummary.userId is required');
+        }
+        return value;
+      })(),
+      amount: (() {
+        final value = json['amount']?.toString();
+        if (value == null) {
+          throw FormatException('BirdCoderCommerceInvoiceSummary.amount is required');
+        }
+        return value;
+      })(),
+      tax: (() {
+        final value = json['tax']?.toString();
+        if (value == null) {
+          throw FormatException('BirdCoderCommerceInvoiceSummary.tax is required');
+        }
+        return value;
+      })(),
+      status: (() {
+        final value = json['status']?.toString();
+        if (value == null) {
+          throw FormatException('BirdCoderCommerceInvoiceSummary.status is required');
+        }
+        return value;
+      })(),
+      issuedAt: json['issuedAt']?.toString(),
+      pdfUrl: json['pdfUrl']?.toString(),
+      createdAt: (() {
+        final value = json['createdAt']?.toString();
+        if (value == null) {
+          throw FormatException('BirdCoderCommerceInvoiceSummary.createdAt is required');
+        }
+        return value;
+      })(),
+      updatedAt: (() {
+        final value = json['updatedAt']?.toString();
+        if (value == null) {
+          throw FormatException('BirdCoderCommerceInvoiceSummary.updatedAt is required');
+        }
+        return value;
+      })()
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return <String, dynamic>{
+      'id': id,
+      'invoiceNo': invoiceNo,
+      'orderId': orderId,
+      'userId': userId,
+      'amount': amount,
+      'tax': tax,
+      'status': status,
+      'issuedAt': issuedAt,
+      'pdfUrl': pdfUrl,
+      'createdAt': createdAt,
+      'updatedAt': updatedAt,
+    };
+  }
+}
+
+class BirdCoderCommerceInvoiceSummaryEnvelope {
+  final int code;
+  final dynamic data;
+  final String traceId;
+
+  BirdCoderCommerceInvoiceSummaryEnvelope({
+    required this.code,
+    required this.data,
+    required this.traceId
+  });
+
+  factory BirdCoderCommerceInvoiceSummaryEnvelope.fromJson(Map<String, dynamic> json) {
+    return BirdCoderCommerceInvoiceSummaryEnvelope(
+      code: (() {
+        final value = json['code'];
+        if (value is! int) {
+          throw FormatException('BirdCoderCommerceInvoiceSummaryEnvelope.code is required');
+        }
+        return value;
+      })(),
+      data: (() {
+        final map = _sdkworkAsMap(json['data']);
+        if (map == null) {
+          throw FormatException('BirdCoderCommerceInvoiceSummaryEnvelope.data is required');
+        }
+        return map;
+      })(),
+      traceId: (() {
+        final value = json['traceId']?.toString();
+        if (value == null) {
+          throw FormatException('BirdCoderCommerceInvoiceSummaryEnvelope.traceId is required');
+        }
+        return value;
+      })()
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return <String, dynamic>{
+      'code': code,
+      'data': data,
+      'traceId': traceId,
+    };
+  }
+}
+
+class BirdCoderCommerceInvoiceSummaryListEnvelope {
+  final int code;
+  final dynamic data;
+  final String traceId;
+
+  BirdCoderCommerceInvoiceSummaryListEnvelope({
+    required this.code,
+    required this.data,
+    required this.traceId
+  });
+
+  factory BirdCoderCommerceInvoiceSummaryListEnvelope.fromJson(Map<String, dynamic> json) {
+    return BirdCoderCommerceInvoiceSummaryListEnvelope(
+      code: (() {
+        final value = json['code'];
+        if (value is! int) {
+          throw FormatException('BirdCoderCommerceInvoiceSummaryListEnvelope.code is required');
+        }
+        return value;
+      })(),
+      data: (() {
+        final map = _sdkworkAsMap(json['data']);
+        if (map == null) {
+          throw FormatException('BirdCoderCommerceInvoiceSummaryListEnvelope.data is required');
+        }
+        return map;
+      })(),
+      traceId: (() {
+        final value = json['traceId']?.toString();
+        if (value == null) {
+          throw FormatException('BirdCoderCommerceInvoiceSummaryListEnvelope.traceId is required');
+        }
+        return value;
+      })()
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return <String, dynamic>{
+      'code': code,
+      'data': data,
+      'traceId': traceId,
     };
   }
 }
@@ -2917,15 +3082,467 @@ class BirdCoderCommerceMembershipPackageSummary {
   }
 }
 
+class BirdCoderCommerceOrderSummary {
+  final String id;
+  final String? workspaceId;
+  final String orderNo;
+  final String userId;
+  final String packageId;
+  final String amount;
+  final String currency;
+  final String status;
+  final String? paidAt;
+  final String? refundAt;
+  final String metadata;
+  final String createdAt;
+  final String updatedAt;
+
+  BirdCoderCommerceOrderSummary({
+    required this.id,
+    this.workspaceId,
+    required this.orderNo,
+    required this.userId,
+    required this.packageId,
+    required this.amount,
+    required this.currency,
+    required this.status,
+    this.paidAt,
+    this.refundAt,
+    required this.metadata,
+    required this.createdAt,
+    required this.updatedAt
+  });
+
+  factory BirdCoderCommerceOrderSummary.fromJson(Map<String, dynamic> json) {
+    return BirdCoderCommerceOrderSummary(
+      id: (() {
+        final value = json['id']?.toString();
+        if (value == null) {
+          throw FormatException('BirdCoderCommerceOrderSummary.id is required');
+        }
+        return value;
+      })(),
+      workspaceId: json['workspaceId']?.toString(),
+      orderNo: (() {
+        final value = json['orderNo']?.toString();
+        if (value == null) {
+          throw FormatException('BirdCoderCommerceOrderSummary.orderNo is required');
+        }
+        return value;
+      })(),
+      userId: (() {
+        final value = json['userId']?.toString();
+        if (value == null) {
+          throw FormatException('BirdCoderCommerceOrderSummary.userId is required');
+        }
+        return value;
+      })(),
+      packageId: (() {
+        final value = json['packageId']?.toString();
+        if (value == null) {
+          throw FormatException('BirdCoderCommerceOrderSummary.packageId is required');
+        }
+        return value;
+      })(),
+      amount: (() {
+        final value = json['amount']?.toString();
+        if (value == null) {
+          throw FormatException('BirdCoderCommerceOrderSummary.amount is required');
+        }
+        return value;
+      })(),
+      currency: (() {
+        final value = json['currency']?.toString();
+        if (value == null) {
+          throw FormatException('BirdCoderCommerceOrderSummary.currency is required');
+        }
+        return value;
+      })(),
+      status: (() {
+        final value = json['status']?.toString();
+        if (value == null) {
+          throw FormatException('BirdCoderCommerceOrderSummary.status is required');
+        }
+        return value;
+      })(),
+      paidAt: json['paidAt']?.toString(),
+      refundAt: json['refundAt']?.toString(),
+      metadata: (() {
+        final value = json['metadata']?.toString();
+        if (value == null) {
+          throw FormatException('BirdCoderCommerceOrderSummary.metadata is required');
+        }
+        return value;
+      })(),
+      createdAt: (() {
+        final value = json['createdAt']?.toString();
+        if (value == null) {
+          throw FormatException('BirdCoderCommerceOrderSummary.createdAt is required');
+        }
+        return value;
+      })(),
+      updatedAt: (() {
+        final value = json['updatedAt']?.toString();
+        if (value == null) {
+          throw FormatException('BirdCoderCommerceOrderSummary.updatedAt is required');
+        }
+        return value;
+      })()
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return <String, dynamic>{
+      'id': id,
+      'workspaceId': workspaceId,
+      'orderNo': orderNo,
+      'userId': userId,
+      'packageId': packageId,
+      'amount': amount,
+      'currency': currency,
+      'status': status,
+      'paidAt': paidAt,
+      'refundAt': refundAt,
+      'metadata': metadata,
+      'createdAt': createdAt,
+      'updatedAt': updatedAt,
+    };
+  }
+}
+
+class BirdCoderCommerceOrderSummaryEnvelope {
+  final int code;
+  final dynamic data;
+  final String traceId;
+
+  BirdCoderCommerceOrderSummaryEnvelope({
+    required this.code,
+    required this.data,
+    required this.traceId
+  });
+
+  factory BirdCoderCommerceOrderSummaryEnvelope.fromJson(Map<String, dynamic> json) {
+    return BirdCoderCommerceOrderSummaryEnvelope(
+      code: (() {
+        final value = json['code'];
+        if (value is! int) {
+          throw FormatException('BirdCoderCommerceOrderSummaryEnvelope.code is required');
+        }
+        return value;
+      })(),
+      data: (() {
+        final map = _sdkworkAsMap(json['data']);
+        if (map == null) {
+          throw FormatException('BirdCoderCommerceOrderSummaryEnvelope.data is required');
+        }
+        return map;
+      })(),
+      traceId: (() {
+        final value = json['traceId']?.toString();
+        if (value == null) {
+          throw FormatException('BirdCoderCommerceOrderSummaryEnvelope.traceId is required');
+        }
+        return value;
+      })()
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return <String, dynamic>{
+      'code': code,
+      'data': data,
+      'traceId': traceId,
+    };
+  }
+}
+
+class BirdCoderCommerceOrderSummaryListEnvelope {
+  final int code;
+  final dynamic data;
+  final String traceId;
+
+  BirdCoderCommerceOrderSummaryListEnvelope({
+    required this.code,
+    required this.data,
+    required this.traceId
+  });
+
+  factory BirdCoderCommerceOrderSummaryListEnvelope.fromJson(Map<String, dynamic> json) {
+    return BirdCoderCommerceOrderSummaryListEnvelope(
+      code: (() {
+        final value = json['code'];
+        if (value is! int) {
+          throw FormatException('BirdCoderCommerceOrderSummaryListEnvelope.code is required');
+        }
+        return value;
+      })(),
+      data: (() {
+        final map = _sdkworkAsMap(json['data']);
+        if (map == null) {
+          throw FormatException('BirdCoderCommerceOrderSummaryListEnvelope.data is required');
+        }
+        return map;
+      })(),
+      traceId: (() {
+        final value = json['traceId']?.toString();
+        if (value == null) {
+          throw FormatException('BirdCoderCommerceOrderSummaryListEnvelope.traceId is required');
+        }
+        return value;
+      })()
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return <String, dynamic>{
+      'code': code,
+      'data': data,
+      'traceId': traceId,
+    };
+  }
+}
+
+class BirdCoderCommercePaymentSummary {
+  final String id;
+  final String paymentNo;
+  final String orderId;
+  final String userId;
+  final String channel;
+  final String? channelTransactionId;
+  final String amount;
+  final String status;
+  final String? paidAt;
+  final String? refundAt;
+  final String metadata;
+  final String createdAt;
+  final String updatedAt;
+
+  BirdCoderCommercePaymentSummary({
+    required this.id,
+    required this.paymentNo,
+    required this.orderId,
+    required this.userId,
+    required this.channel,
+    this.channelTransactionId,
+    required this.amount,
+    required this.status,
+    this.paidAt,
+    this.refundAt,
+    required this.metadata,
+    required this.createdAt,
+    required this.updatedAt
+  });
+
+  factory BirdCoderCommercePaymentSummary.fromJson(Map<String, dynamic> json) {
+    return BirdCoderCommercePaymentSummary(
+      id: (() {
+        final value = json['id']?.toString();
+        if (value == null) {
+          throw FormatException('BirdCoderCommercePaymentSummary.id is required');
+        }
+        return value;
+      })(),
+      paymentNo: (() {
+        final value = json['paymentNo']?.toString();
+        if (value == null) {
+          throw FormatException('BirdCoderCommercePaymentSummary.paymentNo is required');
+        }
+        return value;
+      })(),
+      orderId: (() {
+        final value = json['orderId']?.toString();
+        if (value == null) {
+          throw FormatException('BirdCoderCommercePaymentSummary.orderId is required');
+        }
+        return value;
+      })(),
+      userId: (() {
+        final value = json['userId']?.toString();
+        if (value == null) {
+          throw FormatException('BirdCoderCommercePaymentSummary.userId is required');
+        }
+        return value;
+      })(),
+      channel: (() {
+        final value = json['channel']?.toString();
+        if (value == null) {
+          throw FormatException('BirdCoderCommercePaymentSummary.channel is required');
+        }
+        return value;
+      })(),
+      channelTransactionId: json['channelTransactionId']?.toString(),
+      amount: (() {
+        final value = json['amount']?.toString();
+        if (value == null) {
+          throw FormatException('BirdCoderCommercePaymentSummary.amount is required');
+        }
+        return value;
+      })(),
+      status: (() {
+        final value = json['status']?.toString();
+        if (value == null) {
+          throw FormatException('BirdCoderCommercePaymentSummary.status is required');
+        }
+        return value;
+      })(),
+      paidAt: json['paidAt']?.toString(),
+      refundAt: json['refundAt']?.toString(),
+      metadata: (() {
+        final value = json['metadata']?.toString();
+        if (value == null) {
+          throw FormatException('BirdCoderCommercePaymentSummary.metadata is required');
+        }
+        return value;
+      })(),
+      createdAt: (() {
+        final value = json['createdAt']?.toString();
+        if (value == null) {
+          throw FormatException('BirdCoderCommercePaymentSummary.createdAt is required');
+        }
+        return value;
+      })(),
+      updatedAt: (() {
+        final value = json['updatedAt']?.toString();
+        if (value == null) {
+          throw FormatException('BirdCoderCommercePaymentSummary.updatedAt is required');
+        }
+        return value;
+      })()
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return <String, dynamic>{
+      'id': id,
+      'paymentNo': paymentNo,
+      'orderId': orderId,
+      'userId': userId,
+      'channel': channel,
+      'channelTransactionId': channelTransactionId,
+      'amount': amount,
+      'status': status,
+      'paidAt': paidAt,
+      'refundAt': refundAt,
+      'metadata': metadata,
+      'createdAt': createdAt,
+      'updatedAt': updatedAt,
+    };
+  }
+}
+
+class BirdCoderCommercePaymentSummaryEnvelope {
+  final int code;
+  final dynamic data;
+  final String traceId;
+
+  BirdCoderCommercePaymentSummaryEnvelope({
+    required this.code,
+    required this.data,
+    required this.traceId
+  });
+
+  factory BirdCoderCommercePaymentSummaryEnvelope.fromJson(Map<String, dynamic> json) {
+    return BirdCoderCommercePaymentSummaryEnvelope(
+      code: (() {
+        final value = json['code'];
+        if (value is! int) {
+          throw FormatException('BirdCoderCommercePaymentSummaryEnvelope.code is required');
+        }
+        return value;
+      })(),
+      data: (() {
+        final map = _sdkworkAsMap(json['data']);
+        if (map == null) {
+          throw FormatException('BirdCoderCommercePaymentSummaryEnvelope.data is required');
+        }
+        return map;
+      })(),
+      traceId: (() {
+        final value = json['traceId']?.toString();
+        if (value == null) {
+          throw FormatException('BirdCoderCommercePaymentSummaryEnvelope.traceId is required');
+        }
+        return value;
+      })()
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return <String, dynamic>{
+      'code': code,
+      'data': data,
+      'traceId': traceId,
+    };
+  }
+}
+
+class BirdCoderCommercePaymentSummaryListEnvelope {
+  final int code;
+  final dynamic data;
+  final String traceId;
+
+  BirdCoderCommercePaymentSummaryListEnvelope({
+    required this.code,
+    required this.data,
+    required this.traceId
+  });
+
+  factory BirdCoderCommercePaymentSummaryListEnvelope.fromJson(Map<String, dynamic> json) {
+    return BirdCoderCommercePaymentSummaryListEnvelope(
+      code: (() {
+        final value = json['code'];
+        if (value is! int) {
+          throw FormatException('BirdCoderCommercePaymentSummaryListEnvelope.code is required');
+        }
+        return value;
+      })(),
+      data: (() {
+        final map = _sdkworkAsMap(json['data']);
+        if (map == null) {
+          throw FormatException('BirdCoderCommercePaymentSummaryListEnvelope.data is required');
+        }
+        return map;
+      })(),
+      traceId: (() {
+        final value = json['traceId']?.toString();
+        if (value == null) {
+          throw FormatException('BirdCoderCommercePaymentSummaryListEnvelope.traceId is required');
+        }
+        return value;
+      })()
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return <String, dynamic>{
+      'code': code,
+      'data': data,
+      'traceId': traceId,
+    };
+  }
+}
+
 class BirdCoderCommitProjectGitChangesRequest {
+  final String runtimeLocationId;
+  final bool? includeUnstaged;
   final String message;
 
   BirdCoderCommitProjectGitChangesRequest({
+    required this.runtimeLocationId,
+    this.includeUnstaged,
     required this.message
   });
 
   factory BirdCoderCommitProjectGitChangesRequest.fromJson(Map<String, dynamic> json) {
     return BirdCoderCommitProjectGitChangesRequest(
+      runtimeLocationId: (() {
+        final value = json['runtimeLocationId']?.toString();
+        if (value == null) {
+          throw FormatException('BirdCoderCommitProjectGitChangesRequest.runtimeLocationId is required');
+        }
+        return value;
+      })(),
+      includeUnstaged: json['includeUnstaged'] is bool ? json['includeUnstaged'] : null,
       message: (() {
         final value = json['message']?.toString();
         if (value == null) {
@@ -2938,7 +3555,35 @@ class BirdCoderCommitProjectGitChangesRequest {
 
   Map<String, dynamic> toJson() {
     return <String, dynamic>{
+      'runtimeLocationId': runtimeLocationId,
+      'includeUnstaged': includeUnstaged,
       'message': message,
+    };
+  }
+}
+
+class BirdCoderConfirmCommercePaymentRequest {
+  final String channelTransactionId;
+
+  BirdCoderConfirmCommercePaymentRequest({
+    required this.channelTransactionId
+  });
+
+  factory BirdCoderConfirmCommercePaymentRequest.fromJson(Map<String, dynamic> json) {
+    return BirdCoderConfirmCommercePaymentRequest(
+      channelTransactionId: (() {
+        final value = json['channelTransactionId']?.toString();
+        if (value == null) {
+          throw FormatException('BirdCoderConfirmCommercePaymentRequest.channelTransactionId is required');
+        }
+        return value;
+      })()
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return <String, dynamic>{
+      'channelTransactionId': channelTransactionId,
     };
   }
 }
@@ -3166,6 +3811,7 @@ class BirdCoderCreateChatMessageRequest {
 class BirdCoderCreateCodingSessionRequest {
   final String workspaceId;
   final String projectId;
+  final String runtimeLocationId;
   final String? title;
   final String? hostMode;
   final String engineId;
@@ -3174,6 +3820,7 @@ class BirdCoderCreateCodingSessionRequest {
   BirdCoderCreateCodingSessionRequest({
     required this.workspaceId,
     required this.projectId,
+    required this.runtimeLocationId,
     this.title,
     this.hostMode,
     required this.engineId,
@@ -3193,6 +3840,13 @@ class BirdCoderCreateCodingSessionRequest {
         final value = json['projectId']?.toString();
         if (value == null) {
           throw FormatException('BirdCoderCreateCodingSessionRequest.projectId is required');
+        }
+        return value;
+      })(),
+      runtimeLocationId: (() {
+        final value = json['runtimeLocationId']?.toString();
+        if (value == null) {
+          throw FormatException('BirdCoderCreateCodingSessionRequest.runtimeLocationId is required');
         }
         return value;
       })(),
@@ -3219,6 +3873,7 @@ class BirdCoderCreateCodingSessionRequest {
     return <String, dynamic>{
       'workspaceId': workspaceId,
       'projectId': projectId,
+      'runtimeLocationId': runtimeLocationId,
       'title': title,
       'hostMode': hostMode,
       'engineId': engineId,
@@ -3229,8 +3884,6 @@ class BirdCoderCreateCodingSessionRequest {
 
 class BirdCoderCreateCodingSessionTurnRequest {
   final String? runtimeId;
-  final String? engineId;
-  final String? modelId;
   final String requestKind;
   final String inputSummary;
   final bool? stream;
@@ -3239,8 +3892,6 @@ class BirdCoderCreateCodingSessionTurnRequest {
 
   BirdCoderCreateCodingSessionTurnRequest({
     this.runtimeId,
-    this.engineId,
-    this.modelId,
     required this.requestKind,
     required this.inputSummary,
     this.stream,
@@ -3251,8 +3902,6 @@ class BirdCoderCreateCodingSessionTurnRequest {
   factory BirdCoderCreateCodingSessionTurnRequest.fromJson(Map<String, dynamic> json) {
     return BirdCoderCreateCodingSessionTurnRequest(
       runtimeId: json['runtimeId']?.toString(),
-      engineId: json['engineId']?.toString(),
-      modelId: json['modelId']?.toString(),
       requestKind: (() {
         final value = json['requestKind']?.toString();
         if (value == null) {
@@ -3282,8 +3931,6 @@ class BirdCoderCreateCodingSessionTurnRequest {
   Map<String, dynamic> toJson() {
     return <String, dynamic>{
       'runtimeId': runtimeId,
-      'engineId': engineId,
-      'modelId': modelId,
       'requestKind': requestKind,
       'inputSummary': inputSummary,
       'stream': stream,
@@ -3293,15 +3940,120 @@ class BirdCoderCreateCodingSessionTurnRequest {
   }
 }
 
+class BirdCoderCreateCommerceOrderRequest {
+  final String packageId;
+  final String amount;
+  final String? currency;
+  final String? workspaceId;
+  final String? metadata;
+
+  BirdCoderCreateCommerceOrderRequest({
+    required this.packageId,
+    required this.amount,
+    this.currency,
+    this.workspaceId,
+    this.metadata
+  });
+
+  factory BirdCoderCreateCommerceOrderRequest.fromJson(Map<String, dynamic> json) {
+    return BirdCoderCreateCommerceOrderRequest(
+      packageId: (() {
+        final value = json['packageId']?.toString();
+        if (value == null) {
+          throw FormatException('BirdCoderCreateCommerceOrderRequest.packageId is required');
+        }
+        return value;
+      })(),
+      amount: (() {
+        final value = json['amount']?.toString();
+        if (value == null) {
+          throw FormatException('BirdCoderCreateCommerceOrderRequest.amount is required');
+        }
+        return value;
+      })(),
+      currency: json['currency']?.toString(),
+      workspaceId: json['workspaceId']?.toString(),
+      metadata: json['metadata']?.toString()
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return <String, dynamic>{
+      'packageId': packageId,
+      'amount': amount,
+      'currency': currency,
+      'workspaceId': workspaceId,
+      'metadata': metadata,
+    };
+  }
+}
+
+class BirdCoderCreateCommercePaymentRequest {
+  final String orderId;
+  final String channel;
+  final String? amount;
+  final String? channelTransactionId;
+  final String? metadata;
+
+  BirdCoderCreateCommercePaymentRequest({
+    required this.orderId,
+    required this.channel,
+    this.amount,
+    this.channelTransactionId,
+    this.metadata
+  });
+
+  factory BirdCoderCreateCommercePaymentRequest.fromJson(Map<String, dynamic> json) {
+    return BirdCoderCreateCommercePaymentRequest(
+      orderId: (() {
+        final value = json['orderId']?.toString();
+        if (value == null) {
+          throw FormatException('BirdCoderCreateCommercePaymentRequest.orderId is required');
+        }
+        return value;
+      })(),
+      channel: (() {
+        final value = json['channel']?.toString();
+        if (value == null) {
+          throw FormatException('BirdCoderCreateCommercePaymentRequest.channel is required');
+        }
+        return value;
+      })(),
+      amount: json['amount']?.toString(),
+      channelTransactionId: json['channelTransactionId']?.toString(),
+      metadata: json['metadata']?.toString()
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return <String, dynamic>{
+      'orderId': orderId,
+      'channel': channel,
+      'amount': amount,
+      'channelTransactionId': channelTransactionId,
+      'metadata': metadata,
+    };
+  }
+}
+
 class BirdCoderCreateProjectGitBranchRequest {
+  final String runtimeLocationId;
   final String branchName;
 
   BirdCoderCreateProjectGitBranchRequest({
+    required this.runtimeLocationId,
     required this.branchName
   });
 
   factory BirdCoderCreateProjectGitBranchRequest.fromJson(Map<String, dynamic> json) {
     return BirdCoderCreateProjectGitBranchRequest(
+      runtimeLocationId: (() {
+        final value = json['runtimeLocationId']?.toString();
+        if (value == null) {
+          throw FormatException('BirdCoderCreateProjectGitBranchRequest.runtimeLocationId is required');
+        }
+        return value;
+      })(),
       branchName: (() {
         final value = json['branchName']?.toString();
         if (value == null) {
@@ -3314,33 +4066,34 @@ class BirdCoderCreateProjectGitBranchRequest {
 
   Map<String, dynamic> toJson() {
     return <String, dynamic>{
+      'runtimeLocationId': runtimeLocationId,
       'branchName': branchName,
     };
   }
 }
 
 class BirdCoderCreateProjectGitWorktreeRequest {
+  final String runtimeLocationId;
   final String branchName;
-  final String path;
 
   BirdCoderCreateProjectGitWorktreeRequest({
-    required this.branchName,
-    required this.path
+    required this.runtimeLocationId,
+    required this.branchName
   });
 
   factory BirdCoderCreateProjectGitWorktreeRequest.fromJson(Map<String, dynamic> json) {
     return BirdCoderCreateProjectGitWorktreeRequest(
+      runtimeLocationId: (() {
+        final value = json['runtimeLocationId']?.toString();
+        if (value == null) {
+          throw FormatException('BirdCoderCreateProjectGitWorktreeRequest.runtimeLocationId is required');
+        }
+        return value;
+      })(),
       branchName: (() {
         final value = json['branchName']?.toString();
         if (value == null) {
           throw FormatException('BirdCoderCreateProjectGitWorktreeRequest.branchName is required');
-        }
-        return value;
-      })(),
-      path: (() {
-        final value = json['path']?.toString();
-        if (value == null) {
-          throw FormatException('BirdCoderCreateProjectGitWorktreeRequest.path is required');
         }
         return value;
       })()
@@ -3349,8 +4102,8 @@ class BirdCoderCreateProjectGitWorktreeRequest {
 
   Map<String, dynamic> toJson() {
     return <String, dynamic>{
+      'runtimeLocationId': runtimeLocationId,
       'branchName': branchName,
-      'path': path,
     };
   }
 }
@@ -3358,67 +4111,11 @@ class BirdCoderCreateProjectGitWorktreeRequest {
 class BirdCoderCreateProjectRequest {
   final String? description;
   final String name;
-  final String? workspaceUuid;
-  final String? tenantId;
-  final String? organizationId;
-  final String? dataScope;
-  final String? userId;
-  final String? parentId;
-  final String? parentUuid;
-  final Map<String, dynamic>? parentMetadata;
-  final String? code;
-  final String? title;
-  final String? ownerId;
-  final String? leaderId;
-  final String? createdByUserId;
-  final String? author;
-  final String? type;
-  final String? rootPath;
-  final String? sitePath;
-  final String? domainPrefix;
-  final String? fileId;
-  final String? conversationId;
-  final String? startTime;
-  final String? endTime;
-  final String? budgetAmount;
-  final Map<String, dynamic>? coverImage;
-  final bool? isTemplate;
-  final String? appTemplateVersionId;
-  final String? templatePresetKey;
-  final String? status;
   final String workspaceId;
 
   BirdCoderCreateProjectRequest({
     this.description,
     required this.name,
-    this.workspaceUuid,
-    this.tenantId,
-    this.organizationId,
-    this.dataScope,
-    this.userId,
-    this.parentId,
-    this.parentUuid,
-    this.parentMetadata,
-    this.code,
-    this.title,
-    this.ownerId,
-    this.leaderId,
-    this.createdByUserId,
-    this.author,
-    this.type,
-    this.rootPath,
-    this.sitePath,
-    this.domainPrefix,
-    this.fileId,
-    this.conversationId,
-    this.startTime,
-    this.endTime,
-    this.budgetAmount,
-    this.coverImage,
-    this.isTemplate,
-    this.appTemplateVersionId,
-    this.templatePresetKey,
-    this.status,
     required this.workspaceId
   });
 
@@ -3432,34 +4129,6 @@ class BirdCoderCreateProjectRequest {
         }
         return value;
       })(),
-      workspaceUuid: json['workspaceUuid']?.toString(),
-      tenantId: json['tenantId']?.toString(),
-      organizationId: json['organizationId']?.toString(),
-      dataScope: json['dataScope']?.toString(),
-      userId: json['userId']?.toString(),
-      parentId: json['parentId']?.toString(),
-      parentUuid: json['parentUuid']?.toString(),
-      parentMetadata: _sdkworkAsMap(json['parentMetadata']),
-      code: json['code']?.toString(),
-      title: json['title']?.toString(),
-      ownerId: json['ownerId']?.toString(),
-      leaderId: json['leaderId']?.toString(),
-      createdByUserId: json['createdByUserId']?.toString(),
-      author: json['author']?.toString(),
-      type: json['type']?.toString(),
-      rootPath: json['rootPath']?.toString(),
-      sitePath: json['sitePath']?.toString(),
-      domainPrefix: json['domainPrefix']?.toString(),
-      fileId: json['fileId']?.toString(),
-      conversationId: json['conversationId']?.toString(),
-      startTime: json['startTime']?.toString(),
-      endTime: json['endTime']?.toString(),
-      budgetAmount: json['budgetAmount']?.toString(),
-      coverImage: _sdkworkAsMap(json['coverImage']),
-      isTemplate: json['isTemplate'] is bool ? json['isTemplate'] : null,
-      appTemplateVersionId: json['appTemplateVersionId']?.toString(),
-      templatePresetKey: json['templatePresetKey']?.toString(),
-      status: json['status']?.toString(),
       workspaceId: (() {
         final value = json['workspaceId']?.toString();
         if (value == null) {
@@ -3474,35 +4143,87 @@ class BirdCoderCreateProjectRequest {
     return <String, dynamic>{
       'description': description,
       'name': name,
-      'workspaceUuid': workspaceUuid,
-      'tenantId': tenantId,
-      'organizationId': organizationId,
-      'dataScope': dataScope,
-      'userId': userId,
-      'parentId': parentId,
-      'parentUuid': parentUuid,
-      'parentMetadata': parentMetadata,
-      'code': code,
-      'title': title,
-      'ownerId': ownerId,
-      'leaderId': leaderId,
-      'createdByUserId': createdByUserId,
-      'author': author,
-      'type': type,
-      'rootPath': rootPath,
-      'sitePath': sitePath,
-      'domainPrefix': domainPrefix,
-      'fileId': fileId,
-      'conversationId': conversationId,
-      'startTime': startTime,
-      'endTime': endTime,
-      'budgetAmount': budgetAmount,
-      'coverImage': coverImage,
-      'isTemplate': isTemplate,
-      'appTemplateVersionId': appTemplateVersionId,
-      'templatePresetKey': templatePresetKey,
-      'status': status,
       'workspaceId': workspaceId,
+    };
+  }
+}
+
+class BirdCoderCreateProjectRuntimeLocationRequest {
+  final String runtimeTargetId;
+  final String runtimeTargetKind;
+  final String locationKind;
+  final String pathFlavor;
+  final String rootLocator;
+  final String absolutePath;
+  final String? displayName;
+
+  BirdCoderCreateProjectRuntimeLocationRequest({
+    required this.runtimeTargetId,
+    required this.runtimeTargetKind,
+    required this.locationKind,
+    required this.pathFlavor,
+    required this.rootLocator,
+    required this.absolutePath,
+    this.displayName
+  });
+
+  factory BirdCoderCreateProjectRuntimeLocationRequest.fromJson(Map<String, dynamic> json) {
+    return BirdCoderCreateProjectRuntimeLocationRequest(
+      runtimeTargetId: (() {
+        final value = json['runtimeTargetId']?.toString();
+        if (value == null) {
+          throw FormatException('BirdCoderCreateProjectRuntimeLocationRequest.runtimeTargetId is required');
+        }
+        return value;
+      })(),
+      runtimeTargetKind: (() {
+        final value = json['runtimeTargetKind']?.toString();
+        if (value == null) {
+          throw FormatException('BirdCoderCreateProjectRuntimeLocationRequest.runtimeTargetKind is required');
+        }
+        return value;
+      })(),
+      locationKind: (() {
+        final value = json['locationKind']?.toString();
+        if (value == null) {
+          throw FormatException('BirdCoderCreateProjectRuntimeLocationRequest.locationKind is required');
+        }
+        return value;
+      })(),
+      pathFlavor: (() {
+        final value = json['pathFlavor']?.toString();
+        if (value == null) {
+          throw FormatException('BirdCoderCreateProjectRuntimeLocationRequest.pathFlavor is required');
+        }
+        return value;
+      })(),
+      rootLocator: (() {
+        final value = json['rootLocator']?.toString();
+        if (value == null) {
+          throw FormatException('BirdCoderCreateProjectRuntimeLocationRequest.rootLocator is required');
+        }
+        return value;
+      })(),
+      absolutePath: (() {
+        final value = json['absolutePath']?.toString();
+        if (value == null) {
+          throw FormatException('BirdCoderCreateProjectRuntimeLocationRequest.absolutePath is required');
+        }
+        return value;
+      })(),
+      displayName: json['displayName']?.toString()
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return <String, dynamic>{
+      'runtimeTargetId': runtimeTargetId,
+      'runtimeTargetKind': runtimeTargetKind,
+      'locationKind': locationKind,
+      'pathFlavor': pathFlavor,
+      'rootLocator': rootLocator,
+      'absolutePath': absolutePath,
+      'displayName': displayName,
     };
   }
 }
@@ -3617,232 +4338,6 @@ class BirdCoderCreateWorkspaceRequest {
       'settings': settings,
       'isPublic': isPublic,
       'isTemplate': isTemplate,
-    };
-  }
-}
-
-class BirdCoderDeleteChatConversationEnvelope {
-  final int code;
-  final dynamic data;
-  final String traceId;
-
-  BirdCoderDeleteChatConversationEnvelope({
-    required this.code,
-    required this.data,
-    required this.traceId
-  });
-
-  factory BirdCoderDeleteChatConversationEnvelope.fromJson(Map<String, dynamic> json) {
-    return BirdCoderDeleteChatConversationEnvelope(
-      code: (() {
-        final value = json['code'];
-        if (value is! int) {
-          throw FormatException('BirdCoderDeleteChatConversationEnvelope.code is required');
-        }
-        return value;
-      })(),
-      data: (() {
-        final map = _sdkworkAsMap(json['data']);
-        if (map == null) {
-          throw FormatException('BirdCoderDeleteChatConversationEnvelope.data is required');
-        }
-        return map;
-      })(),
-      traceId: (() {
-        final value = json['traceId']?.toString();
-        if (value == null) {
-          throw FormatException('BirdCoderDeleteChatConversationEnvelope.traceId is required');
-        }
-        return value;
-      })()
-    );
-  }
-
-  Map<String, dynamic> toJson() {
-    return <String, dynamic>{
-      'code': code,
-      'data': data,
-      'traceId': traceId,
-    };
-  }
-}
-
-class BirdCoderDeleteChatConversationResult {
-  final String id;
-
-  BirdCoderDeleteChatConversationResult({
-    required this.id
-  });
-
-  factory BirdCoderDeleteChatConversationResult.fromJson(Map<String, dynamic> json) {
-    return BirdCoderDeleteChatConversationResult(
-      id: (() {
-        final value = json['id']?.toString();
-        if (value == null) {
-          throw FormatException('BirdCoderDeleteChatConversationResult.id is required');
-        }
-        return value;
-      })()
-    );
-  }
-
-  Map<String, dynamic> toJson() {
-    return <String, dynamic>{
-      'id': id,
-    };
-  }
-}
-
-class BirdCoderDeleteCodingSessionMessageResult {
-  final String id;
-  final String codingSessionId;
-
-  BirdCoderDeleteCodingSessionMessageResult({
-    required this.id,
-    required this.codingSessionId
-  });
-
-  factory BirdCoderDeleteCodingSessionMessageResult.fromJson(Map<String, dynamic> json) {
-    return BirdCoderDeleteCodingSessionMessageResult(
-      id: (() {
-        final value = json['id']?.toString();
-        if (value == null) {
-          throw FormatException('BirdCoderDeleteCodingSessionMessageResult.id is required');
-        }
-        return value;
-      })(),
-      codingSessionId: (() {
-        final value = json['codingSessionId']?.toString();
-        if (value == null) {
-          throw FormatException('BirdCoderDeleteCodingSessionMessageResult.codingSessionId is required');
-        }
-        return value;
-      })()
-    );
-  }
-
-  Map<String, dynamic> toJson() {
-    return <String, dynamic>{
-      'id': id,
-      'codingSessionId': codingSessionId,
-    };
-  }
-}
-
-class BirdCoderDeleteCodingSessionMessageResultEnvelope {
-  final int code;
-  final dynamic data;
-  final String traceId;
-
-  BirdCoderDeleteCodingSessionMessageResultEnvelope({
-    required this.code,
-    required this.data,
-    required this.traceId
-  });
-
-  factory BirdCoderDeleteCodingSessionMessageResultEnvelope.fromJson(Map<String, dynamic> json) {
-    return BirdCoderDeleteCodingSessionMessageResultEnvelope(
-      code: (() {
-        final value = json['code'];
-        if (value is! int) {
-          throw FormatException('BirdCoderDeleteCodingSessionMessageResultEnvelope.code is required');
-        }
-        return value;
-      })(),
-      data: (() {
-        final map = _sdkworkAsMap(json['data']);
-        if (map == null) {
-          throw FormatException('BirdCoderDeleteCodingSessionMessageResultEnvelope.data is required');
-        }
-        return map;
-      })(),
-      traceId: (() {
-        final value = json['traceId']?.toString();
-        if (value == null) {
-          throw FormatException('BirdCoderDeleteCodingSessionMessageResultEnvelope.traceId is required');
-        }
-        return value;
-      })()
-    );
-  }
-
-  Map<String, dynamic> toJson() {
-    return <String, dynamic>{
-      'code': code,
-      'data': data,
-      'traceId': traceId,
-    };
-  }
-}
-
-class BirdCoderDeletedResourceEnvelope {
-  final int code;
-  final dynamic data;
-  final String traceId;
-
-  BirdCoderDeletedResourceEnvelope({
-    required this.code,
-    required this.data,
-    required this.traceId
-  });
-
-  factory BirdCoderDeletedResourceEnvelope.fromJson(Map<String, dynamic> json) {
-    return BirdCoderDeletedResourceEnvelope(
-      code: (() {
-        final value = json['code'];
-        if (value is! int) {
-          throw FormatException('BirdCoderDeletedResourceEnvelope.code is required');
-        }
-        return value;
-      })(),
-      data: (() {
-        final map = _sdkworkAsMap(json['data']);
-        if (map == null) {
-          throw FormatException('BirdCoderDeletedResourceEnvelope.data is required');
-        }
-        return map;
-      })(),
-      traceId: (() {
-        final value = json['traceId']?.toString();
-        if (value == null) {
-          throw FormatException('BirdCoderDeletedResourceEnvelope.traceId is required');
-        }
-        return value;
-      })()
-    );
-  }
-
-  Map<String, dynamic> toJson() {
-    return <String, dynamic>{
-      'code': code,
-      'data': data,
-      'traceId': traceId,
-    };
-  }
-}
-
-class BirdCoderDeletedResourceResult {
-  final String id;
-
-  BirdCoderDeletedResourceResult({
-    required this.id
-  });
-
-  factory BirdCoderDeletedResourceResult.fromJson(Map<String, dynamic> json) {
-    return BirdCoderDeletedResourceResult(
-      id: (() {
-        final value = json['id']?.toString();
-        if (value == null) {
-          throw FormatException('BirdCoderDeletedResourceResult.id is required');
-        }
-        return value;
-      })()
-    );
-  }
-
-  Map<String, dynamic> toJson() {
-    return <String, dynamic>{
-      'id': id,
     };
   }
 }
@@ -4981,38 +5476,18 @@ class BirdCoderForkCodingSessionRequest {
 }
 
 class BirdCoderGitBranchSummary {
-  final int ahead;
-  final int behind;
   final bool isCurrent;
-  final String kind;
+  final bool isRemote;
   final String name;
-  final String? upstreamName;
 
   BirdCoderGitBranchSummary({
-    required this.ahead,
-    required this.behind,
     required this.isCurrent,
-    required this.kind,
-    required this.name,
-    this.upstreamName
+    required this.isRemote,
+    required this.name
   });
 
   factory BirdCoderGitBranchSummary.fromJson(Map<String, dynamic> json) {
     return BirdCoderGitBranchSummary(
-      ahead: (() {
-        final value = json['ahead'];
-        if (value is! int) {
-          throw FormatException('BirdCoderGitBranchSummary.ahead is required');
-        }
-        return value;
-      })(),
-      behind: (() {
-        final value = json['behind'];
-        if (value is! int) {
-          throw FormatException('BirdCoderGitBranchSummary.behind is required');
-        }
-        return value;
-      })(),
       isCurrent: (() {
         final value = json['isCurrent'];
         if (value is! bool) {
@@ -5020,10 +5495,10 @@ class BirdCoderGitBranchSummary {
         }
         return value;
       })(),
-      kind: (() {
-        final value = json['kind']?.toString();
-        if (value == null) {
-          throw FormatException('BirdCoderGitBranchSummary.kind is required');
+      isRemote: (() {
+        final value = json['isRemote'];
+        if (value is! bool) {
+          throw FormatException('BirdCoderGitBranchSummary.isRemote is required');
         }
         return value;
       })(),
@@ -5033,65 +5508,43 @@ class BirdCoderGitBranchSummary {
           throw FormatException('BirdCoderGitBranchSummary.name is required');
         }
         return value;
-      })(),
-      upstreamName: json['upstreamName']?.toString()
+      })()
     );
   }
 
   Map<String, dynamic> toJson() {
     return <String, dynamic>{
-      'ahead': ahead,
-      'behind': behind,
       'isCurrent': isCurrent,
-      'kind': kind,
+      'isRemote': isRemote,
       'name': name,
-      'upstreamName': upstreamName,
     };
   }
 }
 
 class BirdCoderGitStatusCounts {
-  final int conflicted;
-  final int deleted;
-  final int modified;
   final int staged;
+  final int unstaged;
   final int untracked;
 
   BirdCoderGitStatusCounts({
-    required this.conflicted,
-    required this.deleted,
-    required this.modified,
     required this.staged,
+    required this.unstaged,
     required this.untracked
   });
 
   factory BirdCoderGitStatusCounts.fromJson(Map<String, dynamic> json) {
     return BirdCoderGitStatusCounts(
-      conflicted: (() {
-        final value = json['conflicted'];
-        if (value is! int) {
-          throw FormatException('BirdCoderGitStatusCounts.conflicted is required');
-        }
-        return value;
-      })(),
-      deleted: (() {
-        final value = json['deleted'];
-        if (value is! int) {
-          throw FormatException('BirdCoderGitStatusCounts.deleted is required');
-        }
-        return value;
-      })(),
-      modified: (() {
-        final value = json['modified'];
-        if (value is! int) {
-          throw FormatException('BirdCoderGitStatusCounts.modified is required');
-        }
-        return value;
-      })(),
       staged: (() {
         final value = json['staged'];
         if (value is! int) {
           throw FormatException('BirdCoderGitStatusCounts.staged is required');
+        }
+        return value;
+      })(),
+      unstaged: (() {
+        final value = json['unstaged'];
+        if (value is! int) {
+          throw FormatException('BirdCoderGitStatusCounts.unstaged is required');
         }
         return value;
       })(),
@@ -5107,10 +5560,8 @@ class BirdCoderGitStatusCounts {
 
   Map<String, dynamic> toJson() {
     return <String, dynamic>{
-      'conflicted': conflicted,
-      'deleted': deleted,
-      'modified': modified,
       'staged': staged,
+      'unstaged': unstaged,
       'untracked': untracked,
     };
   }
@@ -5119,41 +5570,22 @@ class BirdCoderGitStatusCounts {
 class BirdCoderGitWorktreeSummary {
   final String? branch;
   final String? head;
-  final String id;
   final bool isCurrent;
-  final bool isDetached;
-  final bool isLocked;
-  final bool isPrunable;
-  final String label;
-  final String? lockedReason;
   final String? prunableReason;
-  final String path;
+  final String? worktreeKey;
 
   BirdCoderGitWorktreeSummary({
     this.branch,
     this.head,
-    required this.id,
     required this.isCurrent,
-    required this.isDetached,
-    required this.isLocked,
-    required this.isPrunable,
-    required this.label,
-    this.lockedReason,
     this.prunableReason,
-    required this.path
+    this.worktreeKey
   });
 
   factory BirdCoderGitWorktreeSummary.fromJson(Map<String, dynamic> json) {
     return BirdCoderGitWorktreeSummary(
       branch: json['branch']?.toString(),
       head: json['head']?.toString(),
-      id: (() {
-        final value = json['id']?.toString();
-        if (value == null) {
-          throw FormatException('BirdCoderGitWorktreeSummary.id is required');
-        }
-        return value;
-      })(),
       isCurrent: (() {
         final value = json['isCurrent'];
         if (value is! bool) {
@@ -5161,43 +5593,8 @@ class BirdCoderGitWorktreeSummary {
         }
         return value;
       })(),
-      isDetached: (() {
-        final value = json['isDetached'];
-        if (value is! bool) {
-          throw FormatException('BirdCoderGitWorktreeSummary.isDetached is required');
-        }
-        return value;
-      })(),
-      isLocked: (() {
-        final value = json['isLocked'];
-        if (value is! bool) {
-          throw FormatException('BirdCoderGitWorktreeSummary.isLocked is required');
-        }
-        return value;
-      })(),
-      isPrunable: (() {
-        final value = json['isPrunable'];
-        if (value is! bool) {
-          throw FormatException('BirdCoderGitWorktreeSummary.isPrunable is required');
-        }
-        return value;
-      })(),
-      label: (() {
-        final value = json['label']?.toString();
-        if (value == null) {
-          throw FormatException('BirdCoderGitWorktreeSummary.label is required');
-        }
-        return value;
-      })(),
-      lockedReason: json['lockedReason']?.toString(),
       prunableReason: json['prunableReason']?.toString(),
-      path: (() {
-        final value = json['path']?.toString();
-        if (value == null) {
-          throw FormatException('BirdCoderGitWorktreeSummary.path is required');
-        }
-        return value;
-      })()
+      worktreeKey: json['worktreeKey']?.toString()
     );
   }
 
@@ -5205,15 +5602,9 @@ class BirdCoderGitWorktreeSummary {
     return <String, dynamic>{
       'branch': branch,
       'head': head,
-      'id': id,
       'isCurrent': isCurrent,
-      'isDetached': isDetached,
-      'isLocked': isLocked,
-      'isPrunable': isPrunable,
-      'label': label,
-      'lockedReason': lockedReason,
       'prunableReason': prunableReason,
-      'path': path,
+      'worktreeKey': worktreeKey,
     };
   }
 }
@@ -7010,6 +7401,118 @@ class BirdCoderModelCatalogEntryListEnvelope {
   }
 }
 
+class BirdCoderNativeSessionAttributes {
+  final int schemaVersion;
+  final String? sessionTreeId;
+  final String? parentSessionId;
+  final String? forkedFromSessionId;
+  final String? title;
+  final String? preview;
+  final String? source;
+  final String? providerVersion;
+  final String? modelProvider;
+  final String? projectId;
+  final String? gitBranch;
+  final String? gitCommit;
+  final String? gitRepositoryUrl;
+  final String? agentName;
+  final String? agentRole;
+  final bool isEphemeral;
+  final bool isSidechain;
+  final Map<String, dynamic> metadata;
+
+  BirdCoderNativeSessionAttributes({
+    required this.schemaVersion,
+    this.sessionTreeId,
+    this.parentSessionId,
+    this.forkedFromSessionId,
+    this.title,
+    this.preview,
+    this.source,
+    this.providerVersion,
+    this.modelProvider,
+    this.projectId,
+    this.gitBranch,
+    this.gitCommit,
+    this.gitRepositoryUrl,
+    this.agentName,
+    this.agentRole,
+    required this.isEphemeral,
+    required this.isSidechain,
+    required this.metadata
+  });
+
+  factory BirdCoderNativeSessionAttributes.fromJson(Map<String, dynamic> json) {
+    return BirdCoderNativeSessionAttributes(
+      schemaVersion: (() {
+        final value = json['schemaVersion'];
+        if (value is! int) {
+          throw FormatException('BirdCoderNativeSessionAttributes.schemaVersion is required');
+        }
+        return value;
+      })(),
+      sessionTreeId: json['sessionTreeId']?.toString(),
+      parentSessionId: json['parentSessionId']?.toString(),
+      forkedFromSessionId: json['forkedFromSessionId']?.toString(),
+      title: json['title']?.toString(),
+      preview: json['preview']?.toString(),
+      source: json['source']?.toString(),
+      providerVersion: json['providerVersion']?.toString(),
+      modelProvider: json['modelProvider']?.toString(),
+      projectId: json['projectId']?.toString(),
+      gitBranch: json['gitBranch']?.toString(),
+      gitCommit: json['gitCommit']?.toString(),
+      gitRepositoryUrl: json['gitRepositoryUrl']?.toString(),
+      agentName: json['agentName']?.toString(),
+      agentRole: json['agentRole']?.toString(),
+      isEphemeral: (() {
+        final value = json['isEphemeral'];
+        if (value is! bool) {
+          throw FormatException('BirdCoderNativeSessionAttributes.isEphemeral is required');
+        }
+        return value;
+      })(),
+      isSidechain: (() {
+        final value = json['isSidechain'];
+        if (value is! bool) {
+          throw FormatException('BirdCoderNativeSessionAttributes.isSidechain is required');
+        }
+        return value;
+      })(),
+      metadata: (() {
+        final map = _sdkworkAsMap(json['metadata']);
+        if (map == null) {
+          throw FormatException('BirdCoderNativeSessionAttributes.metadata is required');
+        }
+        return map;
+      })()
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return <String, dynamic>{
+      'schemaVersion': schemaVersion,
+      'sessionTreeId': sessionTreeId,
+      'parentSessionId': parentSessionId,
+      'forkedFromSessionId': forkedFromSessionId,
+      'title': title,
+      'preview': preview,
+      'source': source,
+      'providerVersion': providerVersion,
+      'modelProvider': modelProvider,
+      'projectId': projectId,
+      'gitBranch': gitBranch,
+      'gitCommit': gitCommit,
+      'gitRepositoryUrl': gitRepositoryUrl,
+      'agentName': agentName,
+      'agentRole': agentRole,
+      'isEphemeral': isEphemeral,
+      'isSidechain': isSidechain,
+      'metadata': metadata,
+    };
+  }
+}
+
 class BirdCoderNativeSessionCommand {
   final String command;
   final String status;
@@ -7418,37 +7921,39 @@ class BirdCoderNativeSessionSummary {
   final String id;
   final String workspaceId;
   final String projectId;
+  final String? runtimeLocationId;
   final String title;
   final String status;
   final String hostMode;
   final String engineId;
   final String? modelId;
   final String? nativeSessionId;
+  final BirdCoderNativeSessionAttributes? nativeAttributes;
   final String createdAt;
   final String updatedAt;
   final String? lastTurnAt;
   final String sortTimestamp;
   final String? transcriptUpdatedAt;
   final String kind;
-  final String? nativeCwd;
 
   BirdCoderNativeSessionSummary({
     required this.id,
     required this.workspaceId,
     required this.projectId,
+    this.runtimeLocationId,
     required this.title,
     required this.status,
     required this.hostMode,
     required this.engineId,
     this.modelId,
     this.nativeSessionId,
+    this.nativeAttributes,
     required this.createdAt,
     required this.updatedAt,
     this.lastTurnAt,
     required this.sortTimestamp,
     this.transcriptUpdatedAt,
-    required this.kind,
-    this.nativeCwd
+    required this.kind
   });
 
   factory BirdCoderNativeSessionSummary.fromJson(Map<String, dynamic> json) {
@@ -7474,6 +7979,7 @@ class BirdCoderNativeSessionSummary {
         }
         return value;
       })(),
+      runtimeLocationId: json['runtimeLocationId']?.toString(),
       title: (() {
         final value = json['title']?.toString();
         if (value == null) {
@@ -7504,6 +8010,10 @@ class BirdCoderNativeSessionSummary {
       })(),
       modelId: json['modelId']?.toString(),
       nativeSessionId: json['nativeSessionId']?.toString(),
+      nativeAttributes: (() {
+        final map = _sdkworkAsMap(json['nativeAttributes']);
+        return map == null ? null : BirdCoderNativeSessionAttributes.fromJson(map);
+      })(),
       createdAt: (() {
         final value = json['createdAt']?.toString();
         if (value == null) {
@@ -7533,8 +8043,7 @@ class BirdCoderNativeSessionSummary {
           throw FormatException('BirdCoderNativeSessionSummary.kind is required');
         }
         return value;
-      })(),
-      nativeCwd: json['nativeCwd']?.toString()
+      })()
     );
   }
 
@@ -7543,19 +8052,20 @@ class BirdCoderNativeSessionSummary {
       'id': id,
       'workspaceId': workspaceId,
       'projectId': projectId,
+      'runtimeLocationId': runtimeLocationId,
       'title': title,
       'status': status,
       'hostMode': hostMode,
       'engineId': engineId,
       'modelId': modelId,
       'nativeSessionId': nativeSessionId,
+      'nativeAttributes': nativeAttributes?.toJson(),
       'createdAt': createdAt,
       'updatedAt': updatedAt,
       'lastTurnAt': lastTurnAt,
       'sortTimestamp': sortTimestamp,
       'transcriptUpdatedAt': transcriptUpdatedAt,
       'kind': kind,
-      'nativeCwd': nativeCwd,
     };
   }
 }
@@ -8067,13 +8577,93 @@ class BirdCoderProjectDocumentSummaryListEnvelope {
   }
 }
 
+class BirdCoderProjectGitDiff {
+  final String patch;
+  final bool truncated;
+
+  BirdCoderProjectGitDiff({
+    required this.patch,
+    required this.truncated
+  });
+
+  factory BirdCoderProjectGitDiff.fromJson(Map<String, dynamic> json) {
+    return BirdCoderProjectGitDiff(
+      patch: (() {
+        final value = json['patch']?.toString();
+        if (value == null) {
+          throw FormatException('BirdCoderProjectGitDiff.patch is required');
+        }
+        return value;
+      })(),
+      truncated: (() {
+        final value = json['truncated'];
+        if (value is! bool) {
+          throw FormatException('BirdCoderProjectGitDiff.truncated is required');
+        }
+        return value;
+      })()
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return <String, dynamic>{
+      'patch': patch,
+      'truncated': truncated,
+    };
+  }
+}
+
+class BirdCoderProjectGitDiffEnvelope {
+  final int code;
+  final dynamic data;
+  final String traceId;
+
+  BirdCoderProjectGitDiffEnvelope({
+    required this.code,
+    required this.data,
+    required this.traceId
+  });
+
+  factory BirdCoderProjectGitDiffEnvelope.fromJson(Map<String, dynamic> json) {
+    return BirdCoderProjectGitDiffEnvelope(
+      code: (() {
+        final value = json['code'];
+        if (value is! int) {
+          throw FormatException('BirdCoderProjectGitDiffEnvelope.code is required');
+        }
+        return value;
+      })(),
+      data: (() {
+        final map = _sdkworkAsMap(json['data']);
+        if (map == null) {
+          throw FormatException('BirdCoderProjectGitDiffEnvelope.data is required');
+        }
+        return map;
+      })(),
+      traceId: (() {
+        final value = json['traceId']?.toString();
+        if (value == null) {
+          throw FormatException('BirdCoderProjectGitDiffEnvelope.traceId is required');
+        }
+        return value;
+      })()
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return <String, dynamic>{
+      'code': code,
+      'data': data,
+      'traceId': traceId,
+    };
+  }
+}
+
 class BirdCoderProjectGitOverview {
   final List<BirdCoderGitBranchSummary> branches;
   final String? currentBranch;
   final String? currentRevision;
-  final String? currentWorktreePath;
   final bool detachedHead;
-  final String? repositoryRootPath;
   final String status;
   final BirdCoderGitStatusCounts statusCounts;
   final List<BirdCoderGitWorktreeSummary> worktrees;
@@ -8082,9 +8672,7 @@ class BirdCoderProjectGitOverview {
     required this.branches,
     this.currentBranch,
     this.currentRevision,
-    this.currentWorktreePath,
     required this.detachedHead,
-    this.repositoryRootPath,
     required this.status,
     required this.statusCounts,
     required this.worktrees
@@ -8107,7 +8695,6 @@ class BirdCoderProjectGitOverview {
       })(),
       currentBranch: json['currentBranch']?.toString(),
       currentRevision: json['currentRevision']?.toString(),
-      currentWorktreePath: json['currentWorktreePath']?.toString(),
       detachedHead: (() {
         final value = json['detachedHead'];
         if (value is! bool) {
@@ -8115,7 +8702,6 @@ class BirdCoderProjectGitOverview {
         }
         return value;
       })(),
-      repositoryRootPath: json['repositoryRootPath']?.toString(),
       status: (() {
         final value = json['status']?.toString();
         if (value == null) {
@@ -8151,9 +8737,7 @@ class BirdCoderProjectGitOverview {
       'branches': branches.map((item) => item.toJson()).toList(),
       'currentBranch': currentBranch,
       'currentRevision': currentRevision,
-      'currentWorktreePath': currentWorktreePath,
       'detachedHead': detachedHead,
-      'repositoryRootPath': repositoryRootPath,
       'status': status,
       'statusCounts': statusCounts.toJson(),
       'worktrees': worktrees.map((item) => item.toJson()).toList(),
@@ -8299,6 +8883,590 @@ class BirdCoderProjectPublishResultEnvelope {
   }
 }
 
+class BirdCoderProjectRuntimeLocation {
+  final String id;
+  final String? uuid;
+  final String projectId;
+  final String runtimeTargetId;
+  final String runtimeTargetKind;
+  final String locationKind;
+  final String pathFlavor;
+  final String rootLocator;
+  final String displayName;
+  final bool hasAbsolutePath;
+  final bool terminalAvailable;
+  final bool gitAvailable;
+  final bool buildAvailable;
+  final bool fileSystemAvailable;
+  final String healthStatus;
+  final String? lastVerifiedAt;
+  final String? lastSeenAt;
+  final String? gitRepositoryUrl;
+  final String? gitRemoteName;
+  final String? gitBranch;
+  final String? gitCommit;
+  final String? gitWorktreeKey;
+  final String version;
+  final String createdAt;
+  final String updatedAt;
+
+  BirdCoderProjectRuntimeLocation({
+    required this.id,
+    this.uuid,
+    required this.projectId,
+    required this.runtimeTargetId,
+    required this.runtimeTargetKind,
+    required this.locationKind,
+    required this.pathFlavor,
+    required this.rootLocator,
+    required this.displayName,
+    required this.hasAbsolutePath,
+    required this.terminalAvailable,
+    required this.gitAvailable,
+    required this.buildAvailable,
+    required this.fileSystemAvailable,
+    required this.healthStatus,
+    this.lastVerifiedAt,
+    this.lastSeenAt,
+    this.gitRepositoryUrl,
+    this.gitRemoteName,
+    this.gitBranch,
+    this.gitCommit,
+    this.gitWorktreeKey,
+    required this.version,
+    required this.createdAt,
+    required this.updatedAt
+  });
+
+  factory BirdCoderProjectRuntimeLocation.fromJson(Map<String, dynamic> json) {
+    return BirdCoderProjectRuntimeLocation(
+      id: (() {
+        final value = json['id']?.toString();
+        if (value == null) {
+          throw FormatException('BirdCoderProjectRuntimeLocation.id is required');
+        }
+        return value;
+      })(),
+      uuid: json['uuid']?.toString(),
+      projectId: (() {
+        final value = json['projectId']?.toString();
+        if (value == null) {
+          throw FormatException('BirdCoderProjectRuntimeLocation.projectId is required');
+        }
+        return value;
+      })(),
+      runtimeTargetId: (() {
+        final value = json['runtimeTargetId']?.toString();
+        if (value == null) {
+          throw FormatException('BirdCoderProjectRuntimeLocation.runtimeTargetId is required');
+        }
+        return value;
+      })(),
+      runtimeTargetKind: (() {
+        final value = json['runtimeTargetKind']?.toString();
+        if (value == null) {
+          throw FormatException('BirdCoderProjectRuntimeLocation.runtimeTargetKind is required');
+        }
+        return value;
+      })(),
+      locationKind: (() {
+        final value = json['locationKind']?.toString();
+        if (value == null) {
+          throw FormatException('BirdCoderProjectRuntimeLocation.locationKind is required');
+        }
+        return value;
+      })(),
+      pathFlavor: (() {
+        final value = json['pathFlavor']?.toString();
+        if (value == null) {
+          throw FormatException('BirdCoderProjectRuntimeLocation.pathFlavor is required');
+        }
+        return value;
+      })(),
+      rootLocator: (() {
+        final value = json['rootLocator']?.toString();
+        if (value == null) {
+          throw FormatException('BirdCoderProjectRuntimeLocation.rootLocator is required');
+        }
+        return value;
+      })(),
+      displayName: (() {
+        final value = json['displayName']?.toString();
+        if (value == null) {
+          throw FormatException('BirdCoderProjectRuntimeLocation.displayName is required');
+        }
+        return value;
+      })(),
+      hasAbsolutePath: (() {
+        final value = json['hasAbsolutePath'];
+        if (value is! bool) {
+          throw FormatException('BirdCoderProjectRuntimeLocation.hasAbsolutePath is required');
+        }
+        return value;
+      })(),
+      terminalAvailable: (() {
+        final value = json['terminalAvailable'];
+        if (value is! bool) {
+          throw FormatException('BirdCoderProjectRuntimeLocation.terminalAvailable is required');
+        }
+        return value;
+      })(),
+      gitAvailable: (() {
+        final value = json['gitAvailable'];
+        if (value is! bool) {
+          throw FormatException('BirdCoderProjectRuntimeLocation.gitAvailable is required');
+        }
+        return value;
+      })(),
+      buildAvailable: (() {
+        final value = json['buildAvailable'];
+        if (value is! bool) {
+          throw FormatException('BirdCoderProjectRuntimeLocation.buildAvailable is required');
+        }
+        return value;
+      })(),
+      fileSystemAvailable: (() {
+        final value = json['fileSystemAvailable'];
+        if (value is! bool) {
+          throw FormatException('BirdCoderProjectRuntimeLocation.fileSystemAvailable is required');
+        }
+        return value;
+      })(),
+      healthStatus: (() {
+        final value = json['healthStatus']?.toString();
+        if (value == null) {
+          throw FormatException('BirdCoderProjectRuntimeLocation.healthStatus is required');
+        }
+        return value;
+      })(),
+      lastVerifiedAt: json['lastVerifiedAt']?.toString(),
+      lastSeenAt: json['lastSeenAt']?.toString(),
+      gitRepositoryUrl: json['gitRepositoryUrl']?.toString(),
+      gitRemoteName: json['gitRemoteName']?.toString(),
+      gitBranch: json['gitBranch']?.toString(),
+      gitCommit: json['gitCommit']?.toString(),
+      gitWorktreeKey: json['gitWorktreeKey']?.toString(),
+      version: (() {
+        final value = json['version']?.toString();
+        if (value == null) {
+          throw FormatException('BirdCoderProjectRuntimeLocation.version is required');
+        }
+        return value;
+      })(),
+      createdAt: (() {
+        final value = json['createdAt']?.toString();
+        if (value == null) {
+          throw FormatException('BirdCoderProjectRuntimeLocation.createdAt is required');
+        }
+        return value;
+      })(),
+      updatedAt: (() {
+        final value = json['updatedAt']?.toString();
+        if (value == null) {
+          throw FormatException('BirdCoderProjectRuntimeLocation.updatedAt is required');
+        }
+        return value;
+      })()
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return <String, dynamic>{
+      'id': id,
+      'uuid': uuid,
+      'projectId': projectId,
+      'runtimeTargetId': runtimeTargetId,
+      'runtimeTargetKind': runtimeTargetKind,
+      'locationKind': locationKind,
+      'pathFlavor': pathFlavor,
+      'rootLocator': rootLocator,
+      'displayName': displayName,
+      'hasAbsolutePath': hasAbsolutePath,
+      'terminalAvailable': terminalAvailable,
+      'gitAvailable': gitAvailable,
+      'buildAvailable': buildAvailable,
+      'fileSystemAvailable': fileSystemAvailable,
+      'healthStatus': healthStatus,
+      'lastVerifiedAt': lastVerifiedAt,
+      'lastSeenAt': lastSeenAt,
+      'gitRepositoryUrl': gitRepositoryUrl,
+      'gitRemoteName': gitRemoteName,
+      'gitBranch': gitBranch,
+      'gitCommit': gitCommit,
+      'gitWorktreeKey': gitWorktreeKey,
+      'version': version,
+      'createdAt': createdAt,
+      'updatedAt': updatedAt,
+    };
+  }
+}
+
+class BirdCoderProjectRuntimeLocationCommandAccepted {
+  final bool accepted;
+  final String resourceId;
+  final String status;
+
+  BirdCoderProjectRuntimeLocationCommandAccepted({
+    required this.accepted,
+    required this.resourceId,
+    required this.status
+  });
+
+  factory BirdCoderProjectRuntimeLocationCommandAccepted.fromJson(Map<String, dynamic> json) {
+    return BirdCoderProjectRuntimeLocationCommandAccepted(
+      accepted: (() {
+        final value = json['accepted'];
+        if (value is! bool) {
+          throw FormatException('BirdCoderProjectRuntimeLocationCommandAccepted.accepted is required');
+        }
+        return value;
+      })(),
+      resourceId: (() {
+        final value = json['resourceId']?.toString();
+        if (value == null) {
+          throw FormatException('BirdCoderProjectRuntimeLocationCommandAccepted.resourceId is required');
+        }
+        return value;
+      })(),
+      status: (() {
+        final value = json['status']?.toString();
+        if (value == null) {
+          throw FormatException('BirdCoderProjectRuntimeLocationCommandAccepted.status is required');
+        }
+        return value;
+      })()
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return <String, dynamic>{
+      'accepted': accepted,
+      'resourceId': resourceId,
+      'status': status,
+    };
+  }
+}
+
+class BirdCoderProjectRuntimeLocationCommandEnvelope {
+  final int code;
+  final dynamic data;
+  final String traceId;
+
+  BirdCoderProjectRuntimeLocationCommandEnvelope({
+    required this.code,
+    required this.data,
+    required this.traceId
+  });
+
+  factory BirdCoderProjectRuntimeLocationCommandEnvelope.fromJson(Map<String, dynamic> json) {
+    return BirdCoderProjectRuntimeLocationCommandEnvelope(
+      code: (() {
+        final value = json['code'];
+        if (value is! int) {
+          throw FormatException('BirdCoderProjectRuntimeLocationCommandEnvelope.code is required');
+        }
+        return value;
+      })(),
+      data: json['data'],
+      traceId: (() {
+        final value = json['traceId']?.toString();
+        if (value == null) {
+          throw FormatException('BirdCoderProjectRuntimeLocationCommandEnvelope.traceId is required');
+        }
+        return value;
+      })()
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return <String, dynamic>{
+      'code': code,
+      'data': data,
+      'traceId': traceId,
+    };
+  }
+}
+
+class BirdCoderProjectRuntimeLocationEnvelope {
+  final int code;
+  final dynamic data;
+  final String traceId;
+
+  BirdCoderProjectRuntimeLocationEnvelope({
+    required this.code,
+    required this.data,
+    required this.traceId
+  });
+
+  factory BirdCoderProjectRuntimeLocationEnvelope.fromJson(Map<String, dynamic> json) {
+    return BirdCoderProjectRuntimeLocationEnvelope(
+      code: (() {
+        final value = json['code'];
+        if (value is! int) {
+          throw FormatException('BirdCoderProjectRuntimeLocationEnvelope.code is required');
+        }
+        return value;
+      })(),
+      data: (() {
+        final map = _sdkworkAsMap(json['data']);
+        if (map == null) {
+          throw FormatException('BirdCoderProjectRuntimeLocationEnvelope.data is required');
+        }
+        return map;
+      })(),
+      traceId: (() {
+        final value = json['traceId']?.toString();
+        if (value == null) {
+          throw FormatException('BirdCoderProjectRuntimeLocationEnvelope.traceId is required');
+        }
+        return value;
+      })()
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return <String, dynamic>{
+      'code': code,
+      'data': data,
+      'traceId': traceId,
+    };
+  }
+}
+
+class BirdCoderProjectRuntimeLocationListEnvelope {
+  final int code;
+  final dynamic data;
+  final String traceId;
+
+  BirdCoderProjectRuntimeLocationListEnvelope({
+    required this.code,
+    required this.data,
+    required this.traceId
+  });
+
+  factory BirdCoderProjectRuntimeLocationListEnvelope.fromJson(Map<String, dynamic> json) {
+    return BirdCoderProjectRuntimeLocationListEnvelope(
+      code: (() {
+        final value = json['code'];
+        if (value is! int) {
+          throw FormatException('BirdCoderProjectRuntimeLocationListEnvelope.code is required');
+        }
+        return value;
+      })(),
+      data: (() {
+        final map = _sdkworkAsMap(json['data']);
+        if (map == null) {
+          throw FormatException('BirdCoderProjectRuntimeLocationListEnvelope.data is required');
+        }
+        return map;
+      })(),
+      traceId: (() {
+        final value = json['traceId']?.toString();
+        if (value == null) {
+          throw FormatException('BirdCoderProjectRuntimeLocationListEnvelope.traceId is required');
+        }
+        return value;
+      })()
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return <String, dynamic>{
+      'code': code,
+      'data': data,
+      'traceId': traceId,
+    };
+  }
+}
+
+class BirdCoderProjectRuntimeLocationPreference {
+  final String id;
+  final String projectId;
+  final String subjectUserId;
+  final String capability;
+  final String runtimeLocationId;
+  final String version;
+  final String createdAt;
+  final String updatedAt;
+
+  BirdCoderProjectRuntimeLocationPreference({
+    required this.id,
+    required this.projectId,
+    required this.subjectUserId,
+    required this.capability,
+    required this.runtimeLocationId,
+    required this.version,
+    required this.createdAt,
+    required this.updatedAt
+  });
+
+  factory BirdCoderProjectRuntimeLocationPreference.fromJson(Map<String, dynamic> json) {
+    return BirdCoderProjectRuntimeLocationPreference(
+      id: (() {
+        final value = json['id']?.toString();
+        if (value == null) {
+          throw FormatException('BirdCoderProjectRuntimeLocationPreference.id is required');
+        }
+        return value;
+      })(),
+      projectId: (() {
+        final value = json['projectId']?.toString();
+        if (value == null) {
+          throw FormatException('BirdCoderProjectRuntimeLocationPreference.projectId is required');
+        }
+        return value;
+      })(),
+      subjectUserId: (() {
+        final value = json['subjectUserId']?.toString();
+        if (value == null) {
+          throw FormatException('BirdCoderProjectRuntimeLocationPreference.subjectUserId is required');
+        }
+        return value;
+      })(),
+      capability: (() {
+        final value = json['capability']?.toString();
+        if (value == null) {
+          throw FormatException('BirdCoderProjectRuntimeLocationPreference.capability is required');
+        }
+        return value;
+      })(),
+      runtimeLocationId: (() {
+        final value = json['runtimeLocationId']?.toString();
+        if (value == null) {
+          throw FormatException('BirdCoderProjectRuntimeLocationPreference.runtimeLocationId is required');
+        }
+        return value;
+      })(),
+      version: (() {
+        final value = json['version']?.toString();
+        if (value == null) {
+          throw FormatException('BirdCoderProjectRuntimeLocationPreference.version is required');
+        }
+        return value;
+      })(),
+      createdAt: (() {
+        final value = json['createdAt']?.toString();
+        if (value == null) {
+          throw FormatException('BirdCoderProjectRuntimeLocationPreference.createdAt is required');
+        }
+        return value;
+      })(),
+      updatedAt: (() {
+        final value = json['updatedAt']?.toString();
+        if (value == null) {
+          throw FormatException('BirdCoderProjectRuntimeLocationPreference.updatedAt is required');
+        }
+        return value;
+      })()
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return <String, dynamic>{
+      'id': id,
+      'projectId': projectId,
+      'subjectUserId': subjectUserId,
+      'capability': capability,
+      'runtimeLocationId': runtimeLocationId,
+      'version': version,
+      'createdAt': createdAt,
+      'updatedAt': updatedAt,
+    };
+  }
+}
+
+class BirdCoderProjectRuntimeLocationPreferenceEnvelope {
+  final int code;
+  final dynamic data;
+  final String traceId;
+
+  BirdCoderProjectRuntimeLocationPreferenceEnvelope({
+    required this.code,
+    required this.data,
+    required this.traceId
+  });
+
+  factory BirdCoderProjectRuntimeLocationPreferenceEnvelope.fromJson(Map<String, dynamic> json) {
+    return BirdCoderProjectRuntimeLocationPreferenceEnvelope(
+      code: (() {
+        final value = json['code'];
+        if (value is! int) {
+          throw FormatException('BirdCoderProjectRuntimeLocationPreferenceEnvelope.code is required');
+        }
+        return value;
+      })(),
+      data: (() {
+        final map = _sdkworkAsMap(json['data']);
+        if (map == null) {
+          throw FormatException('BirdCoderProjectRuntimeLocationPreferenceEnvelope.data is required');
+        }
+        return map;
+      })(),
+      traceId: (() {
+        final value = json['traceId']?.toString();
+        if (value == null) {
+          throw FormatException('BirdCoderProjectRuntimeLocationPreferenceEnvelope.traceId is required');
+        }
+        return value;
+      })()
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return <String, dynamic>{
+      'code': code,
+      'data': data,
+      'traceId': traceId,
+    };
+  }
+}
+
+class BirdCoderProjectRuntimeLocationPreferenceListEnvelope {
+  final int code;
+  final dynamic data;
+  final String traceId;
+
+  BirdCoderProjectRuntimeLocationPreferenceListEnvelope({
+    required this.code,
+    required this.data,
+    required this.traceId
+  });
+
+  factory BirdCoderProjectRuntimeLocationPreferenceListEnvelope.fromJson(Map<String, dynamic> json) {
+    return BirdCoderProjectRuntimeLocationPreferenceListEnvelope(
+      code: (() {
+        final value = json['code'];
+        if (value is! int) {
+          throw FormatException('BirdCoderProjectRuntimeLocationPreferenceListEnvelope.code is required');
+        }
+        return value;
+      })(),
+      data: (() {
+        final map = _sdkworkAsMap(json['data']);
+        if (map == null) {
+          throw FormatException('BirdCoderProjectRuntimeLocationPreferenceListEnvelope.data is required');
+        }
+        return map;
+      })(),
+      traceId: (() {
+        final value = json['traceId']?.toString();
+        if (value == null) {
+          throw FormatException('BirdCoderProjectRuntimeLocationPreferenceListEnvelope.traceId is required');
+        }
+        return value;
+      })()
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return <String, dynamic>{
+      'code': code,
+      'data': data,
+      'traceId': traceId,
+    };
+  }
+}
+
 class BirdCoderProjectSummary {
   final String createdAt;
   final String id;
@@ -8316,8 +9484,6 @@ class BirdCoderProjectSummary {
   final String? title;
   final String name;
   final String? description;
-  final String? rootPath;
-  final String? sitePath;
   final String? domainPrefix;
   final String? ownerId;
   final String? leaderId;
@@ -8353,8 +9519,6 @@ class BirdCoderProjectSummary {
     this.title,
     required this.name,
     this.description,
-    this.rootPath,
-    this.sitePath,
     this.domainPrefix,
     this.ownerId,
     this.leaderId,
@@ -8416,8 +9580,6 @@ class BirdCoderProjectSummary {
         return value;
       })(),
       description: json['description']?.toString(),
-      rootPath: json['rootPath']?.toString(),
-      sitePath: json['sitePath']?.toString(),
       domainPrefix: json['domainPrefix']?.toString(),
       ownerId: json['ownerId']?.toString(),
       leaderId: json['leaderId']?.toString(),
@@ -8468,8 +9630,6 @@ class BirdCoderProjectSummary {
       'title': title,
       'name': name,
       'description': description,
-      'rootPath': rootPath,
-      'sitePath': sitePath,
       'domainPrefix': domainPrefix,
       'ownerId': ownerId,
       'leaderId': leaderId,
@@ -8583,6 +9743,184 @@ class BirdCoderProjectSummaryListEnvelope {
   }
 }
 
+class BirdCoderProjectWorkspaceBinding {
+  final String id;
+  final String projectId;
+  final String sandboxId;
+  final String rootEntryId;
+  final String logicalPath;
+  final String lifecycleStatus;
+  final String version;
+  final String createdAt;
+  final String updatedAt;
+
+  BirdCoderProjectWorkspaceBinding({
+    required this.id,
+    required this.projectId,
+    required this.sandboxId,
+    required this.rootEntryId,
+    required this.logicalPath,
+    required this.lifecycleStatus,
+    required this.version,
+    required this.createdAt,
+    required this.updatedAt
+  });
+
+  factory BirdCoderProjectWorkspaceBinding.fromJson(Map<String, dynamic> json) {
+    return BirdCoderProjectWorkspaceBinding(
+      id: (() {
+        final value = json['id']?.toString();
+        if (value == null) {
+          throw FormatException('BirdCoderProjectWorkspaceBinding.id is required');
+        }
+        return value;
+      })(),
+      projectId: (() {
+        final value = json['projectId']?.toString();
+        if (value == null) {
+          throw FormatException('BirdCoderProjectWorkspaceBinding.projectId is required');
+        }
+        return value;
+      })(),
+      sandboxId: (() {
+        final value = json['sandboxId']?.toString();
+        if (value == null) {
+          throw FormatException('BirdCoderProjectWorkspaceBinding.sandboxId is required');
+        }
+        return value;
+      })(),
+      rootEntryId: (() {
+        final value = json['rootEntryId']?.toString();
+        if (value == null) {
+          throw FormatException('BirdCoderProjectWorkspaceBinding.rootEntryId is required');
+        }
+        return value;
+      })(),
+      logicalPath: (() {
+        final value = json['logicalPath']?.toString();
+        if (value == null) {
+          throw FormatException('BirdCoderProjectWorkspaceBinding.logicalPath is required');
+        }
+        return value;
+      })(),
+      lifecycleStatus: (() {
+        final value = json['lifecycleStatus']?.toString();
+        if (value == null) {
+          throw FormatException('BirdCoderProjectWorkspaceBinding.lifecycleStatus is required');
+        }
+        return value;
+      })(),
+      version: (() {
+        final value = json['version']?.toString();
+        if (value == null) {
+          throw FormatException('BirdCoderProjectWorkspaceBinding.version is required');
+        }
+        return value;
+      })(),
+      createdAt: (() {
+        final value = json['createdAt']?.toString();
+        if (value == null) {
+          throw FormatException('BirdCoderProjectWorkspaceBinding.createdAt is required');
+        }
+        return value;
+      })(),
+      updatedAt: (() {
+        final value = json['updatedAt']?.toString();
+        if (value == null) {
+          throw FormatException('BirdCoderProjectWorkspaceBinding.updatedAt is required');
+        }
+        return value;
+      })()
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return <String, dynamic>{
+      'id': id,
+      'projectId': projectId,
+      'sandboxId': sandboxId,
+      'rootEntryId': rootEntryId,
+      'logicalPath': logicalPath,
+      'lifecycleStatus': lifecycleStatus,
+      'version': version,
+      'createdAt': createdAt,
+      'updatedAt': updatedAt,
+    };
+  }
+}
+
+class BirdCoderProjectWorkspaceBindingEnvelope {
+  final int code;
+  final dynamic data;
+  final String traceId;
+
+  BirdCoderProjectWorkspaceBindingEnvelope({
+    required this.code,
+    required this.data,
+    required this.traceId
+  });
+
+  factory BirdCoderProjectWorkspaceBindingEnvelope.fromJson(Map<String, dynamic> json) {
+    return BirdCoderProjectWorkspaceBindingEnvelope(
+      code: (() {
+        final value = json['code'];
+        if (value is! int) {
+          throw FormatException('BirdCoderProjectWorkspaceBindingEnvelope.code is required');
+        }
+        return value;
+      })(),
+      data: (() {
+        final map = _sdkworkAsMap(json['data']);
+        if (map == null) {
+          throw FormatException('BirdCoderProjectWorkspaceBindingEnvelope.data is required');
+        }
+        return map;
+      })(),
+      traceId: (() {
+        final value = json['traceId']?.toString();
+        if (value == null) {
+          throw FormatException('BirdCoderProjectWorkspaceBindingEnvelope.traceId is required');
+        }
+        return value;
+      })()
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return <String, dynamic>{
+      'code': code,
+      'data': data,
+      'traceId': traceId,
+    };
+  }
+}
+
+class BirdCoderPruneProjectGitWorktreesRequest {
+  final String runtimeLocationId;
+
+  BirdCoderPruneProjectGitWorktreesRequest({
+    required this.runtimeLocationId
+  });
+
+  factory BirdCoderPruneProjectGitWorktreesRequest.fromJson(Map<String, dynamic> json) {
+    return BirdCoderPruneProjectGitWorktreesRequest(
+      runtimeLocationId: (() {
+        final value = json['runtimeLocationId']?.toString();
+        if (value == null) {
+          throw FormatException('BirdCoderPruneProjectGitWorktreesRequest.runtimeLocationId is required');
+        }
+        return value;
+      })()
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return <String, dynamic>{
+      'runtimeLocationId': runtimeLocationId,
+    };
+  }
+}
+
 class BirdCoderPublishProjectRequest {
   final String? endpointUrl;
   final String? environmentKey;
@@ -8632,16 +9970,25 @@ class BirdCoderPublishProjectRequest {
 }
 
 class BirdCoderPushProjectGitBranchRequest {
+  final String runtimeLocationId;
   final String? branchName;
   final String? remoteName;
 
   BirdCoderPushProjectGitBranchRequest({
+    required this.runtimeLocationId,
     this.branchName,
     this.remoteName
   });
 
   factory BirdCoderPushProjectGitBranchRequest.fromJson(Map<String, dynamic> json) {
     return BirdCoderPushProjectGitBranchRequest(
+      runtimeLocationId: (() {
+        final value = json['runtimeLocationId']?.toString();
+        if (value == null) {
+          throw FormatException('BirdCoderPushProjectGitBranchRequest.runtimeLocationId is required');
+        }
+        return value;
+      })(),
       branchName: json['branchName']?.toString(),
       remoteName: json['remoteName']?.toString()
     );
@@ -8649,8 +9996,59 @@ class BirdCoderPushProjectGitBranchRequest {
 
   Map<String, dynamic> toJson() {
     return <String, dynamic>{
+      'runtimeLocationId': runtimeLocationId,
       'branchName': branchName,
       'remoteName': remoteName,
+    };
+  }
+}
+
+class BirdCoderRebindProjectRuntimeLocationRequest {
+  final String pathFlavor;
+  final String rootLocator;
+  final String absolutePath;
+  final String? displayName;
+
+  BirdCoderRebindProjectRuntimeLocationRequest({
+    required this.pathFlavor,
+    required this.rootLocator,
+    required this.absolutePath,
+    this.displayName
+  });
+
+  factory BirdCoderRebindProjectRuntimeLocationRequest.fromJson(Map<String, dynamic> json) {
+    return BirdCoderRebindProjectRuntimeLocationRequest(
+      pathFlavor: (() {
+        final value = json['pathFlavor']?.toString();
+        if (value == null) {
+          throw FormatException('BirdCoderRebindProjectRuntimeLocationRequest.pathFlavor is required');
+        }
+        return value;
+      })(),
+      rootLocator: (() {
+        final value = json['rootLocator']?.toString();
+        if (value == null) {
+          throw FormatException('BirdCoderRebindProjectRuntimeLocationRequest.rootLocator is required');
+        }
+        return value;
+      })(),
+      absolutePath: (() {
+        final value = json['absolutePath']?.toString();
+        if (value == null) {
+          throw FormatException('BirdCoderRebindProjectRuntimeLocationRequest.absolutePath is required');
+        }
+        return value;
+      })(),
+      displayName: json['displayName']?.toString()
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return <String, dynamic>{
+      'pathFlavor': pathFlavor,
+      'rootLocator': rootLocator,
+      'absolutePath': absolutePath,
+      'displayName': displayName,
     };
   }
 }
@@ -8746,21 +10144,30 @@ class BirdCoderReleaseSummary {
 }
 
 class BirdCoderRemoveProjectGitWorktreeRequest {
+  final String runtimeLocationId;
   final bool? force;
-  final String path;
+  final String worktreeKey;
 
   BirdCoderRemoveProjectGitWorktreeRequest({
+    required this.runtimeLocationId,
     this.force,
-    required this.path
+    required this.worktreeKey
   });
 
   factory BirdCoderRemoveProjectGitWorktreeRequest.fromJson(Map<String, dynamic> json) {
     return BirdCoderRemoveProjectGitWorktreeRequest(
-      force: json['force'] is bool ? json['force'] : null,
-      path: (() {
-        final value = json['path']?.toString();
+      runtimeLocationId: (() {
+        final value = json['runtimeLocationId']?.toString();
         if (value == null) {
-          throw FormatException('BirdCoderRemoveProjectGitWorktreeRequest.path is required');
+          throw FormatException('BirdCoderRemoveProjectGitWorktreeRequest.runtimeLocationId is required');
+        }
+        return value;
+      })(),
+      force: json['force'] is bool ? json['force'] : null,
+      worktreeKey: (() {
+        final value = json['worktreeKey']?.toString();
+        if (value == null) {
+          throw FormatException('BirdCoderRemoveProjectGitWorktreeRequest.worktreeKey is required');
         }
         return value;
       })()
@@ -8769,8 +10176,35 @@ class BirdCoderRemoveProjectGitWorktreeRequest {
 
   Map<String, dynamic> toJson() {
     return <String, dynamic>{
+      'runtimeLocationId': runtimeLocationId,
       'force': force,
-      'path': path,
+      'worktreeKey': worktreeKey,
+    };
+  }
+}
+
+class BirdCoderSetProjectRuntimeLocationPreferenceRequest {
+  final String runtimeLocationId;
+
+  BirdCoderSetProjectRuntimeLocationPreferenceRequest({
+    required this.runtimeLocationId
+  });
+
+  factory BirdCoderSetProjectRuntimeLocationPreferenceRequest.fromJson(Map<String, dynamic> json) {
+    return BirdCoderSetProjectRuntimeLocationPreferenceRequest(
+      runtimeLocationId: (() {
+        final value = json['runtimeLocationId']?.toString();
+        if (value == null) {
+          throw FormatException('BirdCoderSetProjectRuntimeLocationPreferenceRequest.runtimeLocationId is required');
+        }
+        return value;
+      })()
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return <String, dynamic>{
+      'runtimeLocationId': runtimeLocationId,
     };
   }
 }
@@ -9332,14 +10766,23 @@ class BirdCoderSubmitUserQuestionAnswerRequest {
 }
 
 class BirdCoderSwitchProjectGitBranchRequest {
+  final String runtimeLocationId;
   final String branchName;
 
   BirdCoderSwitchProjectGitBranchRequest({
+    required this.runtimeLocationId,
     required this.branchName
   });
 
   factory BirdCoderSwitchProjectGitBranchRequest.fromJson(Map<String, dynamic> json) {
     return BirdCoderSwitchProjectGitBranchRequest(
+      runtimeLocationId: (() {
+        final value = json['runtimeLocationId']?.toString();
+        if (value == null) {
+          throw FormatException('BirdCoderSwitchProjectGitBranchRequest.runtimeLocationId is required');
+        }
+        return value;
+      })(),
       branchName: (() {
         final value = json['branchName']?.toString();
         if (value == null) {
@@ -9352,6 +10795,7 @@ class BirdCoderSwitchProjectGitBranchRequest {
 
   Map<String, dynamic> toJson() {
     return <String, dynamic>{
+      'runtimeLocationId': runtimeLocationId,
       'branchName': branchName,
     };
   }
@@ -9603,85 +11047,19 @@ class BirdCoderUpdateCurrentUserProfileRequest {
 
 class BirdCoderUpdateProjectRequest {
   final String? description;
-  final String? dataScope;
-  final String? userId;
-  final String? parentId;
-  final String? parentUuid;
-  final Map<String, dynamic>? parentMetadata;
-  final String? code;
-  final String? title;
   final String? name;
-  final String? ownerId;
-  final String? leaderId;
-  final String? createdByUserId;
-  final String? author;
-  final String? type;
-  final String? rootPath;
-  final String? sitePath;
-  final String? domainPrefix;
-  final String? fileId;
-  final String? conversationId;
-  final String? startTime;
-  final String? endTime;
-  final String? budgetAmount;
-  final Map<String, dynamic>? coverImage;
-  final bool? isTemplate;
   final String? status;
 
   BirdCoderUpdateProjectRequest({
     this.description,
-    this.dataScope,
-    this.userId,
-    this.parentId,
-    this.parentUuid,
-    this.parentMetadata,
-    this.code,
-    this.title,
     this.name,
-    this.ownerId,
-    this.leaderId,
-    this.createdByUserId,
-    this.author,
-    this.type,
-    this.rootPath,
-    this.sitePath,
-    this.domainPrefix,
-    this.fileId,
-    this.conversationId,
-    this.startTime,
-    this.endTime,
-    this.budgetAmount,
-    this.coverImage,
-    this.isTemplate,
     this.status
   });
 
   factory BirdCoderUpdateProjectRequest.fromJson(Map<String, dynamic> json) {
     return BirdCoderUpdateProjectRequest(
       description: json['description']?.toString(),
-      dataScope: json['dataScope']?.toString(),
-      userId: json['userId']?.toString(),
-      parentId: json['parentId']?.toString(),
-      parentUuid: json['parentUuid']?.toString(),
-      parentMetadata: _sdkworkAsMap(json['parentMetadata']),
-      code: json['code']?.toString(),
-      title: json['title']?.toString(),
       name: json['name']?.toString(),
-      ownerId: json['ownerId']?.toString(),
-      leaderId: json['leaderId']?.toString(),
-      createdByUserId: json['createdByUserId']?.toString(),
-      author: json['author']?.toString(),
-      type: json['type']?.toString(),
-      rootPath: json['rootPath']?.toString(),
-      sitePath: json['sitePath']?.toString(),
-      domainPrefix: json['domainPrefix']?.toString(),
-      fileId: json['fileId']?.toString(),
-      conversationId: json['conversationId']?.toString(),
-      startTime: json['startTime']?.toString(),
-      endTime: json['endTime']?.toString(),
-      budgetAmount: json['budgetAmount']?.toString(),
-      coverImage: _sdkworkAsMap(json['coverImage']),
-      isTemplate: json['isTemplate'] is bool ? json['isTemplate'] : null,
       status: json['status']?.toString()
     );
   }
@@ -9689,30 +11067,28 @@ class BirdCoderUpdateProjectRequest {
   Map<String, dynamic> toJson() {
     return <String, dynamic>{
       'description': description,
-      'dataScope': dataScope,
-      'userId': userId,
-      'parentId': parentId,
-      'parentUuid': parentUuid,
-      'parentMetadata': parentMetadata,
-      'code': code,
-      'title': title,
       'name': name,
-      'ownerId': ownerId,
-      'leaderId': leaderId,
-      'createdByUserId': createdByUserId,
-      'author': author,
-      'type': type,
-      'rootPath': rootPath,
-      'sitePath': sitePath,
-      'domainPrefix': domainPrefix,
-      'fileId': fileId,
-      'conversationId': conversationId,
-      'startTime': startTime,
-      'endTime': endTime,
-      'budgetAmount': budgetAmount,
-      'coverImage': coverImage,
-      'isTemplate': isTemplate,
       'status': status,
+    };
+  }
+}
+
+class BirdCoderUpdateProjectRuntimeLocationRequest {
+  final String? displayName;
+
+  BirdCoderUpdateProjectRuntimeLocationRequest({
+    this.displayName
+  });
+
+  factory BirdCoderUpdateProjectRuntimeLocationRequest.fromJson(Map<String, dynamic> json) {
+    return BirdCoderUpdateProjectRuntimeLocationRequest(
+      displayName: json['displayName']?.toString()
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return <String, dynamic>{
+      'displayName': displayName,
     };
   }
 }
@@ -9822,45 +11198,81 @@ class BirdCoderUpdateWorkspaceRequest {
 }
 
 class BirdCoderUpsertProjectCollaboratorRequest {
-  final String? userId;
-  final String? email;
-  final String? teamId;
+  final String userId;
   final String? role;
   final String? status;
-  final String? createdByUserId;
-  final String? grantedByUserId;
 
   BirdCoderUpsertProjectCollaboratorRequest({
-    this.userId,
-    this.email,
-    this.teamId,
+    required this.userId,
     this.role,
-    this.status,
-    this.createdByUserId,
-    this.grantedByUserId
+    this.status
   });
 
   factory BirdCoderUpsertProjectCollaboratorRequest.fromJson(Map<String, dynamic> json) {
     return BirdCoderUpsertProjectCollaboratorRequest(
-      userId: json['userId']?.toString(),
-      email: json['email']?.toString(),
-      teamId: json['teamId']?.toString(),
+      userId: (() {
+        final value = json['userId']?.toString();
+        if (value == null) {
+          throw FormatException('BirdCoderUpsertProjectCollaboratorRequest.userId is required');
+        }
+        return value;
+      })(),
       role: json['role']?.toString(),
-      status: json['status']?.toString(),
-      createdByUserId: json['createdByUserId']?.toString(),
-      grantedByUserId: json['grantedByUserId']?.toString()
+      status: json['status']?.toString()
     );
   }
 
   Map<String, dynamic> toJson() {
     return <String, dynamic>{
       'userId': userId,
-      'email': email,
-      'teamId': teamId,
       'role': role,
       'status': status,
-      'createdByUserId': createdByUserId,
-      'grantedByUserId': grantedByUserId,
+    };
+  }
+}
+
+class BirdCoderUpsertProjectWorkspaceBindingRequest {
+  final String sandboxId;
+  final String rootEntryId;
+  final String logicalPath;
+
+  BirdCoderUpsertProjectWorkspaceBindingRequest({
+    required this.sandboxId,
+    required this.rootEntryId,
+    required this.logicalPath
+  });
+
+  factory BirdCoderUpsertProjectWorkspaceBindingRequest.fromJson(Map<String, dynamic> json) {
+    return BirdCoderUpsertProjectWorkspaceBindingRequest(
+      sandboxId: (() {
+        final value = json['sandboxId']?.toString();
+        if (value == null) {
+          throw FormatException('BirdCoderUpsertProjectWorkspaceBindingRequest.sandboxId is required');
+        }
+        return value;
+      })(),
+      rootEntryId: (() {
+        final value = json['rootEntryId']?.toString();
+        if (value == null) {
+          throw FormatException('BirdCoderUpsertProjectWorkspaceBindingRequest.rootEntryId is required');
+        }
+        return value;
+      })(),
+      logicalPath: (() {
+        final value = json['logicalPath']?.toString();
+        if (value == null) {
+          throw FormatException('BirdCoderUpsertProjectWorkspaceBindingRequest.logicalPath is required');
+        }
+        return value;
+      })()
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return <String, dynamic>{
+      'sandboxId': sandboxId,
+      'rootEntryId': rootEntryId,
+      'logicalPath': logicalPath,
     };
   }
 }

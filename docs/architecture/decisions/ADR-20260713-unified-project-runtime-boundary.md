@@ -1,6 +1,6 @@
 # ADR-20260713-unified-project-runtime-boundary
 
-Status: accepted
+Status: superseded by [ADR-20260716: Distributed project runtime locations](ADR-20260716-distributed-project-runtime-locations.md)
 Owner: SDKWork maintainers
 Date: 2026-07-13
 Specs: `ARCHITECTURE_DECISION_SPEC.md`, `APP_PC_ARCHITECTURE_SPEC.md`, `API_SPEC.md`, `SECURITY_SPEC.md`, `DEPLOYMENT_SPEC.md`, `RUNTIME_DIRECTORY_SPEC.md`
@@ -87,4 +87,5 @@ strongly isolated runner and deployment executor have evidence.
 
 ## Supersedes / Superseded By
 
-Supersedes undocumented path-carrying project behavior. No successor.
+Supersedes undocumented path-carrying project behavior. Superseded by
+[ADR-20260716: Distributed project runtime locations](ADR-20260716-distributed-project-runtime-locations.md).

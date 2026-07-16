@@ -142,4 +142,68 @@ assert.equal(
   'When the local home model config is newer, startup sync must push local to server without rewriting the local model choice.',
 );
 
+const legacyCustomModelConfig = {
+  ...buildDefaultBirdCoderCodeEngineModelConfig({
+    source: 'home-file',
+    updatedAt: '2026-05-02T00:00:00.000Z',
+    version: 'v4',
+  }),
+  engines: {
+    ...buildDefaultBirdCoderCodeEngineModelConfig({
+      source: 'home-file',
+      updatedAt: '2026-05-02T00:00:00.000Z',
+      version: 'v4',
+    }).engines,
+    gemini: {
+      engineId: 'gemini',
+      defaultModelId: 'gemini-custom',
+      selectedModelId: 'gemini-custom',
+      customModels: [{ id: 'gemini-custom', label: 'Legacy custom Gemini model' }],
+      models: [],
+    },
+  },
+};
+await writeUserHomeTextFile(
+  BIRDCODER_CODE_ENGINE_MODEL_CONFIG_HOME_RELATIVE_PATH,
+  serializeStoredValue(legacyCustomModelConfig),
+);
+
+let sanitizedSyncRequest: BirdCoderSyncCodeEngineModelConfigRequest | null = null;
+const legacyCustomModelSyncResult = await syncWorkbenchCodeEngineModelConfig({
+  appRuntimeReadService: {
+    async getModelConfig() {
+      return buildDefaultBirdCoderCodeEngineModelConfig({
+        source: 'server',
+        updatedAt: '2026-05-02T00:00:00.000Z',
+        version: 'v4',
+      });
+    },
+  },
+  appRuntimeWriteService: {
+    async syncModelConfig(request) {
+      sanitizedSyncRequest = request;
+      return createBirdCoderCodeEngineModelConfigSyncPlan({
+        localConfig: request.localConfig,
+        serverConfig: buildDefaultBirdCoderCodeEngineModelConfig({
+          source: 'server',
+          updatedAt: '2026-05-02T00:00:00.000Z',
+          version: 'v4',
+        }),
+      });
+    },
+  },
+});
+assert.equal(legacyCustomModelSyncResult.action, 'noop');
+assert.equal(sanitizedSyncRequest?.localConfig.engines.gemini.selectedModelId, 'auto-gemini-3');
+assert.equal(
+  'customModels' in (sanitizedSyncRequest?.localConfig.engines.gemini ?? {}),
+  false,
+  'Legacy custom models must be removed before a home-file configuration is sent to the server.',
+);
+assert.equal(
+  'customModels' in ((await readStoredModelConfig())?.engines.gemini ?? {}),
+  false,
+  'Reading a legacy home-file configuration must rewrite it without unsupported custom model records.',
+);
+
 console.log('workbench model config sync contract passed.');

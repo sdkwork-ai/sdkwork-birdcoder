@@ -285,6 +285,7 @@ export const BIRDCODER_CODING_SESSION_EVENT_KINDS = [
   'tool.call.completed',
   'artifact.upserted',
   'approval.required',
+  'user.question.required',
   'operation.updated',
   'turn.completed',
   'turn.failed',
@@ -332,7 +333,6 @@ export interface BirdCoderNativeSessionAttributes {
   providerVersion?: string;
   modelProvider?: string;
   projectId?: string;
-  cwd?: string;
   gitBranch?: string;
   gitCommit?: string;
   gitRepositoryUrl?: string;
@@ -347,6 +347,11 @@ export interface BirdCoderCodingSessionSummary {
   id: string;
   workspaceId: string;
   projectId: string;
+  /**
+   * Present for sessions created after runtime-location enforcement. Historic
+   * sessions may omit it and are intentionally not executable.
+   */
+  runtimeLocationId?: string;
   title: string;
   status: BirdCoderCodingSessionStatus;
   hostMode: BirdCoderHostMode;

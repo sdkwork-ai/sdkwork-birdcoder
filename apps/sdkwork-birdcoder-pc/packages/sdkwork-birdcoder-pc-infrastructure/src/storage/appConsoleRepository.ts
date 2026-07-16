@@ -6,7 +6,7 @@ import {
   type BirdCoderSqlPlanStorageAccess,
   type BirdCoderTableRecordRepository,
 } from './dataKernel.ts';
-import { createBirdCoderStorageDialect } from './providers.ts';
+import { createBirdCoderStorageDialect } from './dialects.ts';
 import { coerceBirdCoderSqlEntityRow } from './sqlRowCodec.ts';
 import type { BirdCoderSqlPlan } from './sqlPlans.ts';
 import {

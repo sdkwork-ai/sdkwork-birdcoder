@@ -7,6 +7,14 @@ const servicesSource = readCanonicalServerRustSource(
 const realtimeHubSource = readCanonicalServerRustSource(
   'crates/sdkwork-birdcoder-standalone-gateway/src/bootstrap/realtime_hub.rs',
 );
+const codingSessionPublisherSource = realtimeHubSource.slice(
+  realtimeHubSource.indexOf('impl RealtimeEventPublisher for HubRealtimeEventPublisher'),
+  realtimeHubSource.indexOf('pub struct HubWorkspaceEventPublisher'),
+);
+const workspacePublisherSource = realtimeHubSource.slice(
+  realtimeHubSource.indexOf('impl HubWorkspaceEventPublisher'),
+  realtimeHubSource.indexOf('pub struct HubProjectEventPublisher'),
+);
 
 assert.doesNotMatch(
   servicesSource,
@@ -37,6 +45,31 @@ assert.match(
   realtimeHubSource,
   /impl DeploymentEventPublisher for HubDeploymentEventPublisher/u,
   'realtime hub must implement DeploymentEventPublisher for publish/deployment activity.',
+);
+assert.match(
+  codingSessionPublisherSource,
+  /publish_session\([\s\S]*&ctx\.tenant_id,[\s\S]*&ctx\.user_id,[\s\S]*&event\.workspace_id,[\s\S]*&event\.coding_session_id/u,
+  'durable coding-session payloads must publish through the exact tenant/user/workspace/session channel.',
+);
+assert.match(
+  codingSessionPublisherSource,
+  /publish_user_inventory\([\s\S]*&ctx\.tenant_id,[\s\S]*&ctx\.user_id,[\s\S]*&event\.workspace_id/u,
+  'non-durable coding-session summaries must publish through the authenticated user inventory channel.',
+);
+assert.doesNotMatch(
+  codingSessionPublisherSource,
+  /\n\s*\.publish\(/u,
+  'coding-session payloads must never publish through the public workspace channel.',
+);
+assert.match(
+  workspacePublisherSource,
+  /\n\s*\.publish\(tenant_id, workspace_id/u,
+  'workspace lifecycle invalidation must remain on the tenant-scoped public workspace channel.',
+);
+assert.doesNotMatch(
+  workspacePublisherSource,
+  /publish_user_inventory|publish_session/u,
+  'public workspace lifecycle events must not be duplicated into user inventory or session channels.',
 );
 
 console.log('canonical server realtime event publishers contract passed.');

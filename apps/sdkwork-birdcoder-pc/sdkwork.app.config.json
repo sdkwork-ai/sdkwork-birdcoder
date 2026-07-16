@@ -174,7 +174,7 @@
         "content": "SDKWork BirdCoder PC has not launched publicly. Artifact URLs and checksums are withheld until the first governed release build completes.",
         "highlights": [
           "Browser and Tauri desktop surfaces",
-          "HTTP OpenAPI contract complete: 161 operations implemented, 0 deferred; route catalog has 162 entries including workspace realtime WebSocket",
+          "HTTP OpenAPI contract declares 171 operations; route catalog has 172 entries including workspace realtime transport",
           "Agent platform boundary aligned through sdkwork-agents runtime facade and agents app SDK catalog service"
         ],
         "packageIds": [

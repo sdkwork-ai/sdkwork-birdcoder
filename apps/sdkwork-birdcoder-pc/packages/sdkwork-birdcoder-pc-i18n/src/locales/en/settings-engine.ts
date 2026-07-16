@@ -4,8 +4,7 @@ export default defineLocaleModule('settings/engine', {
   settings: {
     engines: {
       title: 'Code Engines & Models',
-      description:
-        'Define the default model for each engine and extend the available model catalog with custom entries.',
+      description: 'Choose the default built-in model for each code engine.',
       sidebarTitle: 'Code Engine',
       sidebarLabel: 'Code engine list',
       workspaceDefaultEngine: 'Default code engine',
@@ -63,17 +62,6 @@ export default defineLocaleModule('settings/engine', {
       serverUnavailable:
         '{{engine}} server adapter is not available in the current runtime. Check the engine access plan and install or configure the required SDK or CLI runtime before starting a coding turn.',
       builtInModel: 'Built-in',
-      customModel: 'Custom',
-      removeCustomModel: 'Remove custom model',
-      addCustomModel: 'Add custom model',
-      addCustomModelDesc:
-        'Register extra model IDs for private deployments, new server adapters, or staged rollouts.',
-      modelIdPlaceholder: 'Model ID, for example codex-pro',
-      modelLabelPlaceholder: 'Display name, optional',
-      addModel: 'Add model',
-      modelAdded: '{{engine}} model list updated.',
-      modelAlreadyExists: '{{engine}} already contains this model.',
-      modelRemoved: '{{engine}} model removed.',
       defaultModelUpdated: '{{engine}} default model updated.',
     },
   },

@@ -123,7 +123,6 @@ interface UseCodePageSurfacePropsOptions {
     NonNullable<ProjectExplorerProps['onCopyCodingSessionWorkingDirectory']>;
   onCopyProjectPath: NonNullable<ProjectExplorerProps['onCopyProjectPath']>;
   onCopyWorkingDirectory: NonNullable<ProjectExplorerProps['onCopyWorkingDirectory']>;
-  onCreateCodingSession: TopBarComponentProps['onCreateCodingSession'];
   onCreateFile: CodeEditorWorkspacePanelProps['onCreateFile'];
   onCreateFolder: CodeEditorWorkspacePanelProps['onCreateFolder'];
   onCreateRootFile: CodeEditorWorkspacePanelProps['onCreateRootFile'];
@@ -260,7 +259,6 @@ export function useCodePageSurfaceProps({
   onCopyCodingSessionWorkingDirectory,
   onCopyProjectPath,
   onCopyWorkingDirectory,
-  onCreateCodingSession,
   onCreateFile,
   onCreateFolder,
   onCreateRootFile,
@@ -511,21 +509,15 @@ export function useCodePageSurfaceProps({
     isProjectGitOverviewDrawerOpen,
     onToggleProjectGitOverviewDrawer,
     isEngineBusyCurrentSession,
-    selectedEngineId,
-    selectedModelId,
-    selectedSessionEngineId,
-    selectedSessionModelId,
     selectedSessionTitle,
     activeTab,
     setActiveTab: onSetActiveTab,
     isTerminalOpen,
     setIsTerminalOpen: onSetIsTerminalOpen,
-    onCreateCodingSession,
   }), [
     activeTab,
     isEngineBusyCurrentSession,
     isTerminalOpen,
-    onCreateCodingSession,
     onToggleProjectGitOverviewDrawer,
     onSetActiveTab,
     onSetIsTerminalOpen,
@@ -533,10 +525,6 @@ export function useCodePageSurfaceProps({
     projectId,
     projectGitOverviewState,
     projectName,
-    selectedEngineId,
-    selectedModelId,
-    selectedSessionEngineId,
-    selectedSessionModelId,
     selectedSessionTitle,
   ]);
 

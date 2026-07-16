@@ -8,14 +8,6 @@ pub struct BirdCoderCreateCodingSessionTurnRequest {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub runtime_id: Option<String>,
 
-    #[serde(rename = "engineId")]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub engine_id: Option<String>,
-
-    #[serde(rename = "modelId")]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub model_id: Option<String>,
-
     #[serde(rename = "requestKind")]
     pub request_kind: String,
 

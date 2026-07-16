@@ -15,10 +15,6 @@ import {
   resolveBirdcoderViteRuntimeEnvSource,
   resolveBirdcoderWebRuntimeEnvSource,
 } from '../../../../scripts/create-birdcoder-vite-plugins.mjs';
-import {
-  createDeploymentWorkspacePlugin,
-  resolveDeploymentWorkspaceRoot,
-} from './src-host/deploymentWorkspacePlugin.ts';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -167,7 +163,6 @@ export default defineConfig(({ mode }) => {
         namespace: 'sdkwork-birdcoder-pc-web',
         runtimeEnvSource: publicRuntimeEnvSource,
       }),
-      createDeploymentWorkspacePlugin(resolveDeploymentWorkspaceRoot(__dirname)),
       sdkworkModelsDataPlugin(),
     ],
     optimizeDeps: {
@@ -239,7 +234,7 @@ export default defineConfig(({ mode }) => {
             id.includes('/node_modules/react-i18next/') ||
             id.includes('/node_modules/i18next/')
           ) {
-            return 'birdcoder-code-workbench';
+            return id.includes('/node_modules/') ? 'vendor-i18n' : 'birdcoder-code-workbench';
             }
 
           if (
@@ -273,7 +268,15 @@ export default defineConfig(({ mode }) => {
           }
 
           if (id.includes('/node_modules/i18next/') || id.includes('i18next@')) {
-            return 'birdcoder-code-workbench';
+            return 'vendor-i18n';
+          }
+
+          if (
+            id.includes('/node_modules/yaml/') ||
+            id.includes('/node_modules/jsonc-parser/') ||
+            id.includes('/node_modules/smol-toml/')
+          ) {
+            return 'vendor-structured-data';
           }
 
           if (id.includes('/node_modules/tailwind-merge/') || id.includes('tailwind-merge@')) {
@@ -565,6 +568,9 @@ export default defineConfig(({ mode }) => {
           }
 
           if (isSourcePath('/packages/sdkwork-birdcoder-pc-workbench-state/src/')) {
+            if (isSourcePath('/packages/sdkwork-birdcoder-pc-workbench-state/src/runConfigurations.ts')) {
+              return 'birdcoder-run-config-storage';
+            }
             return 'birdcoder-platform-runtime';
           }
 
@@ -572,10 +578,29 @@ export default defineConfig(({ mode }) => {
             isAnySourcePath([
               '/packages/sdkwork-birdcoder-pc-commons/src/terminal/registry.ts',
               '/packages/sdkwork-birdcoder-pc-commons/src/terminal/profiles.ts',
-              '/packages/sdkwork-birdcoder-pc-commons/src/terminal/runConfigStorage.ts',
             ])
           ) {
             return 'birdcoder-terminal-profiles';
+          }
+
+          if (isSourcePath('/packages/sdkwork-birdcoder-pc-commons/src/terminal/runConfigStorage.ts')) {
+            return 'birdcoder-run-config-storage';
+          }
+
+          if (isSourcePath('/packages/sdkwork-birdcoder-pc-commons/src/terminal/requests.ts')) {
+            return 'birdcoder-terminal-requests';
+          }
+
+          if (isSourcePath('/packages/sdkwork-birdcoder-pc-commons/src/terminal/profileAvailability.ts')) {
+            return 'birdcoder-terminal-profile-availability';
+          }
+
+          if (isSourcePath('/packages/sdkwork-birdcoder-pc-commons/src/terminal/runtimeTarget.ts')) {
+            return 'birdcoder-terminal-profile-availability';
+          }
+
+          if (isSourcePath('/packages/sdkwork-birdcoder-pc-commons/src/terminal/runConfigDefinitions.ts')) {
+            return 'birdcoder-run-config-definitions';
           }
 
           if (
@@ -649,8 +674,6 @@ export default defineConfig(({ mode }) => {
               '/packages/sdkwork-birdcoder-pc-code/src/pages/CodeEditorWorkspacePanel.tsx',
               '/packages/sdkwork-birdcoder-pc-code/src/pages/CodePageSurface.tsx',
               '/packages/sdkwork-birdcoder-pc-code/src/pages/CodeTerminalIntegrationPanel.tsx',
-              '/packages/sdkwork-birdcoder-pc-code/src/pages/CodeTerminalIntegrationPanel.tsx',
-              '/packages/sdkwork-birdcoder-pc-code/src/pages/CodePageSurface.tsx',
             ])
           ) {
             return 'birdcoder-code-workbench';
@@ -663,7 +686,10 @@ export default defineConfig(({ mode }) => {
           }
 
           if (
-            isSourcePath('/packages/sdkwork-birdcoder-pc-code/src/pages/useCodeLocalFolderProjectImport.ts')
+            isAnySourcePath([
+              '/packages/sdkwork-birdcoder-pc-code/src/pages/useCodeEffectiveWorkspaceId.ts',
+              '/packages/sdkwork-birdcoder-pc-code/src/pages/useCodeServerDirectoryProjectImport.ts',
+            ])
           ) {
             return 'birdcoder-code-project-runtime';
           }
@@ -786,6 +812,7 @@ export default defineConfig(({ mode }) => {
           if (
             isAnySourcePath([
               '/packages/sdkwork-birdcoder-pc-types/src/storageBindings.ts',
+              '/packages/sdkwork-birdcoder-pc-types/src/runConfigurationStorage.ts',
             ])
           ) {
             return 'birdcoder-types-storage';
@@ -946,6 +973,7 @@ export default defineConfig(({ mode }) => {
               '/packages/sdkwork-birdcoder-pc-infrastructure/src/storage/codingSessionPromptEntryRepository.ts',
               '/packages/sdkwork-birdcoder-pc-infrastructure/src/storage/codingSessionRepository.ts',
               '/packages/sdkwork-birdcoder-pc-infrastructure/src/storage/dataKernel.ts',
+              '/packages/sdkwork-birdcoder-pc-infrastructure/src/storage/dialects.ts',
               '/packages/sdkwork-birdcoder-pc-infrastructure/src/storage/promptEntryText.ts',
               '/packages/sdkwork-birdcoder-pc-infrastructure/src/storage/promptSkillTemplateEvidenceRepository.ts',
               '/packages/sdkwork-birdcoder-pc-infrastructure/src/storage/providers.ts',
@@ -1044,6 +1072,7 @@ export default defineConfig(({ mode }) => {
         '/app': {
           target: devProxyTarget,
           changeOrigin: true,
+          ws: true,
         },
         '/backend': {
           target: devProxyTarget,

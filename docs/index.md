@@ -22,6 +22,8 @@ SDKWork BirdCoder is a multi-surface AI IDE workspace aligned with the SDKWork a
 
 BirdCoder owns its AI IDE business modules (code, studio, terminal, skills, templates, settings) and follows the SDKWork architecture standard for host, release, CI, and deployment layers.
 
-Remote project metadata, device-private folder mounts, and server workspace
-roots are separate boundaries. A folder selected in Browser or Tauri is never
-implicitly uploaded or used as a server workspace path.
+Project identity, persistent runtime locations, and local host capabilities
+are explicit boundaries. A runtime location stores an encrypted target-specific
+root and Git state for one project; a Browser folder handle remains local and
+never becomes an OS path. A selected folder is never implicitly uploaded or
+used by another execution target.

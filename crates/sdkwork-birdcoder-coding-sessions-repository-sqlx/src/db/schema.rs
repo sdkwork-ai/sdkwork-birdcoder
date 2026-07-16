@@ -11,6 +11,7 @@ CREATE TABLE IF NOT EXISTS ai_coding_session (
     is_deleted INTEGER NOT NULL DEFAULT 0,
     workspace_id TEXT NOT NULL,
     project_id TEXT NOT NULL,
+    runtime_location_id TEXT NULL,
     title TEXT NOT NULL,
     status TEXT NOT NULL,
     entry_surface TEXT NOT NULL,
@@ -223,6 +224,10 @@ WHERE native_session_id IS NOT NULL AND is_deleted IS NOT TRUE;
 
 CREATE INDEX IF NOT EXISTS idx_ai_coding_session_message_tenant_session_created
 ON ai_coding_session_message(tenant_id, coding_session_id, created_at);
+
+CREATE UNIQUE INDEX IF NOT EXISTS uk_ai_coding_session_event_scope_sequence
+ON ai_coding_session_event(tenant_id, user_id, coding_session_id, sequence_no)
+WHERE is_deleted IS NOT TRUE;
 
 CREATE INDEX IF NOT EXISTS idx_ai_coding_session_prompt_entry_tenant_session_last_used
 ON ai_coding_session_prompt_entry(tenant_id, coding_session_id, last_used_at);
@@ -641,6 +646,7 @@ CREATE TABLE IF NOT EXISTS ai_coding_session (
     is_deleted INTEGER NOT NULL DEFAULT 0,
     workspace_id TEXT NOT NULL,
     project_id TEXT NOT NULL,
+    runtime_location_id TEXT NULL,
     title TEXT NOT NULL,
     status TEXT NOT NULL,
     entry_surface TEXT NOT NULL,
@@ -853,6 +859,10 @@ WHERE native_session_id IS NOT NULL AND is_deleted IS NOT TRUE;
 
 CREATE INDEX IF NOT EXISTS idx_ai_coding_session_message_tenant_session_created
 ON ai_coding_session_message(tenant_id, coding_session_id, created_at);
+
+CREATE UNIQUE INDEX IF NOT EXISTS uk_ai_coding_session_event_scope_sequence
+ON ai_coding_session_event(tenant_id, user_id, coding_session_id, sequence_no)
+WHERE is_deleted IS NOT TRUE;
 
 CREATE INDEX IF NOT EXISTS idx_ai_coding_session_prompt_entry_tenant_session_last_used
 ON ai_coding_session_prompt_entry(tenant_id, coding_session_id, last_used_at);

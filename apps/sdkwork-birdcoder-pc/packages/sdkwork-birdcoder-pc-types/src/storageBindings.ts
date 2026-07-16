@@ -1,4 +1,5 @@
 import type { BirdCoderEntityStorageBinding } from './data.ts';
+export { BIRDCODER_RUN_CONFIGURATION_STORAGE_BINDING } from './runConfigurationStorage.ts';
 
 export type { BirdCoderEntityStorageBinding } from './data.ts';
 
@@ -567,14 +568,6 @@ export const BIRDCODER_ENGINE_BINDING_STORAGE_BINDING: BirdCoderEntityStorageBin
   entityName: 'engine_binding',
   storageScope: 'engine',
   storageKey: 'engine-bindings.v1',
-  preferredProvider: 'sqlite',
-  storageMode: 'table',
-};
-
-export const BIRDCODER_RUN_CONFIGURATION_STORAGE_BINDING: BirdCoderEntityStorageBinding = {
-  entityName: 'run_configuration',
-  storageScope: 'runtime.run-configurations',
-  storageKey: 'run-configs.global.v1',
   preferredProvider: 'sqlite',
   storageMode: 'table',
 };

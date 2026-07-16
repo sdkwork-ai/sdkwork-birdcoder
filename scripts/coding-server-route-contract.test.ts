@@ -17,9 +17,9 @@ assert.deepEqual(descriptor, {
     liveOpenApiPath: '/openapi.json',
     openApiPath: '/openapi/coding-server-v1.json',
     routeCatalogPath: '/app/v3/api/system/routes',
-    routeCount: 162,
+    routeCount: 175,
     routesBySurface: {
-      app: 113,
+      app: 126,
       backend: 49,
     },
     surfaces: [
@@ -28,7 +28,7 @@ assert.deepEqual(descriptor, {
         basePath: '/app/v3/api',
         description: 'Application-facing coding runtime, workspace, project, collaboration, and IAM routes.',
         name: 'app',
-        routeCount: 113,
+        routeCount: 126,
       },
       {
         authMode: 'admin',
@@ -174,6 +174,21 @@ assert.equal(app.updateProject.method, 'PATCH');
 assert.equal(app.updateProject.path, '/app/v3/api/projects/:projectId');
 assert.equal(app.deleteProject.method, 'DELETE');
 assert.equal(app.deleteProject.path, '/app/v3/api/projects/:projectId');
+assert.equal(app.projectWorkspaceBinding.method, 'GET');
+assert.equal(
+  app.projectWorkspaceBinding.path,
+  '/app/v3/api/projects/:projectId/workspace_binding',
+);
+assert.equal(app.updateProjectWorkspaceBinding.method, 'PUT');
+assert.equal(
+  app.updateProjectWorkspaceBinding.path,
+  '/app/v3/api/projects/:projectId/workspace_binding',
+);
+assert.equal(app.deleteProjectWorkspaceBinding.method, 'DELETE');
+assert.equal(
+  app.deleteProjectWorkspaceBinding.path,
+  '/app/v3/api/projects/:projectId/workspace_binding',
+);
 assert.equal(app.projectGitOverview.method, 'GET');
 assert.equal(app.projectGitOverview.path, '/app/v3/api/projects/:projectId/git/overview');
 assert.equal(app.createProjectGitBranch.method, 'POST');
@@ -222,7 +237,7 @@ assert.equal(admin.releases.path, '/backend/v3/api/releases');
 assert.equal(admin.deployments.path, '/backend/v3/api/deployments');
 
 const routes = listBirdCoderCodingServerRoutes();
-assert.equal(routes.length, 162, 'coding-server should expose the full app/backend/commerce route matrix');
+assert.equal(routes.length, 175, 'coding-server should expose the full app/backend/commerce route matrix');
 assert.equal(
   routes.every(
     (route) =>

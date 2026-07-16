@@ -96,6 +96,31 @@ pub fn sanitize_codeengine_session_metadata(value: &Value) -> BTreeMap<String, V
         .collect()
 }
 
+pub fn sanitize_codeengine_git_repository_url(value: Option<String>) -> Option<String> {
+    let value = value?.trim().to_owned();
+    let has_uri_userinfo = value
+        .split_once("://")
+        .map(|(_, rest)| {
+            rest.split('/')
+                .next()
+                .is_some_and(|authority| authority.contains('@'))
+        })
+        .unwrap_or(false);
+    let is_safe_scp_git_remote =
+        value.starts_with("git@") && value[4..].contains(':') && !value[4..].contains('@');
+    let is_safe = !value.is_empty()
+        && value.len() <= 2048
+        && !value.bytes().any(|byte| byte < 0x20 || byte == b' ')
+        && !value.contains(['?', '#'])
+        && !has_uri_userinfo
+        && (value.starts_with("https://")
+            || value.starts_with("ssh://") && !value.contains('@')
+            || value.starts_with("git://")
+            || is_safe_scp_git_remote);
+
+    is_safe.then_some(value)
+}
+
 fn sanitize_session_metadata_value(value: &Value) -> Option<Value> {
     match value {
         Value::Object(record) => Some(Value::Object(
@@ -115,6 +140,7 @@ fn sanitize_session_metadata_value(value: &Value) -> Option<Value> {
                 .filter_map(sanitize_session_metadata_value)
                 .collect(),
         )),
+        Value::String(value) if looks_like_sensitive_path(value) => None,
         Value::Null | Value::Bool(_) | Value::Number(_) | Value::String(_) => Some(value.clone()),
     }
 }
@@ -147,6 +173,92 @@ fn should_redact_session_metadata_key(key: &str) -> bool {
         || normalized.contains("authtoken")
         || normalized.contains("privatekey")
         || normalized.contains("refreshtoken")
+        || normalized.contains("credential")
+        || normalized.contains("handle")
+        || normalized.contains("fingerprint")
+        || normalized.contains("cipher")
+        || normalized.contains("locator")
+        || is_path_like_session_metadata_key(normalized.as_str())
+}
+
+fn is_path_like_session_metadata_key(normalized: &str) -> bool {
+    matches!(
+        normalized,
+        "cwd"
+            | "dir"
+            | "directory"
+            | "home"
+            | "nativecwd"
+            | "root"
+            | "workingdir"
+            | "workingdirectory"
+    ) || normalized.contains("cwd")
+        || normalized.contains("directory")
+        || normalized.contains("path")
+        || normalized.ends_with("dir")
+        || normalized.ends_with("root")
+}
+
+fn looks_like_sensitive_path(value: &str) -> bool {
+    let trimmed = value.trim();
+    trimmed.starts_with('/')
+        || trimmed.starts_with("\\\\")
+        || trimmed.starts_with("file://")
+        || trimmed
+            .as_bytes()
+            .get(1)
+            .is_some_and(|character| *character == b':')
+            && trimmed
+                .as_bytes()
+                .first()
+                .is_some_and(u8::is_ascii_alphabetic)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{sanitize_codeengine_git_repository_url, sanitize_codeengine_session_metadata};
+    use serde_json::json;
+
+    #[test]
+    fn metadata_sanitizer_removes_nested_path_credentials_and_handles() {
+        let sanitized = sanitize_codeengine_session_metadata(&json!({
+            "cwd": "C:/private/project",
+            "nested": {
+                "workingDirectory": "C:/private/project/packages",
+                "browserHandle": { "opaque": true },
+                "safe": "kept",
+            },
+            "items": [
+                { "nativeCwd": "/private/project/src" },
+                { "safe": true },
+            ],
+            "unlabeled": "/private/project",
+        }));
+
+        assert!(!sanitized.contains_key("cwd"));
+        assert!(sanitized["nested"].get("workingDirectory").is_none());
+        assert!(sanitized["nested"].get("browserHandle").is_none());
+        assert_eq!(sanitized["nested"]["safe"], "kept");
+        assert!(sanitized["items"][0].get("nativeCwd").is_none());
+        assert_eq!(sanitized["items"][1]["safe"], true);
+        assert!(!sanitized.contains_key("unlabeled"));
+    }
+
+    #[test]
+    fn repository_url_sanitizer_rejects_credentials_and_retains_safe_remotes() {
+        assert_eq!(
+            sanitize_codeengine_git_repository_url(Some(
+                "https://token:secret@example.com/owner/repository.git".to_owned(),
+            )),
+            None,
+        );
+        assert_eq!(
+            sanitize_codeengine_git_repository_url(Some(
+                "https://example.com/owner/repository.git".to_owned(),
+            )),
+            Some("https://example.com/owner/repository.git".to_owned()),
+        );
+    }
 }
 
 #[derive(Clone, Debug, Default, Deserialize, Eq, Hash, PartialEq, Serialize)]

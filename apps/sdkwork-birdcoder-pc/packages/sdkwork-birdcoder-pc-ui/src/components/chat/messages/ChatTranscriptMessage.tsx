@@ -1,5 +1,6 @@
 import React, { memo, useMemo } from 'react';
 import {
+  resolveChatTurnActivitySummary,
   resolveChatMessageView,
   type BirdCoderCodeEngineKey,
 } from '@sdkwork/birdcoder-pc-commons/chat/types';
@@ -38,9 +39,13 @@ export const ChatTranscriptMessage = memo(function ChatTranscriptMessage({
   context,
   registry = defaultChatMessageRendererRegistry,
 }: ChatTranscriptMessageProps) {
+  const activitySummary = useMemo(
+    () => resolveChatTurnActivitySummary(context.allMessages, message),
+    [context.allMessages, message],
+  );
   const view = useMemo(
-    () => resolveChatMessageView(message, { engineId, layout }),
-    [engineId, layout, message],
+    () => resolveChatMessageView(message, { activitySummary, engineId, layout }),
+    [activitySummary, engineId, layout, message],
   );
   const entry = useMemo(() => registry.resolve(view), [registry, view]);
   const Renderer = entry.Component;
@@ -57,6 +62,7 @@ export const ChatTranscriptMessage = memo(function ChatTranscriptMessage({
   if (layout === 'sidebar') {
     return (
       <div
+        data-transcript-message-index={index}
         ref={messageRef}
         key={messageRenderKey ?? `${sessionId}\u0001${index}\u0001${message.id || 'message'}`}
         className={isUser ? 'group flex flex-col items-end' : 'flex flex-col items-start w-full group'}
@@ -72,12 +78,13 @@ export const ChatTranscriptMessage = memo(function ChatTranscriptMessage({
 
   return (
     <div
+      data-transcript-message-index={index}
       ref={messageRef}
       key={messageRenderKey ?? `${sessionId}\u0001${index}\u0001${message.id || 'message'}`}
-      className={`flex group w-full ${isUser ? 'py-2' : 'py-2.5'} px-4 md:px-8`}
+      className={`flex w-full px-5 ${isUser ? 'py-2' : 'py-2.5'} group`}
       style={buildTranscriptSurfaceStyle(resolveTranscriptSurfaceIntrinsicSize(layout, isUser))}
     >
-      <div className={`w-full max-w-3xl mx-auto flex ${isUser ? 'justify-end' : 'justify-start'}`}>
+      <div className={`mx-auto flex w-full max-w-[880px] ${isUser ? 'justify-end' : 'justify-start'}`}>
         <Renderer
           view={view}
           context={resolvedContext}

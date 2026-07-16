@@ -12,10 +12,13 @@ import {
   buildTerminalProfileBlockedMessage,
   emitOpenTerminalRequest,
   getDefaultRunConfigurations,
+  getProjectRuntimeLocationFailureMessage,
+  getResolvedProjectRuntimeLocationWorkingDirectory,
   globalEventBus,
   resolveRunConfigurationTerminalLaunch,
   type BirdCoderProjectCodingSessionIndex,
   type RunConfigurationRecord,
+  type ProjectRuntimeLocationResolver,
   type TerminalCommandRequest,
 } from '@sdkwork/birdcoder-pc-commons';
 import type { BirdCoderProject } from '@sdkwork/birdcoder-pc-types';
@@ -28,7 +31,7 @@ interface UseStudioWorkbenchEventBindingsOptions {
   isActive?: boolean;
   currentProjectIdRef: MutableRefObject<string>;
   projectsRef: MutableRefObject<BirdCoderProject[]>;
-  resolveLocalWorkingDirectory: (projectId: string) => Promise<string | null>;
+  resolveProjectRuntimeLocation: ProjectRuntimeLocationResolver;
   runConfigurationsRef: MutableRefObject<RunConfigurationRecord[]>;
   selectedCodingSessionIdRef: MutableRefObject<string>;
   selectCodingSessionRef: MutableRefObject<
@@ -51,7 +54,7 @@ export function useStudioWorkbenchEventBindings({
   isActive = true,
   currentProjectIdRef,
   projectsRef,
-  resolveLocalWorkingDirectory,
+  resolveProjectRuntimeLocation,
   runConfigurationsRef,
   selectedCodingSessionIdRef,
   selectCodingSessionRef,
@@ -68,7 +71,7 @@ export function useStudioWorkbenchEventBindings({
   const projectCodingSessionIndexProjectsRef = useRef(projectsRef.current);
   const projectCodingSessionIndexRef = useRef<BirdCoderProjectCodingSessionIndex | null>(null);
   const flushPendingAutosaveRef = useRef(flushPendingAutosave);
-  const resolveLocalWorkingDirectoryRef = useRef(resolveLocalWorkingDirectory);
+  const resolveProjectRuntimeLocationRef = useRef(resolveProjectRuntimeLocation);
 
   useEffect(() => {
     if (saveError) {
@@ -81,8 +84,8 @@ export function useStudioWorkbenchEventBindings({
   }, [flushPendingAutosave]);
 
   useEffect(() => {
-    resolveLocalWorkingDirectoryRef.current = resolveLocalWorkingDirectory;
-  }, [resolveLocalWorkingDirectory]);
+    resolveProjectRuntimeLocationRef.current = resolveProjectRuntimeLocation;
+  }, [resolveProjectRuntimeLocation]);
 
   const resolveProjectCodingSessionIndex = useCallback(() => {
     if (
@@ -185,11 +188,25 @@ export function useStudioWorkbenchEventBindings({
 
       void (async () => {
         const currentProjectId = currentProjectIdRef.current.trim();
-        const localWorkingDirectory = currentProjectId
-          ? await resolveLocalWorkingDirectoryRef.current(currentProjectId)
+        const resolution = currentProjectId
+          ? await resolveProjectRuntimeLocationRef.current(currentProjectId, {
+              allowFolderSelection: true,
+              capability: 'build',
+            })
+          : null;
+        const localWorkingDirectory = resolution
+          ? getResolvedProjectRuntimeLocationWorkingDirectory(resolution)
           : null;
         if (!localWorkingDirectory) {
-          addToast('A local desktop folder must be mounted before running this project.', 'error');
+          const message = resolution
+            ? getProjectRuntimeLocationFailureMessage(
+                resolution,
+                'A local desktop folder must be mounted before running this project.',
+              )
+            : 'Select a project before running this project.';
+          if (message) {
+            addToast(message, 'error');
+          }
           return;
         }
         const launch = await resolveRunConfigurationTerminalLaunch(configuration, {
@@ -261,7 +278,7 @@ export function useStudioWorkbenchEventBindings({
     currentProjectIdRef,
     isActive,
     projectsRef,
-    resolveLocalWorkingDirectoryRef,
+    resolveProjectRuntimeLocationRef,
     resolveProjectCodingSessionIndex,
     runConfigurationsRef,
     selectedCodingSessionIdRef,

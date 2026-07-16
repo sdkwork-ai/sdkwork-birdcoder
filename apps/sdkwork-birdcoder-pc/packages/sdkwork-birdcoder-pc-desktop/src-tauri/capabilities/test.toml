@@ -47,6 +47,8 @@ permissions = [
   # Host bridge commands (read-only)
   "allow-host-mode",
   "allow-desktop-runtime-config",
+  "allow-desktop-runtime-location-install-identity",
+  "allow-desktop-runtime-location-create-root-locator",
 
   # Local store commands (read + write — needed for test fixtures)
   "allow-local-store-get",

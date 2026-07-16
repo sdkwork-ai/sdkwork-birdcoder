@@ -1,7 +1,7 @@
 schema_version: 1
 kind: sdkwork.database.schema
 module_id: birdcoder
-contract_version: 1.1.0
+contract_version: 1.3.0
 owner_team: birdcoder-platform
 compliance_level: L2
 engines:
@@ -30,6 +30,15 @@ tables:
   - name: ai_coding_session_event
     lifecycle_status: active
     owner: birdcoder-platform
+    indexes:
+      - name: uk_ai_coding_session_event_scope_sequence
+        columns:
+          - tenant_id
+          - user_id
+          - coding_session_id
+          - sequence_no
+        unique: true
+        where: is_deleted IS NOT TRUE
   - name: ai_coding_session_artifact
     lifecycle_status: active
     owner: birdcoder-platform
@@ -100,6 +109,27 @@ tables:
     lifecycle_status: active
     owner: birdcoder-platform
   - name: studio_project_collaborator
+    lifecycle_status: active
+    owner: birdcoder-platform
+  - name: studio_project_runtime_location
+    lifecycle_status: active
+    owner: birdcoder-platform
+  - name: studio_project_runtime_location_preference
+    lifecycle_status: active
+    owner: birdcoder-platform
+  - name: studio_project_runtime_location_idempotency
+    lifecycle_status: active
+    owner: birdcoder-platform
+  - name: ops_project_runtime_location_audit
+    lifecycle_status: active
+    owner: birdcoder-platform
+  - name: studio_project_workspace_binding
+    lifecycle_status: active
+    owner: birdcoder-platform
+  - name: studio_project_workspace_binding_idempotency
+    lifecycle_status: active
+    owner: birdcoder-platform
+  - name: ops_project_workspace_binding_audit
     lifecycle_status: active
     owner: birdcoder-platform
   - name: ops_release_record

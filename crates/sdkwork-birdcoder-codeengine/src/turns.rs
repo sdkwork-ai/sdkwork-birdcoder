@@ -58,6 +58,8 @@ pub struct CodeEngineTurnResultRecord {
     pub native_session_id: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub commands: Option<Vec<CodeEngineSessionCommandRecord>>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub stream_deltas: Vec<String>,
 }
 
 #[derive(Clone, Debug, Default, Deserialize, Serialize)]

@@ -24,7 +24,6 @@ import { ApiBackedTeamService } from './impl/ApiBackedTeamService.ts';
 import { ApiBackedWorkspaceService } from './impl/ApiBackedWorkspaceService.ts';
 import { ApiBackedVipMembershipService } from './impl/ApiBackedVipMembershipService.ts';
 import { createUnavailableReleaseService } from './impl/UnavailableReleaseService.ts';
-import { createBirdCoderTauriNativeSessionReadPort } from '../platform/tauriNativeSessions.ts';
 export type {
   BirdCoderDefaultIdeServiceKey,
   BirdCoderDefaultIdeServices,
@@ -130,7 +129,6 @@ export function loadDefaultBirdCoderIdeService<K extends BirdCoderDefaultIdeServ
         return new ApiBackedAppRuntimeReadService({
           client: runtime.appRuntimeClient,
           currentUserProvider: runtime.authService,
-          nativeSessionReadPort: createBirdCoderTauriNativeSessionReadPort(runtime.fileSystemService),
         });
       }
       case 'appRuntimeWriteService': {
@@ -151,11 +149,17 @@ export function loadDefaultBirdCoderIdeService<K extends BirdCoderDefaultIdeServ
       case 'fileSystemService': {
         return runtime.fileSystemService;
       }
+      case 'projectRuntimeLocationService': {
+        return runtime.projectRuntimeLocationService;
+      }
       case 'gitService': {
         return new ApiBackedGitService({
           appClient: runtime.appClient,
-          resolveLocalWorkingDirectory: (projectId) =>
-            runtime.fileSystemService.resolveLocalWorkingDirectory(projectId),
+          resolveProjectRuntimeLocation: (projectId) =>
+            runtime.projectRuntimeLocationService.resolveProjectRuntimeLocation(projectId, {
+              allowFolderSelection: false,
+              capability: 'git',
+            }),
         });
       }
       case 'promptService':

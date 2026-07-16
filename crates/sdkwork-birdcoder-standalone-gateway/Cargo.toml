@@ -24,6 +24,7 @@ tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 rand = "0.8"
 sha2 = "0.10"
 hex = "0.4"
+base64 = "0.22"
 sdkwork-web-bootstrap = { workspace = true, features = ["otel"] }
 
 # Route crates
@@ -38,9 +39,12 @@ sdkwork-routes-membership-app-api = { workspace = true }
 sdkwork-routes-commerce-app-api = { workspace = true }
 sdkwork-routes-deployment-backend-api = { workspace = true }
 sdkwork-routes-agents-app-api = { workspace = true }
+sdkwork-routes-terminal-app-api = { workspace = true }
+sdkwork-terminal-runtime-node = { workspace = true }
 sdkwork-agents-kernel-bridge = { workspace = true }
 sdkwork_routes_iam_app_api = { workspace = true }
 sdkwork_routes_iam_backend_api = { workspace = true }
+sdkwork_iam_context_service = { workspace = true }
 sdkwork-web-axum.workspace = true
 sdkwork-web-core = { workspace = true }
 sdkwork-web-contract = { workspace = true }
@@ -87,4 +91,5 @@ sdkwork-birdcoder-sqlx-repository-pool = { workspace = true }
 [dev-dependencies]
 tower = { version = "0.5", features = ["util"] }
 tokio = { workspace = true, features = ["test-util"] }
+tokio-tungstenite = "0.29"
 

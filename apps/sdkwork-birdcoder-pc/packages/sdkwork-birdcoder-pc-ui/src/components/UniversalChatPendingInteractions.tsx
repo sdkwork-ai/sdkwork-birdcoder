@@ -19,11 +19,11 @@ export interface UniversalChatPendingInteractionsProps {
   pendingApprovals?: BirdCoderCodingSessionPendingApproval[];
   pendingUserQuestions?: BirdCoderCodingSessionPendingUserQuestion[];
   onSubmitApprovalDecision?: (
-    approvalId: string,
+    interactionEventId: string,
     request: BirdCoderSubmitApprovalDecisionRequest,
   ) => void | Promise<void>;
   onSubmitUserQuestionAnswer?: (
-    questionId: string,
+    interactionEventId: string,
     request: BirdCoderSubmitUserQuestionAnswerRequest,
   ) => void | Promise<void>;
 }
@@ -33,7 +33,7 @@ function buildQuestionPromptKey(
   prompt: BirdCoderCodingSessionPendingUserQuestionPrompt,
   promptIndex: number,
 ): string {
-  return `${pendingQuestion.questionId}:${prompt.header ?? ''}:${prompt.question}:${promptIndex}`;
+  return `${pendingQuestion.interactionEventId}:${prompt.header ?? ''}:${prompt.question}:${promptIndex}`;
 }
 
 function buildQuestionOptionKey(
@@ -67,11 +67,11 @@ export function UniversalChatPendingInteractions({
   const [approvalReasons, setApprovalReasons] = useState<Record<string, string>>({});
   const hasPendingInteractions = pendingUserQuestions.length > 0 || pendingApprovals.length > 0;
   const activeQuestionIds = useMemo(
-    () => new Set(pendingUserQuestions.map((question) => question.questionId)),
+    () => new Set(pendingUserQuestions.map((question) => question.interactionEventId)),
     [pendingUserQuestions],
   );
   const activeApprovalIds = useMemo(
-    () => new Set(pendingApprovals.map((approval) => approval.approvalId)),
+    () => new Set(pendingApprovals.map((approval) => approval.interactionEventId)),
     [pendingApprovals],
   );
 
@@ -103,60 +103,60 @@ export function UniversalChatPendingInteractions({
     });
   }, [activeApprovalIds, activeQuestionIds]);
 
-  const handleAnswerDraftChange = useCallback((questionId: string, value: string) => {
+  const handleAnswerDraftChange = useCallback((interactionEventId: string, value: string) => {
     setAnswerDrafts((previousDrafts) => ({
       ...previousDrafts,
-      [questionId]: value,
+      [interactionEventId]: value,
     }));
   }, []);
 
-  const handleApprovalReasonChange = useCallback((approvalId: string, value: string) => {
+  const handleApprovalReasonChange = useCallback((interactionEventId: string, value: string) => {
     setApprovalReasons((previousReasons) => ({
       ...previousReasons,
-      [approvalId]: value,
+      [interactionEventId]: value,
     }));
   }, []);
 
   const submitQuestionAnswer = useCallback(async (
-    questionId: string,
+    interactionEventId: string,
     request: BirdCoderSubmitUserQuestionAnswerRequest,
   ) => {
     if (!onSubmitUserQuestionAnswer || disabled || isSubmitting) {
       return;
     }
 
-    await onSubmitUserQuestionAnswer(questionId, request);
+    await onSubmitUserQuestionAnswer(interactionEventId, request);
     setAnswerDrafts((previousDrafts) => {
-      if (!(questionId in previousDrafts)) {
+      if (!(interactionEventId in previousDrafts)) {
         return previousDrafts;
       }
 
       const nextDrafts = { ...previousDrafts };
-      delete nextDrafts[questionId];
+      delete nextDrafts[interactionEventId];
       return nextDrafts;
     });
   }, [disabled, isSubmitting, onSubmitUserQuestionAnswer]);
 
   const submitApprovalDecision = useCallback(async (
-    approvalId: string,
+    interactionEventId: string,
     decision: BirdCoderSubmitApprovalDecisionRequest['decision'],
   ) => {
     if (!onSubmitApprovalDecision || disabled || isSubmitting) {
       return;
     }
 
-    const reason = approvalReasons[approvalId]?.trim();
-    await onSubmitApprovalDecision(approvalId, {
+    const reason = approvalReasons[interactionEventId]?.trim();
+    await onSubmitApprovalDecision(interactionEventId, {
       decision,
       reason: reason || undefined,
     });
     setApprovalReasons((previousReasons) => {
-      if (!(approvalId in previousReasons)) {
+      if (!(interactionEventId in previousReasons)) {
         return previousReasons;
       }
 
       const nextReasons = { ...previousReasons };
-      delete nextReasons[approvalId];
+      delete nextReasons[interactionEventId];
       return nextReasons;
     });
   }, [approvalReasons, disabled, isSubmitting, onSubmitApprovalDecision]);
@@ -183,7 +183,7 @@ export function UniversalChatPendingInteractions({
 
       {pendingUserQuestions.map((pendingQuestion) => (
         <div
-          key={pendingQuestion.questionId}
+          key={pendingQuestion.interactionEventId}
           className="border-t border-white/10 py-3 first:border-t-0 first:pt-1 last:pb-1"
         >
           <div className="mb-2 flex items-start gap-2">
@@ -221,7 +221,7 @@ export function UniversalChatPendingInteractions({
                         title={option.description || option.label}
                         onClick={() => {
                           void submitQuestionAnswer(
-                            pendingQuestion.questionId,
+                            pendingQuestion.interactionEventId,
                             buildQuestionOptionPayload(option),
                           );
                         }}
@@ -236,8 +236,8 @@ export function UniversalChatPendingInteractions({
 
             <div className="flex min-w-0 items-end gap-2">
               <textarea
-                value={answerDrafts[pendingQuestion.questionId] ?? ''}
-                onChange={(event) => handleAnswerDraftChange(pendingQuestion.questionId, event.target.value)}
+                value={answerDrafts[pendingQuestion.interactionEventId] ?? ''}
+                onChange={(event) => handleAnswerDraftChange(pendingQuestion.interactionEventId, event.target.value)}
                 placeholder={t('chat.pendingQuestionAnswerPlaceholder')}
                 className="min-h-[38px] flex-1 resize-none rounded-lg border border-white/10 bg-black/20 px-3 py-2 text-sm text-white outline-none transition-colors placeholder:text-gray-500 focus:border-amber-300/40"
                 rows={1}
@@ -249,15 +249,15 @@ export function UniversalChatPendingInteractions({
                 disabled={
                   controlsDisabled ||
                   !onSubmitUserQuestionAnswer ||
-                  !(answerDrafts[pendingQuestion.questionId] ?? '').trim()
+                  !(answerDrafts[pendingQuestion.interactionEventId] ?? '').trim()
                 }
                 onClick={() => {
-                  const answer = (answerDrafts[pendingQuestion.questionId] ?? '').trim();
+                  const answer = (answerDrafts[pendingQuestion.interactionEventId] ?? '').trim();
                   if (!answer) {
                     return;
                   }
 
-                  void submitQuestionAnswer(pendingQuestion.questionId, { answer });
+                  void submitQuestionAnswer(pendingQuestion.interactionEventId, { answer });
                 }}
               >
                 {t('chat.submitAnswer')}
@@ -268,7 +268,7 @@ export function UniversalChatPendingInteractions({
                 size="sm"
                 disabled={controlsDisabled || !onSubmitUserQuestionAnswer}
                 onClick={() => {
-                  void submitQuestionAnswer(pendingQuestion.questionId, { rejected: true });
+                  void submitQuestionAnswer(pendingQuestion.interactionEventId, { rejected: true });
                 }}
               >
                 <X size={14} />
@@ -281,7 +281,7 @@ export function UniversalChatPendingInteractions({
 
       {pendingApprovals.map((pendingApproval) => (
         <div
-          key={pendingApproval.approvalId}
+          key={pendingApproval.interactionEventId}
           className="border-t border-white/10 py-3 first:border-t-0 first:pt-1 last:pb-1"
         >
           <div className="mb-2 flex items-start gap-2">
@@ -298,8 +298,8 @@ export function UniversalChatPendingInteractions({
 
           <div className="space-y-2 pl-6">
             <textarea
-              value={approvalReasons[pendingApproval.approvalId] ?? ''}
-              onChange={(event) => handleApprovalReasonChange(pendingApproval.approvalId, event.target.value)}
+              value={approvalReasons[pendingApproval.interactionEventId] ?? ''}
+              onChange={(event) => handleApprovalReasonChange(pendingApproval.interactionEventId, event.target.value)}
               placeholder={t('chat.pendingApprovalReasonPlaceholder')}
               className="min-h-[38px] w-full resize-none rounded-lg border border-white/10 bg-black/20 px-3 py-2 text-sm text-white outline-none transition-colors placeholder:text-gray-500 focus:border-sky-300/40"
               rows={1}
@@ -311,7 +311,7 @@ export function UniversalChatPendingInteractions({
                 size="sm"
                 disabled={controlsDisabled || !onSubmitApprovalDecision}
                 onClick={() => {
-                  void submitApprovalDecision(pendingApproval.approvalId, 'approved');
+                  void submitApprovalDecision(pendingApproval.interactionEventId, 'approved');
                 }}
               >
                 <Check size={14} />
@@ -323,7 +323,7 @@ export function UniversalChatPendingInteractions({
                 size="sm"
                 disabled={controlsDisabled || !onSubmitApprovalDecision}
                 onClick={() => {
-                  void submitApprovalDecision(pendingApproval.approvalId, 'denied');
+                  void submitApprovalDecision(pendingApproval.interactionEventId, 'denied');
                 }}
               >
                 <X size={14} />
@@ -335,7 +335,7 @@ export function UniversalChatPendingInteractions({
                 size="sm"
                 disabled={controlsDisabled || !onSubmitApprovalDecision}
                 onClick={() => {
-                  void submitApprovalDecision(pendingApproval.approvalId, 'blocked');
+                  void submitApprovalDecision(pendingApproval.interactionEventId, 'blocked');
                 }}
               >
                 {t('chat.blockInteraction')}

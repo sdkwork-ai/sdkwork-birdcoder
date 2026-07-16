@@ -1501,7 +1501,7 @@ export class RuntimeFileSystemService implements IFileSystemService {
         this.isProjectMountOwnedByScope(projectId, scope) &&
         existingBrowserMount?.rootHandle === folderInfo.handle
       ) {
-        await this.mountRegistry.register(projectId, folderInfo, scope.key);
+        await this.persistProjectMount(projectId, folderInfo, scope);
         await this.assertMountedProjectSubjectScopeCurrent(scope);
         delete this.projectTauriMounts[projectId];
         this.setProjectMountSubjectScope(projectId, scope);
@@ -1513,7 +1513,7 @@ export class RuntimeFileSystemService implements IFileSystemService {
         folderInfo.handle as unknown as BrowserDirectoryHandleLike,
       );
       await this.assertMountedProjectSubjectScopeCurrent(scope);
-      await this.mountRegistry.register(projectId, folderInfo, scope.key);
+      await this.persistProjectMount(projectId, folderInfo, scope);
       await this.assertMountedProjectSubjectScopeCurrent(scope);
       this.projectBrowserMounts[projectId] = mountState;
       delete this.projectTauriMounts[projectId];
@@ -1530,7 +1530,7 @@ export class RuntimeFileSystemService implements IFileSystemService {
       normalizeComparableLocalFolderPath(existingTauriMount.rootSystemPath) ===
         normalizeComparableLocalFolderPath(folderInfo.path)
     ) {
-      await this.mountRegistry.register(projectId, folderInfo, scope.key);
+      await this.persistProjectMount(projectId, folderInfo, scope);
       await this.assertMountedProjectSubjectScopeCurrent(scope);
       delete this.projectBrowserMounts[projectId];
       this.setProjectMountSubjectScope(projectId, scope);
@@ -1540,13 +1540,30 @@ export class RuntimeFileSystemService implements IFileSystemService {
 
     const mountState = await this.buildTauriMountState(folderInfo.path);
     await this.assertMountedProjectSubjectScopeCurrent(scope);
-    await this.mountRegistry.register(projectId, folderInfo, scope.key);
+    await this.persistProjectMount(projectId, folderInfo, scope);
     await this.assertMountedProjectSubjectScopeCurrent(scope);
     this.projectTauriMounts[projectId] = mountState;
     delete this.projectBrowserMounts[projectId];
     this.projectFileContent[projectId] = {};
     this.setProjectMountSubjectScope(projectId, scope);
     this.ensureProjectFileTreeRealtime(projectId, scope);
+  }
+
+  private async persistProjectMount(
+    projectId: string,
+    folderInfo: LocalFolderMountSource,
+    scope: MountedProjectSubjectScope,
+  ): Promise<void> {
+    const registration = await this.mountRegistry.register(projectId, folderInfo, scope.key);
+    if (registration.status === 'recoverable') {
+      return;
+    }
+
+    if (registration.status === 'session_required') {
+      throw new Error('Sign in before binding a local project folder.');
+    }
+
+    throw new Error('The local project folder could not be persisted for future terminal access.');
   }
 
   private createMountedProjectState(

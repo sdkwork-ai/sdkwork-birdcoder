@@ -10,6 +10,8 @@ export default defineLocaleModule('app/workspace', {
     failedToDeleteProject: '删除项目失败',
     failedToRemoveProject: '移除项目失败',
     localFolder: '本地文件夹',
+    serverDirectory: '服务端目录',
+    selectServerDirectory: '选择服务端项目目录',
     openedFolder: '已打开文件夹: {{name}}',
     failedToOpenFolder: '打开文件夹失败',
     traceRecordingStopped: '轨迹记录已停止',

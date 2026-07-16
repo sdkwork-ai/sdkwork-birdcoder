@@ -45,8 +45,8 @@ assert.match(
 );
 assert.match(
   commercialTruthDoc,
-  /## 6\. Runtime Packaging And Readiness/u,
-  'Technical architecture must define runtime packaging readiness.',
+  /## 8\. Deployment And Runtime Topology/u,
+  'Technical architecture must define deployment and runtime topology.',
 );
 assert.match(
   commercialTruthDoc,
@@ -72,13 +72,52 @@ assert.match(
 );
 assert.match(
   operatorReadme,
-  /HTTP OpenAPI 161 operations[\s\S]*route catalog 162/u,
-  'Operator README must record HTTP OpenAPI 161-operation completeness and 162-entry route catalog truth.',
+  /Route and OpenAPI counts prove catalog alignment only/u,
+  'Operator README must explain that route and OpenAPI counts are catalog-alignment evidence only.',
 );
 assert.match(
   operatorReadme,
-  /surface-manifest-parity|Four surfaces gated/u,
-  'Operator README must reference four-surface manifest parity.',
+  /Project runtime locations/u,
+  'Operator README must link the runtime-location operating guide.',
+);
+assert.doesNotMatch(
+  operatorReadme,
+  /HTTP OpenAPI \d+ operations/u,
+  'Operator README must not make a historical OpenAPI count a production-readiness claim.',
+);
+
+const runtimeLocationSecretDocs = [
+  readText('docs/reference/environment.md'),
+  readText('docs/guides/operator/deployment-operations.md'),
+  readText('docs/guides/operator/windows-server-control-plane.md'),
+];
+for (const source of runtimeLocationSecretDocs) {
+  assert.match(
+    source,
+    /SDKWORK_BIRDCODER_RUNTIME_LOCATION_MASTER_KEY/u,
+    'Runtime-location operations docs must name the server-only master-key setting.',
+  );
+  assert.match(
+    source,
+    /SDKWORK_BIRDCODER_RUNTIME_LOCATION_KEY_ID/u,
+    'Runtime-location operations docs must name the server-only key-id setting.',
+  );
+}
+const environmentReference = runtimeLocationSecretDocs[0];
+assert.match(
+  environmentReference,
+  /at least 32 bytes/u,
+  'Environment reference must require at least 32 bytes of decoded or raw master-key material.',
+);
+assert.match(
+  environmentReference,
+  /fail-closed/u,
+  'Environment reference must require fail-closed handling for missing or invalid key material.',
+);
+assert.match(
+  environmentReference,
+  /VITE_\*/u,
+  'Environment reference must prohibit exposing runtime-location secrets through VITE variables.',
 );
 
 const appConfig = JSON.parse(readText('sdkwork.app.config.json'));
@@ -123,12 +162,12 @@ assert.match(
 const deferRegistry = JSON.parse(readText('specs/coding-server-openapi-rust-defer-registry.json'));
 assert.equal(
   deferRegistry.summary.contractOperationCount,
-  161,
+  174,
   'Defer registry must track the full HTTP OpenAPI contract including chat and commerce lanes.',
 );
 assert.equal(
   deferRegistry.summary.implementedOperationCount,
-  161,
+  174,
   'Defer registry must record full product, federated IAM, commerce gateway, and chat HTTP coverage.',
 );
 assert.equal(
@@ -138,8 +177,8 @@ assert.equal(
 );
 assert.match(
   commercialTruthDoc,
-  /synthetic smoke fixtures are contract evidence only/u,
-  'Technical architecture must distinguish contract evidence from installed runtime evidence.',
+  /Synthetic\s+smoke fixtures[\s\S]*not installed-runtime[\s\S]*release-artifact evidence/u,
+  'Technical architecture must distinguish synthetic contract fixtures from installed runtime and release-artifact evidence.',
 );
 assert.doesNotMatch(
   commercialTruthDoc,

@@ -23,12 +23,12 @@ time = { workspace = true }
 tokio = { workspace = true }
 redis = { workspace = true }
 tracing = "0.1"
+async-trait = { workspace = true }
 
 [dev-dependencies]
 tower = { version = "0.5", features = ["util"] }
-tokio = { workspace = true }
+tokio = { workspace = true, features = ["test-util"] }
 sqlx = { workspace = true, features = ["sqlite"] }
-async-trait = { workspace = true }
 serde_json = { workspace = true }
 sdkwork-birdcoder-workspace-repository-sqlx = { workspace = true }
 sdkwork_database_config = { workspace = true }

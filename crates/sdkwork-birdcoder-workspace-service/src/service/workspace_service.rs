@@ -78,7 +78,7 @@ impl WorkspaceService {
         let workspace = self.repository.create_workspace(ctx, request).await?;
 
         self.event_publisher
-            .publish_workspace_created(&workspace.id)
+            .publish_workspace_created(ctx, &workspace.id)
             .await?;
 
         Ok(workspace)
@@ -106,7 +106,7 @@ impl WorkspaceService {
         let workspace = self.repository.update_workspace(ctx, id, request).await?;
 
         self.event_publisher
-            .publish_workspace_updated(&workspace.id)
+            .publish_workspace_updated(ctx, &workspace.id)
             .await?;
 
         Ok(workspace)
@@ -125,7 +125,9 @@ impl WorkspaceService {
 
         self.repository.delete_workspace(ctx, id).await?;
 
-        self.event_publisher.publish_workspace_deleted(id).await?;
+        self.event_publisher
+            .publish_workspace_deleted(ctx, id)
+            .await?;
 
         Ok(DeleteEntityPayload { id: id.to_owned() })
     }
@@ -175,7 +177,7 @@ impl WorkspaceService {
             .await?;
 
         self.event_publisher
-            .publish_workspace_member_added(workspace_id, &member.user_id)
+            .publish_workspace_member_added(ctx, workspace_id, &member.user_id)
             .await?;
 
         Ok(member)
@@ -203,7 +205,7 @@ impl WorkspaceService {
             .await?;
 
         self.event_publisher
-            .publish_workspace_member_removed(workspace_id, user_id)
+            .publish_workspace_member_removed(ctx, workspace_id, user_id)
             .await?;
 
         Ok(())

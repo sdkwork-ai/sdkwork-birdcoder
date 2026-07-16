@@ -17,7 +17,7 @@ import {
   isAuthenticatedRequest,
 } from './pc-e2e-mock-api-fixtures.mjs';
 
-const port = Number(process.env.PC_E2E_MOCK_API_PORT ?? 10240);
+const port = Number(process.env.PC_E2E_MOCK_API_PORT ?? 11240);
 const host = process.env.PC_E2E_MOCK_API_HOST ?? '127.0.0.1';
 const allowedOrigins = new Set(
   (process.env.PC_E2E_ALLOWED_ORIGINS ?? 'http://127.0.0.1:5173,http://localhost:5173')
@@ -211,6 +211,20 @@ function handleRoute(method, pathname, request, body) {
     };
   }
 
+  if (pathname === '/app/v3/api/projects/e2e-project-1' && method === 'GET') {
+    if (!isAuthenticatedRequest(request)) {
+      return {
+        statusCode: 401,
+        payload: createAppbaseFailure('No authenticated SDKWork IAM user.', '401'),
+      };
+    }
+
+    return {
+      statusCode: 200,
+      payload: createBirdCoderDataEnvelope(createProjectFixture()),
+    };
+  }
+
   if (pathname === '/app/v3/api/intelligence/coding_sessions' && method === 'GET') {
     if (!isAuthenticatedRequest(request)) {
       return {
@@ -222,6 +236,51 @@ function handleRoute(method, pathname, request, body) {
     return {
       statusCode: 200,
       payload: createBirdCoderListEnvelope([createCodingSessionFixture()]),
+    };
+  }
+
+  if (pathname === '/app/v3/api/intelligence/coding_sessions/e2e-coding-session-1' && method === 'GET') {
+    if (!isAuthenticatedRequest(request)) {
+      return {
+        statusCode: 401,
+        payload: createAppbaseFailure('No authenticated SDKWork IAM user.', '401'),
+      };
+    }
+
+    return {
+      statusCode: 200,
+      payload: createBirdCoderDataEnvelope(createCodingSessionFixture()),
+    };
+  }
+
+  if (
+    method === 'GET'
+    && /^\/app\/v3\/api\/intelligence\/coding_sessions\/e2e-coding-session-1\/(?:artifacts|checkpoints|events)$/u.test(pathname)
+  ) {
+    if (!isAuthenticatedRequest(request)) {
+      return {
+        statusCode: 401,
+        payload: createAppbaseFailure('No authenticated SDKWork IAM user.', '401'),
+      };
+    }
+
+    return {
+      statusCode: 200,
+      payload: createBirdCoderListEnvelope([]),
+    };
+  }
+
+  if (pathname === '/app/v3/api/native_sessions' && method === 'GET') {
+    if (!isAuthenticatedRequest(request)) {
+      return {
+        statusCode: 401,
+        payload: createAppbaseFailure('No authenticated SDKWork IAM user.', '401'),
+      };
+    }
+
+    return {
+      statusCode: 200,
+      payload: createBirdCoderListEnvelope([]),
     };
   }
 

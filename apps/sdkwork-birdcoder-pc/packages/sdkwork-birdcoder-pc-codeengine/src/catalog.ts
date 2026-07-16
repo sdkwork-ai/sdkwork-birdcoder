@@ -604,5 +604,10 @@ export function isBirdCoderCodeEngineNativeSessionId(
   value: unknown,
   _engineKey?: BirdCoderCodeEngineKey | null,
 ): boolean {
-  return normalizeBirdCoderCodeEngineNativeSessionId(value).length > 0;
+  const normalizedValue = String(value ?? '').trim();
+  return BIRDCODER_CODE_ENGINE_NATIVE_SESSION_PROVIDERS.some(
+    (provider) =>
+      normalizedValue.startsWith(provider.prefix) &&
+      normalizedValue.slice(provider.prefix.length).trim().length > 0,
+  );
 }

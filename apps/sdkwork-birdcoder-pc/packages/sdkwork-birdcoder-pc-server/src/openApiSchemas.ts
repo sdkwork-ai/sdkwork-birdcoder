@@ -81,6 +81,7 @@ import { listBirdCoderCodingServerEngines } from './domainQueries.ts';
 import {
   createOpenApiArraySchema,
   createOpenApiBooleanSchema,
+  createOpenApiCommandEnvelopeSchema,
   createOpenApiDataScopeSchema,
   createOpenApiDateTimeSchema,
   createOpenApiEnvelopeSchema,
@@ -96,6 +97,67 @@ import {
   createOpenApiStringSchema,
   createSdkWorkEnvelopeComponentSchemas,
 } from './openApiBuilders.ts';
+
+const BIRDCODER_RUNTIME_LOCATION_CAPABILITIES = [
+  'terminal',
+  'git',
+  'build',
+  'file_system',
+] as const;
+
+const BIRDCODER_RUNTIME_LOCATION_HEALTH_STATUSES = [
+  'pending_verification',
+  'local_observed',
+  'healthy',
+  'degraded',
+  'unavailable',
+  'revoked',
+] as const;
+
+const BIRDCODER_RUNTIME_LOCATION_KINDS = [
+  'desktop_checkout',
+  'server_workspace',
+  'runner_worktree',
+  'container_volume',
+  'remote_workspace',
+] as const;
+
+const BIRDCODER_RUNTIME_LOCATION_PATH_FLAVORS = ['windows', 'posix'] as const;
+
+const BIRDCODER_RUNTIME_TARGET_KINDS = [
+  'desktop_device',
+  'server',
+  'runner',
+  'container',
+  'remote_workspace',
+] as const;
+
+const BIRDCODER_RUNTIME_TARGET_LOCATION_PAIRS = [
+  ['desktop_device', 'desktop_checkout'],
+  ['server', 'server_workspace'],
+  ['runner', 'runner_worktree'],
+  ['container', 'container_volume'],
+  ['remote_workspace', 'remote_workspace'],
+] as const;
+
+function createRuntimeTargetLocationPairSchema(): BirdCoderOpenApiSchema {
+  return {
+    oneOf: BIRDCODER_RUNTIME_TARGET_LOCATION_PAIRS.map(
+      ([runtimeTargetKind, locationKind]) => ({
+        type: 'object',
+        properties: {
+          runtimeTargetKind: {
+            const: runtimeTargetKind,
+          },
+          locationKind: {
+            const: locationKind,
+          },
+        },
+        required: ['runtimeTargetKind', 'locationKind'],
+      }),
+    ),
+  };
+}
 
 export function buildBirdCoderCodingServerOpenApiSchemas(): Record<string, BirdCoderOpenApiSchema> {
   const engineDescriptors = listBirdCoderCodingServerEngines();
@@ -177,6 +239,9 @@ export function buildBirdCoderCodingServerOpenApiSchemas(): Record<string, BirdC
     id: createOpenApiStringSchema(),
     workspaceId: createOpenApiStringSchema(),
     projectId: createOpenApiStringSchema(),
+    runtimeLocationId: createOpenApiStringSchema(
+      'Verified runtime-location identifier bound when the coding session was created. Legacy sessions may omit this field and cannot execute or trigger native-session discovery.',
+    ),
     title: createOpenApiStringSchema(),
     status: createOpenApiStringEnumSchema(BIRDCODER_CODING_SESSION_STATUSES),
     hostMode: createOpenApiStringEnumSchema(BIRDCODER_HOST_MODES),
@@ -467,23 +532,11 @@ export function buildBirdCoderCodingServerOpenApiSchemas(): Record<string, BirdC
         ],
       },
     ),
-    BirdCoderCodeEngineModelConfigCustomModel: createOpenApiObjectSchema(
-      {
-        id: createOpenApiStringSchema(),
-        label: createOpenApiStringSchema(),
-      },
-      {
-        required: ['id', 'label'],
-      },
-    ),
     BirdCoderCodeEngineModelConfigEngine: createOpenApiObjectSchema(
       {
         engineId: createOpenApiStringEnumSchema(engineKeys),
         defaultModelId: createOpenApiStringSchema(),
         selectedModelId: createOpenApiStringSchema(),
-        customModels: createOpenApiArraySchema(
-          createOpenApiSchemaReference('BirdCoderCodeEngineModelConfigCustomModel'),
-        ),
         models: createOpenApiArraySchema(
           createOpenApiSchemaReference('BirdCoderModelCatalogEntry'),
         ),
@@ -493,7 +546,6 @@ export function buildBirdCoderCodingServerOpenApiSchemas(): Record<string, BirdC
           'engineId',
           'defaultModelId',
           'selectedModelId',
-          'customModels',
           'models',
         ],
       },
@@ -651,7 +703,6 @@ export function buildBirdCoderCodingServerOpenApiSchemas(): Record<string, BirdC
         providerVersion: createOpenApiStringSchema(),
         modelProvider: createOpenApiStringSchema(),
         projectId: createOpenApiStringSchema(),
-        cwd: createOpenApiStringSchema(),
         gitBranch: createOpenApiStringSchema(),
         gitCommit: createOpenApiStringSchema(),
         gitRepositoryUrl: createOpenApiStringSchema(),
@@ -832,7 +883,6 @@ export function buildBirdCoderCodingServerOpenApiSchemas(): Record<string, BirdC
       {
         ...codingSessionSummaryProperties,
         kind: createOpenApiStringEnumSchema(['coding']),
-        nativeCwd: createOpenApiNullableStringSchema(),
         sortTimestamp: createOpenApiLongIntegerStringSchema(
           'Normalized activity timestamp in epoch milliseconds used for sorting.',
         ),
@@ -917,13 +967,16 @@ export function buildBirdCoderCodingServerOpenApiSchemas(): Record<string, BirdC
       {
         workspaceId: createOpenApiStringSchema(),
         projectId: createOpenApiStringSchema(),
+        runtimeLocationId: createOpenApiStringSchema(
+          'Verified project runtime-location identifier required for coding-session execution.',
+        ),
         title: createOpenApiStringSchema(),
         hostMode: createOpenApiStringEnumSchema(BIRDCODER_HOST_MODES),
         engineId: createOpenApiStringEnumSchema(engineKeys),
         modelId: createOpenApiStringSchema(),
       },
       {
-        required: ['workspaceId', 'projectId', 'engineId', 'modelId'],
+        required: ['workspaceId', 'projectId', 'runtimeLocationId', 'engineId', 'modelId'],
       },
     ),
     BirdCoderUpdateCodingSessionRequest: createOpenApiObjectSchema({
@@ -945,8 +998,6 @@ export function buildBirdCoderCodingServerOpenApiSchemas(): Record<string, BirdC
     BirdCoderCreateCodingSessionTurnRequest: createOpenApiObjectSchema(
       {
         runtimeId: createOpenApiStringSchema(),
-        engineId: createOpenApiStringSchema(),
-        modelId: createOpenApiStringSchema(),
         requestKind: createOpenApiStringEnumSchema(BIRDCODER_CODING_SESSION_TURN_REQUEST_KINDS),
         inputSummary: createOpenApiStringSchema(),
         stream: createOpenApiBooleanSchema(
@@ -1882,6 +1933,271 @@ export function buildBirdCoderCodingServerOpenApiSchemas(): Record<string, BirdC
         required: ['createdAt', 'id', 'workspaceId', 'name', 'status', 'updatedAt'],
       },
     ),
+    BirdCoderProjectWorkspaceBinding: createOpenApiObjectSchema(
+      {
+        id: createOpenApiStringSchema('Opaque BirdCoder workspace-binding identifier.'),
+        projectId: createOpenApiStringSchema(),
+        sandboxId: createOpenApiStringSchema(
+          'Opaque Drive sandbox identifier. This reference does not grant Drive access.',
+        ),
+        rootEntryId: createOpenApiStringSchema(
+          'Opaque Drive entry identifier selected as the project root.',
+        ),
+        logicalPath: {
+          ...createOpenApiStringSchema(
+            'Canonical sandbox-relative path using forward-slash segments. Empty means the sandbox root.',
+          ),
+          maxLength: 4096,
+          pattern:
+            '^(?:$|(?!/)(?!.*//)(?!.*(?:^|/)\\.{1,2}(?:/|$))(?!.*\\\\)(?!.*[\\u0000-\\u001F\\u007F])[^/]{1,255}(?:/[^/]{1,255})*)$',
+        },
+        lifecycleStatus: createOpenApiStringEnumSchema(['active']),
+        version: createOpenApiLongIntegerStringSchema(
+          'Optimistic concurrency version used with the If-Match request header.',
+        ),
+        createdAt: createOpenApiDateTimeSchema(),
+        updatedAt: createOpenApiDateTimeSchema(),
+      },
+      {
+        description:
+          'BirdCoder-owned binding to a Drive sandbox directory. Physical paths, provider roots, browser handles, and Tauri paths are never stored or returned. Every filesystem operation must authorize against Drive again.',
+        required: [
+          'createdAt',
+          'id',
+          'lifecycleStatus',
+          'logicalPath',
+          'projectId',
+          'rootEntryId',
+          'sandboxId',
+          'updatedAt',
+          'version',
+        ],
+      },
+    ),
+    BirdCoderUpsertProjectWorkspaceBindingRequest: createOpenApiObjectSchema(
+      {
+        sandboxId: {
+          ...createOpenApiStringSchema('Opaque Drive sandbox identifier.'),
+          minLength: 1,
+          maxLength: 512,
+          pattern: '^(?!\\s)(?!.*\\s$)[^\\u0000-\\u001F\\u007F]+$',
+        },
+        rootEntryId: {
+          ...createOpenApiStringSchema('Opaque Drive directory-entry identifier.'),
+          minLength: 1,
+          maxLength: 512,
+          pattern: '^(?!\\s)(?!.*\\s$)[^\\u0000-\\u001F\\u007F]+$',
+        },
+        logicalPath: {
+          ...createOpenApiStringSchema(
+            'Canonical sandbox-relative path using forward-slash segments. Empty means the sandbox root.',
+          ),
+          maxLength: 4096,
+          pattern:
+            '^(?:$|(?!/)(?!.*//)(?!.*(?:^|/)\\.{1,2}(?:/|$))(?!.*\\\\)(?!.*[\\u0000-\\u001F\\u007F])[^/]{1,255}(?:/[^/]{1,255})*)$',
+        },
+      },
+      {
+        required: ['logicalPath', 'rootEntryId', 'sandboxId'],
+      },
+    ),
+    BirdCoderProjectRuntimeLocation: createOpenApiObjectSchema(
+      {
+        id: createOpenApiStringSchema(),
+        uuid: createOpenApiStringSchema(),
+        projectId: createOpenApiStringSchema(),
+        runtimeTargetId: createOpenApiStringSchema(),
+        runtimeTargetKind: createOpenApiStringEnumSchema(
+          BIRDCODER_RUNTIME_TARGET_KINDS,
+        ),
+        locationKind: createOpenApiStringEnumSchema(BIRDCODER_RUNTIME_LOCATION_KINDS),
+        pathFlavor: createOpenApiStringEnumSchema(BIRDCODER_RUNTIME_LOCATION_PATH_FLAVORS),
+        rootLocator: {
+          ...createOpenApiStringSchema(
+            'Opaque, path-free runtime target locator. It is not a filesystem path.',
+          ),
+          maxLength: 160,
+          minLength: 1,
+          pattern: '^(?!.*\\.\\.)[A-Za-z0-9][A-Za-z0-9._:-]*$',
+        },
+        displayName: createOpenApiStringSchema('Safe display label for this location.'),
+        hasAbsolutePath: createOpenApiBooleanSchema(
+          'Whether encrypted absolute path material is registered. The path itself is never returned.',
+        ),
+        terminalAvailable: createOpenApiBooleanSchema(),
+        gitAvailable: createOpenApiBooleanSchema(),
+        buildAvailable: createOpenApiBooleanSchema(),
+        fileSystemAvailable: createOpenApiBooleanSchema(),
+        healthStatus: createOpenApiStringEnumSchema(BIRDCODER_RUNTIME_LOCATION_HEALTH_STATUSES),
+        lastVerifiedAt: createOpenApiDateTimeSchema(),
+        lastSeenAt: createOpenApiDateTimeSchema(),
+        gitRepositoryUrl: createOpenApiStringSchema(
+          'Credential-free sanitized Git repository URL reported by a trusted target.',
+        ),
+        gitRemoteName: createOpenApiStringSchema(),
+        gitBranch: createOpenApiStringSchema(),
+        gitCommit: createOpenApiStringSchema(),
+        gitWorktreeKey: createOpenApiStringSchema(),
+        version: createOpenApiLongIntegerStringSchema(
+          'Optimistic concurrency version used with the If-Match request header.',
+        ),
+        createdAt: createOpenApiDateTimeSchema(),
+        updatedAt: createOpenApiDateTimeSchema(),
+      },
+      {
+        required: [
+          'buildAvailable',
+          'createdAt',
+          'displayName',
+          'fileSystemAvailable',
+          'gitAvailable',
+          'hasAbsolutePath',
+          'healthStatus',
+          'id',
+          'locationKind',
+          'pathFlavor',
+          'projectId',
+          'rootLocator',
+          'runtimeTargetId',
+          'runtimeTargetKind',
+          'terminalAvailable',
+          'updatedAt',
+          'version',
+        ],
+      },
+    ),
+    BirdCoderProjectRuntimeLocationPreference: createOpenApiObjectSchema(
+      {
+        id: createOpenApiStringSchema(),
+        projectId: createOpenApiStringSchema(),
+        subjectUserId: createOpenApiStringSchema(),
+        capability: createOpenApiStringEnumSchema(BIRDCODER_RUNTIME_LOCATION_CAPABILITIES),
+        runtimeLocationId: createOpenApiStringSchema(),
+        version: createOpenApiLongIntegerStringSchema(
+          'Optimistic concurrency version used with the If-Match request header.',
+        ),
+        createdAt: createOpenApiDateTimeSchema(),
+        updatedAt: createOpenApiDateTimeSchema(),
+      },
+      {
+        required: [
+          'capability',
+          'createdAt',
+          'id',
+          'projectId',
+          'runtimeLocationId',
+          'subjectUserId',
+          'updatedAt',
+          'version',
+        ],
+      },
+    ),
+    BirdCoderCreateProjectRuntimeLocationRequest: {
+      allOf: [
+        createOpenApiObjectSchema(
+          {
+            runtimeTargetId: createOpenApiStringSchema(),
+            runtimeTargetKind: createOpenApiStringEnumSchema(
+              BIRDCODER_RUNTIME_TARGET_KINDS,
+            ),
+            locationKind: createOpenApiStringEnumSchema(BIRDCODER_RUNTIME_LOCATION_KINDS),
+            pathFlavor: createOpenApiStringEnumSchema(BIRDCODER_RUNTIME_LOCATION_PATH_FLAVORS),
+            rootLocator: {
+              ...createOpenApiStringSchema(
+                'Opaque, path-free target locator. Do not provide a relative or absolute filesystem path.',
+              ),
+              maxLength: 160,
+              minLength: 1,
+              pattern: '^(?!.*\\.\\.)[A-Za-z0-9][A-Za-z0-9._:-]*$',
+            },
+            absolutePath: {
+              ...createOpenApiStringSchema(
+                'Write-only absolute path for encrypted-at-rest registration. It is never returned.',
+              ),
+              maxLength: 4096,
+              minLength: 1,
+              writeOnly: true,
+            },
+            displayName: {
+              ...createOpenApiStringSchema('Safe display label for the registered location.'),
+              maxLength: 160,
+              minLength: 1,
+            },
+          },
+          {
+            required: [
+              'absolutePath',
+              'locationKind',
+              'pathFlavor',
+              'rootLocator',
+              'runtimeTargetId',
+              'runtimeTargetKind',
+            ],
+          },
+        ),
+        createRuntimeTargetLocationPairSchema(),
+      ],
+    },
+    BirdCoderUpdateProjectRuntimeLocationRequest: {
+      ...createOpenApiObjectSchema({
+        displayName: {
+          ...createOpenApiStringSchema('Safe display label for the runtime location.'),
+          maxLength: 160,
+          minLength: 1,
+        },
+      }),
+      minProperties: 1,
+    },
+    BirdCoderRebindProjectRuntimeLocationRequest: createOpenApiObjectSchema(
+      {
+        pathFlavor: createOpenApiStringEnumSchema(BIRDCODER_RUNTIME_LOCATION_PATH_FLAVORS),
+        rootLocator: {
+          ...createOpenApiStringSchema(
+            'Opaque, path-free target locator. Do not provide a relative or absolute filesystem path.',
+          ),
+          maxLength: 160,
+          minLength: 1,
+          pattern: '^(?!.*\\.\\.)[A-Za-z0-9][A-Za-z0-9._:-]*$',
+        },
+        absolutePath: {
+          ...createOpenApiStringSchema(
+            'Write-only replacement absolute path for encrypted-at-rest registration. It is never returned.',
+          ),
+          maxLength: 4096,
+          minLength: 1,
+          writeOnly: true,
+        },
+        displayName: {
+          ...createOpenApiStringSchema('Safe display label for the rebound location.'),
+          maxLength: 160,
+          minLength: 1,
+        },
+      },
+      {
+        required: ['absolutePath', 'pathFlavor', 'rootLocator'],
+      },
+    ),
+    BirdCoderSetProjectRuntimeLocationPreferenceRequest: createOpenApiObjectSchema(
+      {
+        runtimeLocationId: createOpenApiStringSchema(),
+      },
+      {
+        required: ['runtimeLocationId'],
+      },
+    ),
+    BirdCoderProjectRuntimeLocationCommandAccepted: createOpenApiObjectSchema(
+      {
+        accepted: {
+          type: 'boolean',
+          const: true,
+        },
+        resourceId: createOpenApiStringSchema(),
+        status: createOpenApiStringEnumSchema(BIRDCODER_RUNTIME_LOCATION_HEALTH_STATUSES),
+      },
+      {
+        required: ['accepted', 'resourceId', 'status'],
+      },
+    ),
     BirdCoderGitStatusCounts: createOpenApiObjectSchema(
       {
         staged: createOpenApiIntegerSchema(0),
@@ -1949,22 +2265,31 @@ export function buildBirdCoderCodingServerOpenApiSchemas(): Record<string, BirdC
     ),
     BirdCoderCreateProjectGitBranchRequest: createOpenApiObjectSchema(
       {
+        runtimeLocationId: createOpenApiStringSchema(
+          'Verified project runtime-location identifier used for Git execution.',
+        ),
         branchName: createOpenApiStringSchema(),
       },
       {
-        required: ['branchName'],
+        required: ['branchName', 'runtimeLocationId'],
       },
     ),
     BirdCoderSwitchProjectGitBranchRequest: createOpenApiObjectSchema(
       {
+        runtimeLocationId: createOpenApiStringSchema(
+          'Verified project runtime-location identifier used for Git execution.',
+        ),
         branchName: createOpenApiStringSchema(),
       },
       {
-        required: ['branchName'],
+        required: ['branchName', 'runtimeLocationId'],
       },
     ),
     BirdCoderCommitProjectGitChangesRequest: createOpenApiObjectSchema(
       {
+        runtimeLocationId: createOpenApiStringSchema(
+          'Verified project runtime-location identifier used for Git execution.',
+        ),
         includeUnstaged: createOpenApiBooleanSchema(),
         message: {
           ...createOpenApiStringSchema('Required non-blank Git commit message.'),
@@ -1974,28 +2299,52 @@ export function buildBirdCoderCodingServerOpenApiSchemas(): Record<string, BirdC
         },
       },
       {
-        required: ['message'],
+        required: ['message', 'runtimeLocationId'],
       },
     ),
-    BirdCoderPushProjectGitBranchRequest: createOpenApiObjectSchema({
-      branchName: createOpenApiStringSchema(),
-      remoteName: createOpenApiStringSchema(),
-    }),
+    BirdCoderPushProjectGitBranchRequest: createOpenApiObjectSchema(
+      {
+        runtimeLocationId: createOpenApiStringSchema(
+          'Verified project runtime-location identifier used for Git execution.',
+        ),
+        branchName: createOpenApiStringSchema(),
+        remoteName: createOpenApiStringSchema(),
+      },
+      {
+        required: ['runtimeLocationId'],
+      },
+    ),
     BirdCoderCreateProjectGitWorktreeRequest: createOpenApiObjectSchema(
       {
+        runtimeLocationId: createOpenApiStringSchema(
+          'Verified project runtime-location identifier used for Git execution.',
+        ),
         branchName: createOpenApiStringSchema(),
       },
       {
-        required: ['branchName'],
+        required: ['branchName', 'runtimeLocationId'],
       },
     ),
     BirdCoderRemoveProjectGitWorktreeRequest: createOpenApiObjectSchema(
       {
+        runtimeLocationId: createOpenApiStringSchema(
+          'Verified project runtime-location identifier used for Git execution.',
+        ),
         force: createOpenApiBooleanSchema(),
         worktreeKey: createOpenApiStringSchema(),
       },
       {
-        required: ['worktreeKey'],
+        required: ['runtimeLocationId', 'worktreeKey'],
+      },
+    ),
+    BirdCoderPruneProjectGitWorktreesRequest: createOpenApiObjectSchema(
+      {
+        runtimeLocationId: createOpenApiStringSchema(
+          'Verified project runtime-location identifier used for Git execution.',
+        ),
+      },
+      {
+        required: ['runtimeLocationId'],
       },
     ),
     BirdCoderCreateProjectRequest: createOpenApiObjectSchema(
@@ -2898,6 +3247,24 @@ export function buildBirdCoderCodingServerOpenApiSchemas(): Record<string, BirdC
     ),
     BirdCoderProjectSummaryEnvelope: createOpenApiEnvelopeSchema(
       createOpenApiSchemaReference('BirdCoderProjectSummary'),
+    ),
+    BirdCoderProjectWorkspaceBindingEnvelope: createOpenApiEnvelopeSchema(
+      createOpenApiSchemaReference('BirdCoderProjectWorkspaceBinding'),
+    ),
+    BirdCoderProjectRuntimeLocationEnvelope: createOpenApiEnvelopeSchema(
+      createOpenApiSchemaReference('BirdCoderProjectRuntimeLocation'),
+    ),
+    BirdCoderProjectRuntimeLocationListEnvelope: createOpenApiListEnvelopeSchema(
+      createOpenApiSchemaReference('BirdCoderProjectRuntimeLocation'),
+    ),
+    BirdCoderProjectRuntimeLocationCommandEnvelope: createOpenApiCommandEnvelopeSchema(
+      createOpenApiSchemaReference('BirdCoderProjectRuntimeLocationCommandAccepted'),
+    ),
+    BirdCoderProjectRuntimeLocationPreferenceEnvelope: createOpenApiEnvelopeSchema(
+      createOpenApiSchemaReference('BirdCoderProjectRuntimeLocationPreference'),
+    ),
+    BirdCoderProjectRuntimeLocationPreferenceListEnvelope: createOpenApiListEnvelopeSchema(
+      createOpenApiSchemaReference('BirdCoderProjectRuntimeLocationPreference'),
     ),
     BirdCoderProjectGitOverviewEnvelope: createOpenApiEnvelopeSchema(
       createOpenApiSchemaReference('BirdCoderProjectGitOverview'),

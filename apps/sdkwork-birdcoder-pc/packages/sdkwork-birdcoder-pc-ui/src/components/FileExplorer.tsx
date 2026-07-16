@@ -5,9 +5,9 @@ import {
   emitCopyProjectLocalPath,
   emitOpenProjectTerminal,
   emitRevealProjectInFileManager,
-  globalEventBus,
-  useToast,
-} from '@sdkwork/birdcoder-pc-commons';
+} from '@sdkwork/birdcoder-pc-commons/events/projectDeviceMountEvents';
+import { globalEventBus } from '@sdkwork/birdcoder-pc-commons/utils/EventBus';
+import { useToast } from '@sdkwork/birdcoder-pc-commons/contexts/ToastProvider';
 import { copyTextToClipboard } from './clipboard';
 import {
   buildVisibleFileExplorerRows,

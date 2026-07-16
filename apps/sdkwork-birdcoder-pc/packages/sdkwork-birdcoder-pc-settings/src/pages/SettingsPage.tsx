@@ -5,7 +5,7 @@ import {
   useBirdcoderAppSettings,
   useWorkbenchPreferences,
 } from '@sdkwork/birdcoder-pc-commons';
-import { getDefaultBirdCoderIdeServicesRuntimeConfig } from '@sdkwork/birdcoder-pc-infrastructure-runtime';
+import { getDefaultBirdCoderIdeServicesRuntimeConfig } from '@sdkwork/birdcoder-pc-infrastructure-runtime/defaultIdeServices';
 import {
   SettingsTab,
   SettingsSidebar,

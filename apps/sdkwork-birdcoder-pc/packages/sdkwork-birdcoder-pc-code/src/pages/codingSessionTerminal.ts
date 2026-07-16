@@ -1,7 +1,5 @@
-import {
-  getTerminalProfile,
-  type TerminalCommandRequest,
-} from '@sdkwork/birdcoder-pc-commons';
+import { getTerminalProfile } from '@sdkwork/birdcoder-pc-commons/terminal/profiles';
+import type { TerminalCommandRequest } from '@sdkwork/birdcoder-pc-commons/terminal/runtime';
 import {
   buildWorkbenchCodeEngineTerminalResumeCommand,
   getWorkbenchCodeEngineKernel,

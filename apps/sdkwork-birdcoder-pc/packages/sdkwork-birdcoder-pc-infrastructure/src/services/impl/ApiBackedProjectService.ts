@@ -21,8 +21,10 @@ import {
   resolveBirdCoderSessionSortTimestampString,
   stringifyBirdCoderApiJson,
 } from '@sdkwork/birdcoder-pc-types';
+import { uuid } from '@sdkwork/utils/id';
 import type { IAuthService } from '../interfaces/IAuthService.ts';
 import type { IProjectSessionMirror } from '../interfaces/IProjectSessionMirror.ts';
+import { ProjectRuntimeLocationExecutionUnavailableError } from '../interfaces/IProjectRuntimeLocationService.ts';
 import {
   buildBirdCoderAuthoritativeProjectionMessageId,
   mergeBirdCoderProjectionMessages,
@@ -43,6 +45,7 @@ import type {
   BirdCoderServiceListPage,
   BirdCoderServiceListPagination,
   BirdCoderServicePageRequest,
+  BindProjectWorkspaceInput,
   CreateCodingSessionOptions,
   CreateCodingSessionMessageInput,
   CreateProjectOptions,
@@ -157,6 +160,42 @@ function sanitizeCodingSessionMessageUpdates(
   void _role;
   void _turnId;
   return editableUpdates;
+}
+
+function requireCodingSessionRuntimeLocationId(
+  projectId: string,
+  runtimeLocationId: string | null | undefined,
+): string {
+  const normalizedRuntimeLocationId = runtimeLocationId?.trim();
+  if (!normalizedRuntimeLocationId) {
+    throw new ProjectRuntimeLocationExecutionUnavailableError({
+      code: 'missing_runtime_location_id',
+      message:
+        'This coding session has no runtime-location binding and cannot execute remotely.',
+      projectId,
+    });
+  }
+  return normalizedRuntimeLocationId;
+}
+
+function isRuntimeLocationUnavailableResponse(error: unknown): boolean {
+  if (!error || typeof error !== 'object') {
+    return false;
+  }
+  const response = error as { httpStatus?: unknown; status?: unknown };
+  return response.httpStatus === 503 || response.status === 503;
+}
+
+function mapRuntimeLocationUnavailableResponse(projectId: string, error: unknown): never {
+  if (!isRuntimeLocationUnavailableResponse(error)) {
+    throw error;
+  }
+  throw new ProjectRuntimeLocationExecutionUnavailableError({
+    code: 'runtime_location_unavailable',
+    message:
+      'The selected project runtime location is not available for coding-session execution.',
+    projectId,
+  });
 }
 
 export interface ApiBackedProjectServiceOptions {
@@ -326,6 +365,7 @@ function mergeCodingSessionSummary(
     id: summary.id,
     workspaceId: summary.workspaceId,
     projectId: summary.projectId,
+    runtimeLocationId: summary.runtimeLocationId ?? localCodingSession?.runtimeLocationId,
     title: summary.title,
     status: summary.status,
     hostMode: summary.hostMode,
@@ -1033,8 +1073,6 @@ const REMOTE_CODING_SESSION_TURN_REQUEST_KIND_BY_ROLE = {
   BirdCoderCreateCodingSessionTurnRequest['requestKind'] | undefined
 >;
 
-const REMOTE_CODING_SESSION_TURN_MODEL_SELECTION_METADATA_KEY = 'codeEngineSelection';
-
 function resolveRemoteCodingSessionTurnRequest(
   message: Omit<BirdCoderChatMessage, 'codingSessionId' | 'createdAt' | 'id'>,
 ): BirdCoderCreateCodingSessionTurnRequest | null {
@@ -1051,14 +1089,11 @@ function resolveRemoteCodingSessionTurnRequest(
 
   const ideContext = readRemoteCodingSessionTurnIdeContext(message.metadata);
   const options = readRemoteCodingSessionTurnOptions(message.metadata);
-  const modelSelection = readRemoteCodingSessionTurnModelSelection(message.metadata);
   return {
     requestKind,
     inputSummary,
     stream: true,
     ideContext,
-    ...(modelSelection?.engineId ? { engineId: modelSelection.engineId } : {}),
-    ...(modelSelection?.modelId ? { modelId: modelSelection.modelId } : {}),
     ...(options ? { options } : {}),
   };
 }
@@ -1126,34 +1161,6 @@ function readRemoteCodingSessionTurnIdeContext(
     sessionId,
     currentFile,
   };
-}
-
-function readRemoteCodingSessionTurnModelSelection(
-  metadata: BirdCoderChatMessage['metadata'],
-): Pick<BirdCoderCreateCodingSessionTurnRequest, 'engineId' | 'modelId'> | undefined {
-  const metadataRecord = readRecord(metadata);
-  const selectionRecord = readRecord(
-    metadataRecord?.[REMOTE_CODING_SESSION_TURN_MODEL_SELECTION_METADATA_KEY],
-  );
-  if (!selectionRecord) {
-    return undefined;
-  }
-
-  const engineId =
-    typeof selectionRecord.engineId === 'string' && selectionRecord.engineId.trim()
-      ? selectionRecord.engineId.trim()
-      : undefined;
-  const modelId =
-    typeof selectionRecord.modelId === 'string' && selectionRecord.modelId.trim()
-      ? selectionRecord.modelId.trim()
-      : undefined;
-
-  return engineId || modelId
-    ? {
-        ...(engineId ? { engineId: engineId as BirdCoderCreateCodingSessionTurnRequest['engineId'] } : {}),
-        ...(modelId ? { modelId } : {}),
-      }
-    : undefined;
 }
 
 function normalizeRemoteFiniteNumber(
@@ -2641,6 +2648,27 @@ export class ApiBackedProjectService implements IProjectService {
     return createdProject;
   }
 
+  async bindProjectWorkspace(
+    projectId: string,
+    input: BindProjectWorkspaceInput,
+  ): Promise<void> {
+    const normalizedProjectId = projectId.trim();
+    const sandboxId = input.sandboxId.trim();
+    const rootEntryId = input.rootEntryId.trim();
+    if (!normalizedProjectId || !sandboxId || !rootEntryId) {
+      throw new Error(
+        'Project, sandbox, and root entry identifiers are required to bind a server workspace.',
+      );
+    }
+
+    await this.appClient.bindProjectWorkspace(normalizedProjectId, {
+      idempotencyKey: uuid(),
+      logicalPath: input.logicalPath,
+      rootEntryId,
+      sandboxId,
+    });
+  }
+
   async renameProject(projectId: string, name: string): Promise<void> {
     const summary = await this.appClient.updateProject(projectId, {
       name,
@@ -2682,13 +2710,23 @@ export class ApiBackedProjectService implements IProjectService {
       options.workspaceId,
     );
     const selection = resolveRequiredCodingSessionSelection(options);
-    const createdCodingSessionSummary = await this.codingRuntimeClient.createCodingSession({
-      workspaceId: project.workspaceId,
+    const runtimeLocationId = requireCodingSessionRuntimeLocationId(
       projectId,
-      title,
-      engineId: selection.engineId,
-      modelId: selection.modelId,
-    });
+      options.runtimeLocationId,
+    );
+    let createdCodingSessionSummary: BirdCoderCodingSessionSummary;
+    try {
+      createdCodingSessionSummary = await this.codingRuntimeClient.createCodingSession({
+        workspaceId: project.workspaceId,
+        projectId,
+        runtimeLocationId,
+        title,
+        engineId: selection.engineId,
+        modelId: selection.modelId,
+      });
+    } catch (error) {
+      mapRuntimeLocationUnavailableResponse(projectId, error);
+    }
     const createdCodingSession = mergeCodingSessionSummary(createdCodingSessionSummary);
 
     await this.upsertCodingSession(projectId, createdCodingSession);
@@ -2892,19 +2930,30 @@ export class ApiBackedProjectService implements IProjectService {
       engineId: localCodingSession.engineId,
       modelId: localCodingSession.modelId,
     });
-    const recreatedSummary = await this.codingRuntimeClient.createCodingSession({
-      workspaceId: normalizedWorkspaceId,
-      projectId: normalizedProjectId,
-      title: localCodingSession.title,
-      hostMode: localCodingSession.hostMode,
-      engineId: selection.engineId,
-      modelId: selection.modelId,
-    });
+    const runtimeLocationId = requireCodingSessionRuntimeLocationId(
+      normalizedProjectId,
+      localCodingSession.runtimeLocationId,
+    );
+    let recreatedSummary: BirdCoderCodingSessionSummary;
+    try {
+      recreatedSummary = await this.codingRuntimeClient.createCodingSession({
+        workspaceId: normalizedWorkspaceId,
+        projectId: normalizedProjectId,
+        runtimeLocationId,
+        title: localCodingSession.title,
+        hostMode: localCodingSession.hostMode,
+        engineId: selection.engineId,
+        modelId: selection.modelId,
+      });
+    } catch (error) {
+      mapRuntimeLocationUnavailableResponse(normalizedProjectId, error);
+    }
     const migratedLocalCodingSession: BirdCoderCodingSession = {
       ...localCodingSession,
       id: recreatedSummary.id,
       workspaceId: recreatedSummary.workspaceId,
       projectId: recreatedSummary.projectId,
+      runtimeLocationId: recreatedSummary.runtimeLocationId ?? runtimeLocationId,
       messages: localCodingSession.messages.map((message) => ({
         ...message,
         codingSessionId: recreatedSummary.id,

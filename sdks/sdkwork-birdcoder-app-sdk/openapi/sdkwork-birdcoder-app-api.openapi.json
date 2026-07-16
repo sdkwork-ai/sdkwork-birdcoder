@@ -344,6 +344,14 @@
             }
           },
           {
+            "name": "runtimeLocationId",
+            "in": "query",
+            "description": "Optional verified project runtime-location identifier. When absent, only persisted coding-session projections are returned; native-session discovery is not attempted.",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
             "name": "engineId",
             "in": "query",
             "description": "Filter resources to a single code engine.",
@@ -390,6 +398,16 @@
           },
           "500": {
             "description": "Unified coding session inventory could not be read.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "The selected coding-session runtime location is unavailable for native-session discovery.",
             "content": {
               "application/problem+json": {
                 "schema": {
@@ -469,6 +487,16 @@
           },
           "500": {
             "description": "Coding session could not be created.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "The selected coding-session runtime location is unavailable.",
             "content": {
               "application/problem+json": {
                 "schema": {
@@ -822,6 +850,15 @@
             }
           },
           {
+            "name": "runtimeLocationId",
+            "in": "query",
+            "description": "Verified project runtime-location identifier required for native-session discovery and retrieval.",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
             "name": "engineId",
             "in": "query",
             "description": "Filter resources to a single code engine.",
@@ -859,6 +896,16 @@
           },
           "500": {
             "description": "Native engine session detail could not be read.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "The selected runtime location is unavailable.",
             "content": {
               "application/problem+json": {
                 "schema": {
@@ -988,6 +1035,15 @@
             }
           },
           {
+            "name": "runtimeLocationId",
+            "in": "query",
+            "description": "Verified project runtime-location identifier required for native-session discovery and retrieval.",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
             "name": "engineId",
             "in": "query",
             "description": "Filter resources to a single code engine.",
@@ -1034,6 +1090,16 @@
           },
           "500": {
             "description": "Native engine session inventory could not be read.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "The selected runtime location is unavailable.",
             "content": {
               "application/problem+json": {
                 "schema": {
@@ -5319,6 +5385,1410 @@
         "x-sdkwork-api-surface": "app-api"
       }
     },
+    "/app/v3/api/projects/{projectId}/workspace_binding": {
+      "get": {
+        "operationId": "projects.workspaceBinding.retrieve",
+        "summary": "Get project workspace binding",
+        "description": "Get project workspace binding. Requires an authenticated BirdCoder user session.",
+        "tags": [
+          "platform"
+        ],
+        "parameters": [
+          {
+            "name": "projectId",
+            "in": "path",
+            "required": true,
+            "description": "BirdCoder project identifier.",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Project workspace binding returned successfully.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BirdCoderProjectWorkspaceBindingEnvelope"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Project workspace binding was not found.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Problem response envelope.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "AuthToken": [],
+            "AccessToken": []
+          }
+        ],
+        "x-sdkwork-auth-mode": "user",
+        "x-sdkwork-data-scope": "organization",
+        "x-sdkwork-deployment": "all",
+        "x-sdkwork-domain": "platform",
+        "x-sdkwork-permission": "birdcoder.platform-projects-workspace-binding.read",
+        "x-sdkwork-public": false,
+        "x-sdkwork-resource": "birdcoder.platform-projects-workspace-binding",
+        "x-sdkwork-surface": "app",
+        "x-sdkwork-tenant-scope": "tenant",
+        "x-sdkwork-api-authority": "sdkwork-birdcoder-app-api",
+        "x-sdkwork-owner": "sdkwork-birdcoder",
+        "x-sdkwork-request-context": "WebRequestContext",
+        "x-sdkwork-api-surface": "app-api"
+      },
+      "put": {
+        "operationId": "projects.workspaceBinding.update",
+        "summary": "Create or update project workspace binding",
+        "description": "Create or update project workspace binding. Requires an authenticated BirdCoder user session.",
+        "tags": [
+          "platform"
+        ],
+        "parameters": [
+          {
+            "name": "projectId",
+            "in": "path",
+            "required": true,
+            "description": "BirdCoder project identifier.",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "If-Match",
+            "in": "header",
+            "description": "Current resource version required for optimistic concurrency.",
+            "schema": {
+              "type": "string",
+              "maxLength": 32,
+              "minLength": 1,
+              "pattern": "[0-9]+"
+            }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "description": "Client-generated idempotency key scoped to the authenticated principal and operation.",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "maxLength": 128,
+              "minLength": 8,
+              "pattern": "^[A-Za-z0-9._:@-]+$"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BirdCoderUpsertProjectWorkspaceBindingRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Project workspace binding updated successfully.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BirdCoderProjectWorkspaceBindingEnvelope"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Project workspace binding input is invalid.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Project was not found.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Project workspace binding idempotency conflicts with another request.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            }
+          },
+          "412": {
+            "description": "Project workspace-binding version precondition failed.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            }
+          },
+          "428": {
+            "description": "An existing project workspace binding requires If-Match.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Problem response envelope.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "AuthToken": [],
+            "AccessToken": []
+          }
+        ],
+        "x-sdkwork-auth-mode": "user",
+        "x-sdkwork-audit-event": "project.workspace_binding.upsert",
+        "x-sdkwork-data-scope": "organization",
+        "x-sdkwork-deployment": "all",
+        "x-sdkwork-domain": "platform",
+        "x-sdkwork-idempotent": true,
+        "x-sdkwork-permission": "birdcoder.platform-projects-workspace-binding.update",
+        "x-sdkwork-public": false,
+        "x-sdkwork-resource": "birdcoder.platform-projects-workspace-binding",
+        "x-sdkwork-surface": "app",
+        "x-sdkwork-tenant-scope": "tenant",
+        "x-sdkwork-api-authority": "sdkwork-birdcoder-app-api",
+        "x-sdkwork-owner": "sdkwork-birdcoder",
+        "x-sdkwork-request-context": "WebRequestContext",
+        "x-sdkwork-api-surface": "app-api"
+      },
+      "delete": {
+        "operationId": "projects.workspaceBinding.delete",
+        "summary": "Delete project workspace binding",
+        "description": "Delete project workspace binding. Requires an authenticated BirdCoder user session.",
+        "tags": [
+          "platform"
+        ],
+        "parameters": [
+          {
+            "name": "projectId",
+            "in": "path",
+            "required": true,
+            "description": "BirdCoder project identifier.",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "If-Match",
+            "in": "header",
+            "description": "Current resource version required for optimistic concurrency.",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "maxLength": 32,
+              "minLength": 1,
+              "pattern": "[0-9]+"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Project workspace binding removed successfully."
+          },
+          "404": {
+            "description": "Project workspace binding was not found.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            }
+          },
+          "412": {
+            "description": "Project workspace-binding version precondition failed.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            }
+          },
+          "428": {
+            "description": "Project workspace-binding deletion requires If-Match.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Problem response envelope.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "AuthToken": [],
+            "AccessToken": []
+          }
+        ],
+        "x-sdkwork-auth-mode": "user",
+        "x-sdkwork-audit-event": "project.workspace_binding.delete",
+        "x-sdkwork-data-scope": "organization",
+        "x-sdkwork-deployment": "all",
+        "x-sdkwork-domain": "platform",
+        "x-sdkwork-permission": "birdcoder.platform-projects-workspace-binding.delete",
+        "x-sdkwork-public": false,
+        "x-sdkwork-resource": "birdcoder.platform-projects-workspace-binding",
+        "x-sdkwork-surface": "app",
+        "x-sdkwork-tenant-scope": "tenant",
+        "x-sdkwork-api-authority": "sdkwork-birdcoder-app-api",
+        "x-sdkwork-owner": "sdkwork-birdcoder",
+        "x-sdkwork-request-context": "WebRequestContext",
+        "x-sdkwork-api-surface": "app-api"
+      }
+    },
+    "/app/v3/api/projects/{projectId}/runtime_locations": {
+      "get": {
+        "operationId": "projects.runtimeLocations.list",
+        "summary": "List project runtime locations",
+        "description": "List project runtime locations. Requires an authenticated BirdCoder user session.",
+        "tags": [
+          "platform"
+        ],
+        "parameters": [
+          {
+            "name": "projectId",
+            "in": "path",
+            "required": true,
+            "description": "BirdCoder project identifier.",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "description": "One-based page number used for offset-mode pagination.",
+            "schema": {
+              "type": "integer",
+              "minimum": 1
+            }
+          },
+          {
+            "name": "page_size",
+            "in": "query",
+            "description": "Maximum number of items to return. Defaults to 20 and must not exceed 200.",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 200
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Project runtime locations returned successfully.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BirdCoderProjectRuntimeLocationListEnvelope"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Project was not found.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Problem response envelope.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "AuthToken": [],
+            "AccessToken": []
+          }
+        ],
+        "x-sdkwork-auth-mode": "user",
+        "x-sdkwork-data-scope": "organization",
+        "x-sdkwork-deployment": "all",
+        "x-sdkwork-domain": "platform",
+        "x-sdkwork-permission": "birdcoder.platform-projects-runtime-locations.read",
+        "x-sdkwork-public": false,
+        "x-sdkwork-resource": "birdcoder.platform-projects-runtime-locations",
+        "x-sdkwork-surface": "app",
+        "x-sdkwork-tenant-scope": "tenant",
+        "x-sdkwork-api-authority": "sdkwork-birdcoder-app-api",
+        "x-sdkwork-owner": "sdkwork-birdcoder",
+        "x-sdkwork-request-context": "WebRequestContext",
+        "x-sdkwork-api-surface": "app-api"
+      },
+      "post": {
+        "operationId": "projects.runtimeLocations.create",
+        "summary": "Register project runtime location",
+        "description": "Register project runtime location. Requires an authenticated BirdCoder user session.",
+        "tags": [
+          "platform"
+        ],
+        "parameters": [
+          {
+            "name": "projectId",
+            "in": "path",
+            "required": true,
+            "description": "BirdCoder project identifier.",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "description": "Client-generated idempotency key scoped to the authenticated principal and operation.",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "maxLength": 128,
+              "minLength": 8,
+              "pattern": "^[A-Za-z0-9._:@-]+$"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BirdCoderCreateProjectRuntimeLocationRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Project runtime location registered successfully.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BirdCoderProjectRuntimeLocationEnvelope"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Project runtime-location registration is invalid.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Project was not found.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Project runtime-location registration conflicts with existing state.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            }
+          },
+          "428": {
+            "description": "Project runtime-location registration requires Idempotency-Key.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Problem response envelope.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "AuthToken": [],
+            "AccessToken": []
+          }
+        ],
+        "x-sdkwork-auth-mode": "user",
+        "x-sdkwork-data-scope": "organization",
+        "x-sdkwork-deployment": "all",
+        "x-sdkwork-domain": "platform",
+        "x-sdkwork-idempotent": true,
+        "x-sdkwork-permission": "birdcoder.platform-projects-runtime-locations.create",
+        "x-sdkwork-public": false,
+        "x-sdkwork-resource": "birdcoder.platform-projects-runtime-locations",
+        "x-sdkwork-surface": "app",
+        "x-sdkwork-tenant-scope": "tenant",
+        "x-sdkwork-api-authority": "sdkwork-birdcoder-app-api",
+        "x-sdkwork-owner": "sdkwork-birdcoder",
+        "x-sdkwork-request-context": "WebRequestContext",
+        "x-sdkwork-api-surface": "app-api"
+      }
+    },
+    "/app/v3/api/projects/{projectId}/runtime_locations/{runtimeLocationId}": {
+      "get": {
+        "operationId": "projects.runtimeLocations.retrieve",
+        "summary": "Get project runtime location",
+        "description": "Get project runtime location. Requires an authenticated BirdCoder user session.",
+        "tags": [
+          "platform"
+        ],
+        "parameters": [
+          {
+            "name": "projectId",
+            "in": "path",
+            "required": true,
+            "description": "BirdCoder project identifier.",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "runtimeLocationId",
+            "in": "path",
+            "required": true,
+            "description": "Project runtime-location identifier.",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Project runtime location returned successfully.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BirdCoderProjectRuntimeLocationEnvelope"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Project runtime location was not found.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Problem response envelope.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "AuthToken": [],
+            "AccessToken": []
+          }
+        ],
+        "x-sdkwork-auth-mode": "user",
+        "x-sdkwork-data-scope": "organization",
+        "x-sdkwork-deployment": "all",
+        "x-sdkwork-domain": "platform",
+        "x-sdkwork-permission": "birdcoder.platform-projects-runtime-locations.read",
+        "x-sdkwork-public": false,
+        "x-sdkwork-resource": "birdcoder.platform-projects-runtime-locations",
+        "x-sdkwork-surface": "app",
+        "x-sdkwork-tenant-scope": "tenant",
+        "x-sdkwork-api-authority": "sdkwork-birdcoder-app-api",
+        "x-sdkwork-owner": "sdkwork-birdcoder",
+        "x-sdkwork-request-context": "WebRequestContext",
+        "x-sdkwork-api-surface": "app-api"
+      },
+      "patch": {
+        "operationId": "projects.runtimeLocations.update",
+        "summary": "Update project runtime location",
+        "description": "Update project runtime location. Requires an authenticated BirdCoder user session.",
+        "tags": [
+          "platform"
+        ],
+        "parameters": [
+          {
+            "name": "projectId",
+            "in": "path",
+            "required": true,
+            "description": "BirdCoder project identifier.",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "runtimeLocationId",
+            "in": "path",
+            "required": true,
+            "description": "Project runtime-location identifier.",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "If-Match",
+            "in": "header",
+            "description": "Current resource version required for optimistic concurrency.",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "maxLength": 32,
+              "minLength": 1,
+              "pattern": "[0-9]+"
+            }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "description": "Client-generated idempotency key scoped to the authenticated principal and operation.",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "maxLength": 128,
+              "minLength": 8,
+              "pattern": "^[A-Za-z0-9._:@-]+$"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BirdCoderUpdateProjectRuntimeLocationRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Project runtime location updated successfully.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BirdCoderProjectRuntimeLocationEnvelope"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Project runtime-location update is invalid.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Project runtime location was not found.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            }
+          },
+          "412": {
+            "description": "Project runtime-location version precondition failed.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            }
+          },
+          "428": {
+            "description": "Project runtime-location update requires If-Match and Idempotency-Key.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Problem response envelope.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "AuthToken": [],
+            "AccessToken": []
+          }
+        ],
+        "x-sdkwork-auth-mode": "user",
+        "x-sdkwork-data-scope": "organization",
+        "x-sdkwork-deployment": "all",
+        "x-sdkwork-domain": "platform",
+        "x-sdkwork-idempotent": true,
+        "x-sdkwork-permission": "birdcoder.platform-projects-runtime-locations.update",
+        "x-sdkwork-public": false,
+        "x-sdkwork-resource": "birdcoder.platform-projects-runtime-locations",
+        "x-sdkwork-surface": "app",
+        "x-sdkwork-tenant-scope": "tenant",
+        "x-sdkwork-api-authority": "sdkwork-birdcoder-app-api",
+        "x-sdkwork-owner": "sdkwork-birdcoder",
+        "x-sdkwork-request-context": "WebRequestContext",
+        "x-sdkwork-api-surface": "app-api"
+      },
+      "delete": {
+        "operationId": "projects.runtimeLocations.delete",
+        "summary": "Delete project runtime location",
+        "description": "Delete project runtime location. Requires an authenticated BirdCoder user session.",
+        "tags": [
+          "platform"
+        ],
+        "parameters": [
+          {
+            "name": "projectId",
+            "in": "path",
+            "required": true,
+            "description": "BirdCoder project identifier.",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "runtimeLocationId",
+            "in": "path",
+            "required": true,
+            "description": "Project runtime-location identifier.",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "If-Match",
+            "in": "header",
+            "description": "Current resource version required for optimistic concurrency.",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "maxLength": 32,
+              "minLength": 1,
+              "pattern": "[0-9]+"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Project runtime location removed successfully."
+          },
+          "404": {
+            "description": "Project runtime location was not found.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            }
+          },
+          "412": {
+            "description": "Project runtime-location version precondition failed.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            }
+          },
+          "428": {
+            "description": "Project runtime-location deletion requires If-Match.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Problem response envelope.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "AuthToken": [],
+            "AccessToken": []
+          }
+        ],
+        "x-sdkwork-auth-mode": "user",
+        "x-sdkwork-data-scope": "organization",
+        "x-sdkwork-deployment": "all",
+        "x-sdkwork-domain": "platform",
+        "x-sdkwork-permission": "birdcoder.platform-projects-runtime-locations.delete",
+        "x-sdkwork-public": false,
+        "x-sdkwork-resource": "birdcoder.platform-projects-runtime-locations",
+        "x-sdkwork-surface": "app",
+        "x-sdkwork-tenant-scope": "tenant",
+        "x-sdkwork-api-authority": "sdkwork-birdcoder-app-api",
+        "x-sdkwork-owner": "sdkwork-birdcoder",
+        "x-sdkwork-request-context": "WebRequestContext",
+        "x-sdkwork-api-surface": "app-api"
+      }
+    },
+    "/app/v3/api/projects/{projectId}/runtime_locations/{runtimeLocationId}/rebind": {
+      "post": {
+        "operationId": "projects.runtimeLocations.rebind",
+        "summary": "Rebind project runtime location",
+        "description": "Rebind project runtime location. Requires an authenticated BirdCoder user session.",
+        "tags": [
+          "platform"
+        ],
+        "parameters": [
+          {
+            "name": "projectId",
+            "in": "path",
+            "required": true,
+            "description": "BirdCoder project identifier.",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "runtimeLocationId",
+            "in": "path",
+            "required": true,
+            "description": "Project runtime-location identifier.",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "If-Match",
+            "in": "header",
+            "description": "Current resource version required for optimistic concurrency.",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "maxLength": 32,
+              "minLength": 1,
+              "pattern": "[0-9]+"
+            }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "description": "Client-generated idempotency key scoped to the authenticated principal and operation.",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "maxLength": 128,
+              "minLength": 8,
+              "pattern": "^[A-Za-z0-9._:@-]+$"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BirdCoderRebindProjectRuntimeLocationRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Project runtime location rebound and returned to pending verification successfully.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BirdCoderProjectRuntimeLocationCommandEnvelope"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Project runtime-location rebind is invalid.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Project runtime location was not found.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Project runtime-location rebind conflicts with existing state.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            }
+          },
+          "412": {
+            "description": "Project runtime-location version precondition failed.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            }
+          },
+          "428": {
+            "description": "Project runtime-location rebind requires If-Match and Idempotency-Key.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Problem response envelope.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "AuthToken": [],
+            "AccessToken": []
+          }
+        ],
+        "x-sdkwork-auth-mode": "user",
+        "x-sdkwork-data-scope": "organization",
+        "x-sdkwork-deployment": "all",
+        "x-sdkwork-domain": "platform",
+        "x-sdkwork-idempotent": true,
+        "x-sdkwork-permission": "birdcoder.platform-projects-runtime-locations.create",
+        "x-sdkwork-public": false,
+        "x-sdkwork-resource": "birdcoder.platform-projects-runtime-locations",
+        "x-sdkwork-surface": "app",
+        "x-sdkwork-tenant-scope": "tenant",
+        "x-sdkwork-api-authority": "sdkwork-birdcoder-app-api",
+        "x-sdkwork-owner": "sdkwork-birdcoder",
+        "x-sdkwork-request-context": "WebRequestContext",
+        "x-sdkwork-api-surface": "app-api"
+      }
+    },
+    "/app/v3/api/projects/{projectId}/runtime_locations/{runtimeLocationId}/request_verification": {
+      "post": {
+        "operationId": "projects.runtimeLocations.requestVerification",
+        "summary": "Request project runtime-location verification",
+        "description": "Request project runtime-location verification. Requires an authenticated BirdCoder user session.",
+        "tags": [
+          "platform"
+        ],
+        "parameters": [
+          {
+            "name": "projectId",
+            "in": "path",
+            "required": true,
+            "description": "BirdCoder project identifier.",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "runtimeLocationId",
+            "in": "path",
+            "required": true,
+            "description": "Project runtime-location identifier.",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "If-Match",
+            "in": "header",
+            "description": "Current resource version required for optimistic concurrency.",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "maxLength": 32,
+              "minLength": 1,
+              "pattern": "[0-9]+"
+            }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "description": "Client-generated idempotency key scoped to the authenticated principal and operation.",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "maxLength": 128,
+              "minLength": 8,
+              "pattern": "^[A-Za-z0-9._:@-]+$"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Project runtime-location verification was requested successfully.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BirdCoderProjectRuntimeLocationCommandEnvelope"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Project runtime location was not found.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Project runtime-location verification conflicts with existing state.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            }
+          },
+          "412": {
+            "description": "Project runtime-location version precondition failed.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            }
+          },
+          "428": {
+            "description": "Project runtime-location verification requires If-Match and Idempotency-Key.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Project runtime-location verification target is unavailable.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Problem response envelope.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "AuthToken": [],
+            "AccessToken": []
+          }
+        ],
+        "x-sdkwork-auth-mode": "user",
+        "x-sdkwork-data-scope": "organization",
+        "x-sdkwork-deployment": "all",
+        "x-sdkwork-domain": "platform",
+        "x-sdkwork-idempotent": true,
+        "x-sdkwork-permission": "birdcoder.platform-projects-runtime-locations.create",
+        "x-sdkwork-public": false,
+        "x-sdkwork-resource": "birdcoder.platform-projects-runtime-locations",
+        "x-sdkwork-surface": "app",
+        "x-sdkwork-tenant-scope": "tenant",
+        "x-sdkwork-api-authority": "sdkwork-birdcoder-app-api",
+        "x-sdkwork-owner": "sdkwork-birdcoder",
+        "x-sdkwork-request-context": "WebRequestContext",
+        "x-sdkwork-api-surface": "app-api"
+      }
+    },
+    "/app/v3/api/projects/{projectId}/runtime_location_preferences": {
+      "get": {
+        "operationId": "projects.runtimeLocations.preferences.list",
+        "summary": "List project runtime-location preferences",
+        "description": "List project runtime-location preferences. Requires an authenticated BirdCoder user session.",
+        "tags": [
+          "platform"
+        ],
+        "parameters": [
+          {
+            "name": "projectId",
+            "in": "path",
+            "required": true,
+            "description": "BirdCoder project identifier.",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "description": "One-based page number used for offset-mode pagination.",
+            "schema": {
+              "type": "integer",
+              "minimum": 1
+            }
+          },
+          {
+            "name": "page_size",
+            "in": "query",
+            "description": "Maximum number of items to return. Defaults to 20 and must not exceed 200.",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 200
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Project runtime-location preferences returned successfully.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BirdCoderProjectRuntimeLocationPreferenceListEnvelope"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Project was not found.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Problem response envelope.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "AuthToken": [],
+            "AccessToken": []
+          }
+        ],
+        "x-sdkwork-auth-mode": "user",
+        "x-sdkwork-data-scope": "organization",
+        "x-sdkwork-deployment": "all",
+        "x-sdkwork-domain": "platform",
+        "x-sdkwork-permission": "birdcoder.platform-projects-runtime-locations-preferences.read",
+        "x-sdkwork-public": false,
+        "x-sdkwork-resource": "birdcoder.platform-projects-runtime-locations-preferences",
+        "x-sdkwork-surface": "app",
+        "x-sdkwork-tenant-scope": "tenant",
+        "x-sdkwork-api-authority": "sdkwork-birdcoder-app-api",
+        "x-sdkwork-owner": "sdkwork-birdcoder",
+        "x-sdkwork-request-context": "WebRequestContext",
+        "x-sdkwork-api-surface": "app-api"
+      }
+    },
+    "/app/v3/api/projects/{projectId}/runtime_location_preferences/{capability}": {
+      "put": {
+        "operationId": "projects.runtimeLocations.preferences.update",
+        "summary": "Update project runtime-location preference",
+        "description": "Update project runtime-location preference. Requires an authenticated BirdCoder user session.",
+        "tags": [
+          "platform"
+        ],
+        "parameters": [
+          {
+            "name": "projectId",
+            "in": "path",
+            "required": true,
+            "description": "BirdCoder project identifier.",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "capability",
+            "in": "path",
+            "required": true,
+            "description": "Project runtime-location capability preference identifier.",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "If-Match",
+            "in": "header",
+            "description": "Current resource version required for optimistic concurrency.",
+            "schema": {
+              "type": "string",
+              "maxLength": 32,
+              "minLength": 1,
+              "pattern": "[0-9]+"
+            }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "description": "Client-generated idempotency key scoped to the authenticated principal and operation.",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "maxLength": 128,
+              "minLength": 8,
+              "pattern": "^[A-Za-z0-9._:@-]+$"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BirdCoderSetProjectRuntimeLocationPreferenceRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Project runtime-location preference updated successfully.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BirdCoderProjectRuntimeLocationPreferenceEnvelope"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Project runtime-location preference is invalid.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Project or runtime location was not found.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Project runtime-location preference conflicts with existing state.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            }
+          },
+          "412": {
+            "description": "Project runtime-location preference version precondition failed.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            }
+          },
+          "428": {
+            "description": "Project runtime-location preference update requires Idempotency-Key.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Problem response envelope.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "AuthToken": [],
+            "AccessToken": []
+          }
+        ],
+        "x-sdkwork-auth-mode": "user",
+        "x-sdkwork-data-scope": "organization",
+        "x-sdkwork-deployment": "all",
+        "x-sdkwork-domain": "platform",
+        "x-sdkwork-idempotent": true,
+        "x-sdkwork-permission": "birdcoder.platform-projects-runtime-locations-preferences.update",
+        "x-sdkwork-public": false,
+        "x-sdkwork-resource": "birdcoder.platform-projects-runtime-locations-preferences",
+        "x-sdkwork-surface": "app",
+        "x-sdkwork-tenant-scope": "tenant",
+        "x-sdkwork-api-authority": "sdkwork-birdcoder-app-api",
+        "x-sdkwork-owner": "sdkwork-birdcoder",
+        "x-sdkwork-request-context": "WebRequestContext",
+        "x-sdkwork-api-surface": "app-api"
+      }
+    },
     "/app/v3/api/projects/{projectId}/git/overview": {
       "get": {
         "operationId": "projects.git.overview.retrieve",
@@ -5333,6 +6803,15 @@
             "in": "path",
             "required": true,
             "description": "BirdCoder project identifier.",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "runtime_location_id",
+            "in": "query",
+            "description": "Verified project runtime-location identifier used for Git execution.",
+            "required": true,
             "schema": {
               "type": "string"
             }
@@ -5351,6 +6830,16 @@
           },
           "404": {
             "description": "Project was not found.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Project Git runtime location is unavailable.",
             "content": {
               "application/problem+json": {
                 "schema": {
@@ -5408,6 +6897,15 @@
             "schema": {
               "type": "string"
             }
+          },
+          {
+            "name": "runtime_location_id",
+            "in": "query",
+            "description": "Verified project runtime-location identifier used for Git execution.",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
           }
         ],
         "responses": {
@@ -5423,6 +6921,16 @@
           },
           "404": {
             "description": "Project was not found.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Project Git runtime location is unavailable.",
             "content": {
               "application/problem+json": {
                 "schema": {
@@ -5523,6 +7031,16 @@
               }
             }
           },
+          "503": {
+            "description": "Project Git runtime location is unavailable.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            }
+          },
           "default": {
             "description": "Problem response envelope.",
             "content": {
@@ -5607,6 +7125,16 @@
           },
           "404": {
             "description": "Project was not found.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Project Git runtime location is unavailable.",
             "content": {
               "application/problem+json": {
                 "schema": {
@@ -5707,6 +7235,16 @@
               }
             }
           },
+          "503": {
+            "description": "Project Git runtime location is unavailable.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            }
+          },
           "default": {
             "description": "Problem response envelope.",
             "content": {
@@ -5759,7 +7297,7 @@
           }
         ],
         "requestBody": {
-          "required": false,
+          "required": true,
           "content": {
             "application/json": {
               "schema": {
@@ -5791,6 +7329,16 @@
           },
           "404": {
             "description": "Project was not found.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Project Git runtime location is unavailable.",
             "content": {
               "application/problem+json": {
                 "schema": {
@@ -5891,6 +7439,16 @@
               }
             }
           },
+          "503": {
+            "description": "Project Git runtime location is unavailable.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            }
+          },
           "default": {
             "description": "Problem response envelope.",
             "content": {
@@ -5983,6 +7541,16 @@
               }
             }
           },
+          "503": {
+            "description": "Project Git runtime location is unavailable.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            }
+          },
           "default": {
             "description": "Problem response envelope.",
             "content": {
@@ -6034,6 +7602,16 @@
             }
           }
         ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BirdCoderPruneProjectGitWorktreesRequest"
+              }
+            }
+          }
+        },
         "responses": {
           "201": {
             "description": "Project Git worktrees pruned successfully.",
@@ -6057,6 +7635,16 @@
           },
           "404": {
             "description": "Project was not found.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Project Git runtime location is unavailable.",
             "content": {
               "application/problem+json": {
                 "schema": {
@@ -8141,22 +9729,6 @@
         ],
         "additionalProperties": false
       },
-      "BirdCoderCodeEngineModelConfigCustomModel": {
-        "type": "object",
-        "properties": {
-          "id": {
-            "type": "string"
-          },
-          "label": {
-            "type": "string"
-          }
-        },
-        "required": [
-          "id",
-          "label"
-        ],
-        "additionalProperties": false
-      },
       "BirdCoderCodeEngineModelConfigEngine": {
         "type": "object",
         "properties": {
@@ -8175,12 +9747,6 @@
           "selectedModelId": {
             "type": "string"
           },
-          "customModels": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/BirdCoderCodeEngineModelConfigCustomModel"
-            }
-          },
           "models": {
             "type": "array",
             "items": {
@@ -8192,7 +9758,6 @@
           "engineId",
           "defaultModelId",
           "selectedModelId",
-          "customModels",
           "models"
         ],
         "additionalProperties": false
@@ -8570,6 +10135,7 @@
               "tool.call.completed",
               "artifact.upserted",
               "approval.required",
+              "user.question.required",
               "operation.updated",
               "turn.completed",
               "turn.failed"
@@ -8644,6 +10210,10 @@
           },
           "projectId": {
             "type": "string"
+          },
+          "runtimeLocationId": {
+            "type": "string",
+            "description": "Verified runtime-location identifier bound when the coding session was created. Legacy sessions may omit this field and cannot execute or trigger native-session discovery."
           },
           "title": {
             "type": "string"
@@ -9618,15 +11188,24 @@
       "BirdCoderCommitProjectGitChangesRequest": {
         "type": "object",
         "properties": {
+          "runtimeLocationId": {
+            "type": "string",
+            "description": "Verified project runtime-location identifier used for Git execution."
+          },
           "includeUnstaged": {
             "type": "boolean"
           },
           "message": {
-            "type": "string"
+            "type": "string",
+            "description": "Required non-blank Git commit message.",
+            "maxLength": 500,
+            "minLength": 1,
+            "pattern": "\\S"
           }
         },
         "required": [
-          "message"
+          "message",
+          "runtimeLocationId"
         ],
         "additionalProperties": false
       },
@@ -9765,6 +11344,10 @@
           "projectId": {
             "type": "string"
           },
+          "runtimeLocationId": {
+            "type": "string",
+            "description": "Verified project runtime-location identifier required for coding-session execution."
+          },
           "title": {
             "type": "string"
           },
@@ -9792,6 +11375,7 @@
         "required": [
           "workspaceId",
           "projectId",
+          "runtimeLocationId",
           "engineId",
           "modelId"
         ],
@@ -9801,12 +11385,6 @@
         "type": "object",
         "properties": {
           "runtimeId": {
-            "type": "string"
-          },
-          "engineId": {
-            "type": "string"
-          },
-          "modelId": {
             "type": "string"
           },
           "requestKind": {
@@ -9892,24 +11470,34 @@
       "BirdCoderCreateProjectGitBranchRequest": {
         "type": "object",
         "properties": {
+          "runtimeLocationId": {
+            "type": "string",
+            "description": "Verified project runtime-location identifier used for Git execution."
+          },
           "branchName": {
             "type": "string"
           }
         },
         "required": [
-          "branchName"
+          "branchName",
+          "runtimeLocationId"
         ],
         "additionalProperties": false
       },
       "BirdCoderCreateProjectGitWorktreeRequest": {
         "type": "object",
         "properties": {
+          "runtimeLocationId": {
+            "type": "string",
+            "description": "Verified project runtime-location identifier used for Git execution."
+          },
           "branchName": {
             "type": "string"
           }
         },
         "required": [
-          "branchName"
+          "branchName",
+          "runtimeLocationId"
         ],
         "additionalProperties": false
       },
@@ -9931,6 +11519,153 @@
           "workspaceId"
         ],
         "additionalProperties": false
+      },
+      "BirdCoderCreateProjectRuntimeLocationRequest": {
+        "allOf": [
+          {
+            "type": "object",
+            "properties": {
+              "runtimeTargetId": {
+                "type": "string"
+              },
+              "runtimeTargetKind": {
+                "type": "string",
+                "enum": [
+                  "desktop_device",
+                  "server",
+                  "runner",
+                  "container",
+                  "remote_workspace"
+                ]
+              },
+              "locationKind": {
+                "type": "string",
+                "enum": [
+                  "desktop_checkout",
+                  "server_workspace",
+                  "runner_worktree",
+                  "container_volume",
+                  "remote_workspace"
+                ]
+              },
+              "pathFlavor": {
+                "type": "string",
+                "enum": [
+                  "windows",
+                  "posix"
+                ]
+              },
+              "rootLocator": {
+                "type": "string",
+                "description": "Opaque, path-free target locator. Do not provide a relative or absolute filesystem path.",
+                "maxLength": 160,
+                "minLength": 1,
+                "pattern": "^(?!.*\\.\\.)[A-Za-z0-9][A-Za-z0-9._:-]*$"
+              },
+              "absolutePath": {
+                "type": "string",
+                "description": "Write-only absolute path for encrypted-at-rest registration. It is never returned.",
+                "maxLength": 4096,
+                "minLength": 1,
+                "writeOnly": true
+              },
+              "displayName": {
+                "type": "string",
+                "description": "Safe display label for the registered location.",
+                "maxLength": 160,
+                "minLength": 1
+              }
+            },
+            "required": [
+              "absolutePath",
+              "locationKind",
+              "pathFlavor",
+              "rootLocator",
+              "runtimeTargetId",
+              "runtimeTargetKind"
+            ],
+            "additionalProperties": false
+          },
+          {
+            "oneOf": [
+              {
+                "type": "object",
+                "properties": {
+                  "runtimeTargetKind": {
+                    "const": "desktop_device"
+                  },
+                  "locationKind": {
+                    "const": "desktop_checkout"
+                  }
+                },
+                "required": [
+                  "runtimeTargetKind",
+                  "locationKind"
+                ]
+              },
+              {
+                "type": "object",
+                "properties": {
+                  "runtimeTargetKind": {
+                    "const": "server"
+                  },
+                  "locationKind": {
+                    "const": "server_workspace"
+                  }
+                },
+                "required": [
+                  "runtimeTargetKind",
+                  "locationKind"
+                ]
+              },
+              {
+                "type": "object",
+                "properties": {
+                  "runtimeTargetKind": {
+                    "const": "runner"
+                  },
+                  "locationKind": {
+                    "const": "runner_worktree"
+                  }
+                },
+                "required": [
+                  "runtimeTargetKind",
+                  "locationKind"
+                ]
+              },
+              {
+                "type": "object",
+                "properties": {
+                  "runtimeTargetKind": {
+                    "const": "container"
+                  },
+                  "locationKind": {
+                    "const": "container_volume"
+                  }
+                },
+                "required": [
+                  "runtimeTargetKind",
+                  "locationKind"
+                ]
+              },
+              {
+                "type": "object",
+                "properties": {
+                  "runtimeTargetKind": {
+                    "const": "remote_workspace"
+                  },
+                  "locationKind": {
+                    "const": "remote_workspace"
+                  }
+                },
+                "required": [
+                  "runtimeTargetKind",
+                  "locationKind"
+                ]
+              }
+            ]
+          }
+        ]
       },
       "BirdCoderCreateWorkspaceRequest": {
         "type": "object",
@@ -11921,9 +13656,6 @@
           "projectId": {
             "type": "string"
           },
-          "cwd": {
-            "type": "string"
-          },
           "gitBranch": {
             "type": "string"
           },
@@ -12273,6 +14005,10 @@
           "projectId": {
             "type": "string"
           },
+          "runtimeLocationId": {
+            "type": "string",
+            "description": "Verified runtime-location identifier bound when the coding session was created. Legacy sessions may omit this field and cannot execute or trigger native-session discovery."
+          },
           "title": {
             "type": "string"
           },
@@ -12343,16 +14079,6 @@
             "type": "string",
             "enum": [
               "coding"
-            ]
-          },
-          "nativeCwd": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
             ]
           }
         },
@@ -12881,6 +14607,367 @@
           }
         ]
       },
+      "BirdCoderProjectRuntimeLocation": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "uuid": {
+            "type": "string"
+          },
+          "projectId": {
+            "type": "string"
+          },
+          "runtimeTargetId": {
+            "type": "string"
+          },
+          "runtimeTargetKind": {
+            "type": "string",
+            "enum": [
+              "desktop_device",
+              "server",
+              "runner",
+              "container",
+              "remote_workspace"
+            ]
+          },
+          "locationKind": {
+            "type": "string",
+            "enum": [
+              "desktop_checkout",
+              "server_workspace",
+              "runner_worktree",
+              "container_volume",
+              "remote_workspace"
+            ]
+          },
+          "pathFlavor": {
+            "type": "string",
+            "enum": [
+              "windows",
+              "posix"
+            ]
+          },
+          "rootLocator": {
+            "type": "string",
+            "description": "Opaque, path-free runtime target locator. It is not a filesystem path.",
+            "maxLength": 160,
+            "minLength": 1,
+            "pattern": "^(?!.*\\.\\.)[A-Za-z0-9][A-Za-z0-9._:-]*$"
+          },
+          "displayName": {
+            "type": "string",
+            "description": "Safe display label for this location."
+          },
+          "hasAbsolutePath": {
+            "type": "boolean",
+            "description": "Whether encrypted absolute path material is registered. The path itself is never returned."
+          },
+          "terminalAvailable": {
+            "type": "boolean"
+          },
+          "gitAvailable": {
+            "type": "boolean"
+          },
+          "buildAvailable": {
+            "type": "boolean"
+          },
+          "fileSystemAvailable": {
+            "type": "boolean"
+          },
+          "healthStatus": {
+            "type": "string",
+            "enum": [
+              "pending_verification",
+              "local_observed",
+              "healthy",
+              "degraded",
+              "unavailable",
+              "revoked"
+            ]
+          },
+          "lastVerifiedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "lastSeenAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "gitRepositoryUrl": {
+            "type": "string",
+            "description": "Credential-free sanitized Git repository URL reported by a trusted target."
+          },
+          "gitRemoteName": {
+            "type": "string"
+          },
+          "gitBranch": {
+            "type": "string"
+          },
+          "gitCommit": {
+            "type": "string"
+          },
+          "gitWorktreeKey": {
+            "type": "string"
+          },
+          "version": {
+            "type": "string",
+            "description": "Optimistic concurrency version used with the If-Match request header."
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "buildAvailable",
+          "createdAt",
+          "displayName",
+          "fileSystemAvailable",
+          "gitAvailable",
+          "hasAbsolutePath",
+          "healthStatus",
+          "id",
+          "locationKind",
+          "pathFlavor",
+          "projectId",
+          "rootLocator",
+          "runtimeTargetId",
+          "runtimeTargetKind",
+          "terminalAvailable",
+          "updatedAt",
+          "version"
+        ],
+        "additionalProperties": false
+      },
+      "BirdCoderProjectRuntimeLocationCommandAccepted": {
+        "type": "object",
+        "properties": {
+          "accepted": {
+            "type": "boolean",
+            "const": true
+          },
+          "resourceId": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "pending_verification",
+              "local_observed",
+              "healthy",
+              "degraded",
+              "unavailable",
+              "revoked"
+            ]
+          }
+        },
+        "required": [
+          "accepted",
+          "resourceId",
+          "status"
+        ],
+        "additionalProperties": false
+      },
+      "BirdCoderProjectRuntimeLocationCommandEnvelope": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/SdkWorkApiResponse"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "data": {
+                "$ref": "#/components/schemas/BirdCoderProjectRuntimeLocationCommandAccepted"
+              }
+            },
+            "required": [
+              "data"
+            ],
+            "additionalProperties": false
+          }
+        ]
+      },
+      "BirdCoderProjectRuntimeLocationEnvelope": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/SdkWorkApiResponse"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "data": {
+                "type": "object",
+                "properties": {
+                  "item": {
+                    "$ref": "#/components/schemas/BirdCoderProjectRuntimeLocation"
+                  }
+                },
+                "required": [
+                  "item"
+                ],
+                "additionalProperties": false
+              }
+            },
+            "required": [
+              "data"
+            ],
+            "additionalProperties": false
+          }
+        ]
+      },
+      "BirdCoderProjectRuntimeLocationListEnvelope": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/SdkWorkApiResponse"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "data": {
+                "type": "object",
+                "properties": {
+                  "items": {
+                    "type": "array",
+                    "items": {
+                      "$ref": "#/components/schemas/BirdCoderProjectRuntimeLocation"
+                    }
+                  },
+                  "pageInfo": {
+                    "$ref": "#/components/schemas/PageInfo"
+                  }
+                },
+                "required": [
+                  "items",
+                  "pageInfo"
+                ],
+                "additionalProperties": false
+              }
+            },
+            "required": [
+              "data"
+            ],
+            "additionalProperties": false
+          }
+        ]
+      },
+      "BirdCoderProjectRuntimeLocationPreference": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "projectId": {
+            "type": "string"
+          },
+          "subjectUserId": {
+            "type": "string"
+          },
+          "capability": {
+            "type": "string",
+            "enum": [
+              "terminal",
+              "git",
+              "build",
+              "file_system"
+            ]
+          },
+          "runtimeLocationId": {
+            "type": "string"
+          },
+          "version": {
+            "type": "string",
+            "description": "Optimistic concurrency version used with the If-Match request header."
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "capability",
+          "createdAt",
+          "id",
+          "projectId",
+          "runtimeLocationId",
+          "subjectUserId",
+          "updatedAt",
+          "version"
+        ],
+        "additionalProperties": false
+      },
+      "BirdCoderProjectRuntimeLocationPreferenceEnvelope": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/SdkWorkApiResponse"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "data": {
+                "type": "object",
+                "properties": {
+                  "item": {
+                    "$ref": "#/components/schemas/BirdCoderProjectRuntimeLocationPreference"
+                  }
+                },
+                "required": [
+                  "item"
+                ],
+                "additionalProperties": false
+              }
+            },
+            "required": [
+              "data"
+            ],
+            "additionalProperties": false
+          }
+        ]
+      },
+      "BirdCoderProjectRuntimeLocationPreferenceListEnvelope": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/SdkWorkApiResponse"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "data": {
+                "type": "object",
+                "properties": {
+                  "items": {
+                    "type": "array",
+                    "items": {
+                      "$ref": "#/components/schemas/BirdCoderProjectRuntimeLocationPreference"
+                    }
+                  },
+                  "pageInfo": {
+                    "$ref": "#/components/schemas/PageInfo"
+                  }
+                },
+                "required": [
+                  "items",
+                  "pageInfo"
+                ],
+                "additionalProperties": false
+              }
+            },
+            "required": [
+              "data"
+            ],
+            "additionalProperties": false
+          }
+        ]
+      },
       "BirdCoderProjectSummary": {
         "type": "object",
         "properties": {
@@ -13083,6 +15170,104 @@
           }
         ]
       },
+      "BirdCoderProjectWorkspaceBinding": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Opaque BirdCoder workspace-binding identifier."
+          },
+          "projectId": {
+            "type": "string"
+          },
+          "sandboxId": {
+            "type": "string",
+            "description": "Opaque Drive sandbox identifier. This reference does not grant Drive access."
+          },
+          "rootEntryId": {
+            "type": "string",
+            "description": "Opaque Drive entry identifier selected as the project root."
+          },
+          "logicalPath": {
+            "type": "string",
+            "description": "Canonical sandbox-relative path using forward-slash segments. Empty means the sandbox root.",
+            "maxLength": 4096,
+            "pattern": "^(?:$|(?!/)(?!.*//)(?!.*(?:^|/)\\.{1,2}(?:/|$))(?!.*\\\\)(?!.*[\\u0000-\\u001F\\u007F])[^/]{1,255}(?:/[^/]{1,255})*)$"
+          },
+          "lifecycleStatus": {
+            "type": "string",
+            "enum": [
+              "active"
+            ]
+          },
+          "version": {
+            "type": "string",
+            "description": "Optimistic concurrency version used with the If-Match request header."
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "createdAt",
+          "id",
+          "lifecycleStatus",
+          "logicalPath",
+          "projectId",
+          "rootEntryId",
+          "sandboxId",
+          "updatedAt",
+          "version"
+        ],
+        "description": "BirdCoder-owned binding to a Drive sandbox directory. Physical paths, provider roots, browser handles, and Tauri paths are never stored or returned. Every filesystem operation must authorize against Drive again.",
+        "additionalProperties": false
+      },
+      "BirdCoderProjectWorkspaceBindingEnvelope": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/SdkWorkApiResponse"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "data": {
+                "type": "object",
+                "properties": {
+                  "item": {
+                    "$ref": "#/components/schemas/BirdCoderProjectWorkspaceBinding"
+                  }
+                },
+                "required": [
+                  "item"
+                ],
+                "additionalProperties": false
+              }
+            },
+            "required": [
+              "data"
+            ],
+            "additionalProperties": false
+          }
+        ]
+      },
+      "BirdCoderPruneProjectGitWorktreesRequest": {
+        "type": "object",
+        "properties": {
+          "runtimeLocationId": {
+            "type": "string",
+            "description": "Verified project runtime-location identifier used for Git execution."
+          }
+        },
+        "required": [
+          "runtimeLocationId"
+        ],
+        "additionalProperties": false
+      },
       "BirdCoderPublishProjectRequest": {
         "type": "object",
         "properties": {
@@ -13116,6 +15301,10 @@
       "BirdCoderPushProjectGitBranchRequest": {
         "type": "object",
         "properties": {
+          "runtimeLocationId": {
+            "type": "string",
+            "description": "Verified project runtime-location identifier used for Git execution."
+          },
           "branchName": {
             "type": "string"
           },
@@ -13123,6 +15312,47 @@
             "type": "string"
           }
         },
+        "required": [
+          "runtimeLocationId"
+        ],
+        "additionalProperties": false
+      },
+      "BirdCoderRebindProjectRuntimeLocationRequest": {
+        "type": "object",
+        "properties": {
+          "pathFlavor": {
+            "type": "string",
+            "enum": [
+              "windows",
+              "posix"
+            ]
+          },
+          "rootLocator": {
+            "type": "string",
+            "description": "Opaque, path-free target locator. Do not provide a relative or absolute filesystem path.",
+            "maxLength": 160,
+            "minLength": 1,
+            "pattern": "^(?!.*\\.\\.)[A-Za-z0-9][A-Za-z0-9._:-]*$"
+          },
+          "absolutePath": {
+            "type": "string",
+            "description": "Write-only replacement absolute path for encrypted-at-rest registration. It is never returned.",
+            "maxLength": 4096,
+            "minLength": 1,
+            "writeOnly": true
+          },
+          "displayName": {
+            "type": "string",
+            "description": "Safe display label for the rebound location.",
+            "maxLength": 160,
+            "minLength": 1
+          }
+        },
+        "required": [
+          "absolutePath",
+          "pathFlavor",
+          "rootLocator"
+        ],
         "additionalProperties": false
       },
       "BirdCoderReleaseSummary": {
@@ -13180,6 +15410,10 @@
       "BirdCoderRemoveProjectGitWorktreeRequest": {
         "type": "object",
         "properties": {
+          "runtimeLocationId": {
+            "type": "string",
+            "description": "Verified project runtime-location identifier used for Git execution."
+          },
           "force": {
             "type": "boolean"
           },
@@ -13188,7 +15422,20 @@
           }
         },
         "required": [
+          "runtimeLocationId",
           "worktreeKey"
+        ],
+        "additionalProperties": false
+      },
+      "BirdCoderSetProjectRuntimeLocationPreferenceRequest": {
+        "type": "object",
+        "properties": {
+          "runtimeLocationId": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "runtimeLocationId"
         ],
         "additionalProperties": false
       },
@@ -13511,12 +15758,17 @@
       "BirdCoderSwitchProjectGitBranchRequest": {
         "type": "object",
         "properties": {
+          "runtimeLocationId": {
+            "type": "string",
+            "description": "Verified project runtime-location identifier used for Git execution."
+          },
           "branchName": {
             "type": "string"
           }
         },
         "required": [
-          "branchName"
+          "branchName",
+          "runtimeLocationId"
         ],
         "additionalProperties": false
       },
@@ -13705,6 +15957,19 @@
         },
         "additionalProperties": false
       },
+      "BirdCoderUpdateProjectRuntimeLocationRequest": {
+        "type": "object",
+        "properties": {
+          "displayName": {
+            "type": "string",
+            "description": "Safe display label for the runtime location.",
+            "maxLength": 160,
+            "minLength": 1
+          }
+        },
+        "additionalProperties": false,
+        "minProperties": 1
+      },
       "BirdCoderUpdateWorkspaceRequest": {
         "type": "object",
         "properties": {
@@ -13822,6 +16087,37 @@
         },
         "required": [
           "userId"
+        ],
+        "additionalProperties": false
+      },
+      "BirdCoderUpsertProjectWorkspaceBindingRequest": {
+        "type": "object",
+        "properties": {
+          "sandboxId": {
+            "type": "string",
+            "description": "Opaque Drive sandbox identifier.",
+            "minLength": 1,
+            "maxLength": 512,
+            "pattern": "^(?!\\s)(?!.*\\s$)[^\\u0000-\\u001F\\u007F]+$"
+          },
+          "rootEntryId": {
+            "type": "string",
+            "description": "Opaque Drive directory-entry identifier.",
+            "minLength": 1,
+            "maxLength": 512,
+            "pattern": "^(?!\\s)(?!.*\\s$)[^\\u0000-\\u001F\\u007F]+$"
+          },
+          "logicalPath": {
+            "type": "string",
+            "description": "Canonical sandbox-relative path using forward-slash segments. Empty means the sandbox root.",
+            "maxLength": 4096,
+            "pattern": "^(?:$|(?!/)(?!.*//)(?!.*(?:^|/)\\.{1,2}(?:/|$))(?!.*\\\\)(?!.*[\\u0000-\\u001F\\u007F])[^/]{1,255}(?:/[^/]{1,255})*)$"
+          }
+        },
+        "required": [
+          "logicalPath",
+          "rootEntryId",
+          "sandboxId"
         ],
         "additionalProperties": false
       },

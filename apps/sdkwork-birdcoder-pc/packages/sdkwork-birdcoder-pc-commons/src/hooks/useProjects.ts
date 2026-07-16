@@ -15,8 +15,7 @@ import {
 } from '@sdkwork/birdcoder-pc-types';
 import {
   canSubscribeBirdCoderWorkspaceRealtime,
-  subscribeBirdCoderWorkspaceRealtime,
-} from '@sdkwork/birdcoder-pc-infrastructure-runtime';
+} from '@sdkwork/birdcoder-pc-infrastructure-runtime/workspaceRealtime';
 import { useAuth } from '../context/AuthContext.ts';
 import { useIDEServices } from '../context/IDEContext.ts';
 import {
@@ -27,6 +26,7 @@ import {
   mergeProjectsForStore,
   mutateProjectsStore,
   normalizeProjectsStoreUserScope,
+  peekProjectsStore,
   removeCodingSessionFromCollection,
   removeProjectFromCollection,
   type ProjectsStore,
@@ -55,11 +55,21 @@ import {
   synchronizeProjectSessionsFromAuthority,
   synchronizeProjectsSessionsFromAuthority,
 } from '../workbench/projectSessionSynchronization.ts';
+import {
+  requireProjectRuntimeLocationExecutionId,
+  useProjectRuntimeLocation,
+} from './useProjectRuntimeLocation.ts';
+import { createProjectRealtimeSubscriptionCoordinator } from '../services/projectRealtimeSubscriptionCoordinator.ts';
 
 export interface LoadMoreProjectSessionsResult {
   hasMore: boolean;
   loadedCount: number;
 }
+
+type CreateProjectCodingSessionOptions = Omit<
+  CreateCodingSessionOptions,
+  'runtimeLocationId'
+>;
 
 interface ProjectSessionLoadInflightEntry {
   promise: Promise<LoadMoreProjectSessionsResult>;
@@ -776,22 +786,6 @@ function createProjectsStoreRealtimeBinding(
     return null;
   }
 
-  const binding: ProjectsStoreRealtimeBinding = {
-    close() {
-      if (binding.reconnectTimer !== null) {
-        clearTimeout(binding.reconnectTimer);
-        binding.reconnectTimer = null;
-      }
-      binding.subscription?.close();
-      binding.subscription = null;
-      if (store.realtime === binding) {
-        store.realtime = null;
-      }
-    },
-    reconnectAttempt: 0,
-    reconnectTimer: null,
-    subscription: null,
-  };
   const seenEventIds = new Set<string>();
   const eventIdQueue: string[] = [];
 
@@ -811,36 +805,10 @@ function createProjectsStoreRealtimeBinding(
     }
   };
 
-  const scheduleReconnect = () => {
-    if (store.listeners.size === 0 || store.realtime !== binding) {
-      binding.close();
-      return;
-    }
-
-    if (binding.reconnectTimer !== null) {
-      return;
-    }
-
-    binding.reconnectTimer = setTimeout(() => {
-      binding.reconnectTimer = null;
-      connect();
-    }, Math.min(5_000, 400 * (binding.reconnectAttempt + 1)));
-  };
-
-  const connect = () => {
-    if (store.realtime !== binding) {
-      return;
-    }
-
-    const subscription = subscribeBirdCoderWorkspaceRealtime({
-      onClose: () => {
-        binding.subscription = null;
-        binding.reconnectAttempt += 1;
-        scheduleReconnect();
-      },
-      onError: () => {
-        // Close events drive reconnects. Error payloads are informational only here.
-      },
+  const binding: ProjectsStoreRealtimeBinding =
+    createProjectRealtimeSubscriptionCoordinator({
+      getProjects: () => store.snapshot.projects,
+      isActive: () => store.listeners.size > 0 && store.realtime === binding,
       onEvent: (event) => {
         const normalizedEventId = event.eventId.trim();
         if (normalizedEventId) {
@@ -855,15 +823,15 @@ function createProjectsStoreRealtimeBinding(
           event,
         );
         if (nextProjects !== null) {
-        if (nextProjects !== store.snapshot.projects) {
-          store.inventoryVersion += 1;
-          updateProjectsStoreSnapshot(store, (previousSnapshot) => ({
-            ...previousSnapshot,
-            error: null,
-            hasFetched: true,
-            pageInfo: null,
-            projects: nextProjects,
-          }));
+          if (nextProjects !== store.snapshot.projects) {
+            store.inventoryVersion += 1;
+            updateProjectsStoreSnapshot(store, (previousSnapshot) => ({
+              ...previousSnapshot,
+              error: null,
+              hasFetched: true,
+              pageInfo: null,
+              projects: nextProjects,
+            }));
           }
           return;
         }
@@ -880,21 +848,18 @@ function createProjectsStoreRealtimeBinding(
           'realtime',
         );
       },
-      onOpen: () => {
-        binding.reconnectAttempt = 0;
+      onWorkspaceReady: () => {
+        scheduleProjectsRefresh(
+          scopeKey,
+          workspaceId,
+          projectService,
+          appRuntimeReadService,
+          'realtime',
+        );
       },
       workspaceId,
     });
 
-    if (!subscription) {
-      binding.close();
-      return;
-    }
-
-    binding.subscription = subscription;
-  };
-
-  connect();
   return binding;
 }
 
@@ -911,16 +876,19 @@ function ensureProjectsStoreRealtime(
 
   const store = getProjectsStore(scopeKey);
   if (store.realtime !== null) {
+    store.realtime.synchronize();
     return;
   }
 
-  store.realtime = createProjectsStoreRealtimeBinding(
+  const binding = createProjectsStoreRealtimeBinding(
     scopeKey,
     normalizedWorkspaceId,
     store,
     projectService,
     appRuntimeReadService,
   );
+  store.realtime = binding;
+  binding?.start();
 }
 
 function disposeProjectsStoreRealtimeIfUnused(scopeKey: string): void {
@@ -929,9 +897,18 @@ function disposeProjectsStoreRealtimeIfUnused(scopeKey: string): void {
     return;
   }
 
-  clearProjectsStorePendingRefresh(store);
-  store.realtime?.close();
-  deleteProjectsStore(scopeKey);
+  // React cleans up changed subscriptions before mounting their replacements.
+  // Defer eviction so a workspace preview store can become the active store in
+  // that same effect flush without losing its in-flight request or snapshot.
+  queueMicrotask(() => {
+    if (store.listeners.size > 0 || peekProjectsStore(scopeKey) !== store) {
+      return;
+    }
+
+    clearProjectsStorePendingRefresh(store);
+    store.realtime?.close();
+    deleteProjectsStore(scopeKey);
+  });
 }
 
 export interface UseProjectsOptions {
@@ -945,6 +922,7 @@ export interface UseProjectsOptions {
 
 export function useProjects(workspaceId?: string, options?: UseProjectsOptions) {
   const { appRuntimeReadService, projectService } = useIDEServices();
+  const resolveProjectRuntimeLocation = useProjectRuntimeLocation();
   const { user } = useAuth();
   const normalizedUserScope = normalizeProjectsStoreUserScope(user?.id);
   const normalizedWorkspaceId = workspaceId?.trim() ?? '';
@@ -1429,11 +1407,19 @@ export function useProjects(workspaceId?: string, options?: UseProjectsOptions) 
   const createCodingSession = async (
     projectId: string,
     title: string,
-    options: CreateCodingSessionOptions,
+    options: CreateProjectCodingSessionOptions,
   ) => {
     try {
+      const runtimeLocationResolution = await resolveProjectRuntimeLocation(projectId, {
+        allowFolderSelection: true,
+        capability: 'terminal',
+      });
+      const runtimeLocationId = requireProjectRuntimeLocationExecutionId(
+        runtimeLocationResolution,
+      );
       const codingSession = await projectService.createCodingSession(projectId, title, {
         ...options,
+        runtimeLocationId,
         ...(normalizedWorkspaceId ? { workspaceId: normalizedWorkspaceId } : {}),
       });
       mutateProjectsStore(normalizedUserScope, normalizedWorkspaceId, (projects) =>

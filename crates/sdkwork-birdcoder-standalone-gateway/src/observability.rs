@@ -17,6 +17,7 @@ pub async fn metrics_handler(
 ) -> impl IntoResponse {
     let mut body = http.render_prometheus();
     body.push_str(&business.render_prometheus());
+    body.push_str(&sdkwork_routes_workspace_app_api::render_workspace_realtime_metrics());
     (
         StatusCode::OK,
         [(

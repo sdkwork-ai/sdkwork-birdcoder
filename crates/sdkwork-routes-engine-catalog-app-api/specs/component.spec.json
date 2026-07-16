@@ -110,6 +110,10 @@
       {
         "name": "engineCatalogApplicationState",
         "export": "sdkwork_routes_engine_catalog_app_api::EngineCatalogAppState"
+      },
+      {
+        "name": "projectApplicationService",
+        "export": "sdkwork_birdcoder_project_service::service::project_service::ProjectService"
       }
     ],
     "runtimeEntrypoints": [
@@ -125,7 +129,7 @@
     "configKeys": []
   },
   "integration": {
-    "authority": "Adapts the engine-catalog and native-session services carried by EngineCatalogAppState to the BirdCoder app API router and route manifest. Gateway composition owns authentication, mounting, and state construction."
+    "authority": "Adapts the engine-catalog and native-session services carried by EngineCatalogAppState to the BirdCoder app API router and route manifest. Native-session list/detail scope requires the injected project application service to resolve a server-authorized execution root. Gateway composition owns authentication, mounting, and state construction."
   },
   "verification": {
     "commands": [
@@ -133,4 +137,3 @@
     ]
   }
 }
-

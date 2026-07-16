@@ -2,6 +2,7 @@ use serde::{de, Deserialize, Deserializer, Serialize};
 use std::collections::BTreeMap;
 
 use super::models::{CodingSessionTurnIdeContextPayload, CodingSessionTurnOptionsPayload};
+use crate::domain::commands::CodingSessionInteractionKind;
 use crate::native_session_types::NativeSessionAttributesPayload;
 
 // 鈹€鈹€ Serialization helpers 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
@@ -87,6 +88,10 @@ pub struct CodingSessionPayload {
     pub id: String,
     pub workspace_id: String,
     pub project_id: String,
+    /// Legacy pre-release rows can lack a durable execution binding. They are
+    /// readable for migration visibility but execution must fail closed.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub runtime_location_id: Option<String>,
     pub title: String,
     pub status: String,
     pub host_mode: String,
@@ -157,7 +162,49 @@ pub struct CodingSessionEventPayload {
     pub created_at: String,
 }
 
+/// A fixed-window durable event replay page. `high_watermark` is captured on
+/// the first request and supplied on later pages so concurrent appends do not
+/// move the caller's replay boundary.
+#[derive(Clone, Debug)]
+pub struct CodingSessionReplayPage {
+    pub events: Vec<CodingSessionEventPayload>,
+    pub high_watermark: Option<usize>,
+    pub has_more: bool,
+}
+
 // 鈹€鈹€ Coding session checkpoint payload 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
+
+/// A state mutation and its replayable event committed by one repository
+/// transaction. This type is internal to the service/repository boundary and
+/// must not leak into HTTP response DTOs.
+#[derive(Clone, Debug)]
+pub struct PersistedCodingSessionMutation<T> {
+    pub payload: T,
+    pub event: CodingSessionEventPayload,
+}
+
+/// Canonical interaction authority resolved from a tenant/user/session-scoped
+/// durable event. `event_id` is the public opaque path identifier; the
+/// provider-neutral `interaction_id` is only used by the service/provider
+/// boundary after this validation succeeds.
+#[derive(Clone, Debug)]
+pub struct ResolvedCodingSessionInteraction {
+    pub event_id: String,
+    pub coding_session_id: String,
+    pub turn_id: String,
+    pub runtime_id: String,
+    pub interaction_id: String,
+    pub interaction_kind: CodingSessionInteractionKind,
+}
+
+/// An exclusive, time-bounded reservation for one provider interaction. The
+/// claim is persisted before the provider is called, so separate service
+/// instances cannot submit the same approval or question concurrently.
+#[derive(Clone, Debug)]
+pub struct ClaimedCodingSessionInteraction {
+    pub interaction: ResolvedCodingSessionInteraction,
+    pub claim_id: String,
+}
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -230,7 +277,6 @@ pub struct PendingProjectionTurnExecution {
     pub turn: CodingSessionTurnPayload,
     pub operation: OperationPayload,
     pub native_session_id: Option<String>,
-    pub turn_model_id: String,
     pub ide_context: Option<CodingSessionTurnIdeContextPayload>,
     pub options: Option<CodingSessionTurnOptionsPayload>,
     pub working_directory: Option<std::path::PathBuf>,
@@ -238,6 +284,16 @@ pub struct PendingProjectionTurnExecution {
 
 #[derive(Clone, Debug)]
 pub struct FinalizedProjectionTurnExecution {
+    pub turn: CodingSessionTurnPayload,
+    pub events: Vec<CodingSessionEventPayload>,
+    pub native_session_id: Option<String>,
+}
+
+/// The repository-owned completion record. Its events have durable ids,
+/// database-assigned sequences, and server timestamps and are therefore the
+/// only events eligible for realtime publication.
+#[derive(Clone, Debug)]
+pub struct PersistedProjectionTurnExecution {
     pub turn: CodingSessionTurnPayload,
     pub events: Vec<CodingSessionEventPayload>,
     pub native_session_id: Option<String>,
@@ -273,5 +329,4 @@ pub struct PendingTurnResult {
     pub session: CodingSessionPayload,
     pub turn: CodingSessionTurnPayload,
     pub native_session_id: Option<String>,
-    pub turn_model_id: String,
 }

@@ -1,4 +1,4 @@
-use axum::{routing::get, routing::post, Router};
+use axum::{routing::get, routing::post, routing::put, Router};
 
 use crate::handlers;
 use crate::handlers::WorkspaceAppState;
@@ -33,6 +33,39 @@ pub fn build_workspace_app_router() -> Router<WorkspaceAppState> {
             get(handlers::get_project)
                 .patch(handlers::update_project)
                 .delete(handlers::delete_project),
+        )
+        .route(
+            paths::PROJECT_WORKSPACE_BINDING_PATH,
+            get(handlers::get_project_workspace_binding)
+                .put(handlers::upsert_project_workspace_binding)
+                .delete(handlers::delete_project_workspace_binding),
+        )
+        .route(
+            paths::PROJECT_RUNTIME_LOCATIONS_PATH,
+            get(handlers::list_project_runtime_locations)
+                .post(handlers::create_project_runtime_location),
+        )
+        .route(
+            paths::PROJECT_RUNTIME_LOCATION_DETAIL_PATH,
+            get(handlers::get_project_runtime_location)
+                .patch(handlers::update_project_runtime_location)
+                .delete(handlers::delete_project_runtime_location),
+        )
+        .route(
+            paths::PROJECT_RUNTIME_LOCATION_REBIND_PATH,
+            post(handlers::rebind_project_runtime_location),
+        )
+        .route(
+            paths::PROJECT_RUNTIME_LOCATION_VERIFICATION_REQUEST_PATH,
+            post(handlers::request_project_runtime_location_verification),
+        )
+        .route(
+            paths::PROJECT_RUNTIME_LOCATION_PREFERENCES_PATH,
+            get(handlers::list_project_runtime_location_preferences),
+        )
+        .route(
+            paths::PROJECT_RUNTIME_LOCATION_PREFERENCE_PATH,
+            put(handlers::update_project_runtime_location_preference),
         )
         .route(
             paths::PROJECT_GIT_OVERVIEW_PATH,

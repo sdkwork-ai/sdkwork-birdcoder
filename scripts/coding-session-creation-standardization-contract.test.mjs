@@ -33,6 +33,15 @@ const codingSessionActionsSource = readSource(
   'hooks',
   'useCodingSessionActions.ts',
 );
+const projectsHookSource = readSource(
+  'apps',
+  'sdkwork-birdcoder-pc',
+  'packages',
+  'sdkwork-birdcoder-pc-commons',
+  'src',
+  'hooks',
+  'useProjects.ts',
+);
 const codePageSource = readSource(
   'apps',
   
@@ -98,6 +107,24 @@ assert.match(
   codingSessionActionsSource,
   /createWorkbenchCodingSessionInProject\(/,
   'useCodingSessionActions must delegate session creation to the shared workbench coding session creation helper.',
+);
+
+assert.match(
+  projectsHookSource,
+  /const runtimeLocationResolution = await resolveProjectRuntimeLocation\(projectId, \{[\s\S]*allowFolderSelection: true,[\s\S]*capability: 'terminal',[\s\S]*\}\);[\s\S]*const runtimeLocationId = requireProjectRuntimeLocationExecutionId\([\s\S]*runtimeLocationResolution,[\s\S]*\);/,
+  'the central UI session-creation flow must resolve a registered terminal-capable project runtime location before creating a coding session.',
+);
+
+assert.match(
+  projectsHookSource,
+  /projectService\.createCodingSession\(projectId, title, \{[\s\S]*runtimeLocationId,[\s\S]*\}\)/,
+  'the central UI session-creation flow must forward only the resolved opaque runtimeLocationId to the project service.',
+);
+
+assert.doesNotMatch(
+  projectsHookSource,
+  /createCodingSession\([\s\S]{0,500}(?:localWorkingDirectory|process\.cwd|projectRoot|rootPath)/,
+  'coding-session creation must not derive execution authority from a local path or process CWD.',
 );
 
 assert.match(

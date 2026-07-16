@@ -44,7 +44,7 @@
     },
     {
       "path": "README.md",
-      "sha256": "a4b83cb28dc3ad76910f4c56965657bbb790971de4e74c18e28125747f3494f2"
+      "sha256": "01886ec21659cc0e0f3a69c84b7acf2658c5051a05fc9cde0497d2ad8a760398"
     },
     {
       "path": "sdkwork-sdk.json",
@@ -80,7 +80,7 @@
     },
     {
       "path": "src/api/intelligence.ts",
-      "sha256": "c0eb3c56ed5256543d26066306c8d7bcab5ddfd95689626c64bbc9befe9a0131"
+      "sha256": "51f5c7884bbc82bb02fe57f01b3e22b6f7bc67c75f1d3a94d06140306f6397a7"
     },
     {
       "path": "src/api/oauth.ts",
@@ -92,11 +92,11 @@
     },
     {
       "path": "src/api/platform.ts",
-      "sha256": "103bc066e5f8a47d49b8b7d96dee1632e7829195526fa611ef911f0caca42b01"
+      "sha256": "2484fdaea01f6d99c493c377aa03570b4f511f9ca5ef61508464929363fbf86b"
     },
     {
       "path": "src/api/runtime.ts",
-      "sha256": "b40821bec2ac66c531b435f3cfb9a360d788b3f06034f2a20fda50046bb52039"
+      "sha256": "79a74fe4ed5065e6eb29f164a8c97d5f2e0c0b77e5b236db11112b9fa57c8f57"
     },
     {
       "path": "src/api/skills.ts",
@@ -199,12 +199,8 @@
       "sha256": "e2c6cb82e682d6e79d0e92387505f9d013edb3b97277412eb537dafcbee7f30f"
     },
     {
-      "path": "src/types/bird-coder-code-engine-model-config-custom-model.ts",
-      "sha256": "069f9d9563ae4d0b0ed2b74a9b6dc5156ca52d4d7c9a86367bb24a2c41bdd136"
-    },
-    {
       "path": "src/types/bird-coder-code-engine-model-config-engine.ts",
-      "sha256": "d44e17b42695bfe87ed6158bf1693e0c9af438177d63f347880935e86914b188"
+      "sha256": "78f99af3c4bfcee2e16f915eeb89a356d64c400b9a894c78cfaf83ecfc77bc5b"
     },
     {
       "path": "src/types/bird-coder-code-engine-model-config-envelope.ts",
@@ -252,7 +248,7 @@
     },
     {
       "path": "src/types/bird-coder-coding-session-event.ts",
-      "sha256": "03b7aefe4dace2faf89cd87bb2fb09b6141a2ed0a8403a34f57ff9e4867af903"
+      "sha256": "5f27b5db90de756f6034c999b169019446e677c57901a522e2b6760ee4a76dd7"
     },
     {
       "path": "src/types/bird-coder-coding-session-summary-envelope.ts",
@@ -264,7 +260,7 @@
     },
     {
       "path": "src/types/bird-coder-coding-session-summary.ts",
-      "sha256": "81a210338c1794fdbcc2260b358880abf31f7b09a64781064ef50e6a3b3f98dd"
+      "sha256": "463256030cd8607cc0661ce4aaedad93e4509d6d94edd00b5ce945af6a9f8db3"
     },
     {
       "path": "src/types/bird-coder-coding-session-turn-current-file-context.ts",
@@ -348,7 +344,7 @@
     },
     {
       "path": "src/types/bird-coder-commit-project-git-changes-request.ts",
-      "sha256": "d36f1f93123b7bce2ab3134dc7f5781a45cbc12aea31987211900067ee3c49e8"
+      "sha256": "475dd4e6a23e55db8b8b8880be14dd8d4f21900494cec8f19ec9c4cd5ab18d25"
     },
     {
       "path": "src/types/bird-coder-confirm-commerce-payment-request.ts",
@@ -380,11 +376,11 @@
     },
     {
       "path": "src/types/bird-coder-create-coding-session-request.ts",
-      "sha256": "62ef685573a427e982d503dbcdb4d86f2757c1073fc437eb43a2bad9d862e352"
+      "sha256": "ad0b65fcbc2a0554a6664fb89e8175f604152dec7df96d200cae4d426289c83b"
     },
     {
       "path": "src/types/bird-coder-create-coding-session-turn-request.ts",
-      "sha256": "7ff094daa2fd6d4e3958b7e22a0ae2cea376b2c614bc3147f03ac459ae914f9a"
+      "sha256": "11fb90a2257a6c0dc8f389f5307f52d653b141408e0c4f034280cdb48b73df6e"
     },
     {
       "path": "src/types/bird-coder-create-commerce-order-request.ts",
@@ -396,15 +392,19 @@
     },
     {
       "path": "src/types/bird-coder-create-project-git-branch-request.ts",
-      "sha256": "bbe88f00ad21460121bf5d5221be01a0ceb1e995c466942f3b403284a2a10941"
+      "sha256": "f64abfbb0ff8f6e75cbf1d05edcfacbdac72512a2c8c244d1db2a08f9a3d9d9d"
     },
     {
       "path": "src/types/bird-coder-create-project-git-worktree-request.ts",
-      "sha256": "1f3c2943e3a0c102f39f2b025de5acdf6300265ce8827477e4e8bed4b36632f9"
+      "sha256": "198497a47735ba9069cdd03647fb79a5be4282f3e50a69f3b48eae696c9b864d"
     },
     {
       "path": "src/types/bird-coder-create-project-request.ts",
       "sha256": "5bbe5a2064cb3cb800018c634d17c94c0a179a7765a2eae8bf9887ebdcae89c5"
+    },
+    {
+      "path": "src/types/bird-coder-create-project-runtime-location-request.ts",
+      "sha256": "844c7e0b4c6474c6158afba541cedf548d74d71ae4f3205a76a28645ded540c2"
     },
     {
       "path": "src/types/bird-coder-create-workspace-request.ts",
@@ -620,7 +620,7 @@
     },
     {
       "path": "src/types/bird-coder-native-session-attributes.ts",
-      "sha256": "737b0c0dbe7d83bbdf6286fa1c8fcf06ec97c0ce2e380999b70161704e7ad328"
+      "sha256": "c7ded8cb83a0121c61e5339202f7140bd8315832af052572283b3efe6decbccb"
     },
     {
       "path": "src/types/bird-coder-native-session-command.ts",
@@ -652,7 +652,7 @@
     },
     {
       "path": "src/types/bird-coder-native-session-summary.ts",
-      "sha256": "873b6cb3d430e2cc870e1f6a745935ebdd102759023f0bd305e727e597196e55"
+      "sha256": "64cff15f04f62f9a4ccb40a6ec743451a81d720532a1c3cb560556a9051da34e"
     },
     {
       "path": "src/types/bird-coder-operation-descriptor-envelope.ts",
@@ -707,6 +707,38 @@
       "sha256": "ef14b36a77f5b41d81ad983812b75ac8f00b73ffb9fbd44c5f99cc11fd622fe9"
     },
     {
+      "path": "src/types/bird-coder-project-runtime-location-command-accepted.ts",
+      "sha256": "eca72a289e32e15067a1cde35b092f5d9d9a494ec79338e532e04b8fabc1f992"
+    },
+    {
+      "path": "src/types/bird-coder-project-runtime-location-command-envelope.ts",
+      "sha256": "b48e04891ad920e0845e6179a93701e6e6c70f7daa021cee42555391820a6e77"
+    },
+    {
+      "path": "src/types/bird-coder-project-runtime-location-envelope.ts",
+      "sha256": "c29e533cab94c4cf46b5732138724fbd81bbd3dd0a5e12eac5a6abf449ae61ea"
+    },
+    {
+      "path": "src/types/bird-coder-project-runtime-location-list-envelope.ts",
+      "sha256": "ce413ca476b4aebf1c16d3fcb7edb84cc9ea0b517c400a0b0d79290c342be9bd"
+    },
+    {
+      "path": "src/types/bird-coder-project-runtime-location-preference-envelope.ts",
+      "sha256": "039bc846cf355f9c2cd5d009da49bd800c07210a74b5f93832dadee4e455dc75"
+    },
+    {
+      "path": "src/types/bird-coder-project-runtime-location-preference-list-envelope.ts",
+      "sha256": "a62074b8cb3e5cd5d1015a383b48ae4046d4a1461dd7c33b253977c99370d252"
+    },
+    {
+      "path": "src/types/bird-coder-project-runtime-location-preference.ts",
+      "sha256": "b5d7c87671d3942a591c5c054f53088bba0d263a01a5887e3027dab87a5e1b33"
+    },
+    {
+      "path": "src/types/bird-coder-project-runtime-location.ts",
+      "sha256": "cecd98c382a8e53b7caf5e379d2da825766f5ad55c305f41b60a4c2edae49444"
+    },
+    {
       "path": "src/types/bird-coder-project-summary-envelope.ts",
       "sha256": "4152726ac0c1508360e976421046264f3a973f0d1de674ca9d33fd93804b4fc7"
     },
@@ -719,12 +751,28 @@
       "sha256": "ea724c2ff8e4e6ea6d38ac422646909c3e98203324baa64af823cbe5682b3752"
     },
     {
+      "path": "src/types/bird-coder-project-workspace-binding-envelope.ts",
+      "sha256": "1054681eb0101e4a51801f0435ed9dfcad2ba4e44e0a4c193e9b6d2eb95875d9"
+    },
+    {
+      "path": "src/types/bird-coder-project-workspace-binding.ts",
+      "sha256": "6b9824bee7a855209c750ceba6dc9252f6549d035d65b8bb2dd8da7de946405b"
+    },
+    {
+      "path": "src/types/bird-coder-prune-project-git-worktrees-request.ts",
+      "sha256": "055ecb81dbd5c34e4d5d2b636a428f047f02cca2cee86fbd942c97adab3d1cfd"
+    },
+    {
       "path": "src/types/bird-coder-publish-project-request.ts",
       "sha256": "6c4788111933c8b247fe3cb1e26fdd50a10e3ff8c4a88947716a590d44ebb9b1"
     },
     {
       "path": "src/types/bird-coder-push-project-git-branch-request.ts",
-      "sha256": "df69c55afde80b74eb4a5ca8850dab1a1aaa1f8f8cf39f2bcc60c87566af6306"
+      "sha256": "fedb3132b90d73a064a36083538356d655f506107335d068d5c819b73ac1863b"
+    },
+    {
+      "path": "src/types/bird-coder-rebind-project-runtime-location-request.ts",
+      "sha256": "9bfd40cb7efbe6062fb34c4de129f1092ba582dbb539cae553f0039e54302dc8"
     },
     {
       "path": "src/types/bird-coder-release-summary.ts",
@@ -732,7 +780,11 @@
     },
     {
       "path": "src/types/bird-coder-remove-project-git-worktree-request.ts",
-      "sha256": "027d27d67ccec460ba20bc52ce9d2e03650fba0c1bf5486ed10f481019d70c34"
+      "sha256": "ad354516dc333abaa16e26fd5c412234ed0b1d700072a96eada0cdc2903e42f4"
+    },
+    {
+      "path": "src/types/bird-coder-set-project-runtime-location-preference-request.ts",
+      "sha256": "88d78823a023b7b031512275bb7fe446ff8bf68da484ca24562fdbb90541eb13"
     },
     {
       "path": "src/types/bird-coder-skill-catalog-entry-summary.ts",
@@ -764,7 +816,7 @@
     },
     {
       "path": "src/types/bird-coder-switch-project-git-branch-request.ts",
-      "sha256": "283a74cb3efe40737c0a0d96cd344b1f7e8100e9bb63dc0c3d5384241b4d6784"
+      "sha256": "b412cfe66e0d310433be40aef734114d9b98bb214e1a2be713f427fb71d99cbe"
     },
     {
       "path": "src/types/bird-coder-sync-code-engine-model-config-request.ts",
@@ -791,12 +843,20 @@
       "sha256": "948416b866a4d57d8f96fc4f0d47fc92e2ba8f27b9637a6344e1a7f93c90fa47"
     },
     {
+      "path": "src/types/bird-coder-update-project-runtime-location-request.ts",
+      "sha256": "ca50de659b2acc36fb41e2ebb7315366be05731b11a8a6a64612330ad38b57e6"
+    },
+    {
       "path": "src/types/bird-coder-update-workspace-request.ts",
       "sha256": "e82f1fc6fde3abd0651f3e4a09aa504dfda0d8628848e58ae67aa4fb9d4ba48f"
     },
     {
       "path": "src/types/bird-coder-upsert-project-collaborator-request.ts",
       "sha256": "1e2f88ee7313349960d5763ad92cb55bc4f793e9c64f68fc83da1151c1b67ffb"
+    },
+    {
+      "path": "src/types/bird-coder-upsert-project-workspace-binding-request.ts",
+      "sha256": "4f6902cf73e7fafae5c4a8f9ae5ca5db47e0534190069d839d69a210f9d081ed"
     },
     {
       "path": "src/types/bird-coder-upsert-workspace-member-request.ts",
@@ -840,7 +900,7 @@
     },
     {
       "path": "src/types/index.ts",
-      "sha256": "b918159686f9dfed46b03deaad244bde8b4ef04f13f6fcc32ffab0f8030bfc8c"
+      "sha256": "b889a212fe23a3d08043a54f54833e5baded8c045e0ff0f57a9de42cf28f1728"
     },
     {
       "path": "src/types/page-info.ts",

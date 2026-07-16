@@ -4,7 +4,8 @@
  */
 
 import React from 'react';
-import { ToastProvider } from '@sdkwork/birdcoder-pc-commons';
+import { ToastProvider } from '@sdkwork/birdcoder-pc-commons/contexts/ToastProvider';
+import { SandboxDirectoryPickerProvider } from '@sdkwork/drive-pc-sandbox-explorer';
 import { ErrorBoundaryWithTranslation } from './birdcoderAppErrorBoundary.tsx';
 import { AppContent } from './birdcoderAppContent.tsx';
 
@@ -12,9 +13,10 @@ export default function App() {
   return (
     <ErrorBoundaryWithTranslation>
       <ToastProvider>
-        <AppContent />
+        <SandboxDirectoryPickerProvider>
+          <AppContent />
+        </SandboxDirectoryPickerProvider>
       </ToastProvider>
     </ErrorBoundaryWithTranslation>
   );
 }
-

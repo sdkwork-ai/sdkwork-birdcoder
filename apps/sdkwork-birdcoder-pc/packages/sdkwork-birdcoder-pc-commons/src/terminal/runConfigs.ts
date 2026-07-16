@@ -4,24 +4,16 @@ import {
   resolveTerminalProfileBlockedAction,
   resolveTerminalProfileLaunchPresentation,
   type TerminalCliProfileAvailability,
-  type TerminalCommandRequest,
   type TerminalProfileBlockedAction,
   type TerminalProfileLaunchPresentation,
-} from './runtime.ts';
-export {
-  buildRunConfigurationStorageKey,
-  ensureStoredRunConfigurations,
-  getDefaultRunConfigurations,
-  getRunConfigurationRepository,
-  listStoredRunConfigurations,
-  normalizeRunConfigurations,
-  saveStoredRunConfigurations,
-  upsertStoredRunConfiguration,
-  type RunConfigurationCwdMode,
-  type RunConfigurationGroup,
-  type RunConfigurationRecord,
-} from './runConfigStorage.ts';
-import { type RunConfigurationRecord } from './runConfigStorage.ts';
+} from './profileAvailability.ts';
+import type { TerminalCommandRequest } from './requests.ts';
+import type { RunConfigurationRecord } from './runConfigDefinitions.ts';
+export type {
+  RunConfigurationCwdMode,
+  RunConfigurationGroup,
+  RunConfigurationRecord,
+} from './runConfigDefinitions.ts';
 
 export interface RunConfigurationTerminalRequest extends TerminalCommandRequest {
   path: string;

@@ -29,7 +29,9 @@ pub struct NativeSessionAttributesPayload {
     pub model_provider: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub project_id: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    // Host CWD is only for internal scope matching. It must not be emitted by
+    // an app API because it can disclose an absolute target path.
+    #[serde(default, skip_serializing)]
     pub cwd: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub git_branch: Option<String>,
@@ -103,8 +105,6 @@ pub struct NativeSessionSummaryPayload {
     #[serde(serialize_with = "serialize_i64_as_decimal_string")]
     pub sort_timestamp: i64,
     pub kind: String,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub native_cwd: Option<String>,
     #[serde(default)]
     pub native_attributes: NativeSessionAttributesPayload,
 }
@@ -223,6 +223,7 @@ pub struct NativeSessionProviderPayload {
 pub struct NativeSessionQuery {
     pub workspace_id: Option<String>,
     pub project_id: Option<String>,
+    pub runtime_location_id: Option<String>,
     pub engine_id: Option<String>,
     pub offset: Option<usize>,
     pub limit: Option<usize>,
@@ -235,6 +236,7 @@ pub struct NativeSessionLookup {
     pub engine_id: Option<String>,
     pub workspace_id: Option<String>,
     pub project_id: Option<String>,
+    pub runtime_location_id: Option<String>,
     pub project_root: Option<String>,
 }
 
@@ -323,4 +325,20 @@ pub fn resolve_native_session_engine_id(session_id: &str) -> Option<String> {
         return None;
     }
     Some(engine_id.to_string())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::NativeSessionAttributesPayload;
+
+    #[test]
+    fn native_attribute_cwd_is_not_public_response_data() {
+        let payload = NativeSessionAttributesPayload {
+            cwd: Some("/private/project".to_owned()),
+            ..Default::default()
+        };
+
+        let serialized = serde_json::to_value(payload).expect("serialize native attributes");
+        assert!(serialized.get("cwd").is_none());
+    }
 }

@@ -97,7 +97,7 @@ assert.match(
 );
 
 const strictOffsetRouteContracts = [
-  ['workspace-app-api', workspaceHandlersSource, workspaceRequestMapperSource, 7],
+  ['workspace-app-api', workspaceHandlersSource, workspaceRequestMapperSource, 9],
   [
     'deployment-backend-api',
     readFileSync(
@@ -288,8 +288,8 @@ const authBootstrapSource = readFileSync(
 
 assert.match(
   nativeSessionHandlersSource,
-  /workspaceId and projectId are required to list native sessions/u,
-  'Native session list API must require scoped workspace/project query parameters.',
+  /workspaceId, projectId, and runtimeLocationId are required to list native sessions; the server must also resolve an authorized runtime location/u,
+  'Native session list API must require the complete server-authorized execution scope.',
 );
 assert.match(
   membershipHandlersSource,

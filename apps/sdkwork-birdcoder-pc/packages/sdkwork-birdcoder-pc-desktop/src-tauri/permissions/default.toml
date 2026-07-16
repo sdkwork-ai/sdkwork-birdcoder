@@ -3,6 +3,8 @@ description = "Default desktop app permissions for the BirdCoder Rust host bridg
 permissions = [
   "allow-host-mode",
   "allow-desktop-runtime-config",
+  "allow-desktop-runtime-location-install-identity",
+  "allow-desktop-runtime-location-create-root-locator",
   "allow-local-store-get",
   "allow-local-store-set",
   "allow-local-store-delete",
@@ -23,7 +25,18 @@ permissions = [
   "allow-fs-rename-entry",
   "allow-fs-watch-start",
   "allow-fs-watch-stop",
+  "allow-git-project-overview",
+  "allow-git-project-diff",
+  "allow-git-create-branch",
+  "allow-git-switch-branch",
+  "allow-git-commit-changes",
+  "allow-git-push-branch",
+  "allow-git-create-worktree",
+  "allow-git-remove-worktree",
+  "allow-git-prune-worktrees",
   "allow-terminal-cli-profile-detect",
+  "allow-desktop-runtime-location-install-identity",
+  "allow-desktop-runtime-location-create-root-locator",
   "allow-desktop-pick-working-directory",
   "allow-desktop-reveal-in-file-manager",
   "allow-desktop-window-controls-bridge-capabilities",
@@ -75,6 +88,15 @@ permissions = [
   "allow-fs-rename-entry",
   "allow-fs-watch-start",
   "allow-fs-watch-stop",
+  "allow-git-project-overview",
+  "allow-git-project-diff",
+  "allow-git-create-branch",
+  "allow-git-switch-branch",
+  "allow-git-commit-changes",
+  "allow-git-push-branch",
+  "allow-git-create-worktree",
+  "allow-git-remove-worktree",
+  "allow-git-prune-worktrees",
 ]
 
 [[set]]
@@ -112,6 +134,16 @@ commands.allow = ["host_mode"]
 identifier = "allow-desktop-runtime-config"
 description = "Enables the desktop_runtime_config command."
 commands.allow = ["desktop_runtime_config"]
+
+[[permission]]
+identifier = "allow-desktop-runtime-location-install-identity"
+description = "Enables the desktop_runtime_location_install_identity command."
+commands.allow = ["desktop_runtime_location_install_identity"]
+
+[[permission]]
+identifier = "allow-desktop-runtime-location-create-root-locator"
+description = "Enables the desktop_runtime_location_create_root_locator command."
+commands.allow = ["desktop_runtime_location_create_root_locator"]
 
 [[permission]]
 identifier = "allow-local-store-get"
@@ -212,6 +244,51 @@ commands.allow = ["fs_watch_start"]
 identifier = "allow-fs-watch-stop"
 description = "Enables the fs_watch_stop command."
 commands.allow = ["fs_watch_stop"]
+
+[[permission]]
+identifier = "allow-git-project-overview"
+description = "Enables the git_project_overview command."
+commands.allow = ["git_project_overview"]
+
+[[permission]]
+identifier = "allow-git-project-diff"
+description = "Enables the git_project_diff command."
+commands.allow = ["git_project_diff"]
+
+[[permission]]
+identifier = "allow-git-create-branch"
+description = "Enables the git_create_branch command."
+commands.allow = ["git_create_branch"]
+
+[[permission]]
+identifier = "allow-git-switch-branch"
+description = "Enables the git_switch_branch command."
+commands.allow = ["git_switch_branch"]
+
+[[permission]]
+identifier = "allow-git-commit-changes"
+description = "Enables the git_commit_changes command."
+commands.allow = ["git_commit_changes"]
+
+[[permission]]
+identifier = "allow-git-push-branch"
+description = "Enables the git_push_branch command."
+commands.allow = ["git_push_branch"]
+
+[[permission]]
+identifier = "allow-git-create-worktree"
+description = "Enables the git_create_worktree command."
+commands.allow = ["git_create_worktree"]
+
+[[permission]]
+identifier = "allow-git-remove-worktree"
+description = "Enables the git_remove_worktree command."
+commands.allow = ["git_remove_worktree"]
+
+[[permission]]
+identifier = "allow-git-prune-worktrees"
+description = "Enables the git_prune_worktrees command."
+commands.allow = ["git_prune_worktrees"]
 
 [[permission]]
 identifier = "allow-terminal-cli-profile-detect"

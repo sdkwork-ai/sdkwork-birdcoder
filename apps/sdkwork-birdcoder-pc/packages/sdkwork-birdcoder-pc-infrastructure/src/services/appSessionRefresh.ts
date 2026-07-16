@@ -7,7 +7,11 @@ import {
   type StoredAppSessionToken,
 } from './appSessionToken.ts';
 import { getDefaultBirdCoderIdeServicesRuntimeConfig } from './defaultIdeServicesRuntime.ts';
-import { getBirdCoderGlobalTokenManager, resetBirdCoderSdkClients } from './sdkClients.ts';
+import {
+  getBirdCoderGlobalTokenManager,
+  resetBirdCoderSdkClients,
+  terminateBirdCoderAppSessionAfterRefreshFailure,
+} from './sdkClients.ts';
 import { createBirdCoderHttpApiTransport } from './sdkTransportShared.ts';
 
 const REFRESH_SKEW_SECONDS = 30;
@@ -195,6 +199,7 @@ async function refreshBirdCoderAppSession(): Promise<boolean> {
     resetBirdCoderSdkClients();
     return true;
   } catch {
+    terminateBirdCoderAppSessionAfterRefreshFailure();
     return false;
   }
 }

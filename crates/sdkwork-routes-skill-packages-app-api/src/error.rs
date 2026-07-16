@@ -57,6 +57,12 @@ pub fn map_project_error(error: ProjectError, trace_id: Option<&str>) -> Problem
         ProjectError::InvalidInput(msg) => {
             traced_platform_problem(SdkWorkResultCode::ValidationError, msg, trace_id)
         }
+        ProjectError::PreconditionRequired(msg) => {
+            traced_platform_problem(SdkWorkResultCode::PreconditionRequired, msg, trace_id)
+        }
+        ProjectError::PreconditionFailed(msg) => {
+            traced_platform_problem(SdkWorkResultCode::PreconditionFailed, msg, trace_id)
+        }
         ProjectError::Conflict(msg) => {
             traced_platform_problem(SdkWorkResultCode::Conflict, msg, trace_id)
         }

@@ -18,7 +18,6 @@ fn native_session_events_preserve_rich_message_payloads() {
             last_turn_at: Some("2026-04-20T10:00:01Z".to_owned()),
             runtime_status: Some("completed".to_owned()),
             kind: "native".to_owned(),
-            native_cwd: Some("D:/project-rich".to_owned()),
             sort_timestamp: 1,
             transcript_updated_at: Some("2026-04-20T10:00:01Z".to_owned()),
             native_attributes: Default::default(),

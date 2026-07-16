@@ -45,6 +45,7 @@ interface StoredCodingSessionPersistedEntry {
   nativeSessionId?: unknown;
   nativeAttributes?: unknown;
   projectId?: unknown;
+  runtimeLocationId?: unknown;
   runtimeStatus?: unknown;
   status?: unknown;
   title?: unknown;
@@ -73,6 +74,7 @@ export interface ListStoredSessionInventoryOptions {
   limit?: number;
   offset?: number;
   projectId?: string | null;
+  runtimeLocationId?: string | null;
   workspaceId?: string | null;
 }
 
@@ -241,6 +243,10 @@ function normalizeStoredCodingSessionRecord(
     id: value.id as string,
     workspaceId: typeof value.workspaceId === 'string' ? value.workspaceId.trim() : '',
     projectId: typeof value.projectId === 'string' ? value.projectId.trim() : '',
+    runtimeLocationId:
+      typeof value.runtimeLocationId === 'string' && value.runtimeLocationId.trim().length > 0
+        ? value.runtimeLocationId.trim()
+        : undefined,
     title: typeof value.title === 'string' && value.title.trim().length > 0 ? value.title.trim() : 'New Session',
     status: normalizeCodingSessionStatus(value.status),
     hostMode: normalizeHostMode(value.hostMode),
@@ -316,7 +322,6 @@ function toAuthorityBackedCodingSessionInventoryRecord(
       summary.nativeSessionId,
       summary.engineId,
     ),
-    nativeCwd: null,
     sortTimestamp: resolveBirdCoderSessionSortTimestampString(summary),
     transcriptUpdatedAt: summary.transcriptUpdatedAt ?? null,
   };
@@ -339,7 +344,6 @@ function toAuthorityBackedNativeCodingSessionInventoryRecord(
     id: summary.id.trim() || nativeSessionId,
     kind: 'coding',
     nativeSessionId,
-    nativeCwd: summary.nativeCwd ?? null,
     sortTimestamp: resolveBirdCoderSessionSortTimestampString(summary),
     transcriptUpdatedAt: summary.transcriptUpdatedAt ?? null,
   };
@@ -426,7 +430,7 @@ function mergeCodingSessionInventoryRecords(
     modelId: activitySource.modelId,
     runtimeStatus: activitySource.runtimeStatus,
     nativeSessionId: primary.nativeSessionId ?? secondary.nativeSessionId,
-    nativeCwd: primary.nativeCwd ?? secondary.nativeCwd ?? null,
+    runtimeLocationId: primary.runtimeLocationId ?? secondary.runtimeLocationId,
     nativeAttributes: activitySource.nativeAttributes
       ?? primary.nativeAttributes
       ?? secondary.nativeAttributes,
@@ -709,6 +713,7 @@ export async function listAuthorityBackedCodingSessionInventoryPage(
       : AUTHORITY_SESSION_PAGE_SIZE;
   const requestScope = {
     projectId: options.projectId?.trim() || undefined,
+    runtimeLocationId: options.runtimeLocationId?.trim() || undefined,
     workspaceId: options.workspaceId?.trim() || undefined,
   };
   const projectionState = createAuthorityCodingSessionSourceState();
@@ -742,9 +747,15 @@ export async function listAuthorityBackedCodingSessionInventoryPage(
         }).then((page) => ({ source: 'projection' as const, page })),
       );
     }
-    if (nativeNeedsMore && requestScope.projectId && requestScope.workspaceId) {
+    if (
+      nativeNeedsMore &&
+      requestScope.projectId &&
+      requestScope.runtimeLocationId &&
+      requestScope.workspaceId
+    ) {
       const request: BirdCoderListNativeSessionsRequest & { limit: number; offset: number } = {
         projectId: requestScope.projectId,
+        runtimeLocationId: requestScope.runtimeLocationId,
         workspaceId: requestScope.workspaceId,
         limit: pageSize,
         offset: nativeState.offset,
@@ -847,6 +858,7 @@ function toProjectBackedCodingSessionInventoryRecord(
     id: codingSession.id,
     workspaceId: codingSession.workspaceId,
     projectId: codingSession.projectId,
+    runtimeLocationId: codingSession.runtimeLocationId,
     title: codingSession.title,
     status: codingSession.status,
     hostMode: codingSession.hostMode,
@@ -861,7 +873,6 @@ function toProjectBackedCodingSessionInventoryRecord(
     updatedAt: codingSession.updatedAt,
     lastTurnAt: codingSession.lastTurnAt,
     kind: 'coding',
-    nativeCwd: null,
     sortTimestamp: resolveBirdCoderSessionSortTimestampString(codingSession),
     transcriptUpdatedAt: codingSession.transcriptUpdatedAt ?? null,
   };
@@ -971,7 +982,6 @@ export async function listStoredSessionInventoryPage(
         .map((session) => ({
           ...session,
           kind: 'coding' as const,
-          nativeCwd: null,
           sortTimestamp: resolveBirdCoderSessionSortTimestampString(session),
           transcriptUpdatedAt: session.transcriptUpdatedAt ?? null,
         }));

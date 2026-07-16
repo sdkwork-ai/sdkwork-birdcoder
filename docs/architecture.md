@@ -5,8 +5,9 @@ Updated: 2026-07-14
 
 The current architecture authority is the
 [technical architecture Canon](architecture/tech/TECH_ARCHITECTURE.md). It
-defines the Browser/Tauri renderer boundary, remote Project versus
-device-private Project Mount, server workspace isolation, and deployment truth.
+defines the Browser/Tauri renderer boundary, the ProjectRuntimeLocation data
+model, target-owned path resolution, server workspace isolation, and
+deployment truth.
 
 Supporting current documents:
 

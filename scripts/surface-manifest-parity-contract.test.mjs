@@ -88,8 +88,8 @@ for (const relativePath of requiredManifestPaths) {
 const rootManifest = readSdkworkAppManifest(path.join(rootDir, 'sdkwork.app.config.json'));
 assert.match(
   String(rootManifest.metadata?.commercialReadiness?.pcPrivateBeta ?? ''),
-  /http-openapi-161-route-catalog-162/u,
-  'Root manifest must record HTTP OpenAPI 161-operation alignment and 162-entry route catalog truth.',
+  /http-openapi-174-route-catalog-175/u,
+  'Root manifest must record HTTP OpenAPI 174-operation alignment and 175-entry route catalog truth.',
 );
 assert.match(
   String(rootManifest.metadata?.commercialReadiness?.mobileProductParity ?? ''),

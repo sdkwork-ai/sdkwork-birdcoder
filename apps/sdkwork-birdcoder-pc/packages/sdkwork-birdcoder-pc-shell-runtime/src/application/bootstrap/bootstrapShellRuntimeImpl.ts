@@ -1,10 +1,12 @@
 import type { BirdHostDescriptor } from '@sdkwork/birdcoder-pc-host-core';
-import {
-  bindDefaultBirdCoderIdeServicesRuntime,
-  bootstrapBirdCoderMembershipSdk,
-  type BirdCoderAppSdkApiClient,
-  type BirdCoderBackendSdkApiClient,
+import { bindDefaultBirdCoderIdeServicesRuntime } from '@sdkwork/birdcoder-pc-infrastructure-runtime/defaultIdeServices';
+import type {
+  BirdCoderAppSdkApiClient,
+  BirdCoderBackendSdkApiClient,
 } from '@sdkwork/birdcoder-pc-infrastructure-runtime';
+import { bootstrapBirdCoderMembershipSdk } from '@sdkwork/birdcoder-pc-infrastructure-runtime/membershipSdkBootstrap';
+import { bootstrapBirdCoderDriveSandboxExplorer } from '@sdkwork/birdcoder-pc-infrastructure-runtime/driveSandboxExplorer';
+import type { BirdCoderRealtimeTransportPreference } from './bootstrapShellRuntime.ts';
 import { bootstrapShellUserState } from './bootstrapShellUserState.ts';
 
 const SHELL_RUNTIME_BOOTSTRAP_TIMEOUT_MS = 30_000;
@@ -20,6 +22,7 @@ export interface BootstrapShellRuntimeOptions {
   backendClient?: BirdCoderBackendSdkApiClient;
   bootstrapTimeoutMs?: number;
   host?: BirdHostDescriptor;
+  realtimeTransport?: BirdCoderRealtimeTransportPreference;
 }
 
 interface ShellRuntimeBootstrapTimeoutBoundary {
@@ -92,6 +95,7 @@ export async function bootstrapShellRuntimeImpl(
 ): Promise<void> {
   bindDefaultBirdCoderIdeServicesRuntime(options);
   bootstrapBirdCoderMembershipSdk();
+  bootstrapBirdCoderDriveSandboxExplorer();
 
   if (bootstrapped) {
     return;

@@ -139,6 +139,9 @@ export const BIRDCODER_WORKSPACE_REALTIME_EVENT_KINDS = [
   'coding-session.updated',
   'coding-session.deleted',
   'coding-session.turn.created',
+  'coding-session.turn.completed',
+  'coding-session.approval.decided',
+  'coding-session.question.answered',
 ] as const;
 
 export type BirdCoderWorkspaceRealtimeEventKind =
@@ -156,11 +159,14 @@ export interface BirdCoderWorkspaceRealtimeEvent {
   codingSessionHostMode?: BirdCoderHostMode;
   codingSessionEngineId?: BirdCoderCodingSessionSummary['engineId'];
   codingSessionModelId?: string;
+  /** Opaque server-issued binding; never a local path or filesystem handle. */
+  codingSessionRuntimeLocationId?: string;
   codingSessionRuntimeStatus?: BirdCoderCodingSessionRuntimeStatus;
   nativeSessionId?: string;
   turnId?: string;
   codingSessionEventKind?: BirdCoderCodingSessionEvent['kind'];
   codingSessionEventPayload?: BirdCoderCodingSessionEvent['payload'];
+  codingSessionEventSequence?: BirdCoderCodingSessionEvent['sequence'];
   occurredAt: string;
   projectUpdatedAt?: string;
   codingSessionUpdatedAt?: string;
@@ -998,7 +1004,6 @@ export interface BirdCoderNativeSessionMessage {
 
 export interface BirdCoderNativeSessionSummary extends BirdCoderCodingSessionSummary {
   kind: 'coding';
-  nativeCwd?: string | null;
   sortTimestamp: BirdCoderLongIntegerString;
   transcriptUpdatedAt?: string | null;
 }
@@ -1025,6 +1030,7 @@ export interface BirdCoderListNativeSessionsRequest {
   limit?: number;
   offset?: number;
   projectId: string;
+  runtimeLocationId: string;
   workspaceId: string;
 }
 
@@ -1033,18 +1039,21 @@ export interface BirdCoderListCodingSessionsRequest {
   limit?: number;
   offset?: number;
   projectId?: string;
+  runtimeLocationId?: string;
   workspaceId?: string;
 }
 
 export interface BirdCoderGetNativeSessionRequest {
   engineId?: BirdCoderCodeEngineKey;
   projectId: string;
+  runtimeLocationId: string;
   workspaceId: string;
 }
 
 export interface BirdCoderCreateCodingSessionRequest {
   workspaceId: string;
   projectId: string;
+  runtimeLocationId: string;
   title?: string;
   hostMode?: BirdCoderHostMode;
   engineId: BirdCoderCodeEngineKey;
@@ -1101,8 +1110,6 @@ export interface BirdCoderCodingSessionTurnOptions {
 
 export interface BirdCoderCreateCodingSessionTurnRequest {
   runtimeId?: string;
-  engineId?: BirdCoderCodeEngineKey;
-  modelId?: string;
   requestKind: BirdCoderCodingSessionTurn['requestKind'];
   inputSummary: string;
   stream?: boolean;

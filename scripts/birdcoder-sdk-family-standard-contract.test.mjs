@@ -651,78 +651,19 @@ function assertOpenApiStandard(surface) {
   }
 }
 
-function assertAssemblyManifest() {
-  const assembly = readJson('sdks/.sdkwork-assembly.json');
-  assert.equal(assembly.schemaVersion, 1);
-  assert.equal(assembly.kind, 'sdkwork.sdk.assembly');
-  assert.equal(assembly.name, 'sdkwork-birdcoder-sdk-family');
-  assert.equal(assembly.standardProfile, standardProfile);
-  assert.equal(assembly.sourceOfTruth?.api, '../../../specs/API_SPEC.md');
-  assert.equal(assembly.sourceOfTruth?.sdk, '../../../specs/SDK_SPEC.md');
-  assert.equal(assembly.sourceOfTruth?.domain, '../../../specs/DOMAIN_SPEC.md');
-  assert.equal(
-    assembly.sourceOfTruth?.domainCatalog,
-    'specs/domain-catalog.json',
-    'SDK assembly must declare the app-local domain catalog used by OpenAPI x-sdkwork-domain validation.',
-  );
-  assert.equal(
-    assembly.sourceOfTruth?.canonicalOpenApi,
-    canonicalOpenApiPath,
-    'SDK assembly must declare the canonical coding-server OpenAPI snapshot used to derive app/backend SDK inputs.',
-  );
-  assert.deepEqual(
-    assembly.verification?.commands,
-    [
-      'pnpm check:sdk-family-standard',
-      'pnpm generate:sdk:birdcoder',
-      'pnpm check:sdk-family-generated',
-    ],
-  );
-
-  const surfaces = new Map((assembly.surfaces ?? []).map((surface) => [surface.id, surface]));
-  assert.equal(surfaces.size, expectedSurfaces.length);
-
+function assertManifestDiscovery() {
   for (const expected of expectedSurfaces) {
-    const surface = surfaces.get(expected.id);
-    assert.ok(surface, `assembly surface ${expected.id} must be declared.`);
-    assert.equal(surface.surface, expected.surface);
-    assert.equal(surface.apiPrefix, expected.apiPrefix);
-    assert.equal(surface.inputSpecPath, expected.inputSpecPath);
-    assert.equal(surface.packageName, expected.packageName);
-    assert.equal(surface.version, '0.1.0');
-    assert.equal(surface.standardProfile, standardProfile);
-    assert.equal(surface.sdkOwner, expectedSdkOwner);
-    assert.equal(surface.apiAuthority, expected.apiAuthority);
-    assert.equal(surface.sdkFamily, expected.sdkFamily);
-    assertSdkDependencies(
-      surface.sdkDependencies,
-      expected.sdkDependencies,
-      `sdks/.sdkwork-assembly.json surface ${expected.id}`,
-    );
-
-    const outputByLanguage = new Map((surface.outputs ?? []).map((output) => [output.language, output]));
-    assert.equal(outputByLanguage.get('typescript')?.path, expected.typescriptOutputPath);
-    assert.equal(outputByLanguage.get('typescript')?.packageName, expected.packageName);
-    assert.equal(outputByLanguage.get('rust')?.path, expected.rustOutputPath);
-    assert.match(outputByLanguage.get('rust')?.crateName ?? '', /^sdkwork_birdcoder_(?:app|backend)_sdk$/u);
-
-    const command = normalizeRelativePath(surface.generator?.command);
-    assert.match(command, /generate-birdcoder-sdk-family\.mjs/u);
-    assert.ok(command.includes(`--surface ${expected.surface}`));
-    assert.ok(command.includes(`--standard-profile ${standardProfile}`));
-    assert.ok(command.includes(`--input ${expected.inputSpecPath}`));
-    assert.ok(command.includes(`--typescript-output ${expected.typescriptOutputPath}`));
-    assert.ok(command.includes(`--rust-output ${expected.rustOutputPath}`));
-    assert.equal(surface.generator?.standardProfile, standardProfile);
-
+    const manifest = readJson(`${expected.rootDir}/sdk-manifest.json`);
+    assert.equal(manifest.sdkFamily, expected.sdkFamily);
+    assert.equal(manifest.sdkOwner, expectedSdkOwner);
+    assert.equal(manifest.apiAuthority, expected.apiAuthority);
+    assert.equal(manifest.discoverySurface?.sdkTarget, expected.surface);
+    assert.equal(manifest.discoverySurface?.apiPrefix, expected.apiPrefix);
+    assert.equal(manifest.metadata?.generation?.sourceSpec, expected.inputSpecPath);
+    assert.equal(manifest.standardProfile, standardProfile);
+    assertSdkDependencies(manifest.sdkDependencies, expected.sdkDependencies, `${expected.rootDir}/sdk-manifest.json`);
     assertOpenApiStandard(expected);
   }
-
-  assertSdkDependencies(
-    assembly.sdkDependencies,
-    expectedRootSdkDependencies,
-    'sdks/.sdkwork-assembly.json',
-  );
 }
 
 function assertComponentSpec() {
@@ -736,7 +677,10 @@ function assertComponentSpec() {
   assert.equal(componentSpec.component?.capability, 'sdk');
   assert.equal(componentSpec.component?.generated, true);
   assert.deepEqual(componentSpec.component?.languages, ['typescript', 'rust']);
-  assert.deepEqual(componentSpec.component?.manifests, ['.sdkwork-assembly.json']);
+  assert.deepEqual(componentSpec.component?.manifests, [
+    'sdkwork-birdcoder-app-sdk/sdk-manifest.json',
+    'sdkwork-birdcoder-backend-sdk/sdk-manifest.json',
+  ]);
   assert.deepEqual(componentSpec.component?.domainCatalogs, ['specs/domain-catalog.json']);
   assertCanonicalSpecLinks(componentSpec.canonicalSpecs ?? []);
   assert.equal(
@@ -801,18 +745,6 @@ function assertFamilyRootComponentSpec(expected) {
 }
 
 function assertFamilyRootManifest(expected) {
-  const familyAssemblyPath = `${expected.rootDir}/.sdkwork-assembly.json`;
-  assert.equal(
-    fs.existsSync(absoluteRootPath(familyAssemblyPath)),
-    false,
-    `${familyAssemblyPath} is retired; family-root metadata must use sdk-manifest.json as SSOT.`,
-  );
-  assert.equal(
-    fs.existsSync(absolutePath(familyAssemblyPath)),
-    false,
-    `${familyAssemblyPath} PC mirror is retired; family-root metadata must use sdk-manifest.json as SSOT.`,
-  );
-
   const familyManifestPath = `${expected.rootDir}/sdk-manifest.json`;
   const familyManifest = readJson(familyManifestPath);
   assert.equal(familyManifest.workspace, expected.sdkFamily);
@@ -1325,7 +1257,7 @@ function assertStandardSdkgenWrappers() {
   assert.doesNotMatch(
     standardWrapperSource,
     /familyAssembly/u,
-    'standard sdkgen wrapper must not read retired per-family .sdkwork-assembly.json metadata.',
+    'standard sdkgen wrapper must discover family sdk-manifest.json metadata.',
   );
   assert.match(standardWrapperSource, /sdkwork-sdk-generator[\\/]bin[\\/]sdkgen\.js/u);
   assert.match(standardWrapperSource, /--standard-profile/u);
@@ -1357,7 +1289,7 @@ function assertStandardSdkgenWrappers() {
 assert.ok(fs.existsSync(sdkRootDir), 'sdks directory must exist.');
 assertNoLegacySdkDirectories();
 assertDomainCatalogCoversOpenApiOperations(expectedSurfaces);
-assertAssemblyManifest();
+assertManifestDiscovery();
 assertComponentSpec();
 assertFamilyRootMetadata();
 assertReadmesAndGeneratedOutputs();

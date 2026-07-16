@@ -260,8 +260,7 @@
       "pnpm check:drive-standard",
       "pnpm check:dependency-management",
       "pnpm check:api-response-envelope",
-      "pnpm check:app-composition",
-      "pnpm check:dependency-management"
+      "pnpm check:app-composition"
     ]
   },
   "metadata": {

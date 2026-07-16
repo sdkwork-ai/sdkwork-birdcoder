@@ -4,7 +4,10 @@ import type {
   ProjectDeviceMountState,
 } from '@sdkwork/birdcoder-pc-types';
 
-import { isBirdCoderTauriRuntime } from '../platform/tauriRuntime.ts';
+import {
+  isBirdCoderTauriRuntime,
+  resolveBirdCoderTauriInvoke,
+} from '../platform/tauriRuntime.ts';
 
 const BROWSER_DATABASE_NAME = 'sdkwork-birdcoder-project-device-mounts';
 const BROWSER_DATABASE_VERSION = 1;
@@ -12,15 +15,6 @@ const BROWSER_MOUNT_STORE_NAME = 'mounts';
 const TAURI_MOUNT_STORAGE_SCOPE = 'project-device-mounts';
 const TAURI_MOUNT_STORAGE_VERSION = 1;
 const SUBJECT_KEY_PREFIX = 'sdkwork.birdcoder.project-device-mount.v1';
-
-type TauriInvoke = <T>(command: string, args?: Record<string, unknown>) => Promise<T>;
-
-type TauriInvokeWindow = Window &
-  typeof globalThis & {
-    __TAURI_INTERNALS__?: {
-      invoke?: TauriInvoke;
-    };
-  };
 
 interface BrowserStoredProjectMount {
   displayName: string;
@@ -32,6 +26,11 @@ interface BrowserStoredProjectMount {
 interface TauriStoredProjectMount {
   displayName: string;
   path: string;
+  requiresRebind?: boolean;
+  rootLocator?: string;
+  runtimeLocationCreateGeneration?: number;
+  runtimeLocationId?: string;
+  runtimeLocationVersion?: string;
   version: number;
 }
 
@@ -50,6 +49,42 @@ export type ProjectDeviceMountSubjectProvider = () => Promise<ProjectDeviceMount
 export interface ProjectDeviceMountRecoverySource {
   source: LocalFolderMountSource | null;
   state: ProjectDeviceMountState;
+}
+
+/**
+ * Safe metadata for a Tauri-local runtime location binding. The native path
+ * remains private to this registry and is deliberately absent from this type.
+ */
+export interface TauriProjectRuntimeLocationBinding {
+  displayName: string;
+  requiresRebind: boolean;
+  rootLocator?: string;
+  runtimeLocationCreateGeneration: number;
+  runtimeLocationId?: string;
+  runtimeLocationVersion?: string;
+}
+
+export interface ResolveTauriProjectRuntimeLocationBindingInput {
+  absolutePath: string;
+  expectedSubjectKey?: string | null;
+  projectId: string;
+}
+
+export interface EnsureTauriProjectRuntimeLocationRootLocatorInput
+  extends ResolveTauriProjectRuntimeLocationBindingInput {
+  rootLocator: string;
+}
+
+export interface PersistTauriProjectRuntimeLocationRemoteBindingInput
+  extends ResolveTauriProjectRuntimeLocationBindingInput {
+  rootLocator: string;
+  runtimeLocationId: string;
+  runtimeLocationVersion: string;
+}
+
+export interface ClearTauriProjectRuntimeLocationRemoteBindingInput
+  extends ResolveTauriProjectRuntimeLocationBindingInput {
+  rootLocator: string;
 }
 
 export interface ProjectDeviceMountRegistryOptions {
@@ -103,6 +138,56 @@ function isAbsoluteTauriPath(path: string): boolean {
   return /^[a-zA-Z]:[\\/]/u.test(path) || path.startsWith('\\\\') || path.startsWith('/');
 }
 
+function normalizeAbsoluteTauriPath(path: string): string | null {
+  const normalizedPath = path.trim();
+  return normalizedPath && isAbsoluteTauriPath(normalizedPath) ? normalizedPath : null;
+}
+
+function isSameTauriPath(left: string, right: string): boolean {
+  const normalizedLeft = normalizeAbsoluteTauriPath(left);
+  const normalizedRight = normalizeAbsoluteTauriPath(right);
+  if (!normalizedLeft || !normalizedRight) {
+    return false;
+  }
+
+  const collapseSeparators = (value: string) => value.replace(/[\\/]+$/u, '').replace(/\\/gu, '/');
+  const normalizedLeftPath = collapseSeparators(normalizedLeft);
+  const normalizedRightPath = collapseSeparators(normalizedRight);
+  const isWindowsPath = /^[a-zA-Z]:\//u.test(normalizedLeftPath)
+    || normalizedLeftPath.startsWith('//');
+
+  return isWindowsPath
+    ? normalizedLeftPath.toLowerCase() === normalizedRightPath.toLowerCase()
+    : normalizedLeftPath === normalizedRightPath;
+}
+
+function normalizeRootLocator(value: unknown): string | undefined {
+  const rootLocator = typeof value === 'string' ? value.trim() : '';
+  return /^desktop-root:[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/iu.test(
+    rootLocator,
+  )
+    ? rootLocator
+    : undefined;
+}
+
+function normalizeSafeRuntimeBindingValue(value: unknown): string | undefined {
+  const normalizedValue = typeof value === 'string' ? value.trim() : '';
+  return normalizedValue
+    && normalizedValue.length <= 512
+    && !/[\u0000-\u001f\u007f]/u.test(normalizedValue)
+    ? normalizedValue
+    : undefined;
+}
+
+function normalizeRuntimeLocationCreateGeneration(value: unknown): number {
+  return typeof value === 'number'
+    && Number.isSafeInteger(value)
+    && value >= 0
+    && value <= 2_147_483_647
+    ? value
+    : 0;
+}
+
 function normalizeMountSubject(
   subject: ProjectDeviceMountSubject | null,
 ): ProjectDeviceMountSubject | null {
@@ -135,7 +220,7 @@ function parseTauriStoredProjectMount(value: string | null): TauriStoredProjectM
 
   try {
     const parsed = JSON.parse(value) as Partial<TauriStoredProjectMount>;
-    const path = typeof parsed.path === 'string' ? parsed.path.trim() : '';
+    const path = normalizeAbsoluteTauriPath(parsed.path ?? '');
     if (
       parsed.version !== TAURI_MOUNT_STORAGE_VERSION ||
       !path ||
@@ -144,9 +229,26 @@ function parseTauriStoredProjectMount(value: string | null): TauriStoredProjectM
       return null;
     }
 
+    const rootLocator = normalizeRootLocator(parsed.rootLocator);
+    const runtimeLocationCreateGeneration = normalizeRuntimeLocationCreateGeneration(
+      parsed.runtimeLocationCreateGeneration,
+    );
+    const runtimeLocationId = normalizeSafeRuntimeBindingValue(parsed.runtimeLocationId);
+    const runtimeLocationVersion = normalizeSafeRuntimeBindingValue(parsed.runtimeLocationVersion);
+    const hasCompleteRemoteBinding = Boolean(runtimeLocationId && runtimeLocationVersion);
+
     return {
       displayName: normalizeDisplayName(parsed.displayName),
       path,
+      runtimeLocationCreateGeneration,
+      ...(rootLocator ? { rootLocator } : {}),
+      ...(hasCompleteRemoteBinding
+        ? {
+            runtimeLocationId,
+            runtimeLocationVersion,
+            requiresRebind: Boolean(parsed.requiresRebind),
+          }
+        : {}),
       version: TAURI_MOUNT_STORAGE_VERSION,
     };
   } catch {
@@ -264,29 +366,8 @@ async function queryBrowserMountPermission(
   }
 }
 
-async function resolveTauriInvoke(): Promise<TauriInvoke | null> {
-  if (!(await isBirdCoderTauriRuntime())) {
-    return null;
-  }
-
-  const directInvoke =
-    typeof window === 'undefined'
-      ? undefined
-      : (window as TauriInvokeWindow).__TAURI_INTERNALS__?.invoke;
-  if (typeof directInvoke === 'function') {
-    return directInvoke;
-  }
-
-  try {
-    const { invoke } = await import('@tauri-apps/api/core');
-    return invoke;
-  } catch {
-    return null;
-  }
-}
-
 async function readTauriStoredProjectMount(key: string): Promise<TauriStoredProjectMount | null> {
-  const invoke = await resolveTauriInvoke();
+  const invoke = await resolveBirdCoderTauriInvoke();
   if (!invoke) {
     return null;
   }
@@ -305,14 +386,14 @@ async function readTauriStoredProjectMount(key: string): Promise<TauriStoredProj
 
 async function writeTauriStoredProjectMount(
   key: string,
-  source: Extract<LocalFolderMountSource, { type: 'tauri' }>,
+  mount: TauriStoredProjectMount,
 ): Promise<boolean> {
-  const normalizedPath = source.path.trim();
-  if (!normalizedPath || !isAbsoluteTauriPath(normalizedPath)) {
+  const normalizedPath = normalizeAbsoluteTauriPath(mount.path);
+  if (!normalizedPath) {
     return false;
   }
 
-  const invoke = await resolveTauriInvoke();
+  const invoke = await resolveBirdCoderTauriInvoke();
   if (!invoke) {
     return false;
   }
@@ -322,7 +403,8 @@ async function writeTauriStoredProjectMount(
       key,
       scope: TAURI_MOUNT_STORAGE_SCOPE,
       value: JSON.stringify({
-        displayName: resolveTauriMountDisplayName(normalizedPath),
+        ...mount,
+        displayName: normalizeDisplayName(mount.displayName),
         path: normalizedPath,
         version: TAURI_MOUNT_STORAGE_VERSION,
       } satisfies TauriStoredProjectMount),
@@ -333,9 +415,61 @@ async function writeTauriStoredProjectMount(
   }
 }
 
+function toTauriRuntimeLocationBinding(
+  mount: TauriStoredProjectMount,
+): TauriProjectRuntimeLocationBinding {
+  const hasCompleteRemoteBinding = Boolean(
+    mount.runtimeLocationId && mount.runtimeLocationVersion,
+  );
+  return {
+    displayName: mount.displayName,
+    requiresRebind: hasCompleteRemoteBinding && Boolean(mount.requiresRebind),
+    runtimeLocationCreateGeneration: mount.runtimeLocationCreateGeneration ?? 0,
+    ...(mount.rootLocator ? { rootLocator: mount.rootLocator } : {}),
+    ...(hasCompleteRemoteBinding
+      ? {
+          runtimeLocationId: mount.runtimeLocationId,
+          runtimeLocationVersion: mount.runtimeLocationVersion,
+        }
+      : {}),
+  };
+}
+
+function createTauriStoredProjectMount(
+  source: Extract<LocalFolderMountSource, { type: 'tauri' }>,
+  previousMount: TauriStoredProjectMount | null,
+): TauriStoredProjectMount | null {
+  const path = normalizeAbsoluteTauriPath(source.path);
+  if (!path) {
+    return null;
+  }
+
+  const hasCompleteRemoteBinding = Boolean(
+    previousMount?.runtimeLocationId && previousMount.runtimeLocationVersion,
+  );
+  const pathChanged = previousMount ? !isSameTauriPath(previousMount.path, path) : false;
+
+  return {
+    displayName: resolveTauriMountDisplayName(path),
+    path,
+    ...(previousMount?.rootLocator ? { rootLocator: previousMount.rootLocator } : {}),
+    runtimeLocationCreateGeneration: previousMount?.runtimeLocationCreateGeneration ?? 0,
+    ...(hasCompleteRemoteBinding
+      ? {
+          runtimeLocationId: previousMount?.runtimeLocationId,
+          runtimeLocationVersion: previousMount?.runtimeLocationVersion,
+          requiresRebind: Boolean(previousMount?.requiresRebind || pathChanged),
+        }
+      : {}),
+    version: TAURI_MOUNT_STORAGE_VERSION,
+  };
+}
+
 /**
  * Persists a local folder reference only in the active device boundary.
- * Remote project records and app SDK DTOs never receive the stored source.
+ * Generic Project records and app SDK DTOs never receive the stored source.
+ * The dedicated runtime-location registration boundary persists encrypted,
+ * write-only path material for the authoritative target-specific record.
  */
 export class ProjectDeviceMountRegistry {
   private readonly subjectProvider?: ProjectDeviceMountSubjectProvider;
@@ -346,6 +480,128 @@ export class ProjectDeviceMountRegistry {
 
   async getCurrentSubjectKey(): Promise<string | null> {
     return (await this.resolveCurrentSubject())?.key ?? null;
+  }
+
+  /**
+   * Reads only safe runtime-location binding metadata for an active Tauri
+   * mount. This is intentionally unavailable in browser mode and never
+   * returns the private native path held by the mount record.
+   */
+  async resolveTauriRuntimeLocationBinding(
+    input: ResolveTauriProjectRuntimeLocationBindingInput,
+  ): Promise<TauriProjectRuntimeLocationBinding | null> {
+    const resolvedMount = await this.resolveCurrentTauriStoredMount(input);
+    return resolvedMount ? toTauriRuntimeLocationBinding(resolvedMount.mount) : null;
+  }
+
+  /**
+   * Persists a host-generated opaque root locator next to the active native
+   * mount. Existing locators win so a reselected or moved path never changes
+   * the server-side target identity.
+   */
+  async ensureTauriRuntimeLocationRootLocator(
+    input: EnsureTauriProjectRuntimeLocationRootLocatorInput,
+  ): Promise<TauriProjectRuntimeLocationBinding | null> {
+    const rootLocator = normalizeRootLocator(input.rootLocator);
+    if (!rootLocator) {
+      return null;
+    }
+
+    const resolvedMount = await this.resolveCurrentTauriStoredMount(input);
+    if (!resolvedMount) {
+      return null;
+    }
+
+    if (resolvedMount.mount.rootLocator) {
+      return toTauriRuntimeLocationBinding(resolvedMount.mount);
+    }
+
+    const updatedMount: TauriStoredProjectMount = {
+      ...resolvedMount.mount,
+      rootLocator,
+    };
+    const persisted = await writeTauriStoredProjectMount(resolvedMount.key, updatedMount);
+    if (!persisted || !(await this.isCurrentSubjectKey(resolvedMount.subjectKey))) {
+      return null;
+    }
+
+    return toTauriRuntimeLocationBinding(updatedMount);
+  }
+
+  /**
+   * Stores the safe remote binding after the composed SDK has accepted a
+   * create or rebind request. A changed mount or changed subject rejects the
+   * write so stale asynchronous work cannot cross project-owner boundaries.
+   */
+  async persistTauriRuntimeLocationRemoteBinding(
+    input: PersistTauriProjectRuntimeLocationRemoteBindingInput,
+  ): Promise<boolean> {
+    const rootLocator = normalizeRootLocator(input.rootLocator);
+    const runtimeLocationId = normalizeSafeRuntimeBindingValue(input.runtimeLocationId);
+    const runtimeLocationVersion = normalizeSafeRuntimeBindingValue(input.runtimeLocationVersion);
+    if (!rootLocator || !runtimeLocationId || !runtimeLocationVersion) {
+      return false;
+    }
+
+    const resolvedMount = await this.resolveCurrentTauriStoredMount(input);
+    if (!resolvedMount || resolvedMount.mount.rootLocator !== rootLocator) {
+      return false;
+    }
+
+    const updatedMount: TauriStoredProjectMount = {
+      ...resolvedMount.mount,
+      requiresRebind: false,
+      runtimeLocationId,
+      runtimeLocationVersion,
+    };
+    const persisted = await writeTauriStoredProjectMount(resolvedMount.key, updatedMount);
+    return persisted && (await this.isCurrentSubjectKey(resolvedMount.subjectKey));
+  }
+
+  /**
+   * Removes only stale remote identifiers after a server-side 404 or binding
+   * mismatch. The opaque root locator remains stable while the persisted
+   * create generation advances, giving the replacement create a new safe
+   * idempotency key without changing ordinary retry behavior.
+   */
+  async clearTauriRuntimeLocationRemoteBinding(
+    input: ClearTauriProjectRuntimeLocationRemoteBindingInput,
+  ): Promise<number | null> {
+    const rootLocator = normalizeRootLocator(input.rootLocator);
+    if (!rootLocator) {
+      return null;
+    }
+
+    const resolvedMount = await this.resolveCurrentTauriStoredMount(input);
+    if (!resolvedMount || resolvedMount.mount.rootLocator !== rootLocator) {
+      return null;
+    }
+
+    const currentGeneration = normalizeRuntimeLocationCreateGeneration(
+      resolvedMount.mount.runtimeLocationCreateGeneration,
+    );
+    if (currentGeneration >= 2_147_483_647) {
+      return null;
+    }
+    const nextGeneration = currentGeneration + 1;
+
+    const {
+      requiresRebind: _requiresRebind,
+      runtimeLocationId: _runtimeLocationId,
+      runtimeLocationVersion: _runtimeLocationVersion,
+      ...mountWithoutRemoteBinding
+    } = resolvedMount.mount;
+    const updatedMount: TauriStoredProjectMount = {
+      ...mountWithoutRemoteBinding,
+      runtimeLocationCreateGeneration: nextGeneration,
+    };
+    const persisted = await writeTauriStoredProjectMount(
+      resolvedMount.key,
+      updatedMount,
+    );
+    return persisted && (await this.isCurrentSubjectKey(resolvedMount.subjectKey))
+      ? nextGeneration
+      : null;
   }
 
   async register(
@@ -365,10 +621,18 @@ export class ProjectDeviceMountRegistry {
     }
 
     const key = buildSubjectProjectMountKey(resolvedSubject.subject, normalizedProjectId);
-    const persisted =
-      source.type === 'browser'
-        ? await writeBrowserStoredProjectMount(key, source)
-        : await writeTauriStoredProjectMount(key, source);
+    let persisted: boolean;
+    if (source.type === 'browser') {
+      persisted = await writeBrowserStoredProjectMount(key, source);
+    } else {
+      const previousMount = await readTauriStoredProjectMount(key);
+      if (!(await this.isCurrentSubjectKey(currentSubjectKey))) {
+        return createMountState('mount_required');
+      }
+
+      const nextMount = createTauriStoredProjectMount(source, previousMount);
+      persisted = nextMount ? await writeTauriStoredProjectMount(key, nextMount) : false;
+    }
 
     // A local store write cannot be cancelled once issued. Its key remains bound to
     // the initiating subject, and the stale caller must not receive mount metadata.
@@ -482,6 +746,46 @@ export class ProjectDeviceMountRegistry {
       },
       state: createMountState('recoverable', 'browser', storedMount.displayName),
     };
+  }
+
+  private async resolveCurrentTauriStoredMount(
+    input: ResolveTauriProjectRuntimeLocationBindingInput,
+  ): Promise<{
+    key: string;
+    mount: TauriStoredProjectMount;
+    subjectKey: string;
+  } | null> {
+    if (!(await isBirdCoderTauriRuntime())) {
+      return null;
+    }
+
+    const absolutePath = normalizeAbsoluteTauriPath(input.absolutePath);
+    if (!absolutePath) {
+      return null;
+    }
+
+    const normalizedProjectId = normalizeProjectId(input.projectId);
+    const resolvedSubject = await this.resolveCurrentSubject();
+    const subjectKey = resolvedSubject?.key;
+    if (
+      !resolvedSubject ||
+      !subjectKey ||
+      (input.expectedSubjectKey !== undefined && subjectKey !== input.expectedSubjectKey)
+    ) {
+      return null;
+    }
+
+    const key = buildSubjectProjectMountKey(resolvedSubject.subject, normalizedProjectId);
+    const mount = await readTauriStoredProjectMount(key);
+    if (!(await this.isCurrentSubjectKey(subjectKey))) {
+      return null;
+    }
+
+    if (!mount || !isSameTauriPath(mount.path, absolutePath)) {
+      return null;
+    }
+
+    return { key, mount, subjectKey };
   }
 
   private async resolveCurrentSubject(): Promise<ResolvedProjectDeviceMountSubject | null> {

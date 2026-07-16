@@ -4,11 +4,14 @@ import type {
   BirdCoderBackendSdkApiClient,
 } from './sdkClients.ts';
 
+export type BirdCoderRealtimeTransportPreference = 'auto' | 'sse' | 'websocket';
+
 export interface BirdCoderDefaultIdeServicesRuntimeConfig {
   apiBaseUrl?: string;
   appClient?: BirdCoderAppSdkApiClient;
   backendClient?: BirdCoderBackendSdkApiClient;
   executionAuthorityMode?: 'auto' | 'remote-required';
+  realtimeTransport?: BirdCoderRealtimeTransportPreference;
 }
 
 export interface BindDefaultBirdCoderIdeServicesRuntimeOptions {
@@ -16,6 +19,7 @@ export interface BindDefaultBirdCoderIdeServicesRuntimeOptions {
   appClient?: BirdCoderAppSdkApiClient;
   backendClient?: BirdCoderBackendSdkApiClient;
   executionAuthorityMode?: 'auto' | 'remote-required';
+  realtimeTransport?: BirdCoderRealtimeTransportPreference;
   host?: BirdHostDescriptor;
 }
 
@@ -24,6 +28,15 @@ let defaultIdeServicesRuntimeConfig: BirdCoderDefaultIdeServicesRuntimeConfig = 
 function normalizeApiBaseUrl(apiBaseUrl?: string): string | undefined {
   const normalizedApiBaseUrl = apiBaseUrl?.trim();
   return normalizedApiBaseUrl ? normalizedApiBaseUrl : undefined;
+}
+
+function normalizeRealtimeTransport(
+  value?: string,
+): BirdCoderRealtimeTransportPreference {
+  const normalizedValue = value?.trim().toLowerCase();
+  return normalizedValue === 'sse' || normalizedValue === 'websocket'
+    ? normalizedValue
+    : 'auto';
 }
 
 function resolveBoundApiBaseUrl(
@@ -68,6 +81,7 @@ export function configureDefaultBirdCoderIdeServicesRuntime(
     appClient: config.appClient,
     backendClient: config.backendClient,
     executionAuthorityMode: config.executionAuthorityMode ?? 'auto',
+    realtimeTransport: normalizeRealtimeTransport(config.realtimeTransport),
     apiBaseUrl: normalizeApiBaseUrl(config.apiBaseUrl),
   };
 }
@@ -79,6 +93,7 @@ export function bindDefaultBirdCoderIdeServicesRuntime(
     appClient: options.appClient,
     backendClient: options.backendClient,
     executionAuthorityMode: resolveExecutionAuthorityMode(options),
+    realtimeTransport: options.realtimeTransport,
     apiBaseUrl: resolveBoundApiBaseUrl(options),
   });
 }

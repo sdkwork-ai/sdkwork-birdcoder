@@ -1,39 +1,23 @@
-import {
-  BIRDCODER_DATABASE_PROVIDERS,
-  getBirdCoderEntityDefinition,
-  type BirdCoderDatabaseProviderId,
-  type BirdCoderEntityDefinition,
-  type BirdCoderEntityName,
-  type BirdCoderLogicalColumnType,
-  type BirdCoderSchemaColumnDefinition,
-  type BirdCoderSchemaMigrationDefinition,
-  type BirdCoderStorageDialect,
+import type {
+  BirdCoderEntityDefinition,
+  BirdCoderEntityName,
+  BirdCoderSchemaColumnDefinition,
+  BirdCoderSchemaMigrationDefinition,
+  BirdCoderStorageDialect,
 } from '@sdkwork/birdcoder-pc-types';
+import { getBirdCoderEntityDefinition } from '@sdkwork/birdcoder-pc-types';
+import { createBirdCoderStorageDialect } from './dialects.ts';
+export { createBirdCoderStorageDialect } from './dialects.ts';
 
-type SupportedBirdCoderProviderId = keyof typeof BIRDCODER_DATABASE_PROVIDERS;
+type SupportedBirdCoderProviderId = 'sqlite' | 'postgresql';
 
-const DIALECTS: Record<SupportedBirdCoderProviderId, BirdCoderStorageDialect> = {
-  sqlite: {
-    providerId: 'sqlite',
-    buildPlaceholder(index) {
-      return `?${index}`;
-    },
-    mapLogicalType(type) {
-      return mapLogicalType('sqlite', type);
-    },
-    supportsJsonb: false,
-  },
-  postgresql: {
-    providerId: 'postgresql',
-    buildPlaceholder(index) {
-      return `$${index}`;
-    },
-    mapLogicalType(type) {
-      return mapLogicalType('postgresql', type);
-    },
-    supportsJsonb: true,
-  },
-};
+function assertSupportedProviderId(providerId: string): SupportedBirdCoderProviderId {
+  if (providerId === 'sqlite' || providerId === 'postgresql') {
+    return providerId;
+  }
+
+  throw new Error(`Unsupported BirdCoder storage provider: ${providerId}`);
+}
 
 const RUNTIME_DATA_KERNEL_ENTITY_NAMES = [
   'workbench_preference',
@@ -634,45 +618,6 @@ const SQLITE_INLINE_UNIQUE_TEXT_COLUMNS_BY_ENTITY = {
   payment: ['out_trade_no'],
   refund: ['out_refund_no'],
 } as const satisfies Partial<Record<BirdCoderEntityName, readonly string[]>>;
-
-function assertSupportedProviderId(
-  providerId: BirdCoderDatabaseProviderId,
-): SupportedBirdCoderProviderId {
-  if (providerId === 'sqlite' || providerId === 'postgresql') {
-    return providerId as SupportedBirdCoderProviderId;
-  }
-
-  throw new Error(`Unsupported BirdCoder storage provider: ${providerId}`);
-}
-
-function mapLogicalType(
-  providerId: SupportedBirdCoderProviderId,
-  logicalType: BirdCoderLogicalColumnType,
-): string {
-  switch (logicalType) {
-    case 'bool':
-      return providerId === 'sqlite' ? 'INTEGER' : 'BOOLEAN';
-    case 'int':
-      return 'INTEGER';
-    case 'bigint':
-      return providerId === 'sqlite' ? 'INTEGER' : 'BIGINT';
-    case 'decimal':
-      return 'NUMERIC';
-    case 'double':
-      return providerId === 'sqlite' ? 'REAL' : 'DOUBLE PRECISION';
-    case 'date':
-      return providerId === 'sqlite' ? 'TEXT' : 'DATE';
-    case 'json':
-      return providerId === 'sqlite' ? 'TEXT' : 'JSONB';
-    case 'timestamp':
-      return providerId === 'sqlite' ? 'TEXT' : 'TIMESTAMPTZ';
-    case 'id':
-    case 'text':
-    case 'enum':
-    default:
-      return 'TEXT';
-  }
-}
 
 function buildJavaScopedColumnSql(
   definition: BirdCoderEntityDefinition,
@@ -1280,10 +1225,27 @@ function buildMigrationStatements(
   });
 }
 
-export function createBirdCoderStorageDialect(
-  providerId: BirdCoderDatabaseProviderId,
-): BirdCoderStorageDialect {
-  return DIALECTS[assertSupportedProviderId(providerId)];
+/**
+ * Historical v2 must remain stable so a fresh database reaches the same v3
+ * shape as an existing v2 database upgraded by the additive migration below.
+ */
+function buildCodingServerKernelV2MigrationStatements(
+  providerId: SupportedBirdCoderProviderId,
+): string[] {
+  const dialect = createBirdCoderStorageDialect(providerId);
+
+  return CODING_SERVER_KERNEL_ENTITY_NAMES.flatMap((entityName) => {
+    const currentDefinition = getBirdCoderEntityDefinition(entityName);
+    const definition = entityName === 'coding_session'
+      ? {
+          ...currentDefinition,
+          columns: currentDefinition.columns.filter(
+            (column) => column.name !== 'runtime_location_id',
+          ),
+        }
+      : currentDefinition;
+    return [buildCreateTableSql(definition, dialect), ...buildCreateIndexSql(definition)];
+  });
 }
 
 export const BIRDCODER_SCHEMA_MIGRATIONS: readonly BirdCoderSchemaMigrationDefinition[] = [
@@ -1303,8 +1265,18 @@ export const BIRDCODER_SCHEMA_MIGRATIONS: readonly BirdCoderSchemaMigrationDefin
       'Bootstrap coding session, prompt, skillhub, template, collaboration, and deployment schema.',
     entityNames: CODING_SERVER_KERNEL_ENTITY_NAMES,
     sqlByProvider: {
-      sqlite: buildMigrationStatements('sqlite', CODING_SERVER_KERNEL_ENTITY_NAMES),
-      postgresql: buildMigrationStatements('postgresql', CODING_SERVER_KERNEL_ENTITY_NAMES),
+      sqlite: buildCodingServerKernelV2MigrationStatements('sqlite'),
+      postgresql: buildCodingServerKernelV2MigrationStatements('postgresql'),
+    },
+  },
+  {
+    migrationId: 'coding-session-runtime-location-v3',
+    description:
+      'Add the optional opaque runtime-location binding required to execute newly created coding sessions.',
+    entityNames: ['coding_session'],
+    sqlByProvider: {
+      sqlite: ['ALTER TABLE ai_coding_session ADD COLUMN runtime_location_id TEXT;'],
+      postgresql: ['ALTER TABLE ai_coding_session ADD COLUMN runtime_location_id TEXT;'],
     },
   },
 ] as const;

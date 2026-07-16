@@ -482,6 +482,26 @@ pub fn list_codeengine_model_catalog_entries() -> Vec<CodeEngineModelCatalogEntr
     shared_codeengine_catalog().models.clone()
 }
 
+pub fn find_codeengine_model_catalog_entry(
+    engine_key: &str,
+    model_id: &str,
+) -> Option<CodeEngineModelCatalogEntryRecord> {
+    let normalized_engine_key = engine_key.trim();
+    let normalized_model_id = model_id.trim();
+    if normalized_engine_key.is_empty() || normalized_model_id.is_empty() {
+        return None;
+    }
+
+    shared_codeengine_catalog()
+        .models
+        .iter()
+        .find(|model| {
+            model.engine_key.eq_ignore_ascii_case(normalized_engine_key)
+                && model.model_id.eq_ignore_ascii_case(normalized_model_id)
+        })
+        .cloned()
+}
+
 pub fn list_native_session_provider_catalog_entries() -> Vec<NativeSessionProviderCatalogRecord> {
     native_session_provider_catalog_entries().to_vec()
 }
@@ -514,7 +534,7 @@ pub fn find_native_session_provider_catalog_entry(
 
 #[cfg(test)]
 mod tests {
-    use super::{register_provider, CatalogError};
+    use super::{find_codeengine_model_catalog_entry, register_provider, CatalogError};
 
     #[test]
     fn register_provider_succeeds_for_known_engine() {
@@ -542,6 +562,12 @@ mod tests {
     fn shared_catalog_does_not_panic_and_is_populated() {
         let catalog = super::shared_codeengine_catalog();
         assert!(!catalog.engines.is_empty());
+    }
+
+    #[test]
+    fn model_lookup_requires_the_owning_engine() {
+        assert!(find_codeengine_model_catalog_entry("gemini", "gemini-2.5-pro").is_some());
+        assert!(find_codeengine_model_catalog_entry("codex", "gemini-2.5-pro").is_none());
     }
 
     #[test]

@@ -129,6 +129,15 @@ try {
   );
 
   assert.equal(
+    resolveBirdCoderBrowserServerBaseUrl(undefined, {
+      browserLocationUrl: 'http://192.168.31.108:3001/workspaces',
+      preferSameOrigin: true,
+    }),
+    'http://192.168.31.108:3001',
+    'development browser requests must default to the same-origin proxy when API origins are intentionally removed from the public runtime environment.',
+  );
+
+  assert.equal(
     resolveBirdCoderBrowserServerBaseUrl('https://api.example.com/birdcoder', {
       browserLocationUrl: 'http://192.168.31.108:3001/',
     }),

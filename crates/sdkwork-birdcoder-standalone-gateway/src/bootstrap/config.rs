@@ -1,6 +1,8 @@
 use std::fmt;
 use std::path::{Path, PathBuf};
 
+use sdkwork_utils_rust::base64url_decode;
+
 pub const DEFAULT_HOST: &str = "127.0.0.1";
 pub const DEFAULT_PORT: u16 = 10240;
 pub const DEFAULT_SQLITE_FILE: &str = "target/dev/birdcoder/data/birdcoder.sqlite3";
@@ -16,6 +18,8 @@ pub const SERVER_HOST_ENV: &str = "SDKWORK_BIRDCODER_SERVER_HOST";
 pub const SERVER_PORT_ENV: &str = "SDKWORK_BIRDCODER_SERVER_PORT";
 pub const DATABASE_FILE_ENV: &str = "SDKWORK_BIRDCODER_DATABASE_FILE";
 pub const ALLOWED_ORIGINS_ENV: &str = "SDKWORK_BIRDCODER_ALLOWED_ORIGINS";
+pub const RUNTIME_LOCATION_MASTER_KEY_ENV: &str = "SDKWORK_BIRDCODER_RUNTIME_LOCATION_MASTER_KEY";
+pub const RUNTIME_LOCATION_KEY_ID_ENV: &str = "SDKWORK_BIRDCODER_RUNTIME_LOCATION_KEY_ID";
 pub const RETIRED_DEPLOYMENT_MODE_ENV: &str = "SDKWORK_DEPLOYMENT_MODE";
 pub const RETIRED_PUBLIC_DEPLOYMENT_MODE_ENV: &str = "VITE_SDKWORK_DEPLOYMENT_MODE";
 
@@ -175,6 +179,10 @@ pub enum BirdServerConfigError {
     CloudDatabaseUrl,
     CloudAllowedOrigins,
     CloudLoopbackBind,
+    MissingRuntimeLocationMasterKey,
+    InvalidRuntimeLocationMasterKey,
+    MissingRuntimeLocationKeyId,
+    InvalidRuntimeLocationKeyId,
 }
 
 impl fmt::Display for BirdServerConfigError {
@@ -220,6 +228,22 @@ impl fmt::Display for BirdServerConfigError {
                 formatter,
                 "cloud server configuration must not bind only to a loopback address"
             ),
+            Self::MissingRuntimeLocationMasterKey => write!(
+                formatter,
+                "{RUNTIME_LOCATION_MASTER_KEY_ENV} must be configured for encrypted project runtime locations"
+            ),
+            Self::InvalidRuntimeLocationMasterKey => write!(
+                formatter,
+                "{RUNTIME_LOCATION_MASTER_KEY_ENV} must contain at least 32 bytes of base64url-decoded or raw key material"
+            ),
+            Self::MissingRuntimeLocationKeyId => write!(
+                formatter,
+                "{RUNTIME_LOCATION_KEY_ID_ENV} must be configured for encrypted project runtime locations"
+            ),
+            Self::InvalidRuntimeLocationKeyId => write!(
+                formatter,
+                "{RUNTIME_LOCATION_KEY_ID_ENV} must be a non-empty safe key identifier"
+            ),
         }
     }
 }
@@ -238,6 +262,13 @@ pub struct BirdServerConfig {
     pub rate_limit_enabled: bool,
     pub rate_limit_max_requests: u32,
     pub rate_limit_window_secs: u64,
+}
+
+/// Server-only encryption material. It is intentionally not stored in public
+/// application runtime configuration and does not implement Debug.
+pub struct RuntimeLocationPathEncryptionConfig {
+    pub master_key: Vec<u8>,
+    pub key_id: String,
 }
 
 impl BirdServerConfig {
@@ -345,6 +376,23 @@ impl BirdServerConfig {
         CodeExecutionCapability::UnavailableNonLocalRuntime
     }
 
+    /// Reads deployment-secret key material only when the runtime-location
+    /// service is wired. There is no generated, plaintext, or local fallback.
+    pub fn runtime_location_path_encryption_config(
+        &self,
+    ) -> Result<RuntimeLocationPathEncryptionConfig, BirdServerConfigError> {
+        let raw_master_key = read_env(RUNTIME_LOCATION_MASTER_KEY_ENV)
+            .ok_or(BirdServerConfigError::MissingRuntimeLocationMasterKey)?;
+        let master_key = decode_runtime_location_master_key(&raw_master_key)
+            .ok_or(BirdServerConfigError::InvalidRuntimeLocationMasterKey)?;
+        let key_id = read_env(RUNTIME_LOCATION_KEY_ID_ENV)
+            .ok_or(BirdServerConfigError::MissingRuntimeLocationKeyId)?;
+        if !is_safe_runtime_location_key_id(&key_id) {
+            return Err(BirdServerConfigError::InvalidRuntimeLocationKeyId);
+        }
+        Ok(RuntimeLocationPathEncryptionConfig { master_key, key_id })
+    }
+
     pub fn validate_runtime(&self) -> Result<(), BirdServerConfigError> {
         if self.deployment_profile != BirdDeploymentProfile::Cloud {
             return Ok(());
@@ -403,6 +451,25 @@ fn read_env(key: &str) -> Option<String> {
 
 fn required_env(key: &str) -> Result<String, BirdServerConfigError> {
     read_env(key).ok_or_else(|| BirdServerConfigError::MissingEnvironment(key.to_owned()))
+}
+
+fn decode_runtime_location_master_key(value: &str) -> Option<Vec<u8>> {
+    let value = value.trim();
+    if value.is_empty() {
+        return None;
+    }
+    if let Some(decoded) = base64url_decode(value).filter(|decoded| decoded.len() >= 32) {
+        return Some(decoded);
+    }
+    (value.len() >= 32).then(|| value.as_bytes().to_vec())
+}
+
+fn is_safe_runtime_location_key_id(value: &str) -> bool {
+    !value.is_empty()
+        && value.len() <= 128
+        && value
+            .bytes()
+            .all(|byte| byte.is_ascii_alphanumeric() || matches!(byte, b'.' | b'_' | b'-' | b':'))
 }
 
 fn reject_retired_deployment_mode_env() -> Result<(), BirdServerConfigError> {
@@ -492,7 +559,8 @@ mod tests {
     use std::path::PathBuf;
 
     use super::{
-        default_allowed_origins_for_host, is_loopback_bind_host, is_wildcard_bind_host,
+        decode_runtime_location_master_key, default_allowed_origins_for_host,
+        is_loopback_bind_host, is_safe_runtime_location_key_id, is_wildcard_bind_host,
         BirdDeploymentProfile, BirdEnvironment, BirdRuntimeTarget, BirdServerConfig,
         CodeExecutionCapability, DEFAULT_RATE_LIMIT_ENABLED, DEFAULT_RATE_LIMIT_MAX_REQUESTS,
         DEFAULT_RATE_LIMIT_WINDOW_SECS,
@@ -642,5 +710,29 @@ mod tests {
             remote_windows_server.code_execution_capability(),
             CodeExecutionCapability::UnavailableNonLocalRuntime
         );
+    }
+
+    #[test]
+    fn runtime_location_master_key_accepts_raw_or_base64url_material_at_least_32_bytes() {
+        let raw = "runtime-location-master-key!material-at-least-32-bytes";
+        assert_eq!(
+            decode_runtime_location_master_key(raw).expect("raw key"),
+            raw.as_bytes()
+        );
+        let encoded = sdkwork_utils_rust::base64url_encode(raw.as_bytes());
+        assert_eq!(
+            decode_runtime_location_master_key(&encoded).expect("encoded key"),
+            raw.as_bytes()
+        );
+        assert!(decode_runtime_location_master_key("short").is_none());
+    }
+
+    #[test]
+    fn runtime_location_key_id_is_bounded_and_path_free() {
+        assert!(is_safe_runtime_location_key_id("runtime-location-v1"));
+        assert!(is_safe_runtime_location_key_id("kms:2026-07"));
+        assert!(!is_safe_runtime_location_key_id(""));
+        assert!(!is_safe_runtime_location_key_id("../secret"));
+        assert!(!is_safe_runtime_location_key_id("key with whitespace"));
     }
 }

@@ -1,4 +1,6 @@
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
 
 import { createBirdCoderAppSdkApiClient } from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/src/services/sdkClients.ts';
 import type {
@@ -59,6 +61,31 @@ assert.equal(
 );
 assert.ok(openApiDocument.components.schemas?.BirdCoderCodeEngineModelConfig);
 assert.ok(openApiDocument.components.schemas?.BirdCoderCodeEngineModelConfigSyncResult);
+assert.equal(
+  openApiDocument.components.schemas?.BirdCoderCodeEngineModelConfigCustomModel,
+  undefined,
+  'The server OpenAPI contract must not advertise unsupported custom code-engine models.',
+);
+assert.equal(
+  openApiDocument.components.schemas?.BirdCoderCodeEngineModelConfigEngine?.properties
+    ?.customModels,
+  undefined,
+  'The server OpenAPI contract must expose only server-authoritative built-in model selections.',
+);
+const composedAppSdkTypes = readFileSync(
+  fileURLToPath(
+    new URL(
+      '../sdks/sdkwork-birdcoder-app-sdk/sdkwork-birdcoder-app-sdk-typescript/src/types/index.ts',
+      import.meta.url,
+    ),
+  ),
+  'utf8',
+);
+assert.equal(
+  composedAppSdkTypes.includes('BirdCoderCodeEngineModelConfigCustomModel'),
+  false,
+  'The composed app SDK must not retain the removed custom-model type after regeneration.',
+);
 
 const fixtureConfig: BirdCoderCodeEngineModelConfig = {
   schemaVersion: 1,
@@ -70,7 +97,6 @@ const fixtureConfig: BirdCoderCodeEngineModelConfig = {
       engineId: 'codex',
       defaultModelId: 'gpt-5-codex',
       selectedModelId: 'gpt-5-codex',
-      customModels: [],
       models: [],
     },
   },

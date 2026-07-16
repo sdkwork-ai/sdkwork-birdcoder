@@ -19,7 +19,8 @@ Root SDKWork standards remain authoritative. The SDK family narrows those standa
 ## Contract Manifest
 
 - [component.spec.json](./component.spec.json) is the machine-readable component contract.
-- [../.sdkwork-assembly.json](../.sdkwork-assembly.json) is the SDK generation manifest.
+- [../sdkwork-birdcoder-app-sdk/sdk-manifest.json](../sdkwork-birdcoder-app-sdk/sdk-manifest.json) is the app SDK family manifest.
+- [../sdkwork-birdcoder-backend-sdk/sdk-manifest.json](../sdkwork-birdcoder-backend-sdk/sdk-manifest.json) is the backend SDK family manifest.
 - [domain-catalog.json](./domain-catalog.json) registers the standard and app-local domains used by SDK OpenAPI `x-sdkwork-domain` metadata.
 - [openapi/birdcoder-app-v3.openapi.json](./openapi/birdcoder-app-v3.openapi.json) is the app SDK OpenAPI source.
 - [openapi/birdcoder-backend-v3.openapi.json](./openapi/birdcoder-backend-v3.openapi.json) is the backend SDK OpenAPI source.

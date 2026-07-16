@@ -2,7 +2,25 @@
   "schemaVersion": 1,
   "componentId": "sdkwork-birdcoder-flutter-mobile-sdks",
   "displayName": "SDKWork BirdCoder Flutter Mobile SDK Workspace",
-  "description": "Flutter mobile surface SDK consumer assembly for BirdCoder app and backend-admin boundaries.",
+  "description": "Flutter mobile SDK consumers for BirdCoder app and backend-admin boundaries.",
   "ownerPackage": "sdkwork_birdcoder_flutter_mobile_core",
-  "adminOwnerPackage": "sdkwork_birdcoder_flutter_mobile_admin_core"
+  "adminOwnerPackage": "sdkwork_birdcoder_flutter_mobile_admin_core",
+  "contracts": {
+    "sdkDependencies": [
+      {
+        "surface": "app",
+        "workspace": "sdkwork-birdcoder-app-sdk",
+        "consumerPackageName": "sdkwork_birdcoder_flutter_mobile_core",
+        "dartConsumerPath": "sdks/sdkwork_birdcoder_flutter_mobile_app_sdk_consumer",
+        "manifestPath": "../../sdkwork-birdcoder-pc/sdks/sdkwork-birdcoder-app-sdk/sdk-manifest.json"
+      },
+      {
+        "surface": "backend-admin",
+        "workspace": "sdkwork-birdcoder-backend-sdk",
+        "consumerPackageName": "sdkwork_birdcoder_flutter_mobile_admin_core",
+        "dartConsumerPath": "sdks/sdkwork_birdcoder_flutter_mobile_backend_sdk_consumer",
+        "manifestPath": "../../sdkwork-birdcoder-pc/sdks/sdkwork-birdcoder-backend-sdk/sdk-manifest.json"
+      }
+    ]
+  }
 }

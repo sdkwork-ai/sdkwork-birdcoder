@@ -15,9 +15,13 @@ import { ProviderBackedPromptService } from './impl/ProviderBackedPromptService.
 import { ProviderBackedWorkspaceService } from './impl/ProviderBackedWorkspaceService.ts';
 import { createBirdCoderRuntimeAuthService } from './impl/RuntimeAuthService.ts';
 import { RuntimeFileSystemService } from './impl/RuntimeFileSystemService.ts';
-import { BrowserDeploymentFileSystemService } from './impl/BrowserDeploymentFileSystemService.ts';
+import { DriveSandboxProjectFileSystemService } from './impl/DriveSandboxProjectFileSystemService.ts';
+import { RuntimeProjectRuntimeLocationService } from './impl/RuntimeProjectRuntimeLocationService.ts';
+import { ComposedSdkProjectRuntimeLocationRegistrationPort } from './impl/ComposedSdkProjectRuntimeLocationRegistrationPort.ts';
+import { createBirdCoderDriveSandboxExplorerPort } from './driveSandboxExplorerRuntime.ts';
 import { ProjectDeviceMountRegistry } from './ProjectDeviceMountRegistry.ts';
 import { createProjectDeviceMountSubjectProvider } from './projectDeviceMountSubject.ts';
+import { TauriDesktopRuntimeLocationIdentityPort } from '../platform/tauriDesktopRuntimeLocationIdentity.ts';
 import type { IAuthService } from './interfaces/IAuthService.ts';
 import type {
   IAdminDeploymentService,
@@ -34,6 +38,7 @@ import type { IFileSystemService } from './interfaces/IFileSystemService.ts';
 import type { IGitService } from './interfaces/IGitService.ts';
 import type { IPromptService } from './interfaces/IPromptService.ts';
 import type { IProjectService } from './interfaces/IProjectService.ts';
+import type { IProjectRuntimeLocationService } from './interfaces/IProjectRuntimeLocationService.ts';
 import type { IReleaseService } from './interfaces/IReleaseService.ts';
 import type { ITeamService } from './interfaces/ITeamService.ts';
 import type { IVipMembershipService } from './interfaces/IVipMembershipService.ts';
@@ -62,6 +67,7 @@ export interface BirdCoderDefaultIdeServices {
   deploymentService: IDeploymentService;
   documentService: IDocumentService;
   fileSystemService: IFileSystemService;
+  projectRuntimeLocationService: IProjectRuntimeLocationService;
   gitService: IGitService;
   promptService: IPromptService;
   projectService: IProjectService;
@@ -92,6 +98,7 @@ export interface BirdCoderDefaultIdeSharedRuntime {
   hasBoundBackendClient: boolean;
   hasExplicitBackendClient: boolean;
   fileSystemService: IFileSystemService;
+  projectRuntimeLocationService: IProjectRuntimeLocationService;
   promptService: ProviderBackedPromptService;
   projectDeviceMountRegistry: ProjectDeviceMountRegistry;
   providerBackedProjectService: ProviderBackedProjectService;
@@ -310,8 +317,24 @@ export function createBirdCoderDefaultIdeSharedRuntime(
   const runtimeFileSystemService = new RuntimeFileSystemService({
     mountRegistry: projectDeviceMountRegistry,
   });
-  const fileSystemService = new BrowserDeploymentFileSystemService({
-    fallback: runtimeFileSystemService,
+  const fileSystemService = new DriveSandboxProjectFileSystemService({
+    bindingClient: hasBoundAppClient
+      ? appClient
+      : { getProjectWorkspaceBinding: async () => null },
+    drivePort: createBirdCoderDriveSandboxExplorerPort(),
+    localFileSystem: runtimeFileSystemService,
+  });
+  const projectRuntimeLocationRegistrationPort = hasBoundAppClient
+    ? new ComposedSdkProjectRuntimeLocationRegistrationPort({
+        identityPort: new TauriDesktopRuntimeLocationIdentityPort({
+          mountRegistry: projectDeviceMountRegistry,
+        }),
+        sdkPort: appClient,
+      })
+    : undefined;
+  const projectRuntimeLocationService = new RuntimeProjectRuntimeLocationService({
+    fileSystemService,
+    registrationPort: projectRuntimeLocationRegistrationPort,
   });
 
   return {
@@ -323,6 +346,7 @@ export function createBirdCoderDefaultIdeSharedRuntime(
     hasBoundBackendClient,
     hasExplicitBackendClient,
     fileSystemService,
+    projectRuntimeLocationService,
     promptService,
     projectDeviceMountRegistry,
     providerBackedProjectService,

@@ -14,6 +14,7 @@ assert.equal(BIRDCODER_CODING_SESSION_EVENT_KINDS.includes('tool.call.requested'
 assert.equal(BIRDCODER_CODING_SESSION_EVENT_KINDS.includes('tool.call.completed'), true);
 assert.equal(BIRDCODER_CODING_SESSION_EVENT_KINDS.includes('artifact.upserted'), true);
 assert.equal(BIRDCODER_CODING_SESSION_EVENT_KINDS.includes('approval.required'), true);
+assert.equal(BIRDCODER_CODING_SESSION_EVENT_KINDS.includes('user.question.required'), true);
 assert.equal(BIRDCODER_CODING_SESSION_ARTIFACT_KINDS.includes('command-log'), true);
 assert.equal(BIRDCODER_CODING_SESSION_ARTIFACT_KINDS.includes('diagnostic-bundle'), true);
 

@@ -84,7 +84,8 @@ function buildRealtimeCodingSessionProjectionEvents(
 ): BirdCoderCodingSessionEvent[] {
   const genericEventKind = event.codingSessionEventKind;
   const genericEventPayload = event.codingSessionEventPayload;
-  if (!genericEventKind) {
+  const sequence = event.codingSessionEventSequence;
+  if (!genericEventKind || sequence === undefined) {
     return [];
   }
 
@@ -94,31 +95,12 @@ function buildRealtimeCodingSessionProjectionEvents(
     codingSessionId,
     turnId: event.turnId,
     kind: genericEventKind,
-    sequence: stringifyBirdCoderLongInteger(resolveTimestamp(createdAt)),
+    sequence,
     payload: genericEventPayload ?? {},
     createdAt,
   };
 
-  if (genericEventKind === 'message.delta') {
-    return [projectionEvent];
-  }
-
-  return [
-    projectionEvent,
-    {
-      id: `${event.eventId}:message-delta-anchor`,
-      codingSessionId,
-      turnId: event.turnId,
-      kind: 'message.delta',
-      sequence: stringifyBirdCoderLongInteger(resolveTimestamp(createdAt) + 1),
-      payload: {
-        role: 'assistant',
-        contentDelta: '',
-        runtimeStatus: 'streaming',
-      },
-      createdAt,
-    },
-  ];
+  return [projectionEvent];
 }
 
 function resolveRealtimeCodingSessionActivityTimestamp(
@@ -169,6 +151,21 @@ function normalizeRealtimeCodingSessionRuntimeStatus(
 
 function normalizeRealtimeNativeSessionId(value: string | undefined): string | undefined {
   return normalizeBirdCoderCodeEngineNativeSessionId(value) ?? undefined;
+}
+
+function normalizeRealtimeRuntimeLocationId(value: string | undefined): string | undefined {
+  const normalizedValue = value?.trim();
+  if (
+    !normalizedValue ||
+    normalizedValue.length > 512 ||
+    normalizedValue.includes('/') ||
+    normalizedValue.includes('\\') ||
+    normalizedValue.includes('..')
+  ) {
+    return undefined;
+  }
+
+  return normalizedValue;
 }
 
 function resolveRealtimeCodingSessionEventRuntimeStatus(
@@ -347,6 +344,9 @@ function buildRealtimeCodingSessionSeed(
   const normalizedEngineId = event.codingSessionEngineId?.trim();
   const normalizedModelId = event.codingSessionModelId?.trim();
   const normalizedNativeSessionId = normalizeRealtimeNativeSessionId(event.nativeSessionId);
+  const normalizedRuntimeLocationId = normalizeRealtimeRuntimeLocationId(
+    event.codingSessionRuntimeLocationId,
+  );
 
   if (
     !normalizedCodingSessionId ||
@@ -376,6 +376,7 @@ function buildRealtimeCodingSessionSeed(
     engineId: normalizedEngineId,
     modelId: normalizedModelId,
     nativeSessionId: normalizedNativeSessionId,
+    runtimeLocationId: normalizedRuntimeLocationId,
     createdAt: timestamp,
     updatedAt: timestamp,
     lastTurnAt,
@@ -523,6 +524,9 @@ function updateCodingSessionTimestamp(
     : resolveRealtimeCodingSessionRuntimeStatus(event, codingSession.runtimeStatus);
   const nextNativeSessionId =
     normalizeRealtimeNativeSessionId(event.nativeSessionId) ?? codingSession.nativeSessionId;
+  const nextRuntimeLocationId =
+    codingSession.runtimeLocationId ??
+    normalizeRealtimeRuntimeLocationId(event.codingSessionRuntimeLocationId);
   const realtimeProjectionEvents = buildRealtimeCodingSessionProjectionEvents(
     normalizedCodingSessionId,
     event,
@@ -542,6 +546,7 @@ function updateCodingSessionTimestamp(
     (codingSession.transcriptUpdatedAt ?? undefined) === nextActivityAt &&
     nextRuntimeStatus === codingSession.runtimeStatus &&
     nextNativeSessionId === codingSession.nativeSessionId &&
+    nextRuntimeLocationId === codingSession.runtimeLocationId &&
     nextStatus === codingSession.status &&
     nextHostMode === codingSession.hostMode &&
     nextTitle === codingSession.title &&
@@ -557,6 +562,7 @@ function updateCodingSessionTimestamp(
     transcriptUpdatedAt: nextActivityAt,
     runtimeStatus: nextRuntimeStatus,
     nativeSessionId: nextNativeSessionId,
+    runtimeLocationId: nextRuntimeLocationId,
     messages: nextMessages,
   };
   const nextCodingSessionWithMetadata = {

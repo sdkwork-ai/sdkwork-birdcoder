@@ -1,8 +1,10 @@
 import {
   createBirdcoderAppSdkClient,
   type BirdcoderAppSdkClient,
+  type BirdCoderCommitProjectGitChangesRequest as GeneratedBirdCoderCommitProjectGitChangesRequest,
   type BirdCoderCreateCodingSessionRequest as GeneratedBirdCoderCreateCodingSessionRequest,
   type BirdCoderCreateCodingSessionTurnRequest as GeneratedBirdCoderCreateCodingSessionTurnRequest,
+  type BirdCoderCreateProjectGitBranchRequest as GeneratedBirdCoderCreateProjectGitBranchRequest,
   type BirdCoderCreateProjectGitWorktreeRequest as GeneratedBirdCoderCreateProjectGitWorktreeRequest,
   type BirdCoderCreateProjectRequest as GeneratedBirdCoderCreateProjectRequest,
   type BirdCoderCreateWorkspaceRequest as GeneratedBirdCoderCreateWorkspaceRequest,
@@ -12,7 +14,12 @@ import {
   type BirdCoderUpdateProjectRequest as GeneratedBirdCoderUpdateProjectRequest,
   type BirdCoderUpdateWorkspaceRequest as GeneratedBirdCoderUpdateWorkspaceRequest,
   type BirdCoderRemoveProjectGitWorktreeRequest as GeneratedBirdCoderRemoveProjectGitWorktreeRequest,
+  type BirdCoderPushProjectGitBranchRequest as GeneratedBirdCoderPushProjectGitBranchRequest,
+  type BirdCoderPruneProjectGitWorktreesRequest as GeneratedBirdCoderPruneProjectGitWorktreesRequest,
+  type BirdCoderProjectWorkspaceBinding as GeneratedBirdCoderProjectWorkspaceBinding,
+  type BirdCoderSwitchProjectGitBranchRequest as GeneratedBirdCoderSwitchProjectGitBranchRequest,
   type BirdCoderUpsertProjectCollaboratorRequest as GeneratedBirdCoderUpsertProjectCollaboratorRequest,
+  type BirdCoderUpsertProjectWorkspaceBindingRequest as GeneratedBirdCoderUpsertProjectWorkspaceBindingRequest,
   type CollaborationWorkspaceTeamsListQuery,
   type ContentDocumentsListQuery,
   type IntelligenceCodingSessionsListQuery,
@@ -20,6 +27,8 @@ import {
   type PlatformDeploymentsListQuery,
   type PlatformProjectsCollaboratorsListQuery,
   type PlatformProjectsDeploymentTargetsListQuery,
+  type PlatformProjectsGitDiffRetrieveQuery,
+  type PlatformProjectsGitOverviewRetrieveQuery,
   type IamWorkspacesMembersListQuery,
   type TemplatesAppTemplatesListQuery,
   type PlatformWorkspacesListQuery,
@@ -120,7 +129,10 @@ import {
   buildBirdCoderProtectedLoginBrowserUrl,
   redirectBrowserToBirdCoderProtectedLogin,
 } from '@sdkwork/birdcoder-pc-core/appSessionAuthRedirect';
-import { readBirdCoderApiTransportErrorHttpStatus, BirdCoderApiTransportError } from '@sdkwork/birdcoder-pc-core/birdCoderApiTransportError';
+import {
+  BirdCoderApiTransportError,
+  readBirdCoderApiTransportErrorHttpStatus,
+} from '@sdkwork/birdcoder-pc-types/apiTransportError';
 import { getDefaultBirdCoderIdeServicesRuntimeConfig } from './defaultIdeServicesRuntime.ts';
 import { invalidateBirdCoderCurrentSession } from './iamCurrentSession.ts';
 import { invalidateBirdCoderCurrentUser } from './iamCurrentUser.ts';
@@ -158,11 +170,64 @@ export interface BirdCoderPage<TItem> {
   pageInfo: BirdCoderOffsetPageInfo;
 }
 
+/**
+ * The only app-side request shape that carries a desktop path. The composed
+ * SDK writes it to the server's protected runtime-location storage; no caller
+ * receives it back in the semantic result.
+ */
+export interface BirdCoderProjectRuntimeLocationRegistrationRequest {
+  absolutePath: string;
+  displayName?: string;
+  idempotencyKey: string;
+  locationKind: 'desktop_checkout';
+  pathFlavor: 'windows' | 'posix';
+  rootLocator: string;
+  runtimeTargetId: string;
+  runtimeTargetKind: 'desktop_device';
+}
+
+export interface BirdCoderProjectRuntimeLocationRebindRequest {
+  absolutePath: string;
+  displayName?: string;
+  idempotencyKey: string;
+  pathFlavor: 'windows' | 'posix';
+  rootLocator: string;
+}
+
+export interface BirdCoderProjectWorkspaceBindingRequest {
+  idempotencyKey: string;
+  logicalPath: string;
+  rootEntryId: string;
+  sandboxId: string;
+}
+
+export interface BirdCoderProjectWorkspaceBindingRecord {
+  id: string;
+  projectId: string;
+  sandboxId: string;
+  rootEntryId: string;
+  logicalPath: string;
+  lifecycleStatus: 'active';
+  version: string;
+}
+
+type RuntimeBoundGitRequest<TRequest> = TRequest & {
+  runtimeLocationId: string;
+};
+
+/** Safe remote state. Absolute-path material is deliberately absent. */
+export interface BirdCoderProjectRuntimeLocationRecord {
+  id: string;
+  rootLocator: string;
+  runtimeTargetId: string;
+  version: string;
+}
+
 export interface BirdCoderAppSdkApiClient {
   createCodingSession(request: BirdCoderCreateCodingSessionRequest): Promise<BirdCoderCodingSessionSummary>;
   commitProjectGitChanges(
     projectId: string,
-    request: BirdCoderCommitProjectGitChangesRequest,
+    request: RuntimeBoundGitRequest<BirdCoderCommitProjectGitChangesRequest>,
   ): Promise<BirdCoderProjectGitOverview>;
   createCodingSessionTurn(
     codingSessionId: string,
@@ -171,12 +236,20 @@ export interface BirdCoderAppSdkApiClient {
   createProject(request: BirdCoderCreateProjectRequest): Promise<BirdCoderProjectSummary>;
   createProjectGitBranch(
     projectId: string,
-    request: BirdCoderCreateProjectGitBranchRequest,
+    request: RuntimeBoundGitRequest<BirdCoderCreateProjectGitBranchRequest>,
   ): Promise<BirdCoderProjectGitOverview>;
   createProjectGitWorktree(
     projectId: string,
-    request: BirdCoderCreateProjectGitWorktreeRequest,
+    request: RuntimeBoundGitRequest<BirdCoderCreateProjectGitWorktreeRequest>,
   ): Promise<BirdCoderProjectGitOverview>;
+  createProjectRuntimeLocation(
+    projectId: string,
+    request: BirdCoderProjectRuntimeLocationRegistrationRequest,
+  ): Promise<BirdCoderProjectRuntimeLocationRecord>;
+  bindProjectWorkspace(
+    projectId: string,
+    request: BirdCoderProjectWorkspaceBindingRequest,
+  ): Promise<void>;
   createWorkspace(request: BirdCoderCreateWorkspaceRequest): Promise<BirdCoderWorkspaceSummary>;
   deleteCodingSession(codingSessionId: string): Promise<BirdCoderDeleteCodingSessionResult>;
   deleteCodingSessionMessage(
@@ -205,8 +278,21 @@ export interface BirdCoderAppSdkApiClient {
   ): Promise<BirdCoderNativeSessionDetail>;
   getOperation(operationId: string): Promise<BirdCoderOperationDescriptor>;
   getProject(projectId: string): Promise<BirdCoderProjectSummary>;
-  getProjectGitOverview(projectId: string): Promise<BirdCoderProjectGitOverview>;
-  getProjectGitDiff(projectId: string): Promise<BirdCoderProjectGitDiff>;
+  getProjectGitOverview(
+    projectId: string,
+    runtimeLocationId: string,
+  ): Promise<BirdCoderProjectGitOverview>;
+  getProjectWorkspaceBinding(
+    projectId: string,
+  ): Promise<BirdCoderProjectWorkspaceBindingRecord | null>;
+  getProjectRuntimeLocation(
+    projectId: string,
+    runtimeLocationId: string,
+  ): Promise<BirdCoderProjectRuntimeLocationRecord>;
+  getProjectGitDiff(
+    projectId: string,
+    runtimeLocationId: string,
+  ): Promise<BirdCoderProjectGitDiff>;
   getRuntime(): Promise<BirdCoderCoreRuntimeSummary>;
   installSkillPackage(
     packageId: string,
@@ -262,28 +348,36 @@ export interface BirdCoderAppSdkApiClient {
     projectId: string,
     request: BirdCoderPublishProjectRequest,
   ): Promise<BirdCoderProjectPublishResult>;
-  pruneProjectGitWorktrees(projectId: string): Promise<BirdCoderProjectGitOverview>;
+  pruneProjectGitWorktrees(
+    projectId: string,
+    runtimeLocationId: string,
+  ): Promise<BirdCoderProjectGitOverview>;
   pushProjectGitBranch(
     projectId: string,
-    request: BirdCoderPushProjectGitBranchRequest,
+    request: RuntimeBoundGitRequest<BirdCoderPushProjectGitBranchRequest>,
   ): Promise<BirdCoderProjectGitOverview>;
   removeProjectGitWorktree(
     projectId: string,
-    request: BirdCoderRemoveProjectGitWorktreeRequest,
+    request: RuntimeBoundGitRequest<BirdCoderRemoveProjectGitWorktreeRequest>,
   ): Promise<BirdCoderProjectGitOverview>;
+  rebindProjectRuntimeLocation(
+    projectId: string,
+    runtimeLocationId: string,
+    request: BirdCoderProjectRuntimeLocationRebindRequest,
+  ): Promise<BirdCoderProjectRuntimeLocationRecord>;
   submitApprovalDecision(
     codingSessionId: string,
-    checkpointId: string,
+    interactionEventId: string,
     request: BirdCoderSubmitApprovalDecisionRequest,
   ): Promise<BirdCoderApprovalDecisionResult>;
   submitUserQuestionAnswer(
     codingSessionId: string,
-    questionId: string,
+    interactionEventId: string,
     request: BirdCoderSubmitUserQuestionAnswerRequest,
   ): Promise<BirdCoderUserQuestionAnswerResult>;
   switchProjectGitBranch(
     projectId: string,
-    request: BirdCoderSwitchProjectGitBranchRequest,
+    request: RuntimeBoundGitRequest<BirdCoderSwitchProjectGitBranchRequest>,
   ): Promise<BirdCoderProjectGitOverview>;
   syncModelConfig(
     request: BirdCoderSyncCodeEngineModelConfigRequest,
@@ -434,6 +528,33 @@ function readCanonicalData<TData>(payload: unknown): TData {
 
 function readCanonicalItems<TItem>(payload: unknown): TItem[] {
   return readItems<TItem>(payload);
+}
+
+function readRequiredRuntimeLocationField(
+  value: Record<string, unknown>,
+  field: keyof BirdCoderProjectRuntimeLocationRecord,
+): string {
+  const normalizedValue = typeof value[field] === 'string' ? value[field].trim() : '';
+  if (!normalizedValue) {
+    throw new Error(`Project runtime location response is missing ${field}.`);
+  }
+  return normalizedValue;
+}
+
+function readProjectRuntimeLocationRecord(
+  payload: unknown,
+): BirdCoderProjectRuntimeLocationRecord {
+  const value = readCanonicalData<unknown>(payload);
+  if (!isRecord(value)) {
+    throw new Error('Project runtime location response must contain a resource item.');
+  }
+
+  return {
+    id: readRequiredRuntimeLocationField(value, 'id'),
+    rootLocator: readRequiredRuntimeLocationField(value, 'rootLocator'),
+    runtimeTargetId: readRequiredRuntimeLocationField(value, 'runtimeTargetId'),
+    version: readRequiredRuntimeLocationField(value, 'version'),
+  };
 }
 
 function readCanonicalOffsetPage<TItem>(
@@ -595,17 +716,61 @@ function toGeneratedUpdateProjectRequest(
 }
 
 function toGeneratedCreateProjectGitWorktreeRequest(
-  request: BirdCoderCreateProjectGitWorktreeRequest,
+  request: RuntimeBoundGitRequest<BirdCoderCreateProjectGitWorktreeRequest>,
 ): GeneratedBirdCoderCreateProjectGitWorktreeRequest {
-  return { branchName: request.branchName };
+  return {
+    branchName: request.branchName,
+    runtimeLocationId: request.runtimeLocationId,
+  };
 }
 
 function toGeneratedRemoveProjectGitWorktreeRequest(
-  request: BirdCoderRemoveProjectGitWorktreeRequest,
+  request: RuntimeBoundGitRequest<BirdCoderRemoveProjectGitWorktreeRequest>,
 ): GeneratedBirdCoderRemoveProjectGitWorktreeRequest {
   return {
     ...(request.force === undefined ? {} : { force: request.force }),
+    runtimeLocationId: request.runtimeLocationId,
     worktreeKey: request.worktreeKey,
+  };
+}
+
+function toGeneratedCreateProjectGitBranchRequest(
+  request: RuntimeBoundGitRequest<BirdCoderCreateProjectGitBranchRequest>,
+): GeneratedBirdCoderCreateProjectGitBranchRequest {
+  return {
+    branchName: request.branchName,
+    runtimeLocationId: request.runtimeLocationId,
+  };
+}
+
+function toGeneratedSwitchProjectGitBranchRequest(
+  request: RuntimeBoundGitRequest<BirdCoderSwitchProjectGitBranchRequest>,
+): GeneratedBirdCoderSwitchProjectGitBranchRequest {
+  return {
+    branchName: request.branchName,
+    runtimeLocationId: request.runtimeLocationId,
+  };
+}
+
+function toGeneratedCommitProjectGitChangesRequest(
+  request: RuntimeBoundGitRequest<BirdCoderCommitProjectGitChangesRequest>,
+): GeneratedBirdCoderCommitProjectGitChangesRequest {
+  return {
+    ...(request.includeUnstaged === undefined
+      ? {}
+      : { includeUnstaged: request.includeUnstaged }),
+    message: request.message,
+    runtimeLocationId: request.runtimeLocationId,
+  };
+}
+
+function toGeneratedPushProjectGitBranchRequest(
+  request: RuntimeBoundGitRequest<BirdCoderPushProjectGitBranchRequest>,
+): GeneratedBirdCoderPushProjectGitBranchRequest {
+  return {
+    ...(request.branchName === undefined ? {} : { branchName: request.branchName }),
+    ...(request.remoteName === undefined ? {} : { remoteName: request.remoteName }),
+    runtimeLocationId: request.runtimeLocationId,
   };
 }
 
@@ -712,6 +877,7 @@ function toGeneratedCodingSessionQuery(
     ...(scoped.engineId ? { engineId: toGeneratedCodeEngineKey(scoped.engineId) } : {}),
     ...toGeneratedPageQuery(scoped),
     ...(scoped.projectId ? { projectId: scoped.projectId } : {}),
+    ...(scoped.runtimeLocationId ? { runtimeLocationId: scoped.runtimeLocationId } : {}),
     ...(scoped.workspaceId ? { workspaceId: scoped.workspaceId } : {}),
   };
 }
@@ -722,13 +888,15 @@ function toGeneratedNativeSessionListQuery(
   const scoped = withDefaultPageSize(request);
   const workspaceId = scoped.workspaceId?.trim();
   const projectId = scoped.projectId?.trim();
-  if (!workspaceId || !projectId) {
-    throw new Error('Native session list requires workspaceId and projectId.');
+  const runtimeLocationId = scoped.runtimeLocationId?.trim();
+  if (!workspaceId || !projectId || !runtimeLocationId) {
+    throw new Error('Native session list requires workspaceId, projectId, and runtimeLocationId.');
   }
   return {
     ...(scoped.engineId ? { engineId: toGeneratedCodeEngineKey(scoped.engineId) } : {}),
     ...toGeneratedPageQuery(scoped),
     projectId,
+    runtimeLocationId,
     workspaceId,
   };
 }
@@ -738,12 +906,16 @@ function toGeneratedNativeSessionRetrieveQuery(
 ): RuntimeNativeSessionsRetrieveQuery {
   const workspaceId = request.workspaceId?.trim();
   const projectId = request.projectId?.trim();
-  if (!workspaceId || !projectId) {
-    throw new Error('Native session retrieval requires workspaceId and projectId.');
+  const runtimeLocationId = request.runtimeLocationId?.trim();
+  if (!workspaceId || !projectId || !runtimeLocationId) {
+    throw new Error(
+      'Native session retrieval requires workspaceId, projectId, and runtimeLocationId.',
+    );
   }
   return {
     ...(request.engineId ? { engineId: toGeneratedCodeEngineKey(request.engineId) } : {}),
     projectId,
+    runtimeLocationId,
     workspaceId,
   };
 }
@@ -823,22 +995,24 @@ export function isBirdCoderSdkSessionAuthError(error: unknown): boolean {
   return isSdkworkSdkSessionAuthError(error);
 }
 
+export function clearBirdCoderAppSessionState(): void {
+  getCoreBirdCoderGlobalTokenManager().clearTokens();
+  invalidateBirdCoderCurrentSession();
+  invalidateBirdCoderCurrentUser();
+  clearStoredAppSessionToken();
+  resetBirdCoderSdkClients();
+}
+
+export function terminateBirdCoderAppSessionAfterRefreshFailure(): void {
+  clearBirdCoderAppSessionState();
+  redirectBrowserToBirdCoderProtectedLogin();
+}
+
 export function handleBirdCoderSdkSessionAuthError(error: unknown): boolean {
   return handleSdkworkSessionAuthUnauthorizedError(error, {
-    clearSession: () => {
-      // Keep the shared token manager in sync with the durable session store.
-      // This path is also used by SDK clients that do not go through the IAM
-      // runtime's clearSession hook.
-      getCoreBirdCoderGlobalTokenManager().clearTokens();
-      invalidateBirdCoderCurrentSession();
-      invalidateBirdCoderCurrentUser();
-      clearStoredAppSessionToken();
-    },
+    clearSession: clearBirdCoderAppSessionState,
     redirectToLogin: () => {
       redirectBrowserToBirdCoderProtectedLogin();
-    },
-    resetClients: () => {
-      resetBirdCoderSdkClients();
     },
   });
 }
@@ -1163,18 +1337,18 @@ export function createBirdCoderAppSdkApiClient({
         ),
       );
     },
-    async submitApprovalDecision(codingSessionId, checkpointId, request) {
+    async submitApprovalDecision(codingSessionId, interactionEventId, request) {
       return readCanonicalData<BirdCoderApprovalDecisionResult>(
         await client.intelligence.codingSessions.checkpoints.approval.create(
-          { sessionId: codingSessionId, checkpointId },
+          { sessionId: codingSessionId, checkpointId: interactionEventId },
           request,
         ),
       );
     },
-    async submitUserQuestionAnswer(codingSessionId, questionId, request) {
+    async submitUserQuestionAnswer(codingSessionId, interactionEventId, request) {
       return readCanonicalData<BirdCoderUserQuestionAnswerResult>(
         await client.intelligence.codingSessions.questions.answers.create(
-          { sessionId: codingSessionId, questionId },
+          { sessionId: codingSessionId, questionId: interactionEventId },
           request,
         ),
       );
@@ -1205,6 +1379,46 @@ export function createBirdCoderAppSdkApiClient({
     async createProject(request) {
       return readData(await client.platform.projects.create(toGeneratedCreateProjectRequest(request)));
     },
+    async bindProjectWorkspace(projectId, request) {
+      const {
+        idempotencyKey,
+        logicalPath,
+        rootEntryId,
+        sandboxId,
+      } = request;
+      const body: GeneratedBirdCoderUpsertProjectWorkspaceBindingRequest = {
+        logicalPath,
+        rootEntryId,
+        sandboxId,
+      };
+      await client.platform.projects.workspaceBinding.update(
+        { projectId },
+        body,
+        { headers: { 'Idempotency-Key': idempotencyKey } },
+      );
+    },
+    async getProjectWorkspaceBinding(projectId) {
+      try {
+        return readData<GeneratedBirdCoderProjectWorkspaceBinding>(
+          await client.platform.projects.workspaceBinding.retrieve({ projectId }),
+        );
+      } catch (error) {
+        if (readBirdCoderSdkErrorHttpStatus(error) === 404) {
+          return null;
+        }
+        throw error;
+      }
+    },
+    async createProjectRuntimeLocation(projectId, request) {
+      const { idempotencyKey, ...body } = request;
+      return readProjectRuntimeLocationRecord(
+        await client.platform.projects.runtimeLocations.create(
+          { projectId },
+          body as Parameters<typeof client.platform.projects.runtimeLocations.create>[1],
+          { headers: { 'Idempotency-Key': idempotencyKey } },
+        ),
+      );
+    },
     async updateProject(projectId, request) {
       return readData(
         await client.platform.projects.update(
@@ -1228,14 +1442,37 @@ export function createBirdCoderAppSdkApiClient({
     async getProject(projectId) {
       return readData(await client.platform.projects.retrieve({ projectId }));
     },
-    async getProjectGitOverview(projectId) {
-      return readData(await client.platform.projects.git.overview.retrieve({ projectId }));
+    async getProjectGitOverview(projectId, runtimeLocationId) {
+      return readData(
+        await client.platform.projects.git.overview.retrieve(
+          { projectId },
+          { runtime_location_id: runtimeLocationId } satisfies PlatformProjectsGitOverviewRetrieveQuery,
+        ),
+      );
     },
-    async getProjectGitDiff(projectId) {
-      return readData(await client.platform.projects.git.diff.retrieve({ projectId }));
+    async getProjectGitDiff(projectId, runtimeLocationId) {
+      return readData(
+        await client.platform.projects.git.diff.retrieve(
+          { projectId },
+          { runtime_location_id: runtimeLocationId } satisfies PlatformProjectsGitDiffRetrieveQuery,
+        ),
+      );
+    },
+    async getProjectRuntimeLocation(projectId, runtimeLocationId) {
+      return readProjectRuntimeLocationRecord(
+        await client.platform.projects.runtimeLocations.retrieve({
+          projectId,
+          runtimeLocationId,
+        }),
+      );
     },
     async createProjectGitBranch(projectId, request) {
-      return readData(await client.platform.projects.git.branches.create({ projectId }, request));
+      return readData(
+        await client.platform.projects.git.branches.create(
+          { projectId },
+          toGeneratedCreateProjectGitBranchRequest(request),
+        ),
+      );
     },
     async createProjectGitWorktree(projectId, request) {
       return readData(
@@ -1246,13 +1483,28 @@ export function createBirdCoderAppSdkApiClient({
       );
     },
     async switchProjectGitBranch(projectId, request) {
-      return readData(await client.platform.projects.git.branchSwitch.create({ projectId }, request));
+      return readData(
+        await client.platform.projects.git.branchSwitch.create(
+          { projectId },
+          toGeneratedSwitchProjectGitBranchRequest(request),
+        ),
+      );
     },
     async commitProjectGitChanges(projectId, request) {
-      return readData(await client.platform.projects.git.commits.create({ projectId }, request));
+      return readData(
+        await client.platform.projects.git.commits.create(
+          { projectId },
+          toGeneratedCommitProjectGitChangesRequest(request),
+        ),
+      );
     },
     async pushProjectGitBranch(projectId, request) {
-      return readData(await client.platform.projects.git.pushes.create({ projectId }, request));
+      return readData(
+        await client.platform.projects.git.pushes.create(
+          { projectId },
+          toGeneratedPushProjectGitBranchRequest(request),
+        ),
+      );
     },
     async removeProjectGitWorktree(projectId, request) {
       return readData(
@@ -1262,8 +1514,27 @@ export function createBirdCoderAppSdkApiClient({
         ),
       );
     },
-    async pruneProjectGitWorktrees(projectId) {
-      return readData(await client.platform.projects.git.worktreePrune.create({ projectId }));
+    async rebindProjectRuntimeLocation(projectId, runtimeLocationId, request) {
+      const { idempotencyKey, ...body } = request;
+      await client.platform.projects.runtimeLocations.rebind(
+        { projectId, runtimeLocationId },
+        body as Parameters<typeof client.platform.projects.runtimeLocations.rebind>[1],
+        { headers: { 'Idempotency-Key': idempotencyKey } },
+      );
+      return readProjectRuntimeLocationRecord(
+        await client.platform.projects.runtimeLocations.retrieve({
+          projectId,
+          runtimeLocationId,
+        }),
+      );
+    },
+    async pruneProjectGitWorktrees(projectId, runtimeLocationId) {
+      return readData(
+        await client.platform.projects.git.worktreePrune.create(
+          { projectId },
+          { runtimeLocationId } satisfies GeneratedBirdCoderPruneProjectGitWorktreesRequest,
+        ),
+      );
     },
     async listDocuments(options = {}) {
       return readItems(await client.content.documents.list(toGeneratedDocumentsQuery(options)));

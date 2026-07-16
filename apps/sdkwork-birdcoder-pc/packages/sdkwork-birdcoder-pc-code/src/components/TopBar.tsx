@@ -98,17 +98,12 @@ export interface TopBarProps {
   isProjectGitOverviewDrawerOpen: boolean;
   onToggleProjectGitOverviewDrawer: () => void;
   isEngineBusyCurrentSession?: boolean;
-  selectedEngineId: string;
-  selectedModelId: string;
-  selectedSessionEngineId?: string;
-  selectedSessionModelId?: string;
   selectedSessionTitle?: string;
   projectGitOverviewState?: ProjectGitOverviewViewState;
   activeTab: 'ai' | 'editor' | 'mobile';
   setActiveTab: (tab: 'ai' | 'editor' | 'mobile') => void;
   isTerminalOpen: boolean;
   setIsTerminalOpen: (isOpen: boolean) => void;
-  onCreateCodingSession: (engineId: string, modelId: string) => void | Promise<void>;
 }
 
 function TopBarComponent({
@@ -411,7 +406,7 @@ function TopBarComponent({
     <>
       <div
         ref={topBarRef}
-        className="birdcoder-workbench-header relative z-50 flex h-12 shrink-0 items-center justify-between gap-2 overflow-visible border-b px-3 text-sm text-gray-100 sm:px-4"
+        className="birdcoder-workbench-header relative z-50 flex h-12 shrink-0 items-center gap-2 overflow-visible border-b px-3 text-sm text-gray-100 sm:px-4"
       >
         <div
           className="flex min-w-0 flex-1 items-center gap-2 overflow-hidden whitespace-nowrap animate-in fade-in slide-in-from-top-2 fill-mode-both"

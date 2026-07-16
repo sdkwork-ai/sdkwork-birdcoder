@@ -70,13 +70,18 @@ try {
   assert.equal(writtenDocument.info.version, 'v1');
   assert.equal(writtenDocument.servers[0]?.url, '/');
   assert.equal(writtenDocument['x-sdkwork-api-cloud-gateway']?.routeCatalogPath, '/app/v3/api/system/routes');
-  assert.equal(writtenDocument['x-sdkwork-api-cloud-gateway']?.routeCount, 162);
+  assert.equal(writtenDocument['x-sdkwork-api-cloud-gateway']?.routeCount, 175);
   assert.deepEqual(writtenDocument['x-sdkwork-api-cloud-gateway']?.routesBySurface, {
-    app: 113,
+    app: 126,
     backend: 49,
   });
   const publishedOperationIds = Object.values(writtenDocument.paths).flatMap((methods) =>
     Object.values(methods ?? {}).map((operation: { operationId?: string }) => operation.operationId),
+  );
+  assert.equal(
+    publishedOperationIds.length,
+    174,
+    'OpenAPI must materialize every HTTP route while keeping the realtime WebSocket catalog-only.',
   );
   assert.equal(
     publishedOperationIds.includes('sessions.createWithEmailCode'),
@@ -420,7 +425,7 @@ try {
   assert.equal(
     writtenDocument.paths['/app/v3/api/workspaces/{workspaceId}/realtime'],
     undefined,
-    'WebSocket realtime subscribe remains in the route catalog and must not be emitted as an HTTP OpenAPI operation.',
+    'SSE/WebSocket realtime subscribe remains in the route catalog and must not be emitted as a request/response OpenAPI operation.',
   );
   for (const sidecar of deploymentOpenApiSidecars) {
     const openApiPath = path.join(workspaceDir, sidecar.openApiRelativePath);

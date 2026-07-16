@@ -16,6 +16,7 @@ pub fn session_row_to_payload(
         id: row.id,
         workspace_id: row.workspace_id,
         project_id: row.project_id,
+        runtime_location_id: row.runtime_location_id,
         title: row.title,
         status: row.status,
         host_mode: row.host_mode,

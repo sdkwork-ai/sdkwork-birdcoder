@@ -16,11 +16,9 @@ import {
 import { AuthShell } from '@sdkwork/birdcoder-pc-iam';
 import { Button } from '@sdkwork/birdcoder-pc-ui-shell';
 import type { AppTab } from '@sdkwork/birdcoder-pc-types';
-import {
-  useBirdcoderTerminalLaunchPlanResolver,
-  useToast,
-  type TerminalCommandRequest,
-} from '@sdkwork/birdcoder-pc-commons';
+import { useBirdcoderTerminalLaunchPlanResolver } from '@sdkwork/birdcoder-pc-commons/terminal/useBirdcoderTerminalLaunchPlanResolver';
+import type { TerminalCommandRequest } from '@sdkwork/birdcoder-pc-commons/terminal/runtime';
+import { useToast } from '@sdkwork/birdcoder-pc-commons/contexts/ToastProvider';
 import { useTranslation } from 'react-i18next';
 import { PRIMARY_PERSISTED_APP_TABS } from './birdcoderAppConstants.ts';
 import { SurfaceLoader } from './birdcoderAppSurfaceLoader.tsx';

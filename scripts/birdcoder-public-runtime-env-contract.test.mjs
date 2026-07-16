@@ -34,15 +34,32 @@ const webMainSource = fs.readFileSync(
   ),
   'utf8',
 );
-assert.match(
-  webMainSource,
-  /const isDevelopment = import\.meta\.env\.DEV \|\|/u,
-  'Web bootstrap must use Vite DEV authority when deciding whether local API traffic uses the same-origin proxy.',
+const bootstrapPublicRuntimeConfigSource = fs.readFileSync(
+  new URL(
+    '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-shell-runtime/src/application/bootstrap/bootstrapPublicRuntimeConfig.ts',
+    import.meta.url,
+  ),
+  'utf8',
 );
 assert.match(
   webMainSource,
-  /return window\.location\.origin;/u,
-  'Web development must keep local API traffic on the current browser origin.',
+  /isBirdCoderDevelopmentBrowserRuntime\(\)/u,
+  'Web bootstrap must use the shared public runtime authority when deciding whether local API traffic uses the same-origin proxy.',
+);
+assert.match(
+  webMainSource,
+  /readConfiguredBirdCoderRealtimeTransport\(\)/u,
+  'Web bootstrap must resolve the realtime transport through the shared public runtime authority.',
+);
+assert.doesNotMatch(
+  webMainSource,
+  /import\.meta\.env/u,
+  'Web bootstrap must not create a second compile-time runtime configuration path.',
+);
+assert.match(
+  bootstrapPublicRuntimeConfigSource,
+  /mode === 'development' \|\| mode === 'test'/u,
+  'Browser same-origin proxy selection must cover both development and test Vite modes.',
 );
 assert.deepEqual(resolveBirdcoderDevelopmentApiEnvDefines('production'), {});
 

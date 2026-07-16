@@ -8,6 +8,7 @@ authors.workspace = true
 [dependencies]
 serde = { workspace = true }
 serde_json = { workspace = true }
+uuid = { workspace = true }
 hex = "0.4"
 sha2 = "0.10"
 tauri = { version = "~2.11.0", features = [] }

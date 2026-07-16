@@ -21,12 +21,8 @@ class IntelligenceApi {
   }
 
   /// Delete coding session
-  Future<BirdCoderDeletedResourceEnvelope?> codingSessionsDelete(String sessionId) async {
-    final response = await _client.delete(ApiPaths.appPath('/intelligence/coding_sessions/${serializePathParameter(sessionId, const PathParameterSpec('sessionId', 'simple', false))}'));
-    return (() {
-      final map = sdkworkResponseAsMap(response);
-      return map == null ? null : BirdCoderDeletedResourceEnvelope.fromJson(map);
-    })();
+  Future<void> codingSessionsDelete(String sessionId) async {
+    await _client.delete(ApiPaths.appPath('/intelligence/coding_sessions/${serializePathParameter(sessionId, const PathParameterSpec('sessionId', 'simple', false))}'));
   }
 
   /// Update coding session
@@ -40,13 +36,14 @@ class IntelligenceApi {
   }
 
   /// List coding sessions
-  Future<BirdCoderCodingSessionSummaryListEnvelope?> codingSessionsList([String? workspaceId, String? projectId, String? engineId, int? limit, int? offset]) async {
+  Future<BirdCoderCodingSessionSummaryListEnvelope?> codingSessionsList([String? workspaceId, String? projectId, String? runtimeLocationId, String? engineId, int? page, int? pageSize]) async {
     final query = buildQueryString([
       QueryParameterSpec('workspaceId', workspaceId, 'form', true, false, null),
       QueryParameterSpec('projectId', projectId, 'form', true, false, null),
+      QueryParameterSpec('runtimeLocationId', runtimeLocationId, 'form', true, false, null),
       QueryParameterSpec('engineId', engineId, 'form', true, false, null),
-      QueryParameterSpec('limit', limit, 'form', true, false, null),
-      QueryParameterSpec('offset', offset, 'form', true, false, null)
+      QueryParameterSpec('page', page, 'form', true, false, null),
+      QueryParameterSpec('page_size', pageSize, 'form', true, false, null)
     ]);
     final response = await _client.get(ApiPaths.appendQueryString(ApiPaths.appPath('/intelligence/coding_sessions'), query));
     return (() {
@@ -143,12 +140,8 @@ class IntelligenceApi {
   }
 
   /// Delete coding session message
-  Future<BirdCoderDeleteCodingSessionMessageResultEnvelope?> codingSessionsMessagesDelete(String sessionId, String messageId) async {
-    final response = await _client.delete(ApiPaths.appPath('/intelligence/coding_sessions/${serializePathParameter(sessionId, const PathParameterSpec('sessionId', 'simple', false))}/messages/${serializePathParameter(messageId, const PathParameterSpec('messageId', 'simple', false))}'));
-    return (() {
-      final map = sdkworkResponseAsMap(response);
-      return map == null ? null : BirdCoderDeleteCodingSessionMessageResultEnvelope.fromJson(map);
-    })();
+  Future<void> codingSessionsMessagesDelete(String sessionId, String messageId) async {
+    await _client.delete(ApiPaths.appPath('/intelligence/coding_sessions/${serializePathParameter(sessionId, const PathParameterSpec('sessionId', 'simple', false))}/messages/${serializePathParameter(messageId, const PathParameterSpec('messageId', 'simple', false))}'));
   }
 }
 

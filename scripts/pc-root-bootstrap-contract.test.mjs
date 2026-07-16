@@ -17,7 +17,7 @@ const routesSource = readText('apps/sdkwork-birdcoder-pc/src/bootstrap/routes.ts
 
 assert.match(
   iamRuntimeSource,
-  /from ['"]@sdkwork\/birdcoder-pc-infrastructure['"]/u,
+  /from ['"]@sdkwork\/birdcoder-pc-infrastructure\/services\/iamRuntime['"]/u,
   'Root IAM bootstrap must delegate to the infrastructure-owned appbase runtime.',
 );
 assert.doesNotMatch(

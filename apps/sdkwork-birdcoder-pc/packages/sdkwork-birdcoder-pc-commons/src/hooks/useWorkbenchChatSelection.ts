@@ -125,18 +125,18 @@ export function useWorkbenchChatSelection({
     ) => {
       const requestedEngineId = options?.engineId?.trim() || undefined;
       const requestedModelId = options?.modelId?.trim() || undefined;
+      const hasExplicitEngineSelection = Boolean(requestedEngineId);
       const normalizedCurrentSessionEngineId = currentSessionEngineId?.trim() || undefined;
       const normalizedCurrentSessionModelId = currentSessionModelId?.trim() || undefined;
       const preferredSelection = resolveWorkbenchPreferredNewSessionSelection(
         {
           requestedEngineId,
           currentSessionEngineId: normalizedCurrentSessionEngineId,
-          currentSessionModelId: requestedModelId ?? normalizedCurrentSessionModelId,
-          preferredEngineId:
-            requestedModelId && requestedEngineId
-              ? requestedEngineId
-              : selectedEngineId,
-          preferredModelId: requestedModelId ?? selectedModelId,
+          currentSessionModelId: hasExplicitEngineSelection
+            ? undefined
+            : (requestedModelId ?? normalizedCurrentSessionModelId),
+          preferredEngineId: requestedEngineId ?? selectedEngineId,
+          preferredModelId: requestedModelId ?? (hasExplicitEngineSelection ? undefined : selectedModelId),
         },
         preferences,
       );
@@ -162,10 +162,10 @@ export function useWorkbenchChatSelection({
     },
     [
       createCodingSession,
-      currentSessionEngineId,
-      currentSessionModelId,
-      preferences,
-      selectedEngineId,
+    currentSessionEngineId,
+    currentSessionModelId,
+    preferences,
+    selectedEngineId,
       selectedModelId,
       updatePreferences,
     ],

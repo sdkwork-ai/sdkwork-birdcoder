@@ -1762,6 +1762,7 @@ const richReplaySession: BirdCoderCodingSession = {
   id: 'coding-session-rich-replay',
   workspaceId: 'workspace-rich-replay',
   projectId: 'project-rich-replay',
+  runtimeLocationId: 'runtime-location-rich-replay',
   title: 'Rich replay session',
   status: 'active',
   hostMode: 'desktop',
@@ -1846,7 +1847,6 @@ const richReplayAppClient = createBirdCoderAppSdkApiClient({
           summary: {
             ...richReplaySession,
             kind: 'coding',
-            nativeCwd: 'E:/workspace/rich-replay',
             sortTimestamp: richReplaySession.updatedAt,
           },
           messages: richReplaySession.messages,
@@ -1858,7 +1858,6 @@ const richReplayAppClient = createBirdCoderAppSdkApiClient({
             {
               ...richReplaySession,
               kind: 'coding',
-              nativeCwd: 'E:/workspace/rich-replay',
               sortTimestamp: richReplaySession.updatedAt,
             },
           ],
@@ -1894,6 +1893,7 @@ assert.deepEqual(
 const richReplayNativeSessionList = await richReplayAppClient.listNativeSessions({
   workspaceId: richReplaySession.workspaceId,
   projectId: richReplaySession.projectId,
+  runtimeLocationId: richReplaySession.runtimeLocationId!,
 });
 assert.deepEqual(
   richReplayNativeSessionList.map((session) => session.id),
@@ -1986,6 +1986,7 @@ const richReplayNativeSession = await richReplayAppClient.getNativeSession(
   {
     workspaceId: richReplaySession.workspaceId,
     projectId: richReplaySession.projectId,
+    runtimeLocationId: richReplaySession.runtimeLocationId!,
   },
 );
 const richReplayNativeAssistantMessage = richReplayNativeSession.messages.find(
@@ -2020,6 +2021,7 @@ const authorityBackedNativeRecord = await readAuthorityBackedNativeSessionRecord
   {
     workspaceId: richReplaySession.workspaceId,
     projectId: richReplaySession.projectId,
+    runtimeLocationId: richReplaySession.runtimeLocationId,
     appRuntimeReadService: {
       async getNativeSession() {
         return richReplayNativeSession;

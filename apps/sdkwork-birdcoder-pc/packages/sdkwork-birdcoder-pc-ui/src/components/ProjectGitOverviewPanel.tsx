@@ -1,6 +1,8 @@
 import { memo } from 'react';
-import type { ProjectGitOverviewViewState } from '@sdkwork/birdcoder-pc-commons';
-import { useProjectGitOverview } from '@sdkwork/birdcoder-pc-commons';
+import {
+  useProjectGitOverview,
+  type ProjectGitOverviewViewState,
+} from '@sdkwork/birdcoder-pc-commons/hooks/useProjectGitOverview';
 import {
   ProjectGitOverviewSurface,
   type ProjectGitOverviewSectionId,

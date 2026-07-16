@@ -25,6 +25,11 @@ export interface SynchronizeProjectSessionsFromAuthorityOptions {
   appRuntimeReadService?: ProjectSessionSynchronizationRuntimeService;
   project: BirdCoderProject;
   projectService: IProjectService;
+  /**
+   * Opaque server-issued location selected by the current runtime boundary.
+   * When absent, synchronization intentionally reads persisted projections only.
+   */
+  runtimeLocationId?: string | null;
   sessionLimit?: number;
 }
 
@@ -168,6 +173,10 @@ function toSynchronizedProjectSession(
     engineId: summarySource.engineId,
     modelId: summarySource.modelId,
     nativeSessionId: record.nativeSessionId ?? existingSession?.nativeSessionId,
+    runtimeLocationId:
+      summarySource.runtimeLocationId ??
+      record.runtimeLocationId ??
+      existingSession?.runtimeLocationId,
     nativeAttributes: summarySource.nativeAttributes
       ?? record.nativeAttributes
       ?? existingSession?.nativeAttributes,
@@ -212,6 +221,7 @@ function areSynchronizedSessionSummariesEqual(
     left.engineId === right.engineId &&
     left.modelId === right.modelId &&
     left.nativeSessionId === right.nativeSessionId &&
+    left.runtimeLocationId === right.runtimeLocationId &&
     JSON.stringify(left.nativeAttributes ?? null) ===
       JSON.stringify(right.nativeAttributes ?? null) &&
     left.runtimeStatus === right.runtimeStatus &&
@@ -329,6 +339,7 @@ export async function synchronizeProjectSessionsFromAuthority(
     limit: normalizeProjectSessionSynchronizationLimit(options.sessionLimit),
     offset: 0,
     projectId,
+    runtimeLocationId: options.runtimeLocationId,
     workspaceId,
   });
   return synchronizeProjectSessionsFromInventory(

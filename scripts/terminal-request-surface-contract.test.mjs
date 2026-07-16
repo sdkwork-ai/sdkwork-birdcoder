@@ -6,6 +6,10 @@ const runtimeSource = fs.readFileSync(
   new URL('../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-commons/src/terminal/runtime.ts', import.meta.url),
   'utf8',
 );
+const requestsSource = fs.readFileSync(
+  new URL('../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-commons/src/terminal/requests.ts', import.meta.url),
+  'utf8',
+);
 const runConfigsSource = fs.readFileSync(
   new URL('../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-commons/src/terminal/runConfigs.ts', import.meta.url),
   'utf8',
@@ -57,29 +61,35 @@ const fileExplorerSource = fs.readFileSync(
 );
 
 assert.match(
-  runtimeSource,
+  requestsSource,
   /export type TerminalCommandSurface = 'workspace' \| 'embedded';/,
   'Terminal command requests must declare an explicit workspace-vs-embedded destination surface.',
 );
 
 assert.match(
-  runtimeSource,
+  requestsSource,
   /export interface TerminalCommandRequest \{[\s\S]*surface: TerminalCommandSurface;[\s\S]*timestamp: number;[\s\S]*\}/,
   'Every terminal command request must carry a required surface field.',
 );
 
 assert.match(
-  runtimeSource,
+  requestsSource,
   /surface: overrides\.surface \?\? 'workspace'/,
   'Default terminal requests must target the full Terminal workspace.',
 );
 
-const emitOpenTerminalRequestMatch = runtimeSource.match(
+assert.match(
+  runtimeSource,
+  /export \{[\s\S]*buildDefaultTerminalCommandRequest,[\s\S]*emitOpenTerminalRequest,[\s\S]*type TerminalCommandRequest,[\s\S]*type TerminalCommandSurface,[\s\S]*\} from '\.\/requests\.ts';/,
+  'The terminal runtime public entry must re-export the canonical terminal request contract.',
+);
+
+const emitOpenTerminalRequestMatch = requestsSource.match(
   /export function emitOpenTerminalRequest\([\s\S]*?\n\}/,
 );
 assert.ok(
   emitOpenTerminalRequestMatch,
-  'Terminal runtime must expose emitOpenTerminalRequest.',
+  'Terminal request contract must expose emitOpenTerminalRequest.',
 );
 assert.doesNotMatch(
   emitOpenTerminalRequestMatch[0],
@@ -125,8 +135,8 @@ assert.match(
 
 assert.match(
   codePageTerminalActionsSource,
-  /const localWorkingDirectory = await resolveLocalWorkingDirectory\(target\.id\);[\s\S]*if \(!localWorkingDirectory\) \{[\s\S]*return;[\s\S]*\}[\s\S]*emitOpenTerminalRequest\(\{[\s\S]*surface: 'workspace'[\s\S]*path: localWorkingDirectory[\s\S]*\}\);/,
-  'Project context-menu terminal launches must resolve a device-local working directory by project id before targeting the full Terminal workspace.',
+  /const handleOpenInTerminal = useCallback\(async \(projectId: string, profileId\?: string\) => \{[\s\S]*resolveProjectActionTarget\(resolveProjectById\(projectId\)\)[\s\S]*const localWorkingDirectory = await resolveTerminalWorkingDirectory\(target\.id\);[\s\S]*if \(!localWorkingDirectory\) \{[\s\S]*return;[\s\S]*\}[\s\S]*emitOpenTerminalRequest\(\{[\s\S]*surface: 'workspace'[\s\S]*path: localWorkingDirectory[\s\S]*\}\);/,
+  'Project context-menu terminal launches must resolve a project runtime location before targeting the full Terminal workspace.',
 );
 
 assert.match(
@@ -194,8 +204,8 @@ assert.match(
 );
 assert.match(
   codePageTerminalActionsSource,
-  /const handleOpenCodingSessionInTerminal = useCallback\(async \(\s*codingSessionId: string,\s*projectId: string,\s*nativeSessionIdFromList\?: string \| null,\s*\) => \{[\s\S]*resolveSession\(codingSessionId, projectId\)[\s\S]*resolveProjectActionTarget\(resolvedSessionLocation\?\.project\)[\s\S]*const localWorkingDirectory = await resolveLocalWorkingDirectory\(target\.id\);[\s\S]*nativeSessionIdFromList\?\.trim\(\) \|\|[\s\S]*await resolveCodingSessionNativeSessionId\(codingSessionId, projectId\)[\s\S]*buildCodingSessionTerminalLaunchPlan\(\{[\s\S]*codingSession: \{ \.\.\.codingSession, nativeSessionId \},[\s\S]*localWorkingDirectory,[\s\S]*emitOpenTerminalRequest\(launchPlan\.request\);/m,
-  'Session context-menu terminal actions must resolve the selected project session and a device-local working directory before using the loaded session-list native id or falling back to authority.',
+  /const handleOpenCodingSessionInTerminal = useCallback\(async \(\s*codingSessionId: string,\s*projectId: string,\s*nativeSessionIdFromList\?: string \| null,\s*\) => \{[\s\S]*resolveSession\(codingSessionId, projectId\)[\s\S]*resolveProjectActionTarget\(resolvedSessionLocation\?\.project\)[\s\S]*const localWorkingDirectory = await resolveTerminalWorkingDirectory\(target\.id\);[\s\S]*nativeSessionIdFromList\?\.trim\(\) \|\|[\s\S]*await resolveCodingSessionNativeSessionId\(codingSessionId, projectId\)[\s\S]*buildCodingSessionTerminalLaunchPlan\(\{[\s\S]*codingSession: \{ \.\.\.codingSession, nativeSessionId \},[\s\S]*localWorkingDirectory,[\s\S]*emitOpenTerminalRequest\(launchPlan\.request\);/m,
+  'Session context-menu terminal actions must resolve the selected project runtime location before using the loaded session-list native id or falling back to authority.',
 );
 
 assert.doesNotMatch(

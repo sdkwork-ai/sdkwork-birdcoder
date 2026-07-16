@@ -191,6 +191,7 @@ mod tests {
             assistant_content: "bounded reply".to_owned(),
             native_session_id: Some("session-1".to_owned()),
             commands: None,
+            stream_deltas: vec!["bounded ".to_owned(), "reply".to_owned()],
         })
         .expect("serialize bounded kernel turn response");
 
@@ -204,6 +205,7 @@ mod tests {
             assistant_content: "x".repeat(MAX_KERNEL_TURN_RESPONSE_BYTES + 1),
             native_session_id: None,
             commands: None,
+            stream_deltas: Vec::new(),
         };
 
         assert_eq!(

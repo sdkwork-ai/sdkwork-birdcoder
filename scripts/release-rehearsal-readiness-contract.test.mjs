@@ -45,13 +45,18 @@ const governedReleaseRunbook = read('docs/guides/operator/first-governed-release
 
 assert.match(
   operatorReadme,
-  /HTTP OpenAPI 161 operations[\s\S]*route catalog 162/u,
-  'Operator README must record HTTP OpenAPI 161-operation completeness and 162-entry route catalog truth.',
+  /Route and OpenAPI counts prove catalog alignment only/u,
+  'Operator README must distinguish catalog alignment from runtime execution evidence.',
 );
 assert.match(
   operatorReadme,
-  /surface-manifest-parity|Four surfaces gated/u,
-  'Operator README must reference four-surface manifest parity.',
+  /Project runtime locations/u,
+  'Operator README must link the runtime-location operating guide.',
+);
+assert.doesNotMatch(
+  operatorReadme,
+  /HTTP OpenAPI \d+ operations/u,
+  'Operator README must not make a historical OpenAPI count a release-readiness claim.',
 );
 assert.match(
   governedReleaseRunbook,

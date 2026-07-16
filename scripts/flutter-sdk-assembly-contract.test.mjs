@@ -3,39 +3,31 @@ import fs from 'node:fs';
 import path from 'node:path';
 
 const rootDir = process.cwd();
-const assemblyPath = 'apps/sdkwork-birdcoder-flutter-mobile/sdks/.sdkwork-assembly.json';
 const componentSpecPath = 'apps/sdkwork-birdcoder-flutter-mobile/sdks/specs/component.spec.json';
 
 function readJson(relativePath) {
   return JSON.parse(fs.readFileSync(path.join(rootDir, relativePath), 'utf8'));
 }
 
-const assembly = readJson(assemblyPath);
 const componentSpec = readJson(componentSpecPath);
-
-assert.equal(assembly.kind, 'sdkwork.sdk.assembly');
-assert.equal(assembly.name, 'sdkwork-birdcoder-flutter-mobile-sdk-family');
-
-const surfaces = assembly.surfaces ?? [];
-const appSurface = surfaces.find((surface) => surface.surface === 'app');
-const adminSurface = surfaces.find((surface) => surface.surface === 'backend-admin');
+const dependencies = componentSpec.contracts?.sdkDependencies ?? [];
+const appSurface = dependencies.find((dependency) => dependency.surface === 'app');
+const adminSurface = dependencies.find((dependency) => dependency.surface === 'backend-admin');
 
 assert.ok(appSurface, 'Flutter mobile SDK assembly must declare an app surface.');
 assert.ok(adminSurface, 'Flutter mobile SDK assembly must declare a backend-admin surface.');
 
-assert.equal(appSurface.dependencyMode, 'consumer-sdk');
-assert.equal(adminSurface.dependencyMode, 'consumer-sdk');
-assert.equal(appSurface.composedPackageName, 'sdkwork_birdcoder_flutter_mobile_core');
-assert.equal(adminSurface.composedPackageName, 'sdkwork_birdcoder_flutter_mobile_admin_core');
+assert.equal(appSurface.consumerPackageName, 'sdkwork_birdcoder_flutter_mobile_core');
+assert.equal(adminSurface.consumerPackageName, 'sdkwork_birdcoder_flutter_mobile_admin_core');
 
 assert.match(
-  appSurface.typescriptConsumerPath ?? '',
-  /sdkwork-birdcoder-pc\/sdks\/sdkwork-birdcoder-app-sdk/u,
+  appSurface.manifestPath ?? '',
+  /sdkwork-birdcoder-pc\/sdks\/sdkwork-birdcoder-app-sdk\/sdk-manifest\.json/u,
   'Flutter app surface must consume the canonical PC-generated app SDK family.',
 );
 assert.match(
-  adminSurface.typescriptConsumerPath ?? '',
-  /sdkwork-birdcoder-pc\/sdks\/sdkwork-birdcoder-backend-sdk/u,
+  adminSurface.manifestPath ?? '',
+  /sdkwork-birdcoder-pc\/sdks\/sdkwork-birdcoder-backend-sdk\/sdk-manifest\.json/u,
   'Flutter backend-admin surface must consume the canonical PC-generated backend SDK family.',
 );
 
@@ -74,9 +66,9 @@ for (const consumerPath of [
   'apps/sdkwork-birdcoder-flutter-mobile/sdks/sdkwork_birdcoder_flutter_mobile_backend_sdk_consumer',
 ]) {
   assert.equal(
-    fs.existsSync(path.join(rootDir, consumerPath, '.sdkwork-assembly.json')),
-    false,
-    `${consumerPath} must not keep retired consumer .sdkwork-assembly.json metadata.`,
+    fs.existsSync(path.join(rootDir, consumerPath, 'sdk-manifest.json')),
+    true,
+    `${consumerPath} must provide sdk-manifest.json metadata.`,
   );
   const consumerManifest = readJson(`${consumerPath}/sdk-manifest.json`);
   assert.ok(
@@ -103,4 +95,4 @@ for (const consumerPath of [
 assert.equal(componentSpec.ownerPackage, 'sdkwork_birdcoder_flutter_mobile_core');
 assert.equal(componentSpec.adminOwnerPackage, 'sdkwork_birdcoder_flutter_mobile_admin_core');
 
-console.log('flutter sdk assembly contract passed.');
+console.log('flutter sdk dependency contract passed.');

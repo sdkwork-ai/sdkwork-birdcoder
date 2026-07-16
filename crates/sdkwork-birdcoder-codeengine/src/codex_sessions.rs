@@ -13,8 +13,8 @@ use serde_json::Value;
 use crate::{
     build_native_session_id, find_codeengine_descriptor, map_codeengine_session_runtime_status,
     map_codeengine_tool_command_status, native_session_prefix_for_engine,
-    sanitize_codeengine_session_metadata, CodeEngineSessionCommandRecord,
-    CodeEngineSessionDetailRecord, CodeEngineSessionMessageRecord,
+    sanitize_codeengine_git_repository_url, sanitize_codeengine_session_metadata,
+    CodeEngineSessionCommandRecord, CodeEngineSessionDetailRecord, CodeEngineSessionMessageRecord,
     CodeEngineSessionNativeAttributesRecord, CodeEngineSessionSummaryRecord,
 };
 
@@ -1280,15 +1280,16 @@ fn apply_codex_context_payload(
                 .or_else(|| value.get("sha"))
         }))
         .or_else(|| context.native_attributes.git_commit.clone());
-        context.native_attributes.git_repository_url =
+        context.native_attributes.git_repository_url = sanitize_codeengine_git_repository_url(
             normalize_value_string(git_info.and_then(|value| {
                 value
                     .get("repositoryUrl")
                     .or_else(|| value.get("repository_url"))
                     .or_else(|| value.get("remoteUrl"))
                     .or_else(|| value.get("remote_url"))
-            }))
-            .or_else(|| context.native_attributes.git_repository_url.clone());
+            })),
+        )
+        .or_else(|| context.native_attributes.git_repository_url.clone());
     }
     context.native_session_id = normalize_value_string(payload.and_then(|value| value.get("id")))
         .or_else(|| normalize_value_string(payload.and_then(|value| value.get("session_id"))))

@@ -711,6 +711,15 @@
         "replacementCode": null
       },
       {
+        "code": "birdcoder.platform-deployment-governance-targets.read",
+        "name": "Read platform deployment governance targets",
+        "resource": "birdcoder.platform-deployment-governance-targets",
+        "action": "read",
+        "status": "active",
+        "since": "1.0.0",
+        "replacementCode": null
+      },
+      {
         "code": "birdcoder.platform-deployments.read",
         "name": "Read platform deployments",
         "resource": "birdcoder.platform-deployments",
@@ -823,6 +832,87 @@
         "name": "Execute platform projects publish",
         "resource": "birdcoder.platform-projects-publish",
         "action": "execute",
+        "status": "active",
+        "since": "1.0.0",
+        "replacementCode": null
+      },
+      {
+        "code": "birdcoder.platform-projects-runtime-locations-preferences.read",
+        "name": "Read platform project runtime location preferences",
+        "resource": "birdcoder.platform-projects-runtime-locations-preferences",
+        "action": "read",
+        "status": "active",
+        "since": "1.0.0",
+        "replacementCode": null
+      },
+      {
+        "code": "birdcoder.platform-projects-runtime-locations-preferences.update",
+        "name": "Update platform project runtime location preferences",
+        "resource": "birdcoder.platform-projects-runtime-locations-preferences",
+        "action": "update",
+        "status": "active",
+        "since": "1.0.0",
+        "replacementCode": null
+      },
+      {
+        "code": "birdcoder.platform-projects-runtime-locations.create",
+        "name": "Create platform project runtime locations",
+        "resource": "birdcoder.platform-projects-runtime-locations",
+        "action": "create",
+        "status": "active",
+        "since": "1.0.0",
+        "replacementCode": null
+      },
+      {
+        "code": "birdcoder.platform-projects-runtime-locations.delete",
+        "name": "Delete platform project runtime locations",
+        "resource": "birdcoder.platform-projects-runtime-locations",
+        "action": "delete",
+        "status": "active",
+        "since": "1.0.0",
+        "replacementCode": null
+      },
+      {
+        "code": "birdcoder.platform-projects-runtime-locations.read",
+        "name": "Read platform project runtime locations",
+        "resource": "birdcoder.platform-projects-runtime-locations",
+        "action": "read",
+        "status": "active",
+        "since": "1.0.0",
+        "replacementCode": null
+      },
+      {
+        "code": "birdcoder.platform-projects-runtime-locations.update",
+        "name": "Update platform project runtime locations",
+        "resource": "birdcoder.platform-projects-runtime-locations",
+        "action": "update",
+        "status": "active",
+        "since": "1.0.0",
+        "replacementCode": null
+      },
+      {
+        "code": "birdcoder.platform-projects-workspace-binding.delete",
+        "name": "Delete platform project workspace bindings",
+        "resource": "birdcoder.platform-projects-workspace-binding",
+        "action": "delete",
+        "status": "active",
+        "since": "1.0.0",
+        "replacementCode": null
+      },
+      {
+        "code": "birdcoder.platform-projects-workspace-binding.read",
+        "name": "Read platform project workspace bindings",
+        "resource": "birdcoder.platform-projects-workspace-binding",
+        "action": "read",
+        "status": "active",
+        "since": "1.0.0",
+        "replacementCode": null
+      },
+      {
+        "code": "birdcoder.platform-projects-workspace-binding.update",
+        "name": "Update platform project workspace bindings",
+        "resource": "birdcoder.platform-projects-workspace-binding",
+        "action": "update",
         "status": "active",
         "since": "1.0.0",
         "replacementCode": null

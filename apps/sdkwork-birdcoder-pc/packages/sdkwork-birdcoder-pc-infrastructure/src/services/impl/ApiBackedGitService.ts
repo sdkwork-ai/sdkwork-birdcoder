@@ -9,12 +9,11 @@ import type {
   BirdCoderSwitchProjectGitBranchRequest,
 } from '@sdkwork/birdcoder-pc-types';
 import type { IGitService } from '../interfaces/IGitService.ts';
+import type {
+  ProjectRuntimeLocationResolution,
+} from '../interfaces/IProjectRuntimeLocationService.ts';
+import { requireProjectRuntimeLocationExecutionId } from '../interfaces/IProjectRuntimeLocationService.ts';
 import type { BirdCoderAppSdkApiClient } from '../sdkClients.ts';
-import {
-  createBrowserDeploymentWorkspaceRuntime,
-  isBrowserDeploymentWorkspaceUnavailableError,
-  type BrowserDeploymentWorkspaceRuntime,
-} from '../../platform/browserDeploymentWorkspaceRuntime.ts';
 import {
   createTauriProjectGitRuntime,
   isTauriProjectGitRuntimeUnavailableError,
@@ -23,41 +22,60 @@ import {
 
 export interface ApiBackedGitServiceOptions {
   appClient: BirdCoderAppSdkApiClient;
-  browserDeploymentRuntime?: BrowserDeploymentWorkspaceRuntime;
+  resolveProjectRuntimeLocation?: (projectId: string) => Promise<ProjectRuntimeLocationResolution>;
+  /**
+   * Compatibility injection for existing hosts. New runtimes provide the
+   * semantic runtime-location resolver above so recovery follows one path.
+   */
   resolveLocalWorkingDirectory?: (projectId: string) => Promise<string | null>;
   tauriProjectGitRuntime?: TauriProjectGitRuntime;
 }
 
 export class ApiBackedGitService implements IGitService {
   private readonly appClient: BirdCoderAppSdkApiClient;
-  private readonly browserDeploymentRuntime: BrowserDeploymentWorkspaceRuntime;
+  private readonly resolveProjectRuntimeLocation?: (
+    projectId: string,
+  ) => Promise<ProjectRuntimeLocationResolution>;
   private readonly tauriProjectGitRuntime: TauriProjectGitRuntime;
 
   constructor({
     appClient,
-    browserDeploymentRuntime,
+    resolveProjectRuntimeLocation,
     resolveLocalWorkingDirectory = async () => null,
     tauriProjectGitRuntime,
   }: ApiBackedGitServiceOptions) {
     this.appClient = appClient;
-    this.browserDeploymentRuntime = browserDeploymentRuntime ?? createBrowserDeploymentWorkspaceRuntime();
+    this.resolveProjectRuntimeLocation = resolveProjectRuntimeLocation;
     this.tauriProjectGitRuntime = tauriProjectGitRuntime ?? createTauriProjectGitRuntime({
-      resolveProjectRoot: resolveLocalWorkingDirectory,
+      resolveProjectRoot: async (projectId) => {
+        if (resolveProjectRuntimeLocation) {
+          const resolution = await resolveProjectRuntimeLocation(projectId);
+          return resolution.status === 'resolved'
+            ? resolution.location.localWorkingDirectory
+            : null;
+        }
+
+        return resolveLocalWorkingDirectory(projectId);
+      },
     });
   }
 
-  private async withLocalRuntimeFallback<T>(
-    browserOperation: (runtime: BrowserDeploymentWorkspaceRuntime) => Promise<T>,
+  private async requireRemoteRuntimeLocationId(projectId: string): Promise<string> {
+    if (!this.resolveProjectRuntimeLocation) {
+      throw new Error(
+        'A project runtime-location resolver is required before using the remote Git runtime.',
+      );
+    }
+
+    return requireProjectRuntimeLocationExecutionId(
+      await this.resolveProjectRuntimeLocation(projectId),
+    );
+  }
+
+  private async withTauriRuntimeFallback<T>(
     tauriOperation: (runtime: TauriProjectGitRuntime) => Promise<T>,
     fallback: () => Promise<T>,
   ): Promise<T> {
-    try {
-      return await browserOperation(this.browserDeploymentRuntime);
-    } catch (error) {
-      if (!isBrowserDeploymentWorkspaceUnavailableError(error)) {
-        throw error;
-      }
-    }
     try {
       return await tauriOperation(this.tauriProjectGitRuntime);
     } catch (error) {
@@ -69,10 +87,12 @@ export class ApiBackedGitService implements IGitService {
   }
 
   async getProjectGitOverview(projectId: string): Promise<BirdCoderProjectGitOverview> {
-    return this.withLocalRuntimeFallback(
+    return this.withTauriRuntimeFallback(
       (runtime) => runtime.getProjectGitOverview(projectId),
-      (runtime) => runtime.getProjectGitOverview(projectId),
-      () => this.appClient.getProjectGitOverview(projectId),
+      async () => this.appClient.getProjectGitOverview(
+        projectId,
+        await this.requireRemoteRuntimeLocationId(projectId),
+      ),
     );
   }
 
@@ -80,10 +100,12 @@ export class ApiBackedGitService implements IGitService {
     projectId: string,
     request: BirdCoderCreateProjectGitBranchRequest,
   ): Promise<BirdCoderProjectGitOverview> {
-    return this.withLocalRuntimeFallback(
+    return this.withTauriRuntimeFallback(
       (runtime) => runtime.createProjectGitBranch(projectId, request),
-      (runtime) => runtime.createProjectGitBranch(projectId, request),
-      () => this.appClient.createProjectGitBranch(projectId, request),
+      async () => this.appClient.createProjectGitBranch(projectId, {
+        ...request,
+        runtimeLocationId: await this.requireRemoteRuntimeLocationId(projectId),
+      }),
     );
   }
 
@@ -91,10 +113,12 @@ export class ApiBackedGitService implements IGitService {
     projectId: string,
     request: BirdCoderCreateProjectGitWorktreeRequest,
   ): Promise<BirdCoderProjectGitOverview> {
-    return this.withLocalRuntimeFallback(
+    return this.withTauriRuntimeFallback(
       (runtime) => runtime.createProjectGitWorktree(projectId, request),
-      (runtime) => runtime.createProjectGitWorktree(projectId, request),
-      () => this.appClient.createProjectGitWorktree(projectId, request),
+      async () => this.appClient.createProjectGitWorktree(projectId, {
+        ...request,
+        runtimeLocationId: await this.requireRemoteRuntimeLocationId(projectId),
+      }),
     );
   }
 
@@ -102,10 +126,12 @@ export class ApiBackedGitService implements IGitService {
     projectId: string,
     request: BirdCoderSwitchProjectGitBranchRequest,
   ): Promise<BirdCoderProjectGitOverview> {
-    return this.withLocalRuntimeFallback(
+    return this.withTauriRuntimeFallback(
       (runtime) => runtime.switchProjectGitBranch(projectId, request),
-      (runtime) => runtime.switchProjectGitBranch(projectId, request),
-      () => this.appClient.switchProjectGitBranch(projectId, request),
+      async () => this.appClient.switchProjectGitBranch(projectId, {
+        ...request,
+        runtimeLocationId: await this.requireRemoteRuntimeLocationId(projectId),
+      }),
     );
   }
 
@@ -113,10 +139,12 @@ export class ApiBackedGitService implements IGitService {
     projectId: string,
     request: BirdCoderCommitProjectGitChangesRequest,
   ): Promise<BirdCoderProjectGitOverview> {
-    return this.withLocalRuntimeFallback(
+    return this.withTauriRuntimeFallback(
       (runtime) => runtime.commitProjectGitChanges(projectId, request),
-      (runtime) => runtime.commitProjectGitChanges(projectId, request),
-      () => this.appClient.commitProjectGitChanges(projectId, request),
+      async () => this.appClient.commitProjectGitChanges(projectId, {
+        ...request,
+        runtimeLocationId: await this.requireRemoteRuntimeLocationId(projectId),
+      }),
     );
   }
 
@@ -124,10 +152,12 @@ export class ApiBackedGitService implements IGitService {
     projectId: string,
     request: BirdCoderPushProjectGitBranchRequest,
   ): Promise<BirdCoderProjectGitOverview> {
-    return this.withLocalRuntimeFallback(
+    return this.withTauriRuntimeFallback(
       (runtime) => runtime.pushProjectGitBranch(projectId, request),
-      (runtime) => runtime.pushProjectGitBranch(projectId, request),
-      () => this.appClient.pushProjectGitBranch(projectId, request),
+      async () => this.appClient.pushProjectGitBranch(projectId, {
+        ...request,
+        runtimeLocationId: await this.requireRemoteRuntimeLocationId(projectId),
+      }),
     );
   }
 
@@ -135,26 +165,32 @@ export class ApiBackedGitService implements IGitService {
     projectId: string,
     request: BirdCoderRemoveProjectGitWorktreeRequest,
   ): Promise<BirdCoderProjectGitOverview> {
-    return this.withLocalRuntimeFallback(
+    return this.withTauriRuntimeFallback(
       (runtime) => runtime.removeProjectGitWorktree(projectId, request),
-      (runtime) => runtime.removeProjectGitWorktree(projectId, request),
-      () => this.appClient.removeProjectGitWorktree(projectId, request),
+      async () => this.appClient.removeProjectGitWorktree(projectId, {
+        ...request,
+        runtimeLocationId: await this.requireRemoteRuntimeLocationId(projectId),
+      }),
     );
   }
 
   async pruneProjectGitWorktrees(projectId: string): Promise<BirdCoderProjectGitOverview> {
-    return this.withLocalRuntimeFallback(
+    return this.withTauriRuntimeFallback(
       (runtime) => runtime.pruneProjectGitWorktrees(projectId),
-      (runtime) => runtime.pruneProjectGitWorktrees(projectId),
-      () => this.appClient.pruneProjectGitWorktrees(projectId),
+      async () => this.appClient.pruneProjectGitWorktrees(
+        projectId,
+        await this.requireRemoteRuntimeLocationId(projectId),
+      ),
     );
   }
 
   async getProjectGitDiff(projectId: string): Promise<BirdCoderProjectGitDiff> {
-    return this.withLocalRuntimeFallback(
+    return this.withTauriRuntimeFallback(
       (runtime) => runtime.getProjectGitDiff(projectId),
-      (runtime) => runtime.getProjectGitDiff(projectId),
-      () => this.appClient.getProjectGitDiff(projectId),
+      async () => this.appClient.getProjectGitDiff(
+        projectId,
+        await this.requireRemoteRuntimeLocationId(projectId),
+      ),
     );
   }
 }

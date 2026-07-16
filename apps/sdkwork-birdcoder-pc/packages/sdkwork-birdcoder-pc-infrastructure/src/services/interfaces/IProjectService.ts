@@ -10,6 +10,7 @@ export interface CreateCodingSessionOptions {
   engineId: BirdCoderCodingSession['engineId'];
   hostMode?: BirdCoderCodingSession['hostMode'];
   modelId: string;
+  runtimeLocationId: string;
   workspaceId?: string;
 }
 
@@ -32,6 +33,12 @@ export interface UpdateProjectOptions {
   description?: string;
   name?: string;
   status?: 'active' | 'archived';
+}
+
+export interface BindProjectWorkspaceInput {
+  logicalPath: string;
+  rootEntryId: string;
+  sandboxId: string;
 }
 
 export interface BirdCoderCodingSessionMirrorSnapshot extends BirdCoderCodingSessionSummary {
@@ -86,6 +93,10 @@ export interface BirdCoderCodingSessionListResult {
 }
 
 export interface IProjectService {
+  bindProjectWorkspace?(
+    projectId: string,
+    input: BindProjectWorkspaceInput,
+  ): Promise<void>;
   getProjectsPage(
     workspaceId: string | undefined,
     request: BirdCoderServicePageRequest,

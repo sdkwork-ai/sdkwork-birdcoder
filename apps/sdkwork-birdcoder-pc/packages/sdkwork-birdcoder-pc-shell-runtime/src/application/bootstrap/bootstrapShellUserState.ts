@@ -7,7 +7,6 @@ import {
 } from '@sdkwork/birdcoder-pc-workbench-storage';
 import {
   DEFAULT_WORKBENCH_RECOVERY_SNAPSHOT,
-  ensureStoredRunConfigurations,
   getWorkbenchPreferencesRepository,
   normalizeWorkbenchRecoverySnapshot,
   syncWorkbenchCodeEngineModelConfig,
@@ -230,7 +229,10 @@ export function bootstrapProjectWorkbenchState(
   const bootstrapPromise: Promise<RunConfigurationRecord[]> =
     runBootstrapTaskWithTimeout(
       'project workbench state bootstrap',
-      ensureStoredRunConfigurations(normalizedProjectId),
+      import('@sdkwork/birdcoder-pc-workbench-state/runConfigurations').then(
+        ({ ensureStoredRunConfigurations }) =>
+          ensureStoredRunConfigurations(normalizedProjectId),
+      ),
       PROJECT_WORKBENCH_BOOTSTRAP_TIMEOUT_MS,
     ).finally(() => {
       if (projectBootstrapPromises.get(normalizedProjectId) === bootstrapPromise) {

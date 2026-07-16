@@ -22,10 +22,12 @@ class SkillsApi {
   }
 
   /// List skill packages
-  Future<BirdCoderSkillPackageSummaryListEnvelope?> skillPackagesList([String? userId, String? workspaceId]) async {
+  Future<BirdCoderSkillPackageSummaryListEnvelope?> skillPackagesList([String? userId, String? workspaceId, int? page, int? pageSize]) async {
     final query = buildQueryString([
       QueryParameterSpec('userId', userId, 'form', true, false, null),
-      QueryParameterSpec('workspaceId', workspaceId, 'form', true, false, null)
+      QueryParameterSpec('workspaceId', workspaceId, 'form', true, false, null),
+      QueryParameterSpec('page', page, 'form', true, false, null),
+      QueryParameterSpec('page_size', pageSize, 'form', true, false, null)
     ]);
     final response = await _client.get(ApiPaths.appendQueryString(ApiPaths.appPath('/skill_packages'), query));
     return (() {

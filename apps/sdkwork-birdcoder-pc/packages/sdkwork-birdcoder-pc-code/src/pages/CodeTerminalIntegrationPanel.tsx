@@ -1,9 +1,9 @@
 import {
   areTerminalCommandRequestsEqual,
-  useBirdcoderTerminalLaunchPlanResolver,
-  useToast,
   type TerminalCommandRequest,
-} from '@sdkwork/birdcoder-pc-commons';
+} from '@sdkwork/birdcoder-pc-commons/terminal/runtime';
+import { useBirdcoderTerminalLaunchPlanResolver } from '@sdkwork/birdcoder-pc-commons/terminal/useBirdcoderTerminalLaunchPlanResolver';
+import { useToast } from '@sdkwork/birdcoder-pc-commons/contexts/ToastProvider';
 import { BirdcoderTerminalApp } from '@sdkwork/birdcoder-pc-commons/terminal/BirdcoderTerminalApp';
 import { ResizeHandle } from '@sdkwork/birdcoder-pc-ui-shell';
 import { X } from 'lucide-react';

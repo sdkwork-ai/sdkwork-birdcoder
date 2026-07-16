@@ -4,10 +4,11 @@ import { DesktopTerminalApp, type DesktopTerminalAppProps } from '@sdkwork/termi
 import { WebShellApp, createBrowserClipboardProvider } from '@sdkwork/terminal-pc-shell/web-integration';
 import type { TerminalCommandRequest } from './runtime.ts';
 import {
-  isBirdcoderTauriRuntime,
+  resolveBirdcoderBrowserTerminalTarget,
   resolveBirdcoderTerminalUnavailableMessage,
   useBirdcoderBrowserTerminalClient,
 } from './birdcoderTerminalRuntime.ts';
+import { isBirdcoderTauriRuntime } from './runtimeTarget.ts';
 
 export interface BirdcoderTerminalAppProps
   extends Omit<DesktopTerminalAppProps<TerminalCommandRequest>, 'children'> {
@@ -18,6 +19,13 @@ export interface BirdcoderTerminalAppProps
 export function BirdcoderTerminalApp(props: BirdcoderTerminalAppProps) {
   const desktop = isBirdcoderTauriRuntime();
   const webClient = useBirdcoderBrowserTerminalClient();
+  const webTarget = useMemo(
+    () => resolveBirdcoderBrowserTerminalTarget({
+      projectId: props.projectId,
+      workspaceId: props.workspaceId,
+    }),
+    [props.projectId, props.workspaceId],
+  );
   const clipboard = useMemo(() => createBrowserClipboardProvider(), []);
 
   if (desktop) {
@@ -28,6 +36,7 @@ export function BirdcoderTerminalApp(props: BirdcoderTerminalAppProps) {
     <WebShellApp
       clipboardProvider={clipboard}
       webRuntimeClient={webClient}
+      webRuntimeTarget={webTarget}
       webRuntimeUnavailableMessage={resolveBirdcoderTerminalUnavailableMessage()}
     />
   );

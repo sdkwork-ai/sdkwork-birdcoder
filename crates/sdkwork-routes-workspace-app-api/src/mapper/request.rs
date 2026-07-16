@@ -15,6 +15,26 @@ pub struct ProjectPathParams {
 
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
+pub struct ProjectRuntimeLocationPathParams {
+    pub project_id: String,
+    pub runtime_location_id: String,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ProjectRuntimeLocationPreferencePathParams {
+    pub capability: String,
+    pub project_id: String,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct ProjectGitRuntimeLocationQuery {
+    #[serde(rename = "runtime_location_id")]
+    pub runtime_location_id: String,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct WorkspaceListQuery {
     pub user_id: Option<String>,
 }
@@ -105,21 +125,65 @@ pub struct UpdateProjectBody {
     pub status: Option<String>,
 }
 
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct CreateProjectRuntimeLocationBody {
+    pub runtime_target_id: String,
+    pub runtime_target_kind: String,
+    pub location_kind: String,
+    pub path_flavor: String,
+    pub root_locator: String,
+    pub absolute_path: String,
+    pub display_name: Option<String>,
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct UpdateProjectRuntimeLocationBody {
+    pub display_name: Option<String>,
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct RebindProjectRuntimeLocationBody {
+    pub path_flavor: String,
+    pub root_locator: String,
+    pub absolute_path: String,
+    pub display_name: Option<String>,
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct SetProjectRuntimeLocationPreferenceBody {
+    pub runtime_location_id: String,
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct UpsertProjectWorkspaceBindingBody {
+    pub sandbox_id: String,
+    pub root_entry_id: String,
+    pub logical_path: String,
+}
+
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct CreateGitBranchBody {
+    pub runtime_location_id: String,
     pub branch_name: String,
 }
 
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct SwitchGitBranchBody {
+    pub runtime_location_id: String,
     pub branch_name: String,
 }
 
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct CommitGitChangesBody {
+    pub runtime_location_id: String,
     pub include_unstaged: Option<bool>,
     pub message: String,
 }
@@ -127,6 +191,7 @@ pub struct CommitGitChangesBody {
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct PushGitBranchBody {
+    pub runtime_location_id: String,
     pub branch_name: Option<String>,
     pub remote_name: Option<String>,
 }
@@ -134,14 +199,22 @@ pub struct PushGitBranchBody {
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct CreateGitWorktreeBody {
+    pub runtime_location_id: String,
     pub branch_name: String,
 }
 
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct RemoveGitWorktreeBody {
+    pub runtime_location_id: String,
     pub worktree_key: String,
     pub force: Option<bool>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PruneGitWorktreesBody {
+    pub runtime_location_id: String,
 }
 
 #[derive(Debug, Deserialize)]

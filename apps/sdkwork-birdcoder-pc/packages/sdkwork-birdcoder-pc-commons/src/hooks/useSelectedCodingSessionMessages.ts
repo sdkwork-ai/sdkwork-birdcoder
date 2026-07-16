@@ -1,6 +1,6 @@
 import { isBlank } from '@sdkwork/utils/string';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { canSubscribeBirdCoderWorkspaceRealtime } from '@sdkwork/birdcoder-pc-infrastructure-runtime';
+import { canSubscribeBirdCoderWorkspaceRealtime } from '@sdkwork/birdcoder-pc-infrastructure-runtime/workspaceRealtime';
 import {
   isBirdCoderCodingSessionExecuting,
   type BirdCoderCodingSession,
@@ -13,6 +13,9 @@ import {
   upsertProjectIntoProjectsStore,
 } from '../stores/projectsStore.ts';
 import { refreshCodingSessionMessages } from '../workbench/sessionRefresh.ts';
+import {
+  shouldSynchronizeSelectedSessionAuthoritySnapshot,
+} from '../workbench/selectedSessionSynchronization.ts';
 
 type SelectedCodingSessionMessagesAppRuntimeReadService = NonNullable<
   Parameters<typeof refreshCodingSessionMessages>[0]['appRuntimeReadService']
@@ -64,6 +67,12 @@ const processedSelectionRefreshKeyByScopeKey = new Map<string, string>();
 const MAX_TRACKED_SYNCHRONIZATION_SCOPES = 512;
 const SELECTED_SESSION_REALTIME_FALLBACK_EXECUTING_REFRESH_INTERVAL_MS = 15000;
 const SELECTED_SESSION_REALTIME_FALLBACK_IDLE_REFRESH_INTERVAL_MS = 60000;
+let nextSelectionSynchronizationEpoch = 0;
+
+function allocateSelectionSynchronizationEpoch(): number {
+  nextSelectionSynchronizationEpoch += 1;
+  return nextSelectionSynchronizationEpoch;
+}
 
 function isReplyMessageRole(role: BirdCoderCodingSession['messages'][number]['role']): boolean {
   return (
@@ -162,6 +171,8 @@ export function useSelectedCodingSessionMessages({
 }: UseSelectedCodingSessionMessagesOptions): boolean {
   const { user } = useAuth();
   const activeSynchronizationCountRef = useRef(0);
+  const activeSelectionScopeKeyRef = useRef('');
+  const activeSelectionSynchronizationEpochRef = useRef(0);
   const isMountedRef = useRef(true);
   const [isSelectedCodingSessionMessagesLoading, setIsSelectedCodingSessionMessagesLoading] = useState(false);
   const [authorityFallbackRefreshTick, setAuthorityFallbackRefreshTick] = useState(0);
@@ -258,10 +269,20 @@ export function useSelectedCodingSessionMessages({
       selectedProject,
       workspaceId,
     );
+    if (activeSelectionScopeKeyRef.current !== synchronizationScopeKey) {
+      activeSelectionScopeKeyRef.current = synchronizationScopeKey;
+      activeSelectionSynchronizationEpochRef.current =
+        allocateSelectionSynchronizationEpoch();
+    }
+    const selectionSynchronizationEpoch =
+      activeSelectionSynchronizationEpochRef.current;
     const synchronizationRequestKey =
-      `${synchronizationScopeKey}:${selectionRefreshToken}:${authorityFallbackRefreshTick}`;
+      `${synchronizationScopeKey}:${selectionSynchronizationEpoch}:${selectionRefreshToken}:${authorityFallbackRefreshTick}`;
     const hadSynchronizedSessionVersion =
       synchronizedSessionVersionsByScopeKey.has(synchronizationScopeKey);
+    const hasSynchronizedCurrentRequest =
+      synchronizedSessionVersionsByScopeKey.get(synchronizationScopeKey) ===
+      synchronizationRequestKey;
     if (
       processedSelectionRefreshKeyByScopeKey.get(synchronizationScopeKey) !==
       synchronizationRequestKey
@@ -298,9 +319,11 @@ export function useSelectedCodingSessionMessages({
       Boolean(localTranscriptReader) &&
       shouldHydrateSelectedCodingSessionTranscript(resolvedCodingSession);
     const shouldSynchronizeAuthority =
-      shouldBootstrapFromAuthority ||
-      authorityFallbackRefreshTick > 0 ||
-      (!canUseWorkspaceRealtime && !shouldHydrateLocalTranscript);
+      shouldSynchronizeSelectedSessionAuthoritySnapshot({
+        authorityAvailable: Boolean(appRuntimeReadService),
+        hasSynchronizedCurrentRequest,
+        shouldBootstrapFromAuthority,
+      });
     const shouldShowForegroundLoading =
       !hadSynchronizedSessionVersion &&
       (
@@ -382,13 +405,7 @@ export function useSelectedCodingSessionMessages({
         }
       }
 
-      const shouldRunAuthorityRefresh =
-        shouldSynchronizeAuthority ||
-        (
-          !canUseWorkspaceRealtime &&
-          shouldHydrateLocalTranscript &&
-          (localTranscriptCodingSession?.messages.length ?? 0) === 0
-        );
+      const shouldRunAuthorityRefresh = shouldSynchronizeAuthority;
 
       if (!shouldRunAuthorityRefresh && localTranscriptCodingSession) {
         return {

@@ -12,11 +12,13 @@ use crate::domain::commands::{
     UpsertProjectCollaboratorRequest,
 };
 use crate::domain::results::{DeleteEntityPayload, ProjectCollaboratorPayload, ProjectPayload};
+use crate::domain::runtime_location::RuntimeLocationCapability;
 use crate::error::ProjectError;
 use crate::ports::events::ProjectEventPublisher;
 use crate::ports::git::{GitMutationError, GitOperations, GitProjectDiff, GitProjectOverview};
 use crate::ports::project_workspace_root::ProjectWorkspaceRootResolver;
 use crate::ports::repository::ProjectRepository;
+use crate::ports::runtime_location_execution::ProjectRuntimeLocationExecutionResolver;
 use crate::service::git_operation_coordinator::GitOperationCoordinator;
 
 #[derive(Clone)]
@@ -26,6 +28,7 @@ pub struct ProjectService {
     git: Arc<dyn GitOperations>,
     git_operation_coordinator: GitOperationCoordinator,
     workspace_root_resolver: Arc<dyn ProjectWorkspaceRootResolver>,
+    runtime_location_execution_resolver: Arc<dyn ProjectRuntimeLocationExecutionResolver>,
 }
 
 impl ProjectService {
@@ -34,6 +37,7 @@ impl ProjectService {
         event_publisher: Arc<dyn ProjectEventPublisher>,
         git: Arc<dyn GitOperations>,
         workspace_root_resolver: Arc<dyn ProjectWorkspaceRootResolver>,
+        runtime_location_execution_resolver: Arc<dyn ProjectRuntimeLocationExecutionResolver>,
     ) -> Self {
         Self {
             repository,
@@ -41,6 +45,7 @@ impl ProjectService {
             git,
             git_operation_coordinator: GitOperationCoordinator::default(),
             workspace_root_resolver,
+            runtime_location_execution_resolver,
         }
     }
 
@@ -88,6 +93,27 @@ impl ProjectService {
             .ok_or_else(|| ProjectError::NotFound("Project was not found.".to_owned()))
     }
 
+    /// Authorizes a process-capable project operation without resolving a
+    /// filesystem root. Callers must resolve an explicit runtime location
+    /// through `ProjectRuntimeLocationExecutionResolver` after this check;
+    /// this method must never revive the legacy project-root fallback.
+    pub async fn require_project_execution_access(
+        &self,
+        ctx: &ProjectContext,
+        project_id: &str,
+    ) -> Result<ProjectPayload, ProjectError> {
+        if is_blank(Some(project_id)) {
+            return Err(ProjectError::InvalidInput(
+                "projectId is required.".to_owned(),
+            ));
+        }
+
+        self.repository
+            .ensure_project_write_access(ctx, project_id)
+            .await?;
+        self.get_project(ctx, project_id).await
+    }
+
     /// Resolve the server-owned root for an already authorized project scope.
     ///
     /// Native provider session discovery uses this boundary to associate
@@ -114,6 +140,54 @@ impl ProjectService {
         canonical_server_project_root(root)
     }
 
+    /// Resolves one explicit, target-owned execution location after checking
+    /// workspace membership, project write authority, and project ownership in
+    /// the same tenant and organization scope. Execution never selects a
+    /// subject preference and never derives a root from a project id, process
+    /// directory, session field, or bootstrap configuration.
+    pub async fn resolve_runtime_location_execution_root(
+        &self,
+        ctx: &ProjectContext,
+        workspace_id: &str,
+        project_id: &str,
+        runtime_location_id: &str,
+        capability: RuntimeLocationCapability,
+    ) -> Result<PathBuf, ProjectError> {
+        if is_blank(Some(workspace_id)) {
+            return Err(ProjectError::InvalidInput(
+                "workspaceId is required.".to_owned(),
+            ));
+        }
+        if is_blank(Some(project_id)) {
+            return Err(ProjectError::InvalidInput(
+                "projectId is required.".to_owned(),
+            ));
+        }
+        if is_blank(Some(runtime_location_id)) {
+            return Err(ProjectError::InvalidInput(
+                "runtimeLocationId is required.".to_owned(),
+            ));
+        }
+
+        self.repository
+            .ensure_workspace_access(ctx, workspace_id)
+            .await?;
+        let project = self
+            .require_project_execution_access(ctx, project_id)
+            .await?;
+        if project.workspace_id != workspace_id {
+            return Err(ProjectError::Forbidden(
+                "Project does not belong to the requested workspace.".to_owned(),
+            ));
+        }
+
+        let resolved = self
+            .runtime_location_execution_resolver
+            .resolve_execution_root(ctx, &project.id, runtime_location_id, capability)
+            .await?;
+        Ok(resolved.canonical_root)
+    }
+
     pub async fn create_project(
         &self,
         ctx: &ProjectContext,
@@ -136,7 +210,7 @@ impl ProjectService {
         let project = self.repository.create_project(ctx, request).await?;
 
         self.event_publisher
-            .publish_project_created(&project.workspace_id, &project.id)
+            .publish_project_created(ctx, &project.workspace_id, &project.id)
             .await?;
 
         Ok(project)
@@ -161,7 +235,7 @@ impl ProjectService {
         let project = self.repository.update_project(ctx, id, request).await?;
 
         self.event_publisher
-            .publish_project_updated(&project.workspace_id, &project.id)
+            .publish_project_updated(ctx, &project.workspace_id, &project.id)
             .await?;
 
         Ok(project)
@@ -184,7 +258,7 @@ impl ProjectService {
         self.repository.delete_project(ctx, id).await?;
 
         self.event_publisher
-            .publish_project_deleted(&workspace_id, id)
+            .publish_project_deleted(ctx, &workspace_id, id)
             .await?;
 
         Ok(DeleteEntityPayload { id: id.to_owned() })
@@ -231,7 +305,12 @@ impl ProjectService {
             .await?;
 
         self.event_publisher
-            .publish_project_collaborator_added(&workspace_id, project_id, &collaborator.user_id)
+            .publish_project_collaborator_added(
+                ctx,
+                &workspace_id,
+                project_id,
+                &collaborator.user_id,
+            )
             .await?;
 
         Ok(collaborator)
@@ -262,7 +341,7 @@ impl ProjectService {
             .await?;
 
         self.event_publisher
-            .publish_project_collaborator_removed(&workspace_id, project_id, user_id)
+            .publish_project_collaborator_removed(ctx, &workspace_id, project_id, user_id)
             .await?;
 
         Ok(())
@@ -272,8 +351,11 @@ impl ProjectService {
         &self,
         ctx: &ProjectContext,
         project_id: &str,
+        runtime_location_id: &str,
     ) -> Result<GitProjectOverview, ProjectError> {
-        let root_path = self.resolve_project_root(ctx, project_id).await?;
+        let root_path = self
+            .resolve_git_execution_root(ctx, project_id, runtime_location_id, false)
+            .await?;
         let project_lock = self
             .git_operation_coordinator
             .project_lock(project_id)
@@ -289,8 +371,11 @@ impl ProjectService {
         &self,
         ctx: &ProjectContext,
         project_id: &str,
+        runtime_location_id: &str,
     ) -> Result<GitProjectDiff, ProjectError> {
-        let root_path = self.resolve_project_root(ctx, project_id).await?;
+        let root_path = self
+            .resolve_git_execution_root(ctx, project_id, runtime_location_id, false)
+            .await?;
         let project_lock = self
             .git_operation_coordinator
             .project_lock(project_id)
@@ -306,9 +391,12 @@ impl ProjectService {
         &self,
         ctx: &ProjectContext,
         project_id: &str,
+        runtime_location_id: &str,
         request: &CreateProjectGitBranchRequest,
     ) -> Result<GitProjectOverview, ProjectError> {
-        let root_path = self.resolve_project_root_for_write(ctx, project_id).await?;
+        let root_path = self
+            .resolve_git_execution_root(ctx, project_id, runtime_location_id, true)
+            .await?;
         let project_lock = self
             .git_operation_coordinator
             .project_lock(project_id)
@@ -324,9 +412,12 @@ impl ProjectService {
         &self,
         ctx: &ProjectContext,
         project_id: &str,
+        runtime_location_id: &str,
         request: &SwitchProjectGitBranchRequest,
     ) -> Result<GitProjectOverview, ProjectError> {
-        let root_path = self.resolve_project_root_for_write(ctx, project_id).await?;
+        let root_path = self
+            .resolve_git_execution_root(ctx, project_id, runtime_location_id, true)
+            .await?;
         let project_lock = self
             .git_operation_coordinator
             .project_lock(project_id)
@@ -342,9 +433,12 @@ impl ProjectService {
         &self,
         ctx: &ProjectContext,
         project_id: &str,
+        runtime_location_id: &str,
         request: &CommitProjectGitChangesRequest,
     ) -> Result<GitProjectOverview, ProjectError> {
-        let root_path = self.resolve_project_root_for_write(ctx, project_id).await?;
+        let root_path = self
+            .resolve_git_execution_root(ctx, project_id, runtime_location_id, true)
+            .await?;
         let project_lock = self
             .git_operation_coordinator
             .project_lock(project_id)
@@ -364,9 +458,12 @@ impl ProjectService {
         &self,
         ctx: &ProjectContext,
         project_id: &str,
+        runtime_location_id: &str,
         request: &PushProjectGitBranchRequest,
     ) -> Result<GitProjectOverview, ProjectError> {
-        let root_path = self.resolve_project_root_for_write(ctx, project_id).await?;
+        let root_path = self
+            .resolve_git_execution_root(ctx, project_id, runtime_location_id, true)
+            .await?;
         let project_lock = self
             .git_operation_coordinator
             .project_lock(project_id)
@@ -386,9 +483,12 @@ impl ProjectService {
         &self,
         ctx: &ProjectContext,
         project_id: &str,
+        runtime_location_id: &str,
         request: &CreateProjectGitWorktreeRequest,
     ) -> Result<GitProjectOverview, ProjectError> {
-        let root_path = self.resolve_project_root_for_write(ctx, project_id).await?;
+        let root_path = self
+            .resolve_git_execution_root(ctx, project_id, runtime_location_id, true)
+            .await?;
         let project_lock = self
             .git_operation_coordinator
             .project_lock(project_id)
@@ -410,6 +510,7 @@ impl ProjectService {
         &self,
         ctx: &ProjectContext,
         project_id: &str,
+        runtime_location_id: &str,
         request: &RemoveProjectGitWorktreeRequest,
     ) -> Result<GitProjectOverview, ProjectError> {
         if !is_valid_worktree_key(&request.worktree_key) {
@@ -417,7 +518,9 @@ impl ProjectService {
                 "worktreeKey must be a server-generated SHA-256 key.".to_owned(),
             ));
         }
-        let root_path = self.resolve_project_root_for_write(ctx, project_id).await?;
+        let root_path = self
+            .resolve_git_execution_root(ctx, project_id, runtime_location_id, true)
+            .await?;
         let project_lock = self
             .git_operation_coordinator
             .project_lock(project_id)
@@ -438,8 +541,11 @@ impl ProjectService {
         &self,
         ctx: &ProjectContext,
         project_id: &str,
+        runtime_location_id: &str,
     ) -> Result<GitProjectOverview, ProjectError> {
-        let root_path = self.resolve_project_root_for_write(ctx, project_id).await?;
+        let root_path = self
+            .resolve_git_execution_root(ctx, project_id, runtime_location_id, true)
+            .await?;
         let project_lock = self
             .git_operation_coordinator
             .project_lock(project_id)
@@ -451,34 +557,38 @@ impl ProjectService {
             .map_err(map_git_error)
     }
 
-    async fn resolve_project_root(
+    async fn resolve_git_execution_root(
         &self,
         ctx: &ProjectContext,
         project_id: &str,
+        runtime_location_id: &str,
+        require_write_access: bool,
     ) -> Result<PathBuf, ProjectError> {
         if is_blank(Some(project_id)) {
             return Err(ProjectError::InvalidInput(
                 "projectId is required.".to_owned(),
             ));
         }
-        let project = self.get_project(ctx, project_id).await?;
-        let root = self.workspace_root_resolver.resolve_project_root(
-            ctx,
-            &project.workspace_id,
-            &project.id,
-        )?;
-        canonical_server_project_root(root)
-    }
-
-    async fn resolve_project_root_for_write(
-        &self,
-        ctx: &ProjectContext,
-        project_id: &str,
-    ) -> Result<PathBuf, ProjectError> {
-        self.repository
-            .ensure_project_write_access(ctx, project_id)
+        if is_blank(Some(runtime_location_id)) {
+            return Err(ProjectError::InvalidInput(
+                "runtimeLocationId is required for Git operations.".to_owned(),
+            ));
+        }
+        if require_write_access {
+            self.repository
+                .ensure_project_write_access(ctx, project_id)
+                .await?;
+        }
+        let resolved = self
+            .runtime_location_execution_resolver
+            .resolve_execution_root(
+                ctx,
+                project_id,
+                runtime_location_id,
+                RuntimeLocationCapability::Git,
+            )
             .await?;
-        self.resolve_project_root(ctx, project_id).await
+        Ok(resolved.canonical_root)
     }
 }
 

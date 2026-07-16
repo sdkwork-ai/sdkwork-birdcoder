@@ -14,6 +14,7 @@ import {
 
 const workspaceId = 'workspace-session-inventory-native-id';
 const projectId = 'project-session-inventory-native-id';
+const runtimeLocationId = 'runtime-location-session-inventory-native-id';
 
 function buildCodingSummary(
   overrides: Partial<BirdCoderCodingSessionSummary> = {},
@@ -27,6 +28,7 @@ function buildCodingSummary(
     hostMode: 'desktop',
     engineId: 'codex',
     modelId: 'gpt-5.4',
+    runtimeLocationId,
     runtimeStatus: 'completed',
     createdAt: '2026-04-27T00:00:00.000Z',
     updatedAt: '2026-04-27T00:01:00.000Z',
@@ -43,7 +45,6 @@ function buildNativeSummary(
   return {
     ...buildCodingSummary(),
     kind: 'coding',
-    nativeCwd: 'D:/workspace/session-inventory-native-id',
     nativeSessionId: 'native-session-from-engine',
     sortTimestamp: String(Date.parse('2026-04-27T00:02:00.000Z')),
     transcriptUpdatedAt: '2026-04-27T00:02:00.000Z',
@@ -59,7 +60,8 @@ async function listInventoryFor(
     async listCodingSessions() {
       return [...projectionSummaries];
     },
-    async listNativeSessions() {
+    async listNativeSessions(request: { runtimeLocationId: string }) {
+      assert.equal(request.runtimeLocationId, runtimeLocationId);
       return [...nativeSummaries];
     },
   } as Pick<BirdCoderAppRuntimeReadSdkApiClient, 'listCodingSessions' | 'listNativeSessions'>;
@@ -67,6 +69,7 @@ async function listInventoryFor(
   return listStoredSessionInventory({
     appRuntimeReadService: appRuntimeReadService as BirdCoderAppRuntimeReadSdkApiClient,
     projectId,
+    runtimeLocationId,
     workspaceId,
   });
 }

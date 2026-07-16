@@ -620,6 +620,48 @@ export function getOperationIdForRoute(route: BirdCoderApiRouteDefinition): stri
     ['GET /app/v3/api/workspaces/:workspaceId/realtime', 'workspaces.realtime.subscribe'],
     ['GET /app/v3/api/projects', 'projects.list'],
     ['GET /app/v3/api/projects/:projectId', 'projects.retrieve'],
+    [
+      'GET /app/v3/api/projects/:projectId/workspace_binding',
+      'projects.workspaceBinding.retrieve',
+    ],
+    [
+      'PUT /app/v3/api/projects/:projectId/workspace_binding',
+      'projects.workspaceBinding.update',
+    ],
+    [
+      'DELETE /app/v3/api/projects/:projectId/workspace_binding',
+      'projects.workspaceBinding.delete',
+    ],
+    ['GET /app/v3/api/projects/:projectId/runtime_locations', 'projects.runtimeLocations.list'],
+    ['POST /app/v3/api/projects/:projectId/runtime_locations', 'projects.runtimeLocations.create'],
+    [
+      'GET /app/v3/api/projects/:projectId/runtime_locations/:runtimeLocationId',
+      'projects.runtimeLocations.retrieve',
+    ],
+    [
+      'PATCH /app/v3/api/projects/:projectId/runtime_locations/:runtimeLocationId',
+      'projects.runtimeLocations.update',
+    ],
+    [
+      'DELETE /app/v3/api/projects/:projectId/runtime_locations/:runtimeLocationId',
+      'projects.runtimeLocations.delete',
+    ],
+    [
+      'POST /app/v3/api/projects/:projectId/runtime_locations/:runtimeLocationId/rebind',
+      'projects.runtimeLocations.rebind',
+    ],
+    [
+      'POST /app/v3/api/projects/:projectId/runtime_locations/:runtimeLocationId/request_verification',
+      'projects.runtimeLocations.requestVerification',
+    ],
+    [
+      'GET /app/v3/api/projects/:projectId/runtime_location_preferences',
+      'projects.runtimeLocations.preferences.list',
+    ],
+    [
+      'PUT /app/v3/api/projects/:projectId/runtime_location_preferences/:capability',
+      'projects.runtimeLocations.preferences.update',
+    ],
     ['GET /app/v3/api/projects/:projectId/git/overview', 'projects.git.overview.retrieve'],
     ['GET /app/v3/api/projects/:projectId/git/diff', 'projects.git.diff.retrieve'],
     ['POST /app/v3/api/projects/:projectId/git/branches', 'projects.git.branches.create'],

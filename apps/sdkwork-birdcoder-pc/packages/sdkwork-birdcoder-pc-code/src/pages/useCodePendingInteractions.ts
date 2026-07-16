@@ -1,7 +1,7 @@
 import { useCallback } from 'react';
 import {
   useCodingSessionPendingInteractionState,
-} from '@sdkwork/birdcoder-pc-commons';
+} from '@sdkwork/birdcoder-pc-commons/hooks/useCodingSessionProjection';
 import type {
   BirdCoderSubmitApprovalDecisionRequest,
   BirdCoderSubmitUserQuestionAnswerRequest,
@@ -37,20 +37,20 @@ export function useCodePendingInteractions({
   );
 
   const onSubmitApprovalDecision = useCallback(async (
-    approvalId: string,
+    interactionEventId: string,
     request: BirdCoderSubmitApprovalDecisionRequest,
   ) => {
-    await submitApprovalDecision(approvalId, request);
+    await submitApprovalDecision(interactionEventId, request);
     if (sessionId) {
       await onRefreshCodingSessionMessages(sessionId);
     }
   }, [onRefreshCodingSessionMessages, sessionId, submitApprovalDecision]);
 
   const onSubmitUserQuestionAnswer = useCallback(async (
-    questionId: string,
+    interactionEventId: string,
     request: BirdCoderSubmitUserQuestionAnswerRequest,
   ) => {
-    await submitUserQuestionAnswer(questionId, request);
+    await submitUserQuestionAnswer(interactionEventId, request);
     if (sessionId) {
       await onRefreshCodingSessionMessages(sessionId);
     }

@@ -25,7 +25,7 @@ Root SDKWork standards remain authoritative. Local component specs can narrow or
 
 ## Contract Artifacts
 
-- [coding-server-openapi-rust-defer-registry.json](./coding-server-openapi-rust-defer-registry.json) — machine-readable defer registry comparing the coding-server HTTP OpenAPI snapshot against BirdCoder product + federated `sdkwork-iam` host manifests + commerce gateway routes. Regenerate with `node scripts/build-coding-server-openapi-rust-defer-registry.mjs`. All 161 HTTP OpenAPI operations must be implemented with **zero deferred routes**; the route catalog has 162 entries because workspace realtime is a WebSocket route that is intentionally excluded from HTTP OpenAPI.
+- [coding-server-openapi-rust-defer-registry.json](./coding-server-openapi-rust-defer-registry.json) — machine-readable defer registry comparing the coding-server HTTP OpenAPI snapshot against BirdCoder product + federated `sdkwork-iam` host manifests + commerce gateway routes. Regenerate with `node scripts/build-coding-server-openapi-rust-defer-registry.mjs`. All 174 HTTP OpenAPI operations must be implemented with **zero deferred routes**. The composed route catalog has 175 entries; workspace realtime remains a route-catalog-only transport entry and is intentionally excluded from HTTP OpenAPI.
 
 ## Canonical Specs
 

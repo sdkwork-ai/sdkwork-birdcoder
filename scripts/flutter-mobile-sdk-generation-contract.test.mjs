@@ -14,9 +14,9 @@ for (const consumerPath of [
   'apps/sdkwork-birdcoder-flutter-mobile/sdks/sdkwork_birdcoder_flutter_mobile_backend_sdk_consumer',
 ]) {
   assert.equal(
-    fs.existsSync(path.join(rootDir, consumerPath, '.sdkwork-assembly.json')),
-    false,
-    `${consumerPath} must not keep retired consumer .sdkwork-assembly.json metadata.`,
+    fs.existsSync(path.join(rootDir, consumerPath, 'sdk-manifest.json')),
+    true,
+    `${consumerPath} must provide sdk-manifest.json metadata.`,
   );
   const manifest = JSON.parse(read(`${consumerPath}/sdk-manifest.json`));
   assert.ok(manifest.generationInputSpec, `${consumerPath} must declare a canonical generation input spec.`);
@@ -59,8 +59,8 @@ assert.match(
 );
 assert.match(
   generatorSource,
-  /\.sdkgen\.json`/u,
-  'Flutter mobile SDK generation must resolve canonical PC OpenAPI sdkgen inputs.',
+  /familyManifest\.generationInputSpec/u,
+  'Flutter mobile SDK generation must resolve canonical PC OpenAPI sdkgen inputs from family manifests.',
 );
 
 console.log('flutter mobile sdk generation contract passed.');

@@ -1,9 +1,11 @@
+use axum::extract::rejection::JsonRejection;
 use axum::extract::{Path, Query, State};
 use axum::http::StatusCode;
 use axum::Json;
 
 use sdkwork_birdcoder_codeengine::{
     extract_native_lookup_id_for_engine, list_codeengine_native_session_summaries,
+    sanitize_codeengine_git_repository_url, sanitize_codeengine_session_metadata,
     CodeEngineSessionNativeAttributesRecord, CodeEngineSessionSummaryRecord,
 };
 use sdkwork_birdcoder_coding_sessions_service::native_session_types::NativeSessionAttributesPayload;
@@ -19,6 +21,7 @@ use sdkwork_birdcoder_errors::{
     ApiListEnvelope,
 };
 use sdkwork_birdcoder_project_service::context::ProjectContext;
+use sdkwork_birdcoder_project_service::domain::runtime_location::RuntimeLocationCapability;
 use sdkwork_birdcoder_project_service::service::project_service::ProjectService;
 use sdkwork_birdcoder_router_context::{
     coding_session_context, project_context, RequiredIamContext, StrictOffsetListQuery,
@@ -71,7 +74,6 @@ pub async fn list_sessions(
     let page = merge_native_session_summaries(
         page,
         &state,
-        &ctx,
         &project_context(&iam),
         &query,
         offset,
@@ -90,7 +92,6 @@ pub async fn list_sessions(
 async fn merge_native_session_summaries(
     page: sdkwork_birdcoder_coding_sessions_service::domain::results::CodingSessionListPage,
     state: &CodingSessionsAppState,
-    context: &sdkwork_birdcoder_coding_sessions_service::context::CodingSessionContext,
     project_context: &ProjectContext,
     query: &ListSessionsQuery,
     offset: usize,
@@ -110,24 +111,42 @@ async fn merge_native_session_summaries(
     else {
         return page;
     };
+    let Some(runtime_location_id) = query
+        .runtime_location_id
+        .as_deref()
+        .filter(|value| !value.trim().is_empty())
+    else {
+        // Native provider records expose only host-local CWD facts. Without a
+        // concrete runtime-location binding there is no execution authority
+        // from which an authorized root can be obtained.
+        return page;
+    };
 
-    let mut project_root = state
-        .service
-        .resolve_project_working_directory(context, project_id)
+    let Some(project_service) = state.project_service.as_deref() else {
+        tracing::warn!(
+            "native coding session discovery is disabled because project execution authorization is unavailable"
+        );
+        return page;
+    };
+    let project_root = match project_service
+        .resolve_runtime_location_execution_root(
+            project_context,
+            workspace_id,
+            project_id,
+            runtime_location_id,
+            RuntimeLocationCapability::Terminal,
+        )
         .await
-        .ok()
-        .flatten()
-        .and_then(|root| std::fs::canonicalize(root).ok())
-        .map(|root| normalize_session_path(root.to_string_lossy().as_ref()));
-    if project_root.is_none() {
-        if let Some(service) = state.project_service.as_deref() {
-            project_root = service
-                .resolve_project_root_for_scope(project_context, workspace_id, project_id)
-                .await
-                .ok()
-                .map(|root| normalize_session_path(root.to_string_lossy().as_ref()));
+    {
+        Ok(root) => normalize_session_path(root.to_string_lossy().as_ref()),
+        Err(error) => {
+            tracing::warn!(
+                error = %error,
+                "native coding session discovery was denied for the requested project scope"
+            );
+            return page;
         }
-    }
+    };
     let native_summaries =
         match list_codeengine_native_session_summaries(query.engine_id.as_deref()) {
             Ok(summaries) => summaries,
@@ -144,7 +163,7 @@ async fn merge_native_session_summaries(
             &summary,
             workspace_id,
             project_id,
-            project_root.as_deref(),
+            Some(project_root.as_str()),
         ) {
             continue;
         }
@@ -160,6 +179,7 @@ async fn merge_native_session_summaries(
             summary,
             workspace_id,
             project_id,
+            runtime_location_id,
             native_session_id,
         );
         if let Some(index) = existing_index {
@@ -187,6 +207,7 @@ fn map_native_summary_to_coding_session(
     summary: CodeEngineSessionSummaryRecord,
     workspace_id: &str,
     project_id: &str,
+    runtime_location_id: &str,
     native_session_id: Option<String>,
 ) -> sdkwork_birdcoder_coding_sessions_service::domain::results::CodingSessionPayload {
     let native_attributes = map_native_session_attributes(summary.native_attributes);
@@ -194,6 +215,7 @@ fn map_native_summary_to_coding_session(
         id: summary.id,
         workspace_id: workspace_id.to_owned(),
         project_id: project_id.to_owned(),
+        runtime_location_id: Some(runtime_location_id.to_owned()),
         title: summary.title,
         status: summary.status,
         host_mode: summary.host_mode,
@@ -213,6 +235,10 @@ fn map_native_summary_to_coding_session(
 fn map_native_session_attributes(
     record: CodeEngineSessionNativeAttributesRecord,
 ) -> NativeSessionAttributesPayload {
+    let metadata = sanitize_codeengine_session_metadata(&serde_json::Value::Object(
+        record.metadata.into_iter().collect(),
+    ));
+
     NativeSessionAttributesPayload {
         schema_version: record.schema_version,
         session_tree_id: record.session_tree_id,
@@ -227,12 +253,12 @@ fn map_native_session_attributes(
         cwd: record.cwd,
         git_branch: record.git_branch,
         git_commit: record.git_commit,
-        git_repository_url: record.git_repository_url,
+        git_repository_url: sanitize_codeengine_git_repository_url(record.git_repository_url),
         agent_name: record.agent_name,
         agent_role: record.agent_role,
         is_ephemeral: record.is_ephemeral,
         is_sidechain: record.is_sidechain,
-        metadata: record.metadata,
+        metadata,
     }
 }
 
@@ -242,10 +268,8 @@ fn native_summary_matches_scope(
     project_id: &str,
     project_root: Option<&str>,
 ) -> bool {
-    if summary.workspace_id.as_deref() == Some(workspace_id)
-        && summary.project_id.as_deref() == Some(project_id)
-    {
-        return true;
+    if workspace_id.trim().is_empty() || project_id.trim().is_empty() {
+        return false;
     }
     let Some(native_cwd) = summary.native_cwd.as_deref() else {
         return false;
@@ -259,13 +283,83 @@ fn native_summary_matches_scope(
 }
 
 fn normalize_session_path(value: &str) -> String {
-    let normalized = value.replace('\\', "/");
-    let normalized = normalized
-        .strip_prefix("//?/UNC/")
-        .map(|path| format!("//{path}"))
-        .or_else(|| normalized.strip_prefix("//?/").map(str::to_owned))
-        .unwrap_or(normalized);
-    normalized.trim_end_matches('/').to_ascii_lowercase()
+    let value = value.trim();
+    let normalized = std::fs::canonicalize(value)
+        .ok()
+        .map(|path| path.to_string_lossy().into_owned())
+        .unwrap_or_else(|| value.to_owned());
+    let normalized = normalize_session_path_lexically(normalized.as_str());
+    if cfg!(windows) || normalized.as_bytes().get(1) == Some(&b':') {
+        normalized.to_ascii_lowercase()
+    } else {
+        normalized
+    }
+}
+
+fn normalize_session_path_lexically(value: &str) -> String {
+    let value = value.replace('\\', "/");
+    let value = if let Some(unc_path) = value.strip_prefix("//?/UNC/") {
+        format!("//{unc_path}")
+    } else if let Some(drive_path) = value.strip_prefix("//?/") {
+        drive_path.to_owned()
+    } else {
+        value
+    };
+    let (prefix, remainder, absolute) = if value.starts_with("//") {
+        ("//", value.trim_start_matches('/'), true)
+    } else if value.starts_with('/') {
+        ("/", value.trim_start_matches('/'), true)
+    } else if value.as_bytes().get(1) == Some(&b':') {
+        let prefix = &value[..2];
+        let remainder = value[2..].trim_start_matches('/');
+        (prefix, remainder, value.as_bytes().get(2) == Some(&b'/'))
+    } else {
+        ("", value.as_str(), false)
+    };
+    let protected_components = if prefix == "//" { 2 } else { 0 };
+    let mut components: Vec<&str> = Vec::new();
+    for component in remainder.split('/') {
+        match component {
+            "" | "." => {}
+            ".." => {
+                if components.len() > protected_components
+                    && components.last().is_some_and(|last| *last != "..")
+                {
+                    components.pop();
+                } else if !absolute {
+                    components.push(component);
+                }
+            }
+            component => components.push(component),
+        }
+    }
+
+    let joined = components.join("/");
+    if prefix == "/" {
+        if joined.is_empty() {
+            "/".to_owned()
+        } else {
+            format!("/{joined}")
+        }
+    } else if prefix == "//" {
+        if joined.is_empty() {
+            "//".to_owned()
+        } else {
+            format!("//{joined}")
+        }
+    } else if prefix.len() == 2 && absolute {
+        if joined.is_empty() {
+            format!("{prefix}/")
+        } else {
+            format!("{prefix}/{joined}")
+        }
+    } else if prefix.is_empty() {
+        joined
+    } else if joined.is_empty() {
+        prefix.to_owned()
+    } else {
+        format!("{prefix}{joined}")
+    }
 }
 
 pub async fn get_session(
@@ -296,8 +390,14 @@ pub async fn create_session(
     web: WebRequestContext,
     RequiredIamContext(iam): RequiredIamContext,
     State(state): State<CodingSessionsAppState>,
-    Json(request): Json<CreateCodingSessionRequest>,
+    body: Result<Json<CreateCodingSessionRequest>, JsonRejection>,
 ) -> Result<(StatusCode, Json<ApiDataEnvelope<CodingSessionPayload>>), CodingSessionsRouteError> {
+    let Json(request) = body.map_err(|_| {
+        CodingSessionsRouteError::from(
+            AppError::bad_request("Coding-session create request body is invalid.")
+                .with_trace_id(request_trace_id(&web)),
+        )
+    })?;
     let ctx = coding_session_context(&iam);
     let session = trace_service_error(
         state.service.create_session(&ctx, request.into()).await,
@@ -601,8 +701,8 @@ mod tests {
             native_cwd: Some(native_cwd.to_owned()),
             sort_timestamp: 1_784_099_260_000,
             transcript_updated_at: Some("2026-07-15T08:01:00.000Z".to_owned()),
-            workspace_id: None,
-            project_id: None,
+            workspace_id: Some("1".to_owned()),
+            project_id: Some("2".to_owned()),
             native_attributes: CodeEngineSessionNativeAttributesRecord {
                 model_provider: Some("openai".to_owned()),
                 title: Some("Native Codex thread".to_owned()),
@@ -636,11 +736,24 @@ mod tests {
     }
 
     #[test]
+    fn native_scope_rejects_a_path_that_lexically_escapes_the_project_root() {
+        let summary = codex_summary(r"E:\sdkwork-space\sdkwork-birdcoder\..\sdkwork-im");
+
+        assert!(!native_summary_matches_scope(
+            &summary,
+            "1",
+            "2",
+            Some("e:/sdkwork-space/sdkwork-birdcoder"),
+        ));
+    }
+
+    #[test]
     fn native_summary_maps_to_unified_coding_session_contract() {
         let mapped = map_native_summary_to_coding_session(
             codex_summary(r"E:\sdkwork-space\sdkwork-birdcoder"),
             "1",
             "2",
+            "runtime-location-1",
             Some("thread-1".to_owned()),
         );
 
@@ -648,6 +761,10 @@ mod tests {
         assert_eq!(mapped.native_session_id.as_deref(), Some("thread-1"));
         assert_eq!(mapped.workspace_id, "1");
         assert_eq!(mapped.project_id, "2");
+        assert_eq!(
+            mapped.runtime_location_id.as_deref(),
+            Some("runtime-location-1")
+        );
         assert_eq!(mapped.engine_id, "codex");
         assert_eq!(
             mapped.native_attributes.model_provider.as_deref(),
@@ -657,5 +774,46 @@ mod tests {
             mapped.native_attributes.title.as_deref(),
             Some("Native Codex thread")
         );
+    }
+
+    #[test]
+    fn native_summary_metadata_redacts_path_like_values_recursively() {
+        let mut record = codex_summary(r"E:\sdkwork-space\sdkwork-birdcoder");
+        record.native_attributes.metadata = std::collections::BTreeMap::from([
+            ("cwd".to_owned(), serde_json::json!(r"E:\private\project")),
+            (
+                "nested".to_owned(),
+                serde_json::json!({
+                    "workingDirectory": r"E:\private\project\packages",
+                    "safe": "preserved",
+                }),
+            ),
+            (
+                "items".to_owned(),
+                serde_json::json!([
+                    { "nativeCwd": r"E:\private\project\src" },
+                    { "safe": true },
+                ]),
+            ),
+        ]);
+        record.native_attributes.git_repository_url =
+            Some("https://token:secret@example.com/owner/repository.git".to_owned());
+
+        let mapped = map_native_summary_to_coding_session(
+            record,
+            "1",
+            "2",
+            "runtime-location-1",
+            Some("thread-1".to_owned()),
+        );
+        let json = serde_json::to_value(mapped).expect("serialize coding-session projection");
+        let metadata = &json["nativeAttributes"]["metadata"];
+
+        assert!(metadata.get("cwd").is_none());
+        assert!(metadata["nested"].get("workingDirectory").is_none());
+        assert!(metadata["items"][0].get("nativeCwd").is_none());
+        assert_eq!(metadata["nested"]["safe"], "preserved");
+        assert_eq!(metadata["items"][1]["safe"], true);
+        assert!(json["nativeAttributes"].get("gitRepositoryUrl").is_none());
     }
 }

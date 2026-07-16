@@ -5,6 +5,8 @@
   "language": "flutter",
   "sdkType": "backend",
   "packageName": "sdkwork_birdcoder_backend_sdk",
+  "transportPackageName": "sdkwork_birdcoder_backend_sdk",
+  "consumerPackageName": "sdkwork_birdcoder_backend_sdk",
   "generator": "@sdkwork/sdk-generator",
   "capabilities": {
     "supportsGeneratedTests": true,

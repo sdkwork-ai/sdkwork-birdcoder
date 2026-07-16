@@ -2,7 +2,7 @@ import { useCallback } from 'react';
 import {
   buildCodingSessionProjectScopedKey,
   type BirdCoderProjectCodingSessionIndex,
-} from '@sdkwork/birdcoder-pc-commons';
+} from '@sdkwork/birdcoder-pc-commons/workbench/codingSessionSelection';
 
 export function useCodeProjectSessionResolution(
   sessionIndex: BirdCoderProjectCodingSessionIndex,

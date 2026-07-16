@@ -24,17 +24,17 @@ assert.equal(defaultConfig.schemaVersion, 1);
 assert.equal(defaultConfig.version, 'v1');
 assert.equal(defaultConfig.updatedAt, '2026-04-28T00:00:00.000Z');
 assert.equal(defaultConfig.engines.codex.defaultModelId, 'gpt-5.4');
-assert.equal(defaultConfig.engines['claude-code'].defaultModelId, 'claude-code');
-assert.equal(defaultConfig.engines.gemini.defaultModelId, 'gemini');
-assert.equal(defaultConfig.engines.opencode.defaultModelId, 'opencode');
+assert.equal(defaultConfig.engines['claude-code'].defaultModelId, 'claude-sonnet-4-6');
+assert.equal(defaultConfig.engines.gemini.defaultModelId, 'auto-gemini-3');
+assert.equal(defaultConfig.engines.opencode.defaultModelId, 'opencode/big-pickle');
 
 const normalizedConfig = normalizeBirdCoderCodeEngineModelConfig({
   ...defaultConfig,
   engines: {
     codex: {
       engineId: 'codex',
-      defaultModelId: 'gpt-5.4',
-      selectedModelId: 'gpt-5.4',
+      defaultModelId: 'gpt-5.5',
+      selectedModelId: 'gpt-5.5',
       customModels: [
         { id: 'custom-codex-fast', label: 'Custom Codex Fast' },
         { id: 'gpt-5.4', label: 'Duplicate built-in should be ignored' },
@@ -43,7 +43,7 @@ const normalizedConfig = normalizeBirdCoderCodeEngineModelConfig({
     },
     gemini: {
       engineId: 'gemini',
-      defaultModelId: 'gemini-1.5-pro',
+      defaultModelId: 'gemini-2.5-pro',
       selectedModelId: 'gemini-custom',
       customModels: [{ id: 'gemini-custom', label: 'Gemini Custom' }],
       models: [],
@@ -52,26 +52,24 @@ const normalizedConfig = normalizeBirdCoderCodeEngineModelConfig({
 });
 
 const settings = modelConfigToWorkbenchCodeEngineSettingsMap(normalizedConfig);
-assert.equal(settings.codex?.defaultModelId, 'gpt-5.4');
-assert.deepEqual(settings.codex?.customModels, [
-  { id: 'custom-codex-fast', label: 'Custom Codex Fast' },
-]);
-assert.equal(settings.gemini?.defaultModelId, 'gemini-custom');
-assert.deepEqual(settings.gemini?.customModels, [
-  { id: 'gemini-custom', label: 'Gemini Custom' },
-]);
+assert.equal(settings.codex?.defaultModelId, 'gpt-5.5');
+assert.equal(settings.gemini?.defaultModelId, 'auto-gemini-3');
+assert.equal('customModels' in normalizedConfig.engines.codex, false);
+assert.equal('customModels' in normalizedConfig.engines.gemini, false);
+assert.equal('customModels' in (settings.codex ?? {}), false);
+assert.equal('customModels' in (settings.gemini ?? {}), false);
 
 assert.equal(
   resolveWorkbenchCodeEngineSelectedModelId('codex', {
     codeEngineSettings: settings,
   }),
-  'gpt-5.4',
+  'gpt-5.5',
 );
 assert.equal(
   resolveWorkbenchCodeEngineSelectedModelId('gemini', {
     codeEngineSettings: settings,
   }),
-  'gemini-custom',
+  'auto-gemini-3',
 );
 
 const configFromSettings = workbenchCodeEngineSettingsMapToModelConfig(settings, {
@@ -80,8 +78,10 @@ const configFromSettings = workbenchCodeEngineSettingsMapToModelConfig(settings,
 });
 
 assert.equal(configFromSettings.version, 'local-v2');
-assert.equal(configFromSettings.engines.codex.defaultModelId, 'gpt-5.4');
-assert.equal(configFromSettings.engines.gemini.defaultModelId, 'gemini-custom');
+assert.equal(configFromSettings.engines.codex.defaultModelId, 'gpt-5.5');
+assert.equal(configFromSettings.engines.gemini.defaultModelId, 'auto-gemini-3');
+assert.equal('customModels' in configFromSettings.engines.codex, false);
+assert.equal('customModels' in configFromSettings.engines.gemini, false);
 
 assert.equal(
   compareBirdCoderCodeEngineModelConfigVersions(

@@ -57,6 +57,7 @@ export default defineConfig(({ mode }) => {
         '/app': {
           target: process.env.BIRDCODER_DEV_PROXY_TARGET ?? 'http://127.0.0.1:10240',
           changeOrigin: true,
+          ws: true,
         },
         '/backend': {
           target: process.env.BIRDCODER_DEV_PROXY_TARGET ?? 'http://127.0.0.1:10240',

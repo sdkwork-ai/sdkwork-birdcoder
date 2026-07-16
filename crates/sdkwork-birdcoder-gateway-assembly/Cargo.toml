@@ -1,0 +1,25 @@
+[package]
+name = "sdkwork-birdcoder-gateway-assembly"
+edition.workspace = true
+license.workspace = true
+version.workspace = true
+description = "Generated gateway assembly for sdkwork-birdcoder application HTTP plane."
+
+[lib]
+name = "sdkwork_birdcoder_gateway_assembly"
+path = "src/lib.rs"
+
+[dependencies]
+axum.workspace = true
+tokio.workspace = true
+sdkwork-birdcoder-standalone-gateway.workspace = true
+sdkwork-routes-chat-app-api.workspace = true
+sdkwork-routes-coding-sessions-app-api.workspace = true
+sdkwork-routes-commerce-app-api.workspace = true
+sdkwork-routes-deployment-backend-api.workspace = true
+sdkwork-routes-document-app-api.workspace = true
+sdkwork-routes-engine-catalog-app-api.workspace = true
+sdkwork-routes-membership-app-api.workspace = true
+sdkwork-routes-skill-packages-app-api.workspace = true
+sdkwork-routes-system-app-api.workspace = true
+sdkwork-routes-workspace-app-api.workspace = true

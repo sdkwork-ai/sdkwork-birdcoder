@@ -30,10 +30,11 @@ class RuntimeApi {
   }
 
   /// Get discovered native engine session detail
-  Future<BirdCoderNativeSessionDetailEnvelope?> nativeSessionsRetrieve(String id, [String? workspaceId, String? projectId, String? engineId]) async {
+  Future<BirdCoderNativeSessionDetailEnvelope?> nativeSessionsRetrieve(String id, String workspaceId, String projectId, String runtimeLocationId, [String? engineId]) async {
     final query = buildQueryString([
       QueryParameterSpec('workspaceId', workspaceId, 'form', true, false, null),
       QueryParameterSpec('projectId', projectId, 'form', true, false, null),
+      QueryParameterSpec('runtimeLocationId', runtimeLocationId, 'form', true, false, null),
       QueryParameterSpec('engineId', engineId, 'form', true, false, null)
     ]);
     final response = await _client.get(ApiPaths.appendQueryString(ApiPaths.appPath('/native_sessions/${serializePathParameter(id, const PathParameterSpec('id', 'simple', false))}'), query));
@@ -53,13 +54,14 @@ class RuntimeApi {
   }
 
   /// List discovered native engine sessions
-  Future<BirdCoderNativeSessionSummaryListEnvelope?> nativeSessionsList([String? workspaceId, String? projectId, String? engineId, int? limit, int? offset]) async {
+  Future<BirdCoderNativeSessionSummaryListEnvelope?> nativeSessionsList(String workspaceId, String projectId, String runtimeLocationId, [String? engineId, int? page, int? pageSize]) async {
     final query = buildQueryString([
       QueryParameterSpec('workspaceId', workspaceId, 'form', true, false, null),
       QueryParameterSpec('projectId', projectId, 'form', true, false, null),
+      QueryParameterSpec('runtimeLocationId', runtimeLocationId, 'form', true, false, null),
       QueryParameterSpec('engineId', engineId, 'form', true, false, null),
-      QueryParameterSpec('limit', limit, 'form', true, false, null),
-      QueryParameterSpec('offset', offset, 'form', true, false, null)
+      QueryParameterSpec('page', page, 'form', true, false, null),
+      QueryParameterSpec('page_size', pageSize, 'form', true, false, null)
     ]);
     final response = await _client.get(ApiPaths.appendQueryString(ApiPaths.appPath('/native_sessions'), query));
     return (() {
@@ -78,7 +80,7 @@ class RuntimeApi {
   }
 
   /// Sync code engine model configuration
-  Future<BirdCoderCodeEngineModelConfigSyncResultEnvelope?> modelConfigSync(BirdCoderSyncCodeEngineModelConfigRequest body) async {
+  Future<BirdCoderCodeEngineModelConfigSyncResultEnvelope?> modelConfigUpdate(BirdCoderSyncCodeEngineModelConfigRequest body) async {
     final payload = body.toJson();
     final response = await _client.put(ApiPaths.appPath('/model_config'), body: payload, contentType: 'application/json');
     return (() {

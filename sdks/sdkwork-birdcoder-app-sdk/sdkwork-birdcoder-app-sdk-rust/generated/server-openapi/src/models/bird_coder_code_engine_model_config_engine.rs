@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 
-use crate::models::{BirdCoderCodeEngineModelConfigCustomModel, BirdCoderModelCatalogEntry};
+use crate::models::{BirdCoderModelCatalogEntry};
 
 #[derive(Serialize, Deserialize, Debug, Clone, Default)]
 pub struct BirdCoderCodeEngineModelConfigEngine {
@@ -12,9 +12,6 @@ pub struct BirdCoderCodeEngineModelConfigEngine {
 
     #[serde(rename = "selectedModelId")]
     pub selected_model_id: String,
-
-    #[serde(rename = "customModels")]
-    pub custom_models: Vec<BirdCoderCodeEngineModelConfigCustomModel>,
 
     pub models: Vec<BirdCoderModelCatalogEntry>,
 }

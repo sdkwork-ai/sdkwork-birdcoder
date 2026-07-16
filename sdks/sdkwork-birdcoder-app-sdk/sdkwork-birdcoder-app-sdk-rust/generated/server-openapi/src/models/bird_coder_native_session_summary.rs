@@ -12,6 +12,11 @@ pub struct BirdCoderNativeSessionSummary {
     #[serde(rename = "projectId")]
     pub project_id: String,
 
+    /// Verified runtime-location identifier bound when the coding session was created. Legacy sessions may omit this field and cannot execute or trigger native-session discovery.
+    #[serde(rename = "runtimeLocationId")]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub runtime_location_id: Option<String>,
+
     pub title: String,
 
     pub status: String,
@@ -54,8 +59,4 @@ pub struct BirdCoderNativeSessionSummary {
     pub transcript_updated_at: Option<String>,
 
     pub kind: String,
-
-    #[serde(rename = "nativeCwd")]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub native_cwd: Option<String>,
 }

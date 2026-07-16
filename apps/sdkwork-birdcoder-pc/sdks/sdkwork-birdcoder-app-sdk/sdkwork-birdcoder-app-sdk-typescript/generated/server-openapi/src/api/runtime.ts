@@ -54,12 +54,14 @@ export class RuntimeNativeSessionProvidersApi {
 export interface RuntimeNativeSessionsRetrieveParams {
   workspaceId: string;
   projectId: string;
+  runtimeLocationId: string;
   engineId?: 'codex' | 'claude-code' | 'gemini' | 'opencode';
 }
 
 export interface RuntimeNativeSessionsListParams {
   workspaceId: string;
   projectId: string;
+  runtimeLocationId: string;
   engineId?: 'codex' | 'claude-code' | 'gemini' | 'opencode';
   page?: number;
   pageSize?: number;
@@ -78,6 +80,7 @@ export class RuntimeNativeSessionsApi {
     const query = buildQueryString([
       { name: 'workspaceId', value: params.workspaceId, style: 'form', explode: true, allowReserved: false },
       { name: 'projectId', value: params.projectId, style: 'form', explode: true, allowReserved: false },
+      { name: 'runtimeLocationId', value: params.runtimeLocationId, style: 'form', explode: true, allowReserved: false },
       { name: 'engineId', value: params.engineId, style: 'form', explode: true, allowReserved: false },
     ]);
     return this.client.get<BirdCoderNativeSessionDetail>(appendQueryString(appApiPath(`/native_sessions/${serializePathParameter(id, { name: 'id', style: 'simple', explode: false })}`), query));
@@ -88,6 +91,7 @@ export class RuntimeNativeSessionsApi {
     const query = buildQueryString([
       { name: 'workspaceId', value: params.workspaceId, style: 'form', explode: true, allowReserved: false },
       { name: 'projectId', value: params.projectId, style: 'form', explode: true, allowReserved: false },
+      { name: 'runtimeLocationId', value: params.runtimeLocationId, style: 'form', explode: true, allowReserved: false },
       { name: 'engineId', value: params.engineId, style: 'form', explode: true, allowReserved: false },
       { name: 'page', value: params.page, style: 'form', explode: true, allowReserved: false },
       { name: 'page_size', value: params.pageSize, style: 'form', explode: true, allowReserved: false },

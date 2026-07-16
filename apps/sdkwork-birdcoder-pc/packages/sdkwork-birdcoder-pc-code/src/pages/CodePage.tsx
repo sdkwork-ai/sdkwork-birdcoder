@@ -2,7 +2,6 @@ import { memo, startTransition, useCallback, useEffect, useMemo, useRef, useStat
 import { buildProjectCodingSessionIndex } from '@sdkwork/birdcoder-pc-commons/workbench/codingSessionSelection';
 import {
   buildWorkbenchCodingSessionTurnContext,
-  buildWorkbenchCodingSessionTurnModelSelectionMetadata,
   ensureWorkbenchCodingSessionForMessage,
   regenerateWorkbenchCodingSessionFromLastUserMessage,
   restoreWorkbenchCodingSessionMessageFiles,
@@ -20,6 +19,7 @@ import { useCodingSessionEngineModelSelection } from '@sdkwork/birdcoder-pc-comm
 import { useFileSystem } from '@sdkwork/birdcoder-pc-commons/hooks/useFileSystem';
 import { useIDEServices } from '@sdkwork/birdcoder-pc-commons/context/IDEContext';
 import { useProjectLocalWorkingDirectory } from '@sdkwork/birdcoder-pc-commons/hooks/useProjectLocalWorkingDirectory';
+import { useProjectRuntimeLocation } from '@sdkwork/birdcoder-pc-commons/hooks/useProjectRuntimeLocation';
 import { useProjectGitOverview } from '@sdkwork/birdcoder-pc-commons/hooks/useProjectGitOverview';
 import { useProjects } from '@sdkwork/birdcoder-pc-commons/hooks/useProjects';
 import { useSelectedCodingSessionMessages } from '@sdkwork/birdcoder-pc-commons/hooks/useSelectedCodingSessionMessages';
@@ -46,10 +46,8 @@ import { CodePageSurface } from './CodePageSurface';
 import { useCodePageClipboardActions } from './useCodePageClipboardActions';
 import { useCodeDeleteConfirmation } from './useCodeDeleteConfirmation';
 import { useCodeEditorChatLayout } from './useCodeEditorChatLayout';
-import {
-  useCodeEffectiveWorkspaceId,
-  useCodeLocalFolderProjectImport,
-} from './useCodeLocalFolderProjectImport';
+import { useCodeEffectiveWorkspaceId } from './useCodeEffectiveWorkspaceId';
+import { useCodeServerDirectoryProjectImport } from './useCodeServerDirectoryProjectImport';
 import { useCodeNewCodingSessionRequestState } from './useCodeNewCodingSessionRequestState';
 import { useCodePageSessionSelection } from './useCodePageSessionSelection';
 import { useCodePageSurfaceProps } from './useCodePageSurfaceProps';
@@ -96,8 +94,13 @@ function CodePageComponent({
     isActive: isVisible,
     targetProjectId: projectId,
   });
-  const { appRuntimeReadService, projectService } = useIDEServices();
+  const {
+    appRuntimeReadService,
+    projectRuntimeLocationService,
+    projectService,
+  } = useIDEServices();
   const resolveProjectLocalWorkingDirectory = useProjectLocalWorkingDirectory();
+  const resolveProjectRuntimeLocation = useProjectRuntimeLocation();
   const { user } = useAuth();
 
   const { addToast } = useToast();
@@ -314,16 +317,6 @@ function CodePageComponent({
       requestedModelId,
     );
   }, [createCodingSessionWithTranscriptReset]);
-  const createCodingSessionFromCurrentProjectWithTranscriptReset = useCallback(async (
-    requestedEngineId?: string,
-    requestedModelId?: string,
-  ) => {
-    await createCodingSessionWithTranscriptReset(
-      currentProjectId,
-      requestedEngineId,
-      requestedModelId,
-    );
-  }, [createCodingSessionWithTranscriptReset, currentProjectId]);
   const {
     runConfigurations,
     runConfigurationDraft,
@@ -334,7 +327,7 @@ function CodePageComponent({
     handleSaveDebugConfiguration,
   } = useCodeRunEntryActions({
     currentProjectId,
-    resolveLocalWorkingDirectory: resolveProjectLocalWorkingDirectory,
+    resolveProjectRuntimeLocation,
     isRunConfigVisible,
     setIsRunConfigVisible,
     setIsDebugConfigVisible,
@@ -371,7 +364,6 @@ function CodePageComponent({
     deleteFolder,
     renameNode,
     searchFiles,
-    mountFolder,
     restoreProjectMount,
     flushPendingAutosave,
   } = useFileSystem(currentProjectId, {
@@ -385,7 +377,7 @@ function CodePageComponent({
     projects,
     selectedCodingSessionId: sessionId,
     selectedProjectId: currentProjectId || null,
-    resolveLocalWorkingDirectory: resolveProjectLocalWorkingDirectory,
+    resolveProjectRuntimeLocation,
     selectCodingSession: selectSession,
     setIsTerminalOpen,
     setTerminalRequest,
@@ -449,12 +441,11 @@ function CodePageComponent({
     return resolveCodeProjectActionTarget(project, addToast);
   }, [addToast]);
 
-  const { selectFolderAndImportProject } = useCodeLocalFolderProjectImport({
+  const { selectFolderAndImportProject } = useCodeServerDirectoryProjectImport({
     createProject,
     createWorkspace,
+    deleteProject,
     effectiveWorkspaceId,
-    mountFolder,
-    onLocalFolderPickerUnsupported: (message) => addToast(message, 'error'),
     projectService,
     refreshWorkspaces,
   });
@@ -608,7 +599,7 @@ function CodePageComponent({
 
   const handleOpenFolder = useCallback(async () => {
     try {
-      const importedProject = await selectFolderAndImportProject('Local Folder');
+      const importedProject = await selectFolderAndImportProject(t('app.serverDirectory'));
       if (importedProject) {
         activateImportedProject(importedProject.projectId);
         syncImportedProjectInBackground(importedProject.projectId, importedProject.workspaceId);
@@ -618,7 +609,7 @@ function CodePageComponent({
       console.error("Failed to open folder", error);
       addToast('Failed to open folder', 'error');
     }
-  }, [addToast, activateImportedProject, selectFolderAndImportProject, syncImportedProjectInBackground]);
+  }, [addToast, activateImportedProject, selectFolderAndImportProject, syncImportedProjectInBackground, t]);
 
   const handleRetryMountRecovery = useCallback(async () => {
     if (!currentProjectId) {
@@ -665,10 +656,11 @@ function CodePageComponent({
       }
 
       const reboundProject = await rebindLocalFolderProject({
+        bindLocalProjectRuntimeLocation: (projectId, source) =>
+          projectRuntimeLocationService.bindLocalProjectRuntimeLocation(projectId, source),
         projectId: currentProjectId,
         fallbackProjectName: currentProject?.name ?? 'Local Folder',
         folderInfo: pickerResult.source,
-        mountFolder,
       });
 
       syncImportedProjectInBackground(
@@ -693,7 +685,7 @@ function CodePageComponent({
     currentProject?.workspaceId,
     currentProjectId,
     effectiveWorkspaceId,
-    mountFolder,
+    projectRuntimeLocationService,
     syncImportedProjectInBackground,
   ]);
 
@@ -732,7 +724,7 @@ function CodePageComponent({
     currentProjectId,
     resolveCodingSessionNativeSessionId,
     resolveProjectActionTarget,
-    resolveLocalWorkingDirectory: resolveProjectLocalWorkingDirectory,
+    resolveProjectRuntimeLocation,
     resolveProjectById,
     resolveSession: resolveSessionActionLocation,
     setIsTerminalOpen,
@@ -972,11 +964,14 @@ function CodePageComponent({
       throw new Error(t('chat.sendMessageBusy'));
     }
     const requestedEngineId = composerSelection?.engineId?.trim() ?? '';
+    const requestedModelId = composerSelection?.modelId?.trim() ?? '';
     const currentSessionEngineId = session?.engineId?.trim() ?? '';
+    const currentSessionModelId = session?.modelId?.trim() ?? '';
     const currentCodingSessionId =
-      currentSessionEngineId &&
-      requestedEngineId &&
-      requestedEngineId.toLowerCase() !== currentSessionEngineId.toLowerCase()
+      (requestedEngineId &&
+        requestedEngineId.toLowerCase() !== currentSessionEngineId.toLowerCase()) ||
+      (requestedModelId &&
+        requestedModelId.toLowerCase() !== currentSessionModelId.toLowerCase())
         ? null
         : sessionId;
     const bootstrappedSession = await ensureWorkbenchCodingSessionForMessage({
@@ -1008,16 +1003,11 @@ function CodePageComponent({
         sessionId: bootstrappedSession.codingSessionId,
         workspaceId,
       });
-      const turnModelSelectionMetadata =
-        buildWorkbenchCodingSessionTurnModelSelectionMetadata(composerSelection);
       const sentMessage = await sendMessage(
         bootstrappedSession.projectId,
         bootstrappedSession.codingSessionId,
         trimmedContent,
         context,
-        turnModelSelectionMetadata
-          ? { metadata: turnModelSelectionMetadata }
-          : undefined,
       );
       if (
         sentMessage?.codingSessionId &&
@@ -1041,6 +1031,7 @@ function CodePageComponent({
     selectSession,
     projects,
     session?.engineId,
+    session?.modelId,
     sessionId,
     selectedFile,
     sendMessage,
@@ -1260,7 +1251,6 @@ function CodePageComponent({
     onCopyCodingSessionWorkingDirectory: handleCopySessionWorkingDirectory,
     onCopyProjectPath: handleCopyProjectPath,
     onCopyWorkingDirectory: handleCopyWorkingDirectory,
-    onCreateCodingSession: createCodingSessionFromCurrentProjectWithTranscriptReset,
     onCreateFile: createFile,
     onCreateFolder: createFolder,
     onCreateRootFile: handleCreateRootFile,

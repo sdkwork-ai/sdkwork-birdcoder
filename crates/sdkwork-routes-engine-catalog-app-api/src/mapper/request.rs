@@ -18,6 +18,7 @@ pub struct NativeSessionPathParams {
 pub struct NativeSessionQueryParams {
     pub workspace_id: Option<String>,
     pub project_id: Option<String>,
+    pub runtime_location_id: Option<String>,
     pub engine_id: Option<String>,
 }
 
@@ -26,6 +27,7 @@ pub struct NativeSessionQueryParams {
 pub struct NativeSessionScopeQuery {
     pub workspace_id: String,
     pub project_id: String,
+    pub runtime_location_id: String,
     pub engine_id: Option<String>,
 }
 

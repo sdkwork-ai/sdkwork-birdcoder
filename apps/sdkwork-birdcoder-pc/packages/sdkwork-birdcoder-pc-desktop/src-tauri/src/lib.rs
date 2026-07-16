@@ -50,6 +50,18 @@ async fn local_store_list(
 }
 
 #[tauri::command]
+async fn desktop_runtime_location_install_identity(
+    app: tauri::AppHandle,
+) -> Result<host::DesktopRuntimeLocationInstallIdentity, String> {
+    host::desktop_runtime_location_install_identity(app).await
+}
+
+#[tauri::command]
+fn desktop_runtime_location_create_root_locator() -> String {
+    host::desktop_runtime_location_create_root_locator()
+}
+
+#[tauri::command]
 async fn local_sql_execute_plan(
     app: tauri::AppHandle,
     plan: host::LocalSqlPlan,
@@ -327,24 +339,6 @@ fn desktop_terminal_session_inventory_list(
 }
 
 #[tauri::command]
-async fn desktop_native_session_list(
-    request: host::DesktopNativeSessionListRequest,
-) -> Result<host::DesktopNativeSessionPageSnapshot, String> {
-    tauri::async_runtime::spawn_blocking(move || host::desktop_native_session_list(request))
-        .await
-        .map_err(|error| format!("desktop native session list worker failed: {error}"))?
-}
-
-#[tauri::command]
-async fn desktop_native_session_get(
-    request: host::DesktopNativeSessionGetRequest,
-) -> Result<host::DesktopNativeSessionDetailSnapshot, String> {
-    tauri::async_runtime::spawn_blocking(move || host::desktop_native_session_get(request))
-        .await
-        .map_err(|error| format!("desktop native session get worker failed: {error}"))?
-}
-
-#[tauri::command]
 async fn desktop_local_shell_exec(
     request: host::DesktopLocalShellExecRequest,
 ) -> Result<host::DesktopLocalShellExecSnapshot, String> {
@@ -424,6 +418,8 @@ pub fn run() {
             local_store_set,
             local_store_delete,
             local_store_list,
+            desktop_runtime_location_install_identity,
+            desktop_runtime_location_create_root_locator,
             local_sql_execute_plan,
             fs_snapshot_folder,
             fs_list_directory,
@@ -461,8 +457,6 @@ pub fn run() {
             desktop_session_detach,
             desktop_session_reattach,
             desktop_terminal_session_inventory_list,
-            desktop_native_session_list,
-            desktop_native_session_get,
             desktop_local_shell_exec,
             desktop_local_shell_session_create,
             desktop_local_process_session_create,

@@ -1,5 +1,6 @@
 [workspace]
 members = [
+    "crates/sdkwork-birdcoder-gateway-assembly",
     # Route crates
     "crates/sdkwork-routes-system-app-api",
     "crates/sdkwork-routes-engine-catalog-app-api",
@@ -158,4 +159,6 @@ sdkwork-terminal-pty-runtime = { path = "../sdkwork-terminal/apps/sdkwork-termin
 sdkwork-terminal-protocol = { path = "../sdkwork-terminal/apps/sdkwork-terminal-pc/crates/sdkwork-terminal-protocol" }
 sdkwork-terminal-replay-store = { path = "../sdkwork-terminal/apps/sdkwork-terminal-pc/crates/sdkwork-terminal-replay-store" }
 sdkwork-terminal-session-runtime = { path = "../sdkwork-terminal/apps/sdkwork-terminal-pc/crates/sdkwork-terminal-session-runtime" }
+sdkwork-terminal-runtime-node = { path = "../sdkwork-terminal/apps/sdkwork-terminal-pc/crates/sdkwork-terminal-runtime-node" }
+sdkwork-routes-terminal-app-api = { path = "../sdkwork-terminal/apps/sdkwork-terminal-pc/crates/sdkwork-routes-terminal-app-api" }
 

@@ -2,194 +2,271 @@
 
 Status: active
 Owner: SDKWork maintainers
-Updated: 2026-07-14
-Specs: `ARCHITECTURE_DECISION_SPEC.md`, `APP_PC_ARCHITECTURE_SPEC.md`, `DESKTOP_APP_ARCHITECTURE_SPEC.md`, `APP_SDK_INTEGRATION_SPEC.md`, `API_SPEC.md`, `CONFIG_SPEC.md`, `RUNTIME_DIRECTORY_SPEC.md`, `SECURITY_SPEC.md`, `DEPLOYMENT_SPEC.md`
+Updated: 2026-07-16
+Specs: ARCHITECTURE_DECISION_SPEC.md, APP_PC_ARCHITECTURE_SPEC.md, DESKTOP_APP_ARCHITECTURE_SPEC.md, APP_SDK_INTEGRATION_SPEC.md, API_SPEC.md, DATABASE_SPEC.md, SDK_SPEC.md, SECURITY_SPEC.md, PRIVACY_SPEC.md, CONFIG_SPEC.md, RUNTIME_DIRECTORY_SPEC.md, DEPLOYMENT_SPEC.md
 
 ## 1. Architecture Overview
 
 BirdCoder has one PC React renderer and one application-service model. Browser
-and Tauri differ only at the host-capability boundary; they do not fork project
-contracts, API clients, or feature services.
+and Tauri differ at the host-capability boundary, while projects, locations,
+authorization, and API contracts remain a single application model.
 
-```text
-Browser or Tauri renderer
-  -> PC React features and application services
-  -> Project service -> composed @sdkwork/birdcoder-app-sdk -> BirdCoder server
-  -> Runtime file-system service -> Browser or Tauri device adapter
+Flow:
 
-BirdCoder server
-  -> authenticated project/workspace metadata and authorization
-  -> server-derived private workspace root when server-owned storage is needed
-  -> no client path, browser handle, or Tauri mount value
-```
+    Browser or Tauri renderer
+      -> PC features and application services
+      -> composed @sdkwork/birdcoder-app-sdk
+      -> Project service and ProjectRuntimeLocation service
+      -> target-aware resolver or host capability adapter
 
-The persistent boundary is deliberately split:
+    BirdCoder control plane
+      -> authenticated Project and workspace metadata
+      -> ProjectRuntimeLocation records with encrypted target paths
+      -> target identity, health, capability, Git snapshot, and preference state
+      -> internal target resolver for verified server or runner actions
 
-| Concept | Owner | May cross the network? | Meaning |
+One Project can have multiple ProjectRuntimeLocation records. A location is
+the only persistent authority for one physical project root on one target.
+Project identity is deliberately not overloaded with a single path.
+
+| Concept | Owner | Network behavior | Meaning |
 | --- | --- | --- | --- |
-| Remote Project | BirdCoder server | Yes, through the composed app SDK | Metadata, ACL, workspace identity, lifecycle state, and opaque project id. |
-| Device-private Project Mount | Current browser or Tauri device | No | A user-selected local folder capability for local IDE operations. |
-| Server Project Workspace Root | BirdCoder server | No | A server-private location derived from authenticated scope and opaque server identifiers. |
-| Execution location | Session admission | Yes, as a capability choice | `local-host` or a future isolated remote runner; it is not a deployment profile. |
-| Deployment profile | Deployment configuration | Yes, as public non-secret configuration | `standalone` or `cloud`, with a separate runtime target. |
+| Project | Project service | Normal app API and composed SDK | Shared identity, workspace, ACL, lifecycle, and non-location metadata. |
+| ProjectRuntimeLocation | Project service | Separate, permissioned app API resources | One target-specific root, location kind, encrypted path, capability, health, Git snapshot, and audit state. |
+| Runtime target | Runtime control plane | Registered target identity and internal resolver | Desktop, server workspace, runner, container, or remote workspace authority that verifies and uses a location. |
+| Local project binding | Browser or Tauri host | Never a generic remote API response | Current-device capability material used to resolve a browser handle or local native root. |
+| Location preference | Project service | Permissioned app API resource | Subject, project, and capability selection for terminal, Git, or build. |
+| Deployment profile | Deployment configuration | Public non-secret configuration | standalone or cloud, independent from a runtime location. |
 
-`rootPath`, `sitePath`, native absolute paths, browser handles, and server
-workspace roots are not remote-project fields. A local folder is not a portable
-project identity and never becomes an implicit upload, remote filesystem, or
-server working directory.
+Absolute paths are neither generic Project fields nor public response values.
+Registration receives a typed write-only path over protected transport; the
+control plane encrypts it before persistence. Only the authenticated owning
+target can decrypt and canonicalize it for an authorized action.
+
+### Coding-Session Lifecycle Boundary
+
+Coding turns execute through the SDKWork kernel facade and the BirdCoder kernel
+bridge; application code does not call Provider SDKs directly. The P0 provider
+set is `codex`, `claude-code`, `gemini`, and `opencode`. A new logical coding
+session is created from an explicit provider/model selection, whose resulting
+`engineId` and `modelId` are immutable.
+
+`codingSessionId` is the BirdCoder logical identity. The first successful turn
+may return a raw provider `nativeSessionId`; later native detail/resume work
+uses that raw ID plus the persisted `engineId`, and the binding cannot be
+reassigned to a different provider conversation. The detailed ownership and
+current implementation limits are documented in the
+[engine session reference](../../reference/engine-sdk-integration.md).
+
+New coding-session creation also requires an explicit terminal-capable
+`runtimeLocationId`. The logical session persists that exact location identity
+alongside its immutable provider/model pair. Turn execution, recovery, and
+native-session list/detail routes use the stored binding, not a mutable
+current-subject preference or a project-only root lookup. Historic sessions
+without this binding remain readable but fail closed with typed unavailable
+errors for execution and native discovery. Provider-reported `native_cwd` is
+target-private matching evidence only; it is never public API data or an
+execution authority.
 
 ## 2. Current Implementation Truth
 
 | Capability | State | Production truth |
 | --- | --- | --- |
 | Browser and Tauri project control plane | Implemented | Both use the composed BirdCoder app SDK and the same project service contract. |
-| Device-private project mounts | Implemented | Browser handles remain in IndexedDB; Tauri paths remain in host-private SQLite and are never remote project fields. |
-| SQLite standalone persistence | Implemented | Generated SQLite DDL includes inline foreign keys and runtime connections enable foreign-key enforcement. SQLite remains single-node storage. |
-| PostgreSQL control-plane persistence | Implemented, release-gated | Production repositories use SQLx `AnyPool`; CI live smoke covers generated DDL, repository pagination and scope, transactions, and foreign keys against PostgreSQL. |
-| Multi-replica realtime and rate limiting | Implemented, profile-gated | The HA values profile requires Redis for realtime and shared rate-limit counters; Redis failures fail closed for protected commerce traffic. |
-| Cloud execution | Blocked | No production remote runner is enabled. Remote execution remains unavailable until isolation, scheduling, recovery, and capacity evidence pass review. |
-| Public commercial release | Blocked | All four application manifests remain `DRAFT` and `preLaunch`; real signed artifacts, checksums, SBOM, rollback, and capacity evidence are required. |
+| Browser folder capability | Implemented | File System Access directory handles remain in IndexedDB and cannot become OS paths or remote executable locations. |
+| Tauri local binding | Implemented and converging | Host-private storage remains the current-device capability cache; import and terminal resolution must converge on runtime-location identity and never use process cwd fallback. |
+| Distributed ProjectRuntimeLocation data model | In progress | The server-owned location model supersedes project-only paths and local-KV-only path authority. Location responses remain redacted. |
+| Server and runner target resolver | In progress | A pending or unverified record does not authorize remote terminal, Git, build, worktree, file, or deployment actions. |
+| SQLite standalone persistence | Implemented | Generated SQLite DDL includes foreign keys and runtime connections enable foreign-key enforcement. SQLite remains single-node storage. |
+| PostgreSQL control-plane persistence | Implemented, release-gated | Production repositories use SQLx AnyPool; live smoke covers schema, pagination, scope, transactions, and foreign keys. |
+| Multi-replica realtime and rate limiting | Implemented, profile-gated | HA configuration requires Redis for realtime and shared rate-limit counters. |
+| Cloud execution | Blocked | No production remote runner is enabled until isolation, scheduling, recovery, and capacity evidence pass review. |
+| Public commercial release | Blocked | Application manifests remain draft and pre-launch until real signed artifacts, checksums, SBOM, rollback, and capacity evidence exist. |
 
-HTTP OpenAPI and route-catalog counts describe contract coverage only. synthetic smoke fixtures are contract evidence only; they are not installed-runtime, capacity, security, or release-artifact evidence.
+HTTP OpenAPI and route-catalog counts describe contract coverage only. Synthetic
+smoke fixtures are not installed-runtime, capacity, security, or
+release-artifact evidence.
 
-## 3. Unified Renderer And Host Capabilities
+## 3. Location Data And Lifecycle
 
-The renderer calls narrow application ports instead of platform APIs directly.
-Project data flows through the app service and the composed
-`@sdkwork/birdcoder-app-sdk`; file operations flow through
-`RuntimeFileSystemService`. The host adapter is selected at runtime:
+The durable data relationship is:
 
-| Host | Local-folder capability | Durable mount record | Recovery behavior |
+    Project
+      -> ProjectRuntimeLocation [0..n]
+           -> runtime target or device identity
+           -> encrypted absolute path and stable fingerprint
+           -> verified Git and worktree snapshot
+           -> capability and health state
+      -> ProjectRuntimeLocationPreference [0..n]
+           -> subject + capability -> runtimeLocationId
+
+ProjectRuntimeLocation must carry the complete data required to identify one
+root while preserving confidentiality:
+
+- tenant, organization, project, owner/data-scope, and target identity;
+- location kind, path flavor, logical root locator, safe display name, and
+  stable path fingerprint;
+- encrypted absolute path with encryption/key-version metadata;
+- lifecycle, health, verification time, version, audit, and deletion state;
+- capability status for terminal, Git, build, and file-system operations;
+- worktree actions and snapshots derive from the Git capability; worktree is
+  not a separate runtime-location capability or preference;
+- credential-free Git remote identity plus verified branch, revision, and
+  worktree snapshot.
+
+Core query, authorization, lifecycle, and capability fields are relational
+columns. They are not hidden in generic JSON metadata. Tenant-leading indexes
+serve location list, preference, target-health, and duplicate-detection query
+shapes. Every interactive list is SQL-paginated.
+
+Path lifecycle is explicit:
+
+1. Registration accepts a write-only absolute path from an authenticated
+   desktop or trusted target and stores ciphertext.
+2. The record begins pending verification. It cannot authorize remote
+   execution solely because a path was registered.
+3. The owning target proves its identity, canonicalizes the root, checks
+   capability and repository state, then writes safe verification metadata.
+4. Rebind replaces a root only through an explicit operation. It clears stale
+   verification and Git snapshot state before the new root can be used.
+5. Revoke, detach, or delete removes the location from preference resolution
+   and preserves the audit/lifecycle policy.
+
+## 4. API, SDK, And Resolver Ownership
+
+The workspace app-api owns project runtime-location resources. It uses typed
+request bodies, standard SDKWork envelopes, ProblemDetail failures, SQL-backed
+pagination, stable permissions, idempotency for registration and commands, and
+optimistic concurrency for mutable location and preference state.
+
+Flow:
+
+    Tauri import
+      -> typed write-only location registration
+      -> encrypted server persistence
+      -> current-device local binding
+      -> pending verification
+
+    Desktop terminal
+      -> project and terminal capability
+      -> local runtime-location resolver
+      -> current-device native binding
+      -> canonical local cwd
+      -> terminal request
+
+    Server or runner action
+      -> project + runtimeLocationId
+      -> project ACL + target binding + capability + health check
+      -> internal target-owned decrypt and canonical-root resolver
+      -> Git, build, worktree, or file action
+
+Location list and detail DTOs return safe identifiers, labels, target metadata,
+capabilities, health, and verified Git summary. They never return plaintext
+absolutePath, cwd, rootPath, sitePath, browser handles, secrets, or
+credential-bearing remote URLs. The generated app SDK unwraps the standard
+response data and is consumed only through the composed
+@sdkwork/birdcoder-app-sdk facade.
+
+Every terminal, Git (including worktree), build, and file-system execution
+request must carry an explicit `runtimeLocationId` before touching a
+filesystem. A subject-and-capability preference may help a client choose a
+location, but it must be resolved into and persisted or sent as an exact
+identifier before execution; it is never a hidden server root fallback.
+Coding-session/provider execution follows the same rule through its immutable
+session binding. Worktree uses the Git capability rather than a separate
+preference. Generic Project-only root resolution and process-current-directory
+fallback are prohibited. Until an action is migrated, it must fail closed rather
+than infer a root.
+
+## 5. Browser And Desktop Host Capabilities
+
+The renderer calls narrow application ports rather than platform APIs
+directly. Project and runtime-location data flow through injected services and
+the composed app SDK. Filesystem operations flow through a host adapter.
+
+| Host | Local capability | Durable local binding | Runtime-location behavior |
 | --- | --- | --- | --- |
-| Browser | File System Access API `FileSystemDirectoryHandle` | IndexedDB structured clone | Read the saved handle, call `queryPermission({ mode: 'readwrite' })`, and restore only when granted. |
-| Tauri | Authorized native directory bridge | Host-private `local_store_*` SQLite KV | Resolve the host-local record and remount through the native bridge. |
+| Browser | File System Access API directory handle | IndexedDB structured clone | A handle remains browser-local, requires permission recovery, and cannot become a native path or executable target. |
+| Tauri | Authorized native directory bridge | Host-private local-store record scoped to active subject and project | The adapter resolves the current-device canonical cwd for local actions and associates it with runtime-location semantics without requesting a server path reveal. |
+| Server or container | Future service-owned workspace and target resolver | Managed database and protected runtime storage | Not enabled in the current release: a configured workspace base is not enrollment. A future target may resolve only its own verified location through an internal, authenticated resolver. |
+| Isolated runner | Runner agent and workspace volume | Managed runner control-plane state | Not enabled until runner isolation and lifecycle evidence are accepted. |
 
-Browser persistence never serializes a handle to JSON and never invents a
-native path. Permission recovery does not call `requestPermission`; the user
-must explicitly reauthorize or select a folder again when the browser reports
-that permission is unavailable.
+Tauri local storage can retain an OS-private path binding for native access, but
+it is a cache/capability materialization, not the distributed system of record.
+The server record is the location authority; the target binding is still
+required to prove that the current device owns the canonical path. A local
+persist failure must fail import rather than leave restart-unsafe state.
 
-Tauri stores an absolute path only inside the host-private local-store SQLite
-KV database. The record is scoped by a hash of the deployment realm, tenant,
-organization, user, and project id. It is private to the operating-system
-account and logically isolated by the active IAM scope, but it is plaintext
-data at rest. BirdCoder does not claim encryption at rest for this store. A
-future secure-store/keychain-backed design is required before making an
-encryption claim.
+## 6. Legacy Path Convergence
 
-Only a safe mount status and display name leave the mount registry. Paths and
-handles are excluded from React state intended for project metadata, SDK/API
-DTOs, telemetry, remote caches, and server logs. A session, tenant,
-organization, or user change clears in-memory mounts, watchers, pollers, and
-file caches before a new subject can use the file-system service.
+The following are migration inputs, not long-term competing authorities:
 
-## 4. Project, API, And Server Ownership
+| Legacy source | Target authority |
+| --- | --- |
+| studio_project.site_path | Retired field; do not reuse. |
+| Tauri local-store path record | Current-device binding associated with a runtime location. |
+| Server-derived ProjectWorkspaceRootResolver | Retired as an implicit execution source. Server-workspace enrollment and a trusted target-owned resolver are pending; current server actions fail closed. |
+| Coding-session config rootPath or root_path | Retired as execution input; new sessions persist runtimeLocationId, while historic unbound sessions are readable but non-executable. |
+| Provider native-session cwd | Target-private observation for scoped matching only; never generic project metadata, public API data, or execution authority. |
+| Project-only Git root resolution | Location-aware Git resolver with explicit runtimeLocationId. |
 
-Remote project operations use the generated BirdCoder app SDK through the
-composed consumer facade. SDK construction stays in bootstrap, and feature
-services do not construct raw HTTP requests or manually attach credentials.
-SDKWork-owned API operations use the standard response envelope and typed
-problem details described by `API_SPEC.md`.
+BirdCoder is pre-launch. It removes obsolete public path behavior directly,
+while any durable data backfill remains idempotent, observable, bounded, and
+safe to retry. No generated SDK output is hand-edited; OpenAPI and route
+authority changes are regenerated through the standard SDK workflow.
 
-The server authorizes every remote project and workspace operation with the
-typed IAM context. Tenant, organization, user/membership, workspace, project,
-and worktree identifiers are authorization inputs; a request-supplied path is
-not. When a server operation needs storage, it derives a private root from
-that context and server-issued identifiers under the configured server-owned
-workspace root. It does not accept, return, or log a client filesystem path.
+## 7. Isolation, Security, Privacy, And Observability
 
-`SDKWORK_APP_ROOT` or `SDKWORK_BIRDCODER_APP_ROOT` selects the BirdCoder
-application profile. `SDKWORK_IAM_APP_ROOT` remains the sibling `sdkwork-iam` catalog/database-assets root; it is never a BirdCoder profile root or project workspace root.
+- Backend authorization, not UI state, enforces tenant, organization,
+  membership, project, subject, target, capability, and location isolation.
+- Absolute paths and path-derived host topology are sensitive data. They are
+  encrypted at rest, write-only at the app API edge, masked from exports, and
+  absent from normal logs, traces, errors, metrics, and audit payloads.
+- A target never trusts a renderer-supplied filesystem path. It resolves its
+  registered runtimeLocationId, verifies target ownership and lease, and
+  canonicalizes before use.
+- Git credentials, tokens, private keys, and credential-bearing remote URLs
+  are never persisted in location snapshots or returned to clients.
+- Security-sensitive registration, rebind, verification, preference, and
+  target lifecycle actions require permission checks, audit, and appropriate
+  rate-limit/idempotency behavior.
+- Diagnostics use traceId, locationId, projectId, and safe target identifiers.
+  They do not use plaintext paths as labels or high-cardinality metric values.
 
-This prevents two common errors:
+## 8. Deployment And Runtime Topology
 
-- a browser directory handle being mistaken for a server filesystem location;
-- a Tauri device path leaking into another device, user, project mirror, SDK
-  response, or server process.
-
-## 5. Isolation And Runtime Truth
-
-Remote users have independent project metadata authorization and must have
-independent server workspace and runtime bindings. A server-owned workspace
-root is not a shared client mount: its layout, ACLs, process credentials,
-temporary files, provider state, and logs must be derived from the authorized
-tenant/organization/user/workspace/project binding. User-controlled path
-segments and process-current-directory fallbacks are prohibited.
-
-`SDKWORK_BIRDCODER_PROVIDER_RUNNER_ROOT` identifies a server-owned project
-workspace base. It is not a client-mount import channel and does not enable
-remote arbitrary-code execution. Current server configuration deliberately
-reports code execution as unavailable for production remote `server` and
-`container` targets, and for the `cloud` profile. A remote execution feature
-may be enabled only after a durable scheduler, authorized runner lifecycle,
-strong isolation, secret boundary, resource limits, and recovery evidence are
-implemented. Until then, remote file, terminal, run, and deployment actions
-must return a typed unavailable outcome rather than falling back to a process
-directory or another user's storage.
-
-## 6. Runtime Packaging And Readiness
-
-| Package or runtime | Readiness | Required promotion evidence |
-| --- | --- | --- |
-| Browser bundle | Pre-launch | Production build, SDK contract tests, browser recovery tests, checksum, SBOM, and smoke evidence. |
-| Windows Tauri desktop | Pre-launch | Signed installer, trust verification, mount isolation, local terminal limits, upgrade, and rollback smoke. |
-| Standalone server | Pre-launch | Generated OpenAPI parity, SQLite and PostgreSQL repository tests, backup/restore, security, and sustained-load evidence. |
-| Kubernetes HA control plane | Pre-launch | PostgreSQL and Redis failover, three-replica smoke, HPA/PDB behavior, immutable image digest, backup restore, and capacity evidence. |
-| Cloud execution | Blocked | Isolated runner, durable scheduler, resource quotas, secret brokering, recovery, and abuse testing. |
-
-Default Kubernetes values intentionally run one control-plane replica. Scale-out
-requires `values-postgresql-ha.yaml`, external PostgreSQL and Redis, protected
-secrets, and successful target-environment live smokes. A route being present in
-OpenAPI does not enable a blocked runtime capability.
-
-## 7. Deployment And Runtime Topology
-
-| Deployment | Runtime target | Supported responsibility | Execution truth |
+| Deployment | Runtime target | Location behavior | Execution truth |
 | --- | --- | --- | --- |
-| Windows local IDE | `standalone` + `desktop` | Tauri host, same renderer, device-private folder mount, embedded local services | Local-host operations are bounded by the selected local mount. |
-| Browser IDE against a private server | `standalone` + `server` | Remote project metadata/control plane and browser-local folder capabilities | The server must not execute against a client folder; remote execution is unavailable. |
-| Tauri IDE against a private server | `standalone` + `server` | Same remote project/control-plane API plus a device-private Tauri mount | The desktop path stays on the device and is never sent to the server. |
-| Remote cloud control plane | `cloud` + `server` or `container` | Authenticated metadata/control-plane deployment with PostgreSQL and explicit origins | A cloud runner is not currently enabled; no encrypted-workspace claim is made. |
+| Windows local IDE | standalone + desktop | Tauri creates a desktop location and a current-device local binding. | Local actions use the canonical local binding only. |
+| Browser IDE against a private server | standalone + server | Browser handles remain local; server locations belong to trusted server targets. | Browser cannot create a native path or remote execution grant. |
+| Tauri IDE against a private server | standalone + server | Desktop registration persists an encrypted location plus local binding. | The desktop does not receive server path reveals; server actions require target resolver evidence. |
+| Remote cloud control plane | cloud + server or container | Locations are tenant-scoped control-plane records tied to trusted server/runner targets. | A cloud runner remains unavailable until separately promoted. |
 
-`standalone` and `cloud` are the only deployment profiles. `browser`,
-`desktop`, `server`, and `container` are runtime targets, not additional
-profiles. Cloud validation requires a non-loopback bind, explicit non-wildcard
-origins, PostgreSQL, and a protected database URL. Detailed operator steps are
-in [deployment operations](../../guides/operator/deployment-operations.md) and
-the [Windows Server guide](../../guides/operator/windows-server-control-plane.md).
-
-## 8. Security And Privacy
-
-- Backend authorization, not client UI state, enforces tenant, organization,
-  membership, project, and workspace isolation.
-- Device mount paths, browser handles, credentials, server roots, and runtime
-  secrets are not API response fields and must be redacted from diagnostics.
-- Browser and Tauri use the same IAM session model, but local mount recovery is
-  scoped to the active authenticated subject and deployment realm.
-- Browser-visible `VITE_*` configuration is public configuration only. Database
-  URLs, tokens, private keys, and provider credentials belong in protected
-  server or host storage.
-- CORS origins are explicit in remote deployments; wildcard origins are not a
-  cloud configuration option.
+standalone and cloud are the only deployment profiles. browser, desktop,
+server, and container are runtime targets, not profiles.
 
 ## 9. Architecture Decision Index
 
-- [ADR-20260713: Unified project/runtime boundary](../decisions/ADR-20260713-unified-project-runtime-boundary.md)
+- [ADR-20260716: Distributed project runtime locations](../decisions/ADR-20260716-distributed-project-runtime-locations.md)
+- [ADR-20260713: Unified project/runtime boundary (superseded)](../decisions/ADR-20260713-unified-project-runtime-boundary.md)
 - [Runtime topology contract](../topology-standard.md)
 - [Environment reference](../../reference/environment.md)
 
 ## 10. Verification
 
-```bash
-pnpm.cmd check:file-system-boundary
-pnpm.cmd check:project-inventory-standard
-pnpm.cmd check:desktop
-pnpm.cmd check:server
-pnpm.cmd check:multi-mode
-node ..\sdkwork-specs\tools\check-repository-docs-standard.mjs --root . --profile application
-pnpm.cmd docs:build
-```
-
-The API/SDK checks required by `API_SPEC.md` and
-`APP_SDK_INTEGRATION_SPEC.md` remain release gates whenever remote project
-contracts or client service integration change.
+    pnpm db:validate
+    pnpm test:migration-replay
+    pnpm test:rust-workspace-project-schema-parity-contract
+    pnpm check:web-framework-standard
+    pnpm generate:sdk:birdcoder
+    node ../sdkwork-specs/tools/check-api-operation-patterns.mjs --workspace .
+    node ../sdkwork-specs/tools/check-api-response-envelope.mjs --workspace .
+    node ../sdkwork-specs/tools/check-pagination.mjs --workspace .
+    node ../sdkwork-specs/tools/check-app-sdk-consumer-imports.mjs --workspace .
+    pnpm check:terminal-surface-standard
+    pnpm check:project-git-header-controls
+    pnpm check:desktop
+    pnpm check:server
+    pnpm check:multi-mode
+    node ../sdkwork-specs/tools/check-repository-docs-standard.mjs --root . --profile application
+    pnpm docs:build

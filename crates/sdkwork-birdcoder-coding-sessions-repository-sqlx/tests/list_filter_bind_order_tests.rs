@@ -141,12 +141,14 @@ async fn list_sessions_binds_domain_filters_before_tenant_scope() {
         .list_sessions(
             &CodingSessionContext {
                 tenant_id: "7".to_owned(),
+                organization_id: "0".to_owned(),
                 user_id: "42".to_owned(),
                 session_id: "bind-order-request".to_owned(),
             },
             &CodingSessionListQuery {
                 engine_id: Some("codex".to_owned()),
                 project_id: Some("project-match".to_owned()),
+                runtime_location_id: None,
                 workspace_id: Some("101".to_owned()),
                 page_size: Some(10),
                 offset: Some(0),

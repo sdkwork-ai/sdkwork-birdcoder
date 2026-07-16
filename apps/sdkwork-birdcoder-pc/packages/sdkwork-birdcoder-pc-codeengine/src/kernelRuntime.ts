@@ -33,6 +33,7 @@ import { findWorkbenchCodeEngineKernel } from './kernel.ts';
 interface KernelTurnResult {
   assistantContent: string;
   nativeSessionId?: string | null;
+  streamDeltas: string[];
 }
 
 const ADAPTER_NAMES: Record<WorkbenchCodeEngineId, string> = {
@@ -142,11 +143,17 @@ function executeKernelTurn(input: {
   const parsed = JSON.parse(stdout) as {
     assistantContent?: string;
     nativeSessionId?: string | null;
+    streamDeltas?: unknown;
   };
 
   return {
     assistantContent: parsed.assistantContent?.trim() ?? '',
     nativeSessionId: parsed.nativeSessionId ?? null,
+    streamDeltas: Array.isArray(parsed.streamDeltas)
+      ? parsed.streamDeltas.filter(
+          (value): value is string => typeof value === 'string' && value.length > 0,
+        )
+      : [],
   };
 }
 
@@ -396,10 +403,15 @@ export function createKernelTurnRuntime(
         });
         LIVE_CONFIRMED_ENGINES.add(kernel.id);
 
-        if (result.assistantContent) {
+        const contentDeltas = result.streamDeltas.length > 0
+          ? result.streamDeltas
+          : result.assistantContent
+            ? [result.assistantContent]
+            : [];
+        for (const contentDelta of contentDeltas) {
           yield createCanonicalEvent(++sequence, 'message.delta', 'streaming', {
             role: 'assistant',
-            contentDelta: result.assistantContent,
+            contentDelta,
           });
         }
 

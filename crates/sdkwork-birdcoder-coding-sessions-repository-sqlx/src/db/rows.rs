@@ -10,6 +10,7 @@ pub struct SessionRow {
     pub is_deleted: i64,
     pub workspace_id: String,
     pub project_id: String,
+    pub runtime_location_id: Option<String>,
     pub title: String,
     pub status: String,
     pub entry_surface: String,
@@ -55,6 +56,9 @@ impl SessionRow {
             is_deleted: row_get_bool_as_i64(row, "is_deleted")?,
             workspace_id: row.try_get("workspace_id")?,
             project_id: row.try_get("project_id")?,
+            runtime_location_id: row
+                .try_get::<Option<String>, _>("runtime_location_id")
+                .unwrap_or_default(),
             title: row.try_get("title")?,
             status: row.try_get("status")?,
             entry_surface: row.try_get("entry_surface")?,

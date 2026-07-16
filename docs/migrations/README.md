@@ -1,5 +1,8 @@
-# migrations
+# Migrations
 
-See `DOCUMENTATION_SPEC.md` section 2.
+- [MIG-2026-0001: Distributed project runtime locations](MIG-2026-0001-distributed-project-runtime-locations.md)
 
-See `DOCUMENTATION_SPEC.md` section 2.
+Migration evidence follows `MIGRATION_SPEC.md` and is linked to its governing
+requirement and architecture decision. BirdCoder is pre-launch, so this
+directory records direct-cleanup and forward-fix plans rather than preserving
+unsafe project-root compatibility behavior.

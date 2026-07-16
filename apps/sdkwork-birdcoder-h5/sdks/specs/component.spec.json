@@ -2,7 +2,25 @@
   "schemaVersion": 1,
   "componentId": "sdkwork-birdcoder-h5-sdks",
   "displayName": "SDKWork BirdCoder H5 SDK Workspace",
-  "description": "H5 surface SDK consumer assembly for BirdCoder app and backend-admin boundaries.",
+  "description": "H5 SDK consumers for BirdCoder app and backend-admin boundaries.",
   "ownerPackage": "@sdkwork/birdcoder-h5-core",
-  "adminOwnerPackage": "@sdkwork/birdcoder-h5-admin-core"
+  "adminOwnerPackage": "@sdkwork/birdcoder-h5-admin-core",
+  "contracts": {
+    "sdkDependencies": [
+      {
+        "surface": "app",
+        "workspace": "sdkwork-birdcoder-app-sdk",
+        "packageName": "@sdkwork/birdcoder-app-sdk",
+        "consumerPackageName": "@sdkwork/birdcoder-h5-core",
+        "manifestPath": "../../sdkwork-birdcoder-pc/sdks/sdkwork-birdcoder-app-sdk/sdk-manifest.json"
+      },
+      {
+        "surface": "backend-admin",
+        "workspace": "sdkwork-birdcoder-backend-sdk",
+        "packageName": "@sdkwork/birdcoder-backend-sdk",
+        "consumerPackageName": "@sdkwork/birdcoder-h5-admin-core",
+        "manifestPath": "../../sdkwork-birdcoder-pc/sdks/sdkwork-birdcoder-backend-sdk/sdk-manifest.json"
+      }
+    ]
+  }
 }

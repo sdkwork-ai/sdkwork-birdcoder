@@ -7,12 +7,15 @@ pub mod git_operations;
 pub mod iam;
 mod legacy_sqlite;
 pub mod realtime_hub;
+mod realtime_websocket_auth;
 pub mod repositories;
 pub mod route_manifest;
 pub mod routers;
 pub mod runner_isolation;
+pub mod runtime_location;
 pub mod services;
 pub mod state;
+pub mod terminal_execution;
 
 use axum::Router;
 
@@ -25,8 +28,7 @@ pub async fn build_app(config: &BirdServerConfig) -> Result<Router, Box<dyn std:
     let services = services::wire_services(&repositories, config)
         .await
         .map_err(|error| -> Box<dyn std::error::Error> { error.to_string().into() })?;
-    let adapters = adapters::wire_adapters(config);
-    let state = state::AppState::new(services, repositories, adapters, database_pool);
+    let state = state::AppState::new(services, repositories, database_pool);
     let app = routers::build_router(state, config).await?;
     crate::health::init_iam_pool().await;
 

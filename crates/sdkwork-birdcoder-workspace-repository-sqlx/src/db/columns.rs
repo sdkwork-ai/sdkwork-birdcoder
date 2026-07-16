@@ -107,6 +107,144 @@ pub mod project_collaborator {
     pub const STATUS: &str = "status";
 }
 
+pub mod project_runtime_location {
+    pub const TABLE: &str = "studio_project_runtime_location";
+    pub const ID: &str = "id";
+    pub const UUID: &str = "uuid";
+    pub const TENANT_ID: &str = "tenant_id";
+    pub const ORGANIZATION_ID: &str = "organization_id";
+    pub const PROJECT_ID: &str = "project_id";
+    pub const REGISTERED_BY_USER_ID: &str = "registered_by_user_id";
+    pub const RUNTIME_TARGET_ID: &str = "runtime_target_id";
+    pub const RUNTIME_TARGET_KIND: &str = "runtime_target_kind";
+    pub const LOCATION_KIND: &str = "location_kind";
+    pub const PATH_FLAVOR: &str = "path_flavor";
+    pub const ROOT_LOCATOR: &str = "root_locator";
+    pub const DISPLAY_NAME: &str = "display_name";
+    pub const ENCRYPTED_ABSOLUTE_PATH: &str = "encrypted_absolute_path";
+    pub const PATH_ENCRYPTION_KEY_ID: &str = "path_encryption_key_id";
+    pub const PATH_FINGERPRINT: &str = "path_fingerprint";
+    pub const TERMINAL_AVAILABLE: &str = "terminal_available";
+    pub const GIT_AVAILABLE: &str = "git_available";
+    pub const BUILD_AVAILABLE: &str = "build_available";
+    pub const FILE_SYSTEM_AVAILABLE: &str = "file_system_available";
+    pub const HEALTH_STATUS: &str = "health_status";
+    pub const LAST_VERIFIED_AT: &str = "last_verified_at";
+    pub const LAST_SEEN_AT: &str = "last_seen_at";
+    pub const VERIFIED_BY_USER_ID: &str = "verified_by_user_id";
+    pub const GIT_REPOSITORY_URL: &str = "git_repository_url";
+    pub const GIT_REMOTE_NAME: &str = "git_remote_name";
+    pub const GIT_BRANCH: &str = "git_branch";
+    pub const GIT_COMMIT: &str = "git_commit";
+    pub const GIT_WORKTREE_KEY: &str = "git_worktree_key";
+    pub const VERSION: &str = "version";
+    pub const CREATED_AT: &str = "created_at";
+    pub const UPDATED_AT: &str = "updated_at";
+    pub const IS_DELETED: &str = "is_deleted";
+}
+
+pub mod project_runtime_location_preference {
+    pub const TABLE: &str = "studio_project_runtime_location_preference";
+    pub const ID: &str = "id";
+    pub const UUID: &str = "uuid";
+    pub const TENANT_ID: &str = "tenant_id";
+    pub const ORGANIZATION_ID: &str = "organization_id";
+    pub const PROJECT_ID: &str = "project_id";
+    pub const SUBJECT_USER_ID: &str = "subject_user_id";
+    pub const CAPABILITY: &str = "capability";
+    pub const RUNTIME_LOCATION_ID: &str = "runtime_location_id";
+    pub const VERSION: &str = "version";
+    pub const CREATED_AT: &str = "created_at";
+    pub const UPDATED_AT: &str = "updated_at";
+    pub const IS_DELETED: &str = "is_deleted";
+}
+
+pub mod project_runtime_location_idempotency {
+    pub const TABLE: &str = "studio_project_runtime_location_idempotency";
+    pub const ID: &str = "id";
+    pub const UUID: &str = "uuid";
+    pub const TENANT_ID: &str = "tenant_id";
+    pub const ORGANIZATION_ID: &str = "organization_id";
+    pub const PROJECT_ID: &str = "project_id";
+    pub const SUBJECT_USER_ID: &str = "subject_user_id";
+    pub const OPERATION_KIND: &str = "operation_kind";
+    pub const IDEMPOTENCY_KEY_HASH: &str = "idempotency_key_hash";
+    pub const REQUEST_FINGERPRINT: &str = "request_fingerprint";
+    pub const RESOURCE_KIND: &str = "resource_kind";
+    pub const RESOURCE_ID: &str = "resource_id";
+    pub const RESOURCE_VERSION: &str = "resource_version";
+    pub const CREATED_AT: &str = "created_at";
+    pub const EXPIRES_AT: &str = "expires_at";
+}
+
+pub mod project_runtime_location_audit {
+    pub const TABLE: &str = "ops_project_runtime_location_audit";
+    pub const ID: &str = "id";
+    pub const UUID: &str = "uuid";
+    pub const TENANT_ID: &str = "tenant_id";
+    pub const ORGANIZATION_ID: &str = "organization_id";
+    pub const PROJECT_ID: &str = "project_id";
+    pub const RUNTIME_LOCATION_ID: &str = "runtime_location_id";
+    pub const ACTOR_USER_ID: &str = "actor_user_id";
+    pub const ACTION: &str = "action";
+    pub const RESULT: &str = "result";
+    pub const TRACE_ID: &str = "trace_id";
+    pub const OCCURRED_AT: &str = "occurred_at";
+    pub const REDACTED_METADATA_JSON: &str = "redacted_metadata_json";
+}
+
+pub mod project_workspace_binding {
+    pub const TABLE: &str = "studio_project_workspace_binding";
+    pub const ID: &str = "id";
+    pub const UUID: &str = "uuid";
+    pub const TENANT_ID: &str = "tenant_id";
+    pub const ORGANIZATION_ID: &str = "organization_id";
+    pub const PROJECT_ID: &str = "project_id";
+    pub const SANDBOX_ID: &str = "sandbox_id";
+    pub const ROOT_ENTRY_ID: &str = "root_entry_id";
+    pub const LOGICAL_PATH: &str = "logical_path";
+    pub const LIFECYCLE_STATUS: &str = "lifecycle_status";
+    pub const CREATED_BY_USER_ID: &str = "created_by_user_id";
+    pub const UPDATED_BY_USER_ID: &str = "updated_by_user_id";
+    pub const VERSION: &str = "version";
+    pub const CREATED_AT: &str = "created_at";
+    pub const UPDATED_AT: &str = "updated_at";
+    pub const IS_DELETED: &str = "is_deleted";
+}
+
+pub mod project_workspace_binding_idempotency {
+    pub const TABLE: &str = "studio_project_workspace_binding_idempotency";
+    pub const ID: &str = "id";
+    pub const UUID: &str = "uuid";
+    pub const TENANT_ID: &str = "tenant_id";
+    pub const ORGANIZATION_ID: &str = "organization_id";
+    pub const PROJECT_ID: &str = "project_id";
+    pub const SUBJECT_USER_ID: &str = "subject_user_id";
+    pub const OPERATION_KIND: &str = "operation_kind";
+    pub const IDEMPOTENCY_KEY_HASH: &str = "idempotency_key_hash";
+    pub const REQUEST_FINGERPRINT: &str = "request_fingerprint";
+    pub const RESOURCE_ID: &str = "resource_id";
+    pub const RESOURCE_VERSION: &str = "resource_version";
+    pub const CREATED_AT: &str = "created_at";
+    pub const EXPIRES_AT: &str = "expires_at";
+}
+
+pub mod project_workspace_binding_audit {
+    pub const TABLE: &str = "ops_project_workspace_binding_audit";
+    pub const ID: &str = "id";
+    pub const UUID: &str = "uuid";
+    pub const TENANT_ID: &str = "tenant_id";
+    pub const ORGANIZATION_ID: &str = "organization_id";
+    pub const PROJECT_ID: &str = "project_id";
+    pub const WORKSPACE_BINDING_ID: &str = "workspace_binding_id";
+    pub const ACTOR_USER_ID: &str = "actor_user_id";
+    pub const ACTION: &str = "action";
+    pub const RESULT: &str = "result";
+    pub const TRACE_ID: &str = "trace_id";
+    pub const OCCURRED_AT: &str = "occurred_at";
+    pub const REDACTED_METADATA_JSON: &str = "redacted_metadata_json";
+}
+
 pub mod project_content {
     pub const TABLE: &str = "studio_project_content";
     pub const ID: &str = "id";

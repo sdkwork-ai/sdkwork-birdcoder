@@ -104,7 +104,6 @@ export function getBirdCoderCodingServerModelConfig(): BirdCoderCodeEngineModelC
       .filter((timestamp) => Number.isFinite(timestamp))
       .sort((left, right) => right - left)[0] ?? Date.parse('2026-01-01T00:00:00.000Z');
   return buildDefaultBirdCoderCodeEngineModelConfig({
-    models,
     source: 'server',
     updatedAt: new Date(updatedAt).toISOString(),
     version: BIRDCODER_CODING_SERVER_API_VERSION,

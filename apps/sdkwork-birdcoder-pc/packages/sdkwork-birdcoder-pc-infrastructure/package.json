@@ -35,10 +35,6 @@
       "import": "./src/platform/openLocalFolder.ts",
       "types": "./src/platform/openLocalFolder.ts"
     },
-    "./platform/tauriNativeSessions": {
-      "import": "./src/platform/tauriNativeSessions.ts",
-      "types": "./src/platform/tauriNativeSessions.ts"
-    },
     "./storage/runtime": {
       "import": "./src/storage/runtime.ts",
       "types": "./src/storage/runtime.ts"
@@ -95,6 +91,10 @@
       "import": "./src/services/interfaces/IFileSystemService.ts",
       "types": "./src/services/interfaces/IFileSystemService.ts"
     },
+    "./services/interfaces/IProjectRuntimeLocationService": {
+      "import": "./src/services/interfaces/IProjectRuntimeLocationService.ts",
+      "types": "./src/services/interfaces/IProjectRuntimeLocationService.ts"
+    },
     "./services/interfaces/IGitService": {
       "import": "./src/services/interfaces/IGitService.ts",
       "types": "./src/services/interfaces/IGitService.ts"
@@ -135,6 +135,18 @@
       "import": "./src/services/iamRuntime.ts",
       "types": "./src/services/iamRuntime.ts"
     },
+    "./services/sessionService": {
+      "import": "./src/services/sessionService.ts",
+      "types": "./src/services/sessionService.ts"
+    },
+    "./services/appSessionTokenManager": {
+      "import": "./src/services/appSessionTokenManager.ts",
+      "types": "./src/services/appSessionTokenManager.ts"
+    },
+    "./services/runtimeTopology": {
+      "import": "./src/services/runtimeTopology.ts",
+      "types": "./src/services/runtimeTopology.ts"
+    },
     "./services/birdcoderMobileChatApi": {
       "import": "./src/services/birdcoderMobileChatApi.ts",
       "types": "./src/services/birdcoderMobileChatApi.ts"
@@ -142,6 +154,10 @@
     "./services/birdcoderDriveUpload": {
       "import": "./src/services/birdcoderDriveUpload.ts",
       "types": "./src/services/birdcoderDriveUpload.ts"
+    },
+    "./services/driveSandboxExplorerRuntime": {
+      "import": "./src/services/driveSandboxExplorerRuntime.ts",
+      "types": "./src/services/driveSandboxExplorerRuntime.ts"
     },
     "./services/sdkTransportShared": {
       "import": "./src/services/sdkTransportShared.ts",
@@ -171,6 +187,7 @@
     "@sdkwork/birdcoder-pc-host-core": "workspace:*",
     "@sdkwork/birdcoder-pc-types": "workspace:*",
     "@sdkwork/drive-app-sdk": "workspace:*",
+    "@sdkwork/drive-pc-sandbox-contracts": "workspace:*",
     "@sdkwork/auth-runtime-pc-react": "workspace:*",
     "@sdkwork/iam-runtime": "workspace:*",
     "@sdkwork/iam-service": "workspace:*",
@@ -179,7 +196,9 @@
     "@sdkwork/sdk-common": "workspace:*",
     "@sdkwork/utils": "workspace:*",
     "@sdkwork/membership-service": "workspace:*",
-    "@tauri-apps/api": "catalog:"
+    "@tauri-apps/api": "catalog:",
+    "@sdkwork/drive-pc-sandbox-explorer": "workspace:*",
+    "@sdkwork/drive-pc-sandbox-explorer-sdk-adapter": "workspace:*"
   }
 }
 

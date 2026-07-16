@@ -65,9 +65,10 @@ client.setHeader('X-Custom-Header', 'value');
 final params = <String, dynamic>{
   'workspaceId': '1',
   'projectId': '1',
+  'runtimeLocationId': '1',
   'engineId': 'codex',
-  'limit': 4,
-  'offset': 5,
+  'page': 5,
+  'page_size': 6,
 };
 final result = await client.intelligence.codingSessionsList(params);
 print(result);
@@ -117,21 +118,34 @@ print(result);
 ### templates
 ```dart
 // List app templates
-final result = await client.templates.appTemplatesList();
+final params = <String, dynamic>{
+  'page': 1,
+  'page_size': 2,
+};
+final result = await client.templates.appTemplatesList(params);
 print(result);
 ```
 
 ### platform
 ```dart
 // List deployments
-final result = await client.platform.deploymentsList();
+final params = <String, dynamic>{
+  'page': 1,
+  'page_size': 2,
+};
+final result = await client.platform.deploymentsList(params);
 print(result);
 ```
 
 ### content
 ```dart
 // List project documents
-final result = await client.content.documentsList();
+final params = <String, dynamic>{
+  'projectId': '1',
+  'page': 2,
+  'page_size': 3,
+};
+final result = await client.content.documentsList(params);
 print(result);
 ```
 
@@ -141,6 +155,8 @@ print(result);
 final params = <String, dynamic>{
   'userId': '1',
   'workspaceId': '1',
+  'page': 3,
+  'page_size': 4,
 };
 final result = await client.skills.skillPackagesList(params);
 print(result);

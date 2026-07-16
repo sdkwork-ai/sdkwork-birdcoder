@@ -12,10 +12,11 @@ use crate::{
     map_codeengine_session_runtime_status, map_codeengine_session_status_from_runtime,
     map_codeengine_tool_command_status, map_codeengine_tool_kind,
     map_codeengine_tool_runtime_status, resolve_codeengine_command_interaction_state,
-    resolve_codeengine_command_text, sanitize_codeengine_session_metadata,
-    session_id_targets_engine, CodeEngineSessionCommandRecord, CodeEngineSessionDetailRecord,
-    CodeEngineSessionMessageRecord, CodeEngineSessionNativeAttributesRecord,
-    CodeEngineSessionSummaryRecord, NativeSessionProviderPlugin, NativeSessionProviderRegistration,
+    resolve_codeengine_command_text, sanitize_codeengine_git_repository_url,
+    sanitize_codeengine_session_metadata, session_id_targets_engine,
+    CodeEngineSessionCommandRecord, CodeEngineSessionDetailRecord, CodeEngineSessionMessageRecord,
+    CodeEngineSessionNativeAttributesRecord, CodeEngineSessionSummaryRecord,
+    NativeSessionProviderPlugin, NativeSessionProviderRegistration,
 };
 
 pub struct OpencodeCodeEngineProvider;
@@ -171,11 +172,13 @@ fn build_opencode_session_summary_record(
                 .or_else(|| value.get("commitHash"))
                 .or_else(|| value.get("sha"))
         })),
-        git_repository_url: normalize_value_string(git.and_then(|value| {
-            value
-                .get("repositoryUrl")
-                .or_else(|| value.get("remoteUrl"))
-        })),
+        git_repository_url: sanitize_codeengine_git_repository_url(normalize_value_string(
+            git.and_then(|value| {
+                value
+                    .get("repositoryUrl")
+                    .or_else(|| value.get("remoteUrl"))
+            }),
+        )),
         metadata: sanitize_codeengine_session_metadata(session),
         ..Default::default()
     };

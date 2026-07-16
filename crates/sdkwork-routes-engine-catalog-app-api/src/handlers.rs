@@ -7,11 +7,10 @@ use sdkwork_birdcoder_codeengine::{
     find_codeengine_descriptor, get_codeengine_native_session_detail,
     get_codeengine_native_session_summary, list_codeengine_descriptors,
     list_codeengine_model_catalog_entries, list_codeengine_native_session_summaries,
-    list_native_session_provider_catalog_entries, CodeEngineSessionDetailRecord,
+    list_native_session_provider_catalog_entries, sanitize_codeengine_git_repository_url,
+    sanitize_codeengine_session_metadata, CodeEngineSessionDetailRecord,
     CodeEngineSessionNativeAttributesRecord, CodeEngineSessionSummaryRecord,
 };
-use sdkwork_birdcoder_coding_sessions_service::context::CodingSessionContext;
-use sdkwork_birdcoder_coding_sessions_service::service::coding_session_service::CodingSessionService;
 use sdkwork_birdcoder_engine_catalog_service::service::engine_catalog_service::{
     CodeEngineModelConfigPayload, EngineCapabilityMatrixPayload, EngineCatalogProvider,
     EngineCatalogService, EngineDescriptorPayload, ModelCatalogEntryPayload,
@@ -25,17 +24,18 @@ use sdkwork_birdcoder_native_sessions_service::service::native_session_service::
     NativeSessionService, NativeSessionSummaryPayload,
 };
 use sdkwork_birdcoder_project_service::context::ProjectContext;
+use sdkwork_birdcoder_project_service::domain::runtime_location::RuntimeLocationCapability;
+use sdkwork_birdcoder_project_service::error::ProjectError;
 use sdkwork_birdcoder_project_service::service::project_service::ProjectService;
 
 use sdkwork_birdcoder_errors::{
     build_data_envelope, build_offset_list_envelope, build_unbounded_list_envelope,
-    trace_id_from_request_id, ApiDataEnvelope, ApiListEnvelope,
+    trace_id_from_request_id, traced_platform_problem, ApiDataEnvelope, ApiListEnvelope,
 };
 use sdkwork_birdcoder_router_context::{
-    coding_session_context, project_context, RequiredIamContext, StrictOffsetListQuery,
-    WebRequestContext,
+    project_context, RequiredIamContext, StrictOffsetListQuery, WebRequestContext,
 };
-use sdkwork_utils_rust::is_blank;
+use sdkwork_utils_rust::{is_blank, SdkWorkResultCode};
 
 use crate::error;
 use crate::mapper::request::{
@@ -216,7 +216,18 @@ fn native_session_query_is_scoped(query: &NativeSessionQuery) -> bool {
         .project_id
         .as_deref()
         .filter(|value| !is_blank(Some(*value)));
-    workspace_id.is_some() && project_id.is_some()
+    let runtime_location_id = query
+        .runtime_location_id
+        .as_deref()
+        .filter(|value| !is_blank(Some(*value)));
+    let project_root = query
+        .project_root
+        .as_deref()
+        .filter(|value| !is_blank(Some(*value)));
+    workspace_id.is_some()
+        && project_id.is_some()
+        && runtime_location_id.is_some()
+        && project_root.is_some()
 }
 
 fn native_session_lookup_is_scoped(lookup: &NativeSessionLookup) -> bool {
@@ -228,7 +239,18 @@ fn native_session_lookup_is_scoped(lookup: &NativeSessionLookup) -> bool {
         .project_id
         .as_deref()
         .filter(|value| !is_blank(Some(*value)));
-    workspace_id.is_some() && project_id.is_some()
+    let runtime_location_id = lookup
+        .runtime_location_id
+        .as_deref()
+        .filter(|value| !is_blank(Some(*value)));
+    let project_root = lookup
+        .project_root
+        .as_deref()
+        .filter(|value| !is_blank(Some(*value)));
+    workspace_id.is_some()
+        && project_id.is_some()
+        && runtime_location_id.is_some()
+        && project_root.is_some()
 }
 
 fn matches_native_session_scope(
@@ -243,29 +265,11 @@ fn matches_native_session_scope(
     let Some(expected_project_id) = project_id.filter(|value| !is_blank(Some(*value))) else {
         return false;
     };
-    let identity_matches = match (
-        record
-            .workspace_id
-            .as_deref()
-            .filter(|value| !is_blank(Some(*value))),
-        record
-            .project_id
-            .as_deref()
-            .filter(|value| !is_blank(Some(*value))),
-    ) {
-        (Some(record_workspace_id), Some(record_project_id)) => {
-            record_workspace_id == expected_workspace_id && record_project_id == expected_project_id
-        }
-        _ => false,
-    };
-    if identity_matches {
-        return true;
-    }
-
-    // Native histories can retain the workspace/project ids from an earlier
-    // import of the same directory.  The project root is resolved and
-    // authorized by the project service before this predicate runs, so a cwd
-    // match is a safe compatibility fallback for stale or missing ids.
+    let _ = (expected_workspace_id, expected_project_id);
+    // Provider-reported workspace and project identifiers can be stale after a
+    // project import or reassignment. They are never an authorization
+    // boundary: a native record is visible only when its recorded cwd belongs
+    // to the server-authorized project root.
     native_session_cwd_is_within_project(record.native_cwd.as_deref(), project_root)
 }
 
@@ -475,7 +479,6 @@ fn map_native_session_summary(
         transcript_updated_at: record.transcript_updated_at,
         sort_timestamp: record.sort_timestamp,
         kind: record.kind,
-        native_cwd: record.native_cwd,
         native_attributes,
     }
 }
@@ -483,6 +486,10 @@ fn map_native_session_summary(
 fn map_native_session_attributes(
     record: CodeEngineSessionNativeAttributesRecord,
 ) -> NativeSessionAttributesPayload {
+    let metadata = sanitize_codeengine_session_metadata(&serde_json::Value::Object(
+        record.metadata.into_iter().collect(),
+    ));
+
     NativeSessionAttributesPayload {
         schema_version: record.schema_version,
         session_tree_id: record.session_tree_id,
@@ -497,12 +504,12 @@ fn map_native_session_attributes(
         cwd: record.cwd,
         git_branch: record.git_branch,
         git_commit: record.git_commit,
-        git_repository_url: record.git_repository_url,
+        git_repository_url: sanitize_codeengine_git_repository_url(record.git_repository_url),
         agent_name: record.agent_name,
         agent_role: record.agent_role,
         is_ephemeral: record.is_ephemeral,
         is_sidechain: record.is_sidechain,
-        metadata: record.metadata,
+        metadata,
     }
 }
 
@@ -555,71 +562,95 @@ fn map_native_session_detail(
 
 async fn resolve_native_project_root(
     project_service: Option<&ProjectService>,
-    coding_session_service: Option<&CodingSessionService>,
-    coding_context: &CodingSessionContext,
     context: &ProjectContext,
     workspace_id: Option<&str>,
     project_id: Option<&str>,
+    runtime_location_id: Option<&str>,
     trace_id: Option<&str>,
-) -> Result<Option<String>, error::ProblemJsonBody> {
+) -> Result<String, error::ProblemJsonBody> {
     let Some(project_service) = project_service else {
-        return Ok(None);
+        return Err(traced_platform_problem(
+            SdkWorkResultCode::ServiceUnavailable,
+            "Native session discovery is unavailable.",
+            trace_id,
+        ));
     };
     let Some(workspace_id) = workspace_id.filter(|value| !is_blank(Some(*value))) else {
-        return Ok(None);
+        return Err(error::map_native_session_error(
+            NativeSessionError::InvalidInput(
+                "workspaceId and projectId are required for native sessions.".into(),
+            ),
+            trace_id,
+        ));
     };
     let Some(project_id) = project_id.filter(|value| !is_blank(Some(*value))) else {
-        return Ok(None);
+        return Err(error::map_native_session_error(
+            NativeSessionError::InvalidInput(
+                "workspaceId and projectId are required for native sessions.".into(),
+            ),
+            trace_id,
+        ));
+    };
+    let Some(runtime_location_id) = runtime_location_id.filter(|value| !is_blank(Some(*value)))
+    else {
+        return Err(error::map_native_session_error(
+            NativeSessionError::InvalidInput(
+                "workspaceId, projectId, and runtimeLocationId are required for native sessions."
+                    .into(),
+            ),
+            trace_id,
+        ));
     };
 
-    let project = project_service
-        .get_project(context, project_id)
+    project_service
+        .resolve_runtime_location_execution_root(
+            context,
+            workspace_id,
+            project_id,
+            runtime_location_id,
+            RuntimeLocationCapability::Terminal,
+        )
         .await
-        .map_err(|project_error| {
+        .map(|root| root.to_string_lossy().into_owned())
+        .map_err(|project_error| map_native_project_scope_error(project_error, trace_id))
+}
+
+fn map_native_project_scope_error(
+    error: ProjectError,
+    trace_id: Option<&str>,
+) -> error::ProblemJsonBody {
+    match error {
+        ProjectError::NotFound(_) | ProjectError::Forbidden(_) => error::map_native_session_error(
+            NativeSessionError::NotFound("Native session scope was not found.".to_owned()),
+            trace_id,
+        ),
+        ProjectError::InvalidInput(message) => {
+            error::map_native_session_error(NativeSessionError::InvalidInput(message), trace_id)
+        }
+        ProjectError::PreconditionRequired(message) => {
+            traced_platform_problem(SdkWorkResultCode::PreconditionRequired, message, trace_id)
+        }
+        ProjectError::PreconditionFailed(message) => {
+            traced_platform_problem(SdkWorkResultCode::PreconditionFailed, message, trace_id)
+        }
+        ProjectError::Unavailable(_) => traced_platform_problem(
+            SdkWorkResultCode::ServiceUnavailable,
+            "Native session discovery is unavailable.",
+            trace_id,
+        ),
+        ProjectError::Repository(_) | ProjectError::EventPublish(_) => {
             error::map_native_session_error(
-                NativeSessionError::Repository(project_error.to_string()),
+                NativeSessionError::Repository("project authorization lookup failed".to_owned()),
                 trace_id,
             )
-        })?;
-    if project.workspace_id != workspace_id {
-        return Ok(None);
-    }
-
-    if let Some(coding_session_service) = coding_session_service {
-        if let Some(root) = coding_session_service
-            .resolve_project_working_directory(coding_context, project_id)
-            .await
-            .map_err(|coding_error| {
-                error::map_native_session_error(
-                    NativeSessionError::Repository(coding_error.to_string()),
-                    trace_id,
-                )
-            })?
-        {
-            let root = std::fs::canonicalize(root).map_err(|error| {
-                error::map_native_session_error(
-                    NativeSessionError::Repository(format!(
-                        "project working directory is unavailable: {error}"
-                    )),
-                    trace_id,
-                )
-            })?;
-            if root.is_dir() {
-                return Ok(Some(root.to_string_lossy().into_owned()));
-            }
+        }
+        ProjectError::Conflict(_) | ProjectError::GitOperation(_) | ProjectError::Internal(_) => {
+            error::map_native_session_error(
+                NativeSessionError::Internal("project authorization lookup failed".to_owned()),
+                trace_id,
+            )
         }
     }
-
-    project_service
-        .resolve_project_root_for_scope(context, workspace_id, project_id)
-        .await
-        .map(|root| Some(root.to_string_lossy().into_owned()))
-        .map_err(|project_error| {
-            error::map_native_session_error(
-                NativeSessionError::Repository(project_error.to_string()),
-                trace_id,
-            )
-        })
 }
 
 #[derive(Clone)]
@@ -627,7 +658,6 @@ pub struct EngineCatalogAppState {
     pub engine_catalog_service: Arc<EngineCatalogService<RealEngineCatalogProvider>>,
     pub native_session_service: Arc<NativeSessionService<RealNativeSessionRepository>>,
     pub project_service: Option<Arc<ProjectService>>,
-    pub coding_session_service: Option<Arc<CodingSessionService>>,
 }
 
 impl Default for EngineCatalogAppState {
@@ -641,7 +671,6 @@ impl Default for EngineCatalogAppState {
                 RealNativeSessionRepository,
             )),
             project_service: None,
-            coding_session_service: None,
         }
     }
 }
@@ -705,29 +734,29 @@ pub async fn list_native_sessions(
     let offset = pagination.offset as usize;
     let limit = pagination.page_size as usize;
     let project_context = project_context(&iam);
-    let coding_context = coding_session_context(&iam);
     let project_root = resolve_native_project_root(
         state.project_service.as_deref(),
-        state.coding_session_service.as_deref(),
-        &coding_context,
         &project_context,
         params.workspace_id.as_deref(),
         params.project_id.as_deref(),
+        params.runtime_location_id.as_deref(),
         trace_id,
     )
     .await?;
     let query = NativeSessionQuery {
         workspace_id: params.workspace_id.clone(),
         project_id: params.project_id.clone(),
+        runtime_location_id: params.runtime_location_id.clone(),
         engine_id: params.engine_id,
         offset: Some(offset),
         limit: Some(limit),
-        project_root,
+        project_root: Some(project_root),
     };
     if !native_session_query_is_scoped(&query) {
         return Err(error::map_native_session_error(
             NativeSessionError::InvalidInput(
-                "workspaceId and projectId are required to list native sessions.".into(),
+                "workspaceId, projectId, and runtimeLocationId are required to list native sessions; the server must also resolve an authorized runtime location."
+                    .into(),
             ),
             trace_id,
         ));
@@ -753,24 +782,26 @@ pub async fn get_native_session(
     Query(scope): Query<NativeSessionScopeQuery>,
 ) -> Result<Json<ApiDataEnvelope<NativeSessionDetailPayload>>, error::ProblemJsonBody> {
     let trace_id = request_trace_id(&web);
-    if is_blank(Some(scope.workspace_id.as_str())) || is_blank(Some(scope.project_id.as_str())) {
+    if is_blank(Some(scope.workspace_id.as_str()))
+        || is_blank(Some(scope.project_id.as_str()))
+        || is_blank(Some(scope.runtime_location_id.as_str()))
+    {
         return Err(error::map_native_session_error(
             NativeSessionError::InvalidInput(
-                "workspaceId and projectId are required to retrieve native sessions.".into(),
+                "workspaceId, projectId, and runtimeLocationId are required to retrieve native sessions."
+                    .into(),
             ),
             trace_id,
         ));
     }
 
     let project_context = project_context(&iam);
-    let coding_context = coding_session_context(&iam);
     let project_root = resolve_native_project_root(
         state.project_service.as_deref(),
-        state.coding_session_service.as_deref(),
-        &coding_context,
         &project_context,
         Some(scope.workspace_id.as_str()),
         Some(scope.project_id.as_str()),
+        Some(scope.runtime_location_id.as_str()),
         trace_id,
     )
     .await?;
@@ -779,7 +810,8 @@ pub async fn get_native_session(
         engine_id: scope.engine_id,
         workspace_id: Some(scope.workspace_id),
         project_id: Some(scope.project_id),
-        project_root,
+        runtime_location_id: Some(scope.runtime_location_id),
+        project_root: Some(project_root),
     };
     match state.native_session_service.get_session_detail(&lookup) {
         Ok(session) => Ok(Json(build_data_envelope(session, request_id(&web)))),
@@ -969,11 +1001,53 @@ mod tests {
         assert_eq!(json["workspaceId"], "workspace-1");
         assert_eq!(json["projectId"], "project-1");
         assert_eq!(json["nativeSessionId"], "session-1");
-        assert_eq!(json["nativeCwd"], "C:/workspace/project");
+        assert!(
+            json.get("nativeCwd").is_none(),
+            "native absolute CWD must not cross the app API boundary"
+        );
+        assert!(
+            json["nativeAttributes"].get("cwd").is_none(),
+            "native attribute CWD must not cross the app API boundary"
+        );
         assert_eq!(json["kind"], "coding");
         assert_eq!(json["sortTimestamp"], "1752537660123");
         assert_eq!(json["nativeAttributes"]["modelProvider"], "openai");
         assert_eq!(json["nativeAttributes"]["title"], "Native provider title");
+    }
+
+    #[test]
+    fn mapped_native_summary_redacts_path_like_metadata_recursively() {
+        let mut record = native_summary("codex", Some("C:/workspace/project"));
+        record.native_attributes.metadata = std::collections::BTreeMap::from([
+            ("cwd".to_owned(), serde_json::json!("C:/private/project")),
+            (
+                "nested".to_owned(),
+                serde_json::json!({
+                    "workingDirectory": "C:/private/project/packages",
+                    "safe": "preserved",
+                }),
+            ),
+            (
+                "items".to_owned(),
+                serde_json::json!([
+                    { "nativeCwd": "C:/private/project/src" },
+                    { "safe": true },
+                ]),
+            ),
+        ]);
+        record.native_attributes.git_repository_url =
+            Some("https://token:secret@example.com/owner/repository.git".to_owned());
+
+        let payload = map_native_session_summary(record, Some("workspace-1"), Some("project-1"));
+        let json = serde_json::to_value(payload).expect("serialize native-session projection");
+        let metadata = &json["nativeAttributes"]["metadata"];
+
+        assert!(metadata.get("cwd").is_none());
+        assert!(metadata["nested"].get("workingDirectory").is_none());
+        assert!(metadata["items"][0].get("nativeCwd").is_none());
+        assert_eq!(metadata["nested"]["safe"], "preserved");
+        assert_eq!(metadata["items"][1]["safe"], true);
+        assert!(json["nativeAttributes"].get("gitRepositoryUrl").is_none());
     }
 
     #[test]

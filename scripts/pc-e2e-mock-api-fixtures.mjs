@@ -12,8 +12,29 @@ const E2E_USER = {
 export const E2E_PASSWORD = 'e2e-password';
 export const E2E_USERNAME = E2E_USER.email;
 
-const E2E_ACCESS_TOKEN = 'e2e-access-token';
-const E2E_AUTH_TOKEN = 'e2e-auth-token';
+function createTestJwt(claims) {
+  const header = Buffer.from(JSON.stringify({ alg: 'none', typ: 'JWT' })).toString('base64url');
+  const payload = Buffer.from(JSON.stringify({ token_version: 1, ...claims })).toString('base64url');
+  return `${header}.${payload}.signature`;
+}
+
+const E2E_TOKEN_EXPIRES_AT = Math.floor(Date.parse('2099-01-01T00:00:00.000Z') / 1_000);
+const E2E_ACCESS_TOKEN = createTestJwt({
+  app_id: 'sdkwork-birdcoder',
+  exp: E2E_TOKEN_EXPIRES_AT,
+  organization_id: E2E_USER.organizationId,
+  session_id: 'e2e-session-1',
+  tenant_id: E2E_USER.tenantId,
+  token_kind: 'access',
+  user_id: E2E_USER.id,
+});
+const E2E_AUTH_TOKEN = createTestJwt({
+  auth_level: 'user',
+  exp: E2E_TOKEN_EXPIRES_AT,
+  session_id: 'e2e-session-1',
+  token_kind: 'auth',
+  user_id: E2E_USER.id,
+});
 
 let requestCounter = 0;
 
@@ -22,50 +43,49 @@ function nextRequestId() {
   return `pc-e2e-req-${requestCounter}`;
 }
 
-function nowIso() {
-  return new Date().toISOString();
-}
-
 export function createAppbaseSuccess(data) {
   return {
-    code: '0',
-    message: 'ok',
-    requestId: nextRequestId(),
+    code: 0,
     data,
+    traceId: nextRequestId(),
   };
 }
 
 export function createAppbaseFailure(message, code = '401') {
+  const httpStatus = Number(code);
   return {
-    code,
-    message,
-    requestId: nextRequestId(),
-    data: {},
+    code: httpStatus === 401 ? 40101 : 50001,
+    detail: message,
+    status: Number.isFinite(httpStatus) ? httpStatus : 500,
+    title: message,
+    traceId: nextRequestId(),
+    type: 'about:blank',
   };
 }
 
 export function createBirdCoderListEnvelope(items) {
   return {
-    requestId: nextRequestId(),
-    timestamp: nowIso(),
-    items,
-    meta: {
-      page: 1,
-      pageSize: Math.max(items.length, 1),
-      total: items.length,
-      version: 'e2e',
+    code: 0,
+    data: {
+      items,
+      pageInfo: {
+        hasMore: false,
+        mode: 'offset',
+        page: 1,
+        pageSize: 20,
+        totalItems: String(items.length),
+        totalPages: items.length > 0 ? 1 : 0,
+      },
     },
+    traceId: nextRequestId(),
   };
 }
 
 export function createBirdCoderDataEnvelope(data) {
   return {
-    requestId: nextRequestId(),
-    timestamp: nowIso(),
-    data,
-    meta: {
-      version: 'e2e',
-    },
+    code: 0,
+    data: { item: data },
+    traceId: nextRequestId(),
   };
 }
 
@@ -99,11 +119,14 @@ export function createIamSessionData() {
     context: {
       appId: 'sdkwork-birdcoder',
       authLevel: 'user',
+      dataScope: [],
       environment: 'test',
       deploymentMode: 'private',
+      permissionScope: [],
       sessionId: 'e2e-session-1',
       tenantId: E2E_USER.tenantId,
       organizationId: E2E_USER.organizationId,
+      userId: E2E_USER.id,
     },
   };
 }

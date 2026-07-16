@@ -242,7 +242,7 @@ const client = createBirdCoderAppSdkApiClient({
                 updatedAt: '2026-04-17T00:05:00.000Z',
                 lastTurnAt: '2026-04-17T00:05:00.000Z',
                 kind: 'coding',
-                nativeCwd: 'D:/workspace/generated-contract',
+                runtimeLocationId: 'runtime-location-generated-contract',
                 sortTimestamp: '1713312300000',
                 transcriptUpdatedAt: '2026-04-17T00:05:00.000Z',
               },
@@ -265,7 +265,7 @@ const client = createBirdCoderAppSdkApiClient({
                 updatedAt: '2026-04-17T00:05:00.000Z',
                 lastTurnAt: '2026-04-17T00:05:00.000Z',
                 kind: 'coding',
-                nativeCwd: 'D:/workspace/generated-contract',
+                runtimeLocationId: 'runtime-location-generated-contract',
                 sortTimestamp: '1713312300000',
                 transcriptUpdatedAt: '2026-04-17T00:05:00.000Z',
               },
@@ -318,11 +318,13 @@ const codingSessions = await client.listCodingSessions({
 const nativeSessions = await client.listNativeSessions({
   engineId: 'codex',
   projectId: 'project-generated-contract',
+  runtimeLocationId: 'runtime-location-generated-contract',
   workspaceId: 'workspace-generated-contract',
 });
 const nativeSession = await client.getNativeSession('session-generated-contract', {
   engineId: 'codex',
   projectId: 'project-generated-contract',
+  runtimeLocationId: 'runtime-location-generated-contract',
   workspaceId: 'workspace-generated-contract',
 });
 const operation = await client.getOperation('op-app-runtime-read');
@@ -381,6 +383,7 @@ assert.deepEqual(observedRequests, [
       page: 1,
       page_size: 20,
       projectId: 'project-generated-contract',
+      runtimeLocationId: 'runtime-location-generated-contract',
       workspaceId: 'workspace-generated-contract',
     },
   },
@@ -400,6 +403,7 @@ assert.deepEqual(observedRequests, [
     query: {
       engineId: 'codex',
       projectId: 'project-generated-contract',
+      runtimeLocationId: 'runtime-location-generated-contract',
       workspaceId: 'workspace-generated-contract',
     },
   },

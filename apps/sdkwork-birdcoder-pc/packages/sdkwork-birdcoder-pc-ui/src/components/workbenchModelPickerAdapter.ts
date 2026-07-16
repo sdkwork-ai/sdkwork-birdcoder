@@ -30,7 +30,7 @@ export function createWorkbenchModelPickerCatalog(
 
   for (const engine of engines) {
     for (const model of engine.modelCatalog) {
-      const vendorCode = model.modelVendor || model.vendor || 'custom';
+      const vendorCode = model.modelVendor || model.vendor || 'unknown';
       const group = groupsByVendor.get(vendorCode) ?? createVendorGroup(vendorCode);
       const pickerId = buildWorkbenchModelPickerId(engine.id, model.id);
 
@@ -82,8 +82,8 @@ function createPickerOption(
     description: sourceLabel,
     ver: 'workspace',
     versionLabel: 'workspace',
-    vendorCode: model.modelVendor || model.vendor || 'custom',
-    vendorName: getWorkbenchModelVendorLabel(model.modelVendor || model.vendor || 'custom'),
+    vendorCode: model.modelVendor || model.vendor || 'unknown',
+    vendorName: getWorkbenchModelVendorLabel(model.modelVendor || model.vendor || 'unknown'),
     modalities: ['text'],
     inputModalities: ['text'],
     outputModalities: ['text'],

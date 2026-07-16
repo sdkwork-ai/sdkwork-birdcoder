@@ -34,7 +34,6 @@ import {
   type BirdCoderBackendSdkApiClient,
 } from './sdkClients.ts';
 import { createBirdCoderHttpApiTransport } from './sdkTransportShared.ts';
-import { createBirdCoderTauriNativeSessionReadPort } from '../platform/tauriNativeSessions.ts';
 
 export {
   type BirdCoderDefaultIdeServices,
@@ -177,7 +176,6 @@ export function createDefaultBirdCoderIdeServices(
     appRuntimeReadService: new ApiBackedAppRuntimeReadService({
       client: runtime.appRuntimeClient,
       currentUserProvider: runtime.authService,
-      nativeSessionReadPort: createBirdCoderTauriNativeSessionReadPort(runtime.fileSystemService),
     }),
     appRuntimeWriteService: new ApiBackedAppRuntimeWriteService({
       client: runtime.appRuntimeClient,
@@ -189,10 +187,14 @@ export function createDefaultBirdCoderIdeServices(
       appClient,
     }),
     fileSystemService: runtime.fileSystemService,
+    projectRuntimeLocationService: runtime.projectRuntimeLocationService,
     gitService: new ApiBackedGitService({
       appClient,
-      resolveLocalWorkingDirectory: (projectId) =>
-        runtime.fileSystemService.resolveLocalWorkingDirectory(projectId),
+      resolveProjectRuntimeLocation: (projectId) =>
+        runtime.projectRuntimeLocationService.resolveProjectRuntimeLocation(projectId, {
+          allowFolderSelection: false,
+          capability: 'git',
+        }),
     }),
     promptService: runtime.promptService,
     projectService,

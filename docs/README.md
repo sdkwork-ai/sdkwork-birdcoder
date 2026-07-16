@@ -13,7 +13,8 @@ These two files are the onboarding and review entrypoints. Product behavior belo
 
 - [Requirements](product/requirements/)
 - [Architecture decisions](architecture/decisions/)
-- [Unified project/runtime boundary](architecture/decisions/ADR-20260713-unified-project-runtime-boundary.md)
+- [Distributed project runtime locations](architecture/decisions/ADR-20260716-distributed-project-runtime-locations.md)
+- [Runtime-location migration plan](migrations/MIG-2026-0001-distributed-project-runtime-locations.md)
 - [Engineering plans](engineering/)
 
 Working documents must link back to the Canon and may be deleted or archived after the requirement is closed. New implementation diaries and tool-specific `superpowers` plans are not accepted as a parallel documentation system.
@@ -38,9 +39,12 @@ Working documents must link back to the Canon and may be deleted or archived aft
 - Prefer one concise Canon document plus traceable REQ/ADR records.
 - Generated contracts, route inventories, package graphs, and database schemas are linked, not duplicated as prose.
 - Release notes and verification evidence do not become architecture standards.
-- Client folder mounts are device-private capabilities. Remote project metadata
-  and server workspace roots are documented separately from client paths and
-  browser handles.
+- Project identities remain distinct from runtime locations. Authorized
+  runtime-location records own target-specific encrypted paths, Git snapshots,
+  and execution capabilities; generic project metadata remains path-free.
+- Runtime-location app-api responses use safe metadata only. A plaintext path
+  is accepted only through a protected write-only registration flow and is
+  decrypted only by the authenticated owning target for a verified action.
 - Remote execution is not described as available until the isolated-runner
   capability has implementation and release evidence.
 

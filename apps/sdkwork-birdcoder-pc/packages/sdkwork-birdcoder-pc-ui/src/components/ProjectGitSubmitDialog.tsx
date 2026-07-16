@@ -10,11 +10,11 @@ import {
 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import {
-  useProjectGitMutationActions,
   useProjectGitOverview,
-  useToast,
   type ProjectGitOverviewViewState,
-} from '@sdkwork/birdcoder-pc-commons';
+} from '@sdkwork/birdcoder-pc-commons/hooks/useProjectGitOverview';
+import { useProjectGitMutationActions } from '@sdkwork/birdcoder-pc-commons/hooks/useProjectGitMutationActions';
+import { useToast } from '@sdkwork/birdcoder-pc-commons/contexts/ToastProvider';
 
 const MAX_COMMIT_MESSAGE_LENGTH = 500;
 

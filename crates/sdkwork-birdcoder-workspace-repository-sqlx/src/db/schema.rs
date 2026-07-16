@@ -225,6 +225,168 @@ CREATE TABLE IF NOT EXISTS studio_project_collaborator (
     status TEXT NOT NULL
 );
 
+CREATE TABLE IF NOT EXISTS studio_project_runtime_location (
+    id TEXT PRIMARY KEY,
+    uuid TEXT NOT NULL UNIQUE,
+    tenant_id INTEGER NOT NULL DEFAULT 0,
+    organization_id INTEGER NOT NULL DEFAULT 0,
+    project_id INTEGER NOT NULL,
+    registered_by_user_id INTEGER NOT NULL,
+    runtime_target_id TEXT NOT NULL,
+    runtime_target_kind TEXT NOT NULL,
+    location_kind TEXT NOT NULL,
+    path_flavor TEXT NOT NULL,
+    root_locator TEXT NOT NULL,
+    display_name TEXT NOT NULL,
+    encrypted_absolute_path TEXT NOT NULL,
+    path_encryption_key_id TEXT NOT NULL,
+    path_fingerprint TEXT NOT NULL,
+    terminal_available INTEGER NOT NULL DEFAULT 0,
+    git_available INTEGER NOT NULL DEFAULT 0,
+    build_available INTEGER NOT NULL DEFAULT 0,
+    file_system_available INTEGER NOT NULL DEFAULT 0,
+    health_status TEXT NOT NULL,
+    last_verified_at TEXT NULL,
+    last_seen_at TEXT NULL,
+    verified_by_user_id INTEGER NULL,
+    git_repository_url TEXT NULL,
+    git_remote_name TEXT NULL,
+    git_branch TEXT NULL,
+    git_commit TEXT NULL,
+    git_worktree_key TEXT NULL,
+    version INTEGER NOT NULL DEFAULT 0,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL,
+    is_deleted INTEGER NOT NULL DEFAULT 0
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS uk_studio_project_runtime_location_active_path
+ON studio_project_runtime_location(tenant_id, organization_id, project_id, runtime_target_id, path_fingerprint)
+WHERE is_deleted IS NOT TRUE;
+
+CREATE TABLE IF NOT EXISTS studio_project_runtime_location_preference (
+    id TEXT PRIMARY KEY,
+    uuid TEXT NOT NULL UNIQUE,
+    tenant_id INTEGER NOT NULL DEFAULT 0,
+    organization_id INTEGER NOT NULL DEFAULT 0,
+    project_id INTEGER NOT NULL,
+    subject_user_id INTEGER NOT NULL,
+    capability TEXT NOT NULL,
+    runtime_location_id TEXT NOT NULL,
+    version INTEGER NOT NULL DEFAULT 0,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL,
+    is_deleted INTEGER NOT NULL DEFAULT 0
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS uk_studio_project_runtime_location_preference_active
+ON studio_project_runtime_location_preference(tenant_id, organization_id, project_id, subject_user_id, capability)
+WHERE is_deleted IS NOT TRUE;
+
+CREATE TABLE IF NOT EXISTS studio_project_runtime_location_idempotency (
+    id TEXT PRIMARY KEY,
+    uuid TEXT NOT NULL UNIQUE,
+    tenant_id INTEGER NOT NULL DEFAULT 0,
+    organization_id INTEGER NOT NULL DEFAULT 0,
+    project_id INTEGER NOT NULL,
+    subject_user_id INTEGER NOT NULL,
+    operation_kind TEXT NOT NULL,
+    idempotency_key_hash TEXT NOT NULL,
+    request_fingerprint TEXT NOT NULL,
+    resource_kind TEXT NOT NULL,
+    resource_id TEXT NOT NULL,
+    resource_version INTEGER NULL,
+    created_at TEXT NOT NULL,
+    expires_at TEXT NOT NULL
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS uk_studio_project_runtime_location_idempotency
+ON studio_project_runtime_location_idempotency(tenant_id, organization_id, project_id, subject_user_id, operation_kind, idempotency_key_hash);
+
+CREATE TABLE IF NOT EXISTS ops_project_runtime_location_audit (
+    id TEXT PRIMARY KEY,
+    uuid TEXT NOT NULL UNIQUE,
+    tenant_id INTEGER NOT NULL DEFAULT 0,
+    organization_id INTEGER NOT NULL DEFAULT 0,
+    project_id INTEGER NOT NULL,
+    runtime_location_id TEXT NULL,
+    actor_user_id INTEGER NOT NULL,
+    action TEXT NOT NULL,
+    result TEXT NOT NULL,
+    trace_id TEXT NULL,
+    occurred_at TEXT NOT NULL,
+    redacted_metadata_json TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS studio_project_workspace_binding (
+    id TEXT PRIMARY KEY,
+    uuid TEXT NOT NULL UNIQUE,
+    tenant_id INTEGER NOT NULL DEFAULT 0,
+    organization_id INTEGER NOT NULL DEFAULT 0,
+    project_id INTEGER NOT NULL REFERENCES studio_project(id) ON DELETE CASCADE,
+    sandbox_id TEXT NOT NULL,
+    root_entry_id TEXT NOT NULL,
+    logical_path TEXT NOT NULL DEFAULT '',
+    lifecycle_status TEXT NOT NULL CHECK (lifecycle_status IN ('active', 'revoked')),
+    created_by_user_id INTEGER NOT NULL,
+    updated_by_user_id INTEGER NOT NULL,
+    version INTEGER NOT NULL DEFAULT 0 CHECK (version >= 0),
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL,
+    is_deleted INTEGER NOT NULL DEFAULT 0
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS uk_studio_project_workspace_binding_active
+ON studio_project_workspace_binding(tenant_id, organization_id, project_id)
+WHERE is_deleted IS NOT TRUE;
+
+CREATE INDEX IF NOT EXISTS idx_studio_project_workspace_binding_lookup
+ON studio_project_workspace_binding(tenant_id, organization_id, project_id, is_deleted);
+
+CREATE TABLE IF NOT EXISTS studio_project_workspace_binding_idempotency (
+    id TEXT PRIMARY KEY,
+    uuid TEXT NOT NULL UNIQUE,
+    tenant_id INTEGER NOT NULL DEFAULT 0,
+    organization_id INTEGER NOT NULL DEFAULT 0,
+    project_id INTEGER NOT NULL REFERENCES studio_project(id) ON DELETE CASCADE,
+    subject_user_id INTEGER NOT NULL,
+    operation_kind TEXT NOT NULL,
+    idempotency_key_hash TEXT NOT NULL,
+    request_fingerprint TEXT NOT NULL,
+    resource_id TEXT NOT NULL,
+    resource_version INTEGER NULL,
+    created_at TEXT NOT NULL,
+    expires_at TEXT NOT NULL
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS uk_studio_project_workspace_binding_idempotency
+ON studio_project_workspace_binding_idempotency(
+    tenant_id, organization_id, project_id, subject_user_id, operation_kind, idempotency_key_hash
+);
+
+CREATE INDEX IF NOT EXISTS idx_studio_project_workspace_binding_idempotency_expiry
+ON studio_project_workspace_binding_idempotency(expires_at);
+
+CREATE TABLE IF NOT EXISTS ops_project_workspace_binding_audit (
+    id TEXT PRIMARY KEY,
+    uuid TEXT NOT NULL UNIQUE,
+    tenant_id INTEGER NOT NULL DEFAULT 0,
+    organization_id INTEGER NOT NULL DEFAULT 0,
+    project_id INTEGER NOT NULL REFERENCES studio_project(id) ON DELETE CASCADE,
+    workspace_binding_id TEXT NOT NULL,
+    actor_user_id INTEGER NOT NULL,
+    action TEXT NOT NULL,
+    result TEXT NOT NULL,
+    trace_id TEXT NULL,
+    occurred_at TEXT NOT NULL,
+    redacted_metadata_json TEXT NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_ops_project_workspace_binding_audit_scope_time
+ON ops_project_workspace_binding_audit(
+    tenant_id, organization_id, project_id, workspace_binding_id, occurred_at
+);
+
 CREATE TABLE IF NOT EXISTS ops_release_record (
     id TEXT PRIMARY KEY,
     uuid TEXT NULL,

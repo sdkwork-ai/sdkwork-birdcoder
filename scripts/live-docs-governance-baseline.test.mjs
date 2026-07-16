@@ -7,6 +7,7 @@ const rootDir = process.cwd();
 const docsDir = path.join(rootDir, 'docs');
 const techDir = path.join(docsDir, 'architecture', 'tech');
 const prdDir = path.join(docsDir, 'product', 'prd');
+const requirementsDir = path.join(docsDir, 'product', 'requirements');
 
 function filesIn(directory) {
   return fs.readdirSync(directory, { withFileTypes: true })
@@ -26,17 +27,23 @@ function containsFiles(directory) {
 
 assert.deepEqual(filesIn(techDir), ['README.md', 'TECH_ARCHITECTURE.md']);
 assert.deepEqual(filesIn(prdDir), ['PRD.md', 'README.md'].sort());
-for (const retiredDirectory of [
-  'docs/archive',
-  'docs/product/requirements',
-  'docs/prompts',
-]) {
+for (const retiredDirectory of ['docs/prompts']) {
   assert.equal(
     containsFiles(path.join(rootDir, retiredDirectory)),
     false,
-    retiredDirectory + ' must not be maintained as a parallel documentation tree',
+    retiredDirectory + ' must not be maintained as a parallel documentation tree.',
   );
 }
+
+const requirementFiles = filesIn(requirementsDir);
+assert.ok(
+  requirementFiles.includes('README.md'),
+  'docs/product/requirements must provide a README that explains the working-document boundary.',
+);
+assert.ok(
+  requirementFiles.some((fileName) => /^REQ-\d{4}-\d{4}-[a-z0-9-]+\.md$/u.test(fileName)),
+  'docs/product/requirements must contain at least one traceable REQ-* record for active non-trivial work.',
+);
 
 const decisionsDir = path.join(docsDir, 'architecture', 'decisions');
 const decisionFiles = filesIn(decisionsDir);
@@ -52,10 +59,20 @@ assert.match(prd, /^# SDKWork BirdCoder PRD/m);
 assert.match(prd, /## 5\. Functional Requirements/u);
 assert.match(prd, /## 6\. Quality, Security, And Commercial Gates/u);
 assert.match(tech, /^# SDKWork BirdCoder Technical Architecture/m);
-assert.match(tech, /## 2\. Unified Renderer And Host Capabilities/u);
-assert.match(tech, /## 5\. Deployment And Runtime Topology/u);
+assert.match(tech, /## 3\. Location Data And Lifecycle/u);
+assert.match(tech, /## 8\. Deployment And Runtime Topology/u);
+assert.match(
+  tech,
+  /ProjectRuntimeLocation/u,
+  'Technical architecture must identify the distributed location authority.',
+);
+assert.match(
+  tech,
+  /ADR-20260716/u,
+  'Technical architecture must link the active runtime-location architecture decision.',
+);
 assert.doesNotMatch(prd, /^- \[ \]/mu);
-assert.doesNotMatch(tech, /TECH-(?:0[0-9]|[1-9][0-9])-|REQ-2026|ADR-20260710/u);
+assert.doesNotMatch(tech, /TECH-(?:0[0-9]|[1-9][0-9])-|ADR-20260710/u);
 
 const releaseDoc = fs.readFileSync(path.join(docsDir, 'core', 'release-and-deployment.md'), 'utf8');
 assert.match(releaseDoc, /pnpm\.cmd check:release-flow/u);

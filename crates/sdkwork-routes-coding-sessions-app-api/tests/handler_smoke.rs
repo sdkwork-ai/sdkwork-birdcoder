@@ -18,6 +18,7 @@ use sdkwork_birdcoder_coding_sessions_service::ports::engine_validator::EngineVa
 use sdkwork_birdcoder_coding_sessions_service::ports::events::{
     CodingSessionRealtimeEventInput, RealtimeEventPublisher,
 };
+use sdkwork_birdcoder_coding_sessions_service::ports::project_execution_scope::ProjectExecutionScopeResolver;
 use sdkwork_birdcoder_coding_sessions_service::ports::provider::CodeEngineProvider;
 use sdkwork_birdcoder_coding_sessions_service::service::coding_session_service::CodingSessionService;
 use sdkwork_birdcoder_workspace_repository_sqlx::db::schema::ALL_TABLES_DDL as WORKSPACE_TABLES_DDL;
@@ -71,6 +72,14 @@ impl EngineValidator for StubEngineValidator {
             capability_snapshot_json: "{}".to_owned(),
         })
     }
+
+    fn validate_engine_model(
+        &self,
+        _engine_id: &str,
+        _model_id: &str,
+    ) -> Result<(), CodingSessionError> {
+        Ok(())
+    }
 }
 
 struct StubCodeEngineProvider;
@@ -107,6 +116,23 @@ impl CodeEngineProvider for StubCodeEngineProvider {
         _input: &SubmitUserQuestionAnswerInput,
     ) -> Result<(), CodingSessionError> {
         Ok(())
+    }
+}
+
+struct UnavailableProjectExecutionScopeResolver;
+
+#[async_trait]
+impl ProjectExecutionScopeResolver for UnavailableProjectExecutionScopeResolver {
+    async fn resolve_execution_root(
+        &self,
+        _context: &CodingSessionContext,
+        _workspace_id: &str,
+        _project_id: &str,
+        _runtime_location_id: &str,
+    ) -> Result<std::path::PathBuf, CodingSessionError> {
+        Err(CodingSessionError::Unavailable(
+            "test project execution root is unavailable".to_owned(),
+        ))
     }
 }
 
@@ -167,6 +193,7 @@ async fn test_state_with_seeded_workspace(workspace_id: i64) -> CodingSessionsAp
         Arc::new(StubCodeEngineProvider),
         Arc::new(NoopRealtimePublisher),
         Arc::new(StubEngineValidator),
+        Arc::new(UnavailableProjectExecutionScopeResolver),
     );
 
     CodingSessionsAppState {
@@ -343,6 +370,7 @@ async fn create_session_returns_201_with_session_payload() {
                     serde_json::json!({
                         "workspaceId": "101",
                         "projectId": "project-smoke",
+                        "runtimeLocationId": "runtime-location-smoke",
                         "title": "Handler smoke session",
                         "hostMode": "server",
                         "engineId": "codex",
@@ -367,4 +395,157 @@ async fn create_session_returns_201_with_session_payload() {
     assert_eq!(json["data"]["item"]["workspaceId"], "101");
     assert_eq!(json["data"]["item"]["projectId"], "project-smoke");
     assert_eq!(json["data"]["item"]["title"], "Handler smoke session");
+}
+
+#[tokio::test]
+async fn create_session_rejects_a_missing_runtime_location_id() {
+    let response = build_coding_sessions_app_api_router()
+        .with_state(test_state_with_seeded_workspace(101).await)
+        .oneshot(with_request_context(
+            Request::builder()
+                .method("POST")
+                .uri("/app/v3/api/intelligence/coding_sessions")
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    serde_json::json!({
+                        "workspaceId": "101",
+                        "projectId": "project-smoke",
+                        "title": "Invalid session",
+                        "hostMode": "server",
+                        "engineId": "codex",
+                        "modelId": "gpt-5-codex",
+                    })
+                    .to_string(),
+                ))
+                .expect("build invalid create session request"),
+            Some(test_iam_context()),
+        ))
+        .await
+        .expect("serve invalid create session request");
+
+    assert_eq!(response.status(), StatusCode::BAD_REQUEST);
+    assert_eq!(
+        response
+            .headers()
+            .get("content-type")
+            .and_then(|value| value.to_str().ok()),
+        Some("application/problem+json")
+    );
+    let body = axum::body::to_bytes(response.into_body(), usize::MAX)
+        .await
+        .expect("read invalid create session body");
+    let json: serde_json::Value =
+        serde_json::from_slice(&body).expect("parse invalid create session JSON");
+    assert_eq!(json["code"], 40001);
+    assert_eq!(json["traceId"], "handler-smoke-request");
+}
+
+fn coding_session_context() -> CodingSessionContext {
+    CodingSessionContext {
+        tenant_id: "1".to_owned(),
+        organization_id: "0".to_owned(),
+        user_id: "1".to_owned(),
+        session_id: "handler-smoke-session".to_owned(),
+    }
+}
+
+async fn create_immutable_session(state: &CodingSessionsAppState) -> String {
+    state
+        .service
+        .create_session(
+            &coding_session_context(),
+            sdkwork_birdcoder_coding_sessions_service::domain::commands::CreateCodingSessionRequest {
+                workspace_id: "101".to_owned(),
+                project_id: "project-smoke".to_owned(),
+                runtime_location_id: "runtime-location-smoke".to_owned(),
+                title: Some("Immutable session".to_owned()),
+                host_mode: Some("server".to_owned()),
+                engine_id: Some("codex".to_owned()),
+                model_id: Some("gpt-5-codex".to_owned()),
+            },
+        )
+        .await
+        .expect("create immutable smoke session")
+        .id
+}
+
+#[tokio::test]
+async fn patch_rejects_engine_and_model_overrides_without_mutating_the_session() {
+    let state = test_state_with_seeded_workspace(101).await;
+    let session_id = create_immutable_session(&state).await;
+    let service = state.service.clone();
+    let response = build_coding_sessions_app_api_router()
+        .with_state(state)
+        .oneshot(with_request_context(
+            Request::builder()
+                .method("PATCH")
+                .uri(format!(
+                    "/app/v3/api/intelligence/coding_sessions/{session_id}"
+                ))
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    serde_json::json!({
+                        "title": "attempted update",
+                        "engineId": "gemini",
+                        "modelId": "gemini-2.5-pro"
+                    })
+                    .to_string(),
+                ))
+                .expect("build immutable update request"),
+            Some(test_iam_context()),
+        ))
+        .await
+        .expect("serve immutable update request");
+
+    assert!(
+        response.status().is_client_error(),
+        "legacy immutable fields must be rejected before update execution"
+    );
+    let session = service
+        .get_session(&coding_session_context(), &session_id)
+        .await
+        .expect("read unchanged session after rejected update");
+    assert_eq!(session.engine_id, "codex");
+    assert_eq!(session.model_id, "gpt-5-codex");
+}
+
+#[tokio::test]
+async fn turn_rejects_engine_and_model_overrides_without_mutating_the_session() {
+    let state = test_state_with_seeded_workspace(101).await;
+    let session_id = create_immutable_session(&state).await;
+    let service = state.service.clone();
+    let response = build_coding_sessions_app_api_router()
+        .with_state(state)
+        .oneshot(with_request_context(
+            Request::builder()
+                .method("POST")
+                .uri(format!(
+                    "/app/v3/api/intelligence/coding_sessions/{session_id}/turns"
+                ))
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    serde_json::json!({
+                        "requestKind": "user_message",
+                        "inputSummary": "attempted turn override",
+                        "engineId": "gemini",
+                        "modelId": "gemini-2.5-pro"
+                    })
+                    .to_string(),
+                ))
+                .expect("build immutable turn request"),
+            Some(test_iam_context()),
+        ))
+        .await
+        .expect("serve immutable turn request");
+
+    assert!(
+        response.status().is_client_error(),
+        "legacy per-turn engine/model fields must be rejected before execution"
+    );
+    let session = service
+        .get_session(&coding_session_context(), &session_id)
+        .await
+        .expect("read unchanged session after rejected turn");
+    assert_eq!(session.engine_id, "codex");
+    assert_eq!(session.model_id, "gpt-5-codex");
 }

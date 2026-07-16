@@ -47,7 +47,7 @@ assert.equal(operation('/app/v3/api/projects/{projectId}/publish', 'post').opera
 assert.equal(
   document.paths['/app/v3/api/workspaces/{workspaceId}/realtime'],
   undefined,
-  'WebSocket realtime routes must stay out of the HTTP OpenAPI authority; route catalogs keep the runtime subscribe operation.',
+  'SSE/WebSocket realtime routes stay out of request/response OpenAPI authority; route catalogs keep the runtime subscribe operation.',
 );
 
 for (const [path, method] of [

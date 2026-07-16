@@ -71,8 +71,11 @@
   "metadata": {
     "managedBy": "sdkwork-birdcoder-sdkwork-sdk-migration",
     "standardVersion": "2026-06-06",
+    "generation": {
+      "sourceSpec": "sdks/specs/openapi/birdcoder-app-v3.openapi.json"
+    },
     "providerStandard": {
-      "kind": "sdkwork.sdk.family.assembly"
+      "kind": "sdkwork.sdk.family"
     }
   },
   "languages": [

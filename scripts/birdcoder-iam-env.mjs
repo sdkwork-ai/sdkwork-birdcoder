@@ -66,6 +66,10 @@ const BIRDCODER_CODING_SERVER_SQLITE_FILE_ENV =
   'BIRDCODER_CODING_SERVER_SQLITE_FILE';
 const SDKWORK_BIRDCODER_DATABASE_URL_ENV = 'SDKWORK_BIRDCODER_DATABASE_URL';
 const SDKWORK_BIRDCODER_DATABASE_ENGINE_ENV = 'SDKWORK_BIRDCODER_DATABASE_ENGINE';
+const SDKWORK_BIRDCODER_RUNTIME_LOCATION_MASTER_KEY_ENV =
+  'SDKWORK_BIRDCODER_RUNTIME_LOCATION_MASTER_KEY';
+const SDKWORK_BIRDCODER_RUNTIME_LOCATION_KEY_ID_ENV =
+  'SDKWORK_BIRDCODER_RUNTIME_LOCATION_KEY_ID';
 const BIRDCODER_API_BASE_URL_ENV = 'BIRDCODER_API_BASE_URL';
 const VITE_BIRDCODER_API_BASE_URL_ENV = 'VITE_BIRDCODER_API_BASE_URL';
 const BIRDCODER_ENABLE_RELEASE_DEMO_LOGIN_ENV =
@@ -943,6 +947,20 @@ export function resolveBirdcoderIamCommandEnv({
     );
     setEnvDefault(nextEnv, SDKWORK_BIRDCODER_DATABASE_ENGINE_ENV, 'sqlite');
   }
+
+  // Development-only runtime-location encryption defaults. Production must
+  // inject these from a protected secret manager; these values never enter
+  // VITE_*, client bundles, or checked-in env example files.
+  setEnvDefault(
+    nextEnv,
+    SDKWORK_BIRDCODER_RUNTIME_LOCATION_MASTER_KEY_ENV,
+    'standalone-development-runtime-location-master-key',
+  );
+  setEnvDefault(
+    nextEnv,
+    SDKWORK_BIRDCODER_RUNTIME_LOCATION_KEY_ID_ENV,
+    'standalone-development-v1',
+  );
 
   applyAuthSurfaceDefaults({
     env: nextEnv,

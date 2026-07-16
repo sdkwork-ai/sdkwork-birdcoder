@@ -13,7 +13,7 @@ class AuthApi {
   /// Create SDKWork IAM password reset request
   Future<BirdCoderBooleanSuccessEnvelope?> passwordResetRequestsCreate(BirdCoderIamPasswordResetRequestCreateRequest body) async {
     final payload = body.toJson();
-    final response = await _client.post(ApiPaths.appPath('/auth/password_reset_requests'), body: payload, contentType: 'application/json');
+    final response = await _client.request('POST', ApiPaths.appPath('/auth/password_reset_requests'), body: payload, contentType: 'application/json', skipAuth: true);
     return (() {
       final map = sdkworkResponseAsMap(response);
       return map == null ? null : BirdCoderBooleanSuccessEnvelope.fromJson(map);
@@ -23,7 +23,7 @@ class AuthApi {
   /// Reset SDKWork IAM password
   Future<BirdCoderBooleanSuccessEnvelope?> passwordResetsCreate(BirdCoderIamPasswordResetCreateRequest body) async {
     final payload = body.toJson();
-    final response = await _client.post(ApiPaths.appPath('/auth/password_resets'), body: payload, contentType: 'application/json');
+    final response = await _client.request('POST', ApiPaths.appPath('/auth/password_resets'), body: payload, contentType: 'application/json', skipAuth: true);
     return (() {
       final map = sdkworkResponseAsMap(response);
       return map == null ? null : BirdCoderBooleanSuccessEnvelope.fromJson(map);
@@ -33,7 +33,7 @@ class AuthApi {
   /// Register SDKWork IAM user
   Future<BirdCoderIamSessionEnvelope?> registrationsCreate(BirdCoderIamRegistrationCreateRequest body) async {
     final payload = body.toJson();
-    final response = await _client.post(ApiPaths.appPath('/auth/registrations'), body: payload, contentType: 'application/json');
+    final response = await _client.request('POST', ApiPaths.appPath('/auth/registrations'), body: payload, contentType: 'application/json', skipAuth: true);
     return (() {
       final map = sdkworkResponseAsMap(response);
       return map == null ? null : BirdCoderIamSessionEnvelope.fromJson(map);
@@ -43,7 +43,7 @@ class AuthApi {
   /// Create SDKWork IAM session
   Future<BirdCoderIamSessionEnvelope?> sessionsCreate(BirdCoderIamCreateSessionRequest body) async {
     final payload = body.toJson();
-    final response = await _client.post(ApiPaths.appPath('/auth/sessions'), body: payload, contentType: 'application/json');
+    final response = await _client.request('POST', ApiPaths.appPath('/auth/sessions'), body: payload, contentType: 'application/json', skipAuth: true);
     return (() {
       final map = sdkworkResponseAsMap(response);
       return map == null ? null : BirdCoderIamSessionEnvelope.fromJson(map);
@@ -70,18 +70,14 @@ class AuthApi {
   }
 
   /// Delete current SDKWork IAM session
-  Future<BirdCoderBooleanSuccessEnvelope?> sessionsCurrentDelete() async {
-    final response = await _client.delete(ApiPaths.appPath('/auth/sessions/current'));
-    return (() {
-      final map = sdkworkResponseAsMap(response);
-      return map == null ? null : BirdCoderBooleanSuccessEnvelope.fromJson(map);
-    })();
+  Future<void> sessionsCurrentDelete() async {
+    await _client.delete(ApiPaths.appPath('/auth/sessions/current'));
   }
 
   /// Refresh SDKWork IAM session
   Future<BirdCoderIamSessionEnvelope?> sessionsRefresh(BirdCoderIamRefreshSessionRequest body) async {
     final payload = body.toJson();
-    final response = await _client.post(ApiPaths.appPath('/auth/sessions/refresh'), body: payload, contentType: 'application/json');
+    final response = await _client.request('POST', ApiPaths.appPath('/auth/sessions/refresh'), body: payload, contentType: 'application/json', skipAuth: true);
     return (() {
       final map = sdkworkResponseAsMap(response);
       return map == null ? null : BirdCoderIamSessionEnvelope.fromJson(map);

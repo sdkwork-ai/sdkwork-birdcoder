@@ -4,11 +4,14 @@ import type {
   BirdCoderBackendSdkApiClient,
 } from '@sdkwork/birdcoder-pc-infrastructure-runtime';
 
+export type BirdCoderRealtimeTransportPreference = 'auto' | 'sse' | 'websocket';
+
 export interface BootstrapShellRuntimeOptions {
   appClient?: BirdCoderAppSdkApiClient;
   apiBaseUrl?: string;
   backendClient?: BirdCoderBackendSdkApiClient;
   host?: BirdHostDescriptor;
+  realtimeTransport?: BirdCoderRealtimeTransportPreference;
 }
 
 export async function bootstrapShellRuntime(

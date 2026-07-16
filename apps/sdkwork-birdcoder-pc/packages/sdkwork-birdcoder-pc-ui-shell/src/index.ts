@@ -17,6 +17,9 @@ export type { WorkbenchCodeEngineIconProps } from './components/WorkbenchCodeEng
 
 export { SessionTranscriptLoadingState } from './components/SessionTranscriptLoadingState';
 
+export { StartupScreen } from './components/StartupScreen';
+export type { StartupScreenProps, StartupStage } from './components/StartupScreen';
+
 export { useFixedSizeWindowedRange } from './components/useFixedSizeWindowedRange';
 export { useRelativeMinuteNow } from './components/useRelativeMinuteNow';
 

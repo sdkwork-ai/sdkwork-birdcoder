@@ -10,6 +10,7 @@ pub mod session {
     pub const USER_ID: &str = "user_id";
     pub const WORKSPACE_ID: &str = "workspace_id";
     pub const PROJECT_ID: &str = "project_id";
+    pub const RUNTIME_LOCATION_ID: &str = "runtime_location_id";
     pub const TITLE: &str = "title";
     pub const STATUS: &str = "status";
     pub const ENTRY_SURFACE: &str = "entry_surface";
@@ -108,6 +109,8 @@ pub mod event {
     pub const TABLE: &str = "ai_coding_session_event";
     pub const ID: &str = "id";
     pub const UUID: &str = "uuid";
+    pub const TENANT_ID: &str = "tenant_id";
+    pub const USER_ID: &str = "user_id";
     pub const CREATED_AT: &str = "created_at";
     pub const UPDATED_AT: &str = "updated_at";
     pub const VERSION: &str = "version";
@@ -139,6 +142,8 @@ pub mod artifact {
 pub mod checkpoint {
     pub const TABLE: &str = "ai_coding_session_checkpoint";
     pub const ID: &str = "id";
+    pub const TENANT_ID: &str = "tenant_id";
+    pub const USER_ID: &str = "user_id";
     pub const CREATED_AT: &str = "created_at";
     pub const UPDATED_AT: &str = "updated_at";
     pub const VERSION: &str = "version";

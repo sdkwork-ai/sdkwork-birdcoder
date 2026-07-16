@@ -9,7 +9,7 @@ import {
   stringifyBirdCoderApiJson,
   stringifyBirdCoderLongInteger,
 } from '@sdkwork/birdcoder-pc-types';
-import { createBirdCoderStorageDialect } from './providers.ts';
+import { createBirdCoderStorageDialect } from './dialects.ts';
 
 export type BirdCoderSqlPlanIntent = 'read' | 'write';
 

@@ -8,6 +8,7 @@ pub struct CodingSessionRow {
     pub id: String,
     pub workspace_id: String,
     pub project_id: String,
+    pub runtime_location_id: Option<String>,
     pub title: String,
     pub status: String,
     pub engine_id: String,
@@ -171,6 +172,7 @@ pub struct CodingSessionListQuery {
     pub page_size: Option<usize>,
     pub offset: Option<usize>,
     pub project_id: Option<String>,
+    pub runtime_location_id: Option<String>,
     pub workspace_id: Option<String>,
 }
 

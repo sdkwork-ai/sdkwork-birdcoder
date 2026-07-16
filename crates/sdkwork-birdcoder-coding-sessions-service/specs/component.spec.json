@@ -76,7 +76,8 @@
       "sdkwork_birdcoder_coding_sessions_service::ports::repository::CodingSessionRepository",
       "sdkwork_birdcoder_coding_sessions_service::ports::provider::CodeEngineProvider",
       "sdkwork_birdcoder_coding_sessions_service::ports::events::RealtimeEventPublisher",
-      "sdkwork_birdcoder_coding_sessions_service::ports::engine_validator::EngineValidator"
+      "sdkwork_birdcoder_coding_sessions_service::ports::engine_validator::EngineValidator",
+      "sdkwork_birdcoder_coding_sessions_service::ports::project_execution_scope::ProjectExecutionScopeResolver"
     ],
     "providedPorts": [
       {
@@ -100,6 +101,10 @@
       {
         "name": "codingSessionEngineValidator",
         "export": "sdkwork_birdcoder_coding_sessions_service::ports::engine_validator::EngineValidator"
+      },
+      {
+        "name": "codingSessionProjectExecutionScopeResolver",
+        "export": "sdkwork_birdcoder_coding_sessions_service::ports::project_execution_scope::ProjectExecutionScopeResolver"
       }
     ],
     "runtimeEntrypoints": [],
@@ -113,7 +118,7 @@
     "configKeys": []
   },
   "integration": {
-    "authority": "Owns coding-session application orchestration and validation behind explicit repository, code-engine, event, and engine-validation ports. Route adapters own HTTP extraction and response mapping; SQLx repositories own persistence."
+    "authority": "Owns coding-session application orchestration and validation behind explicit repository, code-engine, event, engine-validation, and project-execution-scope ports. Session persistence and client input never authorize a filesystem path; route adapters own HTTP extraction and response mapping; SQLx repositories own persistence."
   },
   "verification": {
     "commands": [

@@ -16,11 +16,11 @@
     "@sdkwork/birdcoder-pc-code": "workspace:*",
     "@sdkwork/birdcoder-pc-commons": "workspace:*",
     "@sdkwork/birdcoder-pc-settings": "workspace:*",
-    "@sdkwork/birdcoder-pc-shell-runtime": "workspace:*",
     "@sdkwork/birdcoder-pc-studio": "workspace:*",
     "@sdkwork/birdcoder-pc-multiwindow": "workspace:*",
     "@sdkwork/birdcoder-pc-types": "workspace:*",
     "@sdkwork/birdcoder-pc-ui-shell": "workspace:*",
+    "@sdkwork/drive-pc-sandbox-explorer": "workspace:*",
     "@sdkwork/terminal-pc-desktop": "workspace:*",
     "@sdkwork/utils": "workspace:*",
     "use-sync-external-store": "catalog:"
@@ -41,4 +41,3 @@
     }
   }
 }
-

@@ -19,8 +19,8 @@ const infrastructureInterfaceSource = read(
 const sharedHookSource = read('apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-commons/src/hooks/useFileSystem.ts');
 const appSource = readBirdcoderAppShellSource();
 const codePageSource = read('apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-code/src/pages/CodePage.tsx');
-const codeLocalFolderImportSource = read(
-  'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-code/src/pages/useCodeLocalFolderProjectImport.ts',
+const codeServerDirectoryImportSource = read(
+  'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-code/src/pages/useCodeServerDirectoryProjectImport.ts',
 );
 const studioPageSource = read('apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-studio/src/pages/StudioPage.tsx');
 
@@ -349,26 +349,37 @@ assert.match(
 
 for (const [label, source] of [
   ['App', appSource],
-  ['CodePage', `${codePageSource}\n${codeLocalFolderImportSource}`],
-  ['StudioPage', studioPageSource],
+  ['CodePage', `${codePageSource}\n${codeServerDirectoryImportSource}`],
 ]) {
   assert.match(
     source,
-    /importLocalFolderProject/,
-    `${label} must use the shared local-folder project import helper instead of keeping duplicate import flow logic.`,
+    /importSandboxDirectoryProject/,
+    `${label} must use the shared Drive sandbox-directory import helper instead of keeping duplicate import flow logic.`,
   );
 
   assert.doesNotMatch(
     source,
     /folderInfo\.path\.split/,
-    `${label} must not keep inline folder-name parsing once the shared local-folder import helper exists.`,
+    `${label} must not derive server-directory identity by parsing a local folder path.`,
   );
 }
 
+assert.doesNotMatch(
+  codeServerDirectoryImportSource,
+  /absolutePath|localWorkingDirectory/,
+  'CodePage server-directory import must keep OS path material outside the remote sandbox binding contract.',
+);
+
+assert.match(
+  studioPageSource,
+  /importLocalFolderProject/,
+  'StudioPage local checkout import must continue through the shared local-folder helper.',
+);
+
 assert.match(
   codePageSource,
-  /useCodeLocalFolderProjectImport/,
-  'CodePage must delegate local-folder project import wiring to its componentized hook.',
+  /useCodeServerDirectoryProjectImport/,
+  'CodePage must delegate server-directory project import wiring to its componentized hook.',
 );
 
 for (const [label, source] of [

@@ -7,6 +7,8 @@
 import type { BirdCoderOpenApiOperationDefinition } from './openApiDocumentTypes.ts';
 import {
   buildOpenApiResponses,
+  createOpenApiIdempotencyKeyParameter,
+  createOpenApiIfMatchParameter,
   createOpenApiIntegerSchema,
   createOpenApiPathParameter,
   createOpenApiQueryParameter,
@@ -47,6 +49,17 @@ export function buildBirdCoderOpenApiOperationDefinitions(): Record<
     'Authorized project scope for native sessions.',
     createOpenApiStringSchema(),
     true,
+  );
+  const runtimeLocationIdParameter = createOpenApiQueryParameter(
+    'runtimeLocationId',
+    'Verified project runtime-location identifier required for native-session discovery and retrieval.',
+    createOpenApiStringSchema(),
+    true,
+  );
+  const optionalRuntimeLocationIdParameter = createOpenApiQueryParameter(
+    'runtimeLocationId',
+    'Optional verified project runtime-location identifier. When absent, only persisted coding-session projections are returned; native-session discovery is not attempted.',
+    createOpenApiStringSchema(),
   );
   const engineIdParameter = createOpenApiQueryParameter(
     'engineId',
@@ -96,14 +109,28 @@ export function buildBirdCoderOpenApiOperationDefinitions(): Record<
     'workspaceId',
     'BirdCoder workspace identifier.',
   );
-  const sessionIdQueryParameter = createOpenApiQueryParameter(
-    'sessionId',
-    'Runtime SDKWork IAM session id used to authorize the websocket upgrade.',
-    createOpenApiStringSchema(),
+  const realtimeTransportQueryParameter = createOpenApiQueryParameter(
+    'transport',
+    'Realtime delivery transport. Omit to negotiate from the websocket upgrade shape or default to SSE.',
+    createOpenApiStringEnumSchema(['sse', 'websocket']),
   );
   const projectIdPathParameter = createOpenApiPathParameter(
     'projectId',
     'BirdCoder project identifier.',
+  );
+  const runtimeLocationIdPathParameter = createOpenApiPathParameter(
+    'runtimeLocationId',
+    'Project runtime-location identifier.',
+  );
+  const runtimeLocationIdQueryParameter = createOpenApiQueryParameter(
+    'runtime_location_id',
+    'Verified project runtime-location identifier used for Git execution.',
+    createOpenApiStringSchema(),
+    true,
+  );
+  const runtimeLocationCapabilityPathParameter = createOpenApiPathParameter(
+    'capability',
+    'Project runtime-location capability preference identifier.',
   );
   const teamIdPathParameter = createOpenApiPathParameter('teamId', 'BirdCoder team identifier.');
   const packageIdPathParameter = createOpenApiPathParameter(
@@ -209,6 +236,7 @@ export function buildBirdCoderOpenApiOperationDefinitions(): Record<
       parameters: [
         workspaceIdParameter,
         projectIdParameter,
+        optionalRuntimeLocationIdParameter,
         engineIdParameter,
         pageParameter,
         pageSizeParameter,
@@ -218,6 +246,9 @@ export function buildBirdCoderOpenApiOperationDefinitions(): Record<
         successDescription: 'Unified coding session inventory returned successfully.',
         successSchema: createOpenApiSchemaReference('BirdCoderCodingSessionSummaryListEnvelope'),
         extraResponses: {
+          '503': createProblemResponse(
+            'The selected coding-session runtime location is unavailable for native-session discovery.',
+          ),
           '500': createProblemResponse('Unified coding session inventory could not be read.'),
         },
       }),
@@ -232,6 +263,7 @@ export function buildBirdCoderOpenApiOperationDefinitions(): Record<
         successSchema: createOpenApiSchemaReference('BirdCoderCodingSessionSummaryEnvelope'),
         extraResponses: {
           '400': createProblemResponse('Coding session creation request is invalid.'),
+          '503': createProblemResponse('The selected coding-session runtime location is unavailable.'),
           '500': createProblemResponse('Coding session could not be created.'),
         },
       }),
@@ -351,6 +383,7 @@ export function buildBirdCoderOpenApiOperationDefinitions(): Record<
       parameters: [
         requiredWorkspaceIdParameter,
         requiredProjectIdParameter,
+        runtimeLocationIdParameter,
         engineIdParameter,
         pageParameter,
         pageSizeParameter,
@@ -360,6 +393,7 @@ export function buildBirdCoderOpenApiOperationDefinitions(): Record<
         successDescription: 'Native engine session inventory returned successfully.',
         successSchema: createOpenApiSchemaReference('BirdCoderNativeSessionSummaryListEnvelope'),
         extraResponses: {
+          '503': createProblemResponse('The selected runtime location is unavailable.'),
           '500': createProblemResponse('Native engine session inventory could not be read.'),
         },
       }),
@@ -383,6 +417,7 @@ export function buildBirdCoderOpenApiOperationDefinitions(): Record<
         codingSessionIdPathParameter,
         requiredWorkspaceIdParameter,
         requiredProjectIdParameter,
+        runtimeLocationIdParameter,
         engineIdParameter,
       ],
       responses: buildOpenApiResponses({
@@ -391,6 +426,7 @@ export function buildBirdCoderOpenApiOperationDefinitions(): Record<
         successSchema: createOpenApiSchemaReference('BirdCoderNativeSessionDetailEnvelope'),
         extraResponses: {
           '404': createProblemResponse('Native engine session was not found.'),
+          '503': createProblemResponse('The selected runtime location is unavailable.'),
           '500': createProblemResponse('Native engine session detail could not be read.'),
         },
       }),
@@ -1068,9 +1104,22 @@ export function buildBirdCoderOpenApiOperationDefinitions(): Record<
       }),
     },
     'workspaces.realtime.subscribe': {
-      parameters: [workspaceIdPathParameter, sessionIdQueryParameter],
+      parameters: [
+        workspaceIdPathParameter,
+        realtimeTransportQueryParameter,
+      ],
       streamKind: 'websocket',
       responses: {
+        '200': {
+          description: 'SSE workspace realtime stream opened successfully.',
+          content: {
+            'text/event-stream': {
+              schema: createOpenApiStringSchema(
+                'Server-Sent Events carrying ready and event records as JSON data payloads.',
+              ),
+            },
+          },
+        },
         '101': createOpenApiResponse(
           'WebSocket upgrade accepted for workspace realtime delivery.',
         ),
@@ -1104,25 +1153,245 @@ export function buildBirdCoderOpenApiOperationDefinitions(): Record<
         },
       }),
     },
-    'projects.git.overview.retrieve': {
+    'projects.workspaceBinding.retrieve': {
       parameters: [projectIdPathParameter],
+      responses: buildOpenApiResponses({
+        successStatus: '200',
+        successDescription: 'Project workspace binding returned successfully.',
+        successSchema: createOpenApiSchemaReference('BirdCoderProjectWorkspaceBindingEnvelope'),
+        extraResponses: {
+          '404': createProblemResponse('Project workspace binding was not found.'),
+        },
+      }),
+    },
+    'projects.workspaceBinding.update': {
+      auditEvent: 'project.workspace_binding.upsert',
+      idempotent: true,
+      parameters: [
+        projectIdPathParameter,
+        createOpenApiIfMatchParameter(false),
+        createOpenApiIdempotencyKeyParameter(),
+      ],
+      requestBody: createOpenApiRequestBody(
+        createOpenApiSchemaReference('BirdCoderUpsertProjectWorkspaceBindingRequest'),
+      ),
+      responses: buildOpenApiResponses({
+        successStatus: '200',
+        successDescription: 'Project workspace binding updated successfully.',
+        successSchema: createOpenApiSchemaReference('BirdCoderProjectWorkspaceBindingEnvelope'),
+        extraResponses: {
+          '400': createProblemResponse('Project workspace binding input is invalid.'),
+          '404': createProblemResponse('Project was not found.'),
+          '409': createProblemResponse('Project workspace binding idempotency conflicts with another request.'),
+          '412': createProblemResponse('Project workspace-binding version precondition failed.'),
+          '428': createProblemResponse('An existing project workspace binding requires If-Match.'),
+        },
+      }),
+    },
+    'projects.workspaceBinding.delete': {
+      auditEvent: 'project.workspace_binding.delete',
+      parameters: [projectIdPathParameter, createOpenApiIfMatchParameter()],
+      responses: buildOpenApiResponses({
+        successStatus: '204',
+        successDescription: 'Project workspace binding removed successfully.',
+        extraResponses: {
+          '404': createProblemResponse('Project workspace binding was not found.'),
+          '412': createProblemResponse('Project workspace-binding version precondition failed.'),
+          '428': createProblemResponse('Project workspace-binding deletion requires If-Match.'),
+        },
+      }),
+    },
+    'projects.runtimeLocations.list': {
+      parameters: [projectIdPathParameter, pageParameter, pageSizeParameter],
+      responses: buildOpenApiResponses({
+        successStatus: '200',
+        successDescription: 'Project runtime locations returned successfully.',
+        successSchema: createOpenApiSchemaReference(
+          'BirdCoderProjectRuntimeLocationListEnvelope',
+        ),
+        extraResponses: {
+          '404': createProblemResponse('Project was not found.'),
+        },
+      }),
+    },
+    'projects.runtimeLocations.create': {
+      idempotent: true,
+      parameters: [projectIdPathParameter, createOpenApiIdempotencyKeyParameter()],
+      requestBody: createOpenApiRequestBody(
+        createOpenApiSchemaReference('BirdCoderCreateProjectRuntimeLocationRequest'),
+      ),
+      responses: buildOpenApiResponses({
+        successStatus: '201',
+        successDescription: 'Project runtime location registered successfully.',
+        successSchema: createOpenApiSchemaReference('BirdCoderProjectRuntimeLocationEnvelope'),
+        extraResponses: {
+          '400': createProblemResponse('Project runtime-location registration is invalid.'),
+          '404': createProblemResponse('Project was not found.'),
+          '409': createProblemResponse('Project runtime-location registration conflicts with existing state.'),
+          '428': createProblemResponse('Project runtime-location registration requires Idempotency-Key.'),
+        },
+      }),
+    },
+    'projects.runtimeLocations.retrieve': {
+      parameters: [projectIdPathParameter, runtimeLocationIdPathParameter],
+      responses: buildOpenApiResponses({
+        successStatus: '200',
+        successDescription: 'Project runtime location returned successfully.',
+        successSchema: createOpenApiSchemaReference('BirdCoderProjectRuntimeLocationEnvelope'),
+        extraResponses: {
+          '404': createProblemResponse('Project runtime location was not found.'),
+        },
+      }),
+    },
+    'projects.runtimeLocations.update': {
+      idempotent: true,
+      parameters: [
+        projectIdPathParameter,
+        runtimeLocationIdPathParameter,
+        createOpenApiIfMatchParameter(),
+        createOpenApiIdempotencyKeyParameter(),
+      ],
+      requestBody: createOpenApiRequestBody(
+        createOpenApiSchemaReference('BirdCoderUpdateProjectRuntimeLocationRequest'),
+      ),
+      responses: buildOpenApiResponses({
+        successStatus: '200',
+        successDescription: 'Project runtime location updated successfully.',
+        successSchema: createOpenApiSchemaReference('BirdCoderProjectRuntimeLocationEnvelope'),
+        extraResponses: {
+          '400': createProblemResponse('Project runtime-location update is invalid.'),
+          '404': createProblemResponse('Project runtime location was not found.'),
+          '412': createProblemResponse('Project runtime-location version precondition failed.'),
+          '428': createProblemResponse('Project runtime-location update requires If-Match and Idempotency-Key.'),
+        },
+      }),
+    },
+    'projects.runtimeLocations.delete': {
+      parameters: [
+        projectIdPathParameter,
+        runtimeLocationIdPathParameter,
+        createOpenApiIfMatchParameter(),
+      ],
+      responses: buildOpenApiResponses({
+        successStatus: '204',
+        successDescription: 'Project runtime location removed successfully.',
+        extraResponses: {
+          '404': createProblemResponse('Project runtime location was not found.'),
+          '412': createProblemResponse('Project runtime-location version precondition failed.'),
+          '428': createProblemResponse('Project runtime-location deletion requires If-Match.'),
+        },
+      }),
+    },
+    'projects.runtimeLocations.rebind': {
+      idempotent: true,
+      parameters: [
+        projectIdPathParameter,
+        runtimeLocationIdPathParameter,
+        createOpenApiIfMatchParameter(),
+        createOpenApiIdempotencyKeyParameter(),
+      ],
+      requestBody: createOpenApiRequestBody(
+        createOpenApiSchemaReference('BirdCoderRebindProjectRuntimeLocationRequest'),
+      ),
+      responses: buildOpenApiResponses({
+        successStatus: '200',
+        successDescription:
+          'Project runtime location rebound and returned to pending verification successfully.',
+        successSchema: createOpenApiSchemaReference(
+          'BirdCoderProjectRuntimeLocationCommandEnvelope',
+        ),
+        extraResponses: {
+          '400': createProblemResponse('Project runtime-location rebind is invalid.'),
+          '404': createProblemResponse('Project runtime location was not found.'),
+          '409': createProblemResponse('Project runtime-location rebind conflicts with existing state.'),
+          '412': createProblemResponse('Project runtime-location version precondition failed.'),
+          '428': createProblemResponse('Project runtime-location rebind requires If-Match and Idempotency-Key.'),
+        },
+      }),
+    },
+    'projects.runtimeLocations.requestVerification': {
+      idempotent: true,
+      parameters: [
+        projectIdPathParameter,
+        runtimeLocationIdPathParameter,
+        createOpenApiIfMatchParameter(),
+        createOpenApiIdempotencyKeyParameter(),
+      ],
+      responses: buildOpenApiResponses({
+        successStatus: '200',
+        successDescription: 'Project runtime-location verification was requested successfully.',
+        successSchema: createOpenApiSchemaReference(
+          'BirdCoderProjectRuntimeLocationCommandEnvelope',
+        ),
+        extraResponses: {
+          '404': createProblemResponse('Project runtime location was not found.'),
+          '409': createProblemResponse('Project runtime-location verification conflicts with existing state.'),
+          '412': createProblemResponse('Project runtime-location version precondition failed.'),
+          '428': createProblemResponse('Project runtime-location verification requires If-Match and Idempotency-Key.'),
+          '503': createProblemResponse('Project runtime-location verification target is unavailable.'),
+        },
+      }),
+    },
+    'projects.runtimeLocations.preferences.list': {
+      parameters: [projectIdPathParameter, pageParameter, pageSizeParameter],
+      responses: buildOpenApiResponses({
+        successStatus: '200',
+        successDescription: 'Project runtime-location preferences returned successfully.',
+        successSchema: createOpenApiSchemaReference(
+          'BirdCoderProjectRuntimeLocationPreferenceListEnvelope',
+        ),
+        extraResponses: {
+          '404': createProblemResponse('Project was not found.'),
+        },
+      }),
+    },
+    'projects.runtimeLocations.preferences.update': {
+      idempotent: true,
+      parameters: [
+        projectIdPathParameter,
+        runtimeLocationCapabilityPathParameter,
+        createOpenApiIfMatchParameter(false),
+        createOpenApiIdempotencyKeyParameter(),
+      ],
+      requestBody: createOpenApiRequestBody(
+        createOpenApiSchemaReference('BirdCoderSetProjectRuntimeLocationPreferenceRequest'),
+      ),
+      responses: buildOpenApiResponses({
+        successStatus: '200',
+        successDescription: 'Project runtime-location preference updated successfully.',
+        successSchema: createOpenApiSchemaReference(
+          'BirdCoderProjectRuntimeLocationPreferenceEnvelope',
+        ),
+        extraResponses: {
+          '400': createProblemResponse('Project runtime-location preference is invalid.'),
+          '404': createProblemResponse('Project or runtime location was not found.'),
+          '409': createProblemResponse('Project runtime-location preference conflicts with existing state.'),
+          '412': createProblemResponse('Project runtime-location preference version precondition failed.'),
+          '428': createProblemResponse('Project runtime-location preference update requires Idempotency-Key.'),
+        },
+      }),
+    },
+    'projects.git.overview.retrieve': {
+      parameters: [projectIdPathParameter, runtimeLocationIdQueryParameter],
       responses: buildOpenApiResponses({
         successStatus: '200',
         successDescription: 'Project Git overview returned successfully.',
         successSchema: createOpenApiSchemaReference('BirdCoderProjectGitOverviewEnvelope'),
         extraResponses: {
           '404': createProblemResponse('Project was not found.'),
+          '503': createProblemResponse('Project Git runtime location is unavailable.'),
         },
       }),
     },
     'projects.git.diff.retrieve': {
-      parameters: [projectIdPathParameter],
+      parameters: [projectIdPathParameter, runtimeLocationIdQueryParameter],
       responses: buildOpenApiResponses({
         successStatus: '200',
         successDescription: 'Project Git diff returned successfully.',
         successSchema: createOpenApiSchemaReference('BirdCoderProjectGitDiffEnvelope'),
         extraResponses: {
           '404': createProblemResponse('Project was not found.'),
+          '503': createProblemResponse('Project Git runtime location is unavailable.'),
         },
       }),
     },
@@ -1138,6 +1407,7 @@ export function buildBirdCoderOpenApiOperationDefinitions(): Record<
         extraResponses: {
           '400': createProblemResponse('Project Git branch creation request is invalid.'),
           '404': createProblemResponse('Project was not found.'),
+          '503': createProblemResponse('Project Git runtime location is unavailable.'),
         },
       }),
     },
@@ -1153,6 +1423,7 @@ export function buildBirdCoderOpenApiOperationDefinitions(): Record<
         extraResponses: {
           '400': createProblemResponse('Project Git branch switch request is invalid.'),
           '404': createProblemResponse('Project was not found.'),
+          '503': createProblemResponse('Project Git runtime location is unavailable.'),
         },
       }),
     },
@@ -1168,6 +1439,7 @@ export function buildBirdCoderOpenApiOperationDefinitions(): Record<
         extraResponses: {
           '400': createProblemResponse('Project Git commit request is invalid.'),
           '404': createProblemResponse('Project was not found.'),
+          '503': createProblemResponse('Project Git runtime location is unavailable.'),
         },
       }),
     },
@@ -1175,7 +1447,6 @@ export function buildBirdCoderOpenApiOperationDefinitions(): Record<
       parameters: [projectIdPathParameter],
       requestBody: createOpenApiRequestBody(
         createOpenApiSchemaReference('BirdCoderPushProjectGitBranchRequest'),
-        false,
       ),
       responses: buildOpenApiResponses({
         successStatus: '201',
@@ -1184,6 +1455,7 @@ export function buildBirdCoderOpenApiOperationDefinitions(): Record<
         extraResponses: {
           '400': createProblemResponse('Project Git push request is invalid.'),
           '404': createProblemResponse('Project was not found.'),
+          '503': createProblemResponse('Project Git runtime location is unavailable.'),
         },
       }),
     },
@@ -1199,6 +1471,7 @@ export function buildBirdCoderOpenApiOperationDefinitions(): Record<
         extraResponses: {
           '400': createProblemResponse('Project Git worktree creation request is invalid.'),
           '404': createProblemResponse('Project was not found.'),
+          '503': createProblemResponse('Project Git runtime location is unavailable.'),
         },
       }),
     },
@@ -1214,11 +1487,15 @@ export function buildBirdCoderOpenApiOperationDefinitions(): Record<
         extraResponses: {
           '400': createProblemResponse('Project Git worktree removal request is invalid.'),
           '404': createProblemResponse('Project was not found.'),
+          '503': createProblemResponse('Project Git runtime location is unavailable.'),
         },
       }),
     },
     'projects.git.worktreePrune.create': {
       parameters: [projectIdPathParameter],
+      requestBody: createOpenApiRequestBody(
+        createOpenApiSchemaReference('BirdCoderPruneProjectGitWorktreesRequest'),
+      ),
       responses: buildOpenApiResponses({
         successStatus: '201',
         successDescription: 'Project Git worktrees pruned successfully.',
@@ -1226,6 +1503,7 @@ export function buildBirdCoderOpenApiOperationDefinitions(): Record<
         extraResponses: {
           '400': createProblemResponse('Project Git worktree prune request is invalid.'),
           '404': createProblemResponse('Project was not found.'),
+          '503': createProblemResponse('Project Git runtime location is unavailable.'),
         },
       }),
     },

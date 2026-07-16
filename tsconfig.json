@@ -64,6 +64,15 @@
       "@sdkwork/drive-app-sdk": [
         "../sdkwork-drive/sdks/sdkwork-drive-app-sdk/sdkwork-drive-app-sdk-typescript/src/index.ts"
       ],
+      "@sdkwork/drive-pc-sandbox-contracts": [
+        "../sdkwork-drive/apps/sdkwork-drive-pc/packages/sdkwork-drive-pc-sandbox-contracts/src/index.ts"
+      ],
+      "@sdkwork/drive-pc-sandbox-explorer": [
+        "../sdkwork-drive/apps/sdkwork-drive-pc/packages/sdkwork-drive-pc-sandbox-explorer/src/index.ts"
+      ],
+      "@sdkwork/drive-pc-sandbox-explorer-sdk-adapter": [
+        "../sdkwork-drive/apps/sdkwork-drive-pc/packages/sdkwork-drive-pc-sandbox-explorer-sdk-adapter/src/index.ts"
+      ],
       "@sdkwork/messaging-app-sdk": [
         "../sdkwork-messaging/sdks/sdkwork-messaging-app-sdk/sdkwork-messaging-app-sdk-typescript/src/index.ts"
       ],
