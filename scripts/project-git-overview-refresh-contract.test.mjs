@@ -15,7 +15,7 @@ const eventPath = path.join(
     'sdkwork-birdcoder-pc',
     'packages',
   
-  'sdkwork-birdcoder-pc-commons',
+  'sdkwork-birdcoder-pc-workbench',
   'src',
   'events',
   'projectGitOverview.ts',
@@ -26,7 +26,7 @@ const workbenchEventPath = path.join(
     'sdkwork-birdcoder-pc',
     'packages',
   
-  'sdkwork-birdcoder-pc-commons',
+  'sdkwork-birdcoder-pc-workbench',
   'src',
   'workbench',
   'projectGitOverview.ts',
@@ -38,7 +38,7 @@ const hookSource = readSource(
   
   'packages',
   
-  'sdkwork-birdcoder-pc-commons',
+  'sdkwork-birdcoder-pc-workbench',
   'src',
   'hooks',
   'useProjectGitOverview.ts',
@@ -50,7 +50,7 @@ const fileSystemHookSource = readSource(
   
   'packages',
   
-  'sdkwork-birdcoder-pc-commons',
+  'sdkwork-birdcoder-pc-workbench',
   'src',
   'hooks',
   'useFileSystem.ts',
@@ -62,7 +62,7 @@ const importSource = readSource(
   
   'packages',
   
-  'sdkwork-birdcoder-pc-commons',
+  'sdkwork-birdcoder-pc-workbench',
   'src',
   'workbench',
   'localFolderProjectImport.ts',

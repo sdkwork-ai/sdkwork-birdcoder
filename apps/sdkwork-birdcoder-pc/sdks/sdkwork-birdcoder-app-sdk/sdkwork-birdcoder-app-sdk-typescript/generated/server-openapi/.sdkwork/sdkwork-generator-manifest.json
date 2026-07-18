@@ -44,7 +44,7 @@
     },
     {
       "path": "README.md",
-      "sha256": "01886ec21659cc0e0f3a69c84b7acf2658c5051a05fc9cde0497d2ad8a760398"
+      "sha256": "4e0db45d669012787339225779f82dbfefc411bbacff0957b6bffbaea0b47060"
     },
     {
       "path": "sdkwork-sdk.json",
@@ -64,7 +64,7 @@
     },
     {
       "path": "src/api/commerce.ts",
-      "sha256": "0adb7b2d992a16117c4c94090cff691d8e7cfed487af71d1c74ea2ed10bca8bd"
+      "sha256": "532777e9e1bfbfe496334e09a9e5dbcedfc26eb3ec5e94c446d3ff7108ac5b2c"
     },
     {
       "path": "src/api/content.ts",
@@ -293,30 +293,6 @@
     {
       "path": "src/types/bird-coder-commerce-invoice-summary.ts",
       "sha256": "359b4b81674951cc5a5e537cc19518f98456954586305f82bfcd01d8149049dd"
-    },
-    {
-      "path": "src/types/bird-coder-commerce-membership-benefit-summary.ts",
-      "sha256": "5c1fc60ef5a6aa5a2d7215f535b9508f161e4badbe8d4f5c8da261cbd5ff8a45"
-    },
-    {
-      "path": "src/types/bird-coder-commerce-membership-current-envelope.ts",
-      "sha256": "3d8dab0ae213290ad773e0ce058b291e3222cb2c25813dc0b018dffdf508f6b4"
-    },
-    {
-      "path": "src/types/bird-coder-commerce-membership-current-summary.ts",
-      "sha256": "a142430091cc424d99065c94953a7371341b842d01787bdc945c7857c3a26c66"
-    },
-    {
-      "path": "src/types/bird-coder-commerce-membership-package-group-summary-list-envelope.ts",
-      "sha256": "0d909187a8fcfeda6d078450fcc67b315cfe1b6b775b9ddff94d74d53222d728"
-    },
-    {
-      "path": "src/types/bird-coder-commerce-membership-package-group-summary.ts",
-      "sha256": "03259385bcf1a6e6110efaedd3a323199495daa0580a88808998e3e8abbe3906"
-    },
-    {
-      "path": "src/types/bird-coder-commerce-membership-package-summary.ts",
-      "sha256": "aac66893525642cd3c6cdefd9bd790ce50412dee6ca4190485c410c3f2d31c89"
     },
     {
       "path": "src/types/bird-coder-commerce-order-summary-envelope.ts",
@@ -900,7 +876,7 @@
     },
     {
       "path": "src/types/index.ts",
-      "sha256": "b889a212fe23a3d08043a54f54833e5baded8c045e0ff0f57a9de42cf28f1728"
+      "sha256": "4b97454ea52fe0532435ff5b4a48326daa9a0126472ffd77b38819ed38d8a860"
     },
     {
       "path": "src/types/page-info.ts",

@@ -3,7 +3,7 @@ import fs from 'node:fs';
 import { readBirdcoderAppShellSource } from './birdcoder-app-shell-contract-sources.mjs';
 
 const recoveryModulePath = new URL(
-  '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-commons/src/workbench/recovery.ts',
+  '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-workbench/src/workbench/recovery.ts',
   import.meta.url,
 );
 

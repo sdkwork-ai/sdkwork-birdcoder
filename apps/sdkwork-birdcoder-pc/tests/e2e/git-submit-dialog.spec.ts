@@ -93,7 +93,48 @@ async function openAuthenticatedCodeWorkspace(page: Page) {
     data: { item },
     traceId: 'git-submit-dialog-e2e',
   });
+  const authenticatedSession = {
+    accessToken,
+    authToken,
+    refreshToken: 'e2e-refresh-token',
+    sessionId: 'e2e-session-1',
+    expiresAt: '2099-01-01T00:00:00.000Z',
+    user: {
+      id: 'e2e-user-1',
+      uuid: 'e2e-user-uuid-1',
+      tenantId: '0',
+      organizationId: '0',
+      name: 'E2E User',
+      email: 'e2e@test.sdkwork.local',
+    },
+    context: {
+      appId: 'sdkwork-birdcoder',
+      authLevel: 'user',
+      dataScope: [],
+      environment: 'test',
+      deploymentMode: 'private',
+      permissionScope: [],
+      sessionId: 'e2e-session-1',
+      tenantId: '0',
+      organizationId: '0',
+      userId: 'e2e-user-1',
+    },
+  };
 
+  await page.route('**/app/v3/api/auth/sessions/current', (route) => route.fulfill({
+    json: {
+      code: 0,
+      data: authenticatedSession,
+      traceId: 'git-submit-dialog-current-session',
+    },
+  }));
+  await page.route('**/app/v3/api/iam/users/current', (route) => route.fulfill({
+    json: {
+      code: 0,
+      data: authenticatedSession.user,
+      traceId: 'git-submit-dialog-current-user',
+    },
+  }));
   await page.route('**/app/v3/api/workspaces?**', (route) => route.fulfill({ json: offsetPage([workspace]) }));
   await page.route('**/app/v3/api/projects?**', (route) => route.fulfill({ json: offsetPage([project]) }));
   await page.route('**/app/v3/api/projects/e2e-project-1', (route) => route.fulfill({ json: itemEnvelope(project) }));
@@ -135,8 +176,90 @@ async function openAuthenticatedCodeWorkspace(page: Page) {
     }));
   }, { accessToken, authToken });
   await page.goto('/#/app/code');
-  await expect(page.locator('.sdkwork-birdcoder-auth-shell')).toHaveCount(0, {
-    timeout: 45_000,
+  const newProjectButton = page.getByRole('button', { name: 'New Project' });
+  const signInButton = page.getByRole('button', { name: 'Sign in' });
+  await expect.poll(async () => (
+    await newProjectButton.isVisible() || await signInButton.isVisible()
+  ), { timeout: 45_000 }).toBe(true);
+  if (await signInButton.isVisible()) {
+    await page.getByRole('textbox', { name: 'Account' }).fill('e2e@test.sdkwork.local');
+    await page.locator('input[type="password"]').first().fill('e2e-password');
+    await signInButton.click();
+  }
+  await expect(newProjectButton).toBeVisible({
+    timeout: 60_000,
+  });
+}
+
+async function routeLargeSandboxDirectory(page: Page) {
+  const capabilities = {
+    browse: true,
+    createFile: true,
+    createDirectory: true,
+    deleteEntry: true,
+    moveEntry: true,
+    readFile: true,
+    selectDirectory: true,
+    writeFile: true,
+  };
+  const roots = ['C:\\', 'D:\\', 'E:\\', 'F:\\'].map((displayName, index) => ({
+    id: `e2e-sandbox-${index + 1}`,
+    displayName,
+    rootEntryId: `e2e-root-${index + 1}`,
+    capabilities,
+  }));
+  const entries = Array.from({ length: 1_000 }, (_, index) => {
+    const entryNumber = String(Math.floor(index / 2) + 1).padStart(4, '0');
+    const kind = index % 2 === 0 ? 'directory' as const : 'file' as const;
+    const name = kind === 'directory'
+      ? `Folder ${entryNumber}`
+      : `Document ${entryNumber}.txt`;
+    return {
+      id: `e2e-entry-${index + 1}`,
+      sandboxId: roots[0].id,
+      parentId: roots[0].rootEntryId,
+      name,
+      kind,
+      logicalPath: name,
+      revision: `revision-${index + 1}`,
+    };
+  });
+  const envelope = (data: unknown) => ({
+    code: 0,
+    data,
+    traceId: 'sandbox-explorer-e2e',
+  });
+  let directoryRequestCount = 0;
+
+  await page.route('**/app/v3/api/drive/sandboxes?**', (route) => route.fulfill({
+    json: envelope({
+      items: roots,
+      pageInfo: {
+        hasMore: false,
+        mode: 'offset',
+        page: 1,
+        pageSize: 50,
+        totalItems: String(roots.length),
+        totalPages: 1,
+      },
+    }),
+  }));
+  await page.route('**/app/v3/api/drive/sandboxes/*/entries?**', async (route) => {
+    directoryRequestCount += 1;
+    if (directoryRequestCount > 1) {
+      await new Promise((resolve) => setTimeout(resolve, 250));
+    }
+    await route.fulfill({
+      json: envelope({
+        items: entries,
+        pageInfo: {
+          hasMore: false,
+          mode: 'cursor',
+          nextCursor: null,
+          pageSize: 1_000,
+        },
+      }),
+    });
   });
 }
 
@@ -172,4 +295,60 @@ test('Git commit and push requires a commit message without mutating the reposit
 
   await page.keyboard.press('Escape');
   await expect(submitDialog).toHaveCount(0);
+});
+
+test('sandbox explorer presents a responsive professional large-directory experience', async ({
+  page,
+}, testInfo) => {
+  await page.setViewportSize({ width: 1_920, height: 1_080 });
+  await routeLargeSandboxDirectory(page);
+  await openAuthenticatedCodeWorkspace(page);
+
+  const openFolderButton = page.getByRole('button', { name: 'Open Server Folder', exact: true }).first();
+  await expect(openFolderButton).toBeVisible({ timeout: 60_000 });
+  await openFolderButton.click();
+
+  const dialog = page.getByRole('dialog', { name: 'Select a server project directory' });
+  await expect(dialog).toBeVisible();
+  await expect(dialog).toHaveCSS('border-radius', '0px');
+  await expect(dialog).toHaveCSS('width', '1920px');
+  await expect(dialog).toHaveCSS('height', '1080px');
+
+  for (const drive of ['C:\\', 'D:\\', 'E:\\', 'F:\\']) {
+    await expect(dialog.getByRole('treeitem', { name: `Open sandbox ${drive}` })).toBeVisible();
+  }
+
+  const directoryItems = dialog.locator('[data-entry-id]');
+  await expect(directoryItems).toHaveCount(1_000, { timeout: 30_000 });
+  await expect(dialog.getByText('1000 items loaded')).toBeVisible();
+  await expect(dialog.getByText('All items loaded')).toBeVisible();
+  await expect(dialog.locator('[data-entry-id][tabindex="0"]')).toHaveCount(1);
+
+  const firstFolder = dialog.getByRole('button', { name: 'Folder 0001', exact: true });
+  const secondFolder = dialog.getByRole('button', { name: 'Folder 0002', exact: true });
+  await firstFolder.focus();
+  await page.keyboard.press('ArrowDown');
+  await expect(secondFolder).toBeFocused();
+
+  await page.keyboard.press('F5');
+  await expect(dialog.getByText('Refreshing\u2026')).toBeVisible();
+  await expect(secondFolder).toBeVisible();
+  await expect(dialog.getByText('Refreshing\u2026')).toHaveCount(0);
+  await expect(secondFolder).toBeFocused();
+
+  await dialog.getByTitle('Switch to grid view').click();
+  await expect(dialog.locator('.sdkwork-sandbox-explorer__grid-view')).toBeVisible();
+  await page.screenshot({
+    path: testInfo.outputPath('sandbox-explorer-desktop.png'),
+    fullPage: true,
+  });
+
+  await page.setViewportSize({ width: 640, height: 800 });
+  await expect(dialog.getByLabel('Sandbox', { exact: true })).toBeVisible();
+  await expect(dialog.getByRole('tree', { name: 'Available sandboxes' })).toBeHidden();
+  await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+  await page.screenshot({
+    path: testInfo.outputPath('sandbox-explorer-narrow.png'),
+    fullPage: true,
+  });
 });

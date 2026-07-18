@@ -6,7 +6,7 @@ const rootDir = process.cwd();
 const workspacesHookSource = fs.readFileSync(
   path.join(
     rootDir,
-    'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-commons/src/hooks/useWorkspaces.ts',
+    'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-workbench/src/hooks/useWorkspaces.ts',
   ),
   'utf8',
 );

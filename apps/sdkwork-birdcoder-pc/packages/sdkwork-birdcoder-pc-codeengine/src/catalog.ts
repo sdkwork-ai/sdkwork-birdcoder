@@ -5,7 +5,7 @@ import type {
   BirdCoderEngineOfficialEntry,
   BirdCoderEngineTransportKind,
   BirdCoderModelCatalogEntry,
-} from '@sdkwork/birdcoder-pc-types';
+} from '@sdkwork/birdcoder-pc-contracts-commons';
 
 export const WORKBENCH_CODE_ENGINE_IDS = [
   'codex',

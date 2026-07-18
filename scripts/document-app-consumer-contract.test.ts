@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
-import type { BirdCoderProjectDocumentSummary } from '@sdkwork/birdcoder-pc-types';
+import type { BirdCoderProjectDocumentSummary } from '@sdkwork/birdcoder-pc-contracts-commons';
 import type { IDocumentService } from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/src/services/interfaces/IDocumentService.ts';
-import { loadDocuments } from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-commons/src/hooks/useDocuments.ts';
+import { loadDocuments } from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-workbench/src/hooks/useDocuments.ts';
 
 const documentFixtures: BirdCoderProjectDocumentSummary[] = [
   {

@@ -332,7 +332,7 @@ jobs:
         run: pnpm prepare:shared-sdk
 
       - name: Run H5 typecheck
-        run: pnpm h5:typecheck
+        run: pnpm typecheck:browser
 
       - name: Build H5 production bundle
         run: pnpm h5:build
@@ -350,7 +350,7 @@ jobs:
         uses: android-actions/setup-android@v3
 
       - name: Assemble Capacitor Android debug APK
-        run: pnpm cap:android:assemble
+        run: pnpm build:capacitor-android
 
       - name: Setup Flutter
         uses: subosito/flutter-action@v2

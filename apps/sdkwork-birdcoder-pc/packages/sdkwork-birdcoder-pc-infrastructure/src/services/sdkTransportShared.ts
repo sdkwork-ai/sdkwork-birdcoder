@@ -16,8 +16,8 @@ import {
   type BirdCoderTeamMemberSummary,
   type BirdCoderTeamSummary,
   type BirdCoderWorkspaceSummary,
-} from '@sdkwork/birdcoder-pc-types';
-import { BirdCoderApiTransportError } from '@sdkwork/birdcoder-pc-types/apiTransportError';
+} from '@sdkwork/birdcoder-pc-contracts-commons';
+import { BirdCoderApiTransportError } from '@sdkwork/birdcoder-pc-contracts-commons/apiTransportError';
 import {
   clampListPageSize,
   DEFAULT_LIST_PAGE_SIZE,

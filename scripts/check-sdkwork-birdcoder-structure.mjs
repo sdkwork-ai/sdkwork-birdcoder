@@ -11,7 +11,7 @@ const requiredPackages = [
   ['apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-auth', '@sdkwork/birdcoder-pc-auth'],
   ['apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-projection', '@sdkwork/birdcoder-pc-projection'],
   ['apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-code', '@sdkwork/birdcoder-pc-code'],
-  ['apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-commons', '@sdkwork/birdcoder-pc-commons'],
+  ['apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-workbench', '@sdkwork/birdcoder-pc-workbench'],
   ['apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-core', '@sdkwork/birdcoder-pc-core'],
   ['apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-desktop', '@sdkwork/birdcoder-pc-desktop'],
   ['apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-distribution', '@sdkwork/birdcoder-pc-distribution'],
@@ -24,7 +24,7 @@ const requiredPackages = [
   ['apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-shell', '@sdkwork/birdcoder-pc-shell'],
   ['apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-shell-runtime', '@sdkwork/birdcoder-pc-shell-runtime'],
   ['apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-studio', '@sdkwork/birdcoder-pc-studio'],
-  ['apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-types', '@sdkwork/birdcoder-pc-types'],
+  ['apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-contracts-commons', '@sdkwork/birdcoder-pc-contracts-commons'],
   ['apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-ui', '@sdkwork/birdcoder-pc-ui'],
   ['apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-ui-shell', '@sdkwork/birdcoder-pc-ui-shell'],
   ['apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-user', '@sdkwork/birdcoder-pc-user'],
@@ -160,6 +160,7 @@ const requiredPaths = [
 const forbiddenResidualPaths = [
   'packages/sdkwork-birdcoder-appbase',
   'packages/sdkwork-birdcoder-appbase-storage',
+  'sdks/.sdkwork-assembly.json',
   'sdks/sdkwork-birdcoder-sdk',
   'sdks/sdkwork-birdcoder-sdk-admin',
 ];

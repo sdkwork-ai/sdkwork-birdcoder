@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { BirdCoderApiTransportError } from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-types/src/apiTransportError.ts';
+import { BirdCoderApiTransportError } from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-contracts-commons/src/apiTransportError.ts';
 import {
   createBirdCoderAppSdkApiClient,
   getBirdCoderGlobalTokenManager,

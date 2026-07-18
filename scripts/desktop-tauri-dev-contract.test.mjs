@@ -261,34 +261,34 @@ assert.match(
 );
 
 assert.equal(
-  rootPackageJson.scripts['tauri:dev'],
-  'node scripts/run-workspace-package-script.mjs apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-desktop tauri:dev',
-  'Root tauri:dev must enter the desktop package through the bounded workspace package-script runner instead of reopening pnpm --dir on Windows.',
+  rootPackageJson.scripts['dev:desktop'],
+  'pnpm run dev:desktop:postgres:standalone',
+  'Root dev:desktop must delegate to the canonical PostgreSQL standalone development profile.',
 );
 assert.equal(
-  rootPackageJson.scripts['tauri:dev:test'],
-  'node scripts/run-workspace-package-script.mjs apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-desktop tauri:dev:test',
-  'Root tauri:dev:test must enter the desktop package through the bounded workspace package-script runner instead of reopening pnpm --dir on Windows.',
+  rootPackageJson.scripts['dev:desktop:check'],
+  'node scripts/run-workspace-package-script.mjs apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-desktop dev:desktop:check',
+  'Root dev:desktop:check must enter the desktop package through the bounded workspace package-script runner instead of reopening pnpm --dir on Windows.',
 );
 assert.equal(
-  rootPackageJson.scripts['tauri:build'],
-  'node scripts/run-workspace-package-script.mjs apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-desktop tauri:build',
-  'Root tauri:build must enter the desktop package through the bounded workspace package-script runner instead of reopening pnpm --dir on Windows.',
+  rootPackageJson.scripts['build:desktop'],
+  'node scripts/run-workspace-package-script.mjs apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-desktop build:desktop',
+  'Root build:desktop must enter the desktop package through the bounded workspace package-script runner instead of reopening pnpm --dir on Windows.',
 );
 assert.equal(
-  rootPackageJson.scripts['tauri:build:test'],
-  'node scripts/run-workspace-package-script.mjs apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-desktop tauri:build:test',
-  'Root tauri:build:test must enter the desktop package through the bounded workspace package-script runner instead of reopening pnpm --dir on Windows.',
+  rootPackageJson.scripts['build:desktop:check'],
+  'node scripts/run-workspace-package-script.mjs apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-desktop build:desktop:check',
+  'Root build:desktop:check must enter the desktop package through the bounded workspace package-script runner instead of reopening pnpm --dir on Windows.',
 );
 assert.equal(
-  rootPackageJson.scripts['tauri:build:prod'],
-  'node scripts/run-workspace-package-script.mjs apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-desktop tauri:build:prod',
-  'Root tauri:build:prod must enter the desktop package through the bounded workspace package-script runner instead of reopening pnpm --dir on Windows.',
+  rootPackageJson.scripts['build:desktop:full'],
+  'node scripts/run-workspace-package-script.mjs apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-desktop build:desktop:full',
+  'Root build:desktop:full must enter the desktop package through the bounded workspace package-script runner instead of reopening pnpm --dir on Windows.',
 );
 assert.equal(
-  rootPackageJson.scripts['tauri:info'],
-  'node scripts/run-workspace-package-script.mjs apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-desktop tauri:info',
-  'Root tauri:info must enter the desktop package through the bounded workspace package-script runner instead of reopening pnpm --dir on Windows.',
+  rootPackageJson.scripts['check:desktop:info'],
+  'node scripts/run-workspace-package-script.mjs apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-desktop check:desktop:info',
+  'Root check:desktop:info must enter the desktop package through the bounded workspace package-script runner instead of reopening pnpm --dir on Windows.',
 );
 assert.ok(
   fs.existsSync(workspacePackageScriptRunnerPath),
@@ -302,12 +302,12 @@ assert.match(
 assert.match(
   workspacePackageScriptRunnerSource,
   /runWorkspacePackageScriptCli/u,
-  'Workspace package-script runner must expose a direct CLI path for the root tauri:* scripts.',
+  'Workspace package-script runner must expose a direct CLI path for the root desktop scripts.',
 );
 
 assert.equal(
   tauriConfig.build.beforeDevCommand,
-  'pnpm dev:tauri',
+  'pnpm start:desktop-renderer',
   'Desktop Tauri dev must start the desktop-only strict-port Vite host instead of the generic dev server.',
 );
 
@@ -353,9 +353,9 @@ assert.equal(
 );
 
 assert.match(
-  desktopPackageJson.scripts['dev:tauri'],
+  desktopPackageJson.scripts['start:desktop-renderer'],
   /run-vite-host\.mjs\s+serve/,
-  'Desktop dev:tauri must use the standard workspace Vite host so desktop startup stays aligned with the claw-studio baseline.',
+  'Desktop start:desktop-renderer must use the standard workspace Vite host so desktop startup stays aligned with the native host.',
 );
 
 assert.equal(
@@ -392,176 +392,176 @@ assertSameMajorMinor(
 );
 
 assert.match(
-  desktopPackageJson.scripts['dev:tauri'],
+  desktopPackageJson.scripts['start:desktop-renderer'],
   /--host 127\.0\.0\.1 --port 1520 --strictPort\b/,
-  'Desktop dev:tauri must bind the same strict localhost port that Tauri waits on.',
+  'Desktop start:desktop-renderer must bind the same strict localhost port that Tauri waits on.',
 );
 assert.match(
-  desktopPackageJson.scripts['dev:tauri:test'],
+  desktopPackageJson.scripts['start:desktop-renderer:check'],
   /run-vite-host\.mjs\s+serve/,
-  'Desktop dev:tauri:test must use the standard workspace Vite host so test-mode desktop startup follows the same path as development mode.',
+  'Desktop start:desktop-renderer:check must use the standard workspace Vite host so test-mode desktop startup follows the same path as development mode.',
 );
 assert.match(
-  desktopPackageJson.scripts['dev:tauri:test'],
+  desktopPackageJson.scripts['start:desktop-renderer:check'],
   /--host 127\.0\.0\.1 --port 1520 --strictPort\b.*--mode test|--mode test.*--host 127\.0\.0\.1 --port 1520 --strictPort\b/,
-  'Desktop dev:tauri:test must bind the same strict localhost port as Tauri while running the Vite host in test mode.',
+  'Desktop start:desktop-renderer:check must bind the same strict localhost port as Tauri while running the Vite host in test mode.',
 );
 
 assert.match(
-  desktopPackageJson.scripts['tauri:dev:base'],
+  desktopPackageJson.scripts['start:desktop'],
   /ensure-tauri-rust-toolchain\.mjs/,
-  'Desktop tauri:dev:base must verify cargo and rustc availability before starting the desktop shell so Tauri startup does not diverge from the claw-studio baseline.',
+  'Desktop start:desktop must verify cargo and rustc availability before starting the desktop shell so Tauri startup does not diverge from the claw-studio baseline.',
 );
 assert.match(
-  desktopPackageJson.scripts['tauri:dev:base'],
+  desktopPackageJson.scripts['start:desktop'],
   /run-tauri-dev-binary-unlock\.mjs\s+--src-tauri-dir\s+src-tauri\s+--binary-name\s+sdkwork-birdcoder-desktop/,
-  'Desktop tauri:dev:base must unlock stale BirdCoder desktop binaries before starting cargo so repeated launches do not fail with locked target executables.',
+  'Desktop start:desktop must unlock stale BirdCoder desktop binaries before starting cargo so repeated launches do not fail with locked target executables.',
 );
 assert.match(
-  desktopPackageJson.scripts['tauri:dev:base'],
+  desktopPackageJson.scripts['start:desktop'],
   /run-tauri-cli\.mjs\s+dev/,
-  'Desktop tauri:dev:base must resolve the local @tauri-apps/cli entrypoint through the shared runner instead of depending on shell PATH lookup.',
+  'Desktop start:desktop must resolve the local @tauri-apps/cli entrypoint through the shared runner instead of depending on shell PATH lookup.',
 );
 assert.doesNotMatch(
-  desktopPackageJson.scripts['tauri:dev:base'],
+  desktopPackageJson.scripts['start:desktop'],
   /pnpm exec tauri dev/,
-  'Desktop tauri:dev:base must not invoke the Tauri CLI directly through pnpm exec because that path diverged from the claw-studio desktop startup baseline.',
+  'Desktop start:desktop must not invoke the Tauri CLI directly through pnpm exec because that path diverged from the claw-studio desktop startup baseline.',
 );
 assert.match(
-  desktopPackageJson.scripts['tauri:dev:base'],
+  desktopPackageJson.scripts['start:desktop'],
   /ensure-tauri-dev-port-free\.mjs\s+127\.0\.0\.1\s+1520/,
-  'Desktop tauri:dev:base must verify that port 1520 is free before Tauri launches the desktop Vite host.',
+  'Desktop start:desktop must verify that port 1520 is free before Tauri launches the desktop Vite host.',
 );
 assert.match(
-  desktopPackageJson.scripts['tauri:dev:base'],
+  desktopPackageJson.scripts['start:desktop'],
   /ensure-tauri-target-clean\.mjs\s+src-tauri/,
-  'Desktop tauri:dev:base must clean stale Tauri target caches before launching cargo so repeated runs do not inherit invalid permission manifests.',
+  'Desktop start:desktop must clean stale Tauri target caches before launching cargo so repeated runs do not inherit invalid permission manifests.',
 );
 
 assert.match(
-  desktopPackageJson.scripts['tauri:dev:test:base'],
+  desktopPackageJson.scripts['start:desktop:check'],
   /ensure-tauri-rust-toolchain\.mjs/,
-  'Desktop tauri:dev:test:base must verify cargo and rustc availability before starting the desktop shell in test mode.',
+  'Desktop start:desktop:check must verify cargo and rustc availability before starting the desktop shell in test mode.',
 );
 assert.match(
-  desktopPackageJson.scripts['tauri:dev:test:base'],
+  desktopPackageJson.scripts['start:desktop:check'],
   /run-tauri-dev-binary-unlock\.mjs\s+--src-tauri-dir\s+src-tauri\s+--binary-name\s+sdkwork-birdcoder-desktop/,
-  'Desktop tauri:dev:test:base must unlock stale BirdCoder desktop binaries before starting cargo so repeated launches do not fail with locked target executables.',
+  'Desktop start:desktop:check must unlock stale BirdCoder desktop binaries before starting cargo so repeated launches do not fail with locked target executables.',
 );
 assert.match(
-  desktopPackageJson.scripts['tauri:dev:test:base'],
+  desktopPackageJson.scripts['start:desktop:check'],
   /run-tauri-cli\.mjs\s+dev/,
-  'Desktop tauri:dev:test:base must resolve the local @tauri-apps/cli entrypoint through the shared runner instead of depending on shell PATH lookup.',
+  'Desktop start:desktop:check must resolve the local @tauri-apps/cli entrypoint through the shared runner instead of depending on shell PATH lookup.',
 );
 assert.match(
-  desktopPackageJson.scripts['tauri:dev:test:base'],
+  desktopPackageJson.scripts['start:desktop:check'],
   /--vite-mode\s+test/,
-  'Desktop tauri:dev:test:base must forward test mode through the shared Tauri CLI runner environment.',
+  'Desktop start:desktop:check must forward test mode through the shared Tauri CLI runner environment.',
 );
 assert.doesNotMatch(
-  desktopPackageJson.scripts['tauri:dev:test:base'],
+  desktopPackageJson.scripts['start:desktop:check'],
   /pnpm exec tauri dev/,
-  'Desktop tauri:dev:test:base must not invoke the Tauri CLI directly through pnpm exec because that path diverged from the claw-studio desktop startup baseline.',
+  'Desktop start:desktop:check must not invoke the Tauri CLI directly through pnpm exec because that path diverged from the claw-studio desktop startup baseline.',
 );
 assert.match(
-  desktopPackageJson.scripts['tauri:dev:test:base'],
+  desktopPackageJson.scripts['start:desktop:check'],
   /ensure-tauri-dev-port-free\.mjs\s+127\.0\.0\.1\s+1520/,
-  'Desktop tauri:dev:test:base must verify that port 1520 is free before Tauri launches the desktop Vite host.',
+  'Desktop start:desktop:check must verify that port 1520 is free before Tauri launches the desktop Vite host.',
 );
 assert.match(
-  desktopPackageJson.scripts['tauri:dev:test:base'],
+  desktopPackageJson.scripts['start:desktop:check'],
   /ensure-tauri-target-clean\.mjs\s+src-tauri/,
-  'Desktop tauri:dev:test:base must clean stale Tauri target caches before launching cargo so repeated test runs do not inherit invalid permission manifests.',
+  'Desktop start:desktop:check must clean stale Tauri target caches before launching cargo so repeated test runs do not inherit invalid permission manifests.',
 );
 assert.match(
-  desktopPackageJson.scripts['tauri:dev:test:base'],
+  desktopPackageJson.scripts['start:desktop:check'],
   /--config\s+src-tauri\/tauri\.test\.conf\.json/,
-  'Desktop tauri:dev:test:base must use the dedicated Tauri test config so beforeDevCommand and beforeBuildCommand run in test mode.',
+  'Desktop start:desktop:check must use the dedicated Tauri test config so beforeDevCommand and beforeBuildCommand run in test mode.',
 );
 assert.match(
-  desktopPackageJson.scripts['tauri:build:test:base'],
+  desktopPackageJson.scripts['release:build:desktop:check'],
   /run-desktop-release-build\.mjs\s+--phase\s+bundle.*--vite-mode\s+test|--vite-mode\s+test.*run-desktop-release-build\.mjs\s+--phase\s+bundle/,
-  'Desktop tauri:build:test:base must route packaged test builds through the shared desktop release-build wrapper in test mode so the wrapper can resolve the dedicated Tauri test config.',
+  'Desktop release:build:desktop:check must route packaged test builds through the shared desktop release-build wrapper in test mode so the wrapper can resolve the dedicated Tauri test config.',
 );
 assert.match(
-  desktopPackageJson.scripts['tauri:build:base'],
+  desktopPackageJson.scripts['release:build:desktop'],
   /ensure-tauri-rust-toolchain\.mjs/,
-  'Desktop tauri:build:base must verify cargo and rustc availability before running packaged desktop builds.',
+  'Desktop release:build:desktop must verify cargo and rustc availability before running packaged desktop builds.',
 );
 assert.match(
-  desktopPackageJson.scripts['tauri:build:base'],
+  desktopPackageJson.scripts['release:build:desktop'],
   /run-desktop-release-build\.mjs\s+--phase\s+bundle/,
-  'Desktop tauri:build:base must route desktop bundle builds through the shared release-build wrapper so Windows packaging can recover from WiX environment failures.',
+  'Desktop release:build:desktop must route desktop bundle builds through the shared release-build wrapper so Windows packaging can recover from WiX environment failures.',
 );
 assert.match(
-  desktopPackageJson.scripts['tauri:build:base'],
+  desktopPackageJson.scripts['release:build:desktop'],
   /--vite-mode\s+production/,
-  'Desktop tauri:build:base must forward production mode through the shared desktop release-build wrapper.',
+  'Desktop release:build:desktop must forward production mode through the shared desktop release-build wrapper.',
 );
 assert.doesNotMatch(
-  desktopPackageJson.scripts['tauri:build:base'],
+  desktopPackageJson.scripts['release:build:desktop'],
   /pnpm exec tauri build/,
-  'Desktop tauri:build:base must not invoke the Tauri CLI directly through pnpm exec because that path diverged from the claw-studio desktop startup baseline.',
+  'Desktop release:build:desktop must not invoke the Tauri CLI directly through pnpm exec because that path diverged from the claw-studio desktop startup baseline.',
 );
 assert.match(
-  desktopPackageJson.scripts['tauri:build:base'],
+  desktopPackageJson.scripts['release:build:desktop'],
   /ensure-tauri-target-clean\.mjs\s+src-tauri/,
-  'Desktop tauri:build:base must clean stale Tauri target caches before invoking cargo build steps.',
+  'Desktop release:build:desktop must clean stale Tauri target caches before invoking cargo build steps.',
 );
 assert.match(
-  desktopPackageJson.scripts['tauri:build:test:base'],
+  desktopPackageJson.scripts['release:build:desktop:check'],
   /ensure-tauri-rust-toolchain\.mjs/,
-  'Desktop tauri:build:test:base must verify cargo and rustc availability before running packaged desktop test builds.',
+  'Desktop release:build:desktop:check must verify cargo and rustc availability before running packaged desktop test builds.',
 );
 assert.match(
-  desktopPackageJson.scripts['tauri:build:test:base'],
+  desktopPackageJson.scripts['release:build:desktop:check'],
   /run-desktop-release-build\.mjs\s+--phase\s+bundle/,
-  'Desktop tauri:build:test:base must route desktop bundle builds through the shared release-build wrapper so Windows packaging can recover from WiX environment failures.',
+  'Desktop release:build:desktop:check must route desktop bundle builds through the shared release-build wrapper so Windows packaging can recover from WiX environment failures.',
 );
 assert.match(
-  desktopPackageJson.scripts['tauri:build:test:base'],
+  desktopPackageJson.scripts['release:build:desktop:check'],
   /--vite-mode\s+test/,
-  'Desktop tauri:build:test:base must forward test mode through the shared desktop release-build wrapper.',
+  'Desktop release:build:desktop:check must forward test mode through the shared desktop release-build wrapper.',
 );
 assert.doesNotMatch(
-  desktopPackageJson.scripts['tauri:build:test:base'],
+  desktopPackageJson.scripts['release:build:desktop:check'],
   /pnpm exec tauri build/,
-  'Desktop tauri:build:test:base must not invoke the Tauri CLI directly through pnpm exec because that path diverged from the claw-studio desktop startup baseline.',
+  'Desktop release:build:desktop:check must not invoke the Tauri CLI directly through pnpm exec because that path diverged from the claw-studio desktop startup baseline.',
 );
 assert.match(
-  desktopPackageJson.scripts['tauri:build:test:base'],
+  desktopPackageJson.scripts['release:build:desktop:check'],
   /ensure-tauri-target-clean\.mjs\s+src-tauri/,
-  'Desktop tauri:build:test:base must clean stale Tauri target caches before invoking cargo build steps.',
+  'Desktop release:build:desktop:check must clean stale Tauri target caches before invoking cargo build steps.',
 );
 assert.match(
-  desktopPackageJson.scripts['tauri:build:prod:base'],
+  desktopPackageJson.scripts['release:build:desktop:full'],
   /ensure-tauri-rust-toolchain\.mjs/,
-  'Desktop tauri:build:prod:base must verify cargo and rustc availability before running production desktop builds.',
+  'Desktop release:build:desktop:full must verify cargo and rustc availability before running production desktop builds.',
 );
 assert.match(
-  desktopPackageJson.scripts['tauri:build:prod:base'],
+  desktopPackageJson.scripts['release:build:desktop:full'],
   /run-desktop-release-build\.mjs\s+--phase\s+bundle/,
-  'Desktop tauri:build:prod:base must route desktop bundle builds through the shared release-build wrapper so Windows packaging can recover from WiX environment failures.',
+  'Desktop release:build:desktop:full must route desktop bundle builds through the shared release-build wrapper so Windows packaging can recover from WiX environment failures.',
 );
 assert.match(
-  desktopPackageJson.scripts['tauri:build:prod:base'],
+  desktopPackageJson.scripts['release:build:desktop:full'],
   /--vite-mode\s+production/,
-  'Desktop tauri:build:prod:base must forward production mode through the shared desktop release-build wrapper.',
+  'Desktop release:build:desktop:full must forward production mode through the shared desktop release-build wrapper.',
 );
 assert.doesNotMatch(
-  desktopPackageJson.scripts['tauri:build:prod:base'],
+  desktopPackageJson.scripts['release:build:desktop:full'],
   /pnpm exec tauri build/,
-  'Desktop tauri:build:prod:base must not invoke the Tauri CLI directly through pnpm exec because that path diverged from the claw-studio desktop startup baseline.',
+  'Desktop release:build:desktop:full must not invoke the Tauri CLI directly through pnpm exec because that path diverged from the claw-studio desktop startup baseline.',
 );
 assert.match(
-  desktopPackageJson.scripts['tauri:build:prod:base'],
+  desktopPackageJson.scripts['release:build:desktop:full'],
   /ensure-tauri-target-clean\.mjs\s+src-tauri/,
-  'Desktop tauri:build:prod:base must clean stale Tauri target caches before invoking cargo build steps.',
+  'Desktop release:build:desktop:full must clean stale Tauri target caches before invoking cargo build steps.',
 );
 
 assert.equal(
   tauriTestConfig.build.beforeDevCommand,
-  'pnpm dev:tauri:test',
+  'pnpm start:desktop-renderer:check',
   'Desktop Tauri test config must start the strict-port desktop Vite host in test mode.',
 );
 assert.equal(
@@ -598,9 +598,9 @@ assert.match(
 );
 
 assert.match(
-  desktopPackageJson.scripts['dev:test'],
+  desktopPackageJson.scripts['dev:test-runner'],
   /run-vite-host\.mjs\s+serve/,
-  'Desktop dev:test should use the standard workspace Vite host so standalone desktop shell development matches tauri dev.',
+  'Desktop dev:test-runner should use the standard workspace Vite host for renderer test mode.',
 );
 
 assert.doesNotMatch(

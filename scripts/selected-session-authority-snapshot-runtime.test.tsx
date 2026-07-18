@@ -7,10 +7,10 @@ import type {
   BirdCoderChatMessage,
   BirdCoderCodingSession,
   BirdCoderProject,
-} from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-types/src/index.ts';
+} from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-contracts-commons/src/index.ts';
 import type {
   UseSelectedCodingSessionMessagesOptions,
-} from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-commons/src/hooks/useSelectedCodingSessionMessages.ts';
+} from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-workbench/src/hooks/useSelectedCodingSessionMessages.ts';
 
 const runtimeMocks = vi.hoisted(() => ({
   refreshCodingSessionMessages: vi.fn(),
@@ -23,14 +23,14 @@ vi.mock('@sdkwork/birdcoder-pc-infrastructure-runtime', () => ({
 }));
 
 vi.mock(
-  '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-commons/src/context/AuthContext.ts',
+  '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-workbench/src/context/AuthContext.ts',
   () => ({
     useAuth: () => ({ user: { id: 'selected-session-runtime-user' } }),
   }),
 );
 
 vi.mock(
-  '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-commons/src/stores/projectsStore.ts',
+  '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-workbench/src/stores/projectsStore.ts',
   () => ({
     upsertCodingSessionIntoProjectsStore:
       runtimeMocks.upsertCodingSessionIntoProjectsStore,
@@ -39,14 +39,14 @@ vi.mock(
 );
 
 vi.mock(
-  '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-commons/src/workbench/sessionRefresh.ts',
+  '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-workbench/src/workbench/sessionRefresh.ts',
   () => ({
     refreshCodingSessionMessages: runtimeMocks.refreshCodingSessionMessages,
   }),
 );
 
 const { useSelectedCodingSessionMessages } = await import(
-  '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-commons/src/hooks/useSelectedCodingSessionMessages.ts'
+  '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-workbench/src/hooks/useSelectedCodingSessionMessages.ts'
 );
 
 globalThis.IS_REACT_ACT_ENVIRONMENT = true;

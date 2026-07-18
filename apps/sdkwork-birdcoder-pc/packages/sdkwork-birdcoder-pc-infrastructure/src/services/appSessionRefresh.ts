@@ -1,4 +1,4 @@
-import { createBirdcoderAppSdkClient } from '@sdkwork/birdcoder-app-sdk';
+import { createBirdcoderAppSdkClient } from '@sdkwork/birdcoder-pc-core/sdk/birdcoder-app';
 import { syncBirdCoderGlobalTokenManagerFromStorage } from '@sdkwork/birdcoder-pc-core/appSessionTokenManager';
 import {
   APP_SESSION_CHANGE_EVENT_NAME,

@@ -93,7 +93,7 @@
     }
   ],
   "contracts": {
-    "layerRole": "frontend-core",
+    "layerRole": "frontend-feature",
     "publicExports": [
       ".",
       "./runtime/defaultIdeServices",
@@ -112,27 +112,18 @@
     ],
     "runtimeEntrypoints": [],
     "sdkClients": [
-      "@sdkwork/birdcoder-app-sdk",
-      "@sdkwork/drive-app-sdk"
+      "@sdkwork/drive-app-sdk",
+      "@sdkwork/membership-app-sdk"
     ],
     "events": [],
     "configKeys": [
-      "VITE_SDKWORK_BIRDCODER_REALTIME_TRANSPORT"
+      "VITE_SDKWORK_BIRDCODER_PLATFORM_API_GATEWAY_HTTP_URL",
+      "VITE_SDKWORK_BIRDCODER_REALTIME_TRANSPORT",
+      "VITE_SDKWORK_DRIVE_APP_API_BASE_URL",
+      "VITE_SDKWORK_MEMBERSHIP_APP_API_BASE_URL"
     ],
     "routeManifest": null,
     "sdkDependencies": [
-      {
-        "workspace": "sdkwork-birdcoder-app-sdk",
-        "role": "birdcoder-app-capability",
-        "required": true,
-        "dependencyMode": "consumer-sdk",
-        "apiPrefix": "/app/v3/api",
-        "apiAuthority": "sdkwork-birdcoder-app-api",
-        "generatedTransportImportPolicy": "forbidden",
-        "packageByLanguage": {
-          "typescript": "@sdkwork/birdcoder-app-sdk"
-        }
-      },
       {
         "workspace": "sdkwork-drive-app-sdk",
         "role": "drive-app-capability",
@@ -143,6 +134,18 @@
         "generatedTransportImportPolicy": "forbidden",
         "packageByLanguage": {
           "typescript": "@sdkwork/drive-app-sdk"
+        }
+      },
+      {
+        "workspace": "sdkwork-membership-app-sdk",
+        "role": "membership-app-capability",
+        "required": true,
+        "dependencyMode": "consumer-sdk",
+        "apiPrefix": "/app/v3/api/memberships",
+        "apiAuthority": "sdkwork-membership-app-api",
+        "generatedTransportImportPolicy": "forbidden",
+        "packageByLanguage": {
+          "typescript": "@sdkwork/membership-app-sdk"
         }
       }
     ],
@@ -157,7 +160,7 @@
   },
   "verification": {
     "commands": [
-      "node apps/scripts/validate-component-specs.mjs --apps-root apps --json"
+      "node ../sdkwork-specs/tools/check-component-port-bindings.mjs --root ."
     ]
   },
   "metadata": {

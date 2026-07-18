@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import type { BirdCoderCodingSession } from '@sdkwork/birdcoder-pc-types';
+import type { BirdCoderCodingSession } from '@sdkwork/birdcoder-pc-contracts-commons';
 import { createBirdCoderStorageProvider } from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/src/storage/dataKernel.ts';
 import { createBirdCoderConsoleRepositories } from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/src/storage/appConsoleRepository.ts';
 import { createBirdCoderCodingSessionRepositories } from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/src/storage/codingSessionRepository.ts';
@@ -384,7 +384,7 @@ try {
   );
 
   const preferencesModule = await import(
-    `../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-commons/src/workbench/preferences.ts?t=${Date.now()}`
+    `../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-workbench/src/workbench/preferences.ts?t=${Date.now()}`
   );
   await preferencesModule.writeWorkbenchPreferences({
     codeEngineId: 'gemini',
@@ -415,7 +415,7 @@ try {
   );
 
   const runConfigsModule = await import(
-    `../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-commons/src/terminal/runConfigs.ts?t=${Date.now()}`
+    `../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-workbench/src/terminal/runConfigs.ts?t=${Date.now()}`
   );
   await runConfigsModule.saveStoredRunConfigurations(projectId, [
     {

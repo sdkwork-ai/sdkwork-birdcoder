@@ -11,7 +11,7 @@ const storageMock = vi.hoisted(() => ({
 }));
 
 vi.mock(
-  '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-commons/src/storage/localStore.ts',
+  '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-workbench/src/storage/localStore.ts',
   () => ({
     buildLocalStoreKey: (scope: string, key: string) => `${scope}:${key}`,
     deserializeStoredValue: (rawValue: string | null, fallback: unknown) => {
@@ -27,7 +27,7 @@ vi.mock(
 );
 
 const { usePersistedState } = await import(
-  '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-commons/src/hooks/usePersistedState.ts'
+  '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-workbench/src/hooks/usePersistedState.ts'
 );
 
 globalThis.IS_REACT_ACT_ENVIRONMENT = true;

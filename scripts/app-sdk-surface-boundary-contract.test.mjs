@@ -46,7 +46,7 @@ assert.doesNotMatch(
 );
 
 const commonsIdeServicesSource = readText(
-  'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-commons/src/context/ideServices.ts',
+  'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-workbench/src/context/ideServices.ts',
 );
 assert.doesNotMatch(
   commonsIdeServicesSource,

@@ -38,7 +38,7 @@ assert.match(
 );
 assert.match(
   source,
-  /pendingMessages\.length = 0/u,
+  /pendingMessages\.clear\(\)/u,
   'Workspace realtime recovery must release queued messages before durable replay.',
 );
 assert.doesNotMatch(

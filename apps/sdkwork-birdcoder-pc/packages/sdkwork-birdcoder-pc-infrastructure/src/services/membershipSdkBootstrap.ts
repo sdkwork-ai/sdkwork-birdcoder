@@ -1,10 +1,10 @@
 /**
  * BirdCoder membership SDK bootstrap.
  *
- * Integrates `@sdkwork/membership-service` using the same token-sharing
- * approach as sdkwork-clawrouter: the BirdCoder global TokenManager is
- * passed to the membership app SDK and order app SDK clients so that all
- * authenticated requests share the same IAM session tokens.
+ * Integrates `@sdkwork/membership-service` and `@sdkwork/order-service`
+ * using the same token-sharing approach as sdkwork-clawrouter: the
+ * BirdCoder global TokenManager is passed to both app SDK clients so that
+ * all authenticated requests share the same IAM session tokens.
  *
  * The membership SDK service provider is configured globally via
  * `configureSdkworkMembershipAppServiceProvider`, allowing the
@@ -14,16 +14,28 @@
 
 import {
   bootstrapSdkworkMembershipAppService,
-  bootstrapSdkworkOrderAppService,
   configureSdkworkMembershipSessionTokenProvider,
   type SdkworkMembershipSessionTokens,
 } from '@sdkwork/membership-service';
+import { bootstrapSdkworkOrderAppService } from '@sdkwork/order-service';
 import { getBirdCoderGlobalTokenManager } from '@sdkwork/birdcoder-pc-core/appSessionTokenManager';
 import { getDefaultBirdCoderIdeServicesRuntimeConfig } from './defaultIdeServicesRuntime.ts';
+import {
+  readBirdCoderRuntimeEnv,
+  resolveBirdCoderBrowserDependencySdkBaseUrl,
+} from './iamRuntime.ts';
 
 let membershipSdkBootstrapped = false;
 
 function resolveMembershipApiBaseUrl(): string | undefined {
+  const configuredBaseUrl = readBirdCoderRuntimeEnv('VITE_SDKWORK_MEMBERSHIP_APP_API_BASE_URL')
+    ?? readBirdCoderRuntimeEnv('VITE_SDKWORK_BIRDCODER_PLATFORM_API_GATEWAY_HTTP_URL');
+  return configuredBaseUrl
+    ? resolveBirdCoderBrowserDependencySdkBaseUrl(configuredBaseUrl)
+    : undefined;
+}
+
+function resolveOrderApiBaseUrl(): string | undefined {
   return getDefaultBirdCoderIdeServicesRuntimeConfig().apiBaseUrl;
 }
 
@@ -50,20 +62,21 @@ export function bootstrapBirdCoderMembershipSdk(): boolean {
     return true;
   }
 
-  const baseUrl = resolveMembershipApiBaseUrl();
-  if (!baseUrl) {
+  const membershipBaseUrl = resolveMembershipApiBaseUrl();
+  const orderBaseUrl = resolveOrderApiBaseUrl();
+  if (!membershipBaseUrl || !orderBaseUrl) {
     return false;
   }
 
   const tokenManager = getBirdCoderGlobalTokenManager();
 
   bootstrapSdkworkMembershipAppService({
-    baseUrl,
+    baseUrl: membershipBaseUrl,
     tokenManager,
   });
 
   bootstrapSdkworkOrderAppService({
-    baseUrl,
+    baseUrl: orderBaseUrl,
     tokenManager,
   });
 

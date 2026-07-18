@@ -1,5 +1,5 @@
 import { memo } from 'react';
-import type { BirdCoderChatMessageView } from '@sdkwork/birdcoder-pc-commons/chat/types';
+import type { BirdCoderChatMessageView } from '@sdkwork/birdcoder-pc-workbench/chat/types';
 import type { ChatMessageRenderContext } from '../types.ts';
 import { defaultChatMessageContentBlockRendererRegistry } from './defaultRegistry.ts';
 import type { ChatMessageContentBlockRendererRegistry } from './registry.ts';

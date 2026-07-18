@@ -11,12 +11,12 @@ function read(relativePath) {
 }
 
 const sharedInterfaceSource = read(
-  'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-commons/src/services/interfaces/IFileSystemService.ts',
+  'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-workbench/src/services/interfaces/IFileSystemService.ts',
 );
 const infrastructureInterfaceSource = read(
   'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/src/services/interfaces/IFileSystemService.ts',
 );
-const sharedHookSource = read('apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-commons/src/hooks/useFileSystem.ts');
+const sharedHookSource = read('apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-workbench/src/hooks/useFileSystem.ts');
 const appSource = readBirdcoderAppShellSource();
 const codePageSource = read('apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-code/src/pages/CodePage.tsx');
 const codeServerDirectoryImportSource = read(

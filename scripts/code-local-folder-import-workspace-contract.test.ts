@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { readBirdcoderAppShellSource } from './birdcoder-app-shell-contract-sources.mjs';
 
 const modulePath = new URL(
-  '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-commons/src/workbench/localFolderProjectWorkspace.ts',
+  '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-workbench/src/workbench/localFolderProjectWorkspace.ts',
   import.meta.url,
 );
 const codeServerDirectoryImportHookPath = new URL(
@@ -154,7 +154,7 @@ await assert.rejects(
 
 assert.match(
   codeServerDirectoryImportHookSource,
-  /resolveProjectImportWorkspaceId as resolveSharedProjectImportWorkspaceId \} from '@sdkwork\/birdcoder-pc-commons\/workbench\/projectImportWorkspace';/,
+  /resolveProjectImportWorkspaceId as resolveSharedProjectImportWorkspaceId \} from '@sdkwork\/birdcoder-pc-workbench\/workbench\/projectImportWorkspace';/,
   'CodePage server-directory imports must use the canonical shared project-import workspace resolver.',
 );
 

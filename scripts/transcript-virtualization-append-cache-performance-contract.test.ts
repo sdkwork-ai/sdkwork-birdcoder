@@ -4,7 +4,7 @@ import {
   reconcileTranscriptPrefixHeightsCache,
   type TranscriptPrefixHeightsCache,
 } from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-ui/src/components/transcriptVirtualization.ts';
-import type { BirdCoderChatMessage } from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-types/src/index.ts';
+import type { BirdCoderChatMessage } from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-contracts-commons/src/index.ts';
 
 function buildMessage(index: number): BirdCoderChatMessage {
   return {

@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import type { BirdCoderDeploymentRecordSummary } from '@sdkwork/birdcoder-pc-types';
+import type { BirdCoderDeploymentRecordSummary } from '@sdkwork/birdcoder-pc-contracts-commons';
 import type { IAdminDeploymentService } from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-admin-core/src/services/interfaces/IAdminDeploymentService.ts';
 import { loadAdminDeployments } from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-admin-core/src/hooks/useAdminDeployments.ts';
 

@@ -4,7 +4,7 @@ import {
   buildChatMessageViewSynchronizationSignature,
   resolveChatMessageView,
   type ChatMessageViewSource,
-} from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-types/src/chat-message-view.ts';
+} from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-contracts-commons/src/chat-message-view.ts';
 
 const userMessage: ChatMessageViewSource = {
   id: 'msg-user-1',

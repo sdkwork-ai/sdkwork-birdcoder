@@ -6,14 +6,14 @@ const rootDir = process.cwd();
 const hookSource = fs.readFileSync(
   path.join(
     rootDir,
-    'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-commons/src/hooks/useProjects.ts',
+    'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-workbench/src/hooks/useProjects.ts',
   ),
   'utf8',
 );
 const storeSource = fs.readFileSync(
   path.join(
     rootDir,
-    'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-commons/src/stores/projectsStore.ts',
+    'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-workbench/src/stores/projectsStore.ts',
   ),
   'utf8',
 );

@@ -1,6 +1,6 @@
 import { Suspense, lazy, useEffect, useMemo, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
-import { useAuth } from '@sdkwork/birdcoder-pc-commons/context/AuthContext';
+import { useAuth } from '@sdkwork/birdcoder-pc-workbench/context/AuthContext';
 import { StartupScreen } from '@sdkwork/birdcoder-pc-ui-shell';
 import {
   buildProtectedRouteLoginPath,

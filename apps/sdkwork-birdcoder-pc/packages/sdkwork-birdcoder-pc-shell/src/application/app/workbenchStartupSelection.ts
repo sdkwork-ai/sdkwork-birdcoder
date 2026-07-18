@@ -3,8 +3,8 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import type { AppTab } from '@sdkwork/birdcoder-pc-types';
-import type { WorkbenchRecoverySnapshot } from '@sdkwork/birdcoder-pc-commons';
+import type { AppTab } from '@sdkwork/birdcoder-pc-contracts-commons';
+import type { WorkbenchRecoverySnapshot } from '@sdkwork/birdcoder-pc-workbench';
 interface WorkbenchStartupSelectionLink {
   activeTab?: AppTab;
   codingSessionId?: string;

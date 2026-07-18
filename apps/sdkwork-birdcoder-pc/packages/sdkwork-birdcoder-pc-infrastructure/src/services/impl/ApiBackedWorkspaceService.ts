@@ -1,4 +1,4 @@
-import type { BirdCoderWorkspaceSummary, IWorkspace } from '@sdkwork/birdcoder-pc-types';
+import type { BirdCoderWorkspaceSummary, IWorkspace } from '@sdkwork/birdcoder-pc-contracts-commons';
 import type { BirdCoderAppSdkApiClient } from '../sdkClients.ts';
 import type { IAuthService } from '../interfaces/IAuthService.ts';
 import type {

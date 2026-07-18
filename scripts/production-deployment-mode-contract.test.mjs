@@ -44,9 +44,9 @@ assert.match(
 );
 
 for (const relativePath of [
-  'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-commons/src/context/ideServices.ts',
-  'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-commons/src/context/lazyDefaultIdeServices.ts',
-  'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-commons/src/context/ServiceContext.tsx',
+  'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-workbench/src/context/ideServices.ts',
+  'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-workbench/src/context/lazyDefaultIdeServices.ts',
+  'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-workbench/src/context/ServiceContext.tsx',
 ]) {
   const source = readText(relativePath);
   assert.doesNotMatch(

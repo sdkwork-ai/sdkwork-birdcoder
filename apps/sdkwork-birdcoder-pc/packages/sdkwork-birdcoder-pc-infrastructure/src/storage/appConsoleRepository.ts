@@ -28,7 +28,7 @@ import {
   stringifyBirdCoderLongInteger,
   type BirdCoderDatabaseProviderId,
   type BirdCoderLongIntegerString,
-} from '@sdkwork/birdcoder-pc-types';
+} from '@sdkwork/birdcoder-pc-contracts-commons';
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null;

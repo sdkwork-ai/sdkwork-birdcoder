@@ -3,7 +3,7 @@ import type {
   BirdCoderUpsertProjectCollaboratorRequest,
   BirdCoderUpsertWorkspaceMemberRequest,
   BirdCoderWorkspaceMemberSummary,
-} from '@sdkwork/birdcoder-pc-types';
+} from '@sdkwork/birdcoder-pc-contracts-commons';
 import type { IAuthService } from '../interfaces/IAuthService.ts';
 import type { ICollaborationService } from '../interfaces/ICollaborationService.ts';
 import type { BirdCoderAppSdkApiClient } from '../sdkClients.ts';

@@ -8,7 +8,7 @@ import {
 } from './birdcoder-canonical-server-rust-sources.mjs';
 
 const serverTypesPath = new URL(
-  '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-types/src/server-api.ts',
+  '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-contracts-commons/src/server-api.ts',
   import.meta.url,
 );
 const openApiPath = new URL(

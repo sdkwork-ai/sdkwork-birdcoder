@@ -1,4 +1,4 @@
-import type { IFileNode } from '@sdkwork/birdcoder-pc-types';
+import type { IFileNode } from '@sdkwork/birdcoder-pc-contracts-commons';
 
 export interface DriveSandboxProjectPathContext {
   readonly bindingLogicalPath: string;

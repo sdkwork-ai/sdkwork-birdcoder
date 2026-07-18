@@ -7,7 +7,7 @@ import {
 import {
   DEFAULT_APP_SETTINGS,
   normalizeAppSettings,
-} from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-commons/src/settings/appSettings.ts';
+} from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-workbench/src/settings/appSettings.ts';
 
 function createImportFile(value: string, size = Buffer.byteLength(value)) {
   return {

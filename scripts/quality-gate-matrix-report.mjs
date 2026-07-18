@@ -64,7 +64,7 @@ export const QUALITY_GATE_TIERS = Object.freeze([
         'pnpm check:desktop',
         'pnpm check:server',
         'pnpm build',
-        'pnpm server:build',
+        'pnpm build:server',
         'pnpm docs:build',
       ]),
     }),

@@ -8,12 +8,12 @@ const activitySummarySource = await readFile(
 );
 
 const activityProjectionSource = await readFile(
-  resolve('apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-types/src/chat-message-activity-projection.ts'),
+  resolve('apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-contracts-commons/src/chat-message-activity-projection.ts'),
   'utf8',
 );
 
 const chatMessageViewSource = await readFile(
-  resolve('apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-types/src/chat-message-view.ts'),
+  resolve('apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-contracts-commons/src/chat-message-view.ts'),
   'utf8',
 );
 

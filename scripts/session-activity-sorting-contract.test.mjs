@@ -6,7 +6,7 @@ const providerServiceSource = fs.readFileSync(
   'utf8',
 );
 const projectsHookSource = fs.readFileSync(
-  new URL('../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-commons/src/hooks/useProjects.ts', import.meta.url),
+  new URL('../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-workbench/src/hooks/useProjects.ts', import.meta.url),
   'utf8',
 );
 const repositorySource = fs.readFileSync(

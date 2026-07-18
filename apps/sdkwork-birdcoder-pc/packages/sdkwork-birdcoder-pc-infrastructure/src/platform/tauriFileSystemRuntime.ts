@@ -1,4 +1,4 @@
-import type { FileRevisionLookupResult, IFileNode } from '@sdkwork/birdcoder-pc-types';
+import type { FileRevisionLookupResult, IFileNode } from '@sdkwork/birdcoder-pc-contracts-commons';
 import { isBirdCoderTauriRuntime } from './tauriRuntime.ts';
 
 type TauriInvoke = <T>(command: string, args?: Record<string, unknown>) => Promise<T>;

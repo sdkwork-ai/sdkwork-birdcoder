@@ -1,6 +1,6 @@
 import { useEffect, type Dispatch, type SetStateAction } from 'react';
 
-import type { BirdCoderProject } from '@sdkwork/birdcoder-pc-types';
+import type { BirdCoderProject } from '@sdkwork/birdcoder-pc-contracts-commons';
 
 interface UseStudioProjectInventoryReconciliationOptions {
   currentProjectId: string;

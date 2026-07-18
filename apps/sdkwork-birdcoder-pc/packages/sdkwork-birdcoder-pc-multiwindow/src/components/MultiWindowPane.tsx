@@ -1,4 +1,4 @@
-import type { WorkbenchPreferences } from '@sdkwork/birdcoder-pc-commons';
+import type { WorkbenchPreferences } from '@sdkwork/birdcoder-pc-workbench';
 import {
   getWorkbenchCodeEngineSessionSummary,
 } from '@sdkwork/birdcoder-pc-codeengine';

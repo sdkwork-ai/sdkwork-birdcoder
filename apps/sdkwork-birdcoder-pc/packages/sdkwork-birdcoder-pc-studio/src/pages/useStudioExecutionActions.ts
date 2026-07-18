@@ -12,7 +12,7 @@ import {
   type TerminalProfileBlockedAction,
   type TerminalProfileLaunchPresentation,
   type ProjectRuntimeLocationResolver,
-} from '@sdkwork/birdcoder-pc-commons';
+} from '@sdkwork/birdcoder-pc-workbench';
 
 import { resolveStudioBuildProfile } from '../build/profiles';
 import { resolveStudioBuildExecutionLaunch } from '../build/runtime';

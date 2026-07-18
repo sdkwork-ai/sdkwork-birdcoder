@@ -1,11 +1,11 @@
 import { useCallback } from 'react';
 import {
   useCodingSessionPendingInteractionState,
-} from '@sdkwork/birdcoder-pc-commons/hooks/useCodingSessionProjection';
+} from '@sdkwork/birdcoder-pc-workbench/hooks/useCodingSessionProjection';
 import type {
   BirdCoderSubmitApprovalDecisionRequest,
   BirdCoderSubmitUserQuestionAnswerRequest,
-} from '@sdkwork/birdcoder-pc-types';
+} from '@sdkwork/birdcoder-pc-contracts-commons';
 
 interface UseCodePendingInteractionsOptions {
   refreshToken?: string | number | null;

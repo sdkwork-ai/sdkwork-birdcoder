@@ -1,8 +1,13 @@
 {
   "@@locale": "zh_TW",
+  "@@sdkworkGenerated": "sdkwork-i18n-generated",
+  "@@sdkworkSourceManifest": "lib/src/i18n/manifest.json",
   "app_title": "BirdCoder",
   "app_loading": "載入中...",
-
+  "nav_home": "首頁",
+  "nav_chat": "聊天",
+  "nav_settings": "設定",
+  "nav_profile": "我的",
   "common_cancel": "取消",
   "common_confirm": "確認",
   "common_save": "儲存",
@@ -19,7 +24,6 @@
   "common_refresh": "重新整理",
   "common_yes": "是",
   "common_no": "否",
-
   "chat_send": "傳送",
   "chat_input_placeholder": "傳送訊息...",
   "chat_empty": "尚無訊息，請在下方開始對話。",
@@ -28,7 +32,6 @@
   "chat_message_assistant": "BirdCoder",
   "chat_send_failed": "傳送訊息失敗。",
   "chat_typing": "BirdCoder 正在輸入...",
-
   "auth_login": "登入",
   "auth_logout": "登出",
   "auth_signin": "登入",
@@ -40,7 +43,6 @@
   "auth_invalid_password": "密碼至少需要 8 個字元。",
   "auth_login_failed": "登入失敗，請檢查您的憑證。",
   "auth_register_success": "註冊成功，請登入。",
-
   "settings_engine": "引擎",
   "settings_engine_description": "選擇用於載入 BirdCoder 工作區的渲染引擎。",
   "settings_engine_webview": "WebView",
@@ -68,7 +70,6 @@
   "settings_light_mode": "淺色模式",
   "settings_system_mode": "跟隨系統",
   "settings_version": "版本",
-
   "native_error_unsupported": "此裝置不支援該功能。",
   "native_error_permission_denied": "權限被拒絕。",
   "native_error_unavailable": "該功能目前無法使用。",
@@ -77,12 +78,6 @@
   "native_error_timeout": "操作逾時。",
   "native_error_not_found": "找不到要求的資源。",
   "native_error_failed": "操作失敗。",
-
-  "nav_home": "首頁",
-  "nav_chat": "聊天",
-  "nav_settings": "設定",
-  "nav_profile": "我的",
-
   "error_network": "網路錯誤，請檢查您的連線。",
   "error_unknown": "發生未知錯誤。",
   "error_session_expired": "您的工作階段已過期，請重新登入。",

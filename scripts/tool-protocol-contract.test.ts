@@ -8,7 +8,7 @@ import { listWorkbenchCliEngines } from '../apps/sdkwork-birdcoder-pc/packages/s
 import {
   BIRDCODER_CODING_SESSION_ARTIFACT_KINDS,
   BIRDCODER_CODING_SESSION_EVENT_KINDS,
-} from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-types/src/coding-session.ts';
+} from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-contracts-commons/src/coding-session.ts';
 
 assert.equal(BIRDCODER_CODING_SESSION_EVENT_KINDS.includes('tool.call.requested'), true);
 assert.equal(BIRDCODER_CODING_SESSION_EVENT_KINDS.includes('tool.call.completed'), true);

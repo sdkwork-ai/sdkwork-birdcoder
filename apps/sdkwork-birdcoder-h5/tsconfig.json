@@ -11,15 +11,14 @@
     "skipLibCheck": true,
     "allowImportingTsExtensions": true,
     "resolveJsonModule": true,
-    "baseUrl": ".",
     "paths": {
-      "@/*": ["src/*"],
-      "@sdkwork/birdcoder-h5-*": ["packages/sdkwork-birdcoder-h5-*/src/index.ts"],
+      "@/*": ["./src/*"],
+      "@sdkwork/birdcoder-h5-*": ["./packages/sdkwork-birdcoder-h5-*/src/index.ts"],
       "@sdkwork/birdcoder-h5-chat/*": [
-        "packages/sdkwork-birdcoder-h5-chat/src/*"
+        "./packages/sdkwork-birdcoder-h5-chat/src/*"
       ],
       "@sdkwork/birdcoder-h5-core/*": [
-        "packages/sdkwork-birdcoder-h5-core/src/*"
+        "./packages/sdkwork-birdcoder-h5-core/src/*"
       ],
       "@sdkwork/birdcoder-chat-contracts": [
         "../sdkwork-birdcoder-common/packages/sdkwork-birdcoder-chat-contracts/src/index.ts"
@@ -32,7 +31,9 @@
       ],
       "@sdkwork/messaging-app-sdk": [
         "../../../sdkwork-messaging/sdks/sdkwork-messaging-app-sdk/sdkwork-messaging-app-sdk-typescript/src/index.ts"
-      ]
+      ],
+      "react": ["./node_modules/@types/react/index.d.ts"],
+      "react/jsx-runtime": ["./node_modules/@types/react/jsx-runtime.d.ts"]
     }
   },
   "include": ["src", "packages"],

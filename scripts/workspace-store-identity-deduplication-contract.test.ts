@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
-import type { IWorkspace } from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-types/src/index.ts';
-import { mergeWorkspacesForStore } from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-commons/src/hooks/useWorkspaces.ts';
+import type { IWorkspace } from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-contracts-commons/src/index.ts';
+import { mergeWorkspacesForStore } from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-workbench/src/hooks/useWorkspaces.ts';
 
 function buildWorkspace(overrides: Partial<IWorkspace> = {}): IWorkspace {
   return {

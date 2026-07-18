@@ -7,7 +7,7 @@ import type {
   BirdCoderEngineTransportKind,
   BirdCoderLongIntegerString,
   BirdcoderApprovalPolicy,
-} from '@sdkwork/birdcoder-pc-types';
+} from '@sdkwork/birdcoder-pc-contracts-commons';
 
 export type { ChatEngineOfficialSdkBridgeLoader } from './providerAdapter.ts';
 

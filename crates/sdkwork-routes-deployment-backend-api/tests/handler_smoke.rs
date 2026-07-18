@@ -3,6 +3,7 @@ use std::sync::Arc;
 use async_trait::async_trait;
 use axum::body::Body;
 use axum::http::{Request, StatusCode};
+use sdkwork_birdcoder_deployment_service::context::DeploymentContext;
 use sdkwork_birdcoder_deployment_service::error::DeploymentError;
 use sdkwork_birdcoder_deployment_service::service::deployment_service::DeploymentService;
 use sdkwork_birdcoder_workspace_repository_sqlx::db::schema::ALL_TABLES_DDL;
@@ -32,6 +33,7 @@ impl sdkwork_birdcoder_deployment_service::ports::events::DeploymentEventPublish
 {
     async fn publish_deployment_created(
         &self,
+        _ctx: &DeploymentContext,
         _workspace_id: &str,
         _project_id: &str,
         _deployment_id: &str,
@@ -41,6 +43,7 @@ impl sdkwork_birdcoder_deployment_service::ports::events::DeploymentEventPublish
 
     async fn publish_deployment_status_changed(
         &self,
+        _ctx: &DeploymentContext,
         _workspace_id: &str,
         _project_id: &str,
         _deployment_id: &str,
@@ -51,6 +54,7 @@ impl sdkwork_birdcoder_deployment_service::ports::events::DeploymentEventPublish
 
     async fn publish_release_created(
         &self,
+        _ctx: &DeploymentContext,
         _workspace_id: &str,
         _project_id: &str,
         _release_id: &str,
@@ -60,6 +64,7 @@ impl sdkwork_birdcoder_deployment_service::ports::events::DeploymentEventPublish
 
     async fn publish_audit_event(
         &self,
+        _ctx: &DeploymentContext,
         _workspace_id: &str,
         _project_id: &str,
         _scope_type: &str,

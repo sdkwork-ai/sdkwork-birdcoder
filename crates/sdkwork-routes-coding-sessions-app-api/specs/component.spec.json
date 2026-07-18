@@ -94,7 +94,8 @@
       ".",
       "sdkwork_routes_coding_sessions_app_api::CodingSessionsAppState",
       "sdkwork_routes_coding_sessions_app_api::build_coding_sessions_app_api_router",
-      "sdkwork_routes_coding_sessions_app_api::coding_sessions_app_api_route_manifest"
+      "sdkwork_routes_coding_sessions_app_api::coding_sessions_app_api_route_manifest",
+      "sdkwork_birdcoder_project_service::service::project_service::ProjectService"
     ],
     "providedPorts": [
       {

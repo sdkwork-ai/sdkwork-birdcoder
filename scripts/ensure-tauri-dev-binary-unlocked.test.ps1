@@ -26,8 +26,8 @@ if ($scriptSource -match 'run-desktop-vite-host\.mjs') {
   throw 'unlock guard must not target the reusable desktop Vite host process.'
 }
 
-if ($desktopPackageJson.scripts.'tauri:dev:base' -notmatch 'run-tauri-dev-binary-unlock\.mjs') {
-  throw 'desktop tauri:dev:base script must invoke the tauri dev binary unlock runner.'
+if ($desktopPackageJson.scripts.'start:desktop' -notmatch 'run-tauri-dev-binary-unlock\.mjs') {
+  throw 'desktop start:desktop script must invoke the tauri dev binary unlock runner.'
 }
 
 function Test-ProcessExists {

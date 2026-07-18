@@ -1,0 +1,11 @@
+{
+  "@@locale": "zh-TW",
+  "chat_send": "傳送",
+  "chat_input_placeholder": "傳送訊息...",
+  "chat_empty": "尚無訊息，請在下方開始對話。",
+  "chat_loading_history": "正在載入聊天紀錄...",
+  "chat_message_user": "你",
+  "chat_message_assistant": "BirdCoder",
+  "chat_send_failed": "傳送訊息失敗。",
+  "chat_typing": "BirdCoder 正在輸入..."
+}

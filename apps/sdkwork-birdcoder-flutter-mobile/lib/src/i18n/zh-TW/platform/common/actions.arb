@@ -1,0 +1,19 @@
+{
+  "@@locale": "zh-TW",
+  "common_cancel": "取消",
+  "common_confirm": "確認",
+  "common_save": "儲存",
+  "common_delete": "刪除",
+  "common_loading": "載入中...",
+  "common_error": "發生錯誤",
+  "common_retry": "重試",
+  "common_close": "關閉",
+  "common_back": "返回",
+  "common_next": "下一步",
+  "common_done": "完成",
+  "common_edit": "編輯",
+  "common_search": "搜尋",
+  "common_refresh": "重新整理",
+  "common_yes": "是",
+  "common_no": "否"
+}

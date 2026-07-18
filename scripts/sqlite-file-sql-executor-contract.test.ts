@@ -12,7 +12,7 @@ import {
   persistBirdCoderCoreSessionRunProjection,
 } from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-server/src/index.ts';
 import { createProviderBackedBirdCoderCoreSessionProjectionStore } from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-server/src/projectionRepository.ts';
-import { compareBirdCoderCodingSessionEventSequence } from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-types/src/index.ts';
+import { compareBirdCoderCodingSessionEventSequence } from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-contracts-commons/src/index.ts';
 import { withMockCodexCliJsonl } from './test-support/mockCodexCliJsonl.ts';
 
 const tempDirectory = await fs.mkdtemp(

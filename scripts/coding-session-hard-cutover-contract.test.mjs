@@ -45,16 +45,16 @@ const legacySelectThreadHandlerToken = `onSelect${legacyThreadToken[0].toUpperCa
 const legacyRenameThreadHandlerToken = `onRename${legacyThreadToken[0].toUpperCase()}${legacyThreadToken.slice(1)}`;
 const legacyDeleteThreadHandlerToken = `onDelete${legacyThreadToken[0].toUpperCase()}${legacyThreadToken.slice(1)}`;
 
-const typesIndexSource = read('apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-types/src/index.ts');
-const dataSource = read('apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-types/src/data.ts');
+const typesIndexSource = read('apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-contracts-commons/src/index.ts');
+const dataSource = read('apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-contracts-commons/src/data.ts');
 const commonsProjectServiceSource = read(
-  'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-commons/src/services/interfaces/IProjectService.ts',
+  'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-workbench/src/services/interfaces/IProjectService.ts',
 );
 const infrastructureProjectServiceSource = read(
   'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/src/services/interfaces/IProjectService.ts',
 );
 const chatTypesSource = read('apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-projection/src/types.ts');
-const commonsIndexSource = read('apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-commons/src/index.ts');
+const commonsIndexSource = read('apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-workbench/src/index.ts');
 const codeSidebarSource = read('apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-code/src/components/Sidebar.tsx');
 const codeTopBarSource = read('apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-code/src/components/TopBar.tsx');
 const codePageSource = read('apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-code/src/pages/CodePage.tsx');
@@ -121,11 +121,11 @@ assert.ok(
   'commons barrel must export the coding session hook path',
 );
 assert.ok(
-  !existsSync(new URL('../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-commons/src/hooks/useThreadActions.ts', import.meta.url)),
+  !existsSync(new URL('../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-workbench/src/hooks/useThreadActions.ts', import.meta.url)),
   'legacy useThreadActions hook file must be removed',
 );
 assert.ok(
-  existsSync(new URL('../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-commons/src/hooks/useCodingSessionActions.ts', import.meta.url)),
+  existsSync(new URL('../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-workbench/src/hooks/useCodingSessionActions.ts', import.meta.url)),
   'coding session hook file must exist',
 );
 

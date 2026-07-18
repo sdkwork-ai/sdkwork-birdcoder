@@ -7,7 +7,7 @@ import type {
   BirdCoderPushProjectGitBranchRequest,
   BirdCoderRemoveProjectGitWorktreeRequest,
   BirdCoderSwitchProjectGitBranchRequest,
-} from '@sdkwork/birdcoder-pc-types';
+} from '@sdkwork/birdcoder-pc-contracts-commons';
 import { isBirdCoderTauriRuntime } from './tauriRuntime.ts';
 
 type TauriInvoke = <T>(command: string, args?: Record<string, unknown>) => Promise<T>;

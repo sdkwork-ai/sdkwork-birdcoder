@@ -51,7 +51,7 @@ import type {
   BirdCoderCodingSessionRuntime,
   BirdCoderHostMode,
   BirdCoderUserQuestionAnswerResult,
-} from '@sdkwork/birdcoder-pc-types';
+} from '@sdkwork/birdcoder-pc-contracts-commons';
 import type {
   BirdCoderAppSdkApiClient,
   BirdCoderBackendSdkApiClient,
@@ -69,7 +69,7 @@ import {
   BIRDCODER_ENGINE_RUNTIME_MODES,
   BIRDCODER_HOST_MODES,
   stringifyBirdCoderLongInteger,
-} from '@sdkwork/birdcoder-pc-types';
+} from '@sdkwork/birdcoder-pc-contracts-commons';
 import type { BirdServerDistributionId } from './serverConstants.ts';
 import type {
   BirdCoderOpenApiDomain,
@@ -597,8 +597,6 @@ export function getOperationIdForRoute(route: BirdCoderApiRouteDefinition): stri
       'codingSessions.questions.answers.create',
     ],
     ['GET /app/v3/api/operations/:operationId', 'operations.retrieve'],
-    ['GET /app/v3/api/memberships/current', 'memberships.current.retrieve'],
-    ['GET /app/v3/api/memberships/package_groups', 'memberships.packageGroups.list'],
     ['GET /app/v3/api/commerce/orders', 'commerce.orders.list'],
     ['POST /app/v3/api/commerce/orders', 'commerce.orders.create'],
     ['GET /app/v3/api/commerce/orders/:orderId', 'commerce.orders.retrieve'],

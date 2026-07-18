@@ -1,7 +1,7 @@
 import {
   SDKWORK_IAM_HEADERS,
 } from '@sdkwork/iam-contracts';
-import type { BirdCoderApiRouteDefinition } from '@sdkwork/birdcoder-pc-types';
+import type { BirdCoderApiRouteDefinition } from '@sdkwork/birdcoder-pc-contracts-commons';
 import type {
   BirdCoderCodingServerOpenApiDocument,
   BirdCoderOpenApiOperationDefinition,

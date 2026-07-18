@@ -27,7 +27,7 @@ const studioPageSource = await readFile(
   'utf8',
 );
 const useProjectsSource = await readFile(
-  resolve('apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-commons/src/hooks/useProjects.ts'),
+  resolve('apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-workbench/src/hooks/useProjects.ts'),
   'utf8',
 );
 const workspaceChatTypesSource = await readFile(

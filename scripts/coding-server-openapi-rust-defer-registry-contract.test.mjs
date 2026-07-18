@@ -36,23 +36,18 @@ assert.ok(
 );
 assert.equal(
   liveRegistry.summary.contractOperationCount,
-  174,
-  'HTTP OpenAPI contract must expose 174 operations; workspace realtime remains a route-catalog-only realtime entry and is not emitted as an HTTP OpenAPI operation.',
+  159,
+  'HTTP OpenAPI contract must expose 159 governed app/backend operations; workspace realtime remains a route-catalog-only realtime entry and is not emitted as an HTTP OpenAPI operation.',
 );
 assert.equal(
   liveRegistry.summary.implementedOperationCount,
-  174,
-  'Product, federated IAM, and commerce gateway routes must implement all HTTP OpenAPI operations.',
+  159,
+  'Product and federated IAM routes must implement all HTTP OpenAPI operations.',
 );
 assert.equal(
   liveRegistry.summary.deferredOperationCount,
   0,
-  'No OpenAPI operation may remain outside host manifests or commerce gateway routes.',
-);
-assert.equal(
-  liveRegistry.summary.commerceGatewayRouteCount,
-  15,
-  'Commerce gateway must register 15 /api/v1/* routes.',
+  'No OpenAPI operation may remain outside host manifests.',
 );
 assert.equal(
   liveRegistry.summary.implementedOperationCount + liveRegistry.summary.deferredOperationCount,
@@ -62,7 +57,7 @@ assert.equal(
 assert.equal(
   liveRegistry.deferred.length,
   0,
-  'Deferred route list must be empty once commerce routes are published in OpenAPI and wired in standalone-gateway.',
+  'Deferred route list must be empty once all governed app/backend routes are wired.',
 );
 
 const manifestGeneratorSource = fs.readFileSync(

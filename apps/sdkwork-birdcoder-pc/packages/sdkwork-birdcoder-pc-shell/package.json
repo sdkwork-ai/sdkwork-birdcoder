@@ -14,11 +14,11 @@
     "react-dom": "catalog:",
     "react-i18next": "catalog:",
     "@sdkwork/birdcoder-pc-code": "workspace:*",
-    "@sdkwork/birdcoder-pc-commons": "workspace:*",
+    "@sdkwork/birdcoder-pc-workbench": "workspace:*",
     "@sdkwork/birdcoder-pc-settings": "workspace:*",
     "@sdkwork/birdcoder-pc-studio": "workspace:*",
     "@sdkwork/birdcoder-pc-multiwindow": "workspace:*",
-    "@sdkwork/birdcoder-pc-types": "workspace:*",
+    "@sdkwork/birdcoder-pc-contracts-commons": "workspace:*",
     "@sdkwork/birdcoder-pc-ui-shell": "workspace:*",
     "@sdkwork/drive-pc-sandbox-explorer": "workspace:*",
     "@sdkwork/terminal-pc-desktop": "workspace:*",
@@ -39,5 +39,6 @@
       "import": "./src/application/providers/ShellRuntimeProviders.tsx",
       "types": "./src/application/providers/ShellRuntimeProviders.tsx"
     }
-  }
+  },
+  "scripts": {}
 }

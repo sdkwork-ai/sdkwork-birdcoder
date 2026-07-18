@@ -11,7 +11,6 @@ function read(relativePath) {
 const workspaceCargo = read('Cargo.toml');
 const quotaCrate = read('crates/sdkwork-birdcoder-commerce-quota/src/lib.rs');
 const turnHandlers = read('crates/sdkwork-routes-coding-sessions-app-api/src/handlers.rs');
-const usageRoutes = read('crates/sdkwork-birdcoder-standalone-gateway/src/routes/usage.rs');
 const chatHandlers = read('crates/sdkwork-routes-chat-app-api/src/handlers.rs');
 const chatAssistant = read('crates/sdkwork-birdcoder-kernel-bridge/src/chat_assistant.rs');
 
@@ -30,12 +29,6 @@ assert.match(
   /record_tenant_usage\([\s\S]*METRIC_API_REQUESTS/u,
   'coding session create_turn must record API request usage after success.',
 );
-assert.match(
-  usageRoutes,
-  /sdkwork_birdcoder_commerce_quota::check_tenant_quota/u,
-  'commerce usage routes must delegate quota checks to shared crate.',
-);
-
 assert.match(
   chatHandlers,
   /generate_mobile_chat_assistant_reply/u,

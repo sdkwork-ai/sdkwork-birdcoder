@@ -7,7 +7,7 @@ import {
   normalizeWorkbenchPreferences,
   normalizeWorkbenchTerminalProfileId,
   setWorkbenchActiveChatSelection,
-} from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-commons/src/workbench/preferences.ts';
+} from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-workbench/src/workbench/preferences.ts';
 import {
   WORKBENCH_CODE_ENGINES,
   findWorkbenchCodeEngineDefinition,

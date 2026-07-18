@@ -5,7 +5,7 @@ import { ApiBackedAppRuntimeReadService } from '../apps/sdkwork-birdcoder-pc/pac
 import type {
   BirdCoderNativeSessionDetail,
   BirdCoderNativeSessionSummary,
-} from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-types/src/index.ts';
+} from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-contracts-commons/src/index.ts';
 
 const nativeSummary: BirdCoderNativeSessionSummary = {
   id: 'codex-native:thread-1',

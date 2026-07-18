@@ -3,15 +3,15 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 
 const runtimeSource = fs.readFileSync(
-  new URL('../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-commons/src/terminal/runtime.ts', import.meta.url),
+  new URL('../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-workbench/src/terminal/runtime.ts', import.meta.url),
   'utf8',
 );
 const requestsSource = fs.readFileSync(
-  new URL('../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-commons/src/terminal/requests.ts', import.meta.url),
+  new URL('../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-workbench/src/terminal/requests.ts', import.meta.url),
   'utf8',
 );
 const runConfigsSource = fs.readFileSync(
-  new URL('../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-commons/src/terminal/runConfigs.ts', import.meta.url),
+  new URL('../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-workbench/src/terminal/runConfigs.ts', import.meta.url),
   'utf8',
 );
 const appSource = readBirdcoderAppShellSource();
@@ -44,11 +44,11 @@ const sessionContextMenuSource = fs.readFileSync(
   'utf8',
 );
 const sessionInventorySource = fs.readFileSync(
-  new URL('../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-commons/src/workbench/sessionInventory.ts', import.meta.url),
+  new URL('../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-workbench/src/workbench/sessionInventory.ts', import.meta.url),
   'utf8',
 );
 const nativeSessionAuthoritySource = fs.readFileSync(
-  new URL('../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-commons/src/workbench/nativeSessionAuthority.ts', import.meta.url),
+  new URL('../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-workbench/src/workbench/nativeSessionAuthority.ts', import.meta.url),
   'utf8',
 );
 const studioWorkbenchBindingsSource = fs.readFileSync(

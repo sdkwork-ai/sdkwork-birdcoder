@@ -3,7 +3,7 @@ use std::sync::Arc;
 use crate::api::paths::app_path;
 use crate::api::paths::append_query_string;
 use crate::http::{SdkworkError, SdkworkHttpClient};
-use crate::models::{BirdCoderCommerceInvoiceSummaryEnvelope, BirdCoderCommerceInvoiceSummaryListEnvelope, BirdCoderCommerceMembershipCurrentEnvelope, BirdCoderCommerceMembershipPackageGroupSummaryListEnvelope, BirdCoderCommerceOrderSummaryEnvelope, BirdCoderCommerceOrderSummaryListEnvelope, BirdCoderCommercePaymentSummaryEnvelope, BirdCoderCommercePaymentSummaryListEnvelope, BirdCoderConfirmCommercePaymentRequest, BirdCoderCreateCommerceOrderRequest, BirdCoderCreateCommercePaymentRequest};
+use crate::models::{BirdCoderCommerceInvoiceSummaryEnvelope, BirdCoderCommerceInvoiceSummaryListEnvelope, BirdCoderCommerceOrderSummaryEnvelope, BirdCoderCommerceOrderSummaryListEnvelope, BirdCoderCommercePaymentSummaryEnvelope, BirdCoderCommercePaymentSummaryListEnvelope, BirdCoderConfirmCommercePaymentRequest, BirdCoderCreateCommerceOrderRequest, BirdCoderCreateCommercePaymentRequest};
 
 #[derive(Clone)]
 pub struct CommerceApi {
@@ -13,18 +13,6 @@ pub struct CommerceApi {
 impl CommerceApi {
     pub fn new(client: Arc<SdkworkHttpClient>) -> Self {
         Self { client }
-    }
-
-    /// Get current SDKWork commerce membership
-    pub async fn memberships_current_retrieve(&self) -> Result<BirdCoderCommerceMembershipCurrentEnvelope, SdkworkError> {
-        let path = app_path(&"/memberships/current".to_string());
-        self.client.get(&path, None, None).await
-    }
-
-    /// List SDKWork commerce membership package groups
-    pub async fn memberships_package_groups_list(&self) -> Result<BirdCoderCommerceMembershipPackageGroupSummaryListEnvelope, SdkworkError> {
-        let path = app_path(&"/memberships/package_groups".to_string());
-        self.client.get(&path, None, None).await
     }
 
     /// List SDKWork commerce orders

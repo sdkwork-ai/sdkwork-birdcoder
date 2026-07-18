@@ -12,9 +12,9 @@ import { useTranslation } from 'react-i18next';
 import {
   useProjectGitOverview,
   type ProjectGitOverviewViewState,
-} from '@sdkwork/birdcoder-pc-commons/hooks/useProjectGitOverview';
-import { useProjectGitMutationActions } from '@sdkwork/birdcoder-pc-commons/hooks/useProjectGitMutationActions';
-import { useToast } from '@sdkwork/birdcoder-pc-commons/contexts/ToastProvider';
+} from '@sdkwork/birdcoder-pc-workbench/hooks/useProjectGitOverview';
+import { useProjectGitMutationActions } from '@sdkwork/birdcoder-pc-workbench/hooks/useProjectGitMutationActions';
+import { useToast } from '@sdkwork/birdcoder-pc-workbench/contexts/ToastProvider';
 
 const MAX_COMMIT_MESSAGE_LENGTH = 500;
 

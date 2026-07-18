@@ -10,11 +10,10 @@ import {
   resolveBirdCoderBootstrapServerBaseUrl,
   waitForBirdCoderApiReady,
 } from '@sdkwork/birdcoder-pc-shell-runtime';
-import { createBootstrapGateMessages, ErrorBoundary } from '@sdkwork/birdcoder-pc-commons';
+import { createBootstrapGateMessages, ErrorBoundary } from '@sdkwork/birdcoder-pc-workbench';
 import { loadCatalog } from '@sdkwork/birdcoder-pc-codeengine/catalogBridge';
 import { resolveWebRuntime } from './web/resolveWebRuntime';
 import App from './App';
-import '../../../src/index.css';
 
 async function bootstrapRuntime() {
   const configuredRuntimeApiBaseUrl = readConfiguredBirdCoderApiBaseUrl();

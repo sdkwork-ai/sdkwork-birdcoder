@@ -29,7 +29,7 @@ async function loadModule() {
   );
 }
 
-test('birdcoder IAM command matrix governs standard local, private, and cloud scripts', async () => {
+test('birdcoder IAM command matrix governs standard local, standalone, and cloud scripts', async () => {
   const module = await loadModule();
 
   assert.equal(typeof module.createBirdcoderIamCommandMatrix, 'function');
@@ -49,9 +49,9 @@ test('birdcoder IAM command matrix governs standard local, private, and cloud sc
     'BirdCoder IAM command matrix must not preserve providerKind fields after removing application-level provider switching.',
   );
   assert.deepEqual(
-    matrix.find((entry) => entry.command === 'desktop:env:local'),
+    matrix.find((entry) => entry.command === 'check:env:desktop:local'),
     {
-      command: 'desktop:env:local',
+      command: 'check:env:desktop:local',
       iamMode: 'desktop-local',
       lifecycle: 'env',
       mode: 'local',
@@ -59,9 +59,9 @@ test('birdcoder IAM command matrix governs standard local, private, and cloud sc
     },
   );
   assert.deepEqual(
-    matrix.find((entry) => entry.command === 'server:doctor:cloud'),
+    matrix.find((entry) => entry.command === 'check:iam:server:cloud'),
     {
-      command: 'server:doctor:cloud',
+      command: 'check:iam:server:cloud',
       iamMode: 'cloud-saas',
       lifecycle: 'doctor',
       mode: 'cloud',
@@ -85,11 +85,11 @@ test('birdcoder IAM command matrix governs standard local, private, and cloud sc
     'BirdCoder root workspace must not declare @sdkwork/user-center-core-pc-react for command matrix generation.',
   );
   assert.ok(
-    !matrix.some((entry) => entry.command === 'web:env:local'),
+    !matrix.some((entry) => entry.command === 'check:env:browser:local'),
     'BirdCoder must not publish unsupported web local command variants.',
   );
   assert.ok(
-    !matrix.some((entry) => entry.command === 'server:doctor:local'),
+    !matrix.some((entry) => entry.command === 'check:iam:server:local'),
     'BirdCoder must not publish unsupported server local command variants.',
   );
   assert.ok(
@@ -116,68 +116,50 @@ test('birdcoder IAM command matrix governs standard local, private, and cloud sc
 
   assert.equal(
     workspacePackageJson.scripts?.dev,
-    'node scripts/birdcoder-dev.mjs web',
+    'pnpm run dev:browser',
   );
   assert.equal(
-    workspacePackageJson.scripts?.['dev:private'],
-    'node scripts/birdcoder-dev.mjs web --deployment-profile standalone --service-layout split-services',
+    workspacePackageJson.scripts?.['dev:browser:postgres:standalone'],
+    'node scripts/birdcoder-dev.mjs web --deployment-profile standalone',
   );
   assert.equal(
-    workspacePackageJson.scripts?.['dev:cloud'],
+    workspacePackageJson.scripts?.['dev:browser:postgres:cloud'],
     'node scripts/birdcoder-dev.mjs web --deployment-profile cloud',
   );
   assert.equal(
-    workspacePackageJson.scripts?.['iam:show:web:private'],
-    'node scripts/run-workspace-package-script.mjs . web:env:private',
+    workspacePackageJson.scripts?.['check:env:browser:standalone'],
+    'node scripts/show-birdcoder-iam-env.mjs web-dev --iam-mode server-private',
   );
   assert.equal(
-    workspacePackageJson.scripts?.['iam:show:server:cloud'],
-    'node scripts/run-workspace-package-script.mjs . server:env:cloud',
+    workspacePackageJson.scripts?.['check:env:server:cloud'],
+    'node scripts/show-birdcoder-iam-env.mjs server-dev --iam-mode cloud-saas',
   );
   assert.equal(
-    workspacePackageJson.scripts?.['package:web:cloud'],
-    'node scripts/run-workspace-package-script.mjs . web:package:cloud',
+    workspacePackageJson.scripts?.['release:package:browser:cloud'],
+    'node scripts/run-birdcoder-web-command.mjs build --iam-mode cloud-saas && node scripts/web-bundle-budget.test.mjs',
   );
   assert.equal(
-    workspacePackageJson.scripts?.['package:server:private'],
-    'node scripts/run-workspace-package-script.mjs . server:package:private',
+    workspacePackageJson.scripts?.['release:package:server:standalone'],
+    'node scripts/run-birdcoder-server-command.mjs build --iam-mode server-private',
   );
   assert.equal(
-    workspacePackageJson.scripts?.['stack:web:private'],
+    workspacePackageJson.scripts?.['dev:browser:standalone'],
     'node scripts/run-birdcoder-dev-stack.mjs web --iam-mode server-private',
   );
   assert.equal(
-    workspacePackageJson.scripts?.['stack:desktop:local'],
-    'node scripts/run-birdcoder-dev-stack.mjs desktop --iam-mode desktop-local',
-  );
-  assert.equal(
-    workspacePackageJson.scripts?.['desktop:dev:private'],
+    workspacePackageJson.scripts?.['dev:desktop:standalone'],
     'node scripts/run-birdcoder-dev-stack.mjs desktop --iam-mode server-private',
-    'Root desktop private dev must start the standardized server+client stack so http://127.0.0.1:10240 is listening before Tauri loads.',
+    'Root standalone desktop dev must start the standardized server and client stack.',
   );
   assert.equal(
-    workspacePackageJson.scripts?.['web:dev:private'],
-    'node scripts/run-birdcoder-dev-stack.mjs web --iam-mode server-private',
-    'Root web private dev must start the standardized server+client stack so appbase IAM QR APIs are reachable.',
-  );
-  assert.equal(
-    workspacePackageJson.scripts?.['tauri:dev:private'],
-    'node scripts/run-birdcoder-dev-stack.mjs desktop --iam-mode server-private',
-    'Root tauri private dev must not launch only the client while BIRDCODER_API_BASE_URL points at the private local server.',
-  );
-  assert.equal(
-    desktopPackageJson.scripts?.['tauri:dev:private'],
+    desktopPackageJson.scripts?.['dev:desktop:standalone'],
     'node ../../../../scripts/run-birdcoder-dev-stack.mjs desktop --iam-mode server-private',
-    'Desktop package private dev must use the same stack entrypoint when launched from the package directory.',
+    'Desktop package standalone dev must use the same stack entrypoint.',
   );
   assert.equal(
-    webPackageJson.scripts?.dev,
+    webPackageJson.scripts?.['dev:browser:standalone'],
     'node ../../../../scripts/run-birdcoder-dev-stack.mjs web --iam-mode server-private',
-    'Web package default dev is server-private and must start the standardized server+client stack when launched from the package directory.',
+    'Web package standalone dev must use the same stack entrypoint.',
   );
-  assert.equal(
-    webPackageJson.scripts?.['dev:private'],
-    'node ../../../../scripts/run-birdcoder-dev-stack.mjs web --iam-mode server-private',
-    'Web package private dev must use the same stack entrypoint when launched from the package directory.',
-  );
+  assert.ok(matrix.every((entry) => entry.mode !== 'private' && !entry.command.includes(':private')));
 });

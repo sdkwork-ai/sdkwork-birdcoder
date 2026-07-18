@@ -13,8 +13,8 @@ import {
   Trash2,
   User,
 } from 'lucide-react';
-import type { ProjectMountRecoveryEventPayload } from '@sdkwork/birdcoder-pc-commons';
-import type { BirdCoderProject, IWorkspace } from '@sdkwork/birdcoder-pc-types';
+import type { ProjectMountRecoveryEventPayload } from '@sdkwork/birdcoder-pc-workbench';
+import type { BirdCoderProject, IWorkspace } from '@sdkwork/birdcoder-pc-contracts-commons';
 import { useTranslation } from 'react-i18next';
 import { HeaderLoadingStatus } from './HeaderLoadingStatus.tsx';
 

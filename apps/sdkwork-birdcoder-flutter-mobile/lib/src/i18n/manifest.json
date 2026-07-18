@@ -1,0 +1,48 @@
+{
+  "schemaVersion": 1,
+  "generatedMarker": "sdkwork-i18n-generated",
+  "outputs": [
+    {
+      "file": "lib/l10n/app_en.arb",
+      "locale": "en-US",
+      "sha256": "a4eca653868cfe41aa7cd9e4d0032bada79291d453b9e18786c100ae2e418100",
+      "sources": [
+        "lib/src/i18n/en-US/platform/shell/bootstrap.arb",
+        "lib/src/i18n/en-US/platform/common/actions.arb",
+        "lib/src/i18n/en-US/intelligence/chat/conversation.arb",
+        "lib/src/i18n/en-US/iam/auth/session.arb",
+        "lib/src/i18n/en-US/platform/settings/preferences.arb",
+        "lib/src/i18n/en-US/platform/native/errors.arb",
+        "lib/src/i18n/en-US/platform/runtime/errors.arb"
+      ]
+    },
+    {
+      "file": "lib/l10n/app_zh.arb",
+      "locale": "zh-CN",
+      "sha256": "3e12abc7a5d3ae46ab21221a000bef1e47026405404f746c5ae5e72c28877c5d",
+      "sources": [
+        "lib/src/i18n/zh-CN/platform/shell/bootstrap.arb",
+        "lib/src/i18n/zh-CN/platform/common/actions.arb",
+        "lib/src/i18n/zh-CN/intelligence/chat/conversation.arb",
+        "lib/src/i18n/zh-CN/iam/auth/session.arb",
+        "lib/src/i18n/zh-CN/platform/settings/preferences.arb",
+        "lib/src/i18n/zh-CN/platform/native/errors.arb",
+        "lib/src/i18n/zh-CN/platform/runtime/errors.arb"
+      ]
+    },
+    {
+      "file": "lib/l10n/app_zh_TW.arb",
+      "locale": "zh-TW",
+      "sha256": "130f9047b5108a12ad406f96b24daaead8bb16acc2ffd4154e5600a09cb75620",
+      "sources": [
+        "lib/src/i18n/zh-TW/platform/shell/bootstrap.arb",
+        "lib/src/i18n/zh-TW/platform/common/actions.arb",
+        "lib/src/i18n/zh-TW/intelligence/chat/conversation.arb",
+        "lib/src/i18n/zh-TW/iam/auth/session.arb",
+        "lib/src/i18n/zh-TW/platform/settings/preferences.arb",
+        "lib/src/i18n/zh-TW/platform/native/errors.arb",
+        "lib/src/i18n/zh-TW/platform/runtime/errors.arb"
+      ]
+    }
+  ]
+}

@@ -4,7 +4,7 @@ import {
   useAuth,
   useBirdcoderAppSettings,
   useWorkbenchPreferences,
-} from '@sdkwork/birdcoder-pc-commons';
+} from '@sdkwork/birdcoder-pc-workbench';
 import { getDefaultBirdCoderIdeServicesRuntimeConfig } from '@sdkwork/birdcoder-pc-infrastructure-runtime/defaultIdeServices';
 import {
   SettingsTab,

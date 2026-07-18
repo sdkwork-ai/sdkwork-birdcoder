@@ -2,7 +2,7 @@ import type {
   BirdCoderDatabaseProviderId,
   BirdCoderLogicalColumnType,
   BirdCoderStorageDialect,
-} from '@sdkwork/birdcoder-pc-types';
+} from '@sdkwork/birdcoder-pc-contracts-commons';
 
 type SupportedBirdCoderProviderId = 'sqlite' | 'postgresql';
 

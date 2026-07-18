@@ -1,3 +1,5 @@
+use std::collections::BTreeMap;
+
 use sdkwork_utils_rust::{
     aes_gcm_decrypt, aes_gcm_encrypt, derive_aes_256_key, hmac_sha256, is_blank,
 };
@@ -9,6 +11,7 @@ use crate::error::ProjectError;
 const PATH_ENCRYPTION_SALT: &[u8] = b"sdkwork-birdcoder/project-runtime-location/v1";
 const PATH_ENCRYPTION_INFO_PREFIX: &str = "absolute-path";
 const PATH_FINGERPRINT_INFO_PREFIX: &str = "path-fingerprint";
+const MAX_DECRYPTION_KEYS: usize = 16;
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct RuntimeLocationPathFingerprintScope {
@@ -52,8 +55,9 @@ pub trait RuntimeLocationPathCipher: Send + Sync {
 /// uniqueness without allowing a ciphertext to move between locations.
 #[derive(Clone, Debug)]
 pub struct AesGcmRuntimeLocationPathCipher {
-    master_secret: Vec<u8>,
-    key_id: String,
+    active_key_id: String,
+    decryption_keys: BTreeMap<String, Vec<u8>>,
+    fingerprint_secret: Vec<u8>,
 }
 
 impl AesGcmRuntimeLocationPathCipher {
@@ -61,21 +65,56 @@ impl AesGcmRuntimeLocationPathCipher {
         master_secret: impl AsRef<[u8]>,
         key_id: impl Into<String>,
     ) -> Result<Self, ProjectError> {
-        let master_secret = master_secret.as_ref();
-        let key_id = key_id.into();
-        if master_secret.len() < 32 || is_blank(Some(key_id.as_str())) {
+        let master_secret = master_secret.as_ref().to_vec();
+        Self::with_keyring(
+            master_secret.clone(),
+            key_id,
+            std::iter::empty::<(String, Vec<u8>)>(),
+            master_secret,
+        )
+    }
+
+    pub fn with_keyring(
+        active_master_secret: impl AsRef<[u8]>,
+        active_key_id: impl Into<String>,
+        previous_decryption_keys: impl IntoIterator<Item = (String, Vec<u8>)>,
+        fingerprint_secret: impl AsRef<[u8]>,
+    ) -> Result<Self, ProjectError> {
+        let active_master_secret = active_master_secret.as_ref();
+        let active_key_id = active_key_id.into();
+        let fingerprint_secret = fingerprint_secret.as_ref();
+        if active_master_secret.len() < 32
+            || fingerprint_secret.len() < 32
+            || is_blank(Some(active_key_id.as_str()))
+        {
             return Err(ProjectError::Unavailable(
                 "Project runtime-location path encryption is unavailable.".to_owned(),
             ));
         }
+
+        let mut decryption_keys = BTreeMap::new();
+        decryption_keys.insert(active_key_id.clone(), active_master_secret.to_vec());
+        for (key_id, master_secret) in previous_decryption_keys {
+            if decryption_keys.len() >= MAX_DECRYPTION_KEYS
+                || is_blank(Some(key_id.as_str()))
+                || key_id == active_key_id
+                || master_secret.len() < 32
+                || decryption_keys.insert(key_id, master_secret).is_some()
+            {
+                return Err(unavailable_cipher_error());
+            }
+        }
+
         Ok(Self {
-            master_secret: master_secret.to_vec(),
-            key_id,
+            active_key_id,
+            decryption_keys,
+            fingerprint_secret: fingerprint_secret.to_vec(),
         })
     }
 
     fn derive_encryption_key(
         &self,
+        master_secret: &[u8],
         context: &ProjectContext,
         location_uuid: &str,
     ) -> Result<[u8; 32], ProjectError> {
@@ -88,7 +127,7 @@ impl AesGcmRuntimeLocationPathCipher {
             context.tenant_id, context.organization_id,
         );
         Ok(derive_aes_256_key(
-            &self.master_secret,
+            master_secret,
             PATH_ENCRYPTION_SALT,
             info.as_bytes(),
         ))
@@ -118,7 +157,7 @@ impl AesGcmRuntimeLocationPathCipher {
             scope.path_flavor,
         );
         Ok(derive_aes_256_key(
-            &self.master_secret,
+            &self.fingerprint_secret,
             PATH_ENCRYPTION_SALT,
             info.as_bytes(),
         ))
@@ -135,7 +174,12 @@ impl RuntimeLocationPathCipher for AesGcmRuntimeLocationPathCipher {
     ) -> Result<EncryptedRuntimeLocationPath, ProjectError> {
         let normalized_path =
             normalize_absolute_path(absolute_path, &fingerprint_scope.path_flavor)?;
-        let encryption_key = self.derive_encryption_key(context, location_uuid)?;
+        let active_master_secret = self
+            .decryption_keys
+            .get(&self.active_key_id)
+            .ok_or_else(unavailable_cipher_error)?;
+        let encryption_key =
+            self.derive_encryption_key(active_master_secret, context, location_uuid)?;
         let fingerprint_key = self.derive_fingerprint_key(context, fingerprint_scope)?;
         let fingerprint_path = if fingerprint_scope.path_flavor == PATH_FLAVOR_WINDOWS {
             normalized_path.to_ascii_lowercase()
@@ -146,7 +190,7 @@ impl RuntimeLocationPathCipher for AesGcmRuntimeLocationPathCipher {
             .map_err(|_| unavailable_cipher_error())?;
         Ok(EncryptedRuntimeLocationPath {
             ciphertext,
-            encryption_key_id: self.key_id.clone(),
+            encryption_key_id: self.active_key_id.clone(),
             // HMAC, rather than a bare digest, avoids turning a common path
             // dictionary into an offline fingerprint oracle.
             fingerprint: hmac_sha256(fingerprint_path.as_bytes(), &fingerprint_key),
@@ -160,10 +204,11 @@ impl RuntimeLocationPathCipher for AesGcmRuntimeLocationPathCipher {
         encryption_key_id: &str,
         ciphertext: &str,
     ) -> Result<String, ProjectError> {
-        if encryption_key_id != self.key_id {
-            return Err(unavailable_cipher_error());
-        }
-        let encryption_key = self.derive_encryption_key(context, location_uuid)?;
+        let master_secret = self
+            .decryption_keys
+            .get(encryption_key_id)
+            .ok_or_else(unavailable_cipher_error)?;
+        let encryption_key = self.derive_encryption_key(master_secret, context, location_uuid)?;
         let plaintext =
             aes_gcm_decrypt(&encryption_key, ciphertext).map_err(|_| unavailable_cipher_error())?;
         String::from_utf8(plaintext).map_err(|_| unavailable_cipher_error())
@@ -383,5 +428,81 @@ mod tests {
         assert_eq!(first.fingerprint, same_path_other_location.fingerprint);
         assert_ne!(first.fingerprint, different_target.fingerprint);
         assert_ne!(first.fingerprint, different_project.fingerprint);
+    }
+
+    #[test]
+    fn keyring_decrypts_previous_ciphertext_and_keeps_fingerprints_stable() {
+        let previous_master = b"previous-master-secret-with-at-least-thirty-two-bytes";
+        let active_master = b"active-master-secret-with-at-least-thirty-two-bytes";
+        let fingerprint_secret = b"stable-fingerprint-secret-with-at-least-thirty-two-bytes";
+        let previous_cipher = AesGcmRuntimeLocationPathCipher::with_keyring(
+            previous_master,
+            "runtime-location-v1",
+            std::iter::empty(),
+            fingerprint_secret,
+        )
+        .expect("construct previous cipher");
+        let rotated_cipher = AesGcmRuntimeLocationPathCipher::with_keyring(
+            active_master,
+            "runtime-location-v2",
+            [("runtime-location-v1".to_owned(), previous_master.to_vec())],
+            fingerprint_secret,
+        )
+        .expect("construct rotated cipher");
+        let ctx = context("100001", "0");
+        let fingerprint_scope = scope("300001", "desktop-a");
+        let previous = previous_cipher
+            .encrypt(
+                &ctx,
+                "location-a",
+                &fingerprint_scope,
+                "E:\\workspace\\project",
+            )
+            .expect("encrypt with previous key");
+        let active = rotated_cipher
+            .encrypt(
+                &ctx,
+                "location-b",
+                &fingerprint_scope,
+                "E:\\workspace\\project",
+            )
+            .expect("encrypt with active key");
+
+        assert_eq!(active.encryption_key_id, "runtime-location-v2");
+        assert_eq!(active.fingerprint, previous.fingerprint);
+        assert_eq!(
+            rotated_cipher
+                .decrypt(
+                    &ctx,
+                    "location-a",
+                    &previous.encryption_key_id,
+                    &previous.ciphertext,
+                )
+                .expect("decrypt previous ciphertext"),
+            "E:\\workspace\\project"
+        );
+    }
+
+    #[test]
+    fn keyring_rejects_duplicate_active_and_unbounded_previous_keys() {
+        let master = b"test-master-secret-must-have-at-least-thirty-two-bytes";
+        assert!(AesGcmRuntimeLocationPathCipher::with_keyring(
+            master,
+            "runtime-location-v2",
+            [("runtime-location-v2".to_owned(), master.to_vec())],
+            master,
+        )
+        .is_err());
+
+        let previous_keys = (0..16)
+            .map(|index| (format!("runtime-location-v{index}"), master.to_vec()))
+            .collect::<Vec<_>>();
+        assert!(AesGcmRuntimeLocationPathCipher::with_keyring(
+            master,
+            "runtime-location-active",
+            previous_keys,
+            master,
+        )
+        .is_err());
     }
 }

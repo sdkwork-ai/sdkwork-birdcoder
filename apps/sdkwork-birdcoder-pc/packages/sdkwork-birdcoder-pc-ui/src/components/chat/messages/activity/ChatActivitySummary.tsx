@@ -10,9 +10,9 @@ import {
   RotateCcw,
   Terminal,
 } from 'lucide-react';
-import { resolveBirdCoderCodeEngineCommandInteractionState } from '@sdkwork/birdcoder-pc-commons/chat/types';
-import type { CommandExecution, FileChange } from '@sdkwork/birdcoder-pc-commons/chat/types';
-import { hasRestorableFileChanges } from '@sdkwork/birdcoder-pc-commons/workbench/fileChangeRestore';
+import { resolveBirdCoderCodeEngineCommandInteractionState } from '@sdkwork/birdcoder-pc-workbench/chat/types';
+import type { CommandExecution, FileChange } from '@sdkwork/birdcoder-pc-workbench/chat/types';
+import { hasRestorableFileChanges } from '@sdkwork/birdcoder-pc-workbench/workbench/fileChangeRestore';
 import type { ActivityFileChange } from '../messageActivity.ts';
 import type { ChatMessageEnvironment, ChatMessageTranslate } from '../types.ts';
 

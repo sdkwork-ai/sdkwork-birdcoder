@@ -1,4 +1,4 @@
-import { estimateChatMessageViewHeight } from '@sdkwork/birdcoder-pc-commons/chat/types';
+import { estimateChatMessageViewHeight } from '@sdkwork/birdcoder-pc-workbench/chat/types';
 import { createChatMessageRendererRegistry } from './registry.ts';
 import { createEngineChatMessageRendererEntries } from './plugins/enginePlugins.tsx';
 import type { ChatMessageRendererEntry } from './types.ts';

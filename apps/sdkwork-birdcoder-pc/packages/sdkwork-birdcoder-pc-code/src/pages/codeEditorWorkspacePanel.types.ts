@@ -2,13 +2,14 @@ import type { ReactNode } from 'react';
 import type {
   BirdCoderCodingSessionPendingApproval,
   BirdCoderCodingSessionPendingUserQuestion,
-} from '@sdkwork/birdcoder-pc-commons';
-import type { BirdCoderChatMessage, FileChange } from '@sdkwork/birdcoder-pc-types';
+} from '@sdkwork/birdcoder-pc-workbench';
+import type { BirdCoderChatMessage, FileChange } from '@sdkwork/birdcoder-pc-contracts-commons';
 import type {
   BirdCoderSubmitApprovalDecisionRequest,
   BirdCoderSubmitUserQuestionAnswerRequest,
-} from '@sdkwork/birdcoder-pc-types';
-import type { FileNode, UniversalChatComposerSelection } from '@sdkwork/birdcoder-pc-ui';
+} from '@sdkwork/birdcoder-pc-contracts-commons';
+import type { FileNode } from '@sdkwork/birdcoder-pc-ui/components/FileExplorer';
+import type { UniversalChatComposerSelection } from '@sdkwork/birdcoder-pc-ui/components/UniversalChat';
 
 export interface CodeEditorWorkspacePanelProps {
   isActive: boolean;

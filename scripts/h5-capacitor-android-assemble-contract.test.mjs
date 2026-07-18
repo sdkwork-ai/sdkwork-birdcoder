@@ -14,9 +14,9 @@ const assembleScript = read('scripts/run-h5-capacitor-android-assemble.mjs');
 const appConfig = JSON.parse(read('sdkwork.app.config.json'));
 
 assert.equal(
-  packageJson.scripts['cap:android:assemble'],
+  packageJson.scripts['build:capacitor-android'],
   'node scripts/run-h5-capacitor-android-assemble.mjs',
-  'Root package.json must expose cap:android:assemble for CI and operators.',
+  'Root package.json must expose build:capacitor-android for CI and operators.',
 );
 
 assert.match(
@@ -31,14 +31,14 @@ assert.match(
 );
 assert.match(
   assembleScript,
-  /h5:build/u,
+  /build:browser/u,
   'Android assemble runner must document the H5 build prerequisite.',
 );
 
 assert.match(
   ciWorkflow,
-  /mobile-surfaces:[\s\S]*setup-java[\s\S]*cap:android:assemble/u,
-  'CI mobile-surfaces job must setup Java and run cap:android:assemble.',
+  /mobile-surfaces:[\s\S]*setup-java[\s\S]*build:capacitor-android/u,
+  'CI mobile-surfaces job must setup Java and run build:capacitor-android.',
 );
 assert.match(
   ciWorkflow,

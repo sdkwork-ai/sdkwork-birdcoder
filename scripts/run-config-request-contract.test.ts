@@ -5,7 +5,7 @@ import {
   buildRunConfigurationTerminalRequest,
   resolveRunConfigurationTerminalLaunch,
   type RunConfigurationRecord,
-} from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-commons/src/terminal/runConfigs.ts';
+} from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-workbench/src/terminal/runConfigs.ts';
 
 const configuration: RunConfigurationRecord = {
   id: 'lint',

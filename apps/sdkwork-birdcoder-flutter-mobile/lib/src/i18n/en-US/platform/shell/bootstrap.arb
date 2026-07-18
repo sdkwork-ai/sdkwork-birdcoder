@@ -1,0 +1,15 @@
+{
+  "@@locale": "en-US",
+  "app_title": "BirdCoder",
+  "@app_title": {
+    "description": "Application display name"
+  },
+  "app_loading": "Loading...",
+  "@app_loading": {
+    "description": "Generic app loading message"
+  },
+  "nav_home": "Home",
+  "nav_chat": "Chat",
+  "nav_settings": "Settings",
+  "nav_profile": "Profile"
+}

@@ -6,7 +6,7 @@ const authPageSource = fs.readFileSync(
   'utf8',
 );
 const authContextSource = fs.readFileSync(
-  new URL('../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-commons/src/context/AuthContext.ts', import.meta.url),
+  new URL('../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-workbench/src/context/AuthContext.ts', import.meta.url),
   'utf8',
 );
 

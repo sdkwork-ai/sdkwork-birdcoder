@@ -33,9 +33,9 @@ All PC-specific packages are under `apps/sdkwork-birdcoder-pc/packages/` with th
 
 **Core & Infrastructure:**
 - `@sdkwork/birdcoder-pc-core` — PC core runtime
-- `@sdkwork/birdcoder-pc-commons` — PC commons
+- `@sdkwork/birdcoder-pc-workbench` — PC commons
 - `@sdkwork/birdcoder-pc-shell` — PC shell
-- `@sdkwork/birdcoder-pc-types` — PC types
+- `@sdkwork/birdcoder-pc-contracts-commons` — PC types
 - `@sdkwork/birdcoder-pc-i18n` — PC internationalization
 - `@sdkwork/birdcoder-pc-infrastructure` — PC infrastructure
 - `@sdkwork/birdcoder-pc-iam` — PC IAM integration
@@ -142,20 +142,20 @@ pnpm dev
 Common development entrypoints:
 
 ```bash
-pnpm dev:local
-pnpm dev:private
-pnpm dev:cloud
-pnpm tauri:dev
-pnpm tauri:dev:private
-pnpm tauri:dev:cloud
-pnpm server:dev
-pnpm server:dev:private
-pnpm server:dev:cloud
-pnpm stack:desktop:local
-pnpm stack:desktop:private
-pnpm stack:desktop:cloud
-pnpm stack:web:private
-pnpm stack:web:cloud
+pnpm dev:desktop:local
+pnpm dev:browser:postgres:standalone
+pnpm dev:browser:postgres:cloud
+pnpm dev:desktop
+pnpm dev:desktop:standalone
+pnpm dev:desktop:cloud
+pnpm dev:server:postgres:standalone
+pnpm dev:server:standalone
+pnpm dev:server:cloud
+pnpm dev:desktop:local
+pnpm dev:desktop:standalone
+pnpm dev:desktop:cloud
+pnpm dev:browser:standalone
+pnpm dev:browser:cloud
 pnpm docs:dev
 pnpm check:iam:sample
 ```
@@ -172,9 +172,9 @@ BirdCoder exposes three canonical IAM deployment modes through the root `pnpm` w
 
 | Mode | Desktop command | Server command | Public SDKWork mode | IAM authority |
 | --- | --- | --- | --- | --- |
-| `desktop-local` | `pnpm tauri:dev` or `pnpm tauri:dev:local` | N/A | `local` | Embedded BirdCoder coding server with local SDKWork IAM |
-| `server-private` | `pnpm tauri:dev:private` | `pnpm server:dev` or `pnpm server:dev:private` | `private` | Private BirdCoder server with local SDKWork IAM |
-| `cloud-saas` | `pnpm tauri:dev:cloud` | `pnpm server:dev:cloud` | `saas` | BirdCoder server backed by SDKWork cloud app-api IAM |
+| `desktop-local` | `pnpm dev:desktop` or `pnpm dev:desktop:local` | N/A | `local` | Embedded BirdCoder coding server with local SDKWork IAM |
+| `server-private` | `pnpm dev:desktop:standalone` | `pnpm dev:server:postgres:standalone` or `pnpm dev:server:standalone` | `private` | Private BirdCoder server with local SDKWork IAM |
+| `cloud-saas` | `pnpm dev:desktop:cloud` | `pnpm dev:server:cloud` | `saas` | BirdCoder server backed by SDKWork cloud app-api IAM |
 
 The wrappers load `.env`, `.env.local`, `.env.development`, `.env.development.local`, `.env.production`, and `.env.production.local` through Vite's env loader, then apply mode-specific defaults for sqlite, remote API base URL, SDKWork IAM mode, OAuth sample providers, and dev-only quick-login hints. The managed public client values are `VITE_SDKWORK_BIRDCODER_DEPLOYMENT_PROFILE` and `VITE_SDKWORK_BIRDCODER_RUNTIME_TARGET`, and the server-facing value is `SDKWORK_IAM_MODE`.
 
@@ -201,9 +201,9 @@ Seed behavior is fail-closed by deployment profile. `desktop-local` and `server-
 Inspect the final managed startup env before running a mode:
 
 ```bash
-pnpm iam:show -- desktop-dev --iam-mode desktop-local
-pnpm iam:show -- server-dev --iam-mode server-private
-pnpm iam:show -- server-dev --iam-mode cloud-saas
+pnpm check:env:desktop:local -- desktop-dev --iam-mode desktop-local
+pnpm check:env:desktop:local -- server-dev --iam-mode server-private
+pnpm check:env:desktop:local -- server-dev --iam-mode cloud-saas
 ```
 
 The inspector prints resolved `BIRDCODER_*`, `VITE_BIRDCODER_*`, `SDKWORK_IAM_*`, `VITE_SDKWORK_BIRDCODER_DEPLOYMENT_PROFILE`, and `VITE_SDKWORK_BIRDCODER_RUNTIME_TARGET` values with secret-like fields masked, so you can confirm sqlite paths, API base URLs, dev quick-login defaults, OAuth sample provider configuration, and cloud app-api configuration before starting a host.
@@ -211,9 +211,9 @@ The inspector prints resolved `BIRDCODER_*`, `VITE_BIRDCODER_*`, `SDKWORK_IAM_*`
 When you want the same canonical deployment profile plus readiness validation, use the doctor aliases:
 
 ```bash
-pnpm iam:doctor:desktop:local
-pnpm iam:doctor:web:private
-pnpm iam:doctor:server:cloud
+pnpm check:iam:desktop:local
+pnpm check:iam:browser:standalone
+pnpm check:iam:server:cloud
 ```
 
 Doctor commands validate required env presence, effective API base URL, storage target, readiness endpoints, seed behavior, and development-prefill availability. Cloud lanes fail closed when upstream app-api configuration is incomplete.
@@ -232,33 +232,33 @@ BirdCoder keeps frontend code on the standard routes: `/app/v3/api/auth/*`, `/ap
 
 | Goal | Command | Notes |
 | --- | --- | --- |
-| Start the local single-machine desktop sample | `pnpm dev:local` or `pnpm desktop:dev:local` | Opens the Tauri desktop host with embedded coding server, local SDKWork IAM, seeded bootstrap data, and dev quick-login defaults |
-| Start the private web sample stack | `pnpm dev` or `pnpm dev:private` | Starts the native BirdCoder server first, waits for `/app/v3/api/system/health` and IAM config routes, then boots the browser host |
-| Start web workspace against cloud-backed IAM | `pnpm dev:cloud` | Browser host uses the cloud-mode API base URL from env |
-| Start the private BirdCoder web sample stack in one command | `pnpm stack:web:private` | Managed server-plus-web stack for private browser-host onboarding |
-| Start the cloud-backed BirdCoder web sample stack in one command | `pnpm stack:web:cloud` | Starts the local BirdCoder server in `cloud-saas` mode and then boots the web host; requires or defaults `SDKWORK_IAM_APP_API_BASE_URL` for sample checks |
-| Start desktop host with embedded local IAM | `pnpm tauri:dev` | Default `desktop-local` mode with embedded coding server, local SDKWork IAM, and dev quick-login defaults |
-| Start desktop host against a private BirdCoder server | `pnpm tauri:dev:private` | Uses `BIRDCODER_API_BASE_URL` or defaults to `http://127.0.0.1:10240` |
-| Start desktop host against cloud-backed IAM | `pnpm tauri:dev:cloud` | Expects the target BirdCoder server to run with SDKWork cloud app-api IAM integration |
-| Start the private BirdCoder desktop sample stack | `pnpm stack:desktop:private` | Starts the native BirdCoder server and then launches the desktop host against it |
-| Start the cloud-backed BirdCoder desktop sample stack | `pnpm stack:desktop:cloud` | Starts the native BirdCoder server in `cloud-saas` mode and then launches the desktop host against it |
-| Start native server with private IAM | `pnpm server:dev` or `pnpm server:dev:private` | Default server-private mode with local SDKWork IAM |
-| Start native server with cloud app-api IAM | `pnpm server:dev:cloud` | Requires or defaults `SDKWORK_IAM_APP_API_BASE_URL` for sample checks |
-| Inspect resolved IAM env for any target/mode | `pnpm iam:show -- <target> --iam-mode <mode>` | Prints managed BirdCoder env after `.env` loading and mode normalization |
-| Validate IAM env and deployment readiness | `pnpm iam:doctor:desktop:local`, `pnpm iam:doctor:web:private`, `pnpm iam:doctor:server:cloud` | Validates required env, base URL, storage target, seed policy, and quick-login availability |
+| Start the local single-machine desktop sample | `pnpm dev:desktop:local` or `pnpm dev:desktop:local` | Opens the Tauri desktop host with embedded coding server, local SDKWork IAM, seeded bootstrap data, and dev quick-login defaults |
+| Start the private web sample stack | `pnpm dev` or `pnpm dev:browser:postgres:standalone` | Starts the native BirdCoder server first, waits for `/app/v3/api/system/health` and IAM config routes, then boots the browser host |
+| Start web workspace against cloud-backed IAM | `pnpm dev:browser:postgres:cloud` | Browser host uses the cloud-mode API base URL from env |
+| Start the private BirdCoder web sample stack in one command | `pnpm dev:browser:standalone` | Managed server-plus-web stack for private browser-host onboarding |
+| Start the cloud-backed BirdCoder web sample stack in one command | `pnpm dev:browser:cloud` | Starts the local BirdCoder server in `cloud-saas` mode and then boots the web host; requires or defaults `SDKWORK_IAM_APP_API_BASE_URL` for sample checks |
+| Start desktop host with embedded local IAM | `pnpm dev:desktop` | Default `desktop-local` mode with embedded coding server, local SDKWork IAM, and dev quick-login defaults |
+| Start desktop host against a private BirdCoder server | `pnpm dev:desktop:standalone` | Uses `BIRDCODER_API_BASE_URL` or defaults to `http://127.0.0.1:10240` |
+| Start desktop host against cloud-backed IAM | `pnpm dev:desktop:cloud` | Expects the target BirdCoder server to run with SDKWork cloud app-api IAM integration |
+| Start the private BirdCoder desktop sample stack | `pnpm dev:desktop:standalone` | Starts the native BirdCoder server and then launches the desktop host against it |
+| Start the cloud-backed BirdCoder desktop sample stack | `pnpm dev:desktop:cloud` | Starts the native BirdCoder server in `cloud-saas` mode and then launches the desktop host against it |
+| Start native server with private IAM | `pnpm dev:server:postgres:standalone` or `pnpm dev:server:standalone` | Default server-private mode with local SDKWork IAM |
+| Start native server with cloud app-api IAM | `pnpm dev:server:cloud` | Requires or defaults `SDKWORK_IAM_APP_API_BASE_URL` for sample checks |
+| Inspect resolved IAM env for any target/mode | `pnpm check:env:desktop:local -- <target> --iam-mode <mode>` | Prints managed BirdCoder env after `.env` loading and mode normalization |
+| Validate IAM env and deployment readiness | `pnpm check:iam:desktop:local`, `pnpm check:iam:browser:standalone`, `pnpm check:iam:server:cloud` | Validates required env, base URL, storage target, seed policy, and quick-login availability |
 | Run BirdCoder IAM governance | `pnpm check:iam-standard` | Verifies BirdCoder stays on standard SDKWork IAM runtime, auth UI, generated SDK, command matrix, and package boundaries |
 | Verify the BirdCoder IAM sample matrix | `pnpm check:iam:sample` | Runs IAM inspectors plus private/cloud web/server builds |
 | Build web bundle for private mode | `pnpm build` or `pnpm build:private` | Production browser bundle for private BirdCoder server integration |
 | Build web bundle for cloud mode | `pnpm build:cloud` | Production browser bundle for cloud IAM integration |
-| Build desktop package for local mode | `pnpm tauri:build` | Packages the desktop app for embedded local deployment |
-| Build desktop package for private-server mode | `pnpm tauri:build:private` | Packages the desktop app to target an external BirdCoder server |
-| Build desktop package for cloud mode | `pnpm tauri:build:cloud` | Packages the desktop app to target a cloud-backed BirdCoder server |
+| Build desktop package for local mode | `pnpm build:desktop` | Packages the desktop app for embedded local deployment |
+| Build desktop package for private-server mode | `pnpm build:desktop:standalone` | Packages the desktop app to target an external BirdCoder server |
+| Build desktop package for cloud mode | `pnpm build:desktop:cloud` | Packages the desktop app to target a cloud-backed BirdCoder server |
 | Build docs site | `pnpm docs:build` | Builds the VitePress documentation site |
 | Run repository baseline verification | `pnpm lint` | Main pre-commit and pre-push verification baseline |
 | Verify package governance | `pnpm check:package-governance` | Guards scoped package names and workspace dependency ownership |
 | Verify cross-host delivery | `pnpm check:multi-mode` | Aggregates desktop, server, and release-flow checks |
-| Generate quality execution evidence | `pnpm quality:execution-report` | Writes `artifacts/quality/quality-gate-execution-report.json` |
-| Build native server release bundle | `pnpm server:build` | Runs the governed server build wrapper |
+| Generate quality execution evidence | `pnpm check:quality-execution-report` | Writes `artifacts/quality/quality-gate-execution-report.json` |
+| Build native server release bundle | `pnpm build:server` | Runs the governed server build wrapper |
 
 ## Quality And Governance
 
@@ -266,7 +266,7 @@ BirdCoder treats documentation and release behavior as executable contracts, not
 
 - `pnpm lint` runs TypeScript checks plus the repository's current architecture, governance, prompt, IAM, SDK, and release-flow contract set.
 - `pnpm check:quality:fast`, `pnpm check:quality:standard`, and `pnpm check:quality:release` define the stepped quality tiers.
-- `pnpm quality:report` and `pnpm quality:execution-report` archive machine-readable evidence under `artifacts/quality/`.
+- `pnpm check:quality-report` and `pnpm check:quality-execution-report` archive machine-readable evidence under `artifacts/quality/`.
 - `pnpm check:live-docs-governance-baseline` guards architecture, Step, prompt, and release docs against the active governance baseline.
 - `pnpm check:release-flow` and `pnpm check:ci-flow` freeze release orchestration and workflow contracts.
 
@@ -330,7 +330,7 @@ Required GitHub Secrets for macOS signing:
 | `APPLE_PASSWORD` | App-specific password for notarization (`xcrun notarytool`). |
 | `APPLE_TEAM_ID` | Apple Developer Team ID for notarization. |
 
-The job imports the certificates, builds the desktop bundle via `pnpm tauri:build`, deep-signs the `.app` and `.dmg` with hardened runtime (`codesign --deep --force --options runtime`), submits the `.dmg` to Apple notarization with `xcrun notarytool submit --wait`, and staples the ticket. Signing credentials live only in protected CI secrets; they are never committed to source.
+The job imports the certificates, builds the desktop bundle via `pnpm build:desktop`, deep-signs the `.app` and `.dmg` with hardened runtime (`codesign --deep --force --options runtime`), submits the `.dmg` to Apple notarization with `xcrun notarytool submit --wait`, and staples the ticket. Signing credentials live only in protected CI secrets; they are never committed to source.
 
 ### Cosign And Container Signing
 

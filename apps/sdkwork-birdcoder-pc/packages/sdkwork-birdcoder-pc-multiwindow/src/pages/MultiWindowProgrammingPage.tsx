@@ -5,10 +5,10 @@ import {
   useProjects,
   useToast,
   useWorkbenchPreferences,
-} from '@sdkwork/birdcoder-pc-commons';
+} from '@sdkwork/birdcoder-pc-workbench';
 import type {
   BirdCoderCodingSession,
-} from '@sdkwork/birdcoder-pc-types';
+} from '@sdkwork/birdcoder-pc-contracts-commons';
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 

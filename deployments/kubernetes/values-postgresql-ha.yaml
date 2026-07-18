@@ -7,6 +7,8 @@
 # Required secrets:
 #   - birdcoder-database-url (PostgreSQL connection string)
 #   - birdcoder-redis-password (Redis auth password)
+#   - runtime-location active key, stable fingerprint key, and previous-key JSON
+#   - SDKWORK_BIRDCODER_BACKUP_VERIFY_DATABASE_URL (isolated restore-test DSN)
 # Compliance: DEPLOYMENT_SPEC.md, DATABASE_SPEC.md, SECURITY_SPEC.md
 
 replicaCount: 3
@@ -44,7 +46,7 @@ backup:
   retentionDays: 30
   image: postgres:16-alpine
   # imageDigest: 必须由部署方填入 immutable digest
-  verifyDatabaseUrl: ""  # 必须配置验证数据库
+  verifyDatabaseUrlSecretKey: SDKWORK_BIRDCODER_BACKUP_VERIFY_DATABASE_URL
 
 observability:
   logLevel: info

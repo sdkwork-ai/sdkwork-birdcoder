@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Button } from '@sdkwork/birdcoder-pc-ui-shell';
-import { usePersistedState } from '@sdkwork/birdcoder-pc-commons';
+import { usePersistedState } from '@sdkwork/birdcoder-pc-workbench';
 import { useTranslation } from 'react-i18next';
 import { SettingsProps } from './types';
 

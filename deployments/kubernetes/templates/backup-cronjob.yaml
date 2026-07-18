@@ -1,4 +1,4 @@
-{{- if and .Values.backup.enabled (eq .Values.database.engine "postgresql") .Values.database.url }}
+{{- if and .Values.backup.enabled (eq .Values.database.engine "postgresql") (or .Values.auth.existingSecret .Values.database.url) }}
 apiVersion: batch/v1
 kind: CronJob
 metadata:
@@ -32,7 +32,14 @@ spec:
                 - name: RETENTION_DAYS
                   value: {{ .Values.backup.retentionDays | quote }}
                 - name: VERIFY_DATABASE_URL
-                  value: {{ .Values.backup.verifyDatabaseUrl | default "" | quote }}
+{{- if .Values.backup.verifyDatabaseUrlSecretKey }}
+                  valueFrom:
+                    secretKeyRef:
+                      name: {{ if .Values.auth.existingSecret }}{{ .Values.auth.existingSecret }}{{ else }}{{ include "sdkwork-birdcoder.fullname" . }}-auth{{ end }}
+                      key: {{ .Values.backup.verifyDatabaseUrlSecretKey | quote }}
+{{- else }}
+                  value: ""
+{{- end }}
               command:
                 - /bin/sh
                 - -ec
@@ -54,9 +61,7 @@ spec:
                   # Verify the backup can be restored (if a verify database URL is provided)
                   if [ -n "${VERIFY_DATABASE_URL}" ]; then
                     echo "[backup] verifying restore to ${VERIFY_DATABASE_URL}"
-                    pg_restore --dbname="${VERIFY_DATABASE_URL}" --no-owner --clean --if-exists "${out}" || {
-                      echo "[backup] WARNING: restore verification failed, but backup file is retained"
-                    }
+                    pg_restore --dbname="${VERIFY_DATABASE_URL}" --no-owner --clean --if-exists "${out}"
                     echo "[backup] restore verification completed"
                   else
                     echo "[backup] skipping restore verification (VERIFY_DATABASE_URL not set)"

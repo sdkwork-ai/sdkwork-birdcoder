@@ -4,6 +4,7 @@ import { defineConfig, loadEnv } from 'vite';
 import {
   BIRDCODER_VITE_DEDUPE_PACKAGES,
   BIRDCODER_VITE_WEB_OPTIMIZE_DEPS_INCLUDE,
+  configureBirdcoderSdkworkProxyProblemResponse,
   createBirdcoderWorkspaceAliasEntries,
   createBirdcoderWorkspaceFsAllowList,
   createBirdcoderVitePlugins,
@@ -21,7 +22,8 @@ const rootHostAppRootDir = path.resolve(__dirname, 'packages', 'sdkwork-birdcode
 
 export default defineConfig(({ mode }) => {
   const env = resolveBirdcoderViteRuntimeEnvSource(loadEnv(mode, '.', ''));
-
+  const applicationDevProxyTarget =
+    process.env.BIRDCODER_DEV_PROXY_TARGET ?? 'http://127.0.0.1:10240';
   return {
     define: resolveBirdcoderDevelopmentApiEnvDefines(mode),
     plugins: createBirdcoderVitePlugins({
@@ -55,37 +57,45 @@ export default defineConfig(({ mode }) => {
       },
       proxy: {
         '/app': {
-          target: process.env.BIRDCODER_DEV_PROXY_TARGET ?? 'http://127.0.0.1:10240',
+          target: applicationDevProxyTarget,
           changeOrigin: true,
           ws: true,
+          configure: configureBirdcoderSdkworkProxyProblemResponse,
         },
         '/backend': {
-          target: process.env.BIRDCODER_DEV_PROXY_TARGET ?? 'http://127.0.0.1:10240',
+          target: applicationDevProxyTarget,
           changeOrigin: true,
+          configure: configureBirdcoderSdkworkProxyProblemResponse,
         },
         '/api': {
-          target: process.env.BIRDCODER_DEV_PROXY_TARGET ?? 'http://127.0.0.1:10240',
+          target: applicationDevProxyTarget,
           changeOrigin: true,
+          configure: configureBirdcoderSdkworkProxyProblemResponse,
         },
         '/readyz': {
-          target: process.env.BIRDCODER_DEV_PROXY_TARGET ?? 'http://127.0.0.1:10240',
+          target: applicationDevProxyTarget,
           changeOrigin: true,
+          configure: configureBirdcoderSdkworkProxyProblemResponse,
         },
         '/healthz': {
-          target: process.env.BIRDCODER_DEV_PROXY_TARGET ?? 'http://127.0.0.1:10240',
+          target: applicationDevProxyTarget,
           changeOrigin: true,
+          configure: configureBirdcoderSdkworkProxyProblemResponse,
         },
         '/livez': {
-          target: process.env.BIRDCODER_DEV_PROXY_TARGET ?? 'http://127.0.0.1:10240',
+          target: applicationDevProxyTarget,
           changeOrigin: true,
+          configure: configureBirdcoderSdkworkProxyProblemResponse,
         },
         '/metrics': {
-          target: process.env.BIRDCODER_DEV_PROXY_TARGET ?? 'http://127.0.0.1:10240',
+          target: applicationDevProxyTarget,
           changeOrigin: true,
+          configure: configureBirdcoderSdkworkProxyProblemResponse,
         },
         '/openapi.json': {
-          target: process.env.BIRDCODER_DEV_PROXY_TARGET ?? 'http://127.0.0.1:10240',
+          target: applicationDevProxyTarget,
           changeOrigin: true,
+          configure: configureBirdcoderSdkworkProxyProblemResponse,
         },
       },
     },

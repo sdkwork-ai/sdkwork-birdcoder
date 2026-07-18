@@ -23,6 +23,6 @@
   "peerDependencies": {
     "react": "catalog:",
     "react-dom": "catalog:"
-  }
+  },
+  "scripts": {}
 }
-

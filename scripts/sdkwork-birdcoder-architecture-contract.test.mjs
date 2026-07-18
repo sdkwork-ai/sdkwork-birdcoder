@@ -37,7 +37,7 @@ const requiredPaths = [
   'docs/release/releases.json',
   'docs/.vitepress/config.mts',
   'docs/.vitepress/searchIndexPolicy.ts',
-  'configs/shared-sdk-release-sources.json',
+  'tools/shared-sdk-release-sources.json',
   'scripts/claw-docs-ia-contract.test.mjs',
   'scripts/ci-flow-contract.test.mjs',
   'scripts/check-release-closure.mjs',
@@ -205,8 +205,8 @@ const structureCheckSource = fs.readFileSync(
 );
 
 assert.equal(rootPackageJson.name, '@sdkwork/birdcoder-workspace');
-assert.equal(rootPackageJson.scripts?.['server:build'], 'node scripts/run-birdcoder-server-build.mjs');
-assert.equal(rootPackageJson.scripts?.['prepare:shared-sdk'], 'node scripts/prepare-shared-sdk-packages.mjs');
+assert.equal(rootPackageJson.scripts?.['build:server'], 'node scripts/run-birdcoder-server-build.mjs');
+assert.equal(rootPackageJson.scripts?.['sdk:prepare'], 'node scripts/prepare-shared-sdk-packages.mjs');
 assert.match(
   rootPackageJson.scripts?.['check:release-flow'] ?? '',
   /run-release-flow-check\.mjs/,
@@ -290,7 +290,7 @@ assert.equal(
   'Root package must expose the BirdCoder app/backend generated SDK reproducibility contract.',
 );
 assert.equal(
-  rootPackageJson.scripts?.['generate:sdk:birdcoder'],
+  rootPackageJson.scripts?.['sdk:generate'],
   'node scripts/sync-birdcoder-sdk-openapi.mjs && node scripts/generate-birdcoder-sdk-family.mjs',
   'BirdCoder SDK generation must sync OpenAPI source contracts before regenerating app/backend SDK packages.',
 );
@@ -299,7 +299,7 @@ assert.equal(
   'node scripts/package-script-entrypoints-contract.test.mjs',
   'Root package must expose the package script entrypoint contract as a first-class verification command.',
 );
-assert.ok(rootPackageJson.scripts?.['quality:execution-report'], 'Missing quality:execution-report script');
+assert.ok(rootPackageJson.scripts?.['check:quality-execution-report'], 'Missing check:quality-execution-report script');
 assert.ok(rootPackageJson.scripts?.['release:finalize'], 'Missing release:finalize script');
 assert.equal(
   rootPackageJson.scripts?.lint,
@@ -349,7 +349,17 @@ assert.match(
 assert.match(
   structureCheckSource,
   /'sdks\/\.sdkwork-assembly\.json'/,
-  'structure check must require the SDK assembly manifest so app/backend SDK family topology cannot drift.',
+  'structure check must forbid the retired parallel SDK assembly registry.',
+);
+assert.match(
+  structureCheckSource,
+  /'sdks\/sdkwork-birdcoder-app-sdk\/sdk-manifest\.json'/,
+  'structure check must require the app family-root SDK manifest.',
+);
+assert.match(
+  structureCheckSource,
+  /'sdks\/sdkwork-birdcoder-backend-sdk\/sdk-manifest\.json'/,
+  'structure check must require the backend family-root SDK manifest.',
 );
 assert.match(
   structureCheckSource,
@@ -572,8 +582,8 @@ for (const scriptName of [
   'check:sdkwork-birdcoder-structure',
   'check:governance-regression',
   'check:release-flow',
-  'server:build',
-  'tauri:build',
+  'build:server',
+  'build:desktop',
   'release:plan',
   'release:preflight:desktop-signing',
   'release:write-attestation-evidence',

@@ -4,7 +4,7 @@ import {
   BIRDCODER_APP_TEMPLATE_TARGET_PROFILE_IDS,
   BIRDCODER_PROMPT_COMPOSITION_LAYER_IDS,
   BIRDCODER_SKILL_BINDING_SCOPE_TYPES,
-} from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-types/src/index.ts';
+} from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-contracts-commons/src/index.ts';
 import {
   assembleBirdCoderPromptRuntime,
   assembleBirdCoderSkillRuntime,

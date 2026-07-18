@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import type { AppTab } from '@sdkwork/birdcoder-pc-types';
+import type { AppTab } from '@sdkwork/birdcoder-pc-contracts-commons';
 
 export const PRIMARY_PERSISTED_APP_TABS = new Set<AppTab>(['code', 'studio', 'multiwindow', 'terminal']);
 

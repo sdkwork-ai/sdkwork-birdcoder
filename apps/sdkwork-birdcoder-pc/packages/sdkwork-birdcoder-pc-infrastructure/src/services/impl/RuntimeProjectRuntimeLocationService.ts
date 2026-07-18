@@ -1,4 +1,4 @@
-import type { LocalFolderMountSource, ProjectDeviceMountState } from '@sdkwork/birdcoder-pc-types';
+import type { LocalFolderMountSource, ProjectDeviceMountState } from '@sdkwork/birdcoder-pc-contracts-commons';
 import { openLocalFolder } from '../../platform/openLocalFolder.ts';
 import type { IFileSystemService } from '../interfaces/IFileSystemService.ts';
 import type {

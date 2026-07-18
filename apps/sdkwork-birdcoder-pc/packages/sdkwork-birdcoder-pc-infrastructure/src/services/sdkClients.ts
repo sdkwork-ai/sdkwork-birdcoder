@@ -35,7 +35,7 @@ import {
   type RuntimeNativeSessionsListQuery,
   type RuntimeNativeSessionsRetrieveQuery,
   type SkillsSkillPackagesListQuery,
-} from '@sdkwork/birdcoder-app-sdk';
+} from '@sdkwork/birdcoder-pc-core/sdk/birdcoder-app';
 import {
   registerBirdCoderBackendSdkTransportResolver,
   resetBirdCoderGeneratedBackendSdkClient,
@@ -122,8 +122,8 @@ import type {
   BirdCoderUserQuestionAnswerResult,
   BirdCoderWorkspaceMemberSummary,
   BirdCoderWorkspaceSummary,
-} from '@sdkwork/birdcoder-pc-types';
-import { BIRDCODER_DATA_SCOPES } from '@sdkwork/birdcoder-pc-types/dataScopes';
+} from '@sdkwork/birdcoder-pc-contracts-commons';
+import { BIRDCODER_DATA_SCOPES } from '@sdkwork/birdcoder-pc-contracts-commons/dataScopes';
 import { clearStoredAppSessionToken } from './appSessionToken.ts';
 import {
   buildBirdCoderProtectedLoginBrowserUrl,
@@ -132,7 +132,7 @@ import {
 import {
   BirdCoderApiTransportError,
   readBirdCoderApiTransportErrorHttpStatus,
-} from '@sdkwork/birdcoder-pc-types/apiTransportError';
+} from '@sdkwork/birdcoder-pc-contracts-commons/apiTransportError';
 import { getDefaultBirdCoderIdeServicesRuntimeConfig } from './defaultIdeServicesRuntime.ts';
 import { invalidateBirdCoderCurrentSession } from './iamCurrentSession.ts';
 import { invalidateBirdCoderCurrentUser } from './iamCurrentUser.ts';

@@ -80,10 +80,10 @@ assert.match(
 );
 
 const pcLegalLinksSource = readText(
-  'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-commons/src/legalLinks.ts',
+  'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-workbench/src/legalLinks.ts',
 );
 const pcCommonsIndexSource = readText(
-  'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-commons/src/index.ts',
+  'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-workbench/src/index.ts',
 );
 const pcLegalSettingsSource = readText(
   'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-settings/src/components/LegalComplianceSettings.tsx',

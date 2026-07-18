@@ -68,11 +68,11 @@ const apiBackedProjectServiceModulePath = new URL(
   import.meta.url,
 );
 const ideContextSourcePath = new URL(
-  '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-commons/src/context/IDEContext.tsx',
+  '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-workbench/src/context/IDEContext.tsx',
   import.meta.url,
 );
 const serviceContextSourcePath = new URL(
-  '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-commons/src/context/ServiceContext.tsx',
+  '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-workbench/src/context/ServiceContext.tsx',
   import.meta.url,
 );
 

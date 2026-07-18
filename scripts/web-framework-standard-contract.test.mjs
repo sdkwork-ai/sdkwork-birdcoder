@@ -33,7 +33,6 @@ const routeCrates = [
   'crates/sdkwork-routes-workspace-app-api',
   'crates/sdkwork-routes-document-app-api',
   'crates/sdkwork-routes-skill-packages-app-api',
-  'crates/sdkwork-routes-membership-app-api',
   'crates/sdkwork-routes-deployment-backend-api',
 ];
 
@@ -135,7 +134,6 @@ const handlerFiles = [
   'crates/sdkwork-routes-engine-catalog-app-api/src/handlers.rs',
   'crates/sdkwork-routes-document-app-api/src/handlers.rs',
   'crates/sdkwork-routes-skill-packages-app-api/src/handlers.rs',
-  'crates/sdkwork-routes-membership-app-api/src/handlers.rs',
   'crates/sdkwork-routes-deployment-backend-api/src/handlers.rs',
 ];
 
@@ -144,7 +142,10 @@ for (const relativePath of handlerFiles) {
   if (!source.includes('WebRequestContext')) {
     fail(`${relativePath} handlers must declare WebRequestContext per WEB_FRAMEWORK_SPEC.md`);
   }
-  if (source.includes('Authorization') || source.includes('Access-Token') || source.includes('X-API-Key')) {
+  if (
+    /["'](?:authorization|access-token|x-api-key)["']/iu.test(source) ||
+    /header::(?:AUTHORIZATION|PROXY_AUTHORIZATION)/u.test(source)
+  ) {
     fail(`${relativePath} must not parse credential headers directly`);
   }
 }

@@ -1,10 +1,10 @@
 import { memo, useEffect, useRef } from 'react';
-import type { UseProjectGitOverviewResult } from '@sdkwork/birdcoder-pc-commons/hooks/useProjectGitOverview';
+import type { UseProjectGitOverviewResult } from '@sdkwork/birdcoder-pc-workbench/hooks/useProjectGitOverview';
 import {
   getProjectGitWorktreeDisplayName,
   getProjectGitWorktreeKey,
   isProjectGitWorktreePrunable,
-} from '@sdkwork/birdcoder-pc-commons/workbench/gitWorktrees';
+} from '@sdkwork/birdcoder-pc-workbench/workbench/gitWorktrees';
 import {
   AlertCircle,
   Check,

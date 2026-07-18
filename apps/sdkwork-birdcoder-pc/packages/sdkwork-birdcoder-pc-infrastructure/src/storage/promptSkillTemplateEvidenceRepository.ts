@@ -4,7 +4,7 @@ import {
   BIRDCODER_PROMPT_RUN_STORAGE_BINDING,
   getBirdCoderEntityDefinition,
   type BirdCoderDatabaseProviderId,
-} from '@sdkwork/birdcoder-pc-types';
+} from '@sdkwork/birdcoder-pc-contracts-commons';
 import {
   createBirdCoderTableRecordRepository,
   type BirdCoderStorageAccess,

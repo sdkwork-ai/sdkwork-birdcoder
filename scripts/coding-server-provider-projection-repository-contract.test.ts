@@ -11,14 +11,14 @@ import { getBirdCoderSchemaMigrationDefinition } from '../apps/sdkwork-birdcoder
 import {
   BIRDCODER_CODING_SESSION_RUNTIME_STORAGE_BINDING,
   getBirdCoderEntityDefinition,
-} from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-types/src/index.ts';
+} from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-contracts-commons/src/index.ts';
 import {
   executeBirdCoderCoreSessionRun,
   persistBirdCoderCoreSessionRunProjection,
 } from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-server/src/index.ts';
 import { createProviderBackedBirdCoderCoreSessionProjectionStore } from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-server/src/projectionRepository.ts';
 import { withMockCodexCliJsonl } from './test-support/mockCodexCliJsonl.ts';
-import type { BirdCoderCodingSessionRuntime } from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-types/src/index.ts';
+import type { BirdCoderCodingSessionRuntime } from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-contracts-commons/src/index.ts';
 
 const messages: ChatMessage[] = [
   {

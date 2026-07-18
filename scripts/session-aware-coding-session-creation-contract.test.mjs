@@ -16,7 +16,7 @@ const workbenchChatSelectionSource = readSource(
   
   'packages',
   
-  'sdkwork-birdcoder-pc-commons',
+  'sdkwork-birdcoder-pc-workbench',
   'src',
   'hooks',
   'useWorkbenchChatSelection.ts',

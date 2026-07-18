@@ -1,13 +1,13 @@
 import assert from 'node:assert/strict';
 import { isBirdCoderCodeEngineNativeSessionId } from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-codeengine/src/catalog.ts';
-import { refreshCodingSessionMessages } from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-commons/src/workbench/sessionRefresh.ts';
+import { refreshCodingSessionMessages } from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-workbench/src/workbench/sessionRefresh.ts';
 import type {
   BirdCoderCodingSession,
   BirdCoderCodingSessionEvent,
   BirdCoderCodingSessionSummary,
   BirdCoderNativeSessionDetail,
   BirdCoderProject,
-} from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-types/src/index.ts';
+} from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-contracts-commons/src/index.ts';
 
 type RefreshOptions = Parameters<typeof refreshCodingSessionMessages>[0];
 type RefreshAppRuntimeReadService = NonNullable<RefreshOptions['appRuntimeReadService']>;

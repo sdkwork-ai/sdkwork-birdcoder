@@ -1,7 +1,7 @@
 import type {
   BirdCoderApiTransport,
   BirdCoderApiTransportRequest,
-} from '@sdkwork/birdcoder-pc-types';
+} from '@sdkwork/birdcoder-pc-contracts-commons';
 import type { BirdCoderConsoleQueries } from './consoleQueries.ts';
 import {
   BIRDCODER_CODING_SERVER_API_PREFIXES,

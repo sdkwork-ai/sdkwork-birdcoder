@@ -5,7 +5,7 @@ import {
   getDefaultRunConfigurations,
   normalizeRunConfigurations,
   resolveRunConfigurationDirectory,
-} from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-commons/src/terminal/runConfigs.ts';
+} from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-workbench/src/terminal/runConfigs.ts';
 
 assert.equal(buildRunConfigurationStorageKey('project-1'), 'run-configs.project-1.v1');
 assert.equal(buildRunConfigurationStorageKey(null), 'run-configs.global.v1');

@@ -78,7 +78,7 @@ function parseArgs(argv) {
 function printHelp() {
   console.log(`Usage: node scripts/birdcoder-dev.mjs [web|desktop] [options] [-- <client args>]
 
-Topology-aware BirdCoder dev entry. Loads configs/topology profile env via @sdkwork/app-topology.
+Topology-aware BirdCoder dev entry. Loads etc/topology profile env via @sdkwork/app-topology.
 
 Options:
   --deployment-profile <standalone|cloud>             Default: standalone
@@ -88,9 +88,9 @@ Options:
   --help, -h
 
 Examples:
-  pnpm birdcoder:dev
-  pnpm birdcoder:dev:cloud
-  pnpm birdcoder:dev:desktop
+  pnpm dev:browser:postgres:standalone
+  pnpm dev:browser:postgres:cloud
+  pnpm dev:desktop:postgres:standalone
 `);
 }
 

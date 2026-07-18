@@ -2,8 +2,8 @@ import {
   formatBirdCoderSessionDisplayTime,
   type BirdCoderCodingSession,
   type BirdCoderProject,
-} from '@sdkwork/birdcoder-pc-types';
-import type { WorkbenchPreferences } from '@sdkwork/birdcoder-pc-commons';
+} from '@sdkwork/birdcoder-pc-contracts-commons';
+import type { WorkbenchPreferences } from '@sdkwork/birdcoder-pc-workbench';
 import {
   Check,
   Clock3,

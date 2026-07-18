@@ -9,7 +9,7 @@ import {
   normalizeBirdCoderCodeEngineExitCode,
   resolveBirdCoderCodeEngineToolCallId,
   resolveBirdCoderLongIntegerNumber,
-} from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-types/src/index.ts';
+} from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-contracts-commons/src/index.ts';
 
 const unsafeSessionId = '101777208078558001';
 const unsafeWorkspaceId = '101777208078558003';

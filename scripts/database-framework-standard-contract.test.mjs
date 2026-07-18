@@ -76,7 +76,6 @@ const sqlxRepoCrates = [
   'crates/sdkwork-birdcoder-coding-sessions-repository-sqlx/Cargo.toml',
   'crates/sdkwork-birdcoder-workspace-repository-sqlx/Cargo.toml',
   'crates/sdkwork-birdcoder-document-repository-sqlx/Cargo.toml',
-  'crates/sdkwork-birdcoder-membership-repository-sqlx/Cargo.toml',
   'crates/sdkwork-birdcoder-skill-packages-repository-sqlx/Cargo.toml',
   'crates/sdkwork-birdcoder-model-config-repository-sqlx/Cargo.toml',
 ];
@@ -114,7 +113,7 @@ if (canonicalOpenApiPathKeys.some((routePath) => routePath.includes('coding-sess
 }
 
 const dataKernelPaths = [
-  'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-types/src/data.ts',
+  'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-contracts-commons/src/data.ts',
   'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/src/storage/providers.ts',
 ];
 const dataKernel = dataKernelPaths.map((relativePath) => read(relativePath)).join('\n');

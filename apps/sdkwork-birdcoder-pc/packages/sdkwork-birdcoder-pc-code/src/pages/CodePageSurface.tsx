@@ -1,9 +1,7 @@
 import type { ComponentProps, RefObject } from 'react';
-import {
-  DeferredUniversalChat,
-  ProjectGitOverviewDrawer,
-  type UniversalChatProps,
-} from '@sdkwork/birdcoder-pc-ui';
+import { DeferredUniversalChat } from '@sdkwork/birdcoder-pc-ui/components/DeferredUniversalChat';
+import { ProjectGitOverviewDrawer } from '@sdkwork/birdcoder-pc-ui/components/ProjectGitOverviewDrawer';
+import type { UniversalChatProps } from '@sdkwork/birdcoder-pc-ui/components/UniversalChat';
 import { ResizeHandle } from '@sdkwork/birdcoder-pc-ui-shell';
 import { DeferredProjectExplorer } from '../components/DeferredProjectExplorer';
 import type { ProjectExplorerProps } from '../components/ProjectExplorer';

@@ -8,9 +8,9 @@ import type {
   BirdCoderCodingSessionSummary,
   BirdCoderProject,
   BirdCoderProjectSummary,
-} from '@sdkwork/birdcoder-pc-types';
-import { isBirdCoderCodingSessionExecuting } from '@sdkwork/birdcoder-pc-types';
-import { refreshCodingSessionMessages } from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-commons/src/workbench/sessionRefresh.ts';
+} from '@sdkwork/birdcoder-pc-contracts-commons';
+import { isBirdCoderCodingSessionExecuting } from '@sdkwork/birdcoder-pc-contracts-commons';
+import { refreshCodingSessionMessages } from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-workbench/src/workbench/sessionRefresh.ts';
 import { ApiBackedProjectService } from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/src/services/impl/ApiBackedProjectService.ts';
 import type {
   BirdCoderProjectMirrorSnapshot,

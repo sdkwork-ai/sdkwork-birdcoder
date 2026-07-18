@@ -4,7 +4,7 @@ import {
   normalizeWorkbenchCodeModelId,
   resolveWorkbenchCodeEngineSelectedModelId,
 } from '@sdkwork/birdcoder-pc-codeengine';
-import type { WorkbenchPreferences } from '@sdkwork/birdcoder-pc-commons';
+import type { WorkbenchPreferences } from '@sdkwork/birdcoder-pc-workbench';
 import { WorkbenchCodeEngineIcon } from '@sdkwork/birdcoder-pc-ui-shell';
 import { memo } from 'react';
 import { useTranslation } from 'react-i18next';

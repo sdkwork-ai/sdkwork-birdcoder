@@ -1,19 +1,19 @@
 import { useCallback } from 'react';
-import { emitOpenTerminalRequest } from '@sdkwork/birdcoder-pc-commons/terminal/runtime';
-import { getTerminalProfile } from '@sdkwork/birdcoder-pc-commons/terminal/profiles';
-import type { ToastType } from '@sdkwork/birdcoder-pc-commons/contexts/ToastProvider';
-import type { TerminalCommandRequest } from '@sdkwork/birdcoder-pc-commons/terminal/runtime';
+import { emitOpenTerminalRequest } from '@sdkwork/birdcoder-pc-workbench/terminal/runtime';
+import { getTerminalProfile } from '@sdkwork/birdcoder-pc-workbench/terminal/profiles';
+import type { ToastType } from '@sdkwork/birdcoder-pc-workbench/contexts/ToastProvider';
+import type { TerminalCommandRequest } from '@sdkwork/birdcoder-pc-workbench/terminal/runtime';
 import {
   buildWorkbenchCodeEngineCliResumeCommand,
   normalizeBirdCoderCodeEngineNativeSessionId,
 } from '@sdkwork/birdcoder-pc-codeengine';
-import type { BirdCoderCodingSession } from '@sdkwork/birdcoder-pc-types';
+import type { BirdCoderCodingSession } from '@sdkwork/birdcoder-pc-contracts-commons';
 import { copyTextToClipboard } from '@sdkwork/birdcoder-pc-ui/components/clipboard';
 import {
   getProjectRuntimeLocationFailureMessage,
   getResolvedProjectRuntimeLocationWorkingDirectory,
-} from '@sdkwork/birdcoder-pc-commons/workbench/projectRuntimeLocationResolution';
-import type { ProjectRuntimeLocationResolver } from '@sdkwork/birdcoder-pc-commons/hooks/useProjectRuntimeLocation';
+} from '@sdkwork/birdcoder-pc-workbench/workbench/projectRuntimeLocationResolution';
+import type { ProjectRuntimeLocationResolver } from '@sdkwork/birdcoder-pc-workbench/hooks/useProjectRuntimeLocation';
 import { buildCodingSessionTerminalLaunchPlan } from './codingSessionTerminal';
 
 interface CodePageTerminalProjectLike {

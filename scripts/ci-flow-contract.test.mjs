@@ -106,7 +106,7 @@ assert.doesNotMatch(
 );
 assert.match(ciWorkflow, /prepare-shared-sdk-git-sources\.mjs/);
 assertPrepareSharedSdkStepsUseGithubToken(ciWorkflow, 'CI workflow');
-assert.match(ciWorkflow, /pnpm prepare:shared-sdk/);
+assert.match(ciWorkflow, /pnpm sdk:prepare/);
 assert.match(ciWorkflow, /pnpm lint/);
 assert.match(
   ciWorkflow,
@@ -121,7 +121,7 @@ assert.match(
   ciWorkflow,
   /node scripts\/run-cargo\.mjs test --manifest-path apps\/sdkwork-birdcoder-pc\/packages\/sdkwork-birdcoder-pc-desktop\/src-tauri\/Cargo\.toml/,
 );
-assert.match(ciWorkflow, /pnpm server:build/);
+assert.match(ciWorkflow, /pnpm build:server/);
 assert.match(
   ciWorkflow,
   /postgresql-live-smoke:[\s\S]*postgres:16-alpine[\s\S]*pnpm release:smoke:postgresql-live/u,
@@ -129,7 +129,7 @@ assert.match(
 );
 assert.match(
   ciWorkflow,
-  /mobile-surfaces:[\s\S]*pnpm h5:typecheck[\s\S]*pnpm h5:build[\s\S]*pnpm cap:sync[\s\S]*setup-java[\s\S]*setup-android[\s\S]*pnpm cap:android:assemble[\s\S]*pnpm flutter:analyze[\s\S]*pnpm flutter:test[\s\S]*h5-capacitor-native-platform-contract\.test\.mjs/u,
+  /mobile-surfaces:[\s\S]*pnpm typecheck:browser[\s\S]*pnpm build:browser[\s\S]*pnpm build:capacitor-android:sync[\s\S]*setup-java[\s\S]*setup-android[\s\S]*pnpm build:capacitor-android[\s\S]*pnpm check:flutter-android[\s\S]*pnpm test:flutter-android[\s\S]*h5-capacitor-native-platform-contract\.test\.mjs/u,
   'CI must typecheck/build H5 via root runners, sync Capacitor, assemble Android debug APK, analyze/test Flutter, and run H5 Capacitor platform contracts.',
 );
 assert.match(ciWorkflow, /pnpm docs:build/);
@@ -159,7 +159,7 @@ assert.equal(
 
 assert.equal(rootPackageJson.scripts.typecheck, 'node scripts/run-local-typescript.mjs --noEmit');
 assert.equal(rootPackageJson.scripts['check:quality-matrix'], 'node scripts/quality-gate-matrix-contract.test.mjs');
-assert.equal(rootPackageJson.scripts['quality:report'], 'node scripts/quality-gate-matrix-report.mjs');
+assert.equal(rootPackageJson.scripts['check:quality-report'], 'node scripts/quality-gate-matrix-report.mjs');
 assert.equal(rootPackageJson.scripts['check:quality:fast'], rootPackageJson.scripts.lint);
 assert.equal(rootPackageJson.scripts.lint, 'node scripts/run-quality-fast-check.mjs');
 assert.equal(rootPackageJson.scripts['check:quality:standard'], 'node scripts/run-quality-standard-check.mjs');
@@ -418,7 +418,7 @@ assert.deepEqual(qualityStandardRunnerModule.QUALITY_STANDARD_CHECK_COMMANDS, [
   'node scripts/run-workspace-package-script.mjs . check:server',
   'node scripts/run-workspace-package-script.mjs . check:web-vite-build',
   'node scripts/run-workspace-package-script.mjs . check:web-bundle-budget',
-  'node scripts/run-workspace-package-script.mjs . server:build',
+  'node scripts/run-workspace-package-script.mjs . build:server',
   'node scripts/run-workspace-package-script.mjs . docs:build',
 ]);
 assert.deepEqual(qualityReleaseRunnerModule.QUALITY_RELEASE_CHECK_COMMANDS, [

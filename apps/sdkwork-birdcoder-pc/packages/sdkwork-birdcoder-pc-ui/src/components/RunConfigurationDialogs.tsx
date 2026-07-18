@@ -1,8 +1,8 @@
 import { Terminal, X } from 'lucide-react';
 import {
   BUILTIN_TERMINAL_PROFILES,
-} from '@sdkwork/birdcoder-pc-commons/terminal/profiles';
-import type { RunConfigurationRecord } from '@sdkwork/birdcoder-pc-commons/terminal/runConfigDefinitions';
+} from '@sdkwork/birdcoder-pc-workbench/terminal/profiles';
+import type { RunConfigurationRecord } from '@sdkwork/birdcoder-pc-workbench/terminal/runConfigDefinitions';
 import { Button } from '@sdkwork/birdcoder-pc-ui-shell';
 
 export interface RunConfigurationDialogProps {

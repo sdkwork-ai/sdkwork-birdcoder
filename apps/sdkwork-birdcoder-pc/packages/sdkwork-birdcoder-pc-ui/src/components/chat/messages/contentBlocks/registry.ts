@@ -1,5 +1,5 @@
 import type { ComponentType, ReactNode } from 'react';
-import type { ChatMessageContentBlock } from '@sdkwork/birdcoder-pc-commons/chat/types';
+import type { ChatMessageContentBlock } from '@sdkwork/birdcoder-pc-workbench/chat/types';
 import type { ChatMessageRenderContext } from '../types.ts';
 
 export interface ChatMessageContentBlockRendererProps {

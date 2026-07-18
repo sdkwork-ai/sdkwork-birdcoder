@@ -236,46 +236,6 @@ pub mod commerce {
         };
     }
 
-    pub mod memberships {
-        pub mod current {
-            pub const RETRIEVE: crate::SdkOperation = crate::SdkOperation {
-                data_scope: "user",
-                deployment: "all",
-                domain: "commerce",
-                key: "commerce.memberships.current.retrieve",
-                method: "GET",
-                operation_id: "memberships.current.retrieve",
-                path: "/app/v3/api/memberships/current",
-                path_param_names: &[],
-                permission: Some("birdcoder.commerce-memberships-current.read"),
-                public: false,
-                resource: "birdcoder.commerce-memberships-current",
-                summary: "Get current SDKWork commerce membership",
-                tag: "commerce",
-                tenant_scope: "tenant",
-            };
-        }
-
-        pub mod package_groups {
-            pub const LIST: crate::SdkOperation = crate::SdkOperation {
-                data_scope: "user",
-                deployment: "all",
-                domain: "commerce",
-                key: "commerce.memberships.packageGroups.list",
-                method: "GET",
-                operation_id: "memberships.packageGroups.list",
-                path: "/app/v3/api/memberships/package_groups",
-                path_param_names: &[],
-                permission: Some("birdcoder.commerce-memberships-package-groups.read"),
-                public: false,
-                resource: "birdcoder.commerce-memberships-package-groups",
-                summary: "List SDKWork commerce membership package groups",
-                tag: "commerce",
-                tenant_scope: "tenant",
-            };
-        }
-    }
-
     pub mod orders {
         pub const CREATE: crate::SdkOperation = crate::SdkOperation {
             data_scope: "organization",
@@ -2088,8 +2048,6 @@ pub const OPERATIONS: &[SdkOperation] = &[
     collaboration::workspace_teams::LIST,
     commerce::invoices::LIST,
     commerce::invoices::RETRIEVE,
-    commerce::memberships::current::RETRIEVE,
-    commerce::memberships::package_groups::LIST,
     commerce::orders::CREATE,
     commerce::orders::LIST,
     commerce::orders::RETRIEVE,

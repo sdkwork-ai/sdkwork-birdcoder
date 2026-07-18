@@ -2,8 +2,8 @@ import React, { Suspense, lazy, memo, useCallback, useMemo, useRef, useEffect, u
 import { Plus, ChevronDown, ChevronUp, GripVertical, ArrowUp, CheckCircle2, RotateCcw, Edit2, Copy, Trash2, Zap, BookOpen, List, Loader2 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { Button } from '@sdkwork/birdcoder-pc-ui-shell';
-import { resolveBirdCoderCodeEngineCommandInteractionState } from '@sdkwork/birdcoder-pc-commons/chat/types';
-import type { BirdCoderChatMessage, FileChange } from '@sdkwork/birdcoder-pc-commons/chat/types';
+import { resolveBirdCoderCodeEngineCommandInteractionState } from '@sdkwork/birdcoder-pc-workbench/chat/types';
+import type { BirdCoderChatMessage, FileChange } from '@sdkwork/birdcoder-pc-workbench/chat/types';
 import {
   findWorkbenchCodeEngineDefinition,
   getWorkbenchCodeEngineDefinition,
@@ -21,7 +21,7 @@ import {
   listSessionPromptHistory,
   saveSavedPrompt,
   saveSessionPromptHistoryEntry,
-} from '@sdkwork/birdcoder-pc-commons/chat/persistence';
+} from '@sdkwork/birdcoder-pc-workbench/chat/persistence';
 import {
   canFlushWorkbenchChatQueuedMessages,
   createWorkbenchChatQueueFlushGateState,
@@ -29,27 +29,27 @@ import {
   observeWorkbenchChatQueuedTurnBusyState,
   settleWorkbenchChatQueuedTurnDispatch,
   useWorkbenchChatMessageQueue,
-} from '@sdkwork/birdcoder-pc-commons/chat/messageQueueStore';
-import { useWorkbenchChatInputDraft } from '@sdkwork/birdcoder-pc-commons/chat/draftStore';
-import { globalEventBus } from '@sdkwork/birdcoder-pc-commons/utils/EventBus';
-import { hasRestorableFileChanges } from '@sdkwork/birdcoder-pc-commons/workbench/fileChangeRestore';
-import { useToast } from '@sdkwork/birdcoder-pc-commons/contexts/ToastProvider';
-import { useBirdcoderAppSettings } from '@sdkwork/birdcoder-pc-commons/hooks/useBirdcoderAppSettings';
-import { useWorkbenchPreferences } from '@sdkwork/birdcoder-pc-commons/hooks/useWorkbenchPreferences';
+} from '@sdkwork/birdcoder-pc-workbench/chat/messageQueueStore';
+import { useWorkbenchChatInputDraft } from '@sdkwork/birdcoder-pc-workbench/chat/draftStore';
+import { globalEventBus } from '@sdkwork/birdcoder-pc-workbench/utils/EventBus';
+import { hasRestorableFileChanges } from '@sdkwork/birdcoder-pc-workbench/workbench/fileChangeRestore';
+import { useToast } from '@sdkwork/birdcoder-pc-workbench/contexts/ToastProvider';
+import { useBirdcoderAppSettings } from '@sdkwork/birdcoder-pc-workbench/hooks/useBirdcoderAppSettings';
+import { useWorkbenchPreferences } from '@sdkwork/birdcoder-pc-workbench/hooks/useWorkbenchPreferences';
 import {
   buildDriveMediaResourceContentBlock,
   resolveChatAttachmentUploadProfile,
   uploadBirdCoderChatAttachmentToDrive,
-} from '@sdkwork/birdcoder-pc-commons/services/birdcoderDriveUpload';
+} from '@sdkwork/birdcoder-pc-workbench/services/birdcoderDriveUpload';
 import type {
   BirdCoderCodingSessionPendingApproval,
   BirdCoderCodingSessionPendingUserQuestion,
   WorkbenchChatQueuedMessage,
-} from '@sdkwork/birdcoder-pc-commons';
+} from '@sdkwork/birdcoder-pc-workbench';
 import type {
   BirdCoderSubmitApprovalDecisionRequest,
   BirdCoderSubmitUserQuestionAnswerRequest,
-} from '@sdkwork/birdcoder-pc-commons/chat/types';
+} from '@sdkwork/birdcoder-pc-workbench/chat/types';
 import {
   resolveComposerInputAfterSendFailure,
   restoreQueuedMessagesAfterSendFailure,

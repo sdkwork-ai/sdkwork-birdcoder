@@ -70,9 +70,9 @@ try {
   assert.equal(writtenDocument.info.version, 'v1');
   assert.equal(writtenDocument.servers[0]?.url, '/');
   assert.equal(writtenDocument['x-sdkwork-api-cloud-gateway']?.routeCatalogPath, '/app/v3/api/system/routes');
-  assert.equal(writtenDocument['x-sdkwork-api-cloud-gateway']?.routeCount, 175);
+  assert.equal(writtenDocument['x-sdkwork-api-cloud-gateway']?.routeCount, 158);
   assert.deepEqual(writtenDocument['x-sdkwork-api-cloud-gateway']?.routesBySurface, {
-    app: 126,
+    app: 109,
     backend: 49,
   });
   const publishedOperationIds = Object.values(writtenDocument.paths).flatMap((methods) =>
@@ -80,8 +80,8 @@ try {
   );
   assert.equal(
     publishedOperationIds.length,
-    174,
-    'OpenAPI must materialize every HTTP route while keeping the realtime WebSocket catalog-only.',
+    157,
+    'OpenAPI must materialize every BirdCoder-owned HTTP route while keeping dependency APIs external.',
   );
   assert.equal(
     publishedOperationIds.includes('sessions.createWithEmailCode'),
@@ -378,30 +378,14 @@ try {
     '#/components/schemas/BirdCoderIamUserRoleSummaryListEnvelope',
   );
   assert.equal(
-    writtenDocument.paths['/app/v3/api/memberships/current']?.get?.operationId,
-    'memberships.current.retrieve',
-  );
-  assert.equal(
-    writtenDocument.paths['/app/v3/api/memberships/current']?.get?.['x-sdkwork-domain'],
-    'commerce',
-  );
-  assert.equal(
-    writtenDocument.paths['/app/v3/api/memberships/current']?.patch,
+    writtenDocument.paths['/app/v3/api/memberships/current'],
     undefined,
-    'exported coding-server OpenAPI must not keep a local current-membership patch route.',
+    'exported BirdCoder OpenAPI must not copy sdkwork-membership app API authority.',
   );
   assert.equal(
-    writtenDocument.paths['/app/v3/api/memberships/package_groups']?.get?.operationId,
-    'memberships.packageGroups.list',
-  );
-  assert.equal(
-    writtenDocument.paths['/app/v3/api/memberships/package_groups']?.get?.['x-sdkwork-domain'],
-    'commerce',
-  );
-  assert.equal(
-    writtenDocument.paths['/app/v3/api/memberships/package_groups']?.patch,
+    writtenDocument.paths['/app/v3/api/memberships/package_groups'],
     undefined,
-    'exported coding-server OpenAPI must not keep a local membership package group patch route.',
+    'exported BirdCoder OpenAPI must not copy sdkwork-membership package catalog authority.',
   );
   assert.equal(
     Object.keys(writtenDocument.components?.schemas ?? {}).some((schemaName) =>

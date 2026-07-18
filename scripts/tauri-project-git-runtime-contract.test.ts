@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
 
-import type { BirdCoderProjectGitOverview } from '@sdkwork/birdcoder-pc-types';
+import type { BirdCoderProjectGitOverview } from '@sdkwork/birdcoder-pc-contracts-commons';
 import {
   createTauriProjectGitRuntime,
   TauriProjectGitRuntimeUnavailableError,

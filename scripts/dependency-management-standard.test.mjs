@@ -29,7 +29,7 @@ const expectedDependencyIds = [
 const sourceDependencyFiles = [
   'package.json',
   'Cargo.toml',
-  'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-commons/package.json',
+  'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-workbench/package.json',
   'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-desktop/src-tauri/Cargo.toml',
   'pnpm-workspace.yaml',
   'tsconfig.json',

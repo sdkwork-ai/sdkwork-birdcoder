@@ -36,7 +36,7 @@ const terminalDesktopContractSource = readSource(
   
   'packages',
   
-  'sdkwork-birdcoder-pc-commons',
+  'sdkwork-birdcoder-pc-workbench',
   'src',
   'terminal',
   'contracts',

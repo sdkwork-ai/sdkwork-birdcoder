@@ -110,7 +110,11 @@
   ],
   "contracts": {
     "publicExports": [
-      "."
+      ".",
+      "./sdk",
+      "./sdk/birdcoder-app",
+      "./sdk/drive-app",
+      "./sdk/messaging-app"
     ],
     "runtimeEntrypoints": [
       "package.json#scripts.dev",

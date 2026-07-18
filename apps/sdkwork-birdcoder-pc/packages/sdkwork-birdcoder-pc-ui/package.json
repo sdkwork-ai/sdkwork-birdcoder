@@ -14,9 +14,37 @@
       "import": "./src/components/*.ts",
       "types": "./src/components/*.ts"
     },
+    "./components/ContentWorkbench": {
+      "import": "./src/components/ContentWorkbench.tsx",
+      "types": "./src/components/ContentWorkbench.tsx"
+    },
+    "./components/DeferredDiffEditor": {
+      "import": "./src/components/DeferredDiffEditor.tsx",
+      "types": "./src/components/DeferredDiffEditor.tsx"
+    },
+    "./components/DeferredFileExplorer": {
+      "import": "./src/components/DeferredFileExplorer.tsx",
+      "types": "./src/components/DeferredFileExplorer.tsx"
+    },
     "./components/DeferredRunDialogs": {
       "import": "./src/components/DeferredRunDialogs.tsx",
       "types": "./src/components/DeferredRunDialogs.tsx"
+    },
+    "./components/DeferredUniversalChat": {
+      "import": "./src/components/DeferredUniversalChat.tsx",
+      "types": "./src/components/DeferredUniversalChat.tsx"
+    },
+    "./components/FileExplorer": {
+      "import": "./src/components/FileExplorer.tsx",
+      "types": "./src/components/FileExplorer.tsx"
+    },
+    "./components/ProjectGitOverviewDrawer": {
+      "import": "./src/components/ProjectGitOverviewDrawer.tsx",
+      "types": "./src/components/ProjectGitOverviewDrawer.tsx"
+    },
+    "./components/UniversalChat": {
+      "import": "./src/components/UniversalChat.tsx",
+      "types": "./src/components/UniversalChat.tsx"
     }
   },
   "scripts": {
@@ -84,7 +112,7 @@
     "remark-parse": "catalog:",
     "remark-rehype": "catalog:",
     "@sdkwork/birdcoder-pc-codeengine": "workspace:*",
-    "@sdkwork/birdcoder-pc-commons": "workspace:*",
+    "@sdkwork/birdcoder-pc-workbench": "workspace:*",
     "@sdkwork/birdcoder-pc-ui-shell": "workspace:*",
     "@sdkwork/models-pc-picker": "workspace:*",
     "space-separated-tokens": "catalog:",
@@ -113,6 +141,3 @@
     "react-dom": "catalog:"
   }
 }
-
-
-

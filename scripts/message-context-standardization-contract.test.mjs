@@ -16,7 +16,7 @@ const codingSessionCreationSource = readSource(
   
   'packages',
   
-  'sdkwork-birdcoder-pc-commons',
+  'sdkwork-birdcoder-pc-workbench',
   'src',
   'workbench',
   'codingSessionCreation.ts',

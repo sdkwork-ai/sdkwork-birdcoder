@@ -1,4 +1,4 @@
-import type { WorkbenchChatQueuedMessage } from '@sdkwork/birdcoder-pc-commons';
+import type { WorkbenchChatQueuedMessage } from '@sdkwork/birdcoder-pc-workbench';
 
 export function resolveComposerInputAfterSendFailure(
   submittedInput: string,

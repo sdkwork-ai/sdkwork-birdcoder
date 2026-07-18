@@ -2,7 +2,7 @@ import type {
   BirdCoderAppTemplateSummary,
   BirdCoderSkillInstallationSummary,
   BirdCoderSkillPackageSummary,
-} from '@sdkwork/birdcoder-pc-types';
+} from '@sdkwork/birdcoder-pc-contracts-commons';
 import type {
   ICatalogService,
   InstallSkillPackageOptions,

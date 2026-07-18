@@ -8,7 +8,7 @@ import {
   type BirdCoderSchemaMigrationDefinition,
   stringifyBirdCoderApiJson,
   stringifyBirdCoderLongInteger,
-} from '@sdkwork/birdcoder-pc-types';
+} from '@sdkwork/birdcoder-pc-contracts-commons';
 import { createBirdCoderStorageDialect } from './dialects.ts';
 
 export type BirdCoderSqlPlanIntent = 'read' | 'write';

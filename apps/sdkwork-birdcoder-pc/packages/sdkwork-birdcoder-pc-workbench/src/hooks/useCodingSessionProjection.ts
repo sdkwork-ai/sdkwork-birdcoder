@@ -1,0 +1,1363 @@
+import { isBlank } from '@sdkwork/utils/string';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import {
+  compareBirdCoderCodingSessionEventSequence,
+  isBirdCoderCodeEngineSettledStatus,
+  isBirdCoderCodeEngineUserQuestionToolName,
+  parseBirdCoderApiJson,
+  resolveBirdCoderCodeEngineApprovalId,
+  resolveBirdCoderCodeEngineToolCallId,
+  resolveBirdCoderCodeEngineUserQuestionId,
+} from '@sdkwork/birdcoder-pc-contracts-commons';
+import type {
+  BirdCoderApprovalDecisionResult,
+  BirdCoderCodingSessionArtifact,
+  BirdCoderCodingSessionEvent,
+  BirdCoderSubmitApprovalDecisionRequest,
+  BirdCoderSubmitUserQuestionAnswerRequest,
+  BirdCoderUserQuestionAnswerResult,
+} from '@sdkwork/birdcoder-pc-contracts-commons';
+import type { IAppRuntimeWriteService } from '@sdkwork/birdcoder-pc-infrastructure-runtime';
+import { useIDEServices } from '../context/ideServices.ts';
+import {
+  loadCodingSessionProjection,
+  loadCodingSessionProjectionIfAvailable,
+  shouldReportCodingSessionProjectionError,
+  type BirdCoderCodingSessionProjection,
+  type BirdCoderCodingSessionProjectionReader,
+} from '../services/codingSessionProjectionService.ts';
+
+export {
+  BirdCoderCodingSessionProjectionUnavailableError,
+  isBirdCoderCodingSessionProjectionUnavailableError,
+  loadCodingSessionProjection,
+  loadCodingSessionProjectionIfAvailable,
+} from '../services/codingSessionProjectionService.ts';
+export type {
+  BirdCoderCodingSessionProjection,
+  BirdCoderCodingSessionProjectionReader,
+} from '../services/codingSessionProjectionService.ts';
+
+export interface BirdCoderCodingSessionProjectionState
+  extends Omit<BirdCoderCodingSessionProjection, 'session'> {
+  isLoading: boolean;
+  session: BirdCoderCodingSessionProjection['session'] | null;
+}
+
+export interface BirdCoderCodingSessionPendingApproval {
+  approvalId: string;
+  artifactIds: string[];
+  codingSessionId: string;
+  interactionEventId: string;
+  operationId?: string;
+  reason?: string;
+  runtimeId?: string;
+  turnId?: string;
+}
+
+export interface BirdCoderCodingSessionApprovalState {
+  approvals: BirdCoderCodingSessionPendingApproval[];
+  isLoading: boolean;
+}
+
+export interface BirdCoderCodingSessionPendingUserQuestionOption {
+  description?: string;
+  id?: string;
+  label: string;
+  value?: string;
+}
+
+export interface BirdCoderCodingSessionPendingUserQuestionPrompt {
+  header?: string;
+  options?: BirdCoderCodingSessionPendingUserQuestionOption[];
+  question: string;
+}
+
+export interface BirdCoderCodingSessionPendingUserQuestion {
+  codingSessionId: string;
+  interactionEventId: string;
+  prompt: string;
+  questionId: string;
+  questions: BirdCoderCodingSessionPendingUserQuestionPrompt[];
+  runtimeId?: string;
+  toolCallId?: string;
+  turnId?: string;
+}
+
+export interface BirdCoderCodingSessionUserQuestionState {
+  isLoading: boolean;
+  questions: BirdCoderCodingSessionPendingUserQuestion[];
+}
+
+export interface BirdCoderCodingSessionPendingInteractions {
+  approvals: BirdCoderCodingSessionPendingApproval[];
+  questions: BirdCoderCodingSessionPendingUserQuestion[];
+}
+
+export interface BirdCoderCodingSessionPendingInteractionState
+  extends BirdCoderCodingSessionPendingInteractions {
+  isLoading: boolean;
+}
+
+const EMPTY_PROJECTION: Omit<BirdCoderCodingSessionProjectionState, 'isLoading'> = {
+  artifacts: [],
+  checkpoints: [],
+  events: [],
+  session: null,
+};
+
+const INITIAL_STATE: BirdCoderCodingSessionProjectionState = {
+  ...EMPTY_PROJECTION,
+  isLoading: false,
+};
+
+const EMPTY_APPROVALS: BirdCoderCodingSessionPendingApproval[] = [];
+const INITIAL_APPROVAL_STATE: BirdCoderCodingSessionApprovalState = {
+  approvals: EMPTY_APPROVALS,
+  isLoading: false,
+};
+const EMPTY_USER_QUESTIONS: BirdCoderCodingSessionPendingUserQuestion[] = [];
+const INITIAL_USER_QUESTION_STATE: BirdCoderCodingSessionUserQuestionState = {
+  questions: EMPTY_USER_QUESTIONS,
+  isLoading: false,
+};
+const EMPTY_PENDING_INTERACTIONS: BirdCoderCodingSessionPendingInteractions = {
+  approvals: EMPTY_APPROVALS,
+  questions: EMPTY_USER_QUESTIONS,
+};
+const INITIAL_PENDING_INTERACTION_STATE: BirdCoderCodingSessionPendingInteractionState = {
+  ...EMPTY_PENDING_INTERACTIONS,
+  isLoading: false,
+};
+
+function compareOptionalTimestamp(
+  left: string | undefined,
+  right: string | undefined,
+): number {
+  const leftTimestamp = Date.parse(left ?? '');
+  const rightTimestamp = Date.parse(right ?? '');
+  const hasLeftTimestamp = Number.isFinite(leftTimestamp);
+  const hasRightTimestamp = Number.isFinite(rightTimestamp);
+
+  if (hasLeftTimestamp && hasRightTimestamp && leftTimestamp !== rightTimestamp) {
+    return leftTimestamp - rightTimestamp;
+  }
+  if (hasLeftTimestamp !== hasRightTimestamp) {
+    return hasLeftTimestamp ? 1 : -1;
+  }
+
+  return String(left ?? '').localeCompare(String(right ?? ''));
+}
+
+function compareCodingSessionEventChronology(
+  left: BirdCoderCodingSessionEvent,
+  right: BirdCoderCodingSessionEvent,
+): number {
+  const sequenceComparison = compareBirdCoderCodingSessionEventSequence(left, right);
+  if (sequenceComparison !== 0) {
+    return sequenceComparison;
+  }
+
+  const createdAtComparison = compareOptionalTimestamp(left.createdAt, right.createdAt);
+  if (createdAtComparison !== 0) {
+    return createdAtComparison;
+  }
+
+  return left.id.localeCompare(right.id);
+}
+
+function normalizePendingApprovals(
+  approvals: BirdCoderCodingSessionPendingApproval[],
+): BirdCoderCodingSessionPendingApproval[] {
+  if (approvals.length === 0) {
+    return EMPTY_APPROVALS;
+  }
+
+  const pendingByApprovalId = new Map<string, BirdCoderCodingSessionPendingApproval>();
+  for (const approval of approvals) {
+    const interactionEventId = approval.interactionEventId.trim();
+    const approvalId = approval.approvalId.trim();
+    if (!interactionEventId || !approvalId) {
+      continue;
+    }
+
+    pendingByApprovalId.set(
+      approvalId,
+      interactionEventId === approval.interactionEventId && approvalId === approval.approvalId
+        ? approval
+        : { ...approval, approvalId, interactionEventId },
+    );
+  }
+
+  const normalizedApprovals = [...pendingByApprovalId.values()];
+  return normalizedApprovals.length > 0 ? normalizedApprovals : EMPTY_APPROVALS;
+}
+
+function normalizePendingUserQuestions(
+  questions: BirdCoderCodingSessionPendingUserQuestion[],
+): BirdCoderCodingSessionPendingUserQuestion[] {
+  if (questions.length === 0) {
+    return EMPTY_USER_QUESTIONS;
+  }
+
+  const pendingByQuestionId = new Map<string, BirdCoderCodingSessionPendingUserQuestion>();
+  for (const question of questions) {
+    const interactionEventId = question.interactionEventId.trim();
+    const questionId = question.questionId.trim();
+    if (!interactionEventId || !questionId) {
+      continue;
+    }
+
+    pendingByQuestionId.set(
+      questionId,
+      interactionEventId === question.interactionEventId && questionId === question.questionId
+        ? question
+        : { ...question, interactionEventId, questionId },
+    );
+  }
+
+  const normalizedQuestions = [...pendingByQuestionId.values()];
+  return normalizedQuestions.length > 0 ? normalizedQuestions : EMPTY_USER_QUESTIONS;
+}
+
+function normalizePendingInteractions(
+  pendingInteractions: BirdCoderCodingSessionPendingInteractions,
+): BirdCoderCodingSessionPendingInteractions {
+  const approvals = normalizePendingApprovals(pendingInteractions.approvals);
+  const questions = normalizePendingUserQuestions(pendingInteractions.questions);
+  return approvals.length === 0 && questions.length === 0
+    ? EMPTY_PENDING_INTERACTIONS
+    : {
+        approvals,
+        questions,
+      };
+}
+
+function readStringRecordField(record: Record<string, unknown> | undefined, fieldName: string) {
+  const value = record?.[fieldName];
+  if (typeof value !== 'string') {
+    return undefined;
+  }
+
+  const normalizedValue = value.trim();
+  return normalizedValue.length > 0 ? normalizedValue : undefined;
+}
+
+function readArtifactOperationId(artifact: BirdCoderCodingSessionArtifact) {
+  if (!artifact.metadata || typeof artifact.metadata !== 'object') {
+    return undefined;
+  }
+
+  return readStringRecordField(artifact.metadata as Record<string, unknown>, 'operationId');
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return !!value && typeof value === 'object' && !Array.isArray(value);
+}
+
+function parseRecord(value: unknown): Record<string, unknown> | null {
+  if (isRecord(value)) {
+    return value;
+  }
+
+  if (typeof value !== 'string' || isBlank(value)) {
+    return null;
+  }
+
+  try {
+    const parsedValue = parseBirdCoderApiJson(value) as unknown;
+    return isRecord(parsedValue) ? parsedValue : null;
+  } catch {
+    return null;
+  }
+}
+
+function readEventToolArguments(event: BirdCoderCodingSessionEvent): Record<string, unknown> | null {
+  return parseRecord(
+    event.payload?.toolArguments ??
+      event.payload?.arguments ??
+      event.payload?.input,
+  );
+}
+
+function readUserQuestionOptions(
+  value: unknown,
+): BirdCoderCodingSessionPendingUserQuestionOption[] | undefined {
+  if (!Array.isArray(value)) {
+    return undefined;
+  }
+
+  const options = value.flatMap((entry) => {
+    if (!isRecord(entry)) {
+      return [];
+    }
+
+    const label =
+      readStringRecordField(entry, 'label') ??
+      readStringRecordField(entry, 'title') ??
+      readStringRecordField(entry, 'value');
+    if (!label) {
+      return [];
+    }
+
+    return [
+      {
+        label,
+        ...(readStringRecordField(entry, 'description')
+          ? { description: readStringRecordField(entry, 'description') }
+          : {}),
+        ...(readStringRecordField(entry, 'id') ? { id: readStringRecordField(entry, 'id') } : {}),
+        ...(readStringRecordField(entry, 'value')
+          ? { value: readStringRecordField(entry, 'value') }
+          : {}),
+      } satisfies BirdCoderCodingSessionPendingUserQuestionOption,
+    ];
+  });
+
+  return options.length > 0 ? options : undefined;
+}
+
+function readUserQuestionPrompt(
+  value: unknown,
+): BirdCoderCodingSessionPendingUserQuestionPrompt | null {
+  if (!isRecord(value)) {
+    return null;
+  }
+
+  const question =
+    readStringRecordField(value, 'question') ??
+    readStringRecordField(value, 'prompt') ??
+    readStringRecordField(value, 'title') ??
+    readStringRecordField(value, 'header');
+  if (!question) {
+    return null;
+  }
+
+  return {
+    ...(readStringRecordField(value, 'header')
+      ? { header: readStringRecordField(value, 'header') }
+      : {}),
+    question,
+    ...(readUserQuestionOptions(value.options)
+      ? { options: readUserQuestionOptions(value.options) }
+      : {}),
+  };
+}
+
+function readUserQuestionPrompts(
+  args: Record<string, unknown> | null,
+): BirdCoderCodingSessionPendingUserQuestionPrompt[] {
+  const questions = Array.isArray(args?.questions)
+    ? args.questions.flatMap((entry) => {
+        const question = readUserQuestionPrompt(entry);
+        return question ? [question] : [];
+      })
+    : [];
+  if (questions.length > 0) {
+    return questions;
+  }
+
+  const directQuestion = readUserQuestionPrompt(args);
+  return directQuestion ? [directQuestion] : [];
+}
+
+function isUserQuestionEvent(event: BirdCoderCodingSessionEvent): boolean {
+  return (
+    event.kind === 'user.question.required' &&
+    readStringRecordField(event.payload, 'interactionKind') === 'user_question' &&
+    Boolean(readStringRecordField(event.payload, 'interactionId'))
+  );
+}
+
+function readInteractionEventId(
+  event: BirdCoderCodingSessionEvent,
+  toolArguments: Record<string, unknown> | null = readEventToolArguments(event),
+): string | undefined {
+  return (
+    readStringRecordField(event.payload, 'interactionEventId') ??
+    readStringRecordField(toolArguments ?? undefined, 'interactionEventId')
+  );
+}
+
+function readUserQuestionEventIdentity(event: BirdCoderCodingSessionEvent): {
+  interactionEventId?: string;
+  questionId?: string;
+  toolCallId?: string;
+} {
+  const args = readEventToolArguments(event);
+  const toolCallId = resolveBirdCoderCodeEngineToolCallId({
+    payload: event.payload,
+    toolArguments: args,
+  });
+  const interactionEventId = event.id.trim() || undefined;
+  const questionId =
+    readStringRecordField(event.payload, 'interactionId') ??
+    resolveBirdCoderCodeEngineUserQuestionId({
+      payload: event.payload,
+      toolArguments: args,
+      toolCallId,
+    });
+
+  return {
+    interactionEventId,
+    questionId,
+    toolCallId,
+  };
+}
+
+function hasUserQuestionAnswer(
+  event: BirdCoderCodingSessionEvent,
+  args: Record<string, unknown> | null = readEventToolArguments(event),
+): boolean {
+  return (
+    !!readStringRecordField(event.payload, 'answer') ||
+    !!readStringRecordField(args ?? undefined, 'answer')
+  );
+}
+
+function hasSettledUserQuestionStatus(
+  event: BirdCoderCodingSessionEvent,
+  args: Record<string, unknown> | null = readEventToolArguments(event),
+): boolean {
+  return [
+    event.payload?.runtimeStatus,
+    event.payload?.status,
+    event.payload?.state,
+    event.payload?.phase,
+    args?.runtimeStatus,
+    args?.status,
+    args?.state,
+    args?.phase,
+  ].some(isBirdCoderCodeEngineSettledStatus);
+}
+
+function isUserQuestionLifecycleEvent(
+  event: BirdCoderCodingSessionEvent,
+  args: Record<string, unknown> | null = readEventToolArguments(event),
+): boolean {
+  if (
+    event.kind !== 'operation.updated' &&
+    event.kind !== 'tool.call.completed' &&
+    event.kind !== 'tool.call.progress'
+  ) {
+    return false;
+  }
+
+  const toolName =
+    readStringRecordField(event.payload, 'toolName') ??
+    readStringRecordField(event.payload, 'name') ??
+    readStringRecordField(args ?? undefined, 'toolName') ??
+    readStringRecordField(args ?? undefined, 'name');
+  if (isBirdCoderCodeEngineUserQuestionToolName(toolName)) {
+    return true;
+  }
+
+  return (
+    !!resolveBirdCoderCodeEngineUserQuestionId({
+      payload: event.payload,
+      toolArguments: args,
+    })
+  );
+}
+
+function deriveSettledUserQuestionKeys(
+  events: readonly BirdCoderCodingSessionEvent[],
+): Set<string> {
+  const settledKeys = new Set<string>();
+
+  for (const event of events) {
+    const args = readEventToolArguments(event);
+    if (!isUserQuestionLifecycleEvent(event, args)) {
+      continue;
+    }
+    if (!hasUserQuestionAnswer(event, args) && !hasSettledUserQuestionStatus(event, args)) {
+      continue;
+    }
+
+    const toolCallId = resolveBirdCoderCodeEngineToolCallId({
+      payload: event.payload,
+      toolArguments: args,
+    });
+    const questionId = resolveBirdCoderCodeEngineUserQuestionId({
+      payload: event.payload,
+      toolArguments: args,
+      toolCallId,
+    });
+
+    if (questionId) {
+      settledKeys.add(`question:${questionId}`);
+    }
+    if (toolCallId) {
+      settledKeys.add(`tool:${toolCallId}`);
+    }
+    const interactionEventId = readInteractionEventId(event, args);
+    if (interactionEventId) {
+      settledKeys.add(`event:${interactionEventId}`);
+    }
+  }
+
+  return settledKeys;
+}
+
+function hasSettledApprovalLifecycle(
+  event: BirdCoderCodingSessionEvent,
+  args: Record<string, unknown> | null = readEventToolArguments(event),
+): boolean {
+  const hasSettledDecision = [
+    event.payload?.approvalDecision,
+    event.payload?.decision,
+    args?.approvalDecision,
+    args?.decision,
+  ].some(isBirdCoderCodeEngineSettledStatus);
+  if (hasSettledDecision) {
+    return true;
+  }
+
+  return [
+    event.payload?.runtimeStatus,
+    event.payload?.operationStatus,
+    event.payload?.status,
+    args?.runtimeStatus,
+    args?.status,
+  ].some(isBirdCoderCodeEngineSettledStatus);
+}
+
+function deriveSettledApprovalKeys(
+  events: readonly BirdCoderCodingSessionEvent[],
+): Set<string> {
+  const settledKeys = new Set<string>();
+
+  for (const event of events) {
+    if (
+      event.kind !== 'operation.updated' &&
+      event.kind !== 'tool.call.completed' &&
+      event.kind !== 'tool.call.progress'
+    ) {
+      continue;
+    }
+    const args = readEventToolArguments(event);
+    if (!hasSettledApprovalLifecycle(event, args)) {
+      continue;
+    }
+
+    const approvalId =
+      resolveBirdCoderCodeEngineApprovalId({
+        payload: event.payload,
+        toolArguments: args,
+      }) ??
+      (readStringRecordField(event.payload, 'interactionKind') === 'approval'
+        ? readStringRecordField(event.payload, 'interactionId')
+        : undefined);
+    const interactionEventId = readInteractionEventId(event, args);
+
+    if (approvalId) {
+      settledKeys.add(`approval:${approvalId}`);
+    }
+    if (interactionEventId) {
+      settledKeys.add(`event:${interactionEventId}`);
+    }
+  }
+
+  return settledKeys;
+}
+
+interface PendingInteractionSettledKeys {
+  approvalKeys: Set<string>;
+  userQuestionKeys: Set<string>;
+}
+
+function deriveSettledPendingInteractionKeys(
+  events: readonly BirdCoderCodingSessionEvent[],
+): PendingInteractionSettledKeys {
+  const approvalKeys = new Set<string>();
+  const userQuestionKeys = new Set<string>();
+
+  for (const event of events) {
+    if (
+      event.kind !== 'operation.updated' &&
+      event.kind !== 'tool.call.completed' &&
+      event.kind !== 'tool.call.progress'
+    ) {
+      continue;
+    }
+
+    const args = readEventToolArguments(event);
+    if (
+      isUserQuestionLifecycleEvent(event, args) &&
+      (hasUserQuestionAnswer(event, args) || hasSettledUserQuestionStatus(event, args))
+    ) {
+      const toolCallId = resolveBirdCoderCodeEngineToolCallId({
+        payload: event.payload,
+        toolArguments: args,
+      });
+      const questionId = resolveBirdCoderCodeEngineUserQuestionId({
+        payload: event.payload,
+        toolArguments: args,
+        toolCallId,
+      });
+
+      if (questionId) {
+        userQuestionKeys.add(`question:${questionId}`);
+      }
+      if (toolCallId) {
+        userQuestionKeys.add(`tool:${toolCallId}`);
+      }
+      const interactionEventId = readInteractionEventId(event, args);
+      if (interactionEventId) {
+        userQuestionKeys.add(`event:${interactionEventId}`);
+      }
+    }
+
+    if (hasSettledApprovalLifecycle(event, args)) {
+      const approvalId = resolveBirdCoderCodeEngineApprovalId({
+        payload: event.payload,
+        toolArguments: args,
+      });
+      const interactionEventId = readInteractionEventId(event, args);
+
+      if (approvalId) {
+        approvalKeys.add(`approval:${approvalId}`);
+      }
+      if (interactionEventId) {
+        approvalKeys.add(`event:${interactionEventId}`);
+      }
+    }
+  }
+
+  return {
+    approvalKeys,
+    userQuestionKeys,
+  };
+}
+
+interface PendingApprovalDerivationIndex {
+  artifactIdsByOperationId: Map<string, string[]>;
+  artifactIdsByTurnId: Map<string, string[]>;
+  artifactOrderById: Map<string, number>;
+  firstOperationIdByTurnId: Map<string, string>;
+}
+
+interface PendingInteractionDerivationIndex {
+  eventsByChronology: readonly BirdCoderCodingSessionEvent[];
+  pendingApprovalIndex: PendingApprovalDerivationIndex;
+  settledApprovalKeys: Set<string>;
+  settledUserQuestionKeys: Set<string>;
+}
+
+const EMPTY_PENDING_APPROVAL_DERIVATION_INDEX: PendingApprovalDerivationIndex = {
+  artifactIdsByOperationId: new Map<string, string[]>(),
+  artifactIdsByTurnId: new Map<string, string[]>(),
+  artifactOrderById: new Map<string, number>(),
+  firstOperationIdByTurnId: new Map<string, string>(),
+};
+
+function appendPendingApprovalArtifactId(
+  index: Map<string, string[]>,
+  key: string | undefined,
+  artifactId: string,
+): void {
+  if (!key) {
+    return;
+  }
+
+  const artifactIds = index.get(key);
+  if (artifactIds) {
+    artifactIds.push(artifactId);
+    return;
+  }
+
+  index.set(key, [artifactId]);
+}
+
+function buildPendingApprovalDerivationIndex(
+  projection: BirdCoderCodingSessionProjection,
+): PendingApprovalDerivationIndex {
+  const artifactIdsByOperationId = new Map<string, string[]>();
+  const artifactIdsByTurnId = new Map<string, string[]>();
+  const artifactOrderById = new Map<string, number>();
+  const firstOperationIdByTurnId = new Map<string, string>();
+
+  projection.artifacts.forEach((artifact, order) => {
+    artifactOrderById.set(artifact.id, order);
+    const turnId = artifact.turnId?.trim() || undefined;
+    const operationId = readArtifactOperationId(artifact);
+    appendPendingApprovalArtifactId(artifactIdsByTurnId, turnId, artifact.id);
+    appendPendingApprovalArtifactId(artifactIdsByOperationId, operationId, artifact.id);
+    if (turnId && operationId && !firstOperationIdByTurnId.has(turnId)) {
+      firstOperationIdByTurnId.set(turnId, operationId);
+    }
+  });
+
+  return {
+    artifactIdsByOperationId,
+    artifactIdsByTurnId,
+    artifactOrderById,
+    firstOperationIdByTurnId,
+  };
+}
+
+function buildPendingInteractionDerivationIndex(
+  projection: BirdCoderCodingSessionProjection,
+): PendingInteractionDerivationIndex {
+  const eventsByChronology = [...projection.events]
+    .sort(compareCodingSessionEventChronology);
+  const settledKeys = deriveSettledPendingInteractionKeys(projection.events);
+
+  return {
+    eventsByChronology,
+    pendingApprovalIndex: buildPendingApprovalDerivationIndex(projection),
+    settledApprovalKeys: settledKeys.approvalKeys,
+    settledUserQuestionKeys: settledKeys.userQuestionKeys,
+  };
+}
+
+function resolvePendingApprovalArtifactIds(
+  index: PendingApprovalDerivationIndex,
+  turnId: string | undefined,
+  operationId: string | undefined,
+): string[] {
+  const artifactIdsByTurnId = turnId ? index.artifactIdsByTurnId.get(turnId) ?? [] : [];
+  const artifactIdsByOperationId = operationId
+    ? index.artifactIdsByOperationId.get(operationId) ?? []
+    : [];
+
+  if (artifactIdsByTurnId.length === 0) {
+    return [...artifactIdsByOperationId];
+  }
+  if (artifactIdsByOperationId.length === 0) {
+    return [...artifactIdsByTurnId];
+  }
+
+  const selectedArtifactIds = new Set<string>([
+    ...artifactIdsByTurnId,
+    ...artifactIdsByOperationId,
+  ]);
+  return [...selectedArtifactIds].sort(
+    (left, right) =>
+      (index.artifactOrderById.get(left) ?? Number.MAX_SAFE_INTEGER) -
+      (index.artifactOrderById.get(right) ?? Number.MAX_SAFE_INTEGER),
+  );
+}
+
+export function deriveCodingSessionPendingApprovals(
+  projection: BirdCoderCodingSessionProjection,
+): BirdCoderCodingSessionPendingApproval[] {
+  const eventsByChronology = [...projection.events].sort(compareCodingSessionEventChronology);
+  return deriveCodingSessionPendingApprovalsFromIndex(
+    {
+      eventsByChronology,
+      pendingApprovalIndex: buildPendingApprovalDerivationIndex(projection),
+      settledApprovalKeys: deriveSettledApprovalKeys(projection.events),
+      settledUserQuestionKeys: EMPTY_SETTLED_USER_QUESTION_KEYS,
+    },
+  );
+}
+
+const EMPTY_SETTLED_USER_QUESTION_KEYS = new Set<string>();
+
+function deriveCodingSessionPendingApprovalsFromIndex(
+  index: PendingInteractionDerivationIndex,
+): BirdCoderCodingSessionPendingApproval[] {
+  const pendingByInteractionEventId = new Map<
+    string,
+    BirdCoderCodingSessionPendingApproval
+  >();
+
+  for (const event of index.eventsByChronology) {
+    if (
+      event.kind !== 'approval.required' ||
+      readStringRecordField(event.payload, 'interactionKind') !== 'approval'
+    ) {
+      continue;
+    }
+
+    const interactionEventId = event.id.trim();
+    const toolArguments = readEventToolArguments(event);
+    const approvalId =
+      readStringRecordField(event.payload, 'interactionId') ??
+      resolveBirdCoderCodeEngineApprovalId({
+        payload: event.payload,
+        toolArguments,
+      });
+    if (
+      !interactionEventId ||
+      !approvalId ||
+      readStringRecordField(event.payload, 'settledAt') ||
+      index.settledApprovalKeys.has(`event:${interactionEventId}`) ||
+      index.settledApprovalKeys.has(`approval:${approvalId}`)
+    ) {
+      continue;
+    }
+
+    const turnId = event.turnId?.trim() || undefined;
+    const operationId =
+      readStringRecordField(event.payload, 'operationId') ??
+      readStringRecordField(toolArguments ?? undefined, 'operationId') ??
+      index.pendingApprovalIndex.firstOperationIdByTurnId.get(turnId ?? '');
+    const artifactIds = resolvePendingApprovalArtifactIds(
+      index.pendingApprovalIndex,
+      turnId,
+      operationId,
+    );
+    pendingByInteractionEventId.set(interactionEventId, {
+      approvalId,
+      artifactIds,
+      codingSessionId: event.codingSessionId,
+      interactionEventId,
+      operationId,
+      reason:
+        readStringRecordField(event.payload, 'reason') ??
+        readStringRecordField(toolArguments ?? undefined, 'reason'),
+      runtimeId: event.runtimeId?.trim() || undefined,
+      turnId,
+    });
+  }
+
+  return normalizePendingApprovals([...pendingByInteractionEventId.values()]);
+}
+
+export function deriveCodingSessionPendingUserQuestions(
+  projection: BirdCoderCodingSessionProjection,
+): BirdCoderCodingSessionPendingUserQuestion[] {
+  return deriveCodingSessionPendingUserQuestionsFromIndex({
+    eventsByChronology: [...projection.events].sort(compareCodingSessionEventChronology),
+    pendingApprovalIndex: EMPTY_PENDING_APPROVAL_DERIVATION_INDEX,
+    settledApprovalKeys: EMPTY_SETTLED_APPROVAL_KEYS,
+    settledUserQuestionKeys: deriveSettledUserQuestionKeys(projection.events),
+  });
+}
+
+const EMPTY_SETTLED_APPROVAL_KEYS = new Set<string>();
+
+function deriveCodingSessionPendingUserQuestionsFromIndex(
+  index: PendingInteractionDerivationIndex,
+): BirdCoderCodingSessionPendingUserQuestion[] {
+  const pendingByInteractionEventId = new Map<
+    string,
+    BirdCoderCodingSessionPendingUserQuestion
+  >();
+
+  for (const event of index.eventsByChronology) {
+    if (!isUserQuestionEvent(event)) {
+      continue;
+    }
+
+    const args = readEventToolArguments(event) ?? event.payload;
+    const questions = readUserQuestionPrompts(args);
+    if (questions.length === 0) {
+      continue;
+    }
+
+    const { interactionEventId, questionId, toolCallId } = readUserQuestionEventIdentity(event);
+    if (!interactionEventId || !questionId) {
+      continue;
+    }
+    if (
+      readStringRecordField(event.payload, 'settledAt') ||
+      index.settledUserQuestionKeys.has(`event:${interactionEventId}`) ||
+      index.settledUserQuestionKeys.has(`question:${questionId}`) ||
+      (toolCallId ? index.settledUserQuestionKeys.has(`tool:${toolCallId}`) : false)
+    ) {
+      continue;
+    }
+
+    pendingByInteractionEventId.set(interactionEventId, {
+      codingSessionId: event.codingSessionId,
+      interactionEventId,
+      prompt: questions[0]?.question ?? questionId,
+      questionId,
+      runtimeId: event.runtimeId,
+      toolCallId,
+      turnId: event.turnId,
+      questions,
+    });
+  }
+
+  return normalizePendingUserQuestions([...pendingByInteractionEventId.values()]);
+}
+
+type BirdCoderCodingSessionApprovalReader = BirdCoderCodingSessionProjectionReader;
+
+export async function loadCodingSessionApprovalState(
+  appRuntimeReadService: BirdCoderCodingSessionApprovalReader,
+  codingSessionId: string,
+): Promise<BirdCoderCodingSessionPendingApproval[]> {
+  const projection = await loadCodingSessionProjectionIfAvailable(
+    appRuntimeReadService,
+    codingSessionId,
+  );
+  if (!projection) {
+    return EMPTY_APPROVALS;
+  }
+  return deriveCodingSessionPendingApprovals(projection);
+}
+
+export async function loadCodingSessionUserQuestionState(
+  appRuntimeReadService: BirdCoderCodingSessionApprovalReader,
+  codingSessionId: string,
+): Promise<BirdCoderCodingSessionPendingUserQuestion[]> {
+  const projection = await loadCodingSessionProjectionIfAvailable(
+    appRuntimeReadService,
+    codingSessionId,
+  );
+  if (!projection) {
+    return EMPTY_USER_QUESTIONS;
+  }
+  return deriveCodingSessionPendingUserQuestions(projection);
+}
+
+export async function loadCodingSessionPendingInteractionState(
+  appRuntimeReadService: BirdCoderCodingSessionApprovalReader,
+  codingSessionId: string,
+  expectedProjectId?: string | null,
+): Promise<BirdCoderCodingSessionPendingInteractions> {
+  const projection = await loadCodingSessionProjectionIfAvailable(
+    appRuntimeReadService,
+    codingSessionId,
+  );
+  if (!projection) {
+    return EMPTY_PENDING_INTERACTIONS;
+  }
+  const normalizedExpectedProjectId = expectedProjectId?.trim() ?? '';
+  const projectionProjectId = projection.session?.projectId?.trim() ?? '';
+  if (
+    normalizedExpectedProjectId &&
+    projectionProjectId !== normalizedExpectedProjectId
+  ) {
+    return EMPTY_PENDING_INTERACTIONS;
+  }
+
+  const pendingInteractionIndex = buildPendingInteractionDerivationIndex(projection);
+  return normalizePendingInteractions({
+    approvals: deriveCodingSessionPendingApprovalsFromIndex(pendingInteractionIndex),
+    questions: deriveCodingSessionPendingUserQuestionsFromIndex(pendingInteractionIndex),
+  });
+}
+
+export async function submitCodingSessionApprovalDecision(
+  appRuntimeWriteService: Pick<IAppRuntimeWriteService, 'submitApprovalDecision'>,
+  codingSessionId: string,
+  interactionEventId: string,
+  request: BirdCoderSubmitApprovalDecisionRequest,
+): Promise<BirdCoderApprovalDecisionResult> {
+  return appRuntimeWriteService.submitApprovalDecision(
+    codingSessionId,
+    interactionEventId,
+    request,
+  );
+}
+
+export async function submitCodingSessionUserQuestionAnswer(
+  appRuntimeWriteService: Pick<IAppRuntimeWriteService, 'submitUserQuestionAnswer'>,
+  codingSessionId: string,
+  interactionEventId: string,
+  request: BirdCoderSubmitUserQuestionAnswerRequest,
+): Promise<BirdCoderUserQuestionAnswerResult> {
+  return appRuntimeWriteService.submitUserQuestionAnswer(
+    codingSessionId,
+    interactionEventId,
+    request,
+  );
+}
+
+export function useCodingSessionProjection(
+  codingSessionId?: string | null,
+  refreshToken?: string | number | null,
+) {
+  const { appRuntimeReadService } = useIDEServices();
+  const [state, setState] = useState<BirdCoderCodingSessionProjectionState>(INITIAL_STATE);
+  const latestRefreshTokenRef = useRef(0);
+  const latestCodingSessionIdRef = useRef<string | null>(null);
+
+  const refreshProjection = useCallback(async () => {
+    if (!codingSessionId) {
+      latestRefreshTokenRef.current += 1;
+      latestCodingSessionIdRef.current = null;
+      setState(INITIAL_STATE);
+      return EMPTY_PROJECTION;
+    }
+    const didSwitchCodingSession = latestCodingSessionIdRef.current !== codingSessionId;
+    latestCodingSessionIdRef.current = codingSessionId;
+    const refreshToken = latestRefreshTokenRef.current + 1;
+    latestRefreshTokenRef.current = refreshToken;
+
+    setState((current) => (
+      didSwitchCodingSession
+        ? {
+            ...EMPTY_PROJECTION,
+            isLoading: true,
+          }
+        : {
+            ...current,
+            isLoading: true,
+          }
+    ));
+
+    try {
+      const projection = await loadCodingSessionProjectionIfAvailable(
+        appRuntimeReadService,
+        codingSessionId,
+      );
+      if (!projection) {
+        if (latestRefreshTokenRef.current === refreshToken) {
+          setState(INITIAL_STATE);
+        }
+        return EMPTY_PROJECTION;
+      }
+      if (latestRefreshTokenRef.current === refreshToken) {
+        setState({
+          ...projection,
+          isLoading: false,
+        });
+      }
+      return projection;
+    } catch (error) {
+      if (shouldReportCodingSessionProjectionError(error)) {
+        console.error('Failed to load coding session projection', error);
+      }
+      if (latestRefreshTokenRef.current === refreshToken) {
+        setState((current) => ({
+          ...current,
+          isLoading: false,
+        }));
+      }
+      return {
+        ...EMPTY_PROJECTION,
+      };
+    }
+  }, [codingSessionId, appRuntimeReadService]);
+
+  useEffect(() => {
+    void refreshProjection();
+  }, [refreshProjection, refreshToken]);
+
+  const visibleState =
+    codingSessionId && latestCodingSessionIdRef.current === codingSessionId
+      ? state
+      : INITIAL_STATE;
+
+  return {
+    ...visibleState,
+    refreshProjection,
+  };
+}
+
+export function useCodingSessionApprovalState(
+  codingSessionId?: string | null,
+  refreshToken?: string | number | null,
+) {
+  const { appRuntimeReadService, appRuntimeWriteService } = useIDEServices();
+  const [state, setState] = useState<BirdCoderCodingSessionApprovalState>(INITIAL_APPROVAL_STATE);
+  const latestRefreshTokenRef = useRef(0);
+  const latestCodingSessionIdRef = useRef<string | null>(null);
+
+  const refreshApprovals = useCallback(async () => {
+    if (!codingSessionId) {
+      latestRefreshTokenRef.current += 1;
+      latestCodingSessionIdRef.current = null;
+      setState(INITIAL_APPROVAL_STATE);
+      return EMPTY_APPROVALS;
+    }
+    const didSwitchCodingSession = latestCodingSessionIdRef.current !== codingSessionId;
+    latestCodingSessionIdRef.current = codingSessionId;
+    const refreshToken = latestRefreshTokenRef.current + 1;
+    latestRefreshTokenRef.current = refreshToken;
+
+    setState((current) => (
+      didSwitchCodingSession
+        ? {
+            approvals: EMPTY_APPROVALS,
+            isLoading: true,
+          }
+        : {
+            ...current,
+            isLoading: true,
+          }
+    ));
+
+    try {
+      const approvals = await loadCodingSessionApprovalState(appRuntimeReadService, codingSessionId);
+      if (latestRefreshTokenRef.current === refreshToken) {
+        setState({
+          approvals,
+          isLoading: false,
+        });
+      }
+      return approvals;
+    } catch (error) {
+      if (shouldReportCodingSessionProjectionError(error)) {
+        console.error('Failed to load coding session approvals', error);
+      }
+      if (latestRefreshTokenRef.current === refreshToken) {
+        setState((current) => ({
+          ...current,
+          isLoading: false,
+        }));
+      }
+      return EMPTY_APPROVALS;
+    }
+  }, [codingSessionId, appRuntimeReadService]);
+
+  const submitApprovalDecision = useCallback(
+    async (interactionEventId: string, request: BirdCoderSubmitApprovalDecisionRequest) => {
+      const pendingApproval = state.approvals.find(
+        (approval) => approval.interactionEventId === interactionEventId,
+      );
+      if (!pendingApproval) {
+        throw new Error(
+          `Approval interaction ${interactionEventId} was not found in the current coding session.`,
+        );
+      }
+      const decision = await submitCodingSessionApprovalDecision(
+        appRuntimeWriteService,
+        pendingApproval.codingSessionId,
+        pendingApproval.interactionEventId,
+        request,
+      );
+      await refreshApprovals();
+      return decision;
+    },
+    [appRuntimeWriteService, refreshApprovals, state.approvals],
+  );
+
+  useEffect(() => {
+    void refreshApprovals();
+  }, [refreshApprovals, refreshToken]);
+
+  const visibleState =
+    codingSessionId && latestCodingSessionIdRef.current === codingSessionId
+      ? state
+      : INITIAL_APPROVAL_STATE;
+
+  return {
+    ...visibleState,
+    refreshApprovals,
+    submitApprovalDecision,
+  };
+}
+
+export function useCodingSessionPendingInteractionState(
+  codingSessionId?: string | null,
+  refreshToken?: string | number | null,
+  scopeKey?: string | null,
+  expectedProjectId?: string | null,
+) {
+  const { appRuntimeReadService, appRuntimeWriteService } = useIDEServices();
+  const [state, setState] = useState<BirdCoderCodingSessionPendingInteractionState>(
+    INITIAL_PENDING_INTERACTION_STATE,
+  );
+  const latestRefreshTokenRef = useRef(0);
+  const latestScopeKeyRef = useRef<string | null>(null);
+  const normalizedScopeKey =
+    codingSessionId
+      ? scopeKey?.trim() || codingSessionId
+      : null;
+
+  const refreshPendingInteractions = useCallback(async () => {
+    if (!codingSessionId) {
+      latestRefreshTokenRef.current += 1;
+      latestScopeKeyRef.current = null;
+      setState(INITIAL_PENDING_INTERACTION_STATE);
+      return EMPTY_PENDING_INTERACTIONS;
+    }
+    const didSwitchCodingSession = latestScopeKeyRef.current !== normalizedScopeKey;
+    latestScopeKeyRef.current = normalizedScopeKey;
+    const refreshToken = latestRefreshTokenRef.current + 1;
+    latestRefreshTokenRef.current = refreshToken;
+
+    setState((current) => (
+      didSwitchCodingSession
+        ? {
+            ...EMPTY_PENDING_INTERACTIONS,
+            isLoading: true,
+          }
+        : {
+            ...current,
+            isLoading: true,
+          }
+    ));
+
+    try {
+      const pendingInteractions = await loadCodingSessionPendingInteractionState(
+        appRuntimeReadService,
+        codingSessionId,
+        expectedProjectId,
+      );
+      if (latestRefreshTokenRef.current === refreshToken) {
+        setState({
+          ...pendingInteractions,
+          isLoading: false,
+        });
+      }
+      return pendingInteractions;
+    } catch (error) {
+      if (shouldReportCodingSessionProjectionError(error)) {
+        console.error('Failed to load coding session pending interactions', error);
+      }
+      if (latestRefreshTokenRef.current === refreshToken) {
+        setState((current) => ({
+          ...current,
+          isLoading: false,
+        }));
+      }
+      return EMPTY_PENDING_INTERACTIONS;
+    }
+  }, [codingSessionId, appRuntimeReadService, expectedProjectId, normalizedScopeKey]);
+
+  const submitApprovalDecision = useCallback(
+    async (interactionEventId: string, request: BirdCoderSubmitApprovalDecisionRequest) => {
+      const pendingApproval = state.approvals.find(
+        (approval) => approval.interactionEventId === interactionEventId,
+      );
+      if (!pendingApproval) {
+        throw new Error(
+          `Approval interaction ${interactionEventId} was not found in the current coding session.`,
+        );
+      }
+      const decision = await submitCodingSessionApprovalDecision(
+        appRuntimeWriteService,
+        pendingApproval.codingSessionId,
+        pendingApproval.interactionEventId,
+        request,
+      );
+      await refreshPendingInteractions();
+      return decision;
+    },
+    [appRuntimeWriteService, refreshPendingInteractions, state.approvals],
+  );
+
+  const submitUserQuestionAnswer = useCallback(
+    async (interactionEventId: string, request: BirdCoderSubmitUserQuestionAnswerRequest) => {
+      const pendingQuestion = state.questions.find(
+        (question) => question.interactionEventId === interactionEventId,
+      );
+      if (!pendingQuestion) {
+        throw new Error(
+          `User-question interaction ${interactionEventId} was not found in the current coding session.`,
+        );
+      }
+      const answer = await submitCodingSessionUserQuestionAnswer(
+        appRuntimeWriteService,
+        pendingQuestion.codingSessionId,
+        pendingQuestion.interactionEventId,
+        request,
+      );
+      await refreshPendingInteractions();
+      return answer;
+    },
+    [appRuntimeWriteService, refreshPendingInteractions, state.questions],
+  );
+
+  useEffect(() => {
+    void refreshPendingInteractions();
+  }, [refreshPendingInteractions, refreshToken]);
+
+  const visibleState =
+    codingSessionId && latestScopeKeyRef.current === normalizedScopeKey
+      ? state
+      : INITIAL_PENDING_INTERACTION_STATE;
+
+  return {
+    ...visibleState,
+    refreshPendingInteractions,
+    submitApprovalDecision,
+    submitUserQuestionAnswer,
+  };
+}
+
+export function useCodingSessionUserQuestionState(
+  codingSessionId?: string | null,
+  refreshToken?: string | number | null,
+) {
+  const { appRuntimeReadService, appRuntimeWriteService } = useIDEServices();
+  const [state, setState] = useState<BirdCoderCodingSessionUserQuestionState>(
+    INITIAL_USER_QUESTION_STATE,
+  );
+  const latestRefreshTokenRef = useRef(0);
+  const latestCodingSessionIdRef = useRef<string | null>(null);
+
+  const refreshQuestions = useCallback(async () => {
+    if (!codingSessionId) {
+      latestRefreshTokenRef.current += 1;
+      latestCodingSessionIdRef.current = null;
+      setState(INITIAL_USER_QUESTION_STATE);
+      return EMPTY_USER_QUESTIONS;
+    }
+    const didSwitchCodingSession = latestCodingSessionIdRef.current !== codingSessionId;
+    latestCodingSessionIdRef.current = codingSessionId;
+    const refreshToken = latestRefreshTokenRef.current + 1;
+    latestRefreshTokenRef.current = refreshToken;
+
+    setState((current) => (
+      didSwitchCodingSession
+        ? {
+            questions: EMPTY_USER_QUESTIONS,
+            isLoading: true,
+          }
+        : {
+            ...current,
+            isLoading: true,
+          }
+    ));
+
+    try {
+      const questions = await loadCodingSessionUserQuestionState(appRuntimeReadService, codingSessionId);
+      if (latestRefreshTokenRef.current === refreshToken) {
+        setState({
+          questions,
+          isLoading: false,
+        });
+      }
+      return questions;
+    } catch (error) {
+      if (shouldReportCodingSessionProjectionError(error)) {
+        console.error('Failed to load coding session user questions', error);
+      }
+      if (latestRefreshTokenRef.current === refreshToken) {
+        setState((current) => ({
+          ...current,
+          isLoading: false,
+        }));
+      }
+      return EMPTY_USER_QUESTIONS;
+    }
+  }, [codingSessionId, appRuntimeReadService]);
+
+  const submitUserQuestionAnswer = useCallback(
+    async (interactionEventId: string, request: BirdCoderSubmitUserQuestionAnswerRequest) => {
+      const pendingQuestion = state.questions.find(
+        (question) => question.interactionEventId === interactionEventId,
+      );
+      if (!pendingQuestion) {
+        throw new Error(
+          `User-question interaction ${interactionEventId} was not found in the current coding session.`,
+        );
+      }
+      const answer = await submitCodingSessionUserQuestionAnswer(
+        appRuntimeWriteService,
+        pendingQuestion.codingSessionId,
+        pendingQuestion.interactionEventId,
+        request,
+      );
+      await refreshQuestions();
+      return answer;
+    },
+    [appRuntimeWriteService, refreshQuestions, state.questions],
+  );
+
+  useEffect(() => {
+    void refreshQuestions();
+  }, [refreshQuestions, refreshToken]);
+
+  const visibleState =
+    codingSessionId && latestCodingSessionIdRef.current === codingSessionId
+      ? state
+      : INITIAL_USER_QUESTION_STATE;
+
+  return {
+    ...visibleState,
+    refreshQuestions,
+    submitUserQuestionAnswer,
+  };
+}
+

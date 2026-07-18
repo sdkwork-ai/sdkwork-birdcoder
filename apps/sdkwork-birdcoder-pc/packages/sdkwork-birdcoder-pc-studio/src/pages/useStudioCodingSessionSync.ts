@@ -1,7 +1,7 @@
 import { useEffect, useRef, type Dispatch, type MutableRefObject, type SetStateAction } from 'react';
 
-import type { BirdCoderProject } from '@sdkwork/birdcoder-pc-types';
-import { buildCodingSessionProjectScopedKey } from '@sdkwork/birdcoder-pc-commons';
+import type { BirdCoderProject } from '@sdkwork/birdcoder-pc-contracts-commons';
+import { buildCodingSessionProjectScopedKey } from '@sdkwork/birdcoder-pc-workbench';
 
 interface UseStudioCodingSessionSyncOptions {
   isActive?: boolean;

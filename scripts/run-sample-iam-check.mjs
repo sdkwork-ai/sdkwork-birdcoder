@@ -11,7 +11,7 @@ export const SAMPLE_IAM_DEFAULT_COMMANDS = [
   'node scripts/run-workspace-package-script.mjs . iam:show:web:private',
   'node scripts/run-workspace-package-script.mjs . iam:show:server:private',
   'node scripts/run-workspace-package-script.mjs . web:build:private',
-  'node scripts/run-workspace-package-script.mjs . server:build:private',
+  'node scripts/run-workspace-package-script.mjs . build:server:standalone',
 ];
 
 export const SAMPLE_IAM_CLOUD_COMMANDS = [
@@ -19,7 +19,7 @@ export const SAMPLE_IAM_CLOUD_COMMANDS = [
   'node scripts/run-workspace-package-script.mjs . iam:show:web:cloud',
   'node scripts/run-workspace-package-script.mjs . iam:show:server:cloud',
   'node scripts/run-workspace-package-script.mjs . web:build:cloud',
-  'node scripts/run-workspace-package-script.mjs . server:build:cloud',
+  'node scripts/run-workspace-package-script.mjs . build:server:cloud',
 ];
 
 function createCloudIamEnv(env = process.env) {

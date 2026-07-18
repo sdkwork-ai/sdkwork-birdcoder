@@ -1,4 +1,4 @@
-import type { WorkbenchPreferences } from '@sdkwork/birdcoder-pc-commons';
+import type { WorkbenchPreferences } from '@sdkwork/birdcoder-pc-workbench';
 import { SlidersHorizontal } from 'lucide-react';
 import { memo } from 'react';
 import { useTranslation } from 'react-i18next';

@@ -15,7 +15,7 @@ import {
   type BirdCoderSkillRuntimeAssembly,
   type BirdCoderSkillRuntimeAssemblyOptions,
   type BirdCoderSkillRuntimeConfigDescriptor,
-} from '@sdkwork/birdcoder-pc-types';
+} from '@sdkwork/birdcoder-pc-contracts-commons';
 
 function normalizeStringList(values: readonly string[] | undefined): string[] {
   const normalized: string[] = [];

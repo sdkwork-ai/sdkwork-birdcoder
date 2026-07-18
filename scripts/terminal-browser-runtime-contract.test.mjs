@@ -3,18 +3,18 @@ import fs from 'node:fs';
 
 const root = new URL('../', import.meta.url);
 const read = (path) => fs.readFileSync(new URL(path, root), 'utf8');
-const app = read('apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-commons/src/terminal/BirdcoderTerminalApp.tsx');
-const runtime = read('apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-commons/src/terminal/birdcoderTerminalRuntime.ts');
-const commandRuntime = read('apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-commons/src/terminal/runtime.ts');
-const profileAvailability = read('apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-commons/src/terminal/profileAvailability.ts');
-const runtimeTarget = read('apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-commons/src/terminal/runtimeTarget.ts');
-const sessions = read('apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-commons/src/terminal/sessions.ts');
+const app = read('apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-workbench/src/terminal/BirdcoderTerminalApp.tsx');
+const runtime = read('apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-workbench/src/terminal/birdcoderTerminalRuntime.ts');
+const commandRuntime = read('apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-workbench/src/terminal/runtime.ts');
+const profileAvailability = read('apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-workbench/src/terminal/profileAvailability.ts');
+const runtimeTarget = read('apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-workbench/src/terminal/runtimeTarget.ts');
+const sessions = read('apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-workbench/src/terminal/sessions.ts');
 const shell = read('../sdkwork-terminal/apps/sdkwork-terminal-pc/packages/sdkwork-terminal-pc-shell/src/launch-controller.ts');
 const bridge = read('../sdkwork-terminal/apps/sdkwork-terminal-pc/packages/sdkwork-terminal-pc-shell/src/shell-runtime-bridge.ts');
 const webIntegration = read('../sdkwork-terminal/apps/sdkwork-terminal-pc/packages/sdkwork-terminal-pc-shell/src/web-integration.tsx');
-const terminalStylesContract = read('apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-commons/src/terminal/contracts/sdkworkTerminalStyles.d.ts');
-const commonsIndex = read('apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-commons/src/index.ts');
-const commonsPackage = read('apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-commons/package.json');
+const terminalStylesContract = read('apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-workbench/src/terminal/contracts/sdkworkTerminalStyles.d.ts');
+const commonsIndex = read('apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-workbench/src/index.ts');
+const commonsPackage = read('apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-workbench/package.json');
 
 assert.match(app, /WebShellApp/);
 assert.match(app, /createBrowserClipboardProvider/);

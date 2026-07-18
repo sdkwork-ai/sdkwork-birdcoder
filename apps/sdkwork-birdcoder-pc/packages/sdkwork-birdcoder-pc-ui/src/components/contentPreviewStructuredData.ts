@@ -1,4 +1,4 @@
-import { parseBirdCoderApiJson } from '@sdkwork/birdcoder-pc-types';
+import { parseBirdCoderApiJson } from '@sdkwork/birdcoder-pc-contracts-commons';
 import { parse as parseJsonc } from 'jsonc-parser';
 import { parse as parseToml } from 'smol-toml';
 import { parseDocument } from 'yaml';

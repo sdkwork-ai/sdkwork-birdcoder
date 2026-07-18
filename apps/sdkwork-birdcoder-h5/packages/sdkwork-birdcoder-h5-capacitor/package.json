@@ -25,9 +25,9 @@
     "@capacitor/cli": "catalog:"
   },
   "scripts": {
-    "cap:sync": "cap sync",
-    "cap:copy": "cap copy",
-    "cap:android:open": "cap open android",
-    "cap:ios:open": "cap open ios"
+    "build:capacitor-android:sync": "cap sync",
+    "build:capacitor-android:copy": "cap copy",
+    "start:capacitor-android": "cap open android",
+    "start:capacitor-ios": "cap open ios"
   }
 }

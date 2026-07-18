@@ -1,4 +1,4 @@
-import type { LocalFolderPickerResult } from '@sdkwork/birdcoder-pc-types';
+import type { LocalFolderPickerResult } from '@sdkwork/birdcoder-pc-contracts-commons';
 import { isBirdCoderTauriRuntime } from './tauriRuntime.ts';
 
 type DirectoryPickerWindow = Window &

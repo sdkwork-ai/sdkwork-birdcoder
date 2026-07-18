@@ -362,70 +362,6 @@ export interface BirdCoderCommerceInvoiceSummaryListEnvelope {
   traceId: string;
 }
 
-export interface BirdCoderCommerceMembershipBenefitSummary {
-  id: string;
-  name: string;
-  benefitKey?: string;
-  type?: string;
-  description?: string;
-  icon?: string;
-  claimed: boolean;
-  usageLimit?: string;
-  usedCount?: string;
-}
-
-export interface BirdCoderCommerceMembershipCurrentEnvelope {
-  code: 0;
-  data: Record<string, unknown>;
-  traceId: string;
-}
-
-export interface BirdCoderCommerceMembershipCurrentSummary {
-  tenantId?: string;
-  organizationId?: string;
-  ownerUserId: string;
-  planId?: string | unknown;
-  planName: string;
-  status: string;
-  startedAt?: string | unknown;
-  expiresAt?: string | unknown;
-  remainingDays?: string;
-  totalDays?: string;
-  totalSpent: string;
-  points: string;
-  growthValue: string;
-  upgradeGrowthValue: string;
-  benefits: Array<BirdCoderCommerceMembershipBenefitSummary>;
-}
-
-export interface BirdCoderCommerceMembershipPackageGroupSummary {
-  id: string;
-  name: string;
-  description?: string;
-  sortWeight: string;
-  packages: Array<BirdCoderCommerceMembershipPackageSummary>;
-}
-
-export interface BirdCoderCommerceMembershipPackageGroupSummaryListEnvelope {
-  code: 0;
-  data: Record<string, unknown>;
-  traceId: string;
-}
-
-export interface BirdCoderCommerceMembershipPackageSummary {
-  id: string;
-  name: string;
-  description?: string;
-  price: string;
-  originalPrice?: string;
-  pointAmount: string;
-  durationDays: string;
-  planName?: string;
-  sortWeight: string;
-  recommended: boolean;
-  tags: Array<string>;
-}
-
 export interface BirdCoderCommerceOrderSummary {
   id: string;
   workspaceId?: string | unknown;
@@ -2404,38 +2340,6 @@ export const BIRDCODER_APP_SDK_OPERATIONS = [
     "public": false,
     "resource": "birdcoder.commerce-payments",
     "summary": "Get SDKWork commerce payment",
-    "tag": "commerce",
-    "tenantScope": "tenant"
-  },
-  {
-    "key": "commerce.memberships.current.retrieve",
-    "method": "GET",
-    "operationId": "memberships.current.retrieve",
-    "path": "/app/v3/api/memberships/current",
-    "pathParamNames": [],
-    "dataScope": "user",
-    "deployment": "all",
-    "domain": "commerce",
-    "permission": "birdcoder.commerce-memberships-current.read",
-    "public": false,
-    "resource": "birdcoder.commerce-memberships-current",
-    "summary": "Get current SDKWork commerce membership",
-    "tag": "commerce",
-    "tenantScope": "tenant"
-  },
-  {
-    "key": "commerce.memberships.packageGroups.list",
-    "method": "GET",
-    "operationId": "memberships.packageGroups.list",
-    "path": "/app/v3/api/memberships/package_groups",
-    "pathParamNames": [],
-    "dataScope": "user",
-    "deployment": "all",
-    "domain": "commerce",
-    "permission": "birdcoder.commerce-memberships-package-groups.read",
-    "public": false,
-    "resource": "birdcoder.commerce-memberships-package-groups",
-    "summary": "List SDKWork commerce membership package groups",
     "tag": "commerce",
     "tenantScope": "tenant"
   },

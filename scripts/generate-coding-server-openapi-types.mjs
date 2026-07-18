@@ -52,7 +52,7 @@ function defaultOutputFile() {
     'apps',
     'sdkwork-birdcoder-pc',
     'packages',
-    'sdkwork-birdcoder-pc-types',
+    'sdkwork-birdcoder-pc-contracts-commons',
     'src',
     'generated',
     'coding-server-openapi.ts',

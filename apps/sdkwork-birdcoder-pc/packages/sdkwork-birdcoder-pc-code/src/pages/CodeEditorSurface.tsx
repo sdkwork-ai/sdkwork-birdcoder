@@ -1,12 +1,10 @@
 import { memo, useDeferredValue, useMemo } from 'react';
-import {
-  buildBirdCoderEditorModelPath,
-  ContentWorkbench,
-  DeferredDiffEditor,
-  resolveContentPreviewDescriptor,
-} from '@sdkwork/birdcoder-pc-ui';
+import { ContentWorkbench } from '@sdkwork/birdcoder-pc-ui/components/ContentWorkbench';
+import { DeferredDiffEditor } from '@sdkwork/birdcoder-pc-ui/components/DeferredDiffEditor';
+import { resolveContentPreviewDescriptor } from '@sdkwork/birdcoder-pc-ui/components/contentPreview';
+import { buildBirdCoderEditorModelPath } from '@sdkwork/birdcoder-pc-ui/components/editorModelPath';
 import { Button } from '@sdkwork/birdcoder-pc-ui-shell';
-import type { FileChange } from '@sdkwork/birdcoder-pc-types';
+import type { FileChange } from '@sdkwork/birdcoder-pc-contracts-commons';
 import { FileCode2, FolderPlus, X } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 

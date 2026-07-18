@@ -1,4 +1,4 @@
-import type { BirdCoderChatMessage } from '@sdkwork/birdcoder-pc-commons/chat/types';
+import type { BirdCoderChatMessage } from '@sdkwork/birdcoder-pc-workbench/chat/types';
 
 const MAX_TURN_PREVIEW_LENGTH = 220;
 

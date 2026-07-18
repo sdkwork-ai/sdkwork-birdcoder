@@ -5,7 +5,7 @@ import process from 'node:process';
 
 const rootDir = process.cwd();
 const projectionHookSource = fs.readFileSync(
-  path.join(rootDir, 'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-commons/src/hooks/useCodingSessionProjection.ts'),
+  path.join(rootDir, 'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-workbench/src/hooks/useCodingSessionProjection.ts'),
   'utf8',
 );
 

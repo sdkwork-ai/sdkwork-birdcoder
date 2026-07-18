@@ -1,7 +1,7 @@
 import React, { memo } from 'react';
-import { estimateChatMessageViewHeight } from '@sdkwork/birdcoder-pc-commons/chat/types';
-import { BIRDCODER_CODE_ENGINE_KEYS } from '@sdkwork/birdcoder-pc-commons/chat/types';
-import type { BirdCoderCodeEngineKey } from '@sdkwork/birdcoder-pc-commons/chat/types';
+import { estimateChatMessageViewHeight } from '@sdkwork/birdcoder-pc-workbench/chat/types';
+import { BIRDCODER_CODE_ENGINE_KEYS } from '@sdkwork/birdcoder-pc-workbench/chat/types';
+import type { BirdCoderCodeEngineKey } from '@sdkwork/birdcoder-pc-workbench/chat/types';
 import type { ChatMessageRendererEntry, ChatMessageRendererProps } from '../types.ts';
 import { AssistantReplyMessageRenderer } from '../renderers/ReplyMessageRenderers.tsx';
 

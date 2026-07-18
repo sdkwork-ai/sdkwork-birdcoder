@@ -24,7 +24,7 @@ const configSettingsImportSource = readText(
   'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-settings/src/components/appSettingsImport.ts',
 );
 const terminalLaunchSource = readText(
-  'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-commons/src/terminal/sdkworkTerminalLaunch.ts',
+  'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-workbench/src/terminal/sdkworkTerminalLaunch.ts',
 );
 const codeTerminalPanelSource = readText(
   'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-code/src/pages/CodeTerminalIntegrationPanel.tsx',

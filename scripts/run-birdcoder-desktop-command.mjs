@@ -15,33 +15,33 @@ import { createWorkspacePackageScriptPlan } from './run-workspace-package-script
 const __filename = fileURLToPath(import.meta.url);
 
 const DESKTOP_ACTIONS = Object.freeze({
-  'tauri:build': {
-    scriptName: 'tauri:build:base',
+  'build:desktop': {
+    scriptName: 'release:build:desktop',
     target: 'desktop-build',
     viteMode: 'production',
   },
-  'tauri:build:prod': {
-    scriptName: 'tauri:build:prod:base',
+  'build:desktop:full': {
+    scriptName: 'release:build:desktop:full',
     target: 'desktop-build',
     viteMode: 'production',
   },
-  'tauri:build:test': {
-    scriptName: 'tauri:build:test:base',
+  'build:desktop:check': {
+    scriptName: 'release:build:desktop:check',
     target: 'desktop-build',
     viteMode: 'test',
   },
-  'tauri:dev': {
-    scriptName: 'tauri:dev:base',
+  'dev:desktop': {
+    scriptName: 'start:desktop',
     target: 'desktop-dev',
     viteMode: 'development',
   },
-  'tauri:dev:test': {
-    scriptName: 'tauri:dev:test:base',
+  'dev:desktop:check': {
+    scriptName: 'start:desktop:check',
     target: 'desktop-dev',
     viteMode: 'test',
   },
-  'tauri:info': {
-    scriptName: 'tauri:info:base',
+  'check:desktop:info': {
+    scriptName: 'check:desktop:info',
     target: 'desktop-build',
     viteMode: 'development',
   },

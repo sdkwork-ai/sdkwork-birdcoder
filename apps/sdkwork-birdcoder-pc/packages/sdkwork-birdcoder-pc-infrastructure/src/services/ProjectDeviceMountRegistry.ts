@@ -2,7 +2,7 @@ import { sha256Hash } from '@sdkwork/utils/crypto';
 import type {
   LocalFolderMountSource,
   ProjectDeviceMountState,
-} from '@sdkwork/birdcoder-pc-types';
+} from '@sdkwork/birdcoder-pc-contracts-commons';
 
 import {
   isBirdCoderTauriRuntime,

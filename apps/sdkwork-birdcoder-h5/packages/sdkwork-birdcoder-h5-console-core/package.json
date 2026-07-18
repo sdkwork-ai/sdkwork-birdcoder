@@ -34,5 +34,6 @@
       "import": "./src/composition/index.ts",
       "default": "./src/composition/index.ts"
     }
-  }
+  },
+  "scripts": {}
 }

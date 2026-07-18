@@ -8,13 +8,13 @@ import {
   resolveBirdCoderCodeEngineRiskLevel,
   resolveBirdCoderCodeEngineToolKind,
   stringifyBirdCoderLongInteger,
-} from '@sdkwork/birdcoder-pc-types';
+} from '@sdkwork/birdcoder-pc-contracts-commons';
 import type {
   BirdCoderCodeEngineKey,
   BirdCoderCodeEnginePendingToolCallDelta,
   BirdCoderCodingSessionRuntimeStatus,
   BirdCoderEngineDescriptor,
-} from '@sdkwork/birdcoder-pc-types';
+} from '@sdkwork/birdcoder-pc-contracts-commons';
 import type {
   ChatCanonicalEvent,
   ChatCanonicalRuntimeDescriptor,

@@ -4,8 +4,8 @@ import type {
   BirdCoderSchemaColumnDefinition,
   BirdCoderSchemaMigrationDefinition,
   BirdCoderStorageDialect,
-} from '@sdkwork/birdcoder-pc-types';
-import { getBirdCoderEntityDefinition } from '@sdkwork/birdcoder-pc-types';
+} from '@sdkwork/birdcoder-pc-contracts-commons';
+import { getBirdCoderEntityDefinition } from '@sdkwork/birdcoder-pc-contracts-commons';
 import { createBirdCoderStorageDialect } from './dialects.ts';
 export { createBirdCoderStorageDialect } from './dialects.ts';
 

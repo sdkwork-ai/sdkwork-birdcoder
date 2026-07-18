@@ -1,7 +1,7 @@
 import { useEffect } from 'react';
 import {
   useAuth,
-} from '@sdkwork/birdcoder-pc-commons';
+} from '@sdkwork/birdcoder-pc-workbench';
 
 export interface UserPageProps {
   className?: string;

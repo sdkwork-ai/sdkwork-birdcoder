@@ -9,7 +9,7 @@ import type {
   BirdCoderListCodingSessionsRequest,
   BirdCoderProject,
   BirdCoderProjectSummary,
-} from '@sdkwork/birdcoder-pc-types';
+} from '@sdkwork/birdcoder-pc-contracts-commons';
 import {
   areBirdCoderChatMessagesLogicallyMatched,
   compareBirdCoderSessionSortTimestamp,
@@ -20,7 +20,7 @@ import {
   resolveBirdCoderCodingSessionRuntimeStatus,
   resolveBirdCoderSessionSortTimestampString,
   stringifyBirdCoderApiJson,
-} from '@sdkwork/birdcoder-pc-types';
+} from '@sdkwork/birdcoder-pc-contracts-commons';
 import { uuid } from '@sdkwork/utils/id';
 import type { IAuthService } from '../interfaces/IAuthService.ts';
 import type { IProjectSessionMirror } from '../interfaces/IProjectSessionMirror.ts';

@@ -107,7 +107,7 @@ for (const relativePath of [
   'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-server/src/index.ts',
   'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-server/src-host/Cargo.toml',
   'Cargo.lock',
-  'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-types/src/server-api.ts',
+  'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-contracts-commons/src/server-api.ts',
   'deployments/server-windows/x64/openapi/coding-server-v1.json',
   'apps/sdkwork-birdcoder-pc/sdks/specs/openapi/birdcoder-app-v3.openapi.json',
   'apps/sdkwork-birdcoder-pc/sdks/specs/openapi/birdcoder-backend-v3.openapi.json',

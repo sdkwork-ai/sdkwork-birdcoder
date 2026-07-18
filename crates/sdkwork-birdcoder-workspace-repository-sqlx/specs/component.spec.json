@@ -62,6 +62,8 @@
     "layerRole": "backend-repository",
     "publicExports": [
       ".",
+      "sdkwork_birdcoder_project_service::ports::workspace_binding_repository::ProjectWorkspaceBindingRepository",
+      "sqlx::AnyPool",
       "sdkwork_birdcoder_workspace_repository_sqlx::repository::project_workspace_binding::SqliteProjectWorkspaceBindingRepository"
     ],
     "providedPorts": [

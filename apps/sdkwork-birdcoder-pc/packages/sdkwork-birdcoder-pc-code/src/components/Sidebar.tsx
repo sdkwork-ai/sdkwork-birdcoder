@@ -1,9 +1,9 @@
 import React, { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import type { BirdCoderCodingSession, BirdCoderProject } from '@sdkwork/birdcoder-pc-types';
+import type { BirdCoderCodingSession, BirdCoderProject } from '@sdkwork/birdcoder-pc-contracts-commons';
 import {
   compareBirdCoderSessionSortTimestamp,
-} from '@sdkwork/birdcoder-pc-types';
+} from '@sdkwork/birdcoder-pc-contracts-commons';
 import {
   listWorkbenchCliEngines,
   resolveWorkbenchCodeEngineSelectedModelId,
@@ -12,9 +12,9 @@ import {
 import {
   deduplicateBirdCoderCodingSessionsForRender,
   deduplicateBirdCoderProjectsForRender,
-} from '@sdkwork/birdcoder-pc-commons/workbench/projectInventoryRender';
-import { useWorkbenchPreferences } from '@sdkwork/birdcoder-pc-commons/hooks/useWorkbenchPreferences';
-import { useToast } from '@sdkwork/birdcoder-pc-commons/contexts/ToastProvider';
+} from '@sdkwork/birdcoder-pc-workbench/workbench/projectInventoryRender';
+import { useWorkbenchPreferences } from '@sdkwork/birdcoder-pc-workbench/hooks/useWorkbenchPreferences';
+import { useToast } from '@sdkwork/birdcoder-pc-workbench/contexts/ToastProvider';
 import { useFixedSizeWindowedRange, useRelativeMinuteNow } from '@sdkwork/birdcoder-pc-ui-shell';
 import { ChevronDown, Loader2 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';

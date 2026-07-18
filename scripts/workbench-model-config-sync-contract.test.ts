@@ -7,17 +7,17 @@ import {
 } from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-codeengine/src/modelConfig.ts';
 import {
   syncWorkbenchCodeEngineModelConfig,
-} from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-commons/src/workbench/preferences.ts';
+} from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-workbench/src/workbench/preferences.ts';
 import {
   deserializeStoredValue,
   readUserHomeTextFile,
   serializeStoredValue,
   writeUserHomeTextFile,
-} from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-commons/src/storage/dataKernel.ts';
+} from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-workbench/src/storage/dataKernel.ts';
 import type {
   BirdCoderCodeEngineModelConfig,
   BirdCoderSyncCodeEngineModelConfigRequest,
-} from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-types/src/engine.ts';
+} from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-contracts-commons/src/engine.ts';
 
 function withCodexModel(
   config: BirdCoderCodeEngineModelConfig,

@@ -3,7 +3,7 @@ import {
   stringifyBirdCoderLongInteger,
   type BirdCoderEntityDefinition,
   type BirdCoderSchemaColumnDefinition,
-} from '@sdkwork/birdcoder-pc-types';
+} from '@sdkwork/birdcoder-pc-contracts-commons';
 import type { BirdCoderSqlRow } from './sqlPlans.ts';
 
 function coerceJsonValue(value: unknown): unknown {

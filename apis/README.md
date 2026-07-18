@@ -17,7 +17,7 @@ BirdCoder materializes HTTP OpenAPI authority under the PC application SDK works
 | live coding-server export | `apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-server/src/routeCatalog.ts` |
 | deployment handoff | `deployments/server-windows/x64/openapi/coding-server-v1.json` |
 
-Commerce `/api/v1/*` routes (api-keys, notifications, usage) are authored in `routeCatalog.ts`, implemented in `crates/sdkwork-birdcoder-standalone-gateway/src/routes/`, and included in the exported OpenAPI snapshot.
+BirdCoder does not expose a legacy API-key-authenticated `/api/v1/*` surface. App and backend operations use the canonical SDKWORK dual-token surfaces; API-key authentication is reserved for separately owned protected open-api authorities.
 
 ## Project Runtime Location Contract
 

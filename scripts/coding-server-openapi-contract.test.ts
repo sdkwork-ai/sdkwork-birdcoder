@@ -9,7 +9,7 @@ const document = buildBirdCoderCodingServerOpenApiDocument();
 const rustServerSource = readCanonicalTurnStreamBundle();
 const pcServerApiSource = readFileSync(
   new URL(
-    '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-types/src/server-api.ts',
+    '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-contracts-commons/src/server-api.ts',
     import.meta.url,
   ),
   'utf8',
@@ -106,105 +106,10 @@ assert.deepEqual(
     document['x-sdkwork-api-cloud-gateway'].routesBySurface.backend,
   ],
 );
-assert.equal(
-  document.paths['/api/v1/api-keys']?.post?.responses['201']?.content['application/json']?.schema
-    ?.$ref,
-  '#/components/schemas/BirdCoderCommerceApiKeyCreatedEnvelope',
-  'commerce API key creation must declare the real one-time-secret response envelope.',
-);
-assert.equal(
-  document.paths['/api/v1/api-keys']?.get?.responses['200']?.content['application/json']?.schema
-    ?.$ref,
-  '#/components/schemas/BirdCoderCommerceApiKeySummaryListEnvelope',
-  'commerce API key list must declare the paginated API key summary envelope.',
-);
-assert.equal(
-  document.paths['/api/v1/api-keys/{id}']?.delete?.responses['204']?.content,
-  undefined,
-  'commerce API key revoke must use API_SPEC delete semantics: 204 with no JSON success body.',
-);
-assert.equal(
-  document.paths['/api/v1/api-keys/{id}']?.delete?.responses['200'],
-  undefined,
-  'commerce API key revoke must not keep a legacy 200 command envelope.',
-);
-assert.equal(
-  document.paths['/api/v1/api-keys/{id}/rotate']?.post?.responses['200']?.content[
-    'application/json'
-  ]?.schema?.$ref,
-  '#/components/schemas/BirdCoderCommerceApiKeyCreatedEnvelope',
-  'commerce API key rotation must declare the real one-time-secret response envelope.',
-);
-assert.equal(
-  document.paths['/api/v1/notifications']?.get?.responses['200']?.content['application/json']
-    ?.schema?.$ref,
-  '#/components/schemas/BirdCoderCommerceNotificationSummaryListEnvelope',
-  'commerce notification list must declare the paginated notification envelope.',
-);
-assert.equal(
-  document.paths['/api/v1/notifications']?.post?.responses['201']?.content['application/json']
-    ?.schema?.$ref,
-  '#/components/schemas/BirdCoderCommerceNotificationCreatedEnvelope',
-  'commerce notification send must declare the notification-created response envelope.',
-);
-assert.equal(
-  document.paths['/api/v1/notifications/{id}']?.get?.responses['200']?.content[
-    'application/json'
-  ]?.schema?.$ref,
-  '#/components/schemas/BirdCoderCommerceNotificationSummaryEnvelope',
-  'commerce notification retrieve must declare the notification summary envelope.',
-);
-assert.equal(
-  document.paths['/api/v1/notifications/unread-count']?.get?.responses['200']?.content[
-    'application/json'
-  ]?.schema?.$ref,
-  '#/components/schemas/BirdCoderCommerceUnreadCountEnvelope',
-  'commerce unread-count must declare the unread-count response envelope.',
-);
-assert.equal(
-  document.paths['/api/v1/notifications/{id}/read']?.post?.responses['200']?.content[
-    'application/json'
-  ]?.schema?.$ref,
-  '#/components/schemas/BirdCoderCommerceNotificationReadEnvelope',
-  'commerce mark-read must declare the notification-read response envelope.',
-);
-assert.equal(
-  document.paths['/api/v1/notifications/read-all']?.post?.responses['200']?.content[
-    'application/json'
-  ]?.schema?.$ref,
-  '#/components/schemas/BirdCoderCommerceMarkAllReadEnvelope',
-  'commerce mark-all-read must declare the bulk read command response envelope.',
-);
-assert.equal(
-  document.paths['/api/v1/usage/record']?.post?.responses['200']?.content['application/json']
-    ?.schema?.$ref,
-  '#/components/schemas/BirdCoderCommerceRecordUsageEnvelope',
-  'commerce usage record must declare the usage-record response envelope.',
-);
-assert.equal(
-  document.paths['/api/v1/usage/current-period']?.get?.responses['200']?.content[
-    'application/json'
-  ]?.schema?.$ref,
-  '#/components/schemas/BirdCoderCommerceCurrentPeriodUsageEnvelope',
-  'commerce current-period usage must declare the current usage response envelope.',
-);
-assert.equal(
-  document.paths['/api/v1/usage/history']?.get?.responses['200']?.content['application/json']
-    ?.schema?.$ref,
-  '#/components/schemas/BirdCoderCommerceUsageHistoryListEnvelope',
-  'commerce usage history must declare the paginated usage history envelope.',
-);
-assert.equal(
-  document.paths['/api/v1/usage/breakdown']?.get?.responses['200']?.content['application/json']
-    ?.schema?.$ref,
-  '#/components/schemas/BirdCoderCommerceUsageBreakdownEnvelope',
-  'commerce usage breakdown must declare the usage breakdown response envelope.',
-);
-assert.equal(
-  document.paths['/api/v1/usage/quota']?.get?.responses['200']?.content['application/json']?.schema
-    ?.$ref,
-  '#/components/schemas/BirdCoderCommerceQuotaStatusEnvelope',
-  'commerce usage quota must declare the quota status response envelope.',
+assert.deepEqual(
+  Object.keys(document.paths).filter((path) => path.startsWith('/api/v1')),
+  [],
+  'BirdCoder must not expose the legacy API-key-authenticated /api/v1 commerce surface.',
 );
 const operationsWithoutSuccessSchema = Object.entries(document.paths).flatMap(([pathKey, methods]) =>
   Object.entries(methods ?? {}).flatMap(([methodKey, operation]) => {
@@ -229,8 +134,8 @@ const publishedOperationIds = Object.values(document.paths).flatMap((methods) =>
 );
 assert.equal(
   publishedOperationIds.length,
-  174,
-  'OpenAPI must publish 174 HTTP operations; workspace realtime remains catalog-only WebSocket transport.',
+  157,
+  'OpenAPI must publish BirdCoder-owned app/backend operations; dependency Membership routes remain external to this authority.',
 );
 assert.equal(
   publishedOperationIds.length,
@@ -710,30 +615,14 @@ assert.equal(
 assert.equal(document.paths['/app/v3/api/iam/users/current']?.get?.operationId, 'users.current.retrieve');
 assert.equal(document.paths['/app/v3/api/iam/users/current']?.patch?.operationId, 'users.current.update');
 assert.equal(
-  document.paths['/app/v3/api/memberships/current']?.get?.operationId,
-  'memberships.current.retrieve',
-);
-assert.equal(
-  document.paths['/app/v3/api/memberships/current']?.get?.['x-sdkwork-domain'],
-  'commerce',
-);
-assert.equal(
-  document.paths['/app/v3/api/memberships/current']?.patch,
+  document.paths['/app/v3/api/memberships/current'],
   undefined,
-  'Current membership is commerce read state; BirdCoder must not keep a local patch mutation endpoint.',
+  'BirdCoder OpenAPI must not copy sdkwork-membership app API authority.',
 );
 assert.equal(
-  document.paths['/app/v3/api/memberships/package_groups']?.get?.operationId,
-  'memberships.packageGroups.list',
-);
-assert.equal(
-  document.paths['/app/v3/api/memberships/package_groups']?.get?.['x-sdkwork-domain'],
-  'commerce',
-);
-assert.equal(
-  document.paths['/app/v3/api/memberships/package_groups']?.patch,
+  document.paths['/app/v3/api/memberships/package_groups'],
   undefined,
-  'Membership package groups are commerce catalog read state; BirdCoder must not keep a local patch mutation endpoint.',
+  'BirdCoder OpenAPI must not copy sdkwork-membership package catalog authority.',
 );
 assert.equal(document.paths['/app/v3/api/projects']?.get?.operationId, 'projects.list');
 assert.equal(document.paths['/app/v3/api/projects']?.post?.operationId, 'projects.create');
@@ -943,8 +832,6 @@ const updateProjectRequestProperties = document.components.schemas.BirdCoderUpda
 const skillCatalogEntryProperties = document.components.schemas.BirdCoderSkillCatalogEntrySummary
   .properties as Record<string, { type?: string }>;
 const skillPackageProperties = document.components.schemas.BirdCoderSkillPackageSummary
-  .properties as Record<string, { type?: string }>;
-const commerceMembershipCurrentProperties = document.components.schemas.BirdCoderCommerceMembershipCurrentSummary
   .properties as Record<string, { type?: string }>;
 const standardDataScopeEnum = ['DEFAULT', 'PRIVATE', 'ORGANIZATION', 'TENANT', 'PUBLIC'];
 assert.equal(
@@ -1228,16 +1115,6 @@ for (const [schemaName, properties] of [
     `${schemaName}.installCount must be a string because it maps to a Java Long/BIGINT field.`,
   );
 }
-assert.equal(
-  commerceMembershipCurrentProperties.points?.type,
-  'string',
-  'BirdCoderCommerceMembershipCurrentSummary.points must be a string because it maps to a Java Long/BIGINT field.',
-);
-assert.equal(
-  commerceMembershipCurrentProperties.totalSpent?.type,
-  'string',
-  'BirdCoderCommerceMembershipCurrentSummary.totalSpent must be a string because monetary totals are serialized as strings.',
-);
 for (const retiredSchemaName of [
   'BirdCoderBillingVipMembershipEnvelope',
   'BirdCoderBillingVipMembershipSummary',
@@ -1375,7 +1252,8 @@ const nativeSessionListParameters = (document.paths['/app/v3/api/native_sessions
 const nativeSessionRetrieveParameters = (document.paths['/app/v3/api/native_sessions/{id}']?.get
   ?.parameters ?? []) as Array<{ name?: string; required?: boolean }>;
 assert.equal(
-  codingSessionListParameters.find((parameter) => parameter.name === 'runtimeLocationId')?.required,
+  codingSessionListParameters.find((parameter) => parameter.name === 'runtimeLocationId')?.required ??
+    false,
   false,
   'coding-session list may omit runtimeLocationId only when it intentionally skips native discovery.',
 );

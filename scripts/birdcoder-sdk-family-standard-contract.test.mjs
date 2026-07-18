@@ -704,7 +704,7 @@ function assertComponentSpec() {
   );
   assert.deepEqual(componentSpec.verification?.commands, [
     'pnpm check:sdk-family-standard',
-    'pnpm generate:sdk:birdcoder',
+    'pnpm sdk:generate',
     'pnpm check:sdk-family-generated',
   ]);
 }
@@ -1241,7 +1241,7 @@ function assertReadmesAndGeneratedOutputs() {
 function assertStandardSdkgenWrappers() {
   const packageJson = readJson('package.json');
   assert.match(
-    packageJson.scripts?.['generate:sdk:birdcoder:standard'] ?? '',
+    packageJson.scripts?.['sdk:generate:standard'] ?? '',
     /scripts\/generate-birdcoder-sdkgen-family\.mjs/u,
     'package.json must expose a standard sdkgen-based BirdCoder SDK generation command.',
   );

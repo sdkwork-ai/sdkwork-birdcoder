@@ -13,7 +13,7 @@ const hookSource = fs.readFileSync(
     
     
     
-    'sdkwork-birdcoder-pc-commons',
+    'sdkwork-birdcoder-pc-workbench',
     'src',
     'hooks',
     'useProjectGitOverview.ts',

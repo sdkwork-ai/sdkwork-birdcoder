@@ -10,7 +10,7 @@ function readText(relativePath) {
 }
 
 const projectionHookSource = readText(
-  'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-commons/src/hooks/useCodingSessionProjection.ts',
+  'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-workbench/src/hooks/useCodingSessionProjection.ts',
 );
 const codePendingInteractionsSource = readText(
   'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-code/src/pages/useCodePendingInteractions.ts',

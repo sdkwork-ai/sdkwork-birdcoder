@@ -1,5 +1,5 @@
 import React, { memo } from 'react';
-import type { CommandExecution } from '@sdkwork/birdcoder-pc-commons/chat/types';
+import type { CommandExecution } from '@sdkwork/birdcoder-pc-workbench/chat/types';
 import { ChatActivitySummary } from '../activity/ChatActivitySummary.tsx';
 import {
   filterCommandExecutions,

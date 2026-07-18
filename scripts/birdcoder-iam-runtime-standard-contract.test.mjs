@@ -23,6 +23,7 @@ function assertMatch(source, pattern, message) {
 
 const authPackageJson = readJson('apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-auth/package.json');
 const iamPackageJson = readJson('apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-iam/package.json');
+const corePackageJson = readJson('apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-core/package.json');
 const infrastructurePackageJson = readJson('apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/package.json');
 const serverPackageJson = readJson('apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-server/package.json');
 const tsconfig = readJson('tsconfig.json');
@@ -135,15 +136,21 @@ for (const [label, config] of [
 }
 for (const dependencyName of [
   '@sdkwork/iam-app-sdk',
-  '@sdkwork/iam-backend-sdk',
   '@sdkwork/drive-app-sdk',
   '@sdkwork/messaging-app-sdk',
   '@sdkwork/sdk-common',
 ]) {
   assertMatch(
-    infrastructurePackageJson.dependencies?.[dependencyName] ?? '',
+    corePackageJson.dependencies?.[dependencyName] ?? '',
     /workspace:\*/u,
-    `sdkwork-birdcoder-infrastructure must declare ${dependencyName} directly for standard multi-SDK runtime composition.`,
+    `sdkwork-birdcoder-pc-core must declare ${dependencyName} for standard multi-SDK runtime composition.`,
+  );
+}
+for (const dependencyName of ['@sdkwork/drive-app-sdk', '@sdkwork/messaging-app-sdk']) {
+  assert.equal(
+    infrastructurePackageJson.dependencies?.[dependencyName],
+    undefined,
+    `sdkwork-birdcoder-infrastructure must consume ${dependencyName} through the pc-core SDK facade.`,
   );
 }
 
@@ -274,13 +281,13 @@ assertMatch(
 );
 assertMatch(
   iamRuntimeSource,
-  /from ['"]@sdkwork\/drive-app-sdk['"]/u,
-  'BirdCoder IAM runtime must compose the Drive app SDK as a dependency SDK client.',
+  /from ['"]@sdkwork\/birdcoder-pc-core\/sdk\/drive-app['"]/u,
+  'BirdCoder IAM runtime must compose the Drive app SDK through the pc-core SDK facade.',
 );
 assertMatch(
   iamRuntimeSource,
-  /from ['"]@sdkwork\/messaging-app-sdk['"]/u,
-  'BirdCoder IAM runtime must compose the Messaging app SDK as the verification-code dependency SDK client.',
+  /from ['"]@sdkwork\/birdcoder-pc-core\/sdk\/messaging-app['"]/u,
+  'BirdCoder IAM runtime must compose the Messaging app SDK through the pc-core SDK facade.',
 );
 assertMatch(
   iamRuntimeSource,

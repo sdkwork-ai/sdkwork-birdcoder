@@ -1,4 +1,4 @@
-import type { CommandExecution } from '@sdkwork/birdcoder-pc-commons/chat/types';
+import type { CommandExecution } from '@sdkwork/birdcoder-pc-workbench/chat/types';
 import type { ActivityFileChange } from '../messageActivity.ts';
 
 export function filterCommandExecutions(

@@ -4,7 +4,7 @@ import {
   resolveWorkbenchCodeEngineSelectedModelId,
   type WorkbenchCodeEngineSettingsCarrier,
 } from '@sdkwork/birdcoder-pc-codeengine';
-import type { BirdCoderProject } from '@sdkwork/birdcoder-pc-types';
+import type { BirdCoderProject } from '@sdkwork/birdcoder-pc-contracts-commons';
 
 import {
   MAX_MULTI_WINDOW_PANES,

@@ -51,7 +51,7 @@ export {
   resolveChatMessageView,
   resolveChatMessageViews,
   buildChatMessageViewSynchronizationSignature,
-} from '@sdkwork/birdcoder-pc-commons/chat/types';
+} from '@sdkwork/birdcoder-pc-workbench/chat/types';
 export type {
   BirdCoderChatMessageView,
   BirdCoderChatMessageViewKind,
@@ -59,7 +59,7 @@ export type {
   ChatMessageLayoutHints,
   ChatMessageViewSource,
   ResolveChatMessageViewOptions,
-} from '@sdkwork/birdcoder-pc-commons/chat/types';
+} from '@sdkwork/birdcoder-pc-workbench/chat/types';
 export type {
   ChatMessageEnvironment,
   ChatMessageLayout,

@@ -10,7 +10,6 @@ const crateRoots = [
   'crates/sdkwork-birdcoder-chat-repository-sqlx',
   'crates/sdkwork-birdcoder-skill-packages-repository-sqlx',
   'crates/sdkwork-birdcoder-document-repository-sqlx',
-  'crates/sdkwork-birdcoder-membership-repository-sqlx',
   'crates/sdkwork-birdcoder-app-templates-repository-sqlx',
   'crates/sdkwork-birdcoder-sqlx-repository-pool',
 ];

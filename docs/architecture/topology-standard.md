@@ -19,7 +19,7 @@ choices, not extra profiles.
 | cloud + server or container | Cloud control plane | Locations are tenant-scoped records associated with registered server or future runner targets. | Remote execution remains unavailable until runner promotion. |
 
 Development defaults and checked-in templates use the canonical
-deploymentProfile.environment form under configs/topology.
+deploymentProfile.environment form under etc/topology.
 
 ## Project And Location Boundary
 

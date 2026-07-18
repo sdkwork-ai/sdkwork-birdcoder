@@ -1,9 +1,9 @@
 import { useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useSandboxDirectoryPicker } from '@sdkwork/drive-pc-sandbox-explorer';
-import { importSandboxDirectoryProject } from '@sdkwork/birdcoder-pc-commons/workbench/sandboxDirectoryProjectImport';
-import { resolveProjectImportWorkspaceId as resolveSharedProjectImportWorkspaceId } from '@sdkwork/birdcoder-pc-commons/workbench/projectImportWorkspace';
-import type { BirdCoderProject } from '@sdkwork/birdcoder-pc-types';
+import { importSandboxDirectoryProject } from '@sdkwork/birdcoder-pc-workbench/workbench/sandboxDirectoryProjectImport';
+import { resolveProjectImportWorkspaceId as resolveSharedProjectImportWorkspaceId } from '@sdkwork/birdcoder-pc-workbench/workbench/projectImportWorkspace';
+import type { BirdCoderProject } from '@sdkwork/birdcoder-pc-contracts-commons';
 
 type CreateProjectOptions = {
   appTemplateVersionId?: string;

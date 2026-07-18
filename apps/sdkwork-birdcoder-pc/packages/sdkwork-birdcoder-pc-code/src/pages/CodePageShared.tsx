@@ -1,5 +1,5 @@
 import { type ReactNode } from 'react';
-import i18n from '@sdkwork/birdcoder-pc-commons/i18n';
+import i18n from '@sdkwork/birdcoder-pc-workbench/i18n';
 import { SessionTranscriptLoadingState } from '@sdkwork/birdcoder-pc-ui-shell';
 import { CodeChatEmptyState } from './CodeChatEmptyState';
 

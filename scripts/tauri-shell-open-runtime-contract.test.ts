@@ -5,11 +5,11 @@ import { readBirdcoderAppShellSource } from './birdcoder-app-shell-contract-sour
 const rootPackageJsonPath = new URL('../package.json', import.meta.url);
 const workspaceLockPath = new URL('../pnpm-lock.yaml', import.meta.url);
 const commonsIndexPath = new URL(
-  '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-commons/src/index.ts',
+  '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-workbench/src/index.ts',
   import.meta.url,
 );
 const tauriFileManagerModulePath = new URL(
-  '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-commons/src/platform/tauriFileManager.ts',
+  '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-workbench/src/platform/tauriFileManager.ts',
   import.meta.url,
 );
 const sourcePaths = [

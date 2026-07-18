@@ -16,7 +16,7 @@ const codingSessionCreationSource = readSource(
   
   'packages',
   
-  'sdkwork-birdcoder-pc-commons',
+  'sdkwork-birdcoder-pc-workbench',
   'src',
   'workbench',
   'codingSessionCreation.ts',
@@ -28,7 +28,7 @@ const codingSessionActionsSource = readSource(
   
   'packages',
   
-  'sdkwork-birdcoder-pc-commons',
+  'sdkwork-birdcoder-pc-workbench',
   'src',
   'hooks',
   'useCodingSessionActions.ts',
@@ -37,7 +37,7 @@ const projectsHookSource = readSource(
   'apps',
   'sdkwork-birdcoder-pc',
   'packages',
-  'sdkwork-birdcoder-pc-commons',
+  'sdkwork-birdcoder-pc-workbench',
   'src',
   'hooks',
   'useProjects.ts',

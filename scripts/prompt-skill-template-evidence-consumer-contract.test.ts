@@ -43,7 +43,7 @@ const sdkClientsModulePath = new URL(
   import.meta.url,
 );
 const typesEntryModulePath = new URL(
-  '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-types/src/index.ts',
+  '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-contracts-commons/src/index.ts',
   import.meta.url,
 );
 const defaultServicesModulePath = new URL(
@@ -294,7 +294,8 @@ try {
     'Evidence Consumer Session',
     {
       engineId: 'codex',
-      modelId: 'gpt-5-codex',
+      modelId: 'gpt-5.4',
+      runtimeLocationId: 'runtime-location-evidence-consumer-contract',
     },
   );
   const createdMessage = await projectService.addCodingSessionMessage(

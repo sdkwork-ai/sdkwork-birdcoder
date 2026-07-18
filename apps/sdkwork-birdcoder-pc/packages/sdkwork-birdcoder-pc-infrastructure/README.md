@@ -45,7 +45,7 @@ Extension points are limited to public exports, runtime entrypoints, SDK clients
 
 ## Verification
 
-- `node apps/scripts/validate-component-specs.mjs --apps-root apps --json`
+- `node ../sdkwork-specs/tools/check-component-port-bindings.mjs --root .`
 
 ## Owner And Status
 

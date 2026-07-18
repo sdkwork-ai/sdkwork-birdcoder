@@ -271,4 +271,28 @@ const testModeDryRun = await captureRunBirdcoderDevStack([
   );
 }
 
+const h5DryRun = await captureRunBirdcoderDevStack([
+  'h5',
+  '--iam-mode',
+  'server-private',
+  '--dry-run',
+]);
+
+{
+  const { exitCode, stderr, stdout } = h5DryRun;
+  assert.equal(exitCode, 0, `H5 stack dry-run should succeed.\nstdout:\n${stdout}\nstderr:\n${stderr}`);
+  assert.equal(stderr, '', `H5 stack dry-run should not emit errors.\nstderr:\n${stderr}`);
+  assert.match(stdout, /\[birdcoder-stack\] surface=h5/u);
+  assert.match(
+    stdout,
+    /platformGateway=.*--features foundation-drive,foundation-membership .*sdkwork-api-cloud-gateway\.birdcoder\.development\.toml/u,
+    'H5 stack must compile and start the Drive and Membership foundation assembly gateway.',
+  );
+  assert.match(
+    stdout,
+    /client=.*vite.*--host 0\.0\.0\.0 --strictPort/u,
+    'H5 renderer must accept LAN clients and lock its configured port.',
+  );
+}
+
 console.log('birdcoder dev stack contract passed.');

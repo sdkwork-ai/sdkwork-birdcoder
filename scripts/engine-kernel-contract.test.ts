@@ -31,7 +31,7 @@ import { resolveRequiredCodingSessionSelection } from '../apps/sdkwork-birdcoder
 import {
   isAuthorityBackedNativeSessionId,
   readAuthorityBackedNativeSessionRecord,
-} from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-commons/src/workbench/nativeSessionAuthority.ts';
+} from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-workbench/src/workbench/nativeSessionAuthority.ts';
 
 assert.deepEqual(
   WORKBENCH_ENGINE_KERNELS.map((engine) => engine.id),
@@ -529,7 +529,7 @@ for (const engine of listWorkbenchCliEngines()) {
 }
 
 const terminalLaunchAdapterSource = await readFile(
-  new URL('../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-commons/src/terminal/sdkworkTerminalLaunch.ts', import.meta.url),
+  new URL('../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-workbench/src/terminal/sdkworkTerminalLaunch.ts', import.meta.url),
   'utf8',
 );
 const manifestSource = await readFile(

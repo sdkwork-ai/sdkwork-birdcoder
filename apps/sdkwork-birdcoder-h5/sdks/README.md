@@ -21,7 +21,7 @@ apps/sdkwork-birdcoder-pc/sdks/
 Regenerate with:
 
 ```bash
-pnpm generate:sdk:birdcoder
+pnpm sdk:generate
 ```
 
 H5 must not fork generated SDK output. Runtime code composes generated clients through `h5-core`

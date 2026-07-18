@@ -25,7 +25,7 @@ const MISSING_WEB_DIST_ERROR = new RegExp(
   'u',
 );
 const MISSING_DESKTOP_DIST_ERROR = new RegExp(
-  `Missing required desktop app build output.*${DESKTOP_DIST_REGEX}.*Run \`pnpm tauri:build\` before packaging desktop release assets`,
+  `Missing required desktop app build output.*${DESKTOP_DIST_REGEX}.*Run \`pnpm build:desktop\` before packaging desktop release assets`,
   'u',
 );
 const MISSING_SERVER_WEB_DIST_ERROR = new RegExp(
@@ -635,7 +635,7 @@ withFixture((fixtureRoot) => {
       target: SERVER_BINARY_TARGET,
       'output-dir': 'artifacts/release',
     }),
-    /Missing required coding-server OpenAPI snapshot.*artifacts[\\/]openapi[\\/]coding-server-v1\.json.*Run `pnpm generate:openapi:coding-server` before packaging server release assets/u,
+    /Missing required coding-server OpenAPI snapshot.*artifacts[\\/]openapi[\\/]coding-server-v1\.json.*Run `pnpm api:materialize:coding-server` before packaging server release assets/u,
   );
 });
 
@@ -729,7 +729,7 @@ withFixture((fixtureRoot) => {
       target: 'x86_64-pc-windows-msvc',
       'output-dir': 'artifacts/release',
     }),
-    /Missing required desktop installer bundle artifacts.*profile sdkwork-birdcoder.*windows\/x64\/x86_64-pc-windows-msvc.*missing: msi.*Run `pnpm tauri:build` before packaging desktop release assets/u,
+    /Missing required desktop installer bundle artifacts.*profile sdkwork-birdcoder.*windows\/x64\/x86_64-pc-windows-msvc.*missing: msi.*Run `pnpm build:desktop` before packaging desktop release assets/u,
   );
   assert.equal(
     fs.existsSync(path.join(outputFamilyDir, RELEASE_ASSET_MANIFEST_FILE_NAME)),

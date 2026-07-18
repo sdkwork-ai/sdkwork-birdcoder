@@ -4,7 +4,7 @@ import type {
   BirdCoderDatabaseProviderId,
   BirdCoderHostMode,
   BirdCoderEntityStorageBinding,
-} from '@sdkwork/birdcoder-pc-types';
+} from '@sdkwork/birdcoder-pc-contracts-commons';
 import {
   BIRDCODER_CODING_SESSION_MESSAGE_STORAGE_BINDING,
   BIRDCODER_CODING_SESSION_STORAGE_BINDING,
@@ -15,7 +15,7 @@ import {
   getBirdCoderEntityDefinition,
   resolveBirdCoderSessionSortTimestampString,
   stringifyBirdCoderLongInteger,
-} from '@sdkwork/birdcoder-pc-types';
+} from '@sdkwork/birdcoder-pc-contracts-commons';
 import { normalizeBirdCoderCodeEngineNativeSessionId } from '@sdkwork/birdcoder-pc-codeengine';
 import { clampListPageSize, MAX_LIST_PAGE_SIZE } from '@sdkwork/utils/pagination';
 import {

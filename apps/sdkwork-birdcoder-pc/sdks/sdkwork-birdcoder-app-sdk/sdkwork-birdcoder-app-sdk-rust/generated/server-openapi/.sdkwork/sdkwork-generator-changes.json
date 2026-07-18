@@ -9,11 +9,14 @@
     "protocol": "http",
     "packageName": "@sdkwork/birdcoder-app-sdk"
   },
-  "changeFingerprint": "463251020d26b3390cb35a4b325b570591f52569bc3d32e015e4d59239e414e1",
+  "changeFingerprint": "71753f1411118bc94d88b7e6befdc3da54df3bf7bb1a714562863d6c993bda15",
   "changes": {
     "createdGeneratedFiles": [],
     "updatedGeneratedFiles": [
-      "sdkwork-sdk.json"
+      "README.md",
+      "sdkwork-sdk.json",
+      "src/api/commerce.rs",
+      "src/models/mod.rs"
     ],
     "unchangedGeneratedFiles": [
       "bin/publish-core.mjs",
@@ -22,11 +25,9 @@
       "Cargo.toml",
       "CHANGELOG.md",
       "LICENSE",
-      "README.md",
       "src/api/auth.rs",
       "src/api/base.rs",
       "src/api/collaboration.rs",
-      "src/api/commerce.rs",
       "src/api/content.rs",
       "src/api/iam.rs",
       "src/api/intelligence.rs",
@@ -83,12 +84,6 @@
       "src/models/bird_coder_commerce_invoice_summary_envelope.rs",
       "src/models/bird_coder_commerce_invoice_summary_list_envelope.rs",
       "src/models/bird_coder_commerce_invoice_summary.rs",
-      "src/models/bird_coder_commerce_membership_benefit_summary.rs",
-      "src/models/bird_coder_commerce_membership_current_envelope.rs",
-      "src/models/bird_coder_commerce_membership_current_summary.rs",
-      "src/models/bird_coder_commerce_membership_package_group_summary_list_envelope.rs",
-      "src/models/bird_coder_commerce_membership_package_group_summary.rs",
-      "src/models/bird_coder_commerce_membership_package_summary.rs",
       "src/models/bird_coder_commerce_order_summary_envelope.rs",
       "src/models/bird_coder_commerce_order_summary_list_envelope.rs",
       "src/models/bird_coder_commerce_order_summary.rs",
@@ -234,12 +229,18 @@
       "src/models/bird_coder_workspace_summary_list_envelope.rs",
       "src/models/bird_coder_workspace_summary.rs",
       "src/models/common.rs",
-      "src/models/mod.rs",
       "src/models/page_info.rs",
       "src/models/problem_detail.rs",
       "src/models/sdk_work_api_response.rs"
     ],
-    "deletedGeneratedFiles": [],
+    "deletedGeneratedFiles": [
+      "src/models/bird_coder_commerce_membership_benefit_summary.rs",
+      "src/models/bird_coder_commerce_membership_current_envelope.rs",
+      "src/models/bird_coder_commerce_membership_current_summary.rs",
+      "src/models/bird_coder_commerce_membership_package_group_summary_list_envelope.rs",
+      "src/models/bird_coder_commerce_membership_package_group_summary.rs",
+      "src/models/bird_coder_commerce_membership_package_summary.rs"
+    ],
     "scaffoldedFiles": [],
     "preservedScaffoldFiles": [
       "custom/README.md"
@@ -251,29 +252,56 @@
   "impact": {
     "schemaVersion": 1,
     "areas": [
-      "build-metadata"
+      "api-surface",
+      "models",
+      "build-metadata",
+      "documentation"
     ],
     "details": [
+      {
+        "area": "api-surface",
+        "paths": [
+          "src/api/commerce.rs"
+        ]
+      },
+      {
+        "area": "models",
+        "paths": [
+          "src/models/bird_coder_commerce_membership_benefit_summary.rs",
+          "src/models/bird_coder_commerce_membership_current_envelope.rs",
+          "src/models/bird_coder_commerce_membership_current_summary.rs",
+          "src/models/bird_coder_commerce_membership_package_group_summary_list_envelope.rs",
+          "src/models/bird_coder_commerce_membership_package_group_summary.rs",
+          "src/models/bird_coder_commerce_membership_package_summary.rs",
+          "src/models/mod.rs"
+        ]
+      },
       {
         "area": "build-metadata",
         "paths": [
           "sdkwork-sdk.json"
         ]
+      },
+      {
+        "area": "documentation",
+        "paths": [
+          "README.md"
+        ]
       }
     ],
     "requiresVerification": true,
-    "summary": "Detected impact areas: build-metadata. Verification is required."
+    "summary": "Detected impact areas: api-surface, models, build-metadata, documentation. Verification is required."
   },
   "verificationPlan": {
     "shouldRun": true,
     "runPhase": "now",
-    "summary": "Detected impact areas: build-metadata. Verification is required. Run the required verification commands now against the generated SDK output.",
+    "summary": "Detected impact areas: api-surface, models, build-metadata, documentation. Verification is required. Run the required verification commands now against the generated SDK output.",
     "steps": [
       {
         "id": "check",
         "title": "Unified package check",
         "required": true,
-        "rationale": "Validate the generated package with the unified publish helper. Triggered by: build-metadata.",
+        "rationale": "Validate the generated package with the unified publish helper. Triggered by: api-surface, models, build-metadata, documentation.",
         "workingDirectory": "E:\\sdkwork-space\\sdkwork-birdcoder\\sdks\\sdkwork-birdcoder-app-sdk\\sdkwork-birdcoder-app-sdk-rust\\generated\\server-openapi",
         "command": "node",
         "args": [
@@ -291,7 +319,7 @@
         "id": "build",
         "title": "Unified package build",
         "required": true,
-        "rationale": "Run the full package build because this language uses a lighter check path than the final build. Triggered by: build-metadata.",
+        "rationale": "Run the full package build because this language uses a lighter check path than the final build. Triggered by: api-surface, models, build-metadata, documentation.",
         "workingDirectory": "E:\\sdkwork-space\\sdkwork-birdcoder\\sdks\\sdkwork-birdcoder-app-sdk\\sdkwork-birdcoder-app-sdk-rust\\generated\\server-openapi",
         "command": "node",
         "args": [
@@ -316,6 +344,7 @@
     "summary": "Changes have been applied. Run the required verification plan now.",
     "reasons": [
       "backed-up-generated-files",
+      "deleted-generated-files",
       "manual-review-required",
       "verification-required"
     ]

@@ -2,13 +2,11 @@ import { useMemo, type ComponentProps, type ReactNode } from 'react';
 import type {
   ProjectGitOverviewViewState,
   TerminalCommandRequest,
-} from '@sdkwork/birdcoder-pc-commons';
-import type { BirdCoderChatMessage, BirdCoderProject, FileChange } from '@sdkwork/birdcoder-pc-types';
-import {
-  ProjectGitOverviewDrawer,
-  type FileNode,
-  type UniversalChatProps,
-} from '@sdkwork/birdcoder-pc-ui';
+} from '@sdkwork/birdcoder-pc-workbench';
+import type { BirdCoderChatMessage, BirdCoderProject, FileChange } from '@sdkwork/birdcoder-pc-contracts-commons';
+import type { FileNode } from '@sdkwork/birdcoder-pc-ui/components/FileExplorer';
+import { ProjectGitOverviewDrawer } from '@sdkwork/birdcoder-pc-ui/components/ProjectGitOverviewDrawer';
+import type { UniversalChatProps } from '@sdkwork/birdcoder-pc-ui/components/UniversalChat';
 import type { ProjectExplorerProps } from '../components/ProjectExplorer.types';
 import type { TopBarProps } from '../components/TopBar';
 import type { CodeMobileProgrammingPanelProps } from './CodeMobileProgrammingPanel';

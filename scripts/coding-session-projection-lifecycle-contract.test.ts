@@ -4,14 +4,14 @@ import type {
   BirdCoderCodingSessionCheckpoint,
   BirdCoderCodingSessionEvent,
   BirdCoderCodingSessionSummary,
-} from '@sdkwork/birdcoder-pc-types';
-import { BirdCoderApiTransportError } from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-types/src/apiTransportError.ts';
+} from '@sdkwork/birdcoder-pc-contracts-commons';
+import { BirdCoderApiTransportError } from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-contracts-commons/src/apiTransportError.ts';
 import {
   loadCodingSessionProjection,
   loadCodingSessionProjectionIfAvailable,
   shouldReportCodingSessionProjectionError,
   type BirdCoderCodingSessionProjectionReader,
-} from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-commons/src/services/codingSessionProjectionService.ts';
+} from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-workbench/src/services/codingSessionProjectionService.ts';
 
 const codingSessionId = 'coding-session-projection-lifecycle';
 const session: BirdCoderCodingSessionSummary = {

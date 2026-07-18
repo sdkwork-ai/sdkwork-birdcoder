@@ -1,4 +1,4 @@
-import type { BirdCoderProjectDocumentSummary } from '@sdkwork/birdcoder-pc-types';
+import type { BirdCoderProjectDocumentSummary } from '@sdkwork/birdcoder-pc-contracts-commons';
 
 export interface DocumentListOptions {
   projectId?: string;

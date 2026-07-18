@@ -1,4 +1,4 @@
-import type { BirdCoderNativeSessionAttributes } from '@sdkwork/birdcoder-pc-types';
+import type { BirdCoderNativeSessionAttributes } from '@sdkwork/birdcoder-pc-contracts-commons';
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);

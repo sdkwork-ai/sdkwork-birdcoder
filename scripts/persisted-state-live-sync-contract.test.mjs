@@ -4,7 +4,7 @@ import { resolve } from 'node:path';
 
 const source = await readFile(
   resolve(
-    'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-commons/src/hooks/usePersistedState.ts',
+    'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-workbench/src/hooks/usePersistedState.ts',
   ),
   'utf8',
 );

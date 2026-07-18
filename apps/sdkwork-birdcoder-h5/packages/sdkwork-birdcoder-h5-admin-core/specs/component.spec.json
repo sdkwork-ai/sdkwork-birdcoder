@@ -14,7 +14,14 @@
     "generated": false
   },
   "contracts": {
-    "sdkDependencies": [],
+    "sdkDependencies": [
+      {
+        "workspace": "sdkwork-membership-backend-sdk",
+        "surface": "backend-api",
+        "credentialMode": "authenticated-backend-admin",
+        "providedBy": "@sdkwork/birdcoder-pc-admin-core"
+      }
+    ],
     "dependencyApiExports": [],
     "dependencyApiSurfaces": []
   }

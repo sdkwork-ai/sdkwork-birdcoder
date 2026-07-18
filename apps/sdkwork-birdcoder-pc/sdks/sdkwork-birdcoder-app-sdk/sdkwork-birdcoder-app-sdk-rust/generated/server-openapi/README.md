@@ -188,8 +188,12 @@ println!("{result:?}");
 ### commerce
 
 ```rust
-// Get current SDKWork commerce membership
-let result = client.commerce().memberships_current_retrieve().await?;
+use std::collections::HashMap;
+// List SDKWork commerce orders
+let mut query = HashMap::new();
+query.insert("page".to_string(), serde_json::json!(1));
+query.insert("page_size".to_string(), serde_json::json!(2));
+let result = client.commerce().orders_list(Some(&query)).await?;
 println!("{result:?}");
 ```
 

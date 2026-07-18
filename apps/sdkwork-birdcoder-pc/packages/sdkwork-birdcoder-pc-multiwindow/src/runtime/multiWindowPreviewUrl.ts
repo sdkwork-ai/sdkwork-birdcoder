@@ -1,6 +1,6 @@
 import type {
   BirdCoderChatMessage,
-} from '@sdkwork/birdcoder-pc-types';
+} from '@sdkwork/birdcoder-pc-contracts-commons';
 
 interface MultiWindowPreviewUrlCandidate {
   isLocal: boolean;

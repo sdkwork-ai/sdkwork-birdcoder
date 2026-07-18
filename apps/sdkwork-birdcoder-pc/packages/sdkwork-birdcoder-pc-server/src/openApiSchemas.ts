@@ -23,7 +23,7 @@ import type {
   BirdCoderOperationDescriptor,
   BirdCoderApprovalDecisionResult,
   BirdCoderUserQuestionAnswerResult,
-} from '@sdkwork/birdcoder-pc-types';
+} from '@sdkwork/birdcoder-pc-contracts-commons';
 import {
   BIRDCODER_CODING_SESSION_ARTIFACT_KINDS,
   BIRDCODER_CODING_SESSION_EVENT_KINDS,
@@ -34,7 +34,7 @@ import {
   BIRDCODER_ENGINE_INTEGRATION_CLASSES,
   BIRDCODER_ENGINE_RUNTIME_MODES,
   BIRDCODER_HOST_MODES,
-} from '@sdkwork/birdcoder-pc-types';
+} from '@sdkwork/birdcoder-pc-contracts-commons';
 import {
   BIRDCODER_API_AUTH_MODES,
   BIRDCODER_API_HTTP_METHODS,
@@ -1393,139 +1393,6 @@ export function buildBirdCoderCodingServerOpenApiSchemas(): Record<string, BirdC
       location: createOpenApiStringSchema(),
       website: createOpenApiStringSchema(),
     }),
-    BirdCoderCommerceMembershipBenefitSummary: createOpenApiObjectSchema(
-      {
-        id: createOpenApiStringSchema(),
-        name: createOpenApiStringSchema(),
-        benefitKey: createOpenApiStringSchema(),
-        type: createOpenApiStringSchema(),
-        description: createOpenApiStringSchema(),
-        icon: createOpenApiStringSchema(),
-        claimed: createOpenApiBooleanSchema(),
-        usageLimit: createOpenApiLongIntegerStringSchema(),
-        usedCount: createOpenApiLongIntegerStringSchema(),
-      },
-      {
-        required: ['id', 'name', 'claimed'],
-      },
-    ),
-    BirdCoderCommerceMembershipCurrentSummary: createOpenApiObjectSchema(
-      {
-        tenantId: createOpenApiStringSchema(),
-        organizationId: createOpenApiStringSchema(),
-        ownerUserId: createOpenApiStringSchema(),
-        planId: createOpenApiNullableStringSchema(),
-        planName: createOpenApiStringSchema(),
-        status: createOpenApiStringSchema(),
-        startedAt: createOpenApiNullableStringSchema(),
-        expiresAt: createOpenApiNullableStringSchema(),
-        remainingDays: createOpenApiLongIntegerStringSchema(),
-        totalDays: createOpenApiLongIntegerStringSchema(),
-        totalSpent: createOpenApiLongIntegerStringSchema(),
-        points: createOpenApiLongIntegerStringSchema(),
-        growthValue: createOpenApiLongIntegerStringSchema(),
-        upgradeGrowthValue: createOpenApiLongIntegerStringSchema(),
-        benefits: createOpenApiArraySchema(
-          createOpenApiSchemaReference('BirdCoderCommerceMembershipBenefitSummary'),
-        ),
-      },
-      {
-        required: [
-          'ownerUserId',
-          'planName',
-          'status',
-          'totalSpent',
-          'points',
-          'growthValue',
-          'upgradeGrowthValue',
-          'benefits',
-        ],
-      },
-    ),
-    BirdCoderCommerceMembershipPackageSummary: createOpenApiObjectSchema(
-      {
-        id: createOpenApiStringSchema(),
-        name: createOpenApiStringSchema(),
-        description: createOpenApiStringSchema(),
-        price: createOpenApiLongIntegerStringSchema(),
-        originalPrice: createOpenApiLongIntegerStringSchema(),
-        pointAmount: createOpenApiLongIntegerStringSchema(),
-        durationDays: createOpenApiLongIntegerStringSchema(),
-        planName: createOpenApiStringSchema(),
-        sortWeight: createOpenApiLongIntegerStringSchema(),
-        recommended: createOpenApiBooleanSchema(),
-        tags: createOpenApiArraySchema(createOpenApiStringSchema()),
-      },
-      {
-        required: [
-          'id',
-          'name',
-          'price',
-          'pointAmount',
-          'durationDays',
-          'sortWeight',
-          'recommended',
-          'tags',
-        ],
-      },
-    ),
-    BirdCoderCommerceMembershipPackageGroupSummary: createOpenApiObjectSchema(
-      {
-        id: createOpenApiStringSchema(),
-        name: createOpenApiStringSchema(),
-        description: createOpenApiStringSchema(),
-        sortWeight: createOpenApiLongIntegerStringSchema(),
-        packages: createOpenApiArraySchema(
-          createOpenApiSchemaReference('BirdCoderCommerceMembershipPackageSummary'),
-        ),
-      },
-      {
-        required: ['id', 'name', 'sortWeight', 'packages'],
-      },
-    ),
-    BirdCoderCreateCommerceApiKeyRequest: createOpenApiObjectSchema(
-      {
-        name: createOpenApiStringSchema(),
-        scopes: createOpenApiArraySchema(createOpenApiStringSchema()),
-        expiresInDays: createOpenApiIntegerSchema(1),
-        workspaceId: createOpenApiStringSchema(),
-      },
-      {
-        required: ['name'],
-      },
-    ),
-    BirdCoderCommerceApiKeySummary: createOpenApiObjectSchema(
-      {
-        id: createOpenApiStringSchema(),
-        name: createOpenApiStringSchema(),
-        prefix: createOpenApiStringSchema(),
-        scopes: createOpenApiArraySchema(createOpenApiStringSchema()),
-        status: createOpenApiStringSchema(),
-        lastUsedAt: createOpenApiNullableStringSchema(),
-        expiresAt: createOpenApiNullableStringSchema(),
-        createdAt: createOpenApiDateTimeSchema(),
-        updatedAt: createOpenApiDateTimeSchema(),
-      },
-      {
-        required: ['id', 'name', 'prefix', 'scopes', 'status', 'createdAt', 'updatedAt'],
-      },
-    ),
-    BirdCoderCommerceApiKeyCreated: createOpenApiObjectSchema(
-      {
-        id: createOpenApiStringSchema(),
-        name: createOpenApiStringSchema(),
-        key: createOpenApiStringSchema('Plaintext API key returned exactly once.'),
-        prefix: createOpenApiStringSchema(),
-        scopes: createOpenApiArraySchema(createOpenApiStringSchema()),
-        status: createOpenApiStringSchema(),
-        expiresAt: createOpenApiNullableStringSchema(),
-        createdAt: createOpenApiDateTimeSchema(),
-        message: createOpenApiStringSchema(),
-      },
-      {
-        required: ['id', 'name', 'key', 'prefix', 'scopes', 'status', 'createdAt'],
-      },
-    ),
     BirdCoderCreateCommerceNotificationRequest: createOpenApiObjectSchema(
       {
         notificationType: createOpenApiStringSchema(),
@@ -3175,18 +3042,6 @@ export function buildBirdCoderCodingServerOpenApiSchemas(): Record<string, BirdC
     ),
     BirdCoderIamUserRoleSummaryListEnvelope: createOpenApiListEnvelopeSchema(
       createOpenApiSchemaReference('BirdCoderIamUserRoleSummary'),
-    ),
-    BirdCoderCommerceMembershipCurrentEnvelope: createOpenApiEnvelopeSchema(
-      createOpenApiSchemaReference('BirdCoderCommerceMembershipCurrentSummary'),
-    ),
-    BirdCoderCommerceMembershipPackageGroupSummaryListEnvelope: createOpenApiListEnvelopeSchema(
-      createOpenApiSchemaReference('BirdCoderCommerceMembershipPackageGroupSummary'),
-    ),
-    BirdCoderCommerceApiKeyCreatedEnvelope: createOpenApiEnvelopeSchema(
-      createOpenApiSchemaReference('BirdCoderCommerceApiKeyCreated'),
-    ),
-    BirdCoderCommerceApiKeySummaryListEnvelope: createOpenApiListEnvelopeSchema(
-      createOpenApiSchemaReference('BirdCoderCommerceApiKeySummary'),
     ),
     BirdCoderCommerceNotificationSummaryEnvelope: createOpenApiEnvelopeSchema(
       createOpenApiSchemaReference('BirdCoderCommerceNotificationSummary'),

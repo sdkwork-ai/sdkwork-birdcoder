@@ -6,7 +6,7 @@ import {
   requestProjectFileSystemRefresh,
   subscribeProjectFileSystemFlushRequest,
   subscribeProjectFileSystemRefreshRequest,
-} from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-commons/src/events/projectFileSystemSynchronization.ts';
+} from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-workbench/src/events/projectFileSystemSynchronization.ts';
 
 const projectId = 'project-git-filesystem-contract';
 const sequence: string[] = [];
@@ -46,7 +46,7 @@ unsubscribeRejectedFlush();
 
 const repositoryRoot = fileURLToPath(new URL('..', import.meta.url));
 const mutationHookSource = await readFile(
-  `${repositoryRoot}/apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-commons/src/hooks/useProjectGitMutationActions.ts`,
+  `${repositoryRoot}/apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-workbench/src/hooks/useProjectGitMutationActions.ts`,
   'utf8',
 );
 const switchBranchBody = mutationHookSource.match(
@@ -67,7 +67,7 @@ assert.ok(
 );
 
 const fileSystemHookSource = await readFile(
-  `${repositoryRoot}/apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-commons/src/hooks/useFileSystem.ts`,
+  `${repositoryRoot}/apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-workbench/src/hooks/useFileSystem.ts`,
   'utf8',
 );
 assert.match(fileSystemHookSource, /subscribeProjectFileSystemFlushRequest/);

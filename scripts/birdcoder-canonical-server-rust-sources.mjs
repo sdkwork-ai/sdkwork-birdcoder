@@ -18,7 +18,6 @@ export const CANONICAL_SERVER_RUST_PATHS = Object.freeze({
   sqlxWorkspaceSchema: 'crates/sdkwork-birdcoder-workspace-repository-sqlx/src/db/schema.rs',
   sqlxSkillPackagesSchema: 'crates/sdkwork-birdcoder-skill-packages-repository-sqlx/src/db/schema.rs',
   sqlxModelConfigSchema: 'crates/sdkwork-birdcoder-model-config-repository-sqlx/src/db/schema.rs',
-  sqlxMembershipSchema: 'crates/sdkwork-birdcoder-membership-repository-sqlx/src/db/schema.rs',
   skillPackagesHandlers: 'crates/sdkwork-routes-skill-packages-app-api/src/handlers.rs',
   appTemplatesRepository: 'crates/sdkwork-birdcoder-app-templates-repository-sqlx/src/lib.rs',
 });
@@ -38,7 +37,6 @@ const SQLITE_SCHEMA_PATHS = [
   CANONICAL_SERVER_RUST_PATHS.sqlxWorkspaceSchema,
   CANONICAL_SERVER_RUST_PATHS.sqlxSkillPackagesSchema,
   CANONICAL_SERVER_RUST_PATHS.sqlxModelConfigSchema,
-  CANONICAL_SERVER_RUST_PATHS.sqlxMembershipSchema,
 ];
 
 const TURN_STREAM_PATHS = [

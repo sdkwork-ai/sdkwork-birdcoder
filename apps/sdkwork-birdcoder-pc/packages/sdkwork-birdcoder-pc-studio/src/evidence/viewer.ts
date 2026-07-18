@@ -2,7 +2,7 @@ import {
   getTerminalProfile,
   type TerminalCommandRequest,
   type TerminalProfileId,
-} from '@sdkwork/birdcoder-pc-commons';
+} from '@sdkwork/birdcoder-pc-workbench';
 import type { StudioBuildExecutionEvidence } from '../build/runtime.ts';
 import { listStoredStudioBuildExecutionEvidence } from '../build/evidenceStore.ts';
 import type { StudioPreviewExecutionEvidence } from '../preview/runtime.ts';

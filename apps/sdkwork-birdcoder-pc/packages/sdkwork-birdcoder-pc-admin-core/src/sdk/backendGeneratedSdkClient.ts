@@ -6,7 +6,7 @@ import {
   getBirdCoderGlobalTokenManager as getCoreBirdCoderGlobalTokenManager,
   setBirdCoderGlobalTokenManager,
 } from '@sdkwork/birdcoder-pc-core/appSessionTokenManager';
-import type { BirdCoderApiTransport } from '@sdkwork/birdcoder-pc-types';
+import type { BirdCoderApiTransport } from '@sdkwork/birdcoder-pc-contracts-commons';
 import type { AuthTokenManager } from '@sdkwork/sdk-common';
 
 export interface BirdCoderGeneratedBackendSdkClientOptions {

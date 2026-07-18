@@ -14,7 +14,7 @@ import {
   restoreWorkbenchChatQueuedMessagesToFront,
   settleWorkbenchChatQueuedTurnDispatch,
   setWorkbenchChatQueuedMessages,
-} from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-commons/src/chat/messageQueueStore.ts';
+} from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-workbench/src/chat/messageQueueStore.ts';
 
 const universalChatSource = await readFile(
   resolve('apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-ui/src/components/UniversalChat.tsx'),
@@ -87,7 +87,7 @@ const submitPendingApprovalDecisionSource =
       )
     : '';
 const commonsIndexSource = await readFile(
-  resolve('apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-commons/src/index.ts'),
+  resolve('apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-workbench/src/index.ts'),
   'utf8',
 );
 

@@ -1,5 +1,5 @@
-import type { BirdCoderChatMessage, BirdCoderCodeEngineKey } from '../../../sdkwork-birdcoder-pc-types/src/index.ts';
-import { estimateTranscriptMessageHeight } from '../../../sdkwork-birdcoder-pc-types/src/chat-message-view.ts';
+import type { BirdCoderChatMessage, BirdCoderCodeEngineKey } from '../../../sdkwork-birdcoder-pc-contracts-commons/src/index.ts';
+import { estimateTranscriptMessageHeight } from '../../../sdkwork-birdcoder-pc-contracts-commons/src/chat-message-view.ts';
 
 export const MIN_VIRTUALIZED_MESSAGE_COUNT = 96;
 export const VIRTUALIZED_OVERSCAN_PX = 720;

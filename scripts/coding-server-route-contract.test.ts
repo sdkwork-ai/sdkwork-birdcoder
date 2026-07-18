@@ -17,9 +17,9 @@ assert.deepEqual(descriptor, {
     liveOpenApiPath: '/openapi.json',
     openApiPath: '/openapi/coding-server-v1.json',
     routeCatalogPath: '/app/v3/api/system/routes',
-    routeCount: 175,
+    routeCount: 158,
     routesBySurface: {
-      app: 126,
+      app: 109,
       backend: 49,
     },
     surfaces: [
@@ -28,7 +28,7 @@ assert.deepEqual(descriptor, {
         basePath: '/app/v3/api',
         description: 'Application-facing coding runtime, workspace, project, collaboration, and IAM routes.',
         name: 'app',
-        routeCount: 126,
+        routeCount: 109,
       },
       {
         authMode: 'admin',
@@ -156,10 +156,6 @@ assert.equal(app.currentIamUser.method, 'GET');
 assert.equal(app.currentIamUser.path, '/app/v3/api/iam/users/current');
 assert.equal(app.updateCurrentUserProfile.method, 'PATCH');
 assert.equal(app.updateCurrentUserProfile.path, '/app/v3/api/iam/users/current');
-assert.equal(app.membershipCurrent.method, 'GET');
-assert.equal(app.membershipCurrent.path, '/app/v3/api/memberships/current');
-assert.equal(app.membershipPackageGroups.method, 'GET');
-assert.equal(app.membershipPackageGroups.path, '/app/v3/api/memberships/package_groups');
 assert.equal(app.createWorkspace.method, 'POST');
 assert.equal(app.createWorkspace.path, '/app/v3/api/workspaces');
 assert.equal(app.updateWorkspace.method, 'PATCH');
@@ -237,16 +233,15 @@ assert.equal(admin.releases.path, '/backend/v3/api/releases');
 assert.equal(admin.deployments.path, '/backend/v3/api/deployments');
 
 const routes = listBirdCoderCodingServerRoutes();
-assert.equal(routes.length, 175, 'coding-server should expose the full app/backend/commerce route matrix');
+assert.equal(routes.length, 158, 'coding-server should expose its owned app/backend route matrix');
 assert.equal(
   routes.every(
     (route) =>
       route.path.startsWith('/app/v3/api')
-      || route.path.startsWith('/backend/v3/api')
-      || route.path.startsWith('/api/v1'),
+      || route.path.startsWith('/backend/v3/api'),
   ),
   true,
-  'all coding-server routes must stay inside the unified app/backend/commerce prefixes',
+  'all coding-server routes must stay inside the governed app/backend prefixes',
 );
 
 const routeCatalog = listBirdCoderCodingServerRouteCatalogEntries();
@@ -290,8 +285,7 @@ assert.equal(
   routeCatalog.every(
     (route) =>
       route.openApiPath.startsWith('/app/v3/api')
-      || route.openApiPath.startsWith('/backend/v3/api')
-      || route.openApiPath.startsWith('/api/v1'),
+      || route.openApiPath.startsWith('/backend/v3/api'),
   ),
   true,
   'route catalog must emit normalized OpenAPI path templates',
@@ -524,29 +518,10 @@ assert.deepEqual(
     summary: 'Get current SDKWork IAM user',
   },
 );
-assert.deepEqual(
-  routeCatalog.find((route) => route.operationId === 'memberships.current.retrieve'),
-  {
-    authMode: 'user',
-    method: 'GET',
-    openApiPath: '/app/v3/api/memberships/current',
-    operationId: 'memberships.current.retrieve',
-    path: '/app/v3/api/memberships/current',
-    surface: 'app',
-    summary: 'Get current SDKWork commerce membership',
-  },
-);
-assert.deepEqual(
-  routeCatalog.find((route) => route.operationId === 'memberships.packageGroups.list'),
-  {
-    authMode: 'user',
-    method: 'GET',
-    openApiPath: '/app/v3/api/memberships/package_groups',
-    operationId: 'memberships.packageGroups.list',
-    path: '/app/v3/api/memberships/package_groups',
-    surface: 'app',
-    summary: 'List SDKWork commerce membership package groups',
-  },
+assert.equal(
+  routeCatalog.some((route) => route.openApiPath.startsWith('/app/v3/api/memberships')),
+  false,
+  'BirdCoder must not own sdkwork-membership routes; the platform assembly serves them.',
 );
 assert.equal(
   routeCatalog.some((route) => route.operationId === 'vip.info.retrieve' || route.operationId === 'vip.info.update'),

@@ -3,7 +3,7 @@ import type {
   BirdCoderUpsertProjectCollaboratorRequest,
   BirdCoderUpsertWorkspaceMemberRequest,
   BirdCoderWorkspaceMemberSummary,
-} from '@sdkwork/birdcoder-pc-types';
+} from '@sdkwork/birdcoder-pc-contracts-commons';
 
 export interface ICollaborationService {
   listProjectCollaborators(projectId: string): Promise<BirdCoderProjectCollaboratorSummary[]>;

@@ -8,7 +8,7 @@ import {
 } from './birdcoder-canonical-server-rust-sources.mjs';
 
 const typesSource = fs.readFileSync(
-  new URL('../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-types/src/server-api.ts', import.meta.url),
+  new URL('../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-contracts-commons/src/server-api.ts', import.meta.url),
   'utf8',
 );
 const sdkClientsSource = fs.readFileSync(

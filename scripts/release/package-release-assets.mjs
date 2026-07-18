@@ -142,19 +142,19 @@ function validateProviderRuntimeAsset(sourceRoot, asset, label) {
   }
   if (!fs.existsSync(assetPath) || !fs.statSync(assetPath).isFile()) {
     throw new Error(
-      `Missing required ${label}: ${assetPath}. Run \`pnpm provider-runtime:prepare\` before packaging provider-enabled release assets.`,
+      `Missing required ${label}: ${assetPath}. Run \`pnpm sdk:prepare:provider-runtime\` before packaging provider-enabled release assets.`,
     );
   }
   const expectedSha256 = String(asset?.sha256 ?? '').trim().toLowerCase();
   const actualSha256 = computeSha256(assetPath);
   if (!/^[a-f0-9]{64}$/u.test(expectedSha256) || expectedSha256 !== actualSha256) {
     throw new Error(
-      `Provider runtime checksum mismatch for ${relativePath}: manifest=${expectedSha256 || 'missing'} actual=${actualSha256}. Run \`pnpm provider-runtime:prepare\` before packaging.`,
+      `Provider runtime checksum mismatch for ${relativePath}: manifest=${expectedSha256 || 'missing'} actual=${actualSha256}. Run \`pnpm sdk:prepare:provider-runtime\` before packaging.`,
     );
   }
   if (Number(asset?.size) !== fs.statSync(assetPath).size) {
     throw new Error(
-      `Provider runtime size mismatch for ${relativePath}. Run \`pnpm provider-runtime:prepare\` before packaging.`,
+      `Provider runtime size mismatch for ${relativePath}. Run \`pnpm sdk:prepare:provider-runtime\` before packaging.`,
     );
   }
 }
@@ -170,7 +170,7 @@ function copyRequiredProviderRuntime({
     sourcePath: manifestPath,
     targetPath: manifestPath,
     label: 'provider runtime manifest',
-    command: 'pnpm provider-runtime:prepare',
+    command: 'pnpm sdk:prepare:provider-runtime',
     releaseAssetsLabel: `${descriptor.family} release assets`,
   });
   let manifest;
@@ -186,7 +186,7 @@ function copyRequiredProviderRuntime({
   const targetArchitecture = String(manifest?.target?.architecture ?? '').trim();
   if (targetPlatform !== descriptor.platform || targetArchitecture !== descriptor.arch) {
     throw new Error(
-      `Provider runtime target mismatch: release=${descriptor.platform}/${descriptor.arch} runtime=${targetPlatform || 'missing'}/${targetArchitecture || 'missing'}. Run \`pnpm provider-runtime:prepare\` for the release target.`,
+      `Provider runtime target mismatch: release=${descriptor.platform}/${descriptor.arch} runtime=${targetPlatform || 'missing'}/${targetArchitecture || 'missing'}. Run \`pnpm sdk:prepare:provider-runtime\` for the release target.`,
     );
   }
   validateProviderRuntimeAsset(sourceRoot, manifest.node, 'provider runtime Node executable');
@@ -215,7 +215,7 @@ function copyRequiredProviderRuntime({
     sourcePath: sourceRoot,
     targetPath: path.join(bundleRoot, 'provider-runtime'),
     label: 'provider runtime build output',
-    command: 'pnpm provider-runtime:prepare',
+    command: 'pnpm sdk:prepare:provider-runtime',
     releaseAssetsLabel: `${descriptor.family} release assets`,
     requiredEntries: [PROVIDER_RUNTIME_MANIFEST_FILE_NAME],
   });
@@ -231,12 +231,12 @@ function resolveRequiredServerBinaryPath({
   const binaryPath = candidatePaths.find((candidatePath) => fs.existsSync(candidatePath)) ?? '';
   if (!binaryPath) {
     throw new Error(
-      `Missing required server binary build output: ${candidatePaths[0]}. Run \`pnpm server:build\` before packaging ${descriptor.family} release assets.`,
+      `Missing required server binary build output: ${candidatePaths[0]}. Run \`pnpm build:server\` before packaging ${descriptor.family} release assets.`,
     );
   }
   if (!fs.statSync(binaryPath).isFile()) {
     throw new Error(
-      `Required server binary build output must be a file: ${binaryPath}. Run \`pnpm server:build\` before packaging ${descriptor.family} release assets.`,
+      `Required server binary build output must be a file: ${binaryPath}. Run \`pnpm build:server\` before packaging ${descriptor.family} release assets.`,
     );
   }
 
@@ -444,7 +444,7 @@ function assertRequiredDesktopInstallerBundles({
         `Missing required desktop installer bundle artifacts for profile ${profile?.id ?? descriptor.profileId}: ${descriptor.platform}/${descriptor.arch}/${descriptor.target || 'default'}`,
         `bundleOutputRoot: ${bundleOutputRoot}`,
         `missing: ${missingBundles.join(', ')}`,
-        'Run `pnpm tauri:build` before packaging desktop release assets.',
+        'Run `pnpm build:desktop` before packaging desktop release assets.',
       ].join('. '),
     );
   }
@@ -460,19 +460,19 @@ function resolveDesktopInstallerArtifacts({
   });
   if (!fs.existsSync(bundleOutputRoot)) {
     throw new Error(
-      `Missing required desktop installer bundle output: ${bundleOutputRoot}. Run \`pnpm tauri:build\` before packaging desktop release assets.`,
+      `Missing required desktop installer bundle output: ${bundleOutputRoot}. Run \`pnpm build:desktop\` before packaging desktop release assets.`,
     );
   }
   if (!fs.statSync(bundleOutputRoot).isDirectory()) {
     throw new Error(
-      `Required desktop installer bundle output must be a directory: ${bundleOutputRoot}. Run \`pnpm tauri:build\` before packaging desktop release assets.`,
+      `Required desktop installer bundle output must be a directory: ${bundleOutputRoot}. Run \`pnpm build:desktop\` before packaging desktop release assets.`,
     );
   }
 
   const installerPaths = listDesktopInstallerArtifacts(bundleOutputRoot);
   if (installerPaths.length === 0) {
     throw new Error(
-      `Missing native desktop installer artifacts under ${bundleOutputRoot}. Run \`pnpm tauri:build\` before packaging desktop release assets.`,
+      `Missing native desktop installer artifacts under ${bundleOutputRoot}. Run \`pnpm build:desktop\` before packaging desktop release assets.`,
     );
   }
 
@@ -878,7 +878,7 @@ function stageFamilyPayload(bundleRoot, family, descriptor, rootDir, profile) {
       sourcePath: resolveReleaseBuildPath(rootDir, PC_DESKTOP_DIST_REL),
       targetPath: path.join(bundleRoot, 'app'),
       label: 'desktop app build output',
-      command: 'pnpm tauri:build',
+      command: 'pnpm build:desktop',
       releaseAssetsLabel: 'desktop release assets',
       requiredEntries: ['index.html'],
     });
@@ -897,7 +897,7 @@ function stageFamilyPayload(bundleRoot, family, descriptor, rootDir, profile) {
       sourcePath: path.join(rootDir, 'artifacts', 'openapi', 'coding-server-v1.json'),
       targetPath: path.join(bundleRoot, 'openapi', 'coding-server-v1.json'),
       label: 'coding-server OpenAPI snapshot',
-      command: 'pnpm generate:openapi:coding-server',
+      command: 'pnpm api:materialize:coding-server',
       releaseAssetsLabel: 'server release assets',
     });
     copyRequiredBuildOutput({
@@ -919,7 +919,7 @@ function stageFamilyPayload(bundleRoot, family, descriptor, rootDir, profile) {
       sourcePath: path.join(rootDir, 'artifacts', 'openapi', 'coding-server-v1.json'),
       targetPath: path.join(bundleRoot, 'openapi', 'coding-server-v1.json'),
       label: 'coding-server OpenAPI snapshot',
-      command: 'pnpm generate:openapi:coding-server',
+      command: 'pnpm api:materialize:coding-server',
       releaseAssetsLabel: 'container release assets',
     });
     copyRequiredServerBinary({

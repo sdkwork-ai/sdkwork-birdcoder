@@ -104,7 +104,7 @@ assert.deepEqual(warningToolchainDiagnostic.rerunCommands, [
 
 assert.equal(rootPackageJson.scripts.typecheck, 'node scripts/run-local-typescript.mjs --noEmit');
 assert.equal(rootPackageJson.scripts['check:quality-matrix'], 'node scripts/quality-gate-matrix-contract.test.mjs');
-assert.equal(rootPackageJson.scripts['quality:report'], 'node scripts/quality-gate-matrix-report.mjs');
+assert.equal(rootPackageJson.scripts['check:quality-report'], 'node scripts/quality-gate-matrix-report.mjs');
 assert.equal(
   rootPackageJson.scripts['check:desktop-startup-graph'],
   'node scripts/desktop-startup-graph-contract.test.mjs && node scripts/desktop-startup-graph-port-resilience.test.mjs',
@@ -146,7 +146,7 @@ assert.deepEqual(qualityStandardRunnerModule.QUALITY_STANDARD_CHECK_COMMANDS, [
   'node scripts/run-workspace-package-script.mjs . check:server',
   'node scripts/run-workspace-package-script.mjs . check:web-vite-build',
   'node scripts/run-workspace-package-script.mjs . check:web-bundle-budget',
-  'node scripts/run-workspace-package-script.mjs . server:build',
+  'node scripts/run-workspace-package-script.mjs . build:server',
   'node scripts/run-workspace-package-script.mjs . docs:build',
 ]);
 assert.deepEqual(qualityReleaseRunnerModule.QUALITY_RELEASE_CHECK_COMMANDS, [

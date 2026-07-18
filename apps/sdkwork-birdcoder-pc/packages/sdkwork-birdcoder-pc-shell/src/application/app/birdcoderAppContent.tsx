@@ -19,45 +19,45 @@ import {
   resolveStartupWorkspaceId,
   resolveWorkbenchRecoveryPersistenceSelection,
   type WorkbenchRecoverySnapshot,
-} from '@sdkwork/birdcoder-pc-commons/workbench/recovery';
+} from '@sdkwork/birdcoder-pc-workbench/workbench/recovery';
 import {
   buildCodingSessionProjectScopedKey,
   buildProjectCodingSessionIndex,
-} from '@sdkwork/birdcoder-pc-commons/workbench/codingSessionSelection';
-import { hydrateImportedProjectFromAuthority } from '@sdkwork/birdcoder-pc-commons/workbench/importedProjectHydration';
-import { importSandboxDirectoryProject } from '@sdkwork/birdcoder-pc-commons/workbench/sandboxDirectoryProjectImport';
-import { resolveProjectImportWorkspaceId } from '@sdkwork/birdcoder-pc-commons/workbench/projectImportWorkspace';
-import { resolveEffectiveWorkspaceId } from '@sdkwork/birdcoder-pc-commons/workbench/workspaceBootstrap';
+} from '@sdkwork/birdcoder-pc-workbench/workbench/codingSessionSelection';
+import { hydrateImportedProjectFromAuthority } from '@sdkwork/birdcoder-pc-workbench/workbench/importedProjectHydration';
+import { importSandboxDirectoryProject } from '@sdkwork/birdcoder-pc-workbench/workbench/sandboxDirectoryProjectImport';
+import { resolveProjectImportWorkspaceId } from '@sdkwork/birdcoder-pc-workbench/workbench/projectImportWorkspace';
+import { resolveEffectiveWorkspaceId } from '@sdkwork/birdcoder-pc-workbench/workbench/workspaceBootstrap';
 import {
   buildDefaultTerminalCommandRequest,
   emitOpenTerminalRequest,
   type TerminalCommandRequest,
-} from '@sdkwork/birdcoder-pc-commons/terminal/runtime';
+} from '@sdkwork/birdcoder-pc-workbench/terminal/runtime';
 import {
   emitRevealProjectInFileManager,
   subscribeCopyProjectLocalPath,
   subscribeOpenProjectTerminal,
   subscribeRevealProjectInFileManager,
   type ProjectDeviceMountTarget,
-} from '@sdkwork/birdcoder-pc-commons/events/projectDeviceMountEvents';
+} from '@sdkwork/birdcoder-pc-workbench/events/projectDeviceMountEvents';
 import {
   subscribeProjectMountRecoveryState,
   type ProjectMountRecoveryEventPayload,
-} from '@sdkwork/birdcoder-pc-commons/events/projectMountRecoveryEvents';
-import { globalEventBus } from '@sdkwork/birdcoder-pc-commons/utils/EventBus';
-import { revealTauriPathInFileManager } from '@sdkwork/birdcoder-pc-commons/platform/tauriFileManager';
-import { ToastProvider, useToast } from '@sdkwork/birdcoder-pc-commons/contexts/ToastProvider';
-import { useIDEServices } from '@sdkwork/birdcoder-pc-commons/context/IDEContext';
-import { useAuth } from '@sdkwork/birdcoder-pc-commons/context/AuthContext';
-import { usePersistedState } from '@sdkwork/birdcoder-pc-commons/hooks/usePersistedState';
-import { useProjects } from '@sdkwork/birdcoder-pc-commons/hooks/useProjects';
-import { useWorkbenchChatSelection } from '@sdkwork/birdcoder-pc-commons/hooks/useWorkbenchChatSelection';
-import { useWorkbenchCodingSessionCreationActions } from '@sdkwork/birdcoder-pc-commons/hooks/useWorkbenchCodingSessionCreationActions';
-import { useWorkbenchPreferences } from '@sdkwork/birdcoder-pc-commons/hooks/useWorkbenchPreferences';
-import { useWorkspaces } from '@sdkwork/birdcoder-pc-commons/hooks/useWorkspaces';
+} from '@sdkwork/birdcoder-pc-workbench/events/projectMountRecoveryEvents';
+import { globalEventBus } from '@sdkwork/birdcoder-pc-workbench/utils/EventBus';
+import { revealTauriPathInFileManager } from '@sdkwork/birdcoder-pc-workbench/platform/tauriFileManager';
+import { ToastProvider, useToast } from '@sdkwork/birdcoder-pc-workbench/contexts/ToastProvider';
+import { useIDEServices } from '@sdkwork/birdcoder-pc-workbench/context/IDEContext';
+import { useAuth } from '@sdkwork/birdcoder-pc-workbench/context/AuthContext';
+import { usePersistedState } from '@sdkwork/birdcoder-pc-workbench/hooks/usePersistedState';
+import { useProjects } from '@sdkwork/birdcoder-pc-workbench/hooks/useProjects';
+import { useWorkbenchChatSelection } from '@sdkwork/birdcoder-pc-workbench/hooks/useWorkbenchChatSelection';
+import { useWorkbenchCodingSessionCreationActions } from '@sdkwork/birdcoder-pc-workbench/hooks/useWorkbenchCodingSessionCreationActions';
+import { useWorkbenchPreferences } from '@sdkwork/birdcoder-pc-workbench/hooks/useWorkbenchPreferences';
+import { useWorkspaces } from '@sdkwork/birdcoder-pc-workbench/hooks/useWorkspaces';
 import { Button, TopMenu, type TopMenuItem } from '@sdkwork/birdcoder-pc-ui-shell';
 import { copyTextToClipboard } from '@sdkwork/birdcoder-pc-ui/components/clipboard';
-import type { AppTab, BirdCoderProject } from '@sdkwork/birdcoder-pc-types';
+import type { AppTab, BirdCoderProject } from '@sdkwork/birdcoder-pc-contracts-commons';
 import { resolveWorkbenchNewSessionEngineCatalog } from '@sdkwork/birdcoder-pc-codeengine';
 import { useSandboxDirectoryPicker } from '@sdkwork/drive-pc-sandbox-explorer';
 import { useTranslation } from 'react-i18next';

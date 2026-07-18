@@ -1,11 +1,11 @@
 import type {
   BirdCoderDatabaseProviderId,
   BirdCoderEntityStorageBinding,
-} from '@sdkwork/birdcoder-pc-types';
+} from '@sdkwork/birdcoder-pc-contracts-commons';
 import {
   BIRDCODER_SAVED_PROMPT_ENTRY_STORAGE_BINDING,
   getBirdCoderEntityDefinition,
-} from '@sdkwork/birdcoder-pc-types';
+} from '@sdkwork/birdcoder-pc-contracts-commons';
 import {
   createBirdCoderTableRecordRepository,
   type BirdCoderStorageAccess,

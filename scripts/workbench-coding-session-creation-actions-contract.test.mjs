@@ -15,7 +15,7 @@ const hookPath = path.join(
     'sdkwork-birdcoder-pc',
     'packages',
   
-  'sdkwork-birdcoder-pc-commons',
+  'sdkwork-birdcoder-pc-workbench',
   'src',
   'hooks',
   'useWorkbenchCodingSessionCreationActions.ts',
@@ -34,7 +34,7 @@ const commonsIndexSource = readSource(
   
   'packages',
   
-  'sdkwork-birdcoder-pc-commons',
+  'sdkwork-birdcoder-pc-workbench',
   'src',
   'index.ts',
 );
@@ -68,7 +68,7 @@ const legacyCommonsWorkbenchPath = path.join(
     'sdkwork-birdcoder-pc',
     'packages',
   
-  'sdkwork-birdcoder-pc-commons',
+  'sdkwork-birdcoder-pc-workbench',
   'src',
   'workbench.ts',
 );

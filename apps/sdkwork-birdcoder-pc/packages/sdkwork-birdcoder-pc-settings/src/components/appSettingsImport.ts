@@ -2,7 +2,7 @@ import {
   DEFAULT_APP_SETTINGS,
   parseAppSettingValue,
   type AppSettings,
-} from '@sdkwork/birdcoder-pc-commons/settings/appSettings';
+} from '@sdkwork/birdcoder-pc-workbench/settings/appSettings';
 
 const MAX_APP_SETTINGS_IMPORT_BYTES = 256 * 1024;
 const APP_SETTINGS_KEYS = new Set(

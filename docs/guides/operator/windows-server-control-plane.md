@@ -18,11 +18,13 @@ enable remote code execution until an isolated runner is separately verified.
   service as LocalSystem or as an interactive developer account.
 - Use a supported database configuration. Production cloud configuration
   requires PostgreSQL and protected database credentials.
-- Inject both runtime-location encryption settings through an approved secret
+- Inject runtime-location encryption settings through an approved secret
   source: `SDKWORK_BIRDCODER_RUNTIME_LOCATION_MASTER_KEY` must be base64url or
   raw material with at least 32 decoded/raw bytes, and
   `SDKWORK_BIRDCODER_RUNTIME_LOCATION_KEY_ID` must be a non-empty safe key id.
-  The service must fail closed when either value is missing or invalid; neither
+  Rotation also uses `SDKWORK_BIRDCODER_RUNTIME_LOCATION_PREVIOUS_KEYS_JSON`
+  and a stable `SDKWORK_BIRDCODER_RUNTIME_LOCATION_FINGERPRINT_KEY`. The
+  service must fail closed when required values are missing or invalid; no key
   value may appear in a tracked environment file, `VITE_*` or client runtime
   config, command line, log, or diagnostic.
 - Put TLS termination, public DNS, and certificate management at an approved
@@ -64,7 +66,7 @@ secret-capable service wrapper:
     SDKWORK_BIRDCODER_DATABASE_ENGINE=postgresql
     SDKWORK_BIRDCODER_PROVIDER_RUNNER_ROOT=%ProgramData%\sdkwork\birdcoder\Data\ProjectWorkspaces
 
-Inject the database URL, runtime-location master key, and key id through a
+Inject the database URL and runtime-location keyring through a
 protected secret source. The service wrapper must preserve file/secret ACLs,
 must not print the effective values, and must not synthesize a missing key.
 Neither standalone nor cloud turns a workspace base or persisted location into

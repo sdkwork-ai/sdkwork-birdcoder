@@ -21,7 +21,7 @@ const SERVER_ACTIONS = Object.freeze({
     viteMode: 'production',
   },
   dev: {
-    scriptName: 'dev:base',
+    scriptName: 'start:server',
     target: 'server-dev',
     viteMode: 'development',
   },

@@ -2,7 +2,7 @@ import type { BirdCoderAppSdkApiClient } from '../apps/sdkwork-birdcoder-pc/pack
 import assert from 'node:assert/strict';
 import type {
   IWorkspace,
-} from '@sdkwork/birdcoder-pc-types';
+} from '@sdkwork/birdcoder-pc-contracts-commons';
 import { ApiBackedWorkspaceService } from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/src/services/impl/ApiBackedWorkspaceService.ts';
 import type { IWorkspaceService } from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/src/services/interfaces/IWorkspaceService.ts';
 

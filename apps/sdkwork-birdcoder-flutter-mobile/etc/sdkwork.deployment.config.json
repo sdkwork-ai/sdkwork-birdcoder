@@ -1,0 +1,7 @@
+{
+  "schemaVersion": 1,
+  "kind": "sdkwork.deployment-reference",
+  "application": "sdkwork-birdcoder-flutter-mobile",
+  "authority": "../../etc/sdkwork.deployment.config.json",
+  "runtimeConfig": "flutter.runtime.json"
+}

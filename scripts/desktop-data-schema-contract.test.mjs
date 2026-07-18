@@ -18,7 +18,7 @@ const schemaSources = await Promise.all([
   ),
   readFile(
     new URL(
-      '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-types/src/data.ts',
+      '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-contracts-commons/src/data.ts',
       import.meta.url,
     ),
     'utf8',

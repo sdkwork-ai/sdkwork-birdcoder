@@ -3,7 +3,7 @@ import type {
   DriveUploaderProfile,
   MediaResource,
   SdkworkDriveAppClient,
-} from '@sdkwork/drive-app-sdk';
+} from '@sdkwork/birdcoder-pc-core/sdk/drive-app';
 import { getPath } from '@sdkwork/utils/object';
 import { isBlank } from '@sdkwork/utils/string';
 import { getBirdCoderDriveAppClient } from './iamRuntime.ts';

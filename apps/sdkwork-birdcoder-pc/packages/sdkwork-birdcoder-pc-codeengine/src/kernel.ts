@@ -2,7 +2,7 @@ import type {
   BirdCoderEngineDescriptor,
   BirdCoderEngineTransportKind,
   BirdCoderModelCatalogEntry,
-} from '@sdkwork/birdcoder-pc-types';
+} from '@sdkwork/birdcoder-pc-contracts-commons';
 
 /**
  * Workbench engine kernel metadata for BirdCoder programming-tool surfaces.

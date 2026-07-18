@@ -22,20 +22,20 @@ pnpm dev
 常用入口：
 
 ```bash
-pnpm dev:local
-pnpm dev:private
-pnpm dev:cloud
-pnpm tauri:dev
-pnpm tauri:dev:private
-pnpm tauri:dev:cloud
-pnpm server:dev
-pnpm server:dev:private
-pnpm server:dev:cloud
-pnpm stack:desktop:local
-pnpm stack:desktop:private
-pnpm stack:desktop:cloud
-pnpm stack:web:private
-pnpm stack:web:cloud
+pnpm dev:desktop:local
+pnpm dev:browser:postgres:standalone
+pnpm dev:browser:postgres:cloud
+pnpm dev:desktop
+pnpm dev:desktop:standalone
+pnpm dev:desktop:cloud
+pnpm dev:server:postgres:standalone
+pnpm dev:server:standalone
+pnpm dev:server:cloud
+pnpm dev:desktop:local
+pnpm dev:desktop:standalone
+pnpm dev:desktop:cloud
+pnpm dev:browser:standalone
+pnpm dev:browser:cloud
 pnpm check:iam:sample
 ```
 
@@ -49,9 +49,9 @@ pnpm check:iam:sample
 
 | 模式 | 桌面命令 | 服务端命令 | SDKWork 公开模式 | IAM 权威 |
 | --- | --- | --- | --- | --- |
-| `desktop-local` | `pnpm tauri:dev` 或 `pnpm tauri:dev:local` | 不需要独立服务端 | `local` | 桌面内嵌 BirdCoder coding server 和本地 SDKWork IAM |
-| `server-private` | `pnpm tauri:dev:private` | `pnpm server:dev` 或 `pnpm server:dev:private` | `private` | 私有 BirdCoder server 和本地 SDKWork IAM |
-| `cloud-saas` | `pnpm tauri:dev:cloud` | `pnpm server:dev:cloud` | `saas` | BirdCoder server 对接 SDKWork cloud app-api IAM |
+| `desktop-local` | `pnpm dev:desktop` 或 `pnpm dev:desktop:local` | 不需要独立服务端 | `local` | 桌面内嵌 BirdCoder coding server 和本地 SDKWork IAM |
+| `server-private` | `pnpm dev:desktop:standalone` | `pnpm dev:server:postgres:standalone` 或 `pnpm dev:server:standalone` | `private` | 私有 BirdCoder server 和本地 SDKWork IAM |
+| `cloud-saas` | `pnpm dev:desktop:cloud` | `pnpm dev:server:cloud` | `saas` | BirdCoder server 对接 SDKWork cloud app-api IAM |
 
 包装脚本会加载 `.env`、`.env.local`、`.env.development`、`.env.development.local`、`.env.production`、`.env.production.local`，然后按模式补齐 sqlite、远端 API base URL、`SDKWORK_IAM_MODE`、`VITE_SDKWORK_BIRDCODER_DEPLOYMENT_PROFILE`、`VITE_SDKWORK_BIRDCODER_RUNTIME_TARGET`、OAuth 样板配置和开发登录预填值。
 
@@ -66,17 +66,17 @@ pnpm check:iam:sample
 启动前检查最终环境：
 
 ```bash
-pnpm iam:show -- desktop-dev --iam-mode desktop-local
-pnpm iam:show -- server-dev --iam-mode server-private
-pnpm iam:show -- server-dev --iam-mode cloud-saas
+pnpm check:env:desktop:local -- desktop-dev --iam-mode desktop-local
+pnpm check:env:desktop:local -- server-dev --iam-mode server-private
+pnpm check:env:desktop:local -- server-dev --iam-mode cloud-saas
 ```
 
 就绪检查：
 
 ```bash
-pnpm iam:doctor:desktop:local
-pnpm iam:doctor:web:private
-pnpm iam:doctor:server:cloud
+pnpm check:iam:desktop:local
+pnpm check:iam:browser:standalone
+pnpm check:iam:server:cloud
 ```
 
 `pnpm check:iam:sample` 会覆盖 local、private、cloud 三条样板链路，并验证私有和云端模式的 web/server 构建。若未显式设置 `SDKWORK_IAM_APP_API_BASE_URL`，云端样板会使用 `https://app-api.example.com` 作为确定性占位值。
@@ -87,29 +87,29 @@ BirdCoder 前端始终调用标准路由：`/app/v3/api/auth/*`、`/app/v3/api/s
 
 | 目标 | 命令 |
 | --- | --- |
-| 本地桌面样板 | `pnpm dev:local` 或 `pnpm desktop:dev:local` |
-| 私有 Web 样板 | `pnpm dev` 或 `pnpm dev:private` |
-| 云端 Web 样板 | `pnpm dev:cloud` |
-| 私有 Web 栈 | `pnpm stack:web:private` |
-| 云端 Web 栈 | `pnpm stack:web:cloud` |
-| 本地桌面宿主 | `pnpm tauri:dev` |
-| 私有桌面宿主 | `pnpm tauri:dev:private` |
-| 云端桌面宿主 | `pnpm tauri:dev:cloud` |
-| 私有服务端 | `pnpm server:dev` 或 `pnpm server:dev:private` |
-| 云端服务端 | `pnpm server:dev:cloud` |
+| 本地桌面样板 | `pnpm dev:desktop:local` 或 `pnpm dev:desktop:local` |
+| 私有 Web 样板 | `pnpm dev` 或 `pnpm dev:browser:postgres:standalone` |
+| 云端 Web 样板 | `pnpm dev:browser:postgres:cloud` |
+| 私有 Web 栈 | `pnpm dev:browser:standalone` |
+| 云端 Web 栈 | `pnpm dev:browser:cloud` |
+| 本地桌面宿主 | `pnpm dev:desktop` |
+| 私有桌面宿主 | `pnpm dev:desktop:standalone` |
+| 云端桌面宿主 | `pnpm dev:desktop:cloud` |
+| 私有服务端 | `pnpm dev:server:postgres:standalone` 或 `pnpm dev:server:standalone` |
+| 云端服务端 | `pnpm dev:server:cloud` |
 | IAM 标准契约 | `pnpm check:iam-standard` |
 | 样板 IAM 矩阵 | `pnpm check:iam:sample` |
 | Web 构建 | `pnpm build`、`pnpm build:private`、`pnpm build:cloud` |
-| 桌面构建 | `pnpm tauri:build`、`pnpm tauri:build:private`、`pnpm tauri:build:cloud` |
+| 桌面构建 | `pnpm build:desktop`、`pnpm build:desktop:standalone`、`pnpm build:desktop:cloud` |
 | 文档构建 | `pnpm docs:build` |
 | 仓库基线 | `pnpm lint` |
-| 服务端构建 | `pnpm server:build` |
+| 服务端构建 | `pnpm build:server` |
 
 ## 质量与治理
 
 - `pnpm lint` 运行 TypeScript、架构、治理、IAM、SDK 和发布流程契约。
 - `pnpm check:quality:fast`、`pnpm check:quality:standard`、`pnpm check:quality:release` 定义质量分层。
-- `pnpm quality:report` 和 `pnpm quality:execution-report` 输出机器可读证据。
+- `pnpm check:quality-report` 和 `pnpm check:quality-execution-report` 输出机器可读证据。
 - `pnpm check:release-flow` 和 `pnpm check:ci-flow` 固化发布编排与 CI 拓扑。
 
 改动包归属、发布自动化、IAM 行为、生成 SDK、文档治理或多宿主行为时，先从 `pnpm lint` 开始，再按变更范围补跑更窄的检查。

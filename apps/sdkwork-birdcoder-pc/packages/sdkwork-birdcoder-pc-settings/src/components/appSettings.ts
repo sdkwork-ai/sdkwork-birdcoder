@@ -3,4 +3,4 @@ export {
   isCanonicalAppSettingsRecord,
   normalizeAppSettings,
   type AppSettings,
-} from "@sdkwork/birdcoder-pc-commons";
+} from "@sdkwork/birdcoder-pc-workbench";

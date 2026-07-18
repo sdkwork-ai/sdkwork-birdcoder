@@ -16,11 +16,11 @@ const studioPageSource = fs.readFileSync(
   'utf8',
 );
 const sharedRefreshHookSource = fs.readFileSync(
-  new URL('../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-commons/src/hooks/useSessionRefreshActions.ts', import.meta.url),
+  new URL('../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-workbench/src/hooks/useSessionRefreshActions.ts', import.meta.url),
   'utf8',
 );
 const selectedSessionMessagesHookSource = fs.readFileSync(
-  new URL('../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-commons/src/hooks/useSelectedCodingSessionMessages.ts', import.meta.url),
+  new URL('../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-workbench/src/hooks/useSelectedCodingSessionMessages.ts', import.meta.url),
   'utf8',
 );
 

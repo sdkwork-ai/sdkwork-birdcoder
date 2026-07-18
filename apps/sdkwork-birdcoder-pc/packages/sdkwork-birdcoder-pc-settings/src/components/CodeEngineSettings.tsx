@@ -4,7 +4,7 @@ import type {
   BirdCoderEngineAccessLane,
   BirdCoderEngineAccessPlan,
   BirdCoderEngineOfficialIntegration,
-} from '@sdkwork/birdcoder-pc-types';
+} from '@sdkwork/birdcoder-pc-contracts-commons';
 import {
   BIRDCODER_STANDARD_DEFAULT_ENGINE_ID,
   getWorkbenchCodeEngineKernel,
@@ -19,7 +19,7 @@ import {
   setWorkbenchCodeEngineDefaultModel,
   type TerminalCliProfileAvailability,
   useToast,
-} from '@sdkwork/birdcoder-pc-commons';
+} from '@sdkwork/birdcoder-pc-workbench';
 import { Button, WorkbenchCodeEngineIcon } from '@sdkwork/birdcoder-pc-ui-shell';
 
 import type { SettingsProps } from './types';

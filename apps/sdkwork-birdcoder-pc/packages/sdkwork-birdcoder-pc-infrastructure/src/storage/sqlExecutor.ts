@@ -1,4 +1,4 @@
-import type { BirdCoderDatabaseProviderId } from '@sdkwork/birdcoder-pc-types';
+import type { BirdCoderDatabaseProviderId } from '@sdkwork/birdcoder-pc-contracts-commons';
 import type { BirdCoderSqlPlan, BirdCoderSqlPlanOrderBy, BirdCoderSqlRow } from './sqlPlans.ts';
 
 function limitRows<T>(rows: readonly T[], begin: number, count: number): T[] {

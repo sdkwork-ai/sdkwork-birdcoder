@@ -52,4 +52,4 @@ Root SDKWork standards remain authoritative. Local component specs can narrow or
 
 ## Verification
 
-- `node apps/scripts/validate-component-specs.mjs --apps-root apps --json`
+- `node ../sdkwork-specs/tools/check-component-port-bindings.mjs --root .`

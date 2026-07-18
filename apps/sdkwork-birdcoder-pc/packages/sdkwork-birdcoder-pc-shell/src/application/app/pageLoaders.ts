@@ -1,5 +1,5 @@
 import type { ComponentType } from 'react';
-import type { BirdcoderTerminalAppProps } from '@sdkwork/birdcoder-pc-commons/terminal/BirdcoderTerminalApp';
+import type { BirdcoderTerminalAppProps } from '@sdkwork/birdcoder-pc-workbench/terminal/BirdcoderTerminalApp';
 
 export async function loadCodePage() {
   const module = await import('@sdkwork/birdcoder-pc-code');
@@ -19,7 +19,7 @@ export async function loadMultiWindowProgrammingPage() {
 export async function loadTerminalDesktopApp(): Promise<{
   default: ComponentType<BirdcoderTerminalAppProps>;
 }> {
-  const module = await import('@sdkwork/birdcoder-pc-commons/terminal/BirdcoderTerminalApp');
+  const module = await import('@sdkwork/birdcoder-pc-workbench/terminal/BirdcoderTerminalApp');
   return {
     default: module.BirdcoderTerminalApp,
   };

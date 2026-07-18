@@ -4,15 +4,15 @@ import { readFile } from 'node:fs/promises';
 import { readCanonicalSqliteSchemaBundle, readCanonicalServerRustSource, CANONICAL_CODEENGINE_RUST_PATHS } from './birdcoder-canonical-server-rust-sources.mjs';
 
 const dataDefinitionsPath = new URL(
-  '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-types/src/data.ts',
+  '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-contracts-commons/src/data.ts',
   import.meta.url,
 );
 const storageBindingsPath = new URL(
-  '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-types/src/storageBindings.ts',
+  '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-contracts-commons/src/storageBindings.ts',
   import.meta.url,
 );
 const engineTypesPath = new URL(
-  '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-types/src/engine.ts',
+  '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-contracts-commons/src/engine.ts',
   import.meta.url,
 );
 const openApiPath = new URL(

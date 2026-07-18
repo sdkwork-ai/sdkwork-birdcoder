@@ -1,4 +1,5 @@
 <?xml version='1.0' encoding='utf-8'?>
+<!-- sdkwork-i18n-generated: android/app/src/main/i18n/en-US/application/shell/metadata.json -->
 <resources>
     <string name="app_name">BirdCoder</string>
     <string name="title_activity_main">BirdCoder</string>

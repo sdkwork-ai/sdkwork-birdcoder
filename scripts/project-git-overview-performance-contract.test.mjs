@@ -6,7 +6,7 @@ function readSource(relativePath) {
 }
 
 const hookSource = readSource(
-  'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-commons/src/hooks/useProjectGitOverview.ts',
+  'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-workbench/src/hooks/useProjectGitOverview.ts',
 );
 const codePageSource = readSource(
   'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-code/src/pages/CodePage.tsx',

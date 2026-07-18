@@ -42,8 +42,8 @@ assert.equal(
 
 const requiredDependencies = [
   '@sdkwork/birdcoder-pc-codeengine',
-  '@sdkwork/birdcoder-pc-commons',
-  '@sdkwork/birdcoder-pc-types',
+  '@sdkwork/birdcoder-pc-workbench',
+  '@sdkwork/birdcoder-pc-contracts-commons',
   '@sdkwork/birdcoder-pc-ui',
   '@sdkwork/birdcoder-pc-ui-shell',
   'lucide-react',

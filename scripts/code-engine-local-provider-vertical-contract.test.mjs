@@ -5,6 +5,7 @@ import os from 'node:os';
 import path from 'node:path';
 
 const root = path.resolve(import.meta.dirname, '..');
+const kernelWorkerRoot = path.resolve(root, '..', 'sdkwork-kernel', 'scripts', 'provider-transport-workers');
 const binary = [
   path.join(root, 'target/debug/birdcoder-kernel-turn.exe'),
   path.join(root, 'target/debug/birdcoder-kernel-turn'),
@@ -97,6 +98,11 @@ if (engine === 'codex') {
       SDKWORK_VERTICAL_ENGINE: definition.engineId,
       SDKWORK_KERNEL_ENVIRONMENT: 'production',
       SDKWORK_KERNEL_ALLOW_MOCK_PROVIDERS: '0',
+      SDKWORK_AGENT_NODE_BINARY: process.execPath,
+      SDKWORK_AGENT_TYPESCRIPT_WORKER_SCRIPT: path.join(
+        kernelWorkerRoot,
+        'generic-ts-sdk-worker.mjs',
+      ),
     };
 
     const first = executeTurn(environment, definition, workspace, 'FIRST_TURN create a marker');
@@ -159,7 +165,7 @@ function executeTurn(environment, definition, workspace, inputSummary, nativeSes
   assert.equal(
     result.status,
     0,
-    `${definition.engineId} turn failed: ${result.error?.message ?? result.stderr ?? 'unknown error'}`,
+    `${definition.engineId} turn failed: ${(result.error?.message ?? result.stderr) || result.stdout || 'unknown error'}`,
   );
   const payload = JSON.parse(result.stdout);
   assert.doesNotMatch(payload.assistantContent, /stub|sdk_probe|mock response/iu);

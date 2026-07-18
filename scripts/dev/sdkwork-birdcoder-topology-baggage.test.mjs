@@ -127,7 +127,7 @@ assert.equal(spec.schemaVersion, 4);
 assert.equal(spec.archetype, 'application-http-gateway');
 assert.equal(spec.defaults.developmentProfileId, 'standalone.development');
 
-const profileDir = path.join(repoRoot, 'configs/topology');
+const profileDir = path.join(repoRoot, 'etc/topology');
 const profileFiles = fs.readdirSync(profileDir).filter((name) => name.endsWith('.env'));
 assert.ok(profileFiles.length >= 2, 'topology profile env files required');
 

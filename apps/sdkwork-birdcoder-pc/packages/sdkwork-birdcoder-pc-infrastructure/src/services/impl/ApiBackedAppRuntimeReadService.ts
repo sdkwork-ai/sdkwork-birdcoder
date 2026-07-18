@@ -1,4 +1,4 @@
-import { stringifyBirdCoderApiJson } from '@sdkwork/birdcoder-pc-types';
+import { stringifyBirdCoderApiJson } from '@sdkwork/birdcoder-pc-contracts-commons';
 import {
   CurrentUserScopeResolver,
   type CurrentUserScope,

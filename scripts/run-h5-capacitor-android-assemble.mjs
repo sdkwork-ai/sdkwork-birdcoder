@@ -18,7 +18,7 @@ const androidRoot = path.join(
 const apkPath = path.join(androidRoot, 'app/build/outputs/apk/debug/app-debug.apk');
 
 if (!existsSync(h5DistDir)) {
-  console.error('H5 dist is missing. Run `pnpm h5:build` and `pnpm cap:sync` before assembling Android.');
+  console.error('H5 dist is missing. Run `pnpm build:browser` and `pnpm build:capacitor-android:sync` before assembling Android.');
   process.exit(1);
 }
 

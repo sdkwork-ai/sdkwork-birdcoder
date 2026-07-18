@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import type {
   BirdCoderApiTransport,
   BirdCoderApiTransportRequest,
-} from '@sdkwork/birdcoder-pc-types';
+} from '@sdkwork/birdcoder-pc-contracts-commons';
 
 const sdkClientsModulePath = new URL(
   '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/src/services/sdkClients.ts',

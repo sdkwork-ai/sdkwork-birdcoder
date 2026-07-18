@@ -1,6 +1,6 @@
 import type {
   BirdCoderCodeEngineKey,
-} from '@sdkwork/birdcoder-pc-types';
+} from '@sdkwork/birdcoder-pc-contracts-commons';
 import type {
   ChatEngineRegistryEntry,
   IChatEngine,
@@ -69,7 +69,7 @@ export {
   resolveBirdCoderCodeEngineUserQuestionRuntimeStatus,
   shouldPreserveBirdCoderCodeEngineCommandText,
   parseBirdCoderApiJson,
-} from '@sdkwork/birdcoder-pc-types';
+} from '@sdkwork/birdcoder-pc-contracts-commons';
 export type {
   BirdCoderCodeEngineCommandSnapshot,
   BirdCoderCodeEngineCommandStatus,
@@ -87,4 +87,4 @@ export type {
   BirdCoderCodeEngineToolKind,
   BirdCoderCodeEngineToolKindInput,
   BirdCoderCodeEngineToolLifecycleStatus,
-} from '@sdkwork/birdcoder-pc-types';
+} from '@sdkwork/birdcoder-pc-contracts-commons';

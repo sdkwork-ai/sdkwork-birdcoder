@@ -13,7 +13,7 @@ import {
   type ProjectFileSystemChangeEvent,
   type WorkspaceFileSearchExecutionResult,
   type WorkspaceFileSearchOptions,
-} from '@sdkwork/birdcoder-pc-types';
+} from '@sdkwork/birdcoder-pc-contracts-commons';
 import type {
   FileSystemChangeSubscriptionOptions,
   IFileSystemService,

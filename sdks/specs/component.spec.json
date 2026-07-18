@@ -96,7 +96,7 @@
     "runtimeEntrypoints": [
       "sdkwork-birdcoder-app-sdk/sdk-manifest.json",
       "sdkwork-birdcoder-backend-sdk/sdk-manifest.json",
-      "package.json#scripts.generate:sdk:birdcoder",
+      "package.json#scripts.sdk:generate",
       "package.json#scripts.check:sdk-family-standard",
       "package.json#scripts.check:sdk-family-generated"
     ],
@@ -180,7 +180,7 @@
   "verification": {
     "commands": [
       "pnpm check:sdk-family-standard",
-      "pnpm generate:sdk:birdcoder",
+      "pnpm sdk:generate",
       "pnpm check:sdk-family-generated"
     ]
   },

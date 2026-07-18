@@ -2,7 +2,7 @@
 
 BirdCoder normalizes deployment profile, runtime target, environment, IAM
 binding, and public API origin separately. Active templates are under
-configs/topology. Source-controlled examples contain no credentials or
+etc/topology. Source-controlled examples contain no credentials or
 project-location paths.
 
 ## Runtime Selectors
@@ -32,6 +32,8 @@ location, or execution capability.
 | SDKWORK_BIRDCODER_DATABASE_FILE | Server/desktop SQLite file when approved. | Keep under the applicable SDKWork private/runtime data directory. |
 | SDKWORK_BIRDCODER_RUNTIME_LOCATION_MASTER_KEY | Master secret for encrypted runtime-location absolute paths. | Server/container only. Use base64url or raw material whose decoded/raw length is at least 32 bytes. Never expose it through `VITE_*`, client runtime config, source-controlled examples, logs, diagnostics, or command lines. |
 | SDKWORK_BIRDCODER_RUNTIME_LOCATION_KEY_ID | Stable identifier for the active runtime-location encryption key. | Server/container only. Must be a non-empty safe key id and must not enter public configuration, logs, or client bundles. |
+| SDKWORK_BIRDCODER_RUNTIME_LOCATION_PREVIOUS_KEYS_JSON | JSON object mapping historical key ids to decryption-only key material. | Server/container only. Optional, limited to 15 entries, and must never contain the active key id. |
+| SDKWORK_BIRDCODER_RUNTIME_LOCATION_FINGERPRINT_KEY | Stable secret used only for scoped duplicate-path fingerprints. | Required whenever historical keys are configured. Preserve it across encryption-key rotations. |
 | SDKWORK_BIRDCODER_PROVIDER_RUNNER_ROOT | Server-owned base for controlled workspace provisioning. | Not a client mount, public config value, or remote-execution switch. |
 | SDKWORK_BIRDCODER_APP_ROOT | Read-only installed application asset root. | Never use as mutable project data. |
 
@@ -43,8 +45,7 @@ and canonical root.
 
 ## Runtime-Location Encryption Secrets
 
-`SDKWORK_BIRDCODER_RUNTIME_LOCATION_MASTER_KEY` and
-`SDKWORK_BIRDCODER_RUNTIME_LOCATION_KEY_ID` are required only by the
+The active master key and key id are required only by the
 server/container runtime that wires ProjectRuntimeLocation persistence. Supply
 them from a protected secret manager, an ACL-restricted secret file, or an
 equivalent server-only process environment. Do not add values for either
@@ -52,10 +53,10 @@ variable to `.env.example`, `sdkwork.app.config.json`, `VITE_*`, browser
 runtime JSON, Docker image layers, Helm values, shell history, logs, traces, or
 diagnostic output.
 
-The master key accepts base64url text or raw key material, but the decoded or
-raw material must be at least 32 bytes. The key id must be non-empty and safe
-for persistence. Missing or invalid material is a fail-closed configuration
-error: the runtime-location service must not initialize, generate a fallback,
+All key values accept base64url text or raw key material, but decoded or raw
+material must be at least 32 bytes. Key ids must be non-empty and safe for
+persistence. Missing or invalid material is a fail-closed configuration error:
+the runtime-location service must not initialize, generate a fallback,
 or downgrade to plaintext storage.
 
 ## Client API Configuration
@@ -114,12 +115,12 @@ secret-capable deployment wrapper provides them without printing their values.
 
 ## Inspection Commands
 
-    pnpm iam:show:desktop:local
-    pnpm iam:show:web:private
-    pnpm iam:show:server:cloud
-    pnpm iam:doctor:desktop:local
-    pnpm iam:doctor:web:private
-    pnpm iam:doctor:server:cloud
+    pnpm check:env:desktop:local
+    pnpm check:env:browser:standalone
+    pnpm check:env:server:cloud
+    pnpm check:iam:desktop:local
+    pnpm check:iam:browser:standalone
+    pnpm check:iam:server:cloud
 
 Inspection commands mask secret-like values. Do not add paths, encrypted path
 material, tokens, or database credentials to diagnostic output.

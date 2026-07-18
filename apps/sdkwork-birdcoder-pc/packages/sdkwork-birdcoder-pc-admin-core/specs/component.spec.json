@@ -34,6 +34,11 @@
         "workspace": "sdkwork-iam-backend-sdk",
         "surface": "backend-api",
         "credentialMode": "authenticated-backend-admin"
+      },
+      {
+        "workspace": "sdkwork-membership-backend-sdk",
+        "surface": "backend-api",
+        "credentialMode": "authenticated-backend-admin"
       }
     ],
     "permissionComposition": {

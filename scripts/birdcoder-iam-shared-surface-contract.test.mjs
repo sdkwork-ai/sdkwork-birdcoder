@@ -147,7 +147,7 @@ assert.equal(
 
 const serviceContextSource = readText(
   rootDir,
-  'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-commons/src/context/ServiceContext.tsx',
+  'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-workbench/src/context/ServiceContext.tsx',
 );
 assert.match(
   serviceContextSource,

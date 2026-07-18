@@ -50,7 +50,7 @@ import type {
   BirdCoderCodingSessionRuntime,
   BirdCoderHostMode,
   BirdCoderUserQuestionAnswerResult,
-} from '@sdkwork/birdcoder-pc-types';
+} from '@sdkwork/birdcoder-pc-contracts-commons';
 import type {
   BirdCoderAppSdkApiClient,
   BirdCoderBackendSdkApiClient,
@@ -68,7 +68,7 @@ import {
   BIRDCODER_ENGINE_RUNTIME_MODES,
   BIRDCODER_HOST_MODES,
   stringifyBirdCoderLongInteger,
-} from '@sdkwork/birdcoder-pc-types';
+} from '@sdkwork/birdcoder-pc-contracts-commons';
 import { BIRDCODER_CODING_SERVER_API_VERSION } from './serverConstants.ts';
 
 export function buildRequestId(_seed: string): string {

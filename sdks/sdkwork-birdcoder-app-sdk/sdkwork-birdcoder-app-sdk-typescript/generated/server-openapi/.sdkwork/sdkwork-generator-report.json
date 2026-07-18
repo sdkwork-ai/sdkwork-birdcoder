@@ -10,37 +10,142 @@
   },
   "status": "ok",
   "mode": "apply",
-  "hasChanges": false,
-  "hasDestructiveChanges": false,
-  "changeFingerprint": "5050d3c009dbab2acedda26654a3702a8511ceb58852d803d5d615e2bed11c39",
+  "hasChanges": true,
+  "hasDestructiveChanges": true,
+  "changeFingerprint": "f7df83308419b72d4218f87af82f257b7b5e1aa59b7eeee0de38c716b6157153",
   "changeImpact": {
     "schemaVersion": 1,
-    "areas": [],
-    "details": [],
-    "requiresVerification": false,
-    "summary": "No generated, scaffold, or backup changes detected. Verification can be skipped."
+    "areas": [
+      "api-surface",
+      "models",
+      "documentation"
+    ],
+    "details": [
+      {
+        "area": "api-surface",
+        "paths": [
+          "src/api/commerce.ts"
+        ]
+      },
+      {
+        "area": "models",
+        "paths": [
+          "src/types/bird-coder-commerce-membership-benefit-summary.ts",
+          "src/types/bird-coder-commerce-membership-current-envelope.ts",
+          "src/types/bird-coder-commerce-membership-current-summary.ts",
+          "src/types/bird-coder-commerce-membership-package-group-summary-list-envelope.ts",
+          "src/types/bird-coder-commerce-membership-package-group-summary.ts",
+          "src/types/bird-coder-commerce-membership-package-summary.ts",
+          "src/types/index.ts"
+        ]
+      },
+      {
+        "area": "documentation",
+        "paths": [
+          "README.md"
+        ]
+      }
+    ],
+    "requiresVerification": true,
+    "summary": "Detected impact areas: api-surface, models, documentation. Verification is required."
   },
   "executionDecision": {
     "schemaVersion": 1,
-    "riskLevel": "low",
-    "nextAction": "skip",
+    "riskLevel": "high",
+    "nextAction": "verify",
     "requiresManualReview": false,
     "applyRequiresExpectedFingerprint": false,
-    "summary": "No actionable changes were detected. No apply or verification step is required.",
+    "summary": "Changes have been applied. Run the required verification plan now.",
     "reasons": [
-      "no-actionable-changes"
+      "deleted-generated-files",
+      "manual-review-required",
+      "verification-required"
     ]
   },
   "executionHandoff": {
     "schemaVersion": 1,
-    "summary": "No further commands are required.",
-    "steps": []
+    "summary": "Run the required verification commands now.",
+    "steps": [
+      {
+        "id": "verify-check",
+        "title": "Unified package check",
+        "required": true,
+        "rationale": "Validate the generated package with the unified publish helper. Triggered by: api-surface, models, documentation.",
+        "workingDirectory": "E:\\sdkwork-space\\sdkwork-birdcoder\\sdks\\sdkwork-birdcoder-app-sdk\\sdkwork-birdcoder-app-sdk-typescript\\generated\\server-openapi",
+        "command": "node",
+        "args": [
+          "./bin/publish-core.mjs",
+          "--language",
+          "typescript",
+          "--project-dir",
+          ".",
+          "--action",
+          "check"
+        ],
+        "displayCommand": "node ./bin/publish-core.mjs --language typescript --project-dir . --action check"
+      },
+      {
+        "id": "verify-build",
+        "title": "Unified package build",
+        "required": true,
+        "rationale": "Run the full package build because this language uses a lighter check path than the final build. Triggered by: api-surface, models, documentation.",
+        "workingDirectory": "E:\\sdkwork-space\\sdkwork-birdcoder\\sdks\\sdkwork-birdcoder-app-sdk\\sdkwork-birdcoder-app-sdk-typescript\\generated\\server-openapi",
+        "command": "node",
+        "args": [
+          "./bin/publish-core.mjs",
+          "--language",
+          "typescript",
+          "--project-dir",
+          ".",
+          "--action",
+          "build"
+        ],
+        "displayCommand": "node ./bin/publish-core.mjs --language typescript --project-dir . --action build"
+      }
+    ]
   },
   "verificationPlan": {
-    "shouldRun": false,
-    "runPhase": "skip",
-    "summary": "No generated, scaffold, or backup changes detected. Verification can be skipped.",
-    "steps": []
+    "shouldRun": true,
+    "runPhase": "now",
+    "summary": "Detected impact areas: api-surface, models, documentation. Verification is required. Run the required verification commands now against the generated SDK output.",
+    "steps": [
+      {
+        "id": "check",
+        "title": "Unified package check",
+        "required": true,
+        "rationale": "Validate the generated package with the unified publish helper. Triggered by: api-surface, models, documentation.",
+        "workingDirectory": "E:\\sdkwork-space\\sdkwork-birdcoder\\sdks\\sdkwork-birdcoder-app-sdk\\sdkwork-birdcoder-app-sdk-typescript\\generated\\server-openapi",
+        "command": "node",
+        "args": [
+          "./bin/publish-core.mjs",
+          "--language",
+          "typescript",
+          "--project-dir",
+          ".",
+          "--action",
+          "check"
+        ],
+        "displayCommand": "node ./bin/publish-core.mjs --language typescript --project-dir . --action check"
+      },
+      {
+        "id": "build",
+        "title": "Unified package build",
+        "required": true,
+        "rationale": "Run the full package build because this language uses a lighter check path than the final build. Triggered by: api-surface, models, documentation.",
+        "workingDirectory": "E:\\sdkwork-space\\sdkwork-birdcoder\\sdks\\sdkwork-birdcoder-app-sdk\\sdkwork-birdcoder-app-sdk-typescript\\generated\\server-openapi",
+        "command": "node",
+        "args": [
+          "./bin/publish-core.mjs",
+          "--language",
+          "typescript",
+          "--project-dir",
+          ".",
+          "--action",
+          "build"
+        ],
+        "displayCommand": "node ./bin/publish-core.mjs --language typescript --project-dir . --action build"
+      }
+    ]
   },
   "sdk": {
     "name": "sdkwork-birdcoder-app-sdk",
@@ -56,24 +161,28 @@
     "localVersions": []
   },
   "stats": {
-    "totalFiles": 229,
-    "models": 194,
+    "totalFiles": 223,
+    "models": 188,
     "apis": 12,
-    "types": 196
+    "types": 190
   },
   "warnings": [],
   "syncSummary": {
     "dryRun": false,
     "controlPlaneEnabled": true,
-    "writtenFiles": 0,
+    "writtenFiles": 3,
     "skippedScaffoldFiles": 2,
-    "skippedUnchangedGeneratedFiles": 227,
-    "deletedGeneratedFiles": 0,
+    "skippedUnchangedGeneratedFiles": 218,
+    "deletedGeneratedFiles": 6,
     "changeSummaryPath": ".sdkwork/sdkwork-generator-changes.json",
-    "changeFingerprint": "5050d3c009dbab2acedda26654a3702a8511ceb58852d803d5d615e2bed11c39",
+    "changeFingerprint": "f7df83308419b72d4218f87af82f257b7b5e1aa59b7eeee0de38c716b6157153",
     "changes": {
       "createdGeneratedFiles": [],
-      "updatedGeneratedFiles": [],
+      "updatedGeneratedFiles": [
+        "README.md",
+        "src/api/commerce.ts",
+        "src/types/index.ts"
+      ],
       "unchangedGeneratedFiles": [
         "bin/publish-core.mjs",
         "bin/publish.ps1",
@@ -83,12 +192,10 @@
         "CHANGELOG.md",
         "LICENSE",
         "package.json",
-        "README.md",
         "sdkwork-sdk.json",
         "src/api/auth.ts",
         "src/api/base.ts",
         "src/api/collaboration.ts",
-        "src/api/commerce.ts",
         "src/api/content.ts",
         "src/api/iam.ts",
         "src/api/index.ts",
@@ -146,12 +253,6 @@
         "src/types/bird-coder-commerce-invoice-summary-envelope.ts",
         "src/types/bird-coder-commerce-invoice-summary-list-envelope.ts",
         "src/types/bird-coder-commerce-invoice-summary.ts",
-        "src/types/bird-coder-commerce-membership-benefit-summary.ts",
-        "src/types/bird-coder-commerce-membership-current-envelope.ts",
-        "src/types/bird-coder-commerce-membership-current-summary.ts",
-        "src/types/bird-coder-commerce-membership-package-group-summary-list-envelope.ts",
-        "src/types/bird-coder-commerce-membership-package-group-summary.ts",
-        "src/types/bird-coder-commerce-membership-package-summary.ts",
         "src/types/bird-coder-commerce-order-summary-envelope.ts",
         "src/types/bird-coder-commerce-order-summary-list-envelope.ts",
         "src/types/bird-coder-commerce-order-summary.ts",
@@ -297,13 +398,19 @@
         "src/types/bird-coder-workspace-summary-list-envelope.ts",
         "src/types/bird-coder-workspace-summary.ts",
         "src/types/common.ts",
-        "src/types/index.ts",
         "src/types/page-info.ts",
         "src/types/problem-detail.ts",
         "src/types/sdk-work-api-response.ts",
         "tsconfig.json"
       ],
-      "deletedGeneratedFiles": [],
+      "deletedGeneratedFiles": [
+        "src/types/bird-coder-commerce-membership-benefit-summary.ts",
+        "src/types/bird-coder-commerce-membership-current-envelope.ts",
+        "src/types/bird-coder-commerce-membership-current-summary.ts",
+        "src/types/bird-coder-commerce-membership-package-group-summary-list-envelope.ts",
+        "src/types/bird-coder-commerce-membership-package-group-summary.ts",
+        "src/types/bird-coder-commerce-membership-package-summary.ts"
+      ],
       "scaffoldedFiles": [],
       "preservedScaffoldFiles": [
         "custom/build-runtime.mjs",
@@ -313,26 +420,94 @@
     },
     "impact": {
       "schemaVersion": 1,
-      "areas": [],
-      "details": [],
-      "requiresVerification": false,
-      "summary": "No generated, scaffold, or backup changes detected. Verification can be skipped."
+      "areas": [
+        "api-surface",
+        "models",
+        "documentation"
+      ],
+      "details": [
+        {
+          "area": "api-surface",
+          "paths": [
+            "src/api/commerce.ts"
+          ]
+        },
+        {
+          "area": "models",
+          "paths": [
+            "src/types/bird-coder-commerce-membership-benefit-summary.ts",
+            "src/types/bird-coder-commerce-membership-current-envelope.ts",
+            "src/types/bird-coder-commerce-membership-current-summary.ts",
+            "src/types/bird-coder-commerce-membership-package-group-summary-list-envelope.ts",
+            "src/types/bird-coder-commerce-membership-package-group-summary.ts",
+            "src/types/bird-coder-commerce-membership-package-summary.ts",
+            "src/types/index.ts"
+          ]
+        },
+        {
+          "area": "documentation",
+          "paths": [
+            "README.md"
+          ]
+        }
+      ],
+      "requiresVerification": true,
+      "summary": "Detected impact areas: api-surface, models, documentation. Verification is required."
     },
     "verificationPlan": {
-      "shouldRun": false,
-      "runPhase": "skip",
-      "summary": "No generated, scaffold, or backup changes detected. Verification can be skipped.",
-      "steps": []
+      "shouldRun": true,
+      "runPhase": "now",
+      "summary": "Detected impact areas: api-surface, models, documentation. Verification is required. Run the required verification commands now against the generated SDK output.",
+      "steps": [
+        {
+          "id": "check",
+          "title": "Unified package check",
+          "required": true,
+          "rationale": "Validate the generated package with the unified publish helper. Triggered by: api-surface, models, documentation.",
+          "workingDirectory": "E:\\sdkwork-space\\sdkwork-birdcoder\\sdks\\sdkwork-birdcoder-app-sdk\\sdkwork-birdcoder-app-sdk-typescript\\generated\\server-openapi",
+          "command": "node",
+          "args": [
+            "./bin/publish-core.mjs",
+            "--language",
+            "typescript",
+            "--project-dir",
+            ".",
+            "--action",
+            "check"
+          ],
+          "displayCommand": "node ./bin/publish-core.mjs --language typescript --project-dir . --action check"
+        },
+        {
+          "id": "build",
+          "title": "Unified package build",
+          "required": true,
+          "rationale": "Run the full package build because this language uses a lighter check path than the final build. Triggered by: api-surface, models, documentation.",
+          "workingDirectory": "E:\\sdkwork-space\\sdkwork-birdcoder\\sdks\\sdkwork-birdcoder-app-sdk\\sdkwork-birdcoder-app-sdk-typescript\\generated\\server-openapi",
+          "command": "node",
+          "args": [
+            "./bin/publish-core.mjs",
+            "--language",
+            "typescript",
+            "--project-dir",
+            ".",
+            "--action",
+            "build"
+          ],
+          "displayCommand": "node ./bin/publish-core.mjs --language typescript --project-dir . --action build"
+        }
+      ]
     },
     "executionDecision": {
       "schemaVersion": 1,
-      "riskLevel": "low",
-      "nextAction": "skip",
+      "riskLevel": "high",
+      "nextAction": "verify",
       "requiresManualReview": false,
       "applyRequiresExpectedFingerprint": false,
-      "summary": "No actionable changes were detected. No apply or verification step is required.",
+      "summary": "Changes have been applied. Run the required verification plan now.",
       "reasons": [
-        "no-actionable-changes"
+        "deleted-generated-files",
+        "manual-review-required",
+        "verification-required"
       ]
     },
     "backedUpFiles": [],

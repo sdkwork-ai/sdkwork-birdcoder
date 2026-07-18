@@ -3,7 +3,7 @@ import {
   type BirdCoderCodingSessionPendingUserQuestion,
   deduplicateBirdCoderProjectsForRender,
   useToast,
-} from '@sdkwork/birdcoder-pc-commons';
+} from '@sdkwork/birdcoder-pc-workbench';
 import { getWorkbenchCodeEngineSessionSummary } from '@sdkwork/birdcoder-pc-codeengine';
 import {
   DeferredUniversalChat,
@@ -25,7 +25,7 @@ import {
   type BirdCoderSubmitApprovalDecisionRequest,
   type BirdCoderSubmitUserQuestionAnswerRequest,
   type FileChange,
-} from '@sdkwork/birdcoder-pc-types';
+} from '@sdkwork/birdcoder-pc-contracts-commons';
 import {
   Check,
   ChevronDown,

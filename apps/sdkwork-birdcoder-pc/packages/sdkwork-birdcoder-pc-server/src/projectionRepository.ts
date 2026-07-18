@@ -27,7 +27,7 @@ import {
   type BirdCoderDatabaseProviderId,
   type BirdCoderEntityStorageBinding,
   type BirdCoderOperationDescriptor,
-} from '@sdkwork/birdcoder-pc-types';
+} from '@sdkwork/birdcoder-pc-contracts-commons';
 
 export interface BirdCoderCoreSessionProjectionBindingSet {
   artifacts: BirdCoderEntityStorageBinding;

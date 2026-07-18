@@ -1,7 +1,7 @@
 import {
   buildCodingSessionProjectScopedKey,
-} from '@sdkwork/birdcoder-pc-commons';
-import type { BirdCoderChatMessage } from '@sdkwork/birdcoder-pc-types';
+} from '@sdkwork/birdcoder-pc-workbench';
+import type { BirdCoderChatMessage } from '@sdkwork/birdcoder-pc-contracts-commons';
 import type { Dispatch, MutableRefObject, SetStateAction } from 'react';
 
 export interface StudioPageProps {

@@ -14,7 +14,7 @@ export {
   getWorkbenchPreferencesRepository,
   readWorkbenchPreferences,
   writeWorkbenchPreferences,
-} from '@sdkwork/birdcoder-pc-commons';
+} from '@sdkwork/birdcoder-pc-workbench';
 export {
   DEFAULT_WORKBENCH_RECOVERY_SNAPSHOT,
   normalizeWorkbenchRecoverySnapshot,
@@ -26,12 +26,12 @@ export {
   resolveStartupCodingSessionId,
   buildWorkbenchRecoveryAnnouncement,
   recoverySnapshotsEqual,
-} from '@sdkwork/birdcoder-pc-commons';
+} from '@sdkwork/birdcoder-pc-workbench';
 export type {
   RunConfigurationCwdMode,
   RunConfigurationGroup,
   RunConfigurationRecord,
-} from '@sdkwork/birdcoder-pc-commons';
+} from '@sdkwork/birdcoder-pc-workbench';
 export type {
   SyncWorkbenchCodeEngineModelConfigOptions,
   WorkbenchCodeEngineModelConfigAppRuntimeReadService,
@@ -40,7 +40,7 @@ export type {
   WorkbenchCodeEngineId,
   WorkbenchCodeEngineSettingsMap,
   WorkbenchPreferences,
-} from '@sdkwork/birdcoder-pc-commons';
+} from '@sdkwork/birdcoder-pc-workbench';
 export type {
   WorkbenchRecoverySnapshot,
   ResolveStartupWorkspaceIdOptions,
@@ -48,4 +48,4 @@ export type {
   ResolveStartupCodingSessionIdOptions,
   BuildWorkbenchRecoveryAnnouncementOptions,
   ResolveWorkbenchRecoveryPersistenceSelectionOptions,
-} from '@sdkwork/birdcoder-pc-commons';
+} from '@sdkwork/birdcoder-pc-workbench';

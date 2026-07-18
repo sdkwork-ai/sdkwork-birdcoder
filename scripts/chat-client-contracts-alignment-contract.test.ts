@@ -10,7 +10,7 @@ import {
 import {
   BIRDCODER_CHAT_MESSAGE_CONTENT_BLOCK_TYPES as PC_CONTENT_BLOCK_TYPES,
   BIRDCODER_CHAT_MESSAGE_VIEW_KINDS as PC_VIEW_KINDS,
-} from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-types/src/chat-message-view.ts';
+} from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-contracts-commons/src/chat-message-view.ts';
 
 import {
   BIRDCODER_CHAT_MESSAGE_CONTENT_BLOCK_TYPES as H5_CONTENT_BLOCK_TYPES,
@@ -26,7 +26,7 @@ assert.deepEqual(H5_ROLES, BIRDCODER_CHAT_MESSAGE_ROLES);
 
 const pcTypesPackage = readFileSync(
   new URL(
-    '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-types/package.json',
+    '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-contracts-commons/package.json',
     import.meta.url,
   ),
   'utf8',

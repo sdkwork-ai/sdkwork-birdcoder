@@ -177,10 +177,10 @@
       "description": "Permission identifier",
       "oneOf": [
         {
-          "description": "Default desktop app permissions for the BirdCoder Rust host bridge.\n#### This default permission set includes:\n\n- `allow-host-mode`\n- `allow-desktop-runtime-config`\n- `allow-local-store-get`\n- `allow-local-store-set`\n- `allow-local-store-delete`\n- `allow-local-store-list`\n- `allow-local-sql-execute-plan`\n- `allow-user-home-config-read`\n- `allow-user-home-config-write`\n- `allow-fs-list-directory`\n- `allow-fs-snapshot-folder`\n- `allow-fs-read-file`\n- `allow-fs-get-file-revision`\n- `allow-fs-get-file-revisions`\n- `allow-fs-get-directory-revisions`\n- `allow-fs-write-file`\n- `allow-fs-create-file`\n- `allow-fs-create-directory`\n- `allow-fs-delete-entry`\n- `allow-fs-rename-entry`\n- `allow-fs-watch-start`\n- `allow-fs-watch-stop`\n- `allow-terminal-cli-profile-detect`\n- `allow-desktop-pick-working-directory`\n- `allow-desktop-reveal-in-file-manager`\n- `allow-desktop-window-controls-bridge-capabilities`\n- `allow-desktop-configure-window-controls-bridge`\n- `allow-desktop-perform-window-control-action`\n- `allow-desktop-session-index`\n- `allow-desktop-session-replay-slice`\n- `allow-desktop-session-attach`\n- `allow-desktop-session-detach`\n- `allow-desktop-session-reattach`\n- `allow-desktop-terminal-session-inventory-list`\n- `allow-desktop-local-shell-exec`\n- `allow-desktop-local-shell-session-create`\n- `allow-desktop-local-process-session-create`\n- `allow-desktop-session-input`\n- `allow-desktop-session-input-bytes`\n- `allow-desktop-session-attachment-acknowledge`\n- `allow-desktop-session-resize`\n- `allow-desktop-session-terminate`",
+          "description": "Default desktop app permissions for the BirdCoder Rust host bridge.\n#### This default permission set includes:\n\n- `allow-host-mode`\n- `allow-desktop-runtime-config`\n- `allow-desktop-runtime-location-install-identity`\n- `allow-desktop-runtime-location-create-root-locator`\n- `allow-local-store-get`\n- `allow-local-store-set`\n- `allow-local-store-delete`\n- `allow-local-store-list`\n- `allow-local-sql-execute-plan`\n- `allow-user-home-config-read`\n- `allow-user-home-config-write`\n- `allow-fs-list-directory`\n- `allow-fs-snapshot-folder`\n- `allow-fs-read-file`\n- `allow-fs-get-file-revision`\n- `allow-fs-get-file-revisions`\n- `allow-fs-get-directory-revisions`\n- `allow-fs-write-file`\n- `allow-fs-create-file`\n- `allow-fs-create-directory`\n- `allow-fs-delete-entry`\n- `allow-fs-rename-entry`\n- `allow-fs-watch-start`\n- `allow-fs-watch-stop`\n- `allow-git-project-overview`\n- `allow-git-project-diff`\n- `allow-git-create-branch`\n- `allow-git-switch-branch`\n- `allow-git-commit-changes`\n- `allow-git-push-branch`\n- `allow-git-create-worktree`\n- `allow-git-remove-worktree`\n- `allow-git-prune-worktrees`\n- `allow-terminal-cli-profile-detect`\n- `allow-desktop-runtime-location-install-identity`\n- `allow-desktop-runtime-location-create-root-locator`\n- `allow-desktop-pick-working-directory`\n- `allow-desktop-reveal-in-file-manager`\n- `allow-desktop-window-controls-bridge-capabilities`\n- `allow-desktop-configure-window-controls-bridge`\n- `allow-desktop-perform-window-control-action`\n- `allow-desktop-session-index`\n- `allow-desktop-session-replay-slice`\n- `allow-desktop-session-attach`\n- `allow-desktop-session-detach`\n- `allow-desktop-session-reattach`\n- `allow-desktop-terminal-session-inventory-list`\n- `allow-desktop-local-shell-exec`\n- `allow-desktop-local-shell-session-create`\n- `allow-desktop-local-process-session-create`\n- `allow-desktop-session-input`\n- `allow-desktop-session-input-bytes`\n- `allow-desktop-session-attachment-acknowledge`\n- `allow-desktop-session-resize`\n- `allow-desktop-session-terminate`",
           "type": "string",
           "const": "default",
-          "markdownDescription": "Default desktop app permissions for the BirdCoder Rust host bridge.\n#### This default permission set includes:\n\n- `allow-host-mode`\n- `allow-desktop-runtime-config`\n- `allow-local-store-get`\n- `allow-local-store-set`\n- `allow-local-store-delete`\n- `allow-local-store-list`\n- `allow-local-sql-execute-plan`\n- `allow-user-home-config-read`\n- `allow-user-home-config-write`\n- `allow-fs-list-directory`\n- `allow-fs-snapshot-folder`\n- `allow-fs-read-file`\n- `allow-fs-get-file-revision`\n- `allow-fs-get-file-revisions`\n- `allow-fs-get-directory-revisions`\n- `allow-fs-write-file`\n- `allow-fs-create-file`\n- `allow-fs-create-directory`\n- `allow-fs-delete-entry`\n- `allow-fs-rename-entry`\n- `allow-fs-watch-start`\n- `allow-fs-watch-stop`\n- `allow-terminal-cli-profile-detect`\n- `allow-desktop-pick-working-directory`\n- `allow-desktop-reveal-in-file-manager`\n- `allow-desktop-window-controls-bridge-capabilities`\n- `allow-desktop-configure-window-controls-bridge`\n- `allow-desktop-perform-window-control-action`\n- `allow-desktop-session-index`\n- `allow-desktop-session-replay-slice`\n- `allow-desktop-session-attach`\n- `allow-desktop-session-detach`\n- `allow-desktop-session-reattach`\n- `allow-desktop-terminal-session-inventory-list`\n- `allow-desktop-local-shell-exec`\n- `allow-desktop-local-shell-session-create`\n- `allow-desktop-local-process-session-create`\n- `allow-desktop-session-input`\n- `allow-desktop-session-input-bytes`\n- `allow-desktop-session-attachment-acknowledge`\n- `allow-desktop-session-resize`\n- `allow-desktop-session-terminate`"
+          "markdownDescription": "Default desktop app permissions for the BirdCoder Rust host bridge.\n#### This default permission set includes:\n\n- `allow-host-mode`\n- `allow-desktop-runtime-config`\n- `allow-desktop-runtime-location-install-identity`\n- `allow-desktop-runtime-location-create-root-locator`\n- `allow-local-store-get`\n- `allow-local-store-set`\n- `allow-local-store-delete`\n- `allow-local-store-list`\n- `allow-local-sql-execute-plan`\n- `allow-user-home-config-read`\n- `allow-user-home-config-write`\n- `allow-fs-list-directory`\n- `allow-fs-snapshot-folder`\n- `allow-fs-read-file`\n- `allow-fs-get-file-revision`\n- `allow-fs-get-file-revisions`\n- `allow-fs-get-directory-revisions`\n- `allow-fs-write-file`\n- `allow-fs-create-file`\n- `allow-fs-create-directory`\n- `allow-fs-delete-entry`\n- `allow-fs-rename-entry`\n- `allow-fs-watch-start`\n- `allow-fs-watch-stop`\n- `allow-git-project-overview`\n- `allow-git-project-diff`\n- `allow-git-create-branch`\n- `allow-git-switch-branch`\n- `allow-git-commit-changes`\n- `allow-git-push-branch`\n- `allow-git-create-worktree`\n- `allow-git-remove-worktree`\n- `allow-git-prune-worktrees`\n- `allow-terminal-cli-profile-detect`\n- `allow-desktop-runtime-location-install-identity`\n- `allow-desktop-runtime-location-create-root-locator`\n- `allow-desktop-pick-working-directory`\n- `allow-desktop-reveal-in-file-manager`\n- `allow-desktop-window-controls-bridge-capabilities`\n- `allow-desktop-configure-window-controls-bridge`\n- `allow-desktop-perform-window-control-action`\n- `allow-desktop-session-index`\n- `allow-desktop-session-replay-slice`\n- `allow-desktop-session-attach`\n- `allow-desktop-session-detach`\n- `allow-desktop-session-reattach`\n- `allow-desktop-terminal-session-inventory-list`\n- `allow-desktop-local-shell-exec`\n- `allow-desktop-local-shell-session-create`\n- `allow-desktop-local-process-session-create`\n- `allow-desktop-session-input`\n- `allow-desktop-session-input-bytes`\n- `allow-desktop-session-attachment-acknowledge`\n- `allow-desktop-session-resize`\n- `allow-desktop-session-terminate`"
         },
         {
           "description": "Allows desktop shell host bridge commands.\n#### This permission set includes:\n\n- `allow-terminal-cli-profile-detect`\n- `allow-desktop-pick-working-directory`\n- `allow-desktop-reveal-in-file-manager`\n- `allow-desktop-window-controls-bridge-capabilities`\n- `allow-desktop-configure-window-controls-bridge`\n- `allow-desktop-perform-window-control-action`\n- `allow-desktop-session-index`\n- `allow-desktop-session-replay-slice`\n- `allow-desktop-session-attach`\n- `allow-desktop-session-detach`\n- `allow-desktop-session-reattach`\n- `allow-desktop-terminal-session-inventory-list`\n- `allow-desktop-local-shell-exec`\n- `allow-desktop-local-shell-session-create`\n- `allow-desktop-local-process-session-create`\n- `allow-desktop-session-input`\n- `allow-desktop-session-input-bytes`\n- `allow-desktop-session-attachment-acknowledge`\n- `allow-desktop-session-resize`\n- `allow-desktop-session-terminate`",
@@ -189,10 +189,10 @@
           "markdownDescription": "Allows desktop shell host bridge commands.\n#### This permission set includes:\n\n- `allow-terminal-cli-profile-detect`\n- `allow-desktop-pick-working-directory`\n- `allow-desktop-reveal-in-file-manager`\n- `allow-desktop-window-controls-bridge-capabilities`\n- `allow-desktop-configure-window-controls-bridge`\n- `allow-desktop-perform-window-control-action`\n- `allow-desktop-session-index`\n- `allow-desktop-session-replay-slice`\n- `allow-desktop-session-attach`\n- `allow-desktop-session-detach`\n- `allow-desktop-session-reattach`\n- `allow-desktop-terminal-session-inventory-list`\n- `allow-desktop-local-shell-exec`\n- `allow-desktop-local-shell-session-create`\n- `allow-desktop-local-process-session-create`\n- `allow-desktop-session-input`\n- `allow-desktop-session-input-bytes`\n- `allow-desktop-session-attachment-acknowledge`\n- `allow-desktop-session-resize`\n- `allow-desktop-session-terminate`"
         },
         {
-          "description": "Allows mounted project file-system bridge commands.\n#### This permission set includes:\n\n- `allow-fs-list-directory`\n- `allow-fs-snapshot-folder`\n- `allow-fs-read-file`\n- `allow-fs-get-file-revision`\n- `allow-fs-get-file-revisions`\n- `allow-fs-get-directory-revisions`\n- `allow-fs-write-file`\n- `allow-fs-create-file`\n- `allow-fs-create-directory`\n- `allow-fs-delete-entry`\n- `allow-fs-rename-entry`\n- `allow-fs-watch-start`\n- `allow-fs-watch-stop`",
+          "description": "Allows mounted project file-system bridge commands.\n#### This permission set includes:\n\n- `allow-fs-list-directory`\n- `allow-fs-snapshot-folder`\n- `allow-fs-read-file`\n- `allow-fs-get-file-revision`\n- `allow-fs-get-file-revisions`\n- `allow-fs-get-directory-revisions`\n- `allow-fs-write-file`\n- `allow-fs-create-file`\n- `allow-fs-create-directory`\n- `allow-fs-delete-entry`\n- `allow-fs-rename-entry`\n- `allow-fs-watch-start`\n- `allow-fs-watch-stop`\n- `allow-git-project-overview`\n- `allow-git-project-diff`\n- `allow-git-create-branch`\n- `allow-git-switch-branch`\n- `allow-git-commit-changes`\n- `allow-git-push-branch`\n- `allow-git-create-worktree`\n- `allow-git-remove-worktree`\n- `allow-git-prune-worktrees`",
           "type": "string",
           "const": "allow-file-system-bridge",
-          "markdownDescription": "Allows mounted project file-system bridge commands.\n#### This permission set includes:\n\n- `allow-fs-list-directory`\n- `allow-fs-snapshot-folder`\n- `allow-fs-read-file`\n- `allow-fs-get-file-revision`\n- `allow-fs-get-file-revisions`\n- `allow-fs-get-directory-revisions`\n- `allow-fs-write-file`\n- `allow-fs-create-file`\n- `allow-fs-create-directory`\n- `allow-fs-delete-entry`\n- `allow-fs-rename-entry`\n- `allow-fs-watch-start`\n- `allow-fs-watch-stop`"
+          "markdownDescription": "Allows mounted project file-system bridge commands.\n#### This permission set includes:\n\n- `allow-fs-list-directory`\n- `allow-fs-snapshot-folder`\n- `allow-fs-read-file`\n- `allow-fs-get-file-revision`\n- `allow-fs-get-file-revisions`\n- `allow-fs-get-directory-revisions`\n- `allow-fs-write-file`\n- `allow-fs-create-file`\n- `allow-fs-create-directory`\n- `allow-fs-delete-entry`\n- `allow-fs-rename-entry`\n- `allow-fs-watch-start`\n- `allow-fs-watch-stop`\n- `allow-git-project-overview`\n- `allow-git-project-diff`\n- `allow-git-create-branch`\n- `allow-git-switch-branch`\n- `allow-git-commit-changes`\n- `allow-git-push-branch`\n- `allow-git-create-worktree`\n- `allow-git-remove-worktree`\n- `allow-git-prune-worktrees`"
         },
         {
           "description": "Allows desktop local store bridge commands.\n#### This permission set includes:\n\n- `allow-local-store-get`\n- `allow-local-store-set`\n- `allow-local-store-delete`\n- `allow-local-store-list`\n- `allow-local-sql-execute-plan`\n- `allow-user-home-config-read`\n- `allow-user-home-config-write`",
@@ -247,6 +247,18 @@
           "type": "string",
           "const": "allow-desktop-runtime-config",
           "markdownDescription": "Enables the desktop_runtime_config command."
+        },
+        {
+          "description": "Enables the desktop_runtime_location_create_root_locator command.",
+          "type": "string",
+          "const": "allow-desktop-runtime-location-create-root-locator",
+          "markdownDescription": "Enables the desktop_runtime_location_create_root_locator command."
+        },
+        {
+          "description": "Enables the desktop_runtime_location_install_identity command.",
+          "type": "string",
+          "const": "allow-desktop-runtime-location-install-identity",
+          "markdownDescription": "Enables the desktop_runtime_location_install_identity command."
         },
         {
           "description": "Enables the desktop_session_attach command.",
@@ -397,6 +409,60 @@
           "type": "string",
           "const": "allow-fs-write-file",
           "markdownDescription": "Enables the fs_write_file command."
+        },
+        {
+          "description": "Enables the git_commit_changes command.",
+          "type": "string",
+          "const": "allow-git-commit-changes",
+          "markdownDescription": "Enables the git_commit_changes command."
+        },
+        {
+          "description": "Enables the git_create_branch command.",
+          "type": "string",
+          "const": "allow-git-create-branch",
+          "markdownDescription": "Enables the git_create_branch command."
+        },
+        {
+          "description": "Enables the git_create_worktree command.",
+          "type": "string",
+          "const": "allow-git-create-worktree",
+          "markdownDescription": "Enables the git_create_worktree command."
+        },
+        {
+          "description": "Enables the git_project_diff command.",
+          "type": "string",
+          "const": "allow-git-project-diff",
+          "markdownDescription": "Enables the git_project_diff command."
+        },
+        {
+          "description": "Enables the git_project_overview command.",
+          "type": "string",
+          "const": "allow-git-project-overview",
+          "markdownDescription": "Enables the git_project_overview command."
+        },
+        {
+          "description": "Enables the git_prune_worktrees command.",
+          "type": "string",
+          "const": "allow-git-prune-worktrees",
+          "markdownDescription": "Enables the git_prune_worktrees command."
+        },
+        {
+          "description": "Enables the git_push_branch command.",
+          "type": "string",
+          "const": "allow-git-push-branch",
+          "markdownDescription": "Enables the git_push_branch command."
+        },
+        {
+          "description": "Enables the git_remove_worktree command.",
+          "type": "string",
+          "const": "allow-git-remove-worktree",
+          "markdownDescription": "Enables the git_remove_worktree command."
+        },
+        {
+          "description": "Enables the git_switch_branch command.",
+          "type": "string",
+          "const": "allow-git-switch-branch",
+          "markdownDescription": "Enables the git_switch_branch command."
         },
         {
           "description": "Enables the host_mode command.",

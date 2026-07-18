@@ -5,12 +5,12 @@ import {
   classifyTerminalCommandRisk,
   evaluateTerminalCommandGovernance,
   sanitizeTerminalCommandForAudit,
-} from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-commons/src/terminal/runtime.ts';
+} from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-workbench/src/terminal/runtime.ts';
 import {
   resolveBirdcoderTerminalLaunchRequest,
   type BirdcoderTerminalGovernanceRuntime,
-} from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-commons/src/terminal/sdkworkTerminalLaunch.ts';
-import type { TerminalGovernanceAuditRecord } from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-commons/src/terminal/auditStore.ts';
+} from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-workbench/src/terminal/sdkworkTerminalLaunch.ts';
+import type { TerminalGovernanceAuditRecord } from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-workbench/src/terminal/auditStore.ts';
 
 assert.equal(classifyTerminalCommandRisk('git status'), 'P0');
 assert.equal(classifyTerminalCommandRisk('git status && npm install'), 'P2');

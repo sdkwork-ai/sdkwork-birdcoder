@@ -2,7 +2,7 @@ import { memo, useCallback, useEffect, useRef, useState, type ReactNode } from '
 import {
   globalEventBus,
   type ProjectGitOverviewViewState,
-} from '@sdkwork/birdcoder-pc-commons';
+} from '@sdkwork/birdcoder-pc-workbench';
 import {
   ProjectGitDiffDialog,
   ProjectGitHeaderControls,

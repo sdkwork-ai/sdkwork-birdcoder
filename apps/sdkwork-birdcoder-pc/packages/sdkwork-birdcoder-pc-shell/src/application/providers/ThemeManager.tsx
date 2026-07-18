@@ -1,5 +1,5 @@
 import { useEffect } from "react";
-import { useBirdcoderTheme } from "@sdkwork/birdcoder-pc-commons/theme/birdcoderTheme";
+import { useBirdcoderTheme } from "@sdkwork/birdcoder-pc-workbench/theme/birdcoderTheme";
 
 export function ThemeManager() {
   const {

@@ -162,28 +162,6 @@
       "managedBy": "apps/scripts/initialize-sdkwork-app-standard-v3.mjs"
     }
   },
-  "environments": {
-    "development": {
-      "accessUrl": "https://api-dev.sdkwork.com/apps/sdkwork-birdcoder",
-      "deployUrl": "https://api-dev.sdkwork.com/apps/sdkwork-birdcoder",
-      "deployEnv": "dev"
-    },
-    "test": {
-      "accessUrl": "https://api-test.sdkwork.com/apps/sdkwork-birdcoder",
-      "deployUrl": "https://api-test.sdkwork.com/apps/sdkwork-birdcoder",
-      "deployEnv": "test"
-    },
-    "staging": {
-      "accessUrl": "https://api-staging.sdkwork.com/apps/sdkwork-birdcoder",
-      "deployUrl": "https://api-staging.sdkwork.com/apps/sdkwork-birdcoder",
-      "deployEnv": "staging"
-    },
-    "production": {
-      "accessUrl": "https://api.sdkwork.com/apps/sdkwork-birdcoder",
-      "deployUrl": "https://api.sdkwork.com/apps/sdkwork-birdcoder",
-      "deployEnv": "production"
-    }
-  },
   "artifacts": {
     "installConfig": {
       "defaultPackageId": "web-universal-cloud-browser-zip",
@@ -315,9 +293,9 @@
     "standardOwner": "sdkwork-platform",
     "initializedAt": "2026-05-07T00:00:00Z",
     "preLaunch": true,
-    "releaseEvidenceStatus": "contract-gates-green-release-rehearsal-http-openapi-174-route-catalog-175-agents-95-app-sdk-catalog-prelaunch-artifacts-pending-2026-07-16",
+    "releaseEvidenceStatus": "contract-gates-green-release-rehearsal-http-openapi-159-route-catalog-160-agents-95-app-sdk-catalog-prelaunch-artifacts-pending-2026-07-17",
     "commercialReadiness": {
-      "pcPrivateBeta": "iam-federation-http-openapi-174-route-catalog-175-aligned-agents-app-sdk-catalog-runtime-facade-private-beta-ready",
+      "pcPrivateBeta": "iam-federation-http-openapi-159-route-catalog-160-aligned-agents-app-sdk-catalog-runtime-facade-private-beta-ready",
       "enterpriseK8s": "postgresql-ha-backup-template-liveness-readiness-split-redis-rate-limit-aligned-ci-smoke-pending-release-runbook",
       "saasPublicCloud": "governance-pr-ci-aligned-release-rehearsal-openapi-complete-agent-crud-ui-memory-task-run-streaming-pending-prelaunch-artifacts-pending",
       "mobileProductParity": "h5-flutter-chat-api-ci-smoke-capacitor-sync-android-assemble-aligned-prelaunch-secure-storage-remediation-complete",

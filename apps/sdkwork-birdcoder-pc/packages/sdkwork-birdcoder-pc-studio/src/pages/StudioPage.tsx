@@ -36,14 +36,14 @@ import {
   useWorkbenchPreferences,
   useAuth,
   useToast,
-} from '@sdkwork/birdcoder-pc-commons';
+} from '@sdkwork/birdcoder-pc-workbench';
 import {
   FileChange,
   isBirdCoderCodingSessionEngineBusy,
   isBirdCoderCodingSessionExecuting,
   type BirdCoderSubmitApprovalDecisionRequest,
   type BirdCoderSubmitUserQuestionAnswerRequest,
-} from '@sdkwork/birdcoder-pc-types';
+} from '@sdkwork/birdcoder-pc-contracts-commons';
 import { useTranslation } from 'react-i18next';
 import {
   type StudioAnalyzeReport,

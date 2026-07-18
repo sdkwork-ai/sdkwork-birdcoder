@@ -13,8 +13,8 @@ foreach ($file in $files) {
     $originalContent = $content
     
     # Fix config/ -> configs/
-    $content = $content -replace "'config/shared-sdk-release-sources\.json'", "'configs/shared-sdk-release-sources.json'"
-    $content = $content -replace '"config/shared-sdk-release-sources\.json"', '"configs/shared-sdk-release-sources.json"'
+    $content = $content -replace "'config/shared-sdk-release-sources\.json'", "'tools/shared-sdk-release-sources.json'"
+    $content = $content -replace '"config/shared-sdk-release-sources\.json"', '"tools/shared-sdk-release-sources.json"'
     
     # Fix deploy/ -> deployments/
     $content = $content -replace "'deploy/docker/", "'deployments/docker/"

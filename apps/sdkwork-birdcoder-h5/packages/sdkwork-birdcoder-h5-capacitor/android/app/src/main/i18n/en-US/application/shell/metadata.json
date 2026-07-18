@@ -1,0 +1,6 @@
+{
+  "app_name": "BirdCoder",
+  "title_activity_main": "BirdCoder",
+  "package_name": "com.sdkwork.birdcoder.h5",
+  "custom_url_scheme": "com.sdkwork.birdcoder.h5"
+}

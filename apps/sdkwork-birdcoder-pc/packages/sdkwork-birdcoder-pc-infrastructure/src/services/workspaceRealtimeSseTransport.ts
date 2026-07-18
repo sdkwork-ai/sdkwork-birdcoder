@@ -6,7 +6,7 @@ import {
   resolveWorkspaceRealtimeDualTokenCredentials,
   type WorkspaceRealtimeSessionHeaderResolver,
 } from './workspaceRealtimeAuthentication.ts';
-import { BirdCoderApiTransportError } from '@sdkwork/birdcoder-pc-types/apiTransportError';
+import { BirdCoderApiTransportError } from '@sdkwork/birdcoder-pc-contracts-commons/apiTransportError';
 
 const DEFAULT_MAX_SSE_BUFFER_BYTES = 2 * 1024 * 1024;
 const DEFAULT_MAX_SSE_LINE_BYTES = 64 * 1024;

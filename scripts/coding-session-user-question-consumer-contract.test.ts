@@ -16,7 +16,7 @@ import type {
   BirdCoderModelCatalogEntry,
   BirdCoderOperationDescriptor,
   BirdCoderUserQuestionAnswerResult,
-} from '@sdkwork/birdcoder-pc-types';
+} from '@sdkwork/birdcoder-pc-contracts-commons';
 import type {
   IAppRuntimeReadService,
   IAppRuntimeWriteService,
@@ -31,7 +31,7 @@ const defaultServicesModulePath = new URL(
   import.meta.url,
 );
 const projectionModulePath = new URL(
-  '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-commons/src/hooks/useCodingSessionProjection.ts',
+  '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-workbench/src/hooks/useCodingSessionProjection.ts',
   import.meta.url,
 );
 

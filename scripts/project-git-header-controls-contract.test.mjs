@@ -106,7 +106,7 @@ const gitMutationActionsSource = readSource(
   'apps',
   'sdkwork-birdcoder-pc',
   'packages',
-  'sdkwork-birdcoder-pc-commons',
+  'sdkwork-birdcoder-pc-workbench',
   'src',
   'hooks',
   'useProjectGitMutationActions.ts',

@@ -221,6 +221,48 @@ PostgreSQL drift check and `EXPLAIN` verification remain environment validation 
 must be run against an authorized production-shaped DSN before release; repository
 tests do not substitute for that deployment evidence.
 
+## Canonical event kinds
+
+The executable registry in `sdkwork-birdcoder-pc-contracts-commons` is authoritative. Provider
+adapters, durable storage, realtime projection, SDK consumers, and UI renderers use
+only these event kinds:
+
+- `session.started`
+- `turn.started`
+- `message.delta`
+- `message.completed`
+- `message.deleted`
+- `message.edited`
+- `tool.call.requested`
+- `tool.call.progress`
+- `tool.call.completed`
+- `artifact.upserted`
+- `approval.required`
+- `user.question.required`
+- `operation.updated`
+- `turn.completed`
+- `turn.failed`
+
+## Canonical artifact kinds
+
+Artifact producers and consumers use only the following executable registry. New
+kinds require coordinated type, persistence, SDK, renderer, and documentation
+updates before release:
+
+- `diff`
+- `patch`
+- `file`
+- `command-log`
+- `todo-list`
+- `pty-transcript`
+- `structured-output`
+- `build-evidence`
+- `preview-evidence`
+- `simulator-evidence`
+- `test-evidence`
+- `release-evidence`
+- `diagnostic-bundle`
+
 ## API And SDK Authority
 
 The authored app OpenAPI contract is

@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { LoaderCircle } from 'lucide-react';
-import type { ProjectMountRecoveryEventPayload } from '@sdkwork/birdcoder-pc-commons';
+import type { ProjectMountRecoveryEventPayload } from '@sdkwork/birdcoder-pc-workbench';
 
 type HeaderLoadingStatusProps = {
   activeWorkspaceName?: string | null;

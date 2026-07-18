@@ -5,8 +5,8 @@ import {
   BIRDCODER_CODING_SESSION_EVENT_KINDS,
   BIRDCODER_CODING_SESSION_RUNTIME_STATUSES,
   type BirdCoderCodingSessionCheckpoint,
-} from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-types/src/coding-session.ts';
-import { getBirdCoderEntityDefinition } from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-types/src/data.ts';
+} from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-contracts-commons/src/coding-session.ts';
+import { getBirdCoderEntityDefinition } from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-contracts-commons/src/data.ts';
 
 assert.equal(BIRDCODER_CODING_SESSION_RUNTIME_STATUSES.includes('awaiting_approval'), true);
 assert.equal(BIRDCODER_CODING_SESSION_RUNTIME_STATUSES.includes('failed'), true);

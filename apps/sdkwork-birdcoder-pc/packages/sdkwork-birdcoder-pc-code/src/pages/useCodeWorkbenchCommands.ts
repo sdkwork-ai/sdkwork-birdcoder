@@ -1,16 +1,16 @@
 import { useEffect, useRef } from 'react';
-import { buildProjectCodingSessionIndex, buildCodingSessionProjectScopedKey } from '@sdkwork/birdcoder-pc-commons/workbench/codingSessionSelection';
-import { emitOpenTerminalRequest } from '@sdkwork/birdcoder-pc-commons/terminal/requests';
-import { globalEventBus } from '@sdkwork/birdcoder-pc-commons/utils/EventBus';
-import type { BirdCoderProjectCodingSessionIndex } from '@sdkwork/birdcoder-pc-commons/workbench/codingSessionSelection';
-import type { TerminalCommandRequest } from '@sdkwork/birdcoder-pc-commons/terminal/requests';
-import type { ToastType } from '@sdkwork/birdcoder-pc-commons/contexts/ToastProvider';
-import type { ProjectRuntimeLocationResolver } from '@sdkwork/birdcoder-pc-commons/hooks/useProjectRuntimeLocation';
+import { buildProjectCodingSessionIndex, buildCodingSessionProjectScopedKey } from '@sdkwork/birdcoder-pc-workbench/workbench/codingSessionSelection';
+import { emitOpenTerminalRequest } from '@sdkwork/birdcoder-pc-workbench/terminal/requests';
+import { globalEventBus } from '@sdkwork/birdcoder-pc-workbench/utils/EventBus';
+import type { BirdCoderProjectCodingSessionIndex } from '@sdkwork/birdcoder-pc-workbench/workbench/codingSessionSelection';
+import type { TerminalCommandRequest } from '@sdkwork/birdcoder-pc-workbench/terminal/requests';
+import type { ToastType } from '@sdkwork/birdcoder-pc-workbench/contexts/ToastProvider';
+import type { ProjectRuntimeLocationResolver } from '@sdkwork/birdcoder-pc-workbench/hooks/useProjectRuntimeLocation';
 import {
   getProjectRuntimeLocationFailureMessage,
   getResolvedProjectRuntimeLocationWorkingDirectory,
-} from '@sdkwork/birdcoder-pc-commons/workbench/projectRuntimeLocationResolution';
-import type { BirdCoderProject } from '@sdkwork/birdcoder-pc-types';
+} from '@sdkwork/birdcoder-pc-workbench/workbench/projectRuntimeLocationResolution';
+import type { BirdCoderProject } from '@sdkwork/birdcoder-pc-contracts-commons';
 import { useTranslation } from 'react-i18next';
 
 interface UseCodeWorkbenchCommandsOptions {

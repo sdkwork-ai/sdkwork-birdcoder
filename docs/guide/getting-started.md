@@ -17,25 +17,25 @@ pnpm dev
 ## Start The Canonical Sample Modes
 
 ```bash
-pnpm dev:local
-pnpm dev:cloud
-pnpm tauri:dev
-pnpm server:dev
-pnpm server:dev:cloud
+pnpm dev:desktop:local
+pnpm dev:browser:postgres:cloud
+pnpm dev:desktop
+pnpm dev:server:postgres:standalone
+pnpm dev:server:cloud
 ```
 
 BirdCoder keeps one frontend-facing SDKWork IAM facade while switching deployment mode underneath it:
 
-- `pnpm dev:local` or `pnpm tauri:dev` for the desktop-local sample with local SDKWork IAM storage
-- `pnpm dev`, `pnpm dev:private`, or `pnpm stack:web:private` for the private BirdCoder web sample stack with automatic server startup
-- `pnpm dev:cloud` or `pnpm server:dev:cloud` for the cloud-backed SDKWork IAM lane
+- `pnpm dev:desktop:local` or `pnpm dev:desktop` for the desktop-local sample with local SDKWork IAM storage
+- `pnpm dev`, `pnpm dev:browser:postgres:standalone`, or `pnpm dev:browser:standalone` for the private BirdCoder web sample stack with automatic server startup
+- `pnpm dev:browser:postgres:cloud` or `pnpm dev:server:cloud` for the cloud-backed SDKWork IAM lane
 
 When the resolved startup env needs inspection before running a mode, use:
 
 ```bash
-pnpm iam:show:desktop:local
-pnpm iam:show:server:private
-pnpm iam:show:server:cloud
+pnpm check:env:desktop:local
+pnpm check:env:server:standalone
+pnpm check:env:server:cloud
 ```
 
 ## Useful Next Steps

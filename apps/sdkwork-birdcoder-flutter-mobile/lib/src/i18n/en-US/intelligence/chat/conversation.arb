@@ -1,0 +1,11 @@
+{
+  "@@locale": "en-US",
+  "chat_send": "Send",
+  "chat_input_placeholder": "Send a message...",
+  "chat_empty": "No messages yet. Start a conversation below.",
+  "chat_loading_history": "Loading chat history...",
+  "chat_message_user": "You",
+  "chat_message_assistant": "BirdCoder",
+  "chat_send_failed": "Failed to send message.",
+  "chat_typing": "BirdCoder is typing..."
+}

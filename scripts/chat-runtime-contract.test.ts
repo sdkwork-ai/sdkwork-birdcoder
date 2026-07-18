@@ -4,7 +4,7 @@ import {
   mergePromptEntryRecord,
   normalizePromptEntryRecords,
   normalizeSessionChatInputHistory,
-} from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-commons/src/chat/persistence.ts';
+} from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-workbench/src/chat/persistence.ts';
 import {
   getWorkbenchCodeEngineDefinition,
   normalizeWorkbenchCodeModelId,

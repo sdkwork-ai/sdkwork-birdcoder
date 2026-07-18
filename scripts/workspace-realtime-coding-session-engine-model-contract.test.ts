@@ -3,11 +3,11 @@ import { readFileSync } from 'node:fs';
 
 import { readCanonicalServerRustSource, CANONICAL_SERVER_RUST_PATHS, CANONICAL_DOMAIN_RUST_PATHS } from './birdcoder-canonical-server-rust-sources.mjs';
 
-import type { BirdCoderProject, BirdCoderWorkspaceRealtimeEvent } from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-types/src/index.ts';
+import type { BirdCoderProject, BirdCoderWorkspaceRealtimeEvent } from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-contracts-commons/src/index.ts';
 import {
   applyWorkspaceRealtimeEventToProjects,
   isWorkspaceRealtimeEventSatisfiedByProjects,
-} from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-commons/src/stores/workspaceRealtime.ts';
+} from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-workbench/src/stores/workspaceRealtime.ts';
 
 const baseProject: BirdCoderProject = {
   id: 'project-realtime-contract',
@@ -599,7 +599,7 @@ assert.doesNotMatch(
 );
 
 const serverApiSource = readFileSync(
-  new URL('../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-types/src/server-api.ts', import.meta.url),
+  new URL('../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-contracts-commons/src/server-api.ts', import.meta.url),
   'utf8',
 );
 assert.doesNotMatch(
@@ -609,7 +609,7 @@ assert.doesNotMatch(
 );
 
 const workspaceRealtimeStoreSource = readFileSync(
-  new URL('../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-commons/src/stores/workspaceRealtime.ts', import.meta.url),
+  new URL('../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-workbench/src/stores/workspaceRealtime.ts', import.meta.url),
   'utf8',
 );
 assert.doesNotMatch(

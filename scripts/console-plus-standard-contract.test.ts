@@ -2,12 +2,12 @@ import assert from 'node:assert/strict';
 import type {
   BirdCoderEntityName,
   BirdCoderEntityStorageBinding,
-} from '@sdkwork/birdcoder-pc-types';
+} from '@sdkwork/birdcoder-pc-contracts-commons';
 import {
   BIRDCODER_WORKSPACE_STORAGE_BINDING,
   BIRDCODER_PROJECT_STORAGE_BINDING,
   getBirdCoderEntityDefinition,
-} from '@sdkwork/birdcoder-pc-types';
+} from '@sdkwork/birdcoder-pc-contracts-commons';
 import { clampListPageSize } from '@sdkwork/utils/pagination';
 import { createBirdCoderConsoleQueries } from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/src/services/consoleQueries.ts';
 import type {

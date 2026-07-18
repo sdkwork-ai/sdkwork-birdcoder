@@ -1,6 +1,6 @@
 import type {
   BirdCoderProjectDocumentSummary,
-} from '@sdkwork/birdcoder-pc-types';
+} from '@sdkwork/birdcoder-pc-contracts-commons';
 import type { DocumentListOptions, IDocumentService } from '../interfaces/IDocumentService.ts';
 import type { BirdCoderAppSdkApiClient } from '../sdkClients.ts';
 

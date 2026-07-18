@@ -22,12 +22,12 @@ const rootPackageJson = JSON.parse(fs.readFileSync(rootPackageJsonPath, 'utf8'))
 const srcHostCargo = fs.readFileSync(srcHostCargoPath, 'utf8');
 
 assert.match(
-  pcServerPackageJson.scripts['dev:base'],
+  pcServerPackageJson.scripts['start:server'],
   /sdkwork-birdcoder-standalone-gateway/u,
   'PC server dev must run the workspace sdkwork-birdcoder-standalone-gateway crate.',
 );
 assert.match(
-  pcServerPackageJson.scripts['build:base'],
+  pcServerPackageJson.scripts['release:build:server'],
   /run-birdcoder-server-build/u,
   'PC server build must route through the canonical standalone-gateway build script.',
 );

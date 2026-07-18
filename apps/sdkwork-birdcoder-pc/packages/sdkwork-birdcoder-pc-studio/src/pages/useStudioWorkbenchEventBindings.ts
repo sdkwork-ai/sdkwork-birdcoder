@@ -20,8 +20,8 @@ import {
   type RunConfigurationRecord,
   type ProjectRuntimeLocationResolver,
   type TerminalCommandRequest,
-} from '@sdkwork/birdcoder-pc-commons';
-import type { BirdCoderProject } from '@sdkwork/birdcoder-pc-types';
+} from '@sdkwork/birdcoder-pc-workbench';
+import type { BirdCoderProject } from '@sdkwork/birdcoder-pc-contracts-commons';
 
 type ToastVariant = 'success' | 'info' | 'error';
 

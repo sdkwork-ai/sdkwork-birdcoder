@@ -138,7 +138,18 @@ for (const forbiddenUiRootExport of [
 const uiPackageManifest = JSON.parse(readText('apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-ui/package.json'));
 assert.deepEqual(
   Object.keys(uiPackageManifest.exports ?? {}),
-  ['.', './components/*', './components/DeferredRunDialogs'],
+  [
+    '.',
+    './components/*',
+    './components/ContentWorkbench',
+    './components/DeferredDiffEditor',
+    './components/DeferredFileExplorer',
+    './components/DeferredRunDialogs',
+    './components/DeferredUniversalChat',
+    './components/FileExplorer',
+    './components/ProjectGitOverviewDrawer',
+    './components/UniversalChat',
+  ],
   '@sdkwork/birdcoder-pc-ui package exports must expose the root entry plus controlled component subpaths so lazy consumers do not pull the UI barrel.',
 );
 const uiShellPackageManifest = JSON.parse(readText('apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-ui-shell/package.json'));
@@ -149,12 +160,12 @@ assert.deepEqual(
 );
 
 assert.ok(
-  !pathExists('apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-commons/src/workbench.ts'),
-  '@sdkwork/birdcoder-pc-commons must not keep the legacy src/workbench.ts barrel.',
+  !pathExists('apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-workbench/src/workbench.ts'),
+  '@sdkwork/birdcoder-pc-workbench must not keep the legacy src/workbench.ts barrel.',
 );
 assert.ok(
-  !pathExists('apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-commons/src/shell.ts'),
-  '@sdkwork/birdcoder-pc-commons must not keep the legacy src/shell.ts barrel.',
+  !pathExists('apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-workbench/src/shell.ts'),
+  '@sdkwork/birdcoder-pc-workbench must not keep the legacy src/shell.ts barrel.',
 );
 
 const universalChatSource = readText('apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-ui/src/components/UniversalChat.tsx');

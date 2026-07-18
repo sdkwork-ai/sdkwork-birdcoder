@@ -11,7 +11,7 @@ import type {
   BirdCoderCodingSessionSummary,
   BirdCoderProject,
   BirdCoderProjectSummary,
-} from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-types/src/index.ts';
+} from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-contracts-commons/src/index.ts';
 import type { IProjectService } from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/src/services/interfaces/IProjectService.ts';
 
 const workspaceId = 'workspace-api-backed-inventory-laziness';

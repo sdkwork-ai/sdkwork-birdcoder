@@ -159,7 +159,7 @@ for (const entry of fs.readdirSync(serviceImplDir, { withFileTypes: true })) {
   );
 }
 
-const serverApiSource = read('apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-types/src/server-api.ts');
+const serverApiSource = read('apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-contracts-commons/src/server-api.ts');
 assert.doesNotMatch(
   serverApiSource,
   /BirdCoderAppAdminApiClient|createBirdCoderGeneratedAppAdminApiClient|CreateBirdCoderGeneratedAppAdminApiClientOptions/u,

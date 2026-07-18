@@ -1,7 +1,7 @@
 import type {
   LocalFolderMountSource,
   ProjectDeviceMountState,
-} from '@sdkwork/birdcoder-pc-types';
+} from '@sdkwork/birdcoder-pc-contracts-commons';
 
 export type ProjectRuntimeLocationCapability =
   | 'terminal'

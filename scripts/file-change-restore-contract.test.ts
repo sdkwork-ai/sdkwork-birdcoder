@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 
 const restoreModulePath = new URL(
-  '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-commons/src/workbench/fileChangeRestore.ts',
+  '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-workbench/src/workbench/fileChangeRestore.ts',
   import.meta.url,
 );
 const codePagePath = new URL(

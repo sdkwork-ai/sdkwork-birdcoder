@@ -1,4 +1,5 @@
-import { DeferredFileExplorer, DeferredUniversalChat } from '@sdkwork/birdcoder-pc-ui';
+import { DeferredFileExplorer } from '@sdkwork/birdcoder-pc-ui/components/DeferredFileExplorer';
+import { DeferredUniversalChat } from '@sdkwork/birdcoder-pc-ui/components/DeferredUniversalChat';
 import { ResizeHandle } from '@sdkwork/birdcoder-pc-ui-shell';
 import { memo } from 'react';
 import { areCodeEditorWorkspacePanelRenderInputsEqual } from './codeEditorWorkspacePanelEquality';

@@ -64,7 +64,7 @@
     }
   ],
   "contracts": {
-    "layerRole": "backend-infrastructure",
+    "layerRole": "backend-provider",
     "publicExports": [
       ".",
       "sdkwork_birdcoder_git::inspect_project_git_overview",

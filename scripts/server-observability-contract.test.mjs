@@ -2,6 +2,8 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
 
+import './runtime-location-key-rotation-contract.test.mjs';
+
 const rootDir = process.cwd();
 
 function readText(relativePath) {

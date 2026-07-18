@@ -1,6 +1,6 @@
 import React, { memo, useMemo, useState } from 'react';
 import { ChevronDown, ChevronUp, Wrench } from 'lucide-react';
-import type { ChatMessageToolCall } from '@sdkwork/birdcoder-pc-commons/chat/types';
+import type { ChatMessageToolCall } from '@sdkwork/birdcoder-pc-workbench/chat/types';
 
 interface ToolCallCardProps {
   call: ChatMessageToolCall;

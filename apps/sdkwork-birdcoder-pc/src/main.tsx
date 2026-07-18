@@ -1,6 +1,6 @@
 import {createRoot} from 'react-dom/client';
 import App from './App.tsx';
-import { createBootstrapGateMessages } from '@sdkwork/birdcoder-pc-commons';
+import { createBootstrapGateMessages } from '@sdkwork/birdcoder-pc-workbench';
 import {
   BootstrapGate,
   bootstrapShellRuntime,

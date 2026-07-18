@@ -7,7 +7,7 @@ import {
   formatStructuredTerminalWarningPayload,
   sanitizeDesktopSessionReplay,
   sanitizeDesktopSessionStreamEvent,
-} from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-commons/src/terminal/terminalRuntimeSanitization.ts';
+} from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-workbench/src/terminal/terminalRuntimeSanitization.ts';
 
 const rootDir = process.cwd();
 const terminalRuntimeSource = fs.readFileSync(
@@ -19,7 +19,7 @@ const terminalRuntimeSource = fs.readFileSync(
     
     'packages',
     
-    'sdkwork-birdcoder-pc-commons',
+    'sdkwork-birdcoder-pc-workbench',
     'src',
     'terminal',
     'birdcoderTerminalInfrastructureRuntime.ts',

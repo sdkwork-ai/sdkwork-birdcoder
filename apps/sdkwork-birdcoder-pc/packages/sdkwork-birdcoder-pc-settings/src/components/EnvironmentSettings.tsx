@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { ChevronDown } from 'lucide-react';
 import { Button } from '@sdkwork/birdcoder-pc-ui-shell';
-import { usePersistedState, useToast } from '@sdkwork/birdcoder-pc-commons';
+import { usePersistedState, useToast } from '@sdkwork/birdcoder-pc-workbench';
 import { useTranslation } from 'react-i18next';
 import { SettingsProps } from './types';
 

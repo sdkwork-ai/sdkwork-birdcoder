@@ -1,4 +1,4 @@
-import type { BirdCoderDeploymentRecordSummary } from '@sdkwork/birdcoder-pc-types';
+import type { BirdCoderDeploymentRecordSummary } from '@sdkwork/birdcoder-pc-contracts-commons';
 
 export interface IAdminDeploymentService {
   getDeployments(): Promise<BirdCoderDeploymentRecordSummary[]>;

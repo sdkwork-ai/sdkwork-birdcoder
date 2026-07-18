@@ -1,5 +1,5 @@
 import { useCallback } from 'react';
-import type { ToastType } from '@sdkwork/birdcoder-pc-commons/contexts/ToastProvider';
+import type { ToastType } from '@sdkwork/birdcoder-pc-workbench/contexts/ToastProvider';
 import { copyTextToClipboard } from '@sdkwork/birdcoder-pc-ui/components/clipboard';
 
 interface CodePageClipboardProjectLike {

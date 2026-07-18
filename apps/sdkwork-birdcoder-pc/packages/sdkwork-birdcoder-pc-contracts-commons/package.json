@@ -1,0 +1,41 @@
+{
+  "name": "@sdkwork/birdcoder-pc-contracts-commons",
+  "private": true,
+  "type": "module",
+  "main": "./src/index.ts",
+  "module": "./src/index.ts",
+  "types": "./src/index.ts",
+  "exports": {
+    ".": {
+      "import": "./src/index.ts",
+      "types": "./src/index.ts"
+    },
+    "./storageBindings": {
+      "import": "./src/storageBindings.ts",
+      "types": "./src/storageBindings.ts"
+    },
+    "./dataScopes": {
+      "import": "./src/dataScopes.ts",
+      "types": "./src/dataScopes.ts"
+    },
+    "./apiTransportError": {
+      "import": "./src/apiTransportError.ts",
+      "types": "./src/apiTransportError.ts"
+    },
+    "./runConfigurationStorage": {
+      "import": "./src/runConfigurationStorage.ts",
+      "types": "./src/runConfigurationStorage.ts"
+    }
+  },
+  "scripts": {
+    "dev": "vite build --watch",
+    "build": "vite build",
+    "typecheck": "node ../../../../scripts/run-local-typescript.mjs --noEmit"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-react": "catalog:"
+  },
+  "dependencies": {
+    "@sdkwork/birdcoder-chat-contracts": "workspace:*"
+  }
+}

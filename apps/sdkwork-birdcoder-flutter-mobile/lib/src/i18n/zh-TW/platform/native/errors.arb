@@ -1,0 +1,11 @@
+{
+  "@@locale": "zh-TW",
+  "native_error_unsupported": "此裝置不支援該功能。",
+  "native_error_permission_denied": "權限被拒絕。",
+  "native_error_unavailable": "該功能目前無法使用。",
+  "native_error_cancelled": "操作已取消。",
+  "native_error_invalid_state": "目前狀態下無法完成操作。",
+  "native_error_timeout": "操作逾時。",
+  "native_error_not_found": "找不到要求的資源。",
+  "native_error_failed": "操作失敗。"
+}

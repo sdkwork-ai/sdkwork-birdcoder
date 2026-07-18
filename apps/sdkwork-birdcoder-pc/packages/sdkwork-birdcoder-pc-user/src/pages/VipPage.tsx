@@ -7,7 +7,7 @@
  * `@sdkwork/membership-pc-subscription/catalog`.
  */
 
-import { useAuth } from '@sdkwork/birdcoder-pc-commons';
+import { useAuth } from '@sdkwork/birdcoder-pc-workbench';
 import { BirdCoderTokenPlanPage } from '../token-plan/BirdCoderTokenPlanPage.tsx';
 
 export interface VipPageProps {

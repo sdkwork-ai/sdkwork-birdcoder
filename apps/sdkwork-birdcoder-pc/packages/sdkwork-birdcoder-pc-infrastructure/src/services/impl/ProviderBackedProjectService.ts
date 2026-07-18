@@ -6,7 +6,7 @@ import type {
   BirdCoderCodingSession,
   BirdCoderListCodingSessionsRequest,
   BirdCoderProject,
-} from '@sdkwork/birdcoder-pc-types';
+} from '@sdkwork/birdcoder-pc-contracts-commons';
 import {
   buildBirdCoderChatMessageLogicalMatchKey,
   buildBirdCoderChatMessageSynchronizationSignature,
@@ -19,7 +19,7 @@ import {
   mergeBirdCoderComparableChatMessages,
   resolveBirdCoderSessionSortTimestampString,
   stringifyBirdCoderLongInteger,
-} from '@sdkwork/birdcoder-pc-types';
+} from '@sdkwork/birdcoder-pc-contracts-commons';
 import { sanitizeBirdCoderNativeSessionAttributes } from '../nativeSessionPrivacy.ts';
 import type { IProjectSessionMirror } from '../interfaces/IProjectSessionMirror.ts';
 import { ProjectRuntimeLocationExecutionUnavailableError } from '../interfaces/IProjectRuntimeLocationService.ts';

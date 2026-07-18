@@ -82,7 +82,7 @@ export async function readDesktopEmbeddedRuntimeConfig(): Promise<DesktopEmbedde
   const invoke = await resolveBootstrapTauriInvoke();
   if (!invoke) {
     throw new Error(
-      'BirdCoder desktop runtime is unavailable. Launch the desktop app with "pnpm tauri:dev" so Tauri can start the embedded local API and expose desktop_runtime_config.',
+      'BirdCoder desktop runtime is unavailable. Launch the desktop app with "pnpm dev:desktop" so Tauri can start the embedded local API and expose desktop_runtime_config.',
     );
   }
 

@@ -1,5 +1,5 @@
 import { memo, useEffect, useId } from 'react';
-import type { ProjectGitOverviewViewState } from '@sdkwork/birdcoder-pc-commons';
+import type { ProjectGitOverviewViewState } from '@sdkwork/birdcoder-pc-workbench';
 import { Button } from '@sdkwork/birdcoder-pc-ui-shell';
 import { FolderGit2, X } from 'lucide-react';
 import { useTranslation } from 'react-i18next';

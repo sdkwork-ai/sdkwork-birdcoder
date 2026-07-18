@@ -3,7 +3,7 @@ import type {
   BirdCoderDeploymentTargetSummary,
   BirdCoderProjectPublishResult,
   BirdCoderPublishProjectRequest,
-} from '@sdkwork/birdcoder-pc-types';
+} from '@sdkwork/birdcoder-pc-contracts-commons';
 import type { IDeploymentService } from '../interfaces/IDeploymentService.ts';
 import type { BirdCoderAppSdkApiClient } from '../sdkClients.ts';
 

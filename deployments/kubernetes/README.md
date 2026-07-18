@@ -2,8 +2,9 @@
 
 Helm chart for the BirdCoder API server with production safety defaults:
 
-- `replicaCount: 1` while SQLite remains the default product database engine
-- `autoscaling.enabled: false` until PostgreSQL is explicitly configured and HA smoke passes
+- `replicaCount: 1` for the non-HA cloud control-plane baseline
+- PostgreSQL is mandatory; the chart never falls back to SQLite
+- `autoscaling.enabled: false` until the PostgreSQL/Redis HA overlay and live smoke pass
 - Probes and ServiceMonitor scrape `/healthz`, `/readyz`, and `/metrics` respectively
 - `database.engine` is published through ConfigMap as `SDKWORK_BIRDCODER_DATABASE_ENGINE`
 - `auth.existingSecret` allows referencing a pre-provisioned Secret (External Secrets Operator, Sealed Secrets, cloud KMS) instead of embedding credentials in values.yaml
@@ -11,25 +12,30 @@ Helm chart for the BirdCoder API server with production safety defaults:
 ## Install
 
 ```bash
-helm upgrade --install sdkwork-birdcoder ./deployments/kubernetes -f deployments/kubernetes/values.yaml
+helm upgrade --install sdkwork-birdcoder ./deployments/kubernetes \
+  -f deployments/kubernetes/values.yaml \
+  --set image.digest='sha256:<immutable-image-digest>'
 ```
 
 ## PostgreSQL HA
 
-1. Set `database.engine: postgresql` and provide `database.url` in values or an external secret.
+1. Provision `auth.existingSecret` with the PostgreSQL DSN, Redis credentials,
+   runtime-location keyring, and isolated backup restore-test DSN. Do not put
+   secret values in Helm values or command-line arguments.
 2. Run database bootstrap/migrations against the PostgreSQL baseline in `database/ddl/baseline/postgres/`.
 3. BirdCoder repositories resolve a shared sqlx `AnyPool` from the bootstrap `DatabasePool`, so PostgreSQL no longer fails fast at repository wiring.
 4. Provision Redis and apply `values-postgresql-ha.yaml`, which sets `realtime.backend: redis` and `redis.enabled: true`. Workspace WebSocket events fan out through Redis pub/sub so multiple API replicas stay consistent.
 5. Re-enable autoscaling and raise `replicaCount` only after PostgreSQL HA smoke passes in the target environment.
 
-6. Enable scheduled backups when ready:
+6. Enable scheduled backups with a restore-test DSN key in the existing Secret:
 
 ```yaml
 backup:
   enabled: true
+  verifyDatabaseUrlSecretKey: SDKWORK_BIRDCODER_BACKUP_VERIFY_DATABASE_URL
 database:
   engine: postgresql
-  url: postgres://birdcoder:SECRET@postgresql:5432/birdcoder
+  url: ""
 ```
 
 See `docs/guides/operator/backup-restore.md` for restore procedures.
@@ -40,8 +46,7 @@ Apply the production overlay:
 helm upgrade --install sdkwork-birdcoder ./deployments/kubernetes \
   -f deployments/kubernetes/values.yaml \
   -f deployments/kubernetes/values-postgresql-ha.yaml \
-  --set database.url='postgres://birdcoder:SECRET@postgresql:5432/birdcoder' \
-  --set auth.managePassword='SECRET'
+  --set image.digest='sha256:<immutable-image-digest>'
 ```
 
 ### HA overlay configuration
@@ -60,12 +65,15 @@ helm upgrade --install sdkwork-birdcoder ./deployments/kubernetes \
 | `backup.schedule` | `0 2 * * *` | Daily 02:00 UTC backup, 30-day retention |
 | `observability.otlpEndpoint` | `http://otel-collector.observability.svc.cluster.local:4317` | OTLP/gRPC traces at 10% sampling |
 | `resources.limits` | `cpu: "4", memory: 8Gi` | Production resource envelope |
-| `persistence.enabled` | `false` | SQLite PVC disabled; data lives in PostgreSQL. `storageClass: premium-rwo` is reused by the backup PVC |
+| `persistence.enabled` | `false` | Application SQLite PVC disabled; data lives in PostgreSQL. `storageClass: premium-rwo` is reused by the backup PVC |
 
-Required secrets (inject via `--set` or external secret manager):
+Required secrets are injected through `auth.existingSecret` by an external
+secret manager:
 
-- `birdcoder-database-url` — PostgreSQL connection string (`database.url`)
-- `birdcoder-redis-password` — Redis auth password
+- `SDKWORK_BIRDCODER_DATABASE_URL` - PostgreSQL connection string
+- Redis credential keys required by the selected Redis deployment
+- Runtime-location active, fingerprint, and historical decryption keys
+- `SDKWORK_BIRDCODER_BACKUP_VERIFY_DATABASE_URL` - isolated restore-test DSN
 
 Prerequisites:
 

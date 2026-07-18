@@ -4,7 +4,7 @@ import path from 'node:path';
 import process from 'node:process';
 
 const useFileSystemSource = fs.readFileSync(
-  path.join(rootDir(), 'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-commons/src/hooks/useFileSystem.ts'),
+  path.join(rootDir(), 'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-workbench/src/hooks/useFileSystem.ts'),
   'utf8',
 );
 

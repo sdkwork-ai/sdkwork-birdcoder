@@ -1,0 +1,9 @@
+{
+  "@@locale": "zh-TW",
+  "error_network": "網路錯誤，請檢查您的連線。",
+  "error_unknown": "發生未知錯誤。",
+  "error_session_expired": "您的工作階段已過期，請重新登入。",
+  "error_request_timeout": "請求逾時，請重試。",
+  "error_unauthorized": "您無權執行此操作。",
+  "error_server": "伺服器錯誤，請稍後重試。"
+}

@@ -7,7 +7,7 @@ import type {
   BirdCoderPushProjectGitBranchRequest,
   BirdCoderRemoveProjectGitWorktreeRequest,
   BirdCoderSwitchProjectGitBranchRequest,
-} from '@sdkwork/birdcoder-pc-types';
+} from '@sdkwork/birdcoder-pc-contracts-commons';
 
 export interface IGitService {
   commitProjectGitChanges(

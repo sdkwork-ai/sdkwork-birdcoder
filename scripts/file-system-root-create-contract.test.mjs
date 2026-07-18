@@ -13,7 +13,7 @@ const fileExplorerSource = read('apps/sdkwork-birdcoder-pc/packages/sdkwork-bird
 const fileExplorerNameValidationSource = read(
   'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-ui/src/components/fileExplorerNameValidation.ts',
 );
-const useFileSystemSource = read('apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-commons/src/hooks/useFileSystem.ts');
+const useFileSystemSource = read('apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-workbench/src/hooks/useFileSystem.ts');
 const runtimeFileSystemSource = read(
   'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/src/services/impl/RuntimeFileSystemService.ts',
 );

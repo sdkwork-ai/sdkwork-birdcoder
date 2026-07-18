@@ -7,7 +7,7 @@ BirdCoder backend SDK family surface.
 - Rust output: `sdkwork-birdcoder-backend-sdk-rust`
 - Standard profile: `sdkwork-v3`
 
-Do not edit generated output by hand. Update `sdks/specs/openapi/birdcoder-backend-v3.openapi.json` or `scripts/generate-birdcoder-sdk-family.mjs`, then run `pnpm generate:sdk:birdcoder`.
+Do not edit generated output by hand. Update `sdks/specs/openapi/birdcoder-backend-v3.openapi.json` or `scripts/generate-birdcoder-sdk-family.mjs`, then run `pnpm sdk:generate`.
 
 Example TypeScript calls:
 

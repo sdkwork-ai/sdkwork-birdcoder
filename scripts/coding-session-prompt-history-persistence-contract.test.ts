@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 
 const persistenceModulePath = new URL(
-  '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-commons/src/chat/persistence.ts',
+  '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-workbench/src/chat/persistence.ts',
   import.meta.url,
 );
 const dataKernelModulePath = new URL(
@@ -21,7 +21,7 @@ const savedPromptRepositoryModulePath = new URL(
   import.meta.url,
 );
 const storageBindingsModulePath = new URL(
-  '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-types/src/storageBindings.ts',
+  '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-contracts-commons/src/storageBindings.ts',
   import.meta.url,
 );
 const runtimeModulePath = new URL(

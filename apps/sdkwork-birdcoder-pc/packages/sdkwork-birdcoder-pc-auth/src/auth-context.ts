@@ -1,1 +1,1 @@
-export { AuthProvider, useAuth } from "@sdkwork/birdcoder-pc-commons";
+export { AuthProvider, useAuth } from "@sdkwork/birdcoder-pc-workbench";

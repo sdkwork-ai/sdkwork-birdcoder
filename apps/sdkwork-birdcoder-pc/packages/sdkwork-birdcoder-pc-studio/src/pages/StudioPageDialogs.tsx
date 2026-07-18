@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { useIDEServices, useToast, type RunConfigurationRecord } from '@sdkwork/birdcoder-pc-commons';
+import { useIDEServices, useToast, type RunConfigurationRecord } from '@sdkwork/birdcoder-pc-workbench';
 import {
   DeferredRunConfigurationDialog,
   DeferredRunTaskDialog,
@@ -10,7 +10,7 @@ import type {
   BirdCoderProjectCollaboratorSummary,
   BirdCoderProjectPublishResult,
   BirdCoderReleaseSummary,
-} from '@sdkwork/birdcoder-pc-types';
+} from '@sdkwork/birdcoder-pc-contracts-commons';
 import { Code2, Globe, Lock, Share, Upload, X, Loader2 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 

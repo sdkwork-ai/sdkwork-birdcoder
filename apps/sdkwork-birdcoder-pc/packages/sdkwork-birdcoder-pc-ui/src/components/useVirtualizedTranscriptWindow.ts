@@ -1,4 +1,4 @@
-import type { BirdCoderChatMessage, BirdCoderCodeEngineKey } from '@sdkwork/birdcoder-pc-commons/chat/types';
+import type { BirdCoderChatMessage, BirdCoderCodeEngineKey } from '@sdkwork/birdcoder-pc-workbench/chat/types';
 import type { RefObject } from 'react';
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import {

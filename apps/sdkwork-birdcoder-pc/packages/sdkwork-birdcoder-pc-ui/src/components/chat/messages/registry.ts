@@ -1,7 +1,7 @@
 import type {
   BirdCoderChatMessageView,
   BirdCoderChatMessageViewKind,
-} from '@sdkwork/birdcoder-pc-commons/chat/types';
+} from '@sdkwork/birdcoder-pc-workbench/chat/types';
 import type {
   ChatMessageLayout,
   ChatMessageRendererEntry,

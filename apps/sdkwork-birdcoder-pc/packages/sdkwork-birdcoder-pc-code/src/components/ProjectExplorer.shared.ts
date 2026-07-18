@@ -1,5 +1,5 @@
 import type { CSSProperties } from 'react';
-import type { BirdCoderCodingSession, BirdCoderProject } from '@sdkwork/birdcoder-pc-types';
+import type { BirdCoderCodingSession, BirdCoderProject } from '@sdkwork/birdcoder-pc-contracts-commons';
 
 export interface ProjectExplorerProjectEntry {
   canShowMoreSessions: boolean;

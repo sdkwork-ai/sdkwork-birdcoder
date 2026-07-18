@@ -33,8 +33,8 @@ second app API contract; it is described by the session reference above.
 
 ## Verification
 
-    pnpm generate:sdk:birdcoder
-    pnpm generate:sdk:birdcoder:standard
+    pnpm sdk:generate
+    pnpm sdk:generate:standard
     node ../sdkwork-specs/tools/check-api-operation-patterns.mjs --workspace .
     node ../sdkwork-specs/tools/check-api-response-envelope.mjs --workspace .
     node ../sdkwork-specs/tools/check-app-sdk-consumer-imports.mjs --workspace .

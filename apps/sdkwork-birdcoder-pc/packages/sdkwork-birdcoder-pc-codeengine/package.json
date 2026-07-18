@@ -23,7 +23,7 @@
   },
   "dependencies": {
     "@sdkwork/birdcoder-pc-projection": "workspace:*",
-    "@sdkwork/birdcoder-pc-types": "workspace:*"
+    "@sdkwork/birdcoder-pc-contracts-commons": "workspace:*"
   },
   "devDependencies": {
     "@types/node": "catalog:",
@@ -34,5 +34,6 @@
     "access": "public",
     "registry": "https://registry.npmjs.org/"
   },
-  "private": true
+  "private": true,
+  "scripts": {}
 }

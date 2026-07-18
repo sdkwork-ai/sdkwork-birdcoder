@@ -40,5 +40,5 @@ Root SDKWork standards remain authoritative. The SDK family narrows those standa
 ## Verification
 
 - `pnpm check:sdk-family-standard`
-- `pnpm generate:sdk:birdcoder`
+- `pnpm sdk:generate`
 - `pnpm check:sdk-family-generated`

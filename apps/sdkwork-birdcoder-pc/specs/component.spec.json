@@ -101,13 +101,14 @@
     "runtimeEntrypoints": [
       "package.json#scripts.dev",
       "package.json#scripts.build",
-      "package.json#scripts.tauri:dev"
+      "package.json#scripts.dev:desktop"
     ],
     "sdkClients": [
       "@sdkwork/birdcoder-app-sdk",
       "@sdkwork/iam-app-sdk",
       "@sdkwork/drive-app-sdk",
-      "@sdkwork/messaging-app-sdk"
+      "@sdkwork/messaging-app-sdk",
+      "@sdkwork/membership-app-sdk"
     ],
     "sdkDependencies": [
       {
@@ -133,12 +134,22 @@
         "surface": "app-api",
         "credentialMode": "authenticated-app-api",
         "required": true
+      },
+      {
+        "workspace": "sdkwork-membership-app-sdk",
+        "surface": "app-api",
+        "credentialMode": "authenticated-app-api",
+        "required": true
       }
     ],
     "dependencyApiExports": [],
     "dependencyApiSurfaces": [],
     "events": [],
-    "configKeys": [],
+    "configKeys": [
+      "VITE_SDKWORK_BIRDCODER_PLATFORM_API_GATEWAY_HTTP_URL",
+      "VITE_SDKWORK_DRIVE_APP_API_BASE_URL",
+      "VITE_SDKWORK_MEMBERSHIP_APP_API_BASE_URL"
+    ],
     "routeManifest": null,
     "permissionComposition": {
       "inheritanceMode": "module-catalog-with-overrides",

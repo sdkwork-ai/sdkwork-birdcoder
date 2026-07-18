@@ -1,5 +1,5 @@
 import { memo, useMemo } from 'react';
-import type { BirdCoderChatMessage } from '@sdkwork/birdcoder-pc-commons/chat/types';
+import type { BirdCoderChatMessage } from '@sdkwork/birdcoder-pc-workbench/chat/types';
 import { buildChatTranscriptTurnAnchors } from './chatTranscriptAnchors';
 
 const MAX_TURN_FILE_LABELS = 3;

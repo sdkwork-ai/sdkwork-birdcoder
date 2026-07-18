@@ -3,7 +3,7 @@ import fs from 'node:fs';
 
 const commonsInterfaceSource = fs.readFileSync(
   new URL(
-    '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-commons/src/services/interfaces/IFileSystemService.ts',
+    '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-workbench/src/services/interfaces/IFileSystemService.ts',
     import.meta.url,
   ),
   'utf8',
@@ -26,7 +26,7 @@ const runtimeServiceSource = fs.readFileSync(
 );
 
 const fileSystemHookSource = fs.readFileSync(
-  new URL('../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-commons/src/hooks/useFileSystem.ts', import.meta.url),
+  new URL('../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-workbench/src/hooks/useFileSystem.ts', import.meta.url),
   'utf8',
 );
 

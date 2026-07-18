@@ -2,12 +2,12 @@ import {
   parseBirdCoderApiJson,
   stringifyBirdCoderLongInteger,
   stringifyBirdCoderApiJson,
-} from '@sdkwork/birdcoder-pc-types';
+} from '@sdkwork/birdcoder-pc-contracts-commons';
 import type {
   BirdCoderCodeEngineKey,
   BirdCoderEngineCapabilityMatrix,
   BirdCoderEngineTransportKind,
-} from '@sdkwork/birdcoder-pc-types';
+} from '@sdkwork/birdcoder-pc-contracts-commons';
 import type {
   ChatCanonicalEvent,
   ChatCanonicalRuntimeDescriptor,

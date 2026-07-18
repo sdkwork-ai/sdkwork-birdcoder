@@ -1,10 +1,19 @@
 {
   "@@locale": "en",
+  "@@sdkworkGenerated": "sdkwork-i18n-generated",
+  "@@sdkworkSourceManifest": "lib/src/i18n/manifest.json",
   "app_title": "BirdCoder",
-  "@app_title": {"description": "Application display name"},
+  "@app_title": {
+    "description": "Application display name"
+  },
   "app_loading": "Loading...",
-  "@app_loading": {"description": "Generic app loading message"},
-
+  "@app_loading": {
+    "description": "Generic app loading message"
+  },
+  "nav_home": "Home",
+  "nav_chat": "Chat",
+  "nav_settings": "Settings",
+  "nav_profile": "Profile",
   "common_cancel": "Cancel",
   "common_confirm": "Confirm",
   "common_save": "Save",
@@ -21,7 +30,6 @@
   "common_refresh": "Refresh",
   "common_yes": "Yes",
   "common_no": "No",
-
   "chat_send": "Send",
   "chat_input_placeholder": "Send a message...",
   "chat_empty": "No messages yet. Start a conversation below.",
@@ -30,7 +38,6 @@
   "chat_message_assistant": "BirdCoder",
   "chat_send_failed": "Failed to send message.",
   "chat_typing": "BirdCoder is typing...",
-
   "auth_login": "Log in",
   "auth_logout": "Log out",
   "auth_signin": "Sign in",
@@ -42,7 +49,6 @@
   "auth_invalid_password": "Password must be at least 8 characters.",
   "auth_login_failed": "Login failed. Please check your credentials.",
   "auth_register_success": "Registration successful. Please sign in.",
-
   "settings_engine": "Engine",
   "settings_engine_description": "Select the rendering engine used to load the BirdCoder workspace.",
   "settings_engine_webview": "WebView",
@@ -70,7 +76,6 @@
   "settings_light_mode": "Light mode",
   "settings_system_mode": "Follow system",
   "settings_version": "Version",
-
   "native_error_unsupported": "This capability is not supported on this device.",
   "native_error_permission_denied": "Permission was denied.",
   "native_error_unavailable": "The capability is unavailable right now.",
@@ -79,12 +84,6 @@
   "native_error_timeout": "The operation timed out.",
   "native_error_not_found": "The requested resource was not found.",
   "native_error_failed": "The operation failed.",
-
-  "nav_home": "Home",
-  "nav_chat": "Chat",
-  "nav_settings": "Settings",
-  "nav_profile": "Profile",
-
   "error_network": "Network error. Please check your connection.",
   "error_unknown": "An unknown error occurred.",
   "error_session_expired": "Your session has expired. Please sign in again.",

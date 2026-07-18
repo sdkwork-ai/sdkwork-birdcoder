@@ -197,15 +197,6 @@ const crates = [
     ],
   },
   {
-    crateDir: 'crates/sdkwork-routes-membership-app-api',
-    fnName: 'membership_app_api_route_manifest',
-    routesConst: 'MEMBERSHIP_APP_API_ROUTES',
-    routes: [
-      ['Get', 'MEMBERSHIP_CURRENT_PATH', 'memberships'],
-      ['Get', 'MEMBERSHIP_PACKAGE_GROUPS_PATH', 'memberships'],
-    ],
-  },
-  {
     crateDir: 'crates/sdkwork-routes-commerce-app-api',
     fnName: 'commerce_app_api_route_manifest',
     routesConst: 'COMMERCE_APP_API_ROUTES',

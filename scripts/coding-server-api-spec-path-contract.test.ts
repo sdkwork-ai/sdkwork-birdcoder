@@ -11,12 +11,12 @@ import {
 
 const APP_API_PREFIX = '/app/v3/api';
 const BACKEND_API_PREFIX = '/backend/v3/api';
-const COMMERCE_API_PREFIX = '/api/v1';
 
 function isAllowedAppRoutePath(routePath: string): boolean {
-  return routePath.startsWith(APP_API_PREFIX) || routePath.startsWith(COMMERCE_API_PREFIX);
+  return routePath.startsWith(APP_API_PREFIX);
 }
 const FORBIDDEN_PREFIXES = [
+  '/api/v1',
   '/api/core/v1',
   '/api/app/v1',
   '/api/app/v2',
@@ -98,7 +98,7 @@ const FORBIDDEN_ACTIVE_DOC_PATTERNS = [
   {
     pattern: /@sdkwork\/birdcoder-types[^\n]*createBirdCoder(?:App|Backend)SdkApiClient/iu,
     message:
-      'active docs must assign SDK client wrapper ownership to sdkClients.ts, not @sdkwork/birdcoder-pc-types.',
+      'active docs must assign SDK client wrapper ownership to sdkClients.ts, not @sdkwork/birdcoder-pc-contracts-commons.',
   },
   {
     pattern:
@@ -113,7 +113,7 @@ const serverIndexSource = readFileSync(
   'utf8',
 );
 const typesServerApiSource = readFileSync(
-  new URL('../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-types/src/server-api.ts', import.meta.url),
+  new URL('../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-contracts-commons/src/server-api.ts', import.meta.url),
   'utf8',
 );
 
@@ -174,7 +174,7 @@ function assertActiveDocsUseCanonicalApiAndSdkLanguage(): void {
 function assertNoRetiredAdminApiSurfaceNaming(): void {
   for (const [label, source] of [
     ['apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-server/src/index.ts', serverIndexSource],
-    ['apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-types/src/server-api.ts', typesServerApiSource],
+    ['apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-contracts-commons/src/server-api.ts', typesServerApiSource],
   ] as const) {
     assert.doesNotMatch(
       source,
@@ -196,12 +196,12 @@ function assertNoRetiredBillingVipServerTypes(): void {
   assert.doesNotMatch(
     typesServerApiSource,
     /\b(?:BirdCoderBillingVipMembershipSummary|BirdCoderUpdateCurrentUserMembershipRequest)\b/u,
-    'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-types/src/server-api.ts must not expose retired app-local billing/VIP membership types; membership read models belong to SDKWork commerce generated SDK schemas.',
+    'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-contracts-commons/src/server-api.ts must not expose retired app-local billing/VIP membership types; membership read models belong to SDKWork commerce generated SDK schemas.',
   );
   assert.doesNotMatch(
     typesServerApiSource,
     /\bcurrentMembership\?:\s*BirdCoderBillingVipMembershipSummary\b/u,
-    'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-types/src/server-api.ts must not keep a local currentMembership model slot for retired billing/VIP state.',
+    'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-contracts-commons/src/server-api.ts must not keep a local currentMembership model slot for retired billing/VIP state.',
   );
 }
 
@@ -381,8 +381,8 @@ assertActiveDocsUseCanonicalApiAndSdkLanguage();
 assertNoRetiredAdminApiSurfaceNaming();
 assertNoRetiredOpenApiSeedBuilder();
 assertNoRetiredBillingVipServerTypes();
-assert.equal(descriptor.gateway.routeCount, 175);
-assert.equal(descriptor.gateway.routesBySurface.app, 126);
+assert.equal(descriptor.gateway.routeCount, 160);
+assert.equal(descriptor.gateway.routesBySurface.app, 111);
 assert.equal(descriptor.gateway.routesBySurface.backend, 49);
 assert.deepEqual(descriptor.surfaces, ['app', 'backend']);
 assert.equal(
@@ -429,12 +429,12 @@ for (const route of routeCatalog) {
     assert.equal(
       isAllowedAppRoutePath(route.path),
       true,
-      `${route.operationId} app route must use ${APP_API_PREFIX} or ${COMMERCE_API_PREFIX}: ${route.path}`,
+      `${route.operationId} app route must use ${APP_API_PREFIX}: ${route.path}`,
     );
     assert.equal(
       isAllowedAppRoutePath(route.openApiPath),
       true,
-      `${route.operationId} app OpenAPI path must use ${APP_API_PREFIX} or ${COMMERCE_API_PREFIX}: ${route.openApiPath}`,
+      `${route.operationId} app OpenAPI path must use ${APP_API_PREFIX}: ${route.openApiPath}`,
     );
     if (route.openApiPath.startsWith(APP_API_PREFIX)) {
       assertLowerSnakeStaticSegments(route.openApiPath, `${route.operationId} app OpenAPI path`);
@@ -476,8 +476,8 @@ assert.deepEqual(openApiDocument.tags.map((tag) => tag.name), [
   'system',
   'templates',
 ]);
-assert.equal(openApiDocument['x-sdkwork-api-cloud-gateway'].routeCount, 175);
-assert.equal(openApiDocument['x-sdkwork-api-cloud-gateway'].routesBySurface.app, 126);
+assert.equal(openApiDocument['x-sdkwork-api-cloud-gateway'].routeCount, 160);
+assert.equal(openApiDocument['x-sdkwork-api-cloud-gateway'].routesBySurface.app, 111);
 assert.equal(openApiDocument['x-sdkwork-api-cloud-gateway'].routesBySurface.backend, 49);
 assert.equal(
   'basePath' in openApiDocument['x-sdkwork-api-cloud-gateway'],

@@ -6,50 +6,50 @@ BirdCoder development follows the package-first SDKWork application workflow whi
 
 ```bash
 pnpm dev
-pnpm dev:local
-pnpm dev:private
-pnpm dev:cloud
-pnpm tauri:dev
-pnpm tauri:dev:private
-pnpm tauri:dev:cloud
-pnpm desktop:dev:local
-pnpm desktop:dev:private
-pnpm desktop:dev:cloud
-pnpm stack:desktop:local
-pnpm stack:desktop:private
-pnpm stack:desktop:cloud
-pnpm web:dev:private
-pnpm web:dev:cloud
-pnpm stack:web:private
-pnpm stack:web:cloud
-pnpm server:dev
-pnpm server:dev:private
-pnpm server:dev:cloud
+pnpm dev:desktop:local
+pnpm dev:browser:postgres:standalone
+pnpm dev:browser:postgres:cloud
+pnpm dev:desktop
+pnpm dev:desktop:standalone
+pnpm dev:desktop:cloud
+pnpm dev:desktop:local
+pnpm dev:desktop:standalone
+pnpm dev:desktop:cloud
+pnpm dev:desktop:local
+pnpm dev:desktop:standalone
+pnpm dev:desktop:cloud
+pnpm dev:browser:standalone
+pnpm dev:browser:cloud
+pnpm dev:browser:standalone
+pnpm dev:browser:cloud
+pnpm dev:server:postgres:standalone
+pnpm dev:server:standalone
+pnpm dev:server:cloud
 pnpm lint
 pnpm build
-pnpm package:desktop:local
-pnpm package:web:private
-pnpm package:server:private
+pnpm release:package:desktop:local
+pnpm release:package:browser:standalone
+pnpm release:package:server:standalone
 pnpm docs:build
 pnpm check:multi-mode
 pnpm check:iam:sample
 ```
 
-Use `pnpm dev` for the default private BirdCoder web sample stack, `pnpm dev:local` or `pnpm tauri:dev` for the desktop-local loop, and `pnpm server:dev` for the private server-hosted loop. `pnpm dev` and `pnpm dev:private` are stack-style entrypoints: they start the native BirdCoder server, wait for the unauthenticated infrastructure readiness probe at `/readyz`, then boot the browser host against the same SDKWork IAM facade. Use `pnpm web:dev:private` only when the browser host should attach to an already running private server.
+Use `pnpm dev` for the default private BirdCoder web sample stack, `pnpm dev:desktop:local` or `pnpm dev:desktop` for the desktop-local loop, and `pnpm dev:server:postgres:standalone` for the private server-hosted loop. `pnpm dev` and `pnpm dev:browser:postgres:standalone` are stack-style entrypoints: they start the native BirdCoder server, wait for the unauthenticated infrastructure readiness probe at `/readyz`, then boot the browser host against the same SDKWork IAM facade. Use `pnpm dev:browser:standalone` only when the browser host should attach to an already running private server.
 
 ## IAM Deployment Commands
 
 BirdCoder has three IAM deployment modes:
 
-- `desktop-local`: `pnpm dev:local`, `pnpm tauri:dev`, `pnpm tauri:dev:local`, and `pnpm desktop:dev:local` run the desktop host with an embedded coding server and local SDKWork IAM storage.
-- `server-private`: `pnpm dev`, `pnpm dev:private`, `pnpm tauri:dev:private`, `pnpm desktop:dev:private`, `pnpm web:dev:private`, `pnpm server:dev`, and `pnpm server:dev:private` run against a private BirdCoder server exposing the standard SDKWork IAM app facade.
-- `cloud-saas`: `pnpm dev:cloud`, `pnpm tauri:dev:cloud`, `pnpm desktop:dev:cloud`, `pnpm web:dev:cloud`, and `pnpm server:dev:cloud` run against the cloud-backed SDKWork IAM authority.
+- `desktop-local`: `pnpm dev:desktop:local`, `pnpm dev:desktop`, `pnpm dev:desktop:local`, and `pnpm dev:desktop:local` run the desktop host with an embedded coding server and local SDKWork IAM storage.
+- `server-private`: `pnpm dev`, `pnpm dev:browser:postgres:standalone`, `pnpm dev:desktop:standalone`, `pnpm dev:desktop:standalone`, `pnpm dev:browser:standalone`, `pnpm dev:server:postgres:standalone`, and `pnpm dev:server:standalone` run against a private BirdCoder server exposing the standard SDKWork IAM app facade.
+- `cloud-saas`: `pnpm dev:browser:postgres:cloud`, `pnpm dev:desktop:cloud`, `pnpm dev:desktop:cloud`, `pnpm dev:browser:cloud`, and `pnpm dev:server:cloud` run against the cloud-backed SDKWork IAM authority.
 
 The stack aliases keep delivery topology explicit:
 
-- `pnpm stack:desktop:local`, `pnpm stack:desktop:private`, and `pnpm stack:desktop:cloud` start the server and desktop host for the matching IAM deployment mode.
-- `pnpm stack:web:private` and `pnpm stack:web:cloud` start the server and browser host for private or cloud-backed verification.
-- `pnpm package:desktop:local`, `pnpm package:desktop:private`, `pnpm package:desktop:cloud`, `pnpm package:web:private`, `pnpm package:web:cloud`, `pnpm package:server:private`, and `pnpm package:server:cloud` are packaging aliases over the matching build lanes.
+- `pnpm dev:desktop:local`, `pnpm dev:desktop:standalone`, and `pnpm dev:desktop:cloud` start the server and desktop host for the matching IAM deployment mode.
+- `pnpm dev:browser:standalone` and `pnpm dev:browser:cloud` start the server and browser host for private or cloud-backed verification.
+- `pnpm release:package:desktop:local`, `pnpm release:package:desktop:standalone`, `pnpm release:package:desktop:cloud`, `pnpm release:package:browser:standalone`, `pnpm release:package:browser:cloud`, `pnpm release:package:server:standalone`, and `pnpm release:package:server:cloud` are packaging aliases over the matching build lanes.
 
 The wrappers load the standard Vite env files from the workspace root:
 
@@ -79,15 +79,15 @@ They then normalize mode-specific defaults for:
 Use the inspector before switching deployment styles when you need a deterministic view of the managed env:
 
 ```bash
-pnpm iam:show -- desktop-dev --iam-mode desktop-local
-pnpm iam:show -- web-dev --iam-mode server-private
-pnpm iam:show -- server-dev --iam-mode server-private
-pnpm iam:show -- server-dev --iam-mode cloud-saas
+pnpm check:env:desktop:local -- desktop-dev --iam-mode desktop-local
+pnpm check:env:desktop:local -- web-dev --iam-mode server-private
+pnpm check:env:desktop:local -- server-dev --iam-mode server-private
+pnpm check:env:desktop:local -- server-dev --iam-mode cloud-saas
 ```
 
 The inspector masks secret-like values but keeps the effective sqlite path, IAM mode, app API base URL, and dev prefill flags visible. `pnpm check:iam:sample` runs the desktop, web, and server IAM inspectors across the standardized local, private, and cloud lanes, then verifies the sample delivery surface for private and cloud deployment. When no explicit `SDKWORK_IAM_APP_API_BASE_URL` is set for the cloud slice, the sample check injects `https://app-api.example.com` as a deterministic placeholder so the wiring can be verified without a live upstream authority.
 
-For local iteration, remote desktop modes use `http://127.0.0.1:10240` as the default client API base URL when no explicit value is configured. For release packaging, `tauri:build:private` and `tauri:build:cloud` require an explicit `BIRDCODER_API_BASE_URL` or `VITE_BIRDCODER_API_BASE_URL`, so packaged apps never fall back to localhost by accident.
+For local iteration, remote desktop modes use `http://127.0.0.1:10240` as the default client API base URL when no explicit value is configured. For release packaging, `build:desktop:private` and `build:desktop:cloud` require an explicit `BIRDCODER_API_BASE_URL` or `VITE_BIRDCODER_API_BASE_URL`, so packaged apps never fall back to localhost by accident.
 
 ## Local Identity And Developer Prefill
 
@@ -145,8 +145,8 @@ pnpm check:quality-matrix
 pnpm check:quality:fast
 pnpm check:quality:standard
 pnpm check:quality:release
-pnpm quality:report
-pnpm quality:execution-report
+pnpm check:quality-report
+pnpm check:quality-execution-report
 pnpm check:iam-standard
 ```
 
@@ -154,4 +154,4 @@ Use targeted package commands during implementation, then run broader workspace 
 
 `pnpm check:release-flow` freezes release planning, packaging, smoke routing, and finalization contracts before release automation changes are treated as stable. `pnpm check:ci-flow` freezes the reusable workflow and quality-tier handoff topology. `pnpm check:governance-regression` regenerates the machine-readable governance baseline and records structured blocker diagnostics instead of treating host limitations as repository regressions. `pnpm check:live-docs-governance-baseline` proves that active docs still match the live baseline, and `pnpm check:quality-matrix` freezes the declared `fast -> standard -> release` tier model before quality evidence is consumed downstream.
 
-`pnpm check:iam-standard` is the SDKWork IAM boundary gate for auth, current user, session, profile, and VIP membership flows. It must stay tied to generated SDKs, OpenAPI source contracts, Rust IAM parity, and the no-legacy identity contract rather than a local compatibility layer. `pnpm check:quality:fast` is the first executable release-readiness gate, `pnpm check:quality:standard` expands that set, and `pnpm check:quality:release` is the highest local quality gate before release-facing changes are treated as ready. `pnpm quality:report` records the current quality matrix and blocker diagnostics, while `pnpm quality:execution-report` preserves the real gate cascade and downstream skipped tiers.
+`pnpm check:iam-standard` is the SDKWork IAM boundary gate for auth, current user, session, profile, and VIP membership flows. It must stay tied to generated SDKs, OpenAPI source contracts, Rust IAM parity, and the no-legacy identity contract rather than a local compatibility layer. `pnpm check:quality:fast` is the first executable release-readiness gate, `pnpm check:quality:standard` expands that set, and `pnpm check:quality:release` is the highest local quality gate before release-facing changes are treated as ready. `pnpm check:quality-report` records the current quality matrix and blocker diagnostics, while `pnpm check:quality-execution-report` preserves the real gate cascade and downstream skipped tiers.

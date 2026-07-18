@@ -6,12 +6,12 @@ import type {
   BirdCoderLongIntegerString,
   BirdCoderUpdateProjectRequest,
   BirdCoderUpdateWorkspaceRequest,
-} from '@sdkwork/birdcoder-pc-types';
+} from '@sdkwork/birdcoder-pc-contracts-commons';
 import {
   buildBirdCoderProjectBusinessCode,
   buildBirdCoderProjectBusinessName,
   stringifyBirdCoderLongInteger,
-} from '@sdkwork/birdcoder-pc-types';
+} from '@sdkwork/birdcoder-pc-contracts-commons';
 import type {
   BirdCoderConsoleRepositories,
   BirdCoderRepresentativeAuditRecord,

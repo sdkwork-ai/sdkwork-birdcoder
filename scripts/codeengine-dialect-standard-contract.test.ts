@@ -28,7 +28,7 @@ import {
   resolveBirdCoderCodeEngineToolKind,
   resolveBirdCoderCodeEngineUserQuestionId,
   resolveBirdCoderCodeEngineUserQuestionRuntimeStatus,
-} from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-types/src/index.ts';
+} from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-contracts-commons/src/index.ts';
 
 const userQuestionAliases = [
   'question',
@@ -802,10 +802,10 @@ assert.equal(
 
 const adapterFiles = [
   'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-projection/src/index.ts',
-  'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-types/src/index.ts',
+  'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-contracts-commons/src/index.ts',
   'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-codeengine/src/kernelRuntime.ts',
   'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-codeengine/src/runtime.ts',
-  'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-commons/src/hooks/useCodingSessionProjection.ts',
+  'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-workbench/src/hooks/useCodingSessionProjection.ts',
 ];
 
 const forbiddenLocalDialectPatterns = [
@@ -838,7 +838,7 @@ for (const filePath of adapterFiles) {
 }
 
 const interactionSemanticFiles = [
-  'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-types/src/index.ts',
+  'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-contracts-commons/src/index.ts',
   'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-codeengine/src/runtime.ts',
   'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-ui/src/components/UniversalChat.tsx',
 ];

@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
 import process from 'node:process';
-import { BIRDCODER_PERFORMANCE_BUDGETS } from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-types/src/governance.ts';
+import { BIRDCODER_PERFORMANCE_BUDGETS } from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-contracts-commons/src/governance.ts';
 
 const rootDir = process.cwd();
 const webDistDir = path.join(rootDir, 'apps', 'sdkwork-birdcoder-pc', 'packages', 'sdkwork-birdcoder-pc-web', 'dist');

@@ -2,7 +2,7 @@ import { memo } from 'react';
 import {
   useProjectGitOverview,
   type ProjectGitOverviewViewState,
-} from '@sdkwork/birdcoder-pc-commons/hooks/useProjectGitOverview';
+} from '@sdkwork/birdcoder-pc-workbench/hooks/useProjectGitOverview';
 import {
   ProjectGitOverviewSurface,
   type ProjectGitOverviewSectionId,

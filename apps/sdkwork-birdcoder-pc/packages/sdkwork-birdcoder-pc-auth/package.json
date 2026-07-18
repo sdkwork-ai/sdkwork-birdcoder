@@ -29,8 +29,8 @@
   "dependencies": {
     "@babel/runtime": "catalog:",
     "@sdkwork/auth-pc-react": "workspace:*",
-    "@sdkwork/birdcoder-pc-commons": "workspace:*",
-    "@sdkwork/birdcoder-pc-types": "workspace:*",
+    "@sdkwork/birdcoder-pc-workbench": "workspace:*",
+    "@sdkwork/birdcoder-pc-contracts-commons": "workspace:*",
     "@sdkwork/birdcoder-pc-ui-shell": "workspace:*",
     "@sdkwork/ui-pc-react": "workspace:*",
     "react-i18next": "catalog:"
@@ -45,6 +45,3 @@
     "typescript": "catalog:"
   }
 }
-
-
-

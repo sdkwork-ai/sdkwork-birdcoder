@@ -1,5 +1,5 @@
 import type { RefObject } from 'react';
-import type { BirdCoderCodingSession } from '@sdkwork/birdcoder-pc-types';
+import type { BirdCoderCodingSession } from '@sdkwork/birdcoder-pc-contracts-commons';
 import { useTranslation } from 'react-i18next';
 import type { ProjectExplorerMenuPosition } from './ProjectExplorer.shared';
 

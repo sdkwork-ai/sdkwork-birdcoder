@@ -62,7 +62,8 @@ auth:
   # The deployment references an operator-provisioned Secret (External
   # Secrets Operator, Sealed Secrets, or cloud KMS). It must contain
   # manageUsername, managePassword, SDKWORK_BIRDCODER_DATABASE_URL, and any
-  # enabled Redis credential keys. The database URL is never stored in values.
+  # enabled Redis credential keys, runtime-location active/fingerprint/keyring
+  # secrets, and any backup restore-test DSN. Secrets are never stored in values.
   existingSecret: sdkwork-birdcoder-runtime
 
 podSecurityContext:
@@ -203,6 +204,6 @@ backup:
   # Set imageDigest to override the tag-based reference (e.g. sha256:abc123...).
   image: postgres:16-alpine
   imageDigest: ""
-  # Optional: provide a test database URL for restore verification.
-  # When set, each backup job will attempt to restore to this database.
-  verifyDatabaseUrl: ""
+  # Optional key in auth.existingSecret containing an isolated restore-test DSN.
+  # Production HA enables this so every backup must pass a real restore.
+  verifyDatabaseUrlSecretKey: ""

@@ -1,4 +1,4 @@
-import type { BirdCoderChatMessageRecord } from '@sdkwork/birdcoder-pc-types';
+import type { BirdCoderChatMessageRecord } from '@sdkwork/birdcoder-pc-contracts-commons';
 import { clampListPageSize } from '@sdkwork/utils/pagination';
 
 import { getBirdCoderGeneratedAppSdkClient } from './sdkClients.ts';

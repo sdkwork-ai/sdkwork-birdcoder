@@ -5,16 +5,16 @@ import type {
   BirdCoderCodingSessionSummary,
   BirdCoderNativeSessionSummary,
   BirdCoderProject,
-} from '@sdkwork/birdcoder-pc-types';
+} from '@sdkwork/birdcoder-pc-contracts-commons';
 import {
   synchronizeProjectSessionsFromAuthority,
   synchronizeProjectsSessionsFromAuthority,
-} from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-commons/src/workbench/projectSessionSynchronization.ts';
-import type { IProjectService } from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-commons/src/services/interfaces/IProjectService.ts';
+} from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-workbench/src/workbench/projectSessionSynchronization.ts';
+import type { IProjectService } from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-workbench/src/services/interfaces/IProjectService.ts';
 
 const sessionInventorySource = fs.readFileSync(
   new URL(
-    '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-commons/src/workbench/sessionInventory.ts',
+    '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-workbench/src/workbench/sessionInventory.ts',
     import.meta.url,
   ),
   'utf8',

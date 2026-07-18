@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import type { BirdCoderApiTransportRequest } from '@sdkwork/birdcoder-pc-types';
+import type { BirdCoderApiTransportRequest } from '@sdkwork/birdcoder-pc-contracts-commons';
 
 const dataKernelModulePath = new URL(
   '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/src/storage/dataKernel.ts',

@@ -1,8 +1,8 @@
 import React, { memo } from 'react';
 import { Copy, Edit2, RotateCcw, Trash2 } from 'lucide-react';
 import { Button } from '@sdkwork/birdcoder-pc-ui-shell';
-import type { ChatMessageViewSource } from '@sdkwork/birdcoder-pc-commons/chat/types';
-import type { BirdCoderChatMessageView } from '@sdkwork/birdcoder-pc-commons/chat/types';
+import type { ChatMessageViewSource } from '@sdkwork/birdcoder-pc-workbench/chat/types';
+import type { BirdCoderChatMessageView } from '@sdkwork/birdcoder-pc-workbench/chat/types';
 import { ContentBlockList } from '../contentBlocks/ContentBlockList.tsx';
 import {
   resolveMessageActionTargetCopyText,

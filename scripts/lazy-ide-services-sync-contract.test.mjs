@@ -12,7 +12,7 @@ const modulePath = path.join(
   
   
   
-  'sdkwork-birdcoder-pc-commons',
+  'sdkwork-birdcoder-pc-workbench',
   'src',
   'context',
   'lazyDefaultIdeServices.ts',

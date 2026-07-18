@@ -3,7 +3,7 @@ import {
   DeferredRunTaskDialog,
 } from '@sdkwork/birdcoder-pc-ui/components/DeferredRunDialogs';
 import { Button } from '@sdkwork/birdcoder-pc-ui-shell';
-import type { RunConfigurationRecord } from '@sdkwork/birdcoder-pc-commons';
+import type { RunConfigurationRecord } from '@sdkwork/birdcoder-pc-workbench';
 import { X } from 'lucide-react';
 import { memo } from 'react';
 import { useTranslation } from 'react-i18next';

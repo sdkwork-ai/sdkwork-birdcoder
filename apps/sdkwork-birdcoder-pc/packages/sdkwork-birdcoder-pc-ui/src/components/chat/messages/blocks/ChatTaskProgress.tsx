@@ -1,15 +1,15 @@
 import { List } from 'lucide-react';
-import type { ChatMessageViewSource } from '@sdkwork/birdcoder-pc-commons/chat/types';
+import type { ChatMessageViewSource } from '@sdkwork/birdcoder-pc-workbench/chat/types';
 import {
   resolveTaskProgressDisplayState,
   type ChatMessageTaskProgressDisplayState,
-} from '@sdkwork/birdcoder-pc-commons/chat/types';
+} from '@sdkwork/birdcoder-pc-workbench/chat/types';
 
 export {
   normalizeTaskProgressCounter,
   readTaskProgressCounter,
   resolveTaskProgressDisplayState,
-} from '@sdkwork/birdcoder-pc-commons/chat/types';
+} from '@sdkwork/birdcoder-pc-workbench/chat/types';
 
 export function ChatTaskProgress({
   taskProgress,

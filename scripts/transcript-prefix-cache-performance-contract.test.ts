@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import type { BirdCoderChatMessage } from '@sdkwork/birdcoder-pc-types';
+import type { BirdCoderChatMessage } from '@sdkwork/birdcoder-pc-contracts-commons';
 
 const modulePath = new URL(
   '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-ui/src/components/transcriptVirtualization.ts',

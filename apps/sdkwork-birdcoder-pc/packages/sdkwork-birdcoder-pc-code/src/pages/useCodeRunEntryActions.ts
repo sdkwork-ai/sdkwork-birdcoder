@@ -1,17 +1,17 @@
 import { useEffect, useState, type Dispatch, type SetStateAction } from 'react';
-import { buildTerminalProfileBlockedMessage } from '@sdkwork/birdcoder-pc-commons/terminal/profileAvailability';
-import { emitOpenTerminalRequest } from '@sdkwork/birdcoder-pc-commons/terminal/requests';
-import { globalEventBus } from '@sdkwork/birdcoder-pc-commons/utils/EventBus';
-import { getDefaultRunConfigurations } from '@sdkwork/birdcoder-pc-commons/terminal/runConfigDefinitions';
-import { resolveRunConfigurationTerminalLaunch } from '@sdkwork/birdcoder-pc-commons/terminal/runConfigs';
-import { useProjectRunConfigurations } from '@sdkwork/birdcoder-pc-commons/hooks/useProjectRunConfigurations';
-import type { ProjectRuntimeLocationResolver } from '@sdkwork/birdcoder-pc-commons/hooks/useProjectRuntimeLocation';
+import { buildTerminalProfileBlockedMessage } from '@sdkwork/birdcoder-pc-workbench/terminal/profileAvailability';
+import { emitOpenTerminalRequest } from '@sdkwork/birdcoder-pc-workbench/terminal/requests';
+import { globalEventBus } from '@sdkwork/birdcoder-pc-workbench/utils/EventBus';
+import { getDefaultRunConfigurations } from '@sdkwork/birdcoder-pc-workbench/terminal/runConfigDefinitions';
+import { resolveRunConfigurationTerminalLaunch } from '@sdkwork/birdcoder-pc-workbench/terminal/runConfigs';
+import { useProjectRunConfigurations } from '@sdkwork/birdcoder-pc-workbench/hooks/useProjectRunConfigurations';
+import type { ProjectRuntimeLocationResolver } from '@sdkwork/birdcoder-pc-workbench/hooks/useProjectRuntimeLocation';
 import {
   getProjectRuntimeLocationFailureMessage,
   getResolvedProjectRuntimeLocationWorkingDirectory,
-} from '@sdkwork/birdcoder-pc-commons/workbench/projectRuntimeLocationResolution';
-import type { RunConfigurationRecord } from '@sdkwork/birdcoder-pc-commons/terminal/runConfigDefinitions';
-import type { ToastType } from '@sdkwork/birdcoder-pc-commons/contexts/ToastProvider';
+} from '@sdkwork/birdcoder-pc-workbench/workbench/projectRuntimeLocationResolution';
+import type { RunConfigurationRecord } from '@sdkwork/birdcoder-pc-workbench/terminal/runConfigDefinitions';
+import type { ToastType } from '@sdkwork/birdcoder-pc-workbench/contexts/ToastProvider';
 import { useTranslation } from 'react-i18next';
 
 interface UseCodeRunEntryActionsOptions {

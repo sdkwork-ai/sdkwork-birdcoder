@@ -12,8 +12,8 @@ assert.match(
   /apps\/sdkwork-birdcoder-h5['"]/u,
   'pnpm workspace must include the H5 application root for CI typecheck/build filters.',
 );
-assert.equal(packageJson.scripts['h5:typecheck'], 'node scripts/run-h5-app-command.mjs typecheck');
-assert.equal(packageJson.scripts['h5:build'], 'node scripts/run-h5-app-command.mjs build');
+assert.equal(packageJson.scripts['typecheck:browser'], 'node scripts/run-h5-app-command.mjs typecheck');
+assert.equal(packageJson.scripts['build:browser'], 'node scripts/run-h5-app-command.mjs build');
 assert.match(
   runnerSource,
   /apps\/sdkwork-birdcoder-h5/u,

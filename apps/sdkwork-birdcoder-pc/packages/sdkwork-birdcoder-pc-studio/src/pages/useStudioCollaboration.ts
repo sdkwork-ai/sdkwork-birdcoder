@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 
-import type { BirdCoderProjectCollaboratorSummary } from '@sdkwork/birdcoder-pc-types';
+import type { BirdCoderProjectCollaboratorSummary } from '@sdkwork/birdcoder-pc-contracts-commons';
 
 type ToastFn = (message: string, type?: 'success' | 'error' | 'info') => void;
 

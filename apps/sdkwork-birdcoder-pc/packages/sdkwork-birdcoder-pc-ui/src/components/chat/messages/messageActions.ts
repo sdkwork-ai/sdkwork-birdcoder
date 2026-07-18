@@ -1,5 +1,5 @@
-import type { BirdCoderChatMessage } from '@sdkwork/birdcoder-pc-commons/chat/types';
-import { resolveMessageCopyContent } from '@sdkwork/birdcoder-pc-commons/chat/types';
+import type { BirdCoderChatMessage } from '@sdkwork/birdcoder-pc-workbench/chat/types';
+import { resolveMessageCopyContent } from '@sdkwork/birdcoder-pc-workbench/chat/types';
 import type { ChatMessageActionTarget } from './types.ts';
 
 const EMPTY_MESSAGE_ACTION_TARGETS = new Map<number, ChatMessageActionTarget>();

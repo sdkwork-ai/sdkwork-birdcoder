@@ -1,7 +1,7 @@
 import type {
   BirdCoderWorkspaceRealtimeEvent,
   BirdCoderWorkspaceRealtimeMessage,
-} from "@sdkwork/birdcoder-pc-types";
+} from "@sdkwork/birdcoder-pc-contracts-commons";
 import { parseBirdCoderApiJson } from "./apiJson.ts";
 import { getStoredAppSessionId } from "./appSessionToken.ts";
 import { getDefaultBirdCoderIdeServicesRuntimeConfig } from "./defaultIdeServicesRuntime.ts";
@@ -22,7 +22,7 @@ import {
   handleBirdCoderSdkSessionAuthError,
   isBirdCoderSdkSessionAuthError,
 } from "./sdkClients.ts";
-import { readBirdCoderApiTransportErrorHttpStatus } from "@sdkwork/birdcoder-pc-types/apiTransportError";
+import { readBirdCoderApiTransportErrorHttpStatus } from "@sdkwork/birdcoder-pc-contracts-commons/apiTransportError";
 
 export type BirdCoderRealtimeTransport = "sse" | "websocket";
 

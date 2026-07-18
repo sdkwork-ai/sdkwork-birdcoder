@@ -3,7 +3,7 @@ import type {
   BirdCoderChatMessage,
   BirdCoderCodingSession,
   BirdCoderProject,
-} from '@sdkwork/birdcoder-pc-types';
+} from '@sdkwork/birdcoder-pc-contracts-commons';
 import type { CreateCodingSessionMessageInput } from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/src/services/interfaces/IProjectService.ts';
 
 const appRuntimeTransportModulePath = new URL(

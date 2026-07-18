@@ -16,9 +16,9 @@
   },
   "dependencies": {
     "@babel/runtime": "catalog:",
-    "@sdkwork/birdcoder-pc-commons": "workspace:*",
+    "@sdkwork/birdcoder-pc-workbench": "workspace:*",
     "@sdkwork/birdcoder-pc-infrastructure-runtime": "workspace:*",
-    "@sdkwork/birdcoder-pc-types": "workspace:*",
+    "@sdkwork/birdcoder-pc-contracts-commons": "workspace:*",
     "@sdkwork/user-pc-react": "workspace:*",
     "@sdkwork/membership-service": "workspace:*",
     "@sdkwork/membership-pc-membership": "workspace:*",
@@ -39,6 +39,3 @@
     "typescript": "catalog:"
   }
 }
-
-
-

@@ -1,4 +1,4 @@
-{{- if and .Values.backup.enabled (eq .Values.database.engine "postgresql") .Values.database.url }}
+{{- if and .Values.backup.enabled (eq .Values.database.engine "postgresql") (or .Values.auth.existingSecret .Values.database.url) }}
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:

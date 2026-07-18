@@ -4,7 +4,7 @@ import fs from 'node:fs';
 
 const appSource = readBirdcoderAppShellSource();
 const useWorkspacesSource = fs.readFileSync(
-  new URL('../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-commons/src/hooks/useWorkspaces.ts', import.meta.url),
+  new URL('../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-workbench/src/hooks/useWorkspaces.ts', import.meta.url),
   'utf8',
 );
 

@@ -391,7 +391,8 @@ function buildPreflightCommands(target) {
 function buildInstallCommands() {
   return [
     pnpmCommand(['install', '--frozen-lockfile'], { env: lifecycleInstallEnv() }),
-    pnpmCommand(['prepare:shared-sdk'], { env: lifecycleInstallEnv() }),
+    pnpmCommand(['sdk:prepare'], { env: lifecycleInstallEnv() }),
+    nodeCommand(['scripts/run-quality-release-check.mjs']),
   ];
 }
 

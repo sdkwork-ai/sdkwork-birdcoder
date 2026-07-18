@@ -4,8 +4,8 @@ import {
   useBirdcoderTerminalLaunchPlanResolver,
   useToast,
   type TerminalCommandRequest,
-} from '@sdkwork/birdcoder-pc-commons';
-import { BirdcoderTerminalApp } from '@sdkwork/birdcoder-pc-commons/terminal/BirdcoderTerminalApp';
+} from '@sdkwork/birdcoder-pc-workbench';
+import { BirdcoderTerminalApp } from '@sdkwork/birdcoder-pc-workbench/terminal/BirdcoderTerminalApp';
 import { ResizeHandle } from '@sdkwork/birdcoder-pc-ui-shell';
 
 interface StudioTerminalIntegrationPanelProps {

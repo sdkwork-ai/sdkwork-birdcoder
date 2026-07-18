@@ -518,7 +518,7 @@ for (const platformUtilsModuleId of [
 }
 for (const platformRuntimeModuleId of [
   '/repo/apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-workbench-state/src/index.ts',
-  '/repo/apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-commons/src/workbench/preferences.ts',
+  '/repo/apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-workbench/src/workbench/preferences.ts',
 ]) {
   assert.equal(
     webManualChunks(platformRuntimeModuleId),
@@ -606,8 +606,8 @@ for (const terminalDesktopModuleId of [
   );
 }
 for (const terminalInfrastructureModuleId of [
-  '/repo/apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-commons/src/terminal/birdcoderTerminalInfrastructureRuntime.ts',
-  '/repo/apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-commons/src/terminal/terminalRuntimeSanitization.ts',
+  '/repo/apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-workbench/src/terminal/birdcoderTerminalInfrastructureRuntime.ts',
+  '/repo/apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-workbench/src/terminal/terminalRuntimeSanitization.ts',
   '/repo/sdkwork-terminal/apps/sdkwork-terminal-pc/packages/sdkwork-terminal-pc-core/src/index.ts',
   '/repo/sdkwork-terminal/apps/sdkwork-terminal-pc/packages/sdkwork-terminal-pc-types/src/index.ts',
   '/repo/sdkwork-terminal/apps/sdkwork-terminal-pc/packages/sdkwork-terminal-pc-infrastructure/src/index.ts',
@@ -768,25 +768,25 @@ for (const productSurfaceModule of [
   {
     chunkName: 'birdcoder-terminal-requests',
     moduleIds: [
-      '/repo/apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-commons/src/terminal/requests.ts',
+      '/repo/apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-workbench/src/terminal/requests.ts',
     ],
   },
   {
     chunkName: 'birdcoder-terminal-profile-availability',
     moduleIds: [
-      '/repo/apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-commons/src/terminal/profileAvailability.ts',
+      '/repo/apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-workbench/src/terminal/profileAvailability.ts',
     ],
   },
   {
     chunkName: 'birdcoder-run-config-definitions',
     moduleIds: [
-      '/repo/apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-commons/src/terminal/runConfigDefinitions.ts',
+      '/repo/apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-workbench/src/terminal/runConfigDefinitions.ts',
     ],
   },
   {
     chunkName: 'birdcoder-run-config-storage',
     moduleIds: [
-      '/repo/apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-commons/src/terminal/runConfigStorage.ts',
+      '/repo/apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-workbench/src/terminal/runConfigStorage.ts',
       '/repo/apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-workbench-state/src/runConfigurations.ts',
     ],
   },
@@ -861,7 +861,7 @@ for (const productSurfaceModule of [
   }
 }
 for (const typeDataModuleId of [
-  '/repo/apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-types/src/data.ts',
+  '/repo/apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-contracts-commons/src/data.ts',
 ]) {
   assert.equal(
     webManualChunks(typeDataModuleId),
@@ -870,9 +870,9 @@ for (const typeDataModuleId of [
   );
 }
 for (const typeApiModuleId of [
-  '/repo/apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-types/src/server-api.ts',
-  '/repo/apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-types/src/generated/coding-server-client.ts',
-  '/repo/apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-types/src/generated/coding-server-openapi.ts',
+  '/repo/apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-contracts-commons/src/server-api.ts',
+  '/repo/apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-contracts-commons/src/generated/coding-server-client.ts',
+  '/repo/apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-contracts-commons/src/generated/coding-server-openapi.ts',
 ]) {
   assert.equal(
     webManualChunks(typeApiModuleId),
@@ -881,12 +881,12 @@ for (const typeApiModuleId of [
   );
 }
 assert.equal(
-  webManualChunks('/repo/apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-types/src/storageBindings.ts'),
+  webManualChunks('/repo/apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-contracts-commons/src/storageBindings.ts'),
   'birdcoder-types-storage',
   'Web Vite config must keep storage binding contracts in the dedicated storage types chunk.',
 );
 assert.equal(
-  webManualChunks('/repo/apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-types/src/coding-session.ts'),
+  webManualChunks('/repo/apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-contracts-commons/src/coding-session.ts'),
   'birdcoder-types',
   'Web Vite config must keep general runtime type helpers in the shared types fallback chunk.',
 );

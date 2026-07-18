@@ -19,7 +19,7 @@
   "dependencies": {
     "lucide-react": "catalog:",
     "@sdkwork/birdcoder-pc-codeengine": "workspace:*",
-    "@sdkwork/birdcoder-pc-commons": "workspace:*",
+    "@sdkwork/birdcoder-pc-workbench": "workspace:*",
     "@sdkwork/birdcoder-pc-infrastructure-runtime": "workspace:*",
     "@sdkwork/birdcoder-pc-ui-shell": "workspace:*",
     "@sdkwork/birdcoder-pc-ui": "workspace:*"
@@ -32,6 +32,3 @@
     "react-dom": "catalog:"
   }
 }
-
-
-

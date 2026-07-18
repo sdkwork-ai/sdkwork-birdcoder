@@ -6,7 +6,7 @@ const sdkClientsModulePath = new URL(
   import.meta.url,
 );
 const typesServerApiPath = new URL(
-  '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-types/src/server-api.ts',
+  '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-contracts-commons/src/server-api.ts',
   import.meta.url,
 );
 const appRuntimeWriteServiceInterfacePath = new URL(
@@ -59,19 +59,19 @@ const appRuntimeServiceSourcePaths = [
     import.meta.url,
   ),
   new URL(
-    '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-commons/src/context/ideServices.ts',
+    '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-workbench/src/context/ideServices.ts',
     import.meta.url,
   ),
   new URL(
-    '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-commons/src/context/IDEContext.ts',
+    '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-workbench/src/context/IDEContext.ts',
     import.meta.url,
   ),
   new URL(
-    '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-commons/src/context/IDEContext.tsx',
+    '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-workbench/src/context/IDEContext.tsx',
     import.meta.url,
   ),
   new URL(
-    '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-commons/src/context/ServiceContext.tsx',
+    '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-workbench/src/context/ServiceContext.tsx',
     import.meta.url,
   ),
   new URL(

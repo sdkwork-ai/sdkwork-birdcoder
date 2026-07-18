@@ -4,7 +4,7 @@ import { Button } from '@sdkwork/birdcoder-pc-ui-shell';
 import {
   listTerminalLaunchProfileOptions,
   normalizeWorkbenchTerminalProfileId,
-} from '@sdkwork/birdcoder-pc-commons';
+} from '@sdkwork/birdcoder-pc-workbench';
 import { SettingsProps } from './types';
 import { useTranslation } from 'react-i18next';
 

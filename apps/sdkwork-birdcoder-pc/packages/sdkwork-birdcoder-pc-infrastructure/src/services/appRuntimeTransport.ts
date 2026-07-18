@@ -8,10 +8,10 @@ import {
 } from '@sdkwork/birdcoder-pc-codeengine';
 import {
   BIRDCODER_APP_SDK_OPERATIONS,
-} from '@sdkwork/birdcoder-app-sdk';
+} from '@sdkwork/birdcoder-pc-core/sdk/birdcoder-app';
 import {
   BIRDCODER_FINALIZED_CODING_SERVER_OPENAPI_OPERATIONS,
-} from '@sdkwork/birdcoder-pc-types';
+} from '@sdkwork/birdcoder-pc-contracts-commons';
 import {
   BIRDCODER_CODING_SERVER_API_PREFIXES,
   BIRDCODER_CODING_SERVER_API_VERSION,
@@ -59,7 +59,7 @@ import {
   type BirdCoderSubmitUserQuestionAnswerRequest,
   type BirdCoderUpdateCodingSessionRequest,
   type BirdCoderUserQuestionAnswerResult,
-} from '@sdkwork/birdcoder-pc-types';
+} from '@sdkwork/birdcoder-pc-contracts-commons';
 import type {
   BirdCoderCodingSessionListResult,
   IProjectService,

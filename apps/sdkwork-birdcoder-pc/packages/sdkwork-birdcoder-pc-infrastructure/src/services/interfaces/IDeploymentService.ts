@@ -3,7 +3,7 @@ import type {
   BirdCoderDeploymentTargetSummary,
   BirdCoderProjectPublishResult,
   BirdCoderPublishProjectRequest,
-} from '@sdkwork/birdcoder-pc-types';
+} from '@sdkwork/birdcoder-pc-contracts-commons';
 
 export interface IDeploymentService {
   getDeployments(): Promise<BirdCoderDeploymentRecordSummary[]>;

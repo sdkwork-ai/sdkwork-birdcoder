@@ -42,9 +42,21 @@ catalogs:
     '@tauri-apps/cli':
       specifier: ~2.11.0
       version: 2.11.1
+    '@testing-library/dom':
+      specifier: ^10.4.1
+      version: 10.4.1
+    '@testing-library/jest-dom':
+      specifier: ^6.9.1
+      version: 6.9.1
+    '@testing-library/react':
+      specifier: ^16.3.2
+      version: 16.3.2
     '@types/node':
       specifier: ^25.9.2
       version: 25.9.4
+    '@types/qrcode':
+      specifier: ^1.5.6
+      version: 1.5.6
     '@types/react':
       specifier: ^19.2.14
       version: 19.2.14
@@ -144,6 +156,9 @@ catalogs:
     is-plain-obj:
       specifier: ^4.1.0
       version: 4.1.0
+    jsdom:
+      specifier: ^29.1.1
+      version: 29.1.1
     jsonc-parser:
       specifier: ^3.3.1
       version: 3.3.1
@@ -297,6 +312,12 @@ catalogs:
     vite:
       specifier: ^8.0.3
       version: 8.0.16
+    vite-plugin-dts:
+      specifier: ^4.5.4
+      version: 4.5.4
+    vitest:
+      specifier: ^4.1.8
+      version: 4.1.8
     yaml:
       specifier: ^2.4.2
       version: 2.8.3
@@ -311,18 +332,18 @@ importers:
       '@sdkwork/app-topology':
         specifier: workspace:*
         version: link:../sdkwork-app-topology
-      '@sdkwork/birdcoder-pc-commons':
+      '@sdkwork/birdcoder-pc-contracts-commons':
         specifier: workspace:*
-        version: link:apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-commons
+        version: link:apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-contracts-commons
       '@sdkwork/birdcoder-pc-core':
         specifier: workspace:*
         version: link:apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-core
-      '@sdkwork/birdcoder-pc-types':
-        specifier: workspace:*
-        version: link:apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-types
       '@sdkwork/birdcoder-pc-ui':
         specifier: workspace:*
         version: link:apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-ui
+      '@sdkwork/birdcoder-pc-workbench':
+        specifier: workspace:*
+        version: link:apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-workbench
       '@sdkwork/drive-app-sdk':
         specifier: workspace:*
         version: link:../sdkwork-drive/sdks/sdkwork-drive-app-sdk/sdkwork-drive-app-sdk-typescript
@@ -493,7 +514,7 @@ importers:
     devDependencies:
       '@testing-library/react':
         specifier: ^16.3.2
-        version: 16.3.2(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
+        version: 16.3.2(@testing-library/dom@10.4.1)(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
       '@types/react':
         specifier: 'catalog:'
         version: 19.2.14
@@ -520,7 +541,60 @@ importers:
         version: 4.5.4(@types/node@25.9.4)(rollup@4.60.1)(typescript@5.8.3)(vite@8.0.3(@emnapi/core@1.10.0)(@emnapi/runtime@1.10.0)(@types/node@25.9.4)(esbuild@0.27.7)(jiti@2.6.1)(terser@5.39.0)(tsx@4.21.0)(yaml@2.8.3))
       vitest:
         specifier: ^4.1.2
-        version: 4.1.8(@types/node@25.9.4)(jsdom@29.1.1)(vite@8.0.3(@emnapi/core@1.10.0)(@emnapi/runtime@1.10.0)(@types/node@25.9.4)(esbuild@0.27.7)(jiti@2.6.1)(terser@5.39.0)(tsx@4.21.0)(yaml@2.8.3))
+        version: 4.1.8(@types/node@25.9.4)(esbuild@0.27.7)(jiti@2.6.1)(jsdom@29.1.1)(terser@5.39.0)(tsx@4.21.0)(yaml@2.8.3)
+
+  ../sdkwork-drive/apps/sdkwork-drive-pc/packages/sdkwork-drive-pc-sandbox-contracts:
+    devDependencies:
+      typescript:
+        specifier: 'catalog:'
+        version: 6.0.3
+
+  ../sdkwork-drive/apps/sdkwork-drive-pc/packages/sdkwork-drive-pc-sandbox-explorer:
+    dependencies:
+      '@sdkwork/drive-pc-sandbox-contracts':
+        specifier: workspace:*
+        version: link:../sdkwork-drive-pc-sandbox-contracts
+      lucide-react:
+        specifier: 'catalog:'
+        version: 1.7.0(react@19.2.4)
+      react:
+        specifier: 'catalog:'
+        version: 19.2.4
+    devDependencies:
+      '@testing-library/dom':
+        specifier: 'catalog:'
+        version: 10.4.1
+      '@testing-library/react':
+        specifier: 'catalog:'
+        version: 16.3.2(@testing-library/dom@10.4.1)(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
+      '@types/react':
+        specifier: 'catalog:'
+        version: 19.2.14
+      jsdom:
+        specifier: 'catalog:'
+        version: 29.1.1
+      typescript:
+        specifier: 'catalog:'
+        version: 6.0.3
+      vitest:
+        specifier: 'catalog:'
+        version: 4.1.8(@types/node@25.9.4)(esbuild@0.27.7)(jiti@2.6.1)(jsdom@29.1.1)(terser@5.39.0)(tsx@4.21.0)(yaml@2.8.3)
+
+  ../sdkwork-drive/apps/sdkwork-drive-pc/packages/sdkwork-drive-pc-sandbox-explorer-sdk-adapter:
+    dependencies:
+      '@sdkwork/drive-pc-sandbox-contracts':
+        specifier: workspace:*
+        version: link:../sdkwork-drive-pc-sandbox-contracts
+      '@sdkwork/utils':
+        specifier: workspace:*
+        version: link:../../../../../sdkwork-utils/packages/sdkwork-utils-typescript
+    devDependencies:
+      typescript:
+        specifier: 'catalog:'
+        version: 6.0.3
+      vitest:
+        specifier: 'catalog:'
+        version: 4.1.8(@types/node@25.9.4)(esbuild@0.27.7)(jiti@2.6.1)(jsdom@29.1.1)(terser@5.39.0)(tsx@4.21.0)(yaml@2.8.3)
 
   ../sdkwork-drive/sdks/sdkwork-drive-app-sdk/sdkwork-drive-app-sdk-typescript:
     dependencies:
@@ -783,9 +857,6 @@ importers:
       '@sdkwork/membership-sdk-ports':
         specifier: workspace:*
         version: link:../sdkwork-membership-sdk-ports
-      '@sdkwork/order-app-sdk':
-        specifier: workspace:*
-        version: link:../../../../../sdkwork-order/sdks/sdkwork-order-app-sdk/sdkwork-order-app-sdk-typescript
       '@sdkwork/sdk-common':
         specifier: workspace:*
         version: link:../../../../../sdkwork-sdk-commons/sdkwork-sdk-common-typescript
@@ -832,9 +903,6 @@ importers:
       '@sdkwork/membership-service':
         specifier: workspace:*
         version: link:../../../sdkwork-membership-common/packages/sdkwork-membership-service
-      '@sdkwork/order-pc-checkout':
-        specifier: workspace:*
-        version: link:../../../../../sdkwork-order/apps/sdkwork-order-pc/packages/sdkwork-order-pc-checkout
       '@sdkwork/promotion-pc-coupon':
         specifier: workspace:*
         version: link:../../../../../sdkwork-promotion/apps/sdkwork-promotion-pc/packages/sdkwork-promotion-pc-coupon
@@ -868,6 +936,12 @@ importers:
         version: 6.0.3
 
   ../sdkwork-membership/sdks/sdkwork-membership-app-sdk/sdkwork-membership-app-sdk-typescript:
+    dependencies:
+      '@sdkwork/sdk-common':
+        specifier: workspace:*
+        version: link:../../../../sdkwork-sdk-commons/sdkwork-sdk-common-typescript
+
+  ../sdkwork-membership/sdks/sdkwork-membership-backend-sdk/sdkwork-membership-backend-sdk-typescript:
     dependencies:
       '@sdkwork/sdk-common':
         specifier: workspace:*
@@ -907,6 +981,26 @@ importers:
         specifier: ^5.9.0
         version: 5.9.3
 
+  ../sdkwork-order/apps/sdkwork-order-common/packages/sdkwork-order-sdk-ports: {}
+
+  ../sdkwork-order/apps/sdkwork-order-common/packages/sdkwork-order-service:
+    dependencies:
+      '@sdkwork/order-app-sdk':
+        specifier: workspace:*
+        version: link:../../../../sdks/sdkwork-order-app-sdk/sdkwork-order-app-sdk-typescript
+      '@sdkwork/order-backend-sdk':
+        specifier: workspace:*
+        version: link:../../../../sdks/sdkwork-order-backend-sdk/sdkwork-order-backend-sdk-typescript
+      '@sdkwork/order-sdk-ports':
+        specifier: workspace:*
+        version: link:../sdkwork-order-sdk-ports
+      '@sdkwork/sdk-common':
+        specifier: workspace:*
+        version: link:../../../../../sdkwork-sdk-commons/sdkwork-sdk-common-typescript
+      '@sdkwork/utils':
+        specifier: workspace:*
+        version: link:../../../../../sdkwork-utils/packages/sdkwork-utils-typescript
+
   ../sdkwork-order/apps/sdkwork-order-pc/packages/sdkwork-order-pc-checkout:
     dependencies:
       lucide-react:
@@ -944,12 +1038,21 @@ importers:
         specifier: workspace:*
         version: link:../../../../sdkwork-sdk-commons/sdkwork-sdk-common-typescript
 
+  ../sdkwork-order/sdks/sdkwork-order-backend-sdk/sdkwork-order-backend-sdk-typescript:
+    dependencies:
+      '@sdkwork/sdk-common':
+        specifier: workspace:*
+        version: link:../../../../sdkwork-sdk-commons/sdkwork-sdk-common-typescript
+
   ../sdkwork-promotion/apps/sdkwork-promotion-common/packages/sdkwork-promotion-contracts: {}
 
   ../sdkwork-promotion/apps/sdkwork-promotion-common/packages/sdkwork-promotion-sdk-ports: {}
 
   ../sdkwork-promotion/apps/sdkwork-promotion-common/packages/sdkwork-promotion-service:
     dependencies:
+      '@sdkwork/promotion-backend-sdk':
+        specifier: workspace:*
+        version: link:../../../../sdks/sdkwork-promotion-backend-sdk/sdkwork-promotion-backend-sdk-typescript
       '@sdkwork/promotion-contracts':
         specifier: workspace:*
         version: link:../sdkwork-promotion-contracts
@@ -998,6 +1101,12 @@ importers:
       typescript:
         specifier: 'catalog:'
         version: 6.0.3
+
+  ../sdkwork-promotion/sdks/sdkwork-promotion-backend-sdk/sdkwork-promotion-backend-sdk-typescript:
+    dependencies:
+      '@sdkwork/sdk-common':
+        specifier: workspace:*
+        version: link:../../../../sdkwork-sdk-commons/sdkwork-sdk-common-typescript
 
   ../sdkwork-sdk-commons/sdkwork-sdk-common-typescript:
     devDependencies:
@@ -1067,7 +1176,7 @@ importers:
         version: 4.5.4(@types/node@20.19.43)(rollup@4.60.1)(typescript@5.9.3)(vite@7.3.6(@types/node@20.19.43)(jiti@2.6.1)(lightningcss@1.32.0)(terser@5.39.0)(tsx@4.21.0)(yaml@2.8.3))
       vitest:
         specifier: ^4.1.5
-        version: 4.1.8(@types/node@20.19.43)(jsdom@29.1.1)(vite@7.3.6(@types/node@20.19.43)(jiti@2.6.1)(lightningcss@1.32.0)(terser@5.39.0)(tsx@4.21.0)(yaml@2.8.3))
+        version: 4.1.8(@types/node@20.19.43)(esbuild@0.27.7)(jiti@2.6.1)(jsdom@29.1.1)(terser@5.39.0)(tsx@4.21.0)(yaml@2.8.3)
 
   ../sdkwork-search/apps/sdkwork-search-common/packages/sdkwork-search-contracts:
     dependencies:
@@ -1177,9 +1286,9 @@ importers:
       '@sdkwork/sdk-common':
         specifier: ^1.0.2
         version: link:../../../../../sdkwork-sdk-commons/sdkwork-sdk-common-typescript
-      '@sdkwork/terminal-pc-types':
+      '@sdkwork/terminal-app-sdk':
         specifier: workspace:*
-        version: link:../sdkwork-terminal-pc-types
+        version: link:../../sdks/sdkwork-terminal-app-sdk/sdkwork-terminal-app-sdk-typescript
       react:
         specifier: ^18.3.1
         version: 18.3.1
@@ -1246,9 +1355,6 @@ importers:
 
   ../sdkwork-terminal/apps/sdkwork-terminal-pc/packages/sdkwork-terminal-pc-infrastructure:
     dependencies:
-      '@sdkwork/terminal-local-runtime-app-sdk':
-        specifier: workspace:*
-        version: link:../../sdks/sdkwork-terminal-local-runtime-app-sdk/sdkwork-terminal-local-runtime-app-sdk-typescript
       '@sdkwork/terminal-pc-commons':
         specifier: workspace:*
         version: link:../sdkwork-terminal-pc-commons
@@ -1363,7 +1469,7 @@ importers:
         specifier: workspace:*
         version: link:../sdkwork-terminal-pc-ui
 
-  ../sdkwork-terminal/apps/sdkwork-terminal-pc/sdks/sdkwork-terminal-local-runtime-app-sdk/sdkwork-terminal-local-runtime-app-sdk-typescript:
+  ../sdkwork-terminal/apps/sdkwork-terminal-pc/sdks/sdkwork-terminal-app-sdk/sdkwork-terminal-app-sdk-typescript:
     dependencies:
       '@sdkwork/sdk-common':
         specifier: ^1.0.2
@@ -1468,7 +1574,7 @@ importers:
         version: 6.9.1
       '@testing-library/react':
         specifier: ^16.3.2
-        version: 16.3.2(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
+        version: 16.3.2(@testing-library/dom@10.4.1)(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
       '@types/node':
         specifier: ^25.5.2
         version: 25.7.0
@@ -1510,7 +1616,7 @@ importers:
         version: 1.6.4(@algolia/client-search@5.50.1)(@types/node@25.7.0)(@types/react@19.2.14)(lightningcss@1.32.0)(postcss@8.5.15)(qrcode@1.5.4)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)(terser@5.39.0)(typescript@6.0.2)
       vitest:
         specifier: ^4.1.2
-        version: 4.1.8(@types/node@25.7.0)(jsdom@29.1.1)(vite@8.0.3(@emnapi/core@1.10.0)(@emnapi/runtime@1.10.0)(@types/node@25.7.0)(esbuild@0.27.7)(jiti@2.6.1)(terser@5.39.0)(tsx@4.21.0)(yaml@2.8.3))
+        version: 4.1.8(@types/node@25.7.0)(esbuild@0.27.7)(jiti@2.6.1)(jsdom@29.1.1)(terser@5.39.0)(tsx@4.21.0)(yaml@2.8.3)
       vue:
         specifier: ^3.5.32
         version: 3.5.32(typescript@6.0.2)
@@ -1650,6 +1756,9 @@ importers:
       '@sdkwork/birdcoder-pc-auth':
         specifier: workspace:*
         version: link:../../../sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-auth
+      '@sdkwork/birdcoder-pc-contracts-commons':
+        specifier: workspace:*
+        version: link:../../../sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-contracts-commons
       '@sdkwork/birdcoder-pc-core':
         specifier: workspace:*
         version: link:../../../sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-core
@@ -1659,9 +1768,6 @@ importers:
       '@sdkwork/birdcoder-pc-shell-runtime':
         specifier: workspace:*
         version: link:../../../sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-shell-runtime
-      '@sdkwork/birdcoder-pc-types':
-        specifier: workspace:*
-        version: link:../../../sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-types
       '@sdkwork/sdk-common':
         specifier: workspace:*
         version: link:../../../../../sdkwork-sdk-commons/sdkwork-sdk-common-typescript
@@ -1680,15 +1786,15 @@ importers:
       '@sdkwork/birdcoder-pc-auth':
         specifier: workspace:*
         version: link:../../../sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-auth
-      '@sdkwork/birdcoder-pc-commons':
-        specifier: workspace:*
-        version: link:../../../sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-commons
       '@sdkwork/birdcoder-pc-shell':
         specifier: workspace:*
         version: link:../../../sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-shell
       '@sdkwork/birdcoder-pc-shell-runtime':
         specifier: workspace:*
         version: link:../../../sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-shell-runtime
+      '@sdkwork/birdcoder-pc-workbench':
+        specifier: workspace:*
+        version: link:../../../sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-workbench
       react-router-dom:
         specifier: 'catalog:'
         version: 7.18.0(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
@@ -1707,12 +1813,15 @@ importers:
       '@sdkwork/birdcoder-backend-sdk':
         specifier: workspace:*
         version: link:../../sdks/sdkwork-birdcoder-backend-sdk/sdkwork-birdcoder-backend-sdk-typescript
+      '@sdkwork/birdcoder-pc-contracts-commons':
+        specifier: workspace:*
+        version: link:../sdkwork-birdcoder-pc-contracts-commons
       '@sdkwork/birdcoder-pc-core':
         specifier: workspace:*
         version: link:../sdkwork-birdcoder-pc-core
-      '@sdkwork/birdcoder-pc-types':
+      '@sdkwork/membership-backend-sdk':
         specifier: workspace:*
-        version: link:../sdkwork-birdcoder-pc-types
+        version: link:../../../../../sdkwork-membership/sdks/sdkwork-membership-backend-sdk/sdkwork-membership-backend-sdk-typescript
       '@sdkwork/sdk-common':
         specifier: workspace:*
         version: link:../../../../../sdkwork-sdk-commons/sdkwork-sdk-common-typescript
@@ -1727,15 +1836,15 @@ importers:
       '@sdkwork/auth-pc-react':
         specifier: workspace:*
         version: link:../../../../../sdkwork-iam/apps/sdkwork-iam-pc/packages/sdkwork-auth-pc-react
-      '@sdkwork/birdcoder-pc-commons':
+      '@sdkwork/birdcoder-pc-contracts-commons':
         specifier: workspace:*
-        version: link:../sdkwork-birdcoder-pc-commons
-      '@sdkwork/birdcoder-pc-shell-runtime':
+        version: link:../sdkwork-birdcoder-pc-contracts-commons
+      '@sdkwork/birdcoder-pc-ui-shell':
         specifier: workspace:*
-        version: link:../sdkwork-birdcoder-pc-shell-runtime
-      '@sdkwork/birdcoder-pc-types':
+        version: link:../sdkwork-birdcoder-pc-ui-shell
+      '@sdkwork/birdcoder-pc-workbench':
         specifier: workspace:*
-        version: link:../sdkwork-birdcoder-pc-types
+        version: link:../sdkwork-birdcoder-pc-workbench
       '@sdkwork/ui-pc-react':
         specifier: workspace:*
         version: link:../../../../../sdkwork-ui/sdkwork-ui-pc-react
@@ -1758,18 +1867,21 @@ importers:
       '@sdkwork/birdcoder-pc-codeengine':
         specifier: workspace:*
         version: link:../sdkwork-birdcoder-pc-codeengine
-      '@sdkwork/birdcoder-pc-commons':
+      '@sdkwork/birdcoder-pc-contracts-commons':
         specifier: workspace:*
-        version: link:../sdkwork-birdcoder-pc-commons
-      '@sdkwork/birdcoder-pc-types':
-        specifier: workspace:*
-        version: link:../sdkwork-birdcoder-pc-types
+        version: link:../sdkwork-birdcoder-pc-contracts-commons
       '@sdkwork/birdcoder-pc-ui':
         specifier: workspace:*
         version: link:../sdkwork-birdcoder-pc-ui
       '@sdkwork/birdcoder-pc-ui-shell':
         specifier: workspace:*
         version: link:../sdkwork-birdcoder-pc-ui-shell
+      '@sdkwork/birdcoder-pc-workbench':
+        specifier: workspace:*
+        version: link:../sdkwork-birdcoder-pc-workbench
+      '@sdkwork/drive-pc-sandbox-explorer':
+        specifier: workspace:*
+        version: link:../../../../../sdkwork-drive/apps/sdkwork-drive-pc/packages/sdkwork-drive-pc-sandbox-explorer
       '@sdkwork/terminal-pc-desktop':
         specifier: workspace:*
         version: link:../../../../../sdkwork-terminal/apps/sdkwork-terminal-pc/packages/sdkwork-terminal-pc-desktop
@@ -1954,12 +2066,12 @@ importers:
 
   apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-codeengine:
     dependencies:
+      '@sdkwork/birdcoder-pc-contracts-commons':
+        specifier: workspace:*
+        version: link:../sdkwork-birdcoder-pc-contracts-commons
       '@sdkwork/birdcoder-pc-projection':
         specifier: workspace:*
         version: link:../sdkwork-birdcoder-pc-projection
-      '@sdkwork/birdcoder-pc-types':
-        specifier: workspace:*
-        version: link:../sdkwork-birdcoder-pc-types
     devDependencies:
       '@types/node':
         specifier: 'catalog:'
@@ -1971,79 +2083,43 @@ importers:
         specifier: 'catalog:'
         version: 8.0.16(@types/node@25.9.4)(esbuild@0.27.7)(jiti@2.6.1)(terser@5.39.0)(tsx@4.21.0)(yaml@2.8.3)
 
-  apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-commons:
-    dependencies:
-      '@sdkwork/birdcoder-pc-codeengine':
-        specifier: workspace:*
-        version: link:../sdkwork-birdcoder-pc-codeengine
-      '@sdkwork/birdcoder-pc-core':
-        specifier: workspace:*
-        version: link:../sdkwork-birdcoder-pc-core
-      '@sdkwork/birdcoder-pc-i18n':
-        specifier: workspace:*
-        version: link:../sdkwork-birdcoder-pc-i18n
-      '@sdkwork/birdcoder-pc-infrastructure':
-        specifier: workspace:*
-        version: link:../sdkwork-birdcoder-pc-infrastructure
-      '@sdkwork/birdcoder-pc-infrastructure-runtime':
-        specifier: workspace:*
-        version: link:../sdkwork-birdcoder-pc-infrastructure-runtime
-      '@sdkwork/birdcoder-pc-projection':
-        specifier: workspace:*
-        version: link:../sdkwork-birdcoder-pc-projection
-      '@sdkwork/birdcoder-pc-types':
-        specifier: workspace:*
-        version: link:../sdkwork-birdcoder-pc-types
-      '@sdkwork/terminal-pc-desktop':
-        specifier: workspace:*
-        version: link:../../../../../sdkwork-terminal/apps/sdkwork-terminal-pc/packages/sdkwork-terminal-pc-desktop
-      '@sdkwork/terminal-pc-infrastructure':
-        specifier: workspace:*
-        version: link:../../../../../sdkwork-terminal/apps/sdkwork-terminal-pc/packages/sdkwork-terminal-pc-infrastructure
-      '@sdkwork/terminal-pc-shell':
-        specifier: workspace:*
-        version: link:../../../../../sdkwork-terminal/apps/sdkwork-terminal-pc/packages/sdkwork-terminal-pc-shell
-      '@sdkwork/utils':
-        specifier: workspace:*
-        version: link:../../../../../sdkwork-utils/packages/sdkwork-utils-typescript
-      '@tauri-apps/api':
-        specifier: 'catalog:'
-        version: 2.11.0
-      lucide-react:
-        specifier: 'catalog:'
-        version: 1.7.0(react@19.2.4)
-    devDependencies:
-      '@types/react':
-        specifier: 'catalog:'
-        version: 19.2.14
-      '@types/react-dom':
-        specifier: 'catalog:'
-        version: 19.2.3(@types/react@19.2.14)
-      '@vitejs/plugin-react':
-        specifier: 'catalog:'
-        version: 6.0.1(vite@8.0.16(@types/node@25.9.4)(esbuild@0.27.7)(jiti@2.6.1)(terser@5.39.0)(tsx@4.21.0)(yaml@2.8.3))
-      typescript:
-        specifier: 'catalog:'
-        version: 6.0.3
-
   apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-console-core: {}
 
   apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-console-shell: {}
+
+  apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-contracts-commons:
+    dependencies:
+      '@sdkwork/birdcoder-chat-contracts':
+        specifier: workspace:*
+        version: link:../../../sdkwork-birdcoder-common/packages/sdkwork-birdcoder-chat-contracts
+    devDependencies:
+      '@vitejs/plugin-react':
+        specifier: 'catalog:'
+        version: 6.0.1(vite@8.0.16(@types/node@25.9.4)(esbuild@0.27.7)(jiti@2.6.1)(terser@5.39.0)(tsx@4.21.0)(yaml@2.8.3))
 
   apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-core:
     dependencies:
       '@sdkwork/agents-app-sdk':
         specifier: workspace:*
         version: link:../../../../../sdkwork-agents/sdks/sdkwork-agents-app-sdk/sdkwork-agents-app-sdk-typescript
-      '@sdkwork/birdcoder-pc-types':
+      '@sdkwork/birdcoder-app-sdk':
         specifier: workspace:*
-        version: link:../sdkwork-birdcoder-pc-types
+        version: link:../../sdks/sdkwork-birdcoder-app-sdk/sdkwork-birdcoder-app-sdk-typescript
+      '@sdkwork/birdcoder-pc-contracts-commons':
+        specifier: workspace:*
+        version: link:../sdkwork-birdcoder-pc-contracts-commons
+      '@sdkwork/drive-app-sdk':
+        specifier: workspace:*
+        version: link:../../../../../sdkwork-drive/sdks/sdkwork-drive-app-sdk/sdkwork-drive-app-sdk-typescript
       '@sdkwork/iam-app-sdk':
         specifier: workspace:*
         version: link:../../../../../sdkwork-iam/sdks/sdkwork-iam-app-sdk/sdkwork-iam-app-sdk-typescript
       '@sdkwork/iam-service':
         specifier: workspace:*
         version: link:../../../../../sdkwork-iam/apps/sdkwork-iam-common/packages/sdkwork-iam-service
+      '@sdkwork/messaging-app-sdk':
+        specifier: workspace:*
+        version: link:../../../../../sdkwork-messaging/sdks/sdkwork-messaging-app-sdk/sdkwork-messaging-app-sdk-typescript
       '@sdkwork/sdk-common':
         specifier: workspace:*
         version: link:../../../../../sdkwork-sdk-commons/sdkwork-sdk-common-typescript
@@ -2165,9 +2241,6 @@ importers:
       '@sdkwork/auth-runtime-pc-react':
         specifier: workspace:*
         version: link:../../../../../sdkwork-iam/apps/sdkwork-iam-pc/packages/sdkwork-auth-runtime-pc-react
-      '@sdkwork/birdcoder-app-sdk':
-        specifier: workspace:*
-        version: link:../../sdks/sdkwork-birdcoder-app-sdk/sdkwork-birdcoder-app-sdk-typescript
       '@sdkwork/birdcoder-backend-sdk':
         specifier: workspace:*
         version: link:../../sdks/sdkwork-birdcoder-backend-sdk/sdkwork-birdcoder-backend-sdk-typescript
@@ -2177,18 +2250,24 @@ importers:
       '@sdkwork/birdcoder-pc-codeengine':
         specifier: workspace:*
         version: link:../sdkwork-birdcoder-pc-codeengine
+      '@sdkwork/birdcoder-pc-contracts-commons':
+        specifier: workspace:*
+        version: link:../sdkwork-birdcoder-pc-contracts-commons
       '@sdkwork/birdcoder-pc-core':
         specifier: workspace:*
         version: link:../sdkwork-birdcoder-pc-core
       '@sdkwork/birdcoder-pc-host-core':
         specifier: workspace:*
         version: link:../sdkwork-birdcoder-pc-host-core
-      '@sdkwork/birdcoder-pc-types':
+      '@sdkwork/drive-pc-sandbox-contracts':
         specifier: workspace:*
-        version: link:../sdkwork-birdcoder-pc-types
-      '@sdkwork/drive-app-sdk':
+        version: link:../../../../../sdkwork-drive/apps/sdkwork-drive-pc/packages/sdkwork-drive-pc-sandbox-contracts
+      '@sdkwork/drive-pc-sandbox-explorer':
         specifier: workspace:*
-        version: link:../../../../../sdkwork-drive/sdks/sdkwork-drive-app-sdk/sdkwork-drive-app-sdk-typescript
+        version: link:../../../../../sdkwork-drive/apps/sdkwork-drive-pc/packages/sdkwork-drive-pc-sandbox-explorer
+      '@sdkwork/drive-pc-sandbox-explorer-sdk-adapter':
+        specifier: workspace:*
+        version: link:../../../../../sdkwork-drive/apps/sdkwork-drive-pc/packages/sdkwork-drive-pc-sandbox-explorer-sdk-adapter
       '@sdkwork/iam-app-sdk':
         specifier: workspace:*
         version: link:../../../../../sdkwork-iam/sdks/sdkwork-iam-app-sdk/sdkwork-iam-app-sdk-typescript
@@ -2207,9 +2286,9 @@ importers:
       '@sdkwork/membership-service':
         specifier: workspace:*
         version: link:../../../../../sdkwork-membership/apps/sdkwork-membership-common/packages/sdkwork-membership-service
-      '@sdkwork/messaging-app-sdk':
+      '@sdkwork/order-service':
         specifier: workspace:*
-        version: link:../../../../../sdkwork-messaging/sdks/sdkwork-messaging-app-sdk/sdkwork-messaging-app-sdk-typescript
+        version: link:../../../../../sdkwork-order/apps/sdkwork-order-common/packages/sdkwork-order-service
       '@sdkwork/sdk-common':
         specifier: workspace:*
         version: link:../../../../../sdkwork-sdk-commons/sdkwork-sdk-common-typescript
@@ -2231,18 +2310,18 @@ importers:
       '@sdkwork/birdcoder-pc-codeengine':
         specifier: workspace:*
         version: link:../sdkwork-birdcoder-pc-codeengine
-      '@sdkwork/birdcoder-pc-commons':
+      '@sdkwork/birdcoder-pc-contracts-commons':
         specifier: workspace:*
-        version: link:../sdkwork-birdcoder-pc-commons
-      '@sdkwork/birdcoder-pc-types':
-        specifier: workspace:*
-        version: link:../sdkwork-birdcoder-pc-types
+        version: link:../sdkwork-birdcoder-pc-contracts-commons
       '@sdkwork/birdcoder-pc-ui':
         specifier: workspace:*
         version: link:../sdkwork-birdcoder-pc-ui
       '@sdkwork/birdcoder-pc-ui-shell':
         specifier: workspace:*
         version: link:../sdkwork-birdcoder-pc-ui-shell
+      '@sdkwork/birdcoder-pc-workbench':
+        specifier: workspace:*
+        version: link:../sdkwork-birdcoder-pc-workbench
       lucide-react:
         specifier: 'catalog:'
         version: 1.7.0(react@19.2.4)
@@ -2268,9 +2347,9 @@ importers:
 
   apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-projection:
     dependencies:
-      '@sdkwork/birdcoder-pc-types':
+      '@sdkwork/birdcoder-pc-contracts-commons':
         specifier: workspace:*
-        version: link:../sdkwork-birdcoder-pc-types
+        version: link:../sdkwork-birdcoder-pc-contracts-commons
     devDependencies:
       typescript:
         specifier: 'catalog:'
@@ -2284,9 +2363,9 @@ importers:
       '@sdkwork/birdcoder-pc-codeengine':
         specifier: workspace:*
         version: link:../sdkwork-birdcoder-pc-codeengine
-      '@sdkwork/birdcoder-pc-commons':
+      '@sdkwork/birdcoder-pc-contracts-commons':
         specifier: workspace:*
-        version: link:../sdkwork-birdcoder-pc-commons
+        version: link:../sdkwork-birdcoder-pc-contracts-commons
       '@sdkwork/birdcoder-pc-host-core':
         specifier: workspace:*
         version: link:../sdkwork-birdcoder-pc-host-core
@@ -2296,9 +2375,9 @@ importers:
       '@sdkwork/birdcoder-pc-projection':
         specifier: workspace:*
         version: link:../sdkwork-birdcoder-pc-projection
-      '@sdkwork/birdcoder-pc-types':
+      '@sdkwork/birdcoder-pc-workbench':
         specifier: workspace:*
-        version: link:../sdkwork-birdcoder-pc-types
+        version: link:../sdkwork-birdcoder-pc-workbench
       '@sdkwork/iam-contracts':
         specifier: workspace:*
         version: link:../../../../../sdkwork-iam/apps/sdkwork-iam-common/packages/sdkwork-iam-contracts
@@ -2318,9 +2397,6 @@ importers:
       '@sdkwork/birdcoder-pc-codeengine':
         specifier: workspace:*
         version: link:../sdkwork-birdcoder-pc-codeengine
-      '@sdkwork/birdcoder-pc-commons':
-        specifier: workspace:*
-        version: link:../sdkwork-birdcoder-pc-commons
       '@sdkwork/birdcoder-pc-infrastructure-runtime':
         specifier: workspace:*
         version: link:../sdkwork-birdcoder-pc-infrastructure-runtime
@@ -2330,6 +2406,9 @@ importers:
       '@sdkwork/birdcoder-pc-ui-shell':
         specifier: workspace:*
         version: link:../sdkwork-birdcoder-pc-ui-shell
+      '@sdkwork/birdcoder-pc-workbench':
+        specifier: workspace:*
+        version: link:../sdkwork-birdcoder-pc-workbench
       lucide-react:
         specifier: 'catalog:'
         version: 1.7.0(react@19.2.4)
@@ -2346,9 +2425,9 @@ importers:
       '@sdkwork/birdcoder-pc-code':
         specifier: workspace:*
         version: link:../sdkwork-birdcoder-pc-code
-      '@sdkwork/birdcoder-pc-commons':
+      '@sdkwork/birdcoder-pc-contracts-commons':
         specifier: workspace:*
-        version: link:../sdkwork-birdcoder-pc-commons
+        version: link:../sdkwork-birdcoder-pc-contracts-commons
       '@sdkwork/birdcoder-pc-i18n':
         specifier: workspace:*
         version: link:../sdkwork-birdcoder-pc-i18n
@@ -2361,21 +2440,21 @@ importers:
       '@sdkwork/birdcoder-pc-settings':
         specifier: workspace:*
         version: link:../sdkwork-birdcoder-pc-settings
-      '@sdkwork/birdcoder-pc-shell-runtime':
-        specifier: workspace:*
-        version: link:../sdkwork-birdcoder-pc-shell-runtime
       '@sdkwork/birdcoder-pc-studio':
         specifier: workspace:*
         version: link:../sdkwork-birdcoder-pc-studio
-      '@sdkwork/birdcoder-pc-types':
-        specifier: workspace:*
-        version: link:../sdkwork-birdcoder-pc-types
       '@sdkwork/birdcoder-pc-ui-shell':
         specifier: workspace:*
         version: link:../sdkwork-birdcoder-pc-ui-shell
       '@sdkwork/birdcoder-pc-user':
         specifier: workspace:*
         version: link:../sdkwork-birdcoder-pc-user
+      '@sdkwork/birdcoder-pc-workbench':
+        specifier: workspace:*
+        version: link:../sdkwork-birdcoder-pc-workbench
+      '@sdkwork/drive-pc-sandbox-explorer':
+        specifier: workspace:*
+        version: link:../../../../../sdkwork-drive/apps/sdkwork-drive-pc/packages/sdkwork-drive-pc-sandbox-explorer
       '@sdkwork/terminal-pc-desktop':
         specifier: workspace:*
         version: link:../../../../../sdkwork-terminal/apps/sdkwork-terminal-pc/packages/sdkwork-terminal-pc-desktop
@@ -2413,6 +2492,9 @@ importers:
 
   apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-shell-runtime:
     dependencies:
+      '@sdkwork/birdcoder-pc-contracts-commons':
+        specifier: workspace:*
+        version: link:../sdkwork-birdcoder-pc-contracts-commons
       '@sdkwork/birdcoder-pc-core':
         specifier: workspace:*
         version: link:../sdkwork-birdcoder-pc-core
@@ -2422,9 +2504,9 @@ importers:
       '@sdkwork/birdcoder-pc-infrastructure-runtime':
         specifier: workspace:*
         version: link:../sdkwork-birdcoder-pc-infrastructure-runtime
-      '@sdkwork/birdcoder-pc-types':
+      '@sdkwork/birdcoder-pc-ui-shell':
         specifier: workspace:*
-        version: link:../sdkwork-birdcoder-pc-types
+        version: link:../sdkwork-birdcoder-pc-ui-shell
       '@sdkwork/birdcoder-pc-workbench-state':
         specifier: workspace:*
         version: link:../sdkwork-birdcoder-pc-workbench-state
@@ -2447,9 +2529,6 @@ importers:
       '@sdkwork/birdcoder-pc-codeengine':
         specifier: workspace:*
         version: link:../sdkwork-birdcoder-pc-codeengine
-      '@sdkwork/birdcoder-pc-commons':
-        specifier: workspace:*
-        version: link:../sdkwork-birdcoder-pc-commons
       '@sdkwork/birdcoder-pc-host-studio':
         specifier: workspace:*
         version: link:../sdkwork-birdcoder-pc-host-studio
@@ -2459,6 +2538,9 @@ importers:
       '@sdkwork/birdcoder-pc-ui-shell':
         specifier: workspace:*
         version: link:../sdkwork-birdcoder-pc-ui-shell
+      '@sdkwork/birdcoder-pc-workbench':
+        specifier: workspace:*
+        version: link:../sdkwork-birdcoder-pc-workbench
       '@sdkwork/terminal-pc-desktop':
         specifier: workspace:*
         version: link:../../../../../sdkwork-terminal/apps/sdkwork-terminal-pc/packages/sdkwork-terminal-pc-desktop
@@ -2638,16 +2720,6 @@ importers:
         specifier: 'catalog:'
         version: 6.0.1(vite@8.0.16(@types/node@25.9.4)(esbuild@0.27.7)(jiti@2.6.1)(terser@5.39.0)(tsx@4.21.0)(yaml@2.8.3))
 
-  apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-types:
-    dependencies:
-      '@sdkwork/birdcoder-chat-contracts':
-        specifier: workspace:*
-        version: link:../../../sdkwork-birdcoder-common/packages/sdkwork-birdcoder-chat-contracts
-    devDependencies:
-      '@vitejs/plugin-react':
-        specifier: 'catalog:'
-        version: 6.0.1(vite@8.0.16(@types/node@25.9.4)(esbuild@0.27.7)(jiti@2.6.1)(terser@5.39.0)(tsx@4.21.0)(yaml@2.8.3))
-
   apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-ui:
     dependencies:
       '@babel/runtime':
@@ -2662,12 +2734,12 @@ importers:
       '@sdkwork/birdcoder-pc-codeengine':
         specifier: workspace:*
         version: link:../sdkwork-birdcoder-pc-codeengine
-      '@sdkwork/birdcoder-pc-commons':
-        specifier: workspace:*
-        version: link:../sdkwork-birdcoder-pc-commons
       '@sdkwork/birdcoder-pc-ui-shell':
         specifier: workspace:*
         version: link:../sdkwork-birdcoder-pc-ui-shell
+      '@sdkwork/birdcoder-pc-workbench':
+        specifier: workspace:*
+        version: link:../sdkwork-birdcoder-pc-workbench
       '@sdkwork/models-pc-picker':
         specifier: workspace:*
         version: link:../../../../../sdkwork-models/apps/sdkwork-models-pc/packages/sdkwork-models-pc-picker
@@ -2925,15 +2997,15 @@ importers:
       '@sdkwork/appbase-pc-react':
         specifier: workspace:*
         version: link:../../../../../sdkwork-appbase/packages/pc-react/foundation/sdkwork-appbase-pc-react
-      '@sdkwork/birdcoder-pc-commons':
+      '@sdkwork/birdcoder-pc-contracts-commons':
         specifier: workspace:*
-        version: link:../sdkwork-birdcoder-pc-commons
+        version: link:../sdkwork-birdcoder-pc-contracts-commons
       '@sdkwork/birdcoder-pc-infrastructure-runtime':
         specifier: workspace:*
         version: link:../sdkwork-birdcoder-pc-infrastructure-runtime
-      '@sdkwork/birdcoder-pc-types':
+      '@sdkwork/birdcoder-pc-workbench':
         specifier: workspace:*
-        version: link:../sdkwork-birdcoder-pc-types
+        version: link:../sdkwork-birdcoder-pc-workbench
       '@sdkwork/membership-pc-membership':
         specifier: workspace:*
         version: link:../../../../../sdkwork-membership/apps/sdkwork-membership-pc/packages/sdkwork-membership-pc-membership
@@ -3015,17 +3087,75 @@ importers:
         specifier: 'catalog:'
         version: 8.0.16(@types/node@25.9.4)(esbuild@0.27.7)(jiti@2.6.1)(terser@5.39.0)(tsx@4.21.0)(yaml@2.8.3)
 
+  apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-workbench:
+    dependencies:
+      '@sdkwork/birdcoder-pc-codeengine':
+        specifier: workspace:*
+        version: link:../sdkwork-birdcoder-pc-codeengine
+      '@sdkwork/birdcoder-pc-contracts-commons':
+        specifier: workspace:*
+        version: link:../sdkwork-birdcoder-pc-contracts-commons
+      '@sdkwork/birdcoder-pc-i18n':
+        specifier: workspace:*
+        version: link:../sdkwork-birdcoder-pc-i18n
+      '@sdkwork/birdcoder-pc-infrastructure':
+        specifier: workspace:*
+        version: link:../sdkwork-birdcoder-pc-infrastructure
+      '@sdkwork/birdcoder-pc-infrastructure-runtime':
+        specifier: workspace:*
+        version: link:../sdkwork-birdcoder-pc-infrastructure-runtime
+      '@sdkwork/birdcoder-pc-projection':
+        specifier: workspace:*
+        version: link:../sdkwork-birdcoder-pc-projection
+      '@sdkwork/drive-pc-sandbox-contracts':
+        specifier: workspace:*
+        version: link:../../../../../sdkwork-drive/apps/sdkwork-drive-pc/packages/sdkwork-drive-pc-sandbox-contracts
+      '@sdkwork/terminal-pc-desktop':
+        specifier: workspace:*
+        version: link:../../../../../sdkwork-terminal/apps/sdkwork-terminal-pc/packages/sdkwork-terminal-pc-desktop
+      '@sdkwork/terminal-pc-infrastructure':
+        specifier: workspace:*
+        version: link:../../../../../sdkwork-terminal/apps/sdkwork-terminal-pc/packages/sdkwork-terminal-pc-infrastructure
+      '@sdkwork/terminal-pc-shell':
+        specifier: workspace:*
+        version: link:../../../../../sdkwork-terminal/apps/sdkwork-terminal-pc/packages/sdkwork-terminal-pc-shell
+      '@sdkwork/utils':
+        specifier: workspace:*
+        version: link:../../../../../sdkwork-utils/packages/sdkwork-utils-typescript
+      '@tauri-apps/api':
+        specifier: 'catalog:'
+        version: 2.11.0
+      lucide-react:
+        specifier: 'catalog:'
+        version: 1.7.0(react@19.2.4)
+    devDependencies:
+      '@types/react':
+        specifier: 'catalog:'
+        version: 19.2.14
+      '@types/react-dom':
+        specifier: 'catalog:'
+        version: 19.2.3(@types/react@19.2.14)
+      '@vitejs/plugin-react':
+        specifier: 'catalog:'
+        version: 6.0.1(vite@8.0.16(@types/node@25.9.4)(esbuild@0.27.7)(jiti@2.6.1)(terser@5.39.0)(tsx@4.21.0)(yaml@2.8.3))
+      typescript:
+        specifier: 'catalog:'
+        version: 6.0.3
+      vitest:
+        specifier: 'catalog:'
+        version: 4.1.8(@types/node@25.9.4)(esbuild@0.27.7)(jiti@2.6.1)(jsdom@29.1.1)(terser@5.39.0)(tsx@4.21.0)(yaml@2.8.3)
+
   apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-workbench-state:
     dependencies:
-      '@sdkwork/birdcoder-pc-commons':
+      '@sdkwork/birdcoder-pc-workbench':
         specifier: workspace:*
-        version: link:../sdkwork-birdcoder-pc-commons
+        version: link:../sdkwork-birdcoder-pc-workbench
 
   apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-workbench-storage:
     dependencies:
-      '@sdkwork/birdcoder-pc-commons':
+      '@sdkwork/birdcoder-pc-workbench':
         specifier: workspace:*
-        version: link:../sdkwork-birdcoder-pc-commons
+        version: link:../sdkwork-birdcoder-pc-workbench
 
   apps/sdkwork-birdcoder-pc/sdks/sdkwork-birdcoder-app-sdk/sdkwork-birdcoder-app-sdk-typescript: {}
 
@@ -4953,6 +5083,10 @@ packages:
     engines: {node: '>= 10'}
     hasBin: true
 
+  '@testing-library/dom@10.4.1':
+    resolution: {integrity: sha512-o4PXJQidqJl82ckFaXUeoAW+XysPLauYI43Abki5hABd853iMhitooc6znOnczgbTYmEP6U6/y1ZyKAIsvMKGg==}
+    engines: {node: '>=18'}
+
   '@testing-library/jest-dom@6.9.1':
     resolution: {integrity: sha512-zIcONa+hVtVSSep9UT3jZ5rizo2BsxgyDYU7WFD5eICBE7no3881HGeb/QkGfsJs6JTkY1aQhT7rIPC7e+0nnA==}
     engines: {node: '>=14', npm: '>=6', yarn: '>=1'}
@@ -4977,6 +5111,9 @@ packages:
 
   '@types/argparse@1.0.38':
     resolution: {integrity: sha512-ebDJ9b0e702Yr7pWgB0jzm+CX4Srzz8RcXtLJDJB+BSccqMa36uyH/zUsSYao5+BD1ytv3k3rPYCq4mAE1hsXA==}
+
+  '@types/aria-query@5.0.4':
+    resolution: {integrity: sha512-rfT93uj5s0PRL7EzccGMs3brplhcrghnDoV26NqKhCAS1hVo+WdNsPvE/yb6ilfr5hi2MEk6d5EWJTKdxg8jVw==}
 
   '@types/babel__core@7.20.5':
     resolution: {integrity: sha512-qoQprZvz5wQFJwMDqeseRXWv3rqMvhgpbXFfVyWhbx9X47POIA6i/+dXefEmZKoAgOaTdaIgNSMqMIU61yRyzA==}
@@ -5439,6 +5576,10 @@ packages:
     resolution: {integrity: sha512-zbB9rCJAT1rbjiVDb2hqKFHNYLxgtk8NURxZ3IZwD3F6NtxbXZQCnnSi1Lkx+IDohdPlFp222wVALIheZJQSEg==}
     engines: {node: '>=8'}
 
+  ansi-styles@5.2.0:
+    resolution: {integrity: sha512-Cxwpt2SfTzTtXcfOlzGEee8O+c+MmUgGrNiBcXnuWxuFJHe6a5Hz7qwhwe5OgaSYI0IJvkLqWX1ASG+cJOkEiA==}
+    engines: {node: '>=10'}
+
   argparse@1.0.10:
     resolution: {integrity: sha512-o5Roy6tNG4SL/FOkCAN6RzjiakZS25RLYFrcMttJqbdd8BWrnA+fGz57iN5Pb06pvBGvl5gQ0B48dJlslXvoTg==}
 
@@ -5448,6 +5589,9 @@ packages:
   aria-hidden@1.2.6:
     resolution: {integrity: sha512-ik3ZgC9dY/lYVVM++OISsaYDeg1tb0VtP5uL3ouh1koGOaUMDPpbFIei4JkFimWUFPn90sbMNMXQAIVOlnYKJA==}
     engines: {node: '>=10'}
+
+  aria-query@5.3.0:
+    resolution: {integrity: sha512-b0P0sZPKtyu8HkeRAfCq0IfURZK+SuwMjY1UXGBU27wpAiTwQAIlq56IbIO+ytk/JjS1fMR14ee5WBBfKi5J6A==}
 
   aria-query@5.3.2:
     resolution: {integrity: sha512-COROpnaoap1E2F000S62r6A60uHZnmlvomhfyT2DlTcrY1OrBKn2UhH7qn5wTC9zMvD0AY7csdPSNwKP+7WiQw==}
@@ -5693,6 +5837,9 @@ packages:
 
   dijkstrajs@1.0.3:
     resolution: {integrity: sha512-qiSlmBq9+BCdCA/L46dw8Uy93mloxsPSbwnm5yrKn2vMPiy8KyAskTF6zuV/j5BMsmOGZDPs7KjU+mjb670kfA==}
+
+  dom-accessibility-api@0.5.16:
+    resolution: {integrity: sha512-X7BJ2yElsnOJ30pZF4uIIDfBEVgF4XEBxL9Bxhy6dnrm5hkzqmsWHGTiHqRiITNhMyFLyAiWndIJP7Z1NTteDg==}
 
   dom-accessibility-api@0.6.3:
     resolution: {integrity: sha512-7ZgogeTnjuHbo+ct10G9Ffp0mif17idi0IyWNVA/wcwcm7NPOD/WEHVP3n7n3MhXqxoIYm8d6MuZohYWIZ4T3w==}
@@ -6260,6 +6407,10 @@ packages:
     peerDependencies:
       react: ^16.5.1 || ^17.0.0 || ^18.0.0 || ^19.0.0
 
+  lz-string@1.5.0:
+    resolution: {integrity: sha512-h5bgJWpxJNswbU7qCrV0tIKQCaS3blPDrqKWx+QxzuzL1zGUzij9XCWLrSLsJPu5t+eWA/ycetzYAO5IOMcWAQ==}
+    hasBin: true
+
   magic-string@0.30.21:
     resolution: {integrity: sha512-vd2F4YUyEXKGcLHoq+TEyCjxueSeHnFxyyjNp80yg0XV4vUhnDer/lvvlqM/arB5bXQN5K2/3oinyCRyx8T2CQ==}
 
@@ -6624,6 +6775,10 @@ packages:
     engines: {node: '>=14'}
     hasBin: true
 
+  pretty-format@27.5.1:
+    resolution: {integrity: sha512-Qb1gy5OrP5+zDf2Bvnzdl3jsTf1qXVMazbvCoKhtKqVs4/YK4ozX4gKQJJVyNe+cajNPn0KoC0MC3FUmaHWEmQ==}
+    engines: {node: ^10.13.0 || ^12.13.0 || ^14.15.0 || >=15.0.0}
+
   prismjs@1.30.0:
     resolution: {integrity: sha512-DEvV2ZF2r2/63V+tK8hQvrR2ZGn10srHbXviTlcv7Kpzw8jWiNTqbVgjO3IY8RxrrOUF8VPMQQFysYYYv0YZxw==}
     engines: {node: '>=6'}
@@ -6684,6 +6839,9 @@ packages:
         optional: true
       typescript:
         optional: true
+
+  react-is@17.0.2:
+    resolution: {integrity: sha512-w2GsyukL62IJnlaff/nRegPQR94C/XXamvMWmSHRJ4y7Ts/4ocGRmTHvOs8PSE6pB3dWOrD/nueuU5sduBsQ4w==}
 
   react-markdown@10.1.0:
     resolution: {integrity: sha512-qKxVopLT/TyA6BX3Ue5NwabOsAzm0Q7kAPwq6L+wWDwisYs7R8vZ0nRXqq6rkueboxpkjvLGU9fWifiX/ZZFxQ==}
@@ -7380,7 +7538,6 @@ packages:
       '@vitest/ui': 4.1.8
       happy-dom: '*'
       jsdom: '*'
-      vite: ^6.0.0 || ^7.0.0 || ^8.0.0
     peerDependenciesMeta:
       '@edge-runtime/vm':
         optional: true
@@ -9412,6 +9569,17 @@ snapshots:
       '@tauri-apps/cli-win32-ia32-msvc': 2.11.1
       '@tauri-apps/cli-win32-x64-msvc': 2.11.1
 
+  '@testing-library/dom@10.4.1':
+    dependencies:
+      '@babel/code-frame': 7.29.0
+      '@babel/runtime': 7.29.2
+      '@types/aria-query': 5.0.4
+      aria-query: 5.3.0
+      dom-accessibility-api: 0.5.16
+      lz-string: 1.5.0
+      picocolors: 1.1.1
+      pretty-format: 27.5.1
+
   '@testing-library/jest-dom@6.9.1':
     dependencies:
       '@adobe/css-tools': 4.5.0
@@ -9421,9 +9589,10 @@ snapshots:
       picocolors: 1.1.1
       redent: 3.0.0
 
-  '@testing-library/react@16.3.2(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)':
+  '@testing-library/react@16.3.2(@testing-library/dom@10.4.1)(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)':
     dependencies:
       '@babel/runtime': 7.29.2
+      '@testing-library/dom': 10.4.1
       react: 19.2.4
       react-dom: 19.2.4(react@19.2.4)
     optionalDependencies:
@@ -9436,6 +9605,8 @@ snapshots:
     optional: true
 
   '@types/argparse@1.0.38': {}
+
+  '@types/aria-query@5.0.4': {}
 
   '@types/babel__core@7.20.5':
     dependencies:
@@ -9757,29 +9928,29 @@ snapshots:
       chai: 6.2.2
       tinyrainbow: 3.1.0
 
-  '@vitest/mocker@4.1.8(vite@7.3.6(@types/node@20.19.43)(jiti@2.6.1)(lightningcss@1.32.0)(terser@5.39.0)(tsx@4.21.0)(yaml@2.8.3))':
+  '@vitest/mocker@4.1.8(vite@8.0.16(@types/node@20.19.43)(esbuild@0.27.7)(jiti@2.6.1)(terser@5.39.0)(tsx@4.21.0)(yaml@2.8.3))':
     dependencies:
       '@vitest/spy': 4.1.8
       estree-walker: 3.0.3
       magic-string: 0.30.21
     optionalDependencies:
-      vite: 7.3.6(@types/node@20.19.43)(jiti@2.6.1)(lightningcss@1.32.0)(terser@5.39.0)(tsx@4.21.0)(yaml@2.8.3)
+      vite: 8.0.16(@types/node@20.19.43)(esbuild@0.27.7)(jiti@2.6.1)(terser@5.39.0)(tsx@4.21.0)(yaml@2.8.3)
 
-  '@vitest/mocker@4.1.8(vite@8.0.3(@emnapi/core@1.10.0)(@emnapi/runtime@1.10.0)(@types/node@25.7.0)(esbuild@0.27.7)(jiti@2.6.1)(terser@5.39.0)(tsx@4.21.0)(yaml@2.8.3))':
+  '@vitest/mocker@4.1.8(vite@8.0.16(@types/node@25.7.0)(esbuild@0.27.7)(jiti@2.6.1)(terser@5.39.0)(tsx@4.21.0)(yaml@2.8.3))':
     dependencies:
       '@vitest/spy': 4.1.8
       estree-walker: 3.0.3
       magic-string: 0.30.21
     optionalDependencies:
-      vite: 8.0.3(@emnapi/core@1.10.0)(@emnapi/runtime@1.10.0)(@types/node@25.7.0)(esbuild@0.27.7)(jiti@2.6.1)(terser@5.39.0)(tsx@4.21.0)(yaml@2.8.3)
+      vite: 8.0.16(@types/node@25.7.0)(esbuild@0.27.7)(jiti@2.6.1)(terser@5.39.0)(tsx@4.21.0)(yaml@2.8.3)
 
-  '@vitest/mocker@4.1.8(vite@8.0.3(@emnapi/core@1.10.0)(@emnapi/runtime@1.10.0)(@types/node@25.9.4)(esbuild@0.27.7)(jiti@2.6.1)(terser@5.39.0)(tsx@4.21.0)(yaml@2.8.3))':
+  '@vitest/mocker@4.1.8(vite@8.0.16(@types/node@25.9.4)(esbuild@0.27.7)(jiti@2.6.1)(terser@5.39.0)(tsx@4.21.0)(yaml@2.8.3))':
     dependencies:
       '@vitest/spy': 4.1.8
       estree-walker: 3.0.3
       magic-string: 0.30.21
     optionalDependencies:
-      vite: 8.0.3(@emnapi/core@1.10.0)(@emnapi/runtime@1.10.0)(@types/node@25.9.4)(esbuild@0.27.7)(jiti@2.6.1)(terser@5.39.0)(tsx@4.21.0)(yaml@2.8.3)
+      vite: 8.0.16(@types/node@25.9.4)(esbuild@0.27.7)(jiti@2.6.1)(terser@5.39.0)(tsx@4.21.0)(yaml@2.8.3)
 
   '@vitest/pretty-format@4.1.8':
     dependencies:
@@ -10078,6 +10249,8 @@ snapshots:
     dependencies:
       color-convert: 2.0.1
 
+  ansi-styles@5.2.0: {}
+
   argparse@1.0.10:
     dependencies:
       sprintf-js: 1.0.3
@@ -10087,6 +10260,10 @@ snapshots:
   aria-hidden@1.2.6:
     dependencies:
       tslib: 2.8.1
+
+  aria-query@5.3.0:
+    dependencies:
+      dequal: 2.0.3
 
   aria-query@5.3.2: {}
 
@@ -10280,6 +10457,8 @@ snapshots:
   diff@8.0.4: {}
 
   dijkstrajs@1.0.3: {}
+
+  dom-accessibility-api@0.5.16: {}
 
   dom-accessibility-api@0.6.3: {}
 
@@ -10858,6 +11037,8 @@ snapshots:
     dependencies:
       react: 19.2.4
 
+  lz-string@1.5.0: {}
+
   magic-string@0.30.21:
     dependencies:
       '@jridgewell/sourcemap-codec': 1.5.5
@@ -11347,6 +11528,12 @@ snapshots:
 
   prettier@3.9.5: {}
 
+  pretty-format@27.5.1:
+    dependencies:
+      ansi-regex: 5.0.1
+      ansi-styles: 5.2.0
+      react-is: 17.0.2
+
   prismjs@1.30.0: {}
 
   prompts@2.4.2:
@@ -11399,6 +11586,8 @@ snapshots:
     optionalDependencies:
       react-dom: 19.2.4(react@19.2.4)
       typescript: 6.0.3
+
+  react-is@17.0.2: {}
 
   react-markdown@10.1.0(@types/react@19.2.14)(react@19.2.4):
     dependencies:
@@ -12051,6 +12240,22 @@ snapshots:
       tsx: 4.21.0
       yaml: 2.8.3
 
+  vite@8.0.16(@types/node@20.19.43)(esbuild@0.27.7)(jiti@2.6.1)(terser@5.39.0)(tsx@4.21.0)(yaml@2.8.3):
+    dependencies:
+      lightningcss: 1.32.0
+      picomatch: 4.0.4
+      postcss: 8.5.15
+      rolldown: 1.0.3
+      tinyglobby: 0.2.17
+    optionalDependencies:
+      '@types/node': 20.19.43
+      esbuild: 0.27.7
+      fsevents: 2.3.3
+      jiti: 2.6.1
+      terser: 5.39.0
+      tsx: 4.21.0
+      yaml: 2.8.3
+
   vite@8.0.16(@types/node@25.7.0)(esbuild@0.27.7)(jiti@2.6.1)(terser@5.39.0)(tsx@4.21.0)(yaml@2.8.3):
     dependencies:
       lightningcss: 1.32.0
@@ -12219,10 +12424,10 @@ snapshots:
       - typescript
       - universal-cookie
 
-  vitest@4.1.8(@types/node@20.19.43)(jsdom@29.1.1)(vite@7.3.6(@types/node@20.19.43)(jiti@2.6.1)(lightningcss@1.32.0)(terser@5.39.0)(tsx@4.21.0)(yaml@2.8.3)):
+  vitest@4.1.8(@types/node@20.19.43)(esbuild@0.27.7)(jiti@2.6.1)(jsdom@29.1.1)(terser@5.39.0)(tsx@4.21.0)(yaml@2.8.3):
     dependencies:
       '@vitest/expect': 4.1.8
-      '@vitest/mocker': 4.1.8(vite@7.3.6(@types/node@20.19.43)(jiti@2.6.1)(lightningcss@1.32.0)(terser@5.39.0)(tsx@4.21.0)(yaml@2.8.3))
+      '@vitest/mocker': 4.1.8(vite@8.0.16(@types/node@20.19.43)(esbuild@0.27.7)(jiti@2.6.1)(terser@5.39.0)(tsx@4.21.0)(yaml@2.8.3))
       '@vitest/pretty-format': 4.1.8
       '@vitest/runner': 4.1.8
       '@vitest/snapshot': 4.1.8
@@ -12239,18 +12444,29 @@ snapshots:
       tinyexec: 1.2.4
       tinyglobby: 0.2.15
       tinyrainbow: 3.1.0
-      vite: 7.3.6(@types/node@20.19.43)(jiti@2.6.1)(lightningcss@1.32.0)(terser@5.39.0)(tsx@4.21.0)(yaml@2.8.3)
+      vite: 8.0.16(@types/node@20.19.43)(esbuild@0.27.7)(jiti@2.6.1)(terser@5.39.0)(tsx@4.21.0)(yaml@2.8.3)
       why-is-node-running: 2.3.0
     optionalDependencies:
       '@types/node': 20.19.43
       jsdom: 29.1.1
     transitivePeerDependencies:
+      - '@vitejs/devtools'
+      - esbuild
+      - jiti
+      - less
       - msw
+      - sass
+      - sass-embedded
+      - stylus
+      - sugarss
+      - terser
+      - tsx
+      - yaml
 
-  vitest@4.1.8(@types/node@25.7.0)(jsdom@29.1.1)(vite@8.0.3(@emnapi/core@1.10.0)(@emnapi/runtime@1.10.0)(@types/node@25.7.0)(esbuild@0.27.7)(jiti@2.6.1)(terser@5.39.0)(tsx@4.21.0)(yaml@2.8.3)):
+  vitest@4.1.8(@types/node@25.7.0)(esbuild@0.27.7)(jiti@2.6.1)(jsdom@29.1.1)(terser@5.39.0)(tsx@4.21.0)(yaml@2.8.3):
     dependencies:
       '@vitest/expect': 4.1.8
-      '@vitest/mocker': 4.1.8(vite@8.0.3(@emnapi/core@1.10.0)(@emnapi/runtime@1.10.0)(@types/node@25.7.0)(esbuild@0.27.7)(jiti@2.6.1)(terser@5.39.0)(tsx@4.21.0)(yaml@2.8.3))
+      '@vitest/mocker': 4.1.8(vite@8.0.16(@types/node@25.7.0)(esbuild@0.27.7)(jiti@2.6.1)(terser@5.39.0)(tsx@4.21.0)(yaml@2.8.3))
       '@vitest/pretty-format': 4.1.8
       '@vitest/runner': 4.1.8
       '@vitest/snapshot': 4.1.8
@@ -12267,18 +12483,29 @@ snapshots:
       tinyexec: 1.2.4
       tinyglobby: 0.2.15
       tinyrainbow: 3.1.0
-      vite: 8.0.3(@emnapi/core@1.10.0)(@emnapi/runtime@1.10.0)(@types/node@25.7.0)(esbuild@0.27.7)(jiti@2.6.1)(terser@5.39.0)(tsx@4.21.0)(yaml@2.8.3)
+      vite: 8.0.16(@types/node@25.7.0)(esbuild@0.27.7)(jiti@2.6.1)(terser@5.39.0)(tsx@4.21.0)(yaml@2.8.3)
       why-is-node-running: 2.3.0
     optionalDependencies:
       '@types/node': 25.7.0
       jsdom: 29.1.1
     transitivePeerDependencies:
+      - '@vitejs/devtools'
+      - esbuild
+      - jiti
+      - less
       - msw
+      - sass
+      - sass-embedded
+      - stylus
+      - sugarss
+      - terser
+      - tsx
+      - yaml
 
-  vitest@4.1.8(@types/node@25.9.4)(jsdom@29.1.1)(vite@8.0.3(@emnapi/core@1.10.0)(@emnapi/runtime@1.10.0)(@types/node@25.9.4)(esbuild@0.27.7)(jiti@2.6.1)(terser@5.39.0)(tsx@4.21.0)(yaml@2.8.3)):
+  vitest@4.1.8(@types/node@25.9.4)(esbuild@0.27.7)(jiti@2.6.1)(jsdom@29.1.1)(terser@5.39.0)(tsx@4.21.0)(yaml@2.8.3):
     dependencies:
       '@vitest/expect': 4.1.8
-      '@vitest/mocker': 4.1.8(vite@8.0.3(@emnapi/core@1.10.0)(@emnapi/runtime@1.10.0)(@types/node@25.9.4)(esbuild@0.27.7)(jiti@2.6.1)(terser@5.39.0)(tsx@4.21.0)(yaml@2.8.3))
+      '@vitest/mocker': 4.1.8(vite@8.0.16(@types/node@25.9.4)(esbuild@0.27.7)(jiti@2.6.1)(terser@5.39.0)(tsx@4.21.0)(yaml@2.8.3))
       '@vitest/pretty-format': 4.1.8
       '@vitest/runner': 4.1.8
       '@vitest/snapshot': 4.1.8
@@ -12295,13 +12522,24 @@ snapshots:
       tinyexec: 1.2.4
       tinyglobby: 0.2.15
       tinyrainbow: 3.1.0
-      vite: 8.0.3(@emnapi/core@1.10.0)(@emnapi/runtime@1.10.0)(@types/node@25.9.4)(esbuild@0.27.7)(jiti@2.6.1)(terser@5.39.0)(tsx@4.21.0)(yaml@2.8.3)
+      vite: 8.0.16(@types/node@25.9.4)(esbuild@0.27.7)(jiti@2.6.1)(terser@5.39.0)(tsx@4.21.0)(yaml@2.8.3)
       why-is-node-running: 2.3.0
     optionalDependencies:
       '@types/node': 25.9.4
       jsdom: 29.1.1
     transitivePeerDependencies:
+      - '@vitejs/devtools'
+      - esbuild
+      - jiti
+      - less
       - msw
+      - sass
+      - sass-embedded
+      - stylus
+      - sugarss
+      - terser
+      - tsx
+      - yaml
 
   void-elements@3.1.0: {}
 

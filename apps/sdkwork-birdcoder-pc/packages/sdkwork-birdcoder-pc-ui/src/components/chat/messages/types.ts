@@ -6,7 +6,7 @@ import type {
   BirdCoderCodeEngineKey,
   ChatMessageViewSource,
   FileChange,
-} from '@sdkwork/birdcoder-pc-commons/chat/types';
+} from '@sdkwork/birdcoder-pc-workbench/chat/types';
 
 export interface ChatSkill {
   id: string;

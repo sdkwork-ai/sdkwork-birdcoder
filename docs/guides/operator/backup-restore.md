@@ -3,7 +3,7 @@
 Updated: 2026-07-16
 Specs: `DATABASE_FRAMEWORK_SPEC.md`, `DEPLOYMENT_SPEC.md`
 
-## SQLite (default K8s profile)
+## SQLite (standalone single-node profile)
 
 ### Backup
 
@@ -32,9 +32,16 @@ pg_dump --format=custom --no-owner --dbname="$DATABASE_URL" \
   > birdcoder-$(date +%Y%m%d).dump
 ```
 
-When `backup.enabled: true` and `database.engine: postgresql`, the Helm chart renders
-`templates/backup-cronjob.yaml`. Dump files must land in a writable `/backup` volume or the
-operator-provided object-storage hook.
+When `backup.enabled: true`, `database.engine: postgresql`, and either an
+existing runtime Secret or an explicit non-production database URL is present,
+the Helm chart renders `templates/backup-cronjob.yaml`. Production config sets
+`backup.verifyDatabaseUrlSecretKey` to a key in `auth.existingSecret`; every
+dump must restore successfully into that isolated database or the job fails.
+
+The chart PVC is a staging location, not a complete disaster-recovery system.
+Copy verified dumps to encrypted, immutable object storage in another failure
+domain, enforce retention there, monitor copy failures, and periodically restore
+from the off-cluster copy. Public promotion requires measured RPO/RTO evidence.
 
 ### Restore
 

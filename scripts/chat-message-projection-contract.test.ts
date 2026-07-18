@@ -3,14 +3,14 @@ import assert from 'node:assert/strict';
 import {
   resolveChatMessageView,
   type ChatMessageViewSource,
-} from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-types/src/chat-message-view.ts';
+} from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-contracts-commons/src/chat-message-view.ts';
 import {
   resolveMessageCopyContent,
   resolveChatTurnActivitySummary,
   resolveProjectedActivityFileChanges,
   resolveVisibleAssistantMessageContent,
-} from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-types/src/chat-message-activity-projection.ts';
-import { resolveTaskProgressDisplayState } from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-types/src/chat-message-task-progress.ts';
+} from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-contracts-commons/src/chat-message-activity-projection.ts';
+import { resolveTaskProgressDisplayState } from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-contracts-commons/src/chat-message-task-progress.ts';
 
 const headerOnlyActivityMessage: ChatMessageViewSource = {
   id: 'msg-assistant-header',

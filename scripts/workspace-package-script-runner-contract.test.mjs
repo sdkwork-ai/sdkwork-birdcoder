@@ -76,7 +76,7 @@ export function runWorkspacePackageScriptRunnerContract() {
   {
     const plan = createWorkspacePackageScriptPlan({
       packageDir: 'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-web',
-      scriptName: 'dev',
+      scriptName: 'dev:browser:standalone',
       workspaceRootDir: rootDir,
       platform: 'win32',
     });
@@ -96,7 +96,7 @@ export function runWorkspacePackageScriptRunnerContract() {
   {
     const plan = createWorkspacePackageScriptPlan({
       packageDir: 'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-desktop',
-      scriptName: 'tauri:dev',
+      scriptName: 'dev:desktop',
       workspaceRootDir: rootDir,
       platform: 'win32',
       env: {
@@ -108,19 +108,19 @@ export function runWorkspacePackageScriptRunnerContract() {
     assert.equal(
       plan.command,
       process.execPath,
-      'Workspace package-script runner must resolve the standard BirdCoder desktop package path for root tauri:dev without failing before Tauri starts.',
+      'Workspace package-script runner must resolve the standard BirdCoder desktop package path for root dev:desktop without failing before Tauri starts.',
     );
     assert.deepEqual(
       plan.args,
-      ['../../../../scripts/run-birdcoder-desktop-command.mjs', 'tauri:dev', '--iam-mode', 'desktop-local'],
-      'Workspace package-script runner must preserve the BirdCoder desktop tauri:dev command arguments after the desktop package migration.',
+      ['../../../../scripts/run-birdcoder-desktop-command.mjs', 'dev:desktop', '--iam-mode', 'desktop-local'],
+      'Workspace package-script runner must preserve the BirdCoder desktop dev:desktop command arguments after the desktop package migration.',
     );
   }
 
   {
     const plan = createWorkspacePackageScriptPlan({
       packageDir: 'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-server',
-      scriptName: 'dev:base',
+      scriptName: 'start:server',
       workspaceRootDir: rootDir,
       platform: 'win32',
       env: {

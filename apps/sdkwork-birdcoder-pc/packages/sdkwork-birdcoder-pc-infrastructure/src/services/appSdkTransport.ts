@@ -3,7 +3,7 @@ import type {
   BirdCoderHostMode,
   BirdCoderApiTransport,
   BirdCoderApiTransportRequest,
-} from '@sdkwork/birdcoder-pc-types';
+} from '@sdkwork/birdcoder-pc-contracts-commons';
 import type { IProjectService } from './interfaces/IProjectService.ts';
 import { createBirdCoderInProcessAppRuntimeTransport } from './appRuntimeTransport.ts';
 import type { BirdCoderConsoleQueries } from './consoleQueries.ts';

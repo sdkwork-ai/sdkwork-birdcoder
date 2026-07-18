@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import type { BirdCoderDeploymentRecordSummary } from '@sdkwork/birdcoder-pc-types';
+import type { BirdCoderDeploymentRecordSummary } from '@sdkwork/birdcoder-pc-contracts-commons';
 import type { IAdminDeploymentService } from '../services/interfaces/IAdminDeploymentService.ts';
 
 export async function loadAdminDeployments(

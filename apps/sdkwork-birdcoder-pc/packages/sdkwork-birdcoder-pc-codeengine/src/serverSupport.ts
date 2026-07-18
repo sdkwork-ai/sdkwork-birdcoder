@@ -1,4 +1,4 @@
-import type { BirdCoderEngineDescriptor } from '@sdkwork/birdcoder-pc-types';
+import type { BirdCoderEngineDescriptor } from '@sdkwork/birdcoder-pc-contracts-commons';
 
 import {
   type WorkbenchCodeEngineId,

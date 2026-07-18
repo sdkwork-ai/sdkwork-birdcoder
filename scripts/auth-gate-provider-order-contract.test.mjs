@@ -23,10 +23,6 @@ const nativeSessionHandlersSource = fs.readFileSync(
   new URL('../crates/sdkwork-routes-engine-catalog-app-api/src/handlers.rs', import.meta.url),
   'utf8',
 );
-const membershipHandlersSource = fs.readFileSync(
-  new URL('../crates/sdkwork-routes-membership-app-api/src/handlers.rs', import.meta.url),
-  'utf8',
-);
 
 assert.match(
   shellRuntimeProvidersSource,
@@ -84,12 +80,6 @@ assert.match(
   nativeSessionHandlersSource,
   /workspaceId, projectId, and runtimeLocationId are required to list native sessions; the server must also resolve an authorized runtime location/u,
   'Native session list API must require the complete server-authorized execution scope.',
-);
-
-assert.match(
-  membershipHandlersSource,
-  /Membership lookup is limited to the authenticated user/u,
-  'Membership lookup must reject cross-user owner_user_id overrides.',
 );
 
 console.log('auth gate provider order contract passed.');

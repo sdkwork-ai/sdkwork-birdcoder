@@ -17,7 +17,7 @@ import type {
   BirdCoderProjectCollaboratorSummary,
   BirdCoderProjectPublishResult,
   BirdCoderReleaseSummary,
-} from '@sdkwork/birdcoder-pc-types';
+} from '@sdkwork/birdcoder-pc-contracts-commons';
 import {
   ProjectGitDiffDialog,
   ProjectGitHeaderControls,
@@ -25,11 +25,11 @@ import {
   type ProjectGitSubmitMode,
 } from '@sdkwork/birdcoder-pc-ui';
 import { Button } from '@sdkwork/birdcoder-pc-ui-shell';
-import { globalEventBus } from '@sdkwork/birdcoder-pc-commons/utils/EventBus';
-import type { ProjectGitOverviewViewState } from '@sdkwork/birdcoder-pc-commons/hooks/useProjectGitOverview';
-import { useProjectGitOverview } from '@sdkwork/birdcoder-pc-commons/hooks/useProjectGitOverview';
-import { useIDEServices } from '@sdkwork/birdcoder-pc-commons/context/IDEContext';
-import { useToast } from '@sdkwork/birdcoder-pc-commons/contexts/ToastProvider';
+import { globalEventBus } from '@sdkwork/birdcoder-pc-workbench/utils/EventBus';
+import type { ProjectGitOverviewViewState } from '@sdkwork/birdcoder-pc-workbench/hooks/useProjectGitOverview';
+import { useProjectGitOverview } from '@sdkwork/birdcoder-pc-workbench/hooks/useProjectGitOverview';
+import { useIDEServices } from '@sdkwork/birdcoder-pc-workbench/context/IDEContext';
+import { useToast } from '@sdkwork/birdcoder-pc-workbench/contexts/ToastProvider';
 import { useTranslation } from 'react-i18next';
 
 type PublishTargetMode = 'existing' | 'new';

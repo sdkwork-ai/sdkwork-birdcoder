@@ -23,9 +23,9 @@ const BIRDCODER_IAM_MODES = Object.freeze([
     surfaces: new Set(['desktop']),
   },
   {
-    commandSuffix: 'private',
+    commandSuffix: 'standalone',
     iamMode: 'server-private',
-    mode: 'private',
+    mode: 'standalone',
     surfaces: new Set(BIRDCODER_IAM_SURFACES),
   },
   {
@@ -92,7 +92,7 @@ function createCanonicalScriptCommand(entry) {
 
   if (entry.surface === 'desktop') {
     return renderNodeScriptCommand('run-birdcoder-desktop-command.mjs', [
-      entry.lifecycle === 'dev' ? 'tauri:dev' : 'tauri:build',
+      entry.lifecycle === 'dev' ? 'dev:desktop' : 'build:desktop',
       ...flags,
     ]);
   }
@@ -113,6 +113,20 @@ function createCanonicalScriptCommand(entry) {
   ]);
 }
 
+function createCanonicalScriptName(entry) {
+  const runtimeTarget = entry.surface === 'web' ? 'browser' : entry.surface;
+  if (entry.lifecycle === 'package') {
+    return `release:package:${runtimeTarget}:${entry.commandSuffix}`;
+  }
+  if (entry.lifecycle === 'env') {
+    return `check:env:${runtimeTarget}:${entry.commandSuffix}`;
+  }
+  if (entry.lifecycle === 'doctor') {
+    return `check:iam:${runtimeTarget}:${entry.commandSuffix}`;
+  }
+  return `${entry.lifecycle}:${runtimeTarget}:${entry.commandSuffix}`;
+}
+
 export function createBirdcoderIamCommandMatrix() {
   const entries = [];
   for (const surface of BIRDCODER_IAM_SURFACES) {
@@ -122,7 +136,11 @@ export function createBirdcoderIamCommandMatrix() {
       }
       for (const lifecycle of BIRDCODER_SUPPORTED_IAM_COMMAND_LIFECYCLES) {
         entries.push({
-          command: `${surface}:${lifecycle}:${modeDefinition.commandSuffix}`,
+          command: createCanonicalScriptName({
+            commandSuffix: modeDefinition.commandSuffix,
+            lifecycle,
+            surface,
+          }),
           iamMode: modeDefinition.iamMode,
           lifecycle,
           mode: modeDefinition.mode,
@@ -145,54 +163,7 @@ export function createBirdcoderIamCanonicalScriptCatalog() {
 }
 
 export function createBirdcoderIamAliasScriptCatalog() {
-  return {
-    build: `${renderNodeScriptCommand('prepare-shared-sdk-packages.mjs')} && ${renderNodeScriptCommand('run-vite-host.mjs', ['--cwd', 'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-web', 'build', '--mode', 'production'])} && ${renderNodeScriptCommand('web-bundle-budget.test.mjs')}`,
-    'build:cloud': renderWorkspaceScriptPassthrough('web:build:cloud'),
-    'build:local': renderWorkspaceScriptPassthrough('desktop:build:local'),
-    'build:private': renderWorkspaceScriptPassthrough('web:build:private'),
-    dev: renderNodeScriptCommand('birdcoder-dev.mjs', ['web']),
-    'dev:cloud': renderNodeScriptCommand('birdcoder-dev.mjs', ['web', '--deployment-profile', 'cloud']),
-    'dev:local': renderWorkspaceScriptPassthrough('desktop:dev:local'),
-    'dev:private': renderNodeScriptCommand('birdcoder-dev.mjs', [
-      'web',
-      '--deployment-profile',
-      'standalone',
-      '--service-layout',
-      'split-services',
-    ]),
-    'dev:test': renderNodeScriptCommand('run-birdcoder-dev-stack.mjs', [
-      'web',
-      '--iam-mode',
-      'server-private',
-      '--vite-mode',
-      'test',
-    ]),
-    'iam:doctor': renderWorkspaceScriptPassthrough('desktop:doctor:local'),
-    'iam:doctor:desktop:cloud': renderWorkspaceScriptPassthrough('desktop:doctor:cloud'),
-    'iam:doctor:desktop:local': renderWorkspaceScriptPassthrough('desktop:doctor:local'),
-    'iam:doctor:desktop:private': renderWorkspaceScriptPassthrough('desktop:doctor:private'),
-    'iam:doctor:server:cloud': renderWorkspaceScriptPassthrough('server:doctor:cloud'),
-    'iam:doctor:server:private': renderWorkspaceScriptPassthrough('server:doctor:private'),
-    'iam:doctor:web:cloud': renderWorkspaceScriptPassthrough('web:doctor:cloud'),
-    'iam:doctor:web:private': renderWorkspaceScriptPassthrough('web:doctor:private'),
-    'iam:show': renderWorkspaceScriptPassthrough('desktop:env:local'),
-    'iam:show:desktop:cloud': renderWorkspaceScriptPassthrough('desktop:env:cloud'),
-    'iam:show:desktop:local': renderWorkspaceScriptPassthrough('desktop:env:local'),
-    'iam:show:desktop:private': renderWorkspaceScriptPassthrough('desktop:env:private'),
-    'iam:show:server:cloud': renderWorkspaceScriptPassthrough('server:env:cloud'),
-    'iam:show:server:private': renderWorkspaceScriptPassthrough('server:env:private'),
-    'iam:show:web:cloud': renderWorkspaceScriptPassthrough('web:env:cloud'),
-    'iam:show:web:private': renderWorkspaceScriptPassthrough('web:env:private'),
-    'package:desktop:cloud': renderWorkspaceScriptPassthrough('desktop:package:cloud'),
-    'package:desktop:local': renderWorkspaceScriptPassthrough('desktop:package:local'),
-    'package:desktop:private': renderWorkspaceScriptPassthrough('desktop:package:private'),
-    'package:server:cloud': renderWorkspaceScriptPassthrough('server:package:cloud'),
-    'package:server:private': renderWorkspaceScriptPassthrough('server:package:private'),
-    'package:web:cloud': renderWorkspaceScriptPassthrough('web:package:cloud'),
-    'package:web:private': renderWorkspaceScriptPassthrough('web:package:private'),
-    'server:build': renderNodeScriptCommand('run-birdcoder-server-build.mjs'),
-    'server:dev': renderWorkspaceScriptPassthrough('server:dev:private'),
-  };
+  return {};
 }
 
 export function createBirdcoderIamScriptCatalog() {

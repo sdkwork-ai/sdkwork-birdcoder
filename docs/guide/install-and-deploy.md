@@ -6,8 +6,8 @@ BirdCoder separates local development from release packaging, but both paths use
 
 ```bash
 pnpm dev
-pnpm tauri:dev
-pnpm server:dev
+pnpm dev:desktop
+pnpm dev:server:postgres:standalone
 ```
 
 ## Release families

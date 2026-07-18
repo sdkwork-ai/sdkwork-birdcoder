@@ -58,7 +58,7 @@ const hookSource = readSource(
   'apps',
   'sdkwork-birdcoder-pc',
   'packages',
-  'sdkwork-birdcoder-pc-commons',
+  'sdkwork-birdcoder-pc-workbench',
   'src',
   'hooks',
   'useProjectGitOverview.ts',
@@ -67,7 +67,7 @@ const eventSource = readSource(
   'apps',
   'sdkwork-birdcoder-pc',
   'packages',
-  'sdkwork-birdcoder-pc-commons',
+  'sdkwork-birdcoder-pc-workbench',
   'src',
   'events',
   'projectGitOverview.ts',
@@ -79,7 +79,7 @@ const workbenchEventSource = readSource(
   
   'packages',
   
-  'sdkwork-birdcoder-pc-commons',
+  'sdkwork-birdcoder-pc-workbench',
   'src',
   'workbench',
   'projectGitOverview.ts',
@@ -101,7 +101,7 @@ const legacyEventPath = path.join(
     'sdkwork-birdcoder-pc',
     'packages',
   
-  'sdkwork-birdcoder-pc-commons',
+  'sdkwork-birdcoder-pc-workbench',
   'src',
   'workbench',
   'projectGitOverviewEvents.ts',
@@ -112,7 +112,7 @@ const legacyCommonsEventPath = path.join(
     'sdkwork-birdcoder-pc',
     'packages',
   
-  'sdkwork-birdcoder-pc-commons',
+  'sdkwork-birdcoder-pc-workbench',
   'src',
   'workbench',
   'projectGitOverview.ts',
@@ -190,7 +190,7 @@ assert.equal(
 
 assert.match(
   topBarSource,
-  /import[\s\S]*useProjectGitOverview[\s\S]*from '@sdkwork\/birdcoder-pc-commons\/hooks\/useProjectGitOverview';/,
+  /import[\s\S]*useProjectGitOverview[\s\S]*from '@sdkwork\/birdcoder-pc-workbench\/hooks\/useProjectGitOverview';/,
   'Code TopBar must import the shared project Git overview hook through the governed commons hook subpath.',
 );
 
@@ -202,13 +202,13 @@ assert.match(
 
 assert.match(
   submitDialogSource,
-  /import[\s\S]*useProjectGitOverview[\s\S]*from '@sdkwork\/birdcoder-pc-commons\/hooks\/useProjectGitOverview';/,
+  /import[\s\S]*useProjectGitOverview[\s\S]*from '@sdkwork\/birdcoder-pc-workbench\/hooks\/useProjectGitOverview';/,
   'The shared Git submit dialog must read Git state through the governed commons hook subpath.',
 );
 
 assert.match(
   submitDialogSource,
-  /import[\s\S]*useProjectGitMutationActions[\s\S]*from '@sdkwork\/birdcoder-pc-commons\/hooks\/useProjectGitMutationActions';/,
+  /import[\s\S]*useProjectGitMutationActions[\s\S]*from '@sdkwork\/birdcoder-pc-workbench\/hooks\/useProjectGitMutationActions';/,
   'The shared Git submit dialog must own commit and push mutations through the governed commons hook subpath.',
 );
 
@@ -232,7 +232,7 @@ assert.match(
 
 assert.match(
   panelSource,
-  /import[\s\S]*useProjectGitOverview[\s\S]*from '@sdkwork\/birdcoder-pc-commons\/hooks\/useProjectGitOverview';/,
+  /import[\s\S]*useProjectGitOverview[\s\S]*from '@sdkwork\/birdcoder-pc-workbench\/hooks\/useProjectGitOverview';/,
   'Shared Project Git overview panel must import the shared project Git overview hook through its governed commons subpath.',
 );
 

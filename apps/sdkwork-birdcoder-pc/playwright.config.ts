@@ -37,6 +37,7 @@ export default defineConfig({
       timeout: 120_000,
       env: {
         BIRDCODER_DEV_PROXY_TARGET: mockApiBaseUrl,
+        VITE_SDKWORK_DRIVE_APP_API_BASE_URL: mockApiBaseUrl,
         VITE_SDKWORK_BIRDCODER_APPLICATION_PUBLIC_HTTP_URL: mockApiBaseUrl,
         VITE_BIRDCODER_API_BASE_URL: mockApiBaseUrl,
       },

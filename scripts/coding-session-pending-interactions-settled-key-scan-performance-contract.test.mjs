@@ -11,7 +11,7 @@ const projectionHookPath = path.join(
   
   
   
-  'sdkwork-birdcoder-pc-commons',
+  'sdkwork-birdcoder-pc-workbench',
   'src',
   'hooks',
   'useCodingSessionProjection.ts',

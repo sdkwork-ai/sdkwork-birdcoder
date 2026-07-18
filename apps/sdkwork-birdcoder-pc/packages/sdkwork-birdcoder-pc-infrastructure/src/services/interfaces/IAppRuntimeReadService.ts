@@ -18,7 +18,7 @@ import type {
   BirdCoderEngineDescriptor,
   BirdCoderModelCatalogEntry,
   BirdCoderOperationDescriptor,
-} from '@sdkwork/birdcoder-pc-types';
+} from '@sdkwork/birdcoder-pc-contracts-commons';
 
 export interface BirdCoderRuntimeSessionPage<TItem> {
   items: TItem[];

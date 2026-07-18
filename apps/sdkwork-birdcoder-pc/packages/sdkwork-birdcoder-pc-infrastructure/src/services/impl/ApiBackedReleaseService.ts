@@ -1,4 +1,4 @@
-import type { BirdCoderReleaseSummary } from '@sdkwork/birdcoder-pc-types';
+import type { BirdCoderReleaseSummary } from '@sdkwork/birdcoder-pc-contracts-commons';
 import type { IReleaseService } from '../interfaces/IReleaseService.ts';
 import type { BirdCoderBackendSdkApiClient } from '../sdkClients.ts';
 

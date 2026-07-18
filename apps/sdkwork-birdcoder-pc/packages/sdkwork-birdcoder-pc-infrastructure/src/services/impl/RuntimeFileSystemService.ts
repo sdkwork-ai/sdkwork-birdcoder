@@ -9,7 +9,7 @@ import {
   type LocalFolderMountSource,
   type WorkspaceFileSearchExecutionResult,
   type WorkspaceFileSearchOptions,
-} from '@sdkwork/birdcoder-pc-types';
+} from '@sdkwork/birdcoder-pc-contracts-commons';
 import { APP_SESSION_CHANGE_EVENT_NAME } from '@sdkwork/birdcoder-pc-core/appSessionEvents';
 import {
   createBirdCoderTauriFileSystemRuntime,
@@ -30,7 +30,7 @@ import {
 interface BrowserWritableLike {
   abort?(): Promise<void>;
   close(): Promise<void>;
-  write(data: ArrayBuffer | string): Promise<void>;
+  write(data: ArrayBuffer | ArrayBufferView | string): Promise<void>;
 }
 
 interface BrowserFileLike {
@@ -38,6 +38,7 @@ interface BrowserFileLike {
   lastModified?: number;
   slice?(start?: number, end?: number): BrowserFileLike;
   size?: number;
+  stream?(): ReadableStream<Uint8Array>;
   text(): Promise<string>;
 }
 
@@ -67,13 +68,32 @@ interface BrowserDirectoryHandleLike {
 
 type BrowserHandleLike = BrowserDirectoryHandleLike | BrowserFileHandleLike;
 
+const DEFAULT_BROWSER_FILE_MAX_BYTES = 8 * 1024 * 1024;
+
 async function copyBrowserFileSnapshot(
   file: BrowserFileLike,
   writable: BrowserWritableLike,
 ): Promise<void> {
   try {
-    const payload = file.arrayBuffer ? await file.arrayBuffer() : await file.text();
-    await writable.write(payload);
+    const stream = file.stream?.();
+    if (stream) {
+      const reader = stream.getReader();
+      try {
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          await writable.write(value);
+        }
+      } finally {
+        reader.releaseLock();
+      }
+    } else {
+      if (typeof file.size !== 'number' || file.size > DEFAULT_BROWSER_FILE_MAX_BYTES) {
+        throw new Error('Browser file copy requires streaming above the editor memory limit.');
+      }
+      const payload = file.arrayBuffer ? await file.arrayBuffer() : await file.text();
+      await writable.write(payload);
+    }
     await writable.close();
   } catch (error) {
     try {
@@ -3026,6 +3046,14 @@ export class RuntimeFileSystemService implements IFileSystemService {
 
     const file = await fileHandle.getFile();
     const maxCharacters = options.maxCharacters;
+    if (typeof file.size !== 'number') {
+      throw new Error('Browser-mounted file size metadata is unavailable.');
+    }
+    if (maxCharacters === undefined && file.size > DEFAULT_BROWSER_FILE_MAX_BYTES) {
+      throw new Error(
+        `Browser-mounted file exceeds the ${DEFAULT_BROWSER_FILE_MAX_BYTES} byte editor limit.`,
+      );
+    }
     const shouldReadPrefix =
       typeof maxCharacters === 'number' &&
       Number.isFinite(maxCharacters) &&
@@ -3041,10 +3069,6 @@ export class RuntimeFileSystemService implements IFileSystemService {
       return null;
     }
 
-    if (!shouldReadPrefix) {
-      this.projectFileContent[projectId] ??= {};
-      this.projectFileContent[projectId][path] = content;
-    }
     return content;
   }
 
@@ -3128,10 +3152,6 @@ export class RuntimeFileSystemService implements IFileSystemService {
       return null;
     }
 
-    if (!options.maxBytes) {
-      this.projectFileContent[projectId] ??= {};
-      this.projectFileContent[projectId][path] = content;
-    }
     return content;
   }
 

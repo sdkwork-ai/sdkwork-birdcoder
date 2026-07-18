@@ -96,6 +96,26 @@ assert.equal(
   path.resolve(desktopRootDir, '../sdkwork-birdcoder-$1/src'),
 );
 
+for (const sdkFacadeName of ['birdcoder-app', 'drive-app', 'messaging-app']) {
+  const sdkFacadeSpecifier = `@sdkwork/birdcoder-pc-core/sdk/${sdkFacadeName}`;
+  const sdkFacadeAlias = findAlias(
+    (entry) => entry.find === sdkFacadeSpecifier,
+    `Desktop host config must define an explicit ${sdkFacadeName} SDK facade alias.`,
+  );
+  assert.equal(
+    sdkFacadeAlias.replacement,
+    path.resolve(
+      desktopRootDir,
+      `../sdkwork-birdcoder-pc-core/src/sdk/${sdkFacadeName}-sdk.ts`,
+    ),
+  );
+  assert.ok(
+    config.resolve.alias.indexOf(sdkFacadeAlias)
+      < config.resolve.alias.indexOf(birdcoderPackageSubpathAlias),
+    `${sdkFacadeName} SDK facade alias must take precedence over the generic BirdCoder package-subpath alias.`,
+  );
+}
+
 const reactRouterDomAlias = findAlias(
   (entry) => entry.find === 'react-router-dom',
   'Desktop host config must resolve react-router-dom from the BirdCoder workspace dependency.',
@@ -358,7 +378,7 @@ assert.equal(
   resolveBirdcoderTerminalInfrastructureRuntimePath(desktopRootDir),
   path.resolve(
     desktopRootDir,
-    '../sdkwork-birdcoder-pc-commons/src/terminal/birdcoderTerminalInfrastructureRuntime.ts',
+    '../sdkwork-birdcoder-pc-workbench/src/terminal/birdcoderTerminalInfrastructureRuntime.ts',
   ),
   'Shared terminal path resolver must return the canonical BirdCoder terminal runtime entry path.',
 );

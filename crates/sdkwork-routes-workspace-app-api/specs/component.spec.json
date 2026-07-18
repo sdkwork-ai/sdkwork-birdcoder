@@ -94,7 +94,8 @@
       ".",
       "sdkwork_routes_workspace_app_api::WorkspaceAppState",
       "sdkwork_routes_workspace_app_api::build_workspace_app_router",
-      "sdkwork_routes_workspace_app_api::workspace_app_api_route_manifest"
+      "sdkwork_routes_workspace_app_api::workspace_app_api_route_manifest",
+      "sdkwork_birdcoder_project_service::service::project_workspace_binding_service::ProjectWorkspaceBindingService"
     ],
     "providedPorts": [
       {

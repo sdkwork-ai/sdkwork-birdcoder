@@ -18,15 +18,15 @@ const shellRuntimeBootstrapServerBaseUrlSource = readText(
   'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-shell-runtime/src/application/bootstrap/bootstrapServerBaseUrl.ts',
 );
 const lazyDefaultIdeServicesSource = readText(
-  'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-commons/src/context/lazyDefaultIdeServices.ts',
+  'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-workbench/src/context/lazyDefaultIdeServices.ts',
 );
 const defaultIdeServicesLoaderSource = readText(
-  'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-commons/src/context/defaultIdeServicesLoader.ts',
+  'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-workbench/src/context/defaultIdeServicesLoader.ts',
 );
 
 assert.ok(
-  !pathExists('apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-commons/src/shell.ts'),
-  '@sdkwork/birdcoder-pc-commons must not keep the legacy src/shell.ts barrel.',
+  !pathExists('apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-workbench/src/shell.ts'),
+  '@sdkwork/birdcoder-pc-workbench must not keep the legacy src/shell.ts barrel.',
 );
 assert.ok(
   !pathExists('apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-shell/src/legacy/LegacyBirdcoderApp.tsx'),
@@ -44,12 +44,12 @@ assert.ok(
 assert.match(
   lazyDefaultIdeServicesSource,
   /import\(['"]\.\/defaultIdeServicesLoader\.ts['"]\)/u,
-  '@sdkwork/birdcoder-pc-commons lazyDefaultIdeServices must lazy-load the local loader bridge.',
+  '@sdkwork/birdcoder-pc-workbench lazyDefaultIdeServices must lazy-load the local loader bridge.',
 );
 assert.match(
   defaultIdeServicesLoaderSource,
   /from ['"]@sdkwork\/birdcoder-pc-infrastructure\/services\/lazyDefaultIdeServices['"]/u,
-  '@sdkwork/birdcoder-pc-commons defaultIdeServicesLoader must resolve BirdCoder IDE services from the lazyDefaultIdeServices subpath to avoid barrel-induced chunk cycles.',
+  '@sdkwork/birdcoder-pc-workbench defaultIdeServicesLoader must resolve BirdCoder IDE services from the lazyDefaultIdeServices subpath to avoid barrel-induced chunk cycles.',
 );
 
 for (const relativePath of [
@@ -124,7 +124,7 @@ assert.ok(
 );
 
 for (const forbiddenStartupRuntimeDependency of [
-  '@sdkwork/birdcoder-pc-commons',
+  '@sdkwork/birdcoder-pc-workbench',
   '@sdkwork/birdcoder-pc-workbench-storage',
   '@sdkwork/birdcoder-pc-infrastructure',
   '@sdkwork/birdcoder-pc-infrastructure-runtime',

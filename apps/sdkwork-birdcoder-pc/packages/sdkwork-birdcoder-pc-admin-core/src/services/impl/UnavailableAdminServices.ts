@@ -1,4 +1,4 @@
-import type { BirdCoderDeploymentRecordSummary, BirdCoderIamAuditEventSummary, BirdCoderIamPolicySummary } from '@sdkwork/birdcoder-pc-types';
+import type { BirdCoderDeploymentRecordSummary, BirdCoderIamAuditEventSummary, BirdCoderIamPolicySummary } from '@sdkwork/birdcoder-pc-contracts-commons';
 import type { IAdminDeploymentService } from '../interfaces/IAdminDeploymentService.ts';
 import type { IAdminPolicyService } from '../interfaces/IAdminPolicyService.ts';
 import type { IAuditService } from '../interfaces/IAuditService.ts';
@@ -14,6 +14,14 @@ export class UnavailableAdminDeploymentService implements IAdminDeploymentServic
 
 export class UnavailableAdminPolicyService implements IAdminPolicyService {
   async getPolicies(): Promise<BirdCoderIamPolicySummary[]> {
+    throw new Error(ADMIN_SURFACE_REQUIRED_MESSAGE);
+  }
+
+  async saveSandboxPolicy(): Promise<BirdCoderIamPolicySummary> {
+    throw new Error(ADMIN_SURFACE_REQUIRED_MESSAGE);
+  }
+
+  async deleteSandboxPolicy(): Promise<void> {
     throw new Error(ADMIN_SURFACE_REQUIRED_MESSAGE);
   }
 }

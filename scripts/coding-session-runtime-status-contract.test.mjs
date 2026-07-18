@@ -7,11 +7,11 @@ import {
 } from './birdcoder-canonical-server-rust-sources.mjs';
 
 const typesSource = fs.readFileSync(
-  new URL('../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-types/src/coding-session.ts', import.meta.url),
+  new URL('../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-contracts-commons/src/coding-session.ts', import.meta.url),
   'utf8',
 );
 const sessionRefreshSource = fs.readFileSync(
-  new URL('../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-commons/src/workbench/sessionRefresh.ts', import.meta.url),
+  new URL('../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-workbench/src/workbench/sessionRefresh.ts', import.meta.url),
   'utf8',
 );
 const apiProjectServiceSource = fs.readFileSync(
@@ -19,11 +19,11 @@ const apiProjectServiceSource = fs.readFileSync(
   'utf8',
 );
 const serverApiSource = fs.readFileSync(
-  new URL('../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-types/src/server-api.ts', import.meta.url),
+  new URL('../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-contracts-commons/src/server-api.ts', import.meta.url),
   'utf8',
 );
 const workspaceRealtimeSource = fs.readFileSync(
-  new URL('../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-commons/src/stores/workspaceRealtime.ts', import.meta.url),
+  new URL('../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-workbench/src/stores/workspaceRealtime.ts', import.meta.url),
   'utf8',
 );
 const rustServerSource = readCanonicalServerRustSource(CANONICAL_DOMAIN_RUST_PATHS.codingSessionsEventPayload);

@@ -2,7 +2,7 @@ import type { BirdCoderBackendSdkApiClient } from '../apps/sdkwork-birdcoder-pc/
 import assert from 'node:assert/strict';
 import type {
   BirdCoderDeploymentRecordSummary,
-} from '@sdkwork/birdcoder-pc-types';
+} from '@sdkwork/birdcoder-pc-contracts-commons';
 import { createDefaultBirdCoderIdeServices } from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/src/services/defaultIdeServices.ts';
 import { createBackendSdkClientContractStub } from './split-sdk-client-contract-stub.ts';
 

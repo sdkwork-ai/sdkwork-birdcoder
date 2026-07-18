@@ -95,7 +95,12 @@
   ],
   "contracts": {
     "publicExports": [
-      "."
+      ".",
+      "./defaultIdeServices",
+      "./membershipSdkBootstrap",
+      "./projectRuntimeLocation",
+      "./driveSandboxExplorer",
+      "./workspaceRealtime"
     ],
     "runtimeEntrypoints": [],
     "sdkClients": [],
@@ -114,7 +119,7 @@
   },
   "verification": {
     "commands": [
-      "node apps/scripts/validate-component-specs.mjs --apps-root apps --json"
+      "node ../sdkwork-specs/tools/check-component-port-bindings.mjs --root ."
     ]
   },
   "metadata": {

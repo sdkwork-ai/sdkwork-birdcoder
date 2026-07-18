@@ -7,7 +7,7 @@ import assert from 'node:assert/strict';
 import type {
   BirdCoderCodingSessionEvent,
   BirdCoderCodingSessionSummary,
-} from '@sdkwork/birdcoder-pc-types';
+} from '@sdkwork/birdcoder-pc-contracts-commons';
 import {
   TEST_CODE_ENGINE_MODEL_CONFIG,
   buildTestCodeEngineModelConfigSyncResult,
@@ -34,7 +34,7 @@ const sdkClientsModulePath = new URL(
   import.meta.url,
 );
 const typesEntryModulePath = new URL(
-  '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-types/src/index.ts',
+  '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-contracts-commons/src/index.ts',
   import.meta.url,
 );
 const defaultServicesModulePath = new URL(
@@ -42,7 +42,7 @@ const defaultServicesModulePath = new URL(
   import.meta.url,
 );
 const sessionInventoryModulePath = new URL(
-  '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-commons/src/workbench/sessionInventory.ts',
+  '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-workbench/src/workbench/sessionInventory.ts',
   import.meta.url,
 );
 

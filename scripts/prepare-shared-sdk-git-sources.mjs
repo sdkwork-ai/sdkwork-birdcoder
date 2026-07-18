@@ -36,7 +36,7 @@ export const DEFAULT_SHARED_CORE_REPO_URL = 'https://github.com/Sdkwork-Cloud/sd
 export const DEFAULT_SHARED_UI_REPO_URL = 'https://github.com/Sdkwork-Cloud/sdkwork-ui.git';
 export const DEFAULT_SHARED_TERMINAL_REPO_URL = 'https://github.com/Sdkwork-Cloud/sdkwork-terminal.git';
 export const DEFAULT_SHARED_SDK_COMMONS_REPO_URL = 'https://github.com/Sdkwork-Cloud/sdkwork-sdk-commons.git';
-export const DEFAULT_SHARED_SDK_RELEASE_CONFIG_PATH = 'configs/shared-sdk-release-sources.json';
+export const DEFAULT_SHARED_SDK_RELEASE_CONFIG_PATH = 'tools/shared-sdk-release-sources.json';
 const SHARED_SDK_AUTH_TOKEN_ENV_VARS = Object.freeze([
   SHARED_SDK_GITHUB_TOKEN_ENV_VAR,
   'GITHUB_TOKEN',

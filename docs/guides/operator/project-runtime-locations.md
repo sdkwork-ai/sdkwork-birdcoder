@@ -128,6 +128,14 @@ trusted verification path are delivered.
 - Keep encryption key references and key rotation material in the approved
   secret-management boundary. Database backup alone is insufficient to recover
   encrypted path material.
+- Before the first encryption-key rotation, set the fingerprint key to the
+  original active master-key material so existing and new duplicate-path
+  fingerprints remain compatible. Keep that fingerprint key stable afterward.
+- Promote a new active master key and key id for writes, move the previous key
+  into the decryption-only JSON keyring, and verify old and new locations before
+  removing any historical key. The runtime accepts at most 15 historical keys.
+- Remove a historical key only after a bounded, audited re-encryption job has
+  migrated every record carrying that key id and recovery evidence is retained.
 - Restore into a controlled environment, verify target identity and key access,
   then require target re-verification before enabling a location capability.
 - Do not back up Browser handles or the local Tauri binding/cache as server

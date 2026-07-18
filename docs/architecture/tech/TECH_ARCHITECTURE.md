@@ -11,6 +11,10 @@ BirdCoder has one PC React renderer and one application-service model. Browser
 and Tauri differ at the host-capability boundary, while projects, locations,
 authorization, and API contracts remain a single application model.
 
+BirdCoder runtime profiles resolve from `SDKWORK_APP_ROOT` or
+`SDKWORK_BIRDCODER_APP_ROOT`. `SDKWORK_IAM_APP_ROOT` remains the sibling `sdkwork-iam` catalog/database-assets root
+and must never be selected as the BirdCoder application root.
+
 Flow:
 
     Browser or Tauri renderer
@@ -258,7 +262,7 @@ server, and container are runtime targets, not profiles.
     pnpm test:migration-replay
     pnpm test:rust-workspace-project-schema-parity-contract
     pnpm check:web-framework-standard
-    pnpm generate:sdk:birdcoder
+    pnpm sdk:generate
     node ../sdkwork-specs/tools/check-api-operation-patterns.mjs --workspace .
     node ../sdkwork-specs/tools/check-api-response-envelope.mjs --workspace .
     node ../sdkwork-specs/tools/check-pagination.mjs --workspace .

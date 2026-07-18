@@ -5,12 +5,12 @@ import assert from 'node:assert/strict';
 import type {
   BirdCoderCodingSessionSummary,
   BirdCoderNativeSessionSummary,
-} from '@sdkwork/birdcoder-pc-types';
+} from '@sdkwork/birdcoder-pc-contracts-commons';
 import {
   listStoredSessionInventory,
   type StoredCodingSessionInventoryRecord,
   type WorkbenchSessionInventoryRecord,
-} from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-commons/src/workbench/sessionInventory.ts';
+} from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-workbench/src/workbench/sessionInventory.ts';
 
 const workspaceId = 'workspace-session-inventory-native-id';
 const projectId = 'project-session-inventory-native-id';

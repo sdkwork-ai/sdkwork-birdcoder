@@ -12,7 +12,7 @@ const providersModulePath = new URL(
   '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/src/storage/providers.ts',
   import.meta.url,
 );
-const typesModulePath = new URL('../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-types/src/index.ts', import.meta.url);
+const typesModulePath = new URL('../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-contracts-commons/src/index.ts', import.meta.url);
 
 const dataKernelModule = await import(`${dataKernelModulePath.href}?t=${Date.now()}`);
 const sqlExecutorModule = await import(`${sqlExecutorModulePath.href}?t=${Date.now()}`);

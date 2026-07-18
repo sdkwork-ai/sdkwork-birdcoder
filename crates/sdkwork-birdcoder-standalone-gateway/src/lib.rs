@@ -1,7 +1,5 @@
-pub mod bootstrap;
-pub mod business_metrics;
-pub mod health;
-pub mod observability;
-pub mod openapi;
-pub mod routes;
 pub mod server;
+
+pub use sdkwork_birdcoder_gateway_assembly::{
+    bootstrap, business_metrics, health, observability, openapi,
+};

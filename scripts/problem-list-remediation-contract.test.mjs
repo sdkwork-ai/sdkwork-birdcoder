@@ -19,8 +19,8 @@ const [
 ] = await Promise.all([
   readSource('apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-auth/src/auth-surface.ts'),
   readSource('apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-code/src/pages/codeFileSearch.ts'),
-  readSource('apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-commons/src/chat/draftStore.ts'),
-  readSource('apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-commons/src/terminal/runtime.ts'),
+  readSource('apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-workbench/src/chat/draftStore.ts'),
+  readSource('apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-workbench/src/terminal/runtime.ts'),
   readSource('apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-server/src/projectionRepository.ts'),
   readSource('replace-colors.cjs'),
   readSource('apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-user/src/vip.ts'),

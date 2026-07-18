@@ -84,12 +84,12 @@ const allowedDebtTokenLines = [
     reason: 'model catalog exposes deprecated as a business lifecycle status',
   },
   {
-    relativePath: 'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-types/src/data.ts',
+    relativePath: 'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-contracts-commons/src/data.ts',
     pattern: /name: 'deprecated_at'.*description: 'Deprecation time\.'/u,
     reason: 'data schema exposes the canonical lifecycle timestamp column',
   },
   {
-    relativePath: 'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-types/src/engine.ts',
+    relativePath: 'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-contracts-commons/src/engine.ts',
     pattern: /\| 'deprecated'/u,
     reason: 'engine availability status includes deprecated as lifecycle state',
   },

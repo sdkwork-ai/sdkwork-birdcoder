@@ -14,7 +14,7 @@ const hookSource = fs.readFileSync(
     
     
     
-    'sdkwork-birdcoder-pc-commons',
+    'sdkwork-birdcoder-pc-workbench',
     'src',
     'hooks',
     'useFileSystem.ts',
@@ -31,7 +31,7 @@ const commonsInterfaceSource = fs.readFileSync(
     
     
     
-    'sdkwork-birdcoder-pc-commons',
+    'sdkwork-birdcoder-pc-workbench',
     'src',
     'services',
     'interfaces',

@@ -30,7 +30,7 @@ const sdkClientsModulePath = new URL(
   import.meta.url,
 );
 const typesEntryModulePath = new URL(
-  '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-types/src/index.ts',
+  '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-contracts-commons/src/index.ts',
   import.meta.url,
 );
 const defaultServicesModulePath = new URL(
@@ -275,7 +275,7 @@ try {
         status: 'active',
         hostMode: 'server',
         engineId: 'codex',
-        modelId: 'gpt-5-codex',
+        modelId: 'gpt-5.4',
         createdAt: '2026-04-11T12:02:00.000Z',
         updatedAt: '2026-04-11T12:03:01.000Z',
         lastTurnAt: '2026-04-11T12:03:01.000Z',
@@ -377,7 +377,7 @@ try {
           status: 'active',
           hostMode: 'server',
           engineId: 'codex',
-          modelId: 'gpt-5-codex',
+          modelId: 'gpt-5.4',
           createdAt: '2026-04-11T12:02:00.000Z',
           updatedAt: '2026-04-11T12:03:01.000Z',
           lastTurnAt: '2026-04-11T12:03:01.000Z',
@@ -445,7 +445,7 @@ try {
         'Missing Runtime Location Session',
         {
           engineId: 'codex',
-          modelId: 'gpt-5-codex',
+          modelId: 'gpt-5.4',
         } as never,
       ),
     /no runtime-location binding/i,
@@ -462,7 +462,7 @@ try {
     'Turn Contract Session',
     {
       engineId: 'codex',
-      modelId: 'gpt-5-codex',
+      modelId: 'gpt-5.4',
       runtimeLocationId,
     },
   );
@@ -488,7 +488,7 @@ try {
   assert.deepEqual(observedRemoteSessionCreates, [
     {
       engineId: 'codex',
-      modelId: 'gpt-5-codex',
+      modelId: 'gpt-5.4',
       projectId: 'project-app-runtime-turn-contract',
       runtimeLocationId,
       title: 'Turn Contract Session',
@@ -565,7 +565,7 @@ try {
       status: 'active',
       hostMode: 'server',
       engineId: 'codex',
-      modelId: 'gpt-5-codex',
+      modelId: 'gpt-5.4',
       createdAt: '2026-04-11T12:03:30.000Z',
       updatedAt: '2026-04-11T12:03:30.000Z',
       lastTurnAt: '2026-04-11T12:03:30.000Z',
@@ -615,7 +615,7 @@ try {
       status: 'active',
       hostMode: 'server',
       engineId: 'codex',
-      modelId: 'gpt-5-codex',
+      modelId: 'gpt-5.4',
       createdAt: '2026-04-11T12:05:00.000Z',
       updatedAt: '2026-04-11T12:05:00.000Z',
       lastTurnAt: '2026-04-11T12:05:00.000Z',
@@ -653,7 +653,7 @@ try {
       status: 'active',
       hostMode: 'server',
       engineId: 'codex',
-      modelId: 'gpt-5-codex',
+      modelId: 'gpt-5.4',
       createdAt: '2026-04-11T12:06:00.000Z',
       updatedAt: '2026-04-11T12:06:00.000Z',
       lastTurnAt: '2026-04-11T12:06:00.000Z',
@@ -706,7 +706,7 @@ try {
       status: 'active',
       hostMode: 'server',
       engineId: 'codex',
-      modelId: 'gpt-5-codex',
+      modelId: 'gpt-5.4',
       createdAt: '2026-04-11T12:07:00.000Z',
       updatedAt: '2026-04-11T12:07:00.000Z',
       lastTurnAt: '2026-04-11T12:07:00.000Z',

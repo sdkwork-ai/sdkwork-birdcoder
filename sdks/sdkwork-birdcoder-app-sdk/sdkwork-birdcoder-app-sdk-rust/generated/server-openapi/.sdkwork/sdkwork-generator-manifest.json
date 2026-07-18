@@ -36,7 +36,7 @@
     },
     {
       "path": "README.md",
-      "sha256": "fceb68dba117392032502aae026982ad078e9e4903774229917cc39e08c3fa81"
+      "sha256": "816cd234affb7430ab2889465626c1ca845b117e18dbeb5f23111af9e3baddef"
     },
     {
       "path": "sdkwork-sdk.json",
@@ -56,7 +56,7 @@
     },
     {
       "path": "src/api/commerce.rs",
-      "sha256": "e3fee649a2e8b196d7e3d68dd4e1f25b38bf61751cdefe4b45105452ecfbb967"
+      "sha256": "1f92df8d7017491d7d4901ec4ca41fdb3994a0f371651171d10be6c1216ab160"
     },
     {
       "path": "src/api/content.rs",
@@ -281,30 +281,6 @@
     {
       "path": "src/models/bird_coder_commerce_invoice_summary.rs",
       "sha256": "6c26fc93e27a747c58af552e4f92995cf15ec40fb6a10427e58509349ac973de"
-    },
-    {
-      "path": "src/models/bird_coder_commerce_membership_benefit_summary.rs",
-      "sha256": "cfafee50f274636710517fadafde486a3ab59a0ec231da9b798ce9b379f996f7"
-    },
-    {
-      "path": "src/models/bird_coder_commerce_membership_current_envelope.rs",
-      "sha256": "6c456f4b22069213553d996f1a7c9313ee067bdae5c07b2b9d93f0793acc85d5"
-    },
-    {
-      "path": "src/models/bird_coder_commerce_membership_current_summary.rs",
-      "sha256": "a2a3ba65ed5f031a6bb070da74d6e5e60e7af3a9f67a939a5d0b1bfff4e98aa9"
-    },
-    {
-      "path": "src/models/bird_coder_commerce_membership_package_group_summary_list_envelope.rs",
-      "sha256": "ef574823480b99d00e7e2b24121a958c6c6f662f6d69479657dc72215b7fbed1"
-    },
-    {
-      "path": "src/models/bird_coder_commerce_membership_package_group_summary.rs",
-      "sha256": "bd050b02de043404a05a82af49899e8da6a4202481e630eb99a35c2e67cbcd48"
-    },
-    {
-      "path": "src/models/bird_coder_commerce_membership_package_summary.rs",
-      "sha256": "f624038a0e67d281290fe12eb82ae5073c0a22662883ccb556f26cfa1715288e"
     },
     {
       "path": "src/models/bird_coder_commerce_order_summary_envelope.rs",
@@ -888,7 +864,7 @@
     },
     {
       "path": "src/models/mod.rs",
-      "sha256": "c4d21f9abcbb7ec220bd8e8a9d6398d677855659fac2038ffaf6da71a7958c5f"
+      "sha256": "dc4ebaf4f9479a6f8a910431068c19c7fa5ea19e7fca67b97175b66509d8ad35"
     },
     {
       "path": "src/models/page_info.rs",

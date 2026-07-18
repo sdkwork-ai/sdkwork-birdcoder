@@ -9,7 +9,7 @@ export const QUALITY_STANDARD_CHECK_COMMANDS = [
   'node scripts/run-workspace-package-script.mjs . check:server',
   'node scripts/run-workspace-package-script.mjs . check:web-vite-build',
   'node scripts/run-workspace-package-script.mjs . check:web-bundle-budget',
-  'node scripts/run-workspace-package-script.mjs . server:build',
+  'node scripts/run-workspace-package-script.mjs . build:server',
   'node scripts/run-workspace-package-script.mjs . docs:build',
 ];
 

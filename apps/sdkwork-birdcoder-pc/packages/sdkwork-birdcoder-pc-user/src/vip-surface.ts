@@ -1,4 +1,4 @@
-import type { User } from '@sdkwork/birdcoder-pc-types';
+import type { User } from '@sdkwork/birdcoder-pc-contracts-commons';
 import type {
   BirdCoderVipMembershipState,
   IVipMembershipService,

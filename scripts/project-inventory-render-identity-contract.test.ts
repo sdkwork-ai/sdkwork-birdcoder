@@ -3,12 +3,12 @@ import { readFileSync } from 'node:fs';
 import {
   deduplicateBirdCoderCodingSessionsForRender,
   deduplicateBirdCoderProjectsForRender,
-} from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-commons/src/workbench/projectInventoryRender.ts';
+} from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-workbench/src/workbench/projectInventoryRender.ts';
 import type {
   BirdCoderChatMessage,
   BirdCoderCodingSession,
   BirdCoderProject,
-} from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-types/src/index.ts';
+} from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-contracts-commons/src/index.ts';
 
 const codeSidebarSource = readFileSync(
   new URL(

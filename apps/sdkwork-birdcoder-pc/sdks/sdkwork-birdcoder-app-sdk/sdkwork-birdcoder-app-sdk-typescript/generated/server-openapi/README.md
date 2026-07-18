@@ -214,8 +214,12 @@ const result = await client.collaboration.workspaceTeams.list(params);
 ### commerce
 
 ```typescript
-// Get current SDKWork commerce membership
-const result = await client.commerce.memberships.current.retrieve();
+// List SDKWork commerce orders
+const params = {
+  page: 1,
+  page_size: 2,
+};
+const result = await client.commerce.orders.list(params);
 ```
 
 ## Error Handling

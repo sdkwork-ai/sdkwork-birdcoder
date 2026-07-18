@@ -21,7 +21,7 @@ const WEB_ACTIONS = Object.freeze({
     viteMode: 'production',
   },
   'build:dev': {
-    scriptName: 'build:dev:base',
+    scriptName: 'release:build:browser:debug',
     target: 'web-build',
     viteMode: 'development',
   },
@@ -36,12 +36,12 @@ const WEB_ACTIONS = Object.freeze({
     viteMode: 'test',
   },
   dev: {
-    scriptName: 'dev:base',
+    scriptName: 'start:browser',
     target: 'web-dev',
     viteMode: 'development',
   },
-  'dev:test': {
-    scriptName: 'dev:test:base',
+  'dev:test-runner': {
+    scriptName: 'start:browser:check',
     target: 'web-dev',
     viteMode: 'test',
   },
@@ -70,7 +70,7 @@ function parseArgs(argv = []) {
 
 function isClientOnlyPrivateDevCommand(action, resolvedIam) {
   return (
-    (action === 'dev' || action === 'dev:test')
+    (action === 'dev' || action === 'dev:test-runner')
     && resolvedIam.iamMode === 'server-private'
   );
 }

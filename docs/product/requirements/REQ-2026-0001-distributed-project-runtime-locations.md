@@ -121,6 +121,6 @@ server-owned workspaces.
 - node ../sdkwork-specs/tools/check-api-response-envelope.mjs --workspace .
 - node ../sdkwork-specs/tools/check-pagination.mjs --workspace .
 - node ../sdkwork-specs/tools/check-app-sdk-consumer-imports.mjs --workspace .
-- pnpm generate:sdk:birdcoder
+- pnpm sdk:generate
 - pnpm db:validate
 - pnpm docs:build

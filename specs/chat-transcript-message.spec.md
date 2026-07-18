@@ -4,7 +4,7 @@
 
 | Layer | Package | Responsibility |
 | --- | --- | --- |
-| Canonical message | `@sdkwork/birdcoder-pc-types` | `BirdCoderChatMessage`, event projection, **`BirdCoderChatMessageView`** |
+| Canonical message | `@sdkwork/birdcoder-pc-contracts-commons` | `BirdCoderChatMessage`, event projection, **`BirdCoderChatMessageView`** |
 | Renderer registry | `@sdkwork/birdcoder-pc-ui` → `components/chat/messages/` | Pluggable message renderers, content blocks, engine plugins |
 | Composer / virtualization | `@sdkwork/birdcoder-pc-ui` → `UniversalChat` | Scroll windowing, composer, pending interactions |
 

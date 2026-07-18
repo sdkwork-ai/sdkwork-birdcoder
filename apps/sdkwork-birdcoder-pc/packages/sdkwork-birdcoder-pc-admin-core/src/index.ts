@@ -13,7 +13,12 @@ export function createDefaultAdminConfig(): AdminConfig {
 }
 
 export type { IAdminDeploymentService } from './services/interfaces/IAdminDeploymentService.ts';
-export type { IAdminPolicyService } from './services/interfaces/IAdminPolicyService.ts';
+export type {
+  CodeEngineSandboxAccessMode,
+  CodeEngineSandboxScopeType,
+  IAdminPolicyService,
+  SaveCodeEngineSandboxPolicyInput,
+} from './services/interfaces/IAdminPolicyService.ts';
 export type { IAuditService } from './services/interfaces/IAuditService.ts';
 export type { BirdCoderAdminBackendClient } from './services/ports/BirdCoderAdminBackendClient.ts';
 export {
@@ -51,6 +56,10 @@ export {
   type BirdCoderGeneratedBackendSdkClientOptions,
   type BirdCoderTokenManagerAwareBackendSdkClient,
 } from './sdk/backendGeneratedSdkClient.ts';
+export {
+  createBirdCoderMembershipBackendSdkClient,
+  type CreateBirdCoderMembershipBackendSdkClientOptions,
+} from './sdk/membershipBackendSdkClient.ts';
 
 export * from './hooks/useAdminDeployments.ts';
 export * from './hooks/useAdminPolicies.ts';

@@ -4,7 +4,7 @@ import type {
   BirdCoderOpenApiResponseObject,
   BirdCoderOpenApiSchema,
 } from './openApiDocumentTypes.ts';
-import { BIRDCODER_DATA_SCOPES } from '@sdkwork/birdcoder-pc-types';
+import { BIRDCODER_DATA_SCOPES } from '@sdkwork/birdcoder-pc-contracts-commons';
 
 export function createOpenApiSchemaReference(schemaName: string): BirdCoderOpenApiSchema {
   return {

@@ -12,7 +12,7 @@ import {
 } from '@sdkwork/user-pc-react';
 import type {
   User,
-} from '@sdkwork/birdcoder-pc-types';
+} from '@sdkwork/birdcoder-pc-contracts-commons';
 
 const BIRDCODER_USER_PREFERENCES_STORAGE_KEY = 'sdkwork.birdcoder.iam.user.preferences.v1';
 

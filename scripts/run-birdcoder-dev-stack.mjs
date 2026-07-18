@@ -30,30 +30,45 @@ const CLIENT_LOOPBACK_PORT_FALLBACK_HOST = '127.0.0.1';
 const CLIENT_LOOPBACK_PORT_FALLBACK_MAX_ATTEMPTS = 20;
 const DEFAULT_WEB_CLIENT_HOST = '0.0.0.0';
 const DEFAULT_CLIENT_READY_TIMEOUT_MS = 30000;
+const DEFAULT_PLATFORM_GATEWAY_URL = 'http://127.0.0.1:3900';
+const PLATFORM_GATEWAY_SERVICE = 'sdkwork-api-cloud-gateway';
+const PLATFORM_GATEWAY_DRIVE_SERVICE = 'sdkwork-drive-app-api';
+const PLATFORM_GATEWAY_MEMBERSHIP_APP_SERVICE = 'sdkwork-membership-app-api';
+const PLATFORM_GATEWAY_MEMBERSHIP_BACKEND_SERVICE = 'sdkwork-membership-backend-api';
 const STACK_VITE_MODES = new Set(['development', 'test']);
 
 const STACK_SURFACE_CONFIGS = Object.freeze({
   desktop: {
     clientPackageDir: 'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-desktop',
     clientScriptNamesByViteMode: {
-      development: 'tauri:dev:base',
-      test: 'tauri:dev:test:base',
+      development: 'start:desktop',
+      test: 'start:desktop:check',
     },
     target: 'desktop-dev',
   },
   web: {
+    browser: true,
     clientPackageDir: 'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-web',
     clientScriptNamesByViteMode: {
-      development: 'dev:base',
-      test: 'dev:test:base',
+      development: 'start:browser',
+      test: 'start:browser:check',
     },
     target: 'web-dev',
+  },
+  h5: {
+    browser: true,
+    clientPackageDir: 'apps/sdkwork-birdcoder-h5',
+    clientScriptNamesByViteMode: {
+      development: 'start:browser',
+      test: 'start:browser:check',
+    },
+    target: 'h5-dev',
   },
 });
 
 const SERVER_DEV_CONFIG = Object.freeze({
     packageDir: 'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-server',
-  scriptName: 'dev:base',
+  scriptName: 'start:server',
   target: 'server-dev',
 });
 
@@ -143,6 +158,115 @@ function resolveApiOriginUrl(env) {
   } catch {
     return undefined;
   }
+}
+
+function resolvePlatformGatewayUrl(env) {
+  const rawUrl =
+    readTrimmedValue(env.SDKWORK_BIRDCODER_PLATFORM_API_GATEWAY_HTTP_URL)
+    || readTrimmedValue(env.VITE_SDKWORK_BIRDCODER_PLATFORM_API_GATEWAY_HTTP_URL)
+    || DEFAULT_PLATFORM_GATEWAY_URL;
+  const parsedUrl = new URL(rawUrl);
+  if (!['http:', 'https:'].includes(parsedUrl.protocol)) {
+    throw new Error('BirdCoder platform API gateway URL must use HTTP or HTTPS.');
+  }
+  return parsedUrl;
+}
+
+function platformGatewayAutostartEnabled(env) {
+  const value = readTrimmedValue(env.SDKWORK_BIRDCODER_PLATFORM_API_GATEWAY_AUTOSTART);
+  return !value || !['0', 'false', 'no', 'off'].includes(value.toLowerCase());
+}
+
+function sqliteDatabaseUrl(filePath) {
+  const normalizedPath = String(filePath).replace(/\\/gu, '/');
+  return `sqlite:///${normalizedPath}?mode=rwc`;
+}
+
+// Detects the database engine from a connection URL so the gateway process
+// gets a service-specific engine hint. Without this, SDKWORK_CLAW_DATABASE_ENGINE
+// (leaked from .env.postgres when IAM dev login needs PostgreSQL) overrides URL
+// scheme detection in sdkwork-database-config and wrongly classifies SQLite URLs
+// as Postgres, causing sqlx to reject the appended `options=-c search_path=...`.
+function detectDatabaseEngineFromUrl(url) {
+  const normalized = String(url ?? '').toLowerCase();
+  if (normalized.startsWith('sqlite:')) {
+    return 'sqlite';
+  }
+  if (normalized.startsWith('postgres://') || normalized.startsWith('postgresql://')) {
+    return 'postgresql';
+  }
+  return undefined;
+}
+
+function createPlatformGatewayPlan({ env, viteMode }) {
+  if (!platformGatewayAutostartEnabled(env)) {
+    return null;
+  }
+
+  const gatewayRoot = path.resolve(WORKSPACE_ROOT, '..', 'sdkwork-api-cloud-gateway');
+  const configProfile = viteMode === 'test' ? 'test' : 'development';
+  const configPath = path.join(
+    WORKSPACE_ROOT,
+    'etc',
+    `sdkwork-api-cloud-gateway.birdcoder.${configProfile}.toml`,
+  );
+  const driveDatabasePath = path.join(
+    WORKSPACE_ROOT,
+    '.runtime',
+    'standalone-development',
+    'drive.sqlite3',
+  );
+  const membershipDatabasePath = path.join(
+    WORKSPACE_ROOT,
+    '.runtime',
+    'standalone-development',
+    'membership.sqlite3',
+  );
+  const platformGatewayUrl = resolvePlatformGatewayUrl(env);
+  const driveDatabaseUrl =
+    readTrimmedValue(env.SDKWORK_DRIVE_DATABASE_URL)
+    || sqliteDatabaseUrl(driveDatabasePath);
+  const membershipDatabaseUrl =
+    readTrimmedValue(env.SDKWORK_MEMBERSHIP_DATABASE_URL)
+    || sqliteDatabaseUrl(membershipDatabasePath);
+  const gatewayEnv = {
+    ...env,
+    SDKWORK_API_CLOUD_GATEWAY_BIND: '0.0.0.0:3900',
+    SDKWORK_DRIVE_DATABASE_URL: driveDatabaseUrl,
+    SDKWORK_DRIVE_DATABASE_ENGINE:
+      readTrimmedValue(env.SDKWORK_DRIVE_DATABASE_ENGINE)
+      || detectDatabaseEngineFromUrl(driveDatabaseUrl),
+    SDKWORK_MEMBERSHIP_DATABASE_URL: membershipDatabaseUrl,
+    SDKWORK_MEMBERSHIP_DATABASE_ENGINE:
+      readTrimmedValue(env.SDKWORK_MEMBERSHIP_DATABASE_ENGINE)
+      || detectDatabaseEngineFromUrl(membershipDatabaseUrl),
+    SDKWORK_MEMBERSHIP_APP_ROOT:
+      readTrimmedValue(env.SDKWORK_MEMBERSHIP_APP_ROOT)
+      || path.resolve(WORKSPACE_ROOT, '..', 'sdkwork-membership'),
+    CARGO_TARGET_DIR:
+      readTrimmedValue(env.SDKWORK_API_CLOUD_GATEWAY_CARGO_TARGET_DIR)
+      || path.join(WORKSPACE_ROOT, '.runtime', 'cargo-target', 'platform-gateway'),
+  };
+
+  return {
+    args: [
+      'run',
+      '-p',
+      'sdkwork-api-cloud-gateway',
+      '--bin',
+      'sdkwork-api-cloud-gateway',
+      '--features',
+      'foundation-drive,foundation-membership',
+      '--',
+      '--config',
+      configPath,
+    ],
+    command: process.platform === 'win32' ? 'cargo.exe' : 'cargo',
+    cwd: gatewayRoot,
+    env: gatewayEnv,
+    shell: false,
+    url: platformGatewayUrl,
+  };
 }
 
 function formatCommandPlan(plan) {
@@ -317,7 +441,7 @@ export async function applyClientLoopbackPortFallback({
 
 function applyWebClientLanHost(stackPlans) {
   if (
-    stackPlans?.target !== 'web'
+    !STACK_SURFACE_CONFIGS[stackPlans?.target]?.browser
     || hasCliOption(stackPlans.clientPlan?.args, '--host')
   ) {
     return stackPlans;
@@ -331,7 +455,7 @@ function applyWebClientLanHost(stackPlans) {
 
 function applyWebClientStrictPort(stackPlans) {
   if (
-    stackPlans?.target !== 'web'
+    !STACK_SURFACE_CONFIGS[stackPlans?.target]?.browser
     || hasCliOption(stackPlans.clientPlan?.args, '--strictPort')
   ) {
     return stackPlans;
@@ -412,12 +536,17 @@ function resolveStackPlans({
     || readTrimmedValue(serverResolvedIam?.env.SDKWORK_IAM_MODE)
     || 'local';
   const apiOriginUrl = resolveApiOriginUrl(clientResolvedIam.env);
+  const platformGatewayPlan = createPlatformGatewayPlan({
+    env: clientResolvedIam.env,
+    viteMode: resolvedViteMode,
+  });
 
   return {
     apiOriginUrl,
     clientPlan: appendPlanArgs(clientPlan, clientArgs),
     clientResolvedIam,
     needsServer,
+    platformGatewayPlan,
     sdkworkIamMode,
     serverPlan,
     serverResolvedIam,
@@ -432,6 +561,7 @@ function printStackSummary({
   clientPlan,
   clientResolvedIam,
   sdkworkIamMode,
+  platformGatewayPlan,
   serverPlan,
   target,
   viteMode,
@@ -447,6 +577,11 @@ function printStackSummary({
     console.log(`[birdcoder-stack] server=${formatCommandPlan(serverPlan)}`);
   } else {
     console.log('[birdcoder-stack] server=embedded');
+  }
+  if (platformGatewayPlan) {
+    console.log(`[birdcoder-stack] platformGateway=${formatCommandPlan(platformGatewayPlan)}`);
+  } else {
+    console.log('[birdcoder-stack] platformGateway=external');
   }
   if (clientPortFallback) {
     console.log(
@@ -599,6 +734,67 @@ async function waitForServerReady({
   return false;
 }
 
+async function probePlatformGatewayIdentity(platformGatewayUrl) {
+  const readinessUrl = new URL('/readyz', platformGatewayUrl).toString();
+  try {
+    const response = await probeServerReadyEndpoint(
+      readinessUrl,
+      DEFAULT_SERVER_READY_REQUEST_TIMEOUT_MS,
+    );
+    const body = await response.json().catch(() => null);
+    const dependencyServiceIds = Array.isArray(body?.dependencies)
+      ? body.dependencies.map((dependency) => dependency?.serviceId).filter(Boolean)
+      : [];
+    const valid = response.ok
+      && body?.service === PLATFORM_GATEWAY_SERVICE
+      && body?.mode === 'embedded'
+      && dependencyServiceIds.includes(PLATFORM_GATEWAY_DRIVE_SERVICE)
+      && dependencyServiceIds.includes(PLATFORM_GATEWAY_MEMBERSHIP_APP_SERVICE)
+      && dependencyServiceIds.includes(PLATFORM_GATEWAY_MEMBERSHIP_BACKEND_SERVICE);
+    return {
+      dependencyServiceIds,
+      mode: body?.mode,
+      reachable: true,
+      service: body?.service,
+      valid,
+    };
+  } catch {
+    return { reachable: false, valid: false };
+  }
+}
+
+function platformGatewayIdentityError(identity, platformGatewayUrl) {
+  const dependencies = identity.dependencyServiceIds?.join(',') || 'none';
+  return new Error(
+    `Port ${platformGatewayUrl.port || '3900'} is not the BirdCoder platform assembly gateway: `
+    + `service=${identity.service || 'unknown'}, mode=${identity.mode || 'unknown'}, `
+    + `dependencies=${dependencies}. Stop the conflicting process and start ${PLATFORM_GATEWAY_SERVICE} `
+    + `with foundation-drive,foundation-membership; renderer ports must not proxy platform APIs.`,
+  );
+}
+
+async function waitForPlatformGatewayReady({
+  platformGatewayChild,
+  platformGatewayUrl,
+  timeoutMs = DEFAULT_SERVER_READY_TIMEOUT_MS,
+} = {}) {
+  const deadline = Date.now() + timeoutMs;
+  while (Date.now() < deadline) {
+    if (platformGatewayChild?.exitCode !== null) {
+      return false;
+    }
+    const identity = await probePlatformGatewayIdentity(platformGatewayUrl);
+    if (identity.valid) {
+      return true;
+    }
+    if (identity.reachable) {
+      throw platformGatewayIdentityError(identity, platformGatewayUrl);
+    }
+    await sleep(DEFAULT_SERVER_READY_POLL_INTERVAL_MS);
+  }
+  return false;
+}
+
 async function waitForClientReady({
   clientChild,
   port,
@@ -721,9 +917,43 @@ export async function runBirdcoderDevStack({
     console.log('[birdcoder-stack] server ready');
   }
 
+  if (stackPlans.platformGatewayPlan) {
+    const existingIdentity = await probePlatformGatewayIdentity(
+      stackPlans.platformGatewayPlan.url,
+    );
+    if (existingIdentity.reachable && !existingIdentity.valid) {
+      shutdownChildren();
+      throw platformGatewayIdentityError(
+        existingIdentity,
+        stackPlans.platformGatewayPlan.url,
+      );
+    }
+    if (existingIdentity.valid) {
+      console.log('[birdcoder-stack] platform gateway ready (existing assembly)');
+    } else {
+      const platformGatewayChild = spawnPlan(
+        stackPlans.platformGatewayPlan,
+        'platform gateway',
+      );
+      activeChildren.push(platformGatewayChild);
+      const ready = await waitForPlatformGatewayReady({
+        platformGatewayChild,
+        platformGatewayUrl: stackPlans.platformGatewayPlan.url,
+      });
+      if (!ready) {
+        shutdownChildren();
+        throw new Error(
+          `BirdCoder platform assembly gateway did not become ready at ${stackPlans.platformGatewayPlan.url.origin} `
+          + `within ${DEFAULT_SERVER_READY_TIMEOUT_MS}ms.`,
+        );
+      }
+      console.log('[birdcoder-stack] platform gateway ready');
+    }
+  }
+
   const clientChild = spawnPlan(stackPlans.clientPlan, 'client');
   activeChildren.push(clientChild);
-  if (stackPlans.target === 'web') {
+  if (STACK_SURFACE_CONFIGS[stackPlans.target]?.browser) {
     const clientReady = await waitForClientReady({
       ...resolveClientHostAndPort(stackPlans.clientPlan),
       clientChild,

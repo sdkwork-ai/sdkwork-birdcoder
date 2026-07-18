@@ -2,7 +2,7 @@ import type {
   BirdCoderChatMessage,
   BirdCoderCodingSession,
   BirdCoderProject,
-} from '@sdkwork/birdcoder-pc-types';
+} from '@sdkwork/birdcoder-pc-contracts-commons';
 
 export type MultiWindowGlobalMode = 'chat' | 'preview';
 export type MultiWindowPaneMode = MultiWindowGlobalMode;

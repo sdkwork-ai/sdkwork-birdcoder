@@ -5,7 +5,7 @@ import type {
   BirdCoderSchemaMigrationDefinition,
   BirdCoderStorageProvider,
   BirdCoderUnitOfWork,
-} from '@sdkwork/birdcoder-pc-types';
+} from '@sdkwork/birdcoder-pc-contracts-commons';
 import { createBirdCoderStorageDialect } from './dialects.ts';
 import {
   type BirdCoderForkableSqlExecutor,

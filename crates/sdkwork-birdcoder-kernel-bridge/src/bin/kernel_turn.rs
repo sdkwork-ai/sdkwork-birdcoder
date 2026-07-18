@@ -19,9 +19,11 @@ fn run() -> Result<(), KernelTurnIoError> {
     };
     let host =
         BirdcoderKernelHost::bootstrap().map_err(|_| KernelTurnIoError::HostBootstrapFailed)?;
-    let result = host
-        .execute_turn(&request)
-        .map_err(|_| KernelTurnIoError::TurnExecutionFailed)?;
+    let result = host.execute_turn(&request).map_err(|error| {
+        #[cfg(debug_assertions)]
+        eprintln!("kernel turn provider error: {error}");
+        KernelTurnIoError::TurnExecutionFailed
+    })?;
     let output = serialize_bounded_turn_result(&result)?;
     io::stdout()
         .lock()

@@ -4,7 +4,7 @@
   "version": "0.1.0",
   "identifier": "com.sdkwork.sdkwork.birdcoder.desktop",
   "build": {
-    "beforeDevCommand": "pnpm dev:tauri",
+    "beforeDevCommand": "pnpm start:desktop-renderer",
     "beforeBuildCommand": "pnpm build",
     "frontendDist": "../dist",
     "devUrl": "http://127.0.0.1:1520"

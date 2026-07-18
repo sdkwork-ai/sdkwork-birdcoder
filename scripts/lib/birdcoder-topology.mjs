@@ -117,6 +117,8 @@ export function bridgeLegacyApiEnv(profileEnv = {}) {
 
   if (platformHttpUrl) {
     bridged.SDKWORK_IAM_APP_API_BASE_URL = platformHttpUrl;
+    bridged.VITE_SDKWORK_BIRDCODER_PLATFORM_API_GATEWAY_HTTP_URL = platformHttpUrl;
+    bridged.VITE_SDKWORK_DRIVE_APP_API_BASE_URL = platformHttpUrl;
   }
 
   return bridged;

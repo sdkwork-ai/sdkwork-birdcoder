@@ -26,11 +26,11 @@ scope:
     - sdkwork-birdcoder-pc-server
     - sdkwork-birdcoder-app-sdk
   consumers:
-    - sdkwork-birdcoder-pc-commons
+    - sdkwork-birdcoder-pc-workbench
     - sdkwork-birdcoder-pc-infrastructure
     - sdkwork-birdcoder-pc-code
     - sdkwork-birdcoder-pc-shell
-    - sdkwork-birdcoder-pc-types
+    - sdkwork-birdcoder-pc-contracts-commons
     - sdkwork-terminal-pc
 compatibility_window:
   starts_at: 2026-07-16
@@ -47,8 +47,8 @@ verification:
   - pnpm db:generate:ddl
   - pnpm db:validate
   - pnpm test:migration-replay
-  - pnpm generate:openapi:coding-server
-  - pnpm generate:sdk:birdcoder
+  - pnpm api:materialize:coding-server
+  - pnpm sdk:generate
   - node ../sdkwork-specs/tools/check-api-operation-patterns.mjs --workspace .
   - node ../sdkwork-specs/tools/check-api-response-envelope.mjs --workspace .
   - node ../sdkwork-specs/tools/check-app-sdk-consumer-imports.mjs --workspace .

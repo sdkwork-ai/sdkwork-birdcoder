@@ -3,8 +3,8 @@ import { existsSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import type { BirdCoderEngineDescriptor } from '@sdkwork/birdcoder-pc-types';
-import { stringifyBirdCoderLongInteger } from '@sdkwork/birdcoder-pc-types';
+import type { BirdCoderEngineDescriptor } from '@sdkwork/birdcoder-pc-contracts-commons';
+import { stringifyBirdCoderLongInteger } from '@sdkwork/birdcoder-pc-contracts-commons';
 import type {
   ChatCanonicalEvent,
   ChatCanonicalRuntimeDescriptor,
@@ -126,7 +126,7 @@ function executeKernelTurn(input: {
       approvalPolicy: 'on-failure',
       ephemeral: false,
       fullAuto: false,
-      sandboxMode: 'workspace-write',
+      sandboxMode: 'danger-full-access',
       skipGitRepoCheck: false,
       temperature: input.options?.temperature,
       topP: input.options?.topP,

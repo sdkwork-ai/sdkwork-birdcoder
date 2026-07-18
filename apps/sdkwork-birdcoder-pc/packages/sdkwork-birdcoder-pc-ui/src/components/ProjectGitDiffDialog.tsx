@@ -12,8 +12,8 @@ import {
   X,
 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
-import type { BirdCoderProjectGitDiff } from '@sdkwork/birdcoder-pc-types';
-import { useIDEServices } from '@sdkwork/birdcoder-pc-commons/context/IDEContext';
+import type { BirdCoderProjectGitDiff } from '@sdkwork/birdcoder-pc-contracts-commons';
+import { useIDEServices } from '@sdkwork/birdcoder-pc-workbench/context/IDEContext';
 
 interface ProjectGitDiffDialogProps {
   isOpen: boolean;

@@ -1,0 +1,9 @@
+{
+  "schemaVersion": 1,
+  "kind": "sdkwork.flutter-runtime",
+  "runtimeTargets": ["flutter-android", "flutter-ios"],
+  "runtimeBindings": {
+    "applicationHttp": "SDKWORK_BIRDCODER_APPLICATION_PUBLIC_HTTP_URL",
+    "platformApiGatewayHttp": "SDKWORK_BIRDCODER_PLATFORM_API_GATEWAY_HTTP_URL"
+  }
+}

@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 
-import { getBirdCoderEntityDefinition } from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-types/src/index.ts';
+import { getBirdCoderEntityDefinition } from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-contracts-commons/src/index.ts';
 import { createBirdCoderTableSqlPlanner } from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/src/storage/sqlPlans.ts';
 import { createBirdCoderPostgresqlClientSqlExecutor } from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/src/storage/sqlBackendExecutors.ts';
 

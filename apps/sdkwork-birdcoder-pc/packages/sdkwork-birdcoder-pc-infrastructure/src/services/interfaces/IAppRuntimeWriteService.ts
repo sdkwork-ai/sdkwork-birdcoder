@@ -14,7 +14,7 @@ import type {
   BirdCoderSubmitUserQuestionAnswerRequest,
   BirdCoderUpdateCodingSessionRequest,
   BirdCoderUserQuestionAnswerResult,
-} from '@sdkwork/birdcoder-pc-types';
+} from '@sdkwork/birdcoder-pc-contracts-commons';
 
 export interface IAppRuntimeWriteService {
   createCodingSession(

@@ -6,7 +6,7 @@ import type {
 } from '@sdkwork/iam-service';
 import type {
   User,
-} from '@sdkwork/birdcoder-pc-types';
+} from '@sdkwork/birdcoder-pc-contracts-commons';
 import {
   getBirdCoderIamRuntime,
 } from '../iamRuntime.ts';

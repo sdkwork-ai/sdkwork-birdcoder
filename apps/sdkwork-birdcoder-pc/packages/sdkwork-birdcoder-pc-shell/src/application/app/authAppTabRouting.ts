@@ -1,5 +1,5 @@
 import { startTransition, useCallback, useEffect, useRef } from 'react';
-import type { AppTab } from '@sdkwork/birdcoder-pc-types';
+import type { AppTab } from '@sdkwork/birdcoder-pc-contracts-commons';
 import {
   AUTH_SURFACE_DEFAULT_ROUTE,
   isAuthSurfaceLocationPath,

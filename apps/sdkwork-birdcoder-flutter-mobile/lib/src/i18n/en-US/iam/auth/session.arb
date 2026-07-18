@@ -1,0 +1,14 @@
+{
+  "@@locale": "en-US",
+  "auth_login": "Log in",
+  "auth_logout": "Log out",
+  "auth_signin": "Sign in",
+  "auth_signup": "Sign up",
+  "auth_email": "Email",
+  "auth_password": "Password",
+  "auth_forgot_password": "Forgot password?",
+  "auth_invalid_email": "Please enter a valid email address.",
+  "auth_invalid_password": "Password must be at least 8 characters.",
+  "auth_login_failed": "Login failed. Please check your credentials.",
+  "auth_register_success": "Registration successful. Please sign in."
+}

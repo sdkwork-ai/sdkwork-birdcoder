@@ -103,6 +103,80 @@ if (appContent.includes('openLocalFolder')) {
   fail('BirdCoder shell Open Folder command must not resolve a browser-client local directory');
 }
 
+for (const viteConfigPath of [
+  'apps/sdkwork-birdcoder-h5/vite.config.ts',
+  'apps/sdkwork-birdcoder-pc/vite.config.ts',
+  'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-web/vite.config.ts',
+]) {
+  const viteConfig = read(viteConfigPath);
+  if (viteConfig.includes("'/app/v3/api/drive'") || viteConfig.includes('driveDevProxyTarget')) {
+    fail(`${viteConfigPath} must not proxy Drive through the renderer; the composed SDK targets the platform assembly gateway`);
+  }
+}
+
+for (const environment of ['development', 'test', 'staging', 'production']) {
+  const gatewayConfigPath = `etc/sdkwork-api-cloud-gateway.birdcoder.${environment}.toml`;
+  const gatewayConfig = read(gatewayConfigPath);
+  for (const requiredEvidence of [
+    'mode = "embedded"',
+    'runtimeMode = "embedded"',
+    'cargoFeature = "foundation-drive"',
+    'cargoDependency = "sdkwork-drive-gateway-assembly"',
+    'sdkwork_drive_gateway_assembly::assemble_application_business_router_from_env',
+  ]) {
+    if (!gatewayConfig.includes(requiredEvidence)) {
+      fail(`${gatewayConfigPath} must declare Drive assembly evidence: ${requiredEvidence}`);
+    }
+  }
+  for (const retiredEvidence of [
+    'runtimeMode = "split"',
+    'runtimeMode = "split-or-embedded"',
+    '[[upstreams]]',
+  ]) {
+    if (gatewayConfig.includes(retiredEvidence)) {
+      fail(`${gatewayConfigPath} must not retain retired gateway configuration: ${retiredEvidence}`);
+    }
+  }
+}
+
+if (!iamRuntime.includes('resolveBirdCoderBrowserDependencySdkBaseUrl')) {
+  fail('iamRuntime must resolve dependency SDK URLs independently from the renderer origin');
+}
+if (!iamRuntime.includes('configuredUrl.hostname = browserHostname')) {
+  fail('dependency SDK URL LAN adaptation must replace only the hostname and preserve port 3900');
+}
+
+const h5PackageJson = JSON.parse(read('apps/sdkwork-birdcoder-h5/package.json'));
+if (!h5PackageJson.scripts?.dev?.includes('run-birdcoder-dev-stack.mjs h5')) {
+  fail('H5 dev must use the standard BirdCoder stack with its platform assembly gateway');
+}
+if (h5PackageJson.scripts?.['start:browser'] !== 'vite') {
+  fail('H5 must expose a non-recursive renderer-only start:browser script for the stack');
+}
+
+const devStack = read('scripts/run-birdcoder-dev-stack.mjs');
+for (const assemblyEvidence of [
+  "'--features'",
+  "'foundation-drive'",
+  'PLATFORM_GATEWAY_SERVICE',
+  'PLATFORM_GATEWAY_DRIVE_SERVICE',
+  'probePlatformGatewayIdentity',
+]) {
+  if (!devStack.includes(assemblyEvidence)) {
+    fail(`BirdCoder dev stack must manage and identify the Drive assembly gateway: ${assemblyEvidence}`);
+  }
+}
+
+const infrastructureComponentSpec = read(
+  'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/specs/component.spec.json',
+);
+if (!infrastructureComponentSpec.includes('"@sdkwork/drive-app-sdk"')) {
+  fail('BirdCoder infrastructure must declare its composed Drive app SDK client');
+}
+if (!infrastructureComponentSpec.includes('"workspace": "sdkwork-drive-app-sdk"')) {
+  fail('BirdCoder infrastructure must declare the Drive app SDK family dependency');
+}
+
 const codeServerDirectoryImport = read(
   'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-code/src/pages/useCodeServerDirectoryProjectImport.ts',
 );

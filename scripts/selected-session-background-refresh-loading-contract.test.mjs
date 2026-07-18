@@ -13,7 +13,7 @@ const source = fs.readFileSync(
     
     
     
-    'sdkwork-birdcoder-pc-commons',
+    'sdkwork-birdcoder-pc-workbench',
     'src',
     'hooks',
     'useSelectedCodingSessionMessages.ts',

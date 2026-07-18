@@ -9,16 +9,41 @@ const runtimeFileSystemSource = await readFile(
   'utf8',
 );
 
+function extractMethod(source, methodName, nextMethodName) {
+  const start = source.indexOf(`  private async ${methodName}(`);
+  const end = source.indexOf(`  private async ${nextMethodName}(`, start + 1);
+  assert.notEqual(start, -1, `${methodName} must exist.`);
+  assert.notEqual(end, -1, `${nextMethodName} must follow ${methodName}.`);
+  return source.slice(start, end);
+}
+
 assert.match(
   runtimeFileSystemSource,
-  /interface BrowserFileLike \{[\s\S]*arrayBuffer\?\(\): Promise<ArrayBuffer>;/,
-  'Browser-mounted file snapshots must expose byte-preserving reads for rename and directory copy operations.',
+  /interface BrowserFileLike \{[\s\S]*stream\?\(\): ReadableStream<Uint8Array>;/,
+  'Browser-mounted file snapshots must expose streaming reads for rename and directory copy operations.',
 );
 
 assert.match(
   runtimeFileSystemSource,
-  /async function copyBrowserFileSnapshot\([\s\S]*file\.arrayBuffer \? await file\.arrayBuffer\(\) : await file\.text\(\)[\s\S]*await writable\.write\(payload\);[\s\S]*await writable\.close\(\);/,
-  'Browser-mounted rename must prefer ArrayBuffer payloads and complete the writable stream before deleting the source.',
+  /async function copyBrowserFileSnapshot\([\s\S]*stream\.getReader\(\)[\s\S]*await reader\.read\(\)[\s\S]*await writable\.write\(value\)[\s\S]*await writable\.close\(\);/,
+  'Browser-mounted rename must stream file chunks and complete the writable stream before deleting the source.',
+);
+
+assert.match(
+  runtimeFileSystemSource,
+  /file\.size > DEFAULT_BROWSER_FILE_MAX_BYTES/,
+  'Browser-mounted non-streaming fallbacks must reject files above the bounded memory limit.',
+);
+
+const browserReadSource = extractMethod(
+  runtimeFileSystemSource,
+  'readBrowserMountedFileContent',
+  'readBrowserMountedFileRevision',
+);
+assert.doesNotMatch(
+  browserReadSource,
+  /this\.projectFileContent\[projectId\]\[path\] = content;/,
+  'Mounted file reads must not retain every complete file body in the service cache.',
 );
 
 assert.match(

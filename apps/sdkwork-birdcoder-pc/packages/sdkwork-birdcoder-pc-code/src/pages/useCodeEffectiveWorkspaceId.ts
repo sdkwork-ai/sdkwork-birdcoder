@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { useWorkspaces } from '@sdkwork/birdcoder-pc-commons/hooks/useWorkspaces';
-import { resolveEffectiveWorkspaceId } from '@sdkwork/birdcoder-pc-commons/workbench/workspaceBootstrap';
+import { useWorkspaces } from '@sdkwork/birdcoder-pc-workbench/hooks/useWorkspaces';
+import { resolveEffectiveWorkspaceId } from '@sdkwork/birdcoder-pc-workbench/workbench/workspaceBootstrap';
 
 export function useCodeEffectiveWorkspaceId({
   isVisible,

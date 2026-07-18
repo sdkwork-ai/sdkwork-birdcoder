@@ -1,4 +1,4 @@
-﻿import type {
+import type {
   ChatCanonicalEvent,
   ChatMessage,
   ChatOptions,
@@ -50,7 +50,7 @@ import type {
   BirdCoderCodingSessionRuntime,
   BirdCoderHostMode,
   BirdCoderUserQuestionAnswerResult,
-} from '@sdkwork/birdcoder-pc-types';
+} from '@sdkwork/birdcoder-pc-contracts-commons';
 import type {
   BirdCoderAppSdkApiClient,
   BirdCoderBackendSdkApiClient,
@@ -68,7 +68,7 @@ import {
   BIRDCODER_ENGINE_RUNTIME_MODES,
   BIRDCODER_HOST_MODES,
   stringifyBirdCoderLongInteger,
-} from '@sdkwork/birdcoder-pc-types';
+} from '@sdkwork/birdcoder-pc-contracts-commons';
 
 export const BIRD_SERVER_DEFAULT_HOST = BIRDCODER_DEFAULT_LOCAL_API_HOST;
 export const BIRD_SERVER_DEFAULT_PORT = BIRDCODER_DEFAULT_LOCAL_API_PORT;

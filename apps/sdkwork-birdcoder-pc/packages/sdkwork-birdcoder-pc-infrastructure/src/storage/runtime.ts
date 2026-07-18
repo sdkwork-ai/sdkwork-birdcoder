@@ -2,11 +2,11 @@ import type {
   BirdCoderEntityDefinition,
   BirdCoderEntityName,
   BirdCoderEntityStorageBinding,
-} from '@sdkwork/birdcoder-pc-types';
+} from '@sdkwork/birdcoder-pc-contracts-commons';
 import {
   parseBirdCoderApiJson,
   stringifyBirdCoderApiJson,
-} from '@sdkwork/birdcoder-pc-types';
+} from '@sdkwork/birdcoder-pc-contracts-commons';
 import type { BirdCoderSqlExecutionResult } from './sqlExecutor.ts';
 import type { BirdCoderSqlPlan } from './sqlPlans.ts';
 

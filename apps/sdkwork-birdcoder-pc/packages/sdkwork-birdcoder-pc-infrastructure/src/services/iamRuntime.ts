@@ -9,8 +9,8 @@ import { hydrateAppSessionPersistence } from '@sdkwork/birdcoder-pc-core/appSess
 import { syncBirdCoderGlobalTokenManagerFromStorage } from '@sdkwork/birdcoder-pc-core/appSessionTokenManager';
 import { isBlank } from '@sdkwork/utils/string';
 import { BIRDCODER_DEFAULT_LOCAL_API_BASE_URL } from '@sdkwork/birdcoder-pc-host-core';
-import { createDriveAppClient, type SdkworkDriveAppClient } from '@sdkwork/drive-app-sdk';
-import { createClient as createMessagingAppSdkClient } from '@sdkwork/messaging-app-sdk';
+import { createDriveAppClient, type SdkworkDriveAppClient } from '@sdkwork/birdcoder-pc-core/sdk/drive-app';
+import { createClient as createMessagingAppSdkClient } from '@sdkwork/birdcoder-pc-core/sdk/messaging-app';
 import {
   APP_SESSION_CHANGE_EVENT_NAME,
   clearStoredAppSessionToken,
@@ -217,15 +217,67 @@ function resolveBirdCoderRuntimeSdkBaseUrls(): BirdCoderRuntimeSdkBaseUrls {
       'VITE_SDKWORK_BIRDCODER_APP_API_BASE_URL',
       'VITE_SDKWORK_APP_API_BASE_URL',
     ]),
-    driveAppApiBaseUrl: resolveBirdCoderRuntimeSdkBaseUrl([
+    driveAppApiBaseUrl: resolveBirdCoderRequiredDependencySdkBaseUrl('Drive', [
       'VITE_SDKWORK_DRIVE_APP_API_BASE_URL',
-      'VITE_SDKWORK_APP_API_BASE_URL',
+      'VITE_SDKWORK_BIRDCODER_PLATFORM_API_GATEWAY_HTTP_URL',
     ]),
     messagingAppApiBaseUrl: resolveBirdCoderRuntimeSdkBaseUrl([
       'VITE_SDKWORK_MESSAGING_APP_API_BASE_URL',
       'VITE_SDKWORK_APP_API_BASE_URL',
     ]),
   };
+}
+
+function resolveBirdCoderRequiredDependencySdkBaseUrl(
+  dependencyName: string,
+  envNames: readonly string[],
+): string {
+  for (const envName of envNames) {
+    const envValue = readBirdCoderRuntimeEnv(envName);
+    if (envValue) {
+      return resolveBirdCoderBrowserDependencySdkBaseUrl(envValue);
+    }
+  }
+
+  throw new Error(
+    `${dependencyName} app SDK base URL is required. Configure ${envNames.join(' or ')}.`,
+  );
+}
+
+export function resolveBirdCoderBrowserDependencySdkBaseUrl(baseUrl: string): string {
+  if (typeof window === 'undefined') {
+    return baseUrl;
+  }
+
+  try {
+    const configuredUrl = new URL(baseUrl);
+    const configuredHostname = configuredUrl.hostname.toLowerCase();
+    const configuredIsLoopback = configuredHostname === 'localhost'
+      || configuredHostname === '::1'
+      || configuredHostname === '0.0.0.0'
+      || configuredHostname === '::'
+      || /^127(?:\.\d{1,3}){3}$/u.test(configuredHostname);
+    const browserHostname = window.location.hostname.trim().toLowerCase();
+    const browserIsLoopback = browserHostname === 'localhost'
+      || browserHostname === 'tauri.localhost'
+      || browserHostname === '::1'
+      || browserHostname === '0.0.0.0'
+      || browserHostname === '::'
+      || /^127(?:\.\d{1,3}){3}$/u.test(browserHostname);
+    if (
+      configuredIsLoopback
+      && !browserIsLoopback
+      && browserHostname
+      && ['http:', 'https:'].includes(configuredUrl.protocol)
+    ) {
+      configuredUrl.hostname = browserHostname;
+      return configuredUrl.toString().replace(/\/$/u, '');
+    }
+  } catch {
+    // Preserve the configured value so the SDK reports its normal URL error.
+  }
+
+  return baseUrl;
 }
 
 function resolveBirdCoderRuntimeSdkBaseUrl(envNames: readonly string[]): string {

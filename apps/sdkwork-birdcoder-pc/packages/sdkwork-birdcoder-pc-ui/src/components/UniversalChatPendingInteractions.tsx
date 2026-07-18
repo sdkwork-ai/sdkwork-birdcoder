@@ -6,11 +6,11 @@ import type {
   BirdCoderCodingSessionPendingUserQuestion,
   BirdCoderCodingSessionPendingUserQuestionOption,
   BirdCoderCodingSessionPendingUserQuestionPrompt,
-} from '@sdkwork/birdcoder-pc-commons';
+} from '@sdkwork/birdcoder-pc-workbench';
 import type {
   BirdCoderSubmitApprovalDecisionRequest,
   BirdCoderSubmitUserQuestionAnswerRequest,
-} from '@sdkwork/birdcoder-pc-commons/chat/types';
+} from '@sdkwork/birdcoder-pc-workbench/chat/types';
 import { Button } from '@sdkwork/birdcoder-pc-ui-shell';
 
 export interface UniversalChatPendingInteractionsProps {

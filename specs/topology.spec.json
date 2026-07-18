@@ -3,12 +3,14 @@
   "kind": "sdkwork.app.topology",
   "appId": "sdkwork-birdcoder",
   "archetype": "application-http-gateway",
-  "profileRoot": "configs/topology",
+  "profileRoot": "etc/topology",
   "profilePattern": "{deploymentProfile}.{environment}.env",
   "vocabulary": {
     "environment": {
       "allowed": [
         "development",
+        "test",
+        "staging",
         "production"
       ]
     },
@@ -32,10 +34,14 @@
     "gatewayBind": "127.0.0.1:3900"
   },
   "profileFiles": {
-    "standalone.development": "configs/topology/standalone.development.env",
-    "standalone.production": "configs/topology/standalone.production.env",
-    "cloud.development": "configs/topology/cloud.development.env",
-    "cloud.production": "configs/topology/cloud.production.env"
+    "standalone.development": "etc/topology/standalone.development.env",
+    "standalone.test": "etc/topology/standalone.test.env",
+    "standalone.staging": "etc/topology/standalone.staging.env",
+    "standalone.production": "etc/topology/standalone.production.env",
+    "cloud.development": "etc/topology/cloud.development.env",
+    "cloud.test": "etc/topology/cloud.test.env",
+    "cloud.staging": "etc/topology/cloud.staging.env",
+    "cloud.production": "etc/topology/cloud.production.env"
   },
   "envKeys": {
     "environment": "SDKWORK_BIRDCODER_ENVIRONMENT",
@@ -98,7 +104,7 @@
           {
             "id": "pc-desktop-renderer",
             "package": "apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-desktop",
-            "script": "tauri:dev:base",
+            "script": "start:desktop",
             "required": true
           }
         ],
@@ -153,7 +159,7 @@
           {
             "id": "pc-desktop-renderer",
             "package": "apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-desktop",
-            "script": "tauri:dev:base",
+            "script": "start:desktop",
             "required": false
           }
         ],
@@ -167,7 +173,7 @@
           {
             "id": "pc-desktop-renderer",
             "package": "apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-desktop",
-            "script": "tauri:dev:base",
+            "script": "start:desktop",
             "required": true
           }
         ],

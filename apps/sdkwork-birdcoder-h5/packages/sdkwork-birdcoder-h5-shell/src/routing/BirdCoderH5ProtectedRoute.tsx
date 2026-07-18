@@ -1,6 +1,6 @@
 import { type ReactNode, useEffect } from 'react';
 import { useLocation } from 'react-router-dom';
-import { useAuth } from '@sdkwork/birdcoder-pc-commons/context/AuthContext';
+import { useAuth } from '@sdkwork/birdcoder-pc-workbench/context/AuthContext';
 import {
   AUTH_SURFACE_DEFAULT_ROUTE,
   replaceAuthSurfaceHashPath,

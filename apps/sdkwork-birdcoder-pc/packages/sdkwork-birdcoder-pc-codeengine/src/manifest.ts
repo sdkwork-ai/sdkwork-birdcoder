@@ -1,7 +1,7 @@
 import type {
   BirdCoderEngineDescriptor,
   BirdCoderModelCatalogEntry,
-} from '@sdkwork/birdcoder-pc-types';
+} from '@sdkwork/birdcoder-pc-contracts-commons';
 
 import type { BirdCoderCodeEngineNativeSessionProvider, WorkbenchCodeEngineId } from './catalog.ts';
 import {

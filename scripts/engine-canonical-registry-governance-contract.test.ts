@@ -10,7 +10,7 @@ import { createWorkbenchCanonicalChatEngine } from '../apps/sdkwork-birdcoder-pc
 import {
   BIRDCODER_CODING_SESSION_ARTIFACT_KINDS,
   BIRDCODER_CODING_SESSION_EVENT_KINDS,
-} from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-types/src/coding-session.ts';
+} from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-contracts-commons/src/coding-session.ts';
 
 function escapeRegExp(value: string): string {
   return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');

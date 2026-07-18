@@ -7,9 +7,9 @@ export {
   normalizeRunConfigurations,
   saveStoredRunConfigurations,
   upsertStoredRunConfiguration,
-} from '@sdkwork/birdcoder-pc-commons/terminal/runConfigStorage';
+} from '@sdkwork/birdcoder-pc-workbench/terminal/runConfigStorage';
 export type {
   RunConfigurationCwdMode,
   RunConfigurationGroup,
   RunConfigurationRecord,
-} from '@sdkwork/birdcoder-pc-commons/terminal/runConfigDefinitions';
+} from '@sdkwork/birdcoder-pc-workbench/terminal/runConfigDefinitions';

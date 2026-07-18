@@ -19,6 +19,10 @@
       "import": "./src/membershipSdkBootstrap.ts",
       "types": "./src/membershipSdkBootstrap.ts"
     },
+    "./projectRuntimeLocation": {
+      "import": "./src/projectRuntimeLocation.ts",
+      "types": "./src/projectRuntimeLocation.ts"
+    },
     "./driveSandboxExplorer": {
       "import": "./src/driveSandboxExplorer.ts",
       "types": "./src/driveSandboxExplorer.ts"
@@ -30,6 +34,6 @@
   },
   "dependencies": {
     "@sdkwork/birdcoder-pc-infrastructure": "workspace:*"
-  }
+  },
+  "scripts": {}
 }
-

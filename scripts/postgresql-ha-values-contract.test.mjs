@@ -12,6 +12,9 @@ function readText(relativePath) {
 
 const overlaySource = readText('deployments/kubernetes/values-postgresql-ha.yaml');
 const deploymentTemplate = readText('deployments/kubernetes/templates/deployment.yaml');
+const backupCronJobTemplate = readText('deployments/kubernetes/templates/backup-cronjob.yaml');
+const backupPvcTemplate = readText('deployments/kubernetes/templates/backup-pvc.yaml');
+const valuesSource = readText('deployments/kubernetes/values.yaml');
 const readmeSource = readText('deployments/kubernetes/README.md');
 
 assert.match(
@@ -63,6 +66,36 @@ assert.match(
   readmeSource,
   /values-postgresql-ha\.yaml/u,
   'Kubernetes README must document the PostgreSQL HA values overlay.',
+);
+assert.match(
+  backupCronJobTemplate,
+  /and \.Values\.backup\.enabled \(eq \.Values\.database\.engine "postgresql"\) \(or \.Values\.auth\.existingSecret \.Values\.database\.url\)/u,
+  'Backup CronJob must render for Secret-only PostgreSQL deployments.',
+);
+assert.match(
+  backupPvcTemplate,
+  /and \.Values\.backup\.enabled \(eq \.Values\.database\.engine "postgresql"\) \(or \.Values\.auth\.existingSecret \.Values\.database\.url\)/u,
+  'Backup PVC must render for Secret-only PostgreSQL deployments.',
+);
+assert.match(
+  backupCronJobTemplate,
+  /name: VERIFY_DATABASE_URL[\s\S]*secretKeyRef:[\s\S]*key: \{\{ \.Values\.backup\.verifyDatabaseUrlSecretKey/u,
+  'Restore verification DSN must come from the configured Kubernetes Secret.',
+);
+assert.doesNotMatch(
+  backupCronJobTemplate,
+  /pg_restore[^\r\n]*\|\|/u,
+  'Restore verification must not swallow pg_restore failures.',
+);
+assert.doesNotMatch(
+  valuesSource,
+  /^\s*verifyDatabaseUrl:\s*/mu,
+  'Default values must not expose a plaintext restore verification DSN.',
+);
+assert.match(
+  overlaySource,
+  /verifyDatabaseUrlSecretKey: SDKWORK_BIRDCODER_BACKUP_VERIFY_DATABASE_URL/u,
+  'PostgreSQL HA overlay must configure the restore verification Secret key.',
 );
 
 const smokeResult = smokeKubernetesPostgresqlHaChart();

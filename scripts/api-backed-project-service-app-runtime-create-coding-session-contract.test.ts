@@ -26,7 +26,7 @@ const sdkClientsModulePath = new URL(
   import.meta.url,
 );
 const typesEntryModulePath = new URL(
-  '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-types/src/index.ts',
+  '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-contracts-commons/src/index.ts',
   import.meta.url,
 );
 const defaultServicesModulePath = new URL(
@@ -212,13 +212,14 @@ try {
   const createdSession = await (services.projectService.createCodingSession as (
     projectId: string,
     title: string,
-    options: { engineId: string; modelId: string },
+    options: { engineId: string; modelId: string; runtimeLocationId: string },
   ) => Promise<Awaited<ReturnType<typeof services.projectService.createCodingSession>>> )(
     'project-app-runtime-write-contract',
     'Remote Authoritative Session',
     {
       engineId: 'claude-code',
       modelId: 'claude-code',
+      runtimeLocationId: 'runtime-location-app-runtime-write-contract',
     },
   );
 

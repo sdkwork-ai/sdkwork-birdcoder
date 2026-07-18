@@ -1,7 +1,6 @@
-//! Gateway bootstrap for sdkwork-birdcoder.
-
 use axum::Router;
-use sdkwork_birdcoder_standalone_gateway::bootstrap::{self, config::BirdServerConfig};
+
+use crate::bootstrap::{self, config::BirdServerConfig};
 
 pub struct ApplicationAssembly {
     pub router: Router,

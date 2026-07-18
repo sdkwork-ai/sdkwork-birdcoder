@@ -1,4 +1,4 @@
-import type { SdkworkDriveAppClient } from '@sdkwork/drive-app-sdk';
+import type { SdkworkDriveAppClient } from '@sdkwork/birdcoder-pc-core/sdk/drive-app';
 import {
   configureDriveSandboxExplorerRuntime,
   type SandboxExplorerPort,

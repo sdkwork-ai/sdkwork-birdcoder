@@ -1,5 +1,5 @@
 import { memo, useEffect, useRef } from 'react';
-import type { UseProjectGitOverviewResult } from '@sdkwork/birdcoder-pc-commons/hooks/useProjectGitOverview';
+import type { UseProjectGitOverviewResult } from '@sdkwork/birdcoder-pc-workbench/hooks/useProjectGitOverview';
 import {
   AlertCircle,
   Check,

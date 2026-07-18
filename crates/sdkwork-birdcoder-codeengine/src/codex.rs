@@ -1,9 +1,7 @@
 // Approval & sandbox policy follows sdkwork-specs/SECURITY_SPEC.md sandbox
-// principles: the `--full-auto` flag, `danger-full-access` sandbox mode, and
-// `approval_policy="never"` (auto-approve every action) are prohibited because
-// they bypass sandbox boundaries. PowerShell ExecutionPolicy is never bypassed.
-// Mutating operations must run under `workspace-write` or stricter with an
-// approval policy of `on-failure` or `untrusted` so failures pause for review.
+// principles. `danger-full-access` is an explicit administrator-configurable
+// filesystem scope and remains bounded by the operating-system process account.
+// Approval bypass aliases and PowerShell ExecutionPolicy bypass stay prohibited.
 use std::{
     env,
     ffi::OsString,
@@ -992,11 +990,12 @@ fn normalize_codex_cli_sandbox_mode(value: Option<&str>) -> Result<Option<String
     match normalize_codex_cli_config_key(normalized.as_str()).as_str() {
         "readonly" => Ok(Some("read-only".to_owned())),
         "workspacewrite" => Ok(Some("workspace-write".to_owned())),
-        "dangerfullaccess" | "dangerouslybypassapprovalsandsandbox" | "none" => Err(format!(
-            "Codex CLI sandbox mode \"{normalized}\" bypasses the sandbox and is prohibited under SECURITY_SPEC. Expected read-only or workspace-write."
+        "dangerfullaccess" => Ok(Some("danger-full-access".to_owned())),
+        "dangerouslybypassapprovalsandsandbox" | "none" => Err(format!(
+            "Codex CLI sandbox mode \"{normalized}\" bypasses sandbox and approval boundaries and is prohibited under SECURITY_SPEC."
         )),
         _ => Err(format!(
-            "Unsupported Codex CLI sandbox mode \"{normalized}\". Expected read-only or workspace-write."
+            "Unsupported Codex CLI sandbox mode \"{normalized}\". Expected read-only, workspace-write, or danger-full-access."
         )),
     }
 }
@@ -1126,6 +1125,24 @@ mod tests {
                 "-",
             ]
         );
+    }
+
+    #[test]
+    fn codex_cli_turn_args_accept_explicit_all_drives_sandbox_scope() {
+        let args = codex_cli_args_to_strings(
+            &CodexCliTurnRequest {
+                prompt_text: "inspect computer".to_owned(),
+                model_id: "gpt-5.4".to_owned(),
+                approval_policy: Some("on-failure".to_owned()),
+                sandbox_mode: Some("danger-full-access".to_owned()),
+                ..Default::default()
+            },
+            None,
+        );
+
+        assert!(args
+            .windows(2)
+            .any(|pair| pair == ["--sandbox", "danger-full-access"]));
     }
 
     #[test]

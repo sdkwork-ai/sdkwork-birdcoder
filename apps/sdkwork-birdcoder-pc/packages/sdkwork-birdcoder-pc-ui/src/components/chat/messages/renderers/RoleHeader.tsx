@@ -1,5 +1,5 @@
 import React, { memo } from 'react';
-import type { BirdCoderChatMessageViewKind } from '@sdkwork/birdcoder-pc-commons/chat/types';
+import type { BirdCoderChatMessageViewKind } from '@sdkwork/birdcoder-pc-workbench/chat/types';
 
 const ROLE_HEADER_LABELS: Partial<Record<BirdCoderChatMessageViewKind, string>> = {
   'planner.plan': 'Planner',

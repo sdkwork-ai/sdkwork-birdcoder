@@ -48,6 +48,16 @@ function extractTomlArray(source, key) {
     'standalone',
     'Topology bridge may keep the generic public deployment profile only as compatibility, normalized from the app-scoped profile.',
   );
+  assert.equal(
+    bridgedStandaloneEnv.VITE_SDKWORK_BIRDCODER_PLATFORM_API_GATEWAY_HTTP_URL,
+    'http://127.0.0.1:3900',
+    'Topology bridge must publish the platform gateway URL to the renderer.',
+  );
+  assert.equal(
+    bridgedStandaloneEnv.VITE_SDKWORK_DRIVE_APP_API_BASE_URL,
+    'http://127.0.0.1:3900',
+    'Drive app SDK must use the platform gateway instead of BirdCoder application ingress.',
+  );
 }
 
 {
@@ -124,10 +134,10 @@ for (const envExamplePath of ['.env.example', 'apps/sdkwork-birdcoder-pc/.env.ex
 }
 
 for (const topologyEnvPath of [
-  'configs/topology/cloud.development.env',
-  'configs/topology/standalone.development.env',
-  'configs/topology/cloud.production.env',
-  'configs/topology/standalone.production.env',
+  'etc/topology/cloud.development.env',
+  'etc/topology/standalone.development.env',
+  'etc/topology/cloud.production.env',
+  'etc/topology/standalone.production.env',
 ]) {
   const topologyEnvSource = readText(topologyEnvPath);
   assert.doesNotMatch(

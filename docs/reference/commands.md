@@ -4,44 +4,44 @@
 
 ```bash
 pnpm dev
-pnpm dev:local
-pnpm dev:private
-pnpm dev:cloud
-pnpm iam:show -- desktop-dev --iam-mode desktop-local
-pnpm tauri:dev
-pnpm tauri:dev:private
-pnpm tauri:dev:cloud
-pnpm desktop:dev:local
-pnpm desktop:dev:private
-pnpm desktop:dev:cloud
-pnpm stack:desktop:local
-pnpm stack:desktop:private
-pnpm stack:desktop:cloud
-pnpm web:dev:private
-pnpm web:dev:cloud
-pnpm stack:web:private
-pnpm stack:web:cloud
-pnpm server:dev
-pnpm server:dev:private
-pnpm server:dev:cloud
+pnpm dev:desktop:local
+pnpm dev:browser:postgres:standalone
+pnpm dev:browser:postgres:cloud
+pnpm check:env:desktop:local -- desktop-dev --iam-mode desktop-local
+pnpm dev:desktop
+pnpm dev:desktop:standalone
+pnpm dev:desktop:cloud
+pnpm dev:desktop:local
+pnpm dev:desktop:standalone
+pnpm dev:desktop:cloud
+pnpm dev:desktop:local
+pnpm dev:desktop:standalone
+pnpm dev:desktop:cloud
+pnpm dev:browser:standalone
+pnpm dev:browser:cloud
+pnpm dev:browser:standalone
+pnpm dev:browser:cloud
+pnpm dev:server:postgres:standalone
+pnpm dev:server:standalone
+pnpm dev:server:cloud
 ```
 
 `pnpm dev` starts the default private BirdCoder web sample stack. It launches the native BirdCoder server first, waits until the unauthenticated infrastructure readiness probe at `/readyz` succeeds, then boots the browser host while defaulting `VITE_BIRDCODER_API_BASE_URL` to `http://127.0.0.1:10240` for local iteration when no explicit value is configured.
-`pnpm dev:local` starts the canonical single-machine BirdCoder sample loop by delegating to the desktop-local Tauri host with the embedded coding server and local SDKWork IAM authority.
-`pnpm dev:private` is the explicit alias for that same managed private web sample stack.
-`pnpm dev:cloud` starts the shared BirdCoder web workbench against a cloud-backed BirdCoder server.
-`pnpm iam:show -- <target> --iam-mode <mode>` prints the resolved managed IAM env after `.env` loading and mode normalization, with secret-like fields masked so mode switching can be inspected safely.
-`pnpm tauri:dev` starts the governed desktop-local development loop so the Tauri shell, embedded coding server, local SDKWork IAM authority, and packaged-app interaction paths can be exercised together during local iteration.
-`pnpm tauri:dev:private` starts the governed desktop shell against a separately running private BirdCoder server, defaulting the client API base URL to `http://127.0.0.1:10240` when no explicit override is configured.
-`pnpm tauri:dev:cloud` starts the governed desktop shell against a separately running BirdCoder server that delegates IAM through SDKWork cloud app API.
-`pnpm desktop:dev:local`, `pnpm desktop:dev:private`, and `pnpm desktop:dev:cloud` expose the same desktop matrix with explicit mode naming for operator documentation and sample-app onboarding.
-`pnpm web:dev:private` and `pnpm web:dev:cloud` expose the browser-hosted mode matrix with naming that matches the desktop and server families when you intentionally manage the corresponding server process yourself.
-`pnpm stack:desktop:local` keeps the BirdCoder reference sample on a one-command local desktop loop with the embedded server and SDKWork IAM authority.
-`pnpm stack:desktop:private` and `pnpm stack:desktop:cloud` start the native BirdCoder server first when needed, wait until `/readyz` succeeds, and then launch the desktop client against the same resolved IAM env.
-`pnpm stack:web:private` and `pnpm stack:web:cloud` do the same for the browser-hosted sample so private and cloud-backed lanes can be demonstrated without manually coordinating two terminals, while still proving the canonical auth contract is live before the host boots. `pnpm dev` is now the default alias for `pnpm stack:web:private`.
-`pnpm server:dev` starts the governed private BirdCoder server loop with SDKWork IAM private authority and local sqlite persistence.
-`pnpm server:dev:private` is the explicit private-server alias for the same governed native-server loop.
-`pnpm server:dev:cloud` starts the governed BirdCoder server loop in cloud IAM mode and requires `SDKWORK_IAM_APP_API_BASE_URL`.
+`pnpm dev:desktop:local` starts the canonical single-machine BirdCoder sample loop by delegating to the desktop-local Tauri host with the embedded coding server and local SDKWork IAM authority.
+`pnpm dev:browser:postgres:standalone` is the explicit alias for that same managed private web sample stack.
+`pnpm dev:browser:postgres:cloud` starts the shared BirdCoder web workbench against a cloud-backed BirdCoder server.
+`pnpm check:env:desktop:local -- <target> --iam-mode <mode>` prints the resolved managed IAM env after `.env` loading and mode normalization, with secret-like fields masked so mode switching can be inspected safely.
+`pnpm dev:desktop` starts the governed desktop-local development loop so the Tauri shell, embedded coding server, local SDKWork IAM authority, and packaged-app interaction paths can be exercised together during local iteration.
+`pnpm dev:desktop:standalone` starts the governed desktop shell against a separately running private BirdCoder server, defaulting the client API base URL to `http://127.0.0.1:10240` when no explicit override is configured.
+`pnpm dev:desktop:cloud` starts the governed desktop shell against a separately running BirdCoder server that delegates IAM through SDKWork cloud app API.
+`pnpm dev:desktop:local`, `pnpm dev:desktop:standalone`, and `pnpm dev:desktop:cloud` expose the same desktop matrix with explicit mode naming for operator documentation and sample-app onboarding.
+`pnpm dev:browser:standalone` and `pnpm dev:browser:cloud` expose the browser-hosted mode matrix with naming that matches the desktop and server families when you intentionally manage the corresponding server process yourself.
+`pnpm dev:desktop:local` keeps the BirdCoder reference sample on a one-command local desktop loop with the embedded server and SDKWork IAM authority.
+`pnpm dev:desktop:standalone` and `pnpm dev:desktop:cloud` start the native BirdCoder server first when needed, wait until `/readyz` succeeds, and then launch the desktop client against the same resolved IAM env.
+`pnpm dev:browser:standalone` and `pnpm dev:browser:cloud` do the same for the browser-hosted sample so private and cloud-backed lanes can be demonstrated without manually coordinating two terminals, while still proving the canonical auth contract is live before the host boots. `pnpm dev` is now the default alias for `pnpm dev:browser:standalone`.
+`pnpm dev:server:postgres:standalone` starts the governed private BirdCoder server loop with SDKWork IAM private authority and local sqlite persistence.
+`pnpm dev:server:standalone` is the explicit private-server alias for the same governed native-server loop.
+`pnpm dev:server:cloud` starts the governed BirdCoder server loop in cloud IAM mode and requires `SDKWORK_IAM_APP_API_BASE_URL`.
 All of these development commands keep the frontend contract on the same BirdCoder facade routes, including `/app/v3/api/auth/*`, `/app/v3/api/iam/users/current`, `/app/v3/api/memberships/current`, and `/app/v3/api/memberships/package_groups`, across local, private, and cloud IAM modes. `VITE_BIRDCODER_IAM_DEPLOYMENT_MODE`, `VITE_SDKWORK_BIRDCODER_DEPLOYMENT_PROFILE`, and `VITE_SDKWORK_BIRDCODER_RUNTIME_TARGET` publish only deployment mode; runtime auth state and commerce membership state come from the generated app SDK and SDKWork IAM runtime.
 
 ## Build
@@ -50,32 +50,32 @@ All of these development commands keep the frontend contract on the same BirdCod
 pnpm build
 pnpm build:private
 pnpm build:cloud
-pnpm tauri:build
-pnpm tauri:build:private
-pnpm tauri:build:cloud
-pnpm server:build
-pnpm server:build:cloud
-pnpm package:desktop:local
-pnpm package:desktop:private
-pnpm package:desktop:cloud
-pnpm package:web:private
-pnpm package:web:cloud
-pnpm package:server:private
-pnpm package:server:cloud
+pnpm build:desktop
+pnpm build:desktop:standalone
+pnpm build:desktop:cloud
+pnpm build:server
+pnpm build:server:cloud
+pnpm release:package:desktop:local
+pnpm release:package:desktop:standalone
+pnpm release:package:desktop:cloud
+pnpm release:package:browser:standalone
+pnpm release:package:browser:cloud
+pnpm release:package:server:standalone
+pnpm release:package:server:cloud
 pnpm docs:build
 ```
 
 `pnpm build` executes the shared browser-hosted production build for private BirdCoder server integration, while preserving explicit `VITE_BIRDCODER_API_BASE_URL` when it is configured.
 `pnpm build:private` is the explicit private-server alias for that same browser-hosted build flow.
 `pnpm build:cloud` executes the shared browser-hosted production build for cloud-backed BirdCoder server integration.
-`pnpm tauri:build` packages the desktop shell for the embedded local deployment mode.
-`pnpm tauri:build:private` packages the desktop shell so it targets an external private BirdCoder server, and it requires `BIRDCODER_API_BASE_URL` or `VITE_BIRDCODER_API_BASE_URL`.
-`pnpm tauri:build:cloud` packages the desktop shell so it targets a cloud-backed BirdCoder server, and it requires `BIRDCODER_API_BASE_URL` or `VITE_BIRDCODER_API_BASE_URL`.
-`pnpm server:build` packages the BirdCoder server for private SDKWork IAM deployment.
-`pnpm server:build:cloud` packages the BirdCoder server for cloud SDKWork IAM deployment.
-`pnpm package:desktop:local`, `pnpm package:desktop:private`, and `pnpm package:desktop:cloud` are thin packaging aliases over the standardized desktop build matrix.
-`pnpm package:web:private` and `pnpm package:web:cloud` are thin packaging aliases over the standardized browser build matrix.
-`pnpm package:server:private` and `pnpm package:server:cloud` are thin packaging aliases over the standardized native-server build matrix.
+`pnpm build:desktop` packages the desktop shell for the embedded local deployment mode.
+`pnpm build:desktop:standalone` packages the desktop shell so it targets an external private BirdCoder server, and it requires `BIRDCODER_API_BASE_URL` or `VITE_BIRDCODER_API_BASE_URL`.
+`pnpm build:desktop:cloud` packages the desktop shell so it targets a cloud-backed BirdCoder server, and it requires `BIRDCODER_API_BASE_URL` or `VITE_BIRDCODER_API_BASE_URL`.
+`pnpm build:server` packages the BirdCoder server for private SDKWork IAM deployment.
+`pnpm build:server:cloud` packages the BirdCoder server for cloud SDKWork IAM deployment.
+`pnpm release:package:desktop:local`, `pnpm release:package:desktop:standalone`, and `pnpm release:package:desktop:cloud` are thin packaging aliases over the standardized desktop build matrix.
+`pnpm release:package:browser:standalone` and `pnpm release:package:browser:cloud` are thin packaging aliases over the standardized browser build matrix.
+`pnpm release:package:server:standalone` and `pnpm release:package:server:cloud` are thin packaging aliases over the standardized native-server build matrix.
 `pnpm docs:build` executes the documentation site production build so architecture, Step, prompt, and operator-reference changes are validated as publishable VitePress output before release-facing docs updates are treated as stable.
 
 ## Verification
@@ -98,8 +98,8 @@ pnpm check:quality-matrix
 pnpm check:quality:fast
 pnpm check:quality:standard
 pnpm check:quality:release
-pnpm quality:report
-pnpm quality:execution-report
+pnpm check:quality-report
+pnpm check:quality-execution-report
 pnpm check:iam-standard
 ```
 
@@ -119,10 +119,10 @@ pnpm check:iam-standard
 `pnpm check:quality:fast` executes the fastest executable quality tier and is the first operator checkpoint for whether repo-local safeguards are still green before broader release verification begins. Its desktop startup-graph lane now selects a free loopback port and freezes that collision case through `check:desktop-startup-graph`, so an unrelated listener on the legacy `127.0.0.1:1537` port no longer fabricates a fast-tier failure.
 `pnpm check:quality:standard` executes the middle quality tier and proves that the repository can advance beyond fast local guards into the broader standard verification set before release-tier validation.
 `pnpm check:quality:release` executes the full release-tier quality gate and is the operator-facing proof point for whether the current host can clear the repository's highest local quality bar.
-`pnpm quality:report` writes `artifacts/quality/quality-gate-matrix-report.json`, including workflow-bound and manifest-bound quality tiers, per-tier root `package.json` binding status, release-tier `governanceCheckIds` for the full official-SDK-first engine governance set, plus live `environmentDiagnostics`, `requiredCapabilities`, and `rerunCommands` for host `toolchain-platform` blockers; rerun it whenever `pnpm check:quality-matrix` reports stale workspace evidence. That freshness contract compares stable tier/workflow/manifest truth and does not treat host-only `environmentDiagnostics` drift as stale evidence by itself.
-`pnpm quality:execution-report` writes `artifacts/quality/quality-gate-execution-report.json` from a real `fast -> standard -> release` cascade and preserves upstream blocker state for downstream skipped tiers after the same port-resilient desktop startup-graph verification has run.
+`pnpm check:quality-report` writes `artifacts/quality/quality-gate-matrix-report.json`, including workflow-bound and manifest-bound quality tiers, per-tier root `package.json` binding status, release-tier `governanceCheckIds` for the full official-SDK-first engine governance set, plus live `environmentDiagnostics`, `requiredCapabilities`, and `rerunCommands` for host `toolchain-platform` blockers; rerun it whenever `pnpm check:quality-matrix` reports stale workspace evidence. That freshness contract compares stable tier/workflow/manifest truth and does not treat host-only `environmentDiagnostics` drift as stale evidence by itself.
+`pnpm check:quality-execution-report` writes `artifacts/quality/quality-gate-execution-report.json` from a real `fast -> standard -> release` cascade and preserves upstream blocker state for downstream skipped tiers after the same port-resilient desktop startup-graph verification has run.
 If the host reaches an affected Vite-backed quality gate and the build preflight hits `[vite:define] spawn EPERM`, the execution report now records `vite-host-build-preflight` and marks the blocked tier directly instead of collapsing that condition into a generic failed gate.
-On `2026-04-15`, direct outer-shell reruns confirmed the current split truth on this host: `pnpm.cmd run build` passes, but direct `pnpm.cmd check:quality:fast` fails at `check:web-vite-build` with `[vite:define] spawn EPERM`, and direct `pnpm.cmd check:quality:release` fails for the same reason because `fast` stops first. Treat a blocked `pnpm quality:execution-report` as governed Vite-path evidence, not as proof that every direct build surface is broken.
+On `2026-04-15`, direct outer-shell reruns confirmed the current split truth on this host: `pnpm.cmd run build` passes, but direct `pnpm.cmd check:quality:fast` fails at `check:web-vite-build` with `[vite:define] spawn EPERM`, and direct `pnpm.cmd check:quality:release` fails for the same reason because `fast` stops first. Treat a blocked `pnpm check:quality-execution-report` as governed Vite-path evidence, not as proof that every direct build surface is broken.
 `pnpm release:finalize` also writes `quality/quality-gate-matrix-report.json` into the active release asset directory and, when the workspace execution report already exists, archives `quality/quality-gate-execution-report.json` and freezes both summaries into `release-manifest.json.qualityEvidence`; that finalized summary now also preserves manifest-bound tier counts beside workflow-bound counts, so rendered release notes and packaged stop-ship checks cannot give a false architecture-perfect score when root `check:quality:*` bindings drift. It also preserves the release-tier official-SDK-first engine governance set as `releaseGovernanceCheckIds`.
 `pnpm release:finalize` also writes `release-manifest.json.releaseCoverage` and a checksum-backed `release-manifest.json.artifacts` publication view. `releaseCoverage` records the required profile targets, present targets, missing targets, and partial-finalization state; each `artifacts[]` entry records a safe relative path, `sha256`, and `size` that must match `SHA256SUMS.txt`. Desktop installer artifacts preserve explicit `kind`, `bundle`, `installerFormat`, `target`, and `signatureEvidence` metadata so coverage, smoke, and promotion gates do not rely on path, extension, or trust inference.
 `pnpm release:finalize` also writes `release-manifest.json.sha256.txt`, a single-file checksum sidecar for the finalized manifest itself, and removes any stale `release-attestations.json` so old attestation evidence cannot survive a new finalization.

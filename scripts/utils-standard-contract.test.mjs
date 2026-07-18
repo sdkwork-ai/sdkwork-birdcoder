@@ -71,7 +71,6 @@ if (!digestHelper.includes('@sdkwork/utils/crypto')) {
 
 const rustServiceCrates = [
   'crates/sdkwork-birdcoder-workspace-service',
-  'crates/sdkwork-birdcoder-membership-service',
   'crates/sdkwork-birdcoder-project-service',
   'crates/sdkwork-birdcoder-deployment-service',
   'crates/sdkwork-birdcoder-coding-sessions-service',
@@ -81,7 +80,6 @@ const rustServiceCrates = [
   'crates/sdkwork-birdcoder-app-templates-service',
   'crates/sdkwork-birdcoder-coding-sessions-repository-sqlx',
   'crates/sdkwork-routes-engine-catalog-app-api',
-  'crates/sdkwork-routes-membership-app-api',
   'crates/sdkwork-routes-workspace-app-api',
 ];
 
@@ -111,7 +109,7 @@ for (const crateDir of rustServiceCrates) {
 
 const typescriptPackages = [
   'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/package.json',
-  'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-commons/package.json',
+  'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-workbench/package.json',
   'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-shell/package.json',
   'apps/sdkwork-birdcoder-h5/packages/sdkwork-birdcoder-h5-chat/package.json',
   'apps/sdkwork-birdcoder-h5/packages/sdkwork-birdcoder-h5-core/package.json',
@@ -125,7 +123,7 @@ for (const packageManifestPath of typescriptPackages) {
 
 const typescriptSourceRoots = [
   'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/src',
-  'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-commons/src',
+  'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-workbench/src',
   'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-shell/src',
   'apps/sdkwork-birdcoder-h5/packages/sdkwork-birdcoder-h5-chat/src',
 ];

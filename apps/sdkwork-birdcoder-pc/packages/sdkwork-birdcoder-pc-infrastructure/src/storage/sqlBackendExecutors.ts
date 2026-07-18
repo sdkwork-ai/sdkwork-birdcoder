@@ -3,7 +3,7 @@ import { createRequire } from 'node:module';
 import path from 'node:path';
 import type { DatabaseSync } from 'node:sqlite';
 
-import type { BirdCoderDatabaseProviderId } from '@sdkwork/birdcoder-pc-types';
+import type { BirdCoderDatabaseProviderId } from '@sdkwork/birdcoder-pc-contracts-commons';
 import type { BirdCoderSqlPlan, BirdCoderSqlRow } from './sqlPlans.ts';
 import type {
   BirdCoderForkableSqlExecutor,

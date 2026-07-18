@@ -1,4 +1,4 @@
-import { resolveBirdCoderLegalLinks } from '@sdkwork/birdcoder-pc-commons';
+import { resolveBirdCoderLegalLinks } from '@sdkwork/birdcoder-pc-workbench';
 import { useTranslation } from 'react-i18next';
 
 export function LegalComplianceSettings() {

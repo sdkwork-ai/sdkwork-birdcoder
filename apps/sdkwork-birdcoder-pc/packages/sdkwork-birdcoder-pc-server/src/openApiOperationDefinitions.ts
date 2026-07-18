@@ -193,23 +193,6 @@ export function buildBirdCoderOpenApiOperationDefinitions(): Record<
     'userId',
     'SDKWork IAM user identifier.',
   );
-  const idPathParameter = createOpenApiPathParameter('id', 'Resource identifier.');
-  const notificationStatusParameter = createOpenApiQueryParameter(
-    'status',
-    'Filter notifications by read status.',
-    createOpenApiStringSchema(),
-  );
-  const usagePeriodParameter = createOpenApiQueryParameter(
-    'period',
-    'Usage history period granularity. Monthly is the supported runtime value.',
-    createOpenApiStringSchema(),
-  );
-  const usageMetricParameter = createOpenApiQueryParameter(
-    'metric',
-    'Filter usage breakdown or quota status to one metric type.',
-    createOpenApiStringSchema(),
-  );
-
   return {
     'descriptor.retrieve': {
       responses: buildOpenApiResponses({
@@ -774,22 +757,6 @@ export function buildBirdCoderOpenApiOperationDefinitions(): Record<
         successSchema: createOpenApiSchemaReference('BirdCoderIamUserProfileEnvelope'),
       }),
     },
-    'memberships.current.retrieve': {
-      responses: buildOpenApiResponses({
-        successStatus: '200',
-        successDescription: 'Current SDKWork commerce membership returned successfully.',
-        successSchema: createOpenApiSchemaReference('BirdCoderCommerceMembershipCurrentEnvelope'),
-      }),
-    },
-    'memberships.packageGroups.list': {
-      responses: buildOpenApiResponses({
-        successStatus: '200',
-        successDescription: 'SDKWork commerce membership package groups returned successfully.',
-        successSchema: createOpenApiSchemaReference(
-          'BirdCoderCommerceMembershipPackageGroupSummaryListEnvelope',
-        ),
-      }),
-    },
     'commerce.orders.list': {
       parameters: [pageParameter, pageSizeParameter],
       responses: buildOpenApiResponses({
@@ -888,162 +855,6 @@ export function buildBirdCoderOpenApiOperationDefinitions(): Record<
           '404': createProblemResponse('SDKWork commerce payment was not found.'),
           '409': createProblemResponse('SDKWork commerce payment cannot be confirmed.'),
         },
-      }),
-    },
-    'commerce.apiKeys.create': {
-      requestBody: createOpenApiRequestBody(
-        createOpenApiSchemaReference('BirdCoderCreateCommerceApiKeyRequest'),
-      ),
-      responses: buildOpenApiResponses({
-        successStatus: '201',
-        successDescription: 'BirdCoder commerce API key created successfully.',
-        successSchema: createOpenApiSchemaReference('BirdCoderCommerceApiKeyCreatedEnvelope'),
-        extraResponses: {
-          '400': createProblemResponse('BirdCoder commerce API key request is invalid.'),
-          '403': createProblemResponse('BirdCoder commerce API key creation is not permitted.'),
-        },
-      }),
-    },
-    'commerce.apiKeys.list': {
-      parameters: [pageParameter, pageSizeParameter],
-      responses: buildOpenApiResponses({
-        successStatus: '200',
-        successDescription: 'BirdCoder commerce API keys returned successfully.',
-        successSchema: createOpenApiSchemaReference('BirdCoderCommerceApiKeySummaryListEnvelope'),
-      }),
-    },
-    'commerce.apiKeys.revoke': {
-      parameters: [idPathParameter],
-      responses: buildOpenApiResponses({
-        successStatus: '204',
-        successDescription: 'BirdCoder commerce API key revoked successfully.',
-        extraResponses: {
-          '403': createProblemResponse('BirdCoder commerce API key revocation is not permitted.'),
-          '404': createProblemResponse('BirdCoder commerce API key was not found.'),
-        },
-      }),
-    },
-    'commerce.apiKeys.rotate': {
-      parameters: [idPathParameter],
-      responses: buildOpenApiResponses({
-        successStatus: '200',
-        successDescription: 'BirdCoder commerce API key rotated successfully.',
-        successSchema: createOpenApiSchemaReference('BirdCoderCommerceApiKeyCreatedEnvelope'),
-        extraResponses: {
-          '403': createProblemResponse('BirdCoder commerce API key rotation is not permitted.'),
-          '404': createProblemResponse('BirdCoder commerce API key was not found.'),
-        },
-      }),
-    },
-    'commerce.notifications.list': {
-      parameters: [notificationStatusParameter, pageParameter, pageSizeParameter],
-      responses: buildOpenApiResponses({
-        successStatus: '200',
-        successDescription: 'BirdCoder commerce notifications returned successfully.',
-        successSchema: createOpenApiSchemaReference(
-          'BirdCoderCommerceNotificationSummaryListEnvelope',
-        ),
-      }),
-    },
-    'commerce.notifications.send': {
-      requestBody: createOpenApiRequestBody(
-        createOpenApiSchemaReference('BirdCoderCreateCommerceNotificationRequest'),
-      ),
-      responses: buildOpenApiResponses({
-        successStatus: '201',
-        successDescription: 'BirdCoder commerce notification sent successfully.',
-        successSchema: createOpenApiSchemaReference(
-          'BirdCoderCommerceNotificationCreatedEnvelope',
-        ),
-        extraResponses: {
-          '400': createProblemResponse('BirdCoder commerce notification request is invalid.'),
-          '403': createProblemResponse('BirdCoder commerce notification send is not permitted.'),
-        },
-      }),
-    },
-    'commerce.notifications.get': {
-      parameters: [idPathParameter],
-      responses: buildOpenApiResponses({
-        successStatus: '200',
-        successDescription: 'BirdCoder commerce notification returned successfully.',
-        successSchema: createOpenApiSchemaReference(
-          'BirdCoderCommerceNotificationSummaryEnvelope',
-        ),
-        extraResponses: {
-          '404': createProblemResponse('BirdCoder commerce notification was not found.'),
-        },
-      }),
-    },
-    'commerce.notifications.unreadCount': {
-      responses: buildOpenApiResponses({
-        successStatus: '200',
-        successDescription: 'BirdCoder commerce unread notification count returned successfully.',
-        successSchema: createOpenApiSchemaReference('BirdCoderCommerceUnreadCountEnvelope'),
-      }),
-    },
-    'commerce.notifications.markRead': {
-      parameters: [idPathParameter],
-      responses: buildOpenApiResponses({
-        successStatus: '200',
-        successDescription: 'BirdCoder commerce notification marked as read successfully.',
-        successSchema: createOpenApiSchemaReference('BirdCoderCommerceNotificationReadEnvelope'),
-        extraResponses: {
-          '404': createProblemResponse('BirdCoder commerce notification was not found.'),
-        },
-      }),
-    },
-    'commerce.notifications.markAllRead': {
-      responses: buildOpenApiResponses({
-        successStatus: '200',
-        successDescription: 'BirdCoder commerce notifications marked as read successfully.',
-        successSchema: createOpenApiSchemaReference('BirdCoderCommerceMarkAllReadEnvelope'),
-      }),
-    },
-    'commerce.usage.record': {
-      requestBody: createOpenApiRequestBody(
-        createOpenApiSchemaReference('BirdCoderRecordCommerceUsageRequest'),
-      ),
-      responses: buildOpenApiResponses({
-        successStatus: '200',
-        successDescription: 'BirdCoder commerce usage event recorded successfully.',
-        successSchema: createOpenApiSchemaReference('BirdCoderCommerceRecordUsageEnvelope'),
-        extraResponses: {
-          '400': createProblemResponse('BirdCoder commerce usage request is invalid.'),
-          '403': createProblemResponse('BirdCoder commerce usage recording is not permitted.'),
-        },
-      }),
-    },
-    'commerce.usage.currentPeriod': {
-      responses: buildOpenApiResponses({
-        successStatus: '200',
-        successDescription: 'BirdCoder commerce current-period usage returned successfully.',
-        successSchema: createOpenApiSchemaReference(
-          'BirdCoderCommerceCurrentPeriodUsageEnvelope',
-        ),
-      }),
-    },
-    'commerce.usage.history': {
-      parameters: [usagePeriodParameter, pageParameter, pageSizeParameter],
-      responses: buildOpenApiResponses({
-        successStatus: '200',
-        successDescription: 'BirdCoder commerce usage history returned successfully.',
-        successSchema: createOpenApiSchemaReference('BirdCoderCommerceUsageHistoryListEnvelope'),
-      }),
-    },
-    'commerce.usage.breakdown': {
-      parameters: [usageMetricParameter],
-      responses: buildOpenApiResponses({
-        successStatus: '200',
-        successDescription: 'BirdCoder commerce usage breakdown returned successfully.',
-        successSchema: createOpenApiSchemaReference('BirdCoderCommerceUsageBreakdownEnvelope'),
-      }),
-    },
-    'commerce.usage.quota': {
-      parameters: [usageMetricParameter],
-      responses: buildOpenApiResponses({
-        successStatus: '200',
-        successDescription: 'BirdCoder commerce usage quota returned successfully.',
-        successSchema: createOpenApiSchemaReference('BirdCoderCommerceQuotaStatusEnvelope'),
       }),
     },
     'workspaces.list': {

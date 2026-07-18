@@ -41,8 +41,13 @@ approved server-side secret source:
   that decodes or measures to at least 32 bytes.
 - `SDKWORK_BIRDCODER_RUNTIME_LOCATION_KEY_ID`: non-empty safe identifier for
   the active encryption key.
+- `SDKWORK_BIRDCODER_RUNTIME_LOCATION_PREVIOUS_KEYS_JSON`: optional JSON
+  object of at most 15 historical key-id to key-material entries used only for
+  decrypting existing records.
+- `SDKWORK_BIRDCODER_RUNTIME_LOCATION_FINGERPRINT_KEY`: stable fingerprint
+  secret required during rotation and preserved across all encryption keys.
 
-Do not put either value in a tracked environment file, public `VITE_*`
+Do not put any of these values in a tracked environment file, public `VITE_*`
 configuration, client runtime config, a Helm values file, a container image,
 a log, a diagnostic report, shell history, or a command line. Missing or
 invalid material is fail-closed: runtime-location persistence and operations

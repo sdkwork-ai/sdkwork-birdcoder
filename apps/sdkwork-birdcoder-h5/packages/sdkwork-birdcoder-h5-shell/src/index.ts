@@ -13,7 +13,7 @@ export function createDefaultShellConfig(): H5ShellConfig {
 }
 
 export { BootstrapGate, type BootstrapGateProps } from './bootstrap/BootstrapGate.ts';
-export { createBootstrapGateMessages } from '@sdkwork/birdcoder-pc-commons/bootstrap/createBootstrapGateMessages';
+export { createBootstrapGateMessages } from '@sdkwork/birdcoder-pc-workbench/bootstrap/createBootstrapGateMessages';
 export { createBirdCoderH5BootstrapRuntime } from './bootstrap/createBootstrapRuntime.ts';
 export { ShellRuntimeProviders } from './providers/ShellRuntimeProviders.ts';
 export { BirdCoderAuthGate } from './auth/BirdCoderAuthGate.tsx';

@@ -4597,6 +4597,7 @@ dependencies = [
 name = "sdkwork-agent-server"
 version = "0.1.0"
 dependencies = [
+ "aes-gcm",
  "anyhow",
  "axum 0.8.9",
  "chrono",
@@ -4904,19 +4905,73 @@ dependencies = [
 name = "sdkwork-birdcoder-gateway-assembly"
 version = "0.1.0"
 dependencies = [
+ "async-trait",
  "axum 0.8.9",
- "sdkwork-birdcoder-standalone-gateway",
+ "base64 0.22.1",
+ "hex",
+ "http",
+ "redis",
+ "sdkwork-agents-kernel-bridge",
+ "sdkwork-birdcoder-app-templates-service",
+ "sdkwork-birdcoder-codeengine",
+ "sdkwork-birdcoder-coding-sessions-repository-sqlx",
+ "sdkwork-birdcoder-coding-sessions-service",
+ "sdkwork-birdcoder-commerce-quota",
+ "sdkwork-birdcoder-commerce-repository-sqlx",
+ "sdkwork-birdcoder-commerce-service",
+ "sdkwork-birdcoder-database-host",
+ "sdkwork-birdcoder-deployment-service",
+ "sdkwork-birdcoder-document-repository-sqlx",
+ "sdkwork-birdcoder-document-service",
+ "sdkwork-birdcoder-engine-catalog-service",
+ "sdkwork-birdcoder-errors",
+ "sdkwork-birdcoder-git",
+ "sdkwork-birdcoder-kernel-bridge",
+ "sdkwork-birdcoder-model-config-repository-sqlx",
+ "sdkwork-birdcoder-native-sessions-service",
+ "sdkwork-birdcoder-project-service",
+ "sdkwork-birdcoder-router-context",
+ "sdkwork-birdcoder-skill-packages-repository-sqlx",
+ "sdkwork-birdcoder-skill-packages-service",
+ "sdkwork-birdcoder-sqlx-repository-pool",
+ "sdkwork-birdcoder-system-descriptor-service",
+ "sdkwork-birdcoder-workspace-repository-sqlx",
+ "sdkwork-birdcoder-workspace-service",
+ "sdkwork-database-config",
+ "sdkwork-database-sqlx",
+ "sdkwork-iam-context-service",
+ "sdkwork-iam-database-host",
+ "sdkwork-iam-embedded-application-bootstrap",
+ "sdkwork-iam-web-adapter",
+ "sdkwork-routes-agents-app-api",
  "sdkwork-routes-chat-app-api",
  "sdkwork-routes-coding-sessions-app-api",
  "sdkwork-routes-commerce-app-api",
  "sdkwork-routes-deployment-backend-api",
  "sdkwork-routes-document-app-api",
  "sdkwork-routes-engine-catalog-app-api",
- "sdkwork-routes-membership-app-api",
+ "sdkwork-routes-iam-app-api",
+ "sdkwork-routes-iam-backend-api",
  "sdkwork-routes-skill-packages-app-api",
  "sdkwork-routes-system-app-api",
+ "sdkwork-routes-terminal-app-api",
  "sdkwork-routes-workspace-app-api",
+ "sdkwork-terminal-runtime-node",
+ "sdkwork-utils-rust",
+ "sdkwork-web-axum",
+ "sdkwork-web-bootstrap",
+ "sdkwork-web-contract",
+ "sdkwork-web-core",
+ "serde",
+ "serde_json",
+ "sha2",
+ "sqlx",
+ "time",
  "tokio",
+ "tower 0.5.3",
+ "tracing",
+ "tracing-subscriber",
+ "uuid",
 ]
 
 [[package]]
@@ -4933,32 +4988,6 @@ version = "0.1.0"
 dependencies = [
  "sdkwork-agents-runtime-facade",
  "sdkwork-birdcoder-codeengine",
- "serde",
- "serde_json",
-]
-
-[[package]]
-name = "sdkwork-birdcoder-membership-repository-sqlx"
-version = "0.1.0"
-dependencies = [
- "async-trait",
- "sdkwork-birdcoder-membership-service",
- "sdkwork-birdcoder-project-service",
- "sdkwork-birdcoder-sqlx-repository-pool",
- "serde",
- "serde_json",
- "sqlx",
- "time",
- "tokio",
- "uuid",
-]
-
-[[package]]
-name = "sdkwork-birdcoder-membership-service"
-version = "0.1.0"
-dependencies = [
- "async-trait",
- "sdkwork-utils-rust",
  "serde",
  "serde_json",
 ]
@@ -5076,7 +5105,6 @@ dependencies = [
  "base64 0.22.1",
  "hex",
  "http",
- "rand 0.8.7",
  "redis",
  "sdkwork-agents-kernel-bridge",
  "sdkwork-birdcoder-app-templates-service",
@@ -5092,10 +5120,9 @@ dependencies = [
  "sdkwork-birdcoder-document-service",
  "sdkwork-birdcoder-engine-catalog-service",
  "sdkwork-birdcoder-errors",
+ "sdkwork-birdcoder-gateway-assembly",
  "sdkwork-birdcoder-git",
  "sdkwork-birdcoder-kernel-bridge",
- "sdkwork-birdcoder-membership-repository-sqlx",
- "sdkwork-birdcoder-membership-service",
  "sdkwork-birdcoder-model-config-repository-sqlx",
  "sdkwork-birdcoder-native-sessions-service",
  "sdkwork-birdcoder-project-service",
@@ -5113,19 +5140,9 @@ dependencies = [
  "sdkwork-iam-embedded-application-bootstrap",
  "sdkwork-iam-web-adapter",
  "sdkwork-routes-agents-app-api",
- "sdkwork-routes-chat-app-api",
- "sdkwork-routes-coding-sessions-app-api",
- "sdkwork-routes-commerce-app-api",
- "sdkwork-routes-deployment-backend-api",
- "sdkwork-routes-document-app-api",
- "sdkwork-routes-engine-catalog-app-api",
  "sdkwork-routes-iam-app-api",
  "sdkwork-routes-iam-backend-api",
- "sdkwork-routes-membership-app-api",
- "sdkwork-routes-skill-packages-app-api",
- "sdkwork-routes-system-app-api",
  "sdkwork-routes-terminal-app-api",
- "sdkwork-routes-workspace-app-api",
  "sdkwork-terminal-runtime-node",
  "sdkwork-utils-rust",
  "sdkwork-web-axum",
@@ -5681,23 +5698,6 @@ dependencies = [
  "sqlx",
  "tracing",
  "uuid",
-]
-
-[[package]]
-name = "sdkwork-routes-membership-app-api"
-version = "0.1.0"
-dependencies = [
- "axum 0.8.9",
- "sdkwork-birdcoder-errors",
- "sdkwork-birdcoder-membership-repository-sqlx",
- "sdkwork-birdcoder-membership-service",
- "sdkwork-birdcoder-router-context",
- "sdkwork-utils-rust",
- "sdkwork-web-contract",
- "sdkwork-web-core",
- "serde",
- "serde_json",
- "sqlx",
 ]
 
 [[package]]

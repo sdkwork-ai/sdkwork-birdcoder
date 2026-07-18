@@ -20,7 +20,6 @@ const RUST_PRODUCT_ROUTE_CRATES = [
   'crates/sdkwork-routes-chat-app-api',
   'crates/sdkwork-routes-engine-catalog-app-api',
   'crates/sdkwork-routes-skill-packages-app-api',
-  'crates/sdkwork-routes-membership-app-api',
   'crates/sdkwork-routes-commerce-app-api',
   'crates/sdkwork-routes-deployment-backend-api',
 ];
@@ -28,12 +27,6 @@ const RUST_PRODUCT_ROUTE_CRATES = [
 const IAM_FEDERATION_DEPENDENCIES = [
   'sdkwork_routes_iam_app_api',
   'sdkwork_routes_iam_backend_api',
-];
-
-const COMMERCE_GATEWAY_ROUTE_FILES = [
-  'crates/sdkwork-birdcoder-standalone-gateway/src/routes/api_keys.rs',
-  'crates/sdkwork-birdcoder-standalone-gateway/src/routes/usage.rs',
-  'crates/sdkwork-birdcoder-standalone-gateway/src/routes/notifications.rs',
 ];
 
 function readJson(relativePath) {
@@ -101,88 +94,6 @@ function readRustProductManifestRoutes(crateDir) {
     });
   }
   return routes;
-}
-
-function readCommerceGatewayRoutes() {
-  /** @type {Array<{ method: string, path: string, source: string }>} */
-  const routes = [];
-
-  for (const relativePath of COMMERCE_GATEWAY_ROUTE_FILES) {
-    const source = readText(relativePath);
-    const routePattern = /\.route\s*\(\s*"([^"]+)"/gu;
-    for (const routeMatch of source.matchAll(routePattern)) {
-      const routePath = routeMatch[1];
-      const invocation = readRustRouteInvocation(source, routeMatch.index ?? 0);
-
-      const methods = [];
-      if (/\bpost\s*\(/u.test(invocation)) {
-        methods.push('POST');
-      }
-      if (/\bget\s*\(/u.test(invocation)) {
-        methods.push('GET');
-      }
-      if (/\bdelete\s*\(/u.test(invocation)) {
-        methods.push('DELETE');
-      }
-      if (/\bput\s*\(/u.test(invocation)) {
-        methods.push('PUT');
-      }
-      if (/\bpatch\s*\(/u.test(invocation)) {
-        methods.push('PATCH');
-      }
-
-      for (const method of methods) {
-        routes.push({
-          method,
-          path: routePath,
-          source: 'commerce-gateway',
-        });
-      }
-    }
-  }
-
-  return routes;
-}
-
-function readRustRouteInvocation(source, routeStartIndex) {
-  const openParenIndex = source.indexOf('(', routeStartIndex);
-  if (openParenIndex < 0) {
-    throw new Error('Unable to parse Axum route invocation: missing opening parenthesis.');
-  }
-
-  let depth = 0;
-  let inString = false;
-  let escaped = false;
-  for (let index = openParenIndex; index < source.length; index += 1) {
-    const char = source[index];
-    if (inString) {
-      if (escaped) {
-        escaped = false;
-      } else if (char === '\\') {
-        escaped = true;
-      } else if (char === '"') {
-        inString = false;
-      }
-      continue;
-    }
-
-    if (char === '"') {
-      inString = true;
-      continue;
-    }
-    if (char === '(') {
-      depth += 1;
-      continue;
-    }
-    if (char === ')') {
-      depth -= 1;
-      if (depth === 0) {
-        return source.slice(routeStartIndex, index + 1);
-      }
-    }
-  }
-
-  throw new Error('Unable to parse Axum route invocation: missing closing parenthesis.');
 }
 
 function readRustIamManifestRoutes(crateRoot, sourceLabel) {
@@ -269,8 +180,7 @@ export function buildCodingServerOpenApiRustDeferRegistry() {
   const iamAppRoutes = readRustIamManifestRoutes(iamAppCrateRoot, 'sdkwork-iam-app');
   const iamBackendRoutes = readRustIamManifestRoutes(iamBackendCrateRoot, 'sdkwork-iam-backend');
 
-  const commerceRoutes = readCommerceGatewayRoutes();
-  const hostRoutes = [...productRoutes, ...iamAppRoutes, ...iamBackendRoutes, ...commerceRoutes];
+  const hostRoutes = [...productRoutes, ...iamAppRoutes, ...iamBackendRoutes];
   const hostRouteKeys = new Set(hostRoutes.map((route) => routeKey(route.method, route.path)));
 
   const deferred = contractOperations
@@ -286,7 +196,7 @@ export function buildCodingServerOpenApiRustDeferRegistry() {
         reason: 'host-manifest-gap',
         addedAt: new Date().toISOString().slice(0, 10),
         note:
-          'OpenAPI operation is absent from BirdCoder product manifests, federated sdkwork-iam manifests, and commerce gateway routes wired in standalone-gateway.',
+          'OpenAPI operation is absent from BirdCoder product manifests and federated sdkwork-iam manifests.',
       };
     });
 
@@ -307,7 +217,6 @@ export function buildCodingServerOpenApiRustDeferRegistry() {
       contractOperationCount: contractOperations.length,
       rustProductManifestRouteCount: productRoutes.length,
       iamFederationManifestRouteCount: iamAppRoutes.length + iamBackendRoutes.length,
-      commerceGatewayRouteCount: commerceRoutes.length,
       hostManifestRouteCount: hostRouteKeys.size,
       implementedOperationCount: implemented.length,
       deferredOperationCount: deferred.length,
@@ -316,10 +225,9 @@ export function buildCodingServerOpenApiRustDeferRegistry() {
       iamAppCrate: path.relative(workspaceRootDir, iamAppCrateRoot).replaceAll('\\', '/'),
       iamBackendCrate: path.relative(workspaceRootDir, iamBackendCrateRoot).replaceAll('\\', '/'),
       wiredInApiServer: 'crates/sdkwork-birdcoder-standalone-gateway/src/bootstrap/iam.rs',
-      commerceGatewayRoutes: 'crates/sdkwork-birdcoder-standalone-gateway/src/routes/{api_keys,usage,notifications}.rs',
     },
     rule:
-      'Deferred operations are absent from BirdCoder product manifests, federated sdkwork-iam manifests, and commerce gateway routes wired in standalone-gateway. Commerce `/api/v1/*` routes are implemented in standalone-gateway and counted through gateway route registration.',
+      'Deferred operations are absent from BirdCoder product manifests and federated sdkwork-iam manifests. BirdCoder does not expose a legacy API-key-authenticated `/api/v1/*` surface.',
     implemented,
     deferred,
   };

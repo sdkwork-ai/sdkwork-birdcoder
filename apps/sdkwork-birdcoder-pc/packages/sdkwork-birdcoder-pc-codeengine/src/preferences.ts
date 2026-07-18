@@ -1,4 +1,4 @@
-import type { BirdCoderModelCatalogEntry } from '@sdkwork/birdcoder-pc-types';
+import type { BirdCoderModelCatalogEntry } from '@sdkwork/birdcoder-pc-contracts-commons';
 
 import {
   BIRDCODER_CODE_ENGINE_DESCRIPTORS,

@@ -33,14 +33,6 @@ export interface CommerceApi {
       retrieve(pathParams: CommercePaymentsRetrievePathParams, options?: BirdcoderSdkRequestOptions): Promise<Types.BirdCoderCommercePaymentSummaryEnvelope>;
     };
   };
-  memberships: {
-    current: {
-      retrieve(options?: BirdcoderSdkRequestOptions): Promise<Types.BirdCoderCommerceMembershipCurrentEnvelope>;
-    };
-    packageGroups: {
-      list(options?: BirdcoderSdkRequestOptions): Promise<Types.BirdCoderCommerceMembershipPackageGroupSummaryListEnvelope>;
-    };
-  };
 }
 
 export function createCommerceApi(requestOperation: BirdcoderSdkRequestOperation): CommerceApi {
@@ -77,18 +69,6 @@ export function createCommerceApi(requestOperation: BirdcoderSdkRequestOperation
         },
         retrieve(pathParams: CommercePaymentsRetrievePathParams, options: BirdcoderSdkRequestOptions = {}) {
           return requestOperation<Types.BirdCoderCommercePaymentSummaryEnvelope>("commerce.payments.retrieve", { pathParams }, options);
-        }
-      }
-    },
-    memberships: {
-      current: {
-        retrieve(options: BirdcoderSdkRequestOptions = {}) {
-          return requestOperation<Types.BirdCoderCommerceMembershipCurrentEnvelope>("commerce.memberships.current.retrieve", {}, options);
-        }
-      },
-      packageGroups: {
-        list(options: BirdcoderSdkRequestOptions = {}) {
-          return requestOperation<Types.BirdCoderCommerceMembershipPackageGroupSummaryListEnvelope>("commerce.memberships.packageGroups.list", {}, options);
         }
       }
     }

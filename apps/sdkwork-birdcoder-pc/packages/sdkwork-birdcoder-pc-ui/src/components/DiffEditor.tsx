@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { DiffEditor as MonacoDiffEditor, useMonaco } from '@monaco-editor/react';
 import { Loader2, WrapText, Columns, LayoutTemplate } from 'lucide-react';
-import { useToast } from '@sdkwork/birdcoder-pc-commons/contexts/ToastProvider';
-import { globalEventBus } from '@sdkwork/birdcoder-pc-commons/utils/EventBus';
+import { useToast } from '@sdkwork/birdcoder-pc-workbench/contexts/ToastProvider';
+import { globalEventBus } from '@sdkwork/birdcoder-pc-workbench/utils/EventBus';
 import { resolveMonacoOverflowWidgetsDomNode } from './monacoOverflowWidgets';
 import {
   applyBirdCoderMonacoTheme,

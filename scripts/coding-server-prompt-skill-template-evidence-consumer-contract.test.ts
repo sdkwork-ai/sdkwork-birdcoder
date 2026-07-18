@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
-import type { BirdCoderEngineCapabilityMatrix } from '@sdkwork/birdcoder-pc-types';
+import type { BirdCoderEngineCapabilityMatrix } from '@sdkwork/birdcoder-pc-contracts-commons';
 import { createBirdCoderStorageProvider } from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/src/storage/dataKernel.ts';
 import { createBirdCoderPromptSkillTemplateEvidenceRepositories } from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/src/storage/promptSkillTemplateEvidenceRepository.ts';
 import { getBirdCoderSchemaMigrationDefinition } from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/src/storage/providers.ts';

@@ -13,8 +13,7 @@
     }
   },
   "dependencies": {
-    "@sdkwork/birdcoder-pc-commons": "workspace:*"
-  }
+    "@sdkwork/birdcoder-pc-workbench": "workspace:*"
+  },
+  "scripts": {}
 }
-
-

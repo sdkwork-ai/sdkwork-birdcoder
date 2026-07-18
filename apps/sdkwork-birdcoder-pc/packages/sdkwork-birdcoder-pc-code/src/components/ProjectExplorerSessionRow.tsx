@@ -1,10 +1,10 @@
 import React from 'react';
 import { Archive, Loader2, MoreHorizontal, Pin } from 'lucide-react';
-import type { BirdCoderCodingSession } from '@sdkwork/birdcoder-pc-types';
+import type { BirdCoderCodingSession } from '@sdkwork/birdcoder-pc-contracts-commons';
 import {
   formatBirdCoderSessionActivityDisplayTime,
   isBirdCoderCodingSessionEngineBusy,
-} from '@sdkwork/birdcoder-pc-types';
+} from '@sdkwork/birdcoder-pc-contracts-commons';
 import { WorkbenchCodeEngineIcon } from '@sdkwork/birdcoder-pc-ui-shell';
 import { buildProjectExplorerSurfaceStyle } from './ProjectExplorer.shared';
 

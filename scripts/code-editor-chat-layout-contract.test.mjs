@@ -10,7 +10,7 @@ function readSource(...segments) {
 }
 
 const preferencesModulePath = new URL(
-  '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-commons/src/workbench/preferences.ts',
+  '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-workbench/src/workbench/preferences.ts',
   import.meta.url,
 );
 const layoutModulePath = new URL(
@@ -25,7 +25,7 @@ const preferencesSource = readSource(
   
   'packages',
   
-  'sdkwork-birdcoder-pc-commons',
+  'sdkwork-birdcoder-pc-workbench',
   'src',
   'workbench',
   'preferences.ts',
@@ -37,7 +37,7 @@ const preferencesHookSource = readSource(
   
   'packages',
   
-  'sdkwork-birdcoder-pc-commons',
+  'sdkwork-birdcoder-pc-workbench',
   'src',
   'hooks',
   'useWorkbenchPreferences.ts',

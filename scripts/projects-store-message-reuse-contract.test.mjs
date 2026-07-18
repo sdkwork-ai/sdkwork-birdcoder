@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
 import process from 'node:process';
-import { upsertCodingSessionIntoCollection } from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-commons/src/stores/projectsStore.ts';
+import { upsertCodingSessionIntoCollection } from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-workbench/src/stores/projectsStore.ts';
 
 const rootDir = process.cwd();
 const projectsStoreSource = fs.readFileSync(
@@ -14,7 +14,7 @@ const projectsStoreSource = fs.readFileSync(
     
     
     
-    'sdkwork-birdcoder-pc-commons',
+    'sdkwork-birdcoder-pc-workbench',
     'src',
     'stores',
     'projectsStore.ts',

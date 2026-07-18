@@ -90,7 +90,7 @@ const VITE_BIRDCODER_AUTH_LEFT_RAIL_MODE_ENV =
   'VITE_BIRDCODER_AUTH_LEFT_RAIL_MODE';
 
 const SDKWORK_IAM_DATABASE_URL_ENV = 'SDKWORK_IAM_DATABASE_URL';
-const CLIENT_IAM_COMMAND_TARGETS = new Set(['desktop-dev', 'web-dev']);
+const CLIENT_IAM_COMMAND_TARGETS = new Set(['desktop-dev', 'h5-dev', 'web-dev']);
 const BIRDCODER_PC_MANIFEST_RELATIVE_PATH = path.join(
   'apps',
   'sdkwork-birdcoder-pc',
@@ -235,6 +235,7 @@ function resolveDefaultIamMode(target) {
     || target === 'server-dev'
     || target === 'web-build'
     || target === 'web-dev'
+    || target === 'h5-dev'
   ) {
     return 'server-private';
   }
@@ -263,7 +264,7 @@ function resolveSdkworkRuntimeTarget(target) {
     return 'desktop';
   }
 
-  if (target === 'web-build' || target === 'web-dev') {
+  if (target === 'web-build' || target === 'web-dev' || target === 'h5-dev') {
     return 'browser';
   }
 
@@ -547,7 +548,7 @@ function applyClientApiBaseUrl({
   target,
 }) {
   const isDesktopTarget = target === 'desktop-build' || target === 'desktop-dev';
-  const isWebTarget = target === 'web-build' || target === 'web-dev';
+  const isWebTarget = target === 'web-build' || target === 'web-dev' || target === 'h5-dev';
   const isClientTarget = isDesktopTarget || isWebTarget;
   if (!isClientTarget) {
     return;

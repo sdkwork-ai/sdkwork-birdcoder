@@ -62,13 +62,13 @@ assert.match(
 
 assert.match(
   worktreeManagementPanelSource,
-  /import \{[\s\S]*useProjectGitMutationActions,[\s\S]*useProjectGitOverview,[\s\S]*\} from '@sdkwork\/birdcoder-pc-commons';/s,
+  /import \{[\s\S]*useProjectGitMutationActions,[\s\S]*useProjectGitOverview,[\s\S]*\} from '@sdkwork\/birdcoder-pc-workbench';/s,
   'Worktree management panel must consume shared Git overview and mutation hooks from the commons package root.',
 );
 
 assert.match(
   worktreeManagementPanelSource,
-  /import \{[\s\S]*useToast[\s\S]*\} from '@sdkwork\/birdcoder-pc-commons';/s,
+  /import \{[\s\S]*useToast[\s\S]*\} from '@sdkwork\/birdcoder-pc-workbench';/s,
   'Worktree management panel must source toast behavior from the commons package root instead of a child entry.',
 );
 

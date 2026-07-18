@@ -3,8 +3,8 @@ import {
   resolveChatTurnActivitySummary,
   resolveChatMessageView,
   type BirdCoderCodeEngineKey,
-} from '@sdkwork/birdcoder-pc-commons/chat/types';
-import type { BirdCoderChatMessage } from '@sdkwork/birdcoder-pc-commons/chat/types';
+} from '@sdkwork/birdcoder-pc-workbench/chat/types';
+import type { BirdCoderChatMessage } from '@sdkwork/birdcoder-pc-workbench/chat/types';
 import { defaultChatMessageRendererRegistry } from './defaultRegistry.ts';
 import {
   buildTranscriptSurfaceStyle,

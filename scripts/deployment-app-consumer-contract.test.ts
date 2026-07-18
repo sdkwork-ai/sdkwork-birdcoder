@@ -4,9 +4,9 @@ import type {
   BirdCoderDeploymentTargetSummary,
   BirdCoderProjectPublishResult,
   BirdCoderPublishProjectRequest,
-} from '@sdkwork/birdcoder-pc-types';
+} from '@sdkwork/birdcoder-pc-contracts-commons';
 import type { IDeploymentService } from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/src/services/interfaces/IDeploymentService.ts';
-import { loadDeployments } from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-commons/src/hooks/useDeployments.ts';
+import { loadDeployments } from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-workbench/src/hooks/useDeployments.ts';
 
 const deploymentFixtures: BirdCoderDeploymentRecordSummary[] = [
   {

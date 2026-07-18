@@ -3,7 +3,7 @@ import { readFileSync } from 'node:fs';
 
 const chatMessageViewSource = readFileSync(
   new URL(
-    '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-types/src/chat-message-view.ts',
+    '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-contracts-commons/src/chat-message-view.ts',
     import.meta.url,
   ),
   'utf8',

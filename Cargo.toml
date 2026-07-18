@@ -9,7 +9,6 @@ members = [
     "crates/sdkwork-routes-document-app-api",
     "crates/sdkwork-routes-chat-app-api",
     "crates/sdkwork-routes-skill-packages-app-api",
-    "crates/sdkwork-routes-membership-app-api",
     "crates/sdkwork-routes-commerce-app-api",
     "crates/sdkwork-routes-deployment-backend-api",
     "crates/sdkwork-birdcoder-router-context",
@@ -24,7 +23,6 @@ members = [
     "crates/sdkwork-birdcoder-app-templates-service",
     "crates/sdkwork-birdcoder-document-service",
     "crates/sdkwork-birdcoder-chat-service",
-    "crates/sdkwork-birdcoder-membership-service",
     "crates/sdkwork-birdcoder-commerce-service",
     "crates/sdkwork-birdcoder-system-descriptor-service",
     # Repository crates
@@ -33,7 +31,6 @@ members = [
     "crates/sdkwork-birdcoder-skill-packages-repository-sqlx",
     "crates/sdkwork-birdcoder-app-templates-repository-sqlx",
     "crates/sdkwork-birdcoder-model-config-repository-sqlx",
-    "crates/sdkwork-birdcoder-membership-repository-sqlx",
     "crates/sdkwork-birdcoder-commerce-repository-sqlx",
     "crates/sdkwork-birdcoder-document-repository-sqlx",
     "crates/sdkwork-birdcoder-chat-repository-sqlx",
@@ -95,7 +92,6 @@ sdkwork-routes-workspace-app-api = { path = "crates/sdkwork-routes-workspace-app
 sdkwork-routes-document-app-api = { path = "crates/sdkwork-routes-document-app-api" }
 sdkwork-routes-chat-app-api = { path = "crates/sdkwork-routes-chat-app-api" }
 sdkwork-routes-skill-packages-app-api = { path = "crates/sdkwork-routes-skill-packages-app-api" }
-sdkwork-routes-membership-app-api = { path = "crates/sdkwork-routes-membership-app-api" }
 sdkwork-routes-commerce-app-api = { path = "crates/sdkwork-routes-commerce-app-api" }
 sdkwork-routes-deployment-backend-api = { path = "crates/sdkwork-routes-deployment-backend-api" }
 
@@ -110,7 +106,6 @@ sdkwork-birdcoder-skill-packages-service = { path = "crates/sdkwork-birdcoder-sk
 sdkwork-birdcoder-app-templates-service = { path = "crates/sdkwork-birdcoder-app-templates-service" }
 sdkwork-birdcoder-document-service = { path = "crates/sdkwork-birdcoder-document-service" }
 sdkwork-birdcoder-chat-service = { path = "crates/sdkwork-birdcoder-chat-service" }
-sdkwork-birdcoder-membership-service = { path = "crates/sdkwork-birdcoder-membership-service" }
 sdkwork-birdcoder-commerce-service = { path = "crates/sdkwork-birdcoder-commerce-service" }
 sdkwork-birdcoder-system-descriptor-service = { path = "crates/sdkwork-birdcoder-system-descriptor-service" }
 
@@ -120,7 +115,6 @@ sdkwork-birdcoder-workspace-repository-sqlx = { path = "crates/sdkwork-birdcoder
 sdkwork-birdcoder-skill-packages-repository-sqlx = { path = "crates/sdkwork-birdcoder-skill-packages-repository-sqlx" }
 sdkwork-birdcoder-app-templates-repository-sqlx = { path = "crates/sdkwork-birdcoder-app-templates-repository-sqlx" }
 sdkwork-birdcoder-model-config-repository-sqlx = { path = "crates/sdkwork-birdcoder-model-config-repository-sqlx" }
-sdkwork-birdcoder-membership-repository-sqlx = { path = "crates/sdkwork-birdcoder-membership-repository-sqlx" }
 sdkwork-birdcoder-commerce-repository-sqlx = { path = "crates/sdkwork-birdcoder-commerce-repository-sqlx" }
 sdkwork-birdcoder-document-repository-sqlx = { path = "crates/sdkwork-birdcoder-document-repository-sqlx" }
 sdkwork-birdcoder-chat-repository-sqlx = { path = "crates/sdkwork-birdcoder-chat-repository-sqlx" }
@@ -128,6 +122,7 @@ sdkwork-birdcoder-sqlx-repository-pool = { path = "crates/sdkwork-birdcoder-sqlx
 
 # Host/server crates
 sdkwork-birdcoder-standalone-gateway = { path = "crates/sdkwork-birdcoder-standalone-gateway" }
+sdkwork-birdcoder-gateway-assembly = { path = "crates/sdkwork-birdcoder-gateway-assembly" }
 sdkwork-birdcoder-service-host = { path = "crates/sdkwork-birdcoder-service-host" }
 sdkwork-birdcoder-tauri-host = { path = "crates/sdkwork-birdcoder-tauri-host" }
 

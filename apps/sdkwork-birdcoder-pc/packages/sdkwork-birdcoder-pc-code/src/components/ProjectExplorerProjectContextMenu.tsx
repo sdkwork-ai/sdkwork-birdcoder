@@ -1,5 +1,5 @@
 import type { RefObject } from 'react';
-import type { BirdCoderProject } from '@sdkwork/birdcoder-pc-types';
+import type { BirdCoderProject } from '@sdkwork/birdcoder-pc-contracts-commons';
 import { WorkbenchCodeEngineIcon } from '@sdkwork/birdcoder-pc-ui-shell';
 import { useTranslation } from 'react-i18next';
 import type {

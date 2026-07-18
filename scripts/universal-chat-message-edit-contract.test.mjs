@@ -15,11 +15,11 @@ const codePageSource = await readFile(
   'utf8',
 );
 const workbenchMessageEditActionHookSource = await readFile(
-  resolve('apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-commons/src/hooks/useWorkbenchCodingSessionMessageEditAction.ts'),
+  resolve('apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-workbench/src/hooks/useWorkbenchCodingSessionMessageEditAction.ts'),
   'utf8',
 );
 const commonsIndexSource = await readFile(
-  resolve('apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-commons/src/index.ts'),
+  resolve('apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-workbench/src/index.ts'),
   'utf8',
 );
 const codePageSurfacePropsSource = await readFile(

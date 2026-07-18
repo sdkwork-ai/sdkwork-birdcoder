@@ -1,30 +1,22 @@
 {
   "schemaVersion": 2,
-  "updatedAt": "2026-07-16",
+  "updatedAt": "2026-07-17",
   "openApiSnapshotPath": "deployments/server-windows/x64/openapi/coding-server-v1.json",
   "summary": {
-    "contractOperationCount": 174,
-    "rustProductManifestRouteCount": 93,
+    "contractOperationCount": 157,
+    "rustProductManifestRouteCount": 91,
     "iamFederationManifestRouteCount": 198,
-    "commerceGatewayRouteCount": 15,
-    "hostManifestRouteCount": 306,
-    "implementedOperationCount": 174,
+    "hostManifestRouteCount": 289,
+    "implementedOperationCount": 157,
     "deferredOperationCount": 0
   },
   "federation": {
     "iamAppCrate": "../sdkwork-iam/crates/sdkwork-routes-iam-app-api",
     "iamBackendCrate": "../sdkwork-iam/crates/sdkwork-routes-iam-backend-api",
-    "wiredInApiServer": "crates/sdkwork-birdcoder-standalone-gateway/src/bootstrap/iam.rs",
-    "commerceGatewayRoutes": "crates/sdkwork-birdcoder-standalone-gateway/src/routes/{api_keys,usage,notifications}.rs"
+    "wiredInApiServer": "crates/sdkwork-birdcoder-standalone-gateway/src/bootstrap/iam.rs"
   },
-  "rule": "Deferred operations are absent from BirdCoder product manifests, federated sdkwork-iam manifests, and commerce gateway routes wired in standalone-gateway. Commerce `/api/v1/*` routes are implemented in standalone-gateway and counted through gateway route registration.",
+  "rule": "Deferred operations are absent from BirdCoder product manifests and federated sdkwork-iam manifests. BirdCoder does not expose a legacy API-key-authenticated `/api/v1/*` surface.",
   "implemented": [
-    {
-      "method": "DELETE",
-      "path": "/api/v1/api-keys/{id}",
-      "operationId": "commerce.apiKeys.revoke",
-      "surface": "unknown"
-    },
     {
       "method": "DELETE",
       "path": "/app/v3/api/auth/sessions/current",
@@ -126,54 +118,6 @@
       "path": "/backend/v3/api/iam/users/{userId}",
       "operationId": "users.delete",
       "surface": "backend"
-    },
-    {
-      "method": "GET",
-      "path": "/api/v1/api-keys",
-      "operationId": "commerce.apiKeys.list",
-      "surface": "unknown"
-    },
-    {
-      "method": "GET",
-      "path": "/api/v1/notifications",
-      "operationId": "commerce.notifications.list",
-      "surface": "unknown"
-    },
-    {
-      "method": "GET",
-      "path": "/api/v1/notifications/{id}",
-      "operationId": "commerce.notifications.get",
-      "surface": "unknown"
-    },
-    {
-      "method": "GET",
-      "path": "/api/v1/notifications/unread-count",
-      "operationId": "commerce.notifications.unreadCount",
-      "surface": "unknown"
-    },
-    {
-      "method": "GET",
-      "path": "/api/v1/usage/breakdown",
-      "operationId": "commerce.usage.breakdown",
-      "surface": "unknown"
-    },
-    {
-      "method": "GET",
-      "path": "/api/v1/usage/current-period",
-      "operationId": "commerce.usage.currentPeriod",
-      "surface": "unknown"
-    },
-    {
-      "method": "GET",
-      "path": "/api/v1/usage/history",
-      "operationId": "commerce.usage.history",
-      "surface": "unknown"
-    },
-    {
-      "method": "GET",
-      "path": "/api/v1/usage/quota",
-      "operationId": "commerce.usage.quota",
-      "surface": "unknown"
     },
     {
       "method": "GET",
@@ -323,18 +267,6 @@
       "method": "GET",
       "path": "/app/v3/api/intelligence/coding_sessions/{sessionId}/events",
       "operationId": "codingSessions.events.list",
-      "surface": "app"
-    },
-    {
-      "method": "GET",
-      "path": "/app/v3/api/memberships/current",
-      "operationId": "memberships.current.retrieve",
-      "surface": "app"
-    },
-    {
-      "method": "GET",
-      "path": "/app/v3/api/memberships/package_groups",
-      "operationId": "memberships.packageGroups.list",
       "surface": "app"
     },
     {
@@ -720,42 +652,6 @@
       "path": "/backend/v3/api/iam/users/{userId}",
       "operationId": "users.update",
       "surface": "backend"
-    },
-    {
-      "method": "POST",
-      "path": "/api/v1/api-keys",
-      "operationId": "commerce.apiKeys.create",
-      "surface": "unknown"
-    },
-    {
-      "method": "POST",
-      "path": "/api/v1/api-keys/{id}/rotate",
-      "operationId": "commerce.apiKeys.rotate",
-      "surface": "unknown"
-    },
-    {
-      "method": "POST",
-      "path": "/api/v1/notifications",
-      "operationId": "commerce.notifications.send",
-      "surface": "unknown"
-    },
-    {
-      "method": "POST",
-      "path": "/api/v1/notifications/{id}/read",
-      "operationId": "commerce.notifications.markRead",
-      "surface": "unknown"
-    },
-    {
-      "method": "POST",
-      "path": "/api/v1/notifications/read-all",
-      "operationId": "commerce.notifications.markAllRead",
-      "surface": "unknown"
-    },
-    {
-      "method": "POST",
-      "path": "/api/v1/usage/record",
-      "operationId": "commerce.usage.record",
-      "surface": "unknown"
     },
     {
       "method": "POST",

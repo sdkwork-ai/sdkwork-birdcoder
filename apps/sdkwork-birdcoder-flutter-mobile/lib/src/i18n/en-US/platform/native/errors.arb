@@ -1,0 +1,11 @@
+{
+  "@@locale": "en-US",
+  "native_error_unsupported": "This capability is not supported on this device.",
+  "native_error_permission_denied": "Permission was denied.",
+  "native_error_unavailable": "The capability is unavailable right now.",
+  "native_error_cancelled": "The operation was cancelled.",
+  "native_error_invalid_state": "The operation could not complete in the current state.",
+  "native_error_timeout": "The operation timed out.",
+  "native_error_not_found": "The requested resource was not found.",
+  "native_error_failed": "The operation failed."
+}

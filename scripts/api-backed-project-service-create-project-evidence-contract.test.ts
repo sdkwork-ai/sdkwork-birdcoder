@@ -2,7 +2,7 @@ import type { BirdCoderAppSdkApiClient } from '../apps/sdkwork-birdcoder-pc/pack
 import assert from 'node:assert/strict';
 import type {
   BirdCoderProject,
-} from '@sdkwork/birdcoder-pc-types';
+} from '@sdkwork/birdcoder-pc-contracts-commons';
 import { ApiBackedProjectService } from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/src/services/impl/ApiBackedProjectService.ts';
 import type {
   CreateProjectOptions,

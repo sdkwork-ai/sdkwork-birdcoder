@@ -277,10 +277,6 @@ const nativeSessionHandlersSource = readFileSync(
   new URL('../crates/sdkwork-routes-engine-catalog-app-api/src/handlers.rs', import.meta.url),
   'utf8',
 );
-const membershipHandlersSource = readFileSync(
-  new URL('../crates/sdkwork-routes-membership-app-api/src/handlers.rs', import.meta.url),
-  'utf8',
-);
 const authBootstrapSource = readFileSync(
   new URL('../crates/sdkwork-birdcoder-standalone-gateway/src/bootstrap/auth.rs', import.meta.url),
   'utf8',
@@ -290,11 +286,6 @@ assert.match(
   nativeSessionHandlersSource,
   /workspaceId, projectId, and runtimeLocationId are required to list native sessions; the server must also resolve an authorized runtime location/u,
   'Native session list API must require the complete server-authorized execution scope.',
-);
-assert.match(
-  membershipHandlersSource,
-  /Membership lookup is limited to the authenticated user/u,
-  'Membership lookup must reject cross-user owner_user_id overrides.',
 );
 assert.match(
   authBootstrapSource,
@@ -311,7 +302,6 @@ const alignedRouterCrates = [
   'document-app-api',
   'system-app-api',
   'engine-catalog-app-api',
-  'membership-app-api',
   'skill-packages-app-api',
   'deployment-backend-api',
 ] as const;

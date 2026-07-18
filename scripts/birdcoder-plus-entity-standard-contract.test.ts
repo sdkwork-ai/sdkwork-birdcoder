@@ -3,7 +3,7 @@ import {
   BIRDCODER_DATA_ENTITY_DEFINITIONS,
   BIRDCODER_DATA_SCOPES,
   getBirdCoderEntityDefinition,
-} from '@sdkwork/birdcoder-pc-types';
+} from '@sdkwork/birdcoder-pc-contracts-commons';
 
 const lowerSnakeCasePattern = /^[a-z][a-z0-9]*(?:_[a-z0-9]+)*$/u;
 const standardDataScopes = ['DEFAULT', 'PRIVATE', 'ORGANIZATION', 'TENANT', 'PUBLIC'] as const;

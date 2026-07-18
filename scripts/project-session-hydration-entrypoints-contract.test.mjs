@@ -17,7 +17,7 @@ for (const entrypointPath of entrypointPaths) {
 }
 
 const projectsHookPath =
-  '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-commons/src/hooks/useProjects.ts';
+  '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-workbench/src/hooks/useProjects.ts';
 const projectsHookSource = fs.readFileSync(new URL(projectsHookPath, import.meta.url), 'utf8');
 assert.match(
   projectsHookSource,

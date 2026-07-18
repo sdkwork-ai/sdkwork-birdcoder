@@ -1,10 +1,10 @@
-import { getTerminalProfile } from '@sdkwork/birdcoder-pc-commons/terminal/profiles';
-import type { TerminalCommandRequest } from '@sdkwork/birdcoder-pc-commons/terminal/runtime';
+import { getTerminalProfile } from '@sdkwork/birdcoder-pc-workbench/terminal/profiles';
+import type { TerminalCommandRequest } from '@sdkwork/birdcoder-pc-workbench/terminal/runtime';
 import {
   buildWorkbenchCodeEngineTerminalResumeCommand,
   getWorkbenchCodeEngineKernel,
 } from '@sdkwork/birdcoder-pc-codeengine';
-import type { BirdCoderCodingSession } from '@sdkwork/birdcoder-pc-types';
+import type { BirdCoderCodingSession } from '@sdkwork/birdcoder-pc-contracts-commons';
 
 export interface CodingSessionTerminalLaunchPlan {
   request: TerminalCommandRequest;

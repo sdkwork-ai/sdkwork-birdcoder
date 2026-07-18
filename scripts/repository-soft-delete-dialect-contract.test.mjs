@@ -10,7 +10,6 @@ const repositoryRoots = [
   'crates/sdkwork-birdcoder-chat-repository-sqlx',
   'crates/sdkwork-birdcoder-commerce-repository-sqlx',
   'crates/sdkwork-birdcoder-document-repository-sqlx',
-  'crates/sdkwork-birdcoder-membership-repository-sqlx',
   'crates/sdkwork-birdcoder-workspace-repository-sqlx',
   'crates/sdkwork-birdcoder-model-config-repository-sqlx',
 ];

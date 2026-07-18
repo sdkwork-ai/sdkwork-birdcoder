@@ -1,4 +1,4 @@
-import type { BirdCoderProject } from '@sdkwork/birdcoder-pc-types';
+import type { BirdCoderProject } from '@sdkwork/birdcoder-pc-contracts-commons';
 
 export interface ProjectSessionLoadMoreResult {
   hasMore?: boolean;

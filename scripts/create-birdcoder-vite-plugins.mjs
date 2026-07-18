@@ -3,6 +3,8 @@ import { createRequire } from 'node:module';
 import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
+import { uuid } from '@sdkwork/utils/id';
+
 /**
  * Vite config helpers are consumed from multiple workspace packages that resolve
  * different physical Vite peer instances under pnpm. Keep plugin values opaque
@@ -34,6 +36,8 @@ const terminalPcPackageIds = [
   'terminal-pc-workbench',
 ];
 const defaultBirdcoderNamespace = 'sdkwork-birdcoder-pc-desktop';
+const SDKWORK_BAD_GATEWAY_CODE = 50201;
+const SDKWORK_BAD_GATEWAY_STATUS = 502;
 
 const BIRDCODER_VITE_DEDUPE_PACKAGES = [
   'react',
@@ -98,6 +102,7 @@ const BIRDCODER_PUBLIC_RUNTIME_ENV_ALLOWED_KEYS = new Set([
   'VITE_SDKWORK_BIRDCODER_DEPLOYMENT_PROFILE',
   'VITE_SDKWORK_BIRDCODER_IAM_DEPLOYMENT_MODE',
   'VITE_SDKWORK_BIRDCODER_OFFICIAL_WEBSITE_URL',
+  'VITE_SDKWORK_BIRDCODER_PLATFORM_API_GATEWAY_HTTP_URL',
   'VITE_SDKWORK_BIRDCODER_REALTIME_TRANSPORT',
   'VITE_SDKWORK_BIRDCODER_PRIVACY_POLICY_URL',
   'VITE_SDKWORK_BIRDCODER_RUNTIME_TARGET',
@@ -148,7 +153,6 @@ const BIRDCODER_PUBLIC_RUNTIME_ENV_API_ORIGIN_KEYS = new Set([
   'VITE_SDKWORK_BIRDCODER_APP_API_BASE_URL',
   'VITE_SDKWORK_BIRDCODER_APPLICATION_PUBLIC_HTTP_URL',
   'VITE_SDKWORK_BIRDCODER_BACKEND_API_BASE_URL',
-  'VITE_SDKWORK_DRIVE_APP_API_BASE_URL',
   'VITE_SDKWORK_IAM_APP_API_BASE_URL',
   'VITE_SDKWORK_MESSAGING_APP_API_BASE_URL',
 ]);
@@ -186,7 +190,7 @@ function resolveBirdcoderTerminalInfrastructureRuntimePath(
 ) {
   return path.resolve(
     appRootDir,
-    '../sdkwork-birdcoder-pc-commons/src/terminal/birdcoderTerminalInfrastructureRuntime.ts',
+    '../sdkwork-birdcoder-pc-workbench/src/terminal/birdcoderTerminalInfrastructureRuntime.ts',
   );
 }
 
@@ -608,6 +612,27 @@ function createBirdcoderWorkspaceAliasEntries(appRootDir = defaultBirdcoderAppRo
       replacement: resolveDependencyPath('sdkwork-agents', 'sdks/sdkwork-agents-app-sdk/sdkwork-agents-app-sdk-typescript/src/index.ts'),
     },
     {
+      find: '@sdkwork/birdcoder-pc-core/sdk/birdcoder-app',
+      replacement: path.resolve(
+        appRootDir,
+        '../sdkwork-birdcoder-pc-core/src/sdk/birdcoder-app-sdk.ts',
+      ),
+    },
+    {
+      find: '@sdkwork/birdcoder-pc-core/sdk/drive-app',
+      replacement: path.resolve(
+        appRootDir,
+        '../sdkwork-birdcoder-pc-core/src/sdk/drive-app-sdk.ts',
+      ),
+    },
+    {
+      find: '@sdkwork/birdcoder-pc-core/sdk/messaging-app',
+      replacement: path.resolve(
+        appRootDir,
+        '../sdkwork-birdcoder-pc-core/src/sdk/messaging-app-sdk.ts',
+      ),
+    },
+    {
       find: /^@sdkwork\/birdcoder-([^/]+)\/(.+)$/u,
       replacement: path.resolve(appRootDir, '../sdkwork-birdcoder-$1/src/$2'),
     },
@@ -967,6 +992,38 @@ export function resolveBirdcoderViteRuntimeEnvSource(
     ...fileRuntimeEnvSource,
     ...processRuntimeEnvSource,
   };
+}
+
+export function configureBirdcoderSdkworkProxyProblemResponse(proxy) {
+  proxy.on('error', (_error, _request, response) => {
+    if (
+      !response
+      || typeof response.setHeader !== 'function'
+      || typeof response.end !== 'function'
+      || response.headersSent
+      || response.writableEnded
+    ) {
+      return;
+    }
+
+    const traceId = uuid();
+    const body = JSON.stringify({
+      type: `https://docs.sdkwork.com/problems/${SDKWORK_BAD_GATEWAY_CODE}`,
+      title: 'Bad gateway',
+      status: SDKWORK_BAD_GATEWAY_STATUS,
+      code: SDKWORK_BAD_GATEWAY_CODE,
+      traceId,
+      i18nKey: `errors.result.${SDKWORK_BAD_GATEWAY_CODE}`,
+      detail: 'The upstream service could not be reached.',
+    });
+
+    response.statusCode = SDKWORK_BAD_GATEWAY_STATUS;
+    response.setHeader('Content-Type', 'application/problem+json');
+    response.setHeader('Cache-Control', 'no-store');
+    response.setHeader('X-SdkWork-Trace-Id', traceId);
+    response.setHeader('Content-Length', Buffer.byteLength(body));
+    response.end(body);
+  });
 }
 
 function onBirdcoderRollupWarning(warning, warn) {

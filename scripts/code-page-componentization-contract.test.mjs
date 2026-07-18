@@ -71,7 +71,7 @@ const engineSelectionHookPath = path.join(
     'sdkwork-birdcoder-pc',
     'packages',
   
-  'sdkwork-birdcoder-pc-commons',
+  'sdkwork-birdcoder-pc-workbench',
   'src',
   'hooks',
   'useCodingSessionEngineModelSelection.ts',

@@ -1,0 +1,9 @@
+{
+  "@@locale": "zh-CN",
+  "error_network": "网络错误，请检查您的连接。",
+  "error_unknown": "发生未知错误。",
+  "error_session_expired": "您的会话已过期，请重新登录。",
+  "error_request_timeout": "请求超时，请重试。",
+  "error_unauthorized": "您无权执行此操作。",
+  "error_server": "服务器错误，请稍后重试。"
+}

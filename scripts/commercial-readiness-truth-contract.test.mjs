@@ -162,13 +162,13 @@ assert.match(
 const deferRegistry = JSON.parse(readText('specs/coding-server-openapi-rust-defer-registry.json'));
 assert.equal(
   deferRegistry.summary.contractOperationCount,
-  174,
-  'Defer registry must track the full HTTP OpenAPI contract including chat and commerce lanes.',
+  159,
+  'Defer registry must track the governed app/backend HTTP OpenAPI contract after legacy /api/v1 routes are retired.',
 );
 assert.equal(
   deferRegistry.summary.implementedOperationCount,
-  174,
-  'Defer registry must record full product, federated IAM, commerce gateway, and chat HTTP coverage.',
+  159,
+  'Defer registry must record full product, federated IAM, commerce, and chat app/backend coverage.',
 );
 assert.equal(
   deferRegistry.summary.deferredOperationCount,
@@ -209,7 +209,7 @@ assert.match(routerSource, /openapi::serve_openapi_json/u);
 
 const packageJson = JSON.parse(readText('package.json'));
 assert.equal(
-  packageJson.scripts['cap:android:assemble'],
+  packageJson.scripts['build:capacitor-android'],
   'node scripts/run-h5-capacitor-android-assemble.mjs',
   'Root manifest commercial readiness requires Capacitor Android assemble runner.',
 );

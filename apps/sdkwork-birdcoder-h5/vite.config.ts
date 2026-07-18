@@ -3,8 +3,10 @@ import { fileURLToPath } from 'node:url';
 import { defineConfig, loadEnv } from 'vite';
 import {
   BIRDCODER_VITE_DEDUPE_PACKAGES,
+  configureBirdcoderSdkworkProxyProblemResponse,
   createBirdcoderVitePlugins,
   onBirdcoderRollupWarning,
+  resolveBirdcoderViteRuntimeEnvSource,
 } from '../../scripts/create-birdcoder-vite-plugins.mjs';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -28,8 +30,12 @@ function createBirdCoderH5WorkspaceFsAllowList(): string[] {
 }
 
 export default defineConfig(({ mode }) => {
-  const env = loadEnv(mode, '.', '');
-
+  const env = resolveBirdcoderViteRuntimeEnvSource(loadEnv(mode, '.', ''));
+  const applicationDevProxyTarget =
+    process.env.BIRDCODER_DEV_PROXY_TARGET ??
+    env.VITE_SDKWORK_BIRDCODER_APPLICATION_PUBLIC_HTTP_URL ??
+    env.VITE_BIRDCODER_API_BASE_URL ??
+    'http://127.0.0.1:10240';
   return {
     plugins: createBirdcoderVitePlugins({
       appRootDir: __dirname,
@@ -55,6 +61,14 @@ export default defineConfig(({ mode }) => {
       host: true,
       fs: {
         allow: createBirdCoderH5WorkspaceFsAllowList(),
+      },
+      proxy: {
+        '/app': {
+          target: applicationDevProxyTarget,
+          changeOrigin: true,
+          ws: true,
+          configure: configureBirdcoderSdkworkProxyProblemResponse,
+        },
       },
     },
   };

@@ -8,7 +8,7 @@ import {
   type FileNode,
 } from '@sdkwork/birdcoder-pc-ui';
 import { Button, ResizeHandle } from '@sdkwork/birdcoder-pc-ui-shell';
-import type { FileChange } from '@sdkwork/birdcoder-pc-types';
+import type { FileChange } from '@sdkwork/birdcoder-pc-contracts-commons';
 import { X } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 

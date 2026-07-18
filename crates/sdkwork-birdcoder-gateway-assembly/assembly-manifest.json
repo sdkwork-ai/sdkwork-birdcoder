@@ -4,7 +4,7 @@
   "applicationCode": "birdcoder",
   "packageName": "sdkwork-birdcoder-gateway-assembly",
   "crateDir": "crates/sdkwork-birdcoder-gateway-assembly",
-  "generatedAt": "2026-07-16T07:42:03.585Z",
+  "generatedAt": "2026-07-17T20:06:01.263Z",
   "routeCrates": [
     {
       "packageName": "sdkwork-routes-chat-app-api",
@@ -67,22 +67,12 @@
       "hasGatewayRouteManifest": true
     },
     {
-      "packageName": "sdkwork-routes-membership-app-api",
-      "memberDir": "crates/sdkwork-routes-membership-app-api",
-      "libName": "sdkwork_routes_membership_app_api",
-      "surface": "app-api",
-      "pathPrefix": null,
-      "mountOrder": 6,
-      "hasGatewayMount": true,
-      "hasGatewayRouteManifest": true
-    },
-    {
       "packageName": "sdkwork-routes-skill-packages-app-api",
       "memberDir": "crates/sdkwork-routes-skill-packages-app-api",
       "libName": "sdkwork_routes_skill_packages_app_api",
       "surface": "app-api",
       "pathPrefix": null,
-      "mountOrder": 7,
+      "mountOrder": 6,
       "hasGatewayMount": true,
       "hasGatewayRouteManifest": true
     },
@@ -92,7 +82,7 @@
       "libName": "sdkwork_routes_system_app_api",
       "surface": "app-api",
       "pathPrefix": null,
-      "mountOrder": 8,
+      "mountOrder": 7,
       "hasGatewayMount": true,
       "hasGatewayRouteManifest": true
     },
@@ -102,7 +92,7 @@
       "libName": "sdkwork_routes_workspace_app_api",
       "surface": "app-api",
       "pathPrefix": null,
-      "mountOrder": 9,
+      "mountOrder": 8,
       "hasGatewayMount": true,
       "hasGatewayRouteManifest": true
     }

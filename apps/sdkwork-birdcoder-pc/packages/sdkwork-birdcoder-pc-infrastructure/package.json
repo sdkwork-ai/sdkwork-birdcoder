@@ -179,29 +179,24 @@
   "dependencies": {
     "@sdkwork/iam-app-sdk": "workspace:*",
     "@sdkwork/iam-backend-sdk": "workspace:*",
-    "@sdkwork/birdcoder-app-sdk": "workspace:*",
     "@sdkwork/birdcoder-backend-sdk": "workspace:*",
     "@sdkwork/birdcoder-pc-admin-core": "workspace:*",
     "@sdkwork/birdcoder-pc-codeengine": "workspace:*",
     "@sdkwork/birdcoder-pc-core": "workspace:*",
     "@sdkwork/birdcoder-pc-host-core": "workspace:*",
-    "@sdkwork/birdcoder-pc-types": "workspace:*",
-    "@sdkwork/drive-app-sdk": "workspace:*",
+    "@sdkwork/birdcoder-pc-contracts-commons": "workspace:*",
     "@sdkwork/drive-pc-sandbox-contracts": "workspace:*",
     "@sdkwork/auth-runtime-pc-react": "workspace:*",
     "@sdkwork/iam-runtime": "workspace:*",
     "@sdkwork/iam-service": "workspace:*",
     "@sdkwork/iam-sdk-ports": "workspace:*",
-    "@sdkwork/messaging-app-sdk": "workspace:*",
     "@sdkwork/sdk-common": "workspace:*",
     "@sdkwork/utils": "workspace:*",
     "@sdkwork/membership-service": "workspace:*",
+    "@sdkwork/order-service": "workspace:*",
     "@tauri-apps/api": "catalog:",
     "@sdkwork/drive-pc-sandbox-explorer": "workspace:*",
     "@sdkwork/drive-pc-sandbox-explorer-sdk-adapter": "workspace:*"
-  }
+  },
+  "scripts": {}
 }
-
-
-
-

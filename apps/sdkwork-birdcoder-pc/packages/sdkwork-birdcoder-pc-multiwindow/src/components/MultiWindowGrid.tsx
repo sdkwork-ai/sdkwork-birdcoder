@@ -1,4 +1,4 @@
-import type { WorkbenchPreferences } from '@sdkwork/birdcoder-pc-commons';
+import type { WorkbenchPreferences } from '@sdkwork/birdcoder-pc-workbench';
 import { memo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { PanelsTopLeft, Plus } from 'lucide-react';

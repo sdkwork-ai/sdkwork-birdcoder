@@ -13,7 +13,7 @@ const workspaceRealtimeMessageQueueModulePath = new URL(
   import.meta.url,
 );
 const projectRealtimeSubscriptionCoordinatorModulePath = new URL(
-  "../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-commons/src/services/projectRealtimeSubscriptionCoordinator.ts",
+  "../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-workbench/src/services/projectRealtimeSubscriptionCoordinator.ts",
   import.meta.url,
 );
 const defaultIdeServicesRuntimeModulePath = new URL(

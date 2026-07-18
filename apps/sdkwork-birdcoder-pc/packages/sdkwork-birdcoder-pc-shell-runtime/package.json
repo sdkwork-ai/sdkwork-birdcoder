@@ -7,7 +7,7 @@
     "@sdkwork/birdcoder-pc-core": "workspace:*",
     "@sdkwork/birdcoder-pc-host-core": "workspace:*",
     "@sdkwork/birdcoder-pc-infrastructure-runtime": "workspace:*",
-    "@sdkwork/birdcoder-pc-types": "workspace:*",
+    "@sdkwork/birdcoder-pc-contracts-commons": "workspace:*",
     "@sdkwork/birdcoder-pc-ui-shell": "workspace:*",
     "@sdkwork/birdcoder-pc-workbench-state": "workspace:*",
     "@sdkwork/birdcoder-pc-workbench-storage": "workspace:*",
@@ -38,9 +38,6 @@
       "import": "./src/application/bootstrap/bootstrapServerApiReady.ts",
       "types": "./src/application/bootstrap/bootstrapServerApiReady.ts"
     }
-  }
+  },
+  "scripts": {}
 }
-
-
-
-

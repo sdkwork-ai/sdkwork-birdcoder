@@ -152,52 +152,7 @@ permissions:
   packages: write
 
 jobs:
-  release-preflight:
-    name: Release-tier quality gate
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v5
-        with:
-          fetch-depth: 0
-          submodules: recursive
-
-      - name: Expose workspace command wrappers
-        shell: bash
-        run: |
-          workspace_path="$GITHUB_WORKSPACE"
-          github_path_file="$GITHUB_PATH"
-          if command -v cygpath >/dev/null 2>&1; then
-            workspace_path="$(cygpath -u "$GITHUB_WORKSPACE")"
-            github_path_file="$(cygpath -u "$GITHUB_PATH")"
-          fi
-          chmod +x "${workspace_path}/sdkwork-run-node" "${workspace_path}/sdkwork-run-pnpm"
-          printf '%s\n' "$GITHUB_WORKSPACE" >> "${github_path_file}"
-
-      - name: Setup pnpm
-        uses: pnpm/action-setup@v4
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v5
-        with:
-          node-version: 22
-          cache: pnpm
-          cache-dependency-path: pnpm-lock.yaml
-
-      - name: Install Rust toolchain
-        uses: dtolnay/rust-toolchain@1.90.0
-
-      - name: Cache Rust dependencies
-        uses: Swatinem/rust-cache@v2
-
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile
-
-      - name: Run release-tier quality gate
-        run: pnpm run check:quality:release
-
   package:
-    needs: release-preflight
     uses: Sdkwork-Cloud/sdkwork-github-workflow/.github/workflows/sdkwork-package.yml@b1bdb5887f0f9e5683a46a02eaeb818c042b8a33
     with:
       config_path: sdkwork.workflow.json

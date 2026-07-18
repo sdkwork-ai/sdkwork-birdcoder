@@ -28,7 +28,7 @@ assert.deepEqual(
   ['fast', 'standard', 'release'],
 );
 assert.equal(
-  rootPackageJson.scripts['quality:execution-report'],
+  rootPackageJson.scripts['check:quality-execution-report'],
   'node scripts/quality-gate-execution-report.mjs',
 );
 assert.doesNotMatch(

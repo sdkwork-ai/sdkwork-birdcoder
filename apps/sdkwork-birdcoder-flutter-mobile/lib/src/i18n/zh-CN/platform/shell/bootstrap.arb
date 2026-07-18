@@ -1,0 +1,9 @@
+{
+  "@@locale": "zh-CN",
+  "app_title": "BirdCoder",
+  "app_loading": "加载中...",
+  "nav_home": "首页",
+  "nav_chat": "聊天",
+  "nav_settings": "设置",
+  "nav_profile": "我的"
+}

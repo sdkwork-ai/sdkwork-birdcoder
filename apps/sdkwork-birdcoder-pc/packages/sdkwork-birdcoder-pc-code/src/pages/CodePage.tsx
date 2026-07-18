@@ -1,40 +1,40 @@
 import { memo, startTransition, useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { buildProjectCodingSessionIndex } from '@sdkwork/birdcoder-pc-commons/workbench/codingSessionSelection';
+import { buildProjectCodingSessionIndex } from '@sdkwork/birdcoder-pc-workbench/workbench/codingSessionSelection';
 import {
   buildWorkbenchCodingSessionTurnContext,
   ensureWorkbenchCodingSessionForMessage,
   regenerateWorkbenchCodingSessionFromLastUserMessage,
   restoreWorkbenchCodingSessionMessageFiles,
-} from '@sdkwork/birdcoder-pc-commons/workbench/codingSessionCreation';
-import { createIdleProjectMountRecoveryState } from '@sdkwork/birdcoder-pc-commons/workbench/projectMountRecovery';
-import { hydrateImportedProjectFromAuthority } from '@sdkwork/birdcoder-pc-commons/workbench/importedProjectHydration';
-import { rebindLocalFolderProject } from '@sdkwork/birdcoder-pc-commons/workbench/localFolderProjectImport';
-import { openLocalFolder } from '@sdkwork/birdcoder-pc-commons/utils/fileSystem';
-import { emitRevealProjectInFileManager } from '@sdkwork/birdcoder-pc-commons/events/projectDeviceMountEvents';
-import { emitProjectMountRecoveryState } from '@sdkwork/birdcoder-pc-commons/events/projectMountRecoveryEvents';
-import { globalEventBus } from '@sdkwork/birdcoder-pc-commons/utils/EventBus';
-import type { TerminalCommandRequest } from '@sdkwork/birdcoder-pc-commons/terminal/runtime';
-import { useCodingSessionActions } from '@sdkwork/birdcoder-pc-commons/hooks/useCodingSessionActions';
-import { useCodingSessionEngineModelSelection } from '@sdkwork/birdcoder-pc-commons/hooks/useCodingSessionEngineModelSelection';
-import { useFileSystem } from '@sdkwork/birdcoder-pc-commons/hooks/useFileSystem';
-import { useIDEServices } from '@sdkwork/birdcoder-pc-commons/context/IDEContext';
-import { useProjectLocalWorkingDirectory } from '@sdkwork/birdcoder-pc-commons/hooks/useProjectLocalWorkingDirectory';
-import { useProjectRuntimeLocation } from '@sdkwork/birdcoder-pc-commons/hooks/useProjectRuntimeLocation';
-import { useProjectGitOverview } from '@sdkwork/birdcoder-pc-commons/hooks/useProjectGitOverview';
-import { useProjects } from '@sdkwork/birdcoder-pc-commons/hooks/useProjects';
-import { useSelectedCodingSessionMessages } from '@sdkwork/birdcoder-pc-commons/hooks/useSelectedCodingSessionMessages';
-import { useSessionRefreshActions } from '@sdkwork/birdcoder-pc-commons/hooks/useSessionRefreshActions';
-import { useWorkbenchCodingSessionMessageEditAction } from '@sdkwork/birdcoder-pc-commons/hooks/useWorkbenchCodingSessionMessageEditAction';
-import { useWorkbenchCodingSessionCreationActions } from '@sdkwork/birdcoder-pc-commons/hooks/useWorkbenchCodingSessionCreationActions';
-import { useWorkbenchChatSelection } from '@sdkwork/birdcoder-pc-commons/hooks/useWorkbenchChatSelection';
-import { useWorkbenchPreferences } from '@sdkwork/birdcoder-pc-commons/hooks/useWorkbenchPreferences';
-import { useAuth } from '@sdkwork/birdcoder-pc-commons/context/AuthContext';
-import { useToast } from '@sdkwork/birdcoder-pc-commons/contexts/ToastProvider';
+} from '@sdkwork/birdcoder-pc-workbench/workbench/codingSessionCreation';
+import { createIdleProjectMountRecoveryState } from '@sdkwork/birdcoder-pc-workbench/workbench/projectMountRecovery';
+import { hydrateImportedProjectFromAuthority } from '@sdkwork/birdcoder-pc-workbench/workbench/importedProjectHydration';
+import { rebindLocalFolderProject } from '@sdkwork/birdcoder-pc-workbench/workbench/localFolderProjectImport';
+import { openLocalFolder } from '@sdkwork/birdcoder-pc-workbench/utils/fileSystem';
+import { emitRevealProjectInFileManager } from '@sdkwork/birdcoder-pc-workbench/events/projectDeviceMountEvents';
+import { emitProjectMountRecoveryState } from '@sdkwork/birdcoder-pc-workbench/events/projectMountRecoveryEvents';
+import { globalEventBus } from '@sdkwork/birdcoder-pc-workbench/utils/EventBus';
+import type { TerminalCommandRequest } from '@sdkwork/birdcoder-pc-workbench/terminal/runtime';
+import { useCodingSessionActions } from '@sdkwork/birdcoder-pc-workbench/hooks/useCodingSessionActions';
+import { useCodingSessionEngineModelSelection } from '@sdkwork/birdcoder-pc-workbench/hooks/useCodingSessionEngineModelSelection';
+import { useFileSystem } from '@sdkwork/birdcoder-pc-workbench/hooks/useFileSystem';
+import { useIDEServices } from '@sdkwork/birdcoder-pc-workbench/context/IDEContext';
+import { useProjectLocalWorkingDirectory } from '@sdkwork/birdcoder-pc-workbench/hooks/useProjectLocalWorkingDirectory';
+import { useProjectRuntimeLocation } from '@sdkwork/birdcoder-pc-workbench/hooks/useProjectRuntimeLocation';
+import { useProjectGitOverview } from '@sdkwork/birdcoder-pc-workbench/hooks/useProjectGitOverview';
+import { useProjects } from '@sdkwork/birdcoder-pc-workbench/hooks/useProjects';
+import { useSelectedCodingSessionMessages } from '@sdkwork/birdcoder-pc-workbench/hooks/useSelectedCodingSessionMessages';
+import { useSessionRefreshActions } from '@sdkwork/birdcoder-pc-workbench/hooks/useSessionRefreshActions';
+import { useWorkbenchCodingSessionMessageEditAction } from '@sdkwork/birdcoder-pc-workbench/hooks/useWorkbenchCodingSessionMessageEditAction';
+import { useWorkbenchCodingSessionCreationActions } from '@sdkwork/birdcoder-pc-workbench/hooks/useWorkbenchCodingSessionCreationActions';
+import { useWorkbenchChatSelection } from '@sdkwork/birdcoder-pc-workbench/hooks/useWorkbenchChatSelection';
+import { useWorkbenchPreferences } from '@sdkwork/birdcoder-pc-workbench/hooks/useWorkbenchPreferences';
+import { useAuth } from '@sdkwork/birdcoder-pc-workbench/context/AuthContext';
+import { useToast } from '@sdkwork/birdcoder-pc-workbench/contexts/ToastProvider';
 import {
   isBirdCoderCodingSessionEngineBusy,
   isBirdCoderCodingSessionExecuting,
   type FileChange,
-} from '@sdkwork/birdcoder-pc-types';
+} from '@sdkwork/birdcoder-pc-contracts-commons';
 import { useTranslation } from 'react-i18next';
 import {
   createCodeChatEmptyStates,
