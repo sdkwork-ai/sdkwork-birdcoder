@@ -1,5 +1,6 @@
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { createSdkworkCredentialEntryBootstrapVitePlugin } from '../../../sdkwork-iam/apps/sdkwork-iam-common/packages/sdkwork-iam-credential-entry/src/vite.ts';
 import { defineConfig, loadEnv } from 'vite';
 import {
   BIRDCODER_VITE_DEDUPE_PACKAGES,
@@ -26,12 +27,19 @@ export default defineConfig(({ mode }) => {
     process.env.BIRDCODER_DEV_PROXY_TARGET ?? 'http://127.0.0.1:10240';
   return {
     define: resolveBirdcoderDevelopmentApiEnvDefines(mode),
-    plugins: createBirdcoderVitePlugins({
-      appRootDir: rootHostAppRootDir,
-      mode,
-      namespace: 'sdkwork-birdcoder-pc',
-      runtimeEnvSource: resolveBirdcoderWebRuntimeEnvSource(env, mode),
-    }),
+    plugins: [
+      createSdkworkCredentialEntryBootstrapVitePlugin({
+        accessToken: process.env.SDKWORK_ACCESS_TOKEN,
+        allowTestInjection: mode === 'test',
+        environment: mode,
+      }),
+      ...createBirdcoderVitePlugins({
+        appRootDir: rootHostAppRootDir,
+        mode,
+        namespace: 'sdkwork-birdcoder-pc',
+        runtimeEnvSource: resolveBirdcoderWebRuntimeEnvSource(env, mode),
+      }),
+    ],
     optimizeDeps: {
       noDiscovery: true,
       include: [...BIRDCODER_VITE_WEB_OPTIMIZE_DEPS_INCLUDE],

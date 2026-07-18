@@ -43,6 +43,7 @@
     "test:config": "node ../../scripts/run-quality-fast-check.mjs"
   },
   "dependencies": {
+    "@sdkwork/iam-credential-entry": "workspace:*",
     "@tailwindcss/vite": "catalog:",
     "tailwindcss": "catalog:"
   },

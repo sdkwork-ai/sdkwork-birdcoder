@@ -8,6 +8,7 @@ import {
   getBirdCoderGlobalTokenManager,
   syncBirdCoderGlobalTokenManagerFromStorage,
 } from '@sdkwork/birdcoder-pc-core/appSessionTokenManager';
+import { buildAuthHeaders } from '@sdkwork/sdk-common';
 import { invalidateBirdCoderCurrentSession } from './iamCurrentSession.ts';
 import { invalidateBirdCoderCurrentUser } from './iamCurrentUser.ts';
 
@@ -150,11 +151,5 @@ export function clearRuntimeServerSessionId(): void {
 
 export function resolveRuntimeServerSessionHeaders(): Record<string, string | undefined> {
   syncBirdCoderGlobalTokenManagerFromStorage();
-  const tokens = getBirdCoderGlobalTokenManager().getTokens();
-
-  return {
-    [RUNTIME_SERVER_ACCESS_TOKEN_HEADER_NAME]: tokens?.accessToken,
-    [RUNTIME_SERVER_AUTHORIZATION_HEADER_NAME]:
-      tokens?.authToken ? `${RUNTIME_SERVER_DEFAULT_TOKEN_TYPE} ${tokens.authToken}` : undefined,
-  };
+  return buildAuthHeaders('dual-token', undefined, getBirdCoderGlobalTokenManager());
 }

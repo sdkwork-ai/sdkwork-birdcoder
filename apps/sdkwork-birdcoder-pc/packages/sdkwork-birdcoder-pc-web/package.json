@@ -22,6 +22,7 @@
     "lint": "node ../../../../scripts/run-local-typescript.mjs --noEmit"
   },
   "dependencies": {
+    "@sdkwork/iam-credential-entry": "workspace:*",
     "@sdkwork/birdcoder-pc-distribution": "workspace:*",
     "@sdkwork/birdcoder-pc-host-core": "workspace:*",
     "@sdkwork/birdcoder-pc-shell": "workspace:*",

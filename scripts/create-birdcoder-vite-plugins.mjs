@@ -69,7 +69,6 @@ const BIRDCODER_VITE_DEV_WATCH_IGNORED = [
   '**/*.sqlite3-shm',
 ];
 const BIRDCODER_PUBLIC_RUNTIME_ENV_KEY = '__SDKWORK_PC_REACT_ENV__';
-const BIRDCODER_CREDENTIAL_ENTRY_ENV_KEY = '__SDKWORK_IAM_CREDENTIAL_ENTRY_ENV__';
 const BIRDCODER_PUBLIC_RUNTIME_ENV_EXACT_KEYS = ['DEV', 'MODE', 'NODE_ENV', 'PROD'];
 const BIRDCODER_PUBLIC_RUNTIME_ENV_ALLOWED_KEYS = new Set([
   ...BIRDCODER_PUBLIC_RUNTIME_ENV_EXACT_KEYS,
@@ -1726,90 +1725,6 @@ function createBirdcoderSharedRouterCompatPlugin({
   return plugin;
 }
 
-function resolveBirdcoderCredentialEntryBootstrapAccessToken(runtimeEnvSource = {}, mode = 'development') {
-  if (mode !== 'development' && mode !== 'test') {
-    return undefined;
-  }
-  const token = String(runtimeEnvSource.SDKWORK_ACCESS_TOKEN ?? '').trim();
-  return token || undefined;
-}
-
-function patchCredentialEntryBootstrapTokenSource(code, bootstrapAccessToken) {
-  if (!bootstrapAccessToken) {
-    return code;
-  }
-
-  return String(code).replace(
-    /export function readBootstrapAccessTokenFromProcessEnv\([\s\S]*?\n\}/u,
-    [
-      'export function readBootstrapAccessTokenFromProcessEnv(',
-      '  env = (globalThis).process?.env,',
-      ') {',
-      `  const privateToken = (globalThis).${BIRDCODER_CREDENTIAL_ENTRY_ENV_KEY}?.SDKWORK_ACCESS_TOKEN?.trim();`,
-      '  if (privateToken) {',
-      '    return privateToken;',
-      '  }',
-      '  const value = env?.SDKWORK_ACCESS_TOKEN?.trim();',
-      '  return value || undefined;',
-      '}',
-    ].join('\n'),
-  );
-}
-
-function isCredentialEntryBootstrapTokenModule(id) {
-  return normalizeWarningModuleReference(id).includes('/sdkwork-iam-credential-entry/');
-}
-
-function createBirdcoderCredentialEntryBootstrapPlugin({
-  runtimeEnvSource = process.env,
-  mode = 'development',
-  namespace = defaultBirdcoderNamespace,
-} = {}) {
-  const bootstrapAccessToken = resolveBirdcoderCredentialEntryBootstrapAccessToken(runtimeEnvSource, mode);
-
-  /** @type {BirdcoderOpaqueVitePlugin} */
-  const plugin = {
-    name: `${namespace}-credential-entry-bootstrap`,
-    /** @type {'pre'} */
-    enforce: 'pre',
-    transformIndexHtml() {
-      if (!bootstrapAccessToken) {
-        return [];
-      }
-
-      return [
-        {
-          tag: 'script',
-          injectTo: 'head-prepend',
-          children: `globalThis.${BIRDCODER_CREDENTIAL_ENTRY_ENV_KEY} = Object.freeze({ SDKWORK_ACCESS_TOKEN: ${JSON.stringify(bootstrapAccessToken)} });`,
-        },
-      ];
-    },
-    transform(code, id) {
-      const cleanId = String(id ?? '').split('?')[0] ?? '';
-      if (!cleanId || !isCredentialEntryBootstrapTokenModule(cleanId)) {
-        return null;
-      }
-
-      if (!code.includes('readBootstrapAccessTokenFromProcessEnv')) {
-        return null;
-      }
-
-      const patchedCode = patchCredentialEntryBootstrapTokenSource(code, bootstrapAccessToken);
-      if (patchedCode === code) {
-        return null;
-      }
-
-      return {
-        code: patchedCode,
-        map: null,
-      };
-    },
-  };
-
-  return plugin;
-}
-
 function createBirdcoderRuntimeEnvBootstrapPlugin({
   mode = 'development',
   runtimeEnvSource = {},
@@ -1874,11 +1789,6 @@ function createBirdcoderVitePlugins({
       runtimeEnvSource,
       namespace,
     }),
-    createBirdcoderCredentialEntryBootstrapPlugin({
-      runtimeEnvSource,
-      mode,
-      namespace,
-    }),
     createBirdcoderSharedRouterCompatPlugin({
       mode,
       namespace,
@@ -1910,14 +1820,12 @@ function createBirdcoderVitePlugins({
 }
 
 export {
-  BIRDCODER_CREDENTIAL_ENTRY_ENV_KEY,
   BIRDCODER_VITE_DEDUPE_PACKAGES,
   BIRDCODER_VITE_DESKTOP_OPTIMIZE_DEPS_INCLUDE,
   BIRDCODER_VITE_DEV_WATCH_IGNORED,
   BIRDCODER_VITE_WEB_OPTIMIZE_DEPS_INCLUDE,
   createBirdcoderCommonJsDefaultCompatPlugin,
   createBirdcoderCoreEnvCompatPlugin,
-  createBirdcoderCredentialEntryBootstrapPlugin,
   createBirdcoderWorkspaceAliasEntries,
   createBirdcoderWorkspaceFsAllowList,
   createBirdcoderReactCompatPlugin,
@@ -1928,7 +1836,6 @@ export {
   createBirdcoderVitePlugins,
   onBirdcoderRollupWarning,
   resolveBirdcoderPublicRuntimeEnv,
-  resolveBirdcoderCredentialEntryBootstrapAccessToken,
   resolveBirdcoderTerminalInfrastructureRuntimePath,
   resolveSdkworkTerminalDesktopEntryPath,
   resolveSdkworkTerminalDesktopHostEntryPath,

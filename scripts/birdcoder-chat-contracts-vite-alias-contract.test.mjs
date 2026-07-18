@@ -34,13 +34,13 @@ assert.match(
 
 assert.doesNotMatch(
   pcViteConfigSource,
-  /process\.env\.SDKWORK_ACCESS_TOKEN/u,
+  /['"]process\.env\.SDKWORK_ACCESS_TOKEN['"]\s*:/u,
   'PC Vite config must not compile SDKWORK_ACCESS_TOKEN into browser bundles.',
 );
 
 assert.doesNotMatch(
   h5ViteConfigSource,
-  /process\.env\.SDKWORK_ACCESS_TOKEN/u,
+  /['"]process\.env\.SDKWORK_ACCESS_TOKEN['"]\s*:/u,
   'H5 Vite config must not compile SDKWORK_ACCESS_TOKEN into browser bundles.',
 );
 

@@ -1,5 +1,6 @@
 import { createBirdcoderAppSdkClient } from '@sdkwork/birdcoder-pc-core/sdk/birdcoder-app';
 import { syncBirdCoderGlobalTokenManagerFromStorage } from '@sdkwork/birdcoder-pc-core/appSessionTokenManager';
+import { buildAuthHeaders } from '@sdkwork/sdk-common';
 import {
   APP_SESSION_CHANGE_EVENT_NAME,
   loadStoredAppSessionToken,
@@ -171,13 +172,7 @@ async function refreshBirdCoderAppSession(): Promise<boolean> {
   const client = createBirdcoderAppSdkClient({
     transport: createBirdCoderHttpApiTransport({
       baseUrl,
-      resolveHeaders: () => {
-        const tokens = tokenManager.getTokens();
-        return {
-          Authorization: tokens.authToken ? `Bearer ${tokens.authToken}` : undefined,
-          'Access-Token': tokens.accessToken,
-        };
-      },
+      resolveHeaders: () => buildAuthHeaders('dual-token', undefined, tokenManager),
     }),
   });
 

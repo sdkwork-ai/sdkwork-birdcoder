@@ -4,6 +4,7 @@
   "version": "0.1.0",
   "type": "module",
   "dependencies": {
+    "@sdkwork/iam-credential-entry": "workspace:*",
     "@sdkwork/birdcoder-h5-admin-core": "workspace:*",
     "@sdkwork/birdcoder-h5-capacitor": "workspace:*",
     "@sdkwork/birdcoder-h5-chat": "workspace:*",

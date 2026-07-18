@@ -7,7 +7,7 @@ import process from 'node:process';
 import { fileURLToPath } from 'node:url';
 
 import { applyTopologyProfileToEnv } from './lib/birdcoder-topology.mjs';
-import { mergeRepoDevBootstrapAccessTokenEnv } from './lib/birdcoder-dev-bootstrap-access-token-env.mjs';
+import { mergeRepoBootstrapAccessTokenEnv } from '../../sdkwork-iam/scripts/dev/create-dev-bootstrap-access-token-env.mjs';
 import {
   normalizeViteMode,
   resolveWorkspaceRootDir,
@@ -985,13 +985,18 @@ export function resolveBirdcoderIamCommandEnv({
     viteMode: resolvedViteMode,
   });
 
-  if (CLIENT_IAM_COMMAND_TARGETS.has(target)) {
+  if (
+    CLIENT_IAM_COMMAND_TARGETS.has(target)
+    && (resolvedViteMode === 'development' || resolvedViteMode === 'test')
+  ) {
     Object.assign(
       nextEnv,
-      mergeRepoDevBootstrapAccessTokenEnv({
+      mergeRepoBootstrapAccessTokenEnv({
         repoRoot: workspaceRootDir,
         manifestPath: BIRDCODER_PC_MANIFEST_RELATIVE_PATH,
         appId: 'sdkwork-birdcoder',
+        environment: resolvedViteMode,
+        allowTestTokenGeneration: resolvedViteMode === 'test',
         env: nextEnv,
       }),
     );

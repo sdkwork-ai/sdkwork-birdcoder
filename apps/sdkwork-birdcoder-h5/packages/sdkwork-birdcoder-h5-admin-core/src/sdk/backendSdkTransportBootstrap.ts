@@ -4,15 +4,12 @@ import {
 } from '@sdkwork/birdcoder-pc-core/appSessionTokenManager';
 import { createBirdCoderHttpApiTransport } from '@sdkwork/birdcoder-pc-infrastructure/services/sdkTransportShared';
 import { getDefaultBirdCoderIdeServicesRuntimeConfig } from '@sdkwork/birdcoder-pc-infrastructure/services/defaultIdeServicesRuntime';
+import { buildAuthHeaders } from '@sdkwork/sdk-common';
 
 function buildBirdCoderTokenManagerHeaders(
   tokenManager: ReturnType<typeof getCoreBirdCoderGlobalTokenManager> | undefined,
 ): Record<string, string | undefined> {
-  const tokens = tokenManager?.getTokens();
-  return {
-    Authorization: tokens?.authToken ? `Bearer ${tokens.authToken}` : undefined,
-    'Access-Token': tokens?.accessToken,
-  };
+  return buildAuthHeaders('dual-token', undefined, tokenManager);
 }
 
 registerBirdCoderBackendSdkTransportResolver((options, tokenManagerRef) => {

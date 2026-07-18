@@ -2,7 +2,6 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 
 import {
-  createBirdcoderCredentialEntryBootstrapPlugin,
   isBirdcoderPublicRuntimeEnvKey,
   resolveBirdcoderPublicRuntimeEnv,
   resolveBirdcoderDevelopmentApiEnvDefines,
@@ -131,34 +130,23 @@ assert.equal(
   'Production web builds must preserve the configured public API authority.',
 );
 
-const productionCredentialPlugin = createBirdcoderCredentialEntryBootstrapPlugin({
-  mode: 'production',
-  runtimeEnvSource: { SDKWORK_ACCESS_TOKEN: 'production-token' },
-});
-assert.deepEqual(
-  productionCredentialPlugin.transformIndexHtml?.(),
-  [],
-  'Production Vite builds must never inject SDKWORK_ACCESS_TOKEN into index.html.',
-);
+const credentialEntryViteConfigs = [
+  '../apps/sdkwork-birdcoder-pc/vite.config.ts',
+  '../apps/sdkwork-birdcoder-h5/vite.config.ts',
+  '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-web/vite.config.ts',
+];
+for (const relativePath of credentialEntryViteConfigs) {
+  const source = fs.readFileSync(new URL(relativePath, import.meta.url), 'utf8');
+  assert.match(source, /sdkwork-iam-credential-entry\/src\/vite\.ts/u);
+  assert.match(source, /createSdkworkCredentialEntryBootstrapVitePlugin/u);
+  assert.doesNotMatch(source, /['"]process\.env\.SDKWORK_ACCESS_TOKEN['"]\s*:/u);
+}
 
-const stagingCredentialPlugin = createBirdcoderCredentialEntryBootstrapPlugin({
-  mode: 'staging',
-  runtimeEnvSource: { SDKWORK_ACCESS_TOKEN: 'staging-token' },
-});
-assert.deepEqual(
-  stagingCredentialPlugin.transformIndexHtml?.(),
-  [],
-  'Staging Vite builds must not inject SDKWORK_ACCESS_TOKEN into static HTML.',
+const viteHelperSource = fs.readFileSync(
+  new URL('./create-birdcoder-vite-plugins.mjs', import.meta.url),
+  'utf8',
 );
-
-const developmentCredentialPlugin = createBirdcoderCredentialEntryBootstrapPlugin({
-  mode: 'development',
-  runtimeEnvSource: { SDKWORK_ACCESS_TOKEN: 'development-token' },
-});
-assert.match(
-  developmentCredentialPlugin.transformIndexHtml?.()?.[0]?.children ?? '',
-  /development-token/u,
-  'Development Vite builds may inject the explicit local bootstrap token for the credential-entry adapter.',
-);
+assert.doesNotMatch(viteHelperSource, /createBirdcoderCredentialEntryBootstrapPlugin/u);
+assert.doesNotMatch(viteHelperSource, /__SDKWORK_IAM_CREDENTIAL_ENTRY_ENV__/u);
 
 console.log('birdcoder public runtime env contract passed.');

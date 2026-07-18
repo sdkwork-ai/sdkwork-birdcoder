@@ -42,7 +42,7 @@ import {
   setBirdCoderBackendSdkTokenManager,
   type BirdCoderGeneratedBackendSdkClientOptions,
 } from '@sdkwork/birdcoder-pc-admin-core';
-import { type AuthTokenManager } from '@sdkwork/sdk-common';
+import { buildAuthHeaders, type AuthTokenManager } from '@sdkwork/sdk-common';
 import {
   handleSdkworkSessionAuthUnauthorizedError,
   resetSdkworkSessionAuthRedirectState,
@@ -1090,11 +1090,7 @@ function syncBirdCoderSdkAuthTokensFromTokenManager(
 function buildBirdCoderTokenManagerHeaders(
   tokenManager: AuthTokenManager | undefined,
 ): Record<string, string | undefined> {
-  const tokens = tokenManager?.getTokens();
-  return {
-    Authorization: tokens?.authToken ? `Bearer ${tokens.authToken}` : undefined,
-    'Access-Token': tokens?.accessToken,
-  };
+  return buildAuthHeaders('dual-token', undefined, tokenManager);
 }
 
 function createBirdCoderSessionAwareTransport(transport: BirdCoderApiTransport): BirdCoderApiTransport {
