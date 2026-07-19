@@ -91,6 +91,31 @@ function extractTomlArray(source, key) {
 }
 
 {
+  const resolvedServerEnv = resolveBirdcoderIamCommandEnv({
+    env: {},
+    iamMode: 'server-private',
+    target: 'server-dev',
+    viteMode: 'development',
+  });
+
+  assert.equal(
+    resolvedServerEnv.env.SDKWORK_BIRDCODER_DATABASE_ENGINE,
+    'postgresql',
+    'Standalone development server commands must use the PostgreSQL engine selected by the topology profile.',
+  );
+  assert.equal(
+    resolvedServerEnv.env.SDKWORK_BIRDCODER_DATABASE_URL,
+    undefined,
+    'PostgreSQL server commands must not receive the legacy SQLite URL fallback; sdkwork-database resolves the shared PostgreSQL profile.',
+  );
+  assert.equal(
+    resolvedServerEnv.env.BIRDCODER_CODING_SERVER_SQLITE_FILE,
+    undefined,
+    'PostgreSQL server commands must not receive a legacy SQLite file path.',
+  );
+}
+
+{
   const environmentSource = readText('apps/sdkwork-birdcoder-pc/src/bootstrap/environment.ts');
   assert.match(
     environmentSource,

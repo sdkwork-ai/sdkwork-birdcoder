@@ -21,6 +21,7 @@
   "tablePrefixRegistry": "contract/prefix-registry.json",
   "contractVersion": "1.3.0",
   "baselineStrategy": "baseline-plus-migrations",
+  "baselineAnchorTable": "ai_coding_session",
   "modules": [],
   "lifecycle": {
     "autoMigrate": true,

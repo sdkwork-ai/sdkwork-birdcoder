@@ -715,6 +715,7 @@ mod tests {
         let publisher = HubWorkspaceEventPublisher::new(hub);
         let ctx = WorkspaceContext {
             tenant_id: "tenant-1".to_owned(),
+            organization_id: "0".to_owned(),
             user_id: "user-1".to_owned(),
         };
 

@@ -453,7 +453,7 @@ async fn create_project_for_runtime_location_test(app: &axum::Router) -> String 
         ))
         .await
         .expect("create runtime-location workspace");
-    assert_eq!(workspace_response.status(), StatusCode::OK);
+    assert_eq!(workspace_response.status(), StatusCode::CREATED);
     let workspace_body = axum::body::to_bytes(workspace_response.into_body(), 64 * 1024)
         .await
         .expect("read runtime-location workspace body");
@@ -569,7 +569,7 @@ async fn personal_session_can_create_and_list_projects() {
         ))
         .await
         .expect("serve create workspace request");
-    assert_eq!(workspace_response.status(), StatusCode::OK);
+    assert_eq!(workspace_response.status(), StatusCode::CREATED);
     let workspace_body = axum::body::to_bytes(workspace_response.into_body(), 64 * 1024)
         .await
         .expect("read create workspace body");

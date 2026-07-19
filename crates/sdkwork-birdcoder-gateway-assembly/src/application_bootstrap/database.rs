@@ -7,7 +7,9 @@ use sqlx::SqlitePool;
 use crate::bootstrap::config::BirdServerConfig;
 use crate::bootstrap::legacy_sqlite::upgrade_legacy_sqlite_schema;
 
-pub fn resolve_birdcoder_database_config(config: &BirdServerConfig) -> DatabaseConfig {
+pub fn resolve_birdcoder_database_config(
+    config: &BirdServerConfig,
+) -> Result<DatabaseConfig, sdkwork_database_config::ConfigError> {
     let url = config.resolved_database_url();
     let engine = match config.resolved_database_engine().to_lowercase().as_str() {
         "sqlite" => DatabaseEngine::Sqlite,
@@ -15,21 +17,26 @@ pub fn resolve_birdcoder_database_config(config: &BirdServerConfig) -> DatabaseC
         _ => DatabaseEngine::from_url(&url).unwrap_or(DatabaseEngine::Sqlite),
     };
 
-    DatabaseConfig {
+    if engine == DatabaseEngine::Postgres {
+        return DatabaseConfig::from_env("BIRDCODER");
+    }
+
+    Ok(DatabaseConfig {
         engine,
         url,
         ..DatabaseConfig::default()
-    }
+    })
 }
 
 pub async fn bootstrap_database(
     config: &BirdServerConfig,
 ) -> Result<Arc<DatabasePool>, Box<dyn std::error::Error>> {
-    if let Some(parent) = config.sqlite_file.parent() {
-        std::fs::create_dir_all(parent)?;
+    let db_config = resolve_birdcoder_database_config(config)?;
+    if db_config.engine == DatabaseEngine::Sqlite {
+        if let Some(parent) = config.sqlite_file.parent() {
+            std::fs::create_dir_all(parent)?;
+        }
     }
-
-    let db_config = resolve_birdcoder_database_config(config);
     let pool = create_pool_from_config(db_config.clone()).await?;
 
     if db_config.engine == DatabaseEngine::Sqlite {

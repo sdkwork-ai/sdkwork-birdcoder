@@ -198,7 +198,7 @@ function detectDatabaseEngineFromUrl(url) {
   return undefined;
 }
 
-function createPlatformGatewayPlan({ env, viteMode }) {
+export function createPlatformGatewayPlan({ env, viteMode }) {
   if (!platformGatewayAutostartEnabled(env)) {
     return null;
   }
@@ -223,12 +223,23 @@ function createPlatformGatewayPlan({ env, viteMode }) {
     'membership.sqlite3',
   );
   const platformGatewayUrl = resolvePlatformGatewayUrl(env);
+  const sharedDatabaseUrl = readTrimmedValue(env.SDKWORK_CLAW_DATABASE_URL);
+  const sharedDatabaseEngine =
+    readTrimmedValue(env.SDKWORK_CLAW_DATABASE_ENGINE)
+    || detectDatabaseEngineFromUrl(sharedDatabaseUrl);
+  const usesSharedPostgresDatabase =
+    sharedDatabaseEngine === 'postgres' || sharedDatabaseEngine === 'postgresql';
   const driveDatabaseUrl =
     readTrimmedValue(env.SDKWORK_DRIVE_DATABASE_URL)
+    || (usesSharedPostgresDatabase ? sharedDatabaseUrl : undefined)
     || sqliteDatabaseUrl(driveDatabasePath);
   const membershipDatabaseUrl =
     readTrimmedValue(env.SDKWORK_MEMBERSHIP_DATABASE_URL)
+    || (usesSharedPostgresDatabase ? sharedDatabaseUrl : undefined)
     || sqliteDatabaseUrl(membershipDatabasePath);
+  const sharedMaxConnections =
+    readTrimmedValue(env.SDKWORK_CLAW_DATABASE_MAX_CONNECTIONS)
+    || (usesSharedPostgresDatabase ? '10' : '2');
   const gatewayEnv = {
     ...env,
     SDKWORK_API_CLOUD_GATEWAY_BIND: '0.0.0.0:3900',
@@ -240,6 +251,15 @@ function createPlatformGatewayPlan({ env, viteMode }) {
     SDKWORK_MEMBERSHIP_DATABASE_ENGINE:
       readTrimmedValue(env.SDKWORK_MEMBERSHIP_DATABASE_ENGINE)
       || detectDatabaseEngineFromUrl(membershipDatabaseUrl),
+    SDKWORK_DRIVE_DATABASE_MAX_CONNECTIONS:
+      readTrimmedValue(env.SDKWORK_DRIVE_DATABASE_MAX_CONNECTIONS)
+      || sharedMaxConnections,
+    SDKWORK_MEMBERSHIP_DATABASE_MAX_CONNECTIONS:
+      readTrimmedValue(env.SDKWORK_MEMBERSHIP_DATABASE_MAX_CONNECTIONS)
+      || sharedMaxConnections,
+    SDKWORK_DATABASE_TEMPORARY_DRIVER_POOL_COUNT:
+      readTrimmedValue(env.SDKWORK_DATABASE_TEMPORARY_DRIVER_POOL_COUNT)
+      || '2',
     SDKWORK_MEMBERSHIP_APP_ROOT:
       readTrimmedValue(env.SDKWORK_MEMBERSHIP_APP_ROOT)
       || path.resolve(WORKSPACE_ROOT, '..', 'sdkwork-membership'),

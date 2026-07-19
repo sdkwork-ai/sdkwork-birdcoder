@@ -48,6 +48,93 @@ pub fn prepare_sql(template: &str) -> String {
     normalize_any_placeholders(template)
 }
 
+/// Rewrite portable `?`/`?N` bind markers to `$1..$N`.
+///
+/// PostgreSQL requires numbered parameters, while SQLite accepts the same
+/// syntax. SQLx `Any` forwards SQL verbatim, so repositories shared by these
+/// two drivers must normalize placeholders before execution.
+pub fn numbered_placeholders(template: &str) -> String {
+    let mut output = String::with_capacity(template.len());
+    let mut chars = template.chars().peekable();
+    let mut parameter_index = 0usize;
+    let mut single_quoted = false;
+    let mut double_quoted = false;
+    let mut line_comment = false;
+    let mut block_comment = false;
+
+    while let Some(ch) = chars.next() {
+        if line_comment {
+            output.push(ch);
+            if ch == '\n' {
+                line_comment = false;
+            }
+            continue;
+        }
+        if block_comment {
+            output.push(ch);
+            if ch == '*' && chars.peek() == Some(&'/') {
+                output.push(chars.next().expect("peeked block comment terminator"));
+                block_comment = false;
+            }
+            continue;
+        }
+        if single_quoted {
+            output.push(ch);
+            if ch == '\'' {
+                if chars.peek() == Some(&'\'') {
+                    output.push(chars.next().expect("peeked escaped quote"));
+                } else {
+                    single_quoted = false;
+                }
+            }
+            continue;
+        }
+        if double_quoted {
+            output.push(ch);
+            if ch == '"' {
+                if chars.peek() == Some(&'"') {
+                    output.push(chars.next().expect("peeked escaped identifier quote"));
+                } else {
+                    double_quoted = false;
+                }
+            }
+            continue;
+        }
+
+        match ch {
+            '\'' => {
+                single_quoted = true;
+                output.push(ch);
+            }
+            '"' => {
+                double_quoted = true;
+                output.push(ch);
+            }
+            '-' if chars.peek() == Some(&'-') => {
+                output.push(ch);
+                output.push(chars.next().expect("peeked line comment marker"));
+                line_comment = true;
+            }
+            '/' if chars.peek() == Some(&'*') => {
+                output.push(ch);
+                output.push(chars.next().expect("peeked block comment marker"));
+                block_comment = true;
+            }
+            '?' => {
+                while chars.peek().is_some_and(|next| next.is_ascii_digit()) {
+                    chars.next();
+                }
+                parameter_index += 1;
+                output.push('$');
+                output.push_str(&parameter_index.to_string());
+            }
+            _ => output.push(ch),
+        }
+    }
+
+    output
+}
+
 /// Portable suffix for insert-id retrieval (SQLite 3.35+ and PostgreSQL).
 pub const SQL_RETURNING_ID: &str = " RETURNING id";
 
@@ -87,6 +174,16 @@ mod tests {
         assert_eq!(
             normalize_any_placeholders("SELECT * FROM t WHERE id = ?1 AND tenant_id = ?2"),
             "SELECT * FROM t WHERE id = ? AND tenant_id = ?",
+        );
+    }
+
+    #[test]
+    fn numbers_portable_placeholders_for_postgres_and_sqlite() {
+        assert_eq!(
+            numbered_placeholders(
+                "INSERT INTO demo (id, payload) VALUES (?1, CAST(? AS JSONB)) WHERE '?' = '?' -- ?\n/* ? */",
+            ),
+            "INSERT INTO demo (id, payload) VALUES ($1, CAST($2 AS JSONB)) WHERE '?' = '?' -- ?\n/* ? */",
         );
     }
 

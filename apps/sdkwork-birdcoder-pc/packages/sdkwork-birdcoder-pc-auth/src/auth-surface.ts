@@ -15,9 +15,9 @@ const BIRDCODER_AUTH_METHOD_UNAVAILABLE_MESSAGE =
 
 const BIRDCODER_VERIFICATION_POLICY = {
   emailCodeLoginEnabled: true,
-  emailRegistrationVerificationRequired: true,
+  emailRegistrationVerificationRequired: false,
   phoneCodeLoginEnabled: true,
-  phoneRegistrationVerificationRequired: true,
+  phoneRegistrationVerificationRequired: false,
 } as const;
 
 function readBirdCoderPublicEnvValue(...keys: string[]): string | undefined {

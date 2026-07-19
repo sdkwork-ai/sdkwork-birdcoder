@@ -97,7 +97,8 @@
   },
   "verification": {
     "commands": [
-      "cargo test --offline -p sdkwork-birdcoder-workspace-repository-sqlx --test project_workspace_binding_repository_tests -- --nocapture"
+      "cargo test --offline -p sdkwork-birdcoder-workspace-repository-sqlx --test project_workspace_binding_repository_tests -- --nocapture",
+      "cargo test --offline -p sdkwork-birdcoder-workspace-repository-sqlx --test workspace_repository_driver_parity -- --nocapture"
     ]
   }
 }

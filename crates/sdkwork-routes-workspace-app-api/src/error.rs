@@ -27,7 +27,26 @@ pub fn map_rate_limited(message: impl Into<String>, trace_id: Option<&str>) -> P
     )
 }
 
-pub fn map_workspace_error(error: WorkspaceError, trace_id: Option<&str>) -> ProblemJsonBody {
+pub fn map_workspace_error(
+    error: WorkspaceError,
+    trace_id: Option<&str>,
+    operation_id: &'static str,
+) -> ProblemJsonBody {
+    let error_kind = match &error {
+        WorkspaceError::Repository(_) => Some("repository"),
+        WorkspaceError::EventPublish(_) => Some("event_publish"),
+        WorkspaceError::Internal(_) => Some("internal"),
+        _ => None,
+    };
+    if let Some(error_kind) = error_kind {
+        tracing::error!(
+            trace_id = trace_id.unwrap_or("unavailable"),
+            operation_id,
+            error_kind,
+            error = %error,
+            "workspace operation failed"
+        );
+    }
     match error {
         WorkspaceError::NotFound(msg) => {
             traced_platform_problem(SdkWorkResultCode::NotFound, msg, trace_id)

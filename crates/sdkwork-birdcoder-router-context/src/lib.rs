@@ -152,8 +152,13 @@ pub fn coding_session_context(iam: &IamAppContext) -> CodingSessionContext {
 }
 
 pub fn workspace_context(iam: &IamAppContext) -> WorkspaceContext {
+    let organization_id = match iam.login_scope {
+        LoginScope::Tenant => PLATFORM_ORGANIZATION_ID.to_owned(),
+        LoginScope::Organization => iam.organization_id.clone().unwrap_or_default(),
+    };
     WorkspaceContext {
         tenant_id: iam.tenant_id.clone(),
+        organization_id,
         user_id: iam.user_id.clone(),
     }
 }
@@ -209,6 +214,20 @@ mod tests {
     #[test]
     fn organization_project_context_preserves_selected_organization() {
         let context = project_context(&iam_context(Some("300001")));
+
+        assert_eq!(context.organization_id, "300001");
+    }
+
+    #[test]
+    fn personal_workspace_context_uses_platform_organization_scope() {
+        let context = workspace_context(&iam_context(None));
+
+        assert_eq!(context.organization_id, PLATFORM_ORGANIZATION_ID);
+    }
+
+    #[test]
+    fn organization_workspace_context_preserves_selected_organization() {
+        let context = workspace_context(&iam_context(Some("300001")));
 
         assert_eq!(context.organization_id, "300001");
     }

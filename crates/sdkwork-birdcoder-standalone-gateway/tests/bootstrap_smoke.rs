@@ -6,10 +6,18 @@ use tower::ServiceExt;
 
 static SMOKE_ENV_LOCK: OnceLock<Arc<Mutex<()>>> = OnceLock::new();
 
+const SMOKE_IAM_BOOTSTRAP_PASSWORD: &str = "BirdCoderSmoke#2026";
+
 const SMOKE_ENV_VALUES: &[(&str, &str)] = &[
     ("SDKWORK_DEPLOYMENT_ENV", "development"),
+    ("SDKWORK_ENVIRONMENT", "development"),
     ("SDKWORK_BIRDCODER_ENVIRONMENT", "development"),
     ("SDKWORK_LIFECYCLE_ENVIRONMENT", "development"),
+    (
+        "SDKWORK_IAM_BOOTSTRAP_PASSWORD",
+        SMOKE_IAM_BOOTSTRAP_PASSWORD,
+    ),
+    ("SDKWORK_IAM_MANAGER_PASSWORD", SMOKE_IAM_BOOTSTRAP_PASSWORD),
     ("SDKWORK_AGENTS_ENVIRONMENT", "development"),
     ("SDKWORK_AGENTS_CONFIG_PROFILE", "development"),
     ("SDKWORK_AGENTS_DEV_AUTH_BYPASS", "true"),
@@ -149,6 +157,54 @@ impl SmokeApp {
         request: Request<Body>,
     ) -> Result<axum::response::Response, std::convert::Infallible> {
         self.router.clone().oneshot(request).await
+    }
+}
+
+struct SmokeAuthTokens {
+    access_token: String,
+    auth_token: String,
+}
+
+async fn login_smoke_user(app: &SmokeApp) -> SmokeAuthTokens {
+    let bootstrap_access_token =
+        sdkwork_web_core::jwt_fixtures::bootstrap_access_token_jwt("100001", "sdkwork-birdcoder");
+    let response = app
+        .request(
+            Request::builder()
+                .method("POST")
+                .uri("/app/v3/api/auth/sessions")
+                .header("Access-Token", bootstrap_access_token)
+                .header("Content-Type", "application/json")
+                .body(Body::from(
+                    serde_json::json!({
+                        "grantType": "password",
+                        "username": "manager",
+                        "password": SMOKE_IAM_BOOTSTRAP_PASSWORD,
+                    })
+                    .to_string(),
+                ))
+                .expect("build smoke IAM login request"),
+        )
+        .await
+        .expect("serve smoke IAM login request");
+    let status = response.status();
+    let body = axum::body::to_bytes(response.into_body(), usize::MAX)
+        .await
+        .expect("read smoke IAM login response");
+    let json: serde_json::Value =
+        serde_json::from_slice(&body).expect("parse smoke IAM login response");
+    assert_eq!(status, StatusCode::OK, "smoke IAM login failed: {json}");
+    assert_eq!(json["code"], 0, "smoke IAM login rejected: {json}");
+
+    SmokeAuthTokens {
+        access_token: json["data"]["accessToken"]
+            .as_str()
+            .expect("smoke IAM login access token")
+            .to_owned(),
+        auth_token: json["data"]["authToken"]
+            .as_str()
+            .expect("smoke IAM login auth token")
+            .to_owned(),
     }
 }
 
@@ -446,19 +502,9 @@ async fn workspace_realtime_websocket_upgrade_requires_real_dual_token_headers()
     let app = build_smoke_app(&config)
         .await
         .expect("build_app should succeed with valid config");
-    let session_id = "realtime-websocket-auth-session";
-    let auth_token = sdkwork_web_core::jwt_fixtures::auth_token_jwt(
-        "100001",
-        "31",
-        session_id,
-        "sdkwork-birdcoder",
-    );
-    let access_token = sdkwork_web_core::jwt_fixtures::access_token_jwt(
-        "100001",
-        "31",
-        session_id,
-        "sdkwork-birdcoder",
-    );
+    let tokens = login_smoke_user(&app).await;
+    let auth_token = tokens.auth_token;
+    let access_token = tokens.access_token;
     let workspace_response = app
         .request(
             Request::builder()
@@ -472,10 +518,16 @@ async fn workspace_realtime_websocket_upgrade_requires_real_dual_token_headers()
         )
         .await
         .expect("create workspace");
-    assert_eq!(workspace_response.status(), StatusCode::OK);
+    let workspace_status = workspace_response.status();
     let workspace_body = axum::body::to_bytes(workspace_response.into_body(), usize::MAX)
         .await
         .expect("read workspace create response");
+    assert_eq!(
+        workspace_status,
+        StatusCode::CREATED,
+        "unexpected workspace create response: {}",
+        String::from_utf8_lossy(&workspace_body)
+    );
     let workspace_json: serde_json::Value =
         serde_json::from_slice(&workspace_body).expect("parse workspace create response");
     let workspace_id = workspace_json["data"]["item"]["id"]
@@ -656,7 +708,14 @@ async fn workspace_realtime_websocket_upgrade_requires_real_dual_token_headers()
         WebSocketError::Http(response) => response,
         error => panic!("unexpected non-realtime carrier websocket error: {error:?}"),
     };
-    assert_eq!(non_realtime_response.status(), StatusCode::UNAUTHORIZED);
+    assert_eq!(
+        non_realtime_response.status(),
+        StatusCode::UNAUTHORIZED,
+        "unexpected non-realtime carrier response; auth_token_bytes={}, access_token_bytes={}, protocol_header_bytes={}",
+        auth_token.len(),
+        access_token.len(),
+        carrier_protocols.len(),
+    );
 
     let mut partial_carrier_request = realtime_url
         .as_str()
@@ -754,19 +813,9 @@ async fn terminal_app_api_requires_a_project_runtime_location_and_legacy_runtime
     let app = build_smoke_app(&config)
         .await
         .expect("build_app should succeed with valid config");
-    let session_id = "terminal-app-api-smoke-session";
-    let auth_token = sdkwork_web_core::jwt_fixtures::auth_token_jwt(
-        "100001",
-        "30",
-        session_id,
-        "sdkwork-birdcoder",
-    );
-    let access_token = sdkwork_web_core::jwt_fixtures::access_token_jwt(
-        "100001",
-        "30",
-        session_id,
-        "sdkwork-birdcoder",
-    );
+    let tokens = login_smoke_user(&app).await;
+    let auth_token = tokens.auth_token;
+    let access_token = tokens.access_token;
     let command = if cfg!(windows) {
         serde_json::json!(["cmd.exe", "/Q"])
     } else {
@@ -785,10 +834,16 @@ async fn terminal_app_api_requires_a_project_runtime_location_and_legacy_runtime
         )
         .await
         .expect("create workspace");
-    assert_eq!(workspace_response.status(), StatusCode::OK);
+    let workspace_status = workspace_response.status();
     let workspace_body = axum::body::to_bytes(workspace_response.into_body(), usize::MAX)
         .await
         .expect("read workspace create response");
+    assert_eq!(
+        workspace_status,
+        StatusCode::CREATED,
+        "unexpected workspace create response: {}",
+        String::from_utf8_lossy(&workspace_body)
+    );
     let workspace_json: serde_json::Value =
         serde_json::from_slice(&workspace_body).expect("parse workspace create response");
     let workspace_id = workspace_json["data"]["item"]["id"]

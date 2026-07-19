@@ -94,6 +94,16 @@ assert.match(
   /code:\s*0/u,
   'PC e2e success fixtures must use the numeric SDKWork v3 success code.',
 );
+assert.match(
+  mockFixtures,
+  /emailRegistrationVerificationRequired:\s*false/u,
+  'PC e2e IAM fixtures must keep email registration verification disabled by default.',
+);
+assert.match(
+  mockFixtures,
+  /phoneRegistrationVerificationRequired:\s*false/u,
+  'PC e2e IAM fixtures must keep phone registration verification disabled by default.',
+);
 
 assert.match(
   playwrightConfig,

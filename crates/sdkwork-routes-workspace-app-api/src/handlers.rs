@@ -2,8 +2,8 @@ use std::collections::VecDeque;
 use std::convert::Infallible;
 use std::time::Duration;
 
-use axum::extract::ws::{CloseFrame, Message, WebSocket, WebSocketUpgrade};
 use axum::extract::rejection::QueryRejection;
+use axum::extract::ws::{CloseFrame, Message, WebSocket, WebSocketUpgrade};
 use axum::extract::{FromRequestParts, Path, Query, State};
 use axum::http::request::Parts;
 use axum::http::{header, HeaderMap, StatusCode};
@@ -672,7 +672,7 @@ pub async fn list_workspaces(
             total,
             request_id(&web),
         ))),
-        Err(e) => Err(error::map_workspace_error(e, trace_id)),
+        Err(e) => Err(error::map_workspace_error(e, trace_id, "workspaces.list")),
     }
 }
 
@@ -689,7 +689,11 @@ pub async fn get_workspace(
         .await
     {
         Ok(workspace) => Ok(Json(build_data_envelope(workspace, request_id(&web)))),
-        Err(e) => Err(error::map_workspace_error(e, request_trace_id(&web))),
+        Err(e) => Err(error::map_workspace_error(
+            e,
+            request_trace_id(&web),
+            "workspaces.retrieve",
+        )),
     }
 }
 
@@ -698,7 +702,7 @@ pub async fn create_workspace(
     RequiredIamContext(iam): RequiredIamContext,
     State(state): State<WorkspaceAppState>,
     Json(body): Json<CreateWorkspaceBody>,
-) -> Result<Json<ApiDataEnvelope<WorkspacePayload>>, error::ProblemJsonBody> {
+) -> Result<(StatusCode, Json<ApiDataEnvelope<WorkspacePayload>>), error::ProblemJsonBody> {
     let ctx = workspace_context(&iam);
     let request = CreateWorkspaceRequest {
         name: body.name,
@@ -730,8 +734,15 @@ pub async fn create_workspace(
         .create_workspace(&ctx, &request)
         .await
     {
-        Ok(workspace) => Ok(Json(build_data_envelope(workspace, request_id(&web)))),
-        Err(e) => Err(error::map_workspace_error(e, request_trace_id(&web))),
+        Ok(workspace) => Ok((
+            StatusCode::CREATED,
+            Json(build_data_envelope(workspace, request_id(&web))),
+        )),
+        Err(e) => Err(error::map_workspace_error(
+            e,
+            request_trace_id(&web),
+            "workspaces.create",
+        )),
     }
 }
 
@@ -772,7 +783,11 @@ pub async fn update_workspace(
         .await
     {
         Ok(workspace) => Ok(Json(build_data_envelope(workspace, request_id(&web)))),
-        Err(e) => Err(error::map_workspace_error(e, request_trace_id(&web))),
+        Err(e) => Err(error::map_workspace_error(
+            e,
+            request_trace_id(&web),
+            "workspaces.update",
+        )),
     }
 }
 
@@ -789,7 +804,11 @@ pub async fn delete_workspace(
         .await
     {
         Ok(result) => Ok(Json(build_data_envelope(result, request_id(&web)))),
-        Err(e) => Err(error::map_workspace_error(e, request_trace_id(&web))),
+        Err(e) => Err(error::map_workspace_error(
+            e,
+            request_trace_id(&web),
+            "workspaces.delete",
+        )),
     }
 }
 
@@ -804,10 +823,7 @@ pub(crate) async fn subscribe_workspace_realtime(
 ) -> Result<Response, error::ProblemJsonBody> {
     let trace_id = request_trace_id(&web);
     let Query(query) = query.map_err(|_| {
-        error::map_validation_error(
-            "Workspace realtime query parameters are invalid.",
-            trace_id,
-        )
+        error::map_validation_error("Workspace realtime query parameters are invalid.", trace_id)
     })?;
     let workspace_id = params.workspace_id.clone();
     let ctx = workspace_context(&iam);
@@ -1149,7 +1165,11 @@ pub async fn list_workspace_members(
             total,
             request_id(&web),
         ))),
-        Err(e) => Err(error::map_workspace_error(e, request_trace_id(&web))),
+        Err(e) => Err(error::map_workspace_error(
+            e,
+            request_trace_id(&web),
+            "workspaces.members.list",
+        )),
     }
 }
 
@@ -1176,7 +1196,11 @@ pub async fn upsert_workspace_member(
         .await
     {
         Ok(member) => Ok(Json(build_data_envelope(member, request_id(&web)))),
-        Err(e) => Err(error::map_workspace_error(e, request_trace_id(&web))),
+        Err(e) => Err(error::map_workspace_error(
+            e,
+            request_trace_id(&web),
+            "workspaces.members.create",
+        )),
     }
 }
 
@@ -1203,7 +1227,7 @@ pub async fn list_projects(
         .workspace_service
         .ensure_workspace_access(&workspace_ctx, workspace_id)
         .await
-        .map_err(|error| error::map_workspace_error(error, trace_id))?;
+        .map_err(|error| error::map_workspace_error(error, trace_id, "projects.list"))?;
     // PAGINATION_SPEC.md §2/§5: push LIMIT/OFFSET and user filters down
     // to SQL — never collect-then-slice in process memory.
     // Validate user_id scoping BEFORE calling the service so we fail fast
@@ -1268,7 +1292,9 @@ pub async fn create_project(
         .workspace_service
         .ensure_workspace_access(&workspace_context(&iam), &body.workspace_id)
         .await
-        .map_err(|error| error::map_workspace_error(error, request_trace_id(&web)))?;
+        .map_err(|error| {
+            error::map_workspace_error(error, request_trace_id(&web), "projects.create")
+        })?;
     let request = CreateProjectRequest {
         workspace_id: body.workspace_id,
         name: body.name,
@@ -2105,7 +2131,7 @@ pub async fn list_teams(
             total,
             request_id(&web),
         ))),
-        Err(e) => Err(error::map_workspace_error(e, trace_id)),
+        Err(e) => Err(error::map_workspace_error(e, trace_id, "teams.list")),
     }
 }
 

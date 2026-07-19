@@ -159,8 +159,18 @@ assert.match(
 );
 assert.match(
   authSurfaceSource,
+  /emailRegistrationVerificationRequired:\s*false/u,
+  'BirdCoder auth surface must keep email registration verification disabled by default.',
+);
+assert.match(
+  authSurfaceSource,
   /phoneCodeLoginEnabled:\s*true/u,
   'BirdCoder auth surface must enable phone-code login through IAM verification policy.',
+);
+assert.match(
+  authSurfaceSource,
+  /phoneRegistrationVerificationRequired:\s*false/u,
+  'BirdCoder auth surface must keep phone registration verification disabled by default.',
 );
 assert.match(
   authSurfaceSource,

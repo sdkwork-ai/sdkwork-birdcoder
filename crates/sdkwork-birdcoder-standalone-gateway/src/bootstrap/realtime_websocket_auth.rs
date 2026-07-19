@@ -13,8 +13,8 @@ const WEBSOCKET_PROTOCOL_HEADER: HeaderName = HeaderName::from_static("sec-webso
 const REALTIME_APPLICATION_PROTOCOL: &str = "sdkwork-realtime-v1";
 const REALTIME_AUTH_PROTOCOL_PREFIX: &str = "sdkwork-realtime-auth-v1.";
 const REALTIME_ACCESS_PROTOCOL_PREFIX: &str = "sdkwork-realtime-access-v1.";
-const MAX_ENCODED_CREDENTIAL_LENGTH: usize = 4_096;
-const MAX_PROTOCOL_HEADER_LENGTH: usize = 9_216;
+const MAX_ENCODED_CREDENTIAL_LENGTH: usize = 8_192;
+const MAX_PROTOCOL_HEADER_LENGTH: usize = 18_432;
 const MAX_PROTOCOL_ITEMS: usize = 8;
 
 #[derive(Default)]

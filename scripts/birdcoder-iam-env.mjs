@@ -198,6 +198,11 @@ function sqliteDatabaseUrl(filePath) {
   return `sqlite://${normalized}?mode=rwc`;
 }
 
+function usesPostgresDatabaseEngine(env) {
+  const engine = readTrimmedValue(env[SDKWORK_BIRDCODER_DATABASE_ENGINE_ENV])?.toLowerCase();
+  return engine === 'postgres' || engine === 'postgresql';
+}
+
 function readEnvValue(env, ...keys) {
   for (const key of keys) {
     const value = readTrimmedValue(env[key]);
@@ -939,7 +944,7 @@ export function resolveBirdcoderIamCommandEnv({
     target,
     workspaceRootDir,
   });
-  if (sqliteFilePath) {
+  if (sqliteFilePath && !usesPostgresDatabaseEngine(nextEnv)) {
     setEnvDefault(nextEnv, BIRDCODER_CODING_SERVER_SQLITE_FILE_ENV, sqliteFilePath);
     setEnvDefault(
       nextEnv,

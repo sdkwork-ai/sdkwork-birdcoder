@@ -4,6 +4,7 @@ import net from 'node:net';
 
 const {
   applyClientLoopbackPortFallback,
+  createPlatformGatewayPlan,
   resolveClientAccessUrls,
   runBirdcoderDevStack,
 } = await import('./run-birdcoder-dev-stack.mjs');
@@ -292,6 +293,46 @@ const h5DryRun = await captureRunBirdcoderDevStack([
     stdout,
     /client=.*vite.*--host 0\.0\.0\.0 --strictPort/u,
     'H5 renderer must accept LAN clients and lock its configured port.',
+  );
+}
+
+{
+  const sharedPostgresUrl = 'postgresql://app:secret@127.0.0.1:5432/sdkwork_ai_dev';
+  const platformGatewayPlan = createPlatformGatewayPlan({
+    env: {
+      SDKWORK_BIRDCODER_PLATFORM_API_GATEWAY_AUTOSTART: 'true',
+      SDKWORK_CLAW_DATABASE_ENGINE: 'postgresql',
+      SDKWORK_CLAW_DATABASE_URL: sharedPostgresUrl,
+      SDKWORK_CLAW_DATABASE_MAX_CONNECTIONS: '10',
+      SDKWORK_DATABASE_TEMPORARY_ANY_POOL_EXCEPTION: 'true',
+    },
+    viteMode: 'development',
+  });
+
+  assert.equal(
+    platformGatewayPlan.env.SDKWORK_DRIVE_DATABASE_URL,
+    sharedPostgresUrl,
+    'PostgreSQL platform gateway startup must reuse the canonical Claw database URL for Drive instead of creating a separate SQLite identity.',
+  );
+  assert.equal(
+    platformGatewayPlan.env.SDKWORK_MEMBERSHIP_DATABASE_URL,
+    sharedPostgresUrl,
+    'PostgreSQL platform gateway startup must reuse the canonical Claw database URL for Membership instead of creating a separate SQLite identity.',
+  );
+  assert.equal(
+    platformGatewayPlan.env.SDKWORK_DRIVE_DATABASE_MAX_CONNECTIONS,
+    '10',
+    'Drive must inherit the canonical process connection budget in the embedded platform gateway.',
+  );
+  assert.equal(
+    platformGatewayPlan.env.SDKWORK_MEMBERSHIP_DATABASE_MAX_CONNECTIONS,
+    '10',
+    'Membership must inherit the canonical process connection budget in the embedded platform gateway.',
+  );
+  assert.equal(
+    platformGatewayPlan.env.SDKWORK_DATABASE_TEMPORARY_DRIVER_POOL_COUNT,
+    '2',
+    'The embedded platform gateway must reserve its declared two temporary driver pools.',
   );
 }
 

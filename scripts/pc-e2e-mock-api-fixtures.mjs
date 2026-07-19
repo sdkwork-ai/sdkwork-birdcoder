@@ -101,9 +101,9 @@ export function createIamRuntimeSettings() {
     registerMethods: ['email', 'phone'],
     verificationPolicy: {
       emailCodeLoginEnabled: true,
-      emailRegistrationVerificationRequired: true,
+      emailRegistrationVerificationRequired: false,
       phoneCodeLoginEnabled: true,
-      phoneRegistrationVerificationRequired: true,
+      phoneRegistrationVerificationRequired: false,
     },
   };
 }

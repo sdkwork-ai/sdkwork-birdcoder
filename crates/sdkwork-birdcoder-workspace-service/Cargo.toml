@@ -11,5 +11,6 @@ serde = { version = "1", features = ["derive"] }
 serde_json = { workspace = true }
 uuid = { workspace = true }
 sdkwork-utils-rust.workspace = true
+tracing = "0.1"
 
 
