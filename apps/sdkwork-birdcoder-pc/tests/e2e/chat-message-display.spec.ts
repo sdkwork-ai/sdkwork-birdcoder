@@ -395,11 +395,14 @@ test('provider activity is compact, expandable, responsive, and opens files in t
   await expect(page.getByText('Diff:', { exact: true })).toBeVisible();
 
   await page.getByRole('button', { name: 'AI Mode' }).click();
-  await page.setViewportSize({ width: 680, height: 900 });
+  await page.setViewportSize({ width: 680, height: 1_800 });
   await expect(activity).toBeVisible();
   if (await activity.locator(':scope > button').getAttribute('aria-expanded') !== 'true') {
     await activity.locator(':scope > button').click();
   }
+  await expect(activity.locator('[data-chat-activity-details="true"]')).toBeVisible();
+  await expect(activity.locator('[data-chat-command-details="true"]')).toHaveCount(2);
+  await expect(activity.locator('[data-chat-file-change-row="inline"]')).toHaveCount(2);
   await expect(activity.getByText('1 failed', { exact: true })).toBeVisible();
   await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
   for (const row of await activity.locator('[data-chat-file-change-row="inline"]').all()) {
@@ -430,5 +433,10 @@ test('provider activity is compact, expandable, responsive, and opens files in t
   await activity.screenshot({
     animations: 'disabled',
     path: testInfo.outputPath('provider-message-narrow-expanded.png'),
+  });
+  await mcpTool.scrollIntoViewIfNeeded();
+  await mcpTool.screenshot({
+    animations: 'disabled',
+    path: testInfo.outputPath('provider-tool-result-narrow-expanded.png'),
   });
 });

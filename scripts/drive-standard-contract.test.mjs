@@ -122,7 +122,7 @@ for (const environment of ['development', 'test', 'staging', 'production']) {
     'runtimeMode = "embedded"',
     'cargoFeature = "foundation-drive"',
     'cargoDependency = "sdkwork-drive-gateway-assembly"',
-    'sdkwork_drive_gateway_assembly::assemble_application_business_router_from_env',
+    'sdkwork_drive_gateway_assembly::assemble_api_router_from_env',
   ]) {
     if (!gatewayConfig.includes(requiredEvidence)) {
       fail(`${gatewayConfigPath} must declare Drive assembly evidence: ${requiredEvidence}`);

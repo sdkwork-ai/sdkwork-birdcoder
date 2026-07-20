@@ -1,4 +1,4 @@
-use sdkwork_api_birdcoder_assembly::{assemble_application_router, bootstrap};
+use sdkwork_api_birdcoder_assembly::{assemble_api_router, bootstrap};
 use sdkwork_api_birdcoder_standalone_gateway::server;
 
 #[tokio::main]
@@ -14,7 +14,7 @@ async fn run() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     sdkwork_web_bootstrap::init_tracing_from_env();
 
     let config = bootstrap::config::BirdServerConfig::from_env()?;
-    let app = assemble_application_router(&config)
+    let app = assemble_api_router(&config)
         .await
         .map_err(|error| -> Box<dyn std::error::Error + Send + Sync> {
             Box::new(std::io::Error::other(error.to_string()))

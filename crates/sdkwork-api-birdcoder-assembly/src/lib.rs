@@ -12,7 +12,7 @@ pub mod health;
 pub mod observability;
 pub mod openapi;
 
-pub use assembly_entry::{assemble_application_router, ApplicationAssembly};
+pub use assembly_entry::{assemble_api_router, ApiAssembly};
 
 pub fn assembly_route_count() -> usize {
     generated::ROUTE_CRATE_COUNT

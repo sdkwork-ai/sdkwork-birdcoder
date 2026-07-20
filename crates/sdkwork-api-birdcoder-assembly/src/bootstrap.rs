@@ -2,15 +2,15 @@ use axum::Router;
 
 use crate::bootstrap::{self, config::BirdServerConfig};
 
-pub struct ApplicationAssembly {
+pub struct ApiAssembly {
     pub router: Router,
 }
 
-pub async fn assemble_application_router(
+pub async fn assemble_api_router(
     config: &BirdServerConfig,
-) -> Result<ApplicationAssembly, String> {
+) -> Result<ApiAssembly, String> {
     let router = bootstrap::build_app(config)
         .await
         .map_err(|error| error.to_string())?;
-    Ok(ApplicationAssembly { router })
+    Ok(ApiAssembly { router })
 }

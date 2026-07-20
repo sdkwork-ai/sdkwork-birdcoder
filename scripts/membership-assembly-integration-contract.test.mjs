@@ -26,7 +26,7 @@ for (const profile of ['development', 'test', 'staging', 'production']) {
   assert.match(source, /cargoDependency = "sdkwork-membership-gateway-assembly"/u);
   assert.match(
     source,
-    /sdkwork_membership_gateway_assembly::assemble_application_business_router_from_env/u,
+    /sdkwork_membership_gateway_assembly::assemble_api_router_from_env/u,
   );
   assert.doesNotMatch(source, /upstream|proxy|split|baseUrl/u);
 }
