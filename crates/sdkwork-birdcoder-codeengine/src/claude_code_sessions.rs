@@ -742,14 +742,14 @@ fn apply_claude_informational_notice(
     .find_map(|key| normalize_value_string(envelope.get(key)));
     let notice_kind = if prevents_continuation {
         "stopped"
-    } else if matches!(level.as_str(), "suggestion" | "warning") {
+    } else if level == "warning" {
         "warning"
     } else {
         "info"
     };
     let fallback = if prevents_continuation {
         "Agent execution stopped."
-    } else if matches!(level.as_str(), "suggestion" | "warning") {
+    } else if level == "warning" {
         "Provider warning."
     } else {
         "Provider notice."

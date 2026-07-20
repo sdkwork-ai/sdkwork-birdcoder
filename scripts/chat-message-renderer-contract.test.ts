@@ -475,6 +475,7 @@ for (const localeSource of [englishChatSource, chineseChatSource]) {
     'fileOperationMoved',
     'fileOperationMovedFrom',
     'fileOperationUpdated',
+    'noticeInfo',
     'taskItemBlocked',
     'taskItemCancelled',
     'taskItemCompleted',

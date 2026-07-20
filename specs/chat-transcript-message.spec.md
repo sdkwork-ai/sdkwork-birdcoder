@@ -121,7 +121,9 @@ The compatibility boundary also accepts current provider transport variants:
   `toolUseResult.structuredPatch` file results. `skip_transcript`,
   `permission_denied`, `api_retry`, refusal fallback, `mirror_error`, and
   assistant `aborted` are control/lifecycle semantics rather than authored
-  answer text.
+  answer text. SDK `informational` levels become `info` or `warning` notices,
+  `prevent_continuation` wins as `stopped`, and `local_command_output` remains
+  visible as neutral transcript information.
 - OpenCode completed tool `state.metadata.files/filediff` and standalone Patch
   parts. Only successfully applied file records enter `fileChanges`, and
   `MessageAbortedError` remains cancellation rather than failure.

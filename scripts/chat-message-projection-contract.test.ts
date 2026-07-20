@@ -676,6 +676,15 @@ for (const claudeSystemText of [
     `${claudeSystemText.subtype} must not masquerade as an assistant answer.`,
   );
 }
+assert.deepEqual(
+  extractBirdCoderProtocolNotices({
+    type: 'system',
+    subtype: 'local_command_output',
+    content: 'Local slash-command output.',
+  }),
+  [{ kind: 'info', message: 'Local slash-command output.' }],
+  'Claude local command output must remain visible as provider-neutral transcript information.',
+);
 
 const openCodeAbortedAssistant = {
   role: 'assistant',
