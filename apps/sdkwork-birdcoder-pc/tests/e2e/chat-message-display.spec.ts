@@ -342,6 +342,18 @@ async function openMessageFixture(page: Page) {
           originalContent: 'export function MessageList() { return null; }\n',
           content: 'export function MessageList() { return <ConversationTimeline />; }\n',
         },
+        {
+          path: 'src/features/chat/protocol/ProviderHistory.ts',
+          additions: 1,
+          deletions: 1,
+          diff: [
+            '--- a/src/features/chat/protocol/ProviderHistory.ts',
+            '+++ b/src/features/chat/protocol/ProviderHistory.ts',
+            '@@ -1 +1 @@',
+            "-export const history = 'legacy';",
+            "+export const history = 'provider-neutral';",
+          ].join('\n'),
+        },
       ],
     }),
     createEvent('event-turn-completed', 8, 'turn.completed', { runtimeStatus: 'completed' }),
@@ -387,7 +399,41 @@ async function openMessageFixture(page: Page) {
   await page.route('**/app/v3/api/workspaces?**', (route) => route.fulfill({ json: offsetPage([workspace]) }));
   await page.route('**/app/v3/api/projects?**', (route) => route.fulfill({ json: offsetPage([project]) }));
   await page.route(`**/app/v3/api/projects/${projectId}`, (route) => route.fulfill({ json: itemEnvelope(project) }));
+  await page.route(
+    `**/app/v3/api/projects/${projectId}/workspace_binding`,
+    (route) => route.fulfill({ json: itemEnvelope(workspaceBinding) }),
+  );
   await page.route(`**/app/v3/api/projects/${projectId}/runtime_location_preferences?**`, (route) => route.fulfill({ json: offsetPage([]) }));
+  await page.route('**/app/v3/api/drive/sandboxes?**', (route) => route.fulfill({
+    json: offsetPage([{
+      id: sandboxId,
+      displayName: sandboxDisplayName,
+      rootEntryId: sandboxRootEntryId,
+      capabilities: sandboxCapabilities,
+    }]),
+  }));
+  await page.route('**/app/v3/api/drive/sandboxes/*/entries?**', (route) => {
+    const requestUrl = new URL(route.request().url());
+    const parentPath = requestUrl.searchParams.get('parent_path')
+      ?? requestUrl.searchParams.get('parentPath')
+      ?? '';
+
+    return route.fulfill({
+      json: cursorPage(sandboxEntriesByParentPath.get(parentPath) ?? []),
+    });
+  });
+  await page.route(
+    `**/app/v3/api/drive/sandboxes/${sandboxId}/files/${adapterEntry.id}/content?**`,
+    (route) => route.fulfill({
+      json: itemEnvelope({
+        entry: adapterEntry,
+        encoding: 'utf8',
+        content: workspaceEditorContent,
+        sizeBytes: String(Buffer.byteLength(workspaceEditorContent)),
+        checksumSha256: 'a'.repeat(64),
+      }),
+    }),
+  );
   await page.route('**/app/v3/api/intelligence/coding_sessions?**', (route) => route.fulfill({ json: offsetPage([codingSession]) }));
   await page.route(`**/app/v3/api/intelligence/coding_sessions/${codingSessionId}`, (route) => route.fulfill({ json: itemEnvelope(codingSession) }));
   await page.route(
@@ -430,7 +476,7 @@ test('provider activity is compact, expandable, responsive, and opens files in t
 
   await activity.locator(':scope > button').click();
   await expect(activity.locator('[data-chat-command-row="inline"]')).toHaveCount(2);
-  await expect(activity.locator('[data-chat-file-change-row="inline"]')).toHaveCount(2);
+  await expect(activity.locator('[data-chat-file-change-row="inline"]')).toHaveCount(3);
   await expect(activity.getByText('1 failed', { exact: true })).toBeVisible();
   await expect(activity.getByText('Changes applied', { exact: true })).toBeVisible();
   await expect(activity.getByText('Checkpoint saved', { exact: true })).toHaveCount(0);
@@ -470,15 +516,31 @@ test('provider activity is compact, expandable, responsive, and opens files in t
   await activity.locator('[data-chat-file-open="true"]').nth(0).click();
   await expect(page.getByRole('button', { name: 'Editor Mode' })).toHaveClass(/text-white/);
   await expect(page.getByRole('button', { name: 'ProviderMessageAdapter.ts', exact: true }).first()).toBeVisible();
-  await expect(page.getByText(/^Diff:/)).toHaveCount(0);
+  await expect(page.locator('.monaco-editor .view-lines'))
+    .toContainText('workspaceLoadedSentinel');
+  await expect(page.locator('[data-chat-full-unified-diff="true"]')).toHaveCount(0);
 
   await page.getByRole('button', { name: 'AI Mode' }).click();
   await expect(activity).toBeVisible();
   await expect(activity.locator(':scope > button')).toHaveAttribute('aria-expanded', 'true');
   await expect(activity.locator('[data-chat-command-details="true"]')).toHaveCount(2);
-  await activity.locator('[data-chat-file-diff="true"]').nth(1).click();
-  await expect(page.getByText('CommercialConversationMessageList.tsx', { exact: true }).first()).toBeVisible();
-  await expect(page.getByText('Diff:', { exact: true })).toBeVisible();
+  await activity.locator('[data-chat-file-diff="true"]').nth(2).click();
+  await expect(page.getByText('ProviderHistory.ts', { exact: true }).first()).toBeVisible();
+  await expect(page.getByText('File changes:', { exact: true })).toBeVisible();
+
+  const fullUnifiedDiff = page.locator('[data-chat-full-unified-diff="true"]');
+  await expect(fullUnifiedDiff).toBeVisible();
+  await expect(fullUnifiedDiff)
+    .toContainText("-export const history = 'legacy';");
+  await expect(fullUnifiedDiff)
+    .toContainText("+export const history = 'provider-neutral';");
+  await expect(page.getByRole('button', { name: 'Accept', exact: true })).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'Reject', exact: true })).toHaveCount(0);
+
+  await fullUnifiedDiff.screenshot({
+    animations: 'disabled',
+    path: testInfo.outputPath('provider-history-full-diff.png'),
+  });
 
   await page.getByRole('button', { name: 'AI Mode' }).click();
   await page.setViewportSize({ width: 680, height: 1_800 });
@@ -488,8 +550,13 @@ test('provider activity is compact, expandable, responsive, and opens files in t
   }
   await expect(activity.locator('[data-chat-activity-details="true"]')).toBeVisible();
   await expect(activity.locator('[data-chat-command-details="true"]')).toHaveCount(2);
-  await expect(activity.locator('[data-chat-file-change-row="inline"]')).toHaveCount(2);
+  await expect(activity.locator('[data-chat-file-change-row="inline"]')).toHaveCount(3);
+  await expect(activity.getByText('ProviderHistory.ts', { exact: true })).toBeVisible();
+  await expect(activity.getByText('src/features/chat/protocol', { exact: true })).toBeVisible();
   await expect(activity.getByText('1 failed', { exact: true })).toBeVisible();
+  await expect.poll(
+    async () => (await activity.boundingBox())?.height ?? 0,
+  ).toBeGreaterThan(200);
   await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
   for (const row of await activity.locator('[data-chat-file-change-row="inline"]').all()) {
     const box = await row.boundingBox();

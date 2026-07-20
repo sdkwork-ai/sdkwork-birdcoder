@@ -360,6 +360,33 @@ const geminiToolResponse = projectChatMessageToolCall({
 assert.equal(geminiToolResponse?.status, 'success');
 assert.match(geminiToolResponse?.output ?? '', /file contents/);
 
+const geminiToolResponseWithNullError = projectChatMessageToolCall({
+  type: 'tool_call_response',
+  value: {
+    callId: 'call-gemini-null-error-1',
+    responseParts: [{ functionResponse: { response: { output: 'command completed', error: null } } }],
+    error: null,
+  },
+}, 0, { engineId: 'gemini' });
+assert.equal(geminiToolResponseWithNullError?.status, 'success');
+assert.deepEqual(geminiToolResponseWithNullError?.resultBlocks, [{
+  type: 'text',
+  text: 'command completed',
+}]);
+
+const geminiFunctionResponseWithNullError = projectChatMessageToolCall({
+  functionResponse: {
+    id: 'call-gemini-null-error-2',
+    name: 'run_shell_command',
+    response: { output: 'build passed', error: null },
+  },
+}, 0, { engineId: 'gemini' });
+assert.equal(geminiFunctionResponseWithNullError?.status, 'success');
+assert.deepEqual(geminiFunctionResponseWithNullError?.resultBlocks, [{
+  type: 'text',
+  text: 'build passed',
+}]);
+
 const geminiFailedFunctionResponse = projectChatMessageToolCall({
   functionResponse: {
     id: 'call-gemini-error-1',

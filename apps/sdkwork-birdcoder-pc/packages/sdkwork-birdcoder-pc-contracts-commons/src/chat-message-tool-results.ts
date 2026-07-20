@@ -38,6 +38,23 @@ function normalizeType(value: unknown): string {
   return readString(value).toLowerCase().replace(/[.\s-]+/gu, '_');
 }
 
+export function hasChatMessageToolErrorValue(value: unknown): boolean {
+  if (value === undefined || value === null || value === false) {
+    return false;
+  }
+  if (typeof value === 'string') {
+    return value.trim().length > 0;
+  }
+  if (typeof value === 'number') {
+    return Number.isFinite(value) && value !== 0;
+  }
+  if (Array.isArray(value)) {
+    return value.some(hasChatMessageToolErrorValue);
+  }
+  const record = readRecord(value);
+  return record ? Object.keys(record).length > 0 : true;
+}
+
 function formatToolResultValue(value: unknown): string {
   if (typeof value === 'string') {
     return value;
@@ -73,7 +90,7 @@ export function hasStructuredChatMessageToolError(
   const type = normalizeType(record.type);
   if (
     record.is_error === true
-    || record.error !== undefined
+    || hasChatMessageToolErrorValue(record.error)
     || type === 'error'
     || type.endsWith('_error')
   ) {

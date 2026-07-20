@@ -7,6 +7,7 @@ import type {
   BirdCoderChatMessageToolCallStatus,
 } from '@sdkwork/birdcoder-chat-contracts';
 import {
+  hasChatMessageToolErrorValue,
   hasStructuredChatMessageToolError,
   resolveChatMessageToolCallOutput,
   resolveChatMessageToolCallResultBlocks,
@@ -391,9 +392,9 @@ function adaptGeminiToolRecord(record: Record<string, unknown>): Record<string, 
       ...record,
       ...functionResponse,
       id: functionResponse.id ?? record.id,
-      ...(responseError !== undefined ? { error: responseError } : {}),
+      ...(hasChatMessageToolErrorValue(responseError) ? { error: responseError } : {}),
       output,
-      status: responseError !== undefined ? 'error' : 'completed',
+      status: hasChatMessageToolErrorValue(responseError) ? 'error' : 'completed',
       type: 'function_call_output',
     };
   }
@@ -408,7 +409,7 @@ function adaptGeminiToolRecord(record: Record<string, unknown>): Record<string, 
     };
   }
   if (type === 'tool_call_response' && value) {
-    const hasError = value.error !== undefined
+    const hasError = hasChatMessageToolErrorValue(value.error)
       || hasStructuredChatMessageToolError(value.responseParts);
     return {
       ...record,
