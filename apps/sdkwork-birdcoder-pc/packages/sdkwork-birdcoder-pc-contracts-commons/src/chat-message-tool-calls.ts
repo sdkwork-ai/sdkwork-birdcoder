@@ -47,6 +47,56 @@ export interface ProjectedChatMessageCommand {
   toolCallId: string;
 }
 
+export interface ProjectedChatMessageToolNotice {
+  content: string;
+  description?: string;
+  id: string;
+  kind: 'notice';
+  name?: string;
+  result?: string;
+  resultSummary?: string;
+}
+
+const GEMINI_TOOL_DISPLAY_FORMATS = new Set([
+  'auto',
+  'box',
+  'compact',
+  'hidden',
+  'notice',
+]);
+const MAX_GEMINI_TOOL_DISPLAY_NAME_CHARACTERS = 160;
+const MAX_GEMINI_TOOL_DISPLAY_DESCRIPTION_CHARACTERS = 1_000;
+const MAX_GEMINI_TOOL_DISPLAY_SUMMARY_CHARACTERS = 2_000;
+const MAX_GEMINI_TOOL_DISPLAY_RESULT_CHARACTERS = 24_000;
+const GEMINI_TOOL_DISPLAY_TRUNCATION_SEPARATOR = '\n\n...\n\n';
+
+type ChatMessageToolResultBlock = NonNullable<ChatMessageToolCall['resultBlocks']>[number];
+type GeminiToolDisplayFormat = 'auto' | 'box' | 'compact' | 'hidden' | 'notice';
+
+interface NormalizedGeminiToolDisplay {
+  description?: unknown;
+  format?: unknown;
+  name?: unknown;
+  result?: unknown;
+  resultSummary?: unknown;
+}
+
+interface GeminiToolDisplayContext {
+  argumentsValue?: unknown;
+  callId: string;
+  display: NormalizedGeminiToolDisplay;
+  eventType: string;
+  explicitStatus: string;
+  isError: boolean;
+  toolName: string;
+}
+
+interface GeminiToolDisplayResultProjection {
+  blocks: readonly ChatMessageToolResultBlock[];
+  semanticType?: 'agent';
+  text: string;
+}
+
 const COMMAND_TOOL_NAMES = new Set([
   'bash',
   'command',
@@ -636,7 +686,304 @@ function adaptClaudeToolRecord(record: Record<string, unknown>): Record<string, 
     : null;
 }
 
+function boundGeminiToolDisplayText(
+  value: unknown,
+  maxCharacters: number,
+  options: { oneLine?: boolean; tailCharacters?: number } = {},
+): string {
+  if (typeof value !== 'string') {
+    return '';
+  }
+  const source = options.oneLine
+    ? value.replace(/\s+/gu, ' ').trim()
+    : value.trim();
+  if (!source || source.length <= maxCharacters) {
+    return source;
+  }
+  const separator = GEMINI_TOOL_DISPLAY_TRUNCATION_SEPARATOR;
+  const tailCharacters = Math.min(
+    Math.max(0, options.tailCharacters ?? 0),
+    Math.floor((maxCharacters - separator.length) / 2),
+  );
+  if (tailCharacters <= 0) {
+    return `${source.slice(0, Math.max(0, maxCharacters - 3))}...`;
+  }
+  const headCharacters = maxCharacters - separator.length - tailCharacters;
+  return `${source.slice(0, headCharacters)}${separator}${source.slice(-tailCharacters)}`;
+}
+
+function readGeminiToolDisplayContainer(
+  record: Record<string, unknown> | null,
+): Record<string, unknown> | null {
+  return readToolCallRecord(record?.display)
+    ?? readToolCallRecord(record?.toolDisplay)
+    ?? readToolCallRecord(record?.tool_display);
+}
+
+function mergeGeminiToolDisplay(
+  ...containers: Array<Record<string, unknown> | null>
+): NormalizedGeminiToolDisplay | null {
+  const merged: NormalizedGeminiToolDisplay = {};
+  let hasDisplay = false;
+  for (const container of containers) {
+    const display = readGeminiToolDisplayContainer(container);
+    if (!display) {
+      continue;
+    }
+    hasDisplay = true;
+    if ('name' in display) merged.name = display.name;
+    if ('description' in display) merged.description = display.description;
+    if ('format' in display) merged.format = display.format;
+    if ('result' in display) merged.result = display.result;
+    if ('resultSummary' in display) merged.resultSummary = display.resultSummary;
+    if ('result_summary' in display) merged.resultSummary = display.result_summary;
+  }
+  return hasDisplay ? merged : null;
+}
+
+function readGeminiToolDisplayContext(
+  record: Record<string, unknown>,
+): GeminiToolDisplayContext | null {
+  const value = readToolCallRecord(record.value);
+  const request = readToolCallRecord(record.request) ?? readToolCallRecord(value?.request);
+  const response = readToolCallRecord(record.response) ?? readToolCallRecord(value?.response);
+  const display = mergeGeminiToolDisplay(request, value, record, response);
+  if (!display) {
+    return null;
+  }
+  const payload = value ?? record;
+  const eventType = normalizeToolCallName(
+    readNonEmptyString(record.type) || readNonEmptyString(payload.type),
+  );
+  const callId = readFirstString(response, ['requestId', 'request_id', 'callId', 'call_id', 'id'])
+    || readFirstString(request, ['requestId', 'request_id', 'callId', 'call_id', 'id'])
+    || readFirstString(payload, ['requestId', 'request_id', 'callId', 'call_id', 'id'])
+    || readFirstString(record, ['requestId', 'request_id', 'callId', 'call_id', 'id']);
+  const toolName = readFirstString(response, ['name', 'toolName', 'tool_name'])
+    || readFirstString(request, ['name', 'toolName', 'tool_name'])
+    || readFirstString(payload, ['name', 'toolName', 'tool_name'])
+    || readFirstString(record, ['name', 'toolName', 'tool_name']);
+  const explicitStatus = readFirstString(record, ['status'])
+    || readFirstString(payload, ['status'])
+    || readFirstString(response, ['status']);
+  const isError = response?.isError === true
+    || response?.is_error === true
+    || payload.isError === true
+    || payload.is_error === true
+    || record.isError === true
+    || record.is_error === true
+    || hasChatMessageToolErrorValue(response?.error)
+    || hasChatMessageToolErrorValue(payload.error)
+    || hasChatMessageToolErrorValue(record.error);
+
+  return {
+    argumentsValue: request?.args
+      ?? request?.arguments
+      ?? payload.args
+      ?? payload.arguments
+      ?? payload.parameters
+      ?? record.args
+      ?? record.arguments,
+    callId,
+    display,
+    eventType,
+    explicitStatus,
+    isError,
+    toolName,
+  };
+}
+
+function readGeminiToolDisplayFormat(display: NormalizedGeminiToolDisplay): GeminiToolDisplayFormat {
+  const format = normalizeToolCallName(readNonEmptyString(display.format));
+  return GEMINI_TOOL_DISPLAY_FORMATS.has(format)
+    ? format as GeminiToolDisplayFormat
+    : 'auto';
+}
+
+function readGeminiToolDisplayAnsi(value: unknown): string {
+  if (!Array.isArray(value)) {
+    return '';
+  }
+  const lines: string[] = [];
+  for (const line of value) {
+    if (!Array.isArray(line)) {
+      return '';
+    }
+    const text = line.map((token) => {
+      const tokenRecord = readToolCallRecord(token);
+      return typeof tokenRecord?.text === 'string' ? tokenRecord.text : '';
+    }).join('');
+    lines.push(text);
+  }
+  return lines.join('\n');
+}
+
+function buildGeminiToolDisplayDiff(result: Record<string, unknown>): string {
+  const path = boundGeminiToolDisplayText(
+    readFirstString(result, ['path']),
+    512,
+    { oneLine: true },
+  ) || 'file';
+  const beforeText = boundGeminiToolDisplayText(
+    result.beforeText ?? result.before_text,
+    10_000,
+    { tailCharacters: 2_000 },
+  );
+  const afterText = boundGeminiToolDisplayText(
+    result.afterText ?? result.after_text,
+    10_000,
+    { tailCharacters: 2_000 },
+  );
+  if (!beforeText && !afterText) {
+    return '';
+  }
+  const deletedLines = beforeText.split(/\r?\n/gu).map((line) => `-${line}`);
+  const addedLines = afterText.split(/\r?\n/gu).map((line) => `+${line}`);
+  return boundGeminiToolDisplayText(
+    [`--- ${path}`, `+++ ${path}`, ...deletedLines, ...addedLines].join('\n'),
+    MAX_GEMINI_TOOL_DISPLAY_RESULT_CHARACTERS,
+    { tailCharacters: 6_000 },
+  );
+}
+
+function projectGeminiToolDisplayResult(
+  display: NormalizedGeminiToolDisplay,
+  isError: boolean,
+): GeminiToolDisplayResultProjection {
+  const summary = boundGeminiToolDisplayText(
+    display.resultSummary,
+    MAX_GEMINI_TOOL_DISPLAY_SUMMARY_CHARACTERS,
+    { oneLine: true },
+  );
+  const result = readToolCallRecord(display.result);
+  const resultType = normalizeToolCallName(readNonEmptyString(result?.type));
+  let resultText = '';
+  let resultBlock: ChatMessageToolResultBlock | null = null;
+  let semanticType: 'agent' | undefined;
+
+  if (typeof display.result === 'string') {
+    resultText = boundGeminiToolDisplayText(
+      display.result,
+      MAX_GEMINI_TOOL_DISPLAY_RESULT_CHARACTERS,
+      { tailCharacters: 6_000 },
+    );
+  } else if (resultType === 'text') {
+    resultText = boundGeminiToolDisplayText(
+      result?.text,
+      MAX_GEMINI_TOOL_DISPLAY_RESULT_CHARACTERS,
+      { tailCharacters: 6_000 },
+    );
+  } else if (resultType === 'diff' && result) {
+    resultText = buildGeminiToolDisplayDiff(result);
+    if (resultText) {
+      const path = boundGeminiToolDisplayText(result.path, 512, { oneLine: true });
+      resultBlock = { type: 'diff', content: resultText, ...(path ? { path } : {}) };
+    }
+  } else if (resultType === 'terminal' && result) {
+    const ansiText = readGeminiToolDisplayAnsi(result.ansi);
+    const terminalMetadata = [
+      readNonEmptyString(result.pid) ? `PID: ${readNonEmptyString(result.pid)}` : '',
+      typeof result.exitCode === 'number' && Number.isFinite(result.exitCode)
+        ? `Exit code: ${result.exitCode}`
+        : typeof result.exit_code === 'number' && Number.isFinite(result.exit_code)
+          ? `Exit code: ${result.exit_code}`
+          : '',
+    ].filter(Boolean).join('\n');
+    resultText = boundGeminiToolDisplayText(
+      [ansiText, terminalMetadata].filter(Boolean).join('\n'),
+      MAX_GEMINI_TOOL_DISPLAY_RESULT_CHARACTERS,
+      { tailCharacters: 6_000 },
+    );
+  } else if (resultType === 'agent' && result) {
+    const threadId = boundGeminiToolDisplayText(
+      readFirstString(result, ['threadId', 'thread_id']),
+      512,
+      { oneLine: true },
+    );
+    resultText = threadId ? `Subagent: ${threadId}` : '';
+    semanticType = 'agent';
+  }
+
+  if (!resultBlock && resultText) {
+    resultBlock = isError
+      ? { type: 'error', message: resultText }
+      : { type: 'text', text: resultText };
+  }
+  const blocks: ChatMessageToolResultBlock[] = [];
+  if (resultBlock) {
+    blocks.push(resultBlock);
+  }
+  if (summary && summary !== resultText) {
+    blocks.push(isError && blocks.length === 0
+      ? { type: 'error', message: summary }
+      : { type: 'text', text: summary });
+  }
+  return {
+    blocks,
+    ...(semanticType ? { semanticType } : {}),
+    text: boundGeminiToolDisplayText(
+      [resultText, summary].filter(Boolean).join('\n\n'),
+      MAX_GEMINI_TOOL_DISPLAY_RESULT_CHARACTERS,
+      { tailCharacters: 6_000 },
+    ),
+  };
+}
+
+function resolveGeminiToolDisplayStatus(context: GeminiToolDisplayContext): string {
+  if (context.explicitStatus) {
+    return context.explicitStatus;
+  }
+  if (context.isError) {
+    return 'error';
+  }
+  if (['tool_response', 'tool_call_response'].includes(context.eventType)) {
+    return 'completed';
+  }
+  if (['tool_update'].includes(context.eventType)) {
+    return 'running';
+  }
+  return 'pending';
+}
+
+function adaptGeminiToolDisplayRecord(
+  context: GeminiToolDisplayContext,
+): Record<string, unknown> {
+  const format = readGeminiToolDisplayFormat(context.display);
+  if (format === 'hidden') {
+    return { type: 'tool_display_hidden' };
+  }
+  if (format === 'notice') {
+    return { type: 'tool_display_notice' };
+  }
+  const displayName = boundGeminiToolDisplayText(
+    context.display.name,
+    MAX_GEMINI_TOOL_DISPLAY_NAME_CHARACTERS,
+    { oneLine: true },
+  );
+  const description = boundGeminiToolDisplayText(
+    context.display.description,
+    MAX_GEMINI_TOOL_DISPLAY_DESCRIPTION_CHARACTERS,
+    { tailCharacters: 200 },
+  );
+  const result = projectGeminiToolDisplayResult(context.display, context.isError);
+  return {
+    id: context.callId,
+    name: displayName || context.toolName || 'tool',
+    ...(displayName && context.toolName ? { semanticName: context.toolName } : {}),
+    ...(context.argumentsValue !== undefined ? { arguments: context.argumentsValue } : {}),
+    ...(description ? { title: description } : {}),
+    ...(result.text ? { output: result.text } : {}),
+    ...(result.blocks.length > 0 ? { resultBlocks: result.blocks } : {}),
+    status: resolveGeminiToolDisplayStatus(context),
+    type: result.semanticType ?? context.eventType ?? 'tool',
+  };
+}
+
 function adaptGeminiToolRecord(record: Record<string, unknown>): Record<string, unknown> | null {
+  const toolDisplayContext = readGeminiToolDisplayContext(record);
+  if (toolDisplayContext) {
+    return adaptGeminiToolDisplayRecord(toolDisplayContext);
+  }
   const value = readToolCallRecord(record.value);
   const type = normalizeToolCallName(readNonEmptyString(record.type));
   if (type === 'tool_use') {
@@ -886,6 +1233,8 @@ const NON_TOOL_PROTOCOL_TYPES = new Set([
   'step_start',
   'thinking',
   'thought',
+  'tool_display_hidden',
+  'tool_display_notice',
   'tool_use_summary',
 ]);
 
@@ -1080,14 +1429,16 @@ function resolveMcpIdentity(
     'mcp_server',
   ]);
   const explicitToolName = readFirstString(record, ['tool', 'toolName', 'tool_name']);
-  const mcpNameMatch = /^mcp__(.+?)__(.+)$/iu.exec(name)
-    ?? /^mcp[.:/](.+?)[.:/](.+)$/iu.exec(name);
+  const semanticName = readFirstString(record, ['semanticName', 'semantic_name']);
+  const mcpIdentityName = semanticName || name;
+  const mcpNameMatch = /^mcp__(.+?)__(.+)$/iu.exec(mcpIdentityName)
+    ?? /^mcp[.:/](.+?)[.:/](.+)$/iu.exec(mcpIdentityName);
 
   return {
     ...(serverName || mcpNameMatch?.[1]
       ? { serverName: serverName || mcpNameMatch?.[1] }
       : {}),
-    toolName: explicitToolName || mcpNameMatch?.[2] || name,
+    toolName: explicitToolName || (semanticName ? name : mcpNameMatch?.[2]) || name,
   };
 }
 
@@ -1097,6 +1448,10 @@ function resolveToolCallKind(
   type: string,
 ): BirdCoderChatMessageToolCallKind {
   const normalizedName = normalizeToolCallName(name);
+  const normalizedSemanticName = normalizeToolCallName(
+    readFirstString(record, ['semanticName', 'semantic_name']),
+  );
+  const normalizedNames = [normalizedName, normalizedSemanticName].filter(Boolean);
   const normalizedType = normalizeToolCallName(type);
   if (['approval_request', 'tool_call_confirmation'].includes(normalizedType)) {
     return 'approval';
@@ -1113,44 +1468,44 @@ function resolveToolCallKind(
   }
   if (
     normalizedType.includes('mcp')
-    || normalizedName.startsWith('mcp__')
-    || normalizedName.startsWith('mcp_')
+    || normalizedNames.some((candidate) => candidate.startsWith('mcp__'))
+    || normalizedNames.some((candidate) => candidate.startsWith('mcp_'))
     || readFirstString(record, ['server', 'serverName', 'server_name', 'mcpServer'])
   ) {
     return 'mcp';
   }
-  if (COMMAND_TOOL_NAMES.has(normalizedName) || normalizedType === 'command_execution') {
+  if (normalizedNames.some((candidate) => COMMAND_TOOL_NAMES.has(candidate)) || normalizedType === 'command_execution') {
     return 'command';
   }
-  if (FILE_TOOL_NAMES.has(normalizedName) || normalizedType === 'file_change') {
+  if (normalizedNames.some((candidate) => FILE_TOOL_NAMES.has(candidate)) || normalizedType === 'file_change') {
     return 'file';
   }
-  if (SEARCH_TOOL_NAMES.has(normalizedName)) {
+  if (normalizedNames.some((candidate) => SEARCH_TOOL_NAMES.has(candidate))) {
     return 'search';
   }
   if (
-    WEB_TOOL_NAMES.has(normalizedName)
-    || normalizedName.startsWith('web_')
-    || normalizedName.includes('fetch_url')
+    normalizedNames.some((candidate) => WEB_TOOL_NAMES.has(candidate))
+    || normalizedNames.some((candidate) => candidate.startsWith('web_'))
+    || normalizedNames.some((candidate) => candidate.includes('fetch_url'))
   ) {
     return 'web';
   }
-  if (AGENT_TOOL_NAMES.has(normalizedName) || ['agent', 'subtask'].includes(normalizedType)) {
+  if (normalizedNames.some((candidate) => AGENT_TOOL_NAMES.has(candidate)) || ['agent', 'subtask'].includes(normalizedType)) {
     return 'agent';
   }
-  if (SKILL_TOOL_NAMES.has(normalizedName)) {
+  if (normalizedNames.some((candidate) => SKILL_TOOL_NAMES.has(candidate))) {
     return 'skill';
   }
-  if (MEDIA_TOOL_NAMES.has(normalizedName) || normalizedType === 'image_generation_call') {
+  if (normalizedNames.some((candidate) => MEDIA_TOOL_NAMES.has(candidate)) || normalizedType === 'image_generation_call') {
     return 'media';
   }
-  if (TASK_TOOL_NAMES.has(normalizedName)) {
+  if (normalizedNames.some((candidate) => TASK_TOOL_NAMES.has(candidate))) {
     return 'task';
   }
-  if (APPROVAL_TOOL_NAMES.has(normalizedName)) {
+  if (normalizedNames.some((candidate) => APPROVAL_TOOL_NAMES.has(candidate))) {
     return 'approval';
   }
-  if (QUESTION_TOOL_NAMES.has(normalizedName)) {
+  if (normalizedNames.some((candidate) => QUESTION_TOOL_NAMES.has(candidate))) {
     return 'question';
   }
 
@@ -1343,6 +1698,73 @@ export function projectChatMessageToolCall(
     ...(durationMs !== undefined ? { durationMs } : {}),
     ...(resultBlocks.length > 0 ? { resultBlocks } : {}),
   };
+}
+
+export function projectChatMessageToolNotice(
+  value: unknown,
+  index: number,
+  options: ProjectChatMessageToolCallOptions = {},
+): ProjectedChatMessageToolNotice | null {
+  if (options.engineId?.trim().toLowerCase() !== 'gemini') {
+    return null;
+  }
+  const record = readToolCallRecord(value);
+  if (!record) {
+    return null;
+  }
+  const context = readGeminiToolDisplayContext(record);
+  if (!context || readGeminiToolDisplayFormat(context.display) !== 'notice') {
+    return null;
+  }
+  const name = boundGeminiToolDisplayText(
+    context.display.name,
+    MAX_GEMINI_TOOL_DISPLAY_NAME_CHARACTERS,
+    { oneLine: true },
+  );
+  const description = boundGeminiToolDisplayText(
+    context.display.description,
+    MAX_GEMINI_TOOL_DISPLAY_DESCRIPTION_CHARACTERS,
+    { tailCharacters: 200 },
+  );
+  const result = projectGeminiToolDisplayResult(context.display, context.isError).text;
+  const resultSummary = boundGeminiToolDisplayText(
+    context.display.resultSummary,
+    MAX_GEMINI_TOOL_DISPLAY_SUMMARY_CHARACTERS,
+    { oneLine: true },
+  );
+  const isRedundantName = Boolean(name && description.includes(`"${name}"`));
+  const content = boundGeminiToolDisplayText(
+    [isRedundantName ? '' : name, description, resultSummary || result]
+      .filter(Boolean)
+      .join(name && description && !isRedundantName ? ': ' : '\n'),
+    MAX_GEMINI_TOOL_DISPLAY_RESULT_CHARACTERS,
+    { tailCharacters: 4_000 },
+  );
+  if (!content) {
+    return null;
+  }
+  return {
+    content,
+    ...(description ? { description } : {}),
+    id: context.callId || `${options.fallbackIdPrefix?.trim() || 'tool-notice'}-${index + 1}`,
+    kind: 'notice',
+    ...(name ? { name } : {}),
+    ...(result ? { result } : {}),
+    ...(resultSummary ? { resultSummary } : {}),
+  };
+}
+
+export function projectChatMessageToolNotices(
+  toolCalls: readonly unknown[] | undefined,
+  options: ProjectChatMessageToolCallOptions = {},
+): ProjectedChatMessageToolNotice[] {
+  if (!toolCalls || toolCalls.length === 0) {
+    return [];
+  }
+  return toolCalls.flatMap((toolCall, index) => {
+    const notice = projectChatMessageToolNotice(toolCall, index, options);
+    return notice ? [notice] : [];
+  });
 }
 
 export function projectChatMessageToolResult(
