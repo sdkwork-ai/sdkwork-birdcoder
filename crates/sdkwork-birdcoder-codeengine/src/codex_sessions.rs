@@ -11,9 +11,10 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
 use crate::{
-    build_native_session_id, find_codeengine_descriptor, map_codeengine_session_runtime_status,
+    build_native_session_id, canonicalize_codeengine_provider_tool_name,
+    find_codeengine_descriptor, map_codeengine_session_runtime_status,
     map_codeengine_tool_command_status, map_codeengine_tool_runtime_status,
-    native_session_prefix_for_engine,
+    map_codeengine_tool_kind, native_session_prefix_for_engine,
     sanitize_codeengine_git_repository_url, sanitize_codeengine_session_metadata,
     CodeEngineSessionCommandRecord, CodeEngineSessionDetailRecord, CodeEngineSessionMessageRecord,
     CodeEngineSessionNativeAttributesRecord, CodeEngineSessionSummaryRecord,
@@ -635,10 +636,10 @@ fn parse_codex_session(
                 role: entry.role,
                 content: entry.content,
                 commands: entry.commands,
-                tool_calls: None,
-                tool_call_id: None,
-                file_changes: None,
-                task_progress: None,
+                tool_calls: entry.tool_calls,
+                tool_call_id: entry.tool_call_id,
+                file_changes: entry.file_changes,
+                task_progress: entry.task_progress,
                 metadata: None,
                 created_at: entry.created_at,
             })
@@ -814,6 +815,7 @@ fn apply_codex_session_line(
                                         )
                                     }),
                                     commands: None,
+                                    ..TranscriptEntry::default()
                                 },
                             );
                         }
@@ -845,6 +847,7 @@ fn apply_codex_session_line(
                                 content,
                                 turn_id: None,
                                 commands: None,
+                                ..TranscriptEntry::default()
                             },
                         );
                     }
@@ -874,6 +877,21 @@ fn apply_codex_session_line(
                         &timestamp,
                         "web_search_call",
                     ) {
+                        push_transcript_entry(context, entry);
+                    }
+                }
+                Some(
+                    "command_execution"
+                    | "file_change"
+                    | "mcp_tool_call"
+                    | "todo_list"
+                    | "web_search",
+                ) => {
+                    if !include_messages {
+                        return;
+                    }
+                    if let Some(entry) = build_codex_thread_item_transcript_entry(payload, &timestamp)
+                    {
                         push_transcript_entry(context, entry);
                     }
                 }
@@ -921,6 +939,7 @@ fn apply_codex_session_line(
                                         )
                                     }),
                                     commands: None,
+                                    ..TranscriptEntry::default()
                                 },
                             );
                         }
@@ -967,6 +986,7 @@ fn apply_codex_session_line(
                                     )
                                 }),
                                 commands: None,
+                                ..TranscriptEntry::default()
                             },
                         );
                     }
@@ -986,6 +1006,7 @@ fn apply_codex_session_line(
                                 content,
                                 turn_id: None,
                                 commands: None,
+                                ..TranscriptEntry::default()
                             },
                         );
                     }
@@ -1017,6 +1038,7 @@ fn apply_codex_session_line(
                                 )
                             }),
                             commands: None,
+                            ..TranscriptEntry::default()
                         },
                     );
                 }
@@ -1056,6 +1078,7 @@ fn apply_codex_session_line(
                                 )
                             }),
                             commands: None,
+                            ..TranscriptEntry::default()
                         },
                     );
                 }
@@ -1090,6 +1113,23 @@ fn apply_codex_session_line(
                         let pending_tool_call = read_codex_call_id(payload)
                             .as_deref()
                             .and_then(|value| consume_pending_codex_tool_call(context, value));
+                        let command_status = if event_type.as_deref()
+                            == Some("exec_command_begin")
+                        {
+                            "running".to_owned()
+                        } else if is_success {
+                            "success".to_owned()
+                        } else {
+                            "error".to_owned()
+                        };
+                        let command_text = pending_tool_call
+                            .as_ref()
+                            .and_then(|tool_call| tool_call.command.clone())
+                            .unwrap_or_else(|| command.clone());
+                        let sanitized_output = sanitize_codex_tool_output(
+                            output.as_deref().unwrap_or_default(),
+                        );
+                        let tool_call_id = read_codex_tool_item_id(payload);
                         push_transcript_entry(
                             context,
                             TranscriptEntry {
@@ -1120,22 +1160,31 @@ fn apply_codex_session_line(
                                         .and_then(|tool_call| tool_call.turn_id.clone())
                                 }),
                                 commands: Some(vec![CodeEngineSessionCommandRecord {
-                                    command: pending_tool_call
-                                        .as_ref()
-                                        .and_then(|tool_call| tool_call.command.clone())
-                                        .unwrap_or(command),
-                                    status: if event_type.as_deref() == Some("exec_command_begin") {
-                                        "running".to_owned()
-                                    } else if is_success {
-                                        "success".to_owned()
-                                    } else {
-                                        "error".to_owned()
-                                    },
-                                    output: sanitize_codex_tool_output(
-                                        output.as_deref().unwrap_or_default(),
+                                    command: command_text.clone(),
+                                    status: command_status.clone(),
+                                    output: sanitized_output.clone(),
+                                    kind: Some("command".to_owned()),
+                                    tool_name: Some("run_command".to_owned()),
+                                    tool_call_id: tool_call_id.clone(),
+                                    runtime_status: Some(
+                                        map_codeengine_tool_runtime_status(
+                                            "command",
+                                            Some(command_status.as_str()),
+                                            None,
+                                        )
+                                        .to_owned(),
                                     ),
-                                    ..Default::default()
+                                    requires_approval: Some(false),
+                                    requires_reply: Some(false),
                                 }]),
+                                tool_calls: Some(vec![build_codex_command_execution_tool_call(
+                                    payload,
+                                    command_text.as_str(),
+                                    sanitized_output.as_deref(),
+                                    command_status.as_str(),
+                                )]),
+                                tool_call_id,
+                                ..TranscriptEntry::default()
                             },
                         );
                     }
@@ -1163,6 +1212,27 @@ fn apply_codex_session_line(
                         push_transcript_entry(context, entry);
                     }
                 }
+                Some("mcp_tool_call_begin") | Some("mcp_tool_call_end") => {
+                    if !include_messages {
+                        return;
+                    }
+                    if let Some(entry) = build_codex_mcp_transcript_entry(
+                        context,
+                        payload,
+                        &timestamp,
+                        event_type.as_deref().unwrap_or_default(),
+                    ) {
+                        push_transcript_entry(context, entry);
+                    }
+                }
+                Some("plan_update") | Some("task_progress") | Some("todo_list") => {
+                    if !include_messages {
+                        return;
+                    }
+                    if let Some(entry) = build_codex_task_transcript_entry(payload, &timestamp) {
+                        push_transcript_entry(context, entry);
+                    }
+                }
                 Some("context_compacted") | Some("compacted") => {
                     if !include_messages {
                         return;
@@ -1180,6 +1250,7 @@ fn apply_codex_session_line(
                                 output: None,
                                 ..Default::default()
                             }]),
+                            ..TranscriptEntry::default()
                         },
                     );
                 }
@@ -1203,6 +1274,7 @@ fn apply_codex_session_line(
                         output: None,
                         ..Default::default()
                     }]),
+                    ..TranscriptEntry::default()
                 },
             );
         }
@@ -1439,6 +1511,13 @@ fn dedupe_transcript_entries(entries: &[TranscriptEntry]) -> Vec<TranscriptEntry
             content: entry.content.clone(),
             turn_id: entry.turn_id.clone(),
             commands: entry.commands.clone(),
+            activity_signature: serde_json::to_string(&serde_json::json!({
+                "toolCalls": &entry.tool_calls,
+                "toolCallId": &entry.tool_call_id,
+                "fileChanges": &entry.file_changes,
+                "taskProgress": &entry.task_progress,
+            }))
+            .unwrap_or_default(),
         };
 
         let is_duplicate = last_kept_timestamp_by_key
@@ -1478,6 +1557,11 @@ fn read_codex_call_id(payload: Option<&Value>) -> Option<String> {
         .or_else(|| normalize_value_string(payload.get("callId")))
 }
 
+fn read_codex_tool_item_id(payload: Option<&Value>) -> Option<String> {
+    let payload = payload?;
+    read_codex_call_id(Some(payload)).or_else(|| normalize_value_string(payload.get("id")))
+}
+
 fn read_codex_turn_id(payload: Option<&Value>) -> Option<String> {
     let payload = payload?;
     normalize_value_string(payload.get("turn_id"))
@@ -1512,12 +1596,17 @@ fn register_pending_codex_tool_call(
                 .clone()
                 .or_else(|| Some(timestamp.to_owned()));
             pending.command = pending.command.clone().or_else(|| command.clone());
+            pending.raw_tool_call = pending
+                .raw_tool_call
+                .clone()
+                .or_else(|| Some(payload.clone()));
             pending.tool_name = pending.tool_name.clone().or_else(|| tool_name.clone());
             pending.turn_id = pending.turn_id.clone().or_else(|| turn_id.clone());
         })
         .or_insert(PendingCodexToolCall {
             created_at: Some(timestamp.to_owned()),
             command,
+            raw_tool_call: Some(payload.clone()),
             tool_name,
             turn_id,
         });
@@ -1705,6 +1794,21 @@ fn build_codex_tool_output_transcript_entry(
     } else {
         summarize_codex_tool_output(output.as_deref().unwrap_or_default())?
     };
+    let canonical_tool_name = canonicalize_codeengine_provider_tool_name(
+        CODEX_ENGINE_ID,
+        tool_name.as_deref().unwrap_or("tool"),
+        "tool",
+    );
+    let tool_kind = map_codeengine_tool_kind(canonical_tool_name.as_str()).to_owned();
+    let tool_call_id = call_id.or_else(|| read_codex_tool_item_id(payload));
+    let mut tool_calls = pending_tool_call
+        .as_ref()
+        .and_then(|tool_call| tool_call.raw_tool_call.clone())
+        .into_iter()
+        .collect::<Vec<_>>();
+    if let Some(payload) = payload {
+        tool_calls.push(payload.clone());
+    }
 
     Some(TranscriptEntry {
         created_at: pending_tool_call
@@ -1719,10 +1823,29 @@ fn build_codex_tool_output_transcript_entry(
             .or_else(|| read_codex_turn_id(payload)),
         commands: Some(vec![CodeEngineSessionCommandRecord {
             command: command.unwrap_or_else(|| "tool".to_owned()),
-            status,
+            status: status.clone(),
             output,
-            ..Default::default()
+            kind: Some(tool_kind.clone()),
+            tool_name: Some(canonical_tool_name),
+            tool_call_id: tool_call_id.clone(),
+            runtime_status: Some(
+                map_codeengine_tool_runtime_status(
+                    tool_kind.as_str(),
+                    Some(status.as_str()),
+                    None,
+                )
+                    .to_owned(),
+            ),
+            requires_approval: Some(false),
+            requires_reply: Some(false),
         }]),
+        tool_calls: if tool_calls.is_empty() {
+            None
+        } else {
+            Some(tool_calls)
+        },
+        tool_call_id,
+        ..TranscriptEntry::default()
     })
 }
 
@@ -1750,6 +1873,8 @@ fn build_codex_patch_apply_transcript_entry(
                 "Patch apply failed.".to_owned()
             }
         });
+    let tool_call_id = read_codex_tool_item_id(Some(payload));
+    let file_changes = project_codex_file_changes(payload);
 
     Some(TranscriptEntry {
         created_at: timestamp.to_owned(),
@@ -1764,10 +1889,30 @@ fn build_codex_patch_apply_transcript_entry(
                 .as_ref()
                 .and_then(|tool_call| tool_call.command.clone())
                 .unwrap_or_else(|| "apply_patch".to_owned()),
-            status,
-            output,
-            ..Default::default()
+            status: status.clone(),
+            output: output.clone(),
+            kind: Some("file_change".to_owned()),
+            tool_name: Some("apply_patch".to_owned()),
+            tool_call_id: tool_call_id.clone(),
+            runtime_status: Some(
+                map_codeengine_tool_runtime_status(
+                    "file_change",
+                    Some(status.as_str()),
+                    None,
+                )
+                .to_owned(),
+            ),
+            requires_approval: Some(false),
+            requires_reply: Some(false),
         }]),
+        tool_calls: Some(vec![build_codex_file_change_tool_call(payload, status.as_str())]),
+        tool_call_id,
+        file_changes: if file_changes.is_empty() {
+            None
+        } else {
+            Some(file_changes)
+        },
+        ..TranscriptEntry::default()
     })
 }
 
@@ -1805,6 +1950,12 @@ fn build_codex_web_search_transcript_entry(
     if let Some(call_id) = read_codex_call_id(Some(payload)).as_deref() {
         context.consumed_tool_call_ids.insert(call_id.to_owned());
     }
+    let status = if event_type == "web_search_end" {
+        "success"
+    } else {
+        "running"
+    };
+    let tool_call_id = read_codex_tool_item_id(Some(payload));
 
     Some(TranscriptEntry {
         created_at: timestamp.to_owned(),
@@ -1813,14 +1964,20 @@ fn build_codex_web_search_transcript_entry(
         turn_id: read_codex_turn_id(Some(payload)),
         commands: Some(vec![CodeEngineSessionCommandRecord {
             command,
-            status: if event_type == "web_search_end" {
-                "success".to_owned()
-            } else {
-                "running".to_owned()
-            },
+            status: status.to_owned(),
             output,
-            ..Default::default()
+            kind: Some("search".to_owned()),
+            tool_name: Some("web_search".to_owned()),
+            tool_call_id: tool_call_id.clone(),
+            runtime_status: Some(
+                map_codeengine_tool_runtime_status("search", Some(status), None).to_owned(),
+            ),
+            requires_approval: Some(false),
+            requires_reply: Some(false),
         }]),
+        tool_calls: Some(vec![build_codex_web_search_tool_call(payload, status)]),
+        tool_call_id,
+        ..TranscriptEntry::default()
     })
 }
 

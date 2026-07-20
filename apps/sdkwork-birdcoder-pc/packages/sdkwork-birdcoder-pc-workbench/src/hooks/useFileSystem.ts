@@ -30,6 +30,7 @@ import {
   resolveEditorOpenFileStateAfterMutation,
   type EditorOpenFileState,
 } from '../workbench/fileSelectionMutation.ts';
+import { resolveEditorMessageFilePath } from '../workbench/editorMessageFilePath.ts';
 import {
   beginFileContentRequest,
   beginSearchRequest,
@@ -1474,7 +1475,11 @@ export function useFileSystem(projectId: string, options?: UseFileSystemOptions)
   ]);
 
   const selectFile = useCallback((path: string) => {
-    commitEditorOpenFileState(openEditorFile(readCurrentEditorOpenFileState(), path));
+    const resolvedPath = resolveEditorMessageFilePath(path, filesIndexRef.current);
+    if (!resolvedPath) {
+      return;
+    }
+    commitEditorOpenFileState(openEditorFile(readCurrentEditorOpenFileState(), resolvedPath));
   }, [commitEditorOpenFileState, readCurrentEditorOpenFileState]);
 
   const closeFile = useCallback((path: string) => {

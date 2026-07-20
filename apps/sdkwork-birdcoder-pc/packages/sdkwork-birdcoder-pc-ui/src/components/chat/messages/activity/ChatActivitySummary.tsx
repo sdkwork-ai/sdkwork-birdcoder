@@ -420,7 +420,7 @@ function renderCommandExecutionCard({
         </button>
         <button
           type="button"
-          className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md text-gray-500 transition-colors hover:bg-white/10 hover:text-gray-200 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-blue-400/70"
+          className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-gray-400 transition-colors hover:bg-white/10 hover:text-gray-200 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-blue-400/70"
           title={copyLabel}
           aria-label={`${copyLabel}: ${cmd.command}`}
           onClick={() => copyMessageToClipboard(cmd.command)}
@@ -434,7 +434,12 @@ function renderCommandExecutionCard({
             <div className="mb-1 text-[11px] font-medium text-gray-500">
               {commandLabel}
             </div>
-            <pre className="max-h-40 overflow-auto rounded-md bg-black/20 p-2 font-mono text-[11px] leading-relaxed text-gray-300 whitespace-pre-wrap break-words custom-scrollbar">
+            <pre
+              className="max-h-40 overflow-auto rounded-md bg-black/20 p-2 font-mono text-[11px] leading-relaxed text-gray-300 whitespace-pre-wrap break-words custom-scrollbar"
+              role="region"
+              aria-label={commandLabel}
+              tabIndex={0}
+            >
               {cmd.command}
             </pre>
           </div>
@@ -444,7 +449,7 @@ function renderCommandExecutionCard({
             {cmd.output?.trim() ? (
               <button
                 type="button"
-                className="rounded-md p-1 transition-colors hover:bg-white/10 hover:text-gray-200"
+                className="flex h-7 w-7 items-center justify-center rounded-md text-gray-400 transition-colors hover:bg-white/10 hover:text-gray-200 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-blue-400/70"
                 title={copyLabel}
                 aria-label={`${copyLabel}: ${commandOutputLabel}`}
                 onClick={() => copyMessageToClipboard(cmd.output ?? '')}
@@ -455,11 +460,16 @@ function renderCommandExecutionCard({
           </div>
           {commandOutputPreview?.text ? (
             <>
-              <pre className="max-h-64 overflow-auto rounded-md bg-black/20 p-2 font-mono text-[11px] leading-relaxed text-gray-300 whitespace-pre-wrap break-words custom-scrollbar">
+              <pre
+                className="max-h-64 overflow-auto rounded-md bg-black/20 p-2 font-mono text-[11px] leading-relaxed text-gray-300 whitespace-pre-wrap break-words custom-scrollbar"
+                role="region"
+                aria-label={commandOutputLabel}
+                tabIndex={0}
+              >
                 {commandOutputPreview.text}
               </pre>
               {commandOutputPreview.isTruncated ? (
-                <div className="pt-1 text-[10px] text-gray-600">
+                <div className="pt-1 text-[10px] text-gray-400/80">
                   {t?.('chat.commandOutputTruncated', { count: commandOutputPreview.omittedLineCount })
                     ?? `${commandOutputPreview.omittedLineCount} lines omitted. Copy to inspect the complete output.`}
                 </div>
@@ -592,7 +602,7 @@ export const ChatActivitySummary = memo(function ChatActivitySummary({
     >
       <button
         type="button"
-        className="flex w-full items-center justify-between gap-3 rounded-md px-1.5 py-1.5 text-left transition-colors hover:bg-white/[0.04]"
+        className="flex w-full items-center justify-between gap-3 rounded-md px-1.5 py-1.5 text-left transition-colors hover:bg-white/[0.04] focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-blue-400/70"
         title={isExpanded ? collapseLabel : expandLabel}
         aria-expanded={isExpanded}
         onClick={() => toggleDisclosure(summaryDisclosureKey)}
@@ -652,7 +662,7 @@ export const ChatActivitySummary = memo(function ChatActivitySummary({
         <div className="px-1.5 pb-2 pt-1" data-chat-activity-details="true">
           {commands.length > 0 ? (
             <div className={fileChanges.length > 0 ? 'mb-3' : undefined}>
-              <div className="mb-1.5 flex items-center gap-2 px-1 text-[11px] font-medium uppercase tracking-wide text-gray-500">
+              <div className="mb-1.5 flex items-center gap-2 px-1 text-[11px] font-medium uppercase tracking-normal text-gray-500">
                 <Terminal size={12} />
                 <span>{commandSectionLabel}</span>
               </div>
@@ -682,7 +692,7 @@ export const ChatActivitySummary = memo(function ChatActivitySummary({
 
           {fileChanges.length > 0 ? (
             <div>
-              <div className="mb-1.5 flex items-center gap-2 px-1 text-[11px] font-medium uppercase tracking-wide text-gray-500">
+              <div className="mb-1.5 flex items-center gap-2 px-1 text-[11px] font-medium uppercase tracking-normal text-gray-500">
                 <FileCode2 size={12} />
                 <span>{fileSectionLabel}</span>
               </div>
@@ -697,6 +707,11 @@ export const ChatActivitySummary = memo(function ChatActivitySummary({
                   );
                   const diffPreview = buildFileChangeDiffPreview(fileChange);
                   const lineImpact = fileChangeLineImpacts[fileIndex] ?? resolveActivityFileChangeLineImpact(fileChange);
+                  const hasFullDiff = Boolean(
+                    fileChange.diff?.trim()
+                    || typeof fileChange.content === 'string'
+                    || typeof fileChange.originalContent === 'string',
+                  );
                   return (
                     <div key={fileKey} className="overflow-hidden">
                       <div
@@ -720,6 +735,7 @@ export const ChatActivitySummary = memo(function ChatActivitySummary({
                           className="group/file flex min-w-0 flex-1 items-center gap-2 rounded-sm text-left focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-blue-400/70"
                           title={`${environment?.onOpenFile ? openFileInEditorLabel : toggleDiffPreviewLabel}: ${fileChange.path}`}
                           aria-label={`${environment?.onOpenFile ? openFileInEditorLabel : toggleDiffPreviewLabel}: ${fileChange.path}`}
+                          aria-expanded={environment?.onOpenFile ? undefined : isFileExpanded}
                           onClick={() => {
                             if (environment?.onOpenFile) {
                               environment.onOpenFile(fileChange.path);
@@ -732,14 +748,14 @@ export const ChatActivitySummary = memo(function ChatActivitySummary({
                           <span className="min-w-0 flex-1 truncate font-mono text-[12px] text-gray-200 group-hover/file:text-sky-100 max-[900px]:hidden">
                             {fileChange.path}
                           </span>
-                          <span className="hidden min-w-0 flex-1 items-baseline gap-1 truncate font-mono text-[12px] text-gray-200 group-hover/file:text-sky-100 max-[900px]:flex">
-                            <span className="shrink-0">{fileName}</span>
+                          <span className="hidden min-w-0 flex-1 flex-col items-start gap-0 font-mono text-gray-200 group-hover/file:text-sky-100 max-[900px]:flex">
+                            <span className="block w-full truncate text-[12px]">{fileName}</span>
                             {parentPath ? (
-                              <span className="min-w-0 truncate text-[10px] text-gray-600">{parentPath}</span>
+                              <span className="block w-full truncate text-[10px] text-gray-400/80">{parentPath}</span>
                             ) : null}
                           </span>
                           {environment?.onOpenFile ? (
-                            <ExternalLink size={11} className="shrink-0 text-gray-600 opacity-0 transition-opacity group-hover/file:opacity-100 max-[900px]:hidden" />
+                            <ExternalLink size={12} className="shrink-0 text-gray-400 opacity-0 transition-opacity group-hover/file:opacity-100 max-[900px]:opacity-100" />
                           ) : null}
                         </button>
                         {fileChange.updateStatus && !compact ? (
@@ -770,7 +786,7 @@ export const ChatActivitySummary = memo(function ChatActivitySummary({
                             )}
                           </span>
                         )}
-                        {environment?.onViewChanges ? (
+                        {environment?.onViewChanges && hasFullDiff ? (
                           <button
                             type="button"
                             data-chat-file-diff="true"
@@ -793,13 +809,18 @@ export const ChatActivitySummary = memo(function ChatActivitySummary({
                               {diffPreviewLabel}
                             </span>
                             {diffPreview.isFallback && diffPreview.lines.length > 0 ? (
-                              <span className="text-[10px] text-gray-600">
+                              <span className="text-[10px] text-gray-400/80">
                                 {environment?.t('chat.contentPreviewFallback') ?? 'content preview'}
                               </span>
                             ) : null}
                           </div>
                           {diffPreview.lines.length > 0 ? (
-                            <div className="max-h-72 overflow-auto rounded-md bg-black/20 py-2 font-mono text-[11px] leading-relaxed custom-scrollbar">
+                            <div
+                              className="max-h-72 overflow-auto rounded-md bg-black/20 py-2 font-mono text-[11px] leading-relaxed custom-scrollbar"
+                              role="region"
+                              aria-label={`${diffPreviewLabel}: ${fileChange.path}`}
+                              tabIndex={0}
+                            >
                               {diffPreview.lines.map((line, lineIndex) => (
                                 <div
                                   key={`${fileKey}\u0001${lineIndex}`}

@@ -282,10 +282,10 @@ export const ToolCallCard = memo(function ToolCallCard({
             {argumentSummary}
           </span>
         ) : (
-          <span className="min-w-0 flex-1 text-[11px] text-gray-600">{noInputLabel}</span>
+          <span className="min-w-0 flex-1 text-[11px] text-gray-400/80">{noInputLabel}</span>
         )}
         {durationLabel ? (
-          <span className="shrink-0 font-mono text-[10px] text-gray-600">{durationLabel}</span>
+          <span className="shrink-0 font-mono text-[10px] text-gray-400/80">{durationLabel}</span>
         ) : null}
         {renderToolCallStatus(call, statusLabel)}
         <span className="shrink-0 text-gray-500">
@@ -300,7 +300,7 @@ export const ToolCallCard = memo(function ToolCallCard({
                 <span>{inputLabel}</span>
                 <button
                   type="button"
-                  className="rounded-md p-1 transition-colors hover:bg-white/10 hover:text-gray-200"
+                  className="flex h-7 w-7 items-center justify-center rounded-md text-gray-400 transition-colors hover:bg-white/10 hover:text-gray-200 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-blue-400/70"
                   title={copyInputLabel}
                   aria-label={copyInputLabel}
                   onClick={() => copyMessageToClipboard(formattedArguments)}
@@ -308,11 +308,16 @@ export const ToolCallCard = memo(function ToolCallCard({
                   <Copy size={11} />
                 </button>
               </div>
-              <pre className={`overflow-auto rounded-md bg-black/20 p-2 font-mono text-[11px] leading-relaxed text-gray-300 whitespace-pre-wrap ${compact ? 'max-h-36' : 'max-h-48'}`}>
+              <pre
+                className={`overflow-auto rounded-md bg-black/20 p-2 font-mono text-[11px] leading-relaxed text-gray-300 whitespace-pre-wrap ${compact ? 'max-h-36' : 'max-h-48'}`}
+                role="region"
+                aria-label={inputLabel}
+                tabIndex={0}
+              >
                 {inputPreview.text}
               </pre>
               {inputPreview.isTruncated ? (
-                <div className="pt-1 text-[10px] text-gray-600">{truncatedLabel}</div>
+                <div className="pt-1 text-[10px] text-gray-400/80">{truncatedLabel}</div>
               ) : null}
             </div>
           ) : (
@@ -325,7 +330,7 @@ export const ToolCallCard = memo(function ToolCallCard({
                 {call.output?.trim() ? (
                   <button
                     type="button"
-                    className="rounded-md p-1 transition-colors hover:bg-white/10 hover:text-gray-200 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-blue-400/70"
+                    className="flex h-7 w-7 items-center justify-center rounded-md text-gray-400 transition-colors hover:bg-white/10 hover:text-gray-200 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-blue-400/70"
                     title={copyOutputLabel}
                     aria-label={copyOutputLabel}
                     onClick={() => copyMessageToClipboard(call.output ?? '')}
@@ -335,14 +340,24 @@ export const ToolCallCard = memo(function ToolCallCard({
                 ) : null}
               </div>
               {call.resultBlocks?.length ? (
-                <ToolResultBlocks blocks={call.resultBlocks} compact={compact} t={t} />
+                <ToolResultBlocks
+                  blocks={call.resultBlocks}
+                  compact={compact}
+                  copyMessageToClipboard={copyMessageToClipboard}
+                  t={t}
+                />
               ) : (
-                <pre className={`overflow-auto rounded-md bg-black/20 p-2 font-mono text-[11px] leading-relaxed text-gray-300 whitespace-pre-wrap ${compact ? 'max-h-40' : 'max-h-64'}`}>
+                <pre
+                  className={`overflow-auto rounded-md bg-black/20 p-2 font-mono text-[11px] leading-relaxed text-gray-300 whitespace-pre-wrap ${compact ? 'max-h-40' : 'max-h-64'}`}
+                  role="region"
+                  aria-label={outputLabel}
+                  tabIndex={0}
+                >
                   {outputPreview.text}
                 </pre>
               )}
               {!call.resultBlocks?.length && outputPreview.isTruncated ? (
-                <div className="pt-1 text-[10px] text-gray-600">{truncatedLabel}</div>
+                <div className="pt-1 text-[10px] text-gray-400/80">{truncatedLabel}</div>
               ) : null}
             </div>
           ) : null}
