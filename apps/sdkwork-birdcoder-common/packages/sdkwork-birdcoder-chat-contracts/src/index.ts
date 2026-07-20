@@ -76,6 +76,8 @@ export type BirdCoderChatMessageToolResultBlock =
       name?: string;
       mimeType?: string;
       text?: string;
+      description?: string;
+      size?: number;
     }
   | {
       type: 'link';
@@ -91,6 +93,7 @@ export type BirdCoderChatMessageToolResultBlock =
   | {
       type: 'list';
       items: readonly string[];
+      totalItems?: number;
     }
   | {
       type: 'error';

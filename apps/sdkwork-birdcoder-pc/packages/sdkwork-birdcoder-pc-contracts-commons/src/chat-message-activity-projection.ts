@@ -623,7 +623,7 @@ export function resolveProjectedActivityFileChanges(
     })
     .map<ProjectedActivityFileChange>((fileChange) => ({
       ...fileChange,
-      lineImpactKnown: true,
+      lineImpactKnown: fileChange.lineImpactKnown ?? true,
     }));
   const parsedFileChanges = parseFileUpdateSummaryContent(message.content).map<ProjectedActivityFileChange>(
     (fileChange) => ({

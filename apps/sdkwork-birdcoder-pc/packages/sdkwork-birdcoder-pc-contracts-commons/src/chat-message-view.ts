@@ -72,8 +72,15 @@ export interface ChatMessageTaskProgressBlock {
 
 export type { ChatMessageToolCall } from './chat-message-tool-calls.ts';
 export {
+  CHAT_MESSAGE_TOOL_PROTOCOL_ADAPTER_IDS,
+  projectChatMessageCommand,
   projectChatMessageToolCall,
   projectChatMessageToolCalls,
+  projectChatMessageToolResult,
+  type ChatMessageToolProtocolAdapterId,
+  type ProjectChatMessageToolCallOptions,
+  type ProjectChatMessageToolResultInput,
+  type ProjectedChatMessageCommand,
 } from './chat-message-tool-calls.ts';
 
 export interface ChatMessageToolCallsBlock {

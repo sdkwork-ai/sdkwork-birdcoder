@@ -964,6 +964,7 @@ const BIRDCODER_TEXT_CONTENT_COLLECTION_KEYS = [
 ] as const;
 
 const BIRDCODER_NON_ANSWER_CONTENT_TYPES = new Set([
+  'advisor_tool_result',
   'agent',
   'agent_execution_blocked',
   'agent_execution_stopped',
@@ -998,6 +999,7 @@ const BIRDCODER_NON_ANSWER_CONTENT_TYPES = new Set([
   'tool_search_output',
   'tool_use',
   'tool_use_summary',
+  'todo_list',
   'user_cancelled',
   'web_fetch_tool_result',
   'web_search_call',

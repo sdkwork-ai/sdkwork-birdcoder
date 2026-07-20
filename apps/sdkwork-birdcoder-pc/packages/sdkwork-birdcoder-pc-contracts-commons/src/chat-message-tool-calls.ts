@@ -4,9 +4,13 @@ export type {
 import type {
   BirdCoderChatMessageToolCall as ChatMessageToolCall,
   BirdCoderChatMessageToolCallKind,
-  BirdCoderChatMessageToolResultBlock,
   BirdCoderChatMessageToolCallStatus,
 } from '@sdkwork/birdcoder-chat-contracts';
+import {
+  hasStructuredChatMessageToolError,
+  resolveChatMessageToolCallOutput,
+  resolveChatMessageToolCallResultBlocks,
+} from './chat-message-tool-results.ts';
 
 export interface ProjectChatMessageToolCallOptions {
   engineId?: string;
@@ -203,6 +207,27 @@ function adaptCodexToolRecord(record: Record<string, unknown>): Record<string, u
       title: changes.length > 0 ? `${changes.length} file${changes.length === 1 ? '' : 's'}` : undefined,
     };
   }
+  if (type === 'todo_list') {
+    const items = Array.isArray(source.items) ? source.items : [];
+    const normalizedItems = items.flatMap((item) => {
+      const itemRecord = readToolCallRecord(item);
+      const text = readNonEmptyString(itemRecord?.text);
+      return text
+        ? [{ text, completed: itemRecord?.completed === true }]
+        : [];
+    });
+    const completed = normalizedItems.filter((item) => item.completed).length;
+    return {
+      ...source,
+      name: 'todo',
+      arguments: { items: normalizedItems },
+      output: normalizedItems.map((item) => `${item.completed ? '[x]' : '[ ]'} ${item.text}`),
+      status: normalizedItems.length > 0 && completed === normalizedItems.length
+        ? 'completed'
+        : 'running',
+      title: `${completed}/${normalizedItems.length}`,
+    };
+  }
   if (type === 'web_search') {
     return {
       ...source,
@@ -296,6 +321,7 @@ function adaptClaudeToolRecord(record: Record<string, unknown>): Record<string, 
   const source = contentBlock ? { ...record, ...contentBlock } : record;
   const type = normalizeToolCallName(readNonEmptyString(source.type));
   const resultToolNameByType: Readonly<Record<string, string>> = {
+    advisor_tool_result: 'advisor',
     bash_code_execution_tool_result: 'code_execution',
     code_execution_tool_result: 'code_execution',
     mcp_tool_result: 'mcp_tool',
@@ -311,7 +337,7 @@ function adaptClaudeToolRecord(record: Record<string, unknown>): Record<string, 
       name: readNonEmptyString(source.name) || resultToolNameByType[type] || 'tool',
       output: source.output ?? source.content,
       status: source.status ?? (
-        source.is_error === true || hasStructuredToolError(source.content)
+        source.is_error === true || hasStructuredChatMessageToolError(source.content)
           ? 'error'
           : 'completed'
       ),
@@ -345,12 +371,29 @@ function adaptGeminiToolRecord(record: Record<string, unknown>): Record<string, 
   const functionResponse = readToolCallRecord(record.functionResponse)
     ?? readToolCallRecord(value?.functionResponse);
   if (functionResponse) {
+    const response = functionResponse.response;
+    const responseRecord = readToolCallRecord(response);
+    const responseError = responseRecord?.error;
+    const responsePayload = responseRecord
+      ? responseRecord.output
+        ?? responseRecord.content
+        ?? responseRecord.result
+        ?? responseRecord.data
+        ?? (Object.keys(responseRecord).some((key) => !['error', 'status'].includes(key))
+          ? response
+          : undefined)
+      : response;
+    const responseParts = Array.isArray(functionResponse.parts) ? functionResponse.parts : [];
+    const output = responseParts.length > 0
+      ? [responsePayload, ...responseParts].filter((part) => part !== undefined)
+      : responsePayload;
     return {
       ...record,
       ...functionResponse,
       id: functionResponse.id ?? record.id,
-      output: functionResponse.response,
-      status: 'completed',
+      ...(responseError !== undefined ? { error: responseError } : {}),
+      output,
+      status: responseError !== undefined ? 'error' : 'completed',
       type: 'function_call_output',
     };
   }
@@ -365,6 +408,8 @@ function adaptGeminiToolRecord(record: Record<string, unknown>): Record<string, 
     };
   }
   if (type === 'tool_call_response' && value) {
+    const hasError = value.error !== undefined
+      || hasStructuredChatMessageToolError(value.responseParts);
     return {
       ...record,
       ...value,
@@ -374,7 +419,7 @@ function adaptGeminiToolRecord(record: Record<string, unknown>): Record<string, 
         ?? value.responseParts
         ?? value.data
         ?? value.error,
-      status: value.error ? 'error' : 'completed',
+      status: hasError ? 'error' : 'completed',
     };
   }
   if (type === 'tool_call_confirmation' && value) {
@@ -500,22 +545,6 @@ function formatToolCallArguments(value: unknown): string {
   } catch {
     return String(value);
   }
-}
-
-function hasStructuredToolError(value: unknown): boolean {
-  if (Array.isArray(value)) {
-    return value.some(hasStructuredToolError);
-  }
-  const record = readToolCallRecord(value);
-  if (!record) {
-    return false;
-  }
-
-  const type = normalizeToolCallName(readNonEmptyString(record.type));
-  return record.is_error === true
-    || Boolean(record.error)
-    || type === 'error'
-    || type.endsWith('_error');
 }
 
 function readFirstString(
@@ -754,218 +783,6 @@ function resolveToolCallStatus(record: Record<string, unknown>): BirdCoderChatMe
   return undefined;
 }
 
-function resolveToolCallOutput(record: Record<string, unknown>): string {
-  return formatToolCallArguments(resolveToolCallOutputValue(record));
-}
-
-function resolveToolCallOutputValue(record: Record<string, unknown>): unknown {
-  const stateRecord = readToolCallRecord(record.state);
-  const normalizedType = normalizeToolCallName(readNonEmptyString(record.type));
-  return record.error
-    ?? stateRecord?.error
-    ?? record.output
-    ?? record.aggregated_output
-    ?? record.result
-    ?? stateRecord?.output
-    ?? stateRecord?.result
-    ?? (normalizedType === 'tool_result' ? record.content : undefined);
-}
-
-const TOOL_RESULT_BLOCK_TYPES = new Set([
-  'audio',
-  'diff',
-  'error',
-  'image',
-  'link',
-  'list',
-  'resource',
-  'text',
-]);
-
-function readToolResultErrorMessage(value: unknown): string {
-  const directMessage = readNonEmptyString(value);
-  if (directMessage) {
-    return directMessage;
-  }
-  const record = readToolCallRecord(value);
-  return readFirstString(record, ['message', 'error', 'detail', 'reason'])
-    || formatToolCallArguments(value);
-}
-
-function resolveToolResultMediaSource(
-  record: Record<string, unknown>,
-): { mimeType?: string; source: string } | null {
-  const nestedSource = readToolCallRecord(record.source);
-  const mimeType = readFirstString(record, ['mimeType', 'mime_type', 'media_type'])
-    || readFirstString(nestedSource, ['mimeType', 'mime_type', 'media_type']);
-  const source = readFirstString(record, ['url', 'uri'])
-    || readFirstString(nestedSource, ['url', 'uri'])
-    || readFirstString(record, ['data', 'base64'])
-    || readFirstString(nestedSource, ['data', 'base64']);
-  if (!source) {
-    return null;
-  }
-  if (/^(?:data:|https?:|blob:)/iu.test(source)) {
-    return { ...(mimeType ? { mimeType } : {}), source };
-  }
-  return {
-    ...(mimeType ? { mimeType } : {}),
-    source: `data:${mimeType || 'application/octet-stream'};base64,${source}`,
-  };
-}
-
-function projectToolResultValue(
-  value: unknown,
-  blocks: BirdCoderChatMessageToolResultBlock[],
-  visited: WeakSet<object>,
-): void {
-  if (value === undefined || value === null || blocks.length >= 200) {
-    return;
-  }
-  if (typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean') {
-    const text = String(value).trim();
-    if (text) {
-      blocks.push({ type: 'text', text });
-    }
-    return;
-  }
-  if (Array.isArray(value)) {
-    if (value.length > 1 && value.every((entry) => ['string', 'number', 'boolean'].includes(typeof entry))) {
-      blocks.push({ type: 'list', items: value.map(String) });
-      return;
-    }
-    for (const entry of value) {
-      projectToolResultValue(entry, blocks, visited);
-    }
-    return;
-  }
-  if (typeof value !== 'object' || visited.has(value)) {
-    return;
-  }
-
-  visited.add(value);
-  const record = value as Record<string, unknown>;
-  const type = normalizeToolCallName(readNonEmptyString(record.type));
-  if (type === 'error' || type.endsWith('_error') || record.is_error === true) {
-    blocks.push({ type: 'error', message: readToolResultErrorMessage(record) });
-    return;
-  }
-  if (type === 'image' || type === 'audio') {
-    const media = resolveToolResultMediaSource(record);
-    if (media) {
-      blocks.push({
-        type,
-        ...media,
-        ...(readFirstString(record, ['title', 'name', 'alt'])
-          ? { title: readFirstString(record, ['title', 'name', 'alt']) }
-          : {}),
-      });
-      return;
-    }
-  }
-  if (type === 'resource' || readToolCallRecord(record.resource)) {
-    const resource = readToolCallRecord(record.resource) ?? record;
-    const uri = readFirstString(resource, ['uri', 'url']);
-    if (uri) {
-      blocks.push({
-        type: 'resource',
-        uri,
-        ...(readFirstString(resource, ['name', 'title'])
-          ? { name: readFirstString(resource, ['name', 'title']) }
-          : {}),
-        ...(readFirstString(resource, ['mimeType', 'mime_type'])
-          ? { mimeType: readFirstString(resource, ['mimeType', 'mime_type']) }
-          : {}),
-        ...(readNonEmptyString(resource.text) ? { text: readNonEmptyString(resource.text) } : {}),
-      });
-      return;
-    }
-  }
-  const url = readFirstString(record, ['url', 'href']);
-  if (type === 'link' || url) {
-    if (url) {
-      blocks.push({
-        type: 'link',
-        url,
-        ...(readFirstString(record, ['title', 'name'])
-          ? { title: readFirstString(record, ['title', 'name']) }
-          : {}),
-        ...(readFirstString(record, ['description', 'snippet'])
-          ? { description: readFirstString(record, ['description', 'snippet']) }
-          : {}),
-      });
-      return;
-    }
-  }
-  const diff = readNonEmptyString(record.diff)
-    || (type === 'diff' ? readNonEmptyString(record.content) : '');
-  if (diff) {
-    blocks.push({
-      type: 'diff',
-      content: diff,
-      ...(readFirstString(record, ['path', 'filePath', 'file_path'])
-        ? { path: readFirstString(record, ['path', 'filePath', 'file_path']) }
-        : {}),
-    });
-    return;
-  }
-  const text = readFirstString(record, ['text']);
-  if (type === 'text' && text) {
-    blocks.push({ type: 'text', text });
-    return;
-  }
-  if (Array.isArray(record.items)) {
-    if (record.items.every((entry) => ['string', 'number', 'boolean'].includes(typeof entry))) {
-      blocks.push({ type: 'list', items: record.items.map(String) });
-    } else {
-      projectToolResultValue(record.items, blocks, visited);
-    }
-    return;
-  }
-  if ('content' in record) {
-    const previousBlockCount = blocks.length;
-    projectToolResultValue(record.content, blocks, visited);
-    if (blocks.length > previousBlockCount) {
-      return;
-    }
-  }
-
-  const fallback = formatToolCallArguments(record).trim();
-  if (fallback) {
-    blocks.push({ type: 'text', text: fallback });
-  }
-}
-
-function resolveToolCallResultBlocks(
-  record: Record<string, unknown>,
-  status: BirdCoderChatMessageToolCallStatus | undefined,
-): readonly BirdCoderChatMessageToolResultBlock[] {
-  if (Array.isArray(record.resultBlocks)) {
-    return record.resultBlocks.filter((block): block is BirdCoderChatMessageToolResultBlock => {
-      const blockRecord = readToolCallRecord(block);
-      return TOOL_RESULT_BLOCK_TYPES.has(
-        normalizeToolCallName(readNonEmptyString(blockRecord?.type)),
-      );
-    });
-  }
-
-  const stateRecord = readToolCallRecord(record.state);
-  const errorValue = record.error ?? stateRecord?.error;
-  if (errorValue !== undefined && errorValue !== null) {
-    const message = readToolResultErrorMessage(errorValue).trim();
-    return message ? [{ type: 'error', message }] : [];
-  }
-
-  const outputValue = resolveToolCallOutputValue(record);
-  if (status === 'error') {
-    const message = readToolResultErrorMessage(outputValue).trim();
-    return message ? [{ type: 'error', message }] : [];
-  }
-  const blocks: BirdCoderChatMessageToolResultBlock[] = [];
-  projectToolResultValue(outputValue, blocks, new WeakSet<object>());
-  return blocks;
-}
-
 function resolveToolCallTitle(record: Record<string, unknown>): string {
   const stateRecord = readToolCallRecord(record.state);
   return readFirstString(record, ['title', 'description', 'execution'])
@@ -1049,11 +866,11 @@ export function projectChatMessageToolCall(
     : '';
   const target = resolveSemanticArgument(argumentsRecord, TARGET_ARGUMENT_KEYS)
     || readFirstString(record, TARGET_ARGUMENT_KEYS);
-  const output = resolveToolCallOutput(record);
+  const output = resolveChatMessageToolCallOutput(record);
   const status = resolveToolCallStatus(record);
   const title = resolveToolCallTitle(record);
   const durationMs = resolveToolCallDurationMs(record);
-  const resultBlocks = resolveToolCallResultBlocks(record, status);
+  const resultBlocks = resolveChatMessageToolCallResultBlocks(record, status);
 
   return {
     id: resolveToolCallId(record, index, options.fallbackIdPrefix),

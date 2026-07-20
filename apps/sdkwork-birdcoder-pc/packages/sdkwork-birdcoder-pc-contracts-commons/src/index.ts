@@ -179,11 +179,81 @@ function parseProjectionFileChanges(
   payload: Record<string, unknown> | undefined,
 ): BirdCoderChatMessage['fileChanges'] | undefined {
   const directFileChanges = payload?.fileChanges;
-  if (Array.isArray(directFileChanges)) {
-    return directFileChanges as BirdCoderChatMessage['fileChanges'];
+  const fileChanges = Array.isArray(directFileChanges)
+    ? [...directFileChanges] as FileChange[]
+    : [];
+  const nativeFileChanges: FileChange[] = [];
+  collectProjectionNativeFileChanges(
+    payload,
+    nativeFileChanges,
+    new WeakSet<object>(),
+  );
+  const fileChangesByPath = new Map<string, FileChange>();
+  for (const fileChange of [...fileChanges, ...nativeFileChanges]) {
+    if (typeof fileChange?.path !== 'string' || !fileChange.path.trim()) {
+      continue;
+    }
+    fileChangesByPath.set(fileChange.path.trim().replace(/\\/gu, '/'), fileChange);
+  }
+  return fileChangesByPath.size > 0 ? [...fileChangesByPath.values()] : undefined;
+}
+
+function collectProjectionNativeFileChanges(
+  value: unknown,
+  output: FileChange[],
+  visited: WeakSet<object>,
+): void {
+  if (Array.isArray(value)) {
+    for (const entry of value) {
+      collectProjectionNativeFileChanges(entry, output, visited);
+    }
+    return;
+  }
+  if (typeof value !== 'object' || value === null || visited.has(value)) {
+    return;
   }
 
-  return undefined;
+  visited.add(value);
+  const record = value as Record<string, unknown>;
+  const type = normalizeProjectionToolContentType(record.type);
+  if (type === 'file_change') {
+    const status = normalizeProjectionToolContentType(record.status);
+    if (['error', 'failed', 'in_progress', 'pending', 'running'].includes(status)) {
+      return;
+    }
+    for (const change of Array.isArray(record.changes) ? record.changes : []) {
+      if (!isProjectionPayloadRecord(change)) {
+        continue;
+      }
+      const path = normalizeProjectionPayloadString(change.path)?.replace(/\\/gu, '/');
+      if (!path) {
+        continue;
+      }
+      const additions = normalizeProjectionPayloadNumber(change.additions) ?? 0;
+      const deletions = normalizeProjectionPayloadNumber(change.deletions) ?? 0;
+      const diff = normalizeProjectionPayloadString(change.diff ?? change.patch);
+      const content = typeof change.content === 'string' ? change.content : undefined;
+      const originalContent = typeof change.originalContent === 'string'
+        ? change.originalContent
+        : typeof change.original_content === 'string'
+          ? change.original_content
+          : undefined;
+      output.push({
+        path,
+        additions,
+        deletions,
+        lineImpactKnown: additions > 0 || deletions > 0 || Boolean(diff),
+        ...(diff ? { diff } : {}),
+        ...(content !== undefined ? { content } : {}),
+        ...(originalContent !== undefined ? { originalContent } : {}),
+      });
+    }
+    return;
+  }
+
+  for (const key of PROJECTION_NATIVE_TOOL_CONTAINER_KEYS) {
+    collectProjectionNativeFileChanges(record[key], output, visited);
+  }
 }
 
 function parseProjectionToolCalls(
@@ -203,6 +273,7 @@ function parseProjectionToolCalls(
 }
 
 const PROJECTION_NATIVE_TOOL_CONTENT_TYPES = new Set([
+  'advisor_tool_result',
   'approval_request',
   'bash_code_execution_tool_result',
   'code_execution_tool_result',
@@ -220,6 +291,7 @@ const PROJECTION_NATIVE_TOOL_CONTENT_TYPES = new Set([
   'server_tool_use',
   'subtask',
   'text_editor_code_execution_tool_result',
+  'todo_list',
   'tool',
   'tool_call_confirmation',
   'tool_call_request',
