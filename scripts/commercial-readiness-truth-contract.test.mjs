@@ -201,7 +201,7 @@ const iamRuntimeSource = readText(
 const wsSource = readText(
   'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/src/services/workspaceRealtimeClient.ts',
 );
-const routerSource = readText('crates/sdkwork-birdcoder-standalone-gateway/src/bootstrap/routers.rs');
+const routerSource = readText('crates/sdkwork-api-birdcoder-standalone-gateway/src/bootstrap/routers.rs');
 
 assert.match(iamRuntimeSource, /startBirdCoderAppSessionRefreshLoop/u);
 assert.match(wsSource, /scheduleReconnect/u);

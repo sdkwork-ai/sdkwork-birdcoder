@@ -27,34 +27,34 @@ if (!rootCargo.includes('sdkwork_database_config')) {
   fail('root Cargo.toml must declare sdkwork-database-config workspace dependency');
 }
 
-const apiServerCargo = read('crates/sdkwork-birdcoder-standalone-gateway/Cargo.toml');
+const apiServerCargo = read('crates/sdkwork-api-birdcoder-standalone-gateway/Cargo.toml');
 if (!apiServerCargo.includes('sdkwork_database_sqlx')) {
-  fail('sdkwork-birdcoder-standalone-gateway must declare sdkwork-database-sqlx dependency');
+  fail('sdkwork-api-birdcoder-standalone-gateway must declare sdkwork-database-sqlx dependency');
 }
 if (!apiServerCargo.includes('sqlx')) {
-  fail('sdkwork-birdcoder-standalone-gateway must depend on sqlx for schema bootstrap');
+  fail('sdkwork-api-birdcoder-standalone-gateway must depend on sqlx for schema bootstrap');
 }
 if (apiServerCargo.includes('rusqlite')) {
-  fail('sdkwork-birdcoder-standalone-gateway must not depend on rusqlite after sqlx migration');
+  fail('sdkwork-api-birdcoder-standalone-gateway must not depend on rusqlite after sqlx migration');
 }
 
 const apiServerSources = [
-  'crates/sdkwork-birdcoder-standalone-gateway/src/bootstrap/repositories.rs',
-  'crates/sdkwork-birdcoder-standalone-gateway/src/bootstrap/database.rs',
-  'crates/sdkwork-birdcoder-standalone-gateway/src/bootstrap/config.rs',
-  'crates/sdkwork-birdcoder-standalone-gateway/src/bootstrap/state.rs',
-  'crates/sdkwork-birdcoder-standalone-gateway/src/bootstrap/mod.rs',
-  'crates/sdkwork-birdcoder-standalone-gateway/src/health.rs',
+  'crates/sdkwork-api-birdcoder-standalone-gateway/src/bootstrap/repositories.rs',
+  'crates/sdkwork-api-birdcoder-standalone-gateway/src/bootstrap/database.rs',
+  'crates/sdkwork-api-birdcoder-standalone-gateway/src/bootstrap/config.rs',
+  'crates/sdkwork-api-birdcoder-standalone-gateway/src/bootstrap/state.rs',
+  'crates/sdkwork-api-birdcoder-standalone-gateway/src/bootstrap/mod.rs',
+  'crates/sdkwork-api-birdcoder-standalone-gateway/src/health.rs',
 ].map((relativePath) => read(relativePath)).join('\n');
 
 if (!apiServerSources.includes('bootstrap_database')) {
-  fail('sdkwork-birdcoder-standalone-gateway bootstrap must call database::bootstrap_database');
+  fail('sdkwork-api-birdcoder-standalone-gateway bootstrap must call database::bootstrap_database');
 }
 if (!apiServerSources.includes('resolve_birdcoder_database_config')) {
-  fail('sdkwork-birdcoder-standalone-gateway must resolve SDKWORK_BIRDCODER database config explicitly');
+  fail('sdkwork-api-birdcoder-standalone-gateway must resolve SDKWORK_BIRDCODER database config explicitly');
 }
 if (!apiServerSources.includes('database_pool')) {
-  fail('sdkwork-birdcoder-standalone-gateway AppState must retain sdkwork-database pool');
+  fail('sdkwork-api-birdcoder-standalone-gateway AppState must retain sdkwork-database pool');
 }
 if (!apiServerSources.includes('wire_repositories(database_pool')) {
   fail('wire_repositories must consume sdkwork-database pool');

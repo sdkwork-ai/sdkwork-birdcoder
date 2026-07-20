@@ -25,7 +25,7 @@ const bridgeTurnExecutor = fs.readFileSync(
   'utf8',
 );
 const gatewayAdapters = fs.readFileSync(
-  path.join(root, 'crates/sdkwork-birdcoder-standalone-gateway/src/bootstrap/adapters.rs'),
+  path.join(root, 'crates/sdkwork-api-birdcoder-standalone-gateway/src/bootstrap/adapters.rs'),
   'utf8',
 );
 const pcKernelRuntime = fs.readFileSync(

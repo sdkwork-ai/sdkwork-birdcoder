@@ -309,25 +309,25 @@ pub fn start_embedded_coding_server(app: &AppHandle) -> Result<DesktopRuntimeCon
     }
 
     let database_path = local_database_path(app)?;
-    let config = sdkwork_birdcoder_standalone_gateway::bootstrap::config::BirdServerConfig {
-        environment: sdkwork_birdcoder_standalone_gateway::bootstrap::config::BirdEnvironment::Development,
+    let config = sdkwork_api_birdcoder_standalone_gateway::bootstrap::config::BirdServerConfig {
+        environment: sdkwork_api_birdcoder_standalone_gateway::bootstrap::config::BirdEnvironment::Development,
         deployment_profile:
-            sdkwork_birdcoder_standalone_gateway::bootstrap::config::BirdDeploymentProfile::Standalone,
+            sdkwork_api_birdcoder_standalone_gateway::bootstrap::config::BirdDeploymentProfile::Standalone,
         runtime_target:
-            sdkwork_birdcoder_standalone_gateway::bootstrap::config::BirdRuntimeTarget::Desktop,
+            sdkwork_api_birdcoder_standalone_gateway::bootstrap::config::BirdRuntimeTarget::Desktop,
         host: DEFAULT_EMBEDDED_API_HOST.to_string(),
         port: DEFAULT_EMBEDDED_API_PORT,
         sqlite_file: database_path,
-        allowed_origins: sdkwork_birdcoder_standalone_gateway::bootstrap::config::default_allowed_origins_for_host(
+        allowed_origins: sdkwork_api_birdcoder_standalone_gateway::bootstrap::config::default_allowed_origins_for_host(
             DEFAULT_EMBEDDED_API_HOST,
         ),
         project_root: std::env::var("BIRDCODER_LOCAL_BOOTSTRAP_PROJECT_ROOT").ok(),
-        rate_limit_enabled: sdkwork_birdcoder_standalone_gateway::bootstrap::config::DEFAULT_RATE_LIMIT_ENABLED,
-        rate_limit_max_requests: sdkwork_birdcoder_standalone_gateway::bootstrap::config::DEFAULT_RATE_LIMIT_MAX_REQUESTS,
-        rate_limit_window_secs: sdkwork_birdcoder_standalone_gateway::bootstrap::config::DEFAULT_RATE_LIMIT_WINDOW_SECS,
+        rate_limit_enabled: sdkwork_api_birdcoder_standalone_gateway::bootstrap::config::DEFAULT_RATE_LIMIT_ENABLED,
+        rate_limit_max_requests: sdkwork_api_birdcoder_standalone_gateway::bootstrap::config::DEFAULT_RATE_LIMIT_MAX_REQUESTS,
+        rate_limit_window_secs: sdkwork_api_birdcoder_standalone_gateway::bootstrap::config::DEFAULT_RATE_LIMIT_WINDOW_SECS,
     };
     let router = tauri::async_runtime::block_on(
-        sdkwork_birdcoder_standalone_gateway::bootstrap::build_app(&config),
+        sdkwork_api_birdcoder_standalone_gateway::bootstrap::build_app(&config),
     )
     .map_err(|error| format!("failed to build embedded BirdCoder API router: {error}"))?;
     let (listener, api_base_url) = bind_embedded_api_listener()?;

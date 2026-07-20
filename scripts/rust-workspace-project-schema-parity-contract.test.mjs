@@ -7,7 +7,7 @@ import {
 
 const canonicalSqliteSchemaSource = readCanonicalSqliteSchemaBundle();
 const apiServerDatabaseSource = readCanonicalServerRustSource(
-  'crates/sdkwork-birdcoder-standalone-gateway/src/bootstrap/database.rs',
+  'crates/sdkwork-api-birdcoder-standalone-gateway/src/bootstrap/database.rs',
 );
 const databaseHostSource = readCanonicalServerRustSource(
   'crates/sdkwork-birdcoder-database-host/src/lib.rs',

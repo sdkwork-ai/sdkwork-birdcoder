@@ -2,12 +2,12 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 
 const forbiddenRuntimeFiles = [
-  'crates/sdkwork-birdcoder-gateway-assembly/src/routes/api_keys.rs',
-  'crates/sdkwork-birdcoder-gateway-assembly/src/routes/notifications.rs',
-  'crates/sdkwork-birdcoder-gateway-assembly/src/routes/usage.rs',
-  'crates/sdkwork-birdcoder-standalone-gateway/src/routes/api_keys.rs',
-  'crates/sdkwork-birdcoder-standalone-gateway/src/routes/notifications.rs',
-  'crates/sdkwork-birdcoder-standalone-gateway/src/routes/usage.rs',
+  'crates/sdkwork-api-birdcoder-assembly/src/routes/api_keys.rs',
+  'crates/sdkwork-api-birdcoder-assembly/src/routes/notifications.rs',
+  'crates/sdkwork-api-birdcoder-assembly/src/routes/usage.rs',
+  'crates/sdkwork-api-birdcoder-standalone-gateway/src/routes/api_keys.rs',
+  'crates/sdkwork-api-birdcoder-standalone-gateway/src/routes/notifications.rs',
+  'crates/sdkwork-api-birdcoder-standalone-gateway/src/routes/usage.rs',
 ];
 
 for (const file of forbiddenRuntimeFiles) {
@@ -15,8 +15,8 @@ for (const file of forbiddenRuntimeFiles) {
 }
 
 const governedSources = [
-  'crates/sdkwork-birdcoder-gateway-assembly/src/application_bootstrap/routers.rs',
-  'crates/sdkwork-birdcoder-standalone-gateway/src/bootstrap/routers.rs',
+  'crates/sdkwork-api-birdcoder-assembly/src/application_bootstrap/routers.rs',
+  'crates/sdkwork-api-birdcoder-standalone-gateway/src/bootstrap/routers.rs',
   'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-server/src/routeCatalog.ts',
   'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-server/src/openApiOperationDefinitions.ts',
 ];

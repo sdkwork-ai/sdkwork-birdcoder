@@ -80,21 +80,21 @@
       "gate": true,
       "evidence": {
         "paths": [
-          "crates/sdkwork-birdcoder-standalone-gateway/src/bootstrap/adapters.rs"
+          "crates/sdkwork-api-birdcoder-standalone-gateway/src/bootstrap/adapters.rs"
         ],
         "requiredPatterns": [
           {
-            "file": "crates/sdkwork-birdcoder-standalone-gateway/src/bootstrap/adapters.rs",
+            "file": "crates/sdkwork-api-birdcoder-standalone-gateway/src/bootstrap/adapters.rs",
             "pattern": "BirdcoderKernelHost"
           },
           {
-            "file": "crates/sdkwork-birdcoder-standalone-gateway/src/bootstrap/adapters.rs",
+            "file": "crates/sdkwork-api-birdcoder-standalone-gateway/src/bootstrap/adapters.rs",
             "pattern": "KernelBridgeCodeEngineProvider"
           }
         ],
         "forbiddenPatterns": [
           {
-            "file": "crates/sdkwork-birdcoder-standalone-gateway/src/bootstrap/adapters.rs",
+            "file": "crates/sdkwork-api-birdcoder-standalone-gateway/src/bootstrap/adapters.rs",
             "pattern": "RegistryCodeEngineProvider"
           }
         ]
@@ -439,7 +439,7 @@
       "evidence": {
         "paths": [
           "crates/sdkwork-birdcoder-kernel-bridge/src/host.rs",
-          "crates/sdkwork-birdcoder-standalone-gateway/src/bootstrap/adapters.rs"
+          "crates/sdkwork-api-birdcoder-standalone-gateway/src/bootstrap/adapters.rs"
         ],
         "requiredPatterns": [
           {
@@ -447,7 +447,7 @@
             "pattern": "submit_approval_decision"
           },
           {
-            "file": "crates/sdkwork-birdcoder-standalone-gateway/src/bootstrap/adapters.rs",
+            "file": "crates/sdkwork-api-birdcoder-standalone-gateway/src/bootstrap/adapters.rs",
             "pattern": "host.submit_approval_decision"
           }
         ],

@@ -11,8 +11,8 @@ function read(relativePath, root = repoRoot) {
   return fs.readFileSync(path.join(root, relativePath), 'utf8');
 }
 
-const bootstrapSource = read('crates/sdkwork-birdcoder-standalone-gateway/src/bootstrap/iam.rs');
-const apiServerCargo = read('crates/sdkwork-birdcoder-standalone-gateway/Cargo.toml');
+const bootstrapSource = read('crates/sdkwork-api-birdcoder-standalone-gateway/src/bootstrap/iam.rs');
+const apiServerCargo = read('crates/sdkwork-api-birdcoder-standalone-gateway/Cargo.toml');
 const workspaceCargo = read('Cargo.toml');
 const topologySource = read('scripts/lib/birdcoder-topology.mjs');
 const architectureSource = read('docs/architecture/tech/TECH_ARCHITECTURE.md');

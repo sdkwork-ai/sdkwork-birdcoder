@@ -47,7 +47,7 @@ runtime:
   deploymentProfile: cloud
   runtimeTarget: container
   environment: production
-  otelServiceName: sdkwork-birdcoder-standalone-gateway
+  otelServiceName: sdkwork-api-birdcoder-standalone-gateway
   # Replace the reserved hostname before enabling browser traffic. Wildcards
   # are rejected by the server's cloud runtime validation.
   allowedOrigins:

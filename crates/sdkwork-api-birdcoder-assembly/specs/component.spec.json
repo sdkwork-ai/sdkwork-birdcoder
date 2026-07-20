@@ -2,14 +2,14 @@
   "schemaVersion": 1,
   "kind": "sdkwork.component.spec",
   "component": {
-    "name": "sdkwork-birdcoder-gateway-assembly",
+    "name": "sdkwork-api-birdcoder-assembly",
     "displayName": "SDKWork birdcoder Gateway Assembly",
     "version": "0.1.0",
-    "type": "rust-crate",
-    "root": "sdkwork-birdcoder/crates/sdkwork-birdcoder-gateway-assembly",
+    "type": "rust-api-assembly",
+    "root": "crates/sdkwork-api-birdcoder-assembly",
     "domain": "application",
-    "capability": "birdcoder-gateway-assembly",
-    "surface": "assembly",
+    "capability": "api-assembly",
+    "surface": "api-assembly",
     "languages": [
       "rust"
     ],
@@ -47,12 +47,13 @@
     "dependencyApiExports": [],
     "dependencyApiSurfaces": [],
     "events": [],
-    "configKeys": []
+    "configKeys": [],
+    "layerRole": "runtime-composition"
   },
   "verification": {
     "commands": [
       "pnpm run api:assembly:validate",
-      "cargo check -p sdkwork-birdcoder-gateway-assembly"
+      "cargo check -p sdkwork-api-birdcoder-assembly"
     ]
   }
 }

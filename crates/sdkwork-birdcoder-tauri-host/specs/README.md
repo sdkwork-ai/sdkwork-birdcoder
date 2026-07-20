@@ -20,7 +20,7 @@ Root SDKWork standards remain authoritative. This module spec records only the n
 
 - [component.spec.json](./component.spec.json) is the machine-readable contract.
 - Public runtime integration is through `setup_tauri_host`, Tauri commands, and the embedded BirdCoder API startup helpers.
-- The native host embeds `sdkwork-birdcoder-standalone-gateway` for local desktop API access; it does not own business HTTP routes and must not bypass sdkwork-agents for agent workflows.
+- The native host embeds `sdkwork-api-birdcoder-standalone-gateway` for local desktop API access; it does not own business HTTP routes and must not bypass sdkwork-agents for agent workflows.
 
 ## Verification
 

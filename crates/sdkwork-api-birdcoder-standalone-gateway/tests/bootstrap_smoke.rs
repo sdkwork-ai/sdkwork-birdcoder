@@ -90,7 +90,7 @@ struct EnvSnapshot {
 
 impl EnvSnapshot {
     fn install(
-        config: &sdkwork_birdcoder_standalone_gateway::bootstrap::config::BirdServerConfig,
+        config: &sdkwork_api_birdcoder_standalone_gateway::bootstrap::config::BirdServerConfig,
         database_mode: SmokeDatabaseMode,
     ) -> Self {
         let mut keys = SMOKE_ENV_VALUES
@@ -210,8 +210,8 @@ async fn login_smoke_user(app: &SmokeApp) -> SmokeAuthTokens {
 
 fn smoke_config(
     sqlite_name: &str,
-) -> sdkwork_birdcoder_standalone_gateway::bootstrap::config::BirdServerConfig {
-    use sdkwork_birdcoder_standalone_gateway::bootstrap::config::{
+) -> sdkwork_api_birdcoder_standalone_gateway::bootstrap::config::BirdServerConfig {
+    use sdkwork_api_birdcoder_standalone_gateway::bootstrap::config::{
         BirdDeploymentProfile, BirdEnvironment, BirdRuntimeTarget, BirdServerConfig,
         DEFAULT_RATE_LIMIT_ENABLED, DEFAULT_RATE_LIMIT_MAX_REQUESTS,
         DEFAULT_RATE_LIMIT_WINDOW_SECS,
@@ -322,13 +322,13 @@ async fn smoke_env_install_can_preserve_explicit_birdcoder_postgresql_settings()
 }
 
 async fn build_smoke_app(
-    config: &sdkwork_birdcoder_standalone_gateway::bootstrap::config::BirdServerConfig,
+    config: &sdkwork_api_birdcoder_standalone_gateway::bootstrap::config::BirdServerConfig,
 ) -> Result<SmokeApp, Box<dyn std::error::Error>> {
     build_smoke_app_with_database_mode(config, SmokeDatabaseMode::IsolatedSqlite).await
 }
 
 async fn build_smoke_app_with_database_mode(
-    config: &sdkwork_birdcoder_standalone_gateway::bootstrap::config::BirdServerConfig,
+    config: &sdkwork_api_birdcoder_standalone_gateway::bootstrap::config::BirdServerConfig,
     database_mode: SmokeDatabaseMode,
 ) -> Result<SmokeApp, Box<dyn std::error::Error>> {
     let guard = smoke_env_lock().lock_owned().await;
@@ -336,7 +336,7 @@ async fn build_smoke_app_with_database_mode(
         cleanup_smoke_database(&config.sqlite_file);
     }
     let env = EnvSnapshot::install(config, database_mode);
-    let router = sdkwork_birdcoder_standalone_gateway::bootstrap::build_app(config).await?;
+    let router = sdkwork_api_birdcoder_standalone_gateway::bootstrap::build_app(config).await?;
     Ok(SmokeApp {
         router,
         _env: env,
@@ -361,7 +361,7 @@ async fn build_app_surfaces_agents_managed_store_errors_without_runtime_panic() 
     std::env::set_var("SDKWORK_AGENTS_STORE_DATABASE_MAX_CONNECTIONS", "1");
     std::env::set_var("SDKWORK_AGENTS_STORE_DATABASE_MIN_CONNECTIONS", "1");
 
-    let result = sdkwork_birdcoder_standalone_gateway::bootstrap::build_app(&config).await;
+    let result = sdkwork_api_birdcoder_standalone_gateway::bootstrap::build_app(&config).await;
     assert!(
         result.is_err(),
         "build_app should return an agents managed-store bootstrap error"
@@ -1173,7 +1173,7 @@ async fn build_app_with_invalid_sqlite_target_fails_gracefully() {
     std::fs::create_dir_all(&sqlite_dir).expect("create invalid sqlite target directory");
 
     let config = smoke_config("bootstrap-smoke-invalid-sqlite-target-unused");
-    let config = sdkwork_birdcoder_standalone_gateway::bootstrap::config::BirdServerConfig {
+    let config = sdkwork_api_birdcoder_standalone_gateway::bootstrap::config::BirdServerConfig {
         sqlite_file: sqlite_dir.clone(),
         ..config
     };

@@ -17,7 +17,7 @@ tokio = { workspace = true }
 axum = { workspace = true }
 notify = "8"
 rfd = "0.16"
-sdkwork-birdcoder-standalone-gateway = { workspace = true }
+sdkwork-api-birdcoder-standalone-gateway = { workspace = true }
 sdkwork-birdcoder-codeengine = { workspace = true }
 sdkwork-birdcoder-git = { workspace = true }
 sdkwork-terminal-control-plane = { workspace = true }

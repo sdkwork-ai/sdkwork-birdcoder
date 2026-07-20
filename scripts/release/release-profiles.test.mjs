@@ -22,7 +22,7 @@ assert.equal(profile.release.attestationEvidenceFileName, 'release-attestations.
 assert.equal(profile.release.attestationPredicateType, 'https://slsa.dev/provenance/v1');
 assert.equal(profile.release.attestationSignerWorkflowPath, '.github/workflows/package.yml');
 assert.equal(profile.release.enableArtifactAttestations, true);
-assert.equal(profile.server.binaryName, 'sdkwork-birdcoder-standalone-gateway');
+assert.equal(profile.server.binaryName, 'sdkwork-api-birdcoder-standalone-gateway');
 
 const desktopMatrix = buildDesktopReleaseMatrix();
 assert.ok(desktopMatrix.some((entry) => entry.platform === 'windows' && entry.arch === 'x64'));

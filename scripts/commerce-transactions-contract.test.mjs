@@ -20,9 +20,9 @@ assert.ok(exists(serviceCrate), 'commerce service crate must exist');
 assert.ok(exists(repositoryCrate), 'commerce repository crate must exist');
 assert.ok(exists(routesCrate), 'commerce routes crate must exist');
 
-const routers = read('crates/sdkwork-birdcoder-standalone-gateway/src/bootstrap/routers.rs');
+const routers = read('crates/sdkwork-api-birdcoder-standalone-gateway/src/bootstrap/routers.rs');
 const routeManifest = read(
-  'crates/sdkwork-birdcoder-standalone-gateway/src/bootstrap/route_manifest.rs',
+  'crates/sdkwork-api-birdcoder-standalone-gateway/src/bootstrap/route_manifest.rs',
 );
 const routeCatalog = read(
   'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-server/src/routeCatalog.ts',

@@ -1,6 +1,7 @@
 [workspace]
 members = [
-    "crates/sdkwork-birdcoder-gateway-assembly",
+    "crates/sdkwork-api-birdcoder-assembly",
+    "crates/sdkwork-api-birdcoder-assembly",
     # Route crates
     "crates/sdkwork-routes-system-app-api",
     "crates/sdkwork-routes-engine-catalog-app-api",
@@ -38,7 +39,7 @@ members = [
     "crates/sdkwork-birdcoder-database-host",
     # Host/server crates
     "apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-desktop/src-tauri",
-    "crates/sdkwork-birdcoder-standalone-gateway",
+    "crates/sdkwork-api-birdcoder-standalone-gateway",
     "crates/sdkwork-birdcoder-service-host",
     "crates/sdkwork-birdcoder-tauri-host",
     # Shared crates
@@ -121,8 +122,8 @@ sdkwork-birdcoder-chat-repository-sqlx = { path = "crates/sdkwork-birdcoder-chat
 sdkwork-birdcoder-sqlx-repository-pool = { path = "crates/sdkwork-birdcoder-sqlx-repository-pool" }
 
 # Host/server crates
-sdkwork-birdcoder-standalone-gateway = { path = "crates/sdkwork-birdcoder-standalone-gateway" }
-sdkwork-birdcoder-gateway-assembly = { path = "crates/sdkwork-birdcoder-gateway-assembly" }
+sdkwork-api-birdcoder-standalone-gateway = { path = "crates/sdkwork-api-birdcoder-standalone-gateway" }
+sdkwork-api-birdcoder-assembly = { path = "crates/sdkwork-api-birdcoder-assembly" }
 sdkwork-birdcoder-service-host = { path = "crates/sdkwork-birdcoder-service-host" }
 sdkwork-birdcoder-tauri-host = { path = "crates/sdkwork-birdcoder-tauri-host" }
 

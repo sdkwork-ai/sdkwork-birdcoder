@@ -11,8 +11,8 @@ function readText(relativePath) {
 
 const hubSource = readText('crates/sdkwork-routes-workspace-app-api/src/realtime_hub.rs');
 const configSource = readText('crates/sdkwork-routes-workspace-app-api/src/realtime_config.rs');
-const servicesSource = readText('crates/sdkwork-birdcoder-standalone-gateway/src/bootstrap/services.rs');
-const databaseSource = readText('crates/sdkwork-birdcoder-standalone-gateway/src/bootstrap/database.rs');
+const servicesSource = readText('crates/sdkwork-api-birdcoder-standalone-gateway/src/bootstrap/services.rs');
+const databaseSource = readText('crates/sdkwork-api-birdcoder-standalone-gateway/src/bootstrap/database.rs');
 const haValues = readText('deployments/kubernetes/values-postgresql-ha.yaml');
 const configMap = readText('deployments/kubernetes/templates/configmap.yaml');
 const rootCargo = readText('Cargo.toml');

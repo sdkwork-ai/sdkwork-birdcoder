@@ -26,15 +26,15 @@ function resolveCargoWorkspaceCrateRoot(cargoTomlSource, dependencyKey) {
 const birdCoderCargoSource = readText(workspaceRoot, 'Cargo.toml');
 const birdCoderServerCargoSource = readText(
   workspaceRoot,
-  'crates/sdkwork-birdcoder-standalone-gateway/Cargo.toml',
+  'crates/sdkwork-api-birdcoder-standalone-gateway/Cargo.toml',
 );
 const apiServerIamBootstrapSource = readText(
   workspaceRoot,
-  'crates/sdkwork-birdcoder-standalone-gateway/src/bootstrap/iam.rs',
+  'crates/sdkwork-api-birdcoder-standalone-gateway/src/bootstrap/iam.rs',
 );
 const apiServerRoutersSource = readText(
   workspaceRoot,
-  'crates/sdkwork-birdcoder-standalone-gateway/src/bootstrap/routers.rs',
+  'crates/sdkwork-api-birdcoder-standalone-gateway/src/bootstrap/routers.rs',
 );
 
 const iamContextCrateRoot = resolveCargoWorkspaceCrateRoot(

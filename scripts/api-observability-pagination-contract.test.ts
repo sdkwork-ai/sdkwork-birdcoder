@@ -278,7 +278,7 @@ const nativeSessionHandlersSource = readFileSync(
   'utf8',
 );
 const authBootstrapSource = readFileSync(
-  new URL('../crates/sdkwork-birdcoder-standalone-gateway/src/bootstrap/auth.rs', import.meta.url),
+  new URL('../crates/sdkwork-api-birdcoder-standalone-gateway/src/bootstrap/auth.rs', import.meta.url),
   'utf8',
 );
 

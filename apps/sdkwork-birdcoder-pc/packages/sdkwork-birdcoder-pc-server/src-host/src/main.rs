@@ -1,9 +1,9 @@
-use sdkwork_birdcoder_standalone_gateway::bootstrap;
-use sdkwork_birdcoder_standalone_gateway::server;
+use sdkwork_api_birdcoder_standalone_gateway::bootstrap;
+use sdkwork_api_birdcoder_standalone_gateway::server;
 
 #[tokio::main]
 async fn main() {
-    sdkwork_birdcoder_standalone_gateway::enable_process_shared_database_pool();
+    sdkwork_api_birdcoder_standalone_gateway::enable_process_shared_database_pool();
     tracing_subscriber::fmt()
         .with_env_filter(
             tracing_subscriber::EnvFilter::try_from_default_env()

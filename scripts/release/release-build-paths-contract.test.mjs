@@ -49,7 +49,7 @@ for (const relativePath of releaseScriptPaths) {
   }
 }
 
-assert.equal(SERVER_CRATE_BINARY_NAME, 'sdkwork-birdcoder-standalone-gateway');
+assert.equal(SERVER_CRATE_BINARY_NAME, 'sdkwork-api-birdcoder-standalone-gateway');
 assert.equal(
   readText('scripts/release/release-profiles.mjs').includes(`binaryName: SERVER_CRATE_BINARY_NAME`),
   true,

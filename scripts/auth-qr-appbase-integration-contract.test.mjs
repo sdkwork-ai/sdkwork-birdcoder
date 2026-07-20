@@ -66,7 +66,7 @@ const iamOauthSource = [
 ].join('\n');
 const apiServerIamSource = [
   readCanonicalServerRustSource(CANONICAL_SERVER_RUST_PATHS.apiServerAuth),
-  readCanonicalServerRustSource('crates/sdkwork-birdcoder-standalone-gateway/src/bootstrap/iam.rs'),
+  readCanonicalServerRustSource('crates/sdkwork-api-birdcoder-standalone-gateway/src/bootstrap/iam.rs'),
   readText(
     'apps',
     'sdkwork-birdcoder-pc',

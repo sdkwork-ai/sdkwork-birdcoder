@@ -151,7 +151,7 @@ for (const removedPackage of [
 }
 
 const adaptersSource = readFileSync(
-  path.join(root, 'crates/sdkwork-birdcoder-standalone-gateway/src/bootstrap/adapters.rs'),
+  path.join(root, 'crates/sdkwork-api-birdcoder-standalone-gateway/src/bootstrap/adapters.rs'),
   'utf8',
 );
 assert.match(adaptersSource, /KernelBridgeCodeEngineProvider/);

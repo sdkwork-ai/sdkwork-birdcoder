@@ -224,7 +224,7 @@ export function buildCodingServerOpenApiRustDeferRegistry() {
     federation: {
       iamAppCrate: path.relative(workspaceRootDir, iamAppCrateRoot).replaceAll('\\', '/'),
       iamBackendCrate: path.relative(workspaceRootDir, iamBackendCrateRoot).replaceAll('\\', '/'),
-      wiredInApiServer: 'crates/sdkwork-birdcoder-standalone-gateway/src/bootstrap/iam.rs',
+      wiredInApiServer: 'crates/sdkwork-api-birdcoder-standalone-gateway/src/bootstrap/iam.rs',
     },
     rule:
       'Deferred operations are absent from BirdCoder product manifests and federated sdkwork-iam manifests. BirdCoder does not expose a legacy API-key-authenticated `/api/v1/*` surface.',

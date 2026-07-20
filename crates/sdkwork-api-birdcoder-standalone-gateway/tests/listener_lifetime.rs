@@ -2,7 +2,7 @@ use axum::routing::get;
 use axum::Router;
 use std::time::Duration;
 
-use sdkwork_birdcoder_standalone_gateway::server::listen::serve;
+use sdkwork_api_birdcoder_standalone_gateway::server::listen::serve;
 
 #[tokio::test(start_paused = true)]
 async fn serve_does_not_exit_without_shutdown_signal() {

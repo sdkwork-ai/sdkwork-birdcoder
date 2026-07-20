@@ -61,7 +61,7 @@ await withMockCodexCliJsonl(async () => {
 
 const adaptersSource = await import('node:fs/promises').then((fs) =>
   fs.readFile(
-    path.join(root, 'crates/sdkwork-birdcoder-standalone-gateway/src/bootstrap/adapters.rs'),
+    path.join(root, 'crates/sdkwork-api-birdcoder-standalone-gateway/src/bootstrap/adapters.rs'),
     'utf8',
   ),
 );

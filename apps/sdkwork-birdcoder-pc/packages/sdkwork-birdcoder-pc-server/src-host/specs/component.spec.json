@@ -94,7 +94,7 @@
   },
   "verification": {
     "commands": [
-      "cargo test -p sdkwork-birdcoder-standalone-gateway"
+      "cargo test -p sdkwork-api-birdcoder-standalone-gateway"
     ]
   },
   "metadata": {

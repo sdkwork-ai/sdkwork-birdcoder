@@ -132,7 +132,7 @@
         "surface": "app-api",
         "apiPrefix": "/app/v3/api",
         "runtimeMode": "same-origin-embedded",
-        "cargoDependency": "sdkwork-birdcoder-standalone-gateway",
+        "cargoDependency": "sdkwork-api-birdcoder-standalone-gateway",
         "embeddedExecutableExport": "start_embedded_coding_server",
         "coverageEvidence": [
           "src/host/state.rs#start_embedded_coding_server",
@@ -150,7 +150,7 @@
   },
   "integration": {
     "authority": "The Tauri host owns native commands, local filesystem boundaries, local SQLite key-value storage, and embedded gateway startup. Provider-native session discovery and detail reads remain app-api business operations; the host never accepts a renderer-supplied project root for them.",
-    "gatewayPolicy": "Business HTTP and agent workflows are executed through the embedded sdkwork-birdcoder-standalone-gateway and sdkwork-agents routes.",
+    "gatewayPolicy": "Business HTTP and agent workflows are executed through the embedded sdkwork-api-birdcoder-standalone-gateway and sdkwork-agents routes.",
     "securityPolicy": "Filesystem roots and native commands must remain explicitly registered and must not create raw unaudited host access paths."
   },
   "verification": {

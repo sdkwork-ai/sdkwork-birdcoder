@@ -280,7 +280,7 @@ Relevant lifecycle checks include:
 - `pnpm test:kernel-birdcoder-alignment-contract`
 - `cargo test -p sdkwork-birdcoder-codeengine`
 - `cargo test -p sdkwork-birdcoder-coding-sessions-service --tests`
-- `cargo test -p sdkwork-birdcoder-standalone-gateway --lib`
+- `cargo test -p sdkwork-api-birdcoder-standalone-gateway --lib`
 - `pnpm --dir apps/sdkwork-birdcoder-pc typecheck`
 - `node ../sdkwork-specs/tools/check-application-layering.mjs --root .`
 - `node ../sdkwork-specs/tools/check-app-sdk-consumer-imports.mjs --workspace .`

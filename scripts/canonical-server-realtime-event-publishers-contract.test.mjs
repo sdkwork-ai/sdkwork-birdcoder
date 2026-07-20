@@ -2,10 +2,10 @@ import assert from 'node:assert/strict';
 import { readCanonicalServerRustSource, CANONICAL_SERVER_RUST_PATHS } from './birdcoder-canonical-server-rust-sources.mjs';
 
 const servicesSource = readCanonicalServerRustSource(
-  'crates/sdkwork-birdcoder-standalone-gateway/src/bootstrap/services.rs',
+  'crates/sdkwork-api-birdcoder-standalone-gateway/src/bootstrap/services.rs',
 );
 const realtimeHubSource = readCanonicalServerRustSource(
-  'crates/sdkwork-birdcoder-standalone-gateway/src/bootstrap/realtime_hub.rs',
+  'crates/sdkwork-api-birdcoder-standalone-gateway/src/bootstrap/realtime_hub.rs',
 );
 const codingSessionPublisherSource = realtimeHubSource.slice(
   realtimeHubSource.indexOf('impl RealtimeEventPublisher for HubRealtimeEventPublisher'),

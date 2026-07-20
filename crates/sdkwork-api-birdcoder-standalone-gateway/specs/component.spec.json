@@ -2,14 +2,14 @@
   "schemaVersion": 1,
   "kind": "sdkwork.component.spec",
   "component": {
-    "name": "sdkwork-birdcoder-standalone-gateway",
+    "name": "sdkwork-api-birdcoder-standalone-gateway",
     "displayName": "SDKWork BirdCoder Standalone Gateway",
     "version": "0.1.0",
-    "type": "rust-standalone-gateway",
-    "root": "sdkwork-birdcoder/crates/sdkwork-birdcoder-standalone-gateway",
+    "type": "rust-api-standalone-gateway",
+    "root": "crates/sdkwork-api-birdcoder-standalone-gateway",
     "domain": "platform",
     "declaredDomain": null,
-    "capability": "standalone-gateway",
+    "capability": "api-gateway",
     "surface": "gateway-api",
     "status": "ACTIVE",
     "languages": [
@@ -102,17 +102,17 @@
     "layerRole": "runtime-gateway",
     "publicExports": [
       ".",
-      "sdkwork_birdcoder_standalone_gateway::bootstrap::build_app",
-      "sdkwork_birdcoder_standalone_gateway::server::listen::serve"
+      "sdkwork_api_birdcoder_standalone_gateway::bootstrap::build_app",
+      "sdkwork_api_birdcoder_standalone_gateway::server::listen::serve"
     ],
     "providedPorts": [
       {
         "name": "standaloneGatewayAppBuilder",
-        "export": "sdkwork_birdcoder_standalone_gateway::bootstrap::build_app"
+        "export": "sdkwork_api_birdcoder_standalone_gateway::bootstrap::build_app"
       },
       {
         "name": "standaloneGatewayServer",
-        "export": "sdkwork_birdcoder_standalone_gateway::server::listen::serve"
+        "export": "sdkwork_api_birdcoder_standalone_gateway::server::listen::serve"
       }
     ],
     "requiredPorts": [
@@ -136,7 +136,7 @@
       "src/bootstrap/agents.rs#wire_agents_app_router",
       "src/bootstrap/iam.rs#wire_iam_routers",
       "src/server/listen.rs#serve",
-      "Cargo.toml[[bin]].sdkwork-birdcoder-standalone-gateway"
+      "Cargo.toml[[bin]].sdkwork-api-birdcoder-standalone-gateway"
     ],
     "routeManifest": null,
     "sdkClients": [],
@@ -190,7 +190,7 @@
         "apiPrefix": "/app/v3/api",
         "runtimeMode": "same-origin-mounted",
         "cargoDependency": "sdkwork-routes-coding-sessions-app-api",
-        "embeddedExecutableExport": "sdkwork_birdcoder_standalone_gateway::bootstrap::build_app",
+        "embeddedExecutableExport": "sdkwork_api_birdcoder_standalone_gateway::bootstrap::build_app",
         "coverageEvidence": [
           "src/bootstrap/routers.rs#build_router",
           "src/bootstrap/route_manifest.rs#birdcoder_product_app_api_route_manifest",
@@ -205,7 +205,7 @@
         "apiPrefix": "/backend/v3/api",
         "runtimeMode": "same-origin-mounted",
         "cargoDependency": "sdkwork-routes-deployment-backend-api",
-        "embeddedExecutableExport": "sdkwork_birdcoder_standalone_gateway::bootstrap::build_app",
+        "embeddedExecutableExport": "sdkwork_api_birdcoder_standalone_gateway::bootstrap::build_app",
         "coverageEvidence": [
           "src/bootstrap/routers.rs#build_router",
           "src/bootstrap/route_manifest.rs#birdcoder_product_app_api_route_manifest",
@@ -220,7 +220,7 @@
         "apiPrefix": "/app/v3/api/ai",
         "runtimeMode": "same-origin-mounted",
         "cargoDependency": "sdkwork-routes-agents-app-api",
-        "embeddedExecutableExport": "sdkwork_birdcoder_standalone_gateway::bootstrap::agents::wire_agents_app_router",
+        "embeddedExecutableExport": "sdkwork_api_birdcoder_standalone_gateway::bootstrap::agents::wire_agents_app_router",
         "coverageEvidence": [
           "src/bootstrap/agents.rs#wire_agents_app_router",
           "src/bootstrap/routers.rs#build_router"
@@ -235,7 +235,7 @@
         "apiPrefix": "/app/v3/api",
         "runtimeMode": "same-origin-mounted",
         "cargoDependency": "sdkwork_routes_iam_app_api",
-        "embeddedExecutableExport": "sdkwork_birdcoder_standalone_gateway::bootstrap::iam::wire_iam_routers",
+        "embeddedExecutableExport": "sdkwork_api_birdcoder_standalone_gateway::bootstrap::iam::wire_iam_routers",
         "coverageEvidence": [
           "src/bootstrap/iam.rs#wire_iam_routers",
           "src/bootstrap/auth.rs#build_protected_app_router"
@@ -249,7 +249,7 @@
         "apiPrefix": "/backend/v3/api",
         "runtimeMode": "same-origin-mounted",
         "cargoDependency": "sdkwork_routes_iam_backend_api",
-        "embeddedExecutableExport": "sdkwork_birdcoder_standalone_gateway::bootstrap::iam::wire_iam_routers",
+        "embeddedExecutableExport": "sdkwork_api_birdcoder_standalone_gateway::bootstrap::iam::wire_iam_routers",
         "coverageEvidence": [
           "src/bootstrap/iam.rs#wire_iam_routers"
         ]
@@ -273,7 +273,7 @@
   },
   "verification": {
     "commands": [
-      "cargo test -p sdkwork-birdcoder-standalone-gateway --test bootstrap_smoke -- --nocapture",
+      "cargo test -p sdkwork-api-birdcoder-standalone-gateway --test bootstrap_smoke -- --nocapture",
       "node ../../../../sdkwork-specs/tools/check-component-port-bindings.mjs --root .",
       "node ../../../../sdkwork-specs/tools/check-route-path-collisions.mjs --root .",
       "node scripts/web-framework-standard-contract.test.mjs",

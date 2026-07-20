@@ -12,10 +12,10 @@ const cipherSource = readText(
   'crates/sdkwork-birdcoder-project-service/src/ports/runtime_location_path_cipher.rs',
 );
 const configSource = readText(
-  'crates/sdkwork-birdcoder-standalone-gateway/src/bootstrap/config.rs',
+  'crates/sdkwork-api-birdcoder-standalone-gateway/src/bootstrap/config.rs',
 );
 const bootstrapSource = readText(
-  'crates/sdkwork-birdcoder-standalone-gateway/src/bootstrap/runtime_location.rs',
+  'crates/sdkwork-api-birdcoder-standalone-gateway/src/bootstrap/runtime_location.rs',
 );
 const environmentReference = readText('docs/reference/environment.md');
 

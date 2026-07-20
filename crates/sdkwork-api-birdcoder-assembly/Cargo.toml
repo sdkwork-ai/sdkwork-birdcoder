@@ -1,12 +1,12 @@
 [package]
-name = "sdkwork-birdcoder-gateway-assembly"
+name = "sdkwork-api-birdcoder-assembly"
 edition.workspace = true
 license.workspace = true
 version.workspace = true
-description = "Generated gateway assembly for sdkwork-birdcoder application HTTP plane."
+description = "Generated API assembly for sdkwork-birdcoder application HTTP plane."
 
 [lib]
-name = "sdkwork_birdcoder_gateway_assembly"
+name = "sdkwork_api_birdcoder_assembly"
 path = "src/lib.rs"
 
 [dependencies]

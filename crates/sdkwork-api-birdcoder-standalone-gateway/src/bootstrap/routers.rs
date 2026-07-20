@@ -28,7 +28,7 @@ use crate::openapi;
 
 fn resolve_http_metrics_dimensions(config: &BirdServerConfig) -> HttpMetricsDimensions {
     let mut dimensions = HttpMetricsDimensions::default()
-        .with_service("sdkwork-birdcoder-standalone-gateway")
+        .with_service("sdkwork-api-birdcoder-standalone-gateway")
         .with_deployment_profile(config.deployment_profile.as_str())
         .with_runtime_target(config.runtime_target.as_str());
     dimensions.environment = config.environment.as_str().to_owned();

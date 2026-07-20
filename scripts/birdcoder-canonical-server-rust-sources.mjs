@@ -4,8 +4,8 @@ import path from 'node:path';
 const workspaceRoot = path.resolve(import.meta.dirname, '..');
 
 export const CANONICAL_SERVER_RUST_PATHS = Object.freeze({
-  apiServerAuth: 'crates/sdkwork-birdcoder-standalone-gateway/src/bootstrap/auth.rs',
-  apiServerBootstrapSmoke: 'crates/sdkwork-birdcoder-standalone-gateway/tests/bootstrap_smoke.rs',
+  apiServerAuth: 'crates/sdkwork-api-birdcoder-standalone-gateway/src/bootstrap/auth.rs',
+  apiServerBootstrapSmoke: 'crates/sdkwork-api-birdcoder-standalone-gateway/tests/bootstrap_smoke.rs',
   codingSessionsPaths: 'crates/sdkwork-routes-coding-sessions-app-api/src/paths.rs',
   codingSessionsHandlers: 'crates/sdkwork-routes-coding-sessions-app-api/src/handlers.rs',
   codingSessionsMapper: 'crates/sdkwork-routes-coding-sessions-app-api/src/mapper/request.rs',

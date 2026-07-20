@@ -9,9 +9,9 @@ function readText(relativePath) {
 }
 
 const repositoriesSource = readText(
-  'crates/sdkwork-birdcoder-standalone-gateway/src/bootstrap/repositories.rs',
+  'crates/sdkwork-api-birdcoder-standalone-gateway/src/bootstrap/repositories.rs',
 );
-const healthSource = readText('crates/sdkwork-birdcoder-standalone-gateway/src/health.rs');
+const healthSource = readText('crates/sdkwork-api-birdcoder-standalone-gateway/src/health.rs');
 const rootCargo = readText('Cargo.toml');
 const valuesSource = readText('deployments/kubernetes/values.yaml');
 const configMapSource = readText('deployments/kubernetes/templates/configmap.yaml');
@@ -65,17 +65,17 @@ assert.doesNotMatch(
   'App runtime transport must not depend on backend SDK operation catalogs.',
 );
 assert.match(
-  readText('crates/sdkwork-birdcoder-standalone-gateway/src/server/middleware/rate_limit.rs'),
+  readText('crates/sdkwork-api-birdcoder-standalone-gateway/src/server/middleware/rate_limit.rs'),
   /pub struct RedisRateLimitStore/u,
   'HA commerce rate limiting must ship a Redis-backed RateLimitStore.',
 );
 assert.match(
-  readText('crates/sdkwork-birdcoder-standalone-gateway/src/server/middleware/rate_limit.rs'),
+  readText('crates/sdkwork-api-birdcoder-standalone-gateway/src/server/middleware/rate_limit.rs'),
   /SDKWORK_BIRDCODER_REDIS_ENABLED/u,
   'HA commerce rate limiting must consume the shared Redis configuration.',
 );
 assert.match(
-  readText('crates/sdkwork-birdcoder-standalone-gateway/src/server/middleware/rate_limit.rs'),
+  readText('crates/sdkwork-api-birdcoder-standalone-gateway/src/server/middleware/rate_limit.rs'),
   /rejecting request/u,
   'HA commerce rate limiting must fail closed when Redis is unavailable.',
 );
@@ -85,7 +85,7 @@ assert.match(
   'PostgreSQL HA values must enable three replicas, Redis realtime, and autoscaling.',
 );
 assert.match(
-  readText('crates/sdkwork-birdcoder-standalone-gateway/src/health.rs'),
+  readText('crates/sdkwork-api-birdcoder-standalone-gateway/src/health.rs'),
   /redis::cmd\("PING"\)/u,
   'Readiness checks must PING Redis when realtime backend is redis.',
 );

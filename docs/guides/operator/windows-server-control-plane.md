@@ -13,7 +13,7 @@ enable remote code execution until an isolated runner is separately verified.
 ## Preconditions
 
 - Use a verified Windows x64 release containing
-  sdkwork-birdcoder-standalone-gateway.exe and matching assets.
+  sdkwork-api-birdcoder-standalone-gateway.exe and matching assets.
 - Run it under a dedicated, non-administrator service account. Do not run the
   service as LocalSystem or as an interactive developer account.
 - Use a supported database configuration. Production cloud configuration
@@ -75,7 +75,7 @@ a remote execution switch.
 Test a release under the intended service account before registering it with a
 service manager:
 
-    & "$env:ProgramFiles\sdkwork\birdcoder\sdkwork-birdcoder-standalone-gateway.exe"
+    & "$env:ProgramFiles\sdkwork\birdcoder\sdkwork-api-birdcoder-standalone-gateway.exe"
     Invoke-WebRequest http://127.0.0.1:10240/healthz -UseBasicParsing
     Invoke-WebRequest http://127.0.0.1:10240/readyz -UseBasicParsing
 

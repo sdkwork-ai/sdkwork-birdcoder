@@ -21,7 +21,7 @@ scope:
     - sdkwork-birdcoder-coding-sessions-service
     - sdkwork-routes-coding-sessions-app-api
     - sdkwork-routes-engine-catalog-app-api
-    - sdkwork-birdcoder-standalone-gateway
+    - sdkwork-api-birdcoder-standalone-gateway
     - sdkwork-routes-terminal-app-api
     - sdkwork-birdcoder-pc-server
     - sdkwork-birdcoder-app-sdk

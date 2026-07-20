@@ -64,7 +64,7 @@ for (const crateDir of routeCrates) {
   }
 }
 
-const routeManifestBootstrap = read('crates/sdkwork-birdcoder-standalone-gateway/src/bootstrap/route_manifest.rs');
+const routeManifestBootstrap = read('crates/sdkwork-api-birdcoder-standalone-gateway/src/bootstrap/route_manifest.rs');
 if (!routeManifestBootstrap.includes('birdcoder_product_app_api_route_manifest')) {
   fail('standalone-gateway must compose product HttpRouteManifest from route crates');
 }
@@ -90,15 +90,15 @@ if (appOpenApiPathKeys.some((routePath) => routePath.includes('coding-sessions')
   fail('birdcoder-app-v3.openapi.json must use lower_snake_case coding_sessions path segments');
 }
 
-const apiServerCargo = read('crates/sdkwork-birdcoder-standalone-gateway/Cargo.toml');
+const apiServerCargo = read('crates/sdkwork-api-birdcoder-standalone-gateway/Cargo.toml');
 if (!apiServerCargo.includes('sdkwork-web-axum.workspace = true')) {
-  fail('sdkwork-birdcoder-standalone-gateway must depend on sdkwork-web-axum');
+  fail('sdkwork-api-birdcoder-standalone-gateway must depend on sdkwork-web-axum');
 }
 if (!apiServerCargo.includes('sdkwork-web-core')) {
-  fail('sdkwork-birdcoder-standalone-gateway must depend on sdkwork-web-core');
+  fail('sdkwork-api-birdcoder-standalone-gateway must depend on sdkwork-web-core');
 }
 
-const authBootstrap = read('crates/sdkwork-birdcoder-standalone-gateway/src/bootstrap/auth.rs');
+const authBootstrap = read('crates/sdkwork-api-birdcoder-standalone-gateway/src/bootstrap/auth.rs');
 if (!authBootstrap.includes('build_web_framework_layer')) {
   fail('standalone-gateway auth bootstrap must compose sdkwork-web-framework layer');
 }

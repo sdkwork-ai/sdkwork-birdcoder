@@ -83,8 +83,8 @@
   },
   "components": {
     "applicationServer": {
-      "crate": "sdkwork-birdcoder-standalone-gateway",
-      "binary": "sdkwork-birdcoder-standalone-gateway"
+      "crate": "sdkwork-api-birdcoder-standalone-gateway",
+      "binary": "sdkwork-api-birdcoder-standalone-gateway"
     }
   },
   "orchestration": {

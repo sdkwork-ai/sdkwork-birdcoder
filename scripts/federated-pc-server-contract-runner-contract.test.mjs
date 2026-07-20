@@ -84,7 +84,7 @@ assert.match(
 );
 
 const routersSource = fs.readFileSync(
-  path.join(rootDir, 'crates/sdkwork-birdcoder-standalone-gateway/src/bootstrap/routers.rs'),
+  path.join(rootDir, 'crates/sdkwork-api-birdcoder-standalone-gateway/src/bootstrap/routers.rs'),
   'utf8',
 );
 assert.match(
