@@ -13,8 +13,8 @@ use serde_json::Value;
 use crate::{
     build_native_session_id, canonicalize_codeengine_provider_tool_name,
     find_codeengine_descriptor, map_codeengine_session_runtime_status,
-    map_codeengine_tool_command_status, map_codeengine_tool_runtime_status,
-    map_codeengine_tool_kind, native_session_prefix_for_engine,
+    map_codeengine_tool_command_status, map_codeengine_tool_kind,
+    map_codeengine_tool_runtime_status, native_session_prefix_for_engine,
     sanitize_codeengine_git_repository_url, sanitize_codeengine_session_metadata,
     CodeEngineSessionCommandRecord, CodeEngineSessionDetailRecord, CodeEngineSessionMessageRecord,
     CodeEngineSessionNativeAttributesRecord, CodeEngineSessionSummaryRecord,
@@ -82,6 +82,7 @@ struct CodexSessionCatalogCache {
 #[derive(Clone)]
 struct SessionLineContext {
     created_at: Option<String>,
+    current_turn_id: Option<String>,
     consumed_tool_call_ids: BTreeSet<String>,
     fallback_title: Option<String>,
     has_error: bool,
@@ -112,6 +113,7 @@ impl Default for SessionLineContext {
     fn default() -> Self {
         Self {
             created_at: None,
+            current_turn_id: None,
             consumed_tool_call_ids: BTreeSet::new(),
             fallback_title: None,
             has_error: false,
@@ -625,6 +627,10 @@ fn parse_codex_session(
         apply_codex_session_line(&mut context, &envelope, include_messages);
     }
 
+    if include_messages {
+        flush_pending_codex_tool_calls(&mut context);
+    }
+
     let summary = build_codex_summary(file_path, session_index, &context)?;
     let messages = if include_messages {
         dedupe_transcript_entries(&context.transcript_entries)
@@ -881,16 +887,14 @@ fn apply_codex_session_line(
                     }
                 }
                 Some(
-                    "command_execution"
-                    | "file_change"
-                    | "mcp_tool_call"
-                    | "todo_list"
+                    "command_execution" | "file_change" | "mcp_tool_call" | "todo_list"
                     | "web_search",
                 ) => {
                     if !include_messages {
                         return;
                     }
-                    if let Some(entry) = build_codex_thread_item_transcript_entry(payload, &timestamp)
+                    if let Some(entry) =
+                        build_codex_thread_item_transcript_entry(payload, &timestamp)
                     {
                         push_transcript_entry(context, entry);
                     }
@@ -1113,8 +1117,7 @@ fn apply_codex_session_line(
                         let pending_tool_call = read_codex_call_id(payload)
                             .as_deref()
                             .and_then(|value| consume_pending_codex_tool_call(context, value));
-                        let command_status = if event_type.as_deref()
-                            == Some("exec_command_begin")
+                        let command_status = if event_type.as_deref() == Some("exec_command_begin")
                         {
                             "running".to_owned()
                         } else if is_success {
@@ -1126,9 +1129,8 @@ fn apply_codex_session_line(
                             .as_ref()
                             .and_then(|tool_call| tool_call.command.clone())
                             .unwrap_or_else(|| command.clone());
-                        let sanitized_output = sanitize_codex_tool_output(
-                            output.as_deref().unwrap_or_default(),
-                        );
+                        let sanitized_output =
+                            sanitize_codex_tool_output(output.as_deref().unwrap_or_default());
                         let tool_call_id = read_codex_tool_item_id(payload);
                         push_transcript_entry(
                             context,
@@ -1829,11 +1831,7 @@ fn build_codex_tool_output_transcript_entry(
             tool_name: Some(canonical_tool_name),
             tool_call_id: tool_call_id.clone(),
             runtime_status: Some(
-                map_codeengine_tool_runtime_status(
-                    tool_kind.as_str(),
-                    Some(status.as_str()),
-                    None,
-                )
+                map_codeengine_tool_runtime_status(tool_kind.as_str(), Some(status.as_str()), None)
                     .to_owned(),
             ),
             requires_approval: Some(false),
@@ -1863,11 +1861,7 @@ fn build_codex_command_execution_tool_call(
         .and_then(Value::as_object)
         .cloned()
         .unwrap_or_default();
-    if let Some(native_event_type) = item
-        .get("type")
-        .and_then(Value::as_str)
-        .map(str::to_owned)
-    {
+    if let Some(native_event_type) = item.get("type").and_then(Value::as_str).map(str::to_owned) {
         item.insert(
             "native_event_type".to_owned(),
             Value::String(native_event_type),
@@ -1905,11 +1899,7 @@ fn build_codex_command_execution_tool_call(
 
 fn build_codex_file_change_tool_call(payload: &Value, status: &str) -> Value {
     let mut item = payload.as_object().cloned().unwrap_or_default();
-    if let Some(native_event_type) = item
-        .get("type")
-        .and_then(Value::as_str)
-        .map(str::to_owned)
-    {
+    if let Some(native_event_type) = item.get("type").and_then(Value::as_str).map(str::to_owned) {
         item.insert(
             "native_event_type".to_owned(),
             Value::String(native_event_type),
@@ -1945,11 +1935,7 @@ fn build_codex_file_change_tool_call(payload: &Value, status: &str) -> Value {
 
 fn build_codex_web_search_tool_call(payload: &Value, status: &str) -> Value {
     let mut item = payload.as_object().cloned().unwrap_or_default();
-    if let Some(native_event_type) = item
-        .get("type")
-        .and_then(Value::as_str)
-        .map(str::to_owned)
-    {
+    if let Some(native_event_type) = item.get("type").and_then(Value::as_str).map(str::to_owned) {
         item.insert(
             "native_event_type".to_owned(),
             Value::String(native_event_type),
@@ -2015,12 +2001,8 @@ fn build_codex_thread_item_transcript_entry(
                     tool_name: Some("run_command".to_owned()),
                     tool_call_id: tool_call_id.clone(),
                     runtime_status: Some(
-                        map_codeengine_tool_runtime_status(
-                            "command",
-                            Some(status.as_str()),
-                            None,
-                        )
-                        .to_owned(),
+                        map_codeengine_tool_runtime_status("command", Some(status.as_str()), None)
+                            .to_owned(),
                     ),
                     requires_approval: Some(false),
                     requires_reply: Some(false),
@@ -2131,10 +2113,7 @@ fn build_codex_mcp_transcript_entry(
         "native_event_type".to_owned(),
         Value::String(event_type.to_owned()),
     );
-    item.insert(
-        "type".to_owned(),
-        Value::String("mcp_tool_call".to_owned()),
-    );
+    item.insert("type".to_owned(), Value::String("mcp_tool_call".to_owned()));
     item.insert("status".to_owned(), Value::String(status.to_owned()));
     for field in ["server", "tool", "arguments"] {
         if !item.contains_key(field) {
@@ -2195,10 +2174,7 @@ fn build_codex_task_transcript_entry(
     });
     let mut item = payload.as_object().cloned().unwrap_or_default();
     item.insert("name".to_owned(), Value::String("write_todo".to_owned()));
-    item.insert(
-        "type".to_owned(),
-        Value::String("todo_list".to_owned()),
-    );
+    item.insert("type".to_owned(), Value::String("todo_list".to_owned()));
     item.insert(
         "arguments".to_owned(),
         serde_json::json!({ "items": items }),
@@ -2210,7 +2186,10 @@ fn build_codex_task_transcript_entry(
     Some(TranscriptEntry {
         created_at: timestamp.to_owned(),
         role: "tool".to_owned(),
-        content: format!("Task progress updated: {completed}/{} completed.", items.len()),
+        content: format!(
+            "Task progress updated: {completed}/{} completed.",
+            items.len()
+        ),
         turn_id: read_codex_turn_id(Some(payload)),
         commands: None,
         tool_calls: Some(vec![wrap_codex_thread_item(Value::Object(item))]),
@@ -2250,10 +2229,10 @@ fn project_codex_file_change(fallback_path: Option<&str>, change: &Value) -> Opt
         .as_deref()
         .map(count_unified_diff_lines)
         .unwrap_or_default();
-    let additions = read_non_negative_json_integer(change.get("additions"))
-        .unwrap_or(derived_additions);
-    let deletions = read_non_negative_json_integer(change.get("deletions"))
-        .unwrap_or(derived_deletions);
+    let additions =
+        read_non_negative_json_integer(change.get("additions")).unwrap_or(derived_additions);
+    let deletions =
+        read_non_negative_json_integer(change.get("deletions")).unwrap_or(derived_deletions);
     let mut projected = serde_json::Map::new();
     projected.insert("path".to_owned(), Value::String(path));
     projected.insert("additions".to_owned(), Value::from(additions));
@@ -2351,17 +2330,16 @@ fn build_codex_patch_apply_transcript_entry(
             tool_name: Some("apply_patch".to_owned()),
             tool_call_id: tool_call_id.clone(),
             runtime_status: Some(
-                map_codeengine_tool_runtime_status(
-                    "file_change",
-                    Some(status.as_str()),
-                    None,
-                )
-                .to_owned(),
+                map_codeengine_tool_runtime_status("file_change", Some(status.as_str()), None)
+                    .to_owned(),
             ),
             requires_approval: Some(false),
             requires_reply: Some(false),
         }]),
-        tool_calls: Some(vec![build_codex_file_change_tool_call(payload, status.as_str())]),
+        tool_calls: Some(vec![build_codex_file_change_tool_call(
+            payload,
+            status.as_str(),
+        )]),
         tool_call_id,
         file_changes: if file_changes.is_empty() {
             None
@@ -2910,5 +2888,194 @@ mod tests {
         .expect("normalize contextual codex prompt");
 
         assert_eq!(normalized, "Explain why the transcript is empty.");
+    }
+
+    #[test]
+    fn codex_history_projects_native_tool_items_and_legacy_tool_lifecycle() {
+        let file_path = env::temp_dir().join(format!(
+            "codex-history-tool-projection-{}.jsonl",
+            std::process::id()
+        ));
+        let raw_session_id = "019d54b7-f3da-79b1-bb78-10770953da30";
+        let lines = [
+            serde_json::json!({
+                "type": "session_meta",
+                "timestamp": "2026-04-20T10:00:00.000Z",
+                "payload": {
+                    "id": raw_session_id,
+                    "cwd": "E:/workspace/birdcoder",
+                    "model": "gpt-5.4"
+                }
+            }),
+            serde_json::json!({
+                "type": "response_item",
+                "timestamp": "2026-04-20T10:00:01.000Z",
+                "payload": {
+                    "id": "command-1",
+                    "type": "command_execution",
+                    "command": "pnpm typecheck",
+                    "aggregated_output": "Typecheck passed",
+                    "exit_code": 0,
+                    "status": "completed",
+                    "turn_id": "turn-1"
+                }
+            }),
+            serde_json::json!({
+                "type": "response_item",
+                "timestamp": "2026-04-20T10:00:02.000Z",
+                "payload": {
+                    "id": "file-1",
+                    "type": "file_change",
+                    "status": "completed",
+                    "turn_id": "turn-1",
+                    "changes": [{
+                        "path": "src/App.tsx",
+                        "kind": "update",
+                        "diff": "--- a/src/App.tsx\n+++ b/src/App.tsx\n-old\n+new\n+tail"
+                    }]
+                }
+            }),
+            serde_json::json!({
+                "type": "response_item",
+                "timestamp": "2026-04-20T10:00:03.000Z",
+                "payload": {
+                    "id": "search-1",
+                    "type": "web_search",
+                    "query": "BirdCoder protocol",
+                    "status": "completed",
+                    "turn_id": "turn-1"
+                }
+            }),
+            serde_json::json!({
+                "type": "response_item",
+                "timestamp": "2026-04-20T10:00:04.000Z",
+                "payload": {
+                    "id": "mcp-1",
+                    "type": "mcp_tool_call",
+                    "server": "docs",
+                    "tool": "read_resource",
+                    "arguments": { "uri": "docs://protocol" },
+                    "result": { "content": [{ "type": "text", "text": "Protocol" }] },
+                    "status": "completed",
+                    "turn_id": "turn-1"
+                }
+            }),
+            serde_json::json!({
+                "type": "response_item",
+                "timestamp": "2026-04-20T10:00:05.000Z",
+                "payload": {
+                    "id": "todo-1",
+                    "type": "todo_list",
+                    "turn_id": "turn-1",
+                    "items": [
+                        { "text": "Inspect", "status": "completed" },
+                        { "text": "Verify", "status": "in_progress" }
+                    ]
+                }
+            }),
+            serde_json::json!({
+                "type": "response_item",
+                "timestamp": "2026-04-20T10:00:06.000Z",
+                "payload": {
+                    "type": "function_call",
+                    "call_id": "legacy-call-1",
+                    "name": "shell_command",
+                    "arguments": "{\"command\":\"cargo test\"}",
+                    "turn_id": "turn-2"
+                }
+            }),
+            serde_json::json!({
+                "type": "response_item",
+                "timestamp": "2026-04-20T10:00:07.000Z",
+                "payload": {
+                    "type": "function_call_output",
+                    "call_id": "legacy-call-1",
+                    "output": "Tests passed",
+                    "status": "completed",
+                    "turn_id": "turn-2"
+                }
+            }),
+            serde_json::json!({
+                "type": "event_msg",
+                "timestamp": "2026-04-20T10:00:08.000Z",
+                "payload": {
+                    "type": "patch_apply_end",
+                    "call_id": "patch-1",
+                    "turn_id": "turn-2",
+                    "success": true,
+                    "status": "completed",
+                    "changes": {
+                        "src/lib.rs": {
+                            "type": "update",
+                            "move_path": null,
+                            "unified_diff": "--- a/src/lib.rs\n+++ b/src/lib.rs\n-old\n+new"
+                        }
+                    }
+                }
+            }),
+        ];
+        let file_content = lines
+            .iter()
+            .map(|line| serde_json::to_string(line).expect("serialize Codex fixture line"))
+            .collect::<Vec<_>>()
+            .join("\n");
+        fs::write(&file_path, format!("{file_content}\n")).expect("write Codex history fixture");
+
+        let detail = parse_codex_session_detail(&file_path, &BTreeMap::new())
+            .expect("parse Codex history fixture")
+            .expect("Codex history detail");
+
+        assert_eq!(detail.messages.len(), 7);
+        let command_message = &detail.messages[0];
+        assert_eq!(command_message.commands.as_ref().map(Vec::len), Some(1));
+        assert_eq!(command_message.tool_calls.as_ref().map(Vec::len), Some(1));
+        assert_eq!(
+            command_message.tool_calls.as_ref().unwrap()[0]["item"]["type"],
+            "command_execution"
+        );
+        let file_message = &detail.messages[1];
+        assert_eq!(
+            file_message.file_changes.as_ref().unwrap()[0]["path"],
+            "src/App.tsx"
+        );
+        assert_eq!(
+            file_message.file_changes.as_ref().unwrap()[0]["additions"],
+            2
+        );
+        assert_eq!(
+            file_message.file_changes.as_ref().unwrap()[0]["deletions"],
+            1
+        );
+        assert_eq!(
+            detail.messages[4].task_progress,
+            Some(serde_json::json!({
+                "total": 2,
+                "completed": 1,
+            }))
+        );
+        let legacy_tool_message = &detail.messages[5];
+        assert_eq!(
+            legacy_tool_message.tool_call_id.as_deref(),
+            Some("legacy-call-1")
+        );
+        assert_eq!(
+            legacy_tool_message.tool_calls.as_ref().map(Vec::len),
+            Some(2)
+        );
+        let patch_message = &detail.messages[6];
+        assert_eq!(
+            patch_message.file_changes.as_ref().unwrap()[0]["path"],
+            "src/lib.rs"
+        );
+        assert_eq!(
+            patch_message.file_changes.as_ref().unwrap()[0]["additions"],
+            1
+        );
+        assert_eq!(
+            patch_message.file_changes.as_ref().unwrap()[0]["deletions"],
+            1
+        );
+
+        let _ = fs::remove_file(file_path);
     }
 }

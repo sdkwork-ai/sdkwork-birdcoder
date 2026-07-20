@@ -2,12 +2,12 @@ import { memo, useDeferredValue, useMemo } from 'react';
 import {
   buildBirdCoderEditorModelPath,
   ContentWorkbench,
-  DeferredDiffEditor,
   DeferredFileExplorer,
+  FileChangeDiffViewer,
   resolveContentPreviewDescriptor,
   type FileNode,
 } from '@sdkwork/birdcoder-pc-ui';
-import { Button, ResizeHandle } from '@sdkwork/birdcoder-pc-ui-shell';
+import { ResizeHandle } from '@sdkwork/birdcoder-pc-ui-shell';
 import type { FileChange } from '@sdkwork/birdcoder-pc-contracts-commons';
 import { X } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
@@ -30,8 +30,7 @@ interface StudioCodeWorkspacePanelProps {
   onDeleteFile: (path: string) => void;
   onDeleteFolder: (path: string) => void;
   onRenameNode: (path: string, nextPath: string) => void | Promise<void>;
-  onAcceptDiff: () => void | Promise<void>;
-  onRejectDiff: () => void;
+  onCloseDiff: () => void;
   onFileDraftChange: (value: string) => void;
   onExplorerResize: (delta: number) => void;
   getLanguageFromPath: (path: string) => string;
@@ -66,8 +65,7 @@ function areStudioCodeWorkspacePanelPropsEqual(
     left.onDeleteFile === right.onDeleteFile &&
     left.onDeleteFolder === right.onDeleteFolder &&
     left.onRenameNode === right.onRenameNode &&
-    left.onAcceptDiff === right.onAcceptDiff &&
-    left.onRejectDiff === right.onRejectDiff &&
+    left.onCloseDiff === right.onCloseDiff &&
     left.onFileDraftChange === right.onFileDraftChange &&
     left.onExplorerResize === right.onExplorerResize &&
     left.getLanguageFromPath === right.getLanguageFromPath
@@ -92,13 +90,15 @@ export const StudioCodeWorkspacePanel = memo(function StudioCodeWorkspacePanel({
   onDeleteFile,
   onDeleteFolder,
   onRenameNode,
-  onAcceptDiff,
-  onRejectDiff,
+  onCloseDiff,
   onFileDraftChange,
   onExplorerResize,
   getLanguageFromPath,
 }: StudioCodeWorkspacePanelProps) {
   const { t } = useTranslation();
+  const fullDiffLabel = t('chat.fullDiffTitle');
+  const closeFullDiffLabel = t('chat.closeFullDiff');
+  const emptyFullDiffLabel = t('chat.fullDiffUnavailable');
   const deferredFileContent = useDeferredValue(fileContent);
   const selectedFileLanguage = selectedFile ? getLanguageFromPath(selectedFile) : '';
   const previewDescriptor = useMemo(
@@ -159,28 +159,26 @@ export const StudioCodeWorkspacePanel = memo(function StudioCodeWorkspacePanel({
         <div className="min-h-0 flex-1 flex flex-col">
           {viewingDiff ? (
           <>
-            <div className="h-10 border-b border-white/10 flex items-center justify-between px-4 bg-[#18181b] shrink-0">
-              <div className="flex items-center gap-2 text-sm text-gray-300">
-                <span className="text-gray-500">Diff:</span>
-                <span className="font-medium">{viewingDiff.path}</span>
+            <div className="flex h-10 shrink-0 items-center justify-between gap-3 border-b border-white/10 bg-[#18181b] px-4">
+              <div className="flex min-w-0 items-center gap-2 text-sm text-gray-300">
+                <span className="shrink-0 text-gray-400">{fullDiffLabel}:</span>
+                <span className="truncate font-medium" title={viewingDiff.path}>{viewingDiff.path}</span>
               </div>
-              <div className="flex items-center gap-2">
-                <Button size="sm" className="h-6 text-xs bg-green-600 hover:bg-green-500 text-white" onClick={onAcceptDiff}>
-                  {t('studio.accept')}
-                </Button>
-                <Button size="sm" variant="outline" className="h-6 text-xs border-white/10 hover:bg-white/10" onClick={onRejectDiff}>
-                  {t('studio.reject')}
-                </Button>
-                <Button variant="ghost" size="icon" className="h-6 w-6 ml-2 hover:bg-white/10" onClick={onRejectDiff}>
-                  <X size={14} />
-                </Button>
-              </div>
+              <button
+                type="button"
+                className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-gray-400 transition-colors hover:bg-white/10 hover:text-white focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-blue-400/70"
+                title={closeFullDiffLabel}
+                aria-label={closeFullDiffLabel}
+                onClick={onCloseDiff}
+              >
+                <X size={14} aria-hidden="true" />
+              </button>
             </div>
-            <DeferredDiffEditor
+            <FileChangeDiffViewer
+              ariaLabel={`${fullDiffLabel}: ${viewingDiff.path}`}
+              emptyLabel={emptyFullDiffLabel}
+              fileChange={viewingDiff}
               language={getLanguageFromPath(viewingDiff.path)}
-              original={viewingDiff.originalContent || ''}
-              modified={viewingDiff.content || ''}
-              readOnly={true}
             />
           </>
           ) : selectedFile ? (

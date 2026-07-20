@@ -1030,16 +1030,6 @@ function StudioPageComponent({
     setDeleteConfirmation(null);
   };
 
-  const handleAcceptViewingDiff = async () => {
-    if (!viewingDiff) {
-      return;
-    }
-
-    await saveFileContent(viewingDiff.path, viewingDiff.content || '');
-    addToast(t('studio.appliedChanges', { path: viewingDiff.path }), 'success');
-    setViewingDiff(null);
-  };
-
   const handleSelectCodingSession = useCallback((nextProjectId: string, nextCodingSessionId: string) => {
     selectCodingSession(nextCodingSessionId, { projectId: nextProjectId });
   }, [selectCodingSession]);
@@ -1206,10 +1196,7 @@ function StudioPageComponent({
     setViewingDiff(null);
     handleSelectFile(path);
   }, [handleSelectFile]);
-  const handleStudioAcceptViewingDiff = useCallback(() => {
-    void handleAcceptViewingDiff();
-  }, [handleAcceptViewingDiff]);
-  const handleStudioRejectViewingDiff = useCallback(() => {
+  const handleStudioCloseViewingDiff = useCallback(() => {
     setViewingDiff(null);
   }, []);
   const handlePreviewLandscapeToggle = useCallback(() => {
@@ -1300,7 +1287,6 @@ function StudioPageComponent({
           handlePreviewAppPlatformChange,
           handlePreviewLandscapeToggle,
           handleRefreshPreview,
-          handleStudioAcceptViewingDiff,
           handleStudioCloseFind,
           handleStudioCloseQuickOpen,
           handleStudioCodeExplorerResize,
@@ -1308,7 +1294,7 @@ function StudioPageComponent({
           handleStudioNotifyNoResults,
           handleStudioOverlaySelectFile,
           handleStudioReimportProjectFolder,
-          handleStudioRejectViewingDiff,
+          handleStudioCloseViewingDiff,
           handleStudioRetryMountRecovery,
           handleStudioTerminalResize,
           handleToggleProjectGitOverviewDrawer,

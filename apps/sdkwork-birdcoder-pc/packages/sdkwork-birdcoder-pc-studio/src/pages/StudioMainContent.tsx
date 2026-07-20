@@ -31,7 +31,6 @@ export interface StudioMainContentModel {
   handlePreviewAppPlatformChange: StudioStageHeaderProps['onPreviewAppPlatformChange'];
   handlePreviewLandscapeToggle: StudioStageHeaderProps['onPreviewLandscapeToggle'];
   handleRefreshPreview: StudioStageHeaderProps['onRefreshPreview'];
-  handleStudioAcceptViewingDiff: StudioCodeWorkspacePanelProps['onAcceptDiff'];
   handleStudioCloseFind: StudioWorkspaceOverlaysProps['onCloseFind'];
   handleStudioCloseQuickOpen: StudioWorkspaceOverlaysProps['onCloseQuickOpen'];
   handleStudioCodeExplorerResize: StudioCodeWorkspacePanelProps['onExplorerResize'];
@@ -39,7 +38,7 @@ export interface StudioMainContentModel {
   handleStudioNotifyNoResults: StudioWorkspaceOverlaysProps['onNotifyNoResults'];
   handleStudioOverlaySelectFile: StudioWorkspaceOverlaysProps['onSelectFile'];
   handleStudioReimportProjectFolder: StudioWorkspaceOverlaysProps['onReimportProjectFolder'];
-  handleStudioRejectViewingDiff: StudioCodeWorkspacePanelProps['onRejectDiff'];
+  handleStudioCloseViewingDiff: StudioCodeWorkspacePanelProps['onCloseDiff'];
   handleStudioRetryMountRecovery: StudioWorkspaceOverlaysProps['onRetryMountRecovery'];
   handleStudioTerminalResize: StudioTerminalIntegrationPanelProps['onResize'];
   handleToggleProjectGitOverviewDrawer: StudioStageHeaderProps['onToggleProjectGitOverviewDrawer'];
@@ -106,7 +105,6 @@ export function StudioMainContent({ model }: StudioMainContentProps) {
     handlePreviewAppPlatformChange,
     handlePreviewLandscapeToggle,
     handleRefreshPreview,
-    handleStudioAcceptViewingDiff,
     handleStudioCloseFind,
     handleStudioCloseQuickOpen,
     handleStudioCodeExplorerResize,
@@ -114,7 +112,7 @@ export function StudioMainContent({ model }: StudioMainContentProps) {
     handleStudioNotifyNoResults,
     handleStudioOverlaySelectFile,
     handleStudioReimportProjectFolder,
-    handleStudioRejectViewingDiff,
+    handleStudioCloseViewingDiff,
     handleStudioRetryMountRecovery,
     handleStudioTerminalResize,
     handleToggleProjectGitOverviewDrawer,
@@ -234,8 +232,7 @@ export function StudioMainContent({ model }: StudioMainContentProps) {
             onDeleteFile={deleteFile}
             onDeleteFolder={deleteFolder}
             onRenameNode={renameNode}
-            onAcceptDiff={handleStudioAcceptViewingDiff}
-            onRejectDiff={handleStudioRejectViewingDiff}
+            onCloseDiff={handleStudioCloseViewingDiff}
             onFileDraftChange={updateFileDraft}
             onExplorerResize={handleStudioCodeExplorerResize}
             getLanguageFromPath={getLanguageFromPath}
