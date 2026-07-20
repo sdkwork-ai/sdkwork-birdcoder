@@ -137,6 +137,7 @@ impl Default for SessionLineContext {
 
 #[derive(Clone, Default)]
 struct PendingCodexToolCall {
+    cancelled: bool,
     created_at: Option<String>,
     command: Option<String>,
     raw_tool_call: Option<Value>,
@@ -920,6 +921,12 @@ fn apply_codex_session_line(
                 }
                 Some("turn_aborted") => {
                     context.has_turn_aborted = true;
+                    let aborted_turn_id = read_codex_turn_id(payload);
+                    for pending in context.pending_tool_calls.values_mut() {
+                        if aborted_turn_id.is_none() || pending.turn_id == aborted_turn_id {
+                            pending.cancelled = true;
+                        }
+                    }
                     context.current_turn_id = None;
                 }
                 Some("error") => context.has_error = true,
@@ -1623,6 +1630,7 @@ fn register_pending_codex_tool_call(
             pending.turn_id = pending.turn_id.clone().or_else(|| turn_id.clone());
         })
         .or_insert(PendingCodexToolCall {
+            cancelled: false,
             created_at: Some(timestamp.to_owned()),
             command,
             raw_tool_call: Some(payload.clone()),
@@ -1647,7 +1655,6 @@ fn consume_pending_codex_tool_call(
 }
 
 fn flush_pending_codex_tool_calls(context: &mut SessionLineContext) {
-    let was_aborted = context.has_turn_aborted;
     let mut pending_tool_calls = std::mem::take(&mut context.pending_tool_calls)
         .into_iter()
         .collect::<Vec<_>>();
@@ -1658,6 +1665,7 @@ fn flush_pending_codex_tool_calls(context: &mut SessionLineContext) {
     });
 
     for (call_id, pending) in pending_tool_calls {
+        let was_aborted = pending.cancelled;
         let canonical_tool_name = canonicalize_codeengine_provider_tool_name(
             CODEX_ENGINE_ID,
             pending.tool_name.as_deref().unwrap_or("tool"),
@@ -3139,6 +3147,25 @@ mod tests {
                     "turn_id": "turn-3"
                 }
             }),
+            serde_json::json!({
+                "type": "event_msg",
+                "timestamp": "2026-04-20T10:00:12.000Z",
+                "payload": {
+                    "type": "task_started",
+                    "turn_id": "turn-4"
+                }
+            }),
+            serde_json::json!({
+                "type": "response_item",
+                "timestamp": "2026-04-20T10:00:13.000Z",
+                "payload": {
+                    "type": "custom_tool_call",
+                    "call_id": "active-pending-call-1",
+                    "name": "mcp__docs__read_resource",
+                    "input": "{\"uri\":\"docs://active\"}",
+                    "status": "completed"
+                }
+            }),
         ];
         let file_content = lines
             .iter()
@@ -3151,7 +3178,7 @@ mod tests {
             .expect("parse Codex history fixture")
             .expect("Codex history detail");
 
-        assert_eq!(detail.messages.len(), 8);
+        assert_eq!(detail.messages.len(), 9);
         let command_message = &detail.messages[0];
         assert_eq!(command_message.commands.as_ref().map(Vec::len), Some(1));
         assert_eq!(command_message.tool_calls.as_ref().map(Vec::len), Some(1));
@@ -3210,6 +3237,19 @@ mod tests {
         assert_eq!(
             pending_tool_message.tool_calls.as_ref().unwrap()[0]["status"],
             "cancelled"
+        );
+        let active_pending_tool_message = &detail.messages[8];
+        assert_eq!(
+            active_pending_tool_message.turn_id.as_deref(),
+            Some("turn-4")
+        );
+        assert_eq!(
+            active_pending_tool_message.tool_call_id.as_deref(),
+            Some("active-pending-call-1")
+        );
+        assert_eq!(
+            active_pending_tool_message.tool_calls.as_ref().unwrap()[0]["status"],
+            "in_progress"
         );
 
         let _ = fs::remove_file(file_path);
