@@ -334,6 +334,13 @@ assert.equal(
   'system.notice',
   'turn failures must become compact system notices instead of disappearing from the transcript.',
 );
+assert.equal(
+  resolveChatMessageView(failedTurnProjection[0]!).blocks.find(
+    (block) => block.type === 'markdown',
+  )?.noticeKind,
+  'failed',
+  'turn failures must retain a dedicated failure notice tone and their safe detail text.',
+);
 
 const claudeToolLifecycleProjection = mergeBirdCoderProjectionMessages({
   codingSessionId: 'session-claude-tools',
@@ -492,6 +499,7 @@ assert.deepEqual(claudeProgressCalls[0], {
   kind: 'command',
   status: 'success',
   output: 'typecheck passed',
+  resultBlocks: [{ type: 'text', text: 'typecheck passed' }],
   command: 'pnpm typecheck',
   durationMs: 2_500,
 });
@@ -657,6 +665,12 @@ const repeatedCommandsDisplay = projectChatTranscriptToolActivity([
   },
 ]);
 assert.equal(repeatedCommandsDisplay[0]?.commands?.length, 2);
+const repeatedCommandsView = resolveChatMessageView(repeatedCommandsDisplay[0]!);
+assert.equal(
+  repeatedCommandsView.blocks.find((block) => block.type === 'activity')?.commands.length,
+  2,
+  'The message view must preserve repeated command occurrences without provider call ids.',
+);
 
 const caseSensitiveFileDisplay = projectChatTranscriptToolActivity([
   {
@@ -937,7 +951,12 @@ const largeTranscript = Array.from({ length: 1_200 }, (_, index): ChatMessageVie
   createdAt: '2026-06-22T00:00:18.000Z',
 }));
 const projectionAccess = createIndexCountingMessages(largeTranscript);
-projectChatTranscriptToolActivity(projectionAccess.messages);
+const projectedLargeTranscript = projectChatTranscriptToolActivity(projectionAccess.messages);
+assert.equal(
+  projectedLargeTranscript,
+  projectionAccess.messages,
+  'A clean transcript must retain its array identity when no tool rows need folding.',
+);
 assert.ok(
   projectionAccess.readCount() < largeTranscript.length * 12,
   `turn projection must stay linear; observed ${projectionAccess.readCount()} indexed reads.`,

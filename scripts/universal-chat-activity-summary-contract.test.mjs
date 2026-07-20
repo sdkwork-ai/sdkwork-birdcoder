@@ -31,6 +31,14 @@ const toolCallCardSource = await readFile(
   resolve('apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-ui/src/components/chat/messages/contentBlocks/ToolCallCard.tsx'),
   'utf8',
 );
+const toolResultBlocksSource = await readFile(
+  resolve('apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-ui/src/components/chat/messages/contentBlocks/ToolResultBlocks.tsx'),
+  'utf8',
+);
+const replyMessageRenderersSource = await readFile(
+  resolve('apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-ui/src/components/chat/messages/renderers/ReplyMessageRenderers.tsx'),
+  'utf8',
+);
 
 const englishChatSource = await readFile(
   resolve('apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-i18n/src/locales/en/chat.ts'),
@@ -230,6 +238,47 @@ assert.match(
   toolCallCardSource,
   /\[call\.arguments, call\.command, call\.target, call\.title\]/,
   'Tool-call summaries must refresh when a streaming provider updates only the semantic title.',
+);
+
+assert.doesNotMatch(
+  activitySummarySource.match(/export function resolveActivityFileChangeKey[\s\S]*?\n\}/)?.[0] ?? '',
+  /fileChange\.(?:diff|content|originalContent|additions|deletions)/,
+  'File disclosure identity must not change while provider diff content is streaming.',
+);
+assert.match(
+  universalChatSource,
+  /expandedDisclosureKeys[\s\S]*toggleDisclosure[\s\S]*setExpandedDisclosureKeys\(new Set\(\)\)/,
+  'Transcript-owned disclosure state must survive row virtualization and reset on session changes.',
+);
+assert.match(
+  toolCallCardSource,
+  /isExpanded: boolean;[\s\S]*onToggle: \(\) => void;/,
+  'Tool details must use controlled transcript-owned expansion state.',
+);
+assert.match(
+  toolResultBlocksSource,
+  /data-chat-tool-result-blocks="true"/,
+  'Structured tool results must render through dedicated rich result blocks instead of raw JSON.',
+);
+assert.match(
+  toolResultBlocksSource,
+  /block\.type === 'image'[\s\S]*block\.type === 'audio'[\s\S]*block\.type === 'diff'/,
+  'Rich tool result rendering must cover media and diff result kinds.',
+);
+assert.doesNotMatch(
+  activitySummarySource,
+  /checkpointSavedLabel/,
+  'File activity must not claim that a checkpoint was saved without persistence evidence.',
+);
+assert.match(
+  replyMessageRenderersSource,
+  /group-focus-within:opacity-100[\s\S]*\[@media\(hover:none\)\]:opacity-100/,
+  'Message actions must remain discoverable for keyboard and touch users.',
+);
+assert.match(
+  universalChatSource,
+  /aria-label=\{t\('chat\.transcriptRegion'\)\}[\s\S]*role="region"[\s\S]*tabIndex=\{0\}/,
+  'The transcript scroll surface must be a named, keyboard-focusable region.',
 );
 
 assert.match(

@@ -13,12 +13,15 @@ export interface ToolResultBlocksProps {
 
 const MAX_RICH_RESULT_TEXT_CHARACTERS = 24_000;
 
-function buildRichResultTextPreview(text: string): string {
+function buildRichResultTextPreview(text: string): { isTruncated: boolean; text: string } {
   if (text.length <= MAX_RICH_RESULT_TEXT_CHARACTERS) {
-    return text;
+    return { isTruncated: false, text };
   }
   const tailLength = 6_000;
-  return `${text.slice(0, MAX_RICH_RESULT_TEXT_CHARACTERS - tailLength)}\n\n...\n\n${text.slice(-tailLength)}`;
+  return {
+    isTruncated: true,
+    text: `${text.slice(0, MAX_RICH_RESULT_TEXT_CHARACTERS - tailLength)}\n\n...\n\n${text.slice(-tailLength)}`,
+  };
 }
 
 function isSafeExternalUrl(value: string): boolean {
@@ -39,17 +42,33 @@ function renderToolResultBlock(
 ) {
   const key = `${block.type}:${index}`;
   if (block.type === 'text') {
+    const preview = buildRichResultTextPreview(block.text);
     return (
-      <pre key={key} className={`overflow-auto rounded-md bg-black/20 p-2 font-mono text-[11px] leading-relaxed text-gray-300 whitespace-pre-wrap break-words custom-scrollbar ${compact ? 'max-h-40' : 'max-h-64'}`}>
-        {buildRichResultTextPreview(block.text)}
-      </pre>
+      <div key={key}>
+        <pre className={`overflow-auto rounded-md bg-black/20 p-2 font-mono text-[11px] leading-relaxed text-gray-300 whitespace-pre-wrap break-words custom-scrollbar ${compact ? 'max-h-40' : 'max-h-64'}`}>
+          {preview.text}
+        </pre>
+        {preview.isTruncated ? (
+          <div className="pt-1 text-[10px] text-gray-600">
+            {t?.('chat.toolDetailTruncated') ?? 'Preview truncated. Copy to inspect the full content.'}
+          </div>
+        ) : null}
+      </div>
     );
   }
   if (block.type === 'error') {
+    const preview = buildRichResultTextPreview(block.message);
     return (
-      <div key={key} className="flex items-start gap-2 rounded-md bg-red-500/10 px-2 py-2 text-[11px] text-red-200" role="alert">
-        <AlertCircle size={13} className="mt-0.5 shrink-0" aria-hidden="true" />
-        <span className="min-w-0 whitespace-pre-wrap break-words">{block.message}</span>
+      <div key={key}>
+        <div className={`flex items-start gap-2 overflow-auto rounded-md bg-red-500/10 px-2 py-2 text-[11px] text-red-200 custom-scrollbar ${compact ? 'max-h-40' : 'max-h-64'}`} role="alert">
+          <AlertCircle size={13} className="mt-0.5 shrink-0" aria-hidden="true" />
+          <span className="min-w-0 whitespace-pre-wrap break-words">{preview.text}</span>
+        </div>
+        {preview.isTruncated ? (
+          <div className="pt-1 text-[10px] text-gray-600">
+            {t?.('chat.toolDetailTruncated') ?? 'Preview truncated. Copy to inspect the full content.'}
+          </div>
+        ) : null}
       </div>
     );
   }
@@ -90,7 +109,7 @@ function renderToolResultBlock(
         </div>
         {block.text ? (
           <pre className="mt-1.5 max-h-48 overflow-auto whitespace-pre-wrap break-words font-mono text-[11px] text-gray-400 custom-scrollbar">
-            {buildRichResultTextPreview(block.text)}
+            {buildRichResultTextPreview(block.text).text}
           </pre>
         ) : (
           <div className="mt-0.5 truncate font-mono text-[10px] text-gray-600" title={block.uri}>{block.uri}</div>
@@ -126,7 +145,7 @@ function renderToolResultBlock(
       <div key={key} className="rounded-md bg-black/20 p-2">
         {block.path ? <div className="mb-1 truncate font-mono text-[10px] text-gray-500">{block.path}</div> : null}
         <pre className={`overflow-auto whitespace-pre-wrap break-words font-mono text-[11px] leading-relaxed text-gray-300 custom-scrollbar ${compact ? 'max-h-40' : 'max-h-64'}`}>
-          {buildRichResultTextPreview(block.content)}
+          {buildRichResultTextPreview(block.content).text}
         </pre>
       </div>
     );

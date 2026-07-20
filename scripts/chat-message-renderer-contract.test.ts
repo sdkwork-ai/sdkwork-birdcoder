@@ -43,6 +43,13 @@ const toolCallCardSource = readFileSync(
   ),
   'utf8',
 );
+const toolResultBlocksSource = readFileSync(
+  new URL(
+    '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-ui/src/components/chat/messages/contentBlocks/ToolResultBlocks.tsx',
+    import.meta.url,
+  ),
+  'utf8',
+);
 const contentBlocksSource = readFileSync(
   new URL(
     '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-ui/src/components/chat/messages/contentBlocks/ContentBlockList.tsx',
@@ -117,6 +124,16 @@ assert.match(
   toolCallCardSource,
   /data-chat-tool-kind=\{call\.kind \?\? 'other'\}/,
   'tool call rows must expose their normalized semantic kind instead of provider-specific JSON.',
+);
+assert.match(
+  toolCallCardSource,
+  /<ToolResultBlocks blocks=\{call\.resultBlocks\}/,
+  'Structured provider results must delegate to the rich result-block renderer.',
+);
+assert.match(
+  toolResultBlocksSource,
+  /block\.type === 'link'[\s\S]*block\.type === 'resource'[\s\S]*block\.type === 'image'/,
+  'MCP links, resources, and media must remain semantic instead of degrading into JSON text.',
 );
 assert.match(
   toolCallCardSource,

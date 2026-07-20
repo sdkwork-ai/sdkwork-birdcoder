@@ -252,7 +252,7 @@ export function projectChatTranscriptToolActivity<TMessage extends ChatMessageVi
   options: ProjectChatTranscriptToolActivityOptions = {},
 ): TMessage[] {
   if (messages.length < 2) {
-    return [...messages];
+    return messages as TMessage[];
   }
 
   const messageIndexesByTurnId = new Map<string, number[]>();
@@ -273,6 +273,7 @@ export function projectChatTranscriptToolActivity<TMessage extends ChatMessageVi
 
   const projectedMessages = [...messages];
   const suppressedIndexes = new Set<number>();
+  let didProjectActivity = false;
   for (const [turnId, targetIndex] of replyTargetByTurnId.entries()) {
     const turnMessageIndexes = messageIndexesByTurnId.get(turnId) ?? [];
     const turnEntries = collectTranscriptTurnToolEntries(
@@ -340,10 +341,11 @@ export function projectChatTranscriptToolActivity<TMessage extends ChatMessageVi
       ...(fileChangesByPath.size > 0 ? { fileChanges: [...fileChangesByPath.values()] } : {}),
       ...(latestTaskProgress ? { taskProgress: latestTaskProgress } : {}),
     };
+    didProjectActivity = true;
   }
 
   return suppressedIndexes.size === 0
-    ? projectedMessages
+    ? didProjectActivity ? projectedMessages : messages as TMessage[]
     : projectedMessages.filter((_, index) => !suppressedIndexes.has(index));
 }
 

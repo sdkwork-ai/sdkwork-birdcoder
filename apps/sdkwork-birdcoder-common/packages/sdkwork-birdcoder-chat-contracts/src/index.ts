@@ -59,7 +59,13 @@ export type BirdCoderChatMessageToolResultBlock =
       text: string;
     }
   | {
-      type: 'image' | 'audio';
+      type: 'image';
+      source: string;
+      mimeType?: string;
+      title?: string;
+    }
+  | {
+      type: 'audio';
       source: string;
       mimeType?: string;
       title?: string;

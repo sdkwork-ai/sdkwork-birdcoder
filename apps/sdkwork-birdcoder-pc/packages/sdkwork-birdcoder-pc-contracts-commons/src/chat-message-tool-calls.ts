@@ -310,9 +310,11 @@ function adaptClaudeToolRecord(record: Record<string, unknown>): Record<string, 
       id: source.tool_use_id ?? source.id,
       name: readNonEmptyString(source.name) || resultToolNameByType[type] || 'tool',
       output: source.output ?? source.content,
-      status: source.is_error === true || hasStructuredToolError(source.content)
-        ? 'error'
-        : 'completed',
+      status: source.status ?? (
+        source.is_error === true || hasStructuredToolError(source.content)
+          ? 'error'
+          : 'completed'
+      ),
     };
   }
 
@@ -921,8 +923,9 @@ function projectToolResultValue(
     return;
   }
   if ('content' in record) {
+    const previousBlockCount = blocks.length;
     projectToolResultValue(record.content, blocks, visited);
-    if (blocks.length > 0) {
+    if (blocks.length > previousBlockCount) {
       return;
     }
   }

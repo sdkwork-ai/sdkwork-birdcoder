@@ -5,11 +5,15 @@ const universalChatSource = fs.readFileSync(
   new URL('../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-ui/src/components/UniversalChat.tsx', import.meta.url),
   'utf8',
 );
+const messageActionsSource = fs.readFileSync(
+  new URL('../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-ui/src/components/chat/messages/messageActions.ts', import.meta.url),
+  'utf8',
+);
 
 assert.match(
-  universalChatSource,
-  /function buildVisibleMessageActionTargets\(/,
-  'UniversalChat must build message action targets only for the virtualized visible transcript window.',
+  messageActionsSource,
+  /export function buildVisibleMessageActionTargets\(/,
+  'The message-action module must build targets only for the virtualized visible transcript window.',
 );
 
 assert.doesNotMatch(
@@ -24,8 +28,8 @@ assert.match(
   'UniversalChat must derive action targets from renderedMessages plus the virtualized visible range, not from the full progressive window.',
 );
 
-const visibleActionTargetBuilder = universalChatSource.match(
-  /function buildVisibleMessageActionTargets\([\s\S]*?\n\}/,
+const visibleActionTargetBuilder = messageActionsSource.match(
+  /export function buildVisibleMessageActionTargets\([\s\S]*?\n\}/,
 )?.[0];
 assert.ok(
   visibleActionTargetBuilder,
@@ -43,9 +47,9 @@ assert.doesNotMatch(
 );
 
 assert.match(
-  universalChatSource,
-  /function resolveMessageActionTargetMessageIds\(/,
-  'UniversalChat must resolve grouped delete ids lazily from the current rendered message window.',
+  messageActionsSource,
+  /export function resolveMessageActionTargetMessageIds\(/,
+  'The message-action module must resolve grouped delete ids lazily from the current rendered message window.',
 );
 
 console.log('universal chat visible action targets performance contract passed.');

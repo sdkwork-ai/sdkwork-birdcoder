@@ -186,7 +186,7 @@ function resolveProtocolNoticeKind(
   }
 
   const noticeKind = (message.metadata as Record<string, unknown>).noticeKind;
-  return ['blocked', 'cancelled', 'compression', 'retry', 'stopped'].includes(
+  return ['blocked', 'cancelled', 'compression', 'failed', 'retry', 'stopped'].includes(
     typeof noticeKind === 'string' ? noticeKind : '',
   )
     ? noticeKind as BirdCoderProtocolNoticeKind
@@ -261,10 +261,12 @@ function buildChatMessageContentBlocks(
     return command ? [command] : [];
   });
   const commandsByKey = new Map<string, NonNullable<ChatMessageViewSource['commands']>[number]>();
-  for (const commandValue of [
+  const commandValues = [
     ...projectedCommands,
     ...(activitySummary?.commands ?? filterStructuredCommands(message)),
-  ]) {
+  ];
+  for (let commandIndex = 0; commandIndex < commandValues.length; commandIndex += 1) {
+    const commandValue = commandValues[commandIndex];
     if (typeof commandValue !== 'object' || commandValue === null) {
       continue;
     }
@@ -279,8 +281,7 @@ function buildChatMessageContentBlocks(
     const toolCallId = typeof command.toolCallId === 'string'
       ? command.toolCallId.trim()
       : '';
-    const commandKind = typeof command.kind === 'string' ? command.kind : '';
-    const key = toolCallId || `${command.command.trim()}\u0001${commandKind}`;
+    const key = toolCallId || `command-occurrence-${commandIndex}`;
     commandsByKey.set(key, commandValue);
   }
   const commands = [...commandsByKey.values()];

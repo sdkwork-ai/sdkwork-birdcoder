@@ -112,8 +112,8 @@ assert.doesNotMatch(
 
 assert.match(
   universalChatSource,
-  /const normalizedMessages = useMemo\(\s*\(\) => resolveVisibleSessionMessages\(messages, normalizedSessionId\),\s*\[messages, normalizedSessionId\],\s*\);/s,
-  'UniversalChat must normalize visible message collections through the active session-aware helper while preserving stable references for clean inputs.',
+  /const normalizedMessages = useMemo\(\s*\(\) => projectChatTranscriptToolActivity\(\s*resolveVisibleSessionMessages\(messages, normalizedSessionId\),\s*\{ engineId: selectedEngineId \},\s*\),\s*\[messages, normalizedSessionId, selectedEngineId\],\s*\);/s,
+  'UniversalChat must compose session filtering with provider-neutral tool projection in one memoized transcript boundary.',
 );
 
 console.log('universal chat transcript performance contract passed.');

@@ -439,7 +439,7 @@ const UniversalChatTranscript = memo(function UniversalChatTranscript({
     useVirtualizedTranscriptWindow(
       renderedMessages,
       scrollContainerRef,
-      isActive && !hasEarlierMessages,
+      isActive,
       `${sessionId}\u0001${layout}\u0001${engineId ?? ''}`,
       layout,
       engineId,

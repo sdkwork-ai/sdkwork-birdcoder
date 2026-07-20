@@ -184,6 +184,43 @@ assert.equal(claudeServerToolResult?.id, 'srvtoolu-search-1');
 assert.equal(claudeServerToolResult?.status, 'success');
 assert.equal(claudeServerToolResult?.kind, 'web');
 assert.match(claudeServerToolResult?.output ?? '', /BirdCoder/);
+assert.deepEqual(claudeServerToolResult?.resultBlocks, [{
+  type: 'link',
+  url: 'https://example.test',
+  title: 'BirdCoder',
+}]);
+
+const codexRichMcpResult = projectChatMessageToolCall({
+  type: 'mcp_tool_call',
+  id: 'mcp-rich-1',
+  server: 'assets',
+  tool: 'inspect',
+  status: 'completed',
+  result: {
+    content: [
+      { type: 'text', text: 'Inspection complete' },
+      { type: 'image', data: 'aGVsbG8=', mimeType: 'image/png' },
+      {
+        type: 'resource',
+        resource: {
+          uri: 'file:///workspace/report.txt',
+          name: 'report.txt',
+          mimeType: 'text/plain',
+          text: 'Report content',
+        },
+      },
+    ],
+  },
+}, 0, { engineId: 'codex' });
+assert.deepEqual(codexRichMcpResult?.resultBlocks?.map((block) => block.type), [
+  'text',
+  'image',
+  'resource',
+]);
+assert.equal(codexRichMcpResult?.resultBlocks?.[1]?.type, 'image');
+if (codexRichMcpResult?.resultBlocks?.[1]?.type === 'image') {
+  assert.equal(codexRichMcpResult.resultBlocks[1].source, 'data:image/png;base64,aGVsbG8=');
+}
 
 const openCodeTimedToolPart = projectChatMessageToolCall({
   part: {

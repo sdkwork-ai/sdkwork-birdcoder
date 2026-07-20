@@ -154,6 +154,12 @@ async function openMessageFixture(page: Page) {
     { length: 1_300 },
     (_, index) => `provider diagnostic ${String(index + 1).padStart(4, '0')}: permission denied while indexing generated output`,
   ).join('\n');
+  const longCommandOutput = Array.from(
+    { length: 80 },
+    (_, index) => index === 79
+      ? 'line 0080: performance contract failed at the final assertion'
+      : `line ${String(index + 1).padStart(4, '0')}: verification output`,
+  ).join('\n');
   const events = [
     createEvent('event-turn-started', 1, 'turn.started', { runtimeStatus: 'streaming' }),
     createEvent('event-user', 2, 'message.completed', {
@@ -168,22 +174,31 @@ async function openMessageFixture(page: Page) {
         name: 'mcp__linear__list_issues',
         input: { team: 'SDK' },
       }],
-      toolCalls: [{
-        type: 'tool_use',
-        id: 'toolu-mcp-1',
-        name: 'mcp__linear__list_issues',
-        input: { team: 'SDK' },
-      }],
     }),
     createEvent('event-mcp-result', 4, 'message.completed', {
       role: 'tool',
-      content: '{"issues":[{"id":"SDK-101"}]}',
-      toolCallId: 'toolu-mcp-1',
-      toolCalls: [{
+      content: [{
         type: 'tool_result',
         tool_use_id: 'toolu-mcp-1',
-        content: '{"issues":[{"id":"SDK-101"}]}',
+        content: [
+          { type: 'text', text: 'Found one issue.' },
+          {
+            type: 'resource',
+            resource: {
+              uri: 'https://example.test/issues/SDK-101',
+              name: 'SDK-101',
+              mimeType: 'application/json',
+              text: '{"status":"open"}',
+            },
+          },
+          {
+            type: 'link',
+            title: 'Open SDK-101',
+            url: 'https://example.test/issues/SDK-101',
+          },
+        ],
       }],
+      toolCallId: 'toolu-mcp-1',
     }),
     createEvent('event-search-request', 5, 'message.completed', {
       role: 'assistant',
@@ -193,23 +208,16 @@ async function openMessageFixture(page: Page) {
         name: 'Grep',
         input: { pattern: 'ToolCall', path: 'src' },
       }],
-      toolCalls: [{
-        type: 'tool_use',
-        id: 'toolu-search-1',
-        name: 'Grep',
-        input: { pattern: 'ToolCall', path: 'src' },
-      }],
     }),
     createEvent('event-search-result', 6, 'message.completed', {
       role: 'tool',
-      content: longFailureOutput,
-      toolCallId: 'toolu-search-1',
-      toolCalls: [{
+      content: [{
         type: 'tool_result',
         tool_use_id: 'toolu-search-1',
         content: longFailureOutput,
         is_error: true,
       }],
+      toolCallId: 'toolu-search-1',
     }),
     createEvent('event-final', 7, 'message.completed', {
       role: 'assistant',
@@ -217,15 +225,6 @@ async function openMessageFixture(page: Page) {
         { type: 'chat_compressed', value: { originalTokenCount: 32_000 } },
         { type: 'text', text: 'Provider messages are aligned and the verification results are ready.' },
       ],
-      toolCalls: [{
-        type: 'mcp_tool_call',
-        id: 'toolu-mcp-1',
-        server: 'linear',
-        tool: 'list_issues',
-        arguments: { team: 'SDK' },
-        status: 'completed',
-        result: { issues: [{ id: 'SDK-101' }] },
-      }],
       commands: [
         {
           command: 'pnpm --filter @sdkwork/birdcoder-pc-ui typecheck',
@@ -236,8 +235,8 @@ async function openMessageFixture(page: Page) {
         },
         {
           command: 'pnpm check:universal-chat-rendering-performance',
-          status: 'success',
-          output: 'Universal chat rendering performance contract passed.',
+          status: 'error',
+          output: longCommandOutput,
           kind: 'command',
           toolCallId: 'command-performance',
         },
@@ -346,11 +345,16 @@ test('provider activity is compact, expandable, responsive, and opens files in t
   await activity.locator(':scope > button').click();
   await expect(activity.locator('[data-chat-command-row="inline"]')).toHaveCount(2);
   await expect(activity.locator('[data-chat-file-change-row="inline"]')).toHaveCount(2);
+  await expect(activity.getByText('1 failed', { exact: true })).toBeVisible();
+  await expect(activity.getByText('Changes applied', { exact: true })).toBeVisible();
+  await expect(activity.getByText('Checkpoint saved', { exact: true })).toHaveCount(0);
 
   const commandDisclosures = activity.locator('[data-chat-command-disclosure="true"]');
   await commandDisclosures.nth(0).click();
   await commandDisclosures.nth(1).click();
   await expect(activity.locator('[data-chat-command-details="true"]')).toHaveCount(2);
+  await expect(activity.getByText('performance contract failed at the final assertion')).toBeVisible();
+  await expect(activity.getByText(/lines omitted/)).toBeVisible();
 
   const fileDisclosures = activity.locator('[data-chat-file-disclosure="true"]');
   await fileDisclosures.nth(0).click();
@@ -361,6 +365,16 @@ test('provider activity is compact, expandable, responsive, and opens files in t
   await failedSearch.locator('[data-chat-tool-disclosure="true"]').click();
   await expect(failedSearch.getByText(/Preview truncated/)).toBeVisible();
   await expect(failedSearch.locator('pre').last()).toHaveCSS('overflow-y', 'auto');
+
+  const mcpTool = page.locator('[data-chat-tool-kind="mcp"]');
+  await mcpTool.locator('[data-chat-tool-disclosure="true"]').click();
+  await expect(mcpTool.locator('[data-chat-tool-result-blocks="true"]')).toBeVisible();
+  await expect(mcpTool.getByText('SDK-101', { exact: true })).toBeVisible();
+  await expect(mcpTool.getByRole('link', { name: /Open SDK-101/ })).toBeVisible();
+
+  const transcriptRegion = page.getByRole('region', { name: 'Conversation messages' });
+  await transcriptRegion.focus();
+  await expect(transcriptRegion).toBeFocused();
 
   await page.screenshot({
     path: testInfo.outputPath('provider-message-desktop-expanded.png'),
@@ -374,9 +388,8 @@ test('provider activity is compact, expandable, responsive, and opens files in t
 
   await page.getByRole('button', { name: 'AI Mode' }).click();
   await expect(activity).toBeVisible();
-  if (await activity.locator(':scope > button').getAttribute('aria-expanded') !== 'true') {
-    await activity.locator(':scope > button').click();
-  }
+  await expect(activity.locator(':scope > button')).toHaveAttribute('aria-expanded', 'true');
+  await expect(activity.locator('[data-chat-command-details="true"]')).toHaveCount(2);
   await activity.locator('[data-chat-file-diff="true"]').nth(1).click();
   await expect(page.getByText('CommercialConversationMessageList.tsx', { exact: true }).first()).toBeVisible();
   await expect(page.getByText('Diff:', { exact: true })).toBeVisible();
@@ -387,6 +400,7 @@ test('provider activity is compact, expandable, responsive, and opens files in t
   if (await activity.locator(':scope > button').getAttribute('aria-expanded') !== 'true') {
     await activity.locator(':scope > button').click();
   }
+  await expect(activity.getByText('Failed', { exact: true }).last()).toBeVisible();
   await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
   for (const row of await activity.locator('[data-chat-file-change-row="inline"]').all()) {
     const box = await row.boundingBox();
