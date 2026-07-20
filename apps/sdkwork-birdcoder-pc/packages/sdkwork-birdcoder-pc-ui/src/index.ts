@@ -31,6 +31,7 @@ export type {
 export { buildBirdCoderEditorModelPath } from './components/editorModelPath';
 
 export { DeferredDiffEditor } from './components/DeferredDiffEditor';
+export { FileChangeDiffViewer } from './components/FileChangeDiffViewer';
 export { DeferredRunConfigurationDialog, DeferredRunTaskDialog } from './components/DeferredRunDialogs';
 
 export { DeferredUniversalChat } from './components/DeferredUniversalChat';

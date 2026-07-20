@@ -269,6 +269,9 @@ fn build_opencode_message_record(
         .cloned()
         .unwrap_or_default();
     let commands = extract_opencode_message_commands(&parts);
+    let tool_calls = extract_opencode_message_tool_calls(&parts);
+    let file_changes = extract_opencode_message_file_changes(info, &parts);
+    let task_progress = extract_opencode_message_task_progress(&parts);
     let content = extract_opencode_message_content(&parts, commands.as_slice());
     let metadata = build_opencode_message_metadata(info);
 
@@ -286,15 +289,202 @@ fn build_opencode_message_record(
         } else {
             Some(commands)
         },
-        tool_calls: None,
+        tool_calls: if tool_calls.is_empty() {
+            None
+        } else {
+            Some(tool_calls)
+        },
         tool_call_id: None,
-        file_changes: None,
-        task_progress: None,
+        file_changes: if file_changes.is_empty() {
+            None
+        } else {
+            Some(file_changes)
+        },
+        task_progress,
         metadata,
         created_at: timestamp_from_value_millis(
             info.get("time").and_then(|time| time.get("created")),
         )
         .unwrap_or_else(|| timestamp_from_millis(0)),
+    })
+}
+
+fn extract_opencode_message_tool_calls(parts: &[Value]) -> Vec<Value> {
+    parts
+        .iter()
+        .filter(|part| {
+            matches!(
+                part.get("type").and_then(Value::as_str),
+                Some("tool" | "subtask")
+            )
+        })
+        .cloned()
+        .collect()
+}
+
+fn extract_opencode_message_file_changes(info: &Value, parts: &[Value]) -> Vec<Value> {
+    let mut file_changes_by_path = BTreeMap::<String, Value>::new();
+
+    for part in parts {
+        match part.get("type").and_then(Value::as_str) {
+            Some("patch") => {
+                for path in part
+                    .get("files")
+                    .and_then(Value::as_array)
+                    .into_iter()
+                    .flatten()
+                    .filter_map(|value| normalize_path_string(Some(value)))
+                {
+                    file_changes_by_path.entry(path.clone()).or_insert_with(|| {
+                        build_opencode_file_change(path.as_str(), None, None, None)
+                    });
+                }
+            }
+            Some("tool") => {
+                let tool_name = normalize_value_string(part.get("tool"))
+                    .unwrap_or_else(|| "tool".to_owned());
+                if map_codeengine_tool_kind(tool_name.as_str()) != "file_change" {
+                    continue;
+                }
+                let state = part.get("state");
+                let input = state.and_then(|value| value.get("input"));
+                let path = ["path", "filePath", "file_path", "filename"]
+                    .into_iter()
+                    .find_map(|field| normalize_path_string(input.and_then(|value| value.get(field))));
+                let Some(path) = path else {
+                    continue;
+                };
+                let metadata = state.and_then(|value| value.get("metadata"));
+                let diff = ["diff", "patch", "unifiedDiff", "unified_diff"]
+                    .into_iter()
+                    .find_map(|field| {
+                        normalize_value_string(metadata.and_then(|value| value.get(field)))
+                            .or_else(|| {
+                                normalize_value_string(state.and_then(|value| value.get(field)))
+                            })
+                    });
+                file_changes_by_path.insert(
+                    path.clone(),
+                    build_opencode_file_change(path.as_str(), diff.as_deref(), None, None),
+                );
+            }
+            _ => {}
+        }
+    }
+
+    for diff in info
+        .get("summary")
+        .and_then(|value| value.get("diffs"))
+        .and_then(Value::as_array)
+        .into_iter()
+        .flatten()
+    {
+        let path = ["path", "file", "filename"]
+            .into_iter()
+            .find_map(|field| normalize_path_string(diff.get(field)));
+        let Some(path) = path else {
+            continue;
+        };
+        let unified_diff = ["diff", "patch", "unifiedDiff", "unified_diff"]
+            .into_iter()
+            .find_map(|field| normalize_value_string(diff.get(field)));
+        file_changes_by_path.insert(
+            path.clone(),
+            build_opencode_file_change(
+                path.as_str(),
+                unified_diff.as_deref(),
+                read_opencode_non_negative_integer(diff.get("additions")),
+                read_opencode_non_negative_integer(diff.get("deletions")),
+            ),
+        );
+    }
+
+    file_changes_by_path.into_values().collect()
+}
+
+fn build_opencode_file_change(
+    path: &str,
+    diff: Option<&str>,
+    additions: Option<u64>,
+    deletions: Option<u64>,
+) -> Value {
+    let (derived_additions, derived_deletions) = diff
+        .map(count_opencode_unified_diff_lines)
+        .unwrap_or_default();
+    let mut file_change = serde_json::Map::new();
+    file_change.insert(
+        "path".to_owned(),
+        Value::String(path.replace('\\', "/")),
+    );
+    file_change.insert(
+        "additions".to_owned(),
+        Value::from(additions.unwrap_or(derived_additions)),
+    );
+    file_change.insert(
+        "deletions".to_owned(),
+        Value::from(deletions.unwrap_or(derived_deletions)),
+    );
+    if let Some(diff) = diff {
+        file_change.insert("diff".to_owned(), Value::String(diff.to_owned()));
+    }
+    Value::Object(file_change)
+}
+
+fn count_opencode_unified_diff_lines(diff: &str) -> (u64, u64) {
+    let mut additions = 0_u64;
+    let mut deletions = 0_u64;
+    for line in diff.replace("\r\n", "\n").replace('\r', "\n").lines() {
+        if line.starts_with("+++") || line.starts_with("---") {
+            continue;
+        }
+        if line.starts_with('+') {
+            additions += 1;
+        } else if line.starts_with('-') {
+            deletions += 1;
+        }
+    }
+    (additions, deletions)
+}
+
+fn read_opencode_non_negative_integer(value: Option<&Value>) -> Option<u64> {
+    match value {
+        Some(Value::Number(value)) => value
+            .as_u64()
+            .or_else(|| value.as_i64().map(|value| value.max(0) as u64)),
+        Some(Value::String(value)) => value.trim().parse::<u64>().ok(),
+        _ => None,
+    }
+}
+
+fn extract_opencode_message_task_progress(parts: &[Value]) -> Option<Value> {
+    parts.iter().rev().find_map(|part| {
+        if part.get("type").and_then(Value::as_str) != Some("tool") {
+            return None;
+        }
+        let tool_name = normalize_value_string(part.get("tool"))?;
+        if map_codeengine_tool_kind(tool_name.as_str()) != "task" {
+            return None;
+        }
+        let input = part.get("state")?.get("input")?;
+        let items = input
+            .get("todos")
+            .or_else(|| input.get("items"))
+            .or_else(|| input.get("tasks"))?
+            .as_array()?;
+        let completed = items
+            .iter()
+            .filter(|item| {
+                item.get("completed").and_then(Value::as_bool) == Some(true)
+                    || matches!(
+                        normalize_value_string(item.get("status")).as_deref(),
+                        Some("completed" | "done" | "success")
+                    )
+            })
+            .count();
+        Some(serde_json::json!({
+            "total": items.len(),
+            "completed": completed,
+        }))
     })
 }
 
@@ -391,8 +581,7 @@ fn extract_opencode_message_commands(parts: &[Value]) -> Vec<CodeEngineSessionCo
             Some(CodeEngineSessionCommandRecord {
                 command,
                 status: command_status.clone(),
-                output: normalize_value_string(state.and_then(|value| value.get("output")))
-                    .or_else(|| normalize_value_string(state.and_then(|value| value.get("error")))),
+                output: extract_opencode_tool_state_output(state),
                 kind: Some(kind.to_owned()),
                 tool_name: Some(canonical_tool_name),
                 tool_call_id: normalize_value_string(part.get("callID"))
@@ -403,6 +592,24 @@ fn extract_opencode_message_commands(parts: &[Value]) -> Vec<CodeEngineSessionCo
             })
         })
         .collect()
+}
+
+fn extract_opencode_tool_state_output(state: Option<&Value>) -> Option<String> {
+    let state = state?;
+    let metadata = state.get("metadata");
+    let interrupted_output = if metadata
+        .and_then(|value| value.get("interrupted"))
+        .and_then(Value::as_bool)
+        == Some(true)
+    {
+        normalize_value_string(metadata.and_then(|value| value.get("output")))
+    } else {
+        None
+    };
+
+    interrupted_output
+        .or_else(|| normalize_value_string(state.get("output")))
+        .or_else(|| normalize_value_string(state.get("error")))
 }
 
 fn build_opencode_message_metadata(info: &Value) -> Option<BTreeMap<String, String>> {
@@ -526,8 +733,9 @@ mod tests {
     use crate::map_codeengine_tool_command_status;
 
     use super::{
-        build_opencode_session_summary_record, extract_opencode_message_commands,
-        extract_opencode_session_model_id, load_opencode_session_model_id,
+        build_opencode_message_record, build_opencode_session_summary_record,
+        extract_opencode_message_commands, extract_opencode_session_model_id,
+        load_opencode_session_model_id,
     };
 
     #[test]
@@ -890,5 +1098,114 @@ mod tests {
             Some("failed")
         );
         assert_eq!(rejected_commands[0].requires_approval, Some(false));
+    }
+
+    #[test]
+    fn opencode_history_preserves_interrupted_output_attachments_and_file_changes() {
+        let message = json!({
+            "info": {
+                "id": "message-history-1",
+                "role": "assistant",
+                "time": { "created": 1_710_000_000_000_i64 },
+                "summary": {
+                    "diffs": [
+                        {
+                            "path": "src/App.tsx",
+                            "additions": 3,
+                            "deletions": 1,
+                            "diff": "--- a/src/App.tsx\n+++ b/src/App.tsx\n-old\n+new\n+line\n+tail"
+                        }
+                    ]
+                }
+            },
+            "parts": [
+                {
+                    "id": "part-interrupted",
+                    "type": "tool",
+                    "callID": "call-interrupted",
+                    "tool": "bash",
+                    "state": {
+                        "status": "error",
+                        "input": { "command": "pnpm test" },
+                        "error": "Tool execution aborted",
+                        "metadata": {
+                            "interrupted": true,
+                            "output": "partial test output"
+                        },
+                        "time": { "start": 1000, "end": 1250 }
+                    }
+                },
+                {
+                    "id": "part-write",
+                    "type": "tool",
+                    "callID": "call-write",
+                    "tool": "write_file",
+                    "state": {
+                        "status": "completed",
+                        "input": { "path": "src/App.tsx" },
+                        "output": "updated",
+                        "title": "Write src/App.tsx",
+                        "metadata": {},
+                        "time": { "start": 1300, "end": 1500 },
+                        "attachments": [
+                            {
+                                "type": "file",
+                                "mime": "image/png",
+                                "filename": "preview.png",
+                                "url": "data:image/png;base64,aGVsbG8="
+                            }
+                        ]
+                    }
+                },
+                {
+                    "id": "part-patch",
+                    "type": "patch",
+                    "hash": "patch-1",
+                    "files": ["src/App.tsx", "src/new.ts"]
+                },
+                {
+                    "id": "part-todo",
+                    "type": "tool",
+                    "callID": "call-todo",
+                    "tool": "todowrite",
+                    "state": {
+                        "status": "completed",
+                        "input": {
+                            "todos": [
+                                { "content": "Inspect", "status": "completed" },
+                                { "content": "Verify", "status": "pending" }
+                            ]
+                        },
+                        "output": "updated",
+                        "title": "Update todos",
+                        "metadata": {},
+                        "time": { "start": 1600, "end": 1700 }
+                    }
+                }
+            ]
+        });
+
+        let record = build_opencode_message_record("opencode:session-history", &message)
+            .expect("build OpenCode history message");
+
+        let tool_calls = record.tool_calls.expect("preserve native tool calls");
+        assert_eq!(tool_calls.len(), 3);
+        assert_eq!(
+            tool_calls[0]["state"]["metadata"]["output"],
+            "partial test output"
+        );
+        assert_eq!(
+            tool_calls[1]["state"]["attachments"][0]["filename"],
+            "preview.png"
+        );
+        let commands = record.commands.expect("project OpenCode commands");
+        assert_eq!(commands[0].output.as_deref(), Some("partial test output"));
+        let file_changes = record.file_changes.expect("project file changes");
+        assert_eq!(file_changes.len(), 2);
+        assert_eq!(file_changes[0]["path"], "src/App.tsx");
+        assert_eq!(file_changes[0]["additions"], 3);
+        assert_eq!(file_changes[0]["deletions"], 1);
+        assert_eq!(file_changes[1]["path"], "src/new.ts");
+        assert_eq!(record.task_progress, Some(json!({ "total": 2, "completed": 1 })));
     }
 }

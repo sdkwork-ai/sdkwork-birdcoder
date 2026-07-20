@@ -26,6 +26,10 @@
       "import": "./src/components/DeferredFileExplorer.tsx",
       "types": "./src/components/DeferredFileExplorer.tsx"
     },
+    "./components/FileChangeDiffViewer": {
+      "import": "./src/components/FileChangeDiffViewer.tsx",
+      "types": "./src/components/FileChangeDiffViewer.tsx"
+    },
     "./components/DeferredRunDialogs": {
       "import": "./src/components/DeferredRunDialogs.tsx",
       "types": "./src/components/DeferredRunDialogs.tsx"

@@ -1849,6 +1849,462 @@ fn build_codex_tool_output_transcript_entry(
     })
 }
 
+fn wrap_codex_thread_item(item: Value) -> Value {
+    serde_json::json!({ "item": item })
+}
+
+fn build_codex_command_execution_tool_call(
+    payload: Option<&Value>,
+    command: &str,
+    output: Option<&str>,
+    status: &str,
+) -> Value {
+    let mut item = payload
+        .and_then(Value::as_object)
+        .cloned()
+        .unwrap_or_default();
+    if let Some(native_event_type) = item
+        .get("type")
+        .and_then(Value::as_str)
+        .map(str::to_owned)
+    {
+        item.insert(
+            "native_event_type".to_owned(),
+            Value::String(native_event_type),
+        );
+    }
+    item.insert(
+        "type".to_owned(),
+        Value::String("command_execution".to_owned()),
+    );
+    item.insert("command".to_owned(), Value::String(command.to_owned()));
+    item.insert(
+        "status".to_owned(),
+        Value::String(
+            match status {
+                "success" => "completed",
+                "error" => "failed",
+                _ => "in_progress",
+            }
+            .to_owned(),
+        ),
+    );
+    if let Some(output) = output {
+        item.insert(
+            "aggregated_output".to_owned(),
+            Value::String(output.to_owned()),
+        );
+    }
+    if !item.contains_key("id") {
+        if let Some(id) = read_codex_tool_item_id(payload) {
+            item.insert("id".to_owned(), Value::String(id));
+        }
+    }
+    wrap_codex_thread_item(Value::Object(item))
+}
+
+fn build_codex_file_change_tool_call(payload: &Value, status: &str) -> Value {
+    let mut item = payload.as_object().cloned().unwrap_or_default();
+    if let Some(native_event_type) = item
+        .get("type")
+        .and_then(Value::as_str)
+        .map(str::to_owned)
+    {
+        item.insert(
+            "native_event_type".to_owned(),
+            Value::String(native_event_type),
+        );
+    }
+    let native_changes = item.get("changes").cloned();
+    item.insert("type".to_owned(), Value::String("file_change".to_owned()));
+    item.insert(
+        "status".to_owned(),
+        Value::String(
+            if status == "success" {
+                "completed"
+            } else if status == "error" {
+                "failed"
+            } else {
+                "in_progress"
+            }
+            .to_owned(),
+        ),
+    );
+    let projected_changes = project_codex_file_changes(payload);
+    item.insert("changes".to_owned(), Value::Array(projected_changes));
+    if let Some(native_changes) = native_changes {
+        item.insert("native_changes".to_owned(), native_changes);
+    }
+    if !item.contains_key("id") {
+        if let Some(id) = read_codex_tool_item_id(Some(payload)) {
+            item.insert("id".to_owned(), Value::String(id));
+        }
+    }
+    wrap_codex_thread_item(Value::Object(item))
+}
+
+fn build_codex_web_search_tool_call(payload: &Value, status: &str) -> Value {
+    let mut item = payload.as_object().cloned().unwrap_or_default();
+    if let Some(native_event_type) = item
+        .get("type")
+        .and_then(Value::as_str)
+        .map(str::to_owned)
+    {
+        item.insert(
+            "native_event_type".to_owned(),
+            Value::String(native_event_type),
+        );
+    }
+    item.insert("type".to_owned(), Value::String("web_search".to_owned()));
+    item.insert(
+        "status".to_owned(),
+        Value::String(
+            if status == "running" {
+                "in_progress"
+            } else if status == "error" {
+                "failed"
+            } else {
+                "completed"
+            }
+            .to_owned(),
+        ),
+    );
+    if !item.contains_key("id") {
+        if let Some(id) = read_codex_tool_item_id(Some(payload)) {
+            item.insert("id".to_owned(), Value::String(id));
+        }
+    }
+    wrap_codex_thread_item(Value::Object(item))
+}
+
+fn build_codex_thread_item_transcript_entry(
+    payload: Option<&Value>,
+    timestamp: &str,
+) -> Option<TranscriptEntry> {
+    let payload = payload?;
+    let item_type = normalize_value_string(payload.get("type"))?;
+    let tool_call_id = read_codex_tool_item_id(Some(payload));
+    let turn_id = read_codex_turn_id(Some(payload));
+
+    match item_type.as_str() {
+        "command_execution" => {
+            let command = normalize_command_text(payload.get("command"))?;
+            let output = normalize_value_string(payload.get("aggregated_output"))
+                .or_else(|| normalize_value_string(payload.get("output")))
+                .and_then(|value| sanitize_codex_tool_output(value.as_str()));
+            let status = read_codex_tool_output_status(Some(payload));
+            Some(TranscriptEntry {
+                created_at: timestamp.to_owned(),
+                role: "tool".to_owned(),
+                content: format!(
+                    "Command {}: {command}",
+                    if status == "success" {
+                        "completed"
+                    } else if status == "error" {
+                        "failed"
+                    } else {
+                        "running"
+                    }
+                ),
+                turn_id,
+                commands: Some(vec![CodeEngineSessionCommandRecord {
+                    command: command.clone(),
+                    status: status.clone(),
+                    output: output.clone(),
+                    kind: Some("command".to_owned()),
+                    tool_name: Some("run_command".to_owned()),
+                    tool_call_id: tool_call_id.clone(),
+                    runtime_status: Some(
+                        map_codeengine_tool_runtime_status(
+                            "command",
+                            Some(status.as_str()),
+                            None,
+                        )
+                        .to_owned(),
+                    ),
+                    requires_approval: Some(false),
+                    requires_reply: Some(false),
+                }]),
+                tool_calls: Some(vec![wrap_codex_thread_item(payload.clone())]),
+                tool_call_id,
+                ..TranscriptEntry::default()
+            })
+        }
+        "file_change" => {
+            let file_changes = project_codex_file_changes(payload);
+            let status = read_codex_tool_output_status(Some(payload));
+            Some(TranscriptEntry {
+                created_at: timestamp.to_owned(),
+                role: "tool".to_owned(),
+                content: if status == "error" {
+                    "File changes failed.".to_owned()
+                } else {
+                    format!(
+                        "{} file change{} applied.",
+                        file_changes.len(),
+                        if file_changes.len() == 1 { "" } else { "s" }
+                    )
+                },
+                turn_id,
+                commands: None,
+                tool_calls: Some(vec![build_codex_file_change_tool_call(
+                    payload,
+                    status.as_str(),
+                )]),
+                tool_call_id,
+                file_changes: if file_changes.is_empty() {
+                    None
+                } else {
+                    Some(file_changes)
+                },
+                ..TranscriptEntry::default()
+            })
+        }
+        "web_search" => {
+            let query = normalize_value_string(payload.get("query"));
+            let status = read_codex_tool_output_status(Some(payload));
+            Some(TranscriptEntry {
+                created_at: timestamp.to_owned(),
+                role: "tool".to_owned(),
+                content: query
+                    .as_ref()
+                    .map(|query| format!("Web search completed: {query}"))
+                    .unwrap_or_else(|| "Web search completed.".to_owned()),
+                turn_id,
+                commands: None,
+                tool_calls: Some(vec![build_codex_web_search_tool_call(
+                    payload,
+                    status.as_str(),
+                )]),
+                tool_call_id,
+                ..TranscriptEntry::default()
+            })
+        }
+        "mcp_tool_call" => Some(TranscriptEntry {
+            created_at: timestamp.to_owned(),
+            role: "tool".to_owned(),
+            content: format_codex_mcp_content(payload),
+            turn_id,
+            commands: None,
+            tool_calls: Some(vec![wrap_codex_thread_item(payload.clone())]),
+            tool_call_id,
+            ..TranscriptEntry::default()
+        }),
+        "todo_list" => build_codex_task_transcript_entry(Some(payload), timestamp),
+        _ => None,
+    }
+}
+
+fn format_codex_mcp_content(payload: &Value) -> String {
+    let server = normalize_value_string(payload.get("server"));
+    let tool = normalize_value_string(payload.get("tool"));
+    match (server, tool) {
+        (Some(server), Some(tool)) => format!("MCP tool completed: {server}/{tool}"),
+        (_, Some(tool)) => format!("MCP tool completed: {tool}"),
+        _ => "MCP tool completed.".to_owned(),
+    }
+}
+
+fn build_codex_mcp_transcript_entry(
+    context: &mut SessionLineContext,
+    payload: Option<&Value>,
+    timestamp: &str,
+    event_type: &str,
+) -> Option<TranscriptEntry> {
+    let payload = payload?;
+    let invocation = payload.get("invocation");
+    let result = payload.get("result").cloned();
+    let is_error = result
+        .as_ref()
+        .and_then(|value| value.get("Err").or_else(|| value.get("err")))
+        .is_some();
+    let status = if event_type == "mcp_tool_call_begin" {
+        "in_progress"
+    } else if is_error {
+        "failed"
+    } else {
+        "completed"
+    };
+    let tool_call_id = read_codex_tool_item_id(Some(payload));
+    let mut item = payload.as_object().cloned().unwrap_or_default();
+    item.insert(
+        "native_event_type".to_owned(),
+        Value::String(event_type.to_owned()),
+    );
+    item.insert(
+        "type".to_owned(),
+        Value::String("mcp_tool_call".to_owned()),
+    );
+    item.insert("status".to_owned(), Value::String(status.to_owned()));
+    for field in ["server", "tool", "arguments"] {
+        if !item.contains_key(field) {
+            if let Some(value) = invocation.and_then(|value| value.get(field)).cloned() {
+                item.insert(field.to_owned(), value);
+            }
+        }
+    }
+    if let Some(error) = result
+        .as_ref()
+        .and_then(|value| value.get("Err").or_else(|| value.get("err")))
+        .cloned()
+    {
+        item.insert("error".to_owned(), error);
+    }
+    if event_type == "mcp_tool_call_end" {
+        if let Some(call_id) = tool_call_id.as_deref() {
+            consume_pending_codex_tool_call(context, call_id);
+        }
+    }
+    let item = Value::Object(item);
+
+    Some(TranscriptEntry {
+        created_at: timestamp.to_owned(),
+        role: "tool".to_owned(),
+        content: format_codex_mcp_content(&item),
+        turn_id: read_codex_turn_id(Some(payload)),
+        commands: None,
+        tool_calls: Some(vec![wrap_codex_thread_item(item)]),
+        tool_call_id,
+        ..TranscriptEntry::default()
+    })
+}
+
+fn build_codex_task_transcript_entry(
+    payload: Option<&Value>,
+    timestamp: &str,
+) -> Option<TranscriptEntry> {
+    let payload = payload?;
+    let items = payload
+        .get("items")
+        .or_else(|| payload.get("todos"))
+        .or_else(|| payload.get("plan"))
+        .and_then(Value::as_array)?;
+    let completed = items
+        .iter()
+        .filter(|item| {
+            item.get("completed").and_then(Value::as_bool) == Some(true)
+                || matches!(
+                    normalize_value_string(item.get("status")).as_deref(),
+                    Some("completed" | "done" | "success")
+                )
+        })
+        .count();
+    let task_progress = serde_json::json!({
+        "total": items.len(),
+        "completed": completed,
+    });
+    let mut item = payload.as_object().cloned().unwrap_or_default();
+    item.insert("name".to_owned(), Value::String("write_todo".to_owned()));
+    item.insert(
+        "type".to_owned(),
+        Value::String("todo_list".to_owned()),
+    );
+    item.insert(
+        "arguments".to_owned(),
+        serde_json::json!({ "items": items }),
+    );
+    item.entry("status".to_owned())
+        .or_insert_with(|| Value::String("completed".to_owned()));
+    let tool_call_id = read_codex_tool_item_id(Some(payload));
+
+    Some(TranscriptEntry {
+        created_at: timestamp.to_owned(),
+        role: "tool".to_owned(),
+        content: format!("Task progress updated: {completed}/{} completed.", items.len()),
+        turn_id: read_codex_turn_id(Some(payload)),
+        commands: None,
+        tool_calls: Some(vec![wrap_codex_thread_item(Value::Object(item))]),
+        tool_call_id,
+        task_progress: Some(task_progress),
+        ..TranscriptEntry::default()
+    })
+}
+
+fn project_codex_file_changes(payload: &Value) -> Vec<Value> {
+    let Some(changes) = payload.get("changes") else {
+        return Vec::new();
+    };
+
+    match changes {
+        Value::Array(changes) => changes
+            .iter()
+            .filter_map(|change| project_codex_file_change(None, change))
+            .collect(),
+        Value::Object(changes) => changes
+            .iter()
+            .filter_map(|(path, change)| project_codex_file_change(Some(path.as_str()), change))
+            .collect(),
+        _ => Vec::new(),
+    }
+}
+
+fn project_codex_file_change(fallback_path: Option<&str>, change: &Value) -> Option<Value> {
+    let path = normalize_path_string(change.get("path"))
+        .or_else(|| fallback_path.and_then(|path| normalize_non_empty_string(Some(path))))?
+        .replace('\\', "/");
+    let unified_diff = normalize_value_string(change.get("unified_diff"))
+        .or_else(|| normalize_value_string(change.get("unifiedDiff")))
+        .or_else(|| normalize_value_string(change.get("diff")))
+        .or_else(|| normalize_value_string(change.get("patch")));
+    let (derived_additions, derived_deletions) = unified_diff
+        .as_deref()
+        .map(count_unified_diff_lines)
+        .unwrap_or_default();
+    let additions = read_non_negative_json_integer(change.get("additions"))
+        .unwrap_or(derived_additions);
+    let deletions = read_non_negative_json_integer(change.get("deletions"))
+        .unwrap_or(derived_deletions);
+    let mut projected = serde_json::Map::new();
+    projected.insert("path".to_owned(), Value::String(path));
+    projected.insert("additions".to_owned(), Value::from(additions));
+    projected.insert("deletions".to_owned(), Value::from(deletions));
+    if let Some(unified_diff) = unified_diff {
+        projected.insert("diff".to_owned(), Value::String(unified_diff));
+    }
+    for (source, target) in [
+        ("content", "content"),
+        ("original_content", "originalContent"),
+        ("originalContent", "originalContent"),
+        ("type", "kind"),
+        ("kind", "kind"),
+        ("move_path", "movePath"),
+        ("movePath", "movePath"),
+    ] {
+        if !projected.contains_key(target) {
+            if let Some(value) = change.get(source).cloned() {
+                projected.insert(target.to_owned(), value);
+            }
+        }
+    }
+    Some(Value::Object(projected))
+}
+
+fn read_non_negative_json_integer(value: Option<&Value>) -> Option<u64> {
+    match value {
+        Some(Value::Number(value)) => value
+            .as_u64()
+            .or_else(|| value.as_i64().map(|value| value.max(0) as u64)),
+        Some(Value::String(value)) => value.trim().parse::<u64>().ok(),
+        _ => None,
+    }
+}
+
+fn count_unified_diff_lines(diff: &str) -> (u64, u64) {
+    let mut additions = 0_u64;
+    let mut deletions = 0_u64;
+    for line in diff.replace("\r\n", "\n").replace('\r', "\n").lines() {
+        if line.starts_with("+++") || line.starts_with("---") {
+            continue;
+        }
+        if line.starts_with('+') {
+            additions += 1;
+        } else if line.starts_with('-') {
+            deletions += 1;
+        }
+    }
+    (additions, deletions)
+}
+
 fn build_codex_patch_apply_transcript_entry(
     context: &mut SessionLineContext,
     payload: Option<&Value>,

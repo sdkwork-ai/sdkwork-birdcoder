@@ -1120,15 +1120,7 @@ function CodePageComponent({
   const handleCloseWorkspaceFile = useCallback((path: string) => {
     closeFile(path);
   }, [closeFile]);
-  const handleAcceptViewingDiff = useCallback(async () => {
-    if (!viewingDiff) {
-      return;
-    }
-    await saveFileContent(viewingDiff.path, viewingDiff.content || '');
-    addToast(t('code.appliedChanges', { path: viewingDiff.path }), 'success');
-    setViewingDiff(null);
-  }, [addToast, saveFileContent, t, viewingDiff]);
-  const handleRejectViewingDiff = useCallback(() => {
+  const handleCloseViewingDiff = useCallback(() => {
     setViewingDiff(null);
   }, []);
   const handleEditSelectedCodingSessionMessage = useCallback((messageId: string, content: string) => {
@@ -1237,7 +1229,6 @@ function CodePageComponent({
     terminalRequest,
     viewingDiff,
     workspaceId,
-    onAcceptDiff: handleAcceptViewingDiff,
     onArchiveCodingSession: handleArchiveSession,
     onArchiveProject: handleArchiveProject,
     onCancelDelete: handleCancelDelete,
@@ -1287,7 +1278,7 @@ function CodePageComponent({
     onRefreshCodingSessionMessages: handleRefreshCodingSessionMessages,
     onRefreshProjectSessions: handleRefreshProjectSessions,
     onRegenerateMessage: handleRegenerateSelectedCodingSessionMessage,
-    onRejectDiff: handleRejectViewingDiff,
+    onCloseDiff: handleCloseViewingDiff,
     onReimportProjectFolder: handleReimportProjectFolderAction,
     onRenameCodingSession: handleRenameSession,
     onRenameNode: renameNode,

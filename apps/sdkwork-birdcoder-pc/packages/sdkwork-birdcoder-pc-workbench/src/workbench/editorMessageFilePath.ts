@@ -48,17 +48,16 @@ function buildRelativeCandidates(normalizedPath: string, isAbsolutePath: boolean
   return [...new Set(candidates.filter(Boolean))];
 }
 
-function resolveUniqueFileSuffix(
+function resolveFileSuffixMatches(
   filePaths: ReadonlyMap<string, string>,
   relativeCandidate: string,
-): string | null {
+): string[] {
   const suffix = `/${relativeCandidate}`;
-  const matches = [...filePaths.entries()].flatMap(([normalizedPath, originalPath]) =>
+  return [...filePaths.entries()].flatMap(([normalizedPath, originalPath]) =>
     normalizedPath === relativeCandidate || normalizedPath.endsWith(suffix)
       ? [originalPath]
       : [],
   );
-  return matches.length === 1 ? matches[0]! : null;
 }
 
 export function resolveEditorMessageFilePath(
@@ -84,15 +83,31 @@ export function resolveEditorMessageFilePath(
   }
 
   const rootDirectories = resolveLoadedRootDirectoryPaths(options.loadedDirectoryPaths);
-  for (const relativeCandidate of buildRelativeCandidates(normalizedPath, isAbsolutePath)) {
-    const suffixMatch = resolveUniqueFileSuffix(normalizedFilePaths, relativeCandidate);
-    if (suffixMatch) {
-      return suffixMatch;
+  if (
+    rootDirectories.length === 1
+    && (
+      normalizedPath === rootDirectories[0]
+      || normalizedPath.startsWith(`${rootDirectories[0]}/`)
+    )
+  ) {
+    return normalizedPath;
+  }
+  const relativeCandidates = buildRelativeCandidates(normalizedPath, isAbsolutePath);
+  for (const relativeCandidate of relativeCandidates) {
+    const suffixMatches = resolveFileSuffixMatches(normalizedFilePaths, relativeCandidate);
+    if (suffixMatches.length === 1) {
+      return suffixMatches[0]!;
     }
-    if (rootDirectories.length !== 1) {
-      continue;
+    if (suffixMatches.length > 1) {
+      return null;
     }
+  }
+  if (rootDirectories.length === 1) {
     const rootPath = rootDirectories[0]!;
+    const relativeCandidate = relativeCandidates.at(-1);
+    if (!relativeCandidate) {
+      return null;
+    }
     const rootedCandidate = `/${relativeCandidate}`;
     if (rootedCandidate === rootPath || rootedCandidate.startsWith(`${rootPath}/`)) {
       return rootedCandidate;

@@ -110,8 +110,7 @@ export const CodeEditorWorkspacePanel = memo(function CodeEditorWorkspacePanel({
   onDeleteFile,
   onDeleteFolder,
   onRenameNode,
-  onAcceptDiff,
-  onRejectDiff,
+  onCloseDiff,
   onFileDraftChange,
   onExplorerResize,
   onChatResize,
@@ -157,8 +156,7 @@ export const CodeEditorWorkspacePanel = memo(function CodeEditorWorkspacePanel({
           fileContent={fileContent}
           onSelectFile={onSelectFile}
           onCloseFile={onCloseFile}
-          onAcceptDiff={onAcceptDiff}
-          onRejectDiff={onRejectDiff}
+          onCloseDiff={onCloseDiff}
           onFileDraftChange={onFileDraftChange}
           onCreateRootFile={onCreateRootFile}
           getLanguageFromPath={getLanguageFromPath}

@@ -23,6 +23,48 @@ import {
   projectChatMessageToolCalls,
 } from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-contracts-commons/src/chat-message-tool-calls.ts';
 import { resolveTaskProgressDisplayState } from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-contracts-commons/src/chat-message-task-progress.ts';
+import { resolveEditorMessageFilePath } from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-workbench/src/workbench/editorMessageFilePath.ts';
+
+const editorMessageFilePathOptions = {
+  filePaths: new Set([
+    '/Message Display Project/src/features/chat/ProviderMessageAdapter.ts',
+    '/Message Display Project/packages/a/index.ts',
+    '/Message Display Project/packages/b/index.ts',
+  ]),
+  loadedDirectoryPaths: new Set([
+    '/Message Display Project',
+    '/Message Display Project/src',
+    '/Message Display Project/src/features',
+  ]),
+};
+const resolvedProviderMessagePath = '/Message Display Project/src/features/chat/ProviderMessageAdapter.ts';
+for (const providerPath of [
+  resolvedProviderMessagePath,
+  'src/features/chat/ProviderMessageAdapter.ts',
+  './src/features/chat/ProviderMessageAdapter.ts',
+  'src\\features\\chat\\ProviderMessageAdapter.ts',
+  'a/src/features/chat/ProviderMessageAdapter.ts',
+  'C:\\workspace\\src\\features\\chat\\ProviderMessageAdapter.ts',
+]) {
+  assert.equal(
+    resolveEditorMessageFilePath(providerPath, editorMessageFilePathOptions),
+    resolvedProviderMessagePath,
+    `Provider file path ${providerPath} must resolve inside the active project tree.`,
+  );
+}
+assert.equal(
+  resolveEditorMessageFilePath('src/lazy/NotLoadedYet.ts', editorMessageFilePathOptions),
+  '/Message Display Project/src/lazy/NotLoadedYet.ts',
+  'Relative provider paths must resolve below the single loaded project root before lazy expansion.',
+);
+assert.equal(
+  resolveEditorMessageFilePath('/Message Display Project/src/lazy/NotLoadedYet.ts', editorMessageFilePathOptions),
+  '/Message Display Project/src/lazy/NotLoadedYet.ts',
+  'Exact virtual workspace paths must remain stable before their directory is expanded.',
+);
+assert.equal(resolveEditorMessageFilePath('../secrets.txt', editorMessageFilePathOptions), null);
+assert.equal(resolveEditorMessageFilePath('index.ts', editorMessageFilePathOptions), null);
+assert.equal(resolveEditorMessageFilePath('src/unsafe\u0000.ts', editorMessageFilePathOptions), null);
 
 const headerOnlyActivityMessage: ChatMessageViewSource = {
   id: 'msg-assistant-header',

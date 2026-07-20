@@ -41,8 +41,7 @@ export interface CodeEditorWorkspacePanelProps {
   onDeleteFile: (path: string) => void;
   onDeleteFolder: (path: string) => void;
   onRenameNode: (path: string, nextPath: string) => void | Promise<void>;
-  onAcceptDiff: () => void | Promise<void>;
-  onRejectDiff: () => void;
+  onCloseDiff: () => void;
   onFileDraftChange: (value: string) => void;
   onExplorerResize: (delta: number) => void;
   onChatResize: (delta: number) => void;

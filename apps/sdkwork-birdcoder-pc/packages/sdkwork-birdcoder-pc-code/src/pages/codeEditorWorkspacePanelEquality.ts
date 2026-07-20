@@ -33,8 +33,7 @@ export function areCodeEditorWorkspacePanelRenderInputsEqual(
     left.onDeleteFile === right.onDeleteFile &&
     left.onDeleteFolder === right.onDeleteFolder &&
     left.onRenameNode === right.onRenameNode &&
-    left.onAcceptDiff === right.onAcceptDiff &&
-    left.onRejectDiff === right.onRejectDiff &&
+    left.onCloseDiff === right.onCloseDiff &&
     left.onFileDraftChange === right.onFileDraftChange &&
     left.onExplorerResize === right.onExplorerResize &&
     left.onChatResize === right.onChatResize &&

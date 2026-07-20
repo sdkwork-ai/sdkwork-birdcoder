@@ -1,6 +1,6 @@
 import { memo, useDeferredValue, useMemo } from 'react';
 import { ContentWorkbench } from '@sdkwork/birdcoder-pc-ui/components/ContentWorkbench';
-import { DeferredDiffEditor } from '@sdkwork/birdcoder-pc-ui/components/DeferredDiffEditor';
+import { FileChangeDiffViewer } from '@sdkwork/birdcoder-pc-ui/components/FileChangeDiffViewer';
 import { resolveContentPreviewDescriptor } from '@sdkwork/birdcoder-pc-ui/components/contentPreview';
 import { buildBirdCoderEditorModelPath } from '@sdkwork/birdcoder-pc-ui/components/editorModelPath';
 import { Button } from '@sdkwork/birdcoder-pc-ui-shell';
@@ -17,8 +17,7 @@ interface CodeEditorSurfaceProps {
   fileContent: string;
   onSelectFile: (path: string) => void;
   onCloseFile: (path: string) => void;
-  onAcceptDiff: () => void | Promise<void>;
-  onRejectDiff: () => void;
+  onCloseDiff: () => void;
   onFileDraftChange: (value: string) => void;
   onCreateRootFile: () => void;
   getLanguageFromPath: (path: string) => string;
@@ -33,13 +32,15 @@ export const CodeEditorSurface = memo(function CodeEditorSurface({
   fileContent,
   onSelectFile,
   onCloseFile,
-  onAcceptDiff,
-  onRejectDiff,
+  onCloseDiff,
   onFileDraftChange,
   onCreateRootFile,
   getLanguageFromPath,
 }: CodeEditorSurfaceProps) {
   const { t } = useTranslation();
+  const fullDiffLabel = t('chat.fullDiffTitle');
+  const closeFullDiffLabel = t('chat.closeFullDiff');
+  const emptyFullDiffLabel = t('chat.fullDiffUnavailable');
   const deferredFileContent = useDeferredValue(fileContent);
   const selectedFileLanguage = selectedFile ? getLanguageFromPath(selectedFile) : '';
   const previewDescriptor = useMemo(
@@ -81,28 +82,27 @@ export const CodeEditorSurface = memo(function CodeEditorSurface({
     <div className="flex-1 min-w-0 h-full overflow-hidden bg-[#0e0e11] flex flex-col border-r border-white/10 relative">
       {viewingDiff ? (
         <>
-          <div className="h-10 border-b border-white/10 flex items-center justify-between px-4 bg-[#18181b] shrink-0">
-            <div className="flex items-center gap-2 text-sm text-gray-300">
-              <span className="text-gray-500">Diff:</span>
-              <span className="font-medium">{viewingDiff.path}</span>
+          <div className="flex h-10 shrink-0 items-center justify-between gap-3 border-b border-white/10 bg-[#18181b] px-4">
+            <div className="flex min-w-0 items-center gap-2 text-sm text-gray-300">
+              <span className="shrink-0 text-gray-400">{fullDiffLabel}:</span>
+              <span className="truncate font-medium" title={viewingDiff.path}>{viewingDiff.path}</span>
             </div>
-            <div className="flex items-center gap-2">
-              <Button size="sm" className="h-6 text-xs bg-green-600 hover:bg-green-500 text-white" onClick={onAcceptDiff}>
-                Accept
-              </Button>
-              <Button size="sm" variant="outline" className="h-6 text-xs border-white/10 hover:bg-white/10" onClick={onRejectDiff}>
-                Reject
-              </Button>
-              <Button variant="ghost" size="icon" className="h-6 w-6 ml-2 hover:bg-white/10" onClick={onRejectDiff}>
-                <X size={14} />
-              </Button>
-            </div>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-7 w-7 shrink-0 hover:bg-white/10 focus-visible:ring-1 focus-visible:ring-blue-400/70"
+              title={closeFullDiffLabel}
+              aria-label={closeFullDiffLabel}
+              onClick={onCloseDiff}
+            >
+              <X size={14} aria-hidden="true" />
+            </Button>
           </div>
-          <DeferredDiffEditor
+          <FileChangeDiffViewer
+            ariaLabel={`${fullDiffLabel}: ${viewingDiff.path}`}
+            emptyLabel={emptyFullDiffLabel}
+            fileChange={viewingDiff}
             language={getLanguageFromPath(viewingDiff.path)}
-            original={viewingDiff.originalContent || ''}
-            modified={viewingDiff.content || ''}
-            readOnly={true}
           />
         </>
       ) : selectedFile ? (

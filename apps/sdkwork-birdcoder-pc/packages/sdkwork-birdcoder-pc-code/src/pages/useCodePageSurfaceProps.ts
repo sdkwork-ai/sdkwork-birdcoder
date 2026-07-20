@@ -100,7 +100,6 @@ interface UseCodePageSurfacePropsOptions {
   terminalRequest?: TerminalCommandRequest;
   viewingDiff: FileChange | null;
   workspaceId?: string;
-  onAcceptDiff: CodeEditorWorkspacePanelProps['onAcceptDiff'];
   onArchiveCodingSession: NonNullable<ProjectExplorerProps['onArchiveCodingSession']>;
   onArchiveProject: NonNullable<ProjectExplorerProps['onArchiveProject']>;
   onCancelDelete: NonNullable<CodePageDialogsComponentProps['onCancelDelete']>;
@@ -154,7 +153,7 @@ interface UseCodePageSurfacePropsOptions {
     NonNullable<ProjectExplorerProps['onRefreshCodingSessionMessages']>;
   onRefreshProjectSessions: NonNullable<ProjectExplorerProps['onRefreshProjectSessions']>;
   onRegenerateMessage: NonNullable<UniversalChatComponentProps['onRegenerateMessage']>;
-  onRejectDiff: CodeEditorWorkspacePanelProps['onRejectDiff'];
+  onCloseDiff: CodeEditorWorkspacePanelProps['onCloseDiff'];
   onReimportProjectFolder:
     NonNullable<CodeWorkspaceOverlaysComponentProps['onReimportProjectFolder']>;
   onRenameCodingSession: NonNullable<ProjectExplorerProps['onRenameCodingSession']>;
@@ -239,7 +238,6 @@ export function useCodePageSurfaceProps({
   terminalRequest,
   viewingDiff,
   workspaceId,
-  onAcceptDiff,
   onArchiveCodingSession,
   onArchiveProject,
   onCancelDelete,
@@ -289,7 +287,7 @@ export function useCodePageSurfaceProps({
   onRefreshCodingSessionMessages,
   onRefreshProjectSessions,
   onRegenerateMessage,
-  onRejectDiff,
+  onCloseDiff,
   onReimportProjectFolder,
   onRenameCodingSession,
   onRenameNode,
@@ -610,8 +608,7 @@ export function useCodePageSurfaceProps({
     onDeleteFile,
     onDeleteFolder,
     onRenameNode,
-    onAcceptDiff,
-    onRejectDiff,
+    onCloseDiff,
     onFileDraftChange,
     onExplorerResize,
     onChatResize,
@@ -639,7 +636,6 @@ export function useCodePageSurfaceProps({
     isChatEngineBusy,
     isChatBusy,
     loadingDirectoryPaths,
-    onAcceptDiff,
     onChatResize,
     onCloseFile,
     onCreateFile,
@@ -653,7 +649,7 @@ export function useCodePageSurfaceProps({
     onExplorerResize,
     onFileDraftChange,
     onRegenerateMessage,
-    onRejectDiff,
+    onCloseDiff,
     onRenameNode,
     onRestoreMessage,
     onSelectFile,
