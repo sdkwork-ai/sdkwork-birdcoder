@@ -6,6 +6,7 @@ import {
 import assert from 'node:assert/strict';
 import { ApiBackedVipMembershipService } from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/src/services/impl/ApiBackedVipMembershipService.ts';
 import { createDefaultBirdCoderIdeServices } from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/src/services/defaultIdeServices.ts';
+import { installBirdCoderTestRuntimeEnv } from './test-birdcoder-runtime-env-fixture.ts';
 
 let currentRetrieveCalls = 0;
 let packageGroupsListCalls = 0;
@@ -50,6 +51,7 @@ configureSdkworkMembershipSessionTokenProvider(() => ({
   accessToken: 'vip-contract-access-token',
   authToken: 'vip-contract-auth-token',
 }));
+const restoreRuntimeEnv = installBirdCoderTestRuntimeEnv();
 
 try {
   const service = new ApiBackedVipMembershipService();
@@ -70,6 +72,7 @@ try {
     'default IDE services must expose vipMembershipService through the canonical service bundle.',
   );
 } finally {
+  restoreRuntimeEnv();
   configureSdkworkMembershipAppServiceProvider(null);
   configureSdkworkMembershipSessionTokenProvider(null);
 }

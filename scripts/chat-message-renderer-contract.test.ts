@@ -1,9 +1,26 @@
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
+import { performance } from 'node:perf_hooks';
+import {
+  buildChatContentPreview,
+  buildChatLinePreview,
+  buildCommandOutputPreview,
+  MAX_CHAT_CONTENT_PREVIEW_CHARACTERS,
+} from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-ui/src/components/chat/messages/contentPreview.ts';
+import {
+  resolveMessageActionTargetCopyText,
+} from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-ui/src/components/chat/messages/messageActions.ts';
 
 const chatMessageViewSource = readFileSync(
   new URL(
     '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-contracts-commons/src/chat-message-view.ts',
+    import.meta.url,
+  ),
+  'utf8',
+);
+const contentPreviewSource = readFileSync(
+  new URL(
+    '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-ui/src/components/chat/messages/contentPreview.ts',
     import.meta.url,
   ),
   'utf8',
@@ -50,6 +67,13 @@ const toolResultBlocksSource = readFileSync(
   ),
   'utf8',
 );
+const toolInputDetailsSource = readFileSync(
+  new URL(
+    '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-ui/src/components/chat/messages/contentBlocks/ToolInputDetails.tsx',
+    import.meta.url,
+  ),
+  'utf8',
+);
 const contentBlocksSource = readFileSync(
   new URL(
     '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-ui/src/components/chat/messages/contentBlocks/ContentBlockList.tsx',
@@ -63,6 +87,119 @@ const replyRenderersSource = readFileSync(
     import.meta.url,
   ),
   'utf8',
+);
+const messageActionsSource = readFileSync(
+  new URL(
+    '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-ui/src/components/chat/messages/messageActions.ts',
+    import.meta.url,
+  ),
+  'utf8',
+);
+const roleHeaderSource = readFileSync(
+  new URL(
+    '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-ui/src/components/chat/messages/renderers/RoleHeader.tsx',
+    import.meta.url,
+  ),
+  'utf8',
+);
+const englishChatSource = readFileSync(
+  new URL(
+    '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-i18n/src/locales/en/chat.ts',
+    import.meta.url,
+  ),
+  'utf8',
+);
+const chineseChatSource = readFileSync(
+  new URL(
+    '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-i18n/src/locales/zh/chat.ts',
+    import.meta.url,
+  ),
+  'utf8',
+);
+
+const oversizedContent = `preview-head:${'x'.repeat(
+  MAX_CHAT_CONTENT_PREVIEW_CHARACTERS * 2,
+)}:preview-tail`;
+const boundedContentPreview = buildChatContentPreview(oversizedContent);
+assert.equal(boundedContentPreview.isTruncated, true);
+assert.ok(
+  boundedContentPreview.text.length <= MAX_CHAT_CONTENT_PREVIEW_CHARACTERS,
+  'Shared chat previews must enforce their advertised character budget.',
+);
+assert.match(boundedContentPreview.text, /^preview-head:/u);
+assert.match(boundedContentPreview.text, /:preview-tail$/u);
+
+const boundedSingleLineDiff = buildChatLinePreview(
+  `+${'a'.repeat(MAX_CHAT_CONTENT_PREVIEW_CHARACTERS * 2)}`,
+  { maxLines: 80 },
+);
+assert.equal(boundedSingleLineDiff.isTruncated, true);
+assert.ok(
+  boundedSingleLineDiff.lines.join('\n').length
+    <= MAX_CHAT_CONTENT_PREVIEW_CHARACTERS,
+  'A single minified diff line must not bypass the activity character budget.',
+);
+
+const lineBoundedCommandPreview = buildCommandOutputPreview(
+  Array.from({ length: 80 }, (_, index) => `line ${index + 1}`).join('\n'),
+);
+assert.equal(lineBoundedCommandPreview.omittedLineCount, 56);
+assert.equal(lineBoundedCommandPreview.isCharacterTruncated, false);
+assert.match(lineBoundedCommandPreview.text, /line 80$/u);
+
+const characterBoundedCommandPreview = buildCommandOutputPreview(
+  `command-output:${'b'.repeat(MAX_CHAT_CONTENT_PREVIEW_CHARACTERS * 2)}:final-error`,
+);
+assert.equal(characterBoundedCommandPreview.isCharacterTruncated, true);
+assert.equal(characterBoundedCommandPreview.omittedLineCount, 0);
+assert.ok(
+  characterBoundedCommandPreview.text.length <= MAX_CHAT_CONTENT_PREVIEW_CHARACTERS,
+  'A single-line command output must remain bounded in the rendered DOM.',
+);
+assert.match(characterBoundedCommandPreview.text, /:final-error$/u);
+
+const whitespacePreservingCommandOutput = '  indented output\nline with trailing spaces  \n';
+assert.equal(
+  buildCommandOutputPreview(whitespacePreservingCommandOutput).text,
+  whitespacePreservingCommandOutput,
+  'Command previews must preserve terminal indentation and trailing whitespace when no truncation is needed.',
+);
+
+const groupedReplyCopyText = resolveMessageActionTargetCopyText(
+  [
+    { id: 'assistant-before-tool', role: 'assistant', content: 'Visible preface.' },
+    { id: 'hidden-tool-json', role: 'tool', content: '{"issues":[{"severity":"high"}]}' },
+    { id: 'assistant-after-tool', role: 'assistant', content: 'Visible conclusion.' },
+  ] as Parameters<typeof resolveMessageActionTargetCopyText>[0],
+  { startIndex: 0, endIndex: 2 },
+  '',
+);
+assert.equal(
+  groupedReplyCopyText,
+  'Visible preface.\n\nVisible conclusion.',
+  'Reply-level copy must exclude tool protocol bodies that are not rendered as authored Markdown.',
+);
+
+const lineBoundaryImplementation = contentPreviewSource.match(
+  /function findNextLineBoundary\([\s\S]*?\n\}/u,
+)?.[0] ?? '';
+assert.doesNotMatch(
+  lineBoundaryImplementation,
+  /indexOf\(/u,
+  'Line scanning must advance one cursor instead of rescanning the remaining output for every line.',
+);
+const largeCommandOutput = Array.from(
+  { length: 50_000 },
+  (_, index) => `provider output ${index}`,
+).join('\n');
+const largeCommandPreviewStartedAt = performance.now();
+const largeCommandPreview = buildCommandOutputPreview(largeCommandOutput);
+const largeCommandPreviewDuration = performance.now() - largeCommandPreviewStartedAt;
+assert.equal(largeCommandPreview.omittedLineCount, 49_976);
+assert.match(largeCommandPreview.text, /provider output 49999$/u);
+assert.ok(
+  largeCommandPreviewDuration < 1_000,
+  `Large command previews must remain linear-time (measured ${largeCommandPreviewDuration.toFixed(1)} ms).`,
 );
 
 assert.match(
@@ -96,6 +233,16 @@ assert.match(
   'engine transcript plugin wrappers must shrink inside narrow code and sidebar surfaces.',
 );
 assert.match(
+  enginePluginsSource,
+  /showEngineLabel = props\.view\.kind === 'assistant\.text'/,
+  'Engine identity must appear only on authored assistant replies, not every activity and tool-result row.',
+);
+assert.doesNotMatch(
+  enginePluginsSource,
+  /rounded-full|uppercase|tracking-wide/,
+  'Engine identity must remain a quiet byline instead of a competing colorful provider pill.',
+);
+assert.match(
   chatMessageViewSource,
   /type: 'activity'/,
   'pc-types chat message view must model unified activity content blocks.',
@@ -127,13 +274,38 @@ assert.match(
 );
 assert.match(
   toolCallCardSource,
-  /<ToolResultBlocks[\s\S]*?blocks=\{call\.resultBlocks\}[\s\S]*?copyMessageToClipboard=\{copyMessageToClipboard\}/,
+  /<ToolResultBlocks[\s\S]*?blocks=\{call\.resultBlocks \?\? \[\]\}[\s\S]*?copyMessageToClipboard=\{copyMessageToClipboard\}/,
   'Structured provider results must delegate to the rich result-block renderer with its full-content copy action.',
+);
+assert.match(
+  toolCallCardSource,
+  /<ToolResultBlocks[\s\S]*?status=\{call\.status\}/,
+  'Structured result rendering must receive the normalized call status so cancellation is not styled as failure.',
+);
+assert.match(
+  toolResultBlocksSource,
+  /export function resolveToolResultBlocksCopyContent\([\s\S]*case 'text':[\s\S]*case 'diff':[\s\S]*case 'list':[\s\S]*case 'link':[\s\S]*case 'resource':[\s\S]*case 'image':[\s\S]*case 'audio':/,
+  'Result-block-only calls must provide one provider-neutral semantic copy representation without protocol JSON.',
 );
 assert.match(
   toolResultBlocksSource,
   /block\.type === 'link'[\s\S]*block\.type === 'resource'[\s\S]*block\.type === 'image'/,
   'MCP links, resources, and media must remain semantic instead of degrading into JSON text.',
+);
+assert.match(
+  toolResultBlocksSource,
+  /function renderTruncatedNotice\([\s\S]*typeof fullContent === 'function' \? fullContent\(\) : fullContent/,
+  'Truncated structured tool results must defer full-content assembly until the user invokes Copy.',
+);
+assert.match(
+  toolResultBlocksSource,
+  /data-chat-task-result-list=\{isTaskResultList \? 'true' : undefined\}[\s\S]{0,220}role="region"[\s\S]{0,220}<ul className=/,
+  'Scrollable structured result lists must preserve native list semantics inside their labelled region.',
+);
+assert.doesNotMatch(
+  toolResultBlocksSource,
+  /<ul[\s\S]{0,180}role="region"/,
+  'Structured result lists must not replace native list semantics with an ARIA region role.',
 );
 assert.match(
   toolCallCardSource,
@@ -144,6 +316,11 @@ assert.match(
   toolCallCardSource,
   /aria-expanded=\{isExpanded\}/,
   'tool call detail rows must expose their expansion state.',
+);
+assert.match(
+  toolCallCardSource,
+  /aria-controls=\{detailsId\}[\s\S]*id=\{detailsId\}/,
+  'Tool disclosures must explicitly associate their control with their expanded details.',
 );
 assert.match(
   toolCallCardSource,
@@ -162,13 +339,93 @@ assert.match(
 );
 assert.match(
   toolCallCardSource,
-  /MAX_TOOL_CALL_DETAIL_PREVIEW_CHARACTERS = 24_000/,
-  'expanded tool details must cap rendered content to protect transcript responsiveness.',
+  /return call\.status \? labels\[call\.status\] : null;[\s\S]*if \(!call\.status\) \{\s*return null;\s*\}/,
+  'Provider activities without a lifecycle status must omit status UI instead of presenting missing data as a failure.',
+);
+assert.doesNotMatch(
+  toolCallCardSource,
+  /toolStatusUnknown|Status unavailable|status === 'unknown'/,
+  'Undefined provider status must not leak an unavailable or synthetic unknown label into the transcript.',
+);
+assert.doesNotMatch(
+  toolCallCardSource,
+  /aria-live="polite"|role="status"/,
+  'Historical tool rows must not register a live region for every static provider status.',
 );
 assert.match(
   toolCallCardSource,
-  /copyMessageToClipboard\(call\.output \?\? ''\)/,
-  'truncated tool output must retain a full-content copy action.',
+  /MAX_TOOL_CALL_DETAIL_PREVIEW_CHARACTERS\s*=\s*MAX_CHAT_CONTENT_PREVIEW_CHARACTERS/,
+  'Expanded tool details must consume the shared rendered-content budget.',
+);
+assert.match(
+  toolResultBlocksSource,
+  /buildChatContentPreview\(/,
+  'Rich provider result blocks must consume the same bounded preview policy as tool details.',
+);
+assert.match(
+  toolResultBlocksSource,
+  /function selectVisibleResultBlocks\([\s\S]*slice\(0, headCount\)[\s\S]*slice\(-tailCount\)/,
+  'Bounded rich results must preserve both leading context and trailing failures or summaries.',
+);
+assert.match(
+  toolResultBlocksSource,
+  /data-chat-task-result-list=\{isTaskResultList \? 'true' : undefined\}/,
+  'Task result markers must render through a dedicated semantic checklist instead of leaking marker strings.',
+);
+assert.match(
+  toolCallCardSource,
+  /MAX_TOOL_CALL_ARGUMENT_SUMMARY_CHARACTERS = 320/,
+  'Collapsed tool rows must cap argument summaries so provider payloads cannot create oversized hidden text nodes.',
+);
+assert.match(
+  toolCallCardSource,
+  /const argumentSummary = useMemo\([\s\S]*truncateToolCallArgumentSummary\([\s\S]*call\.title\?\.trim\(\)[\s\S]*summarizeToolCallArguments\(call\.arguments\)/,
+  'All collapsed tool metadata, including provider titles, targets, and commands, must share the bounded summary path.',
+);
+assert.match(
+  toolCallCardSource,
+  /\{isExpanded \? \([\s\S]*<ToolInputDetails/,
+  'Collapsed tools must defer structured input parsing until the disclosure is opened.',
+);
+assert.match(
+  toolInputDetailsSource,
+  /data-chat-tool-input-fields="true"[\s\S]*<dl[\s\S]*<dt[\s\S]*<dd/,
+  'Structured tool inputs must render semantic key/value fields instead of a complete JSON object.',
+);
+assert.match(
+  toolInputDetailsSource,
+  /trimmedArguments\.length > MAX_CHAT_CONTENT_PREVIEW_CHARACTERS/,
+  'Oversized tool inputs must bypass JSON parsing and use the bounded fallback preview.',
+);
+assert.match(
+  toolInputDetailsSource,
+  /hasTruncatedField \|\|= preview\.isTruncated[\s\S]*isTruncated: omittedFieldCount > 0 \|\| hasTruncatedField[\s\S]*structuredInput\.isTruncated/,
+  'Structured tool inputs must disclose truncation when either fields are omitted or one visible field is shortened.',
+);
+assert.match(
+  toolInputDetailsSource,
+  /overflow-auto custom-scrollbar \$\{compact \? 'max-h-36' : 'max-h-48'\}[\s\S]*role="region"[\s\S]*<dl/,
+  'Structured tool inputs must use a bounded labelled scroll region just like fallback provider input.',
+);
+assert.match(
+  toolCallCardSource,
+  /onClick=\{\(\) => copyMessageToClipboard\(\s*hasResultBlocks\s*\? resolveToolResultBlocksCopyContent\(call\.resultBlocks \?\? \[\]\)/,
+  'Full semantic tool output must be assembled only when the user invokes Copy.',
+);
+assert.match(
+  toolCallCardSource,
+  /data-chat-tool-output-state=\{isOutputPending \? 'pending' : 'empty'\}/,
+  'Expanded tools must distinguish pending output from completed empty output.',
+);
+assert.match(
+  toolResultBlocksSource,
+  /data-chat-tool-result-empty="true"/,
+  'Empty structured lists must render an explicit result state instead of a blank output container.',
+);
+assert.match(
+  toolResultBlocksSource,
+  /const isCancelled = status === 'cancelled'[\s\S]*data-chat-tool-result-tone=\{isCancelled \? 'cancelled' : 'error'\}[\s\S]*role=\{isCancelled \? 'region' : 'alert'\}/,
+  'Cancelled tool reasons must remain visible with a neutral region tone while real errors retain alert styling.',
 );
 assert.match(
   replyRenderersSource,
@@ -178,17 +435,61 @@ assert.match(
 assert.match(
   replyRenderersSource,
   /RoleHeader/,
-  'reply renderers must show role-specific headers for planner/reviewer/tool/system views.',
+  'reply renderers must show role-specific headers for authored planner, reviewer, and system views.',
+);
+assert.doesNotMatch(
+  roleHeaderSource,
+  /'tool\.result'/,
+  'Tool-result messages must not repeat a generic Tool role above their semantic tool rows.',
 );
 assert.match(
   contentBlockRenderersSource,
-  /data-chat-system-notice=\{block\.noticeKind\}/,
+  /data-chat-system-notice=\{noticeKind\}/,
   'provider lifecycle messages must render as dedicated compact status rows.',
+);
+assert.match(
+  contentBlockRenderersSource,
+  /warning: 'Provider warning'[\s\S]*noticeWarning[\s\S]*const isWarning = noticeKind === 'warning'[\s\S]*text-amber-200\/90[\s\S]*data-chat-system-notice=\{noticeKind\}[\s\S]*role="note"/,
+  'Persisted provider notices must keep their visual severity without becoming per-row live regions during history or virtualization mounts.',
 );
 assert.match(
   replyRenderersSource,
   /context\.showMessageActions && !isProtocolNotice/,
   'passive provider lifecycle notices must not expose reply actions.',
 );
+assert.match(
+  replyRenderersSource,
+  /const hasCopyContent = copyContent\.trim\(\)\.length > 0;[\s\S]*\{hasCopyContent \? \([\s\S]*copyMessageToClipboard\(copyContent\)/,
+  'Activity-only reply groups must not expose a message-level Copy action with empty content.',
+);
+assert.match(
+  messageActionsSource,
+  /if \(!message \|\| message\.role === 'tool'\) \{\s*continue;/,
+  'Grouped reply copy must skip tool protocol messages; tool rows own their semantic copy actions.',
+);
+for (const localeSource of [englishChatSource, chineseChatSource]) {
+  for (const translationKey of [
+    'fileOperationCreated',
+    'fileOperationDeleted',
+    'fileOperationModified',
+    'fileOperationMoved',
+    'fileOperationMovedFrom',
+    'fileOperationUpdated',
+    'taskItemBlocked',
+    'taskItemCancelled',
+    'taskItemCompleted',
+    'taskItemPending',
+    'taskItemRunning',
+    'toolNoOutput',
+    'toolOutputPending',
+    'toolResultEmpty',
+  ]) {
+    assert.match(
+      localeSource,
+      new RegExp(`${translationKey}:`),
+      `${translationKey} must be localized for every supported transcript locale.`,
+    );
+  }
+}
 
 console.log('chat message renderer contract passed.');

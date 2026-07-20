@@ -135,8 +135,14 @@ assert.match(
 
 assert.match(
   editorPanelSource,
-  /<UniversalChat[\s\S]*pendingUserQuestions=\{pendingUserQuestions\}[\s\S]*pendingApprovals=\{pendingApprovals\}/,
-  'Editor-side UniversalChat must receive pending interactions for split IDE workflows.',
+  /<DeferredUniversalChat/,
+  'Editor-side chat must preserve the standardized deferred UniversalChat boundary.',
+);
+
+assert.match(
+  editorPanelSource,
+  /pendingApprovals=\{pendingApprovals\}[\s\S]*pendingUserQuestions=\{pendingUserQuestions\}/,
+  'Editor-side DeferredUniversalChat must receive both pending interaction collections for split IDE workflows.',
 );
 
 assert.match(
@@ -147,8 +153,14 @@ assert.match(
 
 assert.match(
   studioSidebarSource,
-  /<UniversalChat[\s\S]*pendingApprovals=\{pendingApprovals\}[\s\S]*pendingUserQuestions=\{pendingUserQuestions\}/,
-  'Studio sidebar UniversalChat must receive pending interactions.',
+  /<DeferredUniversalChat/,
+  'Studio sidebar chat must preserve the standardized deferred UniversalChat boundary.',
+);
+
+assert.match(
+  studioSidebarSource,
+  /pendingApprovals=\{pendingApprovals\}[\s\S]*pendingUserQuestions=\{pendingUserQuestions\}/,
+  'Studio sidebar DeferredUniversalChat must receive both pending interaction collections.',
 );
 
 console.log('universal chat pending interactions contract passed.');

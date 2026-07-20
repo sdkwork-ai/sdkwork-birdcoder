@@ -1,7 +1,10 @@
 import process from 'node:process';
 import { pathToFileURL } from 'node:url';
 
-import { runCommandSequence } from './run-command-sequence.mjs';
+import {
+  BIRDCODER_WORKSPACE_ROOT_DIR,
+  runCommandSequence,
+} from './run-command-sequence.mjs';
 
 export const QUALITY_MOBILE_CHECK_COMMANDS = [
   'node scripts/h5-architecture-boundary-contract.test.mjs',
@@ -17,7 +20,7 @@ export const QUALITY_MOBILE_CHECK_COMMANDS = [
 
 export function runQualityMobileCheck({
   commands = QUALITY_MOBILE_CHECK_COMMANDS,
-  cwd = process.cwd(),
+  cwd = BIRDCODER_WORKSPACE_ROOT_DIR,
   env = process.env,
 } = {}) {
   return runCommandSequence({ commands, cwd, env });

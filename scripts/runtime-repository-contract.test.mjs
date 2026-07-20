@@ -5,7 +5,7 @@ const preferencesModulePath = new URL(
   import.meta.url,
 );
 const runConfigsModulePath = new URL(
-  '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-workbench/src/terminal/runConfigs.ts',
+  '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-workbench/src/terminal/runConfigStorage.ts',
   import.meta.url,
 );
 const sessionsModulePath = new URL(

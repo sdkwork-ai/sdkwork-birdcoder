@@ -28,6 +28,7 @@ import {
 } from './chat-message-activity-projection.ts';
 import { resolveTaskProgressDisplayState } from './chat-message-task-progress.ts';
 import {
+  isChatMessageFileMutationToolCall,
   projectChatMessageCommand,
   projectChatMessageToolResult,
   projectChatMessageToolCalls,
@@ -193,7 +194,7 @@ function resolveProtocolNoticeKind(
   }
 
   const noticeKind = (message.metadata as Record<string, unknown>).noticeKind;
-  return ['blocked', 'cancelled', 'compression', 'failed', 'retry', 'stopped'].includes(
+  return ['blocked', 'cancelled', 'compression', 'failed', 'retry', 'stopped', 'warning'].includes(
     typeof noticeKind === 'string' ? noticeKind : '',
   )
     ? noticeKind as BirdCoderProtocolNoticeKind
@@ -333,10 +334,7 @@ function buildChatMessageContentBlocks(
     if (commandToolCallIds.has(call.id)) {
       return false;
     }
-    if (call.kind === 'file' && fileChanges.length > 0) {
-      return false;
-    }
-    if (call.kind === 'task' && taskProgressDisplayState) {
+    if (fileChanges.length > 0 && isChatMessageFileMutationToolCall(call)) {
       return false;
     }
     return true;

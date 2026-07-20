@@ -129,6 +129,45 @@ assert.equal(
   }),
   'run_command',
 );
+for (const [toolName, canonicalName] of [
+  ['codesearch', 'search_code'],
+  ['ls', 'list_files'],
+  ['multiedit', 'multi_edit'],
+  ['webfetch', 'web_fetch'],
+  ['websearch', 'web_search'],
+] as const) {
+  assert.equal(
+    canonicalizeBirdCoderCodeEngineProviderToolName({ provider: 'opencode', toolName }),
+    canonicalName,
+  );
+}
+assert.equal(
+  canonicalizeBirdCoderCodeEngineProviderToolName({
+    provider: 'claude-code',
+    toolName: 'PowerShell',
+  }),
+  'run_command',
+);
+assert.equal(
+  canonicalizeBirdCoderCodeEngineProviderToolName({
+    provider: 'claude-code',
+    toolName: 'AskUserQuestion',
+  }),
+  'user_question',
+);
+for (const [toolName, canonicalName] of [
+  ['run_shell_command', 'run_command'],
+  ['replace', 'edit_file'],
+  ['grep_search', 'grep_code'],
+  ['list_directory', 'list_files'],
+  ['read_many_files', 'read_file'],
+  ['write_todos', 'write_todo'],
+] as const) {
+  assert.equal(
+    canonicalizeBirdCoderCodeEngineProviderToolName({ provider: 'gemini', toolName }),
+    canonicalName,
+  );
+}
 assert.equal(
   canonicalizeBirdCoderCodeEngineProviderToolName({
     provider: 'gemini',
@@ -204,6 +243,14 @@ assert.equal(resolveBirdCoderCodeEngineToolKind({ toolName: 'todo' }), 'task');
 assert.equal(resolveBirdCoderCodeEngineToolKind({ toolName: 'todoWrite' }), 'task');
 assert.equal(resolveBirdCoderCodeEngineToolKind({ toolName: 'update_todo' }), 'task');
 assert.equal(resolveBirdCoderCodeEngineToolKind({ toolName: 'write-todo' }), 'task');
+assert.equal(resolveBirdCoderCodeEngineToolKind({ toolName: 'run_shell_command' }), 'command');
+assert.equal(resolveBirdCoderCodeEngineToolKind({ toolName: 'replace' }), 'file_change');
+assert.equal(resolveBirdCoderCodeEngineToolKind({ toolName: 'write_todos' }), 'task');
+assert.equal(resolveBirdCoderCodeEngineToolKind({ toolName: 'PowerShell' }), 'command');
+assert.equal(resolveBirdCoderCodeEngineToolKind({ toolName: 'multiedit' }), 'file_change');
+assert.equal(resolveBirdCoderCodeEngineToolKind({ toolName: 'TaskCreate' }), 'task');
+assert.equal(resolveBirdCoderCodeEngineToolKind({ toolName: 'tracker_update_task' }), 'task');
+assert.equal(normalizeBirdCoderCodeEngineRuntimeStatus('inProgress'), 'streaming');
 assert.equal(resolveBirdCoderCodeEngineToolKind({ toolName: 'read_file' }), 'tool');
 assert.equal(resolveBirdCoderCodeEngineArtifactKind({ toolName: 'bash' }), 'command-log');
 assert.equal(resolveBirdCoderCodeEngineArtifactKind({ toolName: 'shell-command' }), 'command-log');
@@ -748,10 +795,12 @@ assert.equal(normalizeBirdCoderCodeEngineToolLifecycleStatus('allow'), 'complete
 assert.equal(normalizeBirdCoderCodeEngineToolLifecycleStatus('approve'), 'completed');
 assert.equal(normalizeBirdCoderCodeEngineToolLifecycleStatus('grant'), 'completed');
 assert.equal(normalizeBirdCoderCodeEngineToolLifecycleStatus('approved'), 'completed');
-assert.equal(normalizeBirdCoderCodeEngineToolLifecycleStatus('deny'), 'failed');
-assert.equal(normalizeBirdCoderCodeEngineToolLifecycleStatus('decline'), 'failed');
-assert.equal(normalizeBirdCoderCodeEngineToolLifecycleStatus('reject'), 'failed');
+assert.equal(normalizeBirdCoderCodeEngineToolLifecycleStatus('deny'), 'cancelled');
+assert.equal(normalizeBirdCoderCodeEngineToolLifecycleStatus('decline'), 'cancelled');
+assert.equal(normalizeBirdCoderCodeEngineToolLifecycleStatus('reject'), 'cancelled');
 assert.equal(normalizeBirdCoderCodeEngineToolLifecycleStatus('cancelled'), 'cancelled');
+assert.equal(normalizeBirdCoderCodeEngineToolLifecycleStatus('interrupted'), 'cancelled');
+assert.equal(normalizeBirdCoderCodeEngineToolLifecycleStatus('stopped'), 'cancelled');
 assert.equal(isBirdCoderCodeEngineSettledStatus('awaiting_tool'), true);
 assert.equal(isBirdCoderCodeEngineSettledStatus('blocked'), true);
 assert.equal(isBirdCoderCodeEngineSettledStatus('waiting_for_user'), false);

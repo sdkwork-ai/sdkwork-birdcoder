@@ -1149,10 +1149,14 @@ function StudioPageComponent({
     handleActiveTabChange('code');
   }, [handleActiveTabChange]);
   const handleStudioOpenMessageFile = useCallback((path: string) => {
-    selectMessageFile(path);
+    const selectionResult = selectMessageFile(path);
+    if (selectionResult === 'rejected') {
+      addToast(t('chat.fileOpenUnavailable', { path }), 'error');
+      return;
+    }
     setViewingDiff(null);
     handleActiveTabChange('code');
-  }, [handleActiveTabChange, selectMessageFile]);
+  }, [addToast, handleActiveTabChange, selectMessageFile, t]);
   const handleStudioEditMessage = useCallback((messageId: string, content: string) => {
     if (sessionId) {
       return handleEditMessage(sessionId, messageId, content);

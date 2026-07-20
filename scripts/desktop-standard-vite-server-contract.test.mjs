@@ -52,19 +52,15 @@ try {
     -1,
     'Desktop standard Vite test server must include the shared react-router compatibility alias.',
   );
-  assert.notEqual(
+  assert.equal(
     birdcoderPackageSubpathAliasIndex,
     -1,
-    'Desktop standard Vite test server must include the BirdCoder package-subpath alias.',
+    'Desktop standard Vite test server must resolve BirdCoder package subpaths through package exports.',
   );
-  assert.notEqual(
+  assert.equal(
     birdcoderPackageRootAliasIndex,
     -1,
-    'Desktop standard Vite test server must include the BirdCoder package-root alias.',
-  );
-  assert.ok(
-    birdcoderPackageSubpathAliasIndex < birdcoderPackageRootAliasIndex,
-    'Desktop standard Vite test server must keep the BirdCoder package-subpath alias ahead of the package-root alias so subpath imports are not shadowed.',
+    'Desktop standard Vite test server must resolve BirdCoder package roots through package exports.',
   );
   assert.notEqual(
     terminalDesktopAliasIndex,

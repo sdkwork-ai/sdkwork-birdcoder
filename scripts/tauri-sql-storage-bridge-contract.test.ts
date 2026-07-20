@@ -415,7 +415,7 @@ try {
   );
 
   const runConfigsModule = await import(
-    `../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-workbench/src/terminal/runConfigs.ts?t=${Date.now()}`
+    `../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-workbench/src/terminal/runConfigStorage.ts?t=${Date.now()}`
   );
   await runConfigsModule.saveStoredRunConfigurations(projectId, [
     {

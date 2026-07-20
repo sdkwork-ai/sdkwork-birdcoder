@@ -82,10 +82,10 @@ assert.match(
   'CodePage must only allow asynchronous new-session creation to select the created session while the matching pending request is still active.',
 );
 
-assert.match(
+assert.doesNotMatch(
   codePageSource,
-  /const createCodingSessionFromCurrentProjectWithTranscriptReset = useCallback\(async \([\s\S]*requestedEngineId\?: string,[\s\S]*requestedModelId\?: string,[\s\S]*\) => \{[\s\S]*await createCodingSessionWithTranscriptReset\([\s\S]*currentProjectId,[\s\S]*requestedEngineId,[\s\S]*requestedModelId,[\s\S]*\);[\s\S]*\}/s,
-  'CodePage current-project new-session action must remain awaitable and preserve the requested engine/model so event-driven callers can observe the whole pending lifecycle.',
+  /createCodingSessionFromCurrentProjectWithTranscriptReset/u,
+  'CodePage must not retain a second current-project transcript-reset wrapper when project-scoped UI and event callers share one callback.',
 );
 
 assert.match(
@@ -98,6 +98,12 @@ assert.match(
   codePageSource,
   /useCodingSessionActions\([\s\S]*\{\s*isActive:\s*isVisible,\s*createCodingSessionInProject:\s*createCodingSessionInProjectWithTranscriptReset,\s*\}/s,
   'CodePage global create-session events must use the same transcript-reset creation callback as visible new-session controls.',
+);
+
+assert.match(
+  codePageSource,
+  /onNewCodingSessionInProject: createCodingSessionInProjectWithTranscriptReset/u,
+  'CodePage visible new-session controls must use the same project-scoped transcript-reset callback as global events.',
 );
 
 assert.match(

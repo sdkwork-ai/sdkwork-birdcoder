@@ -20,6 +20,7 @@ import type {
 import { createDefaultBirdCoderIdeServices } from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/src/services/defaultIdeServices.ts';
 import { ApiBackedAppRuntimeReadService } from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/src/services/impl/ApiBackedAppRuntimeReadService.ts';
 import { TEST_CODE_ENGINE_MODEL_CONFIG } from './test-code-engine-model-config-fixture.ts';
+import { installBirdCoderTestRuntimeEnv } from './test-birdcoder-runtime-env-fixture.ts';
 
 const routeFixture: BirdCoderApiRouteCatalogEntry = {
   authMode: 'user',
@@ -276,6 +277,7 @@ const codingRuntimeClient: BirdCoderAppRuntimeReadSdkApiClient = {
   },
 };
 
+const restoreRuntimeEnv = installBirdCoderTestRuntimeEnv();
 const services = createDefaultBirdCoderIdeServices({
   appRuntimeClient: codingRuntimeClient,
 });
@@ -512,4 +514,5 @@ assert.deepEqual(calls, [
   `listCodingSessionCheckpoints:${sessionFixture.id}`,
 ]);
 
+restoreRuntimeEnv();
 console.log('default IDE services app runtime read service contract passed.');

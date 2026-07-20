@@ -41,6 +41,9 @@ function resolveMergedToolCallStatus(
   previous: ChatMessageToolCall['status'],
   incoming: ChatMessageToolCall['status'],
 ): ChatMessageToolCall['status'] {
+  if (previous === 'cancelled' || incoming === 'cancelled') {
+    return 'cancelled';
+  }
   if (!incoming) {
     return previous;
   }

@@ -6,7 +6,8 @@ use serde_json::Value;
 use crate::{
     build_native_session_id, canonicalize_codeengine_provider_tool_name,
     map_codeengine_session_status_from_runtime, map_codeengine_tool_command_status,
-    map_codeengine_tool_kind, map_codeengine_tool_runtime_status, resolve_codeengine_command_text,
+    map_codeengine_tool_kind, map_codeengine_tool_runtime_status,
+    normalize_codeengine_tool_lifecycle_status, resolve_codeengine_command_text,
     sanitize_codeengine_session_metadata, CodeEngineSessionCommandRecord,
     CodeEngineSessionDetailRecord, CodeEngineSessionMessageRecord,
     CodeEngineSessionNativeAttributesRecord, CodeEngineSessionSummaryRecord,
@@ -54,7 +55,8 @@ struct GeminiMessageRecord {
     #[serde(default)]
     tool_calls: Vec<Value>,
     #[serde(default)]
-    thoughts: Vec<Value>,
+    #[serde(rename = "thoughts")]
+    _thoughts: Vec<Value>,
 }
 
 impl GeminiConversationRecord {
@@ -185,51 +187,83 @@ pub(super) fn build_gemini_session_detail(
     conversation: GeminiConversationRecord,
     summary: CodeEngineSessionSummaryRecord,
 ) -> CodeEngineSessionDetailRecord {
-    let messages = conversation
-        .messages
-        .iter()
-        .enumerate()
-        .map(|(index, message)| {
-            build_gemini_message_record(summary.id.as_str(), index, message, &summary.updated_at)
-        })
-        .collect();
+    let mut current_turn_id = None;
+    let mut messages = Vec::new();
+    for (index, message) in conversation.messages.iter().enumerate() {
+        let raw_message_id = resolve_gemini_message_id(index, message);
+        if message.message_type.trim().eq_ignore_ascii_case("user") {
+            current_turn_id = Some(raw_message_id.clone());
+        }
+        let turn_id = current_turn_id
+            .clone()
+            .unwrap_or_else(|| raw_message_id.clone());
+        let record = build_gemini_message_record(
+            summary.id.as_str(),
+            raw_message_id.as_str(),
+            turn_id.as_str(),
+            message,
+            &summary.updated_at,
+        );
+        if gemini_message_record_has_payload(&record) {
+            messages.push(record);
+        }
+    }
     CodeEngineSessionDetailRecord { summary, messages }
+}
+
+fn gemini_message_record_has_payload(message: &CodeEngineSessionMessageRecord) -> bool {
+    !message.content.trim().is_empty()
+        || message
+            .commands
+            .as_ref()
+            .is_some_and(|commands| !commands.is_empty())
+        || message
+            .tool_calls
+            .as_ref()
+            .is_some_and(|tool_calls| !tool_calls.is_empty())
+        || message
+            .file_changes
+            .as_ref()
+            .is_some_and(|file_changes| !file_changes.is_empty())
+        || message.task_progress.is_some()
 }
 
 fn build_gemini_message_record(
     session_id: &str,
-    index: usize,
+    raw_message_id: &str,
+    turn_id: &str,
     message: &GeminiMessageRecord,
     fallback_timestamp: &str,
 ) -> CodeEngineSessionMessageRecord {
-    let raw_message_id = normalize_non_empty_string(message.id.as_deref())
-        .unwrap_or_else(|| format!("message-{}", index + 1));
     let message_type = message.message_type.trim().to_ascii_lowercase();
     let commands = build_gemini_tool_commands(message.tool_calls.as_slice());
+    let file_changes = build_gemini_file_changes(message.tool_calls.as_slice());
+    let task_progress = build_gemini_task_progress(message.tool_calls.as_slice());
     let content = message
         .display_content
         .as_ref()
         .map(part_list_union_to_string)
         .filter(|value| !value.trim().is_empty())
         .unwrap_or_else(|| part_list_union_to_string(&message.content));
-    let content = if content.trim().is_empty() {
-        fallback_gemini_message_content(message, commands.as_slice())
-    } else {
-        content
-    };
     let mut metadata = BTreeMap::new();
     metadata.insert("geminiMessageType".to_owned(), message_type.clone());
     if let Some(model) = normalize_non_empty_string(message.model.as_deref()) {
         metadata.insert("modelId".to_owned(), model);
     }
+    if message_type == "error" {
+        metadata.insert("noticeKind".to_owned(), "failed".to_owned());
+    } else if message_type == "warning" {
+        metadata.insert("noticeKind".to_owned(), "warning".to_owned());
+    }
 
     CodeEngineSessionMessageRecord {
         id: format!("{session_id}:native-message:{raw_message_id}"),
-        turn_id: Some(raw_message_id),
+        turn_id: Some(turn_id.to_owned()),
         role: match message_type.as_str() {
             "user" => "user".to_owned(),
             "gemini" => "assistant".to_owned(),
-            _ => "tool".to_owned(),
+            "tool" => "tool".to_owned(),
+            _ => "system".to_owned(),
         },
         content,
         commands: if commands.is_empty() {
@@ -243,12 +277,21 @@ fn build_gemini_message_record(
             Some(message.tool_calls.clone())
         },
         tool_call_id: None,
-        file_changes: None,
-        task_progress: None,
+        file_changes: if file_changes.is_empty() {
+            None
+        } else {
+            Some(file_changes)
+        },
+        task_progress,
         metadata: Some(metadata),
         created_at: normalize_non_empty_string(message.timestamp.as_deref())
             .unwrap_or_else(|| fallback_timestamp.to_owned()),
     }
+}
+
+fn resolve_gemini_message_id(index: usize, message: &GeminiMessageRecord) -> String {
+    normalize_non_empty_string(message.id.as_deref())
+        .unwrap_or_else(|| format!("message-{}", index + 1))
 }
 
 fn build_gemini_tool_commands(tool_calls: &[Value]) -> Vec<CodeEngineSessionCommandRecord> {
@@ -262,7 +305,7 @@ fn build_gemini_tool_commands(tool_calls: &[Value]) -> Vec<CodeEngineSessionComm
                 raw_tool_name.as_str(),
             );
             let kind = map_codeengine_tool_kind(tool_name.as_str()).to_owned();
-            let status = normalize_value_string(tool_call.get("status"));
+            let status = resolve_gemini_tool_status(tool_call);
             let command_status = map_codeengine_tool_command_status(status.as_deref(), None);
             let args = tool_call.get("args");
             let fallback_arguments = args.and_then(|value| serde_json::to_string(value).ok());
@@ -288,6 +331,111 @@ fn build_gemini_tool_commands(tool_calls: &[Value]) -> Vec<CodeEngineSessionComm
         .collect()
 }
 
+fn gemini_tool_completed(tool_call: &Value) -> bool {
+    resolve_gemini_tool_status(tool_call)
+        .as_deref()
+        .and_then(normalize_codeengine_tool_lifecycle_status)
+        == Some("completed")
+}
+
+fn build_gemini_file_changes(tool_calls: &[Value]) -> Vec<Value> {
+    tool_calls
+        .iter()
+        .filter(|tool_call| gemini_tool_completed(tool_call))
+        .filter_map(|tool_call| {
+            let result_display = tool_call.get("resultDisplay")?.as_object()?;
+            let diff = normalize_value_string(result_display.get("fileDiff"))?;
+            let path = normalize_value_string(result_display.get("filePath"))
+                .or_else(|| normalize_value_string(result_display.get("fileName")))?
+                .replace('\\', "/");
+            let diff_stat = result_display.get("diffStat").and_then(Value::as_object);
+            let (derived_additions, derived_deletions) = count_gemini_diff_lines(diff.as_str());
+            let additions = diff_stat
+                .and_then(|stat| {
+                    read_gemini_non_negative_integer(stat.get("model_added_lines"))
+                        .or_else(|| read_gemini_non_negative_integer(stat.get("added")))
+                        .or_else(|| read_gemini_non_negative_integer(stat.get("additions")))
+                })
+                .unwrap_or(derived_additions);
+            let deletions = diff_stat
+                .and_then(|stat| {
+                    read_gemini_non_negative_integer(stat.get("model_removed_lines"))
+                        .or_else(|| read_gemini_non_negative_integer(stat.get("removed")))
+                        .or_else(|| read_gemini_non_negative_integer(stat.get("deletions")))
+                })
+                .unwrap_or(derived_deletions);
+            let mut file_change = serde_json::Map::new();
+            file_change.insert("path".to_owned(), Value::String(path));
+            file_change.insert("additions".to_owned(), Value::from(additions));
+            file_change.insert("deletions".to_owned(), Value::from(deletions));
+            file_change.insert("lineImpactKnown".to_owned(), Value::Bool(true));
+            file_change.insert("diff".to_owned(), Value::String(diff));
+            if let Some(content) = result_display.get("newContent").cloned() {
+                file_change.insert("content".to_owned(), content);
+            }
+            if let Some(original_content) = result_display.get("originalContent").cloned() {
+                file_change.insert("originalContent".to_owned(), original_content);
+            }
+            Some(Value::Object(file_change))
+        })
+        .collect()
+}
+
+fn build_gemini_task_progress(tool_calls: &[Value]) -> Option<Value> {
+    tool_calls.iter().rev().find_map(|tool_call| {
+        if !gemini_tool_completed(tool_call) {
+            return None;
+        }
+        let todos = tool_call
+            .get("resultDisplay")?
+            .as_object()?
+            .get("todos")?
+            .as_array()?;
+        if todos.is_empty() {
+            return None;
+        }
+        let completed = todos
+            .iter()
+            .filter(|todo| {
+                normalize_value_string(todo.get("status"))
+                    .as_deref()
+                    .and_then(normalize_codeengine_tool_lifecycle_status)
+                    == Some("completed")
+            })
+            .count();
+        Some(serde_json::json!({
+            "total": todos.len(),
+            "completed": completed,
+        }))
+    })
+}
+
+fn read_gemini_non_negative_integer(value: Option<&Value>) -> Option<u64> {
+    match value {
+        Some(Value::Number(value)) => value
+            .as_u64()
+            .or_else(|| value.as_i64().map(|value| value.max(0) as u64)),
+        Some(Value::String(value)) => value.trim().parse::<u64>().ok(),
+        _ => None,
+    }
+}
+
+fn count_gemini_diff_lines(diff: &str) -> (u64, u64) {
+    let mut additions = 0_u64;
+    let mut deletions = 0_u64;
+    for line in diff.replace("\r\n", "\n").replace('\r', "\n").lines() {
+        if line.starts_with("+++") || line.starts_with("---") {
+            continue;
+        }
+        if line.starts_with('+') {
+            additions += 1;
+        } else if line.starts_with('-') {
+            deletions += 1;
+        }
+    }
+    (additions, deletions)
+}
+
 fn extract_gemini_tool_output(tool_call: &Value) -> Option<String> {
     normalize_value_content(tool_call.get("resultDisplay"))
         .or_else(|| normalize_value_content(tool_call.get("result")))
@@ -299,6 +447,19 @@ fn normalize_value_content(value: Option<&Value>) -> Option<String> {
         Value::Null => None,
         Value::String(value) => normalize_non_empty_string(Some(value.as_str())),
         Value::Array(values) => {
+            if values.iter().all(|value| {
+                value
+                    .as_object()
+                    .and_then(|record| record.get("text"))
+                    .and_then(Value::as_str)
+                    .is_some()
+            }) {
+                let content = values
+                    .iter()
+                    .filter_map(|value| value.get("text").and_then(Value::as_str))
+                    .collect::<String>();
+                return normalize_non_empty_string(Some(content.as_str()));
+            }
             let content = values
                 .iter()
                 .filter_map(|value| normalize_value_content(Some(value)))
@@ -306,49 +467,183 @@ fn normalize_value_content(value: Option<&Value>) -> Option<String> {
                 .join("\n");
             normalize_non_empty_string(Some(content.as_str()))
         }
-        Value::Object(record) => ["output", "error", "message", "text"]
+        Value::Object(record) => {
+            let stdout = normalize_value_content(record.get("stdout"));
+            let stderr = normalize_value_content(record.get("stderr"));
+            if stdout.is_some() || stderr.is_some() {
+                return normalize_non_empty_string(Some(
+                    [stdout, stderr]
+                        .into_iter()
+                        .flatten()
+                        .collect::<Vec<_>>()
+                        .join("\n")
+                        .as_str(),
+                ));
+            }
+
+            let mut fragments = Vec::new();
+            if let Some(output) = normalize_value_content(record.get("output")) {
+                fragments.push(output);
+            }
+            if record
+                .get("error")
+                .is_some_and(has_meaningful_gemini_error_value)
+            {
+                if let Some(error) = normalize_value_content(record.get("error")) {
+                    if !fragments.contains(&error) {
+                        fragments.push(error);
+                    }
+                }
+            }
+            if !fragments.is_empty() {
+                return normalize_non_empty_string(Some(fragments.join("\n").as_str()));
+            }
+
+            [
+                "message",
+                "text",
+                "summary",
+                "response",
+                "functionResponse",
+                "result",
+                "content",
+                "parts",
+                "responseParts",
+            ]
             .into_iter()
             .find_map(|field| normalize_value_content(record.get(field)))
-            .or_else(|| normalize_value_content(record.get("response")))
-            .or_else(|| normalize_value_content(record.get("functionResponse")))
-            .or_else(|| serde_json::to_string(value).ok()),
+        }
         _ => Some(value.to_string()),
     }
 }
 
-fn fallback_gemini_message_content(
-    message: &GeminiMessageRecord,
-    commands: &[CodeEngineSessionCommandRecord],
-) -> String {
-    let thought_content = message
-        .thoughts
-        .iter()
-        .filter_map(|thought| {
-            normalize_value_string(thought.get("description"))
-                .or_else(|| normalize_value_string(thought.get("subject")))
-        })
-        .collect::<Vec<_>>()
-        .join("\n");
-    if !thought_content.trim().is_empty() {
-        return thought_content;
+fn resolve_gemini_tool_status(tool_call: &Value) -> Option<String> {
+    let native_status = normalize_value_string(tool_call.get("status"));
+    let native_lifecycle = native_status
+        .as_deref()
+        .and_then(normalize_codeengine_tool_lifecycle_status);
+    if native_lifecycle == Some("cancelled") || gemini_value_has_cancellation(tool_call, 0) {
+        return Some("cancelled".to_owned());
     }
-    if !commands.is_empty() {
-        return commands
+    if gemini_value_has_error(tool_call, 0) {
+        return Some("error".to_owned());
+    }
+    native_status
+}
+
+fn has_meaningful_gemini_error_value(value: &Value) -> bool {
+    match value {
+        Value::Null => false,
+        Value::Bool(value) => *value,
+        Value::String(value) => {
+            !value.trim().is_empty() && !value.trim().eq_ignore_ascii_case("false")
+        }
+        Value::Number(value) => value.as_i64().is_some_and(|value| value != 0),
+        Value::Array(values) => values.iter().any(has_meaningful_gemini_error_value),
+        Value::Object(record) => !record.is_empty(),
+    }
+}
+
+fn gemini_value_has_error(value: &Value, depth: usize) -> bool {
+    if depth >= 8 {
+        return false;
+    }
+    if let Value::Array(values) = value {
+        return values
             .iter()
-            .map(|command| format!("{}: {}", command.status, command.command))
-            .collect::<Vec<_>>()
-            .join("\n");
+            .any(|value| gemini_value_has_error(value, depth + 1));
     }
-    match message.message_type.trim().to_ascii_lowercase().as_str() {
-        "info" => "Gemini CLI information message.".to_owned(),
-        "warning" => "Gemini CLI warning.".to_owned(),
-        "error" => "Gemini CLI error.".to_owned(),
-        _ => String::new(),
+    let Some(record) = value.as_object() else {
+        return false;
+    };
+    if record
+        .get("isError")
+        .or_else(|| record.get("is_error"))
+        .is_some_and(|value| match value {
+            Value::Bool(value) => *value,
+            Value::String(value) => value.trim().eq_ignore_ascii_case("true"),
+            _ => false,
+        })
+        || record
+            .get("error")
+            .is_some_and(has_meaningful_gemini_error_value)
+        || normalize_value_string(record.get("type")).is_some_and(|value| {
+            let normalized = value.trim().to_ascii_lowercase();
+            normalized == "error" || normalized.ends_with("_error")
+        })
+    {
+        return true;
     }
+    [
+        "content",
+        "functionResponse",
+        "output",
+        "response",
+        "responseParts",
+        "result",
+        "resultDisplay",
+        "parts",
+    ]
+    .into_iter()
+    .filter_map(|field| record.get(field))
+    .any(|value| gemini_value_has_error(value, depth + 1))
+}
+
+fn gemini_value_has_cancellation(value: &Value, depth: usize) -> bool {
+    if depth >= 8 {
+        return false;
+    }
+    if let Value::String(value) = value {
+        let normalized = value.trim().trim_start_matches('[').to_ascii_lowercase();
+        let normalized = normalized.trim_end_matches(']').trim();
+        return matches!(normalized, "cancelled" | "canceled")
+            || ["operation", "request", "tool", "command", "user"]
+                .into_iter()
+                .any(|subject| {
+                    normalized == format!("{subject} cancelled")
+                        || normalized == format!("{subject} canceled")
+                        || normalized.starts_with(format!("{subject} was cancelled").as_str())
+                        || normalized.starts_with(format!("{subject} was canceled").as_str())
+                        || normalized.starts_with(format!("{subject} cancelled ").as_str())
+                        || normalized.starts_with(format!("{subject} canceled ").as_str())
+                })
+            || normalized.starts_with("cancelled ")
+            || normalized.starts_with("canceled ");
+    }
+    if let Value::Array(values) = value {
+        return values
+            .iter()
+            .any(|value| gemini_value_has_cancellation(value, depth + 1));
+    }
+    let Some(record) = value.as_object() else {
+        return false;
+    };
+    if ["aborted", "canceled", "cancelled", "interrupted"]
+        .into_iter()
+        .any(|field| record.get(field).and_then(Value::as_bool) == Some(true))
+    {
+        return true;
+    }
+    [
+        "error",
+        "functionResponse",
+        "response",
+        "responseParts",
+        "result",
+        "resultDisplay",
+        "parts",
+    ]
+    .into_iter()
+    .filter_map(|field| record.get(field))
+    .any(|value| gemini_value_has_cancellation(value, depth + 1))
 }
 
 fn resolve_gemini_session_runtime_status(messages: &[GeminiMessageRecord]) -> &'static str {
     for message in messages.iter().rev() {
+        let message_type = message.message_type.trim().to_ascii_lowercase();
+        if message_type == "error" {
+            return "failed";
+        }
         if !is_meaningful_message(message) {
             continue;
         }
@@ -356,7 +651,7 @@ fn resolve_gemini_session_runtime_status(messages: &[GeminiMessageRecord]) -> &'
             let tool_name =
                 normalize_value_string(tool_call.get("name")).unwrap_or_else(|| "tool".to_owned());
             let kind = map_codeengine_tool_kind(tool_name.as_str());
-            let status = normalize_value_string(tool_call.get("status"));
+            let status = resolve_gemini_tool_status(tool_call);
             let runtime_status = map_codeengine_tool_runtime_status(kind, status.as_deref(), None);
             if runtime_status != "completed" {
                 return runtime_status;
@@ -371,7 +666,14 @@ fn is_meaningful_message(message: &GeminiMessageRecord) -> bool {
     matches!(
         message.message_type.trim().to_ascii_lowercase().as_str(),
         "user" | "gemini"
-    )
+    ) && (!part_list_union_to_string(&message.content)
+        .trim()
+        .is_empty()
+        || message
+            .display_content
+            .as_ref()
+            .is_some_and(|value| !part_list_union_to_string(value).trim().is_empty())
+        || !message.tool_calls.is_empty())
 }
 
 fn first_user_message_title(messages: &[GeminiMessageRecord]) -> Option<String> {
@@ -402,21 +704,8 @@ fn part_list_union_to_string(value: &Value) -> String {
             .map(part_list_union_to_string)
             .collect::<Vec<_>>()
             .join(""),
-        Value::Object(record) => normalize_value_string(record.get("text"))
-            .or_else(|| {
-                record
-                    .get("functionCall")
-                    .and_then(|value| normalize_value_string(value.get("name")))
-                    .map(|name| format!("[Function Call: {name}]"))
-            })
-            .or_else(|| {
-                record
-                    .get("functionResponse")
-                    .and_then(|value| normalize_value_string(value.get("name")))
-                    .map(|name| format!("[Function Response: {name}]"))
-            })
-            .unwrap_or_default(),
-        _ => value.to_string(),
+        Value::Object(record) => normalize_value_string(record.get("text")).unwrap_or_default(),
+        _ => String::new(),
     }
 }
 

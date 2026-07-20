@@ -149,6 +149,7 @@ interface BuiltProjectionMessages {
   editedMessageContentById: Map<string, string>;
   editedMessageContentByKey: Map<string, string>;
   messages: BirdCoderChatMessage[];
+  retractedProviderMessageUuids: Set<string>;
 }
 
 function readProjectionPayloadString(
@@ -198,6 +199,116 @@ function parseProjectionFileChanges(
   return fileChangesByPath.size > 0 ? [...fileChangesByPath.values()] : undefined;
 }
 
+const PROJECTION_OPENCODE_FILE_CHANGE_TOOLS = new Set([
+  'apply_patch',
+  'edit',
+  'multi_edit',
+  'multiedit',
+  'notebook_edit',
+  'patch',
+  'write',
+]);
+
+const PROJECTION_NON_APPLIED_FILE_CHANGE_STATUSES = new Set([
+  'aborted',
+  'awaiting_approval',
+  'awaiting_user',
+  'canceled',
+  'cancelled',
+  'declined',
+  'denied',
+  'error',
+  'executing',
+  'failed',
+  'failure',
+  'in_progress',
+  'inprogress',
+  'interrupted',
+  'pending',
+  'queued',
+  'rejected',
+  'running',
+  'scheduled',
+  'stopped',
+  'validating',
+]);
+
+function normalizeProjectionFileChangePath(...values: unknown[]): string | undefined {
+  for (const value of values) {
+    const path = normalizeProjectionPayloadString(value)?.replace(/\\/gu, '/');
+    if (path) {
+      return path;
+    }
+  }
+  return undefined;
+}
+
+function projectStructuredPatch(
+  value: unknown,
+): { additions: number; deletions: number; diff?: string } {
+  if (!Array.isArray(value)) {
+    return { additions: 0, deletions: 0 };
+  }
+  const diffParts: string[] = [];
+  let additions = 0;
+  let deletions = 0;
+  for (const hunk of value) {
+    if (!isProjectionPayloadRecord(hunk) || !Array.isArray(hunk.lines)) {
+      continue;
+    }
+    const lines = hunk.lines.filter((line): line is string => typeof line === 'string');
+    for (const line of lines) {
+      if (line.startsWith('+')) {
+        additions += 1;
+      } else if (line.startsWith('-')) {
+        deletions += 1;
+      }
+    }
+    const oldStart = normalizeProjectionPayloadNumber(hunk.oldStart) ?? 0;
+    const oldLines = normalizeProjectionPayloadNumber(hunk.oldLines) ?? 0;
+    const newStart = normalizeProjectionPayloadNumber(hunk.newStart) ?? 0;
+    const newLines = normalizeProjectionPayloadNumber(hunk.newLines) ?? 0;
+    diffParts.push(`@@ -${oldStart},${oldLines} +${newStart},${newLines} @@\n${lines.join('\n')}`);
+  }
+  const diff = diffParts.join('\n');
+  return {
+    additions,
+    deletions,
+    ...(diff ? { diff } : {}),
+  };
+}
+
+function projectOpenCodeMetadataFileChange(
+  value: unknown,
+  fallbackDiff?: string,
+): FileChange | null {
+  const record = isProjectionPayloadRecord(value) ? value : null;
+  if (!record) {
+    return null;
+  }
+  const path = normalizeProjectionFileChangePath(
+    record.relativePath,
+    record.movePath,
+    record.filePath,
+    record.file,
+    record.filepath,
+  );
+  if (!path) {
+    return null;
+  }
+  const diff = normalizeProjectionPayloadString(record.patch ?? record.diff ?? fallbackDiff);
+  const diffLines = countProjectionDiffLines(diff);
+  const additions = normalizeProjectionPayloadNumber(record.additions) ?? diffLines.additions;
+  const deletions = normalizeProjectionPayloadNumber(record.deletions) ?? diffLines.deletions;
+  return {
+    path,
+    additions,
+    deletions,
+    lineImpactKnown: additions > 0 || deletions > 0 || Boolean(diff),
+    ...(diff ? { diff } : {}),
+  };
+}
+
 function collectProjectionNativeFileChanges(
   value: unknown,
   output: FileChange[],
@@ -216,22 +327,123 @@ function collectProjectionNativeFileChanges(
   visited.add(value);
   const record = value as Record<string, unknown>;
   const type = normalizeProjectionToolContentType(record.type);
+  if (type === 'patch' && Array.isArray(record.files)) {
+    for (const file of record.files) {
+      const path = normalizeProjectionFileChangePath(file);
+      if (path) {
+        output.push({
+          path,
+          additions: 0,
+          deletions: 0,
+          lineImpactKnown: false,
+        });
+      }
+    }
+    return;
+  }
+
+  const structuredPatch = Array.isArray(record.structuredPatch)
+    ? projectStructuredPatch(record.structuredPatch)
+    : null;
+  const claudeFilePath = normalizeProjectionFileChangePath(record.filePath);
+  if (structuredPatch && claudeFilePath) {
+    const gitDiff = isProjectionPayloadRecord(record.gitDiff) ? record.gitDiff : null;
+    const diff = normalizeProjectionPayloadString(gitDiff?.patch) ?? structuredPatch.diff;
+    const additions = normalizeProjectionPayloadNumber(gitDiff?.additions)
+      ?? (type === 'create' && typeof record.content === 'string'
+        ? countProjectionContentLines(record.content)
+        : structuredPatch.additions);
+    const deletions = normalizeProjectionPayloadNumber(gitDiff?.deletions)
+      ?? structuredPatch.deletions;
+    const content = typeof record.content === 'string' ? record.content : undefined;
+    const originalContent = typeof record.originalFile === 'string'
+      ? record.originalFile
+      : undefined;
+    output.push({
+      path: claudeFilePath,
+      additions,
+      deletions,
+      lineImpactKnown: true,
+      ...(diff ? { diff } : {}),
+      ...(content !== undefined ? { content } : {}),
+      ...(originalContent !== undefined ? { originalContent } : {}),
+    });
+    return;
+  }
+
+  if (type === 'tool') {
+    const state = isProjectionPayloadRecord(record.state) ? record.state : null;
+    const status = normalizeProjectionToolContentType(state?.status ?? record.status);
+    const toolName = normalizeProjectionToolContentType(record.tool ?? record.name);
+    if (status === 'completed' && PROJECTION_OPENCODE_FILE_CHANGE_TOOLS.has(toolName)) {
+      const metadata = isProjectionPayloadRecord(state?.metadata)
+        ? state.metadata
+        : isProjectionPayloadRecord(record.metadata)
+          ? record.metadata
+          : null;
+      const metadataFiles = Array.isArray(metadata?.files) ? metadata.files : [];
+      const fallbackDiff = normalizeProjectionPayloadString(metadata?.diff);
+      const outputLengthBeforeMetadataFiles = output.length;
+      for (const file of metadataFiles) {
+        const fileChange = projectOpenCodeMetadataFileChange(file, fallbackDiff);
+        if (fileChange) {
+          output.push(fileChange);
+        }
+      }
+      if (output.length > outputLengthBeforeMetadataFiles) {
+        return;
+      }
+      const metadataFileDiff = projectOpenCodeMetadataFileChange(metadata?.filediff, fallbackDiff);
+      if (metadataFileDiff) {
+        output.push(metadataFileDiff);
+        return;
+      }
+      const input = isProjectionPayloadRecord(state?.input) ? state.input : null;
+      const path = normalizeProjectionFileChangePath(
+        metadata?.filepath,
+        input?.filePath,
+        input?.file_path,
+      );
+      if (path) {
+        const content = typeof input?.content === 'string' ? input.content : undefined;
+        const isKnownNewFile = metadata?.exists === false;
+        output.push({
+          path,
+          additions: isKnownNewFile && content !== undefined
+            ? countProjectionContentLines(content)
+            : 0,
+          deletions: 0,
+          lineImpactKnown: isKnownNewFile,
+          ...(fallbackDiff ? { diff: fallbackDiff } : {}),
+          ...(content !== undefined ? { content } : {}),
+        });
+        return;
+      }
+    }
+  }
   if (type === 'file_change') {
     const status = normalizeProjectionToolContentType(record.status);
-    if (['error', 'failed', 'in_progress', 'pending', 'running'].includes(status)) {
+    if (PROJECTION_NON_APPLIED_FILE_CHANGE_STATUSES.has(status)) {
       return;
     }
     for (const change of Array.isArray(record.changes) ? record.changes : []) {
       if (!isProjectionPayloadRecord(change)) {
         continue;
       }
-      const path = normalizeProjectionPayloadString(change.path)?.replace(/\\/gu, '/');
+      const changeKind = isProjectionPayloadRecord(change.kind) ? change.kind : null;
+      const originalPath = normalizeProjectionFileChangePath(change.path);
+      const movePath = normalizeProjectionFileChangePath(
+        changeKind?.move_path,
+        changeKind?.movePath,
+      );
+      const path = movePath ?? originalPath;
       if (!path) {
         continue;
       }
-      const additions = normalizeProjectionPayloadNumber(change.additions) ?? 0;
-      const deletions = normalizeProjectionPayloadNumber(change.deletions) ?? 0;
       const diff = normalizeProjectionPayloadString(change.diff ?? change.patch);
+      const diffLines = countProjectionDiffLines(diff);
+      const additions = normalizeProjectionPayloadNumber(change.additions) ?? diffLines.additions;
+      const deletions = normalizeProjectionPayloadNumber(change.deletions) ?? diffLines.deletions;
       const content = typeof change.content === 'string' ? change.content : undefined;
       const originalContent = typeof change.originalContent === 'string'
         ? change.originalContent
@@ -243,7 +455,52 @@ function collectProjectionNativeFileChanges(
         additions,
         deletions,
         lineImpactKnown: additions > 0 || deletions > 0 || Boolean(diff),
+        ...(movePath && originalPath ? { updateStatus: `moved from ${originalPath}` } : {}),
         ...(diff ? { diff } : {}),
+        ...(content !== undefined ? { content } : {}),
+        ...(originalContent !== undefined ? { originalContent } : {}),
+      });
+    }
+    return;
+  }
+
+  const responseRecord = isProjectionPayloadRecord(record.response)
+    ? record.response
+    : null;
+  const resultDisplay = isProjectionPayloadRecord(record.resultDisplay)
+    ? record.resultDisplay
+    : isProjectionPayloadRecord(responseRecord?.resultDisplay)
+      ? responseRecord.resultDisplay
+      : null;
+  const geminiFileDiff = typeof resultDisplay?.fileDiff === 'string'
+    ? resultDisplay.fileDiff
+    : undefined;
+  const geminiFilePath = normalizeProjectionPayloadString(
+    resultDisplay?.filePath ?? resultDisplay?.fileName,
+  )?.replace(/\\/gu, '/');
+  if (resultDisplay && geminiFileDiff?.trim() && geminiFilePath) {
+    const status = normalizeProjectionToolContentType(record.status);
+    if (!PROJECTION_NON_APPLIED_FILE_CHANGE_STATUSES.has(status)) {
+      const diffStat = isProjectionPayloadRecord(resultDisplay.diffStat)
+        ? resultDisplay.diffStat
+        : null;
+      const diffLines = countProjectionDiffLines(geminiFileDiff);
+      const additions = normalizeProjectionPayloadNumber(diffStat?.model_added_lines)
+        ?? diffLines.additions;
+      const deletions = normalizeProjectionPayloadNumber(diffStat?.model_removed_lines)
+        ?? diffLines.deletions;
+      const content = typeof resultDisplay.newContent === 'string'
+        ? resultDisplay.newContent
+        : undefined;
+      const originalContent = typeof resultDisplay.originalContent === 'string'
+        ? resultDisplay.originalContent
+        : undefined;
+      output.push({
+        path: geminiFilePath,
+        additions,
+        deletions,
+        lineImpactKnown: true,
+        diff: geminiFileDiff,
         ...(content !== undefined ? { content } : {}),
         ...(originalContent !== undefined ? { originalContent } : {}),
       });
@@ -272,23 +529,128 @@ function parseProjectionToolCalls(
     : undefined;
 }
 
+const PROJECTION_PROVIDER_MESSAGE_TYPES = new Set([
+  'assistant',
+  'result',
+  'system',
+  'user',
+]);
+
+interface ProjectionProviderMessageSignals {
+  messageUuids: Set<string>;
+  retractedMessageUuids: Set<string>;
+}
+
+function collectProjectionProviderMessageSignals(
+  value: unknown,
+  signals: ProjectionProviderMessageSignals,
+  visited: WeakSet<object>,
+): void {
+  if (Array.isArray(value)) {
+    for (const entry of value) {
+      collectProjectionProviderMessageSignals(entry, signals, visited);
+    }
+    return;
+  }
+  if (!isProjectionPayloadRecord(value) || visited.has(value)) {
+    return;
+  }
+
+  visited.add(value);
+  const type = normalizeProjectionToolContentType(value.type);
+  const uuid = normalizeProjectionPayloadString(value.uuid);
+  if (uuid && PROJECTION_PROVIDER_MESSAGE_TYPES.has(type)) {
+    signals.messageUuids.add(uuid);
+  }
+  for (const key of ['messageUuid', 'message_uuid', 'providerMessageUuid', 'provider_message_uuid'] as const) {
+    const messageUuid = normalizeProjectionPayloadString(value[key]);
+    if (messageUuid) {
+      signals.messageUuids.add(messageUuid);
+    }
+  }
+
+  for (const key of ['supersedes', 'retracted_message_uuids'] as const) {
+    const retractedUuids = value[key];
+    if (!Array.isArray(retractedUuids)) {
+      continue;
+    }
+    for (const retractedUuid of retractedUuids) {
+      const normalizedUuid = normalizeProjectionPayloadString(retractedUuid);
+      if (normalizedUuid) {
+        signals.retractedMessageUuids.add(normalizedUuid);
+      }
+    }
+  }
+
+  for (const child of Object.values(value)) {
+    collectProjectionProviderMessageSignals(child, signals, visited);
+  }
+}
+
+function readProjectionProviderMessageSignals(
+  value: unknown,
+): ProjectionProviderMessageSignals {
+  const signals: ProjectionProviderMessageSignals = {
+    messageUuids: new Set<string>(),
+    retractedMessageUuids: new Set<string>(),
+  };
+  collectProjectionProviderMessageSignals(value, signals, new WeakSet<object>());
+  return signals;
+}
+
+function payloadContainsRetractedProviderMessage(
+  payload: Record<string, unknown> | undefined,
+  retractedMessageUuids: ReadonlySet<string>,
+): boolean {
+  if (retractedMessageUuids.size === 0) {
+    return false;
+  }
+  const { messageUuids } = readProjectionProviderMessageSignals(payload);
+  return [...messageUuids].some((uuid) => retractedMessageUuids.has(uuid));
+}
+
+function isRetractedProjectionMessage(
+  message: BirdCoderChatMessage,
+  retractedMessageUuids: ReadonlySet<string>,
+): boolean {
+  if (retractedMessageUuids.size === 0) {
+    return false;
+  }
+  const metadata = isProjectionPayloadRecord(message.metadata) ? message.metadata : null;
+  return [
+    message.id,
+    metadata?.providerMessageUuid,
+    metadata?.rawMessageId,
+    metadata?.uuid,
+  ].some((candidate) => {
+    const uuid = normalizeProjectionPayloadString(candidate);
+    return Boolean(uuid && retractedMessageUuids.has(uuid));
+  });
+}
+
 const PROJECTION_NATIVE_TOOL_CONTENT_TYPES = new Set([
   'advisor_tool_result',
   'approval_request',
   'bash_code_execution_tool_result',
   'code_execution_tool_result',
   'command_execution',
+  'collab_agent_tool_call',
   'custom_tool_call',
   'custom_tool_call_output',
+  'dynamic_tool_call',
   'file_change',
   'function_call',
   'function_call_output',
   'image_generation_call',
+  'image_generation',
+  'image_view',
   'local_shell_call',
   'mcp_tool_call',
   'mcp_tool_result',
   'mcp_tool_use',
   'server_tool_use',
+  'sleep',
+  'sub_agent_activity',
   'subtask',
   'text_editor_code_execution_tool_result',
   'todo_list',
@@ -314,18 +676,31 @@ const PROJECTION_NATIVE_TOOL_CONTAINER_KEYS = [
   'content',
   'content_block',
   'items',
+  'item',
   'message',
   'messages',
   'part',
   'parts',
+  'params',
+  'payload',
+  'properties',
   'response',
   'responses',
+  'tool_calls',
+  'toolCalls',
+  'tools',
+  'toolUseResult',
+  'tool_use_result',
   'value',
 ] as const;
 
 function normalizeProjectionToolContentType(value: unknown): string {
   return typeof value === 'string'
-    ? value.trim().toLowerCase().replace(/[.\s-]+/gu, '_')
+    ? value
+        .trim()
+        .replace(/([a-z0-9])([A-Z])/gu, '$1_$2')
+        .toLowerCase()
+        .replace(/[.\s-]+/gu, '_')
     : '';
 }
 
@@ -347,8 +722,19 @@ function collectProjectionNativeToolCalls(
   visited.add(value);
   const record = value as Record<string, unknown>;
   const type = normalizeProjectionToolContentType(record.type);
+  const subtype = normalizeProjectionToolContentType(record.subtype);
   if (
     PROJECTION_NATIVE_TOOL_CONTENT_TYPES.has(type)
+    || (
+      type === 'system'
+      && [
+        'permission_denied',
+        'task_notification',
+        'task_progress',
+        'task_started',
+        'task_updated',
+      ].includes(subtype)
+    )
     || (typeof record.functionCall === 'object' && record.functionCall !== null)
     || (typeof record.functionResponse === 'object' && record.functionResponse !== null)
   ) {
@@ -401,6 +787,63 @@ function parseProjectionTaskProgress(
   const directTaskProgress = normalizeProjectionTaskProgress(payload?.taskProgress);
   if (directTaskProgress) {
     return directTaskProgress;
+  }
+
+  const toolCalls = parseProjectionToolCalls(payload);
+  if (Array.isArray(toolCalls)) {
+    for (let index = toolCalls.length - 1; index >= 0; index -= 1) {
+      const toolCall = isProjectionPayloadRecord(toolCalls[index])
+        ? toolCalls[index]
+        : null;
+      if (!toolCall) {
+        continue;
+      }
+      const item = isProjectionPayloadRecord(toolCall.item) ? toolCall.item : null;
+      const part = isProjectionPayloadRecord(toolCall.part) ? toolCall.part : null;
+      const source = item ?? part ?? toolCall;
+      const response = isProjectionPayloadRecord(source.response)
+        ? source.response
+        : null;
+      const resultDisplay = isProjectionPayloadRecord(source.resultDisplay)
+        ? source.resultDisplay
+        : isProjectionPayloadRecord(response?.resultDisplay)
+          ? response.resultDisplay
+          : null;
+      const request = isProjectionPayloadRecord(source.request) ? source.request : null;
+      const state = isProjectionPayloadRecord(source.state) ? source.state : null;
+      const requestArguments = isProjectionPayloadRecord(request?.args)
+        ? request.args
+        : isProjectionPayloadRecord(source.args)
+          ? source.args
+          : isProjectionPayloadRecord(source.input)
+            ? source.input
+            : isProjectionPayloadRecord(source.arguments)
+              ? source.arguments
+              : isProjectionPayloadRecord(state?.input)
+                ? state.input
+                : null;
+      const todos = Array.isArray(resultDisplay?.todos)
+        ? resultDisplay.todos
+        : Array.isArray(requestArguments?.todos)
+          ? requestArguments.todos
+          : normalizeProjectionToolContentType(source.type) === 'todo_list'
+              && Array.isArray(source.items)
+            ? source.items
+            : null;
+      if (!todos) {
+        continue;
+      }
+      return {
+        total: todos.length,
+        completed: todos.filter((todo: unknown) =>
+          isProjectionPayloadRecord(todo)
+          && (
+            todo.completed === true
+            || normalizeProjectionToolContentType(todo.status) === 'completed'
+          ),
+        ).length,
+      };
+    }
   }
 
   return undefined;
@@ -908,6 +1351,15 @@ function projectionToolEventToFileChanges(
       event.payload?.arguments ??
       event.payload?.input,
   );
+  if (
+    event.kind !== 'artifact.upserted'
+    && (
+      event.kind !== 'tool.call.completed'
+      || normalizeProjectionToolCommandStatus(event, toolArguments.record) !== 'success'
+    )
+  ) {
+    return [];
+  }
   const changes =
     (Array.isArray(toolArguments.record?.changes)
       ? toolArguments.record?.changes
@@ -1338,10 +1790,24 @@ function buildAuthoritativeProjectionMessages(
   const deletedMessageKeys = new Set<string>();
   const editedMessageContentById = new Map<string, string>();
   const editedMessageContentByKey = new Map<string, string>();
-  const toolCommandsByTurn = buildProjectionToolCommandsByTurn(sortedEvents);
-  const fileChangesByTurn = buildProjectionFileChangesByTurn(sortedEvents);
+  const retractedProviderMessageUuids = new Set<string>();
 
   for (const event of sortedEvents) {
+    const signals = readProjectionProviderMessageSignals(event.payload);
+    for (const uuid of signals.retractedMessageUuids) {
+      retractedProviderMessageUuids.add(uuid);
+    }
+  }
+  const activeEvents = sortedEvents.filter(
+    (event) => !payloadContainsRetractedProviderMessage(
+      event.payload,
+      retractedProviderMessageUuids,
+    ),
+  );
+  const toolCommandsByTurn = buildProjectionToolCommandsByTurn(activeEvents);
+  const fileChangesByTurn = buildProjectionFileChangesByTurn(activeEvents);
+
+  for (const event of activeEvents) {
     if (event.kind === 'message.edited') {
       const editedContent = extractBirdCoderTextContent(event.payload?.content);
       if (!editedContent) {
@@ -1375,7 +1841,7 @@ function buildAuthoritativeProjectionMessages(
     }
   }
 
-  for (const event of sortedEvents) {
+  for (const event of activeEvents) {
     if (event.kind === 'turn.failed') {
       const role = 'system' as const;
       const messageId = `${codingSessionId}:${idPrefix}:${event.turnId ?? event.id}:${role}:turn-failed`;
@@ -1625,6 +2091,7 @@ function buildAuthoritativeProjectionMessages(
     editedMessageContentById,
     editedMessageContentByKey,
     messages: authoritativeMessages,
+    retractedProviderMessageUuids,
   };
 }
 
@@ -1666,6 +2133,7 @@ export function mergeBirdCoderProjectionMessages({
     editedMessageContentById,
     editedMessageContentByKey,
     messages: authoritativeMessages,
+    retractedProviderMessageUuids,
   } = buildAuthoritativeProjectionMessages(normalizedCodingSessionId, idPrefix, scopedEvents);
   if (authoritativeMessages.length === 0) {
     return deduplicateBirdCoderComparableChatMessages(
@@ -1677,7 +2145,8 @@ export function mergeBirdCoderProjectionMessages({
               : undefined;
           return (
             !deletedMessageIds.has(existingMessage.id) &&
-            (!deletionKey || !deletedMessageKeys.has(deletionKey))
+            (!deletionKey || !deletedMessageKeys.has(deletionKey)) &&
+            !isRetractedProjectionMessage(existingMessage, retractedProviderMessageUuids)
           );
         })
         .map((existingMessage) =>
@@ -1736,6 +2205,7 @@ export function mergeBirdCoderProjectionMessages({
       authoritativeMessageIds.has(existingMessage.id) ||
       authoritativeMatchKeys.has(messageMatchKey) ||
       deletedMessageIds.has(existingMessage.id) ||
+      isRetractedProjectionMessage(existingMessage, retractedProviderMessageUuids) ||
       (deletionKey && deletedMessageKeys.has(deletionKey))
     ) {
       continue;

@@ -6,6 +6,10 @@ const universalChatSource = await readFile(
   resolve('apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-ui/src/components/UniversalChat.tsx'),
   'utf8',
 );
+const sharedComposerFooterSource = await readFile(
+  resolve('apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-ui/src/components/chat/composer/SharedComposerFooter.tsx'),
+  'utf8',
+);
 const userMessageRendererSource = await readFile(
   resolve('apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-ui/src/components/chat/messages/renderers/ReplyMessageRenderers.tsx'),
   'utf8',
@@ -83,8 +87,20 @@ assert.match(
 
 assert.match(
   universalChatSource,
-  /editingMessage \? t\('chat\.saveEditedMessage'\) :/,
-  'UniversalChat send button affordance must expose save-edit semantics while edit mode is active.',
+  /<UniversalChatComposerFooter[\s\S]*editingMessage=\{Boolean\(editingMessage\)\}/,
+  'UniversalChat must pass its edit state into the shared composer footer.',
+);
+
+assert.match(
+  sharedComposerFooterSource,
+  /editingMessage[\s\S]*\? t\('chat\.saveEditedMessage'\)[\s\S]*: t\('chat\.sendMessage'\)/,
+  'The shared composer footer send affordance must expose save-edit semantics while edit mode is active.',
+);
+
+assert.match(
+  sharedComposerFooterSource,
+  /editingMessage \? <Check size=\{16\} \/> : <ArrowUp size=\{16\} \/>/,
+  'The shared composer footer must distinguish save-edit and new-message actions visually.',
 );
 
 assert.match(

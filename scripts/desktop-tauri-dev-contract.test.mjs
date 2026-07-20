@@ -262,7 +262,7 @@ assert.match(
 
 assert.equal(
   rootPackageJson.scripts['dev:desktop'],
-  'pnpm run dev:desktop:postgres:standalone',
+  'pnpm dev:desktop:postgres:standalone',
   'Root dev:desktop must delegate to the canonical PostgreSQL standalone development profile.',
 );
 assert.equal(

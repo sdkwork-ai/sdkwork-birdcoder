@@ -6,6 +6,10 @@ export {
   type BootstrapProgress,
 } from './application/bootstrap/BootstrapGate';
 export {
+  BootstrapLoadingScreen,
+  type BootstrapLoadingScreenProps,
+} from './application/bootstrap/BootstrapLoadingScreen';
+export {
   bootstrapShellRuntime,
   type BootstrapShellRuntimeOptions,
 } from './application/bootstrap/bootstrapShellRuntime';

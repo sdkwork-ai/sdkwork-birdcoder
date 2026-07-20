@@ -2,6 +2,8 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
 
+import { loadProfile } from './lib/birdcoder-topology.mjs';
+
 const rootDir = process.cwd();
 const failures = [];
 
@@ -114,30 +116,37 @@ for (const viteConfigPath of [
   }
 }
 
-for (const environment of ['development', 'test', 'staging', 'production']) {
-  const gatewayConfigPath = `etc/sdkwork-api-cloud-gateway.birdcoder.${environment}.toml`;
-  const gatewayConfig = read(gatewayConfigPath);
-  for (const requiredEvidence of [
-    'mode = "embedded"',
-    'runtimeMode = "embedded"',
-    'cargoFeature = "foundation-drive"',
-    'cargoDependency = "sdkwork-drive-gateway-assembly"',
-    'sdkwork_drive_gateway_assembly::assemble_api_router_from_env',
-  ]) {
-    if (!gatewayConfig.includes(requiredEvidence)) {
-      fail(`${gatewayConfigPath} must declare Drive assembly evidence: ${requiredEvidence}`);
-    }
-  }
-  for (const retiredEvidence of [
-    'runtimeMode = "split"',
-    'runtimeMode = "split-or-embedded"',
-    '[[upstreams]]',
-  ]) {
-    if (gatewayConfig.includes(retiredEvidence)) {
-      fail(`${gatewayConfigPath} must not retain retired gateway configuration: ${retiredEvidence}`);
-    }
-  }
-}
+const applicationComponentSpec = JSON.parse(read('specs/component.spec.json'));
+const driveDependency = applicationComponentSpec.dependencies?.find(
+  (dependency) => dependency.serviceId === 'sdkwork-drive-app-api',
+);
+assert.deepEqual(
+  driveDependency,
+  {
+    serviceId: 'sdkwork-drive-app-api',
+    workspace: 'sdkwork-drive',
+    sdkFamily: 'sdkwork-drive-app-sdk',
+    apiAuthority: 'sdkwork-drive-app-api',
+    runtimeModes: ['embedded'],
+    executableExport: 'sdkwork_api_drive_assembly::assemble_business_routes_from_env',
+    cargoFeature: 'foundation-drive',
+    cargoDependency: 'sdkwork-api-drive-assembly',
+    coverage: 'drive-app-api-embedded-assembly-routes',
+  },
+  'BirdCoder component authority must declare the embedded Drive API assembly without a copied gateway catalog.',
+);
+assert.deepEqual(
+  applicationComponentSpec.apiSurfaces?.find(
+    (surface) => surface.dependencyServiceId === 'sdkwork-drive-app-api',
+  ),
+  {
+    surface: 'app',
+    prefix: '/app/v3/api/drive',
+    ownership: 'dependency',
+    dependencyServiceId: 'sdkwork-drive-app-api',
+  },
+  'BirdCoder component authority must mount the Drive App API through the platform gateway.',
+);
 
 if (!iamRuntime.includes('resolveBirdCoderBrowserDependencySdkBaseUrl')) {
   fail('iamRuntime must resolve dependency SDK URLs independently from the renderer origin');
@@ -147,25 +156,34 @@ if (!iamRuntime.includes('configuredUrl.hostname = browserHostname')) {
 }
 
 const h5PackageJson = JSON.parse(read('apps/sdkwork-birdcoder-h5/package.json'));
-if (!h5PackageJson.scripts?.dev?.includes('run-birdcoder-dev-stack.mjs h5')) {
-  fail('H5 dev must use the standard BirdCoder stack with its platform assembly gateway');
+if (h5PackageJson.scripts?.['dev:standalone'] !== 'pnpm exec sdkwork-app dev --root ../.. --runtime-target browser --client-architecture h5 --deployment-profile standalone') {
+  fail('H5 dev must use the shared sdkwork-app facade and select the H5 client architecture');
 }
 if (h5PackageJson.scripts?.['start:browser'] !== 'vite') {
   fail('H5 must expose a non-recursive renderer-only start:browser script for the stack');
 }
 
 const devStack = read('scripts/run-birdcoder-dev-stack.mjs');
-for (const assemblyEvidence of [
-  "'--features'",
-  "'foundation-drive'",
-  'PLATFORM_GATEWAY_SERVICE',
-  'PLATFORM_GATEWAY_DRIVE_SERVICE',
-  'probePlatformGatewayIdentity',
+const standaloneDevelopmentProfile = loadProfile('standalone.development');
+assert.equal(
+  standaloneDevelopmentProfile.SDKWORK_BIRDCODER_PLATFORM_API_GATEWAY_HTTP_URL,
+  standaloneDevelopmentProfile.SDKWORK_BIRDCODER_APPLICATION_PUBLIC_HTTP_URL,
+  'Embedded Drive and Membership APIs must use the BirdCoder standalone gateway origin.',
+);
+for (const embeddedDependencyEvidence of [
+  'resolveStandaloneDependencyEnv',
+  'SDKWORK_DRIVE_DATABASE_URL',
+  'SDKWORK_MEMBERSHIP_DATABASE_URL',
 ]) {
-  if (!devStack.includes(assemblyEvidence)) {
-    fail(`BirdCoder dev stack must manage and identify the Drive assembly gateway: ${assemblyEvidence}`);
+  if (!devStack.includes(embeddedDependencyEvidence)) {
+    fail(`BirdCoder dev stack must configure embedded dependency assembly state: ${embeddedDependencyEvidence}`);
   }
 }
+assert.doesNotMatch(
+  devStack,
+  /createPlatformGatewayPlan|PLATFORM_GATEWAY_SERVICE|foundation-drive,foundation-membership/u,
+  'BirdCoder dev stack must not compile or supervise a second platform gateway when dependencies are embedded in the application gateway.',
+);
 
 const infrastructureComponentSpec = read(
   'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/specs/component.spec.json',

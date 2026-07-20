@@ -7,6 +7,7 @@ import {
   type BirdCoderProject,
 } from '@sdkwork/birdcoder-pc-contracts-commons';
 import { useAuth } from '../context/AuthContext.ts';
+import { buildBirdCoderAuthSessionInventoryScope } from '../context/authSessionScope.ts';
 import type { IProjectService } from '../services/interfaces/IProjectService.ts';
 import {
   upsertCodingSessionIntoProjectsStore,
@@ -169,14 +170,17 @@ export function useSelectedCodingSessionMessages({
   selectedProject,
   workspaceId,
 }: UseSelectedCodingSessionMessagesOptions): boolean {
-  const { user } = useAuth();
+  const { sessionRevision, user } = useAuth();
   const activeSynchronizationCountRef = useRef(0);
   const activeSelectionScopeKeyRef = useRef('');
   const activeSelectionSynchronizationEpochRef = useRef(0);
   const isMountedRef = useRef(true);
   const [isSelectedCodingSessionMessagesLoading, setIsSelectedCodingSessionMessagesLoading] = useState(false);
   const [authorityFallbackRefreshTick, setAuthorityFallbackRefreshTick] = useState(0);
-  const normalizedUserScope = user?.id?.trim() ?? 'anonymous';
+  const normalizedUserScope = buildBirdCoderAuthSessionInventoryScope(
+    user?.id,
+    sessionRevision,
+  );
   const normalizedCodingSessionId = selectedCodingSessionId?.trim() ?? '';
   const normalizedSelectedProjectId = selectedProject?.id?.trim() ?? '';
   const normalizedSelectedProjectWorkspaceId = selectedProject?.workspaceId?.trim() ?? '';

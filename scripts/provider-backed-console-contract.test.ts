@@ -12,8 +12,20 @@ const consoleQueriesModulePath = new URL(
   '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/src/services/consoleQueries.ts',
   import.meta.url,
 );
-const defaultServicesModulePath = new URL(
-  '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/src/services/defaultIdeServices.ts',
+const providerBackedWorkspaceServiceModulePath = new URL(
+  '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/src/services/impl/ProviderBackedWorkspaceService.ts',
+  import.meta.url,
+);
+const providerBackedProjectServiceModulePath = new URL(
+  '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/src/services/impl/ProviderBackedProjectService.ts',
+  import.meta.url,
+);
+const codingSessionRepositoryModulePath = new URL(
+  '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/src/storage/codingSessionRepository.ts',
+  import.meta.url,
+);
+const evidenceRepositoryModulePath = new URL(
+  '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/src/storage/promptSkillTemplateEvidenceRepository.ts',
   import.meta.url,
 );
 
@@ -47,8 +59,17 @@ try {
   const { createBirdCoderConsoleQueries } = await import(
     `${consoleQueriesModulePath.href}?t=${Date.now()}`
   );
-  const { createDefaultBirdCoderIdeServices } = await import(
-    `${defaultServicesModulePath.href}?t=${Date.now()}`
+  const { ProviderBackedWorkspaceService } = await import(
+    `${providerBackedWorkspaceServiceModulePath.href}?t=${Date.now()}`
+  );
+  const { ProviderBackedProjectService } = await import(
+    `${providerBackedProjectServiceModulePath.href}?t=${Date.now()}`
+  );
+  const { createBirdCoderCodingSessionRepositories } = await import(
+    `${codingSessionRepositoryModulePath.href}?t=${Date.now()}`
+  );
+  const { createBirdCoderPromptSkillTemplateEvidenceRepositories } = await import(
+    `${evidenceRepositoryModulePath.href}?t=${Date.now()}`
   );
 
   const provider = createBirdCoderStorageProvider('sqlite');
@@ -190,24 +211,41 @@ try {
   assert.equal(releases[0]?.id, 'release-console-contract');
   assert.equal(auditEvents[0]?.id, 'audit-console-contract');
 
-  const services = createDefaultBirdCoderIdeServices();
+  const createProviderBackedServices = () => ({
+    projectService: new ProviderBackedProjectService({
+      codingSessionRepositories: createBirdCoderCodingSessionRepositories({
+        providerId: provider.providerId,
+        storage: provider,
+      }),
+      evidenceRepositories: createBirdCoderPromptSkillTemplateEvidenceRepositories({
+        providerId: provider.providerId,
+        storage: provider,
+      }),
+      repository: repositories.projects,
+    }),
+    workspaceService: new ProviderBackedWorkspaceService({
+      repository: repositories.workspaces,
+    }),
+  });
+
+  const services = createProviderBackedServices();
   const createdWorkspace = await services.workspaceService.createWorkspace(
     'Persisted Workspace',
-    'Created through the default IDE service factory.',
+    'Created through the provider-backed service boundary.',
   );
   await services.projectService.createProject(createdWorkspace.id, 'Persisted Project');
 
-  const reloadedServices = createDefaultBirdCoderIdeServices();
+  const reloadedServices = createProviderBackedServices();
   const persistedWorkspaces = await reloadedServices.workspaceService.getWorkspaces();
   const persistedProjects = await reloadedServices.projectService.getProjects(createdWorkspace.id);
 
   assert.ok(
     persistedWorkspaces.some((workspace) => workspace.id === createdWorkspace.id),
-    'default IDE workspace service must persist through the shared console repositories.',
+    'provider-backed workspace service must persist through the shared console repositories.',
   );
   assert.ok(
     persistedProjects.some((project) => project.name === 'Persisted Project'),
-    'default IDE project service must persist project catalog state through the shared console repositories.',
+    'provider-backed project service must persist project catalog state through the shared console repositories.',
   );
 } finally {
   if (originalWindowDescriptor) {

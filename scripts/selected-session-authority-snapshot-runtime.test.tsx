@@ -25,7 +25,10 @@ vi.mock('@sdkwork/birdcoder-pc-infrastructure-runtime', () => ({
 vi.mock(
   '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-workbench/src/context/AuthContext.ts',
   () => ({
-    useAuth: () => ({ user: { id: 'selected-session-runtime-user' } }),
+    useAuth: () => ({
+      sessionRevision: 7,
+      user: { id: 'selected-session-runtime-user' },
+    }),
   }),
 );
 
@@ -201,7 +204,7 @@ describe('selected-session authority snapshot hydration', () => {
       workspaceId,
       projectId,
       authorityCodingSession,
-      'selected-session-runtime-user',
+      'selected-session-runtime-user::session:7',
     );
     expect(
       container.querySelector('[data-testid="selected-session-loading"]')

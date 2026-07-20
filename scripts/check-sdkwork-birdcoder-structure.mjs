@@ -233,7 +233,7 @@ function collectRootPackageScriptTargetPaths(rootPackageJson) {
       continue;
     }
 
-    for (const match of command.matchAll(/((?:(?:\.\.?\/)*)scripts\/[A-Za-z0-9_./-]+\.(?:cjs|js|mjs|ps1|ts))/g)) {
+    for (const match of command.matchAll(/((?:(?:\.\.?\/)*)scripts\/[A-Za-z0-9_./-]+\.(?:cjs|js|mjs|ps1|tsx|ts))(?=\s|$)/g)) {
       const matchIndex = match.index ?? 0;
       if (matchIndex > 0 && command[matchIndex - 1] === '/') {
         continue;

@@ -7,13 +7,13 @@ const packageJson = JSON.parse(fs.readFileSync(path.join(rootDir, 'package.json'
 const runnerSource = fs.readFileSync(path.join(rootDir, 'scripts/run-flutter-mobile-command.mjs'), 'utf8');
 
 const requiredScripts = [
-  'flutter:pub-get',
-  'flutter:analyze',
-  'flutter:test',
-  'flutter:build:android',
-  'flutter:build:android:prod',
-  'flutter:build:ios',
-  'flutter:build:ios:prod',
+  'install:flutter-android',
+  'check:flutter-android',
+  'test:flutter-android',
+  'build:flutter-android',
+  'build:flutter-android:full',
+  'build:flutter-ios',
+  'build:flutter-ios:full',
 ];
 
 for (const scriptName of requiredScripts) {

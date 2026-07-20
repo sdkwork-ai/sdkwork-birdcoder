@@ -35,6 +35,12 @@ assert.match(
 );
 
 assert.match(
+  authContextSource,
+  /setSessionRevision\(\(currentRevision\) => currentRevision \+ 1\)/u,
+  'Auth bootstrap must advance the authenticated-session revision so tenant-bound inventory cannot be reused after a same-user session change.',
+);
+
+assert.match(
   authServiceSource,
   /export interface IAuthService \{\s*getCurrentUser\(\): Promise<User \| null>;\s*hasStoredSession\(\): Promise<boolean>;\s*logout\(\): Promise<void>;\s*\}/u,
   'BirdCoder auth service must expose current-user, stored-session, and logout methods; sign-in is owned by SdkworkIamAuthRoutes over @sdkwork/iam-runtime.',

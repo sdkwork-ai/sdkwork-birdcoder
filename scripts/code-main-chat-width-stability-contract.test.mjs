@@ -34,13 +34,13 @@ assert.match(
 
 assert.match(
   transcriptMessageSource,
-  /className=\{`flex w-full px-5 \$\{isUser \? 'py-2' : 'py-2\.5'\} group`\}/u,
+  /className=\{`[^`]*px-5[^`]*\$\{isUser \? 'py-2' : 'py-2\.5'\}[^`]*`\}/u,
   'Main transcript rows must use the same 20px responsive horizontal inset as the composer.',
 );
 
 assert.match(
   transcriptMessageSource,
-  /className=\{`mx-auto flex w-full max-w-\[880px\]/u,
+  /className=\{`[^`]*mx-auto[^`]*max-w-\[880px\][^`]*`\}/u,
   'Main transcript content must use the same 880px centered width as the composer.',
 );
 

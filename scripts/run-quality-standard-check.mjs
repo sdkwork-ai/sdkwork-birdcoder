@@ -1,7 +1,10 @@
 import process from 'node:process';
 import { pathToFileURL } from 'node:url';
 
-import { runCommandSequence } from './run-command-sequence.mjs';
+import {
+  BIRDCODER_WORKSPACE_ROOT_DIR,
+  runCommandSequence,
+} from './run-command-sequence.mjs';
 
 export const QUALITY_STANDARD_CHECK_COMMANDS = [
   'node scripts/run-workspace-package-script.mjs . check:quality:mobile',
@@ -15,7 +18,7 @@ export const QUALITY_STANDARD_CHECK_COMMANDS = [
 
 export function runQualityStandardCheck({
   commands = QUALITY_STANDARD_CHECK_COMMANDS,
-  cwd = process.cwd(),
+  cwd = BIRDCODER_WORKSPACE_ROOT_DIR,
   env = process.env,
 } = {}) {
   return runCommandSequence({ commands, cwd, env });

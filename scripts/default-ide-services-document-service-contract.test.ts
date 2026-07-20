@@ -5,6 +5,7 @@ import type {
 } from '@sdkwork/birdcoder-pc-contracts-commons';
 import { createDefaultBirdCoderIdeServices } from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/src/services/defaultIdeServices.ts';
 import { createAppSdkClientContractStub, createBackendSdkClientContractStub } from './split-sdk-client-contract-stub.ts';
+import { installBirdCoderTestRuntimeEnv } from './test-birdcoder-runtime-env-fixture.ts';
 
 const documentFixtures: BirdCoderProjectDocumentSummary[] = [
   {
@@ -27,6 +28,7 @@ const appClient: BirdCoderAppSdkApiClient = createAppSdkClientContractStub({
   },
 });
 
+const restoreRuntimeEnv = installBirdCoderTestRuntimeEnv();
 const services = createDefaultBirdCoderIdeServices({
   appClient,
 });
@@ -45,4 +47,5 @@ assert.equal(
   'documentService must delegate exactly one read to BirdCoderAppSdkApiClient.listDocuments().',
 );
 
+restoreRuntimeEnv();
 console.log('default IDE services document service contract passed.');

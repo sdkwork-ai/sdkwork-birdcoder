@@ -159,6 +159,18 @@
         "packageByLanguage": {
           "typescript": "@sdkwork/messaging-app-sdk"
         }
+      },
+      {
+        "workspace": "sdkwork-membership-app-sdk",
+        "role": "membership-app-capability",
+        "required": true,
+        "dependencyMode": "consumer-sdk",
+        "apiPrefix": "/app/v3/api/memberships",
+        "apiAuthority": "sdkwork-membership-app-api",
+        "generatedTransportImportPolicy": "forbidden",
+        "packageByLanguage": {
+          "typescript": "@sdkwork/membership-app-sdk"
+        }
       }
     ],
     "configKeys": [

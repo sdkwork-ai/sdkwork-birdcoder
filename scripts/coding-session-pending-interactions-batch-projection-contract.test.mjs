@@ -34,8 +34,14 @@ assert.match(
 
 assert.match(
   projectionHookSource,
-  /export async function loadCodingSessionPendingInteractionState\([\s\S]*const projection = await loadCodingSessionProjectionIfAvailable\([\s\S]*if \(!projection\) \{\s*return EMPTY_PENDING_INTERACTIONS;\s*\}[\s\S]*const pendingInteractionIndex = buildPendingInteractionDerivationIndex\(projection\);[\s\S]*approvals: deriveCodingSessionPendingApprovalsFromIndex\(projection,\s*pendingInteractionIndex\),[\s\S]*questions: deriveCodingSessionPendingUserQuestionsFromIndex\(pendingInteractionIndex\),/,
+  /export async function loadCodingSessionPendingInteractionState\([\s\S]*const projection = await loadCodingSessionProjectionIfAvailable\([\s\S]*if \(!projection\) \{\s*return EMPTY_PENDING_INTERACTIONS;\s*\}[\s\S]*const pendingInteractionIndex = buildPendingInteractionDerivationIndex\(projection\);[\s\S]*approvals: deriveCodingSessionPendingApprovalsFromIndex\(pendingInteractionIndex\),[\s\S]*questions: deriveCodingSessionPendingUserQuestionsFromIndex\(pendingInteractionIndex\),/,
   'Combined pending interaction loader must load the session projection once and derive both approvals and questions from one shared projection index.',
+);
+
+assert.match(
+  projectionHookSource,
+  /normalizedExpectedProjectId[\s\S]*projectionProjectId[\s\S]*projectionProjectId !== normalizedExpectedProjectId[\s\S]*return EMPTY_PENDING_INTERACTIONS/,
+  'Combined pending interaction loading must reject a projection owned by a different project before deriving interactions.',
 );
 
 assert.match(

@@ -47,16 +47,10 @@ assert.match(
   'WorkbenchNewSessionButton must resolve its engine list through the shared new-session engine catalog helper instead of reimplementing engine lookup locally.',
 );
 
-assert.match(
+assert.doesNotMatch(
   topBarSource,
-  /WorkbenchNewSessionButton/,
-  'Code TopBar must render the shared WorkbenchNewSessionButton instead of inlining its own engine dropdown.',
-);
-
-assert.match(
-  topBarSource,
-  /variant="topbar"/,
-  'Code TopBar must use the topbar variant of the shared new-session button.',
+  /resolveWorkbenchNewSessionEngineCatalog|newSessionEngineOptions/u,
+  'Code TopBar must not own a duplicate new-session engine catalog after session creation moved to dedicated workbench surfaces.',
 );
 
 assert.match(

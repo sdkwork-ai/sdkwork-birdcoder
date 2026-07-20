@@ -162,12 +162,12 @@ assert.match(
 const deferRegistry = JSON.parse(readText('specs/coding-server-openapi-rust-defer-registry.json'));
 assert.equal(
   deferRegistry.summary.contractOperationCount,
-  159,
+  157,
   'Defer registry must track the governed app/backend HTTP OpenAPI contract after legacy /api/v1 routes are retired.',
 );
 assert.equal(
   deferRegistry.summary.implementedOperationCount,
-  159,
+  157,
   'Defer registry must record full product, federated IAM, commerce, and chat app/backend coverage.',
 );
 assert.equal(

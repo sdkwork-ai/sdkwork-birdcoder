@@ -144,13 +144,13 @@ pub fn map_codeengine_tool_kind(tool_name: &str) -> &'static str {
         ) => "approval",
         Some(
             "bash" | "command" | "command_execution" | "execute_command" | "pty_exec"
-            | "run_command" | "shell" | "shell_command",
+            | "run_command" | "run_shell_command" | "shell" | "shell_command",
         ) => "command",
         Some(
-            "apply_patch" | "create_file" | "edit_file" | "multi_edit" | "replace_file"
+            "apply_patch" | "create_file" | "edit_file" | "multi_edit" | "replace" | "replace_file"
             | "str_replace_editor" | "write_file",
         ) => "file_change",
-        Some("todo" | "todowrite" | "update_todo" | "write_todo") => "task",
+        Some("todo" | "todowrite" | "update_todo" | "write_todo" | "write_todos") => "task",
         _ => "tool",
     }
 }
@@ -204,6 +204,15 @@ fn resolve_codeengine_provider_tool_name_alias(
             "command_execution" | "execute_command" => Some("run_command"),
             "file_change" => Some("apply_patch"),
             "todo_list" => Some("write_todo"),
+            _ => None,
+        },
+        "gemini" => match tool_name_key.as_str() {
+            "grep_search" => Some("grep_code"),
+            "list_directory" => Some("list_files"),
+            "read_many_files" => Some("read_file"),
+            "replace" => Some("edit_file"),
+            "run_shell_command" => Some("run_command"),
+            "write_todos" => Some("write_todo"),
             _ => None,
         },
         _ => None,
@@ -476,7 +485,7 @@ pub fn normalize_codeengine_runtime_status(value: &str) -> Option<&'static str> 
         Some("initializing") => Some("initializing"),
         Some("paused" | "retry") => Some("failed"),
         Some("ready") => Some("ready"),
-        Some("running" | "started") => Some("streaming"),
+        Some("in_progress" | "inprogress" | "running" | "started") => Some("streaming"),
         Some("streaming") => Some("streaming"),
         _ => None,
     }
@@ -499,7 +508,10 @@ pub fn map_codeengine_session_status_from_runtime(runtime_status: &str) -> &'sta
 
 pub fn normalize_codeengine_tool_lifecycle_status(value: &str) -> Option<&'static str> {
     match normalize_codeengine_dialect_key(value).as_deref() {
-        Some("abort" | "aborted" | "cancelled" | "canceled" | "terminated") => Some("cancelled"),
+        Some(
+            "abort" | "aborted" | "cancelled" | "canceled" | "decline" | "declined" | "deny"
+            | "denied" | "disallow" | "disallowed" | "no" | "reject" | "rejected" | "terminated",
+        ) => Some("cancelled"),
         Some(
             "accept" | "accepted" | "allow" | "allowed" | "approve" | "approved" | "complete"
             | "completed" | "done" | "finished" | "grant" | "granted" | "ok" | "passed" | "success"
@@ -516,13 +528,10 @@ pub fn normalize_codeengine_tool_lifecycle_status(value: &str) -> Option<&'stati
             | "waiting_for_user",
         ) => Some("awaiting_user"),
         Some(
-            "awaiting" | "awaiting_tool" | "executing" | "in_progress" | "pending" | "processing"
-            | "queued" | "requested" | "running" | "started",
+            "awaiting" | "awaiting_tool" | "executing" | "in_progress" | "inprogress" | "pending"
+            | "processing" | "queued" | "requested" | "running" | "started",
         ) => Some("running"),
-        Some(
-            "blocked" | "decline" | "declined" | "deny" | "denied" | "disallow" | "disallowed"
-            | "error" | "errored" | "failed" | "failure" | "no" | "reject" | "rejected",
-        ) => Some("failed"),
+        Some("blocked" | "error" | "errored" | "failed" | "failure") => Some("failed"),
         _ => None,
     }
 }
@@ -707,7 +716,8 @@ pub fn resolve_codeengine_command_interaction_state(
 #[cfg(test)]
 mod tests {
     use super::{
-        map_codeengine_tool_command_status, normalize_codeengine_tool_lifecycle_status,
+        canonicalize_codeengine_provider_tool_name, map_codeengine_tool_command_status,
+        map_codeengine_tool_kind, normalize_codeengine_tool_lifecycle_status,
         resolve_codeengine_approval_id, resolve_codeengine_approval_runtime_status,
         resolve_codeengine_tool_call_id, resolve_codeengine_user_question_id,
     };
@@ -730,15 +740,15 @@ mod tests {
         );
         assert_eq!(
             normalize_codeengine_tool_lifecycle_status("deny"),
-            Some("failed")
+            Some("cancelled")
         );
         assert_eq!(
             normalize_codeengine_tool_lifecycle_status("decline"),
-            Some("failed")
+            Some("cancelled")
         );
         assert_eq!(
             normalize_codeengine_tool_lifecycle_status("reject"),
-            Some("failed")
+            Some("cancelled")
         );
     }
 
@@ -784,5 +794,22 @@ mod tests {
             resolve_codeengine_approval_id(Some(&payload), Some(&tool_arguments), None).as_deref(),
             Some("permission-provider-1")
         );
+    }
+
+    #[test]
+    fn gemini_native_tool_names_map_to_canonical_semantics() {
+        for (tool_name, canonical_name, kind) in [
+            ("run_shell_command", "run_command", "command"),
+            ("replace", "edit_file", "file_change"),
+            ("grep_search", "grep_code", "tool"),
+            ("list_directory", "list_files", "tool"),
+            ("read_many_files", "read_file", "tool"),
+            ("write_todos", "write_todo", "task"),
+        ] {
+            let resolved =
+                canonicalize_codeengine_provider_tool_name("gemini", tool_name, "tool_use");
+            assert_eq!(resolved, canonical_name);
+            assert_eq!(map_codeengine_tool_kind(resolved.as_str()), kind);
+        }
     }
 }

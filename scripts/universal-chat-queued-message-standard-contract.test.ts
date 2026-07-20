@@ -333,13 +333,13 @@ assert.match(
 
 assert.match(
   submitPendingUserQuestionAnswerSource,
-  /await Promise\.resolve\(onSubmitUserQuestionAnswer\(questionId,\s*request\)\);[\s\S]*markQueuedTurnDispatchStarted\(\);[\s\S]*didMarkQueuedTurnDispatch\s*=\s*true;[\s\S]*finally \{[\s\S]*finishPendingInteractionSubmission\(interactionId\);[\s\S]*if \(didMarkQueuedTurnDispatch\) \{[\s\S]*scheduleQueuedTurnDispatchSettlementCheck\(\);/s,
+  /await Promise\.resolve\(onSubmitUserQuestionAnswer\(interactionEventId,\s*request\)\);[\s\S]*markQueuedTurnDispatchStarted\(\);[\s\S]*didMarkQueuedTurnDispatch\s*=\s*true;[\s\S]*finally \{[\s\S]*finishPendingInteractionSubmission\(pendingInteractionId\);[\s\S]*if \(didMarkQueuedTurnDispatch\) \{[\s\S]*scheduleQueuedTurnDispatchSettlementCheck\(\);/s,
   'Submitting a pending user-question answer must close the same queued-turn settlement gate as normal sends so queued follow-ups wait for the resumed turn to settle.',
 );
 
 assert.match(
   submitPendingApprovalDecisionSource,
-  /await Promise\.resolve\(onSubmitApprovalDecision\(approvalId,\s*request\)\);[\s\S]*markQueuedTurnDispatchStarted\(\);[\s\S]*didMarkQueuedTurnDispatch\s*=\s*true;[\s\S]*finally \{[\s\S]*finishPendingInteractionSubmission\(interactionId\);[\s\S]*if \(didMarkQueuedTurnDispatch\) \{[\s\S]*scheduleQueuedTurnDispatchSettlementCheck\(\);/s,
+  /await Promise\.resolve\(onSubmitApprovalDecision\(interactionEventId,\s*request\)\);[\s\S]*markQueuedTurnDispatchStarted\(\);[\s\S]*didMarkQueuedTurnDispatch\s*=\s*true;[\s\S]*finally \{[\s\S]*finishPendingInteractionSubmission\(pendingInteractionId\);[\s\S]*if \(didMarkQueuedTurnDispatch\) \{[\s\S]*scheduleQueuedTurnDispatchSettlementCheck\(\);/s,
   'Submitting a pending approval decision must close the same queued-turn settlement gate as normal sends so queued follow-ups wait for the resumed turn to settle.',
 );
 

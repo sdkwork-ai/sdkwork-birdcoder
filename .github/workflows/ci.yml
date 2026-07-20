@@ -93,7 +93,7 @@ jobs:
         run: pnpm install --frozen-lockfile
 
       - name: Build shared SDK packages
-        run: pnpm prepare:shared-sdk
+        run: pnpm sdk:prepare
 
       - name: Run workspace lint and parity checks
         run: pnpm lint
@@ -199,7 +199,7 @@ jobs:
         run: pnpm install --frozen-lockfile
 
       - name: Build shared SDK packages
-        run: pnpm prepare:shared-sdk
+        run: pnpm sdk:prepare
 
       - name: Run Windows desktop Rust tests
         shell: bash
@@ -280,7 +280,7 @@ jobs:
         run: pnpm install --frozen-lockfile
 
       - name: Build shared SDK packages
-        run: pnpm prepare:shared-sdk
+        run: pnpm sdk:prepare
 
       - name: Run PostgreSQL live smoke
         run: pnpm release:smoke:postgresql-live
@@ -329,7 +329,7 @@ jobs:
         run: pnpm install --frozen-lockfile
 
       - name: Build shared SDK packages
-        run: pnpm prepare:shared-sdk
+        run: pnpm sdk:prepare
 
       - name: Run H5 typecheck
         run: pnpm typecheck:browser
@@ -338,7 +338,7 @@ jobs:
         run: pnpm build:browser
 
       - name: Sync Capacitor native projects
-        run: pnpm cap:sync
+        run: pnpm build:capacitor-android:sync
 
       - name: Setup Java
         uses: actions/setup-java@v4
@@ -359,10 +359,10 @@ jobs:
           cache: true
 
       - name: Run Flutter analyze
-        run: pnpm flutter:pub-get && pnpm flutter:analyze
+        run: pnpm install:flutter-android && pnpm check:flutter-android
 
       - name: Run Flutter tests
-        run: pnpm flutter:test
+        run: pnpm test:flutter-android
 
       - name: Run H5 Capacitor platform contracts
         run: node scripts/h5-capacitor-native-platform-contract.test.mjs && node scripts/h5-capacitor-deep-link-auth-contract.test.mjs

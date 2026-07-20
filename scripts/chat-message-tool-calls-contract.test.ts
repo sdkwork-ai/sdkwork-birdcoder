@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 
 import {
+  projectChatMessageCommand,
   projectChatMessageToolCall,
   projectChatMessageToolCalls,
 } from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-contracts-commons/src/chat-message-tool-calls.ts';
@@ -152,6 +153,32 @@ assert.equal(claudeFailedToolResult?.id, 'toolu-2');
 assert.equal(claudeFailedToolResult?.status, 'error');
 assert.match(claudeFailedToolResult?.output ?? '', /Permission denied/);
 
+const mcpCamelCaseErrorResult = projectChatMessageToolCall({
+  id: 'call-mcp-camel-error',
+  name: 'mcp__workspace__read_secret',
+  status: 'completed',
+  result: {
+    isError: true,
+    content: [{ type: 'text', text: 'Access denied by MCP server' }],
+  },
+}, 0);
+assert.equal(mcpCamelCaseErrorResult?.status, 'error');
+assert.deepEqual(mcpCamelCaseErrorResult?.resultBlocks, [{
+  type: 'error',
+  message: 'Access denied by MCP server',
+}]);
+
+const mcpStringErrorResult = projectChatMessageToolCall({
+  id: 'call-mcp-string-error',
+  name: 'mcp__workspace__write_file',
+  status: 'completed',
+  result: {
+    isError: 'true',
+    content: [{ type: 'text', text: 'Write denied by MCP server' }],
+  },
+}, 0);
+assert.equal(mcpStringErrorResult?.status, 'error');
+
 const claudeToolProgress = projectChatMessageToolCall({
   type: 'tool_progress',
   tool_use_id: 'toolu-progress-1',
@@ -221,6 +248,58 @@ assert.equal(codexRichMcpResult?.resultBlocks?.[1]?.type, 'image');
 if (codexRichMcpResult?.resultBlocks?.[1]?.type === 'image') {
   assert.equal(codexRichMcpResult.resultBlocks[1].source, 'data:image/png;base64,aGVsbG8=');
 }
+
+const codexEmbeddedMcpMedia = projectChatMessageToolCall({
+  type: 'mcp_tool_call',
+  id: 'mcp-embedded-media-1',
+  server: 'assets',
+  tool: 'read_resource',
+  status: 'completed',
+  result: {
+    content: [
+      {
+        type: 'resource',
+        resource: {
+          uri: 'mcp://assets/preview.png',
+          mimeType: 'image/png',
+          blob: 'aGVsbG8=',
+        },
+      },
+      {
+        type: 'resource',
+        resource: {
+          uri: 'mcp://assets/voice.ogg',
+          mimeType: 'audio/ogg',
+          blob: 'd29ybGQ=',
+        },
+      },
+      {
+        type: 'resource_link',
+        uri: 'mcp://assets/report.pdf',
+        name: 'report.pdf',
+        mimeType: 'application/pdf',
+      },
+    ],
+  },
+}, 0, { engineId: 'codex' });
+assert.deepEqual(codexEmbeddedMcpMedia?.resultBlocks, [
+  {
+    type: 'image',
+    source: 'data:image/png;base64,aGVsbG8=',
+    mimeType: 'image/png',
+  },
+  {
+    type: 'audio',
+    source: 'data:audio/ogg;base64,d29ybGQ=',
+    mimeType: 'audio/ogg',
+  },
+  {
+    type: 'resource',
+    uri: 'mcp://assets/report.pdf',
+    name: 'report.pdf',
+    mimeType: 'application/pdf',
+  },
+]);
 
 const openCodeTimedToolPart = projectChatMessageToolCall({
   part: {
@@ -321,15 +400,90 @@ assert.equal(codexCommandExecution?.command, 'pnpm typecheck');
 assert.equal(codexCommandExecution?.output, 'Typecheck passed');
 assert.equal(codexCommandExecution?.status, 'success');
 
+const codexMovedFileChange = projectChatMessageToolCall({
+  item: {
+    id: 'file-change-codex-move',
+    type: 'fileChange',
+    status: 'completed',
+    changes: [{
+      path: 'src/legacy-name.ts',
+      kind: { type: 'update', move_path: 'src/provider-message.ts' },
+      diff: '',
+    }],
+  },
+}, 0, { engineId: 'codex' });
+assert.equal(codexMovedFileChange?.target, 'src/provider-message.ts');
+assert.equal(
+  codexMovedFileChange?.title,
+  'Moved src/legacy-name.ts -> src/provider-message.ts',
+);
+
 const codexWebSearch = projectChatMessageToolCall({
   item: {
     id: 'web-codex-1',
     type: 'web_search',
     query: 'BirdCoder protocol',
+    action: { type: 'search', query: 'BirdCoder protocol', queries: null },
+    results: [{
+      type: 'text_result',
+      ref_id: 'turn0search0',
+      url: 'https://example.test/birdcoder-protocol',
+    }],
   },
 }, 0, { engineId: 'codex' });
 assert.equal(codexWebSearch?.kind, 'web');
 assert.equal(codexWebSearch?.target, 'BirdCoder protocol');
+assert.deepEqual(codexWebSearch?.resultBlocks, [{
+  type: 'link',
+  url: 'https://example.test/birdcoder-protocol',
+}]);
+
+const codexSleep = projectChatMessageToolCall({
+  item: {
+    id: 'sleep-codex-1',
+    type: 'sleep',
+    durationMs: 750,
+  },
+}, 0, { engineId: 'codex' });
+assert.equal(codexSleep?.name, 'sleep');
+assert.equal(codexSleep?.status, 'success');
+assert.equal(codexSleep?.durationMs, 750);
+
+const codexSubAgentActivity = projectChatMessageToolCall({
+  item: {
+    id: 'subagent-codex-1',
+    type: 'subAgentActivity',
+    kind: 'interrupted',
+    agentThreadId: 'thread-child',
+    agentPath: '/root/worker',
+  },
+}, 0, { engineId: 'codex' });
+assert.equal(codexSubAgentActivity?.kind, 'agent');
+assert.equal(codexSubAgentActivity?.name, 'subagent_interrupted');
+assert.equal(codexSubAgentActivity?.target, '/root/worker');
+assert.equal(codexSubAgentActivity?.status, 'cancelled');
+
+const codexStartedSubAgentActivity = projectChatMessageToolCall({
+  item: {
+    id: 'subagent-codex-started',
+    type: 'subAgentActivity',
+    kind: 'started',
+    agentThreadId: 'thread-started',
+    agentPath: '/root/started',
+  },
+}, 0, { engineId: 'codex' });
+assert.equal(codexStartedSubAgentActivity?.status, 'running');
+
+const codexInteractedSubAgentActivity = projectChatMessageToolCall({
+  item: {
+    id: 'subagent-codex-interacted',
+    type: 'subAgentActivity',
+    kind: 'interacted',
+    agentThreadId: 'thread-interacted',
+    agentPath: '/root/interacted',
+  },
+}, 0, { engineId: 'codex' });
+assert.equal(codexInteractedSubAgentActivity?.status, undefined);
 
 const codexTodoList = projectChatMessageToolCall({
   item: {
@@ -348,6 +502,72 @@ assert.deepEqual(codexTodoList?.resultBlocks, [{
   type: 'list',
   items: ['[x] Normalize provider messages', '[ ] Verify narrow layout'],
 }]);
+
+const completedCodexTodoList = projectChatMessageToolCall({
+  item: {
+    id: 'todo-codex-completed',
+    type: 'todo_list',
+    status: 'completed',
+    items: [
+      { text: 'Preserve explicit lifecycle status', completed: false },
+      { text: 'Render historical snapshot', completed: false },
+    ],
+  },
+}, 0, { engineId: 'codex' });
+assert.equal(completedCodexTodoList?.status, 'success');
+
+const codexStatusTodoList = projectChatMessageToolCall({
+  item: {
+    id: 'todo-codex-status-items',
+    type: 'todo_list',
+    items: [
+      { text: 'Completed from status', status: 'completed' },
+      { text: 'Still running', status: 'in_progress' },
+      { text: 'Blocked by input', status: 'blocked' },
+    ],
+  },
+}, 0, { engineId: 'codex' });
+assert.equal(codexStatusTodoList?.title, '1/3');
+assert.deepEqual(codexStatusTodoList?.resultBlocks, [{
+  type: 'list',
+  items: ['[x] Completed from status', '[~] Still running', '[!] Blocked by input'],
+}]);
+
+const codexCollabAgentToolCall = projectChatMessageToolCall({
+  type: 'collabAgentToolCall',
+  id: 'collab-codex-1',
+  tool: 'spawnAgent',
+  status: 'inProgress',
+  senderThreadId: 'thread-root',
+  receiverThreadIds: ['thread-child'],
+  prompt: 'Audit provider messages',
+  model: 'gpt-5',
+  reasoningEffort: 'high',
+  agentsStates: {},
+}, 0, { engineId: 'codex' });
+assert.equal(codexCollabAgentToolCall?.kind, 'agent');
+assert.equal(codexCollabAgentToolCall?.name, 'spawnAgent');
+assert.equal(codexCollabAgentToolCall?.status, 'running');
+assert.equal(codexCollabAgentToolCall?.title, '1 agent');
+
+for (const agentToolName of [
+  'send_input',
+  'resume_agent',
+  'wait_agent',
+  'close_agent',
+  'send_message',
+  'followup_task',
+  'list_agents',
+  'SendMessage',
+  'TeamCreate',
+  'TeamDelete',
+]) {
+  assert.equal(projectChatMessageToolCall({
+    id: `agent-tool-${agentToolName}`,
+    name: agentToolName,
+    arguments: {},
+  }, 0)?.kind, 'agent', `${agentToolName} must use agent activity semantics.`);
+}
 
 const geminiToolRequest = projectChatMessageToolCall({
   type: 'tool_call_request',
@@ -428,6 +648,168 @@ assert.deepEqual(geminiMultimodalFunctionResponse?.resultBlocks?.map((block) => 
   'text',
 ]);
 
+const geminiDirectFileDiff = projectChatMessageToolCall({
+  id: 'call-gemini-direct-file-diff',
+  name: 'replace',
+  args: { file_path: 'src/provider.ts' },
+  status: 'success',
+  resultDisplay: {
+    fileDiff: '@@ -1 +1 @@\n-export const provider = "legacy";\n+export const provider = "gemini";',
+    fileName: 'provider.ts',
+    filePath: 'src/provider.ts',
+    originalContent: 'export const provider = "legacy";',
+    newContent: 'export const provider = "gemini";',
+  },
+}, 0, { engineId: 'gemini' });
+assert.equal(geminiDirectFileDiff?.kind, 'file');
+assert.deepEqual(geminiDirectFileDiff?.resultBlocks, [{
+  type: 'diff',
+  path: 'src/provider.ts',
+  content: '@@ -1 +1 @@\n-export const provider = "legacy";\n+export const provider = "gemini";',
+}]);
+
+const geminiDirectTodoList = projectChatMessageToolCall({
+  id: 'call-gemini-direct-todos',
+  name: 'write_todos',
+  args: { todos: [] },
+  status: 'success',
+  resultDisplay: {
+    todos: [
+      { description: 'Normalize provider history', status: 'completed' },
+      { description: 'Verify commercial transcript', status: 'in_progress' },
+    ],
+  },
+}, 0, { engineId: 'gemini' });
+assert.equal(geminiDirectTodoList?.kind, 'task');
+assert.deepEqual(geminiDirectTodoList?.resultBlocks, [{
+  type: 'list',
+  items: ['[x] Normalize provider history', '[~] Verify commercial transcript'],
+}]);
+
+const geminiDirectGrepResult = projectChatMessageToolCall({
+  id: 'call-gemini-direct-grep',
+  name: 'grep_search',
+  args: { pattern: 'resultDisplay' },
+  status: 'success',
+  resultDisplay: {
+    summary: 'Found 1 match',
+    matches: [{
+      filePath: 'src/provider.ts',
+      absolutePath: 'C:/workspace/src/provider.ts',
+      lineNumber: 42,
+      line: 'const resultDisplay = response.resultDisplay;',
+    }],
+  },
+}, 0, { engineId: 'gemini' });
+assert.equal(geminiDirectGrepResult?.kind, 'search');
+assert.deepEqual(geminiDirectGrepResult?.resultBlocks, [
+  { type: 'text', text: 'Found 1 match' },
+  { type: 'list', items: ['src/provider.ts:42: const resultDisplay = response.resultDisplay;'] },
+]);
+
+const geminiDirectAnsiOutput = projectChatMessageToolCall({
+  id: 'call-gemini-direct-ansi',
+  name: 'run_shell_command',
+  args: { command: 'pnpm typecheck' },
+  status: 'success',
+  resultDisplay: [
+    [{ text: 'TypeScript ', bold: false, fg: '', bg: '' }, { text: 'passed', bold: true, fg: 'green', bg: '' }],
+    [{ text: '0 errors', bold: false, fg: '', bg: '' }],
+  ],
+}, 0, { engineId: 'gemini' });
+assert.equal(geminiDirectAnsiOutput?.kind, 'command');
+assert.equal(geminiDirectAnsiOutput?.command, 'pnpm typecheck');
+assert.deepEqual(geminiDirectAnsiOutput?.resultBlocks, [{
+  type: 'text',
+  text: 'TypeScript passed\n0 errors',
+}]);
+
+const geminiDynamicSubagent = projectChatMessageToolCall({
+  id: 'call-gemini-dynamic-agent',
+  name: 'research-specialist',
+  args: { goal: 'Compare provider protocols' },
+  status: 'executing',
+  resultDisplay: {
+    isSubagentProgress: true,
+    agentName: 'research-specialist',
+    state: 'running',
+    recentActivity: [{
+      id: 'activity-1',
+      type: 'tool_call',
+      content: 'Inspecting protocol schemas',
+      status: 'running',
+    }],
+  },
+}, 0, { engineId: 'gemini' });
+assert.equal(geminiDynamicSubagent?.kind, 'agent');
+assert.deepEqual(geminiDynamicSubagent?.resultBlocks, [{
+  type: 'list',
+  items: ['[running] Inspecting protocol schemas'],
+}]);
+
+const geminiDirectCancelledCall = projectChatMessageToolCall({
+  status: 'cancelled',
+  request: {
+    callId: 'call-gemini-direct-cancelled',
+    name: 'run_shell_command',
+    args: { command: 'pnpm test' },
+  },
+  response: {
+    responseParts: [{
+      functionResponse: {
+        name: 'run_shell_command',
+        response: { error: 'Operation cancelled by user' },
+      },
+    }],
+  },
+}, 0, { engineId: 'gemini' });
+assert.equal(geminiDirectCancelledCall?.status, 'cancelled');
+assert.deepEqual(geminiDirectCancelledCall?.resultBlocks, [{
+  type: 'error',
+  message: 'Operation cancelled by user',
+}]);
+
+const geminiCancelledToolResponse = projectChatMessageToolCall({
+  type: 'tool_call_response',
+  value: {
+    callId: 'call-gemini-cancelled-response',
+    responseParts: [{
+      functionResponse: {
+        id: 'call-gemini-cancelled-response',
+        name: 'run_shell_command',
+        response: { error: '[Operation Cancelled] User stopped execution.' },
+      },
+    }],
+    error: undefined,
+  },
+}, 0, { engineId: 'gemini' });
+assert.equal(geminiCancelledToolResponse?.name, 'run_shell_command');
+assert.equal(geminiCancelledToolResponse?.kind, 'command');
+assert.equal(geminiCancelledToolResponse?.status, 'cancelled');
+assert.deepEqual(geminiCancelledToolResponse?.resultBlocks, [{
+  type: 'error',
+  message: '[Operation Cancelled] User stopped execution.',
+}]);
+
+const geminiNestedFailedToolResponse = projectChatMessageToolCall({
+  type: 'tool_call_response',
+  value: {
+    callId: 'call-gemini-nested-failure',
+    responseParts: [{
+      functionResponse: {
+        name: 'read_file',
+        response: { error: 'Permission denied' },
+      },
+    }],
+  },
+}, 0, { engineId: 'gemini' });
+assert.equal(geminiNestedFailedToolResponse?.name, 'read_file');
+assert.equal(geminiNestedFailedToolResponse?.status, 'error');
+assert.deepEqual(geminiNestedFailedToolResponse?.resultBlocks, [{
+  type: 'error',
+  message: 'Permission denied',
+}]);
+
 const mcpResourceLink = projectChatMessageToolCall({
   id: 'mcp-resource-link-1',
   name: 'mcp__docs__lookup',
@@ -484,14 +866,26 @@ const geminiConfirmation = projectChatMessageToolCall({
   value: {
     request: {
       callId: 'call-gemini-approval-1',
-      name: 'shell_command',
-      args: { command: 'pnpm test' },
+      name: 'replace',
+      args: { file_path: 'src/App.tsx' },
     },
-    details: { type: 'exec' },
+    details: {
+      type: 'edit',
+      title: 'Confirm Edit: App.tsx',
+      filePath: 'src/App.tsx',
+      fileDiff: '@@ -1 +1 @@\n-old\n+new',
+    },
   },
 }, 0, { engineId: 'gemini' });
 assert.equal(geminiConfirmation?.kind, 'approval');
 assert.equal(geminiConfirmation?.status, 'waiting');
+assert.equal(geminiConfirmation?.title, 'Confirm Edit: App.tsx');
+assert.equal(geminiConfirmation?.target, 'src/App.tsx');
+assert.deepEqual(geminiConfirmation?.resultBlocks, [{
+  type: 'diff',
+  content: '@@ -1 +1 @@\n-old\n+new',
+  path: 'src/App.tsx',
+}]);
 
 const cancelledToolCall = projectChatMessageToolCall({
   id: 'call-cancelled-1',
@@ -501,6 +895,38 @@ const cancelledToolCall = projectChatMessageToolCall({
 }, 0);
 assert.equal(cancelledToolCall?.status, 'cancelled');
 
+const cancelledToolCallWithReason = projectChatMessageToolCall({
+  id: 'call-cancelled-with-reason',
+  name: 'shell_command',
+  arguments: { command: 'pnpm test' },
+  status: 'cancelled',
+  error: 'Cancelled by user',
+}, 0);
+assert.equal(cancelledToolCallWithReason?.status, 'cancelled');
+assert.deepEqual(cancelledToolCallWithReason?.resultBlocks, [{
+  type: 'error',
+  message: 'Cancelled by user',
+}]);
+assert.deepEqual(projectChatMessageCommand(cancelledToolCallWithReason!), {
+  command: 'pnpm test',
+  status: 'error',
+  output: 'Cancelled by user',
+  runtimeStatus: 'terminated',
+  kind: 'command',
+  toolName: 'shell_command',
+  toolCallId: 'call-cancelled-with-reason',
+});
+
+for (const status of ['declined', 'rejected']) {
+  assert.equal(projectChatMessageToolCall({
+    id: `call-${status}`,
+    name: 'shell_command',
+    arguments: { command: 'pnpm test' },
+    status,
+    error: `${status} by user`,
+  }, 0)?.status, 'cancelled');
+}
+
 assert.equal(projectChatMessageToolCall({
   type: 'reasoning',
   summary: [{ type: 'summary_text', text: 'private reasoning' }],
@@ -509,6 +935,238 @@ assert.equal(projectChatMessageToolCall({
   type: 'tool_use_summary',
   summary: 'Read 10 files',
 }, 0, { engineId: 'claude-code' }), null);
+
+const geminiStreamToolUse = projectChatMessageToolCall({
+  type: 'tool_use',
+  tool_id: 'gemini-stream-tool-1',
+  tool_name: 'run_shell_command',
+  parameters: { command: 'pnpm test' },
+}, 0, { engineId: 'gemini' });
+assert.equal(geminiStreamToolUse?.id, 'gemini-stream-tool-1');
+assert.equal(geminiStreamToolUse?.command, 'pnpm test');
+assert.equal(geminiStreamToolUse?.status, 'pending');
+
+const geminiStreamToolResult = projectChatMessageToolCall({
+  type: 'tool_result',
+  tool_id: 'gemini-stream-tool-1',
+  status: 'error',
+  error: { type: 'COMMAND_FAILED', message: 'Tests failed' },
+}, 0, { engineId: 'gemini' });
+assert.equal(geminiStreamToolResult?.id, 'gemini-stream-tool-1');
+assert.equal(geminiStreamToolResult?.status, 'error');
+assert.deepEqual(geminiStreamToolResult?.resultBlocks, [{
+  type: 'error',
+  message: 'Tests failed',
+}]);
+
+const geminiStreamCancelledToolResult = projectChatMessageToolCall({
+  type: 'tool_result',
+  tool_id: 'gemini-stream-tool-cancelled',
+  status: 'success',
+  output: 'Cancelled',
+}, 0, { engineId: 'gemini' });
+assert.equal(
+  geminiStreamCancelledToolResult?.status,
+  'cancelled',
+  'Gemini stream-json legacy success status must not override its explicit cancellation output.',
+);
+
+const codexDynamicTool = projectChatMessageToolCall({
+  type: 'dynamicToolCall',
+  id: 'codex-dynamic-1',
+  tool: 'capture_preview',
+  arguments: { path: 'preview.png' },
+  status: 'completed',
+  success: true,
+  contentItems: [
+    { type: 'inputText', text: 'Preview captured' },
+    { type: 'inputImage', imageUrl: 'data:image/png;base64,aGVsbG8=' },
+    { type: 'inputAudio', audioUrl: 'data:audio/wav;base64,YXVkaW8=' },
+  ],
+}, 0, { engineId: 'codex' });
+assert.deepEqual(codexDynamicTool?.resultBlocks?.map((block) => block.type), [
+  'text',
+  'image',
+  'audio',
+]);
+assert.deepEqual(codexDynamicTool?.resultBlocks?.[2], {
+  type: 'audio',
+  source: 'data:audio/wav;base64,YXVkaW8=',
+  mimeType: 'audio/wav',
+});
+
+const codexAppServerCommand = projectChatMessageToolCall({
+  type: 'commandExecution',
+  id: 'codex-command-camel-1',
+  command: 'pnpm typecheck',
+  aggregatedOutput: 'Typecheck passed',
+  status: 'completed',
+  durationMs: 250,
+}, 0, { engineId: 'codex' });
+assert.equal(codexAppServerCommand?.output, 'Typecheck passed');
+assert.equal(codexAppServerCommand?.durationMs, 250);
+
+const claudeTaskNotification = projectChatMessageToolCall({
+  type: 'system',
+  subtype: 'task_notification',
+  task_id: 'claude-task-1',
+  status: 'stopped',
+  summary: 'Worker stopped by user',
+  output_file: 'C:/tmp/claude-task-1.log',
+  usage: { duration_ms: 750 },
+}, 0, { engineId: 'claude-code' });
+assert.equal(claudeTaskNotification?.id, 'claude-task-1');
+assert.equal(claudeTaskNotification?.kind, 'agent');
+assert.equal(claudeTaskNotification?.status, 'cancelled');
+assert.equal(claudeTaskNotification?.durationMs, 750);
+
+for (const subtype of ['task_started', 'task_notification']) {
+  assert.equal(projectChatMessageToolCall({
+    type: 'system',
+    subtype,
+    task_id: `claude-ambient-${subtype}`,
+    tool_use_id: `toolu-ambient-${subtype}`,
+    description: 'Internal housekeeping',
+    status: 'completed',
+    summary: 'Ambient task completed',
+    skip_transcript: true,
+  }, 0, { engineId: 'claude-code' }), null);
+}
+
+const claudeTaskUpdated = projectChatMessageToolCall({
+  type: 'system',
+  subtype: 'task_updated',
+  task_id: 'claude-task-updated-1',
+  patch: {
+    status: 'paused',
+    description: 'Waiting for review',
+    total_paused_ms: 500,
+  },
+}, 0, { engineId: 'claude-code' });
+assert.equal(claudeTaskUpdated?.id, 'claude-task-updated-1');
+assert.equal(claudeTaskUpdated?.status, 'waiting');
+assert.equal(claudeTaskUpdated?.title, 'Waiting for review');
+
+const claudePermissionDenied = projectChatMessageToolCall({
+  type: 'system',
+  subtype: 'permission_denied',
+  tool_name: 'Bash',
+  tool_use_id: 'toolu-permission-denied-1',
+  decision_reason_type: 'rule',
+  decision_reason: 'Command is outside the workspace policy.',
+  message: 'Permission denied',
+}, 0, { engineId: 'claude-code' });
+assert.equal(claudePermissionDenied?.id, 'toolu-permission-denied-1');
+assert.equal(claudePermissionDenied?.name, 'Bash');
+assert.equal(claudePermissionDenied?.status, 'cancelled');
+assert.equal(claudePermissionDenied?.output, 'Permission denied');
+
+const geminiErroredSubagent = projectChatMessageToolCall({
+  id: 'gemini-agent-error-1',
+  name: 'browser_agent',
+  status: 'success',
+  resultDisplay: {
+    isSubagentProgress: true,
+    agentName: 'browser_agent',
+    state: 'error',
+    result: 'Navigation failed',
+    recentActivity: [],
+  },
+}, 0, { engineId: 'gemini' });
+assert.equal(geminiErroredSubagent?.status, 'error');
+
+const geminiNativeError = projectChatMessageToolCall({
+  status: 'error',
+  request: {
+    callId: 'gemini-native-error-1',
+    name: 'read_file',
+    args: { file_path: 'src/private.ts' },
+  },
+  response: {
+    responseParts: [],
+    error: new Error('Native read failed'),
+  },
+}, 0, { engineId: 'gemini' });
+assert.deepEqual(geminiNativeError?.resultBlocks, [{
+  type: 'error',
+  message: 'Native read failed',
+}]);
+
+const structuredMcpResult = projectChatMessageToolCall({
+  id: 'mcp-structured-1',
+  server: 'issues',
+  tool: 'list_issues',
+  type: 'mcpToolCall',
+  status: 'completed',
+  arguments: {},
+  result: {
+    content: [],
+    structuredContent: {
+      issues: [{ id: 'SDK-1', priority: 1 }],
+    },
+  },
+}, 0, { engineId: 'codex' });
+assert.deepEqual(structuredMcpResult?.resultBlocks, [{
+  type: 'list',
+  items: ['issues[0].id: SDK-1', 'issues[0].priority: 1'],
+}]);
+
+const boundedGeminiGrepResult = projectChatMessageToolCall({
+  id: 'gemini-grep-bounded-1',
+  name: 'grep_search',
+  status: 'completed',
+  resultDisplay: {
+    matches: [{
+      filePath: 'src/large.ts',
+      lineNumber: 10,
+      line: 'x'.repeat(3_000),
+    }],
+  },
+}, 0, { engineId: 'gemini' });
+const boundedGeminiGrepList = boundedGeminiGrepResult?.resultBlocks?.find(
+  (block) => block.type === 'list',
+);
+assert.ok(boundedGeminiGrepList && boundedGeminiGrepList.type === 'list');
+assert.equal(boundedGeminiGrepList.items[0]?.length, 2_003);
+assert.equal(boundedGeminiGrepList.items[0]?.endsWith('...'), true);
+
+const canonicalResultWithTrailingError = projectChatMessageToolCall({
+  id: 'canonical-trailing-error',
+  name: 'read_file',
+  arguments: { path: 'src/App.tsx' },
+  resultBlocks: [
+    ...Array.from({ length: 24 }, (_, index) => ({
+      type: 'text' as const,
+      text: `partial result ${index + 1}`,
+    })),
+    { type: 'error', message: 'final provider failure' },
+  ],
+}, 0);
+assert.equal(
+  canonicalResultWithTrailingError?.status,
+  'error',
+  'A canonical trailing error block must drive the normalized tool status even without a provider status field.',
+);
+assert.equal(canonicalResultWithTrailingError?.resultBlocks?.length, 25);
+assert.deepEqual(canonicalResultWithTrailingError?.resultBlocks?.at(-1), {
+  type: 'error',
+  message: 'final provider failure',
+});
+
+for (const [toolName, kind] of [
+  ['codesearch', 'search'],
+  ['ls', 'search'],
+  ['multiedit', 'file'],
+  ['webfetch', 'web'],
+  ['TaskCreate', 'task'],
+  ['TaskOutput', 'agent'],
+  ['AskUserQuestion', 'question'],
+] as const) {
+  assert.equal(
+    projectChatMessageToolCall({ id: `classification-${toolName}`, name: toolName }, 0)?.kind,
+    kind,
+  );
+}
 
 const commandOnlyView = resolveChatMessageView({
   id: 'msg-command-1',

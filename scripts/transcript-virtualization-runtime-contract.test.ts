@@ -241,7 +241,7 @@ assert.match(
 
 assert.match(
   contentBlockRenderersSource,
-  /<ChatTaskProgress taskProgress=\{block\.progress\} \/>/,
+  /<ChatTaskProgress taskProgress=\{block\.progress\} t=\{context\.environment\?\.t\} \/>/,
   'Task progress payloads must render through the shared ChatTaskProgress block renderer so cross-engine planner and reviewer progress survives all the way to the transcript UI.',
 );
 

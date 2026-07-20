@@ -137,7 +137,8 @@ const credentialEntryViteConfigs = [
 ];
 for (const relativePath of credentialEntryViteConfigs) {
   const source = fs.readFileSync(new URL(relativePath, import.meta.url), 'utf8');
-  assert.match(source, /sdkwork-iam-credential-entry\/src\/vite\.ts/u);
+  assert.match(source, /from ['"]@sdkwork\/iam-credential-entry\/vite['"]/u);
+  assert.doesNotMatch(source, /sdkwork-iam-credential-entry\/src\/vite\.ts/u);
   assert.match(source, /createSdkworkCredentialEntryBootstrapVitePlugin/u);
   assert.doesNotMatch(source, /['"]process\.env\.SDKWORK_ACCESS_TOKEN['"]\s*:/u);
 }

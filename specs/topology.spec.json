@@ -102,6 +102,7 @@
             "id": "pc-web-renderer",
             "package": "@sdkwork/birdcoder-pc-web",
             "script": "start:browser",
+            "bindEnv": "SDKWORK_BIRDCODER_PC_DEV_BIND",
             "required": true,
             "role": "client"
           }
@@ -116,6 +117,7 @@
             "id": "pc-web-renderer",
             "package": "@sdkwork/birdcoder-pc-web",
             "script": "dev:browser:cloud",
+            "bindEnv": "SDKWORK_BIRDCODER_PC_DEV_BIND",
             "required": true,
             "role": "client"
           }

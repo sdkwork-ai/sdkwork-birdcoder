@@ -40,8 +40,13 @@ assert.match(
 );
 assert.match(
   sdkClientsSource,
-  /client\.intelligence\.codingSessions\.turns\.create\(\s*\{\s*sessionId: codingSessionId\s*\},\s*request as unknown as GeneratedBirdCoderCreateCodingSessionTurnRequest,/,
-  'App runtime SDK wrapper must pass standard turn options through the generated app SDK request body.',
+  /client\.intelligence\.codingSessions\.turns\.create\(\s*\{\s*sessionId: codingSessionId\s*\},\s*request,/,
+  'App runtime SDK wrapper must pass standard turn options directly through the generated app SDK request body.',
+);
+assert.doesNotMatch(
+  sdkClientsSource,
+  /request as unknown as GeneratedBirdCoderCreateCodingSessionTurnRequest/,
+  'App runtime SDK wrapper must keep its request contract aligned with the generated SDK instead of bypassing type safety.',
 );
 
 assert.match(

@@ -16,6 +16,7 @@ interface AuthContextType {
   isLoading: boolean;
   logout: () => Promise<void>;
   refreshCurrentUser: () => Promise<User | null>;
+  sessionRevision: number;
   user: User | null;
 }
 
@@ -25,6 +26,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const { authService } = useIDEServices();
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [sessionRevision, setSessionRevision] = useState(0);
   const authMutationVersionRef = useRef(0);
   const initialSessionLoadCompletedRef = useRef(false);
 
@@ -119,6 +121,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       // Invalidate any load that started under the previous token pair before
       // scheduling the post-commit read.
       authMutationVersionRef.current += 1;
+      setSessionRevision((currentRevision) => currentRevision + 1);
       scheduleCurrentUserLoad();
     };
     globalThis.addEventListener?.('sdkwork:birdcoder:app-session-change', handleAppSessionChange);
@@ -158,6 +161,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         isLoading,
         logout,
         refreshCurrentUser,
+        sessionRevision,
       },
     },
     children,

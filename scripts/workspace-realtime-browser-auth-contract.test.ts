@@ -53,7 +53,7 @@ assert.equal(protocols.join(',').includes('auth-token-contract'), false);
 assert.throws(
   () =>
     createWorkspaceRealtimeWebSocketProtocols(() => ({
-      'Access-Token': 'a'.repeat(3_073),
+      'Access-Token': 'a'.repeat(6_145),
       Authorization: 'Bearer auth-token-contract',
     })),
   /complete authenticated|transport limit/u,

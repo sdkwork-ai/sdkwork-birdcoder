@@ -21739,7 +21739,7 @@
       }
     }
   },
-  "x-sdkwork-api-cloud-gateway": {
+  "x-sdkwork-api-assembly": {
     "versionedOpenApiPaths": [
       "/openapi/coding-server-v1.json"
     ],

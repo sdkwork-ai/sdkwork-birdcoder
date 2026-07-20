@@ -15,8 +15,9 @@ use crate::{
     find_codeengine_descriptor, map_codeengine_session_runtime_status,
     map_codeengine_tool_command_status, map_codeengine_tool_kind,
     map_codeengine_tool_runtime_status, native_session_prefix_for_engine,
-    sanitize_codeengine_git_repository_url, sanitize_codeengine_session_metadata,
-    CodeEngineSessionCommandRecord, CodeEngineSessionDetailRecord, CodeEngineSessionMessageRecord,
+    normalize_codeengine_tool_lifecycle_status, sanitize_codeengine_git_repository_url,
+    sanitize_codeengine_session_metadata, CodeEngineSessionCommandRecord,
+    CodeEngineSessionDetailRecord, CodeEngineSessionMessageRecord,
     CodeEngineSessionNativeAttributesRecord, CodeEngineSessionSummaryRecord,
 };
 
@@ -156,6 +157,7 @@ struct TranscriptEntry {
     tool_call_id: Option<String>,
     file_changes: Option<Vec<Value>>,
     task_progress: Option<Value>,
+    metadata: Option<BTreeMap<String, String>>,
 }
 
 #[derive(Eq, Hash, PartialEq)]
@@ -647,7 +649,7 @@ fn parse_codex_session(
                 tool_call_id: entry.tool_call_id,
                 file_changes: entry.file_changes,
                 task_progress: entry.task_progress,
-                metadata: None,
+                metadata: entry.metadata,
                 created_at: entry.created_at,
             })
             .collect()
@@ -813,14 +815,8 @@ fn apply_codex_session_line(
                                     created_at: timestamp.clone(),
                                     role: role.clone(),
                                     content: transcript_content,
-                                    turn_id: normalize_value_string(
-                                        payload.and_then(|payload| payload.get("turnId")),
-                                    )
-                                    .or_else(|| {
-                                        normalize_value_string(
-                                            payload.and_then(|payload| payload.get("turn_id")),
-                                        )
-                                    }),
+                                    turn_id: read_codex_turn_id(payload)
+                                        .or_else(|| context.current_turn_id.clone()),
                                     commands: None,
                                     ..TranscriptEntry::default()
                                 },
@@ -841,24 +837,79 @@ fn apply_codex_session_line(
                         }
                     }
                 }
-                Some("reasoning") => {
+                Some("userMessage") => {
+                    if let Some(content) =
+                        extract_message_text(payload.and_then(|payload| payload.get("content")))
+                    {
+                        if include_messages {
+                            push_transcript_entry(
+                                context,
+                                TranscriptEntry {
+                                    created_at: timestamp.clone(),
+                                    role: "user".to_owned(),
+                                    content: content.clone(),
+                                    turn_id: read_codex_turn_id(payload)
+                                        .or_else(|| context.current_turn_id.clone()),
+                                    commands: None,
+                                    ..TranscriptEntry::default()
+                                },
+                            );
+                        }
+                        set_context_title(
+                            context,
+                            normalize_codex_prompt_title(content.as_str()),
+                            SessionTitleSource::ResponseUserMessage,
+                        );
+                        context.latest_user_timestamp = resolve_more_recent_timestamp(
+                            context.latest_user_timestamp.take(),
+                            Some(timestamp),
+                        );
+                    }
+                }
+                Some("agentMessage") => {
                     if !include_messages {
                         return;
                     }
-                    if let Some(content) = extract_reasoning_text(payload) {
+                    if let Some(content) =
+                        normalize_value_string(payload.and_then(|payload| payload.get("text")))
+                    {
                         push_transcript_entry(
                             context,
                             TranscriptEntry {
                                 created_at: timestamp,
-                                role: "planner".to_owned(),
+                                role: "assistant".to_owned(),
                                 content,
-                                turn_id: None,
+                                turn_id: read_codex_turn_id(payload)
+                                    .or_else(|| context.current_turn_id.clone()),
                                 commands: None,
                                 ..TranscriptEntry::default()
                             },
                         );
                     }
                 }
+                Some("plan") => {
+                    if !include_messages {
+                        return;
+                    }
+                    if let Some(content) =
+                        normalize_value_string(payload.and_then(|payload| payload.get("text")))
+                    {
+                        push_transcript_entry(
+                            context,
+                            TranscriptEntry {
+                                created_at: timestamp,
+                                role: "planner".to_owned(),
+                                content,
+                                turn_id: read_codex_turn_id(payload)
+                                    .or_else(|| context.current_turn_id.clone()),
+                                commands: None,
+                                ..TranscriptEntry::default()
+                            },
+                        );
+                    }
+                }
+                // Hook prompts and reasoning are provider context, not authored transcript text.
+                Some("hookPrompt" | "hook_prompt" | "reasoning") => {}
                 Some("function_call") | Some("custom_tool_call") => {
                     register_pending_codex_tool_call(context, payload, &timestamp);
                 }
@@ -888,8 +939,34 @@ fn apply_codex_session_line(
                     }
                 }
                 Some(
-                    "command_execution" | "file_change" | "mcp_tool_call" | "todo_list"
-                    | "web_search",
+                    "command_execution"
+                    | "commandExecution"
+                    | "file_change"
+                    | "fileChange"
+                    | "mcp_tool_call"
+                    | "mcpToolCall"
+                    | "todo_list"
+                    | "todoList"
+                    | "web_search"
+                    | "webSearch"
+                    | "dynamic_tool_call"
+                    | "dynamicToolCall"
+                    | "sub_agent_activity"
+                    | "subAgentActivity"
+                    | "image_view"
+                    | "imageView"
+                    | "image_generation_call"
+                    | "image_generation"
+                    | "imageGeneration"
+                    | "sleep"
+                    | "entered_review_mode"
+                    | "enteredReviewMode"
+                    | "exited_review_mode"
+                    | "exitedReviewMode"
+                    | "context_compaction"
+                    | "contextCompaction"
+                    | "collab_agent_tool_call"
+                    | "collabAgentToolCall",
                 ) => {
                     if !include_messages {
                         return;
@@ -899,7 +976,14 @@ fn apply_codex_session_line(
                         &timestamp,
                         context.current_turn_id.as_deref(),
                     ) {
-                        push_transcript_entry(context, entry);
+                        if matches!(
+                            payload_type.as_deref(),
+                            Some("collab_agent_tool_call" | "collabAgentToolCall")
+                        ) {
+                            upsert_codex_collab_transcript_entry(context, entry);
+                        } else {
+                            push_transcript_entry(context, entry);
+                        }
                     }
                 }
                 _ => {}
@@ -912,15 +996,22 @@ fn apply_codex_session_line(
             match event_type.as_deref() {
                 Some("task_started") => {
                     context.has_task_started = true;
+                    context.has_task_complete = false;
+                    context.has_turn_aborted = false;
+                    context.has_error = false;
                     context.current_turn_id =
                         read_codex_turn_id(payload).or_else(|| context.current_turn_id.clone());
                 }
                 Some("task_complete") => {
                     context.has_task_complete = true;
+                    context.has_task_started = false;
+                    context.has_turn_aborted = false;
                     context.current_turn_id = None;
                 }
                 Some("turn_aborted") => {
                     context.has_turn_aborted = true;
+                    context.has_task_complete = false;
+                    context.has_task_started = false;
                     let aborted_turn_id = read_codex_turn_id(payload);
                     for pending in context.pending_tool_calls.values_mut() {
                         if aborted_turn_id.is_none() || pending.turn_id == aborted_turn_id {
@@ -953,14 +1044,8 @@ fn apply_codex_session_line(
                                     created_at: timestamp.clone(),
                                     role: "user".to_owned(),
                                     content: normalized_content.clone(),
-                                    turn_id: normalize_value_string(
-                                        payload.and_then(|payload| payload.get("turnId")),
-                                    )
-                                    .or_else(|| {
-                                        normalize_value_string(
-                                            payload.and_then(|payload| payload.get("turn_id")),
-                                        )
-                                    }),
+                                    turn_id: read_codex_turn_id(payload)
+                                        .or_else(|| context.current_turn_id.clone()),
                                     commands: None,
                                     ..TranscriptEntry::default()
                                 },
@@ -1000,14 +1085,8 @@ fn apply_codex_session_line(
                                 created_at: timestamp,
                                 role: "assistant".to_owned(),
                                 content,
-                                turn_id: normalize_value_string(
-                                    payload.and_then(|payload| payload.get("turnId")),
-                                )
-                                .or_else(|| {
-                                    normalize_value_string(
-                                        payload.and_then(|payload| payload.get("turn_id")),
-                                    )
-                                }),
+                                turn_id: read_codex_turn_id(payload)
+                                    .or_else(|| context.current_turn_id.clone()),
                                 commands: None,
                                 ..TranscriptEntry::default()
                             },
@@ -1247,6 +1326,30 @@ fn apply_codex_session_line(
                         push_transcript_entry(context, entry);
                     }
                 }
+                Some(
+                    "collab_agent_spawn_begin"
+                    | "collab_agent_spawn_end"
+                    | "collab_agent_interaction_begin"
+                    | "collab_agent_interaction_end"
+                    | "collab_waiting_begin"
+                    | "collab_waiting_end"
+                    | "collab_close_begin"
+                    | "collab_close_end"
+                    | "collab_resume_begin"
+                    | "collab_resume_end",
+                ) => {
+                    if !include_messages {
+                        return;
+                    }
+                    if let Some(entry) = build_codex_collab_transcript_entry(
+                        payload,
+                        &timestamp,
+                        event_type.as_deref().unwrap_or_default(),
+                        context.current_turn_id.as_deref(),
+                    ) {
+                        upsert_codex_collab_transcript_entry(context, entry);
+                    }
+                }
                 Some("plan_update") | Some("task_progress") | Some("todo_list") => {
                     if !include_messages {
                         return;
@@ -1313,6 +1416,8 @@ fn apply_codex_context_payload(
     payload: Option<&Value>,
     fallback_timestamp: &str,
 ) {
+    context.current_turn_id =
+        read_codex_turn_id(payload).or_else(|| context.current_turn_id.clone());
     if let Some(payload) = payload {
         context
             .native_attributes
@@ -1831,6 +1936,35 @@ fn read_codex_tool_output_status(payload: Option<&Value>) -> String {
     map_codeengine_tool_command_status(status.as_deref(), exit_code.as_deref())
 }
 
+fn resolve_codex_projected_tool_status(payload: &Value, command_status: &str) -> &'static str {
+    let lifecycle_status = normalize_value_string(payload.get("status"))
+        .as_deref()
+        .and_then(normalize_codeengine_tool_lifecycle_status);
+    if lifecycle_status == Some("cancelled") {
+        return "cancelled";
+    }
+    if let Some(success) = payload.get("success").and_then(Value::as_bool) {
+        return if success { "completed" } else { "failed" };
+    }
+
+    match lifecycle_status {
+        Some("completed") => "completed",
+        Some("failed") => "failed",
+        Some("running") => "in_progress",
+        Some("awaiting_approval") => "awaiting_approval",
+        Some("awaiting_user") => "awaiting_user",
+        _ => match command_status {
+            "success" => "completed",
+            "error" => "failed",
+            _ => "in_progress",
+        },
+    }
+}
+
+fn codex_file_change_was_applied(payload: &Value, command_status: &str) -> bool {
+    resolve_codex_projected_tool_status(payload, command_status) == "completed"
+}
+
 fn extract_codex_tool_output_text(payload: Option<&Value>) -> Option<String> {
     let payload = payload?;
     let raw_output = normalize_value_string(payload.get("output"))
@@ -2011,16 +2145,7 @@ fn build_codex_file_change_tool_call(payload: &Value, status: &str) -> Value {
     item.insert("type".to_owned(), Value::String("file_change".to_owned()));
     item.insert(
         "status".to_owned(),
-        Value::String(
-            if status == "success" {
-                "completed"
-            } else if status == "error" {
-                "failed"
-            } else {
-                "in_progress"
-            }
-            .to_owned(),
-        ),
+        Value::String(resolve_codex_projected_tool_status(payload, status).to_owned()),
     );
     let projected_changes = project_codex_file_changes(payload);
     item.insert("changes".to_owned(), Value::Array(projected_changes));
@@ -2076,9 +2201,10 @@ fn build_codex_thread_item_transcript_entry(
     let turn_id = read_codex_turn_id(Some(payload)).or_else(|| fallback_turn_id.map(str::to_owned));
 
     match item_type.as_str() {
-        "command_execution" => {
+        "command_execution" | "commandExecution" => {
             let command = normalize_command_text(payload.get("command"))?;
             let output = normalize_value_string(payload.get("aggregated_output"))
+                .or_else(|| normalize_value_string(payload.get("aggregatedOutput")))
                 .or_else(|| normalize_value_string(payload.get("output")))
                 .and_then(|value| sanitize_codex_tool_output(value.as_str()));
             let status = read_codex_tool_output_status(Some(payload));
@@ -2115,20 +2241,23 @@ fn build_codex_thread_item_transcript_entry(
                 ..TranscriptEntry::default()
             })
         }
-        "file_change" => {
+        "file_change" | "fileChange" => {
             let file_changes = project_codex_file_changes(payload);
             let status = read_codex_tool_output_status(Some(payload));
+            let projected_status = resolve_codex_projected_tool_status(payload, status.as_str());
+            let applied = codex_file_change_was_applied(payload, status.as_str());
             Some(TranscriptEntry {
                 created_at: timestamp.to_owned(),
                 role: "tool".to_owned(),
-                content: if status == "error" {
-                    "File changes failed.".to_owned()
-                } else {
-                    format!(
+                content: match projected_status {
+                    "completed" => format!(
                         "{} file change{} applied.",
                         file_changes.len(),
                         if file_changes.len() == 1 { "" } else { "s" }
-                    )
+                    ),
+                    "cancelled" => "File changes declined.".to_owned(),
+                    "failed" => "File changes failed.".to_owned(),
+                    _ => "File changes in progress.".to_owned(),
                 },
                 turn_id,
                 commands: None,
@@ -2137,7 +2266,7 @@ fn build_codex_thread_item_transcript_entry(
                     status.as_str(),
                 )]),
                 tool_call_id,
-                file_changes: if file_changes.is_empty() {
+                file_changes: if !applied || file_changes.is_empty() {
                     None
                 } else {
                     Some(file_changes)
@@ -2145,7 +2274,7 @@ fn build_codex_thread_item_transcript_entry(
                 ..TranscriptEntry::default()
             })
         }
-        "web_search" => {
+        "web_search" | "webSearch" => {
             let query = normalize_value_string(payload.get("query"));
             let status = read_codex_tool_output_status(Some(payload));
             Some(TranscriptEntry {
@@ -2165,19 +2294,180 @@ fn build_codex_thread_item_transcript_entry(
                 ..TranscriptEntry::default()
             })
         }
-        "mcp_tool_call" => Some(TranscriptEntry {
+        "mcp_tool_call" | "mcpToolCall" => {
+            let mut item = payload.clone();
+            if codex_mcp_result_has_semantic_error(payload.get("result")) {
+                if let Some(item) = item.as_object_mut() {
+                    item.insert("status".to_owned(), Value::String("failed".to_owned()));
+                }
+            }
+            Some(TranscriptEntry {
+                created_at: timestamp.to_owned(),
+                role: "tool".to_owned(),
+                content: format_codex_mcp_content(&item),
+                turn_id,
+                commands: None,
+                tool_calls: Some(vec![wrap_codex_thread_item(item)]),
+                tool_call_id,
+                ..TranscriptEntry::default()
+            })
+        }
+        "collab_agent_tool_call" | "collabAgentToolCall" => Some(TranscriptEntry {
             created_at: timestamp.to_owned(),
             role: "tool".to_owned(),
-            content: format_codex_mcp_content(payload),
+            content: format_codex_collab_content(payload),
             turn_id,
             commands: None,
             tool_calls: Some(vec![wrap_codex_thread_item(payload.clone())]),
             tool_call_id,
             ..TranscriptEntry::default()
         }),
-        "todo_list" => {
+        "todo_list" | "todoList" => {
             build_codex_task_transcript_entry(Some(payload), timestamp, fallback_turn_id)
         }
+        "dynamic_tool_call" | "dynamicToolCall" => {
+            let tool = normalize_value_string(payload.get("tool"))?;
+            let namespace = normalize_value_string(payload.get("namespace"));
+            let status = read_codex_tool_output_status(Some(payload));
+            let outcome = resolve_codex_projected_tool_status(payload, status.as_str());
+            let qualified_tool = namespace
+                .filter(|value| !value.is_empty())
+                .map(|namespace| format!("{namespace}/{tool}"))
+                .unwrap_or(tool);
+            Some(TranscriptEntry {
+                created_at: timestamp.to_owned(),
+                role: "tool".to_owned(),
+                content: format!("Dynamic tool {outcome}: {qualified_tool}"),
+                turn_id,
+                tool_calls: Some(vec![wrap_codex_thread_item(payload.clone())]),
+                tool_call_id,
+                ..TranscriptEntry::default()
+            })
+        }
+        "sub_agent_activity" | "subAgentActivity" => {
+            let activity_kind = normalize_value_string(payload.get("kind"))
+                .unwrap_or_else(|| "interacted".to_owned())
+                .to_ascii_lowercase();
+            let agent_path = read_codex_aliased_string(payload, "agent_path", "agentPath")
+                .or_else(|| read_codex_aliased_string(payload, "agent_thread_id", "agentThreadId"))
+                .unwrap_or_else(|| "subagent".to_owned());
+            let projected_status = match activity_kind.as_str() {
+                "started" => "in_progress",
+                "interrupted" => "cancelled",
+                _ => "completed",
+            };
+            let mut item = payload.as_object().cloned().unwrap_or_default();
+            item.insert(
+                "status".to_owned(),
+                Value::String(projected_status.to_owned()),
+            );
+            if !item.contains_key("agentThreadId") {
+                if let Some(agent_thread_id) =
+                    read_codex_aliased_string(payload, "agent_thread_id", "agentThreadId")
+                {
+                    item.insert("agentThreadId".to_owned(), Value::String(agent_thread_id));
+                }
+            }
+            if !item.contains_key("agentPath") {
+                if let Some(agent_path) =
+                    read_codex_aliased_string(payload, "agent_path", "agentPath")
+                {
+                    item.insert("agentPath".to_owned(), Value::String(agent_path));
+                }
+            }
+            let action = match activity_kind.as_str() {
+                "started" => "started",
+                "interrupted" => "interrupted",
+                _ => "interacted with",
+            };
+            Some(TranscriptEntry {
+                created_at: timestamp.to_owned(),
+                role: "tool".to_owned(),
+                content: format!("Subagent {action}: {agent_path}"),
+                turn_id,
+                tool_calls: Some(vec![wrap_codex_thread_item(Value::Object(item))]),
+                tool_call_id,
+                ..TranscriptEntry::default()
+            })
+        }
+        "image_view" | "imageView" => {
+            let path = normalize_path_string(payload.get("path"))?;
+            Some(TranscriptEntry {
+                created_at: timestamp.to_owned(),
+                role: "tool".to_owned(),
+                content: format!("Viewed image: {path}"),
+                turn_id,
+                tool_calls: Some(vec![wrap_codex_thread_item(payload.clone())]),
+                tool_call_id,
+                ..TranscriptEntry::default()
+            })
+        }
+        "image_generation_call" | "image_generation" | "imageGeneration" => {
+            let status = read_codex_tool_output_status(Some(payload));
+            let outcome = resolve_codex_projected_tool_status(payload, status.as_str());
+            Some(TranscriptEntry {
+                created_at: timestamp.to_owned(),
+                role: "tool".to_owned(),
+                content: format!("Image generation {outcome}."),
+                turn_id,
+                tool_calls: Some(vec![wrap_codex_thread_item(payload.clone())]),
+                tool_call_id,
+                ..TranscriptEntry::default()
+            })
+        }
+        "sleep" => {
+            let duration_ms = read_codex_aliased_value(payload, "duration_ms", "durationMs")
+                .and_then(Value::as_u64);
+            let mut item = payload.as_object().cloned().unwrap_or_default();
+            item.entry("status".to_owned())
+                .or_insert_with(|| Value::String("completed".to_owned()));
+            if !item.contains_key("durationMs") {
+                if let Some(duration_ms) = duration_ms {
+                    item.insert("durationMs".to_owned(), Value::from(duration_ms));
+                }
+            }
+            Some(TranscriptEntry {
+                created_at: timestamp.to_owned(),
+                role: "tool".to_owned(),
+                content: duration_ms
+                    .map(|duration_ms| format!("Waited {duration_ms} ms."))
+                    .unwrap_or_else(|| "Wait completed.".to_owned()),
+                turn_id,
+                tool_calls: Some(vec![wrap_codex_thread_item(Value::Object(item))]),
+                tool_call_id,
+                ..TranscriptEntry::default()
+            })
+        }
+        "entered_review_mode" | "enteredReviewMode" => Some(TranscriptEntry {
+            created_at: timestamp.to_owned(),
+            role: "system".to_owned(),
+            content: normalize_value_string(payload.get("review"))
+                .unwrap_or_else(|| "Review requested.".to_owned()),
+            turn_id,
+            tool_call_id,
+            ..TranscriptEntry::default()
+        }),
+        "exited_review_mode" | "exitedReviewMode" => Some(TranscriptEntry {
+            created_at: timestamp.to_owned(),
+            role: "system".to_owned(),
+            content: normalize_value_string(payload.get("review"))
+                .unwrap_or_else(|| "Review completed.".to_owned()),
+            turn_id,
+            tool_call_id,
+            ..TranscriptEntry::default()
+        }),
+        "context_compaction" | "contextCompaction" => Some(TranscriptEntry {
+            created_at: timestamp.to_owned(),
+            role: "system".to_owned(),
+            content: "Conversation context compressed.".to_owned(),
+            turn_id,
+            tool_call_id,
+            metadata: Some(BTreeMap::from([(
+                "noticeKind".to_owned(),
+                "compression".to_owned(),
+            )])),
+            ..TranscriptEntry::default()
+        }),
         _ => None,
     }
 }
@@ -2185,11 +2475,45 @@ fn build_codex_thread_item_transcript_entry(
 fn format_codex_mcp_content(payload: &Value) -> String {
     let server = normalize_value_string(payload.get("server"));
     let tool = normalize_value_string(payload.get("tool"));
+    let status = normalize_value_string(payload.get("status"))
+        .unwrap_or_else(|| "completed".to_owned())
+        .to_ascii_lowercase();
+    let outcome = if matches!(status.as_str(), "error" | "failed" | "cancelled") {
+        "failed"
+    } else if matches!(status.as_str(), "in_progress" | "inprogress" | "running") {
+        "running"
+    } else {
+        "completed"
+    };
     match (server, tool) {
-        (Some(server), Some(tool)) => format!("MCP tool completed: {server}/{tool}"),
-        (_, Some(tool)) => format!("MCP tool completed: {tool}"),
-        _ => "MCP tool completed.".to_owned(),
+        (Some(server), Some(tool)) => format!("MCP tool {outcome}: {server}/{tool}"),
+        (_, Some(tool)) => format!("MCP tool {outcome}: {tool}"),
+        _ => format!("MCP tool {outcome}."),
     }
+}
+
+fn read_codex_boolean(value: Option<&Value>) -> Option<bool> {
+    match value? {
+        Value::Bool(value) => Some(*value),
+        Value::String(value) if value.trim().eq_ignore_ascii_case("true") => Some(true),
+        Value::String(value) if value.trim().eq_ignore_ascii_case("false") => Some(false),
+        _ => None,
+    }
+}
+
+fn codex_mcp_result_has_semantic_error(result: Option<&Value>) -> bool {
+    let Some(result) = result else {
+        return false;
+    };
+    let call_tool_result = result
+        .get("Ok")
+        .or_else(|| result.get("ok"))
+        .unwrap_or(result);
+    read_codex_boolean(
+        call_tool_result
+            .get("isError")
+            .or_else(|| call_tool_result.get("is_error")),
+    ) == Some(true)
 }
 
 fn build_codex_mcp_transcript_entry(
@@ -2201,10 +2525,11 @@ fn build_codex_mcp_transcript_entry(
     let payload = payload?;
     let invocation = payload.get("invocation");
     let result = payload.get("result").cloned();
-    let is_error = result
+    let transport_error = result
         .as_ref()
         .and_then(|value| value.get("Err").or_else(|| value.get("err")))
         .is_some();
+    let is_error = transport_error || codex_mcp_result_has_semantic_error(result.as_ref());
     let status = if event_type == "mcp_tool_call_begin" {
         "in_progress"
     } else if is_error {
@@ -2251,6 +2576,288 @@ fn build_codex_mcp_transcript_entry(
         tool_call_id,
         ..TranscriptEntry::default()
     })
+}
+
+fn read_codex_aliased_value<'a>(
+    payload: &'a Value,
+    snake_case: &str,
+    camel_case: &str,
+) -> Option<&'a Value> {
+    payload.get(snake_case).or_else(|| payload.get(camel_case))
+}
+
+fn read_codex_aliased_string(
+    payload: &Value,
+    snake_case: &str,
+    camel_case: &str,
+) -> Option<String> {
+    normalize_value_string(read_codex_aliased_value(payload, snake_case, camel_case))
+}
+
+fn read_codex_string_array(value: Option<&Value>) -> Vec<String> {
+    value
+        .and_then(Value::as_array)
+        .into_iter()
+        .flatten()
+        .filter_map(|value| normalize_value_string(Some(value)))
+        .collect()
+}
+
+fn normalize_codex_collab_agent_status_name(value: &str) -> String {
+    let normalized = value.trim().to_ascii_lowercase().replace([' ', '-'], "_");
+    match normalized.as_str() {
+        "pendinginit" => "pending_init".to_owned(),
+        "notfound" => "not_found".to_owned(),
+        _ => normalized,
+    }
+}
+
+fn project_codex_collab_agent_state(value: &Value) -> (Value, bool) {
+    let mut message = None;
+    let status = if let Some(status) = normalize_value_string(value.get("status")) {
+        message = normalize_value_string(value.get("message"));
+        normalize_codex_collab_agent_status_name(status.as_str())
+    } else if let Some(status) = value.as_str() {
+        normalize_codex_collab_agent_status_name(status)
+    } else if let Some(object) = value.as_object() {
+        let mut projected_status = "unknown".to_owned();
+        for status_name in [
+            "pending_init",
+            "pendingInit",
+            "running",
+            "interrupted",
+            "completed",
+            "errored",
+            "shutdown",
+            "not_found",
+            "notFound",
+        ] {
+            let Some(status_value) = object.get(status_name) else {
+                continue;
+            };
+            projected_status = normalize_codex_collab_agent_status_name(status_name);
+            message = normalize_value_string(Some(status_value));
+            break;
+        }
+        projected_status
+    } else {
+        "unknown".to_owned()
+    };
+    let is_failed = matches!(status.as_str(), "errored" | "not_found");
+    (
+        serde_json::json!({
+            "status": status,
+            "message": message,
+        }),
+        is_failed,
+    )
+}
+
+fn read_codex_wait_agent_statuses(payload: &Value) -> Vec<(String, Value)> {
+    if let Some(statuses) = payload.get("statuses").and_then(Value::as_object) {
+        let mut projected = statuses
+            .iter()
+            .map(|(thread_id, status)| (thread_id.clone(), status.clone()))
+            .collect::<Vec<_>>();
+        projected.sort_by(|left, right| left.0.cmp(&right.0));
+        return projected;
+    }
+
+    let mut projected = read_codex_aliased_value(payload, "agent_statuses", "agentStatuses")
+        .and_then(Value::as_array)
+        .into_iter()
+        .flatten()
+        .filter_map(|entry| {
+            let thread_id = read_codex_aliased_string(entry, "thread_id", "threadId")?;
+            Some((thread_id, entry.get("status")?.clone()))
+        })
+        .collect::<Vec<_>>();
+    projected.sort_by(|left, right| left.0.cmp(&right.0));
+    projected
+}
+
+fn build_codex_collab_transcript_entry(
+    payload: Option<&Value>,
+    timestamp: &str,
+    event_type: &str,
+    fallback_turn_id: Option<&str>,
+) -> Option<TranscriptEntry> {
+    let payload = payload?;
+    let call_id = read_codex_call_id(Some(payload))?;
+    let sender_thread_id =
+        read_codex_aliased_string(payload, "sender_thread_id", "senderThreadId")?;
+    let (tool, is_begin) = match event_type {
+        "collab_agent_spawn_begin" => ("spawn_agent", true),
+        "collab_agent_spawn_end" => ("spawn_agent", false),
+        "collab_agent_interaction_begin" => ("send_input", true),
+        "collab_agent_interaction_end" => ("send_input", false),
+        "collab_waiting_begin" => ("wait", true),
+        "collab_waiting_end" => ("wait", false),
+        "collab_close_begin" => ("close_agent", true),
+        "collab_close_end" => ("close_agent", false),
+        "collab_resume_begin" => ("resume_agent", true),
+        "collab_resume_end" => ("resume_agent", false),
+        _ => return None,
+    };
+
+    let wait_statuses = if event_type == "collab_waiting_end" {
+        read_codex_wait_agent_statuses(payload)
+    } else {
+        Vec::new()
+    };
+    let mut receiver_thread_ids = if event_type == "collab_agent_spawn_begin" {
+        Vec::new()
+    } else if event_type == "collab_agent_spawn_end" {
+        read_codex_aliased_string(payload, "new_thread_id", "newThreadId")
+            .into_iter()
+            .collect()
+    } else if event_type == "collab_waiting_begin" {
+        read_codex_string_array(read_codex_aliased_value(
+            payload,
+            "receiver_thread_ids",
+            "receiverThreadIds",
+        ))
+    } else if event_type == "collab_waiting_end" {
+        wait_statuses
+            .iter()
+            .map(|(thread_id, _)| thread_id.clone())
+            .collect()
+    } else {
+        read_codex_aliased_string(payload, "receiver_thread_id", "receiverThreadId")
+            .into_iter()
+            .collect()
+    };
+    if event_type == "collab_waiting_end" {
+        receiver_thread_ids.sort();
+    }
+
+    let mut agents_states = serde_json::Map::new();
+    let mut has_failed_agent = false;
+    if !is_begin {
+        if event_type == "collab_waiting_end" {
+            for (thread_id, status) in &wait_statuses {
+                let (state, is_failed) = project_codex_collab_agent_state(status);
+                agents_states.insert(thread_id.clone(), state);
+                has_failed_agent |= is_failed;
+            }
+        } else if let (Some(receiver_thread_id), Some(status)) =
+            (receiver_thread_ids.first(), payload.get("status"))
+        {
+            let (state, is_failed) = project_codex_collab_agent_state(status);
+            agents_states.insert(receiver_thread_id.clone(), state);
+            has_failed_agent = is_failed;
+        }
+    }
+
+    let status = if is_begin {
+        "in_progress"
+    } else if has_failed_agent
+        || (event_type == "collab_agent_spawn_end" && receiver_thread_ids.is_empty())
+    {
+        "failed"
+    } else {
+        "completed"
+    };
+    let prompt = if matches!(tool, "spawn_agent" | "send_input") {
+        normalize_value_string(payload.get("prompt")).map(Value::String)
+    } else {
+        None
+    };
+    let model = if tool == "spawn_agent" {
+        normalize_value_string(payload.get("model")).map(Value::String)
+    } else {
+        None
+    };
+    let reasoning_effort = if tool == "spawn_agent" {
+        read_codex_aliased_value(payload, "reasoning_effort", "reasoningEffort").cloned()
+    } else {
+        None
+    };
+    let item = serde_json::json!({
+        "type": "collab_agent_tool_call",
+        "id": call_id,
+        "tool": tool,
+        "status": status,
+        "senderThreadId": sender_thread_id,
+        "receiverThreadIds": receiver_thread_ids,
+        "prompt": prompt.unwrap_or(Value::Null),
+        "model": model.unwrap_or(Value::Null),
+        "reasoningEffort": reasoning_effort.unwrap_or(Value::Null),
+        "agentsStates": Value::Object(agents_states),
+    });
+
+    Some(TranscriptEntry {
+        created_at: timestamp.to_owned(),
+        role: "tool".to_owned(),
+        content: format_codex_collab_content(&item),
+        turn_id: read_codex_turn_id(Some(payload)).or_else(|| fallback_turn_id.map(str::to_owned)),
+        commands: None,
+        tool_calls: Some(vec![wrap_codex_thread_item(item)]),
+        tool_call_id: Some(call_id),
+        ..TranscriptEntry::default()
+    })
+}
+
+fn format_codex_collab_content(item: &Value) -> String {
+    let tool = normalize_value_string(item.get("tool")).unwrap_or_else(|| "agent".to_owned());
+    let tool_label = match tool.as_str() {
+        "spawn_agent" | "spawnAgent" => "Agent spawn",
+        "send_input" | "sendInput" => "Agent input",
+        "resume_agent" | "resumeAgent" => "Agent resume",
+        "wait" => "Agent wait",
+        "close_agent" | "closeAgent" => "Agent close",
+        _ => "Agent operation",
+    };
+    let status = normalize_value_string(item.get("status"))
+        .unwrap_or_else(|| "completed".to_owned())
+        .to_ascii_lowercase();
+    let outcome = if matches!(status.as_str(), "failed" | "error") {
+        "failed"
+    } else if matches!(status.as_str(), "in_progress" | "inprogress" | "running") {
+        "running"
+    } else {
+        "completed"
+    };
+    format!("{tool_label} {outcome}.")
+}
+
+fn is_codex_collab_transcript_entry(entry: &TranscriptEntry) -> bool {
+    entry.tool_calls.as_ref().is_some_and(|calls| {
+        calls.iter().any(|call| {
+            let item = call.get("item").unwrap_or(call);
+            matches!(
+                normalize_value_string(item.get("type")).as_deref(),
+                Some("collab_agent_tool_call" | "collabAgentToolCall")
+            )
+        })
+    })
+}
+
+fn upsert_codex_collab_transcript_entry(
+    context: &mut SessionLineContext,
+    mut entry: TranscriptEntry,
+) {
+    let matching_index = entry.tool_call_id.as_ref().and_then(|tool_call_id| {
+        context.transcript_entries.iter().rposition(|existing| {
+            existing.tool_call_id.as_ref() == Some(tool_call_id)
+                && is_codex_collab_transcript_entry(existing)
+        })
+    });
+    let Some(matching_index) = matching_index else {
+        push_transcript_entry(context, entry);
+        return;
+    };
+
+    context.latest_transcript_timestamp = resolve_more_recent_timestamp(
+        context.latest_transcript_timestamp.take(),
+        Some(entry.created_at.clone()),
+    );
+    let existing = &context.transcript_entries[matching_index];
+    entry.created_at.clone_from(&existing.created_at);
+    if entry.turn_id.is_none() {
+        entry.turn_id.clone_from(&existing.turn_id);
+    }
+    context.transcript_entries[matching_index] = entry;
 }
 
 fn build_codex_task_transcript_entry(
@@ -2324,9 +2931,19 @@ fn project_codex_file_changes(payload: &Value) -> Vec<Value> {
 }
 
 fn project_codex_file_change(fallback_path: Option<&str>, change: &Value) -> Option<Value> {
-    let path = normalize_path_string(change.get("path"))
+    let original_path = normalize_path_string(change.get("path"))
         .or_else(|| fallback_path.and_then(|path| normalize_non_empty_string(Some(path))))?
         .replace('\\', "/");
+    let change_kind = change.get("kind").and_then(Value::as_object);
+    let move_path = normalize_path_string(change.get("move_path"))
+        .or_else(|| normalize_path_string(change.get("movePath")))
+        .or_else(|| {
+            change_kind.and_then(|kind| {
+                normalize_path_string(kind.get("move_path"))
+                    .or_else(|| normalize_path_string(kind.get("movePath")))
+            })
+        });
+    let path = move_path.clone().unwrap_or_else(|| original_path.clone());
     let unified_diff = normalize_value_string(change.get("unified_diff"))
         .or_else(|| normalize_value_string(change.get("unifiedDiff")))
         .or_else(|| normalize_value_string(change.get("diff")))
@@ -2345,6 +2962,10 @@ fn project_codex_file_change(fallback_path: Option<&str>, change: &Value) -> Opt
     projected.insert("deletions".to_owned(), Value::from(deletions));
     if let Some(unified_diff) = unified_diff {
         projected.insert("diff".to_owned(), Value::String(unified_diff));
+    }
+    if let Some(move_path) = move_path {
+        projected.insert("movePath".to_owned(), Value::String(move_path));
+        projected.insert("originalPath".to_owned(), Value::String(original_path));
     }
     for (source, target) in [
         ("content", "content"),
@@ -2400,6 +3021,7 @@ fn build_codex_patch_apply_transcript_entry(
         .as_deref()
         .and_then(|value| consume_pending_codex_tool_call(context, value));
     let status = read_codex_tool_output_status(Some(payload));
+    let projected_status = resolve_codex_projected_tool_status(payload, status.as_str());
     let output = sanitize_codex_tool_output(
         normalize_value_string(payload.get("stdout"))
             .or_else(|| normalize_value_string(payload.get("stderr")))
@@ -2416,6 +3038,7 @@ fn build_codex_patch_apply_transcript_entry(
         });
     let tool_call_id = read_codex_tool_item_id(Some(payload));
     let file_changes = project_codex_file_changes(payload);
+    let applied = codex_file_change_was_applied(payload, status.as_str());
 
     Some(TranscriptEntry {
         created_at: timestamp.to_owned(),
@@ -2431,14 +3054,26 @@ fn build_codex_patch_apply_transcript_entry(
                 .as_ref()
                 .and_then(|tool_call| tool_call.command.clone())
                 .unwrap_or_else(|| "apply_patch".to_owned()),
-            status: status.clone(),
+            status: if projected_status == "cancelled" {
+                "cancelled".to_owned()
+            } else {
+                status.clone()
+            },
             output: output.clone(),
             kind: Some("file_change".to_owned()),
             tool_name: Some("apply_patch".to_owned()),
             tool_call_id: tool_call_id.clone(),
             runtime_status: Some(
-                map_codeengine_tool_runtime_status("file_change", Some(status.as_str()), None)
-                    .to_owned(),
+                map_codeengine_tool_runtime_status(
+                    "file_change",
+                    Some(if projected_status == "cancelled" {
+                        "cancelled"
+                    } else {
+                        status.as_str()
+                    }),
+                    None,
+                )
+                .to_owned(),
             ),
             requires_approval: Some(false),
             requires_reply: Some(false),
@@ -2448,7 +3083,7 @@ fn build_codex_patch_apply_transcript_entry(
             status.as_str(),
         )]),
         tool_call_id,
-        file_changes: if file_changes.is_empty() {
+        file_changes: if !applied || file_changes.is_empty() {
             None
         } else {
             Some(file_changes)
@@ -2617,22 +3252,6 @@ fn normalize_command_text(value: Option<&Value>) -> Option<String> {
         }
         _ => None,
     }
-}
-
-fn extract_reasoning_text(payload: Option<&Value>) -> Option<String> {
-    let payload = payload?;
-    if let Some(summary_items) = payload.get("summary").and_then(Value::as_array) {
-        let parts = summary_items
-            .iter()
-            .filter_map(|item| normalize_value_string(item.get("text")))
-            .collect::<Vec<_>>();
-        if !parts.is_empty() {
-            return Some(parts.join("\n"));
-        }
-    }
-
-    extract_message_text(payload.get("content"))
-        .or_else(|| normalize_value_string(payload.get("text")))
 }
 
 fn extract_message_text(value: Option<&Value>) -> Option<String> {
@@ -2860,6 +3479,17 @@ mod tests {
         file_path
     }
 
+    fn write_test_codex_session_file(file_name: &str, lines: &[Value]) -> PathBuf {
+        let file_path = env::temp_dir().join(format!("{file_name}-{}.jsonl", std::process::id()));
+        let file_content = lines
+            .iter()
+            .map(|line| serde_json::to_string(line).expect("serialize Codex fixture line"))
+            .collect::<Vec<_>>()
+            .join("\n");
+        fs::write(&file_path, format!("{file_content}\n")).expect("write Codex history fixture");
+        file_path
+    }
+
     #[test]
     fn build_codex_summary_falls_back_to_default_model_when_context_model_missing() {
         let file_path = create_test_codex_session_file("codex-summary-missing-model.jsonl");
@@ -2995,6 +3625,376 @@ mod tests {
         .expect("normalize contextual codex prompt");
 
         assert_eq!(normalized, "Explain why the transcript is empty.");
+    }
+
+    #[test]
+    fn codex_history_correlates_text_messages_and_uses_latest_turn_status() {
+        let raw_session_id = "019d54b7-f3da-79b1-bb78-10770953da33";
+        let lines = [
+            serde_json::json!({
+                "type": "session_meta",
+                "timestamp": "2026-04-20T09:00:00.000Z",
+                "payload": {
+                    "id": raw_session_id,
+                    "cwd": "E:/workspace/birdcoder",
+                    "model": "gpt-5.4"
+                }
+            }),
+            serde_json::json!({
+                "type": "event_msg",
+                "timestamp": "2026-04-20T09:00:01.000Z",
+                "payload": { "type": "task_started", "turn_id": "turn-completed" }
+            }),
+            serde_json::json!({
+                "type": "response_item",
+                "timestamp": "2026-04-20T09:00:02.000Z",
+                "payload": {
+                    "type": "message",
+                    "role": "user",
+                    "content": [{ "type": "input_text", "text": "Complete the first turn" }]
+                }
+            }),
+            serde_json::json!({
+                "type": "response_item",
+                "timestamp": "2026-04-20T09:00:03.000Z",
+                "payload": {
+                    "type": "message",
+                    "role": "assistant",
+                    "content": [{ "type": "output_text", "text": "First turn complete." }]
+                }
+            }),
+            serde_json::json!({
+                "type": "event_msg",
+                "timestamp": "2026-04-20T09:00:04.000Z",
+                "payload": { "type": "task_complete", "turn_id": "turn-completed" }
+            }),
+            serde_json::json!({
+                "type": "event_msg",
+                "timestamp": "2026-04-20T09:00:05.000Z",
+                "payload": { "type": "task_started", "turn_id": "turn-active" }
+            }),
+            serde_json::json!({
+                "type": "turn_context",
+                "timestamp": "2026-04-20T09:00:06.000Z",
+                "payload": { "turn_id": "turn-active", "model": "gpt-5.4" }
+            }),
+            serde_json::json!({
+                "type": "response_item",
+                "timestamp": "2026-04-20T09:00:07.000Z",
+                "payload": {
+                    "type": "message",
+                    "role": "user",
+                    "content": [{ "type": "input_text", "text": "Keep the second turn active" }]
+                }
+            }),
+            serde_json::json!({
+                "type": "response_item",
+                "timestamp": "2026-04-20T09:00:08.000Z",
+                "payload": {
+                    "type": "message",
+                    "role": "assistant",
+                    "content": [{ "type": "output_text", "text": "Still working." }]
+                }
+            }),
+        ];
+        let file_path = write_test_codex_session_file("codex-history-turn-correlation", &lines);
+
+        let detail = parse_codex_session_detail(&file_path, &BTreeMap::new())
+            .expect("parse Codex turn-correlation fixture")
+            .expect("Codex turn-correlation detail");
+
+        assert_eq!(detail.summary.status, "active");
+        assert_eq!(detail.summary.runtime_status.as_deref(), Some("streaming"));
+        assert_eq!(detail.messages.len(), 4);
+        assert!(detail.messages[..2]
+            .iter()
+            .all(|message| message.turn_id.as_deref() == Some("turn-completed")));
+        assert!(detail.messages[2..]
+            .iter()
+            .all(|message| message.turn_id.as_deref() == Some("turn-active")));
+
+        let _ = fs::remove_file(file_path);
+    }
+
+    #[test]
+    fn codex_history_treats_mcp_ok_results_with_is_error_as_failed() {
+        let raw_session_id = "019d54b7-f3da-79b1-bb78-10770953da31";
+        let lines = [
+            serde_json::json!({
+                "type": "session_meta",
+                "timestamp": "2026-04-20T10:00:00.000Z",
+                "payload": {
+                    "id": raw_session_id,
+                    "cwd": "E:/workspace/birdcoder",
+                    "model": "gpt-5.4"
+                }
+            }),
+            serde_json::json!({
+                "type": "event_msg",
+                "timestamp": "2026-04-20T10:00:01.000Z",
+                "payload": {
+                    "type": "task_started",
+                    "turn_id": "turn-mcp-error"
+                }
+            }),
+            serde_json::json!({
+                "type": "event_msg",
+                "timestamp": "2026-04-20T10:00:02.000Z",
+                "payload": {
+                    "type": "mcp_tool_call_end",
+                    "call_id": "mcp-semantic-error-bool",
+                    "invocation": {
+                        "server": "docs",
+                        "tool": "read_resource",
+                        "arguments": { "uri": "docs://missing" }
+                    },
+                    "result": {
+                        "Ok": {
+                            "content": [{ "type": "text", "text": "Resource unavailable" }],
+                            "isError": true
+                        }
+                    }
+                }
+            }),
+            serde_json::json!({
+                "type": "event_msg",
+                "timestamp": "2026-04-20T10:00:03.000Z",
+                "payload": {
+                    "type": "mcp_tool_call_end",
+                    "call_id": "mcp-semantic-error-string",
+                    "invocation": {
+                        "server": "docs",
+                        "tool": "read_resource",
+                        "arguments": { "uri": "docs://denied" }
+                    },
+                    "result": {
+                        "Ok": {
+                            "content": [{ "type": "text", "text": "Permission denied" }],
+                            "isError": "true"
+                        }
+                    }
+                }
+            }),
+        ];
+        let file_path = write_test_codex_session_file("codex-history-mcp-semantic-error", &lines);
+
+        let detail = parse_codex_session_detail(&file_path, &BTreeMap::new())
+            .expect("parse Codex MCP semantic-error fixture")
+            .expect("Codex MCP semantic-error detail");
+
+        assert_eq!(detail.messages.len(), 2);
+        for message in &detail.messages {
+            assert_eq!(message.turn_id.as_deref(), Some("turn-mcp-error"));
+            assert!(message.content.starts_with("MCP tool failed:"));
+            assert_eq!(
+                message.tool_calls.as_ref().unwrap()[0]["item"]["status"],
+                "failed"
+            );
+        }
+
+        let _ = fs::remove_file(file_path);
+    }
+
+    #[test]
+    fn codex_history_projects_collab_agent_lifecycle_as_canonical_tool_calls() {
+        let raw_session_id = "019d54b7-f3da-79b1-bb78-10770953da32";
+        let sender_thread_id = "00000000-0000-0000-0000-000000000001";
+        let first_agent_id = "00000000-0000-0000-0000-000000000002";
+        let second_agent_id = "00000000-0000-0000-0000-000000000003";
+        let lines = [
+            serde_json::json!({
+                "type": "session_meta",
+                "timestamp": "2026-04-20T11:00:00.000Z",
+                "payload": {
+                    "id": raw_session_id,
+                    "cwd": "E:/workspace/birdcoder",
+                    "model": "gpt-5.4"
+                }
+            }),
+            serde_json::json!({
+                "type": "event_msg",
+                "timestamp": "2026-04-20T11:00:01.000Z",
+                "payload": { "type": "task_started", "turn_id": "turn-collab" }
+            }),
+            serde_json::json!({
+                "type": "event_msg",
+                "timestamp": "2026-04-20T11:00:02.000Z",
+                "payload": {
+                    "type": "collab_agent_spawn_begin",
+                    "call_id": "spawn-1",
+                    "sender_thread_id": sender_thread_id,
+                    "prompt": "Inspect the provider adapters",
+                    "model": "gpt-5.4-mini",
+                    "reasoning_effort": "medium"
+                }
+            }),
+            serde_json::json!({
+                "type": "event_msg",
+                "timestamp": "2026-04-20T11:00:03.000Z",
+                "payload": {
+                    "type": "collab_agent_spawn_end",
+                    "call_id": "spawn-1",
+                    "sender_thread_id": sender_thread_id,
+                    "new_thread_id": first_agent_id,
+                    "prompt": "Inspect the provider adapters",
+                    "model": "gpt-5.4-mini",
+                    "reasoning_effort": "medium",
+                    "status": "running"
+                }
+            }),
+            serde_json::json!({
+                "type": "event_msg",
+                "timestamp": "2026-04-20T11:00:04.000Z",
+                "payload": {
+                    "type": "collab_agent_interaction_begin",
+                    "call_id": "send-1",
+                    "sender_thread_id": sender_thread_id,
+                    "receiver_thread_id": first_agent_id,
+                    "prompt": "Focus on history replay"
+                }
+            }),
+            serde_json::json!({
+                "type": "event_msg",
+                "timestamp": "2026-04-20T11:00:05.000Z",
+                "payload": {
+                    "type": "collab_agent_interaction_end",
+                    "call_id": "send-1",
+                    "sender_thread_id": sender_thread_id,
+                    "receiver_thread_id": first_agent_id,
+                    "prompt": "Focus on history replay",
+                    "status": "interrupted"
+                }
+            }),
+            serde_json::json!({
+                "type": "event_msg",
+                "timestamp": "2026-04-20T11:00:06.000Z",
+                "payload": {
+                    "type": "collab_resume_begin",
+                    "call_id": "resume-1",
+                    "sender_thread_id": sender_thread_id,
+                    "receiver_thread_id": first_agent_id
+                }
+            }),
+            serde_json::json!({
+                "type": "event_msg",
+                "timestamp": "2026-04-20T11:00:07.000Z",
+                "payload": {
+                    "type": "collab_resume_end",
+                    "call_id": "resume-1",
+                    "sender_thread_id": sender_thread_id,
+                    "receiver_thread_id": first_agent_id,
+                    "status": "running"
+                }
+            }),
+            serde_json::json!({
+                "type": "event_msg",
+                "timestamp": "2026-04-20T11:00:08.000Z",
+                "payload": {
+                    "type": "collab_waiting_begin",
+                    "call_id": "wait-1",
+                    "sender_thread_id": sender_thread_id,
+                    "receiver_thread_ids": [first_agent_id, second_agent_id]
+                }
+            }),
+            serde_json::json!({
+                "type": "event_msg",
+                "timestamp": "2026-04-20T11:00:09.000Z",
+                "payload": {
+                    "type": "collab_waiting_end",
+                    "call_id": "wait-1",
+                    "sender_thread_id": sender_thread_id,
+                    "statuses": {
+                        (first_agent_id): { "completed": "Done" },
+                        (second_agent_id): { "errored": "Agent failed" }
+                    }
+                }
+            }),
+            serde_json::json!({
+                "type": "event_msg",
+                "timestamp": "2026-04-20T11:00:10.000Z",
+                "payload": {
+                    "type": "collab_close_begin",
+                    "call_id": "close-1",
+                    "sender_thread_id": sender_thread_id,
+                    "receiver_thread_id": first_agent_id
+                }
+            }),
+            serde_json::json!({
+                "type": "event_msg",
+                "timestamp": "2026-04-20T11:00:11.000Z",
+                "payload": {
+                    "type": "collab_close_end",
+                    "call_id": "close-1",
+                    "sender_thread_id": sender_thread_id,
+                    "receiver_thread_id": first_agent_id,
+                    "status": "shutdown"
+                }
+            }),
+            serde_json::json!({
+                "type": "event_msg",
+                "timestamp": "2026-04-20T11:00:12.000Z",
+                "payload": {
+                    "type": "collab_waiting_begin",
+                    "call_id": "wait-running",
+                    "sender_thread_id": sender_thread_id,
+                    "receiver_thread_ids": [first_agent_id]
+                }
+            }),
+        ];
+        let file_path = write_test_codex_session_file("codex-history-collab-lifecycle", &lines);
+
+        let detail = parse_codex_session_detail(&file_path, &BTreeMap::new())
+            .expect("parse Codex collab lifecycle fixture")
+            .expect("Codex collab lifecycle detail");
+
+        assert_eq!(detail.messages.len(), 6);
+        assert!(detail
+            .messages
+            .iter()
+            .all(|message| message.turn_id.as_deref() == Some("turn-collab")));
+        let items_by_id = detail
+            .messages
+            .iter()
+            .map(|message| {
+                let item = &message.tool_calls.as_ref().unwrap()[0]["item"];
+                (item["id"].as_str().unwrap(), item)
+            })
+            .collect::<BTreeMap<_, _>>();
+
+        let spawn = items_by_id["spawn-1"];
+        assert_eq!(spawn["type"], "collab_agent_tool_call");
+        assert_eq!(spawn["tool"], "spawn_agent");
+        assert_eq!(spawn["status"], "completed");
+        assert_eq!(spawn["senderThreadId"], sender_thread_id);
+        assert_eq!(
+            spawn["receiverThreadIds"],
+            serde_json::json!([first_agent_id])
+        );
+        assert_eq!(spawn["prompt"], "Inspect the provider adapters");
+        assert_eq!(spawn["model"], "gpt-5.4-mini");
+        assert_eq!(spawn["reasoningEffort"], "medium");
+        assert_eq!(spawn["agentsStates"][first_agent_id]["status"], "running");
+
+        let interaction = items_by_id["send-1"];
+        assert_eq!(interaction["tool"], "send_input");
+        assert_eq!(interaction["status"], "completed");
+        assert_eq!(
+            interaction["agentsStates"][first_agent_id]["status"],
+            "interrupted"
+        );
+        assert_eq!(items_by_id["resume-1"]["tool"], "resume_agent");
+        assert_eq!(items_by_id["resume-1"]["status"], "completed");
+        assert_eq!(items_by_id["wait-1"]["tool"], "wait");
+        assert_eq!(items_by_id["wait-1"]["status"], "failed");
+        assert_eq!(
+            items_by_id["wait-1"]["agentsStates"][second_agent_id]["status"],
+            "errored"
+        );
+        assert_eq!(items_by_id["close-1"]["tool"], "close_agent");
+        assert_eq!(items_by_id["close-1"]["status"], "completed");
+        assert_eq!(items_by_id["wait-running"]["status"], "in_progress");
+
+        let _ = fs::remove_file(file_path);
     }
 
     #[test]
@@ -3251,6 +4251,327 @@ mod tests {
             active_pending_tool_message.tool_calls.as_ref().unwrap()[0]["status"],
             "in_progress"
         );
+
+        let _ = fs::remove_file(file_path);
+    }
+
+    #[test]
+    fn codex_history_projects_app_server_v2_activity_without_false_file_changes() {
+        let raw_session_id = "019d54b7-f3da-79b1-bb78-10770953da31";
+        let file_path = write_test_codex_session_file(
+            "codex-history-app-server-v2-activity",
+            &[
+                serde_json::json!({
+                    "type": "session_meta",
+                    "timestamp": "2026-07-20T10:00:00.000Z",
+                    "payload": {
+                        "id": raw_session_id,
+                        "cwd": "E:/workspace/birdcoder",
+                        "model": "gpt-5.4"
+                    }
+                }),
+                serde_json::json!({
+                    "type": "event_msg",
+                    "timestamp": "2026-07-20T10:00:00.500Z",
+                    "payload": { "type": "task_started", "turnId": "turn-v2" }
+                }),
+                serde_json::json!({
+                    "type": "response_item",
+                    "timestamp": "2026-07-20T10:00:01.000Z",
+                    "payload": {
+                        "type": "fileChange",
+                        "id": "file-completed",
+                        "status": "completed",
+                        "changes": [{
+                            "path": "src/completed-old.ts",
+                            "kind": { "type": "update", "movePath": "src/completed.ts" },
+                            "diff": "@@ -1 +1 @@\n-old\n+new"
+                        }]
+                    }
+                }),
+                serde_json::json!({
+                    "type": "response_item",
+                    "timestamp": "2026-07-20T10:00:02.000Z",
+                    "payload": {
+                        "type": "fileChange",
+                        "id": "file-failed",
+                        "status": "failed",
+                        "changes": [{ "path": "src/failed.ts", "diff": "@@ -0,0 +1 @@\n+no" }]
+                    }
+                }),
+                serde_json::json!({
+                    "type": "response_item",
+                    "timestamp": "2026-07-20T10:00:03.000Z",
+                    "payload": {
+                        "type": "fileChange",
+                        "id": "file-declined",
+                        "status": "declined",
+                        "changes": [{ "path": "src/declined.ts", "diff": "@@ -0,0 +1 @@\n+no" }]
+                    }
+                }),
+                serde_json::json!({
+                    "type": "response_item",
+                    "timestamp": "2026-07-20T10:00:04.000Z",
+                    "payload": {
+                        "type": "fileChange",
+                        "id": "file-running",
+                        "status": "inProgress",
+                        "changes": [{ "path": "src/running.ts", "diff": "@@ -0,0 +1 @@\n+later" }]
+                    }
+                }),
+                serde_json::json!({
+                    "type": "response_item",
+                    "timestamp": "2026-07-20T10:00:05.000Z",
+                    "payload": {
+                        "type": "dynamicToolCall",
+                        "id": "dynamic-1",
+                        "namespace": "preview",
+                        "tool": "capture",
+                        "arguments": { "path": "preview.png" },
+                        "status": "completed",
+                        "success": true,
+                        "contentItems": [
+                            { "type": "inputText", "text": "Preview captured" },
+                            { "type": "inputImage", "imageUrl": "data:image/png;base64,aGVsbG8=" },
+                            { "type": "inputAudio", "audioUrl": "data:audio/wav;base64,YXVkaW8=" }
+                        ]
+                    }
+                }),
+                serde_json::json!({
+                    "type": "response_item",
+                    "timestamp": "2026-07-20T10:00:06.000Z",
+                    "payload": {
+                        "type": "imageView",
+                        "id": "image-view-1",
+                        "path": "E:/workspace/birdcoder/preview.png"
+                    }
+                }),
+                serde_json::json!({
+                    "type": "response_item",
+                    "timestamp": "2026-07-20T10:00:07.000Z",
+                    "payload": {
+                        "type": "imageGeneration",
+                        "id": "image-generation-1",
+                        "status": "completed",
+                        "revisedPrompt": "A precise preview",
+                        "result": "aGVsbG8=",
+                        "savedPath": "E:/workspace/birdcoder/generated.png"
+                    }
+                }),
+                serde_json::json!({
+                    "type": "response_item",
+                    "timestamp": "2026-07-20T10:00:08.000Z",
+                    "payload": {
+                        "type": "subAgentActivity",
+                        "id": "subagent-1",
+                        "kind": "interrupted",
+                        "agentThreadId": "thread-child",
+                        "agentPath": "/root/worker"
+                    }
+                }),
+                serde_json::json!({
+                    "type": "response_item",
+                    "timestamp": "2026-07-20T10:00:09.000Z",
+                    "payload": { "type": "sleep", "id": "sleep-1", "durationMs": 750 }
+                }),
+                serde_json::json!({
+                    "type": "response_item",
+                    "timestamp": "2026-07-20T10:00:10.000Z",
+                    "payload": {
+                        "type": "webSearch",
+                        "id": "web-1",
+                        "query": "BirdCoder protocol",
+                        "status": "completed"
+                    }
+                }),
+                serde_json::json!({
+                    "type": "response_item",
+                    "timestamp": "2026-07-20T10:00:11.000Z",
+                    "payload": { "type": "contextCompaction", "id": "compact-1" }
+                }),
+            ],
+        );
+
+        let detail = parse_codex_session_detail(&file_path, &BTreeMap::new())
+            .expect("parse Codex app-server v2 history fixture")
+            .expect("Codex app-server v2 history detail");
+        assert_eq!(detail.messages.len(), 11);
+        let tool_messages = detail
+            .messages
+            .iter()
+            .filter_map(|message| {
+                let item = message.tool_calls.as_ref()?.first()?.get("item")?;
+                Some((item.get("id")?.as_str()?, (message, item)))
+            })
+            .collect::<BTreeMap<_, _>>();
+
+        assert_eq!(
+            tool_messages["file-completed"]
+                .0
+                .file_changes
+                .as_ref()
+                .unwrap()[0]["path"],
+            "src/completed.ts"
+        );
+        assert_eq!(
+            tool_messages["file-completed"]
+                .0
+                .file_changes
+                .as_ref()
+                .unwrap()[0]["originalPath"],
+            "src/completed-old.ts"
+        );
+        for file_id in ["file-failed", "file-declined", "file-running"] {
+            assert!(
+                tool_messages[file_id].0.file_changes.is_none(),
+                "non-completed {file_id} must not enter the applied file list"
+            );
+        }
+        assert_eq!(tool_messages["file-failed"].1["status"], "failed");
+        assert_eq!(tool_messages["file-declined"].1["status"], "cancelled");
+        assert_eq!(tool_messages["file-running"].1["status"], "in_progress");
+        assert_eq!(
+            tool_messages["dynamic-1"].1["contentItems"]
+                .as_array()
+                .map(Vec::len),
+            Some(3)
+        );
+        assert_eq!(tool_messages["image-view-1"].1["type"], "imageView");
+        assert_eq!(
+            tool_messages["image-generation-1"].1["savedPath"],
+            "E:/workspace/birdcoder/generated.png"
+        );
+        assert_eq!(tool_messages["subagent-1"].1["status"], "cancelled");
+        assert_eq!(tool_messages["sleep-1"].1["durationMs"], 750);
+        assert_eq!(tool_messages["web-1"].1["type"], "web_search");
+        assert!(detail.messages.iter().any(|message| {
+            message.role == "system"
+                && message.content == "Conversation context compressed."
+                && message
+                    .metadata
+                    .as_ref()
+                    .and_then(|metadata| metadata.get("noticeKind"))
+                    .map(String::as_str)
+                    == Some("compression")
+        }));
+
+        let _ = fs::remove_file(file_path);
+    }
+
+    #[test]
+    fn codex_history_routes_app_server_v2_text_plan_notice_and_private_items() {
+        let file_path = write_test_codex_session_file(
+            "codex-history-app-server-v2-routing",
+            &[
+                serde_json::json!({
+                    "type": "session_meta",
+                    "timestamp": "2026-07-20T11:00:00.000Z",
+                    "payload": {
+                        "id": "019d54b7-f3da-79b1-bb78-10770953da32",
+                        "cwd": "E:/workspace/birdcoder",
+                        "model": "gpt-5.4"
+                    }
+                }),
+                serde_json::json!({
+                    "type": "response_item",
+                    "timestamp": "2026-07-20T11:00:01.000Z",
+                    "payload": {
+                        "type": "userMessage",
+                        "id": "user-v2",
+                        "content": [{ "type": "inputText", "text": "Implement the provider matrix" }]
+                    }
+                }),
+                serde_json::json!({
+                    "type": "response_item",
+                    "timestamp": "2026-07-20T11:00:02.000Z",
+                    "payload": {
+                        "type": "hookPrompt",
+                        "id": "hook-v2",
+                        "fragments": [{ "text": "private hook context", "hookRunId": "hook-run" }]
+                    }
+                }),
+                serde_json::json!({
+                    "type": "response_item",
+                    "timestamp": "2026-07-20T11:00:03.000Z",
+                    "payload": {
+                        "type": "reasoning",
+                        "id": "reasoning-v2",
+                        "summary": ["private reasoning summary"],
+                        "content": ["private reasoning body"]
+                    }
+                }),
+                serde_json::json!({
+                    "type": "response_item",
+                    "timestamp": "2026-07-20T11:00:04.000Z",
+                    "payload": {
+                        "type": "plan",
+                        "id": "plan-v2",
+                        "text": "1. Normalize\n2. Verify"
+                    }
+                }),
+                serde_json::json!({
+                    "type": "response_item",
+                    "timestamp": "2026-07-20T11:00:05.000Z",
+                    "payload": {
+                        "type": "agentMessage",
+                        "id": "assistant-v2",
+                        "text": "Provider matrix implemented."
+                    }
+                }),
+                serde_json::json!({
+                    "type": "response_item",
+                    "timestamp": "2026-07-20T11:00:06.000Z",
+                    "payload": {
+                        "type": "enteredReviewMode",
+                        "id": "review-enter-v2",
+                        "review": "Reviewing the implementation."
+                    }
+                }),
+                serde_json::json!({
+                    "type": "response_item",
+                    "timestamp": "2026-07-20T11:00:07.000Z",
+                    "payload": {
+                        "type": "exitedReviewMode",
+                        "id": "review-exit-v2",
+                        "review": "Review completed."
+                    }
+                }),
+                serde_json::json!({
+                    "type": "response_item",
+                    "timestamp": "2026-07-20T11:00:08.000Z",
+                    "payload": { "type": "contextCompaction", "id": "compact-v2" }
+                }),
+                serde_json::json!({
+                    "type": "response_item",
+                    "timestamp": "2026-07-20T11:00:09.000Z",
+                    "payload": { "type": "futurePrivateItem", "id": "unknown-v2", "raw": true }
+                }),
+            ],
+        );
+
+        let detail = parse_codex_session_detail(&file_path, &BTreeMap::new())
+            .expect("parse Codex app-server v2 routing fixture")
+            .expect("Codex app-server v2 routing detail");
+        assert_eq!(detail.messages.len(), 6);
+        assert_eq!(detail.messages[0].role, "user");
+        assert_eq!(detail.messages[1].role, "planner");
+        assert_eq!(detail.messages[2].role, "assistant");
+        assert!(detail.messages[3..]
+            .iter()
+            .all(|message| message.role == "system"));
+        assert!(detail
+            .messages
+            .iter()
+            .all(|message| !message.content.is_empty()));
+        let visible_content = detail
+            .messages
+            .iter()
+            .map(|message| message.content.as_str())
+            .collect::<Vec<_>>()
+            .join("\n");
+        assert!(!visible_content.contains("private hook context"));
+        assert!(!visible_content.contains("private reasoning"));
+        assert!(!visible_content.contains("futurePrivateItem"));
 
         let _ = fs::remove_file(file_path);
     }

@@ -123,7 +123,7 @@ for (const { id, pattern } of bannedPatterns) {
 
 assert.ok(fs.existsSync(path.join(repoRoot, 'specs/topology.spec.json')), 'topology spec required');
 const spec = JSON.parse(readText('specs/topology.spec.json'));
-assert.equal(spec.schemaVersion, 4);
+assert.equal(spec.schemaVersion, 5);
 assert.equal(spec.archetype, 'application-http-gateway');
 assert.equal(spec.defaults.developmentProfileId, 'standalone.development');
 
@@ -137,10 +137,20 @@ assert.match(
   /"@sdkwork\/app-topology"/u,
   'package.json must depend on @sdkwork/app-topology',
 );
-assert.match(
-  JSON.stringify(packageJson.scripts ?? {}),
-  /birdcoder:dev/u,
-  'package.json must expose birdcoder:dev',
+assert.equal(
+  packageJson.scripts?.dev,
+  'pnpm dev:standalone',
+  'package.json dev must delegate to the canonical standalone lifecycle alias.',
+);
+assert.equal(
+  packageJson.scripts?.['dev:standalone'],
+  'pnpm exec sdkwork-app dev --deployment-profile standalone',
+  'package.json dev:standalone must enter through the shared sdkwork-app facade.',
+);
+assert.equal(
+  packageJson.scripts?.['_sdkwork:dev:standalone'],
+  'node scripts/birdcoder-dev.mjs --deployment-profile standalone',
+  'BirdCoder-specific development orchestration must remain behind the private lifecycle hook.',
 );
 assert.match(
   JSON.stringify(packageJson.scripts ?? {}),

@@ -30,6 +30,24 @@ assert.match(
 
 assert.match(
   activitySummarySource,
+  /function resolveCommandExecutionTone\(cmd: CommandExecution\)[\s\S]*cmd\.runtimeStatus === 'terminated'[\s\S]*return 'cancelled'[\s\S]*resolveBirdCoderCodeEngineCommandInteractionState\(cmd\)/,
+  'Provider-terminated commands must render as cancelled before the public three-state status can misclassify them as failures.',
+);
+
+assert.match(
+  activitySummarySource,
+  /commandCancelled[\s\S]*<Ban[\s\S]*cancelledCommandCount[\s\S]*commandsCancelledSummary/,
+  'Cancelled command rows and summaries must use an explicit neutral label, icon, and aggregate count.',
+);
+
+assert.match(
+  activitySummarySource,
+  /const isCommandSummaryLive = summaryCommandTone === 'approval'[\s\S]*summaryCommandTone === 'running'[\s\S]*aria-live=\{isCommandSummaryLive \? 'polite' : undefined\}[\s\S]*role=\{isCommandSummaryLive \? 'status' : undefined\}/,
+  'Only actionable or executing command summaries may use a live region; historical failed and cancelled summaries must stay quiet.',
+);
+
+assert.match(
+  activitySummarySource,
   /resolveBirdCoderCodeEngineCommandInteractionState\(/,
   'UniversalChat command cards must consume the shared code-engine interaction state resolver.',
 );

@@ -121,8 +121,8 @@ assert.doesNotMatch(
 
 assert.match(
   universalChatSource,
-  /const normalizedMessages = useMemo\(\s*\(\) => resolveVisibleSessionMessages\(messages, normalizedSessionId\),\s*\[messages, normalizedSessionId\],\s*\);/s,
-  'UniversalChat must derive the visible transcript from the active session id so mixed upstream message payloads cannot render in the selected session.',
+  /const normalizedMessages = useMemo\([\s\S]*projectChatTranscriptToolActivity\([\s\S]*resolveVisibleSessionMessages\(messages, normalizedSessionId\)[\s\S]*\{ engineId: selectedEngineId \}[\s\S]*\[messages, normalizedSessionId, selectedEngineId\][\s\S]*\);/s,
+  'UniversalChat must filter the active session before projecting canonical tool activity so mixed upstream messages cannot render in the selected session.',
 );
 
 assert.match(
@@ -139,8 +139,8 @@ assert.match(
 
 assert.match(
   codeEditorWorkspacePanelSource,
-  /<UniversalChat[\s\S]*sessionId=\{selectedCodingSessionId \|\| undefined\}/,
-  'Code editor workspace chat must pass the selected coding session through the canonical sessionId prop.',
+  /<DeferredUniversalChat[\s\S]*sessionId=\{selectedCodingSessionId \|\| undefined\}/,
+  'Code editor workspace chat must pass the selected coding session through the deferred chat boundary canonical sessionId prop.',
 );
 
 assert.match(
@@ -151,8 +151,8 @@ assert.match(
 
 assert.match(
   studioChatSidebarSource,
-  /<UniversalChat[\s\S]*sessionId=\{selectedCodingSessionId \|\| undefined\}/,
-  'Studio chat sidebar must pass the selected coding session through the canonical sessionId prop.',
+  /<DeferredUniversalChat[\s\S]*sessionId=\{selectedCodingSessionId \|\| undefined\}/,
+  'Studio chat sidebar must pass the selected coding session through the deferred chat boundary canonical sessionId prop.',
 );
 
 assert.match(

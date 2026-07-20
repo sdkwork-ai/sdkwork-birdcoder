@@ -248,8 +248,14 @@ assert.match(
 
 assert.match(
   codePageSurfaceSource,
+  /import \{ ProjectGitOverviewDrawer \} from '@sdkwork\/birdcoder-pc-ui\/components\/ProjectGitOverviewDrawer';/u,
+  'Code page surface must render the shared ProjectGitOverviewDrawer through its controlled component subpath instead of pulling the UI root barrel.',
+);
+
+assert.doesNotMatch(
+  codePageSurfaceSource,
   /import \{[\s\S]*ProjectGitOverviewDrawer[\s\S]*\} from '@sdkwork\/birdcoder-pc-ui';/s,
-  'Code page surface must render the shared ProjectGitOverviewDrawer instead of an inline Git overview strip.',
+  'Code page surface must not pull ProjectGitOverviewDrawer through the heavy UI root barrel.',
 );
 
 assert.match(

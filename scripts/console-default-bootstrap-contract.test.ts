@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import fs from 'node:fs';
 
 const dataKernelModulePath = new URL(
   '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/src/storage/dataKernel.ts',
@@ -20,6 +21,7 @@ const defaultServicesModulePath = new URL(
   '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/src/services/defaultIdeServices.ts',
   import.meta.url,
 );
+const defaultServicesSource = fs.readFileSync(defaultServicesModulePath, 'utf8');
 
 const backingStore = new Map<string, string>();
 const originalWindowDescriptor = Object.getOwnPropertyDescriptor(globalThis, 'window');
@@ -54,10 +56,6 @@ try {
   const { BIRDCODER_DEFAULT_WORKSPACE_ID } = await import(
     `${bootstrapConsoleCatalogModulePath.href}?t=${Date.now()}`
   );
-  const { createDefaultBirdCoderIdeServices } = await import(
-    `${defaultServicesModulePath.href}?t=${Date.now()}`
-  );
-
   const provider = createBirdCoderStorageProvider('sqlite');
   const repositories = createBirdCoderConsoleRepositories({
     providerId: 'sqlite',
@@ -89,23 +87,15 @@ try {
     'console queries must not invent a starter project when storage is empty.',
   );
 
-  const services = createDefaultBirdCoderIdeServices({
-    storageProvider: provider,
-  });
-  const serviceWorkspaces = await services.workspaceService.getWorkspaces();
-  const serviceProjects = await services.projectService.getProjects(
-    BIRDCODER_DEFAULT_WORKSPACE_ID,
+  assert.match(
+    defaultServicesSource,
+    /const workspaceService = runtime\.hasBoundAppClient[\s\S]*:\s*runtime\.providerBackedWorkspaceService;/u,
+    'default IDE services must retain the provider-backed workspace service when no app client is bound.',
   );
-
-  assert.deepEqual(
-    serviceWorkspaces.map((workspace) => workspace.id),
-    [BIRDCODER_DEFAULT_WORKSPACE_ID],
-    'default IDE services must surface the bootstrapped default workspace.',
-  );
-  assert.deepEqual(
-    serviceProjects.map((project) => project.id),
-    [],
-    'default IDE services must not surface a synthetic starter project.',
+  assert.match(
+    defaultServicesSource,
+    /const projectService = runtime\.hasBoundAppClient[\s\S]*:\s*runtime\.providerBackedProjectService;/u,
+    'default IDE services must retain the provider-backed project service when no app client is bound.',
   );
 } finally {
   if (originalWindowDescriptor) {

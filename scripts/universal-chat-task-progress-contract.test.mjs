@@ -58,6 +58,18 @@ assert.match(
   'Task progress must render as an inline transcript activity row instead of a bordered card.',
 );
 
+assert.match(
+  taskProgressUiSource,
+  /role="progressbar"[\s\S]*aria-valuemax=\{total\}[\s\S]*aria-valuenow=\{completed\}/,
+  'Task progress must expose its normalized completed and total values to assistive technology.',
+);
+
+assert.match(
+  taskProgressUiSource,
+  /const progressLabel = t\?\.\('chat\.taskProgress'\)/,
+  'Task progress must use its dedicated configured chat translation key instead of generic tool copy.',
+);
+
 assert.doesNotMatch(
   taskProgressUiSource,
   /data-chat-task-progress="inline"[\s\S]{0,180}border border-white\/5/,
@@ -72,7 +84,7 @@ assert.doesNotMatch(
 
 assert.match(
   contentBlockRenderersSource,
-  /<ChatTaskProgress taskProgress=\{block\.progress\} \/>/,
+  /<ChatTaskProgress taskProgress=\{block\.progress\} t=\{context\.environment\?\.t\} \/>/,
   'Content block renderers must delegate task progress rendering to ChatTaskProgress instead of UniversalChat injection hooks.',
 );
 

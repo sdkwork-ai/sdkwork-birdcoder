@@ -242,7 +242,7 @@ function writeServerFixture(rootDir) {
           url: '/',
         },
       ],
-      'x-sdkwork-api-cloud-gateway': {
+      'x-sdkwork-api-assembly': {
         routeCatalogPath: '/app/v3/api/system/routes',
       },
       paths: {

@@ -110,6 +110,12 @@ export function createLocalTsxPlan({
 } = {}) {
   const workspaceRootDir = resolveWorkspaceRootDir();
   const args = Array.isArray(argv) ? [...argv] : [];
+  const testAssetHooksPath = path.join(
+    workspaceRootDir,
+    'scripts',
+    'register-test-asset-hooks.mjs',
+  );
+  const env = createRunnerEnv(testAssetHooksPath);
   const tsxPackageRoot = resolveInstalledTsxPackageRoot({
     cwd,
     workspaceRootDir,
@@ -122,7 +128,7 @@ export function createLocalTsxPlan({
         ...stripTsxOnlyArgs(args),
       ],
       cwd,
-      env: process.env,
+      env,
       runner: 'node-strip-types',
     };
   }
@@ -140,8 +146,20 @@ export function createLocalTsxPlan({
       ...args,
     ],
     cwd,
-    env: process.env,
+    env,
     runner: 'tsx',
+  };
+}
+
+function createRunnerEnv(testAssetHooksPath) {
+  const importOption = `--import=${pathToFileURL(testAssetHooksPath).href}`;
+  const existingNodeOptions = String(process.env.NODE_OPTIONS ?? '').trim();
+  const nodeOptions = existingNodeOptions.includes(importOption)
+    ? existingNodeOptions
+    : [existingNodeOptions, importOption].filter(Boolean).join(' ');
+  return {
+    ...process.env,
+    NODE_OPTIONS: nodeOptions,
   };
 }
 

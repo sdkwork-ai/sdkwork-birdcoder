@@ -1,6 +1,8 @@
 import { Suspense, lazy } from 'react';
-import { StartupScreen } from '@sdkwork/birdcoder-pc-ui-shell';
-import type { BootstrapGateMessages } from '@sdkwork/birdcoder-pc-shell-runtime';
+import {
+  BootstrapLoadingScreen,
+  type BootstrapGateMessages,
+} from '@sdkwork/birdcoder-pc-shell-runtime';
 
 const LazyAppRoot = lazy(async () => {
   const module = await import('./loadAppRoot');
@@ -12,20 +14,7 @@ interface AppProps {
 }
 
 function AppShellLoadingFallback({ messages }: { messages: BootstrapGateMessages }) {
-  return (
-    <StartupScreen
-      description={messages.bootingDescription}
-      progress={64}
-      stage="runtime"
-      stageLabels={{
-        runtime: messages.runtimeStage,
-        session: messages.sessionStage,
-        workspace: messages.workspaceStage,
-      }}
-      startupFailedLabel={messages.startupFailed}
-      title={messages.startingTitle}
-    />
-  );
+  return <BootstrapLoadingScreen messages={messages} />;
 }
 
 export default function App({ bootstrapMessages }: AppProps) {

@@ -1,9 +1,11 @@
 import assert from 'node:assert/strict';
 
 import {
+  BIRDCODER_WORKSPACE_ROOT_DIR,
   createCommandSequencePlan,
   runCommandSequence,
 } from './run-command-sequence.mjs';
+import { runQualityFastCheck } from './run-quality-fast-check.mjs';
 
 function splitWindowsPathEntries(pathValue) {
   return String(pathValue ?? '')
@@ -80,6 +82,28 @@ function splitWindowsPathEntries(pathValue) {
   assert.deepEqual(
     splitWindowsPathEntries(invocations[0]?.options.env.Path),
     ['C:/Program Files/nodejs', 'C:/Windows/System32'],
+  );
+}
+
+{
+  const invocations = [];
+  const exitCode = runQualityFastCheck({
+    commands: ['node scripts/root-owned-check.mjs'],
+    env: {
+      ComSpec: 'C:/Windows/System32/cmd.exe',
+      Path: 'C:/Windows/System32',
+    },
+    spawnSyncImpl(command, args, options) {
+      invocations.push({ command, args, options });
+      return { status: 0 };
+    },
+  });
+
+  assert.equal(exitCode, 0);
+  assert.equal(
+    invocations[0]?.options.cwd,
+    BIRDCODER_WORKSPACE_ROOT_DIR,
+    'Quality runners must resolve root-owned scripts from the BirdCoder workspace even when a child package invokes the runner.',
   );
 }
 

@@ -67,13 +67,10 @@ function createCanonicalScriptCommand(entry) {
 
   if (
     entry.lifecycle === 'dev'
-    && entry.iamMode === 'server-private'
-    && (entry.surface === 'desktop' || entry.surface === 'web')
+    && (entry.mode === 'standalone' || entry.mode === 'cloud')
   ) {
-    return renderNodeScriptCommand('run-birdcoder-dev-stack.mjs', [
-      entry.surface,
-      ...flags,
-    ]);
+    const runtimeTarget = entry.surface === 'web' ? 'browser' : entry.surface;
+    return `pnpm exec sdkwork-app dev --runtime-target ${runtimeTarget} --deployment-profile ${entry.mode}`;
   }
 
   if (entry.lifecycle === 'env') {

@@ -52,6 +52,7 @@ const excludedRelativePathPatterns = [
   /^scripts\/technical-debt-contract\.test\.mjs$/u,
   /^apps\/sdkwork-birdcoder-pc\/public\/data\/sdkwork-models(\/|$)/u,
   /^apps\/sdkwork-birdcoder-pc\/sdks(\/|$)/u,
+  /^apps\/sdkwork-birdcoder-h5\/packages\/sdkwork-birdcoder-h5-capacitor\/(?:android\/app\/src\/main\/assets\/public|ios\/App\/App\/public)(\/|$)/u,
 ];
 
 const debtTokenPattern = /depreacted|@deprecated|\bdeprecated\b/iu;
@@ -92,6 +93,16 @@ const allowedDebtTokenLines = [
     relativePath: 'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-contracts-commons/src/engine.ts',
     pattern: /\| 'deprecated'/u,
     reason: 'engine availability status includes deprecated as lifecycle state',
+  },
+  {
+    relativePath: 'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/src/services/sdkClients.ts',
+    pattern: /case 'deprecated':/u,
+    reason: 'SDK client projection preserves the model catalog lifecycle status',
+  },
+  {
+    relativePath: 'scripts/code-topbar-session-engine-contract.test.mjs',
+    pattern: /must not retain deprecated engine-summary plumbing/u,
+    reason: 'contract forbids reintroducing the retired engine-summary integration',
   },
   {
     relativePath: 'scripts/problem-list-remediation-contract.test.mjs',

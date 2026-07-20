@@ -154,8 +154,18 @@ assert.match(
 
 assert.match(
   bootSpec,
-  /Starting SDKWork BirdCoder/u,
-  'PC boot-shell e2e must assert the startup shell copy.',
+  /getByRole\('heading', \{ name: 'SDKWork BirdCoder', exact: true \}\)/u,
+  'PC boot-shell e2e must assert the accessible product heading.',
+);
+assert.match(
+  bootSpec,
+  /getByRole\('progressbar'\).*aria-valuenow/u,
+  'PC boot-shell e2e must assert startup progress through the accessible progressbar.',
+);
+assert.match(
+  bootSpec,
+  /data-birdcoder-boot-shell/u,
+  'PC boot-shell e2e must assert the stable boot-shell marker.',
 );
 
 assert.match(

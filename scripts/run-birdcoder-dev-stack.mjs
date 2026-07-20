@@ -25,7 +25,7 @@ const WORKSPACE_ROOT = path.resolve(path.dirname(__filename), '..');
 
 const DEFAULT_SERVER_READY_POLL_INTERVAL_MS = 350;
 const DEFAULT_SERVER_READY_REQUEST_TIMEOUT_MS = 800;
-const DEFAULT_SERVER_READY_TIMEOUT_MS = 120000;
+const DEFAULT_SERVER_READY_TIMEOUT_MS = 300000;
 const DEFAULT_SERVER_READY_PATHS = Object.freeze([
   '/readyz',
 ]);
@@ -34,11 +34,6 @@ const CLIENT_LOOPBACK_PORT_FALLBACK_HOST = '127.0.0.1';
 const CLIENT_LOOPBACK_PORT_FALLBACK_MAX_ATTEMPTS = 20;
 const DEFAULT_WEB_CLIENT_HOST = '0.0.0.0';
 const DEFAULT_CLIENT_READY_TIMEOUT_MS = 30000;
-const DEFAULT_PLATFORM_GATEWAY_URL = 'http://127.0.0.1:3900';
-const PLATFORM_GATEWAY_SERVICE = 'sdkwork-api-cloud-gateway';
-const PLATFORM_GATEWAY_DRIVE_SERVICE = 'sdkwork-drive-app-api';
-const PLATFORM_GATEWAY_MEMBERSHIP_APP_SERVICE = 'sdkwork-membership-app-api';
-const PLATFORM_GATEWAY_MEMBERSHIP_BACKEND_SERVICE = 'sdkwork-membership-backend-api';
 const STACK_VITE_MODES = new Set(['development', 'test']);
 
 const STACK_SURFACE_CONFIGS = Object.freeze({
@@ -164,23 +159,6 @@ function resolveApiOriginUrl(env) {
   }
 }
 
-function resolvePlatformGatewayUrl(env) {
-  const rawUrl =
-    readTrimmedValue(env.SDKWORK_BIRDCODER_PLATFORM_API_GATEWAY_HTTP_URL)
-    || readTrimmedValue(env.VITE_SDKWORK_BIRDCODER_PLATFORM_API_GATEWAY_HTTP_URL)
-    || DEFAULT_PLATFORM_GATEWAY_URL;
-  const parsedUrl = new URL(rawUrl);
-  if (!['http:', 'https:'].includes(parsedUrl.protocol)) {
-    throw new Error('BirdCoder platform API gateway URL must use HTTP or HTTPS.');
-  }
-  return parsedUrl;
-}
-
-function platformGatewayAutostartEnabled(env) {
-  const value = readTrimmedValue(env.SDKWORK_BIRDCODER_PLATFORM_API_GATEWAY_AUTOSTART);
-  return !value || !['0', 'false', 'no', 'off'].includes(value.toLowerCase());
-}
-
 function sqliteDatabaseUrl(filePath) {
   const normalizedPath = String(filePath).replace(/\\/gu, '/');
   return `sqlite:///${normalizedPath}?mode=rwc`;
@@ -202,18 +180,7 @@ function detectDatabaseEngineFromUrl(url) {
   return undefined;
 }
 
-export function createPlatformGatewayPlan({ env, viteMode }) {
-  if (!platformGatewayAutostartEnabled(env)) {
-    return null;
-  }
-
-  const gatewayRoot = path.resolve(WORKSPACE_ROOT, '..', 'sdkwork-api-cloud-gateway');
-  const configProfile = viteMode === 'test' ? 'test' : 'development';
-  const configPath = path.join(
-    WORKSPACE_ROOT,
-    'etc',
-    `sdkwork-api-cloud-gateway.birdcoder.${configProfile}.toml`,
-  );
+export function resolveStandaloneDependencyEnv(env) {
   const driveDatabasePath = path.join(
     WORKSPACE_ROOT,
     '.runtime',
@@ -226,7 +193,6 @@ export function createPlatformGatewayPlan({ env, viteMode }) {
     'standalone-development',
     'membership.sqlite3',
   );
-  const platformGatewayUrl = resolvePlatformGatewayUrl(env);
   const sharedDatabaseUrl = readTrimmedValue(env.SDKWORK_CLAW_DATABASE_URL);
   const sharedDatabaseEngine =
     readTrimmedValue(env.SDKWORK_CLAW_DATABASE_ENGINE)
@@ -244,9 +210,7 @@ export function createPlatformGatewayPlan({ env, viteMode }) {
   const sharedMaxConnections =
     readTrimmedValue(env.SDKWORK_CLAW_DATABASE_MAX_CONNECTIONS)
     || (usesSharedPostgresDatabase ? '10' : '2');
-  const gatewayEnv = {
-    ...env,
-    SDKWORK_API_CLOUD_GATEWAY_BIND: '0.0.0.0:3900',
+  return {
     SDKWORK_DRIVE_DATABASE_URL: driveDatabaseUrl,
     SDKWORK_DRIVE_DATABASE_ENGINE:
       readTrimmedValue(env.SDKWORK_DRIVE_DATABASE_ENGINE)
@@ -267,29 +231,6 @@ export function createPlatformGatewayPlan({ env, viteMode }) {
     SDKWORK_MEMBERSHIP_APP_ROOT:
       readTrimmedValue(env.SDKWORK_MEMBERSHIP_APP_ROOT)
       || path.resolve(WORKSPACE_ROOT, '..', 'sdkwork-membership'),
-    CARGO_TARGET_DIR:
-      readTrimmedValue(env.SDKWORK_API_CLOUD_GATEWAY_CARGO_TARGET_DIR)
-      || path.join(WORKSPACE_ROOT, '.runtime', 'cargo-target', 'platform-gateway'),
-  };
-
-  return {
-    args: [
-      'run',
-      '-p',
-      'sdkwork-api-cloud-gateway',
-      '--bin',
-      'sdkwork-api-cloud-gateway',
-      '--features',
-      'foundation-drive,foundation-membership',
-      '--',
-      '--config',
-      configPath,
-    ],
-    command: process.platform === 'win32' ? 'cargo.exe' : 'cargo',
-    cwd: gatewayRoot,
-    env: gatewayEnv,
-    shell: false,
-    url: platformGatewayUrl,
   };
 }
 
@@ -532,10 +473,14 @@ function resolveStackPlans({
     packageDir: stackSurfaceConfig.clientPackageDir,
     scriptName: clientScriptName,
   });
+  const standaloneDependencyEnv = serverResolvedIam
+    ? resolveStandaloneDependencyEnv(serverResolvedIam.env)
+    : {};
   const serverPlan = serverResolvedIam
     ? createWorkspacePackageScriptPlan({
         env: {
           ...serverResolvedIam.env,
+          ...standaloneDependencyEnv,
           ...(iamMode === 'server-private'
             ? { BIRDCODER_LOCAL_BOOTSTRAP_PROJECT_ROOT: WORKSPACE_ROOT }
             : {}),
@@ -549,17 +494,12 @@ function resolveStackPlans({
     || readTrimmedValue(serverResolvedIam?.env.SDKWORK_IAM_MODE)
     || 'local';
   const apiOriginUrl = resolveApiOriginUrl(clientResolvedIam.env);
-  const platformGatewayPlan = createPlatformGatewayPlan({
-    env: clientResolvedIam.env,
-    viteMode: resolvedViteMode,
-  });
 
   return {
     apiOriginUrl,
     clientPlan: appendPlanArgs(clientPlan, clientArgs),
     clientResolvedIam,
     needsServer,
-    platformGatewayPlan,
     sdkworkIamMode,
     serverPlan,
     serverResolvedIam,
@@ -574,7 +514,6 @@ function printStackSummary({
   clientPlan,
   clientResolvedIam,
   sdkworkIamMode,
-  platformGatewayPlan,
   serverPlan,
   target,
   viteMode,
@@ -590,11 +529,6 @@ function printStackSummary({
     console.log(`[birdcoder-stack] server=${formatCommandPlan(serverPlan)}`);
   } else {
     console.log('[birdcoder-stack] server=embedded');
-  }
-  if (platformGatewayPlan) {
-    console.log(`[birdcoder-stack] platformGateway=${formatCommandPlan(platformGatewayPlan)}`);
-  } else {
-    console.log('[birdcoder-stack] platformGateway=external');
   }
   if (clientPortFallback) {
     console.log(
@@ -621,13 +555,20 @@ function printStackSummary({
 
 function waitForChildExit(childProcess, label) {
   return new Promise((resolve) => {
-    childProcess.once('exit', (code, signal) => {
+    const resolveExit = (code, signal) => {
       resolve({
         code: typeof code === 'number' ? code : 0,
         label,
         signal,
       });
-    });
+    };
+
+    if (childProcess.exitCode !== null || childProcess.signalCode !== null) {
+      resolveExit(childProcess.exitCode, childProcess.signalCode);
+      return;
+    }
+
+    childProcess.once('exit', resolveExit);
   });
 }
 
@@ -682,6 +623,37 @@ async function probeServerReadyEndpoint(url, requestTimeoutMs) {
   }
 }
 
+export async function isServerReady({
+  apiOriginUrl,
+  paths = DEFAULT_SERVER_READY_PATHS,
+  requestTimeoutMs = DEFAULT_SERVER_READY_REQUEST_TIMEOUT_MS,
+} = {}) {
+  if (!apiOriginUrl || typeof globalThis.fetch !== 'function') {
+    return false;
+  }
+
+  const readinessUrls = resolveServerReadyProbeUrls(apiOriginUrl, paths);
+  if (readinessUrls.length === 0) {
+    return false;
+  }
+
+  const normalizedRequestTimeoutMs = normalizePositiveInteger(
+    requestTimeoutMs,
+    DEFAULT_SERVER_READY_REQUEST_TIMEOUT_MS,
+  );
+
+  try {
+    const responses = await Promise.all(
+      readinessUrls.map((url) =>
+        probeServerReadyEndpoint(url, normalizedRequestTimeoutMs),
+      ),
+    );
+    return responses.every((response) => response.ok);
+  } catch {
+    return false;
+  }
+}
+
 async function waitForServerReady({
   apiOriginUrl,
   paths = DEFAULT_SERVER_READY_PATHS,
@@ -717,94 +689,24 @@ async function waitForServerReady({
     DEFAULT_SERVER_READY_POLL_INTERVAL_MS,
     DEFAULT_SERVER_READY_POLL_INTERVAL_MS,
   );
-  let attempt = 0;
-
   while (Date.now() < deadline) {
-    if (serverChild.exitCode !== null) {
+    if (serverChild && serverChild.exitCode !== null) {
       return false;
     }
 
-    attempt += 1;
-
-    try {
-      const responses = await Promise.all(
-        readinessUrls.map((url) =>
-          probeServerReadyEndpoint(url, normalizedRequestTimeoutMs),
-        ),
-      );
-
-      if (responses.every((response) => response.ok)) {
-        return true;
-      }
-    } catch {
-      // The native BirdCoder server can publish the base URL before the standardized
-      // infrastructure readiness route is ready. Keep polling until it responds.
+    if (await isServerReady({
+      apiOriginUrl,
+      paths,
+      requestTimeoutMs: normalizedRequestTimeoutMs,
+    })) {
+      return true;
     }
 
+    // The native BirdCoder server can publish the base URL before the standardized
+    // infrastructure readiness route is ready. Keep polling until it responds.
     await sleep(normalizedPollIntervalMs);
   }
 
-  return false;
-}
-
-async function probePlatformGatewayIdentity(platformGatewayUrl) {
-  const readinessUrl = new URL('/readyz', platformGatewayUrl).toString();
-  try {
-    const response = await probeServerReadyEndpoint(
-      readinessUrl,
-      DEFAULT_SERVER_READY_REQUEST_TIMEOUT_MS,
-    );
-    const body = await response.json().catch(() => null);
-    const dependencyServiceIds = Array.isArray(body?.dependencies)
-      ? body.dependencies.map((dependency) => dependency?.serviceId).filter(Boolean)
-      : [];
-    const valid = response.ok
-      && body?.service === PLATFORM_GATEWAY_SERVICE
-      && body?.mode === 'embedded'
-      && dependencyServiceIds.includes(PLATFORM_GATEWAY_DRIVE_SERVICE)
-      && dependencyServiceIds.includes(PLATFORM_GATEWAY_MEMBERSHIP_APP_SERVICE)
-      && dependencyServiceIds.includes(PLATFORM_GATEWAY_MEMBERSHIP_BACKEND_SERVICE);
-    return {
-      dependencyServiceIds,
-      mode: body?.mode,
-      reachable: true,
-      service: body?.service,
-      valid,
-    };
-  } catch {
-    return { reachable: false, valid: false };
-  }
-}
-
-function platformGatewayIdentityError(identity, platformGatewayUrl) {
-  const dependencies = identity.dependencyServiceIds?.join(',') || 'none';
-  return new Error(
-    `Port ${platformGatewayUrl.port || '3900'} is not the BirdCoder platform assembly gateway: `
-    + `service=${identity.service || 'unknown'}, mode=${identity.mode || 'unknown'}, `
-    + `dependencies=${dependencies}. Stop the conflicting process and start ${PLATFORM_GATEWAY_SERVICE} `
-    + `with foundation-drive,foundation-membership; renderer ports must not proxy platform APIs.`,
-  );
-}
-
-async function waitForPlatformGatewayReady({
-  platformGatewayChild,
-  platformGatewayUrl,
-  timeoutMs = DEFAULT_SERVER_READY_TIMEOUT_MS,
-} = {}) {
-  const deadline = Date.now() + timeoutMs;
-  while (Date.now() < deadline) {
-    if (platformGatewayChild?.exitCode !== null) {
-      return false;
-    }
-    const identity = await probePlatformGatewayIdentity(platformGatewayUrl);
-    if (identity.valid) {
-      return true;
-    }
-    if (identity.reachable) {
-      throw platformGatewayIdentityError(identity, platformGatewayUrl);
-    }
-    await sleep(DEFAULT_SERVER_READY_POLL_INTERVAL_MS);
-  }
   return false;
 }
 
@@ -898,7 +800,7 @@ export async function runBirdcoderDevStack({
     }
 
     isShuttingDown = true;
-    for (const childProcess of activeChildren) {
+    for (const { childProcess } of activeChildren) {
       destroyChildProcessTree(childProcess);
     }
   };
@@ -911,59 +813,32 @@ export async function runBirdcoderDevStack({
   }
 
   if (stackPlans.serverPlan) {
-    const serverChild = spawnPlan(stackPlans.serverPlan, 'server');
-    activeChildren.push(serverChild);
-
-    const ready = await waitForServerReady({
+    const reuseExistingServer = await isServerReady({
       apiOriginUrl: stackPlans.apiOriginUrl,
-      serverChild,
     });
-    if (!ready) {
-      shutdownChildren();
-      throw new Error(
-        `BirdCoder server did not become ready at ${stackPlans.apiOriginUrl?.origin || 'the configured API base URL'} within ${DEFAULT_SERVER_READY_TIMEOUT_MS}ms.`,
-      );
-    }
-
-    console.log('[birdcoder-stack] server ready');
-  }
-
-  if (stackPlans.platformGatewayPlan) {
-    const existingIdentity = await probePlatformGatewayIdentity(
-      stackPlans.platformGatewayPlan.url,
-    );
-    if (existingIdentity.reachable && !existingIdentity.valid) {
-      shutdownChildren();
-      throw platformGatewayIdentityError(
-        existingIdentity,
-        stackPlans.platformGatewayPlan.url,
-      );
-    }
-    if (existingIdentity.valid) {
-      console.log('[birdcoder-stack] platform gateway ready (existing assembly)');
+    if (reuseExistingServer) {
+      console.log('[birdcoder-stack] server ready (reusing existing process)');
     } else {
-      const platformGatewayChild = spawnPlan(
-        stackPlans.platformGatewayPlan,
-        'platform gateway',
-      );
-      activeChildren.push(platformGatewayChild);
-      const ready = await waitForPlatformGatewayReady({
-        platformGatewayChild,
-        platformGatewayUrl: stackPlans.platformGatewayPlan.url,
+      const serverChild = spawnPlan(stackPlans.serverPlan, 'server');
+      activeChildren.push({ childProcess: serverChild, label: 'server' });
+
+      const ready = await waitForServerReady({
+        apiOriginUrl: stackPlans.apiOriginUrl,
+        serverChild,
       });
       if (!ready) {
         shutdownChildren();
         throw new Error(
-          `BirdCoder platform assembly gateway did not become ready at ${stackPlans.platformGatewayPlan.url.origin} `
-          + `within ${DEFAULT_SERVER_READY_TIMEOUT_MS}ms.`,
+          `BirdCoder server did not become ready at ${stackPlans.apiOriginUrl?.origin || 'the configured API base URL'} within ${DEFAULT_SERVER_READY_TIMEOUT_MS}ms.`,
         );
       }
-      console.log('[birdcoder-stack] platform gateway ready');
+
+      console.log('[birdcoder-stack] server ready');
     }
   }
 
   const clientChild = spawnPlan(stackPlans.clientPlan, 'client');
-  activeChildren.push(clientChild);
+  activeChildren.push({ childProcess: clientChild, label: 'client' });
   if (STACK_SURFACE_CONFIGS[stackPlans.target]?.browser) {
     const clientReady = await waitForClientReady({
       ...resolveClientHostAndPort(stackPlans.clientPlan),
@@ -976,10 +851,10 @@ export async function runBirdcoderDevStack({
     }
   }
   const exitResult = await Promise.race(
-    activeChildren.map((childProcess, index) =>
+    activeChildren.map(({ childProcess, label }) =>
       waitForChildExit(
         childProcess,
-        index === 0 && stackPlans.serverPlan ? 'server' : 'client',
+        label,
       ),
     ),
   );

@@ -632,14 +632,6 @@ function createBirdcoderWorkspaceAliasEntries(appRootDir = defaultBirdcoderAppRo
       ),
     },
     {
-      find: /^@sdkwork\/birdcoder-([^/]+)\/(.+)$/u,
-      replacement: path.resolve(appRootDir, '../sdkwork-birdcoder-$1/src/$2'),
-    },
-    {
-      find: /^@sdkwork\/birdcoder-([^/]+)$/u,
-      replacement: path.resolve(appRootDir, '../sdkwork-birdcoder-$1/src'),
-    },
-    {
       find: '@sdkwork/terminal-pc-infrastructure',
       replacement: resolveSdkworkTerminalInfrastructureEntryPath(appRootDir),
     },
@@ -955,7 +947,10 @@ function shouldIgnoreBirdcoderRollupWarning(warning) {
     && warningMessage.includes('src/terminal/sessions.ts');
   const isRolldownPluginTimingDiagnostic =
     warningCode === 'PLUGIN_TIMINGS'
-    && warningMessage.includes('sdkwork-birdcoder-pc-web-');
+    && [
+      'sdkwork-birdcoder-h5-',
+      'sdkwork-birdcoder-pc-web-',
+    ].some((pluginPrefix) => warningMessage.includes(pluginPrefix));
   return isLucideUseClientNoise
     || isKnownSharedUiUseClientNoise
     || isSharedReactRouterUseClientNoise

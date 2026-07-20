@@ -1,12 +1,12 @@
-import React, { memo, useMemo } from 'react';
+import React, { memo, useId, useMemo } from 'react';
 import {
   AlertCircle,
+  Ban,
   CheckCircle2,
   ChevronDown,
   ChevronUp,
   Copy,
   Eye,
-  ExternalLink,
   FileCode2,
   RotateCcw,
   Terminal,
@@ -14,12 +14,26 @@ import {
 import { resolveBirdCoderCodeEngineCommandInteractionState } from '@sdkwork/birdcoder-pc-workbench/chat/types';
 import type { CommandExecution, FileChange } from '@sdkwork/birdcoder-pc-workbench/chat/types';
 import { hasRestorableFileChanges } from '@sdkwork/birdcoder-pc-workbench/workbench/fileChangeRestore';
+import {
+  buildChatContentPreview,
+  buildChatLinePreview,
+  buildCommandOutputPreview,
+  MAX_CHAT_CONTENT_PREVIEW_CHARACTERS,
+} from '../contentPreview.ts';
 import type { ActivityFileChange } from '../messageActivity.ts';
 import type { ChatMessageEnvironment, ChatMessageTranslate } from '../types.ts';
 
+export {
+  buildCommandOutputPreview,
+  MAX_COMMAND_OUTPUT_PREVIEW_LINES,
+} from '../contentPreview.ts';
+
 export const MAX_ACTIVITY_DIFF_PREVIEW_LINES = 80;
 export const MAX_ACTIVITY_CONTENT_PREVIEW_LINES = 60;
-export const MAX_COMMAND_OUTPUT_PREVIEW_LINES = 24;
+export const MAX_ACTIVITY_PREVIEW_CHARACTERS = MAX_CHAT_CONTENT_PREVIEW_CHARACTERS;
+
+const MAX_COMMAND_TEXT_PREVIEW_CHARACTERS = 4_000;
+const MAX_COMMAND_SUMMARY_CHARACTERS = 320;
 
 export type ActivityDiffPreviewLineTone = 'addition' | 'deletion' | 'hunk' | 'meta' | 'context';
 
@@ -35,13 +49,13 @@ export interface ActivityDiffPreview {
   lines: ActivityDiffPreviewLine[];
 }
 
-export interface CommandOutputPreview {
-  isTruncated: boolean;
-  omittedLineCount: number;
-  text: string;
-}
-
-export type CommandExecutionTone = 'approval' | 'error' | 'reply' | 'running' | 'success';
+export type CommandExecutionTone =
+  | 'approval'
+  | 'cancelled'
+  | 'error'
+  | 'reply'
+  | 'running'
+  | 'success';
 
 export interface ActivityFileChangeLineImpact {
   additions: number;
@@ -65,6 +79,7 @@ export interface ChatActivitySummaryProps {
 
 interface RenderCommandExecutionCardOptions {
   cmd: CommandExecution;
+  commandDetailsId: string;
   commandLabel: string;
   commandKey: string;
   commandOutputLabel: string;
@@ -81,16 +96,39 @@ function normalizeActivityLineCount(value: number): number {
   return Number.isFinite(value) ? Math.max(0, Math.floor(value)) : 0;
 }
 
-function splitActivityPreviewLines(content: string, maxLines: number): {
-  isTruncated: boolean;
-  lines: string[];
-} {
-  const lines = content.replace(/\r\n?/gu, '\n').split('\n');
-  const normalizedMaxLines = Math.max(0, Math.floor(maxLines));
-  return {
-    isTruncated: lines.length > normalizedMaxLines,
-    lines: lines.slice(0, normalizedMaxLines),
+function resolveActivityFileChangeStatusLabel(
+  fileChange: ActivityFileChange,
+  t?: ChatMessageTranslate,
+): string {
+  const updateStatus = fileChange.updateStatus?.trim() ?? '';
+  if (!updateStatus) {
+    return '';
+  }
+
+  const movedFromMatch = /^moved from\s+(.+)$/iu.exec(updateStatus);
+  if (movedFromMatch?.[1]) {
+    return t?.('chat.fileOperationMovedFrom', { path: movedFromMatch[1] })
+      ?? `Moved from ${movedFromMatch[1]}`;
+  }
+
+  const operationLabels: Readonly<Record<string, string>> = {
+    '??': t?.('chat.fileOperationCreated') ?? 'Created',
+    A: t?.('chat.fileOperationCreated') ?? 'Created',
+    D: t?.('chat.fileOperationDeleted') ?? 'Deleted',
+    M: t?.('chat.fileOperationModified') ?? 'Modified',
+    R: t?.('chat.fileOperationMoved') ?? 'Moved',
   };
+  if (operationLabels[updateStatus]) {
+    return operationLabels[updateStatus];
+  }
+  if (/^[A-Z?]{1,2}$/u.test(updateStatus)) {
+    return t?.('chat.fileOperationUpdated') ?? 'Updated';
+  }
+
+  return buildChatContentPreview(updateStatus, {
+    maxCharacters: 160,
+    tailCharacters: 0,
+  }).text;
 }
 
 function resolveDiffPreviewLineTone(line: string): ActivityDiffPreviewLineTone {
@@ -139,6 +177,10 @@ function buildFileChangeContentPreview(fileChange: FileChange): ActivityDiffPrev
     typeof fileChange.originalContent === 'string' ? fileChange.originalContent : '';
   const content = typeof fileChange.content === 'string' ? fileChange.content : '';
   const halfPreviewLimit = Math.max(1, Math.floor(MAX_ACTIVITY_CONTENT_PREVIEW_LINES / 2));
+  const halfPreviewCharacterLimit = Math.max(
+    1,
+    Math.floor(MAX_ACTIVITY_PREVIEW_CHARACTERS / 2),
+  );
   let isTruncated = false;
 
   if (originalContent) {
@@ -147,7 +189,12 @@ function buildFileChangeContentPreview(fileChange: FileChange): ActivityDiffPrev
       text: `--- ${fileChange.path}`,
       tone: 'meta',
     });
-    const originalPreview = splitActivityPreviewLines(originalContent, content ? halfPreviewLimit : MAX_ACTIVITY_CONTENT_PREVIEW_LINES);
+    const originalPreview = buildChatLinePreview(originalContent, {
+      maxCharacters: content
+        ? halfPreviewCharacterLimit
+        : MAX_ACTIVITY_PREVIEW_CHARACTERS,
+      maxLines: content ? halfPreviewLimit : MAX_ACTIVITY_CONTENT_PREVIEW_LINES,
+    });
     isTruncated = isTruncated || originalPreview.isTruncated;
     for (const line of originalPreview.lines) {
       previewLines.push({ marker: '-', text: line, tone: 'deletion' });
@@ -160,7 +207,12 @@ function buildFileChangeContentPreview(fileChange: FileChange): ActivityDiffPrev
       text: `+++ ${fileChange.path}`,
       tone: 'meta',
     });
-    const contentPreview = splitActivityPreviewLines(content, originalContent ? halfPreviewLimit : MAX_ACTIVITY_CONTENT_PREVIEW_LINES);
+    const contentPreview = buildChatLinePreview(content, {
+      maxCharacters: originalContent
+        ? halfPreviewCharacterLimit
+        : MAX_ACTIVITY_PREVIEW_CHARACTERS,
+      maxLines: originalContent ? halfPreviewLimit : MAX_ACTIVITY_CONTENT_PREVIEW_LINES,
+    });
     isTruncated = isTruncated || contentPreview.isTruncated;
     for (const line of contentPreview.lines) {
       previewLines.push({ marker: '+', text: line, tone: 'addition' });
@@ -180,7 +232,10 @@ export function buildFileChangeDiffPreview(fileChange: FileChange): ActivityDiff
     return buildFileChangeContentPreview(fileChange);
   }
 
-  const diffPreview = splitActivityPreviewLines(diffContent, MAX_ACTIVITY_DIFF_PREVIEW_LINES);
+  const diffPreview = buildChatLinePreview(diffContent, {
+    maxCharacters: MAX_ACTIVITY_PREVIEW_CHARACTERS,
+    maxLines: MAX_ACTIVITY_DIFF_PREVIEW_LINES,
+  });
   return {
     isFallback: false,
     isTruncated: diffPreview.isTruncated,
@@ -202,17 +257,26 @@ export function countDiffLineImpacts(diff: string | undefined): ActivityFileChan
 
   let additions = 0;
   let deletions = 0;
-  for (const line of diff.replace(/\r\n?/g, '\n').split('\n')) {
+  const normalizedDiff = diff.replace(/\r\n?/gu, '\n');
+  let lineStart = 0;
+  while (lineStart <= normalizedDiff.length) {
+    const lineEnd = normalizedDiff.indexOf('\n', lineStart);
+    const line = normalizedDiff.slice(
+      lineStart,
+      lineEnd === -1 ? normalizedDiff.length : lineEnd,
+    );
     if (line.startsWith('+++') || line.startsWith('---')) {
-      continue;
-    }
-    if (line.startsWith('+')) {
+      // File metadata is not part of the line impact.
+    } else if (line.startsWith('+')) {
       additions += 1;
-      continue;
-    }
-    if (line.startsWith('-')) {
+    } else if (line.startsWith('-')) {
       deletions += 1;
     }
+
+    if (lineEnd === -1) {
+      break;
+    }
+    lineStart = lineEnd + 1;
   }
 
   if (additions === 0 && deletions === 0) {
@@ -253,39 +317,10 @@ export function resolveActivityFileChangeLineImpact(
   };
 }
 
-function buildCommandOutputPreview(output: string | undefined): CommandOutputPreview {
-  if (!output?.trim()) {
-    return {
-      isTruncated: false,
-      omittedLineCount: 0,
-      text: '',
-    };
-  }
-
-  const normalizedLines = output.trim().replace(/\r\n?/gu, '\n').split('\n');
-  if (normalizedLines.length <= MAX_COMMAND_OUTPUT_PREVIEW_LINES) {
-    return {
-      isTruncated: false,
-      omittedLineCount: 0,
-      text: normalizedLines.join('\n'),
-    };
-  }
-
-  const tailLineCount = Math.max(1, Math.floor(MAX_COMMAND_OUTPUT_PREVIEW_LINES / 3));
-  const headLineCount = MAX_COMMAND_OUTPUT_PREVIEW_LINES - tailLineCount;
-  const omittedLineCount = normalizedLines.length - headLineCount - tailLineCount;
-  return {
-    isTruncated: true,
-    omittedLineCount,
-    text: [
-      ...normalizedLines.slice(0, headLineCount),
-      '...',
-      ...normalizedLines.slice(-tailLineCount),
-    ].join('\n'),
-  };
-}
-
 function resolveCommandExecutionTone(cmd: CommandExecution): CommandExecutionTone {
+  if (cmd.runtimeStatus === 'terminated') {
+    return 'cancelled';
+  }
   const interactionState = resolveBirdCoderCodeEngineCommandInteractionState(cmd);
   const isWaitingForReply = interactionState.requiresReply;
   const isWaitingForApproval = interactionState.requiresApproval;
@@ -318,6 +353,9 @@ function resolveCommandExecutionStatusLabel(
   if (tone === 'success') {
     return t?.('chat.commandSucceeded') ?? 'Succeeded';
   }
+  if (tone === 'cancelled') {
+    return t?.('chat.commandCancelled') ?? 'Cancelled';
+  }
   if (tone === 'error') {
     return t?.('chat.commandFailed') ?? 'Failed';
   }
@@ -349,6 +387,9 @@ function renderCommandStatusIcon(tone: CommandExecutionTone, size: number) {
   if (tone === 'error') {
     return <AlertCircle size={size} className="text-red-400/80" aria-hidden="true" />;
   }
+  if (tone === 'cancelled') {
+    return <Ban size={size} className="text-gray-400" aria-hidden="true" />;
+  }
   if (tone === 'reply' || tone === 'approval') {
     return <AlertCircle size={size} className="text-amber-300/85" aria-hidden="true" />;
   }
@@ -372,12 +413,16 @@ function resolveCommandExecutionStatusClassName(tone: CommandExecutionTone): str
   if (tone === 'error') {
     return 'bg-red-500/10 text-red-200';
   }
+  if (tone === 'cancelled') {
+    return 'bg-white/5 text-gray-400';
+  }
 
   return 'bg-white/5 text-gray-400';
 }
 
 function renderCommandExecutionCard({
   cmd,
+  commandDetailsId,
   commandLabel,
   commandKey,
   commandOutputLabel,
@@ -391,6 +436,14 @@ function renderCommandExecutionCard({
 }: RenderCommandExecutionCardOptions) {
   const commandTone = resolveCommandExecutionTone(cmd);
   const commandOutputPreview = isCommandExpanded ? buildCommandOutputPreview(cmd.output) : null;
+  const commandTextPreview = buildChatContentPreview(cmd.command, {
+    maxCharacters: MAX_COMMAND_TEXT_PREVIEW_CHARACTERS,
+    tailCharacters: 1_000,
+  });
+  const commandSummary = buildChatContentPreview(cmd.command, {
+    maxCharacters: MAX_COMMAND_SUMMARY_CHARACTERS,
+    tailCharacters: 0,
+  }).text.replace(/\s+/gu, ' ').trim();
   const commandStatusLabel = resolveCommandExecutionStatusLabel(commandTone, t);
   const commandStatusClassName = resolveCommandExecutionStatusClassName(commandTone);
   return (
@@ -401,7 +454,8 @@ function renderCommandExecutionCard({
           data-chat-command-disclosure="true"
           className="flex min-w-0 flex-1 items-center gap-2 rounded-sm text-left focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-blue-400/70"
           aria-expanded={isCommandExpanded}
-          aria-label={`${commandStatusLabel}: ${cmd.command}`}
+          aria-controls={commandDetailsId}
+          aria-label={`${commandStatusLabel}: ${commandSummary}`}
           title={isCommandExpanded ? t?.('chat.activityCollapse') : t?.('chat.activityExpand')}
           onClick={() => toggleCommandDetails(commandKey)}
         >
@@ -412,7 +466,7 @@ function renderCommandExecutionCard({
             {renderCommandStatusIcon(commandTone, successIconSize)}
           </span>
           <span className="min-w-0 flex-1 truncate font-mono text-[12px] text-gray-200">
-            {cmd.command}
+            {commandSummary}
           </span>
           <span className={`shrink-0 rounded-md px-1.5 py-0.5 text-[10px] ${commandTone === 'success' ? 'max-[760px]:sr-only' : ''} ${commandStatusClassName}`}>
             {commandStatusLabel}
@@ -422,14 +476,18 @@ function renderCommandExecutionCard({
           type="button"
           className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-gray-400 transition-colors hover:bg-white/10 hover:text-gray-200 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-blue-400/70"
           title={copyLabel}
-          aria-label={`${copyLabel}: ${cmd.command}`}
+          aria-label={`${copyLabel}: ${commandSummary}`}
           onClick={() => copyMessageToClipboard(cmd.command)}
         >
           <Copy size={12} />
         </button>
       </div>
       {isCommandExpanded ? (
-        <div className="space-y-2 px-7 pb-2 pt-1" data-chat-command-details="true">
+        <div
+          id={commandDetailsId}
+          className="space-y-2 px-7 pb-2 pt-1"
+          data-chat-command-details="true"
+        >
           <div>
             <div className="mb-1 text-[11px] font-medium text-gray-500">
               {commandLabel}
@@ -440,8 +498,17 @@ function renderCommandExecutionCard({
               aria-label={commandLabel}
               tabIndex={0}
             >
-              {cmd.command}
+              {commandTextPreview.text}
             </pre>
+            {commandTextPreview.isTruncated ? (
+              <div
+                className="pt-1 text-[10px] text-gray-400/80"
+                data-chat-command-text-truncated="true"
+              >
+                {t?.('chat.toolDetailTruncated')
+                  ?? 'Preview truncated. Copy to inspect the full content.'}
+              </div>
+            ) : null}
           </div>
           <div>
           <div className="mb-1 flex items-center justify-between gap-2 text-[11px] font-medium text-gray-500">
@@ -469,9 +536,19 @@ function renderCommandExecutionCard({
                 {commandOutputPreview.text}
               </pre>
               {commandOutputPreview.isTruncated ? (
-                <div className="pt-1 text-[10px] text-gray-400/80">
-                  {t?.('chat.commandOutputTruncated', { count: commandOutputPreview.omittedLineCount })
-                    ?? `${commandOutputPreview.omittedLineCount} lines omitted. Copy to inspect the complete output.`}
+                <div
+                  className="pt-1 text-[10px] text-gray-400/80"
+                  data-chat-command-output-truncated={
+                    commandOutputPreview.isCharacterTruncated ? 'characters' : 'lines'
+                  }
+                >
+                  {commandOutputPreview.isCharacterTruncated
+                    ? t?.('chat.toolDetailTruncated')
+                      ?? 'Preview truncated. Copy to inspect the full content.'
+                    : t?.('chat.commandOutputTruncated', {
+                        count: commandOutputPreview.omittedLineCount,
+                      })
+                      ?? `${commandOutputPreview.omittedLineCount} lines omitted. Copy to inspect the complete output.`}
                 </div>
               ) : null}
             </>
@@ -500,6 +577,7 @@ export const ChatActivitySummary = memo(function ChatActivitySummary({
   successIconSize,
   toggleDisclosure,
 }: ChatActivitySummaryProps) {
+  const summaryDetailsId = useId();
   const fileChanges = useMemo(
     () => (rawFileChanges ?? []).filter((fileChange) => fileChange.path.trim().length > 0),
     [rawFileChanges],
@@ -526,7 +604,8 @@ export const ChatActivitySummary = memo(function ChatActivitySummary({
     (sum, lineImpact) => sum + lineImpact.deletions,
     0,
   );
-  const hasKnownLineImpact = fileChangesWithKnownLineImpact.length > 0;
+  const hasCompleteLineImpact = fileChanges.length > 0
+    && fileChangesWithKnownLineImpact.length === fileChanges.length;
 
   if (fileChanges.length === 0 && commands.length === 0) {
     return null;
@@ -539,7 +618,7 @@ export const ChatActivitySummary = memo(function ChatActivitySummary({
     count: commands.length,
   }) ?? `Ran ${commands.length} command${commands.length === 1 ? '' : 's'}`;
   const activitySummaryLabel = environment?.t('chat.activitySummary') ?? 'Code activity';
-  const changedLinesLabel = hasKnownLineImpact
+  const changedLinesLabel = hasCompleteLineImpact
     ? environment?.t('chat.changedLinesSummary', {
       additions: totalAdditions,
       deletions: totalDeletions,
@@ -567,13 +646,16 @@ export const ChatActivitySummary = memo(function ChatActivitySummary({
     (tone) => tone === 'approval' || tone === 'reply',
   ).length;
   const runningCommandCount = commandTones.filter((tone) => tone === 'running').length;
+  const cancelledCommandCount = commandTones.filter((tone) => tone === 'cancelled').length;
   const summaryCommandTone: CommandExecutionTone = failedCommandCount > 0
     ? 'error'
     : waitingCommandCount > 0
       ? 'approval'
       : runningCommandCount > 0
         ? 'running'
-        : 'success';
+        : cancelledCommandCount > 0
+          ? 'cancelled'
+          : 'success';
   const commandSummaryStatusLabel = failedCommandCount > 0
     ? environment?.t('chat.commandsFailedSummary', { count: failedCommandCount })
       ?? `${failedCommandCount} failed`
@@ -583,7 +665,12 @@ export const ChatActivitySummary = memo(function ChatActivitySummary({
       : runningCommandCount > 0
         ? environment?.t('chat.commandsRunningSummary', { count: runningCommandCount })
           ?? `${runningCommandCount} running`
-        : '';
+        : cancelledCommandCount > 0
+          ? environment?.t('chat.commandsCancelledSummary', { count: cancelledCommandCount })
+            ?? `${cancelledCommandCount} cancelled`
+          : '';
+  const isCommandSummaryLive = summaryCommandTone === 'approval'
+    || summaryCommandTone === 'running';
 
   const toggleFileDetails = (fileKey: string) => {
     toggleDisclosure(`${disclosureScopeKey}\u0001file\u0001${fileKey}`);
@@ -605,6 +692,7 @@ export const ChatActivitySummary = memo(function ChatActivitySummary({
         className="flex w-full items-center justify-between gap-3 rounded-md px-1.5 py-1.5 text-left transition-colors hover:bg-white/[0.04] focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-blue-400/70"
         title={isExpanded ? collapseLabel : expandLabel}
         aria-expanded={isExpanded}
+        aria-controls={summaryDetailsId}
         onClick={() => toggleDisclosure(summaryDisclosureKey)}
       >
         <div className="flex min-w-0 flex-wrap items-center gap-2">
@@ -622,6 +710,21 @@ export const ChatActivitySummary = memo(function ChatActivitySummary({
                 ? editedFilesLabel
                 : ranCommandsLabel}
           </span>
+          {fileChanges.length > 0 && commands.length > 0 ? (
+            <span
+              data-chat-activity-counts="true"
+              className={`items-center gap-1.5 rounded-md bg-white/[0.04] px-1.5 py-0.5 font-mono text-[10px] text-gray-300 ${
+                compact ? 'inline-flex' : 'inline-flex min-[901px]:hidden'
+              }`}
+              title={`${ranCommandsLabel}; ${editedFilesLabel}`}
+              aria-label={`${ranCommandsLabel}; ${editedFilesLabel}`}
+            >
+              <Terminal size={10} className="text-blue-300" aria-hidden="true" />
+              <span>{commands.length}</span>
+              <FileCode2 size={10} className="ml-0.5 text-sky-300" aria-hidden="true" />
+              <span>{fileChanges.length}</span>
+            </span>
+          ) : null}
           {fileChanges.length > 0 && commands.length > 0 && !compact ? (
             <span className="inline-flex items-center gap-1 rounded-md bg-white/[0.04] px-2 py-0.5 text-[11px] text-gray-300 max-[900px]:hidden">
               <FileCode2 size={11} className="text-sky-300" />
@@ -634,7 +737,7 @@ export const ChatActivitySummary = memo(function ChatActivitySummary({
               {ranCommandsLabel}
             </span>
           ) : null}
-          {fileChanges.length > 0 && hasKnownLineImpact && !compact ? (
+          {fileChanges.length > 0 && hasCompleteLineImpact && !compact ? (
             <span className="inline-flex items-center gap-1 rounded-md bg-emerald-500/10 px-2 py-0.5 font-mono text-[11px] text-emerald-200 max-[900px]:hidden">
               <span>+{totalAdditions}</span>
               <span className="text-red-200">-{totalDeletions}</span>
@@ -643,8 +746,8 @@ export const ChatActivitySummary = memo(function ChatActivitySummary({
           {commandSummaryStatusLabel ? (
             <span
               className={`inline-flex items-center rounded-md px-2 py-0.5 text-[11px] ${resolveCommandExecutionStatusClassName(summaryCommandTone)}`}
-              aria-live="polite"
-              role="status"
+              aria-live={isCommandSummaryLive ? 'polite' : undefined}
+              role={isCommandSummaryLive ? 'status' : undefined}
             >
               {commandSummaryStatusLabel}
             </span>
@@ -659,7 +762,11 @@ export const ChatActivitySummary = memo(function ChatActivitySummary({
       </button>
 
       {isExpanded ? (
-        <div className="px-1.5 pb-2 pt-1" data-chat-activity-details="true">
+        <div
+          id={summaryDetailsId}
+          className="px-1.5 pb-2 pt-1"
+          data-chat-activity-details="true"
+        >
           {commands.length > 0 ? (
             <div className={fileChanges.length > 0 ? 'mb-3' : undefined}>
               <div className="mb-1.5 flex items-center gap-2 px-1 text-[11px] font-medium uppercase tracking-normal text-gray-500">
@@ -674,6 +781,7 @@ export const ChatActivitySummary = memo(function ChatActivitySummary({
                   );
                   return renderCommandExecutionCard({
                     cmd,
+                    commandDetailsId: `${summaryDetailsId}-command-${cmdIdx}`,
                     commandKey,
                     commandLabel,
                     commandOutputLabel,
@@ -702,16 +810,23 @@ export const ChatActivitySummary = memo(function ChatActivitySummary({
                   const normalizedPathParts = fileChange.path.replace(/\\/gu, '/').split('/').filter(Boolean);
                   const fileName = normalizedPathParts.at(-1) || fileChange.path;
                   const parentPath = normalizedPathParts.slice(0, -1).join('/');
+                  const updateStatusLabel = resolveActivityFileChangeStatusLabel(
+                    fileChange,
+                    environment?.t,
+                  );
                   const isFileExpanded = expandedDisclosureKeys.has(
                     `${disclosureScopeKey}\u0001file\u0001${fileKey}`,
                   );
-                  const diffPreview = buildFileChangeDiffPreview(fileChange);
+                  const diffPreview = isFileExpanded
+                    ? buildFileChangeDiffPreview(fileChange)
+                    : null;
                   const lineImpact = fileChangeLineImpacts[fileIndex] ?? resolveActivityFileChangeLineImpact(fileChange);
                   const hasFullDiff = Boolean(
                     fileChange.diff?.trim()
                     || typeof fileChange.content === 'string'
                     || typeof fileChange.originalContent === 'string',
                   );
+                  const fileDetailsId = `${summaryDetailsId}-file-${fileIndex}`;
                   return (
                     <div key={fileKey} className="overflow-hidden">
                       <div
@@ -723,6 +838,7 @@ export const ChatActivitySummary = memo(function ChatActivitySummary({
                           data-chat-file-disclosure="true"
                           className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-sky-300 transition-colors hover:bg-white/10 hover:text-sky-200 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-blue-400/70"
                           aria-expanded={isFileExpanded}
+                          aria-controls={fileDetailsId}
                           aria-label={`${toggleDiffPreviewLabel}: ${fileChange.path}`}
                           title={toggleDiffPreviewLabel}
                           onClick={() => toggleFileDetails(fileKey)}
@@ -736,6 +852,7 @@ export const ChatActivitySummary = memo(function ChatActivitySummary({
                           title={`${environment?.onOpenFile ? openFileInEditorLabel : toggleDiffPreviewLabel}: ${fileChange.path}`}
                           aria-label={`${environment?.onOpenFile ? openFileInEditorLabel : toggleDiffPreviewLabel}: ${fileChange.path}`}
                           aria-expanded={environment?.onOpenFile ? undefined : isFileExpanded}
+                          aria-controls={environment?.onOpenFile ? undefined : fileDetailsId}
                           onClick={() => {
                             if (environment?.onOpenFile) {
                               environment.onOpenFile(fileChange.path);
@@ -755,12 +872,12 @@ export const ChatActivitySummary = memo(function ChatActivitySummary({
                             ) : null}
                           </span>
                           {environment?.onOpenFile ? (
-                            <ExternalLink size={12} className="shrink-0 text-gray-400 opacity-0 transition-opacity group-hover/file:opacity-100 max-[900px]:opacity-100" />
+                            <FileCode2 size={12} className="shrink-0 text-gray-400 opacity-0 transition-opacity group-hover/file:opacity-100 max-[900px]:opacity-100" />
                           ) : null}
                         </button>
-                        {fileChange.updateStatus && !compact ? (
+                        {updateStatusLabel && !compact ? (
                           <span className="shrink-0 rounded-md bg-white/5 px-1.5 py-0.5 font-mono text-[10px] text-gray-400 max-[900px]:hidden">
-                            {fileChange.updateStatus}
+                            {updateStatusLabel}
                           </span>
                         ) : null}
                         {lineImpact.isKnown ? (
@@ -802,8 +919,12 @@ export const ChatActivitySummary = memo(function ChatActivitySummary({
                           </button>
                         ) : null}
                       </div>
-                      {isFileExpanded ? (
-                        <div data-chat-file-inline-diff="true" className="px-7 pb-2 pt-1">
+                      {isFileExpanded && diffPreview ? (
+                        <div
+                          id={fileDetailsId}
+                          data-chat-file-inline-diff="true"
+                          className="px-7 pb-2 pt-1"
+                        >
                           <div className="mb-1 flex items-center justify-between gap-2">
                             <span className="text-[11px] font-medium text-gray-500">
                               {diffPreviewLabel}
@@ -861,7 +982,8 @@ export const ChatActivitySummary = memo(function ChatActivitySummary({
               {hasRestorableChanges && environment?.onRestore ? (
                 <button
                   type="button"
-                  className="flex shrink-0 items-center gap-1.5 rounded-md px-1.5 py-1 transition-colors hover:bg-white/10 hover:text-gray-200"
+                  className="flex shrink-0 items-center gap-1.5 rounded-md px-1.5 py-1 transition-colors hover:bg-white/10 hover:text-gray-200 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-blue-400/70"
+                  title={restoreLabel}
                   onClick={() => environment.onRestore?.(messageId)}
                 >
                   <RotateCcw size={12} />

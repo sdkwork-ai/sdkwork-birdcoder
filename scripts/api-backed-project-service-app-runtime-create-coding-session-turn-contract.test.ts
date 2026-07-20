@@ -8,6 +8,7 @@ import {
   TEST_CODE_ENGINE_MODEL_CONFIG,
   buildTestCodeEngineModelConfigSyncResult,
 } from './test-code-engine-model-config-fixture.ts';
+import { installBirdCoderTestRuntimeEnv } from './test-birdcoder-runtime-env-fixture.ts';
 
 const dataKernelModulePath = new URL(
   '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/src/storage/dataKernel.ts',
@@ -57,6 +58,7 @@ Object.defineProperty(globalThis, 'window', {
     },
   },
 });
+const restoreRuntimeEnv = installBirdCoderTestRuntimeEnv();
 
 try {
   const { createBirdCoderStorageProvider } = await import(
@@ -773,6 +775,7 @@ try {
     ],
   );
 } finally {
+  restoreRuntimeEnv();
   if (originalWindowDescriptor) {
     Object.defineProperty(globalThis, 'window', originalWindowDescriptor);
   } else {

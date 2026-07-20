@@ -139,6 +139,7 @@ export interface BirdCoderCodeEngineUserQuestionIdentityInput
 const USER_QUESTION_TOOL_NAME_ALIASES = new Set([
   'ask_question',
   'ask_user',
+  'ask_user_question',
   'input_request',
   'prompt_user',
   'question',
@@ -166,7 +167,10 @@ const COMMAND_TOOL_NAME_ALIASES = new Set([
   'command_execution',
   'execute_command',
   'pty_exec',
+  'power_shell',
+  'powershell',
   'run_command',
+  'run_shell_command',
   'shell',
   'shell_command',
 ]);
@@ -274,6 +278,8 @@ const FILE_CHANGE_TOOL_NAME_ALIASES = new Set([
   'create_file',
   'edit_file',
   'multi_edit',
+  'multiedit',
+  'replace',
   'replace_file',
   'str_replace_editor',
   'write_file',
@@ -281,14 +287,32 @@ const FILE_CHANGE_TOOL_NAME_ALIASES = new Set([
 
 const TASK_TOOL_NAME_ALIASES = new Set([
   'todo',
+  'todo_write',
   'todowrite',
   'update_todo',
   'write_todo',
+  'write_todos',
+  'task_create',
+  'task_get',
+  'task_list',
+  'task_update',
+  'tracker_add_dependency',
+  'tracker_create_task',
+  'tracker_get_task',
+  'tracker_list_tasks',
+  'tracker_update_task',
+  'tracker_visualize',
 ]);
 
 const DIAGNOSTIC_TOOL_NAME_ALIASES = new Set([
+  'codesearch',
   'grep_code',
+  'grep_search',
+  'list_directory',
+  'ls',
+  'lsp',
   'read_file',
+  'read_many_files',
   'search_code',
 ]);
 
@@ -303,6 +327,7 @@ const CLAUDE_CODE_PROVIDER_KEYS = new Set([
 ]);
 
 const CLAUDE_CODE_NATIVE_TOOL_NAME_ALIASES = new Map<string, string>([
+  ['ask_user_question', 'user_question'],
   ['bash', 'run_command'],
   ['edit', 'edit_file'],
   ['exit_plan_mode', 'exit_plan_mode'],
@@ -314,8 +339,14 @@ const CLAUDE_CODE_NATIVE_TOOL_NAME_ALIASES = new Map<string, string>([
   ['multiedit', 'multi_edit'],
   ['notebook_edit', 'edit_notebook'],
   ['notebookedit', 'edit_notebook'],
+  ['power_shell', 'run_command'],
+  ['powershell', 'run_command'],
   ['read', 'read_file'],
   ['task', 'task'],
+  ['task_create', 'task_create'],
+  ['task_get', 'task_get'],
+  ['task_list', 'task_list'],
+  ['task_update', 'task_update'],
   ['todo_read', 'read_todo'],
   ['todoread', 'read_todo'],
   ['todo_write', 'write_todo'],
@@ -354,20 +385,31 @@ const GEMINI_NATIVE_TOOL_NAME_ALIASES = new Map<string, string>([
   ['edit', 'edit_file'],
   ['glob', 'search_code'],
   ['grep', 'grep_code'],
+  ['grep_search', 'grep_code'],
   ['ls', 'list_files'],
+  ['list_directory', 'list_files'],
   ['read', 'read_file'],
+  ['read_many_files', 'read_file'],
+  ['replace', 'edit_file'],
+  ['run_shell_command', 'run_command'],
   ['shell_command', 'run_command'],
   ['write', 'write_file'],
+  ['write_todos', 'write_todo'],
 ]);
 
 const OPENCODE_NATIVE_TOOL_NAME_ALIASES = new Map<string, string>([
   ['bash', 'run_command'],
+  ['codesearch', 'search_code'],
   ['edit', 'edit_file'],
   ['glob', 'search_code'],
   ['grep', 'grep_code'],
   ['list', 'list_files'],
+  ['ls', 'list_files'],
+  ['multiedit', 'multi_edit'],
   ['read', 'read_file'],
   ['todowrite', 'write_todo'],
+  ['webfetch', 'web_fetch'],
+  ['websearch', 'web_search'],
   ['write', 'write_file'],
 ]);
 
@@ -388,6 +430,8 @@ const RUNTIME_STATUS_ALIASES = new Map<string, BirdCoderCodingSessionRuntimeStat
   ['done', 'completed'],
   ['failed', 'failed'],
   ['failure', 'failed'],
+  ['in_progress', 'streaming'],
+  ['interrupted', 'terminated'],
   ['initializing', 'initializing'],
   ['needs_approval', 'awaiting_approval'],
   ['needs_user', 'awaiting_user'],
@@ -400,6 +444,7 @@ const RUNTIME_STATUS_ALIASES = new Map<string, BirdCoderCodingSessionRuntimeStat
   ['running', 'streaming'],
   ['started', 'streaming'],
   ['streaming', 'streaming'],
+  ['stopped', 'terminated'],
   ['success', 'completed'],
   ['succeeded', 'completed'],
   ['terminated', 'terminated'],
@@ -426,14 +471,15 @@ const TOOL_LIFECYCLE_STATUS_ALIASES = new Map<
   ['blocked', 'failed'],
   ['cancelled', 'cancelled'],
   ['canceled', 'cancelled'],
+  ['cancel', 'cancelled'],
   ['complete', 'completed'],
   ['completed', 'completed'],
-  ['decline', 'failed'],
-  ['declined', 'failed'],
-  ['deny', 'failed'],
-  ['denied', 'failed'],
-  ['disallow', 'failed'],
-  ['disallowed', 'failed'],
+  ['decline', 'cancelled'],
+  ['declined', 'cancelled'],
+  ['deny', 'cancelled'],
+  ['denied', 'cancelled'],
+  ['disallow', 'cancelled'],
+  ['disallowed', 'cancelled'],
   ['done', 'completed'],
   ['error', 'failed'],
   ['errored', 'failed'],
@@ -444,7 +490,8 @@ const TOOL_LIFECYCLE_STATUS_ALIASES = new Map<
   ['grant', 'completed'],
   ['granted', 'completed'],
   ['in_progress', 'running'],
-  ['no', 'failed'],
+  ['interrupted', 'cancelled'],
+  ['no', 'cancelled'],
   ['needs_approval', 'awaiting_approval'],
   ['needs_user', 'awaiting_user'],
   ['ok', 'completed'],
@@ -455,14 +502,16 @@ const TOOL_LIFECYCLE_STATUS_ALIASES = new Map<
   ['permission_asked', 'awaiting_approval'],
   ['processing', 'running'],
   ['queued', 'running'],
-  ['reject', 'failed'],
-  ['rejected', 'failed'],
+  ['reject', 'cancelled'],
+  ['rejected', 'cancelled'],
   ['requested', 'running'],
   ['running', 'running'],
   ['started', 'running'],
   ['success', 'completed'],
   ['succeeded', 'completed'],
   ['terminated', 'cancelled'],
+  ['stopped', 'cancelled'],
+  ['waiting', 'running'],
   ['user_input_required', 'awaiting_user'],
   ['waiting_for_user', 'awaiting_user'],
   ['yes', 'completed'],
@@ -475,7 +524,11 @@ export function normalizeBirdCoderCodeEngineDialectKey(
     return undefined;
   }
 
-  const normalizedValue = value.trim().toLocaleLowerCase().replace(/[\s-]+/gu, '_');
+  const normalizedValue = value
+    .trim()
+    .replace(/([a-z0-9])([A-Z])/gu, '$1_$2')
+    .toLocaleLowerCase()
+    .replace(/[\s-]+/gu, '_');
   return normalizedValue.length > 0 ? normalizedValue : undefined;
 }
 

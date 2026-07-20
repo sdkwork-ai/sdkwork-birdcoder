@@ -381,8 +381,8 @@ assertActiveDocsUseCanonicalApiAndSdkLanguage();
 assertNoRetiredAdminApiSurfaceNaming();
 assertNoRetiredOpenApiSeedBuilder();
 assertNoRetiredBillingVipServerTypes();
-assert.equal(descriptor.gateway.routeCount, 160);
-assert.equal(descriptor.gateway.routesBySurface.app, 111);
+assert.equal(descriptor.gateway.routeCount, 158);
+assert.equal(descriptor.gateway.routesBySurface.app, 109);
 assert.equal(descriptor.gateway.routesBySurface.backend, 49);
 assert.deepEqual(descriptor.surfaces, ['app', 'backend']);
 assert.equal(
@@ -476,11 +476,11 @@ assert.deepEqual(openApiDocument.tags.map((tag) => tag.name), [
   'system',
   'templates',
 ]);
-assert.equal(openApiDocument['x-sdkwork-api-cloud-gateway'].routeCount, 160);
-assert.equal(openApiDocument['x-sdkwork-api-cloud-gateway'].routesBySurface.app, 111);
-assert.equal(openApiDocument['x-sdkwork-api-cloud-gateway'].routesBySurface.backend, 49);
+assert.equal(openApiDocument['x-sdkwork-api-assembly'].routeCount, 158);
+assert.equal(openApiDocument['x-sdkwork-api-assembly'].routesBySurface.app, 109);
+assert.equal(openApiDocument['x-sdkwork-api-assembly'].routesBySurface.backend, 49);
 assert.equal(
-  'basePath' in openApiDocument['x-sdkwork-api-cloud-gateway'],
+  'basePath' in openApiDocument['x-sdkwork-api-assembly'],
   false,
   'OpenAPI gateway extension must not publish a third top-level basePath outside /app/v3/api and /backend/v3/api.',
 );

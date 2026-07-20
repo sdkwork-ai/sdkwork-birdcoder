@@ -137,6 +137,18 @@
         "packageByLanguage": {
           "typescript": "@sdkwork/messaging-app-sdk"
         }
+      },
+      {
+        "workspace": "sdkwork-membership-app-sdk",
+        "role": "membership-app-capability",
+        "required": true,
+        "dependencyMode": "consumer-sdk",
+        "apiPrefix": "/app/v3/api/memberships",
+        "apiAuthority": "sdkwork-membership-app-api",
+        "generatedTransportImportPolicy": "forbidden",
+        "packageByLanguage": {
+          "typescript": "@sdkwork/membership-app-sdk"
+        }
       }
     ],
     "sdkClients": [
@@ -152,7 +164,7 @@
   },
   "integration": {
     "authority": "BirdCoder app SDK owns only sdkwork-birdcoder app-api operations.",
-    "dependencyPolicy": "Appbase app, Drive app, and Messaging app capabilities are consumed through dependency SDKs, not copied into BirdCoder generated transport.",
+    "dependencyPolicy": "Appbase app, Drive app, Messaging app, and Membership app capabilities are consumed through dependency SDKs, not copied into BirdCoder generated transport.",
     "sdkPolicy": "Generated transport must move under generated/server-openapi when canonical sdkgen dependencies are available.",
     "languagePolicy": "TypeScript and Rust compatibility packages preserve current exports until composed wrappers replace direct generated compatibility output."
   },

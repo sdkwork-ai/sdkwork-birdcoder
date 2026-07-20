@@ -3,10 +3,10 @@ import {
   buildBirdCoderEditorModelPath,
   ContentWorkbench,
   DeferredFileExplorer,
-  FileChangeDiffViewer,
   resolveContentPreviewDescriptor,
   type FileNode,
 } from '@sdkwork/birdcoder-pc-ui';
+import { FileChangeDiffViewer } from '@sdkwork/birdcoder-pc-ui/components/FileChangeDiffViewer';
 import { ResizeHandle } from '@sdkwork/birdcoder-pc-ui-shell';
 import type { FileChange } from '@sdkwork/birdcoder-pc-contracts-commons';
 import { X } from 'lucide-react';

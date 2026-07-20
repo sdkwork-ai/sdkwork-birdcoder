@@ -102,7 +102,7 @@ export function resolveMessageActionTargetCopyText(
 
   for (let index = startIndex; index <= endIndex; index += 1) {
     const message = messages[index];
-    if (!message) {
+    if (!message || message.role === 'tool') {
       continue;
     }
 

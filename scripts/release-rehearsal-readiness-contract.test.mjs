@@ -25,8 +25,8 @@ assert.equal(
 );
 assert.equal(
   packageJson.scripts['release:plan'],
-  'node scripts/release/local-release-command.mjs plan',
-  'Root package.json must expose release:plan for governed release planning.',
+  'pnpm exec sdkwork-app release:plan',
+  'Root package.json must expose governed release planning through the shared sdkwork-app facade.',
 );
 
 assert.match(

@@ -9,27 +9,18 @@ function read(relativePath) {
   return fs.readFileSync(path.join(rootDir, relativePath), 'utf8');
 }
 
+const assemblyCargo = read('crates/sdkwork-api-birdcoder-assembly/Cargo.toml');
+const assemblyBootstrap = read('crates/sdkwork-api-birdcoder-assembly/src/bootstrap.rs');
 const stackRunner = read('scripts/run-birdcoder-dev-stack.mjs');
-assert.match(stackRunner, /foundation-drive,foundation-membership/u);
+assert.match(assemblyCargo, /sdkwork-api-membership-assembly\.workspace = true/u);
+assert.match(
+  assemblyBootstrap,
+  /sdkwork_api_membership_assembly::assemble_api_router_from_env\(\)/u,
+);
+assert.match(assemblyBootstrap, /\.merge\(membership\.router\)/u);
 assert.match(stackRunner, /SDKWORK_MEMBERSHIP_DATABASE_URL/u);
 assert.match(stackRunner, /SDKWORK_MEMBERSHIP_APP_ROOT/u);
-assert.match(stackRunner, /sdkwork-membership-app-api/u);
-assert.match(stackRunner, /sdkwork-membership-backend-api/u);
-
-for (const profile of ['development', 'test', 'staging', 'production']) {
-  const source = read(`etc/sdkwork-api-cloud-gateway.birdcoder.${profile}.toml`);
-  assert.match(source, /serviceId = "sdkwork-membership-app-api"/u);
-  assert.match(source, /apiPrefix = "\/app\/v3\/api\/memberships"/u);
-  assert.match(source, /serviceId = "sdkwork-membership-backend-api"/u);
-  assert.match(source, /apiPrefix = "\/backend\/v3\/api\/memberships"/u);
-  assert.match(source, /cargoFeature = "foundation-membership"/u);
-  assert.match(source, /cargoDependency = "sdkwork-membership-gateway-assembly"/u);
-  assert.match(
-    source,
-    /sdkwork_membership_gateway_assembly::assemble_api_router_from_env/u,
-  );
-  assert.doesNotMatch(source, /upstream|proxy|split|baseUrl/u);
-}
+assert.doesNotMatch(stackRunner, /platformGateway|cloud-gateway/u);
 
 const membershipBootstrap = read(
   'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/src/services/membershipSdkBootstrap.ts',

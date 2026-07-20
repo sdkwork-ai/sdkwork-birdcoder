@@ -142,7 +142,7 @@ export function buildBirdCoderCodingServerOpenApiDocument(
       schemas,
     },
     paths,
-    'x-sdkwork-api-cloud-gateway': {
+    'x-sdkwork-api-assembly': {
       versionedOpenApiPaths: [BIRDCODER_CODING_SERVER_OPENAPI_PATH],
       docsPath: BIRDCODER_CODING_SERVER_DOCS_PATH,
       liveOpenApiPath: BIRDCODER_CODING_SERVER_LIVE_OPENAPI_PATH,

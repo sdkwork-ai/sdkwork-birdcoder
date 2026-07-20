@@ -49,6 +49,7 @@ import { revealTauriPathInFileManager } from '@sdkwork/birdcoder-pc-workbench/pl
 import { ToastProvider, useToast } from '@sdkwork/birdcoder-pc-workbench/contexts/ToastProvider';
 import { useIDEServices } from '@sdkwork/birdcoder-pc-workbench/context/IDEContext';
 import { useAuth } from '@sdkwork/birdcoder-pc-workbench/context/AuthContext';
+import { buildBirdCoderAuthSessionInventoryScope } from '@sdkwork/birdcoder-pc-workbench/context/authSessionScope';
 import { usePersistedState } from '@sdkwork/birdcoder-pc-workbench/hooks/usePersistedState';
 import { useProjects } from '@sdkwork/birdcoder-pc-workbench/hooks/useProjects';
 import { useWorkbenchChatSelection } from '@sdkwork/birdcoder-pc-workbench/hooks/useWorkbenchChatSelection';
@@ -100,7 +101,7 @@ export function AppContent() {
     projectRuntimeLocationService,
     projectService,
   } = useIDEServices();
-  const { user, isLoading: isAuthLoading, logout } = useAuth();
+  const { user, isLoading: isAuthLoading, logout, sessionRevision } = useAuth();
   const { addToast } = useToast();
   const { preferences, updatePreferences } = useWorkbenchPreferences();
   const [activeTab, setActiveTab] = useState<AppTab>(() => resolveBirdCoderInitialAppTab());
@@ -110,6 +111,10 @@ export function AppContent() {
     DEFAULT_WORKBENCH_RECOVERY_SNAPSHOT,
   );
   const currentWorkbenchUserScope = normalizeWorkbenchRecoveryUserScope(user?.id);
+  const currentWorkbenchSessionScope = buildBirdCoderAuthSessionInventoryScope(
+    user?.id,
+    sessionRevision,
+  );
   const normalizedStoredRecoverySnapshot = useMemo(
     () => normalizeWorkbenchRecoverySnapshot(recoverySnapshot),
     [recoverySnapshot],
@@ -126,13 +131,13 @@ export function AppContent() {
   const [activeWorkspaceId, setActiveWorkspaceId] = useState<string>('');
   const [activeProjectId, setActiveProjectId] = useState<string>('');
   const [activeCodingSessionId, setActiveCodingSessionId] = useState<string>('');
-  const previousWorkbenchUserScopeRef = useRef(currentWorkbenchUserScope);
-  const isWorkbenchSelectionForCurrentUser =
-    previousWorkbenchUserScopeRef.current === currentWorkbenchUserScope;
-  const scopedActiveWorkspaceId = isWorkbenchSelectionForCurrentUser ? activeWorkspaceId : '';
-  const scopedActiveProjectId = isWorkbenchSelectionForCurrentUser ? activeProjectId : '';
+  const previousWorkbenchSessionScopeRef = useRef(currentWorkbenchSessionScope);
+  const isWorkbenchSelectionForCurrentSession =
+    previousWorkbenchSessionScopeRef.current === currentWorkbenchSessionScope;
+  const scopedActiveWorkspaceId = isWorkbenchSelectionForCurrentSession ? activeWorkspaceId : '';
+  const scopedActiveProjectId = isWorkbenchSelectionForCurrentSession ? activeProjectId : '';
   const scopedActiveCodingSessionId =
-    isWorkbenchSelectionForCurrentUser ? activeCodingSessionId : '';
+    isWorkbenchSelectionForCurrentSession ? activeCodingSessionId : '';
   const {
     workspaces,
     error: workspacesError,
@@ -629,12 +634,12 @@ export function AppContent() {
   );
 
   useEffect(() => {
-    const previousWorkbenchUserScope = previousWorkbenchUserScopeRef.current;
-    if (previousWorkbenchUserScope === currentWorkbenchUserScope) {
+    const previousWorkbenchSessionScope = previousWorkbenchSessionScopeRef.current;
+    if (previousWorkbenchSessionScope === currentWorkbenchSessionScope) {
       return;
     }
 
-    previousWorkbenchUserScopeRef.current = currentWorkbenchUserScope;
+    previousWorkbenchSessionScopeRef.current = currentWorkbenchSessionScope;
     pendingImportedProjectIdRef.current = '';
     pendingImportedWorkspaceIdRef.current = '';
     lastPersistedRecoverySnapshotRef.current = null;
@@ -645,7 +650,7 @@ export function AppContent() {
     clearActiveCodingSessionSelection();
     setProjectActionsMenuId(null);
     setShowWorkspaceMenu(false);
-  }, [clearActiveCodingSessionSelection, currentWorkbenchUserScope]);
+  }, [clearActiveCodingSessionSelection, currentWorkbenchSessionScope]);
 
   useEffect(() => {
     if (!isRecoveryHydrated || recoverySessionIdRef.current) {

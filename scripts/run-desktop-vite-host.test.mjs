@@ -77,23 +77,15 @@ const findAlias = (predicate, message) => {
   return aliasEntry;
 };
 
-const birdcoderPackageSubpathAlias = findAlias(
-  (entry) => entry.find instanceof RegExp
-    && entry.find.test('@sdkwork/birdcoder-pc-infrastructure/storage/dataKernel'),
-  'Desktop host config must define a dedicated BirdCoder package-subpath alias.',
-);
 assert.equal(
-  birdcoderPackageSubpathAlias.replacement,
-  path.resolve(desktopRootDir, '../sdkwork-birdcoder-$1/src/$2'),
-);
-
-const birdcoderPackageRootAlias = findAlias(
-  (entry) => entry.find instanceof RegExp && entry.find.test('@sdkwork/birdcoder-pc-projection'),
-  'Desktop host config must define a BirdCoder package-root alias.',
-);
-assert.equal(
-  birdcoderPackageRootAlias.replacement,
-  path.resolve(desktopRootDir, '../sdkwork-birdcoder-$1/src'),
+  config.resolve.alias.some((entry) =>
+    entry.find instanceof RegExp
+    && (
+      entry.find.test('@sdkwork/birdcoder-pc-infrastructure/storage/dataKernel')
+      || entry.find.test('@sdkwork/birdcoder-pc-projection')
+    )),
+  false,
+  'Desktop host config must resolve BirdCoder workspace packages through package exports.',
 );
 
 for (const sdkFacadeName of ['birdcoder-app', 'drive-app', 'messaging-app']) {
@@ -108,11 +100,6 @@ for (const sdkFacadeName of ['birdcoder-app', 'drive-app', 'messaging-app']) {
       desktopRootDir,
       `../sdkwork-birdcoder-pc-core/src/sdk/${sdkFacadeName}-sdk.ts`,
     ),
-  );
-  assert.ok(
-    config.resolve.alias.indexOf(sdkFacadeAlias)
-      < config.resolve.alias.indexOf(birdcoderPackageSubpathAlias),
-    `${sdkFacadeName} SDK facade alias must take precedence over the generic BirdCoder package-subpath alias.`,
   );
 }
 
@@ -327,11 +314,6 @@ assert.ok(
       || !entry.find.test('@sdkwork/terminal-app-sdk'),
   ),
   'Terminal package aliases must not shadow the dedicated terminal app SDK alias.',
-);
-assert.notEqual(
-  birdcoderPackageSubpathAlias.replacement,
-  path.resolve(desktopRootDir, '../sdkwork-birdcoder-$1/src'),
-  'Desktop host config must keep a dedicated package-subpath alias before the package-root alias.',
 );
 assert.equal(config.server.host, '127.0.0.1');
 assert.equal(config.server.port, 1520);

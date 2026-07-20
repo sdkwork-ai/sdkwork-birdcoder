@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import type { BirdCoderReleaseSummary } from '@sdkwork/birdcoder-pc-contracts-commons';
 import { createDefaultBirdCoderIdeServices } from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/src/services/defaultIdeServices.ts';
 import { createBackendSdkClientContractStub } from './split-sdk-client-contract-stub.ts';
+import { installBirdCoderTestRuntimeEnv } from './test-birdcoder-runtime-env-fixture.ts';
 
 const releaseFixtures: BirdCoderReleaseSummary[] = [
   {
@@ -23,6 +24,7 @@ const backendClient: BirdCoderBackendSdkApiClient = createBackendSdkClientContra
   },
 });
 
+const restoreRuntimeEnv = installBirdCoderTestRuntimeEnv();
 const services = createDefaultBirdCoderIdeServices({
   backendClient,
 });
@@ -41,4 +43,5 @@ assert.equal(
   'releaseService must delegate exactly one read to BirdCoderBackendSdkApiClient.listReleases().',
 );
 
+restoreRuntimeEnv();
 console.log('default IDE services release service contract passed.');

@@ -1,7 +1,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { createSdkworkCredentialEntryBootstrapVitePlugin } from '../../../../../sdkwork-iam/apps/sdkwork-iam-common/packages/sdkwork-iam-credential-entry/src/vite.ts';
+import { createSdkworkCredentialEntryBootstrapVitePlugin } from '@sdkwork/iam-credential-entry/vite';
 import { defineConfig, loadEnv, type Plugin } from 'vite';
 import {
   BIRDCODER_VITE_DEDUPE_PACKAGES,

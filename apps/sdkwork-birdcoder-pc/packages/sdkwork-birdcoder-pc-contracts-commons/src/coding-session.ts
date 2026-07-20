@@ -950,6 +950,7 @@ const BIRDCODER_TEXT_CONTENT_VALUE_KEYS = [
   'text',
   'content',
   'message',
+  'response',
   'summary',
   'value',
 ] as const;
@@ -972,25 +973,38 @@ const BIRDCODER_NON_ANSWER_CONTENT_TYPES = new Set([
   'canceled',
   'cancelled',
   'chat_compressed',
+  'collab_agent_tool_call',
+  'command_execution',
   'compact_boundary',
   'compaction',
+  'context_compaction',
   'custom_tool_call',
   'custom_tool_call_output',
+  'dynamic_tool_call',
+  'error',
+  'file_change',
   'function_call',
   'function_call_output',
   'image_generation_call',
+  'image_generation',
+  'image_view',
   'local_shell_call',
   'mcp_tool_result',
+  'mcp_tool_call',
   'mcp_tool_use',
   'reasoning',
   'redacted_thinking',
   'retry',
+  'patch',
+  'session_error',
+  'snapshot',
   'step_finish',
   'step_start',
   'subtask',
   'stopped',
   'thinking',
   'thought',
+  'tool',
   'tool_call_confirmation',
   'tool_call_request',
   'tool_call_response',
@@ -999,27 +1013,83 @@ const BIRDCODER_NON_ANSWER_CONTENT_TYPES = new Set([
   'tool_search_output',
   'tool_use',
   'tool_use_summary',
+  'streamlined_tool_use_summary',
   'todo_list',
   'user_cancelled',
   'web_fetch_tool_result',
   'web_search_call',
+  'web_search',
   'web_search_tool_result',
   'server_tool_use',
+  'sleep',
+  'sub_agent_activity',
   'code_execution_tool_result',
   'bash_code_execution_tool_result',
   'text_editor_code_execution_tool_result',
   'tool_search_tool_result',
 ]);
 
+const BIRDCODER_NON_ANSWER_SYSTEM_SUBTYPES = new Set([
+  'api_retry',
+  'background_tasks_changed',
+  'informational',
+  'local_command_output',
+  'mirror_error',
+  'model_refusal_fallback',
+  'model_refusal_no_fallback',
+  'notification',
+  'permission_denied',
+  'task_notification',
+  'task_progress',
+  'task_started',
+  'task_updated',
+]);
+
 function normalizeBirdCoderContentType(value: unknown): string {
   return typeof value === 'string'
-    ? value.trim().toLowerCase().replace(/[.\s-]+/gu, '_')
+    ? value
+        .trim()
+        .replace(/([a-z0-9])([A-Z])/gu, '$1_$2')
+        .toLowerCase()
+        .replace(/[.\s-]+/gu, '_')
     : '';
+}
+
+function isBirdCoderTrueProtocolFlag(value: unknown): boolean {
+  return value === true
+    || (typeof value === 'string' && value.trim().toLowerCase() === 'true');
+}
+
+function hasBirdCoderProtocolErrorFlag(record: Record<string, unknown>): boolean {
+  return isBirdCoderTrueProtocolFlag(record.is_error)
+    || isBirdCoderTrueProtocolFlag(record.isError);
+}
+
+function isBirdCoderCancellationDetail(value: string): boolean {
+  return /^\[?(?:(?:operation|request|tool|command|user)\s+)?(?:was\s+)?cancel(?:led|ed)(?:\]|\b)/iu
+    .test(value.trim());
 }
 
 function isBirdCoderNonAnswerContentRecord(record: Record<string, unknown>): boolean {
   const contentType = normalizeBirdCoderContentType(record.type);
+  const contentSubtype = normalizeBirdCoderContentType(record.subtype);
+  const contentStatus = normalizeBirdCoderContentType(record.status);
+  const contentRole = normalizeBirdCoderContentType(record.role);
   return BIRDCODER_NON_ANSWER_CONTENT_TYPES.has(contentType)
+    || (contentType === 'system' && BIRDCODER_NON_ANSWER_SYSTEM_SUBTYPES.has(contentSubtype))
+    || (
+      (contentType === 'assistant' || contentRole === 'assistant')
+      && record.error !== undefined
+      && record.error !== null
+    )
+    || (
+      contentType === 'result'
+      && (
+        contentStatus === 'error'
+        || contentSubtype.startsWith('error_')
+        || hasBirdCoderProtocolErrorFlag(record)
+      )
+    )
     || record.ignored === true
     || record.thought === true
     || 'functionCall' in record
@@ -1032,7 +1102,8 @@ export type BirdCoderProtocolNoticeKind =
   | 'compression'
   | 'failed'
   | 'retry'
-  | 'stopped';
+  | 'stopped'
+  | 'warning';
 
 export interface BirdCoderProtocolNotice {
   kind: BirdCoderProtocolNoticeKind;
@@ -1059,14 +1130,33 @@ function projectBirdCoderProtocolNotice(
   const type = normalizeBirdCoderContentType(record.type);
   const subtype = normalizeBirdCoderContentType(record.subtype);
   const status = normalizeBirdCoderContentType(record.status);
+  const role = normalizeBirdCoderContentType(record.role);
+  const severity = normalizeBirdCoderContentType(record.severity);
   const value = record.value && typeof record.value === 'object' && !Array.isArray(record.value)
     ? record.value as Record<string, unknown>
     : null;
-  const detail = readBirdCoderProtocolNoticeString(value, ['systemMessage', 'reason', 'message'])
-    || readBirdCoderProtocolNoticeString(record, ['systemMessage', 'reason', 'message']);
+  const nestedError = value?.error && typeof value.error === 'object' && !Array.isArray(value.error)
+    ? value.error as Record<string, unknown>
+    : record.error && typeof record.error === 'object' && !Array.isArray(record.error)
+      ? record.error as Record<string, unknown>
+      : null;
+  const nestedErrorData = nestedError?.data
+    && typeof nestedError.data === 'object'
+    && !Array.isArray(nestedError.data)
+    ? nestedError.data as Record<string, unknown>
+    : null;
+  const providerErrorName = normalizeBirdCoderContentType(nestedError?.name);
+  const detail = readBirdCoderProtocolNoticeString(nestedError, ['message', 'reason', 'detail'])
+    || readBirdCoderProtocolNoticeString(nestedErrorData, ['message', 'reason', 'detail'])
+    || readBirdCoderProtocolNoticeString(value, ['systemMessage', 'reason', 'message'])
+    || readBirdCoderProtocolNoticeString(record, ['systemMessage', 'reason', 'message', 'error']);
+
+  if (isBirdCoderCancellationDetail(detail)) {
+    return { kind: 'cancelled', message: detail };
+  }
 
   if (
-    ['chat_compressed', 'compaction', 'compact_boundary'].includes(type)
+    ['chat_compressed', 'compaction', 'compact_boundary', 'context_compaction'].includes(type)
     || subtype === 'compact_boundary'
   ) {
     return { kind: 'compression', message: 'Conversation context compressed.' };
@@ -1074,7 +1164,7 @@ function projectBirdCoderProtocolNotice(
   if (type === 'system' && subtype === 'status' && status === 'compacting') {
     return { kind: 'compression', message: 'Compacting conversation context.' };
   }
-  if (type === 'retry' || status === 'retrying') {
+  if (type === 'retry' || subtype === 'api_retry' || status === 'retrying') {
     const attempt = typeof record.attempt === 'number' && Number.isFinite(record.attempt)
       ? Math.max(1, Math.floor(record.attempt))
       : undefined;
@@ -1083,6 +1173,79 @@ function projectBirdCoderProtocolNotice(
       message: attempt
         ? `Retrying provider request (attempt ${attempt}).`
         : 'Retrying provider request.',
+    };
+  }
+  if (type === 'system' && subtype === 'model_refusal_fallback' && record.direction === 'retry') {
+    const fallbackModel = readBirdCoderProtocolNoticeString(record, ['fallback_model']);
+    return {
+      kind: 'retry',
+      message: fallbackModel
+        ? `Model response refused; retrying with ${fallbackModel}.`
+        : 'Model response refused; retrying with a fallback model.',
+    };
+  }
+  if (type === 'system' && subtype === 'model_refusal_no_fallback') {
+    const refusalDetail = readBirdCoderProtocolNoticeString(
+      record,
+      ['api_refusal_explanation', 'content'],
+    );
+    return {
+      kind: 'failed',
+      message: refusalDetail || 'Model response was refused and no fallback was available.',
+    };
+  }
+  if (type === 'error' && severity === 'warning') {
+    return {
+      kind: 'warning',
+      message: detail || 'Provider warning.',
+    };
+  }
+  if (type === 'error') {
+    return { kind: 'failed', message: detail || 'Provider request failed.' };
+  }
+  if (type === 'assistant' && record.aborted === true) {
+    return { kind: 'cancelled', message: 'Generation cancelled.' };
+  }
+  if (type === 'system' && subtype === 'permission_denied') {
+    // The Claude adapter correlates this event to its tool_use_id and renders
+    // one cancelled tool lifecycle row. A second notice would duplicate it.
+    return null;
+  }
+  if (type === 'system' && subtype === 'mirror_error') {
+    return {
+      kind: 'failed',
+      message: detail ? `Transcript persistence failed: ${detail}` : 'Transcript persistence failed.',
+    };
+  }
+  if (
+    providerErrorName === 'message_aborted_error'
+    && (role === 'assistant' || type === 'assistant' || type === 'session_error')
+  ) {
+    return { kind: 'cancelled', message: detail || 'Generation cancelled.' };
+  }
+  if (
+    (role === 'assistant' || type === 'assistant' || type === 'session_error')
+    && record.error !== undefined
+    && record.error !== null
+  ) {
+    return { kind: 'failed', message: detail || 'Provider request failed.' };
+  }
+  if (
+    type === 'result'
+    && (
+      status === 'error'
+      || subtype.startsWith('error_')
+      || hasBirdCoderProtocolErrorFlag(record)
+    )
+  ) {
+    const errors = Array.isArray(record.errors)
+      ? record.errors.filter((error): error is string =>
+          typeof error === 'string' && Boolean(error.trim()),
+        )
+      : [];
+    return {
+      kind: 'failed',
+      message: errors[0]?.trim() || detail || 'Provider request failed.',
     };
   }
   if (['user_cancelled', 'cancelled', 'canceled'].includes(type)) {
@@ -1184,6 +1347,16 @@ function extractBirdCoderTextContentInternal(
   visitedObjects.add(value);
 
   const record = value as Record<string, unknown>;
+  const contentType = normalizeBirdCoderContentType(record.type);
+  const contentSubtype = normalizeBirdCoderContentType(record.subtype);
+  if (
+    contentType === 'result'
+    && contentSubtype === 'success'
+    && !hasBirdCoderProtocolErrorFlag(record)
+    && typeof record.result === 'string'
+  ) {
+    return normalizeBirdCoderTextFragment(record.result);
+  }
   if (isBirdCoderNonAnswerContentRecord(record)) {
     return undefined;
   }

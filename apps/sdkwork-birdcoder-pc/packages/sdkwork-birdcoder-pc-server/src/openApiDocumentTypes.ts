@@ -190,7 +190,7 @@ export interface BirdCoderCodingServerOpenApiDocument {
       >
     >
   >;
-  'x-sdkwork-api-cloud-gateway': {
+  'x-sdkwork-api-assembly': {
     versionedOpenApiPaths: string[];
     docsPath: typeof BIRDCODER_CODING_SERVER_DOCS_PATH;
     liveOpenApiPath: typeof BIRDCODER_CODING_SERVER_LIVE_OPENAPI_PATH;

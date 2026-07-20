@@ -1,12 +1,12 @@
 {
   "schemaVersion": 2,
-  "updatedAt": "2026-07-17",
+  "updatedAt": "2026-07-20",
   "openApiSnapshotPath": "deployments/server-windows/x64/openapi/coding-server-v1.json",
   "summary": {
     "contractOperationCount": 157,
     "rustProductManifestRouteCount": 91,
-    "iamFederationManifestRouteCount": 198,
-    "hostManifestRouteCount": 289,
+    "iamFederationManifestRouteCount": 207,
+    "hostManifestRouteCount": 298,
     "implementedOperationCount": 157,
     "deferredOperationCount": 0
   },

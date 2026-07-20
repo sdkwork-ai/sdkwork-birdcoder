@@ -17,6 +17,7 @@ import {
   canSubscribeBirdCoderWorkspaceRealtime,
 } from '@sdkwork/birdcoder-pc-infrastructure-runtime/workspaceRealtime';
 import { useAuth } from '../context/AuthContext.ts';
+import { buildBirdCoderAuthSessionInventoryScope } from '../context/authSessionScope.ts';
 import { useIDEServices } from '../context/IDEContext.ts';
 import {
   buildProjectsStoreScopeKey,
@@ -923,8 +924,10 @@ export interface UseProjectsOptions {
 export function useProjects(workspaceId?: string, options?: UseProjectsOptions) {
   const { appRuntimeReadService, projectService } = useIDEServices();
   const resolveProjectRuntimeLocation = useProjectRuntimeLocation();
-  const { user } = useAuth();
-  const normalizedUserScope = normalizeProjectsStoreUserScope(user?.id);
+  const { sessionRevision, user } = useAuth();
+  const normalizedUserScope = normalizeProjectsStoreUserScope(
+    buildBirdCoderAuthSessionInventoryScope(user?.id, sessionRevision),
+  );
   const normalizedWorkspaceId = workspaceId?.trim() ?? '';
   const shouldEnableRealtime = options?.enableRealtime ?? true;
   const shouldFetchOnMount = options?.fetchOnMount ?? true;

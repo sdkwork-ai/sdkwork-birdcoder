@@ -5,6 +5,7 @@ import {
   type IWorkspace,
 } from '@sdkwork/birdcoder-pc-contracts-commons';
 import { useAuth } from '../context/AuthContext.ts';
+import { buildBirdCoderAuthSessionInventoryScope } from '../context/authSessionScope.ts';
 import { useIDEServices } from '../context/IDEContext.ts';
 import type {
   BirdCoderServiceListPage,
@@ -378,9 +379,11 @@ export interface UseWorkspacesOptions {
 
 export function useWorkspaces(options: UseWorkspacesOptions = {}) {
   const { workspaceService } = useIDEServices();
-  const { user } = useAuth();
+  const { sessionRevision, user } = useAuth();
   const isActive = options.isActive ?? true;
-  const normalizedUserScope = normalizeWorkspacesStoreUserScope(user?.id);
+  const normalizedUserScope = normalizeWorkspacesStoreUserScope(
+    buildBirdCoderAuthSessionInventoryScope(user?.id, sessionRevision),
+  );
   const pageRequest = useMemo<BirdCoderServicePageRequest>(
     () => {
       const pageSize = options.limit ?? DEFAULT_LIST_PAGE_SIZE;

@@ -1,5 +1,5 @@
 import React, { memo } from 'react';
-import { Archive, Ban, CircleStop, RefreshCw, ShieldX, TriangleAlert } from 'lucide-react';
+import { Archive, Ban, CircleStop, Copy, RefreshCw, ShieldX, TriangleAlert } from 'lucide-react';
 import type { CommandExecution } from '@sdkwork/birdcoder-pc-workbench/chat/types';
 import { ChatActivitySummary } from '../activity/ChatActivitySummary.tsx';
 import {
@@ -7,6 +7,7 @@ import {
   normalizeActivityFileChanges,
 } from '../activity/activityBlockSupport.ts';
 import { ChatTaskProgress } from '../blocks/ChatTaskProgress.tsx';
+import { buildChatContentPreview } from '../contentPreview.ts';
 import type { ChatMessageContentBlockRendererProps } from './registry.ts';
 import { ToolCallCard } from './ToolCallCard.tsx';
 
@@ -17,7 +18,10 @@ const NOTICE_DEFAULT_CONTENT = {
   failed: 'Provider request failed',
   retry: 'Retrying provider request',
   stopped: 'Agent execution stopped',
+  warning: 'Provider warning',
 } as const;
+
+const MAX_NOTICE_DETAIL_PREVIEW_CHARACTERS = 4_000;
 
 function resolveNoticeDetail(
   noticeKind: keyof typeof NOTICE_DEFAULT_CONTENT,
@@ -119,24 +123,54 @@ export const MarkdownContentBlockRenderer = memo(function MarkdownContentBlockRe
         icon: CircleStop,
         label: context.environment?.t('chat.noticeStopped') ?? 'Agent execution stopped',
       },
+      warning: {
+        icon: TriangleAlert,
+        label: context.environment?.t('chat.noticeWarning') ?? 'Provider warning',
+      },
     } as const;
-    const notice = notices[block.noticeKind];
+    const noticeKind = block.noticeKind;
+    const notice = notices[noticeKind];
     const NoticeIcon = notice.icon;
-    const noticeDetail = resolveNoticeDetail(block.noticeKind, block.content);
-    const isFailure = block.noticeKind === 'failed';
+    const noticeDetail = resolveNoticeDetail(noticeKind, block.content);
+    const noticeDetailPreview = buildChatContentPreview(noticeDetail, {
+      maxCharacters: MAX_NOTICE_DETAIL_PREVIEW_CHARACTERS,
+      tailCharacters: 1_000,
+    });
+    const isFailure = noticeKind === 'failed';
+    const isWarning = noticeKind === 'warning';
+    const copyLabel = context.environment?.t('common.copy') ?? 'Copy';
 
     return (
       <div
-        className={`flex min-w-0 items-center gap-2 py-1 text-[12px] ${isFailure ? 'text-red-300/90' : 'text-gray-500'}`}
-        data-chat-system-notice={block.noticeKind}
-        role={isFailure ? 'alert' : 'status'}
+        className={`flex min-w-0 items-start gap-2 py-1 text-[12px] ${
+          isFailure
+            ? 'text-red-300/90'
+            : isWarning
+              ? 'text-amber-200/90'
+              : 'text-gray-500'
+        }`}
+        data-chat-system-notice={noticeKind}
+        role="note"
       >
-        <NoticeIcon size={13} className="shrink-0" />
+        <NoticeIcon size={13} className="mt-0.5 shrink-0" aria-hidden="true" />
         <span className="shrink-0 font-medium">{notice.label}</span>
-        {noticeDetail ? (
-          <span className="min-w-0 truncate text-gray-500" title={block.content}>
-            {noticeDetail}
+        {noticeDetailPreview.text ? (
+          <span
+            className={`min-w-0 flex-1 whitespace-pre-wrap break-words ${isWarning ? 'text-amber-200/75' : 'text-gray-500'}`}
+          >
+            {noticeDetailPreview.text}
           </span>
+        ) : null}
+        {noticeDetailPreview.isTruncated ? (
+          <button
+            type="button"
+            className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-gray-400 transition-colors hover:bg-white/10 hover:text-gray-200 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-blue-400/70"
+            title={copyLabel}
+            aria-label={`${copyLabel}: ${notice.label}`}
+            onClick={() => context.copyMessageToClipboard(block.content)}
+          >
+            <Copy size={11} aria-hidden="true" />
+          </button>
         ) : null}
       </div>
     );
@@ -214,7 +248,7 @@ export const TaskProgressContentBlockRenderer = memo(function TaskProgressConten
 
   return (
     <div className={context.layout === 'sidebar' ? 'mt-1.5' : 'mt-2'}>
-      <ChatTaskProgress taskProgress={block.progress} />
+      <ChatTaskProgress taskProgress={block.progress} t={context.environment?.t} />
     </div>
   );
 });

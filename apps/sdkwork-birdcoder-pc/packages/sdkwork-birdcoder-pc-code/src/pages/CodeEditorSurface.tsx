@@ -2,9 +2,9 @@ import { memo, useDeferredValue, useMemo } from 'react';
 import {
   buildBirdCoderEditorModelPath,
   ContentWorkbench,
-  FileChangeDiffViewer,
   resolveContentPreviewDescriptor,
 } from '@sdkwork/birdcoder-pc-ui';
+import { FileChangeDiffViewer } from '@sdkwork/birdcoder-pc-ui/components/FileChangeDiffViewer';
 import { Button } from '@sdkwork/birdcoder-pc-ui-shell';
 import type { FileChange } from '@sdkwork/birdcoder-pc-contracts-commons';
 import { FileCode2, FolderPlus, X } from 'lucide-react';

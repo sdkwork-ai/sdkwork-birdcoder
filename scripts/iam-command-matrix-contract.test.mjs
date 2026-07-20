@@ -116,15 +116,15 @@ test('birdcoder IAM command matrix governs standard local, standalone, and cloud
 
   assert.equal(
     workspacePackageJson.scripts?.dev,
-    'pnpm run dev:browser',
+    'pnpm dev:standalone',
   );
   assert.equal(
     workspacePackageJson.scripts?.['dev:browser:postgres:standalone'],
-    'node scripts/birdcoder-dev.mjs web --deployment-profile standalone',
+    'pnpm exec sdkwork-app dev --runtime-target browser --deployment-profile standalone',
   );
   assert.equal(
     workspacePackageJson.scripts?.['dev:browser:cloud'],
-    'node scripts/birdcoder-dev.mjs web --deployment-profile cloud',
+    'pnpm exec sdkwork-app dev --runtime-target browser --deployment-profile cloud',
   );
   assert.equal(
     workspacePackageJson.scripts?.['check:env:browser:standalone'],
@@ -144,12 +144,12 @@ test('birdcoder IAM command matrix governs standard local, standalone, and cloud
   );
   assert.equal(
     workspacePackageJson.scripts?.['dev:browser:standalone'],
-    'node scripts/run-birdcoder-dev-stack.mjs web --iam-mode server-private',
+    'pnpm exec sdkwork-app dev --runtime-target browser --deployment-profile standalone',
   );
   assert.equal(
     workspacePackageJson.scripts?.['dev:desktop:standalone'],
-    'node scripts/run-birdcoder-dev-stack.mjs desktop --iam-mode server-private',
-    'Root standalone desktop dev must start the standardized server and client stack.',
+    'pnpm exec sdkwork-app dev --runtime-target desktop --deployment-profile standalone',
+    'Root standalone desktop dev must delegate through the shared lifecycle facade.',
   );
   assert.equal(
     desktopPackageJson.scripts?.['dev:desktop:standalone'],

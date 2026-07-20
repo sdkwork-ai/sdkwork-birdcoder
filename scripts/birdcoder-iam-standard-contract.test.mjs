@@ -202,8 +202,18 @@ assert.match(
 );
 assert.match(
   iamIntegrationSource,
+  /from ["']@sdkwork\/birdcoder-pc-infrastructure\/services\/iamRuntime["']/u,
+  'BirdCoder IAM facade must consume the infrastructure IAM runtime through its controlled service subpath.',
+);
+assert.match(
+  iamIntegrationSource,
+  /from ["']@sdkwork\/birdcoder-pc-infrastructure\/services\/sessionService["']/u,
+  'BirdCoder IAM facade must consume infrastructure sessions through the controlled service subpath.',
+);
+assert.doesNotMatch(
+  iamIntegrationSource,
   /from ["']@sdkwork\/birdcoder-pc-infrastructure["']/u,
-  'BirdCoder IAM facade must consume infrastructure runtime and session boundaries through the workspace public entry.',
+  'BirdCoder IAM facade must not pull the infrastructure root barrel for focused runtime and session services.',
 );
 assert.match(
   iamIntegrationSource,

@@ -25,7 +25,7 @@ const entrypointContracts = [
     launchPattern: /void runSdkworkBirdcoderStructureCheckCli\(\)/,
   },
   {
-    scriptName: 'generate:rust-host-engine-catalog',
+    scriptName: 'models:generate:rust-host-engine-catalog',
     command: 'node --experimental-strip-types scripts/generate-rust-host-engine-catalog.ts',
     filePath: path.join(rootDir, 'scripts', 'generate-rust-host-engine-catalog.ts'),
     exportedFunctionPattern: /export function generateRustHostEngineCatalog\(/,

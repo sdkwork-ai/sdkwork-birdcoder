@@ -30,7 +30,11 @@ import {
   resolveEditorOpenFileStateAfterMutation,
   type EditorOpenFileState,
 } from '../workbench/fileSelectionMutation.ts';
-import { resolveEditorMessageFilePath } from '../workbench/editorMessageFilePath.ts';
+import {
+  resolveEditorMessageFilePath,
+  resolveEditorMessageFilePathResolution,
+  type EditorMessageFileSelectionResult,
+} from '../workbench/editorMessageFilePath.ts';
 import {
   beginFileContentRequest,
   beginSearchRequest,
@@ -1058,16 +1062,18 @@ export function useFileSystem(projectId: string, options?: UseFileSystemOptions)
             );
       const pendingMessageFilePath = pendingMessageFilePathRef.current;
       if (pendingMessageFilePath?.projectId === normalizedProjectId) {
-        pendingMessageFilePathRef.current = null;
-        const resolvedMessageFilePath = resolveEditorMessageFilePath(
+        const messageFilePathResolution = resolveEditorMessageFilePathResolution(
           pendingMessageFilePath.providerPath,
           filesIndexRef.current,
         );
-        if (resolvedMessageFilePath) {
+        if (messageFilePathResolution.status === 'resolved') {
+          pendingMessageFilePathRef.current = null;
           nextEditorOpenFileState = openEditorFile(
             nextEditorOpenFileState,
-            resolvedMessageFilePath,
+            messageFilePathResolution.path,
           );
+        } else if (messageFilePathResolution.status === 'rejected') {
+          pendingMessageFilePathRef.current = null;
         }
       }
       commitEditorOpenFileState(nextEditorOpenFileState);
@@ -1502,26 +1508,37 @@ export function useFileSystem(projectId: string, options?: UseFileSystemOptions)
     commitEditorOpenFileState(openEditorFile(readCurrentEditorOpenFileState(), resolvedPath));
   }, [commitEditorOpenFileState, readCurrentEditorOpenFileState]);
 
-  const selectMessageFile = useCallback((providerPath: string) => {
+  const selectMessageFile = useCallback((providerPath: string): EditorMessageFileSelectionResult => {
     const normalizedProviderPath = providerPath.trim();
-    if (!normalizedProviderPath || !normalizedProjectId) {
-      return;
+    if (!normalizedProjectId) {
+      return 'rejected';
     }
 
-    const resolvedPath = resolveEditorMessageFilePath(
+    const pathResolution = resolveEditorMessageFilePathResolution(
       normalizedProviderPath,
       filesIndexRef.current,
     );
-    if (resolvedPath && previousProjectIdRef.current === normalizedProjectId) {
+    if (pathResolution.status === 'rejected') {
       pendingMessageFilePathRef.current = null;
-      commitEditorOpenFileState(openEditorFile(readCurrentEditorOpenFileState(), resolvedPath));
-      return;
+      return 'rejected';
+    }
+    if (
+      pathResolution.status === 'resolved'
+      && previousProjectIdRef.current === normalizedProjectId
+    ) {
+      pendingMessageFilePathRef.current = null;
+      commitEditorOpenFileState(openEditorFile(
+        readCurrentEditorOpenFileState(),
+        pathResolution.path,
+      ));
+      return 'opened';
     }
 
     pendingMessageFilePathRef.current = {
       projectId: normalizedProjectId,
       providerPath: normalizedProviderPath,
     };
+    return 'pending';
   }, [commitEditorOpenFileState, normalizedProjectId, readCurrentEditorOpenFileState]);
 
   const closeFile = useCallback((path: string) => {

@@ -27,14 +27,4 @@ for (const file of governedSources) {
   assert.doesNotMatch(source, /\/api\/v1/u);
 }
 
-for (const file of [
-  'etc/sdkwork-api-cloud-gateway.birdcoder.development.toml',
-  'etc/sdkwork-api-cloud-gateway.birdcoder.production.toml',
-]) {
-  const source = fs.readFileSync(file, 'utf8');
-  assert.match(source, /serviceId = "sdkwork-drive-app-api"/u);
-  assert.match(source, /apiPrefix = "\/app\/v3\/api\/drive"/u);
-  assert.match(source, /requiredBaseUrlKey = "SDKWORK_DRIVE_APP_API_BASE_URL"/u);
-}
-
 process.stdout.write('BirdCoder API-key auth removal contract passed\n');

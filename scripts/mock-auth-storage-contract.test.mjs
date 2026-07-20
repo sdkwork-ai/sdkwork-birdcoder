@@ -43,10 +43,32 @@ const runtimeServerSessionPath = path.join(
   'services',
   'runtimeServerSession.ts',
 );
+const currentSessionAuthorityPath = path.join(
+  workspaceRoot,
+  'apps',
+  'sdkwork-birdcoder-pc',
+  'packages',
+  'sdkwork-birdcoder-pc-infrastructure',
+  'src',
+  'services',
+  'iamCurrentSession.ts',
+);
+const currentUserAuthorityPath = path.join(
+  workspaceRoot,
+  'apps',
+  'sdkwork-birdcoder-pc',
+  'packages',
+  'sdkwork-birdcoder-pc-infrastructure',
+  'src',
+  'services',
+  'iamCurrentUser.ts',
+);
 
 const authContextSource = fs.readFileSync(authContextPath, 'utf8');
 const runtimeAuthServiceSource = fs.readFileSync(runtimeAuthServicePath, 'utf8');
 const runtimeServerSessionSource = fs.readFileSync(runtimeServerSessionPath, 'utf8');
+const currentSessionAuthoritySource = fs.readFileSync(currentSessionAuthorityPath, 'utf8');
+const currentUserAuthoritySource = fs.readFileSync(currentUserAuthorityPath, 'utf8');
 
 assert.match(
   authContextSource,
@@ -76,8 +98,23 @@ assert.match(
 );
 assert.match(
   runtimeAuthServiceSource,
-  /runtime\.service\.iam\.users\.current\.retrieve\(\)/u,
-  'runtime auth service must hydrate identity through the generated SDKWork IAM current-user endpoint.',
+  /retrieveBirdCoderCurrentSession\(runtime\)/u,
+  'runtime auth service must resolve authentication through the shared current-session authority.',
+);
+assert.match(
+  runtimeAuthServiceSource,
+  /retrieveBirdCoderCurrentUser\(runtime,\s*session\)/u,
+  'runtime auth service must resolve identity through the shared current-user authority.',
+);
+assert.match(
+  currentSessionAuthoritySource,
+  /runtime\.service\.auth\.sessions\.current\.retrieve/u,
+  'current-session authority must remain backed by the generated SDKWork IAM session endpoint.',
+);
+assert.match(
+  currentUserAuthoritySource,
+  /runtime\.service\.iam\.users\.current\.retrieve/u,
+  'current-user authority must remain backed by the generated SDKWork IAM current-user endpoint.',
 );
 assert.match(
   runtimeAuthServiceSource,

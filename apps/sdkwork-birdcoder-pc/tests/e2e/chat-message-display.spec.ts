@@ -79,6 +79,7 @@ function createEvent(
 }
 
 async function openMessageFixture(page: Page) {
+  let adapterContentRequestCount = 0;
   const expiresAt = Math.floor(Date.parse('2099-01-01T00:00:00.000Z') / 1_000);
   const accessToken = createE2eJwt({
     app_id: 'sdkwork-birdcoder',
@@ -327,6 +328,23 @@ async function openMessageFixture(page: Page) {
           toolCallId: 'command-performance',
         },
       ],
+      taskProgress: {
+        total: 2,
+        completed: 1,
+      },
+      toolCalls: [{
+        id: 'task-provider-alignment',
+        type: 'function',
+        name: 'write_todos',
+        status: 'running',
+        args: { source: 'provider-alignment' },
+        resultDisplay: {
+          todos: [
+            { description: 'Normalize provider task messages', status: 'completed' },
+            { description: 'Verify the commercial transcript', status: 'in_progress' },
+          ],
+        },
+      }],
       fileChanges: [
         {
           path: 'src/features/chat/ProviderMessageAdapter.ts',
@@ -424,15 +442,18 @@ async function openMessageFixture(page: Page) {
   });
   await page.route(
     `**/app/v3/api/drive/sandboxes/${sandboxId}/files/${adapterEntry.id}/content?**`,
-    (route) => route.fulfill({
-      json: itemEnvelope({
-        entry: adapterEntry,
-        encoding: 'utf8',
-        content: workspaceEditorContent,
-        sizeBytes: String(Buffer.byteLength(workspaceEditorContent)),
-        checksumSha256: 'a'.repeat(64),
-      }),
-    }),
+    (route) => {
+      adapterContentRequestCount += 1;
+      return route.fulfill({
+        json: itemEnvelope({
+          entry: adapterEntry,
+          encoding: 'utf8',
+          content: workspaceEditorContent,
+          sizeBytes: String(Buffer.byteLength(workspaceEditorContent)),
+          checksumSha256: 'a'.repeat(64),
+        }),
+      });
+    },
   );
   await page.route('**/app/v3/api/intelligence/coding_sessions?**', (route) => route.fulfill({ json: offsetPage([codingSession]) }));
   await page.route(`**/app/v3/api/intelligence/coding_sessions/${codingSessionId}`, (route) => route.fulfill({ json: itemEnvelope(codingSession) }));
@@ -458,23 +479,49 @@ async function openMessageFixture(page: Page) {
   await expect(page.getByText('Provider messages are aligned and the verification results are ready.').first()).toBeVisible({
     timeout: 60_000,
   });
+
+  return {
+    getAdapterContentRequestCount: () => adapterContentRequestCount,
+  };
 }
 
 test('provider activity is compact, expandable, responsive, and opens files in the editor', async ({
   page,
 }, testInfo) => {
   await page.setViewportSize({ width: 1_440, height: 1_000 });
-  await openMessageFixture(page);
+  const fixture = await openMessageFixture(page);
 
   const activity = page.locator('[data-chat-activity-summary="inline"]');
+  const transcriptRegion = page.getByRole('region', { name: 'Conversation messages' });
   await expect(activity).toHaveCount(1);
   await expect(page.locator('[data-chat-system-notice="compression"]')).toBeVisible();
   await expect(page.locator('[data-chat-tool-kind="mcp"]')).toHaveCount(1);
   await expect(page.locator('[data-chat-tool-kind="search"]')).toHaveCount(1);
+  await expect(page.locator('[data-chat-tool-kind="task"]')).toHaveCount(1);
+  await expect(page.locator('[data-chat-task-progress="inline"]')).toBeVisible();
   await expect(page.getByText('tool_use', { exact: true })).toHaveCount(0);
   await expect(page.getByText('tool_result', { exact: true })).toHaveCount(0);
+  await expect(transcriptRegion).not.toContainText(/"type"\s*:\s*"tool_(?:use|result)"/u);
+
+  const taskTool = page.locator('[data-chat-tool-kind="task"]');
+  const taskToolDisclosure = taskTool.locator('[data-chat-tool-disclosure="true"]');
+  await taskToolDisclosure.click();
+  const taskDetailsId = await taskToolDisclosure.getAttribute('aria-controls');
+  expect(taskDetailsId).toBeTruthy();
+  await expect(taskTool.locator(':scope > div[id]')).toHaveAttribute(
+    'id',
+    taskDetailsId ?? 'missing-task-details-id',
+  );
+  await expect(taskTool.getByText('Normalize provider task messages', { exact: false })).toBeVisible();
+  await expect(taskTool.getByText('Verify the commercial transcript', { exact: false })).toBeVisible();
 
   await activity.locator(':scope > button').click();
+  const activityDetailsId = await activity.locator(':scope > button').getAttribute('aria-controls');
+  expect(activityDetailsId).toBeTruthy();
+  await expect(activity.locator('[data-chat-activity-details="true"]')).toHaveAttribute(
+    'id',
+    activityDetailsId ?? 'missing-activity-details-id',
+  );
   await expect(activity.locator('[data-chat-command-row="inline"]')).toHaveCount(2);
   await expect(activity.locator('[data-chat-file-change-row="inline"]')).toHaveCount(3);
   await expect(activity.getByText('1 failed', { exact: true })).toBeVisible();
@@ -482,7 +529,25 @@ test('provider activity is compact, expandable, responsive, and opens files in t
   await expect(activity.getByText('Checkpoint saved', { exact: true })).toHaveCount(0);
 
   const commandDisclosures = activity.locator('[data-chat-command-disclosure="true"]');
-  await commandDisclosures.nth(0).click();
+  const firstCommandDisclosure = commandDisclosures.nth(0);
+  await firstCommandDisclosure.focus();
+  await expect(firstCommandDisclosure).toBeFocused();
+  const scrollStateBeforeSpace = await page.evaluate(() => ({
+    page: window.scrollY,
+    transcript: document.querySelector<HTMLElement>('[aria-label="Conversation messages"]')?.scrollTop ?? 0,
+  }));
+  await page.keyboard.press('Space');
+  await expect(firstCommandDisclosure).toHaveAttribute('aria-expanded', 'true');
+  const firstCommandDetailsId = await firstCommandDisclosure.getAttribute('aria-controls');
+  expect(firstCommandDetailsId).toBeTruthy();
+  await expect(activity.locator('[data-chat-command-details="true"]').nth(0)).toHaveAttribute(
+    'id',
+    firstCommandDetailsId ?? 'missing-command-details-id',
+  );
+  await expect.poll(() => page.evaluate(() => ({
+    page: window.scrollY,
+    transcript: document.querySelector<HTMLElement>('[aria-label="Conversation messages"]')?.scrollTop ?? 0,
+  }))).toEqual(scrollStateBeforeSpace);
   await commandDisclosures.nth(1).click();
   await expect(activity.locator('[data-chat-command-details="true"]')).toHaveCount(2);
   await expect(activity.getByText('performance contract failed at the final assertion')).toBeVisible();
@@ -496,15 +561,19 @@ test('provider activity is compact, expandable, responsive, and opens files in t
   const failedSearch = page.locator('[data-chat-tool-kind="search"]');
   await failedSearch.locator('[data-chat-tool-disclosure="true"]').click();
   await expect(failedSearch.getByText(/Preview truncated/)).toBeVisible();
-  await expect(failedSearch.locator('pre').last()).toHaveCSS('overflow-y', 'auto');
+  const failedSearchOutput = failedSearch.locator('[data-chat-tool-result-tone="error"]');
+  await expect(failedSearchOutput).toHaveAttribute('role', 'alert');
+  await expect(failedSearchOutput).toHaveCSS('overflow-y', 'auto');
 
   const mcpTool = page.locator('[data-chat-tool-kind="mcp"]');
   await mcpTool.locator('[data-chat-tool-disclosure="true"]').click();
+  await expect(mcpTool.locator('[data-chat-tool-input-fields="true"]')).toBeVisible();
+  await expect(mcpTool.getByText('team', { exact: true })).toBeVisible();
+  await expect(mcpTool.getByText('SDK', { exact: true })).toBeVisible();
   await expect(mcpTool.locator('[data-chat-tool-result-blocks="true"]')).toBeVisible();
   await expect(mcpTool.getByText('SDK-101', { exact: true })).toBeVisible();
   await expect(mcpTool.getByRole('link', { name: /Open SDK-101/ })).toBeVisible();
 
-  const transcriptRegion = page.getByRole('region', { name: 'Conversation messages' });
   await transcriptRegion.focus();
   await expect(transcriptRegion).toBeFocused();
 
@@ -514,10 +583,14 @@ test('provider activity is compact, expandable, responsive, and opens files in t
   });
 
   await activity.locator('[data-chat-file-open="true"]').nth(0).click();
+  await expect.poll(fixture.getAdapterContentRequestCount)
+    .toBeGreaterThan(0);
   await expect(page.getByRole('button', { name: 'Editor Mode' })).toHaveClass(/text-white/);
   await expect(page.getByRole('button', { name: 'ProviderMessageAdapter.ts', exact: true }).first()).toBeVisible();
-  await expect(page.locator('.monaco-editor .view-lines'))
-    .toContainText('workspaceLoadedSentinel');
+  await expect(page.getByText(
+    '/Message Display Project/src/features/chat/ProviderMessageAdapter.ts',
+    { exact: true },
+  )).toBeVisible();
   await expect(page.locator('[data-chat-full-unified-diff="true"]')).toHaveCount(0);
 
   await page.getByRole('button', { name: 'AI Mode' }).click();
@@ -561,11 +634,24 @@ test('provider activity is compact, expandable, responsive, and opens files in t
   await expect(activity.getByText('ProviderHistory.ts', { exact: true })).toBeVisible();
   await expect(activity.getByText('src/features/chat/protocol', { exact: true })).toBeVisible();
   await expect(activity.getByText('1 failed', { exact: true })).toBeVisible();
+  await expect(activity.locator('[data-chat-activity-counts="true"]')).toHaveAttribute(
+    'aria-label',
+    'Ran 2 commands; Edited 3 files',
+  );
   await expect.poll(
     async () => (await activity.boundingBox())?.height ?? 0,
   ).toBeGreaterThan(200);
   await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
-  for (const row of await activity.locator('[data-chat-file-change-row="inline"]').all()) {
+  await expect.poll(() => activity.evaluate(
+    (element) => element.scrollWidth <= element.clientWidth + 1,
+  )).toBe(true);
+  const activityBounds = await activity.boundingBox();
+  expect(activityBounds).not.toBeNull();
+  const boundedActivityRows = activity.locator([
+    '[data-chat-command-row="inline"]',
+    '[data-chat-file-change-row="inline"]',
+  ].join(', '));
+  for (const row of await boundedActivityRows.all()) {
     const box = await row.boundingBox();
     const layoutDiagnostics = await row.evaluate((element) => {
       const ancestors: Array<Record<string, string | number>> = [];
@@ -586,9 +672,15 @@ test('provider activity is compact, expandable, responsive, and opens files in t
       return ancestors;
     });
     expect(
+      box?.x ?? 0,
+      JSON.stringify(layoutDiagnostics),
+    ).toBeGreaterThanOrEqual((activityBounds?.x ?? 0) - 1);
+    expect(
       (box?.x ?? 0) + (box?.width ?? 0),
       JSON.stringify(layoutDiagnostics),
-    ).toBeLessThanOrEqual(681);
+    ).toBeLessThanOrEqual(
+      (activityBounds?.x ?? 0) + (activityBounds?.width ?? 0) + 1,
+    );
   }
   await activity.screenshot({
     animations: 'disabled',
@@ -598,5 +690,10 @@ test('provider activity is compact, expandable, responsive, and opens files in t
   await mcpTool.screenshot({
     animations: 'disabled',
     path: testInfo.outputPath('provider-tool-result-narrow-expanded.png'),
+  });
+  await taskTool.scrollIntoViewIfNeeded();
+  await taskTool.screenshot({
+    animations: 'disabled',
+    path: testInfo.outputPath('provider-task-result-narrow-expanded.png'),
   });
 });

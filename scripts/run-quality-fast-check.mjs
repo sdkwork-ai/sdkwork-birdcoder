@@ -1,7 +1,10 @@
 import process from 'node:process';
 import { pathToFileURL } from 'node:url';
 
-import { runCommandSequence } from './run-command-sequence.mjs';
+import {
+  BIRDCODER_WORKSPACE_ROOT_DIR,
+  runCommandSequence,
+} from './run-command-sequence.mjs';
 
 export const QUALITY_FAST_CHECK_COMMANDS = [
   'node scripts/run-workspace-package-script.mjs . typecheck',
@@ -98,10 +101,11 @@ export const QUALITY_FAST_CHECK_COMMANDS = [
 
 export function runQualityFastCheck({
   commands = QUALITY_FAST_CHECK_COMMANDS,
-  cwd = process.cwd(),
+  cwd = BIRDCODER_WORKSPACE_ROOT_DIR,
   env = process.env,
+  spawnSyncImpl,
 } = {}) {
-  return runCommandSequence({ commands, cwd, env });
+  return runCommandSequence({ commands, cwd, env, spawnSyncImpl });
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {

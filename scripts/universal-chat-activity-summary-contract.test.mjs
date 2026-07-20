@@ -96,6 +96,12 @@ assert.match(
 
 assert.match(
   activitySummarySource,
+  /const hasCompleteLineImpact = fileChanges\.length > 0\s*&& fileChangesWithKnownLineImpact\.length === fileChanges\.length;/,
+  'The collapsed activity summary must show an exact line total only when every changed file has captured line impact.',
+);
+
+assert.match(
+  activitySummarySource,
   /function buildFileChangeDiffPreview\(/,
   'File rows must be expandable and able to show professional plus/minus diff details.',
 );
@@ -116,6 +122,12 @@ assert.match(
   activitySummarySource,
   /data-chat-file-inline-diff="true"/,
   'Clicking an edited-file row must reveal the diff inline below that row.',
+);
+
+assert.match(
+  activitySummarySource,
+  /const diffPreview = isFileExpanded\s*\? buildFileChangeDiffPreview\(fileChange\)\s*: null;/,
+  'Collapsed file rows must defer diff parsing until their independent inline preview is expanded.',
 );
 
 assert.doesNotMatch(
@@ -159,6 +171,26 @@ assert.match(
   /aria-expanded=\{isExpanded\}/,
   'The activity summary expansion control must expose its state to assistive technology.',
 );
+assert.match(
+  activitySummarySource,
+  /aria-controls=\{summaryDetailsId\}[\s\S]*id=\{summaryDetailsId\}/,
+  'The activity disclosure must explicitly associate its control with the expanded detail region.',
+);
+assert.match(
+  activitySummarySource,
+  /aria-controls=\{commandDetailsId\}[\s\S]*id=\{commandDetailsId\}/,
+  'Every command disclosure must explicitly associate its control with its own details.',
+);
+assert.match(
+  activitySummarySource,
+  /aria-controls=\{fileDetailsId\}[\s\S]*id=\{fileDetailsId\}/,
+  'Every file diff disclosure must explicitly associate its control with its own preview.',
+);
+assert.match(
+  activitySummarySource,
+  /data-chat-activity-counts="true"/,
+  'Mixed command and file activity must keep both counts visible in compact and narrow layouts.',
+);
 
 assert.match(
   activitySummarySource,
@@ -186,6 +218,11 @@ assert.match(
   'Code-page chat file navigation must select the provider file through the message-aware boundary and switch to the editor tab.',
 );
 assert.match(
+  codePageSource,
+  /selectionResult === 'rejected'[\s\S]*chat\.fileOpenUnavailable/,
+  'Code-page chat file navigation must keep the current surface and explain clearly invalid provider paths.',
+);
+assert.match(
   codePageSurfaceSource,
   /className="min-w-0 flex-1 flex flex-col relative/,
   'The code workbench content column must shrink below long transcript content instead of clipping file actions off-screen.',
@@ -196,9 +233,34 @@ assert.match(
   'Studio chat file navigation must select the provider file through the message-aware boundary and switch to the code tab.',
 );
 assert.match(
+  studioPageSource,
+  /selectionResult === 'rejected'[\s\S]*chat\.fileOpenUnavailable/,
+  'Studio chat file navigation must keep the current surface and explain clearly invalid provider paths.',
+);
+assert.match(
   fileSystemHookSource,
-  /pendingMessageFilePathRef[\s\S]*resolveEditorMessageFilePath[\s\S]*openEditorFile/,
+  /pendingMessageFilePathRef[\s\S]*resolveEditorMessageFilePathResolution[\s\S]*openEditorFile/,
   'Message file navigation must retain a cold-start selection until the project file index is available.',
+);
+assert.match(
+  fileSystemHookSource,
+  /pathResolution\.status === 'rejected'[\s\S]*return 'rejected'/,
+  'Unsafe, directory, and ambiguous provider paths must be rejected before changing editor selection.',
+);
+assert.match(
+  fileSystemHookSource,
+  /const messageFilePathResolution = resolveEditorMessageFilePathResolution\([\s\S]{0,260}messageFilePathResolution\.status === 'resolved'[\s\S]{0,100}pendingMessageFilePathRef\.current = null;/,
+  'Cold-start message file navigation must clear its pending path only after resolution succeeds.',
+);
+assert.doesNotMatch(
+  fileSystemHookSource,
+  /pendingMessageFilePathRef\.current = null;\s*const messageFilePathResolution = resolveEditorMessageFilePathResolution/,
+  'A shallow file-tree synchronization must not discard an unresolved provider path before later directory loads can retry it.',
+);
+assert.match(
+  fileSystemHookSource,
+  /const selectFile = useCallback\(\(path: string\) => \{\s*pendingMessageFilePathRef\.current = null;/,
+  'Ordinary explorer selection must cancel any stale message-file navigation intent.',
 );
 
 assert.match(
@@ -271,6 +333,11 @@ assert.match(
 );
 assert.match(
   toolResultBlocksSource,
+  /MAX_RICH_RESULT_GROUP_CHARACTERS = 48_000[\s\S]*MAX_VISIBLE_RESULT_BLOCKS = 24|MAX_VISIBLE_RESULT_BLOCKS = 24[\s\S]*MAX_RICH_RESULT_GROUP_CHARACTERS = 48_000/,
+  'Expanded rich results must enforce both a block count and an aggregate character budget.',
+);
+assert.match(
+  toolResultBlocksSource,
   /block\.type === 'image'[\s\S]*block\.type === 'audio'[\s\S]*block\.type === 'diff'/,
   'Rich tool result rendering must cover media and diff result kinds.',
 );
@@ -313,6 +380,11 @@ assert.match(
   /chat\.changedLinesUnknown/,
   'File rows without diff metadata must use localized unknown line-impact copy instead of misleading +0/-0 counts.',
 );
+assert.match(
+  activitySummarySource,
+  /function resolveActivityFileChangeStatusLabel\([\s\S]*fileOperationMovedFrom[\s\S]*fileOperationCreated[\s\S]*fileOperationModified/,
+  'Provider file status tokens must be normalized into localized activity labels at the rendering boundary.',
+);
 
 assert.doesNotMatch(
   activitySummarySource,
@@ -343,6 +415,11 @@ assert.match(
   /changedLinesUnknown: 'Line impact not captured'/,
   'English chat copy must include the unknown line-impact string.',
 );
+assert.match(
+  englishChatSource,
+  /fileOpenUnavailable: 'Cannot open this file path: \{\{path\}\}'/,
+  'English chat copy must explain rejected provider file paths.',
+);
 
 assert.match(
   chineseChatSource,
@@ -360,6 +437,11 @@ assert.match(
   chineseChatSource,
   /changedLinesUnknown: '\\u672a\\u6355\\u83b7\\u884c\\u6570\\u5f71\\u54cd'/,
   'Chinese chat copy must include the unknown line-impact string.',
+);
+assert.match(
+  chineseChatSource,
+  /fileOpenUnavailable: '[^']*\{\{path\}\}'/,
+  'Chinese chat copy must explain rejected provider file paths.',
 );
 
 console.log('universal chat activity summary contract passed.');

@@ -104,6 +104,7 @@ const fixtureRootDir = createStructureFixtureWorkspace({
   scripts: {
     build: 'pnpm --dir apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-web exec node ../../scripts/existing-topology-check.mjs build --mode production',
     'check:tauri-dev-binary-unlock': 'powershell -NoProfile -ExecutionPolicy Bypass -File scripts/existing-topology-check.ps1',
+    'check:tsx-contract': 'pnpm exec vitest run scripts/existing-runtime-contract.test.tsx',
     'check:missing-topology': 'node scripts/missing-topology-check.mjs',
     'gateway:package:cloud': 'node ../sdkwork-app-topology/scripts/gateway-cloud-bundle.mjs bundle --root .',
   },
@@ -111,6 +112,7 @@ const fixtureRootDir = createStructureFixtureWorkspace({
 
 writeWorkspaceFile(fixtureRootDir, 'scripts/existing-topology-check.mjs', "console.log('ok');\n");
 writeWorkspaceFile(fixtureRootDir, 'scripts/existing-topology-check.ps1', "Write-Output 'ok'\n");
+writeWorkspaceFile(fixtureRootDir, 'scripts/existing-runtime-contract.test.tsx', "export {};\n");
 
 const structureCheckModule = await importStructureCheckForWorkspace(fixtureRootDir);
 const stderr = [];
@@ -130,6 +132,11 @@ assert.doesNotMatch(
   stderr.join('\n'),
   /existing-topology-check/,
   'structure check must not flag root package script targets that already exist in the workspace.',
+);
+assert.doesNotMatch(
+  stderr.join('\n'),
+  /existing-runtime-contract/,
+  'structure check must preserve the complete .tsx extension when validating local script targets.',
 );
 assert.doesNotMatch(
   stderr.join('\n'),

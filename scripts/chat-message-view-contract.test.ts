@@ -56,4 +56,114 @@ assert.equal(activityBlock.commands.length, 1);
 const signature = buildChatMessageViewSynchronizationSignature(activityView);
 assert.match(signature, /assistant\.activity/);
 
+const mixedFileActivityView = resolveChatMessageView({
+  ...activityMessage,
+  id: 'msg-assistant-mixed-file-tools',
+  tool_calls: [
+    {
+      id: 'read-file-call',
+      type: 'function',
+      name: 'read_file',
+      arguments: JSON.stringify({ path: 'src/chat/messages/registry.ts' }),
+      status: 'completed',
+    },
+    {
+      id: 'edit-file-call',
+      type: 'function',
+      name: 'apply_patch',
+      arguments: JSON.stringify({ path: 'src/chat/messages/registry.ts' }),
+      status: 'completed',
+    },
+  ],
+}, { engineId: 'codex' });
+const mixedFileToolBlock = mixedFileActivityView.blocks.find((block) => block.type === 'tool-calls');
+assert.ok(mixedFileToolBlock && mixedFileToolBlock.type === 'tool-calls');
+assert.deepEqual(
+  mixedFileToolBlock.calls.map((call) => call.name),
+  ['read_file'],
+  'File reads must remain visible when a separate file-change row deduplicates mutations.',
+);
+
+const detailedTaskProgressView = resolveChatMessageView({
+  id: 'msg-assistant-detailed-task-progress',
+  codingSessionId: 'session-1',
+  role: 'assistant',
+  content: '',
+  createdAt: '2026-06-22T00:00:02.000Z',
+  taskProgress: {
+    total: 2,
+    completed: 1,
+  },
+  tool_calls: [{
+    id: 'todo-codex-detailed',
+    type: 'todo_list',
+    items: [
+      { text: 'Inspect Codex messages', completed: true },
+      { text: 'Align Claude messages', completed: false },
+    ],
+  }],
+}, { engineId: 'codex' });
+const detailedTaskProgressBlock = detailedTaskProgressView.blocks.find(
+  (block) => block.type === 'task-progress',
+);
+const detailedTaskToolBlock = detailedTaskProgressView.blocks.find(
+  (block) => block.type === 'tool-calls',
+);
+assert.deepEqual(
+  detailedTaskProgressBlock,
+  {
+    type: 'task-progress',
+    progress: {
+      total: 2,
+      completed: 1,
+    },
+  },
+  'Provider-neutral task progress must preserve its compact completion summary.',
+);
+assert.ok(detailedTaskToolBlock && detailedTaskToolBlock.type === 'tool-calls');
+assert.deepEqual(
+  detailedTaskToolBlock.calls[0]?.resultBlocks,
+  [{
+    type: 'list',
+    items: ['[x] Inspect Codex messages', '[ ] Align Claude messages'],
+  }],
+  'A compact task-progress counter must not discard the provider task checklist or its text.',
+);
+
+const geminiDetailedTaskProgressView = resolveChatMessageView({
+  id: 'msg-assistant-gemini-detailed-task-progress',
+  codingSessionId: 'session-1',
+  role: 'assistant',
+  content: '',
+  createdAt: '2026-06-22T00:00:03.000Z',
+  taskProgress: {
+    total: 2,
+    completed: 1,
+  },
+  tool_calls: [{
+    id: 'todo-gemini-detailed',
+    name: 'write_todos',
+    args: { source: 'gemini' },
+    status: 'success',
+    resultDisplay: {
+      todos: [
+        { description: 'Inspect Gemini messages', status: 'completed' },
+        { description: 'Align shared rendering', status: 'in_progress' },
+      ],
+    },
+  }],
+}, { engineId: 'gemini' });
+const geminiDetailedTaskToolBlock = geminiDetailedTaskProgressView.blocks.find(
+  (block) => block.type === 'tool-calls',
+);
+assert.ok(geminiDetailedTaskToolBlock && geminiDetailedTaskToolBlock.type === 'tool-calls');
+assert.deepEqual(
+  geminiDetailedTaskToolBlock.calls[0]?.resultBlocks,
+  [{
+    type: 'list',
+    items: ['[x] Inspect Gemini messages', '[~] Align shared rendering'],
+  }],
+  'Gemini resultDisplay.todos must survive alongside its normalized progress counter.',
+);
+
 console.log('chat message view contract passed.');

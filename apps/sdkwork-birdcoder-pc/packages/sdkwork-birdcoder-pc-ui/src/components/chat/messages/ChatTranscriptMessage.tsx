@@ -65,7 +65,9 @@ export const ChatTranscriptMessage = memo(function ChatTranscriptMessage({
         data-transcript-message-index={index}
         ref={messageRef}
         key={messageRenderKey ?? `${sessionId}\u0001${index}\u0001${message.id || 'message'}`}
-        className={isUser ? 'group flex flex-col items-end' : 'flex flex-col items-start w-full group'}
+        className={isUser
+          ? 'group flex w-full min-w-0 flex-col items-end'
+          : 'group flex w-full min-w-0 max-w-full flex-col items-start'}
         style={buildTranscriptSurfaceStyle(resolveTranscriptSurfaceIntrinsicSize(layout, isUser))}
       >
         <Renderer
@@ -81,10 +83,10 @@ export const ChatTranscriptMessage = memo(function ChatTranscriptMessage({
       data-transcript-message-index={index}
       ref={messageRef}
       key={messageRenderKey ?? `${sessionId}\u0001${index}\u0001${message.id || 'message'}`}
-      className={`flex w-full px-5 ${isUser ? 'py-2' : 'py-2.5'} group`}
+      className={`group flex w-full min-w-0 px-5 ${isUser ? 'py-2' : 'py-2.5'}`}
       style={buildTranscriptSurfaceStyle(resolveTranscriptSurfaceIntrinsicSize(layout, isUser))}
     >
-      <div className={`mx-auto flex w-full max-w-[880px] ${isUser ? 'justify-end' : 'justify-start'}`}>
+      <div className={`mx-auto flex w-full min-w-0 max-w-[880px] ${isUser ? 'justify-end' : 'justify-start'}`}>
         <Renderer
           view={view}
           context={resolvedContext}

@@ -34,8 +34,13 @@ assert.ok(
 
 assert.match(
   hookSource,
-  /import \{ canSubscribeBirdCoderWorkspaceRealtime \} from '@sdkwork\/birdcoder-pc-infrastructure-runtime';/,
-  'Selected-session hydration must use workspace realtime availability before scheduling authority fallback refreshes.',
+  /import \{ canSubscribeBirdCoderWorkspaceRealtime \} from '@sdkwork\/birdcoder-pc-infrastructure-runtime\/workspaceRealtime';/,
+  'Selected-session hydration must use the focused workspace realtime export before scheduling authority fallback refreshes.',
+);
+assert.doesNotMatch(
+  hookSource,
+  /from '@sdkwork\/birdcoder-pc-infrastructure-runtime';/u,
+  'Selected-session hydration must not pull the infrastructure runtime root barrel for realtime availability.',
 );
 
 assert.match(

@@ -8,7 +8,6 @@ const ROLE_HEADER_LABELS: Partial<Record<BirdCoderChatMessageViewKind, {
 }>> = {
   'planner.plan': { fallback: 'Planner', translationKey: 'chat.rolePlanner' },
   'reviewer.feedback': { fallback: 'Reviewer', translationKey: 'chat.roleReviewer' },
-  'tool.result': { fallback: 'Tool', translationKey: 'chat.roleTool' },
   'system.notice': { fallback: 'System', translationKey: 'chat.roleSystem' },
 };
 
@@ -29,7 +28,7 @@ export const RoleHeader = memo(function RoleHeader({
 
   return (
     <div
-      className={`mb-1 font-medium uppercase tracking-wide text-gray-500 ${
+      className={`mb-1 font-medium uppercase tracking-normal text-gray-500 ${
         layout === 'sidebar' ? 'text-[10px]' : 'text-[11px]'
       }`}
       data-chat-message-view-kind={viewKind}

@@ -40,6 +40,12 @@ const originalWindowDescriptor = Object.getOwnPropertyDescriptor(globalThis, 'wi
 Object.defineProperty(globalThis, 'window', {
   configurable: true,
   value: {
+    __BIRDCODER_ENV__: {
+      VITE_SDKWORK_BIRDCODER_PLATFORM_API_GATEWAY_HTTP_URL: 'http://127.0.0.1:3900',
+    },
+    location: {
+      hostname: 'localhost',
+    },
     localStorage: {
       getItem(key: string) {
         return backingStore.has(key) ? backingStore.get(key)! : null;

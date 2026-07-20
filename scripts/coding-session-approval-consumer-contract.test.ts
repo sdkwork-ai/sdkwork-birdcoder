@@ -24,6 +24,7 @@ import {
   TEST_CODE_ENGINE_MODEL_CONFIG,
   buildTestCodeEngineModelConfigSyncResult,
 } from './test-code-engine-model-config-fixture.ts';
+import { installBirdCoderTestRuntimeEnv } from './test-birdcoder-runtime-env-fixture.ts';
 
 const defaultServicesModulePath = new URL(
   '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/src/services/defaultIdeServices.ts',
@@ -265,6 +266,7 @@ const codingRuntimeClient: BirdCoderAppRuntimeWriteSdkApiClient = {
   },
 };
 
+const restoreRuntimeEnv = installBirdCoderTestRuntimeEnv();
 const projectionModule = await import(`${projectionModulePath.href}?t=${Date.now()}`);
 assert.equal(
   typeof projectionModule.loadCodingSessionApprovalState,
@@ -402,4 +404,5 @@ assert.deepEqual(observedApprovals, [
 ]);
 assert.deepEqual(approvalResult, approvalResultFixture);
 
+restoreRuntimeEnv();
 console.log('coding session approval consumer contract passed.');

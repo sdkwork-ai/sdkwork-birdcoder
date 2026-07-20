@@ -1,10 +1,12 @@
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
+import http from 'node:http';
 import net from 'node:net';
 
 const {
   applyClientLoopbackPortFallback,
-  createPlatformGatewayPlan,
+  isServerReady,
+  resolveStandaloneDependencyEnv,
   resolveClientAccessLines,
   resolveClientAccessUrls,
   runBirdcoderDevStack,
@@ -36,8 +38,8 @@ assert.deepEqual(
 );
 
 assert.ok(
-  readDefaultServerReadyTimeoutMs() >= 120000,
-  'dev stack readiness must allow a first cargo run compile before declaring the server unavailable.',
+  readDefaultServerReadyTimeoutMs() >= 300000,
+  'dev stack readiness must allow a first full workspace cargo run compile before declaring the server unavailable.',
 );
 
 assert.deepEqual(
@@ -139,6 +141,37 @@ function readPlanPort(plan) {
   const portFlagIndex = plan.args.lastIndexOf('--port');
   assert.notEqual(portFlagIndex, -1, 'test plan must include a Vite --port option.');
   return Number.parseInt(plan.args[portFlagIndex + 1], 10);
+}
+
+{
+  const readinessServer = http.createServer((request, response) => {
+    if (request.url === '/readyz') {
+      response.writeHead(200, { 'content-type': 'application/json' });
+      response.end('{"status":"ready"}');
+      return;
+    }
+
+    response.writeHead(404);
+    response.end();
+  });
+  await listen(readinessServer, {
+    host: '127.0.0.1',
+    port: 0,
+  });
+
+  try {
+    const address = readinessServer.address();
+    assert.equal(typeof address, 'object');
+    assert.equal(
+      await isServerReady({
+        apiOriginUrl: new URL(`http://127.0.0.1:${address.port}`),
+      }),
+      true,
+      'dev stack must recognize a healthy configured server so duplicate launches can reuse it.',
+    );
+  } finally {
+    await close(readinessServer);
+  }
 }
 
 {
@@ -312,11 +345,7 @@ const h5DryRun = await captureRunBirdcoderDevStack([
   assert.equal(exitCode, 0, `H5 stack dry-run should succeed.\nstdout:\n${stdout}\nstderr:\n${stderr}`);
   assert.equal(stderr, '', `H5 stack dry-run should not emit errors.\nstderr:\n${stderr}`);
   assert.match(stdout, /\[birdcoder-stack\] surface=h5/u);
-  assert.match(
-    stdout,
-    /platformGateway=.*--features foundation-drive,foundation-membership .*sdkwork-api-cloud-gateway\.birdcoder\.development\.toml/u,
-    'H5 stack must compile and start the Drive and Membership foundation assembly gateway.',
-  );
+  assert.doesNotMatch(stdout, /platformGateway=/u);
   assert.match(
     stdout,
     /client=.*vite.*--host 0\.0\.0\.0 --strictPort/u,
@@ -326,41 +355,37 @@ const h5DryRun = await captureRunBirdcoderDevStack([
 
 {
   const sharedPostgresUrl = 'postgresql://app:secret@127.0.0.1:5432/sdkwork_ai_dev';
-  const platformGatewayPlan = createPlatformGatewayPlan({
-    env: {
-      SDKWORK_BIRDCODER_PLATFORM_API_GATEWAY_AUTOSTART: 'true',
-      SDKWORK_CLAW_DATABASE_ENGINE: 'postgresql',
-      SDKWORK_CLAW_DATABASE_URL: sharedPostgresUrl,
-      SDKWORK_CLAW_DATABASE_MAX_CONNECTIONS: '10',
-      SDKWORK_DATABASE_TEMPORARY_ANY_POOL_EXCEPTION: 'true',
-    },
-    viteMode: 'development',
+  const dependencyEnv = resolveStandaloneDependencyEnv({
+    SDKWORK_CLAW_DATABASE_ENGINE: 'postgresql',
+    SDKWORK_CLAW_DATABASE_URL: sharedPostgresUrl,
+    SDKWORK_CLAW_DATABASE_MAX_CONNECTIONS: '10',
+    SDKWORK_DATABASE_TEMPORARY_ANY_POOL_EXCEPTION: 'true',
   });
 
   assert.equal(
-    platformGatewayPlan.env.SDKWORK_DRIVE_DATABASE_URL,
+    dependencyEnv.SDKWORK_DRIVE_DATABASE_URL,
     sharedPostgresUrl,
-    'PostgreSQL platform gateway startup must reuse the canonical Claw database URL for Drive instead of creating a separate SQLite identity.',
+    'BirdCoder standalone assembly must reuse the canonical Claw database URL for embedded Drive routes.',
   );
   assert.equal(
-    platformGatewayPlan.env.SDKWORK_MEMBERSHIP_DATABASE_URL,
+    dependencyEnv.SDKWORK_MEMBERSHIP_DATABASE_URL,
     sharedPostgresUrl,
-    'PostgreSQL platform gateway startup must reuse the canonical Claw database URL for Membership instead of creating a separate SQLite identity.',
+    'BirdCoder standalone assembly must reuse the canonical Claw database URL for embedded Membership routes.',
   );
   assert.equal(
-    platformGatewayPlan.env.SDKWORK_DRIVE_DATABASE_MAX_CONNECTIONS,
+    dependencyEnv.SDKWORK_DRIVE_DATABASE_MAX_CONNECTIONS,
     '10',
-    'Drive must inherit the canonical process connection budget in the embedded platform gateway.',
+    'Embedded Drive routes must inherit the canonical process connection budget.',
   );
   assert.equal(
-    platformGatewayPlan.env.SDKWORK_MEMBERSHIP_DATABASE_MAX_CONNECTIONS,
+    dependencyEnv.SDKWORK_MEMBERSHIP_DATABASE_MAX_CONNECTIONS,
     '10',
-    'Membership must inherit the canonical process connection budget in the embedded platform gateway.',
+    'Embedded Membership routes must inherit the canonical process connection budget.',
   );
   assert.equal(
-    platformGatewayPlan.env.SDKWORK_DATABASE_TEMPORARY_DRIVER_POOL_COUNT,
+    dependencyEnv.SDKWORK_DATABASE_TEMPORARY_DRIVER_POOL_COUNT,
     '2',
-    'The embedded platform gateway must reserve its declared two temporary driver pools.',
+    'The standalone assembly must reserve its declared two temporary driver pools.',
   );
 }
 

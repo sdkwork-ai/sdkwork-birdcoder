@@ -144,6 +144,7 @@ assert.deepEqual(
     './components/ContentWorkbench',
     './components/DeferredDiffEditor',
     './components/DeferredFileExplorer',
+    './components/FileChangeDiffViewer',
     './components/DeferredRunDialogs',
     './components/DeferredUniversalChat',
     './components/FileExplorer',

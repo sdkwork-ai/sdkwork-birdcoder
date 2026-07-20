@@ -2,7 +2,7 @@ import type { WorkbenchPreferences } from '@sdkwork/birdcoder-pc-workbench';
 import {
   getWorkbenchCodeEngineSessionSummary,
 } from '@sdkwork/birdcoder-pc-codeengine';
-import { DeferredUniversalChat } from '@sdkwork/birdcoder-pc-ui';
+import { DeferredUniversalChat } from '@sdkwork/birdcoder-pc-ui/components/DeferredUniversalChat';
 import {
   WorkbenchCodeEngineIcon,
   resolveSafePreviewUrl,

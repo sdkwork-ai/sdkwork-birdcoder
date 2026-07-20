@@ -20,9 +20,11 @@ import { runBirdcoderDevStack } from './run-birdcoder-dev-stack.mjs';
 
 function parseArgs(argv) {
   const settings = {
+    clientArchitecture: null,
     deploymentProfile: 'standalone',
+    runtimeTarget: 'browser',
     serviceLayout: 'split-services',
-    target: 'web',
+    target: null,
     dryRun: false,
     help: false,
     passthrough: [],
@@ -37,6 +39,20 @@ function parseArgs(argv) {
     }
     if (arg === '--deployment-profile') {
       settings.deploymentProfile = argv[index + 1] ?? settings.deploymentProfile;
+      index += 1;
+      continue;
+    }
+    if (arg === '--runtime-target') {
+      settings.runtimeTarget = argv[index + 1] ?? settings.runtimeTarget;
+      index += 1;
+      continue;
+    }
+    if (arg === '--client-architecture') {
+      settings.clientArchitecture = argv[index + 1] ?? settings.clientArchitecture;
+      index += 1;
+      continue;
+    }
+    if (arg === '--environment') {
       index += 1;
       continue;
     }
@@ -67,23 +83,29 @@ function parseArgs(argv) {
       settings.passthrough.push(arg);
       continue;
     }
-    if (arg === 'web' || arg === 'desktop') {
+    if (arg === 'web' || arg === 'desktop' || arg === 'h5') {
       settings.target = arg;
     }
   }
+
+  settings.target ??= settings.runtimeTarget === 'desktop'
+    ? 'desktop'
+    : settings.clientArchitecture === 'h5'
+      ? 'h5'
+      : 'web';
 
   return settings;
 }
 
 function printHelp() {
-  console.log(`Usage: node scripts/birdcoder-dev.mjs [web|desktop] [options] [-- <client args>]
+  console.log(`Usage: node scripts/birdcoder-dev.mjs [web|desktop|h5] [options] [-- <client args>]
 
 Topology-aware BirdCoder dev entry. Loads etc/topology profile env via @sdkwork/app-topology.
 
 Options:
   --deployment-profile <standalone|cloud>             Default: standalone
   --service-layout <split-services|unified-process> Default: split-services
-  --target <web|desktop>                            Default: web
+  --target <web|desktop|h5>                         Derived from runtime target and client architecture
   --dry-run                                         Print plan without executing
   --help, -h
 

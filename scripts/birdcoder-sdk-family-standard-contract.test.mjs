@@ -65,11 +65,25 @@ const messagingAppSdkDependency = {
   },
 };
 
+const membershipAppSdkDependency = {
+  workspace: 'sdkwork-membership-app-sdk',
+  role: 'membership-app-capability',
+  required: true,
+  dependencyMode: 'consumer-sdk',
+  apiPrefix: '/app/v3/api/memberships',
+  apiAuthority: 'sdkwork-membership-app-api',
+  generatedTransportImportPolicy: 'forbidden',
+  packageByLanguage: {
+    typescript: '@sdkwork/membership-app-sdk',
+  },
+};
+
 const expectedRootSdkDependencies = [
   appbaseAppSdkDependency,
   appbaseBackendSdkDependency,
   driveAppSdkDependency,
   messagingAppSdkDependency,
+  membershipAppSdkDependency,
 ];
 const credentialEntryOperationKeys = new Set([
   'oauth.authorizationUrls.create',
@@ -100,6 +114,7 @@ const expectedSurfaces = [
       appbaseAppSdkDependency,
       driveAppSdkDependency,
       messagingAppSdkDependency,
+      membershipAppSdkDependency,
     ],
     surface: 'app',
     typescriptOutputPath: 'sdks/sdkwork-birdcoder-app-sdk/sdkwork-birdcoder-app-sdk-typescript',

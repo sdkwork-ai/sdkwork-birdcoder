@@ -1,5 +1,5 @@
 use std::{
-    collections::BTreeMap,
+    collections::{BTreeMap, BTreeSet},
     env, fs,
     fs::File,
     io::{BufRead, BufReader, Read, Seek, SeekFrom},
@@ -36,7 +36,14 @@ struct ClaudeTranscriptEntry {
     raw_message_id: Option<String>,
     role: String,
     text: String,
+    tool_call_id: Option<String>,
     tool_calls: Option<Vec<Value>>,
+    turn_id: Option<String>,
+}
+
+#[derive(Clone)]
+struct ClaudeToolCallContext {
+    tool_name: Option<String>,
     turn_id: Option<String>,
 }
 
@@ -45,6 +52,7 @@ struct ClaudeSessionParseContext {
     ai_title: Option<String>,
     command_title_fallback: Option<String>,
     created_at: Option<ClaudeTimestamp>,
+    current_turn_id: Option<String>,
     custom_title: Option<String>,
     first_entry_sidechain: Option<bool>,
     first_prompt: Option<String>,
@@ -59,11 +67,19 @@ struct ClaudeSessionParseContext {
     native_cwd: Option<String>,
     native_session_id: Option<String>,
     native_attributes: CodeEngineSessionNativeAttributesRecord,
+    retracted_message_ids: BTreeSet<String>,
     summary: Option<String>,
+    tool_call_context_by_id: BTreeMap<String, ClaudeToolCallContext>,
 }
 
 struct ClaudeMessageContent {
     text: String,
+    tool_calls: Vec<Value>,
+}
+
+struct ClaudeToolResultContent {
+    text: String,
+    tool_call_ids: Vec<String>,
     tool_calls: Vec<Value>,
 }
 
@@ -426,6 +442,7 @@ fn apply_claude_jsonl_line(
     if let Some(last_prompt) = normalize_value_string(envelope.get("lastPrompt")) {
         context.last_prompt = normalize_claude_title(last_prompt.as_str());
     }
+    apply_claude_message_retractions(context, &envelope);
 
     let entry_type = normalize_value_string(envelope.get("type"));
     match entry_type.as_deref() {
@@ -442,15 +459,491 @@ fn apply_claude_jsonl_line(
                 || normalize_value_string(envelope.get("subtype"))
                     .is_some_and(|value| value != "success");
         }
-        Some("user") | Some("assistant") => apply_claude_transcript_line(
+        Some("system") => {
+            apply_claude_system_transcript_line(context, &envelope, include_messages, line_index)
+        }
+        Some("api_retry") => apply_claude_notice(
             context,
             &envelope,
-            entry_type.as_deref().unwrap_or("assistant"),
+            "retry",
+            format_claude_retry_notice(&envelope),
             include_messages,
             line_index,
         ),
+        Some("mirror_error") => {
+            context.has_error = true;
+            apply_claude_notice(
+                context,
+                &envelope,
+                "failed",
+                resolve_claude_notice_detail(&envelope)
+                    .unwrap_or_else(|| "Claude session mirror failed.".to_owned()),
+                include_messages,
+                line_index,
+            );
+        }
+        Some("permission_denied") => apply_claude_permission_denied_tool_line(
+            context,
+            &envelope,
+            include_messages,
+            line_index,
+        ),
+        Some("model_refusal_fallback") => apply_claude_notice(
+            context,
+            &envelope,
+            "retry",
+            "Model refused the request; retrying with a fallback model.".to_owned(),
+            include_messages,
+            line_index,
+        ),
+        Some("model_refusal_no_fallback") => {
+            context.has_error = true;
+            apply_claude_notice(
+                context,
+                &envelope,
+                "failed",
+                "Model refused the request and no fallback model is available.".to_owned(),
+                include_messages,
+                line_index,
+            );
+        }
+        Some("user") | Some("assistant") => {
+            let role = entry_type.as_deref().unwrap_or("assistant");
+            if claude_skips_transcript(&envelope) {
+                return;
+            }
+            apply_claude_transcript_line(context, &envelope, role, include_messages, line_index);
+            if role == "assistant" && claude_assistant_was_aborted(&envelope) {
+                apply_claude_notice(
+                    context,
+                    &envelope,
+                    "cancelled",
+                    "Generation cancelled.".to_owned(),
+                    include_messages,
+                    line_index,
+                );
+            }
+        }
         _ => {}
     }
+}
+
+fn claude_skips_transcript(envelope: &Value) -> bool {
+    envelope
+        .get("skip_transcript")
+        .or_else(|| envelope.get("skipTranscript"))
+        .and_then(Value::as_bool)
+        .unwrap_or(false)
+}
+
+fn claude_assistant_was_aborted(envelope: &Value) -> bool {
+    if envelope
+        .get("aborted")
+        .or_else(|| {
+            envelope
+                .get("message")
+                .and_then(|message| message.get("aborted"))
+        })
+        .and_then(Value::as_bool)
+        .unwrap_or(false)
+    {
+        return true;
+    }
+
+    [
+        envelope.get("error"),
+        envelope
+            .get("message")
+            .and_then(|message| message.get("error")),
+        envelope
+            .get("message")
+            .and_then(|message| message.get("stop_reason")),
+    ]
+    .into_iter()
+    .flatten()
+    .filter_map(|value| normalize_value_string(Some(value)))
+    .any(|value| matches!(value.to_ascii_lowercase().as_str(), "abort" | "aborted"))
+}
+
+fn apply_claude_message_retractions(context: &mut ClaudeSessionParseContext, envelope: &Value) {
+    let retracted_message_ids = ["supersedes", "retracted_message_uuids"]
+        .into_iter()
+        .filter_map(|key| envelope.get(key).and_then(Value::as_array))
+        .flatten()
+        .filter_map(|value| normalize_value_string(Some(value)))
+        .map(|value| value.to_ascii_lowercase())
+        .collect::<BTreeSet<_>>();
+    if retracted_message_ids.is_empty() {
+        return;
+    }
+
+    context
+        .retracted_message_ids
+        .extend(retracted_message_ids.iter().cloned());
+    let retracted_tool_call_ids = context
+        .messages
+        .iter()
+        .filter(|entry| {
+            entry
+                .raw_message_id
+                .as_ref()
+                .map(|identity| identity.trim().to_ascii_lowercase())
+                .is_some_and(|identity| retracted_message_ids.contains(identity.as_str()))
+                && entry.role == "assistant"
+        })
+        .flat_map(|entry| entry.tool_calls.iter().flatten())
+        .filter(|tool_call| {
+            normalize_value_string(tool_call.get("type"))
+                .is_some_and(|value| value == "tool_use" || value.ends_with("_tool_use"))
+        })
+        .filter_map(read_claude_tool_call_id)
+        .collect::<BTreeSet<_>>();
+
+    context.messages.retain(|entry| {
+        !entry
+            .raw_message_id
+            .as_ref()
+            .map(|identity| identity.trim().to_ascii_lowercase())
+            .is_some_and(|identity| retracted_message_ids.contains(identity.as_str()))
+    });
+    context.message_index_by_id = context
+        .messages
+        .iter()
+        .enumerate()
+        .filter_map(|(index, entry)| {
+            entry
+                .raw_message_id
+                .as_ref()
+                .map(|identity| (identity.trim().to_ascii_lowercase(), index))
+        })
+        .collect();
+    for tool_call_id in retracted_tool_call_ids {
+        context
+            .tool_call_context_by_id
+            .remove(tool_call_id.as_str());
+    }
+}
+
+fn apply_claude_system_transcript_line(
+    context: &mut ClaudeSessionParseContext,
+    envelope: &Value,
+    include_messages: bool,
+    line_index: usize,
+) {
+    if claude_skips_transcript(envelope) {
+        return;
+    }
+
+    let subtype = normalize_value_string(envelope.get("subtype"))
+        .unwrap_or_default()
+        .to_ascii_lowercase();
+    match subtype.as_str() {
+        "task_started" | "task_progress" | "task_notification" | "task_updated" => {
+            apply_claude_task_transcript_line(context, envelope, include_messages, line_index);
+        }
+        "api_retry" => apply_claude_notice(
+            context,
+            envelope,
+            "retry",
+            format_claude_retry_notice(envelope),
+            include_messages,
+            line_index,
+        ),
+        "permission_denied" => apply_claude_permission_denied_tool_line(
+            context,
+            envelope,
+            include_messages,
+            line_index,
+        ),
+        "mirror_error" => {
+            context.has_error = true;
+            apply_claude_notice(
+                context,
+                envelope,
+                "failed",
+                resolve_claude_notice_detail(envelope)
+                    .unwrap_or_else(|| "Claude session mirror failed.".to_owned()),
+                include_messages,
+                line_index,
+            );
+        }
+        "compact_boundary" => apply_claude_notice(
+            context,
+            envelope,
+            "compression",
+            "Conversation context compressed.".to_owned(),
+            include_messages,
+            line_index,
+        ),
+        "model_refusal_fallback" => apply_claude_notice(
+            context,
+            envelope,
+            "retry",
+            "Model refused the request; retrying with a fallback model.".to_owned(),
+            include_messages,
+            line_index,
+        ),
+        "model_refusal_no_fallback" => {
+            context.has_error = true;
+            apply_claude_notice(
+                context,
+                envelope,
+                "failed",
+                "Model refused the request and no fallback model is available.".to_owned(),
+                include_messages,
+                line_index,
+            );
+        }
+        // Aggregate task-count changes are transport state, not transcript content.
+        "background_tasks_changed" => {}
+        _ => {}
+    }
+}
+
+fn resolve_claude_notice_detail(envelope: &Value) -> Option<String> {
+    normalize_value_string(envelope.get("message"))
+        .or_else(|| normalize_value_string(envelope.get("reason")))
+        .or_else(|| normalize_value_string(envelope.get("decision_reason")))
+        .or_else(|| {
+            envelope
+                .get("error")
+                .and_then(extract_claude_tool_output_text)
+        })
+}
+
+fn format_claude_retry_notice(envelope: &Value) -> String {
+    let attempt = envelope
+        .get("attempt")
+        .and_then(Value::as_u64)
+        .filter(|attempt| *attempt > 0);
+    let base = attempt
+        .map(|attempt| format!("Retrying provider request (attempt {attempt})."))
+        .unwrap_or_else(|| "Retrying provider request.".to_owned());
+    resolve_claude_notice_detail(envelope)
+        .filter(|detail| !detail.eq_ignore_ascii_case(base.as_str()))
+        .map(|detail| format!("{base} {detail}"))
+        .unwrap_or(base)
+}
+
+fn format_claude_permission_denied_notice(envelope: &Value) -> String {
+    resolve_claude_notice_detail(envelope)
+        .map(|detail| format!("Permission denied: {detail}"))
+        .unwrap_or_else(|| "Permission denied.".to_owned())
+}
+
+fn apply_claude_permission_denied_tool_line(
+    context: &mut ClaudeSessionParseContext,
+    envelope: &Value,
+    include_messages: bool,
+    line_index: usize,
+) {
+    let tool_call_id = normalize_value_string(envelope.get("tool_use_id"))
+        .or_else(|| normalize_value_string(envelope.get("toolUseId")))
+        .or_else(|| normalize_value_string(envelope.get("id")));
+    let Some(tool_call_id) = tool_call_id else {
+        return;
+    };
+    context.has_transcript = true;
+    let timestamp = parse_claude_timestamp(envelope.get("timestamp"));
+    if let Some(timestamp) = timestamp.clone() {
+        observe_claude_timestamp(context, timestamp, true);
+    }
+    if !include_messages {
+        return;
+    }
+
+    let existing_index = context
+        .messages
+        .iter()
+        .position(|message| message.tool_call_id.as_deref() == Some(tool_call_id.as_str()));
+    let existing_entry = existing_index
+        .and_then(|index| context.messages.get(index))
+        .cloned();
+    let tool_context = context.tool_call_context_by_id.get(tool_call_id.as_str());
+    let mut tool_event = envelope.as_object().cloned().unwrap_or_default();
+    tool_event.insert("type".to_owned(), Value::String("system".to_owned()));
+    tool_event.insert(
+        "subtype".to_owned(),
+        Value::String("permission_denied".to_owned()),
+    );
+    tool_event.insert(
+        "tool_use_id".to_owned(),
+        Value::String(tool_call_id.clone()),
+    );
+    if !tool_event.contains_key("tool_name") {
+        if let Some(tool_name) = tool_context.and_then(|context| context.tool_name.clone()) {
+            tool_event.insert("tool_name".to_owned(), Value::String(tool_name));
+        }
+    }
+    if !tool_event.contains_key("message") {
+        if let Some(reason) = resolve_claude_notice_detail(envelope) {
+            tool_event.insert("message".to_owned(), Value::String(reason));
+        }
+    }
+    let message_identity = format!("permission-denied:{tool_call_id}");
+    let entry = ClaudeTranscriptEntry {
+        created_at: timestamp.map(|timestamp| timestamp.text),
+        metadata: None,
+        raw_message_id: Some(message_identity.clone()),
+        role: "tool".to_owned(),
+        text: format_claude_permission_denied_notice(envelope),
+        tool_call_id: Some(tool_call_id),
+        tool_calls: Some(vec![Value::Object(tool_event)]),
+        turn_id: existing_entry
+            .as_ref()
+            .and_then(|entry| entry.turn_id.clone())
+            .or_else(|| tool_context.and_then(|context| context.turn_id.clone()))
+            .or_else(|| context.current_turn_id.clone()),
+    };
+    if let Some(existing_index) = existing_index {
+        let old_identity = context.messages[existing_index]
+            .raw_message_id
+            .as_ref()
+            .map(|identity| identity.trim().to_ascii_lowercase());
+        if let Some(old_identity) = old_identity {
+            context.message_index_by_id.remove(old_identity.as_str());
+        }
+        context.messages[existing_index] = entry;
+        context
+            .message_index_by_id
+            .insert(message_identity.to_ascii_lowercase(), existing_index);
+    } else {
+        upsert_claude_transcript_entry(context, entry, Some(message_identity), line_index);
+    }
+}
+
+fn apply_claude_notice(
+    context: &mut ClaudeSessionParseContext,
+    envelope: &Value,
+    notice_kind: &str,
+    text: String,
+    include_messages: bool,
+    line_index: usize,
+) {
+    if claude_skips_transcript(envelope) {
+        return;
+    }
+    context.has_transcript = true;
+    let timestamp = parse_claude_timestamp(envelope.get("timestamp"));
+    if let Some(timestamp) = timestamp.clone() {
+        observe_claude_timestamp(context, timestamp, true);
+    }
+    if !include_messages {
+        return;
+    }
+
+    let mut metadata = BTreeMap::new();
+    metadata.insert("noticeKind".to_owned(), notice_kind.to_owned());
+    let raw_message_id = Some(
+        normalize_value_string(envelope.get("uuid"))
+            .map(|message_id| format!("{message_id}:notice:{notice_kind}"))
+            .unwrap_or_else(|| {
+                format!(
+                    "notice:{notice_kind}:{line_index}:{}",
+                    context.messages.len()
+                )
+            }),
+    );
+    let entry = ClaudeTranscriptEntry {
+        created_at: timestamp.map(|timestamp| timestamp.text),
+        metadata: Some(metadata),
+        raw_message_id: raw_message_id.clone(),
+        role: "system".to_owned(),
+        text,
+        tool_call_id: None,
+        tool_calls: None,
+        turn_id: normalize_value_string(
+            envelope
+                .get("requestId")
+                .or_else(|| envelope.get("request_id")),
+        )
+        .or_else(|| context.current_turn_id.clone()),
+    };
+    upsert_claude_transcript_entry(context, entry, raw_message_id, line_index);
+}
+
+fn apply_claude_task_transcript_line(
+    context: &mut ClaudeSessionParseContext,
+    envelope: &Value,
+    include_messages: bool,
+    line_index: usize,
+) {
+    let task_id = normalize_value_string(envelope.get("task_id"))
+        .or_else(|| normalize_value_string(envelope.get("tool_use_id")))
+        .or_else(|| normalize_value_string(envelope.get("id")));
+    let Some(task_id) = task_id else {
+        return;
+    };
+
+    context.has_transcript = true;
+    let timestamp = parse_claude_timestamp(envelope.get("timestamp"));
+    if let Some(timestamp) = timestamp.clone() {
+        observe_claude_timestamp(context, timestamp, true);
+    }
+    if !include_messages {
+        return;
+    }
+
+    let message_identity = format!("task:{task_id}");
+    let existing_entry = context
+        .message_index_by_id
+        .get(message_identity.to_ascii_lowercase().as_str())
+        .and_then(|index| context.messages.get(*index))
+        .cloned();
+    let existing_event = existing_entry
+        .as_ref()
+        .and_then(|entry| entry.tool_calls.as_ref())
+        .and_then(|tool_calls| tool_calls.first());
+    let mut merged_event = existing_event
+        .and_then(Value::as_object)
+        .cloned()
+        .unwrap_or_default();
+    if let Some(patch) = envelope.get("patch").and_then(Value::as_object) {
+        for (key, value) in patch {
+            merged_event.insert(key.clone(), value.clone());
+        }
+    }
+    if let Some(event) = envelope.as_object() {
+        for (key, value) in event {
+            merged_event.insert(key.clone(), value.clone());
+        }
+    }
+    merged_event.insert("type".to_owned(), Value::String("system".to_owned()));
+    merged_event.insert("task_id".to_owned(), Value::String(task_id.clone()));
+
+    let subtype = normalize_value_string(merged_event.get("subtype"))
+        .unwrap_or_else(|| "task_updated".to_owned());
+    let description = normalize_value_string(merged_event.get("description"))
+        .or_else(|| normalize_value_string(merged_event.get("summary")))
+        .unwrap_or_else(|| task_id.clone());
+    let text = match subtype.as_str() {
+        "task_started" => format!("Task started: {description}"),
+        "task_progress" => format!("Task progress: {description}"),
+        "task_notification" => format!("Task finished: {description}"),
+        _ => format!("Task updated: {description}"),
+    };
+    let turn_id = normalize_value_string(
+        envelope
+            .get("requestId")
+            .or_else(|| envelope.get("request_id")),
+    )
+    .or_else(|| {
+        existing_entry
+            .as_ref()
+            .and_then(|entry| entry.turn_id.clone())
+    })
+    .or_else(|| context.current_turn_id.clone());
+    let entry = ClaudeTranscriptEntry {
+        created_at: timestamp.map(|timestamp| timestamp.text),
+        metadata: None,
+        raw_message_id: Some(message_identity.clone()),
+        role: "tool".to_owned(),
+        text,
+        tool_call_id: Some(task_id),
+        tool_calls: Some(vec![Value::Object(merged_event)]),
+        turn_id,
+    };
+    upsert_claude_transcript_entry(context, entry, Some(message_identity), line_index);
 }
 
 fn observe_claude_native_session_attributes(
@@ -509,15 +1002,15 @@ fn apply_claude_transcript_line(
     include_messages: bool,
     line_index: usize,
 ) {
-    if envelope
-        .get("isMeta")
-        .and_then(Value::as_bool)
-        .unwrap_or(false)
+    if claude_skips_transcript(envelope)
+        || envelope
+            .get("isMeta")
+            .and_then(Value::as_bool)
+            .unwrap_or(false)
         || envelope
             .get("isCompactSummary")
             .and_then(Value::as_bool)
             .unwrap_or(false)
-        || (role == "user" && envelope.get("toolUseResult").is_some())
     {
         return;
     }
@@ -527,13 +1020,89 @@ fn apply_claude_transcript_line(
         context.model_id = normalize_value_string(message.and_then(|value| value.get("model")))
             .or_else(|| context.model_id.clone());
     }
-    let content = extract_claude_message_content(
-        message
-            .and_then(|value| value.get("content"))
-            .or_else(|| envelope.get("content")),
-    );
+    let content_value = message
+        .and_then(|value| value.get("content"))
+        .or_else(|| envelope.get("content"));
+    let raw_message_id = normalize_value_string(envelope.get("uuid"))
+        .or_else(|| normalize_value_string(message.and_then(|value| value.get("id"))));
+    if raw_message_id
+        .as_ref()
+        .map(|identity| identity.trim().to_ascii_lowercase())
+        .is_some_and(|identity| context.retracted_message_ids.contains(identity.as_str()))
+    {
+        return;
+    }
+    let explicit_turn_id = normalize_value_string(envelope.get("requestId"))
+        .or_else(|| normalize_value_string(envelope.get("request_id")));
+    let message_turn_id = normalize_value_string(message.and_then(|value| value.get("id")));
+    let mut transcript_role = role.to_owned();
+    let mut tool_call_id = None;
+    let mut content = extract_claude_message_content(content_value);
+    let turn_id;
+
+    if let Some(mut tool_result) = extract_claude_tool_result_content(
+        content_value,
+        envelope
+            .get("toolUseResult")
+            .or_else(|| envelope.get("tool_use_result")),
+    ) {
+        transcript_role = "tool".to_owned();
+        let mut correlated_turn_id = None;
+        for tool_call in &mut tool_result.tool_calls {
+            let Some(tool_use_id) = read_claude_tool_call_id(tool_call) else {
+                continue;
+            };
+            let Some(tool_context) = context.tool_call_context_by_id.get(tool_use_id.as_str())
+            else {
+                continue;
+            };
+            correlated_turn_id = correlated_turn_id.or_else(|| tool_context.turn_id.clone());
+            if let (Some(tool_name), Some(tool_call)) =
+                (tool_context.tool_name.as_ref(), tool_call.as_object_mut())
+            {
+                let has_tool_name = tool_call
+                    .get("name")
+                    .and_then(Value::as_str)
+                    .is_some_and(|value| !value.trim().is_empty());
+                if !has_tool_name {
+                    tool_call.insert("name".to_owned(), Value::String(tool_name.clone()));
+                }
+            }
+        }
+        tool_call_id = if tool_result.tool_call_ids.len() == 1 {
+            tool_result.tool_call_ids.first().cloned()
+        } else {
+            None
+        };
+        turn_id = correlated_turn_id
+            .or_else(|| context.current_turn_id.clone())
+            .or(explicit_turn_id.clone())
+            .or(message_turn_id.clone());
+        content = ClaudeMessageContent {
+            text: tool_result.text,
+            tool_calls: tool_result.tool_calls,
+        };
+    } else if role == "user" {
+        turn_id = explicit_turn_id
+            .clone()
+            .or_else(|| raw_message_id.clone())
+            .or_else(|| message_turn_id.clone())
+            .or_else(|| context.current_turn_id.clone());
+        context.current_turn_id = turn_id.clone();
+    } else {
+        turn_id = context
+            .current_turn_id
+            .clone()
+            .or(explicit_turn_id.clone())
+            .or(message_turn_id.clone());
+    }
+
     if content.text.is_empty() && content.tool_calls.is_empty() {
         return;
+    }
+
+    if transcript_role == "assistant" {
+        register_claude_tool_calls(context, content.tool_calls.as_slice(), turn_id.as_deref());
     }
 
     context.has_transcript = true;
@@ -542,7 +1111,7 @@ fn apply_claude_transcript_line(
         observe_claude_timestamp(context, timestamp, true);
     }
 
-    if role == "user" && context.first_prompt.is_none() {
+    if transcript_role == "user" && context.first_prompt.is_none() {
         let (title, command_fallback) = normalize_claude_first_prompt(content.text.as_str());
         if let Some(title) = title {
             context.first_prompt = Some(title);
@@ -555,18 +1124,14 @@ fn apply_claude_transcript_line(
         return;
     }
 
-    let raw_message_id = normalize_value_string(envelope.get("uuid"))
-        .or_else(|| normalize_value_string(message.and_then(|value| value.get("id"))));
-    let turn_id = normalize_value_string(envelope.get("requestId"))
-        .or_else(|| normalize_value_string(envelope.get("request_id")))
-        .or_else(|| normalize_value_string(message.and_then(|value| value.get("id"))));
     let metadata = build_claude_message_metadata(envelope, message);
     let transcript_entry = ClaudeTranscriptEntry {
         created_at: timestamp.map(|timestamp| timestamp.text),
         metadata,
         raw_message_id: raw_message_id.clone(),
-        role: role.to_owned(),
+        role: transcript_role,
         text: content.text,
+        tool_call_id,
         tool_calls: if content.tool_calls.is_empty() {
             None
         } else {
@@ -575,22 +1140,307 @@ fn apply_claude_transcript_line(
         turn_id,
     };
 
-    if let Some(raw_message_id) = raw_message_id {
-        let message_identity = raw_message_id.trim().to_ascii_lowercase();
-        if let Some(existing_index) = context.message_index_by_id.get(&message_identity).copied() {
-            context.messages[existing_index] = transcript_entry;
-            return;
+    upsert_claude_transcript_entry(context, transcript_entry, raw_message_id, line_index);
+}
+
+fn upsert_claude_transcript_entry(
+    context: &mut ClaudeSessionParseContext,
+    entry: ClaudeTranscriptEntry,
+    message_identity: Option<String>,
+    line_index: usize,
+) {
+    let message_identity = message_identity
+        .map(|value| value.trim().to_ascii_lowercase())
+        .filter(|value| !value.is_empty())
+        .unwrap_or_else(|| format!("anonymous:{line_index}:{}", context.messages.len()));
+    if let Some(existing_index) = context.message_index_by_id.get(&message_identity).copied() {
+        context.messages[existing_index] = entry;
+        return;
+    }
+    context
+        .message_index_by_id
+        .insert(message_identity, context.messages.len());
+    context.messages.push(entry);
+}
+
+fn register_claude_tool_calls(
+    context: &mut ClaudeSessionParseContext,
+    tool_calls: &[Value],
+    turn_id: Option<&str>,
+) {
+    for tool_call in tool_calls {
+        let tool_type = normalize_value_string(tool_call.get("type"));
+        if !tool_type
+            .as_deref()
+            .is_some_and(|value| value == "tool_use" || value.ends_with("_tool_use"))
+        {
+            continue;
         }
-        context
-            .message_index_by_id
-            .insert(message_identity, context.messages.len());
-    } else {
-        context.message_index_by_id.insert(
-            format!("anonymous:{line_index}:{}", context.messages.len()),
-            context.messages.len(),
+        let Some(tool_use_id) = read_claude_tool_call_id(tool_call) else {
+            continue;
+        };
+        context.tool_call_context_by_id.insert(
+            tool_use_id,
+            ClaudeToolCallContext {
+                tool_name: normalize_value_string(tool_call.get("name")),
+                turn_id: turn_id.map(str::to_owned),
+            },
         );
     }
-    context.messages.push(transcript_entry);
+}
+
+fn read_claude_tool_call_id(tool_call: &Value) -> Option<String> {
+    normalize_value_string(tool_call.get("tool_use_id"))
+        .or_else(|| normalize_value_string(tool_call.get("toolUseId")))
+        .or_else(|| normalize_value_string(tool_call.get("id")))
+}
+
+fn extract_claude_tool_result_content(
+    content: Option<&Value>,
+    native_result: Option<&Value>,
+) -> Option<ClaudeToolResultContent> {
+    let blocks = match content {
+        Some(Value::Array(blocks)) => blocks.as_slice(),
+        Some(block) => std::slice::from_ref(block),
+        None => return None,
+    };
+    let mut text_fragments = Vec::new();
+    let mut tool_call_ids = Vec::new();
+    let mut tool_calls = Vec::new();
+
+    for block in blocks {
+        let block_type = normalize_value_string(block.get("type"));
+        if !block_type
+            .as_deref()
+            .is_some_and(|value| value == "tool_result" || value.ends_with("_tool_result"))
+        {
+            continue;
+        }
+        let Some(tool_use_id) = read_claude_tool_call_id(block) else {
+            continue;
+        };
+        let output = resolve_claude_tool_result_output(block, native_result);
+        let output_text = output
+            .as_ref()
+            .and_then(extract_claude_tool_output_text)
+            .unwrap_or_default();
+        let status = resolve_claude_tool_result_status(block, native_result, output_text.as_str());
+        let mut tool_call = block.as_object().cloned().unwrap_or_default();
+        tool_call.insert("tool_use_id".to_owned(), Value::String(tool_use_id.clone()));
+        tool_call.insert("status".to_owned(), Value::String(status.to_owned()));
+        if let Some(output) = output.filter(|value| !value.is_null()) {
+            tool_call.insert("output".to_owned(), output);
+        }
+        if !output_text.is_empty() {
+            text_fragments.push(output_text);
+        }
+        tool_call_ids.push(tool_use_id);
+        tool_calls.push(Value::Object(tool_call));
+    }
+
+    if tool_calls.is_empty() {
+        None
+    } else {
+        Some(ClaudeToolResultContent {
+            text: text_fragments.join("\n"),
+            tool_call_ids,
+            tool_calls,
+        })
+    }
+}
+
+fn resolve_claude_tool_result_output(
+    block: &Value,
+    native_result: Option<&Value>,
+) -> Option<Value> {
+    let block_content = block.get("content").filter(|value| !value.is_null());
+    if block_content.is_some_and(has_rich_claude_tool_result_content) {
+        return block_content.cloned();
+    }
+    if let Some(text) = native_result.and_then(extract_claude_tool_output_text) {
+        return Some(Value::String(text));
+    }
+    if let Some(text) = block_content.and_then(extract_claude_tool_output_text) {
+        return Some(Value::String(text));
+    }
+    native_result
+        .filter(|value| !value.is_null())
+        .cloned()
+        .or_else(|| block_content.cloned())
+}
+
+fn has_rich_claude_tool_result_content(value: &Value) -> bool {
+    match value {
+        Value::Array(values) => values.iter().any(has_rich_claude_tool_result_content),
+        Value::Object(record) => record
+            .get("type")
+            .and_then(Value::as_str)
+            .is_some_and(|value| {
+                matches!(
+                    value,
+                    "audio" | "document" | "image" | "resource" | "resource_link"
+                )
+            }),
+        _ => false,
+    }
+}
+
+fn extract_claude_tool_output_text(value: &Value) -> Option<String> {
+    match value {
+        Value::String(value) => normalize_non_empty_string(value),
+        Value::Array(values) => {
+            let fragments = values
+                .iter()
+                .filter_map(extract_claude_tool_output_text)
+                .collect::<Vec<_>>();
+            normalize_non_empty_string(fragments.join("\n").as_str())
+        }
+        Value::Object(record) => {
+            let stdout = record
+                .get("stdout")
+                .and_then(Value::as_str)
+                .and_then(normalize_non_empty_string);
+            let stderr = record
+                .get("stderr")
+                .and_then(Value::as_str)
+                .and_then(normalize_non_empty_string);
+            if stdout.is_some() || stderr.is_some() {
+                return Some(
+                    [stdout, stderr]
+                        .into_iter()
+                        .flatten()
+                        .collect::<Vec<_>>()
+                        .join("\n"),
+                );
+            }
+
+            if let Some(file_content) = record
+                .get("file")
+                .and_then(Value::as_object)
+                .and_then(|file| file.get("content"))
+                .and_then(extract_claude_tool_output_text)
+            {
+                return Some(file_content);
+            }
+
+            for key in ["content", "output", "result", "text", "message", "error"] {
+                if let Some(text) = record.get(key).and_then(extract_claude_tool_output_text) {
+                    return Some(text);
+                }
+            }
+            for key in ["filenames", "lines", "results"] {
+                if let Some(text) = record.get(key).and_then(extract_claude_tool_output_text) {
+                    return Some(text);
+                }
+            }
+            None
+        }
+        _ => None,
+    }
+}
+
+fn resolve_claude_tool_result_status(
+    block: &Value,
+    native_result: Option<&Value>,
+    output_text: &str,
+) -> &'static str {
+    let native_status = native_result
+        .and_then(Value::as_object)
+        .and_then(|record| record.get("status"))
+        .and_then(Value::as_str)
+        .map(|value| value.trim().to_ascii_lowercase());
+    let block_status = block
+        .get("status")
+        .and_then(Value::as_str)
+        .map(|value| value.trim().to_ascii_lowercase());
+    let has_cancellation_flag = std::iter::once(block)
+        .chain(native_result)
+        .filter_map(Value::as_object)
+        .any(|record| {
+            ["interrupted", "cancelled", "canceled", "aborted"]
+                .into_iter()
+                .any(|key| record.get(key).and_then(Value::as_bool) == Some(true))
+        });
+    let normalized_output = output_text.trim().to_ascii_lowercase();
+    let has_cancellation_text = [
+        "[request interrupted by user",
+        "command was aborted before completion",
+        "user rejected tool use",
+        "tool use was rejected",
+        "doesn't want to take this action",
+        "does not want to take this action",
+        "doesn't want to proceed with this tool use",
+        "does not want to proceed with this tool use",
+    ]
+    .into_iter()
+    .any(|marker| normalized_output.contains(marker));
+    let has_cancelled_status = [block_status.as_deref(), native_status.as_deref()]
+        .into_iter()
+        .flatten()
+        .any(|status| {
+            matches!(
+                status,
+                "aborted" | "cancelled" | "canceled" | "rejected" | "stopped" | "terminated"
+            )
+        });
+    if has_cancellation_flag || has_cancellation_text || has_cancelled_status {
+        return "cancelled";
+    }
+
+    let native_error = native_result
+        .and_then(Value::as_object)
+        .is_some_and(|record| {
+            record.get("ok").and_then(Value::as_bool) == Some(false)
+                || record.get("success").and_then(Value::as_bool) == Some(false)
+                || record
+                    .get("error")
+                    .is_some_and(has_meaningful_claude_error_value)
+                || read_claude_boolean(record.get("isError").or_else(|| record.get("is_error")))
+                    == Some(true)
+        });
+    let has_error_status = [block_status.as_deref(), native_status.as_deref()]
+        .into_iter()
+        .flatten()
+        .any(|status| matches!(status, "error" | "failed" | "failure"));
+    let has_error_text =
+        normalized_output.starts_with("error:") || normalized_output.contains("<tool_use_error>");
+    if read_claude_boolean(block.get("is_error").or_else(|| block.get("isError"))) == Some(true)
+        || block
+            .get("error")
+            .is_some_and(has_meaningful_claude_error_value)
+        || native_error
+        || has_error_status
+        || has_error_text
+    {
+        "error"
+    } else {
+        "completed"
+    }
+}
+
+fn read_claude_boolean(value: Option<&Value>) -> Option<bool> {
+    match value? {
+        Value::Bool(value) => Some(*value),
+        Value::String(value) if value.trim().eq_ignore_ascii_case("true") => Some(true),
+        Value::String(value) if value.trim().eq_ignore_ascii_case("false") => Some(false),
+        _ => None,
+    }
+}
+
+fn has_meaningful_claude_error_value(value: &Value) -> bool {
+    match value {
+        Value::Null => false,
+        Value::Bool(value) => *value,
+        Value::Number(value) => value.as_f64().is_some_and(|value| value != 0.0),
+        Value::String(value) => {
+            let value = value.trim();
+            !value.is_empty()
+                && !value.eq_ignore_ascii_case("false")
+                && !value.eq_ignore_ascii_case("null")
+        }
+        Value::Array(values) => values.iter().any(has_meaningful_claude_error_value),
+        Value::Object(record) => record.values().any(has_meaningful_claude_error_value),
+    }
 }
 
 fn extract_claude_message_content(content: Option<&Value>) -> ClaudeMessageContent {
@@ -617,11 +1467,8 @@ fn extract_claude_message_content(content: Option<&Value>) -> ClaudeMessageConte
                     text_fragments.push(text);
                 }
             }
-            Some("tool_use") => {
+            Some(tool_type) if tool_type == "tool_use" || tool_type.ends_with("_tool_use") => {
                 tool_calls.push(block.clone());
-                let tool_name =
-                    normalize_value_string(block.get("name")).unwrap_or_else(|| "tool".to_owned());
-                fallback_fragments.push(format!("Tool call: {tool_name}"));
             }
             Some("image") => fallback_fragments.push("Image attachment.".to_owned()),
             Some("document") => fallback_fragments.push("Document attachment.".to_owned()),
@@ -816,7 +1663,7 @@ fn build_claude_session_detail(
                     content: message.text,
                     commands: None,
                     tool_calls: message.tool_calls,
-                    tool_call_id: None,
+                    tool_call_id: message.tool_call_id,
                     file_changes: None,
                     task_progress: None,
                     metadata: message.metadata,
@@ -1117,13 +1964,13 @@ mod tests {
         assert_eq!(summary.updated_at, "2099-07-15T00:00:02Z");
         assert_eq!(
             summary.transcript_updated_at.as_deref(),
-            Some("2099-07-15T00:00:01Z")
+            Some("2099-07-15T00:00:02Z")
         );
 
         let detail = parse_claude_code_session_detail(session_path.as_path())
             .expect("parse Claude detail")
             .expect("Claude detail");
-        assert_eq!(detail.messages.len(), 2);
+        assert_eq!(detail.messages.len(), 3);
         assert_eq!(detail.messages[0].role, "user");
         assert_eq!(detail.messages[0].content, "Inspect every provider session");
         assert_eq!(detail.messages[1].role, "assistant");
@@ -1132,7 +1979,238 @@ mod tests {
             detail.messages[1].tool_calls.as_ref().map(Vec::len),
             Some(1)
         );
+        assert_eq!(detail.messages[2].role, "tool");
+        assert_eq!(detail.messages[2].content, "file contents");
+        assert_eq!(
+            detail.messages[2].tool_call_id.as_deref(),
+            Some("tool-use-1")
+        );
+        assert_eq!(
+            detail.messages[2].tool_calls.as_ref().unwrap()[0]["status"],
+            "completed"
+        );
+        assert_eq!(
+            detail.messages[2].tool_calls.as_ref().unwrap()[0]["output"],
+            "file contents"
+        );
+        assert_eq!(
+            detail.messages[2].tool_calls.as_ref().unwrap()[0]["name"],
+            "Read"
+        );
+        assert_eq!(detail.messages[1].turn_id, detail.messages[2].turn_id);
         assert!(detail.messages[0].id.ends_with("user-message-1"));
+    }
+
+    #[test]
+    fn claude_session_parser_correlates_success_error_and_cancelled_tool_results() {
+        let fixture = TestDirectory::new("tool-lifecycle");
+        let session_id = "14141414-1414-4414-8414-141414141414";
+        let session_path = fixture
+            .path()
+            .join("projects")
+            .join("-workspace-tool-lifecycle")
+            .join(format!("{session_id}.jsonl"));
+        write_jsonl(
+            session_path.as_path(),
+            &[
+                json!({
+                    "parentUuid": null,
+                    "isSidechain": false,
+                    "cwd": "E:/workspace/birdcoder",
+                    "sessionId": session_id,
+                    "type": "user",
+                    "message": {
+                        "role": "user",
+                        "content": "Run the provider lifecycle checks"
+                    },
+                    "uuid": "tool-lifecycle-user",
+                    "timestamp": "2099-07-15T00:10:00Z"
+                }),
+                json!({
+                    "parentUuid": "tool-lifecycle-user",
+                    "isSidechain": false,
+                    "cwd": "E:/workspace/birdcoder",
+                    "sessionId": session_id,
+                    "type": "assistant",
+                    "message": {
+                        "id": "assistant-tool-lifecycle",
+                        "role": "assistant",
+                        "model": "claude-sonnet-4-6",
+                        "content": [
+                            {
+                                "type": "tool_use",
+                                "id": "tool-success",
+                                "name": "Bash",
+                                "input": {"command": "pnpm typecheck"}
+                            },
+                            {
+                                "type": "tool_use",
+                                "id": "tool-error",
+                                "name": "Read",
+                                "input": {"file_path": "missing.ts"}
+                            },
+                            {
+                                "type": "tool_use",
+                                "id": "tool-cancelled",
+                                "name": "Bash",
+                                "input": {"command": "pnpm test"}
+                            }
+                        ]
+                    },
+                    "uuid": "assistant-tool-lifecycle-entry",
+                    "timestamp": "2099-07-15T00:10:01Z"
+                }),
+                json!({
+                    "parentUuid": "assistant-tool-lifecycle-entry",
+                    "isSidechain": false,
+                    "cwd": "E:/workspace/birdcoder",
+                    "sessionId": session_id,
+                    "type": "user",
+                    "toolUseResult": {
+                        "stdout": "Typecheck passed",
+                        "stderr": "",
+                        "interrupted": false,
+                        "error": false
+                    },
+                    "message": {
+                        "role": "user",
+                        "content": [{
+                            "type": "tool_result",
+                            "tool_use_id": "tool-success",
+                            "content": "Typecheck passed"
+                        }]
+                    },
+                    "uuid": "tool-success-result",
+                    "timestamp": "2099-07-15T00:10:02Z"
+                }),
+                json!({
+                    "parentUuid": "assistant-tool-lifecycle-entry",
+                    "isSidechain": false,
+                    "cwd": "E:/workspace/birdcoder",
+                    "sessionId": session_id,
+                    "type": "user",
+                    "toolUseResult": "Error: permission denied",
+                    "message": {
+                        "role": "user",
+                        "content": [{
+                            "type": "tool_result",
+                            "tool_use_id": "tool-error",
+                            "content": "<tool_use_error>Error: permission denied</tool_use_error>",
+                            "is_error": true
+                        }]
+                    },
+                    "uuid": "tool-error-result",
+                    "timestamp": "2099-07-15T00:10:03Z"
+                }),
+                json!({
+                    "parentUuid": "assistant-tool-lifecycle-entry",
+                    "isSidechain": false,
+                    "cwd": "E:/workspace/birdcoder",
+                    "sessionId": session_id,
+                    "type": "user",
+                    "toolUseResult": {
+                        "stdout": "Partial test output",
+                        "stderr": "",
+                        "interrupted": true
+                    },
+                    "message": {
+                        "role": "user",
+                        "content": [{
+                            "type": "tool_result",
+                            "tool_use_id": "tool-cancelled",
+                            "content": "Partial test output\n<error>Command was aborted before completion</error>",
+                            "is_error": true
+                        }]
+                    },
+                    "uuid": "tool-cancelled-result",
+                    "timestamp": "2099-07-15T00:10:04Z"
+                }),
+                json!({
+                    "parentUuid": "tool-cancelled-result",
+                    "isSidechain": false,
+                    "cwd": "E:/workspace/birdcoder",
+                    "sessionId": session_id,
+                    "type": "assistant",
+                    "message": {
+                        "id": "assistant-tool-lifecycle-final",
+                        "role": "assistant",
+                        "model": "claude-sonnet-4-6",
+                        "content": [{"type": "text", "text": "Lifecycle checks finished."}]
+                    },
+                    "uuid": "assistant-tool-lifecycle-final-entry",
+                    "timestamp": "2099-07-15T00:10:05Z"
+                }),
+            ],
+        );
+
+        let detail = parse_claude_code_session_detail(session_path.as_path())
+            .expect("parse Claude tool lifecycle detail")
+            .expect("Claude tool lifecycle detail");
+        assert_eq!(detail.messages.len(), 6);
+        let tool_request = &detail.messages[1];
+        assert_eq!(tool_request.role, "assistant");
+        assert!(tool_request.content.is_empty());
+        assert_eq!(tool_request.tool_calls.as_ref().map(Vec::len), Some(3));
+        assert!(detail
+            .messages
+            .iter()
+            .all(|message| !message.content.contains("Tool call:")));
+
+        let success = detail
+            .messages
+            .iter()
+            .find(|message| message.tool_call_id.as_deref() == Some("tool-success"))
+            .expect("successful Claude tool result");
+        assert_eq!(success.role, "tool");
+        assert_eq!(success.content, "Typecheck passed");
+        assert_eq!(
+            success.tool_calls.as_ref().unwrap()[0]["status"],
+            "completed"
+        );
+        assert_eq!(
+            success.tool_calls.as_ref().unwrap()[0]["output"],
+            "Typecheck passed"
+        );
+        assert_eq!(success.tool_calls.as_ref().unwrap()[0]["name"], "Bash");
+
+        let error = detail
+            .messages
+            .iter()
+            .find(|message| message.tool_call_id.as_deref() == Some("tool-error"))
+            .expect("failed Claude tool result");
+        assert_eq!(error.role, "tool");
+        assert_eq!(error.content, "Error: permission denied");
+        assert_eq!(error.tool_calls.as_ref().unwrap()[0]["status"], "error");
+        assert_eq!(
+            error.tool_calls.as_ref().unwrap()[0]["output"],
+            "Error: permission denied"
+        );
+        assert_eq!(error.tool_calls.as_ref().unwrap()[0]["name"], "Read");
+
+        let cancelled = detail
+            .messages
+            .iter()
+            .find(|message| message.tool_call_id.as_deref() == Some("tool-cancelled"))
+            .expect("cancelled Claude tool result");
+        assert_eq!(cancelled.role, "tool");
+        assert_eq!(cancelled.content, "Partial test output");
+        assert_eq!(
+            cancelled.tool_calls.as_ref().unwrap()[0]["status"],
+            "cancelled"
+        );
+        assert_eq!(
+            cancelled.tool_calls.as_ref().unwrap()[0]["output"],
+            "Partial test output"
+        );
+        assert_eq!(cancelled.tool_calls.as_ref().unwrap()[0]["name"], "Bash");
+
+        let turn_id = detail.messages[0].turn_id.as_deref();
+        assert_eq!(turn_id, Some("tool-lifecycle-user"));
+        assert!(detail
+            .messages
+            .iter()
+            .all(|message| message.turn_id.as_deref() == turn_id));
+        assert_eq!(detail.messages[5].content, "Lifecycle checks finished.");
     }
 
     #[test]
@@ -1279,6 +2357,306 @@ mod tests {
                 .expect("get Claude detail")
                 .expect("Claude detail");
         assert_eq!(detail.summary.title, "Newer duplicate");
+    }
+
+    #[test]
+    fn claude_session_parser_merges_tasks_and_projects_lifecycle_notices() {
+        let fixture = TestDirectory::new("lifecycle-events");
+        let session_id = "66666666-6666-4666-8666-666666666666";
+        let session_path = fixture
+            .path()
+            .join("projects")
+            .join("-workspace-birdcoder")
+            .join(format!("{session_id}.jsonl"));
+        write_jsonl(
+            session_path.as_path(),
+            &[
+                json!({
+                    "type": "user",
+                    "sessionId": session_id,
+                    "cwd": "E:/workspace/birdcoder",
+                    "uuid": "user-lifecycle",
+                    "requestId": "turn-lifecycle",
+                    "timestamp": "2099-07-20T00:00:00Z",
+                    "message": { "role": "user", "content": "Run the background audit" }
+                }),
+                json!({
+                    "type": "system",
+                    "subtype": "task_started",
+                    "sessionId": session_id,
+                    "task_id": "task-audit",
+                    "description": "Audit providers",
+                    "prompt": "Inspect native history",
+                    "timestamp": "2099-07-20T00:00:01Z"
+                }),
+                json!({
+                    "type": "system",
+                    "subtype": "task_updated",
+                    "sessionId": session_id,
+                    "task_id": "task-audit",
+                    "patch": {
+                        "description": "Audit all providers",
+                        "status": "paused",
+                        "error": "Waiting for evidence"
+                    },
+                    "timestamp": "2099-07-20T00:00:02Z"
+                }),
+                json!({
+                    "type": "system",
+                    "subtype": "task_notification",
+                    "sessionId": session_id,
+                    "task_id": "task-audit",
+                    "status": "completed",
+                    "summary": "must stay hidden",
+                    "skip_transcript": true,
+                    "timestamp": "2099-07-20T00:00:03Z"
+                }),
+                json!({
+                    "type": "system",
+                    "subtype": "task_started",
+                    "sessionId": session_id,
+                    "task_id": "task-hidden",
+                    "description": "Hidden task",
+                    "skip_transcript": true,
+                    "timestamp": "2099-07-20T00:00:04Z"
+                }),
+                json!({
+                    "type": "system",
+                    "subtype": "background_tasks_changed",
+                    "sessionId": session_id,
+                    "backgroundTaskCount": 2,
+                    "timestamp": "2099-07-20T00:00:05Z"
+                }),
+                json!({
+                    "type": "system",
+                    "subtype": "permission_denied",
+                    "sessionId": session_id,
+                    "tool_use_id": "tool-denied",
+                    "tool_name": "Write",
+                    "decision_reason": "Workspace policy",
+                    "timestamp": "2099-07-20T00:00:06Z"
+                }),
+                json!({
+                    "type": "system",
+                    "subtype": "api_retry",
+                    "sessionId": session_id,
+                    "attempt": 2,
+                    "message": "Temporary provider failure.",
+                    "timestamp": "2099-07-20T00:00:07Z"
+                }),
+                json!({
+                    "type": "mirror_error",
+                    "sessionId": session_id,
+                    "error": { "message": "Mirror persistence failed" },
+                    "timestamp": "2099-07-20T00:00:08Z"
+                }),
+                json!({
+                    "type": "system",
+                    "subtype": "model_refusal_fallback",
+                    "sessionId": session_id,
+                    "timestamp": "2099-07-20T00:00:08.100Z"
+                }),
+                json!({
+                    "type": "system",
+                    "subtype": "model_refusal_no_fallback",
+                    "sessionId": session_id,
+                    "timestamp": "2099-07-20T00:00:08.200Z"
+                }),
+                json!({
+                    "type": "assistant",
+                    "sessionId": session_id,
+                    "uuid": "assistant-aborted",
+                    "error": "aborted",
+                    "timestamp": "2099-07-20T00:00:09Z",
+                    "message": {
+                        "id": "assistant-turn-aborted",
+                        "role": "assistant",
+                        "model": "claude-sonnet-4-6",
+                        "content": [{ "type": "text", "text": "Partial useful output" }]
+                    }
+                }),
+            ],
+        );
+
+        let detail = parse_claude_code_session_detail(session_path.as_path())
+            .expect("parse Claude lifecycle fixture")
+            .expect("Claude lifecycle detail");
+        assert_eq!(detail.messages.len(), 9);
+        let task_message = detail
+            .messages
+            .iter()
+            .find(|message| message.tool_call_id.as_deref() == Some("task-audit"))
+            .expect("merged Claude task message");
+        let task_event = &task_message.tool_calls.as_ref().unwrap()[0];
+        assert_eq!(task_event["subtype"], "task_updated");
+        assert_eq!(task_event["description"], "Audit all providers");
+        assert_eq!(task_event["prompt"], "Inspect native history");
+        assert_eq!(task_event["status"], "paused");
+        assert_eq!(task_event["patch"]["error"], "Waiting for evidence");
+        assert!(detail
+            .messages
+            .iter()
+            .all(|message| !message.content.contains("must stay hidden")));
+        assert!(detail
+            .messages
+            .iter()
+            .all(|message| message.tool_call_id.as_deref() != Some("task-hidden")));
+
+        let notice_kinds = detail
+            .messages
+            .iter()
+            .filter_map(|message| {
+                message
+                    .metadata
+                    .as_ref()
+                    .and_then(|metadata| metadata.get("noticeKind"))
+                    .map(|kind| (kind.as_str(), message.content.as_str()))
+            })
+            .collect::<Vec<_>>();
+        assert!(notice_kinds
+            .iter()
+            .any(|(kind, content)| { *kind == "retry" && content.contains("attempt 2") }));
+        assert!(notice_kinds
+            .iter()
+            .any(|(kind, content)| *kind == "retry" && content.contains("fallback model")));
+        assert!(notice_kinds.iter().any(|(kind, content)| {
+            *kind == "failed" && content.contains("Mirror persistence failed")
+        }));
+        assert!(notice_kinds
+            .iter()
+            .any(|(kind, content)| { *kind == "failed" && content.contains("no fallback model") }));
+        assert!(notice_kinds
+            .iter()
+            .any(|(kind, content)| *kind == "cancelled" && *content == "Generation cancelled."));
+        assert!(detail.messages.iter().any(
+            |message| message.role == "assistant" && message.content == "Partial useful output"
+        ));
+        let permission_message = detail
+            .messages
+            .iter()
+            .find(|message| message.tool_call_id.as_deref() == Some("tool-denied"))
+            .expect("Claude permission denial tool lifecycle");
+        assert_eq!(permission_message.role, "tool");
+        assert!(permission_message.content.contains("Workspace policy"));
+        assert_eq!(
+            permission_message.tool_calls.as_ref().unwrap()[0]["subtype"],
+            "permission_denied"
+        );
+    }
+
+    #[test]
+    fn claude_session_parser_evicts_refusal_fallback_messages() {
+        let fixture = TestDirectory::new("refusal-fallback-retractions");
+        let session_id = "77777777-7777-4777-8777-777777777777";
+        let session_path = fixture
+            .path()
+            .join("projects")
+            .join("-workspace-birdcoder")
+            .join(format!("{session_id}.jsonl"));
+        write_jsonl(
+            session_path.as_path(),
+            &[
+                json!({
+                    "type": "user",
+                    "sessionId": session_id,
+                    "uuid": "refusal-user",
+                    "requestId": "refusal-turn",
+                    "timestamp": "2099-07-20T01:00:00Z",
+                    "message": { "role": "user", "content": "Read the file" }
+                }),
+                json!({
+                    "type": "assistant",
+                    "sessionId": session_id,
+                    "uuid": "refused-tool-use",
+                    "timestamp": "2099-07-20T01:00:01Z",
+                    "message": {
+                        "id": "refusal-turn",
+                        "role": "assistant",
+                        "model": "claude-sonnet-4-6",
+                        "content": [{
+                            "type": "tool_use",
+                            "id": "toolu-refused-read",
+                            "name": "Read",
+                            "input": { "path": "src/stale.rs" }
+                        }]
+                    }
+                }),
+                json!({
+                    "type": "user",
+                    "sessionId": session_id,
+                    "uuid": "refused-tool-result",
+                    "timestamp": "2099-07-20T01:00:02Z",
+                    "message": {
+                        "role": "user",
+                        "content": [{
+                            "type": "tool_result",
+                            "tool_use_id": "toolu-refused-read",
+                            "content": "stale tool output"
+                        }]
+                    }
+                }),
+                json!({
+                    "type": "assistant",
+                    "sessionId": session_id,
+                    "uuid": "fallback-answer",
+                    "supersedes": ["refused-tool-use", "refused-tool-result"],
+                    "timestamp": "2099-07-20T01:00:03Z",
+                    "message": {
+                        "id": "refusal-turn",
+                        "role": "assistant",
+                        "model": "claude-sonnet-4-6",
+                        "content": [{
+                            "type": "text",
+                            "text": "Canonical fallback answer"
+                        }]
+                    }
+                }),
+                json!({
+                    "type": "user",
+                    "sessionId": session_id,
+                    "uuid": "refused-tool-result",
+                    "timestamp": "2099-07-20T01:00:03.500Z",
+                    "message": {
+                        "role": "user",
+                        "content": [{
+                            "type": "tool_result",
+                            "tool_use_id": "toolu-refused-read",
+                            "content": "duplicate stale tool output"
+                        }]
+                    }
+                }),
+                json!({
+                    "type": "system",
+                    "subtype": "model_refusal_fallback",
+                    "sessionId": session_id,
+                    "uuid": "fallback-resolution",
+                    "direction": "retry",
+                    "retracted_message_uuids": ["refused-tool-use", "refused-tool-result"],
+                    "timestamp": "2099-07-20T01:00:04Z"
+                }),
+            ],
+        );
+
+        let detail = parse_claude_code_session_detail(session_path.as_path())
+            .expect("parse Claude refusal fallback fixture")
+            .expect("Claude refusal fallback detail");
+        assert!(detail
+            .messages
+            .iter()
+            .any(|message| message.content == "Canonical fallback answer"));
+        assert!(detail.messages.iter().all(|message| {
+            !message.content.contains("stale tool output")
+                && !message.id.contains("refused-tool-use")
+                && !message.id.contains("refused-tool-result")
+                && message.tool_call_id.as_deref() != Some("toolu-refused-read")
+        }));
+        assert!(detail.messages.iter().any(|message| {
+            message
+                .metadata
+                .as_ref()
+                .and_then(|metadata| metadata.get("noticeKind"))
+                .is_some_and(|kind| kind == "retry")
+        }));
     }
 
     fn write_basic_session(

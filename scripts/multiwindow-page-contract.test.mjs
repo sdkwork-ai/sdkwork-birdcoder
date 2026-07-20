@@ -528,8 +528,13 @@ assert.match(
 
 assert.match(
   paneSource,
-  /<UniversalChat[\s\S]*hideComposer=\{true\}/,
-  'Each multi-window pane must reuse UniversalChat as a transcript-only shared message surface.',
+  /<DeferredUniversalChat[\s\S]*hideComposer=\{true\}/,
+  'Each multi-window pane must lazily reuse UniversalChat as a transcript-only shared message surface.',
+);
+assert.match(
+  paneSource,
+  /from '@sdkwork\/birdcoder-pc-ui\/components\/DeferredUniversalChat'/u,
+  'Multi-window panes must import the lazy chat surface through its controlled component subpath.',
 );
 
 assert.match(

@@ -1,7 +1,14 @@
 import { spawnSync } from 'node:child_process';
+import path from 'node:path';
 import process from 'node:process';
+import { fileURLToPath } from 'node:url';
 
 import { ensureNodeExecPathOnPath } from './runtime-node-path.mjs';
+
+export const BIRDCODER_WORKSPACE_ROOT_DIR = path.resolve(
+  path.dirname(fileURLToPath(import.meta.url)),
+  '..',
+);
 
 export function createCommandSequencePlan({
   command = '',

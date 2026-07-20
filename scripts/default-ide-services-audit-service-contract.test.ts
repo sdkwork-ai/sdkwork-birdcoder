@@ -5,6 +5,7 @@ import type {
 } from '@sdkwork/birdcoder-pc-contracts-commons';
 import { createDefaultBirdCoderIdeServices } from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/src/services/defaultIdeServices.ts';
 import { createBackendSdkClientContractStub } from './split-sdk-client-contract-stub.ts';
+import { installBirdCoderTestRuntimeEnv } from './test-birdcoder-runtime-env-fixture.ts';
 
 const auditFixtures: BirdCoderIamAuditEventSummary[] = [
   {
@@ -30,6 +31,7 @@ const backendClient: BirdCoderBackendSdkApiClient = createBackendSdkClientContra
   },
 });
 
+const restoreRuntimeEnv = installBirdCoderTestRuntimeEnv();
 const services = createDefaultBirdCoderIdeServices({
   backendClient,
 });
@@ -48,4 +50,5 @@ assert.equal(
   'auditService must delegate exactly one read to BirdCoderBackendSdkApiClient.listAuditEvents().',
 );
 
+restoreRuntimeEnv();
 console.log('default IDE services audit service contract passed.');

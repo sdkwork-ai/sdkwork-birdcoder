@@ -41,7 +41,7 @@ fs.writeFileSync(
         },
       },
     },
-    'x-sdkwork-api-cloud-gateway': {
+    'x-sdkwork-api-assembly': {
       routeCatalogPath: '/app/v3/api/system/routes',
     },
   }, null, 2) + '\n',

@@ -5,6 +5,7 @@ import type {
 } from '@sdkwork/birdcoder-pc-contracts-commons';
 import { createDefaultBirdCoderIdeServices } from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/src/services/defaultIdeServices.ts';
 import { createBackendSdkClientContractStub } from './split-sdk-client-contract-stub.ts';
+import { installBirdCoderTestRuntimeEnv } from './test-birdcoder-runtime-env-fixture.ts';
 
 const policyFixtures: BirdCoderIamPolicySummary[] = [
   {
@@ -34,6 +35,7 @@ const backendClient: BirdCoderBackendSdkApiClient = createBackendSdkClientContra
   },
 });
 
+const restoreRuntimeEnv = installBirdCoderTestRuntimeEnv();
 const services = createDefaultBirdCoderIdeServices({
   backendClient,
 });
@@ -52,4 +54,5 @@ assert.equal(
   'adminPolicyService must delegate exactly one read to BirdCoderBackendSdkApiClient.listPolicies().',
 );
 
+restoreRuntimeEnv();
 console.log('default IDE services admin policy service contract passed.');

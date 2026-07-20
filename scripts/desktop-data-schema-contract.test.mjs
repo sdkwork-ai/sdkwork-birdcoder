@@ -23,6 +23,13 @@ const schemaSources = await Promise.all([
     ),
     'utf8',
   ),
+  readFile(
+    new URL(
+      '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-contracts-commons/src/runConfigurationStorage.ts',
+      import.meta.url,
+    ),
+    'utf8',
+  ),
 ]);
 
 const schemaSource = schemaSources.join('\n');

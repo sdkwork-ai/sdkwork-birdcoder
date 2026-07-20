@@ -343,8 +343,13 @@ assert.match(
 );
 assert.match(
   infrastructureIamRuntimeSource,
-  /iamAuthorityClient\.auth\.sessions\.current\.retrieve\(\)/u,
-  'birdcoder IAM runtime must bind the raw appbase current-session SDK retriever into the current-session authority.',
+  /retrieveBirdCoderAuthenticatedCurrentSession\(iamAuthorityClient\)/u,
+  'birdcoder IAM runtime must bind its authenticated current-session helper into the current-session authority.',
+);
+assert.match(
+  infrastructureIamRuntimeSource,
+  /function retrieveBirdCoderAuthenticatedCurrentSession[\s\S]*client\.auth\.sessions\.current\.retrieve\(\)/u,
+  'birdcoder authenticated current-session helper must retain the canonical appbase SDK operation.',
 );
 assert.match(
   infrastructureSessionServiceSource,

@@ -6,9 +6,43 @@ const recoveryModulePath = new URL(
   '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-workbench/src/workbench/recovery.ts',
   import.meta.url,
 );
+const authSessionScopeModulePath = new URL(
+  '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-workbench/src/context/authSessionScope.ts',
+  import.meta.url,
+);
 const birdcoderAppSource = readBirdcoderAppShellSource();
+const useProjectsSource = fs.readFileSync(
+  new URL(
+    '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-workbench/src/hooks/useProjects.ts',
+    import.meta.url,
+  ),
+  'utf8',
+);
+const useSelectedCodingSessionMessagesSource = fs.readFileSync(
+  new URL(
+    '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-workbench/src/hooks/useSelectedCodingSessionMessages.ts',
+    import.meta.url,
+  ),
+  'utf8',
+);
+const useWorkspacesSource = fs.readFileSync(
+  new URL(
+    '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-workbench/src/hooks/useWorkspaces.ts',
+    import.meta.url,
+  ),
+  'utf8',
+);
 
 const recoveryModule = await import(`${recoveryModulePath.href}?t=${Date.now()}`);
+const authSessionScopeModule = await import(
+  `${authSessionScopeModulePath.href}?t=${Date.now()}`
+);
+
+assert.notEqual(
+  authSessionScopeModule.buildBirdCoderAuthSessionInventoryScope('user-a', 1),
+  authSessionScopeModule.buildBirdCoderAuthSessionInventoryScope('user-a', 2),
+  'same-user authenticated session changes must receive distinct tenant-bound inventory scopes.',
+);
 
 assert.equal(
   recoveryModule.normalizeWorkbenchRecoveryUserScope(' user-a '),
@@ -86,8 +120,23 @@ assert.match(
 );
 assert.match(
   birdcoderAppSource,
-  /previousWorkbenchUserScopeRef/,
-  'BirdcoderApp must track authenticated user scope transitions and reset in-memory workbench selections before loading the next user project inventory.',
+  /previousWorkbenchSessionScopeRef/,
+  'BirdcoderApp must track authenticated session scope transitions and reset in-memory workbench selections before loading the next tenant-bound project inventory.',
+);
+assert.match(
+  useWorkspacesSource,
+  /buildBirdCoderAuthSessionInventoryScope\(user\?\.id, sessionRevision\)/,
+  'workspace inventory must be scoped by authenticated session revision, not only user id.',
+);
+assert.match(
+  useProjectsSource,
+  /buildBirdCoderAuthSessionInventoryScope\(user\?\.id, sessionRevision\)/,
+  'project inventory must be scoped by authenticated session revision, not only user id.',
+);
+assert.match(
+  useSelectedCodingSessionMessagesSource,
+  /buildBirdCoderAuthSessionInventoryScope\(\s*user\?\.id,\s*sessionRevision,?\s*\)/,
+  'selected-session transcript hydration must write into the same authenticated-session project inventory scope.',
 );
 assert.match(
   birdcoderAppSource,

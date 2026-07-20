@@ -11,6 +11,7 @@ import {
   TEST_CODE_ENGINE_MODEL_CONFIG,
   buildTestCodeEngineModelConfigSyncResult,
 } from './test-code-engine-model-config-fixture.ts';
+import { installBirdCoderTestRuntimeEnv } from './test-birdcoder-runtime-env-fixture.ts';
 
 const dataKernelModulePath = new URL(
   '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/src/storage/dataKernel.ts',
@@ -60,6 +61,7 @@ Object.defineProperty(globalThis, 'window', {
     },
   },
 });
+const restoreRuntimeEnv = installBirdCoderTestRuntimeEnv();
 
 function clearCachedProjectLists(readCache: Map<string, unknown>): void {
   for (const key of [...readCache.keys()]) {
@@ -291,6 +293,7 @@ try {
     {
       engineId: 'codex',
       modelId: 'gpt-5.4',
+      runtimeLocationId: 'runtime-location-summary-cache-contract',
     },
   );
 
@@ -348,6 +351,7 @@ try {
     'deleting a coding session must invalidate authoritative session summaries so reloaded project lists cannot resurrect removed sessions from stale summary cache.',
   );
 } finally {
+  restoreRuntimeEnv();
   if (originalWindowDescriptor) {
     Object.defineProperty(globalThis, 'window', originalWindowDescriptor);
   } else {

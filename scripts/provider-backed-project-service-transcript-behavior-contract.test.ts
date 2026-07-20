@@ -25,6 +25,7 @@ const service = new ProviderBackedProjectService({
   evidenceRepositories,
   repository: appRepositories.projects,
 });
+const runtimeLocationId = 'runtime-location-provider-transcript-contract';
 
 const project = await service.createProject('workspace-provider-contract', 'Provider Contract');
 assert.equal(
@@ -37,6 +38,7 @@ assert.equal(
 const codingSession = await service.createCodingSession(project.id, 'Transcript Contract', {
   engineId: 'codex',
   modelId: 'gpt-5.4',
+  runtimeLocationId,
 });
 
 const initialProjectSnapshot = await service.getProjectById(project.id);
@@ -118,6 +120,7 @@ assert.equal(
 const otherCodingSession = await service.createCodingSession(project.id, 'Other Transcript', {
   engineId: 'codex',
   modelId: 'gpt-5.4',
+  runtimeLocationId,
 });
 const otherSessionMessage = await service.addCodingSessionMessage(project.id, otherCodingSession.id, {
   role: 'user',
@@ -144,10 +147,12 @@ assert.equal(
 const duplicateIdSessionA = await service.createCodingSession(project.id, 'Duplicate Id A', {
   engineId: 'codex',
   modelId: 'gpt-5.4',
+  runtimeLocationId,
 });
 const duplicateIdSessionB = await service.createCodingSession(project.id, 'Duplicate Id B', {
   engineId: 'codex',
   modelId: 'gpt-5.4',
+  runtimeLocationId,
 });
 await service.addCodingSessionMessage(project.id, duplicateIdSessionA.id, {
   id: 'provider-duplicate-message-id',
@@ -196,6 +201,7 @@ const duplicateProjectionSession = await service.createCodingSession(
   {
     engineId: 'codex',
     modelId: 'gpt-5.4',
+    runtimeLocationId,
   },
 );
 await service.upsertCodingSession(project.id, {
@@ -290,6 +296,7 @@ const projectDeleteSessionA = await service.createCodingSession(
   {
     engineId: 'codex',
     modelId: 'gpt-5.4',
+    runtimeLocationId,
   },
 );
 const projectDeleteSessionB = await service.createCodingSession(
@@ -298,6 +305,7 @@ const projectDeleteSessionB = await service.createCodingSession(
   {
     engineId: 'codex',
     modelId: 'gpt-5.4',
+    runtimeLocationId,
   },
 );
 await service.addCodingSessionMessage(projectForTranscriptDeletion.id, projectDeleteSessionA.id, {

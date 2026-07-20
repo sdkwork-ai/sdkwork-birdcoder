@@ -15,13 +15,23 @@ export function runLocalTsxContract() {
     });
 
     if (plan.runner === 'tsx') {
+      const tsconfigIndex = plan.args.indexOf('--tsconfig');
       assert.equal(
-        plan.args[1],
-        '--tsconfig',
+        plan.env.NODE_OPTIONS.includes(
+          pathToFileURL(
+            path.join(workspaceRootDir, 'scripts', 'register-test-asset-hooks.mjs'),
+          ).href,
+        ),
+        true,
+        'run-local-tsx must preload the shared non-JavaScript test asset hook.',
+      );
+      assert.equal(
+        tsconfigIndex > 0,
+        true,
         'run-local-tsx must use a runtime tsconfig by default so value imports keep resolving through real workspace packages instead of root-only type boundaries.',
       );
       assert.equal(
-        path.normalize(plan.args[2]),
+        path.normalize(plan.args[tsconfigIndex + 1]),
         path.join(workspaceRootDir, 'tsconfig.runtime.json'),
         'run-local-tsx must point the default tsconfig override at the BirdCoder runtime tsconfig.',
       );
@@ -32,8 +42,8 @@ export function runLocalTsxContract() {
         'run-local-tsx must fall back to Node strip-types when tsx is not installed.',
       );
       assert.equal(
-        plan.args[0],
-        '--experimental-strip-types',
+        plan.args.includes('--experimental-strip-types'),
+        true,
         'run-local-tsx fallback must execute TypeScript through Node strip-types.',
       );
     }
@@ -51,13 +61,14 @@ export function runLocalTsxContract() {
     });
 
     if (plan.runner === 'tsx') {
+      const tsconfigIndex = plan.args.indexOf('--tsconfig');
       assert.equal(
         plan.args.filter((arg) => arg === '--tsconfig').length,
         1,
         'run-local-tsx must not inject a second tsconfig override when callers pass one explicitly.',
       );
       assert.equal(
-        path.normalize(plan.args[2]),
+        path.normalize(plan.args[tsconfigIndex + 1]),
         customTsconfig,
         'run-local-tsx must preserve an explicit caller-provided tsconfig path.',
       );

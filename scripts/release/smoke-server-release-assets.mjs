@@ -106,7 +106,7 @@ function assertValidCodingServerOpenApiSnapshot(openApiPath) {
   if (String(document?.servers?.[0]?.url ?? '').trim() !== '/') {
     throw new Error(`Coding-server OpenAPI sidecar must publish the unified same-port server URL '/': ${openApiPath}`);
   }
-  if (String(document?.['x-sdkwork-api-cloud-gateway']?.routeCatalogPath ?? '').trim() !== '/app/v3/api/system/routes') {
+  if (String(document?.['x-sdkwork-api-assembly']?.routeCatalogPath ?? '').trim() !== '/app/v3/api/system/routes') {
     throw new Error(`Coding-server OpenAPI sidecar must expose the app route catalog path: ${openApiPath}`);
   }
   if (String(document?.paths?.['/app/v3/api/system/routes']?.get?.operationId ?? '').trim() !== 'routes.list') {

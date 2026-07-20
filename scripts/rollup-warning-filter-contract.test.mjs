@@ -73,6 +73,25 @@ assert.equal(
 
 assert.equal(
   shouldIgnoreBirdcoderRollupWarning({
+    code: 'PLUGIN_TIMINGS',
+    message:
+      'Your build spent significant time in plugins: sdkwork-birdcoder-h5-react-compat',
+  }),
+  true,
+  'BirdCoder H5 may govern timing diagnostics emitted by its own compatibility plugins.',
+);
+
+assert.equal(
+  shouldIgnoreBirdcoderRollupWarning({
+    code: 'PLUGIN_TIMINGS',
+    message: 'Your build spent significant time in plugins: unknown-third-party-plugin',
+  }),
+  false,
+  'BirdCoder must not suppress timing diagnostics from unknown plugins.',
+);
+
+assert.equal(
+  shouldIgnoreBirdcoderRollupWarning({
     code: 'INEFFECTIVE_DYNAMIC_IMPORT',
     message:
       'sdkwork-birdcoder-pc-auth/src/index.ts is dynamically imported by iamIntegration.ts but also statically imported by BirdCoderAuthGate.tsx',

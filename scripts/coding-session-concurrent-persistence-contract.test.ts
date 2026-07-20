@@ -11,6 +11,7 @@ import {
   TEST_CODE_ENGINE_MODEL_CONFIG,
   buildTestCodeEngineModelConfigSyncResult,
 } from './test-code-engine-model-config-fixture.ts';
+import { installBirdCoderTestRuntimeEnv } from './test-birdcoder-runtime-env-fixture.ts';
 
 const dataKernelModulePath = new URL(
   '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/src/storage/dataKernel.ts',
@@ -60,6 +61,7 @@ Object.defineProperty(globalThis, 'window', {
     },
   },
 });
+const restoreRuntimeEnv = installBirdCoderTestRuntimeEnv();
 
 function createTimestamp(offset: number): string {
   return new Date(Date.UTC(2026, 3, 11, 13, 0, 0) + offset * 1000).toISOString();
@@ -258,7 +260,8 @@ try {
     'Concurrent Session A',
     {
       engineId: 'codex',
-      modelId: 'gpt-5-codex',
+      modelId: 'gpt-5.3-codex',
+      runtimeLocationId: 'runtime-location-concurrent-persistence',
     },
   );
   const sessionB = await serviceB.projectService.createCodingSession(
@@ -266,7 +269,8 @@ try {
     'Concurrent Session B',
     {
       engineId: 'claude-code',
-      modelId: 'claude-sonnet-4.5',
+      modelId: 'claude-sonnet-4-6',
+      runtimeLocationId: 'runtime-location-concurrent-persistence',
     },
   );
 
@@ -288,6 +292,7 @@ try {
     'concurrent IDE services must merge persisted coding sessions instead of overwriting each other with stale in-memory caches.',
   );
 } finally {
+  restoreRuntimeEnv();
   if (originalWindowDescriptor) {
     Object.defineProperty(globalThis, 'window', originalWindowDescriptor);
   } else {

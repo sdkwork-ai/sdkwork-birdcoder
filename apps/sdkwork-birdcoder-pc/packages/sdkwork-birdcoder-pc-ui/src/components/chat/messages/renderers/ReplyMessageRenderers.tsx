@@ -44,6 +44,7 @@ function ChatMessageActionBar({
   const regenerateLabel = environment?.t('chat.messageRegenerate') ?? 'Regenerate response';
   const deleteLabel = environment?.t('chat.messageDelete') ?? 'Delete message';
   const actionButtonClassName = 'h-6 w-6 rounded-md text-gray-500 transition-colors hover:bg-white/10 hover:text-gray-300 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-blue-400/70';
+  const hasCopyContent = copyContent.trim().length > 0;
 
   return (
     <div className={className}>
@@ -59,16 +60,18 @@ function ChatMessageActionBar({
           <Edit2 size={iconSize} />
         </Button>
       ) : null}
-      <Button
-        variant="ghost"
-        size="icon"
-        className={actionButtonClassName}
-        title={copyLabel}
-        aria-label={copyLabel}
-        onClick={() => context.copyMessageToClipboard(copyContent)}
-      >
-        <Copy size={iconSize} />
-      </Button>
+      {hasCopyContent ? (
+        <Button
+          variant="ghost"
+          size="icon"
+          className={actionButtonClassName}
+          title={copyLabel}
+          aria-label={copyLabel}
+          onClick={() => context.copyMessageToClipboard(copyContent)}
+        >
+          <Copy size={iconSize} />
+        </Button>
+      ) : null}
       {showRegenerate && environment?.onRegenerateMessage ? (
         <Button
           variant="ghost"
@@ -115,8 +118,8 @@ export const UserTextMessageRenderer = memo(function UserTextMessageRenderer({
 
   if (isSidebar) {
     return (
-      <div ref={messageRef} className="group flex flex-col items-end">
-        <div className="max-w-[90%] bg-white/5 text-gray-200 rounded-xl rounded-tr-md px-4 py-3">
+      <div ref={messageRef} className="group flex w-full min-w-0 flex-col items-end">
+        <div className="max-w-[90%] min-w-0 overflow-hidden break-words bg-white/5 px-4 py-3 text-gray-200 [overflow-wrap:anywhere] rounded-xl rounded-tr-md">
           <ContentBlockList view={view} context={context} />
         </div>
         {context.showMessageActions ? (
@@ -134,8 +137,8 @@ export const UserTextMessageRenderer = memo(function UserTextMessageRenderer({
   }
 
   return (
-    <div ref={messageRef} className="flex w-full flex-col items-end">
-      <div className="max-w-[85%] bg-white/5 text-gray-200 px-4 py-2.5 rounded-xl rounded-tr-md text-[14px] whitespace-pre-wrap leading-relaxed">
+    <div ref={messageRef} className="flex w-full min-w-0 flex-col items-end">
+      <div className="max-w-[85%] min-w-0 overflow-hidden break-words bg-white/5 px-4 py-2.5 text-[14px] leading-relaxed text-gray-200 whitespace-pre-wrap [overflow-wrap:anywhere] rounded-xl rounded-tr-md">
         <ContentBlockList view={view} context={context} />
       </div>
       {context.showMessageActions ? (
@@ -169,7 +172,7 @@ export const AssistantReplyMessageRenderer = memo(function AssistantReplyMessage
   );
 
   return (
-    <div ref={messageRef} className={`flex flex-col w-full ${isSidebar ? 'items-start group' : 'min-w-0'}`}>
+    <div ref={messageRef} className={`flex w-full min-w-0 max-w-full flex-col ${isSidebar ? 'items-start group' : ''}`}>
       {isProtocolNotice ? null : (
         <RoleHeader viewKind={view.kind} layout={context.layout} t={context.environment?.t} />
       )}

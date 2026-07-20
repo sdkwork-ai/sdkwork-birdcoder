@@ -251,8 +251,77 @@ fn build_opencode_message_records(
 ) -> Vec<CodeEngineSessionMessageRecord> {
     messages
         .iter()
-        .filter_map(|message| build_opencode_message_record(coding_session_id, message))
+        .flat_map(|message| {
+            let mut records = Vec::with_capacity(2);
+            if let Some(record) = build_opencode_message_record(coding_session_id, message) {
+                records.push(record);
+            }
+            if let Some(notice) = build_opencode_message_error_notice(coding_session_id, message) {
+                records.push(notice);
+            }
+            records
+        })
         .collect()
+}
+
+fn read_opencode_message_turn_id(info: &Value, raw_message_id: &str, role: &str) -> String {
+    if role == "user" {
+        return raw_message_id.to_owned();
+    }
+    normalize_value_string(
+        info.get("parentID")
+            .or_else(|| info.get("parentId"))
+            .or_else(|| info.get("parent_id")),
+    )
+    .unwrap_or_else(|| raw_message_id.to_owned())
+}
+
+fn build_opencode_message_error_notice(
+    coding_session_id: &str,
+    message: &Value,
+) -> Option<CodeEngineSessionMessageRecord> {
+    let info = message.get("info")?;
+    if normalize_value_string(info.get("role")).as_deref() != Some("assistant") {
+        return None;
+    }
+    let error = info.get("error")?.as_object()?;
+    let error_name = normalize_value_string(error.get("name"))?;
+    let error_data = error.get("data").and_then(Value::as_object);
+    let error_message = error_data
+        .and_then(|data| normalize_value_string(data.get("message")))
+        .or_else(|| normalize_value_string(error.get("message")));
+    let is_aborted = error_name.eq_ignore_ascii_case("MessageAbortedError");
+    let content = if is_aborted {
+        error_message.unwrap_or_else(|| "Generation cancelled.".to_owned())
+    } else {
+        error_message.unwrap_or_else(|| error_name.clone())
+    };
+    let raw_message_id = normalize_value_string(info.get("id"))?;
+    let turn_id = read_opencode_message_turn_id(info, raw_message_id.as_str(), "assistant");
+    let mut metadata = BTreeMap::new();
+    metadata.insert(
+        "noticeKind".to_owned(),
+        if is_aborted { "cancelled" } else { "failed" }.to_owned(),
+    );
+
+    Some(CodeEngineSessionMessageRecord {
+        id: format!("{coding_session_id}:native-message:{raw_message_id}:error"),
+        turn_id: Some(turn_id),
+        role: "system".to_owned(),
+        content,
+        commands: None,
+        tool_calls: None,
+        tool_call_id: None,
+        file_changes: None,
+        task_progress: None,
+        metadata: Some(metadata),
+        created_at: timestamp_from_value_millis(
+            info.get("time")
+                .and_then(|time| time.get("completed"))
+                .or_else(|| info.get("time").and_then(|time| time.get("created"))),
+        )
+        .unwrap_or_else(|| timestamp_from_millis(0)),
+    })
 }
 
 fn build_opencode_message_record(
@@ -272,12 +341,21 @@ fn build_opencode_message_record(
     let tool_calls = extract_opencode_message_tool_calls(&parts);
     let file_changes = extract_opencode_message_file_changes(info, &parts);
     let task_progress = extract_opencode_message_task_progress(&parts);
-    let content = extract_opencode_message_content(&parts, commands.as_slice());
+    let content = extract_opencode_message_content(&parts);
+    if content.trim().is_empty()
+        && commands.is_empty()
+        && tool_calls.is_empty()
+        && file_changes.is_empty()
+        && task_progress.is_none()
+    {
+        return None;
+    }
     let metadata = build_opencode_message_metadata(info);
+    let turn_id = read_opencode_message_turn_id(info, raw_message_id.as_str(), role.as_str());
 
     Some(CodeEngineSessionMessageRecord {
         id: format!("{coding_session_id}:native-message:{raw_message_id}"),
-        turn_id: Some(raw_message_id),
+        turn_id: Some(turn_id),
         role: if role == "user" {
             role
         } else {
@@ -341,16 +419,35 @@ fn extract_opencode_message_file_changes(info: &Value, parts: &[Value]) -> Vec<V
                 }
             }
             Some("tool") => {
-                let tool_name = normalize_value_string(part.get("tool"))
-                    .unwrap_or_else(|| "tool".to_owned());
+                let tool_name =
+                    normalize_value_string(part.get("tool")).unwrap_or_else(|| "tool".to_owned());
                 if map_codeengine_tool_kind(tool_name.as_str()) != "file_change" {
                     continue;
                 }
                 let state = part.get("state");
+                let state_status =
+                    normalize_value_string(state.and_then(|value| value.get("status")))
+                        .unwrap_or_default()
+                        .to_ascii_lowercase();
+                let was_interrupted = state
+                    .and_then(|value| value.get("metadata"))
+                    .and_then(|metadata| metadata.get("interrupted"))
+                    .and_then(Value::as_bool)
+                    .unwrap_or(false);
+                if was_interrupted
+                    || !matches!(
+                        state_status.as_str(),
+                        "complete" | "completed" | "success" | "succeeded"
+                    )
+                {
+                    continue;
+                }
                 let input = state.and_then(|value| value.get("input"));
                 let path = ["path", "filePath", "file_path", "filename"]
                     .into_iter()
-                    .find_map(|field| normalize_path_string(input.and_then(|value| value.get(field))));
+                    .find_map(|field| {
+                        normalize_path_string(input.and_then(|value| value.get(field)))
+                    });
                 let Some(path) = path else {
                     continue;
                 };
@@ -358,10 +455,9 @@ fn extract_opencode_message_file_changes(info: &Value, parts: &[Value]) -> Vec<V
                 let diff = ["diff", "patch", "unifiedDiff", "unified_diff"]
                     .into_iter()
                     .find_map(|field| {
-                        normalize_value_string(metadata.and_then(|value| value.get(field)))
-                            .or_else(|| {
-                                normalize_value_string(state.and_then(|value| value.get(field)))
-                            })
+                        normalize_value_string(metadata.and_then(|value| value.get(field))).or_else(
+                            || normalize_value_string(state.and_then(|value| value.get(field))),
+                        )
                     });
                 file_changes_by_path.insert(
                     path.clone(),
@@ -412,10 +508,7 @@ fn build_opencode_file_change(
         .map(count_opencode_unified_diff_lines)
         .unwrap_or_default();
     let mut file_change = serde_json::Map::new();
-    file_change.insert(
-        "path".to_owned(),
-        Value::String(path.replace('\\', "/")),
-    );
+    file_change.insert("path".to_owned(), Value::String(path.replace('\\', "/")));
     file_change.insert(
         "additions".to_owned(),
         Value::from(additions.unwrap_or(derived_additions)),
@@ -488,62 +581,16 @@ fn extract_opencode_message_task_progress(parts: &[Value]) -> Option<Value> {
     })
 }
 
-fn extract_opencode_message_content(
-    parts: &[Value],
-    commands: &[CodeEngineSessionCommandRecord],
-) -> String {
-    let mut text_fragments = Vec::new();
-    let mut reasoning_fragments = Vec::new();
-    let mut fallback_fragments = Vec::new();
-
-    for part in parts {
-        match part.get("type").and_then(Value::as_str) {
-            Some("text") => {
-                if let Some(text) = normalize_value_string(part.get("text")) {
-                    text_fragments.push(text);
-                }
-            }
-            Some("reasoning") => {
-                if let Some(text) = normalize_value_string(part.get("text")) {
-                    reasoning_fragments.push(text);
-                }
-            }
-            Some("file") => {
-                if let Some(path) = normalize_value_string(part.get("filename"))
-                    .or_else(|| normalize_value_string(part.get("url")))
-                {
-                    fallback_fragments.push(format!("Referenced file: {path}"));
-                }
-            }
-            Some("step-start") => fallback_fragments.push("Step started.".to_owned()),
-            Some("step-finish") => fallback_fragments.push(
-                normalize_value_string(part.get("reason"))
-                    .map(|reason| format!("Step finished: {reason}"))
-                    .unwrap_or_else(|| "Step finished.".to_owned()),
-            ),
-            Some("patch") => fallback_fragments.push("Patch artifact updated.".to_owned()),
-            _ => {}
-        }
-    }
-
-    if !text_fragments.is_empty() {
-        return text_fragments.join("\n");
-    }
-    if !reasoning_fragments.is_empty() {
-        return reasoning_fragments.join("\n");
-    }
-    if !fallback_fragments.is_empty() {
-        return fallback_fragments.join("\n");
-    }
-    if !commands.is_empty() {
-        return commands
-            .iter()
-            .map(|command| format!("Tool {}: {}", command.status, command.command))
-            .collect::<Vec<_>>()
-            .join("\n");
-    }
-
-    "OpenCode message had no text payload.".to_owned()
+fn extract_opencode_message_content(parts: &[Value]) -> String {
+    parts
+        .iter()
+        .filter(|part| {
+            part.get("type").and_then(Value::as_str) == Some("text")
+                && part.get("synthetic").and_then(Value::as_bool) != Some(true)
+        })
+        .filter_map(|part| normalize_value_string(part.get("text")))
+        .collect::<Vec<_>>()
+        .join("\n")
 }
 
 fn extract_opencode_message_commands(parts: &[Value]) -> Vec<CodeEngineSessionCommandRecord> {
@@ -609,7 +656,26 @@ fn extract_opencode_tool_state_output(state: Option<&Value>) -> Option<String> {
 
     interrupted_output
         .or_else(|| normalize_value_string(state.get("output")))
-        .or_else(|| normalize_value_string(state.get("error")))
+        .or_else(|| normalize_opencode_error_output(state.get("error")))
+}
+
+fn normalize_opencode_error_output(value: Option<&Value>) -> Option<String> {
+    match value? {
+        Value::String(value) => normalize_non_empty_string(Some(value.as_str())),
+        Value::Number(value) => Some(value.to_string()),
+        Value::Object(record) => ["message", "text", "output"]
+            .into_iter()
+            .find_map(|field| normalize_value_string(record.get(field))),
+        Value::Array(values) => {
+            let output = values
+                .iter()
+                .filter_map(|value| normalize_opencode_error_output(Some(value)))
+                .collect::<Vec<_>>()
+                .join("\n");
+            normalize_non_empty_string(Some(output.as_str()))
+        }
+        Value::Null | Value::Bool(_) => None,
+    }
 }
 
 fn build_opencode_message_metadata(info: &Value) -> Option<BTreeMap<String, String>> {
@@ -733,8 +799,9 @@ mod tests {
     use crate::map_codeengine_tool_command_status;
 
     use super::{
-        build_opencode_message_record, build_opencode_session_summary_record,
-        extract_opencode_message_commands, extract_opencode_session_model_id,
+        build_opencode_message_record, build_opencode_message_records,
+        build_opencode_session_summary_record, extract_opencode_message_commands,
+        extract_opencode_message_file_changes, extract_opencode_session_model_id,
         load_opencode_session_model_id,
     };
 
@@ -1101,6 +1168,171 @@ mod tests {
     }
 
     #[test]
+    fn opencode_reasoning_only_history_does_not_create_an_empty_assistant_record() {
+        let record = build_opencode_message_record(
+            "opencode:session-reasoning-only",
+            &json!({
+                "info": {
+                    "id": "message-reasoning-only",
+                    "role": "assistant"
+                },
+                "parts": [{
+                    "id": "part-reasoning",
+                    "type": "reasoning",
+                    "text": "Internal reasoning must not render as the assistant answer."
+                }]
+            }),
+        );
+
+        assert!(record.is_none());
+
+        let empty_user = build_opencode_message_record(
+            "opencode:session-empty-user",
+            &json!({
+                "info": {
+                    "id": "message-empty-user",
+                    "role": "user"
+                },
+                "parts": []
+            }),
+        );
+        assert!(empty_user.is_none());
+    }
+
+    #[test]
+    fn opencode_synthetic_text_parts_do_not_leak_into_user_history() {
+        let record = build_opencode_message_record(
+            "opencode:session-user-with-synthetic-context",
+            &json!({
+                "info": {
+                    "id": "message-user-with-synthetic-context",
+                    "role": "user"
+                },
+                "parts": [
+                    {
+                        "id": "part-user-authored",
+                        "type": "text",
+                        "text": "Inspect the provider adapter."
+                    },
+                    {
+                        "id": "part-provider-synthetic",
+                        "type": "text",
+                        "text": "Summarize the task tool output above and continue with your task.",
+                        "synthetic": true
+                    }
+                ]
+            }),
+        )
+        .expect("preserve authored OpenCode user content");
+
+        assert_eq!(record.content, "Inspect the provider adapter.");
+
+        let synthetic_only = build_opencode_message_record(
+            "opencode:session-synthetic-only",
+            &json!({
+                "info": {
+                    "id": "message-synthetic-only",
+                    "role": "user"
+                },
+                "parts": [{
+                    "id": "part-synthetic-only",
+                    "type": "text",
+                    "text": "The following tool was executed by the user",
+                    "synthetic": true
+                }]
+            }),
+        );
+
+        assert!(synthetic_only.is_none());
+    }
+
+    #[test]
+    fn opencode_tool_only_history_keeps_activity_without_synthetic_answer_content() {
+        let record = build_opencode_message_record(
+            "opencode:session-tool-only",
+            &json!({
+                "info": {
+                    "id": "message-tool-only",
+                    "parentID": "message-user-turn",
+                    "role": "assistant"
+                },
+                "parts": [{
+                    "id": "part-tool",
+                    "type": "tool",
+                    "callID": "call-tool-only",
+                    "tool": "bash",
+                    "state": {
+                        "status": "completed",
+                        "input": { "command": "pnpm test" },
+                        "output": "tests passed"
+                    }
+                }]
+            }),
+        )
+        .expect("build OpenCode tool-only history message");
+
+        assert!(record.content.is_empty());
+        assert_eq!(record.turn_id.as_deref(), Some("message-user-turn"));
+        let tool_calls = record
+            .tool_calls
+            .as_ref()
+            .expect("preserve native tool call");
+        assert_eq!(tool_calls.len(), 1);
+        assert_eq!(tool_calls[0]["callID"], "call-tool-only");
+        let commands = record.commands.as_ref().expect("project tool command");
+        assert_eq!(commands.len(), 1);
+        assert_eq!(commands[0].command, "pnpm test");
+        assert_eq!(commands[0].output.as_deref(), Some("tests passed"));
+    }
+
+    #[test]
+    fn opencode_false_error_values_do_not_render_as_tool_output() {
+        let commands = extract_opencode_message_commands(&[json!({
+            "id": "part-false-error",
+            "type": "tool",
+            "tool": "bash",
+            "callID": "call-false-error",
+            "state": {
+                "status": "completed",
+                "input": { "command": "pnpm test" },
+                "error": false
+            }
+        })]);
+
+        assert_eq!(commands.len(), 1);
+        assert_eq!(commands[0].status, "success");
+        assert_eq!(commands[0].output, None);
+    }
+
+    #[test]
+    fn opencode_patch_only_history_keeps_file_changes_without_placeholder_content() {
+        let record = build_opencode_message_record(
+            "opencode:session-patch-only",
+            &json!({
+                "info": {
+                    "id": "message-patch-only",
+                    "role": "assistant"
+                },
+                "parts": [{
+                    "id": "part-patch",
+                    "type": "patch",
+                    "hash": "patch-only",
+                    "files": ["src/App.tsx"]
+                }]
+            }),
+        )
+        .expect("build OpenCode patch-only history message");
+
+        assert!(record.content.is_empty());
+        let file_changes = record
+            .file_changes
+            .as_ref()
+            .expect("project patch file changes");
+        assert_eq!(file_changes.len(), 1);
+        assert_eq!(file_changes[0]["path"], "src/App.tsx");
+    }
+
+    #[test]
     fn opencode_history_preserves_interrupted_output_attachments_and_file_changes() {
         let message = json!({
             "info": {
@@ -1188,6 +1420,7 @@ mod tests {
         let record = build_opencode_message_record("opencode:session-history", &message)
             .expect("build OpenCode history message");
 
+        assert!(record.content.is_empty());
         let tool_calls = record.tool_calls.expect("preserve native tool calls");
         assert_eq!(tool_calls.len(), 3);
         assert_eq!(
@@ -1206,6 +1439,143 @@ mod tests {
         assert_eq!(file_changes[0]["additions"], 3);
         assert_eq!(file_changes[0]["deletions"], 1);
         assert_eq!(file_changes[1]["path"], "src/new.ts");
-        assert_eq!(record.task_progress, Some(json!({ "total": 2, "completed": 1 })));
+        assert_eq!(
+            record.task_progress,
+            Some(json!({ "total": 2, "completed": 1 }))
+        );
+    }
+
+    #[test]
+    fn opencode_file_history_only_promotes_completed_tool_mutations() {
+        let file_changes = extract_opencode_message_file_changes(
+            &json!({}),
+            &[
+                json!({
+                    "type": "tool",
+                    "tool": "write_file",
+                    "state": {
+                        "status": "completed",
+                        "input": { "path": "src/completed.ts" },
+                        "metadata": {}
+                    }
+                }),
+                json!({
+                    "type": "tool",
+                    "tool": "write_file",
+                    "state": {
+                        "status": "error",
+                        "input": { "path": "src/error.ts" },
+                        "error": "Write failed"
+                    }
+                }),
+                json!({
+                    "type": "tool",
+                    "tool": "write_file",
+                    "state": {
+                        "status": "running",
+                        "input": { "path": "src/running.ts" }
+                    }
+                }),
+                json!({
+                    "type": "tool",
+                    "tool": "write_file",
+                    "state": {
+                        "status": "completed",
+                        "input": { "path": "src/interrupted.ts" },
+                        "metadata": { "interrupted": true }
+                    }
+                }),
+                json!({
+                    "type": "patch",
+                    "hash": "applied-patch",
+                    "files": ["src/patch.ts"]
+                }),
+            ],
+        );
+
+        assert_eq!(file_changes.len(), 2);
+        let paths = file_changes
+            .iter()
+            .filter_map(|change| change["path"].as_str())
+            .collect::<Vec<_>>();
+        assert!(paths.contains(&"src/completed.ts"));
+        assert!(paths.contains(&"src/patch.ts"));
+        assert!(!paths.contains(&"src/error.ts"));
+        assert!(!paths.contains(&"src/running.ts"));
+        assert!(!paths.contains(&"src/interrupted.ts"));
+    }
+
+    #[test]
+    fn opencode_assistant_errors_project_notices_without_losing_parent_turns() {
+        let records = build_opencode_message_records(
+            "opencode:session-errors",
+            &[
+                json!({
+                    "info": {
+                        "id": "assistant-aborted",
+                        "parentID": "user-turn-aborted",
+                        "role": "assistant",
+                        "time": { "created": 1_710_000_000_000_i64 },
+                        "error": {
+                            "name": "MessageAbortedError",
+                            "data": { "message": "Stopped by user" }
+                        }
+                    },
+                    "parts": []
+                }),
+                json!({
+                    "info": {
+                        "id": "assistant-auth",
+                        "parentID": "user-turn-auth",
+                        "role": "assistant",
+                        "time": { "created": 1_710_000_001_000_i64 },
+                        "error": {
+                            "name": "ProviderAuthError",
+                            "data": {
+                                "providerID": "anthropic",
+                                "message": "Provider credentials expired"
+                            }
+                        }
+                    },
+                    "parts": [{ "type": "text", "text": "Partial useful answer" }]
+                }),
+            ],
+        );
+
+        assert_eq!(records.len(), 3);
+        let aborted_notice = records
+            .iter()
+            .find(|record| record.id.ends_with("assistant-aborted:error"))
+            .expect("OpenCode aborted notice");
+        assert_eq!(aborted_notice.role, "system");
+        assert_eq!(aborted_notice.turn_id.as_deref(), Some("user-turn-aborted"));
+        assert_eq!(
+            aborted_notice
+                .metadata
+                .as_ref()
+                .and_then(|metadata| metadata.get("noticeKind"))
+                .map(String::as_str),
+            Some("cancelled")
+        );
+        let assistant = records
+            .iter()
+            .find(|record| record.id.ends_with("assistant-auth"))
+            .expect("OpenCode partial assistant answer");
+        assert_eq!(assistant.content, "Partial useful answer");
+        assert!(!assistant.content.contains("ProviderAuthError"));
+        let failed_notice = records
+            .iter()
+            .find(|record| record.id.ends_with("assistant-auth:error"))
+            .expect("OpenCode failed notice");
+        assert_eq!(failed_notice.turn_id.as_deref(), Some("user-turn-auth"));
+        assert_eq!(failed_notice.content, "Provider credentials expired");
+        assert_eq!(
+            failed_notice
+                .metadata
+                .as_ref()
+                .and_then(|metadata| metadata.get("noticeKind"))
+                .map(String::as_str),
+            Some("failed")
+        );
     }
 }

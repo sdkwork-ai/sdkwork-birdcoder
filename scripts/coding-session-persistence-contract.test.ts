@@ -12,6 +12,7 @@ import {
   TEST_CODE_ENGINE_MODEL_CONFIG,
   buildTestCodeEngineModelConfigSyncResult,
 } from './test-code-engine-model-config-fixture.ts';
+import { installBirdCoderTestRuntimeEnv } from './test-birdcoder-runtime-env-fixture.ts';
 
 const dataKernelModulePath = new URL(
   '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/src/storage/dataKernel.ts',
@@ -65,6 +66,7 @@ Object.defineProperty(globalThis, 'window', {
     },
   },
 });
+const restoreRuntimeEnv = installBirdCoderTestRuntimeEnv();
 
 function createTimestamp(offset: number): string {
   return new Date(Date.UTC(2026, 3, 11, 12, 0, 0) + offset * 1000).toISOString();
@@ -329,7 +331,8 @@ try {
     'Persistent Session',
     {
       engineId: 'codex',
-      modelId: 'codex',
+      modelId: 'gpt-5.4',
+      runtimeLocationId: 'runtime-location-coding-session-persistence',
     },
   );
   const createdMessage = await services.projectService.addCodingSessionMessage(
@@ -375,7 +378,7 @@ try {
         id: createdSession.id,
         title: 'Persistent Session',
         engineId: 'codex',
-        modelId: 'codex',
+        modelId: 'gpt-5.4',
         nativeSessionId: 'persistence-native-1',
         messages: [],
       },
@@ -440,7 +443,7 @@ try {
     [
       {
         id: createdSession.id,
-        modelId: 'codex',
+        modelId: 'gpt-5.4',
       },
     ],
     'coding session inventory must discard persisted session records that do not carry an explicit model id.',
@@ -547,6 +550,7 @@ try {
     'coding session inventory must normalize native runtime status aliases and discard unknown persisted runtime statuses.',
   );
 } finally {
+  restoreRuntimeEnv();
   if (originalWindowDescriptor) {
     Object.defineProperty(globalThis, 'window', originalWindowDescriptor);
   } else {

@@ -355,18 +355,12 @@ assertTauriApiAlias(rootConfig.resolve?.alias, 'Root Vite config');
 assertLucideReactAlias(rootConfig.resolve?.alias, 'Root Vite config');
 assertReactRouterAliases(rootConfig.resolve?.alias, 'Root Vite config');
 assertSearchPcReactAliases(rootConfig.resolve?.alias, 'Root Vite config');
-const rootBirdcoderBareAlias = findAliasEntry(
-  rootConfig.resolve?.alias,
-  (candidate) =>
-    candidate?.find instanceof RegExp
-    && candidate.find.test('@sdkwork/birdcoder-pc-infrastructure')
-    && !candidate.find.test('@sdkwork/birdcoder-pc-infrastructure/storage/dataKernel'),
-  'Root Vite config should expose a bare scoped BirdCoder workspace alias.',
-);
 assert.equal(
-  rootBirdcoderBareAlias.replacement,
-  path.resolve(workspaceRootDir, 'apps', 'sdkwork-birdcoder-pc', 'packages', 'sdkwork-birdcoder-$1', 'src'),
-  'Root Vite config should resolve bare scoped BirdCoder workspace aliases without relying on local node_modules package builds.',
+  (rootConfig.resolve?.alias ?? []).some((candidate) =>
+    candidate?.find instanceof RegExp
+    && candidate.find.test('@sdkwork/birdcoder-pc-infrastructure')),
+  false,
+  'Root Vite config must resolve BirdCoder workspace packages through package exports.',
 );
 assert.deepEqual(
   rootConfig.server?.fs?.allow,
@@ -430,31 +424,15 @@ assertTauriApiAlias(webConfig.resolve?.alias, 'Web Vite config');
 assertLucideReactAlias(webConfig.resolve?.alias, 'Web Vite config');
 assertReactRouterAliases(webConfig.resolve?.alias, 'Web Vite config');
 assertSearchPcReactAliases(webConfig.resolve?.alias, 'Web Vite config');
-const webBirdcoderBareAlias = findAliasEntry(
-  webConfig.resolve?.alias,
-  (candidate) =>
-    candidate?.find instanceof RegExp
-    && candidate.find.test('@sdkwork/birdcoder-pc-infrastructure')
-    && !candidate.find.test('@sdkwork/birdcoder-pc-infrastructure/storage/dataKernel'),
-  'Web Vite config should expose a bare workspace package alias.',
-);
 assert.equal(
-  webBirdcoderBareAlias.replacement,
-  path.resolve(workspaceRootDir, 'apps', 'sdkwork-birdcoder-pc', 'packages', 'sdkwork-birdcoder-$1', 'src'),
-  'Web Vite config should resolve bare workspace aliases under ESM-native loading.',
-);
-const webBirdcoderSubpathAlias = findAliasEntry(
-  webConfig.resolve?.alias,
-  (candidate) =>
+  (webConfig.resolve?.alias ?? []).some((candidate) =>
     candidate?.find instanceof RegExp
-    && !candidate.find.test('@sdkwork/birdcoder-pc-infrastructure')
-    && candidate.find.test('@sdkwork/birdcoder-pc-infrastructure/storage/dataKernel'),
-  'Web Vite config should expose a workspace package subpath alias.',
-);
-assert.equal(
-  webBirdcoderSubpathAlias.replacement,
-  path.resolve(workspaceRootDir, 'apps', 'sdkwork-birdcoder-pc', 'packages', 'sdkwork-birdcoder-$1', 'src', '$2'),
-  'Web Vite config should resolve workspace package subpath aliases under ESM-native loading.',
+    && (
+      candidate.find.test('@sdkwork/birdcoder-pc-infrastructure')
+      || candidate.find.test('@sdkwork/birdcoder-pc-infrastructure/storage/dataKernel')
+    )),
+  false,
+  'Web Vite config must resolve BirdCoder workspace packages through package exports.',
 );
 const webTerminalBareAlias = findAliasEntry(
   webConfig.resolve?.alias,
@@ -956,31 +934,15 @@ assert.deepEqual(
   ],
   'Desktop Vite config should dedupe shared runtime packages, including shared router dependencies, under ESM-native loading.',
 );
-const desktopBirdcoderBareAlias = findAliasEntry(
-  desktopConfig.resolve?.alias,
-  (candidate) =>
-    candidate?.find instanceof RegExp
-    && candidate.find.test('@sdkwork/birdcoder-pc-infrastructure')
-    && !candidate.find.test('@sdkwork/birdcoder-pc-infrastructure/storage/dataKernel'),
-  'Desktop Vite config should expose a bare workspace package alias.',
-);
 assert.equal(
-  desktopBirdcoderBareAlias.replacement,
-  path.resolve(workspaceRootDir, 'apps', 'sdkwork-birdcoder-pc', 'packages', 'sdkwork-birdcoder-$1', 'src'),
-  'Desktop Vite config should resolve bare workspace aliases under ESM-native loading.',
-);
-const desktopBirdcoderSubpathAlias = findAliasEntry(
-  desktopConfig.resolve?.alias,
-  (candidate) =>
+  (desktopConfig.resolve?.alias ?? []).some((candidate) =>
     candidate?.find instanceof RegExp
-    && !candidate.find.test('@sdkwork/birdcoder-pc-infrastructure')
-    && candidate.find.test('@sdkwork/birdcoder-pc-infrastructure/storage/dataKernel'),
-  'Desktop Vite config should expose a workspace package subpath alias.',
-);
-assert.equal(
-  desktopBirdcoderSubpathAlias.replacement,
-  path.resolve(workspaceRootDir, 'apps', 'sdkwork-birdcoder-pc', 'packages', 'sdkwork-birdcoder-$1', 'src', '$2'),
-  'Desktop Vite config should resolve workspace package subpath aliases under ESM-native loading.',
+    && (
+      candidate.find.test('@sdkwork/birdcoder-pc-infrastructure')
+      || candidate.find.test('@sdkwork/birdcoder-pc-infrastructure/storage/dataKernel')
+    )),
+  false,
+  'Desktop Vite config must resolve BirdCoder workspace packages through package exports.',
 );
 const desktopTerminalBareAlias = findAliasEntry(
   desktopConfig.resolve?.alias,
