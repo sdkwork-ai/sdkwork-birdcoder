@@ -75,6 +75,16 @@ const surfaceSource = readText(
   'CodeEditorSurface.tsx',
 );
 
+const fileChangeDiffViewerSource = readText(
+  'apps',
+  'sdkwork-birdcoder-pc',
+  'packages',
+  'sdkwork-birdcoder-pc-ui',
+  'src',
+  'components',
+  'FileChangeDiffViewer.tsx',
+);
+
 assert.match(
   surfaceSource,
   /from '@sdkwork\/birdcoder-pc-ui';/,
@@ -83,20 +93,38 @@ assert.match(
 
 assert.match(
   surfaceSource,
-  /\bContentWorkbench\b[\s\S]*\bDeferredDiffEditor\b|\bDeferredDiffEditor\b[\s\S]*\bContentWorkbench\b/s,
-  'CodeEditorSurface must own the editor and diff rendering surfaces through the root UI package.',
+  /\bContentWorkbench\b[\s\S]*\bFileChangeDiffViewer\b|\bFileChangeDiffViewer\b[\s\S]*\bContentWorkbench\b/s,
+  'CodeEditorSurface must own the editor and historical diff surfaces through the root UI package.',
 );
 
 assert.match(
   surfaceSource,
-  /onAcceptDiff/,
-  'CodeEditorSurface must own diff acceptance behavior.',
+  /onCloseDiff/,
+  'CodeEditorSurface must own the read-only transcript diff close behavior.',
+);
+
+assert.doesNotMatch(
+  surfaceSource,
+  /onAcceptDiff|onRejectDiff/,
+  'Historical transcript diffs must not expose proposal acceptance or rejection behavior.',
 );
 
 assert.match(
   surfaceSource,
-  /onRejectDiff/,
-  'CodeEditorSurface must own diff rejection behavior.',
+  /<FileChangeDiffViewer[\s\S]*?fileChange=\{viewingDiff\}/,
+  'CodeEditorSurface must render historical transcript diffs through the shared read-only viewer.',
+);
+
+assert.match(
+  fileChangeDiffViewerSource,
+  /fileChange\.diff\?\.trim\(\)[\s\S]*data-chat-full-unified-diff="true"/,
+  'Historical transcript diffs must preserve provider-native unified patches.',
+);
+
+assert.match(
+  fileChangeDiffViewerSource,
+  /<DeferredDiffEditor[\s\S]*readOnly=\{true\}/,
+  'Historical content diffs must remain read-only when rendered through Monaco.',
 );
 
 assert.match(

@@ -893,9 +893,11 @@ fn apply_codex_session_line(
                     if !include_messages {
                         return;
                     }
-                    if let Some(entry) =
-                        build_codex_thread_item_transcript_entry(payload, &timestamp)
-                    {
+                    if let Some(entry) = build_codex_thread_item_transcript_entry(
+                        payload,
+                        &timestamp,
+                        context.current_turn_id.as_deref(),
+                    ) {
                         push_transcript_entry(context, entry);
                     }
                 }
@@ -907,9 +909,19 @@ fn apply_codex_session_line(
             let event_type =
                 normalize_value_string(payload.and_then(|payload| payload.get("type")));
             match event_type.as_deref() {
-                Some("task_started") => context.has_task_started = true,
-                Some("task_complete") => context.has_task_complete = true,
-                Some("turn_aborted") => context.has_turn_aborted = true,
+                Some("task_started") => {
+                    context.has_task_started = true;
+                    context.current_turn_id =
+                        read_codex_turn_id(payload).or_else(|| context.current_turn_id.clone());
+                }
+                Some("task_complete") => {
+                    context.has_task_complete = true;
+                    context.current_turn_id = None;
+                }
+                Some("turn_aborted") => {
+                    context.has_turn_aborted = true;
+                    context.current_turn_id = None;
+                }
                 Some("error") => context.has_error = true,
                 Some("user_message") => {
                     if let Some(content) =
@@ -1160,7 +1172,8 @@ fn apply_codex_session_line(
                                     pending_tool_call
                                         .as_ref()
                                         .and_then(|tool_call| tool_call.turn_id.clone())
-                                }),
+                                })
+                                .or_else(|| context.current_turn_id.clone()),
                                 commands: Some(vec![CodeEngineSessionCommandRecord {
                                     command: command_text.clone(),
                                     status: command_status.clone(),
@@ -1231,7 +1244,11 @@ fn apply_codex_session_line(
                     if !include_messages {
                         return;
                     }
-                    if let Some(entry) = build_codex_task_transcript_entry(payload, &timestamp) {
+                    if let Some(entry) = build_codex_task_transcript_entry(
+                        payload,
+                        &timestamp,
+                        context.current_turn_id.as_deref(),
+                    ) {
                         push_transcript_entry(context, entry);
                     }
                 }
@@ -1587,7 +1604,7 @@ fn register_pending_codex_tool_call(
         .as_deref()
         .and_then(|name| extract_codex_tool_command(name, payload))
         .or_else(|| tool_name.clone());
-    let turn_id = read_codex_turn_id(Some(payload));
+    let turn_id = read_codex_turn_id(Some(payload)).or_else(|| context.current_turn_id.clone());
 
     context
         .pending_tool_calls
@@ -1627,6 +1644,83 @@ fn consume_pending_codex_tool_call(
         .consumed_tool_call_ids
         .insert(normalized_call_id.to_owned());
     context.pending_tool_calls.remove(normalized_call_id)
+}
+
+fn flush_pending_codex_tool_calls(context: &mut SessionLineContext) {
+    let was_aborted = context.has_turn_aborted;
+    let mut pending_tool_calls = std::mem::take(&mut context.pending_tool_calls)
+        .into_iter()
+        .collect::<Vec<_>>();
+    pending_tool_calls.sort_by(|(left_id, left), (right_id, right)| {
+        left.created_at
+            .cmp(&right.created_at)
+            .then_with(|| left_id.cmp(right_id))
+    });
+
+    for (call_id, pending) in pending_tool_calls {
+        let canonical_tool_name = canonicalize_codeengine_provider_tool_name(
+            CODEX_ENGINE_ID,
+            pending.tool_name.as_deref().unwrap_or("tool"),
+            "tool",
+        );
+        let tool_kind = map_codeengine_tool_kind(canonical_tool_name.as_str()).to_owned();
+        let status = if was_aborted { "error" } else { "running" };
+        let runtime_status = if was_aborted {
+            "terminated"
+        } else {
+            "streaming"
+        };
+        let mut raw_tool_call = pending
+            .raw_tool_call
+            .unwrap_or_else(|| serde_json::json!({ "type": "custom_tool_call" }));
+        if let Some(tool_call) = raw_tool_call.as_object_mut() {
+            if let Some(native_status) = tool_call.get("status").cloned() {
+                tool_call.insert("native_status".to_owned(), native_status);
+            }
+            tool_call.insert(
+                "status".to_owned(),
+                Value::String(
+                    if was_aborted {
+                        "cancelled"
+                    } else {
+                        "in_progress"
+                    }
+                    .to_owned(),
+                ),
+            );
+        }
+        let command = pending
+            .command
+            .unwrap_or_else(|| canonical_tool_name.clone());
+        push_transcript_entry(
+            context,
+            TranscriptEntry {
+                created_at: pending
+                    .created_at
+                    .unwrap_or_else(|| "1970-01-01T00:00:00.000Z".to_owned()),
+                role: "tool".to_owned(),
+                content: format!(
+                    "Tool {}: {command}",
+                    if was_aborted { "cancelled" } else { "pending" }
+                ),
+                turn_id: pending.turn_id,
+                commands: Some(vec![CodeEngineSessionCommandRecord {
+                    command,
+                    status: status.to_owned(),
+                    output: None,
+                    kind: Some(tool_kind),
+                    tool_name: Some(canonical_tool_name),
+                    tool_call_id: Some(call_id.clone()),
+                    runtime_status: Some(runtime_status.to_owned()),
+                    requires_approval: Some(false),
+                    requires_reply: Some(false),
+                }]),
+                tool_calls: Some(vec![raw_tool_call]),
+                tool_call_id: Some(call_id),
+                ..TranscriptEntry::default()
+            },
+        );
+    }
 }
 
 fn extract_codex_tool_command(tool_name: &str, payload: &Value) -> Option<String> {
@@ -1966,11 +2060,12 @@ fn build_codex_web_search_tool_call(payload: &Value, status: &str) -> Value {
 fn build_codex_thread_item_transcript_entry(
     payload: Option<&Value>,
     timestamp: &str,
+    fallback_turn_id: Option<&str>,
 ) -> Option<TranscriptEntry> {
     let payload = payload?;
     let item_type = normalize_value_string(payload.get("type"))?;
     let tool_call_id = read_codex_tool_item_id(Some(payload));
-    let turn_id = read_codex_turn_id(Some(payload));
+    let turn_id = read_codex_turn_id(Some(payload)).or_else(|| fallback_turn_id.map(str::to_owned));
 
     match item_type.as_str() {
         "command_execution" => {
@@ -2072,7 +2167,9 @@ fn build_codex_thread_item_transcript_entry(
             tool_call_id,
             ..TranscriptEntry::default()
         }),
-        "todo_list" => build_codex_task_transcript_entry(Some(payload), timestamp),
+        "todo_list" => {
+            build_codex_task_transcript_entry(Some(payload), timestamp, fallback_turn_id)
+        }
         _ => None,
     }
 }
@@ -2140,7 +2237,7 @@ fn build_codex_mcp_transcript_entry(
         created_at: timestamp.to_owned(),
         role: "tool".to_owned(),
         content: format_codex_mcp_content(&item),
-        turn_id: read_codex_turn_id(Some(payload)),
+        turn_id: read_codex_turn_id(Some(payload)).or_else(|| context.current_turn_id.clone()),
         commands: None,
         tool_calls: Some(vec![wrap_codex_thread_item(item)]),
         tool_call_id,
@@ -2151,6 +2248,7 @@ fn build_codex_mcp_transcript_entry(
 fn build_codex_task_transcript_entry(
     payload: Option<&Value>,
     timestamp: &str,
+    fallback_turn_id: Option<&str>,
 ) -> Option<TranscriptEntry> {
     let payload = payload?;
     let items = payload
@@ -2190,7 +2288,7 @@ fn build_codex_task_transcript_entry(
             "Task progress updated: {completed}/{} completed.",
             items.len()
         ),
-        turn_id: read_codex_turn_id(Some(payload)),
+        turn_id: read_codex_turn_id(Some(payload)).or_else(|| fallback_turn_id.map(str::to_owned)),
         commands: None,
         tool_calls: Some(vec![wrap_codex_thread_item(Value::Object(item))]),
         tool_call_id,
@@ -2318,7 +2416,8 @@ fn build_codex_patch_apply_transcript_entry(
         turn_id: pending_tool_call
             .as_ref()
             .and_then(|tool_call| tool_call.turn_id.clone())
-            .or_else(|| read_codex_turn_id(Some(payload))),
+            .or_else(|| read_codex_turn_id(Some(payload)))
+            .or_else(|| context.current_turn_id.clone()),
         commands: Some(vec![CodeEngineSessionCommandRecord {
             command: pending_tool_call
                 .as_ref()
@@ -2395,7 +2494,7 @@ fn build_codex_web_search_transcript_entry(
         created_at: timestamp.to_owned(),
         role: "tool".to_owned(),
         content,
-        turn_id: read_codex_turn_id(Some(payload)),
+        turn_id: read_codex_turn_id(Some(payload)).or_else(|| context.current_turn_id.clone()),
         commands: Some(vec![CodeEngineSessionCommandRecord {
             command,
             status: status.to_owned(),
@@ -3013,6 +3112,33 @@ mod tests {
                     }
                 }
             }),
+            serde_json::json!({
+                "type": "event_msg",
+                "timestamp": "2026-04-20T10:00:09.000Z",
+                "payload": {
+                    "type": "task_started",
+                    "turn_id": "turn-3"
+                }
+            }),
+            serde_json::json!({
+                "type": "response_item",
+                "timestamp": "2026-04-20T10:00:10.000Z",
+                "payload": {
+                    "type": "custom_tool_call",
+                    "call_id": "pending-call-1",
+                    "name": "mcp__docs__read_resource",
+                    "input": "{\"uri\":\"docs://pending\"}",
+                    "status": "completed"
+                }
+            }),
+            serde_json::json!({
+                "type": "event_msg",
+                "timestamp": "2026-04-20T10:00:11.000Z",
+                "payload": {
+                    "type": "turn_aborted",
+                    "turn_id": "turn-3"
+                }
+            }),
         ];
         let file_content = lines
             .iter()
@@ -3025,7 +3151,7 @@ mod tests {
             .expect("parse Codex history fixture")
             .expect("Codex history detail");
 
-        assert_eq!(detail.messages.len(), 7);
+        assert_eq!(detail.messages.len(), 8);
         let command_message = &detail.messages[0];
         assert_eq!(command_message.commands.as_ref().map(Vec::len), Some(1));
         assert_eq!(command_message.tool_calls.as_ref().map(Vec::len), Some(1));
@@ -3074,6 +3200,16 @@ mod tests {
         assert_eq!(
             patch_message.file_changes.as_ref().unwrap()[0]["deletions"],
             1
+        );
+        let pending_tool_message = &detail.messages[7];
+        assert_eq!(pending_tool_message.turn_id.as_deref(), Some("turn-3"));
+        assert_eq!(
+            pending_tool_message.tool_call_id.as_deref(),
+            Some("pending-call-1")
+        );
+        assert_eq!(
+            pending_tool_message.tool_calls.as_ref().unwrap()[0]["status"],
+            "cancelled"
         );
 
         let _ = fs::remove_file(file_path);

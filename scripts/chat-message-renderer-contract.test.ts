@@ -127,8 +127,8 @@ assert.match(
 );
 assert.match(
   toolCallCardSource,
-  /<ToolResultBlocks blocks=\{call\.resultBlocks\}/,
-  'Structured provider results must delegate to the rich result-block renderer.',
+  /<ToolResultBlocks[\s\S]*?blocks=\{call\.resultBlocks\}[\s\S]*?copyMessageToClipboard=\{copyMessageToClipboard\}/,
+  'Structured provider results must delegate to the rich result-block renderer with its full-content copy action.',
 );
 assert.match(
   toolResultBlocksSource,
