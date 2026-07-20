@@ -4,6 +4,7 @@ import {
   projectChatMessageCommand,
   projectChatMessageToolCall,
   projectChatMessageToolCalls,
+  projectChatMessageToolNotice,
 } from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-contracts-commons/src/chat-message-tool-calls.ts';
 import { resolveChatMessageView } from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-contracts-commons/src/chat-message-view.ts';
 
@@ -580,6 +581,128 @@ const geminiToolRequest = projectChatMessageToolCall({
 assert.equal(geminiToolRequest?.id, 'call-gemini-1');
 assert.equal(geminiToolRequest?.kind, 'file');
 assert.equal(geminiToolRequest?.target, 'src/main.ts');
+
+const geminiToolDisplayCall = projectChatMessageToolCall({
+  status: 'success',
+  request: {
+    callId: 'call-gemini-display-1',
+    name: 'read_file',
+    args: { path: 'src/display.ts' },
+    display: {
+      format: 'compact',
+      name: 'Read source',
+      description: 'Request description',
+      resultSummary: 'Stale request summary',
+    },
+  },
+  response: {
+    callId: 'call-gemini-display-1',
+    display: {
+      format: 'box',
+      name: 'Source loaded',
+      description: 'Loaded the provider-neutral source file',
+      resultSummary: '1 file loaded',
+      result: { type: 'text', text: 'export const display = true;' },
+    },
+  },
+}, 0, { engineId: 'gemini' });
+assert.equal(geminiToolDisplayCall?.id, 'call-gemini-display-1');
+assert.equal(geminiToolDisplayCall?.name, 'Source loaded');
+assert.equal(geminiToolDisplayCall?.title, 'Loaded the provider-neutral source file');
+assert.equal(geminiToolDisplayCall?.kind, 'file');
+assert.equal(geminiToolDisplayCall?.target, 'src/display.ts');
+assert.equal(geminiToolDisplayCall?.status, 'success');
+assert.deepEqual(geminiToolDisplayCall?.resultBlocks, [
+  { type: 'text', text: 'export const display = true;' },
+  { type: 'text', text: '1 file loaded' },
+]);
+assert.doesNotMatch(geminiToolDisplayCall?.output ?? '', /call-gemini-display-1|resultSummary|"format"/u);
+
+const geminiSnakeCaseToolDisplay = projectChatMessageToolCall({
+  type: 'tool_response',
+  request_id: 'call-gemini-display-snake',
+  name: 'replace',
+  tool_display: {
+    format: 'box',
+    name: 'Update source',
+    description: 'Applied one source change',
+    result_summary: '1 file changed',
+    result: {
+      type: 'diff',
+      path: 'src/display.ts',
+      before_text: 'export const display = false;',
+      after_text: 'export const display = true;',
+    },
+  },
+}, 0, { engineId: 'gemini' });
+assert.equal(geminiSnakeCaseToolDisplay?.id, 'call-gemini-display-snake');
+assert.equal(geminiSnakeCaseToolDisplay?.kind, 'file');
+assert.equal(geminiSnakeCaseToolDisplay?.status, 'success');
+assert.deepEqual(geminiSnakeCaseToolDisplay?.resultBlocks?.map((block) => block.type), [
+  'diff',
+  'text',
+]);
+assert.match(geminiSnakeCaseToolDisplay?.output ?? '', /export const display = true/u);
+
+assert.equal(projectChatMessageToolCall({
+  type: 'tool_request',
+  request_id: 'call-gemini-hidden',
+  name: 'read_file',
+  args: { path: 'src/private.ts' },
+  display: {
+    format: 'hidden',
+    name: 'Private tool',
+  },
+}, 0, { engineId: 'gemini' }), null);
+
+const geminiToolDisplayNoticeSource = {
+  type: 'tool_response',
+  requestId: 'call-gemini-notice',
+  name: 'topic_update',
+  display: {
+    format: 'notice',
+    name: 'Provider alignment',
+    description: 'Provider-neutral history is ready',
+    resultSummary: 'Ready',
+    result: { type: 'text', text: 'No protocol envelope is shown.' },
+  },
+  internalEnvelope: { requestId: 'must-not-render' },
+};
+assert.equal(projectChatMessageToolCall(
+  geminiToolDisplayNoticeSource,
+  0,
+  { engineId: 'gemini' },
+), null);
+const geminiToolDisplayNotice = projectChatMessageToolNotice(
+  geminiToolDisplayNoticeSource,
+  0,
+  { engineId: 'gemini' },
+);
+assert.deepEqual(geminiToolDisplayNotice, {
+  content: 'Provider alignment: Provider-neutral history is ready: Ready',
+  description: 'Provider-neutral history is ready',
+  id: 'call-gemini-notice',
+  kind: 'notice',
+  name: 'Provider alignment',
+  result: 'No protocol envelope is shown.\n\nReady',
+  resultSummary: 'Ready',
+});
+assert.doesNotMatch(geminiToolDisplayNotice?.content ?? '', /internalEnvelope|must-not-render|requestId/u);
+const geminiToolDisplayNoticeView = resolveChatMessageView({
+  id: 'message-gemini-notice',
+  codingSessionId: 'session-gemini-notice',
+  role: 'assistant',
+  content: '',
+  createdAt: '2026-07-21T00:00:00.000Z',
+  tool_calls: [geminiToolDisplayNoticeSource],
+}, { engineId: 'gemini' });
+assert.equal(geminiToolDisplayNoticeView.blocks.some((block) => block.type === 'tool-calls'), false);
+assert.deepEqual(geminiToolDisplayNoticeView.blocks, [{
+  type: 'markdown',
+  content: 'Provider alignment: Provider-neutral history is ready: Ready',
+  mode: 'basic',
+  noticeKind: 'info',
+}]);
 
 const geminiToolResponse = projectChatMessageToolCall({
   type: 'tool_call_response',

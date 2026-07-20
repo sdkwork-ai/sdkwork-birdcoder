@@ -30,6 +30,7 @@ import { resolveTaskProgressDisplayState } from './chat-message-task-progress.ts
 import {
   isChatMessageFileMutationToolCall,
   projectChatMessageCommand,
+  projectChatMessageToolNotices,
   projectChatMessageToolResult,
   projectChatMessageToolCalls,
   type ChatMessageToolCall,
@@ -77,9 +78,12 @@ export {
   projectChatMessageCommand,
   projectChatMessageToolCall,
   projectChatMessageToolCalls,
+  projectChatMessageToolNotice,
+  projectChatMessageToolNotices,
   projectChatMessageToolResult,
   type ChatMessageToolProtocolAdapterId,
   type ProjectChatMessageToolCallOptions,
+  type ProjectedChatMessageToolNotice,
   type ProjectChatMessageToolResultInput,
   type ProjectedChatMessageCommand,
 } from './chat-message-tool-calls.ts';
@@ -254,6 +258,7 @@ function buildChatMessageContentBlocks(
 
   const fileChanges = activitySummary?.fileChanges ?? resolveProjectedActivityFileChanges(message);
   const projectedToolCalls = projectChatMessageToolCalls(message.tool_calls, { engineId });
+  const projectedToolNotices = projectChatMessageToolNotices(message.tool_calls, { engineId });
   const projectedToolResult = message.role === 'tool'
     ? projectChatMessageToolResult({
         content: message.content,
@@ -264,6 +269,15 @@ function buildChatMessageContentBlocks(
   const allProjectedToolCalls = projectedToolResult
     ? [...projectedToolCalls, projectedToolResult]
     : projectedToolCalls;
+
+  for (const notice of projectedToolNotices) {
+    blocks.push({
+      type: 'markdown',
+      content: notice.content,
+      mode: 'basic',
+      noticeKind: 'info',
+    });
+  }
   const projectedCommands = allProjectedToolCalls.flatMap((call) => {
     const command = projectChatMessageCommand(call);
     return command ? [command] : [];

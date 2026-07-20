@@ -975,7 +975,7 @@ function adaptGeminiToolDisplayRecord(
     ...(result.text ? { output: result.text } : {}),
     ...(result.blocks.length > 0 ? { resultBlocks: result.blocks } : {}),
     status: resolveGeminiToolDisplayStatus(context),
-    type: result.semanticType ?? context.eventType ?? 'tool',
+    type: result.semanticType || context.eventType || 'tool',
   };
 }
 
