@@ -658,7 +658,7 @@ export const ChatActivitySummary = memo(function ChatActivitySummary({
               </div>
               <div className="flex flex-col gap-1.5">
                 {commands.map((cmd, cmdIdx) => {
-                  const commandKey = cmd.toolCallId?.trim() || String(cmdIdx);
+                  const commandKey = `${cmdIdx}\u0001${cmd.toolCallId?.trim() || 'command'}`;
                   const isCommandExpanded = expandedDisclosureKeys.has(
                     `${disclosureScopeKey}\u0001command\u0001${commandKey}`,
                   );

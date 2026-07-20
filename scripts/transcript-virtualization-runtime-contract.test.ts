@@ -247,8 +247,8 @@ assert.match(
 
 assert.match(
   activitySummarySource,
-  /const commandKey = `\$\{cmdIdx\}\\u0001\$\{cmd\.toolCallId \?\? cmd\.command\}`;[\s\S]*renderCommandExecutionCard\(\{[\s\S]*commandKey,/,
-  'Command cards must derive the delegated command key from row position plus provider identity so repeated toolCallId snapshots cannot collide.',
+  /const commandKey = `\$\{cmdIdx\}\\u0001\$\{cmd\.toolCallId\?\.trim\(\) \|\| 'command'\}`;[\s\S]*renderCommandExecutionCard\(\{[\s\S]*commandKey,/,
+  'Command cards must derive stable disclosure identity from row position and provider call id without mutable command text.',
 );
 
 assert.match(

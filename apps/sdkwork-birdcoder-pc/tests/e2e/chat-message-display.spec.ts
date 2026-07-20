@@ -400,7 +400,7 @@ test('provider activity is compact, expandable, responsive, and opens files in t
   if (await activity.locator(':scope > button').getAttribute('aria-expanded') !== 'true') {
     await activity.locator(':scope > button').click();
   }
-  await expect(activity.getByText('Failed', { exact: true }).last()).toBeVisible();
+  await expect(activity.getByText('1 failed', { exact: true })).toBeVisible();
   await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
   for (const row of await activity.locator('[data-chat-file-change-row="inline"]').all()) {
     const box = await row.boundingBox();
