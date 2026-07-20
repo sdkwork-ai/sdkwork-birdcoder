@@ -171,6 +171,7 @@ export default defineLocaleModule('chat', {
     noticeCancelled: 'Generation cancelled',
     noticeCompression: 'Conversation context compressed',
     noticeFailed: 'Provider request failed',
+    noticeInfo: 'Provider information',
     noticeRetry: 'Retrying provider request',
     noticeStopped: 'Agent execution stopped',
     noticeWarning: 'Provider warning',

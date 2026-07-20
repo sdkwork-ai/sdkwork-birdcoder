@@ -1149,13 +1149,18 @@ function StudioPageComponent({
     handleActiveTabChange('code');
   }, [handleActiveTabChange]);
   const handleStudioOpenMessageFile = useCallback((path: string) => {
-    const selectionResult = selectMessageFile(path);
-    if (selectionResult === 'rejected') {
-      addToast(t('chat.fileOpenUnavailable', { path }), 'error');
-      return;
+    const settleSelection = (selectionResult: 'opened' | 'rejected') => {
+      if (selectionResult === 'rejected') {
+        addToast(t('chat.fileOpenUnavailable', { path }), 'error');
+        return;
+      }
+      setViewingDiff(null);
+      handleActiveTabChange('code');
+    };
+    const selectionResult = selectMessageFile(path, settleSelection);
+    if (selectionResult !== 'pending') {
+      settleSelection(selectionResult);
     }
-    setViewingDiff(null);
-    handleActiveTabChange('code');
   }, [addToast, handleActiveTabChange, selectMessageFile, t]);
   const handleStudioEditMessage = useCallback((messageId: string, content: string) => {
     if (sessionId) {

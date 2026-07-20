@@ -65,6 +65,11 @@ interface FileTreeIndex {
   loadedDirectoryPaths: ReadonlySet<string>;
 }
 
+type SettledEditorMessageFileSelectionResult = Exclude<
+  EditorMessageFileSelectionResult,
+  'pending'
+>;
+
 function readDocumentForegroundState(): boolean {
   if (typeof document === 'undefined') {
     return true;
@@ -490,6 +495,7 @@ export function useFileSystem(projectId: string, options?: UseFileSystemOptions)
   const pendingMessageFilePathRef = useRef<{
     projectId: string;
     providerPath: string;
+    onSettled?: (result: SettledEditorMessageFileSelectionResult) => void;
   } | null>(null);
   const fileContentRef = useRef('');
   const selectedFileRevisionRef = useRef<string | null>(null);
@@ -1060,6 +1066,10 @@ export function useFileSystem(projectId: string, options?: UseFileSystemOptions)
               nextCandidateState,
               startupSelectedFilePath,
             );
+      let pendingMessageFileSettlement: {
+        callback?: (result: SettledEditorMessageFileSelectionResult) => void;
+        result: SettledEditorMessageFileSelectionResult;
+      } | null = null;
       const pendingMessageFilePath = pendingMessageFilePathRef.current;
       if (pendingMessageFilePath?.projectId === normalizedProjectId) {
         const messageFilePathResolution = resolveEditorMessageFilePathResolution(
@@ -1072,11 +1082,20 @@ export function useFileSystem(projectId: string, options?: UseFileSystemOptions)
             nextEditorOpenFileState,
             messageFilePathResolution.path,
           );
+          pendingMessageFileSettlement = {
+            callback: pendingMessageFilePath.onSettled,
+            result: 'opened',
+          };
         } else if (messageFilePathResolution.status === 'rejected') {
           pendingMessageFilePathRef.current = null;
+          pendingMessageFileSettlement = {
+            callback: pendingMessageFilePath.onSettled,
+            result: 'rejected',
+          };
         }
       }
       commitEditorOpenFileState(nextEditorOpenFileState);
+      pendingMessageFileSettlement?.callback?.(pendingMessageFileSettlement.result);
       if (!nextEditorOpenFileState.selectedFilePath) {
         selectedFileRevisionRef.current = null;
         pruneTrackedFileRevisions(nextEditorOpenFileState.openFilePaths);
@@ -1508,7 +1527,10 @@ export function useFileSystem(projectId: string, options?: UseFileSystemOptions)
     commitEditorOpenFileState(openEditorFile(readCurrentEditorOpenFileState(), resolvedPath));
   }, [commitEditorOpenFileState, readCurrentEditorOpenFileState]);
 
-  const selectMessageFile = useCallback((providerPath: string): EditorMessageFileSelectionResult => {
+  const selectMessageFile = useCallback((
+    providerPath: string,
+    onSettled?: (result: SettledEditorMessageFileSelectionResult) => void,
+  ): EditorMessageFileSelectionResult => {
     const normalizedProviderPath = providerPath.trim();
     if (!normalizedProjectId) {
       return 'rejected';
@@ -1535,6 +1557,7 @@ export function useFileSystem(projectId: string, options?: UseFileSystemOptions)
     }
 
     pendingMessageFilePathRef.current = {
+      onSettled,
       projectId: normalizedProjectId,
       providerPath: normalizedProviderPath,
     };

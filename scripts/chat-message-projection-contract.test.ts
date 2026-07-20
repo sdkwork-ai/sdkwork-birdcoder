@@ -607,13 +607,63 @@ assert.deepEqual(
   [{ kind: 'failed', message: 'The model declined this request.' }],
 );
 
-for (const claudeSystemText of [
+for (const { record, expectedNotice } of [
   {
-    type: 'system',
-    subtype: 'informational',
-    content: 'Hook feedback for the host transcript.',
-    level: 'notice',
+    record: {
+      type: 'system',
+      subtype: 'informational',
+      content: 'Hook feedback for the host transcript.',
+      level: 'notice',
+    },
+    expectedNotice: { kind: 'info', message: 'Hook feedback for the host transcript.' },
   },
+  {
+    record: {
+      type: 'system',
+      subtype: 'informational',
+      message: 'Consider checking the workspace policy first.',
+      level: 'suggestion',
+    },
+    expectedNotice: { kind: 'info', message: 'Consider checking the workspace policy first.' },
+  },
+  {
+    record: {
+      type: 'system',
+      subtype: 'informational',
+      message: 'Workspace policy may restrict this operation.',
+      level: 'warning',
+    },
+    expectedNotice: { kind: 'warning', message: 'Workspace policy may restrict this operation.' },
+  },
+  {
+    record: {
+      type: 'system',
+      subtype: 'informational',
+      message: 'Cancelled by a hook before execution.',
+      level: 'suggestion',
+      prevent_continuation: true,
+    },
+    expectedNotice: { kind: 'stopped', message: 'Cancelled by a hook before execution.' },
+  },
+  {
+    record: {
+      type: 'informational',
+      level: 'info',
+      preventContinuation: true,
+      content: { internal: 'must not be serialized into the transcript' },
+    },
+    expectedNotice: { kind: 'stopped', message: 'Agent execution stopped.' },
+  },
+] as const) {
+  assert.equal(
+    extractBirdCoderTextContent(record),
+    undefined,
+    'Claude informational messages must not masquerade as assistant answers.',
+  );
+  assert.deepEqual(extractBirdCoderProtocolNotices(record), [expectedNotice]);
+}
+
+for (const claudeSystemText of [
   {
     type: 'system',
     subtype: 'local_command_output',

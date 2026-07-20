@@ -194,7 +194,7 @@ function resolveProtocolNoticeKind(
   }
 
   const noticeKind = (message.metadata as Record<string, unknown>).noticeKind;
-  return ['blocked', 'cancelled', 'compression', 'failed', 'retry', 'stopped', 'warning'].includes(
+  return ['blocked', 'cancelled', 'compression', 'failed', 'info', 'retry', 'stopped', 'warning'].includes(
     typeof noticeKind === 'string' ? noticeKind : '',
   )
     ? noticeKind as BirdCoderProtocolNoticeKind

@@ -69,11 +69,11 @@
     "build:server:cloud": "node scripts/run-birdcoder-server-command.mjs build --iam-mode cloud-saas",
     "release:package:desktop:local": "node scripts/run-birdcoder-desktop-command.mjs build:desktop --iam-mode desktop-local",
     "release:package:desktop:debug": "node scripts/run-birdcoder-desktop-command.mjs build:desktop --iam-mode desktop-local --demo-login",
-    "release:package:desktop:standalone": "node scripts/run-birdcoder-desktop-command.mjs build:desktop --iam-mode server-private",
+    "release:package:desktop:standalone": "pnpm exec sdkwork-app release:package --deployment-profile standalone --runtime-target desktop",
     "release:package:desktop:cloud": "node scripts/run-birdcoder-desktop-command.mjs build:desktop --iam-mode cloud-saas",
     "release:package:browser:standalone": "node scripts/run-birdcoder-web-command.mjs build --iam-mode server-private && node scripts/web-bundle-budget.test.mjs",
-    "release:package:browser:cloud": "node scripts/run-birdcoder-web-command.mjs build --iam-mode cloud-saas && node scripts/web-bundle-budget.test.mjs",
-    "release:package:server:standalone": "node scripts/run-birdcoder-server-command.mjs build --iam-mode server-private",
+    "release:package:browser:cloud": "pnpm exec sdkwork-app release:package --deployment-profile cloud --runtime-target browser",
+    "release:package:server:standalone": "pnpm exec sdkwork-app release:package --deployment-profile standalone --runtime-target server",
     "release:package:server:cloud": "node scripts/run-birdcoder-server-command.mjs build --iam-mode cloud-saas",
     "preview": "node scripts/run-workspace-package-script.mjs apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-web preview",
     "docs:dev": "node scripts/run-vitepress.mjs dev docs --host 127.0.0.1 --port 4173",
@@ -354,7 +354,10 @@
     "release:preflight:standalone": "pnpm exec sdkwork-app release:preflight --deployment-profile standalone",
     "release:preflight:cloud": "pnpm exec sdkwork-app release:preflight --deployment-profile cloud",
     "release:package:standalone": "pnpm exec sdkwork-app release:package --deployment-profile standalone",
-    "release:package:cloud": "pnpm exec sdkwork-app release:package --deployment-profile cloud"
+    "release:package:cloud": "pnpm exec sdkwork-app release:package --deployment-profile cloud",
+    "_sdkwork:release:package:desktop:standalone": "node scripts/run-birdcoder-desktop-command.mjs build:desktop --iam-mode server-private",
+    "_sdkwork:release:package:browser:cloud": "node scripts/run-birdcoder-web-command.mjs build --iam-mode cloud-saas && node scripts/web-bundle-budget.test.mjs",
+    "_sdkwork:release:package:server:standalone": "node scripts/run-birdcoder-server-command.mjs build --iam-mode server-private"
   },
   "dependencies": {
     "@babel/runtime": "catalog:",

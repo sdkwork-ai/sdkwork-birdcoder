@@ -1110,13 +1110,18 @@ function CodePageComponent({
     setActiveTab('editor');
   }, []);
   const handleOpenMessageFile = useCallback((path: string) => {
-    const selectionResult = selectMessageFile(path);
-    if (selectionResult === 'rejected') {
-      addToast(t('chat.fileOpenUnavailable', { path }), 'error');
-      return;
+    const settleSelection = (selectionResult: 'opened' | 'rejected') => {
+      if (selectionResult === 'rejected') {
+        addToast(t('chat.fileOpenUnavailable', { path }), 'error');
+        return;
+      }
+      setViewingDiff(null);
+      setActiveTab('editor');
+    };
+    const selectionResult = selectMessageFile(path, settleSelection);
+    if (selectionResult !== 'pending') {
+      settleSelection(selectionResult);
     }
-    setViewingDiff(null);
-    setActiveTab('editor');
   }, [addToast, selectMessageFile, t]);
   const handleSelectWorkspaceFile = useCallback((path: string) => {
     setViewingDiff(null);

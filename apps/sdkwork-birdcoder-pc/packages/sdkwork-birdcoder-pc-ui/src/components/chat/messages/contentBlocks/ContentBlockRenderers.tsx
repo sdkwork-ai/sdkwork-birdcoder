@@ -1,5 +1,5 @@
 import React, { memo } from 'react';
-import { Archive, Ban, CircleStop, Copy, RefreshCw, ShieldX, TriangleAlert } from 'lucide-react';
+import { Archive, Ban, CircleStop, Copy, Info, RefreshCw, ShieldX, TriangleAlert } from 'lucide-react';
 import type { CommandExecution } from '@sdkwork/birdcoder-pc-workbench/chat/types';
 import { ChatActivitySummary } from '../activity/ChatActivitySummary.tsx';
 import {
@@ -16,6 +16,7 @@ const NOTICE_DEFAULT_CONTENT = {
   cancelled: 'Generation cancelled',
   compression: 'Conversation context compressed',
   failed: 'Provider request failed',
+  info: 'Provider information',
   retry: 'Retrying provider request',
   stopped: 'Agent execution stopped',
   warning: 'Provider warning',
@@ -114,6 +115,10 @@ export const MarkdownContentBlockRenderer = memo(function MarkdownContentBlockRe
       failed: {
         icon: TriangleAlert,
         label: context.environment?.t('chat.noticeFailed') ?? 'Provider request failed',
+      },
+      info: {
+        icon: Info,
+        label: context.environment?.t('chat.noticeInfo') ?? 'Provider information',
       },
       retry: {
         icon: RefreshCw,

@@ -172,6 +172,7 @@ export default defineLocaleModule('chat', {
     noticeCancelled: '\u751f\u6210\u5df2\u53d6\u6d88',
     noticeCompression: '\u5bf9\u8bdd\u4e0a\u4e0b\u6587\u5df2\u538b\u7f29',
     noticeFailed: '\u4f9b\u5e94\u5546\u8bf7\u6c42\u5931\u8d25',
+    noticeInfo: '\u4f9b\u5e94\u5546\u4fe1\u606f',
     noticeRetry: '\u6b63\u5728\u91cd\u8bd5\u4f9b\u5e94\u5546\u8bf7\u6c42',
     noticeStopped: '\u667a\u80fd\u4f53\u6267\u884c\u5df2\u505c\u6b62',
     noticeWarning: '\u4f9b\u5e94\u5546\u8b66\u544a',

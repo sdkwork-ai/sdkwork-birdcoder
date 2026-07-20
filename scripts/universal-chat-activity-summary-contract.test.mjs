@@ -214,13 +214,13 @@ assert.match(
 );
 assert.match(
   codePageSource,
-  /handleOpenMessageFile[\s\S]*selectMessageFile\(path\)[\s\S]*setActiveTab\('editor'\)/,
-  'Code-page chat file navigation must select the provider file through the message-aware boundary and switch to the editor tab.',
+  /handleOpenMessageFile[\s\S]*selectMessageFile\(path, settleSelection\)[\s\S]*selectionResult !== 'pending'[\s\S]*settleSelection\(selectionResult\)/,
+  'Code-page chat file navigation must wait for the message-aware selection boundary to settle.',
 );
 assert.match(
   codePageSource,
-  /selectionResult === 'rejected'[\s\S]*chat\.fileOpenUnavailable/,
-  'Code-page chat file navigation must keep the current surface and explain clearly invalid provider paths.',
+  /settleSelection[\s\S]*selectionResult === 'rejected'[\s\S]*chat\.fileOpenUnavailable[\s\S]*setViewingDiff\(null\)[\s\S]*setActiveTab\('editor'\)/,
+  'Code-page chat file navigation must keep the current surface for rejected paths and switch only after opening succeeds.',
 );
 assert.match(
   codePageSurfaceSource,
@@ -229,18 +229,28 @@ assert.match(
 );
 assert.match(
   studioPageSource,
-  /handleStudioOpenMessageFile[\s\S]*selectMessageFile\(path\)[\s\S]*handleActiveTabChange\('code'\)/,
-  'Studio chat file navigation must select the provider file through the message-aware boundary and switch to the code tab.',
+  /handleStudioOpenMessageFile[\s\S]*selectMessageFile\(path, settleSelection\)[\s\S]*selectionResult !== 'pending'[\s\S]*settleSelection\(selectionResult\)/,
+  'Studio chat file navigation must wait for the message-aware selection boundary to settle.',
 );
 assert.match(
   studioPageSource,
-  /selectionResult === 'rejected'[\s\S]*chat\.fileOpenUnavailable/,
-  'Studio chat file navigation must keep the current surface and explain clearly invalid provider paths.',
+  /settleSelection[\s\S]*selectionResult === 'rejected'[\s\S]*chat\.fileOpenUnavailable[\s\S]*setViewingDiff\(null\)[\s\S]*handleActiveTabChange\('code'\)/,
+  'Studio chat file navigation must keep the current surface for rejected paths and switch only after opening succeeds.',
 );
 assert.match(
   fileSystemHookSource,
   /pendingMessageFilePathRef[\s\S]*resolveEditorMessageFilePathResolution[\s\S]*openEditorFile/,
   'Message file navigation must retain a cold-start selection until the project file index is available.',
+);
+assert.match(
+  fileSystemHookSource,
+  /pendingMessageFileSettlement[\s\S]*commitEditorOpenFileState\(nextEditorOpenFileState\);\s*pendingMessageFileSettlement\?\.callback\?\.\(pendingMessageFileSettlement\.result\)/,
+  'Message file navigation must notify the consumer only after the resolved editor selection is committed.',
+);
+assert.match(
+  fileSystemHookSource,
+  /pendingMessageFilePathRef\.current = \{\s*onSettled,\s*projectId: normalizedProjectId,\s*providerPath: normalizedProviderPath/,
+  'A pending provider path must retain its settlement callback for asynchronous success or rejection.',
 );
 assert.match(
   fileSystemHookSource,

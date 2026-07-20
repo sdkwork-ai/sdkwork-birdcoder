@@ -1101,6 +1101,7 @@ export type BirdCoderProtocolNoticeKind =
   | 'cancelled'
   | 'compression'
   | 'failed'
+  | 'info'
   | 'retry'
   | 'stopped'
   | 'warning';
@@ -1149,9 +1150,11 @@ function projectBirdCoderProtocolNotice(
   const detail = readBirdCoderProtocolNoticeString(nestedError, ['message', 'reason', 'detail'])
     || readBirdCoderProtocolNoticeString(nestedErrorData, ['message', 'reason', 'detail'])
     || readBirdCoderProtocolNoticeString(value, ['systemMessage', 'reason', 'message'])
-    || readBirdCoderProtocolNoticeString(record, ['systemMessage', 'reason', 'message', 'error']);
+    || readBirdCoderProtocolNoticeString(record, ['systemMessage', 'reason', 'message', 'content', 'error']);
+  const isInformationalMessage = (type === 'system' && subtype === 'informational')
+    || type === 'informational';
 
-  if (isBirdCoderCancellationDetail(detail)) {
+  if (!isInformationalMessage && isBirdCoderCancellationDetail(detail)) {
     return { kind: 'cancelled', message: detail };
   }
 
@@ -1163,6 +1166,25 @@ function projectBirdCoderProtocolNotice(
   }
   if (type === 'system' && subtype === 'status' && status === 'compacting') {
     return { kind: 'compression', message: 'Compacting conversation context.' };
+  }
+  if (isInformationalMessage) {
+    if (isBirdCoderTrueProtocolFlag(record.prevent_continuation ?? record.preventContinuation)) {
+      return {
+        kind: 'stopped',
+        message: detail || 'Agent execution stopped.',
+      };
+    }
+    const level = normalizeBirdCoderContentType(record.level);
+    return {
+      kind: level === 'warning' ? 'warning' : 'info',
+      message: detail || (level === 'warning' ? 'Provider warning.' : 'Provider information.'),
+    };
+  }
+  if (type === 'system' && subtype === 'local_command_output') {
+    return {
+      kind: 'info',
+      message: detail || 'Local command completed.',
+    };
   }
   if (type === 'retry' || subtype === 'api_retry' || status === 'retrying') {
     const attempt = typeof record.attempt === 'number' && Number.isFinite(record.attempt)

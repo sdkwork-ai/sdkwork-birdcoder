@@ -462,6 +462,9 @@ fn apply_claude_jsonl_line(
         Some("system") => {
             apply_claude_system_transcript_line(context, &envelope, include_messages, line_index)
         }
+        Some("informational") => {
+            apply_claude_informational_notice(context, &envelope, include_messages, line_index)
+        }
         Some("api_retry") => apply_claude_notice(
             context,
             &envelope,
@@ -638,6 +641,18 @@ fn apply_claude_system_transcript_line(
         .unwrap_or_default()
         .to_ascii_lowercase();
     match subtype.as_str() {
+        "informational" => {
+            apply_claude_informational_notice(context, envelope, include_messages, line_index)
+        }
+        "local_command_output" => apply_claude_notice(
+            context,
+            envelope,
+            "info",
+            normalize_value_string(envelope.get("content"))
+                .unwrap_or_else(|| "Local command completed.".to_owned()),
+            include_messages,
+            line_index,
+        ),
         "task_started" | "task_progress" | "task_notification" | "task_updated" => {
             apply_claude_task_transcript_line(context, envelope, include_messages, line_index);
         }
@@ -698,6 +713,55 @@ fn apply_claude_system_transcript_line(
         "background_tasks_changed" => {}
         _ => {}
     }
+}
+
+fn apply_claude_informational_notice(
+    context: &mut ClaudeSessionParseContext,
+    envelope: &Value,
+    include_messages: bool,
+    line_index: usize,
+) {
+    let prevents_continuation = envelope
+        .get("prevent_continuation")
+        .or_else(|| envelope.get("preventContinuation"))
+        .and_then(Value::as_bool)
+        .unwrap_or(false);
+    let level = normalize_value_string(envelope.get("level"))
+        .unwrap_or_default()
+        .to_ascii_lowercase();
+    let detail = [
+        "message",
+        "content",
+        "text",
+        "systemMessage",
+        "system_message",
+        "stopReason",
+        "stop_reason",
+    ]
+    .into_iter()
+    .find_map(|key| normalize_value_string(envelope.get(key)));
+    let notice_kind = if prevents_continuation {
+        "stopped"
+    } else if matches!(level.as_str(), "suggestion" | "warning") {
+        "warning"
+    } else {
+        "info"
+    };
+    let fallback = if prevents_continuation {
+        "Agent execution stopped."
+    } else if matches!(level.as_str(), "suggestion" | "warning") {
+        "Provider warning."
+    } else {
+        "Provider notice."
+    };
+    apply_claude_notice(
+        context,
+        envelope,
+        notice_kind,
+        detail.unwrap_or_else(|| fallback.to_owned()),
+        include_messages,
+        line_index,
+    );
 }
 
 fn resolve_claude_notice_detail(envelope: &Value) -> Option<String> {
@@ -2542,6 +2606,104 @@ mod tests {
             permission_message.tool_calls.as_ref().unwrap()[0]["subtype"],
             "permission_denied"
         );
+    }
+
+    #[test]
+    fn claude_session_parser_projects_informational_notices_without_raw_envelopes() {
+        let fixture = TestDirectory::new("informational-notices");
+        let session_id = "67676767-6767-4767-8767-676767676767";
+        let session_path = fixture
+            .path()
+            .join("projects")
+            .join("-workspace-birdcoder")
+            .join(format!("{session_id}.jsonl"));
+        write_jsonl(
+            session_path.as_path(),
+            &[
+                json!({
+                    "type": "user",
+                    "sessionId": session_id,
+                    "cwd": "E:/workspace/birdcoder",
+                    "uuid": "user-informational",
+                    "timestamp": "2099-07-20T00:10:00Z",
+                    "message": { "role": "user", "content": "Run provider hooks" }
+                }),
+                json!({
+                    "type": "system",
+                    "subtype": "informational",
+                    "sessionId": session_id,
+                    "uuid": "informational-warning",
+                    "level": "warning",
+                    "message": "Workspace policy may restrict this operation.",
+                    "timestamp": "2099-07-20T00:10:01Z"
+                }),
+                json!({
+                    "type": "system",
+                    "subtype": "informational",
+                    "sessionId": session_id,
+                    "uuid": "informational-notice",
+                    "level": "notice",
+                    "content": "Hook feedback is available.",
+                    "timestamp": "2099-07-20T00:10:02Z"
+                }),
+                json!({
+                    "type": "system",
+                    "subtype": "informational",
+                    "sessionId": session_id,
+                    "uuid": "informational-stopped-snake",
+                    "level": "suggestion",
+                    "message": "A hook stopped execution.",
+                    "prevent_continuation": true,
+                    "timestamp": "2099-07-20T00:10:03Z"
+                }),
+                json!({
+                    "type": "informational",
+                    "sessionId": session_id,
+                    "uuid": "informational-stopped-camel",
+                    "level": "info",
+                    "content": { "internal": "must not leak into the transcript" },
+                    "preventContinuation": true,
+                    "timestamp": "2099-07-20T00:10:04Z"
+                }),
+                json!({
+                    "type": "system",
+                    "subtype": "local_command_output",
+                    "sessionId": session_id,
+                    "uuid": "local-command-output",
+                    "content": "Slash command completed successfully.",
+                    "timestamp": "2099-07-20T00:10:05Z"
+                }),
+            ],
+        );
+
+        let detail = parse_claude_code_session_detail(session_path.as_path())
+            .expect("parse Claude informational fixture")
+            .expect("Claude informational detail");
+        let notices = detail
+            .messages
+            .iter()
+            .filter_map(|message| {
+                message
+                    .metadata
+                    .as_ref()
+                    .and_then(|metadata| metadata.get("noticeKind"))
+                    .map(|kind| (kind.as_str(), message.content.as_str()))
+            })
+            .collect::<Vec<_>>();
+        assert_eq!(
+            notices,
+            vec![
+                ("warning", "Workspace policy may restrict this operation."),
+                ("info", "Hook feedback is available."),
+                ("stopped", "A hook stopped execution."),
+                ("stopped", "Agent execution stopped."),
+                ("info", "Slash command completed successfully."),
+            ]
+        );
+        assert!(detail
+            .messages
+            .iter()
+            .all(|message| !message.content.contains("must not leak")));
     }
 
     #[test]
