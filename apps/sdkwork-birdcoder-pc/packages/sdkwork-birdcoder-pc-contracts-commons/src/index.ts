@@ -1058,6 +1058,12 @@ function mergeProjectionFileChanges(
         path: fileChange.path.trim(),
         additions: normalizeProjectionPayloadNumber(fileChange.additions) ?? 0,
         deletions: normalizeProjectionPayloadNumber(fileChange.deletions) ?? 0,
+        ...(typeof fileChange.lineImpactKnown === 'boolean'
+          ? { lineImpactKnown: fileChange.lineImpactKnown }
+          : {}),
+        ...(typeof fileChange.updateStatus === 'string' && fileChange.updateStatus.trim()
+          ? { updateStatus: fileChange.updateStatus.trim() }
+          : {}),
         ...(typeof fileChange.diff === 'string' ? { diff: fileChange.diff } : {}),
         ...(typeof fileChange.content === 'string' ? { content: fileChange.content } : {}),
         ...(typeof fileChange.originalContent === 'string'
@@ -1068,6 +1074,8 @@ function mergeProjectionFileChanges(
         normalizedFileChange.path,
         normalizedFileChange.additions,
         normalizedFileChange.deletions,
+        normalizedFileChange.lineImpactKnown ?? true,
+        normalizedFileChange.updateStatus ?? '',
         normalizedFileChange.diff ?? '',
         normalizedFileChange.content ?? '',
         normalizedFileChange.originalContent ?? '',

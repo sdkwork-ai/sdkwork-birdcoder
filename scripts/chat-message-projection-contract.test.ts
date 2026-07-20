@@ -609,10 +609,10 @@ assert.deepEqual(
     output: call.output,
   })),
   [
-    { arguments: '{\n  "path": "a.ts"\n}', name: 'read_a', output: '{\n  "output": "A"\n}' },
-    { arguments: '{\n  "path": "b.ts"\n}', name: 'read_b', output: '{\n  "output": "B"\n}' },
+    { arguments: '{\n  "path": "a.ts"\n}', name: 'read_a', output: 'A' },
+    { arguments: '{\n  "path": "b.ts"\n}', name: 'read_b', output: 'B' },
   ],
-  'Gemini native responses must correlate by function name instead of response array position.',
+  'Gemini native responses must correlate by function name without exposing response wrapper JSON.',
 );
 
 const lateProgressMessages: ChatMessageViewSource[] = [
@@ -864,9 +864,49 @@ const providerNativeContentProjection = mergeBirdCoderProjectionMessages({
       },
       createdAt: '2026-06-22T00:00:39.000Z',
     },
+    {
+      id: 'event-codex-native-file-change',
+      codingSessionId: 'session-native-content',
+      turnId: 'turn-codex-native-file-change',
+      kind: 'message.completed',
+      sequence: '3',
+      payload: {
+        role: 'assistant',
+        content: {
+          items: [{
+            id: 'file-change-codex-native',
+            type: 'file_change',
+            status: 'completed',
+            changes: [
+              { path: 'src/a.ts', kind: 'update' },
+              { path: 'src/b.ts', kind: 'add', diff: '@@ -0,0 +1 @@\n+export const b = true;' },
+            ],
+          }],
+        },
+      },
+      createdAt: '2026-06-22T00:00:40.000Z',
+    },
+    {
+      id: 'event-codex-native-todo',
+      codingSessionId: 'session-native-content',
+      turnId: 'turn-codex-native-todo',
+      kind: 'message.completed',
+      sequence: '4',
+      payload: {
+        role: 'assistant',
+        content: {
+          items: [{
+            id: 'todo-codex-native',
+            type: 'todo_list',
+            items: [{ text: 'Verify history replay', completed: false }],
+          }],
+        },
+      },
+      createdAt: '2026-06-22T00:00:41.000Z',
+    },
   ],
 });
-assert.equal(providerNativeContentProjection.length, 2);
+assert.equal(providerNativeContentProjection.length, 4);
 assert.equal(providerNativeContentProjection[0]?.tool_calls?.length, 1);
 assert.equal(providerNativeContentProjection[1]?.tool_calls?.length, 1);
 assert.equal(
@@ -876,6 +916,22 @@ assert.equal(
 assert.equal(
   projectChatMessageToolCalls(providerNativeContentProjection[1]?.tool_calls, { engineId: 'opencode' })[0]?.kind,
   'search',
+);
+assert.deepEqual(
+  providerNativeContentProjection[2]?.fileChanges?.map((fileChange) => ({
+    lineImpactKnown: fileChange.lineImpactKnown,
+    path: fileChange.path,
+  })),
+  [
+    { lineImpactKnown: false, path: 'src/a.ts' },
+    { lineImpactKnown: true, path: 'src/b.ts' },
+  ],
+  'Codex native multi-file change items must become independently navigable file activity.',
+);
+assert.equal(
+  projectChatMessageToolCalls(providerNativeContentProjection[3]?.tool_calls, { engineId: 'codex' })[0]?.kind,
+  'task',
+  'Codex native todo_list items must remain visible task activity.',
 );
 
 const parallelDeltaProjection = mergeBirdCoderProjectionMessages({

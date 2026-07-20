@@ -261,11 +261,38 @@ const openCodeInterruptedTool = projectChatMessageToolCall({
       status: 'error',
       input: { command: 'pnpm test' },
       error: 'Tool execution aborted',
-      metadata: { interrupted: true },
+      metadata: { interrupted: true, output: 'partial test output' },
     },
   },
 }, 0, { engineId: 'opencode' });
 assert.equal(openCodeInterruptedTool?.status, 'cancelled');
+assert.equal(openCodeInterruptedTool?.output, 'partial test output');
+assert.deepEqual(openCodeInterruptedTool?.resultBlocks, [
+  { type: 'error', message: 'Tool execution aborted' },
+  { type: 'text', text: 'partial test output' },
+]);
+
+const openCodeToolWithAttachments = projectChatMessageToolCall({
+  part: {
+    type: 'tool',
+    callID: 'call-opencode-attachments',
+    tool: 'inspect',
+    state: {
+      status: 'completed',
+      input: {},
+      output: 'Inspection complete',
+      attachments: [
+        { type: 'file', mime: 'image/png', filename: 'preview.png', url: 'data:image/png;base64,aGVsbG8=' },
+        { type: 'file', mime: 'application/pdf', filename: 'report.pdf', url: 'https://example.test/report.pdf' },
+      ],
+    },
+  },
+}, 0, { engineId: 'opencode' });
+assert.deepEqual(openCodeToolWithAttachments?.resultBlocks?.map((block) => block.type), [
+  'text',
+  'image',
+  'resource',
+]);
 
 const codexCommandExecution = projectChatMessageToolCall({
   item: {
@@ -292,6 +319,24 @@ const codexWebSearch = projectChatMessageToolCall({
 assert.equal(codexWebSearch?.kind, 'web');
 assert.equal(codexWebSearch?.target, 'BirdCoder protocol');
 
+const codexTodoList = projectChatMessageToolCall({
+  item: {
+    id: 'todo-codex-1',
+    type: 'todo_list',
+    items: [
+      { text: 'Normalize provider messages', completed: true },
+      { text: 'Verify narrow layout', completed: false },
+    ],
+  },
+}, 0, { engineId: 'codex' });
+assert.equal(codexTodoList?.kind, 'task');
+assert.equal(codexTodoList?.status, 'running');
+assert.equal(codexTodoList?.title, '1/2');
+assert.deepEqual(codexTodoList?.resultBlocks, [{
+  type: 'list',
+  items: ['[x] Normalize provider messages', '[ ] Verify narrow layout'],
+}]);
+
 const geminiToolRequest = projectChatMessageToolCall({
   type: 'tool_call_request',
   value: {
@@ -314,6 +359,86 @@ const geminiToolResponse = projectChatMessageToolCall({
 }, 0, { engineId: 'gemini' });
 assert.equal(geminiToolResponse?.status, 'success');
 assert.match(geminiToolResponse?.output ?? '', /file contents/);
+
+const geminiFailedFunctionResponse = projectChatMessageToolCall({
+  functionResponse: {
+    id: 'call-gemini-error-1',
+    name: 'read_file',
+    response: { error: 'Permission denied' },
+  },
+}, 0, { engineId: 'gemini' });
+assert.equal(geminiFailedFunctionResponse?.status, 'error');
+assert.deepEqual(geminiFailedFunctionResponse?.resultBlocks, [{
+  type: 'error',
+  message: 'Permission denied',
+}]);
+
+const geminiMultimodalFunctionResponse = projectChatMessageToolCall({
+  functionResponse: {
+    id: 'call-gemini-media-1',
+    name: 'capture_screen',
+    response: { status: 'success' },
+    parts: [
+      { inlineData: { mimeType: 'image/png', data: 'aGVsbG8=' } },
+      { text: 'Screenshot captured' },
+    ],
+  },
+}, 0, { engineId: 'gemini' });
+assert.deepEqual(geminiMultimodalFunctionResponse?.resultBlocks?.map((block) => block.type), [
+  'image',
+  'text',
+]);
+
+const mcpResourceLink = projectChatMessageToolCall({
+  id: 'mcp-resource-link-1',
+  name: 'mcp__docs__lookup',
+  output: {
+    content: [{
+      type: 'resource_link',
+      uri: 'mcp://docs/provider-protocol',
+      name: 'Provider protocol',
+      description: 'Canonical provider protocol documentation',
+      mimeType: 'text/markdown',
+      size: 2048,
+    }],
+  },
+  status: 'completed',
+}, 0);
+assert.deepEqual(mcpResourceLink?.resultBlocks, [{
+  type: 'resource',
+  uri: 'mcp://docs/provider-protocol',
+  name: 'Provider protocol',
+  mimeType: 'text/markdown',
+  description: 'Canonical provider protocol documentation',
+  size: 2048,
+}]);
+
+const malformedCanonicalResultBlocks = projectChatMessageToolCall({
+  id: 'malformed-result-blocks-1',
+  name: 'inspect',
+  output: 'Safe fallback output',
+  resultBlocks: [
+    { type: 'image' },
+    { type: 'link', url: null },
+    { type: 'text', text: '' },
+  ],
+}, 0);
+assert.deepEqual(malformedCanonicalResultBlocks?.resultBlocks, [{
+  type: 'text',
+  text: 'Safe fallback output',
+}]);
+
+const claudeAdvisorResult = projectChatMessageToolCall({
+  type: 'advisor_tool_result',
+  tool_use_id: 'srvtoolu-advisor-1',
+  content: { type: 'advisor_result', text: 'Review the cancellation state.' },
+}, 0, { engineId: 'claude-code' });
+assert.equal(claudeAdvisorResult?.id, 'srvtoolu-advisor-1');
+assert.equal(claudeAdvisorResult?.name, 'advisor');
+assert.deepEqual(claudeAdvisorResult?.resultBlocks, [{
+  type: 'text',
+  text: 'Review the cancellation state.',
+}]);
 
 const geminiConfirmation = projectChatMessageToolCall({
   type: 'tool_call_confirmation',

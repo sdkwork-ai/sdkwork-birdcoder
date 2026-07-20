@@ -12,7 +12,8 @@ use serde_json::Value;
 
 use crate::{
     build_native_session_id, find_codeengine_descriptor, map_codeengine_session_runtime_status,
-    map_codeengine_tool_command_status, native_session_prefix_for_engine,
+    map_codeengine_tool_command_status, map_codeengine_tool_runtime_status,
+    native_session_prefix_for_engine,
     sanitize_codeengine_git_repository_url, sanitize_codeengine_session_metadata,
     CodeEngineSessionCommandRecord, CodeEngineSessionDetailRecord, CodeEngineSessionMessageRecord,
     CodeEngineSessionNativeAttributesRecord, CodeEngineSessionSummaryRecord,
@@ -135,17 +136,22 @@ impl Default for SessionLineContext {
 struct PendingCodexToolCall {
     created_at: Option<String>,
     command: Option<String>,
+    raw_tool_call: Option<Value>,
     tool_name: Option<String>,
     turn_id: Option<String>,
 }
 
-#[derive(Clone)]
+#[derive(Clone, Default)]
 struct TranscriptEntry {
     created_at: String,
     role: String,
     content: String,
     turn_id: Option<String>,
     commands: Option<Vec<CodeEngineSessionCommandRecord>>,
+    tool_calls: Option<Vec<Value>>,
+    tool_call_id: Option<String>,
+    file_changes: Option<Vec<Value>>,
+    task_progress: Option<Value>,
 }
 
 #[derive(Eq, Hash, PartialEq)]
@@ -154,6 +160,7 @@ struct TranscriptEntryDedupeKey {
     content: String,
     turn_id: Option<String>,
     commands: Option<Vec<CodeEngineSessionCommandRecord>>,
+    activity_signature: String,
 }
 
 static CODEX_SESSION_CATALOG_CACHE: OnceLock<Mutex<CodexSessionCatalogCache>> = OnceLock::new();
