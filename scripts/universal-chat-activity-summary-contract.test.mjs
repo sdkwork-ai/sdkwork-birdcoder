@@ -65,6 +65,10 @@ const studioPageSource = await readFile(
   resolve('apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-studio/src/pages/StudioPage.tsx'),
   'utf8',
 );
+const fileSystemHookSource = await readFile(
+  resolve('apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-workbench/src/hooks/useFileSystem.ts'),
+  'utf8',
+);
 
 assert.match(
   activitySummarySource,
@@ -178,8 +182,8 @@ assert.match(
 );
 assert.match(
   codePageSource,
-  /handleOpenMessageFile[\s\S]*selectFile\(path\)[\s\S]*setActiveTab\('editor'\)/,
-  'Code-page chat file navigation must select the file and switch to the editor tab.',
+  /handleOpenMessageFile[\s\S]*selectMessageFile\(path\)[\s\S]*setActiveTab\('editor'\)/,
+  'Code-page chat file navigation must select the provider file through the message-aware boundary and switch to the editor tab.',
 );
 assert.match(
   codePageSurfaceSource,
@@ -188,8 +192,13 @@ assert.match(
 );
 assert.match(
   studioPageSource,
-  /handleStudioOpenMessageFile[\s\S]*selectFile\(path\)[\s\S]*handleActiveTabChange\('code'\)/,
-  'Studio chat file navigation must select the file and switch to the code tab.',
+  /handleStudioOpenMessageFile[\s\S]*selectMessageFile\(path\)[\s\S]*handleActiveTabChange\('code'\)/,
+  'Studio chat file navigation must select the provider file through the message-aware boundary and switch to the code tab.',
+);
+assert.match(
+  fileSystemHookSource,
+  /pendingMessageFilePathRef[\s\S]*resolveEditorMessageFilePath[\s\S]*openEditorFile/,
+  'Message file navigation must retain a cold-start selection until the project file index is available.',
 );
 
 assert.match(

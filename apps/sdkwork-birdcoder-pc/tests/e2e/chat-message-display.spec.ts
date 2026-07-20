@@ -3,6 +3,14 @@ import { expect, test, type Page } from '@playwright/test';
 const workspaceId = 'e2e-chat-workspace';
 const projectId = 'e2e-chat-project';
 const codingSessionId = 'e2e-chat-session';
+const sandboxId = 'e2e-chat-sandbox';
+const sandboxRootEntryId = 'e2e-chat-sandbox-root';
+const sandboxDisplayName = 'Message Display Project';
+const workspaceEditorContent = [
+  "export const workspaceLoadedSentinel = 'drive-backed-editor-content';",
+  'export const adapter = createProviderMessageAdapter();',
+  '',
+].join('\n');
 
 function createE2eJwt(claims: Record<string, unknown>): string {
   const header = Buffer.from(JSON.stringify({ alg: 'none', typ: 'JWT' })).toString('base64url');
@@ -32,6 +40,22 @@ function itemEnvelope(item: unknown) {
   return {
     code: 0,
     data: { item },
+    traceId: 'chat-message-display-e2e',
+  };
+}
+
+function cursorPage(items: unknown[]) {
+  return {
+    code: 0,
+    data: {
+      items,
+      pageInfo: {
+        hasMore: false,
+        mode: 'cursor',
+        nextCursor: null,
+        pageSize: 1_000,
+      },
+    },
     traceId: 'chat-message-display-e2e',
   };
 }
@@ -135,6 +159,68 @@ async function openMessageFixture(page: Page) {
     createdAt: '2026-07-20T08:00:00.000Z',
     updatedAt: '2026-07-20T08:00:00.000Z',
   };
+  const workspaceBinding = {
+    id: 'e2e-chat-workspace-binding',
+    projectId,
+    sandboxId,
+    rootEntryId: sandboxRootEntryId,
+    logicalPath: '',
+    lifecycleStatus: 'active',
+    version: '1',
+    createdAt: '2026-07-20T08:00:00.000Z',
+    updatedAt: '2026-07-20T08:00:00.000Z',
+  };
+  const sandboxCapabilities = {
+    browse: true,
+    createDirectory: true,
+    createFile: true,
+    deleteEntry: true,
+    moveEntry: true,
+    readFile: true,
+    selectDirectory: true,
+    writeFile: true,
+  };
+  const adapterEntry = {
+    id: 'e2e-chat-adapter-file',
+    sandboxId,
+    parentId: 'e2e-chat-directory',
+    name: 'ProviderMessageAdapter.ts',
+    kind: 'file',
+    logicalPath: 'src/features/chat/ProviderMessageAdapter.ts',
+    revision: 'adapter-revision-1',
+  };
+  const sandboxEntriesByParentPath = new Map<string, Array<Record<string, unknown>>>([
+    ['', [{
+      id: 'e2e-chat-src-directory',
+      sandboxId,
+      parentId: sandboxRootEntryId,
+      name: 'src',
+      kind: 'directory',
+      logicalPath: 'src',
+      revision: 'src-revision-1',
+    }]],
+    ['src/features/chat', [
+      adapterEntry,
+      {
+        id: 'e2e-chat-components-directory',
+        sandboxId,
+        parentId: 'e2e-chat-directory',
+        name: 'components',
+        kind: 'directory',
+        logicalPath: 'src/features/chat/components',
+        revision: 'components-revision-1',
+      },
+      {
+        id: 'e2e-chat-protocol-directory',
+        sandboxId,
+        parentId: 'e2e-chat-directory',
+        name: 'protocol',
+        kind: 'directory',
+        logicalPath: 'src/features/chat/protocol',
+        revision: 'protocol-revision-1',
+      },
+    ]],
+  ]);
   const codingSession = {
     id: codingSessionId,
     workspaceId,

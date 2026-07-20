@@ -483,6 +483,10 @@ export function useFileSystem(projectId: string, options?: UseFileSystemOptions)
   const previousProjectIdRef = useRef(normalizedProjectId);
   const filesRef = useRef<IFileNode[]>([]);
   const filesIndexRef = useRef<FileTreeIndex>(createEmptyFileTreeIndex());
+  const pendingMessageFilePathRef = useRef<{
+    projectId: string;
+    providerPath: string;
+  } | null>(null);
   const fileContentRef = useRef('');
   const selectedFileRevisionRef = useRef<string | null>(null);
   const openFileRevisionsRef = useRef<Map<string, string | null>>(new Map());
@@ -1043,7 +1047,7 @@ export function useFileSystem(projectId: string, options?: UseFileSystemOptions)
           openFilePaths: [],
           selectedFilePath: null,
         };
-      const nextEditorOpenFileState =
+      let nextEditorOpenFileState =
         startupSelectedFilePath === undefined
           ? filterEditorOpenFileStateByFiles(filesIndexRef.current, nextCandidateState)
           : resolveStartupEditorOpenFileState(
@@ -1052,6 +1056,20 @@ export function useFileSystem(projectId: string, options?: UseFileSystemOptions)
               nextCandidateState,
               startupSelectedFilePath,
             );
+      const pendingMessageFilePath = pendingMessageFilePathRef.current;
+      if (pendingMessageFilePath?.projectId === normalizedProjectId) {
+        pendingMessageFilePathRef.current = null;
+        const resolvedMessageFilePath = resolveEditorMessageFilePath(
+          pendingMessageFilePath.providerPath,
+          filesIndexRef.current,
+        );
+        if (resolvedMessageFilePath) {
+          nextEditorOpenFileState = openEditorFile(
+            nextEditorOpenFileState,
+            resolvedMessageFilePath,
+          );
+        }
+      }
       commitEditorOpenFileState(nextEditorOpenFileState);
       if (!nextEditorOpenFileState.selectedFilePath) {
         selectedFileRevisionRef.current = null;
@@ -1186,6 +1204,7 @@ export function useFileSystem(projectId: string, options?: UseFileSystemOptions)
     openFileContentCacheRef.current = new Map();
     filesRef.current = [];
     filesIndexRef.current = createEmptyFileTreeIndex();
+    pendingMessageFilePathRef.current = null;
     setFiles([]);
     setIsLoading(false);
     setLoadingDirectoryPaths({});
@@ -1475,12 +1494,35 @@ export function useFileSystem(projectId: string, options?: UseFileSystemOptions)
   ]);
 
   const selectFile = useCallback((path: string) => {
+    pendingMessageFilePathRef.current = null;
     const resolvedPath = resolveEditorMessageFilePath(path, filesIndexRef.current);
     if (!resolvedPath) {
       return;
     }
     commitEditorOpenFileState(openEditorFile(readCurrentEditorOpenFileState(), resolvedPath));
   }, [commitEditorOpenFileState, readCurrentEditorOpenFileState]);
+
+  const selectMessageFile = useCallback((providerPath: string) => {
+    const normalizedProviderPath = providerPath.trim();
+    if (!normalizedProviderPath || !normalizedProjectId) {
+      return;
+    }
+
+    const resolvedPath = resolveEditorMessageFilePath(
+      normalizedProviderPath,
+      filesIndexRef.current,
+    );
+    if (resolvedPath && previousProjectIdRef.current === normalizedProjectId) {
+      pendingMessageFilePathRef.current = null;
+      commitEditorOpenFileState(openEditorFile(readCurrentEditorOpenFileState(), resolvedPath));
+      return;
+    }
+
+    pendingMessageFilePathRef.current = {
+      projectId: normalizedProjectId,
+      providerPath: normalizedProviderPath,
+    };
+  }, [commitEditorOpenFileState, normalizedProjectId, readCurrentEditorOpenFileState]);
 
   const closeFile = useCallback((path: string) => {
     commitEditorOpenFileState(closeEditorFile(readCurrentEditorOpenFileState(), path));
@@ -2047,6 +2089,7 @@ export function useFileSystem(projectId: string, options?: UseFileSystemOptions)
     isSearchingFiles,
     mountRecoveryState,
     selectFile,
+    selectMessageFile,
     loadDirectory,
     closeFile,
     updateFileDraft,

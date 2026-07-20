@@ -546,6 +546,7 @@ function StudioPageComponent({
     isSearchingFiles,
     mountRecoveryState,
     selectFile,
+    selectMessageFile,
     loadDirectory,
     closeFile,
     updateFileDraft,
@@ -1148,10 +1149,10 @@ function StudioPageComponent({
     handleActiveTabChange('code');
   }, [handleActiveTabChange]);
   const handleStudioOpenMessageFile = useCallback((path: string) => {
-    selectFile(path);
+    selectMessageFile(path);
     setViewingDiff(null);
     handleActiveTabChange('code');
-  }, [handleActiveTabChange, selectFile]);
+  }, [handleActiveTabChange, selectMessageFile]);
   const handleStudioEditMessage = useCallback((messageId: string, content: string) => {
     if (sessionId) {
       return handleEditMessage(sessionId, messageId, content);

@@ -354,6 +354,7 @@ function CodePageComponent({
     isSearchingFiles,
     mountRecoveryState,
     selectFile,
+    selectMessageFile,
     loadDirectory,
     closeFile,
     updateFileDraft,
@@ -1110,9 +1111,9 @@ function CodePageComponent({
   }, []);
   const handleOpenMessageFile = useCallback((path: string) => {
     setViewingDiff(null);
-    selectFile(path);
+    selectMessageFile(path);
     setActiveTab('editor');
-  }, [selectFile]);
+  }, [selectMessageFile]);
   const handleSelectWorkspaceFile = useCallback((path: string) => {
     setViewingDiff(null);
     selectFile(path);
