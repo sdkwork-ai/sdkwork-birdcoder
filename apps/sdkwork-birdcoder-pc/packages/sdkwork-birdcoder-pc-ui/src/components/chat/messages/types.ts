@@ -31,6 +31,7 @@ export interface ChatMessageEnvironment {
   addToast: (message: string, type?: 'success' | 'error' | 'info') => void;
   beginEditingMessage?: (messageId: string, content: string) => void;
   onDeleteMessage?: (messageIds: string[]) => void;
+  onOpenFile?: (path: string) => void;
   onRegenerateMessage?: () => void;
   onRestore?: (messageId: string) => void;
   onViewChanges?: (file: FileChange) => void;
@@ -48,6 +49,8 @@ export interface ChatMessageRenderContext {
   actionTarget: ChatMessageActionTarget | null;
   showMessageActions: boolean;
   copyMessageToClipboard: (content: string) => void;
+  expandedDisclosureKeys: ReadonlySet<string>;
+  toggleDisclosure: (key: string) => void;
   renderMarkdownContent: (content: string, mode?: 'basic' | 'rich') => ReactNode;
 }
 

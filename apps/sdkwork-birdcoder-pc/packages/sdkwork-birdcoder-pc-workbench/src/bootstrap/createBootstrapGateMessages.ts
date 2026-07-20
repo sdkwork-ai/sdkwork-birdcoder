@@ -7,6 +7,8 @@ export interface BootstrapGateMessages {
   runtimeStage: string;
   sessionStage: string;
   workspaceStage: string;
+  validatingSession: string;
+  loadingWorkspace: string;
   retry: string;
   startingTitle: string;
   startupFailed: string;
@@ -25,6 +27,8 @@ export function createBootstrapGateMessages(): BootstrapGateMessages {
     runtimeStage: i18n.t('bootstrap.runtimeStage'),
     sessionStage: i18n.t('bootstrap.sessionStage'),
     workspaceStage: i18n.t('bootstrap.workspaceStage'),
+    validatingSession: i18n.t('bootstrap.validatingSession'),
+    loadingWorkspace: i18n.t('bootstrap.loadingWorkspace'),
     startupFailed: i18n.t('bootstrap.startupFailed'),
     retry: i18n.t('bootstrap.retry'),
     startupTimeout: (seconds) => i18n.t('bootstrap.startupTimeout', { seconds }),

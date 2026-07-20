@@ -145,6 +145,7 @@ interface UseCodePageSurfacePropsOptions {
   onOpenFolder: NonNullable<ProjectExplorerProps['onOpenFolder']>;
   onOpenInFileExplorer: NonNullable<ProjectExplorerProps['onOpenInFileExplorer']>;
   onOpenInTerminal: NonNullable<ProjectExplorerProps['onOpenInTerminal']>;
+  onOpenMessageFile: NonNullable<UniversalChatComponentProps['onOpenFile']>;
   onOpenCodingSessionInTerminal:
     NonNullable<ProjectExplorerProps['onOpenCodingSessionInTerminal']>;
   onPinCodingSession: NonNullable<ProjectExplorerProps['onPinCodingSession']>;
@@ -281,6 +282,7 @@ export function useCodePageSurfaceProps({
   onOpenFolder,
   onOpenInFileExplorer,
   onOpenInTerminal,
+  onOpenMessageFile,
   onOpenCodingSessionInTerminal,
   onPinCodingSession,
   onProjectSelect,
@@ -547,6 +549,7 @@ export function useCodePageSurfaceProps({
     onEditMessage,
     onDeleteMessage,
     onRegenerateMessage,
+    onOpenFile: onOpenMessageFile,
     onViewChanges: onViewChangesAndOpenEditor,
     onRestore: onRestoreMessage,
     emptyState: mainChatEmptyState,
@@ -561,6 +564,7 @@ export function useCodePageSurfaceProps({
     onDeleteMessage,
     onEditMessage,
     onRegenerateMessage,
+    onOpenMessageFile,
     onRestoreMessage,
     onSelectedEngineIdChange,
     onSelectedModelIdChange,

@@ -411,53 +411,6 @@
   }
 }
 
-/* Shared startup surface used by runtime, auth, and lazy workspace phases. */
-.sdkwork-startup-screen {
-  align-items: center;
-  background: #0b1018;
-  color: #f8fafc;
-  display: flex;
-  height: 100dvh;
-  justify-content: center;
-  min-height: 320px;
-  overflow: hidden;
-  position: relative;
-  width: 100%;
-}
-.sdkwork-startup-screen::before { background: linear-gradient(90deg, rgba(30,64,175,.1), transparent 38%, rgba(5,150,105,.08)); content: ''; inset: 0; pointer-events: none; position: absolute; }
-.sdkwork-startup-shell { display: flex; flex-direction: column; min-height: min(640px, 100dvh); padding: 32px clamp(24px, 6vw, 88px) 28px; position: relative; width: min(100%, 920px); z-index: 1; }
-.sdkwork-startup-brand { align-items: center; display: flex; gap: 12px; }
-.sdkwork-startup-mark { align-items: center; background: linear-gradient(135deg, #2563eb, #10b981); border: 1px solid rgba(255,255,255,.24); border-radius: 10px; box-shadow: 0 12px 28px rgba(16,185,129,.16); color: #fff; display: inline-flex; font-size: 22px; font-weight: 700; height: 42px; justify-content: center; width: 42px; }
-.sdkwork-startup-brand-copy { display: flex; flex-direction: column; gap: 2px; }
-.sdkwork-startup-brand-vendor { color: #94a3b8; font-size: 10px; font-weight: 700; letter-spacing: 0; }
-.sdkwork-startup-brand-product { color: #e2e8f0; font-size: 12px; font-weight: 600; letter-spacing: 0; }
-.sdkwork-startup-content { margin: auto; max-width: 480px; text-align: center; width: 100%; }
-.sdkwork-startup-status-mark { align-items: center; display: flex; height: 18px; justify-content: center; margin-bottom: 18px; }
-.sdkwork-startup-status-dot { background: #34d399; border-radius: 999px; box-shadow: 0 0 0 6px rgba(52,211,153,.1); height: 8px; width: 8px; }
-.sdkwork-startup-status-dot:not(.is-failed) { animation: sdkwork-startup-pulse 1.8s ease-in-out infinite; }
-.sdkwork-startup-status-dot.is-failed { background: #fb7185; box-shadow: 0 0 0 6px rgba(251,113,133,.1); }
-.sdkwork-startup-kicker { color: #60a5fa; font-size: 11px; font-weight: 700; letter-spacing: 0; margin: 0 0 10px; text-transform: uppercase; }
-.sdkwork-startup-content h1 { font-size: 38px; font-weight: 600; letter-spacing: 0; line-height: 1.12; margin: 0; }
-.sdkwork-startup-description { color: #94a3b8; font-size: 15px; line-height: 1.6; margin: 14px auto 28px; max-width: 420px; }
-.sdkwork-startup-progress { align-items: center; display: flex; gap: 14px; }
-.sdkwork-startup-progress-track { background: rgba(148,163,184,.16); border-radius: 999px; height: 5px; overflow: hidden; width: 100%; }
-.sdkwork-startup-progress-track span { background: linear-gradient(90deg, #3b82f6, #34d399); border-radius: inherit; display: block; height: 100%; transition: width 360ms ease; }
-.sdkwork-startup-progress-value { color: #cbd5e1; font-family: var(--font-mono); font-size: 12px; min-width: 34px; text-align: right; }
-.sdkwork-startup-stages { display: grid; gap: 10px; grid-template-columns: repeat(3, 1fr); list-style: none; margin: 30px 0 0; padding: 0; }
-.sdkwork-startup-stage { align-items: center; color: #64748b; display: flex; font-size: 12px; gap: 8px; min-width: 0; text-align: left; }
-.sdkwork-startup-stage.is-active { color: #e2e8f0; }
-.sdkwork-startup-stage.is-complete { color: #94a3b8; }
-.sdkwork-startup-stage-indicator { align-items: center; border: 1px solid rgba(148,163,184,.26); border-radius: 999px; display: inline-flex; flex: 0 0 auto; font-size: 10px; height: 20px; justify-content: center; width: 20px; }
-.sdkwork-startup-stage-indicator::before { content: attr(data-step); }
-.sdkwork-startup-stage.is-active .sdkwork-startup-stage-indicator { border-color: #60a5fa; color: #93c5fd; }
-.sdkwork-startup-stage.is-complete .sdkwork-startup-stage-indicator { background: rgba(52,211,153,.12); border-color: rgba(52,211,153,.36); color: #6ee7b7; }
-.sdkwork-startup-stage.is-complete .sdkwork-startup-stage-indicator::before { border-bottom: 1px solid currentColor; border-right: 1px solid currentColor; content: ''; height: 7px; transform: rotate(45deg) translate(-1px, -1px); width: 4px; }
-.sdkwork-startup-retry { background: #f8fafc; border: 0; border-radius: 8px; color: #0f172a; cursor: pointer; font-size: 13px; font-weight: 600; margin-top: 26px; padding: 10px 16px; transition: background-color 140ms ease, transform 140ms ease; }
-.sdkwork-startup-retry:hover { background: #dbeafe; transform: translateY(-1px); }
-@keyframes sdkwork-startup-pulse { 0%, 100% { box-shadow: 0 0 0 5px rgba(52,211,153,.08); opacity: .72; } 50% { box-shadow: 0 0 0 9px rgba(52,211,153,.02); opacity: 1; } }
-@media (max-width: 640px) { .sdkwork-startup-shell { min-height: 100dvh; padding: 24px; } .sdkwork-startup-content h1 { font-size: 30px; } .sdkwork-startup-stages { gap: 8px; } .sdkwork-startup-stage { align-items: flex-start; flex-direction: column; gap: 6px; } }
-@media (prefers-reduced-motion: reduce) { .sdkwork-startup-status-dot:not(.is-failed), .sdkwork-startup-progress-track span { animation: none; transition: none; } }
-
 /* BirdCoder Auth Shell - Desktop Window Controls Only */
 .sdkwork-birdcoder-auth-shell {
   display: flex;

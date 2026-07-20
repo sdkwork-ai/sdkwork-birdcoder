@@ -101,5 +101,6 @@ export interface WorkspaceChatProps {
     request: BirdCoderSubmitUserQuestionAnswerRequest,
   ) => void | Promise<void>;
   onViewChanges: (file: FileChange) => void;
+  onOpenFile: (path: string) => void;
 }
 

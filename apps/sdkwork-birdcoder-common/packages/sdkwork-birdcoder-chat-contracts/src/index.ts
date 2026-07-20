@@ -27,11 +27,84 @@ export const BIRDCODER_CHAT_MESSAGE_CONTENT_BLOCK_TYPES = [
 export type BirdCoderChatMessageContentBlockType =
   (typeof BIRDCODER_CHAT_MESSAGE_CONTENT_BLOCK_TYPES)[number];
 
+export const BIRDCODER_CHAT_MESSAGE_TOOL_CALL_KINDS = [
+  'command',
+  'file',
+  'search',
+  'web',
+  'mcp',
+  'agent',
+  'skill',
+  'media',
+  'task',
+  'approval',
+  'question',
+  'other',
+] as const;
+
+export type BirdCoderChatMessageToolCallKind =
+  (typeof BIRDCODER_CHAT_MESSAGE_TOOL_CALL_KINDS)[number];
+
+export type BirdCoderChatMessageToolCallStatus =
+  | 'pending'
+  | 'running'
+  | 'success'
+  | 'error'
+  | 'cancelled'
+  | 'waiting';
+
+export type BirdCoderChatMessageToolResultBlock =
+  | {
+      type: 'text';
+      text: string;
+    }
+  | {
+      type: 'image' | 'audio';
+      source: string;
+      mimeType?: string;
+      title?: string;
+    }
+  | {
+      type: 'resource';
+      uri: string;
+      name?: string;
+      mimeType?: string;
+      text?: string;
+    }
+  | {
+      type: 'link';
+      url: string;
+      title?: string;
+      description?: string;
+    }
+  | {
+      type: 'diff';
+      content: string;
+      path?: string;
+    }
+  | {
+      type: 'list';
+      items: readonly string[];
+    }
+  | {
+      type: 'error';
+      message: string;
+    };
+
 export interface BirdCoderChatMessageToolCall {
   id: string;
   type: string;
   name: string;
   arguments: string;
+  kind?: BirdCoderChatMessageToolCallKind;
+  status?: BirdCoderChatMessageToolCallStatus;
+  output?: string;
+  command?: string;
+  target?: string;
+  serverName?: string;
+  title?: string;
+  durationMs?: number;
+  resultBlocks?: readonly BirdCoderChatMessageToolResultBlock[];
 }
 
 export interface BirdCoderChatMessageRecord {

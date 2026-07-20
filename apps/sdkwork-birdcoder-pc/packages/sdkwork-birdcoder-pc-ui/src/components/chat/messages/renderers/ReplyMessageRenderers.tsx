@@ -40,6 +40,10 @@ function ChatMessageActionBar({
 }: ChatMessageActionBarProps) {
   const environment = context.environment;
   const copyLabel = environment?.t('common.copy') ?? 'Copy';
+  const editLabel = environment?.t('chat.messageEdit') ?? 'Edit message';
+  const regenerateLabel = environment?.t('chat.messageRegenerate') ?? 'Regenerate response';
+  const deleteLabel = environment?.t('chat.messageDelete') ?? 'Delete message';
+  const actionButtonClassName = 'h-6 w-6 rounded-md text-gray-500 transition-colors hover:bg-white/10 hover:text-gray-300 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-blue-400/70';
 
   return (
     <div className={className}>
@@ -47,8 +51,9 @@ function ChatMessageActionBar({
         <Button
           variant="ghost"
           size="icon"
-          className="h-6 w-6 text-gray-500 hover:text-gray-300 hover:bg-white/10 rounded-md transition-colors"
-          title="Edit"
+          className={actionButtonClassName}
+          title={editLabel}
+          aria-label={editLabel}
           onClick={() => environment.beginEditingMessage?.(message.id, message.content)}
         >
           <Edit2 size={iconSize} />
@@ -57,8 +62,9 @@ function ChatMessageActionBar({
       <Button
         variant="ghost"
         size="icon"
-        className="h-6 w-6 text-gray-500 hover:text-gray-300 hover:bg-white/10 rounded-md transition-colors"
+        className={actionButtonClassName}
         title={copyLabel}
+        aria-label={copyLabel}
         onClick={() => context.copyMessageToClipboard(copyContent)}
       >
         <Copy size={iconSize} />
@@ -67,8 +73,9 @@ function ChatMessageActionBar({
         <Button
           variant="ghost"
           size="icon"
-          className="h-6 w-6 text-gray-500 hover:text-gray-300 hover:bg-white/10 rounded-md transition-colors"
-          title="Regenerate"
+          className={actionButtonClassName}
+          title={regenerateLabel}
+          aria-label={regenerateLabel}
           onClick={() => environment.onRegenerateMessage?.()}
         >
           <RotateCcw size={iconSize} />
@@ -78,8 +85,9 @@ function ChatMessageActionBar({
         <Button
           variant="ghost"
           size="icon"
-          className="h-6 w-6 text-gray-500 hover:text-red-400 hover:bg-red-500/10 rounded-md transition-colors"
-          title="Delete"
+          className={`${actionButtonClassName} hover:bg-red-500/10 hover:text-red-400`}
+          title={deleteLabel}
+          aria-label={deleteLabel}
           onClick={() =>
             environment.onDeleteMessage?.(
               resolveMessageActionTargetMessageIds(
@@ -117,7 +125,7 @@ export const UserTextMessageRenderer = memo(function UserTextMessageRenderer({
             context={context}
             copyContent={message.content}
             iconSize={10}
-            className="mt-1.5 flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity pr-1"
+            className="mt-1.5 flex items-center justify-end gap-1 pr-1 opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100 [@media(hover:none)]:opacity-100"
             showEdit
           />
         ) : null}
@@ -136,7 +144,7 @@ export const UserTextMessageRenderer = memo(function UserTextMessageRenderer({
           context={context}
           copyContent={message.content}
           iconSize={12}
-          className="mt-1 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity pr-2"
+          className="mt-1 flex items-center gap-1 pr-2 opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100 [@media(hover:none)]:opacity-100"
           showEdit
         />
       ) : null}
@@ -156,18 +164,23 @@ export const AssistantReplyMessageRenderer = memo(function AssistantReplyMessage
     context.actionTarget,
     resolveViewMarkdownCopyFallback(view),
   );
+  const isProtocolNotice = view.blocks.some(
+    (block) => block.type === 'markdown' && !!block.noticeKind,
+  );
 
   return (
     <div ref={messageRef} className={`flex flex-col w-full ${isSidebar ? 'items-start group' : 'min-w-0'}`}>
-      <RoleHeader viewKind={view.kind} layout={context.layout} />
+      {isProtocolNotice ? null : (
+        <RoleHeader viewKind={view.kind} layout={context.layout} t={context.environment?.t} />
+      )}
       <ContentBlockList view={view} context={context} />
-      {context.showMessageActions ? (
+      {context.showMessageActions && !isProtocolNotice ? (
         <ChatMessageActionBar
           message={message}
           context={context}
           copyContent={copyContent}
           iconSize={isSidebar ? 12 : 14}
-          className={`${isSidebar ? 'mt-1.5' : 'mt-1.5'} flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity`}
+          className={`${isSidebar ? 'mt-1.5' : 'mt-1.5'} flex items-center gap-1 opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100 [@media(hover:none)]:opacity-100`}
           showRegenerate
         />
       ) : null}

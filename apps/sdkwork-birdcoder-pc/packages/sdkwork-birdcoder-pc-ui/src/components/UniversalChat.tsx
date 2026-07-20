@@ -2,7 +2,10 @@ import React, { Suspense, lazy, memo, useCallback, useMemo, useRef, useEffect, u
 import { Plus, ChevronDown, ChevronUp, GripVertical, ArrowUp, CheckCircle2, RotateCcw, Edit2, Copy, Trash2, Zap, BookOpen, List, Loader2 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { Button } from '@sdkwork/birdcoder-pc-ui-shell';
-import { resolveBirdCoderCodeEngineCommandInteractionState } from '@sdkwork/birdcoder-pc-workbench/chat/types';
+import {
+  projectChatTranscriptToolActivity,
+  resolveBirdCoderCodeEngineCommandInteractionState,
+} from '@sdkwork/birdcoder-pc-workbench/chat/types';
 import type { BirdCoderChatMessage, FileChange } from '@sdkwork/birdcoder-pc-workbench/chat/types';
 import {
   findWorkbenchCodeEngineDefinition,
@@ -192,6 +195,7 @@ export interface UniversalChatProps {
   layout?: 'sidebar' | 'main';
   onEditMessage?: (messageId: string, content: string) => void | Promise<void>;
   onDeleteMessage?: (messageIds: string[]) => void;
+  onOpenFile?: (path: string) => void;
   onRegenerateMessage?: () => void;
   onViewChanges?: (file: FileChange) => void;
   onRestore?: (msgId: string) => void;
@@ -291,6 +295,7 @@ interface UniversalChatTranscriptEnvironment {
   addToast: ReturnType<typeof useToast>['addToast'];
   beginEditingMessage?: (messageId: string, content: string) => void;
   onDeleteMessage?: (messageIds: string[]) => void;
+  onOpenFile?: (path: string) => void;
   onRegenerateMessage?: () => void;
   onRestore?: (msgId: string) => void;
   onViewChanges?: (file: FileChange) => void;
@@ -401,6 +406,25 @@ const UniversalChatTranscript = memo(function UniversalChatTranscript({
   sessionId,
   shouldStickToBottomRef,
 }: UniversalChatTranscriptProps) {
+  const [expandedDisclosureKeys, setExpandedDisclosureKeys] = useState<ReadonlySet<string>>(
+    () => new Set(),
+  );
+  const toggleDisclosure = useCallback((key: string) => {
+    setExpandedDisclosureKeys((previousKeys) => {
+      const nextKeys = new Set(previousKeys);
+      if (nextKeys.has(key)) {
+        nextKeys.delete(key);
+      } else {
+        nextKeys.add(key);
+      }
+      return nextKeys;
+    });
+  }, []);
+
+  useEffect(() => {
+    setExpandedDisclosureKeys(new Set());
+  }, [sessionId]);
+
   const {
     hasEarlierMessages,
     isLoadingEarlierMessages,
@@ -481,7 +505,7 @@ const UniversalChatTranscript = memo(function UniversalChatTranscript({
       if (didCopy) {
         environment.addToast(environment.t('chat.messageCopied'), 'success');
       } else {
-        environment.addToast('Unable to copy to clipboard', 'error');
+        environment.addToast(environment.t('chat.copyFailed'), 'error');
       }
     });
   };
@@ -496,13 +520,17 @@ const UniversalChatTranscript = memo(function UniversalChatTranscript({
     actionTarget: null,
     showMessageActions: false,
     copyMessageToClipboard,
+    expandedDisclosureKeys,
+    toggleDisclosure,
     renderMarkdownContent,
   }), [
     copyMessageToClipboard,
     engineId,
+    expandedDisclosureKeys,
     layout,
     renderedMessages,
     sessionId,
+    toggleDisclosure,
   ]);
 
   return (
@@ -510,7 +538,7 @@ const UniversalChatTranscript = memo(function UniversalChatTranscript({
       {isLoadingEarlierMessages ? (
         <div className="flex items-center justify-center gap-2 px-4 py-2 text-xs text-gray-500">
           <Loader2 size={12} className="animate-spin" />
-          <span>Loading earlier messages...</span>
+          <span>{environmentRef.current?.t('chat.loadingEarlierMessages') ?? 'Loading earlier messages...'}</span>
         </div>
       ) : null}
       {messages.length === 0 ? (
@@ -524,9 +552,12 @@ const UniversalChatTranscript = memo(function UniversalChatTranscript({
                   <div className="w-16 h-16 bg-blue-500/10 rounded-2xl flex items-center justify-center mb-6 border border-blue-500/20 shadow-lg shadow-blue-500/10">
                     <Zap size={32} className="text-blue-400" />
                   </div>
-                  <h2 className="text-2xl font-semibold text-white mb-2 tracking-tight">What do you want to build?</h2>
+                  <h2 className="mb-2 text-2xl font-semibold tracking-tight text-white">
+                    {environmentRef.current?.t('chat.emptyTitle') ?? 'What do you want to build?'}
+                  </h2>
                   <p className="text-gray-400 max-w-md text-[15px] leading-relaxed">
-                    Describe your idea, ask a question, or paste some code to get started. I can help you write code, debug errors, or build entire features.
+                    {environmentRef.current?.t('chat.emptyDescription')
+                      ?? 'Describe your idea, ask a question, or paste some code to get started.'}
                   </p>
                 </div>
               )}
@@ -538,9 +569,12 @@ const UniversalChatTranscript = memo(function UniversalChatTranscript({
               <div className="w-16 h-16 bg-blue-500/10 rounded-2xl flex items-center justify-center mb-6 border border-blue-500/20 shadow-lg shadow-blue-500/10">
                 <Zap size={32} className="text-blue-400" />
               </div>
-              <h2 className="text-2xl font-semibold text-white mb-2 tracking-tight">What do you want to build?</h2>
+              <h2 className="mb-2 text-2xl font-semibold tracking-tight text-white">
+                {environmentRef.current?.t('chat.emptyTitle') ?? 'What do you want to build?'}
+              </h2>
               <p className="text-gray-400 max-w-md text-[15px] leading-relaxed">
-                Describe your idea, ask a question, or paste some code to get started. I can help you write code, debug errors, or build entire features.
+                {environmentRef.current?.t('chat.emptyDescription')
+                  ?? 'Describe your idea, ask a question, or paste some code to get started.'}
               </p>
             </div>
           )
@@ -646,6 +680,7 @@ export const UniversalChat = memo(function UniversalChat({
   layout = 'sidebar',
   onEditMessage,
   onDeleteMessage,
+  onOpenFile,
   onRegenerateMessage,
   onViewChanges,
   onRestore,
@@ -864,8 +899,11 @@ export const UniversalChat = memo(function UniversalChat({
   const isComposerProcessing = isEngineBusy || isDispatchingMessage || isSubmittingPendingInteraction;
   const isComposerTurnBlockedRef = useRef(isComposerTurnBlocked);
   const normalizedMessages = useMemo(
-    () => resolveVisibleSessionMessages(messages, normalizedSessionId),
-    [messages, normalizedSessionId],
+    () => projectChatTranscriptToolActivity(
+      resolveVisibleSessionMessages(messages, normalizedSessionId),
+      { engineId: selectedEngineId },
+    ),
+    [messages, normalizedSessionId, selectedEngineId],
   );
   const lastMessage = normalizedMessages[normalizedMessages.length - 1];
   const lastMessageContentLength = lastMessage?.content.length ?? 0;
@@ -920,6 +958,7 @@ export const UniversalChat = memo(function UniversalChat({
     addToast,
     beginEditingMessage,
     onDeleteMessage,
+    onOpenFile,
     onRegenerateMessage,
     onRestore,
     onViewChanges,
@@ -2478,8 +2517,11 @@ export const UniversalChat = memo(function UniversalChat({
       <div className="relative flex-1 min-h-0 min-w-0">
         <div
           ref={transcriptScrollContainerRef}
+          aria-label={t('chat.transcriptRegion')}
           className={`flex h-full min-h-0 min-w-0 flex-col overflow-x-hidden overflow-y-auto custom-scrollbar ${layout === 'sidebar' ? 'gap-4 p-4 pb-4 pl-11' : 'pb-6'}`}
+          role="region"
           style={{ overscrollBehavior: 'contain', scrollbarGutter: 'stable' }}
+          tabIndex={0}
         >
           <UniversalChatTranscript
             emptyState={emptyState}

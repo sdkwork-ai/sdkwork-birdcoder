@@ -6,6 +6,7 @@ import type {
   ProjectRuntimeLocationBindingResult,
   ProjectRuntimeLocationRegistrationPort,
   ProjectRuntimeLocationRegistrationResult,
+  ProjectRuntimeLocationCapability,
   ProjectRuntimeLocationResolution,
   ProjectRuntimeLocationResolutionRequest,
 } from '../interfaces/IProjectRuntimeLocationService.ts';
@@ -283,6 +284,21 @@ export class RuntimeProjectRuntimeLocationService implements IProjectRuntimeLoca
       },
       status: 'resolved',
     };
+  }
+
+  async resolveRemoteProjectRuntimeLocationId(
+    projectId: string,
+    capability: ProjectRuntimeLocationCapability,
+  ): Promise<string | null> {
+    const normalizedProjectId = normalizeProjectId(projectId);
+    if (!normalizedProjectId || !this.registrationPort) {
+      return null;
+    }
+
+    return await this.registrationPort.resolvePreferredProjectRuntimeLocationId(
+      normalizedProjectId,
+      capability,
+    );
   }
 
   private async readMountState(projectId: string): Promise<ProjectDeviceMountState | undefined> {

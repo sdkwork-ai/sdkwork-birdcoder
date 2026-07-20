@@ -24,7 +24,7 @@ pnpm dev
 ```bash
 pnpm dev:desktop:local
 pnpm dev:browser:postgres:standalone
-pnpm dev:browser:postgres:cloud
+pnpm dev:browser:cloud
 pnpm dev:desktop
 pnpm dev:desktop:standalone
 pnpm dev:desktop:cloud
@@ -89,7 +89,7 @@ BirdCoder 前端始终调用标准路由：`/app/v3/api/auth/*`、`/app/v3/api/s
 | --- | --- |
 | 本地桌面样板 | `pnpm dev:desktop:local` 或 `pnpm dev:desktop:local` |
 | 私有 Web 样板 | `pnpm dev` 或 `pnpm dev:browser:postgres:standalone` |
-| 云端 Web 样板 | `pnpm dev:browser:postgres:cloud` |
+| 云端 Web 样板 | `pnpm dev:browser:cloud` |
 | 私有 Web 栈 | `pnpm dev:browser:standalone` |
 | 云端 Web 栈 | `pnpm dev:browser:cloud` |
 | 本地桌面宿主 | `pnpm dev:desktop` |

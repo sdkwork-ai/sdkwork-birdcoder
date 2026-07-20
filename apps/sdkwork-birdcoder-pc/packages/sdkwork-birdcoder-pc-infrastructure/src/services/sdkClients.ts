@@ -3,20 +3,20 @@ import {
   type BirdcoderAppSdkClient,
   type BirdCoderCommitProjectGitChangesRequest as GeneratedBirdCoderCommitProjectGitChangesRequest,
   type BirdCoderCreateCodingSessionRequest as GeneratedBirdCoderCreateCodingSessionRequest,
-  type BirdCoderCreateCodingSessionTurnRequest as GeneratedBirdCoderCreateCodingSessionTurnRequest,
   type BirdCoderCreateProjectGitBranchRequest as GeneratedBirdCoderCreateProjectGitBranchRequest,
   type BirdCoderCreateProjectGitWorktreeRequest as GeneratedBirdCoderCreateProjectGitWorktreeRequest,
   type BirdCoderCreateProjectRequest as GeneratedBirdCoderCreateProjectRequest,
+  type BirdCoderCreateProjectRuntimeLocationRequest as GeneratedBirdCoderCreateProjectRuntimeLocationRequest,
   type BirdCoderCreateWorkspaceRequest as GeneratedBirdCoderCreateWorkspaceRequest,
-  type BirdCoderForkCodingSessionRequest as GeneratedBirdCoderForkCodingSessionRequest,
   type BirdCoderSyncCodeEngineModelConfigRequest as GeneratedBirdCoderSyncCodeEngineModelConfigRequest,
-  type BirdCoderUpdateCodingSessionRequest as GeneratedBirdCoderUpdateCodingSessionRequest,
   type BirdCoderUpdateProjectRequest as GeneratedBirdCoderUpdateProjectRequest,
   type BirdCoderUpdateWorkspaceRequest as GeneratedBirdCoderUpdateWorkspaceRequest,
   type BirdCoderRemoveProjectGitWorktreeRequest as GeneratedBirdCoderRemoveProjectGitWorktreeRequest,
   type BirdCoderPushProjectGitBranchRequest as GeneratedBirdCoderPushProjectGitBranchRequest,
   type BirdCoderPruneProjectGitWorktreesRequest as GeneratedBirdCoderPruneProjectGitWorktreesRequest,
   type BirdCoderProjectWorkspaceBinding as GeneratedBirdCoderProjectWorkspaceBinding,
+  type BirdCoderProjectRuntimeLocationPreference as GeneratedBirdCoderProjectRuntimeLocationPreference,
+  type BirdCoderRebindProjectRuntimeLocationRequest as GeneratedBirdCoderRebindProjectRuntimeLocationRequest,
   type BirdCoderSwitchProjectGitBranchRequest as GeneratedBirdCoderSwitchProjectGitBranchRequest,
   type BirdCoderUpsertProjectCollaboratorRequest as GeneratedBirdCoderUpsertProjectCollaboratorRequest,
   type BirdCoderUpsertProjectWorkspaceBindingRequest as GeneratedBirdCoderUpsertProjectWorkspaceBindingRequest,
@@ -289,6 +289,9 @@ export interface BirdCoderAppSdkApiClient {
     projectId: string,
     runtimeLocationId: string,
   ): Promise<BirdCoderProjectRuntimeLocationRecord>;
+  listProjectRuntimeLocationPreferences(
+    projectId: string,
+  ): Promise<GeneratedBirdCoderProjectRuntimeLocationPreference[]>;
   getProjectGitDiff(
     projectId: string,
     runtimeLocationId: string,
@@ -657,7 +660,94 @@ function toGeneratedDocumentsQuery(
 }
 
 function toGeneratedCodeEngineKey(value: string | undefined): GeneratedCodeEngineKey | undefined {
-  return value ? (value as GeneratedCodeEngineKey) : undefined;
+  switch (value) {
+    case undefined:
+      return undefined;
+    case 'claude-code':
+    case 'codex':
+    case 'gemini':
+    case 'opencode':
+      return value;
+    default:
+      throw new Error(`Unsupported BirdCoder code engine: ${value}`);
+  }
+}
+
+function toGeneratedSyncCodeEngineModelConfigRequest(
+  request: BirdCoderSyncCodeEngineModelConfigRequest,
+): GeneratedBirdCoderSyncCodeEngineModelConfigRequest {
+  type GeneratedConfig = GeneratedBirdCoderSyncCodeEngineModelConfigRequest['localConfig'];
+  type GeneratedEngine = GeneratedConfig['engines'][string];
+  type GeneratedModel = GeneratedEngine['models'][number];
+  type GeneratedTransportKind = GeneratedModel['transportKinds'][number];
+
+  const toTransportKind = (value: string): GeneratedTransportKind => {
+    switch (value) {
+      case 'cli-jsonl':
+      case 'sdk-stream':
+      case 'remote-control-http':
+      case 'openapi-http':
+        return value;
+      default:
+        throw new Error(`Unsupported BirdCoder engine transport: ${value}`);
+    }
+  };
+  const toStatus = (value: string): GeneratedModel['status'] => {
+    switch (value) {
+      case 'active':
+      case 'preview':
+      case 'deprecated':
+      case 'disabled':
+        return value;
+      default:
+        throw new Error(`Unsupported BirdCoder model status: ${value}`);
+    }
+  };
+
+  const engines: GeneratedConfig['engines'] = {};
+  for (const [key, engine] of Object.entries(request.localConfig.engines)) {
+    const engineId = toGeneratedCodeEngineKey(engine.engineId);
+    if (!engineId) {
+      throw new Error(`BirdCoder model config engine ${key} is missing engineId.`);
+    }
+    engines[key] = {
+      defaultModelId: engine.defaultModelId,
+      engineId,
+      models: engine.models.map((model): GeneratedModel => {
+        const modelEngineKey = toGeneratedCodeEngineKey(model.engineKey);
+        if (!modelEngineKey) {
+          throw new Error(`BirdCoder model ${model.modelId} is missing engineKey.`);
+        }
+        return {
+          capabilityMatrix: { ...model.capabilityMatrix },
+          createdAt: model.createdAt,
+          defaultForEngine: model.defaultForEngine,
+          displayName: model.displayName,
+          engineKey: modelEngineKey,
+          id: model.id,
+          modelId: model.modelId,
+          organizationId: model.organizationId,
+          providerId: model.providerId,
+          status: toStatus(model.status),
+          tenantId: model.tenantId,
+          transportKinds: model.transportKinds.map(toTransportKind),
+          updatedAt: model.updatedAt,
+          uuid: model.uuid,
+        };
+      }),
+      selectedModelId: engine.selectedModelId,
+    };
+  }
+
+  return {
+    localConfig: {
+      engines,
+      schemaVersion: request.localConfig.schemaVersion,
+      source: request.localConfig.source,
+      updatedAt: request.localConfig.updatedAt,
+      version: request.localConfig.version,
+    },
+  };
 }
 
 function toGeneratedDataScope(
@@ -1222,7 +1312,7 @@ export function createBirdCoderAppSdkApiClient({
     async syncModelConfig(request) {
       return readCanonicalData<BirdCoderCodeEngineModelConfigSyncResult>(
         await client.runtime.modelConfig.update(
-          request as unknown as GeneratedBirdCoderSyncCodeEngineModelConfigRequest,
+          toGeneratedSyncCodeEngineModelConfigRequest(request),
         ),
       );
     },
@@ -1282,9 +1372,17 @@ export function createBirdCoderAppSdkApiClient({
       );
     },
     async createCodingSession(request) {
+      const engineId = toGeneratedCodeEngineKey(request.engineId);
+      if (!engineId) {
+        throw new Error('Coding session engineId is required.');
+      }
+      const body: GeneratedBirdCoderCreateCodingSessionRequest = {
+        ...request,
+        engineId,
+      };
       return readCanonicalData<BirdCoderCodingSessionSummary>(
         await client.intelligence.codingSessions.create(
-          request as unknown as GeneratedBirdCoderCreateCodingSessionRequest,
+          body,
         ),
       );
     },
@@ -1292,7 +1390,7 @@ export function createBirdCoderAppSdkApiClient({
       return readCanonicalData<BirdCoderCodingSessionSummary>(
         await client.intelligence.codingSessions.forks.create(
           { sessionId: codingSessionId },
-          request as unknown as GeneratedBirdCoderForkCodingSessionRequest,
+          request,
         ),
       );
     },
@@ -1300,7 +1398,7 @@ export function createBirdCoderAppSdkApiClient({
       return readCanonicalData<BirdCoderCodingSessionSummary>(
         await client.intelligence.codingSessions.update(
           { sessionId: codingSessionId },
-          request as unknown as GeneratedBirdCoderUpdateCodingSessionRequest,
+          request,
         ),
       );
     },
@@ -1329,7 +1427,7 @@ export function createBirdCoderAppSdkApiClient({
       return readCanonicalData<BirdCoderCodingSessionTurn>(
         await client.intelligence.codingSessions.turns.create(
           { sessionId: codingSessionId },
-          request as unknown as GeneratedBirdCoderCreateCodingSessionTurnRequest,
+          request,
         ),
       );
     },
@@ -1406,11 +1504,29 @@ export function createBirdCoderAppSdkApiClient({
       }
     },
     async createProjectRuntimeLocation(projectId, request) {
-      const { idempotencyKey, ...body } = request;
+      const {
+        absolutePath,
+        displayName,
+        idempotencyKey,
+        locationKind,
+        pathFlavor,
+        rootLocator,
+        runtimeTargetId,
+        runtimeTargetKind,
+      } = request;
+      const body: GeneratedBirdCoderCreateProjectRuntimeLocationRequest = {
+        absolutePath,
+        displayName,
+        locationKind,
+        pathFlavor,
+        rootLocator,
+        runtimeTargetId,
+        runtimeTargetKind,
+      };
       return readProjectRuntimeLocationRecord(
         await client.platform.projects.runtimeLocations.create(
           { projectId },
-          body as Parameters<typeof client.platform.projects.runtimeLocations.create>[1],
+          body,
           { headers: { 'Idempotency-Key': idempotencyKey } },
         ),
       );
@@ -1459,6 +1575,14 @@ export function createBirdCoderAppSdkApiClient({
         await client.platform.projects.runtimeLocations.retrieve({
           projectId,
           runtimeLocationId,
+        }),
+      );
+    },
+    async listProjectRuntimeLocationPreferences(projectId) {
+      return readItems<GeneratedBirdCoderProjectRuntimeLocationPreference>(
+        await client.platform.projects.runtimeLocations.preferences.list({ projectId }, {
+          page: 1,
+          page_size: 20,
         }),
       );
     },
@@ -1511,10 +1635,22 @@ export function createBirdCoderAppSdkApiClient({
       );
     },
     async rebindProjectRuntimeLocation(projectId, runtimeLocationId, request) {
-      const { idempotencyKey, ...body } = request;
+      const {
+        absolutePath,
+        displayName,
+        idempotencyKey,
+        pathFlavor,
+        rootLocator,
+      } = request;
+      const body: GeneratedBirdCoderRebindProjectRuntimeLocationRequest = {
+        absolutePath,
+        displayName,
+        pathFlavor,
+        rootLocator,
+      };
       await client.platform.projects.runtimeLocations.rebind(
         { projectId, runtimeLocationId },
-        body as Parameters<typeof client.platform.projects.runtimeLocations.rebind>[1],
+        body,
         { headers: { 'Idempotency-Key': idempotencyKey } },
       );
       return readProjectRuntimeLocationRecord(

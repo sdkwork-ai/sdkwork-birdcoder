@@ -183,7 +183,7 @@ impl ProjectRow {
             end_time: row.try_get("end_time")?,
             budget_amount: row.try_get("budget_amount")?,
             is_deleted: row_get_bool_as_i64(row, "is_deleted")?,
-            is_template: row.try_get("is_template")?,
+            is_template: row_get_bool_as_i64(row, "is_template")?,
         })
     }
 }

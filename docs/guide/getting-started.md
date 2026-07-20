@@ -18,7 +18,7 @@ pnpm dev
 
 ```bash
 pnpm dev:desktop:local
-pnpm dev:browser:postgres:cloud
+pnpm dev:browser:cloud
 pnpm dev:desktop
 pnpm dev:server:postgres:standalone
 pnpm dev:server:cloud
@@ -28,7 +28,7 @@ BirdCoder keeps one frontend-facing SDKWork IAM facade while switching deploymen
 
 - `pnpm dev:desktop:local` or `pnpm dev:desktop` for the desktop-local sample with local SDKWork IAM storage
 - `pnpm dev`, `pnpm dev:browser:postgres:standalone`, or `pnpm dev:browser:standalone` for the private BirdCoder web sample stack with automatic server startup
-- `pnpm dev:browser:postgres:cloud` or `pnpm dev:server:cloud` for the cloud-backed SDKWork IAM lane
+- `pnpm dev:browser:cloud` or `pnpm dev:server:cloud` for the cloud-backed SDKWork IAM lane
 
 When the resolved startup env needs inspection before running a mode, use:
 

@@ -8,7 +8,7 @@ BirdCoder development follows the package-first SDKWork application workflow whi
 pnpm dev
 pnpm dev:desktop:local
 pnpm dev:browser:postgres:standalone
-pnpm dev:browser:postgres:cloud
+pnpm dev:browser:cloud
 pnpm dev:desktop
 pnpm dev:desktop:standalone
 pnpm dev:desktop:cloud
@@ -43,7 +43,7 @@ BirdCoder has three IAM deployment modes:
 
 - `desktop-local`: `pnpm dev:desktop:local`, `pnpm dev:desktop`, `pnpm dev:desktop:local`, and `pnpm dev:desktop:local` run the desktop host with an embedded coding server and local SDKWork IAM storage.
 - `server-private`: `pnpm dev`, `pnpm dev:browser:postgres:standalone`, `pnpm dev:desktop:standalone`, `pnpm dev:desktop:standalone`, `pnpm dev:browser:standalone`, `pnpm dev:server:postgres:standalone`, and `pnpm dev:server:standalone` run against a private BirdCoder server exposing the standard SDKWork IAM app facade.
-- `cloud-saas`: `pnpm dev:browser:postgres:cloud`, `pnpm dev:desktop:cloud`, `pnpm dev:desktop:cloud`, `pnpm dev:browser:cloud`, and `pnpm dev:server:cloud` run against the cloud-backed SDKWork IAM authority.
+- `cloud-saas`: `pnpm dev:browser:cloud`, `pnpm dev:desktop:cloud`, `pnpm dev:desktop:cloud`, `pnpm dev:browser:cloud`, and `pnpm dev:server:cloud` run against the cloud-backed SDKWork IAM authority.
 
 The stack aliases keep delivery topology explicit:
 

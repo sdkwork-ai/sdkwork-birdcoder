@@ -14,8 +14,6 @@ export function createBirdcoderWebRuntimeSessionIntent(
     : plan.kind === 'local-process'
       ? plan.localProcessRequest.command
       : plan.profile === 'bash' ? ['/bin/bash', '-l'] : ['/bin/sh'];
-  const workingDirectory = target.workingDirectory || plan.targetLabel;
-
   return {
     requestId: `birdcoder-terminal:${request.timestamp}`,
     profile: plan.profile,
@@ -24,10 +22,8 @@ export function createBirdcoderWebRuntimeSessionIntent(
     request: {
       ...target,
       command,
-      workingDirectory,
       tags: [
-        ...target.tags.filter((tag) => !tag.startsWith('cwd:')),
-        `cwd:${workingDirectory}`,
+        ...target.tags,
         `profile:${request.profileId ?? 'shell'}`,
         `title:${plan.title}`,
       ],

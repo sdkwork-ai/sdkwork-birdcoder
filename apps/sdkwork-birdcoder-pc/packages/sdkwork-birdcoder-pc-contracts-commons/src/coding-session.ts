@@ -687,6 +687,9 @@ export interface BirdCoderChatMessageLogicalMatchLike {
   role: BirdCoderCodingSessionMessage['role'];
   content: string;
   createdAt: string;
+  name?: string;
+  tool_calls?: unknown[];
+  tool_call_id?: string;
 }
 
 function stableSerializeBirdCoderComparableValue(
@@ -755,12 +758,23 @@ export function buildBirdCoderChatMessageLogicalMatchKey(
   const normalizedCodingSessionId = message.codingSessionId.trim();
   const normalizedContent = normalizeBirdCoderComparableChatMessageContent(message.content);
   const normalizedTurnId = message.turnId?.trim() ?? '';
+  const normalizedToolCallId = message.tool_call_id?.trim() ?? '';
+  const hasProtocolToolIdentity = message.role === 'tool'
+    || Boolean(normalizedToolCallId)
+    || (message.tool_calls?.length ?? 0) > 0;
   if (normalizedTurnId) {
     return JSON.stringify([
       normalizedCodingSessionId,
       normalizedTurnId,
       message.role,
       normalizedContent,
+      ...(hasProtocolToolIdentity
+        ? [
+            normalizedToolCallId,
+            message.name?.trim() ?? '',
+            stableSerializeBirdCoderComparableValue(message.tool_calls ?? []),
+          ]
+        : []),
     ]);
   }
 
@@ -861,6 +875,28 @@ export function deduplicateBirdCoderComparableChatMessages<
     );
   };
 
+  const forgetMessage = (message: TMessage, index: number): void => {
+    const normalizedMessageId = message.id.trim();
+    if (normalizedMessageId) {
+      const scopedMessageId = JSON.stringify([
+        message.codingSessionId.trim(),
+        normalizedMessageId,
+      ]);
+      if (messageIndexesById.get(scopedMessageId) === index) {
+        messageIndexesById.delete(scopedMessageId);
+      }
+    }
+
+    const logicalMatchKey = buildBirdCoderChatMessageLogicalMatchKey(message);
+    if (messageIndexesByLogicalKey.get(logicalMatchKey) === index) {
+      messageIndexesByLogicalKey.delete(logicalMatchKey);
+    }
+    const synchronizationSignature = buildBirdCoderChatMessageSynchronizationSignature(message);
+    if (messageIndexesBySynchronizationSignature.get(synchronizationSignature) === index) {
+      messageIndexesBySynchronizationSignature.delete(synchronizationSignature);
+    }
+  };
+
   for (const incomingMessage of messages) {
     const normalizedMessageId = incomingMessage.id.trim();
     const scopedMessageId = normalizedMessageId
@@ -889,6 +925,7 @@ export function deduplicateBirdCoderComparableChatMessages<
       existingMessage,
       incomingMessage,
     );
+    forgetMessage(existingMessage, matchingMessageIndex);
     deduplicatedMessages[matchingMessageIndex] = mergedMessage;
     rememberMessage(mergedMessage, matchingMessageIndex);
   }
@@ -925,6 +962,179 @@ const BIRDCODER_TEXT_CONTENT_COLLECTION_KEYS = [
   'children',
   'entries',
 ] as const;
+
+const BIRDCODER_NON_ANSWER_CONTENT_TYPES = new Set([
+  'agent',
+  'agent_execution_blocked',
+  'agent_execution_stopped',
+  'blocked',
+  'canceled',
+  'cancelled',
+  'chat_compressed',
+  'compact_boundary',
+  'compaction',
+  'custom_tool_call',
+  'custom_tool_call_output',
+  'function_call',
+  'function_call_output',
+  'image_generation_call',
+  'local_shell_call',
+  'mcp_tool_result',
+  'mcp_tool_use',
+  'reasoning',
+  'redacted_thinking',
+  'retry',
+  'step_finish',
+  'step_start',
+  'subtask',
+  'stopped',
+  'thinking',
+  'thought',
+  'tool_call_confirmation',
+  'tool_call_request',
+  'tool_call_response',
+  'tool_result',
+  'tool_search_call',
+  'tool_search_output',
+  'tool_use',
+  'tool_use_summary',
+  'user_cancelled',
+  'web_fetch_tool_result',
+  'web_search_call',
+  'web_search_tool_result',
+  'server_tool_use',
+  'code_execution_tool_result',
+  'bash_code_execution_tool_result',
+  'text_editor_code_execution_tool_result',
+  'tool_search_tool_result',
+]);
+
+function normalizeBirdCoderContentType(value: unknown): string {
+  return typeof value === 'string'
+    ? value.trim().toLowerCase().replace(/[.\s-]+/gu, '_')
+    : '';
+}
+
+function isBirdCoderNonAnswerContentRecord(record: Record<string, unknown>): boolean {
+  const contentType = normalizeBirdCoderContentType(record.type);
+  return BIRDCODER_NON_ANSWER_CONTENT_TYPES.has(contentType)
+    || record.ignored === true
+    || record.thought === true
+    || 'functionCall' in record
+    || 'functionResponse' in record;
+}
+
+export type BirdCoderProtocolNoticeKind =
+  | 'blocked'
+  | 'cancelled'
+  | 'compression'
+  | 'failed'
+  | 'retry'
+  | 'stopped';
+
+export interface BirdCoderProtocolNotice {
+  kind: BirdCoderProtocolNoticeKind;
+  message: string;
+}
+
+function readBirdCoderProtocolNoticeString(
+  record: Record<string, unknown> | null,
+  keys: readonly string[],
+): string {
+  for (const key of keys) {
+    const value = record?.[key];
+    if (typeof value === 'string' && value.trim()) {
+      return value.trim();
+    }
+  }
+
+  return '';
+}
+
+function projectBirdCoderProtocolNotice(
+  record: Record<string, unknown>,
+): BirdCoderProtocolNotice | null {
+  const type = normalizeBirdCoderContentType(record.type);
+  const subtype = normalizeBirdCoderContentType(record.subtype);
+  const status = normalizeBirdCoderContentType(record.status);
+  const value = record.value && typeof record.value === 'object' && !Array.isArray(record.value)
+    ? record.value as Record<string, unknown>
+    : null;
+  const detail = readBirdCoderProtocolNoticeString(value, ['systemMessage', 'reason', 'message'])
+    || readBirdCoderProtocolNoticeString(record, ['systemMessage', 'reason', 'message']);
+
+  if (
+    ['chat_compressed', 'compaction', 'compact_boundary'].includes(type)
+    || subtype === 'compact_boundary'
+  ) {
+    return { kind: 'compression', message: 'Conversation context compressed.' };
+  }
+  if (type === 'system' && subtype === 'status' && status === 'compacting') {
+    return { kind: 'compression', message: 'Compacting conversation context.' };
+  }
+  if (type === 'retry' || status === 'retrying') {
+    const attempt = typeof record.attempt === 'number' && Number.isFinite(record.attempt)
+      ? Math.max(1, Math.floor(record.attempt))
+      : undefined;
+    return {
+      kind: 'retry',
+      message: attempt
+        ? `Retrying provider request (attempt ${attempt}).`
+        : 'Retrying provider request.',
+    };
+  }
+  if (['user_cancelled', 'cancelled', 'canceled'].includes(type)) {
+    return { kind: 'cancelled', message: detail || 'Generation cancelled.' };
+  }
+  if (['agent_execution_blocked', 'blocked'].includes(type)) {
+    return {
+      kind: 'blocked',
+      message: detail ? `Agent execution blocked: ${detail}` : 'Agent execution blocked.',
+    };
+  }
+  if (['agent_execution_stopped', 'stopped'].includes(type)) {
+    return {
+      kind: 'stopped',
+      message: detail ? `Agent execution stopped: ${detail}` : 'Agent execution stopped.',
+    };
+  }
+
+  return null;
+}
+
+export function extractBirdCoderProtocolNotices(value: unknown): BirdCoderProtocolNotice[] {
+  const notices: BirdCoderProtocolNotice[] = [];
+  const seenNotices = new Set<string>();
+  const visitedObjects = new WeakSet<object>();
+
+  const visit = (candidate: unknown): void => {
+    if (Array.isArray(candidate)) {
+      candidate.forEach(visit);
+      return;
+    }
+    if (!candidate || typeof candidate !== 'object' || visitedObjects.has(candidate)) {
+      return;
+    }
+    visitedObjects.add(candidate);
+
+    const record = candidate as Record<string, unknown>;
+    const notice = projectBirdCoderProtocolNotice(record);
+    if (notice) {
+      const key = `${notice.kind}\u0001${notice.message}`;
+      if (!seenNotices.has(key)) {
+        seenNotices.add(key);
+        notices.push(notice);
+      }
+    }
+
+    for (const key of BIRDCODER_TEXT_CONTENT_COLLECTION_KEYS) {
+      visit(record[key]);
+    }
+  };
+
+  visit(value);
+  return notices;
+}
 
 function normalizeBirdCoderTextFragment(value: string): string | undefined {
   const normalizedValue = value.replace(/\r\n?/gu, '\n').trim();
@@ -972,6 +1182,10 @@ function extractBirdCoderTextContentInternal(
   visitedObjects.add(value);
 
   const record = value as Record<string, unknown>;
+  if (isBirdCoderNonAnswerContentRecord(record)) {
+    return undefined;
+  }
+
   for (const key of BIRDCODER_TEXT_CONTENT_VALUE_KEYS) {
     const extractedValue = extractBirdCoderTextContentInternal(record[key], visitedObjects);
     if (extractedValue) {

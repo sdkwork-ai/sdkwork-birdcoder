@@ -4,6 +4,7 @@ import { createBootstrapGateMessages, ErrorBoundary } from '@sdkwork/birdcoder-p
 import {
   BootstrapGate,
   bootstrapShellRuntime,
+  publishBirdCoderBootstrapProgress,
   publishBirdCoderEmbeddedSdkRuntimeEnv,
   readDesktopEmbeddedRuntimeConfig,
   waitForBirdCoderApiReady,
@@ -12,17 +13,22 @@ import { hydrateBirdCoderDesktopAppSessionPersistence } from '@sdkwork/birdcoder
 import { resolveDesktopRuntime } from './desktop/resolveDesktopRuntime';
 
 async function bootstrapRuntime() {
+  publishBirdCoderBootstrapProgress({ progress: 18, stage: 'runtime' });
   await hydrateBirdCoderDesktopAppSessionPersistence();
+  publishBirdCoderBootstrapProgress({ progress: 28, stage: 'runtime' });
   const { apiBaseUrl } = await readDesktopEmbeddedRuntimeConfig();
   publishBirdCoderEmbeddedSdkRuntimeEnv(apiBaseUrl);
+  publishBirdCoderBootstrapProgress({ progress: 36, stage: 'runtime' });
   await waitForBirdCoderApiReady(apiBaseUrl, {
     runtimeTarget: 'desktop',
   });
+  publishBirdCoderBootstrapProgress({ progress: 52, stage: 'runtime' });
   await bootstrapShellRuntime({
     host: resolveDesktopRuntime('global', {
       apiBaseUrl,
     }),
   });
+  publishBirdCoderBootstrapProgress({ progress: 62, stage: 'runtime' });
 }
 
 if (!document.getElementById('root')) {

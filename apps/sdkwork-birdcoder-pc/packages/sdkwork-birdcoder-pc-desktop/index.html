@@ -5,103 +5,73 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="color-scheme" content="dark" />
     <style>
-      :root {
-        color-scheme: dark;
-        background: #0e0e11;
-        font-family: "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
-      }
-
-      html,
-      body,
-      #root {
-        width: 100%;
-        min-height: 100%;
-        margin: 0;
-        background: #0e0e11;
-      }
-
-      body {
-        min-height: 100vh;
-        overflow: hidden;
-      }
-
-      [data-birdcoder-boot-shell] {
-        box-sizing: border-box;
-        display: flex;
-        min-height: 100vh;
-        align-items: center;
-        justify-content: center;
-        padding: 24px;
-        background:
-          radial-gradient(circle at top, rgba(59, 130, 246, 0.18), transparent 42%),
-          linear-gradient(180deg, #10131a 0%, #0e0e11 60%, #09090b 100%);
-        color: #f5f7fb;
-      }
-
-      [data-birdcoder-boot-card] {
-        width: min(100%, 420px);
-        padding: 24px;
-        text-align: center;
-      }
-
-      [data-birdcoder-boot-row] {
-        display: flex;
-        align-items: center;
-        flex-direction: column;
-        gap: 16px;
-      }
-
-      [data-birdcoder-boot-spinner] {
-        width: 36px;
-        height: 36px;
-        border-radius: 999px;
-        border: 2px solid rgba(255, 255, 255, 0.12);
-        border-top-color: rgba(255, 255, 255, 0.92);
-        animation: birdcoder-boot-spin 0.9s linear infinite;
-        flex: 0 0 auto;
-      }
-
-      [data-birdcoder-boot-title] {
-        font-size: 24px;
-        font-weight: 600;
-        line-height: 1.4;
-      }
-
-      [data-birdcoder-boot-description] {
-        margin-top: 6px;
-        font-size: 13px;
-        line-height: 1.5;
-        color: rgba(226, 232, 240, 0.78);
-      }
-
-      @keyframes birdcoder-boot-spin {
-        from {
-          transform: rotate(0deg);
-        }
-
-        to {
-          transform: rotate(360deg);
-        }
-      }
+      :root { color-scheme: dark; background: #0e0e11; font-family: Inter, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif; }
+      html, body, #root { height: 100%; width: 100%; margin: 0; overflow: hidden; }
+      .sdkwork-startup-screen { --startup-accent: #4ade80; --startup-border: rgba(255,255,255,.1); align-items: stretch; background: #0e0e11; color: #f4f5f7; display: flex; height: 100vh; justify-content: center; min-height: 420px; overflow: hidden; position: relative; width: 100%; }
+      .sdkwork-startup-screen::before, .sdkwork-startup-screen::after { background: rgba(255,255,255,.045); content: ''; pointer-events: none; position: absolute; }
+      .sdkwork-startup-screen::before { height: 1px; left: 0; right: 0; top: 34%; }
+      .sdkwork-startup-screen::after { bottom: 0; left: calc(50% - 380px); top: 0; width: 1px; }
+      .sdkwork-startup-shell { border-left: 1px solid var(--startup-border); border-right: 1px solid var(--startup-border); box-sizing: border-box; display: flex; flex-direction: column; min-height: 100%; padding: 34px clamp(28px,6vw,72px) 30px; position: relative; width: min(100%,760px); z-index: 1; }
+      .sdkwork-startup-brand, .sdkwork-startup-state-row, .sdkwork-startup-stage { align-items: center; display: flex; }
+      .sdkwork-startup-brand { gap: 11px; }
+      .sdkwork-startup-mark { align-items: center; background: #e8eaed; border-radius: 7px; color: #101216; display: inline-flex; font-size: 18px; font-weight: 750; height: 36px; justify-content: center; width: 36px; }
+      .sdkwork-startup-brand-copy { display: flex; flex-direction: column; gap: 1px; }
+      .sdkwork-startup-brand-vendor { color: #737b89; font-size: 9px; font-weight: 700; }
+      .sdkwork-startup-brand-product { color: #d7dae0; font-size: 12px; font-weight: 650; }
+      .sdkwork-startup-content { margin: auto 0; max-width: 560px; padding: 52px 0 64px; width: 100%; }
+      .sdkwork-startup-state-row { gap: 10px; margin-bottom: 14px; }
+      .sdkwork-startup-status-mark { align-items: center; display: inline-flex; height: 14px; justify-content: center; width: 14px; }
+      .sdkwork-startup-status-dot { animation: sdkwork-startup-pulse 1.7s ease-in-out infinite; background: var(--startup-accent); border-radius: 50%; box-shadow: 0 0 0 4px rgba(74,222,128,.12); height: 7px; width: 7px; }
+      .sdkwork-startup-kicker { color: #a5acb8; font-size: 11px; font-weight: 650; margin: 0; text-transform: uppercase; }
+      .sdkwork-startup-content h1 { font-size: 30px; font-weight: 600; line-height: 1.2; margin: 0; }
+      .sdkwork-startup-description { color: #8b93a1; font-size: 14px; line-height: 1.65; margin: 12px 0 32px; min-height: 24px; }
+      .sdkwork-startup-progress { align-items: center; display: grid; gap: 16px; grid-template-columns: minmax(0,1fr) 40px; }
+      .sdkwork-startup-progress-track { background: #272b32; border-radius: 3px; height: 6px; overflow: hidden; }
+      .sdkwork-startup-progress-track span { background: #22c55e; border-radius: inherit; display: block; height: 100%; width: 12%; }
+      .sdkwork-startup-progress-value { color: #c4c9d1; font-family: "Cascadia Code", Consolas, monospace; font-size: 12px; text-align: right; }
+      .sdkwork-startup-stages { display: grid; gap: 18px; grid-template-columns: repeat(3,minmax(0,1fr)); list-style: none; margin: 28px 0 0; padding: 0; }
+      .sdkwork-startup-stage { color: #5f6672; font-size: 12px; gap: 9px; min-width: 0; }
+      .sdkwork-startup-stage.is-active { color: #e4e7eb; }
+      .sdkwork-startup-stage-indicator { align-items: center; border: 1px solid #3b4049; border-radius: 50%; display: inline-flex; flex: 0 0 auto; font-size: 10px; height: 20px; justify-content: center; width: 20px; }
+      .sdkwork-startup-stage-indicator::before { content: attr(data-step); }
+      .sdkwork-startup-stage.is-active .sdkwork-startup-stage-indicator { border-color: var(--startup-accent); color: var(--startup-accent); }
+      @keyframes sdkwork-startup-pulse { 0%,100% { opacity: .62; } 50% { opacity: 1; } }
+      @media (max-width: 640px) { .sdkwork-startup-screen::after { display: none; } .sdkwork-startup-shell { border: 0; padding: 24px; } .sdkwork-startup-content { padding: 48px 0; } .sdkwork-startup-content h1 { font-size: 26px; } .sdkwork-startup-stages { gap: 8px; } .sdkwork-startup-stage { align-items: flex-start; flex-direction: column; gap: 7px; } }
+      @media (prefers-reduced-motion: reduce) { .sdkwork-startup-status-dot { animation: none; } }
     </style>
     <link rel="icon" type="image/x-icon" href="/favicon.ico" />
     <title>SDKWork BirdCoder Desktop</title>
   </head>
   <body>
     <div id="root">
-      <div data-birdcoder-boot-shell>
-        <div data-birdcoder-boot-card>
-          <div data-birdcoder-boot-row>
-            <div data-birdcoder-boot-spinner aria-hidden="true"></div>
-            <div>
-              <div data-birdcoder-boot-title>SDKWork BirdCoder</div>
-              <div data-birdcoder-boot-description>
-                Connecting to the local runtime and preparing your workspace.
-              </div>
+      <main class="sdkwork-startup-screen" data-birdcoder-boot-shell aria-busy="true">
+        <div class="sdkwork-startup-shell">
+          <header class="sdkwork-startup-brand" aria-label="SDKWork BirdCoder">
+            <span class="sdkwork-startup-mark" aria-hidden="true">B</span>
+            <span class="sdkwork-startup-brand-copy">
+              <span class="sdkwork-startup-brand-vendor">SDKWORK</span>
+              <span class="sdkwork-startup-brand-product">BIRDCODER</span>
+            </span>
+          </header>
+          <section class="sdkwork-startup-content" aria-live="polite">
+            <div class="sdkwork-startup-state-row">
+              <span class="sdkwork-startup-status-mark" aria-hidden="true"><span class="sdkwork-startup-status-dot"></span></span>
+              <p class="sdkwork-startup-kicker">Local runtime</p>
             </div>
-          </div>
+            <h1>SDKWork BirdCoder</h1>
+            <p class="sdkwork-startup-description">Connecting to the local runtime and preparing your workspace.</p>
+            <div class="sdkwork-startup-progress" role="progressbar" aria-label="Local runtime" aria-valuemin="0" aria-valuemax="100" aria-valuenow="12">
+              <div class="sdkwork-startup-progress-track"><span></span></div>
+              <span class="sdkwork-startup-progress-value">12%</span>
+            </div>
+            <ol class="sdkwork-startup-stages">
+              <li class="sdkwork-startup-stage is-active"><span class="sdkwork-startup-stage-indicator" data-step="1" aria-hidden="true"></span><span>Local runtime</span></li>
+              <li class="sdkwork-startup-stage"><span class="sdkwork-startup-stage-indicator" data-step="2" aria-hidden="true"></span><span>Secure session</span></li>
+              <li class="sdkwork-startup-stage"><span class="sdkwork-startup-stage-indicator" data-step="3" aria-hidden="true"></span><span>Workspace shell</span></li>
+            </ol>
+          </section>
         </div>
-      </div>
+      </main>
     </div>
     <script type="module" src="/src/main.js"></script>
   </body>

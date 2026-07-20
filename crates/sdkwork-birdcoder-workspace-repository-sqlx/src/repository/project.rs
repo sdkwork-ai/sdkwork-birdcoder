@@ -1,5 +1,5 @@
 use sdkwork_birdcoder_project_service::context::ProjectContext;
-use sqlx::{Any, AnyPool, QueryBuilder};
+use sqlx::{Any, AnyPool, Execute, QueryBuilder};
 use uuid::Uuid;
 
 use crate::db::columns::project as col;
@@ -19,7 +19,9 @@ use sdkwork_birdcoder_project_service::domain::results::{
     ProjectCollaboratorPayload, ProjectPayload,
 };
 use sdkwork_birdcoder_project_service::error::ProjectError;
-use sdkwork_birdcoder_sqlx_repository_pool::dialect::{inserted_row_id, SET_SOFT_DELETED};
+use sdkwork_birdcoder_sqlx_repository_pool::dialect::{
+    inserted_row_id, numbered_placeholders, SET_SOFT_DELETED,
+};
 
 #[derive(Clone)]
 pub struct SqliteProjectRepository {
@@ -53,6 +55,69 @@ impl SqliteProjectRepository {
         Ok(parsed)
     }
 
+    async fn is_postgres(&self) -> Result<bool, ProjectError> {
+        let connection = self
+            .pool
+            .acquire()
+            .await
+            .map_err(|error| ProjectError::Repository(error.to_string()))?;
+        Ok(connection.backend_name().eq_ignore_ascii_case("PostgreSQL"))
+    }
+
+    fn uuid_expression(is_postgres: bool) -> &'static str {
+        if is_postgres {
+            "CAST(? AS UUID)"
+        } else {
+            "?"
+        }
+    }
+
+    fn timestamp_expression(is_postgres: bool) -> &'static str {
+        if is_postgres {
+            "CAST(? AS TIMESTAMPTZ)"
+        } else {
+            "?"
+        }
+    }
+
+    fn query_sql(template: &str) -> String {
+        numbered_placeholders(template)
+    }
+
+    fn project_projection(is_postgres: bool, alias: &str) -> String {
+        if !is_postgres {
+            return format!("{alias}.*");
+        }
+
+        format!(
+            "{a}.id, CAST({a}.uuid AS TEXT) AS uuid, \
+             TO_CHAR({a}.created_at AT TIME ZONE 'UTC', 'YYYY-MM-DD\"T\"HH24:MI:SS.US\"Z\"') AS created_at, \
+             TO_CHAR({a}.updated_at AT TIME ZONE 'UTC', 'YYYY-MM-DD\"T\"HH24:MI:SS.US\"Z\"') AS updated_at, \
+             {a}.v, {a}.tenant_id, {a}.organization_id, {a}.data_scope, {a}.parent_id, \
+             CAST({a}.parent_uuid AS TEXT) AS parent_uuid, {a}.parent_metadata, {a}.user_id, \
+             {a}.name, {a}.title, {a}.cover_image, {a}.author, {a}.file_id, {a}.code, \
+             {a}.type, {a}.site_path, {a}.domain_prefix, {a}.description, {a}.status, \
+             {a}.conversation_id, {a}.workspace_id, CAST({a}.workspace_uuid AS TEXT) AS workspace_uuid, \
+             {a}.leader_id, \
+             TO_CHAR({a}.start_time AT TIME ZONE 'UTC', 'YYYY-MM-DD\"T\"HH24:MI:SS.US\"Z\"') AS start_time, \
+             TO_CHAR({a}.end_time AT TIME ZONE 'UTC', 'YYYY-MM-DD\"T\"HH24:MI:SS.US\"Z\"') AS end_time, \
+             {a}.budget_amount, {a}.is_deleted, {a}.is_template",
+            a = alias,
+        )
+    }
+
+    fn project_collaborator_projection(is_postgres: bool) -> &'static str {
+        if is_postgres {
+            "id, CAST(uuid AS TEXT) AS uuid, tenant_id, organization_id, \
+             TO_CHAR(created_at AT TIME ZONE 'UTC', 'YYYY-MM-DD\"T\"HH24:MI:SS.US\"Z\"') AS created_at, \
+             TO_CHAR(updated_at AT TIME ZONE 'UTC', 'YYYY-MM-DD\"T\"HH24:MI:SS.US\"Z\"') AS updated_at, \
+             version, is_deleted, project_id, workspace_id, user_id, team_id, role, \
+             created_by_user_id, granted_by_user_id, status"
+        } else {
+            "*"
+        }
+    }
+
     fn workspace_access_predicate(workspace_alias: &str) -> String {
         format!(
             "({workspace_alias}.{owner_id} = ? OR EXISTS (\
@@ -61,7 +126,7 @@ impl SqliteProjectRepository {
                   AND m.{member_tenant_id} = {workspace_alias}.{workspace_tenant_id} \
                   AND m.{member_organization_id} = {workspace_alias}.{workspace_organization_id} \
                   AND m.{member_user_id} = ? \
-                  AND m.{member_is_deleted} = 0 \
+                  AND m.{member_is_deleted} IS NOT TRUE \
                   AND LOWER(m.{member_status}) = 'active'\
             ))",
             owner_id = workspace_col::OWNER_ID,
@@ -86,7 +151,7 @@ impl SqliteProjectRepository {
                   AND c.{collaborator_tenant_id} = {project_alias}.{project_tenant_id} \
                   AND c.{collaborator_organization_id} = {project_alias}.{project_organization_id} \
                   AND c.{collaborator_user_id} = ? \
-                  AND c.{collaborator_is_deleted} = 0 \
+                  AND c.{collaborator_is_deleted} IS NOT TRUE \
                   AND LOWER(c.{collaborator_status}) = 'active'\
             ))",
             project_user_id = col::USER_ID,
@@ -111,7 +176,7 @@ impl SqliteProjectRepository {
                   AND c.{collaborator_tenant_id} = {project_alias}.{project_tenant_id} \
                   AND c.{collaborator_organization_id} = {project_alias}.{project_organization_id} \
                   AND c.{collaborator_user_id} = ? \
-                  AND c.{collaborator_is_deleted} = 0 \
+                  AND c.{collaborator_is_deleted} IS NOT TRUE \
                   AND LOWER(c.{collaborator_status}) = 'active' \
                   AND LOWER(c.{collaborator_role}) IN ('owner', 'admin')\
             ))",
@@ -186,18 +251,18 @@ impl SqliteProjectRepository {
         let tenant_id = project_scoped_tenant_id(ctx)?;
         let organization_id = project_scoped_organization_id(ctx)?;
         let user_id = Self::scoped_user_id(ctx)?;
-        let sql = format!(
+        let sql = Self::query_sql(&format!(
             "SELECT 1 FROM {table} p WHERE p.{id} = ? \
              AND p.{tenant_id_column} = ? \
              AND p.{organization_id_column} = ? \
-             AND p.{is_deleted} = 0 \
+             AND p.{is_deleted} IS NOT TRUE \
              AND {access_predicate}",
             table = col::TABLE,
             id = col::ID,
             tenant_id_column = col::TENANT_ID,
             organization_id_column = col::ORGANIZATION_ID,
             is_deleted = col::IS_DELETED,
-        );
+        ));
         let found = sqlx::query_scalar::<_, i64>(&sql)
             .bind(project_id)
             .bind(tenant_id)
@@ -228,19 +293,21 @@ impl sdkwork_birdcoder_project_service::ports::repository::ProjectRepository
         let tenant_id = project_scoped_tenant_id(ctx)?;
         let organization_id = project_scoped_organization_id(ctx)?;
         let user_id = Self::scoped_user_id(ctx)?;
+        let is_postgres = self.is_postgres().await?;
         let access_predicate = Self::project_read_access_predicate("p");
-        let sql = format!(
-            "SELECT p.* FROM {table} p WHERE p.{id} = ? \
+        let sql = Self::query_sql(&format!(
+            "SELECT {projection} FROM {table} p WHERE p.{id} = ? \
              AND p.{tenant_id_column} = ? \
              AND p.{organization_id_column} = ? \
-             AND p.{is_deleted} = 0 \
+             AND p.{is_deleted} IS NOT TRUE \
              AND {access_predicate}",
+            projection = Self::project_projection(is_postgres, "p"),
             table = col::TABLE,
             id = col::ID,
             tenant_id_column = col::TENANT_ID,
             organization_id_column = col::ORGANIZATION_ID,
             is_deleted = col::IS_DELETED,
-        );
+        ));
 
         let row = sqlx::query(&sql)
             .bind(id_num)
@@ -274,6 +341,7 @@ impl sdkwork_birdcoder_project_service::ports::repository::ProjectRepository
         let tenant_id = project_scoped_tenant_id(ctx)?;
         let organization_id = project_scoped_organization_id(ctx)?;
         let authenticated_user_id = Self::scoped_user_id(ctx)?;
+        let is_postgres = self.is_postgres().await?;
         let requested_user_id = user_id
             .map(|value| Self::parse_positive_id(value, "user_id"))
             .transpose()?;
@@ -286,7 +354,7 @@ impl sdkwork_birdcoder_project_service::ports::repository::ProjectRepository
             "p.{workspace_id_column} = ? \
              AND p.{tenant_id_column} = ? \
              AND p.{organization_id_column} = ? \
-             AND p.{is_deleted} = 0 \
+             AND p.{is_deleted} IS NOT TRUE \
              AND {access_predicate}",
             workspace_id_column = col::WORKSPACE_ID,
             tenant_id_column = col::TENANT_ID,
@@ -296,11 +364,12 @@ impl sdkwork_birdcoder_project_service::ports::repository::ProjectRepository
         if requested_user_id.is_some() {
             where_clause.push_str(&format!(" AND p.{} = ?", col::USER_ID));
         }
-        let sql = format!(
-            "SELECT p.* FROM {table} p WHERE {where_clause} ORDER BY p.{id} DESC LIMIT ? OFFSET ?",
+        let sql = Self::query_sql(&format!(
+            "SELECT {projection} FROM {table} p WHERE {where_clause} ORDER BY p.{id} DESC LIMIT ? OFFSET ?",
+            projection = Self::project_projection(is_postgres, "p"),
             table = col::TABLE,
             id = col::ID,
-        );
+        ));
 
         let mut q = sqlx::query(&sql)
             .bind(wid)
@@ -331,10 +400,10 @@ impl sdkwork_birdcoder_project_service::ports::repository::ProjectRepository
         // predicates (minus the LIMIT/OFFSET). This keeps
         // `pageInfo.totalItems` accurate without materializing the full
         // result set.
-        let count_sql = format!(
+        let count_sql = Self::query_sql(&format!(
             "SELECT COUNT(*) FROM {table} p WHERE {where_clause}",
             table = col::TABLE,
-        );
+        ));
         let mut count_q = sqlx::query_scalar::<_, i64>(&count_sql)
             .bind(wid)
             .bind(tenant_id)
@@ -361,18 +430,18 @@ impl sdkwork_birdcoder_project_service::ports::repository::ProjectRepository
         let organization_id = project_scoped_organization_id(ctx)?;
         let user_id = Self::scoped_user_id(ctx)?;
         let access_predicate = Self::workspace_access_predicate("w");
-        let sql = format!(
+        let sql = Self::query_sql(&format!(
             "SELECT 1 FROM {table} w WHERE w.{id} = ? \
              AND w.{tenant_id_column} = ? \
              AND w.{organization_id_column} = ? \
-             AND w.{is_deleted} = 0 \
+             AND w.{is_deleted} IS NOT TRUE \
              AND {access_predicate}",
             table = workspace_col::TABLE,
             id = workspace_col::ID,
             tenant_id_column = workspace_col::TENANT_ID,
             organization_id_column = workspace_col::ORGANIZATION_ID,
             is_deleted = workspace_col::IS_DELETED,
-        );
+        ));
         let found = sqlx::query_scalar::<_, i64>(&sql)
             .bind(workspace_id)
             .bind(tenant_id)
@@ -421,31 +490,35 @@ impl sdkwork_birdcoder_project_service::ports::repository::ProjectRepository
         let user_id = Self::scoped_user_id(ctx)?;
         let workspace_id = Self::parse_positive_id(&req.workspace_id, "workspace_id")?;
         let code = build_project_business_code(uuid.as_str(), req.name.as_str(), None);
+        let is_postgres = self.is_postgres().await?;
 
-        let id_row = sqlx::query(&format!(
-            "INSERT INTO {t} (uuid, created_at, updated_at, v, tenant_id, organization_id, data_scope, user_id, name, title, code, type, description, status, workspace_id, is_deleted, is_template) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?) RETURNING id",
+        let insert_sql = Self::query_sql(&format!(
+            "INSERT INTO {t} (uuid, created_at, updated_at, v, tenant_id, organization_id, data_scope, user_id, name, title, code, type, description, status, workspace_id, is_deleted, is_template) \
+             VALUES ({uuid}, {created_at}, {updated_at}, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, FALSE, FALSE) RETURNING id",
             t = col::TABLE,
-        ))
-        .bind(&uuid)
-        .bind(&now)
-        .bind(&now)
-        .bind(0i64)
-        .bind(tenant_id)
-        .bind(organization_id)
-        .bind(1i64)
-        .bind(user_id)
-        .bind(&req.name)
-        .bind(&req.name)
-        .bind(code)
-        .bind(0i64)
-        .bind(req.description.as_deref())
-        .bind(0i64)
-        .bind(workspace_id)
-        .bind(0i64)
-        .bind(0i64)
-        .fetch_one(&self.pool)
-        .await
-        .map_err(|e| ProjectError::Repository(e.to_string()))?;
+            uuid = Self::uuid_expression(is_postgres),
+            created_at = Self::timestamp_expression(is_postgres),
+            updated_at = Self::timestamp_expression(is_postgres),
+        ));
+        let id_row = sqlx::query(&insert_sql)
+            .bind(&uuid)
+            .bind(&now)
+            .bind(&now)
+            .bind(0i64)
+            .bind(tenant_id)
+            .bind(organization_id)
+            .bind(1i64)
+            .bind(user_id)
+            .bind(&req.name)
+            .bind(&req.name)
+            .bind(code)
+            .bind(0i64)
+            .bind(req.description.as_deref())
+            .bind(0i64)
+            .bind(workspace_id)
+            .fetch_one(&self.pool)
+            .await
+            .map_err(|e| ProjectError::Repository(e.to_string()))?;
 
         let id = inserted_row_id(&id_row).map_err(|e| ProjectError::Repository(e.to_string()))?;
         self.find_project_by_id(ctx, &id.to_string())
@@ -463,7 +536,7 @@ impl sdkwork_birdcoder_project_service::ports::repository::ProjectRepository
         self.ensure_project_write_access(ctx, id).await?;
         let tenant_id = project_scoped_tenant_id(ctx)?;
         let organization_id = project_scoped_organization_id(ctx)?;
-        let user_id = Self::scoped_user_id(ctx)?;
+        let is_postgres = self.is_postgres().await?;
         let now = Self::now_iso();
 
         let mut builder: QueryBuilder<Any> =
@@ -471,7 +544,13 @@ impl sdkwork_birdcoder_project_service::ports::repository::ProjectRepository
         {
             let mut sep = builder.separated(", ");
             sep.push(format!("{} = ", col::UPDATED_AT));
-            sep.push_bind_unseparated(&now);
+            if is_postgres {
+                sep.push_unseparated("CAST(");
+                sep.push_bind_unseparated(&now);
+                sep.push_unseparated(" AS TIMESTAMPTZ)");
+            } else {
+                sep.push_bind_unseparated(&now);
+            }
 
             if let Some(name) = req.name.as_deref() {
                 sep.push(format!("{} = ", col::NAME));
@@ -502,13 +581,15 @@ impl sdkwork_birdcoder_project_service::ports::repository::ProjectRepository
         builder.push_bind(tenant_id);
         builder.push(format!(" AND {} = ", col::ORGANIZATION_ID));
         builder.push_bind(organization_id);
-        builder.push(format!(" AND {} IS NOT TRUE AND ", col::IS_DELETED));
-        builder.push(Self::project_write_access_predicate(col::TABLE));
-        builder.push_bind(user_id);
-        builder.push_bind(user_id);
+        builder.push(format!(" AND {} IS NOT TRUE", col::IS_DELETED));
 
-        let result = builder
-            .build()
+        let mut query = builder.build();
+        let sql = Self::query_sql(query.sql());
+        let arguments = query
+            .take_arguments()
+            .map_err(|error| ProjectError::Repository(error.to_string()))?
+            .unwrap_or_default();
+        let result = sqlx::query_with(&sql, arguments)
             .execute(&self.pool)
             .await
             .map_err(|e| ProjectError::Repository(e.to_string()))?;
@@ -528,20 +609,22 @@ impl sdkwork_birdcoder_project_service::ports::repository::ProjectRepository
         let organization_id = project_scoped_organization_id(ctx)?;
         let user_id = Self::scoped_user_id(ctx)?;
         let now = Self::now_iso();
+        let is_postgres = self.is_postgres().await?;
         let access_predicate = Self::project_write_access_predicate(col::TABLE);
-        let sql = format!(
-            "UPDATE {table} SET {soft_deleted}, {updated_at} = ? \
+        let sql = Self::query_sql(&format!(
+            "UPDATE {table} SET {soft_deleted}, {updated_at} = {updated_at_value} \
              WHERE {id} = ? AND {tenant_id_column} = ? \
              AND {organization_id_column} = ? AND {is_deleted} IS NOT TRUE \
              AND {access_predicate}",
             table = col::TABLE,
             soft_deleted = SET_SOFT_DELETED,
             updated_at = col::UPDATED_AT,
+            updated_at_value = Self::timestamp_expression(is_postgres),
             id = col::ID,
             tenant_id_column = col::TENANT_ID,
             organization_id_column = col::ORGANIZATION_ID,
             is_deleted = col::IS_DELETED,
-        );
+        ));
 
         let result = sqlx::query(&sql)
             .bind(&now)
@@ -572,23 +655,26 @@ impl sdkwork_birdcoder_project_service::ports::repository::ProjectRepository
         let tenant_id = project_scoped_tenant_id(ctx)?;
         let organization_id = project_scoped_organization_id(ctx)?;
         // PAGINATION_SPEC.md §2/§5: push LIMIT/OFFSET to SQL.
-        let rows = sqlx::query(&format!(
-            "SELECT * FROM {} WHERE {} = ? AND {} = ? AND {} = ? AND {} IS NOT TRUE ORDER BY {} DESC LIMIT ? OFFSET ?",
+        let is_postgres = self.is_postgres().await?;
+        let list_sql = Self::query_sql(&format!(
+            "SELECT {} FROM {} WHERE {} = ? AND {} = ? AND {} = ? AND {} IS NOT TRUE ORDER BY {} DESC LIMIT ? OFFSET ?",
+            Self::project_collaborator_projection(is_postgres),
             collab_col::TABLE,
             collab_col::PROJECT_ID,
             collab_col::TENANT_ID,
             collab_col::ORGANIZATION_ID,
             collab_col::IS_DELETED,
             collab_col::ID,
-        ))
-        .bind(pid)
-        .bind(tenant_id)
-        .bind(organization_id)
-        .bind(limit as i64)
-        .bind(offset as i64)
-        .fetch_all(&self.pool)
-        .await
-        .map_err(|e| ProjectError::Repository(e.to_string()))?;
+        ));
+        let rows = sqlx::query(&list_sql)
+            .bind(pid)
+            .bind(tenant_id)
+            .bind(organization_id)
+            .bind(limit as i64)
+            .bind(offset as i64)
+            .fetch_all(&self.pool)
+            .await
+            .map_err(|e| ProjectError::Repository(e.to_string()))?;
 
         let items: Vec<ProjectCollaboratorPayload> = rows
             .iter()
@@ -599,20 +685,21 @@ impl sdkwork_birdcoder_project_service::ports::repository::ProjectRepository
             })
             .collect::<Result<_, _>>()?;
 
-        let total: i64 = sqlx::query_scalar(&format!(
+        let count_sql = Self::query_sql(&format!(
             "SELECT COUNT(*) FROM {} WHERE {} = ? AND {} = ? AND {} = ? AND {} IS NOT TRUE",
             collab_col::TABLE,
             collab_col::PROJECT_ID,
             collab_col::TENANT_ID,
             collab_col::ORGANIZATION_ID,
             collab_col::IS_DELETED,
-        ))
-        .bind(pid)
-        .bind(tenant_id)
-        .bind(organization_id)
-        .fetch_one(&self.pool)
-        .await
-        .map_err(|e| ProjectError::Repository(e.to_string()))?;
+        ));
+        let total: i64 = sqlx::query_scalar(&count_sql)
+            .bind(pid)
+            .bind(tenant_id)
+            .bind(organization_id)
+            .fetch_one(&self.pool)
+            .await
+            .map_err(|e| ProjectError::Repository(e.to_string()))?;
         Ok((items, total.max(0) as usize))
     }
 
@@ -638,7 +725,8 @@ impl sdkwork_birdcoder_project_service::ports::repository::ProjectRepository
         let role = Self::normalize_collaborator_role(req.role.as_deref())?;
         let status = Self::normalize_collaborator_status(req.status.as_deref())?;
 
-        let existing: Option<i64> = sqlx::query_scalar(&format!(
+        let is_postgres = self.is_postgres().await?;
+        let existing_sql = Self::query_sql(&format!(
             "SELECT {} FROM {} WHERE {} = ? AND {} = ? AND {} = ? AND {} = ? AND {} IS NOT TRUE",
             collab_col::ID,
             collab_col::TABLE,
@@ -647,49 +735,53 @@ impl sdkwork_birdcoder_project_service::ports::repository::ProjectRepository
             collab_col::ORGANIZATION_ID,
             collab_col::USER_ID,
             collab_col::IS_DELETED,
-        ))
-        .bind(pid)
-        .bind(tenant_id)
-        .bind(organization_id)
-        .bind(uid)
-        .fetch_optional(&self.pool)
-        .await
-        .map_err(|e| ProjectError::Repository(e.to_string()))?;
+        ));
+        let existing: Option<i64> = sqlx::query_scalar(&existing_sql)
+            .bind(pid)
+            .bind(tenant_id)
+            .bind(organization_id)
+            .bind(uid)
+            .fetch_optional(&self.pool)
+            .await
+            .map_err(|e| ProjectError::Repository(e.to_string()))?;
 
         if let Some(existing_id) = existing {
-            let result = sqlx::query(&format!(
-                "UPDATE {} SET {} = ?, {} = ?, {} = ?, {} = ? WHERE {} = ? AND {} = ? AND {} = ? AND {} = ? AND {} = ? AND {} IS NOT TRUE",
+            let update_sql = Self::query_sql(&format!(
+                "UPDATE {} SET {} = ?, {} = ?, {} = ?, {} = {} WHERE {} = ? AND {} = ? AND {} = ? AND {} = ? AND {} = ? AND {} IS NOT TRUE",
                 collab_col::TABLE,
                 collab_col::ROLE,
                 collab_col::STATUS,
                 collab_col::GRANTED_BY_USER_ID,
                 collab_col::UPDATED_AT,
+                Self::timestamp_expression(is_postgres),
                 collab_col::ID,
                 collab_col::TENANT_ID,
                 collab_col::ORGANIZATION_ID,
                 collab_col::PROJECT_ID,
                 collab_col::USER_ID,
                 collab_col::IS_DELETED,
-            ))
-            .bind(role)
-            .bind(status)
-            .bind(actor_user_id)
-            .bind(&now)
-            .bind(existing_id)
-            .bind(tenant_id)
-            .bind(organization_id)
-            .bind(pid)
-            .bind(uid)
-            .execute(&self.pool)
-            .await
-            .map_err(|e| ProjectError::Repository(e.to_string()))?;
+            ));
+            let result = sqlx::query(&update_sql)
+                .bind(role)
+                .bind(status)
+                .bind(actor_user_id)
+                .bind(&now)
+                .bind(existing_id)
+                .bind(tenant_id)
+                .bind(organization_id)
+                .bind(pid)
+                .bind(uid)
+                .execute(&self.pool)
+                .await
+                .map_err(|e| ProjectError::Repository(e.to_string()))?;
             if result.rows_affected() == 0 {
                 return Err(ProjectError::NotFound(
                     "project collaborator not found".to_owned(),
                 ));
             }
-            let row = sqlx::query(&format!(
-                "SELECT * FROM {} WHERE {} = ? AND {} = ? AND {} = ? AND {} = ? AND {} = ? AND {} IS NOT TRUE",
+            let select_sql = Self::query_sql(&format!(
+                "SELECT {} FROM {} WHERE {} = ? AND {} = ? AND {} = ? AND {} = ? AND {} = ? AND {} IS NOT TRUE",
+                Self::project_collaborator_projection(is_postgres),
                 collab_col::TABLE,
                 collab_col::ID,
                 collab_col::TENANT_ID,
@@ -697,45 +789,50 @@ impl sdkwork_birdcoder_project_service::ports::repository::ProjectRepository
                 collab_col::PROJECT_ID,
                 collab_col::USER_ID,
                 collab_col::IS_DELETED,
-            ))
-            .bind(existing_id)
-            .bind(tenant_id)
-            .bind(organization_id)
-            .bind(pid)
-            .bind(uid)
-            .fetch_one(&self.pool)
-            .await
-            .map_err(|e| ProjectError::Repository(e.to_string()))?;
+            ));
+            let row = sqlx::query(&select_sql)
+                .bind(existing_id)
+                .bind(tenant_id)
+                .bind(organization_id)
+                .bind(pid)
+                .bind(uid)
+                .fetch_one(&self.pool)
+                .await
+                .map_err(|e| ProjectError::Repository(e.to_string()))?;
             let r = ProjectCollaboratorRow::from_row(&row)
                 .map_err(|e| ProjectError::Repository(e.to_string()))?;
             Ok(row_mapper::project_collaborator_row_to_payload(&r))
         } else {
-            let id_row = sqlx::query(&format!(
-                "INSERT INTO {t} (uuid, tenant_id, organization_id, created_at, updated_at, version, is_deleted, project_id, workspace_id, user_id, role, created_by_user_id, granted_by_user_id, status) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?) RETURNING id",
+            let insert_sql = Self::query_sql(&format!(
+                "INSERT INTO {t} (uuid, tenant_id, organization_id, created_at, updated_at, version, is_deleted, project_id, workspace_id, user_id, role, created_by_user_id, granted_by_user_id, status) \
+                 VALUES ({uuid}, ?, ?, {created_at}, {updated_at}, 0, FALSE, ?, ?, ?, ?, ?, ?, ?) RETURNING id",
                 t = collab_col::TABLE,
-            ))
-            .bind(&uuid)
-            .bind(tenant_id)
-            .bind(organization_id)
-            .bind(&now)
-            .bind(&now)
-            .bind(0i64)
-            .bind(0i64)
-            .bind(pid)
-            .bind(workspace_id)
-            .bind(uid)
-            .bind(role)
-            .bind(actor_user_id)
-            .bind(actor_user_id)
-            .bind(status)
-            .fetch_one(&self.pool)
-            .await
-            .map_err(|e| ProjectError::Repository(e.to_string()))?;
+                uuid = Self::uuid_expression(is_postgres),
+                created_at = Self::timestamp_expression(is_postgres),
+                updated_at = Self::timestamp_expression(is_postgres),
+            ));
+            let id_row = sqlx::query(&insert_sql)
+                .bind(&uuid)
+                .bind(tenant_id)
+                .bind(organization_id)
+                .bind(&now)
+                .bind(&now)
+                .bind(pid)
+                .bind(workspace_id)
+                .bind(uid)
+                .bind(role)
+                .bind(actor_user_id)
+                .bind(actor_user_id)
+                .bind(status)
+                .fetch_one(&self.pool)
+                .await
+                .map_err(|e| ProjectError::Repository(e.to_string()))?;
 
             let new_id =
                 inserted_row_id(&id_row).map_err(|e| ProjectError::Repository(e.to_string()))?;
-            let row = sqlx::query(&format!(
-                "SELECT * FROM {} WHERE {} = ? AND {} = ? AND {} = ? AND {} = ? AND {} = ? AND {} IS NOT TRUE",
+            let select_sql = Self::query_sql(&format!(
+                "SELECT {} FROM {} WHERE {} = ? AND {} = ? AND {} = ? AND {} = ? AND {} = ? AND {} IS NOT TRUE",
+                Self::project_collaborator_projection(is_postgres),
                 collab_col::TABLE,
                 collab_col::ID,
                 collab_col::TENANT_ID,
@@ -743,15 +840,16 @@ impl sdkwork_birdcoder_project_service::ports::repository::ProjectRepository
                 collab_col::PROJECT_ID,
                 collab_col::USER_ID,
                 collab_col::IS_DELETED,
-            ))
-            .bind(new_id)
-            .bind(tenant_id)
-            .bind(organization_id)
-            .bind(pid)
-            .bind(uid)
-            .fetch_one(&self.pool)
-            .await
-            .map_err(|e| ProjectError::Repository(e.to_string()))?;
+            ));
+            let row = sqlx::query(&select_sql)
+                .bind(new_id)
+                .bind(tenant_id)
+                .bind(organization_id)
+                .bind(pid)
+                .bind(uid)
+                .fetch_one(&self.pool)
+                .await
+                .map_err(|e| ProjectError::Repository(e.to_string()))?;
             let r = ProjectCollaboratorRow::from_row(&row)
                 .map_err(|e| ProjectError::Repository(e.to_string()))?;
             Ok(row_mapper::project_collaborator_row_to_payload(&r))
@@ -771,25 +869,28 @@ impl sdkwork_birdcoder_project_service::ports::repository::ProjectRepository
         let tenant_id = project_scoped_tenant_id(ctx)?;
         let organization_id = project_scoped_organization_id(ctx)?;
         let now = Self::now_iso();
-        let result = sqlx::query(&format!(
-            "UPDATE {} SET {}, {} = ? WHERE {} = ? AND {} = ? AND {} = ? AND {} = ? AND {} IS NOT TRUE",
+        let is_postgres = self.is_postgres().await?;
+        let delete_sql = Self::query_sql(&format!(
+            "UPDATE {} SET {}, {} = {} WHERE {} = ? AND {} = ? AND {} = ? AND {} = ? AND {} IS NOT TRUE",
             collab_col::TABLE,
             SET_SOFT_DELETED,
             collab_col::UPDATED_AT,
+            Self::timestamp_expression(is_postgres),
             collab_col::PROJECT_ID,
             collab_col::USER_ID,
             collab_col::TENANT_ID,
             collab_col::ORGANIZATION_ID,
             collab_col::IS_DELETED,
-        ))
-        .bind(&now)
-        .bind(project_id)
-        .bind(user_id)
-        .bind(tenant_id)
-        .bind(organization_id)
-        .execute(&self.pool)
-        .await
-        .map_err(|e| ProjectError::Repository(e.to_string()))?;
+        ));
+        let result = sqlx::query(&delete_sql)
+            .bind(&now)
+            .bind(project_id)
+            .bind(user_id)
+            .bind(tenant_id)
+            .bind(organization_id)
+            .execute(&self.pool)
+            .await
+            .map_err(|e| ProjectError::Repository(e.to_string()))?;
         if result.rows_affected() == 0 {
             return Err(ProjectError::NotFound(
                 "project collaborator not found".to_owned(),

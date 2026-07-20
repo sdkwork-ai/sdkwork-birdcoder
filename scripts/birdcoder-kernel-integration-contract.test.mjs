@@ -28,6 +28,22 @@ const gatewayAdapters = fs.readFileSync(
   path.join(root, 'crates/sdkwork-birdcoder-standalone-gateway/src/bootstrap/adapters.rs'),
   'utf8',
 );
+const pcKernelRuntime = fs.readFileSync(
+  path.join(
+    root,
+    'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-codeengine/src/kernelRuntime.ts',
+  ),
+  'utf8',
+);
+const pcCodeEngineComponentSpec = JSON.parse(
+  fs.readFileSync(
+    path.join(
+      root,
+      'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-codeengine/specs/component.spec.json',
+    ),
+    'utf8',
+  ),
+);
 const workflow = JSON.parse(
   fs.readFileSync(path.join(root, 'sdkwork.workflow.json'), 'utf8'),
 );
@@ -55,13 +71,29 @@ assert.match(boundaries, /coding_session/);
 assert.match(engineRegistry, /sdkwork_agents_runtime_facade/);
 assert.match(
   bridgeTurnExecutor,
-  /commands:\s*\(!output\.tool_calls\.is_empty\(\)\)/u,
+  /let commands = map_kernel_tool_calls\(output\.tool_calls\.as_slice\(\)\)\?;[\s\S]*commands:\s*\(!commands\.is_empty\(\)\)/u,
   'kernel bridge must preserve kernel tool calls in the coding-session result.',
 );
 assert.match(
   gatewayAdapters,
   /commands:\s*projected_commands\.as_deref\(\)/u,
   'standalone gateway must project bridge commands into coding-session events.',
+);
+assert.match(
+  pcKernelRuntime,
+  /commands:\s*parseKernelTurnCommands\(parsed\.commands\)/u,
+  'PC Kernel runtime must parse bridge commands instead of dropping provider tool activity.',
+);
+assert.match(
+  pcKernelRuntime,
+  /result\.commands\.length > 0 \? \{ commands: result\.commands \}/u,
+  'PC Kernel runtime must carry parsed commands into the canonical completed message.',
+);
+assert.equal(pcCodeEngineComponentSpec.contracts.layerRole, 'runtime-gateway');
+assert.equal(
+  pcCodeEngineComponentSpec.contracts.publicExports.includes('./kernelRuntime'),
+  true,
+  'PC code-engine component contract must declare its Kernel runtime boundary.',
 );
 
 assert.equal(

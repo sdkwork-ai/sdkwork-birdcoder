@@ -3058,6 +3058,9 @@ importers:
       '@sdkwork/birdcoder-pc-shell-runtime':
         specifier: workspace:*
         version: link:../sdkwork-birdcoder-pc-shell-runtime
+      '@sdkwork/birdcoder-pc-ui-shell':
+        specifier: workspace:*
+        version: link:../sdkwork-birdcoder-pc-ui-shell
       '@sdkwork/iam-credential-entry':
         specifier: workspace:*
         version: link:../../../../../sdkwork-iam/apps/sdkwork-iam-common/packages/sdkwork-iam-credential-entry

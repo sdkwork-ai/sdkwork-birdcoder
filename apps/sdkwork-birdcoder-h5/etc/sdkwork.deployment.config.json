@@ -1,7 +1,8 @@
 {
   "schemaVersion": 1,
-  "kind": "sdkwork.deployment-reference",
+  "kind": "sdkwork.component-deployment",
   "application": "sdkwork-birdcoder-h5",
-  "authority": "../../etc/sdkwork.deployment.config.json",
+  "parentDeploymentConfig": "../../../etc/sdkwork.deployment.config.json",
+  "parentTopologySpec": "../../../specs/topology.spec.json",
   "runtimeConfig": "browser.runtime.json"
 }

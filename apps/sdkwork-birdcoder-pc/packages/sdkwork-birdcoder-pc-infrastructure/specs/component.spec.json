@@ -112,6 +112,7 @@
     ],
     "runtimeEntrypoints": [],
     "sdkClients": [
+      "@sdkwork/birdcoder-app-sdk",
       "@sdkwork/drive-app-sdk",
       "@sdkwork/membership-app-sdk"
     ],

@@ -1,0 +1,420 @@
+import { expect, test, type Page } from '@playwright/test';
+
+const workspaceId = 'e2e-chat-workspace';
+const projectId = 'e2e-chat-project';
+const codingSessionId = 'e2e-chat-session';
+
+function createE2eJwt(claims: Record<string, unknown>): string {
+  const header = Buffer.from(JSON.stringify({ alg: 'none', typ: 'JWT' })).toString('base64url');
+  const payload = Buffer.from(JSON.stringify({ token_version: 1, ...claims })).toString('base64url');
+  return `${header}.${payload}.signature`;
+}
+
+function offsetPage(items: unknown[]) {
+  return {
+    code: 0,
+    data: {
+      items,
+      pageInfo: {
+        hasMore: false,
+        mode: 'offset',
+        page: 1,
+        pageSize: 50,
+        totalItems: String(items.length),
+        totalPages: items.length > 0 ? 1 : 0,
+      },
+    },
+    traceId: 'chat-message-display-e2e',
+  };
+}
+
+function itemEnvelope(item: unknown) {
+  return {
+    code: 0,
+    data: { item },
+    traceId: 'chat-message-display-e2e',
+  };
+}
+
+function createEvent(
+  id: string,
+  sequence: number,
+  kind: string,
+  payload: Record<string, unknown>,
+) {
+  return {
+    id,
+    codingSessionId,
+    turnId: 'e2e-chat-turn',
+    runtimeId: 'e2e-chat-runtime',
+    kind,
+    sequence: String(sequence),
+    payload,
+    createdAt: `2026-07-20T08:00:${String(sequence).padStart(2, '0')}.000Z`,
+  };
+}
+
+async function openMessageFixture(page: Page) {
+  const expiresAt = Math.floor(Date.parse('2099-01-01T00:00:00.000Z') / 1_000);
+  const accessToken = createE2eJwt({
+    app_id: 'sdkwork-birdcoder',
+    exp: expiresAt,
+    organization_id: '0',
+    session_id: 'e2e-chat-auth-session',
+    tenant_id: '0',
+    token_kind: 'access',
+    user_id: 'e2e-chat-user',
+  });
+  const authToken = createE2eJwt({
+    auth_level: 'user',
+    exp: expiresAt,
+    session_id: 'e2e-chat-auth-session',
+    token_kind: 'auth',
+    user_id: 'e2e-chat-user',
+  });
+  const user = {
+    id: 'e2e-chat-user',
+    uuid: 'e2e-chat-user-uuid',
+    tenantId: '0',
+    organizationId: '0',
+    name: 'Message QA User',
+    email: 'message-qa@test.sdkwork.local',
+  };
+  const authenticatedSession = {
+    accessToken,
+    authToken,
+    refreshToken: 'e2e-chat-refresh-token',
+    sessionId: 'e2e-chat-auth-session',
+    expiresAt: '2099-01-01T00:00:00.000Z',
+    user,
+    context: {
+      appId: 'sdkwork-birdcoder',
+      authLevel: 'user',
+      dataScope: [],
+      environment: 'test',
+      deploymentMode: 'private',
+      permissionScope: [],
+      sessionId: 'e2e-chat-auth-session',
+      tenantId: '0',
+      organizationId: '0',
+      userId: user.id,
+    },
+  };
+  const workspace = {
+    id: workspaceId,
+    uuid: 'e2e-chat-workspace-uuid',
+    tenantId: '0',
+    organizationId: '0',
+    dataScope: 'PRIVATE',
+    code: 'message-display-workspace',
+    title: 'Message Display Workspace',
+    name: 'Message Display Workspace',
+    ownerId: user.id,
+    leaderId: user.id,
+    createdByUserId: user.id,
+    status: 'active',
+    viewerRole: 'owner',
+    createdAt: '2026-07-20T08:00:00.000Z',
+    updatedAt: '2026-07-20T08:00:00.000Z',
+  };
+  const project = {
+    id: projectId,
+    uuid: 'e2e-chat-project-uuid',
+    tenantId: '0',
+    organizationId: '0',
+    dataScope: 'PRIVATE',
+    workspaceId,
+    workspaceUuid: workspace.uuid,
+    userId: user.id,
+    ownerId: user.id,
+    leaderId: user.id,
+    code: 'message-display-project',
+    title: 'Message Display Project',
+    name: 'Message Display Project',
+    status: 'active',
+    createdAt: '2026-07-20T08:00:00.000Z',
+    updatedAt: '2026-07-20T08:00:00.000Z',
+  };
+  const codingSession = {
+    id: codingSessionId,
+    workspaceId,
+    projectId,
+    title: 'Provider Message Showcase',
+    status: 'active',
+    hostMode: 'web',
+    engineId: 'claude-code',
+    modelId: 'claude-sonnet-4-5',
+    runtimeStatus: 'completed',
+    createdAt: '2026-07-20T08:00:00.000Z',
+    updatedAt: '2026-07-20T08:00:10.000Z',
+    lastTurnAt: '2026-07-20T08:00:10.000Z',
+    transcriptUpdatedAt: '2026-07-20T08:00:10.000Z',
+  };
+  const longFailureOutput = Array.from(
+    { length: 1_300 },
+    (_, index) => `provider diagnostic ${String(index + 1).padStart(4, '0')}: permission denied while indexing generated output`,
+  ).join('\n');
+  const events = [
+    createEvent('event-turn-started', 1, 'turn.started', { runtimeStatus: 'streaming' }),
+    createEvent('event-user', 2, 'message.completed', {
+      role: 'user',
+      content: 'Align provider messages and verify the changed files.',
+    }),
+    createEvent('event-mcp-request', 3, 'message.completed', {
+      role: 'assistant',
+      content: [{
+        type: 'tool_use',
+        id: 'toolu-mcp-1',
+        name: 'mcp__linear__list_issues',
+        input: { team: 'SDK' },
+      }],
+      toolCalls: [{
+        type: 'tool_use',
+        id: 'toolu-mcp-1',
+        name: 'mcp__linear__list_issues',
+        input: { team: 'SDK' },
+      }],
+    }),
+    createEvent('event-mcp-result', 4, 'message.completed', {
+      role: 'tool',
+      content: '{"issues":[{"id":"SDK-101"}]}',
+      toolCallId: 'toolu-mcp-1',
+      toolCalls: [{
+        type: 'tool_result',
+        tool_use_id: 'toolu-mcp-1',
+        content: '{"issues":[{"id":"SDK-101"}]}',
+      }],
+    }),
+    createEvent('event-search-request', 5, 'message.completed', {
+      role: 'assistant',
+      content: [{
+        type: 'tool_use',
+        id: 'toolu-search-1',
+        name: 'Grep',
+        input: { pattern: 'ToolCall', path: 'src' },
+      }],
+      toolCalls: [{
+        type: 'tool_use',
+        id: 'toolu-search-1',
+        name: 'Grep',
+        input: { pattern: 'ToolCall', path: 'src' },
+      }],
+    }),
+    createEvent('event-search-result', 6, 'message.completed', {
+      role: 'tool',
+      content: longFailureOutput,
+      toolCallId: 'toolu-search-1',
+      toolCalls: [{
+        type: 'tool_result',
+        tool_use_id: 'toolu-search-1',
+        content: longFailureOutput,
+        is_error: true,
+      }],
+    }),
+    createEvent('event-final', 7, 'message.completed', {
+      role: 'assistant',
+      content: [
+        { type: 'chat_compressed', value: { originalTokenCount: 32_000 } },
+        { type: 'text', text: 'Provider messages are aligned and the verification results are ready.' },
+      ],
+      toolCalls: [{
+        type: 'mcp_tool_call',
+        id: 'toolu-mcp-1',
+        server: 'linear',
+        tool: 'list_issues',
+        arguments: { team: 'SDK' },
+        status: 'completed',
+        result: { issues: [{ id: 'SDK-101' }] },
+      }],
+      commands: [
+        {
+          command: 'pnpm --filter @sdkwork/birdcoder-pc-ui typecheck',
+          status: 'success',
+          output: 'TypeScript check passed.',
+          kind: 'command',
+          toolCallId: 'command-typecheck',
+        },
+        {
+          command: 'pnpm check:universal-chat-rendering-performance',
+          status: 'success',
+          output: 'Universal chat rendering performance contract passed.',
+          kind: 'command',
+          toolCallId: 'command-performance',
+        },
+      ],
+      fileChanges: [
+        {
+          path: 'src/features/chat/ProviderMessageAdapter.ts',
+          additions: 42,
+          deletions: 9,
+          originalContent: 'export const adapter = null;\n',
+          content: 'export const adapter = createProviderMessageAdapter();\n',
+        },
+        {
+          path: 'src/features/chat/components/CommercialConversationMessageList.tsx',
+          additions: 18,
+          deletions: 4,
+          originalContent: 'export function MessageList() { return null; }\n',
+          content: 'export function MessageList() { return <ConversationTimeline />; }\n',
+        },
+      ],
+    }),
+    createEvent('event-turn-completed', 8, 'turn.completed', { runtimeStatus: 'completed' }),
+  ];
+
+  await page.addInitScript(({ persistedAccessToken, persistedAuthToken }) => {
+    localStorage.setItem('sdkwork.birdcoder.appSession.v1', JSON.stringify({
+      accessToken: persistedAccessToken,
+      authToken: persistedAuthToken,
+      refreshToken: 'e2e-chat-refresh-token',
+      sessionId: 'e2e-chat-auth-session',
+      expiresAt: 4_070_908_800,
+      storedAt: Math.floor(Date.now() / 1_000),
+      user: {
+        id: 'e2e-chat-user',
+        uuid: 'e2e-chat-user-uuid',
+        tenantId: '0',
+        organizationId: '0',
+        name: 'Message QA User',
+        email: 'message-qa@test.sdkwork.local',
+      },
+      context: {
+        appId: 'sdkwork-birdcoder',
+        authLevel: 'user',
+        dataScope: [],
+        environment: 'test',
+        deploymentMode: 'private',
+        permissionScope: [],
+        sessionId: 'e2e-chat-auth-session',
+        tenantId: '0',
+        organizationId: '0',
+        userId: 'e2e-chat-user',
+      },
+    }));
+  }, { persistedAccessToken: accessToken, persistedAuthToken: authToken });
+
+  await page.route('**/app/v3/api/auth/sessions/current', (route) => route.fulfill({
+    json: { code: 0, data: authenticatedSession, traceId: 'chat-message-auth' },
+  }));
+  await page.route('**/app/v3/api/iam/users/current', (route) => route.fulfill({
+    json: { code: 0, data: user, traceId: 'chat-message-user' },
+  }));
+  await page.route('**/app/v3/api/workspaces?**', (route) => route.fulfill({ json: offsetPage([workspace]) }));
+  await page.route('**/app/v3/api/projects?**', (route) => route.fulfill({ json: offsetPage([project]) }));
+  await page.route(`**/app/v3/api/projects/${projectId}`, (route) => route.fulfill({ json: itemEnvelope(project) }));
+  await page.route(`**/app/v3/api/projects/${projectId}/runtime_location_preferences?**`, (route) => route.fulfill({ json: offsetPage([]) }));
+  await page.route('**/app/v3/api/intelligence/coding_sessions?**', (route) => route.fulfill({ json: offsetPage([codingSession]) }));
+  await page.route(`**/app/v3/api/intelligence/coding_sessions/${codingSessionId}`, (route) => route.fulfill({ json: itemEnvelope(codingSession) }));
+  await page.route(
+    new RegExp(`/app/v3/api/intelligence/coding_sessions/${codingSessionId}/events(?:\\?.*)?$`),
+    (route) => route.fulfill({ json: offsetPage(events) }),
+  );
+  await page.route(
+    new RegExp(`/app/v3/api/intelligence/coding_sessions/${codingSessionId}/artifacts(?:\\?.*)?$`),
+    (route) => route.fulfill({ json: offsetPage([]) }),
+  );
+  await page.route(
+    new RegExp(`/app/v3/api/intelligence/coding_sessions/${codingSessionId}/checkpoints(?:\\?.*)?$`),
+    (route) => route.fulfill({ json: offsetPage([]) }),
+  );
+  await page.route('**/app/v3/api/native_sessions?**', (route) => route.fulfill({ json: offsetPage([]) }));
+
+  await page.goto('/#/app/code');
+  await expect(page.getByRole('button', { name: 'New Project' })).toBeVisible({ timeout: 60_000 });
+  await page.locator('.birdcoder-session-row').filter({
+    hasText: 'Provider Message Showcase',
+  }).first().click();
+  await expect(page.getByText('Provider messages are aligned and the verification results are ready.').first()).toBeVisible({
+    timeout: 60_000,
+  });
+}
+
+test('provider activity is compact, expandable, responsive, and opens files in the editor', async ({
+  page,
+}, testInfo) => {
+  await page.setViewportSize({ width: 1_440, height: 1_000 });
+  await openMessageFixture(page);
+
+  const activity = page.locator('[data-chat-activity-summary="inline"]');
+  await expect(activity).toHaveCount(1);
+  await expect(page.locator('[data-chat-system-notice="compression"]')).toBeVisible();
+  await expect(page.locator('[data-chat-tool-kind="mcp"]')).toHaveCount(1);
+  await expect(page.locator('[data-chat-tool-kind="search"]')).toHaveCount(1);
+  await expect(page.getByText('tool_use', { exact: true })).toHaveCount(0);
+  await expect(page.getByText('tool_result', { exact: true })).toHaveCount(0);
+
+  await activity.locator(':scope > button').click();
+  await expect(activity.locator('[data-chat-command-row="inline"]')).toHaveCount(2);
+  await expect(activity.locator('[data-chat-file-change-row="inline"]')).toHaveCount(2);
+
+  const commandDisclosures = activity.locator('[data-chat-command-disclosure="true"]');
+  await commandDisclosures.nth(0).click();
+  await commandDisclosures.nth(1).click();
+  await expect(activity.locator('[data-chat-command-details="true"]')).toHaveCount(2);
+
+  const fileDisclosures = activity.locator('[data-chat-file-disclosure="true"]');
+  await fileDisclosures.nth(0).click();
+  await expect(activity.locator('[data-chat-file-inline-diff="true"]')).toHaveCount(1);
+  await expect(page.getByText('Provider messages are aligned and the verification results are ready.').first()).toBeVisible();
+
+  const failedSearch = page.locator('[data-chat-tool-kind="search"]');
+  await failedSearch.locator('[data-chat-tool-disclosure="true"]').click();
+  await expect(failedSearch.getByText(/Preview truncated/)).toBeVisible();
+  await expect(failedSearch.locator('pre').last()).toHaveCSS('overflow-y', 'auto');
+
+  await page.screenshot({
+    path: testInfo.outputPath('provider-message-desktop-expanded.png'),
+    fullPage: true,
+  });
+
+  await activity.locator('[data-chat-file-open="true"]').nth(0).click();
+  await expect(page.getByRole('button', { name: 'Editor Mode' })).toHaveClass(/text-white/);
+  await expect(page.getByRole('button', { name: 'ProviderMessageAdapter.ts', exact: true }).first()).toBeVisible();
+  await expect(page.getByText(/^Diff:/)).toHaveCount(0);
+
+  await page.getByRole('button', { name: 'AI Mode' }).click();
+  await expect(activity).toBeVisible();
+  if (await activity.locator(':scope > button').getAttribute('aria-expanded') !== 'true') {
+    await activity.locator(':scope > button').click();
+  }
+  await activity.locator('[data-chat-file-diff="true"]').nth(1).click();
+  await expect(page.getByText('CommercialConversationMessageList.tsx', { exact: true }).first()).toBeVisible();
+  await expect(page.getByText('Diff:', { exact: true })).toBeVisible();
+
+  await page.getByRole('button', { name: 'AI Mode' }).click();
+  await page.setViewportSize({ width: 680, height: 900 });
+  await expect(activity).toBeVisible();
+  if (await activity.locator(':scope > button').getAttribute('aria-expanded') !== 'true') {
+    await activity.locator(':scope > button').click();
+  }
+  await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+  for (const row of await activity.locator('[data-chat-file-change-row="inline"]').all()) {
+    const box = await row.boundingBox();
+    const layoutDiagnostics = await row.evaluate((element) => {
+      const ancestors: Array<Record<string, string | number>> = [];
+      let current: HTMLElement | null = element as HTMLElement;
+      while (current && ancestors.length < 18) {
+        const styles = window.getComputedStyle(current);
+        const bounds = current.getBoundingClientRect();
+        ancestors.push({
+          className: current.className,
+          display: styles.display,
+          minWidth: styles.minWidth,
+          overflowX: styles.overflowX,
+          width: bounds.width,
+          x: bounds.x,
+        });
+        current = current.parentElement;
+      }
+      return ancestors;
+    });
+    expect(
+      (box?.x ?? 0) + (box?.width ?? 0),
+      JSON.stringify(layoutDiagnostics),
+    ).toBeLessThanOrEqual(681);
+  }
+  await activity.screenshot({
+    animations: 'disabled',
+    path: testInfo.outputPath('provider-message-narrow-expanded.png'),
+  });
+});

@@ -5,6 +5,7 @@ import net from 'node:net';
 const {
   applyClientLoopbackPortFallback,
   createPlatformGatewayPlan,
+  resolveClientAccessLines,
   resolveClientAccessUrls,
   runBirdcoderDevStack,
 } = await import('./run-birdcoder-dev-stack.mjs');
@@ -45,6 +46,7 @@ assert.deepEqual(
     port: 3000,
     networkInterfaces: {
       ethernet: [
+        { address: '198.18.0.1', family: 'IPv4', internal: false },
         { address: '192.168.1.8', family: 'IPv4', internal: false },
         { address: 'fe80::1', family: 'IPv6', internal: false },
       ],
@@ -53,13 +55,16 @@ assert.deepEqual(
       ],
       wifi: [
         { address: '10.0.0.6', family: 'IPv4', internal: false },
+        { address: '169.254.30.58', family: 4, internal: false },
       ],
     },
   }),
   [
     'http://127.0.0.1:3000',
     'http://10.0.0.6:3000',
+    'http://169.254.30.58:3000',
     'http://192.168.1.8:3000',
+    'http://198.18.0.1:3000',
   ],
   'web dev stack must expose deterministic local and LAN URLs for every non-loopback IPv4 interface.',
 );
@@ -76,6 +81,29 @@ assert.deepEqual(
   }),
   ['http://127.0.0.1:3000'],
   'an explicit loopback-only client host must not advertise an unreachable LAN URL.',
+);
+
+assert.deepEqual(
+  resolveClientAccessLines({
+    host: '0.0.0.0',
+    port: 3000,
+    networkInterfaces: {
+      ethernet: [
+        { address: '192.168.1.8', family: 'IPv4', internal: false },
+        { address: '198.18.0.1', family: 'IPv4', internal: false },
+      ],
+      wifi: [
+        { address: '10.0.0.6', family: 'IPv4', internal: false },
+      ],
+    },
+  }),
+  [
+    '[birdcoder-stack]   Local: http://127.0.0.1:3000/',
+    '[birdcoder-stack]   Network: http://10.0.0.6:3000/',
+    '[birdcoder-stack]   Network: http://192.168.1.8:3000/',
+    '[birdcoder-stack]   Network: http://198.18.0.1:3000/',
+  ],
+  'client-ready output must use the shared formatter and print every LAN URL on its own line.',
 );
 
 function listen(server, { host, port }) {

@@ -107,7 +107,7 @@ export const CodePageSurface = memo(function CodePageSurface({
         </>
       )}
 
-      <div className="flex-1 flex flex-col relative bg-[#0e0e11] overflow-hidden">
+      <div className="min-w-0 flex-1 flex flex-col relative bg-[#0e0e11] overflow-hidden">
         <DeferredCodeWorkspaceOverlays {...overlayProps} />
         <DeferredCodePageDialogs {...dialogProps} />
         <DeferredTopBar {...topBarProps} />

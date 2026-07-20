@@ -27,6 +27,7 @@
     "@sdkwork/birdcoder-pc-host-core": "workspace:*",
     "@sdkwork/birdcoder-pc-shell": "workspace:*",
     "@sdkwork/birdcoder-pc-shell-runtime": "workspace:*",
+    "@sdkwork/birdcoder-pc-ui-shell": "workspace:*",
     "qrcode": "catalog:",
     "react": "catalog:",
     "react-dom": "catalog:",

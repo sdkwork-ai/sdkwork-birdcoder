@@ -1,0 +1,355 @@
+.sdkwork-startup-screen {
+  --startup-accent: #4ade80;
+  --startup-accent-strong: #22c55e;
+  --startup-background: #0e0e11;
+  --startup-border: rgba(255, 255, 255, 0.1);
+  --startup-muted: #8b93a1;
+  --startup-text: #f4f5f7;
+  align-items: stretch;
+  background: var(--startup-background);
+  color: var(--startup-text);
+  display: flex;
+  height: 100dvh;
+  justify-content: center;
+  min-height: 420px;
+  overflow: hidden;
+  position: relative;
+  width: 100%;
+}
+
+.sdkwork-startup-screen::before,
+.sdkwork-startup-screen::after {
+  background: rgba(255, 255, 255, 0.045);
+  content: '';
+  pointer-events: none;
+  position: absolute;
+}
+
+.sdkwork-startup-screen::before {
+  height: 1px;
+  left: 0;
+  right: 0;
+  top: 34%;
+}
+
+.sdkwork-startup-screen::after {
+  bottom: 0;
+  left: calc(50% - 380px);
+  top: 0;
+  width: 1px;
+}
+
+.sdkwork-startup-shell {
+  border-left: 1px solid var(--startup-border);
+  border-right: 1px solid var(--startup-border);
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  min-height: 100%;
+  padding: 34px clamp(28px, 6vw, 72px) 30px;
+  position: relative;
+  width: min(100%, 760px);
+  z-index: 1;
+}
+
+.sdkwork-startup-brand {
+  align-items: center;
+  display: flex;
+  gap: 11px;
+}
+
+.sdkwork-startup-mark {
+  align-items: center;
+  background: #e8eaed;
+  border-radius: 7px;
+  color: #101216;
+  display: inline-flex;
+  font-size: 18px;
+  font-weight: 750;
+  height: 36px;
+  justify-content: center;
+  width: 36px;
+}
+
+.sdkwork-startup-brand-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.sdkwork-startup-brand-vendor,
+.sdkwork-startup-brand-product {
+  letter-spacing: 0;
+}
+
+.sdkwork-startup-brand-vendor {
+  color: #737b89;
+  font-size: 9px;
+  font-weight: 700;
+}
+
+.sdkwork-startup-brand-product {
+  color: #d7dae0;
+  font-size: 12px;
+  font-weight: 650;
+}
+
+.sdkwork-startup-content {
+  margin: auto 0;
+  max-width: 560px;
+  padding: 52px 0 64px;
+  width: 100%;
+}
+
+.sdkwork-startup-state-row {
+  align-items: center;
+  display: flex;
+  gap: 10px;
+  margin-bottom: 14px;
+}
+
+.sdkwork-startup-status-mark {
+  align-items: center;
+  display: inline-flex;
+  height: 14px;
+  justify-content: center;
+  width: 14px;
+}
+
+.sdkwork-startup-status-dot {
+  animation: sdkwork-startup-pulse 1.7s ease-in-out infinite;
+  background: var(--startup-accent);
+  border-radius: 50%;
+  box-shadow: 0 0 0 4px rgba(74, 222, 128, 0.12);
+  height: 7px;
+  width: 7px;
+}
+
+.sdkwork-startup-screen.is-failed .sdkwork-startup-status-dot {
+  animation: none;
+  background: #fb7185;
+  box-shadow: 0 0 0 4px rgba(251, 113, 133, 0.12);
+}
+
+.sdkwork-startup-kicker {
+  color: #a5acb8;
+  font-size: 11px;
+  font-weight: 650;
+  letter-spacing: 0;
+  margin: 0;
+  text-transform: uppercase;
+}
+
+.sdkwork-startup-content h1 {
+  font-size: 30px;
+  font-weight: 600;
+  letter-spacing: 0;
+  line-height: 1.2;
+  margin: 0;
+}
+
+.sdkwork-startup-description {
+  color: var(--startup-muted);
+  font-size: 14px;
+  line-height: 1.65;
+  margin: 12px 0 32px;
+  max-width: 520px;
+  min-height: 24px;
+}
+
+.sdkwork-startup-progress {
+  align-items: center;
+  display: grid;
+  gap: 16px;
+  grid-template-columns: minmax(0, 1fr) 40px;
+}
+
+.sdkwork-startup-progress-track {
+  background: #272b32;
+  border-radius: 3px;
+  height: 6px;
+  overflow: hidden;
+  width: 100%;
+}
+
+.sdkwork-startup-progress-track span {
+  background: var(--startup-accent-strong);
+  border-radius: inherit;
+  display: block;
+  height: 100%;
+  min-width: 6px;
+  transition: width 320ms ease;
+}
+
+.sdkwork-startup-progress-value {
+  color: #c4c9d1;
+  font-family: var(--font-mono, "Cascadia Code", "SFMono-Regular", Consolas, monospace);
+  font-size: 12px;
+  text-align: right;
+}
+
+.sdkwork-startup-stages {
+  display: grid;
+  gap: 18px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  list-style: none;
+  margin: 28px 0 0;
+  padding: 0;
+}
+
+.sdkwork-startup-stage {
+  align-items: center;
+  color: #5f6672;
+  display: flex;
+  font-size: 12px;
+  gap: 9px;
+  min-width: 0;
+}
+
+.sdkwork-startup-stage > span:last-child {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sdkwork-startup-stage.is-active {
+  color: #e4e7eb;
+}
+
+.sdkwork-startup-stage.is-complete {
+  color: #979eaa;
+}
+
+.sdkwork-startup-stage-indicator {
+  align-items: center;
+  border: 1px solid #3b4049;
+  border-radius: 50%;
+  display: inline-flex;
+  flex: 0 0 auto;
+  font-size: 10px;
+  height: 20px;
+  justify-content: center;
+  width: 20px;
+}
+
+.sdkwork-startup-stage-indicator::before {
+  content: attr(data-step);
+}
+
+.sdkwork-startup-stage.is-active .sdkwork-startup-stage-indicator {
+  border-color: var(--startup-accent);
+  color: var(--startup-accent);
+}
+
+.sdkwork-startup-stage.is-complete .sdkwork-startup-stage-indicator {
+  background: rgba(74, 222, 128, 0.1);
+  border-color: rgba(74, 222, 128, 0.38);
+  color: var(--startup-accent);
+}
+
+.sdkwork-startup-stage.is-complete .sdkwork-startup-stage-indicator::before {
+  border-bottom: 1px solid currentColor;
+  border-right: 1px solid currentColor;
+  content: '';
+  height: 7px;
+  transform: rotate(45deg) translate(-1px, -1px);
+  width: 4px;
+}
+
+.sdkwork-startup-retry {
+  align-items: center;
+  background: #e8eaed;
+  border: 0;
+  border-radius: 7px;
+  color: #111318;
+  cursor: pointer;
+  display: inline-flex;
+  font-size: 13px;
+  font-weight: 650;
+  gap: 8px;
+  margin-top: 28px;
+  padding: 10px 15px;
+  transition: background-color 140ms ease, transform 140ms ease;
+}
+
+.sdkwork-startup-retry:hover {
+  background: #ffffff;
+  transform: translateY(-1px);
+}
+
+.sdkwork-startup-retry:focus-visible {
+  outline: 2px solid var(--startup-accent);
+  outline-offset: 3px;
+}
+
+@keyframes sdkwork-startup-pulse {
+  0%,
+  100% {
+    opacity: 0.62;
+  }
+
+  50% {
+    opacity: 1;
+  }
+}
+
+@media (max-width: 640px) {
+  .sdkwork-startup-screen::after {
+    display: none;
+  }
+
+  .sdkwork-startup-shell {
+    border: 0;
+    padding: 24px;
+  }
+
+  .sdkwork-startup-content {
+    padding: 48px 0;
+  }
+
+  .sdkwork-startup-content h1 {
+    font-size: 26px;
+  }
+
+  .sdkwork-startup-stages {
+    gap: 8px;
+  }
+
+  .sdkwork-startup-stage {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 7px;
+  }
+
+  .sdkwork-startup-stage > span:last-child {
+    white-space: normal;
+  }
+}
+
+@media (max-height: 560px) {
+  .sdkwork-startup-shell {
+    padding-bottom: 20px;
+    padding-top: 20px;
+  }
+
+  .sdkwork-startup-content {
+    padding: 28px 0;
+  }
+
+  .sdkwork-startup-description {
+    margin-bottom: 22px;
+  }
+
+  .sdkwork-startup-stages {
+    margin-top: 22px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sdkwork-startup-status-dot,
+  .sdkwork-startup-progress-track span,
+  .sdkwork-startup-retry {
+    animation: none;
+    transition: none;
+  }
+}

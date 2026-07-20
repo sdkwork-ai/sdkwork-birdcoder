@@ -162,6 +162,11 @@ export interface ProjectRuntimeLocationRegistrationResult {
 }
 
 export interface ProjectRuntimeLocationRegistrationPort {
+  resolvePreferredProjectRuntimeLocationId(
+    projectId: string,
+    capability: ProjectRuntimeLocationCapability,
+  ): Promise<string | null>;
+
   inspectLocalDesktopRuntimeLocation(
     input: ProjectRuntimeLocationRegistrationInput,
   ): Promise<ProjectRuntimeLocationRegistrationResult>;
@@ -181,4 +186,9 @@ export interface IProjectRuntimeLocationService {
     projectId: string,
     request: ProjectRuntimeLocationResolutionRequest,
   ): Promise<ProjectRuntimeLocationResolution>;
+
+  resolveRemoteProjectRuntimeLocationId(
+    projectId: string,
+    capability: ProjectRuntimeLocationCapability,
+  ): Promise<string | null>;
 }

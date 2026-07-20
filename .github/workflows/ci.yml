@@ -130,7 +130,7 @@ jobs:
         run: pnpm build
 
       - name: Build server workspace
-        run: pnpm server:build
+        run: pnpm build:server
 
       - name: Build docs site
         run: pnpm docs:build
@@ -218,7 +218,7 @@ jobs:
         run: pnpm check:server
 
       - name: Run Windows server build
-        run: pnpm server:build
+        run: pnpm build:server
 
   postgresql-live-smoke:
     name: PostgreSQL live smoke
@@ -335,7 +335,7 @@ jobs:
         run: pnpm typecheck:browser
 
       - name: Build H5 production bundle
-        run: pnpm h5:build
+        run: pnpm build:browser
 
       - name: Sync Capacitor native projects
         run: pnpm cap:sync

@@ -1,31 +1,36 @@
 import { Suspense, lazy } from 'react';
+import { StartupScreen } from '@sdkwork/birdcoder-pc-ui-shell';
+import type { BootstrapGateMessages } from '@sdkwork/birdcoder-pc-shell-runtime';
 
 const LazyAppRoot = lazy(async () => {
   const module = await import('./loadAppRoot');
   return module.loadAppRoot();
 });
 
-function AppShellLoadingFallback() {
+interface AppProps {
+  bootstrapMessages: BootstrapGateMessages;
+}
+
+function AppShellLoadingFallback({ messages }: { messages: BootstrapGateMessages }) {
   return (
-    <div className="flex h-full w-full items-center justify-center bg-[#0e0e11] px-6 text-white">
-      <div className="w-full max-w-md rounded-2xl border border-white/10 bg-[#18181b] p-6 shadow-2xl">
-        <div className="flex items-center gap-3">
-          <div className="h-10 w-10 animate-spin rounded-full border-2 border-white/10 border-t-white/80" />
-          <div className="min-w-0">
-            <div className="truncate text-base font-semibold">Loading SDKWork BirdCoder</div>
-            <div className="mt-1 text-sm text-gray-400">
-              Resolving the application shell and workspace surfaces.
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
+    <StartupScreen
+      description={messages.bootingDescription}
+      progress={64}
+      stage="runtime"
+      stageLabels={{
+        runtime: messages.runtimeStage,
+        session: messages.sessionStage,
+        workspace: messages.workspaceStage,
+      }}
+      startupFailedLabel={messages.startupFailed}
+      title={messages.startingTitle}
+    />
   );
 }
 
-export default function App() {
+export default function App({ bootstrapMessages }: AppProps) {
   return (
-    <Suspense fallback={<AppShellLoadingFallback />}>
+    <Suspense fallback={<AppShellLoadingFallback messages={bootstrapMessages} />}>
       <LazyAppRoot />
     </Suspense>
   );

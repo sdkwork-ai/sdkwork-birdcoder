@@ -1,4 +1,10 @@
-export { BootstrapGate, type BootstrapGateMessages, type BootstrapGateProps } from './application/bootstrap/BootstrapGate';
+export {
+  BootstrapGate,
+  publishBirdCoderBootstrapProgress,
+  type BootstrapGateMessages,
+  type BootstrapGateProps,
+  type BootstrapProgress,
+} from './application/bootstrap/BootstrapGate';
 export {
   bootstrapShellRuntime,
   type BootstrapShellRuntimeOptions,

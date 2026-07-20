@@ -18,7 +18,7 @@ host-specific filesystem capability.
 | --- | --- | --- |
 | desktop-local | pnpm dev:desktop:local and pnpm dev:desktop | Desktop host embeds the coding server and uses local SDKWork IAM storage. |
 | server-private | pnpm dev and pnpm dev:server:postgres:standalone | Web or desktop clients connect to a private BirdCoder server exposing the canonical SDKWork IAM facade. |
-| cloud-saas | pnpm dev:browser:postgres:cloud and pnpm dev:server:cloud | BirdCoder server keeps the same app facade while using the cloud SDKWork IAM authority. |
+| cloud-saas | pnpm dev:browser:cloud and pnpm dev:server:cloud | BirdCoder server keeps the same app facade while using the cloud SDKWork IAM authority. |
 
 ## Standard Routes
 

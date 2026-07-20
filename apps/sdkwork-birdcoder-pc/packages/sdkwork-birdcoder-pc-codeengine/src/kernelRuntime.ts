@@ -32,8 +32,25 @@ import { findWorkbenchCodeEngineKernel } from './kernel.ts';
 
 interface KernelTurnResult {
   assistantContent: string;
+  commands: Record<string, unknown>[];
   nativeSessionId?: string | null;
   streamDeltas: string[];
+}
+
+function parseKernelTurnCommands(value: unknown): Record<string, unknown>[] {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+
+  return value.flatMap((candidate) => {
+    if (typeof candidate !== 'object' || candidate === null || Array.isArray(candidate)) {
+      return [];
+    }
+
+    const record = candidate as Record<string, unknown>;
+    const command = typeof record.command === 'string' ? record.command.trim() : '';
+    return command ? [{ ...record, command }] : [];
+  });
 }
 
 const ADAPTER_NAMES: Record<WorkbenchCodeEngineId, string> = {
@@ -142,12 +159,14 @@ function executeKernelTurn(input: {
 
   const parsed = JSON.parse(stdout) as {
     assistantContent?: string;
+    commands?: unknown;
     nativeSessionId?: string | null;
     streamDeltas?: unknown;
   };
 
   return {
     assistantContent: parsed.assistantContent?.trim() ?? '',
+    commands: parseKernelTurnCommands(parsed.commands),
     nativeSessionId: parsed.nativeSessionId ?? null,
     streamDeltas: Array.isArray(parsed.streamDeltas)
       ? parsed.streamDeltas.filter(
@@ -418,6 +437,7 @@ export function createKernelTurnRuntime(
         yield createCanonicalEvent(++sequence, 'message.completed', 'completed', {
           role: 'assistant',
           content: result.assistantContent,
+          ...(result.commands.length > 0 ? { commands: result.commands } : {}),
         });
         yield createCanonicalEvent(++sequence, 'operation.updated', 'completed', {
           status: 'completed',

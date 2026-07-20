@@ -1157,6 +1157,11 @@ function StudioPageComponent({
     setViewingDiff(file);
     handleActiveTabChange('code');
   }, [handleActiveTabChange]);
+  const handleStudioOpenMessageFile = useCallback((path: string) => {
+    selectFile(path);
+    setViewingDiff(null);
+    handleActiveTabChange('code');
+  }, [handleActiveTabChange, selectFile]);
   const handleStudioEditMessage = useCallback((messageId: string, content: string) => {
     if (sessionId) {
       return handleEditMessage(sessionId, messageId, content);
@@ -1269,6 +1274,7 @@ function StudioPageComponent({
         onRefreshCodingSessionMessages={handleRefreshCodingSessionMessages}
         refreshingProjectId={refreshingProjectId}
         refreshingCodingSessionId={refreshingCodingSessionId}
+        onOpenFile={handleStudioOpenMessageFile}
         onViewChanges={handleStudioViewChanges}
         onEditMessage={handleStudioEditMessage}
         onDeleteMessage={handleStudioDeleteMessage}

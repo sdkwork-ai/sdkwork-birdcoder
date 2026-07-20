@@ -27,6 +27,11 @@ const contentBlockRenderersSource = await readFile(
   'utf8',
 );
 
+const toolCallCardSource = await readFile(
+  resolve('apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-ui/src/components/chat/messages/contentBlocks/ToolCallCard.tsx'),
+  'utf8',
+);
+
 const englishChatSource = await readFile(
   resolve('apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-i18n/src/locales/en/chat.ts'),
   'utf8',
@@ -34,6 +39,22 @@ const englishChatSource = await readFile(
 
 const chineseChatSource = await readFile(
   resolve('apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-i18n/src/locales/zh/chat.ts'),
+  'utf8',
+);
+const universalChatSource = await readFile(
+  resolve('apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-ui/src/components/UniversalChat.tsx'),
+  'utf8',
+);
+const codePageSource = await readFile(
+  resolve('apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-code/src/pages/CodePage.tsx'),
+  'utf8',
+);
+const codePageSurfaceSource = await readFile(
+  resolve('apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-code/src/pages/CodePageSurface.tsx'),
+  'utf8',
+);
+const studioPageSource = await readFile(
+  resolve('apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-studio/src/pages/StudioPage.tsx'),
   'utf8',
 );
 
@@ -99,14 +120,68 @@ assert.doesNotMatch(
 
 assert.match(
   activitySummarySource,
-  /expandedFileKeys\.has\(fileKey\)/,
-  'Each edited-file row must have independent expansion state for inspecting its details.',
+  /expandedDisclosureKeys\.has\([\s\S]{0,140}disclosureScopeKey[\s\S]{0,80}file/,
+  'Each edited-file row must use transcript-owned stable expansion state.',
+);
+
+assert.match(
+  activitySummarySource,
+  /data-chat-activity-details="true"/,
+  'Clicking the activity summary must reveal its command and file detail sections inline.',
+);
+
+assert.match(
+  activitySummarySource,
+  /expandedDisclosureKeys\.has\([\s\S]{0,140}disclosureScopeKey[\s\S]{0,80}command/,
+  'Each command row must use transcript-owned stable expansion state.',
+);
+
+assert.match(
+  activitySummarySource,
+  /data-chat-command-details="true"/,
+  'Clicking a command row must reveal the full command and captured output.',
+);
+
+assert.match(
+  activitySummarySource,
+  /aria-expanded=\{isExpanded\}/,
+  'The activity summary expansion control must expose its state to assistive technology.',
 );
 
 assert.match(
   activitySummarySource,
   /environment\?\.onViewChanges\?\.\(fileChange\)/,
   'Edited-file rows must still be connected to the existing full diff viewer action.',
+);
+assert.match(
+  activitySummarySource,
+  /environment\.onOpenFile\(fileChange\.path\)/,
+  'Clicking a changed-file name must open that file in the editor.',
+);
+assert.match(
+  activitySummarySource,
+  /aria-label=\{`\$\{toggleDiffPreviewLabel\}: \$\{fileChange\.path\}`\}/,
+  'The inline diff disclosure must remain a separate accessible action.',
+);
+assert.match(
+  universalChatSource,
+  /onOpenFile\?: \(path: string\) => void/,
+  'UniversalChat must expose file navigation independently from full diff viewing.',
+);
+assert.match(
+  codePageSource,
+  /handleOpenMessageFile[\s\S]*selectFile\(path\)[\s\S]*setActiveTab\('editor'\)/,
+  'Code-page chat file navigation must select the file and switch to the editor tab.',
+);
+assert.match(
+  codePageSurfaceSource,
+  /className="min-w-0 flex-1 flex flex-col relative/,
+  'The code workbench content column must shrink below long transcript content instead of clipping file actions off-screen.',
+);
+assert.match(
+  studioPageSource,
+  /handleStudioOpenMessageFile[\s\S]*selectFile\(path\)[\s\S]*handleActiveTabChange\('code'\)/,
+  'Studio chat file navigation must select the file and switch to the code tab.',
 );
 
 assert.match(
@@ -149,6 +224,12 @@ assert.match(
   contentBlockRenderersSource,
   /block\.content/,
   'Markdown block rendering must consume pre-projected markdown content from the view model.',
+);
+
+assert.match(
+  toolCallCardSource,
+  /\[call\.arguments, call\.command, call\.target, call\.title\]/,
+  'Tool-call summaries must refresh when a streaming provider updates only the semantic title.',
 );
 
 assert.match(

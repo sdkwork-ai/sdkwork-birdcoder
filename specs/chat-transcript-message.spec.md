@@ -33,6 +33,34 @@ Defined in `pc-types/src/chat-message-view.ts` with activity/file parsing in `ch
 
 View resolution is pure, memoizable, and layout-aware (`sidebar` | `main`). For `assistant.activity`, file changes and commands collapse into a single `activity` block.
 
+## Engine protocol compatibility
+
+Provider payloads are changeable inputs. `chat-message-tool-calls.ts` is the compatibility boundary and projects them into the stable `BirdCoderChatMessageToolCall` contract before React rendering.
+
+| Engine shape | Accepted source fields | Stable projection |
+| --- | --- | --- |
+| Codex / OpenAI | `function.name`, `function.arguments`, `local_shell_call.action.command[]`, `custom_tool_call`, `tool_search_call`, `web_search_call`, `mcp_tool_call`, correlated output items | semantic command, MCP, search, web, media, skill, or generic tool operation |
+| Claude Code | `tool_use`, `id`, `name`, `input`; correlated `tool_result.content/is_error` | semantic operation with normalized success/error result state; `Task`/`Agent` tools become subagent activity |
+| OpenCode | `part.type=tool`, `callID`, `tool`, `state.status/input/output/title/time`; `subtask` parts | semantic operation with normalized lifecycle state, title, duration, and subagent identity |
+| Gemini | `functionCall.name/args`, `functionResponse.response`, `tool_call_request/response/confirmation` with nested `value` | semantic operation, correlated result, or approval request with cancelled/error lifecycle support |
+
+Stable fields are `id`, `kind`, `name`, `arguments`, `status`, `output`, `command`, `target`, `serverName`, `title`, and `durationMs`. Stable kinds include command, file, search, web, MCP, subagent, skill, media, task, approval, question, and generic tool activity. UI components must not branch on provider JSON fields.
+
+Reasoning, thinking, tool-use/result, function-call/result, retry, compaction, and step-boundary protocol blocks are non-answer content. Text extraction must skip them so private reasoning and raw protocol payloads never enter Markdown. Compression, retry, cancellation, blocked, and stopped lifecycle events become localized compact `system.notice` rows; citations remain visible answer content. Provider failures also become `system.notice` messages, with raw error bodies retained only when they are the user-facing failure reason.
+
+Command tool calls are promoted into the `activity` block and deduplicated against structured `commands`. Tool result message bodies are not rendered as markdown. MCP and other non-command operations render as compact semantic rows; raw arguments and output are available only after explicit expansion.
+
+## Expansion behavior
+
+- The activity summary is one flat clickable row. It is collapsed by default.
+- Expanding a command-only summary reveals the command list.
+- Each command row owns independent expansion state and reveals the full command plus captured output.
+- Each file row separates three actions: the disclosure icon toggles the inline diff, the file name opens the file in the editor, and the eye icon opens the full diff viewer.
+- Each MCP/tool row owns independent expansion state and reveals normalized input/output details.
+- Expansion controls expose `aria-expanded`; icon-only actions retain accessible names.
+
+Tool detail rendering follows the desktop-client patterns shared by Codex, Claude Code, OpenCode, and Gemini: dense status-first rows, stable tool-call identity, provider-independent labels, controlled expansion, and bounded rendered output. Tool input/output previews are capped for transcript performance while copy actions retain access to the complete content.
+
 ## Renderer registry
 
 `createChatMessageRendererRegistry(entries, fallback)` matches on:

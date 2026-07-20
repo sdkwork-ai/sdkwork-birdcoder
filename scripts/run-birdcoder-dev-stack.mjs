@@ -2,10 +2,14 @@
 
 import { spawn, spawnSync } from 'node:child_process';
 import net from 'node:net';
-import os from 'node:os';
 import path from 'node:path';
 import process from 'node:process';
 import { fileURLToPath } from 'node:url';
+
+import {
+  formatNetworkAccessLines,
+  resolveNetworkAccessUrls,
+} from '@sdkwork/app-topology/network-access';
 
 import {
   parseBirdcoderIamCliOptions,
@@ -326,28 +330,17 @@ function readLastCliOptionValue(args = [], flag) {
   return undefined;
 }
 
-export function resolveClientAccessUrls({ host, port, networkInterfaces = os.networkInterfaces() } = {}) {
-  const normalizedPort = normalizePort(port);
-  if (!normalizedPort) {
-    return [];
-  }
+export function resolveClientAccessUrls(options = {}) {
+  return resolveNetworkAccessUrls(options);
+}
 
-  const urls = [`http://127.0.0.1:${normalizedPort}`];
-  if (host !== '127.0.0.1' && host !== 'localhost' && host !== '::1') {
-    for (const entries of Object.values(networkInterfaces ?? {})) {
-      for (const entry of entries ?? []) {
-        if (
-          (entry?.family === 'IPv4' || entry?.family === 4)
-          && !entry.internal
-          && entry.address
-          && !urls.includes(`http://${entry.address}:${normalizedPort}`)
-        ) {
-          urls.push(`http://${entry.address}:${normalizedPort}`);
-        }
-      }
-    }
-  }
-  return [urls[0], ...urls.slice(1).sort((left, right) => left.localeCompare(right))];
+export function resolveClientAccessLines(options = {}) {
+  return formatNetworkAccessLines({
+    ...options,
+    pathname: options.pathname ?? '/',
+    prefix: '[birdcoder-stack]   ',
+    unavailableText: 'unavailable (listener is loopback-only or no LAN IPv4 address was detected)',
+  });
 }
 
 function resolveClientHostAndPort(plan) {
@@ -846,16 +839,14 @@ async function waitForClientReady({
 
 function printClientAccessSummary(clientPlan) {
   const { host, port } = resolveClientHostAndPort(clientPlan);
-  const urls = resolveClientAccessUrls({ host, port });
-  if (urls.length === 0) {
+  const lines = resolveClientAccessLines({ host, port });
+  if (lines.length === 0) {
     return;
   }
   console.log('[birdcoder-stack] client ready');
-  console.log(`[birdcoder-stack] localUrl=${urls[0]}/`);
-  if (urls.length > 1) {
-    console.log(`[birdcoder-stack] lanUrls=${urls.slice(1).map((url) => `${url}/`).join(',')}`);
-  } else if (host === DEFAULT_WEB_CLIENT_HOST) {
-    console.log('[birdcoder-stack] lanUrls=unavailable (no non-loopback IPv4 address detected)');
+  console.log('[birdcoder-stack] Access URLs');
+  for (const line of lines) {
+    console.log(line);
   }
 }
 

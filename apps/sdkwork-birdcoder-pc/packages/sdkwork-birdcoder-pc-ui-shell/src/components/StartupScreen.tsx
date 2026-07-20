@@ -1,3 +1,6 @@
+import { RefreshCw } from 'lucide-react';
+import './StartupScreen.css';
+
 export type StartupStage = 'runtime' | 'session' | 'workspace';
 
 export interface StartupScreenProps {
@@ -30,7 +33,11 @@ export function StartupScreen({
   const clampedProgress = Math.min(100, Math.max(0, progress));
 
   return (
-    <main className="sdkwork-startup-screen" aria-busy={!isFailed}>
+    <main
+      className={isFailed ? 'sdkwork-startup-screen is-failed' : 'sdkwork-startup-screen'}
+      data-birdcoder-boot-shell
+      aria-busy={!isFailed}
+    >
       <div className="sdkwork-startup-shell">
         <header className="sdkwork-startup-brand" aria-label={title}>
           <span className="sdkwork-startup-mark" aria-hidden="true">B</span>
@@ -40,15 +47,29 @@ export function StartupScreen({
           </span>
         </header>
 
-        <section className="sdkwork-startup-content" aria-live="polite">
-          <div className="sdkwork-startup-status-mark" aria-hidden="true">
-            <span className={isFailed ? 'sdkwork-startup-status-dot is-failed' : 'sdkwork-startup-status-dot'} />
+        <section
+          className="sdkwork-startup-content"
+          aria-live={isFailed ? 'assertive' : 'polite'}
+        >
+          <div className="sdkwork-startup-state-row">
+            <span className="sdkwork-startup-status-mark" aria-hidden="true">
+              <span className="sdkwork-startup-status-dot" />
+            </span>
+            <p className="sdkwork-startup-kicker">
+              {isFailed ? startupFailedLabel : stageLabels[stage]}
+            </p>
           </div>
-          <p className="sdkwork-startup-kicker">{isFailed ? startupFailedLabel : stageLabels[stage]}</p>
           <h1>{title}</h1>
           <p className="sdkwork-startup-description">{isFailed ? errorMessage : description}</p>
 
-          <div className="sdkwork-startup-progress" aria-label={`${clampedProgress}%`}>
+          <div
+            className="sdkwork-startup-progress"
+            role="progressbar"
+            aria-label={stageLabels[stage]}
+            aria-valuemax={100}
+            aria-valuemin={0}
+            aria-valuenow={clampedProgress}
+          >
             <div className="sdkwork-startup-progress-track">
               <span style={{ width: `${clampedProgress}%` }} />
             </div>
@@ -77,6 +98,7 @@ export function StartupScreen({
 
           {isFailed && onRetry && retryLabel ? (
             <button className="sdkwork-startup-retry" type="button" onClick={onRetry}>
+              <RefreshCw aria-hidden="true" size={15} strokeWidth={2} />
               {retryLabel}
             </button>
           ) : null}

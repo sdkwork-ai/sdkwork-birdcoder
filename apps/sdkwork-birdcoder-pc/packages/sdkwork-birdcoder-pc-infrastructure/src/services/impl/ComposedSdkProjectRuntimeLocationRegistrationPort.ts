@@ -11,12 +11,14 @@ import type {
   ProjectRuntimeLocationRegistrationInput,
   ProjectRuntimeLocationRegistrationPort,
   ProjectRuntimeLocationRegistrationResult,
+  ProjectRuntimeLocationCapability,
 } from '../interfaces/IProjectRuntimeLocationService.ts';
 
 export type ProjectRuntimeLocationRegistrationSdkPort = Pick<
   BirdCoderAppSdkApiClient,
   | 'createProjectRuntimeLocation'
   | 'getProjectRuntimeLocation'
+  | 'listProjectRuntimeLocationPreferences'
   | 'rebindProjectRuntimeLocation'
 >;
 
@@ -120,6 +122,17 @@ export class ComposedSdkProjectRuntimeLocationRegistrationPort
     this.identityPort = identityPort;
     this.now = now;
     this.sdkPort = sdkPort;
+  }
+
+  async resolvePreferredProjectRuntimeLocationId(
+    projectId: string,
+    capability: ProjectRuntimeLocationCapability,
+  ): Promise<string | null> {
+    const preferences = await this.sdkPort.listProjectRuntimeLocationPreferences(projectId);
+    const runtimeLocationId = preferences.find(
+      (preference) => preference.capability === capability,
+    )?.runtimeLocationId;
+    return runtimeLocationId?.trim() || null;
   }
 
   async inspectLocalDesktopRuntimeLocation(

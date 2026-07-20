@@ -1,24 +1,31 @@
 import React, { memo } from 'react';
 import type { BirdCoderChatMessageViewKind } from '@sdkwork/birdcoder-pc-workbench/chat/types';
+import type { ChatMessageTranslate } from '../types.ts';
 
-const ROLE_HEADER_LABELS: Partial<Record<BirdCoderChatMessageViewKind, string>> = {
-  'planner.plan': 'Planner',
-  'reviewer.feedback': 'Reviewer',
-  'tool.result': 'Tool',
-  'system.notice': 'System',
+const ROLE_HEADER_LABELS: Partial<Record<BirdCoderChatMessageViewKind, {
+  fallback: string;
+  translationKey: string;
+}>> = {
+  'planner.plan': { fallback: 'Planner', translationKey: 'chat.rolePlanner' },
+  'reviewer.feedback': { fallback: 'Reviewer', translationKey: 'chat.roleReviewer' },
+  'tool.result': { fallback: 'Tool', translationKey: 'chat.roleTool' },
+  'system.notice': { fallback: 'System', translationKey: 'chat.roleSystem' },
 };
 
 export const RoleHeader = memo(function RoleHeader({
   viewKind,
   layout,
+  t,
 }: {
   viewKind: BirdCoderChatMessageViewKind;
   layout: 'main' | 'sidebar';
+  t?: ChatMessageTranslate;
 }) {
-  const label = ROLE_HEADER_LABELS[viewKind];
-  if (!label) {
+  const labelDefinition = ROLE_HEADER_LABELS[viewKind];
+  if (!labelDefinition) {
     return null;
   }
+  const label = t?.(labelDefinition.translationKey) ?? labelDefinition.fallback;
 
   return (
     <div

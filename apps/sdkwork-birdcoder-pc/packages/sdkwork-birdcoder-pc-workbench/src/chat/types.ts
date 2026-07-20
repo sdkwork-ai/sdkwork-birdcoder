@@ -15,6 +15,7 @@ export type {
   CommandExecution,
   FileChange,
   ProjectedActivityFileChange,
+  ProjectChatTranscriptToolActivityOptions,
   ResolveChatMessageViewOptions,
 } from '@sdkwork/birdcoder-pc-contracts-commons';
 
@@ -26,6 +27,7 @@ export {
   parseFileUpdateSummaryContent,
   projectChatMessageToolCall,
   projectChatMessageToolCalls,
+  projectChatTranscriptToolActivity,
   readTaskProgressCounter,
   resolveBirdCoderCodeEngineCommandInteractionState,
   resolveChatTurnActivitySummary,

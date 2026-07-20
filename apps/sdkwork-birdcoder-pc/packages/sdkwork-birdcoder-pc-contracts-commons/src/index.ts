@@ -13,6 +13,7 @@ import {
   buildBirdCoderChatMessageLogicalMatchKey,
   compareBirdCoderCodingSessionEventSequence,
   deduplicateBirdCoderComparableChatMessages,
+  extractBirdCoderProtocolNotices,
   extractBirdCoderTextContent,
 } from './coding-session.ts';
 import { parseBirdCoderApiJson, stringifyBirdCoderApiJson } from './json.ts';
@@ -193,7 +194,125 @@ function parseProjectionToolCalls(
     return directToolCalls as BirdCoderChatMessage['tool_calls'];
   }
 
-  return undefined;
+  const nativeToolCalls: unknown[] = [];
+  const visited = new WeakSet<object>();
+  collectProjectionNativeToolCalls(payload, nativeToolCalls, visited);
+  return nativeToolCalls.length > 0
+    ? nativeToolCalls as BirdCoderChatMessage['tool_calls']
+    : undefined;
+}
+
+const PROJECTION_NATIVE_TOOL_CONTENT_TYPES = new Set([
+  'approval_request',
+  'bash_code_execution_tool_result',
+  'code_execution_tool_result',
+  'command_execution',
+  'custom_tool_call',
+  'custom_tool_call_output',
+  'file_change',
+  'function_call',
+  'function_call_output',
+  'image_generation_call',
+  'local_shell_call',
+  'mcp_tool_call',
+  'mcp_tool_result',
+  'mcp_tool_use',
+  'server_tool_use',
+  'subtask',
+  'text_editor_code_execution_tool_result',
+  'tool',
+  'tool_call_confirmation',
+  'tool_call_request',
+  'tool_call_response',
+  'tool_progress',
+  'tool_result',
+  'tool_search_call',
+  'tool_search_output',
+  'tool_search_tool_result',
+  'tool_use',
+  'web_fetch_tool_result',
+  'web_search',
+  'web_search_call',
+  'web_search_tool_result',
+]);
+
+const PROJECTION_NATIVE_TOOL_CONTAINER_KEYS = [
+  'blocks',
+  'candidates',
+  'content',
+  'content_block',
+  'items',
+  'message',
+  'messages',
+  'part',
+  'parts',
+  'response',
+  'responses',
+  'value',
+] as const;
+
+function normalizeProjectionToolContentType(value: unknown): string {
+  return typeof value === 'string'
+    ? value.trim().toLowerCase().replace(/[.\s-]+/gu, '_')
+    : '';
+}
+
+function collectProjectionNativeToolCalls(
+  value: unknown,
+  output: unknown[],
+  visited: WeakSet<object>,
+): void {
+  if (Array.isArray(value)) {
+    for (const entry of value) {
+      collectProjectionNativeToolCalls(entry, output, visited);
+    }
+    return;
+  }
+  if (typeof value !== 'object' || value === null || visited.has(value)) {
+    return;
+  }
+
+  visited.add(value);
+  const record = value as Record<string, unknown>;
+  const type = normalizeProjectionToolContentType(record.type);
+  if (
+    PROJECTION_NATIVE_TOOL_CONTENT_TYPES.has(type)
+    || (typeof record.functionCall === 'object' && record.functionCall !== null)
+    || (typeof record.functionResponse === 'object' && record.functionResponse !== null)
+  ) {
+    output.push(record);
+    return;
+  }
+
+  for (const key of PROJECTION_NATIVE_TOOL_CONTAINER_KEYS) {
+    collectProjectionNativeToolCalls(record[key], output, visited);
+  }
+}
+
+function mergeProjectionToolCalls(
+  ...sources: Array<BirdCoderChatMessage['tool_calls'] | undefined>
+): BirdCoderChatMessage['tool_calls'] | undefined {
+  const mergedToolCalls: unknown[] = [];
+  const seenSnapshots = new Set<string>();
+  for (const toolCalls of sources) {
+    for (const toolCall of toolCalls ?? []) {
+      let snapshotKey: string;
+      try {
+        snapshotKey = JSON.stringify(toolCall);
+      } catch {
+        snapshotKey = String(toolCall);
+      }
+      if (seenSnapshots.has(snapshotKey)) {
+        continue;
+      }
+      seenSnapshots.add(snapshotKey);
+      mergedToolCalls.push(toolCall);
+    }
+  }
+
+  return mergedToolCalls.length > 0
+    ? mergedToolCalls as BirdCoderChatMessage['tool_calls']
+    : undefined;
 }
 
 function parseProjectionToolCallId(
@@ -994,6 +1113,19 @@ function normalizeProjectionMessageContent(content: string): string {
   return content.replace(/\r\n?/gu, '\n').trim();
 }
 
+function resolveProjectionFailureContent(
+  payload: Readonly<Record<string, unknown>> | undefined,
+): string {
+  for (const key of ['errorMessage', 'message', 'reason', 'error', 'details'] as const) {
+    const content = extractBirdCoderTextContent(payload?.[key]);
+    if (content) {
+      return content;
+    }
+  }
+
+  return 'Turn failed.';
+}
+
 function extractProjectionTextDeltaContent(value: unknown): string | undefined {
   if (typeof value === 'string') {
     const normalizedValue = value.replace(/\r\n?/gu, '\n');
@@ -1072,6 +1204,7 @@ function isProjectionRole(
 ): role is BirdCoderChatMessage['role'] {
   return (
     role === 'assistant' ||
+    role === 'system' ||
     role === 'planner' ||
     role === 'reviewer' ||
     role === 'tool' ||
@@ -1163,8 +1296,51 @@ function buildAuthoritativeProjectionMessages(
   }
 
   for (const event of sortedEvents) {
+    if (event.kind === 'turn.failed') {
+      const role = 'system' as const;
+      const messageId = `${codingSessionId}:${idPrefix}:${event.turnId ?? event.id}:${role}:turn-failed`;
+      if (
+        !deletedMessageIds.has(messageId) &&
+        !deletedMessageKeys.has(`${event.turnId ?? event.id}:${role}`)
+      ) {
+        authoritativeMessages.push({
+          id: messageId,
+          codingSessionId,
+          turnId: event.turnId,
+          role,
+          content: resolveProjectionFailureContent(event.payload),
+          metadata: {
+            noticeKind: 'failed',
+            providerEventId: event.id,
+          },
+          createdAt: event.createdAt,
+          timestamp: Date.parse(event.createdAt),
+        });
+      }
+      continue;
+    }
+
     if (event.kind === 'message.completed') {
       const role = readProjectionPayloadString(event.payload, 'role');
+      if (role !== 'user') {
+        for (const [noticeIndex, notice] of extractBirdCoderProtocolNotices(
+          event.payload?.content,
+        ).entries()) {
+          authoritativeMessages.push({
+            id: `${codingSessionId}:${idPrefix}:${event.id}:notice:${noticeIndex}`,
+            codingSessionId,
+            turnId: event.turnId,
+            role: 'system',
+            content: notice.message,
+            metadata: {
+              noticeKind: notice.kind,
+              providerEventId: event.id,
+            },
+            createdAt: event.createdAt,
+            timestamp: Date.parse(event.createdAt),
+          });
+        }
+      }
       const content = extractBirdCoderTextContent(event.payload?.content) ?? '';
       const eventCommands = parseProjectionCommands(event.payload);
       const eventFileChanges = parseProjectionFileChanges(event.payload);
@@ -1201,14 +1377,23 @@ function buildAuthoritativeProjectionMessages(
         continue;
       }
 
+      const isProtocolToolActivityMessage = role === 'tool' || (
+        (role === 'assistant' || role === 'planner' || role === 'reviewer') &&
+        !content &&
+        ((tool_calls?.length ?? 0) > 0 || Boolean(tool_call_id))
+      );
       const messageId =
-        idPrefix === 'authoritative'
+        idPrefix === 'authoritative' && !isProtocolToolActivityMessage
           ? buildBirdCoderAuthoritativeProjectionMessageId(
               codingSessionId,
               event.turnId ?? event.id,
               role,
             )
-          : `${codingSessionId}:${idPrefix}:${event.turnId ?? event.id}:${role}`;
+          : `${codingSessionId}:${idPrefix}:${
+              isProtocolToolActivityMessage ? event.id : event.turnId ?? event.id
+            }:${role}${
+              isProtocolToolActivityMessage ? ':tool-activity' : ''
+            }`;
 
       if (
         deletedMessageIds.has(messageId) ||
@@ -1292,7 +1477,7 @@ function buildAuthoritativeProjectionMessages(
       role: roleCandidate,
       taskProgress: mergeProjectionTaskProgress(existingDeltaMessage?.taskProgress, taskProgress),
       tool_call_id: tool_call_id ?? existingDeltaMessage?.tool_call_id,
-      tool_calls: tool_calls ?? existingDeltaMessage?.tool_calls,
+      tool_calls: mergeProjectionToolCalls(existingDeltaMessage?.tool_calls, tool_calls),
       turnId: event.turnId,
     });
   }

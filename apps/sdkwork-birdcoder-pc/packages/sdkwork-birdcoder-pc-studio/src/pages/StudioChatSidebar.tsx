@@ -154,6 +154,7 @@ interface StudioChatSidebarProps {
   onRefreshCodingSessionMessages: (codingSessionId: string) => Promise<void>;
   refreshingProjectId: string | null;
   refreshingCodingSessionId: string | null;
+  onOpenFile: (path: string) => void;
   onViewChanges: (file: FileChange) => void;
   onEditMessage: (messageId: string, content: string) => void | Promise<void>;
   onDeleteMessage: (messageIds: string[]) => void;
@@ -290,6 +291,7 @@ function areStudioChatSidebarPropsEqual(
     left.onRefreshCodingSessionMessages === right.onRefreshCodingSessionMessages &&
     left.refreshingProjectId === right.refreshingProjectId &&
     left.refreshingCodingSessionId === right.refreshingCodingSessionId &&
+    left.onOpenFile === right.onOpenFile &&
     left.onViewChanges === right.onViewChanges &&
     left.onEditMessage === right.onEditMessage &&
     left.onDeleteMessage === right.onDeleteMessage &&
@@ -335,6 +337,7 @@ export const StudioChatSidebar = memo(function StudioChatSidebar({
   onRefreshCodingSessionMessages,
   refreshingProjectId,
   refreshingCodingSessionId,
+  onOpenFile,
   onViewChanges,
   onEditMessage,
   onDeleteMessage,
@@ -1011,6 +1014,7 @@ export const StudioChatSidebar = memo(function StudioChatSidebar({
             showEngineHeader={false}
             showComposerEngineSelector
             layout="sidebar"
+            onOpenFile={onOpenFile}
             onViewChanges={onViewChanges}
             onEditMessage={onEditMessage}
             onDeleteMessage={onDeleteMessage}

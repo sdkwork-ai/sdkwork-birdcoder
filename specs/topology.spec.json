@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 4,
+  "schemaVersion": 5,
   "kind": "sdkwork.app.topology",
   "appId": "sdkwork-birdcoder",
   "archetype": "application-http-gateway",
@@ -46,8 +46,6 @@
   "envKeys": {
     "environment": "SDKWORK_BIRDCODER_ENVIRONMENT",
     "profileId": "SDKWORK_BIRDCODER_PROFILE_ID",
-    "gatewayAutostart": "SDKWORK_BIRDCODER_PLATFORM_API_GATEWAY_AUTOSTART",
-    "cloudGatewayBind": "SDKWORK_API_CLOUD_GATEWAY_BIND",
     "apiGatewayBaseUrl": "SDKWORK_BIRDCODER_PLATFORM_API_GATEWAY_HTTP_URL",
     "clientApiGatewayBaseUrl": "VITE_SDKWORK_BIRDCODER_PLATFORM_API_GATEWAY_HTTP_URL",
     "deploymentProfile": "SDKWORK_BIRDCODER_DEPLOYMENT_PROFILE",
@@ -68,11 +66,8 @@
       "protocols": [
         "http"
       ],
-      "owner": "sdkwork-api-cloud-gateway",
-      "bindEnv": "SDKWORK_API_CLOUD_GATEWAY_BIND",
       "httpUrlEnv": "SDKWORK_BIRDCODER_PLATFORM_API_GATEWAY_HTTP_URL",
-      "clientHttpEnv": "VITE_SDKWORK_BIRDCODER_PLATFORM_API_GATEWAY_HTTP_URL",
-      "autostartEnv": "SDKWORK_BIRDCODER_PLATFORM_API_GATEWAY_AUTOSTART"
+      "clientHttpEnv": "VITE_SDKWORK_BIRDCODER_PLATFORM_API_GATEWAY_HTTP_URL"
     }
   },
   "cloudPublicHosts": {
@@ -90,11 +85,6 @@
     "applicationServer": {
       "crate": "sdkwork-birdcoder-standalone-gateway",
       "binary": "sdkwork-birdcoder-standalone-gateway"
-    },
-    "cloudGateway": {
-      "crate": "sdkwork-api-cloud-gateway",
-      "binary": "sdkwork-api-cloud-gateway",
-      "repository": "sdkwork-api-cloud-gateway"
     }
   },
   "orchestration": {
@@ -102,65 +92,61 @@
       "standalone.development": {
         "processes": [
           {
-            "id": "pc-desktop-renderer",
-            "package": "apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-desktop",
-            "script": "start:desktop",
-            "required": true
-          }
-        ],
-        "healthSurfaces": []
-      },
-      "cloud.development": {
-        "processes": [
-          {
-            "id": "platform.api-gateway",
-            "binary": "sdkwork-api-cloud-gateway",
-            "repository": "sdkwork-api-cloud-gateway",
-            "required": false
-          },
-          {
             "id": "application.public-ingress",
-            "package": "apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-server",
-            "script": "dev:base",
-            "required": true
+            "package": "@sdkwork/birdcoder-pc-server",
+            "script": "start:server",
+            "required": true,
+            "role": "api-standalone-gateway"
           },
           {
             "id": "pc-web-renderer",
-            "package": "apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-web",
-            "script": "dev:base",
-            "required": false
+            "package": "@sdkwork/birdcoder-pc-web",
+            "script": "start:browser",
+            "required": true,
+            "role": "client"
           }
         ],
         "healthSurfaces": [
           "application.public-ingress"
         ]
       },
-      "cloud.production": {
+      "cloud.development": {
         "processes": [
           {
-            "id": "platform.api-gateway",
-            "crate": "sdkwork-api-cloud-gateway",
-            "binary": "sdkwork-api-cloud-gateway",
-            "repository": "sdkwork-api-cloud-gateway",
-            "required": false
-          },
+            "id": "pc-web-renderer",
+            "package": "@sdkwork/birdcoder-pc-web",
+            "script": "dev:browser:cloud",
+            "required": true,
+            "role": "client"
+          }
+        ],
+        "healthSurfaces": [
+          "application.public-ingress",
+          "platform.api-gateway"
+        ]
+      },
+      "cloud.production": {
+        "processes": [
           {
             "id": "application.public-ingress",
             "package": "apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-server",
             "script": "dev:base",
-            "required": true
+            "required": true,
+            "role": "api-standalone-gateway"
           },
           {
             "id": "pc-web-renderer",
             "package": "apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-web",
             "script": "dev:base",
-            "required": false
+            "required": false,
+            "role": "client"
           },
           {
             "id": "pc-desktop-renderer",
             "package": "apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-desktop",
             "script": "start:desktop",
-            "required": false
+            "required": false,
+            "role": "client"
           }
         ],
         "healthSurfaces": [
@@ -174,10 +160,63 @@
             "id": "pc-desktop-renderer",
             "package": "apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-desktop",
             "script": "start:desktop",
-            "required": true
+            "required": true,
+            "role": "client"
           }
         ],
         "healthSurfaces": []
+      },
+      "standalone.test": {
+        "processes": [
+          {
+            "id": "pc-desktop-renderer",
+            "package": "apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-desktop",
+            "script": "start:desktop",
+            "required": true,
+            "role": "client"
+          }
+        ],
+        "healthSurfaces": []
+      },
+      "standalone.staging": {
+        "processes": [
+          {
+            "id": "pc-desktop-renderer",
+            "package": "apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-desktop",
+            "script": "start:desktop",
+            "required": true,
+            "role": "client"
+          }
+        ],
+        "healthSurfaces": []
+      },
+      "cloud.test": {
+        "processes": [
+          {
+            "id": "pc-desktop-renderer",
+            "package": "apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-desktop",
+            "script": "start:desktop",
+            "required": true,
+            "role": "client"
+          }
+        ],
+        "healthSurfaces": [
+          "platform.api-gateway"
+        ]
+      },
+      "cloud.staging": {
+        "processes": [
+          {
+            "id": "pc-desktop-renderer",
+            "package": "apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-desktop",
+            "script": "start:desktop",
+            "required": true,
+            "role": "client"
+          }
+        ],
+        "healthSurfaces": [
+          "platform.api-gateway"
+        ]
       }
     }
   },
@@ -211,10 +250,7 @@
     ]
   },
   "packaging": {
-    "cloudConfigFiles": [
-      "sdkwork-api-cloud-gateway.birdcoder.development.toml",
-      "sdkwork-api-cloud-gateway.birdcoder.production.toml"
-    ],
+    "cloudConfigFiles": [],
     "targets": [
       {
         "id": "container-noarch-cloud-container-config-bundle-tar-gz",

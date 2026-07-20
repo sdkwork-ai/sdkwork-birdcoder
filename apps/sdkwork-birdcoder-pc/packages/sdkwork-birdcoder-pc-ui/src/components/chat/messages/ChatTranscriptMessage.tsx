@@ -40,8 +40,8 @@ export const ChatTranscriptMessage = memo(function ChatTranscriptMessage({
   registry = defaultChatMessageRendererRegistry,
 }: ChatTranscriptMessageProps) {
   const activitySummary = useMemo(
-    () => resolveChatTurnActivitySummary(context.allMessages, message),
-    [context.allMessages, message],
+    () => resolveChatTurnActivitySummary(context.allMessages, message, { engineId }),
+    [context.allMessages, engineId, message],
   );
   const view = useMemo(
     () => resolveChatMessageView(message, { activitySummary, engineId, layout }),

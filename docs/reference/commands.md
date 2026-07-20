@@ -6,7 +6,7 @@
 pnpm dev
 pnpm dev:desktop:local
 pnpm dev:browser:postgres:standalone
-pnpm dev:browser:postgres:cloud
+pnpm dev:browser:cloud
 pnpm check:env:desktop:local -- desktop-dev --iam-mode desktop-local
 pnpm dev:desktop
 pnpm dev:desktop:standalone
@@ -29,7 +29,7 @@ pnpm dev:server:cloud
 `pnpm dev` starts the default private BirdCoder web sample stack. It launches the native BirdCoder server first, waits until the unauthenticated infrastructure readiness probe at `/readyz` succeeds, then boots the browser host while defaulting `VITE_BIRDCODER_API_BASE_URL` to `http://127.0.0.1:10240` for local iteration when no explicit value is configured.
 `pnpm dev:desktop:local` starts the canonical single-machine BirdCoder sample loop by delegating to the desktop-local Tauri host with the embedded coding server and local SDKWork IAM authority.
 `pnpm dev:browser:postgres:standalone` is the explicit alias for that same managed private web sample stack.
-`pnpm dev:browser:postgres:cloud` starts the shared BirdCoder web workbench against a cloud-backed BirdCoder server.
+`pnpm dev:browser:cloud` starts the shared BirdCoder web workbench against a cloud-backed BirdCoder server.
 `pnpm check:env:desktop:local -- <target> --iam-mode <mode>` prints the resolved managed IAM env after `.env` loading and mode normalization, with secret-like fields masked so mode switching can be inspected safely.
 `pnpm dev:desktop` starts the governed desktop-local development loop so the Tauri shell, embedded coding server, local SDKWork IAM authority, and packaged-app interaction paths can be exercised together during local iteration.
 `pnpm dev:desktop:standalone` starts the governed desktop shell against a separately running private BirdCoder server, defaulting the client API base URL to `http://127.0.0.1:10240` when no explicit override is configured.

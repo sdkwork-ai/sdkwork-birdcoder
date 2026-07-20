@@ -1,5 +1,6 @@
 import type {
   BirdCoderComparableChatMessageLike,
+  BirdCoderProtocolNoticeKind,
 } from './coding-session.ts';
 import type { BirdCoderCodeEngineKey } from './engine.ts';
 import {
@@ -27,6 +28,8 @@ import {
 } from './chat-message-activity-projection.ts';
 import { resolveTaskProgressDisplayState } from './chat-message-task-progress.ts';
 import {
+  projectChatMessageCommand,
+  projectChatMessageToolResult,
   projectChatMessageToolCalls,
   type ChatMessageToolCall,
 } from './chat-message-tool-calls.ts';
@@ -37,6 +40,7 @@ export interface ChatMessageMarkdownBlock {
   type: 'markdown';
   content: string;
   mode: 'basic' | 'rich';
+  noticeKind?: BirdCoderProtocolNoticeKind;
 }
 
 export interface ChatMessageActivityBlock {
@@ -162,18 +166,37 @@ function countTranscriptContentLines(content: string): number {
 function hasStructuredActivity(
   message: ChatMessageViewSource,
   activitySummary?: ChatTurnActivitySummary | null,
+  engineId?: BirdCoderCodeEngineKey,
 ): boolean {
   if (activitySummary && (activitySummary.fileChanges.length > 0 || activitySummary.commands.length > 0)) {
     return true;
   }
   return filterStructuredFileChanges(message).length > 0
     || filterStructuredCommands(message).length > 0
-    || hasParsedFileUpdateSummary(message.content);
+    || hasParsedFileUpdateSummary(message.content)
+    || projectChatMessageToolCalls(message.tool_calls, { engineId })
+      .some((call) => call.kind === 'command');
+}
+
+function resolveProtocolNoticeKind(
+  message: ChatMessageViewSource,
+): BirdCoderProtocolNoticeKind | undefined {
+  if (message.role !== 'system' || typeof message.metadata !== 'object' || !message.metadata) {
+    return undefined;
+  }
+
+  const noticeKind = (message.metadata as Record<string, unknown>).noticeKind;
+  return ['blocked', 'cancelled', 'compression', 'retry', 'stopped'].includes(
+    typeof noticeKind === 'string' ? noticeKind : '',
+  )
+    ? noticeKind as BirdCoderProtocolNoticeKind
+    : undefined;
 }
 
 function inferChatMessageViewKind(
   message: ChatMessageViewSource,
   activitySummary?: ChatTurnActivitySummary | null,
+  engineId?: BirdCoderCodeEngineKey,
 ): BirdCoderChatMessageViewKind {
   switch (message.role) {
     case 'user':
@@ -187,7 +210,10 @@ function inferChatMessageViewKind(
     case 'reviewer':
       return 'reviewer.feedback';
     case 'assistant':
-      if (hasStructuredActivity(message, activitySummary) || hasParsedFileUpdateSummary(message.content)) {
+      if (
+        hasStructuredActivity(message, activitySummary, engineId)
+        || hasParsedFileUpdateSummary(message.content)
+      ) {
         return 'assistant.activity';
       }
       return 'assistant.text';
@@ -200,21 +226,64 @@ function buildChatMessageContentBlocks(
   message: ChatMessageViewSource,
   kind: BirdCoderChatMessageViewKind,
   activitySummary?: ChatTurnActivitySummary | null,
+  engineId?: BirdCoderCodeEngineKey,
 ): ChatMessageContentBlock[] {
   const blocks: ChatMessageContentBlock[] = [];
   const markdownMode: 'basic' | 'rich' = message.role === 'user' ? 'basic' : 'rich';
-  const markdownContent = resolveVisibleMarkdownBlockContent(message);
+  const markdownContent = message.role === 'tool'
+    ? ''
+    : resolveVisibleMarkdownBlockContent(message);
+  const noticeKind = resolveProtocolNoticeKind(message);
 
   if (markdownContent.trim().length > 0) {
     blocks.push({
       type: 'markdown',
       content: markdownContent,
       mode: markdownMode,
+      ...(noticeKind ? { noticeKind } : {}),
     });
   }
 
   const fileChanges = activitySummary?.fileChanges ?? resolveProjectedActivityFileChanges(message);
-  const commands = activitySummary?.commands ?? filterStructuredCommands(message);
+  const projectedToolCalls = projectChatMessageToolCalls(message.tool_calls, { engineId });
+  const projectedToolResult = message.role === 'tool'
+    ? projectChatMessageToolResult({
+        content: message.content,
+        id: message.tool_call_id,
+        name: message.name,
+      }, { engineId })
+    : null;
+  const allProjectedToolCalls = projectedToolResult
+    ? [...projectedToolCalls, projectedToolResult]
+    : projectedToolCalls;
+  const projectedCommands = allProjectedToolCalls.flatMap((call) => {
+    const command = projectChatMessageCommand(call);
+    return command ? [command] : [];
+  });
+  const commandsByKey = new Map<string, NonNullable<ChatMessageViewSource['commands']>[number]>();
+  for (const commandValue of [
+    ...projectedCommands,
+    ...(activitySummary?.commands ?? filterStructuredCommands(message)),
+  ]) {
+    if (typeof commandValue !== 'object' || commandValue === null) {
+      continue;
+    }
+    const command = commandValue as {
+      command?: unknown;
+      kind?: unknown;
+      toolCallId?: unknown;
+    };
+    if (typeof command.command !== 'string' || !command.command.trim()) {
+      continue;
+    }
+    const toolCallId = typeof command.toolCallId === 'string'
+      ? command.toolCallId.trim()
+      : '';
+    const commandKind = typeof command.kind === 'string' ? command.kind : '';
+    const key = toolCallId || `${command.command.trim()}\u0001${commandKind}`;
+    commandsByKey.set(key, commandValue);
+  }
+  const commands = [...commandsByKey.values()];
 
   if (kind === 'assistant.activity' && (fileChanges.length > 0 || commands.length > 0)) {
     blocks.push({
@@ -251,7 +320,19 @@ function buildChatMessageContentBlocks(
     });
   }
 
-  const toolCalls = projectChatMessageToolCalls(message.tool_calls);
+  const commandToolCallIds = new Set(projectedCommands.map((command) => command.toolCallId));
+  const toolCalls = allProjectedToolCalls.filter((call) => {
+    if (commandToolCallIds.has(call.id)) {
+      return false;
+    }
+    if (call.kind === 'file' && fileChanges.length > 0) {
+      return false;
+    }
+    if (call.kind === 'task' && taskProgressDisplayState) {
+      return false;
+    }
+    return true;
+  });
   if (toolCalls.length > 0) {
     blocks.push({
       type: 'tool-calls',
@@ -350,8 +431,13 @@ export function resolveChatMessageView(
   options: ResolveChatMessageViewOptions = {},
 ): BirdCoderChatMessageView {
   const layout = options.layout ?? 'main';
-  const kind = inferChatMessageViewKind(message, options.activitySummary);
-  const blocks = buildChatMessageContentBlocks(message, kind, options.activitySummary);
+  const kind = inferChatMessageViewKind(message, options.activitySummary, options.engineId);
+  const blocks = buildChatMessageContentBlocks(
+    message,
+    kind,
+    options.activitySummary,
+    options.engineId,
+  );
 
   return {
     messageId: message.id,

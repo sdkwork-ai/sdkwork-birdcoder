@@ -45,7 +45,7 @@ const EngineTaggedAssistantReplyMessageRenderer = memo(function EngineTaggedAssi
   const surface = resolveEngineSurfaceStyle(engineId);
 
   return (
-    <div className="flex flex-col gap-2" data-chat-engine={engineId}>
+    <div className="flex w-full min-w-0 max-w-full flex-col gap-2" data-chat-engine={engineId}>
       <div className={`inline-flex w-fit items-center rounded-full border px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide ${surface.className}`}>
         {surface.label}
       </div>

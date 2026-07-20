@@ -123,7 +123,7 @@ test('birdcoder IAM command matrix governs standard local, standalone, and cloud
     'node scripts/birdcoder-dev.mjs web --deployment-profile standalone',
   );
   assert.equal(
-    workspacePackageJson.scripts?.['dev:browser:postgres:cloud'],
+    workspacePackageJson.scripts?.['dev:browser:cloud'],
     'node scripts/birdcoder-dev.mjs web --deployment-profile cloud',
   );
   assert.equal(

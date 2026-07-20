@@ -25,6 +25,7 @@ const CodeEditorWorkspaceChatPanel = memo(function CodeEditorWorkspaceChatPanel(
   onDeleteMessage,
   onEditMessage,
   onRegenerateMessage,
+  onOpenFile,
   onRestoreMessage,
   onSelectedEngineIdChange,
   onSelectedModelIdChange,
@@ -58,6 +59,7 @@ const CodeEditorWorkspaceChatPanel = memo(function CodeEditorWorkspaceChatPanel(
       onEditMessage={onEditMessage}
       onDeleteMessage={onDeleteMessage}
       onRegenerateMessage={onRegenerateMessage}
+      onOpenFile={onOpenFile}
       emptyState={chatEmptyState}
     />
   );
@@ -187,6 +189,7 @@ export const CodeEditorWorkspacePanel = memo(function CodeEditorWorkspacePanel({
               onEditMessage={onEditMessage}
               onDeleteMessage={onDeleteMessage}
               onRegenerateMessage={onRegenerateMessage}
+              onOpenFile={onSelectFile}
             />
           </div>
         </div>

@@ -1,0 +1,125 @@
+{
+  "schemaVersion": 1,
+  "kind": "sdkwork.component.spec",
+  "component": {
+    "name": "@sdkwork/birdcoder-pc-codeengine",
+    "displayName": "SDKWork BirdCoder PC Code Engine",
+    "version": "1.0.0",
+    "type": "node-package",
+    "root": "sdkwork-birdcoder/apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-codeengine",
+    "domain": "communication",
+    "declaredDomain": null,
+    "capability": "code-engine-runtime",
+    "status": "standardizing",
+    "languages": [
+      "typescript"
+    ],
+    "generated": false,
+    "private": true,
+    "manifests": [
+      "package.json"
+    ],
+    "surface": "app"
+  },
+  "canonicalSpecs": [
+    {
+      "file": "COMPONENT_SPEC.md",
+      "path": "../../../sdkwork-specs/COMPONENT_SPEC.md",
+      "purpose": "Local component specs directory and manifest rules."
+    },
+    {
+      "file": "CONFIG_SPEC.md",
+      "path": "../../../sdkwork-specs/CONFIG_SPEC.md",
+      "purpose": "Runtime configuration and executable discovery rules."
+    },
+    {
+      "file": "FRONTEND_SPEC.md",
+      "path": "../../../sdkwork-specs/FRONTEND_SPEC.md",
+      "purpose": "Application-side service and runtime integration rules."
+    },
+    {
+      "file": "MODULE_SPEC.md",
+      "path": "../../../sdkwork-specs/MODULE_SPEC.md",
+      "purpose": "Reusable package contract and dependency direction."
+    },
+    {
+      "file": "TEST_SPEC.md",
+      "path": "../../../sdkwork-specs/TEST_SPEC.md",
+      "purpose": "Contract and integration verification rules."
+    },
+    {
+      "file": "CODE_STYLE_SPEC.md",
+      "path": "../../../sdkwork-specs/CODE_STYLE_SPEC.md",
+      "purpose": "Authored source structure and generated code boundaries."
+    },
+    {
+      "file": "NAMING_SPEC.md",
+      "path": "../../../sdkwork-specs/NAMING_SPEC.md",
+      "purpose": "Canonical SDKWork naming rules."
+    },
+    {
+      "file": "TYPESCRIPT_CODE_SPEC.md",
+      "path": "../../../sdkwork-specs/TYPESCRIPT_CODE_SPEC.md",
+      "purpose": "TypeScript and Node package rules."
+    }
+  ],
+  "contracts": {
+    "layerRole": "runtime-gateway",
+    "publicExports": [
+      ".",
+      "./catalogBridge",
+      "./catalog",
+      "./engines",
+      "./kernel",
+      "./kernelRuntime",
+      "./manifest",
+      "./modelConfig",
+      "./preferences",
+      "./runtime",
+      "./serverRuntime",
+      "./serverSupport"
+    ],
+    "providedPorts": [
+      {
+        "name": "codeEngineRuntime",
+        "export": "."
+      }
+    ],
+    "requiredPorts": [
+      {
+        "name": "codingSessionProjection",
+        "export": "."
+      }
+    ],
+    "runtimeEntrypoints": [
+      "./kernelRuntime",
+      "./serverRuntime"
+    ],
+    "routeManifest": null,
+    "sdkClients": [],
+    "sdkDependencies": [],
+    "dependencyApiExports": [],
+    "dependencyApiSurfaces": [],
+    "events": [
+      "BirdCoderCodingSessionEvent"
+    ],
+    "configKeys": [
+      "BIRDCODER_KERNEL_TURN_BIN"
+    ]
+  },
+  "integration": {
+    "authority": "Root SDKWork specs remain authoritative. Local specs may extend but must not contradict them.",
+    "dependencyPolicy": "Consumers integrate through public package exports and declared runtime adapters.",
+    "sdkPolicy": "Provider execution is delegated to the Kernel bridge; this package does not create raw provider HTTP clients.",
+    "languagePolicy": "TypeScript runtime adapters preserve canonical coding-session events across provider-specific transports."
+  },
+  "verification": {
+    "commands": [
+      "pnpm --filter @sdkwork/birdcoder-pc typecheck"
+    ]
+  },
+  "metadata": {
+    "managedBy": "manual-component-alignment",
+    "standardVersion": "2026-05-13"
+  }
+}

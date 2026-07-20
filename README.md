@@ -144,7 +144,7 @@ Common development entrypoints:
 ```bash
 pnpm dev:desktop:local
 pnpm dev:browser:postgres:standalone
-pnpm dev:browser:postgres:cloud
+pnpm dev:browser:cloud
 pnpm dev:desktop
 pnpm dev:desktop:standalone
 pnpm dev:desktop:cloud
@@ -234,7 +234,7 @@ BirdCoder keeps frontend code on the standard routes: `/app/v3/api/auth/*`, `/ap
 | --- | --- | --- |
 | Start the local single-machine desktop sample | `pnpm dev:desktop:local` or `pnpm dev:desktop:local` | Opens the Tauri desktop host with embedded coding server, local SDKWork IAM, seeded bootstrap data, and dev quick-login defaults |
 | Start the private web sample stack | `pnpm dev` or `pnpm dev:browser:postgres:standalone` | Starts the native BirdCoder server first, waits for `/app/v3/api/system/health` and IAM config routes, then boots the browser host |
-| Start web workspace against cloud-backed IAM | `pnpm dev:browser:postgres:cloud` | Browser host uses the cloud-mode API base URL from env |
+| Start web workspace against cloud-backed IAM | `pnpm dev:browser:cloud` | Browser host uses the cloud-mode API base URL from env |
 | Start the private BirdCoder web sample stack in one command | `pnpm dev:browser:standalone` | Managed server-plus-web stack for private browser-host onboarding |
 | Start the cloud-backed BirdCoder web sample stack in one command | `pnpm dev:browser:cloud` | Starts the local BirdCoder server in `cloud-saas` mode and then boots the web host; requires or defaults `SDKWORK_IAM_APP_API_BASE_URL` for sample checks |
 | Start desktop host with embedded local IAM | `pnpm dev:desktop` | Default `desktop-local` mode with embedded coding server, local SDKWork IAM, and dev quick-login defaults |

@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
-import { StartupScreen } from '@sdkwork/birdcoder-pc-ui-shell';
+import { StartupScreen, type StartupStage } from '@sdkwork/birdcoder-pc-ui-shell';
 import { BirdCoderApiReadyError } from './bootstrapServerApiReady';
 
 type BootstrapStatus = 'booting' | 'failed' | 'ready';
@@ -13,6 +13,8 @@ export interface BootstrapGateMessages {
   runtimeStage: string;
   sessionStage: string;
   workspaceStage: string;
+  validatingSession: string;
+  loadingWorkspace: string;
   retry: string;
   startingTitle: string;
   startupFailed: string;
@@ -25,6 +27,31 @@ export interface BootstrapGateProps {
   bootstrapTimeoutMs?: number;
   children: ReactNode;
   messages: BootstrapGateMessages;
+}
+
+export interface BootstrapProgress {
+  progress: number;
+  stage: StartupStage;
+}
+
+const INITIAL_BOOTSTRAP_PROGRESS: BootstrapProgress = {
+  progress: 12,
+  stage: 'runtime',
+};
+
+const BIRDCODER_BOOTSTRAP_PROGRESS_EVENT = 'sdkwork:birdcoder-bootstrap-progress';
+
+export function publishBirdCoderBootstrapProgress(progress: BootstrapProgress): void {
+  if (
+    typeof globalThis.dispatchEvent !== 'function'
+    || typeof globalThis.CustomEvent !== 'function'
+  ) {
+    return;
+  }
+
+  globalThis.dispatchEvent(new CustomEvent(BIRDCODER_BOOTSTRAP_PROGRESS_EVENT, {
+    detail: normalizeBootstrapProgress(progress),
+  }));
 }
 
 interface DeferredBootstrapStart {
@@ -90,6 +117,28 @@ function createBootstrapTimeoutPromise(timeoutMs: number): {
   };
 }
 
+function normalizeBootstrapProgress(progress: BootstrapProgress): BootstrapProgress {
+  return {
+    progress: Math.min(99, Math.max(0, Math.round(progress.progress))),
+    stage: progress.stage,
+  };
+}
+
+function resolveBootstrapDescription(
+  progress: BootstrapProgress,
+  messages: BootstrapGateMessages,
+): string {
+  if (progress.stage === 'session') {
+    return messages.validatingSession;
+  }
+
+  if (progress.stage === 'workspace') {
+    return messages.loadingWorkspace;
+  }
+
+  return messages.bootingDescription;
+}
+
 function scheduleBootstrapStart(callback: () => void): DeferredBootstrapStart {
   const schedulingGlobal = globalThis as BootstrapSchedulingGlobal;
   const requestIdleCallback = schedulingGlobal.requestIdleCallback;
@@ -123,6 +172,9 @@ export function BootstrapGate({
 }: BootstrapGateProps) {
   const bootstrapRef = useRef(bootstrap);
   const [attempt, setAttempt] = useState(0);
+  const [bootstrapProgress, setBootstrapProgress] = useState<BootstrapProgress>(
+    INITIAL_BOOTSTRAP_PROGRESS,
+  );
   const [error, setError] = useState<Error | null>(null);
   const [status, setStatus] = useState<BootstrapStatus>('booting');
   const timeoutSeconds = Math.ceil(normalizeBootstrapTimeoutMs(bootstrapTimeoutMs) / 1000);
@@ -150,11 +202,34 @@ export function BootstrapGate({
   }, [bootstrap]);
 
   useEffect(() => {
+    const handleBootstrapProgress = (event: Event) => {
+      const nextProgress = (event as CustomEvent<BootstrapProgress>).detail;
+      if (!nextProgress) {
+        return;
+      }
+
+      setBootstrapProgress((currentProgress) => {
+        if (nextProgress.progress < currentProgress.progress) {
+          return currentProgress;
+        }
+
+        return nextProgress;
+      });
+    };
+
+    globalThis.addEventListener(BIRDCODER_BOOTSTRAP_PROGRESS_EVENT, handleBootstrapProgress);
+    return () => {
+      globalThis.removeEventListener(BIRDCODER_BOOTSTRAP_PROGRESS_EVENT, handleBootstrapProgress);
+    };
+  }, []);
+
+  useEffect(() => {
     let isDisposed = false;
     let hasBootstrapSettled = false;
     let bootstrapStart: DeferredBootstrapStart | null = null;
 
     setError(null);
+    setBootstrapProgress(INITIAL_BOOTSTRAP_PROGRESS);
     setStatus('booting');
 
     const timeoutBoundary = createBootstrapTimeoutPromise(
@@ -179,6 +254,7 @@ export function BootstrapGate({
       .then(() => {
         hasBootstrapSettled = true;
         if (!isDisposed) {
+          setBootstrapProgress({ progress: 100, stage: 'workspace' });
           setStatus('ready');
         }
       })
@@ -207,12 +283,12 @@ export function BootstrapGate({
 
   return (
     <StartupScreen
-      description={messages.bootingDescription}
+      description={resolveBootstrapDescription(bootstrapProgress, messages)}
       errorMessage={error ? resolveErrorMessage(error) : undefined}
       onRetry={status === 'failed' ? () => setAttempt((previousAttempt) => previousAttempt + 1) : undefined}
-      progress={34}
+      progress={bootstrapProgress.progress}
       retryLabel={messages.retry}
-      stage="runtime"
+      stage={bootstrapProgress.stage}
       stageLabels={{
         runtime: messages.runtimeStage,
         session: messages.sessionStage,

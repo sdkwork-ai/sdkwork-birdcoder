@@ -89,7 +89,7 @@ Options:
 
 Examples:
   pnpm dev:browser:postgres:standalone
-  pnpm dev:browser:postgres:cloud
+  pnpm dev:browser:cloud
   pnpm dev:desktop:postgres:standalone
 `);
 }

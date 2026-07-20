@@ -34,6 +34,7 @@ test('Browser terminal uses the protected App API and renders the full xterm sur
     path: string;
     authorization: string | undefined;
     accessToken: string | undefined;
+    body: string | null;
   }> = [];
 
   await page.addInitScript(() => {
@@ -159,6 +160,24 @@ test('Browser terminal uses the protected App API and renders the full xterm sur
   await page.route('**/app/v3/api/workspaces?**', (route) => route.fulfill({ json: pageEnvelope([workspace]) }));
   await page.route('**/app/v3/api/projects?**', (route) => route.fulfill({ json: pageEnvelope([project]) }));
   await page.route('**/app/v3/api/projects/e2e-project-1', (route) => route.fulfill({ json: itemEnvelope(project) }));
+  await page.route('**/app/v3/api/projects/e2e-project-1/runtime_location_preferences?**', (route) => {
+    const url = new URL(route.request().url());
+    expect(url.searchParams.get('page')).toBe('1');
+    expect(url.searchParams.get('page_size')).toBe('20');
+    expect(url.searchParams.has('pageSize')).toBe(false);
+    return route.fulfill({
+      json: pageEnvelope([{
+        id: 'e2e-terminal-preference-1',
+        projectId: project.id,
+        subjectUserId: 'e2e-user-1',
+        capability: 'terminal',
+        runtimeLocationId: 'e2e-runtime-location-1',
+        version: '1',
+        createdAt: '2026-07-15T12:00:00.000Z',
+        updatedAt: '2026-07-15T12:00:00.000Z',
+      }]),
+    });
+  });
   await page.route('**/app/v3/api/native_sessions?**', (route) => route.fulfill({ json: pageEnvelope([]) }));
   await page.route('**/app/v3/api/intelligence/coding_sessions?**', (route) => route.fulfill({ json: pageEnvelope([]) }));
 
@@ -170,6 +189,7 @@ test('Browser terminal uses the protected App API and renders the full xterm sur
       path: `${url.pathname}${url.search}`,
       authorization: request.headers().authorization,
       accessToken: request.headers()['access-token'],
+      body: request.postData(),
     });
 
     if (url.pathname.endsWith('/events')) {
@@ -205,7 +225,8 @@ test('Browser terminal uses the protected App API and renders the full xterm sur
         status: 201,
         json: itemEnvelope({
           sessionId: terminalSessionId,
-          workspaceId: 'birdcoder-default',
+          projectId: project.id,
+          runtimeLocationId: 'e2e-runtime-location-1',
           target: 'server-runtime-node',
           state: 'Running',
           createdAt: '2026-07-15T12:00:00.000Z',
@@ -216,10 +237,8 @@ test('Browser terminal uses the protected App API and renders the full xterm sur
           cursor: '1',
           lastAckSequence: 1,
           writable: true,
-          authority: 'birdcoder-application-ingress',
           invokedProgram: '/bin/bash',
           invokedArgs: ['-l'],
-          workingDirectory: '',
           replayEntry: {
             sequence: 1,
             kind: 'state',
@@ -338,4 +357,12 @@ test('Browser terminal uses the protected App API and renders the full xterm sur
   expect(terminalRequests.every((request) => (
     request.accessToken === 'e2e-access-token'
   ))).toBe(true);
+  const createRequest = terminalRequests.find((request) => (
+    request.method === 'POST' && request.path === '/app/v3/api/device/terminal/sessions'
+  ));
+  expect(JSON.parse(createRequest?.body ?? '{}')).toMatchObject({
+    projectId: project.id,
+    runtimeLocationId: 'e2e-runtime-location-1',
+  });
+  expect(JSON.parse(createRequest?.body ?? '{}')).not.toHaveProperty('workspaceId');
 });

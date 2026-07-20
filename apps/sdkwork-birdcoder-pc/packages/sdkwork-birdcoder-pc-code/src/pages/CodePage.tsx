@@ -1108,6 +1108,11 @@ function CodePageComponent({
     setViewingDiff(file);
     setActiveTab('editor');
   }, []);
+  const handleOpenMessageFile = useCallback((path: string) => {
+    setViewingDiff(null);
+    selectFile(path);
+    setActiveTab('editor');
+  }, [selectFile]);
   const handleSelectWorkspaceFile = useCallback((path: string) => {
     setViewingDiff(null);
     selectFile(path);
@@ -1276,6 +1281,7 @@ function CodePageComponent({
     onOpenCodingSessionInTerminal: handleOpenCodingSessionInTerminal,
     onOpenInFileExplorer: handleOpenInFileExplorer,
     onOpenInTerminal: handleOpenInTerminal,
+    onOpenMessageFile: handleOpenMessageFile,
     onPinCodingSession: handlePinSession,
     onProjectSelect: handleProjectSelect,
     onRefreshCodingSessionMessages: handleRefreshCodingSessionMessages,

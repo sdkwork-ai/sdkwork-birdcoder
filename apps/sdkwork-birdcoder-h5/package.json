@@ -25,9 +25,9 @@
     "vite": "catalog:"
   },
   "scripts": {
-    "dev": "node ../../scripts/run-birdcoder-dev-stack.mjs h5 --iam-mode server-private",
-    "dev:capacitor-ios": "cap sync && cap open ios",
-    "dev:capacitor-android": "cap sync && cap open android",
+    "dev": "pnpm dev:standalone",
+    "dev:capacitor-ios": "pnpm exec sdkwork-app dev --root ../.. --runtime-target capacitor-ios --deployment-profile standalone",
+    "dev:capacitor-android": "pnpm exec sdkwork-app dev --root ../.. --runtime-target capacitor-android --deployment-profile standalone",
     "build": "tsc && vite build",
     "build:prod": "tsc && vite build --mode production",
     "preview": "vite preview",
@@ -42,13 +42,17 @@
     "build:capacitor-android:full": "tsc && vite build --mode production && cap sync && cap copy android",
     "start:browser": "vite",
     "start:browser:check": "vite --mode test",
-    "dev:browser": "node ../../scripts/run-birdcoder-dev-stack.mjs h5 --iam-mode server-private",
+    "dev:browser": "pnpm dev:browser:postgres:standalone",
     "build:local": "tsc && vite build --mode development",
     "build:cloud": "tsc && vite build --mode production",
     "build:test": "tsc && vite build --mode test",
     "build:staging": "tsc && vite build --mode staging",
-    "dev:browser:standalone": "node ../../scripts/run-birdcoder-dev-stack.mjs h5 --iam-mode server-private --vite-mode development",
-    "dev:browser:cloud": "vite --mode production"
+    "dev:browser:standalone": "pnpm exec sdkwork-app dev --root ../.. --runtime-target browser --deployment-profile standalone",
+    "dev:browser:cloud": "pnpm exec sdkwork-app dev --root ../.. --runtime-target browser --deployment-profile cloud",
+    "dev:standalone": "pnpm exec sdkwork-app dev --root ../.. --deployment-profile standalone",
+    "dev:cloud": "pnpm exec sdkwork-app dev --root ../.. --deployment-profile cloud",
+    "stop": "pnpm exec sdkwork-app stop --root ../..",
+    "dev:browser:postgres:standalone": "pnpm exec sdkwork-app dev --root ../.. --runtime-target browser --deployment-profile standalone"
   },
   "exports": {
     ".": {

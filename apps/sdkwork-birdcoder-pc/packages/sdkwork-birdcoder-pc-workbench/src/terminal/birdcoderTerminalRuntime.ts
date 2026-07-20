@@ -8,15 +8,13 @@ import { readBirdCoderRuntimePublicEnv } from '@sdkwork/birdcoder-pc-infrastruct
 export { isBirdcoderTauriRuntime } from './runtimeTarget.ts';
 
 export interface BirdcoderBrowserTerminalScope {
-  projectId?: string;
-  workspaceId?: string;
+  projectId?: string | null;
+  runtimeLocationId?: string | null;
 }
 
 export interface BirdcoderBrowserTerminalTarget {
-  workspaceId: string;
-  authority: string;
-  target: 'remote-runtime' | 'server-runtime-node';
-  workingDirectory?: string;
+  projectId: string;
+  runtimeLocationId: string;
   modeTags: ['cli-native'];
   tags: string[];
 }
@@ -24,15 +22,19 @@ export interface BirdcoderBrowserTerminalTarget {
 export function resolveBirdcoderBrowserTerminalTarget(
   scope: BirdcoderBrowserTerminalScope,
 ): BirdcoderBrowserTerminalTarget | undefined {
-  const workspaceId = scope.workspaceId?.trim() || scope.projectId?.trim() || 'birdcoder-default';
+  const projectId = scope.projectId?.trim();
+  const runtimeLocationId = scope.runtimeLocationId?.trim();
+  if (!projectId || !runtimeLocationId) {
+    return undefined;
+  }
+
   return {
-    workspaceId,
-    authority: 'birdcoder-application-ingress',
-    target: 'server-runtime-node',
+    projectId,
+    runtimeLocationId,
     modeTags: ['cli-native'],
     tags: [
       'surface:browser',
-      ...(scope.projectId?.trim() ? [`project:${scope.projectId.trim()}`] : []),
+      `project:${projectId}`,
     ],
   };
 }
