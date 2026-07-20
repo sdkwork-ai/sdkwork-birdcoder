@@ -542,13 +542,20 @@ test('provider activity is compact, expandable, responsive, and opens files in t
     path: testInfo.outputPath('provider-history-full-diff.png'),
   });
 
-  await page.getByRole('button', { name: 'AI Mode' }).click();
   await page.setViewportSize({ width: 680, height: 1_800 });
+  await page.getByRole('button', { name: 'AI Mode' }).click();
   await expect(activity).toBeVisible();
-  if (await activity.locator(':scope > button').getAttribute('aria-expanded') !== 'true') {
-    await activity.locator(':scope > button').click();
-  }
-  await expect(activity.locator('[data-chat-activity-details="true"]')).toBeVisible();
+  const activityToggle = activity.locator(':scope > button');
+  const activityDetails = activity.locator('[data-chat-activity-details="true"]');
+  await expect.poll(async () => {
+    if (await activityDetails.isVisible()) {
+      return true;
+    }
+    if (await activityToggle.getAttribute('aria-expanded') !== 'true') {
+      await activityToggle.click();
+    }
+    return activityDetails.isVisible();
+  }).toBe(true);
   await expect(activity.locator('[data-chat-command-details="true"]')).toHaveCount(2);
   await expect(activity.locator('[data-chat-file-change-row="inline"]')).toHaveCount(3);
   await expect(activity.getByText('ProviderHistory.ts', { exact: true })).toBeVisible();

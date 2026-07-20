@@ -415,7 +415,7 @@ function projectToolResultValue(
   }
 }
 
-export function resolveChatMessageToolCallOutputValue(
+function resolveChatMessageToolCallNonErrorOutputValue(
   record: Record<string, unknown>,
 ): unknown {
   const state = readRecord(record.state);
@@ -425,14 +425,30 @@ export function resolveChatMessageToolCallOutputValue(
     : undefined;
   const type = normalizeType(record.type);
   return interruptedOutput
-    ?? record.error
-    ?? state?.error
     ?? record.output
     ?? record.aggregated_output
     ?? record.result
     ?? state?.output
     ?? state?.result
     ?? (type === 'tool_result' ? record.content : undefined);
+}
+
+export function resolveChatMessageToolCallOutputValue(
+  record: Record<string, unknown>,
+): unknown {
+  const state = readRecord(record.state);
+  const stateMetadata = readRecord(state?.metadata);
+  const interruptedOutput = stateMetadata?.interrupted === true
+    ? stateMetadata.output
+    : undefined;
+  const errorValue = hasChatMessageToolErrorValue(record.error)
+    ? record.error
+    : hasChatMessageToolErrorValue(state?.error)
+      ? state?.error
+      : undefined;
+  return interruptedOutput
+    ?? errorValue
+    ?? resolveChatMessageToolCallNonErrorOutputValue(record);
 }
 
 export function resolveChatMessageToolCallOutput(
@@ -457,25 +473,44 @@ export function resolveChatMessageToolCallResultBlocks(
 
   const blocks: BirdCoderChatMessageToolResultBlock[] = [];
   const state = readRecord(record.state);
-  const errorValue = record.error ?? state?.error;
+  const errorValue = hasChatMessageToolErrorValue(record.error)
+    ? record.error
+    : hasChatMessageToolErrorValue(state?.error)
+      ? state?.error
+      : undefined;
   const outputValue = resolveChatMessageToolCallOutputValue(record);
-  if (errorValue !== undefined && errorValue !== null) {
+  const nonErrorOutputValue = resolveChatMessageToolCallNonErrorOutputValue(record);
+  const errorText = formatToolResultValue(errorValue).trim();
+  const nonErrorOutputText = formatToolResultValue(nonErrorOutputValue).trim();
+  if (errorValue !== undefined) {
     const message = readToolResultErrorMessage(errorValue).trim();
     if (message) {
       blocks.push({ type: 'error', message });
     }
-  }
-  if (status === 'error' && errorValue === undefined) {
+  } else if (status === 'error') {
     const message = readToolResultErrorMessage(outputValue).trim();
     if (message) {
       blocks.push({ type: 'error', message });
     }
-  } else if (outputValue !== errorValue) {
+  } else {
     projectToolResultValue(outputValue, blocks, new WeakSet<object>());
+  }
+  if (
+    errorValue !== undefined
+    && nonErrorOutputValue !== undefined
+    && nonErrorOutputValue !== null
+    && nonErrorOutputText
+    && nonErrorOutputText !== errorText
+  ) {
+    projectToolResultValue(nonErrorOutputValue, blocks, new WeakSet<object>());
   }
 
   const attachments = state?.attachments ?? record.attachments;
-  if (attachments !== undefined && attachments !== outputValue) {
+  if (
+    attachments !== undefined
+    && attachments !== outputValue
+    && attachments !== nonErrorOutputValue
+  ) {
     projectToolResultValue(attachments, blocks, new WeakSet<object>());
   }
   return blocks.slice(0, MAX_TOOL_RESULT_BLOCKS);

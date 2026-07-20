@@ -272,6 +272,18 @@ assert.deepEqual(openCodeInterruptedTool?.resultBlocks, [
   { type: 'text', text: 'partial test output' },
 ]);
 
+const failedToolWithPartialOutput = projectChatMessageToolCall({
+  id: 'call-failed-with-output',
+  name: 'run_tests',
+  status: 'error',
+  error: 'Test process exited with code 1',
+  output: 'PASS parser.test.ts\nFAIL renderer.test.ts',
+}, 0);
+assert.deepEqual(failedToolWithPartialOutput?.resultBlocks, [
+  { type: 'error', message: 'Test process exited with code 1' },
+  { type: 'text', text: 'PASS parser.test.ts\nFAIL renderer.test.ts' },
+]);
+
 const openCodeToolWithAttachments = projectChatMessageToolCall({
   part: {
     type: 'tool',
