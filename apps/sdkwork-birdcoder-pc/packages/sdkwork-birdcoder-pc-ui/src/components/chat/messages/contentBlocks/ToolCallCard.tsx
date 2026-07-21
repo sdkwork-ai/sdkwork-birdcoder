@@ -232,14 +232,17 @@ export const ToolCallCard = memo(function ToolCallCard({
     ),
     [call.output, call.resultBlocks, isExpanded],
   );
+  const taskTitle = call.kind === 'task' ? call.title?.trim() ?? '' : '';
   const argumentSummary = useMemo(
     () => truncateToolCallArgumentSummary(
-      call.title?.trim()
-      || call.target?.trim()
-      || call.command?.trim()
-      || summarizeToolCallArguments(call.arguments),
+      taskTitle
+        ? call.target?.trim() || call.command?.trim() || ''
+        : call.title?.trim()
+          || call.target?.trim()
+          || call.command?.trim()
+          || summarizeToolCallArguments(call.arguments),
     ),
-    [call.arguments, call.command, call.target, call.title],
+    [call.arguments, call.command, call.target, call.title, taskTitle],
   );
   const hasOutputText = useMemo(() => /\S/u.test(call.output ?? ''), [call.output]);
   const hasResultBlocks = !!call.resultBlocks?.length;
@@ -253,6 +256,7 @@ export const ToolCallCard = memo(function ToolCallCard({
   const displayName = call.serverName
     ? `${call.serverName} / ${call.name}`
     : call.name;
+  const primaryDisplayName = taskTitle || displayName;
   const detailLabel = isExpanded
     ? t?.('chat.toolDetailsHide') ?? 'Hide tool details'
     : t?.('chat.toolDetailsShow') ?? 'Show tool details';
@@ -273,7 +277,7 @@ export const ToolCallCard = memo(function ToolCallCard({
         data-chat-tool-disclosure="true"
         className="flex w-full min-w-0 items-center gap-2 rounded-md px-1.5 py-1.5 text-left transition-colors hover:bg-white/[0.04] focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-blue-400/70"
         title={detailLabel}
-        aria-label={`${toolLabel}: ${displayName}${statusLabel ? `. ${statusLabel}` : ''}. ${detailLabel}`}
+        aria-label={`${toolLabel}: ${primaryDisplayName}${statusLabel ? `. ${statusLabel}` : ''}. ${detailLabel}`}
         aria-expanded={isExpanded}
         aria-controls={detailsId}
         onClick={onToggle}
@@ -282,13 +286,15 @@ export const ToolCallCard = memo(function ToolCallCard({
           {renderToolCallIcon(call, compact ? 12 : 13)}
         </span>
         <span className="shrink-0 text-[11px] font-medium text-gray-400">{toolLabel}</span>
-        <span className="min-w-0 shrink truncate font-mono text-[12px] font-medium text-gray-200">
-          {displayName}
+        <span className={`min-w-0 shrink truncate text-[12px] font-medium text-gray-200${taskTitle ? '' : ' font-mono'}`}>
+          {primaryDisplayName}
         </span>
         {argumentSummary ? (
           <span className="min-w-0 flex-1 truncate font-mono text-[11px] text-gray-500 max-[760px]:hidden">
             {argumentSummary}
           </span>
+        ) : call.arguments.trim() ? (
+          <span className="min-w-0 flex-1" aria-hidden="true" />
         ) : (
           <span className="min-w-0 flex-1 text-[11px] text-gray-400/80">{noInputLabel}</span>
         )}

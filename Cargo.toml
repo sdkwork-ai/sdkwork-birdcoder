@@ -1,4 +1,4 @@
-[workspace]
+﻿[workspace]
 members = [
     "crates/sdkwork-api-birdcoder-assembly",
     # Route crates
@@ -58,7 +58,7 @@ resolver = "2"
 [workspace.package]
 version = "0.1.0"
 edition = "2021"
-license = "Commercial"
+license = "AGPL-3.0-or-later"
 authors = ["sdkwork"]
 
 [workspace.dependencies]

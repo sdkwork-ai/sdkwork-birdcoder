@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 
-use crate::models::{BirdCoderNativeSessionCommand};
+use crate::models::{BirdCoderChatMessageReasoningItem, BirdCoderChatMessageResource, BirdCoderNativeSessionCommand};
 
 #[derive(Serialize, Deserialize, Debug, Clone, Default)]
 pub struct BirdCoderNativeSessionMessage {
@@ -29,6 +29,12 @@ pub struct BirdCoderNativeSessionMessage {
     #[serde(rename = "fileChanges")]
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub file_changes: Option<Vec<serde_json::Value>>,
+
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub reasoning: Option<Vec<BirdCoderChatMessageReasoningItem>>,
+
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub resources: Option<Vec<BirdCoderChatMessageResource>>,
 
     #[serde(rename = "taskProgress")]
     #[serde(default, skip_serializing_if = "Option::is_none")]

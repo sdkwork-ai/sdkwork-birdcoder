@@ -79,6 +79,194 @@ fn gemini_history_fixture_builds_project_scoped_summary_and_detail() {
 }
 
 #[test]
+fn gemini_jsonl_history_replays_checkpoints_updates_and_rewinds() {
+    let fixture = GeminiHistoryTestFixture::new("jsonl-replay");
+    let project_directory = fixture.root.join("tmp").join("jsonl-replay-project");
+    write_project_marker(project_directory.as_path(), "E:/jsonl-replay-project");
+    let records = [
+        json!({
+            "sessionId": "gemini-jsonl-replay",
+            "projectHash": "jsonl-replay-project",
+            "startTime": "2026-07-21T01:00:00.000Z",
+            "lastUpdated": "2026-07-21T01:00:01.000Z",
+            "kind": "main"
+        }),
+        json!({
+            "$set": {
+                "messages": [
+                    {
+                        "id": "user-1",
+                        "timestamp": "2026-07-21T01:00:00.000Z",
+                        "type": "user",
+                        "content": [{ "text": "Replay the Gemini JSONL history." }]
+                    },
+                    {
+                        "id": "assistant-1",
+                        "timestamp": "2026-07-21T01:00:01.000Z",
+                        "type": "gemini",
+                        "content": "Stale assistant answer."
+                    }
+                ]
+            }
+        }),
+        json!({
+            "id": "assistant-1",
+            "timestamp": "2026-07-21T01:00:02.000Z",
+            "type": "gemini",
+            "model": "gemini-2.5-pro",
+            "content": "Updated assistant answer.",
+            "toolCalls": [{
+                "id": "tool-1",
+                "name": "run_shell_command",
+                "args": { "command": "cargo test -p sdkwork-birdcoder-codeengine" },
+                "resultDisplay": "test result: ok",
+                "status": "success",
+                "timestamp": "2026-07-21T01:00:02.000Z"
+            }]
+        }),
+        json!({
+            "id": "removed-user",
+            "timestamp": "2026-07-21T01:00:03.000Z",
+            "type": "user",
+            "content": "REMOVED_GEMINI_JSONL_SENTINEL"
+        }),
+        json!({
+            "id": "removed-assistant",
+            "timestamp": "2026-07-21T01:00:04.000Z",
+            "type": "gemini",
+            "content": "REMOVED_GEMINI_JSONL_TAIL_SENTINEL"
+        }),
+        json!({ "$rewindTo": "removed-user" }),
+        json!({
+            "$set": {
+                "lastUpdated": "2026-07-21T01:00:05.000Z",
+                "summary": "Gemini JSONL replay",
+                "privateControl": "PRIVATE_GEMINI_JSONL_CONTROL_SENTINEL"
+            }
+        }),
+        json!({
+            "id": "warning-1",
+            "timestamp": "2026-07-21T01:00:05.000Z",
+            "type": "warning",
+            "content": "The provider retried."
+        }),
+    ];
+    let contents = records
+        .iter()
+        .map(|record| serde_json::to_string(record).expect("serialize Gemini JSONL record"))
+        .collect::<Vec<_>>()
+        .join("\n")
+        + "\n{malformed-jsonl-record\n";
+    write_named_session(
+        project_directory.as_path(),
+        "session-2026-07-21T01-00-jsonl.jsonl",
+        contents.as_str(),
+    );
+
+    let summaries = list_gemini_session_summaries_from_roots(std::slice::from_ref(&fixture.root))
+        .expect("list Gemini JSONL summaries");
+    assert_eq!(summaries.len(), 1);
+    assert_eq!(summaries[0].id, "gemini-jsonl-replay");
+    assert_eq!(summaries[0].title, "Gemini JSONL replay");
+    assert_eq!(summaries[0].model_id, "gemini-2.5-pro");
+
+    let detail = get_gemini_session_detail_from_roots(
+        "gemini-jsonl-replay",
+        std::slice::from_ref(&fixture.root),
+    )
+    .expect("get Gemini JSONL detail")
+    .expect("Gemini JSONL detail exists");
+    assert_eq!(detail.messages.len(), 3);
+    assert_eq!(
+        detail
+            .messages
+            .iter()
+            .map(|message| message.id.as_str())
+            .collect::<Vec<_>>(),
+        vec![
+            "gemini-jsonl-replay:native-message:user-1",
+            "gemini-jsonl-replay:native-message:assistant-1",
+            "gemini-jsonl-replay:native-message:warning-1",
+        ]
+    );
+    assert_eq!(detail.messages[1].content, "Updated assistant answer.");
+    assert_eq!(detail.messages[2].role, "system");
+    assert_eq!(
+        detail.messages[2]
+            .metadata
+            .as_ref()
+            .and_then(|metadata| metadata.get("noticeKind"))
+            .map(String::as_str),
+        Some("warning")
+    );
+    let serialized = serde_json::to_string(&detail).expect("serialize Gemini JSONL detail");
+    assert!(!serialized.contains("REMOVED_GEMINI_JSONL_SENTINEL"));
+    assert!(!serialized.contains("REMOVED_GEMINI_JSONL_TAIL_SENTINEL"));
+    assert!(!serialized.contains("PRIVATE_GEMINI_JSONL_CONTROL_SENTINEL"));
+    assert!(!serialized.contains("malformed-jsonl-record"));
+}
+
+#[test]
+fn gemini_jsonl_history_skips_oversized_record_and_replays_following_records() {
+    let fixture = GeminiHistoryTestFixture::new("jsonl-oversized-recovery");
+    let project_directory = fixture.root.join("tmp").join("jsonl-oversized-project");
+    write_project_marker(project_directory.as_path(), "E:/jsonl-oversized-project");
+    let records = [
+        json!({
+            "sessionId": "gemini-jsonl-oversized-recovery",
+            "projectHash": "jsonl-oversized-project",
+            "startTime": "2026-07-21T02:00:00.000Z",
+            "lastUpdated": "2026-07-21T02:00:02.000Z",
+            "summary": "Recovered Gemini JSONL history",
+            "kind": "main"
+        }),
+        json!({
+            "id": "user-after-oversized",
+            "timestamp": "2026-07-21T02:00:01.000Z",
+            "type": "user",
+            "content": "Message after oversized record."
+        }),
+        json!({
+            "id": "assistant-after-oversized",
+            "timestamp": "2026-07-21T02:00:02.000Z",
+            "type": "gemini",
+            "model": "gemini-2.5-pro",
+            "content": "Gemini replay recovered."
+        }),
+    ];
+    let mut contents = "x".repeat(16 * 1024 * 1024 + 1);
+    contents.push('\n');
+    contents.push_str(
+        records
+            .iter()
+            .map(|record| serde_json::to_string(record).expect("serialize Gemini JSONL record"))
+            .collect::<Vec<_>>()
+            .join("\n")
+            .as_str(),
+    );
+    contents.push('\n');
+    write_named_session(
+        project_directory.as_path(),
+        "session-2026-07-21T02-00-jsonl.jsonl",
+        contents.as_str(),
+    );
+
+    let detail = get_gemini_session_detail_from_roots(
+        "gemini-jsonl-oversized-recovery",
+        std::slice::from_ref(&fixture.root),
+    )
+    .expect("read Gemini JSONL after oversized record")
+    .expect("Gemini JSONL recovery detail");
+    assert_eq!(detail.summary.title, "Recovered Gemini JSONL history");
+    assert_eq!(detail.messages.len(), 2);
+    assert_eq!(
+        detail.messages[0].content,
+        "Message after oversized record."
+    );
+    assert_eq!(detail.messages[1].content, "Gemini replay recovered.");
+}
+
+#[test]
 fn gemini_thought_only_history_preserves_only_recorded_thought_summaries() {
     let fixture = GeminiHistoryTestFixture::new("thought-only");
     let project_directory = fixture.root.join("tmp").join("thought-only-project");

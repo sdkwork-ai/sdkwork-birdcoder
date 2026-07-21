@@ -1,3 +1,4 @@
+mod bounded_json;
 mod catalog;
 mod claude_code_provider;
 mod claude_code_sessions;
@@ -75,10 +76,11 @@ pub use gemini_sessions::{
 };
 pub use opencode::{
     create_opencode_session, get_opencode_session, get_opencode_session_messages,
-    is_opencode_transport_available, list_opencode_session_status_map, list_opencode_sessions,
-    prompt_opencode_session, prompt_opencode_session_async, reject_opencode_question_request,
-    reply_opencode_permission_request, reply_opencode_question_request,
-    stream_opencode_session_events,
+    is_opencode_transport_available, list_opencode_pending_permission_requests,
+    list_opencode_pending_question_requests, list_opencode_session_status_map,
+    list_opencode_sessions, prompt_opencode_session, prompt_opencode_session_async,
+    reject_opencode_question_request, reply_opencode_permission_request,
+    reply_opencode_question_request, stream_opencode_session_events,
 };
 pub use opencode_provider::OpencodeCodeEngineProvider;
 pub use provider::{
@@ -92,12 +94,12 @@ pub use sdk_bridge::{
 };
 pub use session_records::{
     sanitize_codeengine_git_repository_url, sanitize_codeengine_session_metadata,
-    sanitize_codeengine_session_reasoning_records,
+    sanitize_codeengine_session_reasoning_records, sanitize_codeengine_session_resource_records,
     CodeEngineSessionCommandRecord, CodeEngineSessionDetailRecord, CodeEngineSessionMessageRecord,
-    CodeEngineSessionNativeAttributesRecord, CodeEngineSessionResourceCitationRecord,
-    CodeEngineSessionReasoningRecord, CodeEngineSessionResourceOriginRecord,
-    CodeEngineSessionResourceRecord,
-    CodeEngineSessionSummaryRecord, CODE_ENGINE_NATIVE_SESSION_SCHEMA_VERSION,
+    CodeEngineSessionNativeAttributesRecord, CodeEngineSessionReasoningRecord,
+    CodeEngineSessionResourceCitationRecord, CodeEngineSessionResourceOriginRecord,
+    CodeEngineSessionResourceRecord, CodeEngineSessionSummaryRecord,
+    CODE_ENGINE_NATIVE_SESSION_SCHEMA_VERSION,
 };
 pub use turns::{
     build_codeengine_turn_prompt, CodeEngineApprovalDecisionRecord, CodeEngineTurnConfigRecord,

@@ -244,20 +244,8 @@ function compareCodingSessionMessages(
   left: BirdCoderCodingSession['messages'][number],
   right: BirdCoderCodingSession['messages'][number],
 ): number {
-  if (left.turnId && left.turnId === right.turnId && left.role !== right.role) {
-    if (left.role === 'user') {
-      return -1;
-    }
-    if (right.role === 'user') {
-      return 1;
-    }
-  }
-
-  return (
-    Date.parse(left.createdAt) - Date.parse(right.createdAt) ||
-    left.role.localeCompare(right.role) ||
-    left.id.localeCompare(right.id)
-  );
+  const timestampOrder = Date.parse(left.createdAt) - Date.parse(right.createdAt);
+  return timestampOrder === 0 ? 0 : timestampOrder;
 }
 
 function getOrderedCodingSessionMessages(

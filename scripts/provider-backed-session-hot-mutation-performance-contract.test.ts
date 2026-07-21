@@ -34,6 +34,7 @@ const project = await service.createProject(
 const session = await service.createCodingSession(project.id, 'Hot Mutation Session', {
   engineId: 'codex',
   modelId: 'gpt-5.4',
+  runtimeLocationId: 'runtime-location-hot-mutation-performance',
 });
 await service.addCodingSessionMessage(project.id, session.id, {
   content: 'message before edit',
@@ -62,7 +63,7 @@ assert.ok(sessionBeforeStreamingMerge);
 sqlExecutor.history.length = 0;
 await service.addCodingSessionMessage(project.id, session.id, {
   content: 'streaming response',
-  id: 'hot-mutation-stream-update',
+  id: 'hot-mutation-stream-start',
   metadata: { streamRevision: 2 },
   role: 'assistant',
   turnId: 'hot-mutation-stream-turn',
@@ -134,7 +135,7 @@ assert.deepEqual(
   hydratedTranscript?.messages.map((message) => [message.id, message.content]),
   [
     ['hot-mutation-message-edit', 'message after edit'],
-    ['hot-mutation-stream-update', 'streaming response'],
+    ['hot-mutation-stream-start', 'streaming response'],
   ],
   'hot edit/delete operations must keep the selected transcript cache correct.',
 );

@@ -29,6 +29,7 @@ export {
   estimateChatMessageViewHeight,
   normalizeTaskProgressCounter,
   projectChatMessageReasoning,
+  projectChatMessageCommand,
   parseFileUpdateSummaryContent,
   projectChatMessageToolCall,
   projectChatMessageToolCalls,

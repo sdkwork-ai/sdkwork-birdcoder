@@ -53,6 +53,13 @@ const contentBlockRenderersSource = readFileSync(
   ),
   'utf8',
 );
+const reasoningContentBlockSource = readFileSync(
+  new URL(
+    '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-ui/src/components/chat/messages/contentBlocks/ReasoningContentBlock.tsx',
+    import.meta.url,
+  ),
+  'utf8',
+);
 const toolCallCardSource = readFileSync(
   new URL(
     '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-ui/src/components/chat/messages/contentBlocks/ToolCallCard.tsx',
@@ -258,6 +265,41 @@ assert.match(
   'default content block registry must register unified activity block renderers.',
 );
 assert.match(
+  contentBlockDefaultRegistrySource,
+  /blockType: 'reasoning'[\s\S]*Component: ReasoningContentBlock/,
+  'Reasoning-summary blocks must use their own renderer instead of falling through to Markdown.',
+);
+assert.match(
+  reasoningContentBlockSource,
+  /data-chat-reasoning-disclosure[\s\S]*aria-expanded=\{isExpanded\}[\s\S]*aria-controls=\{detailsId\}[\s\S]*id=\{detailsId\}/,
+  'Reasoning summaries must be collapsed by default and expose an associated keyboard-operable disclosure.',
+);
+assert.match(
+  reasoningContentBlockSource,
+  /copyMessageToClipboard\(item\.summary\)/,
+  'Reasoning summaries must own a semantic copy action without entering reply-level authored copy.',
+);
+assert.match(
+  reasoningContentBlockSource,
+  /sourceMessage\?\.id\?\.trim\(\)[\s\S]*sourceMessage\?\.turnId/,
+  'Each reasoning message must own independent disclosure state even when providers reuse a turn id.',
+);
+assert.match(
+  reasoningContentBlockSource,
+  /max-h-96[\s\S]*overflow-y-auto|overflow-y-auto[\s\S]*max-h-96/,
+  'Expanded reasoning summaries must use a bounded scroll region for virtualized transcripts.',
+);
+assert.match(
+  reasoningContentBlockSource,
+  /\[@media\(hover:none\)\]:opacity-100/,
+  'Reasoning copy actions must stay discoverable on touch-only devices.',
+);
+assert.doesNotMatch(
+  reasoningContentBlockSource,
+  /aria-live=|role="status"/,
+  'Historical reasoning summaries must remain static during virtualization mounts.',
+);
+assert.match(
   contentBlockRenderersSource,
   /<ChatActivitySummary/,
   'activity block rendering must delegate to ChatActivitySummary.',
@@ -311,6 +353,11 @@ assert.match(
   toolCallCardSource,
   /call\.serverName[\s\S]*call\.name/,
   'MCP tool rows must render a compact server/tool identity.',
+);
+assert.match(
+  toolCallCardSource,
+  /call\.kind === 'task'[\s\S]*call\.title[\s\S]*primaryDisplayName = taskTitle \|\| displayName/,
+  'Task rows must keep their human-readable title in the primary narrow-screen slot.',
 );
 assert.match(
   toolCallCardSource,

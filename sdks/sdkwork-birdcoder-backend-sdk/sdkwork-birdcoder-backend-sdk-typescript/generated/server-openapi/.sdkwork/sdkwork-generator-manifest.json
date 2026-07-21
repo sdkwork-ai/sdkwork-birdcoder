@@ -7,7 +7,7 @@
     "language": "typescript",
     "sdkType": "backend",
     "protocol": "http",
-    "packageName": "@sdkwork/birdcoder-backend-sdk"
+    "packageName": "sdkwork-birdcoder-backend-sdk-generated-typescript"
   },
   "generatedFiles": [
     {
@@ -44,7 +44,7 @@
     },
     {
       "path": "README.md",
-      "sha256": "e8840282fc11a5a8350abe5434457f5a909ea7fdd277258650393924def1c15d"
+      "sha256": "1286eb4c82afe67780347e958f01f1a79fa2a70b9364ffe3510e19f02f9c5918"
     },
     {
       "path": "sdkwork-sdk.json",

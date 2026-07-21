@@ -5,17 +5,17 @@ Generated SDKWork v3 dual-token transport SDK.
 ## Installation
 
 ```bash
-npm install @sdkwork/birdcoder-backend-sdk
+npm install sdkwork-birdcoder-backend-sdk-generated-typescript
 # or
-yarn add @sdkwork/birdcoder-backend-sdk
+yarn add sdkwork-birdcoder-backend-sdk-generated-typescript
 # or
-pnpm add @sdkwork/birdcoder-backend-sdk
+pnpm add sdkwork-birdcoder-backend-sdk-generated-typescript
 ```
 
 ## Quick Start
 
 ```typescript
-import { SdkworkBackendClient } from '@sdkwork/birdcoder-backend-sdk';
+import { SdkworkBackendClient } from 'sdkwork-birdcoder-backend-sdk-generated-typescript';
 
 const client = new SdkworkBackendClient({
   baseUrl: '/backend/v3/api',
@@ -41,7 +41,7 @@ Access-Token: <accessToken>
 ## Configuration (Non-Auth)
 
 ```typescript
-import { SdkworkBackendClient } from '@sdkwork/birdcoder-backend-sdk';
+import { SdkworkBackendClient } from 'sdkwork-birdcoder-backend-sdk-generated-typescript';
 
 const client = new SdkworkBackendClient({
   baseUrl: '/backend/v3/api',
@@ -76,7 +76,7 @@ const result = await client.platform.deploymentGovernance.list();
 ## Error Handling
 
 ```typescript
-import { SdkworkBackendClient, NetworkError, TimeoutError, AuthenticationError } from '@sdkwork/birdcoder-backend-sdk';
+import { SdkworkBackendClient, NetworkError, TimeoutError, AuthenticationError } from 'sdkwork-birdcoder-backend-sdk-generated-typescript';
 
 try {
   const result = await client.iam.apiKeys.list();

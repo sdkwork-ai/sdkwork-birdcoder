@@ -356,8 +356,8 @@ assert.match(
 
 assert.match(
   toolCallCardSource,
-  /\[call\.arguments, call\.command, call\.target, call\.title\]/,
-  'Tool-call summaries must refresh when a streaming provider updates only the semantic title.',
+  /\[call\.arguments, call\.command, call\.target, call\.title, taskTitle\]/,
+  'Tool-call summaries and primary task titles must refresh when a streaming provider updates only the semantic title.',
 );
 
 assert.doesNotMatch(

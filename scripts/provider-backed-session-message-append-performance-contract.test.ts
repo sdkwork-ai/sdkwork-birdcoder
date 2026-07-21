@@ -34,6 +34,7 @@ const project = await service.createProject(
 const session = await service.createCodingSession(project.id, 'Hot Append Session', {
   engineId: 'codex',
   modelId: 'gpt-5.4',
+  runtimeLocationId: 'runtime-message-append-performance',
 });
 
 sqlExecutor.history.length = 0;

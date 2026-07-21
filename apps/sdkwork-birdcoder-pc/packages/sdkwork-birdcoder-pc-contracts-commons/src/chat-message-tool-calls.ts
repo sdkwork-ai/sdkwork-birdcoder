@@ -85,6 +85,7 @@ interface GeminiToolDisplayContext {
   argumentsValue?: unknown;
   callId: string;
   display: NormalizedGeminiToolDisplay;
+  errorValue?: unknown;
   eventType: string;
   explicitStatus: string;
   isError: boolean;
@@ -637,17 +638,70 @@ function adaptClaudeToolRecord(record: Record<string, unknown>): Record<string, 
       status,
     };
   }
+  if (
+    type === 'system'
+    && ['hook_progress', 'hook_response', 'hook_started'].includes(subtype)
+  ) {
+    const hookId = readNonEmptyString(source.hook_id) || readNonEmptyString(source.hookId);
+    const lifecycleId = readNonEmptyString(source.tool_use_id)
+      || readNonEmptyString(source.toolUseId)
+      || (hookId ? `hook:${hookId}` : '');
+    if (!lifecycleId) {
+      return null;
+    }
+    const outcome = normalizeToolCallName(readNonEmptyString(source.outcome));
+    const hookOutput = {
+      ...(readNonEmptyString(source.output) ? { output: source.output } : {}),
+      ...(readNonEmptyString(source.stdout) ? { stdout: source.stdout } : {}),
+      ...(readNonEmptyString(source.stderr) ? { stderr: source.stderr } : {}),
+      ...(typeof source.exit_code === 'number' ? { exitCode: source.exit_code } : {}),
+      ...(outcome ? { outcome } : {}),
+    };
+    return {
+      ...source,
+      id: lifecycleId,
+      tool_call_id: lifecycleId,
+      name: readNonEmptyString(source.hook_name)
+        || readNonEmptyString(source.hookName)
+        || 'hook',
+      type: 'hook',
+      arguments: {
+        hookEvent: source.hook_event ?? source.hookEvent,
+        hookId,
+        hookName: source.hook_name ?? source.hookName,
+      },
+      ...(Object.keys(hookOutput).length > 0 ? { output: hookOutput } : {}),
+      title: source.hook_event ?? source.hookEvent,
+      status: subtype === 'hook_response'
+        ? outcome === 'success'
+          ? 'completed'
+          : ['cancelled', 'canceled'].includes(outcome)
+            ? 'cancelled'
+            : 'failed'
+        : 'running',
+    };
+  }
   if (type === 'system' && subtype === 'permission_denied') {
+    const permissionMetadata = {
+      agentId: source.agent_id,
+      decisionReasonType: source.decision_reason_type,
+      decisionReason: source.decision_reason,
+    };
+    const originalArguments = source.arguments
+      ?? source.input
+      ?? source.tool_input
+      ?? source.toolInput;
+    const originalArgumentsRecord = readToolCallRecord(originalArguments);
     return {
       ...source,
       id: source.tool_use_id ?? source.id,
       name: readNonEmptyString(source.tool_name) || 'tool',
       type: 'permission_denied',
-      arguments: {
-        agentId: source.agent_id,
-        decisionReasonType: source.decision_reason_type,
-        decisionReason: source.decision_reason,
-      },
+      arguments: originalArgumentsRecord
+        ? { ...originalArgumentsRecord, ...permissionMetadata }
+        : originalArguments === undefined
+          ? permissionMetadata
+          : { input: originalArguments, ...permissionMetadata },
       output: source.message,
       title: source.decision_reason,
       status: 'cancelled',
@@ -784,6 +838,7 @@ function readGeminiToolDisplayContext(
   const explicitStatus = readFirstString(record, ['status'])
     || readFirstString(payload, ['status'])
     || readFirstString(response, ['status']);
+  const errorValue = response?.error ?? payload.error ?? record.error;
   const isError = response?.isError === true
     || response?.is_error === true
     || payload.isError === true
@@ -804,6 +859,7 @@ function readGeminiToolDisplayContext(
       ?? record.arguments,
     callId,
     display,
+    ...(errorValue !== undefined ? { errorValue } : {}),
     eventType,
     explicitStatus,
     isError,
@@ -989,7 +1045,10 @@ function adaptGeminiToolDisplayRecord(
       ...(displayName && context.toolName ? { semanticName: context.toolName } : {}),
       ...(context.argumentsValue !== undefined ? { arguments: context.argumentsValue } : {}),
       ...(description ? { title: description } : {}),
-      ...(fallbackOutput ? { output: fallbackOutput } : {}),
+      ...(context.errorValue !== undefined ? { error: context.errorValue } : {}),
+      ...(context.isError && result.text ? { output: result.text } : {}),
+      ...(context.isError && result.blocks.length > 0 ? { resultBlocks: result.blocks } : {}),
+      ...(!context.isError && fallbackOutput ? { output: fallbackOutput } : {}),
       presentation: 'notice',
       status: resolveGeminiToolDisplayStatus(context),
       type: context.eventType || 'tool',
@@ -1001,6 +1060,7 @@ function adaptGeminiToolDisplayRecord(
     ...(displayName && context.toolName ? { semanticName: context.toolName } : {}),
     ...(context.argumentsValue !== undefined ? { arguments: context.argumentsValue } : {}),
     ...(description ? { title: description } : {}),
+    ...(context.errorValue !== undefined ? { error: context.errorValue } : {}),
     ...(result.text ? { output: result.text } : {}),
     ...(result.blocks.length > 0 ? { resultBlocks: result.blocks } : {}),
     status: resolveGeminiToolDisplayStatus(context),

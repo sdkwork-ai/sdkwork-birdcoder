@@ -7,6 +7,7 @@ import {
   projectChatMessageToolNotice,
   projectChatMessageToolNotices,
 } from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-contracts-commons/src/chat-message-tool-calls.ts';
+import { projectChatTranscriptToolActivity } from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-contracts-commons/src/chat-message-activity-projection.ts';
 import { resolveChatMessageView } from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-contracts-commons/src/chat-message-view.ts';
 
 const structuredToolCall = projectChatMessageToolCall(
@@ -504,6 +505,84 @@ assert.deepEqual(codexTodoList?.resultBlocks, [{
   type: 'list',
   items: ['[x] Normalize provider messages', '[ ] Verify narrow layout'],
 }]);
+
+const codexGoalArguments = {
+  threadId: '019d54b7-f3da-79b1-bb78-10770953da42',
+  turnId: 'turn-goal-update',
+  objective: 'Ship the provider protocol matrix',
+  goalStatus: 'budgetLimited',
+  tokenBudget: 10_000,
+  tokensUsed: 10_000,
+  timeUsedSeconds: 90,
+  createdAt: 1_784_600_000,
+  updatedAt: 1_784_600_002,
+};
+const codexGoalToolCallRecord = {
+  item: {
+    type: 'custom_tool_call',
+    id: 'thread-goal:019d54b7-f3da-79b1-bb78-10770953da42',
+    call_id: 'thread-goal:019d54b7-f3da-79b1-bb78-10770953da42',
+    name: 'task_update',
+    title: 'Ship the provider protocol matrix',
+    status: 'waiting',
+    arguments: codexGoalArguments,
+  },
+};
+const codexGoalToolCall = projectChatMessageToolCall(
+  codexGoalToolCallRecord,
+  0,
+  { engineId: 'codex' },
+);
+assert.equal(codexGoalToolCall?.kind, 'task');
+assert.equal(codexGoalToolCall?.status, 'waiting');
+assert.equal(codexGoalToolCall?.title, 'Ship the provider protocol matrix');
+assert.notEqual(
+  codexGoalToolCall?.title,
+  '0/1',
+  'A Codex thread goal must retain its objective instead of inheriting todo-list counter copy.',
+);
+assert.deepEqual(
+  JSON.parse(codexGoalToolCall?.arguments ?? '{}'),
+  codexGoalArguments,
+  'The compact goal row must retain every provider field in its expandable structured input.',
+);
+
+const codexGoalView = resolveChatMessageView({
+  id: 'msg-codex-thread-goal',
+  codingSessionId: 'session-codex-thread-goal',
+  role: 'tool',
+  content: 'Goal updated.',
+  tool_call_id: 'thread-goal:019d54b7-f3da-79b1-bb78-10770953da42',
+  createdAt: '2026-07-21T05:00:02.000Z',
+  tool_calls: [codexGoalToolCallRecord],
+}, { engineId: 'codex' });
+assert.equal(
+  codexGoalView.blocks.filter((block) => block.type === 'tool-calls').length,
+  1,
+  'A Codex thread goal must render through one compact tool-call block.',
+);
+const codexGoalToolBlock = codexGoalView.blocks.find((block) => block.type === 'tool-calls');
+assert.ok(codexGoalToolBlock && codexGoalToolBlock.type === 'tool-calls');
+assert.equal(codexGoalToolBlock.calls.length, 1);
+assert.deepEqual(
+  {
+    id: codexGoalToolBlock.calls[0]?.id,
+    kind: codexGoalToolBlock.calls[0]?.kind,
+    status: codexGoalToolBlock.calls[0]?.status,
+    title: codexGoalToolBlock.calls[0]?.title,
+  },
+  {
+    id: 'thread-goal:019d54b7-f3da-79b1-bb78-10770953da42',
+    kind: 'task',
+    status: 'waiting',
+    title: 'Ship the provider protocol matrix',
+  },
+  'The final view model must expose a stable commercial task row for Codex goals.',
+);
+assert.deepEqual(
+  JSON.parse(codexGoalToolBlock.calls[0]?.arguments ?? '{}'),
+  codexGoalArguments,
+);
 
 const completedCodexTodoList = projectChatMessageToolCall({
   item: {
@@ -1023,6 +1102,16 @@ const malformedCanonicalResultBlocks = projectChatMessageToolCall({
   output: 'Safe fallback output',
   resultBlocks: [
     { type: 'image' },
+    {
+      type: 'image',
+      source: 'data:audio/wav;base64,YXVkaW8=',
+      mimeType: 'image/png',
+    },
+    {
+      type: 'audio',
+      source: 'data:image/png;base64,aGVsbG8=',
+      mimeType: 'audio/wav',
+    },
     { type: 'link', url: null },
     { type: 'text', text: '' },
   ],
@@ -1272,6 +1361,7 @@ const claudePermissionDenied = projectChatMessageToolCall({
   subtype: 'permission_denied',
   tool_name: 'Bash',
   tool_use_id: 'toolu-permission-denied-1',
+  input: { command: 'Get-Content secrets.txt' },
   decision_reason_type: 'rule',
   decision_reason: 'Command is outside the workspace policy.',
   message: 'Permission denied',
@@ -1280,6 +1370,79 @@ assert.equal(claudePermissionDenied?.id, 'toolu-permission-denied-1');
 assert.equal(claudePermissionDenied?.name, 'Bash');
 assert.equal(claudePermissionDenied?.status, 'cancelled');
 assert.equal(claudePermissionDenied?.output, 'Permission denied');
+assert.deepEqual(JSON.parse(claudePermissionDenied?.arguments ?? '{}'), {
+  command: 'Get-Content secrets.txt',
+  decisionReasonType: 'rule',
+  decisionReason: 'Command is outside the workspace policy.',
+});
+
+const mergedClaudePermissionLifecycle = projectChatTranscriptToolActivity([{
+  id: 'claude-permission-request-message',
+  codingSessionId: 'claude-permission-session',
+  turnId: 'claude-permission-turn',
+  role: 'assistant' as const,
+  content: '',
+  createdAt: '2026-07-21T08:00:00.000Z',
+  tool_calls: [{
+    type: 'tool_use',
+    id: 'toolu-permission-merged',
+    name: 'Read',
+    input: { file_path: 'secrets.txt' },
+  }],
+}, {
+  id: 'claude-permission-denial-message',
+  codingSessionId: 'claude-permission-session',
+  turnId: 'claude-permission-turn',
+  role: 'tool' as const,
+  content: 'Permission denied',
+  tool_call_id: 'toolu-permission-merged',
+  createdAt: '2026-07-21T08:00:01.000Z',
+  tool_calls: [{
+    type: 'system',
+    subtype: 'permission_denied',
+    tool_name: 'Read',
+    tool_use_id: 'toolu-permission-merged',
+    decision_reason_type: 'rule',
+    decision_reason: 'Sensitive path',
+    message: 'Permission denied',
+  }],
+}], { engineId: 'claude-code' });
+assert.equal(mergedClaudePermissionLifecycle.length, 1);
+const mergedClaudePermissionCall = projectChatMessageToolCalls(
+  mergedClaudePermissionLifecycle[0]?.tool_calls,
+  { engineId: 'claude-code' },
+)[0];
+assert.equal(mergedClaudePermissionCall?.status, 'cancelled');
+assert.deepEqual(JSON.parse(mergedClaudePermissionCall?.arguments ?? '{}'), {
+  file_path: 'secrets.txt',
+  decisionReasonType: 'rule',
+  decisionReason: 'Sensitive path',
+});
+
+const claudeHookStarted = projectChatMessageToolCall({
+  type: 'system',
+  subtype: 'hook_started',
+  hook_id: 'hook-lint-1',
+  hook_name: 'lint-policy',
+  hook_event: 'PostToolUse',
+}, 0, { engineId: 'claude-code' });
+const claudeHookResponse = projectChatMessageToolCall({
+  type: 'system',
+  subtype: 'hook_response',
+  hook_id: 'hook-lint-1',
+  hook_name: 'lint-policy',
+  hook_event: 'PostToolUse',
+  output: 'Hook failed',
+  stdout: 'Checking output',
+  stderr: 'Lint policy rejected the output',
+  exit_code: 1,
+  outcome: 'error',
+}, 0, { engineId: 'claude-code' });
+assert.equal(claudeHookStarted?.id, 'hook:hook-lint-1');
+assert.equal(claudeHookStarted?.status, 'running');
+assert.equal(claudeHookResponse?.id, 'hook:hook-lint-1');
+assert.equal(claudeHookResponse?.status, 'error');
+assert.match(claudeHookResponse?.output ?? '', /Lint policy rejected the output/);
 
 const geminiErroredSubagent = projectChatMessageToolCall({
   id: 'gemini-agent-error-1',
@@ -1425,5 +1588,123 @@ const toolResultView = resolveChatMessageView({
 });
 assert.equal(toolResultView.blocks.some((block) => block.type === 'markdown'), false);
 assert.equal(toolResultView.blocks.some((block) => block.type === 'tool-calls'), true);
+
+const failedGeminiNoticeView = resolveChatMessageView({
+  id: 'gemini-failed-notice-message',
+  codingSessionId: 'gemini-failed-notice-session',
+  role: 'assistant',
+  content: '',
+  createdAt: '2026-07-21T00:00:00.000Z',
+  tool_calls: [{
+    type: 'tool_response',
+    requestId: 'gemini-failed-notice-call',
+    name: 'workspace_index',
+    isError: true,
+    error: { message: 'Workspace indexing failed.' },
+    display: {
+      format: 'notice',
+      name: 'Workspace index',
+      description: 'Indexing provider messages',
+      result: { type: 'text', text: 'Workspace indexing failed.' },
+    },
+  }],
+}, { engineId: 'gemini' });
+assert.deepEqual(failedGeminiNoticeView.blocks, [{
+  type: 'notice',
+  id: 'gemini-failed-notice-call',
+  noticeKind: 'failed',
+  title: 'Workspace index',
+  detail: 'Workspace indexing failed.',
+}]);
+
+const oversizedToolMedia = projectChatMessageToolCall({
+  id: 'oversized-tool-media',
+  name: 'image_tool',
+  arguments: {},
+  status: 'completed',
+  output: {
+    type: 'image',
+    mimeType: 'image/png',
+    data: 'a'.repeat(4 * 1_024 * 1_024),
+  },
+}, 0);
+assert.equal(
+  oversizedToolMedia?.resultBlocks?.some((block) => block.type === 'image') ?? false,
+  false,
+  'Tool-result media whose complete data URI exceeds 4 MiB must be dropped whole.',
+);
+assert.equal(
+  oversizedToolMedia?.output,
+  undefined,
+  'Dropped tool-result media must not fall back to a base64 JSON/text wall.',
+);
+
+for (const [id, output] of [
+  [
+    'malformed-tool-media',
+    { type: 'image', mimeType: 'image/png', data: '%%%' },
+  ],
+  [
+    'whitespace-tool-media',
+    { type: 'image', mimeType: 'image/png', data: 'aGVs bG8=' },
+  ],
+  [
+    'invalid-padding-tool-media',
+    { type: 'image', mimeType: 'image/png', data: 'YQ=' },
+  ],
+  [
+    'mismatched-tool-media',
+    { type: 'image', mimeType: 'image/png', url: 'data:audio/wav;base64,YXVkaW8=' },
+  ],
+  [
+    'svg-tool-media',
+    { type: 'image', mimeType: 'image/svg+xml', data: 'PHN2Zz48L3N2Zz4=' },
+  ],
+  [
+    'javascript-tool-media',
+    { type: 'image', mimeType: 'image/png', url: 'javascript:alert(1)' },
+  ],
+  [
+    'file-scheme-tool-media',
+    { type: 'image', mimeType: 'image/png', url: 'file:///tmp/private.png' },
+  ],
+] as const) {
+  const invalidToolMedia = projectChatMessageToolCall({
+    id,
+    name: 'image_tool',
+    arguments: {},
+    status: 'completed',
+    output,
+  }, 0);
+  assert.equal(
+    invalidToolMedia?.resultBlocks?.some((block) =>
+      block.type === 'image' || block.type === 'audio',
+    ) ?? false,
+    false,
+    `${id} must not create a renderable media result block.`,
+  );
+  assert.equal(
+    invalidToolMedia?.output,
+    undefined,
+    `${id} must not fall back to a JSON, URI, or base64 text wall.`,
+  );
+}
+
+const validUnpaddedToolMedia = projectChatMessageToolCall({
+  id: 'valid-unpadded-tool-media',
+  name: 'image_tool',
+  arguments: {},
+  status: 'completed',
+  output: {
+    type: 'image',
+    mimeType: 'image/png',
+    data: 'aGVsbG8',
+  },
+}, 0);
+assert.deepEqual(validUnpaddedToolMedia?.resultBlocks, [{
+  type: 'image',
+  source: 'data:image/png;base64,aGVsbG8',
+  mimeType: 'image/png',
+}]);
 
 console.log('chat message tool calls contract passed.');

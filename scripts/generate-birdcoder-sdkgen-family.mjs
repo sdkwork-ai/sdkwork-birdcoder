@@ -26,23 +26,6 @@ function resolveTransportPackageName(sdkFamilyStem) {
   return `${sdkFamilyStem}-generated-typescript`;
 }
 
-function resolveConsumerPackageName(sdkFamilyStem) {
-  const token = sdkFamilyStem.startsWith('sdkwork-')
-    ? sdkFamilyStem.slice('sdkwork-'.length)
-    : sdkFamilyStem;
-  return `@sdkwork/${token}`;
-}
-
-function resolveSurfacePackageNames(surface) {
-  const sdkFamilyStem = String(surface.sdkFamily ?? '').trim();
-  return {
-    consumerPackageName: String(surface.consumerPackageName ?? surface.packageName ?? '').trim()
-      || resolveConsumerPackageName(sdkFamilyStem),
-    transportPackageName: String(surface.transportPackageName ?? '').trim()
-      || resolveTransportPackageName(sdkFamilyStem),
-  };
-}
-
 function normalizeRelativePath(value) {
   return String(value ?? '').replace(/\\/gu, '/');
 }
@@ -173,16 +156,24 @@ function createGenerationPlans(rootDir, options) {
       return [...requestedLanguages].map((language) => {
         const languageEntry = languages.get(language);
         assert.ok(languageEntry, `${familyManifest.sdkFamily} must declare ${language} in sdk-manifest.json.`);
-        const names = resolveSurfacePackageNames(familyManifest);
+        const generatedPackageName = language === 'typescript'
+          ? String(
+            languageEntry.transportPackageName
+              ?? familyManifest.transportPackageName
+              ?? resolveTransportPackageName(familyManifest.sdkFamily),
+          ).trim()
+          : String(languageEntry.name ?? familyManifest.sdkFamily).trim();
+        assert.ok(
+          generatedPackageName,
+          `${familyManifest.sdkFamily} must declare the ${language} generated artifact package name.`,
+        );
         return {
           apiPrefix: familyManifest.discoverySurface.apiPrefix,
           fixedSdkVersion: String(languageEntry.version ?? familyManifest.apiVersion ?? '0.1.0'),
+          generatedPackageName,
           input: path.join(rootDir, ...familyRoot.split('/'), familyManifest.generationInputSpec),
           language,
           output: path.join(rootDir, ...resolveLanguageOutput(familyRoot, familyManifest.sdkFamily, language).split('/')),
-          packageName: names.consumerPackageName,
-          consumerPackageName: names.consumerPackageName,
-          transportPackageName: names.transportPackageName,
           sdkName: familyManifest.sdkFamily,
           surface,
         };
@@ -209,7 +200,7 @@ function renderCommand(sdkgenEntrypoint, plan, options) {
     '--sdk-name',
     plan.sdkName,
     '--package-name',
-    plan.consumerPackageName ?? plan.packageName,
+    plan.generatedPackageName,
     '--fixed-sdk-version',
     plan.fixedSdkVersion,
     '--standard-profile',
@@ -232,26 +223,6 @@ function runPlan(sdkgenEntrypoint, plan, options) {
   if (result.status !== 0) {
     throw new Error(`${GENERATOR_CLI_NAME} failed for ${plan.sdkName} ${plan.language} with exit code ${result.status}.`);
   }
-}
-
-function writeJson(filePath, value) {
-  fs.writeFileSync(filePath, `${JSON.stringify(value, null, 2)}\n`, 'utf8');
-}
-
-function normalizeGeneratedSdkMetadata(plan) {
-  const metadataPath = path.join(plan.output, 'sdkwork-sdk.json');
-  if (!fs.existsSync(metadataPath)) {
-    throw new Error(`Generated SDK metadata missing: ${metadataPath}`);
-  }
-  const metadata = readJson(metadataPath);
-  const expectedPackageName = plan.language === 'typescript'
-    ? plan.transportPackageName
-    : plan.sdkName;
-  metadata.name = plan.sdkName;
-  metadata.packageName = expectedPackageName;
-  metadata.transportPackageName = expectedPackageName;
-  metadata.consumerPackageName = plan.consumerPackageName;
-  writeJson(metadataPath, metadata);
 }
 
 function mirrorGeneratedOutput(rootDir, plan) {
@@ -280,7 +251,6 @@ export function generateBirdcoderSdkgenFamily(options = {}, rootDir = process.cw
   }
   for (const plan of plans) {
     runPlan(sdkgenEntrypoint, plan, options);
-    normalizeGeneratedSdkMetadata(plan);
     mirrorGeneratedOutput(rootDir, plan);
   }
   return plans.map((plan) => ({

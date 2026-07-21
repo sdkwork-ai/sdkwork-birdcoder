@@ -103,6 +103,13 @@ assert.match(
   'Resolving a missing or stale message index must build it from the selected transcript only.',
 );
 
+const findMatchingIndexBody = extractBody('findMatchingCachedCodingSessionMessageIndex');
+assert.match(
+  findMatchingIndexBody,
+  /findCachedCodingSessionMessageIndexById\(/,
+  'The shared cached matcher must preserve the O(1) exact-id fast path before candidate matching.',
+);
+
 const addMessageBody = extractBody('addCodingSessionMessage');
 assert.doesNotMatch(
   addMessageBody,
@@ -116,13 +123,8 @@ assert.match(
 );
 assert.match(
   addMessageBody,
-  /findCachedCodingSessionMessageIndexById\(/,
-  'Hot message append must use O(1) exact-id lookup for idempotent appends.',
-);
-assert.match(
-  addMessageBody,
   /findMatchingCachedCodingSessionMessageIndex\(/,
-  'Hot message append must use precomputed logical and synchronization indexes for merge detection.',
+  'Hot message append must use the exact-id fast path and precomputed candidate indexes through the shared matcher.',
 );
 assert.match(
   addMessageBody,

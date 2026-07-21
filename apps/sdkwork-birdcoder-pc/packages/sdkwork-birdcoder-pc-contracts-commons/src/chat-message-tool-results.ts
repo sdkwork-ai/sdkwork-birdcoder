@@ -2,12 +2,18 @@ import type {
   BirdCoderChatMessageToolCallStatus,
   BirdCoderChatMessageToolResultBlock,
 } from '@sdkwork/birdcoder-chat-contracts';
+import {
+  BIRDCODER_CHAT_MESSAGE_MAX_EXTERNAL_MEDIA_SOURCE_CHARACTERS,
+  BIRDCODER_CHAT_MESSAGE_MAX_MEDIA_SOURCE_CHARACTERS,
+  buildBirdCoderChatMessageDataMediaSource,
+  parseBirdCoderChatMessageDataMediaSource,
+  type BirdCoderChatMessageMediaKind,
+} from './chat-message-media.ts';
 
 const MAX_TOOL_RESULT_BLOCKS = 200;
 const MAX_TOOL_RESULT_DEPTH = 16;
 const MAX_TOOL_RESULT_LIST_ITEMS = 200;
 const MAX_TOOL_RESULT_LIST_ITEM_LENGTH = 2_000;
-
 const STRUCTURED_RESULT_PROTOCOL_KEYS = new Set([
   '_meta',
   'callId',
@@ -31,6 +37,45 @@ function readRecord(value: unknown): Record<string, unknown> | null {
 
 function readString(value: unknown): string {
   return typeof value === 'string' && value.trim() ? value.trim() : '';
+}
+
+function readBoundedMediaSource(
+  value: unknown,
+  expectedKind?: BirdCoderChatMessageMediaKind,
+  expectedMimeType?: string,
+): string {
+  if (typeof value !== 'string') {
+    return '';
+  }
+  const source = value.trim();
+  if (
+    value.length === 0
+    || value.length > BIRDCODER_CHAT_MESSAGE_MAX_MEDIA_SOURCE_CHARACTERS
+    || source.length === 0
+    || source.length > BIRDCODER_CHAT_MESSAGE_MAX_MEDIA_SOURCE_CHARACTERS
+  ) {
+    return '';
+  }
+  if (/^data:/iu.test(source)) {
+    return parseBirdCoderChatMessageDataMediaSource(
+      source,
+      expectedKind,
+      expectedMimeType,
+    )?.source ?? '';
+  }
+  if (!/^https?:\/\//iu.test(source) && !/^blob:/iu.test(source)) {
+    return '';
+  }
+  return source.length <= BIRDCODER_CHAT_MESSAGE_MAX_EXTERNAL_MEDIA_SOURCE_CHARACTERS
+    ? source
+    : '';
+}
+
+function buildBoundedDataMediaSource(
+  data: string,
+  mimeType: string,
+): string {
+  return buildBirdCoderChatMessageDataMediaSource(data, mimeType) ?? '';
 }
 
 function readFirstString(
@@ -394,11 +439,15 @@ function normalizeCanonicalResultBlock(
       : null;
   }
   if (type === 'image' || type === 'audio') {
-    const source = readString(record.source);
+    const mimeType = readString(record.mimeType);
+    const source = readBoundedMediaSource(
+      record.source,
+      type,
+      mimeType || undefined,
+    );
     if (!source) {
       return null;
     }
-    const mimeType = readString(record.mimeType);
     const title = readString(record.title);
     return {
       type,
@@ -540,6 +589,7 @@ function readToolResultErrorMessage(
 function resolveMedia(
   record: Record<string, unknown>,
 ): { mimeType?: string; source: string } | null {
+  const type = normalizeType(record.type);
   const nestedSource = readRecord(record.source);
   const inlineData = readRecord(record.inlineData);
   const fileData = readRecord(record.fileData);
@@ -547,6 +597,12 @@ function resolveMedia(
     || readFirstString(nestedSource, ['mimeType', 'mime_type', 'mediaType', 'media_type', 'mime'])
     || readFirstString(inlineData, ['mimeType', 'mime_type'])
     || readFirstString(fileData, ['mimeType', 'mime_type']);
+  const expectedKind: BirdCoderChatMessageMediaKind | undefined =
+    mimeType.toLowerCase().startsWith('image/') || type.includes('image')
+      ? 'image'
+      : mimeType.toLowerCase().startsWith('audio/') || type.includes('audio')
+        ? 'audio'
+        : undefined;
   const externalSource = readFirstString(record, [
     'url',
     'uri',
@@ -559,11 +615,16 @@ function resolveMedia(
   ])
     || readFirstString(nestedSource, ['url', 'uri', 'fileUri', 'file_uri'])
     || readFirstString(fileData, ['url', 'uri', 'fileUri', 'file_uri']);
-  if (externalSource) {
-    const inferredMimeType = /^data:([^;,]+)/iu.exec(externalSource)?.[1];
+  const boundedExternalSource = readBoundedMediaSource(
+    externalSource,
+    expectedKind,
+    mimeType || undefined,
+  );
+  if (boundedExternalSource) {
+    const inferredMimeType = /^data:([^;,]+)/iu.exec(boundedExternalSource)?.[1];
     return {
       ...(mimeType || inferredMimeType ? { mimeType: mimeType || inferredMimeType } : {}),
-      source: externalSource,
+      source: boundedExternalSource,
     };
   }
   const data = readFirstString(record, ['data', 'base64'])
@@ -573,11 +634,16 @@ function resolveMedia(
     return null;
   }
   if (/^(?:data:|https?:|blob:)/iu.test(data)) {
-    return { ...(mimeType ? { mimeType } : {}), source: data };
+    const source = readBoundedMediaSource(data, expectedKind, mimeType || undefined);
+    return source ? { ...(mimeType ? { mimeType } : {}), source } : null;
+  }
+  const source = buildBoundedDataMediaSource(data, mimeType);
+  if (!source) {
+    return null;
   }
   return {
     ...(mimeType ? { mimeType } : {}),
-    source: `data:${mimeType || 'application/octet-stream'};base64,${data}`,
+    source,
   };
 }
 
@@ -585,12 +651,30 @@ function appendMediaOrResourceBlock(
   record: Record<string, unknown>,
   blocks: BirdCoderChatMessageToolResultBlock[],
 ): boolean {
-  const media = resolveMedia(record);
-  if (!media) {
-    return false;
-  }
   const type = normalizeType(record.type);
   const title = readFirstString(record, ['title', 'name', 'filename', 'alt']);
+  const media = resolveMedia(record);
+  if (!media) {
+    if (type === 'document' || type === 'file') {
+      const nestedSource = readRecord(record.source);
+      const mimeType = readFirstString(
+        record,
+        ['mimeType', 'mime_type', 'mediaType', 'media_type', 'mime'],
+      ) || readFirstString(
+        nestedSource,
+        ['mimeType', 'mime_type', 'mediaType', 'media_type', 'mime'],
+      );
+      if (title || mimeType) {
+        blocks.push({
+          type: 'resource',
+          ...(title ? { name: title } : {}),
+          ...(mimeType ? { mimeType } : {}),
+        });
+        return true;
+      }
+    }
+    return false;
+  }
   if (media.mimeType?.toLowerCase().startsWith('image/') || type.includes('image')) {
     blocks.push({ type: 'image', ...media, ...(title ? { title } : {}) });
     return true;
@@ -691,9 +775,8 @@ function projectToolResultValue(
     || readRecord(record.inlineData)
     || readRecord(record.fileData)
   ) {
-    if (appendMediaOrResourceBlock(record, blocks)) {
-      return;
-    }
+    appendMediaOrResourceBlock(record, blocks);
+    return;
   }
   if (type === 'resource' || type === 'resource_link' || readRecord(record.resource)) {
     const resource = readRecord(record.resource) ?? record;
@@ -706,22 +789,30 @@ function projectToolResultValue(
       const mimeType = readFirstString(resource, ['mimeType', 'mime_type']);
       const blob = readString(resource.blob);
       if (blob && mimeType.toLowerCase().startsWith('image/')) {
+        const source = /^(?:blob:|data:|https?:)/iu.test(blob)
+          ? readBoundedMediaSource(blob, 'image', mimeType)
+          : buildBoundedDataMediaSource(blob, mimeType);
+        if (!source) {
+          return;
+        }
         blocks.push({
           type: 'image',
-          source: /^(?:blob:|data:|https?:)/iu.test(blob)
-            ? blob
-            : `data:${mimeType};base64,${blob}`,
+          source,
           mimeType,
           ...(name ? { title: name } : {}),
         });
         return;
       }
       if (blob && mimeType.toLowerCase().startsWith('audio/')) {
+        const source = /^(?:blob:|data:|https?:)/iu.test(blob)
+          ? readBoundedMediaSource(blob, 'audio', mimeType)
+          : buildBoundedDataMediaSource(blob, mimeType);
+        if (!source) {
+          return;
+        }
         blocks.push({
           type: 'audio',
-          source: /^(?:blob:|data:|https?:)/iu.test(blob)
-            ? blob
-            : `data:${mimeType};base64,${blob}`,
+          source,
           mimeType,
           ...(name ? { title: name } : {}),
         });
@@ -873,10 +964,59 @@ export function resolveChatMessageToolCallOutputValue(
     ?? resolveChatMessageToolCallNonErrorOutputValue(record);
 }
 
+function isStructuredMediaToolResultValue(
+  value: unknown,
+  visited = new WeakSet<object>(),
+  depth = 0,
+): boolean {
+  if (depth >= MAX_TOOL_RESULT_DEPTH) {
+    return false;
+  }
+  if (Array.isArray(value)) {
+    return value.some((entry) => isStructuredMediaToolResultValue(entry, visited, depth + 1));
+  }
+  const record = readRecord(value);
+  if (!record || visited.has(record)) {
+    return false;
+  }
+  visited.add(record);
+  const type = normalizeType(record.type);
+  if (
+    [
+      'audio',
+      'document',
+      'file',
+      'image',
+      'input_audio',
+      'input_image',
+      'media',
+      'resource',
+      'resource_link',
+    ].includes(type)
+    || readRecord(record.inlineData)
+    || readRecord(record.fileData)
+  ) {
+    return true;
+  }
+  return [
+    record.attachments,
+    record.content,
+    record.contentItems,
+    record.content_items,
+    record.output,
+    record.parts,
+    record.resource,
+    record.result,
+  ].some((entry) => isStructuredMediaToolResultValue(entry, visited, depth + 1));
+}
+
 export function resolveChatMessageToolCallOutput(
   record: Record<string, unknown>,
 ): string {
-  return formatToolResultValue(resolveChatMessageToolCallOutputValue(record));
+  const outputValue = resolveChatMessageToolCallOutputValue(record);
+  return isStructuredMediaToolResultValue(outputValue)
+    ? ''
+    : formatToolResultValue(outputValue);
 }
 
 export function resolveChatMessageToolCallResultBlocks(

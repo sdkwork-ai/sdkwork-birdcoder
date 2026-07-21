@@ -2492,6 +2492,7 @@ export const UniversalChat = memo(function UniversalChat({
         }
       `}</style>
       <ChatActivityLiveAnnouncer
+        engineId={resolvedSelectedEngineId}
         isActive={isActive}
         isLive={isBusy || isEngineBusy}
         messages={normalizedMessages}

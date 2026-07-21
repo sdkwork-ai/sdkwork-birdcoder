@@ -5,7 +5,13 @@ import os from 'node:os';
 import path from 'node:path';
 import process from 'node:process';
 
+import { sha256File } from './sdkwork-utils-digest.mjs';
+
 const rootDir = process.cwd();
+
+function readJson(filePath) {
+  return JSON.parse(fs.readFileSync(filePath, 'utf8'));
+}
 
 function run(command, args, options = {}) {
   const result = spawnSync(command, args, {
@@ -31,6 +37,116 @@ function run(command, args, options = {}) {
 
 run(process.execPath, ['scripts/sync-birdcoder-sdk-openapi.mjs', '--check']);
 run(process.execPath, ['scripts/generate-birdcoder-sdk-family.mjs', '--check']);
+
+function resolveGeneratedArtifactName(familyManifest, languageEntry) {
+  if (languageEntry.language === 'typescript') {
+    return String(
+      languageEntry.transportPackageName
+        ?? familyManifest.transportPackageName
+        ?? '',
+    ).trim();
+  }
+  return String(languageEntry.name ?? familyManifest.sdkFamily ?? '').trim();
+}
+
+function assertManifestEntryIntegrity(generatedRoot, entry, context) {
+  const relativePath = String(entry?.path ?? '').replace(/\\/gu, '/');
+  assert.ok(relativePath, `${context} generated manifest entry must declare path.`);
+  assert.ok(!path.isAbsolute(relativePath), `${context} generated manifest path must be relative: ${relativePath}`);
+
+  const filePath = path.resolve(generatedRoot, ...relativePath.split('/'));
+  const relativeToGeneratedRoot = path.relative(generatedRoot, filePath);
+  assert.ok(
+    relativeToGeneratedRoot
+      && !relativeToGeneratedRoot.startsWith(`..${path.sep}`)
+      && relativeToGeneratedRoot !== '..'
+      && !path.isAbsolute(relativeToGeneratedRoot),
+    `${context} generated manifest path escapes its output root: ${relativePath}`,
+  );
+  assert.ok(fs.existsSync(filePath), `${context} generated manifest references a missing file: ${relativePath}`);
+  assert.ok(fs.statSync(filePath).isFile(), `${context} generated manifest path must reference a file: ${relativePath}`);
+
+  const expectedSha256 = String(entry?.sha256 ?? '').trim().toLowerCase();
+  assert.match(
+    expectedSha256,
+    /^[a-f0-9]{64}$/u,
+    `${context} generated manifest entry must declare a SHA-256 digest: ${relativePath}`,
+  );
+  assert.equal(
+    sha256File(filePath),
+    expectedSha256,
+    `${context} generated file must match its manifest SHA-256: ${relativePath}`,
+  );
+}
+
+function assertGeneratedSdkIntegrity(sdkWorkspaceRoot, familyManifest, languageEntry, workspaceLabel) {
+  const generatedRoot = path.join(
+    sdkWorkspaceRoot,
+    familyManifest.sdkFamily,
+    ...String(languageEntry.generatedPath ?? '').split('/'),
+  );
+  const context = `${workspaceLabel} ${familyManifest.sdkFamily} ${languageEntry.language}`;
+  const generatorManifestPath = path.join(
+    generatedRoot,
+    '.sdkwork',
+    'sdkwork-generator-manifest.json',
+  );
+  assert.ok(fs.existsSync(generatorManifestPath), `${context} generator manifest must exist.`);
+
+  const generatorManifest = readJson(generatorManifestPath);
+  assert.ok(
+    Array.isArray(generatorManifest.generatedFiles) && generatorManifest.generatedFiles.length > 0,
+    `${context} generator manifest must declare generated files.`,
+  );
+  const generatedPaths = generatorManifest.generatedFiles.map((entry) => String(entry?.path ?? ''));
+  assert.equal(
+    new Set(generatedPaths).size,
+    generatedPaths.length,
+    `${context} generator manifest paths must be unique.`,
+  );
+  for (const entry of generatorManifest.generatedFiles) {
+    assertManifestEntryIntegrity(generatedRoot, entry, context);
+  }
+
+  const artifactName = resolveGeneratedArtifactName(familyManifest, languageEntry);
+  assert.ok(artifactName, `${context} generated artifact name must be declared by the family manifest.`);
+  const sdkMetadata = readJson(path.join(generatedRoot, 'sdkwork-sdk.json'));
+  assert.equal(
+    sdkMetadata.packageName,
+    artifactName,
+    `${context} sdk metadata packageName must identify the generated artifact.`,
+  );
+  assert.equal(
+    sdkMetadata.transportPackageName,
+    artifactName,
+    `${context} sdk metadata transportPackageName must identify the generated artifact.`,
+  );
+
+  const expectedConsumerName = languageEntry.language === 'typescript'
+    ? String(languageEntry.consumerPackageName ?? familyManifest.packageName ?? '').trim()
+    : artifactName;
+  assert.equal(
+    sdkMetadata.consumerPackageName,
+    expectedConsumerName,
+    `${context} sdk metadata consumerPackageName must follow its language artifact contract.`,
+  );
+}
+
+const canonicalSdksRoot = path.join(rootDir, 'sdks');
+const pcMirrorSdksRoot = path.join(rootDir, 'apps', 'sdkwork-birdcoder-pc', 'sdks');
+const familyManifests = fs.readdirSync(canonicalSdksRoot, { withFileTypes: true })
+  .filter((entry) => entry.isDirectory())
+  .map((entry) => path.join(canonicalSdksRoot, entry.name, 'sdk-manifest.json'))
+  .filter((manifestPath) => fs.existsSync(manifestPath))
+  .map(readJson)
+  .filter((manifest) => manifest.sdkOwner === 'sdkwork-birdcoder');
+
+for (const familyManifest of familyManifests) {
+  for (const languageEntry of familyManifest.languages ?? []) {
+    assertGeneratedSdkIntegrity(canonicalSdksRoot, familyManifest, languageEntry, 'root');
+    assertGeneratedSdkIntegrity(pcMirrorSdksRoot, familyManifest, languageEntry, 'PC mirror');
+  }
+}
 
 function assertNoStaleGeneratedApiFiles(relativePackageDir) {
   const apiDir = path.join(rootDir, relativePackageDir, 'src', 'api');

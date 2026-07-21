@@ -1,4 +1,6 @@
 import {
+  projectChatMessageCommand,
+  projectChatMessageToolCalls,
   resolveBirdCoderCodeEngineCommandInteractionState,
   type BirdCoderChatMessage,
   type CommandExecution,
@@ -72,12 +74,19 @@ function resolveChatCommandLifecycleKey(
 
 export function buildChatCommandLifecycleSnapshot(
   messages: readonly BirdCoderChatMessage[],
+  engineId?: string,
 ): ChatCommandLifecycleSnapshot {
   const snapshot = new Map<string, ChatCommandLifecycleTone>();
   for (let messageIndex = 0; messageIndex < messages.length; messageIndex += 1) {
     const message = messages[messageIndex]!;
-    for (let commandIndex = 0; commandIndex < (message.commands?.length ?? 0); commandIndex += 1) {
-      const command = message.commands?.[commandIndex];
+    const projectedCommands = projectChatMessageToolCalls(message.tool_calls, { engineId })
+      .flatMap((call) => {
+        const command = projectChatMessageCommand(call);
+        return command ? [command] : [];
+      });
+    const commands = [...(message.commands ?? []), ...projectedCommands];
+    for (let commandIndex = 0; commandIndex < commands.length; commandIndex += 1) {
+      const command = commands[commandIndex];
       if (!command) {
         continue;
       }

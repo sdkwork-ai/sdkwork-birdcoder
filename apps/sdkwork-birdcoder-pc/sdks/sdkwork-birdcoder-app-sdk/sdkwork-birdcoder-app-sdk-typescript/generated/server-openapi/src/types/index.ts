@@ -13,6 +13,10 @@ export type { BirdCoderBooleanSuccessResult } from './bird-coder-boolean-success
 export type { BirdCoderChatConversationSummary } from './bird-coder-chat-conversation-summary';
 export type { BirdCoderChatConversationSummaryEnvelope } from './bird-coder-chat-conversation-summary-envelope';
 export type { BirdCoderChatConversationSummaryListEnvelope } from './bird-coder-chat-conversation-summary-list-envelope';
+export type { BirdCoderChatMessageReasoningItem } from './bird-coder-chat-message-reasoning-item';
+export type { BirdCoderChatMessageResource } from './bird-coder-chat-message-resource';
+export type { BirdCoderChatMessageResourceCitation } from './bird-coder-chat-message-resource-citation';
+export type { BirdCoderChatMessageResourceOrigin } from './bird-coder-chat-message-resource-origin';
 export type { BirdCoderChatMessageSummary } from './bird-coder-chat-message-summary';
 export type { BirdCoderChatMessageSummaryEnvelope } from './bird-coder-chat-message-summary-envelope';
 export type { BirdCoderChatMessageSummaryListEnvelope } from './bird-coder-chat-message-summary-list-envelope';

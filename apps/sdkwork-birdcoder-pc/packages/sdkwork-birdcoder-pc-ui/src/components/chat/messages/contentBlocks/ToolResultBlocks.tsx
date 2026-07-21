@@ -12,6 +12,7 @@ import {
   Link2,
 } from 'lucide-react';
 import type { ChatMessageToolCall } from '@sdkwork/birdcoder-pc-workbench/chat/types';
+import { resolveBirdCoderChatMessageMediaSource } from '@sdkwork/birdcoder-pc-contracts-commons';
 import {
   buildChatContentPreview,
   MAX_CHAT_CONTENT_PREVIEW_CHARACTERS,
@@ -230,10 +231,12 @@ function isSafeExternalUrl(value: string): boolean {
   return value.length <= MAX_EXTERNAL_URL_CHARACTERS && /^https?:\/\//iu.test(value);
 }
 
-function isSafeMediaSource(value: string, kind: 'audio' | 'image'): boolean {
-  return isSafeExternalUrl(value)
-    || value.startsWith('blob:')
-    || value.startsWith(`data:${kind}/`);
+function isSafeMediaSource(
+  value: string,
+  kind: 'audio' | 'image',
+  mimeType?: string,
+): boolean {
+  return Boolean(resolveBirdCoderChatMessageMediaSource(value, kind, mimeType));
 }
 
 function formatResourceSize(size: number | undefined): string {
@@ -535,7 +538,7 @@ function renderToolResultBlock(
           tailCharacters: 0,
         }).text
       : '';
-    return isSafeMediaSource(block.source, 'image') ? (
+    return isSafeMediaSource(block.source, 'image', block.mimeType) ? (
       <figure key={key} className="overflow-hidden rounded-md bg-black/20 p-2">
         <img
           src={block.source}
@@ -561,7 +564,7 @@ function renderToolResultBlock(
           tailCharacters: 0,
         }).text
       : '';
-    return isSafeMediaSource(block.source, 'audio') ? (
+    return isSafeMediaSource(block.source, 'audio', block.mimeType) ? (
       <div key={key} className="rounded-md bg-black/20 p-2">
         {audioTitle ? (
           <div

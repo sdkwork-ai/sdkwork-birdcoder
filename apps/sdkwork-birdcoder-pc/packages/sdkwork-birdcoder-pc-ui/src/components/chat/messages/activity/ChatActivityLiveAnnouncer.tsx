@@ -9,6 +9,7 @@ import {
 } from './chatCommandLifecycle.ts';
 
 interface ChatActivityLiveAnnouncerProps {
+  engineId?: string;
   isActive: boolean;
   isLive: boolean;
   messages: readonly BirdCoderChatMessage[];
@@ -44,6 +45,7 @@ function resolveChatActivityAnnouncementLabel(
 }
 
 export const ChatActivityLiveAnnouncer = memo(function ChatActivityLiveAnnouncer({
+  engineId,
   isActive,
   isLive,
   messages,
@@ -54,8 +56,8 @@ export const ChatActivityLiveAnnouncer = memo(function ChatActivityLiveAnnouncer
   const announcementScopeRef = useRef<ChatActivityAnnouncementScope | null>(null);
   const announcementIdRef = useRef(0);
   const nextSnapshot = useMemo(
-    () => buildChatCommandLifecycleSnapshot(messages),
-    [messages],
+    () => buildChatCommandLifecycleSnapshot(messages, engineId),
+    [engineId, messages],
   );
 
   useEffect(() => {

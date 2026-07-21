@@ -7,9 +7,9 @@
     "language": "typescript",
     "sdkType": "backend",
     "protocol": "http",
-    "packageName": "@sdkwork/birdcoder-backend-sdk"
+    "packageName": "sdkwork-birdcoder-backend-sdk-generated-typescript"
   },
-  "changeFingerprint": "66eb749555d5c1f3232dc355e535949aea5e4cbe6f27b31e2b922ff2d80f57a9",
+  "changeFingerprint": "dc478887549a2b91522e2229e0b599cdb8473c4b27121fe6ac478c24ddb9bcd0",
   "changes": {
     "createdGeneratedFiles": [],
     "updatedGeneratedFiles": [],

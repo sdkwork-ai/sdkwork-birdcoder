@@ -281,7 +281,10 @@ fn is_gemini_session_file(path: &Path) -> bool {
         && path
             .file_name()
             .and_then(|value| value.to_str())
-            .is_some_and(|value| value.starts_with("session-") && value.ends_with(".json"))
+            .is_some_and(|value| {
+                value.starts_with("session-")
+                    && (value.ends_with(".json") || value.ends_with(".jsonl"))
+            })
 }
 
 fn normalize_path_key(path: &Path) -> String {

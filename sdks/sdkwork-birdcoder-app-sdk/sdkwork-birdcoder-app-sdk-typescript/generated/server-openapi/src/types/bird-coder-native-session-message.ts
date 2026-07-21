@@ -1,3 +1,5 @@
+import type { BirdCoderChatMessageReasoningItem } from './bird-coder-chat-message-reasoning-item';
+import type { BirdCoderChatMessageResource } from './bird-coder-chat-message-resource';
 import type { BirdCoderNativeSessionCommand } from './bird-coder-native-session-command';
 
 export interface BirdCoderNativeSessionMessage {
@@ -10,6 +12,8 @@ export interface BirdCoderNativeSessionMessage {
   tool_calls?: Record<string, unknown>[];
   tool_call_id?: string;
   fileChanges?: Record<string, unknown>[];
+  reasoning?: BirdCoderChatMessageReasoningItem[];
+  resources?: BirdCoderChatMessageResource[];
   taskProgress?: Record<string, unknown>;
   metadata?: Record<string, string>;
   createdAt: string;

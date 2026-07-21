@@ -318,6 +318,26 @@ const runningCommandSnapshot = buildChatCommandLifecycleSnapshot([
   createAnnouncementMessage('activity-running', [createAnnouncementCommand('call-1')]),
 ]);
 
+const providerToolCallSnapshot = buildChatCommandLifecycleSnapshot([{
+  codingSessionId: 'session-announcements',
+  content: '',
+  createdAt: '2026-07-21T00:00:00.000Z',
+  id: 'activity-provider-tool-call',
+  role: 'assistant',
+  tool_calls: [{
+    id: 'call-provider-command',
+    name: 'bash',
+    arguments: { command: 'pnpm test' },
+    status: 'running',
+  }],
+  turnId: 'turn-announcements',
+}], 'claude-code');
+assert.deepEqual(
+  resolveChatCommandLiveAnnouncement(emptyCommandSnapshot, providerToolCallSnapshot),
+  { count: 1, kind: 'running' },
+  'Provider command tool_calls must enter the single live announcer even when commands is absent.',
+);
+
 assert.deepEqual(
   resolveChatCommandLiveAnnouncement(emptyCommandSnapshot, runningCommandSnapshot),
   { count: 1, kind: 'running' },

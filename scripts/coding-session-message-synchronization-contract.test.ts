@@ -68,6 +68,18 @@ assert.equal(
     baseMessage,
     {
       ...baseMessage,
+      id: 'message-2',
+    },
+  ),
+  false,
+  'distinct non-empty provider message ids must not match only because turn, role, and content are equal',
+);
+
+assert.equal(
+  areBirdCoderChatMessagesLogicallyMatched(
+    baseMessage,
+    {
+      ...baseMessage,
       id: 'message-from-other-session',
       codingSessionId: 'coding-session-2',
     },
@@ -472,11 +484,15 @@ assert.deepEqual(
   })),
   [
     {
-      id: 'coding-session-1:refreshed:duplicate-completed-turn:assistant',
+      id: 'coding-session-1:refreshed:duplicate-completed-stream-final:assistant',
+      content: 'Partial final streamed content.',
+    },
+    {
+      id: 'coding-session-1:refreshed:duplicate-completed-authority-final:assistant',
       content: 'Authoritative completed content.',
     },
   ],
-  'projection refresh must collapse duplicate same-turn completed messages so streamed/finalized replies cannot create duplicate React keys.',
+  'distinct completed provider records in one turn must retain their event identities and source order.',
 );
 
 const streamingOnlyProjectedMessages = mergeBirdCoderProjectionMessages({
@@ -517,7 +533,7 @@ assert.equal(
 );
 
 const editedProjectionMessageId =
-  'coding-session-1:authoritative:edited-projection-turn:user';
+  'coding-session-1:authoritative:edited-projection-completed:user';
 const editedProjectionMessages = mergeBirdCoderProjectionMessages({
   codingSessionId: 'coding-session-1',
   existingMessages: [],
@@ -674,7 +690,7 @@ assert.deepEqual(
   })),
   [
     {
-      id: 'coding-session-1:refreshed:turn-user-1:user',
+      id: 'coding-session-1:refreshed:authoritative-user-event:user',
       turnId: 'turn-user-1',
       content: 'Run tests',
     },

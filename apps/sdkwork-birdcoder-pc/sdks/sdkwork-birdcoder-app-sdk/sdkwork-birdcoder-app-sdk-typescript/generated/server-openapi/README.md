@@ -5,17 +5,17 @@ Generated SDKWork v3 dual-token transport SDK.
 ## Installation
 
 ```bash
-npm install @sdkwork/birdcoder-app-sdk
+npm install sdkwork-birdcoder-app-sdk-generated-typescript
 # or
-yarn add @sdkwork/birdcoder-app-sdk
+yarn add sdkwork-birdcoder-app-sdk-generated-typescript
 # or
-pnpm add @sdkwork/birdcoder-app-sdk
+pnpm add sdkwork-birdcoder-app-sdk-generated-typescript
 ```
 
 ## Quick Start
 
 ```typescript
-import { SdkworkAppClient } from '@sdkwork/birdcoder-app-sdk';
+import { SdkworkAppClient } from 'sdkwork-birdcoder-app-sdk-generated-typescript';
 
 const client = new SdkworkAppClient({
   baseUrl: '/app/v3/api',
@@ -55,7 +55,7 @@ Access-Token: <accessToken>
 ## Configuration (Non-Auth)
 
 ```typescript
-import { SdkworkAppClient } from '@sdkwork/birdcoder-app-sdk';
+import { SdkworkAppClient } from 'sdkwork-birdcoder-app-sdk-generated-typescript';
 
 const client = new SdkworkAppClient({
   baseUrl: '/app/v3/api',
@@ -225,7 +225,7 @@ const result = await client.commerce.orders.list(params);
 ## Error Handling
 
 ```typescript
-import { SdkworkAppClient, NetworkError, TimeoutError, AuthenticationError } from '@sdkwork/birdcoder-app-sdk';
+import { SdkworkAppClient, NetworkError, TimeoutError, AuthenticationError } from 'sdkwork-birdcoder-app-sdk-generated-typescript';
 
 try {
   const body = {

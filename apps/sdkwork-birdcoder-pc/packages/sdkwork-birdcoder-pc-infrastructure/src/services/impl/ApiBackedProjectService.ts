@@ -1220,25 +1220,6 @@ function readRemoteCodingSessionTurnOptions(
     : undefined;
 }
 
-function compareCodingSessionMessages(
-  left: BirdCoderChatMessage,
-  right: BirdCoderChatMessage,
-): number {
-  if (left.turnId && left.turnId === right.turnId && left.role !== right.role) {
-    if (left.role === 'user') {
-      return -1;
-    }
-    if (right.role === 'user') {
-      return 1;
-    }
-  }
-
-  return (
-    Date.parse(left.createdAt) - Date.parse(right.createdAt) ||
-    left.role.localeCompare(right.role)
-  );
-}
-
 function mergeAuthoritativeProjectionMessages(
   codingSessionId: string,
   existingMessages: readonly BirdCoderChatMessage[],
@@ -1249,7 +1230,7 @@ function mergeAuthoritativeProjectionMessages(
     events,
     existingMessages,
     idPrefix: 'authoritative',
-  }).sort(compareCodingSessionMessages);
+  });
 }
 
 function isCodingSessionMissingInProjectError(

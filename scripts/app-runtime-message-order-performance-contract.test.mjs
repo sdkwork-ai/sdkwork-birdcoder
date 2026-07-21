@@ -5,6 +5,10 @@ const appRuntimeTransportSource = fs.readFileSync(
   new URL('../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/src/services/appRuntimeTransport.ts', import.meta.url),
   'utf8',
 );
+const apiBackedProjectServiceSource = fs.readFileSync(
+  new URL('../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/src/services/impl/ApiBackedProjectService.ts', import.meta.url),
+  'utf8',
+);
 
 function readFunctionBody(functionName) {
   const signature = `function ${functionName}(`;
@@ -53,6 +57,7 @@ function readSwitchCaseBody(operationId) {
 }
 
 const orderedMessagesSource = readFunctionBody('getOrderedCodingSessionMessages');
+const compareMessagesSource = readFunctionBody('compareCodingSessionMessages');
 const buildProjectionEventsSource = readFunctionBody('buildProjectionEvents');
 const getNativeSessionCaseSource = readSwitchCaseBody('nativeSessions.retrieve');
 
@@ -60,6 +65,18 @@ assert.match(
   orderedMessagesSource,
   /for \(let index = 1; index < messages\.length; index \+= 1\)/,
   'App runtime selected-session reads must linearly verify message order before deciding to sort.',
+);
+
+assert.doesNotMatch(
+  compareMessagesSource,
+  /role\.localeCompare|id\.localeCompare|left\.role === 'user'/,
+  'Equal-timestamp provider records must retain their input order instead of using role or id tie-breaks.',
+);
+
+assert.doesNotMatch(
+  apiBackedProjectServiceSource,
+  /mergeBirdCoderProjectionMessages\([\s\S]{0,400}\)\.sort\(compareCodingSessionMessages\)/u,
+  'API-backed authoritative projection must not apply a second role-based transcript sort.',
 );
 
 assert.match(
@@ -82,8 +99,8 @@ assert.match(
 
 assert.match(
   getNativeSessionCaseSource,
-  /messages:\s*getOrderedCodingSessionMessages\(codingSession\.messages\)\s*\.map\(\s*toNativeSessionMessage,\s*\)/,
-  'Native session detail must avoid unconditional transcript copy+sort before mapping messages.',
+  /nativeSessionProvider\.getNativeSession\(/,
+  'Native session detail must preserve provider-owned order through the native-session boundary.',
 );
 
 assert.doesNotMatch(

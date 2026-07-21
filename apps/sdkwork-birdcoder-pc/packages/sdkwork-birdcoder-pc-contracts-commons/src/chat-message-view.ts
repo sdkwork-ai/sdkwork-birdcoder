@@ -234,11 +234,6 @@ function resolveProtocolNoticeKind(
 }
 
 function resolveToolNoticeFallback(call: ChatMessageToolCall): string {
-  const output = call.output?.trim();
-  if (output) {
-    return output;
-  }
-
   for (const block of call.resultBlocks ?? []) {
     if (block.type === 'text' && block.text.trim()) {
       return block.text.trim();
@@ -247,7 +242,7 @@ function resolveToolNoticeFallback(call: ChatMessageToolCall): string {
       return block.message.trim();
     }
   }
-  return '';
+  return call.output?.trim() ?? '';
 }
 
 function projectToolNoticeBlock(call: ChatMessageToolCall): ChatMessageNoticeBlock | null {
@@ -259,7 +254,15 @@ function projectToolNoticeBlock(call: ChatMessageToolCall): ChatMessageNoticeBlo
   const description = call.title?.trim() ?? '';
   const isRedundantName = Boolean(name && description.includes(`"${name}"`));
   const title = isRedundantName ? '' : name;
-  const detail = description || (!title ? resolveToolNoticeFallback(call) : '');
+  const noticeKind: BirdCoderProtocolNoticeKind = call.status === 'error'
+    ? 'failed'
+    : call.status === 'cancelled'
+      ? 'cancelled'
+      : 'info';
+  const resultDetail = resolveToolNoticeFallback(call);
+  const detail = noticeKind === 'failed' || noticeKind === 'cancelled'
+    ? resultDetail || description
+    : description || (!title ? resultDetail : '');
   if (!title && !detail) {
     return null;
   }
@@ -267,7 +270,7 @@ function projectToolNoticeBlock(call: ChatMessageToolCall): ChatMessageNoticeBlo
   return {
     type: 'notice',
     id: call.id,
-    noticeKind: 'info',
+    noticeKind,
     ...(title ? { title } : {}),
     ...(detail ? { detail } : {}),
   };
@@ -344,7 +347,13 @@ function buildChatMessageContentBlocks(
 
   const fileChanges = activitySummary?.fileChanges ?? resolveProjectedActivityFileChanges(message);
   const projectedToolCalls = projectChatMessageToolCalls(message.tool_calls, { engineId });
-  const projectedToolResult = message.role === 'tool'
+  const toolResultCallId = message.tool_call_id?.trim() ?? '';
+  // Combined provider entries already carry the authoritative lifecycle in tool_calls.
+  // Their text content is a compact summary, not a second generic tool result.
+  const hasAuthoritativeStructuredToolCall = projectedToolCalls.length > 0 && (
+    !toolResultCallId || projectedToolCalls.some((call) => call.id === toolResultCallId)
+  );
+  const projectedToolResult = message.role === 'tool' && !hasAuthoritativeStructuredToolCall
     ? projectChatMessageToolResult({
         content: message.content,
         id: message.tool_call_id,

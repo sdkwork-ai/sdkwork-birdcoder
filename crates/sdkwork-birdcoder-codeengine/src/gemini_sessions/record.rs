@@ -1,25 +1,31 @@
 use std::{
     collections::{BTreeMap, BTreeSet},
-    fs,
+    fs::{self, File},
     path::Path,
 };
 
-use serde::Deserialize;
-use serde_json::Value;
+use serde::{Deserialize, Serialize};
+use serde_json::{Map, Value};
 
 use crate::{
-    build_native_session_id, canonicalize_codeengine_provider_tool_name,
-    map_codeengine_session_status_from_runtime, map_codeengine_tool_command_status,
-    map_codeengine_tool_kind, map_codeengine_tool_runtime_status,
-    normalize_codeengine_tool_lifecycle_status, resolve_codeengine_command_text,
-    sanitize_codeengine_session_metadata, sanitize_codeengine_session_reasoning_records,
-    CodeEngineSessionCommandRecord, CodeEngineSessionDetailRecord,
-    CodeEngineSessionMessageRecord, CodeEngineSessionNativeAttributesRecord,
-    CodeEngineSessionReasoningRecord, CodeEngineSessionResourceRecord,
-    CodeEngineSessionSummaryRecord,
+    bounded_json::for_each_bounded_jsonl_record, build_native_session_id,
+    canonicalize_codeengine_provider_tool_name, map_codeengine_session_status_from_runtime,
+    map_codeengine_tool_command_status, map_codeengine_tool_kind,
+    map_codeengine_tool_runtime_status, normalize_codeengine_tool_lifecycle_status,
+    resolve_codeengine_command_text, sanitize_codeengine_session_metadata,
+    sanitize_codeengine_session_reasoning_records, sanitize_codeengine_session_resource_records,
+    CodeEngineSessionCommandRecord, CodeEngineSessionDetailRecord, CodeEngineSessionMessageRecord,
+    CodeEngineSessionNativeAttributesRecord, CodeEngineSessionReasoningRecord,
+    CodeEngineSessionResourceRecord, CodeEngineSessionSummaryRecord,
 };
 
 const GEMINI_ENGINE_ID: &str = "gemini";
+const MAX_GEMINI_SESSION_FILE_BYTES: u64 = 64 * 1024 * 1024;
+const MAX_GEMINI_SESSION_LINE_BYTES: usize = 16 * 1024 * 1024;
+const MAX_GEMINI_SESSION_RECORDS: usize = 100_000;
+const MAX_GEMINI_SESSION_MESSAGES: usize = 10_000;
+const MAX_GEMINI_MESSAGE_CONTENT_CHARACTERS: usize = 1 << 20;
+const MAX_GEMINI_TOOL_OUTPUT_CHARACTERS: usize = 50 * 1024;
 
 #[derive(Clone, Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -43,7 +49,7 @@ pub(super) struct GeminiConversationRecord {
     extra: BTreeMap<String, Value>,
 }
 
-#[derive(Clone, Debug, Deserialize)]
+#[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 struct GeminiMessageRecord {
     #[serde(default)]
@@ -65,6 +71,143 @@ struct GeminiMessageRecord {
     thoughts: Vec<Value>,
 }
 
+#[derive(Default)]
+struct GeminiConversationReplay {
+    metadata: Map<String, Value>,
+    messages: Vec<GeminiMessageRecord>,
+    message_indices: BTreeMap<String, usize>,
+}
+
+impl GeminiConversationReplay {
+    fn apply_record(&mut self, record: Value) -> Result<(), String> {
+        let Some(object) = record.as_object() else {
+            return Ok(());
+        };
+
+        if let Some(message_id) = object.get("$rewindTo").and_then(Value::as_str) {
+            self.rewind_to(message_id);
+            return Ok(());
+        }
+
+        if object.get("id").and_then(Value::as_str).is_some() {
+            self.upsert_message(record)?;
+            return Ok(());
+        }
+
+        if let Some(updates) = object.get("$set").and_then(Value::as_object) {
+            if let Some(messages) = updates.get("messages").and_then(Value::as_array) {
+                self.replace_messages(messages)?;
+            }
+            self.merge_metadata(updates);
+            return Ok(());
+        }
+
+        let is_metadata = object.get("sessionId").and_then(Value::as_str).is_some()
+            && object.get("projectHash").and_then(Value::as_str).is_some();
+        if !is_metadata {
+            return Ok(());
+        }
+
+        if let Some(messages) = object.get("messages").and_then(Value::as_array) {
+            for message in messages {
+                self.upsert_message(message.clone())?;
+            }
+        }
+        self.merge_metadata(object);
+        Ok(())
+    }
+
+    fn merge_metadata(&mut self, metadata: &Map<String, Value>) {
+        for (key, value) in metadata {
+            if matches!(
+                key.as_str(),
+                "sessionId"
+                    | "projectHash"
+                    | "startTime"
+                    | "lastUpdated"
+                    | "summary"
+                    | "memoryScratchpad"
+                    | "directories"
+                    | "kind"
+                    | "title"
+                    | "model"
+            ) {
+                self.metadata.insert(key.clone(), value.clone());
+            }
+        }
+    }
+
+    fn replace_messages(&mut self, messages: &[Value]) -> Result<(), String> {
+        self.messages.clear();
+        self.message_indices.clear();
+        for message in messages {
+            self.upsert_message(message.clone())?;
+        }
+        Ok(())
+    }
+
+    fn upsert_message(&mut self, value: Value) -> Result<(), String> {
+        let message = match serde_json::from_value::<GeminiMessageRecord>(value) {
+            Ok(message) => message,
+            Err(_) => return Ok(()),
+        };
+        let Some(message_id) = normalize_non_empty_string(message.id.as_deref()) else {
+            return Ok(());
+        };
+
+        if let Some(index) = self.message_indices.get(message_id.as_str()).copied() {
+            self.messages[index] = message;
+            return Ok(());
+        }
+        if self.messages.len() >= MAX_GEMINI_SESSION_MESSAGES {
+            return Err(format!(
+                "Gemini CLI session exceeds {MAX_GEMINI_SESSION_MESSAGES} messages"
+            ));
+        }
+
+        let index = self.messages.len();
+        self.messages.push(message);
+        self.message_indices.insert(message_id, index);
+        Ok(())
+    }
+
+    fn rewind_to(&mut self, message_id: &str) {
+        if let Some(index) = self.message_indices.get(message_id).copied() {
+            self.messages.truncate(index);
+        } else {
+            self.messages.clear();
+        }
+        self.rebuild_message_indices();
+    }
+
+    fn rebuild_message_indices(&mut self) {
+        self.message_indices.clear();
+        for (index, message) in self.messages.iter().enumerate() {
+            if let Some(message_id) = normalize_non_empty_string(message.id.as_deref()) {
+                self.message_indices.insert(message_id, index);
+            }
+        }
+    }
+
+    fn finish(mut self, path: &Path) -> Result<GeminiConversationRecord, String> {
+        self.metadata.insert(
+            "messages".to_owned(),
+            serde_json::to_value(self.messages).map_err(|error| {
+                format!(
+                    "serialize replayed Gemini CLI messages from {} failed: {error}",
+                    path.display()
+                )
+            })?,
+        );
+        serde_json::from_value(Value::Object(self.metadata)).map_err(|error| {
+            format!(
+                "project Gemini CLI JSONL session {} failed: {error}",
+                path.display()
+            )
+        })
+    }
+}
+
 impl GeminiConversationRecord {
     pub(super) fn session_id(&self) -> &str {
         self.session_id.trim()
@@ -78,6 +221,29 @@ impl GeminiConversationRecord {
 pub(super) fn read_gemini_conversation_record(
     path: &Path,
 ) -> Result<GeminiConversationRecord, String> {
+    let file_size = fs::metadata(path)
+        .map_err(|error| {
+            format!(
+                "inspect Gemini CLI session file {} failed: {error}",
+                path.display()
+            )
+        })?
+        .len();
+    if file_size > MAX_GEMINI_SESSION_FILE_BYTES {
+        return Err(format!(
+            "Gemini CLI session file {} exceeds {MAX_GEMINI_SESSION_FILE_BYTES} bytes",
+            path.display()
+        ));
+    }
+
+    if path
+        .extension()
+        .and_then(|extension| extension.to_str())
+        .is_some_and(|extension| extension.eq_ignore_ascii_case("jsonl"))
+    {
+        return read_gemini_jsonl_conversation_record(path);
+    }
+
     let contents = fs::read_to_string(path).map_err(|error| {
         format!(
             "read Gemini CLI session file {} failed: {error}",
@@ -90,6 +256,49 @@ pub(super) fn read_gemini_conversation_record(
             path.display()
         )
     })
+}
+
+fn read_gemini_jsonl_conversation_record(path: &Path) -> Result<GeminiConversationRecord, String> {
+    let file = File::open(path).map_err(|error| {
+        format!(
+            "open Gemini CLI JSONL session {} failed: {error}",
+            path.display()
+        )
+    })?;
+    let mut replay = GeminiConversationReplay::default();
+    let mut record_count = 0usize;
+    let mut replay_error = None;
+    for_each_bounded_jsonl_record(file, MAX_GEMINI_SESSION_LINE_BYTES, |_, record| {
+        if replay_error.is_some() || record.iter().all(|byte| byte.is_ascii_whitespace()) {
+            return;
+        }
+        record_count = record_count.saturating_add(1);
+        if record_count > MAX_GEMINI_SESSION_RECORDS {
+            replay_error = Some(format!(
+                "Gemini CLI JSONL session {} exceeds {MAX_GEMINI_SESSION_RECORDS} records",
+                path.display()
+            ));
+            return;
+        }
+
+        let Ok(record) = serde_json::from_slice::<Value>(record) else {
+            return;
+        };
+        if let Err(error) = replay.apply_record(record) {
+            replay_error = Some(error);
+        }
+    })
+    .map_err(|error| {
+        format!(
+            "read Gemini CLI JSONL session {} failed: {error}",
+            path.display()
+        )
+    })?;
+    if let Some(error) = replay_error {
+        return Err(error);
+    }
+
+    replay.finish(path)
 }
 
 pub(super) fn build_gemini_session_summary(
@@ -257,10 +466,13 @@ fn build_gemini_message_record(
     } else {
         Vec::new()
     };
-    let resources = extract_gemini_message_resources([
-        message.display_content.as_ref(),
-        Some(&message.content),
-    ]);
+    let resources = sanitize_codeengine_session_resource_records(
+        extract_gemini_message_resources([
+            message.display_content.as_ref(),
+            Some(&message.content),
+        ])
+        .as_slice(),
+    );
     let task_progress = build_gemini_task_progress(message.tool_calls.as_slice());
     let content = message
         .display_content
@@ -268,6 +480,7 @@ fn build_gemini_message_record(
         .map(part_list_union_to_string)
         .filter(|value| !value.trim().is_empty())
         .unwrap_or_else(|| part_list_union_to_string(&message.content));
+    let content = truncate_gemini_text(content.as_str(), MAX_GEMINI_MESSAGE_CONTENT_CHARACTERS);
     let mut metadata = BTreeMap::new();
     metadata.insert("geminiMessageType".to_owned(), message_type.clone());
     if let Some(model) = normalize_non_empty_string(message.model.as_deref()) {
@@ -499,6 +712,20 @@ fn count_gemini_diff_lines(diff: &str) -> (u64, u64) {
 fn extract_gemini_tool_output(tool_call: &Value) -> Option<String> {
     normalize_value_content(tool_call.get("resultDisplay"))
         .or_else(|| normalize_value_content(tool_call.get("result")))
+        .map(|output| truncate_gemini_text(output.as_str(), MAX_GEMINI_TOOL_OUTPUT_CHARACTERS))
+}
+
+fn truncate_gemini_text(value: &str, limit: usize) -> String {
+    if value.chars().count() <= limit {
+        return value.to_owned();
+    }
+
+    let mut truncated = value
+        .chars()
+        .take(limit.saturating_sub(20))
+        .collect::<String>();
+    truncated.push_str("\n...[truncated]");
+    truncated
 }
 
 fn normalize_value_content(value: Option<&Value>) -> Option<String> {

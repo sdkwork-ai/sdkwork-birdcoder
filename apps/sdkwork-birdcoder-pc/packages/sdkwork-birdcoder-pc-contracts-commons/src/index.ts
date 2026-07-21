@@ -10,12 +10,15 @@ import type {
   BirdCoderLongIntegerString,
 } from './data.ts';
 import {
+  areBirdCoderChatMessagesLogicallyMatched,
   buildBirdCoderChatMessageLogicalMatchKey,
+  buildBirdCoderChatMessageStructuredMatchKeys,
   compareBirdCoderCodingSessionEventSequence,
   deduplicateBirdCoderComparableChatMessages,
   extractBirdCoderProtocolNotices,
   extractBirdCoderTextContent,
   isBirdCoderSyntheticUserMessage,
+  mergeBirdCoderComparableChatMessages,
 } from './coding-session.ts';
 import { parseBirdCoderApiJson, stringifyBirdCoderApiJson } from './json.ts';
 import {
@@ -141,6 +144,8 @@ interface BirdCoderProjectionDeltaMessage {
   content: string;
   createdAt: string;
   fileChanges?: BirdCoderChatMessage['fileChanges'];
+  isStructuredOnly: boolean;
+  order: number;
   reasoning?: BirdCoderChatMessage['reasoning'];
   resources?: BirdCoderChatMessage['resources'];
   role: BirdCoderChatMessage['role'];
@@ -162,6 +167,7 @@ interface BuiltProjectionMessages {
   deletedMessageKeys: Set<string>;
   editedMessageContentById: Map<string, string>;
   editedMessageContentByKey: Map<string, string>;
+  messageOrderById: Map<string, number>;
   messages: BirdCoderChatMessage[];
   retractedProviderMessageUuids: Set<string>;
 }
@@ -213,11 +219,107 @@ function parseProjectionFileChanges(
   return fileChangesByPath.size > 0 ? [...fileChangesByPath.values()] : undefined;
 }
 
+const MAX_PROJECTION_CLAUDE_MEMORY_RESOURCES = 32;
+const MAX_PROJECTION_CLAUDE_MEMORY_DESCRIPTION_CHARACTERS = 4_000;
+const MAX_PROJECTION_CLAUDE_MEMORY_DEPTH = 8;
+
+function resolveProjectionResourceName(path: string): string | undefined {
+  const normalizedPath = path.replace(/\\/gu, '/').replace(/\/+$/gu, '');
+  const name = normalizedPath.slice(normalizedPath.lastIndexOf('/') + 1).trim();
+  return name || undefined;
+}
+
+function collectProjectionClaudeMemoryResources(
+  value: unknown,
+  output: unknown[],
+  visited: WeakSet<object>,
+  depth = 0,
+): void {
+  if (
+    depth > MAX_PROJECTION_CLAUDE_MEMORY_DEPTH
+    || output.length >= MAX_PROJECTION_CLAUDE_MEMORY_RESOURCES
+  ) {
+    return;
+  }
+  if (Array.isArray(value)) {
+    for (const entry of value) {
+      collectProjectionClaudeMemoryResources(entry, output, visited, depth + 1);
+    }
+    return;
+  }
+  if (!isProjectionPayloadRecord(value) || visited.has(value)) {
+    return;
+  }
+
+  visited.add(value);
+  const type = normalizeProjectionToolContentType(value.type);
+  const subtype = normalizeProjectionToolContentType(value.subtype);
+  if (type === 'system' && subtype === 'memory_recall') {
+    const messageId = normalizeProjectionPayloadString(value.uuid)
+      ?? normalizeProjectionPayloadString(value.id)
+      ?? 'claude-memory-recall';
+    const memories = Array.isArray(value.memories) ? value.memories : [];
+    for (const [index, memoryValue] of memories.entries()) {
+      if (output.length >= MAX_PROJECTION_CLAUDE_MEMORY_RESOURCES) {
+        break;
+      }
+      if (!isProjectionPayloadRecord(memoryValue)) {
+        continue;
+      }
+      const path = normalizeProjectionPayloadString(memoryValue.path);
+      if (!path) {
+        continue;
+      }
+      const scope = normalizeProjectionPayloadString(memoryValue.scope);
+      const rawDescription = normalizeProjectionPayloadString(memoryValue.content);
+      const description = rawDescription?.slice(
+        0,
+        MAX_PROJECTION_CLAUDE_MEMORY_DESCRIPTION_CHARACTERS,
+      );
+      const isExternal = /^https?:\/\//iu.test(path);
+      const isSynthesis = /^<synthesis:/iu.test(path);
+      output.push({
+        id: `${messageId}:memory:${index + 1}`,
+        kind: 'citation',
+        ...(isSynthesis
+          ? { name: 'Memory synthesis' }
+          : { name: resolveProjectionResourceName(path) }),
+        ...(!isExternal && !isSynthesis ? { path } : {}),
+        ...(isExternal ? { uri: path } : {}),
+        ...(description ? { description } : {}),
+        ...(scope
+          ? {
+              origin: {
+                kind: 'resource',
+                name: scope,
+                clientName: 'Claude Code memory',
+              },
+            }
+          : {}),
+      });
+    }
+    return;
+  }
+
+  for (const key of ['content', 'message', 'messages', 'payload', 'response'] as const) {
+    collectProjectionClaudeMemoryResources(value[key], output, visited, depth + 1);
+  }
+}
+
 function parseProjectionResources(
   payload: Record<string, unknown> | undefined,
 ): BirdCoderChatMessage['resources'] | undefined {
+  const nativeResources: unknown[] = [];
+  collectProjectionClaudeMemoryResources(
+    payload,
+    nativeResources,
+    new WeakSet<object>(),
+  );
   const resources = projectChatMessageResources(
-    Array.isArray(payload?.resources) ? payload.resources : undefined,
+    [
+      ...(Array.isArray(payload?.resources) ? payload.resources : []),
+      ...nativeResources,
+    ],
   );
   return resources.length > 0 ? resources : undefined;
 }
@@ -777,6 +879,9 @@ function collectProjectionNativeToolCalls(
     || (
       type === 'system'
       && [
+        'hook_progress',
+        'hook_response',
+        'hook_started',
         'permission_denied',
         'task_notification',
         'task_progress',
@@ -1820,20 +1925,7 @@ function compareProjectionMessages(
   right: BirdCoderChatMessage,
 ): number {
   const timestampOrder = Date.parse(left.createdAt) - Date.parse(right.createdAt);
-  if (timestampOrder !== 0) {
-    return timestampOrder;
-  }
-
-  if (left.turnId && left.turnId === right.turnId && left.role !== right.role) {
-    if (left.role === 'user') {
-      return -1;
-    }
-    if (right.role === 'user') {
-      return 1;
-    }
-  }
-
-  return left.role.localeCompare(right.role);
+  return timestampOrder === 0 ? 0 : timestampOrder;
 }
 
 export function buildBirdCoderAuthoritativeProjectionMessageId(
@@ -1852,16 +1944,25 @@ function buildAuthoritativeProjectionMessages(
   const sortedEvents = [...events].sort(
     (left, right) =>
       compareBirdCoderCodingSessionEventSequence(left, right) ||
-      Date.parse(left.createdAt) - Date.parse(right.createdAt) ||
-      left.id.localeCompare(right.id),
+      Date.parse(left.createdAt) - Date.parse(right.createdAt),
   );
   const authoritativeMessages: BirdCoderChatMessage[] = [];
   const deltaMessagesByKey = new Map<string, BirdCoderProjectionDeltaMessage>();
+  const activeTextDeltaKeyByTurnRole = new Map<string, string>();
+  const turnRolesWithTextDeltaSegments = new Set<string>();
   const deletedMessageIds = new Set<string>();
   const deletedMessageKeys = new Set<string>();
   const editedMessageContentById = new Map<string, string>();
   const editedMessageContentByKey = new Map<string, string>();
+  const messageOrderById = new Map<string, number>();
   const retractedProviderMessageUuids = new Set<string>();
+  const appendAuthoritativeMessage = (
+    message: BirdCoderChatMessage,
+    order: number,
+  ): void => {
+    authoritativeMessages.push(message);
+    messageOrderById.set(message.id, order);
+  };
 
   for (const event of sortedEvents) {
     const signals = readProjectionProviderMessageSignals(event.payload);
@@ -1912,7 +2013,8 @@ function buildAuthoritativeProjectionMessages(
     }
   }
 
-  for (const event of activeEvents) {
+  for (const [eventIndex, event] of activeEvents.entries()) {
+    const eventOrder = eventIndex * 1_024;
     if (event.kind === 'turn.failed') {
       const role = 'system' as const;
       const messageId = `${codingSessionId}:${idPrefix}:${event.turnId ?? event.id}:${role}:turn-failed`;
@@ -1920,7 +2022,7 @@ function buildAuthoritativeProjectionMessages(
         !deletedMessageIds.has(messageId) &&
         !deletedMessageKeys.has(`${event.turnId ?? event.id}:${role}`)
       ) {
-        authoritativeMessages.push({
+        appendAuthoritativeMessage({
           id: messageId,
           codingSessionId,
           turnId: event.turnId,
@@ -1932,7 +2034,7 @@ function buildAuthoritativeProjectionMessages(
           },
           createdAt: event.createdAt,
           timestamp: Date.parse(event.createdAt),
-        });
+        }, eventOrder + 512);
       }
       continue;
     }
@@ -1947,7 +2049,7 @@ function buildAuthoritativeProjectionMessages(
         for (const [noticeIndex, notice] of extractBirdCoderProtocolNotices(
           event.payload?.content,
         ).entries()) {
-          authoritativeMessages.push({
+          appendAuthoritativeMessage({
             id: `${codingSessionId}:${idPrefix}:${event.id}:notice:${noticeIndex}`,
             codingSessionId,
             turnId: event.turnId,
@@ -1959,7 +2061,7 @@ function buildAuthoritativeProjectionMessages(
             },
             createdAt: event.createdAt,
             timestamp: Date.parse(event.createdAt),
-          });
+          }, eventOrder + noticeIndex);
         }
       }
       const isSyntheticUserMessage = declaredRole === 'user' && (
@@ -2012,18 +2114,9 @@ function buildAuthoritativeProjectionMessages(
         !content &&
         ((tool_calls?.length ?? 0) > 0 || Boolean(tool_call_id))
       );
-      const messageId =
-        idPrefix === 'authoritative' && !isProtocolToolActivityMessage
-          ? buildBirdCoderAuthoritativeProjectionMessageId(
-              codingSessionId,
-              event.turnId ?? event.id,
-              role,
-            )
-          : `${codingSessionId}:${idPrefix}:${
-              isProtocolToolActivityMessage ? event.id : event.turnId ?? event.id
-            }:${role}${
-              isProtocolToolActivityMessage ? ':tool-activity' : ''
-            }`;
+      const messageId = `${codingSessionId}:${idPrefix}:${event.id}:${role}${
+        isProtocolToolActivityMessage ? ':tool-activity' : ''
+      }`;
 
       if (
         deletedMessageIds.has(messageId) ||
@@ -2035,7 +2128,7 @@ function buildAuthoritativeProjectionMessages(
       const editedContent =
         editedMessageContentById.get(messageId) ??
         editedMessageContentByKey.get(`${event.turnId ?? event.id}:${role}`);
-      authoritativeMessages.push({
+      appendAuthoritativeMessage({
         id: messageId,
         codingSessionId,
         turnId: event.turnId,
@@ -2050,7 +2143,7 @@ function buildAuthoritativeProjectionMessages(
         tool_calls,
         createdAt: event.createdAt,
         timestamp: Date.parse(event.createdAt),
-      });
+      }, eventOrder + 512);
       continue;
     }
 
@@ -2067,14 +2160,16 @@ function buildAuthoritativeProjectionMessages(
       continue;
     }
 
+    const eventCommands = parseProjectionCommands(event.payload);
+    const eventFileChanges = parseProjectionFileChanges(event.payload);
     const commands = mergeProjectionCommands(
-      parseProjectionCommands(event.payload),
+      eventCommands,
       event.turnId && projectionRoleShouldReceiveToolCommands(roleCandidate)
         ? toolCommandsByTurn.get(event.turnId)
         : undefined,
     );
     const fileChanges = mergeProjectionFileChanges(
-      parseProjectionFileChanges(event.payload),
+      eventFileChanges,
       event.turnId && projectionRoleShouldReceiveToolCommands(roleCandidate)
         ? fileChangesByTurn.get(event.turnId)
         : undefined,
@@ -2097,10 +2192,33 @@ function buildAuthoritativeProjectionMessages(
       continue;
     }
 
-    const deltaKey = `${event.turnId ?? event.id}:${roleCandidate}`;
+    const hasStructuredDelta = (
+      (eventCommands?.length ?? 0) > 0
+      || (eventFileChanges?.length ?? 0) > 0
+      || (reasoning?.length ?? 0) > 0
+      || (resources?.length ?? 0) > 0
+      || Boolean(taskProgress)
+      || (tool_calls?.length ?? 0) > 0
+      || Boolean(tool_call_id)
+    );
+    const isStructuredOnly = !contentDelta && hasStructuredDelta;
+    const deltaTurnRoleKey = `${event.turnId ?? event.id}:${roleCandidate}`;
+    let deltaKey: string;
+    if (isStructuredOnly) {
+      deltaKey = `event:${event.id}:${roleCandidate}`;
+    } else {
+      deltaKey = activeTextDeltaKeyByTurnRole.get(deltaTurnRoleKey)
+        ?? (
+          turnRolesWithTextDeltaSegments.has(deltaTurnRoleKey)
+            ? `event:${event.id}:${roleCandidate}:text`
+            : deltaTurnRoleKey
+        );
+      activeTextDeltaKeyByTurnRole.set(deltaTurnRoleKey, deltaKey);
+      turnRolesWithTextDeltaSegments.add(deltaTurnRoleKey);
+    }
     if (
       deletedMessageIds.has(`${codingSessionId}:${idPrefix}:${deltaKey}`) ||
-      deletedMessageKeys.has(deltaKey)
+      deletedMessageKeys.has(deltaTurnRoleKey)
     ) {
       continue;
     }
@@ -2110,6 +2228,8 @@ function buildAuthoritativeProjectionMessages(
       content: `${existingDeltaMessage?.content ?? ''}${contentDelta}`,
       createdAt: existingDeltaMessage?.createdAt ?? event.createdAt,
       fileChanges: fileChanges ?? existingDeltaMessage?.fileChanges,
+      isStructuredOnly,
+      order: existingDeltaMessage?.order ?? eventOrder + 512,
       reasoning: mergeProjectionReasoning(existingDeltaMessage?.reasoning, reasoning),
       resources: mergeProjectionResources(existingDeltaMessage?.resources, resources),
       role: roleCandidate,
@@ -2118,6 +2238,9 @@ function buildAuthoritativeProjectionMessages(
       tool_calls: mergeProjectionToolCalls(existingDeltaMessage?.tool_calls, tool_calls),
       turnId: event.turnId,
     });
+    if (hasStructuredDelta) {
+      activeTextDeltaKeyByTurnRole.delete(deltaTurnRoleKey);
+    }
   }
 
   const authoritativeMessageKeys = new Set(
@@ -2140,11 +2263,12 @@ function buildAuthoritativeProjectionMessages(
     );
     if (
       (
+        !deltaMessage.isStructuredOnly &&
         typeof deltaMessage.turnId === 'string' &&
         deltaMessage.turnId.trim().length > 0 &&
         completedMessageTurnRoleKeys.has(buildProjectionTurnRoleKey(deltaMessage.turnId, deltaMessage.role))
       ) ||
-      authoritativeMessageKeys.has(messageIdentity) ||
+      (!deltaMessage.isStructuredOnly && authoritativeMessageKeys.has(messageIdentity)) ||
       (
         !deltaMessage.content.trim() &&
         (deltaMessage.commands?.length ?? 0) === 0 &&
@@ -2159,8 +2283,9 @@ function buildAuthoritativeProjectionMessages(
       continue;
     }
 
-    authoritativeMessages.push({
-      id: `${codingSessionId}:${idPrefix}:${deltaKey}`,
+    const deltaMessageId = `${codingSessionId}:${idPrefix}:${deltaKey}`;
+    appendAuthoritativeMessage({
+      id: deltaMessageId,
       codingSessionId,
       turnId: deltaMessage.turnId,
       role: deltaMessage.role,
@@ -2177,7 +2302,7 @@ function buildAuthoritativeProjectionMessages(
       tool_calls: deltaMessage.tool_calls,
       createdAt: deltaMessage.createdAt,
       timestamp: Date.parse(deltaMessage.createdAt),
-    });
+    }, deltaMessage.order);
     authoritativeMessageKeys.add(messageIdentity);
   }
 
@@ -2186,6 +2311,7 @@ function buildAuthoritativeProjectionMessages(
     deletedMessageKeys,
     editedMessageContentById,
     editedMessageContentByKey,
+    messageOrderById,
     messages: authoritativeMessages,
     retractedProviderMessageUuids,
   };
@@ -2228,6 +2354,7 @@ export function mergeBirdCoderProjectionMessages({
     deletedMessageKeys,
     editedMessageContentById,
     editedMessageContentByKey,
+    messageOrderById,
     messages: authoritativeMessages,
     retractedProviderMessageUuids,
   } = buildAuthoritativeProjectionMessages(normalizedCodingSessionId, idPrefix, scopedEvents);
@@ -2256,23 +2383,57 @@ export function mergeBirdCoderProjectionMessages({
   }
 
   const existingMessagesById = new Map<string, BirdCoderChatMessage>();
-  const existingMessagesByMatchKey = new Map<string, BirdCoderChatMessage>();
-  for (const existingMessage of scopedExistingMessages) {
+  const existingMessagesByMatchKey = new Map<string, BirdCoderChatMessage[]>();
+  const existingMessagesByStructuredKey = new Map<string, BirdCoderChatMessage[]>();
+  const existingMessageOrderById = new Map<string, number>();
+  const addExistingMessageCandidate = (
+    candidatesByKey: Map<string, BirdCoderChatMessage[]>,
+    key: string,
+    message: BirdCoderChatMessage,
+  ): void => {
+    const candidates = candidatesByKey.get(key) ?? [];
+    candidates.push(message);
+    candidatesByKey.set(key, candidates);
+  };
+  for (const [existingMessageIndex, existingMessage] of scopedExistingMessages.entries()) {
     existingMessagesById.set(existingMessage.id, existingMessage);
-    existingMessagesByMatchKey.set(
+    existingMessageOrderById.set(existingMessage.id, existingMessageIndex);
+    addExistingMessageCandidate(
+      existingMessagesByMatchKey,
       buildBirdCoderChatMessageLogicalMatchKey(existingMessage),
       existingMessage,
     );
+    for (const structuredKey of buildBirdCoderChatMessageStructuredMatchKeys(existingMessage)) {
+      addExistingMessageCandidate(
+        existingMessagesByStructuredKey,
+        structuredKey,
+        existingMessage,
+      );
+    }
   }
 
-  const authoritativeMatchKeys = new Set<string>();
   const consumedExistingMessageIds = new Set<string>();
   const mergedMessages = authoritativeMessages.map((authoritativeMessage) => {
     const messageMatchKey = buildBirdCoderChatMessageLogicalMatchKey(authoritativeMessage);
-    authoritativeMatchKeys.add(messageMatchKey);
-    const existingMessage =
-      existingMessagesById.get(authoritativeMessage.id) ??
-      existingMessagesByMatchKey.get(messageMatchKey) ??
+    const candidateMessages = new Set<BirdCoderChatMessage>();
+    const messageById = existingMessagesById.get(authoritativeMessage.id);
+    if (messageById) {
+      candidateMessages.add(messageById);
+    }
+    for (const candidate of existingMessagesByMatchKey.get(messageMatchKey) ?? []) {
+      candidateMessages.add(candidate);
+    }
+    for (const structuredKey of buildBirdCoderChatMessageStructuredMatchKeys(
+      authoritativeMessage,
+    )) {
+      for (const candidate of existingMessagesByStructuredKey.get(structuredKey) ?? []) {
+        candidateMessages.add(candidate);
+      }
+    }
+    const existingMessage = [...candidateMessages].find((candidate) =>
+      !consumedExistingMessageIds.has(candidate.id)
+      && areBirdCoderChatMessagesLogicallyMatched(candidate, authoritativeMessage),
+    ) ??
       resolveLocalMirrorProjectionMessage(
         authoritativeMessage,
         scopedExistingMessages,
@@ -2281,17 +2442,20 @@ export function mergeBirdCoderProjectionMessages({
     if (existingMessage) {
       consumedExistingMessageIds.add(existingMessage.id);
     }
-    return existingMessage
-      ? {
-          ...existingMessage,
-          ...authoritativeMessage,
-        }
+    const mergedMessage = existingMessage
+      ? mergeBirdCoderComparableChatMessages(existingMessage, authoritativeMessage)
       : authoritativeMessage;
+    const existingOrder = existingMessage
+      ? existingMessageOrderById.get(existingMessage.id)
+      : undefined;
+    if (existingOrder !== undefined) {
+      existingMessageOrderById.set(mergedMessage.id, existingOrder);
+    }
+    return mergedMessage;
   });
 
   const authoritativeMessageIds = new Set(mergedMessages.map((message) => message.id));
   for (const existingMessage of scopedExistingMessages) {
-    const messageMatchKey = buildBirdCoderChatMessageLogicalMatchKey(existingMessage);
     const deletionKey =
       existingMessage.turnId && existingMessage.role
         ? `${existingMessage.turnId}:${existingMessage.role}`
@@ -2299,7 +2463,6 @@ export function mergeBirdCoderProjectionMessages({
     if (
       consumedExistingMessageIds.has(existingMessage.id) ||
       authoritativeMessageIds.has(existingMessage.id) ||
-      authoritativeMatchKeys.has(messageMatchKey) ||
       deletedMessageIds.has(existingMessage.id) ||
       isRetractedProjectionMessage(existingMessage, retractedProviderMessageUuids) ||
       (deletionKey && deletedMessageKeys.has(deletionKey))
@@ -2316,9 +2479,24 @@ export function mergeBirdCoderProjectionMessages({
     );
   }
 
-  return deduplicateBirdCoderComparableChatMessages(mergedMessages).sort(
-    compareProjectionMessages,
-  );
+  return deduplicateBirdCoderComparableChatMessages(mergedMessages).sort((left, right) => {
+    const leftOrder = messageOrderById.get(left.id);
+    const rightOrder = messageOrderById.get(right.id);
+    if (leftOrder !== undefined && rightOrder !== undefined && leftOrder !== rightOrder) {
+      return leftOrder - rightOrder;
+    }
+    const timestampOrder = compareProjectionMessages(left, right);
+    if (timestampOrder !== 0) {
+      return timestampOrder;
+    }
+    const leftExistingOrder = existingMessageOrderById.get(left.id);
+    const rightExistingOrder = existingMessageOrderById.get(right.id);
+    return leftExistingOrder !== undefined
+      && rightExistingOrder !== undefined
+      && leftExistingOrder !== rightExistingOrder
+      ? leftExistingOrder - rightExistingOrder
+      : 0;
+  });
 }
 
 export interface BirdCoderCodingSession extends BirdCoderCodingSessionSummary {
@@ -2479,6 +2657,7 @@ export * from './server-api.ts';
 export * from './storageBindings.ts';
 export * from './chat-message-view.ts';
 export * from './chat-message-activity-projection.ts';
+export * from './chat-message-media.ts';
 export * from './chat-message-reasoning.ts';
 export * from './chat-message-resources.ts';
 export * from './chat-message-task-progress.ts';

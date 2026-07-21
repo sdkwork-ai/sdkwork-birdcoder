@@ -7,7 +7,7 @@
     "language": "rust",
     "sdkType": "app",
     "protocol": "http",
-    "packageName": "@sdkwork/birdcoder-app-sdk"
+    "packageName": "sdkwork-birdcoder-app-sdk"
   },
   "generatedFiles": [
     {
@@ -40,7 +40,7 @@
     },
     {
       "path": "sdkwork-sdk.json",
-      "sha256": "52131b0574c5aea3c31e73a9a980e3e0929522db4be728f5b35f5559aa8b1595"
+      "sha256": "2c3603358c48e4f93c2179fc6ea8a8a07aa79cc51c21482a68a4e86af692cebb"
     },
     {
       "path": "src/api/auth.rs",
@@ -173,6 +173,22 @@
     {
       "path": "src/models/bird_coder_chat_conversation_summary.rs",
       "sha256": "761aa04bc626062921761705f82f4139a06f94382a8fb3cc6659ed57ef4e9335"
+    },
+    {
+      "path": "src/models/bird_coder_chat_message_reasoning_item.rs",
+      "sha256": "c7693240fc472c93ed7784118ecf2a151c5691e84a6ca99c03ae4235ed325bac"
+    },
+    {
+      "path": "src/models/bird_coder_chat_message_resource_citation.rs",
+      "sha256": "554f3fd1c6d224e69aaacad48c00026ce077e469c376609029ad31b117862405"
+    },
+    {
+      "path": "src/models/bird_coder_chat_message_resource_origin.rs",
+      "sha256": "f7a0db08741cb40b6fdf3a006e2afcbd2df3c32b260646ea79be0bb61fd3a786"
+    },
+    {
+      "path": "src/models/bird_coder_chat_message_resource.rs",
+      "sha256": "029b5bf954831140d3ef693f2a69a42394df294ca18e50dd846252d05a82922a"
     },
     {
       "path": "src/models/bird_coder_chat_message_summary_envelope.rs",
@@ -600,7 +616,7 @@
     },
     {
       "path": "src/models/bird_coder_native_session_message.rs",
-      "sha256": "6221f9201c0e71dbc2d9232c295602d4d0d8533a594e9ddf7844ba652143217a"
+      "sha256": "569524a5671bcb1faae449db128bbcca45c8e65b2091459bfdc141178a76fa95"
     },
     {
       "path": "src/models/bird_coder_native_session_provider_summary_list_envelope.rs",
@@ -864,7 +880,7 @@
     },
     {
       "path": "src/models/mod.rs",
-      "sha256": "dc4ebaf4f9479a6f8a910431068c19c7fa5ea19e7fca67b97175b66509d8ad35"
+      "sha256": "f133f49903237a59d884f9318d32d303d073a9972210d148ec91247bb76c87e0"
     },
     {
       "path": "src/models/page_info.rs",

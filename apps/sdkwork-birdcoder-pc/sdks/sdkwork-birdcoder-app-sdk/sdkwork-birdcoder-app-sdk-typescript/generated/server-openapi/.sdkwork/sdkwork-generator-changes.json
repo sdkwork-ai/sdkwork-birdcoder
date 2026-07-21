@@ -7,16 +7,12 @@
     "language": "typescript",
     "sdkType": "app",
     "protocol": "http",
-    "packageName": "@sdkwork/birdcoder-app-sdk"
+    "packageName": "sdkwork-birdcoder-app-sdk-generated-typescript"
   },
-  "changeFingerprint": "f7df83308419b72d4218f87af82f257b7b5e1aa59b7eeee0de38c716b6157153",
+  "changeFingerprint": "6d5d4ae175a24ead5edd1050a9eec23ad47f7a9523f8f0124cc577399780b231",
   "changes": {
     "createdGeneratedFiles": [],
-    "updatedGeneratedFiles": [
-      "README.md",
-      "src/api/commerce.ts",
-      "src/types/index.ts"
-    ],
+    "updatedGeneratedFiles": [],
     "unchangedGeneratedFiles": [
       "bin/publish-core.mjs",
       "bin/publish.ps1",
@@ -26,10 +22,12 @@
       "CHANGELOG.md",
       "LICENSE",
       "package.json",
+      "README.md",
       "sdkwork-sdk.json",
       "src/api/auth.ts",
       "src/api/base.ts",
       "src/api/collaboration.ts",
+      "src/api/commerce.ts",
       "src/api/content.ts",
       "src/api/iam.ts",
       "src/api/index.ts",
@@ -60,6 +58,10 @@
       "src/types/bird-coder-chat-conversation-summary-envelope.ts",
       "src/types/bird-coder-chat-conversation-summary-list-envelope.ts",
       "src/types/bird-coder-chat-conversation-summary.ts",
+      "src/types/bird-coder-chat-message-reasoning-item.ts",
+      "src/types/bird-coder-chat-message-resource-citation.ts",
+      "src/types/bird-coder-chat-message-resource-origin.ts",
+      "src/types/bird-coder-chat-message-resource.ts",
       "src/types/bird-coder-chat-message-summary-envelope.ts",
       "src/types/bird-coder-chat-message-summary-list-envelope.ts",
       "src/types/bird-coder-chat-message-summary.ts",
@@ -232,19 +234,13 @@
       "src/types/bird-coder-workspace-summary-list-envelope.ts",
       "src/types/bird-coder-workspace-summary.ts",
       "src/types/common.ts",
+      "src/types/index.ts",
       "src/types/page-info.ts",
       "src/types/problem-detail.ts",
       "src/types/sdk-work-api-response.ts",
       "tsconfig.json"
     ],
-    "deletedGeneratedFiles": [
-      "src/types/bird-coder-commerce-membership-benefit-summary.ts",
-      "src/types/bird-coder-commerce-membership-current-envelope.ts",
-      "src/types/bird-coder-commerce-membership-current-summary.ts",
-      "src/types/bird-coder-commerce-membership-package-group-summary-list-envelope.ts",
-      "src/types/bird-coder-commerce-membership-package-group-summary.ts",
-      "src/types/bird-coder-commerce-membership-package-summary.ts"
-    ],
+    "deletedGeneratedFiles": [],
     "scaffoldedFiles": [],
     "preservedScaffoldFiles": [
       "custom/build-runtime.mjs",
@@ -254,94 +250,26 @@
   },
   "impact": {
     "schemaVersion": 1,
-    "areas": [
-      "api-surface",
-      "models",
-      "documentation"
-    ],
-    "details": [
-      {
-        "area": "api-surface",
-        "paths": [
-          "src/api/commerce.ts"
-        ]
-      },
-      {
-        "area": "models",
-        "paths": [
-          "src/types/bird-coder-commerce-membership-benefit-summary.ts",
-          "src/types/bird-coder-commerce-membership-current-envelope.ts",
-          "src/types/bird-coder-commerce-membership-current-summary.ts",
-          "src/types/bird-coder-commerce-membership-package-group-summary-list-envelope.ts",
-          "src/types/bird-coder-commerce-membership-package-group-summary.ts",
-          "src/types/bird-coder-commerce-membership-package-summary.ts",
-          "src/types/index.ts"
-        ]
-      },
-      {
-        "area": "documentation",
-        "paths": [
-          "README.md"
-        ]
-      }
-    ],
-    "requiresVerification": true,
-    "summary": "Detected impact areas: api-surface, models, documentation. Verification is required."
+    "areas": [],
+    "details": [],
+    "requiresVerification": false,
+    "summary": "No generated, scaffold, or backup changes detected. Verification can be skipped."
   },
   "verificationPlan": {
-    "shouldRun": true,
-    "runPhase": "now",
-    "summary": "Detected impact areas: api-surface, models, documentation. Verification is required. Run the required verification commands now against the generated SDK output.",
-    "steps": [
-      {
-        "id": "check",
-        "title": "Unified package check",
-        "required": true,
-        "rationale": "Validate the generated package with the unified publish helper. Triggered by: api-surface, models, documentation.",
-        "workingDirectory": "E:\\sdkwork-space\\sdkwork-birdcoder\\sdks\\sdkwork-birdcoder-app-sdk\\sdkwork-birdcoder-app-sdk-typescript\\generated\\server-openapi",
-        "command": "node",
-        "args": [
-          "./bin/publish-core.mjs",
-          "--language",
-          "typescript",
-          "--project-dir",
-          ".",
-          "--action",
-          "check"
-        ],
-        "displayCommand": "node ./bin/publish-core.mjs --language typescript --project-dir . --action check"
-      },
-      {
-        "id": "build",
-        "title": "Unified package build",
-        "required": true,
-        "rationale": "Run the full package build because this language uses a lighter check path than the final build. Triggered by: api-surface, models, documentation.",
-        "workingDirectory": "E:\\sdkwork-space\\sdkwork-birdcoder\\sdks\\sdkwork-birdcoder-app-sdk\\sdkwork-birdcoder-app-sdk-typescript\\generated\\server-openapi",
-        "command": "node",
-        "args": [
-          "./bin/publish-core.mjs",
-          "--language",
-          "typescript",
-          "--project-dir",
-          ".",
-          "--action",
-          "build"
-        ],
-        "displayCommand": "node ./bin/publish-core.mjs --language typescript --project-dir . --action build"
-      }
-    ]
+    "shouldRun": false,
+    "runPhase": "skip",
+    "summary": "No generated, scaffold, or backup changes detected. Verification can be skipped.",
+    "steps": []
   },
   "executionDecision": {
     "schemaVersion": 1,
-    "riskLevel": "high",
-    "nextAction": "verify",
+    "riskLevel": "low",
+    "nextAction": "skip",
     "requiresManualReview": false,
     "applyRequiresExpectedFingerprint": false,
-    "summary": "Changes have been applied. Run the required verification plan now.",
+    "summary": "No actionable changes were detected. No apply or verification step is required.",
     "reasons": [
-      "deleted-generated-files",
-      "manual-review-required",
-      "verification-required"
+      "no-actionable-changes"
     ]
   },
   "preservedLegacyFiles": false

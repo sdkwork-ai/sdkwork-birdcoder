@@ -5,6 +5,7 @@ import {
   type ChatMessageViewSource,
 } from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-contracts-commons/src/chat-message-view.ts';
 import {
+  areBirdCoderChatMessagesLogicallyMatched,
   deduplicateBirdCoderComparableChatMessages,
   extractBirdCoderProtocolNotices,
   extractBirdCoderTextContent,
@@ -538,6 +539,26 @@ assert.deepEqual(
   extractBirdCoderProtocolNotices(claudeApiRetry),
   [{ kind: 'retry', message: 'Retrying provider request (attempt 2).' }],
 );
+
+const claudeCompactFailure = {
+  type: 'system',
+  subtype: 'status',
+  status: null,
+  compact_result: 'failed',
+  compact_error: 'Compaction failed safely',
+};
+assert.equal(extractBirdCoderTextContent(claudeCompactFailure), undefined);
+assert.deepEqual(
+  extractBirdCoderProtocolNotices(claudeCompactFailure),
+  [{ kind: 'warning', message: 'Conversation context compression failed: Compaction failed safely' }],
+);
+for (const status of ['requesting', 'compacting', null]) {
+  assert.deepEqual(
+    extractBirdCoderProtocolNotices({ type: 'system', subtype: 'status', status }),
+    [],
+    `Claude ${String(status)} status must remain ephemeral instead of creating a history row.`,
+  );
+}
 
 for (const ambientClaudeMessage of [
   {
@@ -2467,14 +2488,14 @@ const parallelDeltaProjection = mergeBirdCoderProjectionMessages({
     },
   ],
 });
-assert.equal(parallelDeltaProjection.length, 1);
+assert.equal(parallelDeltaProjection.length, 2);
 assert.deepEqual(
-  projectChatMessageToolCalls(
-    parallelDeltaProjection[0]?.tool_calls,
-    { engineId: 'claude-code' },
-  ).map((call) => call.id),
+  parallelDeltaProjection.flatMap((message) =>
+    projectChatMessageToolCalls(message.tool_calls, { engineId: 'claude-code' })
+      .map((call) => call.id),
+  ),
   ['toolu-delta-a', 'toolu-delta-b'],
-  'Streaming deltas must accumulate parallel tools in first-seen order.',
+  'Parallel structured-only tool deltas must remain distinct and retain first-seen order.',
 );
 
 const orderedBoundaryMessages: ChatMessageViewSource[] = [
@@ -2527,6 +2548,58 @@ assert.equal(
   }),
   null,
   'the authored completion reply must not duplicate its preceding activity summary.',
+);
+
+const reasoningToolLifecycleProjection = projectChatTranscriptToolActivity([
+  {
+    id: 'reasoning-tool-request',
+    codingSessionId: 'session-reasoning-tool-slot',
+    turnId: 'turn-reasoning-tool-slot',
+    role: 'assistant',
+    content: '',
+    tool_calls: [{
+      type: 'tool_use',
+      id: 'reasoning-tool-call',
+      name: 'read_file',
+      input: { path: 'src/provider.ts' },
+    }],
+    createdAt: '2026-06-22T00:00:48.100Z',
+  },
+  {
+    id: 'reasoning-tool-result',
+    codingSessionId: 'session-reasoning-tool-slot',
+    turnId: 'turn-reasoning-tool-slot',
+    role: 'assistant',
+    content: '',
+    reasoning: [{
+      id: 'reasoning-tool-summary',
+      summary: 'Validated the provider file before continuing.',
+    }],
+    tool_calls: [{
+      type: 'tool_result',
+      tool_use_id: 'reasoning-tool-call',
+      content: 'export const provider = true;',
+    }],
+    createdAt: '2026-06-22T00:00:48.200Z',
+  },
+], { engineId: 'opencode' });
+assert.equal(
+  reasoningToolLifecycleProjection.length,
+  1,
+  'A reasoning-plus-tool lifecycle must remain one ordered activity slot.',
+);
+assert.deepEqual(
+  reasoningToolLifecycleProjection[0]?.reasoning,
+  [{
+    id: 'reasoning-tool-summary',
+    summary: 'Validated the provider file before continuing.',
+  }],
+  'Collapsing a tool lifecycle must preserve provider-authored display reasoning on its slot.',
+);
+assert.equal(
+  projectChatTranscriptToolActivity(reasoningToolLifecycleProjection, { engineId: 'opencode' }),
+  reasoningToolLifecycleProjection,
+  'A projected reasoning-plus-tool activity slot must remain identity-idempotent.',
 );
 
 const toolBeforeTextProjection = projectChatTranscriptToolActivity([
@@ -2754,6 +2827,550 @@ assert.deepEqual(
   )),
   ['first pass', 'second pass'],
   'a reused provider call id must not merge across a no-turn user boundary.',
+);
+
+const opencodeOrderedPartProjection = projectChatTranscriptToolActivity([
+  {
+    id: 'opencode-part-text-before', codingSessionId: 'session-opencode-parts',
+    turnId: 'turn-opencode-parts', role: 'assistant',
+    content: 'I will inspect the adapter first.',
+    createdAt: '2026-06-22T00:01:11.000Z',
+  },
+  {
+    id: 'opencode-part-tool', codingSessionId: 'session-opencode-parts',
+    turnId: 'turn-opencode-parts', role: 'assistant', content: '',
+    tool_calls: [{
+      id: 'opencode-part-tool', type: 'tool', callID: 'opencode-call-read', tool: 'read',
+      state: {
+        status: 'completed',
+        input: { path: 'src/adapter.ts' },
+        output: 'export const adapter = true;',
+      },
+    }],
+    createdAt: '2026-06-22T00:01:12.000Z',
+  },
+  {
+    id: 'opencode-part-text-after', codingSessionId: 'session-opencode-parts',
+    turnId: 'turn-opencode-parts', role: 'assistant',
+    content: 'The adapter already exposes the required hook.',
+    createdAt: '2026-06-22T00:01:13.000Z',
+  },
+], { engineId: 'opencode' });
+assert.deepEqual(
+  opencodeOrderedPartProjection.map((message) => message.id),
+  ['opencode-part-text-before', 'opencode-part-tool', 'opencode-part-text-after'],
+  'OpenCode text/tool/text parts must retain their source order after activity projection.',
+);
+assert.equal(
+  projectChatMessageToolCalls(
+    opencodeOrderedPartProjection[1]?.tool_calls,
+    { engineId: 'opencode' },
+  )[0]?.id,
+  'opencode-call-read',
+  'The ordered OpenCode tool slot must retain its provider call identity.',
+);
+
+const opencodeToolReasoningProjection = projectChatTranscriptToolActivity([
+  {
+    id: 'opencode-part-tool-before-reasoning', codingSessionId: 'session-opencode-reasoning',
+    turnId: 'turn-opencode-reasoning', role: 'assistant', content: '',
+    tool_calls: [{
+      id: 'opencode-part-search', type: 'tool', callID: 'opencode-call-search', tool: 'grep',
+      state: {
+        status: 'completed',
+        input: { pattern: 'MessagePart' },
+        output: 'src/message.ts:12',
+      },
+    }],
+    createdAt: '2026-06-22T00:01:14.000Z',
+  },
+  {
+    id: 'opencode-part-reasoning-after-tool', codingSessionId: 'session-opencode-reasoning',
+    turnId: 'turn-opencode-reasoning', role: 'assistant', content: '',
+    reasoning: [{
+      id: 'opencode-reasoning-after-tool',
+      summary: 'The protocol renderer consumes parts in source order.',
+    }],
+    createdAt: '2026-06-22T00:01:15.000Z',
+  },
+  {
+    id: 'opencode-part-reply-after-reasoning', codingSessionId: 'session-opencode-reasoning',
+    turnId: 'turn-opencode-reasoning', role: 'assistant',
+    content: 'The source confirms ordered rendering.',
+    createdAt: '2026-06-22T00:01:16.000Z',
+  },
+], { engineId: 'opencode' });
+assert.deepEqual(
+  opencodeToolReasoningProjection.map((message) => message.id),
+  [
+    'opencode-part-tool-before-reasoning',
+    'opencode-part-reasoning-after-tool',
+    'opencode-part-reply-after-reasoning',
+  ],
+  'OpenCode tool/reasoning/text parts must not be reordered by stable view projection.',
+);
+
+assert.equal(
+  areBirdCoderChatMessagesLogicallyMatched(
+    {
+      id: 'completed-record-before',
+      codingSessionId: 'session-logical-record-identity',
+      turnId: 'turn-logical-record-identity',
+      role: 'assistant',
+      content: 'Repeated provider text.',
+      createdAt: '2026-07-21T00:00:00.000Z',
+    },
+    {
+      id: 'completed-record-after',
+      codingSessionId: 'session-logical-record-identity',
+      turnId: 'turn-logical-record-identity',
+      role: 'assistant',
+      content: 'Repeated provider text.',
+      createdAt: '2026-07-21T00:00:00.000Z',
+    },
+  ),
+  false,
+  'Distinct completed record ids must not logically match only because turn, role, and text are equal.',
+);
+assert.equal(
+  areBirdCoderChatMessagesLogicallyMatched(
+    {
+      id: 'reasoning-record-before',
+      codingSessionId: 'session-logical-structured-identity',
+      turnId: 'turn-logical-structured-identity',
+      role: 'assistant',
+      content: '',
+      reasoning: [{ id: 'reasoning-shared', summary: 'Initial public summary.' }],
+      createdAt: '2026-07-21T00:00:01.000Z',
+    },
+    {
+      id: 'reasoning-record-after',
+      codingSessionId: 'session-logical-structured-identity',
+      turnId: 'turn-logical-structured-identity',
+      role: 'assistant',
+      content: '',
+      reasoning: [
+        { id: 'reasoning-shared', summary: 'Updated public summary.' },
+        { id: 'reasoning-added', summary: 'Additional public summary.' },
+      ],
+      createdAt: '2026-07-21T00:00:02.000Z',
+    },
+  ),
+  true,
+  'Structured-only updates with an overlapping canonical child id must retain their logical slot.',
+);
+assert.equal(
+  areBirdCoderChatMessagesLogicallyMatched(
+    {
+      id: 'reasoning-kind-record',
+      codingSessionId: 'session-logical-structured-kind',
+      turnId: 'turn-logical-structured-kind',
+      role: 'assistant',
+      content: '',
+      reasoning: [{ id: 'shared-across-kinds', summary: 'Public reasoning.' }],
+      createdAt: '2026-07-21T00:00:01.000Z',
+    },
+    {
+      id: 'resource-kind-record',
+      codingSessionId: 'session-logical-structured-kind',
+      turnId: 'turn-logical-structured-kind',
+      role: 'assistant',
+      content: '',
+      resources: [{ id: 'shared-across-kinds', kind: 'file', path: 'src/provider.ts' }],
+      createdAt: '2026-07-21T00:00:02.000Z',
+    },
+  ),
+  false,
+  'Reasoning and resource child ids must remain type-scoped when matching stable slots.',
+);
+assert.equal(
+  areBirdCoderChatMessagesLogicallyMatched(
+    {
+      id: 'resource-first-turn',
+      codingSessionId: 'session-logical-structured-turn',
+      turnId: 'turn-logical-structured-one',
+      role: 'assistant',
+      content: '',
+      resources: [{ id: 'provider-reused-resource', kind: 'file', path: 'src/one.ts' }],
+      createdAt: '2026-07-21T00:00:01.000Z',
+    },
+    {
+      id: 'resource-second-turn',
+      codingSessionId: 'session-logical-structured-turn',
+      turnId: 'turn-logical-structured-two',
+      role: 'assistant',
+      content: '',
+      resources: [{ id: 'provider-reused-resource', kind: 'file', path: 'src/two.ts' }],
+      createdAt: '2026-07-21T00:00:02.000Z',
+    },
+  ),
+  false,
+  'Provider child ids reused in different turns must not merge their transcript slots.',
+);
+
+const distinctExistingCompletedRecords = mergeBirdCoderProjectionMessages({
+  codingSessionId: 'session-existing-completed-records',
+  existingMessages: [
+    {
+      id: 'existing-completed-record-one',
+      codingSessionId: 'session-existing-completed-records',
+      turnId: 'turn-existing-completed-records',
+      role: 'assistant',
+      content: 'Provider repeated this text.',
+      createdAt: '2026-07-21T00:00:00.000Z',
+    },
+    {
+      id: 'existing-completed-record-two',
+      codingSessionId: 'session-existing-completed-records',
+      turnId: 'turn-existing-completed-records',
+      role: 'assistant',
+      content: 'Provider repeated this text.',
+      createdAt: '2026-07-21T00:00:01.000Z',
+    },
+  ],
+  idPrefix: 'authoritative',
+  events: [{
+    id: 'authoritative-completed-record-three',
+    codingSessionId: 'session-existing-completed-records',
+    turnId: 'turn-existing-completed-records',
+    kind: 'message.completed',
+    sequence: '3',
+    payload: { role: 'assistant', content: 'Provider repeated this text.' },
+    createdAt: '2026-07-21T00:00:02.000Z',
+  }],
+});
+assert.deepEqual(
+  distinctExistingCompletedRecords.map((message) => message.id),
+  [
+    'existing-completed-record-one',
+    'existing-completed-record-two',
+    'session-existing-completed-records:authoritative:authoritative-completed-record-three:assistant',
+  ],
+  'Projection reconciliation must retain distinct existing and authoritative completed records with equal logical text.',
+);
+
+const expandingStructuredUpdateProjection = mergeBirdCoderProjectionMessages({
+  codingSessionId: 'session-expanding-structured-update',
+  existingMessages: [{
+    id: 'stable-expanding-reasoning-slot',
+    codingSessionId: 'session-expanding-structured-update',
+    turnId: 'turn-expanding-structured-update',
+    role: 'assistant',
+    content: '',
+    reasoning: [{ id: 'expanding-reasoning-one', summary: 'Initial summary.' }],
+    createdAt: '2026-07-21T00:00:03.000Z',
+  }],
+  idPrefix: 'authoritative',
+  events: [{
+    id: 'expanding-structured-update-event',
+    codingSessionId: 'session-expanding-structured-update',
+    turnId: 'turn-expanding-structured-update',
+    kind: 'message.delta',
+    sequence: '1',
+    payload: {
+      role: 'assistant',
+      reasoning: [
+        { id: 'expanding-reasoning-one', summary: 'Updated summary.' },
+        { id: 'expanding-reasoning-two', summary: 'Additional summary.' },
+      ],
+    },
+    createdAt: '2026-07-21T00:00:04.000Z',
+  }],
+});
+assert.equal(expandingStructuredUpdateProjection.length, 1);
+assert.equal(
+  expandingStructuredUpdateProjection[0]?.id,
+  'stable-expanding-reasoning-slot',
+  'An expanding structured update must retain the first matching message slot id.',
+);
+assert.deepEqual(
+  expandingStructuredUpdateProjection[0]?.reasoning?.map((item) => [item.id, item.summary]),
+  [
+    ['expanding-reasoning-one', 'Updated summary.'],
+    ['expanding-reasoning-two', 'Additional summary.'],
+  ],
+  'An expanding structured update must merge every canonical child into the retained slot.',
+);
+
+const equalTimestampStructuredSlotProjection = mergeBirdCoderProjectionMessages({
+  codingSessionId: 'session-equal-timestamp-structured-slot',
+  existingMessages: [
+    {
+      id: 'equal-timestamp-slot-before',
+      codingSessionId: 'session-equal-timestamp-structured-slot',
+      turnId: 'turn-equal-timestamp-structured-slot',
+      role: 'assistant',
+      content: '',
+      resources: [{ id: 'slot-resource-before', kind: 'file', path: 'src/before.ts' }],
+      createdAt: '2026-07-21T00:00:05.000Z',
+    },
+    {
+      id: 'equal-timestamp-slot-updated',
+      codingSessionId: 'session-equal-timestamp-structured-slot',
+      turnId: 'turn-equal-timestamp-structured-slot',
+      role: 'assistant',
+      content: '',
+      reasoning: [{ id: 'slot-reasoning-updated', summary: 'Initial summary.' }],
+      createdAt: '2026-07-21T00:00:05.000Z',
+    },
+    {
+      id: 'equal-timestamp-slot-after',
+      codingSessionId: 'session-equal-timestamp-structured-slot',
+      turnId: 'turn-equal-timestamp-structured-slot',
+      role: 'assistant',
+      content: '',
+      resources: [{ id: 'slot-resource-after', kind: 'file', path: 'src/after.ts' }],
+      createdAt: '2026-07-21T00:00:05.000Z',
+    },
+  ],
+  idPrefix: 'authoritative',
+  events: [{
+    id: 'equal-timestamp-slot-update-event',
+    codingSessionId: 'session-equal-timestamp-structured-slot',
+    turnId: 'turn-equal-timestamp-structured-slot',
+    kind: 'message.delta',
+    sequence: '1',
+    payload: {
+      role: 'assistant',
+      reasoning: [{ id: 'slot-reasoning-updated', summary: 'Updated in place.' }],
+    },
+    createdAt: '2026-07-21T00:00:05.000Z',
+  }],
+});
+assert.deepEqual(
+  equalTimestampStructuredSlotProjection.map((message) => message.id),
+  [
+    'equal-timestamp-slot-before',
+    'equal-timestamp-slot-updated',
+    'equal-timestamp-slot-after',
+  ],
+  'A structured update must retain its existing slot among equal-timestamp history records.',
+);
+
+const equalTimestampExistingProjection = mergeBirdCoderProjectionMessages({
+  codingSessionId: 'session-equal-timestamp-existing',
+  existingMessages: [
+    {
+      id: 'equal-timestamp-existing-tool',
+      codingSessionId: 'session-equal-timestamp-existing',
+      turnId: 'turn-equal-timestamp-existing',
+      role: 'tool',
+      content: 'Tool output',
+      tool_call_id: 'equal-timestamp-existing-call',
+      createdAt: '2026-07-21T00:00:02.000Z',
+    },
+    {
+      id: 'equal-timestamp-existing-assistant',
+      codingSessionId: 'session-equal-timestamp-existing',
+      turnId: 'turn-equal-timestamp-existing',
+      role: 'assistant',
+      content: 'Authored follow-up',
+      createdAt: '2026-07-21T00:00:02.000Z',
+    },
+  ],
+  idPrefix: 'authoritative',
+  events: [],
+});
+assert.deepEqual(
+  equalTimestampExistingProjection.map((message) => message.role),
+  ['tool', 'assistant'],
+  'Existing provider records with equal timestamps must retain their input order.',
+);
+
+const orderedCompletedPartProjection = mergeBirdCoderProjectionMessages({
+  codingSessionId: 'session-ordered-completed-parts',
+  existingMessages: [],
+  idPrefix: 'authoritative',
+  events: [
+    {
+      id: 'ordered-completed-text-before',
+      codingSessionId: 'session-ordered-completed-parts',
+      turnId: 'turn-ordered-completed-parts',
+      kind: 'message.completed',
+      sequence: '1',
+      payload: { role: 'assistant', content: 'Before the tool.' },
+      createdAt: '2026-07-21T00:00:00.000Z',
+    },
+    {
+      id: 'ordered-completed-tool',
+      codingSessionId: 'session-ordered-completed-parts',
+      turnId: 'turn-ordered-completed-parts',
+      kind: 'message.completed',
+      sequence: '2',
+      payload: {
+        role: 'assistant',
+        content: '',
+        toolCalls: [{ type: 'tool_use', id: 'ordered-completed-call', name: 'Read', input: { path: 'src/App.tsx' } }],
+      },
+      createdAt: '2026-07-21T00:00:01.000Z',
+    },
+    {
+      id: 'ordered-completed-text-after',
+      codingSessionId: 'session-ordered-completed-parts',
+      turnId: 'turn-ordered-completed-parts',
+      kind: 'message.completed',
+      sequence: '3',
+      payload: { role: 'assistant', content: 'After the tool.' },
+      createdAt: '2026-07-21T00:00:02.000Z',
+    },
+  ],
+});
+assert.deepEqual(
+  orderedCompletedPartProjection.map((message) => message.content),
+  ['Before the tool.', '', 'After the tool.'],
+  'Completed records in one turn must keep text -> tool -> text provider order and distinct identities.',
+);
+assert.equal(new Set(orderedCompletedPartProjection.map((message) => message.id)).size, 3);
+
+const equalTimestampSequenceProjection = mergeBirdCoderProjectionMessages({
+  codingSessionId: 'session-equal-timestamp-sequence',
+  existingMessages: [],
+  idPrefix: 'authoritative',
+  events: [
+    {
+      id: 'equal-timestamp-tool',
+      codingSessionId: 'session-equal-timestamp-sequence',
+      turnId: 'turn-equal-timestamp-sequence',
+      kind: 'message.completed',
+      sequence: '1',
+      payload: { role: 'tool', content: 'Tool output', toolCallId: 'equal-timestamp-call' },
+      createdAt: '2026-07-21T00:00:03.000Z',
+    },
+    {
+      id: 'equal-timestamp-assistant',
+      codingSessionId: 'session-equal-timestamp-sequence',
+      turnId: 'turn-equal-timestamp-sequence',
+      kind: 'message.completed',
+      sequence: '2',
+      payload: { role: 'assistant', content: 'Authored follow-up' },
+      createdAt: '2026-07-21T00:00:03.000Z',
+    },
+  ],
+});
+assert.deepEqual(
+  equalTimestampSequenceProjection.map((message) => message.role),
+  ['tool', 'assistant'],
+  'Equal timestamps must not replace exact provider sequence with lexical role order.',
+);
+
+const equalSequenceAndTimestampProjection = mergeBirdCoderProjectionMessages({
+  codingSessionId: 'session-equal-sequence-and-timestamp',
+  existingMessages: [],
+  idPrefix: 'authoritative',
+  events: [
+    {
+      id: 'z-provider-tool-record',
+      codingSessionId: 'session-equal-sequence-and-timestamp',
+      turnId: 'turn-equal-sequence-and-timestamp',
+      kind: 'message.completed',
+      sequence: '7',
+      payload: { role: 'tool', content: 'Provider tool output', toolCallId: 'equal-sequence-call' },
+      createdAt: '2026-07-21T00:00:03.500Z',
+    },
+    {
+      id: 'a-provider-assistant-record',
+      codingSessionId: 'session-equal-sequence-and-timestamp',
+      turnId: 'turn-equal-sequence-and-timestamp',
+      kind: 'message.completed',
+      sequence: '7',
+      payload: { role: 'assistant', content: 'Provider-authored follow-up' },
+      createdAt: '2026-07-21T00:00:03.500Z',
+    },
+  ],
+});
+assert.deepEqual(
+  equalSequenceAndTimestampProjection.map((message) => message.role),
+  ['tool', 'assistant'],
+  'Provider input order must remain stable when both exact sequence and timestamp are equal.',
+);
+
+const orderedStructuredDeltaProjection = mergeBirdCoderProjectionMessages({
+  codingSessionId: 'session-ordered-structured-deltas',
+  existingMessages: [],
+  idPrefix: 'authoritative',
+  events: [
+    {
+      id: 'ordered-resource-delta',
+      codingSessionId: 'session-ordered-structured-deltas',
+      turnId: 'turn-ordered-structured-deltas',
+      kind: 'message.delta',
+      sequence: '1',
+      payload: { role: 'assistant', resources: [{ id: 'ordered-resource', kind: 'file', path: 'src/provider.ts' }] },
+      createdAt: '2026-07-21T00:00:04.000Z',
+    },
+    {
+      id: 'ordered-reasoning-delta',
+      codingSessionId: 'session-ordered-structured-deltas',
+      turnId: 'turn-ordered-structured-deltas',
+      kind: 'message.delta',
+      sequence: '2',
+      payload: { role: 'assistant', reasoning: [{ id: 'ordered-reasoning', summary: 'Reasoned after the resource.' }] },
+      createdAt: '2026-07-21T00:00:04.000Z',
+    },
+  ],
+});
+assert.deepEqual(
+  orderedStructuredDeltaProjection.flatMap((message) =>
+    resolveChatMessageView(message).blocks.map((block) => block.type),
+  ),
+  ['resources', 'reasoning'],
+  'Structured-only delta children must retain their cross-block provider order even when timestamps are equal.',
+);
+
+const textToolTextDeltaProjection = mergeBirdCoderProjectionMessages({
+  codingSessionId: 'session-text-tool-text-deltas',
+  existingMessages: [],
+  idPrefix: 'authoritative',
+  events: [
+    {
+      id: 'text-tool-text-before',
+      codingSessionId: 'session-text-tool-text-deltas',
+      turnId: 'turn-text-tool-text-deltas',
+      kind: 'message.delta',
+      sequence: '1',
+      payload: { role: 'assistant', contentDelta: 'Before the tool.' },
+      createdAt: '2026-07-21T00:00:05.000Z',
+    },
+    {
+      id: 'text-tool-text-tool',
+      codingSessionId: 'session-text-tool-text-deltas',
+      turnId: 'turn-text-tool-text-deltas',
+      kind: 'message.delta',
+      sequence: '2',
+      payload: {
+        role: 'assistant',
+        toolCalls: [{
+          type: 'tool_use',
+          id: 'text-tool-text-call',
+          name: 'Read',
+          input: { path: 'src/provider.ts' },
+        }],
+      },
+      createdAt: '2026-07-21T00:00:05.000Z',
+    },
+    {
+      id: 'text-tool-text-after',
+      codingSessionId: 'session-text-tool-text-deltas',
+      turnId: 'turn-text-tool-text-deltas',
+      kind: 'message.delta',
+      sequence: '3',
+      payload: { role: 'assistant', contentDelta: 'After the tool.' },
+      createdAt: '2026-07-21T00:00:05.000Z',
+    },
+  ],
+});
+assert.deepEqual(
+  textToolTextDeltaProjection.map((message) => message.content),
+  ['Before the tool.', '', 'After the tool.'],
+  'A structured delta boundary must split text streams into stable provider-ordered segments.',
+);
+assert.equal(
+  projectChatMessageToolCalls(
+    textToolTextDeltaProjection[1]?.tool_calls,
+    { engineId: 'claude-code' },
+  )[0]?.id,
+  'text-tool-text-call',
+  'The structured delta between text segments must retain its provider call identity.',
 );
 
 function createIndexCountingMessages(

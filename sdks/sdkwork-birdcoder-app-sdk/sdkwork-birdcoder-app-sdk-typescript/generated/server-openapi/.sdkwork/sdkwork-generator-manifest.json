@@ -7,7 +7,7 @@
     "language": "typescript",
     "sdkType": "app",
     "protocol": "http",
-    "packageName": "@sdkwork/birdcoder-app-sdk"
+    "packageName": "sdkwork-birdcoder-app-sdk-generated-typescript"
   },
   "generatedFiles": [
     {
@@ -44,7 +44,7 @@
     },
     {
       "path": "README.md",
-      "sha256": "4e0db45d669012787339225779f82dbfefc411bbacff0957b6bffbaea0b47060"
+      "sha256": "c57b8ab6e190326c804cce8c0bcaba45d45791cee8cd868a5bb4fc69f67f9e50"
     },
     {
       "path": "sdkwork-sdk.json",
@@ -185,6 +185,22 @@
     {
       "path": "src/types/bird-coder-chat-conversation-summary.ts",
       "sha256": "ab2f6fe13ec409b0b8ae7dbb92cfd3d17461556c4b4cf9f4181b2659aba4f369"
+    },
+    {
+      "path": "src/types/bird-coder-chat-message-reasoning-item.ts",
+      "sha256": "697ab6d392a19ec0f20dcbc99e4b37150a76dba4f0649f9bf91de91d296a1d96"
+    },
+    {
+      "path": "src/types/bird-coder-chat-message-resource-citation.ts",
+      "sha256": "9e7095cba4943af330ee5d4d7f4cd8faf49afd9ed98a096e6227224122b9d041"
+    },
+    {
+      "path": "src/types/bird-coder-chat-message-resource-origin.ts",
+      "sha256": "abd65db9742519872cfca5eb491c7a25e85c4a163c0c705d904abed092ff9037"
+    },
+    {
+      "path": "src/types/bird-coder-chat-message-resource.ts",
+      "sha256": "ebea75c32c64c10c7816a96d31e8050f1dc3333361a372ebf47ac87d17c62113"
     },
     {
       "path": "src/types/bird-coder-chat-message-summary-envelope.ts",
@@ -612,7 +628,7 @@
     },
     {
       "path": "src/types/bird-coder-native-session-message.ts",
-      "sha256": "1e40e28258a68fd1bc193f8d1712a78e84ebaadbffb5d6201e9ace9f81315ecd"
+      "sha256": "e1993115596d2ee5f14ddd885e58317b787f59af6ee4fd26fdb857f52cbf1d61"
     },
     {
       "path": "src/types/bird-coder-native-session-provider-summary-list-envelope.ts",
@@ -876,7 +892,7 @@
     },
     {
       "path": "src/types/index.ts",
-      "sha256": "4b97454ea52fe0532435ff5b4a48326daa9a0126472ffd77b38819ed38d8a860"
+      "sha256": "e99289bca0de3e4c5ad2fc8463a9cc0068a367ea8e10cdf9185b29994ad355e4"
     },
     {
       "path": "src/types/page-info.ts",

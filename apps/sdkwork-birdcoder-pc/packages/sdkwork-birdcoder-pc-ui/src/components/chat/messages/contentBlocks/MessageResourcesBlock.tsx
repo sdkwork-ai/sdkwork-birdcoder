@@ -11,6 +11,7 @@ import {
 import type {
   BirdCoderChatMessageResource,
 } from '@sdkwork/birdcoder-pc-workbench/chat/types';
+import { resolveBirdCoderChatMessageMediaSource } from '@sdkwork/birdcoder-pc-contracts-commons';
 import type { ChatMessageRenderContext } from '../types.ts';
 import type { ChatMessageContentBlockRendererProps } from './registry.ts';
 
@@ -25,26 +26,38 @@ const RESOURCE_ICON_BY_KIND = {
 } as const;
 
 function resolveSafeMediaSource(resource: BirdCoderChatMessageResource): string | undefined {
-  const source = resource.mediaSource?.trim();
-  if (!source) {
+  if (resource.kind !== 'image' && resource.kind !== 'audio') {
     return undefined;
   }
-  if (/^https?:\/\//iu.test(source) || /^blob:/iu.test(source)) {
-    return source;
-  }
-  const expectedMediaType = resource.kind === 'image' ? 'image' : 'audio';
-  return new RegExp(`^data:${expectedMediaType}/[a-z0-9.+-]+;base64,`, 'iu').test(source)
-    ? source
-    : undefined;
+  return resolveBirdCoderChatMessageMediaSource(
+    resource.mediaSource,
+    resource.kind,
+    resource.mimeType,
+  );
 }
 
 function resolveSafeExternalUri(resource: BirdCoderChatMessageResource): string | undefined {
-  const uri = resource.uri?.trim();
-  return uri && /^https?:\/\//iu.test(uri) ? uri : undefined;
+  for (const value of [resource.uri, resource.origin?.uri]) {
+    const uri = value?.trim();
+    if (uri && /^https?:\/\//iu.test(uri)) {
+      return uri;
+    }
+  }
+  return undefined;
 }
 
 function isOpaqueMediaLocation(value: string | undefined): boolean {
   return Boolean(value && /^(?:data|blob):/iu.test(value.trim()));
+}
+
+function resolveOpenableFilePath(resource: BirdCoderChatMessageResource): string | undefined {
+  for (const value of [resource.path, resource.origin?.path]) {
+    const path = value?.trim();
+    if (path && !/^(?:data|blob|https?):/iu.test(path)) {
+      return path;
+    }
+  }
+  return undefined;
 }
 
 function resolveResourceKindLabel(
@@ -73,9 +86,8 @@ function formatLineLocation(resource: BirdCoderChatMessageResource): string {
 }
 
 function resolvePrimaryLocation(resource: BirdCoderChatMessageResource): string {
-  return resource.path
+  return resolveOpenableFilePath(resource)
     ?? (!isOpaqueMediaLocation(resource.uri) ? resource.uri : undefined)
-    ?? resource.origin?.path
     ?? (!isOpaqueMediaLocation(resource.origin?.uri) ? resource.origin?.uri : undefined)
     ?? '';
 }
@@ -141,7 +153,8 @@ export const MessageResourcesBlock = memo(function MessageResourcesBlock({
         const metadata = buildResourceMetadata(resource);
         const mediaSource = resolveSafeMediaSource(resource);
         const externalUri = resolveSafeExternalUri(resource);
-        const canOpenFile = Boolean(resource.path && context.environment?.onOpenFile);
+        const openableFilePath = resolveOpenableFilePath(resource);
+        const canOpenFile = Boolean(openableFilePath && context.environment?.onOpenFile);
         const titleContent = (
           <>
             <span className="min-w-0 truncate font-medium text-gray-300" title={title}>
@@ -181,9 +194,9 @@ export const MessageResourcesBlock = memo(function MessageResourcesBlock({
                   <button
                     type="button"
                     className="flex min-w-0 items-baseline gap-1 text-left hover:text-gray-100 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-blue-400/70"
-                    title={`${openFileLabel}: ${resource.path}`}
-                    aria-label={`${openFileLabel}: ${resource.path}`}
-                    onClick={() => context.environment?.onOpenFile?.(resource.path!)}
+                    title={`${openFileLabel}: ${openableFilePath}`}
+                    aria-label={`${openFileLabel}: ${openableFilePath}`}
+                    onClick={() => context.environment?.onOpenFile?.(openableFilePath!)}
                   >
                     {titleContent}
                   </button>
@@ -192,7 +205,7 @@ export const MessageResourcesBlock = memo(function MessageResourcesBlock({
                     className="flex min-w-0 items-baseline gap-1 hover:text-gray-100 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-blue-400/70"
                     href={externalUri}
                     target="_blank"
-                    rel="noreferrer"
+                    rel="noopener noreferrer"
                     title={externalUri}
                   >
                     {titleContent}

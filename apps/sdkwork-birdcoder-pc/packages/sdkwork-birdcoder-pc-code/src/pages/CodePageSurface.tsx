@@ -101,13 +101,16 @@ export const CodePageSurface = memo(function CodePageSurface({
   return (
     <div className="birdcoder-workbench-shell flex h-full w-full bg-[#0e0e11] text-gray-100 font-sans selection:bg-white/10 selection:text-white">
       {isSidebarVisible && (
-        <>
+        <div className="hidden sm:contents" data-code-project-explorer-shell="true">
           <DeferredProjectExplorer {...projectExplorerProps} />
           <ResizeHandle direction="horizontal" onResize={onSidebarResize} />
-        </>
+        </div>
       )}
 
-      <div className="min-w-0 flex-1 flex flex-col relative bg-[#0e0e11] overflow-hidden">
+      <div
+        className="min-w-0 flex-1 flex flex-col relative bg-[#0e0e11] overflow-hidden"
+        data-code-page-primary-content="true"
+      >
         <DeferredCodeWorkspaceOverlays {...overlayProps} />
         <DeferredCodePageDialogs {...dialogProps} />
         <DeferredTopBar {...topBarProps} />

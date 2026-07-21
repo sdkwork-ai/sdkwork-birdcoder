@@ -8,13 +8,14 @@ use crate::{
     build_native_session_id, canonicalize_codeengine_tool_name,
     extract_native_lookup_id_for_engine, get_opencode_session, get_opencode_session_messages,
     is_opencode_transport_available, known_standard_provider_registration,
+    list_opencode_pending_permission_requests, list_opencode_pending_question_requests,
     list_opencode_session_status_map, list_opencode_sessions,
     map_codeengine_session_runtime_status, map_codeengine_session_status_from_runtime,
     map_codeengine_tool_command_status, map_codeengine_tool_kind,
     map_codeengine_tool_runtime_status, resolve_codeengine_command_interaction_state,
     resolve_codeengine_command_text, sanitize_codeengine_git_repository_url,
     sanitize_codeengine_session_metadata, sanitize_codeengine_session_reasoning_records,
-    session_id_targets_engine,
+    sanitize_codeengine_session_resource_records, session_id_targets_engine,
     CodeEngineSessionCommandRecord, CodeEngineSessionDetailRecord, CodeEngineSessionMessageRecord,
     CodeEngineSessionNativeAttributesRecord, CodeEngineSessionReasoningRecord,
     CodeEngineSessionResourceOriginRecord, CodeEngineSessionResourceRecord,
@@ -79,9 +80,33 @@ impl NativeSessionProviderPlugin for OpencodeCodeEngineProvider {
             return Ok(None);
         };
 
+        let pending_permissions =
+            list_opencode_pending_permission_requests().unwrap_or_else(|error| {
+                tracing::warn!(
+                    error,
+                    "OpenCode pending permission inventory could not be replayed."
+                );
+                Vec::new()
+            });
+        let pending_questions = list_opencode_pending_question_requests().unwrap_or_else(|error| {
+            tracing::warn!(
+                error,
+                "OpenCode pending question inventory could not be replayed."
+            );
+            Vec::new()
+        });
+        let mut message_records = build_opencode_message_records(summary.id.as_str(), &messages);
+        message_records.extend(build_opencode_pending_interaction_records(
+            summary.id.as_str(),
+            lookup_id.as_str(),
+            &messages,
+            &pending_permissions,
+            &pending_questions,
+        ));
+
         Ok(Some(CodeEngineSessionDetailRecord {
             summary: summary.clone(),
-            messages: build_opencode_message_records(summary.id.as_str(), &messages),
+            messages: message_records,
         }))
     }
 
@@ -254,16 +279,327 @@ fn build_opencode_message_records(
     messages
         .iter()
         .flat_map(|message| {
-            let mut records = Vec::with_capacity(2);
-            if let Some(record) = build_opencode_message_record(coding_session_id, message) {
-                records.push(record);
-            }
+            let mut records = build_opencode_ordered_message_records(coding_session_id, message)
+                .unwrap_or_else(|| {
+                    build_opencode_message_record(coding_session_id, message)
+                        .into_iter()
+                        .collect()
+                });
             if let Some(notice) = build_opencode_message_error_notice(coding_session_id, message) {
                 records.push(notice);
             }
             records
         })
         .collect()
+}
+
+fn build_opencode_pending_interaction_records(
+    coding_session_id: &str,
+    native_session_id: &str,
+    messages: &[Value],
+    pending_permissions: &[Value],
+    pending_questions: &[Value],
+) -> Vec<CodeEngineSessionMessageRecord> {
+    pending_permissions
+        .iter()
+        .filter_map(|request| {
+            build_opencode_pending_interaction_record(
+                coding_session_id,
+                native_session_id,
+                messages,
+                request,
+                "permission_request",
+                "approval",
+            )
+        })
+        .chain(pending_questions.iter().filter_map(|request| {
+            build_opencode_pending_interaction_record(
+                coding_session_id,
+                native_session_id,
+                messages,
+                request,
+                "user_question",
+                "user_question",
+            )
+        }))
+        .collect()
+}
+
+fn build_opencode_pending_interaction_record(
+    coding_session_id: &str,
+    native_session_id: &str,
+    messages: &[Value],
+    request: &Value,
+    tool_name: &str,
+    interaction_kind: &str,
+) -> Option<CodeEngineSessionMessageRecord> {
+    let request_session_id = ["sessionID", "sessionId", "session_id"]
+        .into_iter()
+        .find_map(|field| normalize_value_string(request.get(field)))?;
+    if request_session_id != native_session_id {
+        return None;
+    }
+    let request_id = ["id", "requestID", "requestId", "request_id"]
+        .into_iter()
+        .find_map(|field| normalize_value_string(request.get(field)))?;
+    let source_message_id = request.get("tool").and_then(|tool| {
+        ["messageID", "messageId", "message_id"]
+            .into_iter()
+            .find_map(|field| normalize_value_string(tool.get(field)))
+    });
+    let source_info = source_message_id.as_deref().and_then(|message_id| {
+        messages.iter().find_map(|message| {
+            let info = message.get("info")?;
+            (normalize_value_string(info.get("id")).as_deref() == Some(message_id))
+                .then(|| info.clone())
+        })
+    });
+    let mut info = source_info
+        .and_then(|value| value.as_object().cloned())
+        .unwrap_or_default();
+    info.insert(
+        "id".to_owned(),
+        Value::String(format!("pending-{interaction_kind}-{request_id}")),
+    );
+    info.insert("role".to_owned(), Value::String("assistant".to_owned()));
+    if !info.contains_key("parentID")
+        && !info.contains_key("parentId")
+        && !info.contains_key("parent_id")
+    {
+        info.insert(
+            "parentID".to_owned(),
+            Value::String(
+                source_message_id
+                    .clone()
+                    .unwrap_or_else(|| request_id.clone()),
+            ),
+        );
+    }
+
+    let mut arguments = serde_json::Map::new();
+    arguments.insert(
+        "interactionKind".to_owned(),
+        Value::String(interaction_kind.to_owned()),
+    );
+    arguments.insert(
+        "requiresApproval".to_owned(),
+        Value::Bool(interaction_kind == "approval"),
+    );
+    arguments.insert(
+        "requiresReply".to_owned(),
+        Value::Bool(interaction_kind == "user_question"),
+    );
+    for field in [
+        "permission",
+        "patterns",
+        "metadata",
+        "always",
+        "questions",
+        "tool",
+    ] {
+        if let Some(value) = request.get(field) {
+            arguments.insert(field.to_owned(), value.clone());
+        }
+    }
+    let title = request
+        .get("tool")
+        .and_then(|tool| normalize_value_string(tool.get("title")))
+        .or_else(|| {
+            request
+                .get("questions")
+                .and_then(Value::as_array)
+                .and_then(|questions| questions.first())
+                .and_then(|question| normalize_value_string(question.get("header")))
+        });
+    let mut state = serde_json::Map::new();
+    state.insert("status".to_owned(), Value::String("pending".to_owned()));
+    state.insert("input".to_owned(), Value::Object(arguments));
+    if let Some(title) = title {
+        state.insert("title".to_owned(), Value::String(title));
+    }
+
+    build_opencode_message_record(
+        coding_session_id,
+        &serde_json::json!({
+            "info": info,
+            "parts": [{
+                "id": format!("pending-{interaction_kind}-{request_id}"),
+                "type": "tool",
+                "callID": request_id,
+                "tool": tool_name,
+                "state": state,
+            }],
+        }),
+    )
+}
+
+fn build_opencode_ordered_message_records(
+    coding_session_id: &str,
+    message: &Value,
+) -> Option<Vec<CodeEngineSessionMessageRecord>> {
+    let info = message.get("info")?;
+    let role = normalize_value_string(info.get("role"))?;
+    if !matches!(role.as_str(), "assistant" | "user") {
+        return None;
+    }
+    let raw_message_id = normalize_value_string(info.get("id"))?;
+    let turn_id = read_opencode_message_turn_id(info, raw_message_id.as_str(), role.as_str());
+    let parts = message.get("parts")?.as_array()?;
+    let mut part_groups = Vec::<(&'static str, usize, Vec<Value>)>::new();
+    for (part_index, part) in parts.iter().enumerate() {
+        let Some(kind) = opencode_ordered_part_kind(part) else {
+            continue;
+        };
+        if let Some((previous_kind, _, previous_parts)) = part_groups.last_mut() {
+            if *previous_kind == kind && !matches!(kind, "retry" | "compaction") {
+                previous_parts.push(part.clone());
+                continue;
+            }
+        }
+        part_groups.push((kind, part_index, vec![part.clone()]));
+    }
+    let has_protocol_notice = part_groups
+        .iter()
+        .any(|(kind, _, _)| matches!(*kind, "retry" | "compaction"));
+    if role == "user" && !has_protocol_notice {
+        return None;
+    }
+    if part_groups.len() < 2 && !has_protocol_notice {
+        return None;
+    }
+
+    let group_count = part_groups.len();
+    let mut records = Vec::with_capacity(group_count);
+    for (group_index, (kind, first_part_index, group_parts)) in part_groups.into_iter().enumerate()
+    {
+        let mut group_message = message.clone();
+        let group_message_record = group_message.as_object_mut()?;
+        group_message_record.insert("parts".to_owned(), Value::Array(group_parts));
+        let group_info = group_message_record
+            .get_mut("info")
+            .and_then(Value::as_object_mut)?;
+        group_info.insert(
+            "id".to_owned(),
+            Value::String(format!("{raw_message_id}:part:{}", first_part_index + 1)),
+        );
+        if group_index + 1 < group_count {
+            group_info.remove("summary");
+        }
+        let mut record = match kind {
+            "retry" | "compaction" => build_opencode_protocol_part_notice(
+                coding_session_id,
+                &group_message,
+                kind,
+                turn_id.as_str(),
+            ),
+            _ => build_opencode_message_record(coding_session_id, &group_message),
+        };
+        if let Some(record) = record.as_mut() {
+            record.turn_id = Some(turn_id.clone());
+        }
+        if let Some(record) = record {
+            records.push(record);
+        }
+    }
+
+    (has_protocol_notice || records.len() >= 2).then_some(records)
+}
+
+fn opencode_ordered_part_kind(part: &Value) -> Option<&'static str> {
+    match part.get("type").and_then(Value::as_str) {
+        Some("text") if part.get("synthetic").and_then(Value::as_bool) != Some(true) => {
+            normalize_value_string(part.get("text")).map(|_| "text")
+        }
+        Some("reasoning") => normalize_value_string(part.get("text")).map(|_| "reasoning"),
+        Some("tool" | "subtask") => Some("tool"),
+        Some("file") => Some("resource"),
+        Some("patch") => Some("patch"),
+        Some("retry") => Some("retry"),
+        Some("compaction") => Some("compaction"),
+        _ => None,
+    }
+}
+
+fn build_opencode_protocol_part_notice(
+    coding_session_id: &str,
+    message: &Value,
+    notice_kind: &str,
+    turn_id: &str,
+) -> Option<CodeEngineSessionMessageRecord> {
+    let info = message.get("info")?;
+    let raw_message_id = normalize_value_string(info.get("id"))?;
+    let part = message
+        .get("parts")
+        .and_then(Value::as_array)
+        .and_then(|parts| parts.first())?;
+    let (notice_kind, content) = match notice_kind {
+        "retry" => ("retry", format_opencode_retry_part_notice(part)),
+        "compaction" => (
+            "compression",
+            if part.get("overflow").and_then(Value::as_bool) == Some(true) {
+                "Conversation context compressed after reaching the context limit.".to_owned()
+            } else {
+                "Conversation context compressed.".to_owned()
+            },
+        ),
+        _ => return None,
+    };
+    let mut metadata = BTreeMap::new();
+    metadata.insert("noticeKind".to_owned(), notice_kind.to_owned());
+    let created_at = timestamp_from_value_millis(
+        part.get("time")
+            .and_then(|time| time.get("created"))
+            .or_else(|| info.get("time").and_then(|time| time.get("created"))),
+    )
+    .unwrap_or_else(|| timestamp_from_millis(0));
+
+    Some(CodeEngineSessionMessageRecord {
+        id: format!("{coding_session_id}:native-message:{raw_message_id}"),
+        turn_id: Some(turn_id.to_owned()),
+        role: "system".to_owned(),
+        content,
+        commands: None,
+        tool_calls: None,
+        tool_call_id: None,
+        file_changes: None,
+        reasoning: None,
+        resources: None,
+        task_progress: None,
+        metadata: Some(metadata),
+        created_at,
+    })
+}
+
+fn format_opencode_retry_part_notice(part: &Value) -> String {
+    let attempt =
+        read_opencode_non_negative_integer(part.get("attempt")).filter(|value| *value > 0);
+    let base = attempt
+        .map(|attempt| format!("Retrying provider request (attempt {attempt})."))
+        .unwrap_or_else(|| "Retrying provider request.".to_owned());
+    let error = part.get("error");
+    let detail = error
+        .and_then(|error| {
+            normalize_value_string(error.get("data").and_then(|data| data.get("message")))
+                .or_else(|| normalize_value_string(error.get("message")))
+                .or_else(|| normalize_value_string(error.get("name")))
+        })
+        .map(|detail| {
+            detail
+                .chars()
+                .map(|character| {
+                    if character.is_control() && !matches!(character, '\n' | '\t') {
+                        ' '
+                    } else {
+                        character
+                    }
+                })
+                .take(4_000_usize.saturating_sub(base.chars().count() + 1))
+                .collect::<String>()
+        })
+        .filter(|detail| !detail.trim().is_empty());
+    detail
+        .map(|detail| format!("{base} {detail}"))
+        .unwrap_or(base)
 }
 
 fn read_opencode_message_turn_id(info: &Value, raw_message_id: &str, role: &str) -> String {
@@ -349,7 +685,9 @@ fn build_opencode_message_record(
     } else {
         extract_opencode_message_reasoning(&parts)
     };
-    let resources = extract_opencode_message_resources(&parts);
+    let resources = sanitize_codeengine_session_resource_records(
+        extract_opencode_message_resources(&parts).as_slice(),
+    );
     let task_progress = extract_opencode_message_task_progress(&parts);
     let content = extract_opencode_message_content(&parts);
     if content.trim().is_empty()
@@ -623,17 +961,14 @@ fn extract_opencode_message_reasoning(parts: &[Value]) -> Vec<CodeEngineSessionR
         .filter_map(|(index, part)| {
             let summary = normalize_value_string(part.get("text"))?;
             let time = part.get("time");
-            let started_at =
-                timestamp_from_value_millis(time.and_then(|value| value.get("start")));
-            let completed_at =
-                timestamp_from_value_millis(time.and_then(|value| value.get("end")));
-            let duration_ms = read_opencode_non_negative_integer(
-                time.and_then(|value| value.get("end")),
-            )
-                .zip(read_opencode_non_negative_integer(
-                    time.and_then(|value| value.get("start")),
-                ))
-                .and_then(|(end, start)| end.checked_sub(start));
+            let started_at = timestamp_from_value_millis(time.and_then(|value| value.get("start")));
+            let completed_at = timestamp_from_value_millis(time.and_then(|value| value.get("end")));
+            let duration_ms =
+                read_opencode_non_negative_integer(time.and_then(|value| value.get("end")))
+                    .zip(read_opencode_non_negative_integer(
+                        time.and_then(|value| value.get("start")),
+                    ))
+                    .and_then(|(end, start)| end.checked_sub(start));
             Some(CodeEngineSessionReasoningRecord {
                 id: normalize_value_string(part.get("id"))
                     .unwrap_or_else(|| format!("opencode-reasoning-{}", index + 1)),
@@ -931,9 +1266,9 @@ mod tests {
 
     use super::{
         build_opencode_message_record, build_opencode_message_records,
-        build_opencode_session_summary_record, extract_opencode_message_commands,
-        extract_opencode_message_file_changes, extract_opencode_session_model_id,
-        load_opencode_session_model_id,
+        build_opencode_pending_interaction_records, build_opencode_session_summary_record,
+        extract_opencode_message_commands, extract_opencode_message_file_changes,
+        extract_opencode_session_model_id, load_opencode_session_model_id,
     };
 
     #[test]
@@ -1532,6 +1867,286 @@ mod tests {
         assert_eq!(commands.len(), 1);
         assert_eq!(commands[0].status, "success");
         assert_eq!(commands[0].output, None);
+    }
+
+    #[test]
+    fn opencode_history_preserves_text_tool_text_part_order() {
+        let records = build_opencode_message_records(
+            "opencode:session-ordered-parts",
+            &[json!({
+                "info": {
+                    "id": "assistant-ordered-parts",
+                    "parentID": "user-ordered-parts",
+                    "role": "assistant",
+                    "time": { "created": 1_700_000_000_000_u64 }
+                },
+                "parts": [
+                    {
+                        "id": "part-text-before",
+                        "type": "text",
+                        "text": "I will inspect the adapter first."
+                    },
+                    {
+                        "id": "part-tool",
+                        "type": "tool",
+                        "callID": "call-read",
+                        "tool": "read",
+                        "state": {
+                            "status": "completed",
+                            "input": { "path": "src/adapter.ts" },
+                            "output": "export const adapter = true;"
+                        }
+                    },
+                    {
+                        "id": "part-text-after",
+                        "type": "text",
+                        "text": "The adapter already exposes the required hook."
+                    }
+                ]
+            })],
+        );
+
+        assert_eq!(records.len(), 3);
+        assert_eq!(records[0].content, "I will inspect the adapter first.");
+        assert!(records[0].tool_calls.is_none());
+        assert!(records[1].content.is_empty());
+        assert_eq!(records[1].tool_calls.as_ref().map(Vec::len), Some(1));
+        assert_eq!(
+            records[2].content,
+            "The adapter already exposes the required hook."
+        );
+        assert!(records[2].tool_calls.is_none());
+        assert!(records
+            .iter()
+            .all(|record| record.turn_id.as_deref() == Some("user-ordered-parts")));
+        assert!(records[0].id.ends_with("assistant-ordered-parts:part:1"));
+        assert!(records[1].id.ends_with("assistant-ordered-parts:part:2"));
+        assert!(records[2].id.ends_with("assistant-ordered-parts:part:3"));
+    }
+
+    #[test]
+    fn opencode_history_preserves_tool_reasoning_text_part_order() {
+        let records = build_opencode_message_records(
+            "opencode:session-ordered-reasoning",
+            &[json!({
+                "info": {
+                    "id": "assistant-ordered-reasoning",
+                    "parentID": "user-ordered-reasoning",
+                    "role": "assistant"
+                },
+                "parts": [
+                    {
+                        "id": "part-tool",
+                        "type": "tool",
+                        "callID": "call-search",
+                        "tool": "grep",
+                        "state": {
+                            "status": "completed",
+                            "input": { "pattern": "MessagePart" },
+                            "output": "src/message.ts:12"
+                        }
+                    },
+                    {
+                        "id": "part-reasoning",
+                        "type": "reasoning",
+                        "text": "The protocol renderer consumes parts in source order."
+                    },
+                    {
+                        "id": "part-text",
+                        "type": "text",
+                        "text": "The source confirms ordered rendering."
+                    }
+                ]
+            })],
+        );
+
+        assert_eq!(records.len(), 3);
+        assert_eq!(records[0].tool_calls.as_ref().map(Vec::len), Some(1));
+        assert_eq!(records[1].reasoning.as_ref().map(Vec::len), Some(1));
+        assert_eq!(
+            records[1].reasoning.as_ref().unwrap()[0].summary,
+            "The protocol renderer consumes parts in source order."
+        );
+        assert_eq!(records[2].content, "The source confirms ordered rendering.");
+    }
+
+    #[test]
+    fn opencode_history_preserves_retry_and_compaction_notice_positions() {
+        let records = build_opencode_message_records(
+            "opencode:session-ordered-notices",
+            &[
+                json!({
+                    "info": {
+                        "id": "user-ordered-notices",
+                        "role": "user",
+                        "time": { "created": 1_700_000_000_000_u64 }
+                    },
+                    "parts": [
+                        {
+                            "id": "part-text-before",
+                            "type": "text",
+                            "text": "Before compression."
+                        },
+                        {
+                            "id": "part-compaction",
+                            "sessionID": "session-ordered-notices",
+                            "messageID": "user-ordered-notices",
+                            "type": "compaction",
+                            "auto": true,
+                            "overflow": true
+                        },
+                        {
+                            "id": "part-text-after",
+                            "type": "text",
+                            "text": "After compression."
+                        }
+                    ]
+                }),
+                json!({
+                    "info": {
+                        "id": "assistant-ordered-retry",
+                        "parentID": "user-ordered-notices",
+                        "role": "assistant",
+                        "time": { "created": 1_700_000_001_000_u64 }
+                    },
+                    "parts": [{
+                        "id": "part-retry",
+                        "sessionID": "session-ordered-notices",
+                        "messageID": "assistant-ordered-retry",
+                        "type": "retry",
+                        "attempt": 2,
+                        "error": {
+                            "name": "APIError",
+                            "data": { "message": "Provider temporarily unavailable" }
+                        },
+                        "time": { "created": 1_700_000_001_000_u64 }
+                    }]
+                }),
+            ],
+        );
+
+        assert_eq!(records.len(), 4);
+        assert_eq!(records[0].content, "Before compression.");
+        assert_eq!(records[1].role, "system");
+        assert_eq!(
+            records[1]
+                .metadata
+                .as_ref()
+                .and_then(|metadata| metadata.get("noticeKind"))
+                .map(String::as_str),
+            Some("compression")
+        );
+        assert!(records[1].content.contains("context limit"));
+        assert_eq!(records[2].content, "After compression.");
+        assert_eq!(
+            records[3]
+                .metadata
+                .as_ref()
+                .and_then(|metadata| metadata.get("noticeKind"))
+                .map(String::as_str),
+            Some("retry")
+        );
+        assert!(records[3].content.contains("attempt 2"));
+        assert!(records[3]
+            .content
+            .contains("Provider temporarily unavailable"));
+        assert!(records
+            .iter()
+            .all(|record| record.turn_id.as_deref() == Some("user-ordered-notices")));
+
+        let compaction_only = build_opencode_message_records(
+            "opencode:session-compaction-only",
+            &[json!({
+                "info": {
+                    "id": "user-compaction-only",
+                    "role": "user",
+                    "time": { "created": 1_700_000_002_000_u64 }
+                },
+                "parts": [{
+                    "id": "part-compaction-only",
+                    "sessionID": "session-compaction-only",
+                    "messageID": "user-compaction-only",
+                    "type": "compaction",
+                    "auto": false
+                }]
+            })],
+        );
+        assert_eq!(compaction_only.len(), 1);
+        assert_eq!(compaction_only[0].role, "system");
+        assert_eq!(
+            compaction_only[0].turn_id.as_deref(),
+            Some("user-compaction-only")
+        );
+    }
+
+    #[test]
+    fn opencode_history_replays_pending_permissions_and_questions() {
+        let messages = vec![json!({
+            "info": {
+                "id": "assistant-tool-message",
+                "parentID": "user-turn",
+                "role": "assistant",
+                "time": { "created": 1_700_000_000_000_u64 }
+            },
+            "parts": []
+        })];
+        let records = build_opencode_pending_interaction_records(
+            "opencode:session-pending",
+            "session-pending",
+            &messages,
+            &[
+                json!({
+                    "id": "permission-1",
+                    "sessionID": "session-pending",
+                    "permission": "bash",
+                    "patterns": ["pnpm test"],
+                    "metadata": { "command": "pnpm test" },
+                    "always": [],
+                    "tool": {
+                        "messageID": "assistant-tool-message",
+                        "callID": "call-command-1",
+                        "title": "Run tests"
+                    }
+                }),
+                json!({
+                    "id": "permission-other-session",
+                    "sessionID": "session-other",
+                    "permission": "bash",
+                    "patterns": [],
+                    "metadata": {},
+                    "always": []
+                }),
+            ],
+            &[json!({
+                "id": "question-1",
+                "sessionID": "session-pending",
+                "questions": [{
+                    "header": "Test scope",
+                    "question": "Which tests should I run?",
+                    "options": [{
+                        "label": "Unit",
+                        "description": "Run unit tests only"
+                    }]
+                }],
+                "tool": {
+                    "messageID": "assistant-tool-message",
+                    "callID": "call-question-1"
+                }
+            })],
+        );
+
+        assert_eq!(records.len(), 2);
+        assert!(records.iter().all(|record| {
+            record.content.is_empty() && record.turn_id.as_deref() == Some("user-turn")
+        }));
+        let approval = records[0].commands.as_ref().unwrap().first().unwrap();
+        assert_eq!(approval.tool_call_id.as_deref(), Some("permission-1"));
+        assert_eq!(approval.requires_approval, Some(true));
+        assert_eq!(approval.requires_reply, Some(false));
+        let question = records[1].commands.as_ref().unwrap().first().unwrap();
+        assert_eq!(question.tool_call_id.as_deref(), Some("question-1"));
+        assert_eq!(question.requires_approval, Some(false));
+        assert_eq!(question.requires_reply, Some(true));
     }
 
     #[test]

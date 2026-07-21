@@ -1849,6 +1849,161 @@
         ],
         "additionalProperties": false
       },
+      "BirdCoderChatMessageReasoningItem": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "summary": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "startedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "completedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "durationMs": {
+            "type": "integer",
+            "minimum": 0
+          }
+        },
+        "required": [
+          "id",
+          "summary"
+        ],
+        "additionalProperties": false
+      },
+      "BirdCoderChatMessageResourceOrigin": {
+        "type": "object",
+        "properties": {
+          "kind": {
+            "type": "string",
+            "enum": [
+              "file",
+              "symbol",
+              "resource"
+            ]
+          },
+          "name": {
+            "type": "string"
+          },
+          "path": {
+            "type": "string"
+          },
+          "uri": {
+            "type": "string"
+          },
+          "clientName": {
+            "type": "string"
+          },
+          "lineStart": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "lineEnd": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "columnStart": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "columnEnd": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "excerpt": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "kind"
+        ],
+        "additionalProperties": false
+      },
+      "BirdCoderChatMessageResourceCitation": {
+        "type": "object",
+        "properties": {
+          "lineStart": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "lineEnd": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "note": {
+            "type": "string"
+          },
+          "threadIds": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "additionalProperties": false
+      },
+      "BirdCoderChatMessageResource": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "file",
+              "image",
+              "audio",
+              "uri",
+              "citation",
+              "skill",
+              "mention"
+            ]
+          },
+          "name": {
+            "type": "string"
+          },
+          "path": {
+            "type": "string"
+          },
+          "uri": {
+            "type": "string"
+          },
+          "mediaSource": {
+            "type": "string"
+          },
+          "mimeType": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "origin": {
+            "$ref": "#/components/schemas/BirdCoderChatMessageResourceOrigin"
+          },
+          "citation": {
+            "$ref": "#/components/schemas/BirdCoderChatMessageResourceCitation"
+          }
+        },
+        "required": [
+          "id",
+          "kind"
+        ],
+        "additionalProperties": false
+      },
       "BirdCoderNativeSessionMessage": {
         "type": "object",
         "properties": {
@@ -1920,6 +2075,18 @@
                 "deletions"
               ],
               "additionalProperties": false
+            }
+          },
+          "reasoning": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/BirdCoderChatMessageReasoningItem"
+            }
+          },
+          "resources": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/BirdCoderChatMessageResource"
             }
           },
           "taskProgress": {

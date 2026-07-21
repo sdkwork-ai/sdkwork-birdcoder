@@ -7,14 +7,12 @@
     "language": "rust",
     "sdkType": "backend",
     "protocol": "http",
-    "packageName": "@sdkwork/birdcoder-backend-sdk"
+    "packageName": "sdkwork-birdcoder-backend-sdk"
   },
-  "changeFingerprint": "5be037870bd0d8ff7d9d262aca8738df163dcf13ce3f68c0f1b0af53ef05b03d",
+  "changeFingerprint": "8c39d2e4c4fc7ec18b979b335fa3024aacc96cde9e43f412be42dabe66e56eb2",
   "changes": {
     "createdGeneratedFiles": [],
-    "updatedGeneratedFiles": [
-      "sdkwork-sdk.json"
-    ],
+    "updatedGeneratedFiles": [],
     "unchangedGeneratedFiles": [
       "bin/publish-core.mjs",
       "bin/publish.ps1",
@@ -23,6 +21,7 @@
       "CHANGELOG.md",
       "LICENSE",
       "README.md",
+      "sdkwork-sdk.json",
       "src/api/base.rs",
       "src/api/iam.rs",
       "src/api/mod.rs",
@@ -106,80 +105,30 @@
     "preservedScaffoldFiles": [
       "custom/README.md"
     ],
-    "backedUpFiles": [
-      "sdkwork-sdk.json"
-    ]
+    "backedUpFiles": []
   },
   "impact": {
     "schemaVersion": 1,
-    "areas": [
-      "build-metadata"
-    ],
-    "details": [
-      {
-        "area": "build-metadata",
-        "paths": [
-          "sdkwork-sdk.json"
-        ]
-      }
-    ],
-    "requiresVerification": true,
-    "summary": "Detected impact areas: build-metadata. Verification is required."
+    "areas": [],
+    "details": [],
+    "requiresVerification": false,
+    "summary": "No generated, scaffold, or backup changes detected. Verification can be skipped."
   },
   "verificationPlan": {
-    "shouldRun": true,
-    "runPhase": "now",
-    "summary": "Detected impact areas: build-metadata. Verification is required. Run the required verification commands now against the generated SDK output.",
-    "steps": [
-      {
-        "id": "check",
-        "title": "Unified package check",
-        "required": true,
-        "rationale": "Validate the generated package with the unified publish helper. Triggered by: build-metadata.",
-        "workingDirectory": "E:\\sdkwork-space\\sdkwork-birdcoder\\sdks\\sdkwork-birdcoder-backend-sdk\\sdkwork-birdcoder-backend-sdk-rust\\generated\\server-openapi",
-        "command": "node",
-        "args": [
-          "./bin/publish-core.mjs",
-          "--language",
-          "rust",
-          "--project-dir",
-          ".",
-          "--action",
-          "check"
-        ],
-        "displayCommand": "node ./bin/publish-core.mjs --language rust --project-dir . --action check"
-      },
-      {
-        "id": "build",
-        "title": "Unified package build",
-        "required": true,
-        "rationale": "Run the full package build because this language uses a lighter check path than the final build. Triggered by: build-metadata.",
-        "workingDirectory": "E:\\sdkwork-space\\sdkwork-birdcoder\\sdks\\sdkwork-birdcoder-backend-sdk\\sdkwork-birdcoder-backend-sdk-rust\\generated\\server-openapi",
-        "command": "node",
-        "args": [
-          "./bin/publish-core.mjs",
-          "--language",
-          "rust",
-          "--project-dir",
-          ".",
-          "--action",
-          "build"
-        ],
-        "displayCommand": "node ./bin/publish-core.mjs --language rust --project-dir . --action build"
-      }
-    ]
+    "shouldRun": false,
+    "runPhase": "skip",
+    "summary": "No generated, scaffold, or backup changes detected. Verification can be skipped.",
+    "steps": []
   },
   "executionDecision": {
     "schemaVersion": 1,
-    "riskLevel": "high",
-    "nextAction": "verify",
+    "riskLevel": "low",
+    "nextAction": "skip",
     "requiresManualReview": false,
     "applyRequiresExpectedFingerprint": false,
-    "summary": "Changes have been applied. Run the required verification plan now.",
+    "summary": "No actionable changes were detected. No apply or verification step is required.",
     "reasons": [
-      "backed-up-generated-files",
-      "manual-review-required",
-      "verification-required"
+      "no-actionable-changes"
     ]
   },
   "preservedLegacyFiles": false

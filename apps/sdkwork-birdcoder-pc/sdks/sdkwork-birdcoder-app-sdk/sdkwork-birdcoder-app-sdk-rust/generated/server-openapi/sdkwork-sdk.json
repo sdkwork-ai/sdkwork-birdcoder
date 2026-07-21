@@ -6,7 +6,7 @@
   "sdkType": "app",
   "packageName": "sdkwork-birdcoder-app-sdk",
   "transportPackageName": "sdkwork-birdcoder-app-sdk",
-  "consumerPackageName": "@sdkwork/birdcoder-app-sdk",
+  "consumerPackageName": "sdkwork-birdcoder-app-sdk",
   "generator": "@sdkwork/sdk-generator",
   "capabilities": {
     "supportsGeneratedTests": true,

@@ -110,7 +110,7 @@ pub fn sanitize_codeengine_git_repository_url(value: Option<String>) -> Option<S
         value.starts_with("git@") && value[4..].contains(':') && !value[4..].contains('@');
     let is_safe = !value.is_empty()
         && value.len() <= 2048
-        && !value.bytes().any(|byte| byte < 0x20 || byte == b' ')
+        && !value.bytes().any(|byte| byte <= b' ')
         && !value.contains(['?', '#'])
         && !has_uri_userinfo
         && (value.starts_with("https://")
@@ -216,7 +216,11 @@ fn looks_like_sensitive_path(value: &str) -> bool {
 
 #[cfg(test)]
 mod tests {
-    use super::{sanitize_codeengine_git_repository_url, sanitize_codeengine_session_metadata};
+    use super::{
+        sanitize_codeengine_git_repository_url, sanitize_codeengine_session_metadata,
+        sanitize_codeengine_session_resource_records, CodeEngineSessionResourceOriginRecord,
+        CodeEngineSessionResourceRecord, MAX_CODEENGINE_SESSION_RESOURCE_MEDIA_SOURCE_CHARACTERS,
+    };
     use serde_json::json;
 
     #[test]
@@ -257,6 +261,132 @@ mod tests {
                 "https://example.com/owner/repository.git".to_owned(),
             )),
             Some("https://example.com/owner/repository.git".to_owned()),
+        );
+    }
+
+    #[test]
+    fn resource_sanitizer_bounds_deduplicates_and_rejects_opaque_locations() {
+        let mut resources = (0..40)
+            .map(|index| CodeEngineSessionResourceRecord {
+                id: format!("resource-{index}"),
+                kind: "file".to_owned(),
+                name: Some(format!("Resource {index}")),
+                path: Some(format!("src/resource-{index}.rs")),
+                uri: None,
+                media_source: None,
+                mime_type: Some("text/plain".to_owned()),
+                description: None,
+                origin: None,
+                citation: None,
+            })
+            .collect::<Vec<_>>();
+        resources.push(CodeEngineSessionResourceRecord {
+            id: "resource-1".to_owned(),
+            kind: "file".to_owned(),
+            name: Some("Updated resource".to_owned()),
+            path: Some("src/updated.rs".to_owned()),
+            uri: None,
+            media_source: None,
+            mime_type: Some("text/plain".to_owned()),
+            description: None,
+            origin: None,
+            citation: None,
+        });
+
+        let sanitized = sanitize_codeengine_session_resource_records(resources.as_slice());
+        assert_eq!(sanitized.len(), 32);
+        let updated = sanitized
+            .iter()
+            .find(|resource| resource.id == "resource-1")
+            .expect("updated canonical resource");
+        assert_eq!(updated.path.as_deref(), Some("src/updated.rs"));
+
+        let oversized_media = format!(
+            "data:image/png;base64,{}",
+            "A".repeat(MAX_CODEENGINE_SESSION_RESOURCE_MEDIA_SOURCE_CHARACTERS)
+        );
+        let unsafe_resources = vec![
+            CodeEngineSessionResourceRecord {
+                id: "inline-image".to_owned(),
+                kind: "image".to_owned(),
+                name: None,
+                path: Some("data:image/png;base64,aW1hZ2U=".to_owned()),
+                uri: Some("blob:transient-image".to_owned()),
+                media_source: Some("data:image/png;base64,aW1hZ2U=".to_owned()),
+                mime_type: Some("image/png".to_owned()),
+                description: None,
+                origin: None,
+                citation: None,
+            },
+            CodeEngineSessionResourceRecord {
+                id: "oversized-image".to_owned(),
+                kind: "image".to_owned(),
+                name: None,
+                path: None,
+                uri: None,
+                media_source: Some(oversized_media),
+                mime_type: Some("image/png".to_owned()),
+                description: None,
+                origin: None,
+                citation: None,
+            },
+            CodeEngineSessionResourceRecord {
+                id: "document-data".to_owned(),
+                kind: "file".to_owned(),
+                name: Some("Private document".to_owned()),
+                path: None,
+                uri: None,
+                media_source: Some("data:application/pdf;base64,AAAA".to_owned()),
+                mime_type: Some("application/pdf".to_owned()),
+                description: None,
+                origin: None,
+                citation: None,
+            },
+        ];
+        let sanitized = sanitize_codeengine_session_resource_records(unsafe_resources.as_slice());
+        assert_eq!(sanitized[0].path, None);
+        assert_eq!(sanitized[0].uri, None);
+        assert_eq!(
+            sanitized[0].media_source.as_deref(),
+            Some("data:image/png;base64,aW1hZ2U=")
+        );
+        assert_eq!(sanitized[1].media_source, None);
+        assert_eq!(sanitized[2].media_source, None);
+
+        let vendor_mime =
+            sanitize_codeengine_session_resource_records(&[CodeEngineSessionResourceRecord {
+                id: "vendor-document".to_owned(),
+                kind: "file".to_owned(),
+                name: Some("Vendor document".to_owned()),
+                path: Some("docs/vendor.sdkwork".to_owned()),
+                uri: None,
+                media_source: None,
+                mime_type: Some("application/vnd.sdkwork~json".to_owned()),
+                description: None,
+                origin: Some(CodeEngineSessionResourceOriginRecord {
+                    kind: "SYMBOL".to_owned(),
+                    name: Some("VendorDocument".to_owned()),
+                    path: Some("src/vendor.rs".to_owned()),
+                    uri: None,
+                    client_name: None,
+                    line_start: Some(1),
+                    line_end: Some(2),
+                    column_start: None,
+                    column_end: None,
+                    excerpt: None,
+                }),
+                citation: None,
+            }]);
+        assert_eq!(
+            vendor_mime[0].mime_type.as_deref(),
+            Some("application/vnd.sdkwork~json")
+        );
+        assert_eq!(
+            vendor_mime[0]
+                .origin
+                .as_ref()
+                .map(|origin| origin.kind.as_str()),
+            Some("symbol")
         );
     }
 }
@@ -340,6 +470,289 @@ pub struct CodeEngineSessionResourceRecord {
     pub origin: Option<CodeEngineSessionResourceOriginRecord>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub citation: Option<CodeEngineSessionResourceCitationRecord>,
+}
+
+const MAX_CODEENGINE_SESSION_RESOURCE_ITEMS: usize = 32;
+const MAX_CODEENGINE_SESSION_RESOURCE_INPUT_ITEMS: usize = 128;
+const MAX_CODEENGINE_SESSION_RESOURCE_ID_CHARACTERS: usize = 256;
+const MAX_CODEENGINE_SESSION_RESOURCE_KIND_CHARACTERS: usize = 32;
+const MAX_CODEENGINE_SESSION_RESOURCE_NAME_CHARACTERS: usize = 256;
+const MAX_CODEENGINE_SESSION_RESOURCE_LOCATION_CHARACTERS: usize = 4_096;
+const MAX_CODEENGINE_SESSION_RESOURCE_MEDIA_SOURCE_CHARACTERS: usize = 4 * 1_024 * 1_024;
+const MAX_CODEENGINE_SESSION_RESOURCE_MIME_TYPE_CHARACTERS: usize = 128;
+const MAX_CODEENGINE_SESSION_RESOURCE_DESCRIPTION_CHARACTERS: usize = 8_000;
+const MAX_CODEENGINE_SESSION_RESOURCE_ORIGIN_EXCERPT_CHARACTERS: usize = 4_000;
+const MAX_CODEENGINE_SESSION_RESOURCE_CITATION_THREADS: usize = 32;
+const MAX_CODEENGINE_SESSION_RESOURCE_CITATION_NOTE_CHARACTERS: usize = 4_000;
+const MAX_CODEENGINE_SESSION_SAFE_INTEGER: u64 = 9_007_199_254_740_991;
+
+fn bounded_resource_identity(value: &str, max_characters: usize) -> Option<String> {
+    let normalized = value.trim();
+    if normalized.is_empty()
+        || normalized.chars().count() > max_characters
+        || normalized.chars().any(char::is_control)
+    {
+        return None;
+    }
+    Some(normalized.to_owned())
+}
+
+fn bounded_resource_display_text(value: &str, max_characters: usize) -> Option<String> {
+    let normalized = value.trim();
+    if normalized.is_empty() {
+        return None;
+    }
+    let bounded = normalized
+        .chars()
+        .map(|character| {
+            if character.is_control() && !matches!(character, '\n' | '\t') {
+                ' '
+            } else {
+                character
+            }
+        })
+        .take(max_characters)
+        .collect::<String>();
+    (!bounded.trim().is_empty()).then_some(bounded)
+}
+
+fn bounded_resource_location(value: Option<&str>) -> Option<String> {
+    let value =
+        bounded_resource_identity(value?, MAX_CODEENGINE_SESSION_RESOURCE_LOCATION_CHARACTERS)?;
+    let normalized = value.to_ascii_lowercase();
+    (!normalized.starts_with("data:") && !normalized.starts_with("blob:")).then_some(value)
+}
+
+fn normalize_resource_mime_type(value: Option<&str>) -> Option<String> {
+    let value =
+        bounded_resource_identity(value?, MAX_CODEENGINE_SESSION_RESOURCE_MIME_TYPE_CHARACTERS)?;
+    let mut parts = value.split('/');
+    let type_name = parts.next()?;
+    let subtype_name = parts.next()?;
+    let valid_token = |part: &str| {
+        !part.is_empty()
+            && part.chars().all(|character| {
+                character.is_ascii_alphanumeric()
+                    || matches!(
+                        character,
+                        '!' | '#'
+                            | '$'
+                            | '%'
+                            | '&'
+                            | '\''
+                            | '*'
+                            | '+'
+                            | '-'
+                            | '.'
+                            | '^'
+                            | '_'
+                            | '`'
+                            | '|'
+                            | '~'
+                    )
+            })
+    };
+    (parts.next().is_none() && valid_token(type_name) && valid_token(subtype_name))
+        .then(|| value.to_ascii_lowercase())
+}
+
+fn resource_base64_payload_is_valid(value: &str) -> bool {
+    if value.is_empty() || !value.len().is_multiple_of(4) || !value.is_ascii() {
+        return false;
+    }
+    let padding_start = value.find('=').unwrap_or(value.len());
+    let padding_length = value.len().saturating_sub(padding_start);
+    padding_length <= 2
+        && value[..padding_start]
+            .bytes()
+            .all(|byte| byte.is_ascii_alphanumeric() || matches!(byte, b'+' | b'/'))
+        && value[padding_start..].bytes().all(|byte| byte == b'=')
+}
+
+fn sanitize_resource_media_source(value: Option<&str>, kind: &str) -> Option<String> {
+    let value = value?.trim();
+    if value.is_empty()
+        || value.chars().any(char::is_control)
+        || value.chars().count() > MAX_CODEENGINE_SESSION_RESOURCE_MEDIA_SOURCE_CHARACTERS
+    {
+        return None;
+    }
+    let normalized = value.to_ascii_lowercase();
+    if normalized.starts_with("blob:") {
+        return None;
+    }
+    if normalized.starts_with("data:") {
+        if !matches!(kind, "image" | "audio") {
+            return None;
+        }
+        let separator_index = value.find(',')?;
+        if separator_index > 256 {
+            return None;
+        }
+        let header = normalized.get(..separator_index)?;
+        let mime_type = header.strip_prefix("data:")?.strip_suffix(";base64")?;
+        let mime_type_matches_kind = match kind {
+            "image" => matches!(
+                mime_type,
+                "image/gif" | "image/jpeg" | "image/png" | "image/webp"
+            ),
+            "audio" => {
+                mime_type.starts_with("audio/")
+                    && normalize_resource_mime_type(Some(mime_type)).is_some()
+            }
+            _ => false,
+        };
+        if !mime_type_matches_kind
+            || !resource_base64_payload_is_valid(&value[separator_index + 1..])
+        {
+            return None;
+        }
+        return Some(value.to_owned());
+    }
+    if value.chars().count() > MAX_CODEENGINE_SESSION_RESOURCE_LOCATION_CHARACTERS {
+        return None;
+    }
+    (normalized.starts_with("https://") || normalized.starts_with("http://"))
+        .then(|| value.to_owned())
+}
+
+fn sanitize_resource_origin(
+    origin: Option<&CodeEngineSessionResourceOriginRecord>,
+) -> Option<CodeEngineSessionResourceOriginRecord> {
+    let origin = origin?;
+    let kind = bounded_resource_identity(
+        &origin.kind,
+        MAX_CODEENGINE_SESSION_RESOURCE_KIND_CHARACTERS,
+    )?
+    .to_ascii_lowercase();
+    if !matches!(kind.as_str(), "file" | "symbol" | "resource") {
+        return None;
+    }
+    Some(CodeEngineSessionResourceOriginRecord {
+        kind,
+        name: origin.name.as_deref().and_then(|value| {
+            bounded_resource_display_text(value, MAX_CODEENGINE_SESSION_RESOURCE_NAME_CHARACTERS)
+        }),
+        path: bounded_resource_location(origin.path.as_deref()),
+        uri: bounded_resource_location(origin.uri.as_deref()),
+        client_name: origin.client_name.as_deref().and_then(|value| {
+            bounded_resource_display_text(value, MAX_CODEENGINE_SESSION_RESOURCE_NAME_CHARACTERS)
+        }),
+        line_start: origin
+            .line_start
+            .filter(|value| *value <= MAX_CODEENGINE_SESSION_SAFE_INTEGER),
+        line_end: origin
+            .line_end
+            .filter(|value| *value <= MAX_CODEENGINE_SESSION_SAFE_INTEGER),
+        column_start: origin
+            .column_start
+            .filter(|value| *value <= MAX_CODEENGINE_SESSION_SAFE_INTEGER),
+        column_end: origin
+            .column_end
+            .filter(|value| *value <= MAX_CODEENGINE_SESSION_SAFE_INTEGER),
+        excerpt: origin.excerpt.as_deref().and_then(|value| {
+            bounded_resource_display_text(
+                value,
+                MAX_CODEENGINE_SESSION_RESOURCE_ORIGIN_EXCERPT_CHARACTERS,
+            )
+        }),
+    })
+}
+
+fn sanitize_resource_citation(
+    citation: Option<&CodeEngineSessionResourceCitationRecord>,
+) -> Option<CodeEngineSessionResourceCitationRecord> {
+    let citation = citation?;
+    let thread_ids = citation
+        .thread_ids
+        .iter()
+        .filter_map(|value| {
+            bounded_resource_identity(value, MAX_CODEENGINE_SESSION_RESOURCE_ID_CHARACTERS)
+        })
+        .take(MAX_CODEENGINE_SESSION_RESOURCE_CITATION_THREADS)
+        .fold(Vec::<String>::new(), |mut output, value| {
+            if !output.contains(&value) {
+                output.push(value);
+            }
+            output
+        });
+    Some(CodeEngineSessionResourceCitationRecord {
+        line_start: citation
+            .line_start
+            .filter(|value| *value <= MAX_CODEENGINE_SESSION_SAFE_INTEGER),
+        line_end: citation
+            .line_end
+            .filter(|value| *value <= MAX_CODEENGINE_SESSION_SAFE_INTEGER),
+        note: citation.note.as_deref().and_then(|value| {
+            bounded_resource_display_text(
+                value,
+                MAX_CODEENGINE_SESSION_RESOURCE_CITATION_NOTE_CHARACTERS,
+            )
+        }),
+        thread_ids,
+    })
+}
+
+fn sanitize_codeengine_session_resource_record(
+    record: &CodeEngineSessionResourceRecord,
+) -> Option<CodeEngineSessionResourceRecord> {
+    let id = bounded_resource_identity(
+        record.id.as_str(),
+        MAX_CODEENGINE_SESSION_RESOURCE_ID_CHARACTERS,
+    )?;
+    let kind = bounded_resource_identity(
+        record.kind.as_str(),
+        MAX_CODEENGINE_SESSION_RESOURCE_KIND_CHARACTERS,
+    )?
+    .to_ascii_lowercase();
+    if !matches!(
+        kind.as_str(),
+        "file" | "image" | "audio" | "uri" | "citation" | "skill" | "mention"
+    ) {
+        return None;
+    }
+    Some(CodeEngineSessionResourceRecord {
+        id,
+        kind: kind.clone(),
+        name: record.name.as_deref().and_then(|value| {
+            bounded_resource_display_text(value, MAX_CODEENGINE_SESSION_RESOURCE_NAME_CHARACTERS)
+        }),
+        path: bounded_resource_location(record.path.as_deref()),
+        uri: bounded_resource_location(record.uri.as_deref()),
+        media_source: sanitize_resource_media_source(record.media_source.as_deref(), kind.as_str()),
+        mime_type: normalize_resource_mime_type(record.mime_type.as_deref()),
+        description: record.description.as_deref().and_then(|value| {
+            bounded_resource_display_text(
+                value,
+                MAX_CODEENGINE_SESSION_RESOURCE_DESCRIPTION_CHARACTERS,
+            )
+        }),
+        origin: sanitize_resource_origin(record.origin.as_ref()),
+        citation: sanitize_resource_citation(record.citation.as_ref()),
+    })
+}
+
+pub fn sanitize_codeengine_session_resource_records(
+    records: &[CodeEngineSessionResourceRecord],
+) -> Vec<CodeEngineSessionResourceRecord> {
+    let mut sanitized = Vec::<CodeEngineSessionResourceRecord>::new();
+    for record in records
+        .iter()
+        .take(MAX_CODEENGINE_SESSION_RESOURCE_INPUT_ITEMS)
+    {
+        let Some(record) = sanitize_codeengine_session_resource_record(record) else {
+            continue;
+        };
+        if let Some(existing_index) = sanitized
+            .iter()
+            .position(|existing| existing.id == record.id)
+        {
+            sanitized[existing_index] = record;
+        } else if sanitized.len() < MAX_CODEENGINE_SESSION_RESOURCE_ITEMS {
+            sanitized.push(record);
+        }
+    }
+    sanitized
 }
 
 const MAX_CODEENGINE_SESSION_REASONING_ITEMS: usize = 32;

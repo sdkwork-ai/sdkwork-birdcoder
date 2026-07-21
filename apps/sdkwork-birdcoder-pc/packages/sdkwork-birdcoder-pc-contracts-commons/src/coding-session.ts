@@ -6,7 +6,14 @@ import type {
 import type { BirdCoderLongIntegerString } from './data.ts';
 import { normalizeBirdCoderCodeEngineRuntimeStatus } from './codeEngineDialect.ts';
 import { stringifyBirdCoderApiJson } from './json.ts';
-import type { BirdCoderChatMessageReasoningItem } from './chat-message-reasoning.ts';
+import {
+  mergeChatMessageReasoning,
+  type BirdCoderChatMessageReasoningItem,
+} from './chat-message-reasoning.ts';
+import {
+  projectChatMessageResources,
+  type BirdCoderChatMessageResource,
+} from './chat-message-resources.ts';
 
 export const BIRDCODER_HOST_MODES = ['web', 'desktop', 'server'] as const;
 
@@ -679,7 +686,7 @@ export interface BirdCoderComparableChatMessageLike {
   fileChanges?: readonly unknown[];
   commands?: readonly unknown[];
   reasoning?: readonly BirdCoderChatMessageReasoningItem[];
-  resources?: readonly unknown[];
+  resources?: readonly BirdCoderChatMessageResource[];
   taskProgress?: unknown;
 }
 
@@ -693,6 +700,8 @@ export interface BirdCoderChatMessageLogicalMatchLike {
   name?: string;
   tool_calls?: unknown[];
   tool_call_id?: string;
+  reasoning?: readonly BirdCoderChatMessageReasoningItem[];
+  resources?: readonly BirdCoderChatMessageResource[];
 }
 
 function stableSerializeBirdCoderComparableValue(
@@ -757,6 +766,77 @@ function normalizeBirdCoderComparableChatMessageContent(content: string): string
   return content.replace(/\r\n?/gu, '\n').trim();
 }
 
+function readBirdCoderStructuredMessageIdentity(
+  values: readonly unknown[] | undefined,
+): string[] {
+  return (values ?? []).flatMap((value) => {
+    if (typeof value !== 'object' || value === null || !('id' in value)) {
+      return [];
+    }
+    const id = typeof value.id === 'string' ? value.id.trim() : '';
+    return id ? [id] : [];
+  });
+}
+
+export function buildBirdCoderChatMessageStructuredMatchKeys(
+  message: BirdCoderChatMessageLogicalMatchLike,
+): string[] {
+  const codingSessionId = message.codingSessionId.trim();
+  const turnId = message.turnId?.trim() ?? '';
+  const messageScope = turnId
+    ? ['turn', turnId]
+    : ['record', message.createdAt];
+  return [...new Set([
+    ...readBirdCoderStructuredMessageIdentity(message.reasoning).map((id) =>
+      JSON.stringify([codingSessionId, ...messageScope, message.role, 'reasoning', id]),
+    ),
+    ...readBirdCoderStructuredMessageIdentity(message.resources).map((id) =>
+      JSON.stringify([codingSessionId, ...messageScope, message.role, 'resource', id]),
+    ),
+  ])];
+}
+
+function haveSharedBirdCoderStructuredMessageIdentity(
+  existingMessage: BirdCoderChatMessageLogicalMatchLike,
+  incomingMessage: BirdCoderChatMessageLogicalMatchLike,
+): boolean {
+  const existingKeys = new Set(
+    buildBirdCoderChatMessageStructuredMatchKeys(existingMessage),
+  );
+  return buildBirdCoderChatMessageStructuredMatchKeys(incomingMessage)
+    .some((key) => existingKeys.has(key));
+}
+
+function canMergeBirdCoderChatMessagesByLogicalKey(
+  existingMessage: BirdCoderChatMessageLogicalMatchLike,
+  incomingMessage: BirdCoderChatMessageLogicalMatchLike,
+): boolean {
+  const existingMessageId = existingMessage.id.trim();
+  const incomingMessageId = incomingMessage.id.trim();
+  if (!existingMessageId || !incomingMessageId || existingMessageId === incomingMessageId) {
+    return true;
+  }
+
+  if (
+    normalizeBirdCoderComparableChatMessageContent(existingMessage.content)
+    || normalizeBirdCoderComparableChatMessageContent(incomingMessage.content)
+  ) {
+    return false;
+  }
+
+  return haveSharedBirdCoderStructuredMessageIdentity(existingMessage, incomingMessage);
+}
+
+function shouldPreserveBirdCoderStructuredMessageSlot(
+  existingMessage: BirdCoderChatMessageLogicalMatchLike,
+  incomingMessage: BirdCoderChatMessageLogicalMatchLike,
+): boolean {
+  return existingMessage.id.trim() !== incomingMessage.id.trim()
+    && areBirdCoderChatMessagesLogicallyMatched(existingMessage, incomingMessage)
+    && !normalizeBirdCoderComparableChatMessageContent(existingMessage.content)
+    && !normalizeBirdCoderComparableChatMessageContent(incomingMessage.content);
+}
+
 export function buildBirdCoderChatMessageLogicalMatchKey(
   message: BirdCoderChatMessageLogicalMatchLike,
 ): string {
@@ -767,6 +847,11 @@ export function buildBirdCoderChatMessageLogicalMatchKey(
   const hasProtocolToolIdentity = message.role === 'tool'
     || Boolean(normalizedToolCallId)
     || (message.tool_calls?.length ?? 0) > 0;
+  const reasoningIdentity = readBirdCoderStructuredMessageIdentity(message.reasoning);
+  const resourceIdentity = readBirdCoderStructuredMessageIdentity(message.resources);
+  const hasStructuredDisplayIdentity = !normalizedContent
+    && !hasProtocolToolIdentity
+    && (reasoningIdentity.length > 0 || resourceIdentity.length > 0);
   if (normalizedTurnId) {
     return JSON.stringify([
       normalizedCodingSessionId,
@@ -779,6 +864,11 @@ export function buildBirdCoderChatMessageLogicalMatchKey(
             message.name?.trim() ?? '',
             stableSerializeBirdCoderComparableValue(message.tool_calls ?? []),
           ]
+        : hasStructuredDisplayIdentity
+          ? [
+              stableSerializeBirdCoderComparableValue(reasoningIdentity),
+              stableSerializeBirdCoderComparableValue(resourceIdentity),
+            ]
         : []),
     ]);
   }
@@ -807,8 +897,14 @@ export function areBirdCoderChatMessagesLogicallyMatched(
   return (
     left === right ||
     (!!leftMessageId && leftMessageId === rightMessageId) ||
-    buildBirdCoderChatMessageLogicalMatchKey(left) ===
-      buildBirdCoderChatMessageLogicalMatchKey(right)
+    (
+      (
+        buildBirdCoderChatMessageLogicalMatchKey(left) ===
+          buildBirdCoderChatMessageLogicalMatchKey(right)
+        || haveSharedBirdCoderStructuredMessageIdentity(left, right)
+      )
+      && canMergeBirdCoderChatMessagesByLogicalKey(left, right)
+    )
   );
 }
 
@@ -833,6 +929,19 @@ export function mergeBirdCoderComparableChatMessages<
     return existingMessage;
   }
 
+  const reasoning = mergeChatMessageReasoning(
+    existingMessage.reasoning,
+    incomingMessage.reasoning,
+  );
+  const resources = projectChatMessageResources([
+    ...(existingMessage.resources ?? []),
+    ...(incomingMessage.resources ?? []),
+  ]);
+  const preserveStructuredSlot = shouldPreserveBirdCoderStructuredMessageSlot(
+    existingMessage,
+    incomingMessage,
+  );
+
   const nextMessage = {
     ...existingMessage,
     ...incomingMessage,
@@ -840,9 +949,16 @@ export function mergeBirdCoderComparableChatMessages<
     tool_calls: incomingMessage.tool_calls ?? existingMessage.tool_calls,
     fileChanges: incomingMessage.fileChanges ?? existingMessage.fileChanges,
     commands: incomingMessage.commands ?? existingMessage.commands,
-    reasoning: incomingMessage.reasoning ?? existingMessage.reasoning,
-    resources: incomingMessage.resources ?? existingMessage.resources,
+    reasoning: reasoning.length > 0 ? reasoning : undefined,
+    resources: resources.length > 0 ? resources : undefined,
     taskProgress: incomingMessage.taskProgress ?? existingMessage.taskProgress,
+    ...(preserveStructuredSlot
+      ? {
+          id: existingMessage.id,
+          createdAt: existingMessage.createdAt,
+          timestamp: existingMessage.timestamp,
+        }
+      : {}),
   } satisfies TMessage;
 
   return areBirdCoderChatMessagesEquivalent(existingMessage, nextMessage)
@@ -861,8 +977,33 @@ export function deduplicateBirdCoderComparableChatMessages<
 
   const deduplicatedMessages: TMessage[] = [];
   const messageIndexesById = new Map<string, number>();
-  const messageIndexesByLogicalKey = new Map<string, number>();
+  const messageIndexesByLogicalKey = new Map<string, Set<number>>();
+  const messageIndexesByStructuredKey = new Map<string, Set<number>>();
   const messageIndexesBySynchronizationSignature = new Map<string, number>();
+
+  const addCandidateIndex = (
+    indexByKey: Map<string, Set<number>>,
+    key: string,
+    index: number,
+  ): void => {
+    const indexes = indexByKey.get(key) ?? new Set<number>();
+    indexes.add(index);
+    indexByKey.set(key, indexes);
+  };
+  const removeCandidateIndex = (
+    indexByKey: Map<string, Set<number>>,
+    key: string,
+    index: number,
+  ): void => {
+    const indexes = indexByKey.get(key);
+    if (!indexes) {
+      return;
+    }
+    indexes.delete(index);
+    if (indexes.size === 0) {
+      indexByKey.delete(key);
+    }
+  };
 
   const rememberMessage = (message: TMessage, index: number): void => {
     const normalizedMessageId = message.id.trim();
@@ -872,10 +1013,14 @@ export function deduplicateBirdCoderComparableChatMessages<
         index,
       );
     }
-    messageIndexesByLogicalKey.set(
+    addCandidateIndex(
+      messageIndexesByLogicalKey,
       buildBirdCoderChatMessageLogicalMatchKey(message),
       index,
     );
+    for (const structuredKey of buildBirdCoderChatMessageStructuredMatchKeys(message)) {
+      addCandidateIndex(messageIndexesByStructuredKey, structuredKey, index);
+    }
     messageIndexesBySynchronizationSignature.set(
       buildBirdCoderChatMessageSynchronizationSignature(message),
       index,
@@ -895,8 +1040,9 @@ export function deduplicateBirdCoderComparableChatMessages<
     }
 
     const logicalMatchKey = buildBirdCoderChatMessageLogicalMatchKey(message);
-    if (messageIndexesByLogicalKey.get(logicalMatchKey) === index) {
-      messageIndexesByLogicalKey.delete(logicalMatchKey);
+    removeCandidateIndex(messageIndexesByLogicalKey, logicalMatchKey, index);
+    for (const structuredKey of buildBirdCoderChatMessageStructuredMatchKeys(message)) {
+      removeCandidateIndex(messageIndexesByStructuredKey, structuredKey, index);
     }
     const synchronizationSignature = buildBirdCoderChatMessageSynchronizationSignature(message);
     if (messageIndexesBySynchronizationSignature.get(synchronizationSignature) === index) {
@@ -915,10 +1061,30 @@ export function deduplicateBirdCoderComparableChatMessages<
     const logicalMatchKey = buildBirdCoderChatMessageLogicalMatchKey(incomingMessage);
     const synchronizationSignature =
       buildBirdCoderChatMessageSynchronizationSignature(incomingMessage);
+    const candidateIndexes = new Set<number>(
+      messageIndexesByLogicalKey.get(logicalMatchKey) ?? [],
+    );
+    for (const structuredKey of buildBirdCoderChatMessageStructuredMatchKeys(incomingMessage)) {
+      for (const candidateIndex of messageIndexesByStructuredKey.get(structuredKey) ?? []) {
+        candidateIndexes.add(candidateIndex);
+      }
+    }
+    let logicalMatchIndex: number | undefined;
+    for (const candidateIndex of candidateIndexes) {
+      if (
+        (logicalMatchIndex === undefined || candidateIndex < logicalMatchIndex)
+        && areBirdCoderChatMessagesLogicallyMatched(
+          deduplicatedMessages[candidateIndex]!,
+          incomingMessage,
+        )
+      ) {
+        logicalMatchIndex = candidateIndex;
+      }
+    }
     const matchingMessageIndex =
       (scopedMessageId ? messageIndexesById.get(scopedMessageId) : undefined) ??
       messageIndexesBySynchronizationSignature.get(synchronizationSignature) ??
-      messageIndexesByLogicalKey.get(logicalMatchKey);
+      logicalMatchIndex;
 
     if (matchingMessageIndex === undefined) {
       const nextIndex = deduplicatedMessages.length;
@@ -1039,6 +1205,13 @@ const BIRDCODER_NON_ANSWER_CONTENT_TYPES = new Set([
 const BIRDCODER_NON_ANSWER_SYSTEM_SUBTYPES = new Set([
   'api_retry',
   'background_tasks_changed',
+  'commands_changed',
+  'control_request_progress',
+  'elicitation_complete',
+  'files_persisted',
+  'hook_progress',
+  'hook_response',
+  'hook_started',
   'informational',
   'local_command_output',
   'mirror_error',
@@ -1046,10 +1219,15 @@ const BIRDCODER_NON_ANSWER_SYSTEM_SUBTYPES = new Set([
   'model_refusal_no_fallback',
   'notification',
   'permission_denied',
+  'plugin_install',
+  'session_state_changed',
+  'status',
   'task_notification',
   'task_progress',
   'task_started',
   'task_updated',
+  'thinking_tokens',
+  'worker_shutting_down',
 ]);
 
 function normalizeBirdCoderContentType(value: unknown): string {
@@ -1197,8 +1375,22 @@ function projectBirdCoderProtocolNotice(
   ) {
     return { kind: 'compression', message: 'Conversation context compressed.' };
   }
-  if (type === 'system' && subtype === 'status' && status === 'compacting') {
-    return { kind: 'compression', message: 'Compacting conversation context.' };
+  if (
+    type === 'system'
+    && subtype === 'status'
+    && normalizeBirdCoderContentType(record.compact_result) === 'failed'
+  ) {
+    const compactError = readBirdCoderProtocolNoticeString(record, ['compact_error']);
+    return {
+      kind: 'warning',
+      message: compactError
+        ? `Conversation context compression failed: ${compactError}`
+        : 'Conversation context compression failed.',
+    };
+  }
+  if (type === 'system' && subtype === 'status') {
+    // Requesting/compacting are ephemeral session state, not durable transcript rows.
+    return null;
   }
   if (isInformationalMessage) {
     if (isBirdCoderTrueProtocolFlag(record.prevent_continuation ?? record.preventContinuation)) {

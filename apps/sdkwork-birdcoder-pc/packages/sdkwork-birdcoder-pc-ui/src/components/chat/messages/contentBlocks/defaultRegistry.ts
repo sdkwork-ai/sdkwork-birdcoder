@@ -8,6 +8,7 @@ import {
   ToolCallsContentBlockRenderer,
 } from './ContentBlockRenderers.tsx';
 import { MessageResourcesBlock } from './MessageResourcesBlock.tsx';
+import { ReasoningContentBlock } from './ReasoningContentBlock.tsx';
 import { createChatMessageContentBlockRendererRegistry } from './registry.ts';
 import type { ChatMessageContentBlockRendererEntry } from './registry.ts';
 
@@ -30,6 +31,12 @@ const DEFAULT_CONTENT_BLOCK_RENDERER_ENTRIES: readonly ChatMessageContentBlockRe
     blockType: 'notice',
     priority: 10,
     Component: NoticeContentBlockRenderer,
+  },
+  {
+    id: 'reasoning',
+    blockType: 'reasoning',
+    priority: 10,
+    Component: ReasoningContentBlock,
   },
   {
     id: 'activity',

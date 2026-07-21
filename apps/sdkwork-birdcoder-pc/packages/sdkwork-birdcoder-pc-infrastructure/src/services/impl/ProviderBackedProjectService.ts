@@ -8,7 +8,9 @@ import type {
   BirdCoderProject,
 } from '@sdkwork/birdcoder-pc-contracts-commons';
 import {
+  areBirdCoderChatMessagesLogicallyMatched,
   buildBirdCoderChatMessageLogicalMatchKey,
+  buildBirdCoderChatMessageStructuredMatchKeys,
   buildBirdCoderChatMessageSynchronizationSignature,
   buildBirdCoderProjectBusinessCode,
   buildBirdCoderProjectBusinessName,
@@ -134,13 +136,39 @@ function removeCodingSessionMessageAtIndex(
 interface CachedCodingSessionMessageIndex {
   messages: readonly BirdCoderChatMessage[];
   messageIndexesById: Map<string, number>;
-  messageIndexesByLogicalKey: Map<string, number>;
+  messageIndexesByLogicalKey: Map<string, Set<number>>;
+  messageIndexesByStructuredKey: Map<string, Set<number>>;
   messageIndexesBySynchronizationSignature: Map<string, number>;
 }
 
 function normalizeCodingSessionMessageId(messageId: string | null | undefined): string | null {
   const normalizedMessageId = messageId?.trim() ?? '';
   return normalizedMessageId || null;
+}
+
+function addCachedCodingSessionMessageCandidate(
+  candidatesByKey: Map<string, Set<number>>,
+  key: string,
+  messageIndex: number,
+): void {
+  const candidates = candidatesByKey.get(key) ?? new Set<number>();
+  candidates.add(messageIndex);
+  candidatesByKey.set(key, candidates);
+}
+
+function removeCachedCodingSessionMessageCandidate(
+  candidatesByKey: Map<string, Set<number>>,
+  key: string,
+  messageIndex: number,
+): void {
+  const candidates = candidatesByKey.get(key);
+  if (!candidates) {
+    return;
+  }
+  candidates.delete(messageIndex);
+  if (candidates.size === 0) {
+    candidatesByKey.delete(key);
+  }
 }
 
 function rememberCodingSessionMessageIndexEntry(
@@ -152,10 +180,18 @@ function rememberCodingSessionMessageIndexEntry(
   if (normalizedMessageId) {
     index.messageIndexesById.set(normalizedMessageId, messageIndex);
   }
-  index.messageIndexesByLogicalKey.set(
+  addCachedCodingSessionMessageCandidate(
+    index.messageIndexesByLogicalKey,
     buildBirdCoderChatMessageLogicalMatchKey(message),
     messageIndex,
   );
+  for (const structuredKey of buildBirdCoderChatMessageStructuredMatchKeys(message)) {
+    addCachedCodingSessionMessageCandidate(
+      index.messageIndexesByStructuredKey,
+      structuredKey,
+      messageIndex,
+    );
+  }
   index.messageIndexesBySynchronizationSignature.set(
     buildBirdCoderChatMessageSynchronizationSignature(message),
     messageIndex,
@@ -173,8 +209,17 @@ function forgetCodingSessionMessageIndexEntry(
   }
 
   const logicalMatchKey = buildBirdCoderChatMessageLogicalMatchKey(message);
-  if (index.messageIndexesByLogicalKey.get(logicalMatchKey) === messageIndex) {
-    index.messageIndexesByLogicalKey.delete(logicalMatchKey);
+  removeCachedCodingSessionMessageCandidate(
+    index.messageIndexesByLogicalKey,
+    logicalMatchKey,
+    messageIndex,
+  );
+  for (const structuredKey of buildBirdCoderChatMessageStructuredMatchKeys(message)) {
+    removeCachedCodingSessionMessageCandidate(
+      index.messageIndexesByStructuredKey,
+      structuredKey,
+      messageIndex,
+    );
   }
 
   const synchronizationSignature = buildBirdCoderChatMessageSynchronizationSignature(message);
@@ -191,7 +236,8 @@ function indexCodingSessionMessages(
   const index: CachedCodingSessionMessageIndex = {
     messages,
     messageIndexesById: new Map<string, number>(),
-    messageIndexesByLogicalKey: new Map<string, number>(),
+    messageIndexesByLogicalKey: new Map<string, Set<number>>(),
+    messageIndexesByStructuredKey: new Map<string, Set<number>>(),
     messageIndexesBySynchronizationSignature: new Map<string, number>(),
   };
 
@@ -234,9 +280,29 @@ function findMatchingCachedCodingSessionMessageIndex(
     return synchronizationMessageIndex;
   }
 
-  return index.messageIndexesByLogicalKey.get(
-    buildBirdCoderChatMessageLogicalMatchKey(incomingMessage),
+  const logicalMatchKey = buildBirdCoderChatMessageLogicalMatchKey(incomingMessage);
+  const candidateIndexes = new Set<number>(
+    index.messageIndexesByLogicalKey.get(logicalMatchKey) ?? [],
   );
+  for (const structuredKey of buildBirdCoderChatMessageStructuredMatchKeys(incomingMessage)) {
+    for (const candidateIndex of index.messageIndexesByStructuredKey.get(structuredKey) ?? []) {
+      candidateIndexes.add(candidateIndex);
+    }
+  }
+
+  let matchingMessageIndex: number | undefined;
+  for (const candidateIndex of candidateIndexes) {
+    if (
+      (matchingMessageIndex === undefined || candidateIndex < matchingMessageIndex)
+      && areBirdCoderChatMessagesLogicallyMatched(
+        index.messages[candidateIndex]!,
+        incomingMessage,
+      )
+    ) {
+      matchingMessageIndex = candidateIndex;
+    }
+  }
+  return matchingMessageIndex;
 }
 
 function appendCachedCodingSessionMessageIndex(
@@ -268,7 +334,19 @@ function removeCachedCodingSessionMessageIndexEntry(
   removedMessage: BirdCoderChatMessage,
   removedMessageIndex: number,
 ): CachedCodingSessionMessageIndex {
+  const previousMessages = index.messages;
   forgetCodingSessionMessageIndexEntry(index, removedMessage, removedMessageIndex);
+  for (
+    let previousMessageIndex = removedMessageIndex + 1;
+    previousMessageIndex < previousMessages.length;
+    previousMessageIndex += 1
+  ) {
+    forgetCodingSessionMessageIndexEntry(
+      index,
+      previousMessages[previousMessageIndex]!,
+      previousMessageIndex,
+    );
+  }
   index.messages = nextMessages;
 
   for (let messageIndex = removedMessageIndex; messageIndex < nextMessages.length; messageIndex += 1) {
@@ -1283,18 +1361,6 @@ export class ProviderBackedProjectService implements IProjectService, IProjectSe
   ): Promise<BirdCoderChatMessage> {
     const codingSession = await this.findCodingSession(projectId, codingSessionId);
     const cachedMessageIndex = this.resolveCachedCodingSessionMessageIndex(projectId, codingSession);
-    const normalizedMessageId = message.id?.trim();
-    if (normalizedMessageId) {
-      const existingMessageIndex = findCachedCodingSessionMessageIndexById(
-        cachedMessageIndex,
-        normalizedMessageId,
-      );
-      if (existingMessageIndex !== undefined) {
-        const existingMessage = codingSession.messages[existingMessageIndex]!;
-        return cloneChatMessage(existingMessage);
-      }
-    }
-
     const newMessage = createChatMessage(codingSessionId, message);
     const existingLogicalMessageIndex = findMatchingCachedCodingSessionMessageIndex(
       cachedMessageIndex,

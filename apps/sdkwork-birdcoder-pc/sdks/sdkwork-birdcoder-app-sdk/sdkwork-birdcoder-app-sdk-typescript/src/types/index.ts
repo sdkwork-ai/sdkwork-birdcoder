@@ -148,6 +148,49 @@ export interface BirdCoderChatConversationSummaryListEnvelope {
   traceId: string;
 }
 
+export interface BirdCoderChatMessageReasoningItem {
+  id: string;
+  summary: string;
+  title?: string;
+  createdAt?: string;
+  startedAt?: string;
+  completedAt?: string;
+  durationMs?: number;
+}
+
+export interface BirdCoderChatMessageResource {
+  id: string;
+  kind: "file" | "image" | "audio" | "uri" | "citation" | "skill" | "mention";
+  name?: string;
+  path?: string;
+  uri?: string;
+  mediaSource?: string;
+  mimeType?: string;
+  description?: string;
+  origin?: BirdCoderChatMessageResourceOrigin;
+  citation?: BirdCoderChatMessageResourceCitation;
+}
+
+export interface BirdCoderChatMessageResourceCitation {
+  lineStart?: number;
+  lineEnd?: number;
+  note?: string;
+  threadIds?: Array<string>;
+}
+
+export interface BirdCoderChatMessageResourceOrigin {
+  kind: "file" | "symbol" | "resource";
+  name?: string;
+  path?: string;
+  uri?: string;
+  clientName?: string;
+  lineStart?: number;
+  lineEnd?: number;
+  columnStart?: number;
+  columnEnd?: number;
+  excerpt?: string;
+}
+
 export interface BirdCoderChatMessageSummary {
   id: string;
   conversationId: string;
@@ -1024,6 +1067,8 @@ export interface BirdCoderNativeSessionMessage {
   tool_calls?: Array<Record<string, unknown>>;
   tool_call_id?: string;
   fileChanges?: Array<Record<string, unknown>>;
+  reasoning?: Array<BirdCoderChatMessageReasoningItem>;
+  resources?: Array<BirdCoderChatMessageResource>;
   taskProgress?: Record<string, unknown>;
   metadata?: Record<string, string>;
   createdAt: string;

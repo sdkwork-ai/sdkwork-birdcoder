@@ -409,7 +409,11 @@ function TopBarComponent({
         className="birdcoder-workbench-header relative z-50 flex h-12 shrink-0 items-center gap-2 overflow-visible border-b px-3 text-sm text-gray-100 sm:px-4"
       >
         <div
-          className="flex min-w-0 flex-1 items-center gap-2 overflow-hidden whitespace-nowrap animate-in fade-in slide-in-from-top-2 fill-mode-both"
+          aria-hidden={topBarDensity === 'minimal' ? 'true' : undefined}
+          className={`flex min-w-0 flex-1 items-center gap-2 overflow-hidden whitespace-nowrap animate-in fade-in slide-in-from-top-2 fill-mode-both ${
+            topBarDensity === 'minimal' ? 'invisible' : ''
+          }`}
+          data-code-page-title="true"
           style={{ animationDelay: '100ms' }}
           title={headerTitle}
         >

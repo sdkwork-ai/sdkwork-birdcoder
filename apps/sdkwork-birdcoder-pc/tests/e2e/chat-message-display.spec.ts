@@ -7,6 +7,7 @@ const noticeCodingSessionId = 'e2e-chat-notice-session';
 const sandboxId = 'e2e-chat-sandbox';
 const sandboxRootEntryId = 'e2e-chat-sandbox-root';
 const sandboxDisplayName = 'Message Display Project';
+const privateReasoningSentinel = 'PRIVATE_PROVIDER_REASONING_MUST_NOT_RENDER';
 const workspaceEditorContent = [
   "export const workspaceLoadedSentinel = 'drive-backed-editor-content';",
   'export const adapter = createProviderMessageAdapter();',
@@ -340,6 +341,14 @@ async function openMessageFixture(page: Page) {
         { type: 'chat_compressed', value: { originalTokenCount: 32_000 } },
         { type: 'text', text: 'Provider messages are aligned and the verification results are ready.' },
       ],
+      reasoning: [{
+        id: 'reasoning-provider-alignment',
+        title: 'Provider protocol review',
+        summary: 'Inspected the provider protocol boundaries and verified structured rendering.',
+        durationMs: 1_850,
+        content: privateReasoningSentinel,
+        signature: privateReasoningSentinel,
+      }],
       commands: [
         {
           command: 'pnpm --filter @sdkwork/birdcoder-pc-ui typecheck',
@@ -363,9 +372,14 @@ async function openMessageFixture(page: Page) {
       toolCalls: [{
         id: 'task-provider-alignment',
         type: 'function',
-        name: 'write_todos',
+        name: 'task_update',
+        title: 'Ship the provider protocol matrix',
         status: 'running',
-        args: { source: 'provider-alignment' },
+        args: {
+          objective: 'Ship the provider protocol matrix',
+          goalStatus: 'active',
+          source: 'provider-alignment',
+        },
         resultDisplay: {
           todos: [
             { description: 'Normalize provider task messages', status: 'completed' },
@@ -378,9 +392,13 @@ async function openMessageFixture(page: Page) {
           id: 'resource-provider-message-adapter',
           kind: 'file',
           name: 'ProviderMessageAdapter.ts',
-          path: 'src/features/chat/ProviderMessageAdapter.ts',
           mimeType: 'text/typescript',
           description: 'Provider-neutral adapter implementation referenced by this reply.',
+          origin: {
+            kind: 'file',
+            path: 'src/features/chat/ProviderMessageAdapter.ts',
+            clientName: 'Claude Code',
+          },
         },
         {
           id: 'resource-provider-citation',
@@ -652,6 +670,31 @@ test('provider activity is compact, expandable, responsive, and opens files in t
     .filter({ hasText: 'Provider messages are aligned and the verification results are ready.' })
     .last();
 
+  const reasoningBlock = authoredReply.locator('[data-chat-message-reasoning]');
+  const reasoningDisclosure = reasoningBlock.locator('[data-chat-reasoning-disclosure]');
+  await expect(reasoningBlock).toBeVisible();
+  await expect(reasoningDisclosure).toHaveAttribute('aria-expanded', 'false');
+  await expect(reasoningBlock.getByText(
+    'Inspected the provider protocol boundaries and verified structured rendering.',
+    { exact: true },
+  )).toHaveCount(0);
+  await expect(transcriptRegion).not.toContainText(privateReasoningSentinel);
+  await reasoningDisclosure.focus();
+  await page.keyboard.press('Space');
+  await expect(reasoningDisclosure).toHaveAttribute('aria-expanded', 'true');
+  const reasoningDetailsId = await reasoningDisclosure.getAttribute('aria-controls');
+  expect(reasoningDetailsId).toBeTruthy();
+  await expect(reasoningBlock.getByRole('region', { name: 'Reasoning summary' })).toHaveAttribute(
+    'id',
+    reasoningDetailsId ?? 'missing-reasoning-details-id',
+  );
+  await expect(reasoningBlock.getByText(
+    'Inspected the provider protocol boundaries and verified structured rendering.',
+    { exact: true },
+  )).toBeVisible();
+  await page.keyboard.press('Space');
+  await expect(reasoningDisclosure).toHaveAttribute('aria-expanded', 'false');
+
   const messageResources = authoredReply.locator('[data-chat-message-resources]');
   await expect(messageResources).toBeVisible();
   await expect(messageResources.locator('[data-chat-message-resource="file"]')).toHaveCount(1);
@@ -808,7 +851,32 @@ test('provider activity is compact, expandable, responsive, and opens files in t
     }
   }
   await page.setViewportSize({ width: 420, height: 1_800 });
+  const workbenchShell = page.locator('.birdcoder-workbench-shell');
+  const projectExplorerShell = page.locator('[data-code-project-explorer-shell="true"]');
+  const primaryContent = page.locator('[data-code-page-primary-content="true"]');
+  await expect(projectExplorerShell).toBeHidden();
+  await expect(page.locator('.birdcoder-workbench-sidebar')).toBeHidden();
+  await expect(page.locator('[data-code-page-title="true"]')).toBeHidden();
+  await expect.poll(async () => {
+    const workbenchBounds = await workbenchShell.boundingBox();
+    const primaryContentBounds = await primaryContent.boundingBox();
+    if (!workbenchBounds || !primaryContentBounds) {
+      return false;
+    }
+    return (
+      Math.abs(primaryContentBounds.x - workbenchBounds.x) <= 1
+      && Math.abs(primaryContentBounds.width - workbenchBounds.width) <= 1
+    );
+  }).toBe(true);
   await expect(activity).toBeVisible();
+  await taskTool.scrollIntoViewIfNeeded();
+  await expect(
+    taskToolDisclosure.getByText('Ship the provider protocol matrix', { exact: true }),
+  ).toBeVisible();
+  await expect(taskTool.getByText('task_update', { exact: true })).toHaveCount(0);
+  await expect.poll(() => taskTool.evaluate(
+    (element) => element.scrollWidth <= element.clientWidth + 1,
+  )).toBe(true);
   const activityToggle = activity.locator(':scope > button');
   const activityDetails = activity.locator('[data-chat-activity-details="true"]');
   await expect.poll(async () => {
@@ -857,6 +925,11 @@ test('provider activity is compact, expandable, responsive, and opens files in t
   await expect.poll(() => messageResources.evaluate(
     (element) => element.scrollWidth <= element.clientWidth + 1,
   )).toBe(true);
+  await reasoningDisclosure.click();
+  await expect(reasoningDisclosure).toHaveAttribute('aria-expanded', 'true');
+  await expect.poll(() => reasoningBlock.evaluate(
+    (element) => element.scrollWidth <= element.clientWidth + 1,
+  )).toBe(true);
   const activityBounds = await activity.boundingBox();
   expect(activityBounds).not.toBeNull();
   const boundedActivityRows = activity.locator([
@@ -902,8 +975,13 @@ test('provider activity is compact, expandable, responsive, and opens files in t
     const copyButtonBox = await copyButton.boundingBox();
     expect(disclosureBox).not.toBeNull();
     expect(copyButtonBox).not.toBeNull();
-    expect((disclosureBox?.x ?? 0) + (disclosureBox?.width ?? 0))
-      .toBeLessThanOrEqual((copyButtonBox?.x ?? 0) + 1);
+    const controlsOverlap = !(
+      (disclosureBox?.x ?? 0) + (disclosureBox?.width ?? 0) <= (copyButtonBox?.x ?? 0) + 1
+      || (copyButtonBox?.x ?? 0) + (copyButtonBox?.width ?? 0) <= (disclosureBox?.x ?? 0) + 1
+      || (disclosureBox?.y ?? 0) + (disclosureBox?.height ?? 0) <= (copyButtonBox?.y ?? 0) + 1
+      || (copyButtonBox?.y ?? 0) + (copyButtonBox?.height ?? 0) <= (disclosureBox?.y ?? 0) + 1
+    );
+    expect(controlsOverlap).toBe(false);
   }
 
   const authoredReplyBounds = await authoredReply.boundingBox();
@@ -911,6 +989,8 @@ test('provider activity is compact, expandable, responsive, and opens files in t
   for (const element of await authoredReply.locator([
     '[data-chat-message-resources]',
     '[data-chat-message-resource]',
+    '[data-chat-message-reasoning]',
+    '[data-chat-reasoning-item]',
     '[data-chat-tool-notice="info"]',
     '[data-chat-activity-summary="inline"]',
   ].join(', ')).all()) {
@@ -931,35 +1011,26 @@ test('provider activity is compact, expandable, responsive, and opens files in t
     animations: 'disabled',
     path: testInfo.outputPath('provider-message-resources-420.png'),
   });
-  await mcpTool.locator('[data-chat-tool-disclosure="true"]').click();
-  await expect(mcpTool.locator('[data-chat-tool-disclosure="true"]')).toHaveAttribute(
-    'aria-expanded',
-    'true',
-  );
-  await mcpTool.scrollIntoViewIfNeeded();
+  await reasoningBlock.scrollIntoViewIfNeeded();
   await page.screenshot({
     animations: 'disabled',
-    path: testInfo.outputPath('provider-tool-result-420-expanded.png'),
+    path: testInfo.outputPath('provider-message-reasoning-420-expanded.png'),
   });
-  await mcpTool.locator('[data-chat-tool-disclosure="true"]').click();
-  await expect(mcpTool.locator('[data-chat-tool-disclosure="true"]')).toHaveAttribute(
-    'aria-expanded',
-    'false',
-  );
-  await taskToolDisclosure.click();
-  await expect(taskToolDisclosure).toHaveAttribute('aria-expanded', 'true');
-  await taskTool.scrollIntoViewIfNeeded();
-  await page.screenshot({
-    animations: 'disabled',
-    path: testInfo.outputPath('provider-task-result-420-expanded.png'),
-  });
+  await reasoningDisclosure.evaluate((element) => element.click());
+  await expect(reasoningDisclosure).toHaveAttribute('aria-expanded', 'false');
+  await activityToggle.evaluate((element) => element.click());
+  await expect(activityToggle).toHaveAttribute('aria-expanded', 'false');
 
+  await page.setViewportSize({ width: 1_280, height: 900 });
   await page.locator('.birdcoder-session-row').filter({
     hasText: 'Gemini Notice Showcase',
   }).first().click();
   await expect(page.getByText('The indexed provider contracts are ready for review.').first()).toBeVisible({
     timeout: 60_000,
   });
+  await page.setViewportSize({ width: 420, height: 1_800 });
+  await expect(projectExplorerShell).toBeHidden();
+  await expect(page.locator('[data-code-page-title="true"]')).toBeHidden();
 
   const noticeTranscriptRegion = page.getByRole('region', { name: 'Conversation messages' });
   const mixedNoticeReply = noticeTranscriptRegion

@@ -5,6 +5,10 @@ import {
   type BirdCoderChatMessageResourceKind,
   type BirdCoderChatMessageResourceOrigin,
 } from '@sdkwork/birdcoder-chat-contracts';
+import {
+  resolveBirdCoderChatMessageMediaSource,
+  type BirdCoderChatMessageMediaKind,
+} from './chat-message-media.ts';
 
 export {
   BIRDCODER_CHAT_MESSAGE_RESOURCE_KINDS,
@@ -17,8 +21,6 @@ export {
 const MAX_MESSAGE_RESOURCES = 32;
 const MAX_RESOURCE_NAME_CHARACTERS = 256;
 const MAX_RESOURCE_LOCATION_CHARACTERS = 4_096;
-// A 4 MiB data URI is about 3 MiB of binary media and keeps transcript memory bounded.
-const MAX_RESOURCE_MEDIA_SOURCE_CHARACTERS = 4 * 1_024 * 1_024;
 const MAX_RESOURCE_DESCRIPTION_CHARACTERS = 4_000;
 const MAX_RESOURCE_EXCERPT_CHARACTERS = 4_000;
 const MAX_RESOURCE_MIME_TYPE_CHARACTERS = 128;
@@ -43,16 +45,6 @@ function readBoundedString(value: unknown, maxCharacters: number): string | unde
   return normalized.length > maxCharacters
     ? normalized.slice(0, maxCharacters)
     : normalized;
-}
-
-function readBoundedMediaSource(value: unknown): string | undefined {
-  if (typeof value !== 'string') {
-    return undefined;
-  }
-  const normalized = value.trim();
-  return normalized && normalized.length <= MAX_RESOURCE_MEDIA_SOURCE_CHARACTERS
-    ? normalized
-    : undefined;
 }
 
 function isOpaqueMediaSource(value: string | undefined): boolean {
@@ -143,8 +135,12 @@ function projectMessageResource(
   const path = readBoundedString(value.path, MAX_RESOURCE_LOCATION_CHARACTERS);
   const rawUri = readBoundedString(value.uri, MAX_RESOURCE_LOCATION_CHARACTERS);
   const uri = isOpaqueMediaSource(rawUri) ? undefined : rawUri;
-  const mediaSource = readBoundedMediaSource(value.mediaSource);
   const mimeType = readBoundedString(value.mimeType, MAX_RESOURCE_MIME_TYPE_CHARACTERS);
+  const mediaKind: BirdCoderChatMessageMediaKind | undefined =
+    kind === 'image' || kind === 'audio' ? kind : undefined;
+  const mediaSource = mediaKind
+    ? resolveBirdCoderChatMessageMediaSource(value.mediaSource, mediaKind, mimeType)
+    : undefined;
   const description = readBoundedString(
     value.description,
     MAX_RESOURCE_DESCRIPTION_CHARACTERS,

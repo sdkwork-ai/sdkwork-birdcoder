@@ -1,5 +1,6 @@
 import type { FileChange } from './file-change.ts';
 import type { ChatMessageViewSource } from './chat-message-view.ts';
+import { mergeChatMessageReasoning } from './chat-message-reasoning.ts';
 import {
   projectChatMessageCommand,
   projectChatMessageToolResult,
@@ -67,6 +68,35 @@ function resolveMergedToolCallType(previousType: string, incomingType: string): 
   return previousType || incomingType;
 }
 
+function mergeProjectedToolCallArguments(previous: string, incoming: string): string {
+  if (!incoming.trim()) {
+    return previous;
+  }
+  if (!previous.trim()) {
+    return incoming;
+  }
+  try {
+    const previousValue: unknown = JSON.parse(previous);
+    const incomingValue: unknown = JSON.parse(incoming);
+    if (
+      previousValue
+      && incomingValue
+      && typeof previousValue === 'object'
+      && typeof incomingValue === 'object'
+      && !Array.isArray(previousValue)
+      && !Array.isArray(incomingValue)
+    ) {
+      return JSON.stringify({
+        ...(previousValue as Record<string, unknown>),
+        ...(incomingValue as Record<string, unknown>),
+      }, null, 2);
+    }
+  } catch {
+    // Preserve the latest provider value when either side is not structured JSON.
+  }
+  return incoming;
+}
+
 function mergeProjectedToolCall(
   previous: ChatMessageToolCall | undefined,
   incoming: ChatMessageToolCall,
@@ -78,7 +108,7 @@ function mergeProjectedToolCall(
   return {
     ...previous,
     ...incoming,
-    arguments: incoming.arguments.trim() ? incoming.arguments : previous.arguments,
+    arguments: mergeProjectedToolCallArguments(previous.arguments, incoming.arguments),
     kind: incoming.kind && incoming.kind !== 'other' ? incoming.kind : previous.kind,
     name: incoming.name !== 'tool' ? incoming.name : previous.name,
     status: resolveMergedToolCallStatus(previous.status, incoming.status),
@@ -375,6 +405,7 @@ export function projectChatTranscriptToolActivity<TMessage extends ChatMessageVi
     number,
     Map<string, NonNullable<ChatMessageViewSource['resources']>[number]>
   >();
+  const slotReasoningByIndex = new Map<number, TMessage['reasoning']>();
   const slotTaskProgressByIndex = new Map<number, TMessage['taskProgress']>();
   let previousActivitySlotIndex: number | undefined;
   let previousActivityScopeId = '';
@@ -453,6 +484,13 @@ export function projectChatTranscriptToolActivity<TMessage extends ChatMessageVi
       incoming.resources?.forEach((resource, index) => {
         resourcesByKey.set(readResourceKey(resource, index, incoming.id), resource);
       });
+    }
+    if (includeAncillary && (incoming.reasoning?.length ?? 0) > 0) {
+      const reasoning = mergeChatMessageReasoning(
+        slotReasoningByIndex.get(slotIndex) ?? previous.reasoning,
+        incoming.reasoning,
+      );
+      slotReasoningByIndex.set(slotIndex, reasoning.length > 0 ? reasoning : undefined);
     }
     if (includeAncillary && incoming.taskProgress) {
       slotTaskProgressByIndex.set(slotIndex, incoming.taskProgress);
@@ -587,7 +625,12 @@ export function projectChatTranscriptToolActivity<TMessage extends ChatMessageVi
               commands: slotCommands.length > 0 ? slotCommands : undefined,
               ...(slotIndex === primarySlotIndex
                 ? {}
-                : { fileChanges: undefined, resources: undefined, taskProgress: undefined }),
+                : {
+                    fileChanges: undefined,
+                    reasoning: undefined,
+                    resources: undefined,
+                    taskProgress: undefined,
+                  }),
             } as TMessage;
         projectedMessages.push(slotMessage);
         slotCallsByIndex.set(slotIndex, new Map(slotCalls.map((call) => [call.id, call])));
@@ -628,6 +671,9 @@ export function projectChatTranscriptToolActivity<TMessage extends ChatMessageVi
       ...(callsById?.size ? { tool_calls: [...callsById.values()] } : {}),
       ...(commandsByKey?.size ? { commands: [...commandsByKey.values()] } : {}),
       ...(fileChangesByPath?.size ? { fileChanges: [...fileChangesByPath.values()] } : {}),
+      ...(slotReasoningByIndex.has(slotIndex)
+        ? { reasoning: slotReasoningByIndex.get(slotIndex) }
+        : {}),
       ...(resourcesByKey?.size ? { resources: [...resourcesByKey.values()] } : {}),
       ...(slotTaskProgressByIndex.has(slotIndex)
         ? { taskProgress: slotTaskProgressByIndex.get(slotIndex) }

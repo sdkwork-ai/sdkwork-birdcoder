@@ -144,6 +144,79 @@ assert.equal(
   'provider-backed message deletion must not remove messages from a different session.',
 );
 
+const stableRecordSession = await service.createCodingSession(
+  project.id,
+  'Stable Provider Records',
+  {
+    engineId: 'codex',
+    modelId: 'gpt-5.4',
+    runtimeLocationId,
+  },
+);
+for (const [id, createdAt] of [
+  ['provider-stable-record-one', '2026-07-21T00:00:00.000Z'],
+  ['provider-stable-record-two', '2026-07-21T00:00:01.000Z'],
+] as const) {
+  await service.addCodingSessionMessage(project.id, stableRecordSession.id, {
+    id,
+    turnId: 'provider-stable-record-turn',
+    role: 'assistant',
+    content: 'Provider repeated this authored text.',
+    createdAt,
+  });
+}
+let stableRecordTranscript = await service.getCodingSessionTranscript(
+  project.id,
+  stableRecordSession.id,
+);
+assert.deepEqual(
+  stableRecordTranscript?.messages.map((message) => message.id),
+  ['provider-stable-record-one', 'provider-stable-record-two'],
+  'Provider-backed caching must retain distinct non-empty message ids even when turn, role, and text match.',
+);
+
+await service.addCodingSessionMessage(project.id, stableRecordSession.id, {
+  id: 'provider-stable-reasoning-one',
+  turnId: 'provider-stable-reasoning-turn',
+  role: 'assistant',
+  content: '',
+  reasoning: [{ id: 'provider-reasoning-child-one', summary: 'Initial summary.' }],
+  createdAt: '2026-07-21T00:00:02.000Z',
+});
+await service.addCodingSessionMessage(project.id, stableRecordSession.id, {
+  id: 'provider-stable-reasoning-update',
+  turnId: 'provider-stable-reasoning-turn',
+  role: 'assistant',
+  content: '',
+  reasoning: [
+    { id: 'provider-reasoning-child-one', summary: 'Updated summary.' },
+    { id: 'provider-reasoning-child-two', summary: 'Additional summary.' },
+  ],
+  createdAt: '2026-07-21T00:00:03.000Z',
+});
+stableRecordTranscript = await service.getCodingSessionTranscript(
+  project.id,
+  stableRecordSession.id,
+);
+const stableReasoningMessage = stableRecordTranscript?.messages.find(
+  (message) => message.id === 'provider-stable-reasoning-one',
+);
+assert.deepEqual(
+  stableReasoningMessage?.reasoning?.map((item) => [item.id, item.summary]),
+  [
+    ['provider-reasoning-child-one', 'Updated summary.'],
+    ['provider-reasoning-child-two', 'Additional summary.'],
+  ],
+  'Provider-backed caching must merge expanding structured updates into the first canonical child slot.',
+);
+assert.equal(
+  stableRecordTranscript?.messages.some(
+    (message) => message.id === 'provider-stable-reasoning-update',
+  ),
+  false,
+  'An expanding structured update must not create a second provider-backed parent row.',
+);
+
 const duplicateIdSessionA = await service.createCodingSession(project.id, 'Duplicate Id A', {
   engineId: 'codex',
   modelId: 'gpt-5.4',

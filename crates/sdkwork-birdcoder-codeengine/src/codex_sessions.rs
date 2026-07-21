@@ -1,7 +1,8 @@
 use std::{
     collections::{BTreeMap, BTreeSet, HashMap},
     fs::{self, File},
-    io::{BufRead, BufReader, Read, Seek, SeekFrom},
+    io::{Read, Seek, SeekFrom},
+    ops::ControlFlow,
     path::{Path, PathBuf},
     sync::{Mutex, OnceLock},
     time::{SystemTime, UNIX_EPOCH},
@@ -11,16 +12,18 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
 use crate::{
+    bounded_json::{for_each_bounded_jsonl_record, for_each_bounded_jsonl_record_until},
     build_native_session_id, canonicalize_codeengine_provider_tool_name,
     find_codeengine_descriptor, map_codeengine_session_runtime_status,
     map_codeengine_tool_command_status, map_codeengine_tool_kind,
     map_codeengine_tool_runtime_status, native_session_prefix_for_engine,
     normalize_codeengine_tool_lifecycle_status, sanitize_codeengine_git_repository_url,
     sanitize_codeengine_session_metadata, sanitize_codeengine_session_reasoning_records,
-    CodeEngineSessionCommandRecord, CodeEngineSessionDetailRecord,
-    CodeEngineSessionMessageRecord, CodeEngineSessionNativeAttributesRecord,
-    CodeEngineSessionReasoningRecord, CodeEngineSessionResourceCitationRecord,
-    CodeEngineSessionResourceRecord, CodeEngineSessionSummaryRecord,
+    sanitize_codeengine_session_resource_records, CodeEngineSessionCommandRecord,
+    CodeEngineSessionDetailRecord, CodeEngineSessionMessageRecord,
+    CodeEngineSessionNativeAttributesRecord, CodeEngineSessionReasoningRecord,
+    CodeEngineSessionResourceCitationRecord, CodeEngineSessionResourceRecord,
+    CodeEngineSessionSummaryRecord,
 };
 
 const CODEX_SESSIONS_DIRECTORY_NAME: &str = "sessions";
@@ -28,9 +31,12 @@ const CODEX_SESSION_INDEX_FILE_NAME: &str = "session_index.jsonl";
 const CODEX_SESSION_CATALOG_CACHE_TTL_MILLIS: u128 = 10_000;
 const CODEX_SUMMARY_HEAD_LINE_LIMIT: usize = 64;
 const CODEX_SUMMARY_TAIL_BYTE_LIMIT: u64 = 32 * 1024;
+const CODEX_SESSION_INDEX_RECORD_BYTE_LIMIT: usize = 1024 * 1024;
+const CODEX_SESSION_RECORD_BYTE_LIMIT: usize = 16 * 1024 * 1024;
 const CODEX_TOOL_CONTENT_CHAR_LIMIT: usize = 1_200;
 const CODEX_TOOL_OUTPUT_CHAR_LIMIT: usize = 16_000;
 const CODEX_ENGINE_ID: &str = "codex";
+const CODEX_LEGACY_REASONING_ID_PREFIX: &str = "codex-legacy-reasoning-";
 
 #[derive(Clone, Debug, Default, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -99,10 +105,12 @@ struct SessionLineContext {
     native_cwd: Option<String>,
     native_session_id: Option<String>,
     native_attributes: CodeEngineSessionNativeAttributesRecord,
+    next_legacy_reasoning_id: u64,
     pending_tool_calls: BTreeMap<String, PendingCodexToolCall>,
     title: Option<String>,
     title_source: SessionTitleSource,
     transcript_entries: Vec<TranscriptEntry>,
+    turn_order: Vec<String>,
 }
 
 #[derive(Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd)]
@@ -130,10 +138,12 @@ impl Default for SessionLineContext {
             native_cwd: None,
             native_session_id: None,
             native_attributes: CodeEngineSessionNativeAttributesRecord::default(),
+            next_legacy_reasoning_id: 0,
             pending_tool_calls: BTreeMap::new(),
             title: None,
             title_source: SessionTitleSource::None,
             transcript_entries: Vec::new(),
+            turn_order: Vec::new(),
         }
     }
 }
@@ -154,6 +164,7 @@ struct TranscriptEntry {
     role: String,
     content: String,
     turn_id: Option<String>,
+    native_item_id: Option<String>,
     commands: Option<Vec<CodeEngineSessionCommandRecord>>,
     tool_calls: Option<Vec<Value>>,
     tool_call_id: Option<String>,
@@ -526,35 +537,45 @@ fn read_codex_session_index() -> Result<BTreeMap<String, CodexSessionIndexEntry>
             session_index_path.display()
         )
     })?;
-    let reader = BufReader::new(file);
-
-    for line in reader.lines() {
-        let line = line.map_err(|error| {
-            format!(
-                "read Codex session index {} failed: {error}",
-                session_index_path.display()
-            )
-        })?;
-        if line.trim().is_empty() {
-            continue;
-        }
-
-        let parsed = serde_json::from_str::<Value>(&line).map_err(|error| {
-            format!(
-                "parse Codex session index {} failed: {error}",
-                session_index_path.display()
-            )
-        })?;
-        let Some(id) = normalize_value_string(parsed.get("id")) else {
-            continue;
-        };
-        entries.insert(
-            id,
-            CodexSessionIndexEntry {
-                thread_name: normalize_value_string(parsed.get("thread_name")),
-                updated_at: normalize_timestamp(parsed.get("updated_at")),
-            },
-        );
+    let mut parse_error = None;
+    for_each_bounded_jsonl_record_until(
+        file,
+        CODEX_SESSION_INDEX_RECORD_BYTE_LIMIT,
+        |_, record| {
+            if record.iter().all(|byte| byte.is_ascii_whitespace()) {
+                return ControlFlow::Continue(());
+            }
+            let parsed = match serde_json::from_slice::<Value>(record) {
+                Ok(parsed) => parsed,
+                Err(error) => {
+                    parse_error = Some(error.to_string());
+                    return ControlFlow::Break(());
+                }
+            };
+            let Some(id) = normalize_value_string(parsed.get("id")) else {
+                return ControlFlow::Continue(());
+            };
+            entries.insert(
+                id,
+                CodexSessionIndexEntry {
+                    thread_name: normalize_value_string(parsed.get("thread_name")),
+                    updated_at: normalize_timestamp(parsed.get("updated_at")),
+                },
+            );
+            ControlFlow::Continue(())
+        },
+    )
+    .map_err(|error| {
+        format!(
+            "read Codex session index {} failed: {error}",
+            session_index_path.display()
+        )
+    })?;
+    if let Some(error) = parse_error {
+        return Err(format!(
+            "parse Codex session index {} failed: {error}",
+            session_index_path.display()
+        ));
     }
 
     Ok(entries)
@@ -616,23 +637,16 @@ fn parse_codex_session(
         Ok(file) => file,
         Err(_) => return Ok(None),
     };
-    let reader = BufReader::new(file);
     let mut context = SessionLineContext::default();
-
-    for line in reader.lines() {
-        let line = match line {
-            Ok(line) => line,
-            Err(_) => continue,
-        };
-        if line.trim().is_empty() {
-            continue;
+    for_each_bounded_jsonl_record(file, CODEX_SESSION_RECORD_BYTE_LIMIT, |_, record| {
+        if record.iter().all(|byte| byte.is_ascii_whitespace()) {
+            return;
         }
-        let envelope = match serde_json::from_str::<Value>(&line) {
-            Ok(envelope) => envelope,
-            Err(_) => continue,
-        };
-        apply_codex_session_line(&mut context, &envelope, include_messages);
-    }
+        if let Ok(envelope) = serde_json::from_slice::<Value>(record) {
+            apply_codex_session_line(&mut context, &envelope, include_messages);
+        }
+    })
+    .map_err(|error| format!("read Codex session {} failed: {error}", file_path.display()))?;
 
     if include_messages {
         flush_pending_codex_tool_calls(&mut context);
@@ -653,7 +667,10 @@ fn parse_codex_session(
                 tool_call_id: entry.tool_call_id,
                 file_changes: entry.file_changes,
                 reasoning: entry.reasoning,
-                resources: entry.resources,
+                resources: entry.resources.as_deref().and_then(|resources| {
+                    let resources = sanitize_codeengine_session_resource_records(resources);
+                    (!resources.is_empty()).then_some(resources)
+                }),
                 task_progress: entry.task_progress,
                 metadata: entry.metadata,
                 created_at: entry.created_at,
@@ -681,24 +698,31 @@ fn parse_codex_session_summary_fast(
         Ok(file) => file,
         Err(_) => return Ok(None),
     };
-    let reader = BufReader::new(file);
     let mut context = SessionLineContext::default();
-
-    for (line_index, line) in reader.lines().enumerate() {
-        let line = match line {
-            Ok(line) => line,
-            Err(_) => continue,
-        };
-        if line.trim().is_empty() {
-            continue;
-        }
-        apply_codex_session_json_line(&mut context, line.as_str(), false);
-        if line_index + 1 >= CODEX_SUMMARY_HEAD_LINE_LIMIT
-            && can_finish_codex_summary_scan(&context)
-        {
-            break;
-        }
-    }
+    for_each_bounded_jsonl_record_until(
+        file,
+        CODEX_SESSION_RECORD_BYTE_LIMIT,
+        |line_index, record| {
+            if !record.iter().all(|byte| byte.is_ascii_whitespace()) {
+                if let Ok(envelope) = serde_json::from_slice::<Value>(record) {
+                    apply_codex_session_line(&mut context, &envelope, false);
+                }
+            }
+            if line_index + 1 >= CODEX_SUMMARY_HEAD_LINE_LIMIT
+                && can_finish_codex_summary_scan(&context)
+            {
+                ControlFlow::Break(())
+            } else {
+                ControlFlow::Continue(())
+            }
+        },
+    )
+    .map_err(|error| {
+        format!(
+            "read Codex session summary {} failed: {error}",
+            file_path.display()
+        )
+    })?;
 
     apply_codex_session_tail_snapshot(file_path, &mut context)?;
     Ok(Some(build_codex_summary(
@@ -824,7 +848,7 @@ fn apply_codex_session_line(
                     };
                     let has_resources = !resources.is_empty();
                     if include_messages && (transcript_content.is_some() || has_resources) {
-                        push_transcript_entry(
+                        upsert_codex_materialized_transcript_entry(
                             context,
                             TranscriptEntry {
                                 created_at: timestamp.clone(),
@@ -832,6 +856,8 @@ fn apply_codex_session_line(
                                 content: transcript_content.clone().unwrap_or_default(),
                                 turn_id: read_codex_turn_id(payload)
                                     .or_else(|| context.current_turn_id.clone()),
+                                native_item_id: payload
+                                    .and_then(|payload| normalize_value_string(payload.get("id"))),
                                 commands: None,
                                 resources: has_resources.then(|| resources.clone()),
                                 ..TranscriptEntry::default()
@@ -860,7 +886,7 @@ fn apply_codex_session_line(
                     );
                     let has_resources = !resources.is_empty();
                     if include_messages && (content.is_some() || has_resources) {
-                        push_transcript_entry(
+                        upsert_codex_materialized_transcript_entry(
                             context,
                             TranscriptEntry {
                                 created_at: timestamp.clone(),
@@ -868,6 +894,8 @@ fn apply_codex_session_line(
                                 content: content.clone().unwrap_or_default(),
                                 turn_id: read_codex_turn_id(payload)
                                     .or_else(|| context.current_turn_id.clone()),
+                                native_item_id: payload
+                                    .and_then(|payload| normalize_value_string(payload.get("id"))),
                                 commands: None,
                                 resources: has_resources.then(|| resources.clone()),
                                 ..TranscriptEntry::default()
@@ -894,7 +922,7 @@ fn apply_codex_session_line(
                         normalize_value_string(payload.and_then(|payload| payload.get("text")));
                     let resources = extract_codex_memory_citation_resources(payload);
                     if content.is_some() || !resources.is_empty() {
-                        push_transcript_entry(
+                        upsert_codex_materialized_transcript_entry(
                             context,
                             TranscriptEntry {
                                 created_at: timestamp,
@@ -902,6 +930,8 @@ fn apply_codex_session_line(
                                 content: content.unwrap_or_default(),
                                 turn_id: read_codex_turn_id(payload)
                                     .or_else(|| context.current_turn_id.clone()),
+                                native_item_id: payload
+                                    .and_then(|payload| normalize_value_string(payload.get("id"))),
                                 commands: None,
                                 resources: (!resources.is_empty()).then_some(resources),
                                 ..TranscriptEntry::default()
@@ -916,7 +946,7 @@ fn apply_codex_session_line(
                     if let Some(content) =
                         normalize_value_string(payload.and_then(|payload| payload.get("text")))
                     {
-                        push_transcript_entry(
+                        upsert_codex_materialized_transcript_entry(
                             context,
                             TranscriptEntry {
                                 created_at: timestamp,
@@ -924,6 +954,8 @@ fn apply_codex_session_line(
                                 content,
                                 turn_id: read_codex_turn_id(payload)
                                     .or_else(|| context.current_turn_id.clone()),
+                                native_item_id: payload
+                                    .and_then(|payload| normalize_value_string(payload.get("id"))),
                                 commands: None,
                                 ..TranscriptEntry::default()
                             },
@@ -953,6 +985,44 @@ fn apply_codex_session_line(
                 }
                 // Hook prompts are provider context, not authored transcript text.
                 Some("hookPrompt" | "hook_prompt") => {}
+                Some("local_shell_call") => {
+                    if !include_messages {
+                        return;
+                    }
+                    if let Some(entry) = build_codex_local_shell_transcript_entry(
+                        payload,
+                        &timestamp,
+                        context.current_turn_id.as_deref(),
+                    ) {
+                        upsert_codex_materialized_transcript_entry(context, entry);
+                    }
+                }
+                Some("tool_search_call" | "tool_search_output") => {
+                    if !include_messages {
+                        return;
+                    }
+                    if let Some(entry) = build_codex_tool_search_transcript_entry(
+                        context,
+                        payload,
+                        &timestamp,
+                        payload_type.as_deref().unwrap_or_default(),
+                        context.current_turn_id.as_deref(),
+                    ) {
+                        upsert_codex_materialized_transcript_entry(context, entry);
+                    }
+                }
+                Some("compaction" | "compaction_summary") => {
+                    if !include_messages {
+                        return;
+                    }
+                    if let Some(entry) = build_codex_compaction_transcript_entry(
+                        payload,
+                        &timestamp,
+                        context.current_turn_id.as_deref(),
+                    ) {
+                        upsert_codex_materialized_transcript_entry(context, entry);
+                    }
+                }
                 Some("function_call") | Some("custom_tool_call") => {
                     register_pending_codex_tool_call(context, payload, &timestamp);
                 }
@@ -964,7 +1034,7 @@ fn apply_codex_session_line(
                     if let Some(entry) =
                         build_codex_tool_output_transcript_entry(context, payload, &timestamp)
                     {
-                        push_transcript_entry(context, entry);
+                        upsert_codex_materialized_transcript_entry(context, entry);
                     }
                 }
                 Some("web_search_call") => {
@@ -978,7 +1048,7 @@ fn apply_codex_session_line(
                         &timestamp,
                         "web_search_call",
                     ) {
-                        push_transcript_entry(context, entry);
+                        upsert_codex_materialized_transcript_entry(context, entry);
                     }
                 }
                 Some(
@@ -1025,7 +1095,7 @@ fn apply_codex_session_line(
                         ) {
                             upsert_codex_collab_transcript_entry(context, entry);
                         } else {
-                            push_transcript_entry(context, entry);
+                            upsert_codex_materialized_transcript_entry(context, entry);
                         }
                     }
                 }
@@ -1037,21 +1107,40 @@ fn apply_codex_session_line(
             let event_type =
                 normalize_value_string(payload.and_then(|payload| payload.get("type")));
             match event_type.as_deref() {
-                Some("task_started") => {
+                Some("task_started" | "turn_started" | "turnStarted") => {
                     context.has_task_started = true;
                     context.has_task_complete = false;
                     context.has_turn_aborted = false;
                     context.has_error = false;
                     context.current_turn_id =
                         read_codex_turn_id(payload).or_else(|| context.current_turn_id.clone());
+                    if let Some(turn_id) = context.current_turn_id.clone() {
+                        register_codex_turn(context, turn_id.as_str());
+                    }
                 }
-                Some("task_complete") => {
-                    context.has_task_complete = true;
+                Some("task_complete" | "turn_complete" | "turnComplete") => {
+                    let completed_turn_id =
+                        read_codex_turn_id(payload).or_else(|| context.current_turn_id.clone());
+                    if let Some(turn_id) = completed_turn_id.as_deref() {
+                        register_codex_turn(context, turn_id);
+                    }
+                    if include_messages {
+                        push_codex_last_agent_message_if_missing(
+                            context,
+                            payload,
+                            timestamp.as_str(),
+                            completed_turn_id.as_deref(),
+                        );
+                    }
+                    context.has_error = payload
+                        .and_then(|payload| payload.get("error"))
+                        .is_some_and(|error| !error.is_null());
+                    context.has_task_complete = !context.has_error;
                     context.has_task_started = false;
                     context.has_turn_aborted = false;
                     context.current_turn_id = None;
                 }
-                Some("turn_aborted") => {
+                Some("turn_aborted" | "turnAborted") => {
                     context.has_turn_aborted = true;
                     context.has_task_complete = false;
                     context.has_task_started = false;
@@ -1062,6 +1151,53 @@ fn apply_codex_session_line(
                         }
                     }
                     context.current_turn_id = None;
+                }
+                Some("thread_rolled_back" | "threadRolledBack") => {
+                    apply_codex_thread_rollback(context, payload, timestamp.as_str());
+                }
+                Some("item_completed" | "itemCompleted") => {
+                    if !include_messages {
+                        return;
+                    }
+                    if let Some(entry) = build_codex_materialized_item_transcript_entry(
+                        payload,
+                        timestamp.as_str(),
+                        context.current_turn_id.as_deref(),
+                    ) {
+                        if entry.role == "user"
+                            && (!entry.content.is_empty()
+                                || entry
+                                    .resources
+                                    .as_ref()
+                                    .is_some_and(|resources| !resources.is_empty()))
+                        {
+                            set_context_title(
+                                context,
+                                normalize_codex_prompt_title(entry.content.as_str()),
+                                SessionTitleSource::EventUserMessage,
+                            );
+                            context.latest_user_timestamp = resolve_more_recent_timestamp(
+                                context.latest_user_timestamp.take(),
+                                Some(timestamp.clone()),
+                            );
+                        }
+                        upsert_codex_materialized_transcript_entry(context, entry);
+                    }
+                }
+                Some("thread_goal_updated" | "threadGoalUpdated") => {
+                    if include_messages {
+                        if let Some(entry) =
+                            build_codex_thread_goal_transcript_entry(payload, timestamp.as_str())
+                        {
+                            upsert_codex_materialized_transcript_entry(context, entry);
+                        }
+                    }
+                }
+                Some("token_count" | "tokenCount") => {
+                    apply_codex_token_count_metadata(context, payload);
+                }
+                Some("thread_settings_applied" | "threadSettingsApplied") => {
+                    apply_codex_thread_settings(context, payload);
                 }
                 Some("error") => context.has_error = true,
                 Some("user_message") => {
@@ -1147,8 +1283,13 @@ fn apply_codex_session_line(
                         );
                     }
                 }
-                // Legacy event text does not distinguish a display summary from private thought.
-                Some("agent_reasoning" | "agentReasoning") => {}
+                Some("agent_reasoning" | "agentReasoning") => {
+                    if include_messages {
+                        apply_codex_legacy_reasoning_summary(context, payload, timestamp.as_str());
+                    }
+                }
+                // This is the raw chain-of-thought counterpart to `agent_reasoning`.
+                Some("agent_reasoning_raw_content" | "agentReasoningRawContent") => {}
                 Some("entered_review_mode") => {
                     if !include_messages {
                         return;
@@ -1334,6 +1475,34 @@ fn apply_codex_session_line(
                         build_codex_patch_apply_transcript_entry(context, payload, &timestamp)
                     {
                         push_transcript_entry(context, entry);
+                    }
+                }
+                Some("image_generation_end" | "imageGenerationEnd") => {
+                    if !include_messages {
+                        return;
+                    }
+                    if let Some(entry) = build_codex_legacy_activity_transcript_entry(
+                        payload,
+                        &timestamp,
+                        "image_generation",
+                        "call_id",
+                        context.current_turn_id.as_deref(),
+                    ) {
+                        upsert_codex_materialized_transcript_entry(context, entry);
+                    }
+                }
+                Some("sub_agent_activity" | "subAgentActivity") => {
+                    if !include_messages {
+                        return;
+                    }
+                    if let Some(entry) = build_codex_legacy_activity_transcript_entry(
+                        payload,
+                        &timestamp,
+                        "sub_agent_activity",
+                        "event_id",
+                        context.current_turn_id.as_deref(),
+                    ) {
+                        upsert_codex_materialized_transcript_entry(context, entry);
                     }
                 }
                 Some("web_search_call") | Some("web_search_end") => {
@@ -1713,11 +1882,292 @@ fn dedupe_transcript_entries(entries: &[TranscriptEntry]) -> Vec<TranscriptEntry
 }
 
 fn push_transcript_entry(context: &mut SessionLineContext, entry: TranscriptEntry) {
+    if let Some(turn_id) = entry.turn_id.as_deref() {
+        register_codex_turn(context, turn_id);
+    }
     context.latest_transcript_timestamp = resolve_more_recent_timestamp(
         context.latest_transcript_timestamp.take(),
         Some(entry.created_at.clone()),
     );
     context.transcript_entries.push(entry);
+}
+
+fn register_codex_turn(context: &mut SessionLineContext, turn_id: &str) {
+    let turn_id = turn_id.trim();
+    if turn_id.is_empty()
+        || context
+            .turn_order
+            .iter()
+            .any(|existing| existing == turn_id)
+    {
+        return;
+    }
+    context.turn_order.push(turn_id.to_owned());
+}
+
+fn push_codex_last_agent_message_if_missing(
+    context: &mut SessionLineContext,
+    payload: Option<&Value>,
+    timestamp: &str,
+    turn_id: Option<&str>,
+) {
+    let Some(content) = normalize_value_string(payload.and_then(|payload| {
+        payload
+            .get("last_agent_message")
+            .or_else(|| payload.get("lastAgentMessage"))
+    })) else {
+        return;
+    };
+    let already_materialized = context.transcript_entries.iter().rev().any(|entry| {
+        entry.role == "assistant"
+            && entry.content == content
+            && turn_id.is_none_or(|turn_id| entry.turn_id.as_deref() == Some(turn_id))
+    });
+    if already_materialized {
+        return;
+    }
+
+    push_transcript_entry(
+        context,
+        TranscriptEntry {
+            created_at: timestamp.to_owned(),
+            role: "assistant".to_owned(),
+            content,
+            turn_id: turn_id.map(str::to_owned),
+            ..TranscriptEntry::default()
+        },
+    );
+}
+
+fn build_codex_thread_goal_transcript_entry(
+    payload: Option<&Value>,
+    timestamp: &str,
+) -> Option<TranscriptEntry> {
+    let payload = payload?;
+    let goal = payload.get("goal")?;
+    let thread_id = read_codex_aliased_string(goal, "thread_id", "threadId")
+        .or_else(|| read_codex_aliased_string(payload, "thread_id", "threadId"))?;
+    let objective = normalize_value_string(goal.get("objective"))?;
+    let goal_status =
+        normalize_codex_thread_goal_status(normalize_value_string(goal.get("status"))?.as_str())?;
+    let activity_status = match goal_status {
+        "active" => "running",
+        "complete" => "completed",
+        "paused" | "blocked" | "usageLimited" | "budgetLimited" => "waiting",
+        _ => return None,
+    };
+    let provider_turn_id = read_codex_turn_id(Some(payload));
+    // Core goals have no native item id; derive one from the owning thread so updates stay compact.
+    let goal_id = format!("thread-goal:{thread_id}");
+    let mut arguments = serde_json::json!({
+        "threadId": thread_id,
+        "turnId": provider_turn_id,
+        "objective": objective,
+        "goalStatus": goal_status,
+        "tokenBudget": read_codex_aliased_value(goal, "token_budget", "tokenBudget").cloned(),
+        "tokensUsed": read_codex_aliased_value(goal, "tokens_used", "tokensUsed").cloned(),
+        "timeUsedSeconds": read_codex_aliased_value(goal, "time_used_seconds", "timeUsedSeconds").cloned(),
+        "createdAt": read_codex_aliased_value(goal, "created_at", "createdAt").cloned(),
+        "updatedAt": read_codex_aliased_value(goal, "updated_at", "updatedAt").cloned(),
+    });
+    if let Some(arguments) = arguments.as_object_mut() {
+        arguments.retain(|_, value| !value.is_null());
+    }
+    let projected = serde_json::json!({
+        "type": "custom_tool_call",
+        "id": goal_id,
+        "call_id": goal_id,
+        "name": "task_update",
+        "title": objective,
+        "status": activity_status,
+        "arguments": arguments,
+    });
+
+    Some(TranscriptEntry {
+        created_at: timestamp.to_owned(),
+        role: "tool".to_owned(),
+        content: "Goal updated.".to_owned(),
+        // Goal state is thread-global. Keep turn attribution inside the structured item so
+        // rolling back a turn does not erase the latest provider goal snapshot.
+        turn_id: None,
+        native_item_id: Some(goal_id.clone()),
+        tool_calls: Some(vec![wrap_codex_thread_item(projected)]),
+        tool_call_id: Some(goal_id),
+        ..TranscriptEntry::default()
+    })
+}
+
+fn normalize_codex_thread_goal_status(status: &str) -> Option<&'static str> {
+    match status.trim() {
+        "active" => Some("active"),
+        "paused" => Some("paused"),
+        "blocked" => Some("blocked"),
+        "usageLimited" | "usage_limited" => Some("usageLimited"),
+        "budgetLimited" | "budget_limited" => Some("budgetLimited"),
+        "complete" | "completed" => Some("complete"),
+        _ => None,
+    }
+}
+
+fn apply_codex_token_count_metadata(context: &mut SessionLineContext, payload: Option<&Value>) {
+    let Some(info) = payload.and_then(|payload| payload.get("info")) else {
+        return;
+    };
+    if !info.is_object() {
+        return;
+    }
+    context
+        .native_attributes
+        .metadata
+        .insert("tokenUsage".to_owned(), info.clone());
+}
+
+fn apply_codex_thread_settings(context: &mut SessionLineContext, payload: Option<&Value>) {
+    let Some(settings) = payload.and_then(|payload| {
+        payload
+            .get("thread_settings")
+            .or_else(|| payload.get("threadSettings"))
+    }) else {
+        return;
+    };
+    context.model_id =
+        normalize_value_string(settings.get("model")).or_else(|| context.model_id.clone());
+    context.native_attributes.model_provider =
+        read_codex_aliased_string(settings, "model_provider_id", "modelProviderId")
+            .or_else(|| context.native_attributes.model_provider.clone());
+}
+
+fn upsert_codex_materialized_transcript_entry(
+    context: &mut SessionLineContext,
+    mut entry: TranscriptEntry,
+) {
+    if let Some(turn_id) = entry.turn_id.clone() {
+        register_codex_turn(context, turn_id.as_str());
+    }
+    let item_ids = [
+        entry.native_item_id.as_deref(),
+        entry.tool_call_id.as_deref(),
+    ]
+    .into_iter()
+    .flatten()
+    .collect::<Vec<_>>();
+    let matching_index = if item_ids.is_empty() {
+        None
+    } else {
+        context.transcript_entries.iter().rposition(|existing| {
+            [
+                existing.native_item_id.as_deref(),
+                existing.tool_call_id.as_deref(),
+            ]
+            .into_iter()
+            .flatten()
+            .any(|existing_id| item_ids.contains(&existing_id))
+        })
+    };
+    let Some(matching_index) = matching_index else {
+        push_transcript_entry(context, entry);
+        return;
+    };
+
+    context.latest_transcript_timestamp = resolve_more_recent_timestamp(
+        context.latest_transcript_timestamp.take(),
+        Some(entry.created_at.clone()),
+    );
+    let existing = &context.transcript_entries[matching_index];
+    if existing.native_item_id.is_some() && entry.native_item_id.is_none() {
+        // A durable TurnItem is richer than the correlated raw function output.
+        return;
+    }
+    entry.created_at.clone_from(&existing.created_at);
+    if entry.turn_id.is_none() {
+        entry.turn_id.clone_from(&existing.turn_id);
+    }
+    if entry.reasoning.is_none() {
+        entry.reasoning.clone_from(&existing.reasoning);
+    }
+    if entry.resources.is_none() {
+        entry.resources.clone_from(&existing.resources);
+    }
+    context.transcript_entries[matching_index] = entry;
+}
+
+fn apply_codex_thread_rollback(
+    context: &mut SessionLineContext,
+    payload: Option<&Value>,
+    timestamp: &str,
+) {
+    let turn_count = payload
+        .and_then(|payload| payload.get("num_turns").or_else(|| payload.get("numTurns")))
+        .and_then(|value| read_non_negative_json_integer(Some(value)))
+        .and_then(|value| usize::try_from(value).ok())
+        .unwrap_or_default();
+    if turn_count == 0 {
+        return;
+    }
+
+    let retained_turn_count = context.turn_order.len().saturating_sub(turn_count);
+    let removed_turn_ids = context
+        .turn_order
+        .split_off(retained_turn_count)
+        .into_iter()
+        .collect::<BTreeSet<_>>();
+    if removed_turn_ids.is_empty() {
+        return;
+    }
+
+    let mut removed_tool_call_ids = context
+        .transcript_entries
+        .iter()
+        .filter(|entry| {
+            entry
+                .turn_id
+                .as_ref()
+                .is_some_and(|turn_id| removed_turn_ids.contains(turn_id))
+        })
+        .filter_map(|entry| entry.tool_call_id.clone())
+        .collect::<BTreeSet<_>>();
+    context.transcript_entries.retain(|entry| {
+        entry
+            .turn_id
+            .as_ref()
+            .is_none_or(|turn_id| !removed_turn_ids.contains(turn_id))
+    });
+    context.pending_tool_calls.retain(|call_id, pending| {
+        let retain = pending
+            .turn_id
+            .as_ref()
+            .is_none_or(|turn_id| !removed_turn_ids.contains(turn_id));
+        if !retain {
+            removed_tool_call_ids.insert(call_id.clone());
+        }
+        retain
+    });
+    for call_id in removed_tool_call_ids {
+        context.consumed_tool_call_ids.remove(call_id.as_str());
+    }
+
+    if context
+        .current_turn_id
+        .as_ref()
+        .is_some_and(|turn_id| removed_turn_ids.contains(turn_id))
+    {
+        context.current_turn_id = None;
+    }
+    context.has_task_complete = false;
+    context.has_task_started = false;
+    context.has_turn_aborted = false;
+    context.has_error = false;
+    context.latest_user_timestamp = context
+        .transcript_entries
+        .iter()
+        .filter(|entry| entry.role == "user")
+        .fold(None, |latest, entry| {
+            resolve_more_recent_timestamp(latest, Some(entry.created_at.clone()))
+        });
+    context.latest_transcript_timestamp = resolve_more_recent_timestamp(
+        context.latest_transcript_timestamp.take(),
+        Some(timestamp.to_owned()),
+    );
 }
 
 fn upsert_codex_reasoning_transcript_entry(
@@ -1752,6 +2202,246 @@ fn upsert_codex_reasoning_transcript_entry(
         entry.turn_id.clone_from(&existing.turn_id);
     }
     context.transcript_entries[matching_index] = entry;
+}
+
+fn apply_codex_legacy_reasoning_summary(
+    context: &mut SessionLineContext,
+    payload: Option<&Value>,
+    timestamp: &str,
+) {
+    let Some(summary) = normalize_value_string(payload.and_then(|payload| payload.get("text")))
+    else {
+        return;
+    };
+    let turn_id = read_codex_turn_id(payload).or_else(|| context.current_turn_id.clone());
+    let previous_reasoning = context.transcript_entries.last().and_then(|entry| {
+        if entry.role != "assistant" || !entry.content.is_empty() || entry.turn_id != turn_id {
+            return None;
+        }
+        entry
+            .reasoning
+            .as_ref()?
+            .first()
+            .filter(|reasoning| reasoning.id.starts_with(CODEX_LEGACY_REASONING_ID_PREFIX))
+            .cloned()
+    });
+
+    let reasoning = if let Some(mut reasoning) = previous_reasoning {
+        reasoning.summary = format!("{}\n\n{summary}", reasoning.summary);
+        reasoning
+    } else {
+        context.next_legacy_reasoning_id = context.next_legacy_reasoning_id.saturating_add(1);
+        CodeEngineSessionReasoningRecord {
+            id: format!(
+                "{CODEX_LEGACY_REASONING_ID_PREFIX}{}",
+                context.next_legacy_reasoning_id
+            ),
+            summary,
+            title: None,
+            created_at: Some(timestamp.to_owned()),
+            started_at: None,
+            completed_at: None,
+            duration_ms: None,
+        }
+    };
+    let Some(reasoning) = sanitize_codeengine_session_reasoning_records(&[reasoning])
+        .into_iter()
+        .next()
+    else {
+        return;
+    };
+    upsert_codex_reasoning_transcript_entry(
+        context,
+        TranscriptEntry {
+            created_at: timestamp.to_owned(),
+            role: "assistant".to_owned(),
+            content: String::new(),
+            turn_id,
+            reasoning: Some(vec![reasoning]),
+            ..TranscriptEntry::default()
+        },
+    );
+}
+
+fn build_codex_legacy_activity_transcript_entry(
+    payload: Option<&Value>,
+    timestamp: &str,
+    canonical_type: &str,
+    native_id_key: &str,
+    fallback_turn_id: Option<&str>,
+) -> Option<TranscriptEntry> {
+    let payload = payload?;
+    let native_id = normalize_value_string(payload.get(native_id_key)).or_else(|| {
+        let camel_case_key = match native_id_key {
+            "call_id" => "callId",
+            "event_id" => "eventId",
+            _ => return None,
+        };
+        normalize_value_string(payload.get(camel_case_key))
+    })?;
+    let mut projected = project_codex_materialized_thread_item(payload, canonical_type)?;
+    projected
+        .as_object_mut()?
+        .insert("id".to_owned(), Value::String(native_id.clone()));
+    let mut entry =
+        build_codex_thread_item_transcript_entry(Some(&projected), timestamp, fallback_turn_id)?;
+    entry.native_item_id = Some(native_id);
+    Some(entry)
+}
+
+fn build_codex_local_shell_transcript_entry(
+    payload: Option<&Value>,
+    timestamp: &str,
+    fallback_turn_id: Option<&str>,
+) -> Option<TranscriptEntry> {
+    let payload = payload?;
+    let command = normalize_command_text(payload.get("action")?.get("command"))?;
+    let native_status = normalize_value_string(payload.get("status"))
+        .unwrap_or_else(|| "in_progress".to_owned())
+        .to_ascii_lowercase();
+    let status = match native_status.as_str() {
+        "completed" => "success",
+        "incomplete" => "error",
+        _ => "running",
+    };
+    let tool_call_id = read_codex_tool_item_id(Some(payload));
+    let native_item_id = normalize_value_string(payload.get("id"));
+    let outcome = match status {
+        "success" => "completed",
+        "error" => "failed",
+        _ => "running",
+    };
+
+    Some(TranscriptEntry {
+        created_at: timestamp.to_owned(),
+        role: "tool".to_owned(),
+        content: format!("Command {outcome}: {command}"),
+        turn_id: read_codex_turn_id(Some(payload)).or_else(|| fallback_turn_id.map(str::to_owned)),
+        native_item_id,
+        commands: Some(vec![CodeEngineSessionCommandRecord {
+            command: command.clone(),
+            status: status.to_owned(),
+            output: None,
+            kind: Some("command".to_owned()),
+            tool_name: Some("shell_command".to_owned()),
+            tool_call_id: tool_call_id.clone(),
+            runtime_status: Some(
+                map_codeengine_tool_runtime_status("command", Some(status), None).to_owned(),
+            ),
+            requires_approval: Some(false),
+            requires_reply: Some(false),
+        }]),
+        tool_calls: Some(vec![payload.clone()]),
+        tool_call_id,
+        ..TranscriptEntry::default()
+    })
+}
+
+fn build_codex_tool_search_transcript_entry(
+    context: &SessionLineContext,
+    payload: Option<&Value>,
+    timestamp: &str,
+    response_item_type: &str,
+    fallback_turn_id: Option<&str>,
+) -> Option<TranscriptEntry> {
+    let payload = payload?;
+    let is_output = response_item_type == "tool_search_output";
+    let raw_status = normalize_value_string(payload.get("status"));
+    let status = if is_output && raw_status.is_none() {
+        "success".to_owned()
+    } else {
+        read_codex_tool_output_status(Some(payload))
+    };
+    let execution = normalize_value_string(payload.get("execution"));
+    let tool_count = payload
+        .get("tools")
+        .and_then(Value::as_array)
+        .map(Vec::len)
+        .unwrap_or_default();
+    let content = if is_output {
+        match status.as_str() {
+            "error" => "Tool search failed.".to_owned(),
+            _ if tool_count == 1 => "Tool search found 1 tool.".to_owned(),
+            _ => format!("Tool search found {tool_count} tools."),
+        }
+    } else {
+        match status.as_str() {
+            "success" => "Tool search completed.".to_owned(),
+            "error" => "Tool search failed.".to_owned(),
+            _ => "Tool search running.".to_owned(),
+        }
+    };
+    let tool_call_id = read_codex_tool_item_id(Some(payload));
+    let command = execution
+        .as_ref()
+        .map(|execution| format!("tool_search: {execution}"))
+        .unwrap_or_else(|| "tool_search".to_owned());
+    let mut tool_calls = tool_call_id
+        .as_deref()
+        .and_then(|tool_call_id| {
+            context.transcript_entries.iter().rev().find_map(|entry| {
+                (entry.tool_call_id.as_deref() == Some(tool_call_id))
+                    .then(|| entry.tool_calls.clone())
+                    .flatten()
+            })
+        })
+        .unwrap_or_default();
+    if !tool_calls.iter().any(|tool_call| tool_call == payload) {
+        tool_calls.push(payload.clone());
+    }
+
+    Some(TranscriptEntry {
+        created_at: timestamp.to_owned(),
+        role: "tool".to_owned(),
+        content,
+        turn_id: read_codex_turn_id(Some(payload)).or_else(|| fallback_turn_id.map(str::to_owned)),
+        native_item_id: normalize_value_string(payload.get("id")),
+        commands: Some(vec![CodeEngineSessionCommandRecord {
+            command,
+            status: status.clone(),
+            output: is_output.then(|| {
+                if tool_count == 1 {
+                    "1 tool available".to_owned()
+                } else {
+                    format!("{tool_count} tools available")
+                }
+            }),
+            kind: Some("search".to_owned()),
+            tool_name: Some("tool_search".to_owned()),
+            tool_call_id: tool_call_id.clone(),
+            runtime_status: Some(
+                map_codeengine_tool_runtime_status("search", Some(status.as_str()), None)
+                    .to_owned(),
+            ),
+            requires_approval: Some(false),
+            requires_reply: Some(false),
+        }]),
+        tool_calls: Some(tool_calls),
+        tool_call_id,
+        ..TranscriptEntry::default()
+    })
+}
+
+fn build_codex_compaction_transcript_entry(
+    payload: Option<&Value>,
+    timestamp: &str,
+    fallback_turn_id: Option<&str>,
+) -> Option<TranscriptEntry> {
+    let payload = payload?;
+    let item_id = normalize_value_string(payload.get("id"));
+    Some(TranscriptEntry {
+        created_at: timestamp.to_owned(),
+        role: "system".to_owned(),
+        content: "Conversation context compressed.".to_owned(),
+        turn_id: read_codex_turn_id(Some(payload)).or_else(|| fallback_turn_id.map(str::to_owned)),
+        native_item_id: item_id.clone(),
+        tool_call_id: item_id,
+        metadata: Some(BTreeMap::from([(
+            "noticeKind".to_owned(),
+            "compression".to_owned(),
+        )])),
+        ..TranscriptEntry::default()
+    })
 }
 
 fn read_codex_call_id(payload: Option<&Value>) -> Option<String> {
@@ -2262,6 +2952,367 @@ fn build_codex_web_search_tool_call(payload: &Value, status: &str) -> Value {
     wrap_codex_thread_item(Value::Object(item))
 }
 
+fn build_codex_materialized_item_transcript_entry(
+    payload: Option<&Value>,
+    timestamp: &str,
+    fallback_turn_id: Option<&str>,
+) -> Option<TranscriptEntry> {
+    let payload = payload?;
+    let item = payload.get("item")?;
+    let item_type = normalize_value_string(item.get("type"))?;
+    let turn_id = read_codex_turn_id(Some(payload)).or_else(|| fallback_turn_id.map(str::to_owned));
+    let native_item_id = normalize_value_string(item.get("id"));
+
+    let mut entry = match item_type.as_str() {
+        "UserMessage" => {
+            let content = extract_message_text(item.get("content"))
+                .and_then(|content| normalize_codex_prompt_content(content.as_str()));
+            let resources = extract_codex_user_input_resources(item.get("content"));
+            if content.is_none() && resources.is_empty() {
+                return None;
+            }
+            TranscriptEntry {
+                created_at: timestamp.to_owned(),
+                role: "user".to_owned(),
+                content: content.unwrap_or_default(),
+                turn_id: turn_id.clone(),
+                resources: (!resources.is_empty()).then_some(resources),
+                ..TranscriptEntry::default()
+            }
+        }
+        "AgentMessage" => {
+            let content = extract_message_text(item.get("content"));
+            let resources = extract_codex_memory_citation_resources(Some(item));
+            if content.is_none() && resources.is_empty() {
+                return None;
+            }
+            TranscriptEntry {
+                created_at: timestamp.to_owned(),
+                role: "assistant".to_owned(),
+                content: content.unwrap_or_default(),
+                turn_id: turn_id.clone(),
+                resources: (!resources.is_empty()).then_some(resources),
+                ..TranscriptEntry::default()
+            }
+        }
+        "Plan" => TranscriptEntry {
+            created_at: timestamp.to_owned(),
+            role: "planner".to_owned(),
+            content: normalize_value_string(item.get("text"))?,
+            turn_id: turn_id.clone(),
+            ..TranscriptEntry::default()
+        },
+        "Reasoning" => TranscriptEntry {
+            created_at: timestamp.to_owned(),
+            role: "assistant".to_owned(),
+            content: String::new(),
+            turn_id: turn_id.clone(),
+            reasoning: Some(vec![extract_codex_reasoning_record(Some(item), timestamp)?]),
+            ..TranscriptEntry::default()
+        },
+        "CommandExecution" => build_codex_materialized_activity_transcript_entry(
+            item,
+            "command_execution",
+            timestamp,
+            turn_id.as_deref(),
+        )?,
+        "DynamicToolCall" => build_codex_materialized_activity_transcript_entry(
+            item,
+            "dynamic_tool_call",
+            timestamp,
+            turn_id.as_deref(),
+        )?,
+        "CollabAgentToolCall" => build_codex_materialized_activity_transcript_entry(
+            item,
+            "collab_agent_tool_call",
+            timestamp,
+            turn_id.as_deref(),
+        )?,
+        "SubAgentActivity" => build_codex_materialized_activity_transcript_entry(
+            item,
+            "sub_agent_activity",
+            timestamp,
+            turn_id.as_deref(),
+        )?,
+        "WebSearch" => build_codex_materialized_activity_transcript_entry(
+            item,
+            "web_search",
+            timestamp,
+            turn_id.as_deref(),
+        )?,
+        "ImageView" => build_codex_materialized_activity_transcript_entry(
+            item,
+            "image_view",
+            timestamp,
+            turn_id.as_deref(),
+        )?,
+        "ImageGeneration" => build_codex_materialized_activity_transcript_entry(
+            item,
+            "image_generation",
+            timestamp,
+            turn_id.as_deref(),
+        )?,
+        "Extension" => {
+            let canonical_type = match normalize_value_string(item.get("kind"))?.as_str() {
+                "clock.sleep" => "sleep",
+                "image_gen.generation" => "image_generation",
+                "web.search" => "web_search",
+                _ => return None,
+            };
+            build_codex_materialized_activity_transcript_entry(
+                item,
+                canonical_type,
+                timestamp,
+                turn_id.as_deref(),
+            )?
+        }
+        "EnteredReviewMode" => {
+            let mut projected =
+                project_codex_materialized_thread_item(item, "entered_review_mode")?;
+            if let Some(projected) = projected.as_object_mut() {
+                let review = read_codex_aliased_value(item, "user_facing_hint", "userFacingHint")
+                    .cloned()
+                    .unwrap_or_else(|| Value::String("Review requested.".to_owned()));
+                projected.insert("review".to_owned(), review);
+            }
+            build_codex_thread_item_transcript_entry(
+                Some(&projected),
+                timestamp,
+                turn_id.as_deref(),
+            )?
+        }
+        "ExitedReviewMode" => {
+            let mut projected = project_codex_materialized_thread_item(item, "exited_review_mode")?;
+            if let Some(projected) = projected.as_object_mut() {
+                projected.insert(
+                    "review".to_owned(),
+                    Value::String(render_codex_materialized_review_output(item)),
+                );
+            }
+            let mut entry = build_codex_thread_item_transcript_entry(
+                Some(&projected),
+                timestamp,
+                turn_id.as_deref(),
+            )?;
+            let resources = extract_codex_materialized_review_resources(item);
+            entry.resources = (!resources.is_empty()).then_some(resources);
+            entry
+        }
+        "FileChange" => build_codex_materialized_activity_transcript_entry(
+            item,
+            "file_change",
+            timestamp,
+            turn_id.as_deref(),
+        )?,
+        "McpToolCall" => build_codex_materialized_activity_transcript_entry(
+            item,
+            "mcp_tool_call",
+            timestamp,
+            turn_id.as_deref(),
+        )?,
+        "ContextCompaction" => build_codex_materialized_activity_transcript_entry(
+            item,
+            "context_compaction",
+            timestamp,
+            turn_id.as_deref(),
+        )?,
+        // Hook prompts are provider-owned context and must never become transcript text.
+        "HookPrompt" => return None,
+        _ => return None,
+    };
+    entry.native_item_id = native_item_id;
+    if entry.turn_id.is_none() {
+        entry.turn_id = turn_id;
+    }
+    Some(entry)
+}
+
+fn build_codex_materialized_activity_transcript_entry(
+    item: &Value,
+    canonical_type: &str,
+    timestamp: &str,
+    turn_id: Option<&str>,
+) -> Option<TranscriptEntry> {
+    let projected = project_codex_materialized_thread_item(item, canonical_type)?;
+    build_codex_thread_item_transcript_entry(Some(&projected), timestamp, turn_id)
+}
+
+fn project_codex_materialized_thread_item(item: &Value, canonical_type: &str) -> Option<Value> {
+    let mut projected = item.as_object()?.clone();
+    projected.insert("type".to_owned(), Value::String(canonical_type.to_owned()));
+    for (snake_case, camel_case) in [
+        ("aggregated_output", "aggregatedOutput"),
+        ("process_id", "processId"),
+        ("exit_code", "exitCode"),
+        ("content_items", "contentItems"),
+        ("sender_thread_id", "senderThreadId"),
+        ("receiver_thread_ids", "receiverThreadIds"),
+        ("reasoning_effort", "reasoningEffort"),
+        ("agents_states", "agentsStates"),
+        ("agent_thread_id", "agentThreadId"),
+        ("agent_path", "agentPath"),
+        ("duration_ms", "durationMs"),
+        ("saved_path", "savedPath"),
+        ("revised_prompt", "revisedPrompt"),
+    ] {
+        copy_codex_materialized_item_alias(&mut projected, snake_case, camel_case);
+    }
+    if !projected.contains_key("durationMs") {
+        if let Some(duration_ms) = read_codex_duration_millis(item.get("duration")) {
+            projected.insert("durationMs".to_owned(), Value::from(duration_ms));
+        }
+    }
+    if canonical_type == "collab_agent_tool_call" {
+        let agents_states = read_codex_aliased_value(item, "agents_states", "agentsStates")
+            .and_then(Value::as_object)
+            .map(|states| {
+                states
+                    .iter()
+                    .map(|(thread_id, state)| {
+                        let (state, _) = project_codex_collab_agent_state(state);
+                        (thread_id.clone(), state)
+                    })
+                    .collect::<serde_json::Map<_, _>>()
+            });
+        if let Some(agents_states) = agents_states {
+            projected.insert("agentsStates".to_owned(), Value::Object(agents_states));
+        }
+    }
+    Some(Value::Object(projected))
+}
+
+fn copy_codex_materialized_item_alias(
+    item: &mut serde_json::Map<String, Value>,
+    source: &str,
+    target: &str,
+) {
+    if item.contains_key(target) {
+        return;
+    }
+    if let Some(value) = item.get(source).cloned() {
+        item.insert(target.to_owned(), value);
+    }
+}
+
+fn read_codex_duration_millis(value: Option<&Value>) -> Option<u64> {
+    let value = value?;
+    if let Some(value) = read_non_negative_json_integer(Some(value)) {
+        return Some(value);
+    }
+    let seconds = read_non_negative_json_integer(value.get("secs"))?;
+    let nanoseconds = read_non_negative_json_integer(value.get("nanos")).unwrap_or_default();
+    seconds
+        .checked_mul(1_000)
+        .and_then(|milliseconds| milliseconds.checked_add(nanoseconds / 1_000_000))
+}
+
+fn render_codex_materialized_review_output(item: &Value) -> String {
+    let Some(output) = read_codex_aliased_value(item, "review_output", "reviewOutput") else {
+        return "Reviewer failed to output a response.".to_owned();
+    };
+    let mut sections = Vec::new();
+    if let Some(explanation) =
+        read_codex_aliased_value(output, "overall_explanation", "overallExplanation")
+            .and_then(|value| normalize_value_string(Some(value)))
+    {
+        sections.push(explanation);
+    }
+    let findings = output
+        .get("findings")
+        .and_then(Value::as_array)
+        .into_iter()
+        .flatten()
+        .filter_map(format_codex_materialized_review_finding)
+        .collect::<Vec<_>>();
+    if !findings.is_empty() {
+        let heading = if findings.len() == 1 {
+            "Review comment:"
+        } else {
+            "Full review comments:"
+        };
+        sections.push(format!("{heading}\n\n{}", findings.join("\n\n")));
+    }
+    let content = if sections.is_empty() {
+        "Reviewer failed to output a response.".to_owned()
+    } else {
+        sections.join("\n\n")
+    };
+    truncate_codex_text(content.as_str(), CODEX_TOOL_OUTPUT_CHAR_LIMIT)
+}
+
+fn format_codex_materialized_review_finding(finding: &Value) -> Option<String> {
+    let title = normalize_value_string(finding.get("title"))?;
+    let body = normalize_value_string(finding.get("body"));
+    let location = read_codex_aliased_value(finding, "code_location", "codeLocation");
+    let path = location.and_then(|location| {
+        normalize_path_string(read_codex_aliased_value(
+            location,
+            "absolute_file_path",
+            "absoluteFilePath",
+        ))
+    });
+    let line_range =
+        location.and_then(|location| read_codex_aliased_value(location, "line_range", "lineRange"));
+    let line_start =
+        line_range.and_then(|range| read_codex_non_negative_integer(range.get("start")));
+    let line_end = line_range.and_then(|range| read_codex_non_negative_integer(range.get("end")));
+    let location = match (path, line_start, line_end) {
+        (Some(path), Some(start), Some(end)) => Some(format!("{path}:{start}-{end}")),
+        (Some(path), Some(start), None) => Some(format!("{path}:{start}")),
+        (Some(path), None, None) => Some(path),
+        _ => None,
+    };
+    let mut lines = vec![match location {
+        Some(location) => format!("- {title} - {location}"),
+        None => format!("- {title}"),
+    }];
+    if let Some(body) = body {
+        lines.extend(body.lines().map(|line| format!("  {line}")));
+    }
+    Some(lines.join("\n"))
+}
+
+fn extract_codex_materialized_review_resources(
+    item: &Value,
+) -> Vec<CodeEngineSessionResourceRecord> {
+    let item_id = normalize_value_string(item.get("id")).unwrap_or_else(|| "review".to_owned());
+    read_codex_aliased_value(item, "review_output", "reviewOutput")
+        .and_then(|output| output.get("findings"))
+        .and_then(Value::as_array)
+        .into_iter()
+        .flatten()
+        .enumerate()
+        .filter_map(|(index, finding)| {
+            let location = read_codex_aliased_value(finding, "code_location", "codeLocation")?;
+            let path = normalize_path_string(read_codex_aliased_value(
+                location,
+                "absolute_file_path",
+                "absoluteFilePath",
+            ))?;
+            let line_range = read_codex_aliased_value(location, "line_range", "lineRange");
+            Some(CodeEngineSessionResourceRecord {
+                id: format!("codex-review-{item_id}-{}", index + 1),
+                kind: "citation".to_owned(),
+                name: normalize_value_string(finding.get("title")),
+                path: Some(path),
+                uri: None,
+                media_source: None,
+                mime_type: None,
+                description: normalize_value_string(finding.get("body")),
+                origin: None,
+                citation: Some(CodeEngineSessionResourceCitationRecord {
+                    line_start: line_range
+                        .and_then(|range| read_codex_non_negative_integer(range.get("start"))),
+                    line_end: line_range
+                        .and_then(|range| read_codex_non_negative_integer(range.get("end"))),
+                    note: normalize_value_string(finding.get("title")),
+                    thread_ids: Vec::new(),
+                }),
+            })
+        })
+        .collect()
+}
+
 fn build_codex_thread_item_transcript_entry(
     payload: Option<&Value>,
     timestamp: &str,
@@ -2272,7 +3323,7 @@ fn build_codex_thread_item_transcript_entry(
     let tool_call_id = read_codex_tool_item_id(Some(payload));
     let turn_id = read_codex_turn_id(Some(payload)).or_else(|| fallback_turn_id.map(str::to_owned));
 
-    match item_type.as_str() {
+    let mut entry = match item_type.as_str() {
         "command_execution" | "commandExecution" => {
             let command = normalize_command_text(payload.get("command"))?;
             let output = normalize_value_string(payload.get("aggregated_output"))
@@ -2541,7 +3592,9 @@ fn build_codex_thread_item_transcript_entry(
             ..TranscriptEntry::default()
         }),
         _ => None,
-    }
+    }?;
+    entry.native_item_id = normalize_value_string(payload.get("id"));
+    Some(entry)
 }
 
 fn format_codex_mcp_content(payload: &Value) -> String {
@@ -2678,8 +3731,8 @@ fn read_codex_string_array(value: Option<&Value>) -> Vec<String> {
 fn normalize_codex_collab_agent_status_name(value: &str) -> String {
     let normalized = value.trim().to_ascii_lowercase().replace([' ', '-'], "_");
     match normalized.as_str() {
-        "pendinginit" => "pending_init".to_owned(),
-        "notfound" => "not_found".to_owned(),
+        "pending_init" | "pendinginit" => "pendingInit".to_owned(),
+        "not_found" | "notfound" => "notFound".to_owned(),
         _ => normalized,
     }
 }
@@ -2715,7 +3768,7 @@ fn project_codex_collab_agent_state(value: &Value) -> (Value, bool) {
     } else {
         "unknown".to_owned()
     };
-    let is_failed = matches!(status.as_str(), "errored" | "not_found");
+    let is_failed = matches!(status.as_str(), "errored" | "notFound");
     (
         serde_json::json!({
             "status": status,
@@ -3171,10 +4224,23 @@ fn build_codex_web_search_transcript_entry(
     event_type: &str,
 ) -> Option<TranscriptEntry> {
     let payload = payload?;
-    let query = normalize_value_string(payload.get("query"));
-    let action_type = payload
-        .get("action")
-        .and_then(|action| normalize_value_string(action.get("type")));
+    let action = payload.get("action");
+    let query = normalize_value_string(payload.get("query"))
+        .or_else(|| action.and_then(|action| normalize_value_string(action.get("query"))))
+        .or_else(|| {
+            action
+                .and_then(|action| action.get("queries"))
+                .and_then(Value::as_array)
+                .map(|queries| {
+                    queries
+                        .iter()
+                        .filter_map(|query| normalize_value_string(Some(query)))
+                        .collect::<Vec<_>>()
+                        .join(", ")
+                })
+                .and_then(|queries| normalize_non_empty_string(Some(queries.as_str())))
+        });
+    let action_type = action.and_then(|action| normalize_value_string(action.get("type")));
     let command = query
         .as_ref()
         .map(|value| format!("web_search: {value}"))
@@ -3183,50 +4249,57 @@ fn build_codex_web_search_transcript_entry(
         .as_ref()
         .map(|value| format!("Action: {value}"))
         .and_then(|value| sanitize_codex_tool_output(value.as_str()));
-    let content = if event_type == "web_search_end" {
-        query
-            .as_ref()
-            .map(|value| format!("Web search completed: {value}"))
-            .unwrap_or_else(|| "Web search completed.".to_owned())
-    } else {
-        query
-            .as_ref()
-            .map(|value| format!("Web search started: {value}"))
-            .unwrap_or_else(|| "Web search started.".to_owned())
-    };
-
     if let Some(call_id) = read_codex_call_id(Some(payload)).as_deref() {
         context.consumed_tool_call_ids.insert(call_id.to_owned());
     }
     let status = if event_type == "web_search_end" {
-        "success"
+        "success".to_owned()
+    } else if event_type == "web_search_begin" {
+        "running".to_owned()
     } else {
-        "running"
+        read_codex_tool_output_status(Some(payload))
     };
+    let outcome = match status.as_str() {
+        "success" => "completed",
+        "error" => "failed",
+        _ => "started",
+    };
+    let content = query
+        .as_ref()
+        .map(|value| format!("Web search {outcome}: {value}"))
+        .unwrap_or_else(|| format!("Web search {outcome}."));
     let tool_call_id = read_codex_tool_item_id(Some(payload));
-
-    Some(TranscriptEntry {
+    let mut entry = TranscriptEntry {
         created_at: timestamp.to_owned(),
         role: "tool".to_owned(),
         content,
         turn_id: read_codex_turn_id(Some(payload)).or_else(|| context.current_turn_id.clone()),
+        native_item_id: normalize_value_string(payload.get("id")),
         commands: Some(vec![CodeEngineSessionCommandRecord {
             command,
-            status: status.to_owned(),
+            status: status.clone(),
             output,
             kind: Some("search".to_owned()),
             tool_name: Some("web_search".to_owned()),
             tool_call_id: tool_call_id.clone(),
             runtime_status: Some(
-                map_codeengine_tool_runtime_status("search", Some(status), None).to_owned(),
+                map_codeengine_tool_runtime_status("search", Some(status.as_str()), None)
+                    .to_owned(),
             ),
             requires_approval: Some(false),
             requires_reply: Some(false),
         }]),
-        tool_calls: Some(vec![build_codex_web_search_tool_call(payload, status)]),
+        tool_calls: Some(vec![build_codex_web_search_tool_call(
+            payload,
+            status.as_str(),
+        )]),
         tool_call_id,
         ..TranscriptEntry::default()
-    })
+    };
+    if entry.native_item_id.is_none() {
+        entry.native_item_id.clone_from(&entry.tool_call_id);
+    }
+    Some(entry)
 }
 
 fn extract_session_id_from_file_path(file_path: &Path) -> Option<String> {
@@ -3314,7 +4387,8 @@ fn normalize_command_text(value: Option<&Value>) -> Option<String> {
         Some(Value::Array(values)) => {
             let parts = values
                 .iter()
-                .filter_map(|value| normalize_value_string(Some(value)))
+                .filter_map(Value::as_str)
+                .map(quote_codex_command_argument)
                 .collect::<Vec<_>>();
             if parts.is_empty() {
                 None
@@ -3324,6 +4398,21 @@ fn normalize_command_text(value: Option<&Value>) -> Option<String> {
         }
         _ => None,
     }
+}
+
+fn quote_codex_command_argument(argument: &str) -> String {
+    if !argument.is_empty()
+        && argument.chars().all(|character| {
+            character.is_ascii_alphanumeric()
+                || matches!(
+                    character,
+                    '_' | '-' | '.' | '/' | ':' | '@' | '%' | '+' | '=' | ','
+                )
+        })
+    {
+        return argument.to_owned();
+    }
+    format!("'{}'", argument.replace('\'', "'\"'\"'"))
 }
 
 fn extract_message_text(value: Option<&Value>) -> Option<String> {
@@ -3398,7 +4487,9 @@ fn extract_codex_reasoning_record(
     let summary_value = payload
         .get("summary")
         .or_else(|| payload.get("reasoningSummary"))
-        .or_else(|| payload.get("reasoning_summary"))?;
+        .or_else(|| payload.get("reasoning_summary"))
+        .or_else(|| payload.get("summaryText"))
+        .or_else(|| payload.get("summary_text"))?;
     let summary = extract_codex_reasoning_summary_fragments(summary_value, 0).join("\n\n");
     let records = vec![CodeEngineSessionReasoningRecord {
         id: normalize_value_string(payload.get("id"))?,
@@ -4820,6 +5911,14 @@ mod tests {
                     "timestamp": "2026-07-20T11:00:03.500Z",
                     "payload": {
                         "type": "agent_reasoning",
+                        "text": "Validated the legacy rollout summary."
+                    }
+                }),
+                serde_json::json!({
+                    "type": "event_msg",
+                    "timestamp": "2026-07-20T11:00:03.750Z",
+                    "payload": {
+                        "type": "agent_reasoning_raw_content",
                         "text": "PRIVATE_CODEX_LEGACY_REASONING_SENTINEL"
                     }
                 }),
@@ -4875,7 +5974,7 @@ mod tests {
         let detail = parse_codex_session_detail(&file_path, &BTreeMap::new())
             .expect("parse Codex app-server v2 routing fixture")
             .expect("Codex app-server v2 routing detail");
-        assert_eq!(detail.messages.len(), 7);
+        assert_eq!(detail.messages.len(), 8);
         assert_eq!(detail.messages[0].role, "user");
         assert_eq!(detail.messages[1].role, "assistant");
         assert_eq!(detail.messages[1].content, "");
@@ -4889,21 +5988,27 @@ mod tests {
             reasoning[0].summary,
             "Reviewed the provider contracts.\n\nPrepared the verification matrix."
         );
-        assert_eq!(detail.messages[2].role, "planner");
-        assert_eq!(detail.messages[3].role, "assistant");
-        assert!(detail.messages[4..]
+        assert_eq!(detail.messages[2].role, "assistant");
+        assert_eq!(
+            detail.messages[2]
+                .reasoning
+                .as_ref()
+                .and_then(|reasoning| reasoning.first())
+                .map(|reasoning| reasoning.summary.as_str()),
+            Some("Validated the legacy rollout summary.")
+        );
+        assert_eq!(detail.messages[3].role, "planner");
+        assert_eq!(detail.messages[4].role, "assistant");
+        assert!(detail.messages[5..]
             .iter()
             .all(|message| message.role == "system"));
-        assert!(detail
-            .messages
-            .iter()
-            .all(|message| {
-                !message.content.is_empty()
-                    || message
-                        .reasoning
-                        .as_ref()
-                        .is_some_and(|reasoning| !reasoning.is_empty())
-            }));
+        assert!(detail.messages.iter().all(|message| {
+            !message.content.is_empty()
+                || message
+                    .reasoning
+                    .as_ref()
+                    .is_some_and(|reasoning| !reasoning.is_empty())
+        }));
         let visible_content = detail
             .messages
             .iter()
@@ -4917,6 +6022,119 @@ mod tests {
         let serialized = serde_json::to_string(&detail).expect("serialize Codex session detail");
         assert!(!serialized.contains("PRIVATE_CODEX_REASONING_BODY_SENTINEL"));
         assert!(!serialized.contains("PRIVATE_CODEX_LEGACY_REASONING_SENTINEL"));
+        assert!(serialized.contains("Validated the legacy rollout summary."));
+
+        let _ = fs::remove_file(file_path);
+    }
+
+    #[test]
+    fn codex_legacy_history_projects_summary_image_generation_and_subagent_activity() {
+        let file_path = write_test_codex_session_file(
+            "codex-legacy-visible-history",
+            &[
+                serde_json::json!({
+                    "type": "session_meta",
+                    "timestamp": "2026-07-20T11:30:00.000Z",
+                    "payload": {
+                        "id": "019d54b7-f3da-79b1-bb78-10770953da37",
+                        "cwd": "E:/workspace/birdcoder",
+                        "model": "gpt-5.4"
+                    }
+                }),
+                serde_json::json!({
+                    "type": "event_msg",
+                    "timestamp": "2026-07-20T11:30:01.000Z",
+                    "payload": { "type": "turn_started", "turn_id": "turn-legacy" }
+                }),
+                serde_json::json!({
+                    "type": "event_msg",
+                    "timestamp": "2026-07-20T11:30:02.000Z",
+                    "payload": {
+                        "type": "agent_reasoning",
+                        "text": "Inspected the persisted event policy."
+                    }
+                }),
+                serde_json::json!({
+                    "type": "event_msg",
+                    "timestamp": "2026-07-20T11:30:02.250Z",
+                    "payload": {
+                        "type": "agent_reasoning_raw_content",
+                        "text": "PRIVATE_CODEX_RAW_REASONING_SENTINEL"
+                    }
+                }),
+                serde_json::json!({
+                    "type": "event_msg",
+                    "timestamp": "2026-07-20T11:30:02.500Z",
+                    "payload": {
+                        "type": "agent_reasoning",
+                        "text": "Validated the replay projection."
+                    }
+                }),
+                serde_json::json!({
+                    "type": "event_msg",
+                    "timestamp": "2026-07-20T11:30:03.000Z",
+                    "payload": {
+                        "type": "image_generation_end",
+                        "call_id": "image-legacy-1",
+                        "status": "completed",
+                        "revised_prompt": "A precise protocol diagram",
+                        "result": "iVBORw0KGgo=",
+                        "saved_path": "E:/workspace/birdcoder/protocol.png"
+                    }
+                }),
+                serde_json::json!({
+                    "type": "event_msg",
+                    "timestamp": "2026-07-20T11:30:04.000Z",
+                    "payload": {
+                        "type": "sub_agent_activity",
+                        "event_id": "subagent-legacy-1",
+                        "occurred_at_ms": 1784547004000_i64,
+                        "agent_thread_id": "agent-thread-legacy",
+                        "agent_path": "/root/protocol-audit",
+                        "kind": "interacted"
+                    }
+                }),
+            ],
+        );
+
+        let detail = parse_codex_session_detail(&file_path, &BTreeMap::new())
+            .expect("parse Codex legacy visible history fixture")
+            .expect("Codex legacy visible history detail");
+        assert_eq!(detail.messages.len(), 3);
+        let reasoning = detail.messages[0]
+            .reasoning
+            .as_ref()
+            .and_then(|reasoning| reasoning.first())
+            .expect("legacy Codex reasoning summary");
+        assert_eq!(
+            reasoning.summary,
+            "Inspected the persisted event policy.\n\nValidated the replay projection."
+        );
+        assert_eq!(detail.messages[0].turn_id.as_deref(), Some("turn-legacy"));
+
+        let tool_items = detail.messages[1..]
+            .iter()
+            .filter_map(|message| {
+                let item = message.tool_calls.as_ref()?.first()?.get("item")?;
+                Some((item.get("id")?.as_str()?, item))
+            })
+            .collect::<BTreeMap<_, _>>();
+        assert_eq!(tool_items["image-legacy-1"]["type"], "image_generation");
+        assert_eq!(
+            tool_items["image-legacy-1"]["savedPath"],
+            "E:/workspace/birdcoder/protocol.png"
+        );
+        assert_eq!(
+            tool_items["subagent-legacy-1"]["agentPath"],
+            "/root/protocol-audit"
+        );
+        assert_eq!(tool_items["subagent-legacy-1"]["status"], "completed");
+        assert!(detail.messages[1..]
+            .iter()
+            .all(|message| message.turn_id.as_deref() == Some("turn-legacy")));
+        assert!(!serde_json::to_string(&detail)
+            .expect("serialize Codex legacy visible history")
+            .contains("PRIVATE_CODEX_RAW_REASONING_SENTINEL"));
 
         let _ = fs::remove_file(file_path);
     }
@@ -5039,6 +6257,1207 @@ mod tests {
             .expect("snake citation");
         assert_eq!((snake.line_start, snake.line_end), (Some(10), Some(12)));
         assert_eq!(snake.thread_ids, vec!["thread-source-snake"]);
+
+        let _ = fs::remove_file(file_path);
+    }
+
+    #[test]
+    fn codex_history_replays_materialized_item_completed() {
+        let file_path = write_test_codex_session_file(
+            "codex-history-materialized-item-completed",
+            &[
+                serde_json::json!({
+                    "type": "session_meta",
+                    "timestamp": "2026-07-21T03:00:00.000Z",
+                    "payload": {
+                        "id": "019d54b7-f3da-79b1-bb78-10770953da40",
+                        "cwd": "E:/workspace/birdcoder",
+                        "model": "gpt-5.4"
+                    }
+                }),
+                serde_json::json!({
+                    "type": "event_msg",
+                    "timestamp": "2026-07-21T03:00:01.000Z",
+                    "payload": { "type": "turn_started", "turn_id": "turn-materialized" }
+                }),
+                serde_json::json!({
+                    "type": "response_item",
+                    "timestamp": "2026-07-21T03:00:02.000Z",
+                    "payload": {
+                        "type": "message",
+                        "role": "user",
+                        "content": [{ "type": "input_text", "text": "Replay current Codex items." }]
+                    }
+                }),
+                serde_json::json!({
+                    "type": "event_msg",
+                    "timestamp": "2026-07-21T03:00:03.000Z",
+                    "payload": {
+                        "type": "item_completed",
+                        "thread_id": "019d54b7-f3da-79b1-bb78-10770953da40",
+                        "turn_id": "turn-materialized",
+                        "completed_at_ms": 1,
+                        "item": { "type": "Plan", "id": "plan-materialized", "text": "1. Inspect\n2. Verify" }
+                    }
+                }),
+                serde_json::json!({
+                    "type": "response_item",
+                    "timestamp": "2026-07-21T03:00:04.000Z",
+                    "payload": {
+                        "type": "custom_tool_call",
+                        "call_id": "dynamic-materialized",
+                        "name": "preview.capture",
+                        "input": "{\"path\":\"preview.png\"}"
+                    }
+                }),
+                serde_json::json!({
+                    "type": "response_item",
+                    "timestamp": "2026-07-21T03:00:05.000Z",
+                    "payload": {
+                        "type": "custom_tool_call_output",
+                        "call_id": "dynamic-materialized",
+                        "output": "stale response-item output",
+                        "success": true
+                    }
+                }),
+                serde_json::json!({
+                    "type": "event_msg",
+                    "timestamp": "2026-07-21T03:00:06.000Z",
+                    "payload": {
+                        "type": "item_completed",
+                        "thread_id": "019d54b7-f3da-79b1-bb78-10770953da40",
+                        "turn_id": "turn-materialized",
+                        "item": {
+                            "type": "CommandExecution",
+                            "id": "command-materialized",
+                            "command": ["cargo", "test", "bird coder", "say 'hello'"],
+                            "cwd": "E:/workspace/birdcoder",
+                            "parsed_cmd": [],
+                            "source": "agent",
+                            "status": "completed",
+                            "aggregated_output": "test result: ok",
+                            "exit_code": 0,
+                            "duration": { "secs": 1, "nanos": 250000000 }
+                        },
+                        "completed_at_ms": 2
+                    }
+                }),
+                serde_json::json!({
+                    "type": "event_msg",
+                    "timestamp": "2026-07-21T03:00:07.000Z",
+                    "payload": {
+                        "type": "item_completed",
+                        "thread_id": "019d54b7-f3da-79b1-bb78-10770953da40",
+                        "turn_id": "turn-materialized",
+                        "item": {
+                            "type": "DynamicToolCall",
+                            "id": "dynamic-materialized",
+                            "namespace": "preview",
+                            "tool": "capture",
+                            "arguments": { "path": "preview.png" },
+                            "status": "completed",
+                            "content_items": [{ "type": "inputText", "text": "Preview captured" }],
+                            "success": true,
+                            "duration": { "secs": 0, "nanos": 500000000 }
+                        },
+                        "completed_at_ms": 3
+                    }
+                }),
+                serde_json::json!({
+                    "type": "event_msg",
+                    "timestamp": "2026-07-21T03:00:08.000Z",
+                    "payload": {
+                        "type": "item_completed",
+                        "thread_id": "019d54b7-f3da-79b1-bb78-10770953da40",
+                        "turn_id": "turn-materialized",
+                        "item": {
+                            "type": "CollabAgentToolCall",
+                            "id": "collab-materialized",
+                            "tool": "spawn_agent",
+                            "status": "completed",
+                            "sender_thread_id": "sender-thread",
+                            "receiver_thread_ids": ["agent-thread"],
+                            "receiver_agents": [],
+                            "prompt": "Inspect the adapter",
+                            "model": "gpt-5.4-mini",
+                            "reasoning_effort": "medium",
+                            "agents_states": {
+                                "agent-thread": { "completed": "Inspection complete" }
+                            }
+                        },
+                        "completed_at_ms": 4
+                    }
+                }),
+                serde_json::json!({
+                    "type": "event_msg",
+                    "timestamp": "2026-07-21T03:00:09.000Z",
+                    "payload": {
+                        "type": "item_completed",
+                        "thread_id": "019d54b7-f3da-79b1-bb78-10770953da40",
+                        "turn_id": "turn-materialized",
+                        "item": {
+                            "type": "SubAgentActivity",
+                            "id": "subagent-materialized",
+                            "kind": "interrupted",
+                            "agent_thread_id": "agent-thread",
+                            "agent_path": "/root/worker"
+                        },
+                        "completed_at_ms": 5
+                    }
+                }),
+                serde_json::json!({
+                    "type": "event_msg",
+                    "timestamp": "2026-07-21T03:00:10.000Z",
+                    "payload": {
+                        "type": "item_completed",
+                        "thread_id": "019d54b7-f3da-79b1-bb78-10770953da40",
+                        "turn_id": "turn-materialized",
+                        "item": { "type": "Extension", "kind": "clock.sleep", "id": "sleep-materialized", "durationMs": 750 },
+                        "completed_at_ms": 6
+                    }
+                }),
+                serde_json::json!({
+                    "type": "event_msg",
+                    "timestamp": "2026-07-21T03:00:11.000Z",
+                    "payload": {
+                        "type": "item_completed",
+                        "thread_id": "019d54b7-f3da-79b1-bb78-10770953da40",
+                        "turn_id": "turn-materialized",
+                        "item": {
+                            "type": "Extension",
+                            "kind": "image_gen.generation",
+                            "id": "image-materialized",
+                            "status": "completed",
+                            "revisedPrompt": "A precise preview",
+                            "result": "aGVsbG8=",
+                            "savedPath": "E:/workspace/birdcoder/generated.png"
+                        },
+                        "completed_at_ms": 7
+                    }
+                }),
+                serde_json::json!({
+                    "type": "event_msg",
+                    "timestamp": "2026-07-21T03:00:12.000Z",
+                    "payload": {
+                        "type": "item_completed",
+                        "thread_id": "019d54b7-f3da-79b1-bb78-10770953da40",
+                        "turn_id": "turn-materialized",
+                        "item": {
+                            "type": "Extension",
+                            "kind": "web.search",
+                            "id": "web-materialized",
+                            "query": "Codex rollout protocol",
+                            "action": { "type": "search", "query": "Codex rollout protocol" },
+                            "results": [{ "url": "https://example.com/protocol", "title": "Protocol" }]
+                        },
+                        "completed_at_ms": 8
+                    }
+                }),
+                serde_json::json!({
+                    "type": "event_msg",
+                    "timestamp": "2026-07-21T03:00:13.000Z",
+                    "payload": {
+                        "type": "item_completed",
+                        "thread_id": "019d54b7-f3da-79b1-bb78-10770953da40",
+                        "turn_id": "turn-materialized",
+                        "item": {
+                            "type": "EnteredReviewMode",
+                            "id": "review-enter-materialized",
+                            "target": { "type": "uncommittedChanges" },
+                            "user_facing_hint": "Reviewing the implementation."
+                        },
+                        "completed_at_ms": 9
+                    }
+                }),
+                serde_json::json!({
+                    "type": "event_msg",
+                    "timestamp": "2026-07-21T03:00:14.000Z",
+                    "payload": {
+                        "type": "item_completed",
+                        "thread_id": "019d54b7-f3da-79b1-bb78-10770953da40",
+                        "turn_id": "turn-materialized",
+                        "item": {
+                            "type": "ExitedReviewMode",
+                            "id": "review-exit-materialized",
+                            "review_output": {
+                                "findings": [{
+                                    "title": "Handle quoted command arguments",
+                                    "body": "Preserve spaces and embedded quotes.",
+                                    "confidence_score": 0.98,
+                                    "priority": 1,
+                                    "code_location": {
+                                        "absolute_file_path": "E:/workspace/birdcoder/src/provider.rs",
+                                        "line_range": { "start": 41, "end": 44 }
+                                    }
+                                }],
+                                "overall_correctness": "patch is correct",
+                                "overall_explanation": "No blocking findings.",
+                                "overall_confidence_score": 0.99
+                            }
+                        },
+                        "completed_at_ms": 10
+                    }
+                }),
+                serde_json::json!({
+                    "type": "event_msg",
+                    "timestamp": "2026-07-21T03:00:15.000Z",
+                    "payload": {
+                        "type": "item_completed",
+                        "thread_id": "019d54b7-f3da-79b1-bb78-10770953da40",
+                        "turn_id": "turn-materialized",
+                        "item": {
+                            "type": "HookPrompt",
+                            "id": "private-hook-materialized",
+                            "fragments": [{ "text": "PRIVATE_MATERIALIZED_HOOK_SENTINEL", "hookRunId": "hook-run" }]
+                        },
+                        "completed_at_ms": 11
+                    }
+                }),
+                serde_json::json!({
+                    "type": "response_item",
+                    "timestamp": "2026-07-21T03:00:16.000Z",
+                    "payload": {
+                        "type": "agentMessage",
+                        "id": "assistant-materialized",
+                        "text": "Current Codex items replayed."
+                    }
+                }),
+                serde_json::json!({
+                    "type": "event_msg",
+                    "timestamp": "2026-07-21T03:00:17.000Z",
+                    "payload": {
+                        "type": "turn_complete",
+                        "turn_id": "turn-materialized",
+                        "last_agent_message": "Current Codex items replayed.",
+                        "error": null
+                    }
+                }),
+            ],
+        );
+
+        let detail = parse_codex_session_detail(&file_path, &BTreeMap::new())
+            .expect("parse materialized Codex history")
+            .expect("materialized Codex detail");
+        assert_eq!(detail.summary.status, "completed");
+        assert_eq!(
+            detail
+                .messages
+                .iter()
+                .filter(|message| message.content == "Current Codex items replayed.")
+                .count(),
+            1
+        );
+        assert!(detail.messages.iter().any(|message| {
+            message.role == "planner" && message.content == "1. Inspect\n2. Verify"
+        }));
+        let tool_messages = detail
+            .messages
+            .iter()
+            .enumerate()
+            .filter_map(|(index, message)| {
+                let item = message.tool_calls.as_ref()?.first()?.get("item")?;
+                Some((item.get("id")?.as_str()?.to_owned(), (index, message, item)))
+            })
+            .collect::<BTreeMap<_, _>>();
+        assert_eq!(
+            tool_messages
+                .keys()
+                .filter(|id| id.as_str() == "dynamic-materialized")
+                .count(),
+            1
+        );
+        assert!(
+            tool_messages["dynamic-materialized"].0 < tool_messages["command-materialized"].0,
+            "materialized updates must retain the first provider position"
+        );
+        assert_eq!(
+            tool_messages["command-materialized"].2["type"],
+            "command_execution"
+        );
+        assert_eq!(tool_messages["command-materialized"].2["durationMs"], 1250);
+        assert_eq!(
+            tool_messages["command-materialized"]
+                .1
+                .commands
+                .as_ref()
+                .unwrap()[0]
+                .command,
+            r#"cargo test 'bird coder' 'say '"'"'hello'"'"''"#
+        );
+        assert_eq!(
+            tool_messages["dynamic-materialized"].2["contentItems"][0]["text"],
+            "Preview captured"
+        );
+        assert_eq!(
+            tool_messages["collab-materialized"].2["agentsStates"]["agent-thread"]["status"],
+            "completed"
+        );
+        assert_eq!(
+            tool_messages["collab-materialized"].2["agentsStates"]["agent-thread"]["message"],
+            "Inspection complete"
+        );
+        assert_eq!(
+            tool_messages["subagent-materialized"].2["agentPath"],
+            "/root/worker"
+        );
+        assert_eq!(tool_messages["sleep-materialized"].2["durationMs"], 750);
+        assert_eq!(
+            tool_messages["image-materialized"].2["savedPath"],
+            "E:/workspace/birdcoder/generated.png"
+        );
+        assert_eq!(tool_messages["web-materialized"].2["type"], "web_search");
+        let review_message = detail
+            .messages
+            .iter()
+            .find(|message| message.content.contains("Handle quoted command arguments"))
+            .expect("materialized review findings");
+        assert!(review_message
+            .content
+            .contains("Preserve spaces and embedded quotes."));
+        assert!(review_message
+            .content
+            .contains("E:/workspace/birdcoder/src/provider.rs:41-44"));
+        let review_resource = &review_message.resources.as_ref().unwrap()[0];
+        assert_eq!(
+            review_resource.path.as_deref(),
+            Some("E:/workspace/birdcoder/src/provider.rs")
+        );
+        assert_eq!(
+            review_resource.citation.as_ref().unwrap().line_start,
+            Some(41)
+        );
+        let serialized = serde_json::to_string(&detail).expect("serialize materialized history");
+        assert!(!serialized.contains("PRIVATE_MATERIALIZED_HOOK_SENTINEL"));
+        assert!(detail
+            .messages
+            .iter()
+            .all(|message| !message.content.trim_start().starts_with('{')));
+
+        let _ = fs::remove_file(file_path);
+    }
+
+    #[test]
+    fn codex_paginated_history_projects_all_user_visible_turn_items() {
+        let file_path = write_test_codex_session_file(
+            "codex-history-paginated-visible-items",
+            &[
+                serde_json::json!({
+                    "type": "session_meta",
+                    "timestamp": "2026-07-21T03:30:00.000Z",
+                    "payload": {
+                        "id": "019d54b7-f3da-79b1-bb78-10770953da43",
+                        "cwd": "E:/workspace/birdcoder",
+                        "model": "gpt-5.4",
+                        "history_mode": "paginated"
+                    }
+                }),
+                serde_json::json!({
+                    "type": "event_msg",
+                    "timestamp": "2026-07-21T03:30:01.000Z",
+                    "payload": { "type": "turn_started", "turn_id": "turn-paginated" }
+                }),
+                serde_json::json!({
+                    "type": "event_msg",
+                    "timestamp": "2026-07-21T03:30:02.000Z",
+                    "payload": {
+                        "type": "item_completed",
+                        "thread_id": "019d54b7-f3da-79b1-bb78-10770953da43",
+                        "turn_id": "turn-paginated",
+                        "item": {
+                            "type": "UserMessage",
+                            "id": "user-paginated",
+                            "client_id": "client-user-paginated",
+                            "content": [
+                                { "type": "text", "text": "Inspect paginated history.", "text_elements": [] },
+                                { "type": "local_image", "path": "assets/protocol.png" }
+                            ]
+                        },
+                        "completed_at_ms": 1
+                    }
+                }),
+                serde_json::json!({
+                    "type": "event_msg",
+                    "timestamp": "2026-07-21T03:30:03.000Z",
+                    "payload": {
+                        "type": "item_completed",
+                        "thread_id": "019d54b7-f3da-79b1-bb78-10770953da43",
+                        "turn_id": "turn-paginated",
+                        "item": {
+                            "type": "Reasoning",
+                            "id": "reasoning-paginated",
+                            "summary_text": ["Mapped durable TurnItems.", "Kept raw reasoning private."],
+                            "raw_content": ["PRIVATE_PAGINATED_REASONING_SENTINEL"]
+                        },
+                        "completed_at_ms": 2
+                    }
+                }),
+                serde_json::json!({
+                    "type": "event_msg",
+                    "timestamp": "2026-07-21T03:30:04.000Z",
+                    "payload": {
+                        "type": "item_completed",
+                        "thread_id": "019d54b7-f3da-79b1-bb78-10770953da43",
+                        "turn_id": "turn-paginated",
+                        "item": {
+                            "type": "AgentMessage",
+                            "id": "assistant-paginated",
+                            "content": [{ "type": "Text", "text": "Visible items are projected." }],
+                            "phase": "final_answer",
+                            "memory_citation": {
+                                "entries": [{
+                                    "path": "specs/chat-transcript-message.spec.md",
+                                    "line_start": 309,
+                                    "line_end": 325,
+                                    "note": "Codex paginated history"
+                                }],
+                                "thread_ids": ["source-thread"]
+                            }
+                        },
+                        "completed_at_ms": 3
+                    }
+                }),
+                serde_json::json!({
+                    "type": "response_item",
+                    "timestamp": "2026-07-21T03:30:05.000Z",
+                    "payload": {
+                        "type": "custom_tool_call",
+                        "call_id": "file-paginated",
+                        "name": "apply_patch",
+                        "input": "*** Begin Patch"
+                    }
+                }),
+                serde_json::json!({
+                    "type": "event_msg",
+                    "timestamp": "2026-07-21T03:30:06.000Z",
+                    "payload": {
+                        "type": "item_completed",
+                        "thread_id": "019d54b7-f3da-79b1-bb78-10770953da43",
+                        "turn_id": "turn-paginated",
+                        "item": {
+                            "type": "FileChange",
+                            "id": "file-paginated",
+                            "changes": {
+                                "src/provider.rs": {
+                                    "type": "update",
+                                    "unified_diff": "@@ -1 +1 @@\n-old\n+new",
+                                    "move_path": null
+                                }
+                            },
+                            "status": "completed",
+                            "stdout": "Done!",
+                            "stderr": ""
+                        },
+                        "completed_at_ms": 4
+                    }
+                }),
+                serde_json::json!({
+                    "type": "response_item",
+                    "timestamp": "2026-07-21T03:30:07.000Z",
+                    "payload": {
+                        "type": "custom_tool_call_output",
+                        "call_id": "file-paginated",
+                        "output": "STALE_GENERIC_FILE_OUTPUT_SENTINEL",
+                        "success": true
+                    }
+                }),
+                serde_json::json!({
+                    "type": "event_msg",
+                    "timestamp": "2026-07-21T03:30:08.000Z",
+                    "payload": {
+                        "type": "item_completed",
+                        "thread_id": "019d54b7-f3da-79b1-bb78-10770953da43",
+                        "turn_id": "turn-paginated",
+                        "item": {
+                            "type": "McpToolCall",
+                            "id": "mcp-paginated",
+                            "server": "workspace",
+                            "tool": "inspect",
+                            "arguments": { "path": "src/provider.rs" },
+                            "status": "completed",
+                            "result": {
+                                "Ok": {
+                                    "content": [{ "type": "text", "text": "Inspection rejected" }],
+                                    "isError": true
+                                }
+                            }
+                        },
+                        "completed_at_ms": 5
+                    }
+                }),
+                serde_json::json!({
+                    "type": "event_msg",
+                    "timestamp": "2026-07-21T03:30:09.000Z",
+                    "payload": {
+                        "type": "item_completed",
+                        "thread_id": "019d54b7-f3da-79b1-bb78-10770953da43",
+                        "turn_id": "turn-paginated",
+                        "item": {
+                            "type": "ImageView",
+                            "id": "image-view-paginated",
+                            "path": "E:/workspace/birdcoder/assets/protocol.png"
+                        },
+                        "completed_at_ms": 6
+                    }
+                }),
+                serde_json::json!({
+                    "type": "event_msg",
+                    "timestamp": "2026-07-21T03:30:10.000Z",
+                    "payload": {
+                        "type": "item_completed",
+                        "thread_id": "019d54b7-f3da-79b1-bb78-10770953da43",
+                        "turn_id": "turn-paginated",
+                        "item": {
+                            "type": "ImageGeneration",
+                            "id": "image-generation-paginated",
+                            "status": "completed",
+                            "revised_prompt": "A protocol timeline",
+                            "result": "aW1hZ2U=",
+                            "saved_path": "E:/workspace/birdcoder/generated/timeline.png"
+                        },
+                        "completed_at_ms": 7
+                    }
+                }),
+                serde_json::json!({
+                    "type": "event_msg",
+                    "timestamp": "2026-07-21T03:30:11.000Z",
+                    "payload": {
+                        "type": "item_completed",
+                        "thread_id": "019d54b7-f3da-79b1-bb78-10770953da43",
+                        "turn_id": "turn-paginated",
+                        "item": {
+                            "type": "WebSearch",
+                            "id": "web-paginated",
+                            "query": "Codex paginated rollout",
+                            "action": { "type": "search", "query": "Codex paginated rollout" },
+                            "results": [{ "url": "https://example.com/codex", "title": "Codex" }]
+                        },
+                        "completed_at_ms": 8
+                    }
+                }),
+                serde_json::json!({
+                    "type": "event_msg",
+                    "timestamp": "2026-07-21T03:30:12.000Z",
+                    "payload": {
+                        "type": "item_completed",
+                        "thread_id": "019d54b7-f3da-79b1-bb78-10770953da43",
+                        "turn_id": "turn-paginated",
+                        "item": { "type": "ContextCompaction", "id": "compact-paginated" },
+                        "completed_at_ms": 9
+                    }
+                }),
+            ],
+        );
+
+        let detail = parse_codex_session_detail(&file_path, &BTreeMap::new())
+            .expect("parse all paginated Codex items")
+            .expect("paginated Codex detail");
+        assert_eq!(detail.messages.len(), 9);
+        assert_eq!(detail.summary.title, "Inspect paginated history.");
+        assert_eq!(detail.messages[0].role, "user");
+        assert_eq!(
+            detail.messages[0].resources.as_ref().unwrap()[0]
+                .path
+                .as_deref(),
+            Some("assets/protocol.png")
+        );
+        assert_eq!(
+            detail.messages[1].reasoning.as_ref().unwrap()[0].summary,
+            "Mapped durable TurnItems.\n\nKept raw reasoning private."
+        );
+        assert_eq!(detail.messages[2].content, "Visible items are projected.");
+        assert_eq!(
+            detail.messages[2].resources.as_ref().unwrap()[0]
+                .citation
+                .as_ref()
+                .unwrap()
+                .thread_ids,
+            vec!["source-thread"]
+        );
+
+        let tool_messages = detail
+            .messages
+            .iter()
+            .filter_map(|message| {
+                let item = message.tool_calls.as_ref()?.first()?.get("item")?;
+                Some((item.get("id")?.as_str()?, (message, item)))
+            })
+            .collect::<BTreeMap<_, _>>();
+        assert_eq!(tool_messages.len(), 5);
+        assert_eq!(
+            tool_messages["file-paginated"]
+                .0
+                .file_changes
+                .as_ref()
+                .unwrap()[0]["path"],
+            "src/provider.rs"
+        );
+        assert_eq!(tool_messages["file-paginated"].1["type"], "file_change");
+        assert_eq!(tool_messages["mcp-paginated"].1["status"], "failed");
+        assert_eq!(
+            tool_messages["image-view-paginated"].1["path"],
+            "E:/workspace/birdcoder/assets/protocol.png"
+        );
+        assert_eq!(
+            tool_messages["image-generation-paginated"].1["savedPath"],
+            "E:/workspace/birdcoder/generated/timeline.png"
+        );
+        assert_eq!(tool_messages["web-paginated"].1["type"], "web_search");
+        assert!(detail.messages.iter().any(|message| {
+            message.tool_call_id.as_deref() == Some("compact-paginated")
+                && message
+                    .metadata
+                    .as_ref()
+                    .and_then(|metadata| metadata.get("noticeKind"))
+                    .map(String::as_str)
+                    == Some("compression")
+        }));
+        assert!(detail
+            .messages
+            .iter()
+            .all(|message| message.turn_id.as_deref() == Some("turn-paginated")));
+        let serialized = serde_json::to_string(&detail).expect("serialize paginated Codex history");
+        assert!(!serialized.contains("PRIVATE_PAGINATED_REASONING_SENTINEL"));
+        assert!(!serialized.contains("STALE_GENERIC_FILE_OUTPUT_SENTINEL"));
+
+        let _ = fs::remove_file(file_path);
+    }
+
+    #[test]
+    fn codex_history_projects_persisted_response_item_activities() {
+        let file_path = write_test_codex_session_file(
+            "codex-history-response-item-activities",
+            &[
+                serde_json::json!({
+                    "type": "session_meta",
+                    "timestamp": "2026-07-21T03:45:00.000Z",
+                    "payload": {
+                        "id": "019d54b7-f3da-79b1-bb78-10770953da44",
+                        "cwd": "E:/workspace/birdcoder",
+                        "model": "gpt-5.4"
+                    }
+                }),
+                serde_json::json!({
+                    "type": "event_msg",
+                    "timestamp": "2026-07-21T03:45:01.000Z",
+                    "payload": { "type": "turn_started", "turn_id": "turn-responses" }
+                }),
+                serde_json::json!({
+                    "type": "response_item",
+                    "timestamp": "2026-07-21T03:45:02.000Z",
+                    "payload": {
+                        "type": "local_shell_call",
+                        "id": "shell-response-item",
+                        "call_id": "shell-response-call",
+                        "status": "completed",
+                        "action": {
+                            "type": "exec",
+                            "command": ["pwsh", "-Command", "Write-Host hello world"],
+                            "timeout_ms": 30000,
+                            "working_directory": "E:/workspace/birdcoder"
+                        }
+                    }
+                }),
+                serde_json::json!({
+                    "type": "response_item",
+                    "timestamp": "2026-07-21T03:45:03.000Z",
+                    "payload": {
+                        "type": "tool_search_call",
+                        "id": "tool-search-request-item",
+                        "call_id": "tool-search-call",
+                        "status": "in_progress",
+                        "execution": "client",
+                        "arguments": { "query": "workspace inspection" }
+                    }
+                }),
+                serde_json::json!({
+                    "type": "response_item",
+                    "timestamp": "2026-07-21T03:45:04.000Z",
+                    "payload": {
+                        "type": "tool_search_output",
+                        "id": "tool-search-output-item",
+                        "call_id": "tool-search-call",
+                        "status": "completed",
+                        "execution": "client",
+                        "tools": [{ "name": "workspace.inspect", "description": "Inspect a file" }]
+                    }
+                }),
+                serde_json::json!({
+                    "type": "response_item",
+                    "timestamp": "2026-07-21T03:45:05.000Z",
+                    "payload": {
+                        "type": "web_search_call",
+                        "id": "web-response-item",
+                        "status": "completed",
+                        "action": {
+                            "type": "search",
+                            "query": "Codex ResponseItem protocol"
+                        }
+                    }
+                }),
+                serde_json::json!({
+                    "type": "response_item",
+                    "timestamp": "2026-07-21T03:45:06.000Z",
+                    "payload": {
+                        "type": "image_generation_call",
+                        "id": "image-response-item",
+                        "status": "completed",
+                        "revised_prompt": "A compact provider map",
+                        "result": "aW1hZ2U="
+                    }
+                }),
+                serde_json::json!({
+                    "type": "response_item",
+                    "timestamp": "2026-07-21T03:45:07.000Z",
+                    "payload": {
+                        "type": "compaction",
+                        "id": "compaction-response-item",
+                        "encrypted_content": "PRIVATE_COMPACTION_PAYLOAD_SENTINEL"
+                    }
+                }),
+            ],
+        );
+
+        let detail = parse_codex_session_detail(&file_path, &BTreeMap::new())
+            .expect("parse Codex persisted response activities")
+            .expect("Codex persisted response activity detail");
+        assert_eq!(detail.messages.len(), 5);
+        assert!(detail
+            .messages
+            .iter()
+            .all(|message| message.turn_id.as_deref() == Some("turn-responses")));
+
+        let shell = detail
+            .messages
+            .iter()
+            .find(|message| message.tool_call_id.as_deref() == Some("shell-response-call"))
+            .expect("local shell response item");
+        assert_eq!(shell.commands.as_ref().unwrap()[0].status, "success");
+        assert_eq!(
+            shell.commands.as_ref().unwrap()[0].command,
+            "pwsh -Command 'Write-Host hello world'"
+        );
+
+        let tool_search = detail
+            .messages
+            .iter()
+            .find(|message| message.tool_call_id.as_deref() == Some("tool-search-call"))
+            .expect("correlated tool search response items");
+        assert_eq!(tool_search.tool_calls.as_ref().unwrap().len(), 2);
+        assert_eq!(
+            tool_search.tool_calls.as_ref().unwrap()[0]["arguments"]["query"],
+            "workspace inspection"
+        );
+        assert_eq!(
+            tool_search.tool_calls.as_ref().unwrap()[1]["tools"][0]["name"],
+            "workspace.inspect"
+        );
+        assert_eq!(tool_search.commands.as_ref().unwrap()[0].status, "success");
+
+        let web_search = detail
+            .messages
+            .iter()
+            .find(|message| message.tool_call_id.as_deref() == Some("web-response-item"))
+            .expect("web search response item");
+        assert_eq!(
+            web_search.content,
+            "Web search completed: Codex ResponseItem protocol"
+        );
+        let image = detail
+            .messages
+            .iter()
+            .find(|message| message.tool_call_id.as_deref() == Some("image-response-item"))
+            .expect("image generation response item");
+        assert_eq!(
+            image.tool_calls.as_ref().unwrap()[0]["item"]["type"],
+            "image_generation_call"
+        );
+        assert!(detail.messages.iter().any(|message| {
+            message.tool_call_id.as_deref() == Some("compaction-response-item")
+                && message
+                    .metadata
+                    .as_ref()
+                    .and_then(|metadata| metadata.get("noticeKind"))
+                    .map(String::as_str)
+                    == Some("compression")
+        }));
+        let serialized =
+            serde_json::to_string(&detail).expect("serialize Codex response activities");
+        assert!(!serialized.contains("PRIVATE_COMPACTION_PAYLOAD_SENTINEL"));
+
+        let _ = fs::remove_file(file_path);
+    }
+
+    #[test]
+    fn codex_history_applies_thread_rollback() {
+        let file_path = write_test_codex_session_file(
+            "codex-history-thread-rollback",
+            &[
+                serde_json::json!({
+                    "type": "session_meta",
+                    "timestamp": "2026-07-21T04:00:00.000Z",
+                    "payload": {
+                        "id": "019d54b7-f3da-79b1-bb78-10770953da41",
+                        "cwd": "E:/workspace/birdcoder",
+                        "model": "gpt-5.4"
+                    }
+                }),
+                serde_json::json!({
+                    "type": "event_msg",
+                    "timestamp": "2026-07-21T04:00:01.000Z",
+                    "payload": { "type": "turn_started", "turn_id": "turn-retained-1" }
+                }),
+                serde_json::json!({
+                    "type": "event_msg",
+                    "timestamp": "2026-07-21T04:00:02.000Z",
+                    "payload": { "type": "user_message", "message": "Retained first turn.", "turn_id": "turn-retained-1" }
+                }),
+                serde_json::json!({
+                    "type": "event_msg",
+                    "timestamp": "2026-07-21T04:00:03.000Z",
+                    "payload": { "type": "turn_complete", "turn_id": "turn-retained-1", "error": null }
+                }),
+                serde_json::json!({
+                    "type": "event_msg",
+                    "timestamp": "2026-07-21T04:00:04.000Z",
+                    "payload": { "type": "turn_started", "turn_id": "turn-removed" }
+                }),
+                serde_json::json!({
+                    "type": "event_msg",
+                    "timestamp": "2026-07-21T04:00:05.000Z",
+                    "payload": { "type": "user_message", "message": "REMOVED_CODEX_ROLLBACK_SENTINEL", "turn_id": "turn-removed" }
+                }),
+                serde_json::json!({
+                    "type": "response_item",
+                    "timestamp": "2026-07-21T04:00:06.000Z",
+                    "payload": {
+                        "type": "custom_tool_call",
+                        "call_id": "pending-removed-tool",
+                        "name": "preview.capture",
+                        "input": "{\"path\":\"removed.png\"}"
+                    }
+                }),
+                serde_json::json!({
+                    "type": "event_msg",
+                    "timestamp": "2026-07-21T04:00:07.000Z",
+                    "payload": {
+                        "type": "item_completed",
+                        "thread_id": "019d54b7-f3da-79b1-bb78-10770953da41",
+                        "turn_id": "turn-removed",
+                        "item": {
+                            "type": "CommandExecution",
+                            "id": "removed-command",
+                            "command": ["echo", "REMOVED_COMMAND_OUTPUT"],
+                            "cwd": "E:/workspace/birdcoder",
+                            "parsed_cmd": [],
+                            "source": "agent",
+                            "status": "completed",
+                            "aggregated_output": "REMOVED_COMMAND_OUTPUT",
+                            "exit_code": 0
+                        },
+                        "completed_at_ms": 1
+                    }
+                }),
+                serde_json::json!({
+                    "type": "event_msg",
+                    "timestamp": "2026-07-21T04:00:08.000Z",
+                    "payload": { "type": "thread_rolled_back", "num_turns": 1 }
+                }),
+                serde_json::json!({
+                    "type": "event_msg",
+                    "timestamp": "2026-07-21T04:00:09.000Z",
+                    "payload": { "type": "turnStarted", "turnId": "turn-retained-3" }
+                }),
+                serde_json::json!({
+                    "type": "event_msg",
+                    "timestamp": "2026-07-21T04:00:10.000Z",
+                    "payload": { "type": "user_message", "message": "Retained third turn.", "turn_id": "turn-retained-3" }
+                }),
+                serde_json::json!({
+                    "type": "event_msg",
+                    "timestamp": "2026-07-21T04:00:11.000Z",
+                    "payload": {
+                        "type": "turnComplete",
+                        "turnId": "turn-retained-3",
+                        "lastAgentMessage": "Rollback applied.",
+                        "error": null
+                    }
+                }),
+            ],
+        );
+
+        let detail = parse_codex_session_detail(&file_path, &BTreeMap::new())
+            .expect("parse Codex rollback history")
+            .expect("Codex rollback detail");
+        assert_eq!(detail.summary.status, "completed");
+        assert!(detail
+            .messages
+            .iter()
+            .any(|message| message.content == "Retained first turn."));
+        assert!(detail
+            .messages
+            .iter()
+            .any(|message| message.content == "Retained third turn."));
+        assert!(detail
+            .messages
+            .iter()
+            .any(|message| message.content == "Rollback applied."));
+        let serialized = serde_json::to_string(&detail).expect("serialize Codex rollback history");
+        for removed in [
+            "REMOVED_CODEX_ROLLBACK_SENTINEL",
+            "REMOVED_COMMAND_OUTPUT",
+            "pending-removed-tool",
+            "removed-command",
+            "thread_rolled_back",
+        ] {
+            assert!(!serialized.contains(removed), "rollback leaked {removed}");
+        }
+
+        let _ = fs::remove_file(file_path);
+    }
+
+    #[test]
+    fn codex_history_upserts_thread_goal_status_without_text_wall() {
+        for (provider_status, expected_status, expected_activity_status) in [
+            ("active", "active", "running"),
+            ("paused", "paused", "waiting"),
+            ("blocked", "blocked", "waiting"),
+            ("usageLimited", "usageLimited", "waiting"),
+            ("budgetLimited", "budgetLimited", "waiting"),
+            ("complete", "complete", "completed"),
+        ] {
+            assert_eq!(
+                normalize_codex_thread_goal_status(provider_status),
+                Some(expected_status)
+            );
+            let payload = serde_json::json!({
+                "type": "thread_goal_updated",
+                "threadId": "thread-status-matrix",
+                "goal": {
+                    "threadId": "thread-status-matrix",
+                    "objective": "Verify every goal status",
+                    "status": provider_status,
+                    "tokensUsed": 0,
+                    "timeUsedSeconds": 0,
+                    "createdAt": 1784600000,
+                    "updatedAt": 1784600000
+                }
+            });
+            let entry = build_codex_thread_goal_transcript_entry(
+                Some(&payload),
+                "2026-07-21T05:00:00.000Z",
+            )
+            .expect("project Codex goal status");
+            let item = &entry.tool_calls.as_ref().unwrap()[0]["item"];
+            assert_eq!(item["status"], expected_activity_status);
+            assert_eq!(item["arguments"]["goalStatus"], expected_status);
+        }
+        assert_eq!(
+            normalize_codex_thread_goal_status("usage_limited"),
+            Some("usageLimited")
+        );
+        assert_eq!(
+            normalize_codex_thread_goal_status("budget_limited"),
+            Some("budgetLimited")
+        );
+        let file_path = write_test_codex_session_file(
+            "codex-history-thread-goal",
+            &[
+                serde_json::json!({
+                    "type": "session_meta",
+                    "timestamp": "2026-07-21T05:00:00.000Z",
+                    "payload": {
+                        "id": "019d54b7-f3da-79b1-bb78-10770953da42",
+                        "cwd": "E:/workspace/birdcoder",
+                        "model": "gpt-5.4"
+                    }
+                }),
+                serde_json::json!({
+                    "type": "event_msg",
+                    "timestamp": "2026-07-21T05:00:01.000Z",
+                    "payload": {
+                        "type": "thread_goal_updated",
+                        "threadId": "019d54b7-f3da-79b1-bb78-10770953da42",
+                        "goal": {
+                            "threadId": "019d54b7-f3da-79b1-bb78-10770953da42",
+                            "objective": "Ship the provider protocol matrix",
+                            "status": "active",
+                            "tokenBudget": 10000,
+                            "tokensUsed": 120,
+                            "timeUsedSeconds": 15,
+                            "createdAt": 1784600000,
+                            "updatedAt": 1784600001
+                        }
+                    }
+                }),
+                serde_json::json!({
+                    "type": "event_msg",
+                    "timestamp": "2026-07-21T05:00:01.500Z",
+                    "payload": {
+                        "type": "turn_started",
+                        "turn_id": "turn-goal-update"
+                    }
+                }),
+                serde_json::json!({
+                    "type": "event_msg",
+                    "timestamp": "2026-07-21T05:00:02.000Z",
+                    "payload": {
+                        "type": "threadGoalUpdated",
+                        "threadId": "019d54b7-f3da-79b1-bb78-10770953da42",
+                        "turnId": "turn-goal-update",
+                        "goal": {
+                            "threadId": "019d54b7-f3da-79b1-bb78-10770953da42",
+                            "objective": "Ship the provider protocol matrix",
+                            "status": "budgetLimited",
+                            "tokenBudget": 10000,
+                            "tokensUsed": 10000,
+                            "timeUsedSeconds": 90,
+                            "createdAt": 1784600000,
+                            "updatedAt": 1784600002
+                        }
+                    }
+                }),
+                serde_json::json!({
+                    "type": "event_msg",
+                    "timestamp": "2026-07-21T05:00:02.250Z",
+                    "payload": {
+                        "type": "user_message",
+                        "turn_id": "turn-goal-update",
+                        "message": "ROLLBACK_GOAL_TURN_SENTINEL"
+                    }
+                }),
+                serde_json::json!({
+                    "type": "event_msg",
+                    "timestamp": "2026-07-21T05:00:02.500Z",
+                    "payload": {
+                        "type": "thread_rolled_back",
+                        "num_turns": 1
+                    }
+                }),
+                serde_json::json!({
+                    "type": "event_msg",
+                    "timestamp": "2026-07-21T05:00:03.000Z",
+                    "payload": {
+                        "type": "token_count",
+                        "info": {
+                            "total_token_usage": { "input_tokens": 9000, "output_tokens": 1000, "total_tokens": 10000 },
+                            "last_token_usage": { "input_tokens": 90, "output_tokens": 10, "total_tokens": 100 },
+                            "model_context_window": 128000
+                        },
+                        "rate_limits": null
+                    }
+                }),
+                serde_json::json!({
+                    "type": "event_msg",
+                    "timestamp": "2026-07-21T05:00:04.000Z",
+                    "payload": {
+                        "type": "thread_settings_applied",
+                        "thread_settings": {
+                            "model": "gpt-5.4-mini",
+                            "model_provider_id": "openai"
+                        }
+                    }
+                }),
+            ],
+        );
+
+        let detail = parse_codex_session_detail(&file_path, &BTreeMap::new())
+            .expect("parse Codex goal history")
+            .expect("Codex goal detail");
+        assert_eq!(detail.summary.model_id, "gpt-5.4-mini");
+        assert_eq!(detail.messages.len(), 1);
+        let goal_message = &detail.messages[0];
+        assert_eq!(goal_message.role, "tool");
+        assert_eq!(goal_message.content, "Goal updated.");
+        assert!(goal_message.turn_id.is_none());
+        let goal_item = &goal_message.tool_calls.as_ref().unwrap()[0]["item"];
+        assert_eq!(
+            goal_item["id"],
+            "thread-goal:019d54b7-f3da-79b1-bb78-10770953da42"
+        );
+        assert_eq!(goal_item["type"], "custom_tool_call");
+        assert_eq!(
+            goal_item["call_id"],
+            "thread-goal:019d54b7-f3da-79b1-bb78-10770953da42"
+        );
+        assert_eq!(goal_item["name"], "task_update");
+        assert_eq!(goal_item["title"], "Ship the provider protocol matrix");
+        assert_eq!(goal_item["status"], "waiting");
+        assert_eq!(
+            goal_item["arguments"],
+            serde_json::json!({
+                "threadId": "019d54b7-f3da-79b1-bb78-10770953da42",
+                "turnId": "turn-goal-update",
+                "objective": "Ship the provider protocol matrix",
+                "goalStatus": "budgetLimited",
+                "tokenBudget": 10000,
+                "tokensUsed": 10000,
+                "timeUsedSeconds": 90,
+                "createdAt": 1784600000,
+                "updatedAt": 1784600002
+            })
+        );
+        assert!(goal_item.get("items").is_none());
+        assert!(goal_item.get("goalStatus").is_none());
+        assert!(detail
+            .messages
+            .iter()
+            .all(|message| message.content != "ROLLBACK_GOAL_TURN_SENTINEL"));
+        assert_eq!(goal_message.created_at, "2026-07-21T05:00:01.000Z");
+        assert_eq!(
+            detail.summary.native_attributes.metadata["tokenUsage"]["model_context_window"],
+            128000
+        );
+
+        let _ = fs::remove_file(file_path);
+    }
+
+    #[test]
+    fn codex_history_skips_oversized_record_and_replays_following_records() {
+        let file_path = env::temp_dir().join(format!(
+            "codex-history-oversized-recovery-{}.jsonl",
+            std::process::id()
+        ));
+        let valid_lines = [
+            serde_json::json!({
+                "type": "session_meta",
+                "timestamp": "2026-07-21T06:00:00.000Z",
+                "payload": {
+                    "id": "019d54b7-f3da-79b1-bb78-10770953da43",
+                    "cwd": "E:/workspace/birdcoder",
+                    "model": "gpt-5.4"
+                }
+            }),
+            serde_json::json!({
+                "type": "response_item",
+                "timestamp": "2026-07-21T06:00:01.000Z",
+                "payload": {
+                    "type": "message",
+                    "role": "user",
+                    "content": [{ "type": "input_text", "text": "Recovered after oversized Codex record." }]
+                }
+            }),
+        ];
+        let mut contents = vec![b'x'; CODEX_SESSION_RECORD_BYTE_LIMIT + 1];
+        contents.push(b'\n');
+        for line in valid_lines {
+            contents.extend_from_slice(
+                serde_json::to_string(&line)
+                    .expect("serialize bounded Codex fixture")
+                    .as_bytes(),
+            );
+            contents.push(b'\n');
+        }
+        fs::write(&file_path, contents).expect("write oversized Codex fixture");
+
+        let detail = parse_codex_session_detail(&file_path, &BTreeMap::new())
+            .expect("parse Codex history after oversized record")
+            .expect("Codex oversized recovery detail");
+        assert_eq!(detail.summary.model_id, "gpt-5.4");
+        assert_eq!(detail.messages.len(), 1);
+        assert_eq!(
+            detail.messages[0].content,
+            "Recovered after oversized Codex record."
+        );
 
         let _ = fs::remove_file(file_path);
     }

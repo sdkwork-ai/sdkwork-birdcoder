@@ -422,11 +422,11 @@ function renderCommandExecutionCard({
   const commandStatusClassName = resolveCommandExecutionStatusClassName(commandTone);
   return (
     <div key={commandKey} className="overflow-hidden" data-chat-command-row="inline">
-      <div className="flex items-center gap-2 rounded-md px-1.5 py-1.5 transition-colors hover:bg-white/[0.035]">
+      <div className="flex flex-wrap items-center gap-2 rounded-md px-1.5 py-1.5 transition-colors hover:bg-white/[0.035]">
         <button
           type="button"
           data-chat-command-disclosure="true"
-          className="flex min-w-0 flex-1 items-center gap-2 rounded-sm text-left focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-blue-400/70"
+          className="flex min-w-0 flex-1 basis-32 items-center gap-2 rounded-sm text-left focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-blue-400/70"
           aria-expanded={isCommandExpanded}
           aria-controls={commandDetailsId}
           aria-label={`${commandStatusLabel}: ${commandSummary}`}
@@ -436,13 +436,13 @@ function renderCommandExecutionCard({
           <span className="shrink-0 text-blue-300">
             {isCommandExpanded ? <ChevronUp size={13} /> : <ChevronDown size={13} />}
           </span>
-          <span className="shrink-0">
+          <span className="shrink-0 max-[520px]:hidden">
             {renderCommandStatusIcon(commandTone, successIconSize)}
           </span>
           <span className="min-w-0 flex-1 truncate font-mono text-[12px] text-gray-200">
             {commandSummary}
           </span>
-          <span className={`shrink-0 rounded-md px-1.5 py-0.5 text-[10px] ${commandTone === 'success' ? 'max-[760px]:sr-only' : ''} ${commandStatusClassName}`}>
+          <span className={`shrink-0 rounded-md px-1.5 py-0.5 text-[10px] max-[520px]:sr-only ${commandTone === 'success' ? 'max-[760px]:sr-only' : ''} ${commandStatusClassName}`}>
             {commandStatusLabel}
           </span>
         </button>

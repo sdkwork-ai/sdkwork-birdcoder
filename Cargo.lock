@@ -5940,6 +5940,7 @@ dependencies = [
  "sdkwork-drive-workspace-service",
  "sdkwork-routes-drive-app-api",
  "sdkwork-routes-drive-backend-api",
+ "sdkwork-routes-drive-internal-api",
  "sdkwork-routes-drive-open-api",
  "sdkwork-routes-storage-backend-api",
  "sqlx",
@@ -6526,6 +6527,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "sdkwork-drive-object-runtime"
+version = "0.1.0"
+dependencies = [
+ "sdkwork-drive-storage-contract",
+ "sdkwork-drive-storage-local",
+ "sdkwork-drive-storage-s3",
+ "sdkwork-drive-workspace-service",
+ "sqlx",
+ "tokio",
+ "url",
+]
+
+[[package]]
 name = "sdkwork-drive-observability"
 version = "0.1.0"
 dependencies = [
@@ -6574,6 +6588,18 @@ dependencies = [
  "async-trait",
  "sdkwork-drive-config",
  "serde",
+]
+
+[[package]]
+name = "sdkwork-drive-storage-local"
+version = "0.1.0"
+dependencies = [
+ "async-trait",
+ "sdkwork-drive-storage-contract",
+ "sdkwork-utils-rust",
+ "serde",
+ "serde_json",
+ "tokio",
 ]
 
 [[package]]
@@ -7012,6 +7038,31 @@ dependencies = [
 ]
 
 [[package]]
+name = "sdkwork-routes-drive-internal-api"
+version = "0.1.0"
+dependencies = [
+ "axum 0.8.9",
+ "chrono",
+ "futures-util",
+ "http 1.4.2",
+ "httpdate",
+ "sdkwork-drive-http",
+ "sdkwork-drive-object-runtime",
+ "sdkwork-drive-storage-contract",
+ "sdkwork-drive-workspace-service",
+ "sdkwork-iam-web-adapter",
+ "sdkwork-utils-rust",
+ "sdkwork-web-axum",
+ "sdkwork-web-core",
+ "serde",
+ "sqlx",
+ "tokio",
+ "tower 0.5.3",
+ "tracing",
+ "uuid",
+]
+
+[[package]]
 name = "sdkwork-routes-drive-open-api"
 version = "0.1.0"
 dependencies = [
@@ -7436,6 +7487,7 @@ name = "sdkwork-web-store-redis"
 version = "0.1.0"
 dependencies = [
  "async-trait",
+ "getrandom 0.2.17",
  "redis 0.27.6",
  "sdkwork-web-core",
  "serde",

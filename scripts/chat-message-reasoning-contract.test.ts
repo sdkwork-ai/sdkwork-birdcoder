@@ -7,10 +7,65 @@ import {
   projectChatMessageReasoning,
 } from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-contracts-commons/src/chat-message-reasoning.ts';
 import { resolveMessageCopyContent } from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-contracts-commons/src/chat-message-activity-projection.ts';
+import { deduplicateBirdCoderComparableChatMessages } from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-contracts-commons/src/coding-session.ts';
 import { resolveChatMessageView } from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-contracts-commons/src/chat-message-view.ts';
 import { mergeBirdCoderProjectionMessages } from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-contracts-commons/src/index.ts';
 
 const PRIVATE_THOUGHT_SENTINEL = 'PRIVATE_CHAIN_OF_THOUGHT_SENTINEL_27d912';
+
+const distinctReasoningMessages = deduplicateBirdCoderComparableChatMessages([
+  {
+    id: 'reasoning-only-one',
+    codingSessionId: 'reasoning-dedup-session',
+    turnId: 'reasoning-dedup-turn',
+    role: 'assistant' as const,
+    content: '',
+    reasoning: [{ id: 'reasoning-r1', summary: 'First provider summary.' }],
+    createdAt: '2026-07-20T01:00:00.000Z',
+  },
+  {
+    id: 'reasoning-only-two',
+    codingSessionId: 'reasoning-dedup-session',
+    turnId: 'reasoning-dedup-turn',
+    role: 'assistant' as const,
+    content: '',
+    reasoning: [{ id: 'reasoning-r2', summary: 'Second provider summary.' }],
+    createdAt: '2026-07-20T01:00:01.000Z',
+  },
+]);
+assert.deepEqual(
+  distinctReasoningMessages.map((message) => message.reasoning?.[0]?.id),
+  ['reasoning-r1', 'reasoning-r2'],
+  'Distinct reasoning-only records in one provider turn must not overwrite each other.',
+);
+
+const updatedReasoningMessage = deduplicateBirdCoderComparableChatMessages([
+  distinctReasoningMessages[0]!,
+  {
+    ...distinctReasoningMessages[0]!,
+    id: 'reasoning-only-one-authoritative',
+    reasoning: [{ id: 'reasoning-r1', summary: 'Updated first provider summary.' }],
+  },
+]);
+assert.equal(updatedReasoningMessage.length, 1);
+assert.equal(
+  updatedReasoningMessage[0]?.reasoning?.[0]?.summary,
+  'Updated first provider summary.',
+  'The same canonical reasoning id must accept an authoritative summary update.',
+);
+
+const mergedReasoningMessage = deduplicateBirdCoderComparableChatMessages([
+  distinctReasoningMessages[0]!,
+  {
+    ...distinctReasoningMessages[0]!,
+    reasoning: [{ id: 'reasoning-r3', summary: 'Additional provider summary.' }],
+  },
+]);
+assert.deepEqual(
+  mergedReasoningMessage[0]?.reasoning?.map((item) => item.id),
+  ['reasoning-r1', 'reasoning-r3'],
+  'Duplicate message records must merge distinct reasoning ids in provider order.',
+);
 
 const projected = projectChatMessageReasoning([
   {
@@ -193,11 +248,15 @@ const deltaProjection = mergeBirdCoderProjectionMessages({
     },
   ],
 });
-assert.equal(deltaProjection.length, 1);
-assert.deepEqual(deltaProjection[0]?.reasoning, [
-  { id: 'reasoning-a', summary: 'Updated A' },
-  { id: 'reasoning-b', summary: 'Summary B' },
-]);
+assert.equal(deltaProjection.length, 2);
+assert.deepEqual(
+  deltaProjection.map((message) => message.reasoning?.[0]),
+  [
+    { id: 'reasoning-a', summary: 'Updated A' },
+    { id: 'reasoning-b', summary: 'Summary B' },
+  ],
+  'Distinct structured-only reasoning records must retain provider order while same-id updates reuse the first slot.',
+);
 
 const publicSurfaceSnapshot = JSON.stringify({
   completedProjection,

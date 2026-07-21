@@ -1,15 +1,19 @@
 use std::{
     env, fs,
+    fs::File,
     path::{Path, PathBuf},
 };
 
-use serde::{Deserialize, Serialize};
+use serde::{Deserialize, Deserializer, Serialize};
 
 use crate::{
+    bounded_json::{
+        deserialize_bounded_vec, deserialize_optional_bounded_vec, from_bounded_json_reader,
+    },
     build_native_session_id, extract_native_lookup_id_for_engine,
     map_codeengine_session_runtime_status, map_codeengine_session_status_from_runtime,
     map_codeengine_tool_command_status, resolve_codeengine_command_interaction_runtime_status,
-    sanitize_codeengine_session_reasoning_records,
+    sanitize_codeengine_session_reasoning_records, sanitize_codeengine_session_resource_records,
     CodeEngineSessionCommandRecord, CodeEngineSessionDetailRecord, CodeEngineSessionMessageRecord,
     CodeEngineSessionReasoningRecord, CodeEngineSessionResourceRecord,
     CodeEngineSessionSummaryRecord,
@@ -17,6 +21,14 @@ use crate::{
 
 pub const CODEENGINE_SDK_BRIDGE_HOME_ENV: &str = "BIRDCODER_CODEENGINE_SDK_BRIDGE_HOME";
 pub const CODEENGINE_HOME_ENV: &str = "BIRDCODER_CODEENGINE_HOME";
+
+const SDK_BRIDGE_SESSION_FILE_BYTE_LIMIT: usize = 128 * 1024 * 1024;
+const SDK_BRIDGE_SESSION_MESSAGE_ITEM_LIMIT: usize = 16_384;
+const SDK_BRIDGE_MESSAGE_COMMAND_ITEM_LIMIT: usize = 1_024;
+const SDK_BRIDGE_MESSAGE_TOOL_CALL_ITEM_LIMIT: usize = 1_024;
+const SDK_BRIDGE_MESSAGE_FILE_CHANGE_ITEM_LIMIT: usize = 4_096;
+const SDK_BRIDGE_MESSAGE_REASONING_ITEM_LIMIT: usize = 128;
+const SDK_BRIDGE_MESSAGE_RESOURCE_ITEM_LIMIT: usize = 128;
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -36,6 +48,7 @@ struct SdkBridgeStoredSession {
     workspace_id: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     project_id: Option<String>,
+    #[serde(deserialize_with = "deserialize_sdk_bridge_messages")]
     messages: Vec<SdkBridgeStoredMessage>,
 }
 
@@ -46,10 +59,15 @@ struct SdkBridgeStoredMessage {
     turn_id: String,
     role: String,
     content: String,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(
+        default,
+        deserialize_with = "deserialize_sdk_bridge_commands",
+        skip_serializing_if = "Option::is_none"
+    )]
     commands: Option<Vec<CodeEngineSessionCommandRecord>>,
     #[serde(
         default,
+        deserialize_with = "deserialize_sdk_bridge_tool_calls",
         rename = "tool_calls",
         skip_serializing_if = "Option::is_none"
     )]
@@ -60,15 +78,81 @@ struct SdkBridgeStoredMessage {
         skip_serializing_if = "Option::is_none"
     )]
     tool_call_id: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(
+        default,
+        deserialize_with = "deserialize_sdk_bridge_file_changes",
+        skip_serializing_if = "Option::is_none"
+    )]
     file_changes: Option<Vec<serde_json::Value>>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(
+        default,
+        deserialize_with = "deserialize_sdk_bridge_reasoning",
+        skip_serializing_if = "Option::is_none"
+    )]
     reasoning: Option<Vec<CodeEngineSessionReasoningRecord>>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(
+        default,
+        deserialize_with = "deserialize_sdk_bridge_resources",
+        skip_serializing_if = "Option::is_none"
+    )]
     resources: Option<Vec<CodeEngineSessionResourceRecord>>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     task_progress: Option<serde_json::Value>,
     created_at: String,
+}
+
+fn deserialize_sdk_bridge_messages<'de, D>(
+    deserializer: D,
+) -> Result<Vec<SdkBridgeStoredMessage>, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    deserialize_bounded_vec(deserializer, SDK_BRIDGE_SESSION_MESSAGE_ITEM_LIMIT)
+}
+
+fn deserialize_sdk_bridge_commands<'de, D>(
+    deserializer: D,
+) -> Result<Option<Vec<CodeEngineSessionCommandRecord>>, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    deserialize_optional_bounded_vec(deserializer, SDK_BRIDGE_MESSAGE_COMMAND_ITEM_LIMIT)
+}
+
+fn deserialize_sdk_bridge_tool_calls<'de, D>(
+    deserializer: D,
+) -> Result<Option<Vec<serde_json::Value>>, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    deserialize_optional_bounded_vec(deserializer, SDK_BRIDGE_MESSAGE_TOOL_CALL_ITEM_LIMIT)
+}
+
+fn deserialize_sdk_bridge_file_changes<'de, D>(
+    deserializer: D,
+) -> Result<Option<Vec<serde_json::Value>>, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    deserialize_optional_bounded_vec(deserializer, SDK_BRIDGE_MESSAGE_FILE_CHANGE_ITEM_LIMIT)
+}
+
+fn deserialize_sdk_bridge_reasoning<'de, D>(
+    deserializer: D,
+) -> Result<Option<Vec<CodeEngineSessionReasoningRecord>>, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    deserialize_optional_bounded_vec(deserializer, SDK_BRIDGE_MESSAGE_REASONING_ITEM_LIMIT)
+}
+
+fn deserialize_sdk_bridge_resources<'de, D>(
+    deserializer: D,
+) -> Result<Option<Vec<CodeEngineSessionResourceRecord>>, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    deserialize_optional_bounded_vec(deserializer, SDK_BRIDGE_MESSAGE_RESOURCE_ITEM_LIMIT)
 }
 
 pub fn list_sdk_bridge_session_summaries(
@@ -143,7 +227,10 @@ pub fn get_sdk_bridge_session_detail(
                 let reasoning = sanitize_codeengine_session_reasoning_records(reasoning);
                 (!reasoning.is_empty()).then_some(reasoning)
             }),
-            resources: message.resources.clone(),
+            resources: message.resources.as_deref().and_then(|resources| {
+                let resources = sanitize_codeengine_session_resource_records(resources);
+                (!resources.is_empty()).then_some(resources)
+            }),
             task_progress: message.task_progress.clone(),
             metadata: None,
             created_at: message.created_at.clone(),
@@ -196,13 +283,34 @@ fn default_user_home_directory() -> Option<PathBuf> {
 }
 
 fn read_sdk_bridge_stored_session(path: &Path) -> Result<SdkBridgeStoredSession, String> {
-    let contents = fs::read_to_string(path).map_err(|error| {
+    read_sdk_bridge_stored_session_with_limit(path, SDK_BRIDGE_SESSION_FILE_BYTE_LIMIT)
+}
+
+fn read_sdk_bridge_stored_session_with_limit(
+    path: &Path,
+    max_bytes: usize,
+) -> Result<SdkBridgeStoredSession, String> {
+    let file = File::open(path).map_err(|error| {
         format!(
             "read SDK bridge session file {} failed: {error}",
             path.display()
         )
     })?;
-    serde_json::from_str::<SdkBridgeStoredSession>(contents.as_str()).map_err(|error| {
+    let metadata = file.metadata().map_err(|error| {
+        format!(
+            "read SDK bridge session metadata {} failed: {error}",
+            path.display()
+        )
+    })?;
+    let max_bytes_u64 = u64::try_from(max_bytes).unwrap_or(u64::MAX);
+    if metadata.len() > max_bytes_u64 {
+        return Err(format!(
+            "read SDK bridge session file {} failed: JSON input exceeds the configured {max_bytes} byte limit",
+            path.display()
+        ));
+    }
+
+    from_bounded_json_reader::<_, SdkBridgeStoredSession>(file, max_bytes).map_err(|error| {
         format!(
             "parse SDK bridge session file {} failed: {error}",
             path.display()
@@ -342,11 +450,21 @@ fn normalize_non_empty_string(value: Option<&str>) -> Option<String> {
 
 #[cfg(test)]
 mod tests {
-    use super::{
-        build_sdk_bridge_session_summary_record, sanitize_bridge_session_filename,
-        SdkBridgeStoredMessage, SdkBridgeStoredSession,
+    use std::{
+        fs,
+        path::{Path, PathBuf},
+        sync::atomic::{AtomicU64, Ordering},
+        time::{SystemTime, UNIX_EPOCH},
     };
-    use crate::CodeEngineSessionCommandRecord;
+
+    use super::{
+        build_sdk_bridge_session_summary_record, read_sdk_bridge_stored_session_with_limit,
+        sanitize_bridge_session_filename, SdkBridgeStoredMessage, SdkBridgeStoredSession,
+        SDK_BRIDGE_MESSAGE_RESOURCE_ITEM_LIMIT,
+    };
+    use crate::{CodeEngineSessionCommandRecord, CodeEngineSessionResourceRecord};
+
+    static TEMP_DIRECTORY_SEQUENCE: AtomicU64 = AtomicU64::new(0);
 
     #[test]
     fn sanitize_bridge_session_filename_removes_filesystem_unsafe_characters() {
@@ -567,5 +685,151 @@ mod tests {
 
         assert_eq!(summary.status, "paused");
         assert_eq!(summary.runtime_status.as_deref(), Some("failed"));
+    }
+
+    #[test]
+    fn sdk_bridge_reader_accepts_an_exact_file_limit_and_rejects_one_byte_more() {
+        let fixture = TestDirectory::new("file-byte-limit");
+        let session_path = fixture.path().join("session.json");
+        let stored_session = sdk_bridge_test_session(Vec::new());
+        let serialized = serde_json::to_vec(&stored_session).expect("serialize SDK bridge fixture");
+        fs::write(session_path.as_path(), serialized.as_slice()).expect("write SDK bridge fixture");
+
+        let parsed =
+            read_sdk_bridge_stored_session_with_limit(session_path.as_path(), serialized.len())
+                .expect("parse SDK bridge fixture at exact byte limit");
+        assert_eq!(parsed.id, stored_session.id);
+
+        let error =
+            read_sdk_bridge_stored_session_with_limit(session_path.as_path(), serialized.len() - 1)
+                .expect_err("reject SDK bridge fixture beyond byte limit");
+        assert!(error.contains("exceeds the configured"));
+        assert!(error.contains("byte limit"));
+    }
+
+    #[test]
+    fn sdk_bridge_reader_bounds_nested_resource_collections() {
+        let fixture = TestDirectory::new("resource-item-limit");
+        let session_path = fixture.path().join("session.json");
+        let exact_resources = (0..SDK_BRIDGE_MESSAGE_RESOURCE_ITEM_LIMIT)
+            .map(sdk_bridge_test_resource)
+            .collect::<Vec<_>>();
+        let exact_session =
+            sdk_bridge_test_session(vec![sdk_bridge_test_message(Some(exact_resources.clone()))]);
+        let exact_serialized =
+            serde_json::to_vec(&exact_session).expect("serialize exact resource-limit fixture");
+        fs::write(session_path.as_path(), exact_serialized.as_slice())
+            .expect("write exact resource-limit fixture");
+
+        let parsed = read_sdk_bridge_stored_session_with_limit(
+            session_path.as_path(),
+            exact_serialized.len(),
+        )
+        .expect("accept exact SDK bridge resource item limit");
+        assert_eq!(
+            parsed.messages[0].resources.as_ref().map(Vec::len),
+            Some(SDK_BRIDGE_MESSAGE_RESOURCE_ITEM_LIMIT)
+        );
+
+        let mut oversized_resources = exact_resources;
+        oversized_resources.push(sdk_bridge_test_resource(
+            SDK_BRIDGE_MESSAGE_RESOURCE_ITEM_LIMIT,
+        ));
+        let oversized_session =
+            sdk_bridge_test_session(vec![sdk_bridge_test_message(Some(oversized_resources))]);
+        let oversized_serialized = serde_json::to_vec(&oversized_session)
+            .expect("serialize oversized resource-limit fixture");
+        fs::write(session_path.as_path(), oversized_serialized.as_slice())
+            .expect("write oversized resource-limit fixture");
+
+        let error = read_sdk_bridge_stored_session_with_limit(
+            session_path.as_path(),
+            oversized_serialized.len(),
+        )
+        .expect_err("reject oversized SDK bridge resource collection");
+        assert!(error.contains("JSON array exceeds the configured 128 item limit"));
+    }
+
+    fn sdk_bridge_test_session(messages: Vec<SdkBridgeStoredMessage>) -> SdkBridgeStoredSession {
+        SdkBridgeStoredSession {
+            id: "sdk-bridge-bounded-session".to_owned(),
+            engine_id: "claude-code".to_owned(),
+            model_id: "claude-sonnet-4-6".to_owned(),
+            title: "Bounded bridge session".to_owned(),
+            status: "completed".to_owned(),
+            host_mode: "server".to_owned(),
+            kind: "coding".to_owned(),
+            created_at: "2026-07-21T00:00:00Z".to_owned(),
+            updated_at: "2026-07-21T00:00:01Z".to_owned(),
+            last_turn_at: Some("2026-07-21T00:00:01Z".to_owned()),
+            native_cwd: Some("E:/workspace/birdcoder".to_owned()),
+            workspace_id: None,
+            project_id: None,
+            messages,
+        }
+    }
+
+    fn sdk_bridge_test_message(
+        resources: Option<Vec<CodeEngineSessionResourceRecord>>,
+    ) -> SdkBridgeStoredMessage {
+        SdkBridgeStoredMessage {
+            id: "sdk-bridge-bounded-session:message:1:user".to_owned(),
+            turn_id: "sdk-bridge-bounded-turn".to_owned(),
+            role: "user".to_owned(),
+            content: "Inspect the bounded bridge session".to_owned(),
+            commands: None,
+            tool_calls: None,
+            tool_call_id: None,
+            file_changes: None,
+            reasoning: None,
+            resources,
+            task_progress: None,
+            created_at: "2026-07-21T00:00:00Z".to_owned(),
+        }
+    }
+
+    fn sdk_bridge_test_resource(index: usize) -> CodeEngineSessionResourceRecord {
+        CodeEngineSessionResourceRecord {
+            id: format!("resource-{index}"),
+            kind: "file".to_owned(),
+            name: Some(format!("resource-{index}.rs")),
+            path: Some(format!("src/resource-{index}.rs")),
+            uri: None,
+            media_source: None,
+            mime_type: Some("text/plain".to_owned()),
+            description: None,
+            origin: None,
+            citation: None,
+        }
+    }
+
+    struct TestDirectory {
+        path: PathBuf,
+    }
+
+    impl TestDirectory {
+        fn new(label: &str) -> Self {
+            let sequence = TEMP_DIRECTORY_SEQUENCE.fetch_add(1, Ordering::Relaxed);
+            let now = SystemTime::now()
+                .duration_since(UNIX_EPOCH)
+                .map(|duration| duration.as_nanos())
+                .unwrap_or_default();
+            let path = std::env::temp_dir().join(format!(
+                "sdkwork-birdcoder-sdk-bridge-{label}-{}-{now}-{sequence}",
+                std::process::id()
+            ));
+            fs::create_dir_all(path.as_path()).expect("create SDK bridge test directory");
+            Self { path }
+        }
+
+        fn path(&self) -> &Path {
+            self.path.as_path()
+        }
+    }
+
+    impl Drop for TestDirectory {
+        fn drop(&mut self) {
+            let _ = fs::remove_dir_all(self.path.as_path());
+        }
     }
 }

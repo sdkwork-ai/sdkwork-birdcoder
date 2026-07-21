@@ -276,6 +276,31 @@ pub fn get_opencode_session_messages(session_id: &str) -> Result<Vec<Value>, Str
     }
 }
 
+pub fn list_opencode_pending_permission_requests() -> Result<Vec<Value>, String> {
+    list_opencode_pending_requests("/permission", "permission")
+}
+
+pub fn list_opencode_pending_question_requests() -> Result<Vec<Value>, String> {
+    list_opencode_pending_requests("/question", "question")
+}
+
+fn list_opencode_pending_requests(path: &str, request_kind: &str) -> Result<Vec<Value>, String> {
+    let response = opencode_request_json("GET", path, &[], None, true)?;
+    parse_opencode_pending_request_list_response(response, request_kind)
+}
+
+fn parse_opencode_pending_request_list_response(
+    response: Option<Value>,
+    request_kind: &str,
+) -> Result<Vec<Value>, String> {
+    match response.unwrap_or(Value::Array(Vec::new())) {
+        Value::Array(requests) => Ok(requests),
+        _ => Err(format!(
+            "OpenCode pending {request_kind} response was not an array."
+        )),
+    }
+}
+
 pub fn create_opencode_session(directory: &Path, title: Option<&str>) -> Result<Value, String> {
     let mut request_body = serde_json::Map::new();
     if let Some(title) = title.and_then(|value| normalize_non_empty_string(Some(value))) {
@@ -1376,7 +1401,8 @@ mod tests {
 
     use super::{
         build_opencode_model_payload, list_opencode_sessions_with_request,
-        project_opencode_stream_events, OpencodeStreamProjectionState,
+        parse_opencode_pending_request_list_response, project_opencode_stream_events,
+        OpencodeStreamProjectionState,
     };
 
     #[test]
@@ -1453,6 +1479,30 @@ mod tests {
 
         assert!(error.contains("global endpoint unavailable"));
         assert!(error.contains("legacy endpoint unavailable"));
+    }
+
+    #[test]
+    fn opencode_pending_request_lists_accept_current_and_legacy_servers() {
+        let requests = parse_opencode_pending_request_list_response(
+            Some(json!([
+                { "id": "permission-1", "sessionID": "session-1" },
+                { "id": "permission-2", "sessionID": "session-2" }
+            ])),
+            "permission",
+        )
+        .expect("parse pending permissions");
+        assert_eq!(requests.len(), 2);
+
+        let missing = parse_opencode_pending_request_list_response(None, "question")
+            .expect("an older server without the pending endpoint remains compatible");
+        assert!(missing.is_empty());
+
+        let error = parse_opencode_pending_request_list_response(
+            Some(json!({ "id": "not-an-array" })),
+            "question",
+        )
+        .expect_err("reject malformed pending question response");
+        assert!(error.contains("pending question"));
     }
 
     #[test]

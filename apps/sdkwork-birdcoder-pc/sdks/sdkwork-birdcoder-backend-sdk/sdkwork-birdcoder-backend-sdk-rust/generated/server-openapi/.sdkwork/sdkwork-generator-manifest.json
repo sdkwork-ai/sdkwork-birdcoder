@@ -7,7 +7,7 @@
     "language": "rust",
     "sdkType": "backend",
     "protocol": "http",
-    "packageName": "@sdkwork/birdcoder-backend-sdk"
+    "packageName": "sdkwork-birdcoder-backend-sdk"
   },
   "generatedFiles": [
     {
@@ -40,7 +40,7 @@
     },
     {
       "path": "sdkwork-sdk.json",
-      "sha256": "7e0d0d9d90edfc2ade850ad57d9d80f43fa3fdb835b94fe4f05f72e0136348c2"
+      "sha256": "390262093b6462a383a6e57e4927a75711183d96bda3412a29ef9a3009de6c63"
     },
     {
       "path": "src/api/base.rs",
