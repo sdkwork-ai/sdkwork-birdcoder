@@ -14,9 +14,12 @@ const List<String> birdcoderChatMessageViewKinds = [
 /// Canonical chat message content block types shared across BirdCoder client surfaces.
 const List<String> birdcoderChatMessageContentBlockTypes = [
   'markdown',
+  'notice',
+  'reasoning',
   'activity',
   'file-changes',
   'commands',
+  'resources',
   'task-progress',
   'tool-calls',
 ];

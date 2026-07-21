@@ -71,6 +71,7 @@ import { UniversalChatComposerChrome } from './UniversalChatComposerChrome';
 import { UniversalChatComposerFooter } from './chat/composer/UniversalChatComposerFooter';
 import { UniversalChatPendingInteractions } from './UniversalChatPendingInteractions';
 import { ChatTranscriptAnchorRail } from './ChatTranscriptAnchorRail';
+import { ChatActivityLiveAnnouncer } from './chat/messages/activity/ChatActivityLiveAnnouncer.tsx';
 import {
   buildWorkbenchModelPickerId,
   createWorkbenchModelPickerCatalog,
@@ -2490,6 +2491,13 @@ export const UniversalChat = memo(function UniversalChat({
           background: rgba(255, 255, 255, 0.2);
         }
       `}</style>
+      <ChatActivityLiveAnnouncer
+        isActive={isActive}
+        isLive={isBusy || isEngineBusy}
+        messages={normalizedMessages}
+        sessionId={normalizedTranscriptScopeKey}
+        t={t}
+      />
       {showEngineHeader || header ? (
         <div className="shrink-0 border-b border-white/10 bg-[#0e0e11]/95 px-4 py-3 backdrop-blur-sm">
           <div className="flex items-center justify-between gap-4">

@@ -20,7 +20,8 @@ use sdkwork_birdcoder_engine_catalog_service::service::engine_catalog_service::{
 use sdkwork_birdcoder_native_sessions_service::error::NativeSessionError;
 use sdkwork_birdcoder_native_sessions_service::service::native_session_service::{
     NativeSessionAttributesPayload, NativeSessionCommandPayload, NativeSessionDetailPayload,
-    NativeSessionLookup, NativeSessionMessagePayload, NativeSessionQuery, NativeSessionRepository,
+    NativeSessionLookup, NativeSessionMessagePayload, NativeSessionQuery,
+    NativeSessionReasoningPayload, NativeSessionRepository,
     NativeSessionService, NativeSessionSummaryPayload,
 };
 use sdkwork_birdcoder_project_service::context::ProjectContext;
@@ -551,6 +552,27 @@ fn map_native_session_detail(
                 tool_calls: message.tool_calls,
                 tool_call_id: message.tool_call_id,
                 file_changes: message.file_changes,
+                reasoning: message.reasoning.map(|reasoning| {
+                    reasoning
+                        .into_iter()
+                        .map(|item| NativeSessionReasoningPayload {
+                            id: item.id,
+                            summary: item.summary,
+                            title: item.title,
+                            created_at: item.created_at,
+                            started_at: item.started_at,
+                            completed_at: item.completed_at,
+                            duration_ms: item.duration_ms,
+                        })
+                        .collect()
+                }),
+                resources: message.resources.and_then(|resources| {
+                    let resources = resources
+                        .into_iter()
+                        .filter_map(|resource| serde_json::to_value(resource).ok())
+                        .collect::<Vec<_>>();
+                    (!resources.is_empty()).then_some(resources)
+                }),
                 task_progress: message.task_progress,
                 metadata: message.metadata,
             })

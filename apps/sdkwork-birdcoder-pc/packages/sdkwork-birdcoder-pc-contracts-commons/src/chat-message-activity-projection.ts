@@ -92,6 +92,9 @@ function mergeProjectedToolCall(
     ...(incoming.output?.trim() || previous.output?.trim()
       ? { output: incoming.output?.trim() ? incoming.output : previous.output }
       : {}),
+    ...(incoming.presentation || previous.presentation
+      ? { presentation: incoming.presentation ?? previous.presentation }
+      : {}),
     ...(incoming.serverName?.trim() || previous.serverName?.trim()
       ? { serverName: incoming.serverName?.trim() || previous.serverName }
       : {}),
@@ -151,6 +154,7 @@ function readTranscriptCommandKey(
 
 interface TranscriptTurnToolEntry<TMessage extends ChatMessageViewSource> {
   calls: ChatMessageToolCall[];
+  callsWereRewritten: boolean;
   index: number;
   isCollapsible: boolean;
   message: TMessage;
@@ -168,11 +172,12 @@ function correlateGeminiFallbackToolCallIds<TMessage extends ChatMessageViewSour
   entries: TranscriptTurnToolEntry<TMessage>[],
   turnId: string,
   engineId?: string,
-): void {
+): boolean {
   if (engineId?.trim().toLowerCase() !== 'gemini') {
-    return;
+    return false;
   }
 
+  let callsWereRewritten = false;
   const requestIdsByName = new Map<string, string[]>();
   for (const entry of entries) {
     entry.calls = entry.calls.map((call) => {
@@ -184,6 +189,8 @@ function correlateGeminiFallbackToolCallIds<TMessage extends ChatMessageViewSour
       const id = `birdcoder-gemini:${turnId}:${normalizedName}:${requestIds.length + 1}`;
       requestIds.push(id);
       requestIdsByName.set(normalizedName, requestIds);
+      entry.callsWereRewritten = true;
+      callsWereRewritten = true;
       return { ...call, id };
     });
   }
@@ -198,10 +205,63 @@ function correlateGeminiFallbackToolCallIds<TMessage extends ChatMessageViewSour
       const resultIndex = resultCountByName.get(normalizedName) ?? 0;
       resultCountByName.set(normalizedName, resultIndex + 1);
       const requestId = requestIdsByName.get(normalizedName)?.[resultIndex];
+      entry.callsWereRewritten = true;
+      callsWereRewritten = true;
       return {
         ...call,
         id: requestId ?? `birdcoder-gemini:${turnId}:${normalizedName}:result-${resultIndex + 1}`,
       };
+    });
+  }
+  return callsWereRewritten;
+}
+
+function readCanonicalToolCallTaskId(call: ChatMessageToolCall): string {
+  if (!call.arguments.trim()) {
+    return '';
+  }
+  try {
+    const value = JSON.parse(call.arguments) as unknown;
+    if (typeof value !== 'object' || value === null) {
+      return '';
+    }
+    const record = value as Record<string, unknown>;
+    const taskId = record.taskId ?? record.task_id;
+    return typeof taskId === 'string' ? taskId.trim() : '';
+  } catch {
+    return '';
+  }
+}
+
+function correlateClaudeTaskToolCallIds<TMessage extends ChatMessageViewSource>(
+  entries: TranscriptTurnToolEntry<TMessage>[],
+  engineId?: string,
+): void {
+  if (engineId?.trim().toLowerCase() !== 'claude-code') {
+    return;
+  }
+
+  const toolUseIdByTaskId = new Map<string, string>();
+  for (const entry of entries) {
+    for (const call of entry.calls) {
+      const taskId = readCanonicalToolCallTaskId(call);
+      if (taskId && call.id !== taskId) {
+        toolUseIdByTaskId.set(taskId, call.id);
+      }
+    }
+  }
+
+  if (toolUseIdByTaskId.size === 0) {
+    return;
+  }
+  for (const entry of entries) {
+    entry.calls = entry.calls.map((call) => {
+      const toolUseId = toolUseIdByTaskId.get(call.id);
+      if (!toolUseId || toolUseId === call.id) {
+        return call;
+      }
+      entry.callsWereRewritten = true;
+      return { ...call, id: toolUseId };
     });
   }
 }
@@ -209,7 +269,7 @@ function correlateGeminiFallbackToolCallIds<TMessage extends ChatMessageViewSour
 function collectTranscriptTurnToolEntries<TMessage extends ChatMessageViewSource>(
   messages: readonly TMessage[],
   messageIndexes: readonly number[],
-  turnId: string,
+  scopeId: string,
   options: ProjectChatTranscriptToolActivityOptions,
 ): TranscriptTurnToolEntry<TMessage>[] {
   const entries = messageIndexes.map((index) => {
@@ -217,13 +277,38 @@ function collectTranscriptTurnToolEntries<TMessage extends ChatMessageViewSource
     const calls = readTranscriptToolCalls(message, options);
     return {
       calls,
+      callsWereRewritten: false,
       index,
       isCollapsible: isCollapsibleToolActivityMessage(message, calls),
       message,
     };
   });
-  correlateGeminiFallbackToolCallIds(entries, turnId, options.engineId);
+  correlateGeminiFallbackToolCallIds(entries, scopeId, options.engineId);
+  correlateClaudeTaskToolCallIds(entries, options.engineId);
   return entries;
+}
+
+function resolveTranscriptMessageScopeIds(
+  messages: readonly ChatMessageViewSource[],
+): string[] {
+  const fallbackEpochBySessionId = new Map<string, number>();
+  const scopeIds: string[] = [];
+  for (const message of messages) {
+    const turnId = message.turnId?.trim() ?? '';
+    if (turnId) {
+      scopeIds.push(`turn:${turnId}`);
+      continue;
+    }
+
+    const sessionId = message.codingSessionId?.trim() || 'transcript';
+    let epoch = fallbackEpochBySessionId.get(sessionId) ?? 0;
+    if (message.role === 'user') {
+      epoch += 1;
+      fallbackEpochBySessionId.set(sessionId, epoch);
+    }
+    scopeIds.push(`session:${sessionId}:user-epoch:${epoch}`);
+  }
+  return scopeIds;
 }
 
 function isCollapsibleToolActivityMessage(
@@ -246,77 +331,108 @@ function isCollapsibleToolActivityMessage(
 }
 
 /**
- * Collapses provider tool-use/progress/result messages into one stable turn row.
- * This mirrors desktop coding clients while keeping the renderer independent of
- * Codex, Claude Code, OpenCode, and Gemini wire formats.
+ * Folds provider tool-use/progress/result lifecycles into their first ordered
+ * transcript slot while keeping renderer code independent of provider formats.
  */
 export function projectChatTranscriptToolActivity<TMessage extends ChatMessageViewSource>(
   messages: readonly TMessage[],
   options: ProjectChatTranscriptToolActivityOptions = {},
 ): TMessage[] {
-  if (messages.length < 2) {
-    return messages as TMessage[];
-  }
-
-  const messageIndexesByTurnId = new Map<string, number[]>();
-  const replyTargetByTurnId = new Map<string, number>();
+  const scopeIds = resolveTranscriptMessageScopeIds(messages);
+  const messageIndexesByScopeId = new Map<string, number[]>();
   for (let index = 0; index < messages.length; index += 1) {
-    const message = messages[index]!;
-    const turnId = message.turnId?.trim() ?? '';
-    if (!turnId) {
-      continue;
-    }
-    const turnMessageIndexes = messageIndexesByTurnId.get(turnId) ?? [];
-    turnMessageIndexes.push(index);
-    messageIndexesByTurnId.set(turnId, turnMessageIndexes);
-    if (isTurnReplyMessage(message)) {
-      replyTargetByTurnId.set(turnId, index);
+    const scopeId = scopeIds[index]!;
+    const scopeMessageIndexes = messageIndexesByScopeId.get(scopeId) ?? [];
+    scopeMessageIndexes.push(index);
+    messageIndexesByScopeId.set(scopeId, scopeMessageIndexes);
+  }
+
+  const entriesByMessageIndex = new Map<number, TranscriptTurnToolEntry<TMessage>>();
+  for (const [scopeId, messageIndexes] of messageIndexesByScopeId) {
+    for (const entry of collectTranscriptTurnToolEntries(
+      messages,
+      messageIndexes,
+      scopeId,
+      options,
+    )) {
+      entriesByMessageIndex.set(entry.index, entry);
     }
   }
 
-  const projectedMessages = [...messages];
-  const suppressedIndexes = new Set<number>();
+  const projectedMessages: TMessage[] = [];
+  const callSlotIndexByScopeAndId = new Map<string, number>();
+  const slotCallsByIndex = new Map<number, Map<string, ChatMessageToolCall>>();
+  const dirtySlotIndexes = new Set<number>();
+  const slotCommandsByIndex = new Map<
+    number,
+    Map<string, NonNullable<ChatMessageViewSource['commands']>[number]>
+  >();
+  const slotFileChangesByIndex = new Map<
+    number,
+    Map<string, NonNullable<ChatMessageViewSource['fileChanges']>[number]>
+  >();
+  const slotResourcesByIndex = new Map<
+    number,
+    Map<string, NonNullable<ChatMessageViewSource['resources']>[number]>
+  >();
+  const slotTaskProgressByIndex = new Map<number, TMessage['taskProgress']>();
+  let previousActivitySlotIndex: number | undefined;
+  let previousActivityScopeId = '';
   let didProjectActivity = false;
-  for (const [turnId, targetIndex] of replyTargetByTurnId.entries()) {
-    const turnMessageIndexes = messageIndexesByTurnId.get(turnId) ?? [];
-    const turnEntries = collectTranscriptTurnToolEntries(
-      messages,
-      turnMessageIndexes,
-      turnId,
-      options,
-    );
-    const callsById = new Map<string, ChatMessageToolCall>();
-    const commandsByKey = new Map<
-      string,
-      NonNullable<ChatMessageViewSource['commands']>[number]
-    >();
-    const fileChangesByPath = new Map<
-      string,
-      NonNullable<ChatMessageViewSource['fileChanges']>[number]
-    >();
-    let latestTaskProgress: ChatMessageViewSource['taskProgress'];
-    let hasCollapsibleActivity = false;
 
-    for (const entry of turnEntries) {
-      const { calls, index, isCollapsible, message } = entry;
-      if (index !== targetIndex && !isCollapsible) {
-        continue;
+  const callKey = (scopeId: string, callId: string): string => `${scopeId}\u0001${callId}`;
+  const readResourceKey = (
+    resource: NonNullable<ChatMessageViewSource['resources']>[number],
+    index: number,
+    messageIdentity: string,
+  ): string => {
+    const id = typeof resource === 'object' && resource !== null && 'id' in resource
+      && typeof resource.id === 'string'
+      ? resource.id.trim()
+      : '';
+    return id || `${messageIdentity}\u0001resource\u0001${index}`;
+  };
+  const mergeIntoSlot = (
+    slotIndex: number,
+    incoming: TMessage,
+    calls: readonly ChatMessageToolCall[],
+    incomingCommands: readonly NonNullable<ChatMessageViewSource['commands']>[number][],
+    includeAncillary: boolean,
+  ): void => {
+    const previous = projectedMessages[slotIndex]!;
+    const callsById = slotCallsByIndex.get(slotIndex) ?? new Map<string, ChatMessageToolCall>();
+    for (const call of calls) {
+      callsById.set(call.id, mergeProjectedToolCall(callsById.get(call.id), call));
+    }
+    slotCallsByIndex.set(slotIndex, callsById);
+    if (incomingCommands.length > 0) {
+      let commandsByKey = slotCommandsByIndex.get(slotIndex);
+      if (!commandsByKey) {
+        commandsByKey = new Map();
+        (previous.commands ?? []).forEach((command, index) => {
+          commandsByKey!.set(readTranscriptCommandKey(command, index, previous.id), command);
+        });
+        slotCommandsByIndex.set(slotIndex, commandsByKey);
       }
-
-      hasCollapsibleActivity ||= isCollapsible;
-      for (const call of calls) {
-        callsById.set(call.id, mergeProjectedToolCall(callsById.get(call.id), call));
-      }
-      for (let commandIndex = 0; commandIndex < (message.commands?.length ?? 0); commandIndex += 1) {
-        const command = message.commands?.[commandIndex];
-        if (command) {
-          commandsByKey.set(
-            readTranscriptCommandKey(command, commandIndex, message.id || String(index)),
-            command,
-          );
+      incomingCommands.forEach((command, index) => {
+        commandsByKey.set(readTranscriptCommandKey(command, index, incoming.id), command);
+      });
+    }
+    if (includeAncillary && (incoming.fileChanges?.length ?? 0) > 0) {
+      let fileChangesByPath = slotFileChangesByIndex.get(slotIndex);
+      if (!fileChangesByPath) {
+        fileChangesByPath = new Map();
+        for (const fileChange of previous.fileChanges ?? []) {
+          if (typeof fileChange === 'object' && fileChange !== null) {
+            const path = (fileChange as FileChange).path;
+            if (typeof path === 'string' && path.trim()) {
+              fileChangesByPath.set(normalizeActivityFileChangePathKey(path), fileChange);
+            }
+          }
         }
+        slotFileChangesByIndex.set(slotIndex, fileChangesByPath);
       }
-      for (const fileChange of message.fileChanges ?? []) {
+      for (const fileChange of incoming.fileChanges ?? []) {
         if (typeof fileChange === 'object' && fileChange !== null) {
           const path = (fileChange as FileChange).path;
           if (typeof path === 'string' && path.trim()) {
@@ -324,32 +440,202 @@ export function projectChatTranscriptToolActivity<TMessage extends ChatMessageVi
           }
         }
       }
-      if (message.taskProgress) {
-        latestTaskProgress = message.taskProgress;
-      }
-      if (index !== targetIndex && isCollapsible) {
-        suppressedIndexes.add(index);
-      }
     }
+    if (includeAncillary && (incoming.resources?.length ?? 0) > 0) {
+      let resourcesByKey = slotResourcesByIndex.get(slotIndex);
+      if (!resourcesByKey) {
+        resourcesByKey = new Map();
+        (previous.resources ?? []).forEach((resource, index) => {
+          resourcesByKey!.set(readResourceKey(resource, index, previous.id), resource);
+        });
+        slotResourcesByIndex.set(slotIndex, resourcesByKey);
+      }
+      incoming.resources?.forEach((resource, index) => {
+        resourcesByKey.set(readResourceKey(resource, index, incoming.id), resource);
+      });
+    }
+    if (includeAncillary && incoming.taskProgress) {
+      slotTaskProgressByIndex.set(slotIndex, incoming.taskProgress);
+    }
+    dirtySlotIndexes.add(slotIndex);
+    didProjectActivity = true;
+  };
 
-    if (!hasCollapsibleActivity) {
+  for (let messageIndex = 0; messageIndex < messages.length; messageIndex += 1) {
+    const message = messages[messageIndex]!;
+    const scopeId = scopeIds[messageIndex]!;
+    const fallbackCalls = entriesByMessageIndex.has(messageIndex)
+      ? []
+      : readTranscriptToolCalls(message, options);
+    const fallbackEntry = entriesByMessageIndex.get(messageIndex) ?? {
+      calls: fallbackCalls,
+      callsWereRewritten: false,
+      index: messageIndex,
+      isCollapsible: isCollapsibleToolActivityMessage(message, fallbackCalls),
+      message,
+    };
+    const callsById = new Map<string, ChatMessageToolCall>();
+    for (const call of fallbackEntry.calls) {
+      callsById.set(call.id, mergeProjectedToolCall(callsById.get(call.id), call));
+    }
+    const calls = [...callsById.values()];
+
+    if (!fallbackEntry.isCollapsible) {
+      previousActivitySlotIndex = undefined;
+      previousActivityScopeId = '';
+      const hasDuplicateLifecycle = calls.length < fallbackEntry.calls.length;
+      const retainedCalls: ChatMessageToolCall[] = [];
+      let routedCallToPriorSlot = false;
+      for (const call of calls) {
+        const existingSlot = callSlotIndexByScopeAndId.get(callKey(scopeId, call.id));
+        if (existingSlot === undefined) {
+          retainedCalls.push(call);
+        } else {
+          mergeIntoSlot(existingSlot, message, [call], [], false);
+          routedCallToPriorSlot = true;
+        }
+      }
+      const outputIndex = projectedMessages.length;
+      const mustNormalizeCalls = hasDuplicateLifecycle
+        || fallbackEntry.callsWereRewritten
+        || routedCallToPriorSlot;
+      projectedMessages.push(mustNormalizeCalls
+        ? {
+            ...message,
+            tool_calls: retainedCalls.length > 0 ? retainedCalls : undefined,
+          } as TMessage
+        : message);
+      if (mustNormalizeCalls) {
+        didProjectActivity = true;
+      }
+      if (retainedCalls.length > 0) {
+        slotCallsByIndex.set(
+          outputIndex,
+          new Map(retainedCalls.map((call) => [call.id, call])),
+        );
+        for (const call of retainedCalls) {
+          callSlotIndexByScopeAndId.set(callKey(scopeId, call.id), outputIndex);
+        }
+      }
       continue;
     }
 
-    const target = messages[targetIndex]!;
-    projectedMessages[targetIndex] = {
-      ...target,
-      ...(callsById.size > 0 ? { tool_calls: [...callsById.values()] } : {}),
-      ...(commandsByKey.size > 0 ? { commands: [...commandsByKey.values()] } : {}),
-      ...(fileChangesByPath.size > 0 ? { fileChanges: [...fileChangesByPath.values()] } : {}),
-      ...(latestTaskProgress ? { taskProgress: latestTaskProgress } : {}),
-    };
-    didProjectActivity = true;
+    const callsBySlot = new Map<number, ChatMessageToolCall[]>();
+    const unassignedCalls: ChatMessageToolCall[] = [];
+    for (const call of calls) {
+      const existingSlot = callSlotIndexByScopeAndId.get(callKey(scopeId, call.id));
+      if (existingSlot === undefined) {
+        unassignedCalls.push(call);
+      } else {
+        const slotCalls = callsBySlot.get(existingSlot) ?? [];
+        slotCalls.push(call);
+        callsBySlot.set(existingSlot, slotCalls);
+      }
+    }
+
+    const contiguousSlotIndex: number | undefined = previousActivityScopeId === scopeId
+      ? previousActivitySlotIndex
+      : undefined;
+    let activitySlotIndex: number | undefined;
+    let createdActivitySlot = false;
+    if (unassignedCalls.length > 0 || calls.length === 0) {
+      const selectedActivitySlotIndex = contiguousSlotIndex ?? projectedMessages.length;
+      activitySlotIndex = selectedActivitySlotIndex;
+      createdActivitySlot = contiguousSlotIndex === undefined;
+      const activityCalls = callsBySlot.get(selectedActivitySlotIndex) ?? [];
+      activityCalls.push(...unassignedCalls);
+      callsBySlot.set(selectedActivitySlotIndex, activityCalls);
+      for (const call of unassignedCalls) {
+        callSlotIndexByScopeAndId.set(callKey(scopeId, call.id), selectedActivitySlotIndex);
+      }
+    }
+
+    const existingSlotIndexes = [...callsBySlot.keys()];
+    const primarySlotIndex = activitySlotIndex ?? existingSlotIndexes[0];
+    const commandsBySlot = new Map<number, NonNullable<ChatMessageViewSource['commands']>[number][]>();
+    for (const command of message.commands ?? []) {
+      const commandRecord = typeof command === 'object' && command !== null
+        ? command as { toolCallId?: unknown }
+        : null;
+      const toolCallId = typeof commandRecord?.toolCallId === 'string'
+        ? commandRecord.toolCallId.trim()
+        : '';
+      const commandSlot = toolCallId
+        ? callSlotIndexByScopeAndId.get(callKey(scopeId, toolCallId)) ?? primarySlotIndex
+        : primarySlotIndex;
+      if (commandSlot !== undefined) {
+        const slotCommands = commandsBySlot.get(commandSlot) ?? [];
+        slotCommands.push(command);
+        commandsBySlot.set(commandSlot, slotCommands);
+      }
+    }
+
+    for (const [slotIndex, slotCalls] of callsBySlot) {
+      const slotCommands = commandsBySlot.get(slotIndex) ?? [];
+      if (createdActivitySlot && slotIndex === activitySlotIndex) {
+        const ownsAllCalls = slotCalls.length === calls.length;
+        const ownsAllCommands = slotCommands.length === (message.commands?.length ?? 0);
+        const canRetainMessage = ownsAllCalls
+          && ownsAllCommands
+          && !fallbackEntry.callsWereRewritten
+          && calls.length === fallbackEntry.calls.length;
+        const slotMessage = canRetainMessage
+          ? message
+          : {
+              ...message,
+              tool_calls: slotCalls.length > 0 ? slotCalls : undefined,
+              commands: slotCommands.length > 0 ? slotCommands : undefined,
+              ...(slotIndex === primarySlotIndex
+                ? {}
+                : { fileChanges: undefined, resources: undefined, taskProgress: undefined }),
+            } as TMessage;
+        projectedMessages.push(slotMessage);
+        slotCallsByIndex.set(slotIndex, new Map(slotCalls.map((call) => [call.id, call])));
+        if (!canRetainMessage) {
+          didProjectActivity = true;
+        }
+      } else {
+        mergeIntoSlot(
+          slotIndex,
+          message,
+          slotCalls,
+          slotCommands,
+          slotIndex === primarySlotIndex,
+        );
+      }
+    }
+
+    if (activitySlotIndex !== undefined) {
+      previousActivitySlotIndex = activitySlotIndex;
+      previousActivityScopeId = scopeId;
+    } else if (contiguousSlotIndex === undefined) {
+      previousActivitySlotIndex = undefined;
+      previousActivityScopeId = '';
+    }
+    if (!createdActivitySlot) {
+      didProjectActivity = true;
+    }
   }
 
-  return suppressedIndexes.size === 0
-    ? didProjectActivity ? projectedMessages : messages as TMessage[]
-    : projectedMessages.filter((_, index) => !suppressedIndexes.has(index));
+  for (const slotIndex of dirtySlotIndexes) {
+    const previous = projectedMessages[slotIndex]!;
+    const callsById = slotCallsByIndex.get(slotIndex);
+    const commandsByKey = slotCommandsByIndex.get(slotIndex);
+    const fileChangesByPath = slotFileChangesByIndex.get(slotIndex);
+    const resourcesByKey = slotResourcesByIndex.get(slotIndex);
+    projectedMessages[slotIndex] = {
+      ...previous,
+      ...(callsById?.size ? { tool_calls: [...callsById.values()] } : {}),
+      ...(commandsByKey?.size ? { commands: [...commandsByKey.values()] } : {}),
+      ...(fileChangesByPath?.size ? { fileChanges: [...fileChangesByPath.values()] } : {}),
+      ...(resourcesByKey?.size ? { resources: [...resourcesByKey.values()] } : {}),
+      ...(slotTaskProgressByIndex.has(slotIndex)
+        ? { taskProgress: slotTaskProgressByIndex.get(slotIndex) }
+        : {}),
+    };
+  }
+
+  return didProjectActivity ? projectedMessages : messages as TMessage[];
 }
 
 interface FileUpdateSummaryBlock {
@@ -465,16 +751,7 @@ function readActivityCommandKey(
   return toolCallId || `${messageIdentity}\u0001${commandText}\u0001${kind}\u0001${index}`;
 }
 
-function isTurnCompletionReply(message: ChatMessageViewSource): boolean {
-  return message.role === 'assistant' || message.role === 'planner' || message.role === 'reviewer';
-}
-
-interface CachedChatTurnActivitySummary {
-  lastReply: ChatMessageViewSource | undefined;
-  summary: ChatTurnActivitySummary | null;
-}
-
-type ChatTurnActivitySummaryIndex = ReadonlyMap<string, CachedChatTurnActivitySummary>;
+type ChatTurnActivitySummaryIndex = ReadonlyMap<ChatMessageViewSource, ChatTurnActivitySummary | null>;
 
 const chatTurnActivitySummaryCache = new WeakMap<
   object,
@@ -496,30 +773,27 @@ function buildChatTurnActivitySummaryIndex(
     messageIndexesByTurnId.set(turnId, messageIndexes);
   }
 
-  const summaryIndex = new Map<string, CachedChatTurnActivitySummary>();
+  const summaryIndex = new Map<ChatMessageViewSource, ChatTurnActivitySummary | null>();
+  const indexedMessages = new Set<ChatMessageViewSource>();
   for (const [turnId, messageIndexes] of messageIndexesByTurnId) {
-    const fileChangesByPath = new Map<
-      string,
-      NonNullable<ChatMessageViewSource['fileChanges']>[number]
-    >();
-    const commandsByKey = new Map<
-      string,
-      NonNullable<ChatMessageViewSource['commands']>[number]
-    >();
-    const toolCallsById = new Map<string, ChatMessageToolCall>();
     const toolEntries = collectTranscriptTurnToolEntries(
       messages,
       messageIndexes,
       turnId,
       options,
     );
-    let lastReply: ChatMessageViewSource | undefined;
-
     for (const entry of toolEntries) {
       const { index, message: candidate } = entry;
-      if (isTurnCompletionReply(candidate)) {
-        lastReply = candidate;
-      }
+      indexedMessages.add(candidate);
+      const fileChangesByPath = new Map<
+        string,
+        NonNullable<ChatMessageViewSource['fileChanges']>[number]
+      >();
+      const commandsByKey = new Map<
+        string,
+        NonNullable<ChatMessageViewSource['commands']>[number]
+      >();
+      const toolCallsById = new Map<string, ChatMessageToolCall>();
 
       for (const fileChange of candidate.fileChanges ?? []) {
         if (typeof fileChange !== 'object' || fileChange === null) {
@@ -550,24 +824,67 @@ function buildChatTurnActivitySummaryIndex(
           commandsByKey.set(commandKey, command!);
         }
       }
-    }
 
-    for (const toolCall of toolCallsById.values()) {
-      const projectedCommand = projectChatMessageCommand(toolCall);
-      if (projectedCommand) {
-        commandsByKey.set(projectedCommand.toolCallId, projectedCommand);
+      for (const toolCall of toolCallsById.values()) {
+        const projectedCommand = projectChatMessageCommand(toolCall);
+        if (projectedCommand) {
+          commandsByKey.set(projectedCommand.toolCallId, projectedCommand);
+        }
       }
-    }
 
-    summaryIndex.set(turnId, {
-      lastReply,
-      summary: fileChangesByPath.size === 0 && commandsByKey.size === 0
+      summaryIndex.set(
+        candidate,
+        fileChangesByPath.size === 0 && commandsByKey.size === 0
         ? null
         : {
             commands: [...commandsByKey.values()],
             fileChanges: [...fileChangesByPath.values()],
           },
-    });
+      );
+    }
+  }
+
+  for (let index = 0; index < messages.length; index += 1) {
+    const message = messages[index]!;
+    if (indexedMessages.has(message)) {
+      continue;
+    }
+    const calls = readTranscriptToolCalls(message, options);
+    const commandsByKey = new Map<string, NonNullable<ChatMessageViewSource['commands']>[number]>();
+    const fileChangesByPath = new Map<
+      string,
+      NonNullable<ChatMessageViewSource['fileChanges']>[number]
+    >();
+    for (let commandIndex = 0; commandIndex < (message.commands?.length ?? 0); commandIndex += 1) {
+      const command = message.commands?.[commandIndex];
+      const key = readActivityCommandKey(command, commandIndex, message.id || String(index));
+      if (key) {
+        commandsByKey.set(key, command!);
+      }
+    }
+    for (const call of calls) {
+      const command = projectChatMessageCommand(call);
+      if (command) {
+        commandsByKey.set(command.toolCallId, command);
+      }
+    }
+    for (const fileChange of message.fileChanges ?? []) {
+      if (typeof fileChange === 'object' && fileChange !== null) {
+        const path = (fileChange as FileChange).path;
+        if (typeof path === 'string' && path.trim()) {
+          fileChangesByPath.set(normalizeActivityFileChangePathKey(path), fileChange);
+        }
+      }
+    }
+    summaryIndex.set(
+      message,
+      commandsByKey.size === 0 && fileChangesByPath.size === 0
+        ? null
+        : {
+            commands: [...commandsByKey.values()],
+            fileChanges: [...fileChangesByPath.values()],
+          },
+    );
   }
 
   return summaryIndex;
@@ -594,22 +911,15 @@ function resolveChatTurnActivitySummaryIndex(
 }
 
 /**
- * Resolves the activity card for a turn's final reply through a transcript-level
- * weak cache. A stable message array is indexed once, then each rendered row is
- * an O(1) lookup.
+ * Resolves only the activity owned by this ordered transcript slot. A stable
+ * message array is indexed once, then each rendered row is an O(1) lookup.
  */
 export function resolveChatTurnActivitySummary(
   messages: readonly ChatMessageViewSource[],
   message: ChatMessageViewSource,
   options: ProjectChatTranscriptToolActivityOptions = {},
 ): ChatTurnActivitySummary | null {
-  const turnId = message.turnId?.trim() ?? '';
-  if (!turnId || !isTurnCompletionReply(message)) {
-    return null;
-  }
-
-  const cachedTurn = resolveChatTurnActivitySummaryIndex(messages, options).get(turnId);
-  return cachedTurn?.lastReply === message ? cachedTurn.summary : null;
+  return resolveChatTurnActivitySummaryIndex(messages, options).get(message) ?? null;
 }
 
 export function resolveProjectedActivityFileChanges(

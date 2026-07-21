@@ -26,6 +26,8 @@ import type {
   BirdCoderSyncCodeEngineModelConfigRequest,
 } from './engine.ts';
 import type { BirdcoderApprovalPolicy } from './governance.ts';
+import type { BirdCoderChatMessageReasoningItem } from './chat-message-reasoning.ts';
+import type { BirdCoderChatMessageResource } from './chat-message-resources.ts';
 
 export const BIRDCODER_API_SURFACES = ['app', 'backend'] as const;
 
@@ -997,6 +999,8 @@ export interface BirdCoderNativeSessionMessage {
   tool_calls?: unknown[];
   tool_call_id?: string;
   fileChanges?: readonly unknown[];
+  reasoning?: readonly BirdCoderChatMessageReasoningItem[];
+  resources?: readonly BirdCoderChatMessageResource[];
   taskProgress?: unknown;
   metadata?: Record<string, string>;
   createdAt: string;

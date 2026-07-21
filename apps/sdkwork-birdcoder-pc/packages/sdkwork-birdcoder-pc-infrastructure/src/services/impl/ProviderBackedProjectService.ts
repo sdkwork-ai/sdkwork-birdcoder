@@ -672,6 +672,8 @@ function createChatMessage(
     tool_call_id: message.tool_call_id,
     fileChanges: message.fileChanges,
     commands: message.commands,
+    reasoning: message.reasoning,
+    resources: message.resources,
     taskProgress: message.taskProgress,
   };
 }

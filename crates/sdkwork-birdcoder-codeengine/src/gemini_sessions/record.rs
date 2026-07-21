@@ -1,4 +1,8 @@
-use std::{collections::BTreeMap, fs, path::Path};
+use std::{
+    collections::{BTreeMap, BTreeSet},
+    fs,
+    path::Path,
+};
 
 use serde::Deserialize;
 use serde_json::Value;
@@ -8,9 +12,11 @@ use crate::{
     map_codeengine_session_status_from_runtime, map_codeengine_tool_command_status,
     map_codeengine_tool_kind, map_codeengine_tool_runtime_status,
     normalize_codeengine_tool_lifecycle_status, resolve_codeengine_command_text,
-    sanitize_codeengine_session_metadata, CodeEngineSessionCommandRecord,
-    CodeEngineSessionDetailRecord, CodeEngineSessionMessageRecord,
-    CodeEngineSessionNativeAttributesRecord, CodeEngineSessionSummaryRecord,
+    sanitize_codeengine_session_metadata, sanitize_codeengine_session_reasoning_records,
+    CodeEngineSessionCommandRecord, CodeEngineSessionDetailRecord,
+    CodeEngineSessionMessageRecord, CodeEngineSessionNativeAttributesRecord,
+    CodeEngineSessionReasoningRecord, CodeEngineSessionResourceRecord,
+    CodeEngineSessionSummaryRecord,
 };
 
 const GEMINI_ENGINE_ID: &str = "gemini";
@@ -56,7 +62,7 @@ struct GeminiMessageRecord {
     tool_calls: Vec<Value>,
     #[serde(default)]
     #[serde(rename = "thoughts")]
-    _thoughts: Vec<Value>,
+    thoughts: Vec<Value>,
 }
 
 impl GeminiConversationRecord {
@@ -225,6 +231,14 @@ fn gemini_message_record_has_payload(message: &CodeEngineSessionMessageRecord) -
             .file_changes
             .as_ref()
             .is_some_and(|file_changes| !file_changes.is_empty())
+        || message
+            .resources
+            .as_ref()
+            .is_some_and(|resources| !resources.is_empty())
+        || message
+            .reasoning
+            .as_ref()
+            .is_some_and(|reasoning| !reasoning.is_empty())
         || message.task_progress.is_some()
 }
 
@@ -238,6 +252,15 @@ fn build_gemini_message_record(
     let message_type = message.message_type.trim().to_ascii_lowercase();
     let commands = build_gemini_tool_commands(message.tool_calls.as_slice());
     let file_changes = build_gemini_file_changes(message.tool_calls.as_slice());
+    let reasoning = if message_type == "gemini" {
+        build_gemini_message_reasoning(raw_message_id, message.thoughts.as_slice())
+    } else {
+        Vec::new()
+    };
+    let resources = extract_gemini_message_resources([
+        message.display_content.as_ref(),
+        Some(&message.content),
+    ]);
     let task_progress = build_gemini_task_progress(message.tool_calls.as_slice());
     let content = message
         .display_content
@@ -282,6 +305,16 @@ fn build_gemini_message_record(
         } else {
             Some(file_changes)
         },
+        reasoning: if reasoning.is_empty() {
+            None
+        } else {
+            Some(reasoning)
+        },
+        resources: if resources.is_empty() {
+            None
+        } else {
+            Some(resources)
+        },
         task_progress,
         metadata: Some(metadata),
         created_at: normalize_non_empty_string(message.timestamp.as_deref())
@@ -292,6 +325,33 @@ fn build_gemini_message_record(
 fn resolve_gemini_message_id(index: usize, message: &GeminiMessageRecord) -> String {
     normalize_non_empty_string(message.id.as_deref())
         .unwrap_or_else(|| format!("message-{}", index + 1))
+}
+
+fn build_gemini_message_reasoning(
+    raw_message_id: &str,
+    thoughts: &[Value],
+) -> Vec<CodeEngineSessionReasoningRecord> {
+    let records = thoughts
+        .iter()
+        .enumerate()
+        .filter_map(|(index, thought)| {
+            let subject = normalize_value_string(thought.get("subject"));
+            let description = normalize_value_string(thought.get("description"));
+            let summary = description.clone().or_else(|| subject.clone())?;
+            Some(CodeEngineSessionReasoningRecord {
+                id: format!("{raw_message_id}:thought:{}", index + 1),
+                summary,
+                title: description.and(subject),
+                created_at: normalize_non_empty_string(
+                    thought.get("timestamp").and_then(Value::as_str),
+                ),
+                started_at: None,
+                completed_at: None,
+                duration_ms: None,
+            })
+        })
+        .collect::<Vec<_>>();
+    sanitize_codeengine_session_reasoning_records(records.as_slice())
 }
 
 fn build_gemini_tool_commands(tool_calls: &[Value]) -> Vec<CodeEngineSessionCommandRecord> {
@@ -673,6 +733,12 @@ fn is_meaningful_message(message: &GeminiMessageRecord) -> bool {
             .display_content
             .as_ref()
             .is_some_and(|value| !part_list_union_to_string(value).trim().is_empty())
+        || gemini_value_has_message_resource(&message.content, 0)
+        || message
+            .display_content
+            .as_ref()
+            .is_some_and(|value| gemini_value_has_message_resource(value, 0))
+        || !message.thoughts.is_empty()
         || !message.tool_calls.is_empty())
 }
 
@@ -704,9 +770,183 @@ fn part_list_union_to_string(value: &Value) -> String {
             .map(part_list_union_to_string)
             .collect::<Vec<_>>()
             .join(""),
-        Value::Object(record) => normalize_value_string(record.get("text")).unwrap_or_default(),
+        Value::Object(record) => {
+            let record_type = normalize_value_string(record.get("type"))
+                .unwrap_or_default()
+                .to_ascii_lowercase();
+            if record.get("thought").and_then(Value::as_bool) == Some(true)
+                || matches!(record_type.as_str(), "thought" | "thinking")
+            {
+                return String::new();
+            }
+            normalize_value_string(record.get("text")).unwrap_or_default()
+        }
         _ => String::new(),
     }
+}
+
+fn extract_gemini_message_resources(
+    values: [Option<&Value>; 2],
+) -> Vec<CodeEngineSessionResourceRecord> {
+    let mut resources = Vec::new();
+    for value in values.into_iter().flatten() {
+        collect_gemini_message_resources(value, &mut resources, 0);
+    }
+    let mut seen = BTreeSet::new();
+    resources
+        .into_iter()
+        .filter(|resource| seen.insert(gemini_resource_dedupe_key(resource)))
+        .take(32)
+        .collect()
+}
+
+fn gemini_value_has_message_resource(value: &Value, depth: usize) -> bool {
+    if depth > 8 {
+        return false;
+    }
+    match value {
+        Value::Array(values) => values
+            .iter()
+            .any(|value| gemini_value_has_message_resource(value, depth + 1)),
+        Value::Object(record) => {
+            record.contains_key("inlineData")
+                || record.contains_key("inline_data")
+                || record.contains_key("fileData")
+                || record.contains_key("file_data")
+                || ["parts", "content", "message"].into_iter().any(|key| {
+                    record
+                        .get(key)
+                        .is_some_and(|value| gemini_value_has_message_resource(value, depth + 1))
+                })
+        }
+        _ => false,
+    }
+}
+
+fn collect_gemini_message_resources(
+    value: &Value,
+    output: &mut Vec<CodeEngineSessionResourceRecord>,
+    depth: usize,
+) {
+    if depth > 8 || output.len() >= 64 {
+        return;
+    }
+    match value {
+        Value::Array(values) => {
+            for value in values {
+                collect_gemini_message_resources(value, output, depth + 1);
+            }
+        }
+        Value::Object(record) => {
+            if let Some(inline_data) = record
+                .get("inlineData")
+                .or_else(|| record.get("inline_data"))
+                .and_then(Value::as_object)
+            {
+                if let Some(data) = normalize_value_string(inline_data.get("data")) {
+                    let mime_type = normalize_value_string(
+                        inline_data
+                            .get("mimeType")
+                            .or_else(|| inline_data.get("mime_type")),
+                    )
+                    .unwrap_or_else(|| "application/octet-stream".to_owned());
+                    let kind = gemini_resource_kind_for_mime(mime_type.as_str());
+                    let media_source = if data.starts_with("data:") {
+                        data
+                    } else {
+                        format!("data:{mime_type};base64,{data}")
+                    };
+                    output.push(CodeEngineSessionResourceRecord {
+                        id: format!("gemini-inline-data-{}", output.len() + 1),
+                        kind: kind.to_owned(),
+                        name: normalize_value_string(
+                            inline_data
+                                .get("displayName")
+                                .or_else(|| inline_data.get("display_name"))
+                                .or_else(|| inline_data.get("name")),
+                        ),
+                        path: None,
+                        uri: None,
+                        media_source: Some(media_source),
+                        mime_type: Some(mime_type),
+                        description: None,
+                        origin: None,
+                        citation: None,
+                    });
+                }
+            }
+            if let Some(file_data) = record
+                .get("fileData")
+                .or_else(|| record.get("file_data"))
+                .and_then(Value::as_object)
+            {
+                if let Some(uri) = normalize_value_string(
+                    file_data
+                        .get("fileUri")
+                        .or_else(|| file_data.get("file_uri"))
+                        .or_else(|| file_data.get("uri")),
+                ) {
+                    let mime_type = normalize_value_string(
+                        file_data
+                            .get("mimeType")
+                            .or_else(|| file_data.get("mime_type")),
+                    );
+                    let kind = mime_type
+                        .as_deref()
+                        .map(gemini_resource_kind_for_mime)
+                        .unwrap_or("uri");
+                    output.push(CodeEngineSessionResourceRecord {
+                        id: format!("gemini-file-data-{}", output.len() + 1),
+                        kind: kind.to_owned(),
+                        name: normalize_value_string(
+                            file_data
+                                .get("displayName")
+                                .or_else(|| file_data.get("display_name"))
+                                .or_else(|| file_data.get("name")),
+                        ),
+                        path: None,
+                        uri: Some(uri.clone()),
+                        media_source: matches!(kind, "image" | "audio").then_some(uri),
+                        mime_type,
+                        description: None,
+                        origin: None,
+                        citation: None,
+                    });
+                }
+            }
+            for key in ["parts", "content", "message"] {
+                if let Some(value) = record.get(key) {
+                    collect_gemini_message_resources(value, output, depth + 1);
+                }
+            }
+        }
+        _ => {}
+    }
+}
+
+fn gemini_resource_kind_for_mime(mime_type: &str) -> &'static str {
+    let normalized = mime_type.trim().to_ascii_lowercase();
+    if normalized.starts_with("image/") {
+        "image"
+    } else if normalized.starts_with("audio/") {
+        "audio"
+    } else {
+        "file"
+    }
+}
+
+fn gemini_resource_dedupe_key(resource: &CodeEngineSessionResourceRecord) -> String {
+    let media_source = resource.media_source.as_deref().unwrap_or_default();
+    let media_prefix = media_source.chars().take(128).collect::<String>();
+    format!(
+        "{}\u{1f}{}\u{1f}{}\u{1f}{}\u{1f}{}:{}",
+        resource.kind,
+        resource.name.as_deref().unwrap_or_default(),
+        resource.uri.as_deref().unwrap_or_default(),
+        resource.mime_type.as_deref().unwrap_or_default(),
+        media_source.len(),
+        media_prefix,
+    )
 }
 
 fn normalize_value_string(value: Option<&Value>) -> Option<String> {

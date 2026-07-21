@@ -13,6 +13,7 @@ import {
   BIRDCODER_HOST_MODES,
   compareBirdCoderSessionSortTimestamp,
   getBirdCoderEntityDefinition,
+  projectChatMessageReasoning,
   resolveBirdCoderSessionSortTimestampString,
   stringifyBirdCoderLongInteger,
 } from '@sdkwork/birdcoder-pc-contracts-commons';
@@ -263,6 +264,10 @@ export interface CreateBirdCoderCodingSessionRepositoriesOptions {
 
 const BIRDCODER_PERSISTED_MESSAGE_ID_METADATA_KEY =
   '__sdkworkBirdCoderTranscriptMessageId';
+const BIRDCODER_PERSISTED_MESSAGE_RESOURCES_METADATA_KEY =
+  '__sdkworkBirdCoderMessageResources';
+const BIRDCODER_PERSISTED_MESSAGE_REASONING_METADATA_KEY =
+  '__sdkworkBirdCoderMessageReasoning';
 const CODEX_NATIVE_MESSAGE_ID_SEGMENT = ':native-message:';
 
 function buildCodingSessionMessageStorageId(
@@ -289,23 +294,41 @@ function readOriginalCodingSessionMessageIdFromMetadata(
 function omitCodingSessionMessageStorageMetadata(
   metadata: Record<string, unknown> | undefined,
 ): Record<string, unknown> | undefined {
-  if (!metadata || !(BIRDCODER_PERSISTED_MESSAGE_ID_METADATA_KEY in metadata)) {
+  if (
+    !metadata
+    || !(
+      BIRDCODER_PERSISTED_MESSAGE_ID_METADATA_KEY in metadata
+      || BIRDCODER_PERSISTED_MESSAGE_REASONING_METADATA_KEY in metadata
+      || BIRDCODER_PERSISTED_MESSAGE_RESOURCES_METADATA_KEY in metadata
+    )
+  ) {
     return metadata;
   }
 
   const {
     [BIRDCODER_PERSISTED_MESSAGE_ID_METADATA_KEY]: _originalMessageId,
+    [BIRDCODER_PERSISTED_MESSAGE_REASONING_METADATA_KEY]: _reasoning,
+    [BIRDCODER_PERSISTED_MESSAGE_RESOURCES_METADATA_KEY]: _resources,
     ...publicMetadata
   } = metadata;
   void _originalMessageId;
+  void _reasoning;
+  void _resources;
   return Object.keys(publicMetadata).length > 0 ? publicMetadata : undefined;
 }
 
 function buildCodingSessionMessageStorageMetadata(
   value: BirdCoderPersistedCodingSessionMessageRecord,
 ): Record<string, unknown> | null {
+  const reasoning = projectChatMessageReasoning(value.reasoning);
   return {
     ...(isRecord(value.metadata) ? value.metadata : {}),
+    ...(reasoning.length
+      ? { [BIRDCODER_PERSISTED_MESSAGE_REASONING_METADATA_KEY]: reasoning }
+      : {}),
+    ...(value.resources?.length
+      ? { [BIRDCODER_PERSISTED_MESSAGE_RESOURCES_METADATA_KEY]: value.resources }
+      : {}),
     [BIRDCODER_PERSISTED_MESSAGE_ID_METADATA_KEY]: value.id,
   };
 }
@@ -464,6 +487,14 @@ function normalizeCodingSessionMessageStorageRecord(
       tool_call_id: typeof value.tool_call_id === 'string' ? value.tool_call_id : undefined,
       fileChanges: Array.isArray(value.fileChanges) ? value.fileChanges as BirdCoderChatMessage['fileChanges'] : undefined,
       commands: Array.isArray(value.commands) ? value.commands as BirdCoderChatMessage['commands'] : undefined,
+      reasoning: projectChatMessageReasoning(
+        Array.isArray(value.reasoning)
+          ? value.reasoning
+          : Array.isArray(metadata?.[BIRDCODER_PERSISTED_MESSAGE_REASONING_METADATA_KEY])
+            ? metadata[BIRDCODER_PERSISTED_MESSAGE_REASONING_METADATA_KEY] as unknown[]
+            : undefined,
+      ),
+      resources: Array.isArray(value.resources) ? value.resources as BirdCoderChatMessage['resources'] : undefined,
       taskProgress: isRecord(value.taskProgress)
         ? (value.taskProgress as unknown as BirdCoderChatMessage['taskProgress'])
         : undefined,
@@ -499,6 +530,14 @@ function normalizeCodingSessionMessageStorageRecord(
       : undefined,
     commands: Array.isArray(row.commands_json)
       ? (row.commands_json as BirdCoderChatMessage['commands'])
+      : undefined,
+    reasoning: projectChatMessageReasoning(
+      Array.isArray(metadata?.[BIRDCODER_PERSISTED_MESSAGE_REASONING_METADATA_KEY])
+        ? metadata[BIRDCODER_PERSISTED_MESSAGE_REASONING_METADATA_KEY] as unknown[]
+        : undefined,
+    ),
+    resources: Array.isArray(metadata?.[BIRDCODER_PERSISTED_MESSAGE_RESOURCES_METADATA_KEY])
+      ? metadata[BIRDCODER_PERSISTED_MESSAGE_RESOURCES_METADATA_KEY] as BirdCoderChatMessage['resources']
       : undefined,
     taskProgress: isRecord(row.task_progress_json)
       ? (row.task_progress_json as unknown as BirdCoderChatMessage['taskProgress'])

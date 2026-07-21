@@ -21,16 +21,61 @@ const activitySummarySource = fs.readFileSync(
   ),
   'utf8',
 );
+const activityLifecycleSource = fs.readFileSync(
+  path.join(
+    rootDir,
+    'apps',
+    'sdkwork-birdcoder-pc',
+    'packages',
+    'sdkwork-birdcoder-pc-ui',
+    'src',
+    'components',
+    'chat',
+    'messages',
+    'activity',
+    'chatCommandLifecycle.ts',
+  ),
+  'utf8',
+);
+const activityAnnouncerSource = fs.readFileSync(
+  path.join(
+    rootDir,
+    'apps',
+    'sdkwork-birdcoder-pc',
+    'packages',
+    'sdkwork-birdcoder-pc-ui',
+    'src',
+    'components',
+    'chat',
+    'messages',
+    'activity',
+    'ChatActivityLiveAnnouncer.tsx',
+  ),
+  'utf8',
+);
+const universalChatSource = fs.readFileSync(
+  path.join(
+    rootDir,
+    'apps',
+    'sdkwork-birdcoder-pc',
+    'packages',
+    'sdkwork-birdcoder-pc-ui',
+    'src',
+    'components',
+    'UniversalChat.tsx',
+  ),
+  'utf8',
+);
 
 assert.match(
-  activitySummarySource,
-  /function resolveCommandExecutionTone\(/,
+  activityLifecycleSource,
+  /function resolveChatCommandLifecycleTone\(/,
   'UniversalChat must centralize command semantic rendering so user questions and approvals do not duplicate generic command-card markup.',
 );
 
 assert.match(
-  activitySummarySource,
-  /function resolveCommandExecutionTone\(cmd: CommandExecution\)[\s\S]*cmd\.runtimeStatus === 'terminated'[\s\S]*return 'cancelled'[\s\S]*resolveBirdCoderCodeEngineCommandInteractionState\(cmd\)/,
+  activityLifecycleSource,
+  /function resolveChatCommandLifecycleTone\([\s\S]*command\.runtimeStatus === 'terminated'[\s\S]*return 'cancelled'[\s\S]*resolveBirdCoderCodeEngineCommandInteractionState\(command\)/,
   'Provider-terminated commands must render as cancelled before the public three-state status can misclassify them as failures.',
 );
 
@@ -40,28 +85,49 @@ assert.match(
   'Cancelled command rows and summaries must use an explicit neutral label, icon, and aggregate count.',
 );
 
-assert.match(
+assert.doesNotMatch(
   activitySummarySource,
-  /const isCommandSummaryLive = summaryCommandTone === 'approval'[\s\S]*summaryCommandTone === 'running'[\s\S]*aria-live=\{isCommandSummaryLive \? 'polite' : undefined\}[\s\S]*role=\{isCommandSummaryLive \? 'status' : undefined\}/,
-  'Only actionable or executing command summaries may use a live region; historical failed and cancelled summaries must stay quiet.',
+  /aria-live=|role=\{?['"]status/,
+  'Virtualized command summary rows must stay static so remounting history cannot repeat a live announcement.',
 );
 
 assert.match(
-  activitySummarySource,
+  activityLifecycleSource,
   /resolveBirdCoderCodeEngineCommandInteractionState\(/,
   'UniversalChat command cards must consume the shared code-engine interaction state resolver.',
 );
 
 assert.match(
-  activitySummarySource,
-  /const interactionState = resolveBirdCoderCodeEngineCommandInteractionState\(cmd\);\s*const isWaitingForReply = interactionState\.requiresReply;\s*const isWaitingForApproval = interactionState\.requiresApproval;/s,
+  activityLifecycleSource,
+  /const interactionState = resolveBirdCoderCodeEngineCommandInteractionState\(command\);[\s\S]*interactionState\.requiresReply[\s\S]*interactionState\.requiresApproval/,
   'UniversalChat command cards must ignore stale wait flags through the shared settled-command interaction state.',
 );
 
 assert.doesNotMatch(
-  activitySummarySource,
-  /cmd\.runtimeStatus === 'awaiting_user'|cmd\.kind === 'user_question'|cmd\.runtimeStatus === 'awaiting_approval'|cmd\.kind === 'approval'/,
+  activityLifecycleSource,
+  /command\.runtimeStatus === 'awaiting_user'|command\.kind === 'user_question'|command\.runtimeStatus === 'awaiting_approval'|command\.kind === 'approval'/,
   'UniversalChat must not duplicate code-engine waiting-state dialect checks locally.',
+);
+
+assert.match(
+  activityAnnouncerSource,
+  /announcementScopeRef[\s\S]*previousScope\.sessionId !== normalizedSessionId[\s\S]*!isActive[\s\S]*!isLive[\s\S]*resolveChatCommandLiveAnnouncement\(/,
+  'The command announcer must seed session, inactive, and non-live history as a quiet baseline before publishing state transitions.',
+);
+assert.match(
+  activityAnnouncerSource,
+  /aria-atomic="true"[\s\S]*aria-live="polite"[\s\S]*data-chat-activity-live-announcer="true"[\s\S]*role="status"/,
+  'One stable atomic polite status surface must own live command announcements.',
+);
+assert.match(
+  activityAnnouncerSource,
+  /announcementIdRef\.current \+= 1;[\s\S]*<span key=\{announcement\.id\}>\{announcement\.label\}<\/span>/,
+  'Repeated equal status labels must replace a keyed child inside the stable live region instead of depending on a timer that streaming output can starve.',
+);
+assert.match(
+  universalChatSource,
+  /<ChatActivityLiveAnnouncer[\s\S]*<div className="relative flex-1 min-h-0 min-w-0">[\s\S]*<UniversalChatTranscript/,
+  'UniversalChat must mount the command announcer outside the virtualized transcript rows.',
 );
 
 assert.match(

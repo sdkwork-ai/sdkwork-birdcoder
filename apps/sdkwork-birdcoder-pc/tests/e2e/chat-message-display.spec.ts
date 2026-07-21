@@ -3,6 +3,7 @@ import { expect, test, type Page } from '@playwright/test';
 const workspaceId = 'e2e-chat-workspace';
 const projectId = 'e2e-chat-project';
 const codingSessionId = 'e2e-chat-session';
+const noticeCodingSessionId = 'e2e-chat-notice-session';
 const sandboxId = 'e2e-chat-sandbox';
 const sandboxRootEntryId = 'e2e-chat-sandbox-root';
 const sandboxDisplayName = 'Message Display Project';
@@ -65,11 +66,13 @@ function createEvent(
   sequence: number,
   kind: string,
   payload: Record<string, unknown>,
+  eventCodingSessionId: string = codingSessionId,
+  turnId: string = 'e2e-chat-turn',
 ) {
   return {
     id,
-    codingSessionId,
-    turnId: 'e2e-chat-turn',
+    codingSessionId: eventCodingSessionId,
+    turnId,
     runtimeId: 'e2e-chat-runtime',
     kind,
     sequence: String(sequence),
@@ -200,6 +203,24 @@ async function openMessageFixture(page: Page) {
       logicalPath: 'src',
       revision: 'src-revision-1',
     }]],
+    ['src', [{
+      id: 'e2e-chat-features-directory',
+      sandboxId,
+      parentId: 'e2e-chat-src-directory',
+      name: 'features',
+      kind: 'directory',
+      logicalPath: 'src/features',
+      revision: 'features-revision-1',
+    }]],
+    ['src/features', [{
+      id: 'e2e-chat-directory',
+      sandboxId,
+      parentId: 'e2e-chat-features-directory',
+      name: 'chat',
+      kind: 'directory',
+      logicalPath: 'src/features/chat',
+      revision: 'chat-revision-1',
+    }]],
     ['src/features/chat', [
       adapterEntry,
       {
@@ -236,6 +257,13 @@ async function openMessageFixture(page: Page) {
     updatedAt: '2026-07-20T08:00:10.000Z',
     lastTurnAt: '2026-07-20T08:00:10.000Z',
     transcriptUpdatedAt: '2026-07-20T08:00:10.000Z',
+  };
+  const noticeCodingSession = {
+    ...codingSession,
+    id: noticeCodingSessionId,
+    title: 'Gemini Notice Showcase',
+    engineId: 'gemini',
+    modelId: 'gemini-2.5-pro',
   };
   const longFailureOutput = Array.from(
     { length: 1_300 },
@@ -345,6 +373,27 @@ async function openMessageFixture(page: Page) {
           ],
         },
       }],
+      resources: [
+        {
+          id: 'resource-provider-message-adapter',
+          kind: 'file',
+          name: 'ProviderMessageAdapter.ts',
+          path: 'src/features/chat/ProviderMessageAdapter.ts',
+          mimeType: 'text/typescript',
+          description: 'Provider-neutral adapter implementation referenced by this reply.',
+        },
+        {
+          id: 'resource-provider-citation',
+          kind: 'citation',
+          name: 'Provider protocol contract',
+          path: 'src/features/chat/ProviderMessageAdapter.ts',
+          citation: {
+            lineStart: 12,
+            lineEnd: 24,
+            note: 'The adapter keeps provider envelopes outside authored reply text.',
+          },
+        },
+      ],
       fileChanges: [
         {
           path: 'src/features/chat/ProviderMessageAdapter.ts',
@@ -375,6 +424,83 @@ async function openMessageFixture(page: Page) {
       ],
     }),
     createEvent('event-turn-completed', 8, 'turn.completed', { runtimeStatus: 'completed' }),
+  ];
+  const noticeEvents = [
+    createEvent(
+      'event-notice-turn-started',
+      1,
+      'turn.started',
+      { runtimeStatus: 'streaming' },
+      noticeCodingSessionId,
+      'e2e-chat-notice-only-turn',
+    ),
+    createEvent('event-notice-request', 2, 'message.completed', {
+      role: 'assistant',
+      content: [],
+      toolCalls: [{
+        type: 'tool_request',
+        requestId: 'call-workspace-index-notice',
+        name: 'workspace_index',
+        display: {
+          format: 'notice',
+          name: 'Workspace index',
+          description: 'Scanning provider message sources',
+        },
+      }],
+    }, noticeCodingSessionId, 'e2e-chat-notice-only-turn'),
+    createEvent('event-notice-response', 3, 'message.completed', {
+      role: 'assistant',
+      content: [],
+      toolCalls: [{
+        type: 'tool_response',
+        requestId: 'call-workspace-index-notice',
+        name: 'workspace_index',
+        display: {
+          format: 'notice',
+          name: 'Workspace index',
+          description: 'Provider message sources indexed',
+          resultSummary: 'Ready',
+        },
+      }],
+    }, noticeCodingSessionId, 'e2e-chat-notice-only-turn'),
+    createEvent(
+      'event-notice-only-turn-completed',
+      4,
+      'turn.completed',
+      { runtimeStatus: 'completed' },
+      noticeCodingSessionId,
+      'e2e-chat-notice-only-turn',
+    ),
+    createEvent(
+      'event-mixed-notice-turn-started',
+      5,
+      'turn.started',
+      { runtimeStatus: 'streaming' },
+      noticeCodingSessionId,
+      'e2e-chat-mixed-notice-turn',
+    ),
+    createEvent('event-notice-authored-reply', 6, 'message.completed', {
+      role: 'assistant',
+      content: 'The indexed provider contracts are ready for review.',
+      toolCalls: [{
+        type: 'tool_response',
+        requestId: 'call-commercial-ready-notice',
+        name: 'topic_update',
+        display: {
+          format: 'notice',
+          name: 'Provider alignment',
+          description: 'Commercial transcript checks completed',
+        },
+      }],
+    }, noticeCodingSessionId, 'e2e-chat-mixed-notice-turn'),
+    createEvent(
+      'event-mixed-notice-turn-completed',
+      7,
+      'turn.completed',
+      { runtimeStatus: 'completed' },
+      noticeCodingSessionId,
+      'e2e-chat-mixed-notice-turn',
+    ),
   ];
 
   await page.addInitScript(({ persistedAccessToken, persistedAuthToken }) => {
@@ -455,18 +581,36 @@ async function openMessageFixture(page: Page) {
       });
     },
   );
-  await page.route('**/app/v3/api/intelligence/coding_sessions?**', (route) => route.fulfill({ json: offsetPage([codingSession]) }));
+  await page.route('**/app/v3/api/intelligence/coding_sessions?**', (route) => route.fulfill({
+    json: offsetPage([codingSession, noticeCodingSession]),
+  }));
   await page.route(`**/app/v3/api/intelligence/coding_sessions/${codingSessionId}`, (route) => route.fulfill({ json: itemEnvelope(codingSession) }));
+  await page.route(
+    `**/app/v3/api/intelligence/coding_sessions/${noticeCodingSessionId}`,
+    (route) => route.fulfill({ json: itemEnvelope(noticeCodingSession) }),
+  );
   await page.route(
     new RegExp(`/app/v3/api/intelligence/coding_sessions/${codingSessionId}/events(?:\\?.*)?$`),
     (route) => route.fulfill({ json: offsetPage(events) }),
+  );
+  await page.route(
+    new RegExp(`/app/v3/api/intelligence/coding_sessions/${noticeCodingSessionId}/events(?:\\?.*)?$`),
+    (route) => route.fulfill({ json: offsetPage(noticeEvents) }),
   );
   await page.route(
     new RegExp(`/app/v3/api/intelligence/coding_sessions/${codingSessionId}/artifacts(?:\\?.*)?$`),
     (route) => route.fulfill({ json: offsetPage([]) }),
   );
   await page.route(
+    new RegExp(`/app/v3/api/intelligence/coding_sessions/${noticeCodingSessionId}/artifacts(?:\\?.*)?$`),
+    (route) => route.fulfill({ json: offsetPage([]) }),
+  );
+  await page.route(
     new RegExp(`/app/v3/api/intelligence/coding_sessions/${codingSessionId}/checkpoints(?:\\?.*)?$`),
+    (route) => route.fulfill({ json: offsetPage([]) }),
+  );
+  await page.route(
+    new RegExp(`/app/v3/api/intelligence/coding_sessions/${noticeCodingSessionId}/checkpoints(?:\\?.*)?$`),
     (route) => route.fulfill({ json: offsetPage([]) }),
   );
   await page.route('**/app/v3/api/native_sessions?**', (route) => route.fulfill({ json: offsetPage([]) }));
@@ -502,6 +646,18 @@ test('provider activity is compact, expandable, responsive, and opens files in t
   await expect(page.getByText('tool_use', { exact: true })).toHaveCount(0);
   await expect(page.getByText('tool_result', { exact: true })).toHaveCount(0);
   await expect(transcriptRegion).not.toContainText(/"type"\s*:\s*"tool_(?:use|result)"/u);
+
+  const authoredReply = transcriptRegion
+    .locator('[data-transcript-message-index]')
+    .filter({ hasText: 'Provider messages are aligned and the verification results are ready.' })
+    .last();
+
+  const messageResources = authoredReply.locator('[data-chat-message-resources]');
+  await expect(messageResources).toBeVisible();
+  await expect(messageResources.locator('[data-chat-message-resource="file"]')).toHaveCount(1);
+  await expect(messageResources.locator('[data-chat-message-resource="citation"]')).toHaveCount(1);
+  await expect(messageResources.getByText('Provider protocol contract', { exact: true })).toBeVisible();
+  await expect(messageResources.getByText(':12-24', { exact: true })).toBeVisible();
 
   const taskTool = page.locator('[data-chat-tool-kind="task"]');
   const taskToolDisclosure = taskTool.locator('[data-chat-tool-disclosure="true"]');
@@ -582,7 +738,25 @@ test('provider activity is compact, expandable, responsive, and opens files in t
     fullPage: true,
   });
 
-  await activity.locator('[data-chat-file-open="true"]').nth(0).click();
+  await page.getByRole('button', { name: 'Editor Mode' }).click();
+  for (const directoryName of ['src', 'features', 'chat']) {
+    const directory = page.getByRole('treeitem').filter({
+      has: page.getByText(directoryName, { exact: true }),
+    }).last();
+    await expect(directory).toBeVisible();
+    if (await directory.getAttribute('aria-expanded') !== 'true') {
+      await directory.click();
+    }
+    await expect(directory).toHaveAttribute('aria-expanded', 'true');
+  }
+  await expect(page.getByRole('treeitem').filter({
+    has: page.getByText('ProviderMessageAdapter.ts', { exact: true }),
+  })).toBeVisible();
+  await page.getByRole('button', { name: 'AI Mode' }).click();
+  await expect(messageResources).toBeVisible();
+  await messageResources.getByRole('button', {
+    name: 'Open file in editor: src/features/chat/ProviderMessageAdapter.ts',
+  }).first().click();
   await expect.poll(fixture.getAdapterContentRequestCount)
     .toBeGreaterThan(0);
   await expect(page.getByRole('button', { name: 'Editor Mode' })).toHaveClass(/text-white/);
@@ -615,8 +789,25 @@ test('provider activity is compact, expandable, responsive, and opens files in t
     path: testInfo.outputPath('provider-history-full-diff.png'),
   });
 
-  await page.setViewportSize({ width: 680, height: 1_800 });
   await page.getByRole('button', { name: 'AI Mode' }).click();
+  await expect(activity).toBeVisible();
+  for (const disclosure of [
+    mcpTool.locator('[data-chat-tool-disclosure="true"]'),
+    failedSearch.locator('[data-chat-tool-disclosure="true"]'),
+    taskToolDisclosure,
+  ]) {
+    if (await disclosure.getAttribute('aria-expanded') === 'true') {
+      await disclosure.click();
+      await expect(disclosure).toHaveAttribute('aria-expanded', 'false');
+    }
+  }
+  for (const disclosure of await commandDisclosures.all()) {
+    if (await disclosure.getAttribute('aria-expanded') === 'true') {
+      await disclosure.click();
+      await expect(disclosure).toHaveAttribute('aria-expanded', 'false');
+    }
+  }
+  await page.setViewportSize({ width: 420, height: 1_800 });
   await expect(activity).toBeVisible();
   const activityToggle = activity.locator(':scope > button');
   const activityDetails = activity.locator('[data-chat-activity-details="true"]');
@@ -629,6 +820,21 @@ test('provider activity is compact, expandable, responsive, and opens files in t
     }
     return activityDetails.isVisible();
   }).toBe(true);
+  for (const disclosure of await commandDisclosures.all()) {
+    if (await disclosure.getAttribute('aria-expanded') === 'true') {
+      await disclosure.evaluate((element) => element.click());
+    }
+  }
+  await expect(activity.locator('[data-chat-command-details="true"]')).toHaveCount(0);
+  await commandDisclosures.nth(0).scrollIntoViewIfNeeded();
+  await expect(commandDisclosures.nth(0)).toBeVisible();
+  await commandDisclosures.nth(0).click();
+  await expect(commandDisclosures.nth(0)).toHaveAttribute('aria-expanded', 'true');
+  await expect(commandDisclosures.nth(1)).toHaveAttribute('aria-expanded', 'false');
+  await expect(activity.locator('[data-chat-command-details="true"]')).toHaveCount(1);
+  await commandDisclosures.nth(1).click();
+  await expect(commandDisclosures.nth(0)).toHaveAttribute('aria-expanded', 'true');
+  await expect(commandDisclosures.nth(1)).toHaveAttribute('aria-expanded', 'true');
   await expect(activity.locator('[data-chat-command-details="true"]')).toHaveCount(2);
   await expect(activity.locator('[data-chat-file-change-row="inline"]')).toHaveCount(3);
   await expect(activity.getByText('ProviderHistory.ts', { exact: true })).toBeVisible();
@@ -643,6 +849,12 @@ test('provider activity is compact, expandable, responsive, and opens files in t
   ).toBeGreaterThan(200);
   await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
   await expect.poll(() => activity.evaluate(
+    (element) => element.scrollWidth <= element.clientWidth + 1,
+  )).toBe(true);
+  await expect.poll(() => transcriptRegion.evaluate(
+    (element) => element.scrollWidth <= element.clientWidth + 1,
+  )).toBe(true);
+  await expect.poll(() => messageResources.evaluate(
     (element) => element.scrollWidth <= element.clientWidth + 1,
   )).toBe(true);
   const activityBounds = await activity.boundingBox();
@@ -682,18 +894,105 @@ test('provider activity is compact, expandable, responsive, and opens files in t
       (activityBounds?.x ?? 0) + (activityBounds?.width ?? 0) + 1,
     );
   }
-  await activity.screenshot({
+
+  for (const row of await activity.locator('[data-chat-command-row="inline"]').all()) {
+    const disclosure = row.locator(':scope > div > [data-chat-command-disclosure="true"]');
+    const copyButton = row.locator(':scope > div > button').nth(1);
+    const disclosureBox = await disclosure.boundingBox();
+    const copyButtonBox = await copyButton.boundingBox();
+    expect(disclosureBox).not.toBeNull();
+    expect(copyButtonBox).not.toBeNull();
+    expect((disclosureBox?.x ?? 0) + (disclosureBox?.width ?? 0))
+      .toBeLessThanOrEqual((copyButtonBox?.x ?? 0) + 1);
+  }
+
+  const authoredReplyBounds = await authoredReply.boundingBox();
+  expect(authoredReplyBounds).not.toBeNull();
+  for (const element of await authoredReply.locator([
+    '[data-chat-message-resources]',
+    '[data-chat-message-resource]',
+    '[data-chat-tool-notice="info"]',
+    '[data-chat-activity-summary="inline"]',
+  ].join(', ')).all()) {
+    const box = await element.boundingBox();
+    expect(box).not.toBeNull();
+    expect(box?.x ?? 0).toBeGreaterThanOrEqual((authoredReplyBounds?.x ?? 0) - 1);
+    expect((box?.x ?? 0) + (box?.width ?? 0)).toBeLessThanOrEqual(
+      (authoredReplyBounds?.x ?? 0) + (authoredReplyBounds?.width ?? 0) + 1,
+    );
+  }
+  await activity.scrollIntoViewIfNeeded();
+  await page.screenshot({
     animations: 'disabled',
-    path: testInfo.outputPath('provider-message-narrow-expanded.png'),
+    path: testInfo.outputPath('provider-message-420-expanded.png'),
   });
+  await messageResources.scrollIntoViewIfNeeded();
+  await page.screenshot({
+    animations: 'disabled',
+    path: testInfo.outputPath('provider-message-resources-420.png'),
+  });
+  await mcpTool.locator('[data-chat-tool-disclosure="true"]').click();
+  await expect(mcpTool.locator('[data-chat-tool-disclosure="true"]')).toHaveAttribute(
+    'aria-expanded',
+    'true',
+  );
   await mcpTool.scrollIntoViewIfNeeded();
-  await mcpTool.screenshot({
+  await page.screenshot({
     animations: 'disabled',
-    path: testInfo.outputPath('provider-tool-result-narrow-expanded.png'),
+    path: testInfo.outputPath('provider-tool-result-420-expanded.png'),
   });
+  await mcpTool.locator('[data-chat-tool-disclosure="true"]').click();
+  await expect(mcpTool.locator('[data-chat-tool-disclosure="true"]')).toHaveAttribute(
+    'aria-expanded',
+    'false',
+  );
+  await taskToolDisclosure.click();
+  await expect(taskToolDisclosure).toHaveAttribute('aria-expanded', 'true');
   await taskTool.scrollIntoViewIfNeeded();
-  await taskTool.screenshot({
+  await page.screenshot({
     animations: 'disabled',
-    path: testInfo.outputPath('provider-task-result-narrow-expanded.png'),
+    path: testInfo.outputPath('provider-task-result-420-expanded.png'),
+  });
+
+  await page.locator('.birdcoder-session-row').filter({
+    hasText: 'Gemini Notice Showcase',
+  }).first().click();
+  await expect(page.getByText('The indexed provider contracts are ready for review.').first()).toBeVisible({
+    timeout: 60_000,
+  });
+
+  const noticeTranscriptRegion = page.getByRole('region', { name: 'Conversation messages' });
+  const mixedNoticeReply = noticeTranscriptRegion
+    .locator('[data-transcript-message-index]')
+    .filter({ hasText: 'The indexed provider contracts are ready for review.' })
+    .last();
+  await expect(mixedNoticeReply.locator('[data-chat-engine-label="true"]')).toHaveText('Gemini');
+  await expect(mixedNoticeReply.locator('[data-chat-tool-notice="info"]')).toContainText(
+    'Commercial transcript checks completed',
+  );
+  await expect(mixedNoticeReply.getByRole('button', { name: 'Copy', exact: true })).toHaveCount(1);
+
+  const noticeOnlyReply = noticeTranscriptRegion
+    .locator('[data-transcript-message-index]')
+    .filter({ hasText: 'Provider message sources indexed' })
+    .last();
+  await expect(noticeOnlyReply.locator('[data-chat-tool-notice="info"]')).toContainText(
+    'Provider message sources indexed',
+  );
+  await expect(noticeOnlyReply.locator('[data-chat-engine-label="true"]')).toHaveCount(0);
+  await expect(noticeOnlyReply.locator('[data-chat-message-view-kind]')).toHaveCount(0);
+  await expect(noticeOnlyReply.getByRole('button', { name: 'Copy', exact: true })).toHaveCount(0);
+  await expect(
+    noticeTranscriptRegion.getByText('Scanning provider message sources', { exact: false }),
+  ).toHaveCount(0);
+  await expect.poll(() => noticeTranscriptRegion.evaluate(
+    (element) => element.scrollWidth <= element.clientWidth + 1,
+  )).toBe(true);
+  await expect.poll(() => mixedNoticeReply.evaluate(
+    (element) => element.scrollWidth <= element.clientWidth + 1,
+  )).toBe(true);
+  await noticeTranscriptRegion.screenshot({
+    animations: 'disabled',
+    path: testInfo.outputPath('provider-notice-mixed-and-standalone-420.png'),
   });
 });

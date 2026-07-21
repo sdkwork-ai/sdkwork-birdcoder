@@ -11,7 +11,6 @@ import {
   RotateCcw,
   Terminal,
 } from 'lucide-react';
-import { resolveBirdCoderCodeEngineCommandInteractionState } from '@sdkwork/birdcoder-pc-workbench/chat/types';
 import type { CommandExecution, FileChange } from '@sdkwork/birdcoder-pc-workbench/chat/types';
 import { hasRestorableFileChanges } from '@sdkwork/birdcoder-pc-workbench/workbench/fileChangeRestore';
 import {
@@ -22,6 +21,10 @@ import {
 } from '../contentPreview.ts';
 import type { ActivityFileChange } from '../messageActivity.ts';
 import type { ChatMessageEnvironment, ChatMessageTranslate } from '../types.ts';
+import {
+  resolveChatCommandLifecycleTone as resolveCommandExecutionTone,
+  type ChatCommandLifecycleTone,
+} from './chatCommandLifecycle.ts';
 
 export {
   buildCommandOutputPreview,
@@ -49,13 +52,7 @@ export interface ActivityDiffPreview {
   lines: ActivityDiffPreviewLine[];
 }
 
-export type CommandExecutionTone =
-  | 'approval'
-  | 'cancelled'
-  | 'error'
-  | 'reply'
-  | 'running'
-  | 'success';
+export type CommandExecutionTone = ChatCommandLifecycleTone;
 
 export interface ActivityFileChangeLineImpact {
   additions: number;
@@ -315,29 +312,6 @@ export function resolveActivityFileChangeLineImpact(
     deletions,
     isKnown,
   };
-}
-
-function resolveCommandExecutionTone(cmd: CommandExecution): CommandExecutionTone {
-  if (cmd.runtimeStatus === 'terminated') {
-    return 'cancelled';
-  }
-  const interactionState = resolveBirdCoderCodeEngineCommandInteractionState(cmd);
-  const isWaitingForReply = interactionState.requiresReply;
-  const isWaitingForApproval = interactionState.requiresApproval;
-  if (isWaitingForReply) {
-    return 'reply';
-  }
-  if (isWaitingForApproval) {
-    return 'approval';
-  }
-  if (cmd.status === 'success') {
-    return 'success';
-  }
-  if (cmd.status === 'error') {
-    return 'error';
-  }
-
-  return 'running';
 }
 
 function resolveCommandExecutionStatusLabel(
@@ -669,9 +643,6 @@ export const ChatActivitySummary = memo(function ChatActivitySummary({
           ? environment?.t('chat.commandsCancelledSummary', { count: cancelledCommandCount })
             ?? `${cancelledCommandCount} cancelled`
           : '';
-  const isCommandSummaryLive = summaryCommandTone === 'approval'
-    || summaryCommandTone === 'running';
-
   const toggleFileDetails = (fileKey: string) => {
     toggleDisclosure(`${disclosureScopeKey}\u0001file\u0001${fileKey}`);
   };
@@ -746,8 +717,6 @@ export const ChatActivitySummary = memo(function ChatActivitySummary({
           {commandSummaryStatusLabel ? (
             <span
               className={`inline-flex items-center rounded-md px-2 py-0.5 text-[11px] ${resolveCommandExecutionStatusClassName(summaryCommandTone)}`}
-              aria-live={isCommandSummaryLive ? 'polite' : undefined}
-              role={isCommandSummaryLive ? 'status' : undefined}
             >
               {commandSummaryStatusLabel}
             </span>

@@ -28,9 +28,16 @@ import {
 } from './chat-message-activity-projection.ts';
 import { resolveTaskProgressDisplayState } from './chat-message-task-progress.ts';
 import {
+  projectChatMessageReasoning,
+  type BirdCoderChatMessageReasoningItem,
+} from './chat-message-reasoning.ts';
+import {
+  projectChatMessageResources,
+  type BirdCoderChatMessageResource,
+} from './chat-message-resources.ts';
+import {
   isChatMessageFileMutationToolCall,
   projectChatMessageCommand,
-  projectChatMessageToolNotices,
   projectChatMessageToolResult,
   projectChatMessageToolCalls,
   type ChatMessageToolCall,
@@ -43,6 +50,19 @@ export interface ChatMessageMarkdownBlock {
   content: string;
   mode: 'basic' | 'rich';
   noticeKind?: BirdCoderProtocolNoticeKind;
+}
+
+export interface ChatMessageNoticeBlock {
+  type: 'notice';
+  id: string;
+  noticeKind: BirdCoderProtocolNoticeKind;
+  title?: string;
+  detail?: string;
+}
+
+export interface ChatMessageReasoningBlock {
+  type: 'reasoning';
+  items: readonly BirdCoderChatMessageReasoningItem[];
 }
 
 export interface ChatMessageActivityBlock {
@@ -72,6 +92,11 @@ export interface ChatMessageTaskProgressBlock {
   progress: ChatMessageTaskProgressValue;
 }
 
+export interface ChatMessageResourcesBlock {
+  type: 'resources';
+  items: readonly BirdCoderChatMessageResource[];
+}
+
 export type { ChatMessageToolCall } from './chat-message-tool-calls.ts';
 export {
   CHAT_MESSAGE_TOOL_PROTOCOL_ADAPTER_IDS,
@@ -95,9 +120,12 @@ export interface ChatMessageToolCallsBlock {
 
 export type ChatMessageContentBlock =
   | ChatMessageMarkdownBlock
+  | ChatMessageNoticeBlock
+  | ChatMessageReasoningBlock
   | ChatMessageActivityBlock
   | ChatMessageFileChangesBlock
   | ChatMessageCommandsBlock
+  | ChatMessageResourcesBlock
   | ChatMessageTaskProgressBlock
   | ChatMessageToolCallsBlock;
 
@@ -205,6 +233,46 @@ function resolveProtocolNoticeKind(
     : undefined;
 }
 
+function resolveToolNoticeFallback(call: ChatMessageToolCall): string {
+  const output = call.output?.trim();
+  if (output) {
+    return output;
+  }
+
+  for (const block of call.resultBlocks ?? []) {
+    if (block.type === 'text' && block.text.trim()) {
+      return block.text.trim();
+    }
+    if (block.type === 'error' && block.message.trim()) {
+      return block.message.trim();
+    }
+  }
+  return '';
+}
+
+function projectToolNoticeBlock(call: ChatMessageToolCall): ChatMessageNoticeBlock | null {
+  if (call.presentation !== 'notice') {
+    return null;
+  }
+
+  const name = call.name.trim() === 'tool' ? '' : call.name.trim();
+  const description = call.title?.trim() ?? '';
+  const isRedundantName = Boolean(name && description.includes(`"${name}"`));
+  const title = isRedundantName ? '' : name;
+  const detail = description || (!title ? resolveToolNoticeFallback(call) : '');
+  if (!title && !detail) {
+    return null;
+  }
+
+  return {
+    type: 'notice',
+    id: call.id,
+    noticeKind: 'info',
+    ...(title ? { title } : {}),
+    ...(detail ? { detail } : {}),
+  };
+}
+
 function inferChatMessageViewKind(
   message: ChatMessageViewSource,
   activitySummary?: ChatTurnActivitySummary | null,
@@ -247,6 +315,16 @@ function buildChatMessageContentBlocks(
     : resolveVisibleMarkdownBlockContent(message);
   const noticeKind = resolveProtocolNoticeKind(message);
 
+  const reasoning = ['assistant', 'planner', 'reviewer'].includes(message.role)
+    ? projectChatMessageReasoning(message.reasoning)
+    : [];
+  if (reasoning.length > 0) {
+    blocks.push({
+      type: 'reasoning',
+      items: reasoning,
+    });
+  }
+
   if (markdownContent.trim().length > 0) {
     blocks.push({
       type: 'markdown',
@@ -256,9 +334,16 @@ function buildChatMessageContentBlocks(
     });
   }
 
+  const resources = projectChatMessageResources(message.resources);
+  if (resources.length > 0) {
+    blocks.push({
+      type: 'resources',
+      items: resources,
+    });
+  }
+
   const fileChanges = activitySummary?.fileChanges ?? resolveProjectedActivityFileChanges(message);
   const projectedToolCalls = projectChatMessageToolCalls(message.tool_calls, { engineId });
-  const projectedToolNotices = projectChatMessageToolNotices(message.tool_calls, { engineId });
   const projectedToolResult = message.role === 'tool'
     ? projectChatMessageToolResult({
         content: message.content,
@@ -270,13 +355,12 @@ function buildChatMessageContentBlocks(
     ? [...projectedToolCalls, projectedToolResult]
     : projectedToolCalls;
 
-  for (const notice of projectedToolNotices) {
-    blocks.push({
-      type: 'markdown',
-      content: notice.content,
-      mode: 'basic',
-      noticeKind: 'info',
-    });
+  const toolNoticeBlocks = allProjectedToolCalls.flatMap((call) => {
+    const notice = projectToolNoticeBlock(call);
+    return notice ? [notice] : [];
+  });
+  if (toolNoticeBlocks.length > 0) {
+    blocks.unshift(...toolNoticeBlocks);
   }
   const projectedCommands = allProjectedToolCalls.flatMap((call) => {
     const command = projectChatMessageCommand(call);
@@ -345,6 +429,9 @@ function buildChatMessageContentBlocks(
 
   const commandToolCallIds = new Set(projectedCommands.map((command) => command.toolCallId));
   const toolCalls = allProjectedToolCalls.filter((call) => {
+    if (call.presentation === 'notice') {
+      return false;
+    }
     if (commandToolCallIds.has(call.id)) {
       return false;
     }
@@ -393,6 +480,12 @@ export function estimateChatMessageViewHeight(
         extraHeight += Math.min(720, contentLineEstimate * lineHeight);
         break;
       }
+      case 'notice':
+        extraHeight += 32 + Math.min(96, (block.detail?.length ?? 0) / 4);
+        break;
+      case 'reasoning':
+        extraHeight += 44;
+        break;
       case 'activity':
         extraHeight += 48 + block.fileChanges.length * 36 + block.commands.length * 44;
         break;
@@ -401,6 +494,9 @@ export function estimateChatMessageViewHeight(
         break;
       case 'commands':
         extraHeight += block.items.length * 44;
+        break;
+      case 'resources':
+        extraHeight += block.items.length * 58;
         break;
       case 'task-progress':
         extraHeight += 40;
@@ -434,7 +530,8 @@ function buildChatMessageLayoutHints(
     layoutHints: {
       estimatedHeight: 0,
       isCompact: layout === 'sidebar',
-      hasCollapsibleSections: kind === 'assistant.activity',
+      hasCollapsibleSections:
+        kind === 'assistant.activity' || blocks.some((block) => block.type === 'reasoning'),
     },
     blocks,
   };
@@ -442,7 +539,8 @@ function buildChatMessageLayoutHints(
   return {
     estimatedHeight: estimateChatMessageViewHeight(view, layout),
     isCompact: layout === 'sidebar',
-    hasCollapsibleSections: kind === 'assistant.activity',
+    hasCollapsibleSections:
+      kind === 'assistant.activity' || blocks.some((block) => block.type === 'reasoning'),
   };
 }
 
@@ -494,12 +592,18 @@ export function buildChatMessageViewSynchronizationSignature(
       switch (block.type) {
         case 'markdown':
           return `md:${block.mode}:${block.content.length}:${block.content}`;
+        case 'notice':
+          return `notice:${block.id}:${block.noticeKind}:${block.title ?? ''}:${block.detail ?? ''}`;
+        case 'reasoning':
+          return `reasoning:${JSON.stringify(block.items)}`;
         case 'activity':
           return `act:${block.fileChanges.length}:${block.commands.length}`;
         case 'file-changes':
           return `fc:${block.items.length}`;
         case 'commands':
           return `cmd:${block.items.length}:${block.items.map((item) => readActivityCommandStatus(item)).join(',')}`;
+        case 'resources':
+          return `res:${block.items.map((item) => item.id).join(',')}`;
         case 'task-progress':
           return `tp:${block.progress.completed}/${block.progress.total}`;
         case 'tool-calls':

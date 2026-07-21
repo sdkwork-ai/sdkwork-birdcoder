@@ -79,7 +79,7 @@ fn gemini_history_fixture_builds_project_scoped_summary_and_detail() {
 }
 
 #[test]
-fn gemini_thought_only_history_does_not_create_an_empty_assistant_record() {
+fn gemini_thought_only_history_preserves_only_recorded_thought_summaries() {
     let fixture = GeminiHistoryTestFixture::new("thought-only");
     let project_directory = fixture.root.join("tmp").join("thought-only-project");
     write_project_marker(project_directory.as_path(), "E:/thought-only-project");
@@ -101,10 +101,15 @@ fn gemini_thought_only_history_does_not_create_an_empty_assistant_record() {
                     "id": "message-thought-only",
                     "timestamp": "2026-07-20T08:01:00.000Z",
                     "type": "gemini",
-                    "content": "",
+                    "content": [{
+                        "thought": true,
+                        "text": "PRIVATE_GEMINI_RAW_THOUGHT_SENTINEL"
+                    }],
                     "thoughts": [{
-                        "subject": "Private analysis",
-                        "description": "Internal thought must not render as the assistant answer."
+                        "subject": "Planning",
+                        "description": "Inspected the provider history contract.",
+                        "timestamp": "2026-07-20T08:00:59.000Z",
+                        "signature": "PRIVATE_GEMINI_SIGNATURE_SENTINEL"
                     }]
                 }
             ]
@@ -119,9 +124,24 @@ fn gemini_thought_only_history_does_not_create_an_empty_assistant_record() {
     .expect("get Gemini thought-only detail")
     .expect("Gemini thought-only detail exists");
 
-    assert_eq!(detail.messages.len(), 1);
+    assert_eq!(detail.messages.len(), 2);
     assert_eq!(detail.messages[0].role, "user");
     assert_eq!(detail.messages[0].turn_id.as_deref(), Some("message-user"));
+    assert_eq!(detail.messages[1].role, "assistant");
+    assert_eq!(detail.messages[1].content, "");
+    let reasoning = detail.messages[1]
+        .reasoning
+        .as_ref()
+        .expect("Gemini recorded thought summary");
+    assert_eq!(reasoning.len(), 1);
+    assert_eq!(reasoning[0].title.as_deref(), Some("Planning"));
+    assert_eq!(
+        reasoning[0].summary,
+        "Inspected the provider history contract."
+    );
+    let serialized = serde_json::to_string(&detail).expect("serialize Gemini session detail");
+    assert!(!serialized.contains("PRIVATE_GEMINI_RAW_THOUGHT_SENTINEL"));
+    assert!(!serialized.contains("PRIVATE_GEMINI_SIGNATURE_SENTINEL"));
 }
 
 #[test]
@@ -479,6 +499,69 @@ fn gemini_history_keeps_newest_duplicate_raw_session_id() {
     assert_eq!(summaries.len(), 1);
     assert_eq!(summaries[0].title, "Newest duplicate Gemini session");
     assert_eq!(summaries[0].native_cwd.as_deref(), Some("E:/newer"));
+}
+
+#[test]
+fn gemini_inline_and_file_data_survive_attachment_only_native_history() {
+    let fixture = GeminiHistoryTestFixture::new("message-resources");
+    let project_directory = fixture.root.join("tmp").join("message-resources");
+    write_project_marker(project_directory.as_path(), "E:/message-resources");
+    write_session_fixture(
+        project_directory.as_path(),
+        &serde_json::to_string(&json!({
+            "sessionId": "gemini-message-resources",
+            "projectHash": "message-resources",
+            "startTime": "2026-07-20T13:00:00.000Z",
+            "lastUpdated": "2026-07-20T13:00:01.000Z",
+            "messages": [{
+                "id": "user-media",
+                "timestamp": "2026-07-20T13:00:01.000Z",
+                "type": "user",
+                "content": [
+                    {
+                        "inlineData": {
+                            "data": "aW1hZ2U=",
+                            "mimeType": "image/png",
+                            "displayName": "diagram.png"
+                        }
+                    },
+                    {
+                        "fileData": {
+                            "fileUri": "gs://provider-protocols/spec.pdf",
+                            "mimeType": "application/pdf",
+                            "displayName": "spec.pdf"
+                        }
+                    }
+                ]
+            }]
+        }))
+        .expect("serialize Gemini message-resource fixture"),
+    );
+
+    let detail = get_gemini_session_detail_from_roots(
+        "gemini-message-resources",
+        std::slice::from_ref(&fixture.root),
+    )
+    .expect("get Gemini message-resource detail")
+    .expect("Gemini message-resource detail exists");
+    assert_eq!(detail.messages.len(), 1);
+    let message = &detail.messages[0];
+    assert_eq!(message.role, "user");
+    assert!(message.content.is_empty());
+    let resources = message.resources.as_ref().expect("Gemini resources");
+    assert_eq!(resources.len(), 2);
+    assert_eq!(resources[0].kind, "image");
+    assert_eq!(resources[0].name.as_deref(), Some("diagram.png"));
+    assert_eq!(
+        resources[0].media_source.as_deref(),
+        Some("data:image/png;base64,aW1hZ2U=")
+    );
+    assert_eq!(resources[1].kind, "file");
+    assert_eq!(resources[1].name.as_deref(), Some("spec.pdf"));
+    assert_eq!(
+        resources[1].uri.as_deref(),
+        Some("gs://provider-protocols/spec.pdf")
+    );
 }
 
 struct GeminiHistoryTestFixture {

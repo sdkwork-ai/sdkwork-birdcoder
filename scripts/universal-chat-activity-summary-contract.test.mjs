@@ -6,6 +6,14 @@ const activitySummarySource = await readFile(
   resolve('apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-ui/src/components/chat/messages/activity/ChatActivitySummary.tsx'),
   'utf8',
 );
+const activityLifecycleSource = await readFile(
+  resolve('apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-ui/src/components/chat/messages/activity/chatCommandLifecycle.ts'),
+  'utf8',
+);
+const activityAnnouncerSource = await readFile(
+  resolve('apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-ui/src/components/chat/messages/activity/ChatActivityLiveAnnouncer.tsx'),
+  'utf8',
+);
 
 const activityProjectionSource = await readFile(
   resolve('apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-contracts-commons/src/chat-message-activity-projection.ts'),
@@ -74,6 +82,37 @@ assert.match(
   activitySummarySource,
   /export const ChatActivitySummary = memo\(function ChatActivitySummary\(/,
   'Chat activity summary must render file changes and command executions through one professional activity summary component.',
+);
+
+assert.doesNotMatch(
+  activitySummarySource,
+  /aria-live=|role=\{?['"]status/,
+  'Virtualized command summary rows must stay static so remounting history cannot repeat a live announcement.',
+);
+assert.match(
+  activityLifecycleSource,
+  /function resolveChatCommandLifecycleTone\([\s\S]*resolveBirdCoderCodeEngineCommandInteractionState\(command\)/,
+  'Visible command rows and live announcements must share one provider-neutral command lifecycle resolver.',
+);
+assert.match(
+  activityAnnouncerSource,
+  /announcementScopeRef[\s\S]*previousScope\.sessionId !== normalizedSessionId[\s\S]*!isActive[\s\S]*!isLive[\s\S]*resolveChatCommandLiveAnnouncement\(/,
+  'The stable announcer must seed session switches, inactive surfaces, and non-live history as a quiet baseline.',
+);
+assert.match(
+  activityAnnouncerSource,
+  /aria-atomic="true"[\s\S]*aria-live="polite"[\s\S]*data-chat-activity-live-announcer="true"[\s\S]*role="status"/,
+  'One stable atomic polite status surface must own live command announcements.',
+);
+assert.match(
+  activityAnnouncerSource,
+  /announcementIdRef\.current \+= 1;[\s\S]*<span key=\{announcement\.id\}>\{announcement\.label\}<\/span>/,
+  'Repeated equal status labels must replace a keyed child instead of depending on a timer that streaming output can starve.',
+);
+assert.match(
+  universalChatSource,
+  /<ChatActivityLiveAnnouncer[\s\S]*<div className="relative flex-1 min-h-0 min-w-0">[\s\S]*<UniversalChatTranscript/,
+  'UniversalChat must mount the command announcer outside the virtualized transcript rows.',
 );
 
 assert.match(

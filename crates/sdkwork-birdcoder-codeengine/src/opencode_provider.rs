@@ -13,10 +13,12 @@ use crate::{
     map_codeengine_tool_command_status, map_codeengine_tool_kind,
     map_codeengine_tool_runtime_status, resolve_codeengine_command_interaction_state,
     resolve_codeengine_command_text, sanitize_codeengine_git_repository_url,
-    sanitize_codeengine_session_metadata, session_id_targets_engine,
+    sanitize_codeengine_session_metadata, sanitize_codeengine_session_reasoning_records,
+    session_id_targets_engine,
     CodeEngineSessionCommandRecord, CodeEngineSessionDetailRecord, CodeEngineSessionMessageRecord,
-    CodeEngineSessionNativeAttributesRecord, CodeEngineSessionSummaryRecord,
-    NativeSessionProviderPlugin, NativeSessionProviderRegistration,
+    CodeEngineSessionNativeAttributesRecord, CodeEngineSessionReasoningRecord,
+    CodeEngineSessionResourceOriginRecord, CodeEngineSessionResourceRecord,
+    CodeEngineSessionSummaryRecord, NativeSessionProviderPlugin, NativeSessionProviderRegistration,
 };
 
 pub struct OpencodeCodeEngineProvider;
@@ -313,6 +315,8 @@ fn build_opencode_message_error_notice(
         tool_calls: None,
         tool_call_id: None,
         file_changes: None,
+        reasoning: None,
+        resources: None,
         task_progress: None,
         metadata: Some(metadata),
         created_at: timestamp_from_value_millis(
@@ -340,12 +344,20 @@ fn build_opencode_message_record(
     let commands = extract_opencode_message_commands(&parts);
     let tool_calls = extract_opencode_message_tool_calls(&parts);
     let file_changes = extract_opencode_message_file_changes(info, &parts);
+    let reasoning = if role == "user" {
+        Vec::new()
+    } else {
+        extract_opencode_message_reasoning(&parts)
+    };
+    let resources = extract_opencode_message_resources(&parts);
     let task_progress = extract_opencode_message_task_progress(&parts);
     let content = extract_opencode_message_content(&parts);
     if content.trim().is_empty()
         && commands.is_empty()
         && tool_calls.is_empty()
         && file_changes.is_empty()
+        && reasoning.is_empty()
+        && resources.is_empty()
         && task_progress.is_none()
     {
         return None;
@@ -377,6 +389,16 @@ fn build_opencode_message_record(
             None
         } else {
             Some(file_changes)
+        },
+        reasoning: if reasoning.is_empty() {
+            None
+        } else {
+            Some(reasoning)
+        },
+        resources: if resources.is_empty() {
+            None
+        } else {
+            Some(resources)
         },
         task_progress,
         metadata,
@@ -591,6 +613,115 @@ fn extract_opencode_message_content(parts: &[Value]) -> String {
         .filter_map(|part| normalize_value_string(part.get("text")))
         .collect::<Vec<_>>()
         .join("\n")
+}
+
+fn extract_opencode_message_reasoning(parts: &[Value]) -> Vec<CodeEngineSessionReasoningRecord> {
+    let records = parts
+        .iter()
+        .enumerate()
+        .filter(|(_, part)| part.get("type").and_then(Value::as_str) == Some("reasoning"))
+        .filter_map(|(index, part)| {
+            let summary = normalize_value_string(part.get("text"))?;
+            let time = part.get("time");
+            let started_at =
+                timestamp_from_value_millis(time.and_then(|value| value.get("start")));
+            let completed_at =
+                timestamp_from_value_millis(time.and_then(|value| value.get("end")));
+            let duration_ms = read_opencode_non_negative_integer(
+                time.and_then(|value| value.get("end")),
+            )
+                .zip(read_opencode_non_negative_integer(
+                    time.and_then(|value| value.get("start")),
+                ))
+                .and_then(|(end, start)| end.checked_sub(start));
+            Some(CodeEngineSessionReasoningRecord {
+                id: normalize_value_string(part.get("id"))
+                    .unwrap_or_else(|| format!("opencode-reasoning-{}", index + 1)),
+                summary,
+                title: None,
+                created_at: started_at.clone(),
+                started_at,
+                completed_at,
+                duration_ms,
+            })
+        })
+        .collect::<Vec<_>>();
+    sanitize_codeengine_session_reasoning_records(records.as_slice())
+}
+
+fn extract_opencode_message_resources(parts: &[Value]) -> Vec<CodeEngineSessionResourceRecord> {
+    parts
+        .iter()
+        .enumerate()
+        .filter(|(_, part)| part.get("type").and_then(Value::as_str) == Some("file"))
+        .filter_map(|(index, part)| {
+            let mime_type = normalize_value_string(part.get("mime"));
+            let name = normalize_value_string(part.get("filename"));
+            let uri = normalize_value_string(part.get("url"));
+            let kind = match mime_type.as_deref() {
+                Some(value) if value.to_ascii_lowercase().starts_with("image/") => "image",
+                Some(value) if value.to_ascii_lowercase().starts_with("audio/") => "audio",
+                _ => "file",
+            }
+            .to_owned();
+            let origin = part.get("source").and_then(build_opencode_resource_origin);
+            let path = origin.as_ref().and_then(|origin| origin.path.clone());
+            let source_uri = origin.as_ref().and_then(|origin| origin.uri.clone());
+            let uri = uri.or(source_uri);
+            if name.is_none() && path.is_none() && uri.is_none() && origin.is_none() {
+                return None;
+            }
+            let media_source = matches!(kind.as_str(), "image" | "audio")
+                .then(|| uri.clone())
+                .flatten();
+            let display_uri = uri.filter(|value| !is_opencode_opaque_media_source(value.as_str()));
+            Some(CodeEngineSessionResourceRecord {
+                id: normalize_value_string(part.get("id"))
+                    .unwrap_or_else(|| format!("opencode-file-{}", index + 1)),
+                kind,
+                name,
+                path,
+                uri: display_uri,
+                media_source,
+                mime_type,
+                description: None,
+                origin,
+                citation: None,
+            })
+        })
+        .collect()
+}
+
+fn build_opencode_resource_origin(source: &Value) -> Option<CodeEngineSessionResourceOriginRecord> {
+    let kind = normalize_value_string(source.get("type"))?;
+    if !matches!(kind.as_str(), "file" | "symbol" | "resource") {
+        return None;
+    }
+    let range = source.get("range");
+    let excerpt = normalize_value_string(source.get("text").and_then(|text| text.get("value")))
+        .map(|value| value.chars().take(4_000).collect());
+    Some(CodeEngineSessionResourceOriginRecord {
+        kind,
+        name: normalize_value_string(source.get("name")),
+        path: normalize_path_string(source.get("path")),
+        uri: normalize_value_string(source.get("uri"))
+            .filter(|value| !is_opencode_opaque_media_source(value.as_str())),
+        client_name: normalize_value_string(source.get("clientName")),
+        line_start: read_opencode_position(range, "start", "line").map(|value| value + 1),
+        line_end: read_opencode_position(range, "end", "line").map(|value| value + 1),
+        column_start: read_opencode_position(range, "start", "character").map(|value| value + 1),
+        column_end: read_opencode_position(range, "end", "character").map(|value| value + 1),
+        excerpt,
+    })
+}
+
+fn is_opencode_opaque_media_source(value: &str) -> bool {
+    let normalized = value.trim().to_ascii_lowercase();
+    normalized.starts_with("data:") || normalized.starts_with("blob:")
+}
+
+fn read_opencode_position(range: Option<&Value>, endpoint: &str, field: &str) -> Option<u64> {
+    range?.get(endpoint)?.get(field)?.as_u64()
 }
 
 fn extract_opencode_message_commands(parts: &[Value]) -> Vec<CodeEngineSessionCommandRecord> {
@@ -1168,7 +1299,7 @@ mod tests {
     }
 
     #[test]
-    fn opencode_reasoning_only_history_does_not_create_an_empty_assistant_record() {
+    fn opencode_reasoning_only_history_preserves_only_the_display_summary() {
         let record = build_opencode_message_record(
             "opencode:session-reasoning-only",
             &json!({
@@ -1179,12 +1310,31 @@ mod tests {
                 "parts": [{
                     "id": "part-reasoning",
                     "type": "reasoning",
-                    "text": "Internal reasoning must not render as the assistant answer."
+                    "text": "Inspected the provider message shapes.",
+                    "metadata": {
+                        "privateTrace": "PRIVATE_OPENCODE_REASONING_SENTINEL"
+                    },
+                    "time": {
+                        "start": 1_753_000_000_000_u64,
+                        "end": 1_753_000_001_250_u64
+                    }
                 }]
             }),
-        );
+        )
+        .expect("preserve OpenCode display reasoning");
 
-        assert!(record.is_none());
+        assert_eq!(record.content, "");
+        let reasoning = record.reasoning.as_ref().expect("OpenCode reasoning");
+        assert_eq!(reasoning.len(), 1);
+        assert_eq!(reasoning[0].id, "part-reasoning");
+        assert_eq!(
+            reasoning[0].summary,
+            "Inspected the provider message shapes."
+        );
+        assert_eq!(reasoning[0].duration_ms, Some(1_250));
+        assert!(!serde_json::to_string(&record)
+            .expect("serialize OpenCode reasoning record")
+            .contains("PRIVATE_OPENCODE_REASONING_SENTINEL"));
 
         let empty_user = build_opencode_message_record(
             "opencode:session-empty-user",
@@ -1244,6 +1394,86 @@ mod tests {
         );
 
         assert!(synthetic_only.is_none());
+    }
+
+    #[test]
+    fn opencode_file_parts_preserve_typed_resources_and_attachment_only_messages() {
+        let record = build_opencode_message_record(
+            "opencode:session-file-parts",
+            &json!({
+                "info": {
+                    "id": "message-file-parts",
+                    "role": "user"
+                },
+                "parts": [
+                    {
+                        "id": "file-image",
+                        "type": "file",
+                        "mime": "image/png",
+                        "url": "data:image/png;base64,aW1hZ2U=",
+                        "source": {
+                            "type": "file",
+                            "path": "assets/preview.png",
+                            "text": { "value": "binary preview", "start": 0, "end": 14 }
+                        }
+                    },
+                    {
+                        "id": "file-symbol",
+                        "type": "file",
+                        "mime": "text/typescript",
+                        "filename": "provider.ts",
+                        "url": "file:///workspace/src/provider.ts",
+                        "source": {
+                            "type": "symbol",
+                            "path": "src/provider.ts",
+                            "name": "normalizeMessage",
+                            "kind": 12,
+                            "range": {
+                                "start": { "line": 9, "character": 2 },
+                                "end": { "line": 12, "character": 4 }
+                            },
+                            "text": { "value": "normalizeMessage", "start": 20, "end": 36 }
+                        }
+                    },
+                    {
+                        "id": "file-resource",
+                        "type": "file",
+                        "mime": "application/pdf",
+                        "filename": "protocol.pdf",
+                        "url": "https://example.com/protocol.pdf",
+                        "source": {
+                            "type": "resource",
+                            "clientName": "docs",
+                            "uri": "mcp://docs/protocol",
+                            "text": { "value": "Protocol excerpt", "start": 0, "end": 16 }
+                        }
+                    }
+                ]
+            }),
+        )
+        .expect("preserve OpenCode attachment-only user message");
+
+        assert_eq!(record.role, "user");
+        assert!(record.content.is_empty());
+        let resources = record.resources.expect("OpenCode file resources");
+        assert_eq!(resources.len(), 3);
+        assert_eq!(resources[0].kind, "image");
+        assert!(resources[0].name.is_none());
+        assert_eq!(resources[0].path.as_deref(), Some("assets/preview.png"));
+        assert!(resources[0].uri.is_none());
+        assert_eq!(
+            resources[0].media_source.as_deref(),
+            Some("data:image/png;base64,aW1hZ2U=")
+        );
+        assert_eq!(resources[0].mime_type.as_deref(), Some("image/png"));
+        let symbol = resources[1].origin.as_ref().expect("symbol origin");
+        assert_eq!(symbol.kind, "symbol");
+        assert_eq!(symbol.name.as_deref(), Some("normalizeMessage"));
+        assert_eq!((symbol.line_start, symbol.line_end), (Some(10), Some(13)));
+        let resource = resources[2].origin.as_ref().expect("resource origin");
+        assert_eq!(resource.kind, "resource");
+        assert_eq!(resource.client_name.as_deref(), Some("docs"));
+        assert_eq!(resource.uri.as_deref(), Some("mcp://docs/protocol"));
     }
 
     #[test]

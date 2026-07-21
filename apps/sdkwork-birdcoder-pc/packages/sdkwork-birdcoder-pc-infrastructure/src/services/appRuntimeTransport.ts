@@ -366,6 +366,12 @@ function buildProjectionEvents(
     if (message.fileChanges && message.fileChanges.length > 0) {
       payload.fileChanges = message.fileChanges;
     }
+    if (message.reasoning && message.reasoning.length > 0) {
+      payload.reasoning = message.reasoning;
+    }
+    if (message.resources && message.resources.length > 0) {
+      payload.resources = message.resources;
+    }
     if (message.taskProgress) {
       payload.taskProgress = message.taskProgress;
     }

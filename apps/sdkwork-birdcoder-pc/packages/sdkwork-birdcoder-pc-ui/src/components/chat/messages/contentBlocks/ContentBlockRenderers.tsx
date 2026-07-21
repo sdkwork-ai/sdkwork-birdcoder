@@ -192,6 +192,51 @@ export const MarkdownContentBlockRenderer = memo(function MarkdownContentBlockRe
   );
 });
 
+export const NoticeContentBlockRenderer = memo(function NoticeContentBlockRenderer({
+  block,
+  context,
+}: ChatMessageContentBlockRendererProps) {
+  if (block.type !== 'notice') {
+    return null;
+  }
+
+  const fallbackTitle = context.environment?.t('chat.noticeInfo') ?? 'Provider information';
+  const title = block.title?.trim() || (!block.detail?.trim() ? fallbackTitle : '');
+  const detail = block.detail?.trim() ?? '';
+  const detailPreview = buildChatContentPreview(detail, {
+    maxCharacters: MAX_NOTICE_DETAIL_PREVIEW_CHARACTERS,
+    tailCharacters: 1_000,
+  });
+  const copyLabel = context.environment?.t('common.copy') ?? 'Copy';
+  const copyContent = [title, detail].filter(Boolean).join(': ');
+
+  return (
+    <div
+      className="flex min-w-0 items-start gap-2 py-1 text-[12px] text-gray-500"
+      data-chat-tool-notice={block.noticeKind}
+      role="note"
+    >
+      <Info size={13} className="mt-0.5 shrink-0" aria-hidden="true" />
+      <span className="min-w-0 flex-1 whitespace-pre-wrap break-words [overflow-wrap:anywhere]">
+        {title ? <span className="font-medium text-gray-400">{title}</span> : null}
+        {title && detailPreview.text ? ': ' : null}
+        {detailPreview.text ? <span>{detailPreview.text}</span> : null}
+      </span>
+      {detailPreview.isTruncated ? (
+        <button
+          type="button"
+          className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-gray-400 transition-colors hover:bg-white/10 hover:text-gray-200 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-blue-400/70"
+          title={copyLabel}
+          aria-label={`${copyLabel}: ${title || fallbackTitle}`}
+          onClick={() => context.copyMessageToClipboard(copyContent)}
+        >
+          <Copy size={11} aria-hidden="true" />
+        </button>
+      ) : null}
+    </div>
+  );
+});
+
 export const ActivityContentBlockRenderer = memo(function ActivityContentBlockRenderer(
   props: ChatMessageContentBlockRendererProps,
 ) {

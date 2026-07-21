@@ -167,17 +167,21 @@ export const AssistantReplyMessageRenderer = memo(function AssistantReplyMessage
     context.actionTarget,
     resolveViewMarkdownCopyFallback(view),
   );
-  const isProtocolNotice = view.blocks.some(
-    (block) => block.type === 'markdown' && !!block.noticeKind,
+  const hasAuthoredMarkdown = view.blocks.some(
+    (block) => block.type === 'markdown' && !block.noticeKind && block.content.trim().length > 0,
   );
+  const hasStructuredActivity = view.blocks.some(
+    (block) => block.type !== 'markdown' || Boolean(block.noticeKind),
+  );
+  const suppressReplyChrome = !hasAuthoredMarkdown && hasStructuredActivity;
 
   return (
     <div ref={messageRef} className={`flex w-full min-w-0 max-w-full flex-col ${isSidebar ? 'items-start group' : ''}`}>
-      {isProtocolNotice ? null : (
+      {suppressReplyChrome ? null : (
         <RoleHeader viewKind={view.kind} layout={context.layout} t={context.environment?.t} />
       )}
       <ContentBlockList view={view} context={context} />
-      {context.showMessageActions && !isProtocolNotice ? (
+      {context.showMessageActions && !suppressReplyChrome ? (
         <ChatMessageActionBar
           message={message}
           context={context}

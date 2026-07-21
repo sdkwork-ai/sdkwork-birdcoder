@@ -164,6 +164,7 @@ const TASK_TOOL_NAMES = new Set([
   'task_get',
   'task_list',
   'task_update',
+  'tool_summary',
   'tracker_add_dependency',
   'tracker_create_task',
   'tracker_get_task',
@@ -617,8 +618,8 @@ function adaptClaudeToolRecord(record: Record<string, unknown>): Record<string, 
         : rawStatus;
     return {
       ...source,
-      id: source.task_id ?? source.tool_use_id ?? source.id,
-      tool_call_id: source.task_id ?? source.tool_use_id ?? source.id,
+      id: source.tool_use_id ?? source.task_id ?? source.id,
+      tool_call_id: source.tool_use_id ?? source.task_id ?? source.id,
       name: 'task',
       type: 'agent',
       arguments: {
@@ -650,6 +651,23 @@ function adaptClaudeToolRecord(record: Record<string, unknown>): Record<string, 
       output: source.message,
       title: source.decision_reason,
       status: 'cancelled',
+    };
+  }
+  if (type === 'tool_use_summary') {
+    const precedingToolUseIds = Array.isArray(source.preceding_tool_use_ids)
+      ? source.preceding_tool_use_ids.filter(
+          (value): value is string => typeof value === 'string' && Boolean(value.trim()),
+        )
+      : [];
+    const summary = readNonEmptyString(source.summary);
+    return {
+      ...source,
+      id: source.uuid ?? source.id ?? `tool-use-summary:${precedingToolUseIds.join(':')}`,
+      name: 'tool_summary',
+      type: 'tool_use_summary',
+      arguments: { precedingToolUseIds },
+      ...(summary ? { output: summary, title: summary } : {}),
+      status: 'completed',
     };
   }
   const resultToolNameByType: Readonly<Record<string, string>> = {
@@ -952,9 +970,6 @@ function adaptGeminiToolDisplayRecord(
   if (format === 'hidden') {
     return { type: 'tool_display_hidden' };
   }
-  if (format === 'notice') {
-    return { type: 'tool_display_notice' };
-  }
   const displayName = boundGeminiToolDisplayText(
     context.display.name,
     MAX_GEMINI_TOOL_DISPLAY_NAME_CHARACTERS,
@@ -966,6 +981,20 @@ function adaptGeminiToolDisplayRecord(
     { tailCharacters: 200 },
   );
   const result = projectGeminiToolDisplayResult(context.display, context.isError);
+  if (format === 'notice') {
+    const fallbackOutput = !displayName && !description ? result.text : '';
+    return {
+      id: context.callId,
+      name: displayName || context.toolName || 'tool',
+      ...(displayName && context.toolName ? { semanticName: context.toolName } : {}),
+      ...(context.argumentsValue !== undefined ? { arguments: context.argumentsValue } : {}),
+      ...(description ? { title: description } : {}),
+      ...(fallbackOutput ? { output: fallbackOutput } : {}),
+      presentation: 'notice',
+      status: resolveGeminiToolDisplayStatus(context),
+      type: context.eventType || 'tool',
+    };
+  }
   return {
     id: context.callId,
     name: displayName || context.toolName || 'tool',
@@ -1234,8 +1263,6 @@ const NON_TOOL_PROTOCOL_TYPES = new Set([
   'thinking',
   'thought',
   'tool_display_hidden',
-  'tool_display_notice',
-  'tool_use_summary',
 ]);
 
 function shouldIgnoreToolProtocolRecord(record: Record<string, unknown>): boolean {
@@ -1331,16 +1358,6 @@ function resolveToolCallId(
   index: number,
   fallbackIdPrefix?: string,
 ): string {
-  const isClaudeTaskLifecycle = normalizeToolCallName(readNonEmptyString(record.type)) === 'agent'
-    && normalizeToolCallName(readNonEmptyString(record.name)) === 'task';
-  if (isClaudeTaskLifecycle) {
-    const taskId = readNonEmptyString(record.task_id)
-      || readNonEmptyString(record.taskId);
-    if (taskId) {
-      return taskId;
-    }
-  }
-
   return readNonEmptyString(record.tool_call_id)
     || readNonEmptyString(record.toolCallId)
     || readNonEmptyString(record.tool_id)
@@ -1676,6 +1693,9 @@ export function projectChatMessageToolCall(
   const protocolStatus = resolveToolCallStatus(record);
   const title = resolveToolCallTitle(record);
   const durationMs = resolveToolCallDurationMs(record);
+  const presentation = readNonEmptyString(record.presentation) === 'notice'
+    ? 'notice' as const
+    : undefined;
   const resultBlocks = resolveChatMessageToolCallResultBlocks(record, protocolStatus);
   const status = protocolStatus === 'cancelled'
     ? protocolStatus
@@ -1696,6 +1716,7 @@ export function projectChatMessageToolCall(
     ...(mcpIdentity?.serverName ? { serverName: mcpIdentity.serverName } : {}),
     ...(title ? { title } : {}),
     ...(durationMs !== undefined ? { durationMs } : {}),
+    ...(presentation ? { presentation } : {}),
     ...(resultBlocks.length > 0 ? { resultBlocks } : {}),
   };
 }
@@ -1733,10 +1754,12 @@ export function projectChatMessageToolNotice(
     { oneLine: true },
   );
   const isRedundantName = Boolean(name && description.includes(`"${name}"`));
+  const visibleName = isRedundantName ? '' : name;
+  const primaryContent = [visibleName, description]
+    .filter(Boolean)
+    .join(visibleName && description ? ': ' : '\n');
   const content = boundGeminiToolDisplayText(
-    [isRedundantName ? '' : name, description, resultSummary || result]
-      .filter(Boolean)
-      .join(name && description && !isRedundantName ? ': ' : '\n'),
+    primaryContent || resultSummary || result,
     MAX_GEMINI_TOOL_DISPLAY_RESULT_CHARACTERS,
     { tailCharacters: 4_000 },
   );
@@ -1761,8 +1784,28 @@ export function projectChatMessageToolNotices(
   if (!toolCalls || toolCalls.length === 0) {
     return [];
   }
-  return toolCalls.flatMap((toolCall, index) => {
+
+  const noticeOrder: string[] = [];
+  const noticesById = new Map<string, ProjectedChatMessageToolNotice>();
+  toolCalls.forEach((toolCall, index) => {
     const notice = projectChatMessageToolNotice(toolCall, index, options);
+    if (!notice) {
+      return;
+    }
+    const existing = noticesById.get(notice.id);
+    if (!existing) {
+      noticeOrder.push(notice.id);
+      noticesById.set(notice.id, notice);
+      return;
+    }
+    noticesById.set(notice.id, {
+      ...existing,
+      ...notice,
+      content: notice.content || existing.content,
+    });
+  });
+  return noticeOrder.flatMap((id) => {
+    const notice = noticesById.get(id);
     return notice ? [notice] : [];
   });
 }
@@ -1787,7 +1830,7 @@ export function projectChatMessageToolResult(
 export function projectChatMessageCommand(
   call: ChatMessageToolCall,
 ): ProjectedChatMessageCommand | null {
-  if (call.kind !== 'command') {
+  if (call.presentation === 'notice' || call.kind !== 'command') {
     return null;
   }
 

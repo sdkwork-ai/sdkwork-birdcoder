@@ -16,9 +16,11 @@ use crate::{
     map_codeengine_tool_command_status, map_codeengine_tool_kind,
     map_codeengine_tool_runtime_status, native_session_prefix_for_engine,
     normalize_codeengine_tool_lifecycle_status, sanitize_codeengine_git_repository_url,
-    sanitize_codeengine_session_metadata, CodeEngineSessionCommandRecord,
-    CodeEngineSessionDetailRecord, CodeEngineSessionMessageRecord,
-    CodeEngineSessionNativeAttributesRecord, CodeEngineSessionSummaryRecord,
+    sanitize_codeengine_session_metadata, sanitize_codeengine_session_reasoning_records,
+    CodeEngineSessionCommandRecord, CodeEngineSessionDetailRecord,
+    CodeEngineSessionMessageRecord, CodeEngineSessionNativeAttributesRecord,
+    CodeEngineSessionReasoningRecord, CodeEngineSessionResourceCitationRecord,
+    CodeEngineSessionResourceRecord, CodeEngineSessionSummaryRecord,
 };
 
 const CODEX_SESSIONS_DIRECTORY_NAME: &str = "sessions";
@@ -156,6 +158,8 @@ struct TranscriptEntry {
     tool_calls: Option<Vec<Value>>,
     tool_call_id: Option<String>,
     file_changes: Option<Vec<Value>>,
+    reasoning: Option<Vec<CodeEngineSessionReasoningRecord>>,
+    resources: Option<Vec<CodeEngineSessionResourceRecord>>,
     task_progress: Option<Value>,
     metadata: Option<BTreeMap<String, String>>,
 }
@@ -648,6 +652,8 @@ fn parse_codex_session(
                 tool_calls: entry.tool_calls,
                 tool_call_id: entry.tool_call_id,
                 file_changes: entry.file_changes,
+                reasoning: entry.reasoning,
+                resources: entry.resources,
                 task_progress: entry.task_progress,
                 metadata: entry.metadata,
                 created_at: entry.created_at,
@@ -794,70 +800,84 @@ fn apply_codex_session_line(
                 Some("message") => {
                     let role =
                         normalize_value_string(payload.and_then(|payload| payload.get("role")));
+                    let Some(role) = role else {
+                        return;
+                    };
+                    if role != "user" && role != "assistant" {
+                        return;
+                    }
                     let content =
                         extract_message_text(payload.and_then(|payload| payload.get("content")));
-                    if let (Some(role), Some(content)) = (role, content) {
-                        if role != "user" && role != "assistant" {
-                            return;
-                        }
-                        let transcript_content = if role == "user" {
-                            normalize_codex_prompt_content(&content)
+                    let transcript_content = content.as_ref().and_then(|content| {
+                        if role == "user" {
+                            normalize_codex_prompt_content(content)
                         } else {
                             Some(content.clone())
-                        };
-                        if include_messages {
-                            let Some(transcript_content) = transcript_content.clone() else {
-                                return;
-                            };
-                            push_transcript_entry(
-                                context,
-                                TranscriptEntry {
-                                    created_at: timestamp.clone(),
-                                    role: role.clone(),
-                                    content: transcript_content,
-                                    turn_id: read_codex_turn_id(payload)
-                                        .or_else(|| context.current_turn_id.clone()),
-                                    commands: None,
-                                    ..TranscriptEntry::default()
-                                },
-                            );
                         }
-                        if role == "user" {
-                            set_context_title(
-                                context,
-                                transcript_content
-                                    .clone()
-                                    .and_then(|value| normalize_codex_prompt_title(&value)),
-                                SessionTitleSource::ResponseUserMessage,
-                            );
-                            context.latest_user_timestamp = resolve_more_recent_timestamp(
-                                context.latest_user_timestamp.take(),
-                                Some(timestamp.clone()),
-                            );
-                        }
+                    });
+                    let resources = if role == "user" {
+                        extract_codex_user_input_resources(
+                            payload.and_then(|payload| payload.get("content")),
+                        )
+                    } else {
+                        Vec::new()
+                    };
+                    let has_resources = !resources.is_empty();
+                    if include_messages && (transcript_content.is_some() || has_resources) {
+                        push_transcript_entry(
+                            context,
+                            TranscriptEntry {
+                                created_at: timestamp.clone(),
+                                role: role.clone(),
+                                content: transcript_content.clone().unwrap_or_default(),
+                                turn_id: read_codex_turn_id(payload)
+                                    .or_else(|| context.current_turn_id.clone()),
+                                commands: None,
+                                resources: has_resources.then(|| resources.clone()),
+                                ..TranscriptEntry::default()
+                            },
+                        );
+                    }
+                    if role == "user" && (transcript_content.is_some() || has_resources) {
+                        set_context_title(
+                            context,
+                            transcript_content
+                                .as_deref()
+                                .and_then(normalize_codex_prompt_title),
+                            SessionTitleSource::ResponseUserMessage,
+                        );
+                        context.latest_user_timestamp = resolve_more_recent_timestamp(
+                            context.latest_user_timestamp.take(),
+                            Some(timestamp.clone()),
+                        );
                     }
                 }
                 Some("userMessage") => {
-                    if let Some(content) =
-                        extract_message_text(payload.and_then(|payload| payload.get("content")))
-                    {
-                        if include_messages {
-                            push_transcript_entry(
-                                context,
-                                TranscriptEntry {
-                                    created_at: timestamp.clone(),
-                                    role: "user".to_owned(),
-                                    content: content.clone(),
-                                    turn_id: read_codex_turn_id(payload)
-                                        .or_else(|| context.current_turn_id.clone()),
-                                    commands: None,
-                                    ..TranscriptEntry::default()
-                                },
-                            );
-                        }
+                    let content =
+                        extract_message_text(payload.and_then(|payload| payload.get("content")));
+                    let resources = extract_codex_user_input_resources(
+                        payload.and_then(|payload| payload.get("content")),
+                    );
+                    let has_resources = !resources.is_empty();
+                    if include_messages && (content.is_some() || has_resources) {
+                        push_transcript_entry(
+                            context,
+                            TranscriptEntry {
+                                created_at: timestamp.clone(),
+                                role: "user".to_owned(),
+                                content: content.clone().unwrap_or_default(),
+                                turn_id: read_codex_turn_id(payload)
+                                    .or_else(|| context.current_turn_id.clone()),
+                                commands: None,
+                                resources: has_resources.then(|| resources.clone()),
+                                ..TranscriptEntry::default()
+                            },
+                        );
+                    }
+                    if content.is_some() || has_resources {
                         set_context_title(
                             context,
-                            normalize_codex_prompt_title(content.as_str()),
+                            content.as_deref().and_then(normalize_codex_prompt_title),
                             SessionTitleSource::ResponseUserMessage,
                         );
                         context.latest_user_timestamp = resolve_more_recent_timestamp(
@@ -870,18 +890,20 @@ fn apply_codex_session_line(
                     if !include_messages {
                         return;
                     }
-                    if let Some(content) =
-                        normalize_value_string(payload.and_then(|payload| payload.get("text")))
-                    {
+                    let content =
+                        normalize_value_string(payload.and_then(|payload| payload.get("text")));
+                    let resources = extract_codex_memory_citation_resources(payload);
+                    if content.is_some() || !resources.is_empty() {
                         push_transcript_entry(
                             context,
                             TranscriptEntry {
                                 created_at: timestamp,
                                 role: "assistant".to_owned(),
-                                content,
+                                content: content.unwrap_or_default(),
                                 turn_id: read_codex_turn_id(payload)
                                     .or_else(|| context.current_turn_id.clone()),
                                 commands: None,
+                                resources: (!resources.is_empty()).then_some(resources),
                                 ..TranscriptEntry::default()
                             },
                         );
@@ -908,8 +930,29 @@ fn apply_codex_session_line(
                         );
                     }
                 }
-                // Hook prompts and reasoning are provider context, not authored transcript text.
-                Some("hookPrompt" | "hook_prompt" | "reasoning") => {}
+                Some("reasoning") => {
+                    if !include_messages {
+                        return;
+                    }
+                    if let Some(reasoning) =
+                        extract_codex_reasoning_record(payload, timestamp.as_str())
+                    {
+                        upsert_codex_reasoning_transcript_entry(
+                            context,
+                            TranscriptEntry {
+                                created_at: timestamp,
+                                role: "assistant".to_owned(),
+                                content: String::new(),
+                                turn_id: read_codex_turn_id(payload)
+                                    .or_else(|| context.current_turn_id.clone()),
+                                reasoning: Some(vec![reasoning]),
+                                ..TranscriptEntry::default()
+                            },
+                        );
+                    }
+                }
+                // Hook prompts are provider context, not authored transcript text.
+                Some("hookPrompt" | "hook_prompt") => {}
                 Some("function_call") | Some("custom_tool_call") => {
                     register_pending_codex_tool_call(context, payload, &timestamp);
                 }
@@ -1022,7 +1065,7 @@ fn apply_codex_session_line(
                 }
                 Some("error") => context.has_error = true,
                 Some("user_message") => {
-                    if let Some(content) =
+                    let content =
                         extract_message_text(payload.and_then(|payload| payload.get("message")))
                             .or_else(|| {
                                 extract_message_text(
@@ -1033,27 +1076,36 @@ fn apply_codex_session_line(
                                 normalize_value_string(
                                     payload.and_then(|payload| payload.get("text")),
                                 )
-                            })
-                    {
-                        let normalized_content =
-                            normalize_codex_prompt_content(&content).unwrap_or(content.clone());
-                        if include_messages {
-                            push_transcript_entry(
-                                context,
-                                TranscriptEntry {
-                                    created_at: timestamp.clone(),
-                                    role: "user".to_owned(),
-                                    content: normalized_content.clone(),
-                                    turn_id: read_codex_turn_id(payload)
-                                        .or_else(|| context.current_turn_id.clone()),
-                                    commands: None,
-                                    ..TranscriptEntry::default()
-                                },
-                            );
-                        }
+                            });
+                    let normalized_content = content.as_ref().map(|content| {
+                        normalize_codex_prompt_content(content).unwrap_or_else(|| content.clone())
+                    });
+                    let resources =
+                        extract_codex_user_input_resources(payload.and_then(|payload| {
+                            payload.get("message").or_else(|| payload.get("content"))
+                        }));
+                    let has_resources = !resources.is_empty();
+                    if include_messages && (normalized_content.is_some() || has_resources) {
+                        push_transcript_entry(
+                            context,
+                            TranscriptEntry {
+                                created_at: timestamp.clone(),
+                                role: "user".to_owned(),
+                                content: normalized_content.clone().unwrap_or_default(),
+                                turn_id: read_codex_turn_id(payload)
+                                    .or_else(|| context.current_turn_id.clone()),
+                                commands: None,
+                                resources: has_resources.then(|| resources.clone()),
+                                ..TranscriptEntry::default()
+                            },
+                        );
+                    }
+                    if normalized_content.is_some() || has_resources {
                         set_context_title(
                             context,
-                            normalize_codex_prompt_title(&normalized_content),
+                            normalized_content
+                                .as_deref()
+                                .and_then(normalize_codex_prompt_title),
                             SessionTitleSource::EventUserMessage,
                         );
                         context.latest_user_timestamp = resolve_more_recent_timestamp(
@@ -1066,7 +1118,7 @@ fn apply_codex_session_line(
                     if !include_messages {
                         return;
                     }
-                    if let Some(content) =
+                    let content =
                         extract_message_text(payload.and_then(|payload| payload.get("message")))
                             .or_else(|| {
                                 extract_message_text(
@@ -1077,42 +1129,26 @@ fn apply_codex_session_line(
                                 normalize_value_string(
                                     payload.and_then(|payload| payload.get("text")),
                                 )
-                            })
-                    {
+                            });
+                    let resources = extract_codex_memory_citation_resources(payload);
+                    if content.is_some() || !resources.is_empty() {
                         push_transcript_entry(
                             context,
                             TranscriptEntry {
                                 created_at: timestamp,
                                 role: "assistant".to_owned(),
-                                content,
+                                content: content.unwrap_or_default(),
                                 turn_id: read_codex_turn_id(payload)
                                     .or_else(|| context.current_turn_id.clone()),
                                 commands: None,
+                                resources: (!resources.is_empty()).then_some(resources),
                                 ..TranscriptEntry::default()
                             },
                         );
                     }
                 }
-                Some("agent_reasoning") => {
-                    if !include_messages {
-                        return;
-                    }
-                    if let Some(content) =
-                        normalize_value_string(payload.and_then(|payload| payload.get("text")))
-                    {
-                        push_transcript_entry(
-                            context,
-                            TranscriptEntry {
-                                created_at: timestamp,
-                                role: "planner".to_owned(),
-                                content,
-                                turn_id: None,
-                                commands: None,
-                                ..TranscriptEntry::default()
-                            },
-                        );
-                    }
-                }
+                // Legacy event text does not distinguish a display summary from private thought.
+                Some("agent_reasoning" | "agentReasoning") => {}
                 Some("entered_review_mode") => {
                     if !include_messages {
                         return;
@@ -1646,6 +1682,8 @@ fn dedupe_transcript_entries(entries: &[TranscriptEntry]) -> Vec<TranscriptEntry
                 "toolCalls": &entry.tool_calls,
                 "toolCallId": &entry.tool_call_id,
                 "fileChanges": &entry.file_changes,
+                "reasoning": &entry.reasoning,
+                "resources": &entry.resources,
                 "taskProgress": &entry.task_progress,
             }))
             .unwrap_or_default(),
@@ -1680,6 +1718,40 @@ fn push_transcript_entry(context: &mut SessionLineContext, entry: TranscriptEntr
         Some(entry.created_at.clone()),
     );
     context.transcript_entries.push(entry);
+}
+
+fn upsert_codex_reasoning_transcript_entry(
+    context: &mut SessionLineContext,
+    mut entry: TranscriptEntry,
+) {
+    let reasoning_id = entry
+        .reasoning
+        .as_ref()
+        .and_then(|reasoning| reasoning.first())
+        .map(|reasoning| reasoning.id.as_str());
+    let matching_index = reasoning_id.and_then(|reasoning_id| {
+        context.transcript_entries.iter().rposition(|existing| {
+            existing
+                .reasoning
+                .as_ref()
+                .is_some_and(|reasoning| reasoning.iter().any(|item| item.id == reasoning_id))
+        })
+    });
+    let Some(matching_index) = matching_index else {
+        push_transcript_entry(context, entry);
+        return;
+    };
+
+    context.latest_transcript_timestamp = resolve_more_recent_timestamp(
+        context.latest_transcript_timestamp.take(),
+        Some(entry.created_at.clone()),
+    );
+    let existing = &context.transcript_entries[matching_index];
+    entry.created_at.clone_from(&existing.created_at);
+    if entry.turn_id.is_none() {
+        entry.turn_id.clone_from(&existing.turn_id);
+    }
+    context.transcript_entries[matching_index] = entry;
 }
 
 fn read_codex_call_id(payload: Option<&Value>) -> Option<String> {
@@ -3288,6 +3360,246 @@ fn extract_message_text(value: Option<&Value>) -> Option<String> {
     }
 }
 
+fn extract_codex_reasoning_summary_fragments(value: &Value, depth: usize) -> Vec<String> {
+    if depth > 4 {
+        return Vec::new();
+    }
+    match value {
+        Value::String(value) => normalize_non_empty_string(Some(value.as_str()))
+            .into_iter()
+            .collect(),
+        Value::Array(values) => values
+            .iter()
+            .flat_map(|value| extract_codex_reasoning_summary_fragments(value, depth + 1))
+            .collect(),
+        Value::Object(record) => {
+            let summary_type = normalize_value_string(record.get("type"))
+                .unwrap_or_default()
+                .chars()
+                .filter(|character| *character != '_' && *character != '-')
+                .collect::<String>()
+                .to_ascii_lowercase();
+            if summary_type != "summarytext" {
+                return Vec::new();
+            }
+            normalize_value_string(record.get("text"))
+                .into_iter()
+                .collect()
+        }
+        _ => Vec::new(),
+    }
+}
+
+fn extract_codex_reasoning_record(
+    payload: Option<&Value>,
+    timestamp: &str,
+) -> Option<CodeEngineSessionReasoningRecord> {
+    let payload = payload?;
+    let summary_value = payload
+        .get("summary")
+        .or_else(|| payload.get("reasoningSummary"))
+        .or_else(|| payload.get("reasoning_summary"))?;
+    let summary = extract_codex_reasoning_summary_fragments(summary_value, 0).join("\n\n");
+    let records = vec![CodeEngineSessionReasoningRecord {
+        id: normalize_value_string(payload.get("id"))?,
+        summary,
+        title: None,
+        created_at: Some(timestamp.to_owned()),
+        started_at: None,
+        completed_at: None,
+        duration_ms: None,
+    }];
+    sanitize_codeengine_session_reasoning_records(records.as_slice())
+        .into_iter()
+        .next()
+}
+
+fn extract_codex_user_input_resources(
+    value: Option<&Value>,
+) -> Vec<CodeEngineSessionResourceRecord> {
+    let values = match value {
+        Some(Value::Array(values)) => values.as_slice(),
+        Some(value) => std::slice::from_ref(value),
+        None => return Vec::new(),
+    };
+    values
+        .iter()
+        .enumerate()
+        .filter_map(|(index, value)| {
+            let record = value.as_object()?;
+            let raw_type = normalize_value_string(record.get("type"))?;
+            let input_type = raw_type
+                .chars()
+                .filter(|character| *character != '_' && *character != '-')
+                .collect::<String>()
+                .to_ascii_lowercase();
+            let id = normalize_value_string(record.get("id"))
+                .unwrap_or_else(|| format!("codex-user-input-{}", index + 1));
+            let read_url = || {
+                ["url", "imageUrl", "image_url", "audioUrl", "audio_url"]
+                    .into_iter()
+                    .find_map(|key| normalize_value_string(record.get(key)))
+            };
+            let read_path = || normalize_path_string(record.get("path"));
+            match input_type.as_str() {
+                "image" | "inputimage" => {
+                    let source = read_url()?;
+                    Some(build_codex_media_resource(id, "image", source, false))
+                }
+                "localimage" => {
+                    let path = read_path()?;
+                    Some(build_codex_media_resource(id, "image", path, true))
+                }
+                "audio" | "inputaudio" => {
+                    let source = read_url()?;
+                    Some(build_codex_media_resource(id, "audio", source, false))
+                }
+                "localaudio" => {
+                    let path = read_path()?;
+                    Some(build_codex_media_resource(id, "audio", path, true))
+                }
+                "skill" => {
+                    let path = read_path()?;
+                    Some(CodeEngineSessionResourceRecord {
+                        id,
+                        kind: "skill".to_owned(),
+                        name: normalize_value_string(record.get("name")),
+                        path: Some(path),
+                        uri: None,
+                        media_source: None,
+                        mime_type: None,
+                        description: None,
+                        origin: None,
+                        citation: None,
+                    })
+                }
+                "mention" => {
+                    let target = normalize_value_string(record.get("path"))?;
+                    let is_uri = codex_mention_target_is_uri(target.as_str());
+                    Some(CodeEngineSessionResourceRecord {
+                        id,
+                        kind: "mention".to_owned(),
+                        name: normalize_value_string(record.get("name")),
+                        path: (!is_uri).then(|| target.replace('\\', "/")),
+                        uri: is_uri.then_some(target),
+                        media_source: None,
+                        mime_type: None,
+                        description: None,
+                        origin: None,
+                        citation: None,
+                    })
+                }
+                _ => None,
+            }
+        })
+        .collect()
+}
+
+fn codex_mention_target_is_uri(value: &str) -> bool {
+    let Some((scheme, _)) = value.split_once("://") else {
+        return false;
+    };
+    let mut characters = scheme.chars();
+    characters
+        .next()
+        .is_some_and(|character| character.is_ascii_alphabetic())
+        && characters.all(|character| {
+            character.is_ascii_alphanumeric() || matches!(character, '+' | '-' | '.')
+        })
+}
+
+fn build_codex_media_resource(
+    id: String,
+    kind: &str,
+    source: String,
+    is_local: bool,
+) -> CodeEngineSessionResourceRecord {
+    let is_opaque_source = codex_media_source_is_opaque(source.as_str());
+    let mime_type = source
+        .strip_prefix("data:")
+        .and_then(|value| value.split_once(';').map(|(mime_type, _)| mime_type))
+        .and_then(|mime_type| normalize_non_empty_string(Some(mime_type)));
+    CodeEngineSessionResourceRecord {
+        id,
+        kind: kind.to_owned(),
+        name: None,
+        path: is_local.then(|| source.clone()),
+        uri: (!is_local && !is_opaque_source).then(|| source.clone()),
+        media_source: (!is_local).then_some(source),
+        mime_type,
+        description: None,
+        origin: None,
+        citation: None,
+    }
+}
+
+fn codex_media_source_is_opaque(value: &str) -> bool {
+    let normalized = value.trim().to_ascii_lowercase();
+    normalized.starts_with("data:") || normalized.starts_with("blob:")
+}
+
+fn extract_codex_memory_citation_resources(
+    payload: Option<&Value>,
+) -> Vec<CodeEngineSessionResourceRecord> {
+    let Some(citation) = payload
+        .and_then(|payload| {
+            payload
+                .get("memoryCitation")
+                .or_else(|| payload.get("memory_citation"))
+        })
+        .and_then(Value::as_object)
+    else {
+        return Vec::new();
+    };
+    let thread_ids = citation
+        .get("threadIds")
+        .or_else(|| citation.get("thread_ids"))
+        .and_then(Value::as_array)
+        .into_iter()
+        .flatten()
+        .filter_map(|value| normalize_value_string(Some(value)))
+        .collect::<Vec<_>>();
+    citation
+        .get("entries")
+        .and_then(Value::as_array)
+        .into_iter()
+        .flatten()
+        .enumerate()
+        .filter_map(|(index, entry)| {
+            let path = normalize_path_string(entry.get("path"))?;
+            Some(CodeEngineSessionResourceRecord {
+                id: format!("codex-memory-citation-{}", index + 1),
+                kind: "citation".to_owned(),
+                name: None,
+                path: Some(path),
+                uri: None,
+                media_source: None,
+                mime_type: None,
+                description: None,
+                origin: None,
+                citation: Some(CodeEngineSessionResourceCitationRecord {
+                    line_start: read_codex_non_negative_integer(
+                        entry.get("lineStart").or_else(|| entry.get("line_start")),
+                    ),
+                    line_end: read_codex_non_negative_integer(
+                        entry.get("lineEnd").or_else(|| entry.get("line_end")),
+                    ),
+                    note: normalize_value_string(entry.get("note")),
+                    thread_ids: thread_ids.clone(),
+                }),
+            })
+        })
+        .collect()
+}
+
+fn read_codex_non_negative_integer(value: Option<&Value>) -> Option<u64> {
+    match value {
+        Some(Value::Number(value)) => value.as_u64(),
+        Some(Value::String(value)) => value.trim().parse::<u64>().ok(),
+        _ => None,
+    }
+}
+
 fn truncate_title(value: &str) -> String {
     const TITLE_LIMIT: usize = 120;
     let collapsed = value.split_whitespace().collect::<Vec<_>>().join(" ");
@@ -4496,8 +4808,19 @@ mod tests {
                     "payload": {
                         "type": "reasoning",
                         "id": "reasoning-v2",
-                        "summary": ["private reasoning summary"],
-                        "content": ["private reasoning body"]
+                        "summary": [
+                            { "type": "summary_text", "text": "Reviewed the provider contracts." },
+                            "Prepared the verification matrix."
+                        ],
+                        "content": ["PRIVATE_CODEX_REASONING_BODY_SENTINEL"]
+                    }
+                }),
+                serde_json::json!({
+                    "type": "event_msg",
+                    "timestamp": "2026-07-20T11:00:03.500Z",
+                    "payload": {
+                        "type": "agent_reasoning",
+                        "text": "PRIVATE_CODEX_LEGACY_REASONING_SENTINEL"
                     }
                 }),
                 serde_json::json!({
@@ -4552,17 +4875,35 @@ mod tests {
         let detail = parse_codex_session_detail(&file_path, &BTreeMap::new())
             .expect("parse Codex app-server v2 routing fixture")
             .expect("Codex app-server v2 routing detail");
-        assert_eq!(detail.messages.len(), 6);
+        assert_eq!(detail.messages.len(), 7);
         assert_eq!(detail.messages[0].role, "user");
-        assert_eq!(detail.messages[1].role, "planner");
-        assert_eq!(detail.messages[2].role, "assistant");
-        assert!(detail.messages[3..]
+        assert_eq!(detail.messages[1].role, "assistant");
+        assert_eq!(detail.messages[1].content, "");
+        let reasoning = detail.messages[1]
+            .reasoning
+            .as_ref()
+            .expect("Codex display reasoning summary");
+        assert_eq!(reasoning.len(), 1);
+        assert_eq!(reasoning[0].id, "reasoning-v2");
+        assert_eq!(
+            reasoning[0].summary,
+            "Reviewed the provider contracts.\n\nPrepared the verification matrix."
+        );
+        assert_eq!(detail.messages[2].role, "planner");
+        assert_eq!(detail.messages[3].role, "assistant");
+        assert!(detail.messages[4..]
             .iter()
             .all(|message| message.role == "system"));
         assert!(detail
             .messages
             .iter()
-            .all(|message| !message.content.is_empty()));
+            .all(|message| {
+                !message.content.is_empty()
+                    || message
+                        .reasoning
+                        .as_ref()
+                        .is_some_and(|reasoning| !reasoning.is_empty())
+            }));
         let visible_content = detail
             .messages
             .iter()
@@ -4570,8 +4911,134 @@ mod tests {
             .collect::<Vec<_>>()
             .join("\n");
         assert!(!visible_content.contains("private hook context"));
-        assert!(!visible_content.contains("private reasoning"));
+        assert!(!visible_content.contains("PRIVATE_CODEX_REASONING_BODY_SENTINEL"));
+        assert!(!visible_content.contains("PRIVATE_CODEX_LEGACY_REASONING_SENTINEL"));
         assert!(!visible_content.contains("futurePrivateItem"));
+        let serialized = serde_json::to_string(&detail).expect("serialize Codex session detail");
+        assert!(!serialized.contains("PRIVATE_CODEX_REASONING_BODY_SENTINEL"));
+        assert!(!serialized.contains("PRIVATE_CODEX_LEGACY_REASONING_SENTINEL"));
+
+        let _ = fs::remove_file(file_path);
+    }
+
+    #[test]
+    fn codex_history_preserves_user_inputs_and_memory_citations_as_resources() {
+        let raw_session_id = "019d54b7-f3da-79b1-bb78-10770953da39";
+        let file_path = write_test_codex_session_file(
+            "codex-history-message-resources",
+            &[
+                serde_json::json!({
+                    "type": "session_meta",
+                    "timestamp": "2026-07-20T12:00:00.000Z",
+                    "payload": {
+                        "id": raw_session_id,
+                        "cwd": "E:/workspace/birdcoder",
+                        "model": "gpt-5.4"
+                    }
+                }),
+                serde_json::json!({
+                    "type": "response_item",
+                    "timestamp": "2026-07-20T12:00:01.000Z",
+                    "payload": {
+                        "type": "userMessage",
+                        "id": "user-resources",
+                        "content": [
+                            { "type": "image", "url": "data:image/png;base64,aW1hZ2U=" },
+                            { "type": "localImage", "path": "assets/local.png" },
+                            { "type": "audio", "url": "https://example.com/audio.mp3" },
+                            { "type": "local_audio", "path": "audio/local.wav" },
+                            { "type": "skill", "name": "provider-audit", "path": ".codex/skills/provider-audit/SKILL.md" },
+                            { "type": "mention", "name": "docs", "path": "app://docs" },
+                            { "type": "mention", "name": "local provider", "path": "src/provider.rs" }
+                        ]
+                    }
+                }),
+                serde_json::json!({
+                    "type": "response_item",
+                    "timestamp": "2026-07-20T12:00:02.000Z",
+                    "payload": {
+                        "type": "agentMessage",
+                        "id": "assistant-citation-camel",
+                        "text": "The adapter follows the cited contract.",
+                        "memoryCitation": {
+                            "entries": [{
+                                "path": "specs/chat-transcript-message.spec.md",
+                                "lineStart": 141,
+                                "lineEnd": 166,
+                                "note": "Provider message resource contract"
+                            }],
+                            "threadIds": ["thread-source-a", "thread-source-b"]
+                        }
+                    }
+                }),
+                serde_json::json!({
+                    "type": "response_item",
+                    "timestamp": "2026-07-20T12:00:03.000Z",
+                    "payload": {
+                        "type": "agentMessage",
+                        "id": "assistant-citation-snake",
+                        "text": "Snake-case replay remains compatible.",
+                        "memory_citation": {
+                            "entries": [{
+                                "path": "src/provider.rs",
+                                "line_start": "10",
+                                "line_end": 12,
+                                "note": "Compatibility boundary"
+                            }],
+                            "thread_ids": ["thread-source-snake"]
+                        }
+                    }
+                }),
+            ],
+        );
+
+        let detail = parse_codex_session_detail(&file_path, &BTreeMap::new())
+            .expect("parse Codex message-resource fixture")
+            .expect("Codex message-resource detail");
+        let user = detail
+            .messages
+            .iter()
+            .find(|message| message.role == "user")
+            .expect("attachment-only user message");
+        assert!(user.content.is_empty());
+        let user_resources = user.resources.as_ref().expect("Codex user resources");
+        assert_eq!(user_resources.len(), 7);
+        assert!(user_resources[0].uri.is_none());
+        assert_eq!(
+            user_resources[0].media_source.as_deref(),
+            Some("data:image/png;base64,aW1hZ2U=")
+        );
+        assert_eq!(
+            user_resources
+                .iter()
+                .map(|resource| resource.kind.as_str())
+                .collect::<Vec<_>>(),
+            vec!["image", "image", "audio", "audio", "skill", "mention", "mention"]
+        );
+        assert_eq!(user_resources[1].path.as_deref(), Some("assets/local.png"));
+        assert_eq!(user_resources[4].name.as_deref(), Some("provider-audit"));
+        assert_eq!(user_resources[5].uri.as_deref(), Some("app://docs"));
+        assert_eq!(user_resources[6].path.as_deref(), Some("src/provider.rs"));
+        assert!(user_resources[6].uri.is_none());
+
+        let citation_messages = detail
+            .messages
+            .iter()
+            .filter(|message| message.role == "assistant")
+            .collect::<Vec<_>>();
+        assert_eq!(citation_messages.len(), 2);
+        let camel = citation_messages[0].resources.as_ref().unwrap()[0]
+            .citation
+            .as_ref()
+            .expect("camel citation");
+        assert_eq!((camel.line_start, camel.line_end), (Some(141), Some(166)));
+        assert_eq!(camel.thread_ids, vec!["thread-source-a", "thread-source-b"]);
+        let snake = citation_messages[1].resources.as_ref().unwrap()[0]
+            .citation
+            .as_ref()
+            .expect("snake citation");
+        assert_eq!((snake.line_start, snake.line_end), (Some(10), Some(12)));
+        assert_eq!(snake.thread_ids, vec!["thread-source-snake"]);
 
         let _ = fs::remove_file(file_path);
     }

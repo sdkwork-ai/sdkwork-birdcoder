@@ -249,38 +249,38 @@ const turnMessages: ChatMessageViewSource[] = [
     createdAt: '2026-06-22T00:00:05.000Z',
   },
 ];
-const finalTurnMessage = turnMessages[2]!;
-const turnActivitySummary = resolveChatTurnActivitySummary(turnMessages, finalTurnMessage);
+const projectedTurnMessages = projectChatTranscriptToolActivity(turnMessages);
+assert.deepEqual(
+  projectedTurnMessages.map((message) => message.id),
+  ['turn-user', 'turn-tool', 'turn-assistant'],
+  'authored and activity messages must preserve their transcript order.',
+);
+const activityTurnMessage = projectedTurnMessages[1]!;
+const finalTurnMessage = projectedTurnMessages[2]!;
+const turnActivitySummary = resolveChatTurnActivitySummary(
+  projectedTurnMessages,
+  activityTurnMessage,
+);
 assert.deepEqual(
   turnActivitySummary,
   {
     commands: [{ command: 'pnpm typecheck', status: 'success' }],
     fileChanges: [{ path: 'src/App.tsx', additions: 2, deletions: 1 }],
   },
-  'the final assistant reply must collect tool activity from its completed turn for one end-of-turn summary card.',
+  'the activity slot must own its commands and file changes.',
 );
 assert.equal(
-  resolveChatTurnActivitySummary(turnMessages, turnMessages[1]!),
+  resolveChatTurnActivitySummary(projectedTurnMessages, finalTurnMessage),
   null,
-  'tool messages must not render a duplicate turn-end summary before the final assistant reply.',
+  'the final assistant reply must not duplicate prior activity.',
 );
-const completedTurnView = resolveChatMessageView(finalTurnMessage, {
+const completedTurnView = resolveChatMessageView(activityTurnMessage, {
   activitySummary: turnActivitySummary,
 });
 assert.equal(
   completedTurnView.kind,
-  'assistant.activity',
-  'a final reply with collected tool activity must render through the activity summary surface.',
-);
-assert.deepEqual(
-  completedTurnView.blocks.find((block) => block.type === 'activity'),
-  {
-    type: 'activity',
-    messageId: 'turn-assistant',
-    commands: [{ command: 'pnpm typecheck', status: 'success' }],
-    fileChanges: [{ path: 'src/App.tsx', additions: 2, deletions: 1 }],
-  },
-  'the turn-end activity card must expose both commands and file changes from the completed turn.',
+  'tool.result',
+  'a tool-owned activity slot must remain a tool result instead of becoming an authored reply.',
 );
 
 const protocolOnlyTurnMessages: ChatMessageViewSource[] = [
@@ -318,9 +318,17 @@ const protocolOnlyTurnMessages: ChatMessageViewSource[] = [
     createdAt: '2026-06-22T00:00:08.000Z',
   },
 ];
-const protocolActivitySummary = resolveChatTurnActivitySummary(
+const projectedProtocolOnlyTurnMessages = projectChatTranscriptToolActivity(
   protocolOnlyTurnMessages,
-  protocolOnlyTurnMessages[2]!,
+);
+assert.deepEqual(
+  projectedProtocolOnlyTurnMessages.map((message) => message.id),
+  ['protocol-tool-call', 'protocol-final-reply'],
+  'a tool result must update and collapse into the first lifecycle slot.',
+);
+const protocolActivitySummary = resolveChatTurnActivitySummary(
+  projectedProtocolOnlyTurnMessages,
+  projectedProtocolOnlyTurnMessages[0]!,
 );
 assert.equal(protocolActivitySummary?.commands.length, 1);
 assert.deepEqual(protocolActivitySummary?.commands[0], {
@@ -331,6 +339,14 @@ assert.deepEqual(protocolActivitySummary?.commands[0], {
   toolName: 'bash',
   toolCallId: 'command-call-1',
 });
+assert.equal(
+  resolveChatTurnActivitySummary(
+    projectedProtocolOnlyTurnMessages,
+    projectedProtocolOnlyTurnMessages[1]!,
+  ),
+  null,
+  'the final protocol reply must not receive a duplicate command summary.',
+);
 
 const parsedOnlyView = resolveChatMessageView(parsedSummaryMessage);
 assert.equal(parsedOnlyView.blocks.some((block) => block.type === 'activity'), true);
@@ -686,6 +702,44 @@ assert.deepEqual(
   'Claude local command output must remain visible as provider-neutral transcript information.',
 );
 
+for (const syntheticUserMessage of [
+  {
+    type: 'user',
+    isSynthetic: true,
+    message: { role: 'user', content: 'Synthetic SDK bridge prompt.' },
+  },
+  {
+    type: 'user',
+    is_synthetic: 'true',
+    message: { role: 'user', content: 'Synthetic snake-case bridge prompt.' },
+  },
+  {
+    role: 'user',
+    isMeta: true,
+    content: 'Synthetic native-history prompt.',
+  },
+  {
+    role: 'user',
+    is_meta: true,
+    content: 'Synthetic snake-case native-history prompt.',
+  },
+]) {
+  assert.equal(
+    extractBirdCoderTextContent(syntheticUserMessage),
+    undefined,
+    'Claude synthetic user envelopes must not become authored user markdown.',
+  );
+}
+assert.equal(
+  extractBirdCoderTextContent({
+    type: 'user',
+    shouldQuery: false,
+    message: { role: 'user', content: 'Authored queued transcript note.' },
+  }),
+  'Authored queued transcript note.',
+  'Claude shouldQuery:false controls model invocation, not transcript visibility.',
+);
+
 const openCodeAbortedAssistant = {
   role: 'assistant',
   content: 'Partial provider output that must not be treated as final.',
@@ -827,6 +881,145 @@ assert.equal(
   'turn failures must retain a dedicated failure notice tone and their safe detail text.',
 );
 
+const claudeSyntheticUserProjection = mergeBirdCoderProjectionMessages({
+  codingSessionId: 'session-claude-synthetic-user',
+  existingMessages: [],
+  idPrefix: 'authoritative',
+  events: [
+    {
+      id: 'event-claude-authored-queued-user',
+      codingSessionId: 'session-claude-synthetic-user',
+      turnId: 'turn-claude-synthetic-user',
+      kind: 'message.completed',
+      sequence: '1',
+      payload: {
+        role: 'user',
+        content: {
+          type: 'user',
+          shouldQuery: false,
+          message: { role: 'user', content: 'Inspect the queued provider result.' },
+        },
+      },
+      createdAt: '2026-06-22T00:00:09.100Z',
+    },
+    {
+      id: 'event-claude-synthetic-user-text',
+      codingSessionId: 'session-claude-synthetic-user',
+      turnId: 'turn-claude-synthetic-user',
+      kind: 'message.completed',
+      sequence: '2',
+      payload: {
+        role: 'user',
+        content: {
+          type: 'user',
+          is_synthetic: true,
+          message: { role: 'user', content: 'Internal bridge context must stay hidden.' },
+        },
+      },
+      createdAt: '2026-06-22T00:00:09.200Z',
+    },
+    {
+      id: 'event-claude-synthetic-tool-use',
+      codingSessionId: 'session-claude-synthetic-user',
+      turnId: 'turn-claude-synthetic-user',
+      kind: 'message.completed',
+      sequence: '3',
+      payload: {
+        role: 'assistant',
+        content: [{
+          type: 'tool_use',
+          id: 'toolu-synthetic-result-1',
+          name: 'Bash',
+          input: { command: 'pnpm typecheck' },
+        }],
+      },
+      createdAt: '2026-06-22T00:00:09.300Z',
+    },
+    {
+      id: 'event-claude-synthetic-tool-result',
+      codingSessionId: 'session-claude-synthetic-user',
+      turnId: 'turn-claude-synthetic-user',
+      kind: 'message.completed',
+      sequence: '4',
+      payload: {
+        role: 'user',
+        content: {
+          type: 'user',
+          isSynthetic: true,
+          shouldQuery: false,
+          tool_use_result: {
+            stdout: 'Structured SDK output.',
+            interrupted: false,
+          },
+          message: {
+            role: 'user',
+            content: [{
+              type: 'tool_result',
+              tool_use_id: 'toolu-synthetic-result-1',
+              content: 'Model-facing result text must not become a user bubble.',
+            }],
+          },
+        },
+      },
+      createdAt: '2026-06-22T00:00:09.400Z',
+    },
+    {
+      id: 'event-claude-synthetic-final',
+      codingSessionId: 'session-claude-synthetic-user',
+      turnId: 'turn-claude-synthetic-user',
+      kind: 'message.completed',
+      sequence: '5',
+      payload: { role: 'assistant', content: 'Queued provider result inspected.' },
+      createdAt: '2026-06-22T00:00:09.500Z',
+    },
+  ],
+});
+assert.equal(
+  claudeSyntheticUserProjection.some((message) => (
+    message.role === 'user' && message.content.includes('Internal bridge context')
+  )),
+  false,
+  'Synthetic Claude user text must be removed before stable message projection.',
+);
+const claudeSyntheticToolResult = claudeSyntheticUserProjection.find(
+  (message) => message.role === 'tool',
+);
+assert.ok(
+  claudeSyntheticToolResult,
+  'A synthetic Claude user wrapper containing tool_result must normalize to tool activity.',
+);
+assert.equal(claudeSyntheticToolResult.content, '');
+const claudeSyntheticUserDisplay = projectChatTranscriptToolActivity(
+  claudeSyntheticUserProjection,
+  { engineId: 'claude-code' },
+);
+assert.deepEqual(
+  claudeSyntheticUserDisplay.map((message) => [message.role, message.content]),
+  [
+    ['user', 'Inspect the queued provider result.'],
+    ['assistant', ''],
+    ['assistant', 'Queued provider result inspected.'],
+  ],
+  'shouldQuery:false authored text remains visible around its ordered activity slot.',
+);
+const claudeSyntheticResultCalls = projectChatMessageToolCalls(
+  claudeSyntheticUserDisplay[1]?.tool_calls,
+  { engineId: 'claude-code' },
+);
+assert.equal(claudeSyntheticResultCalls.length, 1);
+assert.equal(claudeSyntheticResultCalls[0]?.id, 'toolu-synthetic-result-1');
+assert.equal(claudeSyntheticResultCalls[0]?.status, 'success');
+assert.match(claudeSyntheticResultCalls[0]?.output ?? '', /Structured SDK output\./u);
+assert.doesNotMatch(
+  claudeSyntheticResultCalls[0]?.output ?? '',
+  /Model-facing result text/u,
+  'Synthetic model-facing result text must not replace the structured SDK output.',
+);
+assert.ok(
+  (claudeSyntheticResultCalls[0]?.resultBlocks?.length ?? 0) > 0,
+  'Structured SDK tool output must enter the provider-neutral semantic result boundary.',
+);
+
 const claudeToolLifecycleProjection = mergeBirdCoderProjectionMessages({
   codingSessionId: 'session-claude-tools',
   existingMessages: [],
@@ -893,13 +1086,14 @@ const claudeDisplayMessages = projectChatTranscriptToolActivity(
 );
 assert.equal(
   claudeDisplayMessages.length,
-  2,
-  'provider tool protocol rows must collapse into the final turn reply instead of rendering as raw messages.',
+  3,
+  'provider tool protocol rows must collapse into one ordered activity slot between authored messages.',
 );
-const claudeFinalDisplayMessage = claudeDisplayMessages[1]!;
+const claudeActivityDisplayMessage = claudeDisplayMessages[1]!;
+const claudeFinalDisplayMessage = claudeDisplayMessages[2]!;
 assert.equal(claudeFinalDisplayMessage.content, 'The requested file could not be read.');
 const claudeDisplayToolCalls = projectChatMessageToolCalls(
-  claudeFinalDisplayMessage.tool_calls,
+  claudeActivityDisplayMessage.tool_calls,
   { engineId: 'claude-code' },
 );
 assert.equal(claudeDisplayToolCalls.length, 1);
@@ -979,7 +1173,7 @@ const claudeTaskLifecycleFinal = claudeTaskLifecycleDisplay.find(
   (message) => message.content === 'Provider audit completed.',
 );
 const claudeTaskLifecycleCalls = projectChatMessageToolCalls(
-  claudeTaskLifecycleFinal?.tool_calls,
+  claudeTaskLifecycleDisplay[0]?.tool_calls,
   { engineId: 'claude-code' },
 );
 assert.equal(
@@ -987,7 +1181,7 @@ assert.equal(
   1,
   'Claude task_started and task_updated snapshots must correlate by task_id into one row.',
 );
-assert.equal(claudeTaskLifecycleCalls[0]?.id, 'claude-task-lifecycle-1');
+assert.equal(claudeTaskLifecycleCalls[0]?.id, 'toolu-task-lifecycle-1');
 assert.equal(claudeTaskLifecycleCalls[0]?.status, 'success');
 assert.equal(claudeTaskLifecycleCalls[0]?.title, 'Provider message audit completed');
 
@@ -1234,7 +1428,11 @@ const claudeProgressDisplayMessages = projectChatTranscriptToolActivity(
   claudeProgressLifecycleMessages,
   { engineId: 'claude-code' },
 );
-assert.equal(claudeProgressDisplayMessages.length, 1);
+assert.equal(
+  claudeProgressDisplayMessages.length,
+  2,
+  'Claude progress must remain before its authored completion reply.',
+);
 const claudeProgressCalls = projectChatMessageToolCalls(
   claudeProgressDisplayMessages[0]?.tool_calls,
   { engineId: 'claude-code' },
@@ -1364,6 +1562,86 @@ assert.deepEqual(
   'Gemini native responses must correlate by function name without exposing response wrapper JSON.',
 );
 
+const geminiNoticeLifecycleDisplay = projectChatTranscriptToolActivity([
+  {
+    id: 'gemini-notice-request',
+    codingSessionId: 'session-gemini-notice-lifecycle',
+    turnId: 'turn-gemini-notice-lifecycle',
+    role: 'assistant',
+    content: '',
+    createdAt: '2026-06-22T00:00:22.100Z',
+    tool_calls: [{
+      type: 'tool_request',
+      requestId: 'call-gemini-notice-lifecycle',
+      name: 'topic_update',
+      display: {
+        format: 'notice',
+        name: 'Provider alignment',
+        description: 'Alignment started',
+      },
+    }],
+  },
+  {
+    id: 'gemini-notice-response',
+    codingSessionId: 'session-gemini-notice-lifecycle',
+    turnId: 'turn-gemini-notice-lifecycle',
+    role: 'tool',
+    content: '',
+    createdAt: '2026-06-22T00:00:22.200Z',
+    tool_calls: [{
+      type: 'tool_response',
+      requestId: 'call-gemini-notice-lifecycle',
+      name: 'topic_update',
+      display: {
+        format: 'notice',
+        name: 'Provider alignment',
+        description: 'Alignment completed',
+        resultSummary: 'Ready',
+        result: { type: 'text', text: 'Internal result must not become notice body.' },
+      },
+    }],
+  },
+  {
+    id: 'gemini-notice-final',
+    codingSessionId: 'session-gemini-notice-lifecycle',
+    turnId: 'turn-gemini-notice-lifecycle',
+    role: 'assistant',
+    content: 'Provider alignment is complete.',
+    createdAt: '2026-06-22T00:00:22.300Z',
+  },
+], { engineId: 'gemini' });
+assert.equal(geminiNoticeLifecycleDisplay.length, 2);
+const geminiNoticeLifecycleCalls = projectChatMessageToolCalls(
+  geminiNoticeLifecycleDisplay[0]?.tool_calls,
+  { engineId: 'gemini' },
+);
+assert.deepEqual(geminiNoticeLifecycleCalls, [{
+  arguments: '',
+  id: 'call-gemini-notice-lifecycle',
+  kind: 'other',
+  name: 'Provider alignment',
+  presentation: 'notice',
+  status: 'success',
+  title: 'Alignment completed',
+  type: 'tool_request',
+}]);
+const geminiNoticeLifecycleView = resolveChatMessageView(
+  geminiNoticeLifecycleDisplay[0]!,
+  { engineId: 'gemini' },
+);
+assert.deepEqual(
+  geminiNoticeLifecycleView.blocks.map((block) => block.type),
+  ['notice'],
+  'Gemini notice request/response records must merge in their ordered activity slot.',
+);
+assert.deepEqual(geminiNoticeLifecycleView.blocks[0], {
+  type: 'notice',
+  id: 'call-gemini-notice-lifecycle',
+  noticeKind: 'info',
+  title: 'Provider alignment',
+  detail: 'Alignment completed',
+});
+
 const lateProgressMessages: ChatMessageViewSource[] = [
   {
     id: 'late-progress-request', codingSessionId: 'session-late-progress', turnId: 'turn-late-progress',
@@ -1465,7 +1743,7 @@ const repeatedCommandsDisplay = projectChatTranscriptToolActivity([
 assert.equal(repeatedCommandsDisplay[0]?.commands?.length, 2);
 const repeatedCommandsView = resolveChatMessageView(repeatedCommandsDisplay[0]!);
 assert.equal(
-  repeatedCommandsView.blocks.find((block) => block.type === 'activity')?.commands.length,
+  repeatedCommandsView.blocks.find((block) => block.type === 'commands')?.items.length,
   2,
   'The message view must preserve repeated command occurrences without provider call ids.',
 );
@@ -1615,7 +1893,11 @@ for (const providerCase of providerToolLifecycleCases) {
   const providerDisplayMessages = projectChatTranscriptToolActivity(providerMessages, {
     engineId: providerCase.engineId,
   });
-  assert.equal(providerDisplayMessages.length, 1);
+  assert.equal(
+    providerDisplayMessages.length,
+    2,
+    `${providerCase.engineId} activity must remain before its authored reply.`,
+  );
   const providerCalls = projectChatMessageToolCalls(
     providerDisplayMessages[0]?.tool_calls,
     { engineId: providerCase.engineId },
@@ -1733,8 +2015,8 @@ for (const providerCase of providerNeutralReadFileCases) {
 
   assert.equal(
     displayMessages.length,
-    1,
-    `${providerCase.engineId} must fold a read lifecycle into one display message.`,
+    2,
+    `${providerCase.engineId} must fold a read lifecycle into one ordered activity slot plus its reply.`,
   );
   const view = resolveChatMessageView(displayMessages[0]!, {
     engineId: providerCase.engineId,
@@ -1755,12 +2037,12 @@ for (const providerCase of providerNeutralReadFileCases) {
       visibleMarkdown,
     },
     {
-      blockTypes: ['markdown', 'tool-calls'],
+      blockTypes: ['tool-calls'],
       kind: 'file',
       resultTypes: ['text'],
       status: 'success',
       target: 'src/App.tsx',
-      visibleMarkdown: 'Read complete.',
+      visibleMarkdown: '',
     },
     `${providerCase.engineId} must resolve to the provider-neutral read-file UI signature.`,
   );
@@ -2193,6 +2475,285 @@ assert.deepEqual(
   ).map((call) => call.id),
   ['toolu-delta-a', 'toolu-delta-b'],
   'Streaming deltas must accumulate parallel tools in first-seen order.',
+);
+
+const orderedBoundaryMessages: ChatMessageViewSource[] = [
+  {
+    id: 'ordered-preface', codingSessionId: 'session-ordered-slots', turnId: 'turn-ordered-slots',
+    role: 'assistant', content: 'I will run the verification.',
+    createdAt: '2026-06-22T00:00:45.000Z',
+  },
+  {
+    id: 'ordered-command', codingSessionId: 'session-ordered-slots', turnId: 'turn-ordered-slots',
+    role: 'assistant', content: '',
+    tool_calls: [{ type: 'tool_use', id: 'ordered-call', name: 'Bash', input: { command: 'pnpm test' } }],
+    createdAt: '2026-06-22T00:00:46.000Z',
+  },
+  {
+    id: 'ordered-result', codingSessionId: 'session-ordered-slots', turnId: 'turn-ordered-slots',
+    role: 'tool', content: 'passed',
+    tool_calls: [{ type: 'tool_result', tool_use_id: 'ordered-call', content: 'passed' }],
+    createdAt: '2026-06-22T00:00:47.000Z',
+  },
+  {
+    id: 'ordered-reply', codingSessionId: 'session-ordered-slots', turnId: 'turn-ordered-slots',
+    role: 'assistant', content: 'Verification passed.',
+    createdAt: '2026-06-22T00:00:48.000Z',
+  },
+];
+const orderedBoundaryProjection = projectChatTranscriptToolActivity(
+  orderedBoundaryMessages,
+  { engineId: 'claude-code' },
+);
+assert.deepEqual(
+  orderedBoundaryProjection.map((message) => message.id),
+  ['ordered-preface', 'ordered-command', 'ordered-reply'],
+  'text -> tool -> text order must survive lifecycle folding.',
+);
+assert.equal(
+  projectChatTranscriptToolActivity(orderedBoundaryProjection, { engineId: 'claude-code' }),
+  orderedBoundaryProjection,
+  'an already projected transcript must retain its array identity.',
+);
+assert.equal(
+  resolveChatTurnActivitySummary(orderedBoundaryProjection, orderedBoundaryProjection[1]!, {
+    engineId: 'claude-code',
+  })?.commands[0]?.output,
+  'passed',
+);
+assert.equal(
+  resolveChatTurnActivitySummary(orderedBoundaryProjection, orderedBoundaryProjection[2]!, {
+    engineId: 'claude-code',
+  }),
+  null,
+  'the authored completion reply must not duplicate its preceding activity summary.',
+);
+
+const toolBeforeTextProjection = projectChatTranscriptToolActivity([
+  {
+    id: 'before-text-request', codingSessionId: 'session-before-text', turnId: 'turn-before-text',
+    role: 'assistant', content: '',
+    tool_calls: [{ type: 'tool_use', id: 'before-text-call', name: 'Read', input: { path: 'README.md' } }],
+    createdAt: '2026-06-22T00:00:49.000Z',
+  },
+  {
+    id: 'before-text-result', codingSessionId: 'session-before-text', turnId: 'turn-before-text',
+    role: 'tool', content: 'BirdCoder',
+    tool_calls: [{ type: 'tool_result', tool_use_id: 'before-text-call', content: 'BirdCoder' }],
+    createdAt: '2026-06-22T00:00:50.000Z',
+  },
+  {
+    id: 'before-text-reply', codingSessionId: 'session-before-text', turnId: 'turn-before-text',
+    role: 'assistant', content: 'The README is available.',
+    createdAt: '2026-06-22T00:00:51.000Z',
+  },
+], { engineId: 'claude-code' });
+assert.deepEqual(
+  toolBeforeTextProjection.map((message) => message.id),
+  ['before-text-request', 'before-text-reply'],
+  'tool activity before the first authored answer must remain first.',
+);
+
+const embeddedToolProjection = projectChatTranscriptToolActivity([
+  {
+    id: 'embedded-authored', codingSessionId: 'session-embedded', turnId: 'turn-embedded',
+    role: 'assistant', content: 'I will inspect the file.',
+    tool_calls: [{ type: 'tool_use', id: 'embedded-call', name: 'Read', input: { path: 'src/App.tsx' } }],
+    createdAt: '2026-06-22T00:00:52.000Z',
+  },
+  {
+    id: 'embedded-result', codingSessionId: 'session-embedded', turnId: 'turn-embedded',
+    role: 'tool', content: 'export function App() {}',
+    tool_calls: [{ type: 'tool_result', tool_use_id: 'embedded-call', content: 'export function App() {}' }],
+    createdAt: '2026-06-22T00:00:53.000Z',
+  },
+  {
+    id: 'embedded-reply', codingSessionId: 'session-embedded', turnId: 'turn-embedded',
+    role: 'assistant', content: 'The file is valid.',
+    createdAt: '2026-06-22T00:00:54.000Z',
+  },
+], { engineId: 'claude-code' });
+assert.deepEqual(
+  embeddedToolProjection.map((message) => message.id),
+  ['embedded-authored', 'embedded-reply'],
+  'authored Markdown with an embedded tool must stay in place while its result folds into it.',
+);
+assert.equal(
+  projectChatMessageToolCalls(
+    embeddedToolProjection[0]?.tool_calls,
+    { engineId: 'claude-code' },
+  )[0]?.output,
+  'export function App() {}',
+);
+
+const lateBoundaryProjection = projectChatTranscriptToolActivity([
+  {
+    id: 'late-boundary-request', codingSessionId: 'session-late-boundary', turnId: 'turn-late-boundary',
+    role: 'assistant', content: '',
+    tool_calls: [{ type: 'tool_use', id: 'late-boundary-call', name: 'Bash', input: { command: 'pnpm lint' } }],
+    createdAt: '2026-06-22T00:00:55.000Z',
+  },
+  {
+    id: 'late-boundary-authored', codingSessionId: 'session-late-boundary', turnId: 'turn-late-boundary',
+    role: 'assistant', content: 'The command is still settling.',
+    createdAt: '2026-06-22T00:00:56.000Z',
+  },
+  {
+    id: 'late-boundary-result', codingSessionId: 'session-late-boundary', turnId: 'turn-late-boundary',
+    role: 'tool', content: 'lint passed',
+    tool_calls: [{ type: 'tool_result', tool_use_id: 'late-boundary-call', content: 'lint passed' }],
+    createdAt: '2026-06-22T00:00:57.000Z',
+  },
+  {
+    id: 'late-boundary-reply', codingSessionId: 'session-late-boundary', turnId: 'turn-late-boundary',
+    role: 'assistant', content: 'Lint passed.',
+    createdAt: '2026-06-22T00:00:58.000Z',
+  },
+], { engineId: 'claude-code' });
+assert.deepEqual(
+  lateBoundaryProjection.map((message) => message.id),
+  ['late-boundary-request', 'late-boundary-authored', 'late-boundary-reply'],
+  'a late result must update the first call slot without crossing an authored boundary.',
+);
+assert.equal(
+  projectChatMessageToolCalls(
+    lateBoundaryProjection[0]?.tool_calls,
+    { engineId: 'claude-code' },
+  )[0]?.output,
+  'lint passed',
+);
+
+const parallelActivityProjection = projectChatTranscriptToolActivity([
+  {
+    id: 'parallel-slot-a', codingSessionId: 'session-parallel-slots', turnId: 'turn-parallel-slots',
+    role: 'assistant', content: '',
+    tool_calls: [{ id: 'parallel-a', name: 'read_file', arguments: { path: 'a.ts' } }],
+    createdAt: '2026-06-22T00:00:59.000Z',
+  },
+  {
+    id: 'parallel-slot-b', codingSessionId: 'session-parallel-slots', turnId: 'turn-parallel-slots',
+    role: 'assistant', content: '',
+    tool_calls: [{ id: 'parallel-b', name: 'read_file', arguments: { path: 'b.ts' } }],
+    createdAt: '2026-06-22T00:01:00.000Z',
+  },
+  {
+    id: 'parallel-slot-reply', codingSessionId: 'session-parallel-slots', turnId: 'turn-parallel-slots',
+    role: 'assistant', content: 'Both files were queued.',
+    createdAt: '2026-06-22T00:01:01.000Z',
+  },
+]);
+assert.deepEqual(
+  projectChatMessageToolCalls(parallelActivityProjection[0]?.tool_calls).map((call) => call.id),
+  ['parallel-a', 'parallel-b'],
+  'consecutive parallel activity rows must coalesce in first-seen order.',
+);
+
+const singleMessageNoticeProjection = projectChatTranscriptToolActivity([{
+  id: 'single-notice', codingSessionId: 'session-single-notice', turnId: 'turn-single-notice',
+  role: 'assistant', content: '',
+  tool_calls: [
+    {
+      type: 'tool_request', requestId: 'single-notice-call', name: 'topic_update',
+      display: { format: 'notice', name: 'Index', description: 'Indexing' },
+    },
+    {
+      type: 'tool_response', requestId: 'single-notice-call', name: 'topic_update',
+      display: { format: 'notice', name: 'Index', description: 'Indexed', resultSummary: 'Ready' },
+    },
+  ],
+  createdAt: '2026-06-22T00:01:02.000Z',
+}], { engineId: 'gemini' });
+const singleMessageNoticeCalls = projectChatMessageToolCalls(
+  singleMessageNoticeProjection[0]?.tool_calls,
+  { engineId: 'gemini' },
+);
+assert.equal(singleMessageNoticeCalls.length, 1);
+assert.equal(singleMessageNoticeCalls[0]?.status, 'success');
+assert.equal(
+  projectChatTranscriptToolActivity(singleMessageNoticeProjection, { engineId: 'gemini' }),
+  singleMessageNoticeProjection,
+  'a normalized single-message request/response notice must be idempotent.',
+);
+
+const claudeTaskAliasProjection = projectChatTranscriptToolActivity([{
+  id: 'claude-task-alias', codingSessionId: 'session-task-alias', turnId: 'turn-task-alias',
+  role: 'assistant', content: '',
+  tool_calls: [
+    {
+      type: 'tool_use', id: 'toolu-task-alias', name: 'Task',
+      input: { taskId: 'task-alias-1', prompt: 'Audit the transcript' },
+    },
+    {
+      type: 'system', subtype: 'task_started', task_id: 'task-alias-1',
+      tool_use_id: 'toolu-task-alias', description: 'Audit the transcript', task_type: 'local_agent',
+    },
+    {
+      type: 'system', subtype: 'task_updated', task_id: 'task-alias-1',
+      patch: { status: 'completed', description: 'Transcript audited' },
+    },
+  ],
+  createdAt: '2026-06-22T00:01:03.000Z',
+}], { engineId: 'claude-code' });
+const claudeTaskAliasCalls = projectChatMessageToolCalls(
+  claudeTaskAliasProjection[0]?.tool_calls,
+  { engineId: 'claude-code' },
+);
+assert.equal(claudeTaskAliasCalls.length, 1);
+assert.equal(claudeTaskAliasCalls[0]?.id, 'toolu-task-alias');
+assert.equal(claudeTaskAliasCalls[0]?.status, 'success');
+
+const legacyNoTurnProjection = projectChatTranscriptToolActivity([
+  {
+    id: 'legacy-request-1', codingSessionId: 'session-legacy-no-turn',
+    role: 'assistant', content: '',
+    tool_calls: [{ type: 'tool_use', id: 'legacy-reused-call', name: 'Bash', input: { command: 'pnpm test' } }],
+    createdAt: '2026-06-22T00:01:04.000Z',
+  },
+  {
+    id: 'legacy-result-1', codingSessionId: 'session-legacy-no-turn',
+    role: 'tool', content: 'first pass',
+    tool_calls: [{ type: 'tool_result', tool_use_id: 'legacy-reused-call', content: 'first pass' }],
+    createdAt: '2026-06-22T00:01:05.000Z',
+  },
+  {
+    id: 'legacy-final-1', codingSessionId: 'session-legacy-no-turn',
+    role: 'assistant', content: 'First verification complete.',
+    createdAt: '2026-06-22T00:01:06.000Z',
+  },
+  {
+    id: 'legacy-user-2', codingSessionId: 'session-legacy-no-turn',
+    role: 'user', content: 'Run it again.',
+    createdAt: '2026-06-22T00:01:07.000Z',
+  },
+  {
+    id: 'legacy-request-2', codingSessionId: 'session-legacy-no-turn',
+    role: 'assistant', content: '',
+    tool_calls: [{ type: 'tool_use', id: 'legacy-reused-call', name: 'Bash', input: { command: 'pnpm test' } }],
+    createdAt: '2026-06-22T00:01:08.000Z',
+  },
+  {
+    id: 'legacy-result-2', codingSessionId: 'session-legacy-no-turn',
+    role: 'tool', content: 'second pass',
+    tool_calls: [{ type: 'tool_result', tool_use_id: 'legacy-reused-call', content: 'second pass' }],
+    createdAt: '2026-06-22T00:01:09.000Z',
+  },
+  {
+    id: 'legacy-final-2', codingSessionId: 'session-legacy-no-turn',
+    role: 'assistant', content: 'Second verification complete.',
+    createdAt: '2026-06-22T00:01:10.000Z',
+  },
+], { engineId: 'claude-code' });
+assert.deepEqual(
+  legacyNoTurnProjection.map((message) => message.id),
+  ['legacy-request-1', 'legacy-final-1', 'legacy-user-2', 'legacy-request-2', 'legacy-final-2'],
+  'legacy request/result messages without turnId must merge within a session and stay separated by user turns.',
+);
+assert.deepEqual(
+  [legacyNoTurnProjection[0], legacyNoTurnProjection[3]].map((message) => (
+    projectChatMessageToolCalls(message?.tool_calls, { engineId: 'claude-code' })[0]?.output
+  )),
+  ['first pass', 'second pass'],
+  'a reused provider call id must not merge across a no-turn user boundary.',
 );
 
 function createIndexCountingMessages(

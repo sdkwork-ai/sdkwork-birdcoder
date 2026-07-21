@@ -9,7 +9,9 @@ use crate::{
     build_native_session_id, extract_native_lookup_id_for_engine,
     map_codeengine_session_runtime_status, map_codeengine_session_status_from_runtime,
     map_codeengine_tool_command_status, resolve_codeengine_command_interaction_runtime_status,
+    sanitize_codeengine_session_reasoning_records,
     CodeEngineSessionCommandRecord, CodeEngineSessionDetailRecord, CodeEngineSessionMessageRecord,
+    CodeEngineSessionReasoningRecord, CodeEngineSessionResourceRecord,
     CodeEngineSessionSummaryRecord,
 };
 
@@ -60,6 +62,10 @@ struct SdkBridgeStoredMessage {
     tool_call_id: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     file_changes: Option<Vec<serde_json::Value>>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    reasoning: Option<Vec<CodeEngineSessionReasoningRecord>>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    resources: Option<Vec<CodeEngineSessionResourceRecord>>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     task_progress: Option<serde_json::Value>,
     created_at: String,
@@ -133,6 +139,11 @@ pub fn get_sdk_bridge_session_detail(
             tool_calls: message.tool_calls.clone(),
             tool_call_id: message.tool_call_id.clone(),
             file_changes: message.file_changes.clone(),
+            reasoning: message.reasoning.as_ref().and_then(|reasoning| {
+                let reasoning = sanitize_codeengine_session_reasoning_records(reasoning);
+                (!reasoning.is_empty()).then_some(reasoning)
+            }),
+            resources: message.resources.clone(),
             task_progress: message.task_progress.clone(),
             metadata: None,
             created_at: message.created_at.clone(),
@@ -409,6 +420,8 @@ mod tests {
                 tool_calls: None,
                 tool_call_id: None,
                 file_changes: None,
+                reasoning: None,
+                resources: None,
                 task_progress: None,
                 created_at: "2026-04-24T00:00:01Z".to_owned(),
             }],
@@ -453,6 +466,8 @@ mod tests {
                 tool_calls: None,
                 tool_call_id: None,
                 file_changes: None,
+                reasoning: None,
+                resources: None,
                 task_progress: None,
                 created_at: "2026-04-24T00:00:01Z".to_owned(),
             }],
@@ -497,6 +512,8 @@ mod tests {
                 tool_calls: None,
                 tool_call_id: None,
                 file_changes: None,
+                reasoning: None,
+                resources: None,
                 task_progress: None,
                 created_at: "2026-04-24T00:00:01Z".to_owned(),
             }],
@@ -541,6 +558,8 @@ mod tests {
                 tool_calls: None,
                 tool_call_id: None,
                 file_changes: None,
+                reasoning: None,
+                resources: None,
                 task_progress: None,
                 created_at: "2026-04-24T00:00:01Z".to_owned(),
             }],

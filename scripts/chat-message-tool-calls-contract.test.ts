@@ -5,6 +5,7 @@ import {
   projectChatMessageToolCall,
   projectChatMessageToolCalls,
   projectChatMessageToolNotice,
+  projectChatMessageToolNotices,
 } from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-contracts-commons/src/chat-message-tool-calls.ts';
 import { resolveChatMessageView } from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-contracts-commons/src/chat-message-view.ts';
 
@@ -668,18 +669,27 @@ const geminiToolDisplayNoticeSource = {
   },
   internalEnvelope: { requestId: 'must-not-render' },
 };
-assert.equal(projectChatMessageToolCall(
+assert.deepEqual(projectChatMessageToolCall(
   geminiToolDisplayNoticeSource,
   0,
   { engineId: 'gemini' },
-), null);
+), {
+  arguments: '',
+  id: 'call-gemini-notice',
+  kind: 'other',
+  name: 'Provider alignment',
+  presentation: 'notice',
+  status: 'success',
+  title: 'Provider-neutral history is ready',
+  type: 'tool_response',
+});
 const geminiToolDisplayNotice = projectChatMessageToolNotice(
   geminiToolDisplayNoticeSource,
   0,
   { engineId: 'gemini' },
 );
 assert.deepEqual(geminiToolDisplayNotice, {
-  content: 'Provider alignment: Provider-neutral history is ready: Ready',
+  content: 'Provider alignment: Provider-neutral history is ready',
   description: 'Provider-neutral history is ready',
   id: 'call-gemini-notice',
   kind: 'notice',
@@ -688,6 +698,41 @@ assert.deepEqual(geminiToolDisplayNotice, {
   resultSummary: 'Ready',
 });
 assert.doesNotMatch(geminiToolDisplayNotice?.content ?? '', /internalEnvelope|must-not-render|requestId/u);
+assert.deepEqual(
+  projectChatMessageToolNotices([
+    {
+      type: 'tool_request',
+      requestId: 'call-gemini-notice-lifecycle',
+      name: 'topic_update',
+      display: {
+        format: 'notice',
+        name: 'Provider alignment',
+        description: 'Alignment started',
+      },
+    },
+    {
+      type: 'tool_response',
+      requestId: 'call-gemini-notice-lifecycle',
+      name: 'topic_update',
+      display: {
+        format: 'notice',
+        name: 'Provider alignment',
+        description: 'Alignment completed',
+        resultSummary: 'Ready',
+      },
+    },
+  ], { engineId: 'gemini' }),
+  [{
+    content: 'Provider alignment: Alignment completed',
+    description: 'Alignment completed',
+    id: 'call-gemini-notice-lifecycle',
+    kind: 'notice',
+    name: 'Provider alignment',
+    result: 'Ready',
+    resultSummary: 'Ready',
+  }],
+  'Gemini request/response display notices must collapse into one latest lifecycle row.',
+);
 const geminiToolDisplayNoticeView = resolveChatMessageView({
   id: 'message-gemini-notice',
   codingSessionId: 'session-gemini-notice',
@@ -698,11 +743,26 @@ const geminiToolDisplayNoticeView = resolveChatMessageView({
 }, { engineId: 'gemini' });
 assert.equal(geminiToolDisplayNoticeView.blocks.some((block) => block.type === 'tool-calls'), false);
 assert.deepEqual(geminiToolDisplayNoticeView.blocks, [{
-  type: 'markdown',
-  content: 'Provider alignment: Provider-neutral history is ready: Ready',
-  mode: 'basic',
+  type: 'notice',
+  id: 'call-gemini-notice',
   noticeKind: 'info',
+  title: 'Provider alignment',
+  detail: 'Provider-neutral history is ready',
 }]);
+
+const geminiMixedNoticeView = resolveChatMessageView({
+  id: 'message-gemini-mixed-notice',
+  codingSessionId: 'session-gemini-notice',
+  role: 'assistant',
+  content: 'The provider-neutral reply remains authored content.',
+  createdAt: '2026-07-21T00:00:01.000Z',
+  tool_calls: [geminiToolDisplayNoticeSource],
+}, { engineId: 'gemini' });
+assert.deepEqual(
+  geminiMixedNoticeView.blocks.map((block) => block.type),
+  ['notice', 'markdown'],
+  'A Gemini notice must remain an independent block instead of changing authored reply semantics.',
+);
 
 const geminiToolResponse = projectChatMessageToolCall({
   type: 'tool_call_response',
@@ -984,6 +1044,31 @@ assert.deepEqual(claudeAdvisorResult?.resultBlocks, [{
   text: 'Review the cancellation state.',
 }]);
 
+const claudeInlineDocumentResult = projectChatMessageToolCall({
+  type: 'tool_result',
+  tool_use_id: 'toolu-claude-document',
+  name: 'ReadDocument',
+  content: [{
+    type: 'document',
+    title: 'provider-contract.pdf',
+    source: {
+      type: 'base64',
+      media_type: 'application/pdf',
+      data: 'JVBERi0xLjQKPRIVATE_BASE64_MUST_NOT_RENDER',
+    },
+  }],
+}, 0, { engineId: 'claude-code' });
+assert.deepEqual(claudeInlineDocumentResult?.resultBlocks, [{
+  type: 'resource',
+  name: 'provider-contract.pdf',
+  mimeType: 'application/pdf',
+}]);
+assert.doesNotMatch(
+  JSON.stringify(claudeInlineDocumentResult?.resultBlocks),
+  /PRIVATE_BASE64_MUST_NOT_RENDER|JVBER/iu,
+  'Claude rich document results must retain safe metadata without flattening base64 into transcript text.',
+);
+
 const geminiConfirmation = projectChatMessageToolCall({
   type: 'tool_call_confirmation',
   value: {
@@ -1054,10 +1139,22 @@ assert.equal(projectChatMessageToolCall({
   type: 'reasoning',
   summary: [{ type: 'summary_text', text: 'private reasoning' }],
 }, 0, { engineId: 'codex' }), null);
-assert.equal(projectChatMessageToolCall({
+assert.deepEqual(projectChatMessageToolCall({
   type: 'tool_use_summary',
+  uuid: 'tool-summary-1',
   summary: 'Read 10 files',
-}, 0, { engineId: 'claude-code' }), null);
+  preceding_tool_use_ids: ['toolu-read-1', 'toolu-read-2'],
+}, 0, { engineId: 'claude-code' }), {
+  arguments: '{\n  "precedingToolUseIds": [\n    "toolu-read-1",\n    "toolu-read-2"\n  ]\n}',
+  id: 'tool-summary-1',
+  kind: 'task',
+  name: 'tool_summary',
+  output: 'Read 10 files',
+  resultBlocks: [{ type: 'text', text: 'Read 10 files' }],
+  status: 'success',
+  title: 'Read 10 files',
+  type: 'tool_use_summary',
+});
 
 const geminiStreamToolUse = projectChatMessageToolCall({
   type: 'tool_use',

@@ -3,9 +3,11 @@ import {
   CommandsContentBlockRenderer,
   FileChangesContentBlockRenderer,
   MarkdownContentBlockRenderer,
+  NoticeContentBlockRenderer,
   TaskProgressContentBlockRenderer,
   ToolCallsContentBlockRenderer,
 } from './ContentBlockRenderers.tsx';
+import { MessageResourcesBlock } from './MessageResourcesBlock.tsx';
 import { createChatMessageContentBlockRendererRegistry } from './registry.ts';
 import type { ChatMessageContentBlockRendererEntry } from './registry.ts';
 
@@ -24,6 +26,12 @@ const DEFAULT_CONTENT_BLOCK_RENDERER_ENTRIES: readonly ChatMessageContentBlockRe
     Component: MarkdownContentBlockRenderer,
   },
   {
+    id: 'notice',
+    blockType: 'notice',
+    priority: 10,
+    Component: NoticeContentBlockRenderer,
+  },
+  {
     id: 'activity',
     blockType: 'activity',
     priority: 20,
@@ -40,6 +48,12 @@ const DEFAULT_CONTENT_BLOCK_RENDERER_ENTRIES: readonly ChatMessageContentBlockRe
     blockType: 'commands',
     priority: 10,
     Component: CommandsContentBlockRenderer,
+  },
+  {
+    id: 'resources',
+    blockType: 'resources',
+    priority: 10,
+    Component: MessageResourcesBlock,
   },
   {
     id: 'task-progress',

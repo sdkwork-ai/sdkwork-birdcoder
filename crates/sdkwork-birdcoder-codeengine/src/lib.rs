@@ -92,9 +92,12 @@ pub use sdk_bridge::{
 };
 pub use session_records::{
     sanitize_codeengine_git_repository_url, sanitize_codeengine_session_metadata,
+    sanitize_codeengine_session_reasoning_records,
     CodeEngineSessionCommandRecord, CodeEngineSessionDetailRecord, CodeEngineSessionMessageRecord,
-    CodeEngineSessionNativeAttributesRecord, CodeEngineSessionSummaryRecord,
-    CODE_ENGINE_NATIVE_SESSION_SCHEMA_VERSION,
+    CodeEngineSessionNativeAttributesRecord, CodeEngineSessionResourceCitationRecord,
+    CodeEngineSessionReasoningRecord, CodeEngineSessionResourceOriginRecord,
+    CodeEngineSessionResourceRecord,
+    CodeEngineSessionSummaryRecord, CODE_ENGINE_NATIVE_SESSION_SCHEMA_VERSION,
 };
 pub use turns::{
     build_codeengine_turn_prompt, CodeEngineApprovalDecisionRecord, CodeEngineTurnConfigRecord,

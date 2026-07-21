@@ -20,7 +20,12 @@ const EngineTaggedAssistantReplyMessageRenderer = memo(function EngineTaggedAssi
   props: ChatMessageRendererProps,
 ) {
   const engineId = props.view.engineId;
-  const showEngineLabel = props.view.kind === 'assistant.text';
+  const isAuthoredReply = props.view.source.role === 'assistant'
+    || props.view.source.role === 'planner'
+    || props.view.source.role === 'reviewer';
+  const showEngineLabel = isAuthoredReply && props.view.blocks.some(
+    (block) => block.type === 'markdown' && !block.noticeKind && block.content.trim().length > 0,
+  );
 
   return (
     <div className="flex w-full min-w-0 max-w-full flex-col" data-chat-engine={engineId}>

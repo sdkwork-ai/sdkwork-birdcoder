@@ -6,6 +6,7 @@ import type {
 import type { BirdCoderLongIntegerString } from './data.ts';
 import { normalizeBirdCoderCodeEngineRuntimeStatus } from './codeEngineDialect.ts';
 import { stringifyBirdCoderApiJson } from './json.ts';
+import type { BirdCoderChatMessageReasoningItem } from './chat-message-reasoning.ts';
 
 export const BIRDCODER_HOST_MODES = ['web', 'desktop', 'server'] as const;
 
@@ -677,6 +678,8 @@ export interface BirdCoderComparableChatMessageLike {
   tool_call_id?: string;
   fileChanges?: readonly unknown[];
   commands?: readonly unknown[];
+  reasoning?: readonly BirdCoderChatMessageReasoningItem[];
+  resources?: readonly unknown[];
   taskProgress?: unknown;
 }
 
@@ -744,6 +747,8 @@ export function buildBirdCoderChatMessageSynchronizationSignature(
     stableSerializeBirdCoderComparableValue(message.tool_calls ?? []),
     stableSerializeBirdCoderComparableValue(message.fileChanges ?? []),
     stableSerializeBirdCoderComparableValue(message.commands ?? []),
+    stableSerializeBirdCoderComparableValue(message.reasoning ?? []),
+    stableSerializeBirdCoderComparableValue(message.resources ?? []),
     stableSerializeBirdCoderComparableValue(message.taskProgress ?? null),
   ].join('\u0001');
 }
@@ -835,6 +840,8 @@ export function mergeBirdCoderComparableChatMessages<
     tool_calls: incomingMessage.tool_calls ?? existingMessage.tool_calls,
     fileChanges: incomingMessage.fileChanges ?? existingMessage.fileChanges,
     commands: incomingMessage.commands ?? existingMessage.commands,
+    reasoning: incomingMessage.reasoning ?? existingMessage.reasoning,
+    resources: incomingMessage.resources ?? existingMessage.resources,
     taskProgress: incomingMessage.taskProgress ?? existingMessage.taskProgress,
   } satisfies TMessage;
 
@@ -1065,6 +1072,28 @@ function hasBirdCoderProtocolErrorFlag(record: Record<string, unknown>): boolean
     || isBirdCoderTrueProtocolFlag(record.isError);
 }
 
+function isBirdCoderSyntheticUserMessageRecord(
+  record: Record<string, unknown>,
+): boolean {
+  const type = normalizeBirdCoderContentType(record.type);
+  const role = normalizeBirdCoderContentType(record.role);
+  if (type !== 'user' && role !== 'user') {
+    return false;
+  }
+
+  return [record.isSynthetic, record.is_synthetic, record.isMeta, record.is_meta]
+    .some(isBirdCoderTrueProtocolFlag);
+}
+
+export function isBirdCoderSyntheticUserMessage(value: unknown): boolean {
+  return Boolean(
+    value
+    && typeof value === 'object'
+    && !Array.isArray(value)
+    && isBirdCoderSyntheticUserMessageRecord(value as Record<string, unknown>),
+  );
+}
+
 function isBirdCoderCancellationDetail(value: string): boolean {
   return /^\[?(?:(?:operation|request|tool|command|user)\s+)?(?:was\s+)?cancel(?:led|ed)(?:\]|\b)/iu
     .test(value.trim());
@@ -1075,7 +1104,8 @@ function isBirdCoderNonAnswerContentRecord(record: Record<string, unknown>): boo
   const contentSubtype = normalizeBirdCoderContentType(record.subtype);
   const contentStatus = normalizeBirdCoderContentType(record.status);
   const contentRole = normalizeBirdCoderContentType(record.role);
-  return BIRDCODER_NON_ANSWER_CONTENT_TYPES.has(contentType)
+  return isBirdCoderSyntheticUserMessageRecord(record)
+    || BIRDCODER_NON_ANSWER_CONTENT_TYPES.has(contentType)
     || (contentType === 'system' && BIRDCODER_NON_ANSWER_SYSTEM_SUBTYPES.has(contentSubtype))
     || (
       (contentType === 'assistant' || contentRole === 'assistant')
@@ -1150,7 +1180,10 @@ function projectBirdCoderProtocolNotice(
   const detail = readBirdCoderProtocolNoticeString(nestedError, ['message', 'reason', 'detail'])
     || readBirdCoderProtocolNoticeString(nestedErrorData, ['message', 'reason', 'detail'])
     || readBirdCoderProtocolNoticeString(value, ['systemMessage', 'reason', 'message'])
-    || readBirdCoderProtocolNoticeString(record, ['systemMessage', 'reason', 'message', 'content', 'error']);
+    || readBirdCoderProtocolNoticeString(
+      record,
+      ['systemMessage', 'reason', 'message', 'content', 'text', 'error'],
+    );
   const isInformationalMessage = (type === 'system' && subtype === 'informational')
     || type === 'informational';
 
@@ -1184,6 +1217,14 @@ function projectBirdCoderProtocolNotice(
     return {
       kind: 'info',
       message: detail || 'Local command completed.',
+    };
+  }
+  if ((type === 'system' && subtype === 'notification') || type === 'notification') {
+    const priority = normalizeBirdCoderContentType(record.priority);
+    const isWarning = priority === 'high' || priority === 'immediate';
+    return {
+      kind: isWarning ? 'warning' : 'info',
+      message: detail || (isWarning ? 'Provider warning.' : 'Provider information.'),
     };
   }
   if (type === 'retry' || subtype === 'api_retry' || status === 'retrying') {
@@ -1435,6 +1476,7 @@ export interface BirdCoderCodingSessionMessage {
   turnId?: string;
   role: BirdCoderCodingSessionMessageRole;
   content: string;
+  reasoning?: readonly BirdCoderChatMessageReasoningItem[];
   metadata?: Record<string, unknown>;
   createdAt: string;
 }

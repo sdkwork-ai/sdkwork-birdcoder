@@ -1,6 +1,9 @@
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import type { BirdCoderChatMessage } from '@sdkwork/birdcoder-pc-contracts-commons';
+import type {
+  BirdCoderChatMessage,
+  CommandExecution,
+} from '@sdkwork/birdcoder-pc-contracts-commons';
 
 const modulePath = new URL(
   '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-ui/src/components/transcriptVirtualization.ts',
@@ -13,6 +16,14 @@ const {
   resolveTranscriptMessageKey,
   resolveVirtualizedTranscriptWindow,
 } = await import(`${modulePath.href}?t=${Date.now()}`);
+const commandLifecycleModulePath = new URL(
+  '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-ui/src/components/chat/messages/activity/chatCommandLifecycle.ts',
+  import.meta.url,
+);
+const {
+  buildChatCommandLifecycleSnapshot,
+  resolveChatCommandLiveAnnouncement,
+} = await import(`${commandLifecycleModulePath.href}?t=${Date.now()}`);
 
 const virtualizationSource = readFileSync(
   new URL(
@@ -279,6 +290,94 @@ assert.doesNotMatch(
   virtualizationSource,
   /const prefixHeights = useMemo\(\s*\(\)\s*=>\s*buildTranscriptPrefixHeights\(/s,
   'useVirtualizedTranscriptWindow must not rebuild full transcript height prefixes inline on every measurement update.',
+);
+
+const createAnnouncementCommand = (
+  toolCallId: string,
+  overrides: Partial<CommandExecution> = {},
+): CommandExecution => ({
+  command: `run ${toolCallId}`,
+  status: 'running',
+  toolCallId,
+  ...overrides,
+});
+const createAnnouncementMessage = (
+  id: string,
+  commands: CommandExecution[],
+): BirdCoderChatMessage => ({
+  codingSessionId: 'session-announcements',
+  commands,
+  content: '',
+  createdAt: '2026-07-21T00:00:00.000Z',
+  id,
+  role: 'assistant',
+  turnId: 'turn-announcements',
+});
+const emptyCommandSnapshot = buildChatCommandLifecycleSnapshot([]);
+const runningCommandSnapshot = buildChatCommandLifecycleSnapshot([
+  createAnnouncementMessage('activity-running', [createAnnouncementCommand('call-1')]),
+]);
+
+assert.deepEqual(
+  resolveChatCommandLiveAnnouncement(emptyCommandSnapshot, runningCommandSnapshot),
+  { count: 1, kind: 'running' },
+  'a newly observed live command should publish one running announcement.',
+);
+assert.equal(
+  resolveChatCommandLiveAnnouncement(runningCommandSnapshot, runningCommandSnapshot),
+  null,
+  'an unchanged command snapshot must stay quiet when transcript virtualization remounts a row.',
+);
+
+const equivalentRemountSnapshot = buildChatCommandLifecycleSnapshot([
+  createAnnouncementMessage('activity-remounted', [createAnnouncementCommand('call-1')]),
+]);
+assert.equal(
+  resolveChatCommandLiveAnnouncement(runningCommandSnapshot, equivalentRemountSnapshot),
+  null,
+  'moving the same provider call to a projected row in one turn must preserve announcement identity.',
+);
+
+const approvalCommandSnapshot = buildChatCommandLifecycleSnapshot([
+  createAnnouncementMessage('activity-approval', [createAnnouncementCommand('call-1', {
+    requiresApproval: true,
+    runtimeStatus: 'awaiting_approval',
+  })]),
+]);
+assert.deepEqual(
+  resolveChatCommandLiveAnnouncement(runningCommandSnapshot, approvalCommandSnapshot),
+  { count: 1, kind: 'approval' },
+  'a running command that starts waiting for approval should announce the actionable transition once.',
+);
+
+const mixedWaitingCommandSnapshot = buildChatCommandLifecycleSnapshot([
+  createAnnouncementMessage('activity-waiting', [
+    createAnnouncementCommand('call-1', {
+      requiresApproval: true,
+      runtimeStatus: 'awaiting_approval',
+    }),
+    createAnnouncementCommand('call-2', {
+      kind: 'user_question',
+      requiresReply: true,
+      runtimeStatus: 'awaiting_user',
+    }),
+  ]),
+]);
+assert.deepEqual(
+  resolveChatCommandLiveAnnouncement(runningCommandSnapshot, mixedWaitingCommandSnapshot),
+  { count: 2, kind: 'waiting' },
+  'mixed approval and reply transitions should collapse into one bounded waiting announcement.',
+);
+
+const settledCommandSnapshot = buildChatCommandLifecycleSnapshot([
+  createAnnouncementMessage('activity-settled', [
+    createAnnouncementCommand('call-1', { status: 'success' }),
+  ]),
+]);
+assert.equal(
+  resolveChatCommandLiveAnnouncement(runningCommandSnapshot, settledCommandSnapshot),
+  null,
+  'settled historical command states should remain quiet like the prior inline status policy.',
 );
 
 console.log('transcript virtualization runtime contract passed.');

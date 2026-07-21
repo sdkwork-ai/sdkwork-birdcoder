@@ -234,6 +234,15 @@ authored content; it must not synthesize `Tool call: <name>` Markdown.
 Boolean/string `is_error` and `isError` flags are accepted, while false, null,
 empty-string, and empty-object error values do not create a failure.
 
+Claude Agent SDK user records marked `isSynthetic` are provider-generated
+protocol frames, not authored user messages. SDK ingestion may persist the same
+semantic as `isMeta`; camel-case and compatible snake-case history variants are
+normalized at the Claude boundary. Synthetic text stays out of user Markdown,
+but a synthetic user wrapper containing `tool_result` plus `toolUseResult` or
+`tool_use_result` remains a correlated tool lifecycle with its structured
+output. `shouldQuery: false` only suppresses a new assistant query: the authored
+user record still belongs in the transcript and must not be filtered.
+
 OpenCode history can deliver `content.parts` where `part.type='tool'`, `callID`,
 and `state` define the operation and lifecycle. Tool metadata marked
 `interrupted` projects to `cancelled`, while partial output and structured error

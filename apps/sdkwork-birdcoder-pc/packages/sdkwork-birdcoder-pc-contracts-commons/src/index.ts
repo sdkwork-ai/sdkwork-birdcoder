@@ -15,6 +15,7 @@ import {
   deduplicateBirdCoderComparableChatMessages,
   extractBirdCoderProtocolNotices,
   extractBirdCoderTextContent,
+  isBirdCoderSyntheticUserMessage,
 } from './coding-session.ts';
 import { parseBirdCoderApiJson, stringifyBirdCoderApiJson } from './json.ts';
 import {
@@ -94,6 +95,15 @@ export interface IWorkspace {
 
 export type { FileChange } from './file-change.ts';
 import type { FileChange } from './file-change.ts';
+import {
+  projectChatMessageResources,
+  type BirdCoderChatMessageResource,
+} from './chat-message-resources.ts';
+import {
+  mergeChatMessageReasoning,
+  projectChatMessageReasoning,
+  type BirdCoderChatMessageReasoningItem,
+} from './chat-message-reasoning.ts';
 
 export interface CommandExecution {
   command: string;
@@ -121,6 +131,8 @@ export interface BirdCoderChatMessage extends BirdCoderRuntimeCodingSessionMessa
   tool_call_id?: string;
   fileChanges?: FileChange[];
   commands?: CommandExecution[];
+  reasoning?: BirdCoderChatMessageReasoningItem[];
+  resources?: BirdCoderChatMessageResource[];
   taskProgress?: TaskProgress;
 }
 
@@ -129,6 +141,8 @@ interface BirdCoderProjectionDeltaMessage {
   content: string;
   createdAt: string;
   fileChanges?: BirdCoderChatMessage['fileChanges'];
+  reasoning?: BirdCoderChatMessage['reasoning'];
+  resources?: BirdCoderChatMessage['resources'];
   role: BirdCoderChatMessage['role'];
   taskProgress?: BirdCoderChatMessage['taskProgress'];
   tool_call_id?: BirdCoderChatMessage['tool_call_id'];
@@ -197,6 +211,38 @@ function parseProjectionFileChanges(
     fileChangesByPath.set(fileChange.path.trim().replace(/\\/gu, '/'), fileChange);
   }
   return fileChangesByPath.size > 0 ? [...fileChangesByPath.values()] : undefined;
+}
+
+function parseProjectionResources(
+  payload: Record<string, unknown> | undefined,
+): BirdCoderChatMessage['resources'] | undefined {
+  const resources = projectChatMessageResources(
+    Array.isArray(payload?.resources) ? payload.resources : undefined,
+  );
+  return resources.length > 0 ? resources : undefined;
+}
+
+function parseProjectionReasoning(
+  payload: Record<string, unknown> | undefined,
+): BirdCoderChatMessage['reasoning'] | undefined {
+  const reasoning = projectChatMessageReasoning(
+    Array.isArray(payload?.reasoning) ? payload.reasoning : undefined,
+  );
+  return reasoning.length > 0 ? reasoning : undefined;
+}
+
+function mergeProjectionReasoning(
+  ...sources: Array<BirdCoderChatMessage['reasoning'] | undefined>
+): BirdCoderChatMessage['reasoning'] | undefined {
+  const reasoning = mergeChatMessageReasoning(...sources);
+  return reasoning.length > 0 ? reasoning : undefined;
+}
+
+function mergeProjectionResources(
+  ...sources: Array<BirdCoderChatMessage['resources'] | undefined>
+): BirdCoderChatMessage['resources'] | undefined {
+  const resources = projectChatMessageResources(sources.flatMap((source) => source ?? []));
+  return resources.length > 0 ? resources : undefined;
 }
 
 const PROJECTION_OPENCODE_FILE_CHANGE_TOOLS = new Set([
@@ -523,7 +569,7 @@ function parseProjectionToolCalls(
 
   const nativeToolCalls: unknown[] = [];
   const visited = new WeakSet<object>();
-  collectProjectionNativeToolCalls(payload, nativeToolCalls, visited);
+  collectProjectionNativeToolCalls(payload, nativeToolCalls, visited, undefined);
   return nativeToolCalls.length > 0
     ? nativeToolCalls as BirdCoderChatMessage['tool_calls']
     : undefined;
@@ -633,6 +679,7 @@ const PROJECTION_NATIVE_TOOL_CONTENT_TYPES = new Set([
   'approval_request',
   'bash_code_execution_tool_result',
   'code_execution_tool_result',
+  'tool_use_summary',
   'command_execution',
   'collab_agent_tool_call',
   'custom_tool_call',
@@ -708,10 +755,11 @@ function collectProjectionNativeToolCalls(
   value: unknown,
   output: unknown[],
   visited: WeakSet<object>,
+  inheritedToolResult: unknown,
 ): void {
   if (Array.isArray(value)) {
     for (const entry of value) {
-      collectProjectionNativeToolCalls(entry, output, visited);
+      collectProjectionNativeToolCalls(entry, output, visited, inheritedToolResult);
     }
     return;
   }
@@ -723,6 +771,7 @@ function collectProjectionNativeToolCalls(
   const record = value as Record<string, unknown>;
   const type = normalizeProjectionToolContentType(record.type);
   const subtype = normalizeProjectionToolContentType(record.subtype);
+  const toolResult = record.toolUseResult ?? record.tool_use_result ?? inheritedToolResult;
   if (
     PROJECTION_NATIVE_TOOL_CONTENT_TYPES.has(type)
     || (
@@ -738,13 +787,35 @@ function collectProjectionNativeToolCalls(
     || (typeof record.functionCall === 'object' && record.functionCall !== null)
     || (typeof record.functionResponse === 'object' && record.functionResponse !== null)
   ) {
-    output.push(record);
+    const projectedRecord = toolResult !== undefined
+      && isProjectionNativeToolResultType(type)
+      && record.output === undefined
+      ? { ...record, output: toolResult }
+      : record;
+    output.push(projectedRecord);
     return;
   }
 
   for (const key of PROJECTION_NATIVE_TOOL_CONTAINER_KEYS) {
-    collectProjectionNativeToolCalls(record[key], output, visited);
+    collectProjectionNativeToolCalls(record[key], output, visited, toolResult);
   }
+}
+
+function isProjectionNativeToolResultType(type: string): boolean {
+  return type.endsWith('_result') || type.endsWith('_output');
+}
+
+function projectionToolCallsContainResult(
+  toolCalls: BirdCoderChatMessage['tool_calls'] | undefined,
+): boolean {
+  return (toolCalls ?? []).some((toolCall) => {
+    if (!isProjectionPayloadRecord(toolCall)) {
+      return false;
+    }
+    return isProjectionNativeToolResultType(
+      normalizeProjectionToolContentType(toolCall.type),
+    );
+  });
 }
 
 function mergeProjectionToolCalls(
@@ -1867,7 +1938,11 @@ function buildAuthoritativeProjectionMessages(
     }
 
     if (event.kind === 'message.completed') {
-      const role = readProjectionPayloadString(event.payload, 'role');
+      const declaredRole = readProjectionPayloadString(event.payload, 'role');
+      const tool_calls = parseProjectionToolCalls(event.payload);
+      const role = declaredRole === 'user' && projectionToolCallsContainResult(tool_calls)
+        ? 'tool'
+        : declaredRole;
       if (role !== 'user') {
         for (const [noticeIndex, notice] of extractBirdCoderProtocolNotices(
           event.payload?.content,
@@ -1887,11 +1962,18 @@ function buildAuthoritativeProjectionMessages(
           });
         }
       }
-      const content = extractBirdCoderTextContent(event.payload?.content) ?? '';
+      const isSyntheticUserMessage = declaredRole === 'user' && (
+        isBirdCoderSyntheticUserMessage(event.payload)
+        || isBirdCoderSyntheticUserMessage(event.payload?.content)
+      );
+      const content = isSyntheticUserMessage
+        ? ''
+        : extractBirdCoderTextContent(event.payload?.content) ?? '';
       const eventCommands = parseProjectionCommands(event.payload);
       const eventFileChanges = parseProjectionFileChanges(event.payload);
+      const reasoning = parseProjectionReasoning(event.payload);
+      const resources = parseProjectionResources(event.payload);
       const taskProgress = parseProjectionTaskProgress(event.payload);
-      const tool_calls = parseProjectionToolCalls(event.payload);
       const tool_call_id = parseProjectionToolCallId(event.payload);
       const commands = mergeProjectionCommands(
         eventCommands,
@@ -1915,6 +1997,8 @@ function buildAuthoritativeProjectionMessages(
           !content &&
           (commands?.length ?? 0) === 0 &&
           (fileChanges?.length ?? 0) === 0 &&
+          (reasoning?.length ?? 0) === 0 &&
+          (resources?.length ?? 0) === 0 &&
           !taskProgress &&
           (tool_calls?.length ?? 0) === 0 &&
           !tool_call_id
@@ -1959,6 +2043,8 @@ function buildAuthoritativeProjectionMessages(
         content: editedContent ?? content,
         commands,
         fileChanges,
+        reasoning,
+        resources,
         taskProgress,
         tool_call_id,
         tool_calls,
@@ -1994,12 +2080,16 @@ function buildAuthoritativeProjectionMessages(
         : undefined,
     );
     const taskProgress = parseProjectionTaskProgress(event.payload);
+    const reasoning = parseProjectionReasoning(event.payload);
+    const resources = parseProjectionResources(event.payload);
     const tool_calls = parseProjectionToolCalls(event.payload);
     const tool_call_id = parseProjectionToolCallId(event.payload);
     if (
       !contentDelta &&
       (commands?.length ?? 0) === 0 &&
       (fileChanges?.length ?? 0) === 0 &&
+      (reasoning?.length ?? 0) === 0 &&
+      (resources?.length ?? 0) === 0 &&
       !taskProgress &&
       (tool_calls?.length ?? 0) === 0 &&
       !tool_call_id
@@ -2020,6 +2110,8 @@ function buildAuthoritativeProjectionMessages(
       content: `${existingDeltaMessage?.content ?? ''}${contentDelta}`,
       createdAt: existingDeltaMessage?.createdAt ?? event.createdAt,
       fileChanges: fileChanges ?? existingDeltaMessage?.fileChanges,
+      reasoning: mergeProjectionReasoning(existingDeltaMessage?.reasoning, reasoning),
+      resources: mergeProjectionResources(existingDeltaMessage?.resources, resources),
       role: roleCandidate,
       taskProgress: mergeProjectionTaskProgress(existingDeltaMessage?.taskProgress, taskProgress),
       tool_call_id: tool_call_id ?? existingDeltaMessage?.tool_call_id,
@@ -2057,6 +2149,8 @@ function buildAuthoritativeProjectionMessages(
         !deltaMessage.content.trim() &&
         (deltaMessage.commands?.length ?? 0) === 0 &&
         (deltaMessage.fileChanges?.length ?? 0) === 0 &&
+        (deltaMessage.reasoning?.length ?? 0) === 0 &&
+        (deltaMessage.resources?.length ?? 0) === 0 &&
         !deltaMessage.taskProgress &&
         (deltaMessage.tool_calls?.length ?? 0) === 0 &&
         !deltaMessage.tool_call_id
@@ -2076,6 +2170,8 @@ function buildAuthoritativeProjectionMessages(
         deltaMessage.content,
       commands: deltaMessage.commands,
       fileChanges: deltaMessage.fileChanges,
+      reasoning: deltaMessage.reasoning,
+      resources: deltaMessage.resources,
       taskProgress: deltaMessage.taskProgress,
       tool_call_id: deltaMessage.tool_call_id,
       tool_calls: deltaMessage.tool_calls,
@@ -2383,4 +2479,6 @@ export * from './server-api.ts';
 export * from './storageBindings.ts';
 export * from './chat-message-view.ts';
 export * from './chat-message-activity-projection.ts';
+export * from './chat-message-reasoning.ts';
+export * from './chat-message-resources.ts';
 export * from './chat-message-task-progress.ts';

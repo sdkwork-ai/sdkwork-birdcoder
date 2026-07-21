@@ -17,9 +17,12 @@ export type BirdCoderChatMessageViewKind =
 
 export const BIRDCODER_CHAT_MESSAGE_CONTENT_BLOCK_TYPES = [
   'markdown',
+  'notice',
+  'reasoning',
   'activity',
   'file-changes',
   'commands',
+  'resources',
   'task-progress',
   'tool-calls',
 ] as const;
@@ -53,6 +56,70 @@ export type BirdCoderChatMessageToolCallStatus =
   | 'cancelled'
   | 'waiting';
 
+export type BirdCoderChatMessageToolCallPresentation = 'notice';
+
+export const BIRDCODER_CHAT_MESSAGE_RESOURCE_KINDS = [
+  'file',
+  'image',
+  'audio',
+  'uri',
+  'citation',
+  'skill',
+  'mention',
+] as const;
+
+export type BirdCoderChatMessageResourceKind =
+  (typeof BIRDCODER_CHAT_MESSAGE_RESOURCE_KINDS)[number];
+
+/**
+ * A provider-authored, user-displayable reasoning summary.
+ *
+ * This contract intentionally cannot carry raw thought content, signatures,
+ * or provider envelopes.
+ */
+export interface BirdCoderChatMessageReasoningItem {
+  id: string;
+  summary: string;
+  title?: string;
+  createdAt?: string;
+  startedAt?: string;
+  completedAt?: string;
+  durationMs?: number;
+}
+
+export interface BirdCoderChatMessageResourceOrigin {
+  kind: 'file' | 'symbol' | 'resource';
+  name?: string;
+  path?: string;
+  uri?: string;
+  clientName?: string;
+  lineStart?: number;
+  lineEnd?: number;
+  columnStart?: number;
+  columnEnd?: number;
+  excerpt?: string;
+}
+
+export interface BirdCoderChatMessageResourceCitation {
+  lineStart?: number;
+  lineEnd?: number;
+  note?: string;
+  threadIds?: readonly string[];
+}
+
+export interface BirdCoderChatMessageResource {
+  id: string;
+  kind: BirdCoderChatMessageResourceKind;
+  name?: string;
+  path?: string;
+  uri?: string;
+  mediaSource?: string;
+  mimeType?: string;
+  description?: string;
+  origin?: BirdCoderChatMessageResourceOrigin;
+  citation?: BirdCoderChatMessageResourceCitation;
+}
+
 export type BirdCoderChatMessageToolResultBlock =
   | {
       type: 'text';
@@ -72,7 +139,7 @@ export type BirdCoderChatMessageToolResultBlock =
     }
   | {
       type: 'resource';
-      uri: string;
+      uri?: string;
       name?: string;
       mimeType?: string;
       text?: string;
@@ -107,6 +174,7 @@ export interface BirdCoderChatMessageToolCall {
   arguments: string;
   kind?: BirdCoderChatMessageToolCallKind;
   status?: BirdCoderChatMessageToolCallStatus;
+  presentation?: BirdCoderChatMessageToolCallPresentation;
   output?: string;
   command?: string;
   target?: string;
@@ -120,5 +188,6 @@ export interface BirdCoderChatMessageRecord {
   id: string;
   role: BirdCoderChatMessageRole;
   content: string;
+  reasoning?: readonly BirdCoderChatMessageReasoningItem[];
   createdAt: string;
 }

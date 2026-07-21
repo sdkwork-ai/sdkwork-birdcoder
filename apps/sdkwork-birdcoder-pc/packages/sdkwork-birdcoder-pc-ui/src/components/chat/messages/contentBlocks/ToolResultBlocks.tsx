@@ -177,6 +177,11 @@ function appendSemanticResultBody(header: string, body: string | undefined): str
   return header ? `${header}\n\n${body}` : body;
 }
 
+function resolveDisplayableResourceUri(uri: string | undefined): string {
+  const normalizedUri = uri?.trim() ?? '';
+  return /^(?:blob|data):/iu.test(normalizedUri) ? '' : normalizedUri;
+}
+
 export function resolveToolResultBlocksCopyContent(
   blocks: readonly ToolResultBlock[],
 ): string {
@@ -196,19 +201,25 @@ export function resolveToolResultBlocksCopyContent(
           return block.items.join('\n');
         case 'link':
           return joinSemanticResultParts([block.title, block.url, block.description]);
-        case 'resource':
+        case 'resource': {
+          const resourceUri = resolveDisplayableResourceUri(block.uri);
           return appendSemanticResultBody(
             joinSemanticResultParts([
               block.name,
-              block.uri,
+              resourceUri,
               block.mimeType,
               block.description,
             ]),
             block.text,
           );
+        }
         case 'image':
         case 'audio':
-          return joinSemanticResultParts([block.title, block.source, block.mimeType]);
+          return joinSemanticResultParts([
+            block.title,
+            /^(?:blob|data):/iu.test(block.source) ? '' : block.source,
+            block.mimeType,
+          ]);
       }
     })
     .filter((content) => /\S/u.test(content))
@@ -418,12 +429,16 @@ function renderToolResultBlock(
     );
   }
   if (block.type === 'resource') {
-    const resourceLabel = block.name?.trim() || block.uri;
+    const resourceUri = resolveDisplayableResourceUri(block.uri);
+    const resourceLabel = block.name?.trim()
+      || resourceUri
+      || t?.('chat.messageResourceFile')
+      || 'File';
     const resourceLabelPreview = buildChatContentPreview(resourceLabel, {
       maxCharacters: MAX_RESULT_METADATA_CHARACTERS,
       tailCharacters: 0,
     });
-    const resourceUriPreview = buildChatContentPreview(block.uri, {
+    const resourceUriPreview = buildChatContentPreview(resourceUri, {
       maxCharacters: MAX_RESULT_METADATA_CHARACTERS,
       tailCharacters: 500,
     });
@@ -468,33 +483,35 @@ function renderToolResultBlock(
             {descriptionPreview.text}
           </div>
         ) : null}
-        <div className="mt-1 flex min-w-0 items-center gap-1.5">
-          <span className="shrink-0 text-[10px] text-gray-400/80">{resourceUriLabel}</span>
-          {isSafeExternalUrl(block.uri) ? (
-            <a
-              className="min-w-0 flex-1 truncate font-mono text-[10px] text-sky-200 hover:underline focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-blue-400/70"
-              href={block.uri}
-              rel="noreferrer noopener"
-              target="_blank"
-              title={block.uri.length <= MAX_EXTERNAL_URL_CHARACTERS ? block.uri : undefined}
+        {resourceUri ? (
+          <div className="mt-1 flex min-w-0 items-center gap-1.5">
+            <span className="shrink-0 text-[10px] text-gray-400/80">{resourceUriLabel}</span>
+            {isSafeExternalUrl(resourceUri) ? (
+              <a
+                className="min-w-0 flex-1 truncate font-mono text-[10px] text-sky-200 hover:underline focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-blue-400/70"
+                href={resourceUri}
+                rel="noreferrer noopener"
+                target="_blank"
+                title={resourceUri.length <= MAX_EXTERNAL_URL_CHARACTERS ? resourceUri : undefined}
+              >
+                {resourceUriPreview.text}
+              </a>
+            ) : (
+              <span className="min-w-0 flex-1 truncate font-mono text-[10px] text-gray-300">
+                {resourceUriPreview.text}
+              </span>
+            )}
+            <button
+              type="button"
+              className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-gray-400 transition-colors hover:bg-white/10 hover:text-gray-200 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-blue-400/70"
+              title={copyLabel}
+              aria-label={copyLabel}
+              onClick={() => copyMessageToClipboard(resourceUri)}
             >
-              {resourceUriPreview.text}
-            </a>
-          ) : (
-            <span className="min-w-0 flex-1 truncate font-mono text-[10px] text-gray-300">
-              {resourceUriPreview.text}
-            </span>
-          )}
-          <button
-            type="button"
-            className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-gray-400 transition-colors hover:bg-white/10 hover:text-gray-200 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-blue-400/70"
-            title={copyLabel}
-            aria-label={copyLabel}
-            onClick={() => copyMessageToClipboard(block.uri)}
-          >
-            <Copy size={12} aria-hidden="true" />
-          </button>
-        </div>
+              <Copy size={12} aria-hidden="true" />
+            </button>
+          </div>
+        ) : null}
         {textPreview ? (
           <>
             <pre

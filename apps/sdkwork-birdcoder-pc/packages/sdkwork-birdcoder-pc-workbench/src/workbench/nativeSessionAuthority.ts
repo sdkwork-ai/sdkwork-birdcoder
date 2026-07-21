@@ -114,6 +114,8 @@ function toNativeChatMessage(message: BirdCoderNativeSessionDetail['messages'][n
     })),
     fileChanges: message.fileChanges as BirdCoderChatMessage['fileChanges'],
     metadata: message.metadata,
+    reasoning: message.reasoning as BirdCoderChatMessage['reasoning'],
+    resources: message.resources as BirdCoderChatMessage['resources'],
     role: message.role,
     taskProgress: message.taskProgress as BirdCoderChatMessage['taskProgress'],
     timestamp: Date.parse(message.createdAt),

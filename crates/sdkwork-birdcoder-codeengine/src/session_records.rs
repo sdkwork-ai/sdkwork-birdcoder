@@ -284,6 +284,158 @@ pub struct CodeEngineSessionCommandRecord {
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
 #[serde(rename_all = "camelCase")]
+pub struct CodeEngineSessionResourceOriginRecord {
+    pub kind: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub name: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub path: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub uri: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub client_name: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub line_start: Option<u64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub line_end: Option<u64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub column_start: Option<u64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub column_end: Option<u64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub excerpt: Option<String>,
+}
+
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CodeEngineSessionResourceCitationRecord {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub line_start: Option<u64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub line_end: Option<u64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub note: Option<String>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub thread_ids: Vec<String>,
+}
+
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CodeEngineSessionResourceRecord {
+    pub id: String,
+    pub kind: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub name: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub path: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub uri: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub media_source: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub mime_type: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub description: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub origin: Option<CodeEngineSessionResourceOriginRecord>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub citation: Option<CodeEngineSessionResourceCitationRecord>,
+}
+
+const MAX_CODEENGINE_SESSION_REASONING_ITEMS: usize = 32;
+const MAX_CODEENGINE_SESSION_REASONING_INPUT_ITEMS: usize = 128;
+const MAX_CODEENGINE_SESSION_REASONING_ID_CHARACTERS: usize = 256;
+const MAX_CODEENGINE_SESSION_REASONING_TITLE_CHARACTERS: usize = 256;
+const MAX_CODEENGINE_SESSION_REASONING_SUMMARY_CHARACTERS: usize = 8_000;
+const MAX_CODEENGINE_SESSION_REASONING_TIMESTAMP_CHARACTERS: usize = 64;
+
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CodeEngineSessionReasoningRecord {
+    pub id: String,
+    pub summary: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub title: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub created_at: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub started_at: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub completed_at: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub duration_ms: Option<u64>,
+}
+
+fn bounded_reasoning_string(value: &str, max_characters: usize) -> Option<String> {
+    let normalized = value.trim();
+    if normalized.is_empty() {
+        return None;
+    }
+    Some(normalized.chars().take(max_characters).collect())
+}
+
+fn normalize_reasoning_timestamp(value: Option<&str>) -> Option<String> {
+    let value = bounded_reasoning_string(
+        value?,
+        MAX_CODEENGINE_SESSION_REASONING_TIMESTAMP_CHARACTERS,
+    )?;
+    time::OffsetDateTime::parse(
+        value.as_str(),
+        &time::format_description::well_known::Rfc3339,
+    )
+    .ok()?;
+    Some(value)
+}
+
+fn sanitize_codeengine_session_reasoning_record(
+    record: &CodeEngineSessionReasoningRecord,
+) -> Option<CodeEngineSessionReasoningRecord> {
+    Some(CodeEngineSessionReasoningRecord {
+        id: bounded_reasoning_string(
+            record.id.as_str(),
+            MAX_CODEENGINE_SESSION_REASONING_ID_CHARACTERS,
+        )?,
+        summary: bounded_reasoning_string(
+            record.summary.as_str(),
+            MAX_CODEENGINE_SESSION_REASONING_SUMMARY_CHARACTERS,
+        )?,
+        title: record.title.as_deref().and_then(|value| {
+            bounded_reasoning_string(value, MAX_CODEENGINE_SESSION_REASONING_TITLE_CHARACTERS)
+        }),
+        created_at: normalize_reasoning_timestamp(record.created_at.as_deref()),
+        started_at: normalize_reasoning_timestamp(record.started_at.as_deref()),
+        completed_at: normalize_reasoning_timestamp(record.completed_at.as_deref()),
+        duration_ms: record
+            .duration_ms
+            .filter(|value| *value <= 9_007_199_254_740_991),
+    })
+}
+
+pub fn sanitize_codeengine_session_reasoning_records(
+    records: &[CodeEngineSessionReasoningRecord],
+) -> Vec<CodeEngineSessionReasoningRecord> {
+    let mut sanitized = Vec::<CodeEngineSessionReasoningRecord>::new();
+    for record in records
+        .iter()
+        .take(MAX_CODEENGINE_SESSION_REASONING_INPUT_ITEMS)
+    {
+        let Some(record) = sanitize_codeengine_session_reasoning_record(record) else {
+            continue;
+        };
+        if let Some(existing_index) = sanitized
+            .iter()
+            .position(|existing| existing.id == record.id)
+        {
+            sanitized[existing_index] = record;
+        } else if sanitized.len() < MAX_CODEENGINE_SESSION_REASONING_ITEMS {
+            sanitized.push(record);
+        }
+    }
+    sanitized
+}
+
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct CodeEngineSessionMessageRecord {
     pub id: String,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -306,6 +458,10 @@ pub struct CodeEngineSessionMessageRecord {
     pub tool_call_id: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub file_changes: Option<Vec<serde_json::Value>>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub reasoning: Option<Vec<CodeEngineSessionReasoningRecord>>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub resources: Option<Vec<CodeEngineSessionResourceRecord>>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub task_progress: Option<serde_json::Value>,
     #[serde(skip_serializing_if = "Option::is_none")]

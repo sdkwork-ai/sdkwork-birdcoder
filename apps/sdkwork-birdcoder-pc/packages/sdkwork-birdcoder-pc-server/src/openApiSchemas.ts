@@ -831,6 +831,60 @@ export function buildBirdCoderCodingServerOpenApiSchemas(): Record<string, BirdC
         required: ['command', 'status'],
       },
     ),
+    BirdCoderChatMessageReasoningItem: createOpenApiObjectSchema(
+      {
+        id: createOpenApiStringSchema(),
+        summary: createOpenApiStringSchema(),
+        title: createOpenApiStringSchema(),
+        createdAt: createOpenApiDateTimeSchema(),
+        startedAt: createOpenApiDateTimeSchema(),
+        completedAt: createOpenApiDateTimeSchema(),
+        durationMs: createOpenApiIntegerSchema(0),
+      },
+      { required: ['id', 'summary'] },
+    ),
+    BirdCoderChatMessageResource: createOpenApiObjectSchema(
+      {
+        id: createOpenApiStringSchema(),
+        kind: createOpenApiStringEnumSchema([
+          'file',
+          'image',
+          'audio',
+          'uri',
+          'citation',
+          'skill',
+          'mention',
+        ]),
+        name: createOpenApiStringSchema(),
+        path: createOpenApiStringSchema(),
+        uri: createOpenApiStringSchema(),
+        mediaSource: createOpenApiStringSchema(),
+        mimeType: createOpenApiStringSchema(),
+        description: createOpenApiStringSchema(),
+        origin: createOpenApiObjectSchema(
+          {
+            kind: createOpenApiStringEnumSchema(['file', 'symbol', 'resource']),
+            name: createOpenApiStringSchema(),
+            path: createOpenApiStringSchema(),
+            uri: createOpenApiStringSchema(),
+            clientName: createOpenApiStringSchema(),
+            lineStart: createOpenApiIntegerSchema(0),
+            lineEnd: createOpenApiIntegerSchema(0),
+            columnStart: createOpenApiIntegerSchema(0),
+            columnEnd: createOpenApiIntegerSchema(0),
+            excerpt: createOpenApiStringSchema(),
+          },
+          { required: ['kind'] },
+        ),
+        citation: createOpenApiObjectSchema({
+          lineStart: createOpenApiIntegerSchema(0),
+          lineEnd: createOpenApiIntegerSchema(0),
+          note: createOpenApiStringSchema(),
+          threadIds: createOpenApiArraySchema(createOpenApiStringSchema()),
+        }),
+      },
+      { required: ['id', 'kind'] },
+    ),
     BirdCoderNativeSessionMessage: createOpenApiObjectSchema(
       {
         id: createOpenApiStringSchema(),
@@ -857,6 +911,12 @@ export function buildBirdCoderCodingServerOpenApiSchemas(): Record<string, BirdC
               required: ['path', 'additions', 'deletions'],
             },
           ),
+        ),
+        reasoning: createOpenApiArraySchema(
+          createOpenApiSchemaReference('BirdCoderChatMessageReasoningItem'),
+        ),
+        resources: createOpenApiArraySchema(
+          createOpenApiSchemaReference('BirdCoderChatMessageResource'),
         ),
         taskProgress: createOpenApiObjectSchema(
           {

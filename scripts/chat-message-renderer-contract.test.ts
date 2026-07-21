@@ -234,8 +234,8 @@ assert.match(
 );
 assert.match(
   enginePluginsSource,
-  /showEngineLabel = props\.view\.kind === 'assistant\.text'/,
-  'Engine identity must appear only on authored assistant replies, not every activity and tool-result row.',
+  /const isAuthoredReply =[\s\S]*const showEngineLabel = isAuthoredReply && props\.view\.blocks\.some\([\s\S]*block\.type === 'markdown' && !block\.noticeKind/,
+  'Engine identity must follow visible authored Markdown, including mixed activity replies, and stay off protocol-only rows.',
 );
 assert.doesNotMatch(
   enginePluginsSource,
@@ -448,14 +448,29 @@ assert.match(
   'provider lifecycle messages must render as dedicated compact status rows.',
 );
 assert.match(
+  chatMessageViewSource,
+  /call\.presentation !== 'notice'[\s\S]*type: 'notice'[\s\S]*blocks\.unshift\(\.\.\.toolNoticeBlocks\)/,
+  'Gemini notice-format tool displays must use an independent provider-neutral content block instead of changing the whole reply.',
+);
+assert.match(
+  contentBlockRenderersSource,
+  /NoticeContentBlockRenderer[\s\S]*data-chat-tool-notice=\{block\.noticeKind\}[\s\S]*role="note"/,
+  'Provider-neutral tool notices must render as static message-like notes without disclosure semantics.',
+);
+assert.match(
   contentBlockRenderersSource,
   /warning: 'Provider warning'[\s\S]*noticeWarning[\s\S]*const isWarning = noticeKind === 'warning'[\s\S]*text-amber-200\/90[\s\S]*data-chat-system-notice=\{noticeKind\}[\s\S]*role="note"/,
   'Persisted provider notices must keep their visual severity without becoming per-row live regions during history or virtualization mounts.',
 );
 assert.match(
   replyRenderersSource,
-  /context\.showMessageActions && !isProtocolNotice/,
-  'passive provider lifecycle notices must not expose reply actions.',
+  /const hasAuthoredMarkdown = view\.blocks\.some\([\s\S]*!block\.noticeKind[\s\S]*const hasStructuredActivity = view\.blocks\.some\([\s\S]*const suppressReplyChrome = !hasAuthoredMarkdown && hasStructuredActivity/,
+  'notice, resource, reasoning, and activity-only rows must suppress reply chrome without hiding chrome on mixed authored replies.',
+);
+assert.match(
+  replyRenderersSource,
+  /suppressReplyChrome \? null[\s\S]*context\.showMessageActions && !suppressReplyChrome/,
+  'activity-only rows must omit both role headers and message-level action controls.',
 );
 assert.match(
   replyRenderersSource,

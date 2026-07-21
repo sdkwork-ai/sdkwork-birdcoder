@@ -409,17 +409,17 @@ function normalizeCanonicalResultBlock(
   }
   if (type === 'resource') {
     const uri = readString(record.uri);
-    if (!uri) {
-      return null;
-    }
     const name = readString(record.name);
     const mimeType = readString(record.mimeType);
     const text = typeof record.text === 'string' && record.text.trim() ? record.text : '';
     const description = readString(record.description);
     const size = readFiniteNumber(record.size);
+    if (!uri && !name && !mimeType && !text && !description && size === undefined) {
+      return null;
+    }
     return {
       type: 'resource',
-      uri,
+      ...(uri ? { uri } : {}),
       ...(name ? { name } : {}),
       ...(mimeType ? { mimeType } : {}),
       ...(text ? { text } : {}),
@@ -599,10 +599,12 @@ function appendMediaOrResourceBlock(
     blocks.push({ type: 'audio', ...media, ...(title ? { title } : {}) });
     return true;
   }
+  const resourceUri = /^(?:blob|data):/iu.test(media.source) ? '' : media.source;
+  const resourceName = title || (type === 'document' ? 'Document' : '');
   blocks.push({
     type: 'resource',
-    uri: media.source,
-    ...(title ? { name: title } : {}),
+    ...(resourceUri ? { uri: resourceUri } : {}),
+    ...(resourceName ? { name: resourceName } : {}),
     ...(media.mimeType ? { mimeType: media.mimeType } : {}),
   });
   return true;
@@ -681,6 +683,7 @@ function projectToolResultValue(
   if (
     type === 'image'
     || type === 'audio'
+    || type === 'document'
     || type === 'file'
     || type === 'input_audio'
     || type === 'input_image'
@@ -695,6 +698,9 @@ function projectToolResultValue(
   if (type === 'resource' || type === 'resource_link' || readRecord(record.resource)) {
     const resource = readRecord(record.resource) ?? record;
     const uri = readFirstString(resource, ['uri', 'url']);
+    if (!uri && appendMediaOrResourceBlock(resource, blocks)) {
+      return;
+    }
     if (uri) {
       const name = readFirstString(resource, ['name', 'title']);
       const mimeType = readFirstString(resource, ['mimeType', 'mime_type']);
@@ -726,7 +732,7 @@ function projectToolResultValue(
       const size = readFiniteNumber(resource.size);
       blocks.push({
         type: 'resource',
-        uri,
+        ...(!/^(?:blob|data):/iu.test(uri) ? { uri } : {}),
         ...(name ? { name } : {}),
         ...(mimeType ? { mimeType } : {}),
         ...(text ? { text: resource.text as string } : {}),
