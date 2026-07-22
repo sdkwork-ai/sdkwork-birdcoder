@@ -18,7 +18,7 @@ export const BIRDCODER_PROMPT_COMPOSITION_LAYER_IDS = [
   'platform_rule',
   'organization_rule',
   'template_preset',
-  'skill_installation',
+  'skills_context',
   'project_context',
   'turn_prompt',
 ] as const;
@@ -54,7 +54,7 @@ export const BIRDCODER_PROMPT_COMPOSITION_LAYERS: readonly BirdCoderPromptCompos
       sourceType: 'template',
     },
     {
-      id: 'skill_installation',
+      id: 'skills_context',
       order: 40,
       description: 'Canonical Skills installation references selected for this prompt.',
       sourceType: 'skill',

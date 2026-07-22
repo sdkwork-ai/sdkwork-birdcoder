@@ -32,13 +32,6 @@ pub const SYSTEM_APP_API_ROUTES: &[HttpRoute] = &[
         "health.retrieve",
     )
     .with_required_permission("birdcoder.system-health.read"),
-    HttpRoute::dual_token(
-        HttpMethod::Get,
-        paths::OPERATIONS_PATH,
-        "system",
-        "operations.retrieve",
-    )
-    .with_required_permission("birdcoder.system-operations.read"),
 ];
 
 pub fn system_app_api_route_manifest() -> HttpRouteManifest {

@@ -1,9 +1,7 @@
 use crate::domain::models::{
     DescriptorPayload, GatewayDescriptorPayload, GatewayRoutesBySurfacePayload,
-    GatewaySurfaceDescriptorPayload, HealthPayload, OperationPayload, RouteCatalogEntryPayload,
-    RuntimePayload,
+    GatewaySurfaceDescriptorPayload, HealthPayload, RouteCatalogEntryPayload, RuntimePayload,
 };
-use crate::error::SystemDescriptorError;
 use crate::route_catalog::{build_route_catalog_entries, count_route_catalog_entries_by_surface};
 use sdkwork_web_contract::HttpRoute;
 
@@ -27,32 +25,20 @@ impl RouteCatalogProvider for ManifestRouteCatalogProvider {
     }
 }
 
-#[async_trait::async_trait]
-pub trait OperationProvider: Send + Sync {
-    async fn find_operation(
-        &self,
-        tenant_id: &str,
-        user_id: &str,
-        operation_id: &str,
-    ) -> Result<Option<OperationPayload>, SystemDescriptorError>;
-}
-
-pub struct SystemService<R: RouteCatalogProvider, O: OperationProvider> {
+pub struct SystemService<R: RouteCatalogProvider> {
     route_catalog_provider: R,
-    operation_provider: O,
 }
 
-impl<R: RouteCatalogProvider, O: OperationProvider> SystemService<R, O> {
-    pub fn new(route_catalog_provider: R, operation_provider: O) -> Self {
+impl<R: RouteCatalogProvider> SystemService<R> {
+    pub fn new(route_catalog_provider: R) -> Self {
         Self {
             route_catalog_provider,
-            operation_provider,
         }
     }
 
     pub fn health(&self) -> HealthPayload {
         HealthPayload {
-            status: "healthy".to_string(),
+            status: "healthy".to_owned(),
         }
     }
 
@@ -65,87 +51,43 @@ impl<R: RouteCatalogProvider, O: OperationProvider> SystemService<R, O> {
         open_api_path: &str,
     ) -> DescriptorPayload {
         let (app_route_count, backend_route_count) = count_route_catalog_entries_by_surface(routes);
-
-        DescriptorPayload {
-            api_version: api_version.to_string(),
-            gateway: GatewayDescriptorPayload {
-                docs_path: "/docs".to_string(),
-                live_open_api_path: "/openapi.json".to_string(),
-                open_api_path: open_api_path.to_string(),
-                route_catalog_path: "/app/v3/api/system/routes".to_string(),
-                route_count: app_route_count + backend_route_count,
-                routes_by_surface: GatewayRoutesBySurfacePayload {
-                    app: app_route_count,
-                    backend: backend_route_count,
-                },
-                surfaces: [
-                    GatewaySurfaceDescriptorPayload {
-                        auth_mode: "user".to_string(),
-                        base_path: "/app/v3/api".to_string(),
-                        description: "App API surface for user-facing operations".to_string(),
-                        name: "app".to_string(),
-                        route_count: app_route_count,
-                    },
-                    GatewaySurfaceDescriptorPayload {
-                        auth_mode: "admin".to_string(),
-                        base_path: "/backend/v3/api".to_string(),
-                        description: "Backend API surface for administrative operations"
-                            .to_string(),
-                        name: "backend".to_string(),
-                        route_count: backend_route_count,
-                    },
-                ],
-            },
-            host_mode: host_mode.to_string(),
-            module_id: module_id.to_string(),
-            open_api_path: open_api_path.to_string(),
-            surfaces: ["app".to_string(), "backend".to_string()],
+        let mut surfaces = vec![GatewaySurfaceDescriptorPayload {
+            auth_mode: "user".to_owned(),
+            base_path: "/app/v3/api".to_owned(),
+            description: "App API surface for user-facing operations".to_owned(),
+            name: "app".to_owned(),
+            route_count: app_route_count,
+        }];
+        let mut surface_names = vec!["app".to_owned()];
+        if backend_route_count > 0 {
+            surfaces.push(GatewaySurfaceDescriptorPayload {
+                auth_mode: "admin".to_owned(),
+                base_path: "/backend/v3/api".to_owned(),
+                description: "Backend API surface for administrative operations".to_owned(),
+                name: "backend".to_owned(),
+                route_count: backend_route_count,
+            });
+            surface_names.push("backend".to_owned());
         }
-    }
 
-    pub fn descriptor(
-        &self,
-        host_mode: &str,
-        module_id: &str,
-        api_version: &str,
-        app_route_count: usize,
-        backend_route_count: usize,
-        open_api_path: &str,
-    ) -> DescriptorPayload {
         DescriptorPayload {
-            api_version: api_version.to_string(),
+            api_version: api_version.to_owned(),
             gateway: GatewayDescriptorPayload {
-                docs_path: "/docs".to_string(),
-                live_open_api_path: "/openapi.json".to_string(),
-                open_api_path: open_api_path.to_string(),
-                route_catalog_path: "/route-catalog".to_string(),
+                docs_path: "/docs".to_owned(),
+                live_open_api_path: "/openapi.json".to_owned(),
+                open_api_path: open_api_path.to_owned(),
+                route_catalog_path: "/app/v3/api/system/routes".to_owned(),
                 route_count: app_route_count + backend_route_count,
                 routes_by_surface: GatewayRoutesBySurfacePayload {
                     app: app_route_count,
                     backend: backend_route_count,
                 },
-                surfaces: [
-                    GatewaySurfaceDescriptorPayload {
-                        auth_mode: "user".to_string(),
-                        base_path: "/api/app".to_string(),
-                        description: "App API surface for user-facing operations".to_string(),
-                        name: "app".to_string(),
-                        route_count: app_route_count,
-                    },
-                    GatewaySurfaceDescriptorPayload {
-                        auth_mode: "admin".to_string(),
-                        base_path: "/api/backend".to_string(),
-                        description: "Backend API surface for administrative operations"
-                            .to_string(),
-                        name: "backend".to_string(),
-                        route_count: backend_route_count,
-                    },
-                ],
+                surfaces,
             },
-            host_mode: host_mode.to_string(),
-            module_id: module_id.to_string(),
-            open_api_path: open_api_path.to_string(),
-            surfaces: ["app".to_string(), "backend".to_string()],
+            host_mode: host_mode.to_owned(),
+            module_id: module_id.to_owned(),
+            open_api_path: open_api_path.to_owned(),
+            surfaces: surface_names,
         }
     }
 
@@ -155,37 +97,9 @@ impl<R: RouteCatalogProvider, O: OperationProvider> SystemService<R, O> {
 
     pub fn runtime(&self, host: &str, port: u16, config_file_name: &str) -> RuntimePayload {
         RuntimePayload {
-            host: host.to_string(),
+            host: host.to_owned(),
             port,
-            config_file_name: config_file_name.to_string(),
+            config_file_name: config_file_name.to_owned(),
         }
-    }
-
-    pub async fn get_operation(
-        &self,
-        tenant_id: &str,
-        user_id: &str,
-        operation_id: &str,
-    ) -> Result<OperationPayload, SystemDescriptorError> {
-        let normalized_id = normalize_required(operation_id).ok_or_else(|| {
-            SystemDescriptorError::InvalidInput("operationId is required.".to_string())
-        })?;
-
-        self.operation_provider
-            .find_operation(tenant_id, user_id, &normalized_id)
-            .await?
-            .ok_or_else(|| {
-                SystemDescriptorError::NotFound(format!(
-                    "Operation \"{normalized_id}\" was not found."
-                ))
-            })
-    }
-}
-
-fn normalize_required(value: &str) -> Option<String> {
-    if sdkwork_utils_rust::is_blank(Some(value)) {
-        None
-    } else {
-        Some(sdkwork_utils_rust::trim(value))
     }
 }

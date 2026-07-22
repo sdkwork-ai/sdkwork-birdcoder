@@ -7260,18 +7260,13 @@ dependencies = [
 name = "sdkwork-routes-system-app-api"
 version = "0.1.0"
 dependencies = [
- "async-trait",
  "axum 0.8.9",
  "sdkwork-birdcoder-errors",
  "sdkwork-birdcoder-router-context",
  "sdkwork-birdcoder-system-descriptor-service",
  "sdkwork-iam-context-service",
- "sdkwork-utils-rust",
  "sdkwork-web-contract",
  "sdkwork-web-core",
- "serde",
- "serde_json",
- "sqlx",
  "tokio",
  "tower 0.5.3",
 ]
@@ -7298,30 +7293,17 @@ dependencies = [
 name = "sdkwork-routes-workspace-app-api"
 version = "0.1.0"
 dependencies = [
- "async-trait",
  "axum 0.8.9",
- "futures-util",
- "redis 0.27.6",
- "sdkwork-birdcoder-deployment-service",
  "sdkwork-birdcoder-errors",
  "sdkwork-birdcoder-project-service",
  "sdkwork-birdcoder-router-context",
- "sdkwork-birdcoder-workspace-repository-sqlx",
  "sdkwork-birdcoder-workspace-service",
- "sdkwork-database-config",
- "sdkwork-database-sqlx",
- "sdkwork-iam-context-service",
  "sdkwork-utils-rust",
  "sdkwork-web-contract",
  "sdkwork-web-core",
  "serde",
  "serde_json",
- "sqlx",
- "time",
- "tokio",
- "tower 0.5.3",
  "tracing",
- "uuid",
 ]
 
 [[package]]

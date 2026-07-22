@@ -49,10 +49,6 @@
       "description": "Runtime engine, model, native session, and local operation resources."
     },
     {
-      "name": "skills",
-      "description": "Skill package catalog and installation resources."
-    },
-    {
       "name": "system",
       "description": "System descriptor, health, route catalog, and runtime metadata resources."
     },
@@ -4770,241 +4766,6 @@
         },
         "additionalProperties": false
       },
-      "BirdCoderSkillCatalogEntrySummary": {
-        "type": "object",
-        "properties": {
-          "id": {
-            "type": "string"
-          },
-          "packageId": {
-            "type": "string"
-          },
-          "slug": {
-            "type": "string"
-          },
-          "name": {
-            "type": "string"
-          },
-          "description": {
-            "type": "string"
-          },
-          "icon": {
-            "type": "string"
-          },
-          "author": {
-            "type": "string"
-          },
-          "versionId": {
-            "type": "string"
-          },
-          "versionLabel": {
-            "type": "string"
-          },
-          "installCount": {
-            "type": "string",
-            "description": "Java Long/BIGINT value serialized as an exact decimal string."
-          },
-          "longDescription": {
-            "type": "string"
-          },
-          "tags": {
-            "type": "array",
-            "items": {
-              "type": "string"
-            }
-          },
-          "license": {
-            "type": "string"
-          },
-          "repositoryUrl": {
-            "type": "string"
-          },
-          "lastUpdated": {
-            "type": "string",
-            "format": "date-time"
-          },
-          "readme": {
-            "type": "string"
-          },
-          "capabilityKeys": {
-            "type": "array",
-            "items": {
-              "type": "string"
-            }
-          },
-          "installed": {
-            "type": "boolean"
-          }
-        },
-        "required": [
-          "id",
-          "packageId",
-          "slug",
-          "name",
-          "description",
-          "versionId",
-          "versionLabel",
-          "tags",
-          "capabilityKeys",
-          "installed"
-        ],
-        "additionalProperties": false
-      },
-      "BirdCoderSkillPackageSummary": {
-        "type": "object",
-        "properties": {
-          "id": {
-            "type": "string"
-          },
-          "uuid": {
-            "type": "string"
-          },
-          "tenantId": {
-            "type": "string"
-          },
-          "organizationId": {
-            "type": "string"
-          },
-          "createdAt": {
-            "type": "string",
-            "format": "date-time"
-          },
-          "updatedAt": {
-            "type": "string",
-            "format": "date-time"
-          },
-          "slug": {
-            "type": "string"
-          },
-          "name": {
-            "type": "string"
-          },
-          "description": {
-            "type": "string"
-          },
-          "icon": {
-            "type": "string"
-          },
-          "author": {
-            "type": "string"
-          },
-          "versionId": {
-            "type": "string"
-          },
-          "versionLabel": {
-            "type": "string"
-          },
-          "installCount": {
-            "type": "string",
-            "description": "Java Long/BIGINT value serialized as an exact decimal string."
-          },
-          "longDescription": {
-            "type": "string"
-          },
-          "sourceUri": {
-            "type": "string"
-          },
-          "installed": {
-            "type": "boolean"
-          },
-          "skills": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/BirdCoderSkillCatalogEntrySummary"
-            }
-          }
-        },
-        "required": [
-          "id",
-          "slug",
-          "name",
-          "description",
-          "versionId",
-          "versionLabel",
-          "installed",
-          "skills"
-        ],
-        "additionalProperties": false
-      },
-      "BirdCoderInstallSkillPackageRequest": {
-        "type": "object",
-        "properties": {
-          "scopeId": {
-            "type": "string"
-          },
-          "scopeType": {
-            "type": "string",
-            "enum": [
-              "workspace",
-              "project"
-            ]
-          }
-        },
-        "required": [
-          "scopeId",
-          "scopeType"
-        ],
-        "additionalProperties": false
-      },
-      "BirdCoderSkillInstallationSummary": {
-        "type": "object",
-        "properties": {
-          "id": {
-            "type": "string"
-          },
-          "uuid": {
-            "type": "string"
-          },
-          "tenantId": {
-            "type": "string"
-          },
-          "organizationId": {
-            "type": "string"
-          },
-          "createdAt": {
-            "type": "string",
-            "format": "date-time"
-          },
-          "updatedAt": {
-            "type": "string",
-            "format": "date-time"
-          },
-          "packageId": {
-            "type": "string"
-          },
-          "scopeId": {
-            "type": "string"
-          },
-          "scopeType": {
-            "type": "string",
-            "enum": [
-              "workspace",
-              "project"
-            ]
-          },
-          "status": {
-            "type": "string",
-            "description": "Known values include active and archived."
-          },
-          "versionId": {
-            "type": "string"
-          },
-          "installedAt": {
-            "type": "string",
-            "format": "date-time"
-          }
-        },
-        "required": [
-          "id",
-          "packageId",
-          "scopeId",
-          "scopeType",
-          "status",
-          "versionId",
-          "installedAt"
-        ],
-        "additionalProperties": false
-      },
       "BirdCoderAppTemplateSummary": {
         "type": "object",
         "properties": {
@@ -8480,69 +8241,6 @@
                 "required": [
                   "items",
                   "pageInfo"
-                ],
-                "additionalProperties": false
-              }
-            },
-            "required": [
-              "data"
-            ],
-            "additionalProperties": false
-          }
-        ]
-      },
-      "BirdCoderSkillPackageSummaryListEnvelope": {
-        "allOf": [
-          {
-            "$ref": "#/components/schemas/SdkWorkApiResponse"
-          },
-          {
-            "type": "object",
-            "properties": {
-              "data": {
-                "type": "object",
-                "properties": {
-                  "items": {
-                    "type": "array",
-                    "items": {
-                      "$ref": "#/components/schemas/BirdCoderSkillPackageSummary"
-                    }
-                  },
-                  "pageInfo": {
-                    "$ref": "#/components/schemas/PageInfo"
-                  }
-                },
-                "required": [
-                  "items",
-                  "pageInfo"
-                ],
-                "additionalProperties": false
-              }
-            },
-            "required": [
-              "data"
-            ],
-            "additionalProperties": false
-          }
-        ]
-      },
-      "BirdCoderSkillInstallationSummaryEnvelope": {
-        "allOf": [
-          {
-            "$ref": "#/components/schemas/SdkWorkApiResponse"
-          },
-          {
-            "type": "object",
-            "properties": {
-              "data": {
-                "type": "object",
-                "properties": {
-                  "item": {
-                    "$ref": "#/components/schemas/BirdCoderSkillInstallationSummary"
-                  }
-                },
-                "required": [
-                  "item"
                 ],
                 "additionalProperties": false
               }
@@ -16738,94 +16436,6 @@
         "x-sdkwork-tenant-scope": "tenant"
       }
     },
-    "/app/v3/api/skill_packages/{packageId}/installations": {
-      "post": {
-        "operationId": "skillPackages.installations.create",
-        "summary": "Install skill package for a scope",
-        "description": "Install skill package for a scope. Requires an authenticated BirdCoder user session.",
-        "tags": [
-          "skills"
-        ],
-        "parameters": [
-          {
-            "name": "packageId",
-            "in": "path",
-            "required": true,
-            "description": "Skill package identifier.",
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/BirdCoderInstallSkillPackageRequest"
-              }
-            }
-          }
-        },
-        "responses": {
-          "201": {
-            "description": "Skill package installed successfully.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/BirdCoderSkillInstallationSummaryEnvelope"
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "Skill package installation request is invalid.",
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetail"
-                }
-              }
-            }
-          },
-          "404": {
-            "description": "Skill package was not found.",
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetail"
-                }
-              }
-            }
-          },
-          "default": {
-            "description": "Problem response envelope.",
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetail"
-                }
-              }
-            }
-          }
-        },
-        "security": [
-          {
-            "bearerAuth": [],
-            "sdkworkAccessToken": []
-          }
-        ],
-        "x-sdkwork-auth-mode": "user",
-        "x-sdkwork-data-scope": "organization",
-        "x-sdkwork-deployment": "all",
-        "x-sdkwork-domain": "ecosystem",
-        "x-sdkwork-permission": "birdcoder.ecosystem-skill-packages-installations.create",
-        "x-sdkwork-public": false,
-        "x-sdkwork-resource": "birdcoder.ecosystem-skill-packages-installations",
-        "x-sdkwork-surface": "app",
-        "x-sdkwork-tenant-scope": "tenant"
-      }
-    },
     "/app/v3/api/projects/{projectId}/publish": {
       "post": {
         "operationId": "projects.publish.publish",
@@ -16900,90 +16510,6 @@
         "x-sdkwork-permission": "birdcoder.platform-projects-publish.execute",
         "x-sdkwork-public": false,
         "x-sdkwork-resource": "birdcoder.platform-projects-publish",
-        "x-sdkwork-surface": "app",
-        "x-sdkwork-tenant-scope": "tenant"
-      }
-    },
-    "/app/v3/api/skill_packages": {
-      "get": {
-        "operationId": "skillPackages.list",
-        "summary": "List skill packages",
-        "description": "List skill packages. Requires an authenticated BirdCoder user session.",
-        "tags": [
-          "skills"
-        ],
-        "parameters": [
-          {
-            "name": "userId",
-            "in": "query",
-            "description": "Filter resources to a single user principal.",
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "workspaceId",
-            "in": "query",
-            "description": "Filter resources to a single workspace.",
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "page",
-            "in": "query",
-            "description": "One-based page number used for offset-mode pagination.",
-            "schema": {
-              "type": "integer",
-              "minimum": 1
-            }
-          },
-          {
-            "name": "page_size",
-            "in": "query",
-            "description": "Maximum number of items to return. Defaults to 20 and must not exceed 200.",
-            "schema": {
-              "type": "integer",
-              "minimum": 1,
-              "maximum": 200
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Skill package catalog returned successfully.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/BirdCoderSkillPackageSummaryListEnvelope"
-                }
-              }
-            }
-          },
-          "default": {
-            "description": "Problem response envelope.",
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetail"
-                }
-              }
-            }
-          }
-        },
-        "security": [
-          {
-            "bearerAuth": [],
-            "sdkworkAccessToken": []
-          }
-        ],
-        "x-sdkwork-auth-mode": "user",
-        "x-sdkwork-data-scope": "organization",
-        "x-sdkwork-deployment": "all",
-        "x-sdkwork-domain": "ecosystem",
-        "x-sdkwork-permission": "birdcoder.ecosystem-skill-packages.read",
-        "x-sdkwork-public": false,
-        "x-sdkwork-resource": "birdcoder.ecosystem-skill-packages",
         "x-sdkwork-surface": "app",
         "x-sdkwork-tenant-scope": "tenant"
       }
@@ -21149,9 +20675,9 @@
     "docsPath": "/docs",
     "liveOpenApiPath": "/openapi.json",
     "routeCatalogPath": "/app/v3/api/system/routes",
-    "routeCount": 156,
+    "routeCount": 154,
     "routesBySurface": {
-      "app": 107,
+      "app": 105,
       "backend": 49
     },
     "surfaces": [
@@ -21160,7 +20686,7 @@
         "basePath": "/app/v3/api",
         "description": "Application-facing coding runtime, workspace, project, collaboration, and IAM routes.",
         "name": "app",
-        "routeCount": 107
+        "routeCount": 105
       },
       {
         "authMode": "admin",

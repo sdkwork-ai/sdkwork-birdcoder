@@ -7,43 +7,14 @@ import type {
 import type * as Types from '../types/index.ts';
 
 type BirdcoderSdkQueryValue = Types.BirdcoderSdkQueryValue;
-type SystemChatConversationsDeletePathParams = Types.SystemChatConversationsDeletePathParams;
-type SystemChatConversationsListQuery = Types.SystemChatConversationsListQuery;
-type SystemChatConversationsMessagesCreatePathParams = Types.SystemChatConversationsMessagesCreatePathParams;
-type SystemChatConversationsMessagesListPathParams = Types.SystemChatConversationsMessagesListPathParams;
-type SystemChatConversationsMessagesListQuery = Types.SystemChatConversationsMessagesListQuery;
-type SystemChatConversationsRetrievePathParams = Types.SystemChatConversationsRetrievePathParams;
-type SystemOperationsRetrievePathParams = Types.SystemOperationsRetrievePathParams;
+
 
 export interface SystemApi {
-  chat: {
-    conversations: {
-      create(body: Types.BirdCoderCreateChatConversationRequest, options?: BirdcoderSdkRequestOptions): Promise<Types.BirdCoderChatConversationSummaryEnvelope>;
-      delete(pathParams: SystemChatConversationsDeletePathParams, options?: BirdcoderSdkRequestOptions): Promise<void>;
-      list(query?: SystemChatConversationsListQuery, options?: BirdcoderSdkRequestOptions): Promise<Types.BirdCoderChatConversationSummaryListEnvelope>;
-      messages: {
-        create(pathParams: SystemChatConversationsMessagesCreatePathParams, body: Types.BirdCoderCreateChatMessageRequest, options?: BirdcoderSdkRequestOptions): Promise<Types.BirdCoderChatMessageSummaryEnvelope>;
-        list(pathParams: SystemChatConversationsMessagesListPathParams, query?: SystemChatConversationsMessagesListQuery, options?: BirdcoderSdkRequestOptions): Promise<Types.BirdCoderChatMessageSummaryListEnvelope>;
-      };
-      retrieve(pathParams: SystemChatConversationsRetrievePathParams, options?: BirdcoderSdkRequestOptions): Promise<Types.BirdCoderChatConversationSummaryEnvelope>;
-    };
-  };
   descriptor: {
     retrieve(options?: BirdcoderSdkRequestOptions): Promise<Types.BirdCoderCodingServerDescriptorEnvelope>;
   };
   health: {
     retrieve(options?: BirdcoderSdkRequestOptions): Promise<Types.BirdCoderCoreHealthSummaryEnvelope>;
-  };
-  iam: {
-    runtime: {
-      retrieve(options?: BirdcoderSdkRequestOptions): Promise<Types.BirdCoderIamRuntimeSettingsEnvelope>;
-    };
-    verificationPolicy: {
-      retrieve(options?: BirdcoderSdkRequestOptions): Promise<Types.BirdCoderIamVerificationPolicyEnvelope>;
-    };
-  };
-  operations: {
-    retrieve(pathParams: SystemOperationsRetrievePathParams, options?: BirdcoderSdkRequestOptions): Promise<Types.BirdCoderOperationDescriptorEnvelope>;
   };
   routes: {
     list(options?: BirdcoderSdkRequestOptions): Promise<Types.BirdCoderApiRouteCatalogEntryListEnvelope>;
@@ -55,30 +26,6 @@ export interface SystemApi {
 
 export function createSystemApi(requestOperation: BirdcoderSdkRequestOperation): SystemApi {
   return {
-    chat: {
-      conversations: {
-        create(body: Types.BirdCoderCreateChatConversationRequest, options: BirdcoderSdkRequestOptions = {}) {
-          return requestOperation<Types.BirdCoderChatConversationSummaryEnvelope>("system.chat.conversations.create", { body }, options);
-        },
-        delete(pathParams: SystemChatConversationsDeletePathParams, options: BirdcoderSdkRequestOptions = {}) {
-          return requestOperation<void>("system.chat.conversations.delete", { pathParams }, options);
-        },
-        list(query: SystemChatConversationsListQuery = {}, options: BirdcoderSdkRequestOptions = {}) {
-          return requestOperation<Types.BirdCoderChatConversationSummaryListEnvelope>("system.chat.conversations.list", { query }, options);
-        },
-        messages: {
-          create(pathParams: SystemChatConversationsMessagesCreatePathParams, body: Types.BirdCoderCreateChatMessageRequest, options: BirdcoderSdkRequestOptions = {}) {
-            return requestOperation<Types.BirdCoderChatMessageSummaryEnvelope>("system.chat.conversations.messages.create", { pathParams, body }, options);
-          },
-          list(pathParams: SystemChatConversationsMessagesListPathParams, query: SystemChatConversationsMessagesListQuery = {}, options: BirdcoderSdkRequestOptions = {}) {
-            return requestOperation<Types.BirdCoderChatMessageSummaryListEnvelope>("system.chat.conversations.messages.list", { pathParams, query }, options);
-          }
-        },
-        retrieve(pathParams: SystemChatConversationsRetrievePathParams, options: BirdcoderSdkRequestOptions = {}) {
-          return requestOperation<Types.BirdCoderChatConversationSummaryEnvelope>("system.chat.conversations.retrieve", { pathParams }, options);
-        }
-      }
-    },
     descriptor: {
       retrieve(options: BirdcoderSdkRequestOptions = {}) {
         return requestOperation<Types.BirdCoderCodingServerDescriptorEnvelope>("system.descriptor.retrieve", {}, options);
@@ -87,23 +34,6 @@ export function createSystemApi(requestOperation: BirdcoderSdkRequestOperation):
     health: {
       retrieve(options: BirdcoderSdkRequestOptions = {}) {
         return requestOperation<Types.BirdCoderCoreHealthSummaryEnvelope>("system.health.retrieve", {}, options);
-      }
-    },
-    iam: {
-      runtime: {
-        retrieve(options: BirdcoderSdkRequestOptions = {}) {
-          return requestOperation<Types.BirdCoderIamRuntimeSettingsEnvelope>("system.iam.runtime.retrieve", {}, options);
-        }
-      },
-      verificationPolicy: {
-        retrieve(options: BirdcoderSdkRequestOptions = {}) {
-          return requestOperation<Types.BirdCoderIamVerificationPolicyEnvelope>("system.iam.verificationPolicy.retrieve", {}, options);
-        }
-      }
-    },
-    operations: {
-      retrieve(pathParams: SystemOperationsRetrievePathParams, options: BirdcoderSdkRequestOptions = {}) {
-        return requestOperation<Types.BirdCoderOperationDescriptorEnvelope>("system.operations.retrieve", { pathParams }, options);
       }
     },
     routes: {

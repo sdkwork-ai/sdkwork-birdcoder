@@ -7,9 +7,9 @@
     "version": "0.1.0",
     "type": "rust-route-crate",
     "root": "sdkwork-birdcoder/crates/sdkwork-routes-workspace-app-api",
-    "domain": "platform",
-    "declaredDomain": null,
-    "capability": "workspace",
+    "domain": "intelligence",
+    "declaredDomain": "intelligence",
+    "capability": "coding-workbench",
     "surface": "app-api",
     "status": "ACTIVE",
     "languages": [
@@ -70,7 +70,7 @@
     {
       "file": "DOMAIN_SPEC.md",
       "path": "../../../../sdkwork-specs/DOMAIN_SPEC.md",
-      "purpose": "Platform-domain workspace, project, deployment, and collaboration ownership rules."
+      "purpose": "Coding-workbench ownership and cross-domain boundary rules."
     },
     {
       "file": "SECURITY_SPEC.md",
@@ -94,8 +94,7 @@
       ".",
       "sdkwork_routes_workspace_app_api::WorkspaceAppState",
       "sdkwork_routes_workspace_app_api::build_workspace_app_router",
-      "sdkwork_routes_workspace_app_api::workspace_app_api_route_manifest",
-      "sdkwork_birdcoder_project_service::service::project_sandbox_binding_service::ProjectSandboxBindingService"
+      "sdkwork_routes_workspace_app_api::workspace_app_api_route_manifest"
     ],
     "providedPorts": [
       {
@@ -113,8 +112,24 @@
         "export": "sdkwork_routes_workspace_app_api::WorkspaceAppState"
       },
       {
+        "name": "workspaceApplicationService",
+        "export": "sdkwork_birdcoder_workspace_service::service::workspace_service::WorkspaceService"
+      },
+      {
+        "name": "projectApplicationService",
+        "export": "sdkwork_birdcoder_project_service::service::project_service::ProjectService"
+      },
+      {
+        "name": "projectDocumentBindingApplicationService",
+        "export": "sdkwork_birdcoder_project_service::service::project_document_binding_service::ProjectDocumentBindingService"
+      },
+      {
         "name": "projectSandboxBindingApplicationService",
         "export": "sdkwork_birdcoder_project_service::service::project_sandbox_binding_service::ProjectSandboxBindingService"
+      },
+      {
+        "name": "projectRuntimeLocationApplicationService",
+        "export": "sdkwork_birdcoder_project_service::service::project_runtime_location_service::ProjectRuntimeLocationService"
       }
     ],
     "runtimeEntrypoints": [
@@ -127,26 +142,14 @@
     "dependencyApiExports": [],
     "dependencyApiSurfaces": [],
     "events": [],
-    "configKeys": [
-      "SDKWORK_BIRDCODER_REALTIME_BACKEND",
-      "SDKWORK_BIRDCODER_REDIS_ENABLED",
-      "SDKWORK_BIRDCODER_REDIS_KEY_PREFIX",
-      "SDKWORK_BIRDCODER_REDIS_URL",
-      "SDKWORK_BIRDCODER_REDIS_HOST",
-      "SDKWORK_BIRDCODER_REDIS_PORT",
-      "SDKWORK_BIRDCODER_REDIS_DATABASE",
-      "SDKWORK_BIRDCODER_REDIS_USERNAME",
-      "SDKWORK_BIRDCODER_REDIS_TLS",
-      "SDKWORK_BIRDCODER_REDIS_PASSWORD_FILE",
-      "SDKWORK_BIRDCODER_REDIS_PASSWORD"
-    ]
+    "configKeys": []
   },
   "integration": {
-    "authority": "Adapts the workspace, project, deployment, team, and realtime services carried by WorkspaceAppState to the BirdCoder app API router and route manifest. Gateway composition owns authentication, mounting, and state construction."
+    "authority": "Adapts only BirdCoder-owned coding-workbench workspace, project, document-binding, sandbox-binding, runtime-location, and Git services to the app API. Gateway composition owns authentication, mounting, and state construction; dependency-owned capabilities remain behind their owner SDK or runtime ports."
   },
   "verification": {
     "commands": [
-      "cargo test --offline --locked -p sdkwork-routes-workspace-app-api --test handler_smoke -- --nocapture"
+      "cargo test --locked -p sdkwork-routes-workspace-app-api -- --nocapture"
     ]
   }
 }

@@ -27,7 +27,7 @@ assert.deepEqual(
 );
 
 assert.equal(
-  BIRDCODER_PROMPT_COMPOSITION_LAYER_IDS.includes('skill_installation'),
+  BIRDCODER_PROMPT_COMPOSITION_LAYER_IDS.includes('skills_context'),
   true,
   'Prompt composition may reference canonical Skills installations without owning them.',
 );

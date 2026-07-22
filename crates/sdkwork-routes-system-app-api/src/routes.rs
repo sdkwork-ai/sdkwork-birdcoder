@@ -1,7 +1,6 @@
 use axum::{routing::get, Router};
 
-use crate::handlers;
-use crate::handlers::SystemAppState;
+use crate::handlers::{self, SystemAppState};
 use crate::paths;
 
 pub fn build_system_app_router() -> Router<SystemAppState> {
@@ -10,5 +9,4 @@ pub fn build_system_app_router() -> Router<SystemAppState> {
         .route(paths::SYSTEM_ROUTES_PATH, get(handlers::list_routes))
         .route(paths::SYSTEM_RUNTIME_PATH, get(handlers::get_runtime))
         .route(paths::SYSTEM_HEALTH_PATH, get(handlers::get_health))
-        .route(paths::OPERATIONS_PATH, get(handlers::get_operation))
 }

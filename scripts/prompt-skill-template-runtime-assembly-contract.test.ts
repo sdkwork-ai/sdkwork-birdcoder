@@ -48,7 +48,7 @@ const promptRuntime = assembleBirdCoderPromptRuntime({
     },
     {
       fragmentId: 'skill-1',
-      layerId: 'skill_installation',
+      layerId: 'skills_context',
       content: 'Installed skills: release-governance, template-audit.',
     },
     {

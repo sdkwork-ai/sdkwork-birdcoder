@@ -140,7 +140,6 @@ const requiredEntityNames = [
   'coding_session_artifact',
   'coding_session_checkpoint',
   'prompt_asset',
-  'skill_package',
   'app_template',
   'team',
   'project_document',

@@ -6,17 +6,12 @@ license.workspace = true
 authors.workspace = true
 
 [dependencies]
-async-trait = { workspace = true }
 axum = { workspace = true }
-serde = { workspace = true }
-serde_json = { workspace = true }
 sdkwork-web-contract = { workspace = true }
 sdkwork-web-core = { workspace = true }
 sdkwork-birdcoder-system-descriptor-service = { workspace = true }
 sdkwork-birdcoder-errors = { workspace = true }
-sdkwork-utils-rust.workspace = true
 sdkwork-birdcoder-router-context = { workspace = true }
-sqlx = { workspace = true }
 
 [dev-dependencies]
 tower = { version = "0.5", features = ["util"] }

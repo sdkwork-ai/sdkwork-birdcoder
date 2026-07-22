@@ -1,13 +1,9 @@
 use serde::Serialize;
 
-// ── Health ───────────────────────────────────────────────────────────
-
 #[derive(Clone, Debug, Serialize)]
 pub struct HealthPayload {
     pub status: String,
 }
-
-// ── Descriptor ───────────────────────────────────────────────────────
 
 #[derive(Clone, Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -17,7 +13,7 @@ pub struct DescriptorPayload {
     pub host_mode: String,
     pub module_id: String,
     pub open_api_path: String,
-    pub surfaces: [String; 2],
+    pub surfaces: Vec<String>,
 }
 
 #[derive(Clone, Debug, Serialize)]
@@ -29,7 +25,7 @@ pub struct GatewayDescriptorPayload {
     pub route_catalog_path: String,
     pub route_count: usize,
     pub routes_by_surface: GatewayRoutesBySurfacePayload,
-    pub surfaces: [GatewaySurfaceDescriptorPayload; 2],
+    pub surfaces: Vec<GatewaySurfaceDescriptorPayload>,
 }
 
 #[derive(Clone, Debug, Serialize)]
@@ -49,8 +45,6 @@ pub struct GatewaySurfaceDescriptorPayload {
     pub route_count: usize,
 }
 
-// ── Route catalog ────────────────────────────────────────────────────
-
 #[derive(Clone, Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct RouteCatalogEntryPayload {
@@ -63,36 +57,10 @@ pub struct RouteCatalogEntryPayload {
     pub summary: String,
 }
 
-// ── Runtime ──────────────────────────────────────────────────────────
-
 #[derive(Clone, Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct RuntimePayload {
     pub host: String,
     pub port: u16,
     pub config_file_name: String,
-}
-
-// ── Operation ────────────────────────────────────────────────────────
-
-#[derive(Clone, Debug, Serialize)]
-#[serde(rename_all = "camelCase")]
-pub struct OperationPayload {
-    pub operation_id: String,
-    pub status: String,
-    pub artifact_refs: Vec<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub stream_url: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub stream_kind: Option<String>,
-}
-
-// ── Problem details ──────────────────────────────────────────────────
-
-#[derive(Clone, Debug, Serialize)]
-#[serde(rename_all = "camelCase")]
-pub struct ProblemDetailsPayload {
-    pub code: String,
-    pub message: String,
-    pub retryable: bool,
 }

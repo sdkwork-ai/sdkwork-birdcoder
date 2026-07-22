@@ -6,18 +6,8 @@ import {
   type BirdcoderSdkTransport,
 } from './http/index.ts';
 import { BIRDCODER_APP_SDK_OPERATION_INDEX } from './types/index.ts';
-import { createAuthApi, type AuthApi } from './api/auth.ts';
-import { createCollaborationApi, type CollaborationApi } from './api/collaboration.ts';
-import { createCommerceApi, type CommerceApi } from './api/commerce.ts';
-import { createContentApi, type ContentApi } from './api/content.ts';
-import { createIamApi, type IamApi } from './api/iam.ts';
-import { createIntelligenceApi, type IntelligenceApi } from './api/intelligence.ts';
-import { createOauthApi, type OauthApi } from './api/oauth.ts';
 import { createPlatformApi, type PlatformApi } from './api/platform.ts';
-import { createRuntimeApi, type RuntimeApi } from './api/runtime.ts';
-import { createSkillsApi, type SkillsApi } from './api/skills.ts';
 import { createSystemApi, type SystemApi } from './api/system.ts';
-import { createTemplatesApi, type TemplatesApi } from './api/templates.ts';
 
 export interface CreateBirdcoderAppSdkClientOptions {
   accessToken?: string;
@@ -28,18 +18,8 @@ export interface CreateBirdcoderAppSdkClientOptions {
 export interface BirdcoderAppSdkClient {
   clearSdkworkAuthTokens(): void;
   setSdkworkAuthTokens(tokens: BirdcoderSdkAuthTokens): void;
-  auth: AuthApi;
-  collaboration: CollaborationApi;
-  commerce: CommerceApi;
-  content: ContentApi;
-  iam: IamApi;
-  intelligence: IntelligenceApi;
-  oauth: OauthApi;
   platform: PlatformApi;
-  runtime: RuntimeApi;
-  skills: SkillsApi;
   system: SystemApi;
-  templates: TemplatesApi;
 }
 
 export function createBirdcoderAppSdkClient(
@@ -56,17 +36,7 @@ export function createBirdcoderAppSdkClient(
   return {
     clearSdkworkAuthTokens: requester.clearSdkworkAuthTokens,
     setSdkworkAuthTokens: requester.setSdkworkAuthTokens,
-    auth: createAuthApi(requester.requestOperation),
-    collaboration: createCollaborationApi(requester.requestOperation),
-    commerce: createCommerceApi(requester.requestOperation),
-    content: createContentApi(requester.requestOperation),
-    iam: createIamApi(requester.requestOperation),
-    intelligence: createIntelligenceApi(requester.requestOperation),
-    oauth: createOauthApi(requester.requestOperation),
     platform: createPlatformApi(requester.requestOperation),
-    runtime: createRuntimeApi(requester.requestOperation),
-    skills: createSkillsApi(requester.requestOperation),
     system: createSystemApi(requester.requestOperation),
-    templates: createTemplatesApi(requester.requestOperation),
   };
 }
