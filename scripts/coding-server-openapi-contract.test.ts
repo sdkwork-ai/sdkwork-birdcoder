@@ -77,7 +77,6 @@ assert.deepEqual(document.tags.map((tag) => tag.name), [
   'oauth',
   'platform',
   'runtime',
-  'skills',
   'system',
   'templates',
 ]);
@@ -134,8 +133,8 @@ const publishedOperationIds = Object.values(document.paths).flatMap((methods) =>
 );
 assert.equal(
   publishedOperationIds.length,
-  155,
-  'OpenAPI must publish BirdCoder-owned app/backend operations; dependency Membership routes remain external to this authority.',
+  153,
+  'OpenAPI must publish BirdCoder-owned app/backend operations; dependency-owned routes remain external to this authority.',
 );
 assert.equal(
   publishedOperationIds.length,
@@ -1119,7 +1118,7 @@ for (const retiredSchemaName of [
   assert.equal(
     document.components.schemas?.[retiredSchemaName],
     undefined,
-    `${retiredSchemaName} must not be published; BirdCoder membership uses SDKWork commerce current-membership schemas.`,
+    `${retiredSchemaName} must not be published because dependency-owned schemas are outside BirdCoder OpenAPI authority.`,
   );
 }
 assert.ok(document.components.schemas?.BirdCoderProjectGitOverview);

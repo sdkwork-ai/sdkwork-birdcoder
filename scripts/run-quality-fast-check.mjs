@@ -85,7 +85,7 @@ export const QUALITY_FAST_CHECK_COMMANDS = [
   'node scripts/run-workspace-package-script.mjs . check:quality-loop-scoreboard',
   'node scripts/run-workspace-package-script.mjs . test:prompt-service-contract',
   'node scripts/run-workspace-package-script.mjs . test:coding-session-prompt-history-persistence-contract',
-  'node scripts/run-workspace-package-script.mjs . test:skill-binding-contract',
+  'node scripts/run-workspace-package-script.mjs . test:skills-sdk-boundary-contract',
   'node scripts/run-workspace-package-script.mjs . test:template-instantiation-contract',
   'node scripts/run-workspace-package-script.mjs . test:prompt-skill-template-runtime-assembly-contract',
   'node scripts/run-workspace-package-script.mjs . test:prompt-skill-template-evidence-repository-contract',

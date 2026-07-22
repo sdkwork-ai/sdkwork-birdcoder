@@ -425,10 +425,10 @@ export const GOVERNANCE_REGRESSION_CHECKS = [
     command: 'node scripts/prompt-governance-contract.test.mjs',
   },
   {
-    id: 'skill-binding',
-    label: 'Skill binding standard contract',
-    scriptPath: 'scripts/skill-binding-contract.test.ts',
-    command: 'pnpm run test:skill-binding-contract',
+    id: 'skills-sdk-boundary',
+    label: 'Canonical Skills SDK ownership boundary contract',
+    scriptPath: 'scripts/skills-sdk-boundary-contract.test.ts',
+    command: 'pnpm run test:skills-sdk-boundary-contract',
   },
   {
     id: 'template-instantiation',

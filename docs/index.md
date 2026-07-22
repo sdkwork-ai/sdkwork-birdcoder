@@ -20,7 +20,7 @@ SDKWork BirdCoder is a multi-surface AI IDE workspace aligned with the SDKWork a
 
 ## Product boundary
 
-BirdCoder owns its AI IDE business modules (code, studio, terminal, skills, templates, settings) and follows the SDKWork architecture standard for host, release, CI, and deployment layers.
+BirdCoder owns its AI IDE business modules (code, studio, terminal, application templates, and settings) and follows the SDKWork architecture standard for host, release, CI, and deployment layers. Reusable Skill packages, immutable artifacts, capabilities, and installations are owned by `sdkwork-skills`; BirdCoder consumes them through `@sdkwork/skills-app-sdk` and keeps only stable `skillInstallationIds` references in application-template inputs.
 
 Project identity, persistent runtime locations, and local host capabilities
 are explicit boundaries. A runtime location stores an encrypted target-specific

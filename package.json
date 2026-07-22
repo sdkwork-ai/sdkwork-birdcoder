@@ -219,7 +219,7 @@
     "test:default-ide-services-admin-policy-service-contract": "node scripts/run-local-tsx.mjs scripts/default-ide-services-admin-policy-service-contract.test.ts",
     "test:default-ide-services-audit-service-contract": "node scripts/run-local-tsx.mjs scripts/default-ide-services-audit-service-contract.test.ts",
     "test:default-ide-services-release-service-contract": "node scripts/run-local-tsx.mjs scripts/default-ide-services-release-service-contract.test.ts",
-    "test:skill-binding-contract": "node --experimental-strip-types scripts/skill-binding-contract.test.ts",
+    "test:skills-sdk-boundary-contract": "node --experimental-strip-types scripts/skills-sdk-boundary-contract.test.ts",
     "test:template-instantiation-contract": "node --experimental-strip-types scripts/template-instantiation-contract.test.ts",
     "test:app-templates-list-contract": "node scripts/app-templates-list-contract.test.mjs",
     "test:prompt-skill-template-runtime-assembly-contract": "node --experimental-strip-types scripts/prompt-skill-template-runtime-assembly-contract.test.ts",

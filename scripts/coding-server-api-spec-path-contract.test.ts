@@ -381,8 +381,8 @@ assertActiveDocsUseCanonicalApiAndSdkLanguage();
 assertNoRetiredAdminApiSurfaceNaming();
 assertNoRetiredOpenApiSeedBuilder();
 assertNoRetiredBillingVipServerTypes();
-assert.equal(descriptor.gateway.routeCount, 156);
-assert.equal(descriptor.gateway.routesBySurface.app, 107);
+assert.equal(descriptor.gateway.routeCount, 154);
+assert.equal(descriptor.gateway.routesBySurface.app, 105);
 assert.equal(descriptor.gateway.routesBySurface.backend, 49);
 assert.deepEqual(descriptor.surfaces, ['app', 'backend']);
 assert.equal(
@@ -472,12 +472,11 @@ assert.deepEqual(openApiDocument.tags.map((tag) => tag.name), [
   'oauth',
   'platform',
   'runtime',
-  'skills',
   'system',
   'templates',
 ]);
-assert.equal(openApiDocument['x-sdkwork-api-assembly'].routeCount, 156);
-assert.equal(openApiDocument['x-sdkwork-api-assembly'].routesBySurface.app, 107);
+assert.equal(openApiDocument['x-sdkwork-api-assembly'].routeCount, 154);
+assert.equal(openApiDocument['x-sdkwork-api-assembly'].routesBySurface.app, 105);
 assert.equal(openApiDocument['x-sdkwork-api-assembly'].routesBySurface.backend, 49);
 assert.equal(
   'basePath' in openApiDocument['x-sdkwork-api-assembly'],

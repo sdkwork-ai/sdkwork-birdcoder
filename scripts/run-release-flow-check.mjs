@@ -35,7 +35,7 @@ export const RELEASE_FLOW_CHECK_COMMANDS = [
   'node scripts/check-release-closure.mjs',
   'node scripts/claw-docs-ia-contract.test.mjs',
   'node scripts/prompt-governance-contract.test.mjs',
-  'node --experimental-strip-types scripts/skill-binding-contract.test.ts',
+  'node --experimental-strip-types scripts/skills-sdk-boundary-contract.test.ts',
   'node --experimental-strip-types scripts/template-instantiation-contract.test.ts',
   'node --experimental-strip-types scripts/prompt-skill-template-runtime-assembly-contract.test.ts',
   'node --experimental-strip-types scripts/prompt-skill-template-evidence-repository-contract.test.ts',

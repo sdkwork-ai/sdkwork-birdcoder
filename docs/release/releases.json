@@ -2675,7 +2675,7 @@
                          "title":  "SDKWork BirdCoder release-2026-04-12-01",
                          "date":  "2026-04-12",
                          "status":  "pending",
-                         "summary":  "Closes Step 16 CP16-1 by freezing shared Prompt, SkillHub, and AppTemplate standards inside @sdkwork/birdcoder-types, promoting the new contracts into lint and release-flow governance, and rewriting the architecture and step docs around one concise machine-readable standard.",
+                         "summary":  "Defines BirdCoder Prompt and AppTemplate contracts while enforcing sdkwork-skills as the sole owner of Skill packages, immutable artifacts, capabilities, and installations through the canonical Skills App SDK boundary.",
                          "notesFile":  "release-2026-04-12-01.md",
                          "carryForward":  [
                                               "release-2026-04-11-35"
@@ -2686,7 +2686,7 @@
                          "title":  "SDKWork BirdCoder release-2026-04-12-02",
                          "date":  "2026-04-12",
                          "status":  "pending",
-                         "summary":  "Closes Step 16 CP16-2 by adding shared Prompt, SkillHub, and AppTemplate runtime assembly to @sdkwork/birdcoder-core, promoting the new runtime contract into lint, release-flow, and governance regression, and realigning the live docs baseline to the new 83-check governance truth.",
+                         "summary":  "Defines BirdCoder Prompt and AppTemplate runtime assembly while keeping Skills execution external, accepting only canonical installation references through the skills_context composition layer.",
                          "notesFile":  "release-2026-04-12-02.md",
                          "carryForward":  [
                                               "release-2026-04-12-01"
