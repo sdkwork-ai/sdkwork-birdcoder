@@ -1,14 +1,11 @@
 use axum::extract::{Request, State};
 use axum::http::StatusCode;
-use axum::middleware::{from_fn, from_fn_with_state, Next};
+use axum::middleware::{from_fn_with_state, Next};
 use axum::response::Response;
 use axum::Router;
 use sdkwork_iam_web_adapter::{
     allows_dev_authentication_fallback, build_web_framework_layer,
     iam_web_request_context_resolver_from_env, IamAuthorizationPolicy,
-};
-use sdkwork_routes_workspace_app_api::{
-    realtime_config::redis_enabled_from_env, resolve_redis_config,
 };
 use sdkwork_web_axum::with_web_request_context;
 use sdkwork_web_core::{
@@ -21,11 +18,10 @@ use crate::bootstrap::config::{
     default_loopback_browser_origins, is_loopback_bind_host, is_wildcard_bind_host,
     BirdDeploymentProfile, BirdServerConfig,
 };
-use crate::bootstrap::realtime_websocket_auth::realtime_websocket_credential_middleware;
-use crate::bootstrap::route_manifest::birdcoder_product_app_api_route_manifest;
+use crate::bootstrap::route_manifest::birdcoder_app_api_route_manifest;
 
 pub fn birdcoder_public_path_prefixes() -> Vec<String> {
-    vec!["/app/v3/api/system/iam".to_string()]
+    Vec::new()
 }
 
 pub async fn build_protected_app_router(
@@ -34,7 +30,7 @@ pub async fn build_protected_app_router(
     metrics: Arc<HttpMetricsRegistry>,
 ) -> Result<Router, String> {
     let resolver = iam_web_request_context_resolver_from_env().await;
-    let manifest = birdcoder_product_app_api_route_manifest();
+    let manifest = birdcoder_app_api_route_manifest();
     manifest
         .validate_public_path_prefixes(&birdcoder_public_path_prefixes())
         .map_err(|error| format!("route manifest public prefix validation failed: {error}"))?;
@@ -47,27 +43,7 @@ pub async fn build_protected_app_router(
         .with_security_policy(build_security_policy(config))
         .with_authorization_policy(authorization_policy)
         .with_metrics(metrics);
-    let layer = if redis_enabled_from_env() {
-        let redis_config = resolve_redis_config()
-            .map_err(|error| format!("resolve Redis rate-limit configuration failed: {error}"))?;
-        let rate_limit_store = sdkwork_web_bootstrap::shared_rate_limit_store(
-            redis_config.url,
-            format!("{}:http", redis_config.key_prefix),
-        )
-        .map_err(|error| format!("initialize Redis rate-limit store failed: {error}"))?;
-        layer.with_rate_limit_store(rate_limit_store)
-    } else {
-        layer
-    };
-
     Ok(with_web_request_context(router, layer))
-}
-
-pub(crate) fn with_gateway_realtime_websocket_credentials<S>(router: Router<S>) -> Router<S>
-where
-    S: Clone + Send + Sync + 'static,
-{
-    router.layer(from_fn(realtime_websocket_credential_middleware))
 }
 
 /// Gateway-wide CORS middleware.
@@ -277,7 +253,7 @@ mod tests {
 ///
 /// In production, this delegates to the full `IamAuthorizationPolicy` which
 /// enforces manifest-declared permission codes (e.g.
-/// `birdcoder.platform-workspaces.read`).
+/// `birdcoder.intelligence-workspaces.read`).
 ///
 /// In local development (SQLite, `SDKWORK_ENV=dev`/`development`), the IAM
 /// tenant-application bootstrap is skipped because the permission catalog is

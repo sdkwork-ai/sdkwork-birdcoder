@@ -3,11 +3,11 @@
   "kind": "sdkwork.component.spec",
   "component": {
     "name": "sdkwork-api-birdcoder-assembly",
-    "displayName": "SDKWork birdcoder Gateway Assembly",
+    "displayName": "SDKWork BirdCoder API Assembly",
     "version": "0.1.0",
     "type": "rust-api-assembly",
     "root": "crates/sdkwork-api-birdcoder-assembly",
-    "domain": "application",
+    "domain": "intelligence",
     "capability": "api-assembly",
     "surface": "api-assembly",
     "languages": [
@@ -20,6 +20,11 @@
     ]
   },
   "canonicalSpecs": [
+    {
+      "file": "API_ASSEMBLY_SPEC.md",
+      "path": "../../../sdkwork-specs/API_ASSEMBLY_SPEC.md",
+      "purpose": "Application-owned route composition and dependency-assembly boundaries."
+    },
     {
       "file": "APPLICATION_GATEWAY_SPEC.md",
       "path": "../../../sdkwork-specs/APPLICATION_GATEWAY_SPEC.md",

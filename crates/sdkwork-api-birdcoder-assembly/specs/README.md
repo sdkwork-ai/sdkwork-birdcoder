@@ -2,4 +2,7 @@
 
 Component root: `crates/sdkwork-api-birdcoder-assembly`
 
-Gateway assembly manifest, business-router composition, and verification contract.
+Host-neutral assembly for BirdCoder-owned System and coding-workbench App API routes.
+
+Dependency-owned Agents, IAM, Drive, Membership, Skills, IM, and Terminal routes remain in
+their owner assemblies and are never copied into this manifest or BirdCoder OpenAPI authority.

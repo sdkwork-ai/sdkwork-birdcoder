@@ -9,15 +9,13 @@ use std::time::Instant;
 
 use crate::business_metrics::BusinessMetricsRegistry;
 
-/// Renders both the framework HTTP metrics and the BirdCoder business metrics at
-/// `/metrics` so a single Prometheus scrape captures infra + business signals.
+/// Renders framework HTTP metrics and BirdCoder-owned workbench metrics.
 pub async fn metrics_handler(
     http: Arc<HttpMetricsRegistry>,
     business: Arc<BusinessMetricsRegistry>,
 ) -> impl IntoResponse {
     let mut body = http.render_prometheus();
     body.push_str(&business.render_prometheus());
-    body.push_str(&sdkwork_routes_workspace_app_api::render_workspace_realtime_metrics());
     (
         StatusCode::OK,
         [(
@@ -91,16 +89,19 @@ mod tests {
         assert!(!is_observability_infra_path("/health"));
         assert!(!is_observability_infra_path("/health/live"));
         assert!(!is_observability_infra_path("/ready"));
-        assert!(!is_observability_infra_path(
-            "/app/v3/api/intelligence/coding_sessions"
-        ));
+        assert!(!is_observability_infra_path("/app/v3/api/projects"));
     }
 
     #[test]
     fn combined_render_contains_both_registries() {
         let http = HttpMetricsRegistry::new();
         let business = BusinessMetricsRegistry::new();
-        business.record_coding_session_started("codex");
+        business.record_api_request(
+            "GET",
+            "/app/v3/api/projects",
+            200,
+            std::time::Duration::from_millis(10),
+        );
 
         let combined = format!(
             "{}{}",
@@ -108,7 +109,7 @@ mod tests {
             business.render_prometheus()
         );
         assert!(combined.contains("sdkwork_health_status"));
-        assert!(combined.contains("birdcoder_coding_session_total 1"));
-        assert!(combined.contains("birdcoder_active_sessions 1"));
+        assert!(combined.contains("birdcoder_workbench_api_request_total"));
+        assert!(!combined.contains("coding_session"));
     }
 }

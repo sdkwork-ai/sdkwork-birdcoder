@@ -1,27 +1,21 @@
 use std::sync::Arc;
 
-use sdkwork_database_sqlx::DatabasePool;
-
-use crate::bootstrap::repositories::Repositories;
 use crate::bootstrap::services::Services;
 
 #[derive(Clone)]
 pub struct AppState {
     pub services: Services,
-    pub repositories: Repositories,
-    pub database_pool: Arc<DatabasePool>,
+    pub database_host: Arc<sdkwork_birdcoder_database_host::BirdcoderDatabaseHost>,
 }
 
 impl AppState {
     pub fn new(
         services: Services,
-        repositories: Repositories,
-        database_pool: Arc<DatabasePool>,
+        database_host: Arc<sdkwork_birdcoder_database_host::BirdcoderDatabaseHost>,
     ) -> Self {
         Self {
             services,
-            repositories,
-            database_pool,
+            database_host,
         }
     }
 }

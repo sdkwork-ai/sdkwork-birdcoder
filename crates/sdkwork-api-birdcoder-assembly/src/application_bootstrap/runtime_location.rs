@@ -4,15 +4,13 @@ use std::sync::Arc;
 use sdkwork_birdcoder_project_service::error::ProjectError;
 use sdkwork_birdcoder_project_service::ports::project_workspace_root::ProjectWorkspaceRootResolver;
 use sdkwork_birdcoder_project_service::ports::repository::ProjectRepository;
+use sdkwork_birdcoder_project_service::ports::runtime_location_repository::ProjectRuntimeLocationRepository;
 use sdkwork_birdcoder_project_service::ports::runtime_location_execution::DenyRuntimeLocationTargetExecutionAuthority;
 use sdkwork_birdcoder_project_service::ports::runtime_location_path_cipher::AesGcmRuntimeLocationPathCipher;
 use sdkwork_birdcoder_project_service::ports::runtime_location_verification::{
     DenyRuntimeLocationVerificationAuthority, DenyRuntimeLocationVerificationRequestDispatcher,
 };
 use sdkwork_birdcoder_project_service::service::project_runtime_location_service::ProjectRuntimeLocationService;
-use sdkwork_birdcoder_workspace_repository_sqlx::repository::project_runtime_location::SqliteProjectRuntimeLocationRepository;
-use sqlx::AnyPool;
-
 use crate::bootstrap::config::{BirdServerConfig, BirdServerConfigError};
 
 /// Constructs the durable runtime-location application service without adding
@@ -20,8 +18,8 @@ use crate::bootstrap::config::{BirdServerConfig, BirdServerConfigError};
 /// instance into WorkspaceAppState.
 pub fn wire_project_runtime_location_service(
     config: &BirdServerConfig,
-    any_pool: AnyPool,
     project_repository: Arc<dyn ProjectRepository>,
+    runtime_location_repository: Arc<dyn ProjectRuntimeLocationRepository>,
     workspace_root_resolver: Arc<dyn ProjectWorkspaceRootResolver>,
 ) -> Result<ProjectRuntimeLocationService, RuntimeLocationBootstrapError> {
     let encryption = config.runtime_location_path_encryption_config()?;
@@ -35,7 +33,7 @@ pub fn wire_project_runtime_location_service(
 
     Ok(ProjectRuntimeLocationService::new(
         project_repository,
-        Arc::new(SqliteProjectRuntimeLocationRepository::new(any_pool)),
+        runtime_location_repository,
         Arc::new(cipher),
         // There is deliberately no implicit trust path for a client-asserted
         // desktop/runtime-node target. A mutually authenticated enrollment
