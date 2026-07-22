@@ -117,8 +117,6 @@ for (const methodName of [
   'listEngines',
   'listNativeSessionProviders',
   'listCodingSessions',
-  'listNativeSessions',
-  'getNativeSession',
   'getOperation',
   'getCodingSession',
   'listCodingSessionEvents',

@@ -144,8 +144,8 @@ assert.match(
 
 assert.match(
   pageSource,
-  /createCodingSession\([\s\S]*buildMultiWindowProvisionedSessionTitle\([\s\S]*engineId: pane\.selectedEngineId[\s\S]*modelId: pane\.selectedModelId/,
-  'Multi-window panes must create new sessions with their selected engine/model when the existing session does not match.',
+  /createCodingSessionFromRequest\(\{[\s\S]*engineId: pane\.selectedEngineId[\s\S]*modelId: pane\.selectedModelId[\s\S]*projectId: pane\.projectId[\s\S]*source: 'multi-window'[\s\S]*title: buildMultiWindowProvisionedSessionTitle\(pane, paneIndex\)[\s\S]*rethrowError: true[\s\S]*shouldSelectCreatedSession: \(\) => false[\s\S]*showFailureToast: false[\s\S]*showSuccessToast: false/,
+  'Multi-window panes must provision matching sessions through the unified command without selecting them or emitting per-pane toasts.',
 );
 
 assert.match(
@@ -722,8 +722,8 @@ assert.match(
 );
 assert.match(
   pageSource,
-  /const handleCreateSessionForPane = useCallback\(async \(nextProjectId: string\)[\s\S]*createCodingSession\([\s\S]*engineId: selectedPickerPane\.selectedEngineId[\s\S]*modelId: selectedPickerPane\.selectedModelId[\s\S]*activateSelectedPickerPane\(selectedPickerPane\.id\)/,
-  'Creating a session from the picker must create it with the pane model configuration and activate the pending window.',
+  /const handleCreateSessionForPane = useCallback\(async \(nextProjectId: string\)[\s\S]*createCodingSessionFromRequest\(\{[\s\S]*engineId: selectedPickerPane\.selectedEngineId[\s\S]*modelId: selectedPickerPane\.selectedModelId[\s\S]*projectId: nextProjectId[\s\S]*source: 'multi-window'[\s\S]*shouldSelectCreatedSession: \(\) => false[\s\S]*activateSelectedPickerPane\(selectedPickerPane\.id\)/,
+  'Creating a session from the picker must use the unified command with the pane model configuration and activate only the pending window.',
 );
 
 assert.match(

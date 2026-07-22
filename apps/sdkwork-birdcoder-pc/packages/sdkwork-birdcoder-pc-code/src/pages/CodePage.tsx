@@ -5,6 +5,8 @@ import {
   ensureWorkbenchCodingSessionForMessage,
   regenerateWorkbenchCodingSessionFromLastUserMessage,
   restoreWorkbenchCodingSessionMessageFiles,
+  type CreateCodingSessionActionOptions,
+  type CreateNewCodingSessionRequest,
 } from '@sdkwork/birdcoder-pc-workbench/workbench/codingSessionCreation';
 import { createIdleProjectMountRecoveryState } from '@sdkwork/birdcoder-pc-workbench/workbench/projectMountRecovery';
 import { hydrateImportedProjectFromAuthority } from '@sdkwork/birdcoder-pc-workbench/workbench/importedProjectHydration';
@@ -260,7 +262,7 @@ function CodePageComponent({
   const isChatBusy = isSubmittingTurn || isSelectedSessionTurnActive || isNewCodingSessionCreating;
   const isChatEngineBusy = isSubmittingTurn || isSelectedSessionEngineBusy || isNewCodingSessionCreating;
   const {
-    createCodingSessionInProject,
+    createCodingSessionFromRequest,
   } = useWorkbenchCodingSessionCreationActions({
     addToast,
     createCodingSessionWithSelection,
@@ -273,27 +275,30 @@ function CodePageComponent({
     },
   });
   const createCodingSessionWithTranscriptReset = useCallback(async (
-    projectId: string,
-    requestedEngineId?: string,
-    requestedModelId?: string,
+    request: CreateNewCodingSessionRequest,
+    actionOptions?: CreateCodingSessionActionOptions,
   ) => {
-    const normalizedProjectId = projectId.trim();
+    const normalizedProjectId = request.projectId?.trim() || currentProjectId.trim();
     if (!normalizedProjectId) {
-      return createCodingSessionInProject(projectId, requestedEngineId, {
-        modelId: requestedModelId,
-      });
+      return createCodingSessionFromRequest(request);
     }
 
     const pendingRequest = beginPendingNewCodingSessionRequest(normalizedProjectId);
 
     try {
-      return await createCodingSessionInProject(normalizedProjectId, requestedEngineId, {
-        modelId: requestedModelId,
-        shouldSelectCreatedSession: (_newSession, selectionContext) => {
+      return await createCodingSessionFromRequest({
+        ...request,
+        projectId: normalizedProjectId,
+      }, {
+        ...actionOptions,
+        shouldSelectCreatedSession: (newSession, selectionContext) => {
           const activePendingRequest = pendingNewCodingSessionRequestRef.current;
-          return (
+          const isPendingRequestActive = (
             activePendingRequest?.requestId === pendingRequest.requestId &&
             activePendingRequest.projectId === selectionContext.projectId
+          );
+          return isPendingRequestActive && (
+            actionOptions?.shouldSelectCreatedSession?.(newSession, selectionContext) !== false
           );
         },
       });
@@ -303,7 +308,8 @@ function CodePageComponent({
   }, [
     beginPendingNewCodingSessionRequest,
     clearPendingNewCodingSessionRequest,
-    createCodingSessionInProject,
+    createCodingSessionFromRequest,
+    currentProjectId,
     pendingNewCodingSessionRequestRef,
   ]);
   const createCodingSessionInProjectWithTranscriptReset = useCallback(async (
@@ -311,11 +317,12 @@ function CodePageComponent({
     requestedEngineId?: string,
     requestedModelId?: string,
   ) => {
-    await createCodingSessionWithTranscriptReset(
+    await createCodingSessionWithTranscriptReset({
+      engineId: requestedEngineId,
+      modelId: requestedModelId,
       projectId,
-      requestedEngineId,
-      requestedModelId,
-    );
+      source: 'code-sidebar',
+    });
   }, [createCodingSessionWithTranscriptReset]);
   const {
     runConfigurations,
@@ -340,7 +347,7 @@ function CodePageComponent({
     selectSession,
     {
       isActive: isVisible,
-      createCodingSessionInProject: createCodingSessionInProjectWithTranscriptReset,
+      createCodingSessionFromRequest: createCodingSessionWithTranscriptReset,
     },
   );
 
@@ -976,7 +983,7 @@ function CodePageComponent({
         ? null
         : sessionId;
     const bootstrappedSession = await ensureWorkbenchCodingSessionForMessage({
-      createCodingSessionWithSelection,
+      createCodingSessionFromRequest: createCodingSessionWithTranscriptReset,
       currentCodingSessionId,
       currentProjectId,
       messageContent: trimmedContent,
@@ -988,7 +995,6 @@ function CodePageComponent({
         }
         return projects[0]?.id;
       },
-      selectCodingSession: selectSession,
     });
     if (!bootstrappedSession) {
       throw new Error(t('chat.sendMessageSessionUnavailable'));
@@ -1023,7 +1029,7 @@ function CodePageComponent({
   }, [
     buildWorkbenchCodingSessionTurnContext,
     ensureWorkbenchCodingSessionForMessage,
-    createCodingSessionWithSelection,
+    createCodingSessionWithTranscriptReset,
     currentProjectId,
     fileContent,
     handleNewProject,
@@ -1335,4 +1341,3 @@ function CodePageComponent({
 
 export const CodePage = memo(CodePageComponent);
 CodePage.displayName = 'CodePage';
-

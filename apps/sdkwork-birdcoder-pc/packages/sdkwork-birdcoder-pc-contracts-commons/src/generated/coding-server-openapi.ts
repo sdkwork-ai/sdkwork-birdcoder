@@ -7,7 +7,7 @@ export const BIRDCODER_FINALIZED_CODING_SERVER_OPENAPI_EVIDENCE = {
   ],
   "openapi": "3.1.0",
   "releaseTag": "release-local",
-  "sha256": "91d50941f23cd7f37019bbd0f36c0dacd2a3b946a3787c92433d2ac5745bea99",
+  "sha256": "1e20e7fd805c57522884245115c3655e4192e4cc7a622b3896cf5f8ae44b29b6",
   "targetCount": 1,
   "targets": [
     "windows/x64"
@@ -355,20 +355,6 @@ export const BIRDCODER_FINALIZED_CODING_SERVER_OPENAPI_OPERATIONS = [
   },
   {
     "method": "GET",
-    "operationId": "memberships.current.retrieve",
-    "path": "/app/v3/api/memberships/current",
-    "summary": "Get current SDKWork commerce membership",
-    "surface": "app"
-  },
-  {
-    "method": "GET",
-    "operationId": "memberships.packageGroups.list",
-    "path": "/app/v3/api/memberships/package_groups",
-    "summary": "List SDKWork commerce membership package groups",
-    "surface": "app"
-  },
-  {
-    "method": "GET",
     "operationId": "modelConfig.retrieve",
     "path": "/app/v3/api/model_config",
     "summary": "Get code engine model configuration",
@@ -393,20 +379,6 @@ export const BIRDCODER_FINALIZED_CODING_SERVER_OPENAPI_OPERATIONS = [
     "operationId": "nativeSessionProviders.list",
     "path": "/app/v3/api/native_session_providers",
     "summary": "List registered native engine session providers",
-    "surface": "app"
-  },
-  {
-    "method": "GET",
-    "operationId": "nativeSessions.list",
-    "path": "/app/v3/api/native_sessions",
-    "summary": "List discovered native engine sessions",
-    "surface": "app"
-  },
-  {
-    "method": "GET",
-    "operationId": "nativeSessions.retrieve",
-    "path": "/app/v3/api/native_sessions/{id}",
-    "summary": "Get discovered native engine session detail",
     "surface": "app"
   },
   {

@@ -2,6 +2,9 @@ import type { BirdHostDescriptor } from '@sdkwork/birdcoder-pc-host-core';
 import type {
   BirdCoderAppSdkApiClient,
   BirdCoderBackendSdkApiClient,
+  BirdCoderDeploymentProfile,
+  BirdCoderExecutionLocation,
+  BirdCoderRuntimeTarget,
 } from '@sdkwork/birdcoder-pc-infrastructure-runtime';
 
 export type BirdCoderRealtimeTransportPreference = 'auto' | 'sse' | 'websocket';
@@ -10,8 +13,11 @@ export interface BootstrapShellRuntimeOptions {
   appClient?: BirdCoderAppSdkApiClient;
   apiBaseUrl?: string;
   backendClient?: BirdCoderBackendSdkApiClient;
+  deploymentProfile?: BirdCoderDeploymentProfile;
+  executionLocation?: BirdCoderExecutionLocation;
   host?: BirdHostDescriptor;
   realtimeTransport?: BirdCoderRealtimeTransportPreference;
+  runtimeTarget?: BirdCoderRuntimeTarget;
 }
 
 export async function bootstrapShellRuntime(
@@ -21,4 +27,3 @@ export async function bootstrapShellRuntime(
   const implementation = await module.loadBootstrapShellRuntimeImpl();
   await implementation.bootstrapShellRuntimeImpl(options);
 }
-

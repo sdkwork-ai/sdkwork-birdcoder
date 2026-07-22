@@ -1,28 +1,30 @@
-# BIRDCODER Database Module
+# BirdCoder Workbench Database
 
-Canonical lifecycle assets for `sdkwork-birdcoder` per `DATABASE_FRAMEWORK_SPEC.md`.
+This module is the single persistence authority for BirdCoder coding-workbench
+facts. It owns exactly the ten `studio_` tables declared by
+`../specs/domain-ownership.spec.json`; Agents sessions, assistant transcripts,
+Skills, IM, IAM collaboration, Documents content, Appstore templates,
+Deployments, Settings, and Commerce remain in their owning modules.
 
-- moduleId: `birdcoder`
-- serviceCode: `BIRDCODER`
-- tablePrefixes: `ai_`, `commerce_`, `ops_`, `runtime_`, `studio_` (authoritative source: `contract/prefix-registry.json`)
+## Initialization
 
-## Initialization state
+BirdCoder is pre-launch. Each engine therefore has one greenfield baseline in
+`ddl/baseline/{engine}/0001_birdcoder_baseline.sql`. The migration directories
+are reserved for changes created after the first production release. Generated
+DDL under `ddl/generated/` is produced by `pnpm db:generate:ddl` and must not be
+edited by hand.
 
-This module is in **initialization state** for greenfield deployments:
-
-1. **Baseline** — `database/ddl/baseline/{engine}/0001_birdcoder_baseline.sql` contains the full DDL snapshot.
-2. **Migrations** — `database/migrations/{engine}/` is reserved for post-GA incremental schema changes only. It is intentionally empty at initialization.
-3. **Drift** — run `pnpm db:drift:check` before release.
+Every runtime business table uses an application-preallocated
+`BIGINT NOT NULL PRIMARY KEY`. Public resources use UUIDs. Cross-domain resource
+ids are stable opaque references without database foreign keys.
 
 ## Commands
 
 ```bash
-pnpm run db:validate
-pnpm run db:materialize:contract
-pnpm run db:plan
-pnpm run db:init
-pnpm run db:migrate
-pnpm run db:seed
-pnpm run db:status
-pnpm run db:drift:check
+pnpm db:materialize:contract
+pnpm db:generate:ddl
+pnpm db:validate
+pnpm db:plan
+pnpm db:init
+pnpm db:drift:check
 ```

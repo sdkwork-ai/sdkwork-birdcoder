@@ -27,8 +27,8 @@ assert.match(
 
 assert.match(
   source,
-  /gitService: new ApiBackedGitService\(\{\s*appClient,[\s\S]*resolveLocalWorkingDirectory:[\s\S]*runtime\.fileSystemService\.resolveLocalWorkingDirectory\(projectId\),[\s\S]*\}\),/s,
-  'defaultIdeServices must wire gitService to the active Tauri mount before the generated app SDK fallback.',
+  /gitService: new ApiBackedGitService\(\{\s*appClient,[\s\S]*resolveProjectRuntimeLocation:[\s\S]*resolveProjectRuntimeLocation\(projectId,[\s\S]*resolveRemoteRuntimeLocationId:[\s\S]*resolveRemoteProjectRuntimeLocationId\([\s\S]*'git',[\s\S]*\}\),/s,
+  'defaultIdeServices must wire Git to the active Tauri mount and the selected remote Git runtime location.',
 );
 
 console.log('default IDE services git service contract passed.');

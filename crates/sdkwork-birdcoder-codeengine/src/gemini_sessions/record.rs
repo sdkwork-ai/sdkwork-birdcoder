@@ -9,12 +9,13 @@ use serde_json::{Map, Value};
 
 use crate::{
     bounded_json::for_each_bounded_jsonl_record, build_native_session_id,
-    canonicalize_codeengine_provider_tool_name, map_codeengine_session_status_from_runtime,
-    map_codeengine_tool_command_status, map_codeengine_tool_kind,
-    map_codeengine_tool_runtime_status, normalize_codeengine_tool_lifecycle_status,
-    resolve_codeengine_command_text, sanitize_codeengine_session_metadata,
-    sanitize_codeengine_session_reasoning_records, sanitize_codeengine_session_resource_records,
-    CodeEngineSessionCommandRecord, CodeEngineSessionDetailRecord, CodeEngineSessionMessageRecord,
+    canonicalize_codeengine_provider_tool_name, find_codeengine_descriptor,
+    map_codeengine_session_status_from_runtime, map_codeengine_tool_command_status,
+    map_codeengine_tool_kind, map_codeengine_tool_runtime_status,
+    normalize_codeengine_tool_lifecycle_status, resolve_codeengine_command_text,
+    sanitize_codeengine_session_metadata, sanitize_codeengine_session_reasoning_records,
+    sanitize_codeengine_session_resource_records, CodeEngineSessionCommandRecord,
+    CodeEngineSessionDetailRecord, CodeEngineSessionMessageRecord,
     CodeEngineSessionNativeAttributesRecord, CodeEngineSessionReasoningRecord,
     CodeEngineSessionResourceRecord, CodeEngineSessionSummaryRecord,
 };
@@ -337,7 +338,12 @@ pub(super) fn build_gemini_session_summary(
         .rev()
         .find_map(|message| normalize_non_empty_string(message.model.as_deref()))
         .or_else(|| normalize_non_empty_string(conversation.model.as_deref()))
-        .unwrap_or_else(|| "gemini".to_owned());
+        .or_else(|| {
+            find_codeengine_descriptor(GEMINI_ENGINE_ID).and_then(|descriptor| {
+                normalize_non_empty_string(Some(descriptor.default_model_id.as_str()))
+            })
+        })
+        .unwrap_or_else(|| "auto-gemini-3".to_owned());
     let runtime_status = resolve_gemini_session_runtime_status(conversation.messages.as_slice());
     let sort_timestamp = parse_timestamp_millis(updated_at.as_str())
         .or_else(|| parse_timestamp_millis(created_at.as_str()))

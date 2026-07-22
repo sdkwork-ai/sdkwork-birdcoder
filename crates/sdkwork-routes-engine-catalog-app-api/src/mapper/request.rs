@@ -9,30 +9,6 @@ pub struct EngineKeyPathParams {
 
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct NativeSessionPathParams {
-    pub id: String,
-}
-
-#[derive(Debug, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct NativeSessionQueryParams {
-    pub workspace_id: Option<String>,
-    pub project_id: Option<String>,
-    pub runtime_location_id: Option<String>,
-    pub engine_id: Option<String>,
-}
-
-#[derive(Debug, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct NativeSessionScopeQuery {
-    pub workspace_id: String,
-    pub project_id: String,
-    pub runtime_location_id: String,
-    pub engine_id: Option<String>,
-}
-
-#[derive(Debug, Deserialize)]
-#[serde(rename_all = "camelCase")]
 pub struct SyncModelConfigRequest {
     pub local_config: CodeEngineModelConfigPayload,
 }

@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test';
+import { expect, test, type Page, type Route } from '@playwright/test';
 
 const terminalSessionId = 'browser-terminal-e2e-session';
 
@@ -8,6 +8,14 @@ function itemEnvelope(item: unknown) {
     data: { item },
     traceId: '00000000-0000-4000-8000-000000000001',
   };
+}
+
+async function unloadPageForTeardown(page: Page) {
+  await page.route('**/__birdcoder_e2e_teardown__', (route) => route.fulfill({
+    body: '<!doctype html><title>BirdCoder E2E teardown</title>',
+    contentType: 'text/html',
+  }));
+  await page.goto('/__birdcoder_e2e_teardown__');
 }
 
 test('Browser terminal uses the protected App API and renders the full xterm surface', async ({
@@ -142,7 +150,7 @@ test('Browser terminal uses the protected App API and renders the full xterm sur
     createdAt: '2026-07-15T12:00:00.000Z',
     updatedAt: '2026-07-15T12:00:00.000Z',
   };
-  const pageEnvelope = (items: unknown[]) => ({
+  const pageEnvelope = (route: Route, items: unknown[]) => ({
     code: 0,
     data: {
       items,
@@ -150,15 +158,17 @@ test('Browser terminal uses the protected App API and renders the full xterm sur
         hasMore: false,
         mode: 'offset',
         page: 1,
-        pageSize: 20,
+        pageSize: Number(
+          new URL(route.request().url()).searchParams.get('page_size') ?? 20,
+        ),
         totalItems: String(items.length),
         totalPages: items.length > 0 ? 1 : 0,
       },
     },
     traceId: 'terminal-browser-empty-page',
   });
-  await page.route('**/app/v3/api/workspaces?**', (route) => route.fulfill({ json: pageEnvelope([workspace]) }));
-  await page.route('**/app/v3/api/projects?**', (route) => route.fulfill({ json: pageEnvelope([project]) }));
+  await page.route('**/app/v3/api/workspaces?**', (route) => route.fulfill({ json: pageEnvelope(route, [workspace]) }));
+  await page.route('**/app/v3/api/projects?**', (route) => route.fulfill({ json: pageEnvelope(route, [project]) }));
   await page.route('**/app/v3/api/projects/e2e-project-1', (route) => route.fulfill({ json: itemEnvelope(project) }));
   await page.route('**/app/v3/api/projects/e2e-project-1/runtime_location_preferences?**', (route) => {
     const url = new URL(route.request().url());
@@ -166,20 +176,50 @@ test('Browser terminal uses the protected App API and renders the full xterm sur
     expect(url.searchParams.get('page_size')).toBe('20');
     expect(url.searchParams.has('pageSize')).toBe(false);
     return route.fulfill({
-      json: pageEnvelope([{
-        id: 'e2e-terminal-preference-1',
-        projectId: project.id,
-        subjectUserId: 'e2e-user-1',
-        capability: 'terminal',
-        runtimeLocationId: 'e2e-runtime-location-1',
-        version: '1',
-        createdAt: '2026-07-15T12:00:00.000Z',
-        updatedAt: '2026-07-15T12:00:00.000Z',
-      }]),
+      json: pageEnvelope(route, [
+        {
+          id: 'e2e-terminal-preference-1',
+          projectId: project.id,
+          subjectUserId: 'e2e-user-1',
+          capability: 'terminal',
+          runtimeLocationId: 'e2e-runtime-location-1',
+          version: '1',
+          createdAt: '2026-07-15T12:00:00.000Z',
+          updatedAt: '2026-07-15T12:00:00.000Z',
+        },
+        {
+          id: 'e2e-git-preference-1',
+          projectId: project.id,
+          subjectUserId: 'e2e-user-1',
+          capability: 'git',
+          runtimeLocationId: 'e2e-runtime-location-1',
+          version: '1',
+          createdAt: '2026-07-15T12:00:00.000Z',
+          updatedAt: '2026-07-15T12:00:00.000Z',
+        },
+      ]),
     });
   });
-  await page.route('**/app/v3/api/native_sessions?**', (route) => route.fulfill({ json: pageEnvelope([]) }));
-  await page.route('**/app/v3/api/intelligence/coding_sessions?**', (route) => route.fulfill({ json: pageEnvelope([]) }));
+  await page.route('**/app/v3/api/projects/e2e-project-1/git/overview?**', (route) => {
+    const url = new URL(route.request().url());
+    expect(url.searchParams.get('runtime_location_id')).toBe('e2e-runtime-location-1');
+    return route.fulfill({
+      json: itemEnvelope({
+        branches: [{ isCurrent: true, isRemote: false, name: 'main' }],
+        currentBranch: 'main',
+        currentRevision: 'e2e-revision',
+        detachedHead: false,
+        status: 'ready',
+        statusCounts: {
+          staged: 0,
+          unstaged: 0,
+          untracked: 0,
+        },
+        worktrees: [],
+      }),
+    });
+  });
+  await page.route('**/app/v3/api/intelligence/coding_sessions?**', (route) => route.fulfill({ json: pageEnvelope(route, []) }));
 
   await page.route('**/app/v3/api/device/terminal/**', async (route) => {
     const request = route.request();
@@ -365,4 +405,5 @@ test('Browser terminal uses the protected App API and renders the full xterm sur
     runtimeLocationId: 'e2e-runtime-location-1',
   });
   expect(JSON.parse(createRequest?.body ?? '{}')).not.toHaveProperty('workspaceId');
+  await unloadPageForTeardown(page);
 });

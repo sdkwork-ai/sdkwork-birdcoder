@@ -4,109 +4,122 @@ import path from 'node:path';
 
 const rootDir = process.cwd();
 
+const EXPECTED_TABLES = [
+  'studio_project',
+  'studio_project_document_binding',
+  'studio_project_runtime_location',
+  'studio_project_runtime_location_audit',
+  'studio_project_runtime_location_idempotency',
+  'studio_project_runtime_location_preference',
+  'studio_project_sandbox_binding',
+  'studio_project_sandbox_binding_audit',
+  'studio_project_sandbox_binding_idempotency',
+  'studio_workspace',
+].sort();
+
+const EXPECTED_FOREIGN_KEYS = [
+  'studio_project.workspace_id->studio_workspace.id',
+  'studio_project_document_binding.project_id->studio_project.id',
+  'studio_project_runtime_location.project_id->studio_project.id',
+  'studio_project_runtime_location_audit.project_id->studio_project.id',
+  'studio_project_runtime_location_audit.runtime_location_id->studio_project_runtime_location.id',
+  'studio_project_runtime_location_idempotency.project_id->studio_project.id',
+  'studio_project_runtime_location_preference.project_id->studio_project.id',
+  'studio_project_runtime_location_preference.runtime_location_id->studio_project_runtime_location.id',
+  'studio_project_sandbox_binding.project_id->studio_project.id',
+  'studio_project_sandbox_binding_audit.project_id->studio_project.id',
+  'studio_project_sandbox_binding_audit.sandbox_binding_id->studio_project_sandbox_binding.id',
+  'studio_project_sandbox_binding_idempotency.project_id->studio_project.id',
+].sort();
+
 function read(relativePath) {
   const absolutePath = path.join(rootDir, relativePath);
   assert.ok(fs.existsSync(absolutePath), `${relativePath} must exist`);
   return fs.readFileSync(absolutePath, 'utf8');
 }
 
-function extractTableNames(sql) {
-  return [...sql.matchAll(/CREATE TABLE IF NOT EXISTS ([a-z0-9_]+)/gi)]
-    .map((match) => match[1])
-    .sort();
+function extractTables(sql) {
+  return [...sql.matchAll(/CREATE TABLE IF NOT EXISTS ([a-z0-9_]+)\s*\(([\s\S]*?)\n\);/gi)]
+    .map((match) => ({ name: match[1], body: match[2] }));
 }
 
-function extractInlineForeignKeys(sql) {
-  const foreignKeys = new Set();
-  for (const tableMatch of sql.matchAll(
-    /CREATE TABLE IF NOT EXISTS ([a-z0-9_]+)\s*\(([\s\S]*?)\n\);/gi,
-  )) {
-    const [, tableName, body] = tableMatch;
-    for (const columnMatch of body.matchAll(
-      /^\s*([a-z0-9_]+)\s+[^,\n]*\sREFERENCES\s+([a-z0-9_]+)\s*\(([a-z0-9_]+)\)/gim,
+function extractForeignKeys(tables) {
+  const foreignKeys = [];
+  for (const { name: tableName, body } of tables) {
+    for (const match of body.matchAll(
+      /^\s*([a-z0-9_]+)\s+[^,\n]*?\sREFERENCES\s+([a-z0-9_]+)\s*\(([a-z0-9_]+)\)/gim,
     )) {
-      foreignKeys.add(`${tableName}.${columnMatch[1]}->${columnMatch[2]}.${columnMatch[3]}`);
+      foreignKeys.push(`${tableName}.${match[1]}->${match[2]}.${match[3]}`);
     }
   }
-  return foreignKeys;
+  return foreignKeys.sort();
 }
 
-const sqliteBaseline = read('database/ddl/baseline/sqlite/0001_birdcoder_baseline.sql');
-const postgresBaseline = read('database/ddl/baseline/postgres/0001_birdcoder_baseline.sql');
-
-const sqliteTables = extractTableNames(sqliteBaseline);
-const postgresTables = extractTableNames(postgresBaseline);
-
-assert.deepEqual(
-  postgresTables,
-  sqliteTables,
-  'PostgreSQL and SQLite baselines must declare the same table inventory',
-);
-
-const requiredSqliteForeignKeys = [
-  'ai_coding_session_message.coding_session_id->ai_coding_session.id',
-  'ai_coding_session_runtime.coding_session_id->ai_coding_session.id',
-  'ai_coding_session_turn.coding_session_id->ai_coding_session.id',
-  'ai_coding_session_event.coding_session_id->ai_coding_session.id',
-  'ai_coding_session_artifact.coding_session_id->ai_coding_session.id',
-  'ai_coding_session_checkpoint.coding_session_id->ai_coding_session.id',
-  'ai_coding_session_operation.coding_session_id->ai_coding_session.id',
-  'ai_coding_session_prompt_entry.coding_session_id->ai_coding_session.id',
-  'studio_project.workspace_id->studio_workspace.id',
-  'studio_project_content.project_id->studio_project.id',
-  'studio_team_member.team_id->studio_team.id',
-  'studio_workspace_member.workspace_id->studio_workspace.id',
-  'studio_project_collaborator.project_id->studio_project.id',
-  'ai_skill_version.skill_package_id->ai_skill_package.id',
-  'ai_skill_capability.skill_version_id->ai_skill_version.id',
-  'ai_skill_installation.skill_version_id->ai_skill_version.id',
-  'studio_app_template_version.app_template_id->studio_app_template.id',
-  'studio_app_template_target_profile.app_template_version_id->studio_app_template_version.id',
-  'studio_app_template_preset.app_template_version_id->studio_app_template_version.id',
-  'studio_app_template_instantiation.app_template_version_id->studio_app_template_version.id',
-  'studio_deployment_record.target_id->studio_deployment_target.id',
-  'commerce_invoice.order_id->commerce_order.id',
-  'commerce_payment.order_id->commerce_order.id',
+const engines = [
+  ['PostgreSQL', read('database/ddl/baseline/postgres/0001_birdcoder_baseline.sql')],
+  ['SQLite', read('database/ddl/baseline/sqlite/0001_birdcoder_baseline.sql')],
 ];
-const sqliteForeignKeys = extractInlineForeignKeys(sqliteBaseline);
-for (const foreignKey of requiredSqliteForeignKeys) {
-  assert.ok(
-    sqliteForeignKeys.has(foreignKey),
-    `SQLite baseline must enforce ${foreignKey} inline`,
+
+for (const [engine, sql] of engines) {
+  const tables = extractTables(sql);
+  const tableNames = tables.map(({ name }) => name).sort();
+
+  assert.deepEqual(
+    tableNames,
+    EXPECTED_TABLES,
+    `${engine} must expose exactly the BirdCoder workbench table inventory`,
   );
+  assert.deepEqual(
+    extractForeignKeys(tables),
+    EXPECTED_FOREIGN_KEYS,
+    `${engine} must enforce local aggregate foreign keys and no cross-domain foreign keys`,
+  );
+
+  for (const { name, body } of tables) {
+    assert.match(
+      body,
+      /^\s*id\s+BIGINT\s+NOT\s+NULL\s+PRIMARY\s+KEY\s*,?$/im,
+      `${engine} ${name}.id must be an application-preallocated BIGINT primary key`,
+    );
+    assert.doesNotMatch(
+      body,
+      /\b(?:SERIAL|BIGSERIAL|AUTOINCREMENT|GENERATED\s+(?:ALWAYS|BY\s+DEFAULT)\s+AS\s+IDENTITY)\b/i,
+      `${engine} ${name} must not allocate identifiers inside the database`,
+    );
+    assert.doesNotMatch(
+      body,
+      /^\s*id\s+INTEGER\s+(?:NOT\s+NULL\s+)?PRIMARY\s+KEY/im,
+      `${engine} ${name} must not rely on SQLite rowid allocation`,
+    );
+  }
+
+  assert.match(sql, /\bdefault_agent_project_id\s+TEXT\s+NULL\b/i);
+  assert.match(sql, /\bdocument_id\s+TEXT\s+NOT\s+NULL\b/i);
+  assert.match(sql, /\bruntime_target_id\s+TEXT\s+NOT\s+NULL\b/i);
+  assert.match(sql, /\bsandbox_id\s+TEXT\s+NOT\s+NULL\b/i);
+  assert.match(sql, /\broot_entry_id\s+TEXT\s+NOT\s+NULL\b/i);
+  assert.match(sql, /default_agent_project_id\s+IS\s+NULL\s+OR\s+default_agent_project_id\s+LIKE\s+'project\.%'/i);
 }
+
+const tableRegistry = JSON.parse(read('database/contract/table-registry.json'));
+assert.deepEqual(
+  tableRegistry.tables.map((entry) => entry.table_name).sort(),
+  EXPECTED_TABLES,
+  'table-registry.json must match the canonical workbench table inventory',
+);
+assert.ok(
+  tableRegistry.tables.every(
+    (entry) => entry.owner === 'birdcoder-workbench' && entry.lifecycle_status === 'active',
+  ),
+  'every registered table must have one active BirdCoder workbench owner',
+);
 
 const schemaYaml = read('database/contract/schema.yaml');
-const tableRegistry = JSON.parse(read('database/contract/table-registry.json'));
-
-const registryTableNames = tableRegistry.tables.map((entry) => entry.table_name).sort();
-
-assert.deepEqual(
-  registryTableNames,
-  sqliteTables,
-  'table-registry.json must match baseline table inventory',
-);
-
-for (const prefix of ['chat_']) {
-  assert.match(schemaYaml, new RegExp(`- ${prefix}`), `schema.yaml must register ${prefix} prefix`);
-}
-
-assert.match(
-  schemaYaml,
-  /- name: chat_conversation/,
-  'schema.yaml must list chat_conversation',
-);
-assert.match(
-  schemaYaml,
-  /- name: chat_message/,
-  'schema.yaml must list chat_message',
-);
-
-const dialectSource = read('crates/sdkwork-birdcoder-sqlx-repository-pool/src/dialect.rs');
-assert.match(
-  dialectSource,
-  /is_deleted IS NOT TRUE/,
-  'sqlx repository dialect must use cross-engine soft-delete predicate',
-);
+const schemaTableNames = [...schemaYaml.matchAll(/^\s+- name: ([a-z0-9_]+)\s*$/gim)]
+  .map((match) => match[1])
+  .sort();
+assert.deepEqual(schemaTableNames, EXPECTED_TABLES, 'schema.yaml must match the table registry');
+assert.match(schemaYaml, /^table_prefix:\s+studio_\s*$/m);
+assert.doesNotMatch(schemaYaml, /(?:ai_|chat_|ops_|commerce_|membership_|deployment_)/i);
 
 console.log('database baseline engine parity contract passed.');

@@ -18,6 +18,15 @@ const configMapSource = readText('deployments/kubernetes/templates/configmap.yam
 const appRuntimeTransportSource = readText(
   'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/src/services/appRuntimeTransport.ts',
 );
+const standaloneGatewayAuthSource = readText(
+  'crates/sdkwork-api-birdcoder-standalone-gateway/src/bootstrap/auth.rs',
+);
+const assemblyAuthSource = readText(
+  'crates/sdkwork-api-birdcoder-assembly/src/application_bootstrap/auth.rs',
+);
+const redisStoreSource = readText(
+  '../sdkwork-web-framework/crates/sdkwork-web-store-redis/src/lib.rs',
+);
 
 assert.match(
   rootCargo,
@@ -65,19 +74,21 @@ assert.doesNotMatch(
   'App runtime transport must not depend on backend SDK operation catalogs.',
 );
 assert.match(
-  readText('crates/sdkwork-api-birdcoder-standalone-gateway/src/server/middleware/rate_limit.rs'),
+  redisStoreSource,
   /pub struct RedisRateLimitStore/u,
-  'HA commerce rate limiting must ship a Redis-backed RateLimitStore.',
+  'HA commerce rate limiting must use the framework-owned Redis-backed RateLimitStore.',
 );
+for (const authSource of [standaloneGatewayAuthSource, assemblyAuthSource]) {
+  assert.match(
+    authSource,
+    /redis_enabled_from_env\(\)[\s\S]*resolve_redis_config\(\)[\s\S]*shared_rate_limit_store[\s\S]*with_rate_limit_store/u,
+    'BirdCoder gateway assemblies must inject the shared Redis rate-limit store when Redis is enabled.',
+  );
+}
 assert.match(
-  readText('crates/sdkwork-api-birdcoder-standalone-gateway/src/server/middleware/rate_limit.rs'),
-  /SDKWORK_BIRDCODER_REDIS_ENABLED/u,
-  'HA commerce rate limiting must consume the shared Redis configuration.',
-);
-assert.match(
-  readText('crates/sdkwork-api-birdcoder-standalone-gateway/src/server/middleware/rate_limit.rs'),
-  /rejecting request/u,
-  'HA commerce rate limiting must fail closed when Redis is unavailable.',
+  redisStoreSource,
+  /get_multiplexed_async_connection\(\)[\s\S]*map_err\(redis_error\)/u,
+  'The framework-owned Redis rate-limit store must propagate dependency failures to the fail-closed interceptor chain.',
 );
 assert.match(
   readText('deployments/kubernetes/values-postgresql-ha.yaml'),

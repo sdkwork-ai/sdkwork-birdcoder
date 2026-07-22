@@ -301,15 +301,37 @@ fn fallback_native_session_provider_catalog_entries(
                     engine_id: "codex".to_owned(),
                     display_name: "Codex".to_owned(),
                     native_session_id_prefix: "codex-native:".to_owned(),
-                    transport_kinds: vec!["cli-jsonl".to_owned()],
+                    transport_kinds: vec!["cli-jsonl".to_owned(), "sdk-stream".to_owned()],
+                    discovery_mode: NativeSessionDiscoveryModeRecord::PassiveGlobal,
+                },
+                NativeSessionProviderCatalogRecord {
+                    engine_id: "claude-code".to_owned(),
+                    display_name: "Claude Code".to_owned(),
+                    native_session_id_prefix: "claude-code-native:".to_owned(),
+                    transport_kinds: vec![
+                        "cli-jsonl".to_owned(),
+                        "sdk-stream".to_owned(),
+                        "remote-control-http".to_owned(),
+                    ],
+                    discovery_mode: NativeSessionDiscoveryModeRecord::PassiveGlobal,
+                },
+                NativeSessionProviderCatalogRecord {
+                    engine_id: "gemini".to_owned(),
+                    display_name: "Gemini".to_owned(),
+                    native_session_id_prefix: "gemini-native:".to_owned(),
+                    transport_kinds: vec!["cli-jsonl".to_owned(), "sdk-stream".to_owned()],
                     discovery_mode: NativeSessionDiscoveryModeRecord::PassiveGlobal,
                 },
                 NativeSessionProviderCatalogRecord {
                     engine_id: "opencode".to_owned(),
                     display_name: "OpenCode".to_owned(),
                     native_session_id_prefix: "opencode-native:".to_owned(),
-                    transport_kinds: vec!["openapi-http".to_owned()],
-                    discovery_mode: NativeSessionDiscoveryModeRecord::ExplicitOnly,
+                    transport_kinds: vec![
+                        "cli-jsonl".to_owned(),
+                        "sdk-stream".to_owned(),
+                        "openapi-http".to_owned(),
+                    ],
+                    discovery_mode: NativeSessionDiscoveryModeRecord::PassiveGlobal,
                 },
             ]
         })
@@ -534,7 +556,34 @@ pub fn find_native_session_provider_catalog_entry(
 
 #[cfg(test)]
 mod tests {
-    use super::{find_codeengine_model_catalog_entry, register_provider, CatalogError};
+    use super::{
+        fallback_native_session_provider_catalog_entries, find_codeengine_model_catalog_entry,
+        register_provider, CatalogError, NativeSessionDiscoveryModeRecord,
+    };
+
+    #[test]
+    fn fallback_native_provider_catalog_covers_every_standard_provider() {
+        let entries = fallback_native_session_provider_catalog_entries();
+        assert_eq!(
+            entries
+                .iter()
+                .map(|entry| entry.engine_id.as_str())
+                .collect::<Vec<_>>(),
+            vec!["codex", "claude-code", "gemini", "opencode"]
+        );
+        assert!(entries.iter().all(|entry| {
+            entry.discovery_mode == NativeSessionDiscoveryModeRecord::PassiveGlobal
+        }));
+
+        let opencode = entries
+            .iter()
+            .find(|entry| entry.engine_id == "opencode")
+            .expect("OpenCode fallback provider");
+        assert_eq!(
+            opencode.transport_kinds,
+            vec!["cli-jsonl", "sdk-stream", "openapi-http"]
+        );
+    }
 
     #[test]
     fn register_provider_succeeds_for_known_engine() {

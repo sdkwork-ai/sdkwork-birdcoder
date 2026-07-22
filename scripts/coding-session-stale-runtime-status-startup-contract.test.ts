@@ -502,17 +502,11 @@ const refreshResult = await refreshCodingSessionMessages({
     async getCodingSession() {
       return authoritativeCompletedSession;
     },
-    async getNativeSession() {
-      throw new Error('native session detail should not be requested');
-    },
     async listCodingSessionEvents() {
       return [];
     },
     async listCodingSessions() {
       return [authoritativeCompletedSession];
-    },
-    async listNativeSessions() {
-      return [];
     },
   },
   projectService: {
@@ -566,16 +560,10 @@ const orphanedRefreshResult = await refreshCodingSessionMessages({
     async getCodingSession() {
       throw new Error('authoritative session is unavailable');
     },
-    async getNativeSession() {
-      throw new Error('native session detail should not be requested');
-    },
     async listCodingSessionEvents() {
       throw new Error('events should not be requested after summary lookup fails');
     },
     async listCodingSessions() {
-      return [];
-    },
-    async listNativeSessions() {
       return [];
     },
   },

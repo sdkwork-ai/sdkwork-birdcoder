@@ -230,14 +230,6 @@ pub struct NativeSessionDetailPayload {
     pub messages: Vec<NativeSessionMessagePayload>,
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct NativeSessionProviderPayload {
-    pub provider_id: String,
-    pub name: String,
-    pub description: String,
-}
-
 // ── Query / Lookup ───────────────────────────────────────────────────
 
 #[derive(Clone, Debug)]
@@ -246,8 +238,6 @@ pub struct NativeSessionQuery {
     pub project_id: Option<String>,
     pub runtime_location_id: Option<String>,
     pub engine_id: Option<String>,
-    pub offset: Option<usize>,
-    pub limit: Option<usize>,
     pub project_root: Option<String>,
 }
 
@@ -264,20 +254,19 @@ pub struct NativeSessionLookup {
 // ── Repository trait ─────────────────────────────────────────────────
 
 pub trait NativeSessionRepository: Send + Sync {
-    fn list_sessions(
+    /// Reads one complete, consistently sorted provider snapshot for an
+    /// already-authorized project scope. This is an internal reconciliation
+    /// boundary; app API pagination is applied only after the snapshot has
+    /// been materialized into the durable coding-session repository.
+    fn discover_sessions(
         &self,
         query: &NativeSessionQuery,
-    ) -> Result<(Vec<NativeSessionSummaryPayload>, usize), String>;
+    ) -> Result<Vec<NativeSessionSummaryPayload>, String>;
 
     fn get_session(
         &self,
         lookup: &NativeSessionLookup,
     ) -> Result<Option<NativeSessionDetailPayload>, String>;
-
-    fn get_session_summary(
-        &self,
-        lookup: &NativeSessionLookup,
-    ) -> Result<Option<NativeSessionSummaryPayload>, String>;
 }
 
 // ── Service ──────────────────────────────────────────────────────────
@@ -292,12 +281,12 @@ impl<R: NativeSessionRepository> NativeSessionService<R> {
         Self { repository }
     }
 
-    pub fn list_sessions(
+    pub fn discover_sessions(
         &self,
         query: &NativeSessionQuery,
-    ) -> Result<(Vec<NativeSessionSummaryPayload>, usize), NativeSessionError> {
+    ) -> Result<Vec<NativeSessionSummaryPayload>, NativeSessionError> {
         self.repository
-            .list_sessions(query)
+            .discover_sessions(query)
             .map_err(NativeSessionError::Repository)
     }
 
@@ -315,42 +304,69 @@ impl<R: NativeSessionRepository> NativeSessionService<R> {
                 ))
             })
     }
+}
 
-    pub fn get_session_summary(
+/// Object-safe internal read boundary used by the unified coding-session
+/// service. Provider implementations remain hidden behind
+/// `NativeSessionService`; no separate native-session app API is required.
+pub trait NativeSessionReader: Send + Sync {
+    fn discover_sessions(
+        &self,
+        query: &NativeSessionQuery,
+    ) -> Result<Vec<NativeSessionSummaryPayload>, NativeSessionError>;
+
+    fn get_session_detail(
         &self,
         lookup: &NativeSessionLookup,
-    ) -> Result<Option<NativeSessionSummaryPayload>, NativeSessionError> {
-        self.repository
-            .get_session_summary(lookup)
-            .map_err(NativeSessionError::Repository)
+    ) -> Result<NativeSessionDetailPayload, NativeSessionError>;
+}
+
+impl<R: NativeSessionRepository> NativeSessionReader for NativeSessionService<R> {
+    fn discover_sessions(
+        &self,
+        query: &NativeSessionQuery,
+    ) -> Result<Vec<NativeSessionSummaryPayload>, NativeSessionError> {
+        NativeSessionService::discover_sessions(self, query)
+    }
+
+    fn get_session_detail(
+        &self,
+        lookup: &NativeSessionLookup,
+    ) -> Result<NativeSessionDetailPayload, NativeSessionError> {
+        NativeSessionService::get_session_detail(self, lookup)
     }
 }
 
 // ── Helpers ──────────────────────────────────────────────────────────
 
-const NATIVE_SESSION_ID_PREFIX: &str = "native:";
-
-pub fn is_authority_backed_native_session_id(session_id: &str) -> bool {
-    session_id.starts_with(NATIVE_SESSION_ID_PREFIX)
-}
-
-pub fn build_native_session_id(engine_id: &str, native_session_id: &str) -> String {
-    format!("{NATIVE_SESSION_ID_PREFIX}{engine_id}:{native_session_id}")
-}
-
-pub fn resolve_native_session_engine_id(session_id: &str) -> Option<String> {
-    let remainder = session_id.strip_prefix(NATIVE_SESSION_ID_PREFIX)?;
-    let engine_end = remainder.find(':')?;
-    let engine_id = &remainder[..engine_end];
-    if engine_id.is_empty() {
-        return None;
-    }
-    Some(engine_id.to_string())
-}
-
 #[cfg(test)]
 mod tests {
-    use super::NativeSessionAttributesPayload;
+    use super::{
+        NativeSessionAttributesPayload, NativeSessionDetailPayload, NativeSessionLookup,
+        NativeSessionQuery, NativeSessionReader, NativeSessionRepository, NativeSessionService,
+        NativeSessionSummaryPayload,
+    };
+
+    #[derive(Clone)]
+    struct SnapshotRepository {
+        sessions: Vec<NativeSessionSummaryPayload>,
+    }
+
+    impl NativeSessionRepository for SnapshotRepository {
+        fn discover_sessions(
+            &self,
+            _query: &NativeSessionQuery,
+        ) -> Result<Vec<NativeSessionSummaryPayload>, String> {
+            Ok(self.sessions.clone())
+        }
+
+        fn get_session(
+            &self,
+            _lookup: &NativeSessionLookup,
+        ) -> Result<Option<NativeSessionDetailPayload>, String> {
+            Ok(None)
+        }
+    }
 
     #[test]
     fn native_attribute_cwd_is_not_public_response_data() {
@@ -361,5 +377,43 @@ mod tests {
 
         let serialized = serde_json::to_value(payload).expect("serialize native attributes");
         assert!(serialized.get("cwd").is_none());
+    }
+
+    #[test]
+    fn object_safe_reader_returns_the_complete_internal_snapshot() {
+        let summary = NativeSessionSummaryPayload {
+            id: "provider-session-1".to_owned(),
+            workspace_id: "workspace-1".to_owned(),
+            project_id: "project-1".to_owned(),
+            title: "Provider session".to_owned(),
+            status: "active".to_owned(),
+            host_mode: "desktop".to_owned(),
+            engine_id: "codex".to_owned(),
+            model_id: "gpt-5".to_owned(),
+            native_session_id: Some("provider-session-1".to_owned()),
+            created_at: "2026-07-22T00:00:00Z".to_owned(),
+            updated_at: "2026-07-22T00:01:00Z".to_owned(),
+            last_turn_at: Some("2026-07-22T00:01:00Z".to_owned()),
+            transcript_updated_at: Some("2026-07-22T00:01:00Z".to_owned()),
+            sort_timestamp: 1,
+            kind: "coding".to_owned(),
+            native_attributes: NativeSessionAttributesPayload::default(),
+        };
+        let reader: &dyn NativeSessionReader = &NativeSessionService::new(SnapshotRepository {
+            sessions: vec![summary],
+        });
+
+        let sessions = reader
+            .discover_sessions(&NativeSessionQuery {
+                workspace_id: Some("workspace-1".to_owned()),
+                project_id: Some("project-1".to_owned()),
+                runtime_location_id: Some("runtime-1".to_owned()),
+                engine_id: None,
+                project_root: Some("C:/workspace/project".to_owned()),
+            })
+            .expect("discover native sessions");
+
+        assert_eq!(sessions.len(), 1);
+        assert_eq!(sessions[0].id, "provider-session-1");
     }
 }

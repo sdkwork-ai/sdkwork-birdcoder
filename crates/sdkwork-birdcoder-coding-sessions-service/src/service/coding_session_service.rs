@@ -1,5 +1,10 @@
 use std::{collections::BTreeMap, sync::Arc};
 
+use sdkwork_birdcoder_native_sessions_service::service::native_session_service::{
+    NativeSessionAttributesPayload as ProviderNativeSessionAttributesPayload,
+    NativeSessionDetailPayload as ProviderNativeSessionDetailPayload, NativeSessionLookup,
+    NativeSessionQuery, NativeSessionReader, NativeSessionSummaryPayload,
+};
 use sdkwork_utils_rust::{is_blank, trim as trim_string};
 
 use crate::context::CodingSessionContext;
@@ -12,8 +17,11 @@ use crate::domain::commands::{
     UpdateCodingSessionRequest,
 };
 use crate::domain::models::{
-    CodingSessionListQuery, CodingSessionTurnCurrentFileContextPayload,
-    CodingSessionTurnIdeContextPayload, CodingSessionTurnOptionsPayload,
+    CodingSessionDiscoveryScope, CodingSessionListQuery,
+    CodingSessionTurnCurrentFileContextPayload, CodingSessionTurnIdeContextPayload,
+    CodingSessionTurnOptionsPayload, DiscoveredNativeSessionInput,
+    NativeSessionHistoryReconciliationInput, ReconciledCodingSessionEventInput,
+    ReconciledCodingSessionMessageInput,
 };
 use crate::domain::results::{
     ApprovalDecisionPayload, ClaimedCodingSessionInteraction, CodingSessionArtifactPayload,
@@ -40,6 +48,7 @@ pub struct CodingSessionService {
     event_publisher: Arc<dyn RealtimeEventPublisher>,
     engine_validator: Arc<dyn EngineValidator>,
     project_execution_scope_resolver: Arc<dyn ProjectExecutionScopeResolver>,
+    native_session_reader: Option<Arc<dyn NativeSessionReader>>,
 }
 
 const TURN_STREAM_CHANNEL_CAPACITY: usize = 128;
@@ -107,7 +116,15 @@ impl CodingSessionService {
             event_publisher,
             engine_validator,
             project_execution_scope_resolver,
+            native_session_reader: None,
         }
+    }
+
+    /// Adds provider-history discovery without changing the service's legacy
+    /// constructor contract used by focused tests and non-hosted consumers.
+    pub fn with_native_session_reader(mut self, reader: Arc<dyn NativeSessionReader>) -> Self {
+        self.native_session_reader = Some(reader);
+        self
     }
 
     async fn release_interaction_claim(
@@ -278,11 +295,150 @@ impl CodingSessionService {
 
     // ── List sessions ────────────────────────────────────────────────────
 
+    /// Lazily imports provider-authored history behind the durable logical
+    /// coding-session authority. Filesystem resolution always starts from the
+    /// persisted owner-scoped session; request parameters and provider CWD
+    /// metadata never select the root.
+    async fn reconcile_native_session_history_if_required(
+        &self,
+        ctx: &CodingSessionContext,
+        session: &CodingSessionPayload,
+    ) -> Result<(), CodingSessionError> {
+        let Some(reader) = self.native_session_reader.as_ref() else {
+            return Ok(());
+        };
+        let Some(binding) = native_session_history_binding(session) else {
+            return Ok(());
+        };
+
+        if !self
+            .repository
+            .native_session_history_refresh_required(
+                ctx,
+                session.id.as_str(),
+                binding.engine_id.as_str(),
+                binding.native_session_id.as_str(),
+                binding.source_revision.as_str(),
+            )
+            .await?
+        {
+            return Ok(());
+        }
+
+        let project_root = match self
+            .project_execution_scope_resolver
+            .resolve_execution_root(
+                ctx,
+                session.workspace_id.as_str(),
+                session.project_id.as_str(),
+                binding.runtime_location_id.as_str(),
+            )
+            .await
+        {
+            Ok(project_root) => project_root,
+            Err(error) => {
+                tracing::warn!(
+                    coding_session_id = %session.id,
+                    engine_id = %binding.engine_id,
+                    reason = %error,
+                    "provider history root is unavailable; serving the existing durable transcript"
+                );
+                return Ok(());
+            }
+        };
+
+        let lookup = NativeSessionLookup {
+            session_id: binding.native_session_id.clone(),
+            engine_id: Some(binding.engine_id.clone()),
+            workspace_id: Some(session.workspace_id.clone()),
+            project_id: Some(session.project_id.clone()),
+            runtime_location_id: Some(binding.runtime_location_id),
+            project_root: Some(project_root.to_string_lossy().into_owned()),
+        };
+        let reader = Arc::clone(reader);
+        let detail =
+            match tokio::task::spawn_blocking(move || reader.get_session_detail(&lookup)).await {
+                Ok(Ok(detail)) => detail,
+                Ok(Err(error)) => {
+                    tracing::warn!(
+                        coding_session_id = %session.id,
+                        engine_id = %binding.engine_id,
+                        reason = %error,
+                        "provider history read failed; serving the existing durable transcript"
+                    );
+                    return Ok(());
+                }
+                Err(error) => {
+                    tracing::warn!(
+                        coding_session_id = %session.id,
+                        engine_id = %binding.engine_id,
+                        reason = %error,
+                        "provider history task failed; serving the existing durable transcript"
+                    );
+                    return Ok(());
+                }
+            };
+
+        let Some(input) = build_native_session_history_reconciliation_input(session, detail)?
+        else {
+            tracing::warn!(
+                coding_session_id = %session.id,
+                engine_id = %binding.engine_id,
+                "provider history did not match the persisted session binding; durable transcript was not changed"
+            );
+            return Ok(());
+        };
+        self.repository
+            .reconcile_native_session_history(ctx, session.id.as_str(), &input)
+            .await
+    }
+
     pub async fn list_sessions(
         &self,
         ctx: &CodingSessionContext,
         query: &CodingSessionListQuery,
     ) -> Result<CodingSessionListPage, CodingSessionError> {
+        if let (Some(reader), Some(scope)) = (
+            self.native_session_reader.as_ref(),
+            coding_session_discovery_scope(query),
+        ) {
+            let Some(project_root) = resolve_provider_discovery_root(
+                self.project_execution_scope_resolver.as_ref(),
+                ctx,
+                &scope,
+            )
+            .await
+            else {
+                return self.repository.list_sessions(ctx, query).await;
+            };
+            let native_query = NativeSessionQuery {
+                workspace_id: Some(scope.workspace_id.clone()),
+                project_id: Some(scope.project_id.clone()),
+                runtime_location_id: Some(scope.runtime_location_id.clone()),
+                engine_id: normalize_borrowed_string(query.engine_id.as_deref()),
+                project_root: Some(project_root.to_string_lossy().into_owned()),
+            };
+            let reader = Arc::clone(reader);
+            match tokio::task::spawn_blocking(move || reader.discover_sessions(&native_query)).await
+            {
+                Ok(Ok(snapshot)) => {
+                    let discovered = normalize_discovered_native_sessions(snapshot);
+                    if !discovered.is_empty() {
+                        self.repository
+                            .upsert_discovered_native_sessions(ctx, &scope, discovered.as_slice())
+                            .await?;
+                    }
+                }
+                Ok(Err(error)) => {
+                    // Durable sessions remain authoritative and readable when
+                    // one local provider inventory is temporarily unavailable.
+                    tracing::warn!(%error, "native coding-session discovery failed; retaining the durable inventory");
+                }
+                Err(error) => {
+                    tracing::warn!(%error, "native coding-session discovery task failed; retaining the durable inventory");
+                }
+            }
+        }
         self.repository.list_sessions(ctx, query).await
     }
 
@@ -761,7 +917,9 @@ impl CodingSessionService {
         let session_id = normalize_required_string(session_id)
             .ok_or_else(|| CodingSessionError::InvalidInput("session_id is required.".into()))?;
 
-        self.repository.get_session(ctx, &session_id).await?;
+        let session = self.repository.get_session(ctx, &session_id).await?;
+        self.reconcile_native_session_history_if_required(ctx, &session)
+            .await?;
         self.repository
             .list_events(ctx, &session_id, offset, limit)
             .await
@@ -784,6 +942,12 @@ impl CodingSessionService {
             return Err(CodingSessionError::InvalidInput(
                 "replay page size must be between 1 and 200".into(),
             ));
+        }
+
+        if high_watermark.is_none() {
+            let session = self.repository.get_session(ctx, &session_id).await?;
+            self.reconcile_native_session_history_if_required(ctx, &session)
+                .await?;
         }
 
         self.repository
@@ -1193,6 +1357,412 @@ impl CodingSessionService {
 
 // ── String normalization helpers ─────────────────────────────────────
 
+async fn resolve_provider_discovery_root(
+    resolver: &dyn ProjectExecutionScopeResolver,
+    ctx: &CodingSessionContext,
+    scope: &CodingSessionDiscoveryScope,
+) -> Option<std::path::PathBuf> {
+    match resolver
+        .resolve_execution_root(
+            ctx,
+            scope.workspace_id.as_str(),
+            scope.project_id.as_str(),
+            scope.runtime_location_id.as_str(),
+        )
+        .await
+    {
+        Ok(project_root) => Some(project_root),
+        Err(error) => {
+            tracing::warn!(
+                workspace_id = %scope.workspace_id,
+                project_id = %scope.project_id,
+                runtime_location_id = %scope.runtime_location_id,
+                reason = %error,
+                "provider discovery root is unavailable; retaining the durable inventory"
+            );
+            None
+        }
+    }
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+struct NativeSessionHistoryBinding {
+    engine_id: String,
+    native_session_id: String,
+    runtime_location_id: String,
+    source_revision: String,
+}
+
+fn native_session_history_binding(
+    session: &CodingSessionPayload,
+) -> Option<NativeSessionHistoryBinding> {
+    let engine_id =
+        normalize_borrowed_string(Some(session.engine_id.as_str()))?.to_ascii_lowercase();
+    let native_session_id = normalize_borrowed_string(session.native_session_id.as_deref())?;
+    let runtime_location_id = normalize_borrowed_string(session.runtime_location_id.as_deref())?;
+    normalize_borrowed_string(Some(session.workspace_id.as_str()))?;
+    normalize_borrowed_string(Some(session.project_id.as_str()))?;
+    let source_revision = session
+        .transcript_updated_at
+        .as_deref()
+        .and_then(|value| normalize_borrowed_string(Some(value)))
+        .or_else(|| normalize_borrowed_string(Some(session.updated_at.as_str())))
+        .unwrap_or_else(|| session.sort_timestamp.to_string());
+
+    Some(NativeSessionHistoryBinding {
+        engine_id,
+        native_session_id,
+        runtime_location_id,
+        source_revision,
+    })
+}
+
+fn native_history_record_id(
+    record_kind: &str,
+    coding_session_id: &str,
+    engine_id: &str,
+    native_session_id: &str,
+    source_message_id: &str,
+    occurrence: usize,
+) -> String {
+    let seed = serde_json::json!([
+        "sdkwork-birdcoder-native-history-v2",
+        record_kind,
+        coding_session_id,
+        engine_id,
+        native_session_id,
+        source_message_id,
+        occurrence,
+    ])
+    .to_string();
+    format!(
+        "provider-history:{record_kind}:{}",
+        uuid::Uuid::new_v5(&uuid::Uuid::NAMESPACE_OID, seed.as_bytes())
+    )
+}
+
+fn serialize_provider_items<T: serde::Serialize>(
+    items: Option<Vec<T>>,
+    field: &str,
+) -> Result<Option<Vec<serde_json::Value>>, CodingSessionError> {
+    items
+        .map(|items| {
+            items
+                .into_iter()
+                .map(|item| {
+                    serde_json::to_value(item).map_err(|error| {
+                        CodingSessionError::Internal(format!(
+                            "failed to normalize provider history {field}: {error}"
+                        ))
+                    })
+                })
+                .collect::<Result<Vec<_>, CodingSessionError>>()
+        })
+        .transpose()
+        .map(|items| items.filter(|items| !items.is_empty()))
+}
+
+fn provider_history_detail_matches_session(
+    session: &CodingSessionPayload,
+    binding: &NativeSessionHistoryBinding,
+    detail: &ProviderNativeSessionDetailPayload,
+) -> bool {
+    let summary = &detail.summary;
+    let detail_engine_id = normalize_borrowed_string(Some(summary.engine_id.as_str()))
+        .map(|value| value.to_ascii_lowercase());
+    let detail_native_session_id = summary
+        .native_session_id
+        .as_deref()
+        .and_then(|value| normalize_borrowed_string(Some(value)))
+        .or_else(|| normalize_borrowed_string(Some(summary.id.as_str())));
+
+    detail_engine_id.as_deref() == Some(binding.engine_id.as_str())
+        && detail_native_session_id.as_deref() == Some(binding.native_session_id.as_str())
+        && normalize_borrowed_string(Some(summary.workspace_id.as_str())).as_deref()
+            == Some(session.workspace_id.trim())
+        && normalize_borrowed_string(Some(summary.project_id.as_str())).as_deref()
+            == Some(session.project_id.trim())
+}
+
+fn normalize_provider_history_content(role: &str, content: String) -> String {
+    let is_wrapped_user_prompt = role.eq_ignore_ascii_case("user")
+        && (content.contains("IDE context:")
+            || content.contains("User request:")
+            || content.contains("My request for Codex:")
+            || content.contains("<environment_context>")
+            || content.contains("<turn_aborted>"));
+    if !is_wrapped_user_prompt {
+        return content;
+    }
+
+    crate::event_payload::normalize_projection_overlay_message_content(content.as_str())
+        .unwrap_or(content)
+}
+
+fn build_native_session_history_reconciliation_input(
+    session: &CodingSessionPayload,
+    detail: ProviderNativeSessionDetailPayload,
+) -> Result<Option<NativeSessionHistoryReconciliationInput>, CodingSessionError> {
+    let Some(binding) = native_session_history_binding(session) else {
+        return Ok(None);
+    };
+    if !provider_history_detail_matches_session(session, &binding, &detail) {
+        return Ok(None);
+    }
+
+    let source_revision = detail
+        .summary
+        .transcript_updated_at
+        .as_deref()
+        .and_then(|value| normalize_borrowed_string(Some(value)))
+        .or_else(|| normalize_borrowed_string(Some(detail.summary.updated_at.as_str())))
+        .unwrap_or(binding.source_revision.clone());
+    let fallback_created_at = detail.summary.updated_at.clone();
+    let mut source_occurrences = BTreeMap::<String, usize>::new();
+    let mut messages = Vec::with_capacity(detail.messages.len());
+    let mut events = Vec::with_capacity(detail.messages.len());
+
+    for (index, message) in detail.messages.into_iter().enumerate() {
+        let Some(role) = normalize_borrowed_string(Some(message.role.as_str())) else {
+            tracing::warn!(
+                coding_session_id = %session.id,
+                provider_message_index = index,
+                "ignoring provider history message without a role"
+            );
+            continue;
+        };
+        let source_message_id = normalize_borrowed_string(Some(message.id.as_str()))
+            .unwrap_or_else(|| format!("message-{index}"));
+        let occurrence = source_occurrences
+            .entry(source_message_id.clone())
+            .or_default();
+        let message_id = native_history_record_id(
+            "message",
+            session.id.as_str(),
+            binding.engine_id.as_str(),
+            binding.native_session_id.as_str(),
+            source_message_id.as_str(),
+            *occurrence,
+        );
+        let event_id = native_history_record_id(
+            "event",
+            session.id.as_str(),
+            binding.engine_id.as_str(),
+            binding.native_session_id.as_str(),
+            source_message_id.as_str(),
+            *occurrence,
+        );
+        *occurrence += 1;
+
+        let turn_id = message
+            .turn_id
+            .as_deref()
+            .and_then(|value| normalize_borrowed_string(Some(value)));
+        let content = normalize_provider_history_content(role.as_str(), message.content);
+        let created_at = normalize_borrowed_string(Some(message.created_at.as_str()))
+            .unwrap_or_else(|| fallback_created_at.clone());
+        let commands = serialize_provider_items(message.commands, "commands")?;
+        let reasoning = serialize_provider_items(message.reasoning, "reasoning")?;
+        let tool_calls = message.tool_calls.filter(|items| !items.is_empty());
+        let file_changes = message.file_changes.filter(|items| !items.is_empty());
+        let resources = message.resources.filter(|items| !items.is_empty());
+        let tool_call_id = message
+            .tool_call_id
+            .as_deref()
+            .and_then(|value| normalize_borrowed_string(Some(value)));
+        let metadata = message.metadata.unwrap_or_default();
+
+        let mut payload = BTreeMap::new();
+        payload.insert("role".to_owned(), serde_json::Value::String(role.clone()));
+        payload.insert(
+            "content".to_owned(),
+            serde_json::Value::String(content.clone()),
+        );
+        payload.insert(
+            "messageId".to_owned(),
+            serde_json::Value::String(message_id.clone()),
+        );
+        payload.insert(
+            "runtimeStatus".to_owned(),
+            serde_json::Value::String("completed".to_owned()),
+        );
+        payload.insert(
+            "nativeSessionId".to_owned(),
+            serde_json::Value::String(binding.native_session_id.clone()),
+        );
+        if let Some(items) = commands.as_ref() {
+            payload.insert(
+                "commands".to_owned(),
+                serde_json::Value::Array(items.clone()),
+            );
+        }
+        if let Some(items) = tool_calls.as_ref() {
+            payload.insert(
+                "toolCalls".to_owned(),
+                serde_json::Value::Array(items.clone()),
+            );
+        }
+        if let Some(value) = tool_call_id.as_ref() {
+            payload.insert(
+                "toolCallId".to_owned(),
+                serde_json::Value::String(value.clone()),
+            );
+        }
+        if let Some(items) = file_changes.as_ref() {
+            payload.insert(
+                "fileChanges".to_owned(),
+                serde_json::Value::Array(items.clone()),
+            );
+        }
+        if let Some(items) = reasoning.as_ref() {
+            payload.insert(
+                "reasoning".to_owned(),
+                serde_json::Value::Array(items.clone()),
+            );
+        }
+        if let Some(items) = resources.as_ref() {
+            payload.insert(
+                "resources".to_owned(),
+                serde_json::Value::Array(items.clone()),
+            );
+        }
+        if let Some(value) = message.task_progress.as_ref() {
+            payload.insert("taskProgress".to_owned(), value.clone());
+        }
+        if !metadata.is_empty() {
+            payload.insert("metadata".to_owned(), serde_json::json!(&metadata));
+        }
+
+        messages.push(ReconciledCodingSessionMessageInput {
+            id: message_id.clone(),
+            turn_id: turn_id.clone(),
+            role,
+            content,
+            metadata,
+            tool_calls,
+            tool_call_id,
+            file_changes,
+            commands,
+            task_progress: message.task_progress,
+            created_at: created_at.clone(),
+        });
+        events.push(ReconciledCodingSessionEventInput {
+            id: event_id,
+            message_id,
+            turn_id,
+            kind: "message.completed".to_owned(),
+            payload,
+            created_at,
+        });
+    }
+
+    Ok(Some(NativeSessionHistoryReconciliationInput {
+        engine_id: binding.engine_id,
+        native_session_id: binding.native_session_id,
+        refresh_revision: binding.source_revision,
+        source_revision,
+        messages,
+        events,
+    }))
+}
+
+fn coding_session_discovery_scope(
+    query: &CodingSessionListQuery,
+) -> Option<CodingSessionDiscoveryScope> {
+    Some(CodingSessionDiscoveryScope {
+        workspace_id: normalize_borrowed_string(query.workspace_id.as_deref())?,
+        project_id: normalize_borrowed_string(query.project_id.as_deref())?,
+        runtime_location_id: normalize_borrowed_string(query.runtime_location_id.as_deref())?,
+    })
+}
+
+fn normalize_discovered_native_sessions(
+    snapshot: Vec<NativeSessionSummaryPayload>,
+) -> Vec<DiscoveredNativeSessionInput> {
+    let mut sessions = BTreeMap::<(String, String), DiscoveredNativeSessionInput>::new();
+    for summary in snapshot {
+        if !summary.kind.trim().eq_ignore_ascii_case("coding") {
+            continue;
+        }
+        let Some(engine_id) = normalize_borrowed_string(Some(summary.engine_id.as_str())) else {
+            continue;
+        };
+        let engine_id = engine_id.to_ascii_lowercase();
+        let Some(native_session_id) = summary
+            .native_session_id
+            .as_deref()
+            .and_then(|value| normalize_borrowed_string(Some(value)))
+        else {
+            tracing::warn!(
+                provider_session_id = %summary.id,
+                engine_id,
+                "ignoring provider session without a raw native identity"
+            );
+            continue;
+        };
+        let candidate = DiscoveredNativeSessionInput {
+            title: summary.title,
+            status: summary.status,
+            host_mode: summary.host_mode,
+            engine_id: engine_id.clone(),
+            model_id: summary.model_id,
+            native_session_id: native_session_id.clone(),
+            created_at: summary.created_at,
+            updated_at: summary.updated_at,
+            last_turn_at: summary.last_turn_at,
+            sort_timestamp: summary.sort_timestamp,
+            transcript_updated_at: summary.transcript_updated_at,
+            native_attributes: map_provider_native_session_attributes(summary.native_attributes),
+        };
+        let key = (engine_id, native_session_id);
+        match sessions.entry(key) {
+            std::collections::btree_map::Entry::Vacant(entry) => {
+                entry.insert(candidate);
+            }
+            std::collections::btree_map::Entry::Occupied(mut entry) => {
+                let current = entry.get();
+                if (candidate.sort_timestamp, candidate.updated_at.as_str())
+                    > (current.sort_timestamp, current.updated_at.as_str())
+                {
+                    entry.insert(candidate);
+                }
+            }
+        }
+    }
+    sessions.into_values().collect()
+}
+
+fn map_provider_native_session_attributes(
+    attributes: ProviderNativeSessionAttributesPayload,
+) -> crate::native_session_types::NativeSessionAttributesPayload {
+    crate::native_session_types::NativeSessionAttributesPayload {
+        schema_version: attributes.schema_version,
+        session_tree_id: attributes.session_tree_id,
+        parent_session_id: attributes.parent_session_id,
+        forked_from_session_id: attributes.forked_from_session_id,
+        title: attributes.title,
+        preview: attributes.preview,
+        source: attributes.source,
+        provider_version: attributes.provider_version,
+        model_provider: attributes.model_provider,
+        project_id: attributes.project_id,
+        cwd: attributes.cwd,
+        git_branch: attributes.git_branch,
+        git_commit: attributes.git_commit,
+        git_repository_url: attributes.git_repository_url,
+        agent_name: attributes.agent_name,
+        agent_role: attributes.agent_role,
+        is_ephemeral: attributes.is_ephemeral,
+        is_sidechain: attributes.is_sidechain,
+        metadata: attributes.metadata,
+    }
+}
+
+fn normalize_borrowed_string(value: Option<&str>) -> Option<String> {
+    let normalized = value?.trim();
+    (!normalized.is_empty()).then(|| normalized.to_owned())
+}
+
 fn normalize_required_string(value: &str) -> Option<String> {
     if is_blank(Some(value)) {
         None
@@ -1305,7 +1875,332 @@ mod tests {
         time::Duration,
     };
 
+    use sdkwork_birdcoder_native_sessions_service::service::native_session_service::{
+        NativeSessionCommandPayload as ProviderNativeSessionCommandPayload,
+        NativeSessionMessagePayload as ProviderNativeSessionMessagePayload,
+        NativeSessionReasoningPayload as ProviderNativeSessionReasoningPayload,
+    };
+
     use super::*;
+
+    fn native_summary(
+        engine_id: &str,
+        native_session_id: Option<&str>,
+        kind: &str,
+        sort_timestamp: i64,
+        updated_at: &str,
+    ) -> NativeSessionSummaryPayload {
+        NativeSessionSummaryPayload {
+            id: format!("provider-{engine_id}-{sort_timestamp}"),
+            workspace_id: "workspace-1".to_owned(),
+            project_id: "project-1".to_owned(),
+            title: format!("Session {sort_timestamp}"),
+            status: "active".to_owned(),
+            host_mode: "desktop".to_owned(),
+            engine_id: engine_id.to_owned(),
+            model_id: "provider-model".to_owned(),
+            native_session_id: native_session_id.map(str::to_owned),
+            created_at: "2026-07-22T00:00:00Z".to_owned(),
+            updated_at: updated_at.to_owned(),
+            last_turn_at: Some(updated_at.to_owned()),
+            transcript_updated_at: Some(updated_at.to_owned()),
+            sort_timestamp,
+            kind: kind.to_owned(),
+            native_attributes: ProviderNativeSessionAttributesPayload::default(),
+        }
+    }
+
+    #[test]
+    fn provider_discovery_requires_a_complete_authorized_scope() {
+        let complete = CodingSessionListQuery {
+            workspace_id: Some(" workspace-1 ".to_owned()),
+            project_id: Some(" project-1 ".to_owned()),
+            runtime_location_id: Some(" runtime-1 ".to_owned()),
+            ..CodingSessionListQuery::default()
+        };
+
+        assert_eq!(
+            coding_session_discovery_scope(&complete),
+            Some(CodingSessionDiscoveryScope {
+                workspace_id: "workspace-1".to_owned(),
+                project_id: "project-1".to_owned(),
+                runtime_location_id: "runtime-1".to_owned(),
+            })
+        );
+
+        let missing_runtime_location = CodingSessionListQuery {
+            runtime_location_id: None,
+            ..complete
+        };
+        assert_eq!(
+            coding_session_discovery_scope(&missing_runtime_location),
+            None
+        );
+    }
+
+    #[test]
+    fn provider_snapshot_is_filtered_and_deduplicated_by_engine_and_raw_identity() {
+        let discovered = normalize_discovered_native_sessions(vec![
+            native_summary(
+                "Codex",
+                Some("shared-native-id"),
+                "coding",
+                1,
+                "2026-07-22T00:01:00Z",
+            ),
+            native_summary(
+                "codex",
+                Some("shared-native-id"),
+                "coding",
+                2,
+                "2026-07-22T00:02:00Z",
+            ),
+            native_summary(
+                "claude-code",
+                Some("shared-native-id"),
+                "coding",
+                3,
+                "2026-07-22T00:03:00Z",
+            ),
+            native_summary(
+                "gemini",
+                Some("non-coding-id"),
+                "chat",
+                4,
+                "2026-07-22T00:04:00Z",
+            ),
+            native_summary("opencode", None, "coding", 5, "2026-07-22T00:05:00Z"),
+        ]);
+
+        assert_eq!(discovered.len(), 2);
+        let codex = discovered
+            .iter()
+            .find(|session| session.engine_id == "codex")
+            .expect("Codex snapshot is retained");
+        assert_eq!(codex.sort_timestamp, 2);
+        assert_eq!(codex.title, "Session 2");
+        assert!(discovered.iter().any(|session| {
+            session.engine_id == "claude-code" && session.native_session_id == "shared-native-id"
+        }));
+    }
+
+    fn durable_provider_session(engine_id: &str, native_session_id: &str) -> CodingSessionPayload {
+        CodingSessionPayload {
+            id: "logical-session-1".to_owned(),
+            workspace_id: "workspace-1".to_owned(),
+            project_id: "project-1".to_owned(),
+            runtime_location_id: Some("runtime-location-1".to_owned()),
+            title: "Provider history".to_owned(),
+            status: "completed".to_owned(),
+            host_mode: "desktop".to_owned(),
+            engine_id: engine_id.to_owned(),
+            model_id: "provider-model".to_owned(),
+            native_session_id: Some(native_session_id.to_owned()),
+            created_at: "2026-07-22T00:00:00Z".to_owned(),
+            updated_at: "2026-07-22T00:02:00Z".to_owned(),
+            last_turn_at: Some("2026-07-22T00:02:00Z".to_owned()),
+            runtime_status: Some("completed".to_owned()),
+            sort_timestamp: 2,
+            transcript_updated_at: Some("2026-07-22T00:02:00Z".to_owned()),
+            native_attributes: Default::default(),
+        }
+    }
+
+    #[test]
+    fn provider_history_projection_is_complete_stable_and_provider_isolated() {
+        let session = durable_provider_session("codex", "shared-native-id");
+        let mut summary = native_summary(
+            "codex",
+            Some("shared-native-id"),
+            "coding",
+            2,
+            "2026-07-22T00:02:00Z",
+        );
+        summary.native_attributes.cwd = Some("C:/private/project".to_owned());
+        let detail = ProviderNativeSessionDetailPayload {
+            summary,
+            messages: vec![
+                ProviderNativeSessionMessagePayload {
+                    id: "provider-message".to_owned(),
+                    coding_session_id: "shared-native-id".to_owned(),
+                    turn_id: Some("provider-turn-1".to_owned()),
+                    role: "user".to_owned(),
+                    content:
+                        "IDE context:\n- Project ID: project-1\n\nUser request:\nRun all checks"
+                            .to_owned(),
+                    commands: None,
+                    tool_calls: None,
+                    tool_call_id: None,
+                    file_changes: None,
+                    reasoning: None,
+                    resources: None,
+                    task_progress: None,
+                    metadata: None,
+                    created_at: "2026-07-22T00:01:00Z".to_owned(),
+                },
+                ProviderNativeSessionMessagePayload {
+                    id: "provider-message".to_owned(),
+                    coding_session_id: "shared-native-id".to_owned(),
+                    turn_id: Some("provider-turn-1".to_owned()),
+                    role: "assistant".to_owned(),
+                    content: String::new(),
+                    commands: Some(vec![ProviderNativeSessionCommandPayload {
+                        command: "cargo test".to_owned(),
+                        status: "completed".to_owned(),
+                        output: Some("ok".to_owned()),
+                        ..Default::default()
+                    }]),
+                    tool_calls: Some(vec![serde_json::json!({"id": "tool-1"})]),
+                    tool_call_id: Some("tool-1".to_owned()),
+                    file_changes: Some(vec![serde_json::json!({"path": "src/lib.rs"})]),
+                    reasoning: Some(vec![ProviderNativeSessionReasoningPayload {
+                        id: "reasoning-1".to_owned(),
+                        summary: "Checked the workspace.".to_owned(),
+                        title: None,
+                        created_at: None,
+                        started_at: None,
+                        completed_at: None,
+                        duration_ms: Some(10),
+                    }]),
+                    resources: Some(vec![serde_json::json!({"id": "resource-1"})]),
+                    task_progress: Some(serde_json::json!({"completed": 1, "total": 1})),
+                    metadata: Some(BTreeMap::from([(
+                        "providerKind".to_owned(),
+                        "tool-result".to_owned(),
+                    )])),
+                    created_at: "2026-07-22T00:02:00Z".to_owned(),
+                },
+            ],
+        };
+
+        let first = build_native_session_history_reconciliation_input(&session, detail.clone())
+            .expect("project provider history")
+            .expect("matching provider binding");
+        let second = build_native_session_history_reconciliation_input(&session, detail)
+            .expect("project provider history again")
+            .expect("matching provider binding");
+
+        assert_eq!(first, second, "the same snapshot must be idempotent");
+        assert_eq!(first.messages.len(), 2);
+        assert_eq!(first.events.len(), 2);
+        assert_eq!(first.messages[0].content, "Run all checks");
+        assert_ne!(first.messages[0].id, first.messages[1].id);
+        assert_eq!(first.events[1].message_id, first.messages[1].id);
+        assert_eq!(
+            first.events[1].payload.get("reasoning"),
+            Some(&serde_json::json!([{
+                "id": "reasoning-1",
+                "summary": "Checked the workspace.",
+                "durationMs": 10
+            }]))
+        );
+        assert_eq!(
+            first.events[1].payload.get("resources"),
+            Some(&serde_json::json!([{"id": "resource-1"}]))
+        );
+        assert!(!first.events[0].id.contains("shared-native-id"));
+        assert!(!format!("{:?}", first.events).contains("C:/private/project"));
+
+        let wrong_provider_session = durable_provider_session("claude-code", "shared-native-id");
+        let mismatched_detail = ProviderNativeSessionDetailPayload {
+            summary: native_summary(
+                "codex",
+                Some("shared-native-id"),
+                "coding",
+                2,
+                "2026-07-22T00:02:00Z",
+            ),
+            messages: Vec::new(),
+        };
+        assert!(build_native_session_history_reconciliation_input(
+            &wrong_provider_session,
+            mismatched_detail,
+        )
+        .expect("validate provider isolation")
+        .is_none());
+        assert_ne!(
+            native_history_record_id(
+                "event",
+                "coding-session-1",
+                "codex",
+                "same-id",
+                "message",
+                0,
+            ),
+            native_history_record_id(
+                "event",
+                "coding-session-1",
+                "claude-code",
+                "same-id",
+                "message",
+                0,
+            ),
+        );
+        assert_ne!(
+            native_history_record_id(
+                "event",
+                "coding-session-1",
+                "codex",
+                "same-id",
+                "message",
+                0,
+            ),
+            native_history_record_id(
+                "event",
+                "coding-session-2",
+                "codex",
+                "same-id",
+                "message",
+                0,
+            ),
+        );
+    }
+
+    #[test]
+    fn provider_history_requires_a_persisted_runtime_binding() {
+        let mut session = durable_provider_session("gemini", "native-session-1");
+        assert!(native_session_history_binding(&session).is_some());
+        session.runtime_location_id = None;
+        assert_eq!(native_session_history_binding(&session), None);
+    }
+
+    struct UnavailableProjectExecutionScopeResolver;
+
+    #[async_trait::async_trait]
+    impl ProjectExecutionScopeResolver for UnavailableProjectExecutionScopeResolver {
+        async fn resolve_execution_root(
+            &self,
+            _context: &CodingSessionContext,
+            _workspace_id: &str,
+            _project_id: &str,
+            _runtime_location_id: &str,
+        ) -> Result<std::path::PathBuf, CodingSessionError> {
+            Err(CodingSessionError::Unavailable(
+                "runtime location is temporarily unavailable".to_owned(),
+            ))
+        }
+    }
+
+    #[tokio::test]
+    async fn unavailable_provider_discovery_root_is_nonterminal() {
+        let root = resolve_provider_discovery_root(
+            &UnavailableProjectExecutionScopeResolver,
+            &CodingSessionContext {
+                tenant_id: "tenant-1".to_owned(),
+                organization_id: "organization-1".to_owned(),
+                user_id: "user-1".to_owned(),
+                session_id: "request-session-1".to_owned(),
+            },
+            &CodingSessionDiscoveryScope {
+                workspace_id: "workspace-1".to_owned(),
+                project_id: "project-1".to_owned(),
+                runtime_location_id: "runtime-location-1".to_owned(),
+            },
+        )
+        .await;
+
+        assert_eq!(root, None);
+    }
 
     #[derive(Default)]
     struct FailingRealtimeEventPublisher {

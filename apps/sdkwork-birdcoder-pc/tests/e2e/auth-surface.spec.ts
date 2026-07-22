@@ -48,6 +48,7 @@ test('password sign-in leaves the auth surface', async ({ page }) => {
 
   await expect(page.locator('.sdkwork-birdcoder-auth-shell')).toBeVisible({ timeout: 45_000 });
 
+  await page.getByRole('textbox', { name: 'Account' }).fill('e2e@test.sdkwork.local');
   await page.locator('input[type="password"]').first().fill('e2e-password');
   await page.getByRole('button', { name: 'Sign in' }).click();
 

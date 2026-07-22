@@ -12,7 +12,7 @@
   "mode": "apply",
   "hasChanges": false,
   "hasDestructiveChanges": false,
-  "changeFingerprint": "219935b968463ae94cd4486be06907243d6b13f34a953707e01bcdc747eeac03",
+  "changeFingerprint": "20e24f07dc07cd952530acc8e4f38aa1ec1dce766598ec6c0dfa5e5686b66623",
   "changeImpact": {
     "schemaVersion": 1,
     "areas": [],
@@ -56,10 +56,10 @@
     "localVersions": []
   },
   "stats": {
-    "totalFiles": 222,
-    "models": 192,
+    "totalFiles": 212,
+    "models": 182,
     "apis": 12,
-    "types": 194
+    "types": 184
   },
   "warnings": [],
   "syncSummary": {
@@ -67,10 +67,10 @@
     "controlPlaneEnabled": true,
     "writtenFiles": 0,
     "skippedScaffoldFiles": 1,
-    "skippedUnchangedGeneratedFiles": 221,
+    "skippedUnchangedGeneratedFiles": 211,
     "deletedGeneratedFiles": 0,
     "changeSummaryPath": ".sdkwork/sdkwork-generator-changes.json",
-    "changeFingerprint": "219935b968463ae94cd4486be06907243d6b13f34a953707e01bcdc747eeac03",
+    "changeFingerprint": "20e24f07dc07cd952530acc8e4f38aa1ec1dce766598ec6c0dfa5e5686b66623",
     "changes": {
       "createdGeneratedFiles": [],
       "updatedGeneratedFiles": [],
@@ -116,10 +116,6 @@
         "src/models/bird_coder_chat_conversation_summary_envelope.rs",
         "src/models/bird_coder_chat_conversation_summary_list_envelope.rs",
         "src/models/bird_coder_chat_conversation_summary.rs",
-        "src/models/bird_coder_chat_message_reasoning_item.rs",
-        "src/models/bird_coder_chat_message_resource_citation.rs",
-        "src/models/bird_coder_chat_message_resource_origin.rs",
-        "src/models/bird_coder_chat_message_resource.rs",
         "src/models/bird_coder_chat_message_summary_envelope.rs",
         "src/models/bird_coder_chat_message_summary_list_envelope.rs",
         "src/models/bird_coder_chat_message_summary.rs",
@@ -223,14 +219,8 @@
         "src/models/bird_coder_model_catalog_entry_list_envelope.rs",
         "src/models/bird_coder_model_catalog_entry.rs",
         "src/models/bird_coder_native_session_attributes.rs",
-        "src/models/bird_coder_native_session_command.rs",
-        "src/models/bird_coder_native_session_detail_envelope.rs",
-        "src/models/bird_coder_native_session_detail.rs",
-        "src/models/bird_coder_native_session_message.rs",
         "src/models/bird_coder_native_session_provider_summary_list_envelope.rs",
         "src/models/bird_coder_native_session_provider_summary.rs",
-        "src/models/bird_coder_native_session_summary_list_envelope.rs",
-        "src/models/bird_coder_native_session_summary.rs",
         "src/models/bird_coder_operation_descriptor_envelope.rs",
         "src/models/bird_coder_operation_descriptor.rs",
         "src/models/bird_coder_project_collaborator_summary_envelope.rs",

@@ -4,7 +4,7 @@ use reqwest::Method;
 
 use crate::api::paths::app_path;
 use crate::http::{SdkworkError, SdkworkHttpClient};
-use crate::models::{BirdCoderBooleanSuccessEnvelope, BirdCoderIamDeviceAuthorizationCreateRequest, BirdCoderIamDeviceAuthorizationEnvelope, BirdCoderIamDeviceAuthorizationPasswordCompletionRequest, BirdCoderIamDeviceAuthorizationScanRequest, BirdCoderIamDeviceAuthorizationSessionExchangeRequest, BirdCoderIamOAuthAuthorizationCreateRequest, BirdCoderIamOAuthAuthorizationEnvelope, BirdCoderIamOAuthSessionCreateRequest, BirdCoderIamSessionEnvelope};
+use crate::models::{BirdCoderBooleanSuccessResult, BirdCoderIamDeviceAuthorizationCreateRequest, BirdCoderIamDeviceAuthorizationPasswordCompletionRequest, BirdCoderIamDeviceAuthorizationScanRequest, BirdCoderIamDeviceAuthorizationSessionExchangeRequest, BirdCoderIamDeviceAuthorizationSummary, BirdCoderIamOAuthAuthorizationCreateRequest, BirdCoderIamOAuthAuthorizationSummary, BirdCoderIamOAuthSessionCreateRequest, BirdCoderIamSessionSummary};
 
 #[derive(Clone)]
 pub struct OauthApi {
@@ -17,43 +17,43 @@ impl OauthApi {
     }
 
     /// Resolve OAuth authorization URL for SDKWork IAM sign-in
-    pub async fn authorization_urls_create(&self, body: &BirdCoderIamOAuthAuthorizationCreateRequest) -> Result<BirdCoderIamOAuthAuthorizationEnvelope, SdkworkError> {
+    pub async fn authorization_urls_create(&self, body: &BirdCoderIamOAuthAuthorizationCreateRequest) -> Result<BirdCoderIamOAuthAuthorizationSummary, SdkworkError> {
         let path = app_path(&"/oauth/authorization_urls".to_string());
         self.client.request_method(Method::POST, &path, Some(body), None, None, Some("application/json"), true).await
     }
 
     /// Create SDKWork IAM session with OAuth authorization code
-    pub async fn sessions_create(&self, body: &BirdCoderIamOAuthSessionCreateRequest) -> Result<BirdCoderIamSessionEnvelope, SdkworkError> {
+    pub async fn sessions_create(&self, body: &BirdCoderIamOAuthSessionCreateRequest) -> Result<BirdCoderIamSessionSummary, SdkworkError> {
         let path = app_path(&"/oauth/sessions".to_string());
         self.client.request_method(Method::POST, &path, Some(body), None, None, Some("application/json"), true).await
     }
 
     /// Create SDKWork IAM OAuth device authorization
-    pub async fn device_authorizations_create(&self, body: &BirdCoderIamDeviceAuthorizationCreateRequest) -> Result<BirdCoderIamDeviceAuthorizationEnvelope, SdkworkError> {
+    pub async fn device_authorizations_create(&self, body: &BirdCoderIamDeviceAuthorizationCreateRequest) -> Result<BirdCoderIamDeviceAuthorizationSummary, SdkworkError> {
         let path = app_path(&"/oauth/device_authorizations".to_string());
         self.client.request_method(Method::POST, &path, Some(body), None, None, Some("application/json"), true).await
     }
 
     /// Get SDKWork IAM OAuth device authorization
-    pub async fn device_authorizations_retrieve(&self, device_authorization_id: &str) -> Result<BirdCoderIamDeviceAuthorizationEnvelope, SdkworkError> {
+    pub async fn device_authorizations_retrieve(&self, device_authorization_id: &str) -> Result<BirdCoderIamDeviceAuthorizationSummary, SdkworkError> {
         let path = app_path(&format!("/oauth/device_authorizations/{}", serialize_path_parameter(device_authorization_id, PathParameterSpec::new("deviceAuthorizationId", "simple", false))));
         self.client.request_method(Method::GET, &path, Option::<&serde_json::Value>::None, None, None, None, true).await
     }
 
     /// Create SDKWork IAM OAuth device authorization scan
-    pub async fn device_authorizations_scans_create(&self, device_authorization_id: &str, body: &BirdCoderIamDeviceAuthorizationScanRequest) -> Result<BirdCoderBooleanSuccessEnvelope, SdkworkError> {
+    pub async fn device_authorizations_scans_create(&self, device_authorization_id: &str, body: &BirdCoderIamDeviceAuthorizationScanRequest) -> Result<BirdCoderBooleanSuccessResult, SdkworkError> {
         let path = app_path(&format!("/oauth/device_authorizations/{}/scans", serialize_path_parameter(device_authorization_id, PathParameterSpec::new("deviceAuthorizationId", "simple", false))));
         self.client.request_method(Method::POST, &path, Some(body), None, None, Some("application/json"), true).await
     }
 
     /// Complete SDKWork IAM OAuth device authorization with password
-    pub async fn device_authorizations_password_completions_create(&self, device_authorization_id: &str, body: &BirdCoderIamDeviceAuthorizationPasswordCompletionRequest) -> Result<BirdCoderIamSessionEnvelope, SdkworkError> {
+    pub async fn device_authorizations_password_completions_create(&self, device_authorization_id: &str, body: &BirdCoderIamDeviceAuthorizationPasswordCompletionRequest) -> Result<BirdCoderIamSessionSummary, SdkworkError> {
         let path = app_path(&format!("/oauth/device_authorizations/{}/password_completions", serialize_path_parameter(device_authorization_id, PathParameterSpec::new("deviceAuthorizationId", "simple", false))));
         self.client.request_method(Method::POST, &path, Some(body), None, None, Some("application/json"), true).await
     }
 
     /// Exchange SDKWork IAM OAuth device authorization for a session
-    pub async fn device_authorizations_session_exchanges_create(&self, device_authorization_id: &str, body: &BirdCoderIamDeviceAuthorizationSessionExchangeRequest) -> Result<BirdCoderIamSessionEnvelope, SdkworkError> {
+    pub async fn device_authorizations_session_exchanges_create(&self, device_authorization_id: &str, body: &BirdCoderIamDeviceAuthorizationSessionExchangeRequest) -> Result<BirdCoderIamSessionSummary, SdkworkError> {
         let path = app_path(&format!("/oauth/device_authorizations/{}/session_exchanges", serialize_path_parameter(device_authorization_id, PathParameterSpec::new("deviceAuthorizationId", "simple", false))));
         self.client.request_method(Method::POST, &path, Some(body), None, None, Some("application/json"), true).await
     }

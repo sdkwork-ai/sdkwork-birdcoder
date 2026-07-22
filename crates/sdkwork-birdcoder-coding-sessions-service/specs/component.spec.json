@@ -105,6 +105,10 @@
       {
         "name": "codingSessionProjectExecutionScopeResolver",
         "export": "sdkwork_birdcoder_coding_sessions_service::ports::project_execution_scope::ProjectExecutionScopeResolver"
+      },
+      {
+        "name": "nativeSessionReader",
+        "export": "."
       }
     ],
     "runtimeEntrypoints": [],
@@ -118,7 +122,7 @@
     "configKeys": []
   },
   "integration": {
-    "authority": "Owns coding-session application orchestration and validation behind explicit repository, code-engine, event, engine-validation, and project-execution-scope ports. Session persistence and client input never authorize a filesystem path; route adapters own HTTP extraction and response mapping; SQLx repositories own persistence."
+    "authority": "Owns the only public coding-session application orchestration and validation boundary behind explicit repository, code-engine, event, engine-validation, project-execution-scope, and internal native-session reader ports. Provider histories are reconciled into durable coding sessions before public pagination; session persistence and client input never authorize a filesystem path; route adapters own HTTP extraction and response mapping; SQLx repositories own persistence."
   },
   "verification": {
     "commands": [

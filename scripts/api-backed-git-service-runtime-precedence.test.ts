@@ -71,11 +71,55 @@ const missingResolverService = new ApiBackedGitService({
 });
 await assert.rejects(
   missingResolverService.getProjectGitOverview(projectId),
-  /runtime-location resolver is required/u,
+  /remote project runtime-location resolver is required/u,
+);
+
+let browserLocalResolutionCalls = 0;
+const browserMountedService = new ApiBackedGitService({
+  appClient,
+  resolveProjectRuntimeLocation: async (nextProjectId) => {
+    browserLocalResolutionCalls += 1;
+    return {
+      code: 'browser_path_unavailable',
+      message: 'This project is mounted in a browser and does not have a local desktop path.',
+      projectId: nextProjectId,
+      status: 'unavailable',
+    };
+  },
+  resolveRemoteRuntimeLocationId: async (nextProjectId) => {
+    assert.equal(nextProjectId, projectId);
+    return runtimeLocationId;
+  },
+  tauriProjectGitRuntime: tauriUnavailable,
+});
+assert.equal(await browserMountedService.getProjectGitOverview(projectId), overview);
+assert.equal(
+  browserLocalResolutionCalls,
+  0,
+  'Browser Git must resolve its remote Git preference without requiring a local desktop path.',
+);
+assert.equal(appSdkCalls, 1);
+
+const browserWithoutGitPreferenceService = new ApiBackedGitService({
+  appClient,
+  resolveRemoteRuntimeLocationId: async () => null,
+  tauriProjectGitRuntime: tauriUnavailable,
+});
+await assert.rejects(
+  browserWithoutGitPreferenceService.getProjectGitOverview(projectId),
+  (error: unknown) =>
+    error instanceof ProjectRuntimeLocationExecutionUnavailableError &&
+    error.code === 'missing_runtime_location_id' &&
+    error.projectId === projectId,
 );
 assert.equal(
   appSdkCalls,
-  0,
+  1,
+  'Remote Git must fail closed before the App SDK call when no Git preference is selected.',
+);
+assert.equal(
+  appSdkCalls,
+  1,
   'Remote Git must fail before calling the App SDK when no authoritative runtime-location resolver is available.',
 );
 
@@ -101,7 +145,7 @@ await assert.rejects(
 );
 assert.equal(
   appSdkCalls,
-  0,
+  1,
   'A local-only or pending runtime location must never be substituted for a registered remote identifier.',
 );
 
@@ -122,7 +166,7 @@ const fallbackService = new ApiBackedGitService({
 assert.equal(await fallbackService.getProjectGitOverview(projectId), overview);
 assert.equal(
   appSdkCalls,
-  1,
+  2,
   'The App SDK is used only when both local runtimes are unavailable and a registered runtime location resolves.',
 );
 
@@ -137,7 +181,7 @@ const failingNativeService = new ApiBackedGitService({
 await assert.rejects(failingNativeService.getProjectGitOverview(projectId), nativeGitFailure);
 assert.equal(
   appSdkCalls,
-  1,
+  2,
   'A real native Git failure must surface instead of mutating an unrelated gateway directory.',
 );
 

@@ -949,6 +949,7 @@ function shouldIgnoreBirdcoderRollupWarning(warning) {
     warningCode === 'PLUGIN_TIMINGS'
     && [
       'sdkwork-birdcoder-h5-',
+      'sdkwork-birdcoder-pc-desktop-',
       'sdkwork-birdcoder-pc-web-',
     ].some((pluginPrefix) => warningMessage.includes(pluginPrefix));
   return isLucideUseClientNoise

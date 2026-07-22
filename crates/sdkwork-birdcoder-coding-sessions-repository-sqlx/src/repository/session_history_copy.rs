@@ -1,14 +1,17 @@
 use sdkwork_birdcoder_coding_sessions_service::context::CodingSessionContext;
 use sdkwork_birdcoder_coding_sessions_service::error::CodingSessionError;
 use sdkwork_birdcoder_project_service::pagination::MAX_LIST_PAGE_SIZE;
-use sdkwork_birdcoder_sqlx_repository_pool::dialect::IS_NOT_DELETED;
+use sdkwork_birdcoder_sqlx_repository_pool::dialect::{numbered_placeholders, IS_NOT_DELETED};
 use sqlx::{any::AnyRow, Row, Transaction};
 use time::OffsetDateTime;
 use uuid::Uuid;
 
 use crate::db::columns;
 use crate::error::map_sqlx_error;
-use crate::repository::sqlx_helpers::ensure_session_in_tenant_scope_in_transaction;
+use crate::repository::row_projection;
+use crate::repository::sqlx_helpers::{
+    ensure_session_in_tenant_scope_in_transaction, session_owner_scope, SessionOwnerScope,
+};
 
 /// PAGINATION_SPEC.md §2: never materialize an unbounded session history in memory.
 const HISTORY_COPY_BATCH_SIZE: i64 = MAX_LIST_PAGE_SIZE as i64;
@@ -19,38 +22,94 @@ fn now_iso() -> String {
         .unwrap_or_else(|_| "1970-01-01T00:00:00Z".to_string())
 }
 
+fn timestamp_expression(is_postgres: bool) -> &'static str {
+    if is_postgres {
+        "CAST(? AS TIMESTAMPTZ)"
+    } else {
+        "?"
+    }
+}
+
+fn json_expression(is_postgres: bool) -> &'static str {
+    if is_postgres {
+        "CAST(? AS JSONB)"
+    } else {
+        "?"
+    }
+}
+
 pub async fn copy_session_history_on_pool(
     pool: &sqlx::AnyPool,
     ctx: &CodingSessionContext,
     source_session_id: &str,
     target_session_id: &str,
 ) -> Result<usize, CodingSessionError> {
+    let connection = map_sqlx_error(pool.acquire().await)?;
+    let is_postgres = connection.backend_name().eq_ignore_ascii_case("PostgreSQL");
+    drop(connection);
     let mut tx = map_sqlx_error(pool.begin().await)?;
-    let copied =
-        copy_session_history_in_transaction(&mut tx, ctx, source_session_id, target_session_id)
-            .await?;
+    let copied = copy_session_history_in_transaction(
+        &mut tx,
+        is_postgres,
+        ctx,
+        source_session_id,
+        target_session_id,
+    )
+    .await?;
     map_sqlx_error(tx.commit().await)?;
     Ok(copied)
 }
 
 pub async fn copy_session_history_in_transaction(
     tx: &mut Transaction<'_, sqlx::Any>,
+    is_postgres: bool,
     ctx: &CodingSessionContext,
     source_session_id: &str,
     target_session_id: &str,
 ) -> Result<usize, CodingSessionError> {
     ensure_session_in_tenant_scope_in_transaction(tx, ctx, source_session_id).await?;
     ensure_session_in_tenant_scope_in_transaction(tx, ctx, target_session_id).await?;
+    let owner_scope = session_owner_scope(ctx)?;
 
     let now = now_iso();
     let mut total_copied: usize = 0;
 
-    total_copied +=
-        copy_messages_in_batches(tx, source_session_id, target_session_id, &now).await?;
-    total_copied += copy_turns_in_batches(tx, source_session_id, target_session_id, &now).await?;
-    total_copied += copy_events_in_batches(tx, source_session_id, target_session_id, &now).await?;
-    total_copied +=
-        copy_artifacts_in_batches(tx, source_session_id, target_session_id, &now).await?;
+    total_copied += copy_messages_in_batches(
+        tx,
+        is_postgres,
+        owner_scope,
+        source_session_id,
+        target_session_id,
+        &now,
+    )
+    .await?;
+    total_copied += copy_turns_in_batches(
+        tx,
+        is_postgres,
+        owner_scope,
+        source_session_id,
+        target_session_id,
+        &now,
+    )
+    .await?;
+    total_copied += copy_events_in_batches(
+        tx,
+        is_postgres,
+        owner_scope,
+        source_session_id,
+        target_session_id,
+        &now,
+    )
+    .await?;
+    total_copied += copy_artifacts_in_batches(
+        tx,
+        is_postgres,
+        owner_scope,
+        source_session_id,
+        target_session_id,
+        &now,
+    )
+    .await?;
 
     Ok(total_copied)
 }
@@ -61,8 +120,9 @@ async fn fetch_history_batch(
     session_id: &str,
     offset: i64,
 ) -> Result<Vec<AnyRow>, CodingSessionError> {
+    let batch_sql = numbered_placeholders(&format!("{select_sql} LIMIT ? OFFSET ?"));
     map_sqlx_error(
-        sqlx::query(&format!("{select_sql} LIMIT ? OFFSET ?"))
+        sqlx::query(&batch_sql)
             .bind(session_id)
             .bind(HISTORY_COPY_BATCH_SIZE)
             .bind(offset)
@@ -73,19 +133,26 @@ async fn fetch_history_batch(
 
 async fn copy_messages_in_batches(
     tx: &mut Transaction<'_, sqlx::Any>,
+    is_postgres: bool,
+    owner_scope: SessionOwnerScope,
     source_session_id: &str,
     target_session_id: &str,
     now: &str,
 ) -> Result<usize, CodingSessionError> {
+    let projection = row_projection::message(is_postgres, "");
+    let timestamp_expression = timestamp_expression(is_postgres);
+    let json_expression = json_expression(is_postgres);
     let select_sql = format!(
-        "SELECT * FROM {} WHERE {} = ? AND {IS_NOT_DELETED} ORDER BY {} ASC",
+        "SELECT {projection} FROM {} WHERE {} = ? AND {IS_NOT_DELETED} ORDER BY {} ASC",
         columns::message::TABLE,
         columns::message::CODING_SESSION_ID,
         columns::message::CREATED_AT,
     );
-    let insert_sql = format!(
-        "INSERT INTO {} ({}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}) \
-         VALUES (?, NULL, ?, ?, 0, 0, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+    let insert_sql = numbered_placeholders(&format!(
+        "INSERT INTO {} ({}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}) \
+         VALUES (?, NULL, {timestamp_expression}, {timestamp_expression}, 0, FALSE, ?, ?, ?, ?, ?, ?, \
+                 {json_expression}, ?, ?, {json_expression}, ?, {json_expression}, \
+                 {json_expression}, {json_expression})",
         columns::message::TABLE,
         columns::message::ID,
         columns::message::UUID,
@@ -93,6 +160,8 @@ async fn copy_messages_in_batches(
         columns::message::UPDATED_AT,
         columns::message::VERSION,
         columns::message::IS_DELETED,
+        columns::message::TENANT_ID,
+        columns::message::USER_ID,
         columns::message::CODING_SESSION_ID,
         columns::message::TURN_ID,
         columns::message::ROLE,
@@ -105,7 +174,7 @@ async fn copy_messages_in_batches(
         columns::message::FILE_CHANGES_JSON,
         columns::message::COMMANDS_JSON,
         columns::message::TASK_PROGRESS_JSON,
-    );
+    ));
 
     let mut offset = 0i64;
     let mut copied = 0usize;
@@ -148,6 +217,8 @@ async fn copy_messages_in_batches(
                     .bind(&new_id)
                     .bind(now)
                     .bind(now)
+                    .bind(owner_scope.tenant_id)
+                    .bind(owner_scope.user_id)
                     .bind(target_session_id)
                     .bind(&turn_id)
                     .bind(&role)
@@ -175,19 +246,24 @@ async fn copy_messages_in_batches(
 
 async fn copy_turns_in_batches(
     tx: &mut Transaction<'_, sqlx::Any>,
+    is_postgres: bool,
+    owner_scope: SessionOwnerScope,
     source_session_id: &str,
     target_session_id: &str,
     now: &str,
 ) -> Result<usize, CodingSessionError> {
+    let projection = row_projection::turn(is_postgres, "");
+    let timestamp_expression = timestamp_expression(is_postgres);
     let select_sql = format!(
-        "SELECT * FROM {} WHERE {} = ? AND {IS_NOT_DELETED} ORDER BY {} ASC",
+        "SELECT {projection} FROM {} WHERE {} = ? AND {IS_NOT_DELETED} ORDER BY {} ASC",
         columns::turn::TABLE,
         columns::turn::CODING_SESSION_ID,
         columns::turn::CREATED_AT,
     );
-    let insert_sql = format!(
-        "INSERT INTO {} ({}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}) \
-         VALUES (?, NULL, ?, ?, 0, 0, ?, ?, ?, ?, ?, ?, ?)",
+    let insert_sql = numbered_placeholders(&format!(
+        "INSERT INTO {} ({}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}) \
+         VALUES (?, NULL, {timestamp_expression}, {timestamp_expression}, 0, FALSE, ?, ?, ?, ?, ?, ?, ?, \
+                 {timestamp_expression}, {timestamp_expression})",
         columns::turn::TABLE,
         columns::turn::ID,
         columns::turn::UUID,
@@ -195,6 +271,8 @@ async fn copy_turns_in_batches(
         columns::turn::UPDATED_AT,
         columns::turn::VERSION,
         columns::turn::IS_DELETED,
+        columns::turn::TENANT_ID,
+        columns::turn::USER_ID,
         columns::turn::CODING_SESSION_ID,
         columns::turn::RUNTIME_ID,
         columns::turn::REQUEST_KIND,
@@ -202,7 +280,7 @@ async fn copy_turns_in_batches(
         columns::turn::INPUT_SUMMARY,
         columns::turn::STARTED_AT,
         columns::turn::COMPLETED_AT,
-    );
+    ));
 
     let mut offset = 0i64;
     let mut copied = 0usize;
@@ -229,6 +307,8 @@ async fn copy_turns_in_batches(
                     .bind(&new_id)
                     .bind(now)
                     .bind(now)
+                    .bind(owner_scope.tenant_id)
+                    .bind(owner_scope.user_id)
                     .bind(target_session_id)
                     .bind(&runtime_id)
                     .bind(&request_kind)
@@ -251,19 +331,25 @@ async fn copy_turns_in_batches(
 
 async fn copy_events_in_batches(
     tx: &mut Transaction<'_, sqlx::Any>,
+    is_postgres: bool,
+    owner_scope: SessionOwnerScope,
     source_session_id: &str,
     target_session_id: &str,
     now: &str,
 ) -> Result<usize, CodingSessionError> {
+    let projection = row_projection::event(is_postgres, "");
+    let timestamp_expression = timestamp_expression(is_postgres);
+    let json_expression = json_expression(is_postgres);
     let select_sql = format!(
-        "SELECT * FROM {} WHERE {} = ? AND {IS_NOT_DELETED} ORDER BY {} ASC",
+        "SELECT {projection} FROM {} WHERE {} = ? AND {IS_NOT_DELETED} ORDER BY {} ASC",
         columns::event::TABLE,
         columns::event::CODING_SESSION_ID,
         columns::event::SEQUENCE_NO,
     );
-    let insert_sql = format!(
-        "INSERT INTO {} ({}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}) \
-         VALUES (?, NULL, ?, ?, 0, 0, ?, ?, ?, ?, ?, ?)",
+    let insert_sql = numbered_placeholders(&format!(
+        "INSERT INTO {} ({}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}) \
+         VALUES (?, NULL, {timestamp_expression}, {timestamp_expression}, 0, FALSE, ?, ?, ?, ?, ?, ?, ?, \
+                 {json_expression})",
         columns::event::TABLE,
         columns::event::ID,
         columns::event::UUID,
@@ -271,13 +357,15 @@ async fn copy_events_in_batches(
         columns::event::UPDATED_AT,
         columns::event::VERSION,
         columns::event::IS_DELETED,
+        columns::event::TENANT_ID,
+        columns::event::USER_ID,
         columns::event::CODING_SESSION_ID,
         columns::event::TURN_ID,
         columns::event::RUNTIME_ID,
         columns::event::EVENT_KIND,
         columns::event::SEQUENCE_NO,
         columns::event::PAYLOAD_JSON,
-    );
+    ));
 
     let mut offset = 0i64;
     let mut copied = 0usize;
@@ -302,6 +390,8 @@ async fn copy_events_in_batches(
                     .bind(&new_id)
                     .bind(now)
                     .bind(now)
+                    .bind(owner_scope.tenant_id)
+                    .bind(owner_scope.user_id)
                     .bind(target_session_id)
                     .bind(&turn_id)
                     .bind(&runtime_id)
@@ -323,19 +413,25 @@ async fn copy_events_in_batches(
 
 async fn copy_artifacts_in_batches(
     tx: &mut Transaction<'_, sqlx::Any>,
+    is_postgres: bool,
+    owner_scope: SessionOwnerScope,
     source_session_id: &str,
     target_session_id: &str,
     now: &str,
 ) -> Result<usize, CodingSessionError> {
+    let projection = row_projection::artifact(is_postgres, "");
+    let timestamp_expression = timestamp_expression(is_postgres);
+    let json_expression = json_expression(is_postgres);
     let select_sql = format!(
-        "SELECT * FROM {} WHERE {} = ? AND {IS_NOT_DELETED} ORDER BY {} ASC",
+        "SELECT {projection} FROM {} WHERE {} = ? AND {IS_NOT_DELETED} ORDER BY {} ASC",
         columns::artifact::TABLE,
         columns::artifact::CODING_SESSION_ID,
         columns::artifact::CREATED_AT,
     );
-    let insert_sql = format!(
-        "INSERT INTO {} ({}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}) \
-         VALUES (?, NULL, ?, ?, 0, 0, ?, ?, ?, ?, ?, ?)",
+    let insert_sql = numbered_placeholders(&format!(
+        "INSERT INTO {} ({}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}) \
+         VALUES (?, NULL, {timestamp_expression}, {timestamp_expression}, 0, FALSE, ?, ?, ?, ?, ?, ?, ?, \
+                 {json_expression})",
         columns::artifact::TABLE,
         columns::artifact::ID,
         columns::artifact::UUID,
@@ -343,13 +439,15 @@ async fn copy_artifacts_in_batches(
         columns::artifact::UPDATED_AT,
         columns::artifact::VERSION,
         columns::artifact::IS_DELETED,
+        columns::artifact::TENANT_ID,
+        columns::artifact::USER_ID,
         columns::artifact::CODING_SESSION_ID,
         columns::artifact::TURN_ID,
         columns::artifact::ARTIFACT_KIND,
         columns::artifact::TITLE,
         columns::artifact::BLOB_REF,
         columns::artifact::METADATA_JSON,
-    );
+    ));
 
     let mut offset = 0i64;
     let mut copied = 0usize;
@@ -376,6 +474,8 @@ async fn copy_artifacts_in_batches(
                     .bind(&new_id)
                     .bind(now)
                     .bind(now)
+                    .bind(owner_scope.tenant_id)
+                    .bind(owner_scope.user_id)
                     .bind(target_session_id)
                     .bind(&turn_id)
                     .bind(&artifact_kind)

@@ -59,7 +59,7 @@ function readSwitchCaseBody(operationId) {
 const orderedMessagesSource = readFunctionBody('getOrderedCodingSessionMessages');
 const compareMessagesSource = readFunctionBody('compareCodingSessionMessages');
 const buildProjectionEventsSource = readFunctionBody('buildProjectionEvents');
-const getNativeSessionCaseSource = readSwitchCaseBody('nativeSessions.retrieve');
+const listCodingSessionEventsCaseSource = readSwitchCaseBody('codingSessions.events.list');
 
 assert.match(
   orderedMessagesSource,
@@ -98,9 +98,9 @@ assert.match(
 );
 
 assert.match(
-  getNativeSessionCaseSource,
-  /nativeSessionProvider\.getNativeSession\(/,
-  'Native session detail must preserve provider-owned order through the native-session boundary.',
+  listCodingSessionEventsCaseSource,
+  /buildProjectionEvents\(codingSession\)/,
+  'Unified coding-session events must preserve transcript order while projecting messages.',
 );
 
 assert.doesNotMatch(
@@ -110,9 +110,9 @@ assert.doesNotMatch(
 );
 
 assert.doesNotMatch(
-  getNativeSessionCaseSource,
+  listCodingSessionEventsCaseSource,
   /\[\.\.\.codingSession\.messages\]\s*\.sort\(compareCodingSessionMessages\)/,
-  'Native session detail must not unconditionally copy and sort the selected-session transcript.',
+  'Unified coding-session events must not unconditionally copy and sort the selected-session transcript.',
 );
 
 console.log('app runtime message order performance contract passed.');

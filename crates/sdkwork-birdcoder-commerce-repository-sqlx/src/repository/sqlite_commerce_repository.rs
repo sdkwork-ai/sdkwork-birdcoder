@@ -93,7 +93,7 @@ impl CommerceRepository for SqliteCommerceRepository {
         query: &CommerceListQuery,
     ) -> Result<(Vec<CommerceOrderPayload>, i64), String> {
         let count_row = sqlx::query(
-            "SELECT COUNT(*) AS total FROM commerce_order \
+            "SELECT COUNT(*) AS total FROM studio_commerce_order \
              WHERE tenant_id = ?1 AND user_id = ?2 AND deleted_at IS NULL",
         )
         .bind(tenant_id)
@@ -106,7 +106,7 @@ impl CommerceRepository for SqliteCommerceRepository {
         let rows = sqlx::query(
             "SELECT id, workspace_id, order_no, user_id, package_id, amount, currency, status, \
              paid_at, refund_at, metadata, created_at, updated_at \
-             FROM commerce_order \
+             FROM studio_commerce_order \
              WHERE tenant_id = ?1 AND user_id = ?2 AND deleted_at IS NULL \
              ORDER BY created_at DESC LIMIT ?3 OFFSET ?4",
         )
@@ -135,7 +135,7 @@ impl CommerceRepository for SqliteCommerceRepository {
         let row = sqlx::query(
             "SELECT id, workspace_id, order_no, user_id, package_id, amount, currency, status, \
              paid_at, refund_at, metadata, created_at, updated_at \
-             FROM commerce_order \
+             FROM studio_commerce_order \
              WHERE id = ?1 AND tenant_id = ?2 AND user_id = ?3 AND deleted_at IS NULL",
         )
         .bind(order_id)
@@ -158,7 +158,7 @@ impl CommerceRepository for SqliteCommerceRepository {
         order: &CommerceOrderPayload,
     ) -> Result<CommerceOrderPayload, String> {
         let id_row = sqlx::query(
-            "INSERT INTO commerce_order \
+            "INSERT INTO studio_commerce_order \
              (tenant_id, workspace_id, order_no, user_id, package_id, amount, currency, status, \
              paid_at, refund_at, metadata, created_at, updated_at) \
              VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13) RETURNING id",
@@ -193,7 +193,7 @@ impl CommerceRepository for SqliteCommerceRepository {
         query: &CommerceListQuery,
     ) -> Result<(Vec<CommerceInvoicePayload>, i64), String> {
         let count_row = sqlx::query(
-            "SELECT COUNT(*) AS total FROM commerce_invoice \
+            "SELECT COUNT(*) AS total FROM studio_commerce_invoice \
              WHERE tenant_id = ?1 AND user_id = ?2 AND deleted_at IS NULL",
         )
         .bind(tenant_id)
@@ -206,7 +206,7 @@ impl CommerceRepository for SqliteCommerceRepository {
         let rows = sqlx::query(
             "SELECT id, invoice_no, order_id, user_id, amount, tax, status, issued_at, pdf_url, \
              created_at, updated_at \
-             FROM commerce_invoice \
+             FROM studio_commerce_invoice \
              WHERE tenant_id = ?1 AND user_id = ?2 AND deleted_at IS NULL \
              ORDER BY created_at DESC LIMIT ?3 OFFSET ?4",
         )
@@ -235,7 +235,7 @@ impl CommerceRepository for SqliteCommerceRepository {
         let row = sqlx::query(
             "SELECT id, invoice_no, order_id, user_id, amount, tax, status, issued_at, pdf_url, \
              created_at, updated_at \
-             FROM commerce_invoice \
+             FROM studio_commerce_invoice \
              WHERE id = ?1 AND tenant_id = ?2 AND user_id = ?3 AND deleted_at IS NULL",
         )
         .bind(invoice_id)
@@ -258,7 +258,7 @@ impl CommerceRepository for SqliteCommerceRepository {
         query: &CommerceListQuery,
     ) -> Result<(Vec<CommercePaymentPayload>, i64), String> {
         let count_row = sqlx::query(
-            "SELECT COUNT(*) AS total FROM commerce_payment \
+            "SELECT COUNT(*) AS total FROM studio_commerce_payment \
              WHERE tenant_id = ?1 AND user_id = ?2 AND deleted_at IS NULL",
         )
         .bind(tenant_id)
@@ -271,7 +271,7 @@ impl CommerceRepository for SqliteCommerceRepository {
         let rows = sqlx::query(
             "SELECT id, payment_no, order_id, user_id, channel, channel_transaction_id, amount, \
              status, paid_at, refund_at, metadata, created_at, updated_at \
-             FROM commerce_payment \
+             FROM studio_commerce_payment \
              WHERE tenant_id = ?1 AND user_id = ?2 AND deleted_at IS NULL \
              ORDER BY created_at DESC LIMIT ?3 OFFSET ?4",
         )
@@ -300,7 +300,7 @@ impl CommerceRepository for SqliteCommerceRepository {
         let row = sqlx::query(
             "SELECT id, payment_no, order_id, user_id, channel, channel_transaction_id, amount, \
              status, paid_at, refund_at, metadata, created_at, updated_at \
-             FROM commerce_payment \
+             FROM studio_commerce_payment \
              WHERE id = ?1 AND tenant_id = ?2 AND user_id = ?3 AND deleted_at IS NULL",
         )
         .bind(payment_id)
@@ -324,7 +324,7 @@ impl CommerceRepository for SqliteCommerceRepository {
         order_id: i64,
     ) -> Result<CommercePaymentPayload, String> {
         let id_row = sqlx::query(
-            "INSERT INTO commerce_payment \
+            "INSERT INTO studio_commerce_payment \
              (tenant_id, payment_no, order_id, user_id, channel, channel_transaction_id, amount, \
              status, paid_at, refund_at, metadata, created_at, updated_at) \
              VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13) RETURNING id",
@@ -364,7 +364,7 @@ impl CommerceRepository for SqliteCommerceRepository {
         let mut tx = self.pool.begin().await.map_err(|e| e.to_string())?;
 
         let id_row = sqlx::query(
-            "INSERT INTO commerce_payment \
+            "INSERT INTO studio_commerce_payment \
              (tenant_id, payment_no, order_id, user_id, channel, channel_transaction_id, amount, \
              status, paid_at, refund_at, metadata, created_at, updated_at) \
              VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13) RETURNING id",
@@ -389,7 +389,7 @@ impl CommerceRepository for SqliteCommerceRepository {
         let payment_id = inserted_row_id(&id_row).map_err(|e| e.to_string())?;
 
         sqlx::query(
-            "UPDATE commerce_order SET status = 'paid', paid_at = ?1, updated_at = ?2 \
+            "UPDATE studio_commerce_order SET status = 'paid', paid_at = ?1, updated_at = ?2 \
              WHERE id = ?3 AND tenant_id = ?4 AND user_id = ?5 AND deleted_at IS NULL",
         )
         .bind(paid_at)
@@ -402,7 +402,7 @@ impl CommerceRepository for SqliteCommerceRepository {
         .map_err(|e| e.to_string())?;
 
         sqlx::query(
-            "INSERT INTO commerce_invoice \
+            "INSERT INTO studio_commerce_invoice \
              (tenant_id, invoice_no, order_id, user_id, amount, tax, status, issued_at, pdf_url, \
              created_at, updated_at) \
              VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11)",
@@ -445,7 +445,7 @@ impl CommerceRepository for SqliteCommerceRepository {
         let mut tx = self.pool.begin().await.map_err(|e| e.to_string())?;
 
         let updated = sqlx::query(
-            "UPDATE commerce_payment SET status = 'paid', channel_transaction_id = ?1, \
+            "UPDATE studio_commerce_payment SET status = 'paid', channel_transaction_id = ?1, \
              paid_at = ?2, updated_at = ?3 \
              WHERE id = ?4 AND tenant_id = ?5 AND user_id = ?6 AND status = 'pending' \
              AND deleted_at IS NULL",
@@ -464,7 +464,7 @@ impl CommerceRepository for SqliteCommerceRepository {
         }
 
         sqlx::query(
-            "UPDATE commerce_order SET status = 'paid', paid_at = ?1, updated_at = ?2 \
+            "UPDATE studio_commerce_order SET status = 'paid', paid_at = ?1, updated_at = ?2 \
              WHERE id = ?3 AND tenant_id = ?4 AND user_id = ?5 AND deleted_at IS NULL",
         )
         .bind(paid_at)
@@ -477,7 +477,7 @@ impl CommerceRepository for SqliteCommerceRepository {
         .map_err(|e| e.to_string())?;
 
         sqlx::query(
-            "INSERT INTO commerce_invoice \
+            "INSERT INTO studio_commerce_invoice \
              (tenant_id, invoice_no, order_id, user_id, amount, tax, status, issued_at, pdf_url, \
              created_at, updated_at) \
              VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11)",

@@ -4,26 +4,26 @@ use serde::Serialize;
 
 use crate::error::ProjectError;
 
-pub const RUNTIME_TARGET_KIND_DESKTOP_DEVICE: &str = "desktop_device";
+pub const RUNTIME_TARGET_KIND_DESKTOP: &str = "desktop";
 pub const RUNTIME_TARGET_KIND_SERVER: &str = "server";
 pub const RUNTIME_TARGET_KIND_RUNNER: &str = "runner";
 pub const RUNTIME_TARGET_KIND_CONTAINER: &str = "container";
-pub const RUNTIME_TARGET_KIND_REMOTE_WORKSPACE: &str = "remote_workspace";
+pub const RUNTIME_TARGET_KIND_REMOTE: &str = "remote";
 
-pub const LOCATION_KIND_DESKTOP_CHECKOUT: &str = "desktop_checkout";
+pub const LOCATION_KIND_LOCAL_DIRECTORY: &str = "local_directory";
 pub const LOCATION_KIND_SERVER_WORKSPACE: &str = "server_workspace";
-pub const LOCATION_KIND_RUNNER_WORKTREE: &str = "runner_worktree";
-pub const LOCATION_KIND_CONTAINER_VOLUME: &str = "container_volume";
+pub const LOCATION_KIND_RUNNER_WORKSPACE: &str = "runner_workspace";
+pub const LOCATION_KIND_CONTAINER_WORKSPACE: &str = "container_workspace";
 pub const LOCATION_KIND_REMOTE_WORKSPACE: &str = "remote_workspace";
 
 pub const PATH_FLAVOR_WINDOWS: &str = "windows";
 pub const PATH_FLAVOR_POSIX: &str = "posix";
+pub const PATH_FLAVOR_VIRTUAL: &str = "virtual";
 
-pub const HEALTH_STATUS_PENDING_VERIFICATION: &str = "pending_verification";
-pub const HEALTH_STATUS_LOCAL_OBSERVED: &str = "local_observed";
+pub const HEALTH_STATUS_PENDING: &str = "pending";
 pub const HEALTH_STATUS_HEALTHY: &str = "healthy";
 pub const HEALTH_STATUS_DEGRADED: &str = "degraded";
-pub const HEALTH_STATUS_UNAVAILABLE: &str = "unavailable";
+pub const HEALTH_STATUS_UNREACHABLE: &str = "unreachable";
 pub const HEALTH_STATUS_REVOKED: &str = "revoked";
 
 pub const RUNTIME_LOCATION_OPERATION_CREATE: &str = "create";
@@ -39,7 +39,7 @@ pub enum RuntimeLocationCapability {
     Terminal,
     Git,
     Build,
-    FileSystem,
+    Filesystem,
 }
 
 impl RuntimeLocationCapability {
@@ -48,7 +48,7 @@ impl RuntimeLocationCapability {
             Self::Terminal => "terminal",
             Self::Git => "git",
             Self::Build => "build",
-            Self::FileSystem => "file_system",
+            Self::Filesystem => "filesystem",
         }
     }
 
@@ -57,9 +57,9 @@ impl RuntimeLocationCapability {
             "terminal" => Ok(Self::Terminal),
             "git" => Ok(Self::Git),
             "build" => Ok(Self::Build),
-            "file_system" => Ok(Self::FileSystem),
+            "filesystem" => Ok(Self::Filesystem),
             _ => Err(ProjectError::InvalidInput(
-                "capability must be terminal, git, build, or file_system.".to_owned(),
+                "capability must be terminal, git, build, or filesystem.".to_owned(),
             )),
         }
     }
@@ -78,30 +78,16 @@ pub struct ProjectRuntimeLocationPayload {
     pub runtime_target_kind: String,
     pub location_kind: String,
     pub path_flavor: String,
-    /// An opaque, path-free target-local label. It is not a directory.
-    pub root_locator: String,
     pub display_name: String,
-    pub has_absolute_path: bool,
     pub terminal_available: bool,
     pub git_available: bool,
     pub build_available: bool,
-    pub file_system_available: bool,
+    pub filesystem_available: bool,
     pub health_status: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub last_verified_at: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub last_seen_at: Option<String>,
-    /// This value is validated to exclude credentials before persistence.
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub git_repository_url: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub git_remote_name: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub git_branch: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub git_commit: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub git_worktree_key: Option<String>,
     /// Decimal text so API clients and `If-Match` never lose a 64-bit value.
     pub version: String,
     pub created_at: String,
@@ -157,7 +143,6 @@ pub struct StoredProjectRuntimeLocation {
     pub runtime_target_kind: String,
     pub location_kind: String,
     pub path_flavor: String,
-    pub root_locator: String,
     pub display_name: String,
     pub encrypted_absolute_path: String,
     pub path_encryption_key_id: String,
@@ -165,16 +150,11 @@ pub struct StoredProjectRuntimeLocation {
     pub terminal_available: bool,
     pub git_available: bool,
     pub build_available: bool,
-    pub file_system_available: bool,
+    pub filesystem_available: bool,
     pub health_status: String,
     pub last_verified_at: Option<String>,
     pub last_seen_at: Option<String>,
     pub verified_by_user_id: Option<String>,
-    pub git_repository_url: Option<String>,
-    pub git_remote_name: Option<String>,
-    pub git_branch: Option<String>,
-    pub git_commit: Option<String>,
-    pub git_worktree_key: Option<String>,
     pub version: i64,
     pub created_at: String,
     pub updated_at: String,
@@ -190,21 +170,14 @@ impl StoredProjectRuntimeLocation {
             runtime_target_kind: self.runtime_target_kind.clone(),
             location_kind: self.location_kind.clone(),
             path_flavor: self.path_flavor.clone(),
-            root_locator: self.root_locator.clone(),
             display_name: self.display_name.clone(),
-            has_absolute_path: !self.encrypted_absolute_path.is_empty(),
             terminal_available: self.terminal_available,
             git_available: self.git_available,
             build_available: self.build_available,
-            file_system_available: self.file_system_available,
+            filesystem_available: self.filesystem_available,
             health_status: self.health_status.clone(),
             last_verified_at: self.last_verified_at.clone(),
             last_seen_at: self.last_seen_at.clone(),
-            git_repository_url: self.git_repository_url.clone(),
-            git_remote_name: self.git_remote_name.clone(),
-            git_branch: self.git_branch.clone(),
-            git_commit: self.git_commit.clone(),
-            git_worktree_key: self.git_worktree_key.clone(),
             version: self.version.to_string(),
             created_at: self.created_at.clone(),
             updated_at: self.updated_at.clone(),
@@ -216,7 +189,7 @@ impl StoredProjectRuntimeLocation {
             RuntimeLocationCapability::Terminal => self.terminal_available,
             RuntimeLocationCapability::Git => self.git_available,
             RuntimeLocationCapability::Build => self.build_available,
-            RuntimeLocationCapability::FileSystem => self.file_system_available,
+            RuntimeLocationCapability::Filesystem => self.filesystem_available,
         }
     }
 
@@ -229,14 +202,14 @@ impl StoredProjectRuntimeLocation {
 /// after the path has been encrypted and fingerprinted.
 #[derive(Clone)]
 pub struct NewProjectRuntimeLocation {
-    pub id: String,
+    /// Generated before encryption so ciphertext key derivation and the
+    /// persisted public UUID share one stable identity.
     pub uuid: String,
     pub project_id: String,
     pub runtime_target_id: String,
     pub runtime_target_kind: String,
     pub location_kind: String,
     pub path_flavor: String,
-    pub root_locator: String,
     pub display_name: String,
     pub encrypted_absolute_path: String,
     pub path_encryption_key_id: String,
@@ -244,12 +217,7 @@ pub struct NewProjectRuntimeLocation {
     pub terminal_available: bool,
     pub git_available: bool,
     pub build_available: bool,
-    pub file_system_available: bool,
-    pub git_repository_url: Option<String>,
-    pub git_remote_name: Option<String>,
-    pub git_branch: Option<String>,
-    pub git_commit: Option<String>,
-    pub git_worktree_key: Option<String>,
+    pub filesystem_available: bool,
     pub idempotency: Option<RuntimeLocationIdempotency>,
 }
 
@@ -264,7 +232,6 @@ pub struct ProjectRuntimeLocationUpdate {
 pub struct ProjectRuntimeLocationRebind {
     pub expected_version: i64,
     pub path_flavor: String,
-    pub root_locator: String,
     pub display_name: String,
     pub encrypted_absolute_path: String,
     pub path_encryption_key_id: String,
@@ -282,12 +249,7 @@ pub struct TrustedProjectRuntimeLocationVerification {
     pub terminal_available: bool,
     pub git_available: bool,
     pub build_available: bool,
-    pub file_system_available: bool,
-    pub git_repository_url: Option<String>,
-    pub git_remote_name: Option<String>,
-    pub git_branch: Option<String>,
-    pub git_commit: Option<String>,
-    pub git_worktree_key: Option<String>,
+    pub filesystem_available: bool,
     pub idempotency: Option<RuntimeLocationIdempotency>,
 }
 
@@ -302,8 +264,6 @@ pub struct ProjectRuntimeLocationVerificationRequest {
 
 #[derive(Clone)]
 pub struct NewProjectRuntimeLocationPreference {
-    pub id: String,
-    pub uuid: String,
     pub project_id: String,
     pub capability: String,
     pub runtime_location_id: String,
@@ -324,6 +284,7 @@ pub struct RuntimeLocationIdempotency {
 pub struct ProjectRuntimeLocationAuditEntry {
     pub action: String,
     pub result: String,
+    pub reason_code: Option<String>,
     pub trace_id: Option<String>,
     /// Safe JSON only; validation rejects path, ciphertext, fingerprint, and
     /// credential-bearing remote URL fields before this reaches the database.
@@ -343,7 +304,6 @@ pub struct CreateProjectRuntimeLocationRequest {
     pub runtime_target_kind: String,
     pub location_kind: String,
     pub path_flavor: String,
-    pub root_locator: String,
     pub absolute_path: String,
     pub display_name: Option<String>,
 }
@@ -360,7 +320,6 @@ pub struct UpdateProjectRuntimeLocationRequest {
 #[derive(Clone, Debug)]
 pub struct RebindProjectRuntimeLocationRequest {
     pub path_flavor: String,
-    pub root_locator: String,
     pub absolute_path: String,
     pub display_name: Option<String>,
 }

@@ -5,7 +5,9 @@ use sdkwork_utils_rust::{
 };
 
 use crate::context::ProjectContext;
-use crate::domain::runtime_location::{PATH_FLAVOR_POSIX, PATH_FLAVOR_WINDOWS};
+use crate::domain::runtime_location::{
+    PATH_FLAVOR_POSIX, PATH_FLAVOR_VIRTUAL, PATH_FLAVOR_WINDOWS,
+};
 use crate::error::ProjectError;
 
 const PATH_ENCRYPTION_SALT: &[u8] = b"sdkwork-birdcoder/project-runtime-location/v1";
@@ -143,7 +145,7 @@ impl AesGcmRuntimeLocationPathCipher {
             || is_blank(Some(scope.runtime_target_id.as_str()))
             || !matches!(
                 scope.path_flavor.as_str(),
-                PATH_FLAVOR_WINDOWS | PATH_FLAVOR_POSIX
+                PATH_FLAVOR_WINDOWS | PATH_FLAVOR_POSIX | PATH_FLAVOR_VIRTUAL
             )
         {
             return Err(unavailable_cipher_error());
@@ -244,9 +246,9 @@ pub fn normalize_absolute_path(
 
     match path_flavor {
         PATH_FLAVOR_WINDOWS => normalize_windows_path(path),
-        PATH_FLAVOR_POSIX => normalize_posix_path(path),
+        PATH_FLAVOR_POSIX | PATH_FLAVOR_VIRTUAL => normalize_posix_path(path),
         _ => Err(ProjectError::InvalidInput(
-            "pathFlavor must be windows or posix.".to_owned(),
+            "pathFlavor must be windows, posix, or virtual.".to_owned(),
         )),
     }
 }

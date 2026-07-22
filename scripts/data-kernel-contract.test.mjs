@@ -42,7 +42,6 @@ assert.deepEqual(
 
 for (const [entityName, expectedAggregate] of [
   ['card', 'commerce'],
-  ['agent_skill_package', 'ai'],
   ['datasource', 'data'],
   ['channel_account', 'integration'],
   ['app', 'studio'],
@@ -56,7 +55,6 @@ for (const [entityName, expectedAggregate] of [
   ['file_asset', 'media'],
   ['coding_session', 'ai'],
   ['prompt_asset', 'ai'],
-  ['skill_package', 'ai'],
   ['app_template', 'studio'],
   ['team', 'studio'],
   ['deployment_target', 'studio'],
@@ -70,6 +68,26 @@ for (const [entityName, expectedAggregate] of [
     dataModule.getBirdCoderEntityDefinition(entityName).aggregate,
     expectedAggregate,
     `${entityName} must use DATABASE_SPEC standard aggregate ${expectedAggregate}.`,
+  );
+}
+
+for (const externalSkillsEntityName of [
+  'agent_skill_package',
+  'agent_skill',
+  'user_agent_skill',
+  'skill_package',
+  'skill_version',
+  'skill_capability',
+  'skill_installation',
+  'skill_binding',
+  'skill_runtime_config',
+]) {
+  assert.equal(
+    dataModule.BIRDCODER_DATA_ENTITY_DEFINITIONS.some(
+      (definition) => definition.entityName === externalSkillsEntityName,
+    ),
+    false,
+    `${externalSkillsEntityName} is owned by sdkwork-skills and must not exist in BirdCoder's data kernel.`,
   );
 }
 

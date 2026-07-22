@@ -3,6 +3,13 @@ import type {
   BirdCoderAppSdkApiClient,
   BirdCoderBackendSdkApiClient,
 } from './sdkClients.ts';
+import {
+  resolveBirdCoderRuntimeTopology,
+  type BirdCoderDeploymentProfile,
+  type BirdCoderExecutionLocation,
+  type BirdCoderRuntimeTarget,
+  type BirdCoderRuntimeTopology,
+} from './runtimeTopology.ts';
 
 export type BirdCoderRealtimeTransportPreference = 'auto' | 'sse' | 'websocket';
 
@@ -12,6 +19,7 @@ export interface BirdCoderDefaultIdeServicesRuntimeConfig {
   backendClient?: BirdCoderBackendSdkApiClient;
   executionAuthorityMode?: 'auto' | 'remote-required';
   realtimeTransport?: BirdCoderRealtimeTransportPreference;
+  runtimeTopology?: BirdCoderRuntimeTopology;
 }
 
 export interface BindDefaultBirdCoderIdeServicesRuntimeOptions {
@@ -21,6 +29,9 @@ export interface BindDefaultBirdCoderIdeServicesRuntimeOptions {
   executionAuthorityMode?: 'auto' | 'remote-required';
   realtimeTransport?: BirdCoderRealtimeTransportPreference;
   host?: BirdHostDescriptor;
+  deploymentProfile?: BirdCoderDeploymentProfile;
+  executionLocation?: BirdCoderExecutionLocation;
+  runtimeTarget?: BirdCoderRuntimeTarget;
 }
 
 let defaultIdeServicesRuntimeConfig: BirdCoderDefaultIdeServicesRuntimeConfig = {};
@@ -68,9 +79,22 @@ function resolveExecutionAuthorityMode(
   return 'auto';
 }
 
+function resolveRuntimeTarget(
+  options: BindDefaultBirdCoderIdeServicesRuntimeOptions,
+): BirdCoderRuntimeTarget | undefined {
+  if (options.runtimeTarget) return options.runtimeTarget;
+  if (options.host?.mode === 'desktop') return 'desktop';
+  if (options.host?.mode === 'web') return 'browser';
+  if (options.host?.mode === 'server') return 'server';
+  return undefined;
+}
+
 export function getDefaultBirdCoderIdeServicesRuntimeConfig(): BirdCoderDefaultIdeServicesRuntimeConfig {
   return {
     ...defaultIdeServicesRuntimeConfig,
+    runtimeTopology: defaultIdeServicesRuntimeConfig.runtimeTopology
+      ? { ...defaultIdeServicesRuntimeConfig.runtimeTopology }
+      : undefined,
   };
 }
 
@@ -82,6 +106,9 @@ export function configureDefaultBirdCoderIdeServicesRuntime(
     backendClient: config.backendClient,
     executionAuthorityMode: config.executionAuthorityMode ?? 'auto',
     realtimeTransport: normalizeRealtimeTransport(config.realtimeTransport),
+    runtimeTopology: config.runtimeTopology
+      ? { ...config.runtimeTopology }
+      : resolveBirdCoderRuntimeTopology(),
     apiBaseUrl: normalizeApiBaseUrl(config.apiBaseUrl),
   };
 }
@@ -95,10 +122,14 @@ export function bindDefaultBirdCoderIdeServicesRuntime(
     executionAuthorityMode: resolveExecutionAuthorityMode(options),
     realtimeTransport: options.realtimeTransport,
     apiBaseUrl: resolveBoundApiBaseUrl(options),
+    runtimeTopology: resolveBirdCoderRuntimeTopology({
+      deploymentProfile: options.deploymentProfile,
+      executionLocation: options.executionLocation,
+      runtimeTarget: resolveRuntimeTarget(options),
+    }),
   });
 }
 
 export function resetDefaultBirdCoderIdeServicesRuntimeForTests(): void {
   defaultIdeServicesRuntimeConfig = {};
 }
-

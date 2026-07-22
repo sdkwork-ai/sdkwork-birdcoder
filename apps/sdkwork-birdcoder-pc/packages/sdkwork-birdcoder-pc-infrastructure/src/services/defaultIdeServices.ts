@@ -168,6 +168,7 @@ export function createDefaultBirdCoderIdeServices(
     auditService: adminServices.auditService,
     catalogService: new ApiBackedCatalogService({
       appClient,
+      skillsClient: runtime.skillsClient,
     }),
     collaborationService: new ApiBackedCollaborationService({
       appClient,
@@ -195,6 +196,11 @@ export function createDefaultBirdCoderIdeServices(
           allowFolderSelection: false,
           capability: 'git',
         }),
+      resolveRemoteRuntimeLocationId: (projectId) =>
+        runtime.projectRuntimeLocationService.resolveRemoteProjectRuntimeLocationId(
+          projectId,
+          'git',
+        ),
     }),
     promptService: runtime.promptService,
     projectService,

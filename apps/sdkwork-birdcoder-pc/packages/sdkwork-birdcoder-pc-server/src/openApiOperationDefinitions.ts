@@ -133,10 +133,6 @@ export function buildBirdCoderOpenApiOperationDefinitions(): Record<
     'Project runtime-location capability preference identifier.',
   );
   const teamIdPathParameter = createOpenApiPathParameter('teamId', 'BirdCoder team identifier.');
-  const packageIdPathParameter = createOpenApiPathParameter(
-    'packageId',
-    'Skill package identifier.',
-  );
   const qrSessionKeyPathParameter = createOpenApiPathParameter(
     'sessionKey',
     'SDKWork IAM QR auth session key.',
@@ -351,7 +347,7 @@ export function buildBirdCoderOpenApiOperationDefinitions(): Record<
       }),
     },
     'codingSessions.events.list': {
-      parameters: [codingSessionIdPathParameter],
+      parameters: [codingSessionIdPathParameter, pageParameter, pageSizeParameter],
       responses: buildOpenApiResponses({
         successStatus: '200',
         successDescription: 'Coding session event stream returned successfully.',
@@ -359,25 +355,6 @@ export function buildBirdCoderOpenApiOperationDefinitions(): Record<
         extraResponses: {
           '404': createProblemResponse('Coding session was not found.'),
           '500': createProblemResponse('Coding session events could not be read.'),
-        },
-      }),
-    },
-    'nativeSessions.list': {
-      parameters: [
-        requiredWorkspaceIdParameter,
-        requiredProjectIdParameter,
-        runtimeLocationIdParameter,
-        engineIdParameter,
-        pageParameter,
-        pageSizeParameter,
-      ],
-      responses: buildOpenApiResponses({
-        successStatus: '200',
-        successDescription: 'Native engine session inventory returned successfully.',
-        successSchema: createOpenApiSchemaReference('BirdCoderNativeSessionSummaryListEnvelope'),
-        extraResponses: {
-          '503': createProblemResponse('The selected runtime location is unavailable.'),
-          '500': createProblemResponse('Native engine session inventory could not be read.'),
         },
       }),
     },
@@ -392,25 +369,6 @@ export function buildBirdCoderOpenApiOperationDefinitions(): Record<
           '500': createProblemResponse(
             'Native engine session provider catalog could not be read.',
           ),
-        },
-      }),
-    },
-    'nativeSessions.retrieve': {
-      parameters: [
-        codingSessionIdPathParameter,
-        requiredWorkspaceIdParameter,
-        requiredProjectIdParameter,
-        runtimeLocationIdParameter,
-        engineIdParameter,
-      ],
-      responses: buildOpenApiResponses({
-        successStatus: '200',
-        successDescription: 'Native engine session detail returned successfully.',
-        successSchema: createOpenApiSchemaReference('BirdCoderNativeSessionDetailEnvelope'),
-        extraResponses: {
-          '404': createProblemResponse('Native engine session was not found.'),
-          '503': createProblemResponse('The selected runtime location is unavailable.'),
-          '500': createProblemResponse('Native engine session detail could not be read.'),
         },
       }),
     },
@@ -1382,29 +1340,6 @@ export function buildBirdCoderOpenApiOperationDefinitions(): Record<
         successDescription: 'Project removed successfully.',
         extraResponses: {
           '404': createProblemResponse('Project was not found.'),
-        },
-      }),
-    },
-    'skillPackages.list': {
-      parameters: [userIdParameter, workspaceIdParameter, pageParameter, pageSizeParameter],
-      responses: buildOpenApiResponses({
-        successStatus: '200',
-        successDescription: 'Skill package catalog returned successfully.',
-        successSchema: createOpenApiSchemaReference('BirdCoderSkillPackageSummaryListEnvelope'),
-      }),
-    },
-    'skillPackages.installations.create': {
-      parameters: [packageIdPathParameter],
-      requestBody: createOpenApiRequestBody(
-        createOpenApiSchemaReference('BirdCoderInstallSkillPackageRequest'),
-      ),
-      responses: buildOpenApiResponses({
-        successStatus: '201',
-        successDescription: 'Skill package installed successfully.',
-        successSchema: createOpenApiSchemaReference('BirdCoderSkillInstallationSummaryEnvelope'),
-        extraResponses: {
-          '400': createProblemResponse('Skill package installation request is invalid.'),
-          '404': createProblemResponse('Skill package was not found.'),
         },
       }),
     },

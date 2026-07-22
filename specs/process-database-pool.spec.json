@@ -4,37 +4,47 @@
   "profile": {
     "exampleFile": ".env.postgres.example",
     "database": "sdkwork_ai_dev",
-    "schema": "sdkwork_birdcoder_dev",
-    "allowDifferentSchema": true
+    "schema": "sdkwork_ai_dev"
   },
   "processes": [
     {
       "id": "sdkwork-api-birdcoder-standalone-gateway",
       "entrypoint": "crates/sdkwork-api-birdcoder-standalone-gateway/src/main.rs",
-      "poolOwner": "crates/sdkwork-api-birdcoder-standalone-gateway/src/bootstrap/database.rs",
+      "poolOwner": "crates/sdkwork-api-birdcoder-assembly/src/application_bootstrap/database.rs",
       "driver": "sqlx::PgPool",
       "poolCount": 1,
-      "databaseUrlEnv": "SDKWORK_BIRDCODER_DATABASE_URL or SDKWORK_CLAW_DATABASE_*",
-      "schemaEnv": "SDKWORK_BIRDCODER_DATABASE_SCHEMA or SDKWORK_CLAW_DATABASE_SCHEMA",
-      "maxConnectionsEnv": "SDKWORK_BIRDCODER_DATABASE_MAX_CONNECTIONS",
+      "databaseUrlEnv": "SDKWORK_CLAW_DATABASE_*",
+      "schemaEnv": "SDKWORK_CLAW_DATABASE_SCHEMA",
+      "maxConnectionsEnv": "SDKWORK_CLAW_DATABASE_MAX_CONNECTIONS",
       "productionSourceRoots": [
-        "crates/sdkwork-api-birdcoder-standalone-gateway/src"
+        "crates/sdkwork-api-birdcoder-standalone-gateway/src",
+        "crates/sdkwork-api-birdcoder-assembly/src"
       ],
       "consumers": [
         {
           "module": "sdkwork-birdcoder lifecycle",
           "poolMode": "injected",
-          "evidence": ["crates/sdkwork-api-birdcoder-standalone-gateway/src/bootstrap/database.rs"]
+          "evidence": ["crates/sdkwork-api-birdcoder-assembly/src/application_bootstrap/database.rs"]
         },
         {
           "module": "sdkwork-iam",
           "poolMode": "installed-process-pool",
-          "evidence": ["crates/sdkwork-api-birdcoder-standalone-gateway/src/bootstrap/iam.rs"]
+          "evidence": ["crates/sdkwork-api-birdcoder-assembly/src/application_bootstrap/iam.rs"]
         },
         {
           "module": "sdkwork-birdcoder repositories",
           "poolMode": "injected",
-          "evidence": ["crates/sdkwork-api-birdcoder-standalone-gateway/src/bootstrap/repositories.rs"]
+          "evidence": ["crates/sdkwork-api-birdcoder-assembly/src/application_bootstrap/repositories.rs"]
+        },
+        {
+          "module": "sdkwork-drive",
+          "poolMode": "injected",
+          "evidence": ["crates/sdkwork-api-birdcoder-assembly/src/bootstrap.rs"]
+        },
+        {
+          "module": "sdkwork-membership",
+          "poolMode": "injected",
+          "evidence": ["crates/sdkwork-api-birdcoder-assembly/src/bootstrap.rs"]
         }
       ],
       "temporaryDriverExceptions": [
@@ -51,15 +61,16 @@
     {
       "id": "sdkwork-birdcoder-pc-server-host-shim",
       "entrypoint": "apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-server/src-host/src/main.rs",
-      "poolOwner": "crates/sdkwork-api-birdcoder-standalone-gateway/src/bootstrap/database.rs",
+      "poolOwner": "crates/sdkwork-api-birdcoder-assembly/src/application_bootstrap/database.rs",
       "driver": "sqlx::PgPool",
       "poolCount": 1,
-      "databaseUrlEnv": "SDKWORK_BIRDCODER_DATABASE_URL or SDKWORK_CLAW_DATABASE_*",
-      "schemaEnv": "SDKWORK_BIRDCODER_DATABASE_SCHEMA or SDKWORK_CLAW_DATABASE_SCHEMA",
-      "maxConnectionsEnv": "SDKWORK_BIRDCODER_DATABASE_MAX_CONNECTIONS",
+      "databaseUrlEnv": "SDKWORK_CLAW_DATABASE_*",
+      "schemaEnv": "SDKWORK_CLAW_DATABASE_SCHEMA",
+      "maxConnectionsEnv": "SDKWORK_CLAW_DATABASE_MAX_CONNECTIONS",
       "productionSourceRoots": [
         "apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-server/src-host/src",
-        "crates/sdkwork-api-birdcoder-standalone-gateway/src"
+        "crates/sdkwork-api-birdcoder-standalone-gateway/src",
+        "crates/sdkwork-api-birdcoder-assembly/src"
       ],
       "consumers": [
         {
@@ -68,9 +79,24 @@
           "evidence": ["apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-server/src-host/src/main.rs"]
         },
         {
-          "module": "sdkwork-birdcoder repositories and IAM",
+          "module": "sdkwork-birdcoder repositories",
+          "poolMode": "injected",
+          "evidence": ["crates/sdkwork-api-birdcoder-assembly/src/application_bootstrap/repositories.rs"]
+        },
+        {
+          "module": "sdkwork-iam",
           "poolMode": "installed-process-pool",
-          "evidence": ["crates/sdkwork-api-birdcoder-standalone-gateway/src/bootstrap/mod.rs"]
+          "evidence": ["crates/sdkwork-api-birdcoder-assembly/src/application_bootstrap/iam.rs"]
+        },
+        {
+          "module": "sdkwork-drive",
+          "poolMode": "injected",
+          "evidence": ["crates/sdkwork-api-birdcoder-assembly/src/bootstrap.rs"]
+        },
+        {
+          "module": "sdkwork-membership",
+          "poolMode": "injected",
+          "evidence": ["crates/sdkwork-api-birdcoder-assembly/src/bootstrap.rs"]
         }
       ],
       "temporaryDriverExceptions": [

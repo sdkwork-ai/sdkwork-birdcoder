@@ -25,6 +25,7 @@ export * from './services/birdcoderMobileChatApi.ts';
 export * from './services/impl/DriveSandboxProjectFileSystemService.ts';
 export * from './services/sessionService.ts';
 export * from './services/sdkClients.ts';
+export * from './services/skillsSdkClient.ts';
 export * from './services/sdkTransportShared.ts';
 export * from './services/codingSessionMessageProjection.ts';
 export * from './services/workspaceRealtimeClient.ts';

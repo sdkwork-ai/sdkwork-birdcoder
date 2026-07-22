@@ -1,73 +1,58 @@
 import assert from 'node:assert/strict';
-const typesEntryModulePath = new URL(
-  '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-contracts-commons/src/index.ts',
-  import.meta.url,
-);
+import { readFileSync } from 'node:fs';
 
-const {
+import {
+  BIRDCODER_DATA_ENTITY_DEFINITIONS,
   BIRDCODER_PROMPT_COMPOSITION_LAYER_IDS,
-  BIRDCODER_PROMPT_COMPOSITION_LAYERS,
-  BIRDCODER_PROMPT_STORAGE_BINDINGS,
-  BIRDCODER_SKILL_BINDING_SCOPE_TYPES,
-  BIRDCODER_SKILL_STORAGE_BINDINGS,
-} = await import(`${typesEntryModulePath.href}?t=${Date.now()}`);
+} from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-contracts-commons/src/index.ts';
 
-assert.deepEqual(BIRDCODER_PROMPT_COMPOSITION_LAYER_IDS, [
-  'platform_rule',
-  'organization_rule',
-  'template_preset',
+const skillsOwnedEntityNames = new Set([
+  'agent_skill_package',
+  'agent_skill',
+  'user_agent_skill',
+  'skill_package',
+  'skill_version',
+  'skill_capability',
+  'skill_installation',
   'skill_binding',
-  'project_context',
-  'turn_prompt',
+  'skill_runtime_config',
 ]);
 
 assert.deepEqual(
-  BIRDCODER_PROMPT_COMPOSITION_LAYERS.map((layer) => layer.id),
-  BIRDCODER_PROMPT_COMPOSITION_LAYER_IDS,
-);
-assert.deepEqual(
-  BIRDCODER_PROMPT_COMPOSITION_LAYERS.map((layer) => layer.order),
-  [10, 20, 30, 40, 50, 60],
+  BIRDCODER_DATA_ENTITY_DEFINITIONS
+    .map((definition) => definition.entityName)
+    .filter((entityName) => skillsOwnedEntityNames.has(entityName)),
+  [],
+  'BirdCoder must not own or materialize sdkwork-skills persistence entities.',
 );
 
-assert.deepEqual(BIRDCODER_SKILL_BINDING_SCOPE_TYPES, [
-  'workspace',
-  'project',
-  'coding_session',
-  'turn',
-]);
-
-assert.deepEqual(
-  BIRDCODER_PROMPT_STORAGE_BINDINGS.map((binding) => binding.entityName),
-  [
-    'saved_prompt_entry',
-    'prompt_asset',
-    'prompt_asset_version',
-    'prompt_bundle',
-    'prompt_bundle_item',
-    'prompt_run',
-    'prompt_evaluation',
-  ],
-);
 assert.equal(
-  BIRDCODER_PROMPT_STORAGE_BINDINGS.every((binding) => binding.storageMode === 'table'),
+  BIRDCODER_PROMPT_COMPOSITION_LAYER_IDS.includes('skill_installation'),
   true,
+  'Prompt composition may reference canonical Skills installations without owning them.',
 );
 
-assert.deepEqual(
-  BIRDCODER_SKILL_STORAGE_BINDINGS.map((binding) => binding.entityName),
-  [
-    'skill_package',
-    'skill_version',
-    'skill_capability',
-    'skill_installation',
-    'skill_binding',
-    'skill_runtime_config',
-  ],
+const catalogServiceSource = readFileSync(
+  new URL(
+    '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/src/services/impl/ApiBackedCatalogService.ts',
+    import.meta.url,
+  ),
+  'utf8',
 );
-assert.equal(
-  BIRDCODER_SKILL_STORAGE_BINDINGS.every((binding) => binding.storageMode === 'table'),
-  true,
+const skillsBootstrapSource = readFileSync(
+  new URL(
+    '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/src/services/skillsSdkClient.ts',
+    import.meta.url,
+  ),
+  'utf8',
 );
 
-console.log('skill binding contract passed.');
+assert.match(catalogServiceSource, /from '@sdkwork\/skills-app-sdk'/u);
+assert.match(catalogServiceSource, /artifactId: options\.artifactId/u);
+assert.match(catalogServiceSource, /kind: 'workspace'/u);
+assert.doesNotMatch(catalogServiceSource, /fetch\(|x-sdkwork-tenant-id|latestArtifact/u);
+assert.match(skillsBootstrapSource, /authMode: 'dual-token'/u);
+assert.match(skillsBootstrapSource, /getBirdCoderGlobalTokenManager\(\)/u);
+assert.doesNotMatch(skillsBootstrapSource, /tenantId|organizationId|headers:/u);
+
+console.log('canonical Skills SDK ownership boundary contract passed.');

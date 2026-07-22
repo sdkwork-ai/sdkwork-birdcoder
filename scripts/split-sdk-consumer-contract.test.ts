@@ -357,6 +357,18 @@ try {
     appClient,
     appRuntimeClient: {
       ...appClient,
+      async listCodingSessionPage() {
+        return {
+          items: [],
+          pageInfo: {
+            hasMore: false,
+            mode: 'offset',
+            page: 1,
+            pageSize: 200,
+            totalItems: 0,
+          },
+        };
+      },
       async listCodingSessions() {
         return [];
       },

@@ -22,12 +22,15 @@ use sdkwork_birdcoder_project_service::ports::runtime_location_verification::{
 };
 use sdkwork_birdcoder_project_service::service::project_runtime_location_service::ProjectRuntimeLocationService;
 use sdkwork_birdcoder_project_service::service::project_service::ProjectService;
-use sdkwork_birdcoder_project_service::service::project_workspace_binding_service::ProjectWorkspaceBindingService;
+use sdkwork_birdcoder_project_service::domain::sandbox_binding::{
+    NewProjectSandboxBinding, ProjectSandboxBindingAuditEntry, ProjectSandboxBindingPayload,
+};
+use sdkwork_birdcoder_project_service::ports::sandbox_binding_repository::ProjectSandboxBindingRepository;
+use sdkwork_birdcoder_project_service::service::project_sandbox_binding_service::ProjectSandboxBindingService;
 use sdkwork_birdcoder_workspace_repository_sqlx::db::schema::ALL_TABLES_DDL;
 use sdkwork_birdcoder_workspace_repository_sqlx::repository::deployment::SqliteDeploymentRepository;
 use sdkwork_birdcoder_workspace_repository_sqlx::repository::project::SqliteProjectRepository;
 use sdkwork_birdcoder_workspace_repository_sqlx::repository::project_runtime_location::SqliteProjectRuntimeLocationRepository;
-use sdkwork_birdcoder_workspace_repository_sqlx::repository::project_workspace_binding::SqliteProjectWorkspaceBindingRepository;
 use sdkwork_birdcoder_workspace_repository_sqlx::repository::team::SqliteTeamRepository;
 use sdkwork_birdcoder_workspace_repository_sqlx::repository::workspace::SqliteWorkspaceRepository;
 use sdkwork_birdcoder_workspace_service::context::WorkspaceContext;
@@ -47,9 +50,96 @@ use sdkwork_web_core::{
     ServerRequestId, WebApiSurface, WebAuthMode, WebRequestContext, WebTransportFacts,
 };
 use sqlx::AnyPool;
+use std::sync::Mutex;
 use tower::ServiceExt;
 
 struct NoopWorkspaceEvents;
+
+#[derive(Clone, Default)]
+struct TestSandboxBindingRepository {
+    binding: Arc<Mutex<Option<ProjectSandboxBindingPayload>>>,
+}
+
+#[async_trait]
+impl ProjectSandboxBindingRepository for TestSandboxBindingRepository {
+    async fn get_sandbox_binding(
+        &self,
+        _context: &sdkwork_birdcoder_project_service::context::ProjectContext,
+        project_id: &str,
+    ) -> Result<Option<ProjectSandboxBindingPayload>, ProjectError> {
+        Ok(self
+            .binding
+            .lock()
+            .expect("read sandbox binding")
+            .clone()
+            .filter(|binding| binding.project_id == project_id))
+    }
+
+    async fn upsert_sandbox_binding(
+        &self,
+        _context: &sdkwork_birdcoder_project_service::context::ProjectContext,
+        binding: &NewProjectSandboxBinding,
+        _audit: &ProjectSandboxBindingAuditEntry,
+    ) -> Result<ProjectSandboxBindingPayload, ProjectError> {
+        let mut stored = self.binding.lock().expect("write sandbox binding");
+        let version = match stored.as_ref() {
+            Some(current) => {
+                let current_version = current
+                    .version
+                    .parse::<i64>()
+                    .map_err(|_| ProjectError::Internal("invalid test version".to_owned()))?;
+                if binding.expected_version != Some(current_version) {
+                    return Err(ProjectError::PreconditionFailed(
+                        "Sandbox-binding version does not match If-Match.".to_owned(),
+                    ));
+                }
+                current_version + 1
+            }
+            None if binding.expected_version.is_some() => {
+                return Err(ProjectError::PreconditionFailed(
+                    "Project sandbox binding does not exist for the supplied If-Match.".to_owned(),
+                ));
+            }
+            None => 0,
+        };
+        let value = ProjectSandboxBindingPayload {
+            id: "700000000000000001".to_owned(),
+            project_id: binding.project_id.clone(),
+            sandbox_id: binding.sandbox_id.clone(),
+            root_entry_id: binding.root_entry_id.clone(),
+            logical_path: binding.logical_path.clone(),
+            status: binding.status.clone(),
+            version: version.to_string(),
+            created_at: "2026-01-01T00:00:00Z".to_owned(),
+            updated_at: "2026-01-01T00:00:00Z".to_owned(),
+        };
+        *stored = Some(value.clone());
+        Ok(value)
+    }
+
+    async fn delete_sandbox_binding(
+        &self,
+        _context: &sdkwork_birdcoder_project_service::context::ProjectContext,
+        project_id: &str,
+        expected_version: i64,
+        _audit: &ProjectSandboxBindingAuditEntry,
+    ) -> Result<(), ProjectError> {
+        let mut stored = self.binding.lock().expect("delete sandbox binding");
+        let current = stored
+            .as_ref()
+            .filter(|binding| binding.project_id == project_id)
+            .ok_or_else(|| {
+                ProjectError::NotFound("Project sandbox binding was not found.".to_owned())
+            })?;
+        if current.version != expected_version.to_string() {
+            return Err(ProjectError::PreconditionFailed(
+                "Sandbox-binding version does not match If-Match.".to_owned(),
+            ));
+        }
+        *stored = None;
+        Ok(())
+    }
+}
 
 #[async_trait]
 impl WorkspaceEventPublisher for NoopWorkspaceEvents {
@@ -389,9 +479,9 @@ async fn test_state() -> WorkspaceAppState {
         project_workspace_root_resolver.clone(),
         Arc::new(runtime_location_service.clone()),
     );
-    let workspace_binding_service = ProjectWorkspaceBindingService::new(
+    let sandbox_binding_service = ProjectSandboxBindingService::new(
         project_repository,
-        Arc::new(SqliteProjectWorkspaceBindingRepository::new(pool.clone())),
+        Arc::new(TestSandboxBindingRepository::default()),
     );
     let deployment_service = DeploymentService::new(
         Arc::new(SqliteDeploymentRepository::new(pool)),
@@ -402,7 +492,7 @@ async fn test_state() -> WorkspaceAppState {
         workspace_service,
         project_service,
         runtime_location_service,
-        workspace_binding_service,
+        sandbox_binding_service,
         deployment_service,
         team_service,
         realtime_hub,
@@ -622,10 +712,10 @@ async fn personal_session_can_create_and_list_projects() {
 }
 
 #[tokio::test]
-async fn workspace_binding_handlers_close_idempotency_concurrency_and_redaction_contracts() {
+async fn sandbox_binding_handlers_close_idempotency_concurrency_and_redaction_contracts() {
     let app = build_workspace_app_router().with_state(test_state().await);
     let project_id = create_project_for_runtime_location_test(&app).await;
-    let path = format!("/app/v3/api/projects/{project_id}/workspace_binding");
+    let path = format!("/app/v3/api/projects/{project_id}/sandbox_binding");
 
     let missing = app
         .clone()
@@ -633,11 +723,11 @@ async fn workspace_binding_handlers_close_idempotency_concurrency_and_redaction_
             Request::builder()
                 .uri(&path)
                 .body(Body::empty())
-                .expect("build missing workspace-binding request"),
+                .expect("build missing sandbox-binding request"),
             Some(test_iam_context()),
         ))
         .await
-        .expect("serve missing workspace-binding request");
+        .expect("serve missing sandbox-binding request");
     assert_eq!(missing.status(), StatusCode::NOT_FOUND);
     assert_eq!(read_response_json(missing).await["code"], 40401);
 
@@ -655,11 +745,11 @@ async fn workspace_binding_handlers_close_idempotency_concurrency_and_redaction_
                 .uri(&path)
                 .header("content-type", "application/json")
                 .body(Body::from(create_body.clone()))
-                .expect("build workspace-binding request without idempotency"),
+                .expect("build sandbox-binding request without idempotency"),
             Some(test_iam_context()),
         ))
         .await
-        .expect("serve workspace-binding request without idempotency");
+        .expect("serve sandbox-binding request without idempotency");
     assert_eq!(
         missing_idempotency.status(),
         StatusCode::PRECONDITION_REQUIRED
@@ -673,7 +763,7 @@ async fn workspace_binding_handlers_close_idempotency_concurrency_and_redaction_
                 .method("PUT")
                 .uri(&path)
                 .header("content-type", "application/json")
-                .header("idempotency-key", "workspace-binding-invalid-1")
+                .header("idempotency-key", "sandbox-binding-invalid-1")
                 .body(Body::from(
                     serde_json::json!({
                         "sandboxId": "sandbox:handler-smoke",
@@ -683,11 +773,11 @@ async fn workspace_binding_handlers_close_idempotency_concurrency_and_redaction_
                     })
                     .to_string(),
                 ))
-                .expect("build workspace-binding physical-path injection request"),
+                .expect("build sandbox-binding physical-path injection request"),
             Some(test_iam_context()),
         ))
         .await
-        .expect("serve workspace-binding physical-path injection request");
+        .expect("serve sandbox-binding physical-path injection request");
     assert_eq!(physical_path_injection.status(), StatusCode::BAD_REQUEST);
     assert_eq!(
         physical_path_injection
@@ -707,13 +797,13 @@ async fn workspace_binding_handlers_close_idempotency_concurrency_and_redaction_
                 .method("PUT")
                 .uri(&path)
                 .header("content-type", "application/json")
-                .header("idempotency-key", "workspace-binding-create-1")
+                .header("idempotency-key", "sandbox-binding-create-1")
                 .body(Body::from(create_body.clone()))
-                .expect("build workspace-binding create request"),
+                .expect("build sandbox-binding create request"),
             Some(test_iam_context()),
         ))
         .await
-        .expect("serve workspace-binding create request");
+        .expect("serve sandbox-binding create request");
     assert_eq!(created.status(), StatusCode::OK);
     let created_json = read_response_json(created).await;
     assert_eq!(created_json["code"], 0);
@@ -730,7 +820,7 @@ async fn workspace_binding_handlers_close_idempotency_concurrency_and_redaction_
     assert_eq!(created_json["data"]["item"]["version"], "0");
     let binding_id = created_json["data"]["item"]["id"]
         .as_str()
-        .expect("created workspace-binding id")
+        .expect("created sandbox-binding id")
         .to_owned();
     for forbidden in [
         "absolutePath",
@@ -750,13 +840,13 @@ async fn workspace_binding_handlers_close_idempotency_concurrency_and_redaction_
                 .method("PUT")
                 .uri(&path)
                 .header("content-type", "application/json")
-                .header("idempotency-key", "workspace-binding-create-1")
+                .header("idempotency-key", "sandbox-binding-create-1")
                 .body(Body::from(create_body))
-                .expect("build workspace-binding replay request"),
+                .expect("build sandbox-binding replay request"),
             Some(test_iam_context()),
         ))
         .await
-        .expect("serve workspace-binding replay request");
+        .expect("serve sandbox-binding replay request");
     assert_eq!(replay.status(), StatusCode::OK);
     let replay_json = read_response_json(replay).await;
     assert_eq!(replay_json["data"]["item"]["id"], binding_id);
@@ -775,13 +865,13 @@ async fn workspace_binding_handlers_close_idempotency_concurrency_and_redaction_
                 .method("PUT")
                 .uri(&path)
                 .header("content-type", "application/json")
-                .header("idempotency-key", "workspace-binding-create-1")
+                .header("idempotency-key", "sandbox-binding-create-1")
                 .body(Body::from(changed_body.clone()))
-                .expect("build conflicting workspace-binding replay"),
+                .expect("build conflicting sandbox-binding replay"),
             Some(test_iam_context()),
         ))
         .await
-        .expect("serve conflicting workspace-binding replay");
+        .expect("serve conflicting sandbox-binding replay");
     assert_eq!(conflicting_replay.status(), StatusCode::CONFLICT);
     assert_eq!(read_response_json(conflicting_replay).await["code"], 40901);
 
@@ -792,13 +882,13 @@ async fn workspace_binding_handlers_close_idempotency_concurrency_and_redaction_
                 .method("PUT")
                 .uri(&path)
                 .header("content-type", "application/json")
-                .header("idempotency-key", "workspace-binding-update-missing-1")
+                .header("idempotency-key", "sandbox-binding-update-missing-1")
                 .body(Body::from(changed_body.clone()))
-                .expect("build workspace-binding update without If-Match"),
+                .expect("build sandbox-binding update without If-Match"),
             Some(test_iam_context()),
         ))
         .await
-        .expect("serve workspace-binding update without If-Match");
+        .expect("serve sandbox-binding update without If-Match");
     assert_eq!(missing_if_match.status(), StatusCode::PRECONDITION_REQUIRED);
     assert_eq!(read_response_json(missing_if_match).await["code"], 42801);
 
@@ -809,14 +899,14 @@ async fn workspace_binding_handlers_close_idempotency_concurrency_and_redaction_
                 .method("PUT")
                 .uri(&path)
                 .header("content-type", "application/json")
-                .header("idempotency-key", "workspace-binding-update-stale-1")
+                .header("idempotency-key", "sandbox-binding-update-stale-1")
                 .header("if-match", "7")
                 .body(Body::from(changed_body.clone()))
-                .expect("build stale workspace-binding update"),
+                .expect("build stale sandbox-binding update"),
             Some(test_iam_context()),
         ))
         .await
-        .expect("serve stale workspace-binding update");
+        .expect("serve stale sandbox-binding update");
     assert_eq!(stale_if_match.status(), StatusCode::PRECONDITION_FAILED);
     assert_eq!(read_response_json(stale_if_match).await["code"], 41201);
 
@@ -827,14 +917,14 @@ async fn workspace_binding_handlers_close_idempotency_concurrency_and_redaction_
                 .method("PUT")
                 .uri(&path)
                 .header("content-type", "application/json")
-                .header("idempotency-key", "workspace-binding-update-1")
+                .header("idempotency-key", "sandbox-binding-update-1")
                 .header("if-match", "0")
                 .body(Body::from(changed_body))
-                .expect("build workspace-binding update"),
+                .expect("build sandbox-binding update"),
             Some(test_iam_context()),
         ))
         .await
-        .expect("serve workspace-binding update");
+        .expect("serve sandbox-binding update");
     assert_eq!(updated.status(), StatusCode::OK);
     let updated_json = read_response_json(updated).await;
     assert_eq!(updated_json["data"]["item"]["id"], binding_id);
@@ -850,11 +940,11 @@ async fn workspace_binding_handlers_close_idempotency_concurrency_and_redaction_
             Request::builder()
                 .uri(&path)
                 .body(Body::empty())
-                .expect("build workspace-binding get request"),
+                .expect("build sandbox-binding get request"),
             Some(test_iam_context()),
         ))
         .await
-        .expect("serve workspace-binding get request");
+        .expect("serve sandbox-binding get request");
     assert_eq!(retrieved.status(), StatusCode::OK);
     let retrieved_json = read_response_json(retrieved).await;
     assert_eq!(retrieved_json["data"]["item"], updated_json["data"]["item"]);
@@ -866,11 +956,11 @@ async fn workspace_binding_handlers_close_idempotency_concurrency_and_redaction_
                 .method("DELETE")
                 .uri(&path)
                 .body(Body::empty())
-                .expect("build workspace-binding delete without If-Match"),
+                .expect("build sandbox-binding delete without If-Match"),
             Some(test_iam_context()),
         ))
         .await
-        .expect("serve workspace-binding delete without If-Match");
+        .expect("serve sandbox-binding delete without If-Match");
     assert_eq!(
         delete_without_if_match.status(),
         StatusCode::PRECONDITION_REQUIRED
@@ -888,11 +978,11 @@ async fn workspace_binding_handlers_close_idempotency_concurrency_and_redaction_
                 .uri(&path)
                 .header("if-match", "0")
                 .body(Body::empty())
-                .expect("build stale workspace-binding delete"),
+                .expect("build stale sandbox-binding delete"),
             Some(test_iam_context()),
         ))
         .await
-        .expect("serve stale workspace-binding delete");
+        .expect("serve stale sandbox-binding delete");
     assert_eq!(stale_delete.status(), StatusCode::PRECONDITION_FAILED);
     assert_eq!(read_response_json(stale_delete).await["code"], 41201);
 
@@ -904,15 +994,15 @@ async fn workspace_binding_handlers_close_idempotency_concurrency_and_redaction_
                 .uri(&path)
                 .header("if-match", "1")
                 .body(Body::empty())
-                .expect("build workspace-binding delete"),
+                .expect("build sandbox-binding delete"),
             Some(test_iam_context()),
         ))
         .await
-        .expect("serve workspace-binding delete");
+        .expect("serve sandbox-binding delete");
     assert_eq!(deleted.status(), StatusCode::NO_CONTENT);
     let deleted_body = axum::body::to_bytes(deleted.into_body(), 64 * 1024)
         .await
-        .expect("read workspace-binding delete body");
+        .expect("read sandbox-binding delete body");
     assert!(deleted_body.is_empty());
 
     let after_delete = app
@@ -920,11 +1010,11 @@ async fn workspace_binding_handlers_close_idempotency_concurrency_and_redaction_
             Request::builder()
                 .uri(&path)
                 .body(Body::empty())
-                .expect("build deleted workspace-binding get request"),
+                .expect("build deleted sandbox-binding get request"),
             Some(test_iam_context()),
         ))
         .await
-        .expect("serve deleted workspace-binding get request");
+        .expect("serve deleted sandbox-binding get request");
     assert_eq!(after_delete.status(), StatusCode::NOT_FOUND);
     assert_eq!(read_response_json(after_delete).await["code"], 40401);
 }

@@ -185,9 +185,6 @@ const appRuntimeReadService: IAppRuntimeReadService = {
   async getModelConfig() {
     return TEST_CODE_ENGINE_MODEL_CONFIG;
   },
-  async getNativeSession() {
-    throw new Error('not needed');
-  },
   async getEngineCapabilities(engineKey: string) {
     callLog.push(`getEngineCapabilities:${engineKey}`);
     return capabilityByEngineKey[engineKey] ?? codexCapabilities;
@@ -220,9 +217,6 @@ const appRuntimeReadService: IAppRuntimeReadService = {
     return modelsFixture;
   },
   async listNativeSessionProviders() {
-    return [];
-  },
-  async listNativeSessions() {
     return [];
   },
   async listRoutes() {

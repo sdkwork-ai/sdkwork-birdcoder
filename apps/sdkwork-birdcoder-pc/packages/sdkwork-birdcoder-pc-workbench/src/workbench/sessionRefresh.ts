@@ -7,10 +7,7 @@ import {
   type BirdCoderCodingSession,
   type BirdCoderCodingSessionEvent,
   type BirdCoderProject,
-  type BirdCoderGetNativeSessionRequest,
   type BirdCoderListCodingSessionsRequest,
-  type BirdCoderNativeSessionAttributes,
-  type BirdCoderNativeSessionDetail,
   type BirdCoderCodingSessionSummary,
   mergeBirdCoderProjectionMessages,
   resolveBirdCoderCodingSessionRuntimeStatus,
@@ -21,28 +18,18 @@ import type {
   BirdCoderProjectMirrorSnapshot,
   IProjectService,
 } from '../services/interfaces/IProjectService.ts';
-import {
-  isAuthorityBackedNativeSessionId,
-  readAuthorityBackedNativeSessionRecord,
-  type NativeSessionAuthorityAppRuntimeReadService,
-} from './nativeSessionAuthority.ts';
 import { synchronizeProjectSessionsFromAuthority } from './projectSessionSynchronization.ts';
 
 type CodingSessionRefreshAppRuntimeReadService =
-  NativeSessionAuthorityAppRuntimeReadService &
   Pick<
     {
       getCodingSession(codingSessionId: string): Promise<BirdCoderCodingSessionSummary>;
-      getNativeSession(
-        codingSessionId: string,
-        request: BirdCoderGetNativeSessionRequest,
-      ): Promise<BirdCoderNativeSessionDetail>;
       listCodingSessions(
         request?: BirdCoderListCodingSessionsRequest,
       ): Promise<BirdCoderCodingSessionSummary[]>;
       listCodingSessionEvents(codingSessionId: string): Promise<BirdCoderCodingSessionEvent[]>;
     },
-    'getCodingSession' | 'getNativeSession' | 'listCodingSessions' | 'listCodingSessionEvents'
+    'getCodingSession' | 'listCodingSessions' | 'listCodingSessionEvents'
   >;
 
 export interface RefreshProjectSessionsOptions {
@@ -543,69 +530,6 @@ function buildRefreshedCodingSession(
   };
 }
 
-function mergeNativeAndCanonicalSessionSummary(
-  nativeSummary: BirdCoderCodingSessionSummary,
-  canonicalSummary: BirdCoderCodingSessionSummary | null,
-): BirdCoderCodingSessionSummary {
-  if (!canonicalSummary) {
-    return nativeSummary;
-  }
-
-  const nativeSortTimestamp = resolveBirdCoderSessionSortTimestampString(nativeSummary);
-  const canonicalSortTimestamp = resolveBirdCoderSessionSortTimestampString(canonicalSummary);
-  return {
-    ...nativeSummary,
-    ...canonicalSummary,
-    lastTurnAt:
-      resolveLatestRefreshIsoTimestamp(
-        nativeSummary.lastTurnAt,
-        canonicalSummary.lastTurnAt,
-      ) ?? undefined,
-    nativeAttributes: mergeNativeSessionAttributes(
-      nativeSummary.nativeAttributes,
-      canonicalSummary.nativeAttributes,
-    ),
-    nativeSessionId:
-      canonicalSummary.nativeSessionId ?? nativeSummary.nativeSessionId,
-    runtimeLocationId:
-      canonicalSummary.runtimeLocationId ?? nativeSummary.runtimeLocationId,
-    sortTimestamp:
-      compareBirdCoderLongIntegers(canonicalSortTimestamp, nativeSortTimestamp) >= 0
-        ? canonicalSortTimestamp
-        : nativeSortTimestamp,
-    transcriptUpdatedAt: resolveLatestRefreshIsoTimestamp(
-      nativeSummary.transcriptUpdatedAt,
-      canonicalSummary.transcriptUpdatedAt,
-    ),
-    updatedAt:
-      resolveLatestRefreshIsoTimestamp(
-        nativeSummary.updatedAt,
-        canonicalSummary.updatedAt,
-      ) ?? nativeSummary.updatedAt,
-  };
-}
-
-function mergeNativeSessionAttributes(
-  nativeAttributes: BirdCoderNativeSessionAttributes | undefined,
-  canonicalAttributes: BirdCoderNativeSessionAttributes | undefined,
-): BirdCoderNativeSessionAttributes | undefined {
-  if (!nativeAttributes) {
-    return canonicalAttributes;
-  }
-  if (!canonicalAttributes) {
-    return nativeAttributes;
-  }
-
-  return {
-    ...nativeAttributes,
-    ...canonicalAttributes,
-    metadata: {
-      ...nativeAttributes.metadata,
-      ...canonicalAttributes.metadata,
-    },
-  };
-}
-
 function isCodingSessionSummaryInResolvedLocationScope(
   requestedCodingSessionId: string,
   summary: BirdCoderCodingSessionSummary,
@@ -1079,116 +1003,6 @@ export async function refreshCodingSessionMessages(
       }
 
       const appRuntimeReadService = options.appRuntimeReadService;
-      const shouldReadNativeSession = isAuthorityBackedNativeSessionId(
-        normalizedCodingSessionId,
-        resolvedLocation.codingSession.engineId,
-        resolvedLocation.codingSession.nativeSessionId,
-      ) && Boolean(resolvedLocation.codingSession.runtimeLocationId?.trim());
-      if (shouldReadNativeSession) {
-        const [nativeRecord, canonicalSummaryResult, canonicalEvents] = await Promise.all([
-          readAuthorityBackedNativeSessionRecord(
-            normalizedCodingSessionId,
-            {
-              appRuntimeReadService,
-              engineId: resolvedLocation.codingSession.engineId,
-              nativeSessionId: resolvedLocation.codingSession.nativeSessionId,
-              projectId: guardProjectId,
-              runtimeLocationId: resolvedLocation.codingSession.runtimeLocationId,
-              workspaceId: guardWorkspaceId,
-            },
-          ),
-          resolvedLocation.summary
-            ? Promise.resolve(resolvedLocation.summary)
-            : appRuntimeReadService
-                .getCodingSession(normalizedCodingSessionId)
-                .catch((error) => {
-                  console.error(
-                    `Failed to load canonical summary for native coding session "${normalizedCodingSessionId}"`,
-                    error,
-                  );
-                  return null;
-                }),
-          appRuntimeReadService
-            .listCodingSessionEvents(normalizedCodingSessionId)
-            .catch((error) => {
-              console.error(
-                `Failed to load canonical events for native coding session "${normalizedCodingSessionId}"`,
-                error,
-              );
-              return [];
-            }),
-        ]);
-        if (
-          nativeRecord &&
-          isCodingSessionSummaryInResolvedLocationScope(
-            normalizedCodingSessionId,
-            nativeRecord.summary,
-            resolvedLocation,
-            normalizedWorkspaceId,
-          )
-        ) {
-          let canonicalSummary = canonicalSummaryResult;
-          if (
-            canonicalSummary &&
-            !isCodingSessionSummaryInResolvedLocationScope(
-              normalizedCodingSessionId,
-              canonicalSummary,
-              resolvedLocation,
-              normalizedWorkspaceId,
-            )
-          ) {
-            canonicalSummary = null;
-          }
-
-          const summary = mergeNativeAndCanonicalSessionSummary(
-            nativeRecord.summary,
-            canonicalSummary,
-          );
-          const mergedMessages = mergeCoreVisibleMessages(
-            normalizedCodingSessionId,
-            nativeRecord.messages,
-            canonicalEvents,
-          );
-          const resolvedRuntimeStatus = resolveBirdCoderCodingSessionRuntimeStatus(
-            canonicalEvents,
-            summary.runtimeStatus ?? resolvedLocation.codingSession.runtimeStatus,
-          );
-          const convergedRuntimeStatus = resolveConvergedRefreshRuntimeStatus(
-            resolvedRuntimeStatus,
-            summary,
-            resolvedLocation.codingSession,
-            canonicalEvents,
-          );
-          const refreshedSession = buildRefreshedCodingSession(
-            resolvedLocation.codingSession,
-            summary,
-            mergedMessages,
-            convergedRuntimeStatus,
-          );
-
-          await persistRefreshedCodingSessionIfNeeded(
-            options.projectService,
-            resolvedLocation.project.id,
-            resolvedLocation.codingSession,
-            refreshedSession,
-          );
-
-          return {
-            codingSessionId: normalizedCodingSessionId,
-            codingSession: refreshedSession,
-            messageCount: refreshedSession.messages.length,
-            projectId: resolvedLocation.project.id,
-            source: 'native-engine',
-            status: 'refreshed',
-            synchronizationVersion: buildBirdCoderSessionSynchronizationVersion(
-              refreshedSession,
-              refreshedSession.messages.length,
-            ),
-            workspaceId: resolvedLocation.project.workspaceId,
-          } satisfies RefreshCodingSessionMessagesResult;
-        }
-      }
-
       let summary: BirdCoderCodingSessionSummary;
       let events: BirdCoderCodingSessionEvent[];
       try {
@@ -1263,11 +1077,7 @@ export async function refreshCodingSessionMessages(
         codingSession: refreshedSession,
         messageCount: refreshedSession.messages.length,
         projectId: resolvedLocation.project.id,
-        source: isAuthorityBackedNativeSessionId(
-          normalizedCodingSessionId,
-          resolvedLocation.codingSession.engineId,
-          resolvedLocation.codingSession.nativeSessionId,
-        )
+        source: resolvedLocation.codingSession.nativeSessionId?.trim()
           ? 'native-engine'
           : 'app-runtime',
         status: 'refreshed',

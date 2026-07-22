@@ -6,7 +6,7 @@
 use sqlx::Row;
 use time::OffsetDateTime;
 
-const TABLE: &str = "commerce_usage_metering";
+const TABLE: &str = "studio_commerce_usage_metering";
 
 /// Metric type: input tokens consumed by a turn.
 pub const METRIC_TOKEN_INPUT: &str = "token_input";

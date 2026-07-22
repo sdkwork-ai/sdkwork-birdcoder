@@ -1,249 +1,82 @@
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 
-import {
-  readCanonicalServerRustSource,
-  readCanonicalSqliteSchemaBundle,
-} from './birdcoder-canonical-server-rust-sources.mjs';
+import { readCanonicalSqliteSchemaBundle } from './birdcoder-canonical-server-rust-sources.mjs';
 
-const serverTypesPath = new URL(
-  '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-contracts-commons/src/server-api.ts',
-  import.meta.url,
+const serverTypesSource = await readFile(
+  new URL(
+    '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-contracts-commons/src/server-api.ts',
+    import.meta.url,
+  ),
+  'utf8',
 );
-const openApiPath = new URL(
-  '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-server/src/openApiSchemas.ts',
-  import.meta.url,
+const openApiSource = await readFile(
+  new URL(
+    '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-server/src/openApiSchemas.ts',
+    import.meta.url,
+  ),
+  'utf8',
 );
-
+const catalogServiceSource = await readFile(
+  new URL(
+    '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/src/services/impl/ApiBackedCatalogService.ts',
+    import.meta.url,
+  ),
+  'utf8',
+);
 const canonicalSqliteSchemaSource = readCanonicalSqliteSchemaBundle();
-const skillPackagesModelsSource = readCanonicalServerRustSource(
-  'crates/sdkwork-birdcoder-skill-packages-service/src/domain/models.rs',
-);
-const appTemplatesModelsSource = readCanonicalServerRustSource(
-  'crates/sdkwork-birdcoder-app-templates-service/src/domain/models.rs',
-);
-const rustSources = [
-  {
-    label: 'desktop',
-    source: canonicalSqliteSchemaSource,
-  },
-  {
-    label: 'server',
-    source: `${skillPackagesModelsSource}\n${appTemplatesModelsSource}\n${canonicalSqliteSchemaSource}`,
-  },
-];
-const serverTypesSource = await readFile(serverTypesPath, 'utf8');
-const openApiSource = await readFile(openApiPath, 'utf8');
-
-function escapeRegExp(value) {
-  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-}
 
 function captureBlock(source, startPattern) {
   const startIndex = source.indexOf(startPattern);
   assert.notEqual(startIndex, -1, `Missing source block: ${startPattern}`);
-  return source.slice(startIndex, startIndex + 9000);
+  return source.slice(startIndex, startIndex + 5000);
 }
 
-function assertFields(source, anchor, fieldNames, label) {
+for (const [source, anchor, label] of [
+  [serverTypesSource, 'export interface BirdCoderAppTemplateSummary {', 'app template type'],
+  [openApiSource, 'BirdCoderAppTemplateSummary: createOpenApiObjectSchema(', 'app template schema'],
+]) {
   const block = captureBlock(source, anchor);
-  for (const fieldName of fieldNames) {
-    assert.match(
-      block,
-      new RegExp(`\\b${escapeRegExp(fieldName)}\\b`),
-      `${label} must include "${fieldName}".`,
-    );
+  for (const fieldName of [
+    'uuid',
+    'tenantId',
+    'organizationId',
+    'createdAt',
+    'updatedAt',
+    'slug',
+    'name',
+    'description',
+    'versionId',
+    'versionLabel',
+    'presetKey',
+    'category',
+    'targetProfiles',
+    'status',
+  ]) {
+    assert.match(block, new RegExp(`\\b${fieldName}\\b`, 'u'), `${label} must include ${fieldName}.`);
   }
 }
 
-function collectCreateTableBodies(source, tableName) {
-  const pattern = new RegExp(
-    `CREATE TABLE(?: IF NOT EXISTS)? ${escapeRegExp(tableName)} \\(([\\s\\S]*?)\\);`,
-    'g',
+for (const localSkillsAuthority of [
+  'BirdCoderSkillPackageSummary',
+  'BirdCoderSkillInstallationSummary',
+  'BirdCoderInstallSkillPackageRequest',
+  'ai_skill_package',
+  'ai_skill_version',
+  'ai_skill_capability',
+  'ai_skill_installation',
+]) {
+  assert.equal(
+    `${serverTypesSource}\n${openApiSource}\n${canonicalSqliteSchemaSource}`.includes(
+      localSkillsAuthority,
+    ),
+    false,
+    `BirdCoder must not retain sdkwork-skills authority ${localSkillsAuthority}.`,
   );
-  return [...source.matchAll(pattern)].map((match) => match[1]);
 }
 
-const commonCamelFields = ['uuid', 'tenantId', 'organizationId', 'createdAt', 'updatedAt'];
-const commonSnakeFields = ['uuid', 'tenant_id', 'organization_id', 'created_at', 'updated_at'];
+assert.match(catalogServiceSource, /from '@sdkwork\/skills-app-sdk'/u);
+assert.match(catalogServiceSource, /skillsClient\.skills\.skillPackages/u);
+assert.match(catalogServiceSource, /artifactId: options\.artifactId/u);
 
-const typeExpectations = [
-  {
-    anchor: 'export interface BirdCoderSkillPackageSummary {',
-    label: 'BirdCoderSkillPackageSummary types',
-    fields: [
-      ...commonCamelFields,
-      'slug',
-      'name',
-      'description',
-      'versionId',
-      'versionLabel',
-      'sourceUri',
-      'installed',
-      'skills',
-    ],
-  },
-  {
-    anchor: 'export interface BirdCoderSkillInstallationSummary {',
-    label: 'BirdCoderSkillInstallationSummary types',
-    fields: [
-      ...commonCamelFields,
-      'packageId',
-      'scopeId',
-      'scopeType',
-      'status',
-      'versionId',
-      'installedAt',
-    ],
-  },
-  {
-    anchor: 'export interface BirdCoderAppTemplateSummary {',
-    label: 'BirdCoderAppTemplateSummary types',
-    fields: [
-      ...commonCamelFields,
-      'slug',
-      'name',
-      'description',
-      'versionId',
-      'versionLabel',
-      'presetKey',
-      'category',
-      'targetProfiles',
-      'status',
-    ],
-  },
-];
-
-for (const expectation of typeExpectations) {
-  assertFields(serverTypesSource, expectation.anchor, expectation.fields, expectation.label);
-}
-
-const openApiExpectations = [
-  {
-    anchor: 'BirdCoderSkillPackageSummary: createOpenApiObjectSchema(',
-    label: 'BirdCoderSkillPackageSummary openapi schema',
-    fields: [
-      ...commonCamelFields,
-      'slug',
-      'name',
-      'description',
-      'versionId',
-      'versionLabel',
-      'sourceUri',
-      'installed',
-      'skills',
-    ],
-  },
-  {
-    anchor: 'BirdCoderSkillInstallationSummary: createOpenApiObjectSchema(',
-    label: 'BirdCoderSkillInstallationSummary openapi schema',
-    fields: [
-      ...commonCamelFields,
-      'packageId',
-      'scopeId',
-      'scopeType',
-      'status',
-      'versionId',
-      'installedAt',
-    ],
-  },
-  {
-    anchor: 'BirdCoderAppTemplateSummary: createOpenApiObjectSchema(',
-    label: 'BirdCoderAppTemplateSummary openapi schema',
-    fields: [
-      ...commonCamelFields,
-      'slug',
-      'name',
-      'description',
-      'versionId',
-      'versionLabel',
-      'presetKey',
-      'category',
-      'targetProfiles',
-      'status',
-    ],
-  },
-];
-
-for (const expectation of openApiExpectations) {
-  assertFields(openApiSource, expectation.anchor, expectation.fields, expectation.label);
-}
-
-for (const { label, source: rustSource } of rustSources) {
-
-  if (label === 'server') {
-    assertFields(
-      rustSource,
-      'struct SkillPackagePayload {',
-      [...commonSnakeFields, 'slug', 'name', 'description', 'version_id', 'version_label', 'source_uri', 'installed', 'skills'],
-      'SkillPackagePayload',
-    );
-    assertFields(
-      rustSource,
-      'struct SkillInstallationPayload {',
-      [...commonSnakeFields, 'package_id', 'scope_id', 'scope_type', 'status', 'version_id', 'installed_at'],
-      'SkillInstallationPayload',
-    );
-    assertFields(
-      rustSource,
-      'struct AppTemplatePayload {',
-      [...commonSnakeFields, 'slug', 'name', 'description', 'version_id', 'version_label', 'preset_key', 'category', 'target_profiles', 'status'],
-      'AppTemplatePayload',
-    );
-  }
-
-  const tableExpectations = [
-    {
-      tableName: 'ai_skill_package',
-      fields: [...commonSnakeFields, 'slug', 'source_uri', 'manifest_json', 'status'],
-    },
-    {
-      tableName: 'ai_skill_version',
-      fields: [...commonSnakeFields, 'skill_package_id', 'version_label', 'manifest_json', 'status'],
-    },
-    {
-      tableName: 'ai_skill_capability',
-      fields: [...commonSnakeFields, 'skill_version_id', 'capability_key', 'payload_json'],
-    },
-    {
-      tableName: 'ai_skill_installation',
-      fields: [...commonSnakeFields, 'scope_type', 'scope_id', 'skill_version_id', 'status', 'installed_at'],
-    },
-    {
-      tableName: 'studio_app_template',
-      fields: [...commonSnakeFields, 'slug', 'name', 'category', 'status'],
-    },
-    {
-      tableName: 'studio_app_template_version',
-      fields: [...commonSnakeFields, 'app_template_id', 'version_label', 'manifest_json', 'status'],
-    },
-    {
-      tableName: 'studio_app_template_target_profile',
-      fields: [...commonSnakeFields, 'app_template_version_id', 'profile_key', 'status'],
-    },
-    {
-      tableName: 'studio_app_template_preset',
-      fields: [...commonSnakeFields, 'app_template_version_id', 'preset_key', 'description_text', 'payload_json'],
-    },
-    {
-      tableName: 'studio_app_template_instantiation',
-      fields: [...commonSnakeFields, 'app_template_version_id', 'preset_key', 'status', 'output_root'],
-    },
-  ];
-
-  for (const expectation of tableExpectations) {
-    const bodies = collectCreateTableBodies(rustSource, expectation.tableName);
-    assert(bodies.length > 0, `${label} rust source must declare ${expectation.tableName} table.`);
-    for (const body of bodies) {
-      for (const fieldName of expectation.fields) {
-        assert.match(
-          body,
-          new RegExp(`\\b${escapeRegExp(fieldName)}\\b`),
-          `${label} ${expectation.tableName} schema must include "${fieldName}".`,
-        );
-      }
-    }
-  }
-}
-
-console.log('catalog plus entity standard contract passed.');
+console.log('catalog ownership and app template entity contract passed.');

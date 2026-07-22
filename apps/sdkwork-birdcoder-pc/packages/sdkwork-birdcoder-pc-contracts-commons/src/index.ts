@@ -1850,6 +1850,29 @@ function parseProjectionMessageTimestamp(createdAt: string): number | null {
   return Number.isNaN(parsedTimestamp) ? null : parsedTimestamp;
 }
 
+function isAuthoritativeTurnMirrorProjectionMessage(
+  authoritativeMessage: BirdCoderChatMessage,
+  existingMessage: BirdCoderChatMessage,
+): boolean {
+  const turnId = authoritativeMessage.turnId?.trim();
+  if (!turnId) {
+    return false;
+  }
+
+  return (
+    existingMessage.id.trim() === buildBirdCoderAuthoritativeProjectionMessageId(
+      authoritativeMessage.codingSessionId,
+      turnId,
+      authoritativeMessage.role,
+    ) &&
+    existingMessage.codingSessionId.trim() === authoritativeMessage.codingSessionId.trim() &&
+    existingMessage.turnId?.trim() === turnId &&
+    existingMessage.role === authoritativeMessage.role &&
+    normalizeProjectionMessageContent(existingMessage.content) ===
+      normalizeProjectionMessageContent(authoritativeMessage.content)
+  );
+}
+
 function resolveLocalMirrorProjectionMessage(
   authoritativeMessage: BirdCoderChatMessage,
   existingMessages: readonly BirdCoderChatMessage[],
@@ -1875,9 +1898,18 @@ function resolveLocalMirrorProjectionMessage(
   } | null = null;
 
   for (const existingMessage of existingMessages) {
+    const existingTurnId = existingMessage.turnId?.trim() ?? '';
+    const isAuthoritativeTurnMirror = isAuthoritativeTurnMirrorProjectionMessage(
+      authoritativeMessage,
+      existingMessage,
+    );
+    const isSameTurnUserMessage =
+      authoritativeMessage.role === 'user' &&
+      existingMessage.role === 'user' &&
+      existingTurnId === authoritativeMessage.turnId.trim();
     if (
       consumedExistingMessageIds.has(existingMessage.id) ||
-      existingMessage.turnId ||
+      (existingTurnId && !isAuthoritativeTurnMirror && !isSameTurnUserMessage) ||
       existingMessage.codingSessionId.trim() !== authoritativeMessage.codingSessionId.trim() ||
       existingMessage.role !== authoritativeMessage.role ||
       normalizeProjectionMessageContent(existingMessage.content) !== authoritativeContent
@@ -2442,9 +2474,20 @@ export function mergeBirdCoderProjectionMessages({
     if (existingMessage) {
       consumedExistingMessageIds.add(existingMessage.id);
     }
-    const mergedMessage = existingMessage
-      ? mergeBirdCoderComparableChatMessages(existingMessage, authoritativeMessage)
+    const authoritativeUpdate = existingMessage &&
+      isAuthoritativeTurnMirrorProjectionMessage(authoritativeMessage, existingMessage)
+      ? {
+          ...authoritativeMessage,
+          id: existingMessage.id,
+        }
       : authoritativeMessage;
+    const mergedMessage = existingMessage
+      ? mergeBirdCoderComparableChatMessages(existingMessage, authoritativeUpdate)
+      : authoritativeMessage;
+    const authoritativeOrder = messageOrderById.get(authoritativeMessage.id);
+    if (authoritativeOrder !== undefined && mergedMessage.id !== authoritativeMessage.id) {
+      messageOrderById.set(mergedMessage.id, authoritativeOrder);
+    }
     const existingOrder = existingMessage
       ? existingMessageOrderById.get(existingMessage.id)
       : undefined;

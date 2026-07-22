@@ -3,25 +3,20 @@
   "kind": "sdkwork.database.module",
   "moduleId": "birdcoder",
   "serviceCode": "BIRDCODER",
-  "displayName": "BIRDCODER Database",
-  "owner": "birdcoder-platform",
+  "displayName": "SDKWork BirdCoder Workbench Database",
+  "owner": "birdcoder-workbench",
   "engines": [
     "sqlite",
     "postgres"
   ],
   "defaultEngine": "sqlite",
   "tablePrefixes": [
-    "ai_",
-    "chat_",
-    "commerce_",
-    "ops_",
-    "runtime_",
     "studio_"
   ],
   "tablePrefixRegistry": "contract/prefix-registry.json",
-  "contractVersion": "1.3.0",
+  "contractVersion": "2.0.0",
   "baselineStrategy": "baseline-plus-migrations",
-  "baselineAnchorTable": "ai_coding_session",
+  "baselineAnchorTable": "studio_workspace",
   "modules": [],
   "lifecycle": {
     "autoMigrate": true,

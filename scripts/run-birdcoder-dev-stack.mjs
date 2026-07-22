@@ -159,78 +159,15 @@ function resolveApiOriginUrl(env) {
   }
 }
 
-function sqliteDatabaseUrl(filePath) {
-  const normalizedPath = String(filePath).replace(/\\/gu, '/');
-  return `sqlite:///${normalizedPath}?mode=rwc`;
-}
-
-// Detects the database engine from a connection URL so the gateway process
-// gets a service-specific engine hint. Without this, SDKWORK_CLAW_DATABASE_ENGINE
-// (leaked from .env.postgres when IAM dev login needs PostgreSQL) overrides URL
-// scheme detection in sdkwork-database-config and wrongly classifies SQLite URLs
-// as Postgres, causing sqlx to reject the appended `options=-c search_path=...`.
-function detectDatabaseEngineFromUrl(url) {
-  const normalized = String(url ?? '').toLowerCase();
-  if (normalized.startsWith('sqlite:')) {
-    return 'sqlite';
-  }
-  if (normalized.startsWith('postgres://') || normalized.startsWith('postgresql://')) {
-    return 'postgresql';
-  }
-  return undefined;
-}
-
 export function resolveStandaloneDependencyEnv(env) {
-  const driveDatabasePath = path.join(
-    WORKSPACE_ROOT,
-    '.runtime',
-    'standalone-development',
-    'drive.sqlite3',
-  );
-  const membershipDatabasePath = path.join(
-    WORKSPACE_ROOT,
-    '.runtime',
-    'standalone-development',
-    'membership.sqlite3',
-  );
-  const sharedDatabaseUrl = readTrimmedValue(env.SDKWORK_CLAW_DATABASE_URL);
-  const sharedDatabaseEngine =
-    readTrimmedValue(env.SDKWORK_CLAW_DATABASE_ENGINE)
-    || detectDatabaseEngineFromUrl(sharedDatabaseUrl);
-  const usesSharedPostgresDatabase =
-    sharedDatabaseEngine === 'postgres' || sharedDatabaseEngine === 'postgresql';
-  const driveDatabaseUrl =
-    readTrimmedValue(env.SDKWORK_DRIVE_DATABASE_URL)
-    || (usesSharedPostgresDatabase ? sharedDatabaseUrl : undefined)
-    || sqliteDatabaseUrl(driveDatabasePath);
-  const membershipDatabaseUrl =
-    readTrimmedValue(env.SDKWORK_MEMBERSHIP_DATABASE_URL)
-    || (usesSharedPostgresDatabase ? sharedDatabaseUrl : undefined)
-    || sqliteDatabaseUrl(membershipDatabasePath);
-  const sharedMaxConnections =
-    readTrimmedValue(env.SDKWORK_CLAW_DATABASE_MAX_CONNECTIONS)
-    || (usesSharedPostgresDatabase ? '10' : '2');
   return {
-    SDKWORK_DRIVE_DATABASE_URL: driveDatabaseUrl,
-    SDKWORK_DRIVE_DATABASE_ENGINE:
-      readTrimmedValue(env.SDKWORK_DRIVE_DATABASE_ENGINE)
-      || detectDatabaseEngineFromUrl(driveDatabaseUrl),
-    SDKWORK_MEMBERSHIP_DATABASE_URL: membershipDatabaseUrl,
-    SDKWORK_MEMBERSHIP_DATABASE_ENGINE:
-      readTrimmedValue(env.SDKWORK_MEMBERSHIP_DATABASE_ENGINE)
-      || detectDatabaseEngineFromUrl(membershipDatabaseUrl),
-    SDKWORK_DRIVE_DATABASE_MAX_CONNECTIONS:
-      readTrimmedValue(env.SDKWORK_DRIVE_DATABASE_MAX_CONNECTIONS)
-      || sharedMaxConnections,
-    SDKWORK_MEMBERSHIP_DATABASE_MAX_CONNECTIONS:
-      readTrimmedValue(env.SDKWORK_MEMBERSHIP_DATABASE_MAX_CONNECTIONS)
-      || sharedMaxConnections,
-    SDKWORK_DATABASE_TEMPORARY_DRIVER_POOL_COUNT:
-      readTrimmedValue(env.SDKWORK_DATABASE_TEMPORARY_DRIVER_POOL_COUNT)
-      || '2',
+    SDKWORK_DRIVE_APP_ROOT:
+      readTrimmedValue(env.SDKWORK_DRIVE_APP_ROOT)
+      || path.resolve(WORKSPACE_ROOT, '..', 'sdkwork-drive'),
     SDKWORK_MEMBERSHIP_APP_ROOT:
       readTrimmedValue(env.SDKWORK_MEMBERSHIP_APP_ROOT)
       || path.resolve(WORKSPACE_ROOT, '..', 'sdkwork-membership'),
+    SDKWORK_DATABASE_TEMPORARY_DRIVER_POOL_COUNT: '1',
   };
 }
 

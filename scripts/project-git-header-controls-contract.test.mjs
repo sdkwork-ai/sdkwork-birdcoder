@@ -214,8 +214,8 @@ assert.match(
 
 assert.match(
   topBarSource,
-  /import[\s\S]*ProjectGitHeaderControls[\s\S]*from '@sdkwork\/birdcoder-pc-ui';/s,
-  'Code top bar must import the shared ProjectGitHeaderControls component.',
+  /import \{ ProjectGitHeaderControls \} from '@sdkwork\/birdcoder-pc-ui\/components\/ProjectGitHeaderControls';/,
+  'Code top bar must import the shared ProjectGitHeaderControls component through its controlled subpath.',
 );
 
 assert.match(

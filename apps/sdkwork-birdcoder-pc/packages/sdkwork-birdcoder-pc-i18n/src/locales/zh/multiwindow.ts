@@ -58,6 +58,7 @@ export default defineLocaleModule('multiwindow', {
     durationSummary: '\u8017\u65f6 {{durationMs}} ms',
     failedCount: '\u5931\u8d25 {{count}}',
     failedToCreateSession: '\u521b\u5efa\u4f1a\u8bdd\u5931\u8d25',
+    selectProjectFirst: '\u8bf7\u5148\u9009\u62e9\u9879\u76ee\u518d\u521b\u5efa\u4f1a\u8bdd',
     maxOutputTokens: '\u8f93\u51fa\u4e0a\u9650',
     mode: '\u663e\u793a\u6a21\u5f0f',
     model: '\u6a21\u578b',

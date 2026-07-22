@@ -19,6 +19,14 @@ export interface BirdcoderBrowserTerminalTarget {
   tags: string[];
 }
 
+interface BirdcoderBrowserTerminalClientCache {
+  baseUrl: string;
+  client: WebRuntimeBridgeClient;
+  tokenManager: ReturnType<typeof getBirdCoderGlobalTokenManager>;
+}
+
+let browserTerminalClientCache: BirdcoderBrowserTerminalClientCache | undefined;
+
 export function resolveBirdcoderBrowserTerminalTarget(
   scope: BirdcoderBrowserTerminalScope,
 ): BirdcoderBrowserTerminalTarget | undefined {
@@ -39,28 +47,34 @@ export function resolveBirdcoderBrowserTerminalTarget(
   };
 }
 
-export function resolveBirdcoderBrowserTerminalClient(): WebRuntimeBridgeClient | undefined {
+export function resolveBirdcoderBrowserTerminalClient(): WebRuntimeBridgeClient {
   const tokenManager = getBirdCoderGlobalTokenManager();
-  const tokens = tokenManager.getTokens();
-  const authToken = tokens?.authToken?.trim();
-  const accessToken = tokens?.accessToken?.trim();
-  if (!authToken || !accessToken) {
-    return undefined;
-  }
-
   const baseUrl = readBirdCoderRuntimePublicEnv('VITE_SDKWORK_BIRDCODER_APPLICATION_PUBLIC_HTTP_URL')
     || readBirdCoderRuntimePublicEnv('VITE_BIRDCODER_API_BASE_URL')
     || '';
-  return createWebRuntimeBridgeClient({
+
+  if (
+    browserTerminalClientCache?.baseUrl === baseUrl
+    && browserTerminalClientCache.tokenManager === tokenManager
+  ) {
+    return browserTerminalClientCache.client;
+  }
+
+  const tokens = tokenManager.getTokens();
+  const authToken = tokens.authToken?.trim() ?? '';
+  const accessToken = tokens.accessToken?.trim();
+  const client = createWebRuntimeBridgeClient({
     baseUrl,
-    authToken,
-    accessToken,
     tokenManager,
+    ...(authToken ? { authToken } : {}),
+    ...(accessToken ? { accessToken } : {}),
     createEventSource: createAuthorizedFetchEventSourceFactory(authToken, {
-      accessToken,
       tokenManager,
+      ...(accessToken ? { accessToken } : {}),
     }),
   });
+  browserTerminalClientCache = { baseUrl, client, tokenManager };
+  return client;
 }
 
 export const useBirdcoderBrowserTerminalClient = resolveBirdcoderBrowserTerminalClient;
@@ -68,6 +82,6 @@ export const useBirdcoderBrowserTerminalClient = resolveBirdcoderBrowserTerminal
 export function resolveBirdcoderTerminalUnavailableMessage(): string {
   const locale = typeof navigator === 'undefined' ? '' : navigator.language.toLowerCase();
   return locale.startsWith('zh')
-    ? 'Browser \u7ec8\u7aef\u9700\u8981\u6709\u6548\u7684\u767b\u5f55\u4f1a\u8bdd\u548c\u53ef\u7528\u7684 Terminal App API\u3002'
-    : 'Browser terminal requires an authenticated session and an available Terminal App API.';
+    ? '\u5f53\u524d\u9879\u76ee\u5c1a\u672a\u914d\u7f6e\u53ef\u7528\u7684\u8fdc\u7a0b\u7ec8\u7aef\u8fd0\u884c\u4f4d\u7f6e\u3002'
+    : 'No remote terminal runtime is configured for the current project.';
 }

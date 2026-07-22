@@ -1,9 +1,7 @@
 import { memo, useDeferredValue, useMemo } from 'react';
-import {
-  buildBirdCoderEditorModelPath,
-  ContentWorkbench,
-  resolveContentPreviewDescriptor,
-} from '@sdkwork/birdcoder-pc-ui';
+import { ContentWorkbench } from '@sdkwork/birdcoder-pc-ui/components/ContentWorkbench';
+import { resolveContentPreviewDescriptor } from '@sdkwork/birdcoder-pc-ui/components/contentPreview';
+import { buildBirdCoderEditorModelPath } from '@sdkwork/birdcoder-pc-ui/components/editorModelPath';
 import { FileChangeDiffViewer } from '@sdkwork/birdcoder-pc-ui/components/FileChangeDiffViewer';
 import { Button } from '@sdkwork/birdcoder-pc-ui-shell';
 import type { FileChange } from '@sdkwork/birdcoder-pc-contracts-commons';

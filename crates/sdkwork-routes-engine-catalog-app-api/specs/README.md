@@ -22,12 +22,12 @@ Root SDKWork standards remain authoritative. This module spec records only the r
 - [component.spec.json](./component.spec.json) is the machine-readable contract.
 - Package-root router export: sdkwork_routes_engine_catalog_app_api::build_engine_catalog_app_router.
 - Package-root route-manifest export: sdkwork_routes_engine_catalog_app_api::engine_catalog_app_api_route_manifest; source anchor: src/manifest.rs#engine_catalog_app_api_route_manifest.
-- Required composition state port: sdkwork_routes_engine_catalog_app_api::EngineCatalogAppState. EngineCatalogAppState carries EngineCatalogService<RealEngineCatalogProvider> and NativeSessionService<RealNativeSessionRepository>.
+- Required composition state port: sdkwork_routes_engine_catalog_app_api::EngineCatalogAppState. EngineCatalogAppState carries EngineCatalogService<RealEngineCatalogProvider>.
 
 ## Pagination Boundaries
 
 - Engine, model, and native-session-provider catalogs come from the immutable build-time catalog loaded through `OnceLock`. `EngineCatalogService` enforces `MAX_BOUNDED_CATALOG_ITEMS = 100`, so these three endpoints use the bounded-collection exception in `PAGINATION_SPEC.md` section 11.
-- Native sessions are dynamic provider data and do not qualify for that exception. The current provider SPI returns a complete `Vec` before route pagination; production approval remains blocked until the provider boundary supports stable cursor/page reads without full materialization.
+- Coding sessions are owned by the intelligence coding-session API. Provider-native history discovery remains an internal service concern and is not exposed by this route crate.
 
 ## Verification
 

@@ -70,9 +70,9 @@
       "sdkwork_birdcoder_project_service::service::project_service::ProjectService",
       "sdkwork_birdcoder_project_service::service::project_runtime_location_service::ProjectRuntimeLocationService",
       "sdkwork_birdcoder_project_service::service::project_runtime_location_service::RuntimeLocationMutationContext",
-      "sdkwork_birdcoder_project_service::service::project_workspace_binding_service::ProjectWorkspaceBindingService",
+      "sdkwork_birdcoder_project_service::service::project_sandbox_binding_service::ProjectSandboxBindingService",
       "sdkwork_birdcoder_project_service::ports::repository::ProjectRepository",
-      "sdkwork_birdcoder_project_service::ports::workspace_binding_repository::ProjectWorkspaceBindingRepository",
+      "sdkwork_birdcoder_project_service::ports::sandbox_binding_repository::ProjectSandboxBindingRepository",
       "sdkwork_birdcoder_project_service::ports::runtime_location_repository::ProjectRuntimeLocationRepository",
       "sdkwork_birdcoder_project_service::ports::runtime_location_execution::ProjectRuntimeLocationExecutionResolver",
       "sdkwork_birdcoder_project_service::ports::runtime_location_execution::RuntimeLocationTargetExecutionAuthority",
@@ -93,8 +93,8 @@
         "export": "sdkwork_birdcoder_project_service::service::project_runtime_location_service::ProjectRuntimeLocationService"
       },
       {
-        "name": "projectWorkspaceBindingApplicationService",
-        "export": "sdkwork_birdcoder_project_service::service::project_workspace_binding_service::ProjectWorkspaceBindingService"
+        "name": "projectSandboxBindingApplicationService",
+        "export": "sdkwork_birdcoder_project_service::service::project_sandbox_binding_service::ProjectSandboxBindingService"
       }
     ],
     "requiredPorts": [
@@ -107,8 +107,8 @@
         "export": "sdkwork_birdcoder_project_service::ports::runtime_location_repository::ProjectRuntimeLocationRepository"
       },
       {
-        "name": "projectWorkspaceBindingRepository",
-        "export": "sdkwork_birdcoder_project_service::ports::workspace_binding_repository::ProjectWorkspaceBindingRepository"
+        "name": "projectSandboxBindingRepository",
+        "export": "sdkwork_birdcoder_project_service::ports::sandbox_binding_repository::ProjectSandboxBindingRepository"
       },
       {
         "name": "runtimeLocationPathCipher",
@@ -156,7 +156,7 @@
     "commands": [
       "cargo test --offline -p sdkwork-birdcoder-project-service --test pagination_tests -- --nocapture",
       "cargo test --offline -p sdkwork-birdcoder-project-service --test business_code_tests -- --nocapture",
-      "cargo test --offline -p sdkwork-birdcoder-project-service --test workspace_binding_service_tests -- --nocapture"
+      "cargo test --offline -p sdkwork-birdcoder-project-service --test sandbox_binding_service_tests -- --nocapture"
     ]
   }
 }

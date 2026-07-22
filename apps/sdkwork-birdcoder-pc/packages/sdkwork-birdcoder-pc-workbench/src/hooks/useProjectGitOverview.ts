@@ -3,6 +3,7 @@ import type {
   BirdCoderGitWorktreeSummary,
   BirdCoderProjectGitOverview,
 } from '@sdkwork/birdcoder-pc-contracts-commons';
+import { ProjectRuntimeLocationExecutionUnavailableError } from '@sdkwork/birdcoder-pc-infrastructure-runtime/projectRuntimeLocation';
 import { useIDEServices } from '../context/ideServices.ts';
 import { subscribeProjectGitOverviewRefresh } from '../workbench/projectGitOverview.ts';
 import { getProjectGitWorktreeDisplayName } from '../workbench/gitWorktrees.ts';
@@ -94,6 +95,13 @@ function loadProjectGitOverviewWithTimeout(
   ]).finally(() => {
     timeoutBoundary.clear();
   });
+}
+
+function shouldReportProjectGitOverviewLoadError(error: unknown): boolean {
+  return !(
+    error instanceof ProjectRuntimeLocationExecutionUnavailableError
+    && error.code === 'missing_runtime_location_id'
+  );
 }
 
 function peekProjectGitOverviewCacheEntry(projectId: string): ProjectGitOverviewCacheEntry | undefined {
@@ -241,7 +249,9 @@ export function useProjectGitOverview({
           return entry.snapshot.overview;
         }
 
-        console.error('Failed to load project Git overview', error);
+        if (shouldReportProjectGitOverviewLoadError(error)) {
+          console.error('Failed to load project Git overview', error);
+        }
         entry.snapshot = {
           ...entry.snapshot,
           isLoading: false,

@@ -21,24 +21,10 @@ pub const ENGINE_CATALOG_APP_API_ROUTES: &[HttpRoute] = &[
     HttpRoute::dual_token(
         HttpMethod::Get,
         paths::NATIVE_SESSION_PROVIDERS_PATH,
-        "nativeSessions",
+        "nativeSessionProviders",
         "nativeSessionProviders.list",
     )
     .with_required_permission("birdcoder.runtime-native-session-providers.read"),
-    HttpRoute::dual_token(
-        HttpMethod::Get,
-        paths::NATIVE_SESSIONS_PATH,
-        "nativeSessions",
-        "nativeSessions.list",
-    )
-    .with_required_permission("birdcoder.runtime-native-sessions.read"),
-    HttpRoute::dual_token(
-        HttpMethod::Get,
-        paths::NATIVE_SESSION_DETAIL_PATH,
-        "nativeSessions",
-        "nativeSessions.retrieve",
-    )
-    .with_required_permission("birdcoder.runtime-native-sessions.read"),
     HttpRoute::dual_token(
         HttpMethod::Get,
         paths::MODELS_PATH,

@@ -5,125 +5,128 @@ import path from 'node:path';
 const rootDir = process.cwd();
 const failures = [];
 
+function exists(relativePath) {
+  return fs.existsSync(path.join(rootDir, relativePath));
+}
+
 function read(relativePath) {
   const absolutePath = path.join(rootDir, relativePath);
-  assert.ok(fs.existsSync(absolutePath), `${relativePath} must exist`);
+  if (!fs.existsSync(absolutePath)) {
+    failures.push(`${relativePath} must exist`);
+    return '';
+  }
   return fs.readFileSync(absolutePath, 'utf8');
 }
 
-function readJson(relativePath) {
-  return JSON.parse(read(relativePath));
+function failWhen(condition, message) {
+  if (condition) {
+    failures.push(message);
+  }
 }
 
-function fail(message) {
-  failures.push(message);
+function readRustTree(relativeDirectory) {
+  const absoluteDirectory = path.join(rootDir, relativeDirectory);
+  if (!fs.existsSync(absoluteDirectory)) {
+    failures.push(`${relativeDirectory} must exist`);
+    return '';
+  }
+  return fs
+    .readdirSync(absoluteDirectory, { recursive: true, withFileTypes: true })
+    .filter((entry) => entry.isFile() && entry.name.endsWith('.rs'))
+    .map((entry) => fs.readFileSync(path.join(entry.parentPath ?? entry.path, entry.name), 'utf8'))
+    .join('\n');
 }
 
 const rootCargo = read('Cargo.toml');
-if (!rootCargo.includes('sdkwork_database_sqlx')) {
-  fail('root Cargo.toml must declare sdkwork-database-sqlx workspace dependency');
-}
-if (!rootCargo.includes('sdkwork_database_config')) {
-  fail('root Cargo.toml must declare sdkwork-database-config workspace dependency');
-}
+failWhen(!rootCargo.includes('sdkwork_database_sqlx'), 'root Cargo.toml must declare sdkwork-database-sqlx');
+failWhen(!rootCargo.includes('sdkwork_database_id'), 'root Cargo.toml must declare sdkwork-database-id');
+failWhen(
+  rootCargo.includes('sdkwork-birdcoder-sqlx-repository-pool'),
+  'root Cargo.toml must not retain the BirdCoder SQLx pool bridge',
+);
 
-const apiServerCargo = read('crates/sdkwork-api-birdcoder-standalone-gateway/Cargo.toml');
-if (!apiServerCargo.includes('sdkwork_database_sqlx')) {
-  fail('sdkwork-api-birdcoder-standalone-gateway must declare sdkwork-database-sqlx dependency');
-}
-if (!apiServerCargo.includes('sqlx')) {
-  fail('sdkwork-api-birdcoder-standalone-gateway must depend on sqlx for schema bootstrap');
-}
-if (apiServerCargo.includes('rusqlite')) {
-  fail('sdkwork-api-birdcoder-standalone-gateway must not depend on rusqlite after sqlx migration');
-}
+const repositoryCargo = read('crates/sdkwork-birdcoder-workspace-repository-sqlx/Cargo.toml');
+failWhen(!repositoryCargo.includes('sdkwork_database_sqlx'), 'workbench repositories must consume sdkwork-database-sqlx');
+failWhen(!repositoryCargo.includes('sdkwork_database_id'), 'workbench repositories must consume the canonical SDKWork ID provider');
+failWhen(repositoryCargo.includes('sdkwork-birdcoder-sqlx-repository-pool'), 'workbench repositories must not consume a local pool adapter');
+failWhen(repositoryCargo.includes('rusqlite'), 'workbench repositories must not introduce a second SQLite persistence stack');
 
-const apiServerSources = [
-  'crates/sdkwork-api-birdcoder-standalone-gateway/src/bootstrap/repositories.rs',
-  'crates/sdkwork-api-birdcoder-standalone-gateway/src/bootstrap/database.rs',
-  'crates/sdkwork-api-birdcoder-standalone-gateway/src/bootstrap/config.rs',
-  'crates/sdkwork-api-birdcoder-standalone-gateway/src/bootstrap/state.rs',
-  'crates/sdkwork-api-birdcoder-standalone-gateway/src/bootstrap/mod.rs',
-  'crates/sdkwork-api-birdcoder-standalone-gateway/src/health.rs',
-].map((relativePath) => read(relativePath)).join('\n');
+const repositorySource = readRustTree('crates/sdkwork-birdcoder-workspace-repository-sqlx/src');
+failWhen(!repositorySource.includes('DatabasePool'), 'workbench repositories must accept sdkwork_database_sqlx::DatabasePool');
+failWhen(
+  !/(?:IdGenerator|SnowflakeIdGenerator)/.test(repositorySource),
+  'workbench repositories must receive an SDKWork application ID generator',
+);
+failWhen(/last_insert_rowid|last_insert_id|RETURNING\s+id/i.test(repositorySource), 'repositories must not allocate IDs inside the database');
 
-if (!apiServerSources.includes('bootstrap_database')) {
-  fail('sdkwork-api-birdcoder-standalone-gateway bootstrap must call database::bootstrap_database');
-}
-if (!apiServerSources.includes('resolve_birdcoder_database_config')) {
-  fail('sdkwork-api-birdcoder-standalone-gateway must resolve SDKWORK_BIRDCODER database config explicitly');
-}
-if (!apiServerSources.includes('database_pool')) {
-  fail('sdkwork-api-birdcoder-standalone-gateway AppState must retain sdkwork-database pool');
-}
-if (!apiServerSources.includes('wire_repositories(database_pool')) {
-  fail('wire_repositories must consume sdkwork-database pool');
-}
-if (!apiServerSources.includes('AnyPool')) {
-  fail('standalone-gateway repositories must use sqlx AnyPool for engine-agnostic persistence');
-}
-if (!apiServerSources.includes('DatabasePool::Postgres')) {
-  fail('standalone-gateway health checks must probe PostgreSQL pools when configured');
-}
-if (!apiServerSources.includes('bootstrap_birdcoder_database(pool.clone())')) {
-  fail('standalone-gateway database bootstrap must use database-host lifecycle for all engines');
-}
-if (apiServerSources.includes('ensure_schema')) {
-  fail('standalone-gateway database bootstrap must not keep inline ensure_schema after lifecycle unification');
-}
-
-const sqlxRepoCrates = [
-  'crates/sdkwork-birdcoder-coding-sessions-repository-sqlx/Cargo.toml',
-  'crates/sdkwork-birdcoder-workspace-repository-sqlx/Cargo.toml',
-  'crates/sdkwork-birdcoder-document-repository-sqlx/Cargo.toml',
-  'crates/sdkwork-birdcoder-skill-packages-repository-sqlx/Cargo.toml',
-  'crates/sdkwork-birdcoder-model-config-repository-sqlx/Cargo.toml',
-];
-for (const relativePath of sqlxRepoCrates) {
-  const cargoToml = read(relativePath);
-  if (!cargoToml.includes('sqlx')) {
-    fail(`${relativePath} must depend on sqlx per DATABASE_SPEC.md`);
-  }
-  if (cargoToml.includes('rusqlite')) {
-    fail(`${relativePath} must not depend on rusqlite after sqlx migration`);
+const allowedRepositoryModules = new Set([
+  'mod.rs',
+  'project.rs',
+  'project_document_binding.rs',
+  'project_runtime_location.rs',
+  'project_sandbox_binding.rs',
+  'workspace.rs',
+]);
+const repositoryDirectory = path.join(
+  rootDir,
+  'crates/sdkwork-birdcoder-workspace-repository-sqlx/src/repository',
+);
+if (fs.existsSync(repositoryDirectory)) {
+  const unexpectedModules = fs
+    .readdirSync(repositoryDirectory, { withFileTypes: true })
+    .filter((entry) => entry.isFile() && entry.name.endsWith('.rs') && !allowedRepositoryModules.has(entry.name))
+    .map((entry) => entry.name)
+    .sort();
+  failWhen(
+    unexpectedModules.length > 0,
+    `workbench repository crate contains non-owned modules: ${unexpectedModules.join(', ')}`,
+  );
+  for (const requiredModule of allowedRepositoryModules) {
+    failWhen(!exists(path.join('crates/sdkwork-birdcoder-workspace-repository-sqlx/src/repository', requiredModule)), `${requiredModule} workbench repository module must exist`);
   }
 }
 
-const repositoryPoolCrate = read('crates/sdkwork-birdcoder-sqlx-repository-pool/Cargo.toml');
-if (!repositoryPoolCrate.includes('sdkwork_database_sqlx')) {
-  fail('birdcoder sqlx repository pool bridge must depend on sdkwork-database-sqlx');
+const gatewaySource = readRustTree('crates/sdkwork-api-birdcoder-standalone-gateway/src/bootstrap');
+failWhen(!gatewaySource.includes('DatabasePool'), 'standalone gateway must retain the canonical DatabasePool');
+failWhen(!gatewaySource.includes('bootstrap_birdcoder_database'), 'standalone gateway must delegate schema lifecycle to database-host');
+failWhen(
+  !gatewaySource.includes('SnowflakeNodeAllocator'),
+  'standalone gateway must allocate one fenced SDKWork Snowflake node lease per process',
+);
+for (const forbiddenSymbol of [
+  'SqliteCodingSessionRepository',
+  'SqliteDeploymentRepository',
+  'SqliteDocumentRepository',
+  'SqliteSkillPackageRepository',
+  'SqliteTeamRepository',
+  'SqliteProjectWorkspaceBindingRepository',
+]) {
+  failWhen(gatewaySource.includes(forbiddenSymbol), `standalone gateway must not wire ${forbiddenSymbol}`);
 }
 
-const iamEnvScript = read('scripts/birdcoder-iam-env.mjs');
-if (!iamEnvScript.includes('SDKWORK_BIRDCODER_DATABASE_URL')) {
-  fail('birdcoder-iam-env must bridge legacy sqlite path to SDKWORK_BIRDCODER_DATABASE_URL');
+for (const forbiddenPath of [
+  'crates/sdkwork-birdcoder-coding-sessions-repository-sqlx',
+  'crates/sdkwork-birdcoder-document-repository-sqlx',
+  'crates/sdkwork-birdcoder-skill-packages-repository-sqlx',
+  'crates/sdkwork-birdcoder-model-config-repository-sqlx',
+  'crates/sdkwork-birdcoder-chat-repository-sqlx',
+  'crates/sdkwork-birdcoder-commerce-repository-sqlx',
+  'crates/sdkwork-birdcoder-app-templates-repository-sqlx',
+  'crates/sdkwork-birdcoder-sqlx-repository-pool',
+]) {
+  failWhen(exists(forbiddenPath), `${forbiddenPath} must be removed after owner cutover`);
 }
 
-const canonicalOpenApi = read('deployments/server-windows/x64/openapi/coding-server-v1.json');
-const canonicalOpenApiDocument = readJson('deployments/server-windows/x64/openapi/coding-server-v1.json');
-const canonicalOpenApiPathKeys = Object.keys(canonicalOpenApiDocument.paths ?? {});
-if (canonicalOpenApiPathKeys.some((routePath) => routePath === '/app/v3/api/coding_sessions' || routePath.startsWith('/app/v3/api/coding_sessions/'))) {
-  fail('canonical coding-server OpenAPI must not keep legacy /app/v3/api/coding_sessions paths');
-}
-if (!canonicalOpenApiPathKeys.includes('/app/v3/api/intelligence/coding_sessions')) {
-  fail('canonical coding-server OpenAPI must declare intelligence coding_sessions routes');
-}
-if (canonicalOpenApiPathKeys.some((routePath) => routePath.includes('coding-sessions'))) {
-  fail('canonical coding-server OpenAPI must use lower_snake_case coding_sessions path segments');
-}
-
-const dataKernelPaths = [
-  'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-contracts-commons/src/data.ts',
-  'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/src/storage/providers.ts',
-];
-const dataKernel = dataKernelPaths.map((relativePath) => read(relativePath)).join('\n');
-if (!dataKernel.includes('ops_schema_migration_history')) {
-  fail('TypeScript data kernel must track ops_schema_migration_history per DATABASE_SPEC.md');
-}
+const localDataKernel = [
+  read('apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-contracts-commons/src/data.ts'),
+  read('apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/src/storage/providers.ts'),
+].join('\n');
+failWhen(/CREATE\s+TABLE|BIRDCODER_SCHEMA_MIGRATIONS|ai_coding_session|chat_conversation|ai_skill_package/i.test(localDataKernel), 'frontend packages must not retain a second authoritative application schema or owner-domain migrations');
 
 if (failures.length > 0) {
   process.stderr.write(`Database framework standard failed:\n${failures.map((item) => `- ${item}`).join('\n')}\n`);
   process.exit(1);
 }
 
+assert.ok(true);
 process.stdout.write('Database framework standard passed\n');

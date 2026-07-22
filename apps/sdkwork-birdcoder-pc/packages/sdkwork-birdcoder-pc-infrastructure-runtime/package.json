@@ -30,6 +30,10 @@
     "./workspaceRealtime": {
       "import": "./src/workspaceRealtime.ts",
       "types": "./src/workspaceRealtime.ts"
+    },
+    "./runtimeTopology": {
+      "import": "./src/runtimeTopology.ts",
+      "types": "./src/runtimeTopology.ts"
     }
   },
   "dependencies": {

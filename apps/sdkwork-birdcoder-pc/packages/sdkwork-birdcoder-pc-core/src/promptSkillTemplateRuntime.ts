@@ -2,19 +2,12 @@ import {
   BIRDCODER_APP_TEMPLATE_TARGET_PROFILES,
   BIRDCODER_PROMPT_COMPOSITION_LAYERS,
   BIRDCODER_PROMPT_COMPOSITION_LAYER_IDS,
-  BIRDCODER_SKILL_BINDING_SCOPE_TYPES,
   type BirdCoderAppTemplateRuntimeInstantiation,
   type BirdCoderAppTemplateRuntimeInstantiationOptions,
   type BirdCoderPromptFragmentInput,
   type BirdCoderPromptRuntimeAssembly,
   type BirdCoderPromptRuntimeAssemblyOptions,
   type BirdCoderResolvedPromptLayer,
-  type BirdCoderResolvedSkillBinding,
-  type BirdCoderSkillBindingDescriptor,
-  type BirdCoderSkillInstallationDescriptor,
-  type BirdCoderSkillRuntimeAssembly,
-  type BirdCoderSkillRuntimeAssemblyOptions,
-  type BirdCoderSkillRuntimeConfigDescriptor,
 } from '@sdkwork/birdcoder-pc-contracts-commons';
 
 function normalizeStringList(values: readonly string[] | undefined): string[] {
@@ -32,30 +25,6 @@ function normalizeStringList(values: readonly string[] | undefined): string[] {
   }
 
   return normalized;
-}
-
-function mergeConfigRecords(
-  ...records: Array<Readonly<Record<string, string>> | undefined>
-): Record<string, string> {
-  const merged: Record<string, string> = {};
-
-  for (const record of records) {
-    if (!record) {
-      continue;
-    }
-
-    for (const [key, value] of Object.entries(record)) {
-      const normalizedKey = String(key ?? '').trim();
-      const normalizedValue = String(value ?? '').trim();
-      if (!normalizedKey || !normalizedValue) {
-        continue;
-      }
-
-      merged[normalizedKey] = normalizedValue;
-    }
-  }
-
-  return merged;
 }
 
 function normalizePortablePath(value: string): string {
@@ -99,24 +68,6 @@ function toPromptLayerContent(fragments: readonly BirdCoderPromptFragmentInput[]
     .map((fragment) => String(fragment.content ?? '').trim())
     .filter((content) => content.length > 0)
     .join('\n');
-}
-
-function sortBindingsByScope(
-  bindings: readonly BirdCoderSkillBindingDescriptor[],
-): BirdCoderSkillBindingDescriptor[] {
-  const scopeOrder = new Map(
-    BIRDCODER_SKILL_BINDING_SCOPE_TYPES.map((scope, index) => [scope, index]),
-  );
-
-  return [...bindings].sort((left, right) => {
-    const leftOrder = scopeOrder.get(left.scopeType) ?? Number.MAX_SAFE_INTEGER;
-    const rightOrder = scopeOrder.get(right.scopeType) ?? Number.MAX_SAFE_INTEGER;
-    if (leftOrder !== rightOrder) {
-      return leftOrder - rightOrder;
-    }
-
-    return left.bindingId.localeCompare(right.bindingId);
-  });
 }
 
 export function assembleBirdCoderPromptRuntime(
@@ -176,83 +127,6 @@ export function assembleBirdCoderPromptRuntime(
   };
 }
 
-export function assembleBirdCoderSkillRuntime(
-  options: BirdCoderSkillRuntimeAssemblyOptions,
-): BirdCoderSkillRuntimeAssembly {
-  const installationsById = new Map<string, BirdCoderSkillInstallationDescriptor>();
-  for (const installation of options.installations ?? []) {
-    installationsById.set(installation.installationId, installation);
-  }
-
-  const runtimeConfigsByBindingId = new Map<string, BirdCoderSkillRuntimeConfigDescriptor[]>();
-  for (const runtimeConfig of options.runtimeConfigs ?? []) {
-    const nextConfigs = runtimeConfigsByBindingId.get(runtimeConfig.bindingId) ?? [];
-    nextConfigs.push(runtimeConfig);
-    runtimeConfigsByBindingId.set(runtimeConfig.bindingId, nextConfigs);
-  }
-
-  const resolvedBindings: BirdCoderResolvedSkillBinding[] = [];
-  for (const binding of sortBindingsByScope(options.bindings ?? [])) {
-    if (binding.enabled === false) {
-      continue;
-    }
-
-    const installation = installationsById.get(binding.installationId);
-    if (!installation) {
-      continue;
-    }
-
-    const installationCapabilityIds = normalizeStringList(installation.capabilityIds);
-    const bindingCapabilityIds = normalizeStringList(
-      binding.capabilityIds?.length ? binding.capabilityIds : installationCapabilityIds,
-    ).filter((capabilityId) => installationCapabilityIds.includes(capabilityId));
-
-    if (bindingCapabilityIds.length === 0) {
-      continue;
-    }
-
-    const runtimeConfigs = runtimeConfigsByBindingId.get(binding.bindingId) ?? [];
-    const resolvedConfig = mergeConfigRecords(
-      installation.config,
-      binding.config,
-      ...runtimeConfigs.map((runtimeConfig) => runtimeConfig.values),
-    );
-
-    resolvedBindings.push({
-      bindingId: binding.bindingId,
-      installationId: installation.installationId,
-      packageId: installation.packageId,
-      versionId: installation.versionId,
-      scopeType: binding.scopeType,
-      scopeId: binding.scopeId,
-      capabilityIds: bindingCapabilityIds,
-      resolvedConfig,
-      sourceChain: [
-        {
-          stage: 'installation',
-          id: installation.installationId,
-        },
-        {
-          stage: 'binding',
-          id: binding.bindingId,
-        },
-        ...runtimeConfigs.map((runtimeConfig) => ({
-          stage: 'runtime_config' as const,
-          id: runtimeConfig.runtimeConfigId,
-        })),
-      ],
-    });
-  }
-
-  return {
-    scopeOrder: [...BIRDCODER_SKILL_BINDING_SCOPE_TYPES],
-    resolvedBindings,
-    activeCapabilityIds: normalizeStringList(
-      resolvedBindings.flatMap((binding) => binding.capabilityIds),
-    ),
-  };
-}
-
 export function instantiateBirdCoderAppTemplateRuntime(
   options: BirdCoderAppTemplateRuntimeInstantiationOptions,
 ): BirdCoderAppTemplateRuntimeInstantiation {
@@ -285,7 +159,7 @@ export function instantiateBirdCoderAppTemplateRuntime(
     releaseFamilies: [...targetProfile.releaseFamilies],
     outputDirectory: joinPortablePath(options.request.destinationRoot, relativeOutputDir),
     promptSeed: options.preset.promptSeed,
-    skillBindingIds: normalizeStringList(options.preset.skillBindingIds),
+    skillInstallationIds: normalizeStringList(options.preset.skillInstallationIds),
     workflowIds: normalizeStringList(options.preset.workflowIds),
     scaffoldFiles: normalizeStringList(options.preset.scaffoldFiles),
     status: 'planned',

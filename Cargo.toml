@@ -38,6 +38,7 @@ members = [
     "crates/sdkwork-birdcoder-database-host",
     # Host/server crates
     "apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-desktop/src-tauri",
+    "apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-server/src-host",
     "crates/sdkwork-api-birdcoder-standalone-gateway",
     "crates/sdkwork-birdcoder-service-host",
     "crates/sdkwork-birdcoder-tauri-host",
@@ -146,6 +147,7 @@ sdkwork_database_config = { package = "sdkwork-database-config", path = "../sdkw
 sdkwork_database_lifecycle = { package = "sdkwork-database-lifecycle", path = "../sdkwork-database/crates/sdkwork-database-lifecycle" }
 sdkwork_database_spi = { package = "sdkwork-database-spi", path = "../sdkwork-database/crates/sdkwork-database-spi" }
 sdkwork_database_sqlx = { package = "sdkwork-database-sqlx", path = "../sdkwork-database/crates/sdkwork-database-sqlx" }
+sdkwork_database_id = { package = "sdkwork-database-id", path = "../sdkwork-database/crates/sdkwork-database-id" }
 sdkwork-utils-rust = { path = "../sdkwork-utils/packages/sdkwork-utils-rust" }
 sdkwork-birdcoder-database-host = { path = "crates/sdkwork-birdcoder-database-host" }
 sdkwork-birdcoder-router-context = { path = "crates/sdkwork-birdcoder-router-context" }

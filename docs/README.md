@@ -13,6 +13,9 @@ These two files are the onboarding and review entrypoints. Product behavior belo
 
 - [Requirements](product/requirements/)
 - [Architecture decisions](architecture/decisions/)
+- [Domain ownership convergence](product/requirements/REQ-2026-0002-domain-ownership-convergence.md)
+- [Domain ownership decision](architecture/decisions/ADR-20260722-domain-ownership-and-single-write-authority.md)
+- [Domain ownership cutover](migrations/MIG-2026-0002-domain-ownership-cutover.md)
 - [Distributed project runtime locations](architecture/decisions/ADR-20260716-distributed-project-runtime-locations.md)
 - [Runtime-location migration plan](migrations/MIG-2026-0001-distributed-project-runtime-locations.md)
 - [Engineering plans](engineering/)
@@ -47,6 +50,12 @@ Working documents must link back to the Canon and may be deleted or archived aft
   decrypted only by the authenticated owning target for a verified action.
 - Remote execution is not described as available until the isolated-runner
   capability has implementation and release evidence.
+- BirdCoder owns only workbench workspace, project, document-binding,
+  runtime-location, and sandbox-binding facts. AI sessions and assistant
+  content use Agents; human messages use IM; Skills and all other platform
+  domains use their owner SDKs.
+- Active documents do not describe projections, shadow tables, synchronized
+  caches, copied OpenAPI, or compatibility facades as supported architecture.
 
 Authority: `../sdkwork-specs/DOCUMENTATION_SPEC.md`.
 
@@ -54,5 +63,6 @@ Authority: `../sdkwork-specs/DOCUMENTATION_SPEC.md`.
 
 ```bash
 node ../sdkwork-specs/tools/check-repository-docs-standard.mjs --root . --profile application
+pnpm check:domain-ownership
 pnpm docs:build
 ```

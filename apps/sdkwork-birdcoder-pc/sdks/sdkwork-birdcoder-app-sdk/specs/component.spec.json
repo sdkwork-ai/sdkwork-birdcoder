@@ -149,6 +149,18 @@
         "packageByLanguage": {
           "typescript": "@sdkwork/membership-app-sdk"
         }
+      },
+      {
+        "workspace": "sdkwork-skills-app-sdk",
+        "role": "skills-app-capability",
+        "required": true,
+        "dependencyMode": "consumer-sdk",
+        "apiPrefix": "/app/v3/api",
+        "apiAuthority": "sdkwork-skills-app-api",
+        "generatedTransportImportPolicy": "forbidden",
+        "packageByLanguage": {
+          "typescript": "@sdkwork/skills-app-sdk"
+        }
       }
     ],
     "sdkClients": [

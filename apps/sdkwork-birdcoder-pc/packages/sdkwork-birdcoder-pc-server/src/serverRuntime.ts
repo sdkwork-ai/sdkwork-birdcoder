@@ -215,8 +215,6 @@ export function getOpenApiTagDescription(tag: string): string {
       return 'Workspace, project, release, deployment, and delivery resources.';
     case 'runtime':
       return 'Runtime engine, model, native session, and local operation resources.';
-    case 'skills':
-      return 'Skill package catalog and installation resources.';
     case 'system':
       return 'System descriptor, health, route catalog, and runtime metadata resources.';
     case 'templates':
@@ -273,11 +271,8 @@ export function getOpenApiTagForOperationId(operationId: string): string {
   if (/^(?:workspaces|projects|deployments|releases|deploymentGovernance)\./u.test(normalizedOperationId)) {
     return 'platform';
   }
-  if (/^(?:engines|nativeSessionProviders|nativeSessions|models|modelConfig)\./u.test(normalizedOperationId)) {
+  if (/^(?:engines|nativeSessionProviders|models|modelConfig)\./u.test(normalizedOperationId)) {
     return 'runtime';
-  }
-  if (/^skillPackages\./u.test(normalizedOperationId)) {
-    return 'skills';
   }
   if (/^appTemplates\./u.test(normalizedOperationId)) {
     return 'templates';
@@ -395,8 +390,6 @@ export function getOpenApiDomainForOperationId(operationId: string): BirdCoderOp
       return 'platform';
     case 'runtime':
       return 'runtime';
-    case 'skills':
-      return 'ecosystem';
     case 'system':
       return 'system';
     case 'templates':
@@ -505,7 +498,7 @@ export function getOpenApiScopeMetadata(
   }
 
   if (
-    /^(?:codingSessions|operations|nativeSessions)/u.test(
+    /^(?:codingSessions|operations)/u.test(
       operationId,
     )
   ) {
@@ -562,8 +555,6 @@ export function getOperationIdForRoute(route: BirdCoderApiRouteDefinition): stri
     ['GET /app/v3/api/system/routes', 'routes.list'],
     ['GET /app/v3/api/engines', 'engines.list'],
     ['GET /app/v3/api/native_session_providers', 'nativeSessionProviders.list'],
-    ['GET /app/v3/api/native_sessions', 'nativeSessions.list'],
-    ['GET /app/v3/api/native_sessions/:id', 'nativeSessions.retrieve'],
     ['GET /app/v3/api/engines/:engineKey/capabilities', 'engines.capabilities.retrieve'],
     ['GET /app/v3/api/models', 'models.list'],
     ['GET /app/v3/api/model_config', 'modelConfig.retrieve'],
@@ -674,8 +665,6 @@ export function getOperationIdForRoute(route: BirdCoderApiRouteDefinition): stri
     ['POST /app/v3/api/projects', 'projects.create'],
     ['PATCH /app/v3/api/projects/:projectId', 'projects.update'],
     ['DELETE /app/v3/api/projects/:projectId', 'projects.delete'],
-    ['GET /app/v3/api/skill_packages', 'skillPackages.list'],
-    ['POST /app/v3/api/skill_packages/:packageId/installations', 'skillPackages.installations.create'],
     ['GET /app/v3/api/app_templates', 'appTemplates.list'],
     ['GET /app/v3/api/documents', 'documents.list'],
     ['GET /app/v3/api/chat/conversations', 'chat.conversations.list'],

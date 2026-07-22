@@ -3,6 +3,9 @@ import { bindDefaultBirdCoderIdeServicesRuntime } from '@sdkwork/birdcoder-pc-in
 import type {
   BirdCoderAppSdkApiClient,
   BirdCoderBackendSdkApiClient,
+  BirdCoderDeploymentProfile,
+  BirdCoderExecutionLocation,
+  BirdCoderRuntimeTarget,
 } from '@sdkwork/birdcoder-pc-infrastructure-runtime';
 import { bootstrapBirdCoderMembershipSdk } from '@sdkwork/birdcoder-pc-infrastructure-runtime/membershipSdkBootstrap';
 import { bootstrapBirdCoderDriveSandboxExplorer } from '@sdkwork/birdcoder-pc-infrastructure-runtime/driveSandboxExplorer';
@@ -21,8 +24,11 @@ export interface BootstrapShellRuntimeOptions {
   apiBaseUrl?: string;
   backendClient?: BirdCoderBackendSdkApiClient;
   bootstrapTimeoutMs?: number;
+  deploymentProfile?: BirdCoderDeploymentProfile;
+  executionLocation?: BirdCoderExecutionLocation;
   host?: BirdHostDescriptor;
   realtimeTransport?: BirdCoderRealtimeTransportPreference;
+  runtimeTarget?: BirdCoderRuntimeTarget;
 }
 
 interface ShellRuntimeBootstrapTimeoutBoundary {
@@ -119,4 +125,3 @@ export async function bootstrapShellRuntimeImpl(
 
   return bootstrapShellRuntimePromise;
 }
-

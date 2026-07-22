@@ -1,7 +1,7 @@
 schemaVersion: 1
 kind: sdkwork.database.drift-policy
 module_id: birdcoder
-owner_team: birdcoder-platform
+owner_team: birdcoder-workbench
 contract_source: contract/schema.yaml
 
 # ---------------------------------------------------------------------------
@@ -13,20 +13,20 @@ contract_source: contract/schema.yaml
 detection:
   # Schema-level: expected schema (contract + applied migrations) vs live schema.
   schema_missing: critical
-  schema_extra: warn
+  schema_extra: critical
   engine_unsupported: critical
 
   # Table-level
   missing_table: critical
-  extra_table: warn
-  table_owner_mismatch: warn
+  extra_table: critical
+  table_owner_mismatch: critical
 
   # Column-level
   missing_column: critical
-  extra_column: warn
+  extra_column: critical
   type_mismatch: critical
   nullability_mismatch: critical
-  default_mismatch: warn
+  default_mismatch: critical
 
   # Index-level
   missing_index: warn

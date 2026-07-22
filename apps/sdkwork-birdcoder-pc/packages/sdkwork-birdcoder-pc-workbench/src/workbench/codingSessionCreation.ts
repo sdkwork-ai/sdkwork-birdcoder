@@ -11,7 +11,37 @@ export interface CreateNewCodingSessionRequest {
   engineId?: string;
   modelId?: string;
   projectId?: string;
+  source?:
+    | 'code-sidebar'
+    | 'file-menu'
+    | 'global-event'
+    | 'keyboard-shortcut'
+    | 'message-submit'
+    | 'multi-window'
+    | 'studio'
+    | 'workspace-menu';
+  title?: string;
 }
+
+export interface NormalizedCreateNewCodingSessionRequest {
+  engineId?: string;
+  modelId?: string;
+  projectId: string;
+  source: NonNullable<CreateNewCodingSessionRequest['source']>;
+  title?: string;
+}
+
+export interface CreateCodingSessionActionOptions {
+  rethrowError?: boolean;
+  shouldSelectCreatedSession?: ShouldSelectWorkbenchCodingSession;
+  showFailureToast?: boolean;
+  showSuccessToast?: boolean;
+}
+
+export type CreateWorkbenchCodingSessionFromRequest = (
+  request: CreateNewCodingSessionRequest,
+  options?: CreateCodingSessionActionOptions,
+) => Promise<BirdCoderCodingSession | null>;
 
 export interface CreateCodingSessionWithSelectionOptions {
   engineId?: string;
@@ -79,6 +109,40 @@ export type SaveWorkbenchFileContent = (
 export type WorkbenchCodingSessionTurnContext = BirdCoderCodingSessionTurnIdeContext;
 
 const WORKBENCH_MESSAGE_SESSION_TITLE_MAX_LENGTH = 20;
+
+function normalizeOptionalText(value: string | undefined): string | undefined {
+  const normalized = value?.trim();
+  return normalized || undefined;
+}
+
+export function normalizeCreateNewCodingSessionRequest(
+  request: CreateNewCodingSessionRequest | undefined,
+  fallbackProjectId: string,
+): NormalizedCreateNewCodingSessionRequest | null {
+  const projectId = normalizeOptionalText(request?.projectId) ?? fallbackProjectId.trim();
+  if (!projectId) return null;
+  const engineId = normalizeOptionalText(request?.engineId);
+  const modelId = normalizeOptionalText(request?.modelId);
+  const title = normalizeOptionalText(request?.title);
+  return {
+    projectId,
+    source: request?.source ?? 'global-event',
+    ...(engineId ? { engineId } : {}),
+    ...(modelId ? { modelId } : {}),
+    ...(title ? { title } : {}),
+  };
+}
+
+export function buildCreateNewCodingSessionInFlightKey(
+  request: NormalizedCreateNewCodingSessionRequest,
+): string {
+  return [
+    request.projectId,
+    request.engineId ?? '',
+    request.modelId ?? '',
+    request.title ?? '',
+  ].join('\u001f');
+}
 
 export function emitCreateNewCodingSessionRequest(
   request?: CreateNewCodingSessionRequest,
@@ -181,23 +245,21 @@ function buildWorkbenchMessageSessionTitle(messageContent: string): string {
 }
 
 export async function ensureWorkbenchCodingSessionForMessage({
-  createCodingSessionWithSelection,
+  createCodingSessionFromRequest,
   currentCodingSessionId,
   currentProjectId,
   messageContent,
   requestedEngineId,
   requestedModelId,
   resolveProjectId,
-  selectCodingSession,
 }: {
-  createCodingSessionWithSelection: CreateWorkbenchCodingSessionWithSelection;
+  createCodingSessionFromRequest: CreateWorkbenchCodingSessionFromRequest;
   currentCodingSessionId?: string | null;
   currentProjectId?: string | null;
   messageContent: string;
   requestedEngineId?: string | null;
   requestedModelId?: string | null;
   resolveProjectId: ResolveWorkbenchProjectId;
-  selectCodingSession: SelectWorkbenchCodingSession;
 }): Promise<{
   codingSessionId: string;
   projectId: string;
@@ -222,14 +284,16 @@ export async function ensureWorkbenchCodingSessionForMessage({
     };
   }
 
-  const newSession = await createWorkbenchCodingSessionInProject({
-    createCodingSessionWithSelection,
+  const newSession = await createCodingSessionFromRequest({
+    engineId: requestedEngineId?.trim() || undefined,
+    modelId: requestedModelId?.trim() || undefined,
     projectId,
-    requestedEngineId: requestedEngineId?.trim() || undefined,
-    requestedModelId: requestedModelId?.trim() || undefined,
-    selectCodingSession,
+    source: 'message-submit',
     title: buildWorkbenchMessageSessionTitle(messageContent),
+  }, {
+    showSuccessToast: false,
   });
+  if (!newSession) return null;
 
   return {
     codingSessionId: newSession.id,

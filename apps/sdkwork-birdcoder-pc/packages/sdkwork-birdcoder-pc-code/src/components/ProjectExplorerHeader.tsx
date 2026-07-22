@@ -1,6 +1,6 @@
 import type { ReactNode, RefObject } from 'react';
 import { Check, Folder, FolderPlus, ListFilter, RefreshCw, Search, X } from 'lucide-react';
-import { WorkbenchNewSessionButton } from '@sdkwork/birdcoder-pc-ui';
+import { WorkbenchNewSessionButton } from '@sdkwork/birdcoder-pc-ui/components/WorkbenchNewSessionButton';
 import type {
   ProjectExplorerOrganizeBy,
   ProjectExplorerSortBy,

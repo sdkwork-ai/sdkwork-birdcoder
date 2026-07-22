@@ -522,7 +522,7 @@ fn extract_projection_overlay_request_segment(value: &str) -> &str {
     value
 }
 
-fn normalize_projection_overlay_message_content(value: &str) -> Option<String> {
+pub fn normalize_projection_overlay_message_content(value: &str) -> Option<String> {
     let extracted_request = extract_projection_overlay_request_segment(value);
     let stripped = strip_projection_overlay_control_tags(extracted_request);
     let normalized = stripped.split_whitespace().collect::<Vec<_>>().join(" ");

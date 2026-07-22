@@ -28,7 +28,8 @@ location, or execution capability.
 | SDKWORK_BIRDCODER_SERVER_HOST / SDKWORK_BIRDCODER_SERVER_PORT | Native server bind address and port. | Cloud deployments cannot bind loopback-only. |
 | SDKWORK_BIRDCODER_ALLOWED_ORIGINS | Comma-separated browser origins. | Required to be explicit and non-wildcard for cloud. |
 | SDKWORK_BIRDCODER_DATABASE_ENGINE | sqlite or postgresql. | Cloud requires PostgreSQL. |
-| SDKWORK_BIRDCODER_DATABASE_URL | Protected PostgreSQL connection string. | Inject through protected host configuration or a secret manager; never expose to Vite. |
+| SDKWORK_CLAW_DATABASE_URL | Canonical protected PostgreSQL connection string. | Inject through protected host configuration or a secret manager; never expose to Vite. |
+| SDKWORK_CLAW_DATABASE_SCHEMA | Canonical PostgreSQL schema for the active environment. | Must match the workspace profile and every embedded module. |
 | SDKWORK_BIRDCODER_DATABASE_FILE | Server/desktop SQLite file when approved. | Keep under the applicable SDKWork private/runtime data directory. |
 | SDKWORK_BIRDCODER_RUNTIME_LOCATION_MASTER_KEY | Master secret for encrypted runtime-location absolute paths. | Server/container only. Use base64url or raw material whose decoded/raw length is at least 32 bytes. Never expose it through `VITE_*`, client runtime config, source-controlled examples, logs, diagnostics, or command lines. |
 | SDKWORK_BIRDCODER_RUNTIME_LOCATION_KEY_ID | Stable identifier for the active runtime-location encryption key. | Server/container only. Must be a non-empty safe key id and must not enter public configuration, logs, or client bundles. |

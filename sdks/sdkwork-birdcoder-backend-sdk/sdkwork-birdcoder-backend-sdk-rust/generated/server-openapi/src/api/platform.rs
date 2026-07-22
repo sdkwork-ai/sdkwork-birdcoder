@@ -3,7 +3,6 @@ use std::sync::Arc;
 use crate::api::paths::backend_path;
 use crate::api::paths::append_query_string;
 use crate::http::{SdkworkError, SdkworkHttpClient};
-use crate::models::{BirdCoderDeploymentRecordSummaryListEnvelope, BirdCoderDeploymentTargetSummaryListEnvelope, BirdCoderReleaseSummaryListEnvelope};
 
 #[derive(Clone)]
 pub struct PlatformApi {
@@ -16,13 +15,13 @@ impl PlatformApi {
     }
 
     /// List governed deployments
-    pub async fn deployment_governance_list(&self) -> Result<BirdCoderDeploymentRecordSummaryListEnvelope, SdkworkError> {
+    pub async fn deployment_governance_list(&self) -> Result<serde_json::Value, SdkworkError> {
         let path = backend_path(&"/deployments".to_string());
         self.client.get(&path, None, None).await
     }
 
     /// List deployment targets
-    pub async fn deployment_governance_targets_list(&self, project_id: &str, page: Option<i64>, page_size: Option<i64>) -> Result<BirdCoderDeploymentTargetSummaryListEnvelope, SdkworkError> {
+    pub async fn deployment_governance_targets_list(&self, project_id: &str, page: Option<i64>, page_size: Option<i64>) -> Result<serde_json::Value, SdkworkError> {
         let query = build_query_string(&[
             QueryParameterSpec::new("page", page, "form", true, false, None),
             QueryParameterSpec::new("page_size", page_size, "form", true, false, None),
@@ -32,7 +31,7 @@ impl PlatformApi {
     }
 
     /// List releases
-    pub async fn releases_list(&self) -> Result<BirdCoderReleaseSummaryListEnvelope, SdkworkError> {
+    pub async fn releases_list(&self) -> Result<serde_json::Value, SdkworkError> {
         let path = backend_path(&"/releases".to_string());
         self.client.get(&path, None, None).await
     }

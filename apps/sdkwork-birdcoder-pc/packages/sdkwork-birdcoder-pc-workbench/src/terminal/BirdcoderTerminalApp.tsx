@@ -10,6 +10,7 @@ import {
 } from './birdcoderTerminalRuntime.ts';
 import { isBirdcoderTauriRuntime } from './runtimeTarget.ts';
 import { useRemoteProjectRuntimeLocationId } from '../hooks/useProjectRuntimeLocation.ts';
+import { useAuth } from '../context/AuthContext.ts';
 
 export interface BirdcoderTerminalAppProps
   extends Omit<DesktopTerminalAppProps<TerminalCommandRequest>, 'children'> {
@@ -21,34 +22,64 @@ export function BirdcoderTerminalApp(props: BirdcoderTerminalAppProps) {
   const desktop = isBirdcoderTauriRuntime();
   const webClient = useBirdcoderBrowserTerminalClient();
   const resolveRemoteProjectRuntimeLocationId = useRemoteProjectRuntimeLocationId();
-  const [runtimeLocationId, setRuntimeLocationId] = useState<string | null>(null);
+  const { sessionRevision } = useAuth();
+  const [runtimeLocationResolution, setRuntimeLocationResolution] = useState<{
+    projectId: string | null;
+    runtimeLocationId: string | null;
+    status: 'idle' | 'loading' | 'resolved';
+  }>({
+    projectId: null,
+    runtimeLocationId: null,
+    status: 'idle',
+  });
   const projectId = props.projectId?.trim() || null;
 
   useEffect(() => {
     let active = true;
-    setRuntimeLocationId(null);
     if (desktop || !projectId) {
+      setRuntimeLocationResolution({
+        projectId,
+        runtimeLocationId: null,
+        status: 'idle',
+      });
       return () => {
         active = false;
       };
     }
 
+    setRuntimeLocationResolution({
+      projectId,
+      runtimeLocationId: null,
+      status: 'loading',
+    });
     void resolveRemoteProjectRuntimeLocationId(projectId, 'terminal')
       .then((resolvedRuntimeLocationId) => {
         if (active) {
-          setRuntimeLocationId(resolvedRuntimeLocationId);
+          setRuntimeLocationResolution({
+            projectId,
+            runtimeLocationId: resolvedRuntimeLocationId,
+            status: 'resolved',
+          });
         }
       })
       .catch(() => {
         if (active) {
-          setRuntimeLocationId(null);
+          setRuntimeLocationResolution({
+            projectId,
+            runtimeLocationId: null,
+            status: 'resolved',
+          });
         }
       });
 
     return () => {
       active = false;
     };
-  }, [desktop, projectId, resolveRemoteProjectRuntimeLocationId]);
+  }, [desktop, projectId, resolveRemoteProjectRuntimeLocationId, sessionRevision]);
+
+  const runtimeLocationId = runtimeLocationResolution.projectId === projectId
+    ? runtimeLocationResolution.runtimeLocationId
+    : null;
 
   const webTarget = useMemo(
     () => resolveBirdcoderBrowserTerminalTarget({
@@ -61,6 +92,22 @@ export function BirdcoderTerminalApp(props: BirdcoderTerminalAppProps) {
 
   if (desktop) {
     return <DesktopTerminalApp {...props} />;
+  }
+
+  if (
+    projectId
+    && (
+      runtimeLocationResolution.projectId !== projectId
+      || runtimeLocationResolution.status === 'loading'
+    )
+  ) {
+    return (
+      <div
+        aria-busy="true"
+        className="h-full min-h-0 w-full bg-[#050607]"
+        data-shell-layout="terminal-runtime-loading"
+      />
+    );
   }
 
   return (

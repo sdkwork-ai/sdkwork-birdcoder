@@ -164,21 +164,6 @@ const strictOffsetRouteContracts = [
     ),
     1,
   ],
-  [
-    'engine-catalog-app-api',
-    readFileSync(
-      new URL('../crates/sdkwork-routes-engine-catalog-app-api/src/handlers.rs', import.meta.url),
-      'utf8',
-    ),
-    readFileSync(
-      new URL(
-        '../crates/sdkwork-routes-engine-catalog-app-api/src/mapper/request.rs',
-        import.meta.url,
-      ),
-      'utf8',
-    ),
-    1,
-  ],
 ] as const;
 
 for (const [crate, routeHandlersSource, requestMapperSource, expectedListHandlers] of
@@ -273,20 +258,11 @@ assert.doesNotMatch(
   'OpenAPI source must not keep pre-launch limit/offset HTTP query parameter aliases.',
 );
 
-const nativeSessionHandlersSource = readFileSync(
-  new URL('../crates/sdkwork-routes-engine-catalog-app-api/src/handlers.rs', import.meta.url),
-  'utf8',
-);
 const authBootstrapSource = readFileSync(
   new URL('../crates/sdkwork-api-birdcoder-standalone-gateway/src/bootstrap/auth.rs', import.meta.url),
   'utf8',
 );
 
-assert.match(
-  nativeSessionHandlersSource,
-  /workspaceId, projectId, and runtimeLocationId are required to list native sessions; the server must also resolve an authorized runtime location/u,
-  'Native session list API must require the complete server-authorized execution scope.',
-);
 assert.match(
   authBootstrapSource,
   /validate_public_path_prefixes\(&birdcoder_public_path_prefixes\(\)\)/u,

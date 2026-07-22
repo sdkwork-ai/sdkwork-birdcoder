@@ -42,13 +42,29 @@
       "import": "./src/components/FileExplorer.tsx",
       "types": "./src/components/FileExplorer.tsx"
     },
+    "./components/ProjectGitDiffDialog": {
+      "import": "./src/components/ProjectGitDiffDialog.tsx",
+      "types": "./src/components/ProjectGitDiffDialog.tsx"
+    },
+    "./components/ProjectGitHeaderControls": {
+      "import": "./src/components/ProjectGitHeaderControls.tsx",
+      "types": "./src/components/ProjectGitHeaderControls.tsx"
+    },
     "./components/ProjectGitOverviewDrawer": {
       "import": "./src/components/ProjectGitOverviewDrawer.tsx",
       "types": "./src/components/ProjectGitOverviewDrawer.tsx"
     },
+    "./components/ProjectGitSubmitDialog": {
+      "import": "./src/components/ProjectGitSubmitDialog.tsx",
+      "types": "./src/components/ProjectGitSubmitDialog.tsx"
+    },
     "./components/UniversalChat": {
       "import": "./src/components/UniversalChat.tsx",
       "types": "./src/components/UniversalChat.tsx"
+    },
+    "./components/WorkbenchNewSessionButton": {
+      "import": "./src/components/WorkbenchNewSessionButton.tsx",
+      "types": "./src/components/WorkbenchNewSessionButton.tsx"
     }
   },
   "scripts": {

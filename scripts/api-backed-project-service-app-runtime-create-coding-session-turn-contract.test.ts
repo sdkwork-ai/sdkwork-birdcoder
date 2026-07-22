@@ -295,9 +295,6 @@ try {
     async getHealth() {
       throw new Error('not needed');
     },
-    async getNativeSession() {
-      throw new Error('not needed');
-    },
     async getOperation() {
       throw new Error('not needed');
     },
@@ -393,9 +390,6 @@ try {
       throw new Error('not needed');
     },
     async listNativeSessionProviders() {
-      return [];
-    },
-    async listNativeSessions() {
       return [];
     },
     async listRoutes() {

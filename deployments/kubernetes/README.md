@@ -35,6 +35,7 @@ backup:
   verifyDatabaseUrlSecretKey: SDKWORK_BIRDCODER_BACKUP_VERIFY_DATABASE_URL
 database:
   engine: postgresql
+  schema: sdkwork_ai_prod
   url: ""
 ```
 
@@ -70,7 +71,7 @@ helm upgrade --install sdkwork-birdcoder ./deployments/kubernetes \
 Required secrets are injected through `auth.existingSecret` by an external
 secret manager:
 
-- `SDKWORK_BIRDCODER_DATABASE_URL` - PostgreSQL connection string
+- `SDKWORK_CLAW_DATABASE_URL` - canonical PostgreSQL connection string
 - Redis credential keys required by the selected Redis deployment
 - Runtime-location active, fingerprint, and historical decryption keys
 - `SDKWORK_BIRDCODER_BACKUP_VERIFY_DATABASE_URL` - isolated restore-test DSN

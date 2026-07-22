@@ -131,6 +131,20 @@ try {
 
   let remoteCodingSessions: BirdCoderCodingSessionSummary[] = [];
 
+  function listRemoteCodingSessions(
+    request?: Parameters<BirdCoderAppRuntimeReadSdkApiClient['listCodingSessions']>[0],
+  ): BirdCoderCodingSessionSummary[] {
+    return remoteCodingSessions.filter((codingSession) => {
+      if (request?.projectId && codingSession.projectId !== request.projectId) {
+        return false;
+      }
+      if (request?.workspaceId && codingSession.workspaceId !== request.workspaceId) {
+        return false;
+      }
+      return true;
+    });
+  }
+
   const codingRuntimeReadClient: BirdCoderAppRuntimeReadSdkApiClient = {
     async getCodingSession(codingSessionId) {
       const codingSession = remoteCodingSessions.find((candidate) => candidate.id === codingSessionId);
@@ -151,9 +165,6 @@ try {
     async getModelConfig() {
       return TEST_CODE_ENGINE_MODEL_CONFIG;
     },
-    async getNativeSession() {
-      throw new Error('not needed');
-    },
     async getOperation() {
       throw new Error('not needed');
     },
@@ -169,16 +180,24 @@ try {
     async listCodingSessionEvents() {
       return [];
     },
+    async listCodingSessionPage(request) {
+      const matchingSessions = listRemoteCodingSessions(request);
+      const offset = request?.offset ?? 0;
+      const pageSize = request?.limit ?? 20;
+      const items = matchingSessions.slice(offset, offset + pageSize);
+      return {
+        items,
+        pageInfo: {
+          hasMore: offset + items.length < matchingSessions.length,
+          mode: 'offset',
+          page: Math.floor(offset / pageSize) + 1,
+          pageSize,
+          totalItems: matchingSessions.length,
+        },
+      };
+    },
     async listCodingSessions(request) {
-      return remoteCodingSessions.filter((codingSession) => {
-        if (request.projectId && codingSession.projectId !== request.projectId) {
-          return false;
-        }
-        if (request.workspaceId && codingSession.workspaceId !== request.workspaceId) {
-          return false;
-        }
-        return true;
-      });
+      return listRemoteCodingSessions(request);
     },
     async listEngines() {
       throw new Error('not needed');
@@ -187,9 +206,6 @@ try {
       throw new Error('not needed');
     },
     async listNativeSessionProviders() {
-      return [];
-    },
-    async listNativeSessions() {
       return [];
     },
     async listRoutes() {

@@ -78,7 +78,7 @@ assert.match(
 
 assert.match(
   codePageSource,
-  /const createCodingSessionWithTranscriptReset = useCallback\([\s\S]*const pendingRequest = beginPendingNewCodingSessionRequest\(normalizedProjectId\);[\s\S]*await createCodingSessionInProject\(normalizedProjectId, requestedEngineId, \{[\s\S]*shouldSelectCreatedSession:[\s\S]*activePendingRequest\?\.requestId === pendingRequest\.requestId[\s\S]*activePendingRequest\.projectId === selectionContext\.projectId[\s\S]*\}\);[\s\S]*clearPendingNewCodingSessionRequest\(pendingRequest\.requestId\);/s,
+  /const createCodingSessionWithTranscriptReset = useCallback\([\s\S]*const pendingRequest = beginPendingNewCodingSessionRequest\(normalizedProjectId\);[\s\S]*await createCodingSessionFromRequest\(\{[\s\S]*\.\.\.request,[\s\S]*projectId: normalizedProjectId,[\s\S]*\}, \{[\s\S]*shouldSelectCreatedSession:[\s\S]*activePendingRequest\?\.requestId === pendingRequest\.requestId[\s\S]*activePendingRequest\.projectId === selectionContext\.projectId[\s\S]*\}\);[\s\S]*clearPendingNewCodingSessionRequest\(pendingRequest\.requestId\);/s,
   'CodePage must only allow asynchronous new-session creation to select the created session while the matching pending request is still active.',
 );
 
@@ -90,13 +90,13 @@ assert.doesNotMatch(
 
 assert.match(
   codePageSource,
-  /const createCodingSessionInProjectWithTranscriptReset = useCallback\(async \([\s\S]*projectId: string,[\s\S]*requestedEngineId\?: string,[\s\S]*requestedModelId\?: string,[\s\S]*\) => \{[\s\S]*await createCodingSessionWithTranscriptReset\([\s\S]*projectId,[\s\S]*requestedEngineId,[\s\S]*requestedModelId,[\s\S]*\);[\s\S]*\}/s,
+  /const createCodingSessionInProjectWithTranscriptReset = useCallback\(async \([\s\S]*projectId: string,[\s\S]*requestedEngineId\?: string,[\s\S]*requestedModelId\?: string,[\s\S]*\) => \{[\s\S]*await createCodingSessionWithTranscriptReset\(\{[\s\S]*engineId: requestedEngineId,[\s\S]*modelId: requestedModelId,[\s\S]*projectId,[\s\S]*source: 'code-sidebar',[\s\S]*\}\);[\s\S]*\}/s,
   'CodePage project-scoped new-session action must remain awaitable and preserve the requested engine/model so global create-session events do not detach from page-level UI orchestration.',
 );
 
 assert.match(
   codePageSource,
-  /useCodingSessionActions\([\s\S]*\{\s*isActive:\s*isVisible,\s*createCodingSessionInProject:\s*createCodingSessionInProjectWithTranscriptReset,\s*\}/s,
+  /useCodingSessionActions\([\s\S]*\{\s*isActive:\s*isVisible,\s*createCodingSessionFromRequest:\s*createCodingSessionWithTranscriptReset,\s*\}/s,
   'CodePage global create-session events must use the same transcript-reset creation callback as visible new-session controls.',
 );
 

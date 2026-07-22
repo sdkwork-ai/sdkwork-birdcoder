@@ -172,9 +172,7 @@ const crates = [
     routes: [
       ['Get', 'ENGINES_PATH', 'engines'],
       ['Get', 'ENGINE_CAPABILITIES_PATH', 'engines'],
-      ['Get', 'NATIVE_SESSION_PROVIDERS_PATH', 'nativeSessions'],
-      ['Get', 'NATIVE_SESSIONS_PATH', 'nativeSessions'],
-      ['Get', 'NATIVE_SESSION_DETAIL_PATH', 'nativeSessions'],
+      ['Get', 'NATIVE_SESSION_PROVIDERS_PATH', 'nativeSessionProviders'],
       ['Get', 'MODELS_PATH', 'models'],
       ['Get', 'MODEL_CONFIG_PATH', 'models'],
       ['Put', 'MODEL_CONFIG_PATH', 'models'],
@@ -190,11 +188,7 @@ const crates = [
     crateDir: 'crates/sdkwork-routes-skill-packages-app-api',
     fnName: 'skill_packages_app_api_route_manifest',
     routesConst: 'SKILL_PACKAGES_APP_API_ROUTES',
-    routes: [
-      ['Get', 'SKILL_PACKAGES_PATH', 'skillPackages'],
-      ['Post', 'SKILL_PACKAGE_INSTALLATIONS_PATH', 'skillPackages'],
-      ['Get', 'APP_TEMPLATES_PATH', 'appTemplates'],
-    ],
+    routes: [['Get', 'APP_TEMPLATES_PATH', 'appTemplates']],
   },
   {
     crateDir: 'crates/sdkwork-routes-commerce-app-api',

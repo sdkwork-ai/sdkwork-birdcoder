@@ -8,5 +8,6 @@ authors.workspace = true
 [dependencies]
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true }
+sdkwork-birdcoder-codeengine = { workspace = true }
 
 

@@ -15,14 +15,6 @@ pub fn build_engine_catalog_app_router() -> Router<EngineCatalogAppState> {
             paths::NATIVE_SESSION_PROVIDERS_PATH,
             get(handlers::list_native_session_providers),
         )
-        .route(
-            paths::NATIVE_SESSIONS_PATH,
-            get(handlers::list_native_sessions),
-        )
-        .route(
-            paths::NATIVE_SESSION_DETAIL_PATH,
-            get(handlers::get_native_session),
-        )
         .route(paths::MODELS_PATH, get(handlers::list_models))
         .route(
             paths::MODEL_CONFIG_PATH,

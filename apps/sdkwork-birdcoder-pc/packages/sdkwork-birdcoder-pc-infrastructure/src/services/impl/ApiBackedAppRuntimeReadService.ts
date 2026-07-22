@@ -57,7 +57,6 @@ function stableSerializeCacheKeyPart(value: unknown): string {
 }
 
 export class ApiBackedAppRuntimeReadService implements IAppRuntimeReadService {
-  readonly codingSessionListIncludesNativeSessions = true;
   private readonly client: BirdCoderAppRuntimeReadSdkApiClient;
   private readonly currentUserScopeResolver: CurrentUserScopeResolver;
   private readonly readCache = new Map<string, ReadCacheEntry<unknown>>();
@@ -200,18 +199,6 @@ export class ApiBackedAppRuntimeReadService implements IAppRuntimeReadService {
     return this.client.getHealth();
   }
 
-  async getNativeSession(codingSessionId: string, request: Parameters<BirdCoderAppRuntimeReadSdkApiClient['getNativeSession']>[1]) {
-    const cacheKey = await this.buildUserScopedCacheKey('getNativeSession', {
-      codingSessionId,
-      request,
-    });
-    return this.readThroughCache(
-      cacheKey.key,
-      cacheKey.cacheable ? SESSION_DETAIL_TTL_MS : INFLIGHT_ONLY_TTL_MS,
-      () => this.client.getNativeSession(codingSessionId, request),
-    );
-  }
-
   async getOperation(operationId: string) {
     return this.client.getOperation(operationId);
   }
@@ -306,26 +293,6 @@ export class ApiBackedAppRuntimeReadService implements IAppRuntimeReadService {
       this.buildCacheKey('listNativeSessionProviders'),
       STATIC_CATALOG_TTL_MS,
       () => this.client.listNativeSessionProviders(),
-    );
-  }
-
-  async listNativeSessions(request: Parameters<BirdCoderAppRuntimeReadSdkApiClient['listNativeSessions']>[0]) {
-    const cacheKey = await this.buildUserScopedCacheKey('listNativeSessions', request);
-    return this.readThroughCache(
-      cacheKey.key,
-      cacheKey.cacheable ? SESSION_INVENTORY_TTL_MS : INFLIGHT_ONLY_TTL_MS,
-      () => this.client.listNativeSessions(request),
-    );
-  }
-
-  async listNativeSessionPage(
-    request: Parameters<BirdCoderAppRuntimeReadSdkApiClient['listNativeSessionPage']>[0],
-  ) {
-    const cacheKey = await this.buildUserScopedCacheKey('listNativeSessionPage', request);
-    return this.readThroughCache(
-      cacheKey.key,
-      cacheKey.cacheable ? SESSION_INVENTORY_TTL_MS : INFLIGHT_ONLY_TTL_MS,
-      () => this.client.listNativeSessionPage(request),
     );
   }
 

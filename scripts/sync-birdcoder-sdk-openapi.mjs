@@ -11,6 +11,7 @@ import { applyWebFrameworkOpenApiExtensions } from './web-framework-openapi-exte
 const HTTP_METHODS = new Set(['delete', 'get', 'patch', 'post', 'put']);
 const rootDir = process.cwd();
 const sdkWorkspaceComponentPath = path.join(rootDir, 'sdks', 'specs', 'component.spec.json');
+const domainOwnershipSpecPath = path.join(rootDir, 'specs', 'domain-ownership.spec.json');
 const SDK_OWNER = 'sdkwork-birdcoder';
 const AUTH_TOKEN_SCHEME = 'AuthToken';
 const ACCESS_TOKEN_SCHEME = 'AccessToken';
@@ -149,14 +150,28 @@ function normalizeSecuritySchemes(securitySchemes = {}) {
   return normalized;
 }
 
-function collectSurfacePaths(canonicalDocument, surface) {
+function pathMatchesPrefix(routePath, prefix) {
+  return routePath === prefix || routePath.startsWith(`${prefix}/`);
+}
+
+function collectSurfacePaths(canonicalDocument, surface, ownership) {
   const paths = {};
   const usedTags = new Set();
   const apiPrefix = surface.apiPrefix;
   const apiAuthority = resolveSurfaceApiAuthority(surface);
+  const ownedPathPrefixes = ownership?.ownedPathPrefixes ?? [];
+  const forbiddenPathPrefixes = ownership?.forbiddenPathPrefixes ?? [];
+
+  if (ownership?.owned === false) {
+    return { paths, usedTags };
+  }
 
   for (const [pathKey, methodMap] of Object.entries(canonicalDocument.paths ?? {})) {
-    if (!pathKey.startsWith(apiPrefix)) {
+    if (
+      !pathKey.startsWith(apiPrefix)
+      || !ownedPathPrefixes.some((prefix) => pathMatchesPrefix(pathKey, prefix))
+      || forbiddenPathPrefixes.some((prefix) => pathMatchesPrefix(pathKey, prefix))
+    ) {
       continue;
     }
 
@@ -405,12 +420,14 @@ function pruneComponentsForSurface(canonicalComponents, paths) {
   return components;
 }
 
-function createSurfaceOpenApi(canonicalDocument, surface) {
-  const { paths, usedTags } = collectSurfacePaths(canonicalDocument, surface);
-  assert.ok(
-    Object.keys(paths).length > 0,
-    `No canonical OpenAPI paths matched ${surface.surface} prefix ${surface.apiPrefix}.`,
-  );
+export function createSurfaceOpenApi(canonicalDocument, surface, ownership) {
+  const { paths, usedTags } = collectSurfacePaths(canonicalDocument, surface, ownership);
+  if (ownership?.owned !== false) {
+    assert.ok(
+      Object.keys(paths).length > 0,
+      `No owned canonical OpenAPI paths matched ${surface.surface} boundary.`,
+    );
+  }
 
   return {
     openapi: canonicalDocument.openapi,
@@ -433,6 +450,7 @@ function createSurfaceOpenApi(canonicalDocument, surface) {
 
 export function syncBirdcoderSdkOpenApi({ check = false } = {}) {
   const componentSpec = readJson(sdkWorkspaceComponentPath);
+  const domainOwnershipSpec = readJson(domainOwnershipSpecPath);
   const canonicalOpenApiRelativePath = normalizeRelativePath(
     componentSpec.contracts?.generation?.canonicalOpenApi,
   );
@@ -443,6 +461,12 @@ export function syncBirdcoderSdkOpenApi({ check = false } = {}) {
   const canonicalOpenApiPath = path.join(rootDir, ...canonicalOpenApiRelativePath.split('/'));
   const canonicalDocument = readJson(canonicalOpenApiPath);
   const mismatches = [];
+  const forbiddenPathPrefixes = [
+    ...new Set(
+      (domainOwnershipSpec.dependencies ?? [])
+        .flatMap((dependency) => dependency.forbiddenLocalPathPrefixes ?? []),
+    ),
+  ];
 
   const surfaces = fs.readdirSync(path.join(rootDir, 'sdks'), { withFileTypes: true })
     .filter((entry) => entry.isDirectory())
@@ -462,11 +486,27 @@ export function syncBirdcoderSdkOpenApi({ check = false } = {}) {
       standardProfile: manifest.standardProfile,
       surface: manifest.discoverySurface?.sdkTarget,
       version: manifest.apiVersion,
+      ownership:
+        manifest.discoverySurface?.sdkTarget === 'app'
+          ? {
+              ...domainOwnershipSpec.apiOwnership.appApi,
+              forbiddenPathPrefixes,
+              owned: true,
+            }
+          : {
+              ...domainOwnershipSpec.apiOwnership.backendApi,
+              forbiddenPathPrefixes,
+              ownedPathPrefixes: [],
+            },
     }));
 
   for (const surface of surfaces) {
     assert.ok(surface.inputSpecPath, `${surface.sdkFamily} must declare metadata.generation.sourceSpec.`);
-    const surfaceDocument = createSurfaceOpenApi(canonicalDocument, surface);
+    const surfaceDocument = createSurfaceOpenApi(
+      canonicalDocument,
+      surface,
+      surface.ownership,
+    );
     applyWebFrameworkOpenApiExtensions(
       surfaceDocument,
       surface.surface === 'app' ? 'app-api' : 'backend-api',

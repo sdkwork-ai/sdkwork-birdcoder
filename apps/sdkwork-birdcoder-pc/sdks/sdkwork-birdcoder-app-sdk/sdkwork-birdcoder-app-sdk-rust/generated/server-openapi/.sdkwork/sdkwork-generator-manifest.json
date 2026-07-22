@@ -44,7 +44,7 @@
     },
     {
       "path": "src/api/auth.rs",
-      "sha256": "86b1681cb1e7177280e44d2f0ea5e5fccb7da33d2d16147e56efaefd560520a4"
+      "sha256": "a91997fc68f5221f4d1187658fe4e5412a078faee80561feef75283a83072d30"
     },
     {
       "path": "src/api/base.rs",
@@ -52,23 +52,23 @@
     },
     {
       "path": "src/api/collaboration.rs",
-      "sha256": "4b73839e24df8b88f1d4ac87b25e99d33abc7febc82c22e985a729ebd312b506"
+      "sha256": "a404c1f7bb8cb0e4ef5c3ef1c27d1d160025b98e5ecfe28b3c9fc8440d7ba87b"
     },
     {
       "path": "src/api/commerce.rs",
-      "sha256": "1f92df8d7017491d7d4901ec4ca41fdb3994a0f371651171d10be6c1216ab160"
+      "sha256": "e66e1688339478572279e2bad50aa80a82f9d465a885840c706a3ab473780d22"
     },
     {
       "path": "src/api/content.rs",
-      "sha256": "c08abe2b80c708a19e43141fe6dc66726bc62b95ea967647908f8d01b78fefe7"
+      "sha256": "f6ad73f97d6ca0bd5169397d2d301b206b9d01a7142a02fc0c380c051ec24e5b"
     },
     {
       "path": "src/api/iam.rs",
-      "sha256": "6d7b9673c5190241c741735c03c2a732740465e31980c35004121f93ac5650cc"
+      "sha256": "e9277e9b66fd9c5f239a39cd35108842f8b4d2576b7396b1733a7688959d918b"
     },
     {
       "path": "src/api/intelligence.rs",
-      "sha256": "ebaad375ef2cf039e014f5c7536f2d0f99f5e210214d7e3ecd1b77bb087bad3a"
+      "sha256": "b4c100209937bc77daf99f325f831c75f67a2ea0c3713342721f878b9c365314"
     },
     {
       "path": "src/api/mod.rs",
@@ -76,7 +76,7 @@
     },
     {
       "path": "src/api/oauth.rs",
-      "sha256": "7d34b424773b9f53e5c8bada28ca56e32a456b0d7fd65de90097287d99905c88"
+      "sha256": "f75abc2fc9137e0261f046cb5dcd89a6823f73abdd69d2330a1bfe3d443db43b"
     },
     {
       "path": "src/api/paths.rs",
@@ -84,31 +84,31 @@
     },
     {
       "path": "src/api/platform.rs",
-      "sha256": "9c5e244aaf666c1385c246588e44bf61fc3133ce4ed095a356b610ccee9f31b1"
+      "sha256": "b833567ff710847f829937bb6df308a52a4c3a3f261d49bbaa1a74002ae6c623"
     },
     {
       "path": "src/api/runtime.rs",
-      "sha256": "bf63bff775707074278d12f25c29c3551c4d85287ce923c95635e8f30e1275bb"
+      "sha256": "99a0c6a9e370f76ed72e3d8689e88b310445976e5fef36d6f9ae06269b1053f6"
     },
     {
       "path": "src/api/skills.rs",
-      "sha256": "0cb5c989b3f95f746cdd0d92d3fd78900985f609c91416d6fbadeba5cd572718"
+      "sha256": "a81299a6131f1c4488846cb53cde86c2261c99f447eccc7c27f61b3d672ab2ef"
     },
     {
       "path": "src/api/system.rs",
-      "sha256": "881eb31b4d35ceeebc7c4c157ae9887602abc4a093a8da33bb36cab04881490a"
+      "sha256": "147f46f06eb8fe1c7b75d17b3ada75ec90121ae22872a9bcd03f64c3d0caa06d"
     },
     {
       "path": "src/api/templates.rs",
-      "sha256": "617861bff469d897b24ce59f91f53bb34f852c285f448e8457efab7c5bd71467"
+      "sha256": "7c5b9372d19ef13e5b38dc198d6249f95eca098cb54ed0d10582c7324694291c"
     },
     {
       "path": "src/client.rs",
-      "sha256": "3c615412f3fd7a616f564fd380528308a560203d7292b3ffa30028ab8d151d28"
+      "sha256": "fa96bc00553ccd6675071c58750743aa7b28c1390fad502e6bdb5e6866e5d7ef"
     },
     {
       "path": "src/http/client.rs",
-      "sha256": "ffd88587750661cd174b1d0bae02a876d24f8537acdccaa67e297a549d0a927e"
+      "sha256": "2e5bd0ae2159fce3ffbfa4950a0df83a6df97399be5c15196b284d3671da9b0a"
     },
     {
       "path": "src/http/mod.rs",
@@ -173,22 +173,6 @@
     {
       "path": "src/models/bird_coder_chat_conversation_summary.rs",
       "sha256": "761aa04bc626062921761705f82f4139a06f94382a8fb3cc6659ed57ef4e9335"
-    },
-    {
-      "path": "src/models/bird_coder_chat_message_reasoning_item.rs",
-      "sha256": "c7693240fc472c93ed7784118ecf2a151c5691e84a6ca99c03ae4235ed325bac"
-    },
-    {
-      "path": "src/models/bird_coder_chat_message_resource_citation.rs",
-      "sha256": "554f3fd1c6d224e69aaacad48c00026ce077e469c376609029ad31b117862405"
-    },
-    {
-      "path": "src/models/bird_coder_chat_message_resource_origin.rs",
-      "sha256": "f7a0db08741cb40b6fdf3a006e2afcbd2df3c32b260646ea79be0bb61fd3a786"
-    },
-    {
-      "path": "src/models/bird_coder_chat_message_resource.rs",
-      "sha256": "029b5bf954831140d3ef693f2a69a42394df294ca18e50dd846252d05a82922a"
     },
     {
       "path": "src/models/bird_coder_chat_message_summary_envelope.rs",
@@ -603,36 +587,12 @@
       "sha256": "371d9d802f8ec8e187a981fa80437a1ecdef4604e139838851c9825477d49f9b"
     },
     {
-      "path": "src/models/bird_coder_native_session_command.rs",
-      "sha256": "a9b6334386eb34100d615f499a2a44920a8cbcb33fc7cc09b8f37176bd894e90"
-    },
-    {
-      "path": "src/models/bird_coder_native_session_detail_envelope.rs",
-      "sha256": "03511a4624743f062a72e250976bbb23c57379cc8fd54ff5a79771f26e26e037"
-    },
-    {
-      "path": "src/models/bird_coder_native_session_detail.rs",
-      "sha256": "7220f3642b31e2b49021f6286659ef880e8ad0be900b86fe3d948aa8fa072f27"
-    },
-    {
-      "path": "src/models/bird_coder_native_session_message.rs",
-      "sha256": "569524a5671bcb1faae449db128bbcca45c8e65b2091459bfdc141178a76fa95"
-    },
-    {
       "path": "src/models/bird_coder_native_session_provider_summary_list_envelope.rs",
       "sha256": "613468392661aaef614ba724ea79a4a2a7fe7e7d1864fa855f49c6579306be66"
     },
     {
       "path": "src/models/bird_coder_native_session_provider_summary.rs",
       "sha256": "a76bd445415f7043115cc165367be7b2b3a538beaa561a65e01934fa2eb6f766"
-    },
-    {
-      "path": "src/models/bird_coder_native_session_summary_list_envelope.rs",
-      "sha256": "a70876297359681bd2113283733a731e64c9ae774e5f4b6ede3ba734e8bf3866"
-    },
-    {
-      "path": "src/models/bird_coder_native_session_summary.rs",
-      "sha256": "16eb2cbc7edbb8dc91af01d6223c7675de32bd6d14fe9fb2ab2e97f6a070b2d3"
     },
     {
       "path": "src/models/bird_coder_operation_descriptor_envelope.rs",
@@ -880,7 +840,7 @@
     },
     {
       "path": "src/models/mod.rs",
-      "sha256": "f133f49903237a59d884f9318d32d303d073a9972210d148ec91247bb76c87e0"
+      "sha256": "a419821ac86e9f3e169de79cb7b9fb295824d2e1d273721256fbdc2e91b2c9ad"
     },
     {
       "path": "src/models/page_info.rs",

@@ -194,10 +194,22 @@ assert.match(
   'Code TopBar must import the shared project Git overview hook through the governed commons hook subpath.',
 );
 
+assert.doesNotMatch(
+  topBarSource,
+  /from '@sdkwork\/birdcoder-pc-ui';/,
+  'Code TopBar must not load the broad UI package root because it defeats Git and chat chunk boundaries.',
+);
+
 assert.match(
   topBarSource,
-  /import[\s\S]*ProjectGitHeaderControls[\s\S]*ProjectGitSubmitDialog[\s\S]*from '@sdkwork\/birdcoder-pc-ui';/s,
-  'Code TopBar must import the shared Git header controls and submit dialog from the shared UI package.',
+  /from '@sdkwork\/birdcoder-pc-ui\/components\/ProjectGitHeaderControls';/,
+  'Code TopBar must import the shared Git header controls through the precise UI component subpath.',
+);
+
+assert.match(
+  topBarSource,
+  /from '@sdkwork\/birdcoder-pc-ui\/components\/ProjectGitSubmitDialog';/,
+  'Code TopBar must import the shared Git submit dialog through the precise UI component subpath.',
 );
 
 assert.match(

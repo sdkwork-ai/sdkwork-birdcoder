@@ -58,6 +58,7 @@ export default defineLocaleModule('multiwindow', {
     durationSummary: '{{durationMs}} ms',
     failedCount: '{{count}} failed',
     failedToCreateSession: 'Failed to create session',
+    selectProjectFirst: 'Select a project before creating a session',
     maxOutputTokens: 'Max tokens',
     mode: 'Mode',
     model: 'Model',

@@ -263,7 +263,7 @@ function StudioPageComponent({
     setSessionId(normalizedCodingSessionId);
     setSelectedSessionProjectId(nextProjectId || null);
   }, [currentProjectId, resolveCodingSessionLocation, sessionId]);
-  const { createCodingSessionInProject } = useWorkbenchCodingSessionCreationActions({
+  const { createCodingSessionFromRequest, createCodingSessionInProject } = useWorkbenchCodingSessionCreationActions({
     addToast,
     createCodingSessionWithSelection,
     currentProjectId,
@@ -276,7 +276,7 @@ function StudioPageComponent({
   });
   const createStudioCodingSessionInProject = useCallback(
     (projectId: string, engineId?: string, modelId?: string) =>
-      createCodingSessionInProject(projectId, engineId, { modelId }),
+      createCodingSessionInProject(projectId, engineId, { modelId, source: 'studio' }),
     [createCodingSessionInProject],
   );
   const projectsRef = useRef(projects);
@@ -319,7 +319,7 @@ function StudioPageComponent({
     },
     {
       isActive: isVisible,
-      createCodingSessionInProject: createStudioCodingSessionInProject,
+      createCodingSessionFromRequest,
     },
   );
   
@@ -908,7 +908,7 @@ function StudioPageComponent({
         ? null
         : sessionId;
     const bootstrappedSession = await ensureWorkbenchCodingSessionForMessage({
-      createCodingSessionWithSelection,
+      createCodingSessionFromRequest,
       currentCodingSessionId,
       currentProjectId,
       messageContent: trimmedContent,
@@ -927,7 +927,6 @@ function StudioPageComponent({
 
         return projects[0]?.id;
       },
-      selectCodingSession,
     });
     if (!bootstrappedSession) {
       throw new Error(t('chat.sendMessageSessionUnavailable'));
@@ -962,7 +961,7 @@ function StudioPageComponent({
   }, [
     buildWorkbenchCodingSessionTurnContext,
     ensureWorkbenchCodingSessionForMessage,
-    createCodingSessionWithSelection,
+    createCodingSessionFromRequest,
     currentProjectId,
     fileContent,
     isChatBusy,
@@ -1390,4 +1389,3 @@ function StudioPageComponent({
 
 export const StudioPage = memo(StudioPageComponent);
 StudioPage.displayName = 'StudioPage';
-

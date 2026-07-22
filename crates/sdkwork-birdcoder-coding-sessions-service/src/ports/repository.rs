@@ -5,9 +5,11 @@ use crate::domain::commands::{
     SubmitApprovalDecisionInput, SubmitUserQuestionAnswerInput, UpdateCodingSessionInput,
 };
 use crate::domain::models::{
-    ClaimCodingSessionOperationInput, CodingSessionListQuery, CompleteCodingSessionOperationInput,
+    ClaimCodingSessionOperationInput, CodingSessionDiscoveryScope, CodingSessionListQuery,
+    CompleteCodingSessionOperationInput, DiscoveredNativeSessionInput,
     DurableCodingSessionOperation, EnqueueCodingSessionOperationInput,
-    FailCodingSessionOperationInput, RenewCodingSessionOperationLeaseInput,
+    FailCodingSessionOperationInput, NativeSessionHistoryReconciliationInput,
+    RenewCodingSessionOperationLeaseInput,
 };
 use crate::domain::results::{
     ApprovalDecisionPayload, ClaimedCodingSessionInteraction, CodingSessionArtifactPayload,
@@ -20,6 +22,52 @@ use crate::error::CodingSessionError;
 
 #[async_trait::async_trait]
 pub trait CodingSessionRepository: Send + Sync {
+    /// Idempotently materializes one complete provider snapshot before public
+    /// coding-session pagination is evaluated. Implementations must preserve
+    /// an existing logical session id for the same owner + engine + raw native
+    /// identity.
+    async fn upsert_discovered_native_sessions(
+        &self,
+        ctx: &CodingSessionContext,
+        scope: &CodingSessionDiscoveryScope,
+        sessions: &[DiscoveredNativeSessionInput],
+    ) -> Result<(), CodingSessionError>;
+
+    /// Returns whether the provider transcript must be read before the next
+    /// durable event page is served. Implementations may return `false` only
+    /// when the owner-scoped logical session still has the exact expected
+    /// engine/native binding and the persisted reconciliation revision is
+    /// covered by a short freshness lease. This check runs for every offset
+    /// request so a direct first request with `offset > 0` remains correct,
+    /// while normal multi-page reads avoid repeatedly scanning provider files.
+    async fn native_session_history_refresh_required(
+        &self,
+        ctx: &CodingSessionContext,
+        session_id: &str,
+        engine_id: &str,
+        native_session_id: &str,
+        source_revision: &str,
+    ) -> Result<bool, CodingSessionError>;
+
+    /// Transactionally reconciles one complete provider transcript into the
+    /// durable, provider-neutral message and event projections for an existing
+    /// logical coding session.
+    ///
+    /// Implementations must lock and revalidate tenant, user, session,
+    /// engine, and raw native identity before writing; preserve the logical
+    /// session id; upsert deterministic message/event ids idempotently; keep
+    /// existing event sequence numbers on updates; allocate new sequences in
+    /// input order; suppress provider candidates already represented by an
+    /// equivalent durable local message/final event or aggregate delta; and
+    /// advance the reconciliation revision/freshness marker only after
+    /// messages, events, and session transcript timestamps commit together.
+    async fn reconcile_native_session_history(
+        &self,
+        ctx: &CodingSessionContext,
+        session_id: &str,
+        input: &NativeSessionHistoryReconciliationInput,
+    ) -> Result<(), CodingSessionError>;
+
     async fn list_sessions(
         &self,
         ctx: &CodingSessionContext,

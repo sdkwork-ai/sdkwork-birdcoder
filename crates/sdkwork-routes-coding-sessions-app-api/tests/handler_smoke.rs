@@ -199,7 +199,6 @@ async fn test_state_with_seeded_workspace(workspace_id: i64) -> CodingSessionsAp
     CodingSessionsAppState {
         service,
         commerce_pool: None,
-        project_service: None,
     }
 }
 
@@ -305,6 +304,40 @@ async fn list_sessions_returns_ok_with_empty_inventory() {
     assert_eq!(json["data"]["pageInfo"]["pageSize"], 20);
     assert_eq!(json["data"]["pageInfo"]["page"], 1);
     assert_eq!(json["data"]["pageInfo"]["totalItems"], "0");
+}
+
+#[tokio::test]
+async fn list_sessions_applies_the_requested_database_page_without_native_scope() {
+    let state = test_state_with_seeded_workspace(101).await;
+    for _ in 0..3 {
+        create_immutable_session(&state).await;
+    }
+
+    let response = build_coding_sessions_app_api_router()
+        .with_state(state)
+        .oneshot(with_request_context(
+            Request::builder()
+                .uri(
+                    "/app/v3/api/intelligence/coding_sessions?page=2&page_size=1&projectId=project-smoke&workspaceId=101",
+                )
+                .body(Body::empty())
+                .expect("build second session page request"),
+            Some(test_iam_context()),
+        ))
+        .await
+        .expect("serve second session page request");
+
+    assert_eq!(response.status(), StatusCode::OK);
+    let body = axum::body::to_bytes(response.into_body(), usize::MAX)
+        .await
+        .expect("read second session page body");
+    let json: serde_json::Value =
+        serde_json::from_slice(&body).expect("parse second session page JSON");
+    assert_eq!(json["data"]["items"].as_array().map(Vec::len), Some(1));
+    assert_eq!(json["data"]["pageInfo"]["page"], 2);
+    assert_eq!(json["data"]["pageInfo"]["pageSize"], 1);
+    assert_eq!(json["data"]["pageInfo"]["totalItems"], "3");
+    assert_eq!(json["data"]["pageInfo"]["hasMore"], true);
 }
 
 #[tokio::test]

@@ -2,14 +2,18 @@
 
 Status: active
 Owner: SDKWork maintainers
-Updated: 2026-07-16
+Updated: 2026-07-22
 Specs: ARCHITECTURE_DECISION_SPEC.md, APP_PC_ARCHITECTURE_SPEC.md, DESKTOP_APP_ARCHITECTURE_SPEC.md, APP_SDK_INTEGRATION_SPEC.md, API_SPEC.md, DATABASE_SPEC.md, SDK_SPEC.md, SECURITY_SPEC.md, PRIVACY_SPEC.md, CONFIG_SPEC.md, RUNTIME_DIRECTORY_SPEC.md, DEPLOYMENT_SPEC.md
 
 ## 1. Architecture Overview
 
-BirdCoder has one PC React renderer and one application-service model. Browser
-and Tauri differ at the host-capability boundary, while projects, locations,
-authorization, and API contracts remain a single application model.
+BirdCoder is the coding-workbench application, not a platform-domain
+monolith. Browser and Tauri differ at the host-capability boundary, while the
+workbench owns only workspace, project, runtime-location, document-binding,
+and sandbox-binding facts. Agents, Skills, IM, IAM, Documents, Deployments,
+Models, Settings, and commerce capabilities remain independent systems of
+record and are integrated through their generated SDKs or approved runtime
+facades.
 
 BirdCoder runtime profiles resolve from `SDKWORK_APP_ROOT` or
 `SDKWORK_BIRDCODER_APP_ROOT`. `SDKWORK_IAM_APP_ROOT` remains the sibling `sdkwork-iam` catalog/database-assets root
@@ -17,17 +21,18 @@ and must never be selected as the BirdCoder application root.
 
 Flow:
 
-    Browser or Tauri renderer
-      -> PC features and application services
-      -> composed @sdkwork/birdcoder-app-sdk
-      -> Project service and ProjectRuntimeLocation service
-      -> target-aware resolver or host capability adapter
+    Browser, Tauri, H5, or Flutter client
+      -> feature service or host capability port
+      -> runtime-composed owner SDK clients
+      -> BirdCoder workbench API or dependency-owned API
+      -> owning application service and repository
 
-    BirdCoder control plane
-      -> authenticated Project and workspace metadata
-      -> ProjectRuntimeLocation records with encrypted target paths
-      -> target identity, health, capability, Git snapshot, and preference state
-      -> internal target resolver for verified server or runner actions
+    BirdCoder workbench
+      -> Workspace and Project identity
+      -> default Agents Project stable id
+      -> ProjectRuntimeLocation with encrypted target paths
+      -> project-to-Document and project-to-Sandbox stable bindings
+      -> internal target resolver for verified host actions
 
 One Project can have multiple ProjectRuntimeLocation records. A location is
 the only persistent authority for one physical project root on one target.
@@ -36,6 +41,7 @@ Project identity is deliberately not overloaded with a single path.
 | Concept | Owner | Network behavior | Meaning |
 | --- | --- | --- | --- |
 | Project | Project service | Normal app API and composed SDK | Shared identity, workspace, ACL, lifecycle, and non-location metadata. |
+| Agent Project | Agents | Agents app API, SDK, or runtime facade | Root for Sessions, Turns, Session Items, Interactions, artifacts, checkpoints, and execution policy. BirdCoder stores only its stable project id. |
 | ProjectRuntimeLocation | Project service | Separate, permissioned app API resources | One target-specific root, location kind, encrypted path, capability, health, Git snapshot, and audit state. |
 | Runtime target | Runtime control plane | Registered target identity and internal resolver | Desktop, server workspace, runner, container, or remote workspace authority that verifies and uses a location. |
 | Local project binding | Browser or Tauri host | Never a generic remote API response | Current-device capability material used to resolve a browser handle or local native root. |
@@ -47,35 +53,42 @@ Registration receives a typed write-only path over protected transport; the
 control plane encrypts it before persistence. Only the authenticated owning
 target can decrypt and canonicalize it for an authorized action.
 
-### Coding-Session Lifecycle Boundary
+### Agent Session Lifecycle Boundary
 
-Coding turns execute through the SDKWork kernel facade and the BirdCoder kernel
-bridge; application code does not call Provider SDKs directly. The P0 provider
-set is `codex`, `claude-code`, `gemini`, and `opencode`. A new logical coding
-session is created from an explicit provider/model selection, whose resulting
-`engineId` and `modelId` are immutable.
+All AI coding and assistant workflows use the Agents aggregate:
 
-`codingSessionId` is the BirdCoder logical identity. The first successful turn
-may return a raw provider `nativeSessionId`; later native detail/resume work
-uses that raw ID plus the persisted `engineId`, and the binding cannot be
-reassigned to a different provider conversation. The detailed ownership and
-current implementation limits are documented in the
-[engine session reference](../../reference/engine-sdk-integration.md).
+    Agent Project -> Session -> Turn -> Session Item -> Interaction
 
-New coding-session creation also requires an explicit terminal-capable
-`runtimeLocationId`. The logical session persists that exact location identity
-alongside its immutable provider/model pair. Turn execution, recovery, and
-native-session list/detail routes use the stored binding, not a mutable
-current-subject preference or a project-only root lookup. Historic sessions
-without this binding remain readable but fail closed with typed unavailable
-errors for execution and native discovery. Provider-reported `native_cwd` is
-target-private matching evidence only; it is never public API data or an
-execution authority.
+BirdCoder creates or selects an Agent Project through the Agents SDK/runtime
+facade and stores only that project's stable `projectId` on the workbench
+Project. Agents owns the Session id, immutable provider/model binding, provider
+native-session identity, runtime-location binding, turn lease and idempotency,
+Session Items, interactions, artifacts, checkpoints, and replayable outcomes.
+BirdCoder does not create another session identifier or persist a transcript
+copy.
+
+The P0 provider set remains `codex`, `claude-code`, `gemini`, and `opencode`.
+Provider SDKs are called only behind Agents and Kernel adapters. A new Session
+requires an explicit terminal-capable BirdCoder `runtimeLocationId`; Agents
+stores that stable cross-domain reference and calls the authorized BirdCoder
+runtime-location port when execution needs a target root. It never receives a
+plaintext root through a public DTO. Provider-reported CWD remains target-private
+matching evidence and is not an execution authority.
+
+The old `chat_conversation` and `chat_message` names represented AI assistant
+content and therefore converge to Session/Turn/SessionItem semantics in Agents.
+They do not move to IM. Human communication uses IM Conversation/Message/
+Member/ReadCursor semantics; IM may invoke Agents through its public contract,
+while Agents never depends on IM.
 
 ## 2. Current Implementation Truth
 
 | Capability | State | Production truth |
 | --- | --- | --- |
+| Domain ownership cutover | In progress, release-blocking | `specs/domain-ownership.spec.json` defines the final ten-table workbench store and owner-only API boundary. Duplicate local authorities are removed only after their owner parity gates pass. |
+| Agents session authority | In progress, release-blocking | Agents is the only target system of record for AI Sessions, Turns, Session Items, Interactions, artifacts, checkpoints, and provider runtime bindings. |
+| Skills authority | In progress, release-blocking | Skills is the only target system of record for skill packages, immutable artifacts, normalized capabilities, and installations. |
+| Human IM boundary | Defined, release-blocking | IM Conversation/Message facts are separate from Agent Session Items; persistent IM projection authorities are not part of the target architecture. |
 | Browser and Tauri project control plane | Implemented | Both use the composed BirdCoder app SDK and the same project service contract. |
 | Browser folder capability | Implemented | File System Access directory handles remain in IndexedDB and cannot become OS paths or remote executable locations. |
 | Tauri local binding | Implemented and converging | Host-private storage remains the current-device capability cache; import and terminal resolution must converge on runtime-location identity and never use process cwd fallback. |
@@ -138,6 +151,19 @@ Path lifecycle is explicit:
 
 ## 4. API, SDK, And Resolver Ownership
 
+BirdCoder owns one App API authority for workbench-specific workspace, project,
+runtime-location, sandbox-binding, Git/host coordination, and system descriptor
+operations. It owns no Backend API or Open API operations. IAM, Agents, Skills,
+IM, Documents, Deployments, Models, Settings, and commerce operations remain in
+their owner OpenAPI authorities and SDK families even when a standalone
+BirdCoder process embeds their executable route assemblies.
+
+Dependency SDK consumption, runtime mounting, and API ownership are separate
+facts. A dependency may be mounted by the standalone runtime without appearing
+in the BirdCoder-generated SDK. Feature packages receive owner clients or
+service ports from runtime/core composition; they do not use raw HTTP, manual
+auth headers, generated transport internals, or copied DTOs.
+
 The workspace app-api owns project runtime-location resources. It uses typed
 request bodies, standard SDKWork envelopes, ProblemDetail failures, SQL-backed
 pagination, stable permissions, idempotency for registration and commands, and
@@ -176,8 +202,8 @@ request must carry an explicit `runtimeLocationId` before touching a
 filesystem. A subject-and-capability preference may help a client choose a
 location, but it must be resolved into and persisted or sent as an exact
 identifier before execution; it is never a hidden server root fallback.
-Coding-session/provider execution follows the same rule through its immutable
-session binding. Worktree uses the Git capability rather than a separate
+Agents execution follows the same rule through its immutable Session binding.
+Worktree uses the Git capability rather than a separate
 preference. Generic Project-only root resolution and process-current-directory
 fallback are prohibited. Until an action is migrated, it must fail closed rather
 than infer a root.
@@ -201,7 +227,7 @@ The server record is the location authority; the target binding is still
 required to prove that the current device owns the canonical path. A local
 persist failure must fail import rather than leave restart-unsafe state.
 
-## 6. Legacy Path Convergence
+## 6. Direct Ownership Convergence
 
 The following are migration inputs, not long-term competing authorities:
 
@@ -213,11 +239,18 @@ The following are migration inputs, not long-term competing authorities:
 | Coding-session config rootPath or root_path | Retired as execution input; new sessions persist runtimeLocationId, while historic unbound sessions are readable but non-executable. |
 | Provider native-session cwd | Target-private observation for scoped matching only; never generic project metadata, public API data, or execution authority. |
 | Project-only Git root resolution | Location-aware Git resolver with explicit runtimeLocationId. |
+| BirdCoder `ai_coding_session*` tables and `/coding_sessions` routes | Agents Session, Turn, Session Item, Interaction, artifact, checkpoint, runtime binding, API, and SDK. |
+| BirdCoder AI `chat_conversation` and `chat_message` | Agents Session Items; not IM messages. |
+| BirdCoder `ai_skill_*` tables and skill routes | Skills package/artifact/capability/installation authority and generated SDK. |
+| BirdCoder IAM, document, template, deployment, model, setting, and commerce tables/routes | Their owners in `specs/domain-ownership.spec.json`. |
+| Persistent projection or synchronized shadow state | Removed; canonical owner queries use bounded indexes and pagination. |
 
-BirdCoder is pre-launch. It removes obsolete public path behavior directly,
-while any durable data backfill remains idempotent, observable, bounded, and
-safe to retry. No generated SDK output is hand-edited; OpenAPI and route
-authority changes are regenerated through the standard SDK workflow.
+BirdCoder is pre-launch. It removes obsolete ownership and public behavior
+directly. No compatibility facade, dual-write, shadow table, or projection
+authority survives cutover. Any one-time import into an owner is idempotent,
+observable, bounded, and followed by removal of the source authority. Generated
+SDK output is never hand-edited; owner OpenAPI and route changes are regenerated
+through the standard SDK workflow.
 
 ## 7. Isolation, Security, Privacy, And Observability
 
@@ -251,6 +284,7 @@ server, and container are runtime targets, not profiles.
 
 ## 9. Architecture Decision Index
 
+- [ADR-20260722: Domain ownership and single-write authority](../decisions/ADR-20260722-domain-ownership-and-single-write-authority.md)
 - [ADR-20260716: Distributed project runtime locations](../decisions/ADR-20260716-distributed-project-runtime-locations.md)
 - [ADR-20260713: Unified project/runtime boundary (superseded)](../decisions/ADR-20260713-unified-project-runtime-boundary.md)
 - [Runtime topology contract](../topology-standard.md)
@@ -258,6 +292,7 @@ server, and container are runtime targets, not profiles.
 
 ## 10. Verification
 
+    pnpm check:domain-ownership
     pnpm db:validate
     pnpm test:migration-replay
     pnpm test:rust-workspace-project-schema-parity-contract

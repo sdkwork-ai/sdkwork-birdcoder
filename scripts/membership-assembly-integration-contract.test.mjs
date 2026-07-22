@@ -15,11 +15,19 @@ const stackRunner = read('scripts/run-birdcoder-dev-stack.mjs');
 assert.match(assemblyCargo, /sdkwork-api-membership-assembly\.workspace = true/u);
 assert.match(
   assemblyBootstrap,
+  /sdkwork_api_membership_assembly::assemble_api_router_with_process_pool\(/u,
+);
+assert.match(assemblyBootstrap, /birdcoder\.database_pool\.as_ref\(\)/u);
+assert.doesNotMatch(
+  assemblyBootstrap,
   /sdkwork_api_membership_assembly::assemble_api_router_from_env\(\)/u,
 );
 assert.match(assemblyBootstrap, /\.merge\(membership\.router\)/u);
-assert.match(stackRunner, /SDKWORK_MEMBERSHIP_DATABASE_URL/u);
 assert.match(stackRunner, /SDKWORK_MEMBERSHIP_APP_ROOT/u);
+assert.doesNotMatch(
+  stackRunner,
+  /SDKWORK_MEMBERSHIP_DATABASE_(?:URL|ENGINE|MAX_CONNECTIONS)/u,
+);
 assert.doesNotMatch(stackRunner, /platformGateway|cloud-gateway/u);
 
 const membershipBootstrap = read(

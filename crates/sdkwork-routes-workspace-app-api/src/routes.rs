@@ -1,7 +1,6 @@
 use axum::{routing::get, routing::post, routing::put, Router};
 
-use crate::handlers;
-use crate::handlers::WorkspaceAppState;
+use crate::handlers::{self, WorkspaceAppState};
 use crate::paths;
 
 pub fn build_workspace_app_router() -> Router<WorkspaceAppState> {
@@ -17,14 +16,6 @@ pub fn build_workspace_app_router() -> Router<WorkspaceAppState> {
                 .delete(handlers::delete_workspace),
         )
         .route(
-            paths::WORKSPACE_REALTIME_PATH,
-            get(handlers::subscribe_workspace_realtime),
-        )
-        .route(
-            paths::WORKSPACE_MEMBERS_PATH,
-            get(handlers::list_workspace_members).post(handlers::upsert_workspace_member),
-        )
-        .route(
             paths::PROJECTS_PATH,
             get(handlers::list_projects).post(handlers::create_project),
         )
@@ -35,10 +26,20 @@ pub fn build_workspace_app_router() -> Router<WorkspaceAppState> {
                 .delete(handlers::delete_project),
         )
         .route(
-            paths::PROJECT_WORKSPACE_BINDING_PATH,
-            get(handlers::get_project_workspace_binding)
-                .put(handlers::upsert_project_workspace_binding)
-                .delete(handlers::delete_project_workspace_binding),
+            paths::PROJECT_DOCUMENT_BINDINGS_PATH,
+            get(handlers::list_project_document_bindings)
+                .post(handlers::create_project_document_binding),
+        )
+        .route(
+            paths::PROJECT_DOCUMENT_BINDING_DETAIL_PATH,
+            get(handlers::get_project_document_binding)
+                .delete(handlers::delete_project_document_binding),
+        )
+        .route(
+            paths::PROJECT_SANDBOX_BINDING_PATH,
+            get(handlers::get_project_sandbox_binding)
+                .put(handlers::upsert_project_sandbox_binding)
+                .delete(handlers::delete_project_sandbox_binding),
         )
         .route(
             paths::PROJECT_RUNTIME_LOCATIONS_PATH,
@@ -103,15 +104,4 @@ pub fn build_workspace_app_router() -> Router<WorkspaceAppState> {
             paths::PROJECT_GIT_WORKTREE_PRUNE_PATH,
             post(handlers::prune_project_git_worktrees),
         )
-        .route(
-            paths::PROJECT_COLLABORATORS_PATH,
-            get(handlers::list_project_collaborators).post(handlers::upsert_project_collaborator),
-        )
-        .route(paths::DEPLOYMENTS_PATH, get(handlers::list_deployments))
-        .route(
-            paths::PROJECT_DEPLOYMENT_TARGETS_PATH,
-            get(handlers::list_project_deployment_targets),
-        )
-        .route(paths::PROJECT_PUBLISH_PATH, post(handlers::publish_project))
-        .route(paths::TEAMS_PATH, get(handlers::list_teams))
 }

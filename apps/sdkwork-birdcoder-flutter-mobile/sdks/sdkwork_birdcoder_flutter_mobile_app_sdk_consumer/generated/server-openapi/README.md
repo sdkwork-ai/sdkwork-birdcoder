@@ -175,8 +175,12 @@ print(result);
 
 ### commerce
 ```dart
-// Get current SDKWork commerce membership
-final result = await client.commerce.membershipsCurrentRetrieve();
+// List SDKWork commerce orders
+final params = <String, dynamic>{
+  'page': 1,
+  'page_size': 2,
+};
+final result = await client.commerce.ordersList(params);
 print(result);
 ```
 

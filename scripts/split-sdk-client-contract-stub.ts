@@ -28,16 +28,11 @@ import type {
   BirdCoderEngineCapabilityMatrix,
   BirdCoderEngineDescriptor,
   BirdCoderForkCodingSessionRequest,
-  BirdCoderGetNativeSessionRequest,
   BirdCoderIamAuditEventSummary,
   BirdCoderIamPolicySummary,
-  BirdCoderInstallSkillPackageRequest,
   BirdCoderListCodingSessionsRequest,
-  BirdCoderListNativeSessionsRequest,
   BirdCoderModelCatalogEntry,
-  BirdCoderNativeSessionDetail,
   BirdCoderNativeSessionProviderSummary,
-  BirdCoderNativeSessionSummary,
   BirdCoderOperationDescriptor,
   BirdCoderProjectCollaboratorSummary,
   BirdCoderProjectDocumentSummary,
@@ -48,8 +43,6 @@ import type {
   BirdCoderPushProjectGitBranchRequest,
   BirdCoderReleaseSummary,
   BirdCoderRemoveProjectGitWorktreeRequest,
-  BirdCoderSkillInstallationSummary,
-  BirdCoderSkillPackageSummary,
   BirdCoderSubmitApprovalDecisionRequest,
   BirdCoderSubmitUserQuestionAnswerRequest,
   BirdCoderSyncCodeEngineModelConfigRequest,
@@ -172,12 +165,6 @@ export function createAppSdkClientContractStub(
     async getModelConfig(): Promise<BirdCoderCodeEngineModelConfig> {
       throw createUnexpectedMethodError('getModelConfig');
     },
-    async getNativeSession(
-      _codingSessionId: string,
-      _request: BirdCoderGetNativeSessionRequest,
-    ): Promise<BirdCoderNativeSessionDetail> {
-      throw createUnexpectedMethodError('getNativeSession');
-    },
     async getOperation(_operationId: string): Promise<BirdCoderOperationDescriptor> {
       throw createUnexpectedMethodError('getOperation');
     },
@@ -195,12 +182,6 @@ export function createAppSdkClientContractStub(
     },
     async getRuntime(): Promise<BirdCoderCoreRuntimeSummary> {
       throw createUnexpectedMethodError('getRuntime');
-    },
-    async installSkillPackage(
-      _packageId: string,
-      _request: BirdCoderInstallSkillPackageRequest,
-    ): Promise<BirdCoderSkillInstallationSummary> {
-      throw createUnexpectedMethodError('installSkillPackage');
     },
     async listAppTemplates(): Promise<BirdCoderAppTemplateSummary[]> {
       return [];
@@ -240,11 +221,6 @@ export function createAppSdkClientContractStub(
     async listNativeSessionProviders(): Promise<BirdCoderNativeSessionProviderSummary[]> {
       return [];
     },
-    async listNativeSessions(
-      _request: BirdCoderListNativeSessionsRequest,
-    ): Promise<BirdCoderNativeSessionSummary[]> {
-      return [];
-    },
     async listProjectCollaborators(
       _projectId: string,
     ): Promise<BirdCoderProjectCollaboratorSummary[]> {
@@ -256,11 +232,6 @@ export function createAppSdkClientContractStub(
       return [];
     },
     async listRoutes(): Promise<BirdCoderApiRouteCatalogEntry[]> {
-      return [];
-    },
-    async listSkillPackages(
-      _options?: BirdCoderWorkspaceScopedListRequest,
-    ): Promise<BirdCoderSkillPackageSummary[]> {
       return [];
     },
     async listTeams(

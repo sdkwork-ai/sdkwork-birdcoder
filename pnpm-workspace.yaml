@@ -43,6 +43,7 @@ packages:
   - "../sdkwork-drive/sdks/sdkwork-drive-app-sdk/sdkwork-drive-app-sdk-typescript"
   - "../sdkwork-messaging/sdks/sdkwork-messaging-app-sdk/sdkwork-messaging-app-sdk-typescript"
   - "../sdkwork-agents/sdks/sdkwork-agents-app-sdk/sdkwork-agents-app-sdk-typescript"
+  - "../sdkwork-skills/sdks/sdkwork-skills-app-sdk/sdkwork-skills-app-sdk-typescript"
   - "../sdkwork-models/apps/sdkwork-models-pc/packages/sdkwork-models-pc-picker"
   - "../sdkwork-models/sdks/sdkwork-models-sdk/sdkwork-models-sdk-typescript"
   - "../sdkwork-sdk-generator"

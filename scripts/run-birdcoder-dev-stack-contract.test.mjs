@@ -354,38 +354,46 @@ const h5DryRun = await captureRunBirdcoderDevStack([
 }
 
 {
-  const sharedPostgresUrl = 'postgresql://app:secret@127.0.0.1:5432/sdkwork_ai_dev';
   const dependencyEnv = resolveStandaloneDependencyEnv({
     SDKWORK_CLAW_DATABASE_ENGINE: 'postgresql',
-    SDKWORK_CLAW_DATABASE_URL: sharedPostgresUrl,
     SDKWORK_CLAW_DATABASE_MAX_CONNECTIONS: '10',
     SDKWORK_DATABASE_TEMPORARY_ANY_POOL_EXCEPTION: 'true',
   });
 
   assert.equal(
     dependencyEnv.SDKWORK_DRIVE_DATABASE_URL,
-    sharedPostgresUrl,
-    'BirdCoder standalone assembly must reuse the canonical Claw database URL for embedded Drive routes.',
+    undefined,
+    'Embedded Drive routes must consume the injected process pool without a service URL.',
   );
   assert.equal(
     dependencyEnv.SDKWORK_MEMBERSHIP_DATABASE_URL,
-    sharedPostgresUrl,
-    'BirdCoder standalone assembly must reuse the canonical Claw database URL for embedded Membership routes.',
+    undefined,
+    'Embedded Membership routes must consume the injected process pool without a service URL.',
   );
   assert.equal(
     dependencyEnv.SDKWORK_DRIVE_DATABASE_MAX_CONNECTIONS,
-    '10',
-    'Embedded Drive routes must inherit the canonical process connection budget.',
+    undefined,
+    'Embedded Drive routes must not allocate a service-specific connection budget.',
   );
   assert.equal(
     dependencyEnv.SDKWORK_MEMBERSHIP_DATABASE_MAX_CONNECTIONS,
-    '10',
-    'Embedded Membership routes must inherit the canonical process connection budget.',
+    undefined,
+    'Embedded Membership routes must not allocate a service-specific connection budget.',
+  );
+  assert.equal(
+    dependencyEnv.SDKWORK_DRIVE_DATABASE_ENGINE,
+    undefined,
+    'Embedded Drive routes must not resolve an independent database engine.',
+  );
+  assert.equal(
+    dependencyEnv.SDKWORK_MEMBERSHIP_DATABASE_ENGINE,
+    undefined,
+    'Embedded Membership routes must not resolve an independent database engine.',
   );
   assert.equal(
     dependencyEnv.SDKWORK_DATABASE_TEMPORARY_DRIVER_POOL_COUNT,
-    '2',
-    'The standalone assembly must reserve its declared two temporary driver pools.',
+    '1',
+    'The standalone assembly must reserve only the declared BirdCoder compatibility AnyPool.',
   );
 }
 

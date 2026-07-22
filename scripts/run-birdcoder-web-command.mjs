@@ -16,22 +16,22 @@ const __filename = fileURLToPath(import.meta.url);
 
 const WEB_ACTIONS = Object.freeze({
   build: {
-    scriptName: 'build:base',
+    scriptName: 'release:build:browser',
     target: 'web-build',
     viteMode: 'production',
   },
   'build:dev': {
-    scriptName: 'release:build:browser:debug',
+    scriptName: 'build:dev',
     target: 'web-build',
     viteMode: 'development',
   },
   'build:prod': {
-    scriptName: 'build:prod:base',
+    scriptName: 'build:prod',
     target: 'web-build',
     viteMode: 'production',
   },
   'build:test': {
-    scriptName: 'build:test:base',
+    scriptName: 'build:test',
     target: 'web-build',
     viteMode: 'test',
   },

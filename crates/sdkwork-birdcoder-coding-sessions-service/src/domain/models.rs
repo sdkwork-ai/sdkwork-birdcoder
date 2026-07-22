@@ -176,6 +176,82 @@ pub struct CodingSessionListQuery {
     pub workspace_id: Option<String>,
 }
 
+/// Authorized project binding used while reconciling provider-owned session
+/// summaries into the durable coding-session authority.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct CodingSessionDiscoveryScope {
+    pub workspace_id: String,
+    pub project_id: String,
+    pub runtime_location_id: String,
+}
+
+/// Provider-owned summary normalized to the durable coding-session contract.
+/// `native_session_id` is always the raw provider identity; it is never a
+/// public coding-session id.
+#[derive(Clone, Debug)]
+pub struct DiscoveredNativeSessionInput {
+    pub title: String,
+    pub status: String,
+    pub host_mode: String,
+    pub engine_id: String,
+    pub model_id: String,
+    pub native_session_id: String,
+    pub created_at: String,
+    pub updated_at: String,
+    pub last_turn_at: Option<String>,
+    pub sort_timestamp: i64,
+    pub transcript_updated_at: Option<String>,
+    pub native_attributes: crate::native_session_types::NativeSessionAttributesPayload,
+}
+
+/// One provider-authored message normalized for durable coding-session
+/// storage. `id` is a server-owned deterministic identifier derived from the
+/// provider binding and source message identity; raw provider ids never become
+/// the public coding-session id.
+#[derive(Clone, Debug, PartialEq)]
+pub struct ReconciledCodingSessionMessageInput {
+    pub id: String,
+    pub turn_id: Option<String>,
+    pub role: String,
+    pub content: String,
+    pub metadata: BTreeMap<String, String>,
+    pub tool_calls: Option<Vec<serde_json::Value>>,
+    pub tool_call_id: Option<String>,
+    pub file_changes: Option<Vec<serde_json::Value>>,
+    pub commands: Option<Vec<serde_json::Value>>,
+    pub task_progress: Option<serde_json::Value>,
+    pub created_at: String,
+}
+
+/// One provider-neutral durable event paired with an imported message. The
+/// repository assigns or preserves its stream sequence transactionally; input
+/// order is the authoritative order for newly observed provider records.
+#[derive(Clone, Debug, PartialEq)]
+pub struct ReconciledCodingSessionEventInput {
+    pub id: String,
+    pub message_id: String,
+    pub turn_id: Option<String>,
+    pub kind: String,
+    pub payload: BTreeMap<String, serde_json::Value>,
+    pub created_at: String,
+}
+
+/// A complete provider transcript snapshot for one already-persisted logical
+/// coding session. The expected binding prevents one provider or native
+/// session from projecting rows into another logical session.
+#[derive(Clone, Debug, PartialEq)]
+pub struct NativeSessionHistoryReconciliationInput {
+    pub engine_id: String,
+    pub native_session_id: String,
+    /// The durable session revision that triggered this provider read. It is
+    /// stored as the freshness marker so later pages can distinguish the same
+    /// read lease from a newly discovered provider summary revision.
+    pub refresh_revision: String,
+    pub source_revision: String,
+    pub messages: Vec<ReconciledCodingSessionMessageInput>,
+    pub events: Vec<ReconciledCodingSessionEventInput>,
+}
+
 // ── Context / options ────────────────────────────────────────────────
 
 #[derive(Clone, Debug, Deserialize)]

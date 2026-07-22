@@ -187,6 +187,13 @@ export interface IProjectRuntimeLocationService {
     request: ProjectRuntimeLocationResolutionRequest,
   ): Promise<ProjectRuntimeLocationResolution>;
 
+  /** Resolves the opaque execution authority for persisted coding sessions. */
+  resolveProjectRuntimeLocationExecutionId(
+    projectId: string,
+    capability: ProjectRuntimeLocationCapability,
+    options?: { allowFolderSelection?: boolean },
+  ): Promise<string>;
+
   resolveRemoteProjectRuntimeLocationId(
     projectId: string,
     capability: ProjectRuntimeLocationCapability,

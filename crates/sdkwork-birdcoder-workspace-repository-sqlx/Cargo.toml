@@ -18,6 +18,8 @@ sdkwork-birdcoder-project-service = { workspace = true }
 sdkwork-birdcoder-deployment-service = { workspace = true }
 sdkwork-birdcoder-errors = { workspace = true }
 sdkwork-birdcoder-sqlx-repository-pool = { workspace = true }
+sdkwork_database_id = { workspace = true }
+sdkwork_database_sqlx = { workspace = true }
 sdkwork-utils-rust.workspace = true
 
 

@@ -3,34 +3,9 @@
   "kind": "sdkwork.database.prefix-registry",
   "prefixes": [
     {
-      "prefix": "ai_",
-      "owner": "birdcoder-platform",
-      "domain": "birdcoder"
-    },
-    {
-      "prefix": "chat_",
-      "owner": "birdcoder-platform",
-      "domain": "birdcoder"
-    },
-    {
-      "prefix": "commerce_",
-      "owner": "birdcoder-platform",
-      "domain": "birdcoder"
-    },
-    {
-      "prefix": "ops_",
-      "owner": "birdcoder-platform",
-      "domain": "birdcoder"
-    },
-    {
-      "prefix": "runtime_",
-      "owner": "birdcoder-platform",
-      "domain": "birdcoder"
-    },
-    {
       "prefix": "studio_",
-      "owner": "birdcoder-platform",
-      "domain": "birdcoder"
+      "owner": "birdcoder-workbench",
+      "domain": "coding-workbench"
     }
   ]
 }

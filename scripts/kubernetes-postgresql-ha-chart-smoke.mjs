@@ -109,8 +109,11 @@ export function smokeKubernetesPostgresqlHaChart({
     if (!/SDKWORK_BIRDCODER_DATABASE_ENGINE/m.test(manifest)) {
       failures.push('rendered chart must publish SDKWORK_BIRDCODER_DATABASE_ENGINE');
     }
-    if (!/SDKWORK_BIRDCODER_DATABASE_URL/m.test(manifest)) {
-      failures.push('rendered chart must publish SDKWORK_BIRDCODER_DATABASE_URL for PostgreSQL');
+    if (!/SDKWORK_CLAW_DATABASE_URL/m.test(manifest)) {
+      failures.push('rendered chart must publish SDKWORK_CLAW_DATABASE_URL for PostgreSQL');
+    }
+    if (!/SDKWORK_CLAW_DATABASE_SCHEMA/m.test(manifest)) {
+      failures.push('rendered chart must publish SDKWORK_CLAW_DATABASE_SCHEMA for PostgreSQL');
     }
     if (!/emptyDir:\s*\{\}/m.test(manifest)) {
       failures.push('rendered PostgreSQL HA chart must use emptyDir instead of PVC persistence');

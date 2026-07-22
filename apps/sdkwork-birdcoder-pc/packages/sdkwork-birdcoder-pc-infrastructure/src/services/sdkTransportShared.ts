@@ -18,6 +18,7 @@ import {
   type BirdCoderWorkspaceSummary,
 } from '@sdkwork/birdcoder-pc-contracts-commons';
 import { BirdCoderApiTransportError } from '@sdkwork/birdcoder-pc-contracts-commons/apiTransportError';
+import { sha256Hash } from '@sdkwork/utils/crypto';
 import {
   clampListPageSize,
   DEFAULT_LIST_PAGE_SIZE,
@@ -660,8 +661,20 @@ export function createBirdCoderHttpApiTransport({
         }
       }
 
-      if (request.body !== undefined) {
+      const serializedBody =
+        request.body === undefined ? undefined : stringifyBirdCoderApiJson(request.body);
+      if (serializedBody !== undefined) {
         headers['Content-Type'] = 'application/json';
+        const hasIntegrityEvidence = Object.keys(headers).some((key) => {
+          const normalizedKey = key.toLowerCase();
+          return (
+            normalizedKey === 'x-content-sha256' ||
+            normalizedKey === 'x-idempotency-fingerprint'
+          );
+        });
+        if (!hasIntegrityEvidence) {
+          headers['X-Content-SHA256'] = sha256Hash(serializedBody);
+        }
       }
 
       const abortController =
@@ -680,7 +693,7 @@ export function createBirdCoderHttpApiTransport({
         const response = await resolvedFetch(buildUrl(baseUrl, request), {
           method: request.method,
           headers,
-          body: request.body === undefined ? undefined : stringifyBirdCoderApiJson(request.body),
+          body: serializedBody,
           signal: abortController?.signal,
         });
 

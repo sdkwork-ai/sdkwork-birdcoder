@@ -75,6 +75,16 @@ assert.equal(
   shouldIgnoreBirdcoderRollupWarning({
     code: 'PLUGIN_TIMINGS',
     message:
+      'Your build spent significant time in plugins: sdkwork-birdcoder-pc-desktop-cjs-default-compat',
+  }),
+  true,
+  'BirdCoder Desktop may govern timing diagnostics emitted by its own compatibility plugins.',
+);
+
+assert.equal(
+  shouldIgnoreBirdcoderRollupWarning({
+    code: 'PLUGIN_TIMINGS',
+    message:
       'Your build spent significant time in plugins: sdkwork-birdcoder-h5-react-compat',
   }),
   true,

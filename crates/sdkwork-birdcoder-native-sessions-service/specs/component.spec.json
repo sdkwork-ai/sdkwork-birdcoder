@@ -1,0 +1,100 @@
+{
+  "schemaVersion": 1,
+  "kind": "sdkwork.component.spec",
+  "component": {
+    "name": "sdkwork-birdcoder-native-sessions-service",
+    "displayName": "SDKWork BirdCoder Native Sessions Service",
+    "version": "0.1.0",
+    "type": "rust-crate",
+    "root": "sdkwork-birdcoder/crates/sdkwork-birdcoder-native-sessions-service",
+    "domain": "intelligence",
+    "declaredDomain": null,
+    "capability": "provider-session-history",
+    "surface": "service",
+    "status": "ACTIVE",
+    "languages": [
+      "rust"
+    ],
+    "generated": false,
+    "private": true,
+    "manifests": [
+      "Cargo.toml"
+    ]
+  },
+  "canonicalSpecs": [
+    {
+      "file": "COMPONENT_SPEC.md",
+      "path": "../../../../sdkwork-specs/COMPONENT_SPEC.md",
+      "purpose": "Component-local contract and discovery rules."
+    },
+    {
+      "file": "MODULE_SPEC.md",
+      "path": "../../../../sdkwork-specs/MODULE_SPEC.md",
+      "purpose": "Reusable Rust module boundary rules."
+    },
+    {
+      "file": "CODE_STYLE_SPEC.md",
+      "path": "../../../../sdkwork-specs/CODE_STYLE_SPEC.md",
+      "purpose": "Authored source and generated-code boundaries."
+    },
+    {
+      "file": "NAMING_SPEC.md",
+      "path": "../../../../sdkwork-specs/NAMING_SPEC.md",
+      "purpose": "Canonical SDKWork naming rules."
+    },
+    {
+      "file": "RUST_CODE_SPEC.md",
+      "path": "../../../../sdkwork-specs/RUST_CODE_SPEC.md",
+      "purpose": "Rust service and adapter ownership rules."
+    },
+    {
+      "file": "DOMAIN_SPEC.md",
+      "path": "../../../../sdkwork-specs/DOMAIN_SPEC.md",
+      "purpose": "Intelligence-domain session authority rules."
+    },
+    {
+      "file": "TEST_SPEC.md",
+      "path": "../../../../sdkwork-specs/TEST_SPEC.md",
+      "purpose": "Service verification rules."
+    }
+  ],
+  "contracts": {
+    "layerRole": "backend-service",
+    "publicExports": [
+      ".",
+      "sdkwork_birdcoder_native_sessions_service::service::native_session_service::NativeSessionService",
+      "sdkwork_birdcoder_native_sessions_service::service::native_session_service::NativeSessionReader",
+      "sdkwork_birdcoder_native_sessions_service::codeengine_repository::CodeEngineNativeSessionRepository"
+    ],
+    "providedPorts": [
+      {
+        "name": "nativeSessionReader",
+        "export": "sdkwork_birdcoder_native_sessions_service::service::native_session_service::NativeSessionReader"
+      }
+    ],
+    "requiredPorts": [
+      {
+        "name": "codeEngineProviderHistories",
+        "export": "."
+      }
+    ],
+    "runtimeEntrypoints": [],
+    "routeManifest": null,
+    "sdkClients": [],
+    "sdkDependencies": [],
+    "permissionComposition": {},
+    "dependencyApiExports": [],
+    "dependencyApiSurfaces": [],
+    "events": [],
+    "configKeys": []
+  },
+  "integration": {
+    "authority": "Provides internal, exact-root-scoped complete-snapshot discovery and exact-bound provider history detail reads for the coding-session application service. It must not expose an independently paginated session list, derive public session identifiers, or own/register app API routes; the intelligence coding-session API is the only public session authority."
+  },
+  "verification": {
+    "commands": [
+      "cargo test --offline -p sdkwork-birdcoder-native-sessions-service --lib -- --nocapture",
+      "cargo clippy --offline -p sdkwork-birdcoder-native-sessions-service --all-targets --no-deps -- -D warnings"
+    ]
+  }
+}

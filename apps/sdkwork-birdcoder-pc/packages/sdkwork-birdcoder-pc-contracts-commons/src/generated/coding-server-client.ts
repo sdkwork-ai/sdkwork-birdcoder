@@ -41,6 +41,62 @@ export const BIRDCODER_FINALIZED_CODING_SERVER_CLIENT_OPERATIONS = {
       "summary": "List SDKWork IAM audit events",
       "surface": "backend"
     },
+  "chat.conversations.create":     {
+      "method": "POST",
+      "operationId": "chat.conversations.create",
+      "path": "/app/v3/api/chat/conversations",
+      "pathParamNames": [],
+      "summary": "Create chat conversation",
+      "surface": "app"
+    },
+  "chat.conversations.delete":     {
+      "method": "DELETE",
+      "operationId": "chat.conversations.delete",
+      "path": "/app/v3/api/chat/conversations/{conversationId}",
+      "pathParamNames": [
+        "conversationId"
+      ],
+      "summary": "Delete chat conversation",
+      "surface": "app"
+    },
+  "chat.conversations.list":     {
+      "method": "GET",
+      "operationId": "chat.conversations.list",
+      "path": "/app/v3/api/chat/conversations",
+      "pathParamNames": [],
+      "summary": "List chat conversations",
+      "surface": "app"
+    },
+  "chat.conversations.messages.create":     {
+      "method": "POST",
+      "operationId": "chat.conversations.messages.create",
+      "path": "/app/v3/api/chat/conversations/{conversationId}/messages",
+      "pathParamNames": [
+        "conversationId"
+      ],
+      "summary": "Create chat message",
+      "surface": "app"
+    },
+  "chat.conversations.messages.list":     {
+      "method": "GET",
+      "operationId": "chat.conversations.messages.list",
+      "path": "/app/v3/api/chat/conversations/{conversationId}/messages",
+      "pathParamNames": [
+        "conversationId"
+      ],
+      "summary": "List chat messages",
+      "surface": "app"
+    },
+  "chat.conversations.retrieve":     {
+      "method": "GET",
+      "operationId": "chat.conversations.retrieve",
+      "path": "/app/v3/api/chat/conversations/{conversationId}",
+      "pathParamNames": [
+        "conversationId"
+      ],
+      "summary": "Get chat conversation",
+      "surface": "app"
+    },
   "codingSessions.artifacts.list":     {
       "method": "GET",
       "operationId": "codingSessions.artifacts.list",
@@ -118,6 +174,28 @@ export const BIRDCODER_FINALIZED_CODING_SERVER_CLIENT_OPERATIONS = {
       "summary": "List coding sessions",
       "surface": "app"
     },
+  "codingSessions.messages.delete":     {
+      "method": "DELETE",
+      "operationId": "codingSessions.messages.delete",
+      "path": "/app/v3/api/intelligence/coding_sessions/{sessionId}/messages/{messageId}",
+      "pathParamNames": [
+        "sessionId",
+        "messageId"
+      ],
+      "summary": "Delete coding session message",
+      "surface": "app"
+    },
+  "codingSessions.messages.update":     {
+      "method": "PATCH",
+      "operationId": "codingSessions.messages.update",
+      "path": "/app/v3/api/intelligence/coding_sessions/{sessionId}/messages/{messageId}",
+      "pathParamNames": [
+        "sessionId",
+        "messageId"
+      ],
+      "summary": "Edit coding session message",
+      "surface": "app"
+    },
   "codingSessions.questions.answers.create":     {
       "method": "POST",
       "operationId": "codingSessions.questions.answers.create",
@@ -159,12 +237,102 @@ export const BIRDCODER_FINALIZED_CODING_SERVER_CLIENT_OPERATIONS = {
       "summary": "Update coding session",
       "surface": "app"
     },
+  "commerce.invoices.list":     {
+      "method": "GET",
+      "operationId": "commerce.invoices.list",
+      "path": "/app/v3/api/commerce/invoices",
+      "pathParamNames": [],
+      "summary": "List SDKWork commerce invoices",
+      "surface": "app"
+    },
+  "commerce.invoices.retrieve":     {
+      "method": "GET",
+      "operationId": "commerce.invoices.retrieve",
+      "path": "/app/v3/api/commerce/invoices/{invoiceId}",
+      "pathParamNames": [
+        "invoiceId"
+      ],
+      "summary": "Get SDKWork commerce invoice",
+      "surface": "app"
+    },
+  "commerce.orders.create":     {
+      "method": "POST",
+      "operationId": "commerce.orders.create",
+      "path": "/app/v3/api/commerce/orders",
+      "pathParamNames": [],
+      "summary": "Create SDKWork commerce order",
+      "surface": "app"
+    },
+  "commerce.orders.list":     {
+      "method": "GET",
+      "operationId": "commerce.orders.list",
+      "path": "/app/v3/api/commerce/orders",
+      "pathParamNames": [],
+      "summary": "List SDKWork commerce orders",
+      "surface": "app"
+    },
+  "commerce.orders.retrieve":     {
+      "method": "GET",
+      "operationId": "commerce.orders.retrieve",
+      "path": "/app/v3/api/commerce/orders/{orderId}",
+      "pathParamNames": [
+        "orderId"
+      ],
+      "summary": "Get SDKWork commerce order",
+      "surface": "app"
+    },
+  "commerce.payments.confirm":     {
+      "method": "POST",
+      "operationId": "commerce.payments.confirm",
+      "path": "/app/v3/api/commerce/payments/{paymentId}/confirm",
+      "pathParamNames": [
+        "paymentId"
+      ],
+      "summary": "Confirm SDKWork commerce payment after gateway callback",
+      "surface": "app"
+    },
+  "commerce.payments.create":     {
+      "method": "POST",
+      "operationId": "commerce.payments.create",
+      "path": "/app/v3/api/commerce/payments",
+      "pathParamNames": [],
+      "summary": "Create SDKWork commerce payment",
+      "surface": "app"
+    },
+  "commerce.payments.list":     {
+      "method": "GET",
+      "operationId": "commerce.payments.list",
+      "path": "/app/v3/api/commerce/payments",
+      "pathParamNames": [],
+      "summary": "List SDKWork commerce payments",
+      "surface": "app"
+    },
+  "commerce.payments.retrieve":     {
+      "method": "GET",
+      "operationId": "commerce.payments.retrieve",
+      "path": "/app/v3/api/commerce/payments/{paymentId}",
+      "pathParamNames": [
+        "paymentId"
+      ],
+      "summary": "Get SDKWork commerce payment",
+      "surface": "app"
+    },
   "deploymentGovernance.list":     {
       "method": "GET",
       "operationId": "deploymentGovernance.list",
       "path": "/backend/v3/api/deployments",
       "pathParamNames": [],
       "summary": "List governed deployments",
+      "surface": "backend"
+    },
+  "deploymentGovernance.targets.list":     {
+      "method": "GET",
+      "operationId": "deploymentGovernance.targets.list",
+      "path": "/backend/v3/api/projects/{projectId}/deployment_targets",
+      "pathParamNames": [
+        "projectId"
+      ],
+      "summary": "List deployment targets",
       "surface": "backend"
     },
   "deployments.list":     {
@@ -233,22 +401,6 @@ export const BIRDCODER_FINALIZED_CODING_SERVER_CLIENT_OPERATIONS = {
       "summary": "Get SDKWork IAM verification policy",
       "surface": "app"
     },
-  "memberships.current.retrieve":     {
-      "method": "GET",
-      "operationId": "memberships.current.retrieve",
-      "path": "/app/v3/api/memberships/current",
-      "pathParamNames": [],
-      "summary": "Get current SDKWork commerce membership",
-      "surface": "app"
-    },
-  "memberships.packageGroups.list":     {
-      "method": "GET",
-      "operationId": "memberships.packageGroups.list",
-      "path": "/app/v3/api/memberships/package_groups",
-      "pathParamNames": [],
-      "summary": "List SDKWork commerce membership package groups",
-      "surface": "app"
-    },
   "modelConfig.retrieve":     {
       "method": "GET",
       "operationId": "modelConfig.retrieve",
@@ -257,9 +409,9 @@ export const BIRDCODER_FINALIZED_CODING_SERVER_CLIENT_OPERATIONS = {
       "summary": "Get code engine model configuration",
       "surface": "app"
     },
-  "modelConfig.sync":     {
+  "modelConfig.update":     {
       "method": "PUT",
-      "operationId": "modelConfig.sync",
+      "operationId": "modelConfig.update",
       "path": "/app/v3/api/model_config",
       "pathParamNames": [],
       "summary": "Sync code engine model configuration",
@@ -279,24 +431,6 @@ export const BIRDCODER_FINALIZED_CODING_SERVER_CLIENT_OPERATIONS = {
       "path": "/app/v3/api/native_session_providers",
       "pathParamNames": [],
       "summary": "List registered native engine session providers",
-      "surface": "app"
-    },
-  "nativeSessions.list":     {
-      "method": "GET",
-      "operationId": "nativeSessions.list",
-      "path": "/app/v3/api/native_sessions",
-      "pathParamNames": [],
-      "summary": "List discovered native engine sessions",
-      "surface": "app"
-    },
-  "nativeSessions.retrieve":     {
-      "method": "GET",
-      "operationId": "nativeSessions.retrieve",
-      "path": "/app/v3/api/native_sessions/{id}",
-      "pathParamNames": [
-        "id"
-      ],
-      "summary": "Get discovered native engine session detail",
       "surface": "app"
     },
   "oauth.authorizationUrls.create":     {
@@ -343,6 +477,16 @@ export const BIRDCODER_FINALIZED_CODING_SERVER_CLIENT_OPERATIONS = {
         "deviceAuthorizationId"
       ],
       "summary": "Create SDKWork IAM OAuth device authorization scan",
+      "surface": "app"
+    },
+  "oauth.deviceAuthorizations.sessionExchanges.create":     {
+      "method": "POST",
+      "operationId": "oauth.deviceAuthorizations.sessionExchanges.create",
+      "path": "/app/v3/api/oauth/device_authorizations/{deviceAuthorizationId}/session_exchanges",
+      "pathParamNames": [
+        "deviceAuthorizationId"
+      ],
+      "summary": "Exchange SDKWork IAM OAuth device authorization for a session",
       "surface": "app"
     },
   "oauth.sessions.create":     {
@@ -551,6 +695,16 @@ export const BIRDCODER_FINALIZED_CODING_SERVER_CLIENT_OPERATIONS = {
       "summary": "Update SDKWork IAM policy",
       "surface": "backend"
     },
+  "projects.collaborators.create":     {
+      "method": "POST",
+      "operationId": "projects.collaborators.create",
+      "path": "/app/v3/api/projects/{projectId}/collaborators",
+      "pathParamNames": [
+        "projectId"
+      ],
+      "summary": "Upsert project collaborator",
+      "surface": "app"
+    },
   "projects.collaborators.list":     {
       "method": "GET",
       "operationId": "projects.collaborators.list",
@@ -559,16 +713,6 @@ export const BIRDCODER_FINALIZED_CODING_SERVER_CLIENT_OPERATIONS = {
         "projectId"
       ],
       "summary": "List project collaborators",
-      "surface": "app"
-    },
-  "projects.collaborators.upsert":     {
-      "method": "POST",
-      "operationId": "projects.collaborators.upsert",
-      "path": "/app/v3/api/projects/{projectId}/collaborators",
-      "pathParamNames": [
-        "projectId"
-      ],
-      "summary": "Upsert project collaborator",
       "surface": "app"
     },
   "projects.create":     {
@@ -592,12 +736,12 @@ export const BIRDCODER_FINALIZED_CODING_SERVER_CLIENT_OPERATIONS = {
   "projects.deploymentTargets.list":     {
       "method": "GET",
       "operationId": "projects.deploymentTargets.list",
-      "path": "/backend/v3/api/projects/{projectId}/deployment_targets",
+      "path": "/app/v3/api/projects/{projectId}/deployment_targets",
       "pathParamNames": [
         "projectId"
       ],
-      "summary": "List deployment targets",
-      "surface": "backend"
+      "summary": "List project deployment targets",
+      "surface": "app"
     },
   "projects.git.branches.create":     {
       "method": "POST",
@@ -627,6 +771,16 @@ export const BIRDCODER_FINALIZED_CODING_SERVER_CLIENT_OPERATIONS = {
         "projectId"
       ],
       "summary": "Commit project Git changes",
+      "surface": "app"
+    },
+  "projects.git.diff.retrieve":     {
+      "method": "GET",
+      "operationId": "projects.git.diff.retrieve",
+      "path": "/app/v3/api/projects/{projectId}/git/diff",
+      "pathParamNames": [
+        "projectId"
+      ],
+      "summary": "Get project Git diff",
       "surface": "app"
     },
   "projects.git.overview.retrieve":     {
@@ -687,9 +841,9 @@ export const BIRDCODER_FINALIZED_CODING_SERVER_CLIENT_OPERATIONS = {
       "summary": "List projects",
       "surface": "app"
     },
-  "projects.publish.create":     {
+  "projects.publish.publish":     {
       "method": "POST",
-      "operationId": "projects.publish.create",
+      "operationId": "projects.publish.publish",
       "path": "/app/v3/api/projects/{projectId}/publish",
       "pathParamNames": [
         "projectId"
@@ -707,6 +861,102 @@ export const BIRDCODER_FINALIZED_CODING_SERVER_CLIENT_OPERATIONS = {
       "summary": "Get project",
       "surface": "app"
     },
+  "projects.runtimeLocations.create":     {
+      "method": "POST",
+      "operationId": "projects.runtimeLocations.create",
+      "path": "/app/v3/api/projects/{projectId}/runtime_locations",
+      "pathParamNames": [
+        "projectId"
+      ],
+      "summary": "Register project runtime location",
+      "surface": "app"
+    },
+  "projects.runtimeLocations.delete":     {
+      "method": "DELETE",
+      "operationId": "projects.runtimeLocations.delete",
+      "path": "/app/v3/api/projects/{projectId}/runtime_locations/{runtimeLocationId}",
+      "pathParamNames": [
+        "projectId",
+        "runtimeLocationId"
+      ],
+      "summary": "Delete project runtime location",
+      "surface": "app"
+    },
+  "projects.runtimeLocations.list":     {
+      "method": "GET",
+      "operationId": "projects.runtimeLocations.list",
+      "path": "/app/v3/api/projects/{projectId}/runtime_locations",
+      "pathParamNames": [
+        "projectId"
+      ],
+      "summary": "List project runtime locations",
+      "surface": "app"
+    },
+  "projects.runtimeLocations.preferences.list":     {
+      "method": "GET",
+      "operationId": "projects.runtimeLocations.preferences.list",
+      "path": "/app/v3/api/projects/{projectId}/runtime_location_preferences",
+      "pathParamNames": [
+        "projectId"
+      ],
+      "summary": "List project runtime-location preferences",
+      "surface": "app"
+    },
+  "projects.runtimeLocations.preferences.update":     {
+      "method": "PUT",
+      "operationId": "projects.runtimeLocations.preferences.update",
+      "path": "/app/v3/api/projects/{projectId}/runtime_location_preferences/{capability}",
+      "pathParamNames": [
+        "projectId",
+        "capability"
+      ],
+      "summary": "Update project runtime-location preference",
+      "surface": "app"
+    },
+  "projects.runtimeLocations.rebind":     {
+      "method": "POST",
+      "operationId": "projects.runtimeLocations.rebind",
+      "path": "/app/v3/api/projects/{projectId}/runtime_locations/{runtimeLocationId}/rebind",
+      "pathParamNames": [
+        "projectId",
+        "runtimeLocationId"
+      ],
+      "summary": "Rebind project runtime location",
+      "surface": "app"
+    },
+  "projects.runtimeLocations.requestVerification":     {
+      "method": "POST",
+      "operationId": "projects.runtimeLocations.requestVerification",
+      "path": "/app/v3/api/projects/{projectId}/runtime_locations/{runtimeLocationId}/request_verification",
+      "pathParamNames": [
+        "projectId",
+        "runtimeLocationId"
+      ],
+      "summary": "Request project runtime-location verification",
+      "surface": "app"
+    },
+  "projects.runtimeLocations.retrieve":     {
+      "method": "GET",
+      "operationId": "projects.runtimeLocations.retrieve",
+      "path": "/app/v3/api/projects/{projectId}/runtime_locations/{runtimeLocationId}",
+      "pathParamNames": [
+        "projectId",
+        "runtimeLocationId"
+      ],
+      "summary": "Get project runtime location",
+      "surface": "app"
+    },
+  "projects.runtimeLocations.update":     {
+      "method": "PATCH",
+      "operationId": "projects.runtimeLocations.update",
+      "path": "/app/v3/api/projects/{projectId}/runtime_locations/{runtimeLocationId}",
+      "pathParamNames": [
+        "projectId",
+        "runtimeLocationId"
+      ],
+      "summary": "Update project runtime location",
+      "surface": "app"
+    },
   "projects.update":     {
       "method": "PATCH",
       "operationId": "projects.update",
@@ -715,6 +965,36 @@ export const BIRDCODER_FINALIZED_CODING_SERVER_CLIENT_OPERATIONS = {
         "projectId"
       ],
       "summary": "Update project",
+      "surface": "app"
+    },
+  "projects.workspaceBinding.delete":     {
+      "method": "DELETE",
+      "operationId": "projects.workspaceBinding.delete",
+      "path": "/app/v3/api/projects/{projectId}/workspace_binding",
+      "pathParamNames": [
+        "projectId"
+      ],
+      "summary": "Delete project workspace binding",
+      "surface": "app"
+    },
+  "projects.workspaceBinding.retrieve":     {
+      "method": "GET",
+      "operationId": "projects.workspaceBinding.retrieve",
+      "path": "/app/v3/api/projects/{projectId}/workspace_binding",
+      "pathParamNames": [
+        "projectId"
+      ],
+      "summary": "Get project workspace binding",
+      "surface": "app"
+    },
+  "projects.workspaceBinding.update":     {
+      "method": "PUT",
+      "operationId": "projects.workspaceBinding.update",
+      "path": "/app/v3/api/projects/{projectId}/workspace_binding",
+      "pathParamNames": [
+        "projectId"
+      ],
+      "summary": "Create or update project workspace binding",
       "surface": "app"
     },
   "registrations.create":     {
@@ -1112,6 +1392,16 @@ export const BIRDCODER_FINALIZED_CODING_SERVER_CLIENT_OPERATIONS = {
       "summary": "List workspaces",
       "surface": "app"
     },
+  "workspaces.members.create":     {
+      "method": "POST",
+      "operationId": "workspaces.members.create",
+      "path": "/app/v3/api/workspaces/{workspaceId}/members",
+      "pathParamNames": [
+        "workspaceId"
+      ],
+      "summary": "Upsert workspace member",
+      "surface": "app"
+    },
   "workspaces.members.list":     {
       "method": "GET",
       "operationId": "workspaces.members.list",
@@ -1122,24 +1412,14 @@ export const BIRDCODER_FINALIZED_CODING_SERVER_CLIENT_OPERATIONS = {
       "summary": "List workspace members",
       "surface": "app"
     },
-  "workspaces.members.upsert":     {
-      "method": "POST",
-      "operationId": "workspaces.members.upsert",
-      "path": "/app/v3/api/workspaces/{workspaceId}/members",
-      "pathParamNames": [
-        "workspaceId"
-      ],
-      "summary": "Upsert workspace member",
-      "surface": "app"
-    },
-  "workspaces.realtime.subscribe":     {
+  "workspaces.retrieve":     {
       "method": "GET",
-      "operationId": "workspaces.realtime.subscribe",
-      "path": "/app/v3/api/workspaces/{workspaceId}/realtime",
+      "operationId": "workspaces.retrieve",
+      "path": "/app/v3/api/workspaces/{workspaceId}",
       "pathParamNames": [
         "workspaceId"
       ],
-      "summary": "Subscribe to workspace realtime invalidation events",
+      "summary": "Get workspace",
       "surface": "app"
     },
   "workspaces.update":     {
@@ -1170,6 +1450,12 @@ interface BirdCoderFinalizedCodingServerClientPathParamsMap {
   "apiKeys.revoke": { apiKeyId: string };
   "appTemplates.list": {};
   "auditEvents.list": {};
+  "chat.conversations.create": {};
+  "chat.conversations.delete": { conversationId: string };
+  "chat.conversations.list": {};
+  "chat.conversations.messages.create": { conversationId: string };
+  "chat.conversations.messages.list": { conversationId: string };
+  "chat.conversations.retrieve": { conversationId: string };
   "codingSessions.artifacts.list": { sessionId: string };
   "codingSessions.checkpoints.approval.create": { sessionId: string; checkpointId: string };
   "codingSessions.checkpoints.list": { sessionId: string };
@@ -1178,11 +1464,23 @@ interface BirdCoderFinalizedCodingServerClientPathParamsMap {
   "codingSessions.events.list": { sessionId: string };
   "codingSessions.forks.create": { sessionId: string };
   "codingSessions.list": {};
+  "codingSessions.messages.delete": { sessionId: string; messageId: string };
+  "codingSessions.messages.update": { sessionId: string; messageId: string };
   "codingSessions.questions.answers.create": { sessionId: string; questionId: string };
   "codingSessions.retrieve": { sessionId: string };
   "codingSessions.turns.create": { sessionId: string };
   "codingSessions.update": { sessionId: string };
+  "commerce.invoices.list": {};
+  "commerce.invoices.retrieve": { invoiceId: string };
+  "commerce.orders.create": {};
+  "commerce.orders.list": {};
+  "commerce.orders.retrieve": { orderId: string };
+  "commerce.payments.confirm": { paymentId: string };
+  "commerce.payments.create": {};
+  "commerce.payments.list": {};
+  "commerce.payments.retrieve": { paymentId: string };
   "deploymentGovernance.list": {};
+  "deploymentGovernance.targets.list": { projectId: string };
   "deployments.list": {};
   "descriptor.retrieve": {};
   "documents.list": {};
@@ -1191,19 +1489,16 @@ interface BirdCoderFinalizedCodingServerClientPathParamsMap {
   "health.retrieve": {};
   "iam.runtime.retrieve": {};
   "iam.verificationPolicy.retrieve": {};
-  "memberships.current.retrieve": {};
-  "memberships.packageGroups.list": {};
   "modelConfig.retrieve": {};
-  "modelConfig.sync": {};
+  "modelConfig.update": {};
   "models.list": {};
   "nativeSessionProviders.list": {};
-  "nativeSessions.list": {};
-  "nativeSessions.retrieve": { id: string };
   "oauth.authorizationUrls.create": {};
   "oauth.deviceAuthorizations.create": {};
   "oauth.deviceAuthorizations.passwordCompletions.create": { deviceAuthorizationId: string };
   "oauth.deviceAuthorizations.retrieve": { deviceAuthorizationId: string };
   "oauth.deviceAuthorizations.scans.create": { deviceAuthorizationId: string };
+  "oauth.deviceAuthorizations.sessionExchanges.create": { deviceAuthorizationId: string };
   "oauth.sessions.create": {};
   "operations.retrieve": { operationId: string };
   "organizationMemberships.create": {};
@@ -1227,23 +1522,36 @@ interface BirdCoderFinalizedCodingServerClientPathParamsMap {
   "policies.list": {};
   "policies.retrieve": { policyId: string };
   "policies.update": { policyId: string };
+  "projects.collaborators.create": { projectId: string };
   "projects.collaborators.list": { projectId: string };
-  "projects.collaborators.upsert": { projectId: string };
   "projects.create": {};
   "projects.delete": { projectId: string };
   "projects.deploymentTargets.list": { projectId: string };
   "projects.git.branches.create": { projectId: string };
   "projects.git.branchSwitch.create": { projectId: string };
   "projects.git.commits.create": { projectId: string };
+  "projects.git.diff.retrieve": { projectId: string };
   "projects.git.overview.retrieve": { projectId: string };
   "projects.git.pushes.create": { projectId: string };
   "projects.git.worktreePrune.create": { projectId: string };
   "projects.git.worktreeRemovals.create": { projectId: string };
   "projects.git.worktrees.create": { projectId: string };
   "projects.list": {};
-  "projects.publish.create": { projectId: string };
+  "projects.publish.publish": { projectId: string };
   "projects.retrieve": { projectId: string };
+  "projects.runtimeLocations.create": { projectId: string };
+  "projects.runtimeLocations.delete": { projectId: string; runtimeLocationId: string };
+  "projects.runtimeLocations.list": { projectId: string };
+  "projects.runtimeLocations.preferences.list": { projectId: string };
+  "projects.runtimeLocations.preferences.update": { projectId: string; capability: string };
+  "projects.runtimeLocations.rebind": { projectId: string; runtimeLocationId: string };
+  "projects.runtimeLocations.requestVerification": { projectId: string; runtimeLocationId: string };
+  "projects.runtimeLocations.retrieve": { projectId: string; runtimeLocationId: string };
+  "projects.runtimeLocations.update": { projectId: string; runtimeLocationId: string };
   "projects.update": { projectId: string };
+  "projects.workspaceBinding.delete": { projectId: string };
+  "projects.workspaceBinding.retrieve": { projectId: string };
+  "projects.workspaceBinding.update": { projectId: string };
   "registrations.create": {};
   "releases.list": {};
   "roleBindings.create": {};
@@ -1288,9 +1596,9 @@ interface BirdCoderFinalizedCodingServerClientPathParamsMap {
   "workspaces.create": {};
   "workspaces.delete": { workspaceId: string };
   "workspaces.list": {};
+  "workspaces.members.create": { workspaceId: string };
   "workspaces.members.list": { workspaceId: string };
-  "workspaces.members.upsert": { workspaceId: string };
-  "workspaces.realtime.subscribe": { workspaceId: string };
+  "workspaces.retrieve": { workspaceId: string };
   "workspaces.update": { workspaceId: string };
   "workspaceTeams.list": {};
 }

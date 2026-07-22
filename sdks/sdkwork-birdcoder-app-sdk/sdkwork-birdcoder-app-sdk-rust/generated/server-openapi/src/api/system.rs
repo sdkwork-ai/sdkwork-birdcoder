@@ -5,7 +5,7 @@ use reqwest::Method;
 use crate::api::paths::app_path;
 use crate::api::paths::append_query_string;
 use crate::http::{SdkworkError, SdkworkHttpClient};
-use crate::models::{BirdCoderApiRouteCatalogEntryListEnvelope, BirdCoderChatConversationSummaryEnvelope, BirdCoderChatConversationSummaryListEnvelope, BirdCoderChatMessageSummaryEnvelope, BirdCoderChatMessageSummaryListEnvelope, BirdCoderCodingServerDescriptorEnvelope, BirdCoderCoreHealthSummaryEnvelope, BirdCoderCoreRuntimeSummaryEnvelope, BirdCoderCreateChatConversationRequest, BirdCoderCreateChatMessageRequest, BirdCoderIamRuntimeSettingsEnvelope, BirdCoderIamVerificationPolicyEnvelope, BirdCoderOperationDescriptorEnvelope};
+use crate::models::{BirdCoderChatConversationSummary, BirdCoderChatMessageSummary, BirdCoderCodingServerDescriptor, BirdCoderCoreHealthSummary, BirdCoderCoreRuntimeSummary, BirdCoderCreateChatConversationRequest, BirdCoderCreateChatMessageRequest, BirdCoderIamRuntimeSettingsSummary, BirdCoderIamVerificationPolicySummary, BirdCoderOperationDescriptor};
 
 #[derive(Clone)]
 pub struct SystemApi {
@@ -18,49 +18,49 @@ impl SystemApi {
     }
 
     /// Get coding-server descriptor
-    pub async fn descriptor_retrieve(&self) -> Result<BirdCoderCodingServerDescriptorEnvelope, SdkworkError> {
+    pub async fn descriptor_retrieve(&self) -> Result<BirdCoderCodingServerDescriptor, SdkworkError> {
         let path = app_path(&"/system/descriptor".to_string());
         self.client.get(&path, None, None).await
     }
 
     /// Get coding-server health
-    pub async fn health_retrieve(&self) -> Result<BirdCoderCoreHealthSummaryEnvelope, SdkworkError> {
+    pub async fn health_retrieve(&self) -> Result<BirdCoderCoreHealthSummary, SdkworkError> {
         let path = app_path(&"/system/health".to_string());
         self.client.get(&path, None, None).await
     }
 
     /// Get operation status
-    pub async fn operations_retrieve(&self, operation_id: &str) -> Result<BirdCoderOperationDescriptorEnvelope, SdkworkError> {
+    pub async fn operations_retrieve(&self, operation_id: &str) -> Result<BirdCoderOperationDescriptor, SdkworkError> {
         let path = app_path(&format!("/operations/{}", serialize_path_parameter(operation_id, PathParameterSpec::new("operationId", "simple", false))));
         self.client.get(&path, None, None).await
     }
 
     /// List unified API routes
-    pub async fn routes_list(&self) -> Result<BirdCoderApiRouteCatalogEntryListEnvelope, SdkworkError> {
+    pub async fn routes_list(&self) -> Result<serde_json::Value, SdkworkError> {
         let path = app_path(&"/system/routes".to_string());
         self.client.get(&path, None, None).await
     }
 
     /// Get runtime metadata
-    pub async fn runtime_retrieve(&self) -> Result<BirdCoderCoreRuntimeSummaryEnvelope, SdkworkError> {
+    pub async fn runtime_retrieve(&self) -> Result<BirdCoderCoreRuntimeSummary, SdkworkError> {
         let path = app_path(&"/system/runtime".to_string());
         self.client.get(&path, None, None).await
     }
 
     /// Get SDKWork IAM runtime metadata
-    pub async fn iam_runtime_retrieve(&self) -> Result<BirdCoderIamRuntimeSettingsEnvelope, SdkworkError> {
+    pub async fn iam_runtime_retrieve(&self) -> Result<BirdCoderIamRuntimeSettingsSummary, SdkworkError> {
         let path = app_path(&"/system/iam/runtime".to_string());
         self.client.request_method(Method::GET, &path, Option::<&serde_json::Value>::None, None, None, None, true).await
     }
 
     /// Get SDKWork IAM verification policy
-    pub async fn iam_verification_policy_retrieve(&self) -> Result<BirdCoderIamVerificationPolicyEnvelope, SdkworkError> {
+    pub async fn iam_verification_policy_retrieve(&self) -> Result<BirdCoderIamVerificationPolicySummary, SdkworkError> {
         let path = app_path(&"/system/iam/verification_policy".to_string());
         self.client.request_method(Method::GET, &path, Option::<&serde_json::Value>::None, None, None, None, true).await
     }
 
     /// List chat conversations
-    pub async fn chat_conversations_list(&self, page: Option<i64>, page_size: Option<i64>) -> Result<BirdCoderChatConversationSummaryListEnvelope, SdkworkError> {
+    pub async fn chat_conversations_list(&self, page: Option<i64>, page_size: Option<i64>) -> Result<serde_json::Value, SdkworkError> {
         let query = build_query_string(&[
             QueryParameterSpec::new("page", page, "form", true, false, None),
             QueryParameterSpec::new("page_size", page_size, "form", true, false, None),
@@ -70,13 +70,13 @@ impl SystemApi {
     }
 
     /// Create chat conversation
-    pub async fn chat_conversations_create(&self, body: &BirdCoderCreateChatConversationRequest) -> Result<BirdCoderChatConversationSummaryEnvelope, SdkworkError> {
+    pub async fn chat_conversations_create(&self, body: &BirdCoderCreateChatConversationRequest) -> Result<BirdCoderChatConversationSummary, SdkworkError> {
         let path = app_path(&"/chat/conversations".to_string());
         self.client.post(&path, Some(body), None, None, Some("application/json")).await
     }
 
     /// Get chat conversation
-    pub async fn chat_conversations_retrieve(&self, conversation_id: &str) -> Result<BirdCoderChatConversationSummaryEnvelope, SdkworkError> {
+    pub async fn chat_conversations_retrieve(&self, conversation_id: &str) -> Result<BirdCoderChatConversationSummary, SdkworkError> {
         let path = app_path(&format!("/chat/conversations/{}", serialize_path_parameter(conversation_id, PathParameterSpec::new("conversationId", "simple", false))));
         self.client.get(&path, None, None).await
     }
@@ -88,7 +88,7 @@ impl SystemApi {
     }
 
     /// List chat messages
-    pub async fn chat_conversations_messages_list(&self, conversation_id: &str, page: Option<i64>, page_size: Option<i64>) -> Result<BirdCoderChatMessageSummaryListEnvelope, SdkworkError> {
+    pub async fn chat_conversations_messages_list(&self, conversation_id: &str, page: Option<i64>, page_size: Option<i64>) -> Result<serde_json::Value, SdkworkError> {
         let query = build_query_string(&[
             QueryParameterSpec::new("page", page, "form", true, false, None),
             QueryParameterSpec::new("page_size", page_size, "form", true, false, None),
@@ -98,7 +98,7 @@ impl SystemApi {
     }
 
     /// Create chat message
-    pub async fn chat_conversations_messages_create(&self, conversation_id: &str, body: &BirdCoderCreateChatMessageRequest) -> Result<BirdCoderChatMessageSummaryEnvelope, SdkworkError> {
+    pub async fn chat_conversations_messages_create(&self, conversation_id: &str, body: &BirdCoderCreateChatMessageRequest) -> Result<BirdCoderChatMessageSummary, SdkworkError> {
         let path = app_path(&format!("/chat/conversations/{}/messages", serialize_path_parameter(conversation_id, PathParameterSpec::new("conversationId", "simple", false))));
         self.client.post(&path, Some(body), None, None, Some("application/json")).await
     }

@@ -48,7 +48,7 @@
     },
     {
       "path": "src/api/iam.rs",
-      "sha256": "9a1012c235ea7ed27469e390d15f985476c9f8cfb611d0e95212b1003de0024a"
+      "sha256": "5b0c8d7fa40a85cd4e21ed1e1f081388d3fda4a97caaa120a0034f143f06a144"
     },
     {
       "path": "src/api/mod.rs",
@@ -60,15 +60,15 @@
     },
     {
       "path": "src/api/platform.rs",
-      "sha256": "2629dd56d62ce75413af0e31ca9d79628ec13897f8ead6372e7f63bbcd2395b1"
+      "sha256": "6c8a32f5b447ffb16807b7b2eb57234dee82b7b7501c6a9dd9f218025c2cdf6c"
     },
     {
       "path": "src/client.rs",
-      "sha256": "5950486486eeb3e62e50eef131b711e4bcc3edd3e5ee886ba8cfb64b45878049"
+      "sha256": "46d4af4475cc7648bc6fa2083942b1467966339d3e0c68314efab8b7821d0ffa"
     },
     {
       "path": "src/http/client.rs",
-      "sha256": "ffd88587750661cd174b1d0bae02a876d24f8537acdccaa67e297a549d0a927e"
+      "sha256": "2e5bd0ae2159fce3ffbfa4950a0df83a6df97399be5c15196b284d3671da9b0a"
     },
     {
       "path": "src/http/mod.rs",

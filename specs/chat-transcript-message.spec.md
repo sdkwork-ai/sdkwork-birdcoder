@@ -427,11 +427,11 @@ The provider replay authority is covered by:
 
 ## OpenAPI And SDK Persistence
 
-`BirdCoderNativeSessionMessage` must carry canonical `reasoning` and `resources`
-through the application OpenAPI authority, materialized coding-server schema,
-SDK generator input, generated TypeScript/Rust transports, native-history
-service response, and PC hydration. These fields are not UI-only extensions and
-must survive server-mode refresh and desktop/native replay.
+`BirdCoderCodingSessionEvent` payloads must carry canonical `reasoning` and
+`resources` from the internal native-history service through coding-session
+materialization, the application OpenAPI authority, generated TypeScript/Rust
+transports, and PC hydration. These fields are not UI-only extensions and must
+survive server-mode refresh and desktop/native replay.
 
 Generated SDK files are never edited by hand. Change the owning schema and
 generator mappings, then run the repository materialization, SDK synchronization,

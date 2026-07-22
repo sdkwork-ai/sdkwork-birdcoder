@@ -19,11 +19,6 @@ const iamRuntimeSource = fs.readFileSync(
   new URL('../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/src/services/iamRuntime.ts', import.meta.url),
   'utf8',
 );
-const nativeSessionHandlersSource = fs.readFileSync(
-  new URL('../crates/sdkwork-routes-engine-catalog-app-api/src/handlers.rs', import.meta.url),
-  'utf8',
-);
-
 assert.match(
   shellRuntimeProvidersSource,
   /<IDEProvider>[\s\S]*<AuthProvider>[\s\S]*<AuthStateBridge>/u,
@@ -74,12 +69,6 @@ assert.doesNotMatch(
   iamRuntimeSource,
   /getBirdCoderGeneratedBackendSdkClient/u,
   'App IAM runtime composition must not construct backend SDK clients for the user-facing renderer.',
-);
-
-assert.match(
-  nativeSessionHandlersSource,
-  /workspaceId, projectId, and runtimeLocationId are required to list native sessions; the server must also resolve an authorized runtime location/u,
-  'Native session list API must require the complete server-authorized execution scope.',
 );
 
 console.log('auth gate provider order contract passed.');

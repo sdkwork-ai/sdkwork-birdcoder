@@ -21,6 +21,7 @@ import { HeaderLoadingStatus } from './HeaderLoadingStatus.tsx';
 interface AppWorkspaceMenuEngineOption {
   id: string;
   label: string;
+  modelId: string;
 }
 
 interface AppWorkspaceMenuProps {
@@ -54,6 +55,7 @@ interface AppWorkspaceMenuProps {
   projectActionsMenuId: string | null;
   availableNewSessionEngines: readonly AppWorkspaceMenuEngineOption[];
   preferredEngineId: string;
+  preferredModelId: string;
   onToggleMenu: () => void;
   onCloseMenuSurface: () => void;
   onPreviewWorkspaceSelection: (workspaceId: string) => void;
@@ -69,7 +71,7 @@ interface AppWorkspaceMenuProps {
   onProjectRenameValueChange: (value: string) => void;
   onFinishProjectRename: () => void;
   onCommitProjectRename: (projectId: string, nextName: string) => void | Promise<void>;
-  onCreateProjectSession: (projectId: string, requestedEngineId?: string) => void | Promise<void>;
+  onCreateProjectSession: (projectId: string, requestedEngineId?: string, requestedModelId?: string) => void | Promise<void>;
   onToggleProjectActionsMenu: (projectId: string) => void;
   onOpenProjectInExplorer: (projectId: string, projectName?: string) => void;
   onConfirmDeleteProject: (event: MouseEvent<HTMLButtonElement>, projectId: string) => void;
@@ -127,6 +129,7 @@ export const AppWorkspaceMenu = memo(function AppWorkspaceMenu({
   projectActionsMenuId,
   availableNewSessionEngines,
   preferredEngineId,
+  preferredModelId,
   onToggleMenu,
   onCloseMenuSurface,
   onPreviewWorkspaceSelection,
@@ -382,7 +385,7 @@ export const AppWorkspaceMenu = memo(function AppWorkspaceMenu({
                           <button
                             onClick={(event) => {
                               event.stopPropagation();
-                              void onCreateProjectSession(project.id, preferredEngineId);
+                              void onCreateProjectSession(project.id, preferredEngineId, preferredModelId);
                             }}
                             className="p-1.5 text-gray-500 hover:text-white hover:bg-white/10 rounded-md transition-all"
                             title={t('code.newSessionInProject')}
@@ -409,7 +412,7 @@ export const AppWorkspaceMenu = memo(function AppWorkspaceMenu({
                               type="button"
                               onClick={(event) => {
                                 event.stopPropagation();
-                                void onCreateProjectSession(project.id, engine.id);
+                                void onCreateProjectSession(project.id, engine.id, engine.modelId);
                               }}
                               className="flex w-full items-center px-3 py-1.5 text-left text-xs text-gray-300 transition-colors hover:bg-white/10 hover:text-white"
                             >

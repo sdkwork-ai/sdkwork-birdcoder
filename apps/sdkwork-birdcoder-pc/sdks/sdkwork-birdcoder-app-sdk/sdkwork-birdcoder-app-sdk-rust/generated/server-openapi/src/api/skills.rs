@@ -3,7 +3,7 @@ use std::sync::Arc;
 use crate::api::paths::app_path;
 use crate::api::paths::append_query_string;
 use crate::http::{SdkworkError, SdkworkHttpClient};
-use crate::models::{BirdCoderInstallSkillPackageRequest, BirdCoderSkillInstallationSummaryEnvelope, BirdCoderSkillPackageSummaryListEnvelope};
+use crate::models::{BirdCoderInstallSkillPackageRequest, BirdCoderSkillInstallationSummary};
 
 #[derive(Clone)]
 pub struct SkillsApi {
@@ -16,13 +16,13 @@ impl SkillsApi {
     }
 
     /// Install skill package for a scope
-    pub async fn skill_packages_installations_create(&self, package_id: &str, body: &BirdCoderInstallSkillPackageRequest) -> Result<BirdCoderSkillInstallationSummaryEnvelope, SdkworkError> {
+    pub async fn skill_packages_installations_create(&self, package_id: &str, body: &BirdCoderInstallSkillPackageRequest) -> Result<BirdCoderSkillInstallationSummary, SdkworkError> {
         let path = app_path(&format!("/skill_packages/{}/installations", serialize_path_parameter(package_id, PathParameterSpec::new("packageId", "simple", false))));
         self.client.post(&path, Some(body), None, None, Some("application/json")).await
     }
 
     /// List skill packages
-    pub async fn skill_packages_list(&self, user_id: Option<&str>, workspace_id: Option<&str>, page: Option<i64>, page_size: Option<i64>) -> Result<BirdCoderSkillPackageSummaryListEnvelope, SdkworkError> {
+    pub async fn skill_packages_list(&self, user_id: Option<&str>, workspace_id: Option<&str>, page: Option<i64>, page_size: Option<i64>) -> Result<serde_json::Value, SdkworkError> {
         let query = build_query_string(&[
             QueryParameterSpec::new("userId", user_id, "form", true, false, None),
             QueryParameterSpec::new("workspaceId", workspace_id, "form", true, false, None),

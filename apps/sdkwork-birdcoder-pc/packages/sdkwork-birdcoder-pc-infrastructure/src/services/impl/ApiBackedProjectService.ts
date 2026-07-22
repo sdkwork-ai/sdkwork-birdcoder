@@ -71,6 +71,7 @@ const ZERO_TIMESTAMP = new Date(0).toISOString();
 const PROJECT_LIST_CACHE_TTL_MS = 30_000;
 const PROJECT_DETAIL_CACHE_TTL_MS = 15_000;
 const AUTHORITATIVE_CODING_SESSION_SUMMARY_CACHE_TTL_MS = 15_000;
+const AUTHORITATIVE_CODING_SESSION_PAGE_SIZE = 200;
 const PROJECT_READ_CACHE_MAX_ENTRIES = 256;
 const RECENT_AUTHORITATIVE_TURN_OVERLAY_MAX_SESSIONS = 128;
 const RECENT_AUTHORITATIVE_TURN_OVERLAY_MAX_MESSAGES_PER_SESSION = 32;
@@ -104,8 +105,149 @@ type LocalProjectSnapshot =
   | BirdCoderProject
   | BirdCoderProjectMirrorSnapshot;
 
+type CodingSessionPageClient = Pick<
+  BirdCoderAppRuntimeReadSdkApiClient,
+  'listCodingSessionPage' | 'listCodingSessions'
+>;
+
 interface CodingSessionProjectionOptions {
   preserveLocalMessages?: boolean;
+}
+
+function buildCodingSessionSummaryIdentityKey(
+  summary: BirdCoderCodingSessionSummary,
+): string {
+  return [
+    summary.workspaceId.trim(),
+    summary.projectId.trim(),
+    summary.engineId.trim(),
+    summary.id.trim(),
+  ].join(':');
+}
+
+function resolveNextCodingSessionPageOffset(
+  currentOffset: number,
+  requestedPageSize: number,
+  page: BirdCoderPage<BirdCoderCodingSessionSummary>,
+): number {
+  const responsePage = page.pageInfo.page;
+  const responsePageSize = page.pageInfo.pageSize;
+  if (
+    Number.isSafeInteger(responsePage) &&
+    responsePage > 0 &&
+    Number.isSafeInteger(responsePageSize) &&
+    responsePageSize > 0
+  ) {
+    const nextOffset = responsePage * responsePageSize;
+    if (Number.isSafeInteger(nextOffset) && nextOffset > currentOffset) {
+      return nextOffset;
+    }
+  }
+
+  return currentOffset + Math.max(page.items.length, requestedPageSize);
+}
+
+async function readAuthoritativeCodingSessionSummaryPages(
+  client: CodingSessionPageClient,
+  request: Omit<BirdCoderListCodingSessionsRequest, 'limit' | 'offset'>,
+): Promise<BirdCoderCodingSessionSummary[]> {
+  if (typeof client.listCodingSessionPage !== 'function') {
+    return client.listCodingSessions(request);
+  }
+
+  const summaries: BirdCoderCodingSessionSummary[] = [];
+  const seenIdentityKeys = new Set<string>();
+  const requestedOffsets = new Set<number>();
+  let offset = 0;
+  let pageSize = AUTHORITATIVE_CODING_SESSION_PAGE_SIZE;
+
+  while (!requestedOffsets.has(offset)) {
+    requestedOffsets.add(offset);
+    const page = await client.listCodingSessionPage({
+      ...request,
+      limit: pageSize,
+      offset,
+    });
+    const pageItems = Array.isArray(page.items) ? page.items : [];
+    let addedItemCount = 0;
+    for (const summary of pageItems) {
+      const identityKey = buildCodingSessionSummaryIdentityKey(summary);
+      if (seenIdentityKeys.has(identityKey)) {
+        continue;
+      }
+      seenIdentityKeys.add(identityKey);
+      summaries.push(summary);
+      addedItemCount += 1;
+    }
+
+    if (!page.pageInfo.hasMore || pageItems.length === 0 || addedItemCount === 0) {
+      break;
+    }
+
+    const nextOffset = resolveNextCodingSessionPageOffset(
+      offset,
+      pageSize,
+      page,
+    );
+    if (!Number.isSafeInteger(nextOffset) || nextOffset <= offset) {
+      break;
+    }
+    offset = nextOffset;
+    pageSize = page.pageInfo.pageSize;
+  }
+
+  return summaries;
+}
+
+function resolveUnambiguousProjectRuntimeLocationId(
+  project: LocalProjectSnapshot | null | undefined,
+): string | undefined {
+  const runtimeLocationIds = new Set<string>();
+  for (const codingSession of project?.codingSessions ?? []) {
+    const runtimeLocationId = codingSession.runtimeLocationId?.trim();
+    if (runtimeLocationId) {
+      runtimeLocationIds.add(runtimeLocationId);
+    }
+  }
+  return runtimeLocationIds.size === 1
+    ? runtimeLocationIds.values().next().value
+    : undefined;
+}
+
+function resolveUnambiguousPreferredProjectRuntimeLocationId(
+  preferences: Awaited<
+    ReturnType<BirdCoderAppSdkApiClient['listProjectRuntimeLocationPreferences']>
+  >,
+): string | undefined {
+  const terminalRuntimeLocationIds = new Set<string>();
+  const fileSystemRuntimeLocationIds = new Set<string>();
+  for (const preference of preferences) {
+    const runtimeLocationId = preference.runtimeLocationId.trim();
+    if (!runtimeLocationId) {
+      continue;
+    }
+    if (preference.capability === 'terminal') {
+      terminalRuntimeLocationIds.add(runtimeLocationId);
+    } else if (preference.capability === 'file_system') {
+      fileSystemRuntimeLocationIds.add(runtimeLocationId);
+    }
+  }
+
+  if (terminalRuntimeLocationIds.size > 0) {
+    return terminalRuntimeLocationIds.size === 1
+      ? terminalRuntimeLocationIds.values().next().value
+      : undefined;
+  }
+  return fileSystemRuntimeLocationIds.size === 1
+    ? fileSystemRuntimeLocationIds.values().next().value
+    : undefined;
+}
+
+function resolveCodingSessionPageTotal(
+  page: BirdCoderPage<BirdCoderCodingSessionSummary>,
+): number {
+  const total = Number(page.pageInfo.totalItems);
+  return Number.isSafeInteger(total) && total >= 0 ? total : page.items.length;
 }
 
 interface ProjectCodingSessionForTurn {
@@ -372,6 +514,7 @@ function mergeCodingSessionSummary(
     engineId: summary.engineId,
     modelId: summary.modelId,
     nativeSessionId: summary.nativeSessionId ?? localCodingSession?.nativeSessionId,
+    nativeAttributes: summary.nativeAttributes ?? localCodingSession?.nativeAttributes,
     runtimeStatus,
     createdAt: summary.createdAt,
     updatedAt,
@@ -442,12 +585,14 @@ function toProjectCodingSession(
     id: localCodingSession.id,
     workspaceId: localCodingSession.workspaceId,
     projectId: localCodingSession.projectId,
+    runtimeLocationId: localCodingSession.runtimeLocationId,
     title: localCodingSession.title,
     status: localCodingSession.status,
     hostMode: localCodingSession.hostMode,
     engineId: localCodingSession.engineId,
     modelId: localCodingSession.modelId,
     nativeSessionId: localCodingSession.nativeSessionId,
+    nativeAttributes: localCodingSession.nativeAttributes,
     runtimeStatus: localCodingSession.runtimeStatus,
     createdAt: localCodingSession.createdAt,
     updatedAt: localCodingSession.updatedAt,
@@ -1381,6 +1526,51 @@ export class ApiBackedProjectService implements IProjectService {
     return scope.userId === 'anonymous' ? undefined : scope.userId;
   }
 
+  private async resolveProjectCodingSessionDiscoveryRuntimeLocationId(
+    projectId: string,
+    project: LocalProjectSnapshot | null | undefined,
+  ): Promise<string | undefined> {
+    const sessionRuntimeLocationId =
+      resolveUnambiguousProjectRuntimeLocationId(project);
+    if (sessionRuntimeLocationId) {
+      return sessionRuntimeLocationId;
+    }
+
+    if (
+      typeof this.appClient.listProjectRuntimeLocationPreferences !== 'function' ||
+      typeof this.appClient.getProjectRuntimeLocation !== 'function'
+    ) {
+      return undefined;
+    }
+
+    try {
+      const preferences = await retryBirdCoderTransientApiTask(() =>
+        this.appClient.listProjectRuntimeLocationPreferences(projectId),
+      );
+      const preferredRuntimeLocationId =
+        resolveUnambiguousPreferredProjectRuntimeLocationId(preferences);
+      if (!preferredRuntimeLocationId) {
+        return undefined;
+      }
+
+      const runtimeLocation = await retryBirdCoderTransientApiTask(() =>
+        this.appClient.getProjectRuntimeLocation(
+          projectId,
+          preferredRuntimeLocationId,
+        ),
+      );
+      return runtimeLocation.id.trim() === preferredRuntimeLocationId
+        ? preferredRuntimeLocationId
+        : undefined;
+    } catch (error) {
+      console.warn(
+        `Failed to resolve a verified runtime location for coding-session discovery in project "${projectId}"; loading durable sessions without provider discovery.`,
+        error,
+      );
+      return undefined;
+    }
+  }
+
   private buildCacheKey(scope: string, payload?: unknown): string {
     return `${scope}:${stableSerializeCacheKeyPart(payload ?? null)}`;
   }
@@ -1511,11 +1701,13 @@ export class ApiBackedProjectService implements IProjectService {
 
   private buildAuthoritativeCodingSessionSummariesCacheKey(options: {
     projectId?: string;
+    runtimeLocationId?: string;
     userId?: string;
     workspaceId?: string;
   }): string {
     return this.buildCacheKey('listAuthoritativeCodingSessionSummaries', {
       projectId: options.projectId?.trim() || null,
+      runtimeLocationId: options.runtimeLocationId?.trim() || null,
       userId: options.userId ?? null,
       workspaceId: options.workspaceId?.trim() || null,
     });
@@ -1843,6 +2035,7 @@ export class ApiBackedProjectService implements IProjectService {
 
   private async listAuthoritativeCodingSessionsByProjectId(options: {
     projectId?: string;
+    runtimeLocationId?: string;
     userId?: string;
     workspaceId?: string;
   }): Promise<Map<string, BirdCoderCodingSessionSummary[]> | null> {
@@ -1852,17 +2045,21 @@ export class ApiBackedProjectService implements IProjectService {
 
     const normalizedWorkspaceId = options.workspaceId?.trim() || undefined;
     const normalizedProjectId = options.projectId?.trim() || undefined;
+    const normalizedRuntimeLocationId =
+      options.runtimeLocationId?.trim() || undefined;
     return this.readThroughCache(
       this.buildAuthoritativeCodingSessionSummariesCacheKey({
         projectId: normalizedProjectId,
+        runtimeLocationId: normalizedRuntimeLocationId,
         userId: options.userId,
         workspaceId: normalizedWorkspaceId,
       }),
       AUTHORITATIVE_CODING_SESSION_SUMMARY_CACHE_TTL_MS,
       async () =>
         groupCodingSessionSummariesByProjectId(
-          await this.codingRuntimeClient!.listCodingSessions({
+          await readAuthoritativeCodingSessionSummaryPages(this.codingRuntimeClient!, {
             projectId: normalizedProjectId,
+            runtimeLocationId: normalizedRuntimeLocationId,
             workspaceId: normalizedWorkspaceId,
           }),
         ),
@@ -2360,7 +2557,11 @@ export class ApiBackedProjectService implements IProjectService {
       return { items: [], total: 0 };
     }
 
-    const summaries = await this.codingRuntimeClient.listCodingSessions(request);
+    const page = typeof this.codingRuntimeClient.listCodingSessionPage === 'function'
+      ? await this.codingRuntimeClient.listCodingSessionPage(request)
+      : null;
+    const summaries = page?.items ??
+      await this.codingRuntimeClient.listCodingSessions(request);
     const localProjects = await this.listLocalProjects(request.workspaceId);
     const localSessionsById = new Map<string, LocalCodingSessionSnapshot>();
     for (const project of localProjects) {
@@ -2375,7 +2576,7 @@ export class ApiBackedProjectService implements IProjectService {
     );
     return {
       items,
-      total: items.length,
+      total: page ? resolveCodingSessionPageTotal(page) : items.length,
     };
   }
 
@@ -2450,9 +2651,15 @@ export class ApiBackedProjectService implements IProjectService {
         > | null = null;
         if (this.codingRuntimeClient) {
           try {
+            const runtimeLocationId =
+              await this.resolveProjectCodingSessionDiscoveryRuntimeLocationId(
+                normalizedProjectId,
+                userScopedLocalProject ?? mirroredProject,
+              );
             authoritativeCodingSessionsByProjectId =
               await this.listAuthoritativeCodingSessionsByProjectId({
                 projectId: normalizedProjectId,
+                runtimeLocationId,
                 userId: currentUserId,
                 workspaceId: projectSummary.workspaceId,
               });

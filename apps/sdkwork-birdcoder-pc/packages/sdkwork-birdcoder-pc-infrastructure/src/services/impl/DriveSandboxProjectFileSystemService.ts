@@ -38,6 +38,7 @@ const REMOTE_POLL_INTERVAL_MS = 2_000;
 const MAX_REMOTE_POLLED_FILES = 16;
 
 interface DriveSandboxProjectFileSystemServiceOptions {
+  readonly allowLocalFallback: boolean;
   readonly bindingClient: Pick<BirdCoderAppSdkApiClient, 'getProjectWorkspaceBinding'>;
   readonly drivePort: SandboxExplorerPort;
   readonly localFileSystem: IFileSystemService;
@@ -105,6 +106,7 @@ function createRootNode(state: RemoteProjectState, children: IFileNode[]): IFile
 }
 
 export class DriveSandboxProjectFileSystemService implements IFileSystemService {
+  private readonly allowLocalFallback: boolean;
   private readonly bindingClient: DriveSandboxProjectFileSystemServiceOptions['bindingClient'];
   private readonly drivePort: SandboxExplorerPort;
   private readonly localFileSystem: IFileSystemService;
@@ -112,6 +114,7 @@ export class DriveSandboxProjectFileSystemService implements IFileSystemService 
   private readonly remotePollIntervalMs: number;
 
   constructor(options: DriveSandboxProjectFileSystemServiceOptions) {
+    this.allowLocalFallback = options.allowLocalFallback;
     this.bindingClient = options.bindingClient;
     this.drivePort = options.drivePort;
     this.localFileSystem = options.localFileSystem;
@@ -206,6 +209,9 @@ export class DriveSandboxProjectFileSystemService implements IFileSystemService 
     const normalizedProjectId = normalizeProjectId(projectId);
     const state = await this.resolveRemoteProject(normalizedProjectId);
     if (state) return remote(state);
+    if (!this.allowLocalFallback) {
+      throw new ProjectWorkspaceBindingRequiredError(normalizedProjectId);
+    }
     const mountState = await this.localFileSystem.getProjectMountState(normalizedProjectId);
     if (mountState.host === 'tauri') return local();
     throw new ProjectWorkspaceBindingRequiredError(normalizedProjectId);
@@ -232,6 +238,9 @@ export class DriveSandboxProjectFileSystemService implements IFileSystemService 
     const normalizedProjectId = normalizeProjectId(projectId);
     const state = await this.resolveRemoteProject(normalizedProjectId);
     if (!state) {
+      if (!this.allowLocalFallback) {
+        throw new ProjectWorkspaceBindingRequiredError(normalizedProjectId);
+      }
       const mountState = await this.localFileSystem.getProjectMountState(normalizedProjectId);
       if (mountState.host === 'tauri') {
         return this.localFileSystem.getFiles(normalizedProjectId);
@@ -302,6 +311,9 @@ export class DriveSandboxProjectFileSystemService implements IFileSystemService 
     const normalizedProjectId = normalizeProjectId(projectId);
     const state = await this.resolveRemoteProject(normalizedProjectId);
     if (!state) {
+      if (!this.allowLocalFallback) {
+        throw new ProjectWorkspaceBindingRequiredError(normalizedProjectId);
+      }
       const mountState = await this.localFileSystem.getProjectMountState(normalizedProjectId);
       if (mountState.host === 'tauri') {
         return this.localFileSystem.getFileRevisions(normalizedProjectId, paths);
@@ -499,15 +511,17 @@ export class DriveSandboxProjectFileSystemService implements IFileSystemService 
     let closed = false;
     let polling = false;
     const knownRevisions = new Map<string, string | null>();
-    const unsubscribeLocal = this.localFileSystem.subscribeToFileChanges(
-      normalizedProjectId,
-      (event) => {
-        void this.localFileSystem.getProjectMountState(normalizedProjectId).then((state) => {
-          if (!closed && state.host === 'tauri') listener(event);
-        });
-      },
-      options,
-    );
+    const unsubscribeLocal = this.allowLocalFallback
+      ? this.localFileSystem.subscribeToFileChanges(
+          normalizedProjectId,
+          (event) => {
+            void this.localFileSystem.getProjectMountState(normalizedProjectId).then((state) => {
+              if (!closed && state.host === 'tauri') listener(event);
+            });
+          },
+          options,
+        )
+      : () => undefined;
     const timer = setInterval(() => {
       if (closed || polling) return;
       polling = true;
@@ -555,6 +569,9 @@ export class DriveSandboxProjectFileSystemService implements IFileSystemService 
         status: 'mounted',
       };
     }
+    if (!this.allowLocalFallback) {
+      return { displayName: null, host: null, status: 'mount_required' };
+    }
     const local = await this.localFileSystem.getProjectMountState(normalizedProjectId);
     return local.host === 'tauri'
       ? local
@@ -574,6 +591,12 @@ export class DriveSandboxProjectFileSystemService implements IFileSystemService 
         },
       };
     }
+    if (!this.allowLocalFallback) {
+      return {
+        restored: false,
+        state: { displayName: null, host: null, status: 'mount_required' },
+      };
+    }
     const localState = await this.localFileSystem.getProjectMountState(projectId);
     return localState.host === 'tauri'
       ? this.localFileSystem.restoreProjectMount(projectId)
@@ -584,14 +607,19 @@ export class DriveSandboxProjectFileSystemService implements IFileSystemService 
   }
 
   resolveLocalWorkingDirectory(projectId: string, mountedPath?: string): Promise<string | null> {
+    if (!this.allowLocalFallback) return Promise.resolve(null);
     return this.localFileSystem.resolveLocalWorkingDirectory(projectId, mountedPath);
   }
 
   revealProjectInFileManager(projectId: string, mountedPath?: string): Promise<boolean> {
+    if (!this.allowLocalFallback) return Promise.resolve(false);
     return this.localFileSystem.revealProjectInFileManager(projectId, mountedPath);
   }
 
   async mountFolder(projectId: string, folderInfo: LocalFolderMountSource): Promise<void> {
+    if (!this.allowLocalFallback) {
+      throw new Error('Local folders are unavailable while BirdCoder uses a remote Drive workspace.');
+    }
     if (folderInfo.type !== 'tauri') {
       throw new Error('Browser folder handles are not a server workspace and cannot be mounted to BirdCoder.');
     }

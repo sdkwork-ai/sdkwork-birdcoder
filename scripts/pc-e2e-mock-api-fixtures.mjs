@@ -63,7 +63,10 @@ export function createAppbaseFailure(message, code = '401') {
   };
 }
 
-export function createBirdCoderListEnvelope(items) {
+export function createBirdCoderListEnvelope(
+  items,
+  { page = 1, pageSize = 20 } = {},
+) {
   return {
     code: 0,
     data: {
@@ -71,8 +74,8 @@ export function createBirdCoderListEnvelope(items) {
       pageInfo: {
         hasMore: false,
         mode: 'offset',
-        page: 1,
-        pageSize: 20,
+        page,
+        pageSize,
         totalItems: String(items.length),
         totalPages: items.length > 0 ? 1 : 0,
       },
@@ -131,6 +134,20 @@ export function createIamSessionData() {
   };
 }
 
+export function createIamDeviceAuthorizationFixture() {
+  return {
+    deviceAuthorizationId: 'e2e-device-authorization-1',
+    expiresAt: '2099-01-01T00:00:00.000Z',
+    pollSecret: 'e2e-device-authorization-poll-secret',
+    qrContent: {
+      content: 'https://example.sdkwork.local/auth/device/e2e-device-authorization-1',
+      mode: 'fallback_url',
+    },
+    sessionReady: false,
+    status: 'pending',
+  };
+}
+
 export function createWorkspaceFixture(overrides = {}) {
   return {
     id: 'e2e-workspace-1',
@@ -174,6 +191,37 @@ export function createProjectFixture(overrides = {}) {
     createdAt: '2026-01-01T00:00:00.000Z',
     updatedAt: '2026-01-01T00:00:00.000Z',
     ...overrides,
+  };
+}
+
+export function createProjectRuntimeLocationPreferenceFixture(overrides = {}) {
+  const project = createProjectFixture();
+  return {
+    id: 'e2e-git-preference-1',
+    projectId: project.id,
+    subjectUserId: E2E_USER.id,
+    capability: 'git',
+    runtimeLocationId: 'e2e-runtime-location-1',
+    version: '1',
+    createdAt: '2026-01-01T00:00:00.000Z',
+    updatedAt: '2026-01-01T00:00:00.000Z',
+    ...overrides,
+  };
+}
+
+export function createProjectGitOverviewFixture() {
+  return {
+    branches: [{ isCurrent: true, isRemote: false, name: 'main' }],
+    currentBranch: 'main',
+    currentRevision: 'e2e-revision',
+    detachedHead: false,
+    status: 'ready',
+    statusCounts: {
+      staged: 0,
+      unstaged: 1,
+      untracked: 0,
+    },
+    worktrees: [],
   };
 }
 

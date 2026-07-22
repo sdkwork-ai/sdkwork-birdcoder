@@ -8,14 +8,13 @@ authors.workspace = true
 [dependencies]
 axum = { workspace = true }
 serde = { workspace = true }
-serde_json = { workspace = true }
 sdkwork-birdcoder-codeengine = { workspace = true }
-sdkwork-birdcoder-coding-sessions-service = { workspace = true }
 sdkwork-birdcoder-errors = { workspace = true }
 sdkwork-birdcoder-engine-catalog-service = { workspace = true }
-sdkwork-birdcoder-native-sessions-service = { workspace = true }
-sdkwork-birdcoder-project-service = { workspace = true }
 sdkwork-birdcoder-router-context = { workspace = true }
 sdkwork-web-contract = { workspace = true }
 sdkwork-web-core = { workspace = true }
 sdkwork-utils-rust.workspace = true
+
+[dev-dependencies]
+serde_json = { workspace = true }

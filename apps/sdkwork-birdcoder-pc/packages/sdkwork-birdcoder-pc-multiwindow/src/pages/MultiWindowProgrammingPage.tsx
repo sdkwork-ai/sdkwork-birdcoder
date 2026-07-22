@@ -4,6 +4,8 @@ import {
   buildWorkbenchCodingSessionTurnContext,
   useProjects,
   useToast,
+  useWorkbenchChatSelection,
+  useWorkbenchCodingSessionCreationActions,
   useWorkbenchPreferences,
 } from '@sdkwork/birdcoder-pc-workbench';
 import type {
@@ -323,7 +325,7 @@ export const MultiWindowProgrammingPage = memo(function MultiWindowProgrammingPa
 }: MultiWindowProgrammingPageProps) {
   const { t } = useTranslation();
   const { addToast } = useToast();
-  const { preferences } = useWorkbenchPreferences();
+  const { preferences, updatePreferences } = useWorkbenchPreferences();
   const {
     createCodingSession,
     hasFetched,
@@ -332,6 +334,22 @@ export const MultiWindowProgrammingPage = memo(function MultiWindowProgrammingPa
   } = useProjects(workspaceId, {
     isActive: isVisible,
     targetProjectId: projectId,
+  });
+  const { createCodingSessionWithSelection } = useWorkbenchChatSelection({
+    createCodingSession,
+    preferences,
+    updatePreferences,
+  });
+  const { createCodingSessionFromRequest } = useWorkbenchCodingSessionCreationActions({
+    addToast,
+    createCodingSessionWithSelection,
+    currentProjectId: projectId?.trim() ?? '',
+    selectCodingSession: () => undefined,
+    labels: {
+      creationFailed: t('multiWindow.failedToCreateSession'),
+      creationSucceeded: t('multiWindow.sessionCreated'),
+      noProjectSelected: t('multiWindow.selectProjectFirst'),
+    },
   });
   const [initialWorkspaceState] = useState(() =>
     readMultiWindowWorkspaceState(
@@ -721,14 +739,18 @@ export const MultiWindowProgrammingPage = memo(function MultiWindowProgrammingPa
 
     setCreatingSessionPaneId(selectedPickerPane.id);
     try {
-      const newSession = await createCodingSession(
-        nextProjectId,
-        t('multiWindow.newSessionTitle', { index: panes.indexOf(selectedPickerPane) + 1 }),
-        {
-          engineId: selectedPickerPane.selectedEngineId,
-          modelId: selectedPickerPane.selectedModelId,
-        },
-      );
+      const newSession = await createCodingSessionFromRequest({
+        engineId: selectedPickerPane.selectedEngineId,
+        modelId: selectedPickerPane.selectedModelId,
+        projectId: nextProjectId,
+        source: 'multi-window',
+        title: t('multiWindow.newSessionTitle', {
+          index: panes.indexOf(selectedPickerPane) + 1,
+        }),
+      }, {
+        shouldSelectCreatedSession: () => false,
+      });
+      if (!newSession) return;
       setPanes((previousPanes) =>
         updatePaneById(previousPanes, selectedPickerPane.id, (pane) => ({
           ...pane,
@@ -741,17 +763,14 @@ export const MultiWindowProgrammingPage = memo(function MultiWindowProgrammingPa
       );
       notifyActiveCodingSessionSelection(nextProjectId, newSession.id);
       resolveNextPickerAfterActivation(activateSelectedPickerPane(selectedPickerPane.id));
-      addToast(t('multiWindow.sessionCreated'), 'success');
     } catch (error) {
       console.error('Failed to create multi-window coding session', error);
-      addToast(t('multiWindow.failedToCreateSession'), 'error');
     } finally {
       setCreatingSessionPaneId(null);
     }
   }, [
-    addToast,
     activateSelectedPickerPane,
-    createCodingSession,
+    createCodingSessionFromRequest,
     notifyActiveCodingSessionSelection,
     panes,
     resolveNextPickerAfterActivation,
@@ -842,14 +861,21 @@ export const MultiWindowProgrammingPage = memo(function MultiWindowProgrammingPa
               bindingsByPaneId.get(pane.id)?.codingSession,
             );
             if (provisioningStatus.status === 'needs-session') {
-              const provisionedSession = await createCodingSession(
-                pane.projectId,
-                buildMultiWindowProvisionedSessionTitle(pane, paneIndex),
-                {
-                  engineId: pane.selectedEngineId,
-                  modelId: pane.selectedModelId,
-                },
-              );
+              const provisionedSession = await createCodingSessionFromRequest({
+                engineId: pane.selectedEngineId,
+                modelId: pane.selectedModelId,
+                projectId: pane.projectId,
+                source: 'multi-window',
+                title: buildMultiWindowProvisionedSessionTitle(pane, paneIndex),
+              }, {
+                rethrowError: true,
+                shouldSelectCreatedSession: () => false,
+                showFailureToast: false,
+                showSuccessToast: false,
+              });
+              if (!provisionedSession) {
+                throw new Error('Multi-window session provisioning returned no session.');
+              }
               effectiveCodingSessionId = provisionedSession.id;
               effectivePane = {
                 ...pane,
@@ -994,7 +1020,7 @@ export const MultiWindowProgrammingPage = memo(function MultiWindowProgrammingPa
   }, [
     addToast,
     bindingsByPaneId,
-    createCodingSession,
+    createCodingSessionFromRequest,
     discardActiveDispatchBatch,
     dispatchResults,
     dispatchSummary,

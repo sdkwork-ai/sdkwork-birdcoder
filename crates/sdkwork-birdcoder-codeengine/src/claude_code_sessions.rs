@@ -2599,6 +2599,7 @@ fn append_claude_tool_result_content_segment(
     segment.tool_calls.extend(tool_result.tool_calls);
 }
 
+#[cfg(test)]
 fn extract_claude_message_content_segments(
     content: Option<&Value>,
     message_id: Option<&str>,
@@ -2823,6 +2824,7 @@ fn build_claude_session_detail(
         .clone()
         .or_else(|| context.first_prompt.clone())
         .or_else(|| context.summary.clone());
+    native_attributes.model_provider = Some("anthropic".to_owned());
     native_attributes.cwd = context.native_cwd.clone();
     if let Some(first_prompt) = context.first_prompt.as_ref() {
         native_attributes.metadata.insert(
@@ -3158,6 +3160,10 @@ mod tests {
         assert_eq!(summary.id, session_id);
         assert_eq!(summary.title, "Native Claude history");
         assert_eq!(summary.model_id, "claude-sonnet-4-6");
+        assert_eq!(
+            summary.native_attributes.model_provider.as_deref(),
+            Some("anthropic")
+        );
         assert_eq!(
             summary.native_attributes.session_tree_id.as_deref(),
             Some(session_id)

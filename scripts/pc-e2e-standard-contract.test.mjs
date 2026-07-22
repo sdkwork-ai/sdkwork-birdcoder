@@ -19,6 +19,7 @@ const bootSpec = readText(`${pcAppRoot}/tests/e2e/boot-shell.spec.ts`);
 const authSpec = readText(`${pcAppRoot}/tests/e2e/auth-surface.spec.ts`);
 const guestSpec = readText(`${pcAppRoot}/tests/e2e/guest-home.spec.ts`);
 const authenticatedCodeSpec = readText(`${pcAppRoot}/tests/e2e/authenticated-code.spec.ts`);
+const terminalSpec = readText(`${pcAppRoot}/tests/e2e/terminal-browser.spec.ts`);
 const testEnv = readText(`${pcAppRoot}/packages/sdkwork-birdcoder-pc-web/.env.test`);
 const mockServer = readText('scripts/pc-e2e-mock-api-server.mjs');
 const mockFixtures = readText('scripts/pc-e2e-mock-api-fixtures.mjs');
@@ -60,6 +61,11 @@ assert.match(
 );
 assert.match(
   mockServer,
+  /oauth\/device_authorizations/u,
+  'PC e2e mock API server must mock IAM QR device authorization creation and polling.',
+);
+assert.match(
+  mockServer,
   /app_templates/u,
   'PC e2e mock API server must mock the templates catalog.',
 );
@@ -77,6 +83,16 @@ assert.match(
   mockServer,
   /coding_sessions/u,
   'PC e2e mock API server must mock the authenticated coding session catalog.',
+);
+assert.match(
+  mockServer,
+  /runtime_location_preferences/u,
+  'PC e2e mock API server must mock project runtime location preferences.',
+);
+assert.match(
+  mockServer,
+  /git\/overview/u,
+  'PC e2e mock API server must mock the remote Git overview.',
 );
 
 assert.match(
@@ -183,11 +199,16 @@ assert.match(
   /e2e-password/u,
   'PC auth-surface e2e must exercise the mock IAM password credential.',
 );
+assert.match(
+  authSpec,
+  /getByRole\('textbox', \{ name: 'Account' \}\)\.fill\('e2e@test\.sdkwork\.local'\)/u,
+  'PC auth-surface password e2e must provide the canonical account credential.',
+);
 
 assert.match(
   guestSpec,
-  /Sign in/u,
-  'PC guest-home e2e must redirect unauthenticated visitors to the auth surface.',
+  /getByRole\('button', \{ name: 'Sign in', exact: true \}\)/u,
+  'PC guest-home e2e must use the exact auth action instead of ambiguous copy.',
 );
 
 assert.match(
@@ -204,6 +225,22 @@ assert.match(
   authenticatedCodeSpec,
   /e2e-password/u,
   'PC authenticated-code e2e must exercise the mock IAM password credential.',
+);
+
+assert.match(
+  terminalSpec,
+  /runtime_location_preferences/u,
+  'PC browser terminal e2e must provide capability-specific runtime location preferences.',
+);
+assert.match(
+  terminalSpec,
+  /git\/overview/u,
+  'PC browser terminal e2e must isolate the remote Git overview request.',
+);
+assert.match(
+  terminalSpec,
+  /runtime_location_id/u,
+  'PC browser terminal e2e must verify the remote Git runtime location query.',
 );
 
 console.log('pc e2e standard contract passed.');

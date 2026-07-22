@@ -38,6 +38,13 @@ export type {
 } from '@sdkwork/birdcoder-pc-infrastructure/services/sdkClients';
 
 export type {
+  BirdCoderDeploymentProfile,
+  BirdCoderExecutionLocation,
+  BirdCoderRuntimeTarget,
+  BirdCoderRuntimeTopology,
+} from '@sdkwork/birdcoder-pc-infrastructure/services/runtimeTopology';
+
+export type {
   BirdCoderDefaultIdeServiceKey,
   BirdCoderDefaultIdeServices,
 } from '@sdkwork/birdcoder-pc-infrastructure/services/defaultIdeServicesShared';

@@ -21,6 +21,27 @@ function createListEnvelope<TItem>(items: readonly TItem[]) {
   };
 }
 
+function createCanonicalOffsetPageEnvelope<TItem>(
+  items: readonly TItem[],
+  pageSize: number,
+) {
+  return {
+    code: 0,
+    traceId: 'trace.shell-runtime-app-client-contract',
+    data: {
+      items: [...items],
+      pageInfo: {
+        hasMore: false,
+        mode: 'offset',
+        page: 1,
+        pageSize,
+        totalItems: String(items.length),
+        totalPages: items.length === 0 ? 0 : 1,
+      },
+    },
+  };
+}
+
 function readRequestUrl(input: URL | RequestInfo): string {
   if (typeof input === 'string') {
     return input;
@@ -233,7 +254,7 @@ globalThis.fetch = (async (input: URL | RequestInfo, init?: RequestInit) => {
 
   if (url.includes('/app/v3/api/intelligence/coding_sessions')) {
     return new Response(
-      JSON.stringify(createListEnvelope([])),
+      JSON.stringify(createCanonicalOffsetPageEnvelope([], 200)),
       {
         status: 200,
         headers: {
@@ -385,7 +406,7 @@ try {
       },
       {
         method: 'GET',
-        url: 'https://cn.sdkwork.local/birdcoder/app/v3/api/intelligence/coding_sessions?page_size=20&workspaceId=workspace-runtime-contract',
+        url: 'https://cn.sdkwork.local/birdcoder/app/v3/api/intelligence/coding_sessions?page=1&page_size=200&workspaceId=workspace-runtime-contract',
       },
     ],
     'shell runtime defaults must normalize the host apiBaseUrl and route app/core authority HTTP transport without duplicating the /api prefix.',

@@ -53,6 +53,18 @@ assert.match(
 );
 
 assert.match(
+  hookSource,
+  /function shouldReportProjectGitOverviewLoadError\(error: unknown\): boolean \{[\s\S]*error instanceof ProjectRuntimeLocationExecutionUnavailableError[\s\S]*error\.code === 'missing_runtime_location_id'/,
+  'A missing Git runtime-location preference must be treated as an expected selection state.',
+);
+
+assert.match(
+  hookSource,
+  /if \(shouldReportProjectGitOverviewLoadError\(error\)\) \{\s*console\.error\('Failed to load project Git overview', error\);\s*\}/,
+  'Project Git overview loading must log real failures without logging the expected runtime-selection state.',
+);
+
+assert.match(
   packageJson.scripts['check:code-topbar-git-overview'] ?? '',
   /project-git-overview-timeout-contract\.test\.mjs/,
   'Code topbar Git overview standards must include Git overview loading timeout resilience.',

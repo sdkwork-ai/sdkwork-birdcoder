@@ -3,7 +3,7 @@ use std::sync::Arc;
 use crate::api::paths::backend_path;
 use crate::api::paths::append_query_string;
 use crate::http::{SdkworkError, SdkworkHttpClient};
-use crate::models::{BirdCoderBooleanSuccessEnvelope, BirdCoderCreateIamOrganizationMemberRequest, BirdCoderCreateIamOrganizationRequest, BirdCoderCreateIamPermissionRequest, BirdCoderCreateIamPolicyRequest, BirdCoderCreateIamRolePermissionRequest, BirdCoderCreateIamRoleRequest, BirdCoderCreateIamTenantMemberRequest, BirdCoderCreateIamTenantRequest, BirdCoderCreateIamUserRequest, BirdCoderCreateIamUserRoleRequest, BirdCoderIamApiKeySummaryListEnvelope, BirdCoderIamAuditEventSummaryListEnvelope, BirdCoderIamOrganizationMemberSummaryEnvelope, BirdCoderIamOrganizationSummaryEnvelope, BirdCoderIamPermissionSummaryEnvelope, BirdCoderIamPermissionSummaryListEnvelope, BirdCoderIamPolicySummaryEnvelope, BirdCoderIamPolicySummaryListEnvelope, BirdCoderIamRolePermissionSummaryEnvelope, BirdCoderIamRolePermissionSummaryListEnvelope, BirdCoderIamRoleSummaryEnvelope, BirdCoderIamRoleSummaryListEnvelope, BirdCoderIamSecurityEventSummaryListEnvelope, BirdCoderIamTenantMemberSummaryEnvelope, BirdCoderIamTenantMemberSummaryListEnvelope, BirdCoderIamTenantSummaryEnvelope, BirdCoderIamTenantSummaryListEnvelope, BirdCoderIamUserRoleSummaryEnvelope, BirdCoderIamUserSummaryEnvelope, BirdCoderIamUserSummaryListEnvelope, BirdCoderTeamMemberSummaryListEnvelope, BirdCoderTeamSummaryListEnvelope, BirdCoderUpdateIamOrganizationMemberRequest, BirdCoderUpdateIamOrganizationRequest, BirdCoderUpdateIamPermissionRequest, BirdCoderUpdateIamPolicyRequest, BirdCoderUpdateIamRoleRequest, BirdCoderUpdateIamTenantMemberRequest, BirdCoderUpdateIamTenantRequest, BirdCoderUpdateIamUserRequest};
+use crate::models::{BirdCoderBooleanSuccessResult, BirdCoderCreateIamOrganizationMemberRequest, BirdCoderCreateIamOrganizationRequest, BirdCoderCreateIamPermissionRequest, BirdCoderCreateIamPolicyRequest, BirdCoderCreateIamRolePermissionRequest, BirdCoderCreateIamRoleRequest, BirdCoderCreateIamTenantMemberRequest, BirdCoderCreateIamTenantRequest, BirdCoderCreateIamUserRequest, BirdCoderCreateIamUserRoleRequest, BirdCoderIamOrganizationMemberSummary, BirdCoderIamOrganizationSummary, BirdCoderIamPermissionSummary, BirdCoderIamPolicySummary, BirdCoderIamRolePermissionSummary, BirdCoderIamRoleSummary, BirdCoderIamTenantMemberSummary, BirdCoderIamTenantSummary, BirdCoderIamUserRoleSummary, BirdCoderIamUserSummary, BirdCoderUpdateIamOrganizationMemberRequest, BirdCoderUpdateIamOrganizationRequest, BirdCoderUpdateIamPermissionRequest, BirdCoderUpdateIamPolicyRequest, BirdCoderUpdateIamRoleRequest, BirdCoderUpdateIamTenantMemberRequest, BirdCoderUpdateIamTenantRequest, BirdCoderUpdateIamUserRequest};
 
 #[derive(Clone)]
 pub struct IamApi {
@@ -16,31 +16,31 @@ impl IamApi {
     }
 
     /// List SDKWork IAM API keys
-    pub async fn api_keys_list(&self) -> Result<BirdCoderIamApiKeySummaryListEnvelope, SdkworkError> {
+    pub async fn api_keys_list(&self) -> Result<serde_json::Value, SdkworkError> {
         let path = backend_path(&"/iam/api_keys".to_string());
         self.client.get(&path, None, None).await
     }
 
     /// Revoke SDKWork IAM API key
-    pub async fn api_keys_revoke(&self, api_key_id: &str) -> Result<BirdCoderBooleanSuccessEnvelope, SdkworkError> {
+    pub async fn api_keys_revoke(&self, api_key_id: &str) -> Result<BirdCoderBooleanSuccessResult, SdkworkError> {
         let path = backend_path(&format!("/iam/api_keys/{}/revoke", serialize_path_parameter(api_key_id, PathParameterSpec::new("apiKeyId", "simple", false))));
         self.client.post(&path, Option::<&serde_json::Value>::None, None, None, None).await
     }
 
     /// List SDKWork IAM audit events
-    pub async fn audit_events_list(&self) -> Result<BirdCoderIamAuditEventSummaryListEnvelope, SdkworkError> {
+    pub async fn audit_events_list(&self) -> Result<serde_json::Value, SdkworkError> {
         let path = backend_path(&"/iam/audit_events".to_string());
         self.client.get(&path, None, None).await
     }
 
     /// Get SDKWork IAM organization
-    pub async fn organizations_retrieve(&self, organization_id: &str) -> Result<BirdCoderIamOrganizationSummaryEnvelope, SdkworkError> {
+    pub async fn organizations_retrieve(&self, organization_id: &str) -> Result<BirdCoderIamOrganizationSummary, SdkworkError> {
         let path = backend_path(&format!("/iam/organizations/{}", serialize_path_parameter(organization_id, PathParameterSpec::new("organizationId", "simple", false))));
         self.client.get(&path, None, None).await
     }
 
     /// Update SDKWork IAM organization
-    pub async fn organizations_update(&self, organization_id: &str, body: &BirdCoderUpdateIamOrganizationRequest) -> Result<BirdCoderIamOrganizationSummaryEnvelope, SdkworkError> {
+    pub async fn organizations_update(&self, organization_id: &str, body: &BirdCoderUpdateIamOrganizationRequest) -> Result<BirdCoderIamOrganizationSummary, SdkworkError> {
         let path = backend_path(&format!("/iam/organizations/{}", serialize_path_parameter(organization_id, PathParameterSpec::new("organizationId", "simple", false))));
         self.client.patch(&path, Some(body), None, None, Some("application/json")).await
     }
@@ -52,43 +52,43 @@ impl IamApi {
     }
 
     /// Create SDKWork IAM organization
-    pub async fn organizations_create(&self, body: &BirdCoderCreateIamOrganizationRequest) -> Result<BirdCoderIamOrganizationSummaryEnvelope, SdkworkError> {
+    pub async fn organizations_create(&self, body: &BirdCoderCreateIamOrganizationRequest) -> Result<BirdCoderIamOrganizationSummary, SdkworkError> {
         let path = backend_path(&"/iam/organizations".to_string());
         self.client.post(&path, Some(body), None, None, Some("application/json")).await
     }
 
     /// Create SDKWork IAM organization membership
-    pub async fn organization_memberships_create(&self, body: &BirdCoderCreateIamOrganizationMemberRequest) -> Result<BirdCoderIamOrganizationMemberSummaryEnvelope, SdkworkError> {
+    pub async fn organization_memberships_create(&self, body: &BirdCoderCreateIamOrganizationMemberRequest) -> Result<BirdCoderIamOrganizationMemberSummary, SdkworkError> {
         let path = backend_path(&"/iam/organization_memberships".to_string());
         self.client.post(&path, Some(body), None, None, Some("application/json")).await
     }
 
     /// Update SDKWork IAM organization membership
-    pub async fn organization_memberships_update(&self, membership_id: &str, body: &BirdCoderUpdateIamOrganizationMemberRequest) -> Result<BirdCoderIamOrganizationMemberSummaryEnvelope, SdkworkError> {
+    pub async fn organization_memberships_update(&self, membership_id: &str, body: &BirdCoderUpdateIamOrganizationMemberRequest) -> Result<BirdCoderIamOrganizationMemberSummary, SdkworkError> {
         let path = backend_path(&format!("/iam/organization_memberships/{}", serialize_path_parameter(membership_id, PathParameterSpec::new("membershipId", "simple", false))));
         self.client.patch(&path, Some(body), None, None, Some("application/json")).await
     }
 
     /// List SDKWork IAM permissions
-    pub async fn permissions_list(&self) -> Result<BirdCoderIamPermissionSummaryListEnvelope, SdkworkError> {
+    pub async fn permissions_list(&self) -> Result<serde_json::Value, SdkworkError> {
         let path = backend_path(&"/iam/permissions".to_string());
         self.client.get(&path, None, None).await
     }
 
     /// Create SDKWork IAM permission
-    pub async fn permissions_create(&self, body: &BirdCoderCreateIamPermissionRequest) -> Result<BirdCoderIamPermissionSummaryEnvelope, SdkworkError> {
+    pub async fn permissions_create(&self, body: &BirdCoderCreateIamPermissionRequest) -> Result<BirdCoderIamPermissionSummary, SdkworkError> {
         let path = backend_path(&"/iam/permissions".to_string());
         self.client.post(&path, Some(body), None, None, Some("application/json")).await
     }
 
     /// Get SDKWork IAM permission
-    pub async fn permissions_retrieve(&self, permission_id: &str) -> Result<BirdCoderIamPermissionSummaryEnvelope, SdkworkError> {
+    pub async fn permissions_retrieve(&self, permission_id: &str) -> Result<BirdCoderIamPermissionSummary, SdkworkError> {
         let path = backend_path(&format!("/iam/permissions/{}", serialize_path_parameter(permission_id, PathParameterSpec::new("permissionId", "simple", false))));
         self.client.get(&path, None, None).await
     }
 
     /// Update SDKWork IAM permission
-    pub async fn permissions_update(&self, permission_id: &str, body: &BirdCoderUpdateIamPermissionRequest) -> Result<BirdCoderIamPermissionSummaryEnvelope, SdkworkError> {
+    pub async fn permissions_update(&self, permission_id: &str, body: &BirdCoderUpdateIamPermissionRequest) -> Result<BirdCoderIamPermissionSummary, SdkworkError> {
         let path = backend_path(&format!("/iam/permissions/{}", serialize_path_parameter(permission_id, PathParameterSpec::new("permissionId", "simple", false))));
         self.client.patch(&path, Some(body), None, None, Some("application/json")).await
     }
@@ -100,25 +100,25 @@ impl IamApi {
     }
 
     /// List SDKWork IAM policies
-    pub async fn policies_list(&self) -> Result<BirdCoderIamPolicySummaryListEnvelope, SdkworkError> {
+    pub async fn policies_list(&self) -> Result<serde_json::Value, SdkworkError> {
         let path = backend_path(&"/iam/policies".to_string());
         self.client.get(&path, None, None).await
     }
 
     /// Create SDKWork IAM policy
-    pub async fn policies_create(&self, body: &BirdCoderCreateIamPolicyRequest) -> Result<BirdCoderIamPolicySummaryEnvelope, SdkworkError> {
+    pub async fn policies_create(&self, body: &BirdCoderCreateIamPolicyRequest) -> Result<BirdCoderIamPolicySummary, SdkworkError> {
         let path = backend_path(&"/iam/policies".to_string());
         self.client.post(&path, Some(body), None, None, Some("application/json")).await
     }
 
     /// Get SDKWork IAM policy
-    pub async fn policies_retrieve(&self, policy_id: &str) -> Result<BirdCoderIamPolicySummaryEnvelope, SdkworkError> {
+    pub async fn policies_retrieve(&self, policy_id: &str) -> Result<BirdCoderIamPolicySummary, SdkworkError> {
         let path = backend_path(&format!("/iam/policies/{}", serialize_path_parameter(policy_id, PathParameterSpec::new("policyId", "simple", false))));
         self.client.get(&path, None, None).await
     }
 
     /// Update SDKWork IAM policy
-    pub async fn policies_update(&self, policy_id: &str, body: &BirdCoderUpdateIamPolicyRequest) -> Result<BirdCoderIamPolicySummaryEnvelope, SdkworkError> {
+    pub async fn policies_update(&self, policy_id: &str, body: &BirdCoderUpdateIamPolicyRequest) -> Result<BirdCoderIamPolicySummary, SdkworkError> {
         let path = backend_path(&format!("/iam/policies/{}", serialize_path_parameter(policy_id, PathParameterSpec::new("policyId", "simple", false))));
         self.client.patch(&path, Some(body), None, None, Some("application/json")).await
     }
@@ -130,25 +130,25 @@ impl IamApi {
     }
 
     /// List SDKWork IAM roles
-    pub async fn roles_list(&self) -> Result<BirdCoderIamRoleSummaryListEnvelope, SdkworkError> {
+    pub async fn roles_list(&self) -> Result<serde_json::Value, SdkworkError> {
         let path = backend_path(&"/iam/roles".to_string());
         self.client.get(&path, None, None).await
     }
 
     /// Create SDKWork IAM role
-    pub async fn roles_create(&self, body: &BirdCoderCreateIamRoleRequest) -> Result<BirdCoderIamRoleSummaryEnvelope, SdkworkError> {
+    pub async fn roles_create(&self, body: &BirdCoderCreateIamRoleRequest) -> Result<BirdCoderIamRoleSummary, SdkworkError> {
         let path = backend_path(&"/iam/roles".to_string());
         self.client.post(&path, Some(body), None, None, Some("application/json")).await
     }
 
     /// Get SDKWork IAM role
-    pub async fn roles_retrieve(&self, role_id: &str) -> Result<BirdCoderIamRoleSummaryEnvelope, SdkworkError> {
+    pub async fn roles_retrieve(&self, role_id: &str) -> Result<BirdCoderIamRoleSummary, SdkworkError> {
         let path = backend_path(&format!("/iam/roles/{}", serialize_path_parameter(role_id, PathParameterSpec::new("roleId", "simple", false))));
         self.client.get(&path, None, None).await
     }
 
     /// Update SDKWork IAM role
-    pub async fn roles_update(&self, role_id: &str, body: &BirdCoderUpdateIamRoleRequest) -> Result<BirdCoderIamRoleSummaryEnvelope, SdkworkError> {
+    pub async fn roles_update(&self, role_id: &str, body: &BirdCoderUpdateIamRoleRequest) -> Result<BirdCoderIamRoleSummary, SdkworkError> {
         let path = backend_path(&format!("/iam/roles/{}", serialize_path_parameter(role_id, PathParameterSpec::new("roleId", "simple", false))));
         self.client.patch(&path, Some(body), None, None, Some("application/json")).await
     }
@@ -160,13 +160,13 @@ impl IamApi {
     }
 
     /// List SDKWork IAM role permissions
-    pub async fn roles_permissions_list(&self, role_id: &str) -> Result<BirdCoderIamRolePermissionSummaryListEnvelope, SdkworkError> {
+    pub async fn roles_permissions_list(&self, role_id: &str) -> Result<serde_json::Value, SdkworkError> {
         let path = backend_path(&format!("/iam/roles/{}/permissions", serialize_path_parameter(role_id, PathParameterSpec::new("roleId", "simple", false))));
         self.client.get(&path, None, None).await
     }
 
     /// Create SDKWork IAM role permission
-    pub async fn roles_permissions_create(&self, role_id: &str, body: &BirdCoderCreateIamRolePermissionRequest) -> Result<BirdCoderIamRolePermissionSummaryEnvelope, SdkworkError> {
+    pub async fn roles_permissions_create(&self, role_id: &str, body: &BirdCoderCreateIamRolePermissionRequest) -> Result<BirdCoderIamRolePermissionSummary, SdkworkError> {
         let path = backend_path(&format!("/iam/roles/{}/permissions", serialize_path_parameter(role_id, PathParameterSpec::new("roleId", "simple", false))));
         self.client.post(&path, Some(body), None, None, Some("application/json")).await
     }
@@ -178,31 +178,31 @@ impl IamApi {
     }
 
     /// List SDKWork IAM security events
-    pub async fn security_events_list(&self) -> Result<BirdCoderIamSecurityEventSummaryListEnvelope, SdkworkError> {
+    pub async fn security_events_list(&self) -> Result<serde_json::Value, SdkworkError> {
         let path = backend_path(&"/iam/security_events".to_string());
         self.client.get(&path, None, None).await
     }
 
     /// List SDKWork IAM tenants
-    pub async fn tenants_list(&self) -> Result<BirdCoderIamTenantSummaryListEnvelope, SdkworkError> {
+    pub async fn tenants_list(&self) -> Result<serde_json::Value, SdkworkError> {
         let path = backend_path(&"/iam/tenants".to_string());
         self.client.get(&path, None, None).await
     }
 
     /// Create SDKWork IAM tenant
-    pub async fn tenants_create(&self, body: &BirdCoderCreateIamTenantRequest) -> Result<BirdCoderIamTenantSummaryEnvelope, SdkworkError> {
+    pub async fn tenants_create(&self, body: &BirdCoderCreateIamTenantRequest) -> Result<BirdCoderIamTenantSummary, SdkworkError> {
         let path = backend_path(&"/iam/tenants".to_string());
         self.client.post(&path, Some(body), None, None, Some("application/json")).await
     }
 
     /// Get SDKWork IAM tenant
-    pub async fn tenants_retrieve(&self, tenant_id: &str) -> Result<BirdCoderIamTenantSummaryEnvelope, SdkworkError> {
+    pub async fn tenants_retrieve(&self, tenant_id: &str) -> Result<BirdCoderIamTenantSummary, SdkworkError> {
         let path = backend_path(&format!("/iam/tenants/{}", serialize_path_parameter(tenant_id, PathParameterSpec::new("tenantId", "simple", false))));
         self.client.get(&path, None, None).await
     }
 
     /// Update SDKWork IAM tenant
-    pub async fn tenants_update(&self, tenant_id: &str, body: &BirdCoderUpdateIamTenantRequest) -> Result<BirdCoderIamTenantSummaryEnvelope, SdkworkError> {
+    pub async fn tenants_update(&self, tenant_id: &str, body: &BirdCoderUpdateIamTenantRequest) -> Result<BirdCoderIamTenantSummary, SdkworkError> {
         let path = backend_path(&format!("/iam/tenants/{}", serialize_path_parameter(tenant_id, PathParameterSpec::new("tenantId", "simple", false))));
         self.client.patch(&path, Some(body), None, None, Some("application/json")).await
     }
@@ -214,19 +214,19 @@ impl IamApi {
     }
 
     /// List SDKWork IAM tenant members
-    pub async fn tenants_members_list(&self, tenant_id: &str) -> Result<BirdCoderIamTenantMemberSummaryListEnvelope, SdkworkError> {
+    pub async fn tenants_members_list(&self, tenant_id: &str) -> Result<serde_json::Value, SdkworkError> {
         let path = backend_path(&format!("/iam/tenants/{}/members", serialize_path_parameter(tenant_id, PathParameterSpec::new("tenantId", "simple", false))));
         self.client.get(&path, None, None).await
     }
 
     /// Create SDKWork IAM tenant member
-    pub async fn tenants_members_create(&self, tenant_id: &str, body: &BirdCoderCreateIamTenantMemberRequest) -> Result<BirdCoderIamTenantMemberSummaryEnvelope, SdkworkError> {
+    pub async fn tenants_members_create(&self, tenant_id: &str, body: &BirdCoderCreateIamTenantMemberRequest) -> Result<BirdCoderIamTenantMemberSummary, SdkworkError> {
         let path = backend_path(&format!("/iam/tenants/{}/members", serialize_path_parameter(tenant_id, PathParameterSpec::new("tenantId", "simple", false))));
         self.client.post(&path, Some(body), None, None, Some("application/json")).await
     }
 
     /// Update SDKWork IAM tenant member
-    pub async fn tenants_members_update(&self, tenant_id: &str, user_id: &str, body: &BirdCoderUpdateIamTenantMemberRequest) -> Result<BirdCoderIamTenantMemberSummaryEnvelope, SdkworkError> {
+    pub async fn tenants_members_update(&self, tenant_id: &str, user_id: &str, body: &BirdCoderUpdateIamTenantMemberRequest) -> Result<BirdCoderIamTenantMemberSummary, SdkworkError> {
         let path = backend_path(&format!("/iam/tenants/{}/members/{}", serialize_path_parameter(tenant_id, PathParameterSpec::new("tenantId", "simple", false)), serialize_path_parameter(user_id, PathParameterSpec::new("userId", "simple", false))));
         self.client.patch(&path, Some(body), None, None, Some("application/json")).await
     }
@@ -238,25 +238,25 @@ impl IamApi {
     }
 
     /// List SDKWork IAM users
-    pub async fn users_list(&self) -> Result<BirdCoderIamUserSummaryListEnvelope, SdkworkError> {
+    pub async fn users_list(&self) -> Result<serde_json::Value, SdkworkError> {
         let path = backend_path(&"/iam/users".to_string());
         self.client.get(&path, None, None).await
     }
 
     /// Create SDKWork IAM user
-    pub async fn users_create(&self, body: &BirdCoderCreateIamUserRequest) -> Result<BirdCoderIamUserSummaryEnvelope, SdkworkError> {
+    pub async fn users_create(&self, body: &BirdCoderCreateIamUserRequest) -> Result<BirdCoderIamUserSummary, SdkworkError> {
         let path = backend_path(&"/iam/users".to_string());
         self.client.post(&path, Some(body), None, None, Some("application/json")).await
     }
 
     /// Get SDKWork IAM user
-    pub async fn users_retrieve(&self, user_id: &str) -> Result<BirdCoderIamUserSummaryEnvelope, SdkworkError> {
+    pub async fn users_retrieve(&self, user_id: &str) -> Result<BirdCoderIamUserSummary, SdkworkError> {
         let path = backend_path(&format!("/iam/users/{}", serialize_path_parameter(user_id, PathParameterSpec::new("userId", "simple", false))));
         self.client.get(&path, None, None).await
     }
 
     /// Update SDKWork IAM user
-    pub async fn users_update(&self, user_id: &str, body: &BirdCoderUpdateIamUserRequest) -> Result<BirdCoderIamUserSummaryEnvelope, SdkworkError> {
+    pub async fn users_update(&self, user_id: &str, body: &BirdCoderUpdateIamUserRequest) -> Result<BirdCoderIamUserSummary, SdkworkError> {
         let path = backend_path(&format!("/iam/users/{}", serialize_path_parameter(user_id, PathParameterSpec::new("userId", "simple", false))));
         self.client.patch(&path, Some(body), None, None, Some("application/json")).await
     }
@@ -268,7 +268,7 @@ impl IamApi {
     }
 
     /// Create SDKWork IAM user role binding
-    pub async fn role_bindings_create(&self, body: &BirdCoderCreateIamUserRoleRequest) -> Result<BirdCoderIamUserRoleSummaryEnvelope, SdkworkError> {
+    pub async fn role_bindings_create(&self, body: &BirdCoderCreateIamUserRoleRequest) -> Result<BirdCoderIamUserRoleSummary, SdkworkError> {
         let path = backend_path(&"/iam/role_bindings".to_string());
         self.client.post(&path, Some(body), None, None, Some("application/json")).await
     }
@@ -280,13 +280,13 @@ impl IamApi {
     }
 
     /// List team members
-    pub async fn teams_members_list(&self, team_id: &str) -> Result<BirdCoderTeamMemberSummaryListEnvelope, SdkworkError> {
+    pub async fn teams_members_list(&self, team_id: &str) -> Result<serde_json::Value, SdkworkError> {
         let path = backend_path(&format!("/iam/teams/{}/members", serialize_path_parameter(team_id, PathParameterSpec::new("teamId", "simple", false))));
         self.client.get(&path, None, None).await
     }
 
     /// List teams
-    pub async fn teams_list(&self, user_id: Option<&str>, workspace_id: Option<&str>) -> Result<BirdCoderTeamSummaryListEnvelope, SdkworkError> {
+    pub async fn teams_list(&self, user_id: Option<&str>, workspace_id: Option<&str>) -> Result<serde_json::Value, SdkworkError> {
         let query = build_query_string(&[
             QueryParameterSpec::new("userId", user_id, "form", true, false, None),
             QueryParameterSpec::new("workspaceId", workspace_id, "form", true, false, None),

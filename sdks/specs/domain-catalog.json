@@ -280,19 +280,16 @@
       "owner": "sdkwork-platform",
       "level": "L2",
       "classification": "product-feature",
-      "boundary": "Skill packages, application templates, extension packages, and installable catalog resources.",
+      "boundary": "BirdCoder-owned application templates; installable Skills resources are consumed from sdkwork-skills.",
       "databasePrefix": "studio",
       "databasePrefixes": [
-        "ai",
         "studio"
       ],
-      "databasePrefixMappingReason": "Skill packages and application templates are persisted under DATABASE_SPEC ai and studio prefixes while the API contract exposes the ecosystem capability.",
+      "databasePrefixMappingReason": "BirdCoder owns only application-template persistence under the DATABASE_SPEC studio prefix.",
       "apiTags": [
-        "skills",
         "templates"
       ],
       "sdkNamespaces": [
-        "skills",
         "templates"
       ],
       "permissionPrefixes": [
@@ -302,12 +299,9 @@
         "ecosystem"
       ],
       "frontendPackages": [
-        "@sdkwork/birdcoder-skills",
         "@sdkwork/birdcoder-templates"
       ],
       "capabilities": [
-        "skillPackages",
-        "skillPackageInstallations",
         "appTemplates"
       ],
       "dependsOn": [
@@ -351,7 +345,6 @@
         "engines",
         "models",
         "modelConfig",
-        "nativeSessions",
         "nativeSessionProviders"
       ],
       "dependsOn": [

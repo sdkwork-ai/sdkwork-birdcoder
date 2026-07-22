@@ -82,10 +82,12 @@ does not create a distinct capability or subject preference.
 
 A new logical Coding Session persists its exact terminal-capable
 `runtimeLocationId` together with its immutable engine/model pair. Turns,
-recovery, and native-session list/detail reads use that stored binding rather
-than resolving the caller's mutable terminal preference. Legacy sessions that
-lack a location binding may remain readable for history, but they are
-non-executable and native-session reads return typed unavailable errors.
+recovery, and provider-history reconciliation use that stored binding rather
+than resolving the caller's mutable terminal preference. Aggregate discovery
+for the unified coding-session inventory requires an explicit authorized
+runtime location. Legacy sessions that lack a location binding may remain
+readable for history, but they are non-executable and provider-history refresh
+returns a typed unavailable error.
 Provider-reported CWD is target-private matching evidence only; it is neither a
 public DTO field nor an execution authority.
 

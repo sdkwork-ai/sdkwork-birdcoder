@@ -66,8 +66,13 @@ assertExists(
 const sdkClientsSource = read('apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/src/services/sdkClients.ts');
 assert.match(
   sdkClientsSource,
-  /from ['"]@sdkwork\/birdcoder-app-sdk['"]/u,
-  'sdkClients.ts must import the generated BirdCoder app SDK package.',
+  /from ['"]@sdkwork\/birdcoder-pc-core\/sdk\/birdcoder-app['"]/u,
+  'sdkClients.ts must import the BirdCoder app SDK through the public PC core composition boundary.',
+);
+assert.match(
+  read('apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-core/src/sdk/birdcoder-app-sdk.ts'),
+  /export \* from ['"]@sdkwork\/birdcoder-app-sdk['"]/u,
+  'The PC core composition boundary must re-export the generated BirdCoder app SDK package.',
 );
 assert.match(
   sdkClientsSource,
@@ -167,9 +172,9 @@ assert.doesNotMatch(
 );
 
 assert.equal(
-  infrastructurePackageJson.dependencies?.['@sdkwork/birdcoder-app-sdk'],
+  infrastructurePackageJson.dependencies?.['@sdkwork/birdcoder-pc-core'],
   'workspace:*',
-  'infrastructure package must depend on the generated app SDK workspace package.',
+  'infrastructure package must depend on the PC core SDK composition boundary.',
 );
 assert.equal(
   infrastructurePackageJson.dependencies?.['@sdkwork/birdcoder-backend-sdk'],
@@ -180,8 +185,6 @@ for (const dependencyName of [
   '@sdkwork/iam-app-sdk',
   '@sdkwork/iam-backend-sdk',
   '@sdkwork/auth-runtime-pc-react',
-  '@sdkwork/drive-app-sdk',
-  '@sdkwork/messaging-app-sdk',
   '@sdkwork/sdk-common',
 ]) {
   assert.equal(

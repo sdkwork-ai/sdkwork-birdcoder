@@ -19,19 +19,47 @@ pub mod state;
 pub mod terminal_execution;
 
 use axum::Router;
+use sdkwork_database_sqlx::DatabasePool;
+use sqlx::AnyPool;
+use std::sync::Arc;
 
 use config::BirdServerConfig;
 
-pub async fn build_app(config: &BirdServerConfig) -> Result<Router, Box<dyn std::error::Error>> {
+pub struct BuiltApplication {
+    pub router: Router,
+    pub database_pool: Arc<DatabasePool>,
+    pub compatibility_pool: AnyPool,
+}
+
+pub async fn build_application(
+    config: &BirdServerConfig,
+) -> Result<BuiltApplication, Box<dyn std::error::Error>> {
     config.validate_runtime()?;
-    let database_pool = database::bootstrap_database(config).await?;
-    let repositories = repositories::wire_repositories(database_pool.clone()).await?;
+    let database_host = database::bootstrap_database(config).await?;
+    let database_pool = Arc::new(database_host.pool().clone());
+    let repositories = repositories::wire_repositories(
+        database_pool.clone(),
+        database_host.id_generator().clone(),
+        database_host.node_lease().clone(),
+    )
+    .await?;
+    let compatibility_pool = repositories.any_pool.clone();
     let services = services::wire_services(&repositories, config)
         .await
         .map_err(|error| -> Box<dyn std::error::Error> { error.to_string().into() })?;
-    let state = state::AppState::new(services, repositories, database_pool);
-    let app = routers::build_router(state, config).await?;
+    let state = state::AppState::new(services, repositories, database_pool.clone());
+    let router = routers::build_router(state, config).await?;
     crate::health::init_iam_pool().await;
 
-    Ok(app)
+    Ok(BuiltApplication {
+        router,
+        database_pool,
+        compatibility_pool,
+    })
+}
+
+pub async fn build_app(config: &BirdServerConfig) -> Result<Router, Box<dyn std::error::Error>> {
+    build_application(config)
+        .await
+        .map(|application| application.router)
 }

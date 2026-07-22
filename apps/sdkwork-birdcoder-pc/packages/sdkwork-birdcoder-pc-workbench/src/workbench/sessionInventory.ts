@@ -3,13 +3,11 @@ import type {
   BirdCoderCodingSessionSummary,
   BirdCoderHostMode,
   BirdCoderListCodingSessionsRequest,
-  BirdCoderListNativeSessionsRequest,
-  BirdCoderNativeSessionSummary,
+  BirdCoderLongIntegerString,
   BirdCoderProject,
 } from '@sdkwork/birdcoder-pc-contracts-commons';
 import {
   normalizeBirdCoderCodeEngineNativeSessionId,
-  resolveBirdCoderCodeEngineNativeSessionIdPrefix,
 } from '@sdkwork/birdcoder-pc-codeengine';
 import {
   BIRDCODER_CODING_SESSION_STATUSES,
@@ -30,10 +28,11 @@ import {
   listStoredTerminalSessions,
   type TerminalSessionRecord,
 } from '../terminal/sessions.ts';
-import {
-  type StoredCodingSessionInventoryRecord,
-} from './nativeSessionAuthority.ts';
-export type { StoredCodingSessionInventoryRecord } from './nativeSessionAuthority.ts';
+export interface StoredCodingSessionInventoryRecord extends BirdCoderCodingSessionSummary {
+  kind: 'coding';
+  sortTimestamp: BirdCoderLongIntegerString;
+  transcriptUpdatedAt?: string | null;
+}
 
 interface StoredCodingSessionPersistedEntry {
   createdAt?: unknown;
@@ -70,6 +69,8 @@ export interface ListStoredCodingSessionsOptions {
 
 export interface ListStoredSessionInventoryOptions {
   appRuntimeReadService?: SessionInventoryAppRuntimeReadService;
+  /** Complete projection snapshot already read from the project authority. */
+  authoritativeCodingSessions?: readonly BirdCoderCodingSessionSummary[];
   includeGlobal?: boolean;
   limit?: number;
   offset?: number;
@@ -100,19 +101,12 @@ interface RuntimeSessionPage<TItem> {
 }
 
 export interface SessionInventoryAppRuntimeReadService {
-  readonly codingSessionListIncludesNativeSessions?: boolean;
   listCodingSessions(
     request?: BirdCoderListCodingSessionsRequest,
   ): Promise<BirdCoderCodingSessionSummary[]>;
-  listNativeSessions(
-    request: BirdCoderListNativeSessionsRequest,
-  ): Promise<BirdCoderNativeSessionSummary[]>;
   listCodingSessionPage?: (
     request?: BirdCoderListCodingSessionsRequest,
   ) => Promise<RuntimeSessionPage<BirdCoderCodingSessionSummary>>;
-  listNativeSessionPage?: (
-    request: BirdCoderListNativeSessionsRequest,
-  ) => Promise<RuntimeSessionPage<BirdCoderNativeSessionSummary>>;
 }
 
 const ZERO_TIMESTAMP = new Date(0).toISOString();
@@ -327,28 +321,6 @@ function toAuthorityBackedCodingSessionInventoryRecord(
   };
 }
 
-function toAuthorityBackedNativeCodingSessionInventoryRecord(
-  summary: BirdCoderNativeSessionSummary,
-): StoredCodingSessionInventoryRecord {
-  const nativeSessionId =
-    normalizeInventoryNativeSessionId(summary.nativeSessionId ?? summary.id, summary.engineId) ??
-    summary.nativeSessionId?.trim() ??
-    summary.id.trim();
-
-  return {
-    ...summary,
-    // Keep the source id while projection/native records are being matched.
-    // A native summary can reuse the projection id even when only the native
-    // record carries the raw provider session id. Native-only records receive
-    // a provider-scoped id after that merge decision is made.
-    id: summary.id.trim() || nativeSessionId,
-    kind: 'coding',
-    nativeSessionId,
-    sortTimestamp: resolveBirdCoderSessionSortTimestampString(summary),
-    transcriptUpdatedAt: summary.transcriptUpdatedAt ?? null,
-  };
-}
-
 function buildCodingSessionIdentityKeys(
   summary: Pick<BirdCoderCodingSessionSummary, 'engineId' | 'id' | 'nativeSessionId'>,
 ): string[] {
@@ -364,33 +336,6 @@ function buildCodingSessionIdentityKeys(
   addKey(summary.id);
   addKey(summary.nativeSessionId);
   return [...keys];
-}
-
-function indexNativeCodingSessionRecordsByIdentity(
-  records: readonly StoredCodingSessionInventoryRecord[],
-): Map<string, StoredCodingSessionInventoryRecord> {
-  const recordsByIdentity = new Map<string, StoredCodingSessionInventoryRecord>();
-  for (const record of records) {
-    for (const key of buildCodingSessionIdentityKeys(record)) {
-      if (!recordsByIdentity.has(key)) {
-        recordsByIdentity.set(key, record);
-      }
-    }
-  }
-  return recordsByIdentity;
-}
-
-function findNativeCodingSessionRecord(
-  record: StoredCodingSessionInventoryRecord,
-  recordsByIdentity: ReadonlyMap<string, StoredCodingSessionInventoryRecord>,
-): StoredCodingSessionInventoryRecord | null {
-  for (const key of buildCodingSessionIdentityKeys(record)) {
-    const nativeRecord = recordsByIdentity.get(key);
-    if (nativeRecord) {
-      return nativeRecord;
-    }
-  }
-  return null;
 }
 
 const DEFAULT_SESSION_INVENTORY_LIMIT = 20;
@@ -443,20 +388,6 @@ function mergeCodingSessionInventoryRecords(
       resolveLatestIsoTimestamp(primary.transcriptUpdatedAt, secondary.transcriptUpdatedAt) ??
       null,
   };
-}
-
-function scopeNativeOnlyCodingSessionRecord(
-  record: StoredCodingSessionInventoryRecord,
-): StoredCodingSessionInventoryRecord {
-  const nativeSessionId =
-    normalizeInventoryNativeSessionId(record.nativeSessionId ?? record.id, record.engineId) ??
-    record.nativeSessionId?.trim() ??
-    record.id;
-  const providerPrefix = resolveBirdCoderCodeEngineNativeSessionIdPrefix(record.engineId);
-  const scopedId = providerPrefix
-    ? `${providerPrefix}${nativeSessionId}`
-    : `${record.engineId.trim()}:${nativeSessionId}`;
-  return scopedId === record.id ? record : { ...record, id: scopedId };
 }
 
 /**
@@ -529,65 +460,6 @@ function collapseAuthorityCodingSessionRecords(
   return [...activeRecords].sort(compareSessionInventoryRecords);
 }
 
-function mergeAuthorityBackedCodingSessionRecords(
-  projectionRecords: readonly StoredCodingSessionInventoryRecord[],
-  nativeRecords: readonly StoredCodingSessionInventoryRecord[],
-): StoredCodingSessionInventoryRecord[] {
-  const collapsedProjectionRecords = collapseAuthorityCodingSessionRecords(projectionRecords);
-  const collapsedNativeRecords = collapseAuthorityCodingSessionRecords(nativeRecords);
-  const nativeRecordsByIdentity = indexNativeCodingSessionRecordsByIdentity(collapsedNativeRecords);
-  const consumedNativeRecords = new Set<StoredCodingSessionInventoryRecord>();
-
-  const mergedProjectedRecords = collapsedProjectionRecords.map((record) => {
-    const matchingNativeRecord = findNativeCodingSessionRecord(record, nativeRecordsByIdentity);
-    if (!matchingNativeRecord) {
-      return record;
-    }
-    consumedNativeRecords.add(matchingNativeRecord);
-    return mergeCodingSessionInventoryRecords(record, matchingNativeRecord);
-  });
-
-  const nativeOnlyRecords = collapsedNativeRecords
-    .filter((record) => !consumedNativeRecords.has(record))
-    .map(scopeNativeOnlyCodingSessionRecord);
-  const mergedRecords = [...mergedProjectedRecords, ...nativeOnlyRecords].sort(
-    compareSessionInventoryRecords,
-  );
-
-  // Native tools are allowed to reuse the same opaque id in different
-  // providers. Scope every member of a collision group up front, so a later
-  // activity reorder cannot swap which provider owns the unprefixed UI key.
-  const idCounts = new Map<string, number>();
-  for (const record of mergedRecords) {
-    idCounts.set(record.id, (idCounts.get(record.id) ?? 0) + 1);
-  }
-  const usedIds = new Set(
-    mergedRecords
-      .filter((record) => (idCounts.get(record.id) ?? 0) === 1)
-      .map((record) => record.id),
-  );
-  return mergedRecords.map((record) => {
-    if ((idCounts.get(record.id) ?? 0) === 1) {
-      return record;
-    }
-
-    const nativeId = normalizeInventoryNativeSessionId(
-      record.nativeSessionId ?? record.id,
-      record.engineId,
-    );
-    const prefix = resolveBirdCoderCodeEngineNativeSessionIdPrefix(record.engineId);
-    const scopedBase = prefix && nativeId ? `${prefix}${nativeId}` : `${record.engineId}:${record.id}`;
-    let scopedId = scopedBase;
-    let suffix = 2;
-    while (usedIds.has(scopedId)) {
-      scopedId = `${scopedBase}:${suffix}`;
-      suffix += 1;
-    }
-    usedIds.add(scopedId);
-    return { ...record, id: scopedId };
-  });
-}
-
 function selectBoundedInventoryWindow<T>(
   records: readonly T[],
   offset: number,
@@ -613,7 +485,6 @@ interface AuthorityCodingSessionSourceState {
   hasMore: boolean;
   offset: number;
   records: StoredCodingSessionInventoryRecord[];
-  seenIdentityKeys: Set<string>;
 }
 
 function createAuthorityCodingSessionSourceState(): AuthorityCodingSessionSourceState {
@@ -622,26 +493,14 @@ function createAuthorityCodingSessionSourceState(): AuthorityCodingSessionSource
     hasMore: false,
     offset: 0,
     records: [],
-    seenIdentityKeys: new Set<string>(),
   };
 }
 
 function appendAuthoritySourceRecords(
   state: AuthorityCodingSessionSourceState,
   records: readonly StoredCodingSessionInventoryRecord[],
-): boolean {
-  let madeProgress = false;
-  for (const record of records) {
-    const identityKeys = buildCodingSessionIdentityKeys(record);
-    if (identityKeys.some((key) => !state.seenIdentityKeys.has(key))) {
-      madeProgress = true;
-    }
-    for (const key of identityKeys) {
-      state.seenIdentityKeys.add(key);
-    }
-    state.records.push(record);
-  }
-  return madeProgress;
+): void {
+  state.records.push(...records);
 }
 
 function countAuthoritySourceSessions(
@@ -683,19 +542,6 @@ function toAuthorityProjectionRecords(
     .map(toAuthorityBackedCodingSessionInventoryRecord);
 }
 
-function toAuthorityNativeRecords(
-  summaries: readonly BirdCoderNativeSessionSummary[],
-): StoredCodingSessionInventoryRecord[] {
-  return summaries
-    .filter(
-      (summary) =>
-        summary.kind === 'coding' &&
-        summary.projectId.trim().length > 0 &&
-        summary.workspaceId.trim().length > 0,
-    )
-    .map(toAuthorityBackedNativeCodingSessionInventoryRecord);
-}
-
 export async function listAuthorityBackedCodingSessionInventoryPage(
   options: ListStoredSessionInventoryOptions = {},
 ): Promise<{ items: StoredCodingSessionInventoryRecord[]; hasMore: boolean; loadedCount: number }> {
@@ -717,23 +563,23 @@ export async function listAuthorityBackedCodingSessionInventoryPage(
     workspaceId: options.workspaceId?.trim() || undefined,
   };
   const projectionState = createAuthorityCodingSessionSourceState();
-  const nativeState = createAuthorityCodingSessionSourceState();
-  const readNativeSource = service.codingSessionListIncludesNativeSessions !== true;
+  if (options.authoritativeCodingSessions !== undefined) {
+    appendAuthoritySourceRecords(
+      projectionState,
+      toAuthorityProjectionRecords(options.authoritativeCodingSessions),
+    );
+    projectionState.exhausted = true;
+  }
 
   while (true) {
     const projectionNeedsMore =
       !projectionState.exhausted && countAuthoritySourceSessions(projectionState) < targetEnd;
-    const nativeNeedsMore =
-      readNativeSource &&
-      !nativeState.exhausted &&
-      countAuthoritySourceSessions(nativeState) < targetEnd;
-    if (!projectionNeedsMore && !nativeNeedsMore) {
+    if (!projectionNeedsMore) {
       break;
     }
 
     const reads: Promise<{
-      source: 'projection' | 'native';
-      page: { items: BirdCoderCodingSessionSummary[] | BirdCoderNativeSessionSummary[]; hasMore: boolean };
+      page: { items: BirdCoderCodingSessionSummary[]; hasMore: boolean };
     }>[] = [];
     if (projectionNeedsMore) {
       const request = { ...requestScope, limit: pageSize, offset: projectionState.offset };
@@ -744,57 +590,29 @@ export async function listAuthorityBackedCodingSessionInventoryPage(
             ? (nextRequest) => service.listCodingSessionPage!(nextRequest)
             : undefined,
           request,
-        }).then((page) => ({ source: 'projection' as const, page })),
+        }).then((page) => ({ page })),
       );
-    }
-    if (
-      nativeNeedsMore &&
-      requestScope.projectId &&
-      requestScope.runtimeLocationId &&
-      requestScope.workspaceId
-    ) {
-      const request: BirdCoderListNativeSessionsRequest & { limit: number; offset: number } = {
-        projectId: requestScope.projectId,
-        runtimeLocationId: requestScope.runtimeLocationId,
-        workspaceId: requestScope.workspaceId,
-        limit: pageSize,
-        offset: nativeState.offset,
-      };
-      reads.push(
-        readAuthoritySessionPage({
-          list: (nextRequest) => service.listNativeSessions(nextRequest),
-          page: service.listNativeSessionPage
-            ? (nextRequest) => service.listNativeSessionPage!(nextRequest)
-            : undefined,
-          request,
-        }).then((page) => ({ source: 'native' as const, page })),
-      );
-    } else if (nativeNeedsMore) {
-      nativeState.exhausted = true;
     }
     const pages = await Promise.all(reads);
-    for (const { source, page } of pages) {
-      const state = source === 'projection' ? projectionState : nativeState;
-      const records =
-        source === 'projection'
-          ? toAuthorityProjectionRecords(page.items as BirdCoderCodingSessionSummary[])
-          : toAuthorityNativeRecords(page.items as BirdCoderNativeSessionSummary[]);
-      appendAuthoritySourceRecords(state, records);
-      state.hasMore = page.hasMore;
-      state.offset += pageSize;
-      if (!page.hasMore) {
-        state.exhausted = true;
+    for (const { page } of pages) {
+      const records = toAuthorityProjectionRecords(page.items);
+      const previousSessionCount = countAuthoritySourceSessions(projectionState);
+      appendAuthoritySourceRecords(projectionState, records);
+      const madeProgress = countAuthoritySourceSessions(projectionState) > previousSessionCount;
+      projectionState.hasMore = page.hasMore;
+      projectionState.offset += pageSize;
+      if (!page.hasMore || page.items.length === 0 || !madeProgress) {
+        projectionState.exhausted = true;
+        if (page.hasMore && (page.items.length === 0 || !madeProgress)) {
+          projectionState.hasMore = false;
+        }
       }
     }
   }
 
-  const mergedRecords = mergeAuthorityBackedCodingSessionRecords(
-    projectionState.records,
-    nativeState.records,
-  );
+  const mergedRecords = collapseAuthorityCodingSessionRecords(projectionState.records);
   const items = selectBoundedInventoryWindow(mergedRecords, offset, targetEnd);
-  const hasMore =
-    mergedRecords.length > targetEnd || projectionState.hasMore || nativeState.hasMore;
+  const hasMore = mergedRecords.length > targetEnd || projectionState.hasMore;
   return {
     hasMore,
     items,

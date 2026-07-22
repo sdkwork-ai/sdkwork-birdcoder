@@ -28,10 +28,6 @@ import {
 import { resolveWorkbenchPreferredNewSessionSelection } from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-codeengine/src/serverSupport.ts';
 import { createChatEngineById } from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-codeengine/src/engines.ts';
 import { resolveRequiredCodingSessionSelection } from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/src/services/codingSessionSelection.ts';
-import {
-  isAuthorityBackedNativeSessionId,
-  readAuthorityBackedNativeSessionRecord,
-} from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-workbench/src/workbench/nativeSessionAuthority.ts';
 
 assert.deepEqual(
   WORKBENCH_ENGINE_KERNELS.map((engine) => engine.id),
@@ -396,56 +392,24 @@ assert.equal(
   'A model from another engine must not be carried into an explicit new-session provider selection.',
 );
 
-assert.equal(
-  isAuthorityBackedNativeSessionId('birdcoder-session-42', 'gemini', 'provider-session-42'),
-  true,
-  'A persisted provider-native session id must be authoritative even when it differs from BirdCoder logical session id.',
-);
-let readNativeSessionId: string | undefined;
-let readRuntimeLocationId: string | undefined;
-const authorityBackedRecord = await readAuthorityBackedNativeSessionRecord('birdcoder-session-42', {
-  appRuntimeReadService: {
-    async getNativeSession(nativeSessionId, request) {
-      readNativeSessionId = nativeSessionId;
-      readRuntimeLocationId = request.runtimeLocationId;
-      return {
-        messages: [],
-        summary: {
-          createdAt: '2026-01-01T00:00:00.000Z',
-          engineId: 'gemini',
-          hostMode: 'standalone',
-          id: nativeSessionId,
-          kind: 'coding',
-          lastTurnAt: null,
-          modelId: 'gemini-3-pro',
-          nativeSessionId,
-          projectId: 'project-42',
-          runtimeStatus: 'ready',
-          sortTimestamp: '1767225600000',
-          status: 'active',
-          title: 'Provider session',
-          updatedAt: '2026-01-01T00:00:00.000Z',
-          workspaceId: 'workspace-42',
-        },
-      };
-    },
-    async listNativeSessions() {
-      return [];
-    },
-  },
+const providerBackedIdentity = {
   engineId: 'gemini',
+  id: 'birdcoder-session-42',
   nativeSessionId: 'provider-session-42',
-  projectId: 'project-42',
-  runtimeLocationId: 'runtime-location-42',
-  workspaceId: 'workspace-42',
-});
-assert.equal(
-  readNativeSessionId,
-  'provider-session-42',
-  'Native detail reads must use the provider-native session id rather than BirdCoder logical session id.',
+};
+assert.notEqual(
+  providerBackedIdentity.id,
+  providerBackedIdentity.nativeSessionId,
+  'The persistent BirdCoder id and provider binding must remain separate identities.',
 );
-assert.equal(authorityBackedRecord?.summary.id, 'birdcoder-session-42');
-assert.equal(readRuntimeLocationId, 'runtime-location-42');
+assert.equal(
+  normalizeBirdCoderCodeEngineNativeSessionId(
+    providerBackedIdentity.nativeSessionId,
+    providerBackedIdentity.engineId,
+  ),
+  'provider-session-42',
+  'Provider bindings must remain available for engine resume without becoming public session ids.',
+);
 
 assert.deepEqual(
   resolveRequiredCodingSessionSelection({ engineId: 'gemini', modelId: 'GEMINI-2.5-PRO' }),

@@ -18,12 +18,12 @@ import type {
   BirdCoderProjectPublishResult,
   BirdCoderReleaseSummary,
 } from '@sdkwork/birdcoder-pc-contracts-commons';
+import { ProjectGitDiffDialog } from '@sdkwork/birdcoder-pc-ui/components/ProjectGitDiffDialog';
+import { ProjectGitHeaderControls } from '@sdkwork/birdcoder-pc-ui/components/ProjectGitHeaderControls';
 import {
-  ProjectGitDiffDialog,
-  ProjectGitHeaderControls,
   ProjectGitSubmitDialog,
   type ProjectGitSubmitMode,
-} from '@sdkwork/birdcoder-pc-ui';
+} from '@sdkwork/birdcoder-pc-ui/components/ProjectGitSubmitDialog';
 import { Button } from '@sdkwork/birdcoder-pc-ui-shell';
 import { globalEventBus } from '@sdkwork/birdcoder-pc-workbench/utils/EventBus';
 import type { ProjectGitOverviewViewState } from '@sdkwork/birdcoder-pc-workbench/hooks/useProjectGitOverview';

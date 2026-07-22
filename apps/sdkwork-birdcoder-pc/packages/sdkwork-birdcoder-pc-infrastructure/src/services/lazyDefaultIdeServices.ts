@@ -117,6 +117,7 @@ export function loadDefaultBirdCoderIdeService<K extends BirdCoderDefaultIdeServ
       case 'catalogService': {
         return new ApiBackedCatalogService({
           appClient: runtime.appClient,
+          skillsClient: runtime.skillsClient,
         });
       }
       case 'collaborationService': {
@@ -160,6 +161,11 @@ export function loadDefaultBirdCoderIdeService<K extends BirdCoderDefaultIdeServ
               allowFolderSelection: false,
               capability: 'git',
             }),
+          resolveRemoteRuntimeLocationId: (projectId) =>
+            runtime.projectRuntimeLocationService.resolveRemoteProjectRuntimeLocationId(
+              projectId,
+              'git',
+            ),
         });
       }
       case 'promptService':

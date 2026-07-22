@@ -1062,15 +1062,6 @@
         "replacementCode": null
       },
       {
-        "code": "birdcoder.runtime-native-sessions.read",
-        "name": "Read runtime native sessions",
-        "resource": "birdcoder.runtime-native-sessions",
-        "action": "read",
-        "status": "active",
-        "since": "1.0.0",
-        "replacementCode": null
-      },
-      {
         "code": "birdcoder.system-chat-conversations-messages.create",
         "name": "Create system chat conversations messages",
         "resource": "birdcoder.system-chat-conversations-messages",

@@ -79,6 +79,35 @@ fn gemini_history_fixture_builds_project_scoped_summary_and_detail() {
 }
 
 #[test]
+fn gemini_history_uses_the_descriptor_default_when_model_metadata_is_missing() {
+    let fixture = GeminiHistoryTestFixture::new("default-model");
+    let project_directory = fixture.root.join("tmp").join("default-model");
+    write_project_marker(project_directory.as_path(), "E:/default-model");
+    write_session_fixture(
+        project_directory.as_path(),
+        &serde_json::to_string(&json!({
+            "sessionId": "gemini-default-model",
+            "projectHash": "default-model",
+            "startTime": "2026-07-22T00:00:00.000Z",
+            "lastUpdated": "2026-07-22T00:00:01.000Z",
+            "messages": [{
+                "id": "user-1",
+                "timestamp": "2026-07-22T00:00:00.000Z",
+                "type": "user",
+                "content": "Resolve the configured Gemini default model."
+            }]
+        }))
+        .expect("serialize Gemini default-model fixture"),
+    );
+
+    let summaries = list_gemini_session_summaries_from_roots(std::slice::from_ref(&fixture.root))
+        .expect("list Gemini default-model fixture");
+
+    assert_eq!(summaries.len(), 1);
+    assert_eq!(summaries[0].model_id, "auto-gemini-3");
+}
+
+#[test]
 fn gemini_jsonl_history_replays_checkpoints_updates_and_rewinds() {
     let fixture = GeminiHistoryTestFixture::new("jsonl-replay");
     let project_directory = fixture.root.join("tmp").join("jsonl-replay-project");
@@ -537,7 +566,7 @@ fn gemini_history_normalizes_structured_output_errors_and_protocol_notices() {
     assert_eq!(detail.summary.status, "paused");
     assert_eq!(detail.summary.runtime_status.as_deref(), Some("failed"));
     assert_eq!(detail.messages.len(), 4);
-    assert_eq!(detail.messages[0].id.ends_with("message-user"), true);
+    assert!(detail.messages[0].id.ends_with("message-user"));
     let assistant = &detail.messages[1];
     assert_eq!(assistant.turn_id.as_deref(), Some("message-user"));
     let commands = assistant.commands.as_ref().expect("Gemini commands");

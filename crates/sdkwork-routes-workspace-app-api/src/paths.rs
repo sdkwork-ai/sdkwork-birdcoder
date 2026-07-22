@@ -1,11 +1,15 @@
 pub const WORKSPACES_PATH: &str = "/app/v3/api/workspaces";
 pub const WORKSPACE_DETAIL_PATH: &str = "/app/v3/api/workspaces/{workspaceId}";
-pub const WORKSPACE_REALTIME_PATH: &str = "/app/v3/api/workspaces/{workspaceId}/realtime";
-pub const WORKSPACE_MEMBERS_PATH: &str = "/app/v3/api/workspaces/{workspaceId}/members";
+
 pub const PROJECTS_PATH: &str = "/app/v3/api/projects";
 pub const PROJECT_DETAIL_PATH: &str = "/app/v3/api/projects/{projectId}";
-pub const PROJECT_WORKSPACE_BINDING_PATH: &str =
-    "/app/v3/api/projects/{projectId}/workspace_binding";
+pub const PROJECT_DOCUMENT_BINDINGS_PATH: &str =
+    "/app/v3/api/projects/{projectId}/document_bindings";
+pub const PROJECT_DOCUMENT_BINDING_DETAIL_PATH: &str =
+    "/app/v3/api/projects/{projectId}/document_bindings/{bindingId}";
+pub const PROJECT_SANDBOX_BINDING_PATH: &str =
+    "/app/v3/api/projects/{projectId}/sandbox_binding";
+
 pub const PROJECT_RUNTIME_LOCATIONS_PATH: &str =
     "/app/v3/api/projects/{projectId}/runtime_locations";
 pub const PROJECT_RUNTIME_LOCATION_DETAIL_PATH: &str =
@@ -18,6 +22,7 @@ pub const PROJECT_RUNTIME_LOCATION_PREFERENCES_PATH: &str =
     "/app/v3/api/projects/{projectId}/runtime_location_preferences";
 pub const PROJECT_RUNTIME_LOCATION_PREFERENCE_PATH: &str =
     "/app/v3/api/projects/{projectId}/runtime_location_preferences/{capability}";
+
 pub const PROJECT_GIT_OVERVIEW_PATH: &str = "/app/v3/api/projects/{projectId}/git/overview";
 pub const PROJECT_GIT_DIFF_PATH: &str = "/app/v3/api/projects/{projectId}/git/diff";
 pub const PROJECT_GIT_BRANCHES_PATH: &str = "/app/v3/api/projects/{projectId}/git/branches";
@@ -30,9 +35,3 @@ pub const PROJECT_GIT_WORKTREE_REMOVALS_PATH: &str =
     "/app/v3/api/projects/{projectId}/git/worktree_removals";
 pub const PROJECT_GIT_WORKTREE_PRUNE_PATH: &str =
     "/app/v3/api/projects/{projectId}/git/worktree_prune";
-pub const PROJECT_COLLABORATORS_PATH: &str = "/app/v3/api/projects/{projectId}/collaborators";
-pub const PROJECT_PUBLISH_PATH: &str = "/app/v3/api/projects/{projectId}/publish";
-pub const PROJECT_DEPLOYMENT_TARGETS_PATH: &str =
-    "/app/v3/api/projects/{projectId}/deployment_targets";
-pub const DEPLOYMENTS_PATH: &str = "/app/v3/api/deployments";
-pub const TEAMS_PATH: &str = "/app/v3/api/teams";

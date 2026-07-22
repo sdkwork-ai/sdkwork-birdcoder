@@ -68,18 +68,20 @@ const approvedExternalSdkworkLinkDirectories = new Map([
   ],
 ]);
 
+function parseJsonFile(absolutePath) {
+  return JSON.parse(fs.readFileSync(absolutePath, 'utf8').replace(/^\uFEFF/u, ''));
+}
+
 function readJson(relativePath) {
-  return JSON.parse(fs.readFileSync(path.join(rootDir, relativePath), 'utf8'));
+  return parseJsonFile(path.join(rootDir, relativePath));
 }
 
 function collectWorkspaceManifests() {
-  return collectBirdcoderApplicationPackageManifests(rootDir, (absolutePath) =>
-    JSON.parse(fs.readFileSync(absolutePath, 'utf8')),
-  );
+  return collectBirdcoderApplicationPackageManifests(rootDir, parseJsonFile);
 }
 
 function readPackageJson(packageJsonPath) {
-  return JSON.parse(fs.readFileSync(packageJsonPath, 'utf8'));
+  return parseJsonFile(packageJsonPath);
 }
 
 function globSegmentToRegex(segment) {

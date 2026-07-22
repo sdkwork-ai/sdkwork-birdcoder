@@ -78,14 +78,14 @@ assert.match(
 
 assert.match(
   desktopMainSource,
-  /readDesktopEmbeddedRuntimeConfig/u,
-  'Desktop shell bootstrap must resolve API base URL from the Tauri runtime config before binding API-backed services.',
+  /readDesktopRuntimeConfig/u,
+  'Desktop shell bootstrap must resolve either embedded or remote runtime config before binding API-backed services.',
 );
 
 assert.match(
   desktopMainSource,
-  /publishBirdCoderEmbeddedSdkRuntimeEnv/u,
-  'Desktop shell bootstrap must publish the embedded API base URL into the public runtime env before appbase and BirdCoder SDK clients initialize.',
+  /publishBirdCoderDesktopSdkRuntimeEnv/u,
+  'Desktop shell bootstrap must publish the resolved topology and API base URL before appbase and BirdCoder SDK clients initialize.',
 );
 
 assert.doesNotMatch(
@@ -110,6 +110,12 @@ assert.match(
   desktopRuntimeBootstrapSource,
   /publishBirdCoderEmbeddedSdkRuntimeEnv/u,
   'Desktop runtime bootstrap must publish appbase and BirdCoder SDK base URLs from the embedded API base URL.',
+);
+
+assert.match(
+  desktopRuntimeBootstrapSource,
+  /topology\.executionLocation === 'cloud-workspace'[\s\S]*readConfiguredBirdCoderApiBaseUrl/u,
+  'Remote desktop bootstrap must use its configured cloud API and must not request embedded runtime config.',
 );
 
 console.log('desktop embedded coding server contract passed.');

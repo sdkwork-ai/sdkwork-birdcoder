@@ -3,7 +3,7 @@
 Status: active
 Owner: SDKWork maintainers
 Application: sdkwork-birdcoder-pc
-Updated: 2026-07-16
+Updated: 2026-07-22
 Specs: REQUIREMENTS_SPEC.md, DOCUMENTATION_SPEC.md, APP_PC_ARCHITECTURE_SPEC.md
 
 This is a PC-surface supplement, not a competing product Canon. Product scope,
@@ -13,9 +13,11 @@ outcomes, requirements, and release gates remain in the root
 ## PC Surface Scope
 
 The PC surface presents the same BirdCoder application model in browser and
-Tauri modes. Tauri may read provider-native session details through its
-authorized local host boundary; browser mode does not gain provider SDK access
-or a desktop filesystem capability from the renderer.
+Tauri modes. Both modes read the unified coding-session inventory, detail, and
+events through the composed BirdCoder app SDK. Provider-native discovery and
+history reads remain behind the server's internal native-session service;
+browser mode does not gain provider SDK access or a desktop filesystem
+capability from the renderer.
 
 ## Coding-Session Experience
 
@@ -25,9 +27,11 @@ engine/model pair belongs to that newly created logical session and is not
 changed in place. A different selection creates another session.
 
 The UI keeps BirdCoder's codingSessionId as the application identity. For a
-bound native conversation, desktop detail reads use the persisted engineId and
-raw nativeSessionId, then project the result back onto the logical session. A
-native binding is never replaced with a different provider conversation.
+bound provider conversation, the server uses the persisted engineId and raw
+nativeSessionId internally to reconcile canonical events onto that logical
+session. A raw binding exposed with a coding-session summary is metadata for
+explicit terminal resume, never a second public resource identity, and it is
+never replaced with a different provider conversation.
 
 ## Canonical References
 

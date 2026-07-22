@@ -13,6 +13,7 @@ export interface HydrateImportedProjectFromAuthorityOptions {
   knownProjects?: readonly BirdCoderProject[];
   projectId: string;
   projectService: IProjectService;
+  runtimeLocationId?: string | null;
   userScope?: string;
   workspaceId: string;
 }
@@ -89,12 +90,18 @@ function buildImportedProjectHydrationKey(
   userScope: string | null | undefined,
   workspaceId: string,
   projectId: string,
+  runtimeLocationId: string | null | undefined,
 ): string {
   const normalizedUserScope =
     typeof userScope === 'string' && userScope.trim().length > 0
       ? userScope.trim()
       : 'anonymous';
-  return `${normalizedUserScope}:${workspaceId.trim()}:${projectId.trim()}`;
+  return [
+    normalizedUserScope,
+    workspaceId.trim(),
+    projectId.trim(),
+    runtimeLocationId?.trim() || 'unbound',
+  ].join(':');
 }
 
 function resolveKnownImportedProject(
@@ -117,6 +124,29 @@ function resolveKnownImportedProject(
   );
 }
 
+function resolveImportedProjectRuntimeLocationId(
+  explicitRuntimeLocationId: string | null | undefined,
+  ...projects: readonly (BirdCoderProject | null | undefined)[]
+): string | undefined {
+  const normalizedExplicitRuntimeLocationId = explicitRuntimeLocationId?.trim();
+  if (normalizedExplicitRuntimeLocationId) {
+    return normalizedExplicitRuntimeLocationId;
+  }
+
+  const runtimeLocationIds = new Set<string>();
+  for (const project of projects) {
+    for (const session of project?.codingSessions ?? []) {
+      const runtimeLocationId = session.runtimeLocationId?.trim();
+      if (runtimeLocationId) {
+        runtimeLocationIds.add(runtimeLocationId);
+      }
+    }
+  }
+  return runtimeLocationIds.size === 1
+    ? runtimeLocationIds.values().next().value
+    : undefined;
+}
+
 export async function hydrateImportedProjectFromAuthority(
   options: HydrateImportedProjectFromAuthorityOptions,
 ): Promise<HydrateImportedProjectFromAuthorityResult | null> {
@@ -130,6 +160,10 @@ export async function hydrateImportedProjectFromAuthority(
     options.knownProjects,
     normalizedWorkspaceId,
     normalizedProjectId,
+  );
+  const knownRuntimeLocationId = resolveImportedProjectRuntimeLocationId(
+    options.runtimeLocationId,
+    knownProject,
   );
   if (knownProject && knownProject.codingSessions.length > 0 && !options.appRuntimeReadService) {
     upsertProjectIntoProjectsStore(
@@ -150,6 +184,7 @@ export async function hydrateImportedProjectFromAuthority(
     options.userScope,
     normalizedWorkspaceId,
     normalizedProjectId,
+    knownRuntimeLocationId,
   );
   const inflightHydration = inflightImportedProjectHydrations.get(hydrationKey);
   if (inflightHydration) {
@@ -183,10 +218,22 @@ export async function hydrateImportedProjectFromAuthority(
         return null;
       }
 
+      const runtimeLocationId = resolveImportedProjectRuntimeLocationId(
+        options.runtimeLocationId,
+        knownProject,
+        authoritativeProject,
+      );
+      const canReuseAuthoritativeProjection =
+        !runtimeLocationId;
+
       const synchronizedProject = await synchronizeProjectSessionsFromAuthority({
         appRuntimeReadService: options.appRuntimeReadService,
+        authoritativeCodingSessions: canReuseAuthoritativeProjection
+          ? authoritativeProject.codingSessions
+          : undefined,
         project: authoritativeProject,
         projectService: options.projectService,
+        runtimeLocationId,
       });
       upsertProjectIntoProjectsStore(
         normalizedWorkspaceId,

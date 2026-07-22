@@ -25,7 +25,7 @@ Root SDKWork standards remain authoritative. Local component specs can narrow or
 
 ## Contract Artifacts
 
-- [coding-server-openapi-rust-defer-registry.json](./coding-server-openapi-rust-defer-registry.json) — machine-readable defer registry comparing the coding-server HTTP OpenAPI snapshot against BirdCoder product and federated `sdkwork-iam` host manifests. Regenerate with `node scripts/build-coding-server-openapi-rust-defer-registry.mjs`. All 157 governed app/backend HTTP OpenAPI operations must be implemented with **zero deferred routes**. The composed route catalog has 158 entries; workspace realtime remains a route-catalog-only transport entry and is intentionally excluded from HTTP OpenAPI. Retired API-key-authenticated `/api/v1/*` routes are not part of this authority.
+- [coding-server-openapi-rust-defer-registry.json](./coding-server-openapi-rust-defer-registry.json) — machine-readable defer registry comparing the coding-server HTTP OpenAPI snapshot against BirdCoder product and federated `sdkwork-iam` host manifests. Regenerate with `node scripts/build-coding-server-openapi-rust-defer-registry.mjs`. All 155 governed app/backend HTTP OpenAPI operations must be implemented with **zero deferred routes**. The composed route catalog has 156 entries; workspace realtime remains a route-catalog-only transport entry and is intentionally excluded from HTTP OpenAPI. Retired API-key-authenticated `/api/v1/*` routes are not part of this authority.
 
 ## Canonical Specs
 
@@ -71,9 +71,14 @@ Root SDKWork standards remain authoritative. Local component specs can narrow or
 
 ## Local Extension Specs
 
+- [domain-ownership.spec.json](./domain-ownership.spec.json) - BirdCoder's
+  machine-readable workbench ownership, dependency, persistence, and API
+  boundary. It forbids local platform-domain copies, projections, shadow
+  tables, compatibility facades, and dual-write.
 - [kernel-birdcoder-alignment.spec.json](./kernel-birdcoder-alignment.spec.json) — Kernel ↔ BirdCoder alignment tasks, evidence, and verification matrix. See the canonical technical architecture and `pnpm run check:kernel-birdcoder-alignment`.
 - [agents-birdcoder-alignment.spec.json](./agents-birdcoder-alignment.spec.json) — Agents ↔ BirdCoder alignment tasks, evidence, and verification matrix. See the canonical technical architecture and `pnpm run check:agents-birdcoder-alignment`.
 
 ## Verification
 
 - `pnpm --filter @sdkwork/birdcoder-workspace typecheck`
+- `pnpm check:domain-ownership`

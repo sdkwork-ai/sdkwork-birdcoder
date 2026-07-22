@@ -189,9 +189,6 @@ const appRuntimeReadService: IAppRuntimeReadService = {
   async getModelConfig() {
     return TEST_CODE_ENGINE_MODEL_CONFIG;
   },
-  async getNativeSession() {
-    throw new Error('not needed');
-  },
   async getOperation(): Promise<BirdCoderOperationDescriptor> {
     throw new Error('not needed');
   },
@@ -217,9 +214,6 @@ const appRuntimeReadService: IAppRuntimeReadService = {
     throw new Error('not needed');
   },
   async listNativeSessionProviders() {
-    return [];
-  },
-  async listNativeSessions() {
     return [];
   },
   async listRoutes() {

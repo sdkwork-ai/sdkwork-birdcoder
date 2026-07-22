@@ -47,10 +47,6 @@ const sessionInventorySource = fs.readFileSync(
   new URL('../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-workbench/src/workbench/sessionInventory.ts', import.meta.url),
   'utf8',
 );
-const nativeSessionAuthoritySource = fs.readFileSync(
-  new URL('../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-workbench/src/workbench/nativeSessionAuthority.ts', import.meta.url),
-  'utf8',
-);
 const studioWorkbenchBindingsSource = fs.readFileSync(
   new URL('../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-studio/src/pages/useStudioWorkbenchEventBindings.ts', import.meta.url),
   'utf8',
@@ -228,10 +224,10 @@ assert.match(
   /const resolveCodingSessionNativeSessionId = useCallback\(async \(\s*codingSessionId: string,\s*projectId\?: string \| null,\s*\) => \{[\s\S]*const resolvedSessionLocation = resolveSessionActionLocation\(\s*codingSessionId,\s*projectId,\s*\);[\s\S]*resolvedSessionLocation\?\.codingSession\.nativeSessionId\?\.trim\(\)[\s\S]*const expectedProjectId = resolvedSessionLocation\?\.project\.id\?\.trim\(\) \|\| projectId\?\.trim\(\) \|\| '';[\s\S]*const expectedEngineId = resolvedSessionLocation\?\.codingSession\.engineId\?\.trim\(\) \?\? '';[\s\S]*appRuntimeReadService\.getCodingSession\(codingSessionId\)[\s\S]*session\.projectId\?\.trim\(\) !== expectedProjectId[\s\S]*session\.engineId\?\.trim\(\) !== expectedEngineId[\s\S]*session\.nativeSessionId\?\.trim\(\) \|\| null/m,
   'CodePage must resolve native session ids from project-scoped local state first and fall back to the BirdCoder coding-session summary with project/engine validation.',
 );
-assert.doesNotMatch(
+assert.match(
   codePageSource,
-  /const resolveCodingSessionNativeSessionId = useCallback\([\s\S]*?appRuntimeReadService\.getNativeSession\(codingSessionId/m,
-  'CodePage terminal resume fallback must not call native_sessions/{codingSessionId}; that endpoint expects a provider-native session id and returns 404 for standard BirdCoder session ids.',
+  /const resolveCodingSessionNativeSessionId = useCallback\([\s\S]*?appRuntimeReadService\.getCodingSession\(codingSessionId/m,
+  'CodePage terminal resume fallback must resolve the provider binding through the unified coding-session authority.',
 );
 assert.match(
   codePageTerminalActionsSource,
@@ -283,12 +279,6 @@ assert.match(
   /function toProjectBackedCodingSessionInventoryRecord\([\s\S]*nativeSessionId: normalizeInventoryNativeSessionId\([\s\S]*codingSession\.nativeSessionId,[\s\S]*codingSession\.engineId,[\s\S]*\),[\s\S]*kind: 'coding'/m,
   'Project-backed session inventory records must preserve nativeSessionId from each loaded session item as a normalized raw provider id.',
 );
-assert.match(
-  nativeSessionAuthoritySource,
-  /function toStoredNativeSessionSummary\([\s\S]*normalizeBirdCoderCodeEngineNativeSessionId\(summary\.nativeSessionId \?\? summary\.id, summary\.engineId\)[\s\S]*kind: 'coding',[\s\S]*nativeSessionId,/m,
-  'Authority-backed native session inventory records must preserve nativeSessionId in each list item as a normalized raw provider id.',
-);
-
 assert.match(
   fileExplorerSource,
   /const resolveProjectMountTarget = \(mountedPath\?: string\) => \{[\s\S]*projectId: normalizedProjectId,[\s\S]*mountedPath/,

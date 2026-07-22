@@ -7,10 +7,8 @@ import {
   type SelectWorkbenchCodingSession,
 } from '../workbench/codingSessionCreation.ts';
 
-type CreateCodingSessionInProjectAction = (
-  projectId: string,
-  requestedEngineId?: string,
-  requestedModelId?: string,
+type CreateCodingSessionFromRequestAction = (
+  request: CreateNewCodingSessionRequest,
 ) => Promise<unknown> | unknown;
 
 export function useCodingSessionActions(
@@ -19,23 +17,23 @@ export function useCodingSessionActions(
   selectCodingSession: SelectWorkbenchCodingSession,
   options?: {
     isActive?: boolean;
-    createCodingSessionInProject?: CreateCodingSessionInProjectAction;
+    createCodingSessionFromRequest?: CreateCodingSessionFromRequestAction;
   },
 ) {
   const isActive = options?.isActive ?? true;
-  const createCodingSessionInProject = options?.createCodingSessionInProject;
+  const createCodingSessionFromRequest = options?.createCodingSessionFromRequest;
   const currentProjectIdRef = useRef(currentProjectId);
   const createCodingSessionWithSelectionRef = useRef(createCodingSessionWithSelection);
   const selectCodingSessionRef = useRef(selectCodingSession);
-  const createCodingSessionInProjectRef = useRef(createCodingSessionInProject);
+  const createCodingSessionFromRequestRef = useRef(createCodingSessionFromRequest);
 
   useEffect(() => {
     currentProjectIdRef.current = currentProjectId;
     createCodingSessionWithSelectionRef.current = createCodingSessionWithSelection;
     selectCodingSessionRef.current = selectCodingSession;
-    createCodingSessionInProjectRef.current = createCodingSessionInProject;
+    createCodingSessionFromRequestRef.current = createCodingSessionFromRequest;
   }, [
-    createCodingSessionInProject,
+    createCodingSessionFromRequest,
     createCodingSessionWithSelection,
     currentProjectId,
     selectCodingSession,
@@ -48,17 +46,17 @@ export function useCodingSessionActions(
 
     const handleCreateNewCodingSession = async (request?: CreateNewCodingSessionRequest) => {
       const targetProjectId = request?.projectId?.trim() || currentProjectIdRef.current.trim();
-      if (!targetProjectId) {
-        return;
-      }
 
       try {
-        if (createCodingSessionInProjectRef.current) {
-          await createCodingSessionInProjectRef.current(
-            targetProjectId,
-            request?.engineId,
-            request?.modelId,
-          );
+        if (createCodingSessionFromRequestRef.current) {
+          await createCodingSessionFromRequestRef.current({
+            ...request,
+            ...(targetProjectId ? { projectId: targetProjectId } : {}),
+            source: request?.source ?? 'global-event',
+          });
+          return;
+        }
+        if (!targetProjectId) {
           return;
         }
 
@@ -68,6 +66,7 @@ export function useCodingSessionActions(
           requestedEngineId: request?.engineId,
           requestedModelId: request?.modelId,
           selectCodingSession: selectCodingSessionRef.current,
+          title: request?.title,
         });
       } catch (error) {
         console.error('Failed to create session', error);

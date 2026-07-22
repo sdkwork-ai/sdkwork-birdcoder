@@ -224,10 +224,6 @@ const codingRuntimeClient: BirdCoderAppRuntimeReadSdkApiClient = {
     calls.push('getModelConfig');
     return TEST_CODE_ENGINE_MODEL_CONFIG;
   },
-  async getNativeSession() {
-    calls.push('getNativeSession');
-    throw new Error('not needed');
-  },
   async getEngineCapabilities(engineKey) {
     calls.push(`getEngineCapabilities:${engineKey}`);
     return capabilityFixture;
@@ -266,10 +262,6 @@ const codingRuntimeClient: BirdCoderAppRuntimeReadSdkApiClient = {
   async listNativeSessionProviders() {
     calls.push('listNativeSessionProviders');
     return [nativeSessionProviderFixture];
-  },
-  async listNativeSessions() {
-    calls.push('listNativeSessions');
-    return [];
   },
   async listRoutes() {
     calls.push('listRoutes');

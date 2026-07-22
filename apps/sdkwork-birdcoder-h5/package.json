@@ -49,7 +49,7 @@
     "build:staging": "tsc && vite build --mode staging",
     "dev:browser:standalone": "pnpm exec sdkwork-app dev --root ../.. --runtime-target browser --deployment-profile standalone",
     "dev:browser:cloud": "pnpm exec sdkwork-app dev --root ../.. --runtime-target browser --deployment-profile cloud",
-    "dev:standalone": "pnpm exec sdkwork-app dev --root ../.. --deployment-profile standalone",
+    "dev:standalone": "pnpm exec sdkwork-app dev --root ../.. --runtime-target browser --client-architecture h5 --deployment-profile standalone",
     "dev:cloud": "pnpm exec sdkwork-app dev --root ../.. --deployment-profile cloud",
     "stop": "pnpm exec sdkwork-app stop --root ../..",
     "dev:browser:postgres:standalone": "pnpm exec sdkwork-app dev --root ../.. --runtime-target browser --deployment-profile standalone",

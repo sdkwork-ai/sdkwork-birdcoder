@@ -4,6 +4,7 @@ import { resolve } from 'node:path';
 import {
   areBirdCoderChatMessagesEquivalent,
   areBirdCoderChatMessagesLogicallyMatched,
+  buildBirdCoderAuthoritativeProjectionMessageId,
   mergeBirdCoderProjectionMessages,
   mergeBirdCoderComparableChatMessages,
   type BirdCoderChatMessage,
@@ -12,7 +13,6 @@ import {
 } from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-contracts-commons/src/index.ts';
 import { createBirdCoderInProcessAppRuntimeTransport } from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/src/services/appRuntimeTransport.ts';
 import { createBirdCoderAppSdkApiClient } from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/src/services/sdkClients.ts';
-import { readAuthorityBackedNativeSessionRecord } from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-workbench/src/workbench/nativeSessionAuthority.ts';
 
 const baseMessage: BirdCoderChatMessage = {
   id: 'message-1',
@@ -701,6 +701,56 @@ assert.deepEqual(
     },
   ],
   'projection refresh must replace the nearby local user mirror with the authoritative turn message without collapsing a later repeated prompt',
+);
+
+const turnBoundLocalMirrorId = buildBirdCoderAuthoritativeProjectionMessageId(
+  'coding-session-1',
+  'turn-user-2',
+  'user',
+);
+const turnBoundLocalMirrorProjectionMessages = mergeBirdCoderProjectionMessages({
+  codingSessionId: 'coding-session-1',
+  existingMessages: [
+    {
+      id: turnBoundLocalMirrorId,
+      codingSessionId: 'coding-session-1',
+      turnId: 'turn-user-2',
+      role: 'user',
+      content: 'Preserve the adopted turn mirror',
+      createdAt: '2026-04-20T10:20:00.000Z',
+      timestamp: Date.parse('2026-04-20T10:20:00.000Z'),
+    },
+  ],
+  idPrefix: 'refreshed',
+  events: [
+    {
+      id: 'authoritative-turn-bound-user-event',
+      codingSessionId: 'coding-session-1',
+      kind: 'message.completed',
+      payload: {
+        role: 'user',
+        content: 'Preserve the adopted turn mirror',
+      },
+      sequence: '1',
+      createdAt: '2026-04-20T10:20:01.000Z',
+      turnId: 'turn-user-2',
+    },
+  ],
+});
+assert.deepEqual(
+  turnBoundLocalMirrorProjectionMessages.map((message) => ({
+    id: message.id,
+    turnId: message.turnId,
+    content: message.content,
+  })),
+  [
+    {
+      id: turnBoundLocalMirrorId,
+      turnId: 'turn-user-2',
+      content: 'Preserve the adopted turn mirror',
+    },
+  ],
+  'projection refresh must merge an adopted authoritative turn into its stable local mirror without duplicating the user prompt',
 );
 
 const commandOnlyProjectedMessages = mergeBirdCoderProjectionMessages({
@@ -1732,7 +1782,7 @@ const dialectFileChangeAliasProjectedMessages = mergeBirdCoderProjectionMessages
     {
       id: 'dialect-file-change-alias-command',
       codingSessionId: 'coding-session-1',
-      kind: 'tool.call.requested',
+      kind: 'tool.call.completed',
       payload: {
         toolCallId: 'tool-dialect-file-change-alias',
         toolName: 'str-replace-editor',
@@ -1857,37 +1907,6 @@ const richReplayProject: BirdCoderProject = {
 };
 const richReplayAppClient = createBirdCoderAppSdkApiClient({
   transport: createBirdCoderInProcessAppRuntimeTransport({
-    nativeSessionProvider: {
-      async getNativeSession() {
-        return {
-          summary: {
-            ...richReplaySession,
-            kind: 'coding',
-            sortTimestamp: richReplaySession.updatedAt,
-          },
-          messages: richReplaySession.messages,
-        };
-      },
-      async listNativeSessionPage() {
-        return {
-          items: [
-            {
-              ...richReplaySession,
-              kind: 'coding',
-              sortTimestamp: richReplaySession.updatedAt,
-            },
-          ],
-          pageInfo: {
-            hasMore: false,
-            mode: 'offset',
-            page: 1,
-            pageSize: 20,
-            totalItems: '1',
-            totalPages: 1,
-          },
-        };
-      },
-    } as never,
     projectService: {
       async getProjectById(projectId: string) {
         return projectId === richReplayProject.id ? richReplayProject : null;
@@ -1905,16 +1924,6 @@ assert.deepEqual(
   richReplaySessionList.map((session) => session.id),
   [richReplaySession.id],
   'in-process app runtime should list coding sessions from a minimal projectService through paged project inventory fallback',
-);
-const richReplayNativeSessionList = await richReplayAppClient.listNativeSessions({
-  workspaceId: richReplaySession.workspaceId,
-  projectId: richReplaySession.projectId,
-  runtimeLocationId: richReplaySession.runtimeLocationId!,
-});
-assert.deepEqual(
-  richReplayNativeSessionList.map((session) => session.id),
-  [richReplaySession.id],
-  'in-process app runtime should list native sessions only through its explicitly injected native provider',
 );
 const richReplayEvents = await richReplayAppClient.listCodingSessionEvents(
   richReplaySession.id,
@@ -1995,84 +2004,6 @@ assert.equal(
   richReplayProjectedMessages.find((message) => message.role === 'tool')?.tool_call_id,
   'rich-replay-tool-call',
   'projecting in-process app runtime replay events should restore tool_call_id exactly',
-);
-
-const richReplayNativeSession = await richReplayAppClient.getNativeSession(
-  richReplaySession.id,
-  {
-    workspaceId: richReplaySession.workspaceId,
-    projectId: richReplaySession.projectId,
-    runtimeLocationId: richReplaySession.runtimeLocationId!,
-  },
-);
-const richReplayNativeAssistantMessage = richReplayNativeSession.messages.find(
-  (message) => message.role === 'assistant',
-) as BirdCoderChatMessage | undefined;
-const richReplayNativeToolMessage = richReplayNativeSession.messages.find(
-  (message) => message.role === 'tool',
-) as BirdCoderChatMessage | undefined;
-assert.deepEqual(
-  richReplayNativeAssistantMessage?.fileChanges,
-  richReplaySession.messages[1]?.fileChanges,
-  'native session detail should preserve assistant fileChanges so cross-engine history refresh keeps file cards',
-);
-assert.deepEqual(
-  richReplayNativeAssistantMessage?.taskProgress,
-  richReplaySession.messages[1]?.taskProgress,
-  'native session detail should preserve assistant taskProgress so progress UI survives session reload',
-);
-assert.deepEqual(
-  richReplayNativeAssistantMessage?.tool_calls,
-  richReplaySession.messages[1]?.tool_calls,
-  'native session detail should preserve assistant tool_calls for OpenAI-compatible history adapters',
-);
-assert.equal(
-  richReplayNativeToolMessage?.tool_call_id,
-  'rich-replay-tool-call',
-  'native session detail should preserve tool_call_id so tool responses remain matched after refresh',
-);
-
-const authorityBackedNativeRecord = await readAuthorityBackedNativeSessionRecord(
-  richReplaySession.id,
-  {
-    workspaceId: richReplaySession.workspaceId,
-    projectId: richReplaySession.projectId,
-    runtimeLocationId: richReplaySession.runtimeLocationId,
-    appRuntimeReadService: {
-      async getNativeSession() {
-        return richReplayNativeSession;
-      },
-      async listNativeSessions() {
-        return [];
-      },
-    },
-  },
-);
-const authorityBackedNativeAssistantMessage = authorityBackedNativeRecord?.messages.find(
-  (message) => message.role === 'assistant',
-);
-const authorityBackedNativeToolMessage = authorityBackedNativeRecord?.messages.find(
-  (message) => message.role === 'tool',
-);
-assert.deepEqual(
-  authorityBackedNativeAssistantMessage?.fileChanges,
-  richReplaySession.messages[1]?.fileChanges,
-  'authority-backed native session adapter must preserve fileChanges from native detail messages',
-);
-assert.deepEqual(
-  authorityBackedNativeAssistantMessage?.taskProgress,
-  richReplaySession.messages[1]?.taskProgress,
-  'authority-backed native session adapter must preserve taskProgress from native detail messages',
-);
-assert.deepEqual(
-  authorityBackedNativeAssistantMessage?.tool_calls,
-  richReplaySession.messages[1]?.tool_calls,
-  'authority-backed native session adapter must preserve assistant tool_calls from native detail messages',
-);
-assert.equal(
-  authorityBackedNativeToolMessage?.tool_call_id,
-  'rich-replay-tool-call',
-  'authority-backed native session adapter must preserve tool_call_id from native tool messages',
 );
 
 const useProjectsSource = await readFile(

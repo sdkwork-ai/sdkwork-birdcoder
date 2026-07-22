@@ -52,7 +52,6 @@ pub async fn build_router(
             CodingSessionsAppState {
                 service: state.services.coding_session.clone(),
                 commerce_pool: Some(state.repositories.any_pool.clone()),
-                project_service: Some(Arc::new(state.services.project.clone())),
             },
         );
 
@@ -61,7 +60,7 @@ pub async fn build_router(
             workspace_service: state.services.workspace.clone(),
             project_service: state.services.project.clone(),
             runtime_location_service: state.services.runtime_location.clone(),
-            workspace_binding_service: state.services.workspace_binding.clone(),
+            sandbox_binding_service: state.services.sandbox_binding.clone(),
             deployment_service: state.services.deployment.clone(),
             team_service: state.services.team.clone(),
             realtime_hub: state.services.realtime_hub.clone(),
@@ -71,12 +70,8 @@ pub async fn build_router(
         });
 
     let engine_catalog_router =
-        sdkwork_routes_engine_catalog_app_api::build_engine_catalog_app_router().with_state(
-            EngineCatalogAppState {
-                project_service: Some(Arc::new(state.services.project.clone())),
-                ..EngineCatalogAppState::default()
-            },
-        );
+        sdkwork_routes_engine_catalog_app_api::build_engine_catalog_app_router()
+            .with_state(EngineCatalogAppState::default());
 
     let document_router = sdkwork_routes_document_app_api::build_document_app_router()
         .with_state(DocumentAppState::new(state.repositories.any_pool.clone()));

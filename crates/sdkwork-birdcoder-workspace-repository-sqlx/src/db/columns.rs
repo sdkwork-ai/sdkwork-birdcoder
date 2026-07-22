@@ -193,8 +193,8 @@ pub mod project_runtime_location_audit {
     pub const REDACTED_METADATA_JSON: &str = "redacted_metadata_json";
 }
 
-pub mod project_workspace_binding {
-    pub const TABLE: &str = "studio_project_workspace_binding";
+pub mod project_sandbox_binding {
+    pub const TABLE: &str = "studio_project_sandbox_binding";
     pub const ID: &str = "id";
     pub const UUID: &str = "uuid";
     pub const TENANT_ID: &str = "tenant_id";
@@ -203,7 +203,7 @@ pub mod project_workspace_binding {
     pub const SANDBOX_ID: &str = "sandbox_id";
     pub const ROOT_ENTRY_ID: &str = "root_entry_id";
     pub const LOGICAL_PATH: &str = "logical_path";
-    pub const LIFECYCLE_STATUS: &str = "lifecycle_status";
+    pub const STATUS: &str = "status";
     pub const CREATED_BY_USER_ID: &str = "created_by_user_id";
     pub const UPDATED_BY_USER_ID: &str = "updated_by_user_id";
     pub const VERSION: &str = "version";
@@ -212,10 +212,9 @@ pub mod project_workspace_binding {
     pub const IS_DELETED: &str = "is_deleted";
 }
 
-pub mod project_workspace_binding_idempotency {
-    pub const TABLE: &str = "studio_project_workspace_binding_idempotency";
+pub mod project_sandbox_binding_idempotency {
+    pub const TABLE: &str = "studio_project_sandbox_binding_idempotency";
     pub const ID: &str = "id";
-    pub const UUID: &str = "uuid";
     pub const TENANT_ID: &str = "tenant_id";
     pub const ORGANIZATION_ID: &str = "organization_id";
     pub const PROJECT_ID: &str = "project_id";
@@ -229,18 +228,20 @@ pub mod project_workspace_binding_idempotency {
     pub const EXPIRES_AT: &str = "expires_at";
 }
 
-pub mod project_workspace_binding_audit {
-    pub const TABLE: &str = "ops_project_workspace_binding_audit";
+pub mod project_sandbox_binding_audit {
+    pub const TABLE: &str = "studio_project_sandbox_binding_audit";
     pub const ID: &str = "id";
-    pub const UUID: &str = "uuid";
     pub const TENANT_ID: &str = "tenant_id";
     pub const ORGANIZATION_ID: &str = "organization_id";
     pub const PROJECT_ID: &str = "project_id";
-    pub const WORKSPACE_BINDING_ID: &str = "workspace_binding_id";
+    pub const SANDBOX_BINDING_ID: &str = "sandbox_binding_id";
     pub const ACTOR_USER_ID: &str = "actor_user_id";
     pub const ACTION: &str = "action";
     pub const RESULT: &str = "result";
+    pub const REASON_CODE: &str = "reason_code";
     pub const TRACE_ID: &str = "trace_id";
+    pub const PREVIOUS_VERSION: &str = "previous_version";
+    pub const NEW_VERSION: &str = "new_version";
     pub const OCCURRED_AT: &str = "occurred_at";
     pub const REDACTED_METADATA_JSON: &str = "redacted_metadata_json";
 }

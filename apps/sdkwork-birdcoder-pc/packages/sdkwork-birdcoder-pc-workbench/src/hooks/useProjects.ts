@@ -56,10 +56,7 @@ import {
   synchronizeProjectSessionsFromAuthority,
   synchronizeProjectsSessionsFromAuthority,
 } from '../workbench/projectSessionSynchronization.ts';
-import {
-  requireProjectRuntimeLocationExecutionId,
-  useProjectRuntimeLocation,
-} from './useProjectRuntimeLocation.ts';
+import { useProjectRuntimeLocationExecutionId } from './useProjectRuntimeLocation.ts';
 import { createProjectRealtimeSubscriptionCoordinator } from '../services/projectRealtimeSubscriptionCoordinator.ts';
 
 export interface LoadMoreProjectSessionsResult {
@@ -923,7 +920,7 @@ export interface UseProjectsOptions {
 
 export function useProjects(workspaceId?: string, options?: UseProjectsOptions) {
   const { appRuntimeReadService, projectService } = useIDEServices();
-  const resolveProjectRuntimeLocation = useProjectRuntimeLocation();
+  const resolveProjectRuntimeLocationExecutionId = useProjectRuntimeLocationExecutionId();
   const { sessionRevision, user } = useAuth();
   const normalizedUserScope = normalizeProjectsStoreUserScope(
     buildBirdCoderAuthSessionInventoryScope(user?.id, sessionRevision),
@@ -1413,12 +1410,10 @@ export function useProjects(workspaceId?: string, options?: UseProjectsOptions) 
     options: CreateProjectCodingSessionOptions,
   ) => {
     try {
-      const runtimeLocationResolution = await resolveProjectRuntimeLocation(projectId, {
-        allowFolderSelection: true,
-        capability: 'terminal',
-      });
-      const runtimeLocationId = requireProjectRuntimeLocationExecutionId(
-        runtimeLocationResolution,
+      const runtimeLocationId = await resolveProjectRuntimeLocationExecutionId(
+        projectId,
+        'terminal',
+        { allowFolderSelection: true },
       );
       const codingSession = await projectService.createCodingSession(projectId, title, {
         ...options,

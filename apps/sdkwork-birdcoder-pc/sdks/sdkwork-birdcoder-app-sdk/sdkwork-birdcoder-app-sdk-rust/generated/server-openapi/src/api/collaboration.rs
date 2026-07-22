@@ -3,7 +3,6 @@ use std::sync::Arc;
 use crate::api::paths::app_path;
 use crate::api::paths::append_query_string;
 use crate::http::{SdkworkError, SdkworkHttpClient};
-use crate::models::{BirdCoderTeamSummaryListEnvelope};
 
 #[derive(Clone)]
 pub struct CollaborationApi {
@@ -16,7 +15,7 @@ impl CollaborationApi {
     }
 
     /// List workspace teams
-    pub async fn workspace_teams_list(&self, user_id: Option<&str>, workspace_id: Option<&str>) -> Result<BirdCoderTeamSummaryListEnvelope, SdkworkError> {
+    pub async fn workspace_teams_list(&self, user_id: Option<&str>, workspace_id: Option<&str>) -> Result<serde_json::Value, SdkworkError> {
         let query = build_query_string(&[
             QueryParameterSpec::new("userId", user_id, "form", true, false, None),
             QueryParameterSpec::new("workspaceId", workspace_id, "form", true, false, None),

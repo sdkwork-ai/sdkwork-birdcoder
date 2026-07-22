@@ -1,3 +1,4 @@
+import { useId } from 'react';
 import { RefreshCw } from 'lucide-react';
 import './StartupScreen.css';
 
@@ -15,8 +16,6 @@ export interface StartupScreenProps {
   title: string;
 }
 
-const STAGES: readonly StartupStage[] = ['runtime', 'session', 'workspace'];
-
 export function StartupScreen({
   description,
   errorMessage,
@@ -28,9 +27,12 @@ export function StartupScreen({
   startupFailedLabel,
   title,
 }: StartupScreenProps) {
+  const descriptionId = useId();
   const isFailed = Boolean(errorMessage);
-  const activeStageIndex = STAGES.indexOf(stage);
   const clampedProgress = Math.min(100, Math.max(0, progress));
+  const statusLabel = isFailed
+    ? startupFailedLabel ?? title
+    : stageLabels[stage];
 
   return (
     <main
@@ -42,59 +44,44 @@ export function StartupScreen({
         <header className="sdkwork-startup-brand" aria-label={title}>
           <span className="sdkwork-startup-mark" aria-hidden="true">B</span>
           <span className="sdkwork-startup-brand-copy">
-            <span className="sdkwork-startup-brand-vendor">SDKWORK</span>
-            <span className="sdkwork-startup-brand-product">BIRDCODER</span>
+            <span className="sdkwork-startup-brand-vendor">SDKWork</span>
+            <span className="sdkwork-startup-brand-product">BirdCoder</span>
           </span>
         </header>
 
         <section
           className="sdkwork-startup-content"
           aria-live={isFailed ? 'assertive' : 'polite'}
+          role={isFailed ? 'alert' : 'status'}
         >
-          <div className="sdkwork-startup-state-row">
+          <div className="sdkwork-startup-state-row" aria-hidden="true">
             <span className="sdkwork-startup-status-mark" aria-hidden="true">
               <span className="sdkwork-startup-status-dot" />
             </span>
-            <p className="sdkwork-startup-kicker">
-              {isFailed ? startupFailedLabel : stageLabels[stage]}
-            </p>
           </div>
           <h1>{title}</h1>
-          <p className="sdkwork-startup-description">{isFailed ? errorMessage : description}</p>
+          <p className="sdkwork-startup-description" id={descriptionId}>
+            {isFailed ? errorMessage : description}
+          </p>
 
           <div
             className="sdkwork-startup-progress"
             role="progressbar"
-            aria-label={stageLabels[stage]}
+            aria-describedby={descriptionId}
+            aria-label={statusLabel}
             aria-valuemax={100}
             aria-valuemin={0}
             aria-valuenow={clampedProgress}
+            aria-valuetext={`${statusLabel}: ${clampedProgress}%`}
           >
             <div className="sdkwork-startup-progress-track">
               <span style={{ width: `${clampedProgress}%` }} />
             </div>
-            <span className="sdkwork-startup-progress-value">{clampedProgress}%</span>
+            <div className="sdkwork-startup-progress-meta" aria-hidden="true">
+              <span className="sdkwork-startup-progress-stage">{statusLabel}</span>
+              <span className="sdkwork-startup-progress-value">{clampedProgress}%</span>
+            </div>
           </div>
-
-          <ol className="sdkwork-startup-stages">
-            {STAGES.map((stageName, index) => (
-              <li
-                className={[
-                  'sdkwork-startup-stage',
-                  index < activeStageIndex ? 'is-complete' : '',
-                  index === activeStageIndex ? 'is-active' : '',
-                ].filter(Boolean).join(' ')}
-                key={stageName}
-              >
-                <span
-                  className="sdkwork-startup-stage-indicator"
-                  data-step={index + 1}
-                  aria-hidden="true"
-                />
-                <span>{stageLabels[stageName]}</span>
-              </li>
-            ))}
-          </ol>
 
           {isFailed && onRetry && retryLabel ? (
             <button className="sdkwork-startup-retry" type="button" onClick={onRetry}>

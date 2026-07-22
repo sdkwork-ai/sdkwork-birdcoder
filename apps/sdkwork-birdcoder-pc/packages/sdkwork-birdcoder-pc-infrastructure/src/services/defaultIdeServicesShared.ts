@@ -43,6 +43,7 @@ import type { IReleaseService } from './interfaces/IReleaseService.ts';
 import type { ITeamService } from './interfaces/ITeamService.ts';
 import type { IVipMembershipService } from './interfaces/IVipMembershipService.ts';
 import type { IWorkspaceService } from './interfaces/IWorkspaceService.ts';
+import type { SdkworkSkillsAppClient } from '@sdkwork/skills-app-sdk';
 import { resolveRuntimeServerSessionHeaders } from './runtimeServerSession.ts';
 import {
   createBirdCoderAppSdkApiClient,
@@ -54,6 +55,8 @@ import {
   type BirdCoderBackendSdkApiClient,
 } from './sdkClients.ts';
 import { createBirdCoderHttpApiTransport } from './sdkTransportShared.ts';
+import { createBirdCoderSkillsAppSdkClient } from './skillsSdkClient.ts';
+import { resolveBirdCoderRuntimeTopology } from './runtimeTopology.ts';
 
 export interface BirdCoderDefaultIdeServices {
   adminDeploymentService: IAdminDeploymentService;
@@ -86,6 +89,7 @@ export interface CreateBirdCoderDefaultIdeServicesOptions {
     | BirdCoderAppRuntimeSdkApiClient
     | BirdCoderAppRuntimeWriteSdkApiClient;
   backendClient?: BirdCoderBackendSdkApiClient;
+  skillsClient?: SdkworkSkillsAppClient;
   storageProvider?: BirdCoderTransactionalStorageProvider;
 }
 
@@ -103,6 +107,7 @@ export interface BirdCoderDefaultIdeSharedRuntime {
   projectDeviceMountRegistry: ProjectDeviceMountRegistry;
   providerBackedProjectService: ProviderBackedProjectService;
   providerBackedWorkspaceService: ProviderBackedWorkspaceService;
+  skillsClient: SdkworkSkillsAppClient;
 }
 
 const DEFAULT_RUNTIME_HTTP_API_TIMEOUT_MS = 20_000;
@@ -310,6 +315,9 @@ export function createBirdCoderDefaultIdeSharedRuntime(
         ? createUnavailableBirdCoderBackendClient()
         : createInProcessBirdCoderBackendClient(queries)
       : createUnavailableBirdCoderBackendClient());
+  const skillsClient =
+    options.skillsClient ??
+    createBirdCoderSkillsAppSdkClient({ apiBaseUrl: runtimeConfig.apiBaseUrl });
   const authService = createBirdCoderRuntimeAuthService();
   const projectDeviceMountRegistry = new ProjectDeviceMountRegistry({
     subjectProvider: createProjectDeviceMountSubjectProvider(),
@@ -317,13 +325,17 @@ export function createBirdCoderDefaultIdeSharedRuntime(
   const runtimeFileSystemService = new RuntimeFileSystemService({
     mountRegistry: projectDeviceMountRegistry,
   });
-  const fileSystemService = new DriveSandboxProjectFileSystemService({
-    bindingClient: hasBoundAppClient
-      ? appClient
-      : { getProjectWorkspaceBinding: async () => null },
-    drivePort: createBirdCoderDriveSandboxExplorerPort(),
-    localFileSystem: runtimeFileSystemService,
-  });
+  const runtimeTopology = runtimeConfig.runtimeTopology ?? resolveBirdCoderRuntimeTopology();
+  const fileSystemService = runtimeTopology.executionLocation === 'local-host'
+    ? runtimeFileSystemService
+    : new DriveSandboxProjectFileSystemService({
+        allowLocalFallback: false,
+        bindingClient: hasBoundAppClient
+          ? appClient
+          : { getProjectWorkspaceBinding: async () => null },
+        drivePort: createBirdCoderDriveSandboxExplorerPort(),
+        localFileSystem: runtimeFileSystemService,
+      });
   const projectRuntimeLocationRegistrationPort = hasBoundAppClient
     ? new ComposedSdkProjectRuntimeLocationRegistrationPort({
         identityPort: new TauriDesktopRuntimeLocationIdentityPort({
@@ -333,6 +345,7 @@ export function createBirdCoderDefaultIdeSharedRuntime(
       })
     : undefined;
   const projectRuntimeLocationService = new RuntimeProjectRuntimeLocationService({
+    executionLocation: runtimeTopology.executionLocation,
     fileSystemService,
     registrationPort: projectRuntimeLocationRegistrationPort,
   });
@@ -351,5 +364,6 @@ export function createBirdCoderDefaultIdeSharedRuntime(
     projectDeviceMountRegistry,
     providerBackedProjectService,
     providerBackedWorkspaceService,
+    skillsClient,
   };
 }

@@ -1,13 +1,13 @@
 {
   "schemaVersion": 2,
-  "updatedAt": "2026-07-20",
+  "updatedAt": "2026-07-22",
   "openApiSnapshotPath": "deployments/server-windows/x64/openapi/coding-server-v1.json",
   "summary": {
-    "contractOperationCount": 157,
-    "rustProductManifestRouteCount": 91,
+    "contractOperationCount": 155,
+    "rustProductManifestRouteCount": 89,
     "iamFederationManifestRouteCount": 207,
-    "hostManifestRouteCount": 298,
-    "implementedOperationCount": 157,
+    "hostManifestRouteCount": 296,
+    "implementedOperationCount": 155,
     "deferredOperationCount": 0
   },
   "federation": {
@@ -289,18 +289,6 @@
     },
     {
       "method": "GET",
-      "path": "/app/v3/api/native_sessions",
-      "operationId": "nativeSessions.list",
-      "surface": "app"
-    },
-    {
-      "method": "GET",
-      "path": "/app/v3/api/native_sessions/{id}",
-      "operationId": "nativeSessions.retrieve",
-      "surface": "app"
-    },
-    {
-      "method": "GET",
       "path": "/app/v3/api/oauth/device_authorizations/{deviceAuthorizationId}",
       "operationId": "oauth.deviceAuthorizations.retrieve",
       "surface": "app"
@@ -369,12 +357,6 @@
       "method": "GET",
       "path": "/app/v3/api/projects/{projectId}/workspace_binding",
       "operationId": "projects.workspaceBinding.retrieve",
-      "surface": "app"
-    },
-    {
-      "method": "GET",
-      "path": "/app/v3/api/skill_packages",
-      "operationId": "skillPackages.list",
       "surface": "app"
     },
     {
@@ -855,12 +837,6 @@
       "method": "POST",
       "path": "/app/v3/api/projects/{projectId}/runtime_locations/{runtimeLocationId}/request_verification",
       "operationId": "projects.runtimeLocations.requestVerification",
-      "surface": "app"
-    },
-    {
-      "method": "POST",
-      "path": "/app/v3/api/skill_packages/{packageId}/installations",
-      "operationId": "skillPackages.installations.create",
       "surface": "app"
     },
     {

@@ -1,10 +1,16 @@
-import { expect, test, type Page } from '@playwright/test';
+import { expect, test, type Page, type Route } from '@playwright/test';
 
 function createE2eJwt(claims: Record<string, unknown>): string {
   const header = Buffer.from(JSON.stringify({ alg: 'none', typ: 'JWT' })).toString('base64url');
   const payload = Buffer.from(JSON.stringify({ token_version: 1, ...claims })).toString('base64url');
   return `${header}.${payload}.signature`;
 }
+
+test.afterEach(async ({ page }) => {
+  if (!page.isClosed()) {
+    await page.close({ runBeforeUnload: false });
+  }
+});
 
 async function openAuthenticatedCodeWorkspace(page: Page) {
   const tokenExpiresAt = Math.floor(Date.parse('2099-01-01T00:00:00.000Z') / 1_000);
@@ -73,7 +79,7 @@ async function openAuthenticatedCodeWorkspace(page: Page) {
     createdAt: '2026-01-01T00:00:00.000Z',
     updatedAt: '2026-01-01T00:00:00.000Z',
   };
-  const offsetPage = (items: unknown[]) => ({
+  const offsetPage = (route: Route, items: unknown[]) => ({
     code: 0,
     data: {
       items,
@@ -81,7 +87,9 @@ async function openAuthenticatedCodeWorkspace(page: Page) {
         hasMore: false,
         mode: 'offset',
         page: 1,
-        pageSize: 20,
+        pageSize: Number(
+          new URL(route.request().url()).searchParams.get('page_size') ?? 20,
+        ),
         totalItems: String(items.length),
         totalPages: items.length > 0 ? 1 : 0,
       },
@@ -135,16 +143,15 @@ async function openAuthenticatedCodeWorkspace(page: Page) {
       traceId: 'git-submit-dialog-current-user',
     },
   }));
-  await page.route('**/app/v3/api/workspaces?**', (route) => route.fulfill({ json: offsetPage([workspace]) }));
-  await page.route('**/app/v3/api/projects?**', (route) => route.fulfill({ json: offsetPage([project]) }));
+  await page.route('**/app/v3/api/workspaces?**', (route) => route.fulfill({ json: offsetPage(route, [workspace]) }));
+  await page.route('**/app/v3/api/projects?**', (route) => route.fulfill({ json: offsetPage(route, [project]) }));
   await page.route('**/app/v3/api/projects/e2e-project-1', (route) => route.fulfill({ json: itemEnvelope(project) }));
-  await page.route('**/app/v3/api/intelligence/coding_sessions?**', (route) => route.fulfill({ json: offsetPage([codingSession]) }));
+  await page.route('**/app/v3/api/intelligence/coding_sessions?**', (route) => route.fulfill({ json: offsetPage(route, [codingSession]) }));
   await page.route('**/app/v3/api/intelligence/coding_sessions/e2e-coding-session-1', (route) => route.fulfill({ json: itemEnvelope(codingSession) }));
   await page.route(
     /\/app\/v3\/api\/intelligence\/coding_sessions\/e2e-coding-session-1\/(?:artifacts|checkpoints|events)(?:\?.*)?$/,
-    (route) => route.fulfill({ json: offsetPage([]) }),
+    (route) => route.fulfill({ json: offsetPage(route, []) }),
   );
-  await page.route('**/app/v3/api/native_sessions?**', (route) => route.fulfill({ json: offsetPage([]) }));
   await page.addInitScript(({ accessToken: persistedAccessToken, authToken: persistedAuthToken }) => {
     localStorage.setItem('sdkwork.birdcoder.appSession.v1', JSON.stringify({
       accessToken: persistedAccessToken,

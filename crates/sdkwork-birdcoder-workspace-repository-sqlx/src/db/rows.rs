@@ -342,19 +342,19 @@ impl ProjectRuntimeLocationPreferenceRow {
 }
 
 #[derive(Clone)]
-pub struct ProjectWorkspaceBindingRow {
-    pub id: String,
+pub struct ProjectSandboxBindingRow {
+    pub id: i64,
     pub project_id: i64,
     pub sandbox_id: String,
     pub root_entry_id: String,
     pub logical_path: String,
-    pub lifecycle_status: String,
+    pub status: String,
     pub version: i64,
     pub created_at: String,
     pub updated_at: String,
 }
 
-impl ProjectWorkspaceBindingRow {
+impl ProjectSandboxBindingRow {
     pub fn from_row(row: &sqlx::any::AnyRow) -> Result<Self, sqlx::Error> {
         Ok(Self {
             id: row.try_get("id")?,
@@ -362,7 +362,7 @@ impl ProjectWorkspaceBindingRow {
             sandbox_id: row.try_get("sandbox_id")?,
             root_entry_id: row.try_get("root_entry_id")?,
             logical_path: row.try_get("logical_path")?,
-            lifecycle_status: row.try_get("lifecycle_status")?,
+            status: row.try_get("status")?,
             version: row.try_get("version")?,
             created_at: row.try_get("created_at")?,
             updated_at: row.try_get("updated_at")?,

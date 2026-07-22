@@ -159,28 +159,50 @@ pub fn list_sdk_bridge_session_summaries(
     engine_id: &str,
 ) -> Result<Vec<CodeEngineSessionSummaryRecord>, String> {
     let engine_directory = sdk_bridge_session_engine_directory(engine_id);
+    list_sdk_bridge_session_summaries_from_engine_directory(engine_directory.as_path(), engine_id)
+}
+
+fn list_sdk_bridge_session_summaries_from_engine_directory(
+    engine_directory: &Path,
+    engine_id: &str,
+) -> Result<Vec<CodeEngineSessionSummaryRecord>, String> {
     if !engine_directory.exists() {
         return Ok(Vec::new());
     }
 
     let mut summaries = Vec::new();
-    for entry in fs::read_dir(&engine_directory).map_err(|error| {
+    for entry in fs::read_dir(engine_directory).map_err(|error| {
         format!(
             "read SDK bridge session directory {} failed: {error}",
             engine_directory.display()
         )
     })? {
-        let entry = entry.map_err(|error| {
-            format!(
-                "read SDK bridge session directory entry {} failed: {error}",
-                engine_directory.display()
-            )
-        })?;
+        let entry = match entry {
+            Ok(entry) => entry,
+            Err(error) => {
+                tracing::warn!(
+                    directory = %engine_directory.display(),
+                    error = %error,
+                    "skipping unreadable SDK bridge session directory entry"
+                );
+                continue;
+            }
+        };
         let path = entry.path();
         if path.extension().and_then(|extension| extension.to_str()) != Some("json") {
             continue;
         }
-        let stored_session = read_sdk_bridge_stored_session(path.as_path())?;
+        let stored_session = match read_sdk_bridge_stored_session(path.as_path()) {
+            Ok(stored_session) => stored_session,
+            Err(error) => {
+                tracing::warn!(
+                    path = %path.display(),
+                    error = %error,
+                    "skipping unreadable SDK bridge session file"
+                );
+                continue;
+            }
+        };
         if stored_session.engine_id == engine_id {
             summaries.push(build_sdk_bridge_session_summary_record(&stored_session));
         }
@@ -458,9 +480,10 @@ mod tests {
     };
 
     use super::{
-        build_sdk_bridge_session_summary_record, read_sdk_bridge_stored_session_with_limit,
-        sanitize_bridge_session_filename, SdkBridgeStoredMessage, SdkBridgeStoredSession,
-        SDK_BRIDGE_MESSAGE_RESOURCE_ITEM_LIMIT,
+        build_sdk_bridge_session_summary_record,
+        list_sdk_bridge_session_summaries_from_engine_directory,
+        read_sdk_bridge_stored_session_with_limit, sanitize_bridge_session_filename,
+        SdkBridgeStoredMessage, SdkBridgeStoredSession, SDK_BRIDGE_MESSAGE_RESOURCE_ITEM_LIMIT,
     };
     use crate::{CodeEngineSessionCommandRecord, CodeEngineSessionResourceRecord};
 
@@ -473,6 +496,26 @@ mod tests {
             "claude-code-native_session_one"
         );
         assert_eq!(sanitize_bridge_session_filename("::::"), "session");
+    }
+
+    #[test]
+    fn sdk_bridge_inventory_skips_a_corrupt_session_file() {
+        let fixture = TestDirectory::new("corrupt-session-isolation");
+        let valid_session = sdk_bridge_test_session(Vec::new());
+        fs::write(
+            fixture.path().join("valid.json"),
+            serde_json::to_vec(&valid_session).expect("serialize valid SDK bridge session"),
+        )
+        .expect("write valid SDK bridge session");
+        fs::write(fixture.path().join("corrupt.json"), b"{not-json")
+            .expect("write corrupt SDK bridge session");
+
+        let summaries =
+            list_sdk_bridge_session_summaries_from_engine_directory(fixture.path(), "claude-code")
+                .expect("list SDK bridge sessions around a corrupt file");
+
+        assert_eq!(summaries.len(), 1);
+        assert_eq!(summaries[0].id, valid_session.id);
     }
 
     #[test]

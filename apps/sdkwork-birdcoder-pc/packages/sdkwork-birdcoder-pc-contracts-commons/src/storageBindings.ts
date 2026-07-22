@@ -758,54 +758,6 @@ export const BIRDCODER_PROMPT_EVALUATION_STORAGE_BINDING: BirdCoderEntityStorage
   storageMode: 'table',
 };
 
-export const BIRDCODER_SKILL_PACKAGE_STORAGE_BINDING: BirdCoderEntityStorageBinding = {
-  entityName: 'skill_package',
-  storageScope: 'skillhub',
-  storageKey: 'skill-packages.v1',
-  preferredProvider: 'sqlite',
-  storageMode: 'table',
-};
-
-export const BIRDCODER_SKILL_VERSION_STORAGE_BINDING: BirdCoderEntityStorageBinding = {
-  entityName: 'skill_version',
-  storageScope: 'skillhub',
-  storageKey: 'skill-versions.v1',
-  preferredProvider: 'sqlite',
-  storageMode: 'table',
-};
-
-export const BIRDCODER_SKILL_CAPABILITY_STORAGE_BINDING: BirdCoderEntityStorageBinding = {
-  entityName: 'skill_capability',
-  storageScope: 'skillhub',
-  storageKey: 'skill-capabilities.v1',
-  preferredProvider: 'sqlite',
-  storageMode: 'table',
-};
-
-export const BIRDCODER_SKILL_INSTALLATION_STORAGE_BINDING: BirdCoderEntityStorageBinding = {
-  entityName: 'skill_installation',
-  storageScope: 'skillhub',
-  storageKey: 'skill-installations.v1',
-  preferredProvider: 'sqlite',
-  storageMode: 'table',
-};
-
-export const BIRDCODER_SKILL_BINDING_STORAGE_BINDING: BirdCoderEntityStorageBinding = {
-  entityName: 'skill_binding',
-  storageScope: 'skillhub',
-  storageKey: 'skill-bindings.v1',
-  preferredProvider: 'sqlite',
-  storageMode: 'table',
-};
-
-export const BIRDCODER_SKILL_RUNTIME_CONFIG_STORAGE_BINDING: BirdCoderEntityStorageBinding = {
-  entityName: 'skill_runtime_config',
-  storageScope: 'skillhub',
-  storageKey: 'skill-runtime-configs.v1',
-  preferredProvider: 'sqlite',
-  storageMode: 'table',
-};
-
 export const BIRDCODER_APP_TEMPLATE_STORAGE_BINDING: BirdCoderEntityStorageBinding = {
   entityName: 'app_template',
   storageScope: 'app-template',

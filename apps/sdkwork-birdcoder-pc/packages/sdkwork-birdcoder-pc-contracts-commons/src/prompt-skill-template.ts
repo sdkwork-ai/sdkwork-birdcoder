@@ -12,19 +12,13 @@ import {
   BIRDCODER_PROMPT_EVALUATION_STORAGE_BINDING,
   BIRDCODER_PROMPT_RUN_STORAGE_BINDING,
   BIRDCODER_SAVED_PROMPT_ENTRY_STORAGE_BINDING,
-  BIRDCODER_SKILL_BINDING_STORAGE_BINDING,
-  BIRDCODER_SKILL_CAPABILITY_STORAGE_BINDING,
-  BIRDCODER_SKILL_INSTALLATION_STORAGE_BINDING,
-  BIRDCODER_SKILL_PACKAGE_STORAGE_BINDING,
-  BIRDCODER_SKILL_RUNTIME_CONFIG_STORAGE_BINDING,
-  BIRDCODER_SKILL_VERSION_STORAGE_BINDING,
 } from './storageBindings.ts';
 
 export const BIRDCODER_PROMPT_COMPOSITION_LAYER_IDS = [
   'platform_rule',
   'organization_rule',
   'template_preset',
-  'skill_binding',
+  'skill_installation',
   'project_context',
   'turn_prompt',
 ] as const;
@@ -60,9 +54,9 @@ export const BIRDCODER_PROMPT_COMPOSITION_LAYERS: readonly BirdCoderPromptCompos
       sourceType: 'template',
     },
     {
-      id: 'skill_binding',
+      id: 'skill_installation',
       order: 40,
-      description: 'Installed skill capabilities and runtime bindings.',
+      description: 'Canonical Skills installation references selected for this prompt.',
       sourceType: 'skill',
     },
     {
@@ -106,93 +100,6 @@ export interface BirdCoderPromptRuntimeAssembly {
   layerIds: readonly BirdCoderPromptCompositionLayerId[];
   layers: readonly BirdCoderResolvedPromptLayer[];
   promptText: string;
-}
-
-export const BIRDCODER_SKILL_BINDING_SCOPE_TYPES = [
-  'workspace',
-  'project',
-  'coding_session',
-  'turn',
-] as const;
-
-export type BirdCoderSkillBindingScopeType =
-  (typeof BIRDCODER_SKILL_BINDING_SCOPE_TYPES)[number];
-
-export interface BirdCoderSkillBindingScopeDefinition {
-  id: BirdCoderSkillBindingScopeType;
-  description: string;
-}
-
-export const BIRDCODER_SKILL_BINDING_SCOPES: readonly BirdCoderSkillBindingScopeDefinition[] = [
-  {
-    id: 'workspace',
-    description: 'Shared defaults and policies applied to all projects in a workspace.',
-  },
-  {
-    id: 'project',
-    description: 'Project-specific skill packs, workflows, and engineering conventions.',
-  },
-  {
-    id: 'coding_session',
-    description: 'Session-local bindings for one coding objective or engine runtime.',
-  },
-  {
-    id: 'turn',
-    description: 'Single-turn ephemeral bindings for one execution cycle only.',
-  },
-];
-
-export interface BirdCoderSkillInstallationDescriptor {
-  installationId: string;
-  packageId: string;
-  versionId: string;
-  capabilityIds: readonly string[];
-  config?: Readonly<Record<string, string>>;
-}
-
-export interface BirdCoderSkillBindingDescriptor {
-  bindingId: string;
-  installationId: string;
-  scopeType: BirdCoderSkillBindingScopeType;
-  scopeId: string;
-  enabled?: boolean;
-  capabilityIds?: readonly string[];
-  config?: Readonly<Record<string, string>>;
-}
-
-export interface BirdCoderSkillRuntimeConfigDescriptor {
-  runtimeConfigId: string;
-  bindingId: string;
-  values: Readonly<Record<string, string>>;
-}
-
-export interface BirdCoderSkillRuntimeSourceEntry {
-  stage: 'installation' | 'binding' | 'runtime_config';
-  id: string;
-}
-
-export interface BirdCoderResolvedSkillBinding {
-  bindingId: string;
-  installationId: string;
-  packageId: string;
-  versionId: string;
-  scopeType: BirdCoderSkillBindingScopeType;
-  scopeId: string;
-  capabilityIds: readonly string[];
-  resolvedConfig: Readonly<Record<string, string>>;
-  sourceChain: readonly BirdCoderSkillRuntimeSourceEntry[];
-}
-
-export interface BirdCoderSkillRuntimeAssemblyOptions {
-  installations: readonly BirdCoderSkillInstallationDescriptor[];
-  bindings: readonly BirdCoderSkillBindingDescriptor[];
-  runtimeConfigs?: readonly BirdCoderSkillRuntimeConfigDescriptor[];
-}
-
-export interface BirdCoderSkillRuntimeAssembly {
-  scopeOrder: readonly BirdCoderSkillBindingScopeType[];
-  resolvedBindings: readonly BirdCoderResolvedSkillBinding[];
-  activeCapabilityIds: readonly string[];
 }
 
 export const BIRDCODER_APP_TEMPLATE_TARGET_PROFILE_IDS = [
@@ -251,7 +158,7 @@ export interface BirdCoderAppTemplatePresetDescriptor {
   presetId: string;
   targetProfileId: BirdCoderAppTemplateTargetProfileId;
   promptSeed?: string;
-  skillBindingIds?: readonly string[];
+  skillInstallationIds?: readonly string[];
   workflowIds?: readonly string[];
   scaffoldFiles?: readonly string[];
   relativeOutputDir?: string;
@@ -288,7 +195,7 @@ export interface BirdCoderAppTemplateRuntimeInstantiation {
   releaseFamilies: readonly string[];
   outputDirectory: string;
   promptSeed?: string;
-  skillBindingIds: readonly string[];
+  skillInstallationIds: readonly string[];
   workflowIds: readonly string[];
   scaffoldFiles: readonly string[];
   status: 'planned';
@@ -303,15 +210,6 @@ export const BIRDCODER_PROMPT_STORAGE_BINDINGS: readonly BirdCoderEntityStorageB
   BIRDCODER_PROMPT_BUNDLE_ITEM_STORAGE_BINDING,
   BIRDCODER_PROMPT_RUN_STORAGE_BINDING,
   BIRDCODER_PROMPT_EVALUATION_STORAGE_BINDING,
-];
-
-export const BIRDCODER_SKILL_STORAGE_BINDINGS: readonly BirdCoderEntityStorageBinding[] = [
-  BIRDCODER_SKILL_PACKAGE_STORAGE_BINDING,
-  BIRDCODER_SKILL_VERSION_STORAGE_BINDING,
-  BIRDCODER_SKILL_CAPABILITY_STORAGE_BINDING,
-  BIRDCODER_SKILL_INSTALLATION_STORAGE_BINDING,
-  BIRDCODER_SKILL_BINDING_STORAGE_BINDING,
-  BIRDCODER_SKILL_RUNTIME_CONFIG_STORAGE_BINDING,
 ];
 
 export const BIRDCODER_APP_TEMPLATE_STORAGE_BINDINGS: readonly BirdCoderEntityStorageBinding[] = [

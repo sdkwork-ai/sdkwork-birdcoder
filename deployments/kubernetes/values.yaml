@@ -17,7 +17,8 @@ replicaCount: 1
 
 database:
   engine: postgresql
-  # Inject SDKWORK_BIRDCODER_DATABASE_URL through auth.existingSecret.
+  schema: sdkwork_ai_prod
+  # Inject SDKWORK_CLAW_DATABASE_URL through auth.existingSecret.
   url: ""
 
 realtime:
@@ -61,7 +62,7 @@ auth:
   managePassword: ""
   # The deployment references an operator-provisioned Secret (External
   # Secrets Operator, Sealed Secrets, or cloud KMS). It must contain
-  # manageUsername, managePassword, SDKWORK_BIRDCODER_DATABASE_URL, and any
+  # manageUsername, managePassword, SDKWORK_CLAW_DATABASE_URL, and any
   # enabled Redis credential keys, runtime-location active/fingerprint/keyring
   # secrets, and any backup restore-test DSN. Secrets are never stored in values.
   existingSecret: sdkwork-birdcoder-runtime

@@ -2,187 +2,95 @@ import assert from 'node:assert/strict';
 import { listAuthorityBackedCodingSessionInventoryPage } from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-workbench/src/workbench/sessionInventory.ts';
 import { createBirdCoderInProcessAppRuntimeTransport } from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/src/services/appRuntimeTransport.ts';
 import { createBirdCoderAppSdkApiClient } from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/src/services/sdkClients.ts';
+import type { BirdCoderCodingSession } from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-contracts-commons/src/index.ts';
 
 const workspaceId = 'workspace-unified-session-contract';
 const projectId = 'project-unified-session-contract';
 const runtimeLocationId = 'runtime-location-unified-session-contract';
 const now = '2026-07-15T08:00:00.000Z';
-const projectionSession = {
-  id: 'coding-session-1',
-  workspaceId,
-  projectId,
-  runtimeLocationId,
-  title: 'Unified session',
-  status: 'active',
-  hostMode: 'desktop',
-  engineId: 'codex',
-  modelId: 'gpt-5',
-  nativeSessionId: 'native-session-1',
-  runtimeStatus: 'idle',
-  createdAt: now,
-  updatedAt: now,
-  lastTurnAt: now,
-  sortTimestamp: '1784102400000',
-  transcriptUpdatedAt: now,
-  messages: [],
-};
 
-let nativeInventoryReads = 0;
+function buildSession(
+  id: string,
+  engineId: BirdCoderCodingSession['engineId'],
+  nativeSessionId: string,
+  overrides: Partial<BirdCoderCodingSession> = {},
+): BirdCoderCodingSession {
+  return {
+    id,
+    workspaceId,
+    projectId,
+    runtimeLocationId,
+    title: `${engineId} unified session`,
+    status: 'active',
+    hostMode: 'desktop',
+    engineId,
+    modelId: `${engineId}-model`,
+    nativeSessionId,
+    runtimeStatus: 'idle',
+    createdAt: now,
+    updatedAt: now,
+    lastTurnAt: now,
+    sortTimestamp: String(Date.parse(now)),
+    transcriptUpdatedAt: now,
+    messages: [],
+    ...overrides,
+  };
+}
+
+const unifiedSessions = [
+  buildSession('birdcoder-session-1', 'codex', 'provider-session-1'),
+  buildSession('birdcoder-session-2', 'claude-code', 'provider-session-2'),
+  buildSession('birdcoder-session-3', 'gemini', 'shared-provider-id'),
+  buildSession('birdcoder-session-4', 'opencode', 'shared-provider-id'),
+];
+
+let frontendAuthorityReads = 0;
 const inventoryPage = await listAuthorityBackedCodingSessionInventoryPage({
   workspaceId,
   projectId,
   runtimeLocationId,
   limit: 6,
   appRuntimeReadService: {
-    codingSessionListIncludesNativeSessions: true,
     async listCodingSessions() {
-      return [projectionSession] as never;
+      frontendAuthorityReads += 1;
+      return unifiedSessions;
     },
-    async listCodingSessionPage() {
-      return { items: [projectionSession], pageInfo: { hasMore: false } } as never;
-    },
-    async listNativeSessions() {
-      nativeInventoryReads += 1;
-      return [];
-    },
-    async listNativeSessionPage() {
-      nativeInventoryReads += 1;
-      return { items: [], pageInfo: { hasMore: false } };
+    async listCodingSessionPage(request) {
+      frontendAuthorityReads += 1;
+      assert.equal(request?.workspaceId, workspaceId);
+      assert.equal(request?.projectId, projectId);
+      assert.equal(request?.runtimeLocationId, runtimeLocationId);
+      return {
+        items: unifiedSessions,
+        pageInfo: { hasMore: false },
+      };
     },
   },
 });
 
-assert.equal(inventoryPage.items.length, 1);
-assert.equal(
-  nativeInventoryReads,
-  0,
-  'frontend inventory must not issue a native_sessions list request when coding_sessions is unified.',
+assert.equal(frontendAuthorityReads, 1);
+assert.deepEqual(
+  inventoryPage.items.map((item) => item.id).sort(),
+  unifiedSessions.map((item) => item.id).sort(),
+  'Frontend inventory must consume the single materialized coding-session authority.',
 );
 
-let backendNativeReads = 0;
+let inProcessAuthorityReads = 0;
 const transport = createBirdCoderInProcessAppRuntimeTransport({
   projectService: {
-    async listCodingSessions() {
-      return { items: [projectionSession], total: 1 };
-    },
-  } as never,
-  nativeSessionProvider: {
-    async listNativeSessionPage(request: { runtimeLocationId: string }) {
+    async listCodingSessions(request: {
+      projectId?: string;
+      runtimeLocationId?: string;
+      workspaceId?: string;
+    }) {
+      inProcessAuthorityReads += 1;
+      assert.equal(request.projectId, projectId);
       assert.equal(request.runtimeLocationId, runtimeLocationId);
-      backendNativeReads += 1;
-      return {
-        items: [
-          {
-            ...projectionSession,
-            kind: 'coding',
-            title: 'Provider title must not replace the logical title',
-            modelId: 'gpt-5-provider-reported',
-            runtimeStatus: 'streaming',
-            updatedAt: '2026-07-15T08:01:00.000Z',
-            lastTurnAt: '2026-07-15T08:01:00.000Z',
-            sortTimestamp: '1784102460000',
-          },
-          {
-            ...projectionSession,
-            // A native summary may reuse a logical id. It must not overwrite
-            // the logical session when its provider-native identity differs.
-            id: projectionSession.id,
-            nativeSessionId: 'native-session-2',
-            title: 'Native-only synchronized session',
-          },
-          {
-            // Different providers may reuse an opaque raw native id. Both
-            // records need a stable provider-scoped UI id.
-            ...projectionSession,
-            id: projectionSession.id,
-            engineId: 'gemini',
-            modelId: 'gemini-2.5-pro',
-            nativeSessionId: 'native-session-1',
-            title: 'Gemini same raw native id',
-          },
-          {
-            ...projectionSession,
-            id: projectionSession.id,
-            engineId: 'opencode',
-            modelId: 'opencode/big-pickle',
-            nativeSessionId: 'native-session-1',
-            title: 'OpenCode same raw native id',
-          },
-        ],
-        pageInfo: { totalItems: '4' },
-      };
+      assert.equal(request.workspaceId, workspaceId);
+      return { items: unifiedSessions, total: unifiedSessions.length };
     },
   } as never,
 });
-
-const response = await transport.request<{
-  data: {
-    items: Array<{
-      engineId: string;
-      id: string;
-      modelId: string;
-      nativeSessionId?: string;
-      projectId: string;
-      createdAt: string;
-      hostMode: string;
-      lastTurnAt?: string;
-      runtimeStatus?: string;
-      sortTimestamp?: string;
-      status: string;
-      title: string;
-      transcriptUpdatedAt?: string | null;
-      updatedAt: string;
-      workspaceId: string;
-    }>;
-  };
-}>({
-  method: 'GET',
-  path: '/app/v3/api/intelligence/coding_sessions',
-  query: { page: 1, page_size: 6, projectId, runtimeLocationId, workspaceId },
-});
-
-assert.equal(backendNativeReads, 1, 'backend must own native-session synchronization.');
-assert.deepEqual(
-  response.data.items.map((item) => item.id).sort(),
-  [
-    'coding-session-1',
-    'codex-native:native-session-2',
-    'gemini-native:native-session-1',
-    'opencode-native:native-session-1',
-  ],
-  'native-only records must be provider-scoped instead of replacing a logical session with a colliding id.',
-);
-const logicalItem = response.data.items.find((item) => item.id === projectionSession.id);
-assert.deepEqual(logicalItem, {
-  id: projectionSession.id,
-  workspaceId,
-  projectId,
-  runtimeLocationId,
-  title: projectionSession.title,
-  status: projectionSession.status,
-  hostMode: projectionSession.hostMode,
-  engineId: projectionSession.engineId,
-  modelId: projectionSession.modelId,
-  nativeSessionId: projectionSession.nativeSessionId,
-  runtimeStatus: 'streaming',
-  createdAt: now,
-  updatedAt: '2026-07-15T08:01:00.000Z',
-  lastTurnAt: '2026-07-15T08:01:00.000Z',
-  sortTimestamp: '1784102460000',
-  transcriptUpdatedAt: now,
-});
-assert.deepEqual(
-  response.data.items
-    .filter((item) => item.id !== projectionSession.id)
-    .map((item) => `${item.engineId}:${item.nativeSessionId}`)
-    .sort(),
-  [
-    'codex:native-session-2',
-    'gemini:native-session-1',
-    'opencode:native-session-1',
-  ],
-  'cross-provider native inventory collisions must stay independent and keep their selected provider.',
-);
 
 const sdkClient = createBirdCoderAppSdkApiClient({ transport });
 const sdkPage = await sdkClient.listCodingSessionPage({
@@ -192,15 +100,27 @@ const sdkPage = await sdkClient.listCodingSessionPage({
   limit: 6,
   offset: 0,
 });
+
+assert.equal(inProcessAuthorityReads, 1);
+assert.deepEqual(
+  sdkPage.items.map((item) => item.id).sort(),
+  [
+    'birdcoder-session-1',
+    'birdcoder-session-2',
+    'birdcoder-session-3',
+    'birdcoder-session-4',
+  ],
+  'The app SDK must preserve persistent BirdCoder ids for every provider-backed session.',
+);
 assert.deepEqual(
   sdkPage.items.map((item) => `${item.engineId}:${item.nativeSessionId}`).sort(),
   [
-    'codex:native-session-1',
-    'codex:native-session-2',
-    'gemini:native-session-1',
-    'opencode:native-session-1',
+    'claude-code:provider-session-2',
+    'codex:provider-session-1',
+    'gemini:shared-provider-id',
+    'opencode:shared-provider-id',
   ],
-  'the composed app SDK must preserve provider-scoped unified summaries instead of collapsing them into Codex.',
+  'The unified summaries must preserve provider bindings for all supported engines.',
 );
 
 console.log('unified coding session inventory contract passed.');

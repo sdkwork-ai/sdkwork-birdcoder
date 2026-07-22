@@ -3,7 +3,7 @@ use std::sync::Arc;
 use crate::api::paths::app_path;
 use crate::api::paths::append_query_string;
 use crate::http::{SdkworkError, SdkworkHttpClient};
-use crate::models::{BirdCoderCommerceInvoiceSummaryEnvelope, BirdCoderCommerceInvoiceSummaryListEnvelope, BirdCoderCommerceOrderSummaryEnvelope, BirdCoderCommerceOrderSummaryListEnvelope, BirdCoderCommercePaymentSummaryEnvelope, BirdCoderCommercePaymentSummaryListEnvelope, BirdCoderConfirmCommercePaymentRequest, BirdCoderCreateCommerceOrderRequest, BirdCoderCreateCommercePaymentRequest};
+use crate::models::{BirdCoderCommerceInvoiceSummary, BirdCoderCommerceOrderSummary, BirdCoderCommercePaymentSummary, BirdCoderConfirmCommercePaymentRequest, BirdCoderCreateCommerceOrderRequest, BirdCoderCreateCommercePaymentRequest};
 
 #[derive(Clone)]
 pub struct CommerceApi {
@@ -16,7 +16,7 @@ impl CommerceApi {
     }
 
     /// List SDKWork commerce orders
-    pub async fn orders_list(&self, page: Option<i64>, page_size: Option<i64>) -> Result<BirdCoderCommerceOrderSummaryListEnvelope, SdkworkError> {
+    pub async fn orders_list(&self, page: Option<i64>, page_size: Option<i64>) -> Result<serde_json::Value, SdkworkError> {
         let query = build_query_string(&[
             QueryParameterSpec::new("page", page, "form", true, false, None),
             QueryParameterSpec::new("page_size", page_size, "form", true, false, None),
@@ -26,19 +26,19 @@ impl CommerceApi {
     }
 
     /// Create SDKWork commerce order
-    pub async fn orders_create(&self, body: &BirdCoderCreateCommerceOrderRequest) -> Result<BirdCoderCommerceOrderSummaryEnvelope, SdkworkError> {
+    pub async fn orders_create(&self, body: &BirdCoderCreateCommerceOrderRequest) -> Result<BirdCoderCommerceOrderSummary, SdkworkError> {
         let path = app_path(&"/commerce/orders".to_string());
         self.client.post(&path, Some(body), None, None, Some("application/json")).await
     }
 
     /// Get SDKWork commerce order
-    pub async fn orders_retrieve(&self, order_id: &str) -> Result<BirdCoderCommerceOrderSummaryEnvelope, SdkworkError> {
+    pub async fn orders_retrieve(&self, order_id: &str) -> Result<BirdCoderCommerceOrderSummary, SdkworkError> {
         let path = app_path(&format!("/commerce/orders/{}", serialize_path_parameter(order_id, PathParameterSpec::new("orderId", "simple", false))));
         self.client.get(&path, None, None).await
     }
 
     /// List SDKWork commerce invoices
-    pub async fn invoices_list(&self, page: Option<i64>, page_size: Option<i64>) -> Result<BirdCoderCommerceInvoiceSummaryListEnvelope, SdkworkError> {
+    pub async fn invoices_list(&self, page: Option<i64>, page_size: Option<i64>) -> Result<serde_json::Value, SdkworkError> {
         let query = build_query_string(&[
             QueryParameterSpec::new("page", page, "form", true, false, None),
             QueryParameterSpec::new("page_size", page_size, "form", true, false, None),
@@ -48,13 +48,13 @@ impl CommerceApi {
     }
 
     /// Get SDKWork commerce invoice
-    pub async fn invoices_retrieve(&self, invoice_id: &str) -> Result<BirdCoderCommerceInvoiceSummaryEnvelope, SdkworkError> {
+    pub async fn invoices_retrieve(&self, invoice_id: &str) -> Result<BirdCoderCommerceInvoiceSummary, SdkworkError> {
         let path = app_path(&format!("/commerce/invoices/{}", serialize_path_parameter(invoice_id, PathParameterSpec::new("invoiceId", "simple", false))));
         self.client.get(&path, None, None).await
     }
 
     /// List SDKWork commerce payments
-    pub async fn payments_list(&self, page: Option<i64>, page_size: Option<i64>) -> Result<BirdCoderCommercePaymentSummaryListEnvelope, SdkworkError> {
+    pub async fn payments_list(&self, page: Option<i64>, page_size: Option<i64>) -> Result<serde_json::Value, SdkworkError> {
         let query = build_query_string(&[
             QueryParameterSpec::new("page", page, "form", true, false, None),
             QueryParameterSpec::new("page_size", page_size, "form", true, false, None),
@@ -64,19 +64,19 @@ impl CommerceApi {
     }
 
     /// Create SDKWork commerce payment
-    pub async fn payments_create(&self, body: &BirdCoderCreateCommercePaymentRequest) -> Result<BirdCoderCommercePaymentSummaryEnvelope, SdkworkError> {
+    pub async fn payments_create(&self, body: &BirdCoderCreateCommercePaymentRequest) -> Result<BirdCoderCommercePaymentSummary, SdkworkError> {
         let path = app_path(&"/commerce/payments".to_string());
         self.client.post(&path, Some(body), None, None, Some("application/json")).await
     }
 
     /// Get SDKWork commerce payment
-    pub async fn payments_retrieve(&self, payment_id: &str) -> Result<BirdCoderCommercePaymentSummaryEnvelope, SdkworkError> {
+    pub async fn payments_retrieve(&self, payment_id: &str) -> Result<BirdCoderCommercePaymentSummary, SdkworkError> {
         let path = app_path(&format!("/commerce/payments/{}", serialize_path_parameter(payment_id, PathParameterSpec::new("paymentId", "simple", false))));
         self.client.get(&path, None, None).await
     }
 
     /// Confirm SDKWork commerce payment after gateway callback
-    pub async fn payments_confirm(&self, payment_id: &str, body: &BirdCoderConfirmCommercePaymentRequest) -> Result<BirdCoderCommercePaymentSummaryEnvelope, SdkworkError> {
+    pub async fn payments_confirm(&self, payment_id: &str, body: &BirdCoderConfirmCommercePaymentRequest) -> Result<BirdCoderCommercePaymentSummary, SdkworkError> {
         let path = app_path(&format!("/commerce/payments/{}/confirm", serialize_path_parameter(payment_id, PathParameterSpec::new("paymentId", "simple", false))));
         self.client.post(&path, Some(body), None, None, Some("application/json")).await
     }

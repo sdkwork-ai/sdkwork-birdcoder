@@ -54,12 +54,13 @@ import { usePersistedState } from '@sdkwork/birdcoder-pc-workbench/hooks/usePers
 import { useProjects } from '@sdkwork/birdcoder-pc-workbench/hooks/useProjects';
 import { useWorkbenchChatSelection } from '@sdkwork/birdcoder-pc-workbench/hooks/useWorkbenchChatSelection';
 import { useWorkbenchCodingSessionCreationActions } from '@sdkwork/birdcoder-pc-workbench/hooks/useWorkbenchCodingSessionCreationActions';
+import type { CreateNewCodingSessionRequest } from '@sdkwork/birdcoder-pc-workbench/workbench/codingSessionCreation';
 import { useWorkbenchPreferences } from '@sdkwork/birdcoder-pc-workbench/hooks/useWorkbenchPreferences';
 import { useWorkspaces } from '@sdkwork/birdcoder-pc-workbench/hooks/useWorkspaces';
 import { Button, TopMenu, type TopMenuItem } from '@sdkwork/birdcoder-pc-ui-shell';
 import { copyTextToClipboard } from '@sdkwork/birdcoder-pc-ui/components/clipboard';
 import type { AppTab, BirdCoderProject } from '@sdkwork/birdcoder-pc-contracts-commons';
-import { resolveWorkbenchNewSessionEngineCatalog } from '@sdkwork/birdcoder-pc-codeengine';
+import { resolveWorkbenchCodeEngineSelectedModelId, resolveWorkbenchNewSessionEngineCatalog } from '@sdkwork/birdcoder-pc-codeengine';
 import { useSandboxDirectoryPicker } from '@sdkwork/drive-pc-sandbox-explorer';
 import { useTranslation } from 'react-i18next';
 import {
@@ -251,10 +252,6 @@ export function AppContent() {
   }, [addToast, loadMoreMenuProjects, t]);
   const createMenuProject =
     shouldUseDistinctMenuProjectsStore ? createDistinctMenuProject : createActiveProject;
-  const createMenuCodingSession =
-    shouldUseDistinctMenuProjectsStore
-      ? createDistinctMenuCodingSession
-      : createActiveCodingSession;
   const refreshMenuProjects =
     shouldUseDistinctMenuProjectsStore ? refreshDistinctMenuProjects : refreshActiveProjects;
   const updateMenuProject =
@@ -282,7 +279,7 @@ export function AppContent() {
   const minimizeWindowControlButtonRef = useRef<HTMLButtonElement | null>(null);
   const maximizeWindowControlButtonRef = useRef<HTMLButtonElement | null>(null);
   const closeWindowControlButtonRef = useRef<HTMLButtonElement | null>(null);
-  const createCodingSessionCommandRef = useRef<(requestedEngineId?: string) => void>(() => {});
+  const createCodingSessionCommandRef = useRef<(request?: CreateNewCodingSessionRequest) => void>(() => {});
   const openFolderHandlerRef = useRef<() => void>(() => {});
   const zoomHandlerRef = useRef<(direction: 'in' | 'out' | 'reset') => void>(() => {});
   const toggleFullScreenHandlerRef = useRef<() => void>(() => {});
@@ -1150,7 +1147,8 @@ export function AppContent() {
       
       if (cmdOrCtrl && e.key === 'n') {
         e.preventDefault();
-        void createCodingSessionCommandRef.current();
+        if (e.repeat) return;
+        void createCodingSessionCommandRef.current({ source: 'keyboard-shortcut' });
       } else if (cmdOrCtrl && e.key === 'o') {
         e.preventDefault();
         openFolderHandlerRef.current();
@@ -1959,25 +1957,24 @@ export function AppContent() {
       buildCodingSessionProjectScopedKey(effectiveProjectId, effectiveCodingSessionId),
     )?.codingSession ??
     null;
-  const {
-    createCodingSessionWithSelection: createActiveCodingSessionWithSelection,
-  } = useWorkbenchChatSelection({
-    createCodingSession: createActiveCodingSession,
+  const createShellCodingSession = useCallback((
+    projectId: string,
+    title: string,
+    options: { engineId: string; modelId: string },
+  ) => {
+    if (shouldUseDistinctMenuProjectsStore && menuProjectsIndex.projectsById.has(projectId)) {
+      return createDistinctMenuCodingSession(projectId, title, options);
+    }
+    return createActiveCodingSession(projectId, title, options);
+  }, [createActiveCodingSession, createDistinctMenuCodingSession, menuProjectsIndex, shouldUseDistinctMenuProjectsStore]);
+  const { createCodingSessionWithSelection } = useWorkbenchChatSelection({
+    createCodingSession: createShellCodingSession,
     currentSessionEngineId: activeCodingSession?.engineId,
     currentSessionModelId: activeCodingSession?.modelId,
     preferences,
     updatePreferences,
   });
-  const {
-    createCodingSessionWithSelection: createMenuCodingSessionWithSelection,
-  } = useWorkbenchChatSelection({
-    createCodingSession: createMenuCodingSession,
-    currentSessionEngineId: activeCodingSession?.engineId,
-    currentSessionModelId: activeCodingSession?.modelId,
-    preferences,
-    updatePreferences,
-  });
-  const handleSelectActiveCodingSession = useCallback(
+  const handleSelectCreatedCodingSession = useCallback(
     (
       codingSessionId: string,
       options?: {
@@ -1990,6 +1987,13 @@ export function AppContent() {
       }
 
       const targetProjectId = options?.projectId?.trim() || effectiveProjectId;
+      const targetProject = menuProjectsIndex.projectsById.get(targetProjectId)
+        ?? activeProjectsIndex.projectsById.get(targetProjectId);
+      const targetWorkspaceId = targetProject?.workspaceId?.trim() || effectiveWorkspaceId;
+      if (targetWorkspaceId) {
+        setActiveWorkspaceId(targetWorkspaceId);
+        setMenuActiveWorkspaceId(targetWorkspaceId);
+      }
       if (targetProjectId) {
         setActiveProjectId(targetProjectId);
       }
@@ -2000,33 +2004,10 @@ export function AppContent() {
           ? previousActiveTab
           : 'code',
       );
-    },
-    [commitActiveCodingSessionSelection, effectiveProjectId],
-  );
-  const handleSelectMenuCreatedCodingSession = useCallback(
-    (
-      codingSessionId: string,
-      options?: {
-        projectId?: string;
-      },
-    ) => {
-      const normalizedCodingSessionId = codingSessionId.trim();
-      if (!normalizedCodingSessionId) {
-        return;
-      }
-
-      const targetProjectId = options?.projectId?.trim() || '';
-      setActiveWorkspaceId(effectiveMenuWorkspaceId);
-      setMenuActiveWorkspaceId(effectiveMenuWorkspaceId);
-      if (targetProjectId) {
-        setActiveProjectId(targetProjectId);
-      }
-      commitActiveCodingSessionSelection(targetProjectId, normalizedCodingSessionId);
-      setActiveTab('code');
       setProjectActionsMenuId(null);
       setShowWorkspaceMenu(false);
     },
-    [commitActiveCodingSessionSelection, effectiveMenuWorkspaceId],
+    [activeProjectsIndex, commitActiveCodingSessionSelection, effectiveProjectId, effectiveWorkspaceId, menuProjectsIndex],
   );
   const handleActiveProjectChange = useCallback((projectId: string) => {
     const normalizedProjectId = projectId.trim();
@@ -2047,29 +2028,16 @@ export function AppContent() {
     );
   }, [commitActiveCodingSessionSelection, effectiveProjectId]);
   const {
-    createCodingSessionFromCurrentProject: createActiveCodingSessionFromCurrentProject,
+    createCodingSessionFromRequest,
   } = useWorkbenchCodingSessionCreationActions({
     addToast,
-    createCodingSessionWithSelection: createActiveCodingSessionWithSelection,
+    createCodingSessionWithSelection,
     currentProjectId: effectiveProjectId,
-    selectCodingSession: handleSelectActiveCodingSession,
+    selectCodingSession: handleSelectCreatedCodingSession,
     labels: {
       creationFailed: t('code.failedToCreateSession'),
       creationSucceeded: t('code.newSessionCreated'),
       noProjectSelected: t('code.selectProjectFirst'),
-    },
-  });
-  const {
-    createCodingSessionInProject: createMenuCodingSessionInProject,
-  } = useWorkbenchCodingSessionCreationActions({
-    addToast,
-    createCodingSessionWithSelection: createMenuCodingSessionWithSelection,
-    currentProjectId: effectiveProjectId,
-    selectCodingSession: handleSelectMenuCreatedCodingSession,
-    labels: {
-      creationFailed: t('code.failedToCreateSession'),
-      creationSucceeded: t('code.newSessionCreated'),
-      noProjectSelected: t('app.noProjectsFound'),
     },
   });
   const newSessionEngineCatalog = useMemo(
@@ -2089,7 +2057,10 @@ export function AppContent() {
       preferences,
     ],
   );
-  const availableNewSessionEngines = newSessionEngineCatalog.availableEngines;
+  const availableNewSessionEngines = useMemo(() => newSessionEngineCatalog.availableEngines.map((engine) => ({
+    ...engine,
+    modelId: resolveWorkbenchCodeEngineSelectedModelId(engine.id, preferences),
+  })), [newSessionEngineCatalog.availableEngines, preferences]);
   const titleBarDragEnabled = isDesktopWindowAvailable && !isDocumentFullscreen;
   const titleBarDragSurfaceClass = titleBarDragEnabled
     ? 'cursor-grab border-white/[0.10] text-gray-200 hover:border-white/[0.16] hover:bg-white/[0.04] active:cursor-grabbing active:bg-white/[0.06]'
@@ -2107,22 +2078,27 @@ export function AppContent() {
     );
   }, [addToast, isRecording, t]);
   const handleCreateProjectSession = useCallback(
-    async (projectId: string, requestedEngineId?: string) => {
+    async (projectId: string, requestedEngineId?: string, requestedModelId?: string) => {
       const normalizedProjectId = projectId.trim();
       if (!menuProjectsIndex.projectsById.has(normalizedProjectId)) {
         addToast(t('app.noProjectsFound'), 'error');
         return;
       }
 
-      await createMenuCodingSessionInProject(normalizedProjectId, requestedEngineId);
+      await createCodingSessionFromRequest({
+        engineId: requestedEngineId,
+        modelId: requestedModelId,
+        projectId: normalizedProjectId,
+        source: 'workspace-menu',
+      });
     },
-    [addToast, createMenuCodingSessionInProject, menuProjectsIndex, t],
+    [addToast, createCodingSessionFromRequest, menuProjectsIndex, t],
   );
   const handleCreateCodingSessionCommand = useCallback(
-    (requestedEngineId?: string) => {
-      void createActiveCodingSessionFromCurrentProject(requestedEngineId);
+    (request?: CreateNewCodingSessionRequest) => {
+      void createCodingSessionFromRequest(request);
     },
-    [createActiveCodingSessionFromCurrentProject],
+    [createCodingSessionFromRequest],
   );
   createCodingSessionCommandRef.current = handleCreateCodingSessionCommand;
 
@@ -2132,11 +2108,19 @@ export function AppContent() {
         label: t('app.menu.newSession'),
         shortcut: 'Ctrl+N',
         onClick: () =>
-          handleCreateCodingSessionCommand(newSessionEngineCatalog.preferredSelection.engineId),
+          handleCreateCodingSessionCommand({
+            engineId: newSessionEngineCatalog.preferredSelection.engineId,
+            modelId: newSessionEngineCatalog.preferredSelection.modelId,
+            source: 'file-menu',
+          }),
       },
       ...availableNewSessionEngines.map((engine) => ({
         label: `${engine.label} ${t('app.menu.newSession')}`,
-        onClick: () => handleCreateCodingSessionCommand(engine.id),
+        onClick: () => handleCreateCodingSessionCommand({
+          engineId: engine.id,
+          modelId: engine.modelId,
+          source: 'file-menu',
+        }),
       })),
       { label: '', divider: true },
       { label: t('app.menu.openFolder'), shortcut: 'Ctrl+O', onClick: handleOpenFolder },
@@ -2165,6 +2149,7 @@ export function AppContent() {
       handleOpenFolder,
       handleLogout,
       newSessionEngineCatalog.preferredSelection.engineId,
+      newSessionEngineCatalog.preferredSelection.modelId,
       t,
     ],
   );
@@ -2422,6 +2407,7 @@ export function AppContent() {
             projectActionsMenuId={projectActionsMenuId}
             availableNewSessionEngines={availableNewSessionEngines}
             preferredEngineId={newSessionEngineCatalog.preferredSelection.engineId}
+            preferredModelId={newSessionEngineCatalog.preferredSelection.modelId}
             onToggleMenu={handleWorkspaceMenuToggle}
             onCloseMenuSurface={closeWorkspaceMenuSurface}
             onPreviewWorkspaceSelection={previewWorkspaceSelection}

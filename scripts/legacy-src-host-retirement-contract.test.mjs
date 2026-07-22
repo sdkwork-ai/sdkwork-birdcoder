@@ -71,5 +71,10 @@ assert.match(
   /sdkwork-api-birdcoder-standalone-gateway/u,
   'src-host shim manifest must depend on sdkwork-api-birdcoder-standalone-gateway.',
 );
+assert.match(
+  srcHostCargo,
+  /sdkwork-api-birdcoder-standalone-gateway\s*=\s*\{\s*path\s*=\s*"\.\.\/\.\.\/\.\.\/\.\.\/\.\.\/crates\/sdkwork-api-birdcoder-standalone-gateway"\s*\}/u,
+  'src-host shim must resolve the canonical gateway from the BirdCoder application root.',
+);
 
 console.log('legacy src-host retirement contract passed.');

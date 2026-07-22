@@ -41,6 +41,21 @@ export function useRemoteProjectRuntimeLocationId(): (
   }, [projectRuntimeLocationService]);
 }
 
+export function useProjectRuntimeLocationExecutionId(): (
+  projectId: string,
+  capability: ProjectRuntimeLocationResolutionRequest['capability'],
+  options?: { allowFolderSelection?: boolean },
+) => Promise<string> {
+  const { projectRuntimeLocationService } = useIDEServices();
+  return useCallback(async (projectId, capability, options) => {
+    return await projectRuntimeLocationService.resolveProjectRuntimeLocationExecutionId(
+      projectId,
+      capability,
+      options,
+    );
+  }, [projectRuntimeLocationService]);
+}
+
 export type {
   ProjectRuntimeLocationResolution,
   ProjectRuntimeLocationResolutionRequest,

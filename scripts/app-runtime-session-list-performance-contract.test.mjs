@@ -99,7 +99,6 @@ assert.doesNotMatch(
 
 for (const [operationId, summaryMapper] of [
   ['codingSessions.list', 'toCodingSessionSummary'],
-  ['nativeSessions.list', 'toNativeSessionSummary'],
 ]) {
   const caseSource = readSwitchCaseBody(operationId);
   assert.match(

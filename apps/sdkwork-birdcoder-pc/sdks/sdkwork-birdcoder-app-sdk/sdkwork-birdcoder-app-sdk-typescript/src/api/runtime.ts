@@ -8,9 +8,6 @@ import type * as Types from '../types/index.ts';
 
 type BirdcoderSdkQueryValue = Types.BirdcoderSdkQueryValue;
 type RuntimeEnginesCapabilitiesRetrievePathParams = Types.RuntimeEnginesCapabilitiesRetrievePathParams;
-type RuntimeNativeSessionsListQuery = Types.RuntimeNativeSessionsListQuery;
-type RuntimeNativeSessionsRetrievePathParams = Types.RuntimeNativeSessionsRetrievePathParams;
-type RuntimeNativeSessionsRetrieveQuery = Types.RuntimeNativeSessionsRetrieveQuery;
 
 export interface RuntimeApi {
   engines: {
@@ -28,10 +25,6 @@ export interface RuntimeApi {
   };
   nativeSessionProviders: {
     list(options?: BirdcoderSdkRequestOptions): Promise<Types.BirdCoderNativeSessionProviderSummaryListEnvelope>;
-  };
-  nativeSessions: {
-    list(query: RuntimeNativeSessionsListQuery, options?: BirdcoderSdkRequestOptions): Promise<Types.BirdCoderNativeSessionSummaryListEnvelope>;
-    retrieve(pathParams: RuntimeNativeSessionsRetrievePathParams, query: RuntimeNativeSessionsRetrieveQuery, options?: BirdcoderSdkRequestOptions): Promise<Types.BirdCoderNativeSessionDetailEnvelope>;
   };
 }
 
@@ -63,14 +56,6 @@ export function createRuntimeApi(requestOperation: BirdcoderSdkRequestOperation)
     nativeSessionProviders: {
       list(options: BirdcoderSdkRequestOptions = {}) {
         return requestOperation<Types.BirdCoderNativeSessionProviderSummaryListEnvelope>("runtime.nativeSessionProviders.list", {}, options);
-      }
-    },
-    nativeSessions: {
-      list(query: RuntimeNativeSessionsListQuery, options: BirdcoderSdkRequestOptions = {}) {
-        return requestOperation<Types.BirdCoderNativeSessionSummaryListEnvelope>("runtime.nativeSessions.list", { query }, options);
-      },
-      retrieve(pathParams: RuntimeNativeSessionsRetrievePathParams, query: RuntimeNativeSessionsRetrieveQuery, options: BirdcoderSdkRequestOptions = {}) {
-        return requestOperation<Types.BirdCoderNativeSessionDetailEnvelope>("runtime.nativeSessions.retrieve", { pathParams, query }, options);
       }
     }
   };

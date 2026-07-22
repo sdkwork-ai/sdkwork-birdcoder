@@ -28,7 +28,7 @@ spec:
                   valueFrom:
                     secretKeyRef:
                       name: {{ if .Values.auth.existingSecret }}{{ .Values.auth.existingSecret }}{{ else }}{{ include "sdkwork-birdcoder.fullname" . }}-auth{{ end }}
-                      key: SDKWORK_BIRDCODER_DATABASE_URL
+                      key: SDKWORK_CLAW_DATABASE_URL
                 - name: RETENTION_DAYS
                   value: {{ .Values.backup.retentionDays | quote }}
                 - name: VERIFY_DATABASE_URL

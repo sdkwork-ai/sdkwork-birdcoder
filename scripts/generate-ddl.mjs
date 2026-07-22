@@ -11,9 +11,8 @@
 // baseline plus all forward migrations. They are generated artifacts and MUST
 // NOT be hand-edited (DATABASE_FRAMEWORK_SPEC.md section 5.1).
 //
-// Prefixes are read from database/contract/prefix-registry.json (the real
-// ai_ / commerce_ / ops_ / runtime_ / studio_ prefixes), never a synthetic
-// `birdcoder_` token.
+// Prefixes are read from database/contract/prefix-registry.json. BirdCoder's
+// workbench boundary currently owns only the `studio_` prefix.
 
 import fs from 'node:fs';
 import path from 'node:path';
@@ -80,7 +79,7 @@ function generateForEngine(engine, metadata, prefixes) {
     }));
 
   const header = [
-    `-- GENERATED FILE — DO NOT HAND-EDIT`,
+    `-- GENERATED FILE - DO NOT HAND-EDIT`,
     `-- Produced by: scripts/generate-ddl.mjs (pnpm db:generate:ddl)`,
     `-- Engine: ${engine}`,
     `-- Module: ${metadata.moduleId}`,
@@ -88,7 +87,6 @@ function generateForEngine(engine, metadata, prefixes) {
     `-- Owner: ${metadata.owner}`,
     `-- Table prefixes: ${prefixes.join(', ')}`,
     `-- Sources: baseline(${baselineFiles.length}) + migrations(${migrationFiles.length})`,
-    `-- Generated at: ${new Date().toISOString()}`,
     '',
   ].join('\n');
 

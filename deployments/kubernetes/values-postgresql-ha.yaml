@@ -15,6 +15,7 @@ replicaCount: 3
 
 database:
   engine: postgresql
+  schema: sdkwork_ai_prod
   url: ""  # 从 secret 注入
 
 realtime:

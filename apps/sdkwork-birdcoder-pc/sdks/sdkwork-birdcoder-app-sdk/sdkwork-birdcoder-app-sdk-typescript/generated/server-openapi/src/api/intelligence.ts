@@ -106,6 +106,11 @@ export class IntelligenceCodingSessionsCheckpointsApi {
   }
 }
 
+export interface IntelligenceCodingSessionsEventsListParams {
+  page?: number;
+  pageSize?: number;
+}
+
 export class IntelligenceCodingSessionsEventsApi {
   private client: HttpClient;
 
@@ -115,8 +120,12 @@ export class IntelligenceCodingSessionsEventsApi {
 
 
 /** Replay or subscribe to coding session events */
-  async list(sessionId: string): Promise<Record<string, unknown>> {
-    return this.client.get<Record<string, unknown>>(appApiPath(`/intelligence/coding_sessions/${serializePathParameter(sessionId, { name: 'sessionId', style: 'simple', explode: false })}/events`));
+  async list(sessionId: string, params?: IntelligenceCodingSessionsEventsListParams): Promise<Record<string, unknown>> {
+    const query = buildQueryString([
+      { name: 'page', value: params?.page, style: 'form', explode: true, allowReserved: false },
+      { name: 'page_size', value: params?.pageSize, style: 'form', explode: true, allowReserved: false },
+    ]);
+    return this.client.get<Record<string, unknown>>(appendQueryString(appApiPath(`/intelligence/coding_sessions/${serializePathParameter(sessionId, { name: 'sessionId', style: 'simple', explode: false })}/events`), query));
   }
 }
 

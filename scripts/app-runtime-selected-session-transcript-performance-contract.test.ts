@@ -90,36 +90,9 @@ const projectService = {
 
 const appClient = createBirdCoderAppSdkApiClient({
   transport: createBirdCoderInProcessAppRuntimeTransport({
-    nativeSessionProvider: {
-      async getNativeSession(_nativeSessionId: string, request: { runtimeLocationId: string }) {
-        assert.equal(request.runtimeLocationId, runtimeLocationId);
-        return {
-          summary: {
-            ...inventorySession,
-            kind: 'coding',
-            sortTimestamp: inventorySession.updatedAt,
-          },
-          messages: transcriptMessages,
-        };
-      },
-      async listNativeSessionPage() {
-        throw new Error('selected-session detail test must not list native sessions');
-      },
-    } as never,
     projectService,
   }),
 });
-
-const nativeSession = await appClient.getNativeSession(codingSessionId, {
-  workspaceId,
-  projectId,
-  runtimeLocationId,
-});
-assert.deepEqual(
-  nativeSession.messages.map((message) => message.id),
-  transcriptMessages.map((message) => message.id),
-  'app.getNativeSession must hydrate the selected session transcript through the precise local transcript reader before mapping messages.',
-);
 
 const events = await appClient.listCodingSessionEvents(codingSessionId);
 assert.deepEqual(
@@ -132,7 +105,7 @@ assert.deepEqual(
 assert.equal(
   transcriptReads,
   1,
-  'coding-session event projection should perform one precise project transcript read while native-session detail remains owned by the native provider.',
+  'coding-session event projection should perform one precise project transcript read.',
 );
 
 const appRuntimeTransportSource = fs.readFileSync(
@@ -156,14 +129,19 @@ assert.match(
   'appRuntimeTransport must keep selected-session transcript hydration isolated from list endpoints.',
 );
 assert.doesNotMatch(
-  readSwitchCaseBody('nativeSessions.list'),
-  /getCodingSessionTranscriptById/,
-  'nativeSessions.list must not hydrate message bodies while listing sessions.',
+  appRuntimeTransportSource,
+  /case 'nativeSessions\.(?:list|retrieve)'/,
+  'appRuntimeTransport must not expose a second public native-session authority.',
 );
 assert.doesNotMatch(
   readSwitchCaseBody('codingSessions.list'),
   /getCodingSessionTranscriptById/,
   'codingSessions.list must not hydrate message bodies while listing sessions.',
+);
+assert.match(
+  readSwitchCaseBody('codingSessions.events.list'),
+  /getCodingSessionTranscriptById/,
+  'codingSessions.events.list must hydrate the selected session transcript through the precise reader.',
 );
 
 console.log('app runtime selected-session transcript performance contract passed.');

@@ -1,8 +1,6 @@
 use crate::context::ProjectContext;
-use crate::domain::commands::{
-    CreateProjectRequest, UpdateProjectRequest, UpsertProjectCollaboratorRequest,
-};
-use crate::domain::results::{ProjectCollaboratorPayload, ProjectPayload};
+use crate::domain::commands::{CreateProjectRequest, UpdateProjectRequest};
+use crate::domain::results::ProjectPayload;
 use crate::error::ProjectError;
 
 #[async_trait::async_trait]
@@ -22,14 +20,10 @@ pub trait ProjectRepository: Send + Sync {
         ctx: &ProjectContext,
         project_id: &str,
     ) -> Result<(), ProjectError>;
-    async fn ensure_project_manage_access(
-        &self,
-        ctx: &ProjectContext,
-        project_id: &str,
-    ) -> Result<(), ProjectError>;
     /// List projects for a workspace with SQL-pushed `LIMIT`/`OFFSET` and a
     /// parallel `COUNT(*)` for the total. Aligns with `PAGINATION_SPEC.md`
-    /// §2 (no in-memory `skip`/`take`) and §5 (store-layer push-down).
+    /// sections 2 and 5: no in-memory pagination and mandatory store-layer
+    /// push-down.
     async fn list_projects_by_workspace(
         &self,
         ctx: &ProjectContext,
@@ -49,26 +43,10 @@ pub trait ProjectRepository: Send + Sync {
         id: &str,
         req: &UpdateProjectRequest,
     ) -> Result<ProjectPayload, ProjectError>;
-    async fn delete_project(&self, ctx: &ProjectContext, id: &str) -> Result<(), ProjectError>;
-    /// List project collaborators with SQL-pushed `LIMIT`/`OFFSET` and a
-    /// parallel `COUNT(*)` for the total.
-    async fn list_project_collaborators(
+    async fn delete_project(
         &self,
         ctx: &ProjectContext,
-        project_id: &str,
-        offset: usize,
-        limit: usize,
-    ) -> Result<(Vec<ProjectCollaboratorPayload>, usize), ProjectError>;
-    async fn upsert_project_collaborator(
-        &self,
-        ctx: &ProjectContext,
-        project_id: &str,
-        req: &UpsertProjectCollaboratorRequest,
-    ) -> Result<ProjectCollaboratorPayload, ProjectError>;
-    async fn remove_project_collaborator(
-        &self,
-        ctx: &ProjectContext,
-        project_id: &str,
-        user_id: &str,
+        id: &str,
+        expected_version: i64,
     ) -> Result<(), ProjectError>;
 }

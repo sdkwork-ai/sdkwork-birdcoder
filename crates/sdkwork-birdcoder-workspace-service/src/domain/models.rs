@@ -1,6 +1,6 @@
 use serde::Deserialize;
 
-/// Pagination input shared by workspace/project/team list queries.
+/// Pagination input for workspace list queries.
 ///
 /// Aligns with `PAGINATION_SPEC.md` §3: the HTTP route strictly validates
 /// `page`/`page_size` and projects them into an internal offset/page-size pair.
@@ -32,9 +32,7 @@ impl ListPagination {
 #[derive(Deserialize, Default, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct WorkspaceScopedQuery {
-    pub root_path: Option<String>,
     pub user_id: Option<String>,
-    pub workspace_id: Option<String>,
     #[serde(flatten)]
     pub pagination: ListPagination,
 }

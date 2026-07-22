@@ -2,7 +2,7 @@ use sqlx::AnyPool;
 
 use sdkwork_birdcoder_coding_sessions_service::context::CodingSessionContext;
 use sdkwork_birdcoder_errors::{require_scoped_tenant_id, require_scoped_user_id};
-use sdkwork_birdcoder_sqlx_repository_pool::dialect::{any_sql, IS_NOT_DELETED};
+use sdkwork_birdcoder_sqlx_repository_pool::dialect::{numbered_placeholders, IS_NOT_DELETED};
 
 use crate::db::columns;
 use crate::error::RepositoryError;
@@ -55,7 +55,7 @@ pub async fn ensure_workspace_in_tenant_scope(
     if workspace_id.is_empty() {
         return Err(RepositoryError::NotFound("workspace not found".into()));
     }
-    let sql = any_sql(&format!(
+    let sql = numbered_placeholders(&format!(
         "SELECT 1 FROM studio_workspace WHERE CAST(id AS TEXT) = ?1 AND tenant_id = ?2 AND {IS_NOT_DELETED}",
     ));
     let row = sqlx::query(&sql)
@@ -101,6 +101,7 @@ where
         columns::session::ID,
     );
     let scope = append_session_owner_scope_sql(ctx, "s", &mut sql)?;
+    let sql = numbered_placeholders(&sql);
     let row = sqlx::query(&sql)
         .bind(session_id)
         .bind(scope.tenant_id)

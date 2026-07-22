@@ -70,9 +70,9 @@ try {
   assert.equal(writtenDocument.info.version, 'v1');
   assert.equal(writtenDocument.servers[0]?.url, '/');
   assert.equal(writtenDocument['x-sdkwork-api-assembly']?.routeCatalogPath, '/app/v3/api/system/routes');
-  assert.equal(writtenDocument['x-sdkwork-api-assembly']?.routeCount, 158);
+  assert.equal(writtenDocument['x-sdkwork-api-assembly']?.routeCount, 156);
   assert.deepEqual(writtenDocument['x-sdkwork-api-assembly']?.routesBySurface, {
-    app: 109,
+    app: 107,
     backend: 49,
   });
   const publishedOperationIds = Object.values(writtenDocument.paths).flatMap((methods) =>
@@ -80,7 +80,7 @@ try {
   );
   assert.equal(
     publishedOperationIds.length,
-    157,
+    155,
     'OpenAPI must materialize every BirdCoder-owned HTTP route while keeping dependency APIs external.',
   );
   assert.equal(
@@ -131,14 +131,8 @@ try {
     writtenDocument.paths['/app/v3/api/system/routes']?.get?.operationId,
     'routes.list',
   );
-  assert.equal(
-    writtenDocument.paths['/app/v3/api/native_sessions']?.get?.operationId,
-    'nativeSessions.list',
-  );
-  assert.equal(
-    writtenDocument.paths['/app/v3/api/native_sessions/{id}']?.get?.operationId,
-    'nativeSessions.retrieve',
-  );
+  assert.equal(writtenDocument.paths['/app/v3/api/native_sessions'], undefined);
+  assert.equal(writtenDocument.paths['/app/v3/api/native_sessions/{id}'], undefined);
   assert.equal(
     writtenDocument.paths['/app/v3/api/model_config']?.get?.operationId,
     'modelConfig.retrieve',

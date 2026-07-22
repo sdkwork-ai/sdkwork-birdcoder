@@ -85,16 +85,22 @@ const fileChangeDiffViewerSource = readText(
   'FileChangeDiffViewer.tsx',
 );
 
-assert.match(
+assert.doesNotMatch(
   surfaceSource,
   /from '@sdkwork\/birdcoder-pc-ui';/,
-  'CodeEditorSurface must stay on the root UI package import surface.',
+  'CodeEditorSurface must not load the broad UI package root because it defeats editor and chat chunk boundaries.',
+);
+
+assert.match(
+  surfaceSource,
+  /from '@sdkwork\/birdcoder-pc-ui\/components\/ContentWorkbench';/,
+  'CodeEditorSurface must load ContentWorkbench through its precise UI component subpath.',
 );
 
 assert.match(
   surfaceSource,
   /\bContentWorkbench\b[\s\S]*\bFileChangeDiffViewer\b|\bFileChangeDiffViewer\b[\s\S]*\bContentWorkbench\b/s,
-  'CodeEditorSurface must own the editor and historical diff surfaces through the root UI package.',
+  'CodeEditorSurface must own the editor and historical diff surfaces through precise shared UI component imports.',
 );
 
 assert.match(

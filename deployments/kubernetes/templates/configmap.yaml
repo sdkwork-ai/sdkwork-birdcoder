@@ -10,6 +10,8 @@ data:
   SDKWORK_BIRDCODER_PROVIDER_RUNNER_ROOT: {{ .Values.runtime.projectWorkspaceRoot | quote }}
   OTEL_SERVICE_NAME: {{ .Values.runtime.otelServiceName | quote }}
   SDKWORK_BIRDCODER_DATABASE_ENGINE: {{ .Values.database.engine | quote }}
+  SDKWORK_CLAW_DATABASE_ENGINE: {{ .Values.database.engine | quote }}
+  SDKWORK_CLAW_DATABASE_SCHEMA: {{ .Values.database.schema | quote }}
   SDKWORK_BIRDCODER_REALTIME_BACKEND: {{ .Values.realtime.backend | quote }}
   SDKWORK_BIRDCODER_REDIS_ENABLED: {{ .Values.redis.enabled | quote }}
   SDKWORK_BIRDCODER_REDIS_HOST: {{ .Values.redis.host | quote }}

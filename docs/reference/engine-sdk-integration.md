@@ -2,7 +2,7 @@
 
 Status: active
 Owner: SDKWork maintainers
-Updated: 2026-07-16
+Updated: 2026-07-22
 Specs: `APP_SDK_INTEGRATION_SPEC.md`, `API_SPEC.md`, `SDK_SPEC.md`, `SECURITY_SPEC.md`
 
 This reference defines BirdCoder's current coding-session lifecycle and the
@@ -20,7 +20,7 @@ session adapters. It is the detailed companion to the root
 | `sdkwork-birdcoder-codeengine` | Shared engine/model catalog, provider-native session discovery, and provider dialect adapters. |
 | BirdCoder coding-session service and repository | Logical session creation, immutable engine/model/runtime-location binding, and immutable native binding persistence. |
 | sdkwork-birdcoder-tauri-host | Local desktop filesystem and terminal host capabilities. It does not accept a renderer-supplied project root for provider-native session discovery. |
-| PC application services | Select a session pair, consume the composed BirdCoder app SDK, and project provider-native detail back to the logical session. |
+| PC application services | Select a logical session, consume the composed BirdCoder app SDK, and project canonical coding-session events into UI state. |
 
 Provider SDK DTOs and raw provider transport calls do not cross into BirdCoder
 feature, UI, route, service, or repository code. Provider lifecycle work remains
@@ -63,16 +63,23 @@ Legacy prefixed values such as `codex-native:<id>` are accepted only at
 compatibility input boundaries and normalized to raw provider IDs. New persisted
 native IDs are raw values; `engineId` remains the provider discriminator.
 
-## Native Discovery And Detail Reads
+## Internal Native Discovery And Unified Reads
 
-The codeengine registry owns native summary and detail discovery. List reads load
-provider summaries; transcript/detail reads use the raw nativeSessionId together
-with the explicit engineId. Native session list and detail requests always use
-the authenticated BirdCoder App API and carry an explicit `workspaceId`,
-`projectId`, and `runtimeLocationId`. The route validates that exact location
-binding after workspace membership, project write authority, project/workspace
-relation, and organization scope checks; its target-owned resolver then obtains
-a canonical root only for that authorized location.
+The codeengine registry and internal native-session service own provider summary
+and detail discovery. Provider summaries are materialized as durable logical
+coding sessions, and provider transcripts are reconciled into canonical coding-
+session events before public pagination. There is no public native-session list
+or detail resource. Clients use only the authenticated coding-session inventory,
+detail, and event operations under `/app/v3/api/intelligence/coding_sessions`.
+
+Aggregate inventory discovery requires an explicit `workspaceId`, `projectId`,
+and `runtimeLocationId`. The coding-session route validates that exact location
+after workspace membership, project write authority, project/workspace relation,
+and organization scope checks; its target-owned resolver obtains a canonical
+root only for that authorized location. Detail and event reads start from the
+durable `codingSessionId`; the service resolves its persisted `engineId`, raw
+`nativeSessionId`, and runtime-location binding internally when provider history
+must be refreshed.
 
 A Tauri folder mount is a local device capability, not a provider-native session
 authorization grant. The desktop host does not expose a native-session list or
@@ -82,14 +89,14 @@ fails closed through the App API rather than falling back to a local path.
 
 New logical coding sessions require an explicit terminal-capable
 `runtimeLocationId` at creation and persist that exact value as an immutable
-session binding. Every later turn, native-session list, native-session detail,
-and recovery uses the persisted binding rather than looking up the current
-subject preference. Before execution, the service verifies workspace
+session binding. Every later turn, provider-history reconciliation, and recovery
+uses the persisted binding rather than looking up the current subject preference.
+Before execution, the service verifies workspace
 membership, project write authority, project/workspace relation, tenant,
 organization scope, target binding, lifecycle state, health, and terminal
 capability; the target-owned resolver then supplies the canonical root.
 Historic sessions without a binding remain readable but return a typed `503`
-unavailable outcome for execution and native-session discovery. No path falls
+unavailable outcome for execution and provider-history discovery. No path falls
 back to a bootstrap root, process CWD, project-only preference, session
 metadata, or renderer mount.
 
@@ -99,17 +106,18 @@ not an execution authority and is omitted from session summaries, native-session
 attributes, replay/SSE projections, App API responses, and generated SDK
 models.
 
-For an aggregate native inventory request (`engine_id=None`), an unavailable
+For an internal aggregate provider inventory request (`engine_id=None`), an unavailable
 provider is logged and successful provider inventories are retained. An explicit
 single-provider request surfaces that provider's failure. Provider cache reads
 preserve fresh snapshots, use a last successful snapshot after a refresh failure,
 and do not hold the global catalog cache mutex during provider I/O. Results remain
 deterministically ordered by the native catalog.
 
-The adapter boundary alone is not proof of completed end-to-end native-inventory
-pagination remediation. The authorization boundary is the App API route and its
-project execution resolver; desktop and browser clients consume that route through
-the composed SDK and cannot inject a local provider-root override.
+The adapter boundary alone is not proof of completed end-to-end inventory
+pagination. The authorization boundary is the coding-session App API route and
+its project execution resolver; desktop and browser clients consume only the
+unified coding-session operations through the composed SDK and cannot inject a
+local provider-root override.
 
 ## Event And Recovery Boundary
 

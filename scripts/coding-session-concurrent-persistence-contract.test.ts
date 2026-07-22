@@ -185,9 +185,6 @@ try {
     async getModelConfig() {
       return TEST_CODE_ENGINE_MODEL_CONFIG;
     },
-    async getNativeSession() {
-      throw new Error('not needed');
-    },
     async getOperation() {
       throw new Error('not needed');
     },
@@ -213,9 +210,6 @@ try {
       return [];
     },
     async listNativeSessionProviders() {
-      return [];
-    },
-    async listNativeSessions() {
       return [];
     },
     async listRoutes() {

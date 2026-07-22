@@ -12,6 +12,7 @@ type IntelligenceCodingSessionsCheckpointsApprovalCreatePathParams = Types.Intel
 type IntelligenceCodingSessionsCheckpointsListPathParams = Types.IntelligenceCodingSessionsCheckpointsListPathParams;
 type IntelligenceCodingSessionsDeletePathParams = Types.IntelligenceCodingSessionsDeletePathParams;
 type IntelligenceCodingSessionsEventsListPathParams = Types.IntelligenceCodingSessionsEventsListPathParams;
+type IntelligenceCodingSessionsEventsListQuery = Types.IntelligenceCodingSessionsEventsListQuery;
 type IntelligenceCodingSessionsForksCreatePathParams = Types.IntelligenceCodingSessionsForksCreatePathParams;
 type IntelligenceCodingSessionsListQuery = Types.IntelligenceCodingSessionsListQuery;
 type IntelligenceCodingSessionsMessagesDeletePathParams = Types.IntelligenceCodingSessionsMessagesDeletePathParams;
@@ -35,7 +36,7 @@ export interface IntelligenceApi {
     create(body: Types.BirdCoderCreateCodingSessionRequest, options?: BirdcoderSdkRequestOptions): Promise<Types.BirdCoderCodingSessionSummaryEnvelope>;
     delete(pathParams: IntelligenceCodingSessionsDeletePathParams, options?: BirdcoderSdkRequestOptions): Promise<void>;
     events: {
-      list(pathParams: IntelligenceCodingSessionsEventsListPathParams, options?: BirdcoderSdkRequestOptions): Promise<Types.BirdCoderCodingSessionEventListEnvelope>;
+      list(pathParams: IntelligenceCodingSessionsEventsListPathParams, query?: IntelligenceCodingSessionsEventsListQuery, options?: BirdcoderSdkRequestOptions): Promise<Types.BirdCoderCodingSessionEventListEnvelope>;
     };
     forks: {
       create(pathParams: IntelligenceCodingSessionsForksCreatePathParams, body: Types.BirdCoderForkCodingSessionRequest, options?: BirdcoderSdkRequestOptions): Promise<Types.BirdCoderCodingSessionSummaryEnvelope>;
@@ -83,8 +84,8 @@ export function createIntelligenceApi(requestOperation: BirdcoderSdkRequestOpera
         return requestOperation<void>("intelligence.codingSessions.delete", { pathParams }, options);
       },
       events: {
-        list(pathParams: IntelligenceCodingSessionsEventsListPathParams, options: BirdcoderSdkRequestOptions = {}) {
-          return requestOperation<Types.BirdCoderCodingSessionEventListEnvelope>("intelligence.codingSessions.events.list", { pathParams }, options);
+        list(pathParams: IntelligenceCodingSessionsEventsListPathParams, query: IntelligenceCodingSessionsEventsListQuery = {}, options: BirdcoderSdkRequestOptions = {}) {
+          return requestOperation<Types.BirdCoderCodingSessionEventListEnvelope>("intelligence.codingSessions.events.list", { pathParams, query }, options);
         }
       },
       forks: {

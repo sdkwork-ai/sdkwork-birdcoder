@@ -17,9 +17,9 @@ assert.deepEqual(descriptor, {
     liveOpenApiPath: '/openapi.json',
     openApiPath: '/openapi/coding-server-v1.json',
     routeCatalogPath: '/app/v3/api/system/routes',
-    routeCount: 158,
+    routeCount: 156,
     routesBySurface: {
-      app: 109,
+      app: 107,
       backend: 49,
     },
     surfaces: [
@@ -28,7 +28,7 @@ assert.deepEqual(descriptor, {
         basePath: '/app/v3/api',
         description: 'Application-facing coding runtime, workspace, project, collaboration, and IAM routes.',
         name: 'app',
-        routeCount: 109,
+        routeCount: 107,
       },
       {
         authMode: 'admin',
@@ -50,8 +50,8 @@ assert.equal(appRuntimeContract.engines.method, 'GET');
 assert.equal(appRuntimeContract.engines.path, '/app/v3/api/engines');
 assert.equal(appRuntimeContract.engineCapabilities.path, '/app/v3/api/engines/:engineKey/capabilities');
 assert.equal(appRuntimeContract.nativeSessionProviders.path, '/app/v3/api/native_session_providers');
-assert.equal(appRuntimeContract.nativeSessions.path, '/app/v3/api/native_sessions');
-assert.equal(appRuntimeContract.nativeSession.path, '/app/v3/api/native_sessions/:id');
+assert.equal('nativeSessions' in appRuntimeContract, false);
+assert.equal('nativeSession' in appRuntimeContract, false);
 assert.equal(appRuntimeContract.sessions.path, '/app/v3/api/intelligence/coding_sessions');
 assert.equal(appRuntimeContract.codingSession.path, '/app/v3/api/intelligence/coding_sessions/:sessionId');
 assert.equal(appRuntimeContract.updateCodingSession.path, '/app/v3/api/intelligence/coding_sessions/:sessionId');
@@ -233,7 +233,7 @@ assert.equal(admin.releases.path, '/backend/v3/api/releases');
 assert.equal(admin.deployments.path, '/backend/v3/api/deployments');
 
 const routes = listBirdCoderCodingServerRoutes();
-assert.equal(routes.length, 158, 'coding-server should expose its owned app/backend route matrix');
+assert.equal(routes.length, 156, 'coding-server should expose its owned app/backend route matrix');
 assert.equal(
   routes.every(
     (route) =>
@@ -319,29 +319,10 @@ assert.deepEqual(
     summary: 'List registered native engine session providers',
   },
 );
-assert.deepEqual(
-  routeCatalog.find((route) => route.operationId === 'nativeSessions.list'),
-  {
-    authMode: 'user',
-    method: 'GET',
-    openApiPath: '/app/v3/api/native_sessions',
-    operationId: 'nativeSessions.list',
-    path: '/app/v3/api/native_sessions',
-    surface: 'app',
-    summary: 'List discovered native engine sessions',
-  },
-);
-assert.deepEqual(
-  routeCatalog.find((route) => route.operationId === 'nativeSessions.retrieve'),
-  {
-    authMode: 'user',
-    method: 'GET',
-    openApiPath: '/app/v3/api/native_sessions/{id}',
-    operationId: 'nativeSessions.retrieve',
-    path: '/app/v3/api/native_sessions/:id',
-    surface: 'app',
-    summary: 'Get discovered native engine session detail',
-  },
+assert.equal(
+  routeCatalog.some((route) => /^nativeSessions\.(?:list|retrieve)$/u.test(route.operationId)),
+  false,
+  'The public route catalog must expose coding sessions as the only session authority.',
 );
 assert.deepEqual(
   routeCatalog.find((route) => route.operationId === 'codingSessions.update'),

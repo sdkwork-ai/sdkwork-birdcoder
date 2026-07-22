@@ -3,7 +3,7 @@ use std::sync::Arc;
 use crate::api::paths::app_path;
 use crate::api::paths::append_query_string;
 use crate::http::{SdkworkError, SdkworkHttpClient};
-use crate::models::{BirdCoderIamOrganizationMemberSummaryListEnvelope, BirdCoderIamOrganizationSummaryListEnvelope, BirdCoderIamUserProfileEnvelope, BirdCoderIamUserRoleSummaryListEnvelope, BirdCoderUpdateCurrentUserProfileRequest, BirdCoderUpsertWorkspaceMemberRequest, BirdCoderWorkspaceMemberSummaryEnvelope, BirdCoderWorkspaceMemberSummaryListEnvelope};
+use crate::models::{BirdCoderIamUserProfileSummary, BirdCoderUpdateCurrentUserProfileRequest, BirdCoderUpsertWorkspaceMemberRequest, BirdCoderWorkspaceMemberSummary};
 
 #[derive(Clone)]
 pub struct IamApi {
@@ -16,25 +16,25 @@ impl IamApi {
     }
 
     /// Get current SDKWork IAM user
-    pub async fn users_current_retrieve(&self) -> Result<BirdCoderIamUserProfileEnvelope, SdkworkError> {
+    pub async fn users_current_retrieve(&self) -> Result<BirdCoderIamUserProfileSummary, SdkworkError> {
         let path = app_path(&"/iam/users/current".to_string());
         self.client.get(&path, None, None).await
     }
 
     /// Update current SDKWork IAM user profile
-    pub async fn users_current_update(&self, body: &BirdCoderUpdateCurrentUserProfileRequest) -> Result<BirdCoderIamUserProfileEnvelope, SdkworkError> {
+    pub async fn users_current_update(&self, body: &BirdCoderUpdateCurrentUserProfileRequest) -> Result<BirdCoderIamUserProfileSummary, SdkworkError> {
         let path = app_path(&"/iam/users/current".to_string());
         self.client.patch(&path, Some(body), None, None, Some("application/json")).await
     }
 
     /// Upsert workspace member
-    pub async fn workspaces_members_create(&self, workspace_id: &str, body: &BirdCoderUpsertWorkspaceMemberRequest) -> Result<BirdCoderWorkspaceMemberSummaryEnvelope, SdkworkError> {
+    pub async fn workspaces_members_create(&self, workspace_id: &str, body: &BirdCoderUpsertWorkspaceMemberRequest) -> Result<BirdCoderWorkspaceMemberSummary, SdkworkError> {
         let path = app_path(&format!("/workspaces/{}/members", serialize_path_parameter(workspace_id, PathParameterSpec::new("workspaceId", "simple", false))));
         self.client.post(&path, Some(body), None, None, Some("application/json")).await
     }
 
     /// List workspace members
-    pub async fn workspaces_members_list(&self, workspace_id: &str, page: Option<i64>, page_size: Option<i64>) -> Result<BirdCoderWorkspaceMemberSummaryListEnvelope, SdkworkError> {
+    pub async fn workspaces_members_list(&self, workspace_id: &str, page: Option<i64>, page_size: Option<i64>) -> Result<serde_json::Value, SdkworkError> {
         let query = build_query_string(&[
             QueryParameterSpec::new("page", page, "form", true, false, None),
             QueryParameterSpec::new("page_size", page_size, "form", true, false, None),
@@ -44,25 +44,25 @@ impl IamApi {
     }
 
     /// List SDKWork IAM organizations
-    pub async fn organizations_list(&self) -> Result<BirdCoderIamOrganizationSummaryListEnvelope, SdkworkError> {
+    pub async fn organizations_list(&self) -> Result<serde_json::Value, SdkworkError> {
         let path = app_path(&"/iam/organizations".to_string());
         self.client.get(&path, None, None).await
     }
 
     /// Get SDKWork IAM organization tree
-    pub async fn organizations_tree_retrieve(&self) -> Result<BirdCoderIamOrganizationSummaryListEnvelope, SdkworkError> {
+    pub async fn organizations_tree_retrieve(&self) -> Result<serde_json::Value, SdkworkError> {
         let path = app_path(&"/iam/organizations/tree".to_string());
         self.client.get(&path, None, None).await
     }
 
     /// List SDKWork IAM organization memberships
-    pub async fn organization_memberships_list(&self) -> Result<BirdCoderIamOrganizationMemberSummaryListEnvelope, SdkworkError> {
+    pub async fn organization_memberships_list(&self) -> Result<serde_json::Value, SdkworkError> {
         let path = app_path(&"/iam/organization_memberships".to_string());
         self.client.get(&path, None, None).await
     }
 
     /// List SDKWork IAM user role bindings
-    pub async fn role_bindings_list(&self) -> Result<BirdCoderIamUserRoleSummaryListEnvelope, SdkworkError> {
+    pub async fn role_bindings_list(&self) -> Result<serde_json::Value, SdkworkError> {
         let path = app_path(&"/iam/role_bindings".to_string());
         self.client.get(&path, None, None).await
     }

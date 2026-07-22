@@ -5,8 +5,8 @@ import {
   BootstrapGate,
   bootstrapShellRuntime,
   publishBirdCoderBootstrapProgress,
-  publishBirdCoderEmbeddedSdkRuntimeEnv,
-  readDesktopEmbeddedRuntimeConfig,
+  publishBirdCoderDesktopSdkRuntimeEnv,
+  readDesktopRuntimeConfig,
   waitForBirdCoderApiReady,
 } from '@sdkwork/birdcoder-pc-shell-runtime';
 import { hydrateBirdCoderDesktopAppSessionPersistence } from '@sdkwork/birdcoder-pc-infrastructure/bootstrap/appSessionPersistenceBinding';
@@ -16,17 +16,21 @@ async function bootstrapRuntime() {
   publishBirdCoderBootstrapProgress({ progress: 18, stage: 'runtime' });
   await hydrateBirdCoderDesktopAppSessionPersistence();
   publishBirdCoderBootstrapProgress({ progress: 28, stage: 'runtime' });
-  const { apiBaseUrl } = await readDesktopEmbeddedRuntimeConfig();
-  publishBirdCoderEmbeddedSdkRuntimeEnv(apiBaseUrl);
+  const runtimeConfig = await readDesktopRuntimeConfig();
+  const { apiBaseUrl } = runtimeConfig;
+  publishBirdCoderDesktopSdkRuntimeEnv(runtimeConfig);
   publishBirdCoderBootstrapProgress({ progress: 36, stage: 'runtime' });
   await waitForBirdCoderApiReady(apiBaseUrl, {
     runtimeTarget: 'desktop',
   });
   publishBirdCoderBootstrapProgress({ progress: 52, stage: 'runtime' });
   await bootstrapShellRuntime({
+    deploymentProfile: runtimeConfig.deploymentProfile,
+    executionLocation: runtimeConfig.executionLocation,
     host: resolveDesktopRuntime('global', {
       apiBaseUrl,
     }),
+    runtimeTarget: runtimeConfig.runtimeTarget,
   });
   publishBirdCoderBootstrapProgress({ progress: 62, stage: 'runtime' });
 }

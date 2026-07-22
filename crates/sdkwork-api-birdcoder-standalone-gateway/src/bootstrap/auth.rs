@@ -7,6 +7,9 @@ use sdkwork_iam_web_adapter::{
     allows_dev_authentication_fallback, build_web_framework_layer,
     iam_web_request_context_resolver_from_env, IamAuthorizationPolicy,
 };
+use sdkwork_routes_workspace_app_api::{
+    realtime_config::redis_enabled_from_env, resolve_redis_config,
+};
 use sdkwork_web_axum::with_web_request_context;
 use sdkwork_web_core::{
     AuthorizationPolicy, CorsPolicy, HttpMetricsRegistry, RateLimitPolicy, SecurityPolicy,
@@ -44,6 +47,18 @@ pub async fn build_protected_app_router(
         .with_security_policy(build_security_policy(config))
         .with_authorization_policy(authorization_policy)
         .with_metrics(metrics);
+    let layer = if redis_enabled_from_env() {
+        let redis_config = resolve_redis_config()
+            .map_err(|error| format!("resolve Redis rate-limit configuration failed: {error}"))?;
+        let rate_limit_store = sdkwork_web_bootstrap::shared_rate_limit_store(
+            redis_config.url,
+            format!("{}:http", redis_config.key_prefix),
+        )
+        .map_err(|error| format!("initialize Redis rate-limit store failed: {error}"))?;
+        layer.with_rate_limit_store(rate_limit_store)
+    } else {
+        layer
+    };
 
     Ok(with_web_request_context(router, layer))
 }

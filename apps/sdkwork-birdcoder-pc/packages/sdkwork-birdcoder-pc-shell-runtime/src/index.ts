@@ -36,8 +36,12 @@ export {
 } from './application/bootstrap/bootstrapServerApiReady';
 export {
   isBirdCoderDesktopTauriRuntime,
+  publishBirdCoderDesktopSdkRuntimeEnv,
   publishBirdCoderEmbeddedSdkRuntimeEnv,
   publishBirdCoderRuntimeEnvPatch,
   readDesktopEmbeddedRuntimeConfig,
+  readDesktopRuntimeConfig,
   type DesktopEmbeddedRuntimeConfig,
+  type DesktopRuntimeConfig,
+  type ReadDesktopRuntimeConfigOptions,
 } from './application/bootstrap/bootstrapDesktopRuntime';

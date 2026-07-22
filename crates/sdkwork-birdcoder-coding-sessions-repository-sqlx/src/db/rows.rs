@@ -315,7 +315,7 @@ impl CheckpointRow {
             coding_session_id: row.try_get("coding_session_id")?,
             runtime_id: row.try_get("runtime_id")?,
             checkpoint_kind: row.try_get("checkpoint_kind")?,
-            resumable: row.try_get("resumable")?,
+            resumable: row_get_bool_as_i64(row, "resumable")?,
             state_json: row.try_get("state_json")?,
         })
     }

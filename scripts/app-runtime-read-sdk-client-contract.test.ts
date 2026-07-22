@@ -13,7 +13,17 @@ function createResourceEnvelope<TData>(data: TData, traceId: string) {
   };
 }
 
-function createListEnvelope<TItem>(items: readonly TItem[], traceId: string) {
+function createListEnvelope<TItem>(
+  items: readonly TItem[],
+  traceId: string,
+  pageInfo: Partial<{
+    hasMore: boolean;
+    page: number;
+    pageSize: number;
+    totalItems: string;
+    totalPages: number;
+  }> = {},
+) {
   return {
     code: 0 as const,
     traceId,
@@ -21,9 +31,12 @@ function createListEnvelope<TItem>(items: readonly TItem[], traceId: string) {
       items: [...items],
       pageInfo: {
         mode: 'offset' as const,
+        hasMore: false,
         page: 1,
         pageSize: items.length,
         totalItems: String(items.length),
+        totalPages: items.length > 0 ? 1 : 0,
+        ...pageInfo,
       },
     },
   };
@@ -220,67 +233,50 @@ const client = createBirdCoderAppSdkApiClient({
                 hostMode: 'server',
                 engineId: 'codex',
                 modelId: 'gpt-5-codex',
+                nativeSessionId: 'codex-native:session-generated-contract',
+                runtimeLocationId: 'runtime-location-generated-contract',
                 updatedAt: '2026-04-17T00:05:00.000Z',
                 lastTurnAt: '2026-04-17T00:05:00.000Z',
               },
             ],
             'req.app.coding-sessions',
           ) as TResponse;
-        case '/app/v3/api/native_sessions':
+        case '/app/v3/api/intelligence/coding_sessions/coding-session-generated-contract':
+          return createResourceEnvelope(
+            {
+              createdAt: '2026-04-17T00:00:00.000Z',
+              id: 'coding-session-generated-contract',
+              workspaceId: 'workspace-generated-contract',
+              projectId: 'project-generated-contract',
+              title: 'Generated coding session',
+              status: 'active',
+              hostMode: 'server',
+              engineId: 'codex',
+              modelId: 'gpt-5-codex',
+              nativeSessionId: 'codex-native:session-generated-contract',
+              runtimeLocationId: 'runtime-location-generated-contract',
+              updatedAt: '2026-04-17T00:05:00.000Z',
+              lastTurnAt: '2026-04-17T00:05:00.000Z',
+            },
+            'req.app.coding-session',
+          ) as TResponse;
+        case '/app/v3/api/intelligence/coding_sessions/coding-session-generated-contract/events':
           return createListEnvelope(
             [
               {
-                createdAt: '2026-04-17T00:00:00.000Z',
-                id: 'session-generated-contract',
-                workspaceId: 'workspace-generated-contract',
-                projectId: 'project-generated-contract',
-                title: 'Generated native session',
-                status: 'active',
-                hostMode: 'server',
-                engineId: 'codex',
-                modelId: 'gpt-5-codex',
-                updatedAt: '2026-04-17T00:05:00.000Z',
-                lastTurnAt: '2026-04-17T00:05:00.000Z',
-                kind: 'coding',
-                runtimeLocationId: 'runtime-location-generated-contract',
-                sortTimestamp: '1713312300000',
-                transcriptUpdatedAt: '2026-04-17T00:05:00.000Z',
+                id: 'event-generated-contract',
+                codingSessionId: 'coding-session-generated-contract',
+                kind: 'message.completed',
+                sequence: '1',
+                payload: {
+                  content: 'Generated provider-backed session message.',
+                  role: 'assistant',
+                },
+                createdAt: '2026-04-17T00:05:00.000Z',
               },
             ],
-            'req.app.native-sessions',
-          ) as TResponse;
-        case '/app/v3/api/native_sessions/session-generated-contract':
-          return createResourceEnvelope(
-            {
-              summary: {
-                createdAt: '2026-04-17T00:00:00.000Z',
-                id: 'session-generated-contract',
-                workspaceId: 'workspace-generated-contract',
-                projectId: 'project-generated-contract',
-                title: 'Generated native session',
-                status: 'active',
-                hostMode: 'server',
-                engineId: 'codex',
-                modelId: 'gpt-5-codex',
-                updatedAt: '2026-04-17T00:05:00.000Z',
-                lastTurnAt: '2026-04-17T00:05:00.000Z',
-                kind: 'coding',
-                runtimeLocationId: 'runtime-location-generated-contract',
-                sortTimestamp: '1713312300000',
-                transcriptUpdatedAt: '2026-04-17T00:05:00.000Z',
-              },
-              messages: [
-                {
-                  id: 'native-message-generated-contract',
-                  codingSessionId: 'session-generated-contract',
-                  turnId: 'native-turn-generated-contract',
-                  role: 'assistant',
-                  content: 'Generated native session message.',
-                  createdAt: '2026-04-17T00:05:00.000Z',
-                },
-              ],
-            },
-            'req.app.native-session',
+            'req.app.coding-session-events',
+            { pageSize: 200 },
           ) as TResponse;
         case '/app/v3/api/operations/op-app-runtime-read':
           return createResourceEnvelope(
@@ -313,20 +309,13 @@ const codingSessions = await client.listCodingSessions({
   limit: 20,
   offset: 0,
   projectId: 'project-generated-contract',
-  workspaceId: 'workspace-generated-contract',
-});
-const nativeSessions = await client.listNativeSessions({
-  engineId: 'codex',
-  projectId: 'project-generated-contract',
   runtimeLocationId: 'runtime-location-generated-contract',
   workspaceId: 'workspace-generated-contract',
 });
-const nativeSession = await client.getNativeSession('session-generated-contract', {
-  engineId: 'codex',
-  projectId: 'project-generated-contract',
-  runtimeLocationId: 'runtime-location-generated-contract',
-  workspaceId: 'workspace-generated-contract',
-});
+const codingSession = await client.getCodingSession('coding-session-generated-contract');
+const codingSessionEvents = await client.listCodingSessionEvents(
+  'coding-session-generated-contract',
+);
 const operation = await client.getOperation('op-app-runtime-read');
 
 assert.equal(descriptor.moduleId, 'coding-server');
@@ -339,8 +328,9 @@ assert.equal(models[0]?.modelId, 'codex');
 assert.equal(nativeSessionProviders[0]?.engineId, 'codex');
 assert.equal(routes[0]?.operationId, 'routes.list');
 assert.equal(codingSessions[0]?.id, 'coding-session-generated-contract');
-assert.equal(nativeSessions[0]?.id, 'session-generated-contract');
-assert.equal(nativeSession.summary.id, 'session-generated-contract');
+assert.equal(codingSessions[0]?.nativeSessionId, 'codex-native:session-generated-contract');
+assert.equal(codingSession.id, 'coding-session-generated-contract');
+assert.equal(codingSessionEvents[0]?.codingSessionId, 'coding-session-generated-contract');
 assert.equal(operation.operationId, 'op-app-runtime-read');
 assert.deepEqual(observedRequests, [
   {
@@ -383,28 +373,20 @@ assert.deepEqual(observedRequests, [
       page: 1,
       page_size: 20,
       projectId: 'project-generated-contract',
-      workspaceId: 'workspace-generated-contract',
-    },
-  },
-  {
-    method: 'GET',
-    path: '/app/v3/api/native_sessions',
-    query: {
-      engineId: 'codex',
-      page_size: 20,
-      projectId: 'project-generated-contract',
       runtimeLocationId: 'runtime-location-generated-contract',
       workspaceId: 'workspace-generated-contract',
     },
   },
   {
     method: 'GET',
-    path: '/app/v3/api/native_sessions/session-generated-contract',
+    path: '/app/v3/api/intelligence/coding_sessions/coding-session-generated-contract',
+  },
+  {
+    method: 'GET',
+    path: '/app/v3/api/intelligence/coding_sessions/coding-session-generated-contract/events',
     query: {
-      engineId: 'codex',
-      projectId: 'project-generated-contract',
-      runtimeLocationId: 'runtime-location-generated-contract',
-      workspaceId: 'workspace-generated-contract',
+      page: 1,
+      page_size: 200,
     },
   },
   {

@@ -425,68 +425,6 @@ export interface BirdCoderRemoveProjectGitWorktreeRequest {
   worktreeKey: string;
 }
 
-export interface BirdCoderSkillCatalogEntrySummary {
-  id: string;
-  packageId: string;
-  slug: string;
-  name: string;
-  description: string;
-  icon?: string;
-  author?: string;
-  versionId: string;
-  versionLabel: string;
-  installCount?: BirdCoderLongIntegerString;
-  longDescription?: string;
-  tags: string[];
-  license?: string;
-  repositoryUrl?: string;
-  lastUpdated?: string;
-  readme?: string;
-  capabilityKeys: string[];
-  installed: boolean;
-}
-
-export interface BirdCoderSkillPackageSummary {
-  id: string;
-  uuid?: string;
-  tenantId?: string;
-  organizationId?: string;
-  createdAt?: string;
-  updatedAt?: string;
-  slug: string;
-  name: string;
-  description: string;
-  icon?: string;
-  author?: string;
-  versionId: string;
-  versionLabel: string;
-  installCount?: BirdCoderLongIntegerString;
-  longDescription?: string;
-  sourceUri?: string;
-  installed: boolean;
-  skills: BirdCoderSkillCatalogEntrySummary[];
-}
-
-export interface BirdCoderInstallSkillPackageRequest {
-  scopeId: string;
-  scopeType: 'workspace' | 'project';
-}
-
-export interface BirdCoderSkillInstallationSummary {
-  id: string;
-  uuid?: string;
-  tenantId?: string;
-  organizationId?: string;
-  createdAt?: string;
-  updatedAt?: string;
-  packageId: string;
-  scopeId: string;
-  scopeType: 'workspace' | 'project';
-  status: 'active' | 'archived' | (string & {});
-  versionId: string;
-  installedAt: string;
-}
-
 export interface BirdCoderAppTemplateSummary {
   id: string;
   uuid?: string;
@@ -977,46 +915,6 @@ export interface BirdCoderCoreRuntimeSummary {
   configFileName: string;
 }
 
-export interface BirdCoderNativeSessionCommand {
-  command: string;
-  status: 'running' | 'success' | 'error';
-  output?: string;
-  kind?: 'approval' | 'command' | 'file_change' | 'task' | 'tool' | 'user_question';
-  toolName?: string;
-  toolCallId?: string;
-  runtimeStatus?: BirdCoderCodingSessionRuntimeStatus;
-  requiresApproval?: boolean;
-  requiresReply?: boolean;
-}
-
-export interface BirdCoderNativeSessionMessage {
-  id: string;
-  codingSessionId: string;
-  turnId?: string;
-  role: BirdCoderCodingSessionMessage['role'];
-  content: string;
-  commands?: BirdCoderNativeSessionCommand[];
-  tool_calls?: unknown[];
-  tool_call_id?: string;
-  fileChanges?: readonly unknown[];
-  reasoning?: readonly BirdCoderChatMessageReasoningItem[];
-  resources?: readonly BirdCoderChatMessageResource[];
-  taskProgress?: unknown;
-  metadata?: Record<string, string>;
-  createdAt: string;
-}
-
-export interface BirdCoderNativeSessionSummary extends BirdCoderCodingSessionSummary {
-  kind: 'coding';
-  sortTimestamp: BirdCoderLongIntegerString;
-  transcriptUpdatedAt?: string | null;
-}
-
-export interface BirdCoderNativeSessionDetail {
-  summary: BirdCoderNativeSessionSummary;
-  messages: BirdCoderNativeSessionMessage[];
-}
-
 export type BirdCoderNativeSessionProviderDiscoveryMode =
   | 'explicit-only'
   | 'passive-global';
@@ -1029,15 +927,6 @@ export interface BirdCoderNativeSessionProviderSummary {
   discoveryMode: BirdCoderNativeSessionProviderDiscoveryMode;
 }
 
-export interface BirdCoderListNativeSessionsRequest {
-  engineId?: BirdCoderCodeEngineKey;
-  limit?: number;
-  offset?: number;
-  projectId: string;
-  runtimeLocationId: string;
-  workspaceId: string;
-}
-
 export interface BirdCoderListCodingSessionsRequest {
   engineId?: BirdCoderCodeEngineKey;
   limit?: number;
@@ -1045,13 +934,6 @@ export interface BirdCoderListCodingSessionsRequest {
   projectId?: string;
   runtimeLocationId?: string;
   workspaceId?: string;
-}
-
-export interface BirdCoderGetNativeSessionRequest {
-  engineId?: BirdCoderCodeEngineKey;
-  projectId: string;
-  runtimeLocationId: string;
-  workspaceId: string;
 }
 
 export interface BirdCoderCreateCodingSessionRequest {
@@ -1144,9 +1026,7 @@ export interface BirdCoderAppRuntimeApiContract {
   health: BirdCoderApiRouteDefinition;
   modelConfig: BirdCoderApiRouteDefinition;
   models: BirdCoderApiRouteDefinition;
-  nativeSession: BirdCoderApiRouteDefinition;
   nativeSessionProviders: BirdCoderApiRouteDefinition;
-  nativeSessions: BirdCoderApiRouteDefinition;
   operations: BirdCoderApiRouteDefinition;
   approvals: BirdCoderApiRouteDefinition;
   questions: BirdCoderApiRouteDefinition;
@@ -1188,7 +1068,6 @@ export interface BirdCoderAppApiModel {
   projectCollaborators: BirdCoderProjectCollaboratorSummary[];
   projectGitOverview?: BirdCoderProjectGitOverview;
   projects: BirdCoderProjectSummary[];
-  skillPackages: BirdCoderSkillPackageSummary[];
   teams: BirdCoderTeamSummary[];
   workspaceMembers: BirdCoderWorkspaceMemberSummary[];
   workspaceProjects: Record<string, BirdCoderProjectSummary[]>;

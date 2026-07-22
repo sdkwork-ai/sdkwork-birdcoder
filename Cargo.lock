@@ -5827,6 +5827,7 @@ dependencies = [
  "sdkwork-birdcoder-workspace-repository-sqlx",
  "sdkwork-birdcoder-workspace-service",
  "sdkwork-database-config",
+ "sdkwork-database-id",
  "sdkwork-database-sqlx",
  "sdkwork-iam-context-service",
  "sdkwork-iam-database-host",
@@ -5901,6 +5902,7 @@ dependencies = [
  "sdkwork-birdcoder-workspace-repository-sqlx",
  "sdkwork-birdcoder-workspace-service",
  "sdkwork-database-config",
+ "sdkwork-database-id",
  "sdkwork-database-sqlx",
  "sdkwork-iam-context-service",
  "sdkwork-iam-database-host",
@@ -5934,6 +5936,7 @@ name = "sdkwork-api-drive-assembly"
 version = "0.1.0"
 dependencies = [
  "axum 0.8.9",
+ "sdkwork-database-sqlx",
  "sdkwork-drive-config",
  "sdkwork-drive-http",
  "sdkwork-drive-security",
@@ -5952,6 +5955,7 @@ name = "sdkwork-api-membership-assembly"
 version = "0.1.0"
 dependencies = [
  "axum 0.8.9",
+ "sdkwork-database-sqlx",
  "sdkwork-membership-service-host",
  "sdkwork-routes-membership-app-api",
  "sdkwork-routes-membership-backend-api",
@@ -6044,6 +6048,7 @@ name = "sdkwork-birdcoder-coding-sessions-service"
 version = "0.1.0"
 dependencies = [
  "async-trait",
+ "sdkwork-birdcoder-native-sessions-service",
  "sdkwork-utils-rust",
  "serde",
  "serde_json",
@@ -6091,6 +6096,7 @@ version = "0.1.0"
 dependencies = [
  "dotenvy",
  "sdkwork-database-config",
+ "sdkwork-database-id",
  "sdkwork-database-lifecycle",
  "sdkwork-database-spi",
  "sdkwork-database-sqlx",
@@ -6184,6 +6190,7 @@ dependencies = [
 name = "sdkwork-birdcoder-native-sessions-service"
 version = "0.1.0"
 dependencies = [
+ "sdkwork-birdcoder-codeengine",
  "serde",
  "serde_json",
 ]
@@ -6201,17 +6208,23 @@ dependencies = [
 ]
 
 [[package]]
+name = "sdkwork-birdcoder-pc-server-host-shim"
+version = "0.1.0"
+dependencies = [
+ "sdkwork-api-birdcoder-standalone-gateway",
+ "tokio",
+ "tracing-subscriber",
+]
+
+[[package]]
 name = "sdkwork-birdcoder-project-service"
 version = "0.1.0"
 dependencies = [
  "async-trait",
- "hex",
  "sdkwork-utils-rust",
  "serde",
  "serde_json",
- "sha2 0.10.9",
  "tokio",
- "uuid",
 ]
 
 [[package]]
@@ -6317,6 +6330,8 @@ dependencies = [
  "sdkwork-birdcoder-project-service",
  "sdkwork-birdcoder-sqlx-repository-pool",
  "sdkwork-birdcoder-workspace-service",
+ "sdkwork-database-id",
+ "sdkwork-database-sqlx",
  "sdkwork-utils-rust",
  "serde",
  "serde_json",
@@ -6894,12 +6909,10 @@ version = "0.1.0"
 dependencies = [
  "async-trait",
  "axum 0.8.9",
- "sdkwork-birdcoder-codeengine",
  "sdkwork-birdcoder-coding-sessions-repository-sqlx",
  "sdkwork-birdcoder-coding-sessions-service",
  "sdkwork-birdcoder-commerce-quota",
  "sdkwork-birdcoder-errors",
- "sdkwork-birdcoder-project-service",
  "sdkwork-birdcoder-router-context",
  "sdkwork-birdcoder-workspace-repository-sqlx",
  "sdkwork-database-config",
@@ -7093,11 +7106,8 @@ version = "0.1.0"
 dependencies = [
  "axum 0.8.9",
  "sdkwork-birdcoder-codeengine",
- "sdkwork-birdcoder-coding-sessions-service",
  "sdkwork-birdcoder-engine-catalog-service",
  "sdkwork-birdcoder-errors",
- "sdkwork-birdcoder-native-sessions-service",
- "sdkwork-birdcoder-project-service",
  "sdkwork-birdcoder-router-context",
  "sdkwork-utils-rust",
  "sdkwork-web-contract",
@@ -7440,9 +7450,11 @@ dependencies = [
  "opentelemetry 0.27.1",
  "opentelemetry-otlp 0.27.0",
  "opentelemetry_sdk 0.27.1",
+ "redis 0.27.6",
  "sdkwork-web-axum",
  "sdkwork-web-contract",
  "sdkwork-web-core",
+ "sdkwork-web-store-redis",
  "sdkwork-web-store-sqlx",
  "serde",
  "serde_json",

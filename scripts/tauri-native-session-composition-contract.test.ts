@@ -3,12 +3,12 @@ import fs from 'node:fs';
 
 import { ApiBackedAppRuntimeReadService } from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/src/services/impl/ApiBackedAppRuntimeReadService.ts';
 import type {
-  BirdCoderNativeSessionDetail,
-  BirdCoderNativeSessionSummary,
+  BirdCoderCodingSessionEvent,
+  BirdCoderCodingSessionSummary,
 } from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-contracts-commons/src/index.ts';
 
-const nativeSummary: BirdCoderNativeSessionSummary = {
-  id: 'codex-native:thread-1',
+const codingSessionSummary: BirdCoderCodingSessionSummary = {
+  id: 'birdcoder-session-1',
   workspaceId: 'workspace-1',
   projectId: 'project-1',
   runtimeLocationId: 'runtime-location-1',
@@ -24,14 +24,10 @@ const nativeSummary: BirdCoderNativeSessionSummary = {
   lastTurnAt: '2026-07-15T00:01:00.000Z',
   transcriptUpdatedAt: '2026-07-15T00:01:00.000Z',
   sortTimestamp: '1752537660000',
-  kind: 'coding',
 };
-const nativeDetail: BirdCoderNativeSessionDetail = {
-  summary: nativeSummary,
-  messages: [],
-};
-const nativePage = {
-  items: [nativeSummary],
+const codingSessionEvents: BirdCoderCodingSessionEvent[] = [];
+const codingSessionPage = {
+  items: [codingSessionSummary],
   pageInfo: {
     hasMore: false,
     mode: 'offset' as const,
@@ -43,19 +39,23 @@ const nativePage = {
 };
 
 let remoteListCalls = 0;
-let remoteGetCalls = 0;
+let remoteDetailCalls = 0;
 const remoteClient = {
-  async getNativeSession() {
-    remoteGetCalls += 1;
-    return nativeDetail;
+  async getCodingSession() {
+    remoteDetailCalls += 1;
+    return codingSessionSummary;
   },
-  async listNativeSessions() {
-    remoteListCalls += 1;
-    return [nativeSummary];
+  async listCodingSessionEvents() {
+    remoteDetailCalls += 1;
+    return codingSessionEvents;
   },
-  async listNativeSessionPage() {
+  async listCodingSessions() {
     remoteListCalls += 1;
-    return nativePage;
+    return [codingSessionSummary];
+  },
+  async listCodingSessionPage() {
+    remoteListCalls += 1;
+    return codingSessionPage;
   },
 } as never;
 
@@ -65,11 +65,18 @@ const request = {
   workspaceId: 'workspace-1',
 };
 const appApiService = new ApiBackedAppRuntimeReadService({ client: remoteClient });
-assert.deepEqual(await appApiService.listNativeSessions(request), [nativeSummary]);
-assert.deepEqual(await appApiService.listNativeSessionPage(request), nativePage);
-assert.deepEqual(await appApiService.getNativeSession(nativeSummary.id, request), nativeDetail);
-assert.equal(remoteListCalls, 2, 'native inventory must be served only by the App SDK client');
-assert.equal(remoteGetCalls, 1, 'native session detail must be served only by the App SDK client');
+assert.deepEqual(await appApiService.listCodingSessions(request), [codingSessionSummary]);
+assert.deepEqual(await appApiService.listCodingSessionPage(request), codingSessionPage);
+assert.deepEqual(
+  await appApiService.getCodingSession(codingSessionSummary.id),
+  codingSessionSummary,
+);
+assert.deepEqual(
+  await appApiService.listCodingSessionEvents(codingSessionSummary.id),
+  codingSessionEvents,
+);
+assert.equal(remoteListCalls, 2, 'session inventory must be served only by the App SDK client');
+assert.equal(remoteDetailCalls, 2, 'session detail and events must use the unified App SDK client');
 
 const desktopEntrySource = fs.readFileSync(
   new URL(
@@ -152,8 +159,13 @@ assert.equal(
 );
 assert.match(
   pcArchitectureSource,
-  /authenticated\s+BirdCoder App API/u,
-  'PC architecture documentation must describe the authenticated App API authorization boundary.',
+  /The App API resolves a server-owned[\s\S]*authorization succeeds\./u,
+  'PC architecture documentation must require project execution-root authorization at the App API boundary.',
+);
+assert.match(
+  pcArchitectureSource,
+  /When the server has no[\s\S]*provider discovery fails closed/u,
+  'PC architecture documentation must fail closed when no authorized project execution root exists.',
 );
 assert.match(
   infrastructureComponentSpecSource,
@@ -171,4 +183,4 @@ assert.equal(
   'The retired path-based Tauri native session adapter must not remain in the source tree.',
 );
 
-console.log('tauri native session authorization contract passed');
+console.log('tauri coding session authority contract passed');

@@ -1,5 +1,3 @@
-use std::sync::Arc;
-
 use sdkwork_database_config::{DatabaseConfig, DatabaseEngine};
 use sdkwork_database_sqlx::{create_pool_from_config, DatabasePool};
 use sqlx::SqlitePool;
@@ -18,7 +16,7 @@ pub fn resolve_birdcoder_database_config(
     };
 
     if engine == DatabaseEngine::Postgres {
-        return DatabaseConfig::from_env("BIRDCODER");
+        return DatabaseConfig::from_env("CLAW");
     }
 
     Ok(DatabaseConfig {
@@ -30,7 +28,7 @@ pub fn resolve_birdcoder_database_config(
 
 pub async fn bootstrap_database(
     config: &BirdServerConfig,
-) -> Result<Arc<DatabasePool>, Box<dyn std::error::Error>> {
+) -> Result<sdkwork_birdcoder_database_host::BirdcoderDatabaseHost, Box<dyn std::error::Error>> {
     let db_config = resolve_birdcoder_database_config(config)?;
     if db_config.engine == DatabaseEngine::Sqlite {
         if let Some(parent) = config.sqlite_file.parent() {
@@ -45,12 +43,12 @@ pub async fn bootstrap_database(
         upgrade_legacy_sqlite_schema(&sqlite).await?;
     }
 
-    sdkwork_birdcoder_database_host::bootstrap_birdcoder_database(pool.clone())
+    let host = sdkwork_birdcoder_database_host::bootstrap_birdcoder_database(pool)
         .await
         .map_err(|error| -> Box<dyn std::error::Error> { error.into() })?;
 
     tracing::info!("sdkwork-database pool ready for BIRDCODER");
-    Ok(Arc::new(pool))
+    Ok(host)
 }
 
 pub fn require_sqlite_pool(pool: &DatabasePool) -> Result<SqlitePool, String> {

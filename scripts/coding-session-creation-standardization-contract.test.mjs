@@ -11,11 +11,8 @@ function readSource(...segments) {
 
 const codingSessionCreationSource = readSource(
   'apps',
-  
   'sdkwork-birdcoder-pc',
-  
   'packages',
-  
   'sdkwork-birdcoder-pc-workbench',
   'src',
   'workbench',
@@ -23,11 +20,8 @@ const codingSessionCreationSource = readSource(
 );
 const codingSessionActionsSource = readSource(
   'apps',
-  
   'sdkwork-birdcoder-pc',
-  
   'packages',
-  
   'sdkwork-birdcoder-pc-workbench',
   'src',
   'hooks',
@@ -44,11 +38,8 @@ const projectsHookSource = readSource(
 );
 const codePageSource = readSource(
   'apps',
-  
   'sdkwork-birdcoder-pc',
-  
   'packages',
-  
   'sdkwork-birdcoder-pc-code',
   'src',
   'pages',
@@ -56,11 +47,8 @@ const codePageSource = readSource(
 );
 const studioPageSource = readSource(
   'apps',
-  
   'sdkwork-birdcoder-pc',
-  
   'packages',
-  
   'sdkwork-birdcoder-pc-studio',
   'src',
   'pages',
@@ -111,8 +99,8 @@ assert.match(
 
 assert.match(
   projectsHookSource,
-  /const runtimeLocationResolution = await resolveProjectRuntimeLocation\(projectId, \{[\s\S]*allowFolderSelection: true,[\s\S]*capability: 'terminal',[\s\S]*\}\);[\s\S]*const runtimeLocationId = requireProjectRuntimeLocationExecutionId\([\s\S]*runtimeLocationResolution,[\s\S]*\);/,
-  'the central UI session-creation flow must resolve a registered terminal-capable project runtime location before creating a coding session.',
+  /const runtimeLocationId = await resolveProjectRuntimeLocationExecutionId\([\s\S]*projectId,[\s\S]*'terminal',[\s\S]*\{ allowFolderSelection: true \},[\s\S]*\);/,
+  'the central UI session-creation flow must delegate local/remote topology and terminal authorization to the injected runtime-location execution resolver.',
 );
 
 assert.match(
@@ -129,20 +117,26 @@ assert.doesNotMatch(
 
 assert.match(
   codingSessionActionsSource,
-  /type CreateCodingSessionInProjectAction = \([\s\S]*projectId: string,[\s\S]*requestedEngineId\?: string,[\s\S]*requestedModelId\?: string,[\s\S]*\) => Promise<unknown> \| unknown;[\s\S]*createCodingSessionInProject\?: CreateCodingSessionInProjectAction;/,
-  'useCodingSessionActions must allow surfaces to provide their page-level create-session callback so event-driven creation cannot bypass UI orchestration.',
+  /type CreateCodingSessionFromRequestAction = \([\s\S]*request: CreateNewCodingSessionRequest[\s\S]*\) => Promise<unknown> \| unknown;[\s\S]*createCodingSessionFromRequest\?: CreateCodingSessionFromRequestAction;/,
+  'useCodingSessionActions must preserve the typed request when delegating event-driven creation into page-level orchestration.',
 );
 
 assert.match(
   codingSessionActionsSource,
-  /const createCodingSessionInProjectRef = useRef\(createCodingSessionInProject\);/,
+  /const createCodingSessionFromRequestRef = useRef\(createCodingSessionFromRequest\);/,
   'useCodingSessionActions must keep the page-level create-session callback in a ref for stable global event listeners.',
 );
 
 assert.match(
   codingSessionActionsSource,
-  /if \(createCodingSessionInProjectRef\.current\) \{[\s\S]*await createCodingSessionInProjectRef\.current\([\s\S]*targetProjectId,[\s\S]*request\?\.engineId,[\s\S]*request\?\.modelId,[\s\S]*\);[\s\S]*return;[\s\S]*\}/s,
+  /if \(createCodingSessionFromRequestRef\.current\) \{[\s\S]*await createCodingSessionFromRequestRef\.current\(\{[\s\S]*\.\.\.request,[\s\S]*\.\.\.\(targetProjectId \? \{ projectId: targetProjectId \} : \{\}\),[\s\S]*source: request\?\.source \?\? 'global-event',[\s\S]*\}\);[\s\S]*return;[\s\S]*\}[\s\S]*if \(!targetProjectId\) \{/s,
   'useCodingSessionActions must prefer the page-level create-session callback and preserve engine/model selection before falling back to the low-level helper.',
+);
+
+assert.match(
+  codingSessionActionsSource,
+  /createWorkbenchCodingSessionInProject\(\{[\s\S]*title: request\?\.title,/s,
+  'The compatibility fallback must preserve a requested session title.',
 );
 
 assert.match(
@@ -153,19 +147,19 @@ assert.match(
 
 assert.match(
   codePageSource,
-  /useCodingSessionActions\([\s\S]*createCodingSessionInProject:\s*createCodingSessionInProjectWithTranscriptReset/s,
+  /useCodingSessionActions\([\s\S]*createCodingSessionFromRequest:\s*createCodingSessionWithTranscriptReset/s,
   'CodePage create-session event listeners must route through the same transcript-reset callback as its visible new-session controls.',
 );
 
 assert.match(
   studioPageSource,
-  /const createStudioCodingSessionInProject = useCallback\([\s\S]*createCodingSessionInProject\(projectId, engineId, \{ modelId \}\)/s,
+  /const createStudioCodingSessionInProject = useCallback\([\s\S]*createCodingSessionInProject\(projectId, engineId, \{ modelId, source: 'studio' \}\)/s,
   'StudioPage must preserve engine and model selection when adapting the shared UI-facing creation action.',
 );
 
 assert.match(
   studioPageSource,
-  /useCodingSessionActions\([\s\S]*createCodingSessionInProject:\s*createStudioCodingSessionInProject/s,
+  /useCodingSessionActions\([\s\S]*createCodingSessionFromRequest,/s,
   'StudioPage create-session event listeners must route through the shared UI-facing creation action so success, failure, and selection behavior stay standardized.',
 );
 

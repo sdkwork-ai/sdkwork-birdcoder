@@ -148,8 +148,12 @@ assert.deepEqual(
     './components/DeferredRunDialogs',
     './components/DeferredUniversalChat',
     './components/FileExplorer',
+    './components/ProjectGitDiffDialog',
+    './components/ProjectGitHeaderControls',
     './components/ProjectGitOverviewDrawer',
+    './components/ProjectGitSubmitDialog',
     './components/UniversalChat',
+    './components/WorkbenchNewSessionButton',
   ],
   '@sdkwork/birdcoder-pc-ui package exports must expose the root entry plus controlled component subpaths so lazy consumers do not pull the UI barrel.',
 );

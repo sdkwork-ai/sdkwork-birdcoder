@@ -1,4 +1,4 @@
-import { expect, test, type Page } from '@playwright/test';
+import { expect, test, type Page, type Route } from '@playwright/test';
 
 const workspaceId = 'e2e-chat-workspace';
 const projectId = 'e2e-chat-project';
@@ -20,7 +20,10 @@ function createE2eJwt(claims: Record<string, unknown>): string {
   return `${header}.${payload}.signature`;
 }
 
-function offsetPage(items: unknown[]) {
+function offsetPage(route: Route, items: unknown[]) {
+  const requestedPageSize = Number(
+    new URL(route.request().url()).searchParams.get('page_size') ?? 50,
+  );
   return {
     code: 0,
     data: {
@@ -29,7 +32,7 @@ function offsetPage(items: unknown[]) {
         hasMore: false,
         mode: 'offset',
         page: 1,
-        pageSize: 50,
+        pageSize: requestedPageSize,
         totalItems: String(items.length),
         totalPages: items.length > 0 ? 1 : 0,
       },
@@ -60,6 +63,14 @@ function cursorPage(items: unknown[]) {
     },
     traceId: 'chat-message-display-e2e',
   };
+}
+
+async function unloadPageForTeardown(page: Page) {
+  await page.route('**/__birdcoder_e2e_teardown__', (route) => route.fulfill({
+    body: '<!doctype html><title>BirdCoder E2E teardown</title>',
+    contentType: 'text/html',
+  }));
+  await page.goto('/__birdcoder_e2e_teardown__');
 }
 
 function createEvent(
@@ -558,16 +569,16 @@ async function openMessageFixture(page: Page) {
   await page.route('**/app/v3/api/iam/users/current', (route) => route.fulfill({
     json: { code: 0, data: user, traceId: 'chat-message-user' },
   }));
-  await page.route('**/app/v3/api/workspaces?**', (route) => route.fulfill({ json: offsetPage([workspace]) }));
-  await page.route('**/app/v3/api/projects?**', (route) => route.fulfill({ json: offsetPage([project]) }));
+  await page.route('**/app/v3/api/workspaces?**', (route) => route.fulfill({ json: offsetPage(route, [workspace]) }));
+  await page.route('**/app/v3/api/projects?**', (route) => route.fulfill({ json: offsetPage(route, [project]) }));
   await page.route(`**/app/v3/api/projects/${projectId}`, (route) => route.fulfill({ json: itemEnvelope(project) }));
   await page.route(
     `**/app/v3/api/projects/${projectId}/workspace_binding`,
     (route) => route.fulfill({ json: itemEnvelope(workspaceBinding) }),
   );
-  await page.route(`**/app/v3/api/projects/${projectId}/runtime_location_preferences?**`, (route) => route.fulfill({ json: offsetPage([]) }));
+  await page.route(`**/app/v3/api/projects/${projectId}/runtime_location_preferences?**`, (route) => route.fulfill({ json: offsetPage(route, []) }));
   await page.route('**/app/v3/api/drive/sandboxes?**', (route) => route.fulfill({
-    json: offsetPage([{
+    json: offsetPage(route, [{
       id: sandboxId,
       displayName: sandboxDisplayName,
       rootEntryId: sandboxRootEntryId,
@@ -600,7 +611,7 @@ async function openMessageFixture(page: Page) {
     },
   );
   await page.route('**/app/v3/api/intelligence/coding_sessions?**', (route) => route.fulfill({
-    json: offsetPage([codingSession, noticeCodingSession]),
+    json: offsetPage(route, [codingSession, noticeCodingSession]),
   }));
   await page.route(`**/app/v3/api/intelligence/coding_sessions/${codingSessionId}`, (route) => route.fulfill({ json: itemEnvelope(codingSession) }));
   await page.route(
@@ -609,30 +620,28 @@ async function openMessageFixture(page: Page) {
   );
   await page.route(
     new RegExp(`/app/v3/api/intelligence/coding_sessions/${codingSessionId}/events(?:\\?.*)?$`),
-    (route) => route.fulfill({ json: offsetPage(events) }),
+    (route) => route.fulfill({ json: offsetPage(route, events) }),
   );
   await page.route(
     new RegExp(`/app/v3/api/intelligence/coding_sessions/${noticeCodingSessionId}/events(?:\\?.*)?$`),
-    (route) => route.fulfill({ json: offsetPage(noticeEvents) }),
+    (route) => route.fulfill({ json: offsetPage(route, noticeEvents) }),
   );
   await page.route(
     new RegExp(`/app/v3/api/intelligence/coding_sessions/${codingSessionId}/artifacts(?:\\?.*)?$`),
-    (route) => route.fulfill({ json: offsetPage([]) }),
+    (route) => route.fulfill({ json: offsetPage(route, []) }),
   );
   await page.route(
     new RegExp(`/app/v3/api/intelligence/coding_sessions/${noticeCodingSessionId}/artifacts(?:\\?.*)?$`),
-    (route) => route.fulfill({ json: offsetPage([]) }),
+    (route) => route.fulfill({ json: offsetPage(route, []) }),
   );
   await page.route(
     new RegExp(`/app/v3/api/intelligence/coding_sessions/${codingSessionId}/checkpoints(?:\\?.*)?$`),
-    (route) => route.fulfill({ json: offsetPage([]) }),
+    (route) => route.fulfill({ json: offsetPage(route, []) }),
   );
   await page.route(
     new RegExp(`/app/v3/api/intelligence/coding_sessions/${noticeCodingSessionId}/checkpoints(?:\\?.*)?$`),
-    (route) => route.fulfill({ json: offsetPage([]) }),
+    (route) => route.fulfill({ json: offsetPage(route, []) }),
   );
-  await page.route('**/app/v3/api/native_sessions?**', (route) => route.fulfill({ json: offsetPage([]) }));
-
   await page.goto('/#/app/code');
   await expect(page.getByRole('button', { name: 'New Project' })).toBeVisible({ timeout: 60_000 });
   await page.locator('.birdcoder-session-row').filter({
@@ -1066,4 +1075,5 @@ test('provider activity is compact, expandable, responsive, and opens files in t
     animations: 'disabled',
     path: testInfo.outputPath('provider-notice-mixed-and-standalone-420.png'),
   });
+  await unloadPageForTeardown(page);
 });

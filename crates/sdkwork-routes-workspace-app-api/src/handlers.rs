@@ -47,16 +47,16 @@ use sdkwork_birdcoder_project_service::domain::runtime_location::{
     RebindProjectRuntimeLocationRequest, SetProjectRuntimeLocationPreferenceRequest,
     UpdateProjectRuntimeLocationRequest,
 };
-use sdkwork_birdcoder_project_service::domain::workspace_binding::{
-    ProjectWorkspaceBindingAuditContext, ProjectWorkspaceBindingPayload,
-    UpsertProjectWorkspaceBindingRequest,
+use sdkwork_birdcoder_project_service::domain::sandbox_binding::{
+    ProjectSandboxBindingAuditContext, ProjectSandboxBindingPayload,
+    UpsertProjectSandboxBindingRequest,
 };
 use sdkwork_birdcoder_project_service::ports::git::{GitProjectDiff, GitProjectOverview};
 use sdkwork_birdcoder_project_service::service::project_runtime_location_service::{
     ProjectRuntimeLocationService, RuntimeLocationMutationContext,
 };
 use sdkwork_birdcoder_project_service::service::project_service::ProjectService;
-use sdkwork_birdcoder_project_service::service::project_workspace_binding_service::ProjectWorkspaceBindingService;
+use sdkwork_birdcoder_project_service::service::project_sandbox_binding_service::ProjectSandboxBindingService;
 
 use sdkwork_birdcoder_deployment_service::domain::commands::PublishProjectCommand;
 use sdkwork_birdcoder_deployment_service::domain::commands::PublishProjectRequest as DeployPublishRequest;
@@ -74,7 +74,7 @@ use crate::mapper::request::{
     PushGitBranchBody, RebindProjectRuntimeLocationBody, RemoveGitWorktreeBody,
     SetProjectRuntimeLocationPreferenceBody, SwitchGitBranchBody, TeamListQuery, UpdateProjectBody,
     UpdateProjectRuntimeLocationBody, UpdateWorkspaceBody, UpsertProjectCollaboratorBody,
-    UpsertProjectWorkspaceBindingBody, UpsertWorkspaceMemberBody, WorkspaceListQuery,
+    UpsertProjectSandboxBindingBody, UpsertWorkspaceMemberBody, WorkspaceListQuery,
     WorkspacePathParams,
 };
 use crate::realtime_hub::{
@@ -102,7 +102,7 @@ pub struct WorkspaceAppState {
     pub workspace_service: WorkspaceService,
     pub project_service: ProjectService,
     pub runtime_location_service: ProjectRuntimeLocationService,
-    pub workspace_binding_service: ProjectWorkspaceBindingService,
+    pub sandbox_binding_service: ProjectSandboxBindingService,
     pub deployment_service: DeploymentService,
     pub team_service: TeamService,
     pub realtime_hub: WorkspaceRealtimeHub,
@@ -123,8 +123,8 @@ fn runtime_location_audit_context(web: &WebRequestContext) -> ProjectRuntimeLoca
     }
 }
 
-fn workspace_binding_audit_context(web: &WebRequestContext) -> ProjectWorkspaceBindingAuditContext {
-    ProjectWorkspaceBindingAuditContext {
+fn sandbox_binding_audit_context(web: &WebRequestContext) -> ProjectSandboxBindingAuditContext {
+    ProjectSandboxBindingAuditContext {
         trace_id: request_trace_id(web).map(str::to_owned),
     }
 }
@@ -1350,48 +1350,48 @@ pub async fn delete_project(
 
 // Runtime-location handlers -------------------------------------------------
 
-pub async fn get_project_workspace_binding(
+pub async fn get_project_sandbox_binding(
     web: WebRequestContext,
     RequiredIamContext(iam): RequiredIamContext,
     State(state): State<WorkspaceAppState>,
     Path(params): Path<ProjectPathParams>,
-) -> Result<Json<ApiDataEnvelope<ProjectWorkspaceBindingPayload>>, error::ProblemJsonBody> {
+) -> Result<Json<ApiDataEnvelope<ProjectSandboxBindingPayload>>, error::ProblemJsonBody> {
     let context = project_context(&iam);
     state
-        .workspace_binding_service
+        .sandbox_binding_service
         .get_binding(&context, &params.project_id)
         .await
         .map(|binding| Json(build_data_envelope(binding, request_id(&web))))
         .map_err(|project_error| error::map_project_error(project_error, request_trace_id(&web)))
 }
 
-pub async fn upsert_project_workspace_binding(
+pub async fn upsert_project_sandbox_binding(
     web: WebRequestContext,
     RequiredIamContext(iam): RequiredIamContext,
     State(state): State<WorkspaceAppState>,
     Path(params): Path<ProjectPathParams>,
     headers: HeaderMap,
-    body: Result<Json<UpsertProjectWorkspaceBindingBody>, axum::extract::rejection::JsonRejection>,
-) -> Result<Json<ApiDataEnvelope<ProjectWorkspaceBindingPayload>>, error::ProblemJsonBody> {
+    body: Result<Json<UpsertProjectSandboxBindingBody>, axum::extract::rejection::JsonRejection>,
+) -> Result<Json<ApiDataEnvelope<ProjectSandboxBindingPayload>>, error::ProblemJsonBody> {
     let trace_id = request_trace_id(&web);
     let Json(body) = body.map_err(|_| {
         error::map_validation_error(
-            "Project workspace-binding request body is invalid.",
+            "Project sandbox-binding request body is invalid.",
             trace_id,
         )
     })?;
     let idempotency_key =
-        required_idempotency_key(&headers, trace_id, "project workspace-binding")?;
+        required_idempotency_key(&headers, trace_id, "project sandbox-binding")?;
     let expected_version = optional_if_match(&headers, trace_id)?;
-    let request = UpsertProjectWorkspaceBindingRequest {
+    let request = UpsertProjectSandboxBindingRequest {
         sandbox_id: body.sandbox_id,
         root_entry_id: body.root_entry_id,
         logical_path: body.logical_path,
     };
     let context = project_context(&iam);
-    let audit_context = workspace_binding_audit_context(&web);
+    let audit_context = sandbox_binding_audit_context(&web);
     state
-        .workspace_binding_service
+        .sandbox_binding_service
         .upsert_binding(
             &context,
             &params.project_id,
@@ -1405,7 +1405,7 @@ pub async fn upsert_project_workspace_binding(
         .map_err(|project_error| error::map_project_error(project_error, trace_id))
 }
 
-pub async fn delete_project_workspace_binding(
+pub async fn delete_project_sandbox_binding(
     web: WebRequestContext,
     RequiredIamContext(iam): RequiredIamContext,
     State(state): State<WorkspaceAppState>,
@@ -1413,11 +1413,11 @@ pub async fn delete_project_workspace_binding(
     headers: HeaderMap,
 ) -> Result<StatusCode, error::ProblemJsonBody> {
     let trace_id = request_trace_id(&web);
-    let expected_version = required_if_match(&headers, trace_id, "project workspace-binding")?;
+    let expected_version = required_if_match(&headers, trace_id, "project sandbox-binding")?;
     let context = project_context(&iam);
-    let audit_context = workspace_binding_audit_context(&web);
+    let audit_context = sandbox_binding_audit_context(&web);
     state
-        .workspace_binding_service
+        .sandbox_binding_service
         .delete_binding(
             &context,
             &params.project_id,

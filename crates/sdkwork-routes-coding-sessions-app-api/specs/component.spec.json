@@ -94,8 +94,7 @@
       ".",
       "sdkwork_routes_coding_sessions_app_api::CodingSessionsAppState",
       "sdkwork_routes_coding_sessions_app_api::build_coding_sessions_app_api_router",
-      "sdkwork_routes_coding_sessions_app_api::coding_sessions_app_api_route_manifest",
-      "sdkwork_birdcoder_project_service::service::project_service::ProjectService"
+      "sdkwork_routes_coding_sessions_app_api::coding_sessions_app_api_route_manifest"
     ],
     "providedPorts": [
       {
@@ -111,10 +110,6 @@
       {
         "name": "codingSessionsApplicationState",
         "export": "sdkwork_routes_coding_sessions_app_api::CodingSessionsAppState"
-      },
-      {
-        "name": "projectApplicationService",
-        "export": "sdkwork_birdcoder_project_service::service::project_service::ProjectService"
       }
     ],
     "runtimeEntrypoints": [
@@ -130,7 +125,7 @@
     "configKeys": []
   },
   "integration": {
-    "authority": "Adapts the coding-session service to the BirdCoder app API router and route manifest. Native-session enrichment is available only through the injected project application service and its server-authorized execution root. Gateway composition owns authentication, mounting, and service/repository construction."
+    "authority": "Adapts the single durable logical coding-session authority to the BirdCoder app API router and route manifest. Provider-native discovery stays behind the internal coding-session service boundary; public list and detail reads always use BirdCoder codingSessionId values. Gateway composition owns authentication, mounting, and service/repository construction."
   },
   "verification": {
     "commands": [

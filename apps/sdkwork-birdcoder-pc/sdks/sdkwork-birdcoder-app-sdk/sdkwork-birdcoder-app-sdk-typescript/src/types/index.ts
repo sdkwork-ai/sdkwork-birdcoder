@@ -148,49 +148,6 @@ export interface BirdCoderChatConversationSummaryListEnvelope {
   traceId: string;
 }
 
-export interface BirdCoderChatMessageReasoningItem {
-  id: string;
-  summary: string;
-  title?: string;
-  createdAt?: string;
-  startedAt?: string;
-  completedAt?: string;
-  durationMs?: number;
-}
-
-export interface BirdCoderChatMessageResource {
-  id: string;
-  kind: "file" | "image" | "audio" | "uri" | "citation" | "skill" | "mention";
-  name?: string;
-  path?: string;
-  uri?: string;
-  mediaSource?: string;
-  mimeType?: string;
-  description?: string;
-  origin?: BirdCoderChatMessageResourceOrigin;
-  citation?: BirdCoderChatMessageResourceCitation;
-}
-
-export interface BirdCoderChatMessageResourceCitation {
-  lineStart?: number;
-  lineEnd?: number;
-  note?: string;
-  threadIds?: Array<string>;
-}
-
-export interface BirdCoderChatMessageResourceOrigin {
-  kind: "file" | "symbol" | "resource";
-  name?: string;
-  path?: string;
-  uri?: string;
-  clientName?: string;
-  lineStart?: number;
-  lineEnd?: number;
-  columnStart?: number;
-  columnEnd?: number;
-  excerpt?: string;
-}
-
 export interface BirdCoderChatMessageSummary {
   id: string;
   conversationId: string;
@@ -1034,46 +991,6 @@ export interface BirdCoderNativeSessionAttributes {
   metadata: Record<string, unknown>;
 }
 
-export interface BirdCoderNativeSessionCommand {
-  command: string;
-  status: "running" | "success" | "error";
-  output?: string;
-  kind?: "approval" | "command" | "file_change" | "task" | "tool" | "user_question";
-  toolName?: string;
-  toolCallId?: string;
-  runtimeStatus?: "initializing" | "ready" | "streaming" | "awaiting_tool" | "awaiting_approval" | "awaiting_user" | "completed" | "failed" | "terminated";
-  requiresApproval?: boolean;
-  requiresReply?: boolean;
-}
-
-export interface BirdCoderNativeSessionDetail {
-  summary: BirdCoderNativeSessionSummary;
-  messages: Array<BirdCoderNativeSessionMessage>;
-}
-
-export interface BirdCoderNativeSessionDetailEnvelope {
-  code: 0;
-  data: Record<string, unknown>;
-  traceId: string;
-}
-
-export interface BirdCoderNativeSessionMessage {
-  id: string;
-  codingSessionId: string;
-  turnId?: string;
-  role: "user" | "assistant" | "system" | "tool" | "reviewer" | "planner";
-  content: string;
-  commands?: Array<BirdCoderNativeSessionCommand>;
-  tool_calls?: Array<Record<string, unknown>>;
-  tool_call_id?: string;
-  fileChanges?: Array<Record<string, unknown>>;
-  reasoning?: Array<BirdCoderChatMessageReasoningItem>;
-  resources?: Array<BirdCoderChatMessageResource>;
-  taskProgress?: Record<string, unknown>;
-  metadata?: Record<string, string>;
-  createdAt: string;
-}
-
 export interface BirdCoderNativeSessionProviderSummary {
   engineId: "codex" | "claude-code" | "gemini" | "opencode";
   displayName: string;
@@ -1083,32 +1000,6 @@ export interface BirdCoderNativeSessionProviderSummary {
 }
 
 export interface BirdCoderNativeSessionProviderSummaryListEnvelope {
-  code: 0;
-  data: Record<string, unknown>;
-  traceId: string;
-}
-
-export interface BirdCoderNativeSessionSummary {
-  id: string;
-  workspaceId: string;
-  projectId: string;
-  runtimeLocationId?: string;
-  title: string;
-  status: "draft" | "active" | "paused" | "completed" | "archived";
-  hostMode: "web" | "desktop" | "server";
-  engineId: "codex" | "claude-code" | "gemini" | "opencode";
-  modelId?: string;
-  nativeSessionId?: string;
-  nativeAttributes?: BirdCoderNativeSessionAttributes;
-  createdAt: string;
-  updatedAt: string;
-  lastTurnAt?: string;
-  sortTimestamp: string;
-  transcriptUpdatedAt?: string | unknown;
-  kind: "coding";
-}
-
-export interface BirdCoderNativeSessionSummaryListEnvelope {
   code: 0;
   data: Record<string, unknown>;
   traceId: string;
@@ -1794,6 +1685,11 @@ export interface IntelligenceCodingSessionsEventsListPathParams {
   sessionId: string;
 }
 
+export interface IntelligenceCodingSessionsEventsListQuery extends Record<string, BirdcoderSdkQueryValue> {
+  page?: number;
+  page_size?: number;
+}
+
 export interface IntelligenceCodingSessionsForksCreatePathParams {
   sessionId: string;
 }
@@ -2028,26 +1924,6 @@ export interface PlatformWorkspacesUpdatePathParams {
 
 export interface RuntimeEnginesCapabilitiesRetrievePathParams {
   engineKey: string;
-}
-
-export interface RuntimeNativeSessionsListQuery extends Record<string, BirdcoderSdkQueryValue> {
-  workspaceId: string;
-  projectId: string;
-  runtimeLocationId: string;
-  engineId?: "codex" | "claude-code" | "gemini" | "opencode";
-  page?: number;
-  page_size?: number;
-}
-
-export interface RuntimeNativeSessionsRetrievePathParams {
-  id: string;
-}
-
-export interface RuntimeNativeSessionsRetrieveQuery extends Record<string, BirdcoderSdkQueryValue> {
-  workspaceId: string;
-  projectId: string;
-  runtimeLocationId: string;
-  engineId?: "codex" | "claude-code" | "gemini" | "opencode";
 }
 
 export interface SkillsSkillPackagesInstallationsCreatePathParams {
@@ -3640,40 +3516,6 @@ export const BIRDCODER_APP_SDK_OPERATIONS = [
     "public": false,
     "resource": "birdcoder.runtime-native-session-providers",
     "summary": "List registered native engine session providers",
-    "tag": "runtime",
-    "tenantScope": "tenant"
-  },
-  {
-    "key": "runtime.nativeSessions.list",
-    "method": "GET",
-    "operationId": "nativeSessions.list",
-    "path": "/app/v3/api/native_sessions",
-    "pathParamNames": [],
-    "dataScope": "user",
-    "deployment": "all",
-    "domain": "runtime",
-    "permission": "birdcoder.runtime-native-sessions.read",
-    "public": false,
-    "resource": "birdcoder.runtime-native-sessions",
-    "summary": "List discovered native engine sessions",
-    "tag": "runtime",
-    "tenantScope": "tenant"
-  },
-  {
-    "key": "runtime.nativeSessions.retrieve",
-    "method": "GET",
-    "operationId": "nativeSessions.retrieve",
-    "path": "/app/v3/api/native_sessions/{id}",
-    "pathParamNames": [
-      "id"
-    ],
-    "dataScope": "user",
-    "deployment": "all",
-    "domain": "runtime",
-    "permission": "birdcoder.runtime-native-sessions.read",
-    "public": false,
-    "resource": "birdcoder.runtime-native-sessions",
-    "summary": "Get discovered native engine session detail",
     "tag": "runtime",
     "tenantScope": "tenant"
   },

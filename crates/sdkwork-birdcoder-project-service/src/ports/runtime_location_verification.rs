@@ -16,15 +16,15 @@ pub trait RuntimeLocationVerificationAuthority: Send + Sync {
 }
 
 /// Queues a verification request to a target control plane. The app-api only
-/// requests work; it cannot include target-observed health, capability, Git,
-/// or filesystem facts in that request.
+/// requests work; it cannot include target-observed health or capability
+/// facts in that request.
 #[async_trait::async_trait]
 pub trait RuntimeLocationVerificationRequestDispatcher: Send + Sync {
     async fn request_verification(
         &self,
         context: &ProjectContext,
         location: &StoredProjectRuntimeLocation,
-        expected_version: i64,
+        current_version: i64,
     ) -> Result<(), ProjectError>;
 }
 
@@ -57,7 +57,7 @@ impl RuntimeLocationVerificationRequestDispatcher
         &self,
         _context: &ProjectContext,
         _location: &StoredProjectRuntimeLocation,
-        _expected_version: i64,
+        _current_version: i64,
     ) -> Result<(), ProjectError> {
         Err(ProjectError::Unavailable(
             "Project runtime-location verification is unavailable.".to_owned(),

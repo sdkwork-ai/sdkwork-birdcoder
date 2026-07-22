@@ -74,7 +74,7 @@
       "list_routes",
       "system_app_api_route_manifest"
     ],
-    "routeManifest": "sdks/_route-manifests/app-api/sdkwork-routes-system-app-api.route-manifest.json",
+    "routeManifest": "src/manifest.rs#system_app_api_route_manifest",
     "sdkClients": [],
     "sdkDependencies": [],
     "dependencyApiExports": [],

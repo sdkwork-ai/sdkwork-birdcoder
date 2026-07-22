@@ -104,6 +104,11 @@ function extractTomlArray(source, key) {
     'Standalone development server commands must use the PostgreSQL engine selected by the topology profile.',
   );
   assert.equal(
+    resolvedServerEnv.env.SDKWORK_BIRDCODER_DATABASE_SCHEMA,
+    undefined,
+    'Standalone development must not override the canonical workspace PostgreSQL schema.',
+  );
+  assert.equal(
     resolvedServerEnv.env.SDKWORK_BIRDCODER_DATABASE_URL,
     undefined,
     'PostgreSQL server commands must not receive the legacy SQLite URL fallback; sdkwork-database resolves the shared PostgreSQL profile.',
@@ -113,6 +118,23 @@ function extractTomlArray(source, key) {
     undefined,
     'PostgreSQL server commands must not receive a legacy SQLite file path.',
   );
+}
+
+{
+  const postgresExample = readText('.env.postgres.example');
+  assert.match(postgresExample, /SDKWORK_CLAW_DATABASE_NAME=sdkwork_ai_dev/u);
+  assert.match(postgresExample, /SDKWORK_CLAW_DATABASE_SCHEMA=sdkwork_ai_dev/u);
+  assert.doesNotMatch(
+    postgresExample,
+    /SDKWORK_BIRDCODER_DATABASE_(?:HOST|PORT|NAME|SCHEMA|USERNAME|PASSWORD|URL)/u,
+    'The checked-in PostgreSQL profile must use only the canonical Claw connection identity.',
+  );
+
+  const databaseBootstrap = readText(
+    'crates/sdkwork-api-birdcoder-assembly/src/application_bootstrap/database.rs',
+  );
+  assert.match(databaseBootstrap, /DatabaseConfig::from_env\("CLAW"\)/u);
+  assert.doesNotMatch(databaseBootstrap, /DatabaseConfig::from_env\("BIRDCODER"\)/u);
 }
 
 {

@@ -242,8 +242,19 @@ mod tests {
     }
 
     #[test]
-    fn new_standard_boots_without_panic() {
+    fn standard_registry_resolves_every_native_session_provider() {
         let registry = NativeSessionProviderRegistry::new_standard();
-        assert!(registry.resolve_provider(Some("codex")).is_ok());
+        for engine_id in ["codex", "claude-code", "gemini", "opencode"] {
+            let providers = registry
+                .resolve_provider(Some(engine_id))
+                .expect("standard provider must resolve");
+            assert_eq!(providers.len(), 1);
+            assert_eq!(providers[0].registration().engine_id, engine_id);
+        }
+
+        let discoverable = registry
+            .resolve_provider(None)
+            .expect("passive provider discovery must resolve");
+        assert_eq!(discoverable.len(), 4);
     }
 }

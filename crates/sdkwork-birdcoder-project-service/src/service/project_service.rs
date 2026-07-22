@@ -1,20 +1,17 @@
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
-use sdkwork_utils_rust::is_blank;
-use sha2::{Digest, Sha256};
+use sdkwork_utils_rust::{crypto::sha256_hash, is_blank};
 
 use crate::context::ProjectContext;
 use crate::domain::commands::{
     is_valid_worktree_key, CommitProjectGitChangesRequest, CreateProjectGitBranchRequest,
     CreateProjectGitWorktreeRequest, CreateProjectRequest, PushProjectGitBranchRequest,
     RemoveProjectGitWorktreeRequest, SwitchProjectGitBranchRequest, UpdateProjectRequest,
-    UpsertProjectCollaboratorRequest,
 };
-use crate::domain::results::{DeleteEntityPayload, ProjectCollaboratorPayload, ProjectPayload};
+use crate::domain::results::{DeleteEntityPayload, ProjectPayload};
 use crate::domain::runtime_location::RuntimeLocationCapability;
 use crate::error::ProjectError;
-use crate::ports::events::ProjectEventPublisher;
 use crate::ports::git::{GitMutationError, GitOperations, GitProjectDiff, GitProjectOverview};
 use crate::ports::project_workspace_root::ProjectWorkspaceRootResolver;
 use crate::ports::repository::ProjectRepository;
@@ -24,7 +21,6 @@ use crate::service::git_operation_coordinator::GitOperationCoordinator;
 #[derive(Clone)]
 pub struct ProjectService {
     repository: Arc<dyn ProjectRepository>,
-    event_publisher: Arc<dyn ProjectEventPublisher>,
     git: Arc<dyn GitOperations>,
     git_operation_coordinator: GitOperationCoordinator,
     workspace_root_resolver: Arc<dyn ProjectWorkspaceRootResolver>,
@@ -34,14 +30,12 @@ pub struct ProjectService {
 impl ProjectService {
     pub fn new(
         repository: Arc<dyn ProjectRepository>,
-        event_publisher: Arc<dyn ProjectEventPublisher>,
         git: Arc<dyn GitOperations>,
         workspace_root_resolver: Arc<dyn ProjectWorkspaceRootResolver>,
         runtime_location_execution_resolver: Arc<dyn ProjectRuntimeLocationExecutionResolver>,
     ) -> Self {
         Self {
             repository,
-            event_publisher,
             git,
             git_operation_coordinator: GitOperationCoordinator::default(),
             workspace_root_resolver,
@@ -203,17 +197,14 @@ impl ProjectService {
                 "Project name is required.".to_owned(),
             ));
         }
+        validate_project_code(request.code.as_deref())?;
+        validate_project_kind(request.project_kind.as_deref())?;
+        validate_agent_project_id(request.default_agent_project_id.as_deref())?;
         self.repository
             .ensure_workspace_access(ctx, &request.workspace_id)
             .await?;
 
-        let project = self.repository.create_project(ctx, request).await?;
-
-        self.event_publisher
-            .publish_project_created(ctx, &project.workspace_id, &project.id)
-            .await?;
-
-        Ok(project)
+        self.repository.create_project(ctx, request).await
     }
 
     pub async fn update_project(
@@ -228,123 +219,46 @@ impl ProjectService {
             ));
         }
         validate_project_status(request.status.as_deref())?;
+        validate_project_code(request.code.as_deref())?;
+        validate_project_kind(request.project_kind.as_deref())?;
+        validate_agent_project_id(request.default_agent_project_id.as_deref())?;
+        if request.expected_version < 0 {
+            return Err(ProjectError::InvalidInput(
+                "If-Match must be a non-negative version.".to_owned(),
+            ));
+        }
         self.repository.ensure_project_write_access(ctx, id).await?;
 
         self.get_project(ctx, id).await?;
 
-        let project = self.repository.update_project(ctx, id, request).await?;
-
-        self.event_publisher
-            .publish_project_updated(ctx, &project.workspace_id, &project.id)
-            .await?;
-
-        Ok(project)
+        self.repository.update_project(ctx, id, request).await
     }
 
     pub async fn delete_project(
         &self,
         ctx: &ProjectContext,
         id: &str,
+        expected_version: i64,
     ) -> Result<DeleteEntityPayload, ProjectError> {
         if is_blank(Some(id)) {
             return Err(ProjectError::InvalidInput(
                 "projectId is required.".to_owned(),
             ));
         }
+        if expected_version < 0 {
+            return Err(ProjectError::InvalidInput(
+                "If-Match must be a non-negative version.".to_owned(),
+            ));
+        }
         self.repository.ensure_project_write_access(ctx, id).await?;
 
-        let workspace_id = self.get_project(ctx, id).await?.workspace_id;
+        self.get_project(ctx, id).await?;
 
-        self.repository.delete_project(ctx, id).await?;
-
-        self.event_publisher
-            .publish_project_deleted(ctx, &workspace_id, id)
+        self.repository
+            .delete_project(ctx, id, expected_version)
             .await?;
 
         Ok(DeleteEntityPayload { id: id.to_owned() })
-    }
-
-    pub async fn list_project_collaborators(
-        &self,
-        ctx: &ProjectContext,
-        project_id: &str,
-        offset: usize,
-        limit: usize,
-    ) -> Result<(Vec<ProjectCollaboratorPayload>, usize), ProjectError> {
-        if is_blank(Some(project_id)) {
-            return Err(ProjectError::InvalidInput(
-                "projectId is required.".to_owned(),
-            ));
-        }
-        self.get_project(ctx, project_id).await?;
-        self.repository
-            .list_project_collaborators(ctx, project_id, offset, limit)
-            .await
-    }
-
-    pub async fn upsert_project_collaborator(
-        &self,
-        ctx: &ProjectContext,
-        project_id: &str,
-        request: &UpsertProjectCollaboratorRequest,
-    ) -> Result<ProjectCollaboratorPayload, ProjectError> {
-        if is_blank(Some(project_id)) {
-            return Err(ProjectError::InvalidInput(
-                "projectId is required.".to_owned(),
-            ));
-        }
-        self.repository
-            .ensure_project_manage_access(ctx, project_id)
-            .await?;
-
-        let workspace_id = self.get_project(ctx, project_id).await?.workspace_id;
-
-        let collaborator = self
-            .repository
-            .upsert_project_collaborator(ctx, project_id, request)
-            .await?;
-
-        self.event_publisher
-            .publish_project_collaborator_added(
-                ctx,
-                &workspace_id,
-                project_id,
-                &collaborator.user_id,
-            )
-            .await?;
-
-        Ok(collaborator)
-    }
-
-    pub async fn remove_project_collaborator(
-        &self,
-        ctx: &ProjectContext,
-        project_id: &str,
-        user_id: &str,
-    ) -> Result<(), ProjectError> {
-        if is_blank(Some(project_id)) {
-            return Err(ProjectError::InvalidInput(
-                "projectId is required.".to_owned(),
-            ));
-        }
-        if is_blank(Some(user_id)) {
-            return Err(ProjectError::InvalidInput("userId is required.".to_owned()));
-        }
-        self.repository
-            .ensure_project_manage_access(ctx, project_id)
-            .await?;
-
-        let workspace_id = self.get_project(ctx, project_id).await?.workspace_id;
-
-        self.repository
-            .remove_project_collaborator(ctx, project_id, user_id)
-            .await?;
-
-        self.event_publisher
-            .publish_project_collaborator_removed(ctx, &workspace_id, project_id, user_id)
-            .await?;
-
-        Ok(())
     }
 
     pub async fn get_project_git_overview(
@@ -620,6 +534,54 @@ fn validate_project_status(status: Option<&str>) -> Result<(), ProjectError> {
     }
 }
 
+fn validate_project_code(code: Option<&str>) -> Result<(), ProjectError> {
+    if code.is_some_and(|value| {
+        let value = value.trim();
+        value.is_empty()
+            || value.len() > 96
+            || !value
+                .bytes()
+                .all(|byte| byte.is_ascii_alphanumeric() || matches!(byte, b'-' | b'_' | b'.'))
+    }) {
+        return Err(ProjectError::InvalidInput(
+            "code must contain only letters, digits, '.', '_' or '-' and be at most 96 bytes."
+                .to_owned(),
+        ));
+    }
+    Ok(())
+}
+
+fn validate_project_kind(project_kind: Option<&str>) -> Result<(), ProjectError> {
+    if project_kind.is_some_and(|value| {
+        let value = value.trim();
+        value.is_empty()
+            || value.len() > 64
+            || !value
+                .bytes()
+                .all(|byte| byte.is_ascii_lowercase() || byte.is_ascii_digit() || byte == b'_')
+    }) {
+        return Err(ProjectError::InvalidInput(
+            "projectKind must be a lower-snake-case token of at most 64 bytes.".to_owned(),
+        ));
+    }
+    Ok(())
+}
+
+fn validate_agent_project_id(project_id: Option<&str>) -> Result<(), ProjectError> {
+    if project_id.is_some_and(|value| {
+        value.trim() != value
+            || value.len() > 160
+            || !value.starts_with("project.")
+            || value.chars().any(char::is_control)
+    }) {
+        return Err(ProjectError::InvalidInput(
+            "defaultAgentProjectId must be an opaque Agents project id beginning with 'project.'."
+                .to_owned(),
+        ));
+    }
+    Ok(())
+}
+
 fn derived_worktree_key(branch_name: &str) -> Result<String, ProjectError> {
     let branch_name = branch_name.trim();
     if branch_name.is_empty() {
@@ -627,7 +589,7 @@ fn derived_worktree_key(branch_name: &str) -> Result<String, ProjectError> {
             "branchName is required.".to_owned(),
         ));
     }
-    Ok(hex::encode(Sha256::digest(branch_name.as_bytes())))
+    Ok(sha256_hash(branch_name.as_bytes()))
 }
 
 fn canonical_server_project_root(root: PathBuf) -> Result<PathBuf, ProjectError> {

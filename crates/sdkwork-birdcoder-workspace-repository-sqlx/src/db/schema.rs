@@ -318,7 +318,7 @@ CREATE TABLE IF NOT EXISTS ops_project_runtime_location_audit (
     redacted_metadata_json TEXT NOT NULL
 );
 
-CREATE TABLE IF NOT EXISTS studio_project_workspace_binding (
+CREATE TABLE IF NOT EXISTS studio_project_sandbox_binding (
     id TEXT PRIMARY KEY,
     uuid TEXT NOT NULL UNIQUE,
     tenant_id INTEGER NOT NULL DEFAULT 0,
@@ -336,14 +336,14 @@ CREATE TABLE IF NOT EXISTS studio_project_workspace_binding (
     is_deleted INTEGER NOT NULL DEFAULT 0
 );
 
-CREATE UNIQUE INDEX IF NOT EXISTS uk_studio_project_workspace_binding_active
-ON studio_project_workspace_binding(tenant_id, organization_id, project_id)
+CREATE UNIQUE INDEX IF NOT EXISTS uk_studio_project_sandbox_binding_active
+ON studio_project_sandbox_binding(tenant_id, organization_id, project_id)
 WHERE is_deleted IS NOT TRUE;
 
-CREATE INDEX IF NOT EXISTS idx_studio_project_workspace_binding_lookup
-ON studio_project_workspace_binding(tenant_id, organization_id, project_id, is_deleted);
+CREATE INDEX IF NOT EXISTS idx_studio_project_sandbox_binding_lookup
+ON studio_project_sandbox_binding(tenant_id, organization_id, project_id, is_deleted);
 
-CREATE TABLE IF NOT EXISTS studio_project_workspace_binding_idempotency (
+CREATE TABLE IF NOT EXISTS studio_project_sandbox_binding_idempotency (
     id TEXT PRIMARY KEY,
     uuid TEXT NOT NULL UNIQUE,
     tenant_id INTEGER NOT NULL DEFAULT 0,
@@ -359,21 +359,21 @@ CREATE TABLE IF NOT EXISTS studio_project_workspace_binding_idempotency (
     expires_at TEXT NOT NULL
 );
 
-CREATE UNIQUE INDEX IF NOT EXISTS uk_studio_project_workspace_binding_idempotency
-ON studio_project_workspace_binding_idempotency(
+CREATE UNIQUE INDEX IF NOT EXISTS uk_studio_project_sandbox_binding_idempotency
+ON studio_project_sandbox_binding_idempotency(
     tenant_id, organization_id, project_id, subject_user_id, operation_kind, idempotency_key_hash
 );
 
-CREATE INDEX IF NOT EXISTS idx_studio_project_workspace_binding_idempotency_expiry
-ON studio_project_workspace_binding_idempotency(expires_at);
+CREATE INDEX IF NOT EXISTS idx_studio_project_sandbox_binding_idempotency_expiry
+ON studio_project_sandbox_binding_idempotency(expires_at);
 
-CREATE TABLE IF NOT EXISTS ops_project_workspace_binding_audit (
+CREATE TABLE IF NOT EXISTS ops_project_sandbox_binding_audit (
     id TEXT PRIMARY KEY,
     uuid TEXT NOT NULL UNIQUE,
     tenant_id INTEGER NOT NULL DEFAULT 0,
     organization_id INTEGER NOT NULL DEFAULT 0,
     project_id INTEGER NOT NULL REFERENCES studio_project(id) ON DELETE CASCADE,
-    workspace_binding_id TEXT NOT NULL,
+    sandbox_binding_id TEXT NOT NULL,
     actor_user_id INTEGER NOT NULL,
     action TEXT NOT NULL,
     result TEXT NOT NULL,
@@ -382,9 +382,9 @@ CREATE TABLE IF NOT EXISTS ops_project_workspace_binding_audit (
     redacted_metadata_json TEXT NOT NULL
 );
 
-CREATE INDEX IF NOT EXISTS idx_ops_project_workspace_binding_audit_scope_time
-ON ops_project_workspace_binding_audit(
-    tenant_id, organization_id, project_id, workspace_binding_id, occurred_at
+CREATE INDEX IF NOT EXISTS idx_ops_project_sandbox_binding_audit_scope_time
+ON ops_project_sandbox_binding_audit(
+    tenant_id, organization_id, project_id, sandbox_binding_id, occurred_at
 );
 
 CREATE TABLE IF NOT EXISTS ops_release_record (

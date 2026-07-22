@@ -91,7 +91,7 @@
       "pathPrefix": null,
       "mountOrder": 7,
       "componentRef": "crates/sdkwork-routes-system-app-api/specs/component.spec.json",
-      "routeManifestRef": "crates/sdkwork-routes-system-app-api/sdks/_route-manifests/app-api/sdkwork-routes-system-app-api.route-manifest.json",
+      "routeManifestRef": "crates/sdkwork-routes-system-app-api/src/manifest.rs#system_app_api_route_manifest",
       "sourceRef": "crates/sdkwork-routes-system-app-api/Cargo.toml"
     },
     {

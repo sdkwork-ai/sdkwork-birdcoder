@@ -1692,42 +1692,6 @@ pub mod runtime {
             tenant_scope: "tenant",
         };
     }
-
-    pub mod native_sessions {
-        pub const LIST: crate::SdkOperation = crate::SdkOperation {
-            data_scope: "user",
-            deployment: "all",
-            domain: "runtime",
-            key: "runtime.nativeSessions.list",
-            method: "GET",
-            operation_id: "nativeSessions.list",
-            path: "/app/v3/api/native_sessions",
-            path_param_names: &[],
-            permission: Some("birdcoder.runtime-native-sessions.read"),
-            public: false,
-            resource: "birdcoder.runtime-native-sessions",
-            summary: "List discovered native engine sessions",
-            tag: "runtime",
-            tenant_scope: "tenant",
-        };
-
-        pub const RETRIEVE: crate::SdkOperation = crate::SdkOperation {
-            data_scope: "user",
-            deployment: "all",
-            domain: "runtime",
-            key: "runtime.nativeSessions.retrieve",
-            method: "GET",
-            operation_id: "nativeSessions.retrieve",
-            path: "/app/v3/api/native_sessions/{id}",
-            path_param_names: &["id"],
-            permission: Some("birdcoder.runtime-native-sessions.read"),
-            public: false,
-            resource: "birdcoder.runtime-native-sessions",
-            summary: "Get discovered native engine session detail",
-            tag: "runtime",
-            tenant_scope: "tenant",
-        };
-    }
 }
 
 pub mod skills {
@@ -2127,8 +2091,6 @@ pub const OPERATIONS: &[SdkOperation] = &[
     runtime::model_config::UPDATE,
     runtime::models::LIST,
     runtime::native_session_providers::LIST,
-    runtime::native_sessions::LIST,
-    runtime::native_sessions::RETRIEVE,
     skills::skill_packages::installations::CREATE,
     skills::skill_packages::LIST,
     system::chat::conversations::CREATE,

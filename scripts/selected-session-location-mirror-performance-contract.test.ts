@@ -113,12 +113,6 @@ const appRuntimeReadService: RefreshAppRuntimeReadService = {
   async listCodingSessions() {
     return [summary];
   },
-  async getNativeSession() {
-    return unexpectedFullProjectRead('getNativeSession');
-  },
-  async listNativeSessions() {
-    return [];
-  },
 };
 
 const result = await refreshCodingSessionMessages({

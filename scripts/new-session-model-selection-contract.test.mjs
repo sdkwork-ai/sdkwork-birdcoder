@@ -7,7 +7,9 @@ const readSource = (relativePath) =>
 const newSessionButtonSource = readSource(
   'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-ui/src/components/WorkbenchNewSessionButton.tsx',
 );
-const topBarSource = readSource('apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-code/src/components/TopBar.tsx');
+const projectExplorerHeaderSource = readSource(
+  'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-code/src/components/ProjectExplorerHeader.tsx',
+);
 const sidebarSource = readSource('apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-code/src/components/Sidebar.tsx');
 const projectContextMenuSource = readSource(
   'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-code/src/components/ProjectExplorerProjectContextMenu.tsx',
@@ -37,14 +39,19 @@ assert.match(
   'WorkbenchNewSessionButton engine menu must show the model that will be used for each new session engine option.',
 );
 assert.match(
-  topBarSource,
-  /onCreateNewSession:\s*\(engineId\?:\s*string,\s*modelId\?:\s*string\)/,
-  'Code top bar must pass modelId through the new-session creation boundary.',
+  projectExplorerHeaderSource,
+  /onCreateSession:\s*\(engineId:\s*string,\s*modelId:\s*string\)/,
+  'Project explorer header must pass modelId through the new-session creation boundary.',
 );
 assert.match(
-  topBarSource,
-  /void onCreateNewSession\(engineId,\s*modelId\)/,
-  'Code top bar WorkbenchNewSessionButton adapter must forward engineId and modelId together.',
+  projectExplorerHeaderSource,
+  /onCreateSession=\{onCreateSession\}/,
+  'Project explorer header must forward the engine and model aware session callback to WorkbenchNewSessionButton.',
+);
+assert.match(
+  projectExplorerHeaderSource,
+  /from '@sdkwork\/birdcoder-pc-ui\/components\/WorkbenchNewSessionButton';/,
+  'Project explorer must load WorkbenchNewSessionButton through its precise UI component subpath.',
 );
 assert.match(
   sidebarSource,

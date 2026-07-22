@@ -62,24 +62,28 @@
     "layerRole": "backend-repository",
     "publicExports": [
       ".",
-      "sdkwork_birdcoder_project_service::ports::workspace_binding_repository::ProjectWorkspaceBindingRepository",
-      "sqlx::AnyPool",
-      "sdkwork_birdcoder_workspace_repository_sqlx::repository::project_workspace_binding::SqliteProjectWorkspaceBindingRepository"
+      "sdkwork_birdcoder_project_service::ports::sandbox_binding_repository::ProjectSandboxBindingRepository",
+      "sdkwork_database_sqlx::DatabasePool",
+      "sdkwork_birdcoder_workspace_repository_sqlx::repository::project_sandbox_binding::SqlxProjectSandboxBindingRepository"
     ],
     "providedPorts": [
       {
-        "name": "projectWorkspaceBindingRepository",
-        "export": "sdkwork_birdcoder_workspace_repository_sqlx::repository::project_workspace_binding::SqliteProjectWorkspaceBindingRepository"
+        "name": "projectSandboxBindingRepository",
+        "export": "sdkwork_birdcoder_workspace_repository_sqlx::repository::project_sandbox_binding::SqlxProjectSandboxBindingRepository"
       }
     ],
     "requiredPorts": [
       {
-        "name": "projectWorkspaceBindingRepositoryPort",
-        "export": "sdkwork_birdcoder_project_service::ports::workspace_binding_repository::ProjectWorkspaceBindingRepository"
+        "name": "projectSandboxBindingRepositoryPort",
+        "export": "sdkwork_birdcoder_project_service::ports::sandbox_binding_repository::ProjectSandboxBindingRepository"
       },
       {
         "name": "databasePool",
-        "export": "sqlx::AnyPool"
+        "export": "sdkwork_database_sqlx::DatabasePool"
+      },
+      {
+        "name": "snowflakeIdGenerator",
+        "export": "sdkwork_database_id::SnowflakeIdGenerator"
       }
     ],
     "runtimeEntrypoints": [],
@@ -93,11 +97,11 @@
     "configKeys": []
   },
   "integration": {
-    "authority": "Implements SQLx persistence ports declared by BirdCoder workspace/project services. Project workspace bindings persist only opaque Drive sandbox and entry identifiers plus canonical logical paths; physical paths and host handles are forbidden."
+    "authority": "Implements SQLx persistence ports declared by BirdCoder workspace/project services. Project sandbox bindings persist only opaque Drive sandbox and entry identifiers plus canonical logical paths; physical paths and host handles are forbidden."
   },
   "verification": {
     "commands": [
-      "cargo test --offline -p sdkwork-birdcoder-workspace-repository-sqlx --test project_workspace_binding_repository_tests -- --nocapture",
+      "cargo test --offline -p sdkwork-birdcoder-workspace-repository-sqlx --test project_sandbox_binding_repository_tests -- --nocapture",
       "cargo test --offline -p sdkwork-birdcoder-workspace-repository-sqlx --test workspace_repository_driver_parity -- --nocapture"
     ]
   }

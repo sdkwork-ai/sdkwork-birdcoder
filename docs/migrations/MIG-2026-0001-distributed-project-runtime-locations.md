@@ -89,8 +89,9 @@ and verification authority exist.
    exact runtime location has been authorized.
 4. Require `runtimeLocationId` for new Coding Session creation and persist it
    immutably. Old rows without the value remain readable but turn execution,
-   recovery, native-session list, and native-session detail return typed `503`
-   unavailable results.
+   recovery, and provider-history reconciliation return typed `503` unavailable
+   results. Aggregate discovery through the unified coding-session inventory
+   requires an explicit authorized runtime location.
 5. Update OpenAPI authorities and regenerate composed BirdCoder and terminal
    SDKs. Public request, response, replay, and SSE models omit absolute paths,
    `cwd`, `nativeCwd`, `workingDirectory`, and equivalent path fields.

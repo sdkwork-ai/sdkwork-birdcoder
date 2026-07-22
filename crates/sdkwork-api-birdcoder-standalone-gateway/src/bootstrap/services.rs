@@ -3,11 +3,12 @@ use std::sync::Arc;
 
 use sdkwork_birdcoder_coding_sessions_service::service::coding_session_service::CodingSessionService;
 use sdkwork_birdcoder_deployment_service::service::deployment_service::DeploymentService;
+use sdkwork_birdcoder_native_sessions_service::codeengine_repository::CodeEngineNativeSessionRepository;
+use sdkwork_birdcoder_native_sessions_service::service::native_session_service::NativeSessionService;
 use sdkwork_birdcoder_project_service::ports::project_workspace_root::ProjectWorkspaceRootResolver;
 use sdkwork_birdcoder_project_service::service::project_runtime_location_service::ProjectRuntimeLocationService;
 use sdkwork_birdcoder_project_service::service::project_service::ProjectService;
-use sdkwork_birdcoder_project_service::service::project_workspace_binding_service::ProjectWorkspaceBindingService;
-use sdkwork_birdcoder_workspace_repository_sqlx::repository::project_workspace_binding::SqliteProjectWorkspaceBindingRepository;
+use sdkwork_birdcoder_project_service::service::project_sandbox_binding_service::ProjectSandboxBindingService;
 use sdkwork_birdcoder_workspace_service::service::team_service::TeamService;
 use sdkwork_birdcoder_workspace_service::service::workspace_service::WorkspaceService;
 
@@ -34,7 +35,7 @@ pub struct Services {
     pub workspace: WorkspaceService,
     pub project: ProjectService,
     pub runtime_location: ProjectRuntimeLocationService,
-    pub workspace_binding: ProjectWorkspaceBindingService,
+    pub sandbox_binding: ProjectSandboxBindingService,
     pub deployment: DeploymentService,
     pub team: TeamService,
     pub realtime_hub: WorkspaceRealtimeHub,
@@ -66,11 +67,9 @@ pub async fn wire_services(
         project_workspace_root_resolver,
         Arc::new(runtime_location.clone()),
     );
-    let workspace_binding = ProjectWorkspaceBindingService::new(
+    let sandbox_binding = ProjectSandboxBindingService::new(
         repos.project.clone(),
-        Arc::new(SqliteProjectWorkspaceBindingRepository::new(
-            repos.any_pool.clone(),
-        )),
+        repos.sandbox_binding.clone(),
     );
 
     let coding_session = CodingSessionService::new(
@@ -79,7 +78,10 @@ pub async fn wire_services(
         Arc::new(HubRealtimeEventPublisher::new(realtime_hub.clone())),
         wire_engine_validator(config),
         wire_project_execution_scope_resolver(Arc::new(project.clone())),
-    );
+    )
+    .with_native_session_reader(Arc::new(NativeSessionService::new(
+        CodeEngineNativeSessionRepository,
+    )));
 
     let deployment = DeploymentService::new(
         repos.deployment.clone(),
@@ -93,7 +95,7 @@ pub async fn wire_services(
         workspace,
         project,
         runtime_location,
-        workspace_binding,
+        sandbox_binding,
         deployment,
         team,
         realtime_hub,

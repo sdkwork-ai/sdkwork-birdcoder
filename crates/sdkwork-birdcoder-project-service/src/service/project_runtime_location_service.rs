@@ -1,9 +1,7 @@
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
-use sdkwork_utils_rust::is_blank;
-use sha2::{Digest, Sha256};
-use uuid::Uuid;
+use sdkwork_utils_rust::{crypto::sha256_hash, id::uuid, is_blank};
 
 use crate::context::ProjectContext;
 use crate::domain::runtime_location::{
@@ -17,15 +15,15 @@ use crate::domain::runtime_location::{
     RuntimeLocationCapability, RuntimeLocationIdempotency,
     SetProjectRuntimeLocationPreferenceRequest, StoredProjectRuntimeLocation,
     TrustedProjectRuntimeLocationVerification, UpdateProjectRuntimeLocationRequest,
-    HEALTH_STATUS_DEGRADED, HEALTH_STATUS_HEALTHY, HEALTH_STATUS_LOCAL_OBSERVED,
-    HEALTH_STATUS_PENDING_VERIFICATION, HEALTH_STATUS_REVOKED, HEALTH_STATUS_UNAVAILABLE,
-    LOCATION_KIND_CONTAINER_VOLUME, LOCATION_KIND_DESKTOP_CHECKOUT, LOCATION_KIND_REMOTE_WORKSPACE,
-    LOCATION_KIND_RUNNER_WORKTREE, LOCATION_KIND_SERVER_WORKSPACE, PATH_FLAVOR_POSIX,
-    PATH_FLAVOR_WINDOWS, RUNTIME_LOCATION_OPERATION_CREATE, RUNTIME_LOCATION_OPERATION_PREFERENCE,
+    HEALTH_STATUS_DEGRADED, HEALTH_STATUS_HEALTHY, HEALTH_STATUS_PENDING,
+    HEALTH_STATUS_REVOKED, HEALTH_STATUS_UNREACHABLE, LOCATION_KIND_CONTAINER_WORKSPACE,
+    LOCATION_KIND_LOCAL_DIRECTORY, LOCATION_KIND_REMOTE_WORKSPACE, LOCATION_KIND_RUNNER_WORKSPACE,
+    LOCATION_KIND_SERVER_WORKSPACE, PATH_FLAVOR_POSIX, PATH_FLAVOR_VIRTUAL, PATH_FLAVOR_WINDOWS,
+    RUNTIME_LOCATION_OPERATION_CREATE, RUNTIME_LOCATION_OPERATION_PREFERENCE,
     RUNTIME_LOCATION_OPERATION_REBIND, RUNTIME_LOCATION_OPERATION_UPDATE,
     RUNTIME_LOCATION_OPERATION_VERIFY, RUNTIME_TARGET_KIND_CONTAINER,
-    RUNTIME_TARGET_KIND_DESKTOP_DEVICE, RUNTIME_TARGET_KIND_REMOTE_WORKSPACE,
-    RUNTIME_TARGET_KIND_RUNNER, RUNTIME_TARGET_KIND_SERVER,
+    RUNTIME_TARGET_KIND_DESKTOP, RUNTIME_TARGET_KIND_REMOTE, RUNTIME_TARGET_KIND_RUNNER,
+    RUNTIME_TARGET_KIND_SERVER,
 };
 use crate::error::ProjectError;
 use crate::ports::project_workspace_root::ProjectWorkspaceRootResolver;
@@ -160,14 +158,13 @@ impl ProjectRuntimeLocationService {
         self.ensure_project_read_access(context, project_id).await?;
         validate_registration_request(request)?;
 
-        let id = Uuid::new_v4().to_string();
-        let uuid = Uuid::new_v4().to_string();
+        let uuid = uuid();
         let display_name = request
             .display_name
             .as_deref()
             .map(str::trim)
             .filter(|value| !value.is_empty())
-            .unwrap_or(request.root_locator.trim())
+            .unwrap_or(request.runtime_target_id.trim())
             .to_owned();
         validate_display_name(&display_name)?;
 
@@ -188,20 +185,17 @@ impl ProjectRuntimeLocationService {
                 request.runtime_target_kind.trim(),
                 request.location_kind.trim(),
                 request.path_flavor.trim(),
-                request.root_locator.trim(),
                 &display_name,
                 &encrypted_path.fingerprint,
             ],
         )?;
         let location = NewProjectRuntimeLocation {
-            id,
             uuid,
             project_id: project_id.to_owned(),
             runtime_target_id: request.runtime_target_id.trim().to_owned(),
             runtime_target_kind: request.runtime_target_kind.trim().to_owned(),
             location_kind: request.location_kind.trim().to_owned(),
             path_flavor: request.path_flavor.trim().to_owned(),
-            root_locator: request.root_locator.trim().to_owned(),
             display_name,
             encrypted_absolute_path: encrypted_path.ciphertext,
             path_encryption_key_id: encrypted_path.encryption_key_id,
@@ -210,12 +204,7 @@ impl ProjectRuntimeLocationService {
             terminal_available: false,
             git_available: false,
             build_available: false,
-            file_system_available: false,
-            git_repository_url: None,
-            git_remote_name: None,
-            git_branch: None,
-            git_commit: None,
-            git_worktree_key: None,
+            filesystem_available: false,
             idempotency: Some(idempotency),
         };
         let audit = audit_entry("runtime_location.create", audit_context)?;
@@ -353,7 +342,6 @@ impl ProjectRuntimeLocationService {
             .get_stored_runtime_location(context, project_id, runtime_location_id)
             .await?;
         validate_path_flavor(&request.path_flavor)?;
-        validate_root_locator(&request.root_locator)?;
         let display_name = request
             .display_name
             .as_deref()
@@ -376,7 +364,6 @@ impl ProjectRuntimeLocationService {
         let rebind = ProjectRuntimeLocationRebind {
             expected_version,
             path_flavor: request.path_flavor.trim().to_owned(),
-            root_locator: request.root_locator.trim().to_owned(),
             display_name,
             encrypted_absolute_path: encrypted_path.ciphertext,
             path_encryption_key_id: encrypted_path.encryption_key_id,
@@ -389,7 +376,6 @@ impl ProjectRuntimeLocationService {
                     runtime_location_id,
                     &expected_version.to_string(),
                     request.path_flavor.trim(),
-                    request.root_locator.trim(),
                     &encrypted_path.fingerprint,
                 ],
             )?),
@@ -447,12 +433,12 @@ impl ProjectRuntimeLocationService {
             )
             .await?;
         self.verification_dispatcher
-            .request_verification(context, &location, expected_version)
+            .request_verification(context, &location, location.version)
             .await?;
         Ok(ProjectRuntimeLocationVerificationAcceptedPayload {
             accepted: true,
             resource_id: runtime_location_id.to_owned(),
-            status: HEALTH_STATUS_PENDING_VERIFICATION.to_owned(),
+            status: HEALTH_STATUS_PENDING.to_owned(),
         })
     }
 
@@ -584,8 +570,6 @@ impl ProjectRuntimeLocationService {
         let expected_version_fingerprint =
             expected_version.map_or_else(String::new, |value| value.to_string());
         let preference = NewProjectRuntimeLocationPreference {
-            id: Uuid::new_v4().to_string(),
-            uuid: Uuid::new_v4().to_string(),
             project_id: project_id.to_owned(),
             capability: capability.as_str().to_owned(),
             runtime_location_id: request.runtime_location_id.clone(),
@@ -744,7 +728,6 @@ fn validate_registration_request(
     validate_target_id(&request.runtime_target_id)?;
     validate_target_location_binding(&request.runtime_target_kind, &request.location_kind)?;
     validate_path_flavor(&request.path_flavor)?;
-    validate_root_locator(&request.root_locator)?;
     if is_blank(Some(request.absolute_path.as_str())) {
         return Err(ProjectError::InvalidInput(
             "absolutePath is required.".to_owned(),
@@ -760,16 +743,16 @@ fn validate_target_location_binding(
     let valid = matches!(
         (runtime_target_kind.trim(), location_kind.trim()),
         (
-            RUNTIME_TARGET_KIND_DESKTOP_DEVICE,
-            LOCATION_KIND_DESKTOP_CHECKOUT
+            RUNTIME_TARGET_KIND_DESKTOP,
+            LOCATION_KIND_LOCAL_DIRECTORY
         ) | (RUNTIME_TARGET_KIND_SERVER, LOCATION_KIND_SERVER_WORKSPACE)
-            | (RUNTIME_TARGET_KIND_RUNNER, LOCATION_KIND_RUNNER_WORKTREE)
+            | (RUNTIME_TARGET_KIND_RUNNER, LOCATION_KIND_RUNNER_WORKSPACE)
             | (
                 RUNTIME_TARGET_KIND_CONTAINER,
-                LOCATION_KIND_CONTAINER_VOLUME
+                LOCATION_KIND_CONTAINER_WORKSPACE
             )
             | (
-                RUNTIME_TARGET_KIND_REMOTE_WORKSPACE,
+                RUNTIME_TARGET_KIND_REMOTE,
                 LOCATION_KIND_REMOTE_WORKSPACE
             )
     );
@@ -782,30 +765,14 @@ fn validate_target_location_binding(
 }
 
 fn validate_path_flavor(value: &str) -> Result<(), ProjectError> {
-    if matches!(value.trim(), PATH_FLAVOR_WINDOWS | PATH_FLAVOR_POSIX) {
+    if matches!(
+        value.trim(),
+        PATH_FLAVOR_WINDOWS | PATH_FLAVOR_POSIX | PATH_FLAVOR_VIRTUAL
+    ) {
         Ok(())
     } else {
         Err(ProjectError::InvalidInput(
-            "pathFlavor must be windows or posix.".to_owned(),
-        ))
-    }
-}
-
-fn validate_root_locator(value: &str) -> Result<(), ProjectError> {
-    let value = value.trim();
-    let valid = !value.is_empty()
-        && value.len() <= 160
-        && value.as_bytes()[0].is_ascii_alphanumeric()
-        && value
-            .bytes()
-            .all(|byte| byte.is_ascii_alphanumeric() || matches!(byte, b'.' | b'_' | b'-' | b':'))
-        && !value.contains("..")
-        && !value.contains("://");
-    if valid {
-        Ok(())
-    } else {
-        Err(ProjectError::InvalidInput(
-            "rootLocator must be a path-free opaque locator.".to_owned(),
+            "pathFlavor must be windows, posix, or virtual.".to_owned(),
         ))
     }
 }
@@ -860,102 +827,15 @@ fn validate_trusted_verification(
     }
     if !matches!(
         verification.health_status.trim(),
-        HEALTH_STATUS_PENDING_VERIFICATION
-            | HEALTH_STATUS_LOCAL_OBSERVED
+        HEALTH_STATUS_PENDING
             | HEALTH_STATUS_HEALTHY
             | HEALTH_STATUS_DEGRADED
-            | HEALTH_STATUS_UNAVAILABLE
+            | HEALTH_STATUS_UNREACHABLE
             | HEALTH_STATUS_REVOKED
     ) {
         return Err(ProjectError::InvalidInput(
             "healthStatus is not supported for a runtime-location verification.".to_owned(),
         ));
-    }
-    validate_optional_git_snapshot(
-        verification.git_repository_url.as_deref(),
-        verification.git_remote_name.as_deref(),
-        verification.git_branch.as_deref(),
-        verification.git_commit.as_deref(),
-        verification.git_worktree_key.as_deref(),
-    )
-}
-
-fn validate_optional_git_snapshot(
-    repository_url: Option<&str>,
-    remote_name: Option<&str>,
-    branch: Option<&str>,
-    commit: Option<&str>,
-    worktree_key: Option<&str>,
-) -> Result<(), ProjectError> {
-    if let Some(value) = repository_url {
-        let value = value.trim();
-        let has_uri_userinfo = value
-            .split_once("://")
-            .map(|(_, rest)| {
-                rest.split('/')
-                    .next()
-                    .is_some_and(|authority| authority.contains('@'))
-            })
-            .unwrap_or(false);
-        let is_safe_scp_git_remote =
-            value.starts_with("git@") && value[4..].contains(':') && !value[4..].contains('@');
-        let valid = !value.is_empty()
-            && value.len() <= 2048
-            && !value.bytes().any(|byte| byte <= b' ')
-            && !value.contains(['?', '#'])
-            && !has_uri_userinfo
-            && (value.starts_with("https://")
-                || value.starts_with("ssh://") && !value.contains('@')
-                || value.starts_with("git://")
-                || is_safe_scp_git_remote);
-        if !valid {
-            return Err(ProjectError::InvalidInput(
-                "gitRepositoryUrl must be a credential-free Git remote URL.".to_owned(),
-            ));
-        }
-    }
-    if let Some(value) = remote_name {
-        let value = value.trim();
-        if value.is_empty()
-            || value.len() > 64
-            || !value
-                .bytes()
-                .all(|byte| byte.is_ascii_alphanumeric() || matches!(byte, b'.' | b'_' | b'-'))
-        {
-            return Err(ProjectError::InvalidInput(
-                "gitRemoteName must be a safe Git remote name.".to_owned(),
-            ));
-        }
-    }
-    if let Some(value) = branch {
-        let value = value.trim();
-        if value.is_empty()
-            || value.len() > 512
-            || value.bytes().any(|byte| byte < 0x20)
-            || value.contains("..")
-            || value.ends_with('/')
-            || value.starts_with('/')
-        {
-            return Err(ProjectError::InvalidInput(
-                "gitBranch must be a safe Git reference.".to_owned(),
-            ));
-        }
-    }
-    if let Some(value) = commit {
-        let value = value.trim();
-        if !(7..=64).contains(&value.len()) || !value.bytes().all(|byte| byte.is_ascii_hexdigit()) {
-            return Err(ProjectError::InvalidInput(
-                "gitCommit must be a hexadecimal Git object id.".to_owned(),
-            ));
-        }
-    }
-    if let Some(value) = worktree_key {
-        let value = value.trim();
-        if value.len() != 64 || !value.bytes().all(|byte| byte.is_ascii_hexdigit()) {
-            return Err(ProjectError::InvalidInput(
-                "gitWorktreeKey must be a server-generated worktree key.".to_owned(),
-            ));
-        }
     }
     Ok(())
 }
@@ -977,9 +857,7 @@ fn build_idempotency(
             "Idempotency-Key must be a printable value up to 255 characters.".to_owned(),
         ));
     }
-    let mut key_hasher = Sha256::new();
-    key_hasher.update(raw_key.as_bytes());
-    let key_hash = hex::encode(key_hasher.finalize());
+    let key_hash = sha256_hash(raw_key.as_bytes());
     Ok(Some(RuntimeLocationIdempotency {
         operation: operation.to_owned(),
         key_hash,
@@ -1000,12 +878,12 @@ fn build_required_idempotency(
 }
 
 fn stable_fingerprint(fields: &[&str]) -> String {
-    let mut hasher = Sha256::new();
+    let mut canonical = Vec::new();
     for field in fields {
-        hasher.update((field.len() as u64).to_be_bytes());
-        hasher.update(field.as_bytes());
+        canonical.extend_from_slice(&(field.len() as u64).to_be_bytes());
+        canonical.extend_from_slice(field.as_bytes());
     }
-    hex::encode(hasher.finalize())
+    sha256_hash(&canonical)
 }
 
 fn audit_entry(
@@ -1023,7 +901,8 @@ fn audit_entry(
     let redacted_metadata_json = serde_json::json!({ "event": action }).to_string();
     Ok(ProjectRuntimeLocationAuditEntry {
         action: action.to_owned(),
-        result: "accepted".to_owned(),
+        result: "succeeded".to_owned(),
+        reason_code: None,
         trace_id: audit_context.trace_id.clone(),
         redacted_metadata_json,
     })
@@ -1097,8 +976,8 @@ fn canonical_directory(path: PathBuf) -> Result<PathBuf, ProjectError> {
 #[cfg(test)]
 mod tests {
     use super::{
-        build_idempotency, validate_root_locator, validate_target_location_binding,
-        validate_trusted_verification, RuntimeLocationMutationContext,
+        build_idempotency, validate_target_location_binding, validate_trusted_verification,
+        RuntimeLocationMutationContext,
     };
     use crate::domain::runtime_location::{
         ProjectRuntimeLocationAuditContext, StoredProjectRuntimeLocation,
@@ -1125,17 +1004,9 @@ mod tests {
     }
 
     #[test]
-    fn root_locator_rejects_path_like_values() {
-        assert!(validate_root_locator("desktop-root:project").is_ok());
-        assert!(validate_root_locator("C:\\work\\project").is_err());
-        assert!(validate_root_locator("../project").is_err());
-        assert!(validate_root_locator("https://host/project").is_err());
-    }
-
-    #[test]
     fn target_and_location_kind_must_form_a_known_binding() {
-        assert!(validate_target_location_binding("desktop_device", "desktop_checkout").is_ok());
-        assert!(validate_target_location_binding("desktop_device", "server_workspace").is_err());
+        assert!(validate_target_location_binding("desktop", "local_directory").is_ok());
+        assert!(validate_target_location_binding("desktop", "server_workspace").is_err());
     }
 
     #[test]
@@ -1148,10 +1019,9 @@ mod tests {
             project_id: "300001".to_owned(),
             registered_by_user_id: "200001".to_owned(),
             runtime_target_id: "desktop-a".to_owned(),
-            runtime_target_kind: "desktop_device".to_owned(),
-            location_kind: "desktop_checkout".to_owned(),
+            runtime_target_kind: "desktop".to_owned(),
+            location_kind: "local_directory".to_owned(),
             path_flavor: "windows".to_owned(),
-            root_locator: "desktop-root".to_owned(),
             display_name: "Project".to_owned(),
             encrypted_absolute_path: "ciphertext".to_owned(),
             path_encryption_key_id: "key".to_owned(),
@@ -1159,16 +1029,11 @@ mod tests {
             terminal_available: false,
             git_available: false,
             build_available: false,
-            file_system_available: false,
-            health_status: "pending_verification".to_owned(),
+            filesystem_available: false,
+            health_status: "pending".to_owned(),
             last_verified_at: None,
             last_seen_at: None,
             verified_by_user_id: None,
-            git_repository_url: None,
-            git_remote_name: None,
-            git_branch: None,
-            git_commit: None,
-            git_worktree_key: None,
             version: 0,
             created_at: "now".to_owned(),
             updated_at: "now".to_owned(),
@@ -1180,12 +1045,7 @@ mod tests {
             terminal_available: true,
             git_available: true,
             build_available: false,
-            file_system_available: true,
-            git_repository_url: None,
-            git_remote_name: None,
-            git_branch: None,
-            git_commit: None,
-            git_worktree_key: None,
+            filesystem_available: true,
             idempotency: None,
         };
         assert!(validate_trusted_verification(&location, &verification).is_err());

@@ -13,10 +13,6 @@ export type { BirdCoderBooleanSuccessResult } from './bird-coder-boolean-success
 export type { BirdCoderChatConversationSummary } from './bird-coder-chat-conversation-summary';
 export type { BirdCoderChatConversationSummaryEnvelope } from './bird-coder-chat-conversation-summary-envelope';
 export type { BirdCoderChatConversationSummaryListEnvelope } from './bird-coder-chat-conversation-summary-list-envelope';
-export type { BirdCoderChatMessageReasoningItem } from './bird-coder-chat-message-reasoning-item';
-export type { BirdCoderChatMessageResource } from './bird-coder-chat-message-resource';
-export type { BirdCoderChatMessageResourceCitation } from './bird-coder-chat-message-resource-citation';
-export type { BirdCoderChatMessageResourceOrigin } from './bird-coder-chat-message-resource-origin';
 export type { BirdCoderChatMessageSummary } from './bird-coder-chat-message-summary';
 export type { BirdCoderChatMessageSummaryEnvelope } from './bird-coder-chat-message-summary-envelope';
 export type { BirdCoderChatMessageSummaryListEnvelope } from './bird-coder-chat-message-summary-list-envelope';
@@ -120,14 +116,8 @@ export type { BirdCoderInstallSkillPackageRequest } from './bird-coder-install-s
 export type { BirdCoderModelCatalogEntry } from './bird-coder-model-catalog-entry';
 export type { BirdCoderModelCatalogEntryListEnvelope } from './bird-coder-model-catalog-entry-list-envelope';
 export type { BirdCoderNativeSessionAttributes } from './bird-coder-native-session-attributes';
-export type { BirdCoderNativeSessionCommand } from './bird-coder-native-session-command';
-export type { BirdCoderNativeSessionDetail } from './bird-coder-native-session-detail';
-export type { BirdCoderNativeSessionDetailEnvelope } from './bird-coder-native-session-detail-envelope';
-export type { BirdCoderNativeSessionMessage } from './bird-coder-native-session-message';
 export type { BirdCoderNativeSessionProviderSummary } from './bird-coder-native-session-provider-summary';
 export type { BirdCoderNativeSessionProviderSummaryListEnvelope } from './bird-coder-native-session-provider-summary-list-envelope';
-export type { BirdCoderNativeSessionSummary } from './bird-coder-native-session-summary';
-export type { BirdCoderNativeSessionSummaryListEnvelope } from './bird-coder-native-session-summary-list-envelope';
 export type { BirdCoderOperationDescriptor } from './bird-coder-operation-descriptor';
 export type { BirdCoderOperationDescriptorEnvelope } from './bird-coder-operation-descriptor-envelope';
 export type { BirdCoderProjectCollaboratorSummary } from './bird-coder-project-collaborator-summary';

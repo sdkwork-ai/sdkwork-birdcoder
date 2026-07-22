@@ -134,7 +134,7 @@ const publishedOperationIds = Object.values(document.paths).flatMap((methods) =>
 );
 assert.equal(
   publishedOperationIds.length,
-  157,
+  155,
   'OpenAPI must publish BirdCoder-owned app/backend operations; dependency Membership routes remain external to this authority.',
 );
 assert.equal(
@@ -457,8 +457,8 @@ for (const oldAppbasePath of [
 }
 assert.equal(document.paths['/app/v3/api/system/routes']?.get?.operationId, 'routes.list');
 assert.equal(document.paths['/app/v3/api/system/routes']?.get?.['x-sdkwork-auth-mode'], 'user');
-assert.equal(document.paths['/app/v3/api/native_sessions']?.get?.operationId, 'nativeSessions.list');
-assert.equal(document.paths['/app/v3/api/native_sessions/{id}']?.get?.operationId, 'nativeSessions.retrieve');
+assert.equal(document.paths['/app/v3/api/native_sessions'], undefined);
+assert.equal(document.paths['/app/v3/api/native_sessions/{id}'], undefined);
 assert.equal(document.paths['/app/v3/api/intelligence/coding_sessions']?.post?.operationId, 'codingSessions.create');
 assert.equal(
   document.paths['/app/v3/api/intelligence/coding_sessions']?.post?.['x-sdkwork-resource'],
@@ -510,6 +510,10 @@ assert.equal(
   document.paths['/app/v3/api/intelligence/coding_sessions/{sessionId}/events']?.get?.['x-sdkwork-permission'],
   'birdcoder.intelligence-coding-sessions-events.read',
 );
+const codingSessionEventsListOperation =
+  document.paths['/app/v3/api/intelligence/coding_sessions/{sessionId}/events']?.get;
+assertOpenApiParameter(codingSessionEventsListOperation, 'page', 'query', false);
+assertOpenApiParameter(codingSessionEventsListOperation, 'page_size', 'query', false);
 assert.equal(document.paths['/app/v3/api/operations/{operationId}']?.get?.operationId, 'operations.retrieve');
 assert.equal(
   document.paths['/app/v3/api/intelligence/coding_sessions/{sessionId}/questions/{questionId}/answer']?.post
@@ -821,17 +825,11 @@ const codingSessionEventProperties = document.components.schemas.BirdCoderCoding
   .properties as Record<string, { type?: string }>;
 const createCodingSessionTurnRequestProperties = document.components.schemas
   .BirdCoderCreateCodingSessionTurnRequest.properties as Record<string, { type?: string }>;
-const nativeSessionSummaryProperties = document.components.schemas.BirdCoderNativeSessionSummary
-  .properties as Record<string, { type?: string }>;
 const nativeSessionAttributesProperties = document.components.schemas.BirdCoderNativeSessionAttributes
   .properties as Record<string, { type?: string }>;
 const createProjectRequestProperties = document.components.schemas.BirdCoderCreateProjectRequest
   .properties as Record<string, { type?: string }>;
 const updateProjectRequestProperties = document.components.schemas.BirdCoderUpdateProjectRequest
-  .properties as Record<string, { type?: string }>;
-const skillCatalogEntryProperties = document.components.schemas.BirdCoderSkillCatalogEntrySummary
-  .properties as Record<string, { type?: string }>;
-const skillPackageProperties = document.components.schemas.BirdCoderSkillPackageSummary
   .properties as Record<string, { type?: string }>;
 const standardDataScopeEnum = ['DEFAULT', 'PRIVATE', 'ORGANIZATION', 'TENANT', 'PUBLIC'];
 assert.equal(
@@ -849,11 +847,20 @@ assert.equal(
   undefined,
   'public native session attributes must not expose a local cwd.',
 );
-assert.equal(
-  nativeSessionSummaryProperties.nativeCwd,
-  undefined,
-  'public native session summaries must not expose a local nativeCwd.',
-);
+for (const retiredSchemaName of [
+  'BirdCoderNativeSessionCommand',
+  'BirdCoderNativeSessionDetail',
+  'BirdCoderNativeSessionDetailEnvelope',
+  'BirdCoderNativeSessionMessage',
+  'BirdCoderNativeSessionSummary',
+  'BirdCoderNativeSessionSummaryListEnvelope',
+]) {
+  assert.equal(
+    document.components.schemas[retiredSchemaName],
+    undefined,
+    `${retiredSchemaName} must not remain in the public OpenAPI after native session routes are retired.`,
+  );
+}
 for (const [schemaName, properties] of [
   ['BirdCoderWorkspaceSummary', workspaceSummaryProperties],
   ['BirdCoderCreateWorkspaceRequest', createWorkspaceRequestProperties],
@@ -1044,11 +1051,6 @@ assert.equal(
   'BirdCoderCodingSessionSummary.sortTimestamp must be a string because coding_session.sort_timestamp is a BIGINT field.',
 );
 assert.equal(
-  nativeSessionSummaryProperties.sortTimestamp?.type,
-  'string',
-  'BirdCoderNativeSessionSummary.sortTimestamp must be a string because native session records store epoch millis in an i64/BIGINT field.',
-);
-assert.equal(
   codingSessionEventProperties.sequence?.type,
   'string',
   'BirdCoderCodingSessionEvent.sequence must be a string because coding_session_events.sequence_no is a BIGINT field.',
@@ -1105,20 +1107,14 @@ assert.doesNotMatch(
   /stream:\s*request\.stream\.unwrap_or\(false\)/,
   'Rust create-turn route must not let request.stream=false bypass streamed provider execution.',
 );
-for (const [schemaName, properties] of [
-  ['BirdCoderSkillCatalogEntrySummary', skillCatalogEntryProperties],
-  ['BirdCoderSkillPackageSummary', skillPackageProperties],
-] as const) {
-  assert.equal(
-    properties.installCount?.type,
-    'string',
-    `${schemaName}.installCount must be a string because it maps to a Java Long/BIGINT field.`,
-  );
-}
 for (const retiredSchemaName of [
   'BirdCoderBillingVipMembershipEnvelope',
   'BirdCoderBillingVipMembershipSummary',
   'BirdCoderUpdateCurrentUserMembershipRequest',
+  'BirdCoderSkillCatalogEntrySummary',
+  'BirdCoderSkillPackageSummary',
+  'BirdCoderInstallSkillPackageRequest',
+  'BirdCoderSkillInstallationSummary',
 ]) {
   assert.equal(
     document.components.schemas?.[retiredSchemaName],
@@ -1247,31 +1243,15 @@ assert.equal(
 );
 const codingSessionListParameters = (document.paths['/app/v3/api/intelligence/coding_sessions']?.get
   ?.parameters ?? []) as Array<{ name?: string; required?: boolean }>;
-const nativeSessionListParameters = (document.paths['/app/v3/api/native_sessions']?.get?.parameters ??
-  []) as Array<{ name?: string; required?: boolean }>;
-const nativeSessionRetrieveParameters = (document.paths['/app/v3/api/native_sessions/{id}']?.get
-  ?.parameters ?? []) as Array<{ name?: string; required?: boolean }>;
 assert.equal(
   codingSessionListParameters.find((parameter) => parameter.name === 'runtimeLocationId')?.required ??
     false,
   false,
   'coding-session list may omit runtimeLocationId only when it intentionally skips native discovery.',
 );
-assert.equal(
-  nativeSessionListParameters.find((parameter) => parameter.name === 'runtimeLocationId')?.required,
-  true,
-  'native-session list must require an explicit runtimeLocationId.',
-);
-assert.equal(
-  nativeSessionRetrieveParameters.find((parameter) => parameter.name === 'runtimeLocationId')?.required,
-  true,
-  'native-session retrieve must require an explicit runtimeLocationId.',
-);
 for (const [path, method] of [
   ['/app/v3/api/intelligence/coding_sessions', 'get'],
   ['/app/v3/api/intelligence/coding_sessions', 'post'],
-  ['/app/v3/api/native_sessions', 'get'],
-  ['/app/v3/api/native_sessions/{id}', 'get'],
 ] as const) {
   const operation = document.paths[path]?.[method];
   assert.ok(
@@ -1280,10 +1260,14 @@ for (const [path, method] of [
   );
 }
 assert.equal(
-  document.paths['/app/v3/api/native_sessions/{id}']?.get?.responses['200']?.content[
-    'application/json'
-  ]?.schema?.['$ref'],
-  '#/components/schemas/BirdCoderNativeSessionDetailEnvelope',
+  document.paths['/app/v3/api/skill_packages'],
+  undefined,
+  'BirdCoder OpenAPI must not publish sdkwork-skills package routes.',
+);
+assert.equal(
+  document.paths['/app/v3/api/skill_packages/{packageId}/installations'],
+  undefined,
+  'BirdCoder OpenAPI must not publish sdkwork-skills installation routes.',
 );
 assert.equal(
   document.paths['/app/v3/api/auth/sessions']?.post?.requestBody?.content['application/json']

@@ -2,13 +2,21 @@ use std::path::PathBuf;
 use std::sync::Arc;
 
 use sdkwork_database_config::DatabaseConfig;
+use sdkwork_database_id::{
+    NodeAllocatorConfig, NodeLease, SnowflakeIdGenerator, SnowflakeNodeAllocator,
+};
 use sdkwork_database_lifecycle::{lifecycle_options_from_env, LifecycleOrchestrator};
 use sdkwork_database_spi::{DatabaseAssetProvider, DatabaseManifest, DefaultDatabaseModule};
 use sdkwork_database_sqlx::{create_pool_from_config, DatabasePool};
 
+const PROCESS_SERVICE_NAME: &str = "sdkwork-birdcoder";
+
+#[derive(Clone)]
 pub struct BirdcoderDatabaseHost {
     pool: DatabasePool,
     module: Arc<DefaultDatabaseModule>,
+    id_generator: SnowflakeIdGenerator,
+    node_lease: NodeLease,
 }
 
 impl BirdcoderDatabaseHost {
@@ -18,6 +26,14 @@ impl BirdcoderDatabaseHost {
 
     pub fn module(&self) -> Arc<DefaultDatabaseModule> {
         self.module.clone()
+    }
+
+    pub fn id_generator(&self) -> &SnowflakeIdGenerator {
+        &self.id_generator
+    }
+
+    pub fn node_lease(&self) -> &NodeLease {
+        &self.node_lease
     }
 }
 
@@ -47,7 +63,18 @@ pub async fn bootstrap_birdcoder_database(
             .map_err(|error| format!("birdcoder database migrate failed: {error}"))?;
     }
 
-    Ok(BirdcoderDatabaseHost { pool, module })
+    let allocator_config = NodeAllocatorConfig::from_service_name(PROCESS_SERVICE_NAME);
+    let (id_generator, node_lease) =
+        SnowflakeNodeAllocator::allocate_process_generator(&pool, &allocator_config)
+            .await
+            .map_err(|error| format!("allocate BirdCoder Snowflake node lease failed: {error}"))?;
+
+    Ok(BirdcoderDatabaseHost {
+        pool,
+        module,
+        id_generator,
+        node_lease,
+    })
 }
 
 pub async fn bootstrap_birdcoder_database_from_env() -> Result<BirdcoderDatabaseHost, String> {

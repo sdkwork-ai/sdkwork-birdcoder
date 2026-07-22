@@ -3,7 +3,7 @@
 Status: active
 Owner: SDKWork maintainers
 Application: sdkwork-birdcoder
-Updated: 2026-07-16
+Updated: 2026-07-22
 Specs: REQUIREMENTS_SPEC.md, DOCUMENTATION_SPEC.md, APP_PC_ARCHITECTURE_SPEC.md, API_SPEC.md, DATABASE_SPEC.md, SDK_SPEC.md, SECURITY_SPEC.md, PRIVACY_SPEC.md, DEPLOYMENT_SPEC.md
 
 ## 1. Product And Problem
@@ -27,6 +27,13 @@ encrypted in server persistence, accepted only through an authenticated
 write-only registration flow, and decrypted only inside the verified owning
 target. It is not returned in generic project data or runtime-location app API
 responses.
+
+BirdCoder is the coding workbench, not the owner of every capability visible
+inside the workbench. AI execution and assistant history belong to Agents;
+human communication belongs to IM; reusable Skills, identity, documents,
+deployments, models, settings, and commerce facts remain in their dedicated
+SDKWork modules. BirdCoder composes those capabilities through generated SDKs
+and stable service ports without copying their tables or APIs.
 
 ## 2. Target Users And Outcomes
 
@@ -55,6 +62,10 @@ Goals:
   desktop path cannot become another user's default.
 - Make import, registration, verification, rebind, recovery, and migration
   outcomes observable and safe to retry.
+- Use one Agents Project/Session/Turn/SessionItem/Interaction system for all AI
+  coding and assistant workflows, with no BirdCoder session or transcript copy.
+- Keep human IM Conversation/Message semantics distinct from AI Session Items.
+- Keep exactly one database and API write owner for every visible capability.
 
 Non-goals:
 
@@ -69,6 +80,8 @@ Non-goals:
   project has no verified location.
 - Enabling a production remote runner before durable scheduling, isolation,
   secret brokering, quotas, recovery, and operator evidence exist.
+- Persisting platform-domain shadow tables, projections, synchronized caches,
+  dual-write, copied OpenAPI, or local generated SDK forks in BirdCoder.
 
 ## 4. In-Scope User Scenarios
 
@@ -98,14 +111,15 @@ Non-goals:
    state and records credential-free remote, branch, revision, and worktree
    snapshot metadata. The project-wide identity is not overwritten by a local
    branch or path.
-8. A developer starts a coding session by explicitly selecting one P0 provider
-   (`codex`, `claude-code`, `gemini`, or `opencode`) and an active model for
-   that provider together with one terminal-capable runtime location. The
-   resulting `runtimeLocationId`, provider, and model are immutable logical
-   session bindings. Selecting another provider, model, or location starts
-   another logical coding session rather than mutating the existing session.
-   Historic sessions without a location binding remain readable but cannot run
-   turns or perform native-session discovery.
+8. A developer starts an Agents Session by explicitly selecting one P0
+   provider (`codex`, `claude-code`, `gemini`, or `opencode`), an active model,
+   and one terminal-capable runtime location. Agents owns the Session id and
+   immutable provider/model/location binding. Selecting another provider,
+   model, or location creates another Session. BirdCoder stores only the
+   associated Agents Project id and never stores a transcript mirror.
+9. A human IM conversation may invoke an Agent. IM stores its own Message and
+   stable Agent correlation ids, while Agents stores the Session Item. Neither
+   fact is a projection of the other and each owner enforces its own lifecycle.
 
 ## 5. Functional Requirements
 
@@ -140,13 +154,15 @@ Non-goals:
 9. API list/search behavior uses standard server pagination. Create, update,
    delete, verification, and preference operations follow SDKWork response,
    error, idempotency, and concurrency contracts.
-10. A coding session stores an immutable provider/model/runtime-location
-    binding. Its `codingSessionId` remains the BirdCoder logical identity,
-    while the raw provider `nativeSessionId` is bound after the first
-    successful provider turn and cannot be replaced by a different provider
-    conversation. Every turn and native-session lookup resolves the persisted
-    `runtimeLocationId`; historic sessions with no binding fail closed rather
+10. Agents stores the immutable provider/model/runtime-location Session
+    binding, provider-native identity, Turns, Session Items, Interactions,
+    artifacts, and checkpoints. BirdCoder creates no parallel session identity.
+    Every turn and native-session lookup resolves the persisted
+    `runtimeLocationId`; an invalid or unavailable binding fails closed rather
     than using a project root, preference, session CWD, or process CWD.
+11. The BirdCoder-owned database contains only the ten tables declared by
+    `specs/domain-ownership.spec.json`; Backend API and Open API contain zero
+    BirdCoder-owned operations; the App API contains only workbench operations.
 
 ## 6. Quality, Security, And Commercial Gates
 
@@ -161,6 +177,7 @@ Non-goals:
 | API and SDK | OpenAPI, route manifests, generated SDKs, composed SDK imports, typed ProblemDetail errors, pagination, permissions, idempotency, and concurrency checks pass. |
 | Remote runtime | A pending or unverified server/runner location does not advertise or permit remote execution. Isolated-runner promotion remains separately governed. |
 | Release | Database, migration, API, SDK, desktop, server, documentation, and operational evidence pass for the enabled runtime target. |
+| Domain ownership | Forbidden local tables, routes, components, generated SDK types, and active documentation references are zero across BirdCoder, Agents, Skills, and IM. |
 
 ## 7. Delivery Phases
 
@@ -175,13 +192,18 @@ Non-goals:
    legacy path sources, and operational runbooks.
 4. Qualified remote execution: durable scheduler, isolated runner lifecycle,
    resource limits, secret boundary, recovery, audit, and capacity evidence.
-5. Commercial promotion: signed packages, rollback evidence, production
+5. Domain ownership cutover: Agents, Skills, and IM owner contracts reach
+   parity; BirdCoder clients consume their SDKs/facades; duplicate database,
+   API, SDK, package, test, and documentation authorities are removed.
+6. Commercial promotion: signed packages, rollback evidence, production
    monitoring, capacity validation, and successful release gates for each
    enabled capability.
 
 ## 8. Traceability
 
 - [REQ-2026-0001: Distributed project runtime locations](../requirements/REQ-2026-0001-distributed-project-runtime-locations.md)
+- [REQ-2026-0002: Domain ownership convergence](../requirements/REQ-2026-0002-domain-ownership-convergence.md)
+- [ADR-20260722: Domain ownership and single-write authority](../../architecture/decisions/ADR-20260722-domain-ownership-and-single-write-authority.md)
 - [ADR-20260716: Distributed project runtime locations](../../architecture/decisions/ADR-20260716-distributed-project-runtime-locations.md)
 - [Technical architecture](../../architecture/tech/TECH_ARCHITECTURE.md)
 - [Engine and coding-session lifecycle](../../reference/engine-sdk-integration.md)

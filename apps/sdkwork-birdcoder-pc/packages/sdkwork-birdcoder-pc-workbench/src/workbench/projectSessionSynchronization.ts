@@ -23,6 +23,8 @@ type ProjectSessionSynchronizationRuntimeService = SessionInventoryAppRuntimeRea
 
 export interface SynchronizeProjectSessionsFromAuthorityOptions {
   appRuntimeReadService?: ProjectSessionSynchronizationRuntimeService;
+  /** Complete projection snapshot already returned with the project read. */
+  authoritativeCodingSessions?: readonly BirdCoderCodingSession[];
   project: BirdCoderProject;
   projectService: IProjectService;
   /**
@@ -60,6 +62,29 @@ function normalizeProjectSessionSynchronizationLimit(value: number | undefined):
 
 function normalizeIdentityPart(value: string | null | undefined): string {
   return typeof value === 'string' ? value.trim() : '';
+}
+
+function resolveProjectRuntimeLocationId(
+  explicitRuntimeLocationId: string | null | undefined,
+  sessions: readonly BirdCoderCodingSession[],
+): string | undefined {
+  const normalizedExplicitRuntimeLocationId = normalizeIdentityPart(
+    explicitRuntimeLocationId,
+  );
+  if (normalizedExplicitRuntimeLocationId) {
+    return normalizedExplicitRuntimeLocationId;
+  }
+
+  const runtimeLocationIds = new Set<string>();
+  for (const session of sessions) {
+    const runtimeLocationId = normalizeIdentityPart(session.runtimeLocationId);
+    if (runtimeLocationId) {
+      runtimeLocationIds.add(runtimeLocationId);
+    }
+  }
+  return runtimeLocationIds.size === 1
+    ? runtimeLocationIds.values().next().value
+    : undefined;
 }
 
 function buildSessionIdentityKeys(
@@ -308,12 +333,28 @@ async function synchronizeProjectSessionsFromInventory(
     synchronizedSessionIds.push(synchronizedSession.id);
   }
 
+  const synchronizedIdentityKeys = new Set(
+    synchronizedSessions.flatMap(buildSessionIdentityKeys),
+  );
+  const retainedAuthoritativeSessions =
+    options.authoritativeCodingSessions === undefined
+      ? []
+      : options.authoritativeCodingSessions.filter((session) => {
+          const identityKeys = buildSessionIdentityKeys(session);
+          return identityKeys.length === 0 ||
+            !identityKeys.some((key) => synchronizedIdentityKeys.has(key));
+        });
+  const projectedSessions = [
+    ...synchronizedSessions,
+    ...retainedAuthoritativeSessions,
+  ];
+
   return {
     hasMoreSessions,
-    loadedSessionCount: synchronizedSessions.length,
+    loadedSessionCount: projectedSessions.length,
     project: {
       ...options.project,
-      codingSessions: sortProjectSessionsByActivity(synchronizedSessions),
+      codingSessions: sortProjectSessionsByActivity(projectedSessions),
     },
     synchronizedSessionIds,
   };
@@ -335,11 +376,15 @@ export async function synchronizeProjectSessionsFromAuthority(
 
   const inventory = await listAuthorityBackedCodingSessionInventoryPage({
     appRuntimeReadService: options.appRuntimeReadService,
+    authoritativeCodingSessions: options.authoritativeCodingSessions,
     includeGlobal: false,
     limit: normalizeProjectSessionSynchronizationLimit(options.sessionLimit),
     offset: 0,
     projectId,
-    runtimeLocationId: options.runtimeLocationId,
+    runtimeLocationId: resolveProjectRuntimeLocationId(
+      options.runtimeLocationId,
+      options.project.codingSessions,
+    ),
     workspaceId,
   });
   return synchronizeProjectSessionsFromInventory(
@@ -380,6 +425,10 @@ export async function synchronizeProjectsSessionsFromAuthority(
         limit: sessionLimit,
         offset: 0,
         projectId: project.id,
+        runtimeLocationId: resolveProjectRuntimeLocationId(
+          undefined,
+          project.codingSessions,
+        ),
         workspaceId,
       });
       const synchronized = await synchronizeProjectSessionsFromInventory(

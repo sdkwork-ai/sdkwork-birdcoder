@@ -10,120 +10,127 @@ pub const WORKSPACE_APP_API_ROUTES: &[HttpRoute] = &[
         "workspaces",
         "workspaces.list",
     )
-    .with_required_permission("birdcoder.platform-workspaces.read"),
+    .with_required_permission("birdcoder.intelligence-workspaces.read"),
     HttpRoute::dual_token(
         HttpMethod::Post,
         paths::WORKSPACES_PATH,
         "workspaces",
         "workspaces.create",
     )
-    .with_required_permission("birdcoder.platform-workspaces.create"),
+    .with_required_permission("birdcoder.intelligence-workspaces.create"),
     HttpRoute::dual_token(
         HttpMethod::Get,
         paths::WORKSPACE_DETAIL_PATH,
         "workspaces",
         "workspaces.retrieve",
     )
-    .with_required_permission("birdcoder.platform-workspaces.read"),
+    .with_required_permission("birdcoder.intelligence-workspaces.read"),
     HttpRoute::dual_token(
         HttpMethod::Patch,
         paths::WORKSPACE_DETAIL_PATH,
         "workspaces",
         "workspaces.update",
     )
-    .with_required_permission("birdcoder.platform-workspaces.update"),
+    .with_required_permission("birdcoder.intelligence-workspaces.update"),
     HttpRoute::dual_token(
         HttpMethod::Delete,
         paths::WORKSPACE_DETAIL_PATH,
         "workspaces",
         "workspaces.delete",
     )
-    .with_required_permission("birdcoder.platform-workspaces.delete"),
-    HttpRoute::dual_token(
-        HttpMethod::Get,
-        paths::WORKSPACE_REALTIME_PATH,
-        "workspaces",
-        "workspaces.realtime.subscribe",
-    )
-    .with_required_permission("birdcoder.platform-workspaces-realtime.subscribe"),
-    HttpRoute::dual_token(
-        HttpMethod::Get,
-        paths::WORKSPACE_MEMBERS_PATH,
-        "workspaces",
-        "workspaces.members.list",
-    )
-    .with_required_permission("birdcoder.iam-workspaces-members.read"),
-    HttpRoute::dual_token(
-        HttpMethod::Post,
-        paths::WORKSPACE_MEMBERS_PATH,
-        "workspaces",
-        "workspaces.members.create",
-    )
-    .with_required_permission("birdcoder.iam-workspaces-members.create"),
+    .with_required_permission("birdcoder.intelligence-workspaces.delete"),
     HttpRoute::dual_token(
         HttpMethod::Get,
         paths::PROJECTS_PATH,
         "projects",
         "projects.list",
     )
-    .with_required_permission("birdcoder.platform-projects.read"),
+    .with_required_permission("birdcoder.intelligence-projects.read"),
     HttpRoute::dual_token(
         HttpMethod::Post,
         paths::PROJECTS_PATH,
         "projects",
         "projects.create",
     )
-    .with_required_permission("birdcoder.platform-projects.create"),
+    .with_required_permission("birdcoder.intelligence-projects.create"),
     HttpRoute::dual_token(
         HttpMethod::Get,
         paths::PROJECT_DETAIL_PATH,
         "projects",
         "projects.retrieve",
     )
-    .with_required_permission("birdcoder.platform-projects.read"),
+    .with_required_permission("birdcoder.intelligence-projects.read"),
     HttpRoute::dual_token(
         HttpMethod::Patch,
         paths::PROJECT_DETAIL_PATH,
         "projects",
         "projects.update",
     )
-    .with_required_permission("birdcoder.platform-projects.update"),
+    .with_required_permission("birdcoder.intelligence-projects.update"),
     HttpRoute::dual_token(
         HttpMethod::Delete,
         paths::PROJECT_DETAIL_PATH,
         "projects",
         "projects.delete",
     )
-    .with_required_permission("birdcoder.platform-projects.delete"),
+    .with_required_permission("birdcoder.intelligence-projects.delete"),
     HttpRoute::dual_token(
         HttpMethod::Get,
-        paths::PROJECT_WORKSPACE_BINDING_PATH,
+        paths::PROJECT_DOCUMENT_BINDINGS_PATH,
         "projects",
-        "projects.workspaceBinding.retrieve",
+        "projects.documentBindings.list",
     )
-    .with_required_permission("birdcoder.platform-projects-workspace-binding.read"),
+    .with_required_permission("birdcoder.intelligence-projects-document-bindings.read"),
     HttpRoute::dual_token(
-        HttpMethod::Put,
-        paths::PROJECT_WORKSPACE_BINDING_PATH,
+        HttpMethod::Post,
+        paths::PROJECT_DOCUMENT_BINDINGS_PATH,
         "projects",
-        "projects.workspaceBinding.update",
+        "projects.documentBindings.create",
     )
-    .with_idempotent(true)
-    .with_required_permission("birdcoder.platform-projects-workspace-binding.update"),
+    .with_required_permission("birdcoder.intelligence-projects-document-bindings.create"),
+    HttpRoute::dual_token(
+        HttpMethod::Get,
+        paths::PROJECT_DOCUMENT_BINDING_DETAIL_PATH,
+        "projects",
+        "projects.documentBindings.retrieve",
+    )
+    .with_required_permission("birdcoder.intelligence-projects-document-bindings.read"),
     HttpRoute::dual_token(
         HttpMethod::Delete,
-        paths::PROJECT_WORKSPACE_BINDING_PATH,
+        paths::PROJECT_DOCUMENT_BINDING_DETAIL_PATH,
         "projects",
-        "projects.workspaceBinding.delete",
+        "projects.documentBindings.delete",
     )
-    .with_required_permission("birdcoder.platform-projects-workspace-binding.delete"),
+    .with_required_permission("birdcoder.intelligence-projects-document-bindings.delete"),
+    HttpRoute::dual_token(
+        HttpMethod::Get,
+        paths::PROJECT_SANDBOX_BINDING_PATH,
+        "projects",
+        "projects.sandboxBinding.retrieve",
+    )
+    .with_required_permission("birdcoder.intelligence-projects-sandbox-binding.read"),
+    HttpRoute::dual_token(
+        HttpMethod::Put,
+        paths::PROJECT_SANDBOX_BINDING_PATH,
+        "projects",
+        "projects.sandboxBinding.update",
+    )
+    .with_idempotent(true)
+    .with_required_permission("birdcoder.intelligence-projects-sandbox-binding.update"),
+    HttpRoute::dual_token(
+        HttpMethod::Delete,
+        paths::PROJECT_SANDBOX_BINDING_PATH,
+        "projects",
+        "projects.sandboxBinding.delete",
+    )
+    .with_required_permission("birdcoder.intelligence-projects-sandbox-binding.delete"),
     HttpRoute::dual_token(
         HttpMethod::Get,
         paths::PROJECT_RUNTIME_LOCATIONS_PATH,
         "projects",
         "projects.runtimeLocations.list",
     )
-    .with_required_permission("birdcoder.platform-projects-runtime-locations.read"),
+    .with_required_permission("birdcoder.intelligence-projects-runtime-locations.read"),
     HttpRoute::dual_token(
         HttpMethod::Post,
         paths::PROJECT_RUNTIME_LOCATIONS_PATH,
@@ -131,14 +138,14 @@ pub const WORKSPACE_APP_API_ROUTES: &[HttpRoute] = &[
         "projects.runtimeLocations.create",
     )
     .with_idempotent(true)
-    .with_required_permission("birdcoder.platform-projects-runtime-locations.create"),
+    .with_required_permission("birdcoder.intelligence-projects-runtime-locations.create"),
     HttpRoute::dual_token(
         HttpMethod::Get,
         paths::PROJECT_RUNTIME_LOCATION_DETAIL_PATH,
         "projects",
         "projects.runtimeLocations.retrieve",
     )
-    .with_required_permission("birdcoder.platform-projects-runtime-locations.read"),
+    .with_required_permission("birdcoder.intelligence-projects-runtime-locations.read"),
     HttpRoute::dual_token(
         HttpMethod::Patch,
         paths::PROJECT_RUNTIME_LOCATION_DETAIL_PATH,
@@ -146,14 +153,14 @@ pub const WORKSPACE_APP_API_ROUTES: &[HttpRoute] = &[
         "projects.runtimeLocations.update",
     )
     .with_idempotent(true)
-    .with_required_permission("birdcoder.platform-projects-runtime-locations.update"),
+    .with_required_permission("birdcoder.intelligence-projects-runtime-locations.update"),
     HttpRoute::dual_token(
         HttpMethod::Delete,
         paths::PROJECT_RUNTIME_LOCATION_DETAIL_PATH,
         "projects",
         "projects.runtimeLocations.delete",
     )
-    .with_required_permission("birdcoder.platform-projects-runtime-locations.delete"),
+    .with_required_permission("birdcoder.intelligence-projects-runtime-locations.delete"),
     HttpRoute::dual_token(
         HttpMethod::Post,
         paths::PROJECT_RUNTIME_LOCATION_REBIND_PATH,
@@ -161,7 +168,7 @@ pub const WORKSPACE_APP_API_ROUTES: &[HttpRoute] = &[
         "projects.runtimeLocations.rebind",
     )
     .with_idempotent(true)
-    .with_required_permission("birdcoder.platform-projects-runtime-locations.create"),
+    .with_required_permission("birdcoder.intelligence-projects-runtime-locations.update"),
     HttpRoute::dual_token(
         HttpMethod::Post,
         paths::PROJECT_RUNTIME_LOCATION_VERIFICATION_REQUEST_PATH,
@@ -169,14 +176,16 @@ pub const WORKSPACE_APP_API_ROUTES: &[HttpRoute] = &[
         "projects.runtimeLocations.requestVerification",
     )
     .with_idempotent(true)
-    .with_required_permission("birdcoder.platform-projects-runtime-locations.create"),
+    .with_required_permission("birdcoder.intelligence-projects-runtime-locations.update"),
     HttpRoute::dual_token(
         HttpMethod::Get,
         paths::PROJECT_RUNTIME_LOCATION_PREFERENCES_PATH,
         "projects",
         "projects.runtimeLocations.preferences.list",
     )
-    .with_required_permission("birdcoder.platform-projects-runtime-locations-preferences.read"),
+    .with_required_permission(
+        "birdcoder.intelligence-projects-runtime-locations-preferences.read",
+    ),
     HttpRoute::dual_token(
         HttpMethod::Put,
         paths::PROJECT_RUNTIME_LOCATION_PREFERENCE_PATH,
@@ -184,114 +193,92 @@ pub const WORKSPACE_APP_API_ROUTES: &[HttpRoute] = &[
         "projects.runtimeLocations.preferences.update",
     )
     .with_idempotent(true)
-    .with_required_permission("birdcoder.platform-projects-runtime-locations-preferences.update"),
+    .with_required_permission(
+        "birdcoder.intelligence-projects-runtime-locations-preferences.update",
+    ),
     HttpRoute::dual_token(
         HttpMethod::Get,
         paths::PROJECT_GIT_OVERVIEW_PATH,
         "projects",
         "projects.git.overview.retrieve",
     )
-    .with_required_permission("birdcoder.platform-projects-git-overview.read"),
+    .with_required_permission("birdcoder.intelligence-projects-git-overview.read"),
     HttpRoute::dual_token(
         HttpMethod::Get,
         paths::PROJECT_GIT_DIFF_PATH,
         "projects",
         "projects.git.diff.retrieve",
     )
-    .with_required_permission("birdcoder.platform-projects-git-overview.read"),
+    .with_required_permission("birdcoder.intelligence-projects-git-diff.read"),
     HttpRoute::dual_token(
         HttpMethod::Post,
         paths::PROJECT_GIT_BRANCHES_PATH,
         "projects",
         "projects.git.branches.create",
     )
-    .with_required_permission("birdcoder.platform-projects-git-branches.create"),
+    .with_required_permission("birdcoder.intelligence-projects-git-branches.create"),
     HttpRoute::dual_token(
         HttpMethod::Post,
         paths::PROJECT_GIT_BRANCH_SWITCH_PATH,
         "projects",
         "projects.git.branchSwitch.create",
     )
-    .with_required_permission("birdcoder.platform-projects-git-branch-switch.create"),
+    .with_required_permission("birdcoder.intelligence-projects-git-branch-switch.create"),
     HttpRoute::dual_token(
         HttpMethod::Post,
         paths::PROJECT_GIT_COMMITS_PATH,
         "projects",
         "projects.git.commits.create",
     )
-    .with_required_permission("birdcoder.platform-projects-git-commits.create"),
+    .with_required_permission("birdcoder.intelligence-projects-git-commits.create"),
     HttpRoute::dual_token(
         HttpMethod::Post,
         paths::PROJECT_GIT_PUSHES_PATH,
         "projects",
         "projects.git.pushes.create",
     )
-    .with_required_permission("birdcoder.platform-projects-git-pushes.create"),
+    .with_required_permission("birdcoder.intelligence-projects-git-pushes.create"),
     HttpRoute::dual_token(
         HttpMethod::Post,
         paths::PROJECT_GIT_WORKTREES_PATH,
         "projects",
         "projects.git.worktrees.create",
     )
-    .with_required_permission("birdcoder.platform-projects-git-worktrees.create"),
+    .with_required_permission("birdcoder.intelligence-projects-git-worktrees.create"),
     HttpRoute::dual_token(
         HttpMethod::Post,
         paths::PROJECT_GIT_WORKTREE_REMOVALS_PATH,
         "projects",
         "projects.git.worktreeRemovals.create",
     )
-    .with_required_permission("birdcoder.platform-projects-git-worktree-removals.create"),
+    .with_required_permission("birdcoder.intelligence-projects-git-worktree-removals.create"),
     HttpRoute::dual_token(
         HttpMethod::Post,
         paths::PROJECT_GIT_WORKTREE_PRUNE_PATH,
         "projects",
         "projects.git.worktreePrune.create",
     )
-    .with_required_permission("birdcoder.platform-projects-git-worktree-prune.create"),
-    HttpRoute::dual_token(
-        HttpMethod::Get,
-        paths::PROJECT_COLLABORATORS_PATH,
-        "projects",
-        "projects.collaborators.list",
-    )
-    .with_required_permission("birdcoder.platform-projects-collaborators.read"),
-    HttpRoute::dual_token(
-        HttpMethod::Post,
-        paths::PROJECT_COLLABORATORS_PATH,
-        "projects",
-        "projects.collaborators.create",
-    )
-    .with_required_permission("birdcoder.platform-projects-collaborators.create"),
-    HttpRoute::dual_token(
-        HttpMethod::Get,
-        paths::DEPLOYMENTS_PATH,
-        "deployments",
-        "deployments.list",
-    )
-    .with_required_permission("birdcoder.platform-deployments.read"),
-    HttpRoute::dual_token(
-        HttpMethod::Get,
-        paths::PROJECT_DEPLOYMENT_TARGETS_PATH,
-        "projects",
-        "projects.deploymentTargets.list",
-    )
-    .with_required_permission("birdcoder.platform-projects-deployment-targets.read"),
-    HttpRoute::dual_token(
-        HttpMethod::Post,
-        paths::PROJECT_PUBLISH_PATH,
-        "projects",
-        "projects.publish.publish",
-    )
-    .with_required_permission("birdcoder.platform-projects-publish.execute"),
-    HttpRoute::dual_token(
-        HttpMethod::Get,
-        paths::TEAMS_PATH,
-        "workspaceTeams",
-        "workspaceTeams.list",
-    )
-    .with_required_permission("birdcoder.collaboration-workspace-teams.read"),
+    .with_required_permission("birdcoder.intelligence-projects-git-worktree-prune.create"),
 ];
 
 pub fn workspace_app_api_route_manifest() -> HttpRouteManifest {
     HttpRouteManifest::new(WORKSPACE_APP_API_ROUTES)
+}
+
+#[cfg(test)]
+mod tests {
+    use std::collections::HashSet;
+
+    use super::*;
+
+    #[test]
+    fn manifest_contains_only_workbench_routes_and_unique_operations() {
+        assert_eq!(WORKSPACE_APP_API_ROUTES.len(), 35);
+        let mut operation_ids = HashSet::new();
+        for route in WORKSPACE_APP_API_ROUTES {
+            assert!(route.path.starts_with("/app/v3/api/workspaces")
+                || route.path.starts_with("/app/v3/api/projects"));
+            assert!(operation_ids.insert(route.operation_id));
+        }
+    }
 }

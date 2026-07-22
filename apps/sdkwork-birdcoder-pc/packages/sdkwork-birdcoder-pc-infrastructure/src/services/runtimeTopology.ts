@@ -85,6 +85,12 @@ function normalizeRuntimeTarget(value: string | undefined): BirdCoderRuntimeTarg
 export function resolveBirdCoderRuntimeTopology(
   options: ResolveBirdCoderRuntimeTopologyOptions = {},
 ): BirdCoderRuntimeTopology {
+  const runtimeTarget = normalizeRuntimeTarget(options.runtimeTarget)
+    ?? normalizeRuntimeTarget(
+      readBirdCoderRuntimePublicEnv('VITE_SDKWORK_BIRDCODER_RUNTIME_TARGET')
+      ?? readBirdCoderRuntimePublicEnv('VITE_SDKWORK_RUNTIME_TARGET'),
+    )
+    ?? 'browser';
   const deploymentProfile = normalizeDeploymentProfile(options.deploymentProfile)
     ?? normalizeDeploymentProfile(
       readBirdCoderRuntimePublicEnv('VITE_SDKWORK_BIRDCODER_DEPLOYMENT_PROFILE')
@@ -95,13 +101,11 @@ export function resolveBirdCoderRuntimeTopology(
     ?? normalizeExecutionLocation(
       readBirdCoderRuntimePublicEnv('VITE_SDKWORK_BIRDCODER_EXECUTION_LOCATION'),
     )
-    ?? (deploymentProfile === 'cloud' ? 'cloud-workspace' : 'local-host');
-  const runtimeTarget = normalizeRuntimeTarget(options.runtimeTarget)
-    ?? normalizeRuntimeTarget(
-      readBirdCoderRuntimePublicEnv('VITE_SDKWORK_BIRDCODER_RUNTIME_TARGET')
-      ?? readBirdCoderRuntimePublicEnv('VITE_SDKWORK_RUNTIME_TARGET'),
-    )
-    ?? 'browser';
+    ?? (
+      runtimeTarget === 'desktop' && deploymentProfile === 'standalone'
+        ? 'local-host'
+        : 'cloud-workspace'
+    );
   return { deploymentProfile, executionLocation, runtimeTarget };
 }
 

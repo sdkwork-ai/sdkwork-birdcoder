@@ -12,9 +12,8 @@ function readSource(...segments) {
 const hookPath = path.join(
   rootDir,
   'apps',
-    'sdkwork-birdcoder-pc',
-    'packages',
-  
+  'sdkwork-birdcoder-pc',
+  'packages',
   'sdkwork-birdcoder-pc-workbench',
   'src',
   'hooks',
@@ -27,24 +26,27 @@ assert.ok(
 );
 
 const hookSource = fs.readFileSync(hookPath, 'utf8');
+const codingSessionCreationSource = readSource(
+  'apps',
+  'sdkwork-birdcoder-pc',
+  'packages',
+  'sdkwork-birdcoder-pc-workbench',
+  'src',
+  'workbench',
+  'codingSessionCreation.ts',
+);
 const commonsIndexSource = readSource(
   'apps',
-  
   'sdkwork-birdcoder-pc',
-  
   'packages',
-  
   'sdkwork-birdcoder-pc-workbench',
   'src',
   'index.ts',
 );
 const codePageSource = readSource(
   'apps',
-  
   'sdkwork-birdcoder-pc',
-  
   'packages',
-  
   'sdkwork-birdcoder-pc-code',
   'src',
   'pages',
@@ -52,11 +54,8 @@ const codePageSource = readSource(
 );
 const studioPageSource = readSource(
   'apps',
-  
   'sdkwork-birdcoder-pc',
-  
   'packages',
-  
   'sdkwork-birdcoder-pc-studio',
   'src',
   'pages',
@@ -65,9 +64,8 @@ const studioPageSource = readSource(
 const legacyCommonsWorkbenchPath = path.join(
   rootDir,
   'apps',
-    'sdkwork-birdcoder-pc',
-    'packages',
-  
+  'sdkwork-birdcoder-pc',
+  'packages',
   'sdkwork-birdcoder-pc-workbench',
   'src',
   'workbench.ts',
@@ -81,20 +79,46 @@ assert.match(
 
 assert.match(
   hookSource,
-  /createWorkbenchCodingSessionInProject\(/,
-  'The shared workbench coding session creation actions hook must delegate the actual create-select-focus sequence into the shared createWorkbenchCodingSessionInProject helper.',
+  /let newSession: BirdCoderCodingSession;[\s\S]*try \{[\s\S]*newSession = await creation\.promise;[\s\S]*\} catch \(error\) \{[\s\S]*return null;[\s\S]*\}[\s\S]*const selectionContext:/,
+  'Persistence failures must be handled before post-creation selection and notification so UI callback errors cannot turn a persisted session into a false creation failure.',
+);
+assert.match(
+  hookSource,
+  /return newSession;/,
+  'Every caller of a coalesced creation must resume after the shared persistence promise so its own selection guard can be evaluated.',
 );
 
 assert.match(
   hookSource,
-  /async \(\s*projectId: string,\s*requestedEngineId\?: string,\s*options\?: \{[\s\S]*shouldSelectCreatedSession\?:[\s\S]*\},\s*\)/,
-  'The shared workbench coding session creation actions hook must accept a per-call created-session selection guard so UI surfaces can prevent stale async creation from overriding newer user navigation.',
+  /async \(\s*request\?: CreateNewCodingSessionRequest,\s*actionOptions\?: CreateCodingSessionActionOptions,[\s\S]*normalizeCreateNewCodingSessionRequest\(/,
+  'The shared workbench coding session creation actions hook must accept one typed request boundary instead of rebuilding positional entry-point orchestration.',
 );
 
 assert.match(
   hookSource,
-  /shouldSelectCreatedSession:\s*options\?\.shouldSelectCreatedSession,/,
-  'The shared workbench coding session creation actions hook must pass the per-call selection guard into createWorkbenchCodingSessionInProject.',
+  /!creation\.selected[\s\S]*actionOptions\?\.shouldSelectCreatedSession\?\.\(newSession, selectionContext\) !== false[\s\S]*creation\.selected = true;/,
+  'The shared action must evaluate selection per caller after a coalesced request resolves, while selecting the created session at most once.',
+);
+
+assert.match(
+  hookSource,
+  /inFlightCreationsRef\.current\.get\(inFlightKey\)[\s\S]*inFlightCreationsRef\.current\.set\(inFlightKey, creation\)/,
+  'The shared action must coalesce identical in-flight requests so double clicks and overlapping shortcuts cannot create duplicate persisted sessions.',
+);
+assert.match(
+  codingSessionCreationSource,
+  /showFailureToast\?: boolean;[\s\S]*showSuccessToast\?: boolean;/,
+  'The shared command contract must let background provisioning consumers suppress per-pane toasts.',
+);
+assert.match(
+  hookSource,
+  /actionOptions\?\.showSuccessToast !== false/,
+  'The shared action must honor the command contract success-toast control for background provisioning.',
+);
+assert.match(
+  hookSource,
+  /actionOptions\?\.showFailureToast !== false/,
+  'The shared action must honor the command contract failure-toast control for background provisioning.',
 );
 
 assert.match(

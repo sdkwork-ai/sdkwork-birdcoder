@@ -139,17 +139,11 @@ function buildAppRuntimeReadService(
     async getCodingSession() {
       return summary;
     },
-    async getNativeSession() {
-      throw new Error('native session detail should not be requested');
-    },
     async listCodingSessionEvents() {
       return [];
     },
     async listCodingSessions() {
       return [summary];
-    },
-    async listNativeSessions() {
-      return [];
     },
     ...overrides,
   };

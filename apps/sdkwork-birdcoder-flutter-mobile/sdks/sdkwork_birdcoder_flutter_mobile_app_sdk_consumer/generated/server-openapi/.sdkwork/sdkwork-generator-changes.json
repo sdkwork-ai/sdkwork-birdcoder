@@ -9,10 +9,16 @@
     "protocol": "http",
     "packageName": "sdkwork_birdcoder_app_sdk"
   },
-  "changeFingerprint": "80e545660f59e1f1fbfaa2711719468df099c76dad806ae6779a5c33a06e7a4c",
+  "changeFingerprint": "abf770eebb0e32187e48e49efbeeb7b68bface3d87931c57f844a6e17b5dea3f",
   "changes": {
     "createdGeneratedFiles": [],
-    "updatedGeneratedFiles": [],
+    "updatedGeneratedFiles": [
+      "lib/src/api/api.dart",
+      "lib/src/api/commerce.dart",
+      "lib/src/api/runtime.dart",
+      "lib/src/models.dart",
+      "README.md"
+    ],
     "unchangedGeneratedFiles": [
       "bin/publish-core.mjs",
       "bin/publish.ps1",
@@ -20,10 +26,8 @@
       "CHANGELOG.md",
       "lib/app_client.dart",
       "lib/sdkwork_birdcoder_app_sdk.dart",
-      "lib/src/api/api.dart",
       "lib/src/api/auth.dart",
       "lib/src/api/collaboration.dart",
-      "lib/src/api/commerce.dart",
       "lib/src/api/content.dart",
       "lib/src/api/iam.dart",
       "lib/src/api/intelligence.dart",
@@ -31,16 +35,13 @@
       "lib/src/api/paths.dart",
       "lib/src/api/platform.dart",
       "lib/src/api/response_helpers.dart",
-      "lib/src/api/runtime.dart",
       "lib/src/api/skills.dart",
       "lib/src/api/system.dart",
       "lib/src/api/templates.dart",
       "lib/src/http/client.dart",
-      "lib/src/models.dart",
       "LICENSE",
       "pubspec_overrides.yaml",
       "pubspec.yaml",
-      "README.md",
       "sdkwork-sdk.json"
     ],
     "deletedGeneratedFiles": [],
@@ -52,26 +53,70 @@
   },
   "impact": {
     "schemaVersion": 1,
-    "areas": [],
-    "details": [],
-    "requiresVerification": false,
-    "summary": "No generated, scaffold, or backup changes detected. Verification can be skipped."
+    "areas": [
+      "api-surface",
+      "models",
+      "documentation"
+    ],
+    "details": [
+      {
+        "area": "api-surface",
+        "paths": [
+          "lib/src/api/api.dart",
+          "lib/src/api/commerce.dart",
+          "lib/src/api/runtime.dart"
+        ]
+      },
+      {
+        "area": "models",
+        "paths": [
+          "lib/src/models.dart"
+        ]
+      },
+      {
+        "area": "documentation",
+        "paths": [
+          "README.md"
+        ]
+      }
+    ],
+    "requiresVerification": true,
+    "summary": "Detected impact areas: api-surface, models, documentation. Verification is required."
   },
   "verificationPlan": {
-    "shouldRun": false,
-    "runPhase": "skip",
-    "summary": "No generated, scaffold, or backup changes detected. Verification can be skipped.",
-    "steps": []
+    "shouldRun": true,
+    "runPhase": "now",
+    "summary": "Detected impact areas: api-surface, models, documentation. Verification is required. Run the required verification commands now against the generated SDK output.",
+    "steps": [
+      {
+        "id": "check",
+        "title": "Unified package check",
+        "required": true,
+        "rationale": "Validate the generated package with the unified publish helper. Triggered by: api-surface, models, documentation.",
+        "workingDirectory": "E:\\sdkwork-space\\sdkwork-birdcoder\\apps\\sdkwork-birdcoder-flutter-mobile\\sdks\\sdkwork_birdcoder_flutter_mobile_app_sdk_consumer\\generated\\server-openapi",
+        "command": "node",
+        "args": [
+          "./bin/publish-core.mjs",
+          "--language",
+          "flutter",
+          "--project-dir",
+          ".",
+          "--action",
+          "check"
+        ],
+        "displayCommand": "node ./bin/publish-core.mjs --language flutter --project-dir . --action check"
+      }
+    ]
   },
   "executionDecision": {
     "schemaVersion": 1,
-    "riskLevel": "low",
-    "nextAction": "skip",
+    "riskLevel": "medium",
+    "nextAction": "verify",
     "requiresManualReview": false,
     "applyRequiresExpectedFingerprint": false,
-    "summary": "No actionable changes were detected. No apply or verification step is required.",
+    "summary": "Changes have been applied. Run the required verification plan now.",
     "reasons": [
-      "no-actionable-changes"
+      "verification-required"
     ]
   },
   "preservedLegacyFiles": false

@@ -36,12 +36,12 @@ assert.ok(
 );
 assert.equal(
   liveRegistry.summary.contractOperationCount,
-  157,
-  'HTTP OpenAPI contract must expose 157 governed app/backend operations; workspace realtime remains a route-catalog-only realtime entry and is not emitted as an HTTP OpenAPI operation.',
+  155,
+  'HTTP OpenAPI contract must expose 155 governed app/backend operations; workspace realtime remains a route-catalog-only realtime entry and is not emitted as an HTTP OpenAPI operation.',
 );
 assert.equal(
   liveRegistry.summary.implementedOperationCount,
-  157,
+  155,
   'Product and federated IAM routes must implement all HTTP OpenAPI operations.',
 );
 assert.equal(

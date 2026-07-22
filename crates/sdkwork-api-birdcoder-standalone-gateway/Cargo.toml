@@ -24,7 +24,7 @@ tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 sha2 = "0.10"
 hex = "0.4"
 base64 = "0.22"
-sdkwork-web-bootstrap = { workspace = true, features = ["otel"] }
+sdkwork-web-bootstrap = { workspace = true, features = ["otel", "redis"] }
 sdkwork-api-birdcoder-assembly.workspace = true
 
 # Dependency/platform route adapters
@@ -42,6 +42,7 @@ sdkwork_iam_web_adapter.workspace = true
 sdkwork_iam_embedded_application_bootstrap.workspace = true
 sdkwork_iam_database_host.workspace = true
 sdkwork_database_sqlx = { workspace = true }
+sdkwork_database_id = { workspace = true }
 sdkwork_database_config = { workspace = true }
 sdkwork-birdcoder-database-host = { workspace = true }
 sqlx = { workspace = true }

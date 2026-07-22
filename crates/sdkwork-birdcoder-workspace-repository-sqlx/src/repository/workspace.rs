@@ -1,952 +1,510 @@
-use sqlx::{Any, AnyPool, Execute, QueryBuilder};
-use uuid::Uuid;
-
-use crate::db::columns::workspace as col;
-use crate::db::columns::workspace_member as member_col;
-use crate::db::rows::{WorkspaceMemberRow, WorkspaceRow};
-use crate::mapper::row_mapper;
-use crate::repository::scope;
-use sdkwork_birdcoder_errors::{require_scoped_tenant_id, require_scoped_user_id};
-use sdkwork_birdcoder_sqlx_repository_pool::dialect::{
-    inserted_row_id, numbered_placeholders, IS_NOT_DELETED, SET_SOFT_DELETED,
-};
 use sdkwork_birdcoder_workspace_service::context::WorkspaceContext;
 use sdkwork_birdcoder_workspace_service::domain::commands::{
-    CreateWorkspaceRequest, UpdateWorkspaceRequest, UpsertWorkspaceMemberRequest,
+    CreateWorkspaceRequest, UpdateWorkspaceRequest,
 };
 use sdkwork_birdcoder_workspace_service::domain::models::WorkspaceScopedQuery;
-use sdkwork_birdcoder_workspace_service::domain::results::{
-    WorkspaceMemberPayload, WorkspacePayload,
-};
+use sdkwork_birdcoder_workspace_service::domain::results::WorkspacePayload;
 use sdkwork_birdcoder_workspace_service::error::WorkspaceError;
+use sdkwork_birdcoder_workspace_service::ports::repository::WorkspaceRepository;
+use sdkwork_database_id::SnowflakeIdGenerator;
+use sdkwork_database_sqlx::DatabasePool;
+use sdkwork_utils_rust::{datetime::now, id::uuid};
+use sqlx::{FromRow, PgPool, SqlitePool};
 
 #[derive(Clone)]
-pub struct SqliteWorkspaceRepository {
-    pool: AnyPool,
+enum WorkspacePool {
+    Postgres(PgPool),
+    Sqlite(SqlitePool),
 }
 
-impl SqliteWorkspaceRepository {
-    pub fn new(pool: AnyPool) -> Self {
-        Self { pool }
-    }
+#[derive(Clone)]
+pub struct SqlxWorkspaceRepository {
+    pool: WorkspacePool,
+    id_generator: SnowflakeIdGenerator,
+}
 
-    fn now_iso() -> String {
-        time::OffsetDateTime::now_utc()
-            .format(&time::format_description::well_known::Iso8601::DEFAULT)
-            .unwrap_or_else(|_| "1970-01-01T00:00:00Z".to_string())
-    }
+#[derive(FromRow)]
+struct WorkspaceRecord {
+    id: i64,
+    uuid: String,
+    tenant_id: i64,
+    organization_id: i64,
+    owner_user_id: i64,
+    created_by_user_id: i64,
+    code: String,
+    name: String,
+    description: Option<String>,
+    icon_url: Option<String>,
+    color: Option<String>,
+    visibility: String,
+    status: String,
+    version: i64,
+    created_at: String,
+    updated_at: String,
+}
 
-    fn scoped_tenant_id(ctx: &WorkspaceContext) -> Result<i64, WorkspaceError> {
-        require_scoped_tenant_id(&ctx.tenant_id)
-            .map_err(|_| WorkspaceError::Forbidden("A valid tenant scope is required.".to_owned()))
-    }
+#[derive(Clone, Copy)]
+struct WorkspaceScope {
+    tenant_id: i64,
+    organization_id: i64,
+    user_id: i64,
+}
 
-    fn scoped_user_id(ctx: &WorkspaceContext) -> Result<i64, WorkspaceError> {
-        require_scoped_user_id(&ctx.user_id)
-            .map_err(|_| WorkspaceError::Forbidden("A valid user scope is required.".to_owned()))
-    }
-
-    fn scoped_organization_id(ctx: &WorkspaceContext) -> Result<i64, WorkspaceError> {
-        let organization_id = ctx.organization_id.trim().parse::<i64>().map_err(|_| {
-            WorkspaceError::Forbidden("A valid organization scope is required.".to_owned())
-        })?;
-        if organization_id < 0 {
-            return Err(WorkspaceError::Forbidden(
-                "A valid organization scope is required.".to_owned(),
-            ));
-        }
-        Ok(organization_id)
-    }
-
-    fn optional_non_negative_i64(
-        value: Option<&str>,
-        field: &str,
-    ) -> Result<Option<i64>, WorkspaceError> {
-        value
-            .map(|value| {
-                value.parse::<i64>().map_err(|_| {
-                    WorkspaceError::InvalidInput(format!(
-                        "{field} must be a non-negative int64 decimal string."
-                    ))
-                })
-            })
-            .transpose()
-            .and_then(|value| match value {
-                Some(value) if value < 0 => Err(WorkspaceError::InvalidInput(format!(
-                    "{field} must be a non-negative int64 decimal string."
-                ))),
-                value => Ok(value),
-            })
-    }
-
-    async fn is_postgres(&self) -> Result<bool, WorkspaceError> {
-        let connection = self
-            .pool
-            .acquire()
-            .await
-            .map_err(|error| WorkspaceError::Repository(error.to_string()))?;
-        Ok(connection.backend_name().eq_ignore_ascii_case("PostgreSQL"))
-    }
-
-    fn uuid_expression(is_postgres: bool) -> &'static str {
-        if is_postgres {
-            "CAST(? AS UUID)"
-        } else {
-            "?"
-        }
-    }
-
-    fn timestamp_expression(is_postgres: bool) -> &'static str {
-        if is_postgres {
-            "CAST(? AS TIMESTAMPTZ)"
-        } else {
-            "?"
-        }
-    }
-
-    fn metadata_expression(is_postgres: bool) -> &'static str {
-        if is_postgres {
-            "CAST(? AS JSONB)"
-        } else {
-            "?"
-        }
-    }
-
-    fn query_sql(template: &str) -> String {
-        numbered_placeholders(template)
-    }
-
-    fn workspace_projection(is_postgres: bool) -> &'static str {
-        if is_postgres {
-            "id, CAST(uuid AS TEXT) AS uuid, tenant_id, organization_id, data_scope, \
-             TO_CHAR(created_at AT TIME ZONE 'UTC', 'YYYY-MM-DD\"T\"HH24:MI:SS.US\"Z\"') AS created_at, \
-             TO_CHAR(updated_at AT TIME ZONE 'UTC', 'YYYY-MM-DD\"T\"HH24:MI:SS.US\"Z\"') AS updated_at, \
-             version, is_deleted, name, code, title, description, owner_id, leader_id, \
-             created_by_user_id, icon, color, type, \
-             TO_CHAR(start_time AT TIME ZONE 'UTC', 'YYYY-MM-DD\"T\"HH24:MI:SS.US\"Z\"') AS start_time, \
-             TO_CHAR(end_time AT TIME ZONE 'UTC', 'YYYY-MM-DD\"T\"HH24:MI:SS.US\"Z\"') AS end_time, \
-             max_members, current_members, member_count, \
-             max_storage, used_storage, CAST(settings_json AS TEXT) AS settings_json, \
-             is_public, is_template, status"
-        } else {
-            "*"
-        }
-    }
-
-    fn workspace_member_projection(is_postgres: bool) -> &'static str {
-        if is_postgres {
-            "id, CAST(uuid AS TEXT) AS uuid, tenant_id, organization_id, \
-             TO_CHAR(created_at AT TIME ZONE 'UTC', 'YYYY-MM-DD\"T\"HH24:MI:SS.US\"Z\"') AS created_at, \
-             TO_CHAR(updated_at AT TIME ZONE 'UTC', 'YYYY-MM-DD\"T\"HH24:MI:SS.US\"Z\"') AS updated_at, \
-             version, is_deleted, workspace_id, user_id, team_id, role, created_by_user_id, \
-             granted_by_user_id, status"
-        } else {
-            "*"
-        }
-    }
-
-    fn workspace_access_predicate(table_alias: Option<&str>) -> String {
-        let owner = match table_alias {
-            Some(alias) => format!("{alias}.{}", col::OWNER_ID),
-            None => col::OWNER_ID.to_string(),
+impl SqlxWorkspaceRepository {
+    pub fn new(pool: DatabasePool, id_generator: SnowflakeIdGenerator) -> Self {
+        let pool = match pool {
+            DatabasePool::Postgres(pool, _) => WorkspacePool::Postgres(pool),
+            DatabasePool::Sqlite(pool, _) => WorkspacePool::Sqlite(pool),
         };
-        let is_public = match table_alias {
-            Some(alias) => format!("{alias}.{}", col::IS_PUBLIC),
-            None => col::IS_PUBLIC.to_string(),
-        };
-        let workspace_key = match table_alias {
-            Some(alias) => format!("{alias}.{}", col::ID),
-            None => col::ID.to_string(),
-        };
-        let tenant_key = match table_alias {
-            Some(alias) => format!("{alias}.{}", col::TENANT_ID),
-            None => col::TENANT_ID.to_string(),
-        };
-        let organization_key = match table_alias {
-            Some(alias) => format!("{alias}.{}", col::ORGANIZATION_ID),
-            None => col::ORGANIZATION_ID.to_string(),
-        };
-        format!(
-            "({owner} = ? OR {is_public} IS TRUE OR EXISTS (SELECT 1 FROM {} m \
-             WHERE m.{} = {workspace_key} AND m.{} = {tenant_key} \
-             AND m.{} = {organization_key} AND m.{} = ? AND m.is_deleted IS NOT TRUE))",
-            member_col::TABLE,
-            member_col::WORKSPACE_ID,
-            member_col::TENANT_ID,
-            member_col::ORGANIZATION_ID,
-            member_col::USER_ID,
-        )
+        Self { pool, id_generator }
+    }
+
+    pub fn from_postgres(pool: PgPool, id_generator: SnowflakeIdGenerator) -> Self {
+        Self {
+            pool: WorkspacePool::Postgres(pool),
+            id_generator,
+        }
+    }
+
+    pub fn from_sqlite(pool: SqlitePool, id_generator: SnowflakeIdGenerator) -> Self {
+        Self {
+            pool: WorkspacePool::Sqlite(pool),
+            id_generator,
+        }
+    }
+
+    fn next_id(&self) -> Result<i64, WorkspaceError> {
+        self.id_generator.generate().map_err(|error| {
+            WorkspaceError::Internal(format!("Snowflake id generation failed: {error}"))
+        })
     }
 }
 
 #[async_trait::async_trait]
-impl sdkwork_birdcoder_workspace_service::ports::repository::WorkspaceRepository
-    for SqliteWorkspaceRepository
-{
+impl WorkspaceRepository for SqlxWorkspaceRepository {
     async fn find_workspace_by_id(
         &self,
-        ctx: &WorkspaceContext,
+        context: &WorkspaceContext,
         id: &str,
     ) -> Result<Option<WorkspacePayload>, WorkspaceError> {
-        let id_num: i64 = id
-            .parse()
-            .map_err(|_| WorkspaceError::InvalidInput(format!("invalid id: {id}")))?;
-        let tenant_id = Self::scoped_tenant_id(ctx)?;
-        let organization_id = Self::scoped_organization_id(ctx)?;
-        let is_postgres = self.is_postgres().await?;
-        let sql = Self::query_sql(&format!(
-            "SELECT {} FROM {} WHERE {} = ? AND {} AND {} = ? AND {} = ?",
-            Self::workspace_projection(is_postgres),
-            col::TABLE,
-            col::ID,
-            IS_NOT_DELETED,
-            col::TENANT_ID,
-            col::ORGANIZATION_ID,
-        ));
-
-        let row = sqlx::query(&sql)
-            .bind(id_num)
-            .bind(tenant_id)
-            .bind(organization_id)
-            .fetch_optional(&self.pool)
-            .await
-            .map_err(|e| WorkspaceError::Repository(e.to_string()))?;
-
-        match row {
-            Some(row) => {
-                let r = WorkspaceRow::from_row(&row)
-                    .map_err(|e| WorkspaceError::Repository(e.to_string()))?;
-                Ok(Some(row_mapper::workspace_row_to_payload(&r)))
+        let scope = workspace_scope(context)?;
+        let id = positive_id(id, "workspace_id")?;
+        let record = match &self.pool {
+            WorkspacePool::Sqlite(pool) => {
+                sqlx::query_as::<_, WorkspaceRecord>(SQLITE_SELECT_WORKSPACE)
+                    .bind(id)
+                    .bind(scope.tenant_id)
+                    .bind(scope.organization_id)
+                    .bind(scope.user_id)
+                    .fetch_optional(pool)
+                    .await
             }
-            None => Ok(None),
+            WorkspacePool::Postgres(pool) => {
+                sqlx::query_as::<_, WorkspaceRecord>(POSTGRES_SELECT_WORKSPACE)
+                    .bind(id)
+                    .bind(scope.tenant_id)
+                    .bind(scope.organization_id)
+                    .bind(scope.user_id)
+                    .fetch_optional(pool)
+                    .await
+            }
         }
+        .map_err(repository_error)?;
+        Ok(record.map(WorkspaceRecord::into_payload))
     }
 
     async fn list_workspaces(
         &self,
-        ctx: &WorkspaceContext,
+        context: &WorkspaceContext,
         query: &WorkspaceScopedQuery,
     ) -> Result<(Vec<WorkspacePayload>, usize), WorkspaceError> {
-        let tenant_id = Self::scoped_tenant_id(ctx)?;
-        let organization_id = Self::scoped_organization_id(ctx)?;
-        let is_postgres = self.is_postgres().await?;
-        let access_user_id = if let Some(requested_user_id) = query.user_id.as_deref() {
-            if requested_user_id != ctx.user_id {
-                return Err(WorkspaceError::Forbidden(
-                    "Workspace listing is limited to the authenticated user.".to_owned(),
-                ));
+        let scope = workspace_scope(context)?;
+        if query.user_id.as_deref().is_some_and(|value| value != context.user_id) {
+            return Err(WorkspaceError::Forbidden(
+                "Workspace listing is limited to the authenticated user.".to_owned(),
+            ));
+        }
+        let (offset, limit) = query.pagination.normalize(20, 200);
+        let (records, total) = match &self.pool {
+            WorkspacePool::Sqlite(pool) => {
+                let records = sqlx::query_as::<_, WorkspaceRecord>(SQLITE_LIST_WORKSPACES)
+                    .bind(scope.tenant_id)
+                    .bind(scope.organization_id)
+                    .bind(scope.user_id)
+                    .bind(limit)
+                    .bind(offset)
+                    .fetch_all(pool)
+                    .await
+                    .map_err(repository_error)?;
+                let total = sqlx::query_scalar::<_, i64>(SQLITE_COUNT_WORKSPACES)
+                    .bind(scope.tenant_id)
+                    .bind(scope.organization_id)
+                    .bind(scope.user_id)
+                    .fetch_one(pool)
+                    .await
+                    .map_err(repository_error)?;
+                (records, total)
             }
-            Self::scoped_user_id(ctx)?
-        } else {
-            Self::scoped_user_id(ctx)?
+            WorkspacePool::Postgres(pool) => {
+                let records = sqlx::query_as::<_, WorkspaceRecord>(POSTGRES_LIST_WORKSPACES)
+                    .bind(scope.tenant_id)
+                    .bind(scope.organization_id)
+                    .bind(scope.user_id)
+                    .bind(limit)
+                    .bind(offset)
+                    .fetch_all(pool)
+                    .await
+                    .map_err(repository_error)?;
+                let total = sqlx::query_scalar::<_, i64>(POSTGRES_COUNT_WORKSPACES)
+                    .bind(scope.tenant_id)
+                    .bind(scope.organization_id)
+                    .bind(scope.user_id)
+                    .fetch_one(pool)
+                    .await
+                    .map_err(repository_error)?;
+                (records, total)
+            }
         };
-
-        // PAGINATION_SPEC.md §2/§5: push `LIMIT`/`OFFSET` down to SQL — never
-        // collect-then-slice in process memory. The HTTP route strictly
-        // validates page/page_size; `ListPagination::normalize` remains a
-        // defensive internal bound before SQL execution.
-        let (offset, limit) = query.pagination.normalize(
-            sdkwork_birdcoder_project_service::pagination::DEFAULT_LIST_PAGE_SIZE as i64,
-            sdkwork_birdcoder_project_service::pagination::MAX_LIST_PAGE_SIZE as i64,
-        );
-
-        let mut sql = format!(
-            "SELECT {} FROM {} WHERE {} AND {} = ? AND {} = ? AND {}",
-            Self::workspace_projection(is_postgres),
-            col::TABLE,
-            IS_NOT_DELETED,
-            col::TENANT_ID,
-            col::ORGANIZATION_ID,
-            Self::workspace_access_predicate(None),
-        );
-        if query.workspace_id.is_some() {
-            sql.push_str(&format!(" AND {} = ?", col::ID));
-        }
-        // Append LIMIT/OFFSET last so bind order stays: tenant, organization,
-        // user, user, [workspace_id], limit, offset.
-        sql.push_str(" ORDER BY id DESC LIMIT ? OFFSET ?");
-        let sql = Self::query_sql(&sql);
-
-        let mut q = sqlx::query(&sql)
-            .bind(tenant_id)
-            .bind(organization_id)
-            .bind(access_user_id)
-            .bind(access_user_id);
-        if let Some(ref wid) = query.workspace_id {
-            let workspace_id = wid.parse::<i64>().map_err(|_| {
-                WorkspaceError::InvalidInput("workspaceId must be a positive int64 string.".into())
-            })?;
-            if workspace_id <= 0 {
-                return Err(WorkspaceError::InvalidInput(
-                    "workspaceId must be a positive int64 string.".into(),
-                ));
-            }
-            q = q.bind(workspace_id);
-        }
-        q = q.bind(limit).bind(offset);
-
-        let rows = q
-            .fetch_all(&self.pool)
-            .await
-            .map_err(|e| WorkspaceError::Repository(e.to_string()))?;
-
-        let items: Vec<WorkspacePayload> = rows
-            .iter()
-            .map(|row| {
-                WorkspaceRow::from_row(row)
-                    .map(|r| row_mapper::workspace_row_to_payload(&r))
-                    .map_err(|e| WorkspaceError::Repository(e.to_string()))
-            })
-            .collect::<Result<_, _>>()?;
-
-        // Total count via a parallel COUNT(*) using the same WHERE predicates
-        // (minus the LIMIT/OFFSET). This keeps `pageInfo.totalItems` accurate
-        // without materializing the full result set.
-        let mut count_sql = format!(
-            "SELECT COUNT(*) FROM {} WHERE {} AND {} = ? AND {} = ? AND {}",
-            col::TABLE,
-            IS_NOT_DELETED,
-            col::TENANT_ID,
-            col::ORGANIZATION_ID,
-            Self::workspace_access_predicate(None),
-        );
-        if query.workspace_id.is_some() {
-            count_sql.push_str(&format!(" AND {} = ?", col::ID));
-        }
-        let count_sql = Self::query_sql(&count_sql);
-        let mut count_q = sqlx::query_scalar::<_, i64>(&count_sql)
-            .bind(tenant_id)
-            .bind(organization_id)
-            .bind(access_user_id)
-            .bind(access_user_id);
-        if let Some(ref wid) = query.workspace_id {
-            let workspace_id = wid.parse::<i64>().map_err(|_| {
-                WorkspaceError::InvalidInput("workspaceId must be a positive int64 string.".into())
-            })?;
-            count_q = count_q.bind(workspace_id);
-        }
-        let total: i64 = count_q
-            .fetch_one(&self.pool)
-            .await
-            .map_err(|e| WorkspaceError::Repository(e.to_string()))?;
-        Ok((items, total.max(0) as usize))
+        let total = usize::try_from(total)
+            .map_err(|_| WorkspaceError::Internal("Workspace count overflowed usize.".to_owned()))?;
+        Ok((
+            records
+                .into_iter()
+                .map(WorkspaceRecord::into_payload)
+                .collect(),
+            total,
+        ))
     }
 
     async fn create_workspace(
         &self,
-        ctx: &WorkspaceContext,
-        req: &CreateWorkspaceRequest,
+        context: &WorkspaceContext,
+        request: &CreateWorkspaceRequest,
     ) -> Result<WorkspacePayload, WorkspaceError> {
-        let is_postgres = self.is_postgres().await?;
-        let now = Self::now_iso();
-        let uuid = Uuid::new_v4().to_string();
-        let tenant_id = Self::scoped_tenant_id(ctx)?;
-        let organization_id = Self::scoped_organization_id(ctx)?;
-        let owner_id = if let Some(ref value) = req.owner_id {
-            value
-                .parse::<i64>()
-                .map_err(|_| WorkspaceError::InvalidInput("invalid owner_id".to_owned()))?
-        } else {
-            Self::scoped_user_id(ctx)?
+        let scope = workspace_scope(context)?;
+        let id = self.next_id()?;
+        let code = request
+            .code
+            .as_deref()
+            .map(str::trim)
+            .filter(|value| !value.is_empty())
+            .map(str::to_owned)
+            .unwrap_or_else(|| format!("workspace-{id}"));
+        let visibility = request.visibility.as_deref().unwrap_or("private").trim();
+        let timestamp = now().to_rfc3339();
+        let record_uuid = uuid();
+        let result = match &self.pool {
+            WorkspacePool::Sqlite(pool) => sqlx::query(SQLITE_INSERT_WORKSPACE)
+                .bind(id)
+                .bind(&record_uuid)
+                .bind(scope.tenant_id)
+                .bind(scope.organization_id)
+                .bind(scope.user_id)
+                .bind(scope.user_id)
+                .bind(&code)
+                .bind(request.name.trim())
+                .bind(request.description.as_deref().map(str::trim))
+                .bind(request.icon_url.as_deref().map(str::trim))
+                .bind(request.color.as_deref().map(str::trim))
+                .bind(visibility)
+                .bind(&timestamp)
+                .bind(&timestamp)
+                .execute(pool)
+                .await
+                .map(|result| result.rows_affected()),
+            WorkspacePool::Postgres(pool) => sqlx::query(POSTGRES_INSERT_WORKSPACE)
+                .bind(id)
+                .bind(&record_uuid)
+                .bind(scope.tenant_id)
+                .bind(scope.organization_id)
+                .bind(scope.user_id)
+                .bind(scope.user_id)
+                .bind(&code)
+                .bind(request.name.trim())
+                .bind(request.description.as_deref().map(str::trim))
+                .bind(request.icon_url.as_deref().map(str::trim))
+                .bind(request.color.as_deref().map(str::trim))
+                .bind(visibility)
+                .bind(&timestamp)
+                .execute(pool)
+                .await
+                .map(|result| result.rows_affected()),
         };
-        let data_scope: i64 = scope::data_scope_to_i64(req.data_scope.as_deref());
-        let settings_json = req
-            .settings
-            .as_ref()
-            .map(serde_json::to_string)
-            .transpose()
-            .map_err(|error| WorkspaceError::InvalidInput(error.to_string()))?;
-        let leader_id = req
-            .leader_id
-            .as_deref()
-            .map(|value| {
-                value
-                    .parse::<i64>()
-                    .map_err(|_| WorkspaceError::InvalidInput("invalid leader_id".to_owned()))
-            })
-            .transpose()?;
-        let created_by = req
-            .created_by_user_id
-            .as_deref()
-            .map(|value| {
-                value.parse::<i64>().map_err(|_| {
-                    WorkspaceError::InvalidInput("invalid created_by_user_id".to_owned())
-                })
-            })
-            .transpose()?;
-        let max_storage =
-            Self::optional_non_negative_i64(req.max_storage.as_deref(), "maxStorage")?;
-        let used_storage =
-            Self::optional_non_negative_i64(req.used_storage.as_deref(), "usedStorage")?;
-        let is_public = req.is_public.unwrap_or(false);
-        let is_template = req.is_template.unwrap_or(false);
-
-        let insert_sql = format!(
-            "INSERT INTO {t} (uuid, tenant_id, organization_id, data_scope, created_at, updated_at, \
-             version, is_deleted, name, code, title, description, owner_id, leader_id, \
-             created_by_user_id, icon, color, type, start_time, end_time, max_members, \
-             current_members, member_count, max_storage, used_storage, settings_json, is_public, \
-             is_template, status) VALUES ({uuid}, ?, ?, ?, {created_at}, {updated_at}, 0, FALSE, \
-             ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, {start_time}, {end_time}, ?, ?, ?, ?, ?, {settings}, \
-             ?, ?, 'active') RETURNING id",
-            t = col::TABLE,
-            uuid = Self::uuid_expression(is_postgres),
-            created_at = Self::timestamp_expression(is_postgres),
-            updated_at = Self::timestamp_expression(is_postgres),
-            start_time = Self::timestamp_expression(is_postgres),
-            end_time = Self::timestamp_expression(is_postgres),
-            settings = Self::metadata_expression(is_postgres),
-        );
-        let insert_sql = Self::query_sql(&insert_sql);
-        let id_row = sqlx::query(&insert_sql)
-            .bind(&uuid)
-            .bind(tenant_id)
-            .bind(organization_id)
-            .bind(data_scope)
-            .bind(&now)
-            .bind(&now)
-            .bind(&req.name)
-            .bind(&req.code)
-            .bind(&req.title)
-            .bind(&req.description)
-            .bind(owner_id)
-            .bind(leader_id)
-            .bind(created_by)
-            .bind(&req.icon)
-            .bind(&req.color)
-            .bind(&req.entity_type)
-            .bind(&req.start_time)
-            .bind(&req.end_time)
-            .bind(req.max_members)
-            .bind(req.current_members)
-            .bind(req.member_count)
-            .bind(max_storage)
-            .bind(used_storage)
-            .bind(&settings_json)
-            .bind(is_public)
-            .bind(is_template)
-            .fetch_one(&self.pool)
-            .await
-            .map_err(|e| WorkspaceError::Repository(e.to_string()))?;
-
-        let id = inserted_row_id(&id_row).map_err(|e| WorkspaceError::Repository(e.to_string()))?;
-        let select_sql = Self::query_sql(&format!(
-            "SELECT {} FROM {} WHERE {} = ?",
-            Self::workspace_projection(is_postgres),
-            col::TABLE,
-            col::ID,
-        ));
-        let row = sqlx::query(&select_sql)
-            .bind(id)
-            .fetch_one(&self.pool)
-            .await
-            .map_err(|e| WorkspaceError::Repository(e.to_string()))?;
-        let r =
-            WorkspaceRow::from_row(&row).map_err(|e| WorkspaceError::Repository(e.to_string()))?;
-        Ok(row_mapper::workspace_row_to_payload(&r))
+        result.map_err(write_error)?;
+        self.find_workspace_by_id(context, &id.to_string())
+            .await?
+            .ok_or_else(|| WorkspaceError::Internal("Created workspace was not readable.".to_owned()))
     }
 
     async fn update_workspace(
         &self,
-        ctx: &WorkspaceContext,
+        context: &WorkspaceContext,
         id: &str,
-        req: &UpdateWorkspaceRequest,
+        request: &UpdateWorkspaceRequest,
     ) -> Result<WorkspacePayload, WorkspaceError> {
-        let id_num: i64 = id
-            .parse()
-            .map_err(|_| WorkspaceError::InvalidInput(format!("invalid id: {id}")))?;
-        self.ensure_workspace_access(ctx, id).await?;
-        let tenant_id = Self::scoped_tenant_id(ctx)?;
-        let organization_id = Self::scoped_organization_id(ctx)?;
-        let is_postgres = self.is_postgres().await?;
-        let now = Self::now_iso();
-        let settings_json = req
-            .settings
-            .as_ref()
-            .map(serde_json::to_string)
-            .transpose()
-            .map_err(|error| WorkspaceError::InvalidInput(error.to_string()))?;
-        let max_storage =
-            Self::optional_non_negative_i64(req.max_storage.as_deref(), "maxStorage")?;
-        let used_storage =
-            Self::optional_non_negative_i64(req.used_storage.as_deref(), "usedStorage")?;
-        let mut builder: QueryBuilder<Any> =
-            QueryBuilder::new(format!("UPDATE {} SET ", col::TABLE));
-        {
-            let mut sep = builder.separated(", ");
-            sep.push(format!("{} = ", col::UPDATED_AT));
-            if is_postgres {
-                sep.push_unseparated("CAST(");
-                sep.push_bind_unseparated(&now);
-                sep.push_unseparated(" AS TIMESTAMPTZ)");
-            } else {
-                sep.push_bind_unseparated(&now);
-            }
-
-            macro_rules! add_opt {
-                ($field:expr, $col:expr) => {
-                    if let Some(ref v) = $field {
-                        sep.push(format!("{} = ", $col));
-                        sep.push_bind_unseparated(v.as_str());
-                    }
-                };
-            }
-            macro_rules! add_opt_i64 {
-                ($field:expr, $col:expr) => {
-                    if let Some(v) = $field {
-                        sep.push(format!("{} = ", $col));
-                        sep.push_bind_unseparated(v);
-                    }
-                };
-            }
-            macro_rules! add_opt_bool {
-                ($field:expr, $col:expr) => {
-                    if let Some(v) = $field {
-                        sep.push(format!("{} = ", $col));
-                        sep.push_bind_unseparated(v);
-                    }
-                };
-            }
-
-            add_opt!(req.name, col::NAME);
-            add_opt!(req.description, col::DESCRIPTION);
-            add_opt!(req.code, col::CODE);
-            add_opt!(req.title, col::TITLE);
-            add_opt!(req.icon, col::ICON);
-            add_opt!(req.color, col::COLOR);
-            add_opt!(req.entity_type, col::TYPE);
-            add_opt_i64!(req.max_members, col::MAX_MEMBERS);
-            add_opt_i64!(req.current_members, col::CURRENT_MEMBERS);
-            add_opt_i64!(req.member_count, col::MEMBER_COUNT);
-            add_opt!(req.status, col::STATUS);
-            add_opt_bool!(req.is_public, col::IS_PUBLIC);
-            add_opt_bool!(req.is_template, col::IS_TEMPLATE);
-
-            for (value, column) in [
-                (req.start_time.as_deref(), col::START_TIME),
-                (req.end_time.as_deref(), col::END_TIME),
-            ] {
-                if let Some(value) = value {
-                    sep.push(format!("{column} = "));
-                    if is_postgres {
-                        sep.push_unseparated("CAST(");
-                        sep.push_bind_unseparated(value);
-                        sep.push_unseparated(" AS TIMESTAMPTZ)");
-                    } else {
-                        sep.push_bind_unseparated(value);
-                    }
-                }
-            }
-            if let Some(json) = settings_json {
-                sep.push(format!("{} = ", col::SETTINGS_JSON));
-                if is_postgres {
-                    sep.push_unseparated("CAST(");
-                    sep.push_bind_unseparated(json);
-                    sep.push_unseparated(" AS JSONB)");
-                } else {
-                    sep.push_bind_unseparated(json);
-                }
-            }
-            if let Some(value) = max_storage {
-                sep.push(format!("{} = ", col::MAX_STORAGE));
-                sep.push_bind_unseparated(value);
-            }
-            if let Some(value) = used_storage {
-                sep.push(format!("{} = ", col::USED_STORAGE));
-                sep.push_bind_unseparated(value);
-            }
-            if let Some(ref v) = req.data_scope {
-                let n = scope::data_scope_to_i64(Some(v.as_str()));
-                sep.push(format!("{} = ", col::DATA_SCOPE));
-                sep.push_bind_unseparated(n);
-            }
-            if let Some(ref v) = req.owner_id {
-                let owner_id = v
-                    .parse::<i64>()
-                    .map_err(|_| WorkspaceError::InvalidInput("invalid owner_id".to_owned()))?;
-                sep.push(format!("{} = ", col::OWNER_ID));
-                sep.push_bind_unseparated(owner_id);
-            }
-            if let Some(ref v) = req.leader_id {
-                let leader_id = v
-                    .parse::<i64>()
-                    .map_err(|_| WorkspaceError::InvalidInput("invalid leader_id".to_owned()))?;
-                sep.push(format!("{} = ", col::LEADER_ID));
-                sep.push_bind_unseparated(leader_id);
-            }
+        let scope = workspace_scope(context)?;
+        let id = positive_id(id, "workspace_id")?;
+        let timestamp = now().to_rfc3339();
+        let result = match &self.pool {
+            WorkspacePool::Sqlite(pool) => sqlx::query(SQLITE_UPDATE_WORKSPACE)
+                .bind(request.code.as_deref().map(str::trim))
+                .bind(request.name.as_deref().map(str::trim))
+                .bind(request.description.as_deref().map(str::trim))
+                .bind(request.icon_url.as_deref().map(str::trim))
+                .bind(request.color.as_deref().map(str::trim))
+                .bind(request.visibility.as_deref().map(str::trim))
+                .bind(request.status.as_deref().map(str::trim))
+                .bind(&timestamp)
+                .bind(id)
+                .bind(scope.tenant_id)
+                .bind(scope.organization_id)
+                .bind(scope.user_id)
+                .bind(request.expected_version)
+                .execute(pool)
+                .await
+                .map(|result| result.rows_affected()),
+            WorkspacePool::Postgres(pool) => sqlx::query(POSTGRES_UPDATE_WORKSPACE)
+                .bind(request.code.as_deref().map(str::trim))
+                .bind(request.name.as_deref().map(str::trim))
+                .bind(request.description.as_deref().map(str::trim))
+                .bind(request.icon_url.as_deref().map(str::trim))
+                .bind(request.color.as_deref().map(str::trim))
+                .bind(request.visibility.as_deref().map(str::trim))
+                .bind(request.status.as_deref().map(str::trim))
+                .bind(&timestamp)
+                .bind(id)
+                .bind(scope.tenant_id)
+                .bind(scope.organization_id)
+                .bind(scope.user_id)
+                .bind(request.expected_version)
+                .execute(pool)
+                .await
+                .map(|result| result.rows_affected()),
         }
-
-        builder.push(format!(" WHERE {} = ", col::ID));
-        builder.push_bind(id_num);
-        builder.push(format!(" AND {} = ", col::TENANT_ID));
-        builder.push_bind(tenant_id);
-        builder.push(format!(" AND {} = ", col::ORGANIZATION_ID));
-        builder.push_bind(organization_id);
-
-        let mut query = builder.build();
-        let sql = Self::query_sql(query.sql());
-        let arguments = query
-            .take_arguments()
-            .map_err(|error| WorkspaceError::Repository(error.to_string()))?
-            .unwrap_or_default();
-        let result = sqlx::query_with(&sql, arguments)
-            .execute(&self.pool)
-            .await
-            .map_err(|e| WorkspaceError::Repository(e.to_string()))?;
-        if result.rows_affected() == 0 {
-            return Err(WorkspaceError::NotFound(format!(
-                "workspace {id} not found"
-            )));
+        .map_err(write_error)?;
+        if result == 0 {
+            return Err(WorkspaceError::PreconditionFailed(
+                "Workspace version no longer matches If-Match.".to_owned(),
+            ));
         }
-
-        let select_sql = Self::query_sql(&format!(
-            "SELECT {} FROM {} WHERE {} = ? AND {} = ? AND {} = ?",
-            Self::workspace_projection(is_postgres),
-            col::TABLE,
-            col::ID,
-            col::TENANT_ID,
-            col::ORGANIZATION_ID,
-        ));
-        let row = sqlx::query(&select_sql)
-            .bind(id_num)
-            .bind(tenant_id)
-            .bind(organization_id)
-            .fetch_one(&self.pool)
-            .await
-            .map_err(|e| WorkspaceError::Repository(e.to_string()))?;
-        let r =
-            WorkspaceRow::from_row(&row).map_err(|e| WorkspaceError::Repository(e.to_string()))?;
-        Ok(row_mapper::workspace_row_to_payload(&r))
+        self.find_workspace_by_id(context, &id.to_string())
+            .await?
+            .ok_or_else(|| WorkspaceError::Internal("Updated workspace was not readable.".to_owned()))
     }
 
     async fn delete_workspace(
         &self,
-        ctx: &WorkspaceContext,
+        context: &WorkspaceContext,
         id: &str,
+        expected_version: i64,
     ) -> Result<(), WorkspaceError> {
-        let id_num: i64 = id
-            .parse()
-            .map_err(|_| WorkspaceError::InvalidInput(format!("invalid id: {id}")))?;
-        self.ensure_workspace_access(ctx, id).await?;
-        let tenant_id = Self::scoped_tenant_id(ctx)?;
-        let organization_id = Self::scoped_organization_id(ctx)?;
-        let is_postgres = self.is_postgres().await?;
-        let now = Self::now_iso();
-        let sql = Self::query_sql(&format!(
-            "UPDATE {} SET {}, {} = {} WHERE {} = ? AND {} = ? AND {} = ? AND {}",
-            col::TABLE,
-            SET_SOFT_DELETED,
-            col::UPDATED_AT,
-            Self::timestamp_expression(is_postgres),
-            col::ID,
-            col::TENANT_ID,
-            col::ORGANIZATION_ID,
-            IS_NOT_DELETED,
-        ));
-
-        let result = sqlx::query(&sql)
-            .bind(&now)
-            .bind(id_num)
-            .bind(tenant_id)
-            .bind(organization_id)
-            .execute(&self.pool)
-            .await
-            .map_err(|e| WorkspaceError::Repository(e.to_string()))?;
-        if result.rows_affected() == 0 {
-            return Err(WorkspaceError::NotFound(format!(
-                "workspace {id} not found"
-            )));
+        let scope = workspace_scope(context)?;
+        let id = positive_id(id, "workspace_id")?;
+        let child_count = match &self.pool {
+            WorkspacePool::Sqlite(pool) => sqlx::query_scalar::<_, i64>(SQLITE_COUNT_ACTIVE_PROJECTS)
+                .bind(id)
+                .bind(scope.tenant_id)
+                .bind(scope.organization_id)
+                .fetch_one(pool)
+                .await,
+            WorkspacePool::Postgres(pool) => sqlx::query_scalar::<_, i64>(POSTGRES_COUNT_ACTIVE_PROJECTS)
+                .bind(id)
+                .bind(scope.tenant_id)
+                .bind(scope.organization_id)
+                .fetch_one(pool)
+                .await,
         }
-        Ok(())
-    }
-
-    async fn list_workspace_members(
-        &self,
-        ctx: &WorkspaceContext,
-        workspace_id: &str,
-        offset: usize,
-        limit: usize,
-    ) -> Result<(Vec<WorkspaceMemberPayload>, usize), WorkspaceError> {
-        self.ensure_workspace_access(ctx, workspace_id).await?;
-        let tenant_id = Self::scoped_tenant_id(ctx)?;
-        let organization_id = Self::scoped_organization_id(ctx)?;
-        let is_postgres = self.is_postgres().await?;
-        let wid: i64 = workspace_id.parse().map_err(|_| {
-            WorkspaceError::InvalidInput(format!("invalid workspace_id: {workspace_id}"))
-        })?;
-        // PAGINATION_SPEC.md §2/§5: push LIMIT/OFFSET to SQL.
-        let list_sql = Self::query_sql(&format!(
-            "SELECT {} FROM {} WHERE {} = ? AND {} = ? AND {} = ? AND {} ORDER BY {} DESC LIMIT ? OFFSET ?",
-            Self::workspace_member_projection(is_postgres),
-            member_col::TABLE,
-            member_col::WORKSPACE_ID,
-            member_col::TENANT_ID,
-            member_col::ORGANIZATION_ID,
-            IS_NOT_DELETED,
-            member_col::ID,
-        ));
-        let rows = sqlx::query(&list_sql)
-            .bind(wid)
-            .bind(tenant_id)
-            .bind(organization_id)
-            .bind(limit as i64)
-            .bind(offset as i64)
-            .fetch_all(&self.pool)
-            .await
-            .map_err(|e| WorkspaceError::Repository(e.to_string()))?;
-
-        let items: Vec<WorkspaceMemberPayload> = rows
-            .iter()
-            .map(|row| {
-                WorkspaceMemberRow::from_row(row)
-                    .map(|r| row_mapper::workspace_member_row_to_payload(&r))
-                    .map_err(|e| WorkspaceError::Repository(e.to_string()))
-            })
-            .collect::<Result<_, _>>()?;
-
-        let count_sql = Self::query_sql(&format!(
-            "SELECT COUNT(*) FROM {} WHERE {} = ? AND {} = ? AND {} = ? AND {}",
-            member_col::TABLE,
-            member_col::WORKSPACE_ID,
-            member_col::TENANT_ID,
-            member_col::ORGANIZATION_ID,
-            IS_NOT_DELETED,
-        ));
-        let total: i64 = sqlx::query_scalar(&count_sql)
-            .bind(wid)
-            .bind(tenant_id)
-            .bind(organization_id)
-            .fetch_one(&self.pool)
-            .await
-            .map_err(|e| WorkspaceError::Repository(e.to_string()))?;
-        Ok((items, total.max(0) as usize))
-    }
-
-    async fn upsert_workspace_member(
-        &self,
-        ctx: &WorkspaceContext,
-        workspace_id: &str,
-        req: &UpsertWorkspaceMemberRequest,
-    ) -> Result<WorkspaceMemberPayload, WorkspaceError> {
-        self.ensure_workspace_access(ctx, workspace_id).await?;
-        let is_postgres = self.is_postgres().await?;
-        let wid: i64 = workspace_id.parse().map_err(|_| {
-            WorkspaceError::InvalidInput(format!("invalid workspace_id: {workspace_id}"))
-        })?;
-        let uid: i64 = req
-            .user_id
-            .as_deref()
-            .unwrap_or(&ctx.user_id)
-            .parse()
-            .map_err(|_| WorkspaceError::InvalidInput("invalid user_id".into()))?;
-        let now = Self::now_iso();
-        let uuid = Uuid::new_v4().to_string();
-        let tenant_id = Self::scoped_tenant_id(ctx)?;
-        let organization_id = Self::scoped_organization_id(ctx)?;
-        let role = req.role.as_deref().unwrap_or("member");
-        let status = req.status.as_deref().unwrap_or("active");
-
-        let existing_sql = Self::query_sql(&format!(
-            "SELECT {} FROM {} WHERE {} = ? AND {} = ? AND {} = ? AND {} = ? AND {}",
-            member_col::ID,
-            member_col::TABLE,
-            member_col::WORKSPACE_ID,
-            member_col::USER_ID,
-            member_col::TENANT_ID,
-            member_col::ORGANIZATION_ID,
-            IS_NOT_DELETED,
-        ));
-        let existing: Option<i64> = sqlx::query_scalar(&existing_sql)
-            .bind(wid)
-            .bind(uid)
-            .bind(tenant_id)
-            .bind(organization_id)
-            .fetch_optional(&self.pool)
-            .await
-            .map_err(|e| WorkspaceError::Repository(e.to_string()))?;
-
-        if let Some(existing_id) = existing {
-            let update_sql = Self::query_sql(&format!(
-                "UPDATE {} SET {} = ?, {} = ?, {} = {} WHERE {} = ? AND {} = ? AND {} = ?",
-                member_col::TABLE,
-                member_col::ROLE,
-                member_col::STATUS,
-                member_col::UPDATED_AT,
-                Self::timestamp_expression(is_postgres),
-                member_col::ID,
-                member_col::TENANT_ID,
-                member_col::ORGANIZATION_ID,
+        .map_err(repository_error)?;
+        if child_count > 0 {
+            return Err(WorkspaceError::Conflict(
+                "Workspace cannot be deleted while it contains active projects.".to_owned(),
             ));
-            sqlx::query(&update_sql)
-                .bind(role)
-                .bind(status)
-                .bind(&now)
-                .bind(existing_id)
-                .bind(tenant_id)
-                .bind(organization_id)
-                .execute(&self.pool)
-                .await
-                .map_err(|e| WorkspaceError::Repository(e.to_string()))?;
-            let select_sql = Self::query_sql(&format!(
-                "SELECT {} FROM {} WHERE {} = ? AND {} = ? AND {} = ?",
-                Self::workspace_member_projection(is_postgres),
-                member_col::TABLE,
-                member_col::ID,
-                member_col::TENANT_ID,
-                member_col::ORGANIZATION_ID,
-            ));
-            let row = sqlx::query(&select_sql)
-                .bind(existing_id)
-                .bind(tenant_id)
-                .bind(organization_id)
-                .fetch_one(&self.pool)
-                .await
-                .map_err(|e| WorkspaceError::Repository(e.to_string()))?;
-            let r = WorkspaceMemberRow::from_row(&row)
-                .map_err(|e| WorkspaceError::Repository(e.to_string()))?;
-            Ok(row_mapper::workspace_member_row_to_payload(&r))
-        } else {
-            let team_id = req.team_id.as_deref().and_then(|s| s.parse::<i64>().ok());
-            let created_by = req
-                .created_by_user_id
-                .as_deref()
-                .and_then(|s| s.parse::<i64>().ok());
-            let granted_by = req
-                .granted_by_user_id
-                .as_deref()
-                .and_then(|s| s.parse::<i64>().ok());
-
-            let insert_sql = Self::query_sql(&format!(
-                "INSERT INTO {t} (uuid, tenant_id, organization_id, created_at, updated_at, version, \
-                 is_deleted, workspace_id, user_id, team_id, role, created_by_user_id, \
-                 granted_by_user_id, status) VALUES ({uuid}, ?, ?, {created_at}, {updated_at}, 0, \
-                 FALSE, ?, ?, ?, ?, ?, ?, ?) RETURNING id",
-                t = member_col::TABLE,
-                uuid = Self::uuid_expression(is_postgres),
-                created_at = Self::timestamp_expression(is_postgres),
-                updated_at = Self::timestamp_expression(is_postgres),
-            ));
-            let id_row = sqlx::query(&insert_sql)
-                .bind(&uuid)
-                .bind(tenant_id)
-                .bind(organization_id)
-                .bind(&now)
-                .bind(&now)
-                .bind(wid)
-                .bind(uid)
-                .bind(team_id)
-                .bind(role)
-                .bind(created_by)
-                .bind(granted_by)
-                .bind(status)
-                .fetch_one(&self.pool)
-                .await
-                .map_err(|e| WorkspaceError::Repository(e.to_string()))?;
-
-            let new_id =
-                inserted_row_id(&id_row).map_err(|e| WorkspaceError::Repository(e.to_string()))?;
-            let select_sql = Self::query_sql(&format!(
-                "SELECT {} FROM {} WHERE {} = ? AND {} = ? AND {} = ?",
-                Self::workspace_member_projection(is_postgres),
-                member_col::TABLE,
-                member_col::ID,
-                member_col::TENANT_ID,
-                member_col::ORGANIZATION_ID,
-            ));
-            let row = sqlx::query(&select_sql)
-                .bind(new_id)
-                .bind(tenant_id)
-                .bind(organization_id)
-                .fetch_one(&self.pool)
-                .await
-                .map_err(|e| WorkspaceError::Repository(e.to_string()))?;
-            let r = WorkspaceMemberRow::from_row(&row)
-                .map_err(|e| WorkspaceError::Repository(e.to_string()))?;
-            Ok(row_mapper::workspace_member_row_to_payload(&r))
         }
-    }
-
-    async fn remove_workspace_member(
-        &self,
-        ctx: &WorkspaceContext,
-        workspace_id: &str,
-        user_id: &str,
-    ) -> Result<(), WorkspaceError> {
-        self.ensure_workspace_access(ctx, workspace_id).await?;
-        let wid: i64 = workspace_id.parse().map_err(|_| {
-            WorkspaceError::InvalidInput(format!("invalid workspace_id: {workspace_id}"))
-        })?;
-        let uid: i64 = user_id
-            .parse()
-            .map_err(|_| WorkspaceError::InvalidInput(format!("invalid user_id: {user_id}")))?;
-        let tenant_id = Self::scoped_tenant_id(ctx)?;
-        let organization_id = Self::scoped_organization_id(ctx)?;
-        let is_postgres = self.is_postgres().await?;
-        let now = Self::now_iso();
-        let delete_sql = Self::query_sql(&format!(
-            "UPDATE {} SET {}, {} = {} WHERE {} = ? AND {} = ? AND {} = ? AND {} = ? AND {}",
-            member_col::TABLE,
-            SET_SOFT_DELETED,
-            member_col::UPDATED_AT,
-            Self::timestamp_expression(is_postgres),
-            member_col::WORKSPACE_ID,
-            member_col::USER_ID,
-            member_col::TENANT_ID,
-            member_col::ORGANIZATION_ID,
-            IS_NOT_DELETED,
-        ));
-        sqlx::query(&delete_sql)
-            .bind(&now)
-            .bind(wid)
-            .bind(uid)
-            .bind(tenant_id)
-            .bind(organization_id)
-            .execute(&self.pool)
-            .await
-            .map_err(|e| WorkspaceError::Repository(e.to_string()))?;
+        let timestamp = now().to_rfc3339();
+        let result = match &self.pool {
+            WorkspacePool::Sqlite(pool) => sqlx::query(SQLITE_DELETE_WORKSPACE)
+                .bind(&timestamp)
+                .bind(id)
+                .bind(scope.tenant_id)
+                .bind(scope.organization_id)
+                .bind(scope.user_id)
+                .bind(expected_version)
+                .execute(pool)
+                .await
+                .map(|result| result.rows_affected()),
+            WorkspacePool::Postgres(pool) => sqlx::query(POSTGRES_DELETE_WORKSPACE)
+                .bind(&timestamp)
+                .bind(id)
+                .bind(scope.tenant_id)
+                .bind(scope.organization_id)
+                .bind(scope.user_id)
+                .bind(expected_version)
+                .execute(pool)
+                .await
+                .map(|result| result.rows_affected()),
+        }
+        .map_err(write_error)?;
+        if result == 0 {
+            return Err(WorkspaceError::PreconditionFailed(
+                "Workspace version no longer matches If-Match.".to_owned(),
+            ));
+        }
         Ok(())
     }
 
     async fn ensure_workspace_access(
         &self,
-        ctx: &WorkspaceContext,
+        context: &WorkspaceContext,
         workspace_id: &str,
     ) -> Result<(), WorkspaceError> {
-        let workspace_id = workspace_id.trim();
-        if workspace_id.is_empty() {
+        if self
+            .find_workspace_by_id(context, workspace_id)
+            .await?
+            .is_none()
+        {
             return Err(WorkspaceError::NotFound(
-                "Workspace was not found.".to_owned(),
-            ));
-        }
-        let id_num: i64 = workspace_id.parse().map_err(|_| {
-            WorkspaceError::InvalidInput(format!("invalid workspace_id: {workspace_id}"))
-        })?;
-        let tenant_id = Self::scoped_tenant_id(ctx)?;
-        let organization_id = Self::scoped_organization_id(ctx)?;
-        let user_id = Self::scoped_user_id(ctx)?;
-        let sql = Self::query_sql(&format!(
-            "SELECT 1 FROM {} WHERE {} = ? AND {} = ? AND {} = ? AND {} AND {}",
-            col::TABLE,
-            col::ID,
-            col::TENANT_ID,
-            col::ORGANIZATION_ID,
-            IS_NOT_DELETED,
-            Self::workspace_access_predicate(None),
-        ));
-        let row = sqlx::query_scalar::<_, i64>(&sql)
-            .bind(id_num)
-            .bind(tenant_id)
-            .bind(organization_id)
-            .bind(user_id)
-            .bind(user_id)
-            .fetch_optional(&self.pool)
-            .await
-            .map_err(|e| WorkspaceError::Repository(e.to_string()))?;
-        if row.is_none() {
-            return Err(WorkspaceError::NotFound(
-                "Workspace was not found.".to_owned(),
+                "Workspace was not found in the authenticated scope.".to_owned(),
             ));
         }
         Ok(())
     }
 }
+
+impl WorkspaceRecord {
+    fn into_payload(self) -> WorkspacePayload {
+        WorkspacePayload {
+            id: self.id.to_string(),
+            uuid: self.uuid,
+            tenant_id: self.tenant_id.to_string(),
+            organization_id: self.organization_id.to_string(),
+            owner_user_id: self.owner_user_id.to_string(),
+            created_by_user_id: self.created_by_user_id.to_string(),
+            code: self.code,
+            name: self.name,
+            description: self.description,
+            icon_url: self.icon_url,
+            color: self.color,
+            visibility: self.visibility,
+            status: self.status,
+            version: self.version.to_string(),
+            created_at: self.created_at,
+            updated_at: self.updated_at,
+        }
+    }
+}
+
+fn workspace_scope(context: &WorkspaceContext) -> Result<WorkspaceScope, WorkspaceError> {
+    Ok(WorkspaceScope {
+        tenant_id: positive_id(&context.tenant_id, "tenant_id")?,
+        organization_id: non_negative_id(&context.organization_id, "organization_id")?,
+        user_id: positive_id(&context.user_id, "user_id")?,
+    })
+}
+
+fn positive_id(value: &str, field: &str) -> Result<i64, WorkspaceError> {
+    let value = value
+        .parse::<i64>()
+        .map_err(|_| WorkspaceError::InvalidInput(format!("invalid {field}")))?;
+    if value <= 0 {
+        return Err(WorkspaceError::InvalidInput(format!("invalid {field}")));
+    }
+    Ok(value)
+}
+
+fn non_negative_id(value: &str, field: &str) -> Result<i64, WorkspaceError> {
+    let value = value
+        .parse::<i64>()
+        .map_err(|_| WorkspaceError::InvalidInput(format!("invalid {field}")))?;
+    if value < 0 {
+        return Err(WorkspaceError::InvalidInput(format!("invalid {field}")));
+    }
+    Ok(value)
+}
+
+fn repository_error(error: sqlx::Error) -> WorkspaceError {
+    WorkspaceError::Repository(error.to_string())
+}
+
+fn write_error(error: sqlx::Error) -> WorkspaceError {
+    let message = error.to_string();
+    let normalized = message.to_ascii_lowercase();
+    if normalized.contains("unique") || normalized.contains("duplicate") {
+        WorkspaceError::Conflict("Workspace code already exists in this scope.".to_owned())
+    } else {
+        WorkspaceError::Repository(message)
+    }
+}
+
+const SQLITE_SELECT_WORKSPACE: &str = r#"
+SELECT id, uuid, tenant_id, organization_id, owner_user_id, created_by_user_id,
+       code, name, description, icon_url, color, visibility, status, version,
+       created_at, updated_at
+FROM studio_workspace
+WHERE id = ? AND tenant_id = ? AND organization_id = ? AND is_deleted = 0
+  AND (owner_user_id = ? OR visibility = 'organization')
+"#;
+const POSTGRES_SELECT_WORKSPACE: &str = r#"
+SELECT id, uuid::text AS uuid, tenant_id, organization_id, owner_user_id, created_by_user_id,
+       code, name, description, icon_url, color, visibility, status, version,
+       created_at::text AS created_at, updated_at::text AS updated_at
+FROM studio_workspace
+WHERE id = $1 AND tenant_id = $2 AND organization_id = $3 AND is_deleted = FALSE
+  AND (owner_user_id = $4 OR visibility = 'organization')
+"#;
+const SQLITE_LIST_WORKSPACES: &str = r#"
+SELECT id, uuid, tenant_id, organization_id, owner_user_id, created_by_user_id,
+       code, name, description, icon_url, color, visibility, status, version,
+       created_at, updated_at
+FROM studio_workspace
+WHERE tenant_id = ? AND organization_id = ? AND is_deleted = 0
+  AND (owner_user_id = ? OR visibility = 'organization')
+ORDER BY updated_at DESC, id DESC LIMIT ? OFFSET ?
+"#;
+const POSTGRES_LIST_WORKSPACES: &str = r#"
+SELECT id, uuid::text AS uuid, tenant_id, organization_id, owner_user_id, created_by_user_id,
+       code, name, description, icon_url, color, visibility, status, version,
+       created_at::text AS created_at, updated_at::text AS updated_at
+FROM studio_workspace
+WHERE tenant_id = $1 AND organization_id = $2 AND is_deleted = FALSE
+  AND (owner_user_id = $3 OR visibility = 'organization')
+ORDER BY updated_at DESC, id DESC LIMIT $4 OFFSET $5
+"#;
+const SQLITE_COUNT_WORKSPACES: &str = "SELECT COUNT(*) FROM studio_workspace WHERE tenant_id = ? AND organization_id = ? AND is_deleted = 0 AND (owner_user_id = ? OR visibility = 'organization')";
+const POSTGRES_COUNT_WORKSPACES: &str = "SELECT COUNT(*) FROM studio_workspace WHERE tenant_id = $1 AND organization_id = $2 AND is_deleted = FALSE AND (owner_user_id = $3 OR visibility = 'organization')";
+const SQLITE_INSERT_WORKSPACE: &str = r#"
+INSERT INTO studio_workspace (
+    id, uuid, tenant_id, organization_id, owner_user_id, created_by_user_id,
+    code, name, description, icon_url, color, visibility, status, version,
+    created_at, updated_at, is_deleted
+) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'active', 0, ?, ?, 0)
+"#;
+const POSTGRES_INSERT_WORKSPACE: &str = r#"
+INSERT INTO studio_workspace (
+    id, uuid, tenant_id, organization_id, owner_user_id, created_by_user_id,
+    code, name, description, icon_url, color, visibility, status, version,
+    created_at, updated_at, is_deleted
+) VALUES ($1, CAST($2 AS UUID), $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, 'active', 0,
+          CAST($13 AS TIMESTAMPTZ), CAST($13 AS TIMESTAMPTZ), FALSE)
+"#;
+const SQLITE_UPDATE_WORKSPACE: &str = r#"
+UPDATE studio_workspace SET
+    code = COALESCE(?, code), name = COALESCE(?, name),
+    description = COALESCE(?, description), icon_url = COALESCE(?, icon_url),
+    color = COALESCE(?, color), visibility = COALESCE(?, visibility),
+    status = COALESCE(?, status), updated_at = ?, version = version + 1
+WHERE id = ? AND tenant_id = ? AND organization_id = ? AND owner_user_id = ?
+  AND version = ? AND is_deleted = 0
+"#;
+const POSTGRES_UPDATE_WORKSPACE: &str = r#"
+UPDATE studio_workspace SET
+    code = COALESCE($1, code), name = COALESCE($2, name),
+    description = COALESCE($3, description), icon_url = COALESCE($4, icon_url),
+    color = COALESCE($5, color), visibility = COALESCE($6, visibility),
+    status = COALESCE($7, status), updated_at = CAST($8 AS TIMESTAMPTZ), version = version + 1
+WHERE id = $9 AND tenant_id = $10 AND organization_id = $11 AND owner_user_id = $12
+  AND version = $13 AND is_deleted = FALSE
+"#;
+const SQLITE_COUNT_ACTIVE_PROJECTS: &str = "SELECT COUNT(*) FROM studio_project WHERE workspace_id = ? AND tenant_id = ? AND organization_id = ? AND is_deleted = 0";
+const POSTGRES_COUNT_ACTIVE_PROJECTS: &str = "SELECT COUNT(*) FROM studio_project WHERE workspace_id = $1 AND tenant_id = $2 AND organization_id = $3 AND is_deleted = FALSE";
+const SQLITE_DELETE_WORKSPACE: &str = "UPDATE studio_workspace SET status = 'archived', is_deleted = 1, updated_at = ?, version = version + 1 WHERE id = ? AND tenant_id = ? AND organization_id = ? AND owner_user_id = ? AND version = ? AND is_deleted = 0";
+const POSTGRES_DELETE_WORKSPACE: &str = "UPDATE studio_workspace SET status = 'archived', is_deleted = TRUE, updated_at = CAST($1 AS TIMESTAMPTZ), version = version + 1 WHERE id = $2 AND tenant_id = $3 AND organization_id = $4 AND owner_user_id = $5 AND version = $6 AND is_deleted = FALSE";

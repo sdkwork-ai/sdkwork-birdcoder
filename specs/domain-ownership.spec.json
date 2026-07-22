@@ -1,0 +1,426 @@
+{
+  "schemaVersion": 1,
+  "kind": "sdkwork.application-domain-ownership",
+  "application": "sdkwork-birdcoder",
+  "status": "active",
+  "updatedAt": "2026-07-22",
+  "authority": {
+    "globalSpecs": [
+      "../../sdkwork-specs/DOMAIN_SPEC.md",
+      "../../sdkwork-specs/APPLICATION_LAYERED_ARCHITECTURE_SPEC.md",
+      "../../sdkwork-specs/DATABASE_SPEC.md",
+      "../../sdkwork-specs/SCHEMA_REGISTRY_SPEC.md",
+      "../../sdkwork-specs/API_SPEC.md",
+      "../../sdkwork-specs/SDK_SPEC.md",
+      "../../sdkwork-specs/MIGRATION_SPEC.md"
+    ],
+    "decision": "docs/architecture/decisions/ADR-20260722-domain-ownership-and-single-write-authority.md",
+    "migration": "docs/migrations/MIG-2026-0002-domain-ownership-cutover.md"
+  },
+  "principles": {
+    "preLaunchDirectCutover": true,
+    "singleWriteOwnerPerBusinessFact": true,
+    "crossDomainReferencesByStableId": true,
+    "crossDomainForeignKeys": false,
+    "persistentProjections": false,
+    "shadowTables": false,
+    "synchronizedCacheTables": false,
+    "dualWrite": false,
+    "compatibilityFacade": false
+  },
+  "ownedBoundedContext": {
+    "domain": "intelligence",
+    "capability": "coding-workbench",
+    "owner": "sdkwork-birdcoder",
+    "databasePrefix": "studio",
+    "businessFacts": [
+      "coding workspace identity and lifecycle",
+      "coding project identity and lifecycle",
+      "project-to-document stable bindings",
+      "target-scoped project runtime locations",
+      "subject runtime-location preferences",
+      "project-to-sandbox stable bindings"
+    ]
+  },
+  "persistence": {
+    "systemOfRecord": "sdkwork-birdcoder",
+    "tableRegistry": "database/contract/table-registry.json",
+    "baselines": [
+      "database/ddl/baseline/sqlite/0001_birdcoder_baseline.sql",
+      "database/ddl/baseline/postgres/0001_birdcoder_baseline.sql"
+    ],
+    "engines": [
+      "sqlite",
+      "postgres"
+    ],
+    "tables": [
+      "studio_workspace",
+      "studio_project",
+      "studio_project_document_binding",
+      "studio_project_runtime_location",
+      "studio_project_runtime_location_preference",
+      "studio_project_runtime_location_idempotency",
+      "studio_project_runtime_location_audit",
+      "studio_project_sandbox_binding",
+      "studio_project_sandbox_binding_idempotency",
+      "studio_project_sandbox_binding_audit"
+    ],
+    "externalReferences": [
+      {
+        "table": "studio_project",
+        "column": "default_agent_project_id",
+        "owner": "sdkwork-agents",
+        "contract": "Agent Project projectId",
+        "foreignKey": false
+      },
+      {
+        "table": "studio_project_document_binding",
+        "column": "document_id",
+        "owner": "sdkwork-documents",
+        "contract": "Document id",
+        "foreignKey": false
+      },
+      {
+        "table": "studio_project_sandbox_binding",
+        "column": "sandbox_id",
+        "owner": "sdkwork-drive",
+        "contract": "Drive Sandbox id",
+        "foreignKey": false
+      },
+      {
+        "table": "studio_project_sandbox_binding",
+        "column": "root_entry_id",
+        "owner": "sdkwork-drive",
+        "contract": "Drive Sandbox root entry id",
+        "foreignKey": false
+      }
+    ]
+  },
+  "apiOwnership": {
+    "appApi": {
+      "authority": "sdkwork-birdcoder-app-api",
+      "sdkFamily": "sdkwork-birdcoder-app-sdk",
+      "authorityFile": "sdks/sdkwork-birdcoder-app-sdk/openapi/sdkwork-birdcoder-app-api.openapi.json",
+      "ownedPathPrefixes": [
+        "/app/v3/api/workspaces",
+        "/app/v3/api/projects",
+        "/app/v3/api/system/descriptor",
+        "/app/v3/api/system/health",
+        "/app/v3/api/system/routes",
+        "/app/v3/api/system/runtime"
+      ]
+    },
+    "backendApi": {
+      "owned": false,
+      "operationCount": 0,
+      "authorityFile": "sdks/sdkwork-birdcoder-backend-sdk/openapi/sdkwork-birdcoder-backend-api.openapi.json",
+      "reason": "BirdCoder has no application-specific admin bounded context."
+    },
+    "openApi": {
+      "owned": false,
+      "operationCount": 0,
+      "reason": "BirdCoder does not publish an external domain API."
+    }
+  },
+  "dependencies": [
+    {
+      "owner": "sdkwork-agents",
+      "capabilities": [
+        "agent projects",
+        "sessions",
+        "turns",
+        "session items",
+        "interactions",
+        "runtime bindings",
+        "artifacts",
+        "checkpoints"
+      ],
+      "consumerBoundary": "generated Agents SDK or runtime facade",
+      "forbiddenLocalTables": [
+        "ai_coding_session",
+        "ai_coding_session_message",
+        "ai_coding_session_runtime",
+        "ai_coding_session_turn",
+        "ai_coding_session_event",
+        "ai_coding_session_artifact",
+        "ai_coding_session_checkpoint",
+        "ai_coding_session_operation",
+        "ai_coding_session_prompt_entry",
+        "chat_conversation",
+        "chat_message"
+      ],
+      "forbiddenLocalPathPrefixes": [
+        "/app/v3/api/intelligence/coding_sessions",
+        "/app/v3/api/chat/conversations"
+      ]
+    },
+    {
+      "owner": "sdkwork-skills",
+      "capabilities": [
+        "skill packages",
+        "skill artifacts",
+        "skill capabilities",
+        "skill installations"
+      ],
+      "consumerBoundary": "generated Skills SDK",
+      "forbiddenLocalTables": [
+        "ai_skill_package",
+        "ai_skill_version",
+        "ai_skill_capability",
+        "ai_skill_installation"
+      ],
+      "forbiddenLocalPathPrefixes": [
+        "/app/v3/api/skill_packages"
+      ]
+    },
+    {
+      "owner": "sdkwork-prompts",
+      "capabilities": [
+        "saved prompts",
+        "prompt entries"
+      ],
+      "consumerBoundary": "generated Prompts SDK",
+      "forbiddenLocalTables": [
+        "ai_saved_prompt_entry"
+      ],
+      "forbiddenLocalPathPrefixes": []
+    },
+    {
+      "owner": "sdkwork-im",
+      "capabilities": [
+        "human conversations",
+        "human messages",
+        "members",
+        "read cursors"
+      ],
+      "consumerBoundary": "generated IM SDK",
+      "forbiddenLocalTables": [],
+      "forbiddenLocalPathPrefixes": []
+    },
+    {
+      "owner": "sdkwork-iam",
+      "capabilities": [
+        "authentication",
+        "OAuth",
+        "users",
+        "organizations",
+        "memberships",
+        "teams",
+        "collaborators",
+        "roles",
+        "permissions",
+        "API keys",
+        "audit",
+        "governance"
+      ],
+      "consumerBoundary": "generated IAM app/backend SDKs and appbase runtime",
+      "forbiddenLocalTables": [
+        "studio_team",
+        "studio_team_member",
+        "studio_workspace_member",
+        "studio_project_collaborator",
+        "ops_audit_event",
+        "ops_governance_policy",
+        "studio_commerce_api_key"
+      ],
+      "forbiddenLocalPathPrefixes": [
+        "/app/v3/api/auth",
+        "/app/v3/api/oauth",
+        "/app/v3/api/iam",
+        "/app/v3/api/teams",
+        "/app/v3/api/system/iam",
+        "/app/v3/api/projects/{projectId}/collaborators",
+        "/app/v3/api/workspaces/{workspaceId}/members",
+        "/backend/v3/api/iam"
+      ]
+    },
+    {
+      "owner": "sdkwork-documents",
+      "capabilities": [
+        "documents",
+        "document content"
+      ],
+      "consumerBoundary": "generated Documents SDK",
+      "forbiddenLocalTables": [
+        "studio_project_document",
+        "studio_project_content"
+      ],
+      "forbiddenLocalPathPrefixes": [
+        "/app/v3/api/documents"
+      ]
+    },
+    {
+      "owner": "sdkwork-appstore",
+      "capabilities": [
+        "application templates",
+        "template artifacts",
+        "template instantiation"
+      ],
+      "consumerBoundary": "generated Appstore SDK",
+      "forbiddenLocalTables": [
+        "studio_app_template",
+        "studio_app_template_version",
+        "studio_app_template_target_profile",
+        "studio_app_template_preset",
+        "studio_app_template_instantiation"
+      ],
+      "forbiddenLocalPathPrefixes": [
+        "/app/v3/api/app_templates"
+      ]
+    },
+    {
+      "owner": "sdkwork-deployments",
+      "capabilities": [
+        "deployment targets",
+        "deployments",
+        "releases",
+        "publishing"
+      ],
+      "consumerBoundary": "generated Deployments SDK",
+      "forbiddenLocalTables": [
+        "studio_deployment_target",
+        "studio_deployment_record",
+        "ops_release_record"
+      ],
+      "forbiddenLocalPathPrefixes": [
+        "/app/v3/api/deployments",
+        "/app/v3/api/projects/{projectId}/deployment_targets",
+        "/app/v3/api/projects/{projectId}/publish",
+        "/backend/v3/api/deployments",
+        "/backend/v3/api/projects/{projectId}/deployment_targets",
+        "/backend/v3/api/releases"
+      ]
+    },
+    {
+      "owner": "sdkwork-models",
+      "capabilities": [
+        "model catalog",
+        "engine catalog"
+      ],
+      "consumerBoundary": "generated Models SDK",
+      "forbiddenLocalTables": [],
+      "forbiddenLocalPathPrefixes": [
+        "/app/v3/api/models",
+        "/app/v3/api/engines",
+        "/app/v3/api/native_session_providers"
+      ]
+    },
+    {
+      "owner": "sdkwork-settings",
+      "capabilities": [
+        "model configuration"
+      ],
+      "consumerBoundary": "generated Settings SDK",
+      "forbiddenLocalTables": [
+        "runtime_model_config"
+      ],
+      "forbiddenLocalPathPrefixes": [
+        "/app/v3/api/model_config"
+      ]
+    },
+    {
+      "owner": "sdkwork-membership",
+      "capabilities": [
+        "membership",
+        "benefits",
+        "packages",
+        "usage metering"
+      ],
+      "consumerBoundary": "generated Membership SDK",
+      "forbiddenLocalTables": [
+        "studio_commerce_membership",
+        "studio_commerce_membership_benefit",
+        "studio_commerce_membership_package_group",
+        "studio_commerce_membership_package",
+        "studio_commerce_usage_metering"
+      ],
+      "forbiddenLocalPathPrefixes": []
+    },
+    {
+      "owner": "sdkwork-order",
+      "capabilities": [
+        "orders"
+      ],
+      "consumerBoundary": "generated Order SDK",
+      "forbiddenLocalTables": [
+        "studio_commerce_order"
+      ],
+      "forbiddenLocalPathPrefixes": [
+        "/app/v3/api/commerce/orders"
+      ]
+    },
+    {
+      "owner": "sdkwork-invoice",
+      "capabilities": [
+        "invoices"
+      ],
+      "consumerBoundary": "generated Invoice SDK",
+      "forbiddenLocalTables": [
+        "studio_commerce_invoice"
+      ],
+      "forbiddenLocalPathPrefixes": [
+        "/app/v3/api/commerce/invoices"
+      ]
+    },
+    {
+      "owner": "sdkwork-payment",
+      "capabilities": [
+        "payments"
+      ],
+      "consumerBoundary": "generated Payment SDK",
+      "forbiddenLocalTables": [
+        "studio_commerce_payment"
+      ],
+      "forbiddenLocalPathPrefixes": [
+        "/app/v3/api/commerce/payments"
+      ]
+    },
+    {
+      "owner": "sdkwork-messaging",
+      "capabilities": [
+        "external delivery",
+        "notifications"
+      ],
+      "consumerBoundary": "generated Messaging SDK",
+      "forbiddenLocalTables": [
+        "studio_commerce_notification"
+      ],
+      "forbiddenLocalPathPrefixes": []
+    }
+  ],
+  "dependencyDirection": [
+    "sdkwork-birdcoder -> sdkwork-agents -> sdkwork-kernel",
+    "sdkwork-birdcoder -> sdkwork-skills",
+    "sdkwork-birdcoder -> sdkwork-im -> sdkwork-agents",
+    "sdkwork-agents -/-> sdkwork-im"
+  ],
+  "forbiddenLocalComponents": [
+    "sdkwork-routes-engine-catalog-app-api",
+    "sdkwork-birdcoder-coding-sessions-service",
+    "sdkwork-birdcoder-coding-sessions-repository-sqlx",
+    "sdkwork-routes-coding-sessions-app-api",
+    "sdkwork-birdcoder-engine-catalog-service",
+    "sdkwork-birdcoder-native-sessions-service",
+    "sdkwork-birdcoder-codeengine",
+    "sdkwork-birdcoder-kernel-bridge",
+    "sdkwork-birdcoder-chat-service",
+    "sdkwork-birdcoder-chat-repository-sqlx",
+    "sdkwork-routes-chat-app-api",
+    "sdkwork-birdcoder-skill-packages-service",
+    "sdkwork-birdcoder-skill-packages-repository-sqlx",
+    "sdkwork-routes-skill-packages-app-api",
+    "sdkwork-birdcoder-app-templates-service",
+    "sdkwork-birdcoder-app-templates-repository-sqlx",
+    "sdkwork-birdcoder-document-service",
+    "sdkwork-birdcoder-document-repository-sqlx",
+    "sdkwork-routes-document-app-api",
+    "sdkwork-birdcoder-deployment-service",
+    "sdkwork-routes-deployment-backend-api",
+    "sdkwork-birdcoder-model-config-repository-sqlx",
+    "sdkwork-birdcoder-commerce-service",
+    "sdkwork-birdcoder-commerce-repository-sqlx",
+    "sdkwork-birdcoder-commerce-quota",
+    "sdkwork-routes-commerce-app-api",
+    "sdkwork-birdcoder-sqlx-repository-pool"
+  ]
+}

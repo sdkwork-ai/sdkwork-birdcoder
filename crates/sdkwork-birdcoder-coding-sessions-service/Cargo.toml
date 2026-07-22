@@ -9,9 +9,10 @@ authors.workspace = true
 async-trait = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
-uuid = { workspace = true }
+uuid = { workspace = true, features = ["v5"] }
 time = { workspace = true }
 sdkwork-utils-rust.workspace = true
+sdkwork-birdcoder-native-sessions-service.workspace = true
 tracing = "0.1"
 tokio = { workspace = true, features = ["sync"] }
 

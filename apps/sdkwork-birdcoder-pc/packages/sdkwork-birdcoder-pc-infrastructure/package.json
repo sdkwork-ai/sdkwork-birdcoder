@@ -131,6 +131,10 @@
       "import": "./src/services/sdkClients.ts",
       "types": "./src/services/sdkClients.ts"
     },
+    "./services/skillsSdkClient": {
+      "import": "./src/services/skillsSdkClient.ts",
+      "types": "./src/services/skillsSdkClient.ts"
+    },
     "./services/iamRuntime": {
       "import": "./src/services/iamRuntime.ts",
       "types": "./src/services/iamRuntime.ts"
@@ -191,6 +195,7 @@
     "@sdkwork/iam-service": "workspace:*",
     "@sdkwork/iam-sdk-ports": "workspace:*",
     "@sdkwork/sdk-common": "workspace:*",
+    "@sdkwork/skills-app-sdk": "workspace:*",
     "@sdkwork/utils": "workspace:*",
     "@sdkwork/membership-service": "workspace:*",
     "@sdkwork/order-service": "workspace:*",

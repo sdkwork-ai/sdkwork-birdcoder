@@ -53,6 +53,8 @@ pub mod message {
     pub const UPDATED_AT: &str = "updated_at";
     pub const VERSION: &str = "version";
     pub const IS_DELETED: &str = "is_deleted";
+    pub const TENANT_ID: &str = "tenant_id";
+    pub const USER_ID: &str = "user_id";
     pub const CODING_SESSION_ID: &str = "coding_session_id";
     pub const TURN_ID: &str = "turn_id";
     pub const ROLE: &str = "role";
@@ -70,10 +72,13 @@ pub mod message {
 pub mod runtime {
     pub const TABLE: &str = "ai_coding_session_runtime";
     pub const ID: &str = "id";
+    pub const UUID: &str = "uuid";
     pub const CREATED_AT: &str = "created_at";
     pub const UPDATED_AT: &str = "updated_at";
     pub const VERSION: &str = "version";
     pub const IS_DELETED: &str = "is_deleted";
+    pub const TENANT_ID: &str = "tenant_id";
+    pub const USER_ID: &str = "user_id";
     pub const CODING_SESSION_ID: &str = "coding_session_id";
     pub const ENGINE_ID: &str = "engine_id";
     pub const MODEL_ID: &str = "model_id";
@@ -131,6 +136,8 @@ pub mod artifact {
     pub const UPDATED_AT: &str = "updated_at";
     pub const VERSION: &str = "version";
     pub const IS_DELETED: &str = "is_deleted";
+    pub const TENANT_ID: &str = "tenant_id";
+    pub const USER_ID: &str = "user_id";
     pub const CODING_SESSION_ID: &str = "coding_session_id";
     pub const TURN_ID: &str = "turn_id";
     pub const ARTIFACT_KIND: &str = "artifact_kind";

@@ -2,7 +2,6 @@ import { getTerminalProfile, type TerminalProfileId } from './profiles.ts';
 import type {
   DesktopRuntimeBridgeClient,
   DesktopTerminalSessionInventorySnapshot,
-  WebRuntimeBridgeClient,
 } from './contracts/sdkworkTerminalInfrastructure.d.ts';
 import { resolveBirdcoderBrowserTerminalClient } from './birdcoderTerminalRuntime.ts';
 import { isBirdcoderTauriRuntime } from './runtimeTarget.ts';
@@ -82,10 +81,7 @@ export function normalizeBrowserRuntimeSessionRecord(
 }
 
 async function listBrowserRuntimeSessions(): Promise<TerminalSessionRecord[]> {
-  const client = resolveBirdcoderBrowserTerminalClient() as WebRuntimeBridgeClient | undefined;
-  if (!client) {
-    return [];
-  }
+  const client = resolveBirdcoderBrowserTerminalClient();
 
   try {
     const snapshot = await client.sessionIndex() as BrowserRuntimeSessionIndexSnapshot;

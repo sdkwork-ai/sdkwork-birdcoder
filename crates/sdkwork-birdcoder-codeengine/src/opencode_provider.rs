@@ -6,20 +6,21 @@ use crate::opencode::build_opencode_tool_command_arguments;
 
 use crate::{
     build_native_session_id, canonicalize_codeengine_tool_name,
-    extract_native_lookup_id_for_engine, get_opencode_session, get_opencode_session_messages,
-    is_opencode_transport_available, known_standard_provider_registration,
-    list_opencode_pending_permission_requests, list_opencode_pending_question_requests,
-    list_opencode_session_status_map, list_opencode_sessions,
-    map_codeengine_session_runtime_status, map_codeengine_session_status_from_runtime,
-    map_codeengine_tool_command_status, map_codeengine_tool_kind,
-    map_codeengine_tool_runtime_status, resolve_codeengine_command_interaction_state,
-    resolve_codeengine_command_text, sanitize_codeengine_git_repository_url,
-    sanitize_codeengine_session_metadata, sanitize_codeengine_session_reasoning_records,
-    sanitize_codeengine_session_resource_records, session_id_targets_engine,
-    CodeEngineSessionCommandRecord, CodeEngineSessionDetailRecord, CodeEngineSessionMessageRecord,
-    CodeEngineSessionNativeAttributesRecord, CodeEngineSessionReasoningRecord,
-    CodeEngineSessionResourceOriginRecord, CodeEngineSessionResourceRecord,
-    CodeEngineSessionSummaryRecord, NativeSessionProviderPlugin, NativeSessionProviderRegistration,
+    extract_native_lookup_id_for_engine, find_codeengine_descriptor, get_opencode_session,
+    get_opencode_session_messages, is_opencode_transport_available,
+    known_standard_provider_registration, list_opencode_pending_permission_requests,
+    list_opencode_pending_question_requests, list_opencode_session_status_map,
+    list_opencode_sessions, map_codeengine_session_runtime_status,
+    map_codeengine_session_status_from_runtime, map_codeengine_tool_command_status,
+    map_codeengine_tool_kind, map_codeengine_tool_runtime_status,
+    resolve_codeengine_command_interaction_state, resolve_codeengine_command_text,
+    sanitize_codeengine_git_repository_url, sanitize_codeengine_session_metadata,
+    sanitize_codeengine_session_reasoning_records, sanitize_codeengine_session_resource_records,
+    session_id_targets_engine, CodeEngineSessionCommandRecord, CodeEngineSessionDetailRecord,
+    CodeEngineSessionMessageRecord, CodeEngineSessionNativeAttributesRecord,
+    CodeEngineSessionReasoningRecord, CodeEngineSessionResourceOriginRecord,
+    CodeEngineSessionResourceRecord, CodeEngineSessionSummaryRecord, NativeSessionProviderPlugin,
+    NativeSessionProviderRegistration,
 };
 
 pub struct OpencodeCodeEngineProvider;
@@ -219,7 +220,12 @@ fn build_opencode_session_summary_record(
         engine_id: OPENCODE_ENGINE_ID.to_owned(),
         model_id: model_id
             .or_else(|| load_opencode_session_model_id(session))
-            .unwrap_or_else(|| "opencode".to_owned()),
+            .or_else(|| {
+                find_codeengine_descriptor(OPENCODE_ENGINE_ID)
+                    .map(|descriptor| descriptor.default_model_id)
+                    .filter(|model_id| !model_id.trim().is_empty())
+            })
+            .unwrap_or_else(|| "opencode/big-pickle".to_owned()),
         updated_at: updated_at.clone(),
         last_turn_at: Some(updated_at.clone()),
         kind: "coding".to_owned(),
@@ -1415,7 +1421,7 @@ mod tests {
             .expect("build summary without model metadata");
 
         assert_eq!(summary.id, "session-1");
-        assert_eq!(summary.model_id, "opencode");
+        assert_eq!(summary.model_id, "opencode/big-pickle");
     }
 
     #[test]

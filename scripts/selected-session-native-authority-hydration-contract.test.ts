@@ -5,7 +5,6 @@ import type {
   BirdCoderCodingSession,
   BirdCoderCodingSessionEvent,
   BirdCoderCodingSessionSummary,
-  BirdCoderNativeSessionDetail,
   BirdCoderProject,
 } from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-contracts-commons/src/index.ts';
 
@@ -13,48 +12,43 @@ type RefreshOptions = Parameters<typeof refreshCodingSessionMessages>[0];
 type RefreshAppRuntimeReadService = NonNullable<RefreshOptions['appRuntimeReadService']>;
 type RefreshProjectService = RefreshOptions['projectService'];
 
-const workspaceId = 'workspace-native-selected-session';
-const projectId = 'project-native-selected-session';
-const timestamp = '2026-07-16T01:00:00.000Z';
+const workspaceId = 'workspace-selected-session-authority';
+const projectId = 'project-selected-session-authority';
+const userTimestamp = '2026-07-16T01:00:00.000Z';
 const assistantTimestamp = '2026-07-16T01:00:01.000Z';
-const canonicalTimestamp = '2026-07-16T01:00:02.000Z';
-const providers = [
-  { engineId: 'codex', prefix: 'codex-native:' },
-  { engineId: 'claude-code', prefix: 'claude-code-native:' },
-  { engineId: 'gemini', prefix: 'gemini-native:' },
-  { engineId: 'opencode', prefix: 'opencode-native:' },
-] as const;
+const providers = ['codex', 'claude-code', 'gemini', 'opencode'] as const;
 
 assert.equal(
-  isBirdCoderCodeEngineNativeSessionId('ordinary-canonical-session'),
+  isBirdCoderCodeEngineNativeSessionId('birdcoder-logical-session'),
   false,
-  'Canonical session ids must not be misclassified as provider-native ids.',
+  'Persistent BirdCoder session ids must not be misclassified as provider ids.',
 );
 
-for (const provider of providers) {
-  const codingSessionId = `${provider.prefix}${provider.engineId}-history`;
+for (const engineId of providers) {
+  const codingSessionId = `birdcoder-${engineId}-session`;
+  const nativeSessionId = `${engineId}-provider-history`;
   const summary: BirdCoderCodingSessionSummary = {
-    createdAt: timestamp,
-    engineId: provider.engineId,
+    createdAt: userTimestamp,
+    engineId,
     hostMode: 'desktop',
     id: codingSessionId,
-    lastTurnAt: timestamp,
-    modelId: `${provider.engineId}-model`,
+    lastTurnAt: assistantTimestamp,
+    modelId: `${engineId}-model`,
     nativeAttributes: {
       isEphemeral: false,
       isSidechain: false,
-      metadata: { provider: provider.engineId },
+      metadata: { provider: engineId },
       schemaVersion: 1,
-      source: provider.engineId,
+      source: engineId,
     },
-    nativeSessionId: codingSessionId,
+    nativeSessionId,
     projectId,
-    runtimeLocationId: `runtime-location-${provider.engineId}`,
-    sortTimestamp: String(Date.parse(timestamp)),
+    runtimeLocationId: `runtime-location-${engineId}`,
+    sortTimestamp: String(Date.parse(assistantTimestamp)),
     status: 'active',
-    title: `${provider.engineId} history`,
-    transcriptUpdatedAt: timestamp,
-    updatedAt: timestamp,
+    title: `${engineId} history`,
+    transcriptUpdatedAt: assistantTimestamp,
+    updatedAt: assistantTimestamp,
     workspaceId,
   };
   const selectedSession: BirdCoderCodingSession = {
@@ -68,82 +62,63 @@ for (const provider of providers) {
   const project: BirdCoderProject = {
     archived: false,
     codingSessions: [selectedSession],
-    createdAt: timestamp,
+    createdAt: userTimestamp,
     id: projectId,
-    name: 'Native selected session project',
-    updatedAt: timestamp,
+    name: 'Selected session authority project',
+    updatedAt: assistantTimestamp,
     workspaceId,
   };
-  const nativeDetail: BirdCoderNativeSessionDetail = {
-    messages: [
-      {
-        codingSessionId,
-        content: `${provider.engineId} native user message`,
-        createdAt: timestamp,
-        id: `${provider.engineId}-native-user`,
+  const events: BirdCoderCodingSessionEvent[] = [
+    {
+      codingSessionId,
+      createdAt: userTimestamp,
+      id: `${engineId}-user-event`,
+      kind: 'message.completed',
+      payload: {
+        content: `${engineId} provider user message`,
         role: 'user',
       },
-      {
-        codingSessionId,
-        commands: [
-          {
-            command: `${provider.engineId} --version`,
-            output: 'ok',
-            requiresApproval: false,
-            status: 'success',
-            toolCallId: `${provider.engineId}-tool-call`,
-            toolName: 'shell',
-          },
-        ],
-        content: `${provider.engineId} native assistant message`,
-        createdAt: assistantTimestamp,
-        fileChanges: [{ path: `${provider.engineId}.md`, type: 'modify' }],
-        id: `${provider.engineId}-native-assistant`,
+      runtimeId: `${engineId}-runtime`,
+      sequence: '1',
+      turnId: `${engineId}-turn`,
+    },
+    {
+      codingSessionId,
+      createdAt: assistantTimestamp,
+      id: `${engineId}-assistant-event`,
+      kind: 'message.completed',
+      payload: {
+        commands: [{
+          command: `${engineId} --version`,
+          output: 'ok',
+          requiresApproval: false,
+          status: 'success',
+          toolCallId: `${engineId}-tool-call`,
+          toolName: 'shell',
+        }],
+        content: `${engineId} provider assistant message`,
+        fileChanges: [{ path: `${engineId}.md`, type: 'modify' }],
         role: 'assistant',
         taskProgress: { completed: 1, total: 1 },
-        tool_calls: [{ id: `${provider.engineId}-tool-call`, type: 'function' }],
+        toolCalls: [{ id: `${engineId}-tool-call`, type: 'function' }],
       },
-    ],
-    summary: {
-      ...summary,
-      kind: 'coding',
-      sortTimestamp: String(Date.parse(timestamp)),
+      runtimeId: `${engineId}-runtime`,
+      sequence: '2',
+      turnId: `${engineId}-turn`,
     },
-  };
-  const canonicalEvent: BirdCoderCodingSessionEvent = {
-    codingSessionId,
-    createdAt: canonicalTimestamp,
-    id: `${provider.engineId}-canonical-event`,
-    kind: 'message.completed',
-    payload: {
-      content: `${provider.engineId} canonical continuation`,
-      role: 'assistant',
-    },
-    runtimeId: `${provider.engineId}-runtime`,
-    sequence: '1',
-    turnId: `${provider.engineId}-turn`,
-  };
-  let nativeDetailReads = 0;
-  let canonicalEventReads = 0;
+  ];
+  let eventReads = 0;
   let persistedSession: BirdCoderCodingSession | null = null;
   const appRuntimeReadService = {
     async getCodingSession() {
       return summary;
     },
-    async getNativeSession(_nativeSessionId: string, request: { runtimeLocationId: string }) {
-      assert.equal(request.runtimeLocationId, summary.runtimeLocationId);
-      nativeDetailReads += 1;
-      return nativeDetail;
-    },
     async listCodingSessionEvents() {
-      canonicalEventReads += 1;
-      return [canonicalEvent];
+      eventReads += 1;
+      return events;
     },
     async listCodingSessions() {
       return [summary];
-    },
-    async listNativeSessions() {
-      return [nativeDetail.summary];
     },
   } as RefreshAppRuntimeReadService;
   const projectService = {
@@ -155,7 +130,7 @@ for (const provider of providers) {
   const result = await refreshCodingSessionMessages({
     appRuntimeReadService,
     codingSessionId,
-    identityScope: `user-${provider.engineId}`,
+    identityScope: `user-${engineId}`,
     projectService,
     resolvedLocation: {
       codingSession: selectedSession,
@@ -166,30 +141,30 @@ for (const provider of providers) {
 
   assert.equal(result.status, 'refreshed');
   assert.equal(result.source, 'native-engine');
-  assert.equal(nativeDetailReads, 1);
-  assert.equal(canonicalEventReads, 1);
+  assert.equal(eventReads, 1);
+  assert.equal(result.codingSession?.id, codingSessionId);
+  assert.equal(result.codingSession?.nativeSessionId, nativeSessionId);
   assert.deepEqual(
     result.codingSession?.messages.map((message) => message.content),
     [
-      `${provider.engineId} native user message`,
-      `${provider.engineId} native assistant message`,
-      `${provider.engineId} canonical continuation`,
+      `${engineId} provider user message`,
+      `${engineId} provider assistant message`,
     ],
-    `${provider.engineId} selection must combine provider-native history with later canonical events.`,
+    `${engineId} history must hydrate through unified coding-session events.`,
   );
   assert.equal(
     result.codingSession?.messages[1]?.commands?.[0]?.toolCallId,
-    `${provider.engineId}-tool-call`,
+    `${engineId}-tool-call`,
   );
   assert.deepEqual(
     result.codingSession?.messages[1]?.fileChanges,
-    [{ path: `${provider.engineId}.md`, type: 'modify' }],
+    [{ additions: 0, deletions: 0, path: `${engineId}.md` }],
   );
   assert.deepEqual(
     result.codingSession?.nativeAttributes?.metadata,
-    { provider: provider.engineId },
+    { provider: engineId },
   );
   assert.equal(persistedSession, result.codingSession);
 }
 
-console.log('selected session native authority hydration contract passed.');
+console.log('selected session unified authority hydration contract passed.');

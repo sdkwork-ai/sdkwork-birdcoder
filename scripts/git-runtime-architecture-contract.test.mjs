@@ -68,6 +68,15 @@ const sdkClientsSource = readSource(
   'services',
   'sdkClients.ts',
 );
+const birdCoderAppSdkWrapperSource = readSource(
+  'apps',
+  'sdkwork-birdcoder-pc',
+  'packages',
+  'sdkwork-birdcoder-pc-core',
+  'src',
+  'sdk',
+  'birdcoder-app-sdk.ts',
+);
 const defaultIdeServicesSource = readSource(
   'apps',
   'sdkwork-birdcoder-pc',
@@ -158,8 +167,13 @@ assert.match(
 
 assert.match(
   sdkClientsSource,
-  /import \{[\s\S]*\bcreateBirdcoderAppSdkClient\b[\s\S]*\} from '@sdkwork\/birdcoder-app-sdk';/s,
-  'Infrastructure must consume the composed BirdCoder app SDK instead of a generated transport deep import.',
+  /import \{[\s\S]*\bcreateBirdcoderAppSdkClient\b[\s\S]*\} from '@sdkwork\/birdcoder-pc-core\/sdk\/birdcoder-app';/s,
+  'Infrastructure must consume the BirdCoder app SDK through the public PC core composition boundary.',
+);
+assert.match(
+  birdCoderAppSdkWrapperSource,
+  /export \* from '@sdkwork\/birdcoder-app-sdk';/u,
+  'The PC core composition boundary must re-export the composed BirdCoder app SDK.',
 );
 assert.match(
   sdkClientsSource,
@@ -207,7 +221,7 @@ for (const [operationName, composedSdkOperation] of gitOperations) {
       `async\\s+${operationName}\\s*\\([\\s\\S]*?runtime\\.${operationName}\\([\\s\\S]*?this\\.appClient\\.${operationName}\\(`,
       'u',
     ),
-    `ApiBackedGitService must run ${operationName} against local browser/Tauri workspaces with an app SDK fallback.`,
+    `ApiBackedGitService must run ${operationName} against a local Tauri workspace with an app SDK fallback for a selected remote Git location.`,
   );
   assert.match(
     sdkClientsSource,
@@ -221,13 +235,13 @@ for (const [operationName, composedSdkOperation] of gitOperations) {
 
 assert.match(
   defaultIdeServicesSource,
-  /gitService: new ApiBackedGitService\(\{\s*appClient,[\s\S]*resolveLocalWorkingDirectory:[\s\S]*runtime\.fileSystemService\.resolveLocalWorkingDirectory\(projectId\),[\s\S]*\}\),/s,
-  'The eager IDE composition must bind Git to the shared service and active Tauri mount resolver.',
+  /gitService: new ApiBackedGitService\(\{\s*appClient,[\s\S]*resolveProjectRuntimeLocation:[\s\S]*resolveProjectRuntimeLocation\(projectId,[\s\S]*resolveRemoteRuntimeLocationId:[\s\S]*resolveRemoteProjectRuntimeLocationId\([\s\S]*'git',[\s\S]*\}\),/s,
+  'The eager IDE composition must bind Git to both local Tauri and selected remote runtime-location resolvers.',
 );
 assert.match(
   lazyDefaultIdeServicesSource,
-  /case 'gitService': \{[\s\S]*return new ApiBackedGitService\(\{\s*appClient: runtime\.appClient,[\s\S]*resolveLocalWorkingDirectory:[\s\S]*runtime\.fileSystemService\.resolveLocalWorkingDirectory\(projectId\),[\s\S]*\}\);[\s\S]*\}/s,
-  'The lazy IDE composition must bind Git to the same Tauri-aware service contract.',
+  /case 'gitService': \{[\s\S]*return new ApiBackedGitService\(\{\s*appClient: runtime\.appClient,[\s\S]*resolveProjectRuntimeLocation:[\s\S]*resolveProjectRuntimeLocation\(projectId,[\s\S]*resolveRemoteRuntimeLocationId:[\s\S]*resolveRemoteProjectRuntimeLocationId\([\s\S]*'git',[\s\S]*\}\);[\s\S]*\}/s,
+  'The lazy IDE composition must bind Git to the same local and remote runtime-location contract.',
 );
 
 assert.match(

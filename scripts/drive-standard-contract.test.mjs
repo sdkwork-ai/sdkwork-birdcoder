@@ -128,13 +128,51 @@ assert.deepEqual(
     sdkFamily: 'sdkwork-drive-app-sdk',
     apiAuthority: 'sdkwork-drive-app-api',
     runtimeModes: ['embedded'],
-    executableExport: 'sdkwork_api_drive_assembly::assemble_business_routes_from_env',
+    executableExport: 'sdkwork_api_drive_assembly::assemble_business_routes_with_process_pool',
     cargoFeature: 'foundation-drive',
     cargoDependency: 'sdkwork-api-drive-assembly',
     coverage: 'drive-app-api-embedded-assembly-routes',
   },
   'BirdCoder component authority must declare the embedded Drive API assembly without a copied gateway catalog.',
 );
+
+const birdcoderAssembly = read(
+  'crates/sdkwork-api-birdcoder-assembly/src/bootstrap.rs',
+);
+if (!birdcoderAssembly.includes('sdkwork_api_drive_assembly::assemble_business_routes_with_process_pool(')) {
+  fail('BirdCoder API assembly must execute the official process-pool-aware Drive bootstrap.');
+}
+if (!birdcoderAssembly.includes('birdcoder.database_pool.as_ref()')) {
+  fail('BirdCoder API assembly must inject its canonical DatabasePool into Drive.');
+}
+if (!birdcoderAssembly.includes('birdcoder.compatibility_pool.clone()')) {
+  fail('BirdCoder API assembly must reuse its declared compatibility AnyPool for Drive routes.');
+}
+if (birdcoderAssembly.includes('sdkwork_api_drive_assembly::assemble_business_routes_from_env()')) {
+  fail('BirdCoder API assembly must not let embedded Drive routes create a pool from env.');
+}
+if (!birdcoderAssembly.includes('.merge(drive.router)')) {
+  fail('BirdCoder API assembly must mount the Drive business router without copying Drive routes.');
+}
+
+const birdcoderGateway = read(
+  'crates/sdkwork-api-birdcoder-standalone-gateway/src/main.rs',
+);
+if (!birdcoderGateway.includes('use sdkwork_api_birdcoder_assembly::{assemble_api_router, bootstrap}')) {
+  fail('BirdCoder standalone gateway must consume the canonical API assembly.');
+}
+
+const birdcoderAssemblyCargo = read('crates/sdkwork-api-birdcoder-assembly/Cargo.toml');
+if (!birdcoderAssemblyCargo.includes('sdkwork-api-drive-assembly.workspace = true')) {
+  fail('BirdCoder API assembly must declare sdkwork-api-drive-assembly as a workspace dependency.');
+}
+
+const birdcoderRuntimeConfig = read(
+  'crates/sdkwork-api-birdcoder-assembly/src/application_bootstrap/config.rs',
+);
+if (!birdcoderRuntimeConfig.includes('SDKWORK_BIRDCODER_APPLICATION_PUBLIC_INGRESS_BIND')) {
+  fail('BirdCoder server bootstrap must consume the canonical application.public-ingress bind.');
+}
 assert.deepEqual(
   applicationComponentSpec.apiSurfaces?.find(
     (surface) => surface.dependencyServiceId === 'sdkwork-drive-app-api',
@@ -172,13 +210,19 @@ assert.equal(
 );
 for (const embeddedDependencyEvidence of [
   'resolveStandaloneDependencyEnv',
-  'SDKWORK_DRIVE_DATABASE_URL',
-  'SDKWORK_MEMBERSHIP_DATABASE_URL',
+  'SDKWORK_DRIVE_APP_ROOT',
+  'SDKWORK_MEMBERSHIP_APP_ROOT',
+  'SDKWORK_DATABASE_TEMPORARY_DRIVER_POOL_COUNT',
 ]) {
   if (!devStack.includes(embeddedDependencyEvidence)) {
     fail(`BirdCoder dev stack must configure embedded dependency assembly state: ${embeddedDependencyEvidence}`);
   }
 }
+assert.doesNotMatch(
+  devStack,
+  /SDKWORK_(?:DRIVE|MEMBERSHIP)_DATABASE_(?:URL|ENGINE|MAX_CONNECTIONS)/u,
+  'Embedded dependencies must consume the BirdCoder process pools instead of receiving database-specific env.',
+);
 assert.doesNotMatch(
   devStack,
   /createPlatformGatewayPlan|PLATFORM_GATEWAY_SERVICE|foundation-drive,foundation-membership/u,

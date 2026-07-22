@@ -9,9 +9,12 @@ import {
   createBirdCoderDataEnvelope,
   createBirdCoderListEnvelope,
   createCodingSessionFixture,
+  createIamDeviceAuthorizationFixture,
   createIamRuntimeSettings,
   createIamSessionData,
+  createProjectGitOverviewFixture,
   createProjectFixture,
+  createProjectRuntimeLocationPreferenceFixture,
   createWorkspaceFixture,
   credentialsMatchSessionRequest,
   isAuthenticatedRequest,
@@ -68,7 +71,8 @@ async function readJsonBody(request) {
   }
 }
 
-function handleRoute(method, pathname, request, body) {
+function handleRoute(method, url, request, body) {
+  const { pathname, searchParams } = url;
   if (method === 'OPTIONS') {
     return { statusCode: 204, payload: null };
   }
@@ -97,6 +101,23 @@ function handleRoute(method, pathname, request, body) {
     return {
       statusCode: 200,
       payload: createAppbaseSuccess(createIamRuntimeSettings().verificationPolicy),
+    };
+  }
+
+  if (pathname === '/app/v3/api/oauth/device_authorizations' && method === 'POST') {
+    return {
+      statusCode: 201,
+      payload: createAppbaseSuccess(createIamDeviceAuthorizationFixture()),
+    };
+  }
+
+  if (
+    pathname === '/app/v3/api/oauth/device_authorizations/e2e-device-authorization-1'
+    && method === 'GET'
+  ) {
+    return {
+      statusCode: 200,
+      payload: createAppbaseSuccess(createIamDeviceAuthorizationFixture()),
     };
   }
 
@@ -225,6 +246,37 @@ function handleRoute(method, pathname, request, body) {
     };
   }
 
+  if (
+    pathname === '/app/v3/api/projects/e2e-project-1/runtime_location_preferences'
+    && method === 'GET'
+  ) {
+    if (!isAuthenticatedRequest(request)) {
+      return {
+        statusCode: 401,
+        payload: createAppbaseFailure('No authenticated SDKWork IAM user.', '401'),
+      };
+    }
+
+    return {
+      statusCode: 200,
+      payload: createBirdCoderListEnvelope([createProjectRuntimeLocationPreferenceFixture()]),
+    };
+  }
+
+  if (pathname === '/app/v3/api/projects/e2e-project-1/git/overview' && method === 'GET') {
+    if (!isAuthenticatedRequest(request)) {
+      return {
+        statusCode: 401,
+        payload: createAppbaseFailure('No authenticated SDKWork IAM user.', '401'),
+      };
+    }
+
+    return {
+      statusCode: 200,
+      payload: createBirdCoderDataEnvelope(createProjectGitOverviewFixture()),
+    };
+  }
+
   if (pathname === '/app/v3/api/intelligence/coding_sessions' && method === 'GET') {
     if (!isAuthenticatedRequest(request)) {
       return {
@@ -266,21 +318,10 @@ function handleRoute(method, pathname, request, body) {
 
     return {
       statusCode: 200,
-      payload: createBirdCoderListEnvelope([]),
-    };
-  }
-
-  if (pathname === '/app/v3/api/native_sessions' && method === 'GET') {
-    if (!isAuthenticatedRequest(request)) {
-      return {
-        statusCode: 401,
-        payload: createAppbaseFailure('No authenticated SDKWork IAM user.', '401'),
-      };
-    }
-
-    return {
-      statusCode: 200,
-      payload: createBirdCoderListEnvelope([]),
+      payload: createBirdCoderListEnvelope([], {
+        page: Number(searchParams.get('page') ?? 1),
+        pageSize: Number(searchParams.get('page_size') ?? 20),
+      }),
     };
   }
 
@@ -295,7 +336,7 @@ const server = http.createServer(async (request, response) => {
   const body = request.method === 'POST' || request.method === 'PATCH'
     ? await readJsonBody(request)
     : {};
-  const route = handleRoute(request.method ?? 'GET', url.pathname, request, body);
+  const route = handleRoute(request.method ?? 'GET', url, request, body);
 
   if (route.payload === null) {
     response.writeHead(204, {

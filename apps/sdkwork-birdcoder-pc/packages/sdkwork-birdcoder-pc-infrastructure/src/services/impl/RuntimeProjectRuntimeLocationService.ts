@@ -10,8 +10,14 @@ import type {
   ProjectRuntimeLocationResolution,
   ProjectRuntimeLocationResolutionRequest,
 } from '../interfaces/IProjectRuntimeLocationService.ts';
+import {
+  ProjectRuntimeLocationExecutionUnavailableError,
+  requireProjectRuntimeLocationExecutionId,
+} from '../interfaces/IProjectRuntimeLocationService.ts';
+import type { BirdCoderExecutionLocation } from '../runtimeTopology.ts';
 
 export interface RuntimeProjectRuntimeLocationServiceOptions {
+  executionLocation?: BirdCoderExecutionLocation;
   fileSystemService: IFileSystemService;
   openLocalFolder?: typeof openLocalFolder;
   registrationPort?: ProjectRuntimeLocationRegistrationPort;
@@ -84,15 +90,21 @@ function mapBindingFailure(projectId: string, error: unknown): ProjectRuntimeLoc
  */
 export class RuntimeProjectRuntimeLocationService implements IProjectRuntimeLocationService {
   private readonly fileSystemService: IFileSystemService;
+  private readonly executionLocation: BirdCoderExecutionLocation;
   private readonly openLocalFolder: typeof openLocalFolder;
   private readonly registrationPort?: ProjectRuntimeLocationRegistrationPort;
-  private readonly synchronizationTasks = new Map<string, Promise<void>>();
+  private readonly synchronizationTasks = new Map<
+    string,
+    Promise<ProjectRuntimeLocationRegistrationResult>
+  >();
 
   constructor({
+    executionLocation = 'local-host',
     fileSystemService,
     openLocalFolder: openLocalFolderOverride,
     registrationPort,
   }: RuntimeProjectRuntimeLocationServiceOptions) {
+    this.executionLocation = executionLocation;
     this.fileSystemService = fileSystemService;
     this.openLocalFolder = openLocalFolderOverride ?? openLocalFolder;
     this.registrationPort = registrationPort;
@@ -165,7 +177,7 @@ export class RuntimeProjectRuntimeLocationService implements IProjectRuntimeLoca
     if (activeWorkingDirectory) {
       const registration = await this.inspectAndScheduleDesktopSynchronization(
         normalizedProjectId,
-        await this.resolveLocalWorkingDirectory(normalizedProjectId),
+        activeWorkingDirectory,
         await this.readMountState(normalizedProjectId),
       );
       return {
@@ -196,7 +208,7 @@ export class RuntimeProjectRuntimeLocationService implements IProjectRuntimeLoca
     if (recoveredWorkingDirectory) {
       const registration = await this.inspectAndScheduleDesktopSynchronization(
         normalizedProjectId,
-        await this.resolveLocalWorkingDirectory(normalizedProjectId),
+        recoveredWorkingDirectory,
         await this.readMountState(normalizedProjectId),
       );
       return {
@@ -301,6 +313,63 @@ export class RuntimeProjectRuntimeLocationService implements IProjectRuntimeLoca
     );
   }
 
+  async resolveProjectRuntimeLocationExecutionId(
+    projectId: string,
+    capability: ProjectRuntimeLocationCapability,
+    options: { allowFolderSelection?: boolean } = {},
+  ): Promise<string> {
+    const normalizedProjectId = normalizeProjectId(projectId);
+    if (!normalizedProjectId) {
+      throw new ProjectRuntimeLocationExecutionUnavailableError({
+        code: 'runtime_location_unavailable',
+        message: 'A project must be selected before resolving an execution location.',
+        projectId: projectId.trim(),
+      });
+    }
+
+    if (this.executionLocation === 'cloud-workspace') {
+      const runtimeLocationId = await this.resolveRemoteProjectRuntimeLocationId(
+        normalizedProjectId,
+        capability,
+      );
+      if (!runtimeLocationId) {
+        throw new ProjectRuntimeLocationExecutionUnavailableError({
+          code: 'missing_runtime_location_id',
+          message:
+            'This server workspace has no verified terminal runtime location. Bind an authorized runtime before creating a coding session.',
+          projectId: normalizedProjectId,
+        });
+      }
+      return runtimeLocationId;
+    }
+
+    const resolution = await this.resolveProjectRuntimeLocation(normalizedProjectId, {
+      allowFolderSelection: options.allowFolderSelection ?? false,
+      capability,
+    });
+    if (
+      resolution.status === 'resolved'
+      && resolution.location.remoteSynchronization !== 'registered'
+      && this.registrationPort
+    ) {
+      const mountState = await this.readMountState(normalizedProjectId);
+      if (mountState?.host === 'tauri') {
+        const registration = await this.synchronizeDesktopRuntimeLocation({
+          absolutePath: resolution.location.localWorkingDirectory,
+          displayName: mountState.displayName,
+          projectId: normalizedProjectId,
+        });
+        if (
+          registration.remoteSynchronization === 'registered'
+          && registration.runtimeLocationId?.trim()
+        ) {
+          return registration.runtimeLocationId.trim();
+        }
+      }
+    }
+    return requireProjectRuntimeLocationExecutionId(resolution);
+  }
+
   private async readMountState(projectId: string): Promise<ProjectDeviceMountState | undefined> {
     try {
       return await this.fileSystemService.getProjectMountState(projectId);
@@ -342,30 +411,34 @@ export class RuntimeProjectRuntimeLocationService implements IProjectRuntimeLoca
     }
 
     if (registration.remoteSynchronization !== 'not_configured') {
-      this.scheduleDesktopSynchronization(input);
+      void this.synchronizeDesktopRuntimeLocation(input).catch(() => undefined);
     }
 
     return registration;
   }
 
-  private scheduleDesktopSynchronization(input: {
+  private synchronizeDesktopRuntimeLocation(input: {
     absolutePath: string;
     displayName: string | null;
     projectId: string;
-  }): void {
-    if (!this.registrationPort || this.synchronizationTasks.has(input.projectId)) {
-      return;
+  }): Promise<ProjectRuntimeLocationRegistrationResult> {
+    if (!this.registrationPort) {
+      return Promise.resolve({ remoteSynchronization: 'not_configured' });
     }
 
-    const task = this.registrationPort
-      .synchronizeLocalDesktopRuntimeLocation(input)
-      .then(
-        () => undefined,
-        () => undefined,
-      )
-      .finally(() => {
-        this.synchronizationTasks.delete(input.projectId);
-      });
-    this.synchronizationTasks.set(input.projectId, task);
+    const taskKey = `${input.projectId}\u001f${input.absolutePath}`;
+    const activeTask = this.synchronizationTasks.get(taskKey);
+    if (activeTask) return activeTask;
+
+    const task = this.registrationPort.synchronizeLocalDesktopRuntimeLocation(input);
+    this.synchronizationTasks.set(taskKey, task);
+    void task.finally(() => {
+      globalThis.setTimeout(() => {
+        if (this.synchronizationTasks.get(taskKey) === task) {
+          this.synchronizationTasks.delete(taskKey);
+        }
+      }, 0);
+    }).catch(() => undefined);
+    return task;
   }
 }

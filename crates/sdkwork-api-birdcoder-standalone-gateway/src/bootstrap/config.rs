@@ -11,12 +11,15 @@ pub const DEFAULT_RATE_LIMIT_ENABLED: bool = true;
 pub const DEFAULT_RATE_LIMIT_MAX_REQUESTS: u32 = 120;
 pub const DEFAULT_RATE_LIMIT_WINDOW_SECS: u64 = 60;
 const BIRDCODER_DATABASE_SERVICE: &str = "BIRDCODER";
+const CLAW_DATABASE_URL_ENV: &str = "SDKWORK_CLAW_DATABASE_URL";
 pub const PROVIDER_RUNNER_ROOT_ENV: &str = "SDKWORK_BIRDCODER_PROVIDER_RUNNER_ROOT";
 pub const DEPLOYMENT_PROFILE_ENV: &str = "SDKWORK_BIRDCODER_DEPLOYMENT_PROFILE";
 pub const ENVIRONMENT_ENV: &str = "SDKWORK_BIRDCODER_ENVIRONMENT";
 pub const RUNTIME_TARGET_ENV: &str = "SDKWORK_BIRDCODER_RUNTIME_TARGET";
 pub const SERVER_HOST_ENV: &str = "SDKWORK_BIRDCODER_SERVER_HOST";
 pub const SERVER_PORT_ENV: &str = "SDKWORK_BIRDCODER_SERVER_PORT";
+pub const APPLICATION_PUBLIC_INGRESS_BIND_ENV: &str =
+    "SDKWORK_BIRDCODER_APPLICATION_PUBLIC_INGRESS_BIND";
 pub const DATABASE_FILE_ENV: &str = "SDKWORK_BIRDCODER_DATABASE_FILE";
 pub const ALLOWED_ORIGINS_ENV: &str = "SDKWORK_BIRDCODER_ALLOWED_ORIGINS";
 pub const RUNTIME_LOCATION_MASTER_KEY_ENV: &str = "SDKWORK_BIRDCODER_RUNTIME_LOCATION_MASTER_KEY";
@@ -191,6 +194,7 @@ pub enum BirdServerConfigError {
     InvalidRuntimeLocationPreviousKeys,
     MissingRuntimeLocationFingerprintKey,
     InvalidRuntimeLocationFingerprintKey,
+    InvalidApplicationPublicIngressBind(String),
 }
 
 impl fmt::Display for BirdServerConfigError {
@@ -226,7 +230,7 @@ impl fmt::Display for BirdServerConfigError {
             ),
             Self::CloudDatabaseUrl => write!(
                 formatter,
-                "cloud server configuration requires a protected SDKWORK_BIRDCODER_DATABASE_URL"
+                "cloud server configuration requires a protected {CLAW_DATABASE_URL_ENV}"
             ),
             Self::CloudAllowedOrigins => write!(
                 formatter,
@@ -264,6 +268,10 @@ impl fmt::Display for BirdServerConfigError {
                 formatter,
                 "{RUNTIME_LOCATION_FINGERPRINT_KEY_ENV} must contain at least 32 bytes of base64url-decoded or raw key material"
             ),
+            Self::InvalidApplicationPublicIngressBind(value) => write!(
+                formatter,
+                "{APPLICATION_PUBLIC_INGRESS_BIND_ENV} must be a valid host:port bind, got {value:?}"
+            ),
         }
     }
 }
@@ -300,12 +308,17 @@ impl BirdServerConfig {
         let deployment_profile =
             BirdDeploymentProfile::parse(&required_env(DEPLOYMENT_PROFILE_ENV)?)?;
         let runtime_target = BirdRuntimeTarget::parse(&required_env(RUNTIME_TARGET_ENV)?)?;
+        let ingress_bind = read_env(APPLICATION_PUBLIC_INGRESS_BIND_ENV)
+            .map(|value| parse_bind_address(&value))
+            .transpose()?;
         let host = read_env(SERVER_HOST_ENV)
             .or_else(|| read_env(LEGACY_SERVER_HOST_ENV))
+            .or_else(|| ingress_bind.as_ref().map(|(host, _)| host.clone()))
             .unwrap_or_else(|| DEFAULT_HOST.to_string());
         let port: u16 = read_env(SERVER_PORT_ENV)
             .or_else(|| read_env(LEGACY_SERVER_PORT_ENV))
             .and_then(|v| v.parse().ok())
+            .or_else(|| ingress_bind.as_ref().map(|(_, port)| *port))
             .unwrap_or(DEFAULT_PORT);
         let sqlite_file = read_env(DATABASE_FILE_ENV)
             .or_else(|| read_env(LEGACY_DATABASE_FILE_ENV))
@@ -450,11 +463,7 @@ impl BirdServerConfig {
         ) {
             return Err(BirdServerConfigError::CloudDatabaseEngine);
         }
-        if read_env(&format!(
-            "SDKWORK_{BIRDCODER_DATABASE_SERVICE}_DATABASE_URL"
-        ))
-        .is_none()
-        {
+        if read_env(CLAW_DATABASE_URL_ENV).is_none() {
             return Err(BirdServerConfigError::CloudDatabaseUrl);
         }
         if self.allowed_origins.is_empty()
@@ -488,6 +497,36 @@ fn read_env(key: &str) -> Option<String> {
 
 fn required_env(key: &str) -> Result<String, BirdServerConfigError> {
     read_env(key).ok_or_else(|| BirdServerConfigError::MissingEnvironment(key.to_owned()))
+}
+
+fn parse_bind_address(value: &str) -> Result<(String, u16), BirdServerConfigError> {
+    let value = value.trim();
+    let (host, port) = if let Some(rest) = value.strip_prefix('[') {
+        let (host, rest) = rest.split_once(']').ok_or_else(|| {
+            BirdServerConfigError::InvalidApplicationPublicIngressBind(value.to_owned())
+        })?;
+        let port = rest.strip_prefix(':').ok_or_else(|| {
+            BirdServerConfigError::InvalidApplicationPublicIngressBind(value.to_owned())
+        })?;
+        (host, port)
+    } else {
+        value.rsplit_once(':').ok_or_else(|| {
+            BirdServerConfigError::InvalidApplicationPublicIngressBind(value.to_owned())
+        })?
+    };
+    if host.trim().is_empty() {
+        return Err(BirdServerConfigError::InvalidApplicationPublicIngressBind(
+            value.to_owned(),
+        ));
+    }
+    let port = port
+        .parse::<u16>()
+        .ok()
+        .filter(|port| *port != 0)
+        .ok_or_else(|| {
+            BirdServerConfigError::InvalidApplicationPublicIngressBind(value.to_owned())
+        })?;
+    Ok((host.to_owned(), port))
 }
 
 fn decode_runtime_location_master_key(value: &str) -> Option<Vec<u8>> {

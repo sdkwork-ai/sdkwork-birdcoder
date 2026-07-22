@@ -3,7 +3,6 @@ use std::sync::Arc;
 use crate::api::paths::app_path;
 use crate::api::paths::append_query_string;
 use crate::http::{SdkworkError, SdkworkHttpClient};
-use crate::models::{BirdCoderAppTemplateSummaryListEnvelope};
 
 #[derive(Clone)]
 pub struct TemplatesApi {
@@ -16,7 +15,7 @@ impl TemplatesApi {
     }
 
     /// List app templates
-    pub async fn app_templates_list(&self, page: Option<i64>, page_size: Option<i64>) -> Result<BirdCoderAppTemplateSummaryListEnvelope, SdkworkError> {
+    pub async fn app_templates_list(&self, page: Option<i64>, page_size: Option<i64>) -> Result<serde_json::Value, SdkworkError> {
         let query = build_query_string(&[
             QueryParameterSpec::new("page", page, "form", true, false, None),
             QueryParameterSpec::new("page_size", page_size, "form", true, false, None),

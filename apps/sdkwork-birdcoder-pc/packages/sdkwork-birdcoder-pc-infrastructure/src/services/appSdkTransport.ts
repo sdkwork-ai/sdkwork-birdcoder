@@ -4,6 +4,10 @@ import type {
   BirdCoderApiTransport,
   BirdCoderApiTransportRequest,
 } from '@sdkwork/birdcoder-pc-contracts-commons';
+import type {
+  BirdCoderProjectRuntimeLocation,
+  BirdCoderProjectRuntimeLocationPreference,
+} from '@sdkwork/birdcoder-pc-core/sdk/birdcoder-app';
 import type { IProjectService } from './interfaces/IProjectService.ts';
 import { createBirdCoderInProcessAppRuntimeTransport } from './appRuntimeTransport.ts';
 import type { BirdCoderConsoleQueries } from './consoleQueries.ts';
@@ -21,11 +25,23 @@ import {
   readStrictOffsetListPage,
 } from './sdkTransportShared.ts';
 
+export interface BirdCoderInProcessProjectRuntimeLocationReadPort {
+  getProjectRuntimeLocation(
+    projectId: string,
+    runtimeLocationId: string,
+  ): Promise<BirdCoderProjectRuntimeLocation>;
+  listProjectRuntimeLocationPreferencePage(request: {
+    limit: number;
+    offset: number;
+    projectId: string;
+  }): Promise<{
+    items: BirdCoderProjectRuntimeLocationPreference[];
+    total: number;
+  }>;
+}
+
 export interface CreateBirdCoderInProcessAppSdkTransportOptions {
   hostMode?: BirdCoderHostMode;
-  nativeSessionProvider?: Parameters<
-    typeof createBirdCoderInProcessAppRuntimeTransport
-  >[0]['nativeSessionProvider'];
   observe?: (request: BirdCoderApiTransportRequest) => void;
   projectService?: Pick<
     IProjectService,
@@ -42,6 +58,7 @@ export interface CreateBirdCoderInProcessAppSdkTransportOptions {
     | 'renameCodingSession'
     | 'updateCodingSession'
   >;
+  projectRuntimeLocationReadPort?: BirdCoderInProcessProjectRuntimeLocationReadPort;
   queries: BirdCoderConsoleQueries;
   runtime?: Partial<BirdCoderCoreRuntimeSummary>;
 }
@@ -54,7 +71,6 @@ function isAppRuntimeSdkRoute(path: string): boolean {
     path.startsWith(`${appPrefix}/model_config`) ||
     path.startsWith(`${appPrefix}/models`) ||
     path.startsWith(`${appPrefix}/native_session_providers`) ||
-    path.startsWith(`${appPrefix}/native_sessions`) ||
     path.startsWith(`${appPrefix}/operations/`) ||
     path.startsWith(`${appPrefix}/system/`)
   );
@@ -62,9 +78,9 @@ function isAppRuntimeSdkRoute(path: string): boolean {
 
 export function createBirdCoderInProcessAppSdkTransport({
   hostMode,
-  nativeSessionProvider,
   observe,
   projectService,
+  projectRuntimeLocationReadPort,
   queries,
   runtime,
 }: CreateBirdCoderInProcessAppSdkTransportOptions): BirdCoderApiTransport {
@@ -73,7 +89,6 @@ export function createBirdCoderInProcessAppSdkTransport({
   const appRuntimeTransport = projectService
     ? createBirdCoderInProcessAppRuntimeTransport({
         hostMode,
-        nativeSessionProvider,
         projectService,
         runtime,
       })
@@ -155,6 +170,45 @@ export function createBirdCoderInProcessAppSdkTransport({
 
       if (request.method !== 'GET') {
         throw new Error(`Unsupported in-process app SDK method: ${request.method}`);
+      }
+
+      const runtimeLocationPreferencesMatch = request.path.match(
+        /^\/app\/v3\/api\/projects\/([^/]+)\/runtime_location_preferences$/,
+      );
+      if (runtimeLocationPreferencesMatch) {
+        const pagination = readStrictOffsetListPage(request);
+        const projectId = decodeURIComponent(runtimeLocationPreferencesMatch[1]!);
+        const page = projectRuntimeLocationReadPort
+          ? await projectRuntimeLocationReadPort.listProjectRuntimeLocationPreferencePage({
+              limit: pagination.pageSize,
+              offset: pagination.offset,
+              projectId,
+            })
+          : { items: [], total: 0 };
+        return createListEnvelope(page.items, {
+          offset: pagination.offset,
+          pageSize: pagination.pageSize,
+          total: page.total,
+        }) as TResponse;
+      }
+
+      const runtimeLocationMatch = request.path.match(
+        /^\/app\/v3\/api\/projects\/([^/]+)\/runtime_locations\/([^/]+)$/,
+      );
+      if (runtimeLocationMatch) {
+        if (!projectRuntimeLocationReadPort) {
+          throw new Error(
+            `BirdCoder in-process project runtime-location read is unavailable: ${request.method} ${request.path}`,
+          );
+        }
+        const projectId = decodeURIComponent(runtimeLocationMatch[1]!);
+        const runtimeLocationId = decodeURIComponent(runtimeLocationMatch[2]!);
+        return createEnvelope(
+          await projectRuntimeLocationReadPort.getProjectRuntimeLocation(
+            projectId,
+            runtimeLocationId,
+          ),
+        ) as TResponse;
       }
 
       const deploymentTargetsMatch = request.path.match(

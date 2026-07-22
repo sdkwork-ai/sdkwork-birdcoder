@@ -6,11 +6,12 @@ use sdkwork_birdcoder_coding_sessions_service::domain::commands::{
     CreateCodingSessionTurnInput, EditCodingSessionMessageInput, ForkCodingSessionInput,
     SubmitApprovalDecisionInput, SubmitUserQuestionAnswerInput, UpdateCodingSessionInput,
 };
-use sdkwork_birdcoder_coding_sessions_service::domain::models::CodingSessionListQuery;
 use sdkwork_birdcoder_coding_sessions_service::domain::models::{
-    ClaimCodingSessionOperationInput, CompleteCodingSessionOperationInput,
+    ClaimCodingSessionOperationInput, CodingSessionDiscoveryScope, CodingSessionListQuery,
+    CompleteCodingSessionOperationInput, DiscoveredNativeSessionInput,
     DurableCodingSessionOperation, EnqueueCodingSessionOperationInput,
-    FailCodingSessionOperationInput, RenewCodingSessionOperationLeaseInput,
+    FailCodingSessionOperationInput, NativeSessionHistoryReconciliationInput,
+    RenewCodingSessionOperationLeaseInput,
 };
 use sdkwork_birdcoder_coding_sessions_service::domain::results::{
     ApprovalDecisionPayload, ClaimedCodingSessionInteraction, CodingSessionArtifactPayload,
@@ -22,7 +23,9 @@ use sdkwork_birdcoder_coding_sessions_service::domain::results::{
 };
 use sdkwork_birdcoder_coding_sessions_service::error::CodingSessionError;
 use sdkwork_birdcoder_coding_sessions_service::ports::repository::CodingSessionRepository;
-use sdkwork_birdcoder_sqlx_repository_pool::dialect::IS_NOT_DELETED;
+use sdkwork_birdcoder_sqlx_repository_pool::dialect::{
+    numbered_placeholders, IS_NOT_DELETED, SET_SOFT_DELETED,
+};
 use sdkwork_utils_rust::is_blank;
 use sqlx::{AnyPool, Row, Transaction};
 use time::OffsetDateTime;
@@ -32,6 +35,8 @@ use crate::db::columns;
 use crate::db::rows::*;
 use crate::error::{map_sqlx_error, RepositoryError};
 use crate::mapper::row_mapper;
+use crate::repository::native_session_history;
+use crate::repository::row_projection;
 use crate::repository::session_history_copy;
 use crate::repository::sqlx_helpers::{
     append_session_owner_scope_sql, ensure_session_in_tenant_scope,
@@ -48,6 +53,12 @@ struct ResolvedStoredCodingSessionInteraction {
     resolution: ResolvedCodingSessionInteraction,
     source_event_version: i64,
     source_payload: BTreeMap<String, serde_json::Value>,
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+enum DiscoverySessionUpdateDisposition {
+    Accepted,
+    Stale,
 }
 
 #[derive(Clone, Copy)]
@@ -99,6 +110,458 @@ impl SqliteCodingSessionRepository {
         (OffsetDateTime::now_utc().unix_timestamp_nanos() / 1_000_000) as i64
     }
 
+    fn timestamp_expression(is_postgres: bool) -> &'static str {
+        if is_postgres {
+            "CAST(? AS TIMESTAMPTZ)"
+        } else {
+            "?"
+        }
+    }
+
+    fn json_expression(is_postgres: bool) -> &'static str {
+        if is_postgres {
+            "CAST(? AS JSONB)"
+        } else {
+            "?"
+        }
+    }
+
+    fn boolean_literal(value: bool) -> &'static str {
+        if value {
+            "TRUE"
+        } else {
+            "FALSE"
+        }
+    }
+
+    fn transaction_is_postgres(tx: &mut Transaction<'_, sqlx::Any>) -> bool {
+        tx.as_mut()
+            .backend_name()
+            .eq_ignore_ascii_case("PostgreSQL")
+    }
+
+    async fn find_discovered_session_id_on_executor(
+        tx: &mut Transaction<'_, sqlx::Any>,
+        owner_scope: SessionOwnerScope,
+        session: &DiscoveredNativeSessionInput,
+    ) -> Result<Option<String>, CodingSessionError> {
+        let sql = numbered_placeholders(&format!(
+            "SELECT {} FROM {} WHERE {} = ? AND {} = ? AND {} = ? AND {} = ? \
+             AND {IS_NOT_DELETED} LIMIT 1",
+            columns::session::ID,
+            columns::session::TABLE,
+            columns::session::TENANT_ID,
+            columns::session::USER_ID,
+            columns::session::ENGINE_ID,
+            columns::session::NATIVE_SESSION_ID,
+        ));
+        map_sqlx_error(
+            sqlx::query_scalar::<sqlx::Any, String>(&sql)
+                .bind(owner_scope.tenant_id)
+                .bind(owner_scope.user_id)
+                .bind(&session.engine_id)
+                .bind(&session.native_session_id)
+                .fetch_optional(&mut **tx)
+                .await,
+        )
+    }
+
+    async fn resolve_discovered_session_id_on_executor(
+        tx: &mut Transaction<'_, sqlx::Any>,
+        is_postgres: bool,
+        owner_scope: SessionOwnerScope,
+        scope: &CodingSessionDiscoveryScope,
+        session: &DiscoveredNativeSessionInput,
+    ) -> Result<String, CodingSessionError> {
+        if let Some(session_id) =
+            Self::find_discovered_session_id_on_executor(tx, owner_scope, session).await?
+        {
+            return Ok(session_id);
+        }
+
+        let session_id = Uuid::new_v4().to_string();
+        let timestamp_expression = Self::timestamp_expression(is_postgres);
+        let sql = numbered_placeholders(&format!(
+            "INSERT INTO {} ({}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}) \
+             VALUES (?, NULL, {timestamp_expression}, {timestamp_expression}, 0, FALSE, ?, ?, ?, ?, ?, ?, ?, 'provider', ?, ?, ?, ?, ?) \
+             ON CONFLICT DO NOTHING",
+            columns::session::TABLE,
+            columns::session::ID,
+            columns::session::UUID,
+            columns::session::CREATED_AT,
+            columns::session::UPDATED_AT,
+            columns::session::VERSION,
+            columns::session::IS_DELETED,
+            columns::session::TENANT_ID,
+            columns::session::USER_ID,
+            columns::session::WORKSPACE_ID,
+            columns::session::PROJECT_ID,
+            columns::session::RUNTIME_LOCATION_ID,
+            columns::session::TITLE,
+            columns::session::STATUS,
+            columns::session::ENTRY_SURFACE,
+            columns::session::HOST_MODE,
+            columns::session::ENGINE_ID,
+            columns::session::MODEL_ID,
+            columns::session::NATIVE_SESSION_ID,
+            columns::session::SORT_TIMESTAMP,
+        ));
+        let result = sqlx::query(&sql)
+            .bind(&session_id)
+            .bind(&session.created_at)
+            .bind(&session.updated_at)
+            .bind(owner_scope.tenant_id)
+            .bind(owner_scope.user_id)
+            .bind(&scope.workspace_id)
+            .bind(&scope.project_id)
+            .bind(&scope.runtime_location_id)
+            .bind(&session.title)
+            .bind(&session.status)
+            .bind(&session.host_mode)
+            .bind(&session.engine_id)
+            .bind(&session.model_id)
+            .bind(&session.native_session_id)
+            .bind(session.sort_timestamp)
+            .execute(&mut **tx)
+            .await
+            .map_err(|error| RepositoryError::Insert(error.to_string()))?;
+        if result.rows_affected() == 1 {
+            return Ok(session_id);
+        }
+
+        Self::find_discovered_session_id_on_executor(tx, owner_scope, session)
+            .await?
+            .ok_or_else(|| {
+                CodingSessionError::Conflict(format!(
+                    "native session {} for engine {} could not be materialized",
+                    session.native_session_id, session.engine_id
+                ))
+            })
+    }
+
+    async fn update_discovered_session_on_executor(
+        tx: &mut Transaction<'_, sqlx::Any>,
+        is_postgres: bool,
+        owner_scope: SessionOwnerScope,
+        scope: &CodingSessionDiscoveryScope,
+        session_id: &str,
+        session: &DiscoveredNativeSessionInput,
+    ) -> Result<DiscoverySessionUpdateDisposition, CodingSessionError> {
+        let lock_sql = numbered_placeholders(&format!(
+            "UPDATE {} SET {} = {} WHERE {} = ? AND {} = ? AND {} = ? AND {} = ? AND {} = ? AND {IS_NOT_DELETED}",
+            columns::session::TABLE,
+            columns::session::VERSION,
+            columns::session::VERSION,
+            columns::session::ID,
+            columns::session::TENANT_ID,
+            columns::session::USER_ID,
+            columns::session::ENGINE_ID,
+            columns::session::NATIVE_SESSION_ID,
+        ));
+        let locked = sqlx::query(&lock_sql)
+            .bind(session_id)
+            .bind(owner_scope.tenant_id)
+            .bind(owner_scope.user_id)
+            .bind(&session.engine_id)
+            .bind(&session.native_session_id)
+            .execute(&mut **tx)
+            .await
+            .map_err(|error| RepositoryError::Update(error.to_string()))?;
+        if locked.rows_affected() != 1 {
+            return Err(CodingSessionError::Conflict(format!(
+                "native session {} for engine {} changed during materialization",
+                session.native_session_id, session.engine_id
+            )));
+        }
+
+        let projection = row_projection::session(is_postgres, "");
+        let current_sql = numbered_placeholders(&format!(
+            "SELECT {projection} FROM {} WHERE {} = ? AND {} = ? AND {} = ? AND {IS_NOT_DELETED}",
+            columns::session::TABLE,
+            columns::session::ID,
+            columns::session::TENANT_ID,
+            columns::session::USER_ID,
+        ));
+        let current = map_sqlx_error(
+            sqlx::query(&current_sql)
+                .bind(session_id)
+                .bind(owner_scope.tenant_id)
+                .bind(owner_scope.user_id)
+                .fetch_one(&mut **tx)
+                .await,
+        )?;
+        let current = map_sqlx_error(SessionRow::from_row(&current))?;
+        if discovered_session_snapshot_is_stale(&current, session) {
+            return Ok(DiscoverySessionUpdateDisposition::Stale);
+        }
+        let effective_updated_at =
+            later_storage_timestamp(current.updated_at.as_str(), session.updated_at.as_str());
+        let effective_last_turn_at = later_optional_storage_timestamp(
+            current.last_turn_at.as_deref(),
+            session.last_turn_at.as_deref(),
+        );
+        if discovered_session_row_matches(
+            &current,
+            scope,
+            session,
+            effective_updated_at.as_str(),
+            effective_last_turn_at.as_deref(),
+        )? {
+            return Ok(DiscoverySessionUpdateDisposition::Accepted);
+        }
+
+        let attributes = &session.native_attributes;
+        let native_metadata_json = serde_json::to_string(&attributes.metadata)
+            .map_err(|error| RepositoryError::Update(error.to_string()))?;
+        let timestamp_expression = Self::timestamp_expression(is_postgres);
+        let json_expression = Self::json_expression(is_postgres);
+        let native_is_ephemeral = Self::boolean_literal(attributes.is_ephemeral);
+        let native_is_sidechain = Self::boolean_literal(attributes.is_sidechain);
+        let sql = numbered_placeholders(&format!(
+            "UPDATE {} SET {} = ?, {} = ?, {} = ?, {} = ?, {} = ?, {} = ?, {} = ?, \
+             {} = {timestamp_expression}, {} = {timestamp_expression}, {} = {timestamp_expression}, \
+             {} = ?, {} = ?, {} = ?, {} = ?, {} = ?, {} = ?, {} = ?, {} = ?, {} = ?, \
+             {} = ?, {} = ?, {} = ?, {} = ?, {} = ?, {} = ?, {} = {native_is_ephemeral}, \
+             {} = {native_is_sidechain}, {} = ?, {} = {json_expression}, {} = ?, \
+             {} = {timestamp_expression}, {} = {} + 1 \
+             WHERE {} = ? AND {} = ? AND {} = ? AND {} = ? AND {} = ? AND {IS_NOT_DELETED}",
+            columns::session::TABLE,
+            columns::session::WORKSPACE_ID,
+            columns::session::PROJECT_ID,
+            columns::session::RUNTIME_LOCATION_ID,
+            columns::session::TITLE,
+            columns::session::STATUS,
+            columns::session::HOST_MODE,
+            columns::session::MODEL_ID,
+            columns::session::CREATED_AT,
+            columns::session::UPDATED_AT,
+            columns::session::LAST_TURN_AT,
+            columns::session::NATIVE_SESSION_TREE_ID,
+            columns::session::NATIVE_PARENT_SESSION_ID,
+            columns::session::NATIVE_FORKED_FROM_SESSION_ID,
+            columns::session::NATIVE_TITLE,
+            columns::session::NATIVE_PREVIEW,
+            columns::session::NATIVE_SOURCE,
+            columns::session::PROVIDER_VERSION,
+            columns::session::MODEL_PROVIDER,
+            columns::session::NATIVE_PROJECT_ID,
+            columns::session::NATIVE_CWD,
+            columns::session::NATIVE_GIT_BRANCH,
+            columns::session::NATIVE_GIT_COMMIT,
+            columns::session::NATIVE_GIT_REPOSITORY_URL,
+            columns::session::NATIVE_AGENT_NAME,
+            columns::session::NATIVE_AGENT_ROLE,
+            columns::session::NATIVE_IS_EPHEMERAL,
+            columns::session::NATIVE_IS_SIDECHAIN,
+            columns::session::NATIVE_SCHEMA_VERSION,
+            columns::session::NATIVE_METADATA_JSON,
+            columns::session::SORT_TIMESTAMP,
+            columns::session::TRANSCRIPT_UPDATED_AT,
+            columns::session::VERSION,
+            columns::session::VERSION,
+            columns::session::ID,
+            columns::session::TENANT_ID,
+            columns::session::USER_ID,
+            columns::session::ENGINE_ID,
+            columns::session::NATIVE_SESSION_ID,
+        ));
+        let result = sqlx::query(&sql)
+            .bind(&scope.workspace_id)
+            .bind(&scope.project_id)
+            .bind(&scope.runtime_location_id)
+            .bind(&session.title)
+            .bind(&session.status)
+            .bind(&session.host_mode)
+            .bind(&session.model_id)
+            .bind(&session.created_at)
+            .bind(&effective_updated_at)
+            .bind(&effective_last_turn_at)
+            .bind(&attributes.session_tree_id)
+            .bind(&attributes.parent_session_id)
+            .bind(&attributes.forked_from_session_id)
+            .bind(&attributes.title)
+            .bind(&attributes.preview)
+            .bind(&attributes.source)
+            .bind(&attributes.provider_version)
+            .bind(&attributes.model_provider)
+            .bind(&attributes.project_id)
+            .bind(&attributes.cwd)
+            .bind(&attributes.git_branch)
+            .bind(&attributes.git_commit)
+            .bind(&attributes.git_repository_url)
+            .bind(&attributes.agent_name)
+            .bind(&attributes.agent_role)
+            .bind(attributes.schema_version)
+            .bind(&native_metadata_json)
+            .bind(session.sort_timestamp)
+            .bind(&session.transcript_updated_at)
+            .bind(session_id)
+            .bind(owner_scope.tenant_id)
+            .bind(owner_scope.user_id)
+            .bind(&session.engine_id)
+            .bind(&session.native_session_id)
+            .execute(&mut **tx)
+            .await
+            .map_err(|error| RepositoryError::Update(error.to_string()))?;
+        if result.rows_affected() != 1 {
+            return Err(CodingSessionError::Conflict(format!(
+                "native session {} for engine {} changed during materialization",
+                session.native_session_id, session.engine_id
+            )));
+        }
+        Ok(DiscoverySessionUpdateDisposition::Accepted)
+    }
+
+    async fn sync_discovered_runtime_on_executor(
+        tx: &mut Transaction<'_, sqlx::Any>,
+        is_postgres: bool,
+        owner_scope: SessionOwnerScope,
+        session_id: &str,
+        session: &DiscoveredNativeSessionInput,
+    ) -> Result<(), CodingSessionError> {
+        let runtime_id = format!("{session_id}:native-discovery-runtime");
+        let timestamp_expression = Self::timestamp_expression(is_postgres);
+        let json_expression = Self::json_expression(is_postgres);
+        let empty_json = "{}";
+        let state_sql = numbered_placeholders(&format!(
+            "SELECT {}, {}, {}, {}, {}, {}, CASE WHEN {} THEN 1 ELSE 0 END AS deleted_flag, {}, {}, {} \
+             FROM {} WHERE {} = ?",
+            columns::runtime::TENANT_ID,
+            columns::runtime::USER_ID,
+            columns::runtime::CODING_SESSION_ID,
+            columns::runtime::ENGINE_ID,
+            columns::runtime::MODEL_ID,
+            columns::runtime::HOST_MODE,
+            columns::runtime::IS_DELETED,
+            columns::runtime::STATUS,
+            columns::runtime::TRANSPORT_KIND,
+            columns::runtime::NATIVE_SESSION_ID,
+            columns::runtime::TABLE,
+            columns::runtime::ID,
+        ));
+        if let Some(row) = map_sqlx_error(
+            sqlx::query(&state_sql)
+                .bind(&runtime_id)
+                .fetch_optional(&mut **tx)
+                .await,
+        )? {
+            let tenant_id = map_sqlx_error(row.try_get::<i64, _>(columns::runtime::TENANT_ID))?;
+            let user_id = map_sqlx_error(row.try_get::<i64, _>(columns::runtime::USER_ID))?;
+            let coding_session_id =
+                map_sqlx_error(row.try_get::<String, _>(columns::runtime::CODING_SESSION_ID))?;
+            let engine_id = map_sqlx_error(row.try_get::<String, _>(columns::runtime::ENGINE_ID))?;
+            let native_session_id = map_sqlx_error(
+                row.try_get::<Option<String>, _>(columns::runtime::NATIVE_SESSION_ID),
+            )?;
+            if tenant_id != owner_scope.tenant_id
+                || user_id != owner_scope.user_id
+                || coding_session_id != session_id
+                || engine_id != session.engine_id
+                || native_session_id.as_deref() != Some(session.native_session_id.as_str())
+            {
+                return Err(CodingSessionError::Conflict(format!(
+                    "native runtime binding for session {session_id} belongs to another provider identity"
+                )));
+            }
+            let model_id = map_sqlx_error(row.try_get::<String, _>(columns::runtime::MODEL_ID))?;
+            let host_mode = map_sqlx_error(row.try_get::<String, _>(columns::runtime::HOST_MODE))?;
+            let status = map_sqlx_error(row.try_get::<String, _>(columns::runtime::STATUS))?;
+            let transport_kind =
+                map_sqlx_error(row.try_get::<String, _>(columns::runtime::TRANSPORT_KIND))?;
+            let deleted_flag = map_sqlx_error(row.try_get::<i64, _>("deleted_flag"))?;
+            if deleted_flag == 0
+                && model_id == session.model_id
+                && host_mode == session.host_mode
+                && status == session.status
+                && transport_kind == "provider-native"
+            {
+                return Ok(());
+            }
+        }
+        let update_sql = numbered_placeholders(&format!(
+            "UPDATE {} SET {} = {} + 1, {} = FALSE, {} = ?, \
+             {} = ?, {} = ?, {} = ?, {} = 'provider-native', {} = ? \
+             WHERE {} = ? AND {} = ? AND {} = ? AND {} = ? AND {} = ? AND {} = ?",
+            columns::runtime::TABLE,
+            columns::runtime::VERSION,
+            columns::runtime::VERSION,
+            columns::runtime::IS_DELETED,
+            columns::runtime::ENGINE_ID,
+            columns::runtime::MODEL_ID,
+            columns::runtime::HOST_MODE,
+            columns::runtime::STATUS,
+            columns::runtime::TRANSPORT_KIND,
+            columns::runtime::NATIVE_SESSION_ID,
+            columns::runtime::ID,
+            columns::runtime::CODING_SESSION_ID,
+            columns::runtime::TENANT_ID,
+            columns::runtime::USER_ID,
+            columns::runtime::ENGINE_ID,
+            columns::runtime::NATIVE_SESSION_ID,
+        ));
+        let result = sqlx::query(&update_sql)
+            .bind(&session.engine_id)
+            .bind(&session.model_id)
+            .bind(&session.host_mode)
+            .bind(&session.status)
+            .bind(&session.native_session_id)
+            .bind(&runtime_id)
+            .bind(session_id)
+            .bind(owner_scope.tenant_id)
+            .bind(owner_scope.user_id)
+            .bind(&session.engine_id)
+            .bind(&session.native_session_id)
+            .execute(&mut **tx)
+            .await
+            .map_err(|error| RepositoryError::Update(error.to_string()))?;
+        if result.rows_affected() == 1 {
+            return Ok(());
+        }
+
+        let insert_sql = numbered_placeholders(&format!(
+            "INSERT INTO {} ({}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}) \
+             VALUES (?, NULL, {timestamp_expression}, {timestamp_expression}, 0, FALSE, ?, ?, ?, ?, ?, ?, ?, \
+                     'provider-native', ?, NULL, {json_expression}, {json_expression})",
+            columns::runtime::TABLE,
+            columns::runtime::ID,
+            columns::runtime::UUID,
+            columns::runtime::CREATED_AT,
+            columns::runtime::UPDATED_AT,
+            columns::runtime::VERSION,
+            columns::runtime::IS_DELETED,
+            columns::runtime::TENANT_ID,
+            columns::runtime::USER_ID,
+            columns::runtime::CODING_SESSION_ID,
+            columns::runtime::ENGINE_ID,
+            columns::runtime::MODEL_ID,
+            columns::runtime::HOST_MODE,
+            columns::runtime::STATUS,
+            columns::runtime::TRANSPORT_KIND,
+            columns::runtime::NATIVE_SESSION_ID,
+            columns::runtime::NATIVE_TURN_CONTAINER_ID,
+            columns::runtime::CAPABILITY_SNAPSHOT_JSON,
+            columns::runtime::METADATA_JSON,
+        ));
+        sqlx::query(&insert_sql)
+            .bind(&runtime_id)
+            .bind(&session.created_at)
+            .bind(&session.updated_at)
+            .bind(owner_scope.tenant_id)
+            .bind(owner_scope.user_id)
+            .bind(session_id)
+            .bind(&session.engine_id)
+            .bind(&session.model_id)
+            .bind(&session.host_mode)
+            .bind(&session.status)
+            .bind(&session.native_session_id)
+            .bind(empty_json)
+            .bind(empty_json)
+            .execute(&mut **tx)
+            .await
+            .map_err(|error| RepositoryError::Insert(error.to_string()))?;
+        Ok(())
+    }
+
     fn append_session_list_filters(sql: &mut String, query: &CodingSessionListQuery) {
         if query.engine_id.is_some() {
             sql.push_str(&format!(" AND s.{} = ?", columns::session::ENGINE_ID));
@@ -121,12 +584,14 @@ impl SqliteCodingSessionRepository {
         filter_sql: &str,
         has_limit: bool,
         has_offset: bool,
+        is_postgres: bool,
     ) -> String {
         let runtime_is_not_deleted =
             sdkwork_birdcoder_sqlx_repository_pool::dialect::qualified_is_not_deleted("r");
-        let mut select_sql = String::from(
+        let session_projection = row_projection::session(is_postgres, "s");
+        let mut select_sql = format!(
             "WITH session_page AS MATERIALIZED (\
-                 SELECT s.* FROM ai_coding_session s",
+                 SELECT {session_projection} FROM ai_coding_session s"
         );
         select_sql.push_str(filter_sql);
         select_sql.push_str(" ORDER BY s.sort_timestamp DESC, s.id ASC");
@@ -154,19 +619,20 @@ impl SqliteCodingSessionRepository {
         message_id: &str,
     ) -> Result<MessageRow, CodingSessionError> {
         ensure_session_in_tenant_scope(&self.pool, ctx, session_id).await?;
+        let projection = row_projection::message(self.is_postgres().await?, "");
 
+        let sql = numbered_placeholders(&format!(
+            "SELECT {projection} FROM {} WHERE {} = ? AND {} = ? AND {IS_NOT_DELETED}",
+            columns::message::TABLE,
+            columns::message::ID,
+            columns::message::CODING_SESSION_ID,
+        ));
         let row = map_sqlx_error(
-            sqlx::query(&format!(
-                "SELECT * FROM {} WHERE {} = ? AND {} = ? AND {} = 0",
-                columns::message::TABLE,
-                columns::message::ID,
-                columns::message::CODING_SESSION_ID,
-                columns::message::IS_DELETED,
-            ))
-            .bind(message_id)
-            .bind(session_id)
-            .fetch_optional(&self.pool)
-            .await,
+            sqlx::query(&sql)
+                .bind(message_id)
+                .bind(session_id)
+                .fetch_optional(&self.pool)
+                .await,
         )?
         .ok_or_else(|| RepositoryError::NotFound(format!("message {message_id} not found")))?;
 
@@ -181,21 +647,22 @@ impl SqliteCodingSessionRepository {
         owner_scope: SessionOwnerScope,
         session_id: &str,
     ) -> Result<usize, CodingSessionError> {
-        let max_sequence = map_sqlx_error(
-            sqlx::query_scalar::<sqlx::Any, i64>(&format!(
-                "SELECT COALESCE(MAX({}), 0) FROM {} \
+        let sql = numbered_placeholders(&format!(
+            "SELECT COALESCE(MAX({}), 0) FROM {} \
                  WHERE {} = ? AND {} = ? AND {} = ? AND {IS_NOT_DELETED}",
-                columns::event::SEQUENCE_NO,
-                columns::event::TABLE,
-                columns::event::TENANT_ID,
-                columns::event::USER_ID,
-                columns::event::CODING_SESSION_ID,
-            ))
-            .bind(owner_scope.tenant_id)
-            .bind(owner_scope.user_id)
-            .bind(session_id)
-            .fetch_one(&mut **tx)
-            .await,
+            columns::event::SEQUENCE_NO,
+            columns::event::TABLE,
+            columns::event::TENANT_ID,
+            columns::event::USER_ID,
+            columns::event::CODING_SESSION_ID,
+        ));
+        let max_sequence = map_sqlx_error(
+            sqlx::query_scalar::<sqlx::Any, i64>(&sql)
+                .bind(owner_scope.tenant_id)
+                .bind(owner_scope.user_id)
+                .bind(session_id)
+                .fetch_one(&mut **tx)
+                .await,
         )?;
 
         let next_sequence = max_sequence
@@ -234,10 +701,13 @@ impl SqliteCodingSessionRepository {
         let sequence = Self::next_event_sequence_on_executor(tx, owner_scope, session_id).await?;
         let payload_json = serde_json::to_string(&payload)
             .map_err(|error| RepositoryError::Insert(error.to_string()))?;
+        let is_postgres = Self::transaction_is_postgres(tx);
+        let timestamp_expression = Self::timestamp_expression(is_postgres);
+        let json_expression = Self::json_expression(is_postgres);
 
-        sqlx::query(&format!(
+        let sql = numbered_placeholders(&format!(
             "INSERT INTO {} ({}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}) \
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+             VALUES (?, {timestamp_expression}, {timestamp_expression}, ?, FALSE, ?, ?, ?, ?, ?, ?, ?, {json_expression})",
             columns::event::TABLE,
             columns::event::ID,
             columns::event::CREATED_AT,
@@ -252,23 +722,23 @@ impl SqliteCodingSessionRepository {
             columns::event::EVENT_KIND,
             columns::event::SEQUENCE_NO,
             columns::event::PAYLOAD_JSON,
-        ))
-        .bind(&event_id)
-        .bind(created_at)
-        .bind(created_at)
-        .bind(0i64)
-        .bind(0i64)
-        .bind(owner_scope.tenant_id)
-        .bind(owner_scope.user_id)
-        .bind(session_id)
-        .bind(&turn_id)
-        .bind(&runtime_id)
-        .bind(kind)
-        .bind(sequence as i64)
-        .bind(&payload_json)
-        .execute(&mut **tx)
-        .await
-        .map_err(|error: sqlx::Error| RepositoryError::Insert(error.to_string()))?;
+        ));
+        sqlx::query(&sql)
+            .bind(&event_id)
+            .bind(created_at)
+            .bind(created_at)
+            .bind(0i64)
+            .bind(owner_scope.tenant_id)
+            .bind(owner_scope.user_id)
+            .bind(session_id)
+            .bind(&turn_id)
+            .bind(&runtime_id)
+            .bind(kind)
+            .bind(sequence as i64)
+            .bind(&payload_json)
+            .execute(&mut **tx)
+            .await
+            .map_err(|error: sqlx::Error| RepositoryError::Insert(error.to_string()))?;
 
         Ok(CodingSessionEventPayload {
             id: event_id,
@@ -298,8 +768,9 @@ impl SqliteCodingSessionRepository {
             String::new()
         };
 
-        let sql = format!(
-            "UPDATE {} SET {} = ?, {} = ?, {} = {} + 1{sort_assignment} \
+        let timestamp_expression = Self::timestamp_expression(Self::transaction_is_postgres(tx));
+        let sql = numbered_placeholders(&format!(
+            "UPDATE {} SET {} = {timestamp_expression}, {} = {timestamp_expression}, {} = {} + 1{sort_assignment} \
              WHERE {} = ? AND {} = ? AND {} = ? AND {IS_NOT_DELETED} \
              AND EXISTS (SELECT 1 FROM studio_workspace w \
                  WHERE CAST(w.id AS TEXT) = {}.{} AND w.tenant_id = ? AND w.{IS_NOT_DELETED})",
@@ -313,7 +784,7 @@ impl SqliteCodingSessionRepository {
             columns::session::USER_ID,
             columns::session::TABLE,
             columns::session::WORKSPACE_ID,
-        );
+        ));
         let mut query = sqlx::query(&sql).bind(updated_at).bind(updated_at);
         if refresh_sort_timestamp {
             query = query.bind(Self::sort_timestamp_now());
@@ -341,22 +812,23 @@ impl SqliteCodingSessionRepository {
         session_id: &str,
         turn_id: &str,
     ) -> Result<String, CodingSessionError> {
+        let sql = numbered_placeholders(&format!(
+            "SELECT {} FROM {} WHERE {} = ? AND {} = ? AND {} = ? AND {} = ? AND {IS_NOT_DELETED}",
+            columns::turn::RUNTIME_ID,
+            columns::turn::TABLE,
+            columns::turn::ID,
+            columns::turn::CODING_SESSION_ID,
+            columns::turn::TENANT_ID,
+            columns::turn::USER_ID,
+        ));
         map_sqlx_error(
-            sqlx::query_scalar::<sqlx::Any, String>(&format!(
-                "SELECT {} FROM {} WHERE {} = ? AND {} = ? AND {} = ? AND {} = ? AND {IS_NOT_DELETED}",
-                columns::turn::RUNTIME_ID,
-                columns::turn::TABLE,
-                columns::turn::ID,
-                columns::turn::CODING_SESSION_ID,
-                columns::turn::TENANT_ID,
-                columns::turn::USER_ID,
-            ))
-            .bind(turn_id)
-            .bind(session_id)
-            .bind(owner_scope.tenant_id)
-            .bind(owner_scope.user_id)
-            .fetch_optional(&mut **tx)
-            .await,
+            sqlx::query_scalar::<sqlx::Any, String>(&sql)
+                .bind(turn_id)
+                .bind(session_id)
+                .bind(owner_scope.tenant_id)
+                .bind(owner_scope.user_id)
+                .fetch_optional(&mut **tx)
+                .await,
         )?
         .ok_or_else(|| RepositoryError::NotFound(format!("turn {turn_id} not found")).into())
     }
@@ -393,6 +865,7 @@ impl SqliteCodingSessionRepository {
     /// parsed only after the canonical event has been selected.
     async fn resolve_durable_interaction_on_executor(
         tx: &mut Transaction<'_, sqlx::Any>,
+        is_postgres: bool,
         owner_scope: SessionOwnerScope,
         session_id: &str,
         interaction_event_id: &str,
@@ -407,24 +880,26 @@ impl SqliteCodingSessionRepository {
             CodingSessionError::InvalidInput("interaction_event_id is required".to_owned())
         })?;
 
-        let row = map_sqlx_error(
-            sqlx::query(&format!(
-                "SELECT * FROM {} WHERE {} = ? AND {} = ? AND {} = ? AND {} = ? \
+        let projection = row_projection::event(is_postgres, "");
+        let sql = numbered_placeholders(&format!(
+            "SELECT {projection} FROM {} WHERE {} = ? AND {} = ? AND {} = ? AND {} = ? \
                  AND {} = ? AND {IS_NOT_DELETED}",
-                columns::event::TABLE,
-                columns::event::ID,
-                columns::event::CODING_SESSION_ID,
-                columns::event::TENANT_ID,
-                columns::event::USER_ID,
-                columns::event::EVENT_KIND,
-            ))
-            .bind(&interaction_event_id)
-            .bind(session_id)
-            .bind(owner_scope.tenant_id)
-            .bind(owner_scope.user_id)
-            .bind(interaction_kind.source_event_kind())
-            .fetch_optional(&mut **tx)
-            .await,
+            columns::event::TABLE,
+            columns::event::ID,
+            columns::event::CODING_SESSION_ID,
+            columns::event::TENANT_ID,
+            columns::event::USER_ID,
+            columns::event::EVENT_KIND,
+        ));
+        let row = map_sqlx_error(
+            sqlx::query(&sql)
+                .bind(&interaction_event_id)
+                .bind(session_id)
+                .bind(owner_scope.tenant_id)
+                .bind(owner_scope.user_id)
+                .bind(interaction_kind.source_event_kind())
+                .fetch_optional(&mut **tx)
+                .await,
         )?
         .ok_or_else(|| {
             RepositoryError::NotFound(format!(
@@ -513,8 +988,11 @@ impl SqliteCodingSessionRepository {
         ensure_interaction_payload_evolution_is_valid(source, payload)?;
         let payload_json = serde_json::to_string(payload)
             .map_err(|error| RepositoryError::Update(error.to_string()))?;
-        let result = sqlx::query(&format!(
-            "UPDATE {} SET {} = ?, {} = ?, {} = {} + 1 \
+        let is_postgres = Self::transaction_is_postgres(tx);
+        let json_expression = Self::json_expression(is_postgres);
+        let timestamp_expression = Self::timestamp_expression(is_postgres);
+        let sql = numbered_placeholders(&format!(
+            "UPDATE {} SET {} = {json_expression}, {} = {timestamp_expression}, {} = {} + 1 \
              WHERE {} = ? AND {} = ? AND {} = ? AND {} = ? AND {} = ? \
              AND {} = ? AND {IS_NOT_DELETED}",
             columns::event::TABLE,
@@ -528,18 +1006,19 @@ impl SqliteCodingSessionRepository {
             columns::event::USER_ID,
             columns::event::EVENT_KIND,
             columns::event::VERSION,
-        ))
-        .bind(&payload_json)
-        .bind(updated_at)
-        .bind(&source.resolution.event_id)
-        .bind(&source.resolution.coding_session_id)
-        .bind(owner_scope.tenant_id)
-        .bind(owner_scope.user_id)
-        .bind(source.resolution.interaction_kind.source_event_kind())
-        .bind(source.source_event_version)
-        .execute(&mut **tx)
-        .await
-        .map_err(|error: sqlx::Error| RepositoryError::Update(error.to_string()))?;
+        ));
+        let result = sqlx::query(&sql)
+            .bind(&payload_json)
+            .bind(updated_at)
+            .bind(&source.resolution.event_id)
+            .bind(&source.resolution.coding_session_id)
+            .bind(owner_scope.tenant_id)
+            .bind(owner_scope.user_id)
+            .bind(source.resolution.interaction_kind.source_event_kind())
+            .bind(source.source_event_version)
+            .execute(&mut **tx)
+            .await
+            .map_err(|error: sqlx::Error| RepositoryError::Update(error.to_string()))?;
 
         if result.rows_affected() != 1 {
             return Err(CodingSessionError::Conflict(format!(
@@ -858,8 +1337,239 @@ fn durable_operation_from_row(
     })
 }
 
+fn discovered_session_snapshot_is_stale(
+    current: &SessionRow,
+    incoming: &DiscoveredNativeSessionInput,
+) -> bool {
+    if current
+        .sort_timestamp
+        .is_some_and(|sort_timestamp| incoming.sort_timestamp < sort_timestamp)
+    {
+        return true;
+    }
+
+    let current_revision = current
+        .transcript_updated_at
+        .as_deref()
+        .unwrap_or(current.updated_at.as_str());
+    let incoming_revision = incoming
+        .transcript_updated_at
+        .as_deref()
+        .unwrap_or(incoming.updated_at.as_str());
+    parse_storage_timestamp(incoming_revision)
+        .zip(parse_storage_timestamp(current_revision))
+        .is_some_and(|(incoming_revision, current_revision)| incoming_revision < current_revision)
+}
+
+fn discovered_session_row_matches(
+    current: &SessionRow,
+    scope: &CodingSessionDiscoveryScope,
+    incoming: &DiscoveredNativeSessionInput,
+    expected_updated_at: &str,
+    expected_last_turn_at: Option<&str>,
+) -> Result<bool, CodingSessionError> {
+    let attributes = &incoming.native_attributes;
+    let stored_metadata = serde_json::from_str::<serde_json::Value>(
+        current.native_metadata_json.as_str(),
+    )
+    .map_err(|error| {
+        CodingSessionError::Conflict(format!(
+            "stored native session metadata is malformed: {error}"
+        ))
+    })?;
+    let incoming_metadata = serde_json::to_value(&attributes.metadata)
+        .map_err(|error| RepositoryError::Mapping(error.to_string()))?;
+    Ok(current.is_deleted == 0
+        && current.workspace_id == scope.workspace_id
+        && current.project_id == scope.project_id
+        && current.runtime_location_id.as_deref() == Some(scope.runtime_location_id.as_str())
+        && current.title == incoming.title
+        && current.status == incoming.status
+        && current.entry_surface == "provider"
+        && current.host_mode == incoming.host_mode
+        && current.engine_id == incoming.engine_id
+        && current.model_id == incoming.model_id
+        && current.native_session_id.as_deref() == Some(incoming.native_session_id.as_str())
+        && storage_timestamps_equal(&current.created_at, &incoming.created_at)
+        && storage_timestamps_equal(&current.updated_at, expected_updated_at)
+        && optional_storage_timestamps_equal(
+            current.last_turn_at.as_deref(),
+            expected_last_turn_at,
+        )
+        && current.native_session_tree_id == attributes.session_tree_id
+        && current.native_parent_session_id == attributes.parent_session_id
+        && current.native_forked_from_session_id == attributes.forked_from_session_id
+        && current.native_title == attributes.title
+        && current.native_preview == attributes.preview
+        && current.native_source == attributes.source
+        && current.provider_version == attributes.provider_version
+        && current.model_provider == attributes.model_provider
+        && current.native_project_id == attributes.project_id
+        && current.native_cwd == attributes.cwd
+        && current.native_git_branch == attributes.git_branch
+        && current.native_git_commit == attributes.git_commit
+        && current.native_git_repository_url == attributes.git_repository_url
+        && current.native_agent_name == attributes.agent_name
+        && current.native_agent_role == attributes.agent_role
+        && (current.native_is_ephemeral != 0) == attributes.is_ephemeral
+        && (current.native_is_sidechain != 0) == attributes.is_sidechain
+        && current.native_schema_version == attributes.schema_version
+        && stored_metadata == incoming_metadata
+        && current.sort_timestamp == Some(incoming.sort_timestamp)
+        && optional_storage_timestamps_equal(
+            current.transcript_updated_at.as_deref(),
+            incoming.transcript_updated_at.as_deref(),
+        ))
+}
+
+fn optional_storage_timestamps_equal(left: Option<&str>, right: Option<&str>) -> bool {
+    match (left, right) {
+        (Some(left), Some(right)) => storage_timestamps_equal(left, right),
+        (None, None) => true,
+        _ => false,
+    }
+}
+
+fn storage_timestamps_equal(left: &str, right: &str) -> bool {
+    parse_storage_timestamp(left)
+        .zip(parse_storage_timestamp(right))
+        .map(|(left, right)| left == right)
+        .unwrap_or_else(|| left == right)
+}
+
+fn later_storage_timestamp(left: &str, right: &str) -> String {
+    match (
+        parse_storage_timestamp(left),
+        parse_storage_timestamp(right),
+    ) {
+        (Some(left_timestamp), Some(right_timestamp)) if left_timestamp > right_timestamp => {
+            left.to_owned()
+        }
+        _ => right.to_owned(),
+    }
+}
+
+fn later_optional_storage_timestamp(left: Option<&str>, right: Option<&str>) -> Option<String> {
+    match (left, right) {
+        (Some(left), Some(right)) => Some(later_storage_timestamp(left, right)),
+        (Some(left), None) => Some(left.to_owned()),
+        (None, Some(right)) => Some(right.to_owned()),
+        (None, None) => None,
+    }
+}
+
+fn parse_storage_timestamp(value: &str) -> Option<OffsetDateTime> {
+    OffsetDateTime::parse(
+        value.trim(),
+        &time::format_description::well_known::Iso8601::DEFAULT,
+    )
+    .ok()
+}
+
 #[async_trait::async_trait]
 impl CodingSessionRepository for SqliteCodingSessionRepository {
+    async fn upsert_discovered_native_sessions(
+        &self,
+        ctx: &CodingSessionContext,
+        scope: &CodingSessionDiscoveryScope,
+        sessions: &[DiscoveredNativeSessionInput],
+    ) -> Result<(), CodingSessionError> {
+        if sessions.is_empty() {
+            return Ok(());
+        }
+        if is_blank(Some(scope.workspace_id.as_str()))
+            || is_blank(Some(scope.project_id.as_str()))
+            || is_blank(Some(scope.runtime_location_id.as_str()))
+        {
+            return Err(CodingSessionError::InvalidInput(
+                "workspace_id, project_id, and runtime_location_id are required for native session discovery"
+                    .to_owned(),
+            ));
+        }
+        for session in sessions {
+            if is_blank(Some(session.engine_id.as_str()))
+                || is_blank(Some(session.native_session_id.as_str()))
+            {
+                return Err(CodingSessionError::InvalidInput(
+                    "engine_id and native_session_id are required for native session discovery"
+                        .to_owned(),
+                ));
+            }
+        }
+
+        ensure_workspace_in_tenant_scope(&self.pool, ctx, &scope.workspace_id).await?;
+        let owner_scope = session_owner_scope(ctx)?;
+        let is_postgres = self.is_postgres().await?;
+        let mut tx = map_sqlx_error(self.pool.begin().await)?;
+        for session in sessions {
+            let session_id = Self::resolve_discovered_session_id_on_executor(
+                &mut tx,
+                is_postgres,
+                owner_scope,
+                scope,
+                session,
+            )
+            .await?;
+            let disposition = Self::update_discovered_session_on_executor(
+                &mut tx,
+                is_postgres,
+                owner_scope,
+                scope,
+                &session_id,
+                session,
+            )
+            .await?;
+            if disposition == DiscoverySessionUpdateDisposition::Accepted {
+                Self::sync_discovered_runtime_on_executor(
+                    &mut tx,
+                    is_postgres,
+                    owner_scope,
+                    &session_id,
+                    session,
+                )
+                .await?;
+            }
+        }
+        map_sqlx_error(tx.commit().await)?;
+        Ok(())
+    }
+
+    async fn native_session_history_refresh_required(
+        &self,
+        ctx: &CodingSessionContext,
+        session_id: &str,
+        engine_id: &str,
+        native_session_id: &str,
+        source_revision: &str,
+    ) -> Result<bool, CodingSessionError> {
+        native_session_history::refresh_required(
+            &self.pool,
+            self.is_postgres().await?,
+            session_owner_scope(ctx)?,
+            session_id,
+            engine_id,
+            native_session_id,
+            source_revision,
+        )
+        .await
+    }
+
+    async fn reconcile_native_session_history(
+        &self,
+        ctx: &CodingSessionContext,
+        session_id: &str,
+        input: &NativeSessionHistoryReconciliationInput,
+    ) -> Result<(), CodingSessionError> {
+        native_session_history::reconcile(
+            &self.pool,
+            self.is_postgres().await?,
+            session_owner_scope(ctx)?,
+            session_id,
+            input,
+        )
+        .await
+    }
+
     async fn list_sessions(
         &self,
         ctx: &CodingSessionContext,
@@ -872,7 +1582,9 @@ impl CodingSessionRepository for SqliteCodingSessionRepository {
         Self::append_session_list_filters(&mut filter_sql, query);
         let owner_scope = append_session_owner_scope_sql(ctx, "s", &mut filter_sql)?;
 
-        let count_sql = format!("SELECT COUNT(*) AS total FROM ai_coding_session s{filter_sql}");
+        let count_sql = numbered_placeholders(&format!(
+            "SELECT COUNT(*) AS total FROM ai_coding_session s{filter_sql}"
+        ));
         let mut count_query = sqlx::query_scalar::<_, i64>(&count_sql);
         if let Some(ref engine_id) = query.engine_id {
             count_query = count_query.bind(engine_id);
@@ -899,11 +1611,13 @@ impl CodingSessionRepository for SqliteCodingSessionRepository {
         // validated page/page_size and projected both values into this query.
         let limit_value = query.page_size.map(|value| value as i64);
         let offset_value = query.offset.map(|value| value as i64);
-        let select_sql = Self::build_session_list_select_sql(
+        let is_postgres = self.is_postgres().await?;
+        let select_sql = numbered_placeholders(&Self::build_session_list_select_sql(
             &filter_sql,
             limit_value.is_some(),
             offset_value.is_some(),
-        );
+            is_postgres,
+        ));
 
         let mut list_query = sqlx::query(&select_sql);
         if let Some(ref engine_id) = query.engine_id {
@@ -945,13 +1659,15 @@ impl CodingSessionRepository for SqliteCodingSessionRepository {
         ctx: &CodingSessionContext,
         session_id: &str,
     ) -> Result<CodingSessionPayload, CodingSessionError> {
+        let projection = row_projection::session(self.is_postgres().await?, "");
         let mut sql = format!(
-            "SELECT * FROM {} WHERE {} = ? AND {IS_NOT_DELETED}",
+            "SELECT {projection} FROM {} WHERE {} = ? AND {IS_NOT_DELETED}",
             columns::session::TABLE,
             columns::session::ID,
         );
         let owner_scope = append_session_owner_scope_sql(ctx, columns::session::TABLE, &mut sql)?;
 
+        let sql = numbered_placeholders(&sql);
         let row = map_sqlx_error(
             sqlx::query(&sql)
                 .bind(session_id)
@@ -964,18 +1680,18 @@ impl CodingSessionRepository for SqliteCodingSessionRepository {
 
         let session = map_sqlx_error(SessionRow::from_row(&row))?;
 
+        let runtime_sql = numbered_placeholders(&format!(
+            "SELECT {} FROM {} WHERE {} = ? AND {IS_NOT_DELETED} ORDER BY {} DESC LIMIT 1",
+            columns::runtime::STATUS,
+            columns::runtime::TABLE,
+            columns::runtime::CODING_SESSION_ID,
+            columns::runtime::CREATED_AT,
+        ));
         let runtime_status = map_sqlx_error(
-            sqlx::query(&format!(
-                "SELECT {} FROM {} WHERE {} = ? AND {} = 0 ORDER BY {} DESC LIMIT 1",
-                columns::runtime::STATUS,
-                columns::runtime::TABLE,
-                columns::runtime::CODING_SESSION_ID,
-                columns::runtime::IS_DELETED,
-                columns::runtime::CREATED_AT,
-            ))
-            .bind(session_id)
-            .fetch_optional(&self.pool)
-            .await,
+            sqlx::query(&runtime_sql)
+                .bind(session_id)
+                .fetch_optional(&self.pool)
+                .await,
         )?
         .and_then(|row| row.try_get::<String, _>(0).ok());
 
@@ -998,14 +1714,15 @@ impl CodingSessionRepository for SqliteCodingSessionRepository {
         let model_id = input.model_id.clone();
         let sort_timestamp = Self::sort_timestamp_now();
         let owner_scope = session_owner_scope(ctx)?;
+        let timestamp_expression = Self::timestamp_expression(self.is_postgres().await?);
 
         ensure_workspace_in_tenant_scope(&self.pool, ctx, &workspace_id)
             .await
             .map_err(CodingSessionError::from)?;
 
-        sqlx::query(&format!(
+        let sql = numbered_placeholders(&format!(
             "INSERT INTO {} ({}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}) \
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+             VALUES (?, NULL, {timestamp_expression}, {timestamp_expression}, 0, FALSE, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
             columns::session::TABLE,
             columns::session::ID,
             columns::session::UUID,
@@ -1025,28 +1742,26 @@ impl CodingSessionRepository for SqliteCodingSessionRepository {
             columns::session::ENGINE_ID,
             columns::session::MODEL_ID,
             columns::session::SORT_TIMESTAMP,
-        ))
-        .bind(&id)
-        .bind(None::<String>)
-        .bind(&now)
-        .bind(&now)
-        .bind(0i64)
-        .bind(0i64)
-        .bind(owner_scope.tenant_id)
-        .bind(owner_scope.user_id)
-        .bind(&workspace_id)
-        .bind(&project_id)
-        .bind(&runtime_location_id)
-        .bind(&title)
-        .bind("active")
-        .bind("unknown")
-        .bind(&host_mode)
-        .bind(&engine_id)
-        .bind(&model_id)
-        .bind(sort_timestamp)
-        .execute(&self.pool)
-        .await
-        .map_err(|e| RepositoryError::Insert(e.to_string()))?;
+        ));
+        sqlx::query(&sql)
+            .bind(&id)
+            .bind(&now)
+            .bind(&now)
+            .bind(owner_scope.tenant_id)
+            .bind(owner_scope.user_id)
+            .bind(&workspace_id)
+            .bind(&project_id)
+            .bind(&runtime_location_id)
+            .bind(&title)
+            .bind("active")
+            .bind("unknown")
+            .bind(&host_mode)
+            .bind(&engine_id)
+            .bind(&model_id)
+            .bind(sort_timestamp)
+            .execute(&self.pool)
+            .await
+            .map_err(|e| RepositoryError::Insert(e.to_string()))?;
 
         Ok(CodingSessionPayload {
             id,
@@ -1076,6 +1791,7 @@ impl CodingSessionRepository for SqliteCodingSessionRepository {
         input: &UpdateCodingSessionInput,
     ) -> Result<CodingSessionPayload, CodingSessionError> {
         let now = Self::now_iso();
+        let timestamp_expression = Self::timestamp_expression(self.is_postgres().await?);
 
         ensure_session_in_tenant_scope(&self.pool, ctx, session_id).await?;
 
@@ -1089,20 +1805,22 @@ impl CodingSessionRepository for SqliteCodingSessionRepository {
         if input.host_mode.is_some() {
             sets.push(format!("{} = ?", columns::session::HOST_MODE));
         }
-        sets.push(format!("{} = ?", columns::session::UPDATED_AT));
+        sets.push(format!(
+            "{} = {timestamp_expression}",
+            columns::session::UPDATED_AT
+        ));
         sets.push(format!(
             "{} = {} + 1",
             columns::session::VERSION,
             columns::session::VERSION
         ));
 
-        let sql = format!(
-            "UPDATE {} SET {} WHERE {} = ? AND {} = 0",
+        let sql = numbered_placeholders(&format!(
+            "UPDATE {} SET {} WHERE {} = ? AND {IS_NOT_DELETED}",
             columns::session::TABLE,
             sets.join(", "),
             columns::session::ID,
-            columns::session::IS_DELETED,
-        );
+        ));
 
         let mut q = sqlx::query(&sql);
         if let Some(ref title) = input.title {
@@ -1127,15 +1845,17 @@ impl CodingSessionRepository for SqliteCodingSessionRepository {
             );
         }
 
+        let projection = row_projection::session(self.is_postgres().await?, "");
+        let select_sql = numbered_placeholders(&format!(
+            "SELECT {projection} FROM {} WHERE {} = ?",
+            columns::session::TABLE,
+            columns::session::ID,
+        ));
         let row = map_sqlx_error(
-            sqlx::query(&format!(
-                "SELECT * FROM {} WHERE {} = ?",
-                columns::session::TABLE,
-                columns::session::ID,
-            ))
-            .bind(session_id)
-            .fetch_one(&self.pool)
-            .await,
+            sqlx::query(&select_sql)
+                .bind(session_id)
+                .fetch_one(&self.pool)
+                .await,
         )?;
 
         Ok(row_mapper::session_row_to_payload(
@@ -1150,24 +1870,24 @@ impl CodingSessionRepository for SqliteCodingSessionRepository {
         session_id: &str,
     ) -> Result<(), CodingSessionError> {
         let now = Self::now_iso();
+        let timestamp_expression = Self::timestamp_expression(self.is_postgres().await?);
 
         ensure_session_in_tenant_scope(&self.pool, ctx, session_id).await?;
 
-        let result = sqlx::query(&format!(
-            "UPDATE {} SET {} = 1, {} = ?, {} = {} + 1 WHERE {} = ? AND {} = 0",
+        let sql = numbered_placeholders(&format!(
+            "UPDATE {} SET {SET_SOFT_DELETED}, {} = {timestamp_expression}, {} = {} + 1 WHERE {} = ? AND {IS_NOT_DELETED}",
             columns::session::TABLE,
-            columns::session::IS_DELETED,
             columns::session::UPDATED_AT,
             columns::session::VERSION,
             columns::session::VERSION,
             columns::session::ID,
-            columns::session::IS_DELETED,
-        ))
-        .bind(&now)
-        .bind(session_id)
-        .execute(&self.pool)
-        .await
-        .map_err(|e| RepositoryError::Delete(e.to_string()))?;
+        ));
+        let result = sqlx::query(&sql)
+            .bind(&now)
+            .bind(session_id)
+            .execute(&self.pool)
+            .await
+            .map_err(|e| RepositoryError::Delete(e.to_string()))?;
 
         if result.rows_affected() == 0 {
             return Err(
@@ -1185,16 +1905,19 @@ impl CodingSessionRepository for SqliteCodingSessionRepository {
     ) -> Result<CodingSessionPayload, CodingSessionError> {
         ensure_session_in_tenant_scope(&self.pool, ctx, session_id).await?;
         let owner_scope = session_owner_scope(ctx)?;
+        let is_postgres = self.is_postgres().await?;
+        let projection = row_projection::session(is_postgres, "");
 
+        let select_sql = numbered_placeholders(&format!(
+            "SELECT {projection} FROM {} WHERE {} = ? AND {IS_NOT_DELETED}",
+            columns::session::TABLE,
+            columns::session::ID,
+        ));
         let row = map_sqlx_error(
-            sqlx::query(&format!(
-                "SELECT * FROM {} WHERE {} = ? AND {IS_NOT_DELETED}",
-                columns::session::TABLE,
-                columns::session::ID,
-            ))
-            .bind(session_id)
-            .fetch_optional(&self.pool)
-            .await,
+            sqlx::query(&select_sql)
+                .bind(session_id)
+                .fetch_optional(&self.pool)
+                .await,
         )?
         .ok_or_else(|| RepositoryError::NotFound(format!("session {session_id} not found")))?;
 
@@ -1208,11 +1931,11 @@ impl CodingSessionRepository for SqliteCodingSessionRepository {
         let sort_timestamp = Self::sort_timestamp_now();
 
         let mut tx = map_sqlx_error(self.pool.begin().await)?;
+        let timestamp_expression = Self::timestamp_expression(is_postgres);
 
-        map_sqlx_error(
-            sqlx::query(&format!(
+        let insert_sql = numbered_placeholders(&format!(
             "INSERT INTO {} ({}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}) \
-                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                 VALUES (?, NULL, {timestamp_expression}, {timestamp_expression}, 0, FALSE, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
                 columns::session::TABLE,
                 columns::session::ID,
                 columns::session::UUID,
@@ -1232,27 +1955,26 @@ impl CodingSessionRepository for SqliteCodingSessionRepository {
                 columns::session::ENGINE_ID,
                 columns::session::MODEL_ID,
                 columns::session::SORT_TIMESTAMP,
-            ))
-            .bind(&new_id)
-            .bind(None::<String>)
-            .bind(&now)
-            .bind(&now)
-            .bind(0i64)
-            .bind(0i64)
-            .bind(owner_scope.tenant_id)
-            .bind(owner_scope.user_id)
-            .bind(&original.workspace_id)
-            .bind(&original.project_id)
-            .bind(&original.runtime_location_id)
-            .bind(&title)
-            .bind("active")
-            .bind(&original.entry_surface)
-            .bind(&original.host_mode)
-            .bind(&original.engine_id)
-            .bind(&original.model_id)
-            .bind(sort_timestamp)
-            .execute(&mut *tx)
-            .await,
+            ));
+        map_sqlx_error(
+            sqlx::query(&insert_sql)
+                .bind(&new_id)
+                .bind(&now)
+                .bind(&now)
+                .bind(owner_scope.tenant_id)
+                .bind(owner_scope.user_id)
+                .bind(&original.workspace_id)
+                .bind(&original.project_id)
+                .bind(&original.runtime_location_id)
+                .bind(&title)
+                .bind("active")
+                .bind(&original.entry_surface)
+                .bind(&original.host_mode)
+                .bind(&original.engine_id)
+                .bind(&original.model_id)
+                .bind(sort_timestamp)
+                .execute(&mut *tx)
+                .await,
         )?;
 
         let payload = CodingSessionPayload {
@@ -1276,7 +1998,11 @@ impl CodingSessionRepository for SqliteCodingSessionRepository {
         };
 
         if let Err(error) = session_history_copy::copy_session_history_in_transaction(
-            &mut tx, ctx, session_id, &new_id,
+            &mut tx,
+            is_postgres,
+            ctx,
+            session_id,
+            &new_id,
         )
         .await
         {
@@ -1311,31 +2037,34 @@ impl CodingSessionRepository for SqliteCodingSessionRepository {
         limit: usize,
     ) -> Result<(Vec<CodingSessionTurnPayload>, usize), CodingSessionError> {
         ensure_session_in_tenant_scope(&self.pool, ctx, session_id).await?;
+        let projection = row_projection::turn(self.is_postgres().await?, "");
 
         // PAGINATION_SPEC.md §2: push LIMIT/OFFSET to SQL, never unbounded collect.
+        let count_sql = numbered_placeholders(&format!(
+            "SELECT COUNT(*) FROM {} WHERE {} = ? AND {IS_NOT_DELETED}",
+            columns::turn::TABLE,
+            columns::turn::CODING_SESSION_ID,
+        ));
         let total: i64 = map_sqlx_error(
-            sqlx::query_scalar(&format!(
-                "SELECT COUNT(*) FROM {} WHERE {} = ? AND {IS_NOT_DELETED}",
-                columns::turn::TABLE,
-                columns::turn::CODING_SESSION_ID,
-            ))
-            .bind(session_id)
-            .fetch_one(&self.pool)
-            .await,
+            sqlx::query_scalar(&count_sql)
+                .bind(session_id)
+                .fetch_one(&self.pool)
+                .await,
         )?;
 
-        let rows = map_sqlx_error(
-            sqlx::query(&format!(
-                "SELECT * FROM {} WHERE {} = ? AND {IS_NOT_DELETED} ORDER BY {} ASC LIMIT ? OFFSET ?",
+        let list_sql = numbered_placeholders(&format!(
+                "SELECT {projection} FROM {} WHERE {} = ? AND {IS_NOT_DELETED} ORDER BY {} ASC LIMIT ? OFFSET ?",
                 columns::turn::TABLE,
                 columns::turn::CODING_SESSION_ID,
                 columns::turn::CREATED_AT,
-            ))
-            .bind(session_id)
-            .bind(limit as i64)
-            .bind(offset as i64)
-            .fetch_all(&self.pool)
-            .await,
+            ));
+        let rows = map_sqlx_error(
+            sqlx::query(&list_sql)
+                .bind(session_id)
+                .bind(limit as i64)
+                .bind(offset as i64)
+                .fetch_all(&self.pool)
+                .await,
         )?;
 
         let items = rows
@@ -1357,19 +2086,20 @@ impl CodingSessionRepository for SqliteCodingSessionRepository {
         turn_id: &str,
     ) -> Result<CodingSessionTurnPayload, CodingSessionError> {
         ensure_session_in_tenant_scope(&self.pool, ctx, session_id).await?;
+        let projection = row_projection::turn(self.is_postgres().await?, "");
 
+        let sql = numbered_placeholders(&format!(
+            "SELECT {projection} FROM {} WHERE {} = ? AND {} = ? AND {IS_NOT_DELETED}",
+            columns::turn::TABLE,
+            columns::turn::ID,
+            columns::turn::CODING_SESSION_ID,
+        ));
         let row = map_sqlx_error(
-            sqlx::query(&format!(
-                "SELECT * FROM {} WHERE {} = ? AND {} = ? AND {} = 0",
-                columns::turn::TABLE,
-                columns::turn::ID,
-                columns::turn::CODING_SESSION_ID,
-                columns::turn::IS_DELETED,
-            ))
-            .bind(turn_id)
-            .bind(session_id)
-            .fetch_optional(&self.pool)
-            .await,
+            sqlx::query(&sql)
+                .bind(turn_id)
+                .bind(session_id)
+                .fetch_optional(&self.pool)
+                .await,
         )?
         .ok_or_else(|| RepositoryError::NotFound(format!("turn {turn_id} not found")))?;
 
@@ -1394,15 +2124,17 @@ impl CodingSessionRepository for SqliteCodingSessionRepository {
         let input_summary = input.input_summary.clone();
         let operation_id = format!("{turn_id}:operation");
         let owner_scope = session_owner_scope(ctx)?;
+        let is_postgres = self.is_postgres().await?;
+        let timestamp_expression = Self::timestamp_expression(is_postgres);
+        let json_expression = Self::json_expression(is_postgres);
 
         ensure_session_in_tenant_scope(&self.pool, ctx, session_id).await?;
 
         let mut tx = map_sqlx_error(self.pool.begin().await)?;
 
-        map_sqlx_error(
-            sqlx::query(&format!(
+        let turn_insert_sql = numbered_placeholders(&format!(
                 "INSERT INTO {} ({}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}) \
-                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                 VALUES (?, {timestamp_expression}, {timestamp_expression}, 0, FALSE, ?, ?, ?, ?, ?, ?, ?)",
                 columns::turn::TABLE,
                 columns::turn::ID,
                 columns::turn::CREATED_AT,
@@ -1416,27 +2148,26 @@ impl CodingSessionRepository for SqliteCodingSessionRepository {
                 columns::turn::REQUEST_KIND,
                 columns::turn::STATUS,
                 columns::turn::INPUT_SUMMARY,
-            ))
-            .bind(&turn_id)
-            .bind(&now)
-            .bind(&now)
-            .bind(0i64)
-            .bind(0i64)
-            .bind(owner_scope.tenant_id)
-            .bind(owner_scope.user_id)
-            .bind(session_id)
-            .bind(&runtime_id)
-            .bind(&request_kind)
-            .bind("queued")
-            .bind(&input_summary)
-            .execute(&mut *tx)
-            .await,
+            ));
+        map_sqlx_error(
+            sqlx::query(&turn_insert_sql)
+                .bind(&turn_id)
+                .bind(&now)
+                .bind(&now)
+                .bind(owner_scope.tenant_id)
+                .bind(owner_scope.user_id)
+                .bind(session_id)
+                .bind(&runtime_id)
+                .bind(&request_kind)
+                .bind("queued")
+                .bind(&input_summary)
+                .execute(&mut *tx)
+                .await,
         )?;
 
-        map_sqlx_error(
-            sqlx::query(&format!(
+        let operation_insert_sql = numbered_placeholders(&format!(
                 "INSERT INTO {} ({}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}) \
-                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                 VALUES (?, {timestamp_expression}, {timestamp_expression}, 0, FALSE, ?, ?, ?, ?, ?, ?, ?, {json_expression})",
                 columns::operation::TABLE,
                 columns::operation::ID,
                 columns::operation::CREATED_AT,
@@ -1451,40 +2182,41 @@ impl CodingSessionRepository for SqliteCodingSessionRepository {
                 columns::operation::STREAM_URL,
                 columns::operation::STREAM_KIND,
                 columns::operation::ARTIFACT_REFS_JSON,
-            ))
-            .bind(&operation_id)
-            .bind(&now)
-            .bind(&now)
-            .bind(0i64)
-            .bind(0i64)
-            .bind(owner_scope.tenant_id)
-            .bind(owner_scope.user_id)
-            .bind(session_id)
-            .bind(&turn_id)
-            .bind("queued")
-            .bind("")
-            .bind("none")
-            .bind("[]")
-            .execute(&mut *tx)
-            .await,
+            ));
+        map_sqlx_error(
+            sqlx::query(&operation_insert_sql)
+                .bind(&operation_id)
+                .bind(&now)
+                .bind(&now)
+                .bind(owner_scope.tenant_id)
+                .bind(owner_scope.user_id)
+                .bind(session_id)
+                .bind(&turn_id)
+                .bind("queued")
+                .bind("")
+                .bind("none")
+                .bind("[]")
+                .execute(&mut *tx)
+                .await,
         )?;
 
         let sort_timestamp = Self::sort_timestamp_now();
-        map_sqlx_error(
-            sqlx::query(&format!(
-                "UPDATE {} SET {} = ?, {} = ?, {} = ? WHERE {} = ?",
+        let session_update_sql = numbered_placeholders(&format!(
+                "UPDATE {} SET {} = {timestamp_expression}, {} = {timestamp_expression}, {} = ? WHERE {} = ?",
                 columns::session::TABLE,
                 columns::session::LAST_TURN_AT,
                 columns::session::UPDATED_AT,
                 columns::session::SORT_TIMESTAMP,
                 columns::session::ID,
-            ))
-            .bind(&now)
-            .bind(&now)
-            .bind(sort_timestamp)
-            .bind(session_id)
-            .execute(&mut *tx)
-            .await,
+            ));
+        map_sqlx_error(
+            sqlx::query(&session_update_sql)
+                .bind(&now)
+                .bind(&now)
+                .bind(sort_timestamp)
+                .bind(session_id)
+                .execute(&mut *tx)
+                .await,
         )?;
 
         map_sqlx_error(tx.commit().await)?;
@@ -1512,11 +2244,12 @@ impl CodingSessionRepository for SqliteCodingSessionRepository {
         let content = input.content.clone();
         let now = Self::now_iso();
         let owner_scope = session_owner_scope(ctx)?;
+        let timestamp_expression = Self::timestamp_expression(self.is_postgres().await?);
 
         let mut tx = map_sqlx_error(self.pool.begin().await)?;
 
-        sqlx::query(&format!(
-            "UPDATE {} SET {} = ?, {} = ?, {} = {} + 1 WHERE {} = ? AND {} = ? AND {} = 0",
+        let sql = numbered_placeholders(&format!(
+            "UPDATE {} SET {} = ?, {} = {timestamp_expression}, {} = {} + 1 WHERE {} = ? AND {} = ? AND {IS_NOT_DELETED}",
             columns::message::TABLE,
             columns::message::CONTENT,
             columns::message::UPDATED_AT,
@@ -1524,15 +2257,15 @@ impl CodingSessionRepository for SqliteCodingSessionRepository {
             columns::message::VERSION,
             columns::message::ID,
             columns::message::CODING_SESSION_ID,
-            columns::message::IS_DELETED,
-        ))
-        .bind(&content)
-        .bind(&now)
-        .bind(message_id)
-        .bind(session_id)
-        .execute(&mut *tx)
-        .await
-        .map_err(|error| RepositoryError::Update(error.to_string()))?;
+        ));
+        sqlx::query(&sql)
+            .bind(&content)
+            .bind(&now)
+            .bind(message_id)
+            .bind(session_id)
+            .execute(&mut *tx)
+            .await
+            .map_err(|error| RepositoryError::Update(error.to_string()))?;
 
         let mut payload = BTreeMap::new();
         payload.insert(
@@ -1582,23 +2315,22 @@ impl CodingSessionRepository for SqliteCodingSessionRepository {
 
         let mut tx = map_sqlx_error(self.pool.begin().await)?;
 
-        sqlx::query(&format!(
-            "UPDATE {} SET {} = 1, {} = ?, {} = {} + 1 WHERE {} = ? AND {} = ? AND {} = 0",
+        let sql = numbered_placeholders(&format!(
+            "UPDATE {} SET {SET_SOFT_DELETED}, {} = ?, {} = {} + 1 WHERE {} = ? AND {} = ? AND {IS_NOT_DELETED}",
             columns::message::TABLE,
-            columns::message::IS_DELETED,
             columns::message::UPDATED_AT,
             columns::message::VERSION,
             columns::message::VERSION,
             columns::message::ID,
             columns::message::CODING_SESSION_ID,
-            columns::message::IS_DELETED,
-        ))
-        .bind(&now)
-        .bind(message_id)
-        .bind(session_id)
-        .execute(&mut *tx)
-        .await
-        .map_err(|error| RepositoryError::Update(error.to_string()))?;
+        ));
+        sqlx::query(&sql)
+            .bind(&now)
+            .bind(message_id)
+            .bind(session_id)
+            .execute(&mut *tx)
+            .await
+            .map_err(|error| RepositoryError::Update(error.to_string()))?;
 
         let mut payload = BTreeMap::new();
         payload.insert(
@@ -1640,6 +2372,7 @@ impl CodingSessionRepository for SqliteCodingSessionRepository {
     ) -> Result<(Vec<CodingSessionEventPayload>, usize), CodingSessionError> {
         ensure_session_in_tenant_scope(&self.pool, ctx, session_id).await?;
         let owner_scope = session_owner_scope(ctx)?;
+        let projection = row_projection::event(self.is_postgres().await?, "");
 
         let where_sql = format!(
             " WHERE {} = ? AND {} = ? AND {} = ? AND {}",
@@ -1648,33 +2381,35 @@ impl CodingSessionRepository for SqliteCodingSessionRepository {
             columns::event::CODING_SESSION_ID,
             IS_NOT_DELETED,
         );
+        let count_sql = numbered_placeholders(&format!(
+            "SELECT COUNT(*) AS total FROM {}{}",
+            columns::event::TABLE,
+            where_sql
+        ));
         let total = map_sqlx_error(
-            sqlx::query_scalar::<_, i64>(&format!(
-                "SELECT COUNT(*) AS total FROM {}{}",
-                columns::event::TABLE,
-                where_sql
-            ))
-            .bind(owner_scope.tenant_id)
-            .bind(owner_scope.user_id)
-            .bind(session_id)
-            .fetch_one(&self.pool)
-            .await,
+            sqlx::query_scalar::<_, i64>(&count_sql)
+                .bind(owner_scope.tenant_id)
+                .bind(owner_scope.user_id)
+                .bind(session_id)
+                .fetch_one(&self.pool)
+                .await,
         )? as usize;
 
+        let list_sql = numbered_placeholders(&format!(
+            "SELECT {projection} FROM {}{} ORDER BY {} ASC LIMIT ? OFFSET ?",
+            columns::event::TABLE,
+            where_sql,
+            columns::event::SEQUENCE_NO,
+        ));
         let rows = map_sqlx_error(
-            sqlx::query(&format!(
-                "SELECT * FROM {}{} ORDER BY {} ASC LIMIT ? OFFSET ?",
-                columns::event::TABLE,
-                where_sql,
-                columns::event::SEQUENCE_NO,
-            ))
-            .bind(owner_scope.tenant_id)
-            .bind(owner_scope.user_id)
-            .bind(session_id)
-            .bind(limit as i64)
-            .bind(offset as i64)
-            .fetch_all(&self.pool)
-            .await,
+            sqlx::query(&list_sql)
+                .bind(owner_scope.tenant_id)
+                .bind(owner_scope.user_id)
+                .bind(session_id)
+                .bind(limit as i64)
+                .bind(offset as i64)
+                .fetch_all(&self.pool)
+                .await,
         )?;
 
         let items = rows
@@ -1709,26 +2444,30 @@ impl CodingSessionRepository for SqliteCodingSessionRepository {
             .map(|sequence| event_sequence_to_i64(sequence, "high_watermark"))
             .transpose()?;
         let owner_scope = session_owner_scope(ctx)?;
+        let projection = row_projection::event(self.is_postgres().await?, "");
         let mut tx = map_sqlx_error(self.pool.begin().await)?;
         ensure_session_in_tenant_scope_in_transaction(&mut tx, ctx, session_id).await?;
 
         let replay_high_watermark = match high_watermark {
             Some(high_watermark) => Some(high_watermark),
-            None => map_sqlx_error(
-                sqlx::query_scalar::<_, Option<i64>>(&format!(
+            None => {
+                let high_watermark_sql = numbered_placeholders(&format!(
                     "SELECT MAX({}) FROM {} WHERE {} = ? AND {} = ? AND {} = ? AND {IS_NOT_DELETED}",
                     columns::event::SEQUENCE_NO,
                     columns::event::TABLE,
                     columns::event::TENANT_ID,
                     columns::event::USER_ID,
                     columns::event::CODING_SESSION_ID,
-                ))
-                .bind(owner_scope.tenant_id)
-                .bind(owner_scope.user_id)
-                .bind(session_id)
-                .fetch_one(&mut *tx)
-                .await,
-            )?,
+                ));
+                map_sqlx_error(
+                    sqlx::query_scalar::<_, Option<i64>>(&high_watermark_sql)
+                        .bind(owner_scope.tenant_id)
+                        .bind(owner_scope.user_id)
+                        .bind(session_id)
+                        .fetch_one(&mut *tx)
+                        .await,
+                )?
+            }
         };
         if let Some(after_sequence) = after_sequence {
             if replay_high_watermark
@@ -1750,7 +2489,7 @@ impl CodingSessionRepository for SqliteCodingSessionRepository {
         };
 
         let mut sql = format!(
-            "SELECT * FROM {} WHERE {} = ? AND {} = ? AND {} = ? AND {IS_NOT_DELETED} \
+            "SELECT {projection} FROM {} WHERE {} = ? AND {} = ? AND {} = ? AND {IS_NOT_DELETED} \
              AND {} <= ?",
             columns::event::TABLE,
             columns::event::TENANT_ID,
@@ -1765,6 +2504,7 @@ impl CodingSessionRepository for SqliteCodingSessionRepository {
             " ORDER BY {} ASC LIMIT ?",
             columns::event::SEQUENCE_NO,
         ));
+        let sql = numbered_placeholders(&sql);
         let mut query = sqlx::query(&sql)
             .bind(owner_scope.tenant_id)
             .bind(owner_scope.user_id)
@@ -1862,35 +2602,38 @@ impl CodingSessionRepository for SqliteCodingSessionRepository {
         limit: usize,
     ) -> Result<(Vec<CodingSessionArtifactPayload>, usize), CodingSessionError> {
         ensure_session_in_tenant_scope(&self.pool, ctx, session_id).await?;
+        let projection = row_projection::artifact(self.is_postgres().await?, "");
 
         let where_sql = format!(
             " WHERE {} = ? AND {}",
             columns::artifact::CODING_SESSION_ID,
             IS_NOT_DELETED,
         );
+        let count_sql = numbered_placeholders(&format!(
+            "SELECT COUNT(*) AS total FROM {}{}",
+            columns::artifact::TABLE,
+            where_sql
+        ));
         let total = map_sqlx_error(
-            sqlx::query_scalar::<_, i64>(&format!(
-                "SELECT COUNT(*) AS total FROM {}{}",
-                columns::artifact::TABLE,
-                where_sql
-            ))
-            .bind(session_id)
-            .fetch_one(&self.pool)
-            .await,
+            sqlx::query_scalar::<_, i64>(&count_sql)
+                .bind(session_id)
+                .fetch_one(&self.pool)
+                .await,
         )? as usize;
 
+        let list_sql = numbered_placeholders(&format!(
+            "SELECT {projection} FROM {}{} ORDER BY {} ASC LIMIT ? OFFSET ?",
+            columns::artifact::TABLE,
+            where_sql,
+            columns::artifact::CREATED_AT,
+        ));
         let rows = map_sqlx_error(
-            sqlx::query(&format!(
-                "SELECT * FROM {}{} ORDER BY {} ASC LIMIT ? OFFSET ?",
-                columns::artifact::TABLE,
-                where_sql,
-                columns::artifact::CREATED_AT,
-            ))
-            .bind(session_id)
-            .bind(limit as i64)
-            .bind(offset as i64)
-            .fetch_all(&self.pool)
-            .await,
+            sqlx::query(&list_sql)
+                .bind(session_id)
+                .bind(limit as i64)
+                .bind(offset as i64)
+                .fetch_all(&self.pool)
+                .await,
         )?;
 
         let items = rows
@@ -1913,35 +2656,38 @@ impl CodingSessionRepository for SqliteCodingSessionRepository {
         limit: usize,
     ) -> Result<(Vec<CodingSessionCheckpointPayload>, usize), CodingSessionError> {
         ensure_session_in_tenant_scope(&self.pool, ctx, session_id).await?;
+        let projection = row_projection::checkpoint(self.is_postgres().await?, "");
 
         let where_sql = format!(
             " WHERE {} = ? AND {}",
             columns::checkpoint::CODING_SESSION_ID,
             IS_NOT_DELETED,
         );
+        let count_sql = numbered_placeholders(&format!(
+            "SELECT COUNT(*) AS total FROM {}{}",
+            columns::checkpoint::TABLE,
+            where_sql
+        ));
         let total = map_sqlx_error(
-            sqlx::query_scalar::<_, i64>(&format!(
-                "SELECT COUNT(*) AS total FROM {}{}",
-                columns::checkpoint::TABLE,
-                where_sql
-            ))
-            .bind(session_id)
-            .fetch_one(&self.pool)
-            .await,
+            sqlx::query_scalar::<_, i64>(&count_sql)
+                .bind(session_id)
+                .fetch_one(&self.pool)
+                .await,
         )? as usize;
 
+        let list_sql = numbered_placeholders(&format!(
+            "SELECT {projection} FROM {}{} ORDER BY {} ASC LIMIT ? OFFSET ?",
+            columns::checkpoint::TABLE,
+            where_sql,
+            columns::checkpoint::CREATED_AT,
+        ));
         let rows = map_sqlx_error(
-            sqlx::query(&format!(
-                "SELECT * FROM {}{} ORDER BY {} ASC LIMIT ? OFFSET ?",
-                columns::checkpoint::TABLE,
-                where_sql,
-                columns::checkpoint::CREATED_AT,
-            ))
-            .bind(session_id)
-            .bind(limit as i64)
-            .bind(offset as i64)
-            .fetch_all(&self.pool)
-            .await,
+            sqlx::query(&list_sql)
+                .bind(session_id)
+                .bind(limit as i64)
+                .bind(offset as i64)
+                .fetch_all(&self.pool)
+                .await,
         )?;
 
         let items = rows
@@ -1969,10 +2715,12 @@ impl CodingSessionRepository for SqliteCodingSessionRepository {
                     CodingSessionError::InvalidInput("session_id is required".to_owned())
                 })?;
         let owner_scope = session_owner_scope(ctx)?;
+        let is_postgres = self.is_postgres().await?;
         let mut tx = map_sqlx_error(self.pool.begin().await)?;
         ensure_session_in_tenant_scope_in_transaction(&mut tx, ctx, &session_id).await?;
         let resolved = Self::resolve_durable_interaction_on_executor(
             &mut tx,
+            is_postgres,
             owner_scope,
             &session_id,
             interaction_event_id,
@@ -2000,11 +2748,13 @@ impl CodingSessionRepository for SqliteCodingSessionRepository {
         let owner_scope = session_owner_scope(ctx)?;
         let now = Self::now_iso();
         let claim_expires_at = interaction_claim_expires_at()?;
+        let is_postgres = self.is_postgres().await?;
         let mut tx = map_sqlx_error(self.pool.begin().await)?;
         Self::touch_session_transcript_on_executor(&mut tx, owner_scope, &session_id, &now, false)
             .await?;
         let resolved = Self::resolve_durable_interaction_on_executor(
             &mut tx,
+            is_postgres,
             owner_scope,
             &session_id,
             interaction_event_id,
@@ -2068,10 +2818,12 @@ impl CodingSessionRepository for SqliteCodingSessionRepository {
             .ok_or_else(|| CodingSessionError::InvalidInput("claim_id is required".to_owned()))?;
         let owner_scope = session_owner_scope(ctx)?;
         let now = Self::now_iso();
+        let is_postgres = self.is_postgres().await?;
         let mut tx = map_sqlx_error(self.pool.begin().await)?;
         ensure_session_in_tenant_scope_in_transaction(&mut tx, ctx, &session_id).await?;
         let resolved = Self::resolve_durable_interaction_on_executor(
             &mut tx,
+            is_postgres,
             owner_scope,
             &session_id,
             interaction_event_id,
@@ -2137,6 +2889,7 @@ impl CodingSessionRepository for SqliteCodingSessionRepository {
         let reason = input.reason.clone();
         let owner_scope = session_owner_scope(ctx)?;
         let now = Self::now_iso();
+        let is_postgres = self.is_postgres().await?;
 
         let mut tx = map_sqlx_error(self.pool.begin().await)?;
         Self::touch_session_transcript_on_executor(&mut tx, owner_scope, session_id, &now, false)
@@ -2144,6 +2897,7 @@ impl CodingSessionRepository for SqliteCodingSessionRepository {
 
         let resolved = Self::resolve_durable_interaction_on_executor(
             &mut tx,
+            is_postgres,
             owner_scope,
             session_id,
             interaction_event_id,
@@ -2157,21 +2911,23 @@ impl CodingSessionRepository for SqliteCodingSessionRepository {
             interaction_claim_id,
         )?;
 
-        let row = map_sqlx_error(
-            sqlx::query(&format!(
-                "SELECT * FROM {} WHERE {} = ? AND {} = ? AND {} = ? AND {} = ? AND {IS_NOT_DELETED}",
+        let checkpoint_projection = row_projection::checkpoint(is_postgres, "");
+        let checkpoint_sql = numbered_placeholders(&format!(
+                "SELECT {checkpoint_projection} FROM {} WHERE {} = ? AND {} = ? AND {} = ? AND {} = ? AND {IS_NOT_DELETED}",
                 columns::checkpoint::TABLE,
                 columns::checkpoint::ID,
                 columns::checkpoint::CODING_SESSION_ID,
                 columns::checkpoint::TENANT_ID,
                 columns::checkpoint::USER_ID,
-            ))
-            .bind(&resolved.resolution.interaction_id)
-            .bind(session_id)
-            .bind(owner_scope.tenant_id)
-            .bind(owner_scope.user_id)
-            .fetch_optional(&mut *tx)
-            .await,
+            ));
+        let row = map_sqlx_error(
+            sqlx::query(&checkpoint_sql)
+                .bind(&resolved.resolution.interaction_id)
+                .bind(session_id)
+                .bind(owner_scope.tenant_id)
+                .bind(owner_scope.user_id)
+                .fetch_optional(&mut *tx)
+                .await,
         )?
         .ok_or_else(|| {
             RepositoryError::NotFound(format!(
@@ -2233,7 +2989,7 @@ impl CodingSessionRepository for SqliteCodingSessionRepository {
         );
         let state_json = serde_json::to_string(&state)
             .map_err(|error| RepositoryError::Update(error.to_string()))?;
-        let checkpoint_update = sqlx::query(&format!(
+        let checkpoint_update_sql = numbered_placeholders(&format!(
             "UPDATE {} SET {} = ?, {} = ?, {} = {} + 1 \
              WHERE {} = ? AND {} = ? AND {} = ? AND {} = ? AND {} = ? AND {IS_NOT_DELETED}",
             columns::checkpoint::TABLE,
@@ -2246,17 +3002,18 @@ impl CodingSessionRepository for SqliteCodingSessionRepository {
             columns::checkpoint::CODING_SESSION_ID,
             columns::checkpoint::TENANT_ID,
             columns::checkpoint::USER_ID,
-        ))
-        .bind(&state_json)
-        .bind(&now)
-        .bind(checkpoint.version)
-        .bind(&resolved.resolution.interaction_id)
-        .bind(session_id)
-        .bind(owner_scope.tenant_id)
-        .bind(owner_scope.user_id)
-        .execute(&mut *tx)
-        .await
-        .map_err(|error: sqlx::Error| RepositoryError::Update(error.to_string()))?;
+        ));
+        let checkpoint_update = sqlx::query(&checkpoint_update_sql)
+            .bind(&state_json)
+            .bind(&now)
+            .bind(checkpoint.version)
+            .bind(&resolved.resolution.interaction_id)
+            .bind(session_id)
+            .bind(owner_scope.tenant_id)
+            .bind(owner_scope.user_id)
+            .execute(&mut *tx)
+            .await
+            .map_err(|error: sqlx::Error| RepositoryError::Update(error.to_string()))?;
         if checkpoint_update.rows_affected() != 1 {
             return Err(CodingSessionError::Conflict(format!(
                 "approval interaction {} was already settled or changed",
@@ -2381,6 +3138,7 @@ impl CodingSessionRepository for SqliteCodingSessionRepository {
         let rejected = input.rejected;
         let owner_scope = session_owner_scope(ctx)?;
         let now = Self::now_iso();
+        let is_postgres = self.is_postgres().await?;
 
         let mut tx = map_sqlx_error(self.pool.begin().await)?;
         Self::touch_session_transcript_on_executor(&mut tx, owner_scope, session_id, &now, false)
@@ -2388,6 +3146,7 @@ impl CodingSessionRepository for SqliteCodingSessionRepository {
 
         let resolved = Self::resolve_durable_interaction_on_executor(
             &mut tx,
+            is_postgres,
             owner_scope,
             session_id,
             question_id,
@@ -2520,19 +3279,20 @@ impl CodingSessionRepository for SqliteCodingSessionRepository {
         operation_id: &str,
     ) -> Result<OperationPayload, CodingSessionError> {
         ensure_session_in_tenant_scope(&self.pool, ctx, session_id).await?;
+        let projection = row_projection::operation(self.is_postgres().await?, "");
 
+        let sql = numbered_placeholders(&format!(
+            "SELECT {projection} FROM {} WHERE {} = ? AND {} = ? AND {IS_NOT_DELETED}",
+            columns::operation::TABLE,
+            columns::operation::ID,
+            columns::operation::CODING_SESSION_ID,
+        ));
         let row = map_sqlx_error(
-            sqlx::query(&format!(
-                "SELECT * FROM {} WHERE {} = ? AND {} = ? AND {} = 0",
-                columns::operation::TABLE,
-                columns::operation::ID,
-                columns::operation::CODING_SESSION_ID,
-                columns::operation::IS_DELETED,
-            ))
-            .bind(operation_id)
-            .bind(session_id)
-            .fetch_optional(&self.pool)
-            .await,
+            sqlx::query(&sql)
+                .bind(operation_id)
+                .bind(session_id)
+                .fetch_optional(&self.pool)
+                .await,
         )?
         .ok_or_else(|| RepositoryError::NotFound(format!("operation {operation_id} not found")))?;
 
@@ -2549,19 +3309,20 @@ impl CodingSessionRepository for SqliteCodingSessionRepository {
     ) -> Result<DurableCodingSessionOperation, CodingSessionError> {
         ensure_session_in_tenant_scope(&self.pool, ctx, session_id).await?;
         let scope = session_owner_scope(ctx)?;
-        let row = map_sqlx_error(
-            sqlx::query(&format!(
+        let sql = numbered_placeholders(&format!(
                 "SELECT {} FROM {} o  WHERE o.id = ? AND o.coding_session_id = ? AND o.tenant_id = ?  AND o.user_id = ? AND {}",
                 durable_operation_select_columns("o"),
                 columns::operation::TABLE,
                 sdkwork_birdcoder_sqlx_repository_pool::dialect::qualified_is_not_deleted("o"),
-            ))
-            .bind(operation_id)
-            .bind(session_id)
-            .bind(scope.tenant_id)
-            .bind(scope.user_id)
-            .fetch_optional(&self.pool)
-            .await,
+            ));
+        let row = map_sqlx_error(
+            sqlx::query(&sql)
+                .bind(operation_id)
+                .bind(session_id)
+                .bind(scope.tenant_id)
+                .bind(scope.user_id)
+                .fetch_optional(&self.pool)
+                .await,
         )?
         .ok_or_else(|| RepositoryError::NotFound(format!("operation {operation_id} not found")))?;
         durable_operation_from_row(map_sqlx_error(DurableOperationRow::from_row(&row))?)
@@ -2598,8 +3359,11 @@ impl CodingSessionRepository for SqliteCodingSessionRepository {
         let mut tx = map_sqlx_error(self.pool.begin().await)?;
         ensure_session_in_tenant_scope_in_transaction(&mut tx, ctx, &session_id).await?;
         if is_postgres {
+            let lock_sql = numbered_placeholders(
+                "SELECT id FROM ai_coding_session WHERE id = ? AND tenant_id = ? AND user_id = ? FOR UPDATE",
+            );
             map_sqlx_error(
-                sqlx::query("SELECT id FROM ai_coding_session WHERE id = ? AND tenant_id = ? AND user_id = ? FOR UPDATE")
+                sqlx::query(&lock_sql)
                     .bind(&session_id)
                     .bind(scope.tenant_id)
                     .bind(scope.user_id)
@@ -2608,19 +3372,20 @@ impl CodingSessionRepository for SqliteCodingSessionRepository {
             )?;
         }
 
-        let existing_by_key = map_sqlx_error(
-            sqlx::query(&format!(
+        let existing_by_key_sql = numbered_placeholders(&format!(
                 "SELECT {} FROM {} o WHERE o.tenant_id = ? AND o.user_id = ?  AND o.coding_session_id = ? AND o.idempotency_key = ? AND {}",
                 durable_operation_select_columns("o"),
                 columns::operation::TABLE,
                 sdkwork_birdcoder_sqlx_repository_pool::dialect::qualified_is_not_deleted("o"),
-            ))
-            .bind(scope.tenant_id)
-            .bind(scope.user_id)
-            .bind(&session_id)
-            .bind(&idempotency_key)
-            .fetch_optional(&mut *tx)
-            .await,
+            ));
+        let existing_by_key = map_sqlx_error(
+            sqlx::query(&existing_by_key_sql)
+                .bind(scope.tenant_id)
+                .bind(scope.user_id)
+                .bind(&session_id)
+                .bind(&idempotency_key)
+                .fetch_optional(&mut *tx)
+                .await,
         )?;
         if let Some(row) = existing_by_key {
             let operation =
@@ -2634,16 +3399,17 @@ impl CodingSessionRepository for SqliteCodingSessionRepository {
             return Ok(operation);
         }
 
+        let existing_by_id_sql = numbered_placeholders(&format!(
+            "SELECT {} FROM {} o WHERE o.id = ? AND {}",
+            durable_operation_select_columns("o"),
+            columns::operation::TABLE,
+            sdkwork_birdcoder_sqlx_repository_pool::dialect::qualified_is_not_deleted("o"),
+        ));
         let existing_by_id = map_sqlx_error(
-            sqlx::query(&format!(
-                "SELECT {} FROM {} o WHERE o.id = ? AND {}",
-                durable_operation_select_columns("o"),
-                columns::operation::TABLE,
-                sdkwork_birdcoder_sqlx_repository_pool::dialect::qualified_is_not_deleted("o"),
-            ))
-            .bind(&operation_id)
-            .fetch_optional(&mut *tx)
-            .await,
+            sqlx::query(&existing_by_id_sql)
+                .bind(&operation_id)
+                .fetch_optional(&mut *tx)
+                .await,
         )?;
         if let Some(row) = existing_by_id {
             let operation =
@@ -2666,21 +3432,22 @@ impl CodingSessionRepository for SqliteCodingSessionRepository {
                     "operation {operation_id} is already reserved"
                 )));
             }
+            let update_sql = numbered_placeholders(
+                "UPDATE ai_coding_session_operation SET status = 'queued',  request_payload_json = ?, request_fingerprint = ?, idempotency_key = ?,  available_at = ?, attempt = 0, max_attempt = ?, lease_owner = NULL,  lease_expires_at = NULL, runner_id = NULL, started_at = NULL,  completed_at = NULL, problem_json = NULL, updated_at = ?, version = version + 1  WHERE id = ? AND tenant_id = ? AND user_id = ? AND is_deleted IS NOT TRUE",
+            );
             map_sqlx_error(
-                sqlx::query(
-                    "UPDATE ai_coding_session_operation SET status = 'queued',  request_payload_json = ?, request_fingerprint = ?, idempotency_key = ?,  available_at = ?, attempt = 0, max_attempt = ?, lease_owner = NULL,  lease_expires_at = NULL, runner_id = NULL, started_at = NULL,  completed_at = NULL, problem_json = NULL, updated_at = ?, version = version + 1  WHERE id = ? AND tenant_id = ? AND user_id = ? AND is_deleted IS NOT TRUE",
-                )
-                .bind(&payload_json)
-                .bind(&fingerprint)
-                .bind(&idempotency_key)
-                .bind(&available_at)
-                .bind(input.max_attempt)
-                .bind(&now)
-                .bind(&operation_id)
-                .bind(scope.tenant_id)
-                .bind(scope.user_id)
-                .execute(&mut *tx)
-                .await,
+                sqlx::query(&update_sql)
+                    .bind(&payload_json)
+                    .bind(&fingerprint)
+                    .bind(&idempotency_key)
+                    .bind(&available_at)
+                    .bind(input.max_attempt)
+                    .bind(&now)
+                    .bind(&operation_id)
+                    .bind(scope.tenant_id)
+                    .bind(scope.user_id)
+                    .execute(&mut *tx)
+                    .await,
             )?;
         } else {
             let created_expr = if is_postgres {
@@ -2688,9 +3455,9 @@ impl CodingSessionRepository for SqliteCodingSessionRepository {
             } else {
                 "?"
             };
-            let insert_sql = format!(
+            let insert_sql = numbered_placeholders(&format!(
                 "INSERT INTO ai_coding_session_operation  (id, created_at, updated_at, version, is_deleted, tenant_id, organization_id, user_id,  coding_session_id, turn_id, status, stream_url, stream_kind, artifact_refs_json,  request_payload_json, request_fingerprint, idempotency_key, available_at, attempt,  max_attempt, lease_owner, lease_expires_at, fencing_token, runner_id, started_at,  completed_at, problem_json)  VALUES (?, {created_expr}, {created_expr}, 0, FALSE, ?, 0, ?, ?, ?, 'queued', '', 'none', '[]',  ?, ?, ?, ?, 0, ?, NULL, NULL, 0, NULL, NULL, NULL, NULL)  ON CONFLICT DO NOTHING",
-            );
+            ));
             map_sqlx_error(
                 sqlx::query(&insert_sql)
                     .bind(&operation_id)
@@ -2710,19 +3477,20 @@ impl CodingSessionRepository for SqliteCodingSessionRepository {
             )?;
         }
 
-        let operation_row = map_sqlx_error(
-            sqlx::query(&format!(
+        let operation_select_sql = numbered_placeholders(&format!(
                 "SELECT {} FROM {} o WHERE o.tenant_id = ? AND o.user_id = ?  AND o.coding_session_id = ? AND o.idempotency_key = ? AND {}",
                 durable_operation_select_columns("o"),
                 columns::operation::TABLE,
                 sdkwork_birdcoder_sqlx_repository_pool::dialect::qualified_is_not_deleted("o"),
-            ))
-            .bind(scope.tenant_id)
-            .bind(scope.user_id)
-            .bind(&session_id)
-            .bind(&idempotency_key)
-            .fetch_one(&mut *tx)
-            .await,
+            ));
+        let operation_row = map_sqlx_error(
+            sqlx::query(&operation_select_sql)
+                .bind(scope.tenant_id)
+                .bind(scope.user_id)
+                .bind(&session_id)
+                .bind(&idempotency_key)
+                .fetch_one(&mut *tx)
+                .await,
         )?;
         let operation = durable_operation_from_row(map_sqlx_error(
             DurableOperationRow::from_row(&operation_row),
@@ -2732,17 +3500,18 @@ impl CodingSessionRepository for SqliteCodingSessionRepository {
                 "idempotency key {idempotency_key} has a different request fingerprint"
             )));
         }
+        let turn_update_sql = numbered_placeholders(
+            "UPDATE ai_coding_session_turn SET status = 'queued', updated_at = ?, version = version + 1  WHERE id = ? AND coding_session_id = ? AND tenant_id = ? AND user_id = ? AND is_deleted IS NOT TRUE",
+        );
         map_sqlx_error(
-            sqlx::query(
-                "UPDATE ai_coding_session_turn SET status = 'queued', updated_at = ?, version = version + 1  WHERE id = ? AND coding_session_id = ? AND tenant_id = ? AND user_id = ? AND is_deleted IS NOT TRUE",
-            )
-            .bind(&now)
-            .bind(&operation.turn_id)
-            .bind(&operation.coding_session_id)
-            .bind(scope.tenant_id)
-            .bind(scope.user_id)
-            .execute(&mut *tx)
-            .await,
+            sqlx::query(&turn_update_sql)
+                .bind(&now)
+                .bind(&operation.turn_id)
+                .bind(&operation.coding_session_id)
+                .bind(scope.tenant_id)
+                .bind(scope.user_id)
+                .execute(&mut *tx)
+                .await,
         )?;
         map_sqlx_error(tx.commit().await)?;
         Ok(operation)
@@ -2793,10 +3562,10 @@ impl CodingSessionRepository for SqliteCodingSessionRepository {
         } else {
             ""
         };
-        let sql = format!(
+        let sql = numbered_placeholders(&format!(
             "WITH candidate AS ( SELECT c.id FROM ai_coding_session_operation c  WHERE c.is_deleted IS NOT TRUE AND c.attempt < c.max_attempt AND ( (c.status = 'queued' AND {available_c} AND NOT EXISTS ( SELECT 1 FROM ai_coding_session_operation active  WHERE active.tenant_id = c.tenant_id AND active.user_id = c.user_id  AND active.status = 'running' AND active.is_deleted IS NOT TRUE )) OR  (c.status = 'running' AND c.lease_expires_at IS NOT NULL AND {lease_c}) )  ORDER BY CASE WHEN c.status = 'running' THEN 0 ELSE 1 END,  c.available_at, c.created_at, c.id  LIMIT 1{lock_suffix} )  UPDATE ai_coding_session_operation SET  status = 'running', attempt = attempt + 1, lease_owner = ?,  lease_expires_at = ?, fencing_token = fencing_token + 1, runner_id = ?,  started_at = COALESCE(started_at, ?), completed_at = NULL, problem_json = NULL,  updated_at = {updated_value}, version = version + 1  WHERE id = (SELECT id FROM candidate) AND is_deleted IS NOT TRUE  AND attempt < max_attempt AND ( (status = 'queued' AND {available_outer} AND NOT EXISTS ( SELECT 1 FROM ai_coding_session_operation active  WHERE active.tenant_id = ai_coding_session_operation.tenant_id  AND active.user_id = ai_coding_session_operation.user_id  AND active.status = 'running' AND active.is_deleted IS NOT TRUE )) OR  (status = 'running' AND lease_expires_at IS NOT NULL AND {lease_outer}) )  RETURNING {}",
             durable_operation_return_columns(),
-        );
+        ));
         let mut tx = map_sqlx_error(self.pool.begin().await)?;
         let row = map_sqlx_error(
             sqlx::query(&sql)
@@ -2818,17 +3587,18 @@ impl CodingSessionRepository for SqliteCodingSessionRepository {
         };
         let operation =
             durable_operation_from_row(map_sqlx_error(DurableOperationRow::from_row(&row))?)?;
-        let turn_result = map_sqlx_error(
-            sqlx::query(&format!(
+        let turn_update_sql = numbered_placeholders(&format!(
                 "UPDATE ai_coding_session_turn SET status = 'running', updated_at = {updated_value},  version = version + 1 WHERE id = ? AND coding_session_id = ? AND tenant_id = ?  AND user_id = ? AND is_deleted IS NOT TRUE"
-            ))
-            .bind(&claimed_at)
-            .bind(&operation.turn_id)
-            .bind(&operation.coding_session_id)
-            .bind(operation.tenant_id)
-            .bind(operation.user_id)
-            .execute(&mut *tx)
-            .await,
+            ));
+        let turn_result = map_sqlx_error(
+            sqlx::query(&turn_update_sql)
+                .bind(&claimed_at)
+                .bind(&operation.turn_id)
+                .bind(&operation.coding_session_id)
+                .bind(operation.tenant_id)
+                .bind(operation.user_id)
+                .execute(&mut *tx)
+                .await,
         )?;
         if turn_result.rows_affected() != 1 {
             return Err(CodingSessionError::Conflict(format!(
@@ -2870,10 +3640,10 @@ impl CodingSessionRepository for SqliteCodingSessionRepository {
         } else {
             "lease_expires_at > ?"
         };
-        let sql = format!(
+        let sql = numbered_placeholders(&format!(
             "UPDATE ai_coding_session_operation SET lease_expires_at = ?,  updated_at = {updated_value}, version = version + 1  WHERE id = ? AND status = 'running' AND lease_owner = ? AND fencing_token = ?  AND lease_expires_at IS NOT NULL AND {expiry_predicate}  RETURNING {}",
             durable_operation_return_columns(),
-        );
+        ));
         let row = map_sqlx_error(
             sqlx::query(&sql)
                 .bind(&lease_expires_at)
@@ -2921,10 +3691,10 @@ impl CodingSessionRepository for SqliteCodingSessionRepository {
         } else {
             "lease_expires_at > ?"
         };
-        let operation_sql = format!(
+        let operation_sql = numbered_placeholders(&format!(
             "UPDATE ai_coding_session_operation SET status = 'succeeded', completed_at = ?,  lease_owner = NULL, lease_expires_at = NULL, updated_at = {updated_value},  version = version + 1  WHERE id = ? AND status = 'running' AND lease_owner = ? AND fencing_token = ?  AND lease_expires_at IS NOT NULL AND {expiry_predicate}  RETURNING {}",
             durable_operation_return_columns(),
-        );
+        ));
         let mut tx = map_sqlx_error(self.pool.begin().await)?;
         let row = map_sqlx_error(
             sqlx::query(&operation_sql)
@@ -2963,19 +3733,20 @@ impl CodingSessionRepository for SqliteCodingSessionRepository {
             .map(str::trim)
             .filter(|value| !value.is_empty())
         {
-            let result = map_sqlx_error(
-                sqlx::query(&format!(
+            let session_update_sql = numbered_placeholders(&format!(
                     "UPDATE ai_coding_session SET native_session_id = ?, transcript_updated_at = {updated_value}, updated_at = {updated_value},  version = version + 1 WHERE id = ? AND tenant_id = ? AND user_id = ?  AND is_deleted IS NOT TRUE AND (native_session_id IS NULL OR native_session_id = ?)"
-                ))
-                .bind(native_session_id)
-                .bind(&completed_at)
-                .bind(&completed_at)
-                .bind(&operation.coding_session_id)
-                .bind(operation.tenant_id)
-                .bind(operation.user_id)
-                .bind(native_session_id)
-                .execute(&mut *tx)
-                .await,
+                ));
+            let result = map_sqlx_error(
+                sqlx::query(&session_update_sql)
+                    .bind(native_session_id)
+                    .bind(&completed_at)
+                    .bind(&completed_at)
+                    .bind(&operation.coding_session_id)
+                    .bind(operation.tenant_id)
+                    .bind(operation.user_id)
+                    .bind(native_session_id)
+                    .execute(&mut *tx)
+                    .await,
             )?;
             if result.rows_affected() != 1 {
                 return Err(CodingSessionError::Conflict(
@@ -3002,19 +3773,20 @@ impl CodingSessionRepository for SqliteCodingSessionRepository {
             .transpose()?
             .or_else(|| operation.started_at.clone())
             .unwrap_or_else(|| completed_at.clone());
-        let turn_result = map_sqlx_error(
-            sqlx::query(&format!(
+        let turn_update_sql = numbered_placeholders(&format!(
                 "UPDATE ai_coding_session_turn SET status = 'completed', started_at = ?,  completed_at = ?, updated_at = {updated_value}, version = version + 1  WHERE id = ? AND coding_session_id = ? AND tenant_id = ? AND user_id = ?  AND is_deleted IS NOT TRUE"
-            ))
-            .bind(&started_at)
-            .bind(&completed_at)
-            .bind(&completed_at)
-            .bind(&operation.turn_id)
-            .bind(&operation.coding_session_id)
-            .bind(operation.tenant_id)
-            .bind(operation.user_id)
-            .execute(&mut *tx)
-            .await,
+            ));
+        let turn_result = map_sqlx_error(
+            sqlx::query(&turn_update_sql)
+                .bind(&started_at)
+                .bind(&completed_at)
+                .bind(&completed_at)
+                .bind(&operation.turn_id)
+                .bind(&operation.coding_session_id)
+                .bind(operation.tenant_id)
+                .bind(operation.user_id)
+                .execute(&mut *tx)
+                .await,
         )?;
         if turn_result.rows_affected() != 1 {
             return Err(CodingSessionError::Conflict(
@@ -3095,7 +3867,7 @@ impl CodingSessionRepository for SqliteCodingSessionRepository {
         } else {
             "lease_expires_at > ?"
         };
-        let operation_sql = if retry_at.is_some() {
+        let operation_sql = numbered_placeholders(&if retry_at.is_some() {
             format!(
                 "UPDATE ai_coding_session_operation SET  status = CASE WHEN attempt < max_attempt THEN 'queued' ELSE 'failed' END,  available_at = CASE WHEN attempt < max_attempt THEN ? ELSE available_at END,  completed_at = CASE WHEN attempt < max_attempt THEN NULL ELSE ? END,  problem_json = ?, lease_owner = NULL, lease_expires_at = NULL,  updated_at = {updated_value}, version = version + 1  WHERE id = ? AND status = 'running' AND lease_owner = ? AND fencing_token = ?  AND lease_expires_at IS NOT NULL AND {expiry_predicate}  RETURNING {}",
                 durable_operation_return_columns(),
@@ -3105,7 +3877,7 @@ impl CodingSessionRepository for SqliteCodingSessionRepository {
                 "UPDATE ai_coding_session_operation SET status = 'failed', completed_at = ?,  problem_json = ?, lease_owner = NULL, lease_expires_at = NULL,  updated_at = {updated_value}, version = version + 1  WHERE id = ? AND status = 'running' AND lease_owner = ? AND fencing_token = ?  AND lease_expires_at IS NOT NULL AND {expiry_predicate}  RETURNING {}",
                 durable_operation_return_columns(),
             )
-        };
+        });
         let mut tx = map_sqlx_error(self.pool.begin().await)?;
         let mut operation_query = sqlx::query(&operation_sql);
         if let Some(retry_at) = retry_at.as_deref() {
@@ -3144,20 +3916,21 @@ impl CodingSessionRepository for SqliteCodingSessionRepository {
         } else {
             None
         };
-        let turn_result = map_sqlx_error(
-            sqlx::query(&format!(
+        let turn_update_sql = numbered_placeholders(&format!(
                 "UPDATE ai_coding_session_turn SET status = ?, started_at = ?, completed_at = ?,  updated_at = {updated_value}, version = version + 1  WHERE id = ? AND coding_session_id = ? AND tenant_id = ? AND user_id = ?  AND is_deleted IS NOT TRUE"
-            ))
-            .bind(turn_status)
-            .bind(Option::<String>::None)
-            .bind(turn_completed_at.as_deref())
-            .bind(&failed_at)
-            .bind(&operation.turn_id)
-            .bind(&operation.coding_session_id)
-            .bind(operation.tenant_id)
-            .bind(operation.user_id)
-            .execute(&mut *tx)
-            .await,
+            ));
+        let turn_result = map_sqlx_error(
+            sqlx::query(&turn_update_sql)
+                .bind(turn_status)
+                .bind(Option::<String>::None)
+                .bind(turn_completed_at.as_deref())
+                .bind(&failed_at)
+                .bind(&operation.turn_id)
+                .bind(&operation.coding_session_id)
+                .bind(operation.tenant_id)
+                .bind(operation.user_id)
+                .execute(&mut *tx)
+                .await,
         )?;
         if turn_result.rows_affected() != 1 {
             return Err(CodingSessionError::Conflict(
@@ -3174,16 +3947,17 @@ impl CodingSessionRepository for SqliteCodingSessionRepository {
                 false,
             )
             .await?;
+            let runtime_sql = numbered_placeholders(
+                "SELECT runtime_id FROM ai_coding_session_turn  WHERE id = ? AND coding_session_id = ? AND tenant_id = ? AND user_id = ?",
+            );
             let runtime_id = map_sqlx_error(
-                sqlx::query_scalar::<_, Option<String>>(
-                    "SELECT runtime_id FROM ai_coding_session_turn  WHERE id = ? AND coding_session_id = ? AND tenant_id = ? AND user_id = ?",
-                )
-                .bind(&operation.turn_id)
-                .bind(&operation.coding_session_id)
-                .bind(operation.tenant_id)
-                .bind(operation.user_id)
-                .fetch_optional(&mut *tx)
-                .await,
+                sqlx::query_scalar::<_, Option<String>>(&runtime_sql)
+                    .bind(&operation.turn_id)
+                    .bind(&operation.coding_session_id)
+                    .bind(operation.tenant_id)
+                    .bind(operation.user_id)
+                    .fetch_optional(&mut *tx)
+                    .await,
             )?
             .flatten();
             let mut payload = BTreeMap::new();
@@ -3229,20 +4003,21 @@ impl CodingSessionRepository for SqliteCodingSessionRepository {
 
         let mut tx = map_sqlx_error(self.pool.begin().await)?;
         ensure_session_in_tenant_scope_in_transaction(&mut tx, ctx, session_id).await?;
+        let native_session_select_sql = numbered_placeholders(&format!(
+            "SELECT {} FROM {} WHERE {} = ? AND {} = ? AND {} = ? AND {IS_NOT_DELETED}",
+            columns::session::NATIVE_SESSION_ID,
+            columns::session::TABLE,
+            columns::session::ID,
+            columns::session::TENANT_ID,
+            columns::session::USER_ID,
+        ));
         let existing_native_session_id = map_sqlx_error(
-            sqlx::query_scalar::<sqlx::Any, Option<String>>(&format!(
-                "SELECT {} FROM {} WHERE {} = ? AND {} = ? AND {} = ? AND {IS_NOT_DELETED}",
-                columns::session::NATIVE_SESSION_ID,
-                columns::session::TABLE,
-                columns::session::ID,
-                columns::session::TENANT_ID,
-                columns::session::USER_ID,
-            ))
-            .bind(session_id)
-            .bind(owner_scope.tenant_id)
-            .bind(owner_scope.user_id)
-            .fetch_optional(&mut *tx)
-            .await,
+            sqlx::query_scalar::<sqlx::Any, Option<String>>(&native_session_select_sql)
+                .bind(session_id)
+                .bind(owner_scope.tenant_id)
+                .bind(owner_scope.user_id)
+                .fetch_optional(&mut *tx)
+                .await,
         )?
         .flatten();
 
@@ -3258,9 +4033,9 @@ impl CodingSessionRepository for SqliteCodingSessionRepository {
             .map(str::to_owned)
             .or(existing_native_session_id);
         if let Some(native_session_id) = native_session_id {
-            let result = sqlx::query(&format!(
+            let session_update_sql = numbered_placeholders(&format!(
                 "UPDATE {} SET {} = ?, {} = ?, {} = ?, {} = {} + 1 \
-                 WHERE {} = ? AND {} = ? AND {} = ? AND {} = 0 AND ({} IS NULL OR {} = ?)",
+                 WHERE {} = ? AND {} = ? AND {} = ? AND {IS_NOT_DELETED} AND ({} IS NULL OR {} = ?)",
                 columns::session::TABLE,
                 columns::session::NATIVE_SESSION_ID,
                 columns::session::TRANSCRIPT_UPDATED_AT,
@@ -3270,29 +4045,29 @@ impl CodingSessionRepository for SqliteCodingSessionRepository {
                 columns::session::ID,
                 columns::session::TENANT_ID,
                 columns::session::USER_ID,
-                columns::session::IS_DELETED,
                 columns::session::NATIVE_SESSION_ID,
                 columns::session::NATIVE_SESSION_ID,
-            ))
-            .bind(native_session_id)
-            .bind(&now)
-            .bind(&now)
-            .bind(session_id)
-            .bind(owner_scope.tenant_id)
-            .bind(owner_scope.user_id)
-            .bind(native_session_id)
-            .execute(&mut *tx)
-            .await
-            .map_err(|e| RepositoryError::Update(e.to_string()))?;
+            ));
+            let result = sqlx::query(&session_update_sql)
+                .bind(native_session_id)
+                .bind(&now)
+                .bind(&now)
+                .bind(session_id)
+                .bind(owner_scope.tenant_id)
+                .bind(owner_scope.user_id)
+                .bind(native_session_id)
+                .execute(&mut *tx)
+                .await
+                .map_err(|e| RepositoryError::Update(e.to_string()))?;
             if result.rows_affected() != 1 {
                 return Err(CodingSessionError::Conflict(
                     "provider-native session binding is immutable once established".into(),
                 ));
             }
         } else {
-            let result = sqlx::query(&format!(
+            let session_update_sql = numbered_placeholders(&format!(
                 "UPDATE {} SET {} = ?, {} = ?, {} = {} + 1 \
-                 WHERE {} = ? AND {} = ? AND {} = ? AND {} = 0",
+                 WHERE {} = ? AND {} = ? AND {} = ? AND {IS_NOT_DELETED}",
                 columns::session::TABLE,
                 columns::session::TRANSCRIPT_UPDATED_AT,
                 columns::session::UPDATED_AT,
@@ -3301,16 +4076,16 @@ impl CodingSessionRepository for SqliteCodingSessionRepository {
                 columns::session::ID,
                 columns::session::TENANT_ID,
                 columns::session::USER_ID,
-                columns::session::IS_DELETED,
-            ))
-            .bind(&now)
-            .bind(&now)
-            .bind(session_id)
-            .bind(owner_scope.tenant_id)
-            .bind(owner_scope.user_id)
-            .execute(&mut *tx)
-            .await
-            .map_err(|e| RepositoryError::Update(e.to_string()))?;
+            ));
+            let result = sqlx::query(&session_update_sql)
+                .bind(&now)
+                .bind(&now)
+                .bind(session_id)
+                .bind(owner_scope.tenant_id)
+                .bind(owner_scope.user_id)
+                .execute(&mut *tx)
+                .await
+                .map_err(|e| RepositoryError::Update(e.to_string()))?;
             if result.rows_affected() != 1 {
                 return Err(
                     RepositoryError::NotFound(format!("session {session_id} not found")).into(),
@@ -3318,9 +4093,9 @@ impl CodingSessionRepository for SqliteCodingSessionRepository {
             }
         }
 
-        let turn_result = sqlx::query(&format!(
+        let turn_update_sql = numbered_placeholders(&format!(
             "UPDATE {} SET {} = ?, {} = ?, {} = ?, {} = ?, {} = {} + 1 \
-             WHERE {} = ? AND {} = ? AND {} = ? AND {} = ? AND {} = 0",
+             WHERE {} = ? AND {} = ? AND {} = ? AND {} = ? AND {IS_NOT_DELETED}",
             columns::turn::TABLE,
             columns::turn::STATUS,
             columns::turn::STARTED_AT,
@@ -3332,28 +4107,28 @@ impl CodingSessionRepository for SqliteCodingSessionRepository {
             columns::turn::CODING_SESSION_ID,
             columns::turn::TENANT_ID,
             columns::turn::USER_ID,
-            columns::turn::IS_DELETED,
-        ))
-        .bind(&turn.status)
-        .bind(&started_at)
-        .bind(&completed_at)
-        .bind(&now)
-        .bind(&turn_id)
-        .bind(session_id)
-        .bind(owner_scope.tenant_id)
-        .bind(owner_scope.user_id)
-        .execute(&mut *tx)
-        .await
-        .map_err(|e| RepositoryError::Update(e.to_string()))?;
+        ));
+        let turn_result = sqlx::query(&turn_update_sql)
+            .bind(&turn.status)
+            .bind(&started_at)
+            .bind(&completed_at)
+            .bind(&now)
+            .bind(&turn_id)
+            .bind(session_id)
+            .bind(owner_scope.tenant_id)
+            .bind(owner_scope.user_id)
+            .execute(&mut *tx)
+            .await
+            .map_err(|e| RepositoryError::Update(e.to_string()))?;
         if turn_result.rows_affected() != 1 {
             return Err(CodingSessionError::Conflict(
                 "completed turn no longer exists in the current session scope".into(),
             ));
         }
 
-        let operation_result = sqlx::query(&format!(
+        let operation_update_sql = numbered_placeholders(&format!(
             "UPDATE {} SET {} = 'succeeded', {} = ?, {} = {} + 1 \
-             WHERE {} = ? AND {} = ? AND {} = ? AND {} = ? AND {} = 0",
+             WHERE {} = ? AND {} = ? AND {} = ? AND {} = ? AND {IS_NOT_DELETED}",
             columns::operation::TABLE,
             columns::operation::STATUS,
             columns::operation::UPDATED_AT,
@@ -3363,16 +4138,16 @@ impl CodingSessionRepository for SqliteCodingSessionRepository {
             columns::operation::TURN_ID,
             columns::operation::TENANT_ID,
             columns::operation::USER_ID,
-            columns::operation::IS_DELETED,
-        ))
-        .bind(&now)
-        .bind(session_id)
-        .bind(&turn_id)
-        .bind(owner_scope.tenant_id)
-        .bind(owner_scope.user_id)
-        .execute(&mut *tx)
-        .await
-        .map_err(|e| RepositoryError::Update(e.to_string()))?;
+        ));
+        let operation_result = sqlx::query(&operation_update_sql)
+            .bind(&now)
+            .bind(session_id)
+            .bind(&turn_id)
+            .bind(owner_scope.tenant_id)
+            .bind(owner_scope.user_id)
+            .execute(&mut *tx)
+            .await
+            .map_err(|e| RepositoryError::Update(e.to_string()))?;
         if operation_result.rows_affected() != 1 {
             return Err(RepositoryError::Update(format!(
                 "operation for turn {turn_id} was not found"
@@ -3453,8 +4228,7 @@ impl CodingSessionRepository for SqliteCodingSessionRepository {
         )
         .await?;
 
-        let operation_row = map_sqlx_error(
-            sqlx::query(&format!(
+        let operation_select_sql = numbered_placeholders(&format!(
                 "SELECT {}, {} FROM {} WHERE {} = ? AND {} = ? AND {} = ? AND {} = ? AND {IS_NOT_DELETED}",
                 columns::operation::ID,
                 columns::operation::STATUS,
@@ -3463,13 +4237,15 @@ impl CodingSessionRepository for SqliteCodingSessionRepository {
                 columns::operation::TURN_ID,
                 columns::operation::TENANT_ID,
                 columns::operation::USER_ID,
-            ))
-            .bind(session_id)
-            .bind(turn_id)
-            .bind(owner_scope.tenant_id)
-            .bind(owner_scope.user_id)
-            .fetch_optional(&mut *tx)
-            .await,
+            ));
+        let operation_row = map_sqlx_error(
+            sqlx::query(&operation_select_sql)
+                .bind(session_id)
+                .bind(turn_id)
+                .bind(owner_scope.tenant_id)
+                .bind(owner_scope.user_id)
+                .fetch_optional(&mut *tx)
+                .await,
         )?
         .ok_or_else(|| {
             RepositoryError::NotFound(format!("operation for turn {turn_id} was not found"))
@@ -3483,8 +4259,7 @@ impl CodingSessionRepository for SqliteCodingSessionRepository {
             )));
         }
 
-        let already_persisted = map_sqlx_error(
-            sqlx::query_scalar::<sqlx::Any, i64>(&format!(
+        let persisted_event_sql = numbered_placeholders(&format!(
                 "SELECT 1 FROM {} WHERE {} = ? AND {} = ? AND {} = ? AND {} = ? AND {} = 'turn.failed' AND {IS_NOT_DELETED} LIMIT 1",
                 columns::event::TABLE,
                 columns::event::CODING_SESSION_ID,
@@ -3492,13 +4267,15 @@ impl CodingSessionRepository for SqliteCodingSessionRepository {
                 columns::event::TENANT_ID,
                 columns::event::USER_ID,
                 columns::event::EVENT_KIND,
-            ))
-            .bind(session_id)
-            .bind(turn_id)
-            .bind(owner_scope.tenant_id)
-            .bind(owner_scope.user_id)
-            .fetch_optional(&mut *tx)
-            .await,
+            ));
+        let already_persisted = map_sqlx_error(
+            sqlx::query_scalar::<sqlx::Any, i64>(&persisted_event_sql)
+                .bind(session_id)
+                .bind(turn_id)
+                .bind(owner_scope.tenant_id)
+                .bind(owner_scope.user_id)
+                .fetch_optional(&mut *tx)
+                .await,
         )?
         .is_some();
         if already_persisted {
@@ -3506,7 +4283,7 @@ impl CodingSessionRepository for SqliteCodingSessionRepository {
             return Ok(None);
         }
 
-        let turn_result = sqlx::query(&format!(
+        let turn_update_sql = numbered_placeholders(&format!(
             "UPDATE {} SET {} = 'failed', {} = ?, {} = ?, {} = {} + 1 \
              WHERE {} = ? AND {} = ? AND {} = ? AND {} = ? AND {IS_NOT_DELETED} AND {} <> 'succeeded'",
             columns::turn::TABLE,
@@ -3520,23 +4297,24 @@ impl CodingSessionRepository for SqliteCodingSessionRepository {
             columns::turn::TENANT_ID,
             columns::turn::USER_ID,
             columns::turn::STATUS,
-        ))
-        .bind(&now)
-        .bind(&now)
-        .bind(turn_id)
-        .bind(session_id)
-        .bind(owner_scope.tenant_id)
-        .bind(owner_scope.user_id)
-        .execute(&mut *tx)
-        .await
-        .map_err(|e| RepositoryError::Update(e.to_string()))?;
+        ));
+        let turn_result = sqlx::query(&turn_update_sql)
+            .bind(&now)
+            .bind(&now)
+            .bind(turn_id)
+            .bind(session_id)
+            .bind(owner_scope.tenant_id)
+            .bind(owner_scope.user_id)
+            .execute(&mut *tx)
+            .await
+            .map_err(|e| RepositoryError::Update(e.to_string()))?;
         if turn_result.rows_affected() != 1 {
             return Err(CodingSessionError::Conflict(format!(
                 "turn {turn_id} cannot transition to failed"
             )));
         }
 
-        let operation_result = sqlx::query(&format!(
+        let operation_update_sql = numbered_placeholders(&format!(
             "UPDATE {} SET {} = 'failed', {} = ?, {} = NULL, {} = NULL, {} = ?, {} = {} + 1 \
              WHERE {} = ? AND {} = ? AND {} = ? AND {} = ? AND {IS_NOT_DELETED} AND {} <> 'succeeded'",
             columns::operation::TABLE,
@@ -3552,16 +4330,17 @@ impl CodingSessionRepository for SqliteCodingSessionRepository {
             columns::operation::TENANT_ID,
             columns::operation::USER_ID,
             columns::operation::STATUS,
-        ))
-        .bind(&now)
-        .bind(&now)
-        .bind(session_id)
-        .bind(turn_id)
-        .bind(owner_scope.tenant_id)
-        .bind(owner_scope.user_id)
-        .execute(&mut *tx)
-        .await
-        .map_err(|e| RepositoryError::Update(e.to_string()))?;
+        ));
+        let operation_result = sqlx::query(&operation_update_sql)
+            .bind(&now)
+            .bind(&now)
+            .bind(session_id)
+            .bind(turn_id)
+            .bind(owner_scope.tenant_id)
+            .bind(owner_scope.user_id)
+            .execute(&mut *tx)
+            .await
+            .map_err(|e| RepositoryError::Update(e.to_string()))?;
         if operation_result.rows_affected() != 1 {
             return Err(RepositoryError::Update(format!(
                 "operation for turn {turn_id} was not found"
@@ -3662,8 +4441,12 @@ mod tests {
         );
         let owner_scope = append_session_owner_scope_sql(&context, "s", &mut filter_sql)
             .expect("append owner scope");
-        let sql =
-            SqliteCodingSessionRepository::build_session_list_select_sql(&filter_sql, true, true);
+        let sql = SqliteCodingSessionRepository::build_session_list_select_sql(
+            &filter_sql,
+            true,
+            true,
+            false,
+        );
 
         let plan_rows = sqlx::query(&format!("EXPLAIN QUERY PLAN {sql}"))
             .bind(owner_scope.tenant_id)

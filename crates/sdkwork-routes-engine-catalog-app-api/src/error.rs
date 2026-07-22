@@ -1,6 +1,5 @@
 use axum::http::StatusCode;
 use sdkwork_birdcoder_engine_catalog_service::error::EngineCatalogError;
-use sdkwork_birdcoder_native_sessions_service::error::NativeSessionError;
 use sdkwork_utils_rust::SdkWorkResultCode;
 
 use sdkwork_birdcoder_errors::{
@@ -27,33 +26,6 @@ pub fn map_engine_catalog_error(
             trace_id,
         ),
         EngineCatalogError::Internal(_) => traced_problem_json(
-            StatusCode::INTERNAL_SERVER_ERROR,
-            client_safe_internal_problem(),
-            trace_id,
-        ),
-    }
-}
-
-pub fn map_native_session_error(
-    error: NativeSessionError,
-    trace_id: Option<&str>,
-) -> ProblemJsonBody {
-    match error {
-        NativeSessionError::NotFound(msg) => {
-            traced_platform_problem(SdkWorkResultCode::NotFound, msg, trace_id)
-        }
-        NativeSessionError::InvalidInput(msg) => {
-            traced_platform_problem(SdkWorkResultCode::ValidationError, msg, trace_id)
-        }
-        NativeSessionError::Conflict(msg) => {
-            traced_platform_problem(SdkWorkResultCode::Conflict, msg, trace_id)
-        }
-        NativeSessionError::Repository(_) => traced_problem_json(
-            StatusCode::INTERNAL_SERVER_ERROR,
-            client_safe_data_access_problem(),
-            trace_id,
-        ),
-        NativeSessionError::Internal(_) => traced_problem_json(
             StatusCode::INTERNAL_SERVER_ERROR,
             client_safe_internal_problem(),
             trace_id,

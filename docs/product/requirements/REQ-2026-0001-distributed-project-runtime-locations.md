@@ -78,12 +78,14 @@ server-owned workspaces.
 9. The project, runtime-location, Git, SDK, desktop, browser, and operator
    documentation all identify the same authority and lifecycle.
 10. New Coding Sessions require and persist an explicit terminal-capable
-    runtimeLocationId. Turns, recovery, and native-session list/detail use that
-    binding; historic sessions without it remain readable but return typed 503
-    unavailable results for execution and native discovery.
-11. Coding-session, native-session, terminal replay, and SSE public payloads,
-    OpenAPI schemas, and generated SDK models never expose CWD, nativeCwd,
-    rootPath, or another path-derived execution field.
+    runtimeLocationId. Turns, recovery, and provider-history reconciliation use
+    that binding. Unified inventory discovery uses an explicit authorized
+    runtimeLocationId; historic sessions without a binding remain readable but
+    return typed 503 unavailable results for execution and provider discovery.
+11. Coding-session, terminal replay, and SSE public payloads, OpenAPI schemas,
+    and generated SDK models never expose CWD, nativeCwd, rootPath, or another
+    path-derived execution field. Provider-native list/detail is internal and
+    does not define a second public session resource.
 
 ## Non-Functional Requirements
 
