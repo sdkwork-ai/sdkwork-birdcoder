@@ -1,16 +1,16 @@
 import assert from 'node:assert/strict';
 
 import {
-  normalizeChatMessageCommand as projectChatMessageCommand,
-  normalizeChatMessageToolCall as projectChatMessageToolCall,
-  normalizeChatMessageToolCalls as projectChatMessageToolCalls,
-  normalizeChatMessageToolNotice as projectChatMessageToolNotice,
-  normalizeChatMessageToolNotices as projectChatMessageToolNotices,
-} from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-contracts-commons/src/chat-message-tool-calls.ts';
+  normalizeAgentSessionCommand as projectChatMessageCommand,
+  normalizeAgentSessionItemToolCall as projectChatMessageToolCall,
+  normalizeAgentSessionItemToolCalls as projectChatMessageToolCalls,
+  normalizeAgentSessionItemToolNotice as projectChatMessageToolNotice,
+  normalizeAgentSessionItemToolNotices as projectChatMessageToolNotices,
+} from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-contracts-commons/src/agent-session-item-tool-calls.ts';
 import {
-  composeChatTranscriptActivity as projectChatTranscriptToolActivity,
-} from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-contracts-commons/src/chat-message-activity-view.ts';
-import { resolveChatMessageView } from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-contracts-commons/src/chat-message-view.ts';
+  composeAgentSessionTranscriptActivity as projectChatTranscriptToolActivity,
+} from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-contracts-commons/src/agent-session-item-activity-presentation.ts';
+import { resolveAgentSessionItemPresentation } from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-contracts-commons/src/agent-session-item-presentation.ts';
 
 const structuredToolCall = projectChatMessageToolCall(
   {
@@ -40,7 +40,7 @@ assert.equal(projectedToolCalls.length, 2);
 assert.equal(projectedToolCalls[1]?.name, 'tool');
 assert.equal(projectedToolCalls[1]?.arguments, 'raw tool output');
 
-const toolCallView = resolveChatMessageView({
+const toolCallView = resolveAgentSessionItemPresentation({
   id: 'msg-tool-1',
   agentSessionId: 'session-1',
   role: 'assistant',
@@ -549,7 +549,7 @@ assert.deepEqual(
   'The compact goal row must retain every provider field in its expandable structured input.',
 );
 
-const codexGoalView = resolveChatMessageView({
+const codexGoalView = resolveAgentSessionItemPresentation({
   id: 'msg-codex-thread-goal',
   agentSessionId: 'session-codex-thread-goal',
   role: 'tool',
@@ -814,7 +814,7 @@ assert.deepEqual(
   }],
   'Gemini request/response display notices must collapse into one latest lifecycle row.',
 );
-const geminiToolDisplayNoticeView = resolveChatMessageView({
+const geminiToolDisplayNoticeView = resolveAgentSessionItemPresentation({
   id: 'message-gemini-notice',
   agentSessionId: 'session-gemini-notice',
   role: 'assistant',
@@ -831,7 +831,7 @@ assert.deepEqual(geminiToolDisplayNoticeView.blocks, [{
   detail: 'Provider-neutral history is ready',
 }]);
 
-const geminiMixedNoticeView = resolveChatMessageView({
+const geminiMixedNoticeView = resolveAgentSessionItemPresentation({
   id: 'message-gemini-mixed-notice',
   agentSessionId: 'session-gemini-notice',
   role: 'assistant',
@@ -1553,7 +1553,7 @@ for (const [toolName, kind] of [
   );
 }
 
-const commandOnlyView = resolveChatMessageView({
+const commandOnlyView = resolveAgentSessionItemPresentation({
   id: 'msg-command-1',
   agentSessionId: 'session-1',
   role: 'assistant',
@@ -1579,7 +1579,7 @@ assert.equal(
 );
 assert.equal(commandOnlyView.blocks.some((block) => block.type === 'tool-calls'), false);
 
-const toolResultView = resolveChatMessageView({
+const toolResultView = resolveAgentSessionItemPresentation({
   id: 'msg-result-1',
   agentSessionId: 'session-1',
   role: 'tool',
@@ -1591,7 +1591,7 @@ const toolResultView = resolveChatMessageView({
 assert.equal(toolResultView.blocks.some((block) => block.type === 'markdown'), false);
 assert.equal(toolResultView.blocks.some((block) => block.type === 'tool-calls'), true);
 
-const failedGeminiNoticeView = resolveChatMessageView({
+const failedGeminiNoticeView = resolveAgentSessionItemPresentation({
   id: 'gemini-failed-notice-message',
   agentSessionId: 'gemini-failed-notice-session',
   role: 'assistant',

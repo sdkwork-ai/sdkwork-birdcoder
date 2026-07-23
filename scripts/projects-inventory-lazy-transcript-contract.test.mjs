@@ -23,8 +23,8 @@ const source = fs.readFileSync(
 
 assert.match(
   source,
-  /const EMPTY_PROJECT_INVENTORY_MESSAGES: AgentSessionItemView\[] = \[];/,
-  'useProjects must define a stable empty transcript reference for project inventory summaries.',
+  /const EMPTY_PROJECT_INVENTORY_ITEMS: AgentSessionItemView\[] = \[];/,
+  'useProjects must define a stable empty Agent Session Item reference for project inventory summaries.',
 );
 
 assert.match(
@@ -35,14 +35,20 @@ assert.match(
 
 assert.match(
   source,
-  /function readProjectInventoryPageForWorkspace\([\s\S]*return projectService\.getProjectsPage\(workspaceId, request\);/,
+  /function readProjectInventoryPage\([\s\S]*return projectService\.getProjectsPage\(request\);/,
   'useProjects startup inventory must use the bounded project page service.',
 );
 
 assert.match(
   source,
-  /messages:\s*agentSession\.messages\.length > 0 \? EMPTY_PROJECT_INVENTORY_MESSAGES : agentSession\.messages/s,
-  'useProjects inventory normalization must strip transcript payloads from fetched project snapshots while preserving empty-array identity for summaries.',
+  /items:\s*agentSession\.items\.length > 0 \? EMPTY_PROJECT_INVENTORY_ITEMS : agentSession\.items/s,
+  'useProjects inventory normalization must strip Session Item payloads from fetched project snapshots while preserving empty-array identity for summaries.',
+);
+
+assert.doesNotMatch(
+  source,
+  /EMPTY_PROJECT_INVENTORY_MESSAGES|readProjectInventoryPageForWorkspace/,
+  'Project inventory must not reintroduce retired Workspace or IM-style message terminology.',
 );
 
 assert.match(

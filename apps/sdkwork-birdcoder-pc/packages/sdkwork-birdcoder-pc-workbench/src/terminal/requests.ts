@@ -1,7 +1,7 @@
 import type { TerminalProfileId } from './profiles.ts';
 import { globalEventBus } from '../utils/EventBus.ts';
 
-export type TerminalCommandSurface = 'workspace' | 'embedded';
+export type TerminalCommandSurface = 'project' | 'embedded';
 
 export interface TerminalCommandRequest {
   surface: TerminalCommandSurface;
@@ -39,7 +39,7 @@ export function buildDefaultTerminalCommandRequest(
   overrides: Partial<Omit<TerminalCommandRequest, 'timestamp'>> = {},
 ): TerminalCommandRequest {
   return {
-    surface: overrides.surface ?? 'workspace',
+    surface: overrides.surface ?? 'project',
     path: overrides.path?.trim() || undefined,
     command: overrides.command?.trim() || undefined,
     profileId: overrides.profileId ?? resolveBrowserTerminalProfileId(),

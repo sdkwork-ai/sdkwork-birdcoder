@@ -49,17 +49,17 @@ export {
   estimateRendererHeight,
 } from './components/chat/messages/index.ts';
 export {
-  resolveChatMessageView,
-  resolveChatMessageViews,
-  buildChatMessageViewSynchronizationSignature,
+  resolveAgentSessionItemPresentation,
+  resolveAgentSessionItemPresentations,
+  buildAgentSessionItemPresentationSynchronizationSignature,
 } from '@sdkwork/birdcoder-pc-workbench/chat/types';
 export type {
   AgentSessionItemPresentation,
   AgentSessionItemViewKind,
-  ChatMessageContentBlock,
-  ChatMessageLayoutHints,
-  ChatMessageViewSource,
-  ResolveChatMessageViewOptions,
+  AgentSessionItemPresentationBlock,
+  AgentSessionItemPresentationLayoutHints,
+  AgentSessionItemViewSource,
+  ResolveAgentSessionItemPresentationOptions,
 } from '@sdkwork/birdcoder-pc-workbench/chat/types';
 export type {
   ChatMessageEnvironment,

@@ -29,6 +29,7 @@ const EXPECTED_SDK_DEPENDENCIES = Object.freeze([
   'sdkwork-drive-app-sdk',
   'sdkwork-messaging-app-sdk',
   'sdkwork-membership-app-sdk',
+  'sdkwork-order-app-sdk',
   'sdkwork-skills-app-sdk',
   'sdkwork-agents-app-sdk',
   'sdkwork-prompts-app-sdk',
@@ -156,6 +157,13 @@ const rootPackage = readJson('package.json');
 
 assert.equal(rootComponent.component.domain, 'intelligence');
 assert.equal(rootComponent.component.capability, 'coding-workbench');
+assert.equal(rootComponent.component.type, 'application-root');
+assert.deepEqual(
+  rootComponent.contracts.sdkDependencies,
+  [],
+  'The application aggregate must not duplicate the PC runtime SDK inventory.',
+);
+assert.deepEqual(rootComponent.contracts.dependencyApiSurfaces, []);
 assert.deepEqual(rootComponent.ownership, {
   boundedContext: 'intelligence/coding-workbench',
   domainContract: 'specs/domain-ownership.spec.json',
@@ -182,8 +190,8 @@ assert.deepEqual(ownership.persistence.tables, []);
 assert.deepEqual(ownership.persistence.baselines, []);
 assert.deepEqual(ownership.persistence.engines, []);
 
-const agentsOwnership = ownership.dependencies.find((entry) => entry.owner === 'sdkwork-agents');
-const imOwnership = ownership.dependencies.find((entry) => entry.owner === 'sdkwork-im');
+const agentsOwnership = ownership.externalAuthorities.find((entry) => entry.owner === 'sdkwork-agents');
+const imOwnership = ownership.externalAuthorities.find((entry) => entry.owner === 'sdkwork-im');
 assert.ok(agentsOwnership);
 assert.ok(imOwnership);
 for (const capability of [
@@ -203,9 +211,9 @@ assert.deepEqual(imOwnership.capabilities, [
   'members',
   'read cursors',
 ]);
-assert.equal(agentsOwnership.forbiddenLocalTables.includes('chat_conversation'), false);
-assert.equal(imOwnership.forbiddenLocalTables.includes('chat_conversation'), true);
-assert.equal(imOwnership.forbiddenLocalTables.includes('chat_message'), true);
+assert.equal(agentsOwnership.retiredLocalTables.includes('chat_conversation'), false);
+assert.equal(imOwnership.retiredLocalTables.includes('chat_conversation'), true);
+assert.equal(imOwnership.retiredLocalTables.includes('chat_message'), true);
 
 const appOperations = operations(appOpenApi);
 assert.deepEqual(sdkgenInput, appOpenApi);

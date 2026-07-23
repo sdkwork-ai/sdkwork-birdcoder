@@ -7,8 +7,9 @@
     "version": "0.1.0",
     "type": "react-tauri-app",
     "root": "sdkwork-birdcoder/apps/sdkwork-birdcoder-pc",
-    "domain": "platform",
-    "capability": "ide",
+    "domain": "intelligence",
+    "declaredDomain": "intelligence",
+    "capability": "coding-workbench",
     "surface": "app",
     "status": "ACTIVE",
     "languages": [
@@ -19,81 +20,132 @@
     "generated": false,
     "private": true,
     "manifests": [
+      "sdkwork.app.config.json",
       "package.json",
-      "Cargo.toml",
+      "packages/sdkwork-birdcoder-pc-desktop/src-tauri/Cargo.toml",
       "vite.config.ts"
     ]
   },
   "canonicalSpecs": [
     {
+      "file": "APP_MANIFEST_SPEC.md",
+      "path": "../../../../sdkwork-specs/APP_MANIFEST_SPEC.md",
+      "purpose": "Application identity, publication, and release metadata."
+    },
+    {
+      "file": "APP_CLIENT_ARCHITECTURE_ALIGNMENT_SPEC.md",
+      "path": "../../../../sdkwork-specs/APP_CLIENT_ARCHITECTURE_ALIGNMENT_SPEC.md",
+      "purpose": "Cross-client capability ownership and architecture alignment."
+    },
+    {
       "file": "APP_PC_ARCHITECTURE_SPEC.md",
-      "path": "../../../sdkwork-specs/APP_PC_ARCHITECTURE_SPEC.md",
+      "path": "../../../../sdkwork-specs/APP_PC_ARCHITECTURE_SPEC.md",
       "purpose": "PC browser/desktop/tablet application root architecture."
     },
     {
       "file": "APP_PC_REACT_UI_SPEC.md",
-      "path": "../../../sdkwork-specs/APP_PC_REACT_UI_SPEC.md",
+      "path": "../../../../sdkwork-specs/APP_PC_REACT_UI_SPEC.md",
       "purpose": "PC React package rules."
     },
     {
       "file": "DESKTOP_APP_ARCHITECTURE_SPEC.md",
-      "path": "../../../sdkwork-specs/DESKTOP_APP_ARCHITECTURE_SPEC.md",
+      "path": "../../../../sdkwork-specs/DESKTOP_APP_ARCHITECTURE_SPEC.md",
       "purpose": "Desktop/tablet native app shell, Tauri host boundary."
     },
     {
+      "file": "DEPLOYMENT_SPEC.md",
+      "path": "../../../../sdkwork-specs/DEPLOYMENT_SPEC.md",
+      "purpose": "Cloud and standalone runtime topology and deployment rules."
+    },
+    {
       "file": "APPLICATION_SPEC.md",
-      "path": "../../../sdkwork-specs/APPLICATION_SPEC.md",
+      "path": "../../../../sdkwork-specs/APPLICATION_SPEC.md",
       "purpose": "Application modularization, app shell boundaries, module composition."
     },
     {
+      "file": "COMPONENT_SPEC.md",
+      "path": "../../../../sdkwork-specs/COMPONENT_SPEC.md",
+      "purpose": "Component contract, ports, SDK dependencies, and verification."
+    },
+    {
       "file": "APP_SDK_INTEGRATION_SPEC.md",
-      "path": "../../../sdkwork-specs/APP_SDK_INTEGRATION_SPEC.md",
+      "path": "../../../../sdkwork-specs/APP_SDK_INTEGRATION_SPEC.md",
       "purpose": "Cross-architecture app SDK integration, dependency composition."
     },
     {
       "file": "IAM_LOGIN_INTEGRATION_SPEC.md",
-      "path": "../../../sdkwork-specs/IAM_LOGIN_INTEGRATION_SPEC.md",
+      "path": "../../../../sdkwork-specs/IAM_LOGIN_INTEGRATION_SPEC.md",
       "purpose": "Fast IAM login/session integration, appbase auth UI/runtime."
     },
     {
       "file": "CONFIG_SPEC.md",
-      "path": "../../../sdkwork-specs/CONFIG_SPEC.md",
+      "path": "../../../../sdkwork-specs/CONFIG_SPEC.md",
       "purpose": "Runtime configuration, environment, SDK bootstrap."
     },
     {
+      "file": "DATABASE_SPEC.md",
+      "path": "../../../../sdkwork-specs/DATABASE_SPEC.md",
+      "purpose": "Database ownership, physical naming, and local persistence boundaries."
+    },
+    {
+      "file": "DOCUMENTATION_SPEC.md",
+      "path": "../../../../sdkwork-specs/DOCUMENTATION_SPEC.md",
+      "purpose": "Application documentation canon and lifecycle."
+    },
+    {
+      "file": "DOMAIN_SPEC.md",
+      "path": "../../../../sdkwork-specs/DOMAIN_SPEC.md",
+      "purpose": "Bounded-context ownership and dependency direction."
+    },
+    {
+      "file": "FRONTEND_SPEC.md",
+      "path": "../../../../sdkwork-specs/FRONTEND_SPEC.md",
+      "purpose": "Frontend service, SDK, state, and host boundaries."
+    },
+    {
+      "file": "SDK_SPEC.md",
+      "path": "../../../../sdkwork-specs/SDK_SPEC.md",
+      "purpose": "Generated owner SDK and dependency API surface rules."
+    },
+    {
       "file": "SECURITY_SPEC.md",
-      "path": "../../../sdkwork-specs/SECURITY_SPEC.md",
+      "path": "../../../../sdkwork-specs/SECURITY_SPEC.md",
       "purpose": "Token model, authn/authz, secrets, rate limits."
     },
     {
       "file": "TEST_SPEC.md",
-      "path": "../../../sdkwork-specs/TEST_SPEC.md",
+      "path": "../../../../sdkwork-specs/TEST_SPEC.md",
       "purpose": "Contract, frontend, SDK, security verification rules."
     },
     {
       "file": "CODE_STYLE_SPEC.md",
-      "path": "../../../sdkwork-specs/CODE_STYLE_SPEC.md",
+      "path": "../../../../sdkwork-specs/CODE_STYLE_SPEC.md",
       "purpose": "Cross-language code organization, focused file boundaries, public exports."
     },
     {
       "file": "NAMING_SPEC.md",
-      "path": "../../../sdkwork-specs/NAMING_SPEC.md",
+      "path": "../../../../sdkwork-specs/NAMING_SPEC.md",
       "purpose": "Canonical domain, capability, package, component, SDK family naming."
     },
     {
       "file": "RUST_CODE_SPEC.md",
-      "path": "../../../sdkwork-specs/RUST_CODE_SPEC.md",
+      "path": "../../../../sdkwork-specs/RUST_CODE_SPEC.md",
       "purpose": "Rust crate/module layout, lib.rs limits, route crate structure."
     },
     {
       "file": "TYPESCRIPT_CODE_SPEC.md",
-      "path": "../../../sdkwork-specs/TYPESCRIPT_CODE_SPEC.md",
+      "path": "../../../../sdkwork-specs/TYPESCRIPT_CODE_SPEC.md",
       "purpose": "TypeScript package structure, public exports, typed SDK ports."
     },
     {
       "file": "FRONTEND_CODE_SPEC.md",
-      "path": "../../../sdkwork-specs/FRONTEND_CODE_SPEC.md",
+      "path": "../../../../sdkwork-specs/FRONTEND_CODE_SPEC.md",
       "purpose": "Frontend UI-service-SDK flow, React UI package organization."
+    },
+    {
+      "file": "UI_ARCHITECTURE_SPEC.md",
+      "path": "../../../../sdkwork-specs/UI_ARCHITECTURE_SPEC.md",
+      "purpose": "UI architecture selection and package boundaries."
     }
   ],
   "contracts": {
@@ -104,7 +156,9 @@
     "runtimeEntrypoints": [
       "package.json#scripts.dev",
       "package.json#scripts.build",
-      "package.json#scripts.dev:desktop"
+      "package.json#scripts.dev:desktop",
+      "package.json#scripts.typecheck",
+      "package.json#scripts.test"
     ],
     "sdkClients": [],
     "sdkDependencies": [
@@ -115,7 +169,13 @@
         "required": true
       },
       {
-        "workspace": "sdkwork-iam-app-sdk",
+        "workspace": "sdkwork-agents-app-sdk",
+        "surface": "app-api",
+        "credentialMode": "authenticated-app-api",
+        "required": true
+      },
+      {
+        "workspace": "sdkwork-documents-app-sdk",
         "surface": "app-api",
         "credentialMode": "authenticated-app-api",
         "required": true
@@ -127,7 +187,7 @@
         "required": true
       },
       {
-        "workspace": "sdkwork-messaging-app-sdk",
+        "workspace": "sdkwork-iam-app-sdk",
         "surface": "app-api",
         "credentialMode": "authenticated-app-api",
         "required": true
@@ -137,10 +197,157 @@
         "surface": "app-api",
         "credentialMode": "authenticated-app-api",
         "required": true
+      },
+      {
+        "workspace": "sdkwork-messaging-app-sdk",
+        "surface": "app-api",
+        "credentialMode": "authenticated-app-api",
+        "required": true
+      },
+      {
+        "workspace": "sdkwork-order-app-sdk",
+        "surface": "app-api",
+        "credentialMode": "authenticated-app-api",
+        "required": true
+      },
+      {
+        "workspace": "sdkwork-prompts-app-sdk",
+        "surface": "app-api",
+        "credentialMode": "authenticated-app-api",
+        "required": true
+      },
+      {
+        "workspace": "sdkwork-skills-app-sdk",
+        "surface": "app-api",
+        "credentialMode": "authenticated-app-api",
+        "required": true
       }
     ],
     "dependencyApiExports": [],
-    "dependencyApiSurfaces": [],
+    "dependencyApiSurfaces": [
+      {
+        "workspace": "sdkwork-birdcoder-app-sdk",
+        "sdkFamily": "sdkwork-birdcoder-app-sdk",
+        "apiAuthority": "sdkwork-birdcoder-app-api",
+        "surface": "app-api",
+        "apiPrefix": "/app/v3/api",
+        "runtimeMode": "external-via-declared-upstream",
+        "sameOriginAllowed": false,
+        "requiredBaseUrlKey": "VITE_SDKWORK_BIRDCODER_APPLICATION_PUBLIC_HTTP_URL"
+      },
+      {
+        "workspace": "sdkwork-agents-app-sdk",
+        "sdkFamily": "sdkwork-agents-app-sdk",
+        "apiAuthority": "sdkwork-agents-app-api",
+        "surface": "app-api",
+        "apiPrefix": "/app/v3/api",
+        "runtimeMode": "external-via-platform-surface",
+        "sameOriginAllowed": false,
+        "requiredBaseUrlKey": "VITE_SDKWORK_BIRDCODER_PLATFORM_API_GATEWAY_HTTP_URL"
+      },
+      {
+        "workspace": "sdkwork-documents-app-sdk",
+        "sdkFamily": "sdkwork-documents-app-sdk",
+        "apiAuthority": "sdkwork-documents-app-api",
+        "surface": "app-api",
+        "apiPrefix": "/app/v3/api",
+        "runtimeMode": "external-via-platform-surface",
+        "sameOriginAllowed": false,
+        "requiredBaseUrlKey": "VITE_SDKWORK_BIRDCODER_PLATFORM_API_GATEWAY_HTTP_URL",
+        "optionalBaseUrlKeys": [
+          "VITE_SDKWORK_DOCUMENTS_APP_API_BASE_URL"
+        ]
+      },
+      {
+        "workspace": "sdkwork-drive-app-sdk",
+        "sdkFamily": "sdkwork-drive-app-sdk",
+        "apiAuthority": "sdkwork-drive-app-api",
+        "surface": "app-api",
+        "apiPrefix": "/app/v3/api",
+        "runtimeMode": "external-via-platform-surface",
+        "sameOriginAllowed": false,
+        "requiredBaseUrlKey": "VITE_SDKWORK_BIRDCODER_PLATFORM_API_GATEWAY_HTTP_URL",
+        "optionalBaseUrlKeys": [
+          "VITE_SDKWORK_DRIVE_APP_API_BASE_URL"
+        ]
+      },
+      {
+        "workspace": "sdkwork-iam-app-sdk",
+        "sdkFamily": "sdkwork-iam-app-sdk",
+        "apiAuthority": "sdkwork-iam-app-api",
+        "surface": "app-api",
+        "apiPrefix": "/app/v3/api",
+        "runtimeMode": "external-via-platform-surface",
+        "sameOriginAllowed": false,
+        "requiredBaseUrlKey": "VITE_SDKWORK_BIRDCODER_PLATFORM_API_GATEWAY_HTTP_URL",
+        "optionalBaseUrlKeys": [
+          "VITE_SDKWORK_APPBASE_APP_API_BASE_URL",
+          "VITE_SDKWORK_IAM_APP_API_BASE_URL"
+        ]
+      },
+      {
+        "workspace": "sdkwork-membership-app-sdk",
+        "sdkFamily": "sdkwork-membership-app-sdk",
+        "apiAuthority": "sdkwork-membership-app-api",
+        "surface": "app-api",
+        "apiPrefix": "/app/v3/api",
+        "runtimeMode": "external-via-platform-surface",
+        "sameOriginAllowed": false,
+        "requiredBaseUrlKey": "VITE_SDKWORK_BIRDCODER_PLATFORM_API_GATEWAY_HTTP_URL",
+        "optionalBaseUrlKeys": [
+          "VITE_SDKWORK_MEMBERSHIP_APP_API_BASE_URL"
+        ]
+      },
+      {
+        "workspace": "sdkwork-messaging-app-sdk",
+        "sdkFamily": "sdkwork-messaging-app-sdk",
+        "apiAuthority": "sdkwork-messaging-app-api",
+        "surface": "app-api",
+        "apiPrefix": "/app/v3/api",
+        "runtimeMode": "external-via-platform-surface",
+        "sameOriginAllowed": false,
+        "requiredBaseUrlKey": "VITE_SDKWORK_BIRDCODER_PLATFORM_API_GATEWAY_HTTP_URL",
+        "optionalBaseUrlKeys": [
+          "VITE_SDKWORK_MESSAGING_APP_API_BASE_URL"
+        ]
+      },
+      {
+        "workspace": "sdkwork-order-app-sdk",
+        "sdkFamily": "sdkwork-order-app-sdk",
+        "apiAuthority": "sdkwork-order-app-api",
+        "surface": "app-api",
+        "apiPrefix": "/app/v3/api",
+        "runtimeMode": "external-via-platform-surface",
+        "sameOriginAllowed": false,
+        "requiredBaseUrlKey": "VITE_SDKWORK_BIRDCODER_PLATFORM_API_GATEWAY_HTTP_URL",
+        "optionalBaseUrlKeys": [
+          "VITE_SDKWORK_ORDER_APP_API_BASE_URL"
+        ]
+      },
+      {
+        "workspace": "sdkwork-prompts-app-sdk",
+        "sdkFamily": "sdkwork-prompts-app-sdk",
+        "apiAuthority": "sdkwork-prompts-app-api",
+        "surface": "app-api",
+        "apiPrefix": "/app/v3/api",
+        "runtimeMode": "external-via-platform-surface",
+        "sameOriginAllowed": false,
+        "requiredBaseUrlKey": "VITE_SDKWORK_BIRDCODER_PLATFORM_API_GATEWAY_HTTP_URL",
+        "optionalBaseUrlKeys": [
+          "VITE_SDKWORK_PROMPTS_APP_API_BASE_URL"
+        ]
+      },
+      {
+        "workspace": "sdkwork-skills-app-sdk",
+        "sdkFamily": "sdkwork-skills-app-sdk",
+        "apiAuthority": "sdkwork-skills-app-api",
+        "surface": "app-api",
+        "apiPrefix": "/app/v3/api",
+        "runtimeMode": "external-via-platform-surface",
+        "sameOriginAllowed": false,
+        "requiredBaseUrlKey": "VITE_SDKWORK_BIRDCODER_PLATFORM_API_GATEWAY_HTTP_URL"
+      }
+    ],
     "events": [],
     "configKeys": [
       "VITE_SDKWORK_BIRDCODER_APPLICATION_PUBLIC_HTTP_URL",
@@ -168,8 +375,20 @@
           "inheritRoles": true
         },
         {
+          "moduleId": "agents",
+          "manifestRef": "../../../../sdkwork-agents/specs/iam.module.manifest.json",
+          "inheritPermissions": true,
+          "inheritRoles": true
+        },
+        {
           "moduleId": "drive",
           "manifestRef": "../../../../sdkwork-iam/iam/modules/drive/iam.module.manifest.json",
+          "inheritPermissions": true,
+          "inheritRoles": true
+        },
+        {
+          "moduleId": "documents",
+          "manifestRef": "../../../../sdkwork-documents/specs/iam.module.manifest.json",
           "inheritPermissions": true,
           "inheritRoles": true
         },
@@ -180,8 +399,32 @@
           "inheritRoles": false
         },
         {
+          "moduleId": "membership",
+          "manifestRef": "../../../../sdkwork-membership/specs/iam.module.manifest.json",
+          "inheritPermissions": true,
+          "inheritRoles": true
+        },
+        {
           "moduleId": "messaging",
           "manifestRef": "../../../../sdkwork-iam/iam/modules/messaging/iam.module.manifest.json",
+          "inheritPermissions": true,
+          "inheritRoles": true
+        },
+        {
+          "moduleId": "order",
+          "manifestRef": "../../../../sdkwork-order/specs/iam.module.manifest.json",
+          "inheritPermissions": true,
+          "inheritRoles": true
+        },
+        {
+          "moduleId": "prompts",
+          "manifestRef": "../../../../sdkwork-prompts/specs/iam.module.manifest.json",
+          "inheritPermissions": true,
+          "inheritRoles": true
+        },
+        {
+          "moduleId": "skills",
+          "manifestRef": "../../../../sdkwork-skills/specs/iam.module.manifest.json",
           "inheritPermissions": true,
           "inheritRoles": true
         }
@@ -203,10 +446,20 @@
       }
     }
   },
+  "integration": {
+    "authority": "This PC composition root owns presentation and local host capability only; it owns no business database, dependency API, or generated transport.",
+    "dependencyPolicy": "Remote capabilities use their generated owner App SDK through the application ingress or platform gateway with one global TokenManager; raw HTTP and copied SDK authority are forbidden.",
+    "projectPolicy": "Project, composition, Session, Turn, Session Item, Interaction, Checkpoint, and Runtime Binding facts are canonical sdkwork-agents resources identified by one projectId.",
+    "persistencePolicy": "Only allowlisted device state may persist locally. Agents, Skills, Documents, IM, IAM, Drive, Messaging, Membership, Order, and Prompts business records are never projected or cached as PC authority.",
+    "messagePolicy": "Agents Session Items are AI-assistant facts; sdkwork-im Conversation and Message are human communication facts and must remain semantically distinct."
+  },
   "verification": {
     "commands": [
-      "pnpm typecheck",
-      "pnpm run check:auth-session-standard"
+      "pnpm --dir apps/sdkwork-birdcoder-pc typecheck",
+      "pnpm --dir apps/sdkwork-birdcoder-pc check:component-spec-paths",
+      "node ../sdkwork-specs/tools/check-component-port-bindings.mjs --root .",
+      "node scripts/app-sdk-surface-boundary-contract.test.mjs",
+      "node --experimental-strip-types scripts/app-sdk-composition-boundary-contract.test.ts"
     ]
   }
 }

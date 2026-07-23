@@ -16,6 +16,7 @@ export const QUALITY_FAST_CHECK_COMMANDS = Object.freeze([
   'node scripts/run-workspace-package-script.mjs . check:agents-birdcoder-alignment',
   'node scripts/run-workspace-package-script.mjs . check:kernel-birdcoder-alignment',
   'node scripts/run-workspace-package-script.mjs . test:agent-session-item-view-contract',
+  'node scripts/run-workspace-package-script.mjs . test:agent-session-item-semantic-boundary-contract',
   'node scripts/run-workspace-package-script.mjs . check:sdk-family-standard',
   'node scripts/run-workspace-package-script.mjs . check:sdk-family-generated',
   'node scripts/run-workspace-package-script.mjs . check:package-governance',

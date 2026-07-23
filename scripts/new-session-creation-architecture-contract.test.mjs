@@ -18,8 +18,8 @@ const projects = read(
 const services = read(
   "apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/src/services/defaultIdeServicesShared.ts",
 );
-const workspaceMenu = read(
-  "apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-shell/src/application/app/AppWorkspaceMenu.tsx",
+const projectMenu = read(
+  "apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-shell/src/application/app/AppProjectMenu.tsx",
 );
 const multiWindow = read(
   "apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-multiwindow/src/pages/MultiWindowProgrammingPage.tsx",
@@ -47,12 +47,12 @@ assert.doesNotMatch(
 );
 assert.match(shell, /source: 'file-menu'/);
 assert.match(shell, /source: 'keyboard-shortcut'/);
-assert.match(shell, /source: 'workspace-menu'/);
+assert.match(shell, /source: 'project-menu'/);
 assert.match(
   shell,
   /modelId: newSessionEngineCatalog\.preferredSelection\.modelId/,
 );
-assert.match(workspaceMenu, /engine\.modelId/);
+assert.match(projectMenu, /engine\.modelId/);
 assert.match(hook, /normalizeCreateNewAgentSessionRequest\(/);
 assert.match(hook, /inFlightCreationsRef/);
 assert.match(hook, /creation\.promise/);
@@ -74,7 +74,7 @@ assert.match(desktopMain, /publishBirdCoderDesktopSdkRuntimeEnv\(runtimeConfig\)
 assert.match(desktopMain, /executionLocation: runtimeConfig\.executionLocation/);
 assert.match(
   desktopRuntime,
-  /topology\.executionLocation === 'cloud-workspace'[\s\S]*configuredApiBaseUrl/,
+  /topology\.executionLocation === 'cloud-workspace'[\s\S]*configuredApplicationApiBaseUrl/,
   "Cloud desktop must resolve its configured remote API without reading the embedded runtime.",
 );
 assert.doesNotMatch(
@@ -85,24 +85,42 @@ assert.doesNotMatch(
 assert.match(shell, /e\.preventDefault\(\);\s*if \(e\.repeat\) return;/);
 assert.match(
   creation,
-  /ensureWorkbenchAgentSessionForMessage\([\s\S]*createAgentSessionFromRequest[\s\S]*source: 'message-submit'[\s\S]*showSuccessToast: false/,
-  "Implicit first-message session creation must use the same typed command without a redundant success toast.",
+  /ensureWorkbenchAgentSessionForTurnInput\([\s\S]*createAgentSessionFromRequest[\s\S]*source: 'turn-submit'[\s\S]*showSuccessToast: false/,
+  "Implicit first-turn session creation must use the same typed command without a redundant success toast.",
 );
 assert.doesNotMatch(
   creation,
-  /ensureWorkbenchAgentSessionForMessage\([\s\S]*createWorkbenchAgentSessionInProject\(/,
-  "Implicit message submission must not bypass the unified request command.",
+  /ensureWorkbenchAgentSessionForTurnInput\([\s\S]*createWorkbenchAgentSessionInProject\(/,
+  "Implicit turn submission must not bypass the unified request command.",
 );
 assert.match(projects, /resolveProjectRuntimeLocationExecutionId\(/);
+const createAgentSessionHandler = projects.match(
+  /const createAgentSession = async \([\s\S]*?(?=\n  const renameProject = async)/,
+)?.[0] ?? '';
+assert.notEqual(
+  createAgentSessionHandler,
+  '',
+  "useProjects must expose one identifiable Agent Session creation handler.",
+);
 assert.equal(
-  (projects.match(/projectService\.createAgentSession\(/g) ?? []).length,
+  (createAgentSessionHandler.match(/agentSessionService\.createSession\(/g) ?? []).length,
   1,
-  "All useProjects new-session consumers must converge on one persistence call.",
+  "All useProjects new-session consumers must converge on the sdkwork-agents Session authority.",
+);
+assert.doesNotMatch(
+  projects,
+  /projectService\.createAgentSession\(/,
+  "useProjects must not recreate Project-owned Agent Session persistence.",
 );
 assert.match(
   services,
-  /runtimeTopology\.executionLocation === 'local-host'[\s\S]*\? runtimeFileSystemService[\s\S]*: new DriveSandboxProjectFileSystemService\(\{[\s\S]*allowLocalFallback: false/,
-  "Runtime composition must select one filesystem authority and forbid local fallback in remote mode.",
+  /runtimeTopology\.executionLocation === 'local-host'[\s\S]*\? localFileSystem[\s\S]*: new DriveSandboxProjectFileSystemService\(\{[\s\S]*drivePort:[\s\S]*projectService/,
+  "Runtime composition must select the local filesystem only for local-host and Drive for remote execution.",
+);
+assert.doesNotMatch(
+  services,
+  /new DriveSandboxProjectFileSystemService\(\{[\s\S]{0,300}(?:localFileSystem|fallback)/i,
+  "Remote Drive composition must not retain a local filesystem fallback.",
 );
 
 console.log("new session creation architecture contract passed.");

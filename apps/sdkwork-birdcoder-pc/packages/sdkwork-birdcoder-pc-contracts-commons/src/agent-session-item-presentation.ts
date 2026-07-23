@@ -1,10 +1,10 @@
 import type {
-  AgentSessionItemViewSource as BirdCoderComparableChatMessageLike,
-  AgentSessionProtocolNoticeKind as BirdCoderProtocolNoticeKind,
+  AgentSessionItemViewSource,
+  AgentSessionProtocolNoticeKind,
 } from './agent-session-view.ts';
 import {
-  AGENT_SESSION_ITEM_CONTENT_BLOCK_TYPES as BIRDCODER_CHAT_MESSAGE_CONTENT_BLOCK_TYPES,
-  AGENT_SESSION_ITEM_VIEW_KINDS as BIRDCODER_CHAT_MESSAGE_VIEW_KINDS,
+  AGENT_SESSION_ITEM_CONTENT_BLOCK_TYPES as BIRDCODER_AGENT_SESSION_ITEM_CONTENT_BLOCK_TYPES,
+  AGENT_SESSION_ITEM_VIEW_KINDS as BIRDCODER_AGENT_SESSION_ITEM_VIEW_KINDS,
   type AgentSessionItemContentBlockType as AgentSessionItemContentBlockType,
   type AgentSessionItemViewKind as AgentSessionItemViewKind,
   type AgentSessionItemView as AgentSessionItemView,
@@ -20,131 +20,129 @@ export {
 } from './agent-session-view.ts';
 import {
   hasParsedFileUpdateSummary,
-  resolveChatTurnActivitySummary,
-  resolveActivityFileChangeViews,
-  resolveVisibleMarkdownBlockContent,
-  type ChatTurnActivitySummary,
-} from './chat-message-activity-view.ts';
-import { resolveTaskProgressDisplayState } from './chat-message-task-progress.ts';
+  resolveAgentTurnActivityPresentation,
+  resolveAgentSessionActivityFileChangeViews,
+  resolveAgentSessionItemVisibleMarkdownContent,
+  type AgentTurnActivityPresentation,
+} from './agent-session-item-activity-presentation.ts';
+import { resolveTaskProgressDisplayState } from './agent-session-item-task-progress.ts';
 import {
-  normalizeChatMessageReasoning,
+  normalizeAgentSessionItemReasoning,
   type AgentSessionItemReasoningView as AgentSessionItemReasoningView,
-} from './chat-message-reasoning.ts';
+} from './agent-session-item-reasoning.ts';
 import {
-  normalizeChatMessageResources,
+  normalizeAgentSessionItemResources,
   type AgentSessionItemResourceView as AgentSessionItemResourceView,
-} from './chat-message-resources.ts';
+} from './agent-session-item-resources.ts';
 import {
-  isChatMessageFileMutationToolCall,
-  normalizeChatMessageCommand,
-  normalizeChatMessageToolResult,
-  normalizeChatMessageToolCalls,
-  type ChatMessageToolCall,
-} from './chat-message-tool-calls.ts';
+  isAgentSessionItemFileMutationToolCall,
+  normalizeAgentSessionCommand,
+  normalizeAgentSessionItemToolResult,
+  normalizeAgentSessionItemToolCalls,
+  type AgentSessionItemToolCallView,
+} from './agent-session-item-tool-calls.ts';
 
-export type ChatMessageViewSource = BirdCoderComparableChatMessageLike;
-
-export interface ChatMessageMarkdownBlock {
+export interface AgentSessionItemMarkdownPresentationBlock {
   type: 'markdown';
   content: string;
   mode: 'basic' | 'rich';
-  noticeKind?: BirdCoderProtocolNoticeKind;
+  noticeKind?: AgentSessionProtocolNoticeKind;
 }
 
-export interface ChatMessageNoticeBlock {
+export interface AgentSessionItemNoticePresentationBlock {
   type: 'notice';
   id: string;
-  noticeKind: BirdCoderProtocolNoticeKind;
+  noticeKind: AgentSessionProtocolNoticeKind;
   title?: string;
   detail?: string;
 }
 
-export interface ChatMessageReasoningBlock {
+export interface AgentSessionItemReasoningPresentationBlock {
   type: 'reasoning';
   items: readonly AgentSessionItemReasoningView[];
 }
 
-export interface ChatMessageActivityBlock {
+export interface AgentSessionItemActivityPresentationBlock {
   type: 'activity';
-  messageId: string;
-  fileChanges: readonly NonNullable<ChatMessageViewSource['fileChanges']>[number][];
-  commands: readonly NonNullable<ChatMessageViewSource['commands']>[number][];
+  sessionItemId: string;
+  fileChanges: readonly NonNullable<AgentSessionItemViewSource['fileChanges']>[number][];
+  commands: readonly NonNullable<AgentSessionItemViewSource['commands']>[number][];
 }
 
-export interface ChatMessageFileChangesBlock {
+export interface AgentSessionItemFileChangesPresentationBlock {
   type: 'file-changes';
-  items: readonly NonNullable<ChatMessageViewSource['fileChanges']>[number][];
+  items: readonly NonNullable<AgentSessionItemViewSource['fileChanges']>[number][];
 }
 
-export interface ChatMessageCommandsBlock {
+export interface AgentSessionItemCommandsPresentationBlock {
   type: 'commands';
-  items: readonly NonNullable<ChatMessageViewSource['commands']>[number][];
+  items: readonly NonNullable<AgentSessionItemViewSource['commands']>[number][];
 }
 
-export interface ChatMessageTaskProgressValue {
+export interface AgentSessionItemTaskProgressValue {
   total: number;
   completed: number;
 }
 
-export interface ChatMessageTaskProgressBlock {
+export interface AgentSessionItemTaskProgressPresentationBlock {
   type: 'task-progress';
-  progress: ChatMessageTaskProgressValue;
+  progress: AgentSessionItemTaskProgressValue;
 }
 
-export interface ChatMessageResourcesBlock {
+export interface AgentSessionItemResourcesPresentationBlock {
   type: 'resources';
   items: readonly AgentSessionItemResourceView[];
 }
 
-export type { ChatMessageToolCall } from './chat-message-tool-calls.ts';
+export type { AgentSessionItemToolCallView } from './agent-session-item-tool-calls.ts';
 export {
-  CHAT_MESSAGE_TOOL_PROTOCOL_ADAPTER_IDS,
-  normalizeChatMessageCommand,
-  normalizeChatMessageToolCall,
-  normalizeChatMessageToolCalls,
-  normalizeChatMessageToolNotice,
-  normalizeChatMessageToolNotices,
-  normalizeChatMessageToolResult,
-  type ChatMessageToolProtocolAdapterId,
-  type NormalizeChatMessageToolCallOptions,
-  type NormalizedChatMessageToolNotice,
-  type NormalizeChatMessageToolResultInput,
-  type NormalizedChatMessageCommand,
-} from './chat-message-tool-calls.ts';
+  AGENT_SESSION_ITEM_TOOL_PROTOCOL_ADAPTER_IDS,
+  normalizeAgentSessionCommand,
+  normalizeAgentSessionItemToolCall,
+  normalizeAgentSessionItemToolCalls,
+  normalizeAgentSessionItemToolNotice,
+  normalizeAgentSessionItemToolNotices,
+  normalizeAgentSessionItemToolResult,
+  type AgentSessionItemToolProtocolAdapterId,
+  type NormalizeAgentSessionItemToolCallOptions,
+  type NormalizedAgentSessionItemToolNotice,
+  type NormalizeAgentSessionItemToolResultInput,
+  type NormalizedAgentSessionCommand,
+} from './agent-session-item-tool-calls.ts';
 
-export interface ChatMessageToolCallsBlock {
+export interface AgentSessionItemToolCallsPresentationBlock {
   type: 'tool-calls';
-  calls: readonly ChatMessageToolCall[];
+  calls: readonly AgentSessionItemToolCallView[];
 }
 
-export type ChatMessageContentBlock =
-  | ChatMessageMarkdownBlock
-  | ChatMessageNoticeBlock
-  | ChatMessageReasoningBlock
-  | ChatMessageActivityBlock
-  | ChatMessageFileChangesBlock
-  | ChatMessageCommandsBlock
-  | ChatMessageResourcesBlock
-  | ChatMessageTaskProgressBlock
-  | ChatMessageToolCallsBlock;
+export type AgentSessionItemPresentationBlock =
+  | AgentSessionItemMarkdownPresentationBlock
+  | AgentSessionItemNoticePresentationBlock
+  | AgentSessionItemReasoningPresentationBlock
+  | AgentSessionItemActivityPresentationBlock
+  | AgentSessionItemFileChangesPresentationBlock
+  | AgentSessionItemCommandsPresentationBlock
+  | AgentSessionItemResourcesPresentationBlock
+  | AgentSessionItemTaskProgressPresentationBlock
+  | AgentSessionItemToolCallsPresentationBlock;
 
-export interface ChatMessageLayoutHints {
+export interface AgentSessionItemPresentationLayoutHints {
   estimatedHeight: number;
   isCompact: boolean;
   hasCollapsibleSections: boolean;
 }
 
 export interface AgentSessionItemPresentation {
-  messageId: string;
+  sessionItemId: string;
   kind: AgentSessionItemViewKind;
-  source: Readonly<ChatMessageViewSource>;
+  source: Readonly<AgentSessionItemViewSource>;
   engineId?: string;
-  layoutHints: ChatMessageLayoutHints;
-  blocks: readonly ChatMessageContentBlock[];
+  layoutHints: AgentSessionItemPresentationLayoutHints;
+  blocks: readonly AgentSessionItemPresentationBlock[];
 }
 
-export interface ResolveChatMessageViewOptions {
-  activitySummary?: ChatTurnActivitySummary | null;
+export interface ResolveAgentSessionItemPresentationOptions {
+  activitySummary?: AgentTurnActivityPresentation | null;
   engineId?: string;
   layout?: 'sidebar' | 'main';
 }
@@ -177,15 +175,15 @@ function readActivityCommandStatus(value: unknown): string {
 }
 
 function filterStructuredFileChanges(
-  message: ChatMessageViewSource,
-): NonNullable<ChatMessageViewSource['fileChanges']> {
-  return (message.fileChanges ?? []).filter((item) => readActivityPath(item).length > 0);
+  item: AgentSessionItemViewSource,
+): NonNullable<AgentSessionItemViewSource['fileChanges']> {
+  return (item.fileChanges ?? []).filter((item) => readActivityPath(item).length > 0);
 }
 
 function filterStructuredCommands(
-  message: ChatMessageViewSource,
-): NonNullable<ChatMessageViewSource['commands']> {
-  return (message.commands ?? []).filter((item) => readActivityCommand(item).length > 0);
+  item: AgentSessionItemViewSource,
+): NonNullable<AgentSessionItemViewSource['commands']> {
+  return (item.commands ?? []).filter((item) => readActivityCommand(item).length > 0);
 }
 
 function countTranscriptContentLines(content: string): number {
@@ -203,36 +201,36 @@ function countTranscriptContentLines(content: string): number {
 }
 
 function hasStructuredActivity(
-  message: ChatMessageViewSource,
-  activitySummary?: ChatTurnActivitySummary | null,
+  item: AgentSessionItemViewSource,
+  activitySummary?: AgentTurnActivityPresentation | null,
   engineId?: string,
 ): boolean {
   if (activitySummary && (activitySummary.fileChanges.length > 0 || activitySummary.commands.length > 0)) {
     return true;
   }
-  return filterStructuredFileChanges(message).length > 0
-    || filterStructuredCommands(message).length > 0
-    || hasParsedFileUpdateSummary(message.content)
-    || normalizeChatMessageToolCalls(message.tool_calls, { engineId })
+  return filterStructuredFileChanges(item).length > 0
+    || filterStructuredCommands(item).length > 0
+    || hasParsedFileUpdateSummary(item.content)
+    || normalizeAgentSessionItemToolCalls(item.tool_calls, { engineId })
       .some((call) => call.kind === 'command');
 }
 
 function resolveProtocolNoticeKind(
-  message: ChatMessageViewSource,
-): BirdCoderProtocolNoticeKind | undefined {
-  if (message.role !== 'system' || typeof message.metadata !== 'object' || !message.metadata) {
+  item: AgentSessionItemViewSource,
+): AgentSessionProtocolNoticeKind | undefined {
+  if (item.role !== 'system' || typeof item.metadata !== 'object' || !item.metadata) {
     return undefined;
   }
 
-  const noticeKind = (message.metadata as Record<string, unknown>).noticeKind;
+  const noticeKind = (item.metadata as Record<string, unknown>).noticeKind;
   return ['blocked', 'cancelled', 'compression', 'failed', 'info', 'retry', 'stopped', 'warning'].includes(
     typeof noticeKind === 'string' ? noticeKind : '',
   )
-    ? noticeKind as BirdCoderProtocolNoticeKind
+    ? noticeKind as AgentSessionProtocolNoticeKind
     : undefined;
 }
 
-function resolveToolNoticeFallback(call: ChatMessageToolCall): string {
+function resolveToolNoticeFallback(call: AgentSessionItemToolCallView): string {
   for (const block of call.resultBlocks ?? []) {
     if (block.type === 'text' && block.text.trim()) {
       return block.text.trim();
@@ -244,7 +242,7 @@ function resolveToolNoticeFallback(call: ChatMessageToolCall): string {
   return call.output?.trim() ?? '';
 }
 
-function composeToolNoticeBlock(call: ChatMessageToolCall): ChatMessageNoticeBlock | null {
+function composeToolNoticeBlock(call: AgentSessionItemToolCallView): AgentSessionItemNoticePresentationBlock | null {
   if (call.presentation !== 'notice') {
     return null;
   }
@@ -253,7 +251,7 @@ function composeToolNoticeBlock(call: ChatMessageToolCall): ChatMessageNoticeBlo
   const description = call.title?.trim() ?? '';
   const isRedundantName = Boolean(name && description.includes(`"${name}"`));
   const title = isRedundantName ? '' : name;
-  const noticeKind: BirdCoderProtocolNoticeKind = call.status === 'error'
+  const noticeKind: AgentSessionProtocolNoticeKind = call.status === 'error'
     ? 'failed'
     : call.status === 'cancelled'
       ? 'cancelled'
@@ -275,12 +273,12 @@ function composeToolNoticeBlock(call: ChatMessageToolCall): ChatMessageNoticeBlo
   };
 }
 
-function inferChatMessageViewKind(
-  message: ChatMessageViewSource,
-  activitySummary?: ChatTurnActivitySummary | null,
+function inferAgentSessionItemViewKind(
+  item: AgentSessionItemViewSource,
+  activitySummary?: AgentTurnActivityPresentation | null,
   engineId?: string,
 ): AgentSessionItemViewKind {
-  switch (message.role) {
+  switch (item.role) {
     case 'user':
       return 'user.text';
     case 'tool':
@@ -293,8 +291,8 @@ function inferChatMessageViewKind(
       return 'reviewer.feedback';
     case 'assistant':
       if (
-        hasStructuredActivity(message, activitySummary, engineId)
-        || hasParsedFileUpdateSummary(message.content)
+        hasStructuredActivity(item, activitySummary, engineId)
+        || hasParsedFileUpdateSummary(item.content)
       ) {
         return 'assistant.activity';
       }
@@ -304,21 +302,21 @@ function inferChatMessageViewKind(
   }
 }
 
-function buildChatMessageContentBlocks(
-  message: ChatMessageViewSource,
+function buildAgentSessionItemPresentationBlocks(
+  item: AgentSessionItemViewSource,
   kind: AgentSessionItemViewKind,
-  activitySummary?: ChatTurnActivitySummary | null,
+  activitySummary?: AgentTurnActivityPresentation | null,
   engineId?: string,
-): ChatMessageContentBlock[] {
-  const blocks: ChatMessageContentBlock[] = [];
-  const markdownMode: 'basic' | 'rich' = message.role === 'user' ? 'basic' : 'rich';
-  const markdownContent = message.role === 'tool'
+): AgentSessionItemPresentationBlock[] {
+  const blocks: AgentSessionItemPresentationBlock[] = [];
+  const markdownMode: 'basic' | 'rich' = item.role === 'user' ? 'basic' : 'rich';
+  const markdownContent = item.role === 'tool'
     ? ''
-    : resolveVisibleMarkdownBlockContent(message);
-  const noticeKind = resolveProtocolNoticeKind(message);
+    : resolveAgentSessionItemVisibleMarkdownContent(item);
+  const noticeKind = resolveProtocolNoticeKind(item);
 
-  const reasoning = ['assistant', 'planner', 'reviewer'].includes(message.role)
-    ? normalizeChatMessageReasoning(message.reasoning)
+  const reasoning = ['assistant', 'planner', 'reviewer'].includes(item.role)
+    ? normalizeAgentSessionItemReasoning(item.reasoning)
     : [];
   if (reasoning.length > 0) {
     blocks.push({
@@ -336,7 +334,7 @@ function buildChatMessageContentBlocks(
     });
   }
 
-  const resources = normalizeChatMessageResources(message.resources);
+  const resources = normalizeAgentSessionItemResources(item.resources);
   if (resources.length > 0) {
     blocks.push({
       type: 'resources',
@@ -344,19 +342,19 @@ function buildChatMessageContentBlocks(
     });
   }
 
-  const fileChanges = activitySummary?.fileChanges ?? resolveActivityFileChangeViews(message);
-  const normalizedToolCalls = normalizeChatMessageToolCalls(message.tool_calls, { engineId });
-  const toolResultCallId = message.tool_call_id?.trim() ?? '';
+  const fileChanges = activitySummary?.fileChanges ?? resolveAgentSessionActivityFileChangeViews(item);
+  const normalizedToolCalls = normalizeAgentSessionItemToolCalls(item.tool_calls, { engineId });
+  const toolResultCallId = item.tool_call_id?.trim() ?? '';
   // Combined provider entries already carry the authoritative lifecycle in tool_calls.
   // Their text content is a compact summary, not a second generic tool result.
   const hasAuthoritativeStructuredToolCall = normalizedToolCalls.length > 0 && (
     !toolResultCallId || normalizedToolCalls.some((call) => call.id === toolResultCallId)
   );
-  const normalizedToolResult = message.role === 'tool' && !hasAuthoritativeStructuredToolCall
-    ? normalizeChatMessageToolResult({
-        content: message.content,
-        id: message.tool_call_id,
-        name: message.name,
+  const normalizedToolResult = item.role === 'tool' && !hasAuthoritativeStructuredToolCall
+    ? normalizeAgentSessionItemToolResult({
+        content: item.content,
+        id: item.tool_call_id,
+        name: item.name,
       }, { engineId })
     : null;
   const allNormalizedToolCalls = normalizedToolResult
@@ -371,13 +369,13 @@ function buildChatMessageContentBlocks(
     blocks.unshift(...toolNoticeBlocks);
   }
   const normalizedCommands = allNormalizedToolCalls.flatMap((call) => {
-    const command = normalizeChatMessageCommand(call);
+    const command = normalizeAgentSessionCommand(call);
     return command ? [command] : [];
   });
-  const commandsByKey = new Map<string, NonNullable<ChatMessageViewSource['commands']>[number]>();
+  const commandsByKey = new Map<string, NonNullable<AgentSessionItemViewSource['commands']>[number]>();
   const commandValues = [
     ...normalizedCommands,
-    ...(activitySummary?.commands ?? filterStructuredCommands(message)),
+    ...(activitySummary?.commands ?? filterStructuredCommands(item)),
   ];
   for (let commandIndex = 0; commandIndex < commandValues.length; commandIndex += 1) {
     const commandValue = commandValues[commandIndex];
@@ -403,12 +401,12 @@ function buildChatMessageContentBlocks(
   if (kind === 'assistant.activity' && (fileChanges.length > 0 || commands.length > 0)) {
     blocks.push({
       type: 'activity',
-      messageId: message.id,
+      sessionItemId: item.id,
       fileChanges,
       commands,
     });
   } else {
-    const structuredFileChanges = filterStructuredFileChanges(message);
+    const structuredFileChanges = filterStructuredFileChanges(item);
     if (structuredFileChanges.length > 0) {
       blocks.push({
         type: 'file-changes',
@@ -424,7 +422,7 @@ function buildChatMessageContentBlocks(
     }
   }
 
-  const taskProgressDisplayState = resolveTaskProgressDisplayState(message.taskProgress);
+  const taskProgressDisplayState = resolveTaskProgressDisplayState(item.taskProgress);
   if (taskProgressDisplayState) {
     blocks.push({
       type: 'task-progress',
@@ -443,7 +441,7 @@ function buildChatMessageContentBlocks(
     if (commandToolCallIds.has(call.id)) {
       return false;
     }
-    if (fileChanges.length > 0 && isChatMessageFileMutationToolCall(call)) {
+    if (fileChanges.length > 0 && isAgentSessionItemFileMutationToolCall(call)) {
       return false;
     }
     return true;
@@ -466,7 +464,7 @@ function buildChatMessageContentBlocks(
   return blocks;
 }
 
-export function estimateChatMessageViewHeight(
+export function estimateAgentSessionItemPresentationHeight(
   view: AgentSessionItemPresentation,
   layout: 'sidebar' | 'main' = 'main',
 ): number {
@@ -525,16 +523,16 @@ export function estimateChatMessageViewHeight(
   return baseHeight + extraHeight;
 }
 
-function buildChatMessageLayoutHints(
-  message: ChatMessageViewSource,
+function buildAgentSessionItemPresentationLayoutHints(
+  item: AgentSessionItemViewSource,
   kind: AgentSessionItemViewKind,
   layout: 'sidebar' | 'main',
-  blocks: readonly ChatMessageContentBlock[],
-): ChatMessageLayoutHints {
+  blocks: readonly AgentSessionItemPresentationBlock[],
+): AgentSessionItemPresentationLayoutHints {
   const view: AgentSessionItemPresentation = {
-    messageId: message.id,
+    sessionItemId: item.id,
     kind,
-    source: message,
+    source: item,
     layoutHints: {
       estimatedHeight: 0,
       isCompact: layout === 'sidebar',
@@ -545,56 +543,56 @@ function buildChatMessageLayoutHints(
   };
 
   return {
-    estimatedHeight: estimateChatMessageViewHeight(view, layout),
+    estimatedHeight: estimateAgentSessionItemPresentationHeight(view, layout),
     isCompact: layout === 'sidebar',
     hasCollapsibleSections:
       kind === 'assistant.activity' || blocks.some((block) => block.type === 'reasoning'),
   };
 }
 
-export function resolveChatMessageView(
-  message: ChatMessageViewSource,
-  options: ResolveChatMessageViewOptions = {},
+export function resolveAgentSessionItemPresentation(
+  item: AgentSessionItemViewSource,
+  options: ResolveAgentSessionItemPresentationOptions = {},
 ): AgentSessionItemPresentation {
   const layout = options.layout ?? 'main';
-  const kind = inferChatMessageViewKind(message, options.activitySummary, options.engineId);
-  const blocks = buildChatMessageContentBlocks(
-    message,
+  const kind = inferAgentSessionItemViewKind(item, options.activitySummary, options.engineId);
+  const blocks = buildAgentSessionItemPresentationBlocks(
+    item,
     kind,
     options.activitySummary,
     options.engineId,
   );
 
   return {
-    messageId: message.id,
+    sessionItemId: item.id,
     kind,
-    source: message,
+    source: item,
     engineId: options.engineId,
-    layoutHints: buildChatMessageLayoutHints(message, kind, layout, blocks),
+    layoutHints: buildAgentSessionItemPresentationLayoutHints(item, kind, layout, blocks),
     blocks,
   };
 }
 
-export function resolveChatMessageViews(
-  messages: readonly ChatMessageViewSource[],
-  options: ResolveChatMessageViewOptions = {},
+export function resolveAgentSessionItemPresentations(
+  items: readonly AgentSessionItemViewSource[],
+  options: ResolveAgentSessionItemPresentationOptions = {},
 ): AgentSessionItemPresentation[] {
-  return messages.map((message) => resolveChatMessageView(message, options));
+  return items.map((item) => resolveAgentSessionItemPresentation(item, options));
 }
 
-export function estimateTranscriptMessageHeight(
-  message: ChatMessageViewSource,
-  options: ResolveChatMessageViewOptions = {},
+export function estimateTranscriptSessionItemHeight(
+  item: AgentSessionItemViewSource,
+  options: ResolveAgentSessionItemPresentationOptions = {},
 ): number {
   const layout = options.layout ?? 'main';
-  const view = resolveChatMessageView(message, { ...options, layout });
-  return estimateChatMessageViewHeight(view, layout);
+  const view = resolveAgentSessionItemPresentation(item, { ...options, layout });
+  return estimateAgentSessionItemPresentationHeight(view, layout);
 }
 
-export function buildChatMessageViewSynchronizationSignature(
+export function buildAgentSessionItemPresentationSynchronizationSignature(
   view: AgentSessionItemPresentation,
 ): string {
-  const message = view.source;
+  const item = view.source;
   const blockSignature = view.blocks
     .map((block) => {
       switch (block.type) {
@@ -625,9 +623,9 @@ export function buildChatMessageViewSynchronizationSignature(
   return [
     view.kind,
     view.engineId ?? '',
-    message.role,
-    message.id,
-    message.content,
+    item.role,
+    item.id,
+    item.content,
     blockSignature,
   ].join('\u0001');
 }

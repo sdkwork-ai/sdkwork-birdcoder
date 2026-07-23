@@ -1,9 +1,9 @@
 import type { ComponentType, ReactNode } from 'react';
-import type { ChatMessageContentBlock } from '@sdkwork/birdcoder-pc-workbench/chat/types';
+import type { AgentSessionItemPresentationBlock } from '@sdkwork/birdcoder-pc-workbench/chat/types';
 import type { ChatMessageRenderContext } from '../types.ts';
 
 export interface ChatMessageContentBlockRendererProps {
-  block: ChatMessageContentBlock;
+  block: AgentSessionItemPresentationBlock;
   context: ChatMessageRenderContext;
 }
 
@@ -13,20 +13,20 @@ export type ChatMessageContentBlockRendererComponent = ComponentType<
 
 export interface ChatMessageContentBlockRendererEntry {
   id: string;
-  blockType: ChatMessageContentBlock['type'];
+  blockType: AgentSessionItemPresentationBlock['type'];
   priority: number;
   Component: ChatMessageContentBlockRendererComponent;
 }
 
 export interface ChatMessageContentBlockRendererRegistry {
   register(entry: ChatMessageContentBlockRendererEntry): void;
-  resolve(block: ChatMessageContentBlock): ChatMessageContentBlockRendererEntry;
+  resolve(block: AgentSessionItemPresentationBlock): ChatMessageContentBlockRendererEntry;
   list(): readonly ChatMessageContentBlockRendererEntry[];
 }
 
 function scoreContentBlockEntry(
   entry: ChatMessageContentBlockRendererEntry,
-  block: ChatMessageContentBlock,
+  block: AgentSessionItemPresentationBlock,
 ): number {
   return entry.blockType === block.type ? entry.priority : -1;
 }

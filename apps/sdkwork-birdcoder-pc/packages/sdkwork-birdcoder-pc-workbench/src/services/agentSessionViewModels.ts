@@ -110,7 +110,7 @@ export function toAgentSessionView(
   }
   const activityAt = session.lastItemAt ?? session.updatedAt;
   const parsedActivityAt = Date.parse(activityAt);
-  const messages = items
+  const sessionItems = items
     .slice()
     .sort((left, right) => {
       const leftSequence = BigInt(left.sequence);
@@ -139,7 +139,7 @@ export function toAgentSessionView(
     pinned: Boolean(context.userState?.pinnedAt),
     archived: session.status === 'archived' || Boolean(context.userState?.hiddenAt),
     unread: context.userState?.lastReadItemSequence !== session.lastItemSequence,
-    items: messages,
+    items: sessionItems,
   };
 }
 

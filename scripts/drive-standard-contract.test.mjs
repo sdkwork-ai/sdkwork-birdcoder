@@ -116,8 +116,8 @@ for (const viteConfigPath of [
   }
 }
 
-const applicationComponentSpec = JSON.parse(read('specs/component.spec.json'));
-const driveDependency = applicationComponentSpec.contracts?.sdkDependencies?.find(
+const pcComponentSpec = JSON.parse(read('apps/sdkwork-birdcoder-pc/specs/component.spec.json'));
+const driveDependency = pcComponentSpec.contracts?.sdkDependencies?.find(
   (dependency) => dependency.workspace === 'sdkwork-drive-app-sdk',
 );
 assert.deepEqual(
@@ -128,17 +128,25 @@ assert.deepEqual(
     credentialMode: 'authenticated-app-api',
     required: true,
   },
-  'BirdCoder component authority must declare Drive as a generated dependency SDK.',
+  'BirdCoder PC must declare Drive as a generated dependency SDK.',
 );
 assert.deepEqual(
-  applicationComponentSpec.contracts?.dependencyApiExports,
+  pcComponentSpec.contracts?.dependencyApiExports,
   [],
-  'BirdCoder must not re-export Drive APIs from its application-owned SDK authority.',
+  'BirdCoder PC must not re-export Drive APIs.',
 );
-assert.deepEqual(
-  applicationComponentSpec.contracts?.dependencyApiSurfaces,
-  [],
-  'BirdCoder must not claim that its gateway embeds a Drive API surface.',
+const driveApiSurface = pcComponentSpec.contracts?.dependencyApiSurfaces?.find(
+  (surface) => surface.workspace === 'sdkwork-drive-app-sdk',
+);
+assert.equal(
+  driveApiSurface?.runtimeMode,
+  'external-via-platform-surface',
+  'BirdCoder PC must resolve Drive through the platform API surface.',
+);
+assert.equal(
+  driveApiSurface?.sameOriginAllowed,
+  false,
+  'BirdCoder PC must not claim that its application gateway embeds Drive.',
 );
 
 const birdcoderAssembly = read(
@@ -261,8 +269,8 @@ if (/absolutePath|physicalPath|providerRootRef|fileSystemHandle/u.test(codeServe
 }
 
 for (const localePath of [
-  'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-i18n/src/locales/en/app/workspace.ts',
-  'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-i18n/src/locales/zh/app/workspace.ts',
+  'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-i18n/src/locales/en/app/project.ts',
+  'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-i18n/src/locales/zh/app/project.ts',
 ]) {
   const locale = read(localePath);
   if (!locale.includes('selectServerDirectory') || !locale.includes('serverDirectory')) {

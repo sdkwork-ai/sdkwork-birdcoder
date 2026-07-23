@@ -4,13 +4,13 @@ import type {
 
 export type { AgentSessionItemReasoningView } from './agent-session-view.ts';
 
-export const MAX_CHAT_MESSAGE_REASONING_ITEMS = 32;
-export const MAX_CHAT_MESSAGE_REASONING_ID_CHARACTERS = 256;
-export const MAX_CHAT_MESSAGE_REASONING_TITLE_CHARACTERS = 256;
-export const MAX_CHAT_MESSAGE_REASONING_SUMMARY_CHARACTERS = 8_000;
+export const MAX_AGENT_SESSION_ITEM_REASONING_ITEMS = 32;
+export const MAX_AGENT_SESSION_ITEM_REASONING_ID_CHARACTERS = 256;
+export const MAX_AGENT_SESSION_ITEM_REASONING_TITLE_CHARACTERS = 256;
+export const MAX_AGENT_SESSION_ITEM_REASONING_SUMMARY_CHARACTERS = 8_000;
 
-const MAX_CHAT_MESSAGE_REASONING_TIMESTAMP_CHARACTERS = 64;
-const MAX_CHAT_MESSAGE_REASONING_INPUT_ITEMS = 128;
+const MAX_AGENT_SESSION_ITEM_REASONING_TIMESTAMP_CHARACTERS = 64;
+const MAX_AGENT_SESSION_ITEM_REASONING_INPUT_ITEMS = 128;
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
@@ -32,7 +32,7 @@ function readBoundedString(value: unknown, maxCharacters: number): string | unde
 function readTimestamp(value: unknown): string | undefined {
   const timestamp = readBoundedString(
     value,
-    MAX_CHAT_MESSAGE_REASONING_TIMESTAMP_CHARACTERS,
+    MAX_AGENT_SESSION_ITEM_REASONING_TIMESTAMP_CHARACTERS,
   );
   if (!timestamp) {
     return undefined;
@@ -59,17 +59,17 @@ function normalizeReasoningItem(value: unknown): AgentSessionItemReasoningView |
   if (!isRecord(value)) {
     return null;
   }
-  const id = readBoundedString(value.id, MAX_CHAT_MESSAGE_REASONING_ID_CHARACTERS);
+  const id = readBoundedString(value.id, MAX_AGENT_SESSION_ITEM_REASONING_ID_CHARACTERS);
   const summary = readBoundedString(
     value.summary,
-    MAX_CHAT_MESSAGE_REASONING_SUMMARY_CHARACTERS,
+    MAX_AGENT_SESSION_ITEM_REASONING_SUMMARY_CHARACTERS,
   );
   if (!id || !summary) {
     return null;
   }
   const title = readBoundedString(
     value.title,
-    MAX_CHAT_MESSAGE_REASONING_TITLE_CHARACTERS,
+    MAX_AGENT_SESSION_ITEM_REASONING_TITLE_CHARACTERS,
   );
   const createdAt = readTimestamp(value.createdAt);
   const startedAt = readTimestamp(value.startedAt);
@@ -86,7 +86,7 @@ function normalizeReasoningItem(value: unknown): AgentSessionItemReasoningView |
   };
 }
 
-export function normalizeChatMessageReasoning(
+export function normalizeAgentSessionItemReasoning(
   values: readonly unknown[] | undefined,
 ): AgentSessionItemReasoningView[] {
   if (!values || values.length === 0) {
@@ -94,13 +94,13 @@ export function normalizeChatMessageReasoning(
   }
   const order: string[] = [];
   const itemsById = new Map<string, AgentSessionItemReasoningView>();
-  for (const value of values.slice(0, MAX_CHAT_MESSAGE_REASONING_INPUT_ITEMS)) {
+  for (const value of values.slice(0, MAX_AGENT_SESSION_ITEM_REASONING_INPUT_ITEMS)) {
     const item = normalizeReasoningItem(value);
     if (!item) {
       continue;
     }
     if (!itemsById.has(item.id)) {
-      if (order.length >= MAX_CHAT_MESSAGE_REASONING_ITEMS) {
+      if (order.length >= MAX_AGENT_SESSION_ITEM_REASONING_ITEMS) {
         continue;
       }
       order.push(item.id);
@@ -113,15 +113,15 @@ export function normalizeChatMessageReasoning(
   });
 }
 
-export function mergeChatMessageReasoning(
+export function mergeAgentSessionItemReasoning(
   ...sources: Array<readonly unknown[] | undefined>
 ): AgentSessionItemReasoningView[] {
   const order: string[] = [];
   const itemsById = new Map<string, AgentSessionItemReasoningView>();
   for (const source of sources) {
-    for (const item of normalizeChatMessageReasoning(source)) {
+    for (const item of normalizeAgentSessionItemReasoning(source)) {
       if (!itemsById.has(item.id)) {
-        if (order.length >= MAX_CHAT_MESSAGE_REASONING_ITEMS) {
+        if (order.length >= MAX_AGENT_SESSION_ITEM_REASONING_ITEMS) {
           continue;
         }
         order.push(item.id);
@@ -134,3 +134,4 @@ export function mergeChatMessageReasoning(
     return item ? [item] : [];
   });
 }
+

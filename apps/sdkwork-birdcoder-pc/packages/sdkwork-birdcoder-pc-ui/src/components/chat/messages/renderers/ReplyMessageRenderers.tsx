@@ -1,7 +1,7 @@
 import React, { memo } from 'react';
 import { Copy, Edit2, RotateCcw, Trash2 } from 'lucide-react';
 import { Button } from '@sdkwork/birdcoder-pc-ui-shell';
-import type { ChatMessageViewSource } from '@sdkwork/birdcoder-pc-workbench/chat/types';
+import type { AgentSessionItemViewSource } from '@sdkwork/birdcoder-pc-workbench/chat/types';
 import type { AgentSessionItemPresentation } from '@sdkwork/birdcoder-pc-workbench/chat/types';
 import { ContentBlockList } from '../contentBlocks/ContentBlockList.tsx';
 import {
@@ -20,7 +20,7 @@ function resolveViewMarkdownCopyFallback(view: AgentSessionItemPresentation): st
 }
 
 interface ChatMessageActionBarProps {
-  message: ChatMessageViewSource;
+  message: AgentSessionItemViewSource;
   context: ChatMessageRendererProps['context'];
   copyContent: string;
   iconSize: number;
@@ -154,7 +154,6 @@ export const UserTextMessageRenderer = memo(function UserTextMessageRenderer({
     </div>
   );
 });
-
 export const AssistantReplyMessageRenderer = memo(function AssistantReplyMessageRenderer({
   view,
   context,

@@ -16,12 +16,12 @@
     "manifests": ["Cargo.toml"]
   },
   "canonicalSpecs": [
-    { "file": "COMPONENT_SPEC.md", "path": "../../../../../../sdkwork-specs/COMPONENT_SPEC.md", "purpose": "Component ownership and port contracts." },
-    { "file": "CODE_STYLE_SPEC.md", "path": "../../../../../../sdkwork-specs/CODE_STYLE_SPEC.md", "purpose": "Authored source boundaries." },
-    { "file": "NAMING_SPEC.md", "path": "../../../../../../sdkwork-specs/NAMING_SPEC.md", "purpose": "Canonical crate and capability naming." },
-    { "file": "RUST_CODE_SPEC.md", "path": "../../../../../../sdkwork-specs/RUST_CODE_SPEC.md", "purpose": "Rust native-host and process-entrypoint rules." },
-    { "file": "APP_PC_ARCHITECTURE_SPEC.md", "path": "../../../../../../sdkwork-specs/APP_PC_ARCHITECTURE_SPEC.md", "purpose": "PC desktop application architecture." },
-    { "file": "DESKTOP_APP_ARCHITECTURE_SPEC.md", "path": "../../../../../../sdkwork-specs/DESKTOP_APP_ARCHITECTURE_SPEC.md", "purpose": "Tauri host composition and native security boundaries." }
+    { "file": "COMPONENT_SPEC.md", "path": "../../../../../../../sdkwork-specs/COMPONENT_SPEC.md", "purpose": "Component ownership and port contracts." },
+    { "file": "CODE_STYLE_SPEC.md", "path": "../../../../../../../sdkwork-specs/CODE_STYLE_SPEC.md", "purpose": "Authored source boundaries." },
+    { "file": "NAMING_SPEC.md", "path": "../../../../../../../sdkwork-specs/NAMING_SPEC.md", "purpose": "Canonical crate and capability naming." },
+    { "file": "RUST_CODE_SPEC.md", "path": "../../../../../../../sdkwork-specs/RUST_CODE_SPEC.md", "purpose": "Rust native-host and process-entrypoint rules." },
+    { "file": "APP_PC_ARCHITECTURE_SPEC.md", "path": "../../../../../../../sdkwork-specs/APP_PC_ARCHITECTURE_SPEC.md", "purpose": "PC desktop application architecture." },
+    { "file": "DESKTOP_APP_ARCHITECTURE_SPEC.md", "path": "../../../../../../../sdkwork-specs/DESKTOP_APP_ARCHITECTURE_SPEC.md", "purpose": "Tauri host composition and native security boundaries." }
   ],
   "contracts": {
     "layerRole": "runtime-native-host",

@@ -19,7 +19,9 @@ It does not redefine shared product, API, SDK, or domain contracts.
 
 - one canonical Agents `projectId`;
 - Agents Project, composition, Session, Session Item, and Runtime Binding SDKs;
-- Skills and IM through their owner SDKs;
+- Skills through the Skills App SDK;
+- human Conversation and Message semantics reserved to `sdkwork-im`, distinct
+  from Agents Session Items;
 - browser-local directory handles;
 - Tauri-local filesystem, Git, worktree, terminal, and allowlisted device
   state;
@@ -28,7 +30,9 @@ It does not redefine shared product, API, SDK, or domain contracts.
 ## Verification
 
 ```bash
-pnpm --dir apps/sdkwork-birdcoder-pc typecheck
+pnpm --dir apps/sdkwork-birdcoder-pc lint
+pnpm --dir apps/sdkwork-birdcoder-pc test
+pnpm --dir apps/sdkwork-birdcoder-pc check
 pnpm check:desktop
 pnpm docs:build
 ```

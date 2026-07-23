@@ -66,7 +66,7 @@ const PersistentAppTabPanel = React.memo(function PersistentAppTabPanel({
 PersistentAppTabPanel.displayName = 'PersistentAppTabPanel';
 
 export const isProjectTerminalRequest = (request: TerminalCommandRequest): boolean =>
-  request.surface === 'workspace';
+  request.surface === 'project';
 
 export const AppMainBody = React.memo(function AppMainBody({
   activeTab,

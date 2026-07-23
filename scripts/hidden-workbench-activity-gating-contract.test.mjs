@@ -25,13 +25,6 @@ const codeCommandsHookSource = fs.readFileSync(
   new URL('../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-code/src/pages/useCodeWorkbenchCommands.ts', import.meta.url),
   'utf8',
 );
-const codeEffectiveWorkspaceHookSource = fs.readFileSync(
-  new URL(
-    '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-code/src/pages/useCodeEffectiveWorkspaceId.ts',
-    import.meta.url,
-  ),
-  'utf8',
-);
 const studioBindingsHookSource = fs.readFileSync(
   new URL('../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-studio/src/pages/useStudioWorkbenchEventBindings.ts', import.meta.url),
   'utf8',
@@ -43,19 +36,7 @@ const agentSessionActionsHookSource = fs.readFileSync(
 
 assert.match(
   codePageSource,
-  /useCodeEffectiveWorkspaceId\(\{[\s\S]*isVisible,[\s\S]*workspaceId,[\s\S]*\}\)/s,
-  'CodePage must derive its effective workspace through the dedicated hook so workspace fallback remains consistently gated.',
-);
-
-assert.match(
-  codeEffectiveWorkspaceHookSource,
-  /useWorkspaces\(\{\s*isActive:\s*isVisible\s*\}\)/s,
-  'useCodeEffectiveWorkspaceId must gate workspace-store subscriptions behind page visibility before deriving the effective workspace.',
-);
-
-assert.match(
-  codePageSource,
-  /useProjects\(\s*(?:workspaceId|effectiveWorkspaceId),\s*\{[\s\S]*?isActive:\s*isVisible,[\s\S]*?\}\s*\)/s,
+  /useProjects\(\{[\s\S]*?isActive:\s*isVisible,[\s\S]*?targetProjectId:\s*projectId,[\s\S]*?\}\s*\)/s,
   'CodePage must gate project-store subscriptions behind page visibility so the hidden code workbench stops replaying project inventory updates.',
 );
 
@@ -91,7 +72,7 @@ assert.match(
 
 assert.match(
   studioPageSource,
-  /useProjects\(\s*workspaceId,\s*\{[\s\S]*?isActive:\s*isVisible,[\s\S]*?\}\s*\)/s,
+  /useProjects\(\{[\s\S]*?isActive:\s*isVisible,[\s\S]*?targetProjectId:\s*projectId,[\s\S]*?\}\s*\)/s,
   'StudioPage must gate project-store subscriptions behind page visibility so the hidden studio workbench stops replaying project inventory updates.',
 );
 
@@ -152,7 +133,7 @@ assert.match(
 assert.match(
   projectsHookSource,
   /if \(!isActive\) \{\s*setStoreSnapshot\(createProjectsStoreSnapshot\(\)\);\s*return;\s*\}[\s\S]*const store = getProjectsStore\(storeScopeKey\);/s,
-  'useProjects must bail out before creating or reading a project store while inactive so hidden workbench surfaces do not retain unused workspace stores.',
+  'useProjects must bail out before creating or reading a project store while inactive.',
 );
 
 assert.match(

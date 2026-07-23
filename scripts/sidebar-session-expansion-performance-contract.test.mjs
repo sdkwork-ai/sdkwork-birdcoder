@@ -145,7 +145,7 @@ assert.match(
 );
 assert.match(
   projectsHookSource,
-  /const completed = await agentSessionService\.submitTurn\([\s\S]*const activityAt = completed\.turn\.completedAt \?\? completed\.turn\.updatedAt;[\s\S]*runtimeStatus: completed\.turn\.status === 'failed' \? 'failed' : 'ready',[\s\S]*resolveMessageActivitySortTimestamp\(activityAt\)/,
+  /const completed = await agentSessionService\.submitTurn\([\s\S]*const activityAt = completed\.turn\.completedAt \?\? completed\.turn\.updatedAt;[\s\S]*runtimeStatus: completed\.turn\.status === 'failed' \? 'failed' : 'ready',[\s\S]*resolveAgentSessionItemActivitySortTimestamp\(activityAt\)/,
   'A completed Agents turn must update runtime status, activity time, and the stable sort key from the canonical turn result.',
 );
 assert.match(

@@ -28,6 +28,7 @@ const forbiddenFiles = [
   'apps/sdkwork-birdcoder-flutter-mobile/packages/sdkwork_birdcoder_flutter_mobile_host/lib/src/session/iam_session_probe.dart',
   'scripts/birdcoder-agents-integration-contract.test.mjs',
   'scripts/api-backed-workspace-service-user-scope-fallback-contract.test.ts',
+  'scripts/api-backed-git-service-runtime-precedence.test.ts',
   'scripts/api-backed-project-service-authorized-catalog-no-delete-contract.test.ts',
   'scripts/api-backed-project-service-create-project-evidence-contract.test.ts',
   'scripts/api-backed-project-service-import-authority-contract.test.ts',
@@ -44,22 +45,31 @@ const forbiddenFiles = [
   'scripts/coding-session-runtime-status-resolution-contract.test.ts',
   'scripts/coding-session-send-progress-contract.test.ts',
   'scripts/coding-session-stale-runtime-status-startup-contract.test.ts',
+  'scripts/default-ide-services-git-service-contract.test.ts',
   'scripts/flutter-mobile-chat-api-contract.test.mjs',
+  'scripts/git-runtime-architecture-contract.test.mjs',
+  'scripts/http-api-transport-content-integrity-contract.test.ts',
+  'scripts/http-api-transport-cors-contract.test.ts',
   'scripts/http-api-transport-long-id-contract.test.ts',
+  'scripts/http-api-transport-problem-detail-contract.test.ts',
+  'scripts/http-api-transport-response-body-limit-contract.test.ts',
   'scripts/lazy-ide-services-sync-contract.test.mjs',
   'scripts/migrate-coding-sessions-repo-to-sqlx.py',
   'scripts/multiwindow-release-writeback-contract.test.mjs',
   'scripts/multiwindow-workspace-state-persistence-performance-contract.test.mjs',
   'scripts/multiwindow-workspace-state-serialization-performance-contract.test.mjs',
+  'scripts/new-session-runtime-topology-contract.test.ts',
   'scripts/patch-coding-session-repo.py',
   'scripts/postgres-returning-id-portability-contract.test.mjs',
   'scripts/project-inventory-render-identity-contract.test.ts',
+  'scripts/project-refresh-cache-bypass-contract.test.mjs',
   'scripts/project-session-index-cache-performance-contract.test.ts',
   'scripts/project-session-index-performance-contract.test.mjs',
   'scripts/project-session-location-cache-performance-contract.test.ts',
   'scripts/project-session-navigation-cache-performance-contract.test.ts',
   'scripts/projects-store-identity-deduplication-contract.test.ts',
   'scripts/projects-store-message-invariant-contract.test.ts',
+  'scripts/projects-store-message-reuse-contract.test.mjs',
   'scripts/provider-backed-project-inventory-clone-performance-contract.test.mjs',
   'scripts/project-agent-project-composition-contract.test.ts',
   'scripts/runtime-location-key-rotation-contract.test.mjs',
@@ -67,8 +77,11 @@ const forbiddenFiles = [
   'scripts/session-aware-coding-session-creation-contract.test.mjs',
   'scripts/session-refresh-timeout-contract.test.ts',
   'scripts/shell-coding-session-creation-standardization-contract.test.mjs',
+  'scripts/skill-package-tenant-scope-contract.test.mjs',
   'scripts/unified-coding-session-inventory-contract.test.ts',
   'scripts/selected-session-user-scope-refresh-contract.test.ts',
+  'scripts/selected-session-executing-refresh-performance-contract.test.mjs',
+  'scripts/selected-session-transcript-copy-performance-contract.test.mjs',
   'scripts/workspace-effective-selection-contract.test.ts',
   'scripts/workspace-project-loading-timeout-contract.test.ts',
   'scripts/workspace-realtime-browser-auth-contract.test.ts',
@@ -78,6 +91,7 @@ const forbiddenFiles = [
   'scripts/workspace-realtime-coding-session-engine-model-contract.test.ts',
   'scripts/claw-release-parity-baseline.mjs',
   'scripts/claw-release-parity-contract.test.mjs',
+  'crates/sdkwork-birdcoder-errors/src/tenant_scope.rs',
 ];
 const remainingForbiddenFiles = [...new Set(forbiddenFiles)]
   .filter((relativePath) => fs.existsSync(resolvePath(relativePath)));
@@ -177,7 +191,7 @@ const activeSourceFiles = [];
 for (const relativeRoot of activeSourceRoots) {
   collectActiveSourceFiles(resolvePath(relativeRoot), activeSourceFiles);
 }
-const retiredImplementationPattern = /useAgentSessionProjection|createBirdCoderAppRuntimeTransport|BirdCoderProjectMirror|ensureBirdCoderMobileChatConversation|listBirdCoderMobileChatMessages|sendBirdCoderMobileChatMessage|chatConversationsList|chatConversationsMessagesCreate|probeBirdCoderIamSession|HttpHeaders\.authorizationHeader|sdkwork\.birdcoder\.provider-runtime|sdkwork-birdcoder-provider-runtime|sdkwork-birdcoder-kernel-bridge|\/app\/v3\/api\/intelligence\/coding_sessions|\/app\/v3\/api\/chat\/conversations|persistentProjection|shadowTable|dualWrite|compatibilityFacade|ApiBackedWorkspaceService|IWorkspaceService|defaultAgentProjectId|BirdCoderProjectSummary|ComposedSdkProjectRuntimeLocationRegistrationPort|multiWindowWorkspaceState|workspaceBootstrap|projectImportWorkspace|localFolderProjectWorkspace/iu;
+const retiredImplementationPattern = /useAgentSessionProjection|createBirdCoderAppRuntimeTransport|BirdCoderProjectMirror|ensureBirdCoderMobileChatConversation|listBirdCoderMobileChatMessages|sendBirdCoderMobileChatMessage|chatConversationsList|chatConversationsMessagesCreate|probeBirdCoderIamSession|HttpHeaders\.authorizationHeader|sdkwork\.birdcoder\.provider-runtime|sdkwork-birdcoder-provider-runtime|sdkwork-birdcoder-kernel-bridge|\/app\/v3\/api\/intelligence\/coding_sessions|\/app\/v3\/api\/chat\/conversations|persistentProjection|shadowTable|dualWrite|compatibilityFacade|ApiBackedWorkspaceService|IWorkspaceService|defaultAgentProjectId|BirdCoderProjectSummary|ComposedSdkProjectRuntimeLocationRegistrationPort|ProjectWorkspaceBindingRequiredError|ApiBackedGitService|remoteSynchronization|forceWorkspace|isWorkspaceTerminalRequest|EMPTY_PROJECT_INVENTORY_MESSAGES|multiWindowWorkspaceState|workspaceBootstrap|projectImportWorkspace|localFolderProjectWorkspace|apps\/scripts\/initialize-component-specs\.mjs/iu;
 const implementationViolations = [];
 for (const absolutePath of activeSourceFiles) {
   const source = fs.readFileSync(absolutePath, 'utf8');

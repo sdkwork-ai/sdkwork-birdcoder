@@ -55,7 +55,7 @@ assert.match(
 
 assert.match(
   messageActionsSource,
-  /resolveMessageCopyContent\(message\)/,
+  /resolveSessionItemCopyContent\(message\)/,
   'Lazy copy resolution must use pc-types message copy projection instead of raw message.content for assistant replies.',
 );
 

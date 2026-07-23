@@ -552,9 +552,13 @@ function createBirdcoderWorkspaceAliasEntries(appRootDir = defaultBirdcoderAppRo
     },
     {
       find: '@sdkwork/birdcoder-app-sdk',
-      replacement: path.resolve(
-        appRootDir,
-        '../../sdks/sdkwork-birdcoder-app-sdk/sdkwork-birdcoder-app-sdk-typescript/src/index.ts',
+      replacement: path.join(
+        workspaceRootDir,
+        'sdks',
+        'sdkwork-birdcoder-app-sdk',
+        'sdkwork-birdcoder-app-sdk-typescript',
+        'src',
+        'index.ts',
       ),
     },
     {

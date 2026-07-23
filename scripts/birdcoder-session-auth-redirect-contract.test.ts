@@ -47,13 +47,13 @@ const transportError = new BirdCoderApiTransportError({
   detail: 'session required',
   httpStatus: 401,
   method: 'GET',
-  path: '/app/v3/api/workspaces',
+  path: '/app/v3/api/ai/projects',
 });
 
 assert.equal(readBirdCoderApiTransportErrorHttpStatus(transportError), 401);
 assert.equal(
   readBirdCoderApiTransportErrorHttpStatus(
-    new Error('BirdCoder API request failed: GET /app/v3/api/workspaces -> 401 (session required)'),
+    new Error('BirdCoder API request failed: GET /app/v3/api/ai/projects -> 401 (session required)'),
   ),
   401,
 );

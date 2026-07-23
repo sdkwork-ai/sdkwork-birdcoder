@@ -1,5 +1,5 @@
-export const BIRDCODER_CHAT_MESSAGE_MAX_MEDIA_SOURCE_CHARACTERS = 4 * 1_024 * 1_024;
-export const BIRDCODER_CHAT_MESSAGE_MAX_EXTERNAL_MEDIA_SOURCE_CHARACTERS = 4_096;
+export const BIRDCODER_AGENT_SESSION_ITEM_MAX_MEDIA_SOURCE_CHARACTERS = 4 * 1_024 * 1_024;
+export const BIRDCODER_AGENT_SESSION_ITEM_MAX_EXTERNAL_MEDIA_SOURCE_CHARACTERS = 4_096;
 
 export type AgentSessionItemMediaKind = 'audio' | 'image';
 
@@ -45,12 +45,12 @@ export function parseAgentSessionItemDataMediaSource(
   if (
     typeof value !== 'string'
     || value.length === 0
-    || value.length > BIRDCODER_CHAT_MESSAGE_MAX_MEDIA_SOURCE_CHARACTERS
+    || value.length > BIRDCODER_AGENT_SESSION_ITEM_MAX_MEDIA_SOURCE_CHARACTERS
   ) {
     return null;
   }
   const source = value.trim();
-  if (!source || source.length > BIRDCODER_CHAT_MESSAGE_MAX_MEDIA_SOURCE_CHARACTERS) {
+  if (!source || source.length > BIRDCODER_AGENT_SESSION_ITEM_MAX_MEDIA_SOURCE_CHARACTERS) {
     return null;
   }
   const match = DATA_MEDIA_SOURCE_PATTERN.exec(source);
@@ -93,16 +93,16 @@ export function resolveAgentSessionItemMediaSource(
   if (
     typeof value !== 'string'
     || value.length === 0
-    || value.length > BIRDCODER_CHAT_MESSAGE_MAX_MEDIA_SOURCE_CHARACTERS
+    || value.length > BIRDCODER_AGENT_SESSION_ITEM_MAX_MEDIA_SOURCE_CHARACTERS
   ) {
     return undefined;
   }
   const source = value.trim();
-  if (!source || source.length > BIRDCODER_CHAT_MESSAGE_MAX_MEDIA_SOURCE_CHARACTERS) {
+  if (!source || source.length > BIRDCODER_AGENT_SESSION_ITEM_MAX_MEDIA_SOURCE_CHARACTERS) {
     return undefined;
   }
   if (/^https?:\/\//iu.test(source) || /^blob:/iu.test(source)) {
-    return source.length <= BIRDCODER_CHAT_MESSAGE_MAX_EXTERNAL_MEDIA_SOURCE_CHARACTERS
+    return source.length <= BIRDCODER_AGENT_SESSION_ITEM_MAX_EXTERNAL_MEDIA_SOURCE_CHARACTERS
       ? source
       : undefined;
   }
@@ -132,7 +132,8 @@ export function buildAgentSessionItemDataMediaSource(
     return undefined;
   }
   const source = `data:${normalizedMimeType};base64,${data}`;
-  return source.length <= BIRDCODER_CHAT_MESSAGE_MAX_MEDIA_SOURCE_CHARACTERS
+  return source.length <= BIRDCODER_AGENT_SESSION_ITEM_MAX_MEDIA_SOURCE_CHARACTERS
     ? source
     : undefined;
 }
+

@@ -20,7 +20,7 @@ facts remain with their domain owners:
 | Owner | Canonical facts |
 | --- | --- |
 | `sdkwork-agents` | Agent Project, composition slot, Session, Turn, Session Item, Interaction, Runtime Binding, Artifact, and Checkpoint |
-| `sdkwork-skills` | Skill package, version, artifact, capability, installation, and execution metadata |
+| `sdkwork-skills` | Skill package, version, artifact, capability, and installation |
 | `sdkwork-im` | Human Conversation, Message, Member, and ReadCursor |
 | `sdkwork-iam` | Authentication, organization scope, membership, role, permission, and audit |
 | `sdkwork-drive` | Drive and sandbox storage |
@@ -62,8 +62,10 @@ BirdCoder owns four App API operations:
 Backend API operations: **0**. Open API operations: **0**. The authored
 authority is
 [the BirdCoder App OpenAPI](sdks/sdkwork-birdcoder-app-sdk/openapi/sdkwork-birdcoder-app-api.openapi.json).
-Project, composition, Session, Skill, IM, IAM, Drive, and Document operations
-are consumed from their owner SDK families and are not copied into BirdCoder.
+Project, composition, Session, Skill, IAM, Drive, and Document operations are
+consumed from their owner SDK families and are not copied into BirdCoder. Human
+Conversation and Message facts remain owned by IM; BirdCoder consumes the IM
+SDK only when an independent human messaging feature is enabled.
 
 ## PC Runtime Boundary
 
@@ -75,8 +77,8 @@ headers, fork DTOs, or import generated transport internals.
 - A Session uses the same canonical `projectId`, then records its opaque
   runtime location through Agents `sessionRuntimeBindings`.
 - Sandbox composition uses the Agents `drive/drive` composition slot.
-- Document composition remains unavailable and fails closed until Agents owns
-  the canonical `document/documents` slot pair.
+- Document composition uses the Agents `document/documents` composition slot
+  and resolves document content through `@sdkwork/documents-app-sdk`.
 - Local filesystem, Git, worktree, and terminal operations use PC/Tauri host
   adapters and an authorized device mount.
 

@@ -3,7 +3,7 @@ import type {
   AgentSessionItemView,
   AgentSessionItemPresentation,
   AgentSessionItemViewKind,
-  ChatMessageViewSource,
+  AgentSessionItemViewSource,
   FileChange,
 } from '@sdkwork/birdcoder-pc-workbench/chat/types';
 

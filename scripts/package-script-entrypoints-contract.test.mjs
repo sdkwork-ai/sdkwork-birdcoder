@@ -5,6 +5,10 @@ import path from 'node:path';
 const root = path.resolve(import.meta.dirname, '..');
 const packageJson = JSON.parse(fs.readFileSync(path.join(root, 'package.json'), 'utf8'));
 const scripts = packageJson.scripts ?? {};
+const pcPackageJson = JSON.parse(
+  fs.readFileSync(path.join(root, 'apps/sdkwork-birdcoder-pc/package.json'), 'utf8'),
+);
+const pcScripts = pcPackageJson.scripts ?? {};
 
 for (const scriptName of [
   'build',
@@ -72,6 +76,20 @@ for (const [scriptName, command] of Object.entries(scripts)) {
     );
   }
 }
+
+assert.equal(pcScripts.lint, 'pnpm typecheck');
+assert.equal(pcScripts.test, 'pnpm test:unit');
+assert.equal(
+  pcScripts['test:unit'],
+  'node ../../scripts/run-local-tsx.mjs ../../scripts/auth-surface-routing-contract.test.ts && node ../../scripts/run-workspace-package-script.mjs apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-workbench test',
+);
+assert.equal(pcScripts['test:integration'], undefined);
+assert.equal(pcScripts['test:config'], undefined);
+assert.doesNotMatch(
+  JSON.stringify(pcScripts),
+  /run-quality-fast-check\.mjs/u,
+  'PC surface scripts must remain PC-scoped and must not invoke the repository quality aggregator.',
+);
 
 const serializedScripts = JSON.stringify(scripts);
 for (const retiredToken of [

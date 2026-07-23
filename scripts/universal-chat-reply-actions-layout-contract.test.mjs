@@ -4,7 +4,7 @@ import path from 'node:path';
 import process from 'node:process';
 
 const rootDir = process.cwd();
-const universalChatSource = fs.readFileSync(
+const replyMessageRenderersSource = fs.readFileSync(
   path.join(
     rootDir,
     'apps',
@@ -14,33 +14,37 @@ const universalChatSource = fs.readFileSync(
     'sdkwork-birdcoder-pc-ui',
     'src',
     'components',
-    'UniversalChat.tsx',
+    'chat',
+    'messages',
+    'renderers',
+    'ReplyMessageRenderers.tsx',
   ),
   'utf8',
 );
-
-assert.doesNotMatch(
-  universalChatSource,
-  /\{showMessageActions \? \(\s*<div className="mt-1\.5 flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">[\s\S]*?\)\s*:\s*null\}\s*\n\s*\{msg\.fileChanges && msg\.fileChanges\.length > 0 && \(/,
-  'UniversalChat assistant reply actions must not render before file change and command sections, or they will appear inside the reply body instead of at the bottom edge.',
-);
-
-assert.match(
-  universalChatSource,
-  /\{msg\.commands && msg\.commands\.length > 0 && \([\s\S]*?\)\}\s*\n\s*\{showMessageActions \? \(\s*<div className="mt-1\.5 flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">/s,
-  'UniversalChat assistant reply actions must render after commands so the hover toolbar anchors to the bottom of the full reply block.',
+const assistantReplyRendererSource = replyMessageRenderersSource.match(
+  /export const AssistantReplyMessageRenderer[\s\S]*$/u,
+)?.[0];
+assert.ok(
+  assistantReplyRendererSource,
+  'UniversalChat must keep assistant reply rendering in the dedicated reply renderer.',
 );
 
 assert.doesNotMatch(
-  universalChatSource,
-  /\{isReplySegmentRole\(msg\.role\) && showMessageActions && \(\s*<div className="mt-1\.5 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">[\s\S]*?\)\}\s*\n\s*\{msg\.fileChanges && msg\.fileChanges\.length > 0 && \(/,
-  'UniversalChat sidebar reply actions must not render above file and command sections, or the hover toolbar will float inside the reply content.',
+  assistantReplyRendererSource,
+  /<ChatMessageActionBar[\s\S]*?<ContentBlockList view=\{view\} context=\{context\} \/>/,
+  'UniversalChat assistant reply actions must not render before the structured Session Item blocks.',
 );
 
 assert.match(
-  universalChatSource,
-  /\{msg\.commands && msg\.commands\.length > 0 && \([\s\S]*?\)\}\s*\n\s*\{isReplySegmentRole\(msg\.role\) && showMessageActions && \(\s*<div className="mt-1\.5 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">/s,
-  'UniversalChat sidebar reply actions must render after commands so the hover toolbar sits at the bottom of the reply block.',
+  assistantReplyRendererSource,
+  /<ContentBlockList view=\{view\} context=\{context\} \/>\s*\{context\.showMessageActions && !suppressReplyChrome \? \(\s*<ChatMessageActionBar/,
+  'UniversalChat assistant reply actions must render after all structured Session Item blocks so the toolbar anchors to the full reply edge.',
+);
+
+assert.match(
+  assistantReplyRendererSource,
+  /iconSize=\{isSidebar \? 12 : 14\}/,
+  'UniversalChat must reuse the same post-content action boundary for sidebar and main layouts with layout-appropriate controls.',
 );
 
 console.log('universal chat reply actions layout contract passed.');

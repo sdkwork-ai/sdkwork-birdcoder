@@ -6,7 +6,7 @@ const promptServicePath = new URL(
   import.meta.url,
 );
 const promptClientPath = new URL(
-  '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/src/services/promptsSdkClient.ts',
+  '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/src/services/dependencyAppSdkClients.ts',
   import.meta.url,
 );
 const promptPortPath = new URL(
@@ -29,8 +29,8 @@ const chatPresentationStateSource = fs.readFileSync(chatPresentationStatePath, '
 
 assert.match(
   promptServiceSource,
-  /from '@sdkwork\/prompts-app-sdk'/u,
-  'Saved Prompt persistence must use the sdkwork-prompts generated App SDK.',
+  /from '@sdkwork\/birdcoder-pc-core\/sdk\/prompts-app'/u,
+  'Saved Prompt persistence must consume the Prompts App SDK through the PC core SDK inventory.',
 );
 assert.match(
   promptServiceSource,
@@ -44,8 +44,18 @@ assert.doesNotMatch(
 );
 assert.match(
   promptClientSource,
-  /createClient\(\{[\s\S]*tokenManager:/u,
-  'The Prompts App SDK client must be created with the application TokenManager.',
+  /createClient as createPromptsAppClient,[\s\S]*from '@sdkwork\/birdcoder-pc-core\/sdk\/prompts-app'/u,
+  'The Prompts client factory must consume the canonical PC core Prompts App SDK entry.',
+);
+assert.match(
+  promptClientSource,
+  /export function createBirdCoderPromptsAppSdkClient\([\s\S]*createPromptsAppClient\(\{[\s\S]*tokenManager: getBirdCoderGlobalTokenManager\(\),[\s\S]*\}\)\);/u,
+  'The canonical Prompts client factory must bind the application global TokenManager.',
+);
+assert.doesNotMatch(
+  promptClientSource,
+  /from '@sdkwork\/prompts-app-sdk'|\bfetch\s*\(|\baxios\b|Authorization\s*:|Access-Token|new\s+TokenManager|createTokenManager\s*\(|localStorage|fallback|mirror|projection|dualWrite|dual-write/iu,
+  'The Prompts client factory must not bypass the PC core inventory, use raw HTTP or manual auth, create private token state, or recreate compatibility persistence.',
 );
 assert.doesNotMatch(
   promptPortSource,

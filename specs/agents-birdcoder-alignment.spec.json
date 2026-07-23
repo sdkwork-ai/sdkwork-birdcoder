@@ -11,7 +11,7 @@
   ],
   "dependencyDirection": [
     "sdkwork-birdcoder -> sdkwork-agents -> sdkwork-kernel",
-    "sdkwork-birdcoder -> sdkwork-im -> sdkwork-agents",
+    "sdkwork-im -> sdkwork-agents -> sdkwork-kernel",
     "sdkwork-agents -/-> sdkwork-im"
   ],
   "tasks": [

@@ -48,32 +48,32 @@ const studioPageSource = readSource(
 
 assert.match(
   agentSessionCreationSource,
-  /export async function regenerateWorkbenchAgentSessionFromLastUserMessage\(/,
-  'Workbench messaging must expose a shared regenerateWorkbenchAgentSessionFromLastUserMessage helper so regenerate behavior is standardized across surfaces.',
+  /export async function regenerateWorkbenchAgentSessionFromLastUserItem\(/,
+  'Workbench Agents integration must expose a shared regenerateWorkbenchAgentSessionFromLastUserItem helper so regenerate behavior is standardized across surfaces.',
 );
 
 assert.match(
   agentSessionCreationSource,
-  /regenerateMessageContext: AgentSessionTurnIdeContext;/,
-  'Regenerate helper must keep regenerateMessageContext typed as the canonical AgentSessionTurnIdeContext instead of erasing it to unknown.',
+  /regenerateTurnContext: WorkbenchAgentSessionTurnContext;/,
+  'Regenerate helper must keep regenerateTurnContext typed as the canonical WorkbenchAgentSessionTurnContext instead of erasing it to unknown.',
 );
 
 assert.match(
   agentSessionCreationSource,
-  /context\?: AgentSessionTurnIdeContext,/,
-  'Workbench regenerate/send message boundaries must share the same canonical AgentSessionTurnIdeContext type.',
+  /context\?: WorkbenchAgentSessionTurnContext,/,
+  'Workbench regenerate and turn-submission boundaries must share the same canonical WorkbenchAgentSessionTurnContext type.',
 );
 
 assert.match(
   `${codePageSource}\n${studioPageSource}`,
-  /regenerateWorkbenchAgentSessionFromLastUserMessage\(/,
-  'CodePage and StudioPage must reuse the shared regenerateWorkbenchAgentSessionFromLastUserMessage helper instead of maintaining divergent local regenerate flows.',
+  /regenerateWorkbenchAgentSessionFromLastUserItem\(/,
+  'CodePage and StudioPage must reuse the shared regenerateWorkbenchAgentSessionFromLastUserItem helper instead of maintaining divergent local regenerate flows.',
 );
 
 assert.doesNotMatch(
   `${codePageSource}\n${studioPageSource}`,
-  /lastUserMsgIndex|userMessages = agentSession\.messages\.filter/,
-  'CodePage and StudioPage must not inline last-user-message lookup logic once regenerateWorkbenchAgentSessionFromLastUserMessage owns that behavior.',
+  /lastUserMsgIndex|userMessages = agentSession\.messages\.filter|lastUserItemIndex|userItems = agentSession\.items\.filter/,
+  'CodePage and StudioPage must not inline last-user-item lookup logic once regenerateWorkbenchAgentSessionFromLastUserItem owns that behavior.',
 );
 
-console.log('message regeneration standardization contract passed.');
+console.log('agent session item regeneration standardization contract passed.');

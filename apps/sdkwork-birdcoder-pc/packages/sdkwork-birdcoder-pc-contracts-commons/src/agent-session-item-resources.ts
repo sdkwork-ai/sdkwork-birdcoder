@@ -1,5 +1,5 @@
 import {
-  AGENT_SESSION_ITEM_RESOURCE_KINDS as BIRDCODER_CHAT_MESSAGE_RESOURCE_KINDS,
+  AGENT_SESSION_ITEM_RESOURCE_KINDS as BIRDCODER_AGENT_SESSION_ITEM_RESOURCE_KINDS,
   type AgentSessionItemResourceView as AgentSessionItemResourceView,
   type AgentSessionItemResourceCitationView as AgentSessionItemResourceCitationView,
   type AgentSessionItemResourceKind as AgentSessionItemResourceKind,
@@ -8,7 +8,7 @@ import {
 import {
   resolveAgentSessionItemMediaSource,
   type AgentSessionItemMediaKind,
-} from './chat-message-media.ts';
+} from './agent-session-item-media.ts';
 
 export {
   AGENT_SESSION_ITEM_RESOURCE_KINDS,
@@ -18,7 +18,7 @@ export {
   type AgentSessionItemResourceOriginView,
 } from './agent-session-view.ts';
 
-const MAX_MESSAGE_RESOURCES = 32;
+const MAX_SESSION_ITEM_RESOURCES = 32;
 const MAX_RESOURCE_NAME_CHARACTERS = 256;
 const MAX_RESOURCE_LOCATION_CHARACTERS = 4_096;
 const MAX_RESOURCE_DESCRIPTION_CHARACTERS = 4_000;
@@ -27,7 +27,7 @@ const MAX_RESOURCE_MIME_TYPE_CHARACTERS = 128;
 const MAX_RESOURCE_THREAD_IDS = 16;
 const MAX_RESOURCE_THREAD_ID_CHARACTERS = 256;
 
-const RESOURCE_KIND_SET = new Set<string>(BIRDCODER_CHAT_MESSAGE_RESOURCE_KINDS);
+const RESOURCE_KIND_SET = new Set<string>(BIRDCODER_AGENT_SESSION_ITEM_RESOURCE_KINDS);
 const RESOURCE_ORIGIN_KIND_SET = new Set<string>(['file', 'symbol', 'resource']);
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -118,7 +118,7 @@ function projectResourceCitation(
   };
 }
 
-function normalizeMessageResource(
+function normalizeSessionItemResource(
   value: unknown,
   index: number,
 ): AgentSessionItemResourceView | null {
@@ -130,7 +130,7 @@ function normalizeMessageResource(
     return null;
   }
   const id = readBoundedString(value.id, MAX_RESOURCE_NAME_CHARACTERS)
-    ?? `message-resource-${index + 1}`;
+    ?? `session-item-resource-${index + 1}`;
   const name = readBoundedString(value.name, MAX_RESOURCE_NAME_CHARACTERS);
   const path = readBoundedString(value.path, MAX_RESOURCE_LOCATION_CHARACTERS);
   const rawUri = readBoundedString(value.uri, MAX_RESOURCE_LOCATION_CHARACTERS);
@@ -164,7 +164,7 @@ function normalizeMessageResource(
   };
 }
 
-export function normalizeChatMessageResources(
+export function normalizeAgentSessionItemResources(
   values: readonly unknown[] | undefined,
 ): AgentSessionItemResourceView[] {
   if (!values || values.length === 0) {
@@ -172,8 +172,8 @@ export function normalizeChatMessageResources(
   }
   const order: string[] = [];
   const resourcesById = new Map<string, AgentSessionItemResourceView>();
-  values.slice(0, MAX_MESSAGE_RESOURCES).forEach((value, index) => {
-    const resource = normalizeMessageResource(value, index);
+  values.slice(0, MAX_SESSION_ITEM_RESOURCES).forEach((value, index) => {
+    const resource = normalizeSessionItemResource(value, index);
     if (!resource) {
       return;
     }

@@ -132,10 +132,13 @@ assert.deepEqual(
   'BirdCoder must not retain authored files under the retired database authority root',
 );
 
-const agentsDependency = spec.dependencies.find((dependency) => dependency.owner === 'sdkwork-agents');
-const imDependency = spec.dependencies.find((dependency) => dependency.owner === 'sdkwork-im');
-assert.ok(agentsDependency, 'sdkwork-agents dependency ownership must be declared');
-assert.ok(imDependency, 'sdkwork-im dependency ownership must be declared');
+assert.equal(spec.dependencies, undefined, 'Runtime dependencies must not be conflated with external fact authorities.');
+const agentsAuthority = spec.externalAuthorities.find((authority) => authority.owner === 'sdkwork-agents');
+const driveAuthority = spec.externalAuthorities.find((authority) => authority.owner === 'sdkwork-drive');
+const imAuthority = spec.externalAuthorities.find((authority) => authority.owner === 'sdkwork-im');
+assert.ok(agentsAuthority, 'sdkwork-agents external authority must be declared');
+assert.ok(driveAuthority, 'sdkwork-drive external authority must be declared');
+assert.ok(imAuthority, 'sdkwork-im external authority must be declared');
 for (const capability of [
   'agent projects',
   'project composition',
@@ -145,24 +148,58 @@ for (const capability of [
   'interactions',
   'runtime bindings',
 ]) {
-  assert.ok(agentsDependency.capabilities.includes(capability), `Agents must own ${capability}`);
+  assert.ok(agentsAuthority.capabilities.includes(capability), `Agents must own ${capability}`);
 }
 assert.deepEqual(
-  imDependency.capabilities,
+  imAuthority.capabilities,
   ['human conversations', 'human messages', 'members', 'read cursors'],
 );
+assert.match(imAuthority.consumerBoundary, /only when an independent human messaging feature is enabled/u);
 for (const legacyTable of ['chat_conversation', 'chat_message']) {
-  assert.equal(agentsDependency.forbiddenLocalTables.includes(legacyTable), false);
-  assert.equal(imDependency.forbiddenLocalTables.includes(legacyTable), true);
+  assert.equal(agentsAuthority.retiredLocalTables.includes(legacyTable), false);
+  assert.equal(imAuthority.retiredLocalTables.includes(legacyTable), true);
 }
 
-const forbiddenTables = sortedUnique(
-  spec.dependencies.flatMap((dependency) => dependency.forbiddenLocalTables ?? []),
+const retiredLocalTables = sortedUnique(
+  spec.externalAuthorities.flatMap((authority) => authority.retiredLocalTables ?? []),
 );
-assert.ok(forbiddenTables.length > 0, 'dependency-owned table denylist must not be empty');
+assert.ok(retiredLocalTables.length > 0, 'retired BirdCoder table denylist must not be empty');
+
+const ownerRegistryTables = sortedUnique(
+  spec.externalAuthorities.flatMap((authority) => {
+    assert.equal(
+      authority.forbiddenLocalTables,
+      undefined,
+      `${authority.owner} must not copy an external table inventory into BirdCoder`,
+    );
+    if (!authority.ownerTableRegistry) {
+      return [];
+    }
+    assert.equal(
+      fs.existsSync(resolve(authority.ownerTableRegistry)),
+      true,
+      `${authority.owner} table registry must resolve from ${authority.ownerTableRegistry}`,
+    );
+    const registry = readJson(authority.ownerTableRegistry);
+    assert.equal(registry.kind, 'sdkwork.database.table-registry');
+    const tableNames = sortedUnique(
+      (registry.tables ?? [])
+        .map((entry) => entry.table_name)
+        .filter((tableName) => typeof tableName === 'string' && tableName.length > 0),
+    );
+    assert.ok(tableNames.length > 0, `${authority.owner} table registry must not be empty`);
+    return tableNames;
+  }),
+);
+assert.deepEqual(
+  retiredLocalTables.filter((tableName) => ownerRegistryTables.includes(tableName)),
+  [],
+  'Retired BirdCoder tables must not duplicate an owner canonical table registry',
+);
+const forbiddenTables = sortedUnique([...retiredLocalTables, ...ownerRegistryTables]);
 
 const forbiddenPathPrefixes = sortedUnique(
-  spec.dependencies.flatMap((dependency) => dependency.forbiddenLocalPathPrefixes ?? []),
+  spec.externalAuthorities.flatMap((authority) => authority.forbiddenLocalPathPrefixes ?? []),
 );
 const appAuthority = spec.apiOwnership.appApi;
 const appDocument = readJson(appAuthority.authorityFile);
@@ -333,6 +370,60 @@ for (const relativePath of [
     if (pattern.test(source)) {
       addViolation('documentation Canon', `${relativePath} contains stale ownership text ${pattern}`);
     }
+  }
+}
+
+const ownershipAdr = fs.readFileSync(resolve(spec.authority.decision), 'utf8');
+for (const direction of spec.dependencyDirection) {
+  if (!ownershipAdr.includes(direction)) {
+    addViolation('ownership ADR', `missing canonical dependency direction ${direction}`);
+  }
+}
+if (/BirdCoder -> IM -> Agents/iu.test(ownershipAdr)) {
+  addViolation('ownership ADR', 'retains an unconditional BirdCoder-to-IM dependency');
+}
+
+const dependencyVerification = fs.readFileSync(
+  resolve('docs/reference/shared-package-dependency-verification.md'),
+  'utf8',
+);
+const pcComponent = readJson('apps/sdkwork-birdcoder-pc/specs/component.spec.json');
+for (const dependency of pcComponent.contracts.sdkDependencies ?? []) {
+  if (!dependencyVerification.includes(`\`${dependency.workspace}\``)) {
+    addViolation(
+      'dependency verification documentation',
+      `missing PC runtime SDK ${dependency.workspace}`,
+    );
+  }
+}
+if (!/no required IM SDK consumer/iu.test(dependencyVerification)) {
+  addViolation(
+    'dependency verification documentation',
+    'must distinguish conditional IM ownership from the current PC runtime inventory',
+  );
+}
+
+const rootReadme = fs.readFileSync(resolve('README.md'), 'utf8');
+if (/skills?.*execution metadata/iu.test(rootReadme)) {
+  addViolation('root README', 'must not assign Agents execution metadata to sdkwork-skills');
+}
+
+const technicalArchitecture = fs.readFileSync(
+  resolve('docs/architecture/tech/TECH_ARCHITECTURE.md'),
+  'utf8',
+);
+for (const requiredDeviceStateContract of [
+  'PRIMARY KEY (scope, key)',
+  'project-device-mounts',
+  'desktop-runtime-location-identity',
+  'installation.v1',
+  '256 KiB',
+]) {
+  if (!technicalArchitecture.includes(requiredDeviceStateContract)) {
+    addViolation(
+      'technical architecture',
+      `device_state_entry design is missing ${requiredDeviceStateContract}`,
+    );
   }
 }
 

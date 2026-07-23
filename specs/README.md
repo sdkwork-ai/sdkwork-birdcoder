@@ -20,11 +20,11 @@ has no server persistence authority.
 
 ## Dependency Ownership
 
-| Owner | Facts consumed by BirdCoder |
+| Owner | External facts and integration state |
 | --- | --- |
 | `sdkwork-agents` | Project, composition, Session, Turn, Session Item, Interaction, Runtime Binding, Artifact, Checkpoint |
 | `sdkwork-skills` | Skill package, version, artifact, capability, installation |
-| `sdkwork-im` | Human Conversation, Message, Member, ReadCursor |
+| `sdkwork-im` | Owns Human Conversation, Message, Member, and ReadCursor; consumed only when an independent human messaging feature is enabled |
 | `sdkwork-iam` | Authentication, organization scope, membership, authorization, audit |
 | `sdkwork-drive` | Drive and sandbox storage |
 | `sdkwork-documents` | Document identity and content |

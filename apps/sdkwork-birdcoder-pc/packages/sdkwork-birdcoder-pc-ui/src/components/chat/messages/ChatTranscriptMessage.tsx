@@ -1,7 +1,7 @@
 import React, { memo, useMemo } from 'react';
 import {
-  resolveChatTurnActivitySummary,
-  resolveChatMessageView,
+  resolveAgentTurnActivityPresentation,
+  resolveAgentSessionItemPresentation,
 } from '@sdkwork/birdcoder-pc-workbench/chat/types';
 import type { AgentSessionItemView } from '@sdkwork/birdcoder-pc-workbench/chat/types';
 import { defaultChatMessageRendererRegistry } from './defaultRegistry.ts';
@@ -39,11 +39,11 @@ export const ChatTranscriptMessage = memo(function ChatTranscriptMessage({
   registry = defaultChatMessageRendererRegistry,
 }: ChatTranscriptMessageProps) {
   const activitySummary = useMemo(
-    () => resolveChatTurnActivitySummary(context.allMessages, message, { engineId }),
+    () => resolveAgentTurnActivityPresentation(context.allMessages, message, { engineId }),
     [context.allMessages, engineId, message],
   );
   const view = useMemo(
-    () => resolveChatMessageView(message, { activitySummary, engineId, layout }),
+    () => resolveAgentSessionItemPresentation(message, { activitySummary, engineId, layout }),
     [activitySummary, engineId, layout, message],
   );
   const entry = useMemo(() => registry.resolve(view), [registry, view]);

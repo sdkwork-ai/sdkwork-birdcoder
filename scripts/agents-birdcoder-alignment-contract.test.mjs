@@ -17,6 +17,17 @@ function readSource(relativePath) {
 
 const errors = [];
 
+assert.deepEqual(spec.dependencyDirection, [
+  'sdkwork-birdcoder -> sdkwork-agents -> sdkwork-kernel',
+  'sdkwork-im -> sdkwork-agents -> sdkwork-kernel',
+  'sdkwork-agents -/-> sdkwork-im',
+]);
+assert.equal(
+  spec.dependencyDirection.some((entry) => entry.startsWith('sdkwork-birdcoder -> sdkwork-im')),
+  false,
+  'IM ownership must not imply a BirdCoder runtime dependency before human messaging is enabled.',
+);
+
 for (const doc of spec.authorityDocs) {
   if (!fs.existsSync(resolvePath(doc))) {
     errors.push(`missing authority document: ${doc}`);

@@ -24,7 +24,6 @@ const tsconfigRelativePaths = [
   'tsconfig.json',
   'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-auth/tsconfig.json',
   'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-user/tsconfig.json',
-  'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-server/tsconfig.json',
 ];
 
 function readJson(relativePath) {

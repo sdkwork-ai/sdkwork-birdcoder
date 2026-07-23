@@ -93,7 +93,7 @@
       "apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-server"
     ]
   },
-  "dependencies": [
+  "externalAuthorities": [
     {
       "owner": "sdkwork-agents",
       "capabilities": [
@@ -108,7 +108,8 @@
         "checkpoints"
       ],
       "consumerBoundary": "generated Agents SDK or runtime facade",
-      "forbiddenLocalTables": [
+      "ownerTableRegistry": "../sdkwork-agents/database/contract/table-registry.json",
+      "retiredLocalTables": [
         "studio_workspace",
         "studio_project",
         "studio_project_document_binding",
@@ -119,14 +120,6 @@
         "studio_project_sandbox_binding",
         "studio_project_sandbox_binding_idempotency",
         "studio_project_sandbox_binding_audit",
-        "ai_agent_project",
-        "ai_agent_project_composition_slot",
-        "ai_agent_session",
-        "ai_agent_session_runtime_binding",
-        "ai_agent_turn",
-        "ai_agent_session_item",
-        "ai_agent_interaction",
-        "ai_agent_session_checkpoint",
         "ai_coding_session",
         "ai_coding_session_message",
         "ai_coding_session_runtime",
@@ -147,16 +140,16 @@
       "owner": "sdkwork-skills",
       "capabilities": [
         "skill packages",
+        "skill versions",
         "skill artifacts",
         "skill capabilities",
         "skill installations"
       ],
       "consumerBoundary": "generated Skills SDK",
-      "forbiddenLocalTables": [
+      "ownerTableRegistry": "../sdkwork-skills/database/contract/table-registry.json",
+      "retiredLocalTables": [
         "ai_skill_package",
-        "ai_skill_version",
-        "ai_skill_capability",
-        "ai_skill_installation"
+        "ai_skill_version"
       ],
       "forbiddenLocalPathPrefixes": [
         "/app/v3/api/skill_packages"
@@ -169,7 +162,7 @@
         "prompt entries"
       ],
       "consumerBoundary": "generated Prompts SDK",
-      "forbiddenLocalTables": [
+      "retiredLocalTables": [
         "ai_saved_prompt_entry"
       ],
       "forbiddenLocalPathPrefixes": []
@@ -182,16 +175,13 @@
         "members",
         "read cursors"
       ],
-      "consumerBoundary": "generated IM SDK",
-      "forbiddenLocalTables": [
+      "consumerBoundary": "generated IM SDK only when an independent human messaging feature is enabled",
+      "ownerTableRegistry": "../sdkwork-im/database/contract/table-registry.json",
+      "retiredLocalTables": [
         "chat_conversation",
         "chat_conversation_member",
         "chat_conversation_read_cursor",
-        "chat_message",
-        "im_conversations",
-        "im_conversation_members",
-        "im_conversation_read_cursors",
-        "im_conversation_messages"
+        "chat_message"
       ],
       "forbiddenLocalPathPrefixes": [
         "/app/v3/api/chat/conversations"
@@ -214,7 +204,7 @@
         "governance"
       ],
       "consumerBoundary": "generated IAM app/backend SDKs and appbase runtime",
-      "forbiddenLocalTables": [
+      "retiredLocalTables": [
         "studio_team",
         "studio_team_member",
         "studio_workspace_member",
@@ -235,13 +225,26 @@
       ]
     },
     {
+      "owner": "sdkwork-drive",
+      "capabilities": [
+        "drive spaces",
+        "drive nodes",
+        "sandbox storage"
+      ],
+      "consumerBoundary": "generated Drive SDK",
+      "retiredLocalTables": [],
+      "forbiddenLocalPathPrefixes": [
+        "/app/v3/api/drive"
+      ]
+    },
+    {
       "owner": "sdkwork-documents",
       "capabilities": [
         "documents",
         "document content"
       ],
       "consumerBoundary": "generated Documents SDK",
-      "forbiddenLocalTables": [
+      "retiredLocalTables": [
         "studio_project_document",
         "studio_project_content"
       ],
@@ -257,7 +260,7 @@
         "template instantiation"
       ],
       "consumerBoundary": "generated Appstore SDK",
-      "forbiddenLocalTables": [
+      "retiredLocalTables": [
         "studio_app_template",
         "studio_app_template_version",
         "studio_app_template_target_profile",
@@ -277,7 +280,7 @@
         "publishing"
       ],
       "consumerBoundary": "generated Deployments SDK",
-      "forbiddenLocalTables": [
+      "retiredLocalTables": [
         "studio_deployment_target",
         "studio_deployment_record",
         "ops_release_record"
@@ -298,7 +301,7 @@
         "engine catalog"
       ],
       "consumerBoundary": "generated Models SDK",
-      "forbiddenLocalTables": [],
+      "retiredLocalTables": [],
       "forbiddenLocalPathPrefixes": [
         "/app/v3/api/models",
         "/app/v3/api/engines",
@@ -311,7 +314,7 @@
         "model configuration"
       ],
       "consumerBoundary": "generated Settings SDK",
-      "forbiddenLocalTables": [
+      "retiredLocalTables": [
         "runtime_model_config"
       ],
       "forbiddenLocalPathPrefixes": [
@@ -327,7 +330,7 @@
         "usage metering"
       ],
       "consumerBoundary": "generated Membership SDK",
-      "forbiddenLocalTables": [
+      "retiredLocalTables": [
         "studio_commerce_membership",
         "studio_commerce_membership_benefit",
         "studio_commerce_membership_package_group",
@@ -342,7 +345,7 @@
         "orders"
       ],
       "consumerBoundary": "generated Order SDK",
-      "forbiddenLocalTables": [
+      "retiredLocalTables": [
         "studio_commerce_order"
       ],
       "forbiddenLocalPathPrefixes": [
@@ -355,7 +358,7 @@
         "invoices"
       ],
       "consumerBoundary": "generated Invoice SDK",
-      "forbiddenLocalTables": [
+      "retiredLocalTables": [
         "studio_commerce_invoice"
       ],
       "forbiddenLocalPathPrefixes": [
@@ -368,7 +371,7 @@
         "payments"
       ],
       "consumerBoundary": "generated Payment SDK",
-      "forbiddenLocalTables": [
+      "retiredLocalTables": [
         "studio_commerce_payment"
       ],
       "forbiddenLocalPathPrefixes": [
@@ -382,7 +385,7 @@
         "notifications"
       ],
       "consumerBoundary": "generated Messaging SDK",
-      "forbiddenLocalTables": [
+      "retiredLocalTables": [
         "studio_commerce_notification"
       ],
       "forbiddenLocalPathPrefixes": []
@@ -391,7 +394,7 @@
   "dependencyDirection": [
     "sdkwork-birdcoder -> sdkwork-agents -> sdkwork-kernel",
     "sdkwork-birdcoder -> sdkwork-skills",
-    "sdkwork-birdcoder -> sdkwork-im -> sdkwork-agents",
+    "sdkwork-im -> sdkwork-agents -> sdkwork-kernel",
     "sdkwork-agents -/-> sdkwork-im"
   ],
   "forbiddenLocalComponents": [

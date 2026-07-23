@@ -113,7 +113,6 @@ for (const subcommand of [
   'node scripts/birdcoder-iam-runtime-standard-contract.test.mjs',
   'node scripts/birdcoder-iam-shared-surface-contract.test.mjs',
   'node scripts/auth-ui-standard-contract.test.mjs',
-  'node scripts/iam-command-matrix-contract.test.mjs',
 ]) {
   assert.match(
     iamStandardLane,
@@ -149,10 +148,23 @@ const serviceContextSource = readText(
   rootDir,
   'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-workbench/src/context/ServiceContext.tsx',
 );
+const ideServicesSource = readText(
+  rootDir,
+  'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-workbench/src/context/ideServices.ts',
+);
+const lazyDefaultIdeServicesSource = readText(
+  rootDir,
+  'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-workbench/src/context/lazyDefaultIdeServices.ts',
+);
 assert.match(
-  serviceContextSource,
-  /IVipMembershipService/u,
-  'ServiceContext must expose vipMembershipService on the canonical IDE service boundary.',
+  ideServicesSource,
+  /vipMembershipService:\s*IVipMembershipService/u,
+  'The canonical IDE service boundary must expose the typed VIP membership port.',
+);
+assert.match(
+  lazyDefaultIdeServicesSource,
+  /['"]vipMembershipService['"]/u,
+  'The lazy IDE service catalog must include the VIP membership service.',
 );
 assert.match(
   serviceContextSource,

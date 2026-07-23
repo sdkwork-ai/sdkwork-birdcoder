@@ -5,7 +5,7 @@
     "name": "sdkwork-birdcoder",
     "displayName": "SDKWork BirdCoder",
     "version": "0.1.0",
-    "type": "react-tauri-app",
+    "type": "application-root",
     "root": "sdkwork-birdcoder",
     "domain": "intelligence",
     "declaredDomain": "intelligence",
@@ -139,62 +139,7 @@
     ],
     "routeManifest": null,
     "sdkClients": [],
-    "sdkDependencies": [
-      {
-        "workspace": "sdkwork-birdcoder-app-sdk",
-        "surface": "app-api",
-        "credentialMode": "authenticated-app-api",
-        "required": true
-      },
-      {
-        "workspace": "sdkwork-iam-app-sdk",
-        "surface": "app-api",
-        "credentialMode": "authenticated-app-api",
-        "required": true
-      },
-      {
-        "workspace": "sdkwork-drive-app-sdk",
-        "surface": "app-api",
-        "credentialMode": "authenticated-app-api",
-        "required": true
-      },
-      {
-        "workspace": "sdkwork-agents-app-sdk",
-        "surface": "app-api",
-        "credentialMode": "authenticated-app-api",
-        "required": true
-      },
-      {
-        "workspace": "sdkwork-skills-app-sdk",
-        "surface": "app-api",
-        "credentialMode": "authenticated-app-api",
-        "required": true
-      },
-      {
-        "workspace": "sdkwork-prompts-app-sdk",
-        "surface": "app-api",
-        "credentialMode": "authenticated-app-api",
-        "required": true
-      },
-      {
-        "workspace": "sdkwork-documents-app-sdk",
-        "surface": "app-api",
-        "credentialMode": "authenticated-app-api",
-        "required": true
-      },
-      {
-        "workspace": "sdkwork-messaging-app-sdk",
-        "surface": "app-api",
-        "credentialMode": "authenticated-app-api",
-        "required": false
-      },
-      {
-        "workspace": "sdkwork-membership-app-sdk",
-        "surface": "app-api",
-        "credentialMode": "authenticated-app-api",
-        "required": false
-      }
-    ],
+    "sdkDependencies": [],
     "permissionComposition": {
       "inheritanceMode": "module-catalog-with-overrides",
       "applicationModule": {
@@ -244,8 +189,8 @@
   },
   "integration": {
     "authority": "Root SDKWork specs and specs/domain-ownership.spec.json are authoritative.",
-    "dependencyPolicy": "Dependency capabilities are consumed through generated SDK families and injected service ports only.",
-    "sdkPolicy": "Bootstrap constructs SDK clients with the global TokenManager; feature UI never constructs transport clients.",
+    "dependencyPolicy": "Surface components declare dependency SDK consumption. The application root aggregates their contracts without maintaining a second runtime SDK inventory.",
+    "sdkPolicy": "PC bootstrap constructs SDK clients with the global TokenManager; feature UI never constructs transport clients.",
     "kernelPolicy": "BirdCoder has no direct Kernel dependency and reaches execution only through sdkwork-agents.",
     "messagePolicy": "Agents Session Items are AI-assistant facts; sdkwork-im Conversation and Message are human communication facts; sdkwork-messaging remains external delivery infrastructure."
   },

@@ -52,7 +52,7 @@ changing application behavior, runtime config, SDK wiring, or release metadata.
 - `index.html`: Browser entry point
 - `vite.config.ts`: Vite build configuration
 - `tsconfig.json`: TypeScript configuration
-- `Cargo.toml`: Rust workspace for server/desktop crates
+- `packages/sdkwork-birdcoder-pc-desktop/src-tauri/Cargo.toml`: Tauri Rust host manifest
 
 ## Documentation Canon
 

@@ -19,7 +19,7 @@ assert.doesNotMatch(
 
 assert.match(
   sidebarSource,
-  /onNewAgentSessionInProject\(\s*selectedProjectId,\s*newSessionEngineCatalog\.preferredSelection\.engineId,\s*\)/s,
+  /onNewAgentSessionInProject\(\s*selectedProjectId,\s*newSessionEngineCatalog\.preferredSelection\.engineId,\s*newSessionEngineCatalog\.preferredSelection\.modelId,\s*\)/s,
   'Sidebar root new-session action must create the default session through the current project callback so engine/model/session creation remains standardized.',
 );
 

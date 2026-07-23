@@ -15,8 +15,8 @@ composition root
 - Projects, composition, Sessions, Turns, Session Items, Interactions, and
   Runtime Bindings use the Agents App SDK.
 - Skills use the Skills App SDK.
-- Human messaging uses the IM SDK. AI assistant rows remain Agents Session
-  Items.
+- An independently enabled human messaging feature uses the IM SDK. AI
+  assistant rows always remain Agents Session Items.
 - All protected clients use the application TokenManager.
 - Tauri filesystem, Git, worktree, and terminal behavior uses host adapters.
 

@@ -48,20 +48,20 @@ const studioPageSource = readSource(
 
 assert.doesNotMatch(
   agentSessionCreationSource,
-  /throw new Error\(\s*'Workbench message session bootstrap requires a project before sending a message\./,
-  'ensureWorkbenchAgentSessionForMessage must not throw when the user cancels project resolution; first-turn sending should abort gracefully just like the previous page-local implementations.',
+  /throw new Error\(\s*'Workbench agent turn session bootstrap requires a project before submitting a turn input\./,
+  'ensureWorkbenchAgentSessionForTurnInput must not throw when the user cancels project resolution; first-turn submission should return control to the calling surface.',
 );
 
 assert.match(
   agentSessionCreationSource,
   /if \(!projectId\) \{\s*return null;\s*\}/s,
-  'ensureWorkbenchAgentSessionForMessage must return null when no project can be resolved so callers can stop sending without surfacing an exception.',
+  'ensureWorkbenchAgentSessionForTurnInput must return null when no project can be resolved so callers can stop turn submission through their standard unavailable-session path.',
 );
 
 assert.match(
   `${codePageSource}\n${studioPageSource}`,
-  /if \(!bootstrappedSession\) \{\s*return;\s*\}/s,
-  'CodePage and StudioPage must bail out cleanly when ensureWorkbenchAgentSessionForMessage returns null after a canceled project resolution flow.',
+  /if \(!bootstrappedSession\) \{\s*throw new Error\(t\('chat\.sendMessageSessionUnavailable'\)\);\s*\}/s,
+  'CodePage and StudioPage must stop before turn submission and surface the standard unavailable-session error when ensureWorkbenchAgentSessionForTurnInput returns null.',
 );
 
-console.log('message session bootstrap cancellation contract passed.');
+console.log('agent turn-input session bootstrap cancellation contract passed.');

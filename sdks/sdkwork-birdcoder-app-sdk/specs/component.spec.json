@@ -132,7 +132,7 @@
         "required": true,
         "dependencyMode": "consumer-sdk",
         "apiPrefix": "/app/v3/api",
-        "apiAuthority": "sdkwork-drive.app",
+        "apiAuthority": "sdkwork-drive-app-api",
         "generatedTransportImportPolicy": "forbidden",
         "packageByLanguage": {
           "typescript": "@sdkwork/drive-app-sdk",
@@ -161,6 +161,18 @@
         "generatedTransportImportPolicy": "forbidden",
         "packageByLanguage": {
           "typescript": "@sdkwork/membership-app-sdk"
+        }
+      },
+      {
+        "workspace": "sdkwork-order-app-sdk",
+        "role": "order-app-capability",
+        "required": true,
+        "dependencyMode": "consumer-sdk",
+        "apiPrefix": "/app/v3/api",
+        "apiAuthority": "sdkwork-order-app-api",
+        "generatedTransportImportPolicy": "forbidden",
+        "packageByLanguage": {
+          "typescript": "@sdkwork/order-app-sdk"
         }
       },
       {
@@ -226,9 +238,9 @@
   },
   "integration": {
     "authority": "BirdCoder app SDK owns only sdkwork-birdcoder app-api operations.",
-    "dependencyPolicy": "IAM, Drive, Membership, Skills, Agents, Prompts, Documents, human IM, and external-delivery Messaging capabilities are consumed through owner SDKs and are never copied into BirdCoder generated transport.",
+    "dependencyPolicy": "IAM, Drive, Membership, Order, Skills, Agents, Prompts, Documents, and external-delivery Messaging capabilities are declared through owner SDKs and are never copied into BirdCoder generated transport. Human IM remains owned by sdkwork-im and is consumed only when an independent human messaging feature is enabled.",
     "sdkPolicy": "@sdkwork/sdk-generator owns generated/server-openapi; handwritten integration is confined to the composed TypeScript facade outside generated ownership.",
-    "languagePolicy": "TypeScript and Rust transports are regenerated from the same 39-operation owner-only input."
+    "languagePolicy": "TypeScript and Rust transports are regenerated from the same owner-only input materialized from the BirdCoder App OpenAPI."
   },
   "verification": {
     "commands": [

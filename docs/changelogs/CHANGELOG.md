@@ -20,9 +20,9 @@ Specs: DOCUMENTATION_SPEC.md, RELEASE_SPEC.md
   Project device mounts.
 - Kept filesystem, Git, worktree, and terminal operations in PC/Tauri host
   adapters.
-- Standardized sandbox composition on Agents `drive/drive`; document
-  composition now fails closed pending the owner `document/documents`
-  contract.
+- Standardized sandbox composition on Agents `drive/drive` and document
+  composition on Agents `document/documents` plus the Documents App SDK,
+  without a BirdCoder binding table or projection.
 
 ### Removed
 

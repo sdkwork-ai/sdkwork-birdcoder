@@ -25,7 +25,7 @@ export interface CreateNewAgentSessionRequest {
     | 'file-menu'
     | 'global-event'
     | 'keyboard-shortcut'
-    | 'message-submit'
+    | 'turn-submit'
     | 'multi-window'
     | 'studio'
     | 'project-menu';
@@ -91,13 +91,13 @@ export type ResolveWorkbenchProjectId = () =>
 export type DeleteWorkbenchAgentSessionItem = (
   projectId: string,
   agentSessionId: string,
-  messageId: string,
+  sessionItemId: string,
 ) => Promise<void>;
 
 export type EditWorkbenchAgentSessionItem = (
   projectId: string,
   agentSessionId: string,
-  messageId: string,
+  sessionItemId: string,
   updates: {
     content: string;
   },
@@ -115,7 +115,7 @@ export type SaveWorkbenchFileContent = (
   content: string,
 ) => Promise<void>;
 
-const WORKBENCH_MESSAGE_SESSION_TITLE_MAX_LENGTH = 20;
+const WORKBENCH_AGENT_TURN_SESSION_TITLE_MAX_LENGTH = 20;
 
 function normalizeOptionalText(value: string | undefined): string | undefined {
   const normalized = value?.trim();
@@ -235,23 +235,23 @@ export function buildWorkbenchAgentSessionTurnContext({
   };
 }
 
-function buildWorkbenchMessageSessionTitle(messageContent: string): string {
-  const normalizedMessageContent = messageContent.trim();
-  if (!normalizedMessageContent) {
+function buildWorkbenchAgentTurnSessionTitle(turnInputContent: string): string {
+  const normalizedTurnInputContent = turnInputContent.trim();
+  if (!normalizedTurnInputContent) {
     return 'New Session';
   }
 
   return (
-    normalizedMessageContent.slice(0, WORKBENCH_MESSAGE_SESSION_TITLE_MAX_LENGTH) +
-    (normalizedMessageContent.length > WORKBENCH_MESSAGE_SESSION_TITLE_MAX_LENGTH ? '...' : '')
+    normalizedTurnInputContent.slice(0, WORKBENCH_AGENT_TURN_SESSION_TITLE_MAX_LENGTH) +
+    (normalizedTurnInputContent.length > WORKBENCH_AGENT_TURN_SESSION_TITLE_MAX_LENGTH ? '...' : '')
   );
 }
 
-export async function ensureWorkbenchAgentSessionForMessage({
+export async function ensureWorkbenchAgentSessionForTurnInput({
   createAgentSessionFromRequest,
   currentAgentSessionId,
   currentProjectId,
-  messageContent,
+  turnInputContent,
   requestedEngineId,
   requestedModelId,
   resolveProjectId,
@@ -259,7 +259,7 @@ export async function ensureWorkbenchAgentSessionForMessage({
   createAgentSessionFromRequest: CreateWorkbenchAgentSessionFromRequest;
   currentAgentSessionId?: string | null;
   currentProjectId?: string | null;
-  messageContent: string;
+  turnInputContent: string;
   requestedEngineId?: string | null;
   requestedModelId?: string | null;
   resolveProjectId: ResolveWorkbenchProjectId;
@@ -291,8 +291,8 @@ export async function ensureWorkbenchAgentSessionForMessage({
     engineId: requestedEngineId?.trim() || undefined,
     modelId: requestedModelId?.trim() || undefined,
     projectId,
-    source: 'message-submit',
-    title: buildWorkbenchMessageSessionTitle(messageContent),
+    source: 'turn-submit',
+    title: buildWorkbenchAgentTurnSessionTitle(turnInputContent),
   }, {
     showSuccessToast: false,
   });
@@ -305,56 +305,56 @@ export async function ensureWorkbenchAgentSessionForMessage({
   };
 }
 
-export async function regenerateWorkbenchAgentSessionFromLastUserMessage({
+export async function regenerateWorkbenchAgentSessionFromLastUserItem({
   agentSession,
   deleteAgentSessionItem,
   projectId,
-  regenerateMessageContext,
+  regenerateTurnContext,
   submitAgentTurn,
 }: {
   agentSession: AgentSessionView;
   deleteAgentSessionItem: DeleteWorkbenchAgentSessionItem;
   projectId: string;
-  regenerateMessageContext: WorkbenchAgentSessionTurnContext;
+  regenerateTurnContext: WorkbenchAgentSessionTurnContext;
   submitAgentTurn: SubmitWorkbenchAgentTurn;
 }): Promise<boolean> {
-  const messages = agentSession.items;
-  let lastUserMessageIndex = -1;
+  const items = agentSession.items;
+  let lastUserItemIndex = -1;
 
-  for (let messageIndex = messages.length - 1; messageIndex >= 0; messageIndex -= 1) {
-    if (messages[messageIndex]?.role === 'user') {
-      lastUserMessageIndex = messageIndex;
+  for (let itemIndex = items.length - 1; itemIndex >= 0; itemIndex -= 1) {
+    if (items[itemIndex]?.role === 'user') {
+      lastUserItemIndex = itemIndex;
       break;
     }
   }
 
-  if (lastUserMessageIndex === -1) {
+  if (lastUserItemIndex === -1) {
     return false;
   }
 
-  const lastUserMessage = messages[lastUserMessageIndex];
-  if (!lastUserMessage) {
+  const lastUserItem = items[lastUserItemIndex];
+  if (!lastUserItem) {
     return false;
   }
 
   for (
-    let messageIndex = messages.length - 1;
-    messageIndex >= lastUserMessageIndex;
-    messageIndex -= 1
+    let itemIndex = items.length - 1;
+    itemIndex >= lastUserItemIndex;
+    itemIndex -= 1
   ) {
-    const messageId = messages[messageIndex]?.id?.trim() ?? '';
-    if (!messageId) {
+    const sessionItemId = items[itemIndex]?.id?.trim() ?? '';
+    if (!sessionItemId) {
       continue;
     }
 
-    await deleteAgentSessionItem(projectId, agentSession.id, messageId);
+    await deleteAgentSessionItem(projectId, agentSession.id, sessionItemId);
   }
 
   await submitAgentTurn(
     projectId,
     agentSession.id,
-    lastUserMessage.content,
-    regenerateMessageContext,
+    lastUserItem.content,
+    regenerateTurnContext,
   );
 
   return true;
@@ -363,48 +363,48 @@ export async function regenerateWorkbenchAgentSessionFromLastUserMessage({
 export async function deleteWorkbenchAgentSessionItems({
   agentSessionId,
   deleteAgentSessionItem,
-  messageIds,
+  sessionItemIds,
   projectId,
 }: {
   agentSessionId: string;
   deleteAgentSessionItem: DeleteWorkbenchAgentSessionItem;
-  messageIds: readonly string[];
+  sessionItemIds: readonly string[];
   projectId: string;
 }): Promise<number> {
-  const normalizedMessageIds = Array.from(
+  const normalizedSessionItemIds = Array.from(
     new Set(
-      messageIds
-        .map((messageId) => messageId.trim())
-        .filter((messageId) => messageId.length > 0)
+      sessionItemIds
+        .map((sessionItemId) => sessionItemId.trim())
+        .filter((sessionItemId) => sessionItemId.length > 0)
     )
   );
 
   for (
-    let messageIndex = normalizedMessageIds.length - 1;
-    messageIndex >= 0;
-    messageIndex -= 1
+    let itemIndex = normalizedSessionItemIds.length - 1;
+    itemIndex >= 0;
+    itemIndex -= 1
   ) {
     await deleteAgentSessionItem(
       projectId,
       agentSessionId,
-      normalizedMessageIds[messageIndex]!,
+      normalizedSessionItemIds[itemIndex]!,
     );
   }
 
-  return normalizedMessageIds.length;
+  return normalizedSessionItemIds.length;
 }
 
 export async function editWorkbenchAgentSessionItem({
   agentSessionId,
   content,
   editAgentSessionItem,
-  messageId,
+  sessionItemId,
   projectId,
 }: {
   agentSessionId: string;
   content: string;
   editAgentSessionItem: EditWorkbenchAgentSessionItem;
-  messageId: string;
+  sessionItemId: string;
   projectId: string;
 }): Promise<boolean> {
   const trimmedContent = content.trim();
@@ -415,7 +415,7 @@ export async function editWorkbenchAgentSessionItem({
   await editAgentSessionItem(
     projectId,
     agentSessionId,
-    messageId,
+    sessionItemId,
     { content: trimmedContent },
   );
   return true;

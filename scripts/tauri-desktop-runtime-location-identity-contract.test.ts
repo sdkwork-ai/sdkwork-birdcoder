@@ -61,13 +61,11 @@ try {
   });
   assert.deepEqual(firstIdentity, {
     displayName: 'identity-project',
-    locationKind: 'desktop_checkout',
+    locationKind: 'local_directory',
     pathFlavor: 'windows',
-    requiresRebind: false,
     rootLocator: firstRootLocator,
-    runtimeLocationCreateGeneration: 0,
     runtimeTargetId,
-    runtimeTargetKind: 'desktop_device',
+    runtimeTargetKind: 'desktop',
   });
   assert.equal(rootLocatorCreateCalls, 1);
   assert.equal(
@@ -83,21 +81,6 @@ try {
   assert.equal(repeatedIdentity?.rootLocator, firstRootLocator);
   assert.equal(rootLocatorCreateCalls, 1, 'Root locator generation is one-time and mount-local.');
 
-  await identityPort.persistRemoteRuntimeLocationBinding({
-    absolutePath: 'E:\\work\\identity-project',
-    projectId: 'project-identity',
-    rootLocator: firstRootLocator,
-    runtimeLocationId: 'remote-location-1',
-    runtimeLocationVersion: 'version-1',
-  });
-  const registeredIdentity = await identityPort.resolveDesktopRuntimeLocationBinding({
-    absolutePath: 'E:\\work\\identity-project',
-    projectId: 'project-identity',
-  });
-  assert.equal(registeredIdentity?.runtimeLocationId, 'remote-location-1');
-  assert.equal(registeredIdentity?.runtimeLocationVersion, 'version-1');
-  assert.equal(registeredIdentity?.requiresRebind, false);
-
   await registry.register('project-identity', {
     path: 'E:\\work\\identity-project-moved',
     type: 'tauri',
@@ -107,26 +90,7 @@ try {
     projectId: 'project-identity',
   });
   assert.equal(movedIdentity?.rootLocator, firstRootLocator, 'Path rebind must preserve root locator.');
-  assert.equal(movedIdentity?.runtimeLocationId, 'remote-location-1');
-  assert.equal(movedIdentity?.requiresRebind, true, 'A changed path must require rebind.');
-
-  await identityPort.clearRemoteRuntimeLocationBinding({
-    absolutePath: 'E:\\work\\identity-project-moved',
-    projectId: 'project-identity',
-    rootLocator: firstRootLocator,
-  });
-  const clearedIdentity = await identityPort.resolveDesktopRuntimeLocationBinding({
-    absolutePath: 'E:\\work\\identity-project-moved',
-    projectId: 'project-identity',
-  });
-  assert.equal(clearedIdentity?.rootLocator, firstRootLocator);
-  assert.equal(clearedIdentity?.runtimeLocationId, undefined);
-  assert.equal(clearedIdentity?.requiresRebind, false);
-  assert.equal(
-    clearedIdentity?.runtimeLocationCreateGeneration,
-    1,
-    'Confirmed stale remote recovery must advance the durable create generation.',
-  );
+  assert.equal(rootLocatorCreateCalls, 1, 'Moving a local path must not rotate its opaque locator.');
 
   subject = {
     realm: 'identity-contract',

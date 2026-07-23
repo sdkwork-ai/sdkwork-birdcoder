@@ -94,7 +94,7 @@ export function useCodePageTerminalActions({
 
     const terminalProfile = profileId ? getTerminalProfile(profileId) : null;
     emitOpenTerminalRequest({
-      surface: 'workspace',
+      surface: 'project',
       path: localWorkingDirectory,
       profileId: terminalProfile?.id,
       timestamp: Date.now(),

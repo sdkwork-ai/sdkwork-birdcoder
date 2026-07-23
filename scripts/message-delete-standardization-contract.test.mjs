@@ -49,25 +49,25 @@ const codeDeleteConfirmationSource = readSource(
 assert.match(
   workbenchSource,
   /export async function deleteWorkbenchAgentSessionItems\(/,
-  'Workbench messaging must expose a shared deleteWorkbenchAgentSessionItems helper so message deletion order and semantics stay standardized across surfaces.',
+  'Workbench Agents integration must expose a shared deleteWorkbenchAgentSessionItems helper so Session Item deletion order and semantics stay standardized across surfaces.',
 );
 
 assert.match(
   `${studioPageSource}\n${codeDeleteConfirmationSource}`,
   /deleteWorkbenchAgentSessionItems\(/,
-  'StudioPage and useCodeDeleteConfirmation must reuse deleteWorkbenchAgentSessionItems instead of reimplementing reverse-order deletion locally.',
+  'StudioPage and useCodeDeleteConfirmation must reuse deleteWorkbenchAgentSessionItems instead of reimplementing reverse-order Session Item deletion locally.',
 );
 
 assert.match(
   workbenchSource,
-  /Array\.from\(\s*new Set\(\s*messageIds[\s\S]*\.map\(\(messageId\) => messageId\.trim\(\)\)[\s\S]*\.filter\(\(messageId\) => messageId\.length > 0\)[\s\S]*\)\s*\)/s,
-  'deleteWorkbenchAgentSessionItems must de-duplicate message ids before deletion so duplicate provider ids do not trigger a second not-found delete.',
+  /Array\.from\(\s*new Set\(\s*sessionItemIds[\s\S]*\.map\(\(sessionItemId\) => sessionItemId\.trim\(\)\)[\s\S]*\.filter\(\(sessionItemId\) => sessionItemId\.length > 0\)[\s\S]*\)\s*\)/s,
+  'deleteWorkbenchAgentSessionItems must de-duplicate Session Item ids before deletion so duplicate provider ids do not trigger a second not-found delete.',
 );
 
 assert.doesNotMatch(
   `${studioPageSource}\n${codeDeleteConfirmationSource}`,
-  /for \(let messageIndex = messageIds\.length - 1; messageIndex >= 0; messageIndex -= 1\)/,
-  'StudioPage and useCodeDeleteConfirmation must not inline reverse-order message deletion loops once deleteWorkbenchAgentSessionItems owns that behavior.',
+  /for \(let itemIndex = sessionItemIds\.length - 1; itemIndex >= 0; itemIndex -= 1\)/,
+  'StudioPage and useCodeDeleteConfirmation must not inline reverse-order Session Item deletion loops once deleteWorkbenchAgentSessionItems owns that behavior.',
 );
 
-console.log('message delete standardization contract passed.');
+console.log('agent session item delete standardization contract passed.');

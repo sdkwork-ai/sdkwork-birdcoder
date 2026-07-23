@@ -1,12 +1,12 @@
 import assert from 'node:assert/strict';
 
 import {
-  buildChatMessageViewSynchronizationSignature,
-  resolveChatMessageView,
-  type ChatMessageViewSource,
-} from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-contracts-commons/src/chat-message-view.ts';
+  buildAgentSessionItemPresentationSynchronizationSignature,
+  resolveAgentSessionItemPresentation,
+  type AgentSessionItemViewSource,
+} from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-contracts-commons/src/agent-session-item-presentation.ts';
 
-const userMessage: ChatMessageViewSource = {
+const userMessage: AgentSessionItemViewSource = {
   id: 'msg-user-1',
   agentSessionId: 'session-1',
   role: 'user',
@@ -14,7 +14,7 @@ const userMessage: ChatMessageViewSource = {
   createdAt: '2026-06-22T00:00:00.000Z',
 };
 
-const activityMessage: ChatMessageViewSource = {
+const activityMessage: AgentSessionItemViewSource = {
   id: 'msg-assistant-1',
   agentSessionId: 'session-1',
   role: 'assistant',
@@ -35,11 +35,11 @@ const activityMessage: ChatMessageViewSource = {
   ],
 };
 
-const userView = resolveChatMessageView(userMessage);
+const userView = resolveAgentSessionItemPresentation(userMessage);
 assert.equal(userView.kind, 'user.text');
 assert.equal(userView.blocks.some((block) => block.type === 'markdown'), true);
 
-const activityView = resolveChatMessageView(activityMessage, { engineId: 'codex' });
+const activityView = resolveAgentSessionItemPresentation(activityMessage, { engineId: 'codex' });
 assert.equal(activityView.kind, 'assistant.activity');
 assert.equal(activityView.engineId, 'codex');
 assert.equal(activityView.blocks.some((block) => block.type === 'activity'), true);
@@ -53,10 +53,10 @@ assert.ok(activityBlock && activityBlock.type === 'activity');
 assert.equal(activityBlock.fileChanges.length, 1);
 assert.equal(activityBlock.commands.length, 1);
 
-const signature = buildChatMessageViewSynchronizationSignature(activityView);
+const signature = buildAgentSessionItemPresentationSynchronizationSignature(activityView);
 assert.match(signature, /assistant\.activity/);
 
-const mixedFileActivityView = resolveChatMessageView({
+const mixedFileActivityView = resolveAgentSessionItemPresentation({
   ...activityMessage,
   id: 'msg-assistant-mixed-file-tools',
   tool_calls: [
@@ -84,7 +84,7 @@ assert.deepEqual(
   'File reads must remain visible when a separate file-change row deduplicates mutations.',
 );
 
-const detailedTaskProgressView = resolveChatMessageView({
+const detailedTaskProgressView = resolveAgentSessionItemPresentation({
   id: 'msg-assistant-detailed-task-progress',
   agentSessionId: 'session-1',
   role: 'assistant',
@@ -130,7 +130,7 @@ assert.deepEqual(
   'A compact task-progress counter must not discard the provider task checklist or its text.',
 );
 
-const geminiDetailedTaskProgressView = resolveChatMessageView({
+const geminiDetailedTaskProgressView = resolveAgentSessionItemPresentation({
   id: 'msg-assistant-gemini-detailed-task-progress',
   agentSessionId: 'session-1',
   role: 'assistant',

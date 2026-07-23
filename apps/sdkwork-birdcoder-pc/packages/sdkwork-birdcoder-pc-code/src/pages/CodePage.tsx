@@ -2,8 +2,8 @@ import { memo, startTransition, useCallback, useEffect, useMemo, useRef, useStat
 import { buildProjectAgentSessionIndex } from '@sdkwork/birdcoder-pc-workbench/workbench/agentSessionSelection';
 import {
   buildWorkbenchAgentSessionTurnContext,
-  ensureWorkbenchAgentSessionForMessage,
-  regenerateWorkbenchAgentSessionFromLastUserMessage,
+  ensureWorkbenchAgentSessionForTurnInput,
+  regenerateWorkbenchAgentSessionFromLastUserItem,
   restoreWorkbenchAgentSessionItemFiles,
   type CreateAgentSessionActionOptions,
   type CreateNewAgentSessionRequest,
@@ -82,7 +82,7 @@ function CodePageComponent({
     deleteAgentSession,
     editAgentSessionItem,
     deleteAgentSessionItem,
-    sendMessage,
+    submitAgentTurnInput,
     forkAgentSession,
     loadMoreProjects,
     loadMoreProjectSessions,
@@ -816,9 +816,9 @@ function CodePageComponent({
   const handleDeleteMessage = useCallback(async (
     agentSessionId: string,
     projectId: string,
-    messageIds: string[],
+    sessionItemIds: string[],
   ) => {
-    requestDeleteMessage(agentSessionId, projectId, messageIds);
+    requestDeleteMessage(agentSessionId, projectId, sessionItemIds);
   }, [requestDeleteMessage]);
 
   const handleRegenerateMessage = useCallback(async (
@@ -837,11 +837,11 @@ function CodePageComponent({
         setIsSubmittingTurn(true);
         try {
           const didRegenerate =
-            await regenerateWorkbenchAgentSessionFromLastUserMessage({
+            await regenerateWorkbenchAgentSessionFromLastUserItem({
               agentSession,
               deleteAgentSessionItem,
               projectId: project.projectId,
-              regenerateMessageContext: buildWorkbenchAgentSessionTurnContext({
+              regenerateTurnContext: buildWorkbenchAgentSessionTurnContext({
                 currentFileContent: fileContent,
                 currentFileLanguage: selectedFile ? getLanguageFromPath(selectedFile) : null,
                 currentFilePath: selectedFile,
@@ -849,7 +849,7 @@ function CodePageComponent({
                 sessionId: agentSession.id,
               }),
               submitAgentTurn: (targetProjectId, targetAgentSessionId, content, context) =>
-                sendMessage(targetProjectId, targetAgentSessionId, content, context),
+                submitAgentTurnInput(targetProjectId, targetAgentSessionId, content, context),
             });
           if (didRegenerate) {
             setSelectionRefreshToken((previousState) => previousState + 1);
@@ -865,10 +865,10 @@ function CodePageComponent({
     getLanguageFromPath,
     isChatBusy,
     buildWorkbenchAgentSessionTurnContext,
-    regenerateWorkbenchAgentSessionFromLastUserMessage,
+    regenerateWorkbenchAgentSessionFromLastUserItem,
     resolveSessionActionLocation,
     selectedFile,
-    sendMessage,
+    submitAgentTurnInput,
     setSelectionRefreshToken,
   ]);
 
@@ -926,11 +926,11 @@ function CodePageComponent({
         requestedModelId.toLowerCase() !== currentSessionModelId.toLowerCase())
         ? null
         : sessionId;
-    const bootstrappedSession = await ensureWorkbenchAgentSessionForMessage({
+    const bootstrappedSession = await ensureWorkbenchAgentSessionForTurnInput({
       createAgentSessionFromRequest: createAgentSessionWithTranscriptReset,
       currentAgentSessionId,
       currentProjectId,
-      messageContent: trimmedContent,
+      turnInputContent: trimmedContent,
       requestedEngineId: composerSelection?.engineId,
       requestedModelId: composerSelection?.modelId,
       resolveProjectId: async () => {
@@ -953,7 +953,7 @@ function CodePageComponent({
         projectId: bootstrappedSession.projectId,
         sessionId: bootstrappedSession.agentSessionId,
       });
-      const sentMessage = await sendMessage(
+      const sentMessage = await submitAgentTurnInput(
         bootstrappedSession.projectId,
         bootstrappedSession.agentSessionId,
         trimmedContent,
@@ -971,7 +971,7 @@ function CodePageComponent({
     }
   }, [
     buildWorkbenchAgentSessionTurnContext,
-    ensureWorkbenchAgentSessionForMessage,
+    ensureWorkbenchAgentSessionForTurnInput,
     createAgentSessionWithTranscriptReset,
     currentProjectId,
     fileContent,
@@ -984,7 +984,7 @@ function CodePageComponent({
     session?.modelId,
     sessionId,
     selectedFile,
-    sendMessage,
+    submitAgentTurnInput,
     setSelectionRefreshToken,
     t,
   ]);
@@ -1086,9 +1086,9 @@ function CodePageComponent({
     }
     return Promise.resolve();
   }, [handleEditMessage, session]);
-  const handleDeleteSelectedAgentSessionItem = useCallback((messageIds: string[]) => {
+  const handleDeleteSelectedAgentSessionItem = useCallback((sessionItemIds: string[]) => {
     if (session) {
-      void handleDeleteMessage(session.id, currentProjectId, messageIds);
+      void handleDeleteMessage(session.id, currentProjectId, sessionItemIds);
     }
   }, [currentProjectId, handleDeleteMessage, session]);
   const handleRegenerateSelectedAgentSessionItem = useCallback(() => {

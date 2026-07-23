@@ -6,7 +6,7 @@ import {
   deduplicateAgentSessionItemViews,
   type AgentSessionItemView,
 } from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-contracts-commons/src/agent-session-view.ts';
-import { resolveChatMessageView } from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-contracts-commons/src/chat-message-view.ts';
+import { resolveAgentSessionItemPresentation } from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-contracts-commons/src/agent-session-item-presentation.ts';
 import { toAgentSessionItemView } from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-workbench/src/services/agentSessionViewModels.ts';
 
 const canonicalItem: AgentSessionItemRecord = {
@@ -64,7 +64,7 @@ assert.deepEqual(transientItemView.metadata, {
 assert.equal('agentSessionId' in transientItemView, false);
 assert.equal('conversationId' in transientItemView, false);
 
-const renderedView = resolveChatMessageView(transientItemView, {
+const renderedView = resolveAgentSessionItemPresentation(transientItemView, {
   engineId: canonicalItem.providerId ?? undefined,
 });
 assert.equal(renderedView.kind, 'assistant.text');

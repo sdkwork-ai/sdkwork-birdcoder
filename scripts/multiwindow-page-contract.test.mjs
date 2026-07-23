@@ -108,8 +108,8 @@ assert.match(
 
 assert.match(
   pageSource,
-  /sendMessage\(/,
-  'Multi-window panes must send real instructions to bound coding sessions.',
+  /submitAgentTurnInput\(/,
+  'Multi-window panes must submit real Agent Turn Inputs to bound Agents sessions.',
 );
 
 assert.match(
@@ -249,8 +249,8 @@ assert.match(
 
 assert.match(
   useProjectsSource,
-  /interface BirdCoderSendMessageOptions[\s\S]*metadata\?: Record<string, unknown>/,
-  'Shared sendMessage must accept standard metadata so product modules can attach typed execution context.',
+  /interface WorkbenchAgentTurnSubmissionOptions[\s\S]*metadata\?: Record<string, unknown>/,
+  'Shared Agent Turn submission must accept standard metadata so product modules can attach typed execution context.',
 );
 
 assert.match(

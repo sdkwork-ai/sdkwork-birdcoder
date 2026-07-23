@@ -28,6 +28,7 @@ assert.deepEqual(
     'step-loop-prompt-governance',
     'release-readiness-fixture',
     'release-candidate-dry-run',
+    'release-rollback-plan-command',
     'release-closure',
   ],
 );

@@ -77,6 +77,12 @@ export const RELEASE_GOVERNANCE_CHECKS = Object.freeze([
     command: 'node scripts/release/candidate-dry-run.test.mjs',
   }),
   Object.freeze({
+    id: 'release-rollback-plan-command',
+    label: 'Release rollback plan command contract',
+    scriptPath: 'scripts/release/rollback-plan-command.test.mjs',
+    command: 'node scripts/release/rollback-plan-command.test.mjs',
+  }),
+  Object.freeze({
     id: 'release-closure',
     label: 'Release closure contract',
     scriptPath: 'scripts/check-release-closure.mjs',

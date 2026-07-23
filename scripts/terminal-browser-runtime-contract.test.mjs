@@ -39,8 +39,12 @@ assert.match(runtime, /tokenManager/);
 assert.doesNotMatch(runtime, /if \(!authToken \|\| !accessToken\)/);
 assert.doesNotMatch(runtime, /TERMINAL_RUNTIME_BASE_URL/);
 assert.doesNotMatch(runtime, /getDefaultBirdCoderIdeServicesRuntimeConfig/);
-assert.match(profileAvailability, /if \(!isBirdcoderTauriRuntime\(\)\)/);
-assert.doesNotMatch(profileAvailability, /!window\.__TAURI__/);
+assert.match(profileAvailability, /return \{ canLaunch: true, reason: null \};/);
+assert.doesNotMatch(
+  profileAvailability,
+  /isBirdcoderTauriRuntime|@tauri-apps\/api\/core|terminal_cli_profile_detect|__TAURI__/,
+  'Terminal profile presentation must remain host-neutral; runtime adapters own browser and Tauri execution.',
+);
 assert.doesNotMatch(sessions, /readTaggedValue/);
 assert.match(sessions, /resolveBirdcoderBrowserTerminalClient/);
 assert.match(sessions, /client\.sessionIndex\(\)/);

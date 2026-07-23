@@ -18,29 +18,60 @@ const universalChatSource = fs.readFileSync(
   ),
   'utf8',
 );
+const transcriptMessageSource = fs.readFileSync(
+  path.join(
+    rootDir,
+    'apps',
+    'sdkwork-birdcoder-pc',
+    'packages',
+    'sdkwork-birdcoder-pc-ui',
+    'src',
+    'components',
+    'chat',
+    'messages',
+    'ChatTranscriptMessage.tsx',
+  ),
+  'utf8',
+);
+const replyMessageRenderersSource = fs.readFileSync(
+  path.join(
+    rootDir,
+    'apps',
+    'sdkwork-birdcoder-pc',
+    'packages',
+    'sdkwork-birdcoder-pc-ui',
+    'src',
+    'components',
+    'chat',
+    'messages',
+    'renderers',
+    'ReplyMessageRenderers.tsx',
+  ),
+  'utf8',
+);
 
 assert.match(
-  universalChatSource,
-  /className=\{`w-full max-w-3xl mx-auto flex \$\{msg\.role === 'user' \? 'justify-end' : 'justify-center'\}`\}/,
-  'UniversalChat main transcript must keep assistant messages centered inside the reading lane instead of left-anchoring them.',
+  transcriptMessageSource,
+  /className=\{`mx-auto flex w-full min-w-0 max-w-\[880px\] \$\{isUser \? 'justify-end' : 'justify-start'\}`\}/,
+  'UniversalChat transcript rows must use one centered reading lane, right-align user items, and left-align assistant items within that lane.',
+);
+
+assert.match(
+  replyMessageRenderersSource,
+  /className=\{`flex w-full min-w-0 max-w-full flex-col \$\{isSidebar \? 'items-start group' : ''\}`\}/,
+  'UniversalChat assistant transcript content must fill the constrained reading lane without introducing a second nested width constraint.',
 );
 
 assert.match(
   universalChatSource,
-  /<div className="flex min-w-0 w-full max-w-2xl flex-col">/,
-  'UniversalChat assistant transcript content must render inside a centered constrained reading column.',
+  /layout === 'sidebar' \? 'gap-4 p-4 pb-4 pl-11' : 'pb-6'/,
+  'UniversalChat transcript body must keep compact flow spacing and reserve the sidebar anchor-rail gutter.',
 );
 
 assert.match(
   universalChatSource,
-  /layout === 'sidebar' \? 'gap-4 p-4 pb-28' : 'pb-32'/,
-  'UniversalChat transcript body must use tighter vertical spacing so session history does not feel overly sparse.',
-);
-
-assert.match(
-  universalChatSource,
-  /layout === 'sidebar' \? 'p-4 pt-6' : 'p-5 pt-8'/,
-  'UniversalChat composer overlay must reduce excess top padding so the input stays visually connected to the latest messages.',
+  /layout === 'sidebar' \? 'px-4 pb-4 pt-3' : 'px-5 pb-5 pt-4'/,
+  'UniversalChat composer must use compact flow spacing so the input stays visually connected to the latest Session Items.',
 );
 
 assert.doesNotMatch(

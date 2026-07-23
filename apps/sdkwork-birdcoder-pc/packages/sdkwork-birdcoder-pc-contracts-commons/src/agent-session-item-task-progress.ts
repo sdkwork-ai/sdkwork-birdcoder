@@ -1,6 +1,6 @@
-import type { ChatMessageViewSource } from './chat-message-view.ts';
+import type { AgentSessionItemViewSource } from './agent-session-view.ts';
 
-export interface ChatMessageTaskProgressDisplayState {
+export interface AgentSessionItemTaskProgressDisplayState {
   completed: number;
   percent: number;
   total: number;
@@ -35,8 +35,8 @@ export function normalizeTaskProgressCounter(value: unknown): number | null {
 }
 
 export function resolveTaskProgressDisplayState(
-  taskProgress: ChatMessageViewSource['taskProgress'] | undefined,
-): ChatMessageTaskProgressDisplayState | null {
+  taskProgress: AgentSessionItemViewSource['taskProgress'] | undefined,
+): AgentSessionItemTaskProgressDisplayState | null {
   if (!taskProgress || typeof taskProgress !== 'object') {
     return null;
   }

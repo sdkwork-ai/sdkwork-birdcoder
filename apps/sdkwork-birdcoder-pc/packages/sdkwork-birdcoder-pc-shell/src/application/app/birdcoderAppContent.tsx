@@ -628,9 +628,9 @@ export function AppContent() {
   ]);
 
   useEffect(() => {
-    const focusTerminalSurface = (options?: { forceWorkspace?: boolean }) => {
+    const focusTerminalSurface = (options?: { forceProjectTerminal?: boolean }) => {
       setActiveTab((previousTab) => {
-        if (options?.forceWorkspace) {
+        if (options?.forceProjectTerminal) {
           return 'terminal';
         }
 
@@ -684,10 +684,10 @@ export function AppContent() {
 
       emitOpenTerminalRequest({
         path: resolution.location.localWorkingDirectory,
-        surface: 'workspace',
+        surface: 'project',
         timestamp: Date.now(),
       });
-      focusTerminalSurface({ forceWorkspace: true });
+      focusTerminalSurface({ forceProjectTerminal: true });
     };
     const handleRevealProjectInFileManager = async (target: ProjectDeviceMountTarget) => {
       if (
@@ -723,7 +723,7 @@ export function AppContent() {
       }
 
       setTerminalRequest(req);
-      focusTerminalSurface({ forceWorkspace: true });
+      focusTerminalSurface({ forceProjectTerminal: true });
     };
     const unsubscribeProjectMountRecovery = subscribeProjectMountRecoveryState((payload) => {
       if (payload.state.status !== 'recovering') {

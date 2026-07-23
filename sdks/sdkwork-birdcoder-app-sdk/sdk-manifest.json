@@ -49,7 +49,7 @@
       "required": true,
       "dependencyMode": "consumer-sdk",
       "apiPrefix": "/app/v3/api",
-      "apiAuthority": "sdkwork-drive.app",
+      "apiAuthority": "sdkwork-drive-app-api",
       "generatedTransportImportPolicy": "forbidden",
       "packageByLanguage": {
         "typescript": "@sdkwork/drive-app-sdk",
@@ -78,6 +78,18 @@
       "generatedTransportImportPolicy": "forbidden",
       "packageByLanguage": {
         "typescript": "@sdkwork/membership-app-sdk"
+      }
+    },
+    {
+      "workspace": "sdkwork-order-app-sdk",
+      "role": "order-app-capability",
+      "required": true,
+      "dependencyMode": "consumer-sdk",
+      "apiPrefix": "/app/v3/api",
+      "apiAuthority": "sdkwork-order-app-api",
+      "generatedTransportImportPolicy": "forbidden",
+      "packageByLanguage": {
+        "typescript": "@sdkwork/order-app-sdk"
       }
     },
     {

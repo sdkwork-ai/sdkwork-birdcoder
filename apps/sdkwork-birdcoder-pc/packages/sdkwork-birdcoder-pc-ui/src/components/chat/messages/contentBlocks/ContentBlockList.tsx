@@ -20,7 +20,7 @@ export const ContentBlockList = memo(function ContentBlockList({
       {view.blocks.map((block, index) => {
         const entry = registry.resolve(block);
         const BlockRenderer = entry.Component;
-        return <BlockRenderer key={`${view.messageId}:${block.type}:${index}`} block={block} context={context} />;
+        return <BlockRenderer key={`${view.sessionItemId}:${block.type}:${index}`} block={block} context={context} />;
       })}
     </>
   );

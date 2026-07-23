@@ -44,12 +44,12 @@ globalThis.fetch = (async () => new Response(JSON.stringify({
 })) as typeof fetch;
 
 const client = createBirdCoderAppClient({
-  apiBaseUrl: 'https://birdcoder.test',
+  applicationApiBaseUrl: 'https://birdcoder.test',
   tokenManager,
 });
 
 await assert.rejects(
-  client.intelligence.projects.retrieve('project-unauthorized'),
+  client.system.descriptor.retrieve(),
   (error: unknown) => error instanceof Error && error.message.includes('session is no longer valid'),
   'The generated client must preserve its authentication error for the caller.',
 );

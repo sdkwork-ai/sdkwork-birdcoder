@@ -1,4 +1,4 @@
-import { estimateChatMessageViewHeight } from '@sdkwork/birdcoder-pc-workbench/chat/types';
+import { estimateAgentSessionItemPresentationHeight } from '@sdkwork/birdcoder-pc-workbench/chat/types';
 import { createChatMessageRendererRegistry } from './registry.ts';
 import { createEngineChatMessageRendererEntries } from './plugins/enginePlugins.tsx';
 import type { ChatMessageRendererEntry } from './types.ts';
@@ -12,7 +12,7 @@ const FALLBACK_RENDERER_ENTRY: ChatMessageRendererEntry = {
   match: {},
   priority: 0,
   Component: AssistantReplyMessageRenderer,
-  estimateHeight: estimateChatMessageViewHeight,
+  estimateHeight: estimateAgentSessionItemPresentationHeight,
 };
 
 const DEFAULT_CHAT_MESSAGE_RENDERER_ENTRIES: readonly ChatMessageRendererEntry[] = [
@@ -21,49 +21,49 @@ const DEFAULT_CHAT_MESSAGE_RENDERER_ENTRIES: readonly ChatMessageRendererEntry[]
     match: { viewKind: 'user.text' },
     priority: 10,
     Component: UserTextMessageRenderer,
-    estimateHeight: estimateChatMessageViewHeight,
+    estimateHeight: estimateAgentSessionItemPresentationHeight,
   },
   {
     id: 'assistant.text',
     match: { viewKind: 'assistant.text' },
     priority: 10,
     Component: AssistantReplyMessageRenderer,
-    estimateHeight: estimateChatMessageViewHeight,
+    estimateHeight: estimateAgentSessionItemPresentationHeight,
   },
   {
     id: 'assistant.activity',
     match: { viewKind: 'assistant.activity' },
     priority: 20,
     Component: AssistantReplyMessageRenderer,
-    estimateHeight: estimateChatMessageViewHeight,
+    estimateHeight: estimateAgentSessionItemPresentationHeight,
   },
   {
     id: 'tool.result',
     match: { viewKind: 'tool.result' },
     priority: 10,
     Component: AssistantReplyMessageRenderer,
-    estimateHeight: estimateChatMessageViewHeight,
+    estimateHeight: estimateAgentSessionItemPresentationHeight,
   },
   {
     id: 'system.notice',
     match: { viewKind: 'system.notice' },
     priority: 10,
     Component: AssistantReplyMessageRenderer,
-    estimateHeight: estimateChatMessageViewHeight,
+    estimateHeight: estimateAgentSessionItemPresentationHeight,
   },
   {
     id: 'planner.plan',
     match: { viewKind: 'planner.plan' },
     priority: 10,
     Component: AssistantReplyMessageRenderer,
-    estimateHeight: estimateChatMessageViewHeight,
+    estimateHeight: estimateAgentSessionItemPresentationHeight,
   },
   {
     id: 'reviewer.feedback',
     match: { viewKind: 'reviewer.feedback' },
     priority: 10,
     Component: AssistantReplyMessageRenderer,
-    estimateHeight: estimateChatMessageViewHeight,
+    estimateHeight: estimateAgentSessionItemPresentationHeight,
   },
 ];
 

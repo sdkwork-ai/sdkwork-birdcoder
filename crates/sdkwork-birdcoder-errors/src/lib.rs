@@ -5,7 +5,6 @@ use sdkwork_utils_rust::{is_blank, uuid, SdkWorkProblemDetail, SdkWorkResultCode
 
 pub mod client_safe;
 pub mod envelope;
-pub mod tenant_scope;
 pub use client_safe::{
     client_safe_data_access_problem, client_safe_event_publish_problem,
     client_safe_internal_problem, client_safe_provider_problem, CLIENT_SAFE_DATA_ACCESS_MESSAGE,
@@ -16,7 +15,6 @@ pub use envelope::{
     build_unbounded_list_envelope, ApiDataEnvelope, ApiListEnvelope,
 };
 pub use sdkwork_utils_rust::SdkWorkProblemDetail as ProblemDetailsPayload;
-pub use tenant_scope::{require_scoped_tenant_id, require_scoped_user_id, TenantScopeViolation};
 
 pub fn resolve_trace_id(trace_id: Option<&str>) -> String {
     match trace_id {

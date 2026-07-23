@@ -30,43 +30,43 @@ function extractFunctionBody(name) {
 
 assert.match(
   useProjectsSource,
-  /function replaceAgentSessionItemById\(/,
-  'useProjects must centralize message replacement so edit and reconcile paths do not inline full transcript maps.',
+  /function replaceAgentSessionItemAtIndex\(/,
+  'useProjects must centralize indexed Session Item replacement so reconciliation paths do not inline full transcript maps.',
 );
 
 const appendBody = extractFunctionBody('appendAgentSessionItemIfMissing');
 assert.doesNotMatch(
   appendBody,
-  /messages\.map\(/,
-  'appendAgentSessionItemIfMissing must replace a merged message by index instead of mapping the whole transcript.',
+  /items\.map\(/,
+  'appendAgentSessionItemIfMissing must replace a merged Session Item by index instead of mapping the whole transcript.',
 );
 assert.match(
   appendBody,
-  /\[matchingMessageIndex\] = /,
-  'appendAgentSessionItemIfMissing should copy only when the matching message actually changes.',
+  /\[matchingItemIndex\] = /,
+  'appendAgentSessionItemIfMissing should copy only when the matching Session Item actually changes.',
 );
 
 const reconcileBody = extractFunctionBody('reconcileAgentSessionItem');
 assert.doesNotMatch(
   reconcileBody,
-  /messages\.filter\(/,
-  'reconcileAgentSessionItem must not filter the entire transcript to remove an optimistic message.',
+  /items\.filter\(/,
+  'reconcileAgentSessionItem must not filter the entire transcript to remove an optimistic Session Item.',
 );
 assert.doesNotMatch(
   reconcileBody,
-  /messagesWithoutOptimistic\.map\(/,
-  'reconcileAgentSessionItem must not map the entire transcript when merging the resolved message.',
+  /itemsWithoutOptimistic\.map\(/,
+  'reconcileAgentSessionItem must not map the entire transcript when merging the resolved Session Item.',
 );
 
 const removeBody = extractFunctionBody('removeAgentSessionItemById');
 assert.doesNotMatch(
   removeBody,
-  /messages\.filter\(/,
+  /items\.filter\(/,
   'removeAgentSessionItemById must remove by lazy copy/splice instead of filtering the full transcript.',
 );
 assert.doesNotMatch(
   removeBody,
-  /messages\.some\(/,
+  /items\.some\(/,
   'removeAgentSessionItemById must not pre-scan with some before scanning again to remove.',
 );
 
@@ -77,27 +77,27 @@ assert.notEqual(deleteHandlerStart, -1, 'useProjects must define deleteAgentSess
 const editHandlerBody = useProjectsSource.slice(editHandlerStart, deleteHandlerStart);
 assert.doesNotMatch(
   editHandlerBody,
-  /agentSession\.messages\.map\(/,
-  'editAgentSessionItem must call the indexed replacement helper instead of mapping every message.',
+  /agentSession\.items\.map\(/,
+  'editAgentSessionItem must not project an in-place edit across the local Session Item collection.',
 );
 assert.match(
   editHandlerBody,
-  /replaceAgentSessionItemById\(\s*agentSession\.messages,\s*messageId,\s*editableUpdates,\s*\)/s,
-  'editAgentSessionItem must use replaceAgentSessionItemById for hot message edits.',
+  /Agents session items are immutable and cannot be edited in place\./,
+  'editAgentSessionItem must preserve the canonical immutable Agents Session Item boundary.',
 );
 
-const sendHandlerStart = useProjectsSource.indexOf('const sendMessage = async (');
-assert.notEqual(sendHandlerStart, -1, 'useProjects must define sendMessage.');
-const deleteHandlerBody = useProjectsSource.slice(deleteHandlerStart, sendHandlerStart);
+const submitTurnHandlerStart = useProjectsSource.indexOf('const submitAgentTurnInput = async (');
+assert.notEqual(submitTurnHandlerStart, -1, 'useProjects must define submitAgentTurnInput.');
+const deleteHandlerBody = useProjectsSource.slice(deleteHandlerStart, submitTurnHandlerStart);
 assert.doesNotMatch(
   deleteHandlerBody,
-  /agentSession\.messages\.filter\(/,
-  'deleteAgentSessionItem must call the lazy remove helper instead of filtering every message.',
+  /agentSession\.items\.filter\(/,
+  'deleteAgentSessionItem must not project an in-place deletion across the local Session Item collection.',
 );
 assert.match(
   deleteHandlerBody,
-  /removeAgentSessionItemById\(\s*agentSession\.messages,\s*messageId,\s*\)/s,
-  'deleteAgentSessionItem must use removeAgentSessionItemById for hot message deletes.',
+  /Agents session items are immutable and cannot be deleted in place\./,
+  'deleteAgentSessionItem must preserve the canonical immutable Agents Session Item boundary.',
 );
 
-console.log('useProjects message mutation performance contract passed.');
+console.log('useProjects Session Item mutation boundary contract passed.');

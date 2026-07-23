@@ -224,8 +224,8 @@
         "content": "The PC surface consumes BirdCoder coding-workbench APIs and dependency-owned SDKs. It does not own AI session, skill, or human-message persistence.",
         "highlights": [
           "Browser and Tauri desktop surfaces",
-          "BirdCoder owner API contains 39 App API operations",
-          "AI session and assistant-message workflows use sdkwork-agents"
+          "BirdCoder owner API contains 4 System App API operations",
+          "Agent Session and Session Item workflows use sdkwork-agents"
         ],
         "packageIds": [
           "web-universal-cloud-browser-zip",

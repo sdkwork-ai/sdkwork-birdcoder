@@ -36,14 +36,15 @@ their business semantics.
 - Device mounts are subject-scoped local capability material.
 - Native paths and execution handles do not enter server APIs.
 - Sandbox composition uses Agents `drive/drive`.
-- Project document composition is explicitly unavailable until Agents adds
-  `document/documents`.
+- Project document composition uses Agents `document/documents`; document
+  content and lifecycle remain in Documents.
 - Missing owner SDK connectivity, local permission, mount, runtime binding, or
   composition support fails closed.
 
 ## Acceptance
 
-- PC typecheck and architecture gates pass without compatibility fields.
+- PC-scoped lint, tests, production build, and architecture gates pass without
+  compatibility fields or delegation to a repository-wide mobile gate.
 - Owner SDK calls use the shared TokenManager and correct connectivity plane.
 - Project and Session views preserve canonical identifiers.
 - Local storage contains no Project, Session, Conversation, Message, or Skill

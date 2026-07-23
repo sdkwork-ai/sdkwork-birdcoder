@@ -15,13 +15,13 @@ const activityAnnouncerSource = await readFile(
   'utf8',
 );
 
-const activityViewSource = await readFile(
-  resolve('apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-contracts-commons/src/chat-message-activity-view.ts'),
+const agentSessionItemActivityPresentationSource = await readFile(
+  resolve('apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-contracts-commons/src/agent-session-item-activity-presentation.ts'),
   'utf8',
 );
 
-const chatMessageViewSource = await readFile(
-  resolve('apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-contracts-commons/src/chat-message-view.ts'),
+const agentSessionItemPresentationSource = await readFile(
+  resolve('apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-contracts-commons/src/agent-session-item-presentation.ts'),
   'utf8',
 );
 
@@ -313,39 +313,39 @@ assert.match(
 );
 
 assert.match(
-  activityViewSource,
+  agentSessionItemActivityPresentationSource,
   /export function parseFileUpdateSummaryContent\(/,
   'The activity view adapter must parse tool-style "Updated the following files" content into structured file rows instead of rendering it as raw text.',
 );
 
 assert.match(
-  activityViewSource,
+  agentSessionItemActivityPresentationSource,
   /FILE_UPDATE_SUMMARY_HEADER_PATTERN = \/\^\(\?:Success\\\.\\s\+\)\?Updated the following files:/,
   'The file update summary parser must recognize successful apply-patch output headers.',
 );
 
 assert.match(
-  activityViewSource,
-  /export function resolveActivityFileChangeViews\(/,
+  agentSessionItemActivityPresentationSource,
+  /export function resolveAgentSessionActivityFileChangeViews\(/,
   'The activity view adapter must merge parsed file update summaries with structured fileChanges so line-count and diff metadata are preserved.',
 );
 
 assert.match(
-  activityViewSource,
-  /export function shouldHideMessageContentAsFileUpdateSummary/,
+  agentSessionItemActivityPresentationSource,
+  /export function shouldHideSessionItemContentAsFileUpdateSummary/,
   'The activity view adapter must suppress raw "Updated the following files" markdown when the same content is represented by the expandable activity summary.',
 );
 
 assert.match(
-  chatMessageViewSource,
-  /resolveVisibleMarkdownBlockContent\(message\)/,
-  'The Session Item view adapter must strip embedded tool update summaries before building markdown blocks.',
+  agentSessionItemPresentationSource,
+  /resolveAgentSessionItemVisibleMarkdownContent\(item\)/,
+  'The Session Item presentation adapter must strip embedded tool update summaries before building markdown blocks.',
 );
 
 assert.match(
-  chatMessageViewSource,
-  /resolveActivityFileChangeViews\(message\)/,
-  'The Session Item view adapter must include parsed and structured file changes in activity blocks.',
+  agentSessionItemPresentationSource,
+  /resolveAgentSessionActivityFileChangeViews\(item\)/,
+  'The Session Item presentation adapter must include parsed and structured file changes in activity blocks.',
 );
 
 assert.match(
@@ -408,12 +408,12 @@ assert.match(
 
 assert.match(
   messageActivitySource,
-  /resolveActivityFileChangeViews/,
+  /resolveAgentSessionActivityFileChangeViews/,
   'UI activity helpers must delegate file-change adaptation to pc-types instead of duplicating parser logic.',
 );
 
 assert.match(
-  activityViewSource,
+  agentSessionItemActivityPresentationSource,
   /lineImpactKnown: false/,
   'Parsed raw file update summaries must not fake +0/-0 line impact when the tool output did not include diff metadata.',
 );

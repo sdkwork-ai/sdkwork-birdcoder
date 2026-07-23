@@ -1,5 +1,5 @@
 import React, { memo } from 'react';
-import { estimateChatMessageViewHeight } from '@sdkwork/birdcoder-pc-workbench/chat/types';
+import { estimateAgentSessionItemPresentationHeight } from '@sdkwork/birdcoder-pc-workbench/chat/types';
 import type { ChatMessageRendererEntry, ChatMessageRendererProps } from '../types.ts';
 import { AssistantReplyMessageRenderer } from '../renderers/ReplyMessageRenderers.tsx';
 
@@ -47,21 +47,21 @@ export function createEngineChatMessageRendererEntries(): ChatMessageRendererEnt
       match: { viewKind: 'assistant.text' },
       priority: 30,
       Component: EngineTaggedAssistantReplyMessageRenderer,
-      estimateHeight: estimateChatMessageViewHeight,
+      estimateHeight: estimateAgentSessionItemPresentationHeight,
     },
     {
       id: 'agent-engine.assistant.activity',
       match: { viewKind: 'assistant.activity' },
       priority: 30,
       Component: EngineTaggedAssistantReplyMessageRenderer,
-      estimateHeight: estimateChatMessageViewHeight,
+      estimateHeight: estimateAgentSessionItemPresentationHeight,
     },
     {
       id: 'agent-engine.tool.result',
       match: { viewKind: 'tool.result' },
       priority: 30,
       Component: EngineTaggedAssistantReplyMessageRenderer,
-      estimateHeight: estimateChatMessageViewHeight,
+      estimateHeight: estimateAgentSessionItemPresentationHeight,
     },
   ];
 }

@@ -61,32 +61,38 @@ assert.match(
 
 assert.match(
   hookSource,
-  /const \[isSelectedAgentSessionItemsLoading,\s*setIsSelectedAgentSessionItemsLoading\] = useState\(false\);/,
+  /const \[isLoading, setIsLoading\] = useState\(false\);/,
   'useSelectedAgentSessionItems must track a local loading state for selected session hydration.',
 );
 
 assert.match(
   hookSource,
-  /const isMountedRef = useRef\(true\);/,
-  'useSelectedAgentSessionItems must track hook mount state separately from per-refresh disposal so stale refreshes can still release shared loading ownership.',
+  /const activeRequestKeyRef = useRef\(''\);[\s\S]*if \(!isActive \|\| !normalizedSessionId \|\| activeRequestKeyRef\.current === requestKey\) \{[\s\S]*activeRequestKeyRef\.current = requestKey;/,
+  'useSelectedAgentSessionItems must expose one loading lifecycle per active request key and suppress duplicate refreshes.',
 );
 
 assert.match(
   hookSource,
-  /if \(isMountedRef\.current && activeSynchronizationCountRef\.current === 0\) \{/,
-  'useSelectedAgentSessionItems must clear loading when all refreshes settle, even if the last completed refresh belonged to a previous selected session.',
+  /let disposed = false;\s*setIsLoading\(true\);[\s\S]*\.finally\(\(\) => \{\s*if \(!disposed\) \{\s*setIsLoading\(false\);\s*\}\s*\}\);[\s\S]*return \(\) => \{\s*disposed = true;\s*\};/,
+  'useSelectedAgentSessionItems must set loading before authority refresh, clear it when the active refresh settles, and prevent stale requests from updating observable state.',
 );
 
 assert.doesNotMatch(
   hookSource,
-  /if \(!isDisposed && activeSynchronizationCountRef\.current === 0\) \{/,
-  'useSelectedAgentSessionItems must not couple loading release to per-refresh disposal because session switches can otherwise leave hydration stuck.',
+  /activeSynchronizationCountRef/,
+  'useSelectedAgentSessionItems must not retain the retired shared synchronization counter implementation.',
 );
 
 assert.match(
   hookSource,
-  /return isSelectedAgentSessionItemsLoading;/,
+  /return isLoading;/,
   'useSelectedAgentSessionItems must return the selected session hydration state.',
+);
+
+assert.match(
+  hookSource,
+  /selectedAgentSession\?\.items\.length \?\? 0,[\s\S]*selectedAgentSession\?\.items\.length,/,
+  'useSelectedAgentSessionItems refresh identity must observe canonical Agent Session Items rather than a parallel message collection.',
 );
 
 assert.match(
@@ -97,8 +103,8 @@ assert.match(
 
 assert.match(
   codePageSource,
-  /const selectedAgentSessionItems = useMemo\(\s*\(\) => \(isNewAgentSessionCreating \? \[\] : selectedAgentSession\?\.messages \?\? \[\]\),\s*\[isNewAgentSessionCreating,\s*selectedAgentSession\?\.messages\],\s*\);/s,
-  'CodePage must normalize the visible selected session transcript and mask it to an empty collection while a new coding session is being created.',
+  /const selectedAgentSessionItems = useMemo\(\s*\(\) => \(isNewAgentSessionCreating \? \[\] : selectedAgentSession\?\.items \?\? \[\]\),\s*\[isNewAgentSessionCreating,\s*selectedAgentSession\?\.items\],\s*\);/s,
+  'CodePage must normalize the visible selected Session Items and mask them to an empty collection while a new Agent Session is being created.',
 );
 
 assert.match(
@@ -115,7 +121,7 @@ assert.match(
 
 assert.match(
   studioPageSource,
-  /const selectedSessionMessages = useMemo\(\s*\(\) => selectedSession\?\.messages \?\? EMPTY_STUDIO_CHAT_MESSAGES,\s*\[selectedSession\?\.messages\],\s*\);/s,
+  /const selectedSessionMessages = useMemo\(\s*\(\) => selectedSession\?\.items \?\? EMPTY_STUDIO_CHAT_MESSAGES,\s*\[selectedSession\?\.items\],\s*\);/s,
   'StudioPage must normalize the selected session transcript into a dedicated derived collection before deciding whether the visible chat is still hydrating.',
 );
 

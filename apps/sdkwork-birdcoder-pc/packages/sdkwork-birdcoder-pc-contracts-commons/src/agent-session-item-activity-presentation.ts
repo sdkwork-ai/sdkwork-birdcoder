@@ -1,35 +1,35 @@
 import type { FileChange } from './file-change.ts';
-import type { ChatMessageViewSource } from './chat-message-view.ts';
-import { mergeChatMessageReasoning } from './chat-message-reasoning.ts';
+import type { AgentSessionItemViewSource } from './agent-session-view.ts';
+import { mergeAgentSessionItemReasoning } from './agent-session-item-reasoning.ts';
 import {
-  normalizeChatMessageCommand,
-  normalizeChatMessageToolResult,
-  normalizeChatMessageToolCalls,
-  type ChatMessageToolCall,
-} from './chat-message-tool-calls.ts';
+  normalizeAgentSessionCommand,
+  normalizeAgentSessionItemToolResult,
+  normalizeAgentSessionItemToolCalls,
+  type AgentSessionItemToolCallView,
+} from './agent-session-item-tool-calls.ts';
 
 const FILE_UPDATE_SUMMARY_HEADER_PATTERN = /^(?:Success\.\s+)?Updated the following files:\s*$/i;
 const FILE_UPDATE_SUMMARY_ENTRY_PATTERN = /^([A-Z?]{1,2})\s+(.+)$/;
 
-export interface ActivityFileChangeView extends FileChange {
+export interface AgentSessionActivityFileChangeView extends FileChange {
   lineImpactKnown?: boolean;
   updateStatus?: string;
 }
 
-export interface ChatTurnActivitySummary {
-  commands: readonly NonNullable<ChatMessageViewSource['commands']>[number][];
-  fileChanges: readonly NonNullable<ChatMessageViewSource['fileChanges']>[number][];
+export interface AgentTurnActivityPresentation {
+  commands: readonly NonNullable<AgentSessionItemViewSource['commands']>[number][];
+  fileChanges: readonly NonNullable<AgentSessionItemViewSource['fileChanges']>[number][];
 }
 
-export interface ComposeChatTranscriptActivityOptions {
+export interface ComposeAgentSessionTranscriptActivityOptions {
   engineId?: string;
 }
 
-function isTurnReplyMessage(message: ChatMessageViewSource): boolean {
-  return message.role === 'assistant' || message.role === 'planner' || message.role === 'reviewer';
+function isAgentTurnReplyItem(item: AgentSessionItemViewSource): boolean {
+  return item.role === 'assistant' || item.role === 'planner' || item.role === 'reviewer';
 }
 
-const TERMINAL_TOOL_CALL_STATUSES = new Set<NonNullable<ChatMessageToolCall['status']>>([
+const TERMINAL_TOOL_CALL_STATUSES = new Set<NonNullable<AgentSessionItemToolCallView['status']>>([
   'cancelled',
   'error',
   'success',
@@ -39,9 +39,9 @@ const TOOL_RESULT_TYPE_PATTERN = /(?:_output|_result)$/u;
 const TRANSCRIPT_FALLBACK_TOOL_CALL_ID_PREFIX = 'birdcoder-fallback';
 
 function resolveMergedToolCallStatus(
-  previous: ChatMessageToolCall['status'],
-  incoming: ChatMessageToolCall['status'],
-): ChatMessageToolCall['status'] {
+  previous: AgentSessionItemToolCallView['status'],
+  incoming: AgentSessionItemToolCallView['status'],
+): AgentSessionItemToolCallView['status'] {
   if (previous === 'cancelled' || incoming === 'cancelled') {
     return 'cancelled';
   }
@@ -98,9 +98,9 @@ function mergeNormalizedToolCallArguments(previous: string, incoming: string): s
 }
 
 function mergeNormalizedToolCall(
-  previous: ChatMessageToolCall | undefined,
-  incoming: ChatMessageToolCall,
-): ChatMessageToolCall {
+  previous: AgentSessionItemToolCallView | undefined,
+  incoming: AgentSessionItemToolCallView,
+): AgentSessionItemToolCallView {
   if (!previous) {
     return incoming;
   }
@@ -138,38 +138,38 @@ function mergeNormalizedToolCall(
 }
 
 function readTranscriptToolCalls(
-  message: ChatMessageViewSource,
-  options: ComposeChatTranscriptActivityOptions,
-): ChatMessageToolCall[] {
-  const fallbackIdentity = message.id.trim()
-    || `${message.turnId?.trim() ?? 'turn'}:${message.createdAt}`;
-  const calls = normalizeChatMessageToolCalls(message.tool_calls, {
+  item: AgentSessionItemViewSource,
+  options: ComposeAgentSessionTranscriptActivityOptions,
+): AgentSessionItemToolCallView[] {
+  const fallbackIdentity = item.id.trim()
+    || `${item.turnId?.trim() ?? 'turn'}:${item.createdAt}`;
+  const calls = normalizeAgentSessionItemToolCalls(item.tool_calls, {
     ...options,
     fallbackIdPrefix: `${TRANSCRIPT_FALLBACK_TOOL_CALL_ID_PREFIX}:${fallbackIdentity}:tool`,
   });
-  if (message.role !== 'tool') {
+  if (item.role !== 'tool') {
     return calls;
   }
   if (calls.length > 0) {
     return calls;
   }
 
-  const metadata = typeof message.metadata === 'object' && message.metadata !== null
-    ? message.metadata as Record<string, unknown>
+  const metadata = typeof item.metadata === 'object' && item.metadata !== null
+    ? item.metadata as Record<string, unknown>
     : null;
-  const result = normalizeChatMessageToolResult({
-    content: message.content,
-    id: message.tool_call_id,
-    name: message.name,
+  const result = normalizeAgentSessionItemToolResult({
+    content: item.content,
+    id: item.tool_call_id,
+    name: item.name,
     status: metadata?.is_error === true ? 'error' : undefined,
   }, options);
   return result ? [result] : calls;
 }
 
 function readTranscriptCommandKey(
-  command: NonNullable<ChatMessageViewSource['commands']>[number],
+  command: NonNullable<AgentSessionItemViewSource['commands']>[number],
   index: number,
-  messageIdentity: string,
+  sessionItemIdentity: string,
 ): string {
   if (typeof command !== 'object' || command === null) {
     return `command-${index}`;
@@ -179,15 +179,15 @@ function readTranscriptCommandKey(
   const toolCallId = typeof record.toolCallId === 'string' ? record.toolCallId.trim() : '';
   const commandText = typeof record.command === 'string' ? record.command.trim() : '';
   const kind = typeof record.kind === 'string' ? record.kind : '';
-  return toolCallId || `${messageIdentity}\u0001${commandText}\u0001${kind}\u0001${index}`;
+  return toolCallId || `${sessionItemIdentity}\u0001${commandText}\u0001${kind}\u0001${index}`;
 }
 
-interface TranscriptTurnToolEntry<TMessage extends ChatMessageViewSource> {
-  calls: ChatMessageToolCall[];
+interface TranscriptTurnToolEntry<TItem extends AgentSessionItemViewSource> {
+  calls: AgentSessionItemToolCallView[];
   callsWereRewritten: boolean;
   index: number;
   isCollapsible: boolean;
-  message: TMessage;
+  item: TItem;
 }
 
 function normalizeToolIdentityName(name: string): string {
@@ -198,8 +198,8 @@ function isFallbackToolCallId(id: string): boolean {
   return id.startsWith(`${TRANSCRIPT_FALLBACK_TOOL_CALL_ID_PREFIX}:`);
 }
 
-function correlateGeminiFallbackToolCallIds<TMessage extends ChatMessageViewSource>(
-  entries: TranscriptTurnToolEntry<TMessage>[],
+function correlateGeminiFallbackToolCallIds<TItem extends AgentSessionItemViewSource>(
+  entries: TranscriptTurnToolEntry<TItem>[],
   turnId: string,
   engineId?: string,
 ): boolean {
@@ -246,7 +246,7 @@ function correlateGeminiFallbackToolCallIds<TMessage extends ChatMessageViewSour
   return callsWereRewritten;
 }
 
-function readCanonicalToolCallTaskId(call: ChatMessageToolCall): string {
+function readCanonicalToolCallTaskId(call: AgentSessionItemToolCallView): string {
   if (!call.arguments.trim()) {
     return '';
   }
@@ -263,8 +263,8 @@ function readCanonicalToolCallTaskId(call: ChatMessageToolCall): string {
   }
 }
 
-function correlateClaudeTaskToolCallIds<TMessage extends ChatMessageViewSource>(
-  entries: TranscriptTurnToolEntry<TMessage>[],
+function correlateClaudeTaskToolCallIds<TItem extends AgentSessionItemViewSource>(
+  entries: TranscriptTurnToolEntry<TItem>[],
   engineId?: string,
 ): void {
   if (engineId?.trim().toLowerCase() !== 'claude-code') {
@@ -296,21 +296,21 @@ function correlateClaudeTaskToolCallIds<TMessage extends ChatMessageViewSource>(
   }
 }
 
-function collectTranscriptTurnToolEntries<TMessage extends ChatMessageViewSource>(
-  messages: readonly TMessage[],
-  messageIndexes: readonly number[],
+function collectTranscriptTurnToolEntries<TItem extends AgentSessionItemViewSource>(
+  items: readonly TItem[],
+  sessionItemIndexes: readonly number[],
   scopeId: string,
-  options: ComposeChatTranscriptActivityOptions,
-): TranscriptTurnToolEntry<TMessage>[] {
-  const entries = messageIndexes.map((index) => {
-    const message = messages[index]!;
-    const calls = readTranscriptToolCalls(message, options);
+  options: ComposeAgentSessionTranscriptActivityOptions,
+): TranscriptTurnToolEntry<TItem>[] {
+  const entries = sessionItemIndexes.map((index) => {
+    const item = items[index]!;
+    const calls = readTranscriptToolCalls(item, options);
     return {
       calls,
       callsWereRewritten: false,
       index,
-      isCollapsible: isCollapsibleToolActivityMessage(message, calls),
-      message,
+      isCollapsible: isCollapsibleToolActivityItem(item, calls),
+      item,
     };
   });
   correlateGeminiFallbackToolCallIds(entries, scopeId, options.engineId);
@@ -318,21 +318,21 @@ function collectTranscriptTurnToolEntries<TMessage extends ChatMessageViewSource
   return entries;
 }
 
-function resolveTranscriptMessageScopeIds(
-  messages: readonly ChatMessageViewSource[],
+function resolveAgentSessionItemScopeIds(
+  items: readonly AgentSessionItemViewSource[],
 ): string[] {
   const fallbackEpochBySessionId = new Map<string, number>();
   const scopeIds: string[] = [];
-  for (const message of messages) {
-    const turnId = message.turnId?.trim() ?? '';
+  for (const item of items) {
+    const turnId = item.turnId?.trim() ?? '';
     if (turnId) {
       scopeIds.push(`turn:${turnId}`);
       continue;
     }
 
-    const sessionId = message.sessionId.trim() || 'transcript';
+    const sessionId = item.sessionId.trim() || 'transcript';
     let epoch = fallbackEpochBySessionId.get(sessionId) ?? 0;
-    if (message.role === 'user') {
+    if (item.role === 'user') {
       epoch += 1;
       fallbackEpochBySessionId.set(sessionId, epoch);
     }
@@ -341,22 +341,22 @@ function resolveTranscriptMessageScopeIds(
   return scopeIds;
 }
 
-function isCollapsibleToolActivityMessage(
-  message: ChatMessageViewSource,
-  calls: readonly ChatMessageToolCall[],
+function isCollapsibleToolActivityItem(
+  item: AgentSessionItemViewSource,
+  calls: readonly AgentSessionItemToolCallView[],
 ): boolean {
-  if (message.role === 'tool') {
+  if (item.role === 'tool') {
     return true;
   }
-  if (!isTurnReplyMessage(message)) {
+  if (!isAgentTurnReplyItem(item)) {
     return false;
   }
 
-  return !resolveVisibleAssistantMessageContent(message).trim() && (
+  return !resolveVisibleAssistantSessionItemContent(item).trim() && (
     calls.length > 0 ||
-    (message.commands?.length ?? 0) > 0 ||
-    (message.fileChanges?.length ?? 0) > 0 ||
-    Boolean(message.taskProgress)
+    (item.commands?.length ?? 0) > 0 ||
+    (item.fileChanges?.length ?? 0) > 0 ||
+    Boolean(item.taskProgress)
   );
 }
 
@@ -364,74 +364,74 @@ function isCollapsibleToolActivityMessage(
  * Folds provider tool-use/progress/result lifecycles into their first ordered
  * transcript slot while keeping renderer code independent of provider formats.
  */
-export function composeChatTranscriptActivity<TMessage extends ChatMessageViewSource>(
-  messages: readonly TMessage[],
-  options: ComposeChatTranscriptActivityOptions = {},
-): TMessage[] {
-  const scopeIds = resolveTranscriptMessageScopeIds(messages);
-  const messageIndexesByScopeId = new Map<string, number[]>();
-  for (let index = 0; index < messages.length; index += 1) {
+export function composeAgentSessionTranscriptActivity<TItem extends AgentSessionItemViewSource>(
+  items: readonly TItem[],
+  options: ComposeAgentSessionTranscriptActivityOptions = {},
+): TItem[] {
+  const scopeIds = resolveAgentSessionItemScopeIds(items);
+  const sessionItemIndexesByScopeId = new Map<string, number[]>();
+  for (let index = 0; index < items.length; index += 1) {
     const scopeId = scopeIds[index]!;
-    const scopeMessageIndexes = messageIndexesByScopeId.get(scopeId) ?? [];
-    scopeMessageIndexes.push(index);
-    messageIndexesByScopeId.set(scopeId, scopeMessageIndexes);
+    const scopeItemIndexes = sessionItemIndexesByScopeId.get(scopeId) ?? [];
+    scopeItemIndexes.push(index);
+    sessionItemIndexesByScopeId.set(scopeId, scopeItemIndexes);
   }
 
-  const entriesByMessageIndex = new Map<number, TranscriptTurnToolEntry<TMessage>>();
-  for (const [scopeId, messageIndexes] of messageIndexesByScopeId) {
+  const entriesByItemIndex = new Map<number, TranscriptTurnToolEntry<TItem>>();
+  for (const [scopeId, sessionItemIndexes] of sessionItemIndexesByScopeId) {
     for (const entry of collectTranscriptTurnToolEntries(
-      messages,
-      messageIndexes,
+      items,
+      sessionItemIndexes,
       scopeId,
       options,
     )) {
-      entriesByMessageIndex.set(entry.index, entry);
+      entriesByItemIndex.set(entry.index, entry);
     }
   }
 
-  const normalizedMessages: TMessage[] = [];
+  const normalizedItems: TItem[] = [];
   const callSlotIndexByScopeAndId = new Map<string, number>();
-  const slotCallsByIndex = new Map<number, Map<string, ChatMessageToolCall>>();
+  const slotCallsByIndex = new Map<number, Map<string, AgentSessionItemToolCallView>>();
   const dirtySlotIndexes = new Set<number>();
   const slotCommandsByIndex = new Map<
     number,
-    Map<string, NonNullable<ChatMessageViewSource['commands']>[number]>
+    Map<string, NonNullable<AgentSessionItemViewSource['commands']>[number]>
   >();
   const slotFileChangesByIndex = new Map<
     number,
-    Map<string, NonNullable<ChatMessageViewSource['fileChanges']>[number]>
+    Map<string, NonNullable<AgentSessionItemViewSource['fileChanges']>[number]>
   >();
   const slotResourcesByIndex = new Map<
     number,
-    Map<string, NonNullable<ChatMessageViewSource['resources']>[number]>
+    Map<string, NonNullable<AgentSessionItemViewSource['resources']>[number]>
   >();
-  const slotReasoningByIndex = new Map<number, TMessage['reasoning']>();
-  const slotTaskProgressByIndex = new Map<number, TMessage['taskProgress']>();
+  const slotReasoningByIndex = new Map<number, TItem['reasoning']>();
+  const slotTaskProgressByIndex = new Map<number, TItem['taskProgress']>();
   let previousActivitySlotIndex: number | undefined;
   let previousActivityScopeId = '';
   let didNormalizeActivity = false;
 
   const callKey = (scopeId: string, callId: string): string => `${scopeId}\u0001${callId}`;
   const readResourceKey = (
-    resource: NonNullable<ChatMessageViewSource['resources']>[number],
+    resource: NonNullable<AgentSessionItemViewSource['resources']>[number],
     index: number,
-    messageIdentity: string,
+    sessionItemIdentity: string,
   ): string => {
     const id = typeof resource === 'object' && resource !== null && 'id' in resource
       && typeof resource.id === 'string'
       ? resource.id.trim()
       : '';
-    return id || `${messageIdentity}\u0001resource\u0001${index}`;
+    return id || `${sessionItemIdentity}\u0001resource\u0001${index}`;
   };
   const mergeIntoSlot = (
     slotIndex: number,
-    incoming: TMessage,
-    calls: readonly ChatMessageToolCall[],
-    incomingCommands: readonly NonNullable<ChatMessageViewSource['commands']>[number][],
+    incoming: TItem,
+    calls: readonly AgentSessionItemToolCallView[],
+    incomingCommands: readonly NonNullable<AgentSessionItemViewSource['commands']>[number][],
     includeAncillary: boolean,
   ): void => {
-    const previous = normalizedMessages[slotIndex]!;
-    const callsById = slotCallsByIndex.get(slotIndex) ?? new Map<string, ChatMessageToolCall>();
+    const previous = normalizedItems[slotIndex]!;
+    const callsById = slotCallsByIndex.get(slotIndex) ?? new Map<string, AgentSessionItemToolCallView>();
     for (const call of calls) {
       callsById.set(call.id, mergeNormalizedToolCall(callsById.get(call.id), call));
     }
@@ -486,7 +486,7 @@ export function composeChatTranscriptActivity<TMessage extends ChatMessageViewSo
       });
     }
     if (includeAncillary && (incoming.reasoning?.length ?? 0) > 0) {
-      const reasoning = mergeChatMessageReasoning(
+      const reasoning = mergeAgentSessionItemReasoning(
         slotReasoningByIndex.get(slotIndex) ?? previous.reasoning,
         incoming.reasoning,
       );
@@ -499,20 +499,20 @@ export function composeChatTranscriptActivity<TMessage extends ChatMessageViewSo
     didNormalizeActivity = true;
   };
 
-  for (let messageIndex = 0; messageIndex < messages.length; messageIndex += 1) {
-    const message = messages[messageIndex]!;
-    const scopeId = scopeIds[messageIndex]!;
-    const fallbackCalls = entriesByMessageIndex.has(messageIndex)
+  for (let itemIndex = 0; itemIndex < items.length; itemIndex += 1) {
+    const item = items[itemIndex]!;
+    const scopeId = scopeIds[itemIndex]!;
+    const fallbackCalls = entriesByItemIndex.has(itemIndex)
       ? []
-      : readTranscriptToolCalls(message, options);
-    const fallbackEntry = entriesByMessageIndex.get(messageIndex) ?? {
+      : readTranscriptToolCalls(item, options);
+    const fallbackEntry = entriesByItemIndex.get(itemIndex) ?? {
       calls: fallbackCalls,
       callsWereRewritten: false,
-      index: messageIndex,
-      isCollapsible: isCollapsibleToolActivityMessage(message, fallbackCalls),
-      message,
+      index: itemIndex,
+      isCollapsible: isCollapsibleToolActivityItem(item, fallbackCalls),
+      item,
     };
-    const callsById = new Map<string, ChatMessageToolCall>();
+    const callsById = new Map<string, AgentSessionItemToolCallView>();
     for (const call of fallbackEntry.calls) {
       callsById.set(call.id, mergeNormalizedToolCall(callsById.get(call.id), call));
     }
@@ -522,27 +522,27 @@ export function composeChatTranscriptActivity<TMessage extends ChatMessageViewSo
       previousActivitySlotIndex = undefined;
       previousActivityScopeId = '';
       const hasDuplicateLifecycle = calls.length < fallbackEntry.calls.length;
-      const retainedCalls: ChatMessageToolCall[] = [];
+      const retainedCalls: AgentSessionItemToolCallView[] = [];
       let routedCallToPriorSlot = false;
       for (const call of calls) {
         const existingSlot = callSlotIndexByScopeAndId.get(callKey(scopeId, call.id));
         if (existingSlot === undefined) {
           retainedCalls.push(call);
         } else {
-          mergeIntoSlot(existingSlot, message, [call], [], false);
+          mergeIntoSlot(existingSlot, item, [call], [], false);
           routedCallToPriorSlot = true;
         }
       }
-      const outputIndex = normalizedMessages.length;
+      const outputIndex = normalizedItems.length;
       const mustNormalizeCalls = hasDuplicateLifecycle
         || fallbackEntry.callsWereRewritten
         || routedCallToPriorSlot;
-      normalizedMessages.push(mustNormalizeCalls
+      normalizedItems.push(mustNormalizeCalls
         ? {
-            ...message,
+            ...item,
             tool_calls: retainedCalls.length > 0 ? retainedCalls : undefined,
-          } as TMessage
-        : message);
+          } as TItem
+        : item);
       if (mustNormalizeCalls) {
         didNormalizeActivity = true;
       }
@@ -558,8 +558,8 @@ export function composeChatTranscriptActivity<TMessage extends ChatMessageViewSo
       continue;
     }
 
-    const callsBySlot = new Map<number, ChatMessageToolCall[]>();
-    const unassignedCalls: ChatMessageToolCall[] = [];
+    const callsBySlot = new Map<number, AgentSessionItemToolCallView[]>();
+    const unassignedCalls: AgentSessionItemToolCallView[] = [];
     for (const call of calls) {
       const existingSlot = callSlotIndexByScopeAndId.get(callKey(scopeId, call.id));
       if (existingSlot === undefined) {
@@ -577,7 +577,7 @@ export function composeChatTranscriptActivity<TMessage extends ChatMessageViewSo
     let activitySlotIndex: number | undefined;
     let createdActivitySlot = false;
     if (unassignedCalls.length > 0 || calls.length === 0) {
-      const selectedActivitySlotIndex = contiguousSlotIndex ?? normalizedMessages.length;
+      const selectedActivitySlotIndex = contiguousSlotIndex ?? normalizedItems.length;
       activitySlotIndex = selectedActivitySlotIndex;
       createdActivitySlot = contiguousSlotIndex === undefined;
       const activityCalls = callsBySlot.get(selectedActivitySlotIndex) ?? [];
@@ -590,8 +590,8 @@ export function composeChatTranscriptActivity<TMessage extends ChatMessageViewSo
 
     const existingSlotIndexes = [...callsBySlot.keys()];
     const primarySlotIndex = activitySlotIndex ?? existingSlotIndexes[0];
-    const commandsBySlot = new Map<number, NonNullable<ChatMessageViewSource['commands']>[number][]>();
-    for (const command of message.commands ?? []) {
+    const commandsBySlot = new Map<number, NonNullable<AgentSessionItemViewSource['commands']>[number][]>();
+    for (const command of item.commands ?? []) {
       const commandRecord = typeof command === 'object' && command !== null
         ? command as { toolCallId?: unknown }
         : null;
@@ -612,15 +612,15 @@ export function composeChatTranscriptActivity<TMessage extends ChatMessageViewSo
       const slotCommands = commandsBySlot.get(slotIndex) ?? [];
       if (createdActivitySlot && slotIndex === activitySlotIndex) {
         const ownsAllCalls = slotCalls.length === calls.length;
-        const ownsAllCommands = slotCommands.length === (message.commands?.length ?? 0);
-        const canRetainMessage = ownsAllCalls
+        const ownsAllCommands = slotCommands.length === (item.commands?.length ?? 0);
+        const canRetainItem = ownsAllCalls
           && ownsAllCommands
           && !fallbackEntry.callsWereRewritten
           && calls.length === fallbackEntry.calls.length;
-        const slotMessage = canRetainMessage
-          ? message
+        const slotItem = canRetainItem
+          ? item
           : {
-              ...message,
+              ...item,
               tool_calls: slotCalls.length > 0 ? slotCalls : undefined,
               commands: slotCommands.length > 0 ? slotCommands : undefined,
               ...(slotIndex === primarySlotIndex
@@ -631,16 +631,16 @@ export function composeChatTranscriptActivity<TMessage extends ChatMessageViewSo
                     resources: undefined,
                     taskProgress: undefined,
                   }),
-            } as TMessage;
-        normalizedMessages.push(slotMessage);
+            } as TItem;
+        normalizedItems.push(slotItem);
         slotCallsByIndex.set(slotIndex, new Map(slotCalls.map((call) => [call.id, call])));
-        if (!canRetainMessage) {
+        if (!canRetainItem) {
           didNormalizeActivity = true;
         }
       } else {
         mergeIntoSlot(
           slotIndex,
-          message,
+          item,
           slotCalls,
           slotCommands,
           slotIndex === primarySlotIndex,
@@ -661,12 +661,12 @@ export function composeChatTranscriptActivity<TMessage extends ChatMessageViewSo
   }
 
   for (const slotIndex of dirtySlotIndexes) {
-    const previous = normalizedMessages[slotIndex]!;
+    const previous = normalizedItems[slotIndex]!;
     const callsById = slotCallsByIndex.get(slotIndex);
     const commandsByKey = slotCommandsByIndex.get(slotIndex);
     const fileChangesByPath = slotFileChangesByIndex.get(slotIndex);
     const resourcesByKey = slotResourcesByIndex.get(slotIndex);
-    normalizedMessages[slotIndex] = {
+    normalizedItems[slotIndex] = {
       ...previous,
       ...(callsById?.size ? { tool_calls: [...callsById.values()] } : {}),
       ...(commandsByKey?.size ? { commands: [...commandsByKey.values()] } : {}),
@@ -681,12 +681,12 @@ export function composeChatTranscriptActivity<TMessage extends ChatMessageViewSo
     };
   }
 
-  return didNormalizeActivity ? normalizedMessages : messages as TMessage[];
+  return didNormalizeActivity ? normalizedItems : items as TItem[];
 }
 
 interface FileUpdateSummaryBlock {
   endLineIndex: number;
-  fileChanges: ActivityFileChangeView[];
+  fileChanges: AgentSessionActivityFileChangeView[];
   startLineIndex: number;
 }
 
@@ -694,7 +694,7 @@ function normalizeFileUpdateSummaryPath(path: string): string {
   return path.trim().replace(/^["'`]+|["'`]+$/g, '');
 }
 
-function parseFileUpdateSummaryEntry(line: string): ActivityFileChangeView | null {
+function parseFileUpdateSummaryEntry(line: string): AgentSessionActivityFileChangeView | null {
   const match = FILE_UPDATE_SUMMARY_ENTRY_PATTERN.exec(line.trim());
   if (!match) {
     return null;
@@ -719,7 +719,7 @@ function parseFileUpdateSummaryBlock(
   lines: readonly string[],
   startLineIndex: number,
 ): FileUpdateSummaryBlock | null {
-  const fileChanges: ActivityFileChangeView[] = [];
+  const fileChanges: AgentSessionActivityFileChangeView[] = [];
   let endLineIndex = startLineIndex;
 
   for (let lineIndex = startLineIndex + 1; lineIndex < lines.length; lineIndex += 1) {
@@ -749,13 +749,13 @@ function parseFileUpdateSummaryBlock(
     : null;
 }
 
-export function parseFileUpdateSummaryContent(content: string): ActivityFileChangeView[] {
+export function parseFileUpdateSummaryContent(content: string): AgentSessionActivityFileChangeView[] {
   if (!content.trim()) {
     return [];
   }
 
   const lines = content.replace(/\r\n/g, '\n').split('\n');
-  const fileChanges: ActivityFileChangeView[] = [];
+  const fileChanges: AgentSessionActivityFileChangeView[] = [];
   for (let lineIndex = 0; lineIndex < lines.length; lineIndex += 1) {
     if (!FILE_UPDATE_SUMMARY_HEADER_PATTERN.test(lines[lineIndex]?.trim() ?? '')) {
       continue;
@@ -780,7 +780,7 @@ function normalizeActivityFileChangePathKey(path: string): string {
 function readActivityCommandKey(
   command: unknown,
   index: number,
-  messageIdentity: string,
+  sessionItemIdentity: string,
 ): string | null {
   if (typeof command !== 'object' || command === null) {
     return null;
@@ -794,52 +794,52 @@ function readActivityCommandKey(
 
   const toolCallId = typeof record.toolCallId === 'string' ? record.toolCallId.trim() : '';
   const kind = typeof record.kind === 'string' ? record.kind.trim() : '';
-  return toolCallId || `${messageIdentity}\u0001${commandText}\u0001${kind}\u0001${index}`;
+  return toolCallId || `${sessionItemIdentity}\u0001${commandText}\u0001${kind}\u0001${index}`;
 }
 
-type ChatTurnActivitySummaryIndex = ReadonlyMap<ChatMessageViewSource, ChatTurnActivitySummary | null>;
+type AgentTurnActivitySummaryIndex = ReadonlyMap<AgentSessionItemViewSource, AgentTurnActivityPresentation | null>;
 
-const chatTurnActivitySummaryCache = new WeakMap<
+const agentTurnActivitySummaryCache = new WeakMap<
   object,
-  Map<string, ChatTurnActivitySummaryIndex>
+  Map<string, AgentTurnActivitySummaryIndex>
 >();
 
-function buildChatTurnActivitySummaryIndex(
-  messages: readonly ChatMessageViewSource[],
-  options: ComposeChatTranscriptActivityOptions,
-): ChatTurnActivitySummaryIndex {
-  const messageIndexesByTurnId = new Map<string, number[]>();
-  for (let index = 0; index < messages.length; index += 1) {
-    const turnId = messages[index]?.turnId?.trim() ?? '';
+function buildAgentTurnActivitySummaryIndex(
+  items: readonly AgentSessionItemViewSource[],
+  options: ComposeAgentSessionTranscriptActivityOptions,
+): AgentTurnActivitySummaryIndex {
+  const sessionItemIndexesByTurnId = new Map<string, number[]>();
+  for (let index = 0; index < items.length; index += 1) {
+    const turnId = items[index]?.turnId?.trim() ?? '';
     if (!turnId) {
       continue;
     }
-    const messageIndexes = messageIndexesByTurnId.get(turnId) ?? [];
-    messageIndexes.push(index);
-    messageIndexesByTurnId.set(turnId, messageIndexes);
+    const sessionItemIndexes = sessionItemIndexesByTurnId.get(turnId) ?? [];
+    sessionItemIndexes.push(index);
+    sessionItemIndexesByTurnId.set(turnId, sessionItemIndexes);
   }
 
-  const summaryIndex = new Map<ChatMessageViewSource, ChatTurnActivitySummary | null>();
-  const indexedMessages = new Set<ChatMessageViewSource>();
-  for (const [turnId, messageIndexes] of messageIndexesByTurnId) {
+  const summaryIndex = new Map<AgentSessionItemViewSource, AgentTurnActivityPresentation | null>();
+  const indexedItems = new Set<AgentSessionItemViewSource>();
+  for (const [turnId, sessionItemIndexes] of sessionItemIndexesByTurnId) {
     const toolEntries = collectTranscriptTurnToolEntries(
-      messages,
-      messageIndexes,
+      items,
+      sessionItemIndexes,
       turnId,
       options,
     );
     for (const entry of toolEntries) {
-      const { index, message: candidate } = entry;
-      indexedMessages.add(candidate);
+      const { index, item: candidate } = entry;
+      indexedItems.add(candidate);
       const fileChangesByPath = new Map<
         string,
-        NonNullable<ChatMessageViewSource['fileChanges']>[number]
+        NonNullable<AgentSessionItemViewSource['fileChanges']>[number]
       >();
       const commandsByKey = new Map<
         string,
-        NonNullable<ChatMessageViewSource['commands']>[number]
+        NonNullable<AgentSessionItemViewSource['commands']>[number]
       >();
-      const toolCallsById = new Map<string, ChatMessageToolCall>();
+      const toolCallsById = new Map<string, AgentSessionItemToolCallView>();
 
       for (const fileChange of candidate.fileChanges ?? []) {
         if (typeof fileChange !== 'object' || fileChange === null) {
@@ -872,7 +872,7 @@ function buildChatTurnActivitySummaryIndex(
       }
 
       for (const toolCall of toolCallsById.values()) {
-        const normalizedCommand = normalizeChatMessageCommand(toolCall);
+        const normalizedCommand = normalizeAgentSessionCommand(toolCall);
         if (normalizedCommand) {
           commandsByKey.set(normalizedCommand.toolCallId, normalizedCommand);
         }
@@ -890,31 +890,31 @@ function buildChatTurnActivitySummaryIndex(
     }
   }
 
-  for (let index = 0; index < messages.length; index += 1) {
-    const message = messages[index]!;
-    if (indexedMessages.has(message)) {
+  for (let index = 0; index < items.length; index += 1) {
+    const item = items[index]!;
+    if (indexedItems.has(item)) {
       continue;
     }
-    const calls = readTranscriptToolCalls(message, options);
-    const commandsByKey = new Map<string, NonNullable<ChatMessageViewSource['commands']>[number]>();
+    const calls = readTranscriptToolCalls(item, options);
+    const commandsByKey = new Map<string, NonNullable<AgentSessionItemViewSource['commands']>[number]>();
     const fileChangesByPath = new Map<
       string,
-      NonNullable<ChatMessageViewSource['fileChanges']>[number]
+      NonNullable<AgentSessionItemViewSource['fileChanges']>[number]
     >();
-    for (let commandIndex = 0; commandIndex < (message.commands?.length ?? 0); commandIndex += 1) {
-      const command = message.commands?.[commandIndex];
-      const key = readActivityCommandKey(command, commandIndex, message.id || String(index));
+    for (let commandIndex = 0; commandIndex < (item.commands?.length ?? 0); commandIndex += 1) {
+      const command = item.commands?.[commandIndex];
+      const key = readActivityCommandKey(command, commandIndex, item.id || String(index));
       if (key) {
         commandsByKey.set(key, command!);
       }
     }
     for (const call of calls) {
-      const command = normalizeChatMessageCommand(call);
+      const command = normalizeAgentSessionCommand(call);
       if (command) {
         commandsByKey.set(command.toolCallId, command);
       }
     }
-    for (const fileChange of message.fileChanges ?? []) {
+    for (const fileChange of item.fileChanges ?? []) {
       if (typeof fileChange === 'object' && fileChange !== null) {
         const path = (fileChange as FileChange).path;
         if (typeof path === 'string' && path.trim()) {
@@ -923,7 +923,7 @@ function buildChatTurnActivitySummaryIndex(
       }
     }
     summaryIndex.set(
-      message,
+      item,
       commandsByKey.size === 0 && fileChangesByPath.size === 0
         ? null
         : {
@@ -936,42 +936,42 @@ function buildChatTurnActivitySummaryIndex(
   return summaryIndex;
 }
 
-function resolveChatTurnActivitySummaryIndex(
-  messages: readonly ChatMessageViewSource[],
-  options: ComposeChatTranscriptActivityOptions,
-): ChatTurnActivitySummaryIndex {
+function resolveAgentTurnActivitySummaryIndex(
+  items: readonly AgentSessionItemViewSource[],
+  options: ComposeAgentSessionTranscriptActivityOptions,
+): AgentTurnActivitySummaryIndex {
   const cacheKey = options.engineId?.trim().toLowerCase() ?? '';
-  const cachedByEngine = chatTurnActivitySummaryCache.get(messages);
+  const cachedByEngine = agentTurnActivitySummaryCache.get(items);
   const cachedIndex = cachedByEngine?.get(cacheKey);
   if (cachedIndex) {
     return cachedIndex;
   }
 
-  const summaryIndex = buildChatTurnActivitySummaryIndex(messages, options);
-  const nextCachedByEngine = cachedByEngine ?? new Map<string, ChatTurnActivitySummaryIndex>();
+  const summaryIndex = buildAgentTurnActivitySummaryIndex(items, options);
+  const nextCachedByEngine = cachedByEngine ?? new Map<string, AgentTurnActivitySummaryIndex>();
   nextCachedByEngine.set(cacheKey, summaryIndex);
   if (!cachedByEngine) {
-    chatTurnActivitySummaryCache.set(messages, nextCachedByEngine);
+    agentTurnActivitySummaryCache.set(items, nextCachedByEngine);
   }
   return summaryIndex;
 }
 
 /**
  * Resolves only the activity owned by this ordered transcript slot. A stable
- * message array is indexed once, then each rendered row is an O(1) lookup.
+ * item array is indexed once, then each rendered row is an O(1) lookup.
  */
-export function resolveChatTurnActivitySummary(
-  messages: readonly ChatMessageViewSource[],
-  message: ChatMessageViewSource,
-  options: ComposeChatTranscriptActivityOptions = {},
-): ChatTurnActivitySummary | null {
-  return resolveChatTurnActivitySummaryIndex(messages, options).get(message) ?? null;
+export function resolveAgentTurnActivityPresentation(
+  items: readonly AgentSessionItemViewSource[],
+  item: AgentSessionItemViewSource,
+  options: ComposeAgentSessionTranscriptActivityOptions = {},
+): AgentTurnActivityPresentation | null {
+  return resolveAgentTurnActivitySummaryIndex(items, options).get(item) ?? null;
 }
 
-export function resolveActivityFileChangeViews(
-  message: ChatMessageViewSource,
-): ActivityFileChangeView[] {
-  const structuredFileChanges = (message.fileChanges ?? [])
+export function resolveAgentSessionActivityFileChangeViews(
+  item: AgentSessionItemViewSource,
+): AgentSessionActivityFileChangeView[] {
+  const structuredFileChanges = (item.fileChanges ?? [])
     .filter((fileChange): fileChange is FileChange => {
       if (typeof fileChange !== 'object' || fileChange === null) {
         return false;
@@ -980,11 +980,11 @@ export function resolveActivityFileChangeViews(
       const path = (fileChange as FileChange).path;
       return typeof path === 'string' && path.trim().length > 0;
     })
-    .map<ActivityFileChangeView>((fileChange) => ({
+    .map<AgentSessionActivityFileChangeView>((fileChange) => ({
       ...fileChange,
       lineImpactKnown: fileChange.lineImpactKnown ?? true,
     }));
-  const parsedFileChanges = parseFileUpdateSummaryContent(message.content).map<ActivityFileChangeView>(
+  const parsedFileChanges = parseFileUpdateSummaryContent(item.content).map<AgentSessionActivityFileChangeView>(
     (fileChange) => ({
       ...fileChange,
       lineImpactKnown: false,
@@ -998,7 +998,7 @@ export function resolveActivityFileChangeViews(
     return structuredFileChanges;
   }
 
-  const fileChangesByPath = new Map<string, ActivityFileChangeView>();
+  const fileChangesByPath = new Map<string, AgentSessionActivityFileChangeView>();
   for (const fileChange of parsedFileChanges) {
     fileChangesByPath.set(normalizeActivityFileChangePathKey(fileChange.path), fileChange);
   }
@@ -1037,7 +1037,7 @@ export function stripFileUpdateSummaryContent(content: string): string {
   return didStripSummaryBlock ? remainingLines.join('\n').trim() : content;
 }
 
-export function shouldHideMessageContentAsFileUpdateSummary(
+export function shouldHideSessionItemContentAsFileUpdateSummary(
   content: string,
   activityFileChanges: readonly FileChange[] | undefined,
 ): boolean {
@@ -1049,18 +1049,18 @@ export function shouldHideMessageContentAsFileUpdateSummary(
   return strippedContent.length === 0;
 }
 
-export function resolveVisibleAssistantMessageContent(
-  message: ChatMessageViewSource,
+export function resolveVisibleAssistantSessionItemContent(
+  item: AgentSessionItemViewSource,
 ): string {
-  const activityFileChanges = resolveActivityFileChangeViews(message);
-  const strippedContent = stripFileUpdateSummaryContent(message.content).trim();
+  const activityFileChanges = resolveAgentSessionActivityFileChangeViews(item);
+  const strippedContent = stripFileUpdateSummaryContent(item.content).trim();
 
-  if (shouldHideMessageContentAsFileUpdateSummary(message.content, activityFileChanges)) {
+  if (shouldHideSessionItemContentAsFileUpdateSummary(item.content, activityFileChanges)) {
     return '';
   }
 
   if (activityFileChanges.length > 0) {
-    const contentLines = message.content
+    const contentLines = item.content
       .replace(/\r\n/g, '\n')
       .split('\n')
       .map((line) => line.trim())
@@ -1074,25 +1074,25 @@ export function resolveVisibleAssistantMessageContent(
     }
   }
 
-  return strippedContent || message.content;
+  return strippedContent || item.content;
 }
 
-export function resolveMessageCopyContent(message: ChatMessageViewSource): string {
-  if (message.role === 'user') {
-    return message.content;
+export function resolveSessionItemCopyContent(item: AgentSessionItemViewSource): string {
+  if (item.role === 'user') {
+    return item.content;
   }
 
-  return resolveVisibleAssistantMessageContent(message);
+  return resolveVisibleAssistantSessionItemContent(item);
 }
 
-export function resolveVisibleMarkdownBlockContent(
-  message: ChatMessageViewSource,
+export function resolveAgentSessionItemVisibleMarkdownContent(
+  item: AgentSessionItemViewSource,
 ): string {
-  if (message.role === 'user') {
-    return message.content;
+  if (item.role === 'user') {
+    return item.content;
   }
 
-  return resolveVisibleAssistantMessageContent(message);
+  return resolveVisibleAssistantSessionItemContent(item);
 }
 
 export function hasParsedFileUpdateSummary(content: string): boolean {

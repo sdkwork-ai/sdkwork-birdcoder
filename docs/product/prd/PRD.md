@@ -70,8 +70,9 @@ Non-goals:
 5. Terminal, filesystem, Git, and worktree actions resolve the authorized local
    mount and fail closed when it is missing or stale.
 6. A project uses an Agents `drive/drive` composition slot for sandbox
-   storage. Document composition remains unavailable until Agents publishes
-   the canonical `document/documents` contract.
+   storage and `document/documents` slots for project documents. PC resolves
+   document references through the injected Documents App SDK and owns no
+   document binding, content, version, or projection authority.
 7. An operator deploys the Rust gateway without a BirdCoder database,
    migration, backup volume, or server-side project directory.
 
@@ -85,11 +86,13 @@ Non-goals:
    local Session or transcript authority.
 5. Session creation records runtime association through the Agents runtime
    binding resource when local execution context is required.
-6. Skill workflows use the Skills SDK; human messaging uses the IM SDK.
+6. Skill workflows use the Skills SDK. Human messaging belongs to IM and uses
+   the IM SDK when that separate product capability is enabled.
 7. Tauri device state accepts only the explicit settings, project-mount, and
    installation-identity namespaces.
-8. Sandbox composition uses `drive/drive`; unsupported document composition
-   returns an explicit unavailable result.
+8. Sandbox composition uses `drive/drive`; document composition accepts only
+   canonical `document/documents` slots and fails closed before a Documents
+   SDK call when the slot pairing or reference is invalid.
 9. Frontend features consume injected owner clients or ports and do not
    implement raw transport or local SDK forks.
 10. Rust and PC documentation, contracts, generated SDKs, and runtime behavior
@@ -115,7 +118,8 @@ The current delivery scope is:
 - Rust assembly, gateway, System routes, and Tauri host;
 - PC browser and desktop packages;
 - BirdCoder System-only App SDK;
-- owner SDK integration for Agents, Skills, IM, IAM, Drive, and Documents;
+- owner SDK integration for Agents, Skills, IAM, Drive, and Documents, plus
+  the explicit IM ownership boundary for any future human messaging feature;
 - architecture, operations, and release documentation for those surfaces.
 
 H5 and Flutter remain outside this cutover and cannot be used as evidence that
@@ -131,5 +135,5 @@ the current migration is complete.
 ## 9. Open Questions
 
 No product-boundary question is open for the current Rust-and-PC cutover.
-Document composition remains intentionally unavailable until the Agents owner
-contract adds the required slot kind and target module.
+Additional composition kinds must be added by their owning modules before PC
+can consume them; BirdCoder does not invent aliases or compatibility slots.

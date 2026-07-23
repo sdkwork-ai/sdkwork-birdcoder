@@ -240,7 +240,7 @@ assert.match(
 
 assert.match(
   transcriptVirtualizationSource,
-  /estimateTranscriptMessageHeight\(/,
+  /estimateTranscriptSessionItemHeight\(/,
   'transcript virtualization must estimate row heights from resolved chat message views instead of role-only heuristics.',
 );
 

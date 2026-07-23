@@ -11,7 +11,7 @@ const universalChatSource = await readFile(
 
 assert.match(
   universalChatSource,
-  /useBirdcoderAppSettings,[\s\S]*const \{ settings: appSettings \} = useBirdcoderAppSettings\(\);/,
+  /import \{ useBirdcoderAppSettings \} from '@sdkwork\/birdcoder-pc-workbench\/hooks\/useBirdcoderAppSettings';[\s\S]*const \{ settings: appSettings \} = useBirdcoderAppSettings\(\);/,
   'UniversalChat must consume the canonical app setting that controls composer submission.',
 );
 

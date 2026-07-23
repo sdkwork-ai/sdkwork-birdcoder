@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {
   buildCreateNewAgentSessionInFlightKey,
   createWorkbenchAgentSessionInProject,
-  ensureWorkbenchAgentSessionForMessage,
+  ensureWorkbenchAgentSessionForTurnInput,
   normalizeCreateNewAgentSessionRequest,
 } from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-workbench/src/workbench/agentSessionCreation.ts';
 import type { AgentSessionView } from '@sdkwork/birdcoder-pc-contracts-commons';
@@ -55,36 +55,36 @@ assert.deepEqual(selections, [{
   projectId: 'explicit-project',
 }]);
 
-let messageCreationCalls = 0;
-const ensuredSession = await ensureWorkbenchAgentSessionForMessage({
+let turnSessionCreationCalls = 0;
+const ensuredSession = await ensureWorkbenchAgentSessionForTurnInput({
   createAgentSessionFromRequest: async (request, options) => {
-    messageCreationCalls += 1;
+    turnSessionCreationCalls += 1;
     assert.deepEqual(request, {
       engineId: 'codex',
       modelId: 'gpt-5',
-      projectId: 'message-project',
-      source: 'message-submit',
+      projectId: 'turn-project',
+      source: 'turn-submit',
       title: '12345678901234567890...',
     });
     assert.deepEqual(options, { showSuccessToast: false });
     return {
-      id: 'coding-session-message',
+      id: 'coding-session-turn',
       projectId: request?.projectId,
       title: request?.title,
     } as AgentSessionView;
   },
   currentAgentSessionId: null,
-  currentProjectId: 'message-project',
-  messageContent: '123456789012345678901',
+  currentProjectId: 'turn-project',
+  turnInputContent: '123456789012345678901',
   requestedEngineId: 'codex',
   requestedModelId: 'gpt-5',
   resolveProjectId: () => null,
 });
 assert.deepEqual(ensuredSession, {
-  agentSessionId: 'coding-session-message',
-  projectId: 'message-project',
+  agentSessionId: 'coding-session-turn',
+  projectId: 'turn-project',
   wasCreated: true,
 });
-assert.equal(messageCreationCalls, 1);
+assert.equal(turnSessionCreationCalls, 1);
 
 console.log('new session command contract passed.');

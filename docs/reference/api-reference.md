@@ -19,13 +19,6 @@ is the request/response authority.
 
 BirdCoder owns no Backend API or Open API operation.
 
-## Dependency APIs
-
-Project, composition, Session, Turn, Session Item, Interaction, and Runtime
-Binding operations use the Agents App SDK. Skill lifecycle uses Skills. Human
-communication uses IM. Their paths, schemas, and generated transports remain
-outside the BirdCoder API authority.
-
 ## Consumer Rule
 
 PC imports the approved SDK facade and injects its client. Do not call paths

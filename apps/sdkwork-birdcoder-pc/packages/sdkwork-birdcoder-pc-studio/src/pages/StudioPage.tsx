@@ -31,8 +31,8 @@ import {
   useSelectedAgentSessionItems,
   useSessionRefreshActions,
   useWorkbenchAgentSessionItemEditAction,
-  ensureWorkbenchAgentSessionForMessage,
-  regenerateWorkbenchAgentSessionFromLastUserMessage,
+  ensureWorkbenchAgentSessionForTurnInput,
+  regenerateWorkbenchAgentSessionFromLastUserItem,
   useWorkbenchAgentSessionCreationActions,
   useWorkbenchChatSelection,
   useWorkbenchPreferences,
@@ -89,7 +89,7 @@ function StudioPageComponent({
     filteredProjects,
     searchQuery: projectSearchQuery,
     setSearchQuery: setProjectSearchQuery,
-    sendMessage,
+    submitAgentTurnInput,
     createProject,
     createAgentSession,
     deleteProject,
@@ -739,8 +739,8 @@ function StudioPageComponent({
     setSelectionRefreshToken,
   });
 
-  const handleDeleteMessage = useCallback(async (agentSessionId: string, messageIds: string[]) => {
-    const normalizedMessageIds = messageIds
+  const handleDeleteMessage = useCallback(async (agentSessionId: string, sessionItemIds: string[]) => {
+    const normalizedMessageIds = sessionItemIds
       .map((messageId) => messageId.trim())
       .filter((messageId) => messageId.length > 0);
     if (normalizedMessageIds.length === 0) {
@@ -755,14 +755,14 @@ function StudioPageComponent({
     });
   }, []);
 
-  const executeDeleteMessage = async (agentSessionId: string, messageIds: string[]) => {
+  const executeDeleteMessage = async (agentSessionId: string, sessionItemIds: string[]) => {
     const project = resolveAgentSessionLocation(agentSessionId, currentProjectId)?.project;
     if (project) {
       try {
         const deletedMessageCount = await deleteWorkbenchAgentSessionItems({
           agentSessionId,
           deleteAgentSessionItem,
-          messageIds,
+          sessionItemIds,
           projectId: project.projectId,
         });
         addToast(
@@ -771,7 +771,7 @@ function StudioPageComponent({
         );
       } catch (error) {
         console.error('Failed to delete coding session message', error);
-        addToast(messageIds.length > 1 ? 'Failed to delete reply' : t('studio.failedToDeleteMessage'), 'error');
+        addToast(sessionItemIds.length > 1 ? 'Failed to delete reply' : t('studio.failedToDeleteMessage'), 'error');
       }
     }
   };
@@ -790,11 +790,11 @@ function StudioPageComponent({
       setIsSubmittingTurn(true);
       try {
         const didRegenerate =
-          await regenerateWorkbenchAgentSessionFromLastUserMessage({
+          await regenerateWorkbenchAgentSessionFromLastUserItem({
             agentSession,
             deleteAgentSessionItem,
             projectId: project.projectId,
-            regenerateMessageContext: buildWorkbenchAgentSessionTurnContext({
+            regenerateTurnContext: buildWorkbenchAgentSessionTurnContext({
               currentFileContent: fileContent,
               currentFileLanguage: selectedFile ? getLanguageFromPath(selectedFile) : null,
               currentFilePath: selectedFile,
@@ -802,7 +802,7 @@ function StudioPageComponent({
               sessionId: agentSession.id,
             }),
             submitAgentTurn: (targetProjectId, targetAgentSessionId, content, context) =>
-              sendMessage(targetProjectId, targetAgentSessionId, content, context),
+              submitAgentTurnInput(targetProjectId, targetAgentSessionId, content, context),
           });
         if (didRegenerate) {
           setSelectionRefreshToken((previousState) => previousState + 1);
@@ -817,10 +817,10 @@ function StudioPageComponent({
     fileContent,
     isChatBusy,
     buildWorkbenchAgentSessionTurnContext,
-    regenerateWorkbenchAgentSessionFromLastUserMessage,
+    regenerateWorkbenchAgentSessionFromLastUserItem,
     resolveAgentSessionLocation,
     selectedFile,
-    sendMessage,
+    submitAgentTurnInput,
     setSelectionRefreshToken,
   ]);
 
@@ -876,11 +876,11 @@ function StudioPageComponent({
         requestedModelId.toLowerCase() !== currentSessionModelId.toLowerCase())
         ? null
         : sessionId;
-    const bootstrappedSession = await ensureWorkbenchAgentSessionForMessage({
+    const bootstrappedSession = await ensureWorkbenchAgentSessionForTurnInput({
       createAgentSessionFromRequest,
       currentAgentSessionId,
       currentProjectId,
-      messageContent: trimmedContent,
+      turnInputContent: trimmedContent,
       requestedEngineId: composerSelection?.engineId,
       requestedModelId: composerSelection?.modelId,
       resolveProjectId: async () => {
@@ -910,7 +910,7 @@ function StudioPageComponent({
         projectId: bootstrappedSession.projectId,
         sessionId: bootstrappedSession.agentSessionId,
       });
-      const sentMessage = await sendMessage(
+      const sentMessage = await submitAgentTurnInput(
         bootstrappedSession.projectId,
         bootstrappedSession.agentSessionId,
         trimmedContent,
@@ -928,7 +928,7 @@ function StudioPageComponent({
     }
   }, [
     buildWorkbenchAgentSessionTurnContext,
-    ensureWorkbenchAgentSessionForMessage,
+    ensureWorkbenchAgentSessionForTurnInput,
     createAgentSessionFromRequest,
     currentProjectId,
     fileContent,
@@ -940,7 +940,7 @@ function StudioPageComponent({
     selectedSession?.engineId,
     selectedSession?.modelId,
     selectedFile,
-    sendMessage,
+    submitAgentTurnInput,
     setSelectionRefreshToken,
     t,
   ]);
@@ -1134,9 +1134,9 @@ function StudioPageComponent({
     }
     return Promise.resolve();
   }, [handleEditMessage, sessionId]);
-  const handleStudioDeleteMessage = useCallback((messageIds: string[]) => {
+  const handleStudioDeleteMessage = useCallback((sessionItemIds: string[]) => {
     if (sessionId) {
-      void handleDeleteMessage(sessionId, messageIds);
+      void handleDeleteMessage(sessionId, sessionItemIds);
     }
   }, [handleDeleteMessage, sessionId]);
   const handleStudioRegenerateMessage = useCallback(() => {

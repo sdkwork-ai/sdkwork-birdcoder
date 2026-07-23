@@ -48,20 +48,20 @@ const studioPageSource = readSource(
 
 assert.match(
   agentSessionCreationSource,
-  /export async function ensureWorkbenchAgentSessionForMessage\(/,
-  'Workbench message sending must expose a shared ensureWorkbenchAgentSessionForMessage helper so surfaces reuse one authoritative project/session bootstrap flow for first-turn sends.',
+  /export async function ensureWorkbenchAgentSessionForTurnInput\(/,
+  'Workbench turn submission must expose a shared ensureWorkbenchAgentSessionForTurnInput helper so surfaces reuse one authoritative project/session bootstrap flow for first-turn inputs.',
 );
 
 assert.match(
   `${codePageSource}\n${studioPageSource}`,
-  /ensureWorkbenchAgentSessionForMessage\(/,
-  'CodePage and StudioPage must reuse the shared ensureWorkbenchAgentSessionForMessage helper when sending the first message without an existing session.',
+  /ensureWorkbenchAgentSessionForTurnInput\(/,
+  'CodePage and StudioPage must reuse the shared ensureWorkbenchAgentSessionForTurnInput helper when submitting the first turn input without an existing session.',
 );
 
 assert.doesNotMatch(
   `${codePageSource}\n${studioPageSource}`,
   /const newTitle\s*=\s*trimmedContent\.slice\(0,\s*20\)\s*\+\s*\(trimmedContent\.length\s*>\s*20\s*\?\s*'\.\.\.'\s*:\s*''\s*\);/s,
-  'CodePage and StudioPage must not inline first-message session title generation once the shared message session bootstrap helper owns that behavior.',
+  'CodePage and StudioPage must not inline first-turn session title generation once the shared turn-input session bootstrap helper owns that behavior.',
 );
 
-console.log('message session bootstrap standardization contract passed.');
+console.log('agent turn-input session bootstrap standardization contract passed.');

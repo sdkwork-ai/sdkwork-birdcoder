@@ -60,9 +60,9 @@ export function useCodeDeleteConfirmation({
   const requestDeleteMessage = useCallback((
     agentSessionId: string,
     projectId: string,
-    messageIds: string[],
+    sessionItemIds: string[],
   ) => {
-    const normalizedMessageIds = messageIds
+    const normalizedMessageIds = sessionItemIds
       .map((messageId) => messageId.trim())
       .filter((messageId) => messageId.length > 0);
     if (normalizedMessageIds.length === 0) {
@@ -128,7 +128,7 @@ export function useCodeDeleteConfirmation({
           const deletedMessageCount = await deleteWorkbenchAgentSessionItems({
             agentSessionId: confirmation.parentId,
             deleteAgentSessionItem,
-            messageIds: confirmation.ids?.length
+            sessionItemIds: confirmation.ids?.length
             ? confirmation.ids
             : [confirmation.id],
             projectId: project.projectId,

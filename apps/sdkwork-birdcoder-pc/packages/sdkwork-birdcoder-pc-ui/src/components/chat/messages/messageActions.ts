@@ -1,5 +1,5 @@
 import type { AgentSessionItemView } from '@sdkwork/birdcoder-pc-workbench/chat/types';
-import { resolveMessageCopyContent } from '@sdkwork/birdcoder-pc-workbench/chat/types';
+import { resolveSessionItemCopyContent } from '@sdkwork/birdcoder-pc-workbench/chat/types';
 import type { ChatMessageActionTarget } from './types.ts';
 
 const EMPTY_MESSAGE_ACTION_TARGETS = new Map<number, ChatMessageActionTarget>();
@@ -106,7 +106,7 @@ export function resolveMessageActionTargetCopyText(
       continue;
     }
 
-    const content = resolveMessageCopyContent(message).trim();
+    const content = resolveSessionItemCopyContent(message).trim();
     if (content) {
       copySegments.push(content);
     }

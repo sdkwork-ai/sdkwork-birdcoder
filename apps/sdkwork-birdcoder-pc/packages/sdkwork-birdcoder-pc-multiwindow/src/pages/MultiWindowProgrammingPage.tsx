@@ -330,7 +330,7 @@ export const MultiWindowProgrammingPage = memo(function MultiWindowProgrammingPa
     createAgentSession,
     hasFetched,
     projects,
-    sendMessage,
+    submitAgentTurnInput,
   } = useProjects({
     isActive: isVisible,
     targetProjectId: projectId,
@@ -878,7 +878,7 @@ export const MultiWindowProgrammingPage = memo(function MultiWindowProgrammingPa
             if (!isActiveDispatchBatch(dispatchBatchId) || dispatchAbortController.signal.aborted) {
               throw new MultiWindowDispatchStoppedError();
             }
-            const sentMessage = await sendMessage(
+            const sentMessage = await submitAgentTurnInput(
               effectivePane.projectId,
               effectiveAgentSessionId,
               dispatchPromptProfile.prompt,
@@ -994,7 +994,7 @@ export const MultiWindowProgrammingPage = memo(function MultiWindowProgrammingPa
     isActiveDispatchBatch,
     isDispatching,
     notifyActiveAgentSessionSelection,
-    sendMessage,
+    submitAgentTurnInput,
     t,
     visiblePanes,
     windowCount,

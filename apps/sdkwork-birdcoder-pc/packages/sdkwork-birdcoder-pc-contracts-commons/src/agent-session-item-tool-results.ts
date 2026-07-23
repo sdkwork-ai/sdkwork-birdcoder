@@ -3,12 +3,12 @@ import type {
   AgentSessionItemToolResultBlockView as AgentSessionItemToolResultBlockView,
 } from './agent-session-view.ts';
 import {
-  BIRDCODER_CHAT_MESSAGE_MAX_EXTERNAL_MEDIA_SOURCE_CHARACTERS,
-  BIRDCODER_CHAT_MESSAGE_MAX_MEDIA_SOURCE_CHARACTERS,
+  BIRDCODER_AGENT_SESSION_ITEM_MAX_EXTERNAL_MEDIA_SOURCE_CHARACTERS,
+  BIRDCODER_AGENT_SESSION_ITEM_MAX_MEDIA_SOURCE_CHARACTERS,
   buildAgentSessionItemDataMediaSource,
   parseAgentSessionItemDataMediaSource,
   type AgentSessionItemMediaKind,
-} from './chat-message-media.ts';
+} from './agent-session-item-media.ts';
 
 const MAX_TOOL_RESULT_BLOCKS = 200;
 const MAX_TOOL_RESULT_DEPTH = 16;
@@ -50,9 +50,9 @@ function readBoundedMediaSource(
   const source = value.trim();
   if (
     value.length === 0
-    || value.length > BIRDCODER_CHAT_MESSAGE_MAX_MEDIA_SOURCE_CHARACTERS
+    || value.length > BIRDCODER_AGENT_SESSION_ITEM_MAX_MEDIA_SOURCE_CHARACTERS
     || source.length === 0
-    || source.length > BIRDCODER_CHAT_MESSAGE_MAX_MEDIA_SOURCE_CHARACTERS
+    || source.length > BIRDCODER_AGENT_SESSION_ITEM_MAX_MEDIA_SOURCE_CHARACTERS
   ) {
     return '';
   }
@@ -66,7 +66,7 @@ function readBoundedMediaSource(
   if (!/^https?:\/\//iu.test(source) && !/^blob:/iu.test(source)) {
     return '';
   }
-  return source.length <= BIRDCODER_CHAT_MESSAGE_MAX_EXTERNAL_MEDIA_SOURCE_CHARACTERS
+  return source.length <= BIRDCODER_AGENT_SESSION_ITEM_MAX_EXTERNAL_MEDIA_SOURCE_CHARACTERS
     ? source
     : '';
 }
@@ -107,7 +107,7 @@ function isTrueProtocolFlag(value: unknown): boolean {
     || (typeof value === 'string' && value.trim().toLowerCase() === 'true');
 }
 
-export function hasChatMessageToolErrorValue(value: unknown): boolean {
+export function hasAgentSessionItemToolErrorValue(value: unknown): boolean {
   if (value === undefined || value === null || value === false) {
     return false;
   }
@@ -118,7 +118,7 @@ export function hasChatMessageToolErrorValue(value: unknown): boolean {
     return Number.isFinite(value) && value !== 0;
   }
   if (Array.isArray(value)) {
-    return value.some(hasChatMessageToolErrorValue);
+    return value.some(hasAgentSessionItemToolErrorValue);
   }
   if (value instanceof Error) {
     return Boolean(value.message.trim() || value.name.trim());
@@ -373,7 +373,7 @@ function projectStructuredToolResultDisplay(
   return false;
 }
 
-export function hasStructuredChatMessageToolError(
+export function hasStructuredAgentSessionItemToolError(
   value: unknown,
   visited = new WeakSet<object>(),
   depth = 0,
@@ -383,7 +383,7 @@ export function hasStructuredChatMessageToolError(
   }
   if (Array.isArray(value)) {
     return value.some((entry) =>
-      hasStructuredChatMessageToolError(entry, visited, depth + 1),
+      hasStructuredAgentSessionItemToolError(entry, visited, depth + 1),
     );
   }
   const record = readRecord(value);
@@ -395,7 +395,7 @@ export function hasStructuredChatMessageToolError(
   if (
     isTrueProtocolFlag(record.is_error)
     || isTrueProtocolFlag(record.isError)
-    || hasChatMessageToolErrorValue(record.error)
+    || hasAgentSessionItemToolErrorValue(record.error)
     || type === 'error'
     || type.endsWith('_error')
   ) {
@@ -415,7 +415,7 @@ export function hasStructuredChatMessageToolError(
     'structuredContent',
     'structured_content',
   ].some((key) =>
-    hasStructuredChatMessageToolError(record[key], visited, depth + 1),
+    hasStructuredAgentSessionItemToolError(record[key], visited, depth + 1),
   );
 }
 
@@ -757,7 +757,7 @@ function normalizeToolResultValue(
     blocks.push({ type: 'error', message: readToolResultErrorMessage(record) });
     return;
   }
-  const hasEmbeddedError = hasChatMessageToolErrorValue(record.error);
+  const hasEmbeddedError = hasAgentSessionItemToolErrorValue(record.error);
   if (hasEmbeddedError) {
     blocks.push({ type: 'error', message: readToolResultErrorMessage(record.error) });
   }
@@ -924,7 +924,7 @@ function normalizeToolResultValue(
   }
 }
 
-function resolveChatMessageToolCallNonErrorOutputValue(
+function resolveAgentSessionItemToolCallNonErrorOutputValue(
   record: Record<string, unknown>,
 ): unknown {
   const state = readRecord(record.state);
@@ -946,7 +946,7 @@ function resolveChatMessageToolCallNonErrorOutputValue(
     ?? (type === 'tool_result' ? record.content : undefined);
 }
 
-export function resolveChatMessageToolCallOutputValue(
+export function resolveAgentSessionItemToolCallOutputValue(
   record: Record<string, unknown>,
 ): unknown {
   const state = readRecord(record.state);
@@ -954,14 +954,14 @@ export function resolveChatMessageToolCallOutputValue(
   const interruptedOutput = stateMetadata?.interrupted === true
     ? stateMetadata.output
     : undefined;
-  const errorValue = hasChatMessageToolErrorValue(record.error)
+  const errorValue = hasAgentSessionItemToolErrorValue(record.error)
     ? record.error
-    : hasChatMessageToolErrorValue(state?.error)
+    : hasAgentSessionItemToolErrorValue(state?.error)
       ? state?.error
       : undefined;
   return interruptedOutput
     ?? errorValue
-    ?? resolveChatMessageToolCallNonErrorOutputValue(record);
+    ?? resolveAgentSessionItemToolCallNonErrorOutputValue(record);
 }
 
 function isStructuredMediaToolResultValue(
@@ -1010,16 +1010,16 @@ function isStructuredMediaToolResultValue(
   ].some((entry) => isStructuredMediaToolResultValue(entry, visited, depth + 1));
 }
 
-export function resolveChatMessageToolCallOutput(
+export function resolveAgentSessionItemToolCallOutput(
   record: Record<string, unknown>,
 ): string {
-  const outputValue = resolveChatMessageToolCallOutputValue(record);
+  const outputValue = resolveAgentSessionItemToolCallOutputValue(record);
   return isStructuredMediaToolResultValue(outputValue)
     ? ''
     : formatToolResultValue(outputValue);
 }
 
-export function resolveChatMessageToolCallResultBlocks(
+export function resolveAgentSessionItemToolCallResultBlocks(
   record: Record<string, unknown>,
   status: AgentSessionItemToolCallStatus | undefined,
 ): readonly AgentSessionItemToolResultBlockView[] {
@@ -1035,13 +1035,13 @@ export function resolveChatMessageToolCallResultBlocks(
 
   const blocks: AgentSessionItemToolResultBlockView[] = [];
   const state = readRecord(record.state);
-  const errorValue = hasChatMessageToolErrorValue(record.error)
+  const errorValue = hasAgentSessionItemToolErrorValue(record.error)
     ? record.error
-    : hasChatMessageToolErrorValue(state?.error)
+    : hasAgentSessionItemToolErrorValue(state?.error)
       ? state?.error
       : undefined;
-  const outputValue = resolveChatMessageToolCallOutputValue(record);
-  const nonErrorOutputValue = resolveChatMessageToolCallNonErrorOutputValue(record);
+  const outputValue = resolveAgentSessionItemToolCallOutputValue(record);
+  const nonErrorOutputValue = resolveAgentSessionItemToolCallNonErrorOutputValue(record);
   const errorText = formatToolResultValue(errorValue).trim();
   const nonErrorOutputText = formatToolResultValue(nonErrorOutputValue).trim();
   if (errorValue !== undefined) {

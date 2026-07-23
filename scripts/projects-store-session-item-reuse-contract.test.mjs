@@ -24,26 +24,32 @@ const projectsStoreSource = fs.readFileSync(
 
 assert.doesNotMatch(
   projectsStoreSource,
-  /function cloneProjectMessages\(/,
-  'projectsStore should not deep-clone full transcript arrays while reconciling project inventory snapshots.',
+  /function cloneProjectItems\(/,
+  'projectsStore should not deep-clone full Session Item arrays while reconciling project inventory snapshots.',
 );
 
 assert.match(
   projectsStoreSource,
   /function normalizeAgentSessionItemsForStore\(/,
-  'projectsStore should normalize transcripts through one store boundary before adopting message arrays.',
+  'projectsStore should normalize Agent Session Items through one store boundary before adopting item arrays.',
 );
 
 assert.match(
   projectsStoreSource,
-  /deduplicateBirdCoderComparableChatMessages/,
-  'projectsStore transcript normalization should use the shared chat-message deduplication helper.',
+  /deduplicateAgentSessionItemViews/,
+  'projectsStore Session Item normalization should use the shared Agents item deduplication helper.',
 );
 
-function buildMessage(overrides = {}) {
+assert.doesNotMatch(
+  projectsStoreSource,
+  /existingMessages|incomingMessages|scopedMessages|preserveEmptyMessages/,
+  'The Agent Session store must not model canonical Session Items as IM messages.',
+);
+
+function buildItem(overrides = {}) {
   return {
-    id: 'message-1',
-    agentSessionId: 'session-1',
+    id: 'item-1',
+    sessionId: 'session-1',
     role: 'assistant',
     content: 'Ready.',
     createdAt: '2026-04-27T01:00:00.000Z',
@@ -54,7 +60,6 @@ function buildMessage(overrides = {}) {
 function buildAgentSession(overrides = {}) {
   return {
     id: 'session-1',
-    workspaceId: 'workspace-1',
     projectId: 'project-1',
     title: 'Reuse Session',
     status: 'active',
@@ -66,15 +71,14 @@ function buildAgentSession(overrides = {}) {
     lastTurnAt: '2026-04-27T01:00:00.000Z',
     transcriptUpdatedAt: '2026-04-27T01:00:00.000Z',
     displayTime: 'Just now',
-    messages: [],
+    items: [],
     ...overrides,
   };
 }
 
 function buildProject(overrides = {}) {
   return {
-    id: 'project-1',
-    workspaceId: 'workspace-1',
+    projectId: 'project-1',
     name: 'Reuse Project',
     createdAt: '2026-04-27T01:00:00.000Z',
     updatedAt: '2026-04-27T01:00:00.000Z',
@@ -84,52 +88,52 @@ function buildProject(overrides = {}) {
   };
 }
 
-const incomingMessages = [buildMessage()];
+const incomingItems = [buildItem()];
 const insertedProjects = upsertAgentSessionIntoCollection(
   [buildProject()],
   'project-1',
-  buildAgentSession({ messages: incomingMessages }),
+  buildAgentSession({ items: incomingItems }),
 );
 const insertedSession = insertedProjects[0]?.agentSessions.find(
   (agentSession) => agentSession.id === 'session-1',
 );
 
 assert.equal(
-  insertedSession?.messages,
-  incomingMessages,
-  'projectsStore should adopt clean incoming transcript arrays after normalization instead of rebuilding them.',
+  insertedSession?.items,
+  incomingItems,
+  'projectsStore should adopt clean incoming Session Item arrays after normalization instead of rebuilding them.',
 );
 
-const existingMessages = [buildMessage()];
-const refreshedMessages = [buildMessage()];
+const existingItems = [buildItem()];
+const refreshedItems = [buildItem()];
 const refreshedProjects = upsertAgentSessionIntoCollection(
   [
     buildProject({
-      agentSessions: [buildAgentSession({ messages: existingMessages })],
+      agentSessions: [buildAgentSession({ items: existingItems })],
     }),
   ],
   'project-1',
-  buildAgentSession({ messages: refreshedMessages }),
+  buildAgentSession({ items: refreshedItems }),
 );
 const refreshedSession = refreshedProjects[0]?.agentSessions.find(
   (agentSession) => agentSession.id === 'session-1',
 );
 
 assert.equal(
-  refreshedSession?.messages,
-  existingMessages,
-  'projectsStore should reuse an existing transcript array when an authority refresh contains equivalent messages.',
+  refreshedSession?.items,
+  existingItems,
+  'projectsStore should reuse an existing Session Item array when an authority refresh contains equivalent items.',
 );
 
 const refreshedNativeSessionProjects = upsertAgentSessionIntoCollection(
   [
     buildProject({
-      agentSessions: [buildAgentSession({ messages: existingMessages })],
+      agentSessions: [buildAgentSession({ items: existingItems })],
     }),
   ],
   'project-1',
   buildAgentSession({
-    messages: refreshedMessages,
+    items: refreshedItems,
     nativeSessionId: 'store-native-session',
   }),
 );
@@ -143,9 +147,9 @@ assert.notEqual(
   'projectsStore should adopt nativeSessionId-only authority updates instead of reusing a stale coding session object.',
 );
 assert.equal(
-  refreshedNativeSession?.messages,
-  existingMessages,
-  'projectsStore should still reuse equivalent transcript arrays when adopting a nativeSessionId-only update.',
+  refreshedNativeSession?.items,
+  existingItems,
+  'projectsStore should still reuse equivalent Session Item arrays when adopting a nativeSessionId-only update.',
 );
 
-console.log('projects store message reuse contract passed.');
+console.log('projects store Agent Session Item reuse contract passed.');

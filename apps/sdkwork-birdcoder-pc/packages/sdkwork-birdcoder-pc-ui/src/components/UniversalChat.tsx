@@ -3,7 +3,7 @@ import { Plus, ChevronDown, ChevronUp, GripVertical, ArrowUp, CheckCircle2, Rota
 import { useTranslation } from 'react-i18next';
 import { Button } from '@sdkwork/birdcoder-pc-ui-shell';
 import {
-  composeChatTranscriptActivity,
+  composeAgentSessionTranscriptActivity,
   resolveBirdCoderCodeEngineCommandInteractionState,
 } from '@sdkwork/birdcoder-pc-workbench/chat/types';
 import type { AgentSessionItemView, FileChange } from '@sdkwork/birdcoder-pc-workbench/chat/types';
@@ -26,13 +26,13 @@ import {
   saveSessionPromptHistoryEntry,
 } from '@sdkwork/birdcoder-pc-workbench/chat/persistence';
 import {
-  canFlushWorkbenchChatQueuedMessages,
-  createWorkbenchChatQueueFlushGateState,
-  markWorkbenchChatQueuedTurnDispatchStarted,
-  observeWorkbenchChatQueuedTurnBusyState,
-  settleWorkbenchChatQueuedTurnDispatch,
-  useWorkbenchChatMessageQueue,
-} from '@sdkwork/birdcoder-pc-workbench/chat/messageQueueStore';
+  canFlushWorkbenchQueuedAgentTurnInputs,
+  createWorkbenchAgentTurnInputQueueFlushGateState,
+  markWorkbenchQueuedAgentTurnDispatchStarted,
+  observeWorkbenchQueuedAgentTurnBusyState,
+  settleWorkbenchQueuedAgentTurnDispatch,
+  useWorkbenchAgentTurnInputQueue,
+} from '@sdkwork/birdcoder-pc-workbench/chat/agentTurnInputQueueStore';
 import { useWorkbenchChatInputDraft } from '@sdkwork/birdcoder-pc-workbench/chat/draftStore';
 import { globalEventBus } from '@sdkwork/birdcoder-pc-workbench/utils/EventBus';
 import { hasRestorableFileChanges } from '@sdkwork/birdcoder-pc-workbench/workbench/fileChangeRestore';
@@ -49,12 +49,12 @@ import type {
   AgentQuestionAnswerInput,
   AgentSessionPendingApproval,
   AgentSessionPendingQuestion,
-  WorkbenchChatQueuedMessage,
+  WorkbenchQueuedAgentTurnInput,
 } from '@sdkwork/birdcoder-pc-workbench';
 import {
   resolveComposerInputAfterSendFailure,
-  restoreQueuedMessagesAfterSendFailure,
-} from './chatComposerRecovery';
+  restoreQueuedAgentTurnInputsAfterSendFailure,
+} from './agentTurnInputRecovery';
 import { copyTextToClipboard } from './clipboard';
 import { shouldUseRichChatMarkdown } from './chatMarkdownHeuristics';
 import {
@@ -772,12 +772,12 @@ export const UniversalChat = memo(function UniversalChat({
   } | null>(null);
   const [autoSendPrompt, setAutoSendPrompt] = useState(true);
   const {
-    dequeueQueuedMessage,
-    enqueueQueuedMessage,
-    queuedMessages: messageQueue,
-    restoreQueuedMessagesToFront,
-    setQueuedMessages: setMessageQueue,
-  } = useWorkbenchChatMessageQueue(normalizedQueueScopeKey);
+    dequeueQueuedTurnInput,
+    enqueueQueuedTurnInput,
+    queuedTurnInputs: agentTurnInputQueue,
+    restoreQueuedTurnInputsToFront,
+    setQueuedTurnInputs: setAgentTurnInputQueue,
+  } = useWorkbenchAgentTurnInputQueue(normalizedQueueScopeKey);
   const [isQueueExpanded, setIsQueueExpanded] = useState(false);
   const [editingQueueIndex, setEditingQueueIndex] = useState(-1);
   const [editingQueueText, setEditingQueueText] = useState('');
@@ -787,7 +787,7 @@ export const UniversalChat = memo(function UniversalChat({
   const isDispatchingMessageRef = useRef(false);
   const [pendingInteractionSubmissionId, setPendingInteractionSubmissionId] = useState<string | null>(null);
   const pendingInteractionSubmissionIdRef = useRef<string | null>(null);
-  const queuedTurnFlushGateRef = useRef(createWorkbenchChatQueueFlushGateState());
+  const queuedTurnFlushGateRef = useRef(createWorkbenchAgentTurnInputQueueFlushGateState());
   const queuedTurnDispatchSettlementTimerRef = useRef<number | null>(null);
   const [queuedTurnFlushGateVersion, setQueuedTurnFlushGateVersion] = useState(0);
   const { addToast } = useToast();
@@ -898,7 +898,7 @@ export const UniversalChat = memo(function UniversalChat({
   const isComposerProcessing = isEngineBusy || isDispatchingMessage || isSubmittingPendingInteraction;
   const isComposerTurnBlockedRef = useRef(isComposerTurnBlocked);
   const normalizedMessages = useMemo(
-    () => composeChatTranscriptActivity(
+    () => composeAgentSessionTranscriptActivity(
       resolveVisibleSessionMessages(messages, normalizedSessionId),
       { engineId: selectedEngineId },
     ),
@@ -968,8 +968,8 @@ export const UniversalChat = memo(function UniversalChat({
 
   const setQueuedTurnFlushGate = useCallback((
     resolveNextState: (
-      previousState: ReturnType<typeof createWorkbenchChatQueueFlushGateState>,
-    ) => ReturnType<typeof createWorkbenchChatQueueFlushGateState>,
+      previousState: ReturnType<typeof createWorkbenchAgentTurnInputQueueFlushGateState>,
+    ) => ReturnType<typeof createWorkbenchAgentTurnInputQueueFlushGateState>,
   ) => {
     const previousState = queuedTurnFlushGateRef.current;
     const nextState = resolveNextState(previousState);
@@ -1001,8 +1001,8 @@ export const UniversalChat = memo(function UniversalChat({
 
     setQueuedTurnFlushGate((previousState) =>
       isTurnStillBusy
-        ? observeWorkbenchChatQueuedTurnBusyState(previousState, true)
-        : settleWorkbenchChatQueuedTurnDispatch(previousState),
+        ? observeWorkbenchQueuedAgentTurnBusyState(previousState, true)
+        : settleWorkbenchQueuedAgentTurnDispatch(previousState),
     );
   }, [setQueuedTurnFlushGate]);
 
@@ -1020,7 +1020,7 @@ export const UniversalChat = memo(function UniversalChat({
       isDispatchingMessageRef.current ||
       pendingInteractionSubmissionIdRef.current !== null;
     setQueuedTurnFlushGate((previousState) =>
-      markWorkbenchChatQueuedTurnDispatchStarted(previousState, isTurnDispatchBusy),
+      markWorkbenchQueuedAgentTurnDispatchStarted(previousState, isTurnDispatchBusy),
     );
   }, [isBusy, setQueuedTurnFlushGate]);
 
@@ -1185,7 +1185,7 @@ export const UniversalChat = memo(function UniversalChat({
 
   useEffect(() => {
     setQueuedTurnFlushGate((previousState) =>
-      observeWorkbenchChatQueuedTurnBusyState(previousState, isComposerTurnBlocked),
+      observeWorkbenchQueuedAgentTurnBusyState(previousState, isComposerTurnBlocked),
     );
   }, [isComposerTurnBlocked, setQueuedTurnFlushGate]);
 
@@ -1194,7 +1194,7 @@ export const UniversalChat = memo(function UniversalChat({
     setEditingQueueIndex(-1);
     setEditingQueueText('');
     clearQueuedTurnDispatchSettlementTimer();
-    queuedTurnFlushGateRef.current = createWorkbenchChatQueueFlushGateState();
+    queuedTurnFlushGateRef.current = createWorkbenchAgentTurnInputQueueFlushGateState();
     setQueuedTurnFlushGateVersion((previousVersion) => previousVersion + 1);
   }, [clearQueuedTurnDispatchSettlementTimer, normalizedQueueScopeKey]);
 
@@ -1878,7 +1878,7 @@ export const UniversalChat = memo(function UniversalChat({
 
   const dispatchDraftMessage = useCallback(async (
     submittedTextSnapshot: string,
-    queuedMessagesSnapshot: readonly WorkbenchChatQueuedMessage[] = [],
+    queuedAgentTurnInputsSnapshot: readonly WorkbenchQueuedAgentTurnInput[] = [],
   ): Promise<boolean> => {
     if (disabled) {
       return false;
@@ -1906,8 +1906,8 @@ export const UniversalChat = memo(function UniversalChat({
         setInputValue((previousInputValue) =>
           resolveComposerInputAfterSendFailure(submittedTextSnapshot, previousInputValue),
         );
-        setMessageQueue((previousQueue) =>
-          restoreQueuedMessagesAfterSendFailure(queuedMessagesSnapshot, previousQueue),
+        setAgentTurnInputQueue((previousQueue) =>
+          restoreQueuedAgentTurnInputsAfterSendFailure(queuedAgentTurnInputsSnapshot, previousQueue),
         );
         addToast(
           error instanceof Error && error.message.trim()
@@ -1943,12 +1943,12 @@ export const UniversalChat = memo(function UniversalChat({
     persistSubmittedPromptHistory,
     scheduleQueuedTurnDispatchSettlementCheck,
     setInputValue,
-    setMessageQueue,
+    setAgentTurnInputQueue,
     t,
   ]);
 
-  const dispatchQueuedMessage = useCallback(async (
-    submittedQueuedMessage: WorkbenchChatQueuedMessage,
+  const dispatchQueuedAgentTurnInput = useCallback(async (
+    submittedAgentTurnInput: WorkbenchQueuedAgentTurnInput,
   ): Promise<boolean> => {
     if (disabled) {
       return false;
@@ -1958,7 +1958,7 @@ export const UniversalChat = memo(function UniversalChat({
       return false;
     }
 
-    const fullText = submittedQueuedMessage.text.trim();
+    const fullText = submittedAgentTurnInput.text.trim();
     if (!fullText) {
       return false;
     }
@@ -1974,11 +1974,11 @@ export const UniversalChat = memo(function UniversalChat({
         await Promise.resolve(
           onSendMessage(
             fullText,
-            submittedQueuedMessage.composerSelection ?? currentComposerSelection,
+            submittedAgentTurnInput.composerSelection ?? currentComposerSelection,
           ),
         );
       } catch (error) {
-        restoreQueuedMessagesToFront([submittedQueuedMessage]);
+        restoreQueuedTurnInputsToFront([submittedAgentTurnInput]);
         addToast(
           error instanceof Error && error.message.trim()
             ? error.message
@@ -2011,7 +2011,7 @@ export const UniversalChat = memo(function UniversalChat({
     markQueuedTurnDispatchStarted,
     onSendMessage,
     persistSubmittedPromptHistory,
-    restoreQueuedMessagesToFront,
+    restoreQueuedTurnInputsToFront,
     scheduleQueuedTurnDispatchSettlementCheck,
     t,
   ]);
@@ -2079,7 +2079,7 @@ export const UniversalChat = memo(function UniversalChat({
         return;
       }
 
-      if (isComposerTurnBlocked || isAwaitingQueuedTurnSettlement || messageQueue.length > 0) {
+      if (isComposerTurnBlocked || isAwaitingQueuedTurnSettlement || agentTurnInputQueue.length > 0) {
         addToast(t('chat.editMessageWaitForIdle'), 'error');
         return;
       }
@@ -2110,14 +2110,14 @@ export const UniversalChat = memo(function UniversalChat({
         return;
       }
 
-      enqueueQueuedMessage(currentInput, currentComposerSelection);
+      enqueueQueuedTurnInput(currentInput, currentComposerSelection);
       clearInputValue();
       addToast(t('chat.messageQueued'), 'success');
       return;
     }
 
-    if (messageQueue.length > 0) {
-      const canFlushQueuedMessageFromUserAction = canFlushWorkbenchChatQueuedMessages(
+    if (agentTurnInputQueue.length > 0) {
+      const canFlushQueuedAgentTurnInputFromUserAction = canFlushWorkbenchQueuedAgentTurnInputs(
         queuedTurnFlushGateRef.current,
         {
           disabled,
@@ -2125,23 +2125,23 @@ export const UniversalChat = memo(function UniversalChat({
           isActive,
           isComposerBusy: isComposerTurnBlocked,
           isQueueExpanded,
-          queueLength: messageQueue.length,
+          queueLength: agentTurnInputQueue.length,
         },
       );
 
       if (currentInput) {
-        enqueueQueuedMessage(currentInput, currentComposerSelection);
+        enqueueQueuedTurnInput(currentInput, currentComposerSelection);
         clearInputValue();
         addToast(t('chat.messageQueued'), 'success');
       }
 
-      if (!canFlushQueuedMessageFromUserAction) {
+      if (!canFlushQueuedAgentTurnInputFromUserAction) {
         return;
       }
 
-      const nextQueuedMessage = dequeueQueuedMessage();
-      if (nextQueuedMessage) {
-        void dispatchQueuedMessage(nextQueuedMessage);
+      const nextQueuedAgentTurnInput = dequeueQueuedTurnInput();
+      if (nextQueuedAgentTurnInput) {
+        void dispatchQueuedAgentTurnInput(nextQueuedAgentTurnInput);
       }
       return;
     }
@@ -2157,33 +2157,33 @@ export const UniversalChat = memo(function UniversalChat({
   useEffect(() => {
     if (
       isDispatchingMessageRef.current ||
-      !canFlushWorkbenchChatQueuedMessages(queuedTurnFlushGateRef.current, {
+      !canFlushWorkbenchQueuedAgentTurnInputs(queuedTurnFlushGateRef.current, {
         disabled,
         editingQueueIndex,
         isActive,
         isComposerBusy: isComposerTurnBlocked,
         isQueueExpanded,
-        queueLength: messageQueue.length,
+        queueLength: agentTurnInputQueue.length,
       })
     ) {
       return;
     }
 
-    const nextQueuedMessage = dequeueQueuedMessage();
-    if (!nextQueuedMessage) {
+    const nextQueuedAgentTurnInput = dequeueQueuedTurnInput();
+    if (!nextQueuedAgentTurnInput) {
       return;
     }
 
-    void dispatchQueuedMessage(nextQueuedMessage);
+    void dispatchQueuedAgentTurnInput(nextQueuedAgentTurnInput);
   }, [
-    dequeueQueuedMessage,
+    dequeueQueuedTurnInput,
     disabled,
-    dispatchQueuedMessage,
+    dispatchQueuedAgentTurnInput,
     editingQueueIndex,
     isActive,
     isComposerTurnBlocked,
     isQueueExpanded,
-    messageQueue.length,
+    agentTurnInputQueue.length,
     queuedTurnFlushGateVersion,
   ]);
 
@@ -2422,7 +2422,7 @@ export const UniversalChat = memo(function UniversalChat({
     !isDispatchingMessage &&
     !isSubmittingPendingInteraction &&
     !editingMessage &&
-    (hasTypedComposerInput || messageQueue.length > 0);
+    (hasTypedComposerInput || agentTurnInputQueue.length > 0);
   const canSubmitComposerMessage =
     canSubmitEditedMessage ||
     canSubmitPendingUserQuestionAnswer ||
@@ -2571,7 +2571,7 @@ export const UniversalChat = memo(function UniversalChat({
             onResize={handleComposerResize}
           >
             <div className="relative flex-1">
-              {messageQueue.length > 0 && (
+              {agentTurnInputQueue.length > 0 && (
                 <div className="relative mb-2">
                   {!isQueueExpanded ? (
                     <div 
@@ -2581,13 +2581,13 @@ export const UniversalChat = memo(function UniversalChat({
                       <div className="flex items-center gap-2 overflow-hidden">
                         <List size={14} className="text-blue-400 shrink-0" />
                         <span className="text-xs text-blue-300 truncate font-medium">
-                          {messageQueue[0]?.text}
+                          {agentTurnInputQueue[0]?.text}
                         </span>
                       </div>
                       <div className="flex items-center gap-2 shrink-0 ml-2">
-                        {messageQueue.length > 1 && (
+                        {agentTurnInputQueue.length > 1 && (
                           <span className="text-[10px] bg-blue-500/20 text-blue-300 px-1.5 py-0.5 rounded-full font-mono">
-                            +{messageQueue.length - 1}
+                            +{agentTurnInputQueue.length - 1}
                           </span>
                         )}
                         <ChevronUp size={14} className="text-blue-400" />
@@ -2599,7 +2599,7 @@ export const UniversalChat = memo(function UniversalChat({
                         <div className="flex items-center gap-2">
                           <List size={14} className="text-gray-400" />
                           <span className="text-xs font-medium text-gray-300">
-                            {t('chat.queuedMessages', { count: messageQueue.length })}
+                            {t('chat.queuedMessages', { count: agentTurnInputQueue.length })}
                           </span>
                         </div>
                         <button 
@@ -2610,8 +2610,8 @@ export const UniversalChat = memo(function UniversalChat({
                         </button>
                       </div>
                       <div className="max-h-48 overflow-y-auto custom-scrollbar p-1">
-                        {messageQueue.map((queuedMessage, idx) => (
-                          <div key={queuedMessage.id} className="group flex items-start gap-2 p-2 hover:bg-white/5 rounded-lg transition-colors">
+                        {agentTurnInputQueue.map((queuedAgentTurnInput, idx) => (
+                          <div key={queuedAgentTurnInput.id} className="group flex items-start gap-2 p-2 hover:bg-white/5 rounded-lg transition-colors">
                             <div className="mt-1 text-gray-600">
                               <GripVertical size={14} />
                             </div>
@@ -2635,19 +2635,19 @@ export const UniversalChat = memo(function UniversalChat({
                                     <button 
                                       className="text-[10px] px-2 py-1 bg-blue-500/20 text-blue-400 hover:bg-blue-500/30 rounded transition-colors"
                                       onClick={() => {
-                                        setMessageQueue((previousQueue) => {
-                                          const currentQueuedMessage = previousQueue[idx];
+                                        setAgentTurnInputQueue((previousQueue) => {
+                                          const currentQueuedAgentTurnInput = previousQueue[idx];
                                           if (
                                             idx < 0 ||
                                             idx >= previousQueue.length ||
-                                            !currentQueuedMessage ||
-                                            currentQueuedMessage.text === editingQueueText
+                                            !currentQueuedAgentTurnInput ||
+                                            currentQueuedAgentTurnInput.text === editingQueueText
                                           ) {
                                             return previousQueue;
                                           }
                                           const nextQueue = [...previousQueue];
                                           nextQueue[idx] = {
-                                            ...currentQueuedMessage,
+                                            ...currentQueuedAgentTurnInput,
                                             text: editingQueueText,
                                           };
                                           return nextQueue;
@@ -2660,7 +2660,7 @@ export const UniversalChat = memo(function UniversalChat({
                                   </div>
                                 </div>
                               ) : (
-                                <p className="text-xs text-gray-300 whitespace-pre-wrap break-words">{queuedMessage.text}</p>
+                                <p className="text-xs text-gray-300 whitespace-pre-wrap break-words">{queuedAgentTurnInput.text}</p>
                               )}
                             </div>
                             {editingQueueIndex !== idx && (
@@ -2669,7 +2669,7 @@ export const UniversalChat = memo(function UniversalChat({
                                   className="p-1.5 text-gray-500 hover:text-blue-400 hover:bg-blue-400/10 rounded-md transition-colors"
                                   onClick={() => {
                                     if (idx > 0) {
-                                      setMessageQueue((previousQueue) => {
+                                      setAgentTurnInputQueue((previousQueue) => {
                                         if (idx >= previousQueue.length) {
                                           return previousQueue;
                                         }
@@ -2690,7 +2690,7 @@ export const UniversalChat = memo(function UniversalChat({
                                 <button 
                                   className="p-1.5 text-gray-500 hover:text-blue-400 hover:bg-blue-400/10 rounded-md transition-colors"
                                   onClick={() => {
-                                    setEditingQueueText(queuedMessage.text);
+                                    setEditingQueueText(queuedAgentTurnInput.text);
                                     setEditingQueueIndex(idx);
                                   }}
                                   title={t('chat.editQueuedMessage')}
@@ -2700,7 +2700,7 @@ export const UniversalChat = memo(function UniversalChat({
                                 <button 
                                   className="p-1.5 text-gray-500 hover:text-red-400 hover:bg-red-400/10 rounded-md transition-colors"
                                   onClick={() => {
-                                    setMessageQueue((previousQueue) => {
+                                    setAgentTurnInputQueue((previousQueue) => {
                                       if (idx < 0 || idx >= previousQueue.length) {
                                         return previousQueue;
                                       }

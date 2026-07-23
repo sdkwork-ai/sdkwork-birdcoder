@@ -1,8 +1,8 @@
 import { List } from 'lucide-react';
-import type { ChatMessageViewSource } from '@sdkwork/birdcoder-pc-workbench/chat/types';
+import type { AgentSessionItemViewSource } from '@sdkwork/birdcoder-pc-workbench/chat/types';
 import {
   resolveTaskProgressDisplayState,
-  type ChatMessageTaskProgressDisplayState,
+  type AgentSessionItemTaskProgressDisplayState,
 } from '@sdkwork/birdcoder-pc-workbench/chat/types';
 import type { ChatMessageTranslate } from '../types.ts';
 
@@ -16,7 +16,7 @@ export function ChatTaskProgress({
   taskProgress,
   t,
 }: {
-  taskProgress: ChatMessageViewSource['taskProgress'];
+  taskProgress: AgentSessionItemViewSource['taskProgress'];
   t?: ChatMessageTranslate;
 }) {
   const taskProgressDisplayState = resolveTaskProgressDisplayState(taskProgress);
@@ -28,12 +28,11 @@ export function ChatTaskProgress({
     <ChatTaskProgressInline displayState={taskProgressDisplayState} t={t} />
   );
 }
-
 function ChatTaskProgressInline({
   displayState,
   t,
 }: {
-  displayState: ChatMessageTaskProgressDisplayState;
+  displayState: AgentSessionItemTaskProgressDisplayState;
   t?: ChatMessageTranslate;
 }) {
   const { completed, percent, total } = displayState;

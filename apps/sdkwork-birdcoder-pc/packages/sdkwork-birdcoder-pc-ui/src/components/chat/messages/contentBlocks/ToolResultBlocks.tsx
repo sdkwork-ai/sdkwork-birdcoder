@@ -11,7 +11,7 @@ import {
   FileWarning,
   Link2,
 } from 'lucide-react';
-import type { ChatMessageToolCall } from '@sdkwork/birdcoder-pc-workbench/chat/types';
+import type { AgentSessionItemToolCallView } from '@sdkwork/birdcoder-pc-workbench/chat/types';
 import { resolveAgentSessionItemMediaSource } from '@sdkwork/birdcoder-pc-contracts-commons';
 import {
   buildChatContentPreview,
@@ -19,14 +19,14 @@ import {
 } from '../contentPreview.ts';
 import type { ChatMessageTranslate } from '../types.ts';
 
-type ToolResultBlock = NonNullable<ChatMessageToolCall['resultBlocks']>[number];
+type ToolResultBlock = NonNullable<AgentSessionItemToolCallView['resultBlocks']>[number];
 
 export interface ToolResultBlocksProps {
   blocks: readonly ToolResultBlock[];
   compact: boolean;
   copyMessageToClipboard: (content: string) => void;
-  kind?: ChatMessageToolCall['kind'];
-  status?: ChatMessageToolCall['status'];
+  kind?: AgentSessionItemToolCallView['kind'];
+  status?: AgentSessionItemToolCallView['status'];
   t?: ChatMessageTranslate;
 }
 
@@ -325,9 +325,9 @@ function renderToolResultBlock(
   index: number,
   compact: boolean,
   copyMessageToClipboard: (content: string) => void,
-  kind: ChatMessageToolCall['kind'],
+  kind: AgentSessionItemToolCallView['kind'],
   previewCharacterLimit: number,
-  status: ChatMessageToolCall['status'],
+  status: AgentSessionItemToolCallView['status'],
   t?: ChatMessageTranslate,
 ) {
   const key = `${block.type}:${index}`;

@@ -88,7 +88,7 @@
       "envKey": "VITE_SDKWORK_DRIVE_APP_API_BASE_URL",
       "forbidApplicationSameOriginFallback": true,
       "sdkOwner": "sdkwork-drive",
-      "apiAuthority": "sdkwork-drive.app",
+      "apiAuthority": "sdkwork-drive-app-api",
       "consumerSdkOwner": "sdkwork-birdcoder",
       "corePackage": "@sdkwork/birdcoder-h5-core",
       "source": "apps/sdkwork-birdcoder-h5/packages/sdkwork-birdcoder-h5-core/specs/component.spec.json"
@@ -133,7 +133,7 @@
       "envKey": "VITE_SDKWORK_DRIVE_APP_API_BASE_URL",
       "forbidApplicationSameOriginFallback": true,
       "sdkOwner": "sdkwork-drive",
-      "apiAuthority": "sdkwork-drive.app",
+      "apiAuthority": "sdkwork-drive-app-api",
       "consumerSdkOwner": "sdkwork-birdcoder",
       "corePackage": "@sdkwork/birdcoder-pc-core",
       "source": "apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-core/specs/component.spec.json"
@@ -257,141 +257,6 @@
       "consumerSdkOwner": "sdkwork-birdcoder",
       "corePackage": "@sdkwork/birdcoder-pc-admin-core",
       "source": "apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-admin-core/specs/component.spec.json"
-    },
-    {
-      "workspace": "sdkwork-birdcoder-app-sdk",
-      "surface": "app-api",
-      "apiPrefix": "/app/v3/api",
-      "connectivityPlane": "application",
-      "runtimeMode": "same-origin-embedded",
-      "mountStatus": null,
-      "envKey": "VITE_SDKWORK_BIRDCODER_APP_API_BASE_URL",
-      "forbidApplicationSameOriginFallback": false,
-      "sdkOwner": "sdkwork-birdcoder",
-      "apiAuthority": "sdkwork-birdcoder-app-api",
-      "consumerSdkOwner": "sdkwork-birdcoder",
-      "corePackage": "sdkwork-birdcoder",
-      "source": "specs/component.spec.json"
-    },
-    {
-      "workspace": "sdkwork-iam-app-sdk",
-      "surface": "app-api",
-      "apiPrefix": "/app/v3/api",
-      "connectivityPlane": "platform",
-      "runtimeMode": "external-via-platform-surface",
-      "mountStatus": null,
-      "envKey": "VITE_SDKWORK_APPBASE_APP_API_BASE_URL",
-      "forbidApplicationSameOriginFallback": true,
-      "sdkOwner": "sdkwork-iam",
-      "apiAuthority": "sdkwork-iam-app-api",
-      "consumerSdkOwner": "sdkwork-birdcoder",
-      "corePackage": "sdkwork-birdcoder",
-      "source": "specs/component.spec.json"
-    },
-    {
-      "workspace": "sdkwork-drive-app-sdk",
-      "surface": "app-api",
-      "apiPrefix": "/app/v3/api",
-      "connectivityPlane": "platform",
-      "runtimeMode": "external-via-platform-surface",
-      "mountStatus": null,
-      "envKey": "VITE_SDKWORK_DRIVE_APP_API_BASE_URL",
-      "forbidApplicationSameOriginFallback": true,
-      "sdkOwner": "sdkwork-drive",
-      "apiAuthority": "sdkwork-drive.app",
-      "consumerSdkOwner": "sdkwork-birdcoder",
-      "corePackage": "sdkwork-birdcoder",
-      "source": "specs/component.spec.json"
-    },
-    {
-      "workspace": "sdkwork-agents-app-sdk",
-      "surface": "app-api",
-      "apiPrefix": "/app/v3/api",
-      "connectivityPlane": "platform",
-      "runtimeMode": "external-via-platform-surface",
-      "mountStatus": null,
-      "envKey": "VITE_SDKWORK_AGENTS_APP_API_BASE_URL",
-      "forbidApplicationSameOriginFallback": true,
-      "sdkOwner": "sdkwork-agents",
-      "apiAuthority": "sdkwork-agents-app-api",
-      "consumerSdkOwner": "sdkwork-birdcoder",
-      "corePackage": "sdkwork-birdcoder",
-      "source": "specs/component.spec.json"
-    },
-    {
-      "workspace": "sdkwork-skills-app-sdk",
-      "surface": "app-api",
-      "apiPrefix": "/app/v3/api",
-      "connectivityPlane": "platform",
-      "runtimeMode": "external-via-platform-surface",
-      "mountStatus": null,
-      "envKey": "VITE_SDKWORK_SKILLS_APP_API_BASE_URL",
-      "forbidApplicationSameOriginFallback": true,
-      "sdkOwner": "sdkwork-skills",
-      "apiAuthority": "sdkwork-skills-app-api",
-      "consumerSdkOwner": "sdkwork-birdcoder",
-      "corePackage": "sdkwork-birdcoder",
-      "source": "specs/component.spec.json"
-    },
-    {
-      "workspace": "sdkwork-prompts-app-sdk",
-      "surface": "app-api",
-      "apiPrefix": "/app/v3/api",
-      "connectivityPlane": "platform",
-      "runtimeMode": "external-via-platform-surface",
-      "mountStatus": null,
-      "envKey": "VITE_SDKWORK_PROMPTS_APP_API_BASE_URL",
-      "forbidApplicationSameOriginFallback": true,
-      "sdkOwner": "sdkwork-prompts",
-      "apiAuthority": "sdkwork-prompts-app-api",
-      "consumerSdkOwner": "sdkwork-birdcoder",
-      "corePackage": "sdkwork-birdcoder",
-      "source": "specs/component.spec.json"
-    },
-    {
-      "workspace": "sdkwork-documents-app-sdk",
-      "surface": "app-api",
-      "apiPrefix": "/app/v3/api",
-      "connectivityPlane": "platform",
-      "runtimeMode": "external-via-platform-surface",
-      "mountStatus": null,
-      "envKey": "VITE_SDKWORK_DOCUMENTS_APP_API_BASE_URL",
-      "forbidApplicationSameOriginFallback": true,
-      "sdkOwner": "sdkwork-documents",
-      "apiAuthority": "sdkwork-documents-app-api",
-      "consumerSdkOwner": "sdkwork-birdcoder",
-      "corePackage": "sdkwork-birdcoder",
-      "source": "specs/component.spec.json"
-    },
-    {
-      "workspace": "sdkwork-messaging-app-sdk",
-      "surface": "app-api",
-      "apiPrefix": "/app/v3/api",
-      "connectivityPlane": "platform",
-      "runtimeMode": "external-via-platform-surface",
-      "mountStatus": null,
-      "envKey": "VITE_SDKWORK_MESSAGING_APP_API_BASE_URL",
-      "forbidApplicationSameOriginFallback": true,
-      "sdkOwner": "sdkwork-messaging",
-      "apiAuthority": "sdkwork-messaging-app-api",
-      "consumerSdkOwner": "sdkwork-birdcoder",
-      "corePackage": "sdkwork-birdcoder",
-      "source": "specs/component.spec.json"
-    },
-    {
-      "workspace": "sdkwork-membership-app-sdk",
-      "surface": "app-api",
-      "apiPrefix": "/app/v3/api",
-      "connectivityPlane": "platform",
-      "runtimeMode": "external-via-platform-surface",
-      "mountStatus": null,
-      "envKey": "VITE_SDKWORK_MEMBERSHIP_APP_API_BASE_URL",
-      "forbidApplicationSameOriginFallback": true,
-      "sdkOwner": "sdkwork-membership",
-      "apiAuthority": "sdkwork-membership-app-api",
-      "consumerSdkOwner": "sdkwork-birdcoder",
-      "corePackage": "sdkwork-birdcoder",
-      "source": "specs/component.spec.json"
     }
   ],
   "permissions": {
@@ -469,46 +334,6 @@
       },
       {
         "workspace": "sdkwork-membership-backend-sdk",
-        "manifestRef": "../sdkwork-membership/specs/iam.module.manifest.json",
-        "inheritPermissions": true
-      },
-      {
-        "workspace": "sdkwork-birdcoder-app-sdk",
-        "manifestRef": "specs/iam.module.manifest.json",
-        "inheritPermissions": true
-      },
-      {
-        "workspace": "sdkwork-iam-app-sdk",
-        "manifestRef": "../sdkwork-iam/iam/modules/iam-kernel/iam.module.manifest.json",
-        "inheritPermissions": true
-      },
-      {
-        "workspace": "sdkwork-drive-app-sdk",
-        "manifestRef": "../sdkwork-iam/iam/modules/drive/iam.module.manifest.json",
-        "inheritPermissions": true
-      },
-      {
-        "workspace": "sdkwork-agents-app-sdk",
-        "manifestRef": "../sdkwork-agents/specs/iam.module.manifest.json",
-        "inheritPermissions": true
-      },
-      {
-        "workspace": "sdkwork-skills-app-sdk",
-        "manifestRef": "../sdkwork-skills/specs/iam.module.manifest.json",
-        "inheritPermissions": true
-      },
-      {
-        "workspace": "sdkwork-prompts-app-sdk",
-        "manifestRef": "../sdkwork-prompts/specs/iam.module.manifest.json",
-        "inheritPermissions": true
-      },
-      {
-        "workspace": "sdkwork-documents-app-sdk",
-        "manifestRef": "../sdkwork-documents/specs/iam.module.manifest.json",
-        "inheritPermissions": true
-      },
-      {
-        "workspace": "sdkwork-membership-app-sdk",
         "manifestRef": "../sdkwork-membership/specs/iam.module.manifest.json",
         "inheritPermissions": true
       }
@@ -1609,6 +1434,7 @@
           },
           {
             "workspace": "sdkwork-drive-app-sdk",
+            "apiAuthority": "sdkwork-drive-app-api",
             "surface": "app-api",
             "credentialMode": "authenticated-app-api"
           },
@@ -1903,6 +1729,10 @@
           {
             "name": "defaultIdeServicesComposition",
             "export": "./defaultIdeServices"
+          },
+          {
+            "name": "sdkConnectivityPlaneRuntime",
+            "export": "."
           }
         ],
         "requiredPorts": [
@@ -1949,13 +1779,12 @@
           "./services/interfaces/IGitService",
           "./services/interfaces/IProjectService",
           "./services/interfaces/IVipMembershipService",
-          "./services/interfaces/IWorkspaceService",
           "./services/skillsSdkClient",
           "./services/impl/PromptsSdkPromptService",
           "./services/iamRuntime",
           "./services/sessionService",
           "./services/appSessionTokenManager",
-          "./services/appSdkBaseUrl",
+          "./services/sdkBaseUrls",
           "./services/appSessionEvents",
           "./services/runtimeTopology",
           "./services/agentsSessionService",
@@ -1990,8 +1819,8 @@
             "export": "./platform/openLocalFolder"
           },
           {
-            "name": "appSdkBaseUrlResolver",
-            "export": "./services/appSdkBaseUrl"
+            "name": "sdkConnectivityPlaneResolver",
+            "export": "./services/sdkBaseUrls"
           },
           {
             "name": "dependencyAppSdkClientFactory",
@@ -2015,7 +1844,68 @@
             ]
           }
         ],
-        "sdkDependencies": [],
+        "sdkDependencies": [
+          {
+            "workspace": "sdkwork-agents-app-sdk",
+            "surface": "app-api",
+            "credentialMode": "authenticated-app-api",
+            "required": true
+          },
+          {
+            "workspace": "sdkwork-birdcoder-app-sdk",
+            "surface": "app-api",
+            "credentialMode": "authenticated-app-api",
+            "required": true
+          },
+          {
+            "workspace": "sdkwork-documents-app-sdk",
+            "surface": "app-api",
+            "credentialMode": "authenticated-app-api",
+            "required": true
+          },
+          {
+            "workspace": "sdkwork-drive-app-sdk",
+            "surface": "app-api",
+            "credentialMode": "authenticated-app-api",
+            "required": true
+          },
+          {
+            "workspace": "sdkwork-iam-app-sdk",
+            "surface": "app-api",
+            "credentialMode": "authenticated-app-api",
+            "required": true
+          },
+          {
+            "workspace": "sdkwork-membership-app-sdk",
+            "surface": "app-api",
+            "credentialMode": "authenticated-app-api",
+            "required": true
+          },
+          {
+            "workspace": "sdkwork-messaging-app-sdk",
+            "surface": "app-api",
+            "credentialMode": "authenticated-app-api",
+            "required": true
+          },
+          {
+            "workspace": "sdkwork-order-app-sdk",
+            "surface": "app-api",
+            "credentialMode": "authenticated-app-api",
+            "required": true
+          },
+          {
+            "workspace": "sdkwork-prompts-app-sdk",
+            "surface": "app-api",
+            "credentialMode": "authenticated-app-api",
+            "required": true
+          },
+          {
+            "workspace": "sdkwork-skills-app-sdk",
+            "surface": "app-api",
+            "credentialMode": "authenticated-app-api",
+            "required": true
+          }
+        ],
         "routeManifest": null,
         "runtimeEntrypoints": [
           "src/services/defaultIdeServicesRuntime.ts",
@@ -2091,7 +1981,7 @@
         "type": "react-package",
         "root": "sdkwork-birdcoder/apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-shell-runtime",
         "domain": "platform",
-        "capability": "im",
+        "capability": "pc-shell-runtime",
         "surface": "app",
         "languages": [
           "typescript",
@@ -2273,7 +2163,7 @@
         "type": "react-package",
         "root": "sdkwork-birdcoder/apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-web",
         "domain": "platform",
-        "capability": "component",
+        "capability": "pc-web-renderer-host",
         "surface": "app",
         "languages": [
           "typescript",
@@ -2420,8 +2310,8 @@
         "name": "sdkwork-birdcoder-pc",
         "type": "react-tauri-app",
         "root": "sdkwork-birdcoder/apps/sdkwork-birdcoder-pc",
-        "domain": "platform",
-        "capability": "ide",
+        "domain": "intelligence",
+        "capability": "coding-workbench",
         "surface": "app",
         "languages": [
           "typescript",
@@ -2441,7 +2331,13 @@
             "required": true
           },
           {
-            "workspace": "sdkwork-iam-app-sdk",
+            "workspace": "sdkwork-agents-app-sdk",
+            "surface": "app-api",
+            "credentialMode": "authenticated-app-api",
+            "required": true
+          },
+          {
+            "workspace": "sdkwork-documents-app-sdk",
             "surface": "app-api",
             "credentialMode": "authenticated-app-api",
             "required": true
@@ -2453,7 +2349,7 @@
             "required": true
           },
           {
-            "workspace": "sdkwork-messaging-app-sdk",
+            "workspace": "sdkwork-iam-app-sdk",
             "surface": "app-api",
             "credentialMode": "authenticated-app-api",
             "required": true
@@ -2463,15 +2359,164 @@
             "surface": "app-api",
             "credentialMode": "authenticated-app-api",
             "required": true
+          },
+          {
+            "workspace": "sdkwork-messaging-app-sdk",
+            "surface": "app-api",
+            "credentialMode": "authenticated-app-api",
+            "required": true
+          },
+          {
+            "workspace": "sdkwork-order-app-sdk",
+            "surface": "app-api",
+            "credentialMode": "authenticated-app-api",
+            "required": true
+          },
+          {
+            "workspace": "sdkwork-prompts-app-sdk",
+            "surface": "app-api",
+            "credentialMode": "authenticated-app-api",
+            "required": true
+          },
+          {
+            "workspace": "sdkwork-skills-app-sdk",
+            "surface": "app-api",
+            "credentialMode": "authenticated-app-api",
+            "required": true
           }
         ],
         "routeManifest": null,
         "runtimeEntrypoints": [
           "package.json#scripts.dev",
           "package.json#scripts.build",
-          "package.json#scripts.dev:desktop"
+          "package.json#scripts.dev:desktop",
+          "package.json#scripts.typecheck",
+          "package.json#scripts.test"
         ],
-        "dependencyApiSurfaces": []
+        "dependencyApiSurfaces": [
+          {
+            "workspace": "sdkwork-birdcoder-app-sdk",
+            "sdkFamily": "sdkwork-birdcoder-app-sdk",
+            "apiAuthority": "sdkwork-birdcoder-app-api",
+            "surface": "app-api",
+            "apiPrefix": "/app/v3/api",
+            "runtimeMode": "external-via-declared-upstream",
+            "sameOriginAllowed": false,
+            "requiredBaseUrlKey": "VITE_SDKWORK_BIRDCODER_APPLICATION_PUBLIC_HTTP_URL"
+          },
+          {
+            "workspace": "sdkwork-agents-app-sdk",
+            "sdkFamily": "sdkwork-agents-app-sdk",
+            "apiAuthority": "sdkwork-agents-app-api",
+            "surface": "app-api",
+            "apiPrefix": "/app/v3/api",
+            "runtimeMode": "external-via-platform-surface",
+            "sameOriginAllowed": false,
+            "requiredBaseUrlKey": "VITE_SDKWORK_BIRDCODER_PLATFORM_API_GATEWAY_HTTP_URL"
+          },
+          {
+            "workspace": "sdkwork-documents-app-sdk",
+            "sdkFamily": "sdkwork-documents-app-sdk",
+            "apiAuthority": "sdkwork-documents-app-api",
+            "surface": "app-api",
+            "apiPrefix": "/app/v3/api",
+            "runtimeMode": "external-via-platform-surface",
+            "sameOriginAllowed": false,
+            "requiredBaseUrlKey": "VITE_SDKWORK_BIRDCODER_PLATFORM_API_GATEWAY_HTTP_URL",
+            "optionalBaseUrlKeys": [
+              "VITE_SDKWORK_DOCUMENTS_APP_API_BASE_URL"
+            ]
+          },
+          {
+            "workspace": "sdkwork-drive-app-sdk",
+            "sdkFamily": "sdkwork-drive-app-sdk",
+            "apiAuthority": "sdkwork-drive-app-api",
+            "surface": "app-api",
+            "apiPrefix": "/app/v3/api",
+            "runtimeMode": "external-via-platform-surface",
+            "sameOriginAllowed": false,
+            "requiredBaseUrlKey": "VITE_SDKWORK_BIRDCODER_PLATFORM_API_GATEWAY_HTTP_URL",
+            "optionalBaseUrlKeys": [
+              "VITE_SDKWORK_DRIVE_APP_API_BASE_URL"
+            ]
+          },
+          {
+            "workspace": "sdkwork-iam-app-sdk",
+            "sdkFamily": "sdkwork-iam-app-sdk",
+            "apiAuthority": "sdkwork-iam-app-api",
+            "surface": "app-api",
+            "apiPrefix": "/app/v3/api",
+            "runtimeMode": "external-via-platform-surface",
+            "sameOriginAllowed": false,
+            "requiredBaseUrlKey": "VITE_SDKWORK_BIRDCODER_PLATFORM_API_GATEWAY_HTTP_URL",
+            "optionalBaseUrlKeys": [
+              "VITE_SDKWORK_APPBASE_APP_API_BASE_URL",
+              "VITE_SDKWORK_IAM_APP_API_BASE_URL"
+            ]
+          },
+          {
+            "workspace": "sdkwork-membership-app-sdk",
+            "sdkFamily": "sdkwork-membership-app-sdk",
+            "apiAuthority": "sdkwork-membership-app-api",
+            "surface": "app-api",
+            "apiPrefix": "/app/v3/api",
+            "runtimeMode": "external-via-platform-surface",
+            "sameOriginAllowed": false,
+            "requiredBaseUrlKey": "VITE_SDKWORK_BIRDCODER_PLATFORM_API_GATEWAY_HTTP_URL",
+            "optionalBaseUrlKeys": [
+              "VITE_SDKWORK_MEMBERSHIP_APP_API_BASE_URL"
+            ]
+          },
+          {
+            "workspace": "sdkwork-messaging-app-sdk",
+            "sdkFamily": "sdkwork-messaging-app-sdk",
+            "apiAuthority": "sdkwork-messaging-app-api",
+            "surface": "app-api",
+            "apiPrefix": "/app/v3/api",
+            "runtimeMode": "external-via-platform-surface",
+            "sameOriginAllowed": false,
+            "requiredBaseUrlKey": "VITE_SDKWORK_BIRDCODER_PLATFORM_API_GATEWAY_HTTP_URL",
+            "optionalBaseUrlKeys": [
+              "VITE_SDKWORK_MESSAGING_APP_API_BASE_URL"
+            ]
+          },
+          {
+            "workspace": "sdkwork-order-app-sdk",
+            "sdkFamily": "sdkwork-order-app-sdk",
+            "apiAuthority": "sdkwork-order-app-api",
+            "surface": "app-api",
+            "apiPrefix": "/app/v3/api",
+            "runtimeMode": "external-via-platform-surface",
+            "sameOriginAllowed": false,
+            "requiredBaseUrlKey": "VITE_SDKWORK_BIRDCODER_PLATFORM_API_GATEWAY_HTTP_URL",
+            "optionalBaseUrlKeys": [
+              "VITE_SDKWORK_ORDER_APP_API_BASE_URL"
+            ]
+          },
+          {
+            "workspace": "sdkwork-prompts-app-sdk",
+            "sdkFamily": "sdkwork-prompts-app-sdk",
+            "apiAuthority": "sdkwork-prompts-app-api",
+            "surface": "app-api",
+            "apiPrefix": "/app/v3/api",
+            "runtimeMode": "external-via-platform-surface",
+            "sameOriginAllowed": false,
+            "requiredBaseUrlKey": "VITE_SDKWORK_BIRDCODER_PLATFORM_API_GATEWAY_HTTP_URL",
+            "optionalBaseUrlKeys": [
+              "VITE_SDKWORK_PROMPTS_APP_API_BASE_URL"
+            ]
+          },
+          {
+            "workspace": "sdkwork-skills-app-sdk",
+            "sdkFamily": "sdkwork-skills-app-sdk",
+            "apiAuthority": "sdkwork-skills-app-api",
+            "surface": "app-api",
+            "apiPrefix": "/app/v3/api",
+            "runtimeMode": "external-via-platform-surface",
+            "sameOriginAllowed": false,
+            "requiredBaseUrlKey": "VITE_SDKWORK_BIRDCODER_PLATFORM_API_GATEWAY_HTTP_URL"
+          }
+        ]
       },
       {
         "name": "sdkwork-api-birdcoder-assembly",
@@ -2511,8 +2556,7 @@
           ".",
           "sdkwork_api_birdcoder_standalone_gateway::assemble_api_router",
           "sdkwork_api_birdcoder_standalone_gateway::bootstrap::build_app",
-          "sdkwork_api_birdcoder_standalone_gateway::server::listen::serve",
-          "sdkwork_api_birdcoder_standalone_gateway::enable_process_shared_database_pool"
+          "sdkwork_api_birdcoder_standalone_gateway::server::listen::serve"
         ],
         "providedPorts": [
           {
@@ -2522,10 +2566,6 @@
           {
             "name": "standaloneGatewayServer",
             "export": "sdkwork_api_birdcoder_standalone_gateway::server::listen::serve"
-          },
-          {
-            "name": "sharedDatabasePoolRuntime",
-            "export": "sdkwork_api_birdcoder_standalone_gateway::enable_process_shared_database_pool"
           }
         ],
         "requiredPorts": [
@@ -2539,55 +2579,8 @@
         "runtimeEntrypoints": [
           "src/main.rs#main",
           "src/main.rs#run",
-          "src/lib.rs#enable_process_shared_database_pool",
           "src/server/listen.rs#serve",
           "Cargo.toml[[bin]].sdkwork-api-birdcoder-standalone-gateway"
-        ],
-        "dependencyApiSurfaces": []
-      },
-      {
-        "name": "sdkwork-birdcoder-database-host",
-        "type": "rust-crate",
-        "root": "sdkwork-birdcoder/crates/sdkwork-birdcoder-database-host",
-        "domain": "intelligence",
-        "capability": "coding-workbench-database-lifecycle",
-        "surface": "host",
-        "languages": [
-          "rust"
-        ],
-        "source": "crates/sdkwork-birdcoder-database-host/specs/component.spec.json",
-        "layerRole": "runtime-composition",
-        "publicExports": [
-          ".",
-          "sdkwork_birdcoder_database_host::BirdcoderDatabaseHost",
-          "sdkwork_birdcoder_database_host::bootstrap_birdcoder_database",
-          "sdkwork_birdcoder_database_host::bootstrap_birdcoder_database_from_env"
-        ],
-        "providedPorts": [
-          {
-            "name": "birdcoderDatabaseLifecycle",
-            "export": "sdkwork_birdcoder_database_host::bootstrap_birdcoder_database"
-          },
-          {
-            "name": "processSharedDatabasePool",
-            "export": "sdkwork_birdcoder_database_host::BirdcoderDatabaseHost"
-          },
-          {
-            "name": "processSnowflakeIdentity",
-            "export": "sdkwork_birdcoder_database_host::BirdcoderDatabaseHost"
-          }
-        ],
-        "requiredPorts": [
-          {
-            "name": "sdkworkDatabaseFramework",
-            "export": "."
-          }
-        ],
-        "sdkDependencies": [],
-        "routeManifest": null,
-        "runtimeEntrypoints": [
-          "sdkwork_birdcoder_database_host::bootstrap_birdcoder_database",
-          "sdkwork_birdcoder_database_host::bootstrap_birdcoder_database_from_env"
         ],
         "dependencyApiSurfaces": []
       },
@@ -2656,92 +2649,6 @@
           }
         ],
         "requiredPorts": [],
-        "sdkDependencies": [],
-        "routeManifest": null,
-        "runtimeEntrypoints": [],
-        "dependencyApiSurfaces": []
-      },
-      {
-        "name": "sdkwork-birdcoder-project-service",
-        "type": "rust-crate",
-        "root": "sdkwork-birdcoder/crates/sdkwork-birdcoder-project-service",
-        "domain": "intelligence",
-        "capability": "projects",
-        "surface": "service",
-        "languages": [
-          "rust"
-        ],
-        "source": "crates/sdkwork-birdcoder-project-service/specs/component.spec.json",
-        "layerRole": "backend-service",
-        "publicExports": [
-          ".",
-          "sdkwork_birdcoder_project_service::service::project_service::ProjectService",
-          "sdkwork_birdcoder_project_service::service::project_runtime_location_service::ProjectRuntimeLocationService",
-          "sdkwork_birdcoder_project_service::service::project_runtime_location_service::RuntimeLocationMutationContext",
-          "sdkwork_birdcoder_project_service::service::project_sandbox_binding_service::ProjectSandboxBindingService",
-          "sdkwork_birdcoder_project_service::ports::repository::ProjectRepository",
-          "sdkwork_birdcoder_project_service::ports::sandbox_binding_repository::ProjectSandboxBindingRepository",
-          "sdkwork_birdcoder_project_service::ports::runtime_location_repository::ProjectRuntimeLocationRepository",
-          "sdkwork_birdcoder_project_service::ports::runtime_location_execution::ProjectRuntimeLocationExecutionResolver",
-          "sdkwork_birdcoder_project_service::ports::runtime_location_execution::RuntimeLocationTargetExecutionAuthority",
-          "sdkwork_birdcoder_project_service::ports::runtime_location_path_cipher::RuntimeLocationPathCipher",
-          "sdkwork_birdcoder_project_service::ports::runtime_location_verification::RuntimeLocationVerificationAuthority",
-          "sdkwork_birdcoder_project_service::ports::runtime_location_verification::RuntimeLocationVerificationRequestDispatcher",
-          "sdkwork_birdcoder_project_service::ports::events::ProjectEventPublisher",
-          "sdkwork_birdcoder_project_service::ports::git::GitOperations"
-        ],
-        "providedPorts": [
-          {
-            "name": "projectApplicationService",
-            "export": "sdkwork_birdcoder_project_service::service::project_service::ProjectService"
-          },
-          {
-            "name": "projectRuntimeLocationApplicationService",
-            "export": "sdkwork_birdcoder_project_service::service::project_runtime_location_service::ProjectRuntimeLocationService"
-          },
-          {
-            "name": "projectSandboxBindingApplicationService",
-            "export": "sdkwork_birdcoder_project_service::service::project_sandbox_binding_service::ProjectSandboxBindingService"
-          }
-        ],
-        "requiredPorts": [
-          {
-            "name": "projectRepository",
-            "export": "sdkwork_birdcoder_project_service::ports::repository::ProjectRepository"
-          },
-          {
-            "name": "projectRuntimeLocationRepository",
-            "export": "sdkwork_birdcoder_project_service::ports::runtime_location_repository::ProjectRuntimeLocationRepository"
-          },
-          {
-            "name": "projectSandboxBindingRepository",
-            "export": "sdkwork_birdcoder_project_service::ports::sandbox_binding_repository::ProjectSandboxBindingRepository"
-          },
-          {
-            "name": "runtimeLocationPathCipher",
-            "export": "sdkwork_birdcoder_project_service::ports::runtime_location_path_cipher::RuntimeLocationPathCipher"
-          },
-          {
-            "name": "runtimeLocationVerificationAuthority",
-            "export": "sdkwork_birdcoder_project_service::ports::runtime_location_verification::RuntimeLocationVerificationAuthority"
-          },
-          {
-            "name": "runtimeLocationVerificationDispatcher",
-            "export": "sdkwork_birdcoder_project_service::ports::runtime_location_verification::RuntimeLocationVerificationRequestDispatcher"
-          },
-          {
-            "name": "runtimeLocationTargetExecutionAuthority",
-            "export": "sdkwork_birdcoder_project_service::ports::runtime_location_execution::RuntimeLocationTargetExecutionAuthority"
-          },
-          {
-            "name": "projectEventPublisher",
-            "export": "sdkwork_birdcoder_project_service::ports::events::ProjectEventPublisher"
-          },
-          {
-            "name": "projectGitOperations",
-            "export": "sdkwork_birdcoder_project_service::ports::git::GitOperations"
-          }
-        ],
         "sdkDependencies": [],
         "routeManifest": null,
         "runtimeEntrypoints": [],
@@ -2889,6 +2796,7 @@
           "src/host/state.rs#start_embedded_application_gateway",
           "src/host/state.rs#ensure_desktop_runtime_config",
           "src/host/state.rs#spawn_embedded_application_gateway_startup",
+          "src/host/state.rs#open_device_state",
           "src/commands/local_store_commands.rs#desktop_runtime_location_install_identity",
           "src/commands/local_store_commands.rs#desktop_runtime_location_create_root_locator",
           "src/commands/secure_app_session_commands.rs#secure_app_session_read",
@@ -2914,97 +2822,6 @@
             ]
           }
         ]
-      },
-      {
-        "name": "sdkwork-birdcoder-workspace-repository-sqlx",
-        "type": "rust-crate",
-        "root": "sdkwork-birdcoder/crates/sdkwork-birdcoder-workspace-repository-sqlx",
-        "domain": "intelligence",
-        "capability": "workspace-persistence",
-        "surface": "service",
-        "languages": [
-          "rust"
-        ],
-        "source": "crates/sdkwork-birdcoder-workspace-repository-sqlx/specs/component.spec.json",
-        "layerRole": "backend-repository",
-        "publicExports": [
-          ".",
-          "sdkwork_birdcoder_workspace_repository_sqlx::repository::workspace::SqlxWorkspaceRepository",
-          "sdkwork_birdcoder_workspace_repository_sqlx::repository::project::SqlxProjectRepository",
-          "sdkwork_birdcoder_workspace_repository_sqlx::repository::project_document_binding::SqlxProjectDocumentBindingRepository",
-          "sdkwork_birdcoder_workspace_repository_sqlx::repository::project_sandbox_binding::SqlxProjectSandboxBindingRepository",
-          "sdkwork_birdcoder_workspace_repository_sqlx::repository::project_runtime_location::SqlxProjectRuntimeLocationRepository"
-        ],
-        "providedPorts": [
-          {
-            "name": "workspaceRepository",
-            "export": "sdkwork_birdcoder_workspace_repository_sqlx::repository::workspace::SqlxWorkspaceRepository"
-          },
-          {
-            "name": "projectRepository",
-            "export": "sdkwork_birdcoder_workspace_repository_sqlx::repository::project::SqlxProjectRepository"
-          },
-          {
-            "name": "projectDocumentBindingRepository",
-            "export": "sdkwork_birdcoder_workspace_repository_sqlx::repository::project_document_binding::SqlxProjectDocumentBindingRepository"
-          },
-          {
-            "name": "projectSandboxBindingRepository",
-            "export": "sdkwork_birdcoder_workspace_repository_sqlx::repository::project_sandbox_binding::SqlxProjectSandboxBindingRepository"
-          },
-          {
-            "name": "projectRuntimeLocationRepository",
-            "export": "sdkwork_birdcoder_workspace_repository_sqlx::repository::project_runtime_location::SqlxProjectRuntimeLocationRepository"
-          }
-        ],
-        "requiredPorts": [
-          {
-            "name": "databasePool",
-            "export": "."
-          },
-          {
-            "name": "snowflakeIdGenerator",
-            "export": "."
-          }
-        ],
-        "sdkDependencies": [],
-        "routeManifest": null,
-        "runtimeEntrypoints": [],
-        "dependencyApiSurfaces": []
-      },
-      {
-        "name": "sdkwork-birdcoder-workspace-service",
-        "type": "rust-crate",
-        "root": "sdkwork-birdcoder/crates/sdkwork-birdcoder-workspace-service",
-        "domain": "intelligence",
-        "capability": "workspaces",
-        "surface": "service",
-        "languages": [
-          "rust"
-        ],
-        "source": "crates/sdkwork-birdcoder-workspace-service/specs/component.spec.json",
-        "layerRole": "backend-service",
-        "publicExports": [
-          ".",
-          "sdkwork_birdcoder_workspace_service::service::workspace_service::WorkspaceService",
-          "sdkwork_birdcoder_workspace_service::ports::repository::WorkspaceRepository"
-        ],
-        "providedPorts": [
-          {
-            "name": "workspaceApplicationService",
-            "export": "sdkwork_birdcoder_workspace_service::service::workspace_service::WorkspaceService"
-          }
-        ],
-        "requiredPorts": [
-          {
-            "name": "workspaceRepository",
-            "export": "sdkwork_birdcoder_workspace_service::ports::repository::WorkspaceRepository"
-          }
-        ],
-        "sdkDependencies": [],
-        "routeManifest": null,
-        "runtimeEntrypoints": [],
-        "dependencyApiSurfaces": []
       },
       {
         "name": "sdkwork-routes-system-app-api",
@@ -3044,67 +2861,6 @@
         "routeManifest": "src/manifest.rs#system_app_api_route_manifest",
         "runtimeEntrypoints": [
           "sdkwork_routes_system_app_api::build_system_app_router"
-        ],
-        "dependencyApiSurfaces": []
-      },
-      {
-        "name": "sdkwork-routes-workspace-app-api",
-        "type": "rust-route-crate",
-        "root": "sdkwork-birdcoder/crates/sdkwork-routes-workspace-app-api",
-        "domain": "intelligence",
-        "capability": "coding-workbench",
-        "surface": "app-api",
-        "languages": [
-          "rust"
-        ],
-        "source": "crates/sdkwork-routes-workspace-app-api/specs/component.spec.json",
-        "layerRole": "backend-route",
-        "publicExports": [
-          ".",
-          "sdkwork_routes_workspace_app_api::WorkspaceAppState",
-          "sdkwork_routes_workspace_app_api::build_workspace_app_router",
-          "sdkwork_routes_workspace_app_api::workspace_app_api_route_manifest"
-        ],
-        "providedPorts": [
-          {
-            "name": "workspaceAppApiRouter",
-            "export": "sdkwork_routes_workspace_app_api::build_workspace_app_router"
-          },
-          {
-            "name": "workspaceAppApiRouteManifest",
-            "export": "sdkwork_routes_workspace_app_api::workspace_app_api_route_manifest"
-          }
-        ],
-        "requiredPorts": [
-          {
-            "name": "workspaceApplicationState",
-            "export": "sdkwork_routes_workspace_app_api::WorkspaceAppState"
-          },
-          {
-            "name": "workspaceApplicationService",
-            "export": "sdkwork_routes_workspace_app_api::WorkspaceAppState"
-          },
-          {
-            "name": "projectApplicationService",
-            "export": "sdkwork_routes_workspace_app_api::WorkspaceAppState"
-          },
-          {
-            "name": "projectDocumentBindingApplicationService",
-            "export": "sdkwork_routes_workspace_app_api::WorkspaceAppState"
-          },
-          {
-            "name": "projectSandboxBindingApplicationService",
-            "export": "sdkwork_routes_workspace_app_api::WorkspaceAppState"
-          },
-          {
-            "name": "projectRuntimeLocationApplicationService",
-            "export": "sdkwork_routes_workspace_app_api::WorkspaceAppState"
-          }
-        ],
-        "sdkDependencies": [],
-        "routeManifest": "src/manifest.rs#workspace_app_api_route_manifest",
-        "runtimeEntrypoints": [
-          "sdkwork_routes_workspace_app_api::build_workspace_app_router"
         ],
         "dependencyApiSurfaces": []
       },
@@ -3185,7 +2941,7 @@
             "required": true,
             "dependencyMode": "consumer-sdk",
             "apiPrefix": "/app/v3/api",
-            "apiAuthority": "sdkwork-drive.app",
+            "apiAuthority": "sdkwork-drive-app-api",
             "generatedTransportImportPolicy": "forbidden",
             "packageByLanguage": {
               "typescript": "@sdkwork/drive-app-sdk",
@@ -3214,6 +2970,18 @@
             "generatedTransportImportPolicy": "forbidden",
             "packageByLanguage": {
               "typescript": "@sdkwork/membership-app-sdk"
+            }
+          },
+          {
+            "workspace": "sdkwork-order-app-sdk",
+            "role": "order-app-capability",
+            "required": true,
+            "dependencyMode": "consumer-sdk",
+            "apiPrefix": "/app/v3/api",
+            "apiAuthority": "sdkwork-order-app-api",
+            "generatedTransportImportPolicy": "forbidden",
+            "packageByLanguage": {
+              "typescript": "@sdkwork/order-app-sdk"
             }
           },
           {
@@ -3310,7 +3078,7 @@
             "required": true,
             "dependencyMode": "consumer-sdk",
             "apiPrefix": "/app/v3/api",
-            "apiAuthority": "sdkwork-drive.app",
+            "apiAuthority": "sdkwork-drive-app-api",
             "generatedTransportImportPolicy": "forbidden",
             "packageByLanguage": {
               "typescript": "@sdkwork/drive-app-sdk",
@@ -3399,7 +3167,7 @@
       },
       {
         "name": "sdkwork-birdcoder",
-        "type": "react-tauri-app",
+        "type": "application-root",
         "root": "sdkwork-birdcoder",
         "domain": "intelligence",
         "capability": "coding-workbench",
@@ -3414,62 +3182,7 @@
         "publicExports": [],
         "providedPorts": [],
         "requiredPorts": [],
-        "sdkDependencies": [
-          {
-            "workspace": "sdkwork-birdcoder-app-sdk",
-            "surface": "app-api",
-            "credentialMode": "authenticated-app-api",
-            "required": true
-          },
-          {
-            "workspace": "sdkwork-iam-app-sdk",
-            "surface": "app-api",
-            "credentialMode": "authenticated-app-api",
-            "required": true
-          },
-          {
-            "workspace": "sdkwork-drive-app-sdk",
-            "surface": "app-api",
-            "credentialMode": "authenticated-app-api",
-            "required": true
-          },
-          {
-            "workspace": "sdkwork-agents-app-sdk",
-            "surface": "app-api",
-            "credentialMode": "authenticated-app-api",
-            "required": true
-          },
-          {
-            "workspace": "sdkwork-skills-app-sdk",
-            "surface": "app-api",
-            "credentialMode": "authenticated-app-api",
-            "required": true
-          },
-          {
-            "workspace": "sdkwork-prompts-app-sdk",
-            "surface": "app-api",
-            "credentialMode": "authenticated-app-api",
-            "required": true
-          },
-          {
-            "workspace": "sdkwork-documents-app-sdk",
-            "surface": "app-api",
-            "credentialMode": "authenticated-app-api",
-            "required": true
-          },
-          {
-            "workspace": "sdkwork-messaging-app-sdk",
-            "surface": "app-api",
-            "credentialMode": "authenticated-app-api",
-            "required": false
-          },
-          {
-            "workspace": "sdkwork-membership-app-sdk",
-            "surface": "app-api",
-            "credentialMode": "authenticated-app-api",
-            "required": false
-          }
-        ],
+        "sdkDependencies": [],
         "routeManifest": null,
         "runtimeEntrypoints": [
           "package.json#scripts.dev",
@@ -3762,28 +3475,15 @@
           "dependencies": [
             "axum",
             "tokio",
-            "serde",
             "serde-json",
-            "uuid",
-            "async-trait",
             "tracing",
             "sdkwork-web-bootstrap",
             "sdkwork-web-axum",
             "sdkwork-web-core",
             "sdkwork-web-contract",
             "sdkwork-iam-web-adapter",
-            "sdkwork-database-sqlx",
-            "sdkwork-database-id",
-            "sdkwork-database-config",
-            "sdkwork-birdcoder-database-host",
-            "sqlx",
-            "sdkwork-utils-rust",
-            "sdkwork-birdcoder-workspace-service",
-            "sdkwork-birdcoder-project-service",
-            "sdkwork-birdcoder-git",
-            "sdkwork-birdcoder-workspace-repository-sqlx",
+            "sdkwork-api-agents-assembly",
             "sdkwork-routes-system-app-api",
-            "sdkwork-routes-workspace-app-api",
             "tower"
           ]
         },
@@ -3796,19 +3496,9 @@
             "tracing",
             "sdkwork-web-bootstrap",
             "sdkwork-api-birdcoder-assembly",
-            "sdkwork-database-sqlx"
-          ]
-        },
-        {
-          "packageName": "sdkwork-birdcoder-database-host",
-          "manifest": "crates/sdkwork-birdcoder-database-host/Cargo.toml",
-          "dependencies": [
-            "dotenvy",
-            "sdkwork-database-config",
-            "sdkwork-database-lifecycle",
-            "sdkwork-database-spi",
-            "sdkwork-database-sqlx",
-            "sdkwork-database-id"
+            "serde-json",
+            "tokio",
+            "tower"
           ]
         },
         {
@@ -3831,28 +3521,14 @@
           ]
         },
         {
-          "packageName": "sdkwork-birdcoder-project-service",
-          "manifest": "crates/sdkwork-birdcoder-project-service/Cargo.toml",
-          "dependencies": [
-            "async-trait",
-            "serde",
-            "serde-json",
-            "sdkwork-utils-rust",
-            "tokio"
-          ]
-        },
-        {
           "packageName": "sdkwork-birdcoder-router-context",
           "manifest": "crates/sdkwork-birdcoder-router-context/Cargo.toml",
           "dependencies": [
             "axum",
-            "http",
             "sdkwork-iam-context-service",
             "sdkwork-iam-web-adapter",
             "sdkwork-web-core",
             "sdkwork-birdcoder-errors",
-            "sdkwork-birdcoder-workspace-service",
-            "sdkwork-birdcoder-project-service",
             "sdkwork-utils-rust"
           ]
         },
@@ -3893,33 +3569,6 @@
           ]
         },
         {
-          "packageName": "sdkwork-birdcoder-workspace-repository-sqlx",
-          "manifest": "crates/sdkwork-birdcoder-workspace-repository-sqlx/Cargo.toml",
-          "dependencies": [
-            "async-trait",
-            "sqlx",
-            "serde-json",
-            "tokio",
-            "sdkwork-birdcoder-workspace-service",
-            "sdkwork-birdcoder-project-service",
-            "sdkwork-database-id",
-            "sdkwork-database-sqlx",
-            "sdkwork-utils-rust"
-          ]
-        },
-        {
-          "packageName": "sdkwork-birdcoder-workspace-service",
-          "manifest": "crates/sdkwork-birdcoder-workspace-service/Cargo.toml",
-          "dependencies": [
-            "async-trait",
-            "serde",
-            "serde-json",
-            "uuid",
-            "sdkwork-utils-rust",
-            "tracing"
-          ]
-        },
-        {
           "packageName": "sdkwork-routes-system-app-api",
           "manifest": "crates/sdkwork-routes-system-app-api/Cargo.toml",
           "dependencies": [
@@ -3933,23 +3582,6 @@
             "tokio",
             "sdkwork-web-core",
             "sdkwork-iam-context-service"
-          ]
-        },
-        {
-          "packageName": "sdkwork-routes-workspace-app-api",
-          "manifest": "crates/sdkwork-routes-workspace-app-api/Cargo.toml",
-          "dependencies": [
-            "axum",
-            "serde",
-            "sdkwork-birdcoder-workspace-service",
-            "sdkwork-birdcoder-project-service",
-            "sdkwork-birdcoder-router-context",
-            "sdkwork-birdcoder-errors",
-            "sdkwork-web-contract",
-            "sdkwork-web-core",
-            "sdkwork-utils-rust",
-            "tracing",
-            "serde-json"
           ]
         },
         {
@@ -5901,6 +5533,148 @@
           "runtimeMode": "external-service"
         },
         {
+          "component": "sdkwork-birdcoder-pc",
+          "source": "apps/sdkwork-birdcoder-pc/specs/component.spec.json",
+          "workspace": "sdkwork-birdcoder-app-sdk",
+          "sdkFamily": "sdkwork-birdcoder-app-sdk",
+          "apiAuthority": "sdkwork-birdcoder-app-api",
+          "surface": "app-api",
+          "apiPrefix": "/app/v3/api",
+          "runtimeMode": "external-via-declared-upstream",
+          "sameOriginAllowed": false,
+          "requiredBaseUrlKey": "VITE_SDKWORK_BIRDCODER_APPLICATION_PUBLIC_HTTP_URL"
+        },
+        {
+          "component": "sdkwork-birdcoder-pc",
+          "source": "apps/sdkwork-birdcoder-pc/specs/component.spec.json",
+          "workspace": "sdkwork-agents-app-sdk",
+          "sdkFamily": "sdkwork-agents-app-sdk",
+          "apiAuthority": "sdkwork-agents-app-api",
+          "surface": "app-api",
+          "apiPrefix": "/app/v3/api",
+          "runtimeMode": "external-via-platform-surface",
+          "sameOriginAllowed": false,
+          "requiredBaseUrlKey": "VITE_SDKWORK_BIRDCODER_PLATFORM_API_GATEWAY_HTTP_URL"
+        },
+        {
+          "component": "sdkwork-birdcoder-pc",
+          "source": "apps/sdkwork-birdcoder-pc/specs/component.spec.json",
+          "workspace": "sdkwork-documents-app-sdk",
+          "sdkFamily": "sdkwork-documents-app-sdk",
+          "apiAuthority": "sdkwork-documents-app-api",
+          "surface": "app-api",
+          "apiPrefix": "/app/v3/api",
+          "runtimeMode": "external-via-platform-surface",
+          "sameOriginAllowed": false,
+          "requiredBaseUrlKey": "VITE_SDKWORK_BIRDCODER_PLATFORM_API_GATEWAY_HTTP_URL",
+          "optionalBaseUrlKeys": [
+            "VITE_SDKWORK_DOCUMENTS_APP_API_BASE_URL"
+          ]
+        },
+        {
+          "component": "sdkwork-birdcoder-pc",
+          "source": "apps/sdkwork-birdcoder-pc/specs/component.spec.json",
+          "workspace": "sdkwork-drive-app-sdk",
+          "sdkFamily": "sdkwork-drive-app-sdk",
+          "apiAuthority": "sdkwork-drive-app-api",
+          "surface": "app-api",
+          "apiPrefix": "/app/v3/api",
+          "runtimeMode": "external-via-platform-surface",
+          "sameOriginAllowed": false,
+          "requiredBaseUrlKey": "VITE_SDKWORK_BIRDCODER_PLATFORM_API_GATEWAY_HTTP_URL",
+          "optionalBaseUrlKeys": [
+            "VITE_SDKWORK_DRIVE_APP_API_BASE_URL"
+          ]
+        },
+        {
+          "component": "sdkwork-birdcoder-pc",
+          "source": "apps/sdkwork-birdcoder-pc/specs/component.spec.json",
+          "workspace": "sdkwork-iam-app-sdk",
+          "sdkFamily": "sdkwork-iam-app-sdk",
+          "apiAuthority": "sdkwork-iam-app-api",
+          "surface": "app-api",
+          "apiPrefix": "/app/v3/api",
+          "runtimeMode": "external-via-platform-surface",
+          "sameOriginAllowed": false,
+          "requiredBaseUrlKey": "VITE_SDKWORK_BIRDCODER_PLATFORM_API_GATEWAY_HTTP_URL",
+          "optionalBaseUrlKeys": [
+            "VITE_SDKWORK_APPBASE_APP_API_BASE_URL",
+            "VITE_SDKWORK_IAM_APP_API_BASE_URL"
+          ]
+        },
+        {
+          "component": "sdkwork-birdcoder-pc",
+          "source": "apps/sdkwork-birdcoder-pc/specs/component.spec.json",
+          "workspace": "sdkwork-membership-app-sdk",
+          "sdkFamily": "sdkwork-membership-app-sdk",
+          "apiAuthority": "sdkwork-membership-app-api",
+          "surface": "app-api",
+          "apiPrefix": "/app/v3/api",
+          "runtimeMode": "external-via-platform-surface",
+          "sameOriginAllowed": false,
+          "requiredBaseUrlKey": "VITE_SDKWORK_BIRDCODER_PLATFORM_API_GATEWAY_HTTP_URL",
+          "optionalBaseUrlKeys": [
+            "VITE_SDKWORK_MEMBERSHIP_APP_API_BASE_URL"
+          ]
+        },
+        {
+          "component": "sdkwork-birdcoder-pc",
+          "source": "apps/sdkwork-birdcoder-pc/specs/component.spec.json",
+          "workspace": "sdkwork-messaging-app-sdk",
+          "sdkFamily": "sdkwork-messaging-app-sdk",
+          "apiAuthority": "sdkwork-messaging-app-api",
+          "surface": "app-api",
+          "apiPrefix": "/app/v3/api",
+          "runtimeMode": "external-via-platform-surface",
+          "sameOriginAllowed": false,
+          "requiredBaseUrlKey": "VITE_SDKWORK_BIRDCODER_PLATFORM_API_GATEWAY_HTTP_URL",
+          "optionalBaseUrlKeys": [
+            "VITE_SDKWORK_MESSAGING_APP_API_BASE_URL"
+          ]
+        },
+        {
+          "component": "sdkwork-birdcoder-pc",
+          "source": "apps/sdkwork-birdcoder-pc/specs/component.spec.json",
+          "workspace": "sdkwork-order-app-sdk",
+          "sdkFamily": "sdkwork-order-app-sdk",
+          "apiAuthority": "sdkwork-order-app-api",
+          "surface": "app-api",
+          "apiPrefix": "/app/v3/api",
+          "runtimeMode": "external-via-platform-surface",
+          "sameOriginAllowed": false,
+          "requiredBaseUrlKey": "VITE_SDKWORK_BIRDCODER_PLATFORM_API_GATEWAY_HTTP_URL",
+          "optionalBaseUrlKeys": [
+            "VITE_SDKWORK_ORDER_APP_API_BASE_URL"
+          ]
+        },
+        {
+          "component": "sdkwork-birdcoder-pc",
+          "source": "apps/sdkwork-birdcoder-pc/specs/component.spec.json",
+          "workspace": "sdkwork-prompts-app-sdk",
+          "sdkFamily": "sdkwork-prompts-app-sdk",
+          "apiAuthority": "sdkwork-prompts-app-api",
+          "surface": "app-api",
+          "apiPrefix": "/app/v3/api",
+          "runtimeMode": "external-via-platform-surface",
+          "sameOriginAllowed": false,
+          "requiredBaseUrlKey": "VITE_SDKWORK_BIRDCODER_PLATFORM_API_GATEWAY_HTTP_URL",
+          "optionalBaseUrlKeys": [
+            "VITE_SDKWORK_PROMPTS_APP_API_BASE_URL"
+          ]
+        },
+        {
+          "component": "sdkwork-birdcoder-pc",
+          "source": "apps/sdkwork-birdcoder-pc/specs/component.spec.json",
+          "workspace": "sdkwork-skills-app-sdk",
+          "sdkFamily": "sdkwork-skills-app-sdk",
+          "apiAuthority": "sdkwork-skills-app-api",
+          "surface": "app-api",
+          "apiPrefix": "/app/v3/api",
+          "runtimeMode": "external-via-platform-surface",
+          "sameOriginAllowed": false,
+          "requiredBaseUrlKey": "VITE_SDKWORK_BIRDCODER_PLATFORM_API_GATEWAY_HTTP_URL"
+        },
+        {
           "component": "sdkwork-birdcoder-tauri-host",
           "source": "crates/sdkwork-birdcoder-tauri-host/specs/component.spec.json",
           "workspace": "sdkwork-birdcoder",
@@ -5935,8 +5709,7 @@
       "sdkwork-prompts-app-sdk": "authenticated-app-api",
       "sdkwork-skills-app-sdk": "authenticated-app-api",
       "sdkwork-iam-backend-sdk": "authenticated-backend-admin",
-      "sdkwork-membership-backend-sdk": "authenticated-backend-admin",
-      "sdkwork-membership-app-sdk": "authenticated-app-api"
+      "sdkwork-membership-backend-sdk": "authenticated-backend-admin"
     }
   }
 }

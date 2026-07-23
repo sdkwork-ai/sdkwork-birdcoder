@@ -36,7 +36,7 @@ export * from './platform/fileSystem.ts';
 export * from './platform/tauriFileManager.ts';
 export * from './storage/localStore.ts';
 export * from './chat/draftStore.ts';
-export * from './chat/messageQueueStore.ts';
+export * from './chat/agentTurnInputQueueStore.ts';
 export * from './chat/persistence.ts';
 export * from './terminal/profiles.ts';
 export * from './terminal/runtime.ts';

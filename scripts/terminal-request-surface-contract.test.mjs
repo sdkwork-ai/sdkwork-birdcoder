@@ -18,8 +18,8 @@ const appSource = readBirdcoderAppShellSource();
 
 assert.match(
   requestsSource,
-  /export type TerminalCommandSurface = 'workspace' \| 'embedded';/,
-  'Terminal requests must distinguish workspace and embedded destinations.',
+  /export type TerminalCommandSurface = 'project' \| 'embedded';/,
+  'Terminal requests must distinguish project and embedded destinations.',
 );
 assert.match(
   requestsSource,
@@ -28,8 +28,8 @@ assert.match(
 );
 assert.match(
   requestsSource,
-  /surface: overrides\.surface \?\? 'workspace'/,
-  'Default terminal requests must target the workspace terminal.',
+  /surface: overrides\.surface \?\? 'project'/,
+  'Default terminal requests must target the selected-project terminal.',
 );
 assert.match(
   runtimeSource,
@@ -38,8 +38,8 @@ assert.match(
 );
 assert.match(
   appSource,
-  /const isWorkspaceTerminalRequest = \(request: TerminalCommandRequest\): boolean =>\s*request\.surface === 'workspace';/,
-  'The application shell must accept only workspace terminal requests.',
+  /const isProjectTerminalRequest = \(request: TerminalCommandRequest\): boolean =>\s*request\.surface === 'project';/,
+  'The application shell must accept only project terminal requests.',
 );
 assert.match(
   codeWorkbenchCommandsSource,
@@ -60,8 +60,13 @@ assert.match(
 );
 assert.match(
   terminalActionsSource,
-  /emitOpenTerminalRequest\(\{[\s\S]*surface: 'workspace'[\s\S]*path: localWorkingDirectory/,
+  /emitOpenTerminalRequest\(\{[\s\S]*surface: 'project'[\s\S]*path: localWorkingDirectory/,
   'Project terminal launch must use the resolved local directory.',
+);
+assert.doesNotMatch(
+  requestsSource,
+  /'workspace'/,
+  'The terminal request contract must not reintroduce the retired Workspace domain term.',
 );
 assert.match(
   terminalActionsSource,

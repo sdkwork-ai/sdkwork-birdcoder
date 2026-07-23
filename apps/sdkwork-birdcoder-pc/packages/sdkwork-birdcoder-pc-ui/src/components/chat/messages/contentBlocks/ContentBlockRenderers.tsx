@@ -58,13 +58,13 @@ function ActivitySummaryBlock({
 
   const copyLabel = context.environment?.t('common.copy') ?? 'Copy';
   const compact = context.layout === 'sidebar';
-  const messageId =
+  const sessionItemId =
     block.type === 'activity'
-      ? block.messageId
+      ? block.sessionItemId
       : context.allMessages[context.index]?.id ?? '';
   const sourceMessage = context.allMessages[context.index];
   const disclosureScopeKey = `${context.sessionId}\u0001${
-    sourceMessage?.turnId?.trim() || sourceMessage?.id?.trim() || messageId
+    sourceMessage?.turnId?.trim() || sourceMessage?.id?.trim() || sessionItemId
   }\u0001activity`;
 
   return (
@@ -77,7 +77,7 @@ function ActivitySummaryBlock({
         environment={context.environment}
         expandedDisclosureKeys={context.expandedDisclosureKeys}
         fileChanges={fileChanges}
-        messageId={messageId}
+        messageId={sessionItemId}
         disclosureScopeKey={disclosureScopeKey}
         successIconSize={compact ? 13 : 14}
         toggleDisclosure={context.toggleDisclosure}

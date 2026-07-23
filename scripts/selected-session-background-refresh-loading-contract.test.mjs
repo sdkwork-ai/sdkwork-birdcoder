@@ -4,7 +4,7 @@ import path from 'node:path';
 import process from 'node:process';
 
 const rootDir = process.cwd();
-const source = fs.readFileSync(
+const hookSource = fs.readFileSync(
   path.join(
     rootDir,
     'apps',
@@ -20,23 +20,55 @@ const source = fs.readFileSync(
   ),
   'utf8',
 );
-
-assert.match(
-  source,
-  /const hadSynchronizedSessionVersion =\s*synchronizedSessionVersionsByScopeKey\.has\(synchronizationScopeKey\);/,
-  'selected session refresh must remember whether the session was already synchronized before a polling tick resets the refresh key.',
+const codePageSource = fs.readFileSync(
+  path.join(
+    rootDir,
+    'apps',
+    'sdkwork-birdcoder-pc',
+    'packages',
+    'sdkwork-birdcoder-pc-code',
+    'src',
+    'pages',
+    'CodePage.tsx',
+  ),
+  'utf8',
+);
+const studioPageSource = fs.readFileSync(
+  path.join(
+    rootDir,
+    'apps',
+    'sdkwork-birdcoder-pc',
+    'packages',
+    'sdkwork-birdcoder-pc-studio',
+    'src',
+    'pages',
+    'StudioPage.tsx',
+  ),
+  'utf8',
 );
 
 assert.match(
-  source,
-  /const shouldShowForegroundLoading =[\s\S]*!hadSynchronizedSessionVersion[\s\S]*resolvedAgentSession\.messages\.length === 0/,
-  'selected session refresh must only show the foreground loading state for first-time empty transcript hydration.',
+  hookSource,
+  /selectedAgentSession\?\.items\.length \?\? 0,[\s\S]*pollRevision,[\s\S]*selectedAgentSession\?\.items\.length,/,
+  'selected session refresh identity must observe canonical Session Item inventory and polling revision.',
 );
 
 assert.match(
-  source,
-  /if \(shouldShowForegroundLoading\) \{[\s\S]*setIsSelectedAgentSessionItemsLoading/,
-  'selected session background polling must not force the visible transcript back into Loading conversation after the session has already synchronized.',
+  codePageSource,
+  /const isSelectedAgentSessionHydrating = Boolean\([\s\S]*isSelectedAgentSessionItemsLoading[\s\S]*selectedAgentSessionItems\.length === 0/s,
+  'CodePage must show foreground transcript loading only while the selected canonical Session Item inventory is empty.',
+);
+
+assert.match(
+  studioPageSource,
+  /const isSelectedAgentSessionHydrating = Boolean\([\s\S]*isSelectedAgentSessionItemsLoading[\s\S]*selectedSessionMessages\.length === 0/s,
+  'StudioPage must keep an already populated transcript visible while Session Items refresh in the background.',
+);
+
+assert.doesNotMatch(
+  hookSource,
+  /synchronizedSessionVersionsByScopeKey|resolvedAgentSession\.messages/,
+  'selected session refresh must not restore the retired shared synchronization map or parallel message inventory.',
 );
 
 console.log('selected session background refresh loading contract passed.');

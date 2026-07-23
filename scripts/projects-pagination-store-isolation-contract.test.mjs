@@ -20,7 +20,7 @@ const storeSource = fs.readFileSync(
 
 assert.match(
   hookSource,
-  /function readProjectInventoryPageForWorkspace\([\s\S]*return projectService\.getProjectsPage\(workspaceId, request\);/u,
+  /function readProjectInventoryPage\([\s\S]*return projectService\.getProjectsPage\(request\);/u,
   'bounded project inventory requests must reach the paginated service.',
 );
 

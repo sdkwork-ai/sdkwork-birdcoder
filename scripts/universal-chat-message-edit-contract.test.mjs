@@ -18,7 +18,7 @@ const codePageSource = await readFile(
   resolve('apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-code/src/pages/CodePage.tsx'),
   'utf8',
 );
-const workbenchMessageEditActionHookSource = await readFile(
+const workbenchSessionItemEditActionHookSource = await readFile(
   resolve('apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-workbench/src/hooks/useWorkbenchAgentSessionItemEditAction.ts'),
   'utf8',
 );
@@ -81,7 +81,7 @@ assert.match(
 
 assert.match(
   universalChatSource,
-  /if \(editingMessage\) \{[\s\S]*if \(isComposerTurnBlocked \|\| isAwaitingQueuedTurnSettlement \|\| messageQueue\.length > 0\) \{[\s\S]*t\('chat\.editMessageWaitForIdle'\)[\s\S]*return;[\s\S]*\}[\s\S]*clearInputValue\(\);[\s\S]*const didSubmitEdit = await submitEditedMessage\(currentInput\);[\s\S]*if \(!didSubmitEdit\) \{[\s\S]*setInputValue\(\(previousInputValue\) =>[\s\S]*resolveComposerInputAfterSendFailure\(currentInput, previousInputValue\)[\s\S]*\);[\s\S]*\}[\s\S]*return;[\s\S]*\}/,
+  /if \(editingMessage\) \{[\s\S]*if \(isComposerTurnBlocked \|\| isAwaitingQueuedTurnSettlement \|\| agentTurnInputQueue\.length > 0\) \{[\s\S]*t\('chat\.editMessageWaitForIdle'\)[\s\S]*return;[\s\S]*\}[\s\S]*clearInputValue\(\);[\s\S]*const didSubmitEdit = await submitEditedMessage\(currentInput\);[\s\S]*if \(!didSubmitEdit\) \{[\s\S]*setInputValue\(\(previousInputValue\) =>[\s\S]*resolveComposerInputAfterSendFailure\(currentInput, previousInputValue\)[\s\S]*\);[\s\S]*\}[\s\S]*return;[\s\S]*\}/,
   'UniversalChat handleSend must route edit-mode submissions to editAgentSessionItem instead of sending or queueing a new turn.',
 );
 
@@ -116,39 +116,39 @@ assert.match(
 );
 
 assert.match(
-  workbenchMessageEditActionHookSource,
+  workbenchSessionItemEditActionHookSource,
   /export function useWorkbenchAgentSessionItemEditAction\(/,
-  'Workbench messaging must expose a shared message edit action hook so Code and Studio cannot drift in edit semantics.',
+  'Workbench Agents integration must expose a shared Session Item edit action hook so Code and Studio cannot drift in edit semantics.',
 );
 
 assert.match(
-  workbenchMessageEditActionHookSource,
-  /editWorkbenchAgentSessionItem\(\{[\s\S]*agentSessionId,[\s\S]*content,[\s\S]*editAgentSessionItem,[\s\S]*messageId,[\s\S]*projectId: project\.id,[\s\S]*\}\)/,
-  'Shared message edit action must route through editWorkbenchAgentSessionItem so trimming and empty-content behavior stay standardized.',
+  workbenchSessionItemEditActionHookSource,
+  /editWorkbenchAgentSessionItem\(\{[\s\S]*agentSessionId,[\s\S]*content,[\s\S]*editAgentSessionItem,[\s\S]*sessionItemId,[\s\S]*projectId: project\.projectId,[\s\S]*\}\)/,
+  'Shared Session Item edit action must route through editWorkbenchAgentSessionItem so trimming and empty-content behavior stay standardized.',
 );
 
 assert.match(
-  workbenchMessageEditActionHookSource,
+  workbenchSessionItemEditActionHookSource,
   /setSelectionRefreshToken\(\(previousState\) => previousState \+ 1\);/,
-  'Shared message edit action must refresh the selected transcript after an authoritative edit succeeds.',
+  'Shared Session Item edit action must refresh the selected transcript after an authoritative edit succeeds.',
 );
 
 assert.match(
-  workbenchMessageEditActionHookSource,
+  workbenchSessionItemEditActionHookSource,
   /throw new Error\(sessionUnavailableMessage\);/,
-  'Shared message edit action must report missing project/session state consistently across surfaces.',
+  'Shared Session Item edit action must report missing project/session state consistently across surfaces.',
 );
 
 assert.match(
   commonsIndexSource,
   /export \* from '\.\/hooks\/useWorkbenchAgentSessionItemEditAction\.ts';/,
-  'Commons must export the shared message edit action hook as part of the public workbench standard.',
+  'Workbench must export the shared Session Item edit action hook as part of its public contract.',
 );
 
 assert.match(
   codePageSource,
   /const handleEditMessage = useWorkbenchAgentSessionItemEditAction\(\{[\s\S]*editAgentSessionItem,[\s\S]*resolveAgentSessionLocation: \(agentSessionId: string\) =>\s*resolveSessionActionLocation\(agentSessionId,\s*currentProjectId\),[\s\S]*sessionUnavailableMessage: t\('chat\.sendMessageSessionUnavailable'\),[\s\S]*setSelectionRefreshToken,[\s\S]*\}\);/,
-  'CodePage must reuse the shared workbench message edit action with the current project-scoped session resolver instead of carrying a code-only edit hook.',
+  'CodePage must reuse the shared workbench Session Item edit action with the current project-scoped session resolver instead of carrying a code-only business edit hook.',
 );
 
 assert.doesNotMatch(
@@ -184,7 +184,7 @@ assert.match(
 assert.match(
   studioPageSource,
   /const handleEditMessage = useWorkbenchAgentSessionItemEditAction\(\{[\s\S]*editAgentSessionItem,[\s\S]*resolveAgentSessionLocation: \(agentSessionId: string\) =>\s*resolveAgentSessionLocation\(agentSessionId,\s*currentProjectId\),[\s\S]*sessionUnavailableMessage: t\('chat\.sendMessageSessionUnavailable'\),[\s\S]*setSelectionRefreshToken,[\s\S]*\}\);/,
-  'StudioPage must reuse the shared workbench message edit action with the current project-scoped session resolver instead of inlining edit behavior.',
+  'StudioPage must reuse the shared workbench Session Item edit action with the current project-scoped session resolver instead of inlining business edit behavior.',
 );
 
 assert.doesNotMatch(

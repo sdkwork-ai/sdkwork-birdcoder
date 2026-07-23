@@ -107,7 +107,7 @@ function fuzzyScore(pattern: string, value: string): number {
   return patternIndex === pattern.length ? score : 0;
 }
 
-function resolveMessageActivitySortTimestamp(timestamp: string): string | undefined {
+function resolveAgentSessionItemActivitySortTimestamp(timestamp: string): string | undefined {
   const parsedTimestamp = Date.parse(timestamp);
   return Number.isNaN(parsedTimestamp)
     ? undefined
@@ -140,11 +140,11 @@ interface ScoredProjectCandidate {
   score: number;
 }
 
-type BirdCoderSendMessageContext = WorkbenchAgentSessionTurnContext;
-interface BirdCoderSendMessageOptions {
+type WorkbenchAgentTurnSubmissionContext = WorkbenchAgentSessionTurnContext;
+interface WorkbenchAgentTurnSubmissionOptions {
   metadata?: Record<string, unknown>;
 }
-const EMPTY_PROJECT_INVENTORY_MESSAGES: AgentSessionItemView[] = [];
+const EMPTY_PROJECT_INVENTORY_ITEMS: AgentSessionItemView[] = [];
 const EMPTY_FILTERED_PROJECT_AGENT_SESSIONS: AgentSessionView[] = [];
 const PROJECTS_FETCH_TIMEOUT_MS = 30_000;
 const MAX_TARGET_PROJECT_RESOLUTION_PAGES = 20;
@@ -326,7 +326,7 @@ function normalizeProjectsForInventoryStore(
       hasTranscriptPayload = true;
       return {
         ...agentSession,
-        items: agentSession.items.length > 0 ? EMPTY_PROJECT_INVENTORY_MESSAGES : agentSession.items,
+        items: agentSession.items.length > 0 ? EMPTY_PROJECT_INVENTORY_ITEMS : agentSession.items,
       };
     });
 
@@ -340,113 +340,113 @@ function normalizeProjectsForInventoryStore(
 }
 
 function appendAgentSessionItemIfMissing(
-  messages: readonly AgentSessionItemView[],
-  incomingMessage: AgentSessionItemView,
+  items: readonly AgentSessionItemView[],
+  incomingItem: AgentSessionItemView,
 ): AgentSessionItemView[] {
-  const matchingMessageIndex = messages.findIndex((message) =>
-    areAgentSessionItemsEquivalent(message, incomingMessage) ||
-    areAgentSessionItemsLogicallyMatched(message, incomingMessage),
+  const matchingItemIndex = items.findIndex((item) =>
+    areAgentSessionItemsEquivalent(item, incomingItem) ||
+    areAgentSessionItemsLogicallyMatched(item, incomingItem),
   );
-  if (matchingMessageIndex < 0) {
-    return [...messages, incomingMessage];
+  if (matchingItemIndex < 0) {
+    return [...items, incomingItem];
   }
 
-  const existingMessage = messages[matchingMessageIndex]!;
-  const mergedMessage = mergeAgentSessionItemViews(existingMessage, incomingMessage);
-  if (mergedMessage === existingMessage) {
-    return messages as AgentSessionItemView[];
+  const existingItem = items[matchingItemIndex]!;
+  const mergedItem = mergeAgentSessionItemViews(existingItem, incomingItem);
+  if (mergedItem === existingItem) {
+    return items as AgentSessionItemView[];
   }
 
-  const nextMessages = [...messages];
-  nextMessages[matchingMessageIndex] = mergedMessage;
-  return nextMessages;
+  const nextItems = [...items];
+  nextItems[matchingItemIndex] = mergedItem;
+  return nextItems;
 }
 
 function replaceAgentSessionItemAtIndex(
-  messages: readonly AgentSessionItemView[],
-  messageIndex: number,
-  nextMessage: AgentSessionItemView,
+  items: readonly AgentSessionItemView[],
+  itemIndex: number,
+  nextItem: AgentSessionItemView,
 ): AgentSessionItemView[] {
   if (
-    messageIndex < 0 ||
-    messageIndex >= messages.length ||
-    messages[messageIndex] === nextMessage
+    itemIndex < 0 ||
+    itemIndex >= items.length ||
+    items[itemIndex] === nextItem
   ) {
-    return messages as AgentSessionItemView[];
+    return items as AgentSessionItemView[];
   }
 
-  const nextMessages = [...messages];
-  nextMessages[messageIndex] = nextMessage;
-  return nextMessages;
+  const nextItems = [...items];
+  nextItems[itemIndex] = nextItem;
+  return nextItems;
 }
 
 function replaceAgentSessionItemById(
-  messages: readonly AgentSessionItemView[],
-  messageId: string,
+  items: readonly AgentSessionItemView[],
+  sessionItemId: string,
   updates: Partial<AgentSessionItemView>,
 ): AgentSessionItemView[] {
-  const messageIndex = messages.findIndex((message) => message.id === messageId);
-  if (messageIndex < 0) {
-    return messages as AgentSessionItemView[];
+  const itemIndex = items.findIndex((item) => item.id === sessionItemId);
+  if (itemIndex < 0) {
+    return items as AgentSessionItemView[];
   }
 
-  const existingMessage = messages[messageIndex]!;
-  const nextMessage = {
-    ...existingMessage,
+  const existingItem = items[itemIndex]!;
+  const nextItem = {
+    ...existingItem,
     ...updates,
   };
-  return areAgentSessionItemsEquivalent(existingMessage, nextMessage)
-    ? (messages as AgentSessionItemView[])
-    : replaceAgentSessionItemAtIndex(messages, messageIndex, nextMessage);
+  return areAgentSessionItemsEquivalent(existingItem, nextItem)
+    ? (items as AgentSessionItemView[])
+    : replaceAgentSessionItemAtIndex(items, itemIndex, nextItem);
 }
 
 function reconcileAgentSessionItem(
-  messages: readonly AgentSessionItemView[],
-  optimisticMessageId: string,
-  resolvedMessage: AgentSessionItemView,
+  items: readonly AgentSessionItemView[],
+  optimisticItemId: string,
+  resolvedItem: AgentSessionItemView,
 ): AgentSessionItemView[] {
-  const optimisticMessageIndex = messages.findIndex(
-    (message) => message.id === optimisticMessageId,
+  const optimisticItemIndex = items.findIndex(
+    (item) => item.id === optimisticItemId,
   );
-  const messagesWithoutOptimistic = removeAgentSessionItemById(
-    messages,
-    optimisticMessageId,
+  const itemsWithoutOptimistic = removeAgentSessionItemById(
+    items,
+    optimisticItemId,
   );
-  const matchingResolvedMessageIndex = messagesWithoutOptimistic.findIndex((message) =>
-    areAgentSessionItemsEquivalent(message, resolvedMessage) ||
-    areAgentSessionItemsLogicallyMatched(message, resolvedMessage),
+  const matchingResolvedItemIndex = itemsWithoutOptimistic.findIndex((item) =>
+    areAgentSessionItemsEquivalent(item, resolvedItem) ||
+    areAgentSessionItemsLogicallyMatched(item, resolvedItem),
   );
-  if (matchingResolvedMessageIndex >= 0) {
-    const existingMessage = messagesWithoutOptimistic[matchingResolvedMessageIndex]!;
-    const mergedMessage = mergeAgentSessionItemViews(existingMessage, resolvedMessage);
-    if (mergedMessage === existingMessage) {
-      return messagesWithoutOptimistic as AgentSessionItemView[];
+  if (matchingResolvedItemIndex >= 0) {
+    const existingItem = itemsWithoutOptimistic[matchingResolvedItemIndex]!;
+    const mergedItem = mergeAgentSessionItemViews(existingItem, resolvedItem);
+    if (mergedItem === existingItem) {
+      return itemsWithoutOptimistic as AgentSessionItemView[];
     }
 
     return replaceAgentSessionItemAtIndex(
-      messagesWithoutOptimistic,
-      matchingResolvedMessageIndex,
-      mergedMessage,
+      itemsWithoutOptimistic,
+      matchingResolvedItemIndex,
+      mergedItem,
     );
   }
 
   if (
-    optimisticMessageIndex < 0 ||
-    optimisticMessageIndex >= messagesWithoutOptimistic.length
+    optimisticItemIndex < 0 ||
+    optimisticItemIndex >= itemsWithoutOptimistic.length
   ) {
-    return [...messagesWithoutOptimistic, resolvedMessage];
+    return [...itemsWithoutOptimistic, resolvedItem];
   }
 
-  const nextMessages = [...messagesWithoutOptimistic];
-  nextMessages.splice(optimisticMessageIndex, 0, resolvedMessage);
-  return nextMessages;
+  const nextItems = [...itemsWithoutOptimistic];
+  nextItems.splice(optimisticItemIndex, 0, resolvedItem);
+  return nextItems;
 }
 
 function buildOptimisticAgentSessionItem(
   agentSessionId: string,
   content: string,
-  context?: BirdCoderSendMessageContext,
-  options?: BirdCoderSendMessageOptions,
+  context?: WorkbenchAgentTurnSubmissionContext,
+  options?: WorkbenchAgentTurnSubmissionOptions,
 ): AgentSessionItemView {
   const createdAt = new Date().toISOString();
   const randomToken = randomString(8);
@@ -455,15 +455,15 @@ function buildOptimisticAgentSessionItem(
     sessionId: agentSessionId,
     role: 'user',
     content,
-    metadata: buildSendMessageMetadata(context, options),
+    metadata: buildAgentTurnSubmissionMetadata(context, options),
     createdAt,
     timestamp: Date.parse(createdAt),
   };
 }
 
-function buildSendMessageMetadata(
-  context?: BirdCoderSendMessageContext,
-  options?: BirdCoderSendMessageOptions,
+function buildAgentTurnSubmissionMetadata(
+  context?: WorkbenchAgentTurnSubmissionContext,
+  options?: WorkbenchAgentTurnSubmissionOptions,
 ): Record<string, unknown> | undefined {
   const metadata = options?.metadata
     ? structuredClone(options.metadata)
@@ -476,58 +476,58 @@ function buildSendMessageMetadata(
 }
 
 function removeAgentSessionItemById(
-  messages: readonly AgentSessionItemView[],
-  messageId: string,
+  items: readonly AgentSessionItemView[],
+  sessionItemId: string,
 ): AgentSessionItemView[] {
-  let nextMessages: AgentSessionItemView[] | null = null;
-  for (let index = 0; index < messages.length; index += 1) {
-    const message = messages[index]!;
-    if (message.id === messageId) {
-      if (!nextMessages) {
-        nextMessages = messages.slice(0, index) as AgentSessionItemView[];
+  let nextItems: AgentSessionItemView[] | null = null;
+  for (let index = 0; index < items.length; index += 1) {
+    const item = items[index]!;
+    if (item.id === sessionItemId) {
+      if (!nextItems) {
+        nextItems = items.slice(0, index) as AgentSessionItemView[];
       }
       continue;
     }
 
-    nextMessages?.push(message);
+    nextItems?.push(item);
   }
 
-  return nextMessages ?? (messages as AgentSessionItemView[]);
+  return nextItems ?? (items as AgentSessionItemView[]);
 }
 
 function rollbackOptimisticAgentSessionItem(
   agentSession: AgentSessionView,
   previousAgentSession: AgentSessionView | null,
-  optimisticMessage: AgentSessionItemView,
+  optimisticItem: AgentSessionItemView,
 ): AgentSessionView {
-  const messages = removeAgentSessionItemById(
+  const items = removeAgentSessionItemById(
     agentSession.items,
-    optimisticMessage.id,
+    optimisticItem.id,
   );
-  const previousMessageIds = new Set(
-    previousAgentSession?.items.map((message) => message.id) ?? [],
+  const previousItemIds = new Set(
+    previousAgentSession?.items.map((item) => item.id) ?? [],
   );
-  const hasConcurrentMessage = messages.some(
-    (message) => !previousMessageIds.has(message.id),
+  const hasConcurrentItem = items.some(
+    (item) => !previousItemIds.has(item.id),
   );
-  const optimisticSortTimestamp = resolveMessageActivitySortTimestamp(
-    optimisticMessage.createdAt,
+  const optimisticSortTimestamp = resolveAgentSessionItemActivitySortTimestamp(
+    optimisticItem.createdAt,
   );
-  const canRestoreOwnedActivity = !hasConcurrentMessage;
+  const canRestoreOwnedActivity = !hasConcurrentItem;
 
   return {
     ...agentSession,
-    items: messages,
+    items: items,
     runtimeStatus:
       canRestoreOwnedActivity && agentSession.runtimeStatus === 'streaming'
         ? previousAgentSession?.runtimeStatus
         : agentSession.runtimeStatus,
     updatedAt:
-      canRestoreOwnedActivity && agentSession.updatedAt === optimisticMessage.createdAt
+      canRestoreOwnedActivity && agentSession.updatedAt === optimisticItem.createdAt
         ? previousAgentSession?.updatedAt ?? agentSession.updatedAt
         : agentSession.updatedAt,
     lastTurnAt:
-      canRestoreOwnedActivity && agentSession.lastTurnAt === optimisticMessage.createdAt
+      canRestoreOwnedActivity && agentSession.lastTurnAt === optimisticItem.createdAt
         ? previousAgentSession?.lastTurnAt
         : agentSession.lastTurnAt,
     sortTimestamp:
@@ -538,7 +538,7 @@ function rollbackOptimisticAgentSessionItem(
         : agentSession.sortTimestamp,
     transcriptUpdatedAt:
       canRestoreOwnedActivity &&
-      agentSession.transcriptUpdatedAt === optimisticMessage.createdAt
+      agentSession.transcriptUpdatedAt === optimisticItem.createdAt
         ? previousAgentSession?.transcriptUpdatedAt
         : agentSession.transcriptUpdatedAt,
   };
@@ -1480,7 +1480,7 @@ export function useProjects(options?: UseProjectsOptions) {
   const editAgentSessionItem = async (
     _projectId: string,
     _agentSessionId: string,
-    _messageId: string,
+    _sessionItemId: string,
     _updates: Partial<AgentSessionItemView>,
   ) => {
     throw new Error('Agents session items are immutable and cannot be edited in place.');
@@ -1489,17 +1489,17 @@ export function useProjects(options?: UseProjectsOptions) {
   const deleteAgentSessionItem = async (
     _projectId: string,
     _agentSessionId: string,
-    _messageId: string,
+    _sessionItemId: string,
   ) => {
     throw new Error('Agents session items are immutable and cannot be deleted in place.');
   };
 
-  const sendMessage = async (
+  const submitAgentTurnInput = async (
     projectId: string,
     agentSessionId: string,
     content: string,
-    context?: BirdCoderSendMessageContext,
-    options?: BirdCoderSendMessageOptions,
+    context?: WorkbenchAgentTurnSubmissionContext,
+    options?: WorkbenchAgentTurnSubmissionOptions,
   ) => {
     try {
       const selectedSession = findAgentSessionInCollection(
@@ -1515,24 +1515,24 @@ export function useProjects(options?: UseProjectsOptions) {
         requestedModelId: selectedSession?.modelId,
         turnMode: 'interactive',
       });
-      const newMessages = completed.items.map(toAgentSessionItemView);
+      const submittedItems = completed.items.map(toAgentSessionItemView);
       const activityAt = completed.turn.completedAt ?? completed.turn.updatedAt;
       mutateProjectsStore(normalizedUserScope, (projects) =>
         updateAgentSessionInCollection(projects, projectId, agentSessionId, (agentSession) => ({
           ...agentSession,
-          items: newMessages.reduce(
-            (messages, message) => appendAgentSessionItemIfMissing(messages, message),
+          items: submittedItems.reduce(
+            (items, item) => appendAgentSessionItemIfMissing(items, item),
             agentSession.items,
           ),
           runtimeStatus: completed.turn.status === 'failed' ? 'failed' : 'ready',
           updatedAt: activityAt,
           lastTurnAt: activityAt,
           sortTimestamp:
-            resolveMessageActivitySortTimestamp(activityAt) ?? agentSession.sortTimestamp,
+            resolveAgentSessionItemActivitySortTimestamp(activityAt) ?? agentSession.sortTimestamp,
           transcriptUpdatedAt: activityAt,
         })),
       );
-      return newMessages.find((message) => message.role === 'user') ?? newMessages.at(-1);
+      return submittedItems.find((item) => item.role === 'user') ?? submittedItems.at(-1);
     } catch (error: unknown) {
       const message =
         error instanceof Error && error.message.trim()
@@ -1572,7 +1572,7 @@ export function useProjects(options?: UseProjectsOptions) {
     deleteAgentSession,
     editAgentSessionItem,
     deleteAgentSessionItem,
-    sendMessage,
+    submitAgentTurnInput,
     loadMoreProjects,
     loadMoreProjectSessions,
     refreshProjects,

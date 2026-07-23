@@ -1,14 +1,14 @@
 import assert from 'node:assert/strict';
 
 import {
-  MAX_CHAT_MESSAGE_REASONING_ITEMS,
-  MAX_CHAT_MESSAGE_REASONING_SUMMARY_CHARACTERS,
-  mergeChatMessageReasoning,
-  normalizeChatMessageReasoning,
-} from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-contracts-commons/src/chat-message-reasoning.ts';
-import { resolveMessageCopyContent } from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-contracts-commons/src/chat-message-activity-view.ts';
+  MAX_AGENT_SESSION_ITEM_REASONING_ITEMS,
+  MAX_AGENT_SESSION_ITEM_REASONING_SUMMARY_CHARACTERS,
+  mergeAgentSessionItemReasoning,
+  normalizeAgentSessionItemReasoning,
+} from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-contracts-commons/src/agent-session-item-reasoning.ts';
+import { resolveSessionItemCopyContent } from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-contracts-commons/src/agent-session-item-activity-presentation.ts';
 import { deduplicateAgentSessionItemViews } from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-contracts-commons/src/agent-session-view.ts';
-import { resolveChatMessageView } from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-contracts-commons/src/chat-message-view.ts';
+import { resolveAgentSessionItemPresentation } from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-contracts-commons/src/agent-session-item-presentation.ts';
 
 const PRIVATE_THOUGHT_SENTINEL = 'PRIVATE_CHAIN_OF_THOUGHT_SENTINEL_27d912';
 
@@ -65,7 +65,7 @@ assert.deepEqual(
   'Duplicate message records must merge distinct reasoning ids in provider order.',
 );
 
-const projected = normalizeChatMessageReasoning([
+const projected = normalizeAgentSessionItemReasoning([
   {
     id: 'reasoning-1',
     title: 'Planning',
@@ -95,25 +95,25 @@ assert.doesNotMatch(
   'Private thought bodies, signatures, and provider envelopes must not cross the projector.',
 );
 
-const bounded = normalizeChatMessageReasoning([
+const bounded = normalizeAgentSessionItemReasoning([
   {
     id: 'oversized',
-    summary: 'x'.repeat(MAX_CHAT_MESSAGE_REASONING_SUMMARY_CHARACTERS + 100),
+    summary: 'x'.repeat(MAX_AGENT_SESSION_ITEM_REASONING_SUMMARY_CHARACTERS + 100),
   },
   ...Array.from({ length: 40 }, (_, index) => ({
     id: `reasoning-${index + 2}`,
     summary: `Summary ${index + 2}`,
   })),
 ]);
-assert.equal(bounded.length, MAX_CHAT_MESSAGE_REASONING_ITEMS);
+assert.equal(bounded.length, MAX_AGENT_SESSION_ITEM_REASONING_ITEMS);
 assert.equal(
   bounded[0]?.summary.length,
-  MAX_CHAT_MESSAGE_REASONING_SUMMARY_CHARACTERS,
+  MAX_AGENT_SESSION_ITEM_REASONING_SUMMARY_CHARACTERS,
   'Reasoning summaries must have a fixed per-item character budget.',
 );
 
 assert.deepEqual(
-  normalizeChatMessageReasoning([
+  normalizeAgentSessionItemReasoning([
     { id: 'stable', summary: 'First summary' },
     { id: 'second', summary: 'Second summary' },
     { id: 'stable', summary: 'Updated summary' },
@@ -127,18 +127,18 @@ assert.deepEqual(
   'Duplicate ids must retain first-seen order while accepting the latest safe summary.',
 );
 
-const fullReasoningSet = Array.from({ length: MAX_CHAT_MESSAGE_REASONING_ITEMS }, (_, index) => ({
+const fullReasoningSet = Array.from({ length: MAX_AGENT_SESSION_ITEM_REASONING_ITEMS }, (_, index) => ({
   id: `full-${index + 1}`,
   summary: `Initial ${index + 1}`,
 }));
-const mergedAtCapacity = mergeChatMessageReasoning(
+const mergedAtCapacity = mergeAgentSessionItemReasoning(
   fullReasoningSet,
   [
     { id: 'full-1', summary: 'Updated after capacity' },
     { id: 'new-after-capacity', summary: 'Must remain outside the fixed budget' },
   ],
 );
-assert.equal(mergedAtCapacity.length, MAX_CHAT_MESSAGE_REASONING_ITEMS);
+assert.equal(mergedAtCapacity.length, MAX_AGENT_SESSION_ITEM_REASONING_ITEMS);
 assert.equal(mergedAtCapacity[0]?.summary, 'Updated after capacity');
 assert.equal(mergedAtCapacity.some((item) => item.id === 'new-after-capacity'), false);
 
@@ -150,7 +150,7 @@ const reasoningOnlyMessage = {
   reasoning: projected,
   createdAt: '2026-07-20T02:00:00.000Z',
 };
-const reasoningOnlyView = resolveChatMessageView(reasoningOnlyMessage);
+const reasoningOnlyView = resolveAgentSessionItemPresentation(reasoningOnlyMessage);
 assert.deepEqual(
   reasoningOnlyView.blocks.map((block) => block.type),
   ['reasoning'],
@@ -158,12 +158,12 @@ assert.deepEqual(
 );
 assert.equal(reasoningOnlyView.layoutHints.hasCollapsibleSections, true);
 assert.equal(
-  resolveMessageCopyContent(reasoningOnlyMessage),
+  resolveSessionItemCopyContent(reasoningOnlyMessage),
   '',
   'Message-level copy must remain limited to authored answer content.',
 );
 
-const userReasoningView = resolveChatMessageView({
+const userReasoningView = resolveAgentSessionItemPresentation({
   ...reasoningOnlyMessage,
   id: 'user-provider-envelope',
   role: 'user',
@@ -177,7 +177,7 @@ assert.equal(
 const publicSurfaceSnapshot = JSON.stringify({
   projected,
   reasoningOnlyView,
-  replyCopy: resolveMessageCopyContent(reasoningOnlyMessage),
+  replyCopy: resolveSessionItemCopyContent(reasoningOnlyMessage),
 });
 assert.doesNotMatch(publicSurfaceSnapshot, new RegExp(PRIVATE_THOUGHT_SENTINEL, 'u'));
 

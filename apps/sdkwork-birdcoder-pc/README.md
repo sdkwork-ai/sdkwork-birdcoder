@@ -15,14 +15,24 @@ capabilities; it does not own a second business data model.
 | --- | --- |
 | Project, composition, Session, Turn, Session Item, Runtime Binding | Generated Agents App SDK |
 | Skills | Generated Skills App SDK |
-| Human communication | Generated IM App SDK |
+| Human communication | `sdkwork-im` owner boundary; no PC Conversation/Message persistence |
 | Identity and organization scope | IAM SDK/runtime |
 | Sandbox storage | Agents `drive/drive` composition plus Drive SDK |
-| Documents | Documents SDK; project composition unavailable until Agents supports `document/documents` |
+| Documents | Agents `document/documents` composition plus Documents App SDK |
 | BirdCoder System metadata | BirdCoder App SDK |
 
 The PC surface uses one canonical Agents `projectId`. It has no Workspace
 service, BirdCoder Project identifier, parallel Session, or transcript store.
+
+## Data Ownership
+
+PC owns no business database. Agents Project, Session, Turn, Session Item,
+Interaction, Checkpoint, Runtime Binding, and composition records remain in the
+[`sdkwork-agents` table registry](../../../sdkwork-agents/database/contract/table-registry.json).
+Their registered physical namespace is `ai_agent_*`; PC must not introduce an
+alternate `agents_*`, Workspace, Project, Session, Conversation, or Message
+table. Product AI Skills remain in `sdkwork-skills`, while human Conversation
+and Message records remain in `sdkwork-im`.
 
 ## Host Capabilities
 
@@ -45,7 +55,8 @@ and keyed by canonical `projectId`.
 ## Development
 
 ```bash
-pnpm --dir apps/sdkwork-birdcoder-pc typecheck
+pnpm --dir apps/sdkwork-birdcoder-pc lint
+pnpm --dir apps/sdkwork-birdcoder-pc test
 pnpm dev:browser:standalone
 pnpm dev:desktop
 ```
@@ -53,12 +64,16 @@ pnpm dev:desktop
 ## Verification
 
 ```bash
+pnpm --dir apps/sdkwork-birdcoder-pc check
 pnpm check:agents-birdcoder-alignment
 pnpm check:api-transport-standard
 pnpm check:local-business-storage-boundary
 pnpm check:desktop
-pnpm typecheck
 ```
+
+The PC commands remain scoped to the PC source graph and its real SDK
+dependencies. Repository-root `pnpm lint` is the broader multi-surface quality
+gate and is not used as an app-local script implementation.
 
 ## Documentation
 

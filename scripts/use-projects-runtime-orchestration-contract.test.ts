@@ -14,12 +14,12 @@ assert.doesNotMatch(
 assert.doesNotMatch(
   useProjectsSource,
   /chatEngine\.sendMessageStream\(/,
-  'useProjects.sendMessage must not synthesize assistant output locally through chatEngine.sendMessageStream().',
+  'useProjects.submitAgentTurnInput must not synthesize assistant output locally through chatEngine.sendMessageStream().',
 );
 assert.doesNotMatch(
   useProjectsSource,
   /role:\s*'assistant'/,
-  'useProjects.sendMessage must not pre-create synthetic assistant messages in the local project mirror.',
+  'useProjects.submitAgentTurnInput must not pre-create synthetic assistant Session Items in the local project inventory.',
 );
 
 console.log('useProjects runtime orchestration contract passed.');

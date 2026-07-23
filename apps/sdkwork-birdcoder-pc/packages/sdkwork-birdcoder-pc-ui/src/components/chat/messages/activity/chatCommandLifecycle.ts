@@ -1,6 +1,6 @@
 import {
-  normalizeChatMessageCommand,
-  normalizeChatMessageToolCalls,
+  normalizeAgentSessionCommand,
+  normalizeAgentSessionItemToolCalls,
   resolveBirdCoderCodeEngineCommandInteractionState,
   type AgentSessionItemView,
   type AgentSessionCommandView,
@@ -79,9 +79,9 @@ export function buildChatCommandLifecycleSnapshot(
   const snapshot = new Map<string, ChatCommandLifecycleTone>();
   for (let messageIndex = 0; messageIndex < messages.length; messageIndex += 1) {
     const message = messages[messageIndex]!;
-    const normalizedCommands = normalizeChatMessageToolCalls(message.tool_calls, { engineId })
+    const normalizedCommands = normalizeAgentSessionItemToolCalls(message.tool_calls, { engineId })
       .flatMap((call) => {
-        const command = normalizeChatMessageCommand(call);
+        const command = normalizeAgentSessionCommand(call);
         return command ? [command] : [];
       });
     const commands = [...(message.commands ?? []), ...normalizedCommands];

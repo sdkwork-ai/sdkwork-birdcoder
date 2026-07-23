@@ -52,8 +52,25 @@ The Tauri host owns one local SQLite table:
 | --- | --- | --- |
 | `device_state_entry` | Application settings, subject-scoped project device mounts, desktop runtime-location installation identity | Project, Session, Conversation, Message, transcript, Skill, or any server business aggregate |
 
-The command layer and SQLite constraint both enforce the scope/key allowlist.
-Values are bounded to 256 KiB. The file defaults to
+Its complete physical shape is:
+
+| Column | SQLite type | Constraint |
+| --- | --- | --- |
+| `scope` | `TEXT` | `NOT NULL` |
+| `key` | `TEXT` | `NOT NULL` |
+| `value` | `TEXT` | `NOT NULL`, maximum 256 KiB |
+| `updated_at` | `TEXT` | `NOT NULL DEFAULT CURRENT_TIMESTAMP` |
+
+The composite primary key is `PRIMARY KEY (scope, key)`. The command layer
+and SQLite constraint accept only these scope/key pairs:
+
+| Scope | Key |
+| --- | --- |
+| `settings` | `app` |
+| `project-device-mounts` | a 64-character lowercase SHA-256 digest |
+| `desktop-runtime-location-identity` | `installation.v1` |
+
+The file defaults to
 `birdcoder-device-state.sqlite3` and may be overridden only for PC/Tauri with
 `SDKWORK_BIRDCODER_DEVICE_STATE_FILE`.
 
@@ -149,7 +166,7 @@ registry. It is subject-scoped and keyed by canonical `projectId`.
 | Git and worktree processes | PC/Tauri local Git capability |
 | Terminal process and cwd | PC/Tauri terminal capability after mount validation |
 | Sandbox composition | Agents composition slot `drive/drive` |
-| Document composition | Unavailable until Agents supports `document/documents`; explicit fail-closed service |
+| Document composition | Agents `document/documents` slot plus injected Documents App SDK; invalid pairing fails closed before transport |
 
 BirdCoder does not expose remote Git, project-path, mount, or runtime-location
 registration APIs. A local mount or opaque runtime id does not authorize remote

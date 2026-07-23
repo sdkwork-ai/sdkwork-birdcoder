@@ -2,17 +2,29 @@
 
 Native package and workspace manifests are the dependency authority.
 
-## Owner SDK Boundary
+## PC Runtime SDK Inventory
 
-| Capability | Required owner package |
+The PC component contract is the single runtime inventory. Its required SDK
+families are:
+
+| Capability | Required SDK family |
 | --- | --- |
-| Project, composition, Session, Runtime Binding | Agents App SDK |
-| Skills | Skills App SDK |
-| Human communication | IM App SDK |
-| Identity and organization scope | IAM SDK/runtime |
-| Sandbox storage | Drive App SDK |
-| Documents | Documents App SDK |
-| BirdCoder System metadata | BirdCoder App SDK |
+| BirdCoder System metadata | `sdkwork-birdcoder-app-sdk` |
+| Project, composition, Session, Turn, Session Item, Interaction, Checkpoint, Runtime Binding | `sdkwork-agents-app-sdk` |
+| Documents | `sdkwork-documents-app-sdk` |
+| Drive and sandbox storage | `sdkwork-drive-app-sdk` |
+| Identity and organization scope | `sdkwork-iam-app-sdk` |
+| Membership and benefits | `sdkwork-membership-app-sdk` |
+| External delivery and notifications | `sdkwork-messaging-app-sdk` |
+| Orders | `sdkwork-order-app-sdk` |
+| Saved prompts | `sdkwork-prompts-app-sdk` |
+| Skills | `sdkwork-skills-app-sdk` |
+
+Human Conversation, Message, Member, and ReadCursor facts remain owned by
+`sdkwork-im`, but the current PC surface has no independent human messaging
+feature and therefore no required IM SDK consumer. Enabling such a feature
+must add an explicit PC component dependency without changing Agents Session
+Item semantics.
 
 Application composition creates one client per owner endpoint with the shared
 TokenManager and injects bounded services into features. A package must not
@@ -22,7 +34,8 @@ copied generated code, or a local compatibility package.
 ## Sources
 
 - `pnpm-workspace.yaml` and package `package.json` files
-- root and module `component.spec.json`
+- `apps/sdkwork-birdcoder-pc/specs/component.spec.json` for the runtime SDK inventory
+- root and module `component.spec.json` for composition boundaries
 - owner SDK `sdk-manifest.json`
 - `specs/domain-ownership.spec.json`
 

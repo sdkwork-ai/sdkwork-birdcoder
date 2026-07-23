@@ -20,7 +20,7 @@ import {
   Terminal,
   Wrench,
 } from 'lucide-react';
-import type { ChatMessageToolCall } from '@sdkwork/birdcoder-pc-workbench/chat/types';
+import type { AgentSessionItemToolCallView } from '@sdkwork/birdcoder-pc-workbench/chat/types';
 import {
   buildChatContentPreview,
   MAX_CHAT_CONTENT_PREVIEW_CHARACTERS,
@@ -33,7 +33,7 @@ import {
 import { ToolInputDetails } from './ToolInputDetails.tsx';
 
 interface ToolCallCardProps {
-  call: ChatMessageToolCall;
+  call: AgentSessionItemToolCallView;
   compact: boolean;
   copyMessageToClipboard: (content: string) => void;
   isExpanded: boolean;
@@ -93,7 +93,7 @@ function summarizeToolCallArguments(argumentsText: string): string {
   return truncateToolCallArgumentSummary(normalized);
 }
 
-function resolveToolCallLabel(call: ChatMessageToolCall, t?: ChatMessageTranslate): string {
+function resolveToolCallLabel(call: AgentSessionItemToolCallView, t?: ChatMessageTranslate): string {
   const labels = {
     agent: t?.('chat.toolAgent') ?? 'Subagent',
     approval: t?.('chat.toolApproval') ?? 'Approval request',
@@ -112,7 +112,7 @@ function resolveToolCallLabel(call: ChatMessageToolCall, t?: ChatMessageTranslat
   return labels[call.kind ?? 'other'];
 }
 
-function renderToolCallIcon(call: ChatMessageToolCall, size: number) {
+function renderToolCallIcon(call: AgentSessionItemToolCallView, size: number) {
   switch (call.kind) {
     case 'agent':
       return <Bot size={size} />;
@@ -142,7 +142,7 @@ function renderToolCallIcon(call: ChatMessageToolCall, size: number) {
 }
 
 function resolveToolCallStatusLabel(
-  call: ChatMessageToolCall,
+  call: AgentSessionItemToolCallView,
   t?: ChatMessageTranslate,
 ): string | null {
   const labels = {
@@ -157,7 +157,7 @@ function resolveToolCallStatusLabel(
   return call.status ? labels[call.status] : null;
 }
 
-function renderToolCallStatus(call: ChatMessageToolCall, statusLabel: string) {
+function renderToolCallStatus(call: AgentSessionItemToolCallView, statusLabel: string) {
   if (!call.status) {
     return null;
   }

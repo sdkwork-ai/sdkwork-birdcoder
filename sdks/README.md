@@ -11,9 +11,10 @@ transports are derived output.
 BirdCoder has no Backend SDK family and no Open SDK family because it owns zero
 operations on those planes.
 
-Project, composition, Session, Skill, IM, IAM, Drive, and Document consumers
-must import their owner SDK families. They are not re-exported as BirdCoder
-domain operations and are not copied into this workspace.
+Project, composition, Session, Skill, IAM, Drive, and Document consumers must
+import their owner SDK families. A separately enabled human messaging consumer
+must import the IM SDK. None of these capabilities are re-exported as
+BirdCoder domain operations or copied into this workspace.
 
 ## Source And Generated Boundaries
 

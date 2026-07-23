@@ -82,7 +82,7 @@
         "required": true,
         "dependencyMode": "consumer-sdk",
         "apiPrefix": "/app/v3/api",
-        "apiAuthority": "sdkwork-drive.app",
+        "apiAuthority": "sdkwork-drive-app-api",
         "generatedTransportImportPolicy": "forbidden",
         "packageByLanguage": {
           "typescript": "@sdkwork/drive-app-sdk",
@@ -168,7 +168,7 @@
   },
   "integration": {
     "authority": "The application-root BirdCoder App API OpenAPI is the only BirdCoder HTTP SDK authority.",
-    "dependencyPolicy": "IAM, Drive, Membership, Skills, Agents, Prompts, Documents, human IM, and external-delivery Messaging remain in their owner SDK families.",
+    "dependencyPolicy": "IAM, Drive, Membership, Order, Skills, Agents, Prompts, Documents, human IM, and external-delivery Messaging remain in their owner SDK families.",
     "sdkPolicy": "Generation uses @sdkwork/sdk-generator only; generated transport, PC mirrors, backend families, empty families, and duplicate OpenAPI copies are forbidden."
   },
   "verification": {

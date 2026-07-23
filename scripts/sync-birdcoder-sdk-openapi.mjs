@@ -118,7 +118,7 @@ function assertCanonicalAppAuthority(document, manifest, domainOwnership) {
   );
 
   const ownedPathPrefixes = appOwnership?.ownedPathPrefixes ?? [];
-  const forbiddenPathPrefixes = (domainOwnership.dependencies ?? [])
+  const forbiddenPathPrefixes = (domainOwnership.externalAuthorities ?? [])
     .flatMap((dependency) => dependency.forbiddenLocalPathPrefixes ?? []);
   const operations = collectBirdcoderAppOperations(document);
   assert.equal(

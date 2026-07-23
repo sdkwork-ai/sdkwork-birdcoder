@@ -1,24 +1,22 @@
-export type {
-  AgentSessionItemToolCallView as ChatMessageToolCall,
-} from './agent-session-view.ts';
+export type { AgentSessionItemToolCallView } from './agent-session-view.ts';
 import type {
-  AgentSessionItemToolCallView as ChatMessageToolCall,
-  AgentSessionItemToolCallKind as AgentSessionItemToolCallKind,
-  AgentSessionItemToolCallStatus as AgentSessionItemToolCallStatus,
+  AgentSessionItemToolCallView,
+  AgentSessionItemToolCallKind,
+  AgentSessionItemToolCallStatus,
 } from './agent-session-view.ts';
 import {
-  hasChatMessageToolErrorValue,
-  hasStructuredChatMessageToolError,
-  resolveChatMessageToolCallOutput,
-  resolveChatMessageToolCallResultBlocks,
-} from './chat-message-tool-results.ts';
+  hasAgentSessionItemToolErrorValue,
+  hasStructuredAgentSessionItemToolError,
+  resolveAgentSessionItemToolCallOutput,
+  resolveAgentSessionItemToolCallResultBlocks,
+} from './agent-session-item-tool-results.ts';
 
-export interface NormalizeChatMessageToolCallOptions {
+export interface NormalizeAgentSessionItemToolCallOptions {
   engineId?: string;
   fallbackIdPrefix?: string;
 }
 
-export const CHAT_MESSAGE_TOOL_PROTOCOL_ADAPTER_IDS = [
+export const AGENT_SESSION_ITEM_TOOL_PROTOCOL_ADAPTER_IDS = [
   'opencode.part',
   'codex.item',
   'claude.content-block',
@@ -27,17 +25,17 @@ export const CHAT_MESSAGE_TOOL_PROTOCOL_ADAPTER_IDS = [
   'canonical',
 ] as const;
 
-export type ChatMessageToolProtocolAdapterId =
-  (typeof CHAT_MESSAGE_TOOL_PROTOCOL_ADAPTER_IDS)[number];
+export type AgentSessionItemToolProtocolAdapterId =
+  (typeof AGENT_SESSION_ITEM_TOOL_PROTOCOL_ADAPTER_IDS)[number];
 
-export interface NormalizeChatMessageToolResultInput {
+export interface NormalizeAgentSessionItemToolResultInput {
   content: string;
   id?: string;
   name?: string;
   status?: unknown;
 }
 
-export interface NormalizedChatMessageCommand {
+export interface NormalizedAgentSessionCommand {
   command: string;
   status: 'running' | 'success' | 'error';
   output?: string;
@@ -47,7 +45,7 @@ export interface NormalizedChatMessageCommand {
   toolCallId: string;
 }
 
-export interface NormalizedChatMessageToolNotice {
+export interface NormalizedAgentSessionItemToolNotice {
   content: string;
   description?: string;
   id: string;
@@ -70,7 +68,7 @@ const MAX_GEMINI_TOOL_DISPLAY_SUMMARY_CHARACTERS = 2_000;
 const MAX_GEMINI_TOOL_DISPLAY_RESULT_CHARACTERS = 24_000;
 const GEMINI_TOOL_DISPLAY_TRUNCATION_SEPARATOR = '\n\n...\n\n';
 
-type ChatMessageToolResultBlock = NonNullable<ChatMessageToolCall['resultBlocks']>[number];
+type AgentSessionItemToolResultBlockView = NonNullable<AgentSessionItemToolCallView['resultBlocks']>[number];
 type GeminiToolDisplayFormat = 'auto' | 'box' | 'compact' | 'hidden' | 'notice';
 
 interface NormalizedGeminiToolDisplay {
@@ -93,7 +91,7 @@ interface GeminiToolDisplayContext {
 }
 
 interface GeminiToolDisplayResultView {
-  blocks: readonly ChatMessageToolResultBlock[];
+  blocks: readonly AgentSessionItemToolResultBlockView[];
   semanticType?: 'agent';
   text: string;
 }
@@ -301,8 +299,8 @@ function hasToolCancellationDetail(
     .some((key) => hasToolCancellationDetail(record[key], visited, depth + 1));
 }
 
-interface ChatMessageToolProtocolAdapter {
-  id: ChatMessageToolProtocolAdapterId;
+interface AgentSessionItemToolProtocolAdapter {
+  id: AgentSessionItemToolProtocolAdapterId;
   engineIds: readonly string[];
   adapt: (record: Record<string, unknown>) => Record<string, unknown> | null;
 }
@@ -741,7 +739,7 @@ function adaptClaudeToolRecord(record: Record<string, unknown>): Record<string, 
       name: readNonEmptyString(source.name) || resultToolNameByType[type] || 'tool',
       output: source.output ?? source.content,
       status: source.status ?? (
-        hasStructuredChatMessageToolError(source)
+        hasStructuredAgentSessionItemToolError(source)
           ? 'error'
           : 'completed'
       ),
@@ -845,9 +843,9 @@ function readGeminiToolDisplayContext(
     || payload.is_error === true
     || record.isError === true
     || record.is_error === true
-    || hasChatMessageToolErrorValue(response?.error)
-    || hasChatMessageToolErrorValue(payload.error)
-    || hasChatMessageToolErrorValue(record.error);
+    || hasAgentSessionItemToolErrorValue(response?.error)
+    || hasAgentSessionItemToolErrorValue(payload.error)
+    || hasAgentSessionItemToolErrorValue(record.error);
 
   return {
     argumentsValue: request?.args
@@ -932,7 +930,7 @@ function projectGeminiToolDisplayResult(
   const result = readToolCallRecord(display.result);
   const resultType = normalizeToolCallName(readNonEmptyString(result?.type));
   let resultText = '';
-  let resultBlock: ChatMessageToolResultBlock | null = null;
+  let resultBlock: AgentSessionItemToolResultBlockView | null = null;
   let semanticType: 'agent' | undefined;
 
   if (typeof display.result === 'string') {
@@ -983,7 +981,7 @@ function projectGeminiToolDisplayResult(
       ? { type: 'error', message: resultText }
       : { type: 'text', text: resultText };
   }
-  const blocks: ChatMessageToolResultBlock[] = [];
+  const blocks: AgentSessionItemToolResultBlockView[] = [];
   if (resultBlock) {
     blocks.push(resultBlock);
   }
@@ -1085,7 +1083,7 @@ function adaptGeminiToolRecord(record: Record<string, unknown>): Record<string, 
     };
   }
   if (type === 'tool_result') {
-    const error = hasChatMessageToolErrorValue(record.error) ? record.error : undefined;
+    const error = hasAgentSessionItemToolErrorValue(record.error) ? record.error : undefined;
     return {
       ...record,
       id: record.tool_id ?? record.id,
@@ -1131,9 +1129,9 @@ function adaptGeminiToolRecord(record: Record<string, unknown>): Record<string, 
       ...record,
       ...functionResponse,
       id: functionResponse.id ?? record.id,
-      ...(hasChatMessageToolErrorValue(responseError) ? { error: responseError } : {}),
+      ...(hasAgentSessionItemToolErrorValue(responseError) ? { error: responseError } : {}),
       output,
-      status: hasChatMessageToolErrorValue(responseError) ? 'error' : 'completed',
+      status: hasAgentSessionItemToolErrorValue(responseError) ? 'error' : 'completed',
       type: 'function_call_output',
     };
   }
@@ -1172,7 +1170,7 @@ function adaptGeminiToolRecord(record: Record<string, unknown>): Record<string, 
       id: directCallId,
       name: directName,
       arguments: request?.args ?? record.args,
-      ...(hasChatMessageToolErrorValue(responseError) ? { error: responseError } : {}),
+      ...(hasAgentSessionItemToolErrorValue(responseError) ? { error: responseError } : {}),
       ...(output !== undefined ? { output } : {}),
       type: readNonEmptyString(record.type) || 'tool',
     };
@@ -1201,8 +1199,8 @@ function adaptGeminiToolRecord(record: Record<string, unknown>): Record<string, 
       || hasToolCancellationDetail(value.error)
       || hasToolCancellationDetail(nestedError)
       || hasToolCancellationDetail(value.resultDisplay);
-    const hasError = hasChatMessageToolErrorValue(value.error)
-      || hasStructuredChatMessageToolError(responseParts);
+    const hasError = hasAgentSessionItemToolErrorValue(value.error)
+      || hasStructuredAgentSessionItemToolError(responseParts);
     return {
       ...record,
       ...value,
@@ -1250,7 +1248,7 @@ function adaptGeminiToolRecord(record: Record<string, unknown>): Record<string, 
   return null;
 }
 
-const CHAT_MESSAGE_TOOL_PROTOCOL_ADAPTERS: readonly ChatMessageToolProtocolAdapter[] = [
+const AGENT_SESSION_ITEM_TOOL_PROTOCOL_ADAPTERS: readonly AgentSessionItemToolProtocolAdapter[] = [
   {
     id: 'opencode.part',
     engineIds: ['opencode'],
@@ -1293,11 +1291,11 @@ function resolveCompatibleToolCallRecord(
 ): Record<string, unknown> {
   const normalizedEngineId = engineId?.trim().toLowerCase() ?? '';
   const preferredAdapters = normalizedEngineId
-    ? CHAT_MESSAGE_TOOL_PROTOCOL_ADAPTERS.filter((adapter) =>
+    ? AGENT_SESSION_ITEM_TOOL_PROTOCOL_ADAPTERS.filter((adapter) =>
         adapter.engineIds.includes(normalizedEngineId),
       )
     : [];
-  const remainingAdapters = CHAT_MESSAGE_TOOL_PROTOCOL_ADAPTERS.filter(
+  const remainingAdapters = AGENT_SESSION_ITEM_TOOL_PROTOCOL_ADAPTERS.filter(
     (adapter) => !preferredAdapters.includes(adapter),
   );
 
@@ -1442,8 +1440,8 @@ function normalizeToolCallName(value: string): string {
     .replace(/[.\s-]+/g, '_');
 }
 
-export function isChatMessageFileMutationToolCall(
-  call: Pick<ChatMessageToolCall, 'kind' | 'name' | 'type'>,
+export function isAgentSessionItemFileMutationToolCall(
+  call: Pick<AgentSessionItemToolCallView, 'kind' | 'name' | 'type'>,
 ): boolean {
   if (call.kind !== 'file') {
     return false;
@@ -1641,9 +1639,9 @@ function resolveToolCallStatus(record: Record<string, unknown>): AgentSessionIte
   }
   if (
     record.success === false
-    || hasStructuredChatMessageToolError(record)
-    || hasChatMessageToolErrorValue(stateRecord?.error)
-    || hasStructuredChatMessageToolError(
+    || hasStructuredAgentSessionItemToolError(record)
+    || hasAgentSessionItemToolErrorValue(stateRecord?.error)
+    || hasStructuredAgentSessionItemToolError(
       record.result ?? record.output ?? stateRecord?.result ?? stateRecord?.output,
     )
     || ['error', 'failed', 'failure'].includes(status)
@@ -1700,11 +1698,11 @@ function resolveSemanticArgument(
   return readFirstString(argumentsRecord, keys);
 }
 
-export function normalizeChatMessageToolCall(
+export function normalizeAgentSessionItemToolCall(
   value: unknown,
   index: number,
-  options: NormalizeChatMessageToolCallOptions = {},
-): ChatMessageToolCall | null {
+  options: NormalizeAgentSessionItemToolCallOptions = {},
+): AgentSessionItemToolCallView | null {
   if (typeof value === 'string') {
     const content = value.trim();
     if (!content) {
@@ -1749,14 +1747,14 @@ export function normalizeChatMessageToolCall(
     : '';
   const target = resolveSemanticArgument(argumentsRecord, TARGET_ARGUMENT_KEYS)
     || readFirstString(record, TARGET_ARGUMENT_KEYS);
-  const output = resolveChatMessageToolCallOutput(record);
+  const output = resolveAgentSessionItemToolCallOutput(record);
   const protocolStatus = resolveToolCallStatus(record);
   const title = resolveToolCallTitle(record);
   const durationMs = resolveToolCallDurationMs(record);
   const presentation = readNonEmptyString(record.presentation) === 'notice'
     ? 'notice' as const
     : undefined;
-  const resultBlocks = resolveChatMessageToolCallResultBlocks(record, protocolStatus);
+  const resultBlocks = resolveAgentSessionItemToolCallResultBlocks(record, protocolStatus);
   const status = protocolStatus === 'cancelled'
     ? protocolStatus
     : resultBlocks.some((block) => block.type === 'error')
@@ -1781,11 +1779,11 @@ export function normalizeChatMessageToolCall(
   };
 }
 
-export function normalizeChatMessageToolNotice(
+export function normalizeAgentSessionItemToolNotice(
   value: unknown,
   index: number,
-  options: NormalizeChatMessageToolCallOptions = {},
-): NormalizedChatMessageToolNotice | null {
+  options: NormalizeAgentSessionItemToolCallOptions = {},
+): NormalizedAgentSessionItemToolNotice | null {
   if (options.engineId?.trim().toLowerCase() !== 'gemini') {
     return null;
   }
@@ -1837,18 +1835,18 @@ export function normalizeChatMessageToolNotice(
   };
 }
 
-export function normalizeChatMessageToolNotices(
+export function normalizeAgentSessionItemToolNotices(
   toolCalls: readonly unknown[] | undefined,
-  options: NormalizeChatMessageToolCallOptions = {},
-): NormalizedChatMessageToolNotice[] {
+  options: NormalizeAgentSessionItemToolCallOptions = {},
+): NormalizedAgentSessionItemToolNotice[] {
   if (!toolCalls || toolCalls.length === 0) {
     return [];
   }
 
   const noticeOrder: string[] = [];
-  const noticesById = new Map<string, NormalizedChatMessageToolNotice>();
+  const noticesById = new Map<string, NormalizedAgentSessionItemToolNotice>();
   toolCalls.forEach((toolCall, index) => {
-    const notice = normalizeChatMessageToolNotice(toolCall, index, options);
+    const notice = normalizeAgentSessionItemToolNotice(toolCall, index, options);
     if (!notice) {
       return;
     }
@@ -1870,15 +1868,15 @@ export function normalizeChatMessageToolNotices(
   });
 }
 
-export function normalizeChatMessageToolResult(
-  input: NormalizeChatMessageToolResultInput,
-  options: NormalizeChatMessageToolCallOptions = {},
-): ChatMessageToolCall | null {
+export function normalizeAgentSessionItemToolResult(
+  input: NormalizeAgentSessionItemToolResultInput,
+  options: NormalizeAgentSessionItemToolCallOptions = {},
+): AgentSessionItemToolCallView | null {
   if (!input.content.trim() && !input.name?.trim()) {
     return null;
   }
 
-  return normalizeChatMessageToolCall({
+  return normalizeAgentSessionItemToolCall({
     id: input.id,
     type: 'tool_result',
     name: input.name ?? 'tool',
@@ -1887,9 +1885,9 @@ export function normalizeChatMessageToolResult(
   }, 0, options);
 }
 
-export function normalizeChatMessageCommand(
-  call: ChatMessageToolCall,
-): NormalizedChatMessageCommand | null {
+export function normalizeAgentSessionCommand(
+  call: AgentSessionItemToolCallView,
+): NormalizedAgentSessionCommand | null {
   if (call.presentation === 'notice' || call.kind !== 'command') {
     return null;
   }
@@ -1916,16 +1914,16 @@ export function normalizeChatMessageCommand(
   };
 }
 
-export function normalizeChatMessageToolCalls(
+export function normalizeAgentSessionItemToolCalls(
   toolCalls: readonly unknown[] | undefined,
-  options: NormalizeChatMessageToolCallOptions = {},
-): ChatMessageToolCall[] {
+  options: NormalizeAgentSessionItemToolCallOptions = {},
+): AgentSessionItemToolCallView[] {
   if (!toolCalls || toolCalls.length === 0) {
     return [];
   }
 
   return toolCalls.flatMap((toolCall, index) => {
-    const normalizedToolCall = normalizeChatMessageToolCall(toolCall, index, options);
+    const normalizedToolCall = normalizeAgentSessionItemToolCall(toolCall, index, options);
     return normalizedToolCall ? [normalizedToolCall] : [];
   });
 }

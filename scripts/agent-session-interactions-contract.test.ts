@@ -132,7 +132,7 @@ const paginatedClient = {
           };
         },
         async retrieve() {
-          return { item: approval };
+          return approval;
         },
       },
     },

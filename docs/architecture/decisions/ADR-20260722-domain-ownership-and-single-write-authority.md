@@ -49,10 +49,15 @@ invocation through stable identifiers, but neither module persists the other's
 record. Dependency direction remains:
 
 ```text
-BirdCoder -> Agents -> Kernel
-BirdCoder -> IM -> Agents
-Agents -/-> IM
+sdkwork-birdcoder -> sdkwork-agents -> sdkwork-kernel
+sdkwork-birdcoder -> sdkwork-skills
+sdkwork-im -> sdkwork-agents -> sdkwork-kernel
+sdkwork-agents -/-> sdkwork-im
 ```
+
+BirdCoder does not currently consume an IM runtime SDK. It may add that
+consumer dependency only when an independent human messaging feature is
+enabled; AI assistant content remains an Agents Session Item.
 
 ## PC Composition
 
@@ -63,8 +68,9 @@ Agents -/-> IM
 - `ProjectDeviceMountRegistry` remains a subject-scoped PC capability keyed by
   that `projectId`.
 - Sandbox composition uses the canonical Agents `drive/drive` slot.
-- Document composition is unavailable until Agents supports
-  `document/documents`; BirdCoder must not coerce another slot type.
+- Document composition uses only Agents `document/documents` slots and the
+  Documents App SDK; BirdCoder does not coerce another slot type or persist a
+  binding projection.
 - Native paths and execution handles remain in Tauri. The Rust gateway exposes
   no Project, Git, filesystem, terminal, mount, or runtime-location business
   API.

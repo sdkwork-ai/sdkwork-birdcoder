@@ -24,52 +24,52 @@
   "canonicalSpecs": [
     {
       "file": "APPLICATION_LAYERED_ARCHITECTURE_SPEC.md",
-      "path": "../../../../../sdkwork-specs/APPLICATION_LAYERED_ARCHITECTURE_SPEC.md",
+      "path": "../../../../../../sdkwork-specs/APPLICATION_LAYERED_ARCHITECTURE_SPEC.md",
       "purpose": "Runtime composition, adapter ownership, and dependency direction."
     },
     {
       "file": "APP_SDK_INTEGRATION_SPEC.md",
-      "path": "../../../../../sdkwork-specs/APP_SDK_INTEGRATION_SPEC.md",
+      "path": "../../../../../../sdkwork-specs/APP_SDK_INTEGRATION_SPEC.md",
       "purpose": "Generated SDK construction, injection, and TokenManager integration."
     },
     {
       "file": "COMPONENT_SPEC.md",
-      "path": "../../../../../sdkwork-specs/COMPONENT_SPEC.md",
+      "path": "../../../../../../sdkwork-specs/COMPONENT_SPEC.md",
       "purpose": "Component-local contract and discovery rules."
     },
     {
       "file": "DESKTOP_APP_ARCHITECTURE_SPEC.md",
-      "path": "../../../../../sdkwork-specs/DESKTOP_APP_ARCHITECTURE_SPEC.md",
+      "path": "../../../../../../sdkwork-specs/DESKTOP_APP_ARCHITECTURE_SPEC.md",
       "purpose": "Desktop renderer and native host adapter boundary."
     },
     {
       "file": "FRONTEND_SPEC.md",
-      "path": "../../../../../sdkwork-specs/FRONTEND_SPEC.md",
+      "path": "../../../../../../sdkwork-specs/FRONTEND_SPEC.md",
       "purpose": "Frontend service, SDK, state, and host boundaries."
     },
     {
       "file": "SECURITY_SPEC.md",
-      "path": "../../../../../sdkwork-specs/SECURITY_SPEC.md",
+      "path": "../../../../../../sdkwork-specs/SECURITY_SPEC.md",
       "purpose": "Credential storage, token safety, and least-privilege host access."
     },
     {
       "file": "CODE_STYLE_SPEC.md",
-      "path": "../../../../../sdkwork-specs/CODE_STYLE_SPEC.md",
+      "path": "../../../../../../sdkwork-specs/CODE_STYLE_SPEC.md",
       "purpose": "Authored source and public export rules."
     },
     {
       "file": "NAMING_SPEC.md",
-      "path": "../../../../../sdkwork-specs/NAMING_SPEC.md",
+      "path": "../../../../../../sdkwork-specs/NAMING_SPEC.md",
       "purpose": "Canonical package, component, and SDK naming."
     },
     {
       "file": "TYPESCRIPT_CODE_SPEC.md",
-      "path": "../../../../../sdkwork-specs/TYPESCRIPT_CODE_SPEC.md",
+      "path": "../../../../../../sdkwork-specs/TYPESCRIPT_CODE_SPEC.md",
       "purpose": "TypeScript package and generated SDK boundaries."
     },
     {
       "file": "DOCUMENTATION_SPEC.md",
-      "path": "../../../../../sdkwork-specs/DOCUMENTATION_SPEC.md",
+      "path": "../../../../../../sdkwork-specs/DOCUMENTATION_SPEC.md",
       "purpose": "Module documentation lifecycle and acceptance rules."
     }
   ],

@@ -110,6 +110,13 @@ const appManifest = readJson(rootDir, 'sdkwork.app.config.json');
 assert.equal(rootComponent.ownership.databaseTableCount, 0);
 assert.equal(appManifest.metadata?.domainOwnership?.databaseTableCount, 0);
 
+const agentsAuthority = ownership.externalAuthorities.find((entry) => entry.owner === 'sdkwork-agents');
+const imAuthority = ownership.externalAuthorities.find((entry) => entry.owner === 'sdkwork-im');
+assert.ok(agentsAuthority);
+assert.ok(imAuthority);
+assert.equal(agentsAuthority.ownerTableRegistry, '../sdkwork-agents/database/contract/table-registry.json');
+assert.equal(imAuthority.ownerTableRegistry, '../sdkwork-im/database/contract/table-registry.json');
+
 assert.equal(
   exists(agentsRoot, 'database/contract/table-registry.json'),
   true,
@@ -117,19 +124,7 @@ assert.equal(
 );
 const agentsRegistry = readJson(agentsRoot, 'database/contract/table-registry.json');
 const agentsTables = new Set((agentsRegistry.tables ?? []).map((entry) => entry.table_name));
-const canonicalAgentsTables = [
-  'ai_agent_project',
-  'ai_agent_project_composition_slot',
-  'ai_agent_session',
-  'ai_agent_session_runtime_binding',
-  'ai_agent_turn',
-  'ai_agent_session_item',
-  'ai_agent_interaction',
-  'ai_agent_session_checkpoint',
-];
-for (const tableName of canonicalAgentsTables) {
-  assert.equal(agentsTables.has(tableName), true, `sdkwork-agents registry is missing ${tableName}`);
-}
+assert.ok(agentsTables.size > 0, 'sdkwork-agents canonical table registry must not be empty');
 assert.equal(
   [...agentsTables].some((tableName) => tableName.includes('workspace')),
   false,
@@ -143,33 +138,21 @@ assert.equal(
 );
 const imRegistry = readJson(imRoot, 'database/contract/table-registry.json');
 const imTables = new Set((imRegistry.tables ?? []).map((entry) => entry.table_name));
-const canonicalImTables = [
-  'im_conversations',
-  'im_conversation_messages',
-  'im_conversation_members',
-  'im_conversation_read_cursors',
-];
-for (const tableName of canonicalImTables) {
-  assert.equal(imTables.has(tableName), true, `sdkwork-im registry is missing ${tableName}`);
-}
+assert.ok(imTables.size > 0, 'sdkwork-im canonical table registry must not be empty');
 
-const agentsDependency = ownership.dependencies.find((entry) => entry.owner === 'sdkwork-agents');
-const imDependency = ownership.dependencies.find((entry) => entry.owner === 'sdkwork-im');
-assert.ok(agentsDependency);
-assert.ok(imDependency);
-for (const tableName of canonicalAgentsTables) {
-  assert.equal(
-    agentsDependency.forbiddenLocalTables.includes(tableName),
-    true,
-    `BirdCoder denylist is missing Agents authority ${tableName}`,
-  );
-}
-for (const tableName of canonicalImTables) {
-  assert.equal(
-    imDependency.forbiddenLocalTables.includes(tableName),
-    true,
-    `BirdCoder denylist is missing IM authority ${tableName}`,
-  );
-}
+const ownerTables = new Set([...agentsTables, ...imTables]);
+const retiredLocalTables = new Set(
+  ownership.externalAuthorities.flatMap((entry) => entry.retiredLocalTables ?? []),
+);
+assert.deepEqual(
+  [...ownerTables].filter((tableName) => retiredLocalTables.has(tableName)),
+  [],
+  'BirdCoder must reference owner registries instead of copying canonical external tables',
+);
+assert.deepEqual(
+  ownership.persistence.tables.filter((tableName) => ownerTables.has(tableName)),
+  [],
+  'BirdCoder must not persist any table declared by Agents or IM',
+);
 
 console.log('persistence ownership contract passed.');

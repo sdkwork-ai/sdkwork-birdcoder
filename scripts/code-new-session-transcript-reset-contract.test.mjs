@@ -138,8 +138,8 @@ assert.match(
 
 assert.match(
   codePageSource,
-  /const selectedAgentSessionItems = useMemo\(\s*\(\) => \(isNewAgentSessionCreating \? \[\] : selectedAgentSession\?\.messages \?\? \[\]\),\s*\[isNewAgentSessionCreating,\s*selectedAgentSession\?\.messages\],\s*\);/s,
-  'CodePage must render an empty transcript while the new session request is pending, never the previous session messages.',
+  /const selectedAgentSessionItems = useMemo\(\s*\(\) => \(isNewAgentSessionCreating \? \[\] : selectedAgentSession\?\.items \?\? \[\]\),\s*\[isNewAgentSessionCreating,\s*selectedAgentSession\?\.items\],\s*\);/s,
+  'CodePage must render an empty transcript while the new session request is pending, never the previous Session Items.',
 );
 
 assert.match(

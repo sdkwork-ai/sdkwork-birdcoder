@@ -25,57 +25,57 @@
   "canonicalSpecs": [
     {
       "file": "APPLICATION_LAYERED_ARCHITECTURE_SPEC.md",
-      "path": "../../../../../sdkwork-specs/APPLICATION_LAYERED_ARCHITECTURE_SPEC.md",
+      "path": "../../../../../../sdkwork-specs/APPLICATION_LAYERED_ARCHITECTURE_SPEC.md",
       "purpose": "Frontend feature ownership and dependency direction."
     },
     {
       "file": "APP_PC_REACT_UI_SPEC.md",
-      "path": "../../../../../sdkwork-specs/APP_PC_REACT_UI_SPEC.md",
+      "path": "../../../../../../sdkwork-specs/APP_PC_REACT_UI_SPEC.md",
       "purpose": "PC React package and interaction rules."
     },
     {
       "file": "COMPONENT_SPEC.md",
-      "path": "../../../../../sdkwork-specs/COMPONENT_SPEC.md",
+      "path": "../../../../../../sdkwork-specs/COMPONENT_SPEC.md",
       "purpose": "Component-local contract and discovery rules."
     },
     {
       "file": "FRONTEND_SPEC.md",
-      "path": "../../../../../sdkwork-specs/FRONTEND_SPEC.md",
+      "path": "../../../../../../sdkwork-specs/FRONTEND_SPEC.md",
       "purpose": "Frontend UI, service, state, SDK, and host boundaries."
     },
     {
       "file": "FRONTEND_CODE_SPEC.md",
-      "path": "../../../../../sdkwork-specs/FRONTEND_CODE_SPEC.md",
+      "path": "../../../../../../sdkwork-specs/FRONTEND_CODE_SPEC.md",
       "purpose": "React source organization and frontend verification."
     },
     {
       "file": "UI_ARCHITECTURE_SPEC.md",
-      "path": "../../../../../sdkwork-specs/UI_ARCHITECTURE_SPEC.md",
+      "path": "../../../../../../sdkwork-specs/UI_ARCHITECTURE_SPEC.md",
       "purpose": "UI package ownership and selected PC architecture."
     },
     {
       "file": "SECURITY_SPEC.md",
-      "path": "../../../../../sdkwork-specs/SECURITY_SPEC.md",
+      "path": "../../../../../../sdkwork-specs/SECURITY_SPEC.md",
       "purpose": "Frontend state, credential, and input safety."
     },
     {
       "file": "CODE_STYLE_SPEC.md",
-      "path": "../../../../../sdkwork-specs/CODE_STYLE_SPEC.md",
+      "path": "../../../../../../sdkwork-specs/CODE_STYLE_SPEC.md",
       "purpose": "Authored source and public export rules."
     },
     {
       "file": "NAMING_SPEC.md",
-      "path": "../../../../../sdkwork-specs/NAMING_SPEC.md",
+      "path": "../../../../../../sdkwork-specs/NAMING_SPEC.md",
       "purpose": "Canonical package, component, and capability naming."
     },
     {
       "file": "TYPESCRIPT_CODE_SPEC.md",
-      "path": "../../../../../sdkwork-specs/TYPESCRIPT_CODE_SPEC.md",
+      "path": "../../../../../../sdkwork-specs/TYPESCRIPT_CODE_SPEC.md",
       "purpose": "TypeScript package boundaries and verification."
     },
     {
       "file": "DOCUMENTATION_SPEC.md",
-      "path": "../../../../../sdkwork-specs/DOCUMENTATION_SPEC.md",
+      "path": "../../../../../../sdkwork-specs/DOCUMENTATION_SPEC.md",
       "purpose": "Module documentation lifecycle and acceptance rules."
     }
   ],

@@ -1,5 +1,5 @@
 import {
-  estimateTranscriptMessageHeight,
+  estimateTranscriptSessionItemHeight,
   type AgentSessionItemView,
 } from '@sdkwork/birdcoder-pc-contracts-commons';
 
@@ -65,7 +65,7 @@ function estimateTranscriptMessageHeightForLayout(
   message: AgentSessionItemView,
   options: TranscriptHeightEstimateOptions = {},
 ): number {
-  return estimateTranscriptMessageHeight(message, {
+  return estimateTranscriptSessionItemHeight(message, {
     engineId: options.engineId,
     layout: options.layout ?? 'main',
   });
@@ -110,7 +110,6 @@ function buildTranscriptPrefixHeightsCache(
     prefixHeights,
   };
 }
-
 function reconcileMeasuredTranscriptPrefixHeightsCache(
   previousCache: TranscriptPrefixHeightsCache,
   measuredHeights: ReadonlyMap<string, number>,

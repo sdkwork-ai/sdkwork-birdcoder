@@ -61,8 +61,9 @@ of IM.
 6. AI Session Items and human IM Messages have separate types, services,
    lifecycle descriptions, and storage owners.
 7. Project sandbox composition uses the Agents `drive/drive` slot.
-8. Document composition fails closed until the Agents owner contract publishes
-   `document/documents`.
+8. Document composition accepts only Agents `document/documents` slots,
+   resolves content through the Documents App SDK, and fails closed on an
+   invalid pairing or reference before transport.
 9. `ProjectDeviceMountRegistry` is subject-scoped, keyed by canonical
    `projectId`, and remains local to PC.
 10. Tauri `device_state_entry` enforces its scope/key allowlist and maximum

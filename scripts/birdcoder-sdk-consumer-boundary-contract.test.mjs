@@ -2,6 +2,8 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
 
+import { createBirdcoderWorkspaceAliasEntries } from './create-birdcoder-vite-plugins.mjs';
+
 const rootDir = process.cwd();
 
 function absolutePath(relativePath) {
@@ -50,6 +52,25 @@ for (const [relativePath, expectedAlias] of [
     config.compilerOptions?.paths?.['@sdkwork/birdcoder-backend-sdk'],
     undefined,
     `${relativePath} must not resolve a nonexistent BirdCoder Backend SDK.`,
+  );
+}
+
+for (const surfaceRoot of [
+  'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-web',
+  'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-desktop',
+]) {
+  const appSdkAlias = createBirdcoderWorkspaceAliasEntries(absolutePath(surfaceRoot))
+    .find((entry) => entry.find === '@sdkwork/birdcoder-app-sdk');
+  assert.ok(appSdkAlias, `${surfaceRoot} must define the BirdCoder App SDK Vite alias.`);
+  assert.equal(
+    path.normalize(appSdkAlias.replacement),
+    path.normalize(absolutePath(appSdkEntry)),
+    `${surfaceRoot} must resolve the BirdCoder App SDK from the application-root SDK family.`,
+  );
+  assert.equal(
+    fs.existsSync(appSdkAlias.replacement),
+    true,
+    `${surfaceRoot} BirdCoder App SDK Vite alias must resolve to an existing source entry.`,
   );
 }
 

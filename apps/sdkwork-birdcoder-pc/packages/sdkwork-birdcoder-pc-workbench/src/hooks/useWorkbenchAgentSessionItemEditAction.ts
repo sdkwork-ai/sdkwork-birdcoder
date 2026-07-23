@@ -26,20 +26,20 @@ export function useWorkbenchAgentSessionItemEditAction({
   sessionUnavailableMessage,
   setSelectionRefreshToken,
 }: UseWorkbenchAgentSessionItemEditActionOptions) {
-  return useCallback(async (agentSessionId: string, messageId: string, content: string) => {
+  return useCallback(async (agentSessionId: string, sessionItemId: string, content: string) => {
     const project = resolveAgentSessionLocation(agentSessionId)?.project;
     if (!project) {
       throw new Error(sessionUnavailableMessage);
     }
 
-    const didEditMessage = await editWorkbenchAgentSessionItem({
+    const didEditSessionItem = await editWorkbenchAgentSessionItem({
       agentSessionId,
       content,
       editAgentSessionItem,
-      messageId,
+      sessionItemId,
       projectId: project.projectId,
     });
-    if (!didEditMessage) {
+    if (!didEditSessionItem) {
       return;
     }
 

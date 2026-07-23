@@ -154,19 +154,19 @@ function buildAgentSessionStoreVersion(
 }
 
 function areAgentSessionItemCollectionsEquivalent(
-  leftMessages: readonly AgentSessionItemView[],
-  rightMessages: readonly AgentSessionItemView[],
+  leftItems: readonly AgentSessionItemView[],
+  rightItems: readonly AgentSessionItemView[],
 ): boolean {
-  if (leftMessages === rightMessages) {
+  if (leftItems === rightItems) {
     return true;
   }
 
-  if (leftMessages.length !== rightMessages.length) {
+  if (leftItems.length !== rightItems.length) {
     return false;
   }
 
-  return leftMessages.every((message, index) =>
-    areAgentSessionItemsEquivalent(message, rightMessages[index]!),
+  return leftItems.every((item, index) =>
+    areAgentSessionItemsEquivalent(item, rightItems[index]!),
   );
 }
 
@@ -174,63 +174,63 @@ function canReuseAgentSessionItems(
   existingAgentSession: AgentSessionView,
   incomingAgentSession: AgentSessionView,
 ): boolean {
-  const existingMessages = existingAgentSession.items;
-  const incomingMessages = incomingAgentSession.items;
+  const existingItems = existingAgentSession.items;
+  const incomingItems = incomingAgentSession.items;
 
-  if (incomingMessages.length === 0) {
-    return existingMessages.length > 0;
+  if (incomingItems.length === 0) {
+    return existingItems.length > 0;
   }
 
-  if (existingMessages.length !== incomingMessages.length) {
+  if (existingItems.length !== incomingItems.length) {
     return false;
   }
 
   if (
-    buildAgentSessionStoreVersion(existingAgentSession, existingMessages.length) !==
-    buildAgentSessionStoreVersion(incomingAgentSession, incomingMessages.length)
+    buildAgentSessionStoreVersion(existingAgentSession, existingItems.length) !==
+    buildAgentSessionStoreVersion(incomingAgentSession, incomingItems.length)
   ) {
     return false;
   }
 
-  return areAgentSessionItemCollectionsEquivalent(existingMessages, incomingMessages);
+  return areAgentSessionItemCollectionsEquivalent(existingItems, incomingItems);
 }
 
 function filterAgentSessionItemsForStore(
   agentSessionId: string,
-  messages: readonly AgentSessionItemView[],
+  items: readonly AgentSessionItemView[],
 ): AgentSessionItemView[] {
   const normalizedAgentSessionId = agentSessionId.trim();
-  if (!normalizedAgentSessionId || messages.length === 0) {
+  if (!normalizedAgentSessionId || items.length === 0) {
     return [];
   }
 
-  let scopedMessages: AgentSessionItemView[] | null = null;
-  for (let index = 0; index < messages.length; index += 1) {
-    const message = messages[index]!;
-    if (message.sessionId.trim() === normalizedAgentSessionId) {
-      scopedMessages?.push(message);
+  let scopedItems: AgentSessionItemView[] | null = null;
+  for (let index = 0; index < items.length; index += 1) {
+    const item = items[index]!;
+    if (item.sessionId.trim() === normalizedAgentSessionId) {
+      scopedItems?.push(item);
       continue;
     }
 
-    if (!scopedMessages) {
-      scopedMessages = messages.slice(0, index) as AgentSessionItemView[];
+    if (!scopedItems) {
+      scopedItems = items.slice(0, index) as AgentSessionItemView[];
     }
   }
 
-  return scopedMessages ?? (messages as AgentSessionItemView[]);
+  return scopedItems ?? (items as AgentSessionItemView[]);
 }
 
 function normalizeAgentSessionItemsForStore(
   agentSessionId: string,
-  messages: readonly AgentSessionItemView[],
+  items: readonly AgentSessionItemView[],
 ): AgentSessionItemView[] {
   return deduplicateAgentSessionItemViews(
-    filterAgentSessionItemsForStore(agentSessionId, messages),
+    filterAgentSessionItemsForStore(agentSessionId, items),
   );
 }
 
 interface CloneAgentSessionForStoreOptions {
-  preserveEmptyMessages?: boolean;
+  preserveEmptyItems?: boolean;
   projectId?: string;
 }
 
@@ -252,12 +252,12 @@ function cloneAgentSessionForStore(
   existingAgentSession?: AgentSessionView,
   options: CloneAgentSessionForStoreOptions = {},
 ): AgentSessionView {
-  const preserveEmptyMessages = options.preserveEmptyMessages ?? true;
+  const preserveEmptyItems = options.preserveEmptyItems ?? true;
   const projectScopedAgentSession = normalizeAgentSessionProjectScope(
     agentSession,
     options.projectId,
   );
-  const incomingMessages =
+  const incomingItems =
     projectScopedAgentSession.items.length > 0
       ? normalizeAgentSessionItemsForStore(
           projectScopedAgentSession.id,
@@ -265,29 +265,29 @@ function cloneAgentSessionForStore(
         )
       : (projectScopedAgentSession.items as AgentSessionItemView[]);
   const scopedAgentSession =
-    incomingMessages === projectScopedAgentSession.items
+    incomingItems === projectScopedAgentSession.items
       ? projectScopedAgentSession
       : {
           ...projectScopedAgentSession,
-          items: incomingMessages,
+          items: incomingItems,
         };
-  const messages =
+  const items =
     projectScopedAgentSession.items.length === 0
-      ? preserveEmptyMessages
+      ? preserveEmptyItems
         ? normalizeAgentSessionItemsForStore(
             projectScopedAgentSession.id,
             existingAgentSession?.items ?? [],
           )
         : []
-      : incomingMessages.length === 0
+      : incomingItems.length === 0
         ? []
         : existingAgentSession && canReuseAgentSessionItems(existingAgentSession, scopedAgentSession)
         ? existingAgentSession.items
-        : incomingMessages;
+        : incomingItems;
 
   const nextAgentSession = {
     ...scopedAgentSession,
-    items: messages,
+    items,
   };
 
   return existingAgentSession &&
@@ -489,7 +489,7 @@ export function upsertAgentSessionIntoCollection(
   const nextAgentSession = cloneAgentSessionForStore(
     agentSession,
     existingAgentSession,
-    { preserveEmptyMessages: false, projectId },
+    { preserveEmptyItems: false, projectId },
   );
   let unsortedAgentSessions: readonly AgentSessionView[];
   if (existingAgentSessionIndex >= 0) {
@@ -533,14 +533,14 @@ export function upsertAgentSessionIntoCollection(
 function finalizeAgentSessionForStore(
   agentSession: AgentSessionView,
 ): AgentSessionView {
-  const messages = normalizeAgentSessionItemsForStore(
+  const items = normalizeAgentSessionItemsForStore(
     agentSession.id,
     agentSession.items,
   );
   const sortTimestamp = resolveAgentSessionViewSortTimestampString(agentSession);
   return {
     ...agentSession,
-    items: messages,
+    items,
     sortTimestamp,
     displayTime: formatAgentSessionActivityDisplayTime({
       ...agentSession,

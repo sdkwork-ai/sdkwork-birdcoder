@@ -2,10 +2,6 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
 import process from 'node:process';
-import {
-  CANONICAL_SERVER_RUST_PATHS,
-  readCanonicalServerRustSource,
-} from './birdcoder-canonical-server-rust-sources.mjs';
 
 import {
   IAM_AUTH_PC_REACT_ROOT_REL,
@@ -64,17 +60,20 @@ const iamOauthSource = [
   readIamText('crates/sdkwork-routes-iam-app-api/src/ephemeral.rs'),
   readIamText('crates/sdkwork-routes-iam-app-api/src/handlers.rs'),
 ].join('\n');
-const apiServerIamSource = [
-  readCanonicalServerRustSource(CANONICAL_SERVER_RUST_PATHS.apiServerAuth),
-  readCanonicalServerRustSource('crates/sdkwork-api-birdcoder-standalone-gateway/src/bootstrap/iam.rs'),
+const birdcoderApiAssemblySource = [
   readText(
-    'apps',
-    'sdkwork-birdcoder-pc',
-    'packages',
-    'sdkwork-birdcoder-pc-server',
-    'src-host',
+    'crates',
+    'sdkwork-api-birdcoder-assembly',
     'src',
-    'main.rs',
+    'application_bootstrap',
+    'auth.rs',
+  ),
+  readText(
+    'crates',
+    'sdkwork-api-birdcoder-assembly',
+    'src',
+    'application_bootstrap',
+    'routers.rs',
   ),
 ].join('\n');
 const sharedAuthPageSource = readIamText(
@@ -185,14 +184,9 @@ assert.match(
   'Appbase IAM must expose structured qrContent payloads instead of legacy qrUrl status endpoints.',
 );
 assert.doesNotMatch(
-  apiServerIamSource,
-  /resolve_request_base_url/u,
-  'BirdCoder canonical standalone-gateway bootstrap must not keep request-base-url plumbing solely to create a non-image QR status URL.',
-);
-assert.match(
-  apiServerIamSource,
-  /sdkwork_routes_iam_app_api::build_sdkwork_iam_app_api_router/u,
-  'BirdCoder canonical standalone-gateway must wire IAM through sdkwork-iam router crates.',
+  birdcoderApiAssemblySource,
+  /sdkwork_routes_iam_app_api|build_sdkwork_iam_app_api_router/u,
+  'BirdCoder API assembly must consume IAM request context without embedding dependency-owned IAM routes.',
 );
 
 console.log('auth qr appbase integration contract passed.');

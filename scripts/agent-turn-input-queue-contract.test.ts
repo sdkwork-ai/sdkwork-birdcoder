@@ -3,18 +3,18 @@ import { readFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 
 import {
-  clearWorkbenchChatQueuedMessages,
-  canFlushWorkbenchChatQueuedMessages,
-  createWorkbenchChatQueueFlushGateState,
-  dequeueWorkbenchChatQueuedMessage,
-  enqueueWorkbenchChatQueuedMessage,
-  markWorkbenchChatQueuedTurnDispatchStarted,
-  observeWorkbenchChatQueuedTurnBusyState,
-  peekWorkbenchChatQueuedMessages,
-  restoreWorkbenchChatQueuedMessagesToFront,
-  settleWorkbenchChatQueuedTurnDispatch,
-  setWorkbenchChatQueuedMessages,
-} from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-workbench/src/chat/messageQueueStore.ts';
+  clearWorkbenchQueuedAgentTurnInputs,
+  canFlushWorkbenchQueuedAgentTurnInputs,
+  createWorkbenchAgentTurnInputQueueFlushGateState,
+  dequeueWorkbenchQueuedAgentTurnInput,
+  enqueueWorkbenchQueuedAgentTurnInput,
+  markWorkbenchQueuedAgentTurnDispatchStarted,
+  observeWorkbenchQueuedAgentTurnBusyState,
+  peekWorkbenchQueuedAgentTurnInputs,
+  restoreWorkbenchQueuedAgentTurnInputsToFront,
+  settleWorkbenchQueuedAgentTurnDispatch,
+  setWorkbenchQueuedAgentTurnInputs,
+} from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-workbench/src/chat/agentTurnInputQueueStore.ts';
 
 const universalChatSource = await readFile(
   resolve('apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-ui/src/components/UniversalChat.tsx'),
@@ -49,7 +49,7 @@ const markQueuedTurnDispatchStartedSource =
     : '';
 const busyObserverEffectStartIndex = indexOfSourcePattern(
   universalChatSource,
-  /useEffect\(\(\) => \{\r?\n    setQueuedTurnFlushGate\(\(previousState\) =>\r?\n      observeWorkbenchChatQueuedTurnBusyState/u,
+  /useEffect\(\(\) => \{\r?\n    setQueuedTurnFlushGate\(\(previousState\) =>\r?\n      observeWorkbenchQueuedAgentTurnBusyState/u,
 );
 const busyObserverEffectEndIndex = indexOfSourcePattern(
   universalChatSource,
@@ -91,73 +91,73 @@ const commonsIndexSource = await readFile(
   'utf8',
 );
 
-clearWorkbenchChatQueuedMessages('workspace-a/project-a/session-a');
-clearWorkbenchChatQueuedMessages('workspace-b/project-b/session-a');
-clearWorkbenchChatQueuedMessages('workspace-a/project-a/session-b');
+clearWorkbenchQueuedAgentTurnInputs('project-a/session-a');
+clearWorkbenchQueuedAgentTurnInputs('project-b/session-a');
+clearWorkbenchQueuedAgentTurnInputs('project-a/session-b');
 
-enqueueWorkbenchChatQueuedMessage('workspace-a/project-a/session-a', 'first');
-enqueueWorkbenchChatQueuedMessage('workspace-a/project-a/session-a', 'second');
-enqueueWorkbenchChatQueuedMessage('workspace-b/project-b/session-a', 'other-scope');
+enqueueWorkbenchQueuedAgentTurnInput('project-a/session-a', 'first');
+enqueueWorkbenchQueuedAgentTurnInput('project-a/session-a', 'second');
+enqueueWorkbenchQueuedAgentTurnInput('project-b/session-a', 'other-scope');
 
 assert.deepEqual(
-  peekWorkbenchChatQueuedMessages('workspace-a/project-a/session-a').map((message) => message.text),
+  peekWorkbenchQueuedAgentTurnInputs('project-a/session-a').map((turnInput) => turnInput.text),
   ['first', 'second'],
-  'queued messages must stay FIFO within a session scope.',
+  'queued turn inputs must stay FIFO within a session scope.',
 );
 
 assert.deepEqual(
-  peekWorkbenchChatQueuedMessages('workspace-b/project-b/session-a').map((message) => message.text),
+  peekWorkbenchQueuedAgentTurnInputs('project-b/session-a').map((turnInput) => turnInput.text),
   ['other-scope'],
-  'queued messages must be isolated by the full session scope, not just the raw session id.',
+  'queued turn inputs must be isolated by the full session scope, not just the raw session id.',
 );
 
 assert.equal(
-  dequeueWorkbenchChatQueuedMessage('workspace-a/project-a/session-a')?.text,
+  dequeueWorkbenchQueuedAgentTurnInput('project-a/session-a')?.text,
   'first',
-  'queued message dequeue must remove exactly the oldest item.',
+  'queued turn input dequeue must remove exactly the oldest item.',
 );
 
 assert.deepEqual(
-  peekWorkbenchChatQueuedMessages('workspace-a/project-a/session-a').map((message) => message.text),
+  peekWorkbenchQueuedAgentTurnInputs('project-a/session-a').map((turnInput) => turnInput.text),
   ['second'],
-  'dequeue must leave later queued messages in place.',
+  'dequeue must leave later queued turn inputs in place.',
 );
 
-setWorkbenchChatQueuedMessages('workspace-a/project-a/session-b', [
-  { id: 'queued-message-third', text: 'third' },
+setWorkbenchQueuedAgentTurnInputs('project-a/session-b', [
+  { id: 'queued-turn-input-third', text: 'third' },
 ]);
-restoreWorkbenchChatQueuedMessagesToFront(
-  'workspace-a/project-a/session-b',
+restoreWorkbenchQueuedAgentTurnInputsToFront(
+  'project-a/session-b',
   [
-    { id: 'queued-message-failed-first', text: 'failed-first' },
-    { id: 'queued-message-failed-second', text: 'failed-second' },
+    { id: 'queued-turn-input-failed-first', text: 'failed-first' },
+    { id: 'queued-turn-input-failed-second', text: 'failed-second' },
   ],
 );
 
 assert.deepEqual(
-  peekWorkbenchChatQueuedMessages('workspace-a/project-a/session-b').map((message) => message.text),
+  peekWorkbenchQueuedAgentTurnInputs('project-a/session-b').map((turnInput) => turnInput.text),
   ['failed-first', 'failed-second', 'third'],
   'failed queued dispatches must be restored to the front without dropping newer queued input.',
 );
 
-restoreWorkbenchChatQueuedMessagesToFront(
-  'workspace-a/project-a/session-b',
-  [{ id: 'queued-message-failed-first', text: 'failed-first' }],
+restoreWorkbenchQueuedAgentTurnInputsToFront(
+  'project-a/session-b',
+  [{ id: 'queued-turn-input-failed-first', text: 'failed-first' }],
 );
 
 assert.deepEqual(
-  peekWorkbenchChatQueuedMessages('workspace-a/project-a/session-b').map((message) => message.text),
+  peekWorkbenchQueuedAgentTurnInputs('project-a/session-b').map((turnInput) => turnInput.text),
   ['failed-first', 'failed-second', 'third'],
-  'failed queued dispatch restoration must be idempotent by message identity so repeated recovery does not create duplicate React keys.',
+  'failed queued dispatch restoration must be idempotent by turn-input identity so repeated recovery does not create duplicate React keys.',
 );
 
-clearWorkbenchChatQueuedMessages('workspace-a/project-a/session-duplicate-text');
-const repeatedQueueAfterFirstEnqueue = enqueueWorkbenchChatQueuedMessage(
-  'workspace-a/project-a/session-duplicate-text',
+clearWorkbenchQueuedAgentTurnInputs('project-a/session-duplicate-text');
+const repeatedQueueAfterFirstEnqueue = enqueueWorkbenchQueuedAgentTurnInput(
+  'project-a/session-duplicate-text',
   'repeat',
 );
-const repeatedQueueAfterSecondEnqueue = enqueueWorkbenchChatQueuedMessage(
-  'workspace-a/project-a/session-duplicate-text',
+const repeatedQueueAfterSecondEnqueue = enqueueWorkbenchQueuedAgentTurnInput(
+  'project-a/session-duplicate-text',
   'repeat',
 );
 assert.notEqual(
@@ -165,33 +165,33 @@ assert.notEqual(
   repeatedQueueAfterSecondEnqueue[1]?.id,
   'separately queued duplicate text must receive distinct stable identities.',
 );
-const failedRepeatedMessage = dequeueWorkbenchChatQueuedMessage(
-  'workspace-a/project-a/session-duplicate-text',
+const failedRepeatedTurnInput = dequeueWorkbenchQueuedAgentTurnInput(
+  'project-a/session-duplicate-text',
 );
-restoreWorkbenchChatQueuedMessagesToFront(
-  'workspace-a/project-a/session-duplicate-text',
-  failedRepeatedMessage ? [failedRepeatedMessage] : [],
+restoreWorkbenchQueuedAgentTurnInputsToFront(
+  'project-a/session-duplicate-text',
+  failedRepeatedTurnInput ? [failedRepeatedTurnInput] : [],
 );
 assert.deepEqual(
-  peekWorkbenchChatQueuedMessages('workspace-a/project-a/session-duplicate-text').map(
-    (message) => message.text,
+  peekWorkbenchQueuedAgentTurnInputs('project-a/session-duplicate-text').map(
+    (turnInput) => turnInput.text,
   ),
   ['repeat', 'repeat'],
   'identity-based restoration must preserve intentionally duplicated queued text.',
 );
 assert.equal(
   new Set(
-    peekWorkbenchChatQueuedMessages('workspace-a/project-a/session-duplicate-text').map(
-      (message) => message.id,
+    peekWorkbenchQueuedAgentTurnInputs('project-a/session-duplicate-text').map(
+      (turnInput) => turnInput.id,
     ),
   ).size,
   2,
-  'identity-based queued messages must keep duplicate text renderable with unique React keys.',
+  'identity-based queued turn inputs must keep duplicate text renderable with unique React keys.',
 );
 
-let flushGateState = createWorkbenchChatQueueFlushGateState();
+let flushGateState = createWorkbenchAgentTurnInputQueueFlushGateState();
 assert.equal(
-  canFlushWorkbenchChatQueuedMessages(flushGateState, {
+  canFlushWorkbenchQueuedAgentTurnInputs(flushGateState, {
     disabled: false,
     editingQueueIndex: -1,
     isActive: true,
@@ -203,9 +203,9 @@ assert.equal(
   'queued flush gate must allow flushing while the active composer is idle and no post-dispatch turn is pending.',
 );
 
-flushGateState = markWorkbenchChatQueuedTurnDispatchStarted(flushGateState, false);
+flushGateState = markWorkbenchQueuedAgentTurnDispatchStarted(flushGateState, false);
 assert.equal(
-  canFlushWorkbenchChatQueuedMessages(flushGateState, {
+  canFlushWorkbenchQueuedAgentTurnInputs(flushGateState, {
     disabled: false,
     editingQueueIndex: -1,
     isActive: true,
@@ -217,9 +217,9 @@ assert.equal(
   'queued flush gate must block the next queued dispatch immediately after turn creation even before runtimeStatus renders busy.',
 );
 
-flushGateState = observeWorkbenchChatQueuedTurnBusyState(flushGateState, true);
+flushGateState = observeWorkbenchQueuedAgentTurnBusyState(flushGateState, true);
 assert.equal(
-  canFlushWorkbenchChatQueuedMessages(flushGateState, {
+  canFlushWorkbenchQueuedAgentTurnInputs(flushGateState, {
     disabled: false,
     editingQueueIndex: -1,
     isActive: true,
@@ -231,9 +231,9 @@ assert.equal(
   'queued flush gate must keep blocking while the engine is streaming.',
 );
 
-flushGateState = observeWorkbenchChatQueuedTurnBusyState(flushGateState, false);
+flushGateState = observeWorkbenchQueuedAgentTurnBusyState(flushGateState, false);
 assert.equal(
-  canFlushWorkbenchChatQueuedMessages(flushGateState, {
+  canFlushWorkbenchQueuedAgentTurnInputs(flushGateState, {
     disabled: false,
     editingQueueIndex: -1,
     isActive: true,
@@ -245,11 +245,11 @@ assert.equal(
   'queued flush gate must reopen only after a busy-to-idle runtime transition is observed.',
 );
 
-flushGateState = createWorkbenchChatQueueFlushGateState();
-flushGateState = markWorkbenchChatQueuedTurnDispatchStarted(flushGateState, true);
-flushGateState = observeWorkbenchChatQueuedTurnBusyState(flushGateState, false);
+flushGateState = createWorkbenchAgentTurnInputQueueFlushGateState();
+flushGateState = markWorkbenchQueuedAgentTurnDispatchStarted(flushGateState, true);
+flushGateState = observeWorkbenchQueuedAgentTurnBusyState(flushGateState, false);
 assert.equal(
-  canFlushWorkbenchChatQueuedMessages(flushGateState, {
+  canFlushWorkbenchQueuedAgentTurnInputs(flushGateState, {
     disabled: false,
     editingQueueIndex: -1,
     isActive: true,
@@ -261,11 +261,11 @@ assert.equal(
   'queued flush gate must reopen after the local dispatch busy state settles even when provider runtime busy was never observed.',
 );
 
-flushGateState = createWorkbenchChatQueueFlushGateState();
-flushGateState = markWorkbenchChatQueuedTurnDispatchStarted(flushGateState, false);
-flushGateState = settleWorkbenchChatQueuedTurnDispatch(flushGateState);
+flushGateState = createWorkbenchAgentTurnInputQueueFlushGateState();
+flushGateState = markWorkbenchQueuedAgentTurnDispatchStarted(flushGateState, false);
+flushGateState = settleWorkbenchQueuedAgentTurnDispatch(flushGateState);
 assert.equal(
-  canFlushWorkbenchChatQueuedMessages(flushGateState, {
+  canFlushWorkbenchQueuedAgentTurnInputs(flushGateState, {
     disabled: false,
     editingQueueIndex: -1,
     isActive: true,
@@ -274,120 +274,120 @@ assert.equal(
     queueLength: 1,
   }),
   true,
-  'queued flush gate must have an explicit settle path so a batched send that never renders busy cannot leave "checking send message" stuck forever.',
+  'queued flush gate must have an explicit settle path so a batched submission that never renders busy cannot leave turn settlement stuck forever.',
 );
 
 assert.match(
   commonsIndexSource,
-  /export \* from '\.\/chat\/messageQueueStore\.ts';/,
-  'commons must export the canonical workbench queued-message store.',
+  /export \* from '\.\/chat\/agentTurnInputQueueStore\.ts';/,
+  'Workbench must export the canonical AgentTurnInput queue store.',
 );
 
 assert.doesNotMatch(
   universalChatSource,
-  /const \[messageQueue,\s*setMessageQueue\] = useState<string\[\]>\(\[\]\);/,
-  'UniversalChat must not keep queued messages in component-local state because queues must survive rerenders and stay isolated by session scope.',
+  /const \[agentTurnInputQueue,\s*setAgentTurnInputQueue\] = useState<string\[\]>\(\[\]\);/,
+  'UniversalChat must not keep queued turn inputs in component-local state because queues must survive rerenders and stay isolated by session scope.',
 );
 
 assert.match(
   universalChatSource,
-  /useWorkbenchChatMessageQueue\(normalizedQueueScopeKey\)/,
-  'UniversalChat must bind queued messages to the canonical session-scoped queue store.',
+  /useWorkbenchAgentTurnInputQueue\(normalizedQueueScopeKey\)/,
+  'UniversalChat must bind queued turn inputs to the canonical session-scoped queue store.',
 );
 
 assert.match(
   universalChatSource,
-  /dequeueQueuedMessage\(\)/,
-  'UniversalChat must atomically dequeue a single queued message when it starts an automatic queued dispatch.',
+  /dequeueQueuedTurnInput\(\)/,
+  'UniversalChat must atomically dequeue one queued turn input when it starts an automatic dispatch.',
 );
 
 assert.match(
   universalChatSource,
-  /void dispatchQueuedMessage\(nextQueuedMessage\);/,
-  'UniversalChat must automatically flush the next queued message when the active session becomes idle.',
+  /void dispatchQueuedAgentTurnInput\(nextQueuedAgentTurnInput\);/,
+  'UniversalChat must automatically flush the next queued turn input when the active session becomes idle.',
 );
 
 assert.match(
   markQueuedTurnDispatchStartedSource,
   /isDispatchingMessageRef\.current/,
-  'UniversalChat must close the queued-message flush gate using the local dispatch busy state as well as provider runtime busy so queues cannot deadlock when provider busy is not observed.',
+  'UniversalChat must close the queued-turn-input flush gate using the local dispatch busy state as well as provider runtime busy so queues cannot deadlock when provider busy is not observed.',
 );
 
 assert.match(
   markQueuedTurnDispatchStartedSource,
-  /markWorkbenchChatQueuedTurnDispatchStarted\([\s\S]*isTurnDispatchBusy[\s\S]*\)/,
-  'UniversalChat must pass the resolved dispatch busy signal into the queued-message flush gate.',
+  /markWorkbenchQueuedAgentTurnDispatchStarted\([\s\S]*isTurnDispatchBusy[\s\S]*\)/,
+  'UniversalChat must pass the resolved dispatch busy signal into the queued-turn-input flush gate.',
 );
 
 assert.match(
   busyObserverEffectSource,
-  /observeWorkbenchChatQueuedTurnBusyState\([\s\S]*isComposerTurnBlocked[\s\S]*\)/,
+  /observeWorkbenchQueuedAgentTurnBusyState\([\s\S]*isComposerTurnBlocked[\s\S]*\)/,
   'UniversalChat must observe full turn-blocked transitions before allowing the next queued turn to flush.',
 );
 
 assert.match(
   universalChatSource,
-  /settleWorkbenchChatQueuedTurnDispatch/,
+  /settleWorkbenchQueuedAgentTurnDispatch/,
   'UniversalChat must use an explicit queued-turn settlement path for sends that complete before React renders a busy transition.',
 );
 
 assert.match(
   submitPendingUserQuestionAnswerSource,
-  /await Promise\.resolve\(onSubmitUserQuestionAnswer\(interactionEventId,\s*request\)\);[\s\S]*markQueuedTurnDispatchStarted\(\);[\s\S]*didMarkQueuedTurnDispatch\s*=\s*true;[\s\S]*finally \{[\s\S]*finishPendingInteractionSubmission\(pendingInteractionId\);[\s\S]*if \(didMarkQueuedTurnDispatch\) \{[\s\S]*scheduleQueuedTurnDispatchSettlementCheck\(\);/s,
+  /await Promise\.resolve\(onSubmitUserQuestionAnswer\(interactionId,\s*request\)\);[\s\S]*markQueuedTurnDispatchStarted\(\);[\s\S]*didMarkQueuedTurnDispatch\s*=\s*true;[\s\S]*finally \{[\s\S]*finishPendingInteractionSubmission\(pendingInteractionId\);[\s\S]*if \(didMarkQueuedTurnDispatch\) \{[\s\S]*scheduleQueuedTurnDispatchSettlementCheck\(\);/s,
   'Submitting a pending user-question answer must close the same queued-turn settlement gate as normal sends so queued follow-ups wait for the resumed turn to settle.',
 );
 
 assert.match(
   submitPendingApprovalDecisionSource,
-  /await Promise\.resolve\(onSubmitApprovalDecision\(interactionEventId,\s*request\)\);[\s\S]*markQueuedTurnDispatchStarted\(\);[\s\S]*didMarkQueuedTurnDispatch\s*=\s*true;[\s\S]*finally \{[\s\S]*finishPendingInteractionSubmission\(pendingInteractionId\);[\s\S]*if \(didMarkQueuedTurnDispatch\) \{[\s\S]*scheduleQueuedTurnDispatchSettlementCheck\(\);/s,
+  /await Promise\.resolve\(onSubmitApprovalDecision\(interactionId,\s*request\)\);[\s\S]*markQueuedTurnDispatchStarted\(\);[\s\S]*didMarkQueuedTurnDispatch\s*=\s*true;[\s\S]*finally \{[\s\S]*finishPendingInteractionSubmission\(pendingInteractionId\);[\s\S]*if \(didMarkQueuedTurnDispatch\) \{[\s\S]*scheduleQueuedTurnDispatchSettlementCheck\(\);/s,
   'Submitting a pending approval decision must close the same queued-turn settlement gate as normal sends so queued follow-ups wait for the resumed turn to settle.',
 );
 
 assert.match(
   universalChatSource,
-  /canFlushWorkbenchChatQueuedMessages\(/,
+  /canFlushWorkbenchQueuedAgentTurnInputs\(/,
   'UniversalChat must use the canonical flush-gate predicate instead of ad hoc queue flushing conditions.',
 );
 
 assert.doesNotMatch(
   universalChatSource,
-  /const fullText = \[\.\.\.messageQueue,\s*currentInput\]\.filter\(Boolean\)\.join\('\\n\\n'\);/,
-  'UniversalChat must not collapse multiple queued messages and the current draft into one turn.',
+  /const fullText = \[\.\.\.agentTurnInputQueue,\s*currentInput\]\.filter\(Boolean\)\.join\('\\n\\n'\);/,
+  'UniversalChat must not collapse multiple queued turn inputs and the current draft into one turn.',
 );
 
 assert.doesNotMatch(
   universalChatSource,
-  /messageQueue\.map\(\(msg, idx\)[\s\S]*key=\{idx\}/,
-  'UniversalChat must not render queued messages with array-index keys because recovery/reorder operations require stable queue item identity.',
+  /agentTurnInputQueue\.map\(\(msg, idx\)[\s\S]*key=\{idx\}/,
+  'UniversalChat must not render queued turn inputs with array-index keys because recovery/reorder operations require stable queue item identity.',
 );
 
 assert.match(
   universalChatSource,
-  /messageQueue\.map\(\(queuedMessage, idx\)[\s\S]*key=\{queuedMessage\.id\}/,
-  'UniversalChat must render queued messages with the canonical queued-message identity.',
+  /agentTurnInputQueue\.map\(\(queuedAgentTurnInput, idx\)[\s\S]*key=\{queuedAgentTurnInput\.id\}/,
+  'UniversalChat must render queued turn inputs with the canonical turn-input identity.',
 );
 
 assert.match(
   universalChatSource,
   /\(\(isComposerTurnBlocked \|\| isAwaitingQueuedTurnSettlement\) \? canQueueTypedMessage : canSendQueuedOrTypedMessage\)/,
-  'UniversalChat send button must allow typed messages to enter the queue while the active turn is blocked.',
+  'UniversalChat send button must allow typed turn input to enter the queue while the active turn is blocked.',
 );
 
 assert.match(
   universalChatHandleSendSource,
-  /canFlushQueuedMessageFromUserAction\s*=\s*canFlushWorkbenchChatQueuedMessages\(\s*queuedTurnFlushGateRef\.current,\s*\{[\s\S]*queueLength:\s*messageQueue\.length,[\s\S]*\}\s*,?\s*\)/,
-  'Manual send actions must evaluate the same queued-message flush gate as automatic flushes before dispatching a queued turn.',
+  /canFlushQueuedAgentTurnInputFromUserAction\s*=\s*canFlushWorkbenchQueuedAgentTurnInputs\(\s*queuedTurnFlushGateRef\.current,\s*\{[\s\S]*queueLength:\s*agentTurnInputQueue\.length,[\s\S]*\}\s*,?\s*\)/,
+  'Manual submit actions must evaluate the same queued-turn-input flush gate as automatic flushes before dispatching a queued turn.',
 );
 
 assert.match(
   universalChatHandleSendSource,
-  /if \(!canFlushQueuedMessageFromUserAction\) \{\s*return;\s*\}[\s\S]*const nextQueuedMessage = dequeueQueuedMessage\(\);/,
-  'Manual send actions must not dequeue queued messages while the post-dispatch turn-settlement gate is closed.',
+  /if \(!canFlushQueuedAgentTurnInputFromUserAction\) \{\s*return;\s*\}[\s\S]*const nextQueuedAgentTurnInput = dequeueQueuedTurnInput\(\);/,
+  'Manual submit actions must not dequeue queued turn inputs while the post-dispatch turn-settlement gate is closed.',
 );
 
 assert.match(
   universalChatHandleSendSource,
-  /isAwaitingQueuedTurnSettlement\s*=\s*queuedTurnFlushGateRef\.current\.awaitingTurnSettlement[\s\S]*if \(isComposerTurnBlocked \|\| isAwaitingQueuedTurnSettlement\) \{[\s\S]*enqueueQueuedMessage\(currentInput,\s*currentComposerSelection\);/,
+  /isAwaitingQueuedTurnSettlement\s*=\s*queuedTurnFlushGateRef\.current\.awaitingTurnSettlement[\s\S]*if \(isComposerTurnBlocked \|\| isAwaitingQueuedTurnSettlement\) \{[\s\S]*enqueueQueuedTurnInput\(currentInput,\s*currentComposerSelection\);/,
   'Manual typed sends must enter the queue with the current composer selection while a just-created turn is waiting for runtime busy observation.',
 );
 
@@ -417,8 +417,8 @@ assert.match(
 
 assert.match(
   universalChatSource,
-  /catch \(error\) \{[\s\S]*restoreQueuedMessagesToFront\(\[submittedQueuedMessage\]\);[\s\S]*t\('chat\.sendMessageFailed'\)/,
-  'Queued auto-flush failure recovery must restore the dispatched queued message to the front of the queue.',
+  /catch \(error\) \{[\s\S]*restoreQueuedTurnInputsToFront\(\[submittedAgentTurnInput\]\);[\s\S]*t\('chat\.sendMessageFailed'\)/,
+  'Queued auto-flush failure recovery must restore the dispatched queued turn input to the front of the queue.',
 );
 
-console.log('universal chat queued message standard contract passed.');
+console.log('agent turn input queue contract passed.');

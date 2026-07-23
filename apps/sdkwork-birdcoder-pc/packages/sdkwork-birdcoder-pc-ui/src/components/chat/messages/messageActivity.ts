@@ -1,22 +1,22 @@
-import type { AgentSessionItemView, ChatMessageViewSource } from '@sdkwork/birdcoder-pc-workbench/chat/types';
-import type { ActivityFileChangeView } from '@sdkwork/birdcoder-pc-workbench/chat/types';
-import { resolveActivityFileChangeViews } from '@sdkwork/birdcoder-pc-workbench/chat/types';
+import type { AgentSessionItemView, AgentSessionItemViewSource } from '@sdkwork/birdcoder-pc-workbench/chat/types';
+import type { AgentSessionActivityFileChangeView } from '@sdkwork/birdcoder-pc-workbench/chat/types';
+import { resolveAgentSessionActivityFileChangeViews } from '@sdkwork/birdcoder-pc-workbench/chat/types';
 
-export type ActivityFileChange = ActivityFileChangeView;
+export type ActivityFileChange = AgentSessionActivityFileChangeView;
 
 export {
   parseFileUpdateSummaryContent,
-  resolveMessageCopyContent,
-  resolveActivityFileChangeViews,
-  resolveVisibleAssistantMessageContent,
-  resolveVisibleMarkdownBlockContent,
-  shouldHideMessageContentAsFileUpdateSummary,
+  resolveSessionItemCopyContent,
+  resolveAgentSessionActivityFileChangeViews,
+  resolveVisibleAssistantSessionItemContent,
+  resolveAgentSessionItemVisibleMarkdownContent,
+  shouldHideSessionItemContentAsFileUpdateSummary,
   stripFileUpdateSummaryContent,
 } from '@sdkwork/birdcoder-pc-workbench/chat/types';
 
 export function resolveMessageActivityFileChanges(
-  message: AgentSessionItemView | ChatMessageViewSource,
+  message: AgentSessionItemView | AgentSessionItemViewSource,
 ): ActivityFileChange[] | undefined {
-  const fileChanges = resolveActivityFileChangeViews(message);
+  const fileChanges = resolveAgentSessionActivityFileChangeViews(message);
   return fileChanges.length > 0 ? fileChanges : undefined;
 }

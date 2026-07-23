@@ -1,6 +1,6 @@
 # MIG-2026-0002 Direct Domain Ownership Cutover
 
-Status: in-progress
+Status: completed
 Owner: SDKWork maintainers
 Updated: 2026-07-23
 Requirement: [REQ-2026-0002](../product/requirements/REQ-2026-0002-domain-ownership-convergence.md)
@@ -44,8 +44,9 @@ and deletes their contracts and code.
    `sessionRuntimeBindings`.
 6. Keep device mounts and native execution inside PC/Tauri; constrain local
    SQLite to the device-state allowlist.
-7. Use Agents `drive/drive` for sandbox composition and fail closed for
-   documents until `document/documents` exists upstream.
+7. Use Agents `drive/drive` for sandbox composition and `document/documents`
+   for document references; resolve document content through the Documents App
+   SDK without a BirdCoder binding table or projection.
 8. Remove obsolete tests, scripts, documentation, and generated artifacts.
 9. Run Rust, PC, API, SDK, IAM, architecture, security, docs, and reverse-scan
    gates.
@@ -83,3 +84,29 @@ The record moves to `completed` only after:
 
 Production publication is a separate release decision and cannot be inferred
 from migration completion.
+
+## Completion Evidence
+
+Verified on 2026-07-23 for the Rust backend and PC browser/Tauri scope:
+
+- `pnpm check:arch`, `pnpm check:server`, `pnpm check:desktop`, and the PC-scoped
+  lint, tests, production build, and aggregate `check` passed.
+- API transport, response-envelope, operation-pattern, route-collision,
+  permission-composition, component-port, and Rust-composition gates passed.
+- API assembly materialized and validated one System route crate. The owner
+  contract remains 4 App API operations, 0 Backend API operations, 0 Open API
+  operations, 4 permissions, and 0 BirdCoder server business tables.
+- Two consecutive TypeScript/Rust SDK generations reported no generated file
+  changes. The combined OpenAPI and generated-output SHA-256 remained
+  `9f952192834f1998059d3d8ab7e27503ddb118af1937fced3ba577ece91529ea`.
+- Universal Chat rendering/scroll, Project Explorer, Session Item, Turn Input,
+  hydration, performance, and technical-debt contracts passed.
+- PC lifecycle scripts no longer invoke the repository-wide fast-quality runner;
+  source-linked dependency SDK errors still fail PC lint, while excluded H5 and
+  Flutter sources do not redefine the PC gate.
+- Documentation governance, repository documentation, VitePress build,
+  release closure, composition resolution, and final reverse scans passed.
+
+Production promotion remains blocked by
+`signed-production-artifact-evidence-missing`; migration completion does not
+change the application from `DRAFT` or `preLaunch`.

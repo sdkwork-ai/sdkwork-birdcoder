@@ -19,9 +19,9 @@ export {
 
 export {
   resolveMessageActivityFileChanges,
-  resolveMessageCopyContent,
-  resolveVisibleAssistantMessageContent,
-  shouldHideMessageContentAsFileUpdateSummary,
+  resolveSessionItemCopyContent,
+  resolveVisibleAssistantSessionItemContent,
+  shouldHideSessionItemContentAsFileUpdateSummary,
   stripFileUpdateSummaryContent,
 } from './messageActivity.ts';
 export type { ActivityFileChange } from './messageActivity.ts';

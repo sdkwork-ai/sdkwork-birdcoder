@@ -105,7 +105,7 @@ try {
 
   assert.equal(
     resolveBirdCoderBrowserServerBaseUrl('http://127.0.0.1:10240', {
-      browserLocationUrl: 'http://192.168.31.108:3001/workspaces',
+      browserLocationUrl: 'http://192.168.31.108:3001/app/code',
     }),
     'http://192.168.31.108:10240',
     'a remote browser must address the API through the web server host instead of its own loopback interface.',
@@ -130,7 +130,7 @@ try {
 
   assert.equal(
     resolveBirdCoderBrowserServerBaseUrl(undefined, {
-      browserLocationUrl: 'http://192.168.31.108:3001/workspaces',
+      browserLocationUrl: 'http://192.168.31.108:3001/app/code',
       preferSameOrigin: true,
     }),
     'http://192.168.31.108:3001',

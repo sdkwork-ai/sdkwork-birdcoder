@@ -87,6 +87,7 @@ assert.deepEqual(dependencyWorkspaces, [
   'sdkwork-drive-app-sdk',
   'sdkwork-messaging-app-sdk',
   'sdkwork-membership-app-sdk',
+  'sdkwork-order-app-sdk',
   'sdkwork-skills-app-sdk',
   'sdkwork-agents-app-sdk',
   'sdkwork-prompts-app-sdk',
