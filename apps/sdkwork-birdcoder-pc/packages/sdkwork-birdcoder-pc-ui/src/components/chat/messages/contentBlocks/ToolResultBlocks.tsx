@@ -12,7 +12,7 @@ import {
   Link2,
 } from 'lucide-react';
 import type { ChatMessageToolCall } from '@sdkwork/birdcoder-pc-workbench/chat/types';
-import { resolveBirdCoderChatMessageMediaSource } from '@sdkwork/birdcoder-pc-contracts-commons';
+import { resolveAgentSessionItemMediaSource } from '@sdkwork/birdcoder-pc-contracts-commons';
 import {
   buildChatContentPreview,
   MAX_CHAT_CONTENT_PREVIEW_CHARACTERS,
@@ -236,7 +236,7 @@ function isSafeMediaSource(
   kind: 'audio' | 'image',
   mimeType?: string,
 ): boolean {
-  return Boolean(resolveBirdCoderChatMessageMediaSource(value, kind, mimeType));
+  return Boolean(resolveAgentSessionItemMediaSource(value, kind, mimeType));
 }
 
 function formatResourceSize(size: number | undefined): string {

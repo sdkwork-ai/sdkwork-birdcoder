@@ -20,14 +20,29 @@
       "@sdkwork/birdcoder-h5-core/*": [
         "./packages/sdkwork-birdcoder-h5-core/src/*"
       ],
-      "@sdkwork/birdcoder-chat-contracts": [
-        "../sdkwork-birdcoder-common/packages/sdkwork-birdcoder-chat-contracts/src/index.ts"
-      ],
-      "@sdkwork/birdcoder-chat-contracts/*": [
-        "../sdkwork-birdcoder-common/packages/sdkwork-birdcoder-chat-contracts/src/*"
-      ],
       "@sdkwork/iam-app-sdk": [
         "../../../sdkwork-iam/sdks/sdkwork-iam-app-sdk/sdkwork-iam-app-sdk-typescript/src/index.ts"
+      ],
+      "@sdkwork/iam-contracts": [
+        "../../../sdkwork-iam/apps/sdkwork-iam-common/packages/sdkwork-iam-contracts/src/index.ts"
+      ],
+      "@sdkwork/iam-h5-auth": [
+        "../../../sdkwork-iam/apps/sdkwork-iam-h5/packages/sdkwork-iam-h5-auth/src/index.ts"
+      ],
+      "@sdkwork/agents-app-sdk": [
+        "../../../sdkwork-agents/sdks/sdkwork-agents-app-sdk/sdkwork-agents-app-sdk-typescript/src/index.ts"
+      ],
+      "@sdkwork/birdcoder-app-sdk": [
+        "../../sdks/sdkwork-birdcoder-app-sdk/sdkwork-birdcoder-app-sdk-typescript/src/index.ts"
+      ],
+      "@sdkwork/drive-app-sdk": [
+        "../../../sdkwork-drive/sdks/sdkwork-drive-app-sdk/sdkwork-drive-app-sdk-typescript/src/index.ts"
+      ],
+      "@sdkwork/sdk-common": [
+        "../../../sdkwork-sdk-commons/sdkwork-sdk-common-typescript/src/index.ts"
+      ],
+      "@sdkwork/sdk-common/*": [
+        "../../../sdkwork-sdk-commons/sdkwork-sdk-common-typescript/src/*"
       ],
       "@sdkwork/messaging-app-sdk": [
         "../../../sdkwork-messaging/sdks/sdkwork-messaging-app-sdk/sdkwork-messaging-app-sdk-typescript/src/index.ts"

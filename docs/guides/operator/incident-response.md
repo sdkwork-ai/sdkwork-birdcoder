@@ -1,66 +1,83 @@
 # Incident Response
 
-Updated: 2026-07-16
-Specs: `RELEASE_SPEC.md`, `SECURITY_SPEC.md`
+Updated: 2026-07-22
+Specs: `RELEASE_SPEC.md`, `SECURITY_SPEC.md`, `OBSERVABILITY_SPEC.md`
 
-## Severity classes
+## Severity Classes
 
-| Class | Example | Response time |
+| Class | Example | Response target |
 | --- | --- | --- |
-| S1 | API down, durable event gap, data-loss risk | Immediate |
-| S2 | Auth loop, elevated 5xx, replay unavailable | < 30 min |
-| S3 | Degraded realtime fan-out, one transport unavailable | < 4 h |
-| S4 | Documentation or contract drift | Next release train |
+| S1 | Application ingress unavailable, confirmed data loss, tenant-boundary failure, or secret exposure | Immediate |
+| S2 | Sustained elevated 5xx, authentication outage, or workbench database unavailable | Less than 30 minutes |
+| S3 | One client surface or dependency capability degraded with a safe fallback | Less than 4 hours |
+| S4 | Documentation or non-runtime contract drift | Next governed change |
 
-## Triage checklist
+## Triage
 
-1. **Liveness**: `curl -fsS https://<host>/healthz`
-2. **Readiness**: `curl -fsS https://<host>/readyz`
-3. **Metrics**: scrape `/metrics` for errors, latency, and health gauges
-4. **Auth**: confirm IAM app API health; check for mass 401 without refresh
-5. **Database**: verify SQLite permissions or PostgreSQL connectivity
-6. **Realtime**: verify Redis when `SDKWORK_BIRDCODER_REALTIME_BACKEND=redis`
-7. **Replay**: compare the client cursor with durable coding-session event sequences
+1. Check `/healthz` and `/readyz` on the canonical Rust standalone gateway.
+2. Correlate `traceId` from the SDKWork response envelope with structured logs.
+3. Confirm IAM token refresh and authorization health without logging tokens.
+4. Confirm the BirdCoder database pool and the ten-table schema registry.
+5. Identify the owning module before inspecting data or applying a mitigation.
+6. Preserve logs, metrics, traces, deployment digest, configuration revision,
+   and the first failing request as incident evidence.
 
-## Common scenarios
+## Ownership Routing
 
-### Mass 401 or forced re-login
+| Symptom | Owning investigation |
+| --- | --- |
+| Workspace, project, runtime location, preference, document binding, or sandbox binding | BirdCoder |
+| AI Session, Turn, Session Item, interaction, checkpoint, runtime binding, or provider execution | Agents |
+| Skill package, artifact, capability, installation, asset, or action | Skills |
+| Human conversation, message, member, or read cursor | IM |
+| Identity, token, organization, membership, role, or permission | IAM |
 
-- Verify IAM `sessions.refresh` endpoint health.
-- Confirm the PC client deployed with `startBirdCoderAppSessionRefreshLoop`.
-- Check client/server clock skew; more than 30 seconds can break expiry handling.
+Do not query or mutate a BirdCoder shadow table to repair another domain. Use the
+owner's authenticated SDK or runbook and keep all tenant and subject scope checks
+active during diagnosis.
 
-### SSE or WebSocket disconnect storms
+## Common Scenarios
 
-- Clients reconnect with exponential backoff (8 attempts by default) and resume the selected
-  coding session from its last successfully applied durable sequence.
-- Compare SSE and WebSocket failures. A transport-specific spike indicates proxy streaming or
-  upgrade configuration; a shared spike indicates gateway, IAM, database, or Redis.
-- If Redis HA bootstrap fails, restore Redis before scaling API replicas. Canonical chat events
-  remain in the application database.
-- After recovery, reconnect an affected session and verify that the first resumed sequence is
-  the stored cursor plus one and subsequent sequences are monotonic.
-- Treat any durable sequence gap as S1 even if the UI eventually shows a completed response.
-- Do not mark a durable turn failed solely because fan-out failed. Restore the hub and replay.
+### Authentication Failures
 
-### PostgreSQL failover
+- Verify IAM health and the configured application identity.
+- Check client and server clock skew and the shared global `TokenManager` flow.
+- Do not add a temporary manual `Authorization` header or bypass middleware.
 
-1. Drain traffic or enable the ingress maintenance page.
-2. Restore the database from the latest dump (see [backup-restore.md](backup-restore.md)).
-3. Run `pnpm release:smoke:postgresql-live`.
-4. Restore traffic gradually while watching 5xx, auth, fan-out, and replay signals.
+### AI Turn Or Transcript Failure
 
-### Bad release rollback
+- Correlate the failure with the Agents request and session identifiers.
+- Verify the Agents API, outbox/recovery path, and provider binding using the
+  Agents runbook.
+- Treat BirdCoder as the workbench consumer; it has no local transcript or
+  BirdCoder-local AI-session repair store.
+
+### Runtime Location Failure
+
+- Verify workspace/project relation, owner scope, target binding, lifecycle,
+  health, and required capability before resolving a target-private path.
+- Never accept a renderer-supplied path as execution authority and never emit
+  plaintext paths, credentials, or private remote URLs in incident evidence.
+
+### PostgreSQL Failover
+
+1. Enter maintenance mode and stop writes.
+2. Restore using [Backup And Restore](backup-restore.md).
+3. Run database, API, authorization, and owner-SDK reference probes.
+4. Restore traffic gradually while watching 5xx, pool saturation, and dependency
+   error rates.
+
+### Bad Release
 
 ```bash
 pnpm release:rollback:plan --manifest artifacts/release/<version>/release-manifest.json
 ```
 
-Execute the documented `rollbackCommand` or redeploy the previous immutable image digest from
-the release manifest.
+Redeploy only an immutable digest recorded in verified release evidence.
 
-## Post-incident
+## Post-Incident
 
-- Update `docs/architecture/tech/TECH_ARCHITECTURE.md` only when readiness truth changes.
-- Add a behavioral regression test when the failure was preventable.
-- Attach exact verification commands and important outputs to the incident record.
+- Record timeline, affected tenants, root cause, containment, data impact, and
+  exact verification evidence.
+- Add the narrowest regression test that would have prevented recurrence.
+- Update Canon documentation only when product or architecture truth changed.

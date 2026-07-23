@@ -16,7 +16,7 @@ const source = fs.readFileSync(
     'sdkwork-birdcoder-pc-workbench',
     'src',
     'hooks',
-    'useSelectedCodingSessionMessages.ts',
+    'useSelectedAgentSessionItems.ts',
   ),
   'utf8',
 );
@@ -29,13 +29,13 @@ assert.match(
 
 assert.match(
   source,
-  /const shouldShowForegroundLoading =[\s\S]*!hadSynchronizedSessionVersion[\s\S]*resolvedCodingSession\.messages\.length === 0/,
+  /const shouldShowForegroundLoading =[\s\S]*!hadSynchronizedSessionVersion[\s\S]*resolvedAgentSession\.messages\.length === 0/,
   'selected session refresh must only show the foreground loading state for first-time empty transcript hydration.',
 );
 
 assert.match(
   source,
-  /if \(shouldShowForegroundLoading\) \{[\s\S]*setIsSelectedCodingSessionMessagesLoading/,
+  /if \(shouldShowForegroundLoading\) \{[\s\S]*setIsSelectedAgentSessionItemsLoading/,
   'selected session background polling must not force the visible transcript back into Loading conversation after the session has already synchronized.',
 );
 

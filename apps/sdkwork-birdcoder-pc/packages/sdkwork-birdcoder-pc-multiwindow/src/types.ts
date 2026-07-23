@@ -1,6 +1,6 @@
 import type {
-  BirdCoderChatMessage,
-  BirdCoderCodingSession,
+  AgentSessionItemView,
+  AgentSessionView,
   BirdCoderProject,
 } from '@sdkwork/birdcoder-pc-contracts-commons';
 
@@ -30,7 +30,7 @@ export interface MultiWindowModelParameters {
 }
 
 export interface MultiWindowPaneConfig {
-  codingSessionId: string;
+  agentSessionId: string;
   enabled: boolean;
   id: string;
   mode: MultiWindowPaneMode;
@@ -43,16 +43,16 @@ export interface MultiWindowPaneConfig {
 }
 
 export interface MultiWindowPaneBinding {
-  codingSession: BirdCoderCodingSession | null;
-  messages: BirdCoderChatMessage[];
+  agentSession: AgentSessionView | null;
+  messages: AgentSessionItemView[];
   project: BirdCoderProject | null;
 }
 
 export interface MultiWindowProgrammingPageProps {
-  initialCodingSessionId?: string;
+  initialAgentSessionId?: string;
   isVisible?: boolean;
   projectId?: string;
   workspaceId: string;
-  onCodingSessionChange?: (codingSessionId: string, projectId?: string) => void;
+  onAgentSessionChange?: (agentSessionId: string, projectId?: string) => void;
   onProjectChange?: (projectId: string) => void;
 }

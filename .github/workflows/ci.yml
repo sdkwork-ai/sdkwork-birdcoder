@@ -238,7 +238,7 @@ jobs:
           --health-timeout 5s
           --health-retries 5
     env:
-      BIRDCODER_POSTGRESQL_DSN: postgresql://birdcoder:birdcoder_ci@localhost:5432/birdcoder
+      SDKWORK_BIRDCODER_POSTGRES_TEST_URL: postgresql://birdcoder:birdcoder_ci@localhost:5432/birdcoder
     steps:
       - name: Checkout repository
         uses: actions/checkout@v5

@@ -1,13 +1,13 @@
 import type {
-  BirdCoderChatMessageToolCallStatus,
-  BirdCoderChatMessageToolResultBlock,
-} from '@sdkwork/birdcoder-chat-contracts';
+  AgentSessionItemToolCallStatus as AgentSessionItemToolCallStatus,
+  AgentSessionItemToolResultBlockView as AgentSessionItemToolResultBlockView,
+} from './agent-session-view.ts';
 import {
   BIRDCODER_CHAT_MESSAGE_MAX_EXTERNAL_MEDIA_SOURCE_CHARACTERS,
   BIRDCODER_CHAT_MESSAGE_MAX_MEDIA_SOURCE_CHARACTERS,
-  buildBirdCoderChatMessageDataMediaSource,
-  parseBirdCoderChatMessageDataMediaSource,
-  type BirdCoderChatMessageMediaKind,
+  buildAgentSessionItemDataMediaSource,
+  parseAgentSessionItemDataMediaSource,
+  type AgentSessionItemMediaKind,
 } from './chat-message-media.ts';
 
 const MAX_TOOL_RESULT_BLOCKS = 200;
@@ -41,7 +41,7 @@ function readString(value: unknown): string {
 
 function readBoundedMediaSource(
   value: unknown,
-  expectedKind?: BirdCoderChatMessageMediaKind,
+  expectedKind?: AgentSessionItemMediaKind,
   expectedMimeType?: string,
 ): string {
   if (typeof value !== 'string') {
@@ -57,7 +57,7 @@ function readBoundedMediaSource(
     return '';
   }
   if (/^data:/iu.test(source)) {
-    return parseBirdCoderChatMessageDataMediaSource(
+    return parseAgentSessionItemDataMediaSource(
       source,
       expectedKind,
       expectedMimeType,
@@ -75,7 +75,7 @@ function buildBoundedDataMediaSource(
   data: string,
   mimeType: string,
 ): string {
-  return buildBirdCoderChatMessageDataMediaSource(data, mimeType) ?? '';
+  return buildAgentSessionItemDataMediaSource(data, mimeType) ?? '';
 }
 
 function readFirstString(
@@ -174,7 +174,7 @@ function readAnsiOutputText(value: unknown): string {
 }
 
 function appendStructuredResultList(
-  blocks: BirdCoderChatMessageToolResultBlock[],
+  blocks: AgentSessionItemToolResultBlockView[],
   items: string[],
   totalItems: number,
 ): void {
@@ -251,7 +251,7 @@ function collectStructuredResultItems(
 
 function appendFlattenedStructuredResult(
   record: Record<string, unknown>,
-  blocks: BirdCoderChatMessageToolResultBlock[],
+  blocks: AgentSessionItemToolResultBlockView[],
 ): boolean {
   const items: string[] = [];
   collectStructuredResultItems(record, '', items, new WeakSet<object>());
@@ -264,7 +264,7 @@ function appendFlattenedStructuredResult(
 
 function projectStructuredToolResultDisplay(
   record: Record<string, unknown>,
-  blocks: BirdCoderChatMessageToolResultBlock[],
+  blocks: AgentSessionItemToolResultBlockView[],
 ): boolean {
   const fileDiff = typeof record.fileDiff === 'string' ? record.fileDiff : '';
   if (fileDiff.trim()) {
@@ -421,7 +421,7 @@ export function hasStructuredChatMessageToolError(
 
 function normalizeCanonicalResultBlock(
   value: unknown,
-): BirdCoderChatMessageToolResultBlock | null {
+): AgentSessionItemToolResultBlockView | null {
   const record = readRecord(value);
   const type = normalizeType(record?.type);
   if (!record || !type) {
@@ -597,7 +597,7 @@ function resolveMedia(
     || readFirstString(nestedSource, ['mimeType', 'mime_type', 'mediaType', 'media_type', 'mime'])
     || readFirstString(inlineData, ['mimeType', 'mime_type'])
     || readFirstString(fileData, ['mimeType', 'mime_type']);
-  const expectedKind: BirdCoderChatMessageMediaKind | undefined =
+  const expectedKind: AgentSessionItemMediaKind | undefined =
     mimeType.toLowerCase().startsWith('image/') || type.includes('image')
       ? 'image'
       : mimeType.toLowerCase().startsWith('audio/') || type.includes('audio')
@@ -649,7 +649,7 @@ function resolveMedia(
 
 function appendMediaOrResourceBlock(
   record: Record<string, unknown>,
-  blocks: BirdCoderChatMessageToolResultBlock[],
+  blocks: AgentSessionItemToolResultBlockView[],
 ): boolean {
   const type = normalizeType(record.type);
   const title = readFirstString(record, ['title', 'name', 'filename', 'alt']);
@@ -694,9 +694,9 @@ function appendMediaOrResourceBlock(
   return true;
 }
 
-function projectToolResultValue(
+function normalizeToolResultValue(
   value: unknown,
-  blocks: BirdCoderChatMessageToolResultBlock[],
+  blocks: AgentSessionItemToolResultBlockView[],
   visited: WeakSet<object>,
   depth = 0,
 ): void {
@@ -734,7 +734,7 @@ function projectToolResultValue(
       return;
     }
     for (const entry of value) {
-      projectToolResultValue(entry, blocks, visited, depth + 1);
+      normalizeToolResultValue(entry, blocks, visited, depth + 1);
       if (blocks.length >= MAX_TOOL_RESULT_BLOCKS) {
         break;
       }
@@ -871,14 +871,14 @@ function projectToolResultValue(
         ...(record.items.length > items.length ? { totalItems: record.items.length } : {}),
       });
     } else {
-      projectToolResultValue(record.items, blocks, visited, depth + 1);
+      normalizeToolResultValue(record.items, blocks, visited, depth + 1);
     }
     return;
   }
   const functionResponse = readRecord(record.functionResponse);
   if (functionResponse) {
-    projectToolResultValue(functionResponse.response, blocks, visited, depth + 1);
-    projectToolResultValue(functionResponse.parts, blocks, visited, depth + 1);
+    normalizeToolResultValue(functionResponse.response, blocks, visited, depth + 1);
+    normalizeToolResultValue(functionResponse.parts, blocks, visited, depth + 1);
     return;
   }
   const summary = readString(record.summary);
@@ -904,7 +904,7 @@ function projectToolResultValue(
       continue;
     }
     const previousBlockCount = blocks.length;
-    projectToolResultValue(record[key], blocks, visited, depth + 1);
+    normalizeToolResultValue(record[key], blocks, visited, depth + 1);
     if (blocks.length > previousBlockCount) {
       return;
     }
@@ -1021,19 +1021,19 @@ export function resolveChatMessageToolCallOutput(
 
 export function resolveChatMessageToolCallResultBlocks(
   record: Record<string, unknown>,
-  status: BirdCoderChatMessageToolCallStatus | undefined,
-): readonly BirdCoderChatMessageToolResultBlock[] {
+  status: AgentSessionItemToolCallStatus | undefined,
+): readonly AgentSessionItemToolResultBlockView[] {
   if (Array.isArray(record.resultBlocks)) {
     const normalizedBlocks = record.resultBlocks
       .slice(0, MAX_TOOL_RESULT_BLOCKS)
       .map(normalizeCanonicalResultBlock)
-      .filter((block): block is BirdCoderChatMessageToolResultBlock => block !== null);
+      .filter((block): block is AgentSessionItemToolResultBlockView => block !== null);
     if (normalizedBlocks.length > 0) {
       return normalizedBlocks;
     }
   }
 
-  const blocks: BirdCoderChatMessageToolResultBlock[] = [];
+  const blocks: AgentSessionItemToolResultBlockView[] = [];
   const state = readRecord(record.state);
   const errorValue = hasChatMessageToolErrorValue(record.error)
     ? record.error
@@ -1055,7 +1055,7 @@ export function resolveChatMessageToolCallResultBlocks(
       blocks.push({ type: 'error', message });
     }
   } else {
-    projectToolResultValue(outputValue, blocks, new WeakSet<object>());
+    normalizeToolResultValue(outputValue, blocks, new WeakSet<object>());
   }
   if (
     errorValue !== undefined
@@ -1064,7 +1064,7 @@ export function resolveChatMessageToolCallResultBlocks(
     && nonErrorOutputText
     && nonErrorOutputText !== errorText
   ) {
-    projectToolResultValue(nonErrorOutputValue, blocks, new WeakSet<object>());
+    normalizeToolResultValue(nonErrorOutputValue, blocks, new WeakSet<object>());
   }
 
   const attachments = state?.attachments ?? record.attachments;
@@ -1073,7 +1073,7 @@ export function resolveChatMessageToolCallResultBlocks(
     && attachments !== outputValue
     && attachments !== nonErrorOutputValue
   ) {
-    projectToolResultValue(attachments, blocks, new WeakSet<object>());
+    normalizeToolResultValue(attachments, blocks, new WeakSet<object>());
   }
   return blocks.slice(0, MAX_TOOL_RESULT_BLOCKS);
 }

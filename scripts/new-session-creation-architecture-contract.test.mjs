@@ -7,10 +7,10 @@ const shell = read(
   "apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-shell/src/application/app/birdcoderAppContent.tsx",
 );
 const hook = read(
-  "apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-workbench/src/hooks/useWorkbenchCodingSessionCreationActions.ts",
+  "apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-workbench/src/hooks/useWorkbenchAgentSessionCreationActions.ts",
 );
 const creation = read(
-  "apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-workbench/src/workbench/codingSessionCreation.ts",
+  "apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-workbench/src/workbench/agentSessionCreation.ts",
 );
 const projects = read(
   "apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-workbench/src/hooks/useProjects.ts",
@@ -37,13 +37,13 @@ assert.equal(
   "The shell must have one engine/model selection boundary for every new-session entry.",
 );
 assert.equal(
-  (shell.match(/useWorkbenchCodingSessionCreationActions\(/g) ?? []).length,
+  (shell.match(/useWorkbenchAgentSessionCreationActions\(/g) ?? []).length,
   1,
   "The shell must have one UI-facing session creation use case.",
 );
 assert.doesNotMatch(
   shell,
-  /createMenuCodingSessionWithSelection|createActiveCodingSessionWithSelection/,
+  /createMenuAgentSessionWithSelection|createActiveAgentSessionWithSelection/,
 );
 assert.match(shell, /source: 'file-menu'/);
 assert.match(shell, /source: 'keyboard-shortcut'/);
@@ -53,14 +53,14 @@ assert.match(
   /modelId: newSessionEngineCatalog\.preferredSelection\.modelId/,
 );
 assert.match(workspaceMenu, /engine\.modelId/);
-assert.match(hook, /normalizeCreateNewCodingSessionRequest\(/);
+assert.match(hook, /normalizeCreateNewAgentSessionRequest\(/);
 assert.match(hook, /inFlightCreationsRef/);
 assert.match(hook, /creation\.promise/);
 assert.match(hook, /!creation\.selected[\s\S]*actionOptions\?\.shouldSelectCreatedSession/);
 assert.match(hook, /actionOptions\?\.showSuccessToast !== false/);
-assert.match(multiWindow, /useWorkbenchCodingSessionCreationActions\(/);
+assert.match(multiWindow, /useWorkbenchAgentSessionCreationActions\(/);
 assert.equal(
-  (multiWindow.match(/await createCodingSession\(/g) ?? []).length,
+  (multiWindow.match(/await createAgentSession\(/g) ?? []).length,
   0,
   "Multi-window manual and automatic session creation must not bypass the unified Workbench command.",
 );
@@ -85,17 +85,17 @@ assert.doesNotMatch(
 assert.match(shell, /e\.preventDefault\(\);\s*if \(e\.repeat\) return;/);
 assert.match(
   creation,
-  /ensureWorkbenchCodingSessionForMessage\([\s\S]*createCodingSessionFromRequest[\s\S]*source: 'message-submit'[\s\S]*showSuccessToast: false/,
+  /ensureWorkbenchAgentSessionForMessage\([\s\S]*createAgentSessionFromRequest[\s\S]*source: 'message-submit'[\s\S]*showSuccessToast: false/,
   "Implicit first-message session creation must use the same typed command without a redundant success toast.",
 );
 assert.doesNotMatch(
   creation,
-  /ensureWorkbenchCodingSessionForMessage\([\s\S]*createWorkbenchCodingSessionInProject\(/,
+  /ensureWorkbenchAgentSessionForMessage\([\s\S]*createWorkbenchAgentSessionInProject\(/,
   "Implicit message submission must not bypass the unified request command.",
 );
 assert.match(projects, /resolveProjectRuntimeLocationExecutionId\(/);
 assert.equal(
-  (projects.match(/projectService\.createCodingSession\(/g) ?? []).length,
+  (projects.match(/projectService\.createAgentSession\(/g) ?? []).length,
   1,
   "All useProjects new-session consumers must converge on one persistence call.",
 );

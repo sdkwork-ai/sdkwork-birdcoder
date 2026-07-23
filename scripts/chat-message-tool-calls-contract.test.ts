@@ -1,13 +1,15 @@
 import assert from 'node:assert/strict';
 
 import {
-  projectChatMessageCommand,
-  projectChatMessageToolCall,
-  projectChatMessageToolCalls,
-  projectChatMessageToolNotice,
-  projectChatMessageToolNotices,
+  normalizeChatMessageCommand as projectChatMessageCommand,
+  normalizeChatMessageToolCall as projectChatMessageToolCall,
+  normalizeChatMessageToolCalls as projectChatMessageToolCalls,
+  normalizeChatMessageToolNotice as projectChatMessageToolNotice,
+  normalizeChatMessageToolNotices as projectChatMessageToolNotices,
 } from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-contracts-commons/src/chat-message-tool-calls.ts';
-import { projectChatTranscriptToolActivity } from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-contracts-commons/src/chat-message-activity-projection.ts';
+import {
+  composeChatTranscriptActivity as projectChatTranscriptToolActivity,
+} from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-contracts-commons/src/chat-message-activity-view.ts';
 import { resolveChatMessageView } from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-contracts-commons/src/chat-message-view.ts';
 
 const structuredToolCall = projectChatMessageToolCall(
@@ -40,7 +42,7 @@ assert.equal(projectedToolCalls[1]?.arguments, 'raw tool output');
 
 const toolCallView = resolveChatMessageView({
   id: 'msg-tool-1',
-  codingSessionId: 'session-1',
+  agentSessionId: 'session-1',
   role: 'assistant',
   content: '',
   createdAt: '2026-06-22T00:00:02.000Z',
@@ -549,7 +551,7 @@ assert.deepEqual(
 
 const codexGoalView = resolveChatMessageView({
   id: 'msg-codex-thread-goal',
-  codingSessionId: 'session-codex-thread-goal',
+  agentSessionId: 'session-codex-thread-goal',
   role: 'tool',
   content: 'Goal updated.',
   tool_call_id: 'thread-goal:019d54b7-f3da-79b1-bb78-10770953da42',
@@ -814,7 +816,7 @@ assert.deepEqual(
 );
 const geminiToolDisplayNoticeView = resolveChatMessageView({
   id: 'message-gemini-notice',
-  codingSessionId: 'session-gemini-notice',
+  agentSessionId: 'session-gemini-notice',
   role: 'assistant',
   content: '',
   createdAt: '2026-07-21T00:00:00.000Z',
@@ -831,7 +833,7 @@ assert.deepEqual(geminiToolDisplayNoticeView.blocks, [{
 
 const geminiMixedNoticeView = resolveChatMessageView({
   id: 'message-gemini-mixed-notice',
-  codingSessionId: 'session-gemini-notice',
+  agentSessionId: 'session-gemini-notice',
   role: 'assistant',
   content: 'The provider-neutral reply remains authored content.',
   createdAt: '2026-07-21T00:00:01.000Z',
@@ -1378,7 +1380,7 @@ assert.deepEqual(JSON.parse(claudePermissionDenied?.arguments ?? '{}'), {
 
 const mergedClaudePermissionLifecycle = projectChatTranscriptToolActivity([{
   id: 'claude-permission-request-message',
-  codingSessionId: 'claude-permission-session',
+  agentSessionId: 'claude-permission-session',
   turnId: 'claude-permission-turn',
   role: 'assistant' as const,
   content: '',
@@ -1391,7 +1393,7 @@ const mergedClaudePermissionLifecycle = projectChatTranscriptToolActivity([{
   }],
 }, {
   id: 'claude-permission-denial-message',
-  codingSessionId: 'claude-permission-session',
+  agentSessionId: 'claude-permission-session',
   turnId: 'claude-permission-turn',
   role: 'tool' as const,
   content: 'Permission denied',
@@ -1553,7 +1555,7 @@ for (const [toolName, kind] of [
 
 const commandOnlyView = resolveChatMessageView({
   id: 'msg-command-1',
-  codingSessionId: 'session-1',
+  agentSessionId: 'session-1',
   role: 'assistant',
   content: '',
   createdAt: '2026-06-22T00:00:03.000Z',
@@ -1579,7 +1581,7 @@ assert.equal(commandOnlyView.blocks.some((block) => block.type === 'tool-calls')
 
 const toolResultView = resolveChatMessageView({
   id: 'msg-result-1',
-  codingSessionId: 'session-1',
+  agentSessionId: 'session-1',
   role: 'tool',
   name: 'mcp__linear__list_issues',
   tool_call_id: 'mcp-1',
@@ -1591,7 +1593,7 @@ assert.equal(toolResultView.blocks.some((block) => block.type === 'tool-calls'),
 
 const failedGeminiNoticeView = resolveChatMessageView({
   id: 'gemini-failed-notice-message',
-  codingSessionId: 'gemini-failed-notice-session',
+  agentSessionId: 'gemini-failed-notice-session',
   role: 'assistant',
   content: '',
   createdAt: '2026-07-21T00:00:00.000Z',

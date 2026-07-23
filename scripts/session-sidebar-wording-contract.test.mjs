@@ -138,18 +138,18 @@ const zhStudioWorkspaceLocale = readSource(
 
 assert.match(
   codeSidebarSource,
-  /project\.codingSessions/,
+  /project\.agentSessions/,
   'Code sidebar must continue to render project-owned coding sessions under each project.',
 );
 
 assert.match(
   codeProjectExplorerSessionRowSource,
-  /onClick=\{\(\) => onSelectCodingSession\(session\.id\)\}/,
+  /onClick=\{\(\) => onSelectAgentSession\(session\.id\)\}/,
   'Code sidebar must allow selecting a session directly from the project list.',
 );
 
 assert.ok(
-  codePageSource.includes('messages: selectedCodingSessionMessages'),
+  codePageSource.includes('messages: selectedAgentSessionItems'),
   'Code page must continue loading the selected session message history into the chat view.',
 );
 

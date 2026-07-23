@@ -75,10 +75,17 @@ assert.match(
   'Governance regression report must track release candidate dry-run gate.',
 );
 
-assert.match(
-  String(appConfig.metadata?.releaseEvidenceStatus ?? ''),
-  /release-rehearsal|contract-gates-green/u,
-  'App manifest must record contract-gate or release-rehearsal readiness.',
+assert.equal(
+  appConfig.metadata?.releaseEvidence?.status,
+  'blocked',
+  'A rehearsal must not promote the pre-launch manifest to release-ready.',
+);
+assert.deepEqual(
+  appConfig.metadata?.releaseEvidence?.blockers,
+  [
+    'signed-production-artifact-evidence-missing',
+  ],
+  'The manifest must retain concrete production-release blockers after synthetic rehearsal.',
 );
 
 console.log('release rehearsal readiness contract passed.');

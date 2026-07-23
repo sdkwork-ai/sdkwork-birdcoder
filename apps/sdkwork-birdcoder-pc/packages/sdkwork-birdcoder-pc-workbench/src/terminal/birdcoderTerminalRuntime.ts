@@ -50,7 +50,6 @@ export function resolveBirdcoderBrowserTerminalTarget(
 export function resolveBirdcoderBrowserTerminalClient(): WebRuntimeBridgeClient {
   const tokenManager = getBirdCoderGlobalTokenManager();
   const baseUrl = readBirdCoderRuntimePublicEnv('VITE_SDKWORK_BIRDCODER_APPLICATION_PUBLIC_HTTP_URL')
-    || readBirdCoderRuntimePublicEnv('VITE_BIRDCODER_API_BASE_URL')
     || '';
 
   if (

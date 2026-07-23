@@ -1,21 +1,17 @@
 import {
   buildTerminalExecutionPlan,
   getTerminalProfile,
-  resolveTerminalLaunchProfileOption,
 } from './profiles.ts';
-import { isTerminalCliProfileId } from './registry.ts';
 import {
   buildTerminalCommandAuditEvent,
-  buildTerminalProfileBlockedMessage,
   evaluateTerminalCommandGovernance,
-  listTerminalCliProfileAvailability,
   sanitizeTerminalCommandForAudit,
   type TerminalCommandRequest,
 } from './runtime.ts';
 import {
-  saveStoredTerminalGovernanceAuditRecord,
-  type TerminalGovernanceAuditRecord,
-} from './auditStore.ts';
+  recordTerminalGovernanceDiagnostic,
+  type TerminalGovernanceDiagnosticRecord,
+} from './governanceDiagnostics.ts';
 import type {
   DesktopLocalProcessSessionCreateRequest,
   DesktopLocalShellSessionCreateRequest,
@@ -40,8 +36,8 @@ export interface BirdcoderTerminalLaunchResolution {
 
 export interface BirdcoderTerminalGovernanceRuntime {
   evaluateCommand: typeof evaluateTerminalCommandGovernance;
-  saveAuditRecord: (
-    record: TerminalGovernanceAuditRecord,
+  recordDiagnostic: (
+    record: TerminalGovernanceDiagnosticRecord,
   ) => Promise<unknown>;
   now: () => number;
 }
@@ -50,12 +46,12 @@ const DEFAULT_TERMINAL_COLS = 120;
 const DEFAULT_TERMINAL_ROWS = 32;
 const DEFAULT_TERMINAL_GOVERNANCE_RUNTIME: BirdcoderTerminalGovernanceRuntime = {
   evaluateCommand: evaluateTerminalCommandGovernance,
-  saveAuditRecord: saveStoredTerminalGovernanceAuditRecord,
+  recordDiagnostic: recordTerminalGovernanceDiagnostic,
   now: Date.now,
 };
 
 const TERMINAL_GOVERNANCE_UNAVAILABLE_MESSAGE =
-  'The command was not launched because terminal governance could not be evaluated or audited.';
+  'The command was not launched because terminal governance could not be evaluated or recorded.';
 
 function mapTerminalProfileIdToShellAppProfile(
   profileId: string,
@@ -157,26 +153,6 @@ export function buildBirdcoderTerminalLaunchPlan(
     };
   }
 
-  if (isTerminalCliProfileId(profile.id)) {
-    const launchProfile = resolveTerminalLaunchProfileOption(profile.id);
-
-    return {
-      kind: 'local-process',
-      profile: shellAppProfile,
-      title: profile.title,
-      targetLabel: workingDirectory,
-      localProcessRequest: buildLocalProcessRequest(
-        [launchProfile.executable, ...launchProfile.startupArgs],
-        workingDirectory,
-        {
-          ...options,
-          title: profile.title,
-        },
-        profile.id,
-      ),
-    };
-  }
-
   return {
     kind: 'local-shell',
     profile: shellAppProfile,
@@ -200,21 +176,6 @@ export async function resolveBirdcoderTerminalLaunchRequest(
   governanceRuntime: BirdcoderTerminalGovernanceRuntime =
     DEFAULT_TERMINAL_GOVERNANCE_RUNTIME,
 ): Promise<BirdcoderTerminalLaunchResolution> {
-  const profileId = request.profileId ?? 'powershell';
-  if (isTerminalCliProfileId(profileId)) {
-    const availabilityEntries = await listTerminalCliProfileAvailability();
-    const availability = availabilityEntries.find((entry) => entry.profileId === profileId);
-
-    if (availability?.status === 'missing') {
-      return {
-        blockedMessage:
-          buildTerminalProfileBlockedMessage(profileId, availability) ??
-          `${profileId} is unavailable.`,
-        plan: null,
-      };
-    }
-  }
-
   const plan = buildBirdcoderTerminalLaunchPlan(request, options);
   const normalizedCommand = request.command?.trim();
   if (normalizedCommand) {
@@ -236,7 +197,7 @@ export async function resolveBirdcoderTerminalLaunchRequest(
         recordedAt,
       );
 
-      await governanceRuntime.saveAuditRecord({
+      await governanceRuntime.recordDiagnostic({
         ...auditEvent,
         recordedAt,
         profileId,

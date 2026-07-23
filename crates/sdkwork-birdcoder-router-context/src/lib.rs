@@ -3,10 +3,8 @@ use std::collections::HashSet;
 use axum::extract::{FromRequestParts, Query};
 use axum::http::request::Parts;
 use axum::http::Uri;
-use sdkwork_birdcoder_coding_sessions_service::context::CodingSessionContext;
-use sdkwork_birdcoder_deployment_service::context::DeploymentContext;
 use sdkwork_birdcoder_errors::{
-    trace_id_from_request_id, traced_legacy_problem, traced_platform_problem, ProblemJsonBody,
+    trace_id_from_request_id, traced_platform_problem, ProblemJsonBody,
 };
 use sdkwork_birdcoder_project_service::context::ProjectContext;
 use sdkwork_birdcoder_workspace_service::context::WorkspaceContext;
@@ -137,17 +135,11 @@ where
             .get::<IamAppContext>()
             .cloned()
             .map(RequiredIamContext)
-            .ok_or(traced_legacy_problem("4010", "session required", None))
-    }
-}
-
-pub fn coding_session_context(iam: &IamAppContext) -> CodingSessionContext {
-    let project = project_context(iam);
-    CodingSessionContext {
-        tenant_id: iam.tenant_id.clone(),
-        organization_id: project.organization_id,
-        user_id: iam.user_id.clone(),
-        session_id: iam.session_id.clone(),
+            .ok_or(traced_platform_problem(
+                SdkWorkResultCode::AuthenticationRequired,
+                "Authentication is required.",
+                None,
+            ))
     }
 }
 
@@ -171,13 +163,6 @@ pub fn project_context(iam: &IamAppContext) -> ProjectContext {
     ProjectContext {
         tenant_id: iam.tenant_id.clone(),
         organization_id,
-        user_id: iam.user_id.clone(),
-    }
-}
-
-pub fn deployment_context(iam: &IamAppContext) -> DeploymentContext {
-    DeploymentContext {
-        tenant_id: iam.tenant_id.clone(),
         user_id: iam.user_id.clone(),
     }
 }
@@ -234,7 +219,7 @@ mod tests {
 
     #[test]
     fn strict_offset_pagination_parses_the_standard_wire_parameters() {
-        let uri = Uri::from_static("/app/v3/api/intelligence/coding_sessions?page=2&page_size=20");
+        let uri = Uri::from_static("/app/v3/api/projects?page=2&page_size=20");
 
         let page = strict_offset_list_params(&uri).expect("parse standard pagination");
 
@@ -256,7 +241,7 @@ mod tests {
             "?page=1.5",
             "?page=1&cursor=opaque",
         ] {
-            let uri: Uri = format!("/app/v3/api/intelligence/coding_sessions{query}")
+            let uri: Uri = format!("/app/v3/api/projects{query}")
                 .parse()
                 .expect("build URI");
             assert!(
@@ -269,7 +254,7 @@ mod tests {
     #[test]
     fn strict_offset_pagination_allows_repeated_domain_filters() {
         let uri = Uri::from_static(
-            "/app/v3/api/deployments?status=queued&status=running&page=2&page_size=20",
+            "/app/v3/api/projects?status=active&status=archived&page=2&page_size=20",
         );
 
         let page = strict_offset_list_params(&uri).expect("parse repeated domain filters");

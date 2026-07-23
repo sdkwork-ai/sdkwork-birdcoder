@@ -31,7 +31,7 @@ assert.match(
 );
 assert.match(
   mapProjectRecordSource,
-  /if \(!options\.sessionsSortedByActivity\) \{\s*normalizedSessions\.sort\(compareCodingSessionsByActivity\);\s*\}/s,
+  /if \(!options\.sessionsSortedByActivity\) \{\s*normalizedSessions\.sort\(compareAgentSessionsByActivity\);\s*\}/s,
   'mapProjectRecord must only sort sessions when callers cannot prove the input is already activity-sorted.',
 );
 assert.doesNotMatch(

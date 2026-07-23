@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import fs from 'node:fs';
 
 import {
   buildTerminalCommandAuditEvent,
@@ -10,7 +11,22 @@ import {
   resolveBirdcoderTerminalLaunchRequest,
   type BirdcoderTerminalGovernanceRuntime,
 } from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-workbench/src/terminal/sdkworkTerminalLaunch.ts';
-import type { TerminalGovernanceAuditRecord } from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-workbench/src/terminal/auditStore.ts';
+import type { TerminalGovernanceDiagnosticRecord } from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-workbench/src/terminal/governanceDiagnostics.ts';
+
+const governanceDiagnosticsUrl = new URL(
+  '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-workbench/src/terminal/governanceDiagnostics.ts',
+  import.meta.url,
+);
+const retiredAuditStoreUrl = new URL(
+  '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-workbench/src/terminal/auditStore.ts',
+  import.meta.url,
+);
+assert.equal(fs.existsSync(retiredAuditStoreUrl), false, 'The local terminal audit store must stay retired.');
+assert.doesNotMatch(
+  fs.readFileSync(governanceDiagnosticsUrl, 'utf8'),
+  /localStore|localStorage|getStoredJson|setStoredJson/u,
+  'Terminal governance diagnostics must remain bounded in-memory state, not local business persistence.',
+);
 
 assert.equal(classifyTerminalCommandRisk('git status'), 'P0');
 assert.equal(classifyTerminalCommandRisk('git status && npm install'), 'P2');
@@ -100,18 +116,18 @@ assert.equal(firstSecretAudit.inputDigest, secondSecretAudit.inputDigest);
 
 function createGovernanceRuntime(
   settings: Parameters<typeof evaluateTerminalCommandGovernance>[1],
-  auditRecords: TerminalGovernanceAuditRecord[],
+  diagnostics: TerminalGovernanceDiagnosticRecord[],
 ): BirdcoderTerminalGovernanceRuntime {
   return {
     evaluateCommand: (command) => evaluateTerminalCommandGovernance(command, settings),
-    saveAuditRecord: async (record) => {
-      auditRecords.push(record);
+    recordDiagnostic: async (record) => {
+      diagnostics.push(record);
     },
     now: () => 1_700_000_000_000,
   };
 }
 
-const blockedAuditRecords: TerminalGovernanceAuditRecord[] = [];
+const blockedDiagnostics: TerminalGovernanceDiagnosticRecord[] = [];
 const blockedResolution = await resolveBirdcoderTerminalLaunchRequest(
   {
     surface: 'embedded',
@@ -126,16 +142,16 @@ const blockedResolution = await resolveBirdcoderTerminalLaunchRequest(
       approvalPolicy: 'AutoAllow',
       sandboxSettings: 'ReadOnly',
     },
-    blockedAuditRecords,
+    blockedDiagnostics,
   ),
 );
 assert.equal(blockedResolution.plan, null);
 assert.match(blockedResolution.blockedMessage ?? '', /read-only command guard/iu);
-assert.equal(blockedAuditRecords.length, 1);
-assert.equal(blockedAuditRecords[0]?.approvalDecision, 'blocked');
-assert.equal(blockedAuditRecords[0]?.sandboxSettings, 'ReadOnly');
+assert.equal(blockedDiagnostics.length, 1);
+assert.equal(blockedDiagnostics[0]?.approvalDecision, 'blocked');
+assert.equal(blockedDiagnostics[0]?.sandboxSettings, 'ReadOnly');
 
-const allowedAuditRecords: TerminalGovernanceAuditRecord[] = [];
+const allowedDiagnostics: TerminalGovernanceDiagnosticRecord[] = [];
 const allowedResolution = await resolveBirdcoderTerminalLaunchRequest(
   {
     surface: 'embedded',
@@ -150,14 +166,14 @@ const allowedResolution = await resolveBirdcoderTerminalLaunchRequest(
       approvalPolicy: 'AutoAllow',
       sandboxSettings: 'ReadWrite',
     },
-    allowedAuditRecords,
+    allowedDiagnostics,
   ),
 );
 assert.equal(allowedResolution.blockedMessage, null);
 assert.equal(allowedResolution.plan?.kind, 'local-process');
-assert.equal(allowedAuditRecords.length, 1);
-assert.equal(allowedAuditRecords[0]?.command, 'TOKEN=<redacted> npm test');
-assert.equal(allowedAuditRecords[0]?.approvalDecision, 'auto_allowed');
+assert.equal(allowedDiagnostics.length, 1);
+assert.equal(allowedDiagnostics[0]?.command, 'TOKEN=<redacted> npm test');
+assert.equal(allowedDiagnostics[0]?.approvalDecision, 'auto_allowed');
 
 const auditFailureResolution = await resolveBirdcoderTerminalLaunchRequest(
   {
@@ -174,13 +190,13 @@ const auditFailureResolution = await resolveBirdcoderTerminalLaunchRequest(
         approvalPolicy: 'AutoAllow',
         sandboxSettings: 'FullAccess',
       }),
-    saveAuditRecord: async () => {
+    recordDiagnostic: async () => {
       throw new Error('storage unavailable');
     },
     now: () => 1_700_000_000_000,
   },
 );
 assert.equal(auditFailureResolution.plan, null);
-assert.match(auditFailureResolution.blockedMessage ?? '', /could not be evaluated or audited/iu);
+assert.match(auditFailureResolution.blockedMessage ?? '', /could not be evaluated or recorded/iu);
 
 console.log('terminal governance runtime contract passed.');

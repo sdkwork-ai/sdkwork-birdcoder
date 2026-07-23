@@ -89,28 +89,31 @@ function assertServerBinaryPresent({
   }
 }
 
-function assertValidCodingServerOpenApiSnapshot(openApiPath) {
+function assertValidBirdcoderAppApiOpenApiSnapshot(openApiPath) {
   let document;
   try {
     document = JSON.parse(fs.readFileSync(openApiPath, 'utf8'));
   } catch (error) {
-    throw new Error(`Invalid coding-server OpenAPI sidecar JSON at ${openApiPath}: ${error instanceof Error ? error.message : String(error)}`);
+    throw new Error(`Invalid BirdCoder App API OpenAPI sidecar JSON at ${openApiPath}: ${error instanceof Error ? error.message : String(error)}`);
   }
 
   if (String(document?.openapi ?? '').trim() !== '3.1.0') {
-    throw new Error(`Coding-server OpenAPI sidecar must expose OpenAPI 3.1.0: ${openApiPath}`);
+    throw new Error(`BirdCoder App API OpenAPI sidecar must expose OpenAPI 3.1.0: ${openApiPath}`);
   }
-  if (String(document?.info?.version ?? '').trim() !== 'v1') {
-    throw new Error(`Coding-server OpenAPI sidecar must preserve API version v1: ${openApiPath}`);
+  if (String(document?.info?.title ?? '').trim() !== 'SDKWork BirdCoder App API') {
+    throw new Error(`BirdCoder App API OpenAPI sidecar has an unexpected title: ${openApiPath}`);
   }
-  if (String(document?.servers?.[0]?.url ?? '').trim() !== '/') {
-    throw new Error(`Coding-server OpenAPI sidecar must publish the unified same-port server URL '/': ${openApiPath}`);
+  if (String(document?.servers?.[0]?.url ?? '').trim() !== '/app/v3/api') {
+    throw new Error(`BirdCoder App API OpenAPI sidecar must publish the canonical /app/v3/api base URL: ${openApiPath}`);
   }
-  if (String(document?.['x-sdkwork-api-assembly']?.routeCatalogPath ?? '').trim() !== '/app/v3/api/system/routes') {
-    throw new Error(`Coding-server OpenAPI sidecar must expose the app route catalog path: ${openApiPath}`);
+  if (String(document?.['x-sdkwork-api-authority'] ?? '').trim() !== 'sdkwork-birdcoder-app-api') {
+    throw new Error(`BirdCoder App API OpenAPI sidecar has an unexpected API authority: ${openApiPath}`);
+  }
+  if (String(document?.['x-sdkwork-owner'] ?? '').trim() !== 'sdkwork-birdcoder') {
+    throw new Error(`BirdCoder App API OpenAPI sidecar has an unexpected owner: ${openApiPath}`);
   }
   if (String(document?.paths?.['/app/v3/api/system/routes']?.get?.operationId ?? '').trim() !== 'routes.list') {
-    throw new Error(`Coding-server OpenAPI sidecar must expose routes.list on /app/v3/api/system/routes: ${openApiPath}`);
+    throw new Error(`BirdCoder App API OpenAPI sidecar must expose routes.list on /app/v3/api/system/routes: ${openApiPath}`);
   }
 }
 
@@ -164,17 +167,17 @@ export function smokeServerReleaseAssets({
       .sort((left, right) => left.localeCompare(right))
     : [];
   const openApiRelativePath = normalizeRelativePath(
-    path.join('server', normalizedPlatform, normalizedArch, 'openapi', 'coding-server-v1.json'),
+    path.join('server', normalizedPlatform, normalizedArch, 'openapi', 'birdcoder-app-api.openapi.json'),
   );
   const openApiPath = path.resolve(releaseAssetsDir, openApiRelativePath);
 
   if (!artifactRelativePaths.includes(openApiRelativePath)) {
-    throw new Error(`Missing coding-server OpenAPI sidecar reference in ${manifestPath}.`);
+    throw new Error(`Missing BirdCoder App API OpenAPI sidecar reference in ${manifestPath}.`);
   }
   if (!fs.existsSync(openApiPath)) {
-    throw new Error(`Missing coding-server OpenAPI sidecar at ${openApiPath}.`);
+    throw new Error(`Missing BirdCoder App API OpenAPI sidecar at ${openApiPath}.`);
   }
-  assertValidCodingServerOpenApiSnapshot(openApiPath);
+  assertValidBirdcoderAppApiOpenApiSnapshot(openApiPath);
 
   const smokeReport = writeReleaseSmokeReport({
     releaseAssetsDir,
@@ -206,12 +209,12 @@ export function smokeServerReleaseAssets({
       {
         id: 'openapi-sidecar-present',
         status: 'passed',
-        detail: 'server release assets include the generated coding-server OpenAPI snapshot sidecar',
+        detail: 'server release assets include the canonical BirdCoder App API OpenAPI snapshot sidecar',
       },
       {
         id: 'openapi-sidecar-shape',
         status: 'passed',
-        detail: 'server release OpenAPI sidecar preserves the unified same-port schema and route catalog metadata',
+        detail: 'server release OpenAPI sidecar preserves the App API authority and route catalog metadata',
       },
     ],
   });

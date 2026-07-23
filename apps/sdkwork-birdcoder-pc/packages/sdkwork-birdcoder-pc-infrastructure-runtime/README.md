@@ -1,40 +1,58 @@
-# @sdkwork/birdcoder-infrastructure-runtime
+# @sdkwork/birdcoder-pc-infrastructure-runtime
 
-Domain: platform
-Capability: im
-Package type: node-package
-Status: standardizing
+Domain: `sdkwork-birdcoder`
+Capability: PC runtime composition
+Package type: TypeScript runtime package
+Status: active
+Owner: `sdkwork-birdcoder`
 
-This README is the SDKWork module entrypoint for `@sdkwork/birdcoder-infrastructure-runtime`. The machine-readable component contract is `specs/component.spec.json`; canonical standards are under `../../../sdkwork-specs/`.
+The machine contract is
+[specs/component.spec.json](./specs/component.spec.json). Canonical standards
+remain under [sdkwork-specs](../../../../../sdkwork-specs/README.md).
 
 ## Public API
 
-- `.`
+- `./defaultIdeServices` binds the typed dependency-client factory to default
+  IDE service adapters.
+- `./membershipSdkBootstrap`, `./projectRuntimeLocation`,
+  `./driveSandboxExplorer`, and `./runtimeTopology` expose runtime composition
+  helpers.
 
 ## Required SDK Surface
 
-- None declared in `specs/component.spec.json`.
+This package declares no SDK family directly. It requests Documents and
+Prompts clients through
+`@sdkwork/birdcoder-pc-infrastructure/services/dependencyAppSdkClients`; the PC
+core remains the only frontend SDK inventory authority.
 
 ## Configuration
 
-Configuration keys, runtime entrypoints, and integration contracts are declared in `specs/component.spec.json`. Shared modules must receive configuration through typed bootstrap or service boundaries rather than reading host-local environment state directly.
+Bootstrap supplies the resolved application edge URL and runtime topology.
+Tests may inject typed clients; production composition obtains authenticated
+clients through the Infrastructure factory before feature services load.
 
-## SaaS/Private/Local Behavior
+## Deployment Profile And Runtime Target Behavior
 
-This component follows the deployment and runtime rules referenced by its `canonicalSpecs` entries. SaaS, private, and local behavior must stay compatible with the relevant SDKWork specs before implementation changes are made.
+Browser and desktop targets share the same service contracts. The resolved
+topology determines cloud or standalone endpoints before the factory creates
+clients; this package does not infer deployment URLs.
 
 ## Security
 
-Do not add secrets, live tokens, manual auth headers, or app-local credential handling to this module. Protected API and SDK access must use the generated SDK or approved service boundary declared in the component contract.
+No credential is persisted here. The Infrastructure factory binds clients to
+the global TokenManager, and this package receives only typed clients and
+service ports.
 
 ## Extension Points
 
-Extension points are limited to public exports, runtime entrypoints, SDK clients, events, and config keys declared in `specs/component.spec.json`.
+Extend runtime composition by adding a typed Infrastructure port and declaring
+that required port in `specs/component.spec.json`. Do not add generated SDK
+packages or a duplicate `sdkDependencies` inventory to this runtime package.
 
 ## Verification
 
-- `node ../sdkwork-specs/tools/check-component-port-bindings.mjs --root .`
+- `pnpm --dir apps/sdkwork-birdcoder-pc typecheck`
+- `node scripts/run-local-tsx.mjs scripts/pc-runtime-boundary-ports-contract.test.ts`
+- `node ../sdkwork-specs/tools/check-frontend-composition.mjs --root .`
+- `node ../sdkwork-specs/tools/check-component-port-bindings.mjs --root . --strict`
 
-## Owner And Status
-
-Owner and lifecycle status are tracked in `specs/component.spec.json`. Update that contract before changing public integration behavior.

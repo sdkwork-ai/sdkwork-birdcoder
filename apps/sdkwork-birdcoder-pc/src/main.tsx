@@ -5,8 +5,8 @@ import {
   BootstrapGate,
   bootstrapShellRuntime,
   isBirdCoderDevelopmentBrowserRuntime,
-  readConfiguredBirdCoderApiBaseUrl,
-  readConfiguredBirdCoderRealtimeTransport,
+  readConfiguredBirdCoderApplicationApiBaseUrl,
+  readConfiguredBirdCoderPlatformApiGatewayBaseUrl,
   readStoredBirdCoderServerBaseUrl,
   publishBirdCoderBootstrapProgress,
   resolveBirdCoderBrowserServerBaseUrl,
@@ -17,7 +17,9 @@ import './index.css';
 
 async function bootstrapRuntime() {
   publishBirdCoderBootstrapProgress({ progress: 18, stage: 'runtime' });
-  const configuredApiBaseUrl = readConfiguredBirdCoderApiBaseUrl();
+  const configuredApiBaseUrl = readConfiguredBirdCoderApplicationApiBaseUrl();
+  const platformApiGatewayBaseUrl =
+    readConfiguredBirdCoderPlatformApiGatewayBaseUrl();
   const storedApiBaseUrl = await readStoredBirdCoderServerBaseUrl();
   publishBirdCoderBootstrapProgress({ progress: 28, stage: 'runtime' });
   const resolvedApiBaseUrl = resolveBirdCoderBrowserServerBaseUrl(
@@ -35,8 +37,8 @@ async function bootstrapRuntime() {
   await waitForBirdCoderApiReady(resolvedApiBaseUrl);
   publishBirdCoderBootstrapProgress({ progress: 52, stage: 'runtime' });
   await bootstrapShellRuntime({
-    apiBaseUrl: resolvedApiBaseUrl,
-    realtimeTransport: readConfiguredBirdCoderRealtimeTransport(),
+    applicationApiBaseUrl: resolvedApiBaseUrl,
+    platformApiGatewayBaseUrl,
   });
   publishBirdCoderBootstrapProgress({ progress: 62, stage: 'runtime' });
 }

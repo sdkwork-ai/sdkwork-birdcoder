@@ -4,11 +4,11 @@ import {
   reconcileTranscriptPrefixHeightsCache,
   type TranscriptPrefixHeightsCache,
 } from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-ui/src/components/transcriptVirtualization.ts';
-import type { BirdCoderChatMessage } from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-contracts-commons/src/index.ts';
+import type { AgentSessionItemView } from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-contracts-commons/src/index.ts';
 
-function buildMessage(index: number): BirdCoderChatMessage {
+function buildMessage(index: number): AgentSessionItemView {
   return {
-    codingSessionId: 'transcript-virtualization-cache',
+    agentSessionId: 'transcript-virtualization-cache',
     content: `message ${index}`,
     createdAt: '2026-04-29T12:00:00.000Z',
     id: `message-${index}`,

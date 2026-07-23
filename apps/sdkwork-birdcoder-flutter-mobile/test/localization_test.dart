@@ -13,10 +13,11 @@ void main() {
     final tokenManager = BirdCoderTokenManager(
       sessionStorage: MemoryBirdCoderSessionStorage(),
     );
-    final iamRuntime = createBirdCoderIamRuntime(
-      tokenManager: tokenManager,
+    final sdkClients = createBirdCoderFlutterSdkClients(
       apiBaseUrl: 'https://example.invalid',
+      tokenManager: tokenManager,
     );
+    final iamRuntime = createBirdCoderIamRuntime(sdkClients: sdkClients);
     addTearDown(iamRuntime.dispose);
     final bootstrapState = BirdCoderFlutterBootstrapState(
       environment: const BirdCoderFlutterEnvironment(
@@ -29,10 +30,8 @@ void main() {
       ),
       apiBaseUrl: 'https://example.invalid',
       iamRuntime: iamRuntime,
-      sdkClients: createBirdCoderFlutterSdkClients(
-        apiBaseUrl: 'https://example.invalid',
-        tokenManager: tokenManager,
-      ),
+      iamAuthService: BirdCoderIamAuthService(sdkClients: sdkClients),
+      sdkClients: sdkClients,
       routes: createBirdCoderRouteCatalog(),
     );
 
@@ -56,7 +55,7 @@ void main() {
         localizationsDelegates: AppL10n.localizationsDelegates,
         supportedLocales: AppL10n.supportedLocales,
         home: Builder(
-          builder: (context) => Text(AppL10n.tr(context).chat_send),
+          builder: (context) => Text(AppL10n.tr(context).agent_session_send),
         ),
       ),
     );

@@ -6,8 +6,6 @@
  * and persisted to `localStorage` so Capacitor and browser modes share one
  * preference store.
  *
- * The shape mirrors the PC settings preferences so future cross-surface
- * sharing through `@sdkwork/birdcoder-settings-shared` remains a drop-in.
  */
 import {
   createContext,

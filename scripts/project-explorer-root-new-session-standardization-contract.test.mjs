@@ -13,13 +13,13 @@ const sidebarSource = read('apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder
 
 assert.doesNotMatch(
   sidebarSource,
-  /emitCreateNewCodingSessionRequest/,
-  'Sidebar root new-session actions must not bypass the page-level standardized session creation orchestration by emitting createNewCodingSession requests directly.',
+  /emitCreateNewAgentSessionRequest/,
+  'Sidebar root new-session actions must not bypass the page-level standardized session creation orchestration by emitting createNewAgentSession requests directly.',
 );
 
 assert.match(
   sidebarSource,
-  /onNewCodingSessionInProject\(\s*selectedProjectId,\s*newSessionEngineCatalog\.preferredSelection\.engineId,\s*\)/s,
+  /onNewAgentSessionInProject\(\s*selectedProjectId,\s*newSessionEngineCatalog\.preferredSelection\.engineId,\s*\)/s,
   'Sidebar root new-session action must create the default session through the current project callback so engine/model/session creation remains standardized.',
 );
 

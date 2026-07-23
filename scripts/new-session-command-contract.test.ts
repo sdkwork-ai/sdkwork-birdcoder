@@ -1,14 +1,14 @@
 import assert from 'node:assert/strict';
 
 import {
-  buildCreateNewCodingSessionInFlightKey,
-  createWorkbenchCodingSessionInProject,
-  ensureWorkbenchCodingSessionForMessage,
-  normalizeCreateNewCodingSessionRequest,
-} from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-workbench/src/workbench/codingSessionCreation.ts';
-import type { BirdCoderCodingSession } from '@sdkwork/birdcoder-pc-contracts-commons';
+  buildCreateNewAgentSessionInFlightKey,
+  createWorkbenchAgentSessionInProject,
+  ensureWorkbenchAgentSessionForMessage,
+  normalizeCreateNewAgentSessionRequest,
+} from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-workbench/src/workbench/agentSessionCreation.ts';
+import type { AgentSessionView } from '@sdkwork/birdcoder-pc-contracts-commons';
 
-const normalized = normalizeCreateNewCodingSessionRequest({
+const normalized = normalizeCreateNewAgentSessionRequest({
   engineId: ' codex ',
   modelId: ' gpt-5 ',
   projectId: ' explicit-project ',
@@ -21,15 +21,15 @@ assert.deepEqual(normalized, {
   source: 'file-menu',
 });
 assert.equal(
-  buildCreateNewCodingSessionInFlightKey(normalized!),
-  buildCreateNewCodingSessionInFlightKey({ ...normalized!, source: 'keyboard-shortcut' }),
+  buildCreateNewAgentSessionInFlightKey(normalized!),
+  buildCreateNewAgentSessionInFlightKey({ ...normalized!, source: 'keyboard-shortcut' }),
   'equivalent overlapping UI intents must share one in-flight identity.',
 );
 
 let persistenceCalls = 0;
-const selections: Array<{ codingSessionId: string; projectId?: string }> = [];
-const created = await createWorkbenchCodingSessionInProject({
-  createCodingSessionWithSelection: async (projectId, title, options) => {
+const selections: Array<{ agentSessionId: string; projectId?: string }> = [];
+const created = await createWorkbenchAgentSessionInProject({
+  createAgentSessionWithSelection: async (projectId, title, options) => {
     persistenceCalls += 1;
     assert.equal(projectId, 'explicit-project');
     assert.equal(title, 'Precise title');
@@ -38,26 +38,26 @@ const created = await createWorkbenchCodingSessionInProject({
       id: 'coding-session-1',
       projectId,
       title,
-    } as BirdCoderCodingSession;
+    } as AgentSessionView;
   },
   projectId: 'explicit-project',
   requestedEngineId: 'codex',
   requestedModelId: 'gpt-5',
-  selectCodingSession: (codingSessionId, options) => {
-    selections.push({ codingSessionId, projectId: options?.projectId });
+  selectAgentSession: (agentSessionId, options) => {
+    selections.push({ agentSessionId, projectId: options?.projectId });
   },
   title: 'Precise title',
 });
 assert.equal(created.id, 'coding-session-1');
 assert.equal(persistenceCalls, 1);
 assert.deepEqual(selections, [{
-  codingSessionId: 'coding-session-1',
+  agentSessionId: 'coding-session-1',
   projectId: 'explicit-project',
 }]);
 
 let messageCreationCalls = 0;
-const ensuredSession = await ensureWorkbenchCodingSessionForMessage({
-  createCodingSessionFromRequest: async (request, options) => {
+const ensuredSession = await ensureWorkbenchAgentSessionForMessage({
+  createAgentSessionFromRequest: async (request, options) => {
     messageCreationCalls += 1;
     assert.deepEqual(request, {
       engineId: 'codex',
@@ -71,9 +71,9 @@ const ensuredSession = await ensureWorkbenchCodingSessionForMessage({
       id: 'coding-session-message',
       projectId: request?.projectId,
       title: request?.title,
-    } as BirdCoderCodingSession;
+    } as AgentSessionView;
   },
-  currentCodingSessionId: null,
+  currentAgentSessionId: null,
   currentProjectId: 'message-project',
   messageContent: '123456789012345678901',
   requestedEngineId: 'codex',
@@ -81,7 +81,7 @@ const ensuredSession = await ensureWorkbenchCodingSessionForMessage({
   resolveProjectId: () => null,
 });
 assert.deepEqual(ensuredSession, {
-  codingSessionId: 'coding-session-message',
+  agentSessionId: 'coding-session-message',
   projectId: 'message-project',
   wasCreated: true,
 });

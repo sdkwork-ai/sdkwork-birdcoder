@@ -21,7 +21,7 @@ function createLocalProject(id: string): BirdCoderProject {
     description: 'Server-authorized projects remain independent from local device mounts.',
     createdAt: '2026-07-13T00:00:00.000Z',
     updatedAt: '2026-07-13T00:00:00.000Z',
-    codingSessions: [],
+    agentSessions: [],
   };
 }
 
@@ -70,7 +70,7 @@ const writeService = {
 const service = new ApiBackedProjectService({
   appClient,
   codingRuntimeClient: {
-    async listCodingSessions() {
+    async listAgentSessions() {
       return [];
     },
   } as unknown as BirdCoderAppRuntimeReadSdkApiClient,

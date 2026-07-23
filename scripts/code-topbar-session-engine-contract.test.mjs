@@ -60,7 +60,7 @@ assert.match(
 
 assert.match(
   codePageSource,
-  /const isSelectedSessionEngineBusy = isBirdCoderCodingSessionEngineBusy\(session\);/,
+  /const isSelectedSessionEngineBusy = isAgentSessionViewEngineBusy\(session\);/,
   'Code page must precompute the selected session engine-busy flag for the top bar so the header does not spin for approval or user-reply waits.',
 );
 
@@ -102,7 +102,7 @@ assert.doesNotMatch(
 
 assert.doesNotMatch(
   codePageSource,
-  /topBarProps = \{\s*currentProject,\s*selectedCodingSession:/s,
+  /topBarProps = \{\s*currentProject,\s*selectedAgentSession:/s,
   'Code page must not pass whole project and session objects into the top bar because transcript updates would force unnecessary header rerenders.',
 );
 

@@ -46,8 +46,7 @@ class _BirdCoderRegisterPageState extends State<BirdCoderRegisterPage> {
     });
 
     try {
-      await birdCoderIamAuthService.registerWithPassword(
-        apiBaseUrl: provider.apiBaseUrl,
+      await provider.iamAuthService.registerWithPassword(
         iamRuntime: provider.iamRuntime,
         username: _usernameController.text,
         password: _passwordController.text,
@@ -66,7 +65,8 @@ class _BirdCoderRegisterPageState extends State<BirdCoderRegisterPage> {
         return;
       }
       setState(() {
-        _errorMessage = 'Registration failed. Check your details and try again.';
+        _errorMessage =
+            'Registration failed. Check your details and try again.';
       });
     } finally {
       if (mounted) {

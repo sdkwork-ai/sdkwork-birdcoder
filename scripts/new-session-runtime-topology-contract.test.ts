@@ -8,6 +8,7 @@ import {
   ProjectWorkspaceBindingRequiredError,
 } from "../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/src/services/impl/DriveSandboxProjectFileSystemService.ts";
 import { resolveBirdCoderRuntimeTopology } from "../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/src/services/runtimeTopology.ts";
+import { BirdCoderApiTransportError } from "../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-contracts-commons/src/apiTransportError.ts";
 import {
   publishBirdCoderDesktopSdkRuntimeEnv,
   readDesktopRuntimeConfig,
@@ -23,14 +24,16 @@ assert.equal(
 );
 assert.deepEqual(
   await readDesktopRuntimeConfig({
-    configuredApiBaseUrl: "https://api.example.com/birdcoder/",
+    configuredApplicationApiBaseUrl: "https://birdcoder.example.com/",
+    configuredPlatformApiGatewayBaseUrl: "https://platform.example.com/",
     deploymentProfile: "cloud",
   }),
   {
-    apiBaseUrl: "https://api.example.com/birdcoder",
+    applicationApiBaseUrl: "https://birdcoder.example.com",
     deploymentProfile: "cloud",
     executionLocation: "cloud-workspace",
     runtimeTarget: "desktop",
+    platformApiGatewayBaseUrl: "https://platform.example.com",
   },
   "Remote desktop must resolve its configured API without invoking the embedded local runtime.",
 );
@@ -39,21 +42,22 @@ const runtimeEnvHost = globalThis as typeof globalThis & {
 };
 const previousRuntimeEnv = runtimeEnvHost.__SDKWORK_PC_REACT_ENV__;
 runtimeEnvHost.__SDKWORK_PC_REACT_ENV__ = {
-  VITE_SDKWORK_APPBASE_APP_API_BASE_URL: "https://platform.example.com",
+  VITE_SDKWORK_BIRDCODER_PLATFORM_API_GATEWAY_HTTP_URL: "https://platform.example.com",
 };
 publishBirdCoderDesktopSdkRuntimeEnv({
-  apiBaseUrl: "https://birdcoder.example.com",
+  applicationApiBaseUrl: "https://birdcoder.example.com",
   deploymentProfile: "cloud",
   executionLocation: "cloud-workspace",
   runtimeTarget: "desktop",
+  platformApiGatewayBaseUrl: "https://platform.example.com",
 });
 assert.equal(
-  runtimeEnvHost.__SDKWORK_PC_REACT_ENV__.VITE_SDKWORK_APPBASE_APP_API_BASE_URL,
+  runtimeEnvHost.__SDKWORK_PC_REACT_ENV__.VITE_SDKWORK_BIRDCODER_PLATFORM_API_GATEWAY_HTTP_URL,
   "https://platform.example.com",
   "Remote desktop must preserve the platform SDK gateway instead of replacing it with the BirdCoder API URL.",
 );
 assert.equal(
-  runtimeEnvHost.__SDKWORK_PC_REACT_ENV__.VITE_SDKWORK_BIRDCODER_APP_API_BASE_URL,
+  runtimeEnvHost.__SDKWORK_PC_REACT_ENV__.VITE_SDKWORK_BIRDCODER_APPLICATION_PUBLIC_HTTP_URL,
   "https://birdcoder.example.com",
 );
 runtimeEnvHost.__SDKWORK_PC_REACT_ENV__ = previousRuntimeEnv;
@@ -135,32 +139,30 @@ assert.equal(
 assert.equal(remoteLocalFileSystemCalls, 0);
 assert.equal(remotePickerCalls, 0);
 
-let forbiddenLocalFallbackCalls = 0;
 const remoteFileSystem = new DriveSandboxProjectFileSystemService({
-  allowLocalFallback: false,
   bindingClient: {
-    async getProjectWorkspaceBinding() {
-      return null;
+    intelligence: {
+      projects: {
+        sandboxBinding: {
+          async retrieve() {
+            throw new BirdCoderApiTransportError({
+              code: 40401,
+              detail: "Project sandbox binding does not exist.",
+              httpStatus: 404,
+              method: "GET",
+              path: "/app/v3/api/intelligence/projects/project-without-sandbox/sandbox-binding",
+            });
+          },
+        },
+      },
     },
   },
   drivePort: {} as SandboxExplorerPort,
-  localFileSystem: new Proxy(
-    {},
-    {
-      get() {
-        return async () => {
-          forbiddenLocalFallbackCalls += 1;
-          throw new Error("remote Drive mode must not fall back to Tauri");
-        };
-      },
-    },
-  ) as IFileSystemService,
 });
 await assert.rejects(
   remoteFileSystem.getFiles("project-without-sandbox"),
   (error: unknown) => error instanceof ProjectWorkspaceBindingRequiredError,
 );
-assert.equal(forbiddenLocalFallbackCalls, 0);
 
 const missingRemoteService = new RuntimeProjectRuntimeLocationService({
   executionLocation: "cloud-workspace",

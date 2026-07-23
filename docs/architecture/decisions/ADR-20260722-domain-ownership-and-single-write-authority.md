@@ -8,19 +8,16 @@ Specs: `ARCHITECTURE_DECISION_SPEC.md`, `DOMAIN_SPEC.md`, `APPLICATION_LAYERED_A
 
 ## Context
 
-BirdCoder has not launched, but its current initialization database and API
-authority contain multiple platform domains. AI coding sessions, assistant
-chat, skills, IAM, documents, templates, deployments, models, settings, and
-commerce are represented as BirdCoder-owned tables and operations even though
-dedicated SDKWork repositories exist. That structure creates duplicate
-systems of record and encourages local SDK and DTO forks.
+BirdCoder is a pre-launch coding-workbench application composed with independent
+SDKWork capability owners. Treating AI sessions, assistant content, skills,
+IAM, documents, templates, deployments, models, settings, or commerce as
+BirdCoder-owned facts would create duplicate systems of record and encourage
+local SDK and DTO forks.
 
-The word `chat` caused an additional ambiguity. BirdCoder's current
-`chat_conversation` and `chat_message` records contain user, assistant, and
-system roles and trigger model generation. They are agent-session content, not
-human IM messages. IM itself currently depends on Agents for agent invocation,
-so moving this content into IM would invert responsibility and couple Agents
-back to a communication channel.
+The word `chat` does not define ownership. Model, user, and tool transcript
+content that advances AI execution is Agent Session content, while human and
+channel communication is IM content. IM depends on Agents when a conversation
+invokes an agent; Agents never depends on IM.
 
 ## Decision
 
@@ -49,7 +46,7 @@ Human communication remains owned by `sdkwork-im`:
 Conversation -> Message -> Member -> ReadCursor
 ```
 
-IM may call Agents through the public Agents SDK or facade and may store stable
+IM may call Agents through the public Agents SDK and may store stable
 correlation ids. The Agent session item and an IM-visible message remain two
 different facts with different ownership and lifecycle. Dependency direction
 is `sdkwork-im -> sdkwork-agents -> sdkwork-kernel`; Agents never depends on IM.
@@ -68,10 +65,10 @@ shadow tables, and dual-write are prohibited. A pure in-memory UI mapping may
 adapt a provider or SDK DTO to a view model, but it must be named as an adapter
 or view model and cannot become durable state or a second domain contract.
 
-Because the application is pre-launch, the migration is a direct cutover.
-Obsolete operations, tables, crates, packages, SDK types, tests, and current
-documentation are removed after their owner replacement passes parity tests.
-No compatibility facade or deprecated alias is retained.
+Because the application is pre-launch, the ownership boundary uses a direct
+cutover. Owner parity is enforced before composition. BirdCoder contains only
+canonical owner-aligned operations, tables, crates, packages, SDK types, tests,
+and current documentation; alternate facades and aliases are absent.
 
 ## Alternatives
 
@@ -88,7 +85,7 @@ would mix business semantics and risk a dependency cycle between IM and Agents.
 ### Keep local projections for fast reads
 
 Rejected. The requested architecture excludes projection authorities, and the
-current product scale does not justify duplicate persistence. Owners instead
+pre-launch product scale does not justify duplicate persistence. Owners instead
 provide indexed canonical queries and bounded pagination.
 
 ### Keep compatibility routes and dual-write
@@ -98,8 +95,8 @@ technical debt without protecting a released consumer.
 
 ## Consequences
 
-- Agents and Skills must reach SQLite/PostgreSQL, API, SDK, and operational
-  parity before BirdCoder removes their local implementations.
+- Agents and Skills own their SQLite/PostgreSQL, API, SDK, and operational
+  parity; BirdCoder has no local implementation of those capabilities.
 - BirdCoder clients use multiple owner SDK families composed at the runtime or
   core boundary; feature UI remains transport-independent.
 - The BirdCoder app SDK becomes smaller and contains only workbench operations.
@@ -117,8 +114,8 @@ technical debt without protecting a released consumer.
 - Database registries and both DDL engines contain exactly the owned table set.
 - Owner OpenAPI and SDK generation succeed; BirdCoder generated inputs contain
   no dependency-owned operations.
-- Cargo and pnpm graphs contain no forbidden BirdCoder session/chat/skills
-  components after cutover.
+- Cargo and pnpm graphs contain no BirdCoder-owned AI session, transcript, or
+  skill component.
 - Static scans prove Agents has no IM dependency and persistent projection
   authorities are absent.
 - Cross-tenant, idempotency, concurrency, pagination, migration, security, and
@@ -126,9 +123,8 @@ technical debt without protecting a released consumer.
 
 ## Supersedes / Superseded By
 
-This decision supersedes every active BirdCoder statement that treats
-`codingSessionId`, AI chat conversation/message, skill packages, or copied
-platform APIs as BirdCoder-owned. It does not supersede
+This decision supersedes every active BirdCoder statement that treats a local
+AI-session identifier, assistant transcript, skill package, or copied
+dependency API as BirdCoder-owned. It does not supersede
 ADR-20260716's encrypted project runtime-location boundary; that capability
 remains part of the workbench context and is narrowed by this decision.
-

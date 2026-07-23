@@ -1,259 +1,65 @@
 import type { BirdCoderProject } from '@sdkwork/birdcoder-pc-contracts-commons';
-import { upsertProjectIntoProjectsStore } from '../stores/projectsStore.ts';
+import type { IAgentSessionService } from '@sdkwork/birdcoder-pc-infrastructure-runtime';
+
 import type { IProjectService } from '../services/interfaces/IProjectService.ts';
-import { resolveLatestCodingSessionIdForProject } from './codingSessionSelection.ts';
-import {
-  synchronizeProjectSessionsFromAuthority,
-  type SynchronizeProjectSessionsFromAuthorityOptions,
-} from './projectSessionSynchronization.ts';
+import { upsertProjectIntoProjectsStore } from '../stores/projectsStore.ts';
+import { resolveLatestAgentSessionIdForProject } from './agentSessionSelection.ts';
+import { refreshProjectSessions } from './sessionRefresh.ts';
 
 export interface HydrateImportedProjectFromAuthorityOptions {
-  appRuntimeReadService?: SynchronizeProjectSessionsFromAuthorityOptions['appRuntimeReadService'];
-  hydrationTimeoutMs?: number;
+  agentSessionService: IAgentSessionService;
   knownProjects?: readonly BirdCoderProject[];
   projectId: string;
   projectService: IProjectService;
-  runtimeLocationId?: string | null;
   userScope?: string;
   workspaceId: string;
 }
 
 export interface HydrateImportedProjectFromAuthorityResult {
-  latestCodingSessionId: string | null;
+  latestAgentSessionId: string | null;
   project: BirdCoderProject;
 }
 
-const inflightImportedProjectHydrations = new Map<
+const inflightHydrations = new Map<
   string,
   Promise<HydrateImportedProjectFromAuthorityResult | null>
 >();
-const IMPORTED_PROJECT_HYDRATION_TIMEOUT_MS = 30_000;
-
-interface ImportedProjectHydrationTaskState {
-  abandoned: boolean;
-}
-
-interface ImportedProjectHydrationTimeoutBoundary {
-  clear: () => void;
-  promise: Promise<never>;
-}
-
-function normalizeImportedProjectHydrationTimeoutMs(
-  timeoutMs: number | null | undefined,
-): number {
-  return Number.isFinite(timeoutMs) && typeof timeoutMs === 'number' && timeoutMs > 0
-    ? timeoutMs
-    : IMPORTED_PROJECT_HYDRATION_TIMEOUT_MS;
-}
-
-function createImportedProjectHydrationTimeoutPromise(
-  taskState: ImportedProjectHydrationTaskState,
-  timeoutMs: number,
-): ImportedProjectHydrationTimeoutBoundary {
-  let timeoutHandle: ReturnType<typeof setTimeout> | null = null;
-  const promise = new Promise<never>((_resolve, reject) => {
-    timeoutHandle = setTimeout(() => {
-      taskState.abandoned = true;
-      reject(new Error(`Timed out hydrating imported project after ${timeoutMs} ms.`));
-    }, timeoutMs);
-  });
-
-  return {
-    clear: () => {
-      if (timeoutHandle) {
-        clearTimeout(timeoutHandle);
-        timeoutHandle = null;
-      }
-    },
-    promise,
-  };
-}
-
-function runImportedProjectHydrationWithTimeout(
-  taskState: ImportedProjectHydrationTaskState,
-  timeoutMs: number,
-  task: () => Promise<HydrateImportedProjectFromAuthorityResult | null>,
-): Promise<HydrateImportedProjectFromAuthorityResult | null> {
-  const timeoutBoundary = createImportedProjectHydrationTimeoutPromise(
-    taskState,
-    timeoutMs,
-  );
-  return Promise.race([
-    Promise.resolve().then(task),
-    timeoutBoundary.promise,
-  ]).finally(() => {
-    timeoutBoundary.clear();
-  });
-}
-
-function buildImportedProjectHydrationKey(
-  userScope: string | null | undefined,
-  workspaceId: string,
-  projectId: string,
-  runtimeLocationId: string | null | undefined,
-): string {
-  const normalizedUserScope =
-    typeof userScope === 'string' && userScope.trim().length > 0
-      ? userScope.trim()
-      : 'anonymous';
-  return [
-    normalizedUserScope,
-    workspaceId.trim(),
-    projectId.trim(),
-    runtimeLocationId?.trim() || 'unbound',
-  ].join(':');
-}
-
-function resolveKnownImportedProject(
-  knownProjects: readonly BirdCoderProject[] | undefined,
-  workspaceId: string,
-  projectId: string,
-): BirdCoderProject | null {
-  const normalizedWorkspaceId = workspaceId.trim();
-  const normalizedProjectId = projectId.trim();
-  if (!normalizedWorkspaceId || !normalizedProjectId || !knownProjects) {
-    return null;
-  }
-
-  return (
-    knownProjects.find(
-      (project) =>
-        project.id === normalizedProjectId &&
-        project.workspaceId.trim() === normalizedWorkspaceId,
-    ) ?? null
-  );
-}
-
-function resolveImportedProjectRuntimeLocationId(
-  explicitRuntimeLocationId: string | null | undefined,
-  ...projects: readonly (BirdCoderProject | null | undefined)[]
-): string | undefined {
-  const normalizedExplicitRuntimeLocationId = explicitRuntimeLocationId?.trim();
-  if (normalizedExplicitRuntimeLocationId) {
-    return normalizedExplicitRuntimeLocationId;
-  }
-
-  const runtimeLocationIds = new Set<string>();
-  for (const project of projects) {
-    for (const session of project?.codingSessions ?? []) {
-      const runtimeLocationId = session.runtimeLocationId?.trim();
-      if (runtimeLocationId) {
-        runtimeLocationIds.add(runtimeLocationId);
-      }
-    }
-  }
-  return runtimeLocationIds.size === 1
-    ? runtimeLocationIds.values().next().value
-    : undefined;
-}
 
 export async function hydrateImportedProjectFromAuthority(
   options: HydrateImportedProjectFromAuthorityOptions,
 ): Promise<HydrateImportedProjectFromAuthorityResult | null> {
-  const normalizedWorkspaceId = options.workspaceId.trim();
-  const normalizedProjectId = options.projectId.trim();
-  if (!normalizedWorkspaceId || !normalizedProjectId) {
+  const workspaceId = options.workspaceId.trim();
+  const projectId = options.projectId.trim();
+  if (!workspaceId || !projectId) {
     return null;
   }
+  const scopeKey = `${options.userScope?.trim() || 'anonymous'}:${workspaceId}:${projectId}`;
+  const inflight = inflightHydrations.get(scopeKey);
+  if (inflight) {
+    return inflight;
+  }
 
-  const knownProject = resolveKnownImportedProject(
-    options.knownProjects,
-    normalizedWorkspaceId,
-    normalizedProjectId,
-  );
-  const knownRuntimeLocationId = resolveImportedProjectRuntimeLocationId(
-    options.runtimeLocationId,
-    knownProject,
-  );
-  if (knownProject && knownProject.codingSessions.length > 0 && !options.appRuntimeReadService) {
-    upsertProjectIntoProjectsStore(
-      normalizedWorkspaceId,
-      knownProject,
-      options.userScope,
-    );
+  const task = (async () => {
+    const result = await refreshProjectSessions({
+      agentSessionService: options.agentSessionService,
+      projectId,
+      projectService: options.projectService,
+      workspaceId,
+    });
+    const project = result.projects?.[0] ?? null;
+    if (!project) {
+      return null;
+    }
+    upsertProjectIntoProjectsStore(workspaceId, project, options.userScope);
     return {
-      latestCodingSessionId: resolveLatestCodingSessionIdForProject(
-        [knownProject],
-        normalizedProjectId,
-      ),
-      project: knownProject,
+      latestAgentSessionId: resolveLatestAgentSessionIdForProject([project], projectId),
+      project,
     };
-  }
-
-  const hydrationKey = buildImportedProjectHydrationKey(
-    options.userScope,
-    normalizedWorkspaceId,
-    normalizedProjectId,
-    knownRuntimeLocationId,
-  );
-  const inflightHydration = inflightImportedProjectHydrations.get(hydrationKey);
-  if (inflightHydration) {
-    return inflightHydration;
-  }
-
-  const taskState: ImportedProjectHydrationTaskState = { abandoned: false };
-  const hydrationTask = runImportedProjectHydrationWithTimeout(
-    taskState,
-    normalizeImportedProjectHydrationTimeoutMs(options.hydrationTimeoutMs),
-    async () => {
-      await options.projectService.invalidateProjectReadCache?.({
-        projectId: normalizedProjectId,
-        workspaceId: normalizedWorkspaceId,
-      });
-      if (taskState.abandoned) {
-        return null;
-      }
-
-      const authoritativeProject = await options.projectService.getProjectById(
-        normalizedProjectId,
-      );
-      if (taskState.abandoned) {
-        return null;
-      }
-
-      if (
-        !authoritativeProject ||
-        authoritativeProject.workspaceId.trim() !== normalizedWorkspaceId
-      ) {
-        return null;
-      }
-
-      const runtimeLocationId = resolveImportedProjectRuntimeLocationId(
-        options.runtimeLocationId,
-        knownProject,
-        authoritativeProject,
-      );
-      const canReuseAuthoritativeProjection =
-        !runtimeLocationId;
-
-      const synchronizedProject = await synchronizeProjectSessionsFromAuthority({
-        appRuntimeReadService: options.appRuntimeReadService,
-        authoritativeCodingSessions: canReuseAuthoritativeProjection
-          ? authoritativeProject.codingSessions
-          : undefined,
-        project: authoritativeProject,
-        projectService: options.projectService,
-        runtimeLocationId,
-      });
-      upsertProjectIntoProjectsStore(
-        normalizedWorkspaceId,
-        synchronizedProject.project,
-        options.userScope,
-      );
-      return {
-        latestCodingSessionId: resolveLatestCodingSessionIdForProject(
-          [synchronizedProject.project],
-          normalizedProjectId,
-        ),
-        project: synchronizedProject.project,
-      };
-    },
-  ).finally(() => {
-    if (inflightImportedProjectHydrations.get(hydrationKey) === hydrationTask) {
-      inflightImportedProjectHydrations.delete(hydrationKey);
+  })().finally(() => {
+    if (inflightHydrations.get(scopeKey) === task) {
+      inflightHydrations.delete(scopeKey);
     }
   });
-
-  inflightImportedProjectHydrations.set(hydrationKey, hydrationTask);
-  return hydrationTask;
+  inflightHydrations.set(scopeKey, task);
+  return task;
 }

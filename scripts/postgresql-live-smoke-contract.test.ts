@@ -5,295 +5,98 @@ import process from 'node:process';
 
 import {
   BIRDCODER_POSTGRESQL_DSN_ENV_PRIORITY,
+  BIRDCODER_POSTGRESQL_REPOSITORY_TEST_ARGS,
+  resolveBirdCoderPostgresqlDsnEnvStatus,
   resolveBirdCoderPostgresqlLiveSmokeConfig,
   runBirdCoderPostgresqlLiveSmoke,
-  type BirdCoderPostgresqlOpenConnectionFactory,
+  type BirdCoderPostgresqlCommandRunner,
 } from './postgresql-live-smoke.ts';
-import { parseBirdCoderApiJson } from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-contracts-commons/src/index.ts';
 
 const rootDir = process.cwd();
-const postgresqlLiveSmokeRunnerSource = fs.readFileSync(
+const packageJson = JSON.parse(
+  fs.readFileSync(path.join(rootDir, 'package.json'), 'utf8'),
+) as { scripts: Record<string, string> };
+const runnerSource = fs.readFileSync(
   path.join(rootDir, 'scripts', 'run-postgresql-live-smoke.ts'),
   'utf8',
 );
 
+assert.equal(
+  packageJson.scripts['release:smoke:postgresql-live'],
+  'node --experimental-strip-types scripts/run-postgresql-live-smoke.ts',
+);
+assert.match(runnerSource, /pathToFileURL\(process\.argv\[1\]\)\.href/u);
 assert.doesNotMatch(
-  postgresqlLiveSmokeRunnerSource,
-  /^const report = await runBirdCoderPostgresqlLiveSmoke\(/m,
-  'postgresql live smoke CLI must not block module evaluation behind a top-level await on runBirdCoderPostgresqlLiveSmoke.',
+  `${packageJson.scripts['release:smoke:postgresql-live']}\n${runnerSource}`,
+  /coding-sessions|ops_release_record|appConsoleRepository|dataKernel/u,
 );
-assert.match(
-  postgresqlLiveSmokeRunnerSource,
-  /pathToFileURL\(process\.argv\[1\]\)\.href/,
-  'postgresql live smoke CLI must gate execution behind a direct-entry check.',
-);
-assert.match(
-  postgresqlLiveSmokeRunnerSource,
-  /void runBirdCoderPostgresqlLiveSmokeCli\(/,
-  'postgresql live smoke CLI must launch its async runner without turning the module itself into a top-level-await dependency.',
-);
+assert.deepEqual(BIRDCODER_POSTGRESQL_REPOSITORY_TEST_ARGS, [
+  'test',
+  '-p',
+  'sdkwork-birdcoder-workspace-repository-sqlx',
+  '--tests',
+  '--',
+  '--ignored',
+  '--nocapture',
+]);
 
-const emptyConfig = resolveBirdCoderPostgresqlLiveSmokeConfig({});
-assert.deepEqual(emptyConfig, {});
-
-const blockedByMissingDsn = await runBirdCoderPostgresqlLiveSmoke({
-  env: {},
+assert.deepEqual(resolveBirdCoderPostgresqlLiveSmokeConfig({}), {});
+assert.deepEqual(resolveBirdCoderPostgresqlLiveSmokeConfig({
+  BIRDCODER_POSTGRESQL_DSN: ' postgres://fallback.example/birdcoder ',
+  SDKWORK_BIRDCODER_POSTGRES_TEST_URL: ' postgres://canonical.example/birdcoder ',
+}), {
+  dsn: 'postgres://canonical.example/birdcoder',
+  dsnSource: 'SDKWORK_BIRDCODER_POSTGRES_TEST_URL',
 });
-assert.equal(blockedByMissingDsn.status, 'blocked');
-assert.equal(blockedByMissingDsn.reasonCode, 'missing_postgresql_dsn');
-assert.deepEqual(blockedByMissingDsn.dsnEnvStatus, {
+assert.deepEqual(resolveBirdCoderPostgresqlDsnEnvStatus({
+  SDKWORK_BIRDCODER_POSTGRES_TEST_URL: ' ',
+}), {
+  SDKWORK_BIRDCODER_POSTGRES_TEST_URL: 'empty',
   BIRDCODER_POSTGRESQL_DSN: 'missing',
   BIRDCODER_DATABASE_URL: 'missing',
   DATABASE_URL: 'missing',
   PGURL: 'missing',
 });
-assert.equal(
-  blockedByMissingDsn.dsnExample,
-  'postgresql://<user>:<password>@<host>:5432/<database>',
-);
-assert.equal(
-  blockedByMissingDsn.dsnPowerShellSetExample,
-  "$env:BIRDCODER_POSTGRESQL_DSN='postgresql://<user>:<password>@<host>:5432/<database>'",
-);
-assert.equal(
-  blockedByMissingDsn.dsnCmdSetExample,
-  "set BIRDCODER_POSTGRESQL_DSN=postgresql://<user>:<password>@<host>:5432/<database>",
-);
-assert.deepEqual(blockedByMissingDsn.dsnEnvPriority, [...BIRDCODER_POSTGRESQL_DSN_ENV_PRIORITY]);
-assert.equal(blockedByMissingDsn.rerunCommand, 'pnpm.cmd run release:smoke:postgresql-live');
-assert.deepEqual(blockedByMissingDsn.resolutionSteps, [
-  'Set one of BIRDCODER_POSTGRESQL_DSN -> BIRDCODER_DATABASE_URL -> DATABASE_URL -> PGURL.',
-  'Run pnpm.cmd run release:smoke:postgresql-live.',
-]);
-assert.match(
-  blockedByMissingDsn.resolutionHint ?? '',
-  /BIRDCODER_POSTGRESQL_DSN/,
-);
 
-const blockedByMissingDriver = await runBirdCoderPostgresqlLiveSmoke({
-  env: {
-    BIRDCODER_POSTGRESQL_DSN: 'postgresql://birdcoder:secret@127.0.0.1:5432/birdcoder',
-  },
-  loadOpenConnectionFactory: async () => null,
-});
-assert.equal(blockedByMissingDriver.status, 'blocked');
-assert.equal(blockedByMissingDriver.reasonCode, 'missing_postgresql_driver');
-assert.equal(blockedByMissingDriver.dsnSource, 'BIRDCODER_POSTGRESQL_DSN');
-assert.deepEqual(blockedByMissingDriver.dsnEnvStatus, {
-  BIRDCODER_POSTGRESQL_DSN: 'configured',
-  BIRDCODER_DATABASE_URL: 'missing',
-  DATABASE_URL: 'missing',
-  PGURL: 'missing',
-});
-assert.equal(blockedByMissingDriver.dsnExample, undefined);
-assert.equal(blockedByMissingDriver.dsnPowerShellSetExample, undefined);
-assert.equal(blockedByMissingDriver.dsnCmdSetExample, undefined);
-assert.deepEqual(blockedByMissingDriver.dsnEnvPriority, [...BIRDCODER_POSTGRESQL_DSN_ENV_PRIORITY]);
-assert.equal(blockedByMissingDriver.rerunCommand, 'pnpm.cmd run release:smoke:postgresql-live');
-assert.deepEqual(blockedByMissingDriver.resolutionSteps, [
-  "Install the runtime 'pg' PostgreSQL driver in this environment.",
-  'Run pnpm.cmd run release:smoke:postgresql-live.',
-]);
-assert.match(
-  blockedByMissingDriver.resolutionHint ?? '',
-  /\bpg\b/i,
-);
+const blocked = await runBirdCoderPostgresqlLiveSmoke({ env: {} });
+assert.equal(blocked.status, 'blocked');
+assert.equal(blocked.reasonCode, 'missing_postgresql_test_dsn');
+assert.deepEqual(blocked.dsnEnvPriority, [...BIRDCODER_POSTGRESQL_DSN_ENV_PRIORITY]);
+assert.match(blocked.dsnPowerShellSetExample ?? '', /SDKWORK_BIRDCODER_POSTGRES_TEST_URL/u);
+assert.match(blocked.dsnCmdSetExample ?? '', /SDKWORK_BIRDCODER_POSTGRES_TEST_URL/u);
 
-const connectionRefusedError = new Error('connect ECONNREFUSED 127.0.0.1:55432');
-const failedByConnectionRefusal = await runBirdCoderPostgresqlLiveSmoke({
-  env: {
-    BIRDCODER_POSTGRESQL_DSN: 'postgresql://birdcoder:secret@127.0.0.1:55432/birdcoder',
-  },
-  openConnectionFactory: async () => {
-    throw connectionRefusedError;
-  },
-});
-assert.equal(failedByConnectionRefusal.status, 'failed');
-assert.equal(failedByConnectionRefusal.reasonCode, 'postgresql_live_smoke_failed');
-assert.equal(failedByConnectionRefusal.dsnSource, 'BIRDCODER_POSTGRESQL_DSN');
-assert.equal(failedByConnectionRefusal.message, 'connect ECONNREFUSED 127.0.0.1:55432');
-assert.deepEqual(failedByConnectionRefusal.checks, []);
-
-type ReleaseRow = {
-  created_at: string;
-  id: string;
-  is_deleted: boolean;
-  manifest_json: Record<string, unknown>;
-  release_kind: string;
-  release_version: string;
-  rollout_stage: string;
-  status: string;
-  updated_at: string;
-  uuid: string | null;
-  version: string;
+const invocations: Array<{
+  args: readonly string[];
+  command: string;
+  dsn?: string;
+}> = [];
+const passingRunner: BirdCoderPostgresqlCommandRunner = async (command, args, options) => {
+  invocations.push({
+    args,
+    command,
+    dsn: options.env.SDKWORK_BIRDCODER_POSTGRES_TEST_URL,
+  });
+  return 0;
 };
-
-const queryHistory: string[] = [];
-const persistedReleases = new Map<string, ReleaseRow>();
-
-const openConnectionFactory: BirdCoderPostgresqlOpenConnectionFactory = async () => {
-  const pendingReleases = new Map<string, ReleaseRow>();
-  let transactional = false;
-
-  function listVisibleReleases(): ReleaseRow[] {
-    const rows = [...persistedReleases.values()].map((row) => structuredClone(row));
-    if (!transactional) {
-      return rows;
-    }
-
-    for (const row of pendingReleases.values()) {
-      rows.push(structuredClone(row));
-    }
-    return rows;
-  }
-
-  return {
-    async close() {
-      queryHistory.push('-- close --');
-    },
-    async query(sql: string, params: readonly unknown[] = []) {
-      queryHistory.push(sql);
-
-      if (sql === 'BEGIN') {
-        transactional = true;
-        return { rowCount: 0, rows: [] };
-      }
-
-      if (sql === 'ROLLBACK') {
-        pendingReleases.clear();
-        transactional = false;
-        return { rowCount: 0, rows: [] };
-      }
-
-      if (sql === 'COMMIT') {
-        for (const [id, row] of pendingReleases.entries()) {
-          persistedReleases.set(id, structuredClone(row));
-        }
-        pendingReleases.clear();
-        transactional = false;
-        return { rowCount: 0, rows: [] };
-      }
-
-      if (sql.startsWith('INSERT INTO ops_release_record')) {
-        const row: ReleaseRow = {
-          id: String(params[0]),
-          uuid: params[1] === null || params[1] === undefined ? null : String(params[1]),
-          created_at: String(params[2]),
-          updated_at: String(params[3]),
-          version: String(params[4]),
-          is_deleted: Boolean(params[5]),
-          release_version: String(params[6]),
-          release_kind: String(params[7]),
-          rollout_stage: String(params[8]),
-          manifest_json:
-            typeof params[9] === 'string'
-              ? parseBirdCoderApiJson<Record<string, unknown>>(params[9])
-              : (params[9] as Record<string, unknown>) ?? {},
-          status: String(params[10]),
-        };
-
-        if (transactional) {
-          pendingReleases.set(row.id, row);
-        } else {
-          persistedReleases.set(row.id, row);
-        }
-
-        return {
-          rowCount: 1,
-          rows: [],
-        };
-      }
-
-      if (sql.startsWith('SELECT COUNT(*)')) {
-        return {
-          rowCount: 1,
-          rows: [
-            {
-              total: listVisibleReleases().filter((row) => row.is_deleted === false).length,
-            },
-          ],
-        };
-      }
-
-      if (sql.startsWith('SELECT * FROM ops_release_record')) {
-        const rows = listVisibleReleases().filter((row) => row.is_deleted === false);
-        if (sql.includes('WHERE id = $1')) {
-          return {
-            rowCount: rows.some((row) => row.id === params[0]) ? 1 : 0,
-            rows: rows.filter((row) => row.id === params[0]),
-          };
-        }
-
-        return {
-          rowCount: rows.length,
-          rows,
-        };
-      }
-
-      return {
-        rowCount: 0,
-        rows: [],
-      };
-    },
-  };
-};
-
-const passedReport = await runBirdCoderPostgresqlLiveSmoke({
-  env: {
-    BIRDCODER_POSTGRESQL_DSN: 'postgresql://birdcoder:secret@127.0.0.1:5432/birdcoder',
-  },
-  openConnectionFactory,
+const passed = await runBirdCoderPostgresqlLiveSmoke({
+  cwd: rootDir,
+  env: { BIRDCODER_DATABASE_URL: 'postgres://example.test/birdcoder' },
+  runCommand: passingRunner,
 });
-assert.equal(passedReport.status, 'passed');
-assert.deepEqual(passedReport.checks, [
-  'migrations',
-  'preflight-clean',
-  'transaction-write-visible',
-  'transaction-isolation',
-  'rollback-clean',
-]);
-assert.equal(passedReport.rerunCommand, undefined);
-assert.equal(passedReport.resolutionSteps, undefined);
-assert.equal(passedReport.resolutionHint, undefined);
-assert.equal(passedReport.dsnEnvStatus, undefined);
-assert.equal(passedReport.dsnExample, undefined);
-assert.equal(passedReport.dsnPowerShellSetExample, undefined);
-assert.equal(passedReport.dsnCmdSetExample, undefined);
+assert.equal(passed.status, 'passed');
+assert.deepEqual(passed.checks, ['workspace-repository-postgresql-driver-parity']);
+assert.deepEqual(invocations, [{
+  args: BIRDCODER_POSTGRESQL_REPOSITORY_TEST_ARGS,
+  command: 'cargo',
+  dsn: 'postgres://example.test/birdcoder',
+}]);
 
-const blockedByEmptyDsn = await runBirdCoderPostgresqlLiveSmoke({
-  env: {
-    BIRDCODER_POSTGRESQL_DSN: '   ',
-  },
+const failed = await runBirdCoderPostgresqlLiveSmoke({
+  env: { SDKWORK_BIRDCODER_POSTGRES_TEST_URL: 'postgres://example.test/birdcoder' },
+  runCommand: async () => 17,
 });
-assert.equal(blockedByEmptyDsn.status, 'blocked');
-assert.equal(blockedByEmptyDsn.reasonCode, 'missing_postgresql_dsn');
-assert.deepEqual(blockedByEmptyDsn.dsnEnvStatus, {
-  BIRDCODER_POSTGRESQL_DSN: 'empty',
-  BIRDCODER_DATABASE_URL: 'missing',
-  DATABASE_URL: 'missing',
-  PGURL: 'missing',
-});
-assert.equal(
-  blockedByEmptyDsn.dsnExample,
-  'postgresql://<user>:<password>@<host>:5432/<database>',
-);
-assert.equal(
-  blockedByEmptyDsn.dsnPowerShellSetExample,
-  "$env:BIRDCODER_POSTGRESQL_DSN='postgresql://<user>:<password>@<host>:5432/<database>'",
-);
-assert.equal(
-  blockedByEmptyDsn.dsnCmdSetExample,
-  "set BIRDCODER_POSTGRESQL_DSN=postgresql://<user>:<password>@<host>:5432/<database>",
-);
-assert.equal(
-  queryHistory.includes('BEGIN') && queryHistory.includes('ROLLBACK'),
-  true,
-  'postgresql live smoke should exercise transactional fork and rollback behavior.',
-);
-assert.equal(
-  queryHistory.some((sql) => sql.startsWith('INSERT INTO ops_release_record')),
-  true,
-  'postgresql live smoke should exercise representative release repository writes.',
-);
+assert.equal(failed.status, 'failed');
+assert.equal(failed.reasonCode, 'postgresql_repository_parity_failed');
+assert.match(failed.message, /code 17/u);
 
 console.log('postgresql live smoke contract passed.');

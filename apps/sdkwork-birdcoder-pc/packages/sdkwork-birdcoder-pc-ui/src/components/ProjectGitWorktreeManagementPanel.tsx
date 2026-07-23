@@ -11,7 +11,7 @@ import {
   isProjectGitWorktreePrunable,
   isProjectGitWorktreeRemovable,
 } from '@sdkwork/birdcoder-pc-workbench/workbench/gitWorktrees';
-import type { BirdCoderGitWorktreeSummary } from '@sdkwork/birdcoder-pc-workbench/chat/types';
+import type { WorkbenchGitWorktreeView } from '@sdkwork/birdcoder-pc-contracts-commons';
 import { useTranslation } from 'react-i18next';
 
 interface ProjectGitWorktreeManagementPanelProps {
@@ -19,8 +19,8 @@ interface ProjectGitWorktreeManagementPanelProps {
 }
 
 function resolveManageableWorktrees(
-  worktrees: readonly BirdCoderGitWorktreeSummary[],
-): BirdCoderGitWorktreeSummary[] {
+  worktrees: readonly WorkbenchGitWorktreeView[],
+): WorkbenchGitWorktreeView[] {
   return worktrees.filter(isProjectGitWorktreeRemovable);
 }
 
@@ -78,7 +78,7 @@ export function ProjectGitWorktreeManagementPanel({
     }
   };
 
-  const handleRemoveWorktree = async (worktree: BirdCoderGitWorktreeSummary) => {
+  const handleRemoveWorktree = async (worktree: WorkbenchGitWorktreeView) => {
     if (!normalizedProjectId) {
       return;
     }

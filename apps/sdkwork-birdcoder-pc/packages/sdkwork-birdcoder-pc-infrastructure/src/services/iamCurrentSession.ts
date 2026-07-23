@@ -323,7 +323,7 @@ function getRetrieverBinding(
 }
 
 function normalizeIamSession(value: unknown): IamSession {
-  const payload = readCurrentSessionPayload(value);
+  const payload = isRecord(value) ? value : {};
   const accessToken = optionalToken(payload.accessToken);
   const authToken = optionalToken(payload.authToken);
   if (!accessToken || !authToken) {
@@ -351,17 +351,6 @@ function normalizeIamSession(value: unknown): IamSession {
     session.user = payload.user as unknown as IamSession['user'];
   }
   return session;
-}
-
-function readCurrentSessionPayload(value: unknown): Record<string, unknown> {
-  if (!isRecord(value)) {
-    return {};
-  }
-  const data = value.data;
-  if (isRecord(data)) {
-    return isRecord(data.item) ? data.item : data;
-  }
-  return isRecord(value.item) ? value.item : value;
 }
 
 function mergeSessionWithStoredSession(

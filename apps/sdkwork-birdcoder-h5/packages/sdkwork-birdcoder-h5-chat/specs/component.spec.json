@@ -1,0 +1,54 @@
+{
+  "schemaVersion": 1,
+  "kind": "sdkwork.component.spec",
+  "component": {
+    "name": "@sdkwork/birdcoder-h5-chat",
+    "displayName": "SDKWork BirdCoder H5 Assistant Session Chat",
+    "version": "0.1.0",
+    "type": "react-package",
+    "root": "sdkwork-birdcoder/apps/sdkwork-birdcoder-h5/packages/sdkwork-birdcoder-h5-chat",
+    "domain": "birdcoder",
+    "capability": "assistant-session-chat",
+    "surface": "app",
+    "languages": ["typescript", "react"],
+    "generated": false,
+    "private": true,
+    "manifests": ["package.json"]
+  },
+  "canonicalSpecs": [
+    { "file": "COMPONENT_SPEC.md", "path": "../../../../../sdkwork-specs/COMPONENT_SPEC.md", "purpose": "Component ownership and port contracts." },
+    { "file": "CODE_STYLE_SPEC.md", "path": "../../../../../sdkwork-specs/CODE_STYLE_SPEC.md", "purpose": "Authored source boundaries." },
+    { "file": "NAMING_SPEC.md", "path": "../../../../../sdkwork-specs/NAMING_SPEC.md", "purpose": "Canonical package and capability naming." },
+    { "file": "TYPESCRIPT_CODE_SPEC.md", "path": "../../../../../sdkwork-specs/TYPESCRIPT_CODE_SPEC.md", "purpose": "TypeScript package rules." },
+    { "file": "FRONTEND_CODE_SPEC.md", "path": "../../../../../sdkwork-specs/FRONTEND_CODE_SPEC.md", "purpose": "Frontend state and service boundaries." },
+    { "file": "UI_ARCHITECTURE_SPEC.md", "path": "../../../../../sdkwork-specs/UI_ARCHITECTURE_SPEC.md", "purpose": "UI architecture selection rules." },
+    { "file": "APP_MOBILE_REACT_UI_SPEC.md", "path": "../../../../../sdkwork-specs/APP_MOBILE_REACT_UI_SPEC.md", "purpose": "Mobile React feature boundaries." }
+  ],
+  "contracts": {
+    "layerRole": "frontend-feature",
+    "publicExports": [".", "./routes", "./screens/ChatPage", "./screens/SettingsPage"],
+    "providedPorts": [
+      { "name": "assistantSessionChatScreen", "export": "./screens/ChatPage" },
+      { "name": "assistantSettingsScreen", "export": "./screens/SettingsPage" },
+      { "name": "assistantRouteContributions", "export": "./routes" }
+    ],
+    "requiredPorts": [
+      { "name": "agentsSessionItemServices", "export": "./screens/ChatPage" },
+      { "name": "h5ApplicationCommons", "export": "./screens/SettingsPage" }
+    ],
+    "runtimeEntrypoints": [],
+    "routeManifest": null,
+    "sdkClients": [],
+    "sdkDependencies": [],
+    "permissionComposition": {},
+    "dependencyApiExports": [],
+    "dependencyApiSurfaces": [],
+    "events": [],
+    "configKeys": []
+  },
+  "integration": {
+    "sessionAuthority": "Assistant conversation state is read and written through sdkwork-agents Session and Session Item services exposed by H5 core.",
+    "messageBoundary": "The package owns assistant-session presentation only and must not model or persist sdkwork-im conversation messages."
+  },
+  "verification": { "commands": ["pnpm typecheck:browser"] }
+}

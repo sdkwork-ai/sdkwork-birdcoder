@@ -1,12 +1,12 @@
 import type {
-  BirdCoderCommitProjectGitChangesRequest,
-  BirdCoderCreateProjectGitBranchRequest,
-  BirdCoderCreateProjectGitWorktreeRequest,
-  BirdCoderProjectGitDiff,
-  BirdCoderProjectGitOverview,
-  BirdCoderPushProjectGitBranchRequest,
-  BirdCoderRemoveProjectGitWorktreeRequest,
-  BirdCoderSwitchProjectGitBranchRequest,
+  CommitWorkbenchGitChangesInput,
+  CreateWorkbenchGitBranchInput,
+  CreateWorkbenchGitWorktreeInput,
+  PushWorkbenchGitBranchInput,
+  RemoveWorkbenchGitWorktreeInput,
+  SwitchWorkbenchGitBranchInput,
+  WorkbenchGitDiffView,
+  WorkbenchGitOverviewView,
 } from '@sdkwork/birdcoder-pc-contracts-commons';
 import { isBirdCoderTauriRuntime } from './tauriRuntime.ts';
 
@@ -28,31 +28,31 @@ export function isTauriProjectGitRuntimeUnavailableError(error: unknown): boolea
 export interface TauriProjectGitRuntime {
   commitProjectGitChanges(
     projectId: string,
-    request: BirdCoderCommitProjectGitChangesRequest,
-  ): Promise<BirdCoderProjectGitOverview>;
+    request: CommitWorkbenchGitChangesInput,
+  ): Promise<WorkbenchGitOverviewView>;
   createProjectGitBranch(
     projectId: string,
-    request: BirdCoderCreateProjectGitBranchRequest,
-  ): Promise<BirdCoderProjectGitOverview>;
+    request: CreateWorkbenchGitBranchInput,
+  ): Promise<WorkbenchGitOverviewView>;
   createProjectGitWorktree(
     projectId: string,
-    request: BirdCoderCreateProjectGitWorktreeRequest,
-  ): Promise<BirdCoderProjectGitOverview>;
-  getProjectGitDiff(projectId: string): Promise<BirdCoderProjectGitDiff>;
-  getProjectGitOverview(projectId: string): Promise<BirdCoderProjectGitOverview>;
-  pruneProjectGitWorktrees(projectId: string): Promise<BirdCoderProjectGitOverview>;
+    request: CreateWorkbenchGitWorktreeInput,
+  ): Promise<WorkbenchGitOverviewView>;
+  getProjectGitDiff(projectId: string): Promise<WorkbenchGitDiffView>;
+  getProjectGitOverview(projectId: string): Promise<WorkbenchGitOverviewView>;
+  pruneProjectGitWorktrees(projectId: string): Promise<WorkbenchGitOverviewView>;
   pushProjectGitBranch(
     projectId: string,
-    request: BirdCoderPushProjectGitBranchRequest,
-  ): Promise<BirdCoderProjectGitOverview>;
+    request: PushWorkbenchGitBranchInput,
+  ): Promise<WorkbenchGitOverviewView>;
   removeProjectGitWorktree(
     projectId: string,
-    request: BirdCoderRemoveProjectGitWorktreeRequest,
-  ): Promise<BirdCoderProjectGitOverview>;
+    request: RemoveWorkbenchGitWorktreeInput,
+  ): Promise<WorkbenchGitOverviewView>;
   switchProjectGitBranch(
     projectId: string,
-    request: BirdCoderSwitchProjectGitBranchRequest,
-  ): Promise<BirdCoderProjectGitOverview>;
+    request: SwitchWorkbenchGitBranchInput,
+  ): Promise<WorkbenchGitOverviewView>;
 }
 
 export interface CreateTauriProjectGitRuntimeOptions {

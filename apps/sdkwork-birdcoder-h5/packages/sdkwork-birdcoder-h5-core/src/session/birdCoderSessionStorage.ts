@@ -1,3 +1,4 @@
+import type { IamAppContext } from '@sdkwork/iam-contracts';
 import {
   APP_SESSION_STORAGE_KEY,
   getBirdCoderSecureStorageAdapter,
@@ -9,10 +10,12 @@ export { APP_SESSION_STORAGE_KEY as BIRDCODER_AUTH_SESSION_KEY };
 export interface BirdCoderSessionRecord {
   accessToken: string;
   authToken: string;
+  context?: IamAppContext;
   refreshToken?: string;
   sessionId?: string;
-  expiresAt?: number;
+  expiresAt?: number | string;
   storedAt: number;
+  user?: unknown;
 }
 
 function parseBirdCoderSessionRecord(raw: string): BirdCoderSessionRecord | null {
@@ -35,8 +38,16 @@ function parseBirdCoderSessionRecord(raw: string): BirdCoderSessionRecord | null
       authToken: record.authToken,
       refreshToken: typeof record.refreshToken === 'string' ? record.refreshToken : undefined,
       sessionId: typeof record.sessionId === 'string' ? record.sessionId : undefined,
-      expiresAt: typeof record.expiresAt === 'number' ? record.expiresAt : undefined,
+      expiresAt:
+        typeof record.expiresAt === 'number' || typeof record.expiresAt === 'string'
+          ? record.expiresAt
+          : undefined,
+      context:
+        record.context && typeof record.context === 'object' && !Array.isArray(record.context)
+          ? record.context as unknown as IamAppContext
+          : undefined,
       storedAt: typeof record.storedAt === 'number' ? record.storedAt : 0,
+      user: record.user,
     };
   } catch {
     return null;

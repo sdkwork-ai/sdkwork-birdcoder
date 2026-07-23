@@ -1,45 +1,44 @@
 import type {
-  BirdCoderComparableChatMessageLike,
-  BirdCoderProtocolNoticeKind,
-} from './coding-session.ts';
-import type { BirdCoderCodeEngineKey } from './engine.ts';
+  AgentSessionItemViewSource as BirdCoderComparableChatMessageLike,
+  AgentSessionProtocolNoticeKind as BirdCoderProtocolNoticeKind,
+} from './agent-session-view.ts';
 import {
-  BIRDCODER_CHAT_MESSAGE_CONTENT_BLOCK_TYPES,
-  BIRDCODER_CHAT_MESSAGE_VIEW_KINDS,
-  type BirdCoderChatMessageContentBlockType,
-  type BirdCoderChatMessageViewKind,
-  type BirdCoderChatMessageRecord,
-  type BirdCoderChatMessageRole,
-} from '@sdkwork/birdcoder-chat-contracts';
+  AGENT_SESSION_ITEM_CONTENT_BLOCK_TYPES as BIRDCODER_CHAT_MESSAGE_CONTENT_BLOCK_TYPES,
+  AGENT_SESSION_ITEM_VIEW_KINDS as BIRDCODER_CHAT_MESSAGE_VIEW_KINDS,
+  type AgentSessionItemContentBlockType as AgentSessionItemContentBlockType,
+  type AgentSessionItemViewKind as AgentSessionItemViewKind,
+  type AgentSessionItemView as AgentSessionItemView,
+  type AgentSessionItemDisplayRole as AgentSessionItemDisplayRole,
+} from './agent-session-view.ts';
 export {
-  BIRDCODER_CHAT_MESSAGE_CONTENT_BLOCK_TYPES,
-  BIRDCODER_CHAT_MESSAGE_VIEW_KINDS,
-  type BirdCoderChatMessageContentBlockType,
-  type BirdCoderChatMessageViewKind,
-  type BirdCoderChatMessageRecord,
-  type BirdCoderChatMessageRole,
-};
+  AGENT_SESSION_ITEM_CONTENT_BLOCK_TYPES,
+  AGENT_SESSION_ITEM_VIEW_KINDS,
+  type AgentSessionItemContentBlockType,
+  type AgentSessionItemViewKind,
+  type AgentSessionItemView,
+  type AgentSessionItemDisplayRole,
+} from './agent-session-view.ts';
 import {
   hasParsedFileUpdateSummary,
   resolveChatTurnActivitySummary,
-  resolveProjectedActivityFileChanges,
+  resolveActivityFileChangeViews,
   resolveVisibleMarkdownBlockContent,
   type ChatTurnActivitySummary,
-} from './chat-message-activity-projection.ts';
+} from './chat-message-activity-view.ts';
 import { resolveTaskProgressDisplayState } from './chat-message-task-progress.ts';
 import {
-  projectChatMessageReasoning,
-  type BirdCoderChatMessageReasoningItem,
+  normalizeChatMessageReasoning,
+  type AgentSessionItemReasoningView as AgentSessionItemReasoningView,
 } from './chat-message-reasoning.ts';
 import {
-  projectChatMessageResources,
-  type BirdCoderChatMessageResource,
+  normalizeChatMessageResources,
+  type AgentSessionItemResourceView as AgentSessionItemResourceView,
 } from './chat-message-resources.ts';
 import {
   isChatMessageFileMutationToolCall,
-  projectChatMessageCommand,
-  projectChatMessageToolResult,
-  projectChatMessageToolCalls,
+  normalizeChatMessageCommand,
+  normalizeChatMessageToolResult,
+  normalizeChatMessageToolCalls,
   type ChatMessageToolCall,
 } from './chat-message-tool-calls.ts';
 
@@ -62,7 +61,7 @@ export interface ChatMessageNoticeBlock {
 
 export interface ChatMessageReasoningBlock {
   type: 'reasoning';
-  items: readonly BirdCoderChatMessageReasoningItem[];
+  items: readonly AgentSessionItemReasoningView[];
 }
 
 export interface ChatMessageActivityBlock {
@@ -94,23 +93,23 @@ export interface ChatMessageTaskProgressBlock {
 
 export interface ChatMessageResourcesBlock {
   type: 'resources';
-  items: readonly BirdCoderChatMessageResource[];
+  items: readonly AgentSessionItemResourceView[];
 }
 
 export type { ChatMessageToolCall } from './chat-message-tool-calls.ts';
 export {
   CHAT_MESSAGE_TOOL_PROTOCOL_ADAPTER_IDS,
-  projectChatMessageCommand,
-  projectChatMessageToolCall,
-  projectChatMessageToolCalls,
-  projectChatMessageToolNotice,
-  projectChatMessageToolNotices,
-  projectChatMessageToolResult,
+  normalizeChatMessageCommand,
+  normalizeChatMessageToolCall,
+  normalizeChatMessageToolCalls,
+  normalizeChatMessageToolNotice,
+  normalizeChatMessageToolNotices,
+  normalizeChatMessageToolResult,
   type ChatMessageToolProtocolAdapterId,
-  type ProjectChatMessageToolCallOptions,
-  type ProjectedChatMessageToolNotice,
-  type ProjectChatMessageToolResultInput,
-  type ProjectedChatMessageCommand,
+  type NormalizeChatMessageToolCallOptions,
+  type NormalizedChatMessageToolNotice,
+  type NormalizeChatMessageToolResultInput,
+  type NormalizedChatMessageCommand,
 } from './chat-message-tool-calls.ts';
 
 export interface ChatMessageToolCallsBlock {
@@ -135,18 +134,18 @@ export interface ChatMessageLayoutHints {
   hasCollapsibleSections: boolean;
 }
 
-export interface BirdCoderChatMessageView {
+export interface AgentSessionItemPresentation {
   messageId: string;
-  kind: BirdCoderChatMessageViewKind;
+  kind: AgentSessionItemViewKind;
   source: Readonly<ChatMessageViewSource>;
-  engineId?: BirdCoderCodeEngineKey;
+  engineId?: string;
   layoutHints: ChatMessageLayoutHints;
   blocks: readonly ChatMessageContentBlock[];
 }
 
 export interface ResolveChatMessageViewOptions {
   activitySummary?: ChatTurnActivitySummary | null;
-  engineId?: BirdCoderCodeEngineKey;
+  engineId?: string;
   layout?: 'sidebar' | 'main';
 }
 
@@ -206,7 +205,7 @@ function countTranscriptContentLines(content: string): number {
 function hasStructuredActivity(
   message: ChatMessageViewSource,
   activitySummary?: ChatTurnActivitySummary | null,
-  engineId?: BirdCoderCodeEngineKey,
+  engineId?: string,
 ): boolean {
   if (activitySummary && (activitySummary.fileChanges.length > 0 || activitySummary.commands.length > 0)) {
     return true;
@@ -214,7 +213,7 @@ function hasStructuredActivity(
   return filterStructuredFileChanges(message).length > 0
     || filterStructuredCommands(message).length > 0
     || hasParsedFileUpdateSummary(message.content)
-    || projectChatMessageToolCalls(message.tool_calls, { engineId })
+    || normalizeChatMessageToolCalls(message.tool_calls, { engineId })
       .some((call) => call.kind === 'command');
 }
 
@@ -245,7 +244,7 @@ function resolveToolNoticeFallback(call: ChatMessageToolCall): string {
   return call.output?.trim() ?? '';
 }
 
-function projectToolNoticeBlock(call: ChatMessageToolCall): ChatMessageNoticeBlock | null {
+function composeToolNoticeBlock(call: ChatMessageToolCall): ChatMessageNoticeBlock | null {
   if (call.presentation !== 'notice') {
     return null;
   }
@@ -279,8 +278,8 @@ function projectToolNoticeBlock(call: ChatMessageToolCall): ChatMessageNoticeBlo
 function inferChatMessageViewKind(
   message: ChatMessageViewSource,
   activitySummary?: ChatTurnActivitySummary | null,
-  engineId?: BirdCoderCodeEngineKey,
-): BirdCoderChatMessageViewKind {
+  engineId?: string,
+): AgentSessionItemViewKind {
   switch (message.role) {
     case 'user':
       return 'user.text';
@@ -307,9 +306,9 @@ function inferChatMessageViewKind(
 
 function buildChatMessageContentBlocks(
   message: ChatMessageViewSource,
-  kind: BirdCoderChatMessageViewKind,
+  kind: AgentSessionItemViewKind,
   activitySummary?: ChatTurnActivitySummary | null,
-  engineId?: BirdCoderCodeEngineKey,
+  engineId?: string,
 ): ChatMessageContentBlock[] {
   const blocks: ChatMessageContentBlock[] = [];
   const markdownMode: 'basic' | 'rich' = message.role === 'user' ? 'basic' : 'rich';
@@ -319,7 +318,7 @@ function buildChatMessageContentBlocks(
   const noticeKind = resolveProtocolNoticeKind(message);
 
   const reasoning = ['assistant', 'planner', 'reviewer'].includes(message.role)
-    ? projectChatMessageReasoning(message.reasoning)
+    ? normalizeChatMessageReasoning(message.reasoning)
     : [];
   if (reasoning.length > 0) {
     blocks.push({
@@ -337,7 +336,7 @@ function buildChatMessageContentBlocks(
     });
   }
 
-  const resources = projectChatMessageResources(message.resources);
+  const resources = normalizeChatMessageResources(message.resources);
   if (resources.length > 0) {
     blocks.push({
       type: 'resources',
@@ -345,39 +344,39 @@ function buildChatMessageContentBlocks(
     });
   }
 
-  const fileChanges = activitySummary?.fileChanges ?? resolveProjectedActivityFileChanges(message);
-  const projectedToolCalls = projectChatMessageToolCalls(message.tool_calls, { engineId });
+  const fileChanges = activitySummary?.fileChanges ?? resolveActivityFileChangeViews(message);
+  const normalizedToolCalls = normalizeChatMessageToolCalls(message.tool_calls, { engineId });
   const toolResultCallId = message.tool_call_id?.trim() ?? '';
   // Combined provider entries already carry the authoritative lifecycle in tool_calls.
   // Their text content is a compact summary, not a second generic tool result.
-  const hasAuthoritativeStructuredToolCall = projectedToolCalls.length > 0 && (
-    !toolResultCallId || projectedToolCalls.some((call) => call.id === toolResultCallId)
+  const hasAuthoritativeStructuredToolCall = normalizedToolCalls.length > 0 && (
+    !toolResultCallId || normalizedToolCalls.some((call) => call.id === toolResultCallId)
   );
-  const projectedToolResult = message.role === 'tool' && !hasAuthoritativeStructuredToolCall
-    ? projectChatMessageToolResult({
+  const normalizedToolResult = message.role === 'tool' && !hasAuthoritativeStructuredToolCall
+    ? normalizeChatMessageToolResult({
         content: message.content,
         id: message.tool_call_id,
         name: message.name,
       }, { engineId })
     : null;
-  const allProjectedToolCalls = projectedToolResult
-    ? [...projectedToolCalls, projectedToolResult]
-    : projectedToolCalls;
+  const allNormalizedToolCalls = normalizedToolResult
+    ? [...normalizedToolCalls, normalizedToolResult]
+    : normalizedToolCalls;
 
-  const toolNoticeBlocks = allProjectedToolCalls.flatMap((call) => {
-    const notice = projectToolNoticeBlock(call);
+  const toolNoticeBlocks = allNormalizedToolCalls.flatMap((call) => {
+    const notice = composeToolNoticeBlock(call);
     return notice ? [notice] : [];
   });
   if (toolNoticeBlocks.length > 0) {
     blocks.unshift(...toolNoticeBlocks);
   }
-  const projectedCommands = allProjectedToolCalls.flatMap((call) => {
-    const command = projectChatMessageCommand(call);
+  const normalizedCommands = allNormalizedToolCalls.flatMap((call) => {
+    const command = normalizeChatMessageCommand(call);
     return command ? [command] : [];
   });
   const commandsByKey = new Map<string, NonNullable<ChatMessageViewSource['commands']>[number]>();
   const commandValues = [
-    ...projectedCommands,
+    ...normalizedCommands,
     ...(activitySummary?.commands ?? filterStructuredCommands(message)),
   ];
   for (let commandIndex = 0; commandIndex < commandValues.length; commandIndex += 1) {
@@ -436,8 +435,8 @@ function buildChatMessageContentBlocks(
     });
   }
 
-  const commandToolCallIds = new Set(projectedCommands.map((command) => command.toolCallId));
-  const toolCalls = allProjectedToolCalls.filter((call) => {
+  const commandToolCallIds = new Set(normalizedCommands.map((command) => command.toolCallId));
+  const toolCalls = allNormalizedToolCalls.filter((call) => {
     if (call.presentation === 'notice') {
       return false;
     }
@@ -468,7 +467,7 @@ function buildChatMessageContentBlocks(
 }
 
 export function estimateChatMessageViewHeight(
-  view: BirdCoderChatMessageView,
+  view: AgentSessionItemPresentation,
   layout: 'sidebar' | 'main' = 'main',
 ): number {
   const isUser = view.kind === 'user.text';
@@ -528,11 +527,11 @@ export function estimateChatMessageViewHeight(
 
 function buildChatMessageLayoutHints(
   message: ChatMessageViewSource,
-  kind: BirdCoderChatMessageViewKind,
+  kind: AgentSessionItemViewKind,
   layout: 'sidebar' | 'main',
   blocks: readonly ChatMessageContentBlock[],
 ): ChatMessageLayoutHints {
-  const view: BirdCoderChatMessageView = {
+  const view: AgentSessionItemPresentation = {
     messageId: message.id,
     kind,
     source: message,
@@ -556,7 +555,7 @@ function buildChatMessageLayoutHints(
 export function resolveChatMessageView(
   message: ChatMessageViewSource,
   options: ResolveChatMessageViewOptions = {},
-): BirdCoderChatMessageView {
+): AgentSessionItemPresentation {
   const layout = options.layout ?? 'main';
   const kind = inferChatMessageViewKind(message, options.activitySummary, options.engineId);
   const blocks = buildChatMessageContentBlocks(
@@ -579,7 +578,7 @@ export function resolveChatMessageView(
 export function resolveChatMessageViews(
   messages: readonly ChatMessageViewSource[],
   options: ResolveChatMessageViewOptions = {},
-): BirdCoderChatMessageView[] {
+): AgentSessionItemPresentation[] {
   return messages.map((message) => resolveChatMessageView(message, options));
 }
 
@@ -593,7 +592,7 @@ export function estimateTranscriptMessageHeight(
 }
 
 export function buildChatMessageViewSynchronizationSignature(
-  view: BirdCoderChatMessageView,
+  view: AgentSessionItemPresentation,
 ): string {
   const message = view.source;
   const blockSignature = view.blocks

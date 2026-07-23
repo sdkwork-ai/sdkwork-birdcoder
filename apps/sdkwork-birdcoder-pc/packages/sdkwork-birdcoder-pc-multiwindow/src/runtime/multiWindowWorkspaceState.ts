@@ -231,7 +231,7 @@ function normalizePaneConfig(
   const parameters = readRecord(record.parameters);
 
   return {
-    codingSessionId: normalizeText(record.codingSessionId),
+    agentSessionId: normalizeText(record.agentSessionId),
     enabled: record.enabled !== false,
     id: normalizeText(record.id) || `multiwindow-pane-${index + 1}`,
     mode: normalizeText(record.mode) === 'preview' ? 'preview' : 'chat',

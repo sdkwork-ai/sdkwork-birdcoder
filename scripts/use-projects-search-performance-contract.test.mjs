@@ -26,7 +26,7 @@ assert.match(
 
 assert.doesNotMatch(
   useProjectsSource,
-  /const filteredProjects = useMemo\(\(\) => \{[\s\S]*project\.codingSessions\s*\.map\(\(codingSession\)/s,
+  /const filteredProjects = useMemo\(\(\) => \{[\s\S]*project\.agentSessions\s*\.map\(\(agentSession\)/s,
   'useProjects.filteredProjects must not rebuild scored coding-session arrays inline on every deferred query.',
 );
 

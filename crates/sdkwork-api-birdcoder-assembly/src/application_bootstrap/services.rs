@@ -1,7 +1,6 @@
 use std::fmt;
 use std::sync::Arc;
 
-use sdkwork_birdcoder_project_service::ports::project_workspace_root::ProjectWorkspaceRootResolver;
 use sdkwork_birdcoder_project_service::service::project_document_binding_service::ProjectDocumentBindingService;
 use sdkwork_birdcoder_project_service::service::project_runtime_location_service::ProjectRuntimeLocationService;
 use sdkwork_birdcoder_project_service::service::project_sandbox_binding_service::ProjectSandboxBindingService;
@@ -11,7 +10,6 @@ use sdkwork_birdcoder_workspace_service::service::workspace_service::WorkspaceSe
 use crate::bootstrap::config::BirdServerConfig;
 use crate::bootstrap::git_operations::wire_git_operations;
 use crate::bootstrap::repositories::Repositories;
-use crate::bootstrap::runner_isolation::ServerProjectWorkspaceRootResolver;
 use crate::bootstrap::runtime_location::{
     wire_project_runtime_location_service, RuntimeLocationBootstrapError,
 };
@@ -31,19 +29,14 @@ pub async fn wire_services(
 ) -> Result<Services, ServicesBootstrapError> {
     let workspace = WorkspaceService::new(repos.workspace.clone());
 
-    let project_workspace_root_resolver: Arc<dyn ProjectWorkspaceRootResolver> = Arc::new(
-        ServerProjectWorkspaceRootResolver::new(config.provider_runner_root()),
-    );
     let runtime_location = wire_project_runtime_location_service(
         config,
         repos.project.clone(),
         repos.runtime_location.clone(),
-        project_workspace_root_resolver.clone(),
     )?;
     let project = ProjectService::new(
         repos.project.clone(),
         wire_git_operations(),
-        project_workspace_root_resolver,
         Arc::new(runtime_location.clone()),
     );
     let document_binding = ProjectDocumentBindingService::new(

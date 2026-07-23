@@ -25,30 +25,31 @@ const authPackageJson = readJson('apps/sdkwork-birdcoder-pc/packages/sdkwork-bir
 const iamPackageJson = readJson('apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-iam/package.json');
 const corePackageJson = readJson('apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-core/package.json');
 const infrastructurePackageJson = readJson('apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/package.json');
-const serverPackageJson = readJson('apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-server/package.json');
 const tsconfig = readJson('tsconfig.json');
 const runtimeTsconfig = readJson('tsconfig.runtime.json');
 const iamIntegrationSource = readText('apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-iam/src/iamIntegration.ts');
 const authPageSource = readText('apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-auth/src/pages/AuthPage.tsx');
 const authSurfaceSource = readText('apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-auth/src/auth-surface.ts');
 const infrastructureIndexSource = readText('apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/src/index.ts');
-const sdkClientsSource = readText('apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/src/services/sdkClients.ts');
+const birdCoderSdkClientSource = readText('apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/src/services/birdCoderSdkClient.ts');
+const sdkSessionSource = readText('apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/src/services/sdkSession.ts');
 const iamRuntimeSource = readText('apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/src/services/iamRuntime.ts');
+const sdkBaseUrlsSource = readText('apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/src/services/sdkBaseUrls.ts');
 
 assert.match(
   iamRuntimeSource,
-  /resolveBirdCoderBrowserDevelopmentSdkBaseUrl\(envValue\)/u,
-  'PC web development must normalize loopback SDK authorities to the same-origin Vite proxy boundary.',
+  /resolveBirdCoderDependencySdkBaseUrl\('IAM'/u,
+  'IAM must resolve through the dependency SDK topology boundary.',
 );
 assert.match(
-  iamRuntimeSource,
-  /return window\.location\.origin/u,
-  'PC web development SDK clients must use the browser origin after local authority normalization.',
+  sdkBaseUrlsSource,
+  /BIRDCODER_PLATFORM_DEV_PROXY_PATH\s*=\s*['"]\/__sdkwork\/platform['"]/u,
+  'PC web development must use the controlled same-origin platform proxy path.',
 );
-assert.match(
+assertNoMatch(
   iamRuntimeSource,
-  /runtimeMode[\s\S]*development[\s\S]*test/u,
-  'PC test-mode SDK clients must use the same-origin proxy boundary as development clients.',
+  /window\.location\.origin|BIRDCODER_DEFAULT_LOCAL_API_BASE_URL|runtimeConfig\.apiBaseUrl/u,
+  'IAM and dependency clients must not fall back to the renderer origin, a local default, or BirdCoder application runtime state.',
 );
 const defaultServicesSource = readText('apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/src/services/defaultIdeServicesShared.ts');
 
@@ -56,7 +57,6 @@ for (const [label, packageJson] of [
   ['sdkwork-birdcoder-auth', authPackageJson],
   ['sdkwork-birdcoder-iam', iamPackageJson],
   ['sdkwork-birdcoder-infrastructure', infrastructurePackageJson],
-  ['sdkwork-birdcoder-pc-server', serverPackageJson],
 ]) {
   const dependencies = {
     ...(packageJson.dependencies ?? {}),
@@ -214,37 +214,37 @@ assertMatch(
   'BirdCoder IAM runtime must start proactive app session refresh before auth-protected SDK calls expire.',
 );
 assertMatch(
-  sdkClientsSource,
+  sdkSessionSource,
   /redirectBrowserToBirdCoderProtectedLogin/u,
-  'BirdCoder SDK client factory must redirect session auth failures to the canonical hash auth login route.',
+  'BirdCoder SDK session boundary must redirect auth failures to the canonical hash auth login route.',
 );
 assertMatch(
-  sdkClientsSource,
+  sdkSessionSource,
   /handleBirdCoderSdkSessionAuthError/u,
-  'BirdCoder SDK client factory must clear IAM session state on SDK auth errors.',
+  'BirdCoder SDK session boundary must clear IAM session state on SDK auth errors.',
 );
 assertMatch(
-  sdkClientsSource,
-  /export function createBirdCoderAppSdkApiClient\([\s\S]*const sessionTransport = createBirdCoderSessionAwareTransport\(transport\);[\s\S]*createBirdcoderAppSdkClient\(\{[\s\S]*transport: sessionTransport,/u,
-  'The composed BirdCoder app client must bind generated SDK requests to the shared unauthorized-session boundary.',
+  birdCoderSdkClientSource,
+  /export function createBirdCoderAppClient\([\s\S]*createClient\(\{[\s\S]*tokenManager:\s*options\.tokenManager \?\? getBirdCoderGlobalTokenManager\(\)/u,
+  'The composed BirdCoder App SDK client must bind the shared global TokenManager.',
 );
 assertNoMatch(
-  sdkClientsSource,
+  birdCoderSdkClientSource,
   /getStoredAppSessionAuthToken|getStoredAppSessionAccessToken/u,
   'BirdCoder generated SDK client factories must not read stored tokens; token hydration belongs to the IAM tokenStore and global TokenManager.',
 );
 assertNoMatch(
-  sdkClientsSource,
+  birdCoderSdkClientSource,
   /accessToken:\s*options\.accessToken\s*\?\?\s*getStoredAppSessionAccessToken\(\)|authToken:\s*options\.authToken\s*\?\?\s*getStoredAppSessionAuthToken\(\)/u,
   'BirdCoder generated SDK constructors must not inject persisted tokens as constructor defaults.',
 );
 assertMatch(
-  sdkClientsSource,
-  /setTokenManager\(manager/u,
-  'BirdCoder generated SDK compatibility clients must expose setTokenManager for appbase IAM runtime binding.',
+  birdCoderSdkClientSource,
+  /sharedClient\?\.setTokenManager\(tokenManager\)/u,
+  'BirdCoder App SDK client must propagate replacement TokenManager state to the shared client.',
 );
 assertNoMatch(
-  sdkClientsSource,
+  birdCoderSdkClientSource,
   /import\(['"]\.\/iamRuntime\.ts['"]\)/u,
   'BirdCoder SDK client factory must not dynamically import the IAM runtime; IAM runtime reset is owned by the IAM runtime session-change listener.',
 );

@@ -8,7 +8,7 @@ import {
   createAppTemplateFixture,
   createBirdCoderDataEnvelope,
   createBirdCoderListEnvelope,
-  createCodingSessionFixture,
+  createAgentSessionFixture,
   createIamDeviceAuthorizationFixture,
   createIamRuntimeSettings,
   createIamSessionData,
@@ -277,7 +277,7 @@ function handleRoute(method, url, request, body) {
     };
   }
 
-  if (pathname === '/app/v3/api/intelligence/coding_sessions' && method === 'GET') {
+  if (pathname === '/app/v3/api/ai/agents/agent.birdcoder/sessions' && method === 'GET') {
     if (!isAuthenticatedRequest(request)) {
       return {
         statusCode: 401,
@@ -287,11 +287,11 @@ function handleRoute(method, url, request, body) {
 
     return {
       statusCode: 200,
-      payload: createBirdCoderListEnvelope([createCodingSessionFixture()]),
+      payload: createBirdCoderListEnvelope([createAgentSessionFixture()]),
     };
   }
 
-  if (pathname === '/app/v3/api/intelligence/coding_sessions/e2e-coding-session-1' && method === 'GET') {
+  if (pathname === '/app/v3/api/ai/agents/agent.birdcoder/sessions/e2e-coding-session-1' && method === 'GET') {
     if (!isAuthenticatedRequest(request)) {
       return {
         statusCode: 401,
@@ -301,13 +301,13 @@ function handleRoute(method, url, request, body) {
 
     return {
       statusCode: 200,
-      payload: createBirdCoderDataEnvelope(createCodingSessionFixture()),
+      payload: createBirdCoderDataEnvelope(createAgentSessionFixture()),
     };
   }
 
   if (
     method === 'GET'
-    && /^\/app\/v3\/api\/intelligence\/coding_sessions\/e2e-coding-session-1\/(?:artifacts|checkpoints|events)$/u.test(pathname)
+    && /^\/app\/v3\/api\/ai\/agents\/agent\.birdcoder\/sessions\/e2e-coding-session-1\/(?:checkpoints|interactions|items|runtime_bindings|turns)$/u.test(pathname)
   ) {
     if (!isAuthenticatedRequest(request)) {
       return {

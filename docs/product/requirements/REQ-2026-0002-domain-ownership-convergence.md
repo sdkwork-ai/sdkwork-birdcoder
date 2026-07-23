@@ -1,6 +1,6 @@
 # REQ-2026-0002 Domain Ownership Convergence
 
-Status: in-progress
+Status: accepted
 Owner: SDKWork maintainers
 Source: customer
 Priority: P0
@@ -9,17 +9,16 @@ Specs: `DOMAIN_SPEC.md`, `APPLICATION_LAYERED_ARCHITECTURE_SPEC.md`, `DATABASE_S
 
 ## Problem
 
-BirdCoder currently persists and publishes capabilities that already have
-dedicated SDKWork owners. AI coding sessions and assistant transcripts overlap
-Agents, skill packages overlap Skills, human access and governance overlap IAM,
-and documents, templates, deployments, model configuration, and commerce facts
-overlap their respective modules. The duplicated schemas and APIs create more
-than one write authority, make dependency direction ambiguous, and force every
-client to understand product-local variants of platform contracts.
+Every business fact requires one system of record and one write owner. BirdCoder
+therefore owns only coding-workbench facts; Agents owns AI execution and
+assistant transcripts; Skills owns reusable skill facts; IM owns human
+communication; and the remaining dependency capabilities stay with their
+declared SDKWork owners. This boundary keeps dependency direction explicit and
+lets every client consume one canonical contract per capability.
 
-The AI transcript tables named `chat_conversation` and `chat_message` are not
-human IM facts. Their roles and reply generation are part of an agent session.
-Moving them to IM would preserve the ambiguity instead of removing it.
+AI transcript content belongs to an Agent Session even when a UI presents it
+as chat. Human IM messages have a different lifecycle and are not a storage
+destination for Agent Session Items.
 
 ## Goals
 
@@ -28,9 +27,9 @@ Moving them to IM would preserve the ambiguity instead of removing it.
   Interaction` model for every BirdCoder AI coding and assistant workflow.
 - Keep IM `Conversation -> Message -> Member -> ReadCursor` semantics exclusive
   to human or channel communication.
-- Move reusable skill package, artifact, capability, and installation facts to
+- Keep reusable skill package, artifact, capability, and installation facts in
   Skills.
-- Reduce BirdCoder persistence to coding-workbench workspace, project, document
+- Restrict BirdCoder persistence to coding-workbench workspace, project, document
   binding, runtime-location, and sandbox-binding facts.
 - Generate and consume each dependency API through its owning SDK family. Do
   not copy dependency OpenAPI operations into BirdCoder SDK generation input.
@@ -40,8 +39,8 @@ Moving them to IM would preserve the ambiguity instead of removing it.
 
 ## Non-Goals
 
-- Moving AI assistant messages into IM because both concepts use the word
-  message.
+- Moving AI transcript items into IM because both concepts can be displayed as
+  messages.
 - Adding a second BirdCoder session identifier beside the Agents session id.
 - Keeping product-local DTO or HTTP compatibility layers for an application
   that has not launched.
@@ -63,8 +62,8 @@ Moving them to IM would preserve the ambiguity instead of removing it.
    stable link to Agents. It stores no Agents session, turn, item, interaction,
    event, artifact, checkpoint, or runtime snapshot.
 5. AI session APIs and clients use Agents Project/Session/Turn/SessionItem/
-   Interaction terminology. BirdCoder has no `/coding_sessions` or
-   `/chat/conversations` AI routes.
+   Interaction terminology. The BirdCoder App API contains no AI session or
+   transcript resources.
 6. Human IM continues to use Conversation/Message/Member/ReadCursor and may
    invoke Agents through a public SDK/facade. Agents has no IM dependency.
 7. Skills is the only owner of skill package/artifact/capability/installation
@@ -124,4 +123,3 @@ Moving them to IM would preserve the ambiguity instead of removing it.
 - `node ../sdkwork-specs/tools/check-application-layering.mjs --root .`
 - `node ../sdkwork-specs/tools/check-app-sdk-consumer-imports.mjs --workspace .`
 - `pnpm docs:build`
-

@@ -17,8 +17,6 @@ serde_json.workspace = true
 uuid.workspace = true
 async-trait.workspace = true
 tracing = "0.1"
-sha2 = "0.10"
-hex = "0.4"
 sdkwork-web-bootstrap = { workspace = true, features = ["otel"] }
 sdkwork-web-axum.workspace = true
 sdkwork-web-core.workspace = true

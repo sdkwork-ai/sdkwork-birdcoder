@@ -1,19 +1,19 @@
 import assert from 'node:assert/strict';
 
-import { ENGINE_GOVERNANCE_REGRESSION_CHECK_IDS } from './governance-regression-report.mjs';
+import { RELEASE_GOVERNANCE_CHECK_IDS } from './governance-regression-report.mjs';
 import {
   normalizeQualityEvidenceSummary,
   summarizeQualityLoopScoreboard,
 } from './release/quality-gate-release-evidence.mjs';
 
-const legacyReleaseGovernanceCheckIds = ENGINE_GOVERNANCE_REGRESSION_CHECK_IDS.slice(0, 4);
+const partialReleaseGovernanceCheckIds = RELEASE_GOVERNANCE_CHECK_IDS.slice(0, 4);
 
 const blockedScoreboard = summarizeQualityLoopScoreboard({
   totalTiers: 3,
   workflowBoundTiers: 3,
   manifestBoundTiers: 3,
   tierIds: ['fast', 'standard', 'release'],
-  releaseGovernanceCheckIds: ENGINE_GOVERNANCE_REGRESSION_CHECK_IDS,
+  releaseGovernanceCheckIds: RELEASE_GOVERNANCE_CHECK_IDS,
   blockingDiagnosticIds: ['vite-host-build-preflight'],
   executionStatus: 'blocked',
   executionBlockingTierIds: ['standard'],
@@ -35,7 +35,7 @@ const clearScoreboard = summarizeQualityLoopScoreboard({
   workflowBoundTiers: 3,
   manifestBoundTiers: 3,
   tierIds: ['fast', 'standard', 'release'],
-  releaseGovernanceCheckIds: ENGINE_GOVERNANCE_REGRESSION_CHECK_IDS,
+  releaseGovernanceCheckIds: RELEASE_GOVERNANCE_CHECK_IDS,
   blockingDiagnosticIds: [],
   executionStatus: 'passed',
   executionBlockingTierIds: [],
@@ -57,7 +57,7 @@ const releaseReadinessBlockedScoreboard = summarizeQualityLoopScoreboard({
   workflowBoundTiers: 3,
   manifestBoundTiers: 3,
   tierIds: ['fast', 'standard', 'release'],
-  releaseGovernanceCheckIds: ENGINE_GOVERNANCE_REGRESSION_CHECK_IDS,
+  releaseGovernanceCheckIds: RELEASE_GOVERNANCE_CHECK_IDS,
   blockingDiagnosticIds: [],
   executionStatus: 'passed',
   executionBlockingTierIds: [],
@@ -84,7 +84,7 @@ const normalizedQualitySummary = normalizeQualityEvidenceSummary({
   failureClassificationIds: ['contract-drift', 'toolchain-platform', 'artifact-integrity', 'evidence-gap'],
   environmentDiagnostics: 1,
   blockingDiagnosticIds: ['vite-host-build-preflight'],
-  releaseGovernanceCheckIds: ENGINE_GOVERNANCE_REGRESSION_CHECK_IDS,
+  releaseGovernanceCheckIds: RELEASE_GOVERNANCE_CHECK_IDS,
   executionStatus: 'blocked',
   executionBlockingTierIds: ['standard'],
   executionFailedTierIds: [],
@@ -103,7 +103,7 @@ const normalizedReleaseReadinessSummary = normalizeQualityEvidenceSummary({
   failureClassificationIds: ['contract-drift'],
   environmentDiagnostics: 0,
   blockingDiagnosticIds: [],
-  releaseGovernanceCheckIds: ENGINE_GOVERNANCE_REGRESSION_CHECK_IDS,
+  releaseGovernanceCheckIds: RELEASE_GOVERNANCE_CHECK_IDS,
   executionStatus: 'passed',
   executionBlockingTierIds: [],
   executionFailedTierIds: [],
@@ -125,7 +125,7 @@ const legacyScoreboard = summarizeQualityLoopScoreboard({
   workflowBoundTiers: 3,
   manifestBoundTiers: 3,
   tierIds: ['fast', 'standard', 'release'],
-  releaseGovernanceCheckIds: legacyReleaseGovernanceCheckIds,
+  releaseGovernanceCheckIds: partialReleaseGovernanceCheckIds,
   blockingDiagnosticIds: [],
   executionStatus: 'passed',
   executionBlockingTierIds: [],
@@ -138,7 +138,7 @@ assert.equal(
   Math.round(
     (
       (1 * 0.6)
-      + ((legacyReleaseGovernanceCheckIds.length / ENGINE_GOVERNANCE_REGRESSION_CHECK_IDS.length) * 0.4)
+      + ((partialReleaseGovernanceCheckIds.length / RELEASE_GOVERNANCE_CHECK_IDS.length) * 0.4)
     ) * 100,
   ),
 );

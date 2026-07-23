@@ -1,6 +1,7 @@
 # Getting Started
 
-SDKWork BirdCoder is a package-first AI IDE workspace aligned with the SDKWork application architecture standard.
+SDKWork BirdCoder is a multi-surface coding workbench aligned with the SDKWork
+application architecture and topology standards.
 
 ## Install Dependencies
 
@@ -8,38 +9,41 @@ SDKWork BirdCoder is a package-first AI IDE workspace aligned with the SDKWork a
 pnpm install
 ```
 
-## Start The Default Local Web Sample Stack
+## Start The Default Standalone Browser Topology
 
 ```bash
 pnpm dev
 ```
 
-## Start The Canonical Sample Modes
+## Select A Runtime Target
 
 ```bash
-pnpm dev:desktop:local
+pnpm dev:browser:standalone
+pnpm dev:desktop:standalone
+pnpm dev:server:standalone
 pnpm dev:browser:cloud
-pnpm dev:desktop
-pnpm dev:server:postgres:standalone
-pnpm dev:server:cloud
+pnpm dev:desktop:cloud
 ```
 
-BirdCoder keeps one frontend-facing SDKWork IAM facade while switching deployment mode underneath it:
+The root commands delegate to `sdkwork-app`. `deploymentProfile` selects
+`standalone` or `cloud`; `runtimeTarget` independently selects `browser`,
+`desktop`, `server`, or another target declared in the topology contract. The
+selection does not create another IAM, database, or session architecture.
 
-- `pnpm dev:desktop:local` or `pnpm dev:desktop` for the desktop-local sample with local SDKWork IAM storage
-- `pnpm dev`, `pnpm dev:browser:postgres:standalone`, or `pnpm dev:browser:standalone` for the private BirdCoder web sample stack with automatic server startup
-- `pnpm dev:browser:cloud` or `pnpm dev:server:cloud` for the cloud-backed SDKWork IAM lane
-
-When the resolved startup env needs inspection before running a mode, use:
+Inspect the exact process and environment plan before startup:
 
 ```bash
-pnpm check:env:desktop:local
-pnpm check:env:server:standalone
-pnpm check:env:server:cloud
+pnpm topology:validate
+pnpm topology:plan -- --deployment-profile standalone --environment development --runtime-target browser
+pnpm topology:plan -- --deployment-profile standalone --environment development --runtime-target desktop
+pnpm topology:plan -- --deployment-profile cloud --environment development --runtime-target browser
 ```
+
+`cloud.development` requires explicit deployed endpoints and never substitutes
+standalone loopback defaults.
 
 ## Useful Next Steps
 
-- Read [Application Modes](./application-modes.md)
+- Read [Deployment Profiles And Runtime Targets](./application-modes.md)
 - Review [Architecture](/core/architecture)
 - Check [Release And Deployment](/core/release-and-deployment)

@@ -3,27 +3,27 @@ import type { BirdCoderProjectDocumentSummary } from '@sdkwork/birdcoder-pc-cont
 import type { DocumentListOptions, IDocumentService } from '@sdkwork/birdcoder-pc-infrastructure-runtime';
 import { useIDEServices } from '../context/ideServices.ts';
 
-const DEFAULT_DOCUMENT_PAGE_SIZE = 200;
-
 export async function loadDocuments(
   documentService: Pick<IDocumentService, 'getDocuments'>,
-  options: DocumentListOptions = {},
+  options: DocumentListOptions,
 ): Promise<BirdCoderProjectDocumentSummary[]> {
-  return documentService.getDocuments({
-    limit: options.limit ?? DEFAULT_DOCUMENT_PAGE_SIZE,
-    ...options,
-  });
+  return documentService.getDocuments(options);
 }
 
-export function useDocuments() {
+export function useDocuments(projectId: string | null | undefined) {
   const { documentService } = useIDEServices();
   const [documents, setDocuments] = useState<BirdCoderProjectDocumentSummary[]>([]);
   const [isLoading, setIsLoading] = useState(false);
 
   const refreshDocuments = useCallback(async () => {
+    const normalizedProjectId = projectId?.trim();
+    if (!normalizedProjectId) {
+      setDocuments([]);
+      return [];
+    }
     setIsLoading(true);
     try {
-      const data = await loadDocuments(documentService);
+      const data = await loadDocuments(documentService, { projectId: normalizedProjectId });
       setDocuments(data);
       return data;
     } catch (error) {
@@ -33,7 +33,7 @@ export function useDocuments() {
     } finally {
       setIsLoading(false);
     }
-  }, [documentService]);
+  }, [documentService, projectId]);
 
   useEffect(() => {
     void refreshDocuments();

@@ -41,7 +41,7 @@ function readMethodBody(methodName, visibility = 'private') {
   return source.slice(methodStart, methodEnd);
 }
 
-const cloneForProjectRecordSource = readFunctionBody('cloneCodingSessionForProjectRecord');
+const cloneForProjectRecordSource = readFunctionBody('cloneAgentSessionForProjectRecord');
 const mapProjectRecordSource = readMethodBody('mapProjectRecord');
 
 assert.match(
@@ -56,17 +56,17 @@ assert.match(
 );
 assert.match(
   cloneForProjectRecordSource,
-  /return cloneCodingSession\(value\);/,
+  /return cloneAgentSession\(value\);/,
   'sessions that still carry transcript messages must keep the deep clone path.',
 );
 assert.match(
   mapProjectRecordSource,
-  /\.\.\.cloneCodingSessionForProjectRecord\(session\)/,
+  /\.\.\.cloneAgentSessionForProjectRecord\(session\)/,
   'mapProjectRecord must use the lightweight project-record session clone helper.',
 );
 assert.doesNotMatch(
   mapProjectRecordSource,
-  /\.\.\.cloneCodingSession\(session\)/,
+  /\.\.\.cloneAgentSession\(session\)/,
   'mapProjectRecord must not structuredClone every empty-message inventory session.',
 );
 

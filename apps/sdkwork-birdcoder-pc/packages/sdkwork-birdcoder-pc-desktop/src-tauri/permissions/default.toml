@@ -9,7 +9,9 @@ permissions = [
   "allow-local-store-set",
   "allow-local-store-delete",
   "allow-local-store-list",
-  "allow-local-sql-execute-plan",
+  "allow-secure-app-session-read",
+  "allow-secure-app-session-write",
+  "allow-secure-app-session-delete",
   "allow-user-home-config-read",
   "allow-user-home-config-write",
   "allow-fs-list-directory",
@@ -34,7 +36,6 @@ permissions = [
   "allow-git-create-worktree",
   "allow-git-remove-worktree",
   "allow-git-prune-worktrees",
-  "allow-terminal-cli-profile-detect",
   "allow-desktop-runtime-location-install-identity",
   "allow-desktop-runtime-location-create-root-locator",
   "allow-desktop-pick-working-directory",
@@ -66,9 +67,17 @@ permissions = [
   "allow-local-store-set",
   "allow-local-store-delete",
   "allow-local-store-list",
-  "allow-local-sql-execute-plan",
   "allow-user-home-config-read",
   "allow-user-home-config-write",
+]
+
+[[set]]
+identifier = "allow-secure-app-session"
+description = "Allows the desktop IAM session credential-store bridge commands."
+permissions = [
+  "allow-secure-app-session-read",
+  "allow-secure-app-session-write",
+  "allow-secure-app-session-delete",
 ]
 
 [[set]]
@@ -103,7 +112,6 @@ permissions = [
 identifier = "allow-desktop-host-bridge"
 description = "Allows desktop shell host bridge commands."
 permissions = [
-  "allow-terminal-cli-profile-detect",
   "allow-desktop-pick-working-directory",
   "allow-desktop-reveal-in-file-manager",
   "allow-desktop-window-controls-bridge-capabilities",
@@ -166,9 +174,19 @@ description = "Enables the local_store_list command."
 commands.allow = ["local_store_list"]
 
 [[permission]]
-identifier = "allow-local-sql-execute-plan"
-description = "Enables the local_sql_execute_plan command."
-commands.allow = ["local_sql_execute_plan"]
+identifier = "allow-secure-app-session-read"
+description = "Enables reading the desktop IAM session from the operating-system credential store."
+commands.allow = ["secure_app_session_read"]
+
+[[permission]]
+identifier = "allow-secure-app-session-write"
+description = "Enables writing the desktop IAM session to the operating-system credential store."
+commands.allow = ["secure_app_session_write"]
+
+[[permission]]
+identifier = "allow-secure-app-session-delete"
+description = "Enables deleting the desktop IAM session from the operating-system credential store."
+commands.allow = ["secure_app_session_delete"]
 
 [[permission]]
 identifier = "allow-user-home-config-read"
@@ -289,11 +307,6 @@ commands.allow = ["git_remove_worktree"]
 identifier = "allow-git-prune-worktrees"
 description = "Enables the git_prune_worktrees command."
 commands.allow = ["git_prune_worktrees"]
-
-[[permission]]
-identifier = "allow-terminal-cli-profile-detect"
-description = "Enables the terminal_cli_profile_detect command."
-commands.allow = ["terminal_cli_profile_detect"]
 
 [[permission]]
 identifier = "allow-desktop-pick-working-directory"

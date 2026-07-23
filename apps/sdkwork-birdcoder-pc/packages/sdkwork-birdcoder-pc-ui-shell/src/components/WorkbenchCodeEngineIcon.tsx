@@ -1,8 +1,3 @@
-import {
-  findWorkbenchCodeEngineDefinition,
-  getWorkbenchCodeEngineLabel,
-} from '@sdkwork/birdcoder-pc-codeengine';
-
 import { cn } from '../lib/utils';
 
 export interface WorkbenchCodeEngineIconProps {
@@ -41,6 +36,15 @@ const UNKNOWN_ENGINE_THEME_CLASSES = {
   label: 'text-gray-300',
 } as const;
 
+const ENGINE_PRESENTATION: Readonly<
+  Record<string, { label: string; monogram: string; theme: keyof typeof THEME_CLASS_BY_ID }>
+> = {
+  codex: { label: 'Codex', monogram: 'CX', theme: 'blue' },
+  'claude-code': { label: 'Claude Code', monogram: 'CC', theme: 'amber' },
+  gemini: { label: 'Gemini', monogram: 'GM', theme: 'emerald' },
+  opencode: { label: 'OpenCode', monogram: 'OC', theme: 'violet' },
+};
+
 function buildUnknownEngineMonogram(engineId: string | null | undefined): string {
   const normalizedValue = engineId?.trim() ?? '';
   const alphanumericValue = normalizedValue.replace(/[^a-z0-9]/giu, '');
@@ -57,12 +61,13 @@ export function WorkbenchCodeEngineIcon({
   labelClassName,
   size = 'sm',
 }: WorkbenchCodeEngineIconProps) {
-  const engine = findWorkbenchCodeEngineDefinition(engineId);
-  const themeClasses = engine
-    ? THEME_CLASS_BY_ID[engine.theme]
+  const normalizedEngineId = engineId?.trim().toLowerCase() ?? '';
+  const presentation = ENGINE_PRESENTATION[normalizedEngineId];
+  const themeClasses = presentation
+    ? THEME_CLASS_BY_ID[presentation.theme]
     : UNKNOWN_ENGINE_THEME_CLASSES;
-  const label = getWorkbenchCodeEngineLabel(engineId);
-  const monogram = engine?.monogram ?? buildUnknownEngineMonogram(engineId);
+  const label = presentation?.label ?? engineId?.trim() ?? '';
+  const monogram = presentation?.monogram ?? buildUnknownEngineMonogram(engineId);
 
   return (
     <span

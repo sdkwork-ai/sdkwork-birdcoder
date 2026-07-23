@@ -1,8 +1,8 @@
 import { useEffect, useRef } from 'react';
-import { buildProjectCodingSessionIndex, buildCodingSessionProjectScopedKey } from '@sdkwork/birdcoder-pc-workbench/workbench/codingSessionSelection';
+import { buildProjectAgentSessionIndex, buildAgentSessionProjectScopedKey } from '@sdkwork/birdcoder-pc-workbench/workbench/agentSessionSelection';
 import { emitOpenTerminalRequest } from '@sdkwork/birdcoder-pc-workbench/terminal/requests';
 import { globalEventBus } from '@sdkwork/birdcoder-pc-workbench/utils/EventBus';
-import type { BirdCoderProjectCodingSessionIndex } from '@sdkwork/birdcoder-pc-workbench/workbench/codingSessionSelection';
+import type { BirdCoderProjectAgentSessionIndex } from '@sdkwork/birdcoder-pc-workbench/workbench/agentSessionSelection';
 import type { TerminalCommandRequest } from '@sdkwork/birdcoder-pc-workbench/terminal/requests';
 import type { ToastType } from '@sdkwork/birdcoder-pc-workbench/contexts/ToastProvider';
 import type { ProjectRuntimeLocationResolver } from '@sdkwork/birdcoder-pc-workbench/hooks/useProjectRuntimeLocation';
@@ -16,11 +16,11 @@ import { useTranslation } from 'react-i18next';
 interface UseCodeWorkbenchCommandsOptions {
   isActive?: boolean;
   projects: BirdCoderProject[];
-  selectedCodingSessionId: string | null;
+  selectedAgentSessionId: string | null;
   selectedProjectId: string | null;
   resolveProjectRuntimeLocation: ProjectRuntimeLocationResolver;
-  selectCodingSession: (
-    codingSessionId: string,
+  selectAgentSession: (
+    agentSessionId: string,
     options?: { projectId?: string },
   ) => void;
   setIsTerminalOpen: React.Dispatch<React.SetStateAction<boolean>>;
@@ -39,10 +39,10 @@ interface UseCodeWorkbenchCommandsOptions {
 export function useCodeWorkbenchCommands({
   isActive = true,
   projects,
-  selectedCodingSessionId,
+  selectedAgentSessionId,
   selectedProjectId,
   resolveProjectRuntimeLocation,
-  selectCodingSession,
+  selectAgentSession,
   setIsTerminalOpen,
   setTerminalRequest,
   setIsSidebarVisible,
@@ -57,42 +57,42 @@ export function useCodeWorkbenchCommands({
 }: UseCodeWorkbenchCommandsOptions) {
   const { t } = useTranslation();
   const projectsRef = useRef(projects);
-  const projectCodingSessionIndexRef = useRef<BirdCoderProjectCodingSessionIndex | null>(null);
-  const selectedCodingSessionIdRef = useRef(selectedCodingSessionId);
+  const projectAgentSessionIndexRef = useRef<BirdCoderProjectAgentSessionIndex | null>(null);
+  const selectedAgentSessionIdRef = useRef(selectedAgentSessionId);
   const selectedProjectIdRef = useRef(selectedProjectId);
   const resolveProjectRuntimeLocationRef = useRef(resolveProjectRuntimeLocation);
-  const selectCodingSessionRef = useRef(selectCodingSession);
+  const selectAgentSessionRef = useRef(selectAgentSession);
   const onRunWithoutDebuggingRef = useRef(onRunWithoutDebugging);
   const flushPendingAutosaveRef = useRef(flushPendingAutosave);
 
   useEffect(() => {
     projectsRef.current = projects;
-    projectCodingSessionIndexRef.current = buildProjectCodingSessionIndex(projectsRef.current);
+    projectAgentSessionIndexRef.current = buildProjectAgentSessionIndex(projectsRef.current);
   }, [projects]);
 
-  const resolveProjectCodingSessionIndex = () => {
-    let projectCodingSessionIndex = projectCodingSessionIndexRef.current;
-    if (!projectCodingSessionIndex) {
-      projectCodingSessionIndex = buildProjectCodingSessionIndex(projectsRef.current);
-      projectCodingSessionIndexRef.current = projectCodingSessionIndex;
+  const resolveProjectAgentSessionIndex = () => {
+    let projectAgentSessionIndex = projectAgentSessionIndexRef.current;
+    if (!projectAgentSessionIndex) {
+      projectAgentSessionIndex = buildProjectAgentSessionIndex(projectsRef.current);
+      projectAgentSessionIndexRef.current = projectAgentSessionIndex;
     }
 
-    return projectCodingSessionIndex;
+    return projectAgentSessionIndex;
   };
 
   useEffect(() => {
-    selectedCodingSessionIdRef.current = selectedCodingSessionId;
+    selectedAgentSessionIdRef.current = selectedAgentSessionId;
     selectedProjectIdRef.current = selectedProjectId;
     resolveProjectRuntimeLocationRef.current = resolveProjectRuntimeLocation;
-    selectCodingSessionRef.current = selectCodingSession;
+    selectAgentSessionRef.current = selectAgentSession;
     onRunWithoutDebuggingRef.current = onRunWithoutDebugging;
     flushPendingAutosaveRef.current = flushPendingAutosave;
   }, [
     resolveProjectRuntimeLocation,
     onRunWithoutDebugging,
     flushPendingAutosave,
-    selectCodingSession,
-    selectedCodingSessionId,
+    selectAgentSession,
+    selectedAgentSessionId,
     selectedProjectId,
   ]);
 
@@ -116,40 +116,40 @@ export function useCodeWorkbenchCommands({
       setIsQuickOpenVisible(true);
     };
 
-    const handlePreviousCodingSession = () => {
-      const activeCodingSessionId = selectedCodingSessionIdRef.current;
+    const handlePreviousAgentSession = () => {
+      const activeAgentSessionId = selectedAgentSessionIdRef.current;
       const activeProjectId = selectedProjectIdRef.current;
-      if (!activeCodingSessionId || !activeProjectId) {
+      if (!activeAgentSessionId || !activeProjectId) {
         return;
       }
 
-      const previousCodingSession =
-        resolveProjectCodingSessionIndex().previousCodingSessionReferenceByProjectIdAndId.get(
-          buildCodingSessionProjectScopedKey(activeProjectId, activeCodingSessionId),
+      const previousAgentSession =
+        resolveProjectAgentSessionIndex().previousAgentSessionReferenceByProjectIdAndId.get(
+          buildAgentSessionProjectScopedKey(activeProjectId, activeAgentSessionId),
         ) ?? null;
 
-      if (previousCodingSession) {
-        selectCodingSessionRef.current(previousCodingSession.codingSessionId, {
-          projectId: previousCodingSession.projectId,
+      if (previousAgentSession) {
+        selectAgentSessionRef.current(previousAgentSession.agentSessionId, {
+          projectId: previousAgentSession.projectId,
         });
       }
     };
 
-    const handleNextCodingSession = () => {
-      const activeCodingSessionId = selectedCodingSessionIdRef.current;
+    const handleNextAgentSession = () => {
+      const activeAgentSessionId = selectedAgentSessionIdRef.current;
       const activeProjectId = selectedProjectIdRef.current;
-      if (!activeCodingSessionId || !activeProjectId) {
+      if (!activeAgentSessionId || !activeProjectId) {
         return;
       }
 
-      const nextCodingSession =
-        resolveProjectCodingSessionIndex().nextCodingSessionReferenceByProjectIdAndId.get(
-          buildCodingSessionProjectScopedKey(activeProjectId, activeCodingSessionId),
+      const nextAgentSession =
+        resolveProjectAgentSessionIndex().nextAgentSessionReferenceByProjectIdAndId.get(
+          buildAgentSessionProjectScopedKey(activeProjectId, activeAgentSessionId),
         ) ?? null;
 
-      if (nextCodingSession) {
-        selectCodingSessionRef.current(nextCodingSession.codingSessionId, {
-          projectId: nextCodingSession.projectId,
+      if (nextAgentSession) {
+        selectAgentSessionRef.current(nextAgentSession.agentSessionId, {
+          projectId: nextAgentSession.projectId,
         });
       }
     };
@@ -238,8 +238,8 @@ export function useCodeWorkbenchCommands({
       globalEventBus.on('toggleSidebar', handleToggleSidebar),
       globalEventBus.on('findInFiles', handleFindInFiles),
       globalEventBus.on('openQuickOpen', handleOpenQuickOpen),
-      globalEventBus.on('previousCodingSession', handlePreviousCodingSession),
-      globalEventBus.on('nextCodingSession', handleNextCodingSession),
+      globalEventBus.on('previousAgentSession', handlePreviousAgentSession),
+      globalEventBus.on('nextAgentSession', handleNextAgentSession),
       globalEventBus.on('saveActiveFile', handleSaveActiveFile),
       globalEventBus.on('saveAllFiles', handleSaveAllFiles),
       globalEventBus.on('startDebugging', handleStartDebugging),

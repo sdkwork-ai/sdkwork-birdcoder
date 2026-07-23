@@ -1,55 +1,29 @@
-# SDKWork Birdcoder Core Component Specs
+# SDKWork BirdCoder PC Core Specs
 
-This directory is the local standards index for `@sdkwork/birdcoder-core`.
+[component.spec.json](./component.spec.json) is the machine authority for the
+`@sdkwork/birdcoder-pc-core` composition boundary. Global standards remain in
+[sdkwork-specs](../../../../../../sdkwork-specs/README.md).
 
-Root SDKWork standards remain authoritative. Local component specs can narrow or document this component, but they must not contradict [the root standards](../../../../../specs/README.md).
+## Owned Boundary
 
-## Component
+The PC core owns the frontend SDK inventory, stable dependency SDK exports,
+session TokenManager boundary, and bootstrap registries. It owns no business
+record, database, generated transport, dependency API, or backend-admin SDK.
 
-| Field | Value |
-| --- | --- |
-| Name | `@sdkwork/birdcoder-core` |
-| Type | `react-package` |
-| Root | `sdkwork-birdcoder/packages/sdkwork-birdcoder-core` |
-| Domain | `platform` |
-| Capability | `component` |
-| Languages | `typescript` |
-| Status | `standardizing` |
+## SDK Composition
 
-## Contract Manifest
-
-- [component.spec.json](./component.spec.json) is the machine-readable component contract.
-- Consumers should integrate through public exports, runtime entrypoints, SDK clients, or adapters declared in the manifest.
-- Generated SDK language outputs are represented at their SDK family root instead of duplicating local specs in generated folders.
-
-## Canonical Specs
-
-| Spec | Applies Because |
-| --- | --- |
-| [COMPONENT_SPEC.md](../../../../../specs/COMPONENT_SPEC.md) | Local component specs directory and manifest rules. |
-| [CONFIG_SPEC.md](../../../../../specs/CONFIG_SPEC.md) | Runtime configuration, environment, SDK bootstrap, and feature flag rules. |
-| [DOCUMENTATION_SPEC.md](../../../../../specs/DOCUMENTATION_SPEC.md) | Module README, examples, ADR, changelog, and runbook rules. |
-| [DOMAIN_SPEC.md](../../../../../specs/DOMAIN_SPEC.md) | Canonical domain ownership and naming. |
-| [FRONTEND_SPEC.md](../../../../../specs/FRONTEND_SPEC.md) | UI, service, SDK, accessibility, and frontend runtime rules. |
-| [GOVERNANCE_SPEC.md](../../../../../specs/GOVERNANCE_SPEC.md) | Standard ownership, exception, compatibility, and migration rules. |
-| [I18N_SPEC.md](../../../../../specs/I18N_SPEC.md) | User-facing language, locale, message catalog, and fallback rules. |
-| [MODULE_SPEC.md](../../../../../specs/MODULE_SPEC.md) | Reusable package contract and dependency direction. |
-| [README.md](../../../../../specs/README.md) | SDKWork root standards entrypoint. |
-| [SDK_SPEC.md](../../../../../specs/SDK_SPEC.md) | SDK generation and SDK integration rules. |
-| [TEST_SPEC.md](../../../../../specs/TEST_SPEC.md) | Contract, frontend, SDK, security, parity, and documentation verification rules. |
-
-## Public Exports
-
-- `.`
-
-## SDK Clients
-
-- No generated SDK client class is declared at this component boundary.
-
-## Local Extension Specs
-
-- No local extension specs are declared yet.
+- `sdkwork-birdcoder-app-sdk` is the application-owned App SDK.
+- Agents, Documents, Drive, IAM, Messaging, Prompts, and Skills are dependency
+  App SDKs resolved through their family manifests.
+- `dependencyApiExports` and `dependencyApiSurfaces` remain empty because the
+  BirdCoder API does not re-export dependency-owned HTTP operations.
+- Permission inheritance is by referenced owner module manifests; no
+  dependency permission catalog is copied into this repository.
 
 ## Verification
 
-- `pnpm --filter @sdkwork/birdcoder-core typecheck`
+- `pnpm --dir apps/sdkwork-birdcoder-pc typecheck`
+- `node ../sdkwork-specs/tools/check-frontend-composition.mjs --root .`
+- `node ../sdkwork-specs/tools/check-component-port-bindings.mjs --root . --strict`
+- `node ../sdkwork-specs/tools/check-composition-resolver.mjs --root .`
+

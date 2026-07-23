@@ -949,17 +949,17 @@ packages:
       url: "https://pub.flutter-io.cn"
     source: hosted
     version: "0.6.0"
+  sdkwork_agents_app_sdk:
+    dependency: transitive
+    description:
+      path: "../../../sdkwork-agents/sdks/sdkwork-agents-app-sdk/sdkwork-agents-app-sdk-flutter/generated/server-openapi"
+      relative: true
+    source: path
+    version: "0.1.0"
   sdkwork_birdcoder_app_sdk:
     dependency: transitive
     description:
       path: "sdks/sdkwork_birdcoder_flutter_mobile_app_sdk_consumer/generated/server-openapi"
-      relative: true
-    source: path
-    version: "0.1.0"
-  sdkwork_birdcoder_backend_sdk:
-    dependency: transitive
-    description:
-      path: "sdks/sdkwork_birdcoder_flutter_mobile_backend_sdk_consumer/generated/server-openapi"
       relative: true
     source: path
     version: "0.1.0"
@@ -981,13 +981,6 @@ packages:
     dependency: transitive
     description:
       path: "sdks/sdkwork_birdcoder_flutter_mobile_app_sdk_consumer"
-      relative: true
-    source: path
-    version: "0.1.0"
-  sdkwork_birdcoder_flutter_mobile_backend_sdk_consumer:
-    dependency: transitive
-    description:
-      path: "sdks/sdkwork_birdcoder_flutter_mobile_backend_sdk_consumer"
       relative: true
     source: path
     version: "0.1.0"
@@ -1044,6 +1037,13 @@ packages:
     dependency: "direct overridden"
     description:
       path: "../../../sdkwork-sdk-commons/sdkwork-sdk-common-flutter"
+      relative: true
+    source: path
+    version: "1.0.0"
+  sdkwork_iam_app_sdk:
+    dependency: transitive
+    description:
+      path: "../../../sdkwork-iam/sdks/sdkwork-iam-app-sdk/sdkwork-iam-app-sdk-flutter/generated/server-openapi"
       relative: true
     source: path
     version: "1.0.0"

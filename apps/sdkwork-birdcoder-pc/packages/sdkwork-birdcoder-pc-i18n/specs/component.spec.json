@@ -109,6 +109,14 @@
     }
   ],
   "contracts": {
+    "layerRole": "frontend-commons",
+    "providedPorts": [
+      {
+        "name": "localizationRuntime",
+        "export": "."
+      }
+    ],
+    "requiredPorts": [],
     "publicExports": [
       "."
     ],

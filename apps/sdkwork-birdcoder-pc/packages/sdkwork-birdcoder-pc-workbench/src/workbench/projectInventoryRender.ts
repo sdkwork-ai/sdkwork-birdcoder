@@ -1,5 +1,5 @@
 import type {
-  BirdCoderCodingSession,
+  AgentSessionView,
   BirdCoderProject,
 } from '@sdkwork/birdcoder-pc-contracts-commons';
 import { mergeProjectsForStore } from '../stores/projectsStore.ts';
@@ -32,12 +32,12 @@ function hasDuplicateProjectRenderIdentity(
   }
 
   return projects.some((project) =>
-    hasDuplicateIdentity(project.codingSessions, (codingSession) => codingSession.id),
+    hasDuplicateIdentity(project.agentSessions, (agentSession) => agentSession.id),
   );
 }
 
-function buildCodingSessionRenderIdentity(codingSession: BirdCoderCodingSession): string {
-  return codingSession.id;
+function buildAgentSessionRenderIdentity(agentSession: AgentSessionView): string {
+  return agentSession.id;
 }
 
 export function deduplicateBirdCoderProjectsForRender(
@@ -50,28 +50,28 @@ export function deduplicateBirdCoderProjectsForRender(
   return mergeProjectsForStore(projects, projects);
 }
 
-export function deduplicateBirdCoderCodingSessionsForRender(
-  codingSessions: readonly BirdCoderCodingSession[],
-): BirdCoderCodingSession[] {
-  if (!hasDuplicateIdentity(codingSessions, buildCodingSessionRenderIdentity)) {
-    return codingSessions as BirdCoderCodingSession[];
+export function deduplicateAgentSessionsForRender(
+  agentSessions: readonly AgentSessionView[],
+): AgentSessionView[] {
+  if (!hasDuplicateIdentity(agentSessions, buildAgentSessionRenderIdentity)) {
+    return agentSessions as AgentSessionView[];
   }
 
-  const codingSessionsById = new Map<string, BirdCoderCodingSession>();
-  for (const codingSession of codingSessions) {
-    const identity = buildCodingSessionRenderIdentity(codingSession);
-    const previousCodingSession = codingSessionsById.get(identity);
-    if (!previousCodingSession) {
-      codingSessionsById.set(identity, codingSession);
+  const agentSessionsById = new Map<string, AgentSessionView>();
+  for (const agentSession of agentSessions) {
+    const identity = buildAgentSessionRenderIdentity(agentSession);
+    const previousAgentSession = agentSessionsById.get(identity);
+    if (!previousAgentSession) {
+      agentSessionsById.set(identity, agentSession);
       continue;
     }
 
-    codingSessionsById.set(
+    agentSessionsById.set(
       identity,
-      codingSession.messages.length === 0 && previousCodingSession.messages.length > 0
-        ? { ...codingSession, messages: previousCodingSession.messages }
-        : codingSession,
+      agentSession.items.length === 0 && previousAgentSession.items.length > 0
+        ? { ...agentSession, items: previousAgentSession.items }
+        : agentSession,
     );
   }
-  return Array.from(codingSessionsById.values());
+  return Array.from(agentSessionsById.values());
 }

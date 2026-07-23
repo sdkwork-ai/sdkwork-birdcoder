@@ -15,6 +15,18 @@ class AppLocalizationsZh extends AppLocalizations {
   String get app_loading => '加载中...';
 
   @override
+  String get nav_home => '首页';
+
+  @override
+  String get nav_chat => '聊天';
+
+  @override
+  String get nav_settings => '设置';
+
+  @override
+  String get nav_profile => '我的';
+
+  @override
   String get common_cancel => '取消';
 
   @override
@@ -63,28 +75,19 @@ class AppLocalizationsZh extends AppLocalizations {
   String get common_no => '否';
 
   @override
-  String get chat_send => '发送';
+  String get agent_session_send => '发送';
 
   @override
-  String get chat_input_placeholder => '发送消息...';
+  String get agent_session_input_placeholder => '输入助手指令...';
 
   @override
-  String get chat_empty => '暂无消息，请在下方开始对话。';
+  String get agent_session_empty => '暂无会话项，请在下方开始助手任务。';
 
   @override
-  String get chat_loading_history => '正在加载聊天记录...';
+  String get agent_session_loading_items => '正在加载会话项...';
 
   @override
-  String get chat_message_user => '你';
-
-  @override
-  String get chat_message_assistant => 'BirdCoder';
-
-  @override
-  String get chat_send_failed => '发送消息失败。';
-
-  @override
-  String get chat_typing => 'BirdCoder 正在输入...';
+  String get agent_session_send_failed => '提交助手任务失败。';
 
   @override
   String get auth_login => '登录';
@@ -225,18 +228,6 @@ class AppLocalizationsZh extends AppLocalizations {
   String get native_error_failed => '操作失败。';
 
   @override
-  String get nav_home => '首页';
-
-  @override
-  String get nav_chat => '聊天';
-
-  @override
-  String get nav_settings => '设置';
-
-  @override
-  String get nav_profile => '我的';
-
-  @override
   String get error_network => '网络错误，请检查您的连接。';
 
   @override
@@ -264,6 +255,18 @@ class AppLocalizationsZhTw extends AppLocalizationsZh {
 
   @override
   String get app_loading => '載入中...';
+
+  @override
+  String get nav_home => '首頁';
+
+  @override
+  String get nav_chat => '聊天';
+
+  @override
+  String get nav_settings => '設定';
+
+  @override
+  String get nav_profile => '我的';
 
   @override
   String get common_cancel => '取消';
@@ -314,28 +317,19 @@ class AppLocalizationsZhTw extends AppLocalizationsZh {
   String get common_no => '否';
 
   @override
-  String get chat_send => '傳送';
+  String get agent_session_send => '傳送';
 
   @override
-  String get chat_input_placeholder => '傳送訊息...';
+  String get agent_session_input_placeholder => '輸入助手指令...';
 
   @override
-  String get chat_empty => '尚無訊息，請在下方開始對話。';
+  String get agent_session_empty => '尚無工作階段項目，請在下方開始助手任務。';
 
   @override
-  String get chat_loading_history => '正在載入聊天紀錄...';
+  String get agent_session_loading_items => '正在載入工作階段項目...';
 
   @override
-  String get chat_message_user => '你';
-
-  @override
-  String get chat_message_assistant => 'BirdCoder';
-
-  @override
-  String get chat_send_failed => '傳送訊息失敗。';
-
-  @override
-  String get chat_typing => 'BirdCoder 正在輸入...';
+  String get agent_session_send_failed => '提交助手任務失敗。';
 
   @override
   String get auth_login => '登入';
@@ -474,18 +468,6 @@ class AppLocalizationsZhTw extends AppLocalizationsZh {
 
   @override
   String get native_error_failed => '操作失敗。';
-
-  @override
-  String get nav_home => '首頁';
-
-  @override
-  String get nav_chat => '聊天';
-
-  @override
-  String get nav_settings => '設定';
-
-  @override
-  String get nav_profile => '我的';
 
   @override
   String get error_network => '網路錯誤，請檢查您的連線。';

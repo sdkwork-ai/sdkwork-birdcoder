@@ -55,20 +55,20 @@ function extractMethodBody(name) {
 
 assert.match(
   serviceSource,
-  /private readonly sessionIndexesByProjectId = new Map<string, Map<string, BirdCoderCodingSession>>\(\);/,
+  /private readonly sessionIndexesByProjectId = new Map<string, Map<string, AgentSessionView>>\(\);/,
   'Provider-backed project service must keep an O(1) session lookup index beside the sorted session arrays.',
 );
 
 assert.match(
   serviceSource,
-  /function indexCodingSessionsById\(\s*sessions: readonly BirdCoderCodingSession\[\],\s*\): Map<string, BirdCoderCodingSession> \{/s,
+  /function indexAgentSessionsById\(\s*sessions: readonly AgentSessionView\[\],\s*\): Map<string, AgentSessionView> \{/s,
   'Provider-backed project service must centralize project session index construction.',
 );
 
 const setCacheBody = extractMethodBody('setProjectSessionsCache');
 assert.match(
   setCacheBody,
-  /this\.sessionsByProjectId\.set\(projectId, cachedSessions\);[\s\S]*this\.sessionIndexesByProjectId\.set\(\s*projectId,\s*options\.sessionIndexById \?\? indexCodingSessionsById\(cachedSessions\),\s*\);/s,
+  /this\.sessionsByProjectId\.set\(projectId, cachedSessions\);[\s\S]*this\.sessionIndexesByProjectId\.set\(\s*projectId,\s*options\.sessionIndexById \?\? indexAgentSessionsById\(cachedSessions\),\s*\);/s,
   'All project session cache writes must update the array cache and the O(1) lookup index together, while allowing hot replacements to reuse an already-updated index.',
 );
 
@@ -93,22 +93,22 @@ assert.equal(
   'sessionsByProjectId must only be deleted by clearProjectSessionsCache so the lookup index cannot drift.',
 );
 
-const getCachedBody = extractMethodBody('getCachedCodingSession');
+const getCachedBody = extractMethodBody('getCachedAgentSession');
 assert.match(
   getCachedBody,
-  /this\.sessionIndexesByProjectId\.get\(projectId\)\?\.get\(codingSessionId\) \?\? null/,
+  /this\.sessionIndexesByProjectId\.get\(projectId\)\?\.get\(agentSessionId\) \?\? null/,
   'Cached coding-session reads must use the O(1) project/session index.',
 );
 
 for (const methodName of [
-  'getCodingSessionTranscript',
-  'findCodingSession',
-  'findCodingSessionWithTranscript',
+  'getAgentSessionTranscript',
+  'findAgentSession',
+  'findAgentSessionWithTranscript',
 ]) {
   const body = extractMethodBody(methodName);
   assert.match(
     body,
-    /this\.getCachedCodingSession\(/,
+    /this\.getCachedAgentSession\(/,
     `${methodName} must use the O(1) cached session lookup helper.`,
   );
   assert.doesNotMatch(

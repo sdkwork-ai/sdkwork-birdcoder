@@ -54,8 +54,8 @@ export {
   buildChatMessageViewSynchronizationSignature,
 } from '@sdkwork/birdcoder-pc-workbench/chat/types';
 export type {
-  BirdCoderChatMessageView,
-  BirdCoderChatMessageViewKind,
+  AgentSessionItemPresentation,
+  AgentSessionItemViewKind,
   ChatMessageContentBlock,
   ChatMessageLayoutHints,
   ChatMessageViewSource,

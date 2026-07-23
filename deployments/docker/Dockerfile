@@ -24,11 +24,11 @@ FROM base AS runtime
 WORKDIR /opt/sdkwork-birdcoder
 
 ENV SDKWORK_BIRDCODER_APP_ROOT=/opt/sdkwork-birdcoder
-ENV SDKWORK_OPENAPI_SNAPSHOT_PATH=/opt/sdkwork-birdcoder/openapi/coding-server-v1.json
+ENV SDKWORK_OPENAPI_SNAPSHOT_PATH=/opt/sdkwork-birdcoder/openapi/birdcoder-app-api.openapi.json
 
 COPY deployments/docker/profiles/default.env /opt/sdkwork-birdcoder/deploy/profiles/default.env
 COPY --chown=birdcoder:birdcoder database /opt/sdkwork-birdcoder/database
-COPY --chown=birdcoder:birdcoder deployments/server-windows/x64/openapi/coding-server-v1.json /opt/sdkwork-birdcoder/openapi/coding-server-v1.json
+COPY --chown=birdcoder:birdcoder deployments/server-windows/x64/openapi/birdcoder-app-api.openapi.json /opt/sdkwork-birdcoder/openapi/birdcoder-app-api.openapi.json
 COPY --chown=birdcoder:birdcoder artifacts/release/server /opt/sdkwork-birdcoder/
 COPY --chown=birdcoder:birdcoder artifacts/release/server-binary /opt/sdkwork-birdcoder/
 

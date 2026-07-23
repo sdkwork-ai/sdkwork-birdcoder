@@ -7,7 +7,7 @@
     "version": "0.1.0",
     "type": "rust-api-standalone-gateway",
     "root": "crates/sdkwork-api-birdcoder-standalone-gateway",
-    "domain": "platform",
+    "domain": "intelligence",
     "declaredDomain": null,
     "capability": "api-gateway",
     "surface": "gateway-api",
@@ -43,6 +43,11 @@
       "purpose": "Rust crate and module rules."
     },
     {
+      "file": "API_ASSEMBLY_SPEC.md",
+      "path": "../../../../sdkwork-specs/API_ASSEMBLY_SPEC.md",
+      "purpose": "Host-neutral BirdCoder API assembly composition rules."
+    },
+    {
       "file": "APPLICATION_GATEWAY_SPEC.md",
       "path": "../../../../sdkwork-specs/APPLICATION_GATEWAY_SPEC.md",
       "purpose": "Standalone gateway ownership, route composition, and runtime ingress."
@@ -61,6 +66,11 @@
       "file": "APP_RUNTIME_TOPOLOGY_SPEC.md",
       "path": "../../../../sdkwork-specs/APP_RUNTIME_TOPOLOGY_SPEC.md",
       "purpose": "Application runtime topology and standalone/cloud deployment modes."
+    },
+    {
+      "file": "PNPM_SCRIPT_SPEC.md",
+      "path": "../../../../sdkwork-specs/PNPM_SCRIPT_SPEC.md",
+      "purpose": "Canonical application gateway command and verification entrypoints."
     },
     {
       "file": "API_SPEC.md",
@@ -102,8 +112,10 @@
     "layerRole": "runtime-gateway",
     "publicExports": [
       ".",
+      "sdkwork_api_birdcoder_standalone_gateway::assemble_api_router",
       "sdkwork_api_birdcoder_standalone_gateway::bootstrap::build_app",
-      "sdkwork_api_birdcoder_standalone_gateway::server::listen::serve"
+      "sdkwork_api_birdcoder_standalone_gateway::server::listen::serve",
+      "sdkwork_api_birdcoder_standalone_gateway::enable_process_shared_database_pool"
     ],
     "providedPorts": [
       {
@@ -113,164 +125,47 @@
       {
         "name": "standaloneGatewayServer",
         "export": "sdkwork_api_birdcoder_standalone_gateway::server::listen::serve"
+      },
+      {
+        "name": "sharedDatabasePoolRuntime",
+        "export": "sdkwork_api_birdcoder_standalone_gateway::enable_process_shared_database_pool"
       }
     ],
     "requiredPorts": [
       {
-        "name": "birdcoderDatabasePool",
-        "export": "."
-      },
-      {
-        "name": "birdcoderAgentsRuntimeFacade",
-        "export": "."
-      },
-      {
-        "name": "birdcoderIamRuntime",
-        "export": "."
+        "name": "birdcoderApiAssembly",
+        "export": "sdkwork_api_birdcoder_standalone_gateway::assemble_api_router"
       }
     ],
     "runtimeEntrypoints": [
-      "src/main.rs",
-      "src/bootstrap/mod.rs#build_app",
-      "src/bootstrap/routers.rs#build_router",
-      "src/bootstrap/agents.rs#wire_agents_app_router",
-      "src/bootstrap/iam.rs#wire_iam_routers",
+      "src/main.rs#main",
+      "src/main.rs#run",
+      "src/lib.rs#enable_process_shared_database_pool",
       "src/server/listen.rs#serve",
       "Cargo.toml[[bin]].sdkwork-api-birdcoder-standalone-gateway"
     ],
     "routeManifest": null,
     "sdkClients": [],
-    "sdkDependencies": [
-      {
-        "workspace": "sdkwork-birdcoder-app-sdk",
-        "surface": "app-api",
-        "credentialMode": "authenticated-app-api",
-        "required": true
-      },
-      {
-        "workspace": "sdkwork-birdcoder-backend-sdk",
-        "surface": "backend-api",
-        "credentialMode": "authenticated-backend-api",
-        "required": true
-      },
-      {
-        "workspace": "sdkwork-agents-app-sdk",
-        "surface": "app-api",
-        "credentialMode": "authenticated-app-api",
-        "required": true
-      },
-      {
-        "workspace": "sdkwork-iam-app-sdk",
-        "surface": "app-api",
-        "credentialMode": "authenticated-app-api",
-        "required": true
-      },
-      {
-        "workspace": "sdkwork-iam-backend-sdk",
-        "surface": "backend-api",
-        "credentialMode": "authenticated-backend-api",
-        "required": true
-      }
-    ],
-    "permissionComposition": {
-      "inheritanceMode": "module-catalog-with-overrides",
-      "manifestRef": "../../../specs/iam.module.manifest.json",
-      "consumerPolicy": {
-        "forbidLocalPermissionCatalogForDependencyDomains": true,
-        "allowExplicitOverridesOnly": true
-      }
-    },
+    "sdkDependencies": [],
+    "permissionComposition": {},
     "dependencyApiExports": [],
-    "dependencyApiSurfaces": [
-      {
-        "workspace": "sdkwork-birdcoder",
-        "sdkFamily": "sdkwork-birdcoder-app-sdk",
-        "apiAuthority": "sdkwork-birdcoder-app-api",
-        "surface": "app-api",
-        "apiPrefix": "/app/v3/api",
-        "runtimeMode": "same-origin-mounted",
-        "cargoDependency": "sdkwork-routes-coding-sessions-app-api",
-        "embeddedExecutableExport": "sdkwork_api_birdcoder_standalone_gateway::bootstrap::build_app",
-        "coverageEvidence": [
-          "src/bootstrap/routers.rs#build_router",
-          "src/bootstrap/route_manifest.rs#birdcoder_product_app_api_route_manifest",
-          "sdks/specs/openapi/birdcoder-app-v3.openapi.json"
-        ]
-      },
-      {
-        "workspace": "sdkwork-birdcoder",
-        "sdkFamily": "sdkwork-birdcoder-backend-sdk",
-        "apiAuthority": "sdkwork-birdcoder-backend-api",
-        "surface": "backend-api",
-        "apiPrefix": "/backend/v3/api",
-        "runtimeMode": "same-origin-mounted",
-        "cargoDependency": "sdkwork-routes-deployment-backend-api",
-        "embeddedExecutableExport": "sdkwork_api_birdcoder_standalone_gateway::bootstrap::build_app",
-        "coverageEvidence": [
-          "src/bootstrap/routers.rs#build_router",
-          "src/bootstrap/route_manifest.rs#birdcoder_product_app_api_route_manifest",
-          "sdks/specs/openapi/birdcoder-backend-v3.openapi.json"
-        ]
-      },
-      {
-        "workspace": "sdkwork-agents",
-        "sdkFamily": "sdkwork-agents-app-sdk",
-        "apiAuthority": "sdkwork-agents-app-api",
-        "surface": "app-api",
-        "apiPrefix": "/app/v3/api/ai",
-        "runtimeMode": "same-origin-mounted",
-        "cargoDependency": "sdkwork-routes-agents-app-api",
-        "embeddedExecutableExport": "sdkwork_api_birdcoder_standalone_gateway::bootstrap::agents::wire_agents_app_router",
-        "coverageEvidence": [
-          "src/bootstrap/agents.rs#wire_agents_app_router",
-          "src/bootstrap/routers.rs#build_router"
-        ],
-        "dependencyPolicy": "BirdCoder must consume agent business APIs through sdkwork-agents and must not call sdkwork-kernel directly."
-      },
-      {
-        "workspace": "sdkwork-iam",
-        "sdkFamily": "sdkwork-iam-app-sdk",
-        "apiAuthority": "sdkwork-iam-app-api",
-        "surface": "app-api",
-        "apiPrefix": "/app/v3/api",
-        "runtimeMode": "same-origin-mounted",
-        "cargoDependency": "sdkwork_routes_iam_app_api",
-        "embeddedExecutableExport": "sdkwork_api_birdcoder_standalone_gateway::bootstrap::iam::wire_iam_routers",
-        "coverageEvidence": [
-          "src/bootstrap/iam.rs#wire_iam_routers",
-          "src/bootstrap/auth.rs#build_protected_app_router"
-        ]
-      },
-      {
-        "workspace": "sdkwork-iam",
-        "sdkFamily": "sdkwork-iam-backend-sdk",
-        "apiAuthority": "sdkwork-iam-backend-api",
-        "surface": "backend-api",
-        "apiPrefix": "/backend/v3/api",
-        "runtimeMode": "same-origin-mounted",
-        "cargoDependency": "sdkwork_routes_iam_backend_api",
-        "embeddedExecutableExport": "sdkwork_api_birdcoder_standalone_gateway::bootstrap::iam::wire_iam_routers",
-        "coverageEvidence": [
-          "src/bootstrap/iam.rs#wire_iam_routers"
-        ]
-      }
-    ],
+    "dependencyApiSurfaces": [],
     "events": [],
     "configKeys": [
       "SDKWORK_BIRDCODER_DATABASE_ENGINE",
       "SDKWORK_CLAW_DATABASE_URL",
       "SDKWORK_CLAW_DATABASE_SCHEMA",
-      "BIRDCODER_CODING_SERVER_SQLITE_FILE",
-      "SDKWORK_DEPLOYMENT_PROFILE",
-      "SDKWORK_RUNTIME_TARGET",
-      "SDKWORK_ENVIRONMENT"
+      "SDKWORK_BIRDCODER_DATABASE_FILE",
+      "SDKWORK_BIRDCODER_DEPLOYMENT_PROFILE",
+      "SDKWORK_BIRDCODER_RUNTIME_TARGET",
+      "SDKWORK_BIRDCODER_ENVIRONMENT"
     ]
   },
   "integration": {
-    "authority": "The gateway owns runtime composition only. Route crates, sdkwork-agents, sdkwork-iam, and repository/service crates retain domain ownership.",
-    "databasePolicy": "Database access must go through sdkwork-database/sqlx lifecycle and repository ports. SQLite and PostgreSQL are both supported through the shared pool boundary.",
-    "agentPolicy": "Agent business behavior is delegated to sdkwork-agents. sdkwork-kernel remains SPI/model infrastructure and is not a BirdCoder application dependency.",
-    "securityPolicy": "All protected SDKWork-owned HTTP routes pass through sdkwork-web-framework request context and authorization middleware."
+    "authority": "The standalone gateway is a thin runtime host: it initializes process infrastructure, asks the host-neutral BirdCoder API assembly to build the router, and binds the single standalone listener. It owns no route, service, repository, Agents, IAM, or Provider behavior.",
+    "databasePolicy": "The gateway enables the process-shared sdkwork-database pool before assembly startup; the BirdCoder assembly and database host own lifecycle and persistence composition.",
+    "assemblyPolicy": "BirdCoder HTTP behavior is consumed only through sdkwork-api-birdcoder-assembly. The gateway must not depend directly on route crates or duplicate assembly implementation dependencies.",
+    "securityPolicy": "The BirdCoder API assembly owns sdkwork-web-framework request context, authorization, CORS, and response policy; the gateway owns listener lifecycle only."
   },
   "verification": {
     "commands": [

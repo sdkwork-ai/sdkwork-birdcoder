@@ -225,17 +225,29 @@ export function createProjectGitOverviewFixture() {
   };
 }
 
-export function createCodingSessionFixture(overrides = {}) {
+export function createAgentSessionFixture(overrides = {}) {
   const project = createProjectFixture();
   return {
-    id: 'e2e-coding-session-1',
-    workspaceId: project.workspaceId,
+    sessionId: 'e2e-coding-session-1',
+    tenantId: '0',
+    organizationId: '0',
+    agentId: 'agent.birdcoder',
+    ownerUserId: '1',
     projectId: project.id,
+    sessionKind: 'coding',
+    entrySurface: 'pc',
+    sourceModule: 'sdkwork-birdcoder',
+    sourceContextKind: 'coding-project',
+    sourceContextId: project.id,
     title: 'E2E Session',
     status: 'active',
-    hostMode: 'web',
-    engineId: 'codex',
-    modelId: 'e2e-model',
+    itemCount: '0',
+    lastItemSequence: '0',
+    totalInputTokens: '0',
+    totalOutputTokens: '0',
+    createdBy: '1',
+    updatedBy: '1',
+    version: '1',
     createdAt: '2026-01-01T00:00:00.000Z',
     updatedAt: '2026-01-01T00:00:00.000Z',
     ...overrides,

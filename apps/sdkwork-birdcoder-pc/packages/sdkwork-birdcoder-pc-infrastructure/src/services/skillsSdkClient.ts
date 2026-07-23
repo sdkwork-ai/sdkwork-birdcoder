@@ -1,36 +1,28 @@
 import {
   createSkillsAppClient,
   type SdkworkSkillsAppClient,
-} from '@sdkwork/skills-app-sdk';
+} from '@sdkwork/birdcoder-pc-core/sdk/skills-app';
 import type { AuthTokenManager } from '@sdkwork/sdk-common';
 import { getBirdCoderGlobalTokenManager } from '@sdkwork/birdcoder-pc-core/appSessionTokenManager';
-import { BIRDCODER_DEFAULT_LOCAL_API_BASE_URL } from '@sdkwork/birdcoder-pc-host-core';
 import { getDefaultBirdCoderIdeServicesRuntimeConfig } from './defaultIdeServicesRuntime.ts';
+import { resolveBirdCoderPlatformSdkBaseUrl } from './sdkBaseUrls.ts';
+import { bindBirdCoderSdkSessionErrorHandler } from './sdkSessionErrorHandler.ts';
 
 export interface BirdCoderSkillsAppSdkClientOptions {
-  apiBaseUrl?: string;
+  platformApiGatewayBaseUrl?: string;
   tokenManager?: AuthTokenManager;
-}
-
-function resolveSkillsAppApiBaseUrl(explicit?: string): string {
-  const normalized = explicit?.trim();
-  if (normalized) {
-    return normalized;
-  }
-
-  return (
-    getDefaultBirdCoderIdeServicesRuntimeConfig().apiBaseUrl ??
-    BIRDCODER_DEFAULT_LOCAL_API_BASE_URL
-  );
 }
 
 export function createBirdCoderSkillsAppSdkClient(
   options: BirdCoderSkillsAppSdkClientOptions = {},
 ): SdkworkSkillsAppClient {
-  return createSkillsAppClient({
+  const runtimeConfig = getDefaultBirdCoderIdeServicesRuntimeConfig();
+  return bindBirdCoderSdkSessionErrorHandler(createSkillsAppClient({
     authMode: 'dual-token',
-    baseUrl: resolveSkillsAppApiBaseUrl(options.apiBaseUrl),
+    baseUrl: resolveBirdCoderPlatformSdkBaseUrl(
+      options.platformApiGatewayBaseUrl ?? runtimeConfig.platformApiGatewayBaseUrl,
+    ),
     platform: 'pc',
     tokenManager: options.tokenManager ?? getBirdCoderGlobalTokenManager(),
-  });
+  }));
 }

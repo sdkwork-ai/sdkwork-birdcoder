@@ -52,8 +52,7 @@ class _BirdCoderRecoveryPageState extends State<BirdCoderRecoveryPage> {
     });
 
     try {
-      await birdCoderIamAuthService.requestPasswordReset(
-        apiBaseUrl: provider.apiBaseUrl,
+      await provider.iamAuthService.requestPasswordReset(
         account: _accountController.text,
       );
       if (!mounted) {
@@ -61,7 +60,8 @@ class _BirdCoderRecoveryPageState extends State<BirdCoderRecoveryPage> {
       }
       setState(() {
         _codeRequested = true;
-        _successMessage = 'Verification code sent. Enter the code to reset your password.';
+        _successMessage =
+            'Verification code sent. Enter the code to reset your password.';
       });
     } on BirdCoderIamAuthException catch (error) {
       if (!mounted) {
@@ -99,8 +99,7 @@ class _BirdCoderRecoveryPageState extends State<BirdCoderRecoveryPage> {
     });
 
     try {
-      await birdCoderIamAuthService.resetPassword(
-        apiBaseUrl: provider.apiBaseUrl,
+      await provider.iamAuthService.resetPassword(
         account: _accountController.text,
         code: _codeController.text,
         newPassword: _passwordController.text,
@@ -110,7 +109,8 @@ class _BirdCoderRecoveryPageState extends State<BirdCoderRecoveryPage> {
         return;
       }
       setState(() {
-        _successMessage = 'Password reset complete. Sign in with your new password.';
+        _successMessage =
+            'Password reset complete. Sign in with your new password.';
       });
       widget.onNavigate(BirdCoderAuthSurfaceRoute.login);
     } on BirdCoderIamAuthException catch (error) {

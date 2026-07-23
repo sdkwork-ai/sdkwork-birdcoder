@@ -17,11 +17,13 @@ enum BirdCoderLanguagePreference { en, zhHans, zhHant }
 // so that [ThemeController] remains the single source of truth for
 // theme state across the app.
 
-const String _kBirdCoderSettingsPrefsKey = 'sdkwork.birdcoder.flutter.settings.v1';
+const String _kBirdCoderSettingsPrefsKey =
+    'sdkwork.birdcoder.flutter.settings.v1';
 const String _kBirdCoderSessionKey = 'sdkwork.birdcoder.appSession.v1';
 const String _kBirdCoderStoragePrefix = 'sdkwork.birdcoder.';
 
-const String _kOfficialWebsiteUrl = 'https://sdkwork.com/apps/sdkwork-birdcoder';
+const String _kOfficialWebsiteUrl =
+    'https://sdkwork.com/apps/sdkwork-birdcoder';
 const String _kPrivacyPolicyUrl = 'https://sdkwork.com/privacy';
 const String _kTermsOfServiceUrl = 'https://sdkwork.com/terms';
 const String _kSupportUrl = 'https://sdkwork.com/support';
@@ -86,7 +88,8 @@ class _SettingsPageState extends State<SettingsPage> {
   Future<void> _persistPreference(String key, String value) async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      await prefs.setString(_kBirdCoderSettingsPrefsKey, DateTime.now().toIso8601String());
+      await prefs.setString(
+          _kBirdCoderSettingsPrefsKey, DateTime.now().toIso8601String());
       await prefs.setString(key, value);
     } on Exception {
       // Preference stays in-memory when persistence fails.
@@ -112,9 +115,9 @@ class _SettingsPageState extends State<SettingsPage> {
   Future<void> _clearCache() async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      final keys = prefs
-          .getKeys()
-          .where((key) => key.startsWith(_kBirdCoderStoragePrefix) && key != _kBirdCoderSessionKey);
+      final keys = prefs.getKeys().where((key) =>
+          key.startsWith(_kBirdCoderStoragePrefix) &&
+          key != _kBirdCoderSessionKey);
       for (final key in keys) {
         await prefs.remove(key);
       }
@@ -130,12 +133,8 @@ class _SettingsPageState extends State<SettingsPage> {
   }
 
   Future<void> _signOut() async {
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.remove(_kBirdCoderSessionKey);
-    } on Exception {
-      // Best-effort session clearing; navigate regardless.
-    }
+    final provider = AppProvider.of(context);
+    await provider.iamAuthService.signOut(iamRuntime: provider.iamRuntime);
     if (!mounted) return;
     Navigator.of(context).pushNamedAndRemoveUntil('/', (route) => false);
   }

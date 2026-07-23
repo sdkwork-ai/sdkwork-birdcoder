@@ -14,7 +14,6 @@
     "./screens/SettingsPage": "./src/screens/SettingsPage.tsx"
   },
   "dependencies": {
-    "@sdkwork/birdcoder-chat-contracts": "workspace:*",
     "@sdkwork/birdcoder-h5-commons": "workspace:*",
     "@sdkwork/birdcoder-h5-core": "workspace:*",
     "@sdkwork/utils": "workspace:*"

@@ -5,7 +5,7 @@ import path from 'node:path';
 
 import { sha256File } from '../sdkwork-utils-digest.mjs';
 
-import { ENGINE_GOVERNANCE_REGRESSION_CHECK_IDS } from '../governance-regression-report.mjs';
+import { RELEASE_GOVERNANCE_CHECK_IDS } from '../governance-regression-report.mjs';
 import { smokeFinalizedReleaseAssets } from './smoke-finalized-release-assets.mjs';
 
 const releaseAssetsDir = fs.mkdtempSync(path.join(os.tmpdir(), 'birdcoder-finalized-smoke-'));
@@ -168,7 +168,7 @@ fs.writeFileSync(
       { id: 'standard' },
       {
         id: 'release',
-        governanceCheckIds: ENGINE_GOVERNANCE_REGRESSION_CHECK_IDS,
+        governanceCheckIds: RELEASE_GOVERNANCE_CHECK_IDS,
       },
     ],
     failureClassifications: [
@@ -243,19 +243,26 @@ fs.writeFileSync(
   }, null, 2),
 );
 fs.writeFileSync(
-  path.join(releaseAssetsDir, 'server', 'windows', 'x64', 'openapi', 'coding-server-v1.json'),
+  path.join(releaseAssetsDir, 'server', 'windows', 'x64', 'openapi', 'birdcoder-app-api.openapi.json'),
   JSON.stringify({
     openapi: '3.1.0',
     info: {
-      title: 'SDKWork BirdCoder Coding Server API',
-      version: 'v1',
+      title: 'SDKWork BirdCoder App API',
+      version: '0.1.0',
     },
   }, null, 2),
 );
-const codingServerOpenApiSha256 = sha256File(path.join(releaseAssetsDir, 'server', 'windows', 'x64', 'openapi', 'coding-server-v1.json'));
+const birdcoderAppApiSha256 = sha256File(path.join(
+  releaseAssetsDir,
+  'server',
+  'windows',
+  'x64',
+  'openapi',
+  'birdcoder-app-api.openapi.json',
+));
 const desktopInstallerRelativePath = 'desktop/windows/x64/desktop-setup.exe';
 const desktopInstallerSha256 = sha256File(path.join(releaseAssetsDir, desktopInstallerRelativePath));
-const publishArtifactRelativePath = 'server/windows/x64/openapi/coding-server-v1.json';
+const publishArtifactRelativePath = 'server/windows/x64/openapi/birdcoder-app-api.openapi.json';
 fs.writeFileSync(
   path.join(releaseAssetsDir, 'release-manifest.json'),
   JSON.stringify({
@@ -381,19 +388,18 @@ fs.writeFileSync(
         accelerator: '',
         kind: 'metadata',
         relativePath: publishArtifactRelativePath,
-        sha256: codingServerOpenApiSha256,
+        sha256: birdcoderAppApiSha256,
         size: fs.statSync(path.join(releaseAssetsDir, publishArtifactRelativePath)).size,
       },
     ],
-    codingServerOpenApiEvidence: {
-      canonicalRelativePath: 'server/windows/x64/openapi/coding-server-v1.json',
-      mirroredRelativePaths: ['server/windows/x64/openapi/coding-server-v1.json'],
+    birdcoderAppApiEvidence: {
+      canonicalRelativePath: 'server/windows/x64/openapi/birdcoder-app-api.openapi.json',
       targetCount: 1,
       targets: ['windows/x64'],
-      sha256: codingServerOpenApiSha256,
+      sha256: birdcoderAppApiSha256,
       openapi: '3.1.0',
-      version: 'v1',
-      title: 'SDKWork BirdCoder Coding Server API',
+      version: '0.1.0',
+      title: 'SDKWork BirdCoder App API',
     },
     previewEvidence: {
       archiveRelativePath: 'studio/preview/studio-preview-evidence.json',
@@ -436,7 +442,7 @@ fs.writeFileSync(
       failureClassificationIds: ['contract-drift', 'toolchain-platform', 'artifact-integrity', 'evidence-gap'],
       environmentDiagnostics: 1,
       blockingDiagnosticIds: ['vite-host-build-preflight'],
-      releaseGovernanceCheckIds: ENGINE_GOVERNANCE_REGRESSION_CHECK_IDS,
+      releaseGovernanceCheckIds: RELEASE_GOVERNANCE_CHECK_IDS,
       blockingDiagnostics: [
         {
           id: 'vite-host-build-preflight',
@@ -491,17 +497,16 @@ const result = smokeFinalizedReleaseAssets({
 });
 
 assert.ok(fs.existsSync(result.reportPath));
-assert.deepEqual(result.codingServerOpenApiEvidence, {
-  canonicalRelativePath: 'server/windows/x64/openapi/coding-server-v1.json',
-  mirroredRelativePaths: ['server/windows/x64/openapi/coding-server-v1.json'],
+assert.deepEqual(result.birdcoderAppApiEvidence, {
+  canonicalRelativePath: 'server/windows/x64/openapi/birdcoder-app-api.openapi.json',
   targetCount: 1,
   targets: ['windows/x64'],
-  sha256: result.codingServerOpenApiEvidence.sha256,
+  sha256: result.birdcoderAppApiEvidence.sha256,
   openapi: '3.1.0',
-  version: 'v1',
-  title: 'SDKWork BirdCoder Coding Server API',
+  version: '0.1.0',
+  title: 'SDKWork BirdCoder App API',
 });
-assert.match(result.codingServerOpenApiEvidence.sha256, /^[a-f0-9]{64}$/);
+assert.match(result.birdcoderAppApiEvidence.sha256, /^[a-f0-9]{64}$/);
 assert.deepEqual(result.previewEvidence, {
   archiveRelativePath: 'studio/preview/studio-preview-evidence.json',
   entryCount: 1,
@@ -601,7 +606,7 @@ assert.deepEqual(result.qualityEvidence, {
   failureClassificationIds: ['contract-drift', 'toolchain-platform', 'artifact-integrity', 'evidence-gap'],
   environmentDiagnostics: 1,
   blockingDiagnosticIds: ['vite-host-build-preflight'],
-  releaseGovernanceCheckIds: ENGINE_GOVERNANCE_REGRESSION_CHECK_IDS,
+  releaseGovernanceCheckIds: RELEASE_GOVERNANCE_CHECK_IDS,
   blockingDiagnostics: [
     {
       id: 'vite-host-build-preflight',
@@ -647,7 +652,7 @@ assert.deepEqual(report.promotionReadiness, {
   ],
 });
 assert.equal(
-  report.checks.find((entry) => entry.id === 'coding-server-openapi-evidence-summary-match')?.status,
+  report.checks.find((entry) => entry.id === 'birdcoder-app-api-evidence-summary-match')?.status,
   'passed',
 );
 assert.equal(
@@ -680,7 +685,7 @@ assert.equal(
 );
 assert.equal(
   fs.readFileSync(path.join(releaseAssetsDir, 'SHA256SUMS.txt'), 'utf8'),
-  `${desktopInstallerSha256}  ${desktopInstallerRelativePath}\n${codingServerOpenApiSha256}  ${publishArtifactRelativePath}\n`,
+  `${desktopInstallerSha256}  ${desktopInstallerRelativePath}\n${birdcoderAppApiSha256}  ${publishArtifactRelativePath}\n`,
   'finalized smoke must refresh checksums from release-manifest.json.artifacts without inserting the smoke report',
 );
 
@@ -734,7 +739,7 @@ missingStopShipManifest.qualityEvidence = {
   failureClassificationIds: ['contract-drift', 'toolchain-platform', 'artifact-integrity', 'evidence-gap'],
   environmentDiagnostics: 1,
   blockingDiagnosticIds: ['vite-host-build-preflight'],
-  releaseGovernanceCheckIds: ENGINE_GOVERNANCE_REGRESSION_CHECK_IDS,
+  releaseGovernanceCheckIds: RELEASE_GOVERNANCE_CHECK_IDS,
   blockingDiagnostics: [
     {
       id: 'vite-host-build-preflight',
@@ -838,13 +843,13 @@ missingOpenApiManifest.promotionReadiness = {
     'runtime blockers `vite-host-build-preflight`',
   ],
 };
-delete missingOpenApiManifest.codingServerOpenApiEvidence;
+delete missingOpenApiManifest.birdcoderAppApiEvidence;
 fs.writeFileSync(manifestPath, `${JSON.stringify(missingOpenApiManifest, null, 2)}\n`);
 assert.throws(
   () => smokeFinalizedReleaseAssets({
     releaseAssetsDir,
   }),
-  /Missing finalized manifest codingServerOpenApiEvidence summary/,
+  /Missing finalized manifest birdcoderAppApiEvidence summary/,
 );
 
 fs.rmSync(releaseAssetsDir, { recursive: true, force: true });

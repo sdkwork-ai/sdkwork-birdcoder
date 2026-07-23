@@ -43,11 +43,11 @@ export interface ProjectExplorerProjectSectionProps {
     event: React.MouseEvent<HTMLButtonElement>,
     projectId: string,
   ) => void;
-  onNewCodingSessionInProject: (projectId: string, engineId?: string, modelId?: string) => void;
-  onSelectCodingSession: (codingSessionId: string, projectId?: string | null) => void;
-  onCodingSessionContextMenu: (
+  onNewAgentSessionInProject: (projectId: string, engineId?: string, modelId?: string) => void;
+  onSelectAgentSession: (agentSessionId: string, projectId?: string | null) => void;
+  onAgentSessionContextMenu: (
     event: React.MouseEvent,
-    codingSessionId: string,
+    agentSessionId: string,
     projectId?: string | null,
   ) => void;
   onProjectRenameValueChange: (value: string) => void;
@@ -55,7 +55,7 @@ export interface ProjectExplorerProjectSectionProps {
   onProjectRenameCancel: () => void;
   onSessionRenameValueChange: (value: string) => void;
   onSessionRenameSubmit: (
-    codingSessionId: string,
+    agentSessionId: string,
     projectId: string,
     nextValue: string,
     currentTitle: string,
@@ -96,9 +96,9 @@ export const ProjectExplorerProjectSection = React.memo(function ProjectExplorer
   onToggleProject,
   onProjectContextMenu,
   onOpenProjectContextMenuFromButton,
-  onNewCodingSessionInProject,
-  onSelectCodingSession,
-  onCodingSessionContextMenu,
+  onNewAgentSessionInProject,
+  onSelectAgentSession,
+  onAgentSessionContextMenu,
   onProjectRenameValueChange,
   onProjectRenameSubmit,
   onProjectRenameCancel,
@@ -171,7 +171,7 @@ export const ProjectExplorerProjectSection = React.memo(function ProjectExplorer
               title={newSessionInProjectLabel}
               onClick={(event) => {
                 event.stopPropagation();
-                onNewCodingSessionInProject(
+                onNewAgentSessionInProject(
                   project.id,
                   defaultNewSessionEngineId,
                   defaultNewSessionModelId,
@@ -222,8 +222,8 @@ export const ProjectExplorerProjectSection = React.memo(function ProjectExplorer
                 initializingSessionLabel={initializingSessionLabel}
                 failedSessionLabel={failedSessionLabel}
                 moreActionsLabel={moreActionsLabel}
-                onSelectCodingSession={onSelectCodingSession}
-                onCodingSessionContextMenu={onCodingSessionContextMenu}
+                onSelectAgentSession={onSelectAgentSession}
+                onAgentSessionContextMenu={onAgentSessionContextMenu}
                 onRenameValueChange={onSessionRenameValueChange}
                 onRenameSubmit={onSessionRenameSubmit}
                 onRenameCancel={onSessionRenameCancel}

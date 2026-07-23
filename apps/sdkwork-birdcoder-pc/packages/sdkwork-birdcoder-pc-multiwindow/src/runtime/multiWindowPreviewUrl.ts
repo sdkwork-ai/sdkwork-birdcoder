@@ -1,5 +1,5 @@
 import type {
-  BirdCoderChatMessage,
+  AgentSessionItemView,
 } from '@sdkwork/birdcoder-pc-contracts-commons';
 
 interface MultiWindowPreviewUrlCandidate {
@@ -64,7 +64,7 @@ function comparePreviewUrlCandidate(
 }
 
 export function resolveMultiWindowPaneAutoPreviewUrl(
-  messages: readonly Pick<BirdCoderChatMessage, 'content'>[],
+  messages: readonly Pick<AgentSessionItemView, 'content'>[],
 ): string | null {
   let selectedCandidate: MultiWindowPreviewUrlCandidate | null = null;
 

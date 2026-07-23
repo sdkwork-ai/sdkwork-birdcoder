@@ -1,6 +1,6 @@
 import React, { memo } from 'react';
 import { Archive, Ban, CircleStop, Copy, Info, RefreshCw, ShieldX, TriangleAlert } from 'lucide-react';
-import type { CommandExecution } from '@sdkwork/birdcoder-pc-workbench/chat/types';
+import type { AgentSessionCommandView } from '@sdkwork/birdcoder-pc-workbench/chat/types';
 import { ChatActivitySummary } from '../activity/ChatActivitySummary.tsx';
 import {
   filterCommandExecutions,
@@ -50,7 +50,7 @@ function ActivitySummaryBlock({
   commands,
 }: ChatMessageContentBlockRendererProps & {
   fileChanges: ReturnType<typeof normalizeActivityFileChanges>;
-  commands: CommandExecution[];
+  commands: AgentSessionCommandView[];
 }) {
   if (fileChanges.length === 0 && commands.length === 0) {
     return null;

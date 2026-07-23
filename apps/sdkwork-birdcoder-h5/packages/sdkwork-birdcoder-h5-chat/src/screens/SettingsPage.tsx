@@ -1,6 +1,5 @@
 import { useState } from 'react';
 import { resolveBirdCoderLegalLinks } from '@sdkwork/birdcoder-h5-commons';
-import { clearBirdCoderSessionRecord } from '@sdkwork/birdcoder-h5-core';
 import {
   BIRDCODER_H5_ENGINE_OPTIONS,
   BIRDCODER_H5_LANGUAGE_OPTIONS,
@@ -12,7 +11,6 @@ import {
 } from '../state/settingsState';
 
 const BIRDCODER_H5_APP_VERSION = '0.1.0';
-const BIRDCODER_H5_STORAGE_PREFIX = 'sdkwork.birdcoder.';
 
 const ENGINE_LABELS: Record<BirdCoderEnginePreference, string> = {
   webview: 'WebView',
@@ -83,43 +81,27 @@ function OptionRow<T extends string>({
   );
 }
 
-function SettingsContent() {
+export interface SettingsPageProps {
+  onLogout: () => Promise<void>;
+}
+
+function SettingsContent({ onLogout }: SettingsPageProps) {
   const { state, setEngine, setTheme, setLanguage, reset } = useBirdCoderSettings();
   const legal = resolveBirdCoderLegalLinks();
   const [cacheCleared, setCacheCleared] = useState(false);
+  const [signingOut, setSigningOut] = useState(false);
 
-  function clearBirdCoderCache() {
-    if (typeof window !== 'undefined') {
-      // Clear non-token BirdCoder keys from localStorage (settings, caches).
-      if (window.localStorage) {
-        const keysToRemove = Object.keys(window.localStorage).filter(
-          (key) => key.startsWith(BIRDCODER_H5_STORAGE_PREFIX),
-        );
-        keysToRemove.forEach((key) => window.localStorage.removeItem(key));
-      }
-      // Clear non-token BirdCoder keys from sessionStorage.
-      if (window.sessionStorage) {
-        const sessionKeysToRemove = Object.keys(window.sessionStorage).filter(
-          (key) => key.startsWith(BIRDCODER_H5_STORAGE_PREFIX),
-        );
-        sessionKeysToRemove.forEach((key) => window.sessionStorage.removeItem(key));
-      }
-    }
+  function resetLocalSettings() {
     reset();
     setCacheCleared(true);
   }
 
   async function signOut() {
-    // Use the secure storage adapter to properly clear the session token
-    // from sessionStorage. This is fail-safe: even if the adapter throws,
-    // we still redirect to the login page.
+    setSigningOut(true);
     try {
-      await clearBirdCoderSessionRecord();
-    } catch {
-      // Best-effort cleanup; redirect proceeds regardless.
-    }
-    if (typeof window !== 'undefined') {
-      window.location.assign('/');
+      await onLogout();
+    } finally {
+      setSigningOut(false);
     }
   }
 
@@ -188,19 +170,20 @@ function SettingsContent() {
           <button
             type="button"
             onClick={signOut}
+            disabled={signingOut}
             className="rounded-lg border border-border px-3 py-2 text-left font-medium text-foreground"
           >
-            Log out
+            {signingOut ? 'Logging out...' : 'Log out'}
           </button>
           <button
             type="button"
-            onClick={clearBirdCoderCache}
+            onClick={resetLocalSettings}
             className="rounded-lg border border-border px-3 py-2 text-left font-medium text-foreground"
           >
-            Clear cache
+            Reset local settings
           </button>
           {cacheCleared ? (
-            <p className="text-xs text-muted-foreground">Local cache cleared.</p>
+            <p className="text-xs text-muted-foreground">Local settings reset.</p>
           ) : null}
           <div className="mt-1 flex items-center justify-between text-muted-foreground">
             <span>Version</span>
@@ -257,6 +240,6 @@ function SettingsContent() {
   );
 }
 
-export function SettingsPage() {
-  return <SettingsContent />;
+export function SettingsPage({ onLogout }: SettingsPageProps) {
+  return <SettingsContent onLogout={onLogout} />;
 }

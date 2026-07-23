@@ -1,16 +1,15 @@
 import React, { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import type { BirdCoderCodingSession, BirdCoderProject } from '@sdkwork/birdcoder-pc-contracts-commons';
+import type { AgentSessionView, BirdCoderProject } from '@sdkwork/birdcoder-pc-contracts-commons';
 import {
-  compareBirdCoderSessionSortTimestamp,
+  compareAgentSessionViewSortTimestamps,
 } from '@sdkwork/birdcoder-pc-contracts-commons';
 import {
-  listWorkbenchCliEngines,
   resolveWorkbenchCodeEngineSelectedModelId,
   resolveWorkbenchNewSessionEngineCatalog,
-} from '@sdkwork/birdcoder-pc-codeengine';
+} from '@sdkwork/birdcoder-pc-workbench/workbench/codeEngineCatalog';
 import {
-  deduplicateBirdCoderCodingSessionsForRender,
+  deduplicateAgentSessionsForRender,
   deduplicateBirdCoderProjectsForRender,
 } from '@sdkwork/birdcoder-pc-workbench/workbench/projectInventoryRender';
 import { useWorkbenchPreferences } from '@sdkwork/birdcoder-pc-workbench/hooks/useWorkbenchPreferences';
@@ -38,7 +37,7 @@ const INITIAL_VISIBLE_SESSIONS_PER_PROJECT = 5;
 const SESSION_EXPANSION_BATCH_SIZE = 10;
 const CHRONOLOGICAL_SESSION_ROW_HEIGHT = 36;
 const CHRONOLOGICAL_WINDOWED_LIST_THRESHOLD = 60;
-const EMPTY_SIDEBAR_CODING_SESSIONS: BirdCoderCodingSession[] = [];
+const EMPTY_SIDEBAR_AGENT_SESSIONS: AgentSessionView[] = [];
 
 function renderSidebarContextMenuPortal(content: React.ReactNode) {
   if (typeof document === 'undefined') {
@@ -69,8 +68,8 @@ function clampSidebarContextMenuCoordinates(
   };
 }
 
-function buildSidebarSessionRenderKey(session: BirdCoderCodingSession): string {
-  return `${session.projectId}\u0001${session.id}`;
+function buildSidebarSessionRenderKey(session: AgentSessionView): string {
+  return `${session.birdCoderProjectId}\u0001${session.id}`;
 }
 
 function buildSidebarSessionScopedKey(projectId: string, sessionId: string): string {
@@ -78,42 +77,42 @@ function buildSidebarSessionScopedKey(projectId: string, sessionId: string): str
 }
 
 function resolveSidebarSessionProjectId(
-  session: BirdCoderCodingSession,
+  session: AgentSessionView,
   containingProjectId: string,
 ): string {
-  return containingProjectId.trim() || session.projectId;
+  const projectId = containingProjectId.trim();
+  if (!projectId || session.birdCoderProjectId !== projectId) {
+    throw new Error(
+      `Agent session ${session.id} does not belong to BirdCoder project ${projectId || '<empty>'}.`,
+    );
+  }
+  return projectId;
 }
 
-interface SidebarCodingSessionLookup {
-  byProjectIdAndId: Map<string, BirdCoderCodingSession>;
-  uniqueById: Map<string, BirdCoderCodingSession>;
+interface SidebarAgentSessionLookup {
+  byProjectIdAndId: Map<string, AgentSessionView>;
+  uniqueById: Map<string, AgentSessionView>;
 }
 
-function buildSidebarCodingSessionLookup(
+function buildSidebarAgentSessionLookup(
   projects: readonly BirdCoderProject[],
-): SidebarCodingSessionLookup {
-  const byProjectIdAndId = new Map<string, BirdCoderCodingSession>();
-  const uniqueById = new Map<string, BirdCoderCodingSession>();
+): SidebarAgentSessionLookup {
+  const byProjectIdAndId = new Map<string, AgentSessionView>();
+  const uniqueById = new Map<string, AgentSessionView>();
   const ambiguousSessionIds = new Set<string>();
   for (const project of projects) {
-    for (const codingSession of project.codingSessions) {
-      const scopedProjectId = resolveSidebarSessionProjectId(codingSession, project.id);
-      const scopedCodingSession =
-        scopedProjectId === codingSession.projectId
-          ? codingSession
-          : {
-              ...codingSession,
-              projectId: scopedProjectId,
-            };
+    for (const agentSession of project.agentSessions) {
+      const scopedProjectId = resolveSidebarSessionProjectId(agentSession, project.id);
+      const scopedAgentSession = agentSession;
       byProjectIdAndId.set(
-        buildSidebarSessionScopedKey(scopedProjectId, codingSession.id),
-        scopedCodingSession,
+        buildSidebarSessionScopedKey(scopedProjectId, agentSession.id),
+        scopedAgentSession,
       );
-      if (uniqueById.has(codingSession.id)) {
-        ambiguousSessionIds.add(codingSession.id);
-        uniqueById.delete(codingSession.id);
-      } else if (!ambiguousSessionIds.has(codingSession.id)) {
-        uniqueById.set(codingSession.id, scopedCodingSession);
+      if (uniqueById.has(agentSession.id)) {
+        ambiguousSessionIds.add(agentSession.id);
+        uniqueById.delete(agentSession.id);
+      } else if (!ambiguousSessionIds.has(agentSession.id)) {
+        uniqueById.set(agentSession.id, scopedAgentSession);
       }
     }
   }
@@ -128,8 +127,8 @@ function collectSidebarChronologicalSessions(
   showArchived: boolean,
   normalizedSearchQuery: string,
   visibleSessionCountByProjectId: Readonly<Record<string, number>>,
-): BirdCoderCodingSession[] {
-  const sessions: BirdCoderCodingSession[] = [];
+): AgentSessionView[] {
+  const sessions: AgentSessionView[] = [];
   for (const project of projects) {
     if (!showArchived && project.archived) {
       continue;
@@ -138,65 +137,59 @@ function collectSidebarChronologicalSessions(
       INITIAL_VISIBLE_SESSIONS_PER_PROJECT,
       visibleSessionCountByProjectId[project.id] ?? INITIAL_VISIBLE_SESSIONS_PER_PROJECT,
     );
-    const sessionCount = Math.min(visibleSessionCount, project.codingSessions.length);
+    const sessionCount = Math.min(visibleSessionCount, project.agentSessions.length);
     for (let sessionIndex = 0; sessionIndex < sessionCount; sessionIndex += 1) {
-      const codingSession = project.codingSessions[sessionIndex];
-      if (!codingSession) {
+      const agentSession = project.agentSessions[sessionIndex];
+      if (!agentSession) {
         continue;
       }
-      const scopedProjectId = resolveSidebarSessionProjectId(codingSession, project.id);
-      const scopedCodingSession =
-        scopedProjectId === codingSession.projectId
-          ? codingSession
-          : {
-              ...codingSession,
-              projectId: scopedProjectId,
-            };
-      if (!showArchived && codingSession.archived) {
+      const scopedProjectId = resolveSidebarSessionProjectId(agentSession, project.id);
+      const scopedAgentSession = agentSession;
+      if (!showArchived && agentSession.archived) {
         continue;
       }
       if (
         normalizedSearchQuery &&
-        !codingSession.title.toLowerCase().includes(normalizedSearchQuery)
+        !agentSession.title.toLowerCase().includes(normalizedSearchQuery)
       ) {
         continue;
       }
-      sessions.push(scopedCodingSession);
+      sessions.push(scopedAgentSession);
     }
   }
-  return deduplicateBirdCoderCodingSessionsForRender(sessions);
+  return deduplicateAgentSessionsForRender(sessions);
 }
 
 function filterSidebarProjectSessions(
-  codingSessions: readonly BirdCoderCodingSession[],
+  agentSessions: readonly AgentSessionView[],
   showArchived: boolean,
   normalizedSearchQuery: string,
-): BirdCoderCodingSession[] {
+): AgentSessionView[] {
   if (showArchived && !normalizedSearchQuery) {
-    return codingSessions as BirdCoderCodingSession[];
+    return agentSessions as AgentSessionView[];
   }
 
-  const filteredSessions: BirdCoderCodingSession[] = [];
-  for (const codingSession of codingSessions) {
-    if (!showArchived && codingSession.archived) {
+  const filteredSessions: AgentSessionView[] = [];
+  for (const agentSession of agentSessions) {
+    if (!showArchived && agentSession.archived) {
       continue;
     }
     if (
       normalizedSearchQuery &&
-      !codingSession.title.toLowerCase().includes(normalizedSearchQuery)
+      !agentSession.title.toLowerCase().includes(normalizedSearchQuery)
     ) {
       continue;
     }
-    filteredSessions.push(codingSession);
+    filteredSessions.push(agentSession);
   }
 
   return filteredSessions;
 }
 
 function sortSidebarSessionsByCreated(
-  codingSessions: readonly BirdCoderCodingSession[],
-): BirdCoderCodingSession[] {
-  return [...codingSessions].sort(
+  agentSessions: readonly AgentSessionView[],
+): AgentSessionView[] {
+  return [...agentSessions].sort(
     (left, right) =>
       Math.max(0, Date.parse(right.createdAt)) -
         Math.max(0, Date.parse(left.createdAt)) ||
@@ -205,23 +198,23 @@ function sortSidebarSessionsByCreated(
 }
 
 function sortSidebarSessionsByUpdated(
-  codingSessions: readonly BirdCoderCodingSession[],
-): BirdCoderCodingSession[] {
-  return [...codingSessions].sort((left, right) =>
-    compareBirdCoderSessionSortTimestamp(right, left) ||
+  agentSessions: readonly AgentSessionView[],
+): AgentSessionView[] {
+  return [...agentSessions].sort((left, right) =>
+    compareAgentSessionViewSortTimestamps(right, left) ||
     left.id.localeCompare(right.id),
   );
 }
 
 function resolveSidebarProjectViewSessions(
-  codingSessions: readonly BirdCoderCodingSession[],
+  agentSessions: readonly AgentSessionView[],
   sortBy: ProjectExplorerSortBy,
-): BirdCoderCodingSession[] {
+): AgentSessionView[] {
   if (sortBy === 'updated') {
-    return codingSessions as BirdCoderCodingSession[];
+    return agentSessions as AgentSessionView[];
   }
 
-  return sortSidebarSessionsByCreated(codingSessions);
+  return sortSidebarSessionsByCreated(agentSessions);
 }
 
 function areSidebarProjectInventoriesEqual(
@@ -252,37 +245,35 @@ function areSidebarPropsEqual(left: ProjectExplorerProps, right: ProjectExplorer
     left.isLoadingMoreProjects === right.isLoadingMoreProjects &&
     left.isVisible === right.isVisible &&
     left.selectedProjectId === right.selectedProjectId &&
-    left.selectedCodingSessionId === right.selectedCodingSessionId &&
+    left.selectedAgentSessionId === right.selectedAgentSessionId &&
     left.onSelectProject === right.onSelectProject &&
-    left.onSelectCodingSession === right.onSelectCodingSession &&
-    left.onRenameCodingSession === right.onRenameCodingSession &&
-    left.onDeleteCodingSession === right.onDeleteCodingSession &&
+    left.onSelectAgentSession === right.onSelectAgentSession &&
+    left.onRenameAgentSession === right.onRenameAgentSession &&
+    left.onDeleteAgentSession === right.onDeleteAgentSession &&
     left.onRenameProject === right.onRenameProject &&
     left.onDeleteProject === right.onDeleteProject &&
     left.onNewProject === right.onNewProject &&
     left.onLoadMoreProjects === right.onLoadMoreProjects &&
     left.onLoadMoreProjectSessions === right.onLoadMoreProjectSessions &&
     left.onOpenFolder === right.onOpenFolder &&
-    left.onNewCodingSessionInProject === right.onNewCodingSessionInProject &&
+    left.onNewAgentSessionInProject === right.onNewAgentSessionInProject &&
     left.onRefreshProjectSessions === right.onRefreshProjectSessions &&
-    left.onRefreshCodingSessionMessages === right.onRefreshCodingSessionMessages &&
+    left.onRefreshAgentSessionItems === right.onRefreshAgentSessionItems &&
     left.onArchiveProject === right.onArchiveProject &&
     left.onCopyWorkingDirectory === right.onCopyWorkingDirectory &&
     left.onCopyProjectPath === right.onCopyProjectPath &&
     left.onOpenInTerminal === right.onOpenInTerminal &&
     left.onOpenInFileExplorer === right.onOpenInFileExplorer &&
-    left.onPinCodingSession === right.onPinCodingSession &&
-    left.onArchiveCodingSession === right.onArchiveCodingSession &&
-    left.onMarkCodingSessionUnread === right.onMarkCodingSessionUnread &&
-    left.onOpenCodingSessionInTerminal === right.onOpenCodingSessionInTerminal &&
-    left.onCopyCodingSessionWorkingDirectory === right.onCopyCodingSessionWorkingDirectory &&
-    left.onCopyCodingSessionSessionId === right.onCopyCodingSessionSessionId &&
-    left.onCopyCodingSessionResumeCommand === right.onCopyCodingSessionResumeCommand &&
-    left.onCopyCodingSessionDeeplink === right.onCopyCodingSessionDeeplink &&
-    left.onForkCodingSessionLocal === right.onForkCodingSessionLocal &&
-    left.onForkCodingSessionNewTree === right.onForkCodingSessionNewTree &&
+    left.onPinAgentSession === right.onPinAgentSession &&
+    left.onArchiveAgentSession === right.onArchiveAgentSession &&
+    left.onMarkAgentSessionUnread === right.onMarkAgentSessionUnread &&
+    left.onCopyAgentSessionWorkingDirectory === right.onCopyAgentSessionWorkingDirectory &&
+    left.onCopyAgentSessionSessionId === right.onCopyAgentSessionSessionId &&
+    left.onCopyAgentSessionDeeplink === right.onCopyAgentSessionDeeplink &&
+    left.onForkAgentSessionLocal === right.onForkAgentSessionLocal &&
+    left.onForkAgentSessionNewTree === right.onForkAgentSessionNewTree &&
     left.refreshingProjectId === right.refreshingProjectId &&
-    left.refreshingCodingSessionId === right.refreshingCodingSessionId &&
+    left.refreshingAgentSessionId === right.refreshingAgentSessionId &&
     left.searchQuery === right.searchQuery &&
     left.setSearchQuery === right.setSearchQuery &&
     left.width === right.width
@@ -292,7 +283,7 @@ function areSidebarPropsEqual(left: ProjectExplorerProps, right: ProjectExplorer
 type SidebarProjectEntry = ProjectExplorerProjectEntry;
 
 type SidebarFilteredProjectSessionsEntry = {
-  filteredSessions: BirdCoderCodingSession[];
+  filteredSessions: AgentSessionView[];
   project: BirdCoderProject;
 };
 
@@ -312,37 +303,35 @@ export const Sidebar = React.memo(function Sidebar({
   isVisible = true,
   projects,
   selectedProjectId,
-  selectedCodingSessionId,
+  selectedAgentSessionId,
   onSelectProject,
-  onSelectCodingSession,
-  onRenameCodingSession,
-  onDeleteCodingSession,
+  onSelectAgentSession,
+  onRenameAgentSession,
+  onDeleteAgentSession,
   onRenameProject,
   onDeleteProject,
   onNewProject,
   onLoadMoreProjects,
   onLoadMoreProjectSessions,
   onOpenFolder,
-  onNewCodingSessionInProject,
+  onNewAgentSessionInProject,
   onRefreshProjectSessions,
-  onRefreshCodingSessionMessages,
+  onRefreshAgentSessionItems,
   onArchiveProject,
   onCopyWorkingDirectory,
   onCopyProjectPath,
   onOpenInTerminal,
   onOpenInFileExplorer,
-  onPinCodingSession,
-  onArchiveCodingSession,
-  onMarkCodingSessionUnread,
-  onOpenCodingSessionInTerminal,
-  onCopyCodingSessionWorkingDirectory,
-  onCopyCodingSessionSessionId,
-  onCopyCodingSessionResumeCommand,
-  onCopyCodingSessionDeeplink,
-  onForkCodingSessionLocal,
-  onForkCodingSessionNewTree,
+  onPinAgentSession,
+  onArchiveAgentSession,
+  onMarkAgentSessionUnread,
+  onCopyAgentSessionWorkingDirectory,
+  onCopyAgentSessionSessionId,
+  onCopyAgentSessionDeeplink,
+  onForkAgentSessionLocal,
+  onForkAgentSessionNewTree,
   refreshingProjectId,
-  refreshingCodingSessionId,
+  refreshingAgentSessionId,
   searchQuery = '',
   setSearchQuery,
   width = 256
@@ -370,7 +359,7 @@ export const Sidebar = React.memo(function Sidebar({
   const [contextMenu, setContextMenu] = useState<{
     x: number;
     y: number;
-    codingSessionId: string;
+    agentSessionId: string;
     projectId: string;
   } | null>(null);
   const contextMenuRef = useRef<HTMLDivElement>(null);
@@ -381,9 +370,9 @@ export const Sidebar = React.memo(function Sidebar({
   const [rootContextMenu, setRootContextMenu] = useState<{ x: number, y: number } | null>(null);
   const rootContextMenuRef = useRef<HTMLDivElement>(null);
 
-  const [renamingCodingSession, setRenamingCodingSession] = useState<{
+  const [renamingAgentSession, setRenamingAgentSession] = useState<{
+    birdCoderProjectId: string;
     id: string;
-    projectId: string;
   } | null>(null);
   const [renamingProjectId, setRenamingProjectId] = useState<string | null>(null);
   const [renameValue, setRenameValue] = useState('');
@@ -477,7 +466,7 @@ export const Sidebar = React.memo(function Sidebar({
         let changed = false;
         const nextExpandedProjects = { ...previousExpandedProjects };
         renderProjects.forEach((project) => {
-          if (project.codingSessions.length > 0 && nextExpandedProjects[project.id] !== true) {
+          if (project.agentSessions.length > 0 && nextExpandedProjects[project.id] !== true) {
             nextExpandedProjects[project.id] = true;
             changed = true;
           }
@@ -497,7 +486,7 @@ export const Sidebar = React.memo(function Sidebar({
         const shouldRestoreInitialWindow =
           typeof existingCount === 'number' &&
           existingCount > INITIAL_VISIBLE_SESSIONS_PER_PROJECT &&
-          existingCount > project.codingSessions.length;
+          existingCount > project.agentSessions.length;
         nextState[project.id] = shouldRestoreInitialWindow
           ? INITIAL_VISIBLE_SESSIONS_PER_PROJECT
           : typeof existingCount === 'number'
@@ -550,16 +539,16 @@ export const Sidebar = React.memo(function Sidebar({
     onSelectProject?.(projectId);
   }, [onSelectProject]);
 
-  const handleSelectCodingSession = useCallback((
-    codingSessionId: string,
+  const handleSelectAgentSession = useCallback((
+    agentSessionId: string,
     projectId?: string | null,
   ) => {
-    onSelectCodingSession(codingSessionId, projectId);
-  }, [onSelectCodingSession]);
+    onSelectAgentSession(agentSessionId, projectId);
+  }, [onSelectAgentSession]);
 
   const handleContextMenu = useCallback((
     e: React.MouseEvent,
-    codingSessionId: string,
+    agentSessionId: string,
     projectId?: string | null,
   ) => {
     e.preventDefault();
@@ -573,7 +562,7 @@ export const Sidebar = React.memo(function Sidebar({
     }
 
     const position = clampSidebarContextMenuCoordinates(e.clientX, e.clientY, 224, 350);
-    setContextMenu({ ...position, codingSessionId, projectId: normalizedProjectId });
+    setContextMenu({ ...position, agentSessionId, projectId: normalizedProjectId });
   }, []);
 
   const handleProjectContextMenu = useCallback((e: React.MouseEvent, projectId: string) => {
@@ -623,8 +612,8 @@ export const Sidebar = React.memo(function Sidebar({
   };
 
   const normalizedSearchQuery = deferredSearchQuery.trim().toLowerCase();
-  const codingSessionLookup = useMemo(
-    () => buildSidebarCodingSessionLookup(renderProjects),
+  const agentSessionLookup = useMemo(
+    () => buildSidebarAgentSessionLookup(renderProjects),
     [renderProjects],
   );
   const projectLookup = useMemo(
@@ -643,22 +632,22 @@ export const Sidebar = React.memo(function Sidebar({
       }
 
       const scopedProject = projectLookup.get(contextMenu.projectId);
-      return codingSessionLookup.byProjectIdAndId.get(
-        buildSidebarSessionScopedKey(contextMenu.projectId, contextMenu.codingSessionId),
-      ) ?? scopedProject?.codingSessions.find(
-          (codingSession) => codingSession.id === contextMenu.codingSessionId,
+      return agentSessionLookup.byProjectIdAndId.get(
+        buildSidebarSessionScopedKey(contextMenu.projectId, contextMenu.agentSessionId),
+      ) ?? scopedProject?.agentSessions.find(
+          (agentSession) => agentSession.id === contextMenu.agentSessionId,
         );
     },
-    [codingSessionLookup, contextMenu, projectLookup],
+    [agentSessionLookup, contextMenu, projectLookup],
   );
   const selectedProjectContextMenuProject = useMemo(
     () =>
       projectContextMenu ? projectLookup.get(projectContextMenu.projectId) : undefined,
     [projectContextMenu, projectLookup],
   );
-  const selectedSidebarCodingSession = useMemo(
+  const selectedSidebarAgentSession = useMemo(
     () => {
-      if (!selectedCodingSessionId) {
+      if (!selectedAgentSessionId) {
         return null;
       }
 
@@ -666,23 +655,23 @@ export const Sidebar = React.memo(function Sidebar({
         ? projectLookup.get(selectedProjectId)
         : undefined;
       if (selectedProjectId) {
-        return codingSessionLookup.byProjectIdAndId.get(
-          buildSidebarSessionScopedKey(selectedProjectId, selectedCodingSessionId),
-        ) ?? scopedProject?.codingSessions.find(
-            (codingSession) => codingSession.id === selectedCodingSessionId,
+        return agentSessionLookup.byProjectIdAndId.get(
+          buildSidebarSessionScopedKey(selectedProjectId, selectedAgentSessionId),
+        ) ?? scopedProject?.agentSessions.find(
+            (agentSession) => agentSession.id === selectedAgentSessionId,
           ) ?? null;
       }
 
-      return codingSessionLookup.uniqueById.get(selectedCodingSessionId) ?? null;
+      return agentSessionLookup.uniqueById.get(selectedAgentSessionId) ?? null;
     },
-    [codingSessionLookup, projectLookup, selectedCodingSessionId, selectedProjectId],
+    [agentSessionLookup, projectLookup, selectedAgentSessionId, selectedProjectId],
   );
   const newSessionEngineCatalog = useMemo(
     () =>
       resolveWorkbenchNewSessionEngineCatalog(
         {
-          currentSessionEngineId: selectedSidebarCodingSession?.engineId,
-          currentSessionModelId: selectedSidebarCodingSession?.modelId,
+          currentSessionEngineId: selectedSidebarAgentSession?.engineId,
+          currentSessionModelId: selectedSidebarAgentSession?.modelId,
           preferredEngineId: preferences.codeEngineId,
           preferredModelId: preferences.codeModelId,
         },
@@ -690,8 +679,8 @@ export const Sidebar = React.memo(function Sidebar({
       ),
     [
       preferences,
-      selectedSidebarCodingSession?.engineId,
-      selectedSidebarCodingSession?.modelId,
+      selectedSidebarAgentSession?.engineId,
+      selectedSidebarAgentSession?.modelId,
     ],
   );
   const newSessionEngineOptions = useMemo<readonly ProjectExplorerEngineOption[]>(
@@ -700,19 +689,11 @@ export const Sidebar = React.memo(function Sidebar({
         id: engine.id,
         label: engine.label,
         modelId: resolveWorkbenchCodeEngineSelectedModelId(engine.id, preferences),
-        terminalProfileId: engine.terminalProfileId ?? null,
+        terminalProfileId: null,
       })),
     [newSessionEngineCatalog.availableEngines, preferences],
   );
-  const terminalEngineOptions = useMemo<readonly ProjectExplorerEngineOption[]>(
-    () =>
-      listWorkbenchCliEngines().map((engine) => ({
-        id: engine.id,
-        label: engine.label,
-        terminalProfileId: engine.terminalProfileId ?? null,
-      })),
-    [],
-  );
+  const terminalEngineOptions: readonly ProjectExplorerEngineOption[] = [];
   const handleLoadMoreProjectSessions = useCallback(
     async (projectId: string, requestedCount: number): Promise<void> => {
       const normalizedProjectId = projectId.trim();
@@ -784,30 +765,30 @@ export const Sidebar = React.memo(function Sidebar({
   const handleProjectRenameCancel = useCallback(() => {
     setRenamingProjectId(null);
   }, []);
-  const handleCodingSessionRenameSubmit = useCallback(
+  const handleAgentSessionRenameSubmit = useCallback(
     (
-      codingSessionId: string,
+      agentSessionId: string,
       projectId: string,
       nextValue: string,
       currentTitle: string,
     ) => {
       const normalizedValue = nextValue.trim();
       if (normalizedValue && normalizedValue !== currentTitle) {
-        onRenameCodingSession(codingSessionId, projectId, normalizedValue);
+        onRenameAgentSession(agentSessionId, projectId, normalizedValue);
       }
-      setRenamingCodingSession(null);
+      setRenamingAgentSession(null);
     },
-    [onRenameCodingSession],
+    [onRenameAgentSession],
   );
-  const handleCodingSessionRenameCancel = useCallback(() => {
-    setRenamingCodingSession(null);
+  const handleAgentSessionRenameCancel = useCallback(() => {
+    setRenamingAgentSession(null);
   }, []);
   const handleCreateEngineSession = useCallback((engineId: string, modelId: string) => {
     if (!selectedProjectId) {
       return;
     }
-    onNewCodingSessionInProject(selectedProjectId, engineId, modelId);
-  }, [onNewCodingSessionInProject, selectedProjectId]);
+    onNewAgentSessionInProject(selectedProjectId, engineId, modelId);
+  }, [onNewAgentSessionInProject, selectedProjectId]);
   const handleToggleSearch = useCallback(() => {
     setShowSearch((previousState) => {
       const nextState = !previousState;
@@ -849,7 +830,7 @@ export const Sidebar = React.memo(function Sidebar({
   }, [addToast, isLoadingMoreProjects, onLoadMoreProjects, t]);
   const handleCreateDefaultSessionFromRootContextMenu = useCallback(() => {
     if (selectedProjectId) {
-      onNewCodingSessionInProject(
+      onNewAgentSessionInProject(
         selectedProjectId,
         newSessionEngineCatalog.preferredSelection.engineId,
         newSessionEngineCatalog.preferredSelection.modelId,
@@ -862,13 +843,13 @@ export const Sidebar = React.memo(function Sidebar({
     addToast,
     newSessionEngineCatalog.preferredSelection.engineId,
     newSessionEngineCatalog.preferredSelection.modelId,
-    onNewCodingSessionInProject,
+    onNewAgentSessionInProject,
     selectedProjectId,
     t,
   ]);
   const handleStartRenamingCurrentSession = useCallback(
-    (codingSessionId: string, projectId: string, title: string) => {
-      setRenamingCodingSession({ id: codingSessionId, projectId });
+    (agentSessionId: string, projectId: string, title: string) => {
+      setRenamingAgentSession({ birdCoderProjectId: projectId, id: agentSessionId });
       setRenameValue(title);
     },
     [],
@@ -914,15 +895,15 @@ export const Sidebar = React.memo(function Sidebar({
     addToast(t('code.showingRelevantSessions'), 'success');
   }, [addToast, t]);
   const resolveProjectViewSessions = useCallback(
-    (codingSessions: readonly BirdCoderCodingSession[]) =>
-      resolveSidebarProjectViewSessions(codingSessions, sortBy),
+    (agentSessions: readonly AgentSessionView[]) =>
+      resolveSidebarProjectViewSessions(agentSessions, sortBy),
     [sortBy],
   );
   const sortChronologicalSessions = useCallback(
-    (codingSessions: readonly BirdCoderCodingSession[]) =>
+    (agentSessions: readonly AgentSessionView[]) =>
       sortBy === 'created'
-        ? sortSidebarSessionsByCreated(codingSessions)
-        : sortSidebarSessionsByUpdated(codingSessions),
+        ? sortSidebarSessionsByCreated(agentSessions)
+        : sortSidebarSessionsByUpdated(agentSessions),
     [sortBy],
   );
   const filteredProjectSessions = useMemo<SidebarFilteredProjectSessionsEntry[]>(
@@ -937,7 +918,7 @@ export const Sidebar = React.memo(function Sidebar({
           project,
           filteredSessions: resolveProjectViewSessions(
             filterSidebarProjectSessions(
-              project.codingSessions,
+              project.agentSessions,
               showArchived,
               normalizedSearchQuery,
             ),
@@ -947,7 +928,7 @@ export const Sidebar = React.memo(function Sidebar({
           (entry) =>
             !normalizedSearchQuery ||
             entry.filteredSessions.length > 0 ||
-            entry.project.codingSessions.length > INITIAL_VISIBLE_SESSIONS_PER_PROJECT,
+            entry.project.agentSessions.length > INITIAL_VISIBLE_SESSIONS_PER_PROJECT,
         );
     },
     [
@@ -961,7 +942,7 @@ export const Sidebar = React.memo(function Sidebar({
   const chronologicalSessions = useMemo(
     () => {
       if (organizeBy !== 'chronological') {
-        return EMPTY_SIDEBAR_CODING_SESSIONS;
+        return EMPTY_SIDEBAR_AGENT_SESSIONS;
       }
 
       return sortChronologicalSessions(
@@ -1001,7 +982,7 @@ export const Sidebar = React.memo(function Sidebar({
         })
         .filter(
           (entry) => entry.nextVisibleSessionCount - SESSION_EXPANSION_BATCH_SIZE <
-            entry.project.codingSessions.length,
+            entry.project.agentSessions.length,
         );
     },
     [
@@ -1026,7 +1007,7 @@ export const Sidebar = React.memo(function Sidebar({
           return {
             canShowMoreSessions:
               visibleSessionCount < filteredSessions.length ||
-              visibleSessionCount < project.codingSessions.length,
+              visibleSessionCount < project.agentSessions.length,
             filteredSessions,
             isLoadingMoreSessions: loadingMoreSessionProjectIds[project.id] === true,
             nextVisibleSessionCount: visibleSessionCount + SESSION_EXPANSION_BATCH_SIZE,
@@ -1089,8 +1070,8 @@ export const Sidebar = React.memo(function Sidebar({
         newSessionLabel={t('app.menu.newSession')}
         newSessionInCurrentProjectLabel={t('app.newSessionInCurrentProject')}
         selectProjectFirstLabel={t('code.selectProjectFirst')}
-        currentSessionEngineId={selectedSidebarCodingSession?.engineId ?? null}
-        currentSessionModelId={selectedSidebarCodingSession?.modelId ?? null}
+        currentSessionEngineId={selectedSidebarAgentSession?.engineId ?? null}
+        currentSessionModelId={selectedSidebarAgentSession?.modelId ?? null}
         selectedEngineId={preferences.codeEngineId}
         selectedModelId={preferences.codeModelId}
         sessionsLabel={t('app.sessions')}
@@ -1130,16 +1111,16 @@ export const Sidebar = React.memo(function Sidebar({
               const selectedVisibleSessionId = entry.visibleSessions.some(
                 (session) =>
                   entry.project.id === selectedProjectId &&
-                  session.id === selectedCodingSessionId,
+                  session.id === selectedAgentSessionId,
               )
-                ? selectedCodingSessionId
+                ? selectedAgentSessionId
                 : null;
               const renamingVisibleSessionId = entry.visibleSessions.some(
                 (session) =>
-                  entry.project.id === renamingCodingSession?.projectId &&
-                  session.id === renamingCodingSession?.id,
+                  entry.project.id === renamingAgentSession?.birdCoderProjectId &&
+                  session.id === renamingAgentSession?.id,
               )
-                ? renamingCodingSession?.id ?? null
+                ? renamingAgentSession?.id ?? null
                 : null;
 
               return (
@@ -1173,15 +1154,15 @@ export const Sidebar = React.memo(function Sidebar({
                   onToggleProject={toggleProject}
                   onProjectContextMenu={handleProjectContextMenu}
                   onOpenProjectContextMenuFromButton={openProjectContextMenuFromButton}
-                  onNewCodingSessionInProject={onNewCodingSessionInProject}
-                  onSelectCodingSession={handleSelectCodingSession}
-                  onCodingSessionContextMenu={handleContextMenu}
+                  onNewAgentSessionInProject={onNewAgentSessionInProject}
+                  onSelectAgentSession={handleSelectAgentSession}
+                  onAgentSessionContextMenu={handleContextMenu}
                   onProjectRenameValueChange={handleRenameValueChange}
                   onProjectRenameSubmit={handleProjectRenameSubmit}
                   onProjectRenameCancel={handleProjectRenameCancel}
                   onSessionRenameValueChange={handleRenameValueChange}
-                  onSessionRenameSubmit={handleCodingSessionRenameSubmit}
-                  onSessionRenameCancel={handleCodingSessionRenameCancel}
+                  onSessionRenameSubmit={handleAgentSessionRenameSubmit}
+                  onSessionRenameCancel={handleAgentSessionRenameCancel}
                   onLoadMoreProjectSessions={handleLoadMoreProjectSessions}
                 />
               );
@@ -1197,21 +1178,21 @@ export const Sidebar = React.memo(function Sidebar({
                     key={buildSidebarSessionRenderKey(session)}
                     relativeTimeNow={relativeTimeNow}
                     session={session}
-                    sessionProjectId={session.projectId}
+                    sessionProjectId={session.birdCoderProjectId}
                     isSelected={
                       selectedProjectId
-                        ? selectedCodingSessionId === session.id &&
-                          selectedProjectId === session.projectId
-                        : selectedSidebarCodingSession?.id === session.id &&
-                          selectedSidebarCodingSession.projectId === session.projectId
+                        ? selectedAgentSessionId === session.id &&
+                          selectedProjectId === session.birdCoderProjectId
+                        : selectedSidebarAgentSession?.id === session.id &&
+                          selectedSidebarAgentSession.birdCoderProjectId === session.birdCoderProjectId
                     }
                     isRenaming={
-                      renamingCodingSession?.projectId === session.projectId &&
-                      renamingCodingSession.id === session.id
+                      renamingAgentSession?.birdCoderProjectId === session.birdCoderProjectId &&
+                      renamingAgentSession.id === session.id
                     }
                     renameValue={
-                      renamingCodingSession?.projectId === session.projectId &&
-                      renamingCodingSession.id === session.id
+                      renamingAgentSession?.birdCoderProjectId === session.birdCoderProjectId &&
+                      renamingAgentSession.id === session.id
                         ? renameValue
                         : ''
                     }
@@ -1223,11 +1204,11 @@ export const Sidebar = React.memo(function Sidebar({
                     initializingSessionLabel={t('code.initializingSession')}
                     failedSessionLabel={t('code.failedSession')}
                     moreActionsLabel={t('app.moreActions')}
-                    onSelectCodingSession={handleSelectCodingSession}
-                    onCodingSessionContextMenu={handleContextMenu}
+                    onSelectAgentSession={handleSelectAgentSession}
+                    onAgentSessionContextMenu={handleContextMenu}
                     onRenameValueChange={handleRenameValueChange}
-                    onRenameSubmit={handleCodingSessionRenameSubmit}
-                    onRenameCancel={handleCodingSessionRenameCancel}
+                    onRenameSubmit={handleAgentSessionRenameSubmit}
+                    onRenameCancel={handleAgentSessionRenameCancel}
                   />
                 );
               })}
@@ -1311,24 +1292,22 @@ export const Sidebar = React.memo(function Sidebar({
             menuRef={contextMenuRef}
             position={contextMenu}
             zIndex={SIDEBAR_CONTEXT_MENU_Z_INDEX}
-            sessionId={contextMenu.codingSessionId}
+            sessionId={contextMenu.agentSessionId}
             projectId={contextMenu.projectId}
             session={selectedContextMenuSession}
-            isRefreshing={refreshingCodingSessionId === contextMenu.codingSessionId}
+            isRefreshing={refreshingAgentSessionId === contextMenu.agentSessionId}
             onClose={() => setContextMenu(null)}
-            onRefresh={onRefreshCodingSessionMessages}
-            onPin={onPinCodingSession}
+            onRefresh={onRefreshAgentSessionItems}
+            onPin={onPinAgentSession}
             onStartRename={handleStartRenamingCurrentSession}
-            onArchive={onArchiveCodingSession}
-            onMarkUnread={onMarkCodingSessionUnread}
-            onCopyWorkingDirectory={onCopyCodingSessionWorkingDirectory}
-            onOpenInTerminal={onOpenCodingSessionInTerminal}
-            onCopySessionId={onCopyCodingSessionSessionId}
-            onCopyResumeCommand={onCopyCodingSessionResumeCommand}
-            onCopyDeeplink={onCopyCodingSessionDeeplink}
-            onForkLocal={onForkCodingSessionLocal}
-            onForkNewTree={onForkCodingSessionNewTree}
-            onDelete={onDeleteCodingSession}
+            onArchive={onArchiveAgentSession}
+            onMarkUnread={onMarkAgentSessionUnread}
+            onCopyWorkingDirectory={onCopyAgentSessionWorkingDirectory}
+            onCopySessionId={onCopyAgentSessionSessionId}
+            onCopyDeeplink={onCopyAgentSessionDeeplink}
+            onForkLocal={onForkAgentSessionLocal}
+            onForkNewTree={onForkAgentSessionNewTree}
+            onDelete={onDeleteAgentSession}
           />,
         )}
 
@@ -1345,7 +1324,7 @@ export const Sidebar = React.memo(function Sidebar({
             isRefreshing={refreshingProjectId === projectContextMenu.projectId}
             onClose={() => setProjectContextMenu(null)}
             onRefresh={onRefreshProjectSessions}
-            onCreateEngineSession={onNewCodingSessionInProject}
+            onCreateEngineSession={onNewAgentSessionInProject}
             onStartRename={handleStartRenamingCurrentProject}
             onArchive={onArchiveProject}
             onCopyWorkingDirectory={onCopyWorkingDirectory}

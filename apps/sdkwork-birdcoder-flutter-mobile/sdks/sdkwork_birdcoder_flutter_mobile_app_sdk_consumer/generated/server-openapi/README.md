@@ -21,7 +21,7 @@ client.setAuthToken('your-auth-token');
 client.setAccessToken('your-access-token');
 
 // Use the SDK
-final result = await client.auth.sessionsCurrentRetrieve();
+final result = await client.system.descriptorRetrieve();
 print(result);
 ```
 
@@ -44,143 +44,27 @@ client.setHeader('X-Custom-Header', 'value');
 
 ## API Modules
 
-- `client.intelligence` - intelligence API
 - `client.system` - system API
-- `client.runtime` - runtime API
-- `client.oauth` - oauth API
-- `client.auth` - auth API
-- `client.iam` - iam API
-- `client.templates` - templates API
-- `client.platform` - platform API
-- `client.content` - content API
-- `client.skills` - skills API
-- `client.collaboration` - collaboration API
-- `client.commerce` - commerce API
+- `client.intelligence` - intelligence API
 
 ## Usage Examples
 
-### intelligence
-```dart
-// List coding sessions
-final params = <String, dynamic>{
-  'workspaceId': '1',
-  'projectId': '1',
-  'runtimeLocationId': '1',
-  'engineId': 'codex',
-  'page': 5,
-  'page_size': 6,
-};
-final result = await client.intelligence.codingSessionsList(params);
-print(result);
-```
-
 ### system
 ```dart
-// Get coding-server descriptor
+// Get BirdCoder application descriptor
 final result = await client.system.descriptorRetrieve();
 print(result);
 ```
 
-### runtime
+### intelligence
 ```dart
-// List available engines
-final result = await client.runtime.enginesList();
-print(result);
-```
-
-### oauth
-```dart
-// Resolve OAuth authorization URL for SDKWork IAM sign-in
-final body = BirdCoderIamOAuthAuthorizationCreateRequest(
-  provider: 'provider',
-  redirectUri: 'redirecturi',
-  scope: 'scope',
-  state: 'state',
-);
-final result = await client.oauth.authorizationUrlsCreate(body);
-print(result);
-```
-
-### auth
-```dart
-// Get current SDKWork IAM session
-final result = await client.auth.sessionsCurrentRetrieve();
-print(result);
-```
-
-### iam
-```dart
-// Get current SDKWork IAM user
-final result = await client.iam.usersCurrentRetrieve();
-print(result);
-```
-
-### templates
-```dart
-// List app templates
+// List workspaces
 final params = <String, dynamic>{
-  'page': 1,
-  'page_size': 2,
-};
-final result = await client.templates.appTemplatesList(params);
-print(result);
-```
-
-### platform
-```dart
-// List deployments
-final params = <String, dynamic>{
-  'page': 1,
-  'page_size': 2,
-};
-final result = await client.platform.deploymentsList(params);
-print(result);
-```
-
-### content
-```dart
-// List project documents
-final params = <String, dynamic>{
-  'projectId': '1',
+  'userId': '1',
   'page': 2,
   'page_size': 3,
 };
-final result = await client.content.documentsList(params);
-print(result);
-```
-
-### skills
-```dart
-// List skill packages
-final params = <String, dynamic>{
-  'userId': '1',
-  'workspaceId': '1',
-  'page': 3,
-  'page_size': 4,
-};
-final result = await client.skills.skillPackagesList(params);
-print(result);
-```
-
-### collaboration
-```dart
-// List workspace teams
-final params = <String, dynamic>{
-  'userId': '1',
-  'workspaceId': '1',
-};
-final result = await client.collaboration.workspaceTeamsList(params);
-print(result);
-```
-
-### commerce
-```dart
-// List SDKWork commerce orders
-final params = <String, dynamic>{
-  'page': 1,
-  'page_size': 2,
-};
-final result = await client.commerce.ordersList(params);
+final result = await client.intelligence.workspacesList(params);
 print(result);
 ```
 
@@ -188,7 +72,7 @@ print(result);
 
 ```dart
 try {
-  final result = await client.auth.sessionsCurrentRetrieve();
+  final result = await client.system.descriptorRetrieve();
   print(result);
 } catch (e) {
   print('Error: $e');

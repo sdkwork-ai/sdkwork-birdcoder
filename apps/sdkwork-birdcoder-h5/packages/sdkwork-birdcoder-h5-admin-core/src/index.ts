@@ -12,11 +12,4 @@ export function createDefaultAdminConfig(): AdminConfig {
   };
 }
 
-export {
-  createBirdCoderH5BackendSdkClient,
-  type BirdCoderH5BackendSdkClient,
-} from './sdk/backendSdkClient.ts';
-export {
-  createBirdCoderMembershipBackendSdkClient,
-  type CreateBirdCoderMembershipBackendSdkClientOptions,
-} from './sdk/index.ts';
+export {} from './sdk/index.ts';

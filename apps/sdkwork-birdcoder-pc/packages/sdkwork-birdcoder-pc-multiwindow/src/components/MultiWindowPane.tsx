@@ -1,7 +1,7 @@
 import type { WorkbenchPreferences } from '@sdkwork/birdcoder-pc-workbench';
 import {
   getWorkbenchCodeEngineSessionSummary,
-} from '@sdkwork/birdcoder-pc-codeengine';
+} from '@sdkwork/birdcoder-pc-workbench/workbench/codeEngineCatalog';
 import { DeferredUniversalChat } from '@sdkwork/birdcoder-pc-ui/components/DeferredUniversalChat';
 import {
   WorkbenchCodeEngineIcon,
@@ -96,15 +96,15 @@ export const MultiWindowPane = memo(function MultiWindowPane({
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [previewRefreshKey, setPreviewRefreshKey] = useState(0);
   const projectName = binding?.project?.name ?? t('multiWindow.noProjectSelected');
-  const sessionName = binding?.codingSession?.title ?? t('multiWindow.noSessionSelected');
+  const sessionName = binding?.agentSession?.title ?? t('multiWindow.noSessionSelected');
   const messages = binding?.messages ?? [];
   const sessionProvisioningStatus = resolveMultiWindowPaneSessionProvisioningStatus(
     pane,
-    binding?.codingSession,
+    binding?.agentSession,
   );
   const shouldProvisionSession = sessionProvisioningStatus.status === 'needs-session';
-  const effectiveEngineId = pane.selectedEngineId || binding?.codingSession?.engineId?.trim() || '';
-  const effectiveModelId = pane.selectedModelId || binding?.codingSession?.modelId?.trim() || '';
+  const effectiveEngineId = pane.selectedEngineId || binding?.agentSession?.engineId?.trim() || '';
+  const effectiveModelId = pane.selectedModelId || binding?.agentSession?.modelId?.trim() || '';
   const engineSummary = getWorkbenchCodeEngineSessionSummary(
     effectiveEngineId,
     effectiveModelId,
@@ -124,10 +124,10 @@ export const MultiWindowPane = memo(function MultiWindowPane({
     dispatchResult?.status !== 'skipped';
   const transcriptSessionScopeKey = useMemo(
     () =>
-      pane.projectId && pane.codingSessionId
-        ? `${pane.projectId}\u0001${pane.codingSessionId}`
+      pane.projectId && pane.agentSessionId
+        ? `${pane.projectId}\u0001${pane.agentSessionId}`
         : pane.id,
-    [pane.codingSessionId, pane.id, pane.projectId],
+    [pane.agentSessionId, pane.id, pane.projectId],
   );
 
   const handleModeChange = (mode: MultiWindowPaneMode) => {
@@ -254,7 +254,7 @@ export const MultiWindowPane = memo(function MultiWindowPane({
             emptyState={
               <div className="flex h-full flex-col items-center justify-center px-6 text-center text-xs text-gray-500">
                 <MessageSquare size={26} className="mb-3 text-gray-600" />
-                <span>{pane.codingSessionId ? t('multiWindow.noMessages') : t('multiWindow.bindSessionFirst')}</span>
+                <span>{pane.agentSessionId ? t('multiWindow.noMessages') : t('multiWindow.bindSessionFirst')}</span>
               </div>
             }
             hideComposer={true}
@@ -264,7 +264,7 @@ export const MultiWindowPane = memo(function MultiWindowPane({
             onSendMessage={() => undefined}
             selectedEngineId={effectiveEngineId}
             selectedModelId={effectiveModelId}
-            sessionId={pane.codingSessionId || undefined}
+            sessionId={pane.agentSessionId || undefined}
             sessionScopeKey={transcriptSessionScopeKey}
             showComposerEngineSelector={false}
             showEngineHeader={false}

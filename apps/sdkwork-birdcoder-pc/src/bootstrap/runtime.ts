@@ -4,15 +4,19 @@ import {
 } from '@sdkwork/birdcoder-pc-shell-runtime';
 
 export function createRuntime(options: {
-  configuredApiBaseUrl?: string;
+  configuredApplicationApiBaseUrl?: string;
+  platformApiGatewayBaseUrl?: string;
   storedApiBaseUrl?: string;
 } = {}) {
-  const apiBaseUrl = resolveBirdCoderBootstrapServerBaseUrl({
-    configuredApiBaseUrl: normalizeBirdCoderServerBaseUrl(options.configuredApiBaseUrl),
+  const applicationApiBaseUrl = resolveBirdCoderBootstrapServerBaseUrl({
+    configuredApiBaseUrl: normalizeBirdCoderServerBaseUrl(
+      options.configuredApplicationApiBaseUrl,
+    ),
     storedApiBaseUrl: normalizeBirdCoderServerBaseUrl(options.storedApiBaseUrl),
   });
 
   return {
-    apiBaseUrl,
+    applicationApiBaseUrl,
+    platformApiGatewayBaseUrl: options.platformApiGatewayBaseUrl,
   };
 }

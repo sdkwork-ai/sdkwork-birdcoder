@@ -20,11 +20,40 @@
     ]
   },
   "contracts": {
+    "layerRole": "frontend-core",
+    "providedPorts": [
+      {
+        "name": "mobileApplicationRuntimeCore",
+        "export": "lib/sdkwork_birdcoder_flutter_mobile_core.dart"
+      }
+    ],
+    "requiredPorts": [
+      {
+        "name": "agentsAppSdkRuntime",
+        "export": "lib/sdkwork_birdcoder_flutter_mobile_core.dart"
+      },
+      {
+        "name": "iamAppSdkRuntime",
+        "export": "lib/sdkwork_birdcoder_flutter_mobile_core.dart"
+      }
+    ],
     "publicExports": [
       "lib/sdkwork_birdcoder_flutter_mobile_core.dart"
     ],
     "sdkClients": [],
     "sdkDependencies": [
+      {
+        "workspace": "sdkwork-agents-app-sdk",
+        "surface": "app-api",
+        "credentialMode": "authenticated-app-api",
+        "required": true
+      },
+      {
+        "workspace": "sdkwork-iam-app-sdk",
+        "surface": "app-api",
+        "credentialMode": "authenticated-app-api",
+        "required": true
+      },
       {
         "workspace": "sdkwork_birdcoder_flutter_mobile_app_sdk_consumer",
         "surface": "app-api",
@@ -35,6 +64,18 @@
     "permissionComposition": {
       "inheritanceMode": "module-catalog-with-overrides",
       "moduleCatalogRefs": [
+        {
+          "moduleId": "agents",
+          "manifestRef": "../../../../../../sdkwork-agents/specs/iam.module.manifest.json",
+          "inheritPermissions": true,
+          "inheritRoles": true
+        },
+        {
+          "moduleId": "iam-kernel",
+          "manifestRef": "../../../../../../sdkwork-iam/iam/modules/iam-kernel/iam.module.manifest.json",
+          "inheritPermissions": true,
+          "inheritRoles": false
+        },
         {
           "moduleId": "birdcoder",
           "manifestRef": "../../../../../specs/iam.module.manifest.json",

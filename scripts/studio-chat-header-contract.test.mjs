@@ -47,13 +47,13 @@ assert.match(
 
 assert.match(
   studioChatSidebarSource,
-  /const currentCodingSession = useMemo\(\s*\(\)\s*=>\s*currentProject\?\.codingSessions\.find\(/s,
+  /const currentAgentSession = useMemo\(\s*\(\)\s*=>\s*currentProject\?\.agentSessions\.find\(/s,
   'Studio chat sidebar header must resolve the selected coding session before choosing which engine to display.',
 );
 
 assert.ok(
   studioChatSidebarSource.includes(
-    'const headerEngineSummary = currentCodingSession?.engineId?.trim()',
+    'const headerEngineSummary = currentAgentSession?.engineId?.trim()',
   ),
   'Studio chat sidebar header must branch on the persisted session engine before choosing a display summary.',
 );
@@ -74,21 +74,21 @@ assert.ok(
 
 assert.ok(
   studioChatSidebarSource.includes(
-    'const currentChatModelId = currentCodingSession',
+    'const currentChatModelId = currentAgentSession',
   ),
   'Studio chat sidebar must derive the session-bound chat model value locally so existing sessions do not inherit the global preference.',
 );
 
 assert.ok(
   studioChatSidebarSource.includes(
-    'const isEngineBusyCurrentSession = isBirdCoderCodingSessionEngineBusy(currentCodingSession);',
+    'const isEngineBusyCurrentSession = isAgentSessionViewEngineBusy(currentAgentSession);',
   ),
   'Studio chat sidebar header must derive the spinning indicator from the selected session engine-busy runtime state.',
 );
 
 assert.match(
   studioChatSidebarSource,
-  /const showEngineBusyCurrentSessionIndicator =\s*isEngineBusyCurrentSession && Boolean\(selectedCodingSessionId\);/s,
+  /const showEngineBusyCurrentSessionIndicator =\s*isEngineBusyCurrentSession && Boolean\(selectedAgentSessionId\);/s,
   'Studio chat sidebar header should collapse engine-busy rendering into one session-aware indicator flag.',
 );
 
@@ -151,7 +151,7 @@ assert.ok(
 
 assert.match(
   studioChatSidebarSource,
-  /const handleRefreshCurrentContext = \(\) => \{\s*if \(selectedCodingSessionId\) \{\s*void onRefreshCodingSessionMessages\(selectedCodingSessionId\);\s*return;\s*\}\s*if \(currentProjectId\) \{\s*void onRefreshProjectSessions\(currentProjectId\);\s*\}\s*\};/s,
+  /const handleRefreshCurrentContext = \(\) => \{\s*if \(selectedAgentSessionId\) \{\s*void onRefreshAgentSessionItems\(selectedAgentSessionId\);\s*return;\s*\}\s*if \(currentProjectId\) \{\s*void onRefreshProjectSessions\(currentProjectId\);\s*\}\s*\};/s,
   'Studio chat sidebar header should expose one context-aware refresh action instead of separate project and session refresh icons.',
 );
 
@@ -186,19 +186,19 @@ assert.match(
 
 assert.doesNotMatch(
   studioChatSidebarSource,
-  /isExecutingCurrentSession && selectedCodingSessionId \? \(\s*<div className="hidden items-center gap-1\.5 text-xs text-emerald-400 xl:flex">/s,
+  /isExecutingCurrentSession && selectedAgentSessionId \? \(\s*<div className="hidden items-center gap-1\.5 text-xs text-emerald-400 xl:flex">/s,
   'Studio chat sidebar header should not render a second executing indicator block alongside the refresh button.',
 );
 
 assert.doesNotMatch(
   studioChatSidebarSource,
-  /isBirdCoderCodingSessionExecuting\(currentCodingSession\)/,
+  /isAgentSessionViewExecuting\(currentAgentSession\)/,
   'Studio chat sidebar header must not spin for approval, tool, or user-reply waits; only engine-busy statuses should animate.',
 );
 
 assert.ok(
   studioChatSidebarSource.includes(
-    'const isEngineBusySession = isBirdCoderCodingSessionEngineBusy(session);',
+    'const isEngineBusySession = isAgentSessionViewEngineBusy(session);',
   ),
   'Studio project menu should identify spinner rows from the engine-busy runtime state.',
 );
@@ -223,19 +223,19 @@ assert.doesNotMatch(
 
 assert.doesNotMatch(
   studioChatSidebarSource,
-  /Boolean\(selectedCodingSessionId && isSending\)/,
+  /Boolean\(selectedAgentSessionId && isSending\)/,
   'Studio chat sidebar must not use the transient send flag as the source of truth for execution state.',
 );
 
 assert.match(
   studioPageSource,
-  /useCodingSessionEngineModelSelection,\s*/,
+  /useAgentSessionEngineModelSelection,\s*/,
   'Studio page must import the shared engine and model selection hook instead of duplicating session persistence logic.',
 );
 
 assert.match(
   studioPageSource,
-  /const \{\s*handleSelectedEngineChange,\s*handleSelectedModelChange,\s*\} = useCodingSessionEngineModelSelection\(\{\s*preferences,\s*selectedModelId,\s*sessionId,\s*setSelectedEngineId,\s*setSelectedModelId,\s*\}\);/s,
+  /const \{\s*handleSelectedEngineChange,\s*handleSelectedModelChange,\s*\} = useAgentSessionEngineModelSelection\(\{\s*preferences,\s*selectedModelId,\s*sessionId,\s*setSelectedEngineId,\s*setSelectedModelId,\s*\}\);/s,
   'Studio page should centralize engine and model persistence through the shared session engine/model selection hook.',
 );
 

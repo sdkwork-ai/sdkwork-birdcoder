@@ -110,6 +110,14 @@
     }
   ],
   "contracts": {
+    "layerRole": "frontend-feature",
+    "providedPorts": [
+      {
+        "name": "studioFeature",
+        "export": "."
+      }
+    ],
+    "requiredPorts": [],
     "publicExports": [
       "."
     ],

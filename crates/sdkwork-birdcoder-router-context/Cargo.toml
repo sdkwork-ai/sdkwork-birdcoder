@@ -12,8 +12,6 @@ sdkwork_iam_context_service = { workspace = true }
 sdkwork_iam_web_adapter = { workspace = true }
 sdkwork-web-core = { workspace = true }
 sdkwork-birdcoder-errors = { workspace = true }
-sdkwork-birdcoder-coding-sessions-service = { workspace = true }
 sdkwork-birdcoder-workspace-service = { workspace = true }
 sdkwork-birdcoder-project-service = { workspace = true }
 sdkwork-utils-rust.workspace = true
-sdkwork-birdcoder-deployment-service = { workspace = true }

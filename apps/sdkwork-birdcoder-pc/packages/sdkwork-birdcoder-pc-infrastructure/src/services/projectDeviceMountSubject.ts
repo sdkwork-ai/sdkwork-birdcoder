@@ -4,7 +4,8 @@ import { getBirdCoderIamRuntime } from './iamRuntime.ts';
 
 function resolveDeviceMountRealm(): string {
   const iamRuntime = getBirdCoderIamRuntime();
-  const configuredApiBaseUrl = getDefaultBirdCoderIdeServicesRuntimeConfig().apiBaseUrl?.trim();
+  const configuredApiBaseUrl = getDefaultBirdCoderIdeServicesRuntimeConfig()
+    .applicationApiBaseUrl?.trim();
   if (configuredApiBaseUrl) {
     return [
       iamRuntime.config.appId,

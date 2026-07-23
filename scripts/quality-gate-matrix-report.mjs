@@ -2,7 +2,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import process from 'node:process';
 import { pathToFileURL } from 'node:url';
-import { ENGINE_GOVERNANCE_REGRESSION_CHECK_IDS } from './governance-regression-report.mjs';
+import { RELEASE_GOVERNANCE_CHECK_IDS } from './governance-regression-report.mjs';
 import {
   formatViteHostPreflightFailure,
   runViteHostBuildPreflight,
@@ -81,15 +81,15 @@ export const QUALITY_GATE_TIERS = Object.freeze([
       'fast and standard gate closure',
       'release flow and CI flow parity',
       'governance regression and evidence closure',
-      'engine-adapter governance and conformance',
+      'domain ownership and SDK composition governance',
     ]),
     evidence: Object.freeze([
       'release-flow contract output',
       'ci-flow contract output',
       'governance regression report',
-      'engine governance regression checks',
+      'release governance regression checks',
     ]),
-    governanceCheckIds: ENGINE_GOVERNANCE_REGRESSION_CHECK_IDS,
+    governanceCheckIds: RELEASE_GOVERNANCE_CHECK_IDS,
     rerunPolicy: 'Any release-gate failure blocks packaging or publish; rerun the full release gate after the fix to keep release evidence coherent.',
     workflowBinding: Object.freeze({
       kind: 'standard-sdkwork-workflow',

@@ -33,7 +33,7 @@ timeline based on severity.
 
 In scope:
 
-- SDKWork BirdCoder PC web, desktop (Tauri), and Rust coding-server surfaces
+- SDKWork BirdCoder PC web, desktop (Tauri), and Rust application-gateway surfaces
 - Authentication, session, and IAM integration under `apps/sdkwork-birdcoder-pc/`
 - Generated app/backend SDK consumers and OpenAPI contract surfaces
 - Release artifacts published through the SDKWork packaging workflow

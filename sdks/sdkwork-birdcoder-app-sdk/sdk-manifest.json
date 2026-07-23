@@ -21,6 +21,7 @@
   },
   "sdkOwner": "sdkwork-birdcoder",
   "apiAuthority": "sdkwork-birdcoder-app-api",
+  "ownerOnlyOperationCount": 39,
   "discoverySurface": {
     "sdkTarget": "app",
     "apiPrefix": "/app/v3/api",
@@ -90,14 +91,48 @@
       "packageByLanguage": {
         "typescript": "@sdkwork/skills-app-sdk"
       }
+    },
+    {
+      "workspace": "sdkwork-agents-app-sdk",
+      "role": "agents-app-capability",
+      "required": true,
+      "dependencyMode": "consumer-sdk",
+      "apiPrefix": "/app/v3/api",
+      "apiAuthority": "sdkwork-agents-app-api",
+      "generatedTransportImportPolicy": "forbidden",
+      "packageByLanguage": {
+        "typescript": "@sdkwork/agents-app-sdk"
+      }
+    },
+    {
+      "workspace": "sdkwork-prompts-app-sdk",
+      "role": "prompts-app-capability",
+      "required": true,
+      "dependencyMode": "consumer-sdk",
+      "apiPrefix": "/app/v3/api",
+      "apiAuthority": "sdkwork-prompts-app-api",
+      "generatedTransportImportPolicy": "forbidden",
+      "packageByLanguage": {
+        "typescript": "@sdkwork/prompts-app-sdk"
+      }
+    },
+    {
+      "workspace": "sdkwork-documents-app-sdk",
+      "role": "documents-app-capability",
+      "required": true,
+      "dependencyMode": "consumer-sdk",
+      "apiPrefix": "/app/v3/api",
+      "apiAuthority": "sdkwork-documents-app-api",
+      "generatedTransportImportPolicy": "forbidden",
+      "packageByLanguage": {
+        "typescript": "@sdkwork/documents-app-sdk"
+      }
     }
   ],
+  "dependencyApiExports": [],
   "metadata": {
-    "managedBy": "sdkwork-birdcoder-sdkwork-sdk-migration",
-    "standardVersion": "2026-06-06",
-    "generation": {
-      "sourceSpec": "sdks/specs/openapi/birdcoder-app-v3.openapi.json"
-    },
+    "managedBy": "@sdkwork/sdk-generator",
+    "standardVersion": "2026-07-23",
     "providerStandard": {
       "kind": "sdkwork.sdk.family"
     }

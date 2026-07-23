@@ -5,7 +5,7 @@
     {
       "file": "lib/l10n/app_en.arb",
       "locale": "en-US",
-      "sha256": "a4eca653868cfe41aa7cd9e4d0032bada79291d453b9e18786c100ae2e418100",
+      "sha256": "111d9fdeccaccf7073df06584bee8ea75e520a3e795f6e83b0f8173e41df7135",
       "sources": [
         "lib/src/i18n/en-US/platform/shell/bootstrap.arb",
         "lib/src/i18n/en-US/platform/common/actions.arb",
@@ -19,7 +19,7 @@
     {
       "file": "lib/l10n/app_zh.arb",
       "locale": "zh-CN",
-      "sha256": "3e12abc7a5d3ae46ab21221a000bef1e47026405404f746c5ae5e72c28877c5d",
+      "sha256": "7f64880d32795ee606a78e13632ef64ee9635b32052ff3cbab0caafe9905de2f",
       "sources": [
         "lib/src/i18n/zh-CN/platform/shell/bootstrap.arb",
         "lib/src/i18n/zh-CN/platform/common/actions.arb",
@@ -33,7 +33,7 @@
     {
       "file": "lib/l10n/app_zh_TW.arb",
       "locale": "zh-TW",
-      "sha256": "130f9047b5108a12ad406f96b24daaead8bb16acc2ffd4154e5600a09cb75620",
+      "sha256": "19ff6bd126311209fdd5d85c7a806dc73554aec94aea5e8936ac9cb4ebba2ac1",
       "sources": [
         "lib/src/i18n/zh-TW/platform/shell/bootstrap.arb",
         "lib/src/i18n/zh-TW/platform/common/actions.arb",

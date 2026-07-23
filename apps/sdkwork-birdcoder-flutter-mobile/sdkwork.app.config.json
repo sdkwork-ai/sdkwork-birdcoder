@@ -39,7 +39,7 @@
       "APP_STORE",
       "PLAY_STORE"
     ],
-    "defaultPlatform": "FLUTTER_ANDROID",
+    "defaultPlatform": "APP_ANDROID",
     "defaultArchitecture": "universal",
     "supportedDeploymentProfiles": [
       "standalone"
@@ -61,9 +61,10 @@
         "fileSizeBytes": 524288,
         "alphaChannel": false,
         "sortOrder": 0,
-        "enabled": true,
+        "enabled": false,
         "metadata": {
-          "generatedPlaceholder": true
+          "generatedPlaceholder": true,
+          "preLaunch": true
         }
       },
       "platform": [],
@@ -85,12 +86,12 @@
       "name": "sdkwork-skills-app"
     },
     "platforms": [
-      "FLUTTER_IOS",
-      "FLUTTER_ANDROID"
+      "APP_IOS",
+      "APP_ANDROID"
     ],
     "installPlatforms": [
-      "FLUTTER_IOS",
-      "FLUTTER_ANDROID"
+      "APP_IOS",
+      "APP_ANDROID"
     ],
     "defaultPackageId": "android-universal-standalone-mobile-aab",
     "storeUrl": "https://sdkwork.com/apps/sdkwork-birdcoder-flutter",
@@ -113,31 +114,42 @@
           "name": "SDKWork Birdcoder Flutter Android Bundle",
           "sourceType": "BINARY_URL",
           "packageFormat": "AAB",
-          "platform": "FLUTTER_ANDROID",
-          "url": "https://cdn.sdkwork.com/apps/sdkwork-birdcoder-flutter/STABLE/0.1.0/android/app.aab",
+          "platform": "APP_ANDROID",
+          "url": "https://cdn.sdkwork.com/apps/sdkwork-birdcoder-flutter/INTERNAL/0.1.0/android/app.aab",
           "enabled": false,
           "metadata": {
             "preLaunch": true,
-            "artifactPending": true
+            "artifactPending": true,
+            "releaseBuildDeferred": true,
+            "releaseAuthority": "sdkwork-birdcoder"
           },
           "architecture": "universal",
+          "profileBinding": "fixed",
           "deploymentProfile": "standalone",
-          "runtimeTarget": "flutter-android"
+          "runtimeTarget": "flutter-android",
+          "targetPlatform": "android",
+          "clientArchitecture": "flutter"
         },
         {
           "id": "ios-universal-standalone-mobile-ipa",
           "name": "SDKWork Birdcoder Flutter iOS Bundle",
           "sourceType": "BINARY_URL",
           "packageFormat": "IPA",
-          "platform": "FLUTTER_IOS",
-          "url": "https://cdn.sdkwork.com/apps/sdkwork-birdcoder-flutter/STABLE/0.1.0/ios/app.ipa",
+          "platform": "APP_IOS",
+          "url": "https://cdn.sdkwork.com/apps/sdkwork-birdcoder-flutter/INTERNAL/0.1.0/ios/app.ipa",
           "enabled": false,
           "metadata": {
             "preLaunch": true,
-            "artifactPending": true
+            "artifactPending": true,
+            "releaseBuildDeferred": true,
+            "releaseAuthority": "sdkwork-birdcoder"
           },
+          "architecture": "universal",
+          "profileBinding": "fixed",
           "deploymentProfile": "standalone",
-          "runtimeTarget": "flutter-ios"
+          "runtimeTarget": "flutter-ios",
+          "targetPlatform": "ios",
+          "clientArchitecture": "flutter"
         }
       ],
       "metadata": {
@@ -150,28 +162,27 @@
   },
   "release": {
     "currentVersion": "0.1.0",
-    "defaultChannel": "STABLE",
+    "defaultChannel": "INTERNAL",
     "latest": {
-      "STABLE": "0.1.0"
+      "INTERNAL": "0.1.0"
     },
     "notes": [
       {
         "version": "0.1.0",
-        "releaseChannel": "STABLE",
-        "title": "SDKWork Birdcoder Flutter Mobile 0.1.0",
-        "summary": "Pre-launch scaffold — install packages remain disabled until release artifacts are published.",
-        "content": "SDKWork BirdCoder Flutter Mobile has not launched publicly. Artifact URLs and checksums are withheld until the first governed release build completes.",
+        "releaseChannel": "INTERNAL",
+        "title": "SDKWork BirdCoder Flutter Mobile 0.1.0 pre-launch",
+        "summary": "Internal pre-launch build; iOS and Android packages remain disabled pending governed artifacts.",
+        "content": "The Flutter surface consumes BirdCoder coding-workbench APIs and dependency-owned SDKs. AI transcript items are Agents Session Items, not BirdCoder or IM Message records.",
         "highlights": [
           "Flutter mobile application",
           "iOS and Android support",
-          "App SDK chat persistence wired through generated Dart SDK"
+          "AI session workflows use sdkwork-agents"
         ],
         "packageIds": [
           "android-universal-standalone-mobile-aab",
           "ios-universal-standalone-mobile-ipa"
         ],
-        "publishedAt": "2026-06-13T00:00:00Z",
-        "current": false,
+        "current": true,
         "forceUpdate": false,
         "minSupportedVersion": "0.1.0",
         "metadata": {}
@@ -190,9 +201,16 @@
     "sourceRoot": "apps/sdkwork-birdcoder-flutter-mobile"
   },
   "metadata": {
-    "standardOwner": "sdkwork-platform",
+    "standardOwner": "sdkwork-birdcoder",
     "initializedAt": "2026-06-13T00:00:00Z",
+    "deploymentConfig": "etc/sdkwork.deployment.config.json",
     "preLaunch": true,
-    "releaseEvidenceStatus": "contract-gates-green-release-rehearsal-aligned-ci-governance-wired-prelaunch-artifacts-pending-manifest-honesty-corrected"
+    "releaseEvidence": {
+      "status": "blocked",
+      "verifiedAt": "2026-07-22",
+      "blockers": [
+        "signed-production-artifact-evidence-missing"
+      ]
+    }
   }
 }

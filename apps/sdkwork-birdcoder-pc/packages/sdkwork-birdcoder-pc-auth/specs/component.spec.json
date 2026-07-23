@@ -124,8 +124,24 @@
     }
   ],
   "contracts": {
+    "layerRole": "frontend-feature",
+    "providedPorts": [
+      {
+        "name": "authenticationFeature",
+        "export": "."
+      }
+    ],
+    "requiredPorts": [
+      {
+        "name": "authSurfacePathContract",
+        "export": "./authSurface"
+      }
+    ],
     "publicExports": [
-      "."
+      ".",
+      "./AuthGate",
+      "./auth",
+      "./authSurface"
     ],
     "runtimeEntrypoints": [
       "package.json#scripts.typecheck"
@@ -146,7 +162,9 @@
   },
   "verification": {
     "commands": [
-      "pnpm --filter @sdkwork/sdkwork-birdcoder-auth typecheck"
+      "pnpm --filter @sdkwork/birdcoder-pc-auth typecheck",
+      "node scripts/run-local-tsx.mjs scripts/auth-surface-routing-contract.test.ts",
+      "node scripts/run-local-tsx.mjs scripts/birdcoder-session-auth-redirect-contract.test.ts"
     ]
   },
   "metadata": {

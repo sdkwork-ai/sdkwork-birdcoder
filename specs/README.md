@@ -1,4 +1,4 @@
-# SDKWork Birdcoder Component Specs
+# SDKWork BirdCoder Component Specs
 
 This directory is the local standards index for `sdkwork-birdcoder`.
 
@@ -11,8 +11,8 @@ Root SDKWork standards remain authoritative. Local component specs can narrow or
 | Name | `sdkwork-birdcoder` |
 | Type | `react-tauri-app` |
 | Root | `sdkwork-birdcoder` |
-| Domain | `platform` |
-| Capability | `component` |
+| Domain | `intelligence` |
+| Capability | `coding-workbench` |
 | Surface | `app` |
 | Languages | `typescript` |
 | Status | `ACTIVE` |
@@ -23,9 +23,23 @@ Root SDKWork standards remain authoritative. Local component specs can narrow or
 - Consumers should integrate through public exports, runtime entrypoints, SDK clients, or adapters declared in the manifest.
 - Generated SDK language outputs are represented at their SDK family root instead of duplicating local specs in generated folders.
 
-## Contract Artifacts
+## Owned Contract
 
-- [coding-server-openapi-rust-defer-registry.json](./coding-server-openapi-rust-defer-registry.json) — machine-readable defer registry comparing the coding-server HTTP OpenAPI snapshot against BirdCoder product and federated `sdkwork-iam` host manifests. Regenerate with `node scripts/build-coding-server-openapi-rust-defer-registry.mjs`. All 155 governed app/backend HTTP OpenAPI operations must be implemented with **zero deferred routes**. The composed route catalog has 156 entries; workspace realtime remains a route-catalog-only transport entry and is intentionally excluded from HTTP OpenAPI. Retired API-key-authenticated `/api/v1/*` routes are not part of this authority.
+BirdCoder owns the `intelligence / coding-workbench` bounded context only.
+
+| Contract | Authority |
+| --- | --- |
+| Database | Exactly 10 `studio_*` tables in `database/contract/table-registry.json` |
+| App API | 39 operations in `sdks/sdkwork-birdcoder-app-sdk/openapi/sdkwork-birdcoder-app-api.openapi.json` |
+| Backend API | None, 0 operations |
+| Open API | None, 0 operations |
+| IAM permissions | 33 permissions in `specs/iam.module.manifest.json` |
+
+Agents Session, Turn, Session Item, Interaction, Runtime Binding, Artifact, and
+Checkpoint facts belong to `sdkwork-agents`. Human Conversation, Message,
+Member, and ReadCursor facts belong to `sdkwork-im`. Skill definitions,
+artifacts, capabilities, installation state, APIs, and SDKs belong to
+`sdkwork-skills`.
 
 ## Canonical Specs
 
@@ -75,10 +89,18 @@ Root SDKWork standards remain authoritative. Local component specs can narrow or
   machine-readable workbench ownership, dependency, persistence, and API
   boundary. It forbids local platform-domain copies, projections, shadow
   tables, compatibility facades, and dual-write.
-- [kernel-birdcoder-alignment.spec.json](./kernel-birdcoder-alignment.spec.json) — Kernel ↔ BirdCoder alignment tasks, evidence, and verification matrix. See the canonical technical architecture and `pnpm run check:kernel-birdcoder-alignment`.
-- [agents-birdcoder-alignment.spec.json](./agents-birdcoder-alignment.spec.json) — Agents ↔ BirdCoder alignment tasks, evidence, and verification matrix. See the canonical technical architecture and `pnpm run check:agents-birdcoder-alignment`.
+- [agent-session-item-view.spec.md](./agent-session-item-view.spec.md) defines the
+  non-persistent UI adaptation of Agents Session Items and distinguishes it
+  from IM messaging.
+- [kernel-birdcoder-alignment.spec.json](./kernel-birdcoder-alignment.spec.json)
+  enforces the one-way `BirdCoder -> Agents -> Kernel` dependency boundary.
+- [agents-birdcoder-alignment.spec.json](./agents-birdcoder-alignment.spec.json)
+  records the direct Agents SDK integration evidence for every BirdCoder
+  surface.
 
 ## Verification
 
-- `pnpm --filter @sdkwork/birdcoder-workspace typecheck`
 - `pnpm check:domain-ownership`
+- `pnpm check:agents-birdcoder-alignment`
+- `pnpm check:kernel-birdcoder-alignment`
+- `pnpm typecheck`

@@ -37,6 +37,10 @@ const desktopRootDir = path.join(rootDir, 'apps', 'sdkwork-birdcoder-pc', 'packa
 const rootNodeModulesDir = path.join(rootDir, 'node_modules');
 const dependencyPath = (dependencyId, ...relativePathParts) =>
   path.resolve(rootDir, '..', dependencyId, ...relativePathParts);
+const infrastructurePackageSubpathProbe = [
+  '@sdkwork/birdcoder-pc-infrastructure',
+  '__contract_probe__',
+].join('/');
 const config = createDesktopViteServerConfig({
   argv: ['--host', '127.0.0.1', '--port', '1520', '--strictPort', '--mode', 'test'],
   env: {
@@ -80,10 +84,7 @@ const findAlias = (predicate, message) => {
 assert.equal(
   config.resolve.alias.some((entry) =>
     entry.find instanceof RegExp
-    && (
-      entry.find.test('@sdkwork/birdcoder-pc-infrastructure/storage/dataKernel')
-      || entry.find.test('@sdkwork/birdcoder-pc-projection')
-    )),
+    && entry.find.test(infrastructurePackageSubpathProbe)),
   false,
   'Desktop host config must resolve BirdCoder workspace packages through package exports.',
 );

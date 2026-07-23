@@ -40,7 +40,8 @@ export function SettingsPage({
   const { logout } = useAuth();
   const { isHydrated: areSettingsHydrated, settings, updateSettings } = useBirdcoderAppSettings();
   const { preferences, updatePreferences } = useWorkbenchPreferences();
-  const currentServerBaseUrl = getDefaultBirdCoderIdeServicesRuntimeConfig().apiBaseUrl ?? '';
+  const currentServerBaseUrl = getDefaultBirdCoderIdeServicesRuntimeConfig()
+    .applicationApiBaseUrl ?? '';
   const bootServerBaseUrlOverrideRef = useRef<string | null>(null);
 
   useEffect(() => {

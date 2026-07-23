@@ -1,6 +1,6 @@
 # SDKWork BirdCoder
 
-SDKWork BirdCoder is a multi-surface AI IDE workspace aligned with the SDKWork architecture standard at the host, release, CI, and deployment layers.
+SDKWork BirdCoder is the multi-surface SDKWork coding workbench. It composes platform capabilities through their canonical SDK families while retaining only BirdCoder-owned workspace and project facts.
 
 ## Start here
 
@@ -20,7 +20,9 @@ SDKWork BirdCoder is a multi-surface AI IDE workspace aligned with the SDKWork a
 
 ## Product boundary
 
-BirdCoder owns its AI IDE business modules (code, studio, terminal, application templates, and settings) and follows the SDKWork architecture standard for host, release, CI, and deployment layers. Reusable Skill packages, immutable artifacts, capabilities, and installations are owned by `sdkwork-skills`; BirdCoder consumes them through `@sdkwork/skills-app-sdk` and keeps only stable `skillInstallationIds` references in application-template inputs.
+BirdCoder owns coding-workbench workspace and project identity, project-to-document bindings, target-scoped runtime locations and preferences, and project-to-sandbox bindings. These facts are persisted only in the ten `studio_*` tables declared by the BirdCoder schema registry.
+
+AI projects, sessions, turns, session items, interactions, runtime bindings, artifacts, and checkpoints belong to `sdkwork-agents`. Skills, packages, capabilities, installations, assets, and actions belong to `sdkwork-skills`. Human conversations and messages belong to `sdkwork-im`; AI assistant transcript items are Agents session items and are never IM messages. BirdCoder consumes each dependency through its canonical SDK family and stores only stable cross-domain identifiers where a workbench relationship requires them.
 
 Project identity, persistent runtime locations, and local host capabilities
 are explicit boundaries. A runtime location stores an encrypted target-specific

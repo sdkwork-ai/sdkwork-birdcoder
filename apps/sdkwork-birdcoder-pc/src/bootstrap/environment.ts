@@ -2,7 +2,7 @@ import { getDefaultBirdCoderIdeServicesRuntimeConfig } from '@sdkwork/birdcoder-
 
 interface BirdCoderPublicRuntimeEnv {
   VITE_SDKWORK_BIRDCODER_APPLICATION_PUBLIC_HTTP_URL?: string;
-  VITE_BIRDCODER_API_BASE_URL?: string;
+  VITE_SDKWORK_BIRDCODER_PLATFORM_API_GATEWAY_HTTP_URL?: string;
   VITE_SDKWORK_BIRDCODER_DEPLOYMENT_PROFILE?: string;
   VITE_SDKWORK_DEPLOYMENT_PROFILE?: string;
   VITE_SDKWORK_BIRDCODER_RUNTIME_TARGET?: string;
@@ -18,10 +18,9 @@ export function resolveEnvironment() {
   const publicRuntimeEnv = runtimeGlobal.__SDKWORK_PC_REACT_ENV__;
 
   return {
-    apiBaseUrl:
-      runtimeConfig.apiBaseUrl
-      ?? publicRuntimeEnv?.VITE_SDKWORK_BIRDCODER_APPLICATION_PUBLIC_HTTP_URL
-      ?? publicRuntimeEnv?.VITE_BIRDCODER_API_BASE_URL,
+    applicationApiBaseUrl:
+      runtimeConfig.applicationApiBaseUrl
+      ?? publicRuntimeEnv?.VITE_SDKWORK_BIRDCODER_APPLICATION_PUBLIC_HTTP_URL,
     deploymentProfile:
       publicRuntimeEnv?.VITE_SDKWORK_BIRDCODER_DEPLOYMENT_PROFILE
       ?? publicRuntimeEnv?.VITE_SDKWORK_DEPLOYMENT_PROFILE
@@ -31,6 +30,9 @@ export function resolveEnvironment() {
     isDevelopment: import.meta.env.DEV,
     isProduction: import.meta.env.PROD,
     mode,
+    platformApiGatewayBaseUrl:
+      runtimeConfig.platformApiGatewayBaseUrl
+      ?? publicRuntimeEnv?.VITE_SDKWORK_BIRDCODER_PLATFORM_API_GATEWAY_HTTP_URL,
     runtimeTarget:
       publicRuntimeEnv?.VITE_SDKWORK_BIRDCODER_RUNTIME_TARGET
       ?? publicRuntimeEnv?.VITE_SDKWORK_RUNTIME_TARGET

@@ -5,7 +5,7 @@ import {
   getWorkbenchCodeModelLabel,
   resolveWorkbenchCodeEngineSelectedModelId,
   resolveWorkbenchNewSessionEngineCatalog,
-} from '@sdkwork/birdcoder-pc-codeengine';
+} from '@sdkwork/birdcoder-pc-workbench/workbench/codeEngineCatalog';
 import { WorkbenchCodeEngineIcon } from '@sdkwork/birdcoder-pc-ui-shell';
 
 type WorkbenchNewSessionButtonVariant = 'topbar' | 'studio' | 'sidebar';

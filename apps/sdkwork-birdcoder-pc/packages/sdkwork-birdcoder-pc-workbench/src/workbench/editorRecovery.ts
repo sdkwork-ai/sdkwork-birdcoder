@@ -1,5 +1,7 @@
 import type { IFileNode } from '@sdkwork/birdcoder-pc-contracts-commons';
 
+const MAX_EDITOR_RECOVERY_PROJECT_ID_LENGTH = 256;
+
 export interface ResolveStartupSelectedFileOptions {
   files: ReadonlyArray<IFileNode>;
   persistedSelectedFilePath: string | null;
@@ -29,6 +31,11 @@ export function buildEditorSelectionStorageKey(
   projectId: string | null | undefined,
 ): string {
   const normalizedProjectId = normalizeProjectId(projectId);
+  if (normalizedProjectId.length > MAX_EDITOR_RECOVERY_PROJECT_ID_LENGTH) {
+    throw new Error(
+      `Editor recovery project id must not exceed ${MAX_EDITOR_RECOVERY_PROJECT_ID_LENGTH} characters.`,
+    );
+  }
   return normalizedProjectId
     ? `selected-file.${normalizedProjectId}.v1`
     : 'selected-file.global.v1';

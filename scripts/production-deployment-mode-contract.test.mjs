@@ -12,35 +12,35 @@ function readJson(relativePath) {
   return JSON.parse(readText(relativePath));
 }
 
-const authPolicySource = readText(
-  'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-auth/src/authAccessPolicy.ts',
+const authGateSource = readText(
+  'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-auth/src/AuthGate.tsx',
 );
 const productionRuntimeEnv = readJson(
   'apps/sdkwork-birdcoder-pc/config/browser/runtime-env.production.example.json',
 );
 
 assert.match(
-  authPolicySource,
-  /import\.meta[\s\S]*?\.env\?\.PROD && resolved === 'local'/u,
-  'Auth access policy must fail fast when production builds bake in local deployment mode.',
+  authGateSource,
+  /if \(!user\) \{/u,
+  'AuthGate must enforce authenticated access for every deployment profile and runtime target.',
 );
 
-assert.match(
-  authPolicySource,
-  /\?\? 'private'/u,
-  'Auth access policy must default to private when deployment mode is unset.',
+assert.doesNotMatch(
+  authGateSource,
+  /deploymentMode|iamMode|['"](?:local|private|saas)['"]/u,
+  'AuthGate must not derive auth policy from a second deployment-mode vocabulary.',
 );
 
-assert.notEqual(
-  productionRuntimeEnv.deploymentMode,
-  'local',
-  'Production runtime env template must not declare local deployment mode.',
+assert.equal(
+  productionRuntimeEnv.deploymentProfile,
+  'cloud',
+  'Production runtime env template must use the canonical cloud deployment profile.',
 );
 
-assert.match(
-  productionRuntimeEnv.deploymentMode,
-  /^(private|saas)$/u,
-  'Production runtime env template must declare private or saas deployment mode.',
+assert.equal(
+  productionRuntimeEnv.runtimeTarget,
+  'browser',
+  'Production runtime env template must declare its runtime target independently.',
 );
 
 for (const relativePath of [

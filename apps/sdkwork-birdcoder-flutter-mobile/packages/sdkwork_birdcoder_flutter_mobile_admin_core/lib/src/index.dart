@@ -1,7 +1,5 @@
 library sdkwork_birdcoder_flutter_mobile_admin_core;
 
-export 'sdk/backend_sdk_client.dart';
-
 const String kFlutterMobileAdminCoreVersion = '0.1.0';
 
 class AdminConfig {

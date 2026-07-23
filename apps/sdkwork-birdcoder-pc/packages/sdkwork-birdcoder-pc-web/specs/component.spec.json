@@ -8,8 +8,8 @@
     "type": "react-package",
     "root": "sdkwork-birdcoder/apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-web",
     "domain": "platform",
-    "declaredDomain": null,
-    "capability": "component",
+    "declaredDomain": "platform",
+    "capability": "pc-web-renderer-host",
     "status": "ready",
     "languages": [
       "typescript",
@@ -110,6 +110,14 @@
     }
   ],
   "contracts": {
+    "layerRole": "frontend-host",
+    "providedPorts": [
+      {
+        "name": "browserApplicationHost",
+        "export": "."
+      }
+    ],
+    "requiredPorts": [],
     "publicExports": [
       "."
     ],
@@ -120,7 +128,10 @@
     "sdkClients": [],
     "events": [],
     "configKeys": [
-      "VITE_SDKWORK_BIRDCODER_REALTIME_TRANSPORT"
+      "SDKWORK_BIRDCODER_APPLICATION_PUBLIC_HTTP_URL",
+      "SDKWORK_BIRDCODER_PLATFORM_API_GATEWAY_HTTP_URL",
+      "VITE_SDKWORK_BIRDCODER_APPLICATION_PUBLIC_HTTP_URL",
+      "VITE_SDKWORK_BIRDCODER_PLATFORM_API_GATEWAY_HTTP_URL"
     ],
     "routeManifest": null,
     "sdkDependencies": [],
@@ -128,7 +139,7 @@
     "dependencyApiSurfaces": []
   },
   "integration": {
-    "authority": "Root SDKWork specs remain authoritative. Local specs may extend but must not contradict them.",
+    "authority": "This host owns browser rendering and the development-only same-origin proxy. /app targets application.public-ingress; /__sdkwork/platform targets platform.api-gateway and no proxy target is inferred.",
     "dependencyPolicy": "Consumers integrate through public package exports, declared runtime entrypoints, generated SDK clients, or documented adapters only.",
     "sdkPolicy": "Generated SDK clients are injected through service/runtime boundaries; reusable UI must not create raw HTTP clients or manual auth headers.",
     "languagePolicy": "Language-specific packages follow their native manifest and build tools while preserving the same component contract."

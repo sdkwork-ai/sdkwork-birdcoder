@@ -1,0 +1,112 @@
+{
+  "schemaVersion": 1,
+  "kind": "sdkwork.component.spec",
+  "component": {
+    "name": "sdkwork-birdcoder-workspace-service",
+    "displayName": "SDKWork BirdCoder Workspace Service",
+    "version": "0.1.0",
+    "type": "rust-crate",
+    "root": "sdkwork-birdcoder/crates/sdkwork-birdcoder-workspace-service",
+    "domain": "intelligence",
+    "capability": "workspaces",
+    "surface": "service",
+    "status": "ACTIVE",
+    "languages": [
+      "rust"
+    ],
+    "generated": false,
+    "private": true,
+    "manifests": [
+      "Cargo.toml"
+    ]
+  },
+  "canonicalSpecs": [
+    {
+      "file": "COMPONENT_SPEC.md",
+      "path": "../../../../sdkwork-specs/COMPONENT_SPEC.md",
+      "purpose": "Component-local contract and discovery rules."
+    },
+    {
+      "file": "MODULE_SPEC.md",
+      "path": "../../../../sdkwork-specs/MODULE_SPEC.md",
+      "purpose": "Reusable Rust service boundaries."
+    },
+    {
+      "file": "CODE_STYLE_SPEC.md",
+      "path": "../../../../sdkwork-specs/CODE_STYLE_SPEC.md",
+      "purpose": "Authored source and public export rules."
+    },
+    {
+      "file": "NAMING_SPEC.md",
+      "path": "../../../../sdkwork-specs/NAMING_SPEC.md",
+      "purpose": "Canonical intelligence capability naming."
+    },
+    {
+      "file": "RUST_CODE_SPEC.md",
+      "path": "../../../../sdkwork-specs/RUST_CODE_SPEC.md",
+      "purpose": "Rust application service rules."
+    },
+    {
+      "file": "DOMAIN_SPEC.md",
+      "path": "../../../../sdkwork-specs/DOMAIN_SPEC.md",
+      "purpose": "Intelligence coding-workbench bounded context."
+    },
+    {
+      "file": "DATABASE_SPEC.md",
+      "path": "../../../../sdkwork-specs/DATABASE_SPEC.md",
+      "purpose": "Repository, tenant isolation, and optimistic concurrency rules."
+    },
+    {
+      "file": "PAGINATION_SPEC.md",
+      "path": "../../../../sdkwork-specs/PAGINATION_SPEC.md",
+      "purpose": "Store-level workspace list pagination rules."
+    },
+    {
+      "file": "SECURITY_SPEC.md",
+      "path": "../../../../sdkwork-specs/SECURITY_SPEC.md",
+      "purpose": "Tenant, organization, user, and object authorization rules."
+    },
+    {
+      "file": "TEST_SPEC.md",
+      "path": "../../../../sdkwork-specs/TEST_SPEC.md",
+      "purpose": "Component verification rules."
+    }
+  ],
+  "contracts": {
+    "layerRole": "backend-service",
+    "publicExports": [
+      ".",
+      "sdkwork_birdcoder_workspace_service::service::workspace_service::WorkspaceService",
+      "sdkwork_birdcoder_workspace_service::ports::repository::WorkspaceRepository"
+    ],
+    "providedPorts": [
+      {
+        "name": "workspaceApplicationService",
+        "export": "sdkwork_birdcoder_workspace_service::service::workspace_service::WorkspaceService"
+      }
+    ],
+    "requiredPorts": [
+      {
+        "name": "workspaceRepository",
+        "export": "sdkwork_birdcoder_workspace_service::ports::repository::WorkspaceRepository"
+      }
+    ],
+    "runtimeEntrypoints": [],
+    "routeManifest": null,
+    "sdkClients": [],
+    "sdkDependencies": [],
+    "permissionComposition": {},
+    "dependencyApiExports": [],
+    "dependencyApiSurfaces": [],
+    "events": [],
+    "configKeys": []
+  },
+  "integration": {
+    "authority": "Owns workspace application orchestration, validation, authorization, optimistic concurrency, and store-level pagination inside BirdCoder's intelligence/coding-workbench bounded context. SQLx persistence is supplied through the WorkspaceRepository port."
+  },
+  "verification": {
+    "commands": [
+      "cargo test -p sdkwork-birdcoder-workspace-service"
+    ]
+  }
+}

@@ -3,10 +3,10 @@ import { Plus, ChevronDown, ChevronUp, GripVertical, ArrowUp, CheckCircle2, Rota
 import { useTranslation } from 'react-i18next';
 import { Button } from '@sdkwork/birdcoder-pc-ui-shell';
 import {
-  projectChatTranscriptToolActivity,
+  composeChatTranscriptActivity,
   resolveBirdCoderCodeEngineCommandInteractionState,
 } from '@sdkwork/birdcoder-pc-workbench/chat/types';
-import type { BirdCoderChatMessage, FileChange } from '@sdkwork/birdcoder-pc-workbench/chat/types';
+import type { AgentSessionItemView, FileChange } from '@sdkwork/birdcoder-pc-workbench/chat/types';
 import {
   findWorkbenchCodeEngineDefinition,
   getWorkbenchCodeEngineDefinition,
@@ -16,7 +16,7 @@ import {
   normalizeWorkbenchCodeModelId,
   resolveWorkbenchCodeEngineSelectedModelId,
   useModelCatalogLoaded,
-} from '@sdkwork/birdcoder-pc-codeengine';
+} from '@sdkwork/birdcoder-pc-workbench/workbench/codeEngineCatalog';
 import {
   deleteSavedPrompt,
   deleteSessionPromptHistoryEntry,
@@ -45,14 +45,12 @@ import {
   uploadBirdCoderChatAttachmentToDrive,
 } from '@sdkwork/birdcoder-pc-workbench/services/birdcoderDriveUpload';
 import type {
-  BirdCoderCodingSessionPendingApproval,
-  BirdCoderCodingSessionPendingUserQuestion,
+  AgentApprovalDecisionInput,
+  AgentQuestionAnswerInput,
+  AgentSessionPendingApproval,
+  AgentSessionPendingQuestion,
   WorkbenchChatQueuedMessage,
 } from '@sdkwork/birdcoder-pc-workbench';
-import type {
-  BirdCoderSubmitApprovalDecisionRequest,
-  BirdCoderSubmitUserQuestionAnswerRequest,
-} from '@sdkwork/birdcoder-pc-workbench/chat/types';
 import {
   resolveComposerInputAfterSendFailure,
   restoreQueuedMessagesAfterSendFailure,
@@ -166,9 +164,9 @@ export interface UniversalChatProps {
   sessionId?: string;
   sessionScopeKey?: string;
   isActive?: boolean;
-  messages: BirdCoderChatMessage[];
-  pendingApprovals?: BirdCoderCodingSessionPendingApproval[];
-  pendingUserQuestions?: BirdCoderCodingSessionPendingUserQuestion[];
+  messages: AgentSessionItemView[];
+  pendingApprovals?: AgentSessionPendingApproval[];
+  pendingUserQuestions?: AgentSessionPendingQuestion[];
   inputValue?: string;
   setInputValue?: Dispatch<SetStateAction<string>>;
   onSendMessage: (
@@ -176,12 +174,12 @@ export interface UniversalChatProps {
     composerSelection?: UniversalChatComposerSelection,
   ) => void | Promise<void>;
   onSubmitApprovalDecision?: (
-    interactionEventId: string,
-    request: BirdCoderSubmitApprovalDecisionRequest,
+    interactionId: string,
+    request: AgentApprovalDecisionInput,
   ) => void | Promise<void>;
   onSubmitUserQuestionAnswer?: (
-    interactionEventId: string,
-    request: BirdCoderSubmitUserQuestionAnswerRequest,
+    interactionId: string,
+    request: AgentQuestionAnswerInput,
   ) => void | Promise<void>;
   isBusy?: boolean;
   isEngineBusy?: boolean;
@@ -313,7 +311,7 @@ interface UniversalChatTranscriptProps {
   isUserControllingScrollRef: React.MutableRefObject<boolean>;
   layout: 'sidebar' | 'main';
   localeKey: string;
-  messages: readonly BirdCoderChatMessage[];
+  messages: readonly AgentSessionItemView[];
   messagesEndRef: React.RefObject<HTMLDivElement | null>;
   scrollContainerRef: React.RefObject<HTMLDivElement | null>;
   scrollTranscriptToBottom: () => void;
@@ -321,12 +319,12 @@ interface UniversalChatTranscriptProps {
   shouldStickToBottomRef: React.MutableRefObject<boolean>;
 }
 
-const EMPTY_CHAT_MESSAGES: BirdCoderChatMessage[] = [];
+const EMPTY_CHAT_MESSAGES: AgentSessionItemView[] = [];
 
 function resolveVisibleSessionMessages(
-  messages: readonly BirdCoderChatMessage[],
+  messages: readonly AgentSessionItemView[],
   normalizedSessionId: string,
-): readonly BirdCoderChatMessage[] {
+): readonly AgentSessionItemView[] {
   if (messages.length === 0) {
     return EMPTY_CHAT_MESSAGES;
   }
@@ -335,17 +333,17 @@ function resolveVisibleSessionMessages(
     return messages;
   }
 
-  let filteredMessages: BirdCoderChatMessage[] | null = null;
+  let filteredMessages: AgentSessionItemView[] | null = null;
   for (let index = 0; index < messages.length; index += 1) {
     const message = messages[index]!;
-    const messageSessionId = message.codingSessionId?.trim() ?? '';
+    const messageSessionId = message.sessionId.trim();
     if (messageSessionId === normalizedSessionId) {
       filteredMessages?.push(message);
       continue;
     }
 
     if (!filteredMessages) {
-      filteredMessages = messages.slice(0, index) as BirdCoderChatMessage[];
+      filteredMessages = messages.slice(0, index) as AgentSessionItemView[];
     }
   }
 
@@ -891,7 +889,7 @@ export const UniversalChat = memo(function UniversalChat({
     setSelectedModelId,
   ]);
   const firstPendingUserQuestion = pendingUserQuestions.find(
-    (question) => question.interactionEventId.trim().length > 0,
+    (question) => question.interactionId.trim().length > 0,
   );
   const hasPendingUserQuestionReplyTarget =
     Boolean(firstPendingUserQuestion && onSubmitUserQuestionAnswer);
@@ -900,7 +898,7 @@ export const UniversalChat = memo(function UniversalChat({
   const isComposerProcessing = isEngineBusy || isDispatchingMessage || isSubmittingPendingInteraction;
   const isComposerTurnBlockedRef = useRef(isComposerTurnBlocked);
   const normalizedMessages = useMemo(
-    () => projectChatTranscriptToolActivity(
+    () => composeChatTranscriptActivity(
       resolveVisibleSessionMessages(messages, normalizedSessionId),
       { engineId: selectedEngineId },
     ),
@@ -1046,14 +1044,14 @@ export const UniversalChat = memo(function UniversalChat({
   }, []);
 
   const submitPendingUserQuestionAnswer = useCallback(async (
-    interactionEventId: string,
-    request: BirdCoderSubmitUserQuestionAnswerRequest,
+    interactionId: string,
+    request: AgentQuestionAnswerInput,
   ): Promise<boolean> => {
     if (disabled || !onSubmitUserQuestionAnswer) {
       return false;
     }
 
-    const pendingInteractionId = `question:${interactionEventId}`;
+    const pendingInteractionId = `question:${interactionId}`;
     if (!beginPendingInteractionSubmission(pendingInteractionId)) {
       return false;
     }
@@ -1061,7 +1059,7 @@ export const UniversalChat = memo(function UniversalChat({
     let didMarkQueuedTurnDispatch = false;
 
     try {
-      await Promise.resolve(onSubmitUserQuestionAnswer(interactionEventId, request));
+      await Promise.resolve(onSubmitUserQuestionAnswer(interactionId, request));
       markQueuedTurnDispatchStarted();
       didMarkQueuedTurnDispatch = true;
       return true;
@@ -1094,33 +1092,33 @@ export const UniversalChat = memo(function UniversalChat({
     answerSnapshot: string,
   ): Promise<boolean> => {
     const pendingQuestion = pendingUserQuestions.find(
-      (question) => question.interactionEventId.trim().length > 0,
+      (question) => question.interactionId.trim().length > 0,
     );
     if (!pendingQuestion) {
       return false;
     }
 
-    return submitPendingUserQuestionAnswer(pendingQuestion.interactionEventId, {
+    return submitPendingUserQuestionAnswer(pendingQuestion.interactionId, {
       answer: answerSnapshot.trim(),
     });
   }, [pendingUserQuestions, submitPendingUserQuestionAnswer]);
 
   const handleSubmitPendingUserQuestionAnswer = useCallback(async (
-    interactionEventId: string,
-    request: BirdCoderSubmitUserQuestionAnswerRequest,
+    interactionId: string,
+    request: AgentQuestionAnswerInput,
   ): Promise<void> => {
-    await submitPendingUserQuestionAnswer(interactionEventId, request);
+    await submitPendingUserQuestionAnswer(interactionId, request);
   }, [submitPendingUserQuestionAnswer]);
 
   const submitPendingApprovalDecision = useCallback(async (
-    interactionEventId: string,
-    request: BirdCoderSubmitApprovalDecisionRequest,
+    interactionId: string,
+    request: AgentApprovalDecisionInput,
   ): Promise<boolean> => {
     if (disabled || !onSubmitApprovalDecision) {
       return false;
     }
 
-    const pendingInteractionId = `approval:${interactionEventId}`;
+    const pendingInteractionId = `approval:${interactionId}`;
     if (!beginPendingInteractionSubmission(pendingInteractionId)) {
       return false;
     }
@@ -1128,7 +1126,7 @@ export const UniversalChat = memo(function UniversalChat({
     let didMarkQueuedTurnDispatch = false;
 
     try {
-      await Promise.resolve(onSubmitApprovalDecision(interactionEventId, request));
+      await Promise.resolve(onSubmitApprovalDecision(interactionId, request));
       markQueuedTurnDispatchStarted();
       didMarkQueuedTurnDispatch = true;
       return true;
@@ -1158,10 +1156,10 @@ export const UniversalChat = memo(function UniversalChat({
   ]);
 
   const handleSubmitPendingApprovalDecision = useCallback(async (
-    interactionEventId: string,
-    request: BirdCoderSubmitApprovalDecisionRequest,
+    interactionId: string,
+    request: AgentApprovalDecisionInput,
   ): Promise<void> => {
-    await submitPendingApprovalDecision(interactionEventId, request);
+    await submitPendingApprovalDecision(interactionId, request);
   }, [submitPendingApprovalDecision]);
 
   const syncHistoryPrompts = (nextPrompts: PromptEntry[]) => {

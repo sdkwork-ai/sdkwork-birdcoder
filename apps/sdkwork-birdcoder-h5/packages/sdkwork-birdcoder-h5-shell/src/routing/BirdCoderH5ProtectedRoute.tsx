@@ -1,49 +1,46 @@
-import { type ReactNode, useEffect } from 'react';
-import { useLocation } from 'react-router-dom';
-import { useAuth } from '@sdkwork/birdcoder-pc-workbench/context/AuthContext';
-import {
-  AUTH_SURFACE_DEFAULT_ROUTE,
-  replaceAuthSurfaceHashPath,
-} from '@sdkwork/birdcoder-pc-auth/authSurface';
+import { type ReactNode, useEffect, useState } from 'react';
+import { Navigate, useLocation } from 'react-router-dom';
+import { IAM_H5_AUTH_ROUTES } from '@sdkwork/iam-h5-auth';
+import { AuthLoadingState } from '../auth/AuthLoadingState.tsx';
+import { useBirdCoderH5Auth } from '../auth/BirdCoderH5AuthContext.tsx';
 
 interface BirdCoderH5ProtectedRouteProps {
   children: ReactNode;
   required?: boolean;
 }
 
-function AuthGateLoadingState() {
-  return (
-    <div className="flex h-full min-h-48 items-center justify-center px-6">
-      <div className="text-sm text-muted-foreground">Validating SDKWork session…</div>
-    </div>
-  );
-}
-
 export function BirdCoderH5ProtectedRoute({
   children,
   required = true,
 }: BirdCoderH5ProtectedRouteProps) {
-  const { isLoading, user } = useAuth();
+  const { authenticated, refreshCurrentSession, validating } = useBirdCoderH5Auth();
   const location = useLocation();
+  const [validatedLocationKey, setValidatedLocationKey] = useState<string | null>(location.key);
 
   useEffect(() => {
-    if (typeof window === 'undefined' || isLoading || user || !required) {
+    if (validatedLocationKey === location.key) {
       return;
     }
 
-    const returnTo = `${location.pathname}${location.search}${location.hash}`;
-    replaceAuthSurfaceHashPath(
-      `${AUTH_SURFACE_DEFAULT_ROUTE}?returnTo=${encodeURIComponent(returnTo)}`,
-    );
-    window.dispatchEvent(new PopStateEvent('popstate'));
-  }, [isLoading, location.hash, location.pathname, location.search, required, user]);
+    let active = true;
+    void refreshCurrentSession().finally(() => {
+      if (active) {
+        setValidatedLocationKey(location.key);
+      }
+    });
+    return () => {
+      active = false;
+    };
+  }, [location.key, refreshCurrentSession, validatedLocationKey]);
 
-  if (isLoading) {
-    return <AuthGateLoadingState />;
+  if (validating || validatedLocationKey !== location.key) {
+    return <AuthLoadingState />;
   }
 
-  if (required && !user) {
-    return <AuthGateLoadingState />;
+  if (required && !authenticated) {
+    const redirect = `${location.pathname}${location.search}${location.hash}`;
+    const loginTarget = `${IAM_H5_AUTH_ROUTES.loginPath}?redirect=${encodeURIComponent(redirect)}`;
+    return <Navigate replace to={loginTarget} />;
   }
 
   return children;

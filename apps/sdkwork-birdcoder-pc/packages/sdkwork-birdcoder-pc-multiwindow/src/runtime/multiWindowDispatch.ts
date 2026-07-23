@@ -25,7 +25,7 @@ export class MultiWindowDispatchStoppedError extends Error {
 }
 
 export interface MultiWindowDispatchPromptInput {
-  codingSessionId: string;
+  agentSessionId: string;
   pane: MultiWindowDispatchPaneTarget;
   projectId: string;
   prompt: string;
@@ -33,11 +33,11 @@ export interface MultiWindowDispatchPromptInput {
 }
 
 export interface MultiWindowDispatchPaneSendResult {
-  codingSessionId?: string;
+  agentSessionId?: string;
 }
 
 export interface MultiWindowDispatchPaneTarget {
-  codingSessionId: string;
+  agentSessionId: string;
   enabled?: boolean;
   id: string;
   projectId: string;
@@ -48,7 +48,7 @@ export interface MultiWindowDispatchPaneTarget {
 }
 
 export interface MultiWindowDispatchPaneResult {
-  codingSessionId: string;
+  agentSessionId: string;
   completedAt?: number;
   durationMs: number;
   errorMessage?: string;
@@ -142,7 +142,7 @@ function shouldDispatchPane(
     pane.enabled !== false &&
     prompt.length > 0 &&
     pane.projectId.trim().length > 0 &&
-    (pane.codingSessionId.trim().length > 0 || pane.requiresSessionProvisioning === true)
+    (pane.agentSessionId.trim().length > 0 || pane.requiresSessionProvisioning === true)
   );
 }
 
@@ -214,7 +214,7 @@ function buildBatchSummary({
 
 function buildSkippedPaneResult(pane: MultiWindowDispatchPaneTarget): MultiWindowDispatchPaneResult {
   return {
-    codingSessionId: pane.codingSessionId,
+    agentSessionId: pane.agentSessionId,
     durationMs: 0,
     paneId: pane.id,
     projectId: pane.projectId,
@@ -227,7 +227,7 @@ function buildNotSubmittedPaneResult(
   stoppedAt = Date.now(),
 ): MultiWindowDispatchPaneResult {
   return {
-    codingSessionId: pane.codingSessionId,
+    agentSessionId: pane.agentSessionId,
     completedAt: stoppedAt,
     durationMs: 0,
     paneId: pane.id,
@@ -251,14 +251,14 @@ function publishPaneResult(
   }
 }
 
-function readDispatchPaneSendResultCodingSessionId(
+function readDispatchPaneSendResultAgentSessionId(
   result: MultiWindowDispatchPaneSendResult | void,
 ): string {
   if (!result || typeof result !== 'object') {
     return '';
   }
 
-  return result.codingSessionId?.trim() ?? '';
+  return result.agentSessionId?.trim() ?? '';
 }
 
 export async function dispatchMultiWindowPrompt({
@@ -308,7 +308,7 @@ export async function dispatchMultiWindowPrompt({
 
       const startedAt = Date.now();
       results[index] = {
-        codingSessionId: pane.codingSessionId,
+        agentSessionId: pane.agentSessionId,
         durationMs: 0,
         paneId: pane.id,
         projectId: pane.projectId,
@@ -320,17 +320,17 @@ export async function dispatchMultiWindowPrompt({
       maxObservedConcurrency = Math.max(maxObservedConcurrency, activeDispatchCount);
       try {
         const sendResult = await pane.sendPrompt({
-          codingSessionId: pane.codingSessionId,
+          agentSessionId: pane.agentSessionId,
           pane,
           projectId: pane.projectId,
           prompt: normalizedPrompt,
           signal,
         });
-        const effectiveCodingSessionId =
-          readDispatchPaneSendResultCodingSessionId(sendResult) || pane.codingSessionId;
+        const effectiveAgentSessionId =
+          readDispatchPaneSendResultAgentSessionId(sendResult) || pane.agentSessionId;
         const completedAt = Date.now();
         results[index] = {
-          codingSessionId: effectiveCodingSessionId,
+          agentSessionId: effectiveAgentSessionId,
           completedAt,
           durationMs: Math.max(0, completedAt - startedAt),
           paneId: pane.id,
@@ -348,7 +348,7 @@ export async function dispatchMultiWindowPrompt({
         }
 
         results[index] = {
-          codingSessionId: pane.codingSessionId,
+          agentSessionId: pane.agentSessionId,
           completedAt,
           durationMs: Math.max(0, completedAt - startedAt),
           errorMessage: resolveErrorMessage(error),

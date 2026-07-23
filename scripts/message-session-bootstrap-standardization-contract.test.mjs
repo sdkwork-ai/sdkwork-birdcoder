@@ -9,7 +9,7 @@ function readSource(...segments) {
   return fs.readFileSync(path.join(rootDir, ...segments), 'utf8');
 }
 
-const codingSessionCreationSource = readSource(
+const agentSessionCreationSource = readSource(
   'apps',
   
   'sdkwork-birdcoder-pc',
@@ -19,7 +19,7 @@ const codingSessionCreationSource = readSource(
   'sdkwork-birdcoder-pc-workbench',
   'src',
   'workbench',
-  'codingSessionCreation.ts',
+  'agentSessionCreation.ts',
 );
 const codePageSource = readSource(
   'apps',
@@ -47,15 +47,15 @@ const studioPageSource = readSource(
 );
 
 assert.match(
-  codingSessionCreationSource,
-  /export async function ensureWorkbenchCodingSessionForMessage\(/,
-  'Workbench message sending must expose a shared ensureWorkbenchCodingSessionForMessage helper so surfaces reuse one authoritative project/session bootstrap flow for first-turn sends.',
+  agentSessionCreationSource,
+  /export async function ensureWorkbenchAgentSessionForMessage\(/,
+  'Workbench message sending must expose a shared ensureWorkbenchAgentSessionForMessage helper so surfaces reuse one authoritative project/session bootstrap flow for first-turn sends.',
 );
 
 assert.match(
   `${codePageSource}\n${studioPageSource}`,
-  /ensureWorkbenchCodingSessionForMessage\(/,
-  'CodePage and StudioPage must reuse the shared ensureWorkbenchCodingSessionForMessage helper when sending the first message without an existing session.',
+  /ensureWorkbenchAgentSessionForMessage\(/,
+  'CodePage and StudioPage must reuse the shared ensureWorkbenchAgentSessionForMessage helper when sending the first message without an existing session.',
 );
 
 assert.doesNotMatch(

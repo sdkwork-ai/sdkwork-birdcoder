@@ -1,8 +1,8 @@
 import type {
-  BirdCoderCodingSessionArtifactKind,
-  BirdCoderCodingSessionStatus,
-  BirdCoderCodingSessionRuntimeStatus,
-} from './coding-session.ts';
+  AgentSessionArtifactDisplayKind as AgentSessionArtifactDisplayKind,
+  AgentSessionDisplayStatus as AgentSessionDisplayStatus,
+  AgentSessionRuntimeDisplayStatus as AgentSessionRuntimeDisplayStatus,
+} from './agent-session-view.ts';
 import type { BirdcoderRiskLevel } from './governance.ts';
 import { parseBirdCoderApiJson } from './json.ts';
 
@@ -49,7 +49,7 @@ export interface BirdCoderCodeEngineInteractionRuntimeStatusInput {
 
 export interface BirdCoderCodeEngineToolKindInput {
   hasCommandArguments?: boolean;
-  runtimeStatus?: BirdCoderCodingSessionRuntimeStatus;
+  runtimeStatus?: AgentSessionRuntimeDisplayStatus;
   toolArguments?: unknown;
   toolName: unknown;
 }
@@ -65,7 +65,7 @@ export interface BirdCoderCodeEngineCommandInteractionStateInput {
   requiresApprovalValues?: readonly unknown[];
   requiresReply?: unknown;
   requiresReplyValues?: readonly unknown[];
-  runtimeStatus?: BirdCoderCodingSessionRuntimeStatus;
+  runtimeStatus?: AgentSessionRuntimeDisplayStatus;
   status?: unknown;
 }
 
@@ -81,7 +81,7 @@ export interface BirdCoderCodeEngineCommandSnapshot {
   output?: string;
   requiresApproval?: boolean;
   requiresReply?: boolean;
-  runtimeStatus?: BirdCoderCodingSessionRuntimeStatus;
+  runtimeStatus?: AgentSessionRuntimeDisplayStatus;
   status: BirdCoderCodeEngineCommandStatus;
   toolCallId?: string;
   toolName?: string;
@@ -413,7 +413,7 @@ const OPENCODE_NATIVE_TOOL_NAME_ALIASES = new Map<string, string>([
   ['write', 'write_file'],
 ]);
 
-const RUNTIME_STATUS_ALIASES = new Map<string, BirdCoderCodingSessionRuntimeStatus>([
+const RUNTIME_STATUS_ALIASES = new Map<string, AgentSessionRuntimeDisplayStatus>([
   ['abort', 'terminated'],
   ['aborted', 'terminated'],
   ['active', 'streaming'],
@@ -911,7 +911,7 @@ export function resolveBirdCoderCodeEngineToolKind(
 
 export function resolveBirdCoderCodeEngineArtifactKind(
   input: BirdCoderCodeEngineToolClassificationInput,
-): BirdCoderCodingSessionArtifactKind {
+): AgentSessionArtifactDisplayKind {
   const normalizedToolName = normalizeBirdCoderCodeEngineDialectKey(input.toolName);
   if (normalizedToolName && PTY_TOOL_NAME_ALIASES.has(normalizedToolName)) {
     return 'pty-transcript';
@@ -968,14 +968,14 @@ export function resolveBirdCoderCodeEngineRiskLevel(
 
 export function normalizeBirdCoderCodeEngineRuntimeStatus(
   value: unknown,
-): BirdCoderCodingSessionRuntimeStatus | undefined {
+): AgentSessionRuntimeDisplayStatus | undefined {
   const normalizedValue = normalizeBirdCoderCodeEngineDialectKey(value);
   return normalizedValue ? RUNTIME_STATUS_ALIASES.get(normalizedValue) : undefined;
 }
 
 export function resolveBirdCoderCodeEngineSessionRuntimeStatus(
   value: unknown,
-): BirdCoderCodingSessionRuntimeStatus {
+): AgentSessionRuntimeDisplayStatus {
   if (value === undefined || value === null) {
     return 'completed';
   }
@@ -985,7 +985,7 @@ export function resolveBirdCoderCodeEngineSessionRuntimeStatus(
 
 export function resolveBirdCoderCodeEngineSessionStatusFromRuntime(
   value: unknown,
-): BirdCoderCodingSessionStatus {
+): AgentSessionDisplayStatus {
   const runtimeStatus = normalizeBirdCoderCodeEngineRuntimeStatus(value);
   switch (runtimeStatus) {
     case 'completed':
@@ -1289,7 +1289,7 @@ export function flushBirdCoderCodeEngineToolCallDeltas(
 
 function firstRuntimeStatus(
   input: BirdCoderCodeEngineInteractionRuntimeStatusInput,
-): BirdCoderCodingSessionRuntimeStatus | undefined {
+): AgentSessionRuntimeDisplayStatus | undefined {
   return (
     normalizeBirdCoderCodeEngineRuntimeStatus(input.runtimeStatus) ??
     normalizeBirdCoderCodeEngineRuntimeStatus(input.state) ??
@@ -1316,7 +1316,7 @@ function statusTransitionsToFailed(value: unknown): boolean {
 
 export function resolveBirdCoderCodeEngineUserQuestionRuntimeStatus(
   input: BirdCoderCodeEngineInteractionRuntimeStatusInput,
-): BirdCoderCodingSessionRuntimeStatus {
+): AgentSessionRuntimeDisplayStatus {
   const status = input.status;
   const explicitRuntimeStatus = firstRuntimeStatus(input);
   if (
@@ -1340,7 +1340,7 @@ export function resolveBirdCoderCodeEngineUserQuestionRuntimeStatus(
 
 export function resolveBirdCoderCodeEngineApprovalRuntimeStatus(
   input: BirdCoderCodeEngineInteractionRuntimeStatusInput,
-): BirdCoderCodingSessionRuntimeStatus {
+): AgentSessionRuntimeDisplayStatus {
   const status = input.status;
   if (statusTransitionsToAwaitingTool(status)) {
     return 'awaiting_tool';

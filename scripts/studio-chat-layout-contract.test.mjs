@@ -26,7 +26,7 @@ assert.match(
 
 assert.match(
   studioPageSource,
-  /const currentProjectWorkspaceId = currentProject\?\.workspaceId\?\.trim\(\) \?\? '';[\s\S]*`\$\{currentProjectWorkspaceId\}\\u0001\$\{currentProjectId\}\\u0001\$\{selectedCodingSessionId\}`/s,
+  /const currentProjectWorkspaceId = currentProject\?\.workspaceId\?\.trim\(\) \?\? '';[\s\S]*`\$\{currentProjectWorkspaceId\}\\u0001\$\{currentProjectId\}\\u0001\$\{selectedAgentSessionId\}`/s,
   'StudioChatSidebar must scope transcript virtualization by workspace, project, and session so equal session ids from different workspaces cannot reuse chat window state.',
 );
 

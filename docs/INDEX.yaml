@@ -9,37 +9,37 @@ entries:
     path: docs/product/requirements/REQ-2026-0002-domain-ownership-convergence.md
     layer: work
     audience: [product, architecture, engineering, security, operations]
-    status: in-progress
+    status: accepted
   - id: ADR-20260722
     path: docs/architecture/decisions/ADR-20260722-domain-ownership-and-single-write-authority.md
     layer: work
     audience: [architecture, engineering, security, operations]
     status: accepted
+  - id: ADR-20260719
+    path: docs/architecture/decisions/ADR-20260719-birdcoder-repository-pool-driver-migration.md
+    layer: work
+    audience: [architecture, engineering, operations]
+    status: accepted
   - id: PLAN-2026-0001
     path: docs/engineering/plans/PLAN-2026-0001-domain-boundary-cutover.md
     layer: work
     audience: [architecture, engineering, security, operations]
-    status: active
+    status: complete
   - id: MIG-2026-0002
     path: docs/migrations/MIG-2026-0002-domain-ownership-cutover.md
     layer: evidence
     audience: [architecture, engineering, security, operations]
-    status: active
+    status: completed
   - id: REQ-2026-0001
     path: docs/product/requirements/REQ-2026-0001-distributed-project-runtime-locations.md
     layer: work
     audience: [product, architecture, engineering, security, operations]
-    status: in-progress
+    status: accepted
   - id: ADR-20260716
     path: docs/architecture/decisions/ADR-20260716-distributed-project-runtime-locations.md
     layer: work
     audience: [architecture, engineering, security, operations]
     status: accepted
-  - id: ADR-20260713
-    path: docs/architecture/decisions/ADR-20260713-unified-project-runtime-boundary.md
-    layer: work
-    audience: [architecture, engineering, security, operations]
-    status: superseded
   - id: MIG-2026-0001
     path: docs/migrations/MIG-2026-0001-distributed-project-runtime-locations.md
     layer: evidence

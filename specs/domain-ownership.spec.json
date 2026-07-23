@@ -101,6 +101,7 @@
       "authority": "sdkwork-birdcoder-app-api",
       "sdkFamily": "sdkwork-birdcoder-app-sdk",
       "authorityFile": "sdks/sdkwork-birdcoder-app-sdk/openapi/sdkwork-birdcoder-app-api.openapi.json",
+      "operationCount": 39,
       "ownedPathPrefixes": [
         "/app/v3/api/workspaces",
         "/app/v3/api/projects",
@@ -113,7 +114,6 @@
     "backendApi": {
       "owned": false,
       "operationCount": 0,
-      "authorityFile": "sdks/sdkwork-birdcoder-backend-sdk/openapi/sdkwork-birdcoder-backend-api.openapi.json",
       "reason": "BirdCoder has no application-specific admin bounded context."
     },
     "openApi": {
@@ -121,6 +121,17 @@
       "operationCount": 0,
       "reason": "BirdCoder does not publish an external domain API."
     }
+  },
+  "runtimeAuthority": {
+    "topology": "specs/topology.spec.json",
+    "standaloneGateway": {
+      "crate": "sdkwork-api-birdcoder-standalone-gateway",
+      "binary": "sdkwork-api-birdcoder-standalone-gateway"
+    },
+    "forbiddenApplicationEntrypoints": [
+      "@sdkwork/birdcoder-pc-server",
+      "apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-server"
+    ]
   },
   "dependencies": [
     {
@@ -422,5 +433,69 @@
     "sdkwork-birdcoder-commerce-quota",
     "sdkwork-routes-commerce-app-api",
     "sdkwork-birdcoder-sqlx-repository-pool"
-  ]
+  ],
+  "forbiddenApplicationComponents": [
+    "apps/sdkwork-birdcoder-common/packages/sdkwork-birdcoder-chat-contracts",
+    "apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-codeengine",
+    "apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-projection",
+    "apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-server"
+  ],
+  "forbiddenLocalAuthorityPaths": [
+    "apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-contracts-commons/src/coding-session.ts",
+    "apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-contracts-commons/src/data.ts",
+    "apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-contracts-commons/src/generated/coding-server-client.ts",
+    "apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-contracts-commons/src/generated/coding-server-openapi.ts",
+    "apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-contracts-commons/src/storageBindings.ts",
+    "apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/src/services/appRuntimeTransport.ts",
+    "apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/src/services/birdcoderMobileChatApi.ts",
+    "apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/src/services/codingSessionMessageProjection.ts",
+    "apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/src/storage/appConsoleRepository.ts",
+    "apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/src/storage/codingSessionPromptEntryRepository.ts",
+    "apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/src/storage/codingSessionRepository.ts",
+    "apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/src/storage/dataKernel.ts",
+    "apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/src/storage/promptSkillTemplateEvidenceRepository.ts",
+    "apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/src/storage/providers.ts",
+    "apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/src/storage/savedPromptEntryRepository.ts",
+    "apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/src/storage/sqlExecutor.ts",
+    "apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/src/storage/sqlPlans.ts",
+    "apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/src/storage/runtime.ts",
+    "crates/sdkwork-birdcoder-tauri-host/src/commands/sql_commands.rs"
+  ],
+  "authoredSurfaceScan": {
+    "roots": [
+      "apis",
+      "apps",
+      "crates",
+      "database"
+    ],
+    "extensions": [
+      ".dart",
+      ".js",
+      ".json",
+      ".mjs",
+      ".rs",
+      ".sql",
+      ".toml",
+      ".ts",
+      ".tsx",
+      ".yaml",
+      ".yml"
+    ],
+    "excludedSegments": [
+      ".dart_tool",
+      ".git",
+      ".gradle",
+      "build",
+      "dist",
+      "node_modules",
+      "target"
+    ],
+    "apiDefinitionRoots": [
+      "apps/sdkwork-birdcoder-flutter-mobile/sdks",
+      "apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-contracts-commons/src/generated",
+      "apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-server/src",
+      "apps/sdkwork-birdcoder-pc/sdks",
+      "sdks"
+    ]
+  }
 }

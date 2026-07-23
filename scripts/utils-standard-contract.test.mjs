@@ -72,16 +72,31 @@ if (!digestHelper.includes('@sdkwork/utils/crypto')) {
 const rustServiceCrates = [
   'crates/sdkwork-birdcoder-workspace-service',
   'crates/sdkwork-birdcoder-project-service',
+  'crates/sdkwork-birdcoder-system-descriptor-service',
+  'crates/sdkwork-routes-workspace-app-api',
+];
+
+const retiredRustCrates = [
   'crates/sdkwork-birdcoder-deployment-service',
   'crates/sdkwork-birdcoder-coding-sessions-service',
   'crates/sdkwork-birdcoder-document-service',
-  'crates/sdkwork-birdcoder-system-descriptor-service',
   'crates/sdkwork-birdcoder-skill-packages-service',
   'crates/sdkwork-birdcoder-app-templates-service',
   'crates/sdkwork-birdcoder-coding-sessions-repository-sqlx',
   'crates/sdkwork-routes-engine-catalog-app-api',
-  'crates/sdkwork-routes-workspace-app-api',
 ];
+
+for (const crateDir of retiredRustCrates) {
+  const absoluteCrateDir = path.join(rootDir, crateDir);
+  const hasCargoManifest = fs.existsSync(path.join(absoluteCrateDir, 'Cargo.toml'));
+  const hasRustSource = walkFiles(
+    path.join(absoluteCrateDir, 'src'),
+    (filePath) => filePath.endsWith('.rs'),
+  ).length > 0;
+  if (hasCargoManifest || hasRustSource) {
+    fail(`${crateDir} must not retain an authored local domain authority`);
+  }
+}
 
 for (const crateDir of rustServiceCrates) {
   const cargoToml = read(`${crateDir}/Cargo.toml`);

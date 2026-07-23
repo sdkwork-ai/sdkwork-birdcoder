@@ -1,10 +1,12 @@
 import {
-  type BirdCoderCodingSessionPendingApproval,
-  type BirdCoderCodingSessionPendingUserQuestion,
+  type AgentApprovalDecisionInput,
+  type AgentQuestionAnswerInput,
+  type AgentSessionPendingApproval,
+  type AgentSessionPendingQuestion,
   deduplicateBirdCoderProjectsForRender,
   useToast,
 } from '@sdkwork/birdcoder-pc-workbench';
-import { getWorkbenchCodeEngineSessionSummary } from '@sdkwork/birdcoder-pc-codeengine';
+import { getWorkbenchCodeEngineSessionSummary } from '@sdkwork/birdcoder-pc-workbench/workbench/codeEngineCatalog';
 import {
   DeferredUniversalChat,
   WorkbenchNewSessionButton,
@@ -17,13 +19,11 @@ import {
   useRelativeMinuteNow,
 } from '@sdkwork/birdcoder-pc-ui-shell';
 import {
-  formatBirdCoderSessionActivityDisplayTime,
-  isBirdCoderCodingSessionEngineBusy,
-  type BirdCoderChatMessage,
-  type BirdCoderCodingSession,
+  formatAgentSessionActivityDisplayTime,
+  isAgentSessionViewEngineBusy,
+  type AgentSessionItemView,
+  type AgentSessionView,
   type BirdCoderProject,
-  type BirdCoderSubmitApprovalDecisionRequest,
-  type BirdCoderSubmitUserQuestionAnswerRequest,
   type FileChange,
 } from '@sdkwork/birdcoder-pc-contracts-commons';
 import {
@@ -47,7 +47,7 @@ const STUDIO_MENU_PROJECT_ROW_HEIGHT = 46;
 const STUDIO_MENU_SESSION_ROW_HEIGHT = 52;
 const STUDIO_MENU_WINDOWED_LIST_THRESHOLD = 20;
 const EMPTY_STUDIO_PROJECTS: BirdCoderProject[] = [];
-const EMPTY_STUDIO_CODING_SESSIONS: BirdCoderProject['codingSessions'] = [];
+const EMPTY_STUDIO_AGENT_SESSIONS: BirdCoderProject['agentSessions'] = [];
 
 function areStudioProjectInventoriesEqual(
   leftProjects: readonly BirdCoderProject[],
@@ -71,8 +71,8 @@ function areStudioProjectInventoriesEqual(
 }
 
 function areStudioChatMessagesEqual(
-  leftMessages: readonly BirdCoderChatMessage[],
-  rightMessages: readonly BirdCoderChatMessage[],
+  leftMessages: readonly AgentSessionItemView[],
+  rightMessages: readonly AgentSessionItemView[],
 ): boolean {
   if (leftMessages === rightMessages) {
     return true;
@@ -105,12 +105,12 @@ interface StudioChatSidebarProps {
   width: number;
   projects: BirdCoderProject[];
   currentProjectId: string;
-  selectedCodingSessionId: string;
+  selectedAgentSessionId: string;
   menuActiveProjectId: string;
   projectSearchQuery: string;
-  messages: BirdCoderChatMessage[];
-  pendingApprovals?: BirdCoderCodingSessionPendingApproval[];
-  pendingUserQuestions?: BirdCoderCodingSessionPendingUserQuestion[];
+  messages: AgentSessionItemView[];
+  pendingApprovals?: AgentSessionPendingApproval[];
+  pendingUserQuestions?: AgentSessionPendingQuestion[];
   emptyState?: ReactNode;
   isBusy: boolean;
   isEngineBusy: boolean;
@@ -127,14 +127,14 @@ interface StudioChatSidebarProps {
     composerSelection?: UniversalChatComposerSelection,
   ) => void | Promise<void>;
   onSubmitApprovalDecision: (
-    approvalId: string,
-    request: BirdCoderSubmitApprovalDecisionRequest,
+    interactionId: string,
+    request: AgentApprovalDecisionInput,
   ) => void | Promise<void>;
   onSubmitUserQuestionAnswer: (
-    questionId: string,
-    request: BirdCoderSubmitUserQuestionAnswerRequest,
+    interactionId: string,
+    request: AgentQuestionAnswerInput,
   ) => void | Promise<void>;
-  onSelectCodingSession: (projectId: string, codingSessionId: string) => void;
+  onSelectAgentSession: (projectId: string, agentSessionId: string) => void;
   onCreateProject: () => Promise<void>;
   onLoadMoreProjects: () => Promise<unknown> | void;
   onLoadMoreProjectSessions?: (
@@ -145,15 +145,15 @@ interface StudioChatSidebarProps {
     loadedCount?: number;
   } | void;
   onOpenFolder: () => Promise<void>;
-  onCreateCodingSession: (
+  onCreateAgentSession: (
     projectId: string,
     engineId?: string,
     modelId?: string,
-  ) => Promise<BirdCoderCodingSession | null | void>;
+  ) => Promise<AgentSessionView | null | void>;
   onRefreshProjectSessions: (projectId: string) => Promise<void>;
-  onRefreshCodingSessionMessages: (codingSessionId: string) => Promise<void>;
+  onRefreshAgentSessionItems: (agentSessionId: string) => Promise<void>;
   refreshingProjectId: string | null;
-  refreshingCodingSessionId: string | null;
+  refreshingAgentSessionId: string | null;
   onOpenFile: (path: string) => void;
   onViewChanges: (file: FileChange) => void;
   onEditMessage: (messageId: string, content: string) => void | Promise<void>;
@@ -204,9 +204,9 @@ const StudioProjectMenuRow = memo(function StudioProjectMenuRow({
 interface StudioSessionMenuRowProps {
   projectId: string;
   relativeTimeNow: number;
-  session: BirdCoderProject['codingSessions'][number];
+  session: BirdCoderProject['agentSessions'][number];
   isSelected: boolean;
-  onSelectCodingSession: (projectId: string, codingSessionId: string) => void;
+  onSelectAgentSession: (projectId: string, agentSessionId: string) => void;
 }
 
 const StudioSessionMenuRow = memo(function StudioSessionMenuRow({
@@ -214,13 +214,13 @@ const StudioSessionMenuRow = memo(function StudioSessionMenuRow({
   relativeTimeNow,
   session,
   isSelected,
-  onSelectCodingSession,
+  onSelectAgentSession,
 }: StudioSessionMenuRowProps) {
-  const isEngineBusySession = isBirdCoderCodingSessionEngineBusy(session);
+  const isEngineBusySession = isAgentSessionViewEngineBusy(session);
 
   return (
     <button
-      onClick={() => onSelectCodingSession(projectId, session.id)}
+      onClick={() => onSelectAgentSession(projectId, session.id)}
       className={`w-full flex items-center justify-between px-3 py-2.5 rounded-lg text-sm transition-all group ${
         isSelected
           ? 'bg-blue-500/10 text-blue-400'
@@ -237,7 +237,7 @@ const StudioSessionMenuRow = memo(function StudioSessionMenuRow({
               isSelected ? 'text-blue-400/70' : 'text-gray-600 group-hover:text-gray-500'
             }`}
           >
-            {formatBirdCoderSessionActivityDisplayTime(session, relativeTimeNow)}
+            {formatAgentSessionActivityDisplayTime(session, relativeTimeNow)}
           </span>
         </div>
       </div>
@@ -261,7 +261,7 @@ function areStudioChatSidebarPropsEqual(
     left.width === right.width &&
     areStudioProjectInventoriesEqual(left.projects, right.projects) &&
     left.currentProjectId === right.currentProjectId &&
-    left.selectedCodingSessionId === right.selectedCodingSessionId &&
+    left.selectedAgentSessionId === right.selectedAgentSessionId &&
     left.menuActiveProjectId === right.menuActiveProjectId &&
     left.projectSearchQuery === right.projectSearchQuery &&
     areStudioChatMessagesEqual(left.messages, right.messages) &&
@@ -281,16 +281,16 @@ function areStudioChatSidebarPropsEqual(
     left.onSendMessage === right.onSendMessage &&
     left.onSubmitApprovalDecision === right.onSubmitApprovalDecision &&
     left.onSubmitUserQuestionAnswer === right.onSubmitUserQuestionAnswer &&
-    left.onSelectCodingSession === right.onSelectCodingSession &&
+    left.onSelectAgentSession === right.onSelectAgentSession &&
     left.onCreateProject === right.onCreateProject &&
     left.onLoadMoreProjects === right.onLoadMoreProjects &&
     left.onLoadMoreProjectSessions === right.onLoadMoreProjectSessions &&
     left.onOpenFolder === right.onOpenFolder &&
-    left.onCreateCodingSession === right.onCreateCodingSession &&
+    left.onCreateAgentSession === right.onCreateAgentSession &&
     left.onRefreshProjectSessions === right.onRefreshProjectSessions &&
-    left.onRefreshCodingSessionMessages === right.onRefreshCodingSessionMessages &&
+    left.onRefreshAgentSessionItems === right.onRefreshAgentSessionItems &&
     left.refreshingProjectId === right.refreshingProjectId &&
-    left.refreshingCodingSessionId === right.refreshingCodingSessionId &&
+    left.refreshingAgentSessionId === right.refreshingAgentSessionId &&
     left.onOpenFile === right.onOpenFile &&
     left.onViewChanges === right.onViewChanges &&
     left.onEditMessage === right.onEditMessage &&
@@ -307,7 +307,7 @@ export const StudioChatSidebar = memo(function StudioChatSidebar({
   width,
   projects,
   currentProjectId,
-  selectedCodingSessionId,
+  selectedAgentSessionId,
   menuActiveProjectId,
   projectSearchQuery,
   messages,
@@ -327,16 +327,16 @@ export const StudioChatSidebar = memo(function StudioChatSidebar({
   onSendMessage,
   onSubmitApprovalDecision,
   onSubmitUserQuestionAnswer,
-  onSelectCodingSession,
+  onSelectAgentSession,
   onCreateProject,
   onLoadMoreProjects,
   onLoadMoreProjectSessions,
   onOpenFolder,
-  onCreateCodingSession,
+  onCreateAgentSession,
   onRefreshProjectSessions,
-  onRefreshCodingSessionMessages,
+  onRefreshAgentSessionItems,
   refreshingProjectId,
-  refreshingCodingSessionId,
+  refreshingAgentSessionId,
   onOpenFile,
   onViewChanges,
   onEditMessage,
@@ -404,7 +404,7 @@ export const StudioChatSidebar = memo(function StudioChatSidebar({
         const shouldRestoreInitialWindow =
           typeof existingCount === 'number' &&
           existingCount > INITIAL_VISIBLE_SESSIONS_PER_PROJECT &&
-          existingCount > project.codingSessions.length;
+          existingCount > project.agentSessions.length;
         nextState[project.id] = shouldRestoreInitialWindow
           ? INITIAL_VISIBLE_SESSIONS_PER_PROJECT
           : typeof existingCount === 'number'
@@ -453,33 +453,33 @@ export const StudioChatSidebar = memo(function StudioChatSidebar({
     [renderProjects],
   );
   const currentProject = projectsById.get(currentProjectId);
-  const currentCodingSession = useMemo(
+  const currentAgentSession = useMemo(
     () =>
-      currentProject?.codingSessions.find(
-        (codingSession) => codingSession.id === selectedCodingSessionId,
+      currentProject?.agentSessions.find(
+        (agentSession) => agentSession.id === selectedAgentSessionId,
       ) ?? null,
-    [currentProject, selectedCodingSessionId],
+    [currentProject, selectedAgentSessionId],
   );
   const currentProjectWorkspaceId = currentProject?.workspaceId?.trim() ?? '';
   const transcriptSessionScopeKey =
-    currentProjectWorkspaceId && currentProjectId && selectedCodingSessionId
-      ? `${currentProjectWorkspaceId}\u0001${currentProjectId}\u0001${selectedCodingSessionId}`
-      : currentProjectId && selectedCodingSessionId
-        ? `${currentProjectId}\u0001${selectedCodingSessionId}`
-      : selectedCodingSessionId || undefined;
-  const currentCodingSessionTitle = currentCodingSession?.title;
+    currentProjectWorkspaceId && currentProjectId && selectedAgentSessionId
+      ? `${currentProjectWorkspaceId}\u0001${currentProjectId}\u0001${selectedAgentSessionId}`
+      : currentProjectId && selectedAgentSessionId
+        ? `${currentProjectId}\u0001${selectedAgentSessionId}`
+      : selectedAgentSessionId || undefined;
+  const currentAgentSessionTitle = currentAgentSession?.title;
   const currentChatEngineId =
-    currentCodingSession?.engineId?.trim() || selectedEngineId;
-  const currentChatModelId = currentCodingSession
-    ? (currentCodingSession.modelId?.trim() ?? '')
+    currentAgentSession?.engineId?.trim() || selectedEngineId;
+  const currentChatModelId = currentAgentSession
+    ? (currentAgentSession.modelId?.trim() ?? '')
     : selectedModelId;
-  const headerEngineSummary = currentCodingSession?.engineId?.trim()
+  const headerEngineSummary = currentAgentSession?.engineId?.trim()
     ? getWorkbenchCodeEngineSessionSummary(
-        currentCodingSession.engineId,
-        currentCodingSession.modelId,
+        currentAgentSession.engineId,
+        currentAgentSession.modelId,
       )
     : getWorkbenchCodeEngineSessionSummary(selectedEngineId, selectedModelId);
-  const isEngineBusyCurrentSession = isBirdCoderCodingSessionEngineBusy(currentCodingSession);
+  const isEngineBusyCurrentSession = isAgentSessionViewEngineBusy(currentAgentSession);
   const visibleMenuProjects = useMemo(() => {
     if (!showProjectMenu) {
       return EMPTY_STUDIO_PROJECTS;
@@ -494,9 +494,9 @@ export const StudioChatSidebar = memo(function StudioChatSidebar({
         return true;
       }
 
-      return project.codingSessions.some((codingSession) =>
-        codingSession.title.toLowerCase().includes(normalizedProjectSearchQuery),
-      ) || project.codingSessions.length > INITIAL_VISIBLE_SESSIONS_PER_PROJECT;
+      return project.agentSessions.some((agentSession) =>
+        agentSession.title.toLowerCase().includes(normalizedProjectSearchQuery),
+      ) || project.agentSessions.length > INITIAL_VISIBLE_SESSIONS_PER_PROJECT;
     });
   }, [normalizedProjectSearchQuery, renderProjects, showProjectMenu]);
   const effectiveMenuProjectId = useMemo(() => {
@@ -511,19 +511,19 @@ export const StudioChatSidebar = memo(function StudioChatSidebar({
     return visibleMenuProjects[0]?.id ?? menuActiveProjectId;
   }, [menuActiveProjectId, showProjectMenu, visibleMenuProjects]);
   const menuSelectedSessionId =
-    currentProjectId === effectiveMenuProjectId ? selectedCodingSessionId : '';
+    currentProjectId === effectiveMenuProjectId ? selectedAgentSessionId : '';
   const menuProject = showProjectMenu ? projectsById.get(effectiveMenuProjectId) ?? null : null;
   const menuProjectSessions = useMemo(() => {
     if (!showProjectMenu || !menuProject) {
-      return EMPTY_STUDIO_CODING_SESSIONS;
+      return EMPTY_STUDIO_AGENT_SESSIONS;
     }
 
     if (!normalizedProjectSearchQuery) {
-      return menuProject.codingSessions;
+      return menuProject.agentSessions;
     }
 
-    return menuProject.codingSessions.filter((codingSession) =>
-      codingSession.title.toLowerCase().includes(normalizedProjectSearchQuery),
+    return menuProject.agentSessions.filter((agentSession) =>
+      agentSession.title.toLowerCase().includes(normalizedProjectSearchQuery),
     );
   }, [menuProject, normalizedProjectSearchQuery, showProjectMenu]);
   const visibleSessionCount =
@@ -533,7 +533,7 @@ export const StudioChatSidebar = memo(function StudioChatSidebar({
     () =>
       showProjectMenu
         ? menuProjectSessions.slice(0, visibleSessionCount)
-        : EMPTY_STUDIO_CODING_SESSIONS,
+        : EMPTY_STUDIO_AGENT_SESSIONS,
     [menuProjectSessions, showProjectMenu, visibleSessionCount],
   );
   const shouldWindowMenuProjects =
@@ -586,20 +586,20 @@ export const StudioChatSidebar = memo(function StudioChatSidebar({
   );
   const canShowMoreSessions =
     visibleSessionCount < menuProjectSessions.length ||
-    visibleSessionCount < (menuProject?.codingSessions.length ?? 0);
+    visibleSessionCount < (menuProject?.agentSessions.length ?? 0);
   const hasEffectiveMenuProject = effectiveMenuProjectId.trim().length > 0;
   const showEngineBusyCurrentSessionIndicator =
-    isEngineBusyCurrentSession && Boolean(selectedCodingSessionId);
+    isEngineBusyCurrentSession && Boolean(selectedAgentSessionId);
   const canRefreshCurrentContext = Boolean(
-    (selectedCodingSessionId || currentProjectId) &&
+    (selectedAgentSessionId || currentProjectId) &&
       !showEngineBusyCurrentSessionIndicator,
   );
-  const isRefreshingCurrentContext = selectedCodingSessionId
-    ? refreshingCodingSessionId === selectedCodingSessionId
+  const isRefreshingCurrentContext = selectedAgentSessionId
+    ? refreshingAgentSessionId === selectedAgentSessionId
     : refreshingProjectId === currentProjectId;
   const refreshActionKey = showEngineBusyCurrentSessionIndicator
     ? 'studio.executingSession'
-    : selectedCodingSessionId
+    : selectedAgentSessionId
       ? isRefreshingCurrentContext
         ? 'studio.refreshingMessages'
         : 'studio.refreshMessages'
@@ -628,13 +628,13 @@ export const StudioChatSidebar = memo(function StudioChatSidebar({
     onMenuActiveProjectIdChange(projectId);
   }, [onMenuActiveProjectIdChange]);
 
-  const handleSelectMenuCodingSession = useCallback((
+  const handleSelectMenuAgentSession = useCallback((
     projectId: string,
-    codingSessionId: string,
+    agentSessionId: string,
   ) => {
-    onSelectCodingSession(projectId, codingSessionId);
+    onSelectAgentSession(projectId, agentSessionId);
     setShowProjectMenu(false);
-  }, [onSelectCodingSession]);
+  }, [onSelectAgentSession]);
 
   const handleLoadMoreMenuProjectSessions = useCallback(
     async (projectId: string, requestedCount: number): Promise<void> => {
@@ -693,8 +693,8 @@ export const StudioChatSidebar = memo(function StudioChatSidebar({
   );
 
   const handleRefreshCurrentContext = () => {
-    if (selectedCodingSessionId) {
-      void onRefreshCodingSessionMessages(selectedCodingSessionId);
+    if (selectedAgentSessionId) {
+      void onRefreshAgentSessionItems(selectedAgentSessionId);
       return;
     }
     if (currentProjectId) {
@@ -702,16 +702,16 @@ export const StudioChatSidebar = memo(function StudioChatSidebar({
     }
   };
 
-  const handleCreateProjectCodingSession = useCallback(
+  const handleCreateProjectAgentSession = useCallback(
     async (engineId?: string, modelId?: string) => {
       if (!hasEffectiveMenuProject) {
         return;
       }
 
-      await onCreateCodingSession(effectiveMenuProjectId, engineId, modelId);
+      await onCreateAgentSession(effectiveMenuProjectId, engineId, modelId);
       setShowProjectMenu(false);
     },
-    [effectiveMenuProjectId, hasEffectiveMenuProject, onCreateCodingSession],
+    [effectiveMenuProjectId, hasEffectiveMenuProject, onCreateAgentSession],
   );
 
   if (!isVisible) {
@@ -737,7 +737,7 @@ export const StudioChatSidebar = memo(function StudioChatSidebar({
                   </span>
                   <span className="text-gray-600 text-xs">/</span>
                   <span className="text-sm text-gray-400 group-hover:text-gray-300 transition-colors truncate max-w-[240px]">
-                    {currentCodingSessionTitle || '-'}
+                    {currentAgentSessionTitle || '-'}
                   </span>
                 </div>
                 <ChevronDown
@@ -844,9 +844,9 @@ export const StudioChatSidebar = memo(function StudioChatSidebar({
                           session={session}
                           isSelected={
                             currentProjectId === effectiveMenuProjectId &&
-                            selectedCodingSessionId === session.id
+                            selectedAgentSessionId === session.id
                           }
-                          onSelectCodingSession={handleSelectMenuCodingSession}
+                          onSelectAgentSession={handleSelectMenuAgentSession}
                         />
                       </div>
                     ))}
@@ -920,15 +920,15 @@ export const StudioChatSidebar = memo(function StudioChatSidebar({
                   <div className="w-[60%] p-2 flex gap-1">
                     <WorkbenchNewSessionButton
                       buttonLabel={t('studio.newSession')}
-                      currentSessionEngineId={currentCodingSession?.engineId}
-                      currentSessionModelId={currentCodingSession?.modelId}
+                      currentSessionEngineId={currentAgentSession?.engineId}
+                      currentSessionModelId={currentAgentSession?.modelId}
                       disabled={!hasEffectiveMenuProject}
                       disabledTitle={t('studio.pleaseSelectProject')}
                       selectedEngineId={selectedEngineId}
                       selectedModelId={selectedModelId}
                       variant="studio"
                       onCreateSession={(engineId, modelId) => {
-                        void handleCreateProjectCodingSession(engineId, modelId);
+                        void handleCreateProjectAgentSession(engineId, modelId);
                       }}
                     />
                     <button
@@ -936,18 +936,18 @@ export const StudioChatSidebar = memo(function StudioChatSidebar({
                         if (!menuSelectedSessionId) {
                           return;
                         }
-                        void onRefreshCodingSessionMessages(menuSelectedSessionId);
+                        void onRefreshAgentSessionItems(menuSelectedSessionId);
                       }}
                       disabled={
                         !menuSelectedSessionId ||
-                        refreshingCodingSessionId === menuSelectedSessionId
+                        refreshingAgentSessionId === menuSelectedSessionId
                       }
                       className="flex items-center justify-center gap-2 px-3 py-2 text-xs text-gray-400 hover:text-white hover:bg-white/5 rounded-lg transition-all font-medium disabled:cursor-not-allowed disabled:opacity-50"
                     >
                       <RefreshCw
                         size={12}
                         className={
-                          refreshingCodingSessionId === menuSelectedSessionId
+                          refreshingAgentSessionId === menuSelectedSessionId
                             ? 'animate-spin'
                             : ''
                         }
@@ -997,7 +997,7 @@ export const StudioChatSidebar = memo(function StudioChatSidebar({
 
         <div className="flex-1 min-h-0">
           <DeferredUniversalChat
-            sessionId={selectedCodingSessionId || undefined}
+            sessionId={selectedAgentSessionId || undefined}
             sessionScopeKey={transcriptSessionScopeKey}
             messages={messages}
             pendingApprovals={pendingApprovals}

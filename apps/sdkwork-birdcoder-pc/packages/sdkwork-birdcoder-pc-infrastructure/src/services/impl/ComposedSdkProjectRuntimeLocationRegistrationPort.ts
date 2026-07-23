@@ -1,8 +1,5 @@
 import { sha256Hash } from '@sdkwork/utils/crypto';
-import type {
-  BirdCoderAppSdkApiClient,
-  BirdCoderProjectRuntimeLocationRecord,
-} from '../sdkClients.ts';
+import type { BirdCoderAppSdkApiClient } from '../birdCoderSdkClient.ts';
 import type {
   DesktopRuntimeLocationBindingIdentity,
   DesktopRuntimeLocationIdentityPort,
@@ -14,13 +11,27 @@ import type {
   ProjectRuntimeLocationCapability,
 } from '../interfaces/IProjectRuntimeLocationService.ts';
 
-export type ProjectRuntimeLocationRegistrationSdkPort = Pick<
-  BirdCoderAppSdkApiClient,
-  | 'createProjectRuntimeLocation'
-  | 'getProjectRuntimeLocation'
-  | 'listProjectRuntimeLocationPreferences'
-  | 'rebindProjectRuntimeLocation'
->;
+type ProjectRuntimeLocationsSdkApi =
+  BirdCoderAppSdkApiClient['intelligence']['projects']['runtimeLocations'];
+
+export interface ProjectRuntimeLocationRegistrationSdkPort {
+  intelligence: {
+    projects: {
+      runtimeLocations: Pick<
+        ProjectRuntimeLocationsSdkApi,
+        'create' | 'rebind' | 'retrieve'
+      > & {
+        preferences: Pick<ProjectRuntimeLocationsSdkApi['preferences'], 'list'>;
+      };
+    };
+  };
+}
+
+interface RuntimeLocationBindingRecord {
+  id: string;
+  runtimeTargetId: string;
+  version: string;
+}
 
 export interface ComposedSdkProjectRuntimeLocationRegistrationPortOptions {
   identityPort: DesktopRuntimeLocationIdentityPort;
@@ -56,27 +67,23 @@ function toRegisteredResult(
 }
 
 function assertRemoteBindingMatchesIdentity(
-  remote: BirdCoderProjectRuntimeLocationRecord,
+  remote: RuntimeLocationBindingRecord,
   identity: DesktopRuntimeLocationBindingIdentity,
 ): void {
-  if (
-    remote.runtimeTargetId !== identity.runtimeTargetId ||
-    remote.rootLocator !== identity.rootLocator
-  ) {
+  if (remote.runtimeTargetId !== identity.runtimeTargetId) {
     throw new Error('The server returned a runtime location for a different desktop binding.');
   }
 }
 
 function toCachedRemoteBinding(
   identity: DesktopRuntimeLocationBindingIdentity,
-): BirdCoderProjectRuntimeLocationRecord {
+): RuntimeLocationBindingRecord {
   if (!identity.runtimeLocationId || !identity.runtimeLocationVersion) {
     throw new Error('A cached desktop runtime location binding is incomplete.');
   }
 
   return {
     id: identity.runtimeLocationId,
-    rootLocator: identity.rootLocator,
     runtimeTargetId: identity.runtimeTargetId,
     version: identity.runtimeLocationVersion,
   };
@@ -128,8 +135,8 @@ export class ComposedSdkProjectRuntimeLocationRegistrationPort
     projectId: string,
     capability: ProjectRuntimeLocationCapability,
   ): Promise<string | null> {
-    const preferences = await this.sdkPort.listProjectRuntimeLocationPreferences(projectId);
-    const runtimeLocationId = preferences.find(
+    const response = await this.sdkPort.intelligence.projects.runtimeLocations.preferences.list(projectId);
+    const runtimeLocationId = response.items.find(
       (preference) => preference.capability === capability,
     )?.runtimeLocationId;
     return runtimeLocationId?.trim() || null;
@@ -169,7 +176,7 @@ export class ComposedSdkProjectRuntimeLocationRegistrationPort
   private async synchronizeRemoteBinding(
     input: ProjectRuntimeLocationRegistrationInput,
     identity: DesktopRuntimeLocationBindingIdentity,
-  ): Promise<BirdCoderProjectRuntimeLocationRecord> {
+  ): Promise<RuntimeLocationBindingRecord> {
     if (!identity.runtimeLocationId) {
       return await this.createRuntimeLocation(input, identity);
     }
@@ -188,7 +195,7 @@ export class ComposedSdkProjectRuntimeLocationRegistrationPort
   private async validateCachedRuntimeLocation(
     input: ProjectRuntimeLocationRegistrationInput,
     identity: DesktopRuntimeLocationBindingIdentity,
-  ): Promise<BirdCoderProjectRuntimeLocationRecord> {
+  ): Promise<RuntimeLocationBindingRecord> {
     const validationKey = createValidationKey(identity);
     const lastValidatedAt = this.lastValidatedAt.get(validationKey);
     if (
@@ -198,9 +205,9 @@ export class ComposedSdkProjectRuntimeLocationRegistrationPort
       return toCachedRemoteBinding(identity);
     }
 
-    let remote: BirdCoderProjectRuntimeLocationRecord;
+    let remote: RuntimeLocationBindingRecord;
     try {
-      remote = await this.sdkPort.getProjectRuntimeLocation(
+      remote = await this.sdkPort.intelligence.projects.runtimeLocations.retrieve(
         input.projectId,
         identity.runtimeLocationId!,
       );
@@ -211,10 +218,7 @@ export class ComposedSdkProjectRuntimeLocationRegistrationPort
       return await this.recreateMissingRuntimeLocation(input, identity);
     }
 
-    if (
-      remote.runtimeTargetId !== identity.runtimeTargetId ||
-      remote.rootLocator !== identity.rootLocator
-    ) {
+    if (remote.runtimeTargetId !== identity.runtimeTargetId) {
       return await this.recreateMissingRuntimeLocation(input, identity);
     }
 
@@ -225,7 +229,7 @@ export class ComposedSdkProjectRuntimeLocationRegistrationPort
   private async recreateMissingRuntimeLocation(
     input: ProjectRuntimeLocationRegistrationInput,
     identity: DesktopRuntimeLocationBindingIdentity,
-  ): Promise<BirdCoderProjectRuntimeLocationRecord> {
+  ): Promise<RuntimeLocationBindingRecord> {
     await this.identityPort.clearRemoteRuntimeLocationBinding({
       absolutePath: input.absolutePath,
       projectId: input.projectId,
@@ -244,46 +248,58 @@ export class ComposedSdkProjectRuntimeLocationRegistrationPort
   private async createRuntimeLocation(
     input: ProjectRuntimeLocationRegistrationInput,
     identity: DesktopRuntimeLocationBindingIdentity,
-  ): Promise<BirdCoderProjectRuntimeLocationRecord> {
-    return await this.sdkPort.createProjectRuntimeLocation(input.projectId, {
-      absolutePath: input.absolutePath,
-      displayName: identity.displayName,
-      idempotencyKey: createIdempotencyKey([
+  ): Promise<RuntimeLocationBindingRecord> {
+    return await this.sdkPort.intelligence.projects.runtimeLocations.create(
+      input.projectId,
+      {
+        absolutePath: input.absolutePath,
+        displayName: identity.displayName,
+        locationKind: identity.locationKind,
+        pathFlavor: identity.pathFlavor,
+        runtimeTargetId: identity.runtimeTargetId,
+        runtimeTargetKind: identity.runtimeTargetKind,
+      },
+      { idempotencyKey: createIdempotencyKey([
         'project-runtime-location-create',
         identity.runtimeTargetId,
         identity.rootLocator,
         String(identity.runtimeLocationCreateGeneration),
-      ]),
-      locationKind: identity.locationKind,
-      pathFlavor: identity.pathFlavor,
-      rootLocator: identity.rootLocator,
-      runtimeTargetId: identity.runtimeTargetId,
-      runtimeTargetKind: identity.runtimeTargetKind,
-    });
+      ]) },
+    );
   }
 
   private async rebindRuntimeLocation(
     input: ProjectRuntimeLocationRegistrationInput,
     identity: DesktopRuntimeLocationBindingIdentity,
-  ): Promise<BirdCoderProjectRuntimeLocationRecord> {
+  ): Promise<RuntimeLocationBindingRecord> {
     const runtimeLocationId = identity.runtimeLocationId;
     const runtimeLocationVersion = identity.runtimeLocationVersion;
     if (!runtimeLocationId || !runtimeLocationVersion) {
       throw new Error('A desktop runtime location rebind requires a complete cached remote binding.');
     }
 
-    return await this.sdkPort.rebindProjectRuntimeLocation(input.projectId, runtimeLocationId, {
-      absolutePath: input.absolutePath,
-      displayName: identity.displayName,
-      idempotencyKey: createIdempotencyKey([
-        'project-runtime-location-rebind',
-        identity.runtimeTargetId,
-        identity.rootLocator,
-        runtimeLocationId,
-        runtimeLocationVersion,
-      ]),
-      pathFlavor: identity.pathFlavor,
-      rootLocator: identity.rootLocator,
-    });
+    await this.sdkPort.intelligence.projects.runtimeLocations.rebind(
+      input.projectId,
+      runtimeLocationId,
+      {
+        absolutePath: input.absolutePath,
+        displayName: identity.displayName,
+        pathFlavor: identity.pathFlavor,
+      },
+      {
+        ifMatch: runtimeLocationVersion,
+        idempotencyKey: createIdempotencyKey([
+          'project-runtime-location-rebind',
+          identity.runtimeTargetId,
+          identity.rootLocator,
+          runtimeLocationId,
+          runtimeLocationVersion,
+        ]),
+      },
+    );
+    return this.sdkPort.intelligence.projects.runtimeLocations.retrieve(
+      input.projectId,
+      runtimeLocationId,
+    );
   }
 }

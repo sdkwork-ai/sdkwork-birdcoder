@@ -65,9 +65,17 @@
     }
   ],
   "contracts": {
+    "layerRole": "sdk-facade",
     "publicExports": [
       "."
     ],
+    "providedPorts": [
+      {
+        "name": "birdcoderAppSdkClientFactory",
+        "export": "."
+      }
+    ],
+    "requiredPorts": [],
     "runtimeEntrypoints": [
       "package.json#scripts.typecheck"
     ],

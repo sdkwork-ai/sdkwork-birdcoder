@@ -1,12 +1,12 @@
 import type {
-  BirdCoderCommitProjectGitChangesRequest,
-  BirdCoderCreateProjectGitBranchRequest,
-  BirdCoderCreateProjectGitWorktreeRequest,
-  BirdCoderProjectGitDiff,
-  BirdCoderProjectGitOverview,
-  BirdCoderPushProjectGitBranchRequest,
-  BirdCoderRemoveProjectGitWorktreeRequest,
-  BirdCoderSwitchProjectGitBranchRequest,
+  CommitWorkbenchGitChangesInput,
+  CreateWorkbenchGitBranchInput,
+  CreateWorkbenchGitWorktreeInput,
+  PushWorkbenchGitBranchInput,
+  RemoveWorkbenchGitWorktreeInput,
+  SwitchWorkbenchGitBranchInput,
+  WorkbenchGitDiffView,
+  WorkbenchGitOverviewView,
 } from '@sdkwork/birdcoder-pc-contracts-commons';
 import type { IGitService } from '../interfaces/IGitService.ts';
 import type {
@@ -16,7 +16,7 @@ import {
   ProjectRuntimeLocationExecutionUnavailableError,
   requireProjectRuntimeLocationExecutionId,
 } from '../interfaces/IProjectRuntimeLocationService.ts';
-import type { BirdCoderAppSdkApiClient } from '../sdkClients.ts';
+import type { BirdCoderAppSdkApiClient } from '../birdCoderSdkClient.ts';
 import {
   createTauriProjectGitRuntime,
   isTauriProjectGitRuntimeUnavailableError,
@@ -106,23 +106,22 @@ export class ApiBackedGitService implements IGitService {
     return fallback();
   }
 
-  async getProjectGitOverview(projectId: string): Promise<BirdCoderProjectGitOverview> {
+  async getProjectGitOverview(projectId: string): Promise<WorkbenchGitOverviewView> {
     return this.withTauriRuntimeFallback(
       (runtime) => runtime.getProjectGitOverview(projectId),
-      async () => this.appClient.getProjectGitOverview(
-        projectId,
-        await this.requireRemoteRuntimeLocationId(projectId),
-      ),
+      async () => this.appClient.intelligence.projects.git.overview.retrieve(projectId, {
+        runtimeLocationId: await this.requireRemoteRuntimeLocationId(projectId),
+      }),
     );
   }
 
   async createProjectGitBranch(
     projectId: string,
-    request: BirdCoderCreateProjectGitBranchRequest,
-  ): Promise<BirdCoderProjectGitOverview> {
+    request: CreateWorkbenchGitBranchInput,
+  ): Promise<WorkbenchGitOverviewView> {
     return this.withTauriRuntimeFallback(
       (runtime) => runtime.createProjectGitBranch(projectId, request),
-      async () => this.appClient.createProjectGitBranch(projectId, {
+      async () => this.appClient.intelligence.projects.git.branches.create(projectId, {
         ...request,
         runtimeLocationId: await this.requireRemoteRuntimeLocationId(projectId),
       }),
@@ -131,11 +130,11 @@ export class ApiBackedGitService implements IGitService {
 
   async createProjectGitWorktree(
     projectId: string,
-    request: BirdCoderCreateProjectGitWorktreeRequest,
-  ): Promise<BirdCoderProjectGitOverview> {
+    request: CreateWorkbenchGitWorktreeInput,
+  ): Promise<WorkbenchGitOverviewView> {
     return this.withTauriRuntimeFallback(
       (runtime) => runtime.createProjectGitWorktree(projectId, request),
-      async () => this.appClient.createProjectGitWorktree(projectId, {
+      async () => this.appClient.intelligence.projects.git.worktrees.create(projectId, {
         ...request,
         runtimeLocationId: await this.requireRemoteRuntimeLocationId(projectId),
       }),
@@ -144,11 +143,11 @@ export class ApiBackedGitService implements IGitService {
 
   async switchProjectGitBranch(
     projectId: string,
-    request: BirdCoderSwitchProjectGitBranchRequest,
-  ): Promise<BirdCoderProjectGitOverview> {
+    request: SwitchWorkbenchGitBranchInput,
+  ): Promise<WorkbenchGitOverviewView> {
     return this.withTauriRuntimeFallback(
       (runtime) => runtime.switchProjectGitBranch(projectId, request),
-      async () => this.appClient.switchProjectGitBranch(projectId, {
+      async () => this.appClient.intelligence.projects.git.switchBranch(projectId, {
         ...request,
         runtimeLocationId: await this.requireRemoteRuntimeLocationId(projectId),
       }),
@@ -157,11 +156,11 @@ export class ApiBackedGitService implements IGitService {
 
   async commitProjectGitChanges(
     projectId: string,
-    request: BirdCoderCommitProjectGitChangesRequest,
-  ): Promise<BirdCoderProjectGitOverview> {
+    request: CommitWorkbenchGitChangesInput,
+  ): Promise<WorkbenchGitOverviewView> {
     return this.withTauriRuntimeFallback(
       (runtime) => runtime.commitProjectGitChanges(projectId, request),
-      async () => this.appClient.commitProjectGitChanges(projectId, {
+      async () => this.appClient.intelligence.projects.git.commits.create(projectId, {
         ...request,
         runtimeLocationId: await this.requireRemoteRuntimeLocationId(projectId),
       }),
@@ -170,11 +169,11 @@ export class ApiBackedGitService implements IGitService {
 
   async pushProjectGitBranch(
     projectId: string,
-    request: BirdCoderPushProjectGitBranchRequest,
-  ): Promise<BirdCoderProjectGitOverview> {
+    request: PushWorkbenchGitBranchInput,
+  ): Promise<WorkbenchGitOverviewView> {
     return this.withTauriRuntimeFallback(
       (runtime) => runtime.pushProjectGitBranch(projectId, request),
-      async () => this.appClient.pushProjectGitBranch(projectId, {
+      async () => this.appClient.intelligence.projects.git.push(projectId, {
         ...request,
         runtimeLocationId: await this.requireRemoteRuntimeLocationId(projectId),
       }),
@@ -183,34 +182,32 @@ export class ApiBackedGitService implements IGitService {
 
   async removeProjectGitWorktree(
     projectId: string,
-    request: BirdCoderRemoveProjectGitWorktreeRequest,
-  ): Promise<BirdCoderProjectGitOverview> {
+    request: RemoveWorkbenchGitWorktreeInput,
+  ): Promise<WorkbenchGitOverviewView> {
     return this.withTauriRuntimeFallback(
       (runtime) => runtime.removeProjectGitWorktree(projectId, request),
-      async () => this.appClient.removeProjectGitWorktree(projectId, {
+      async () => this.appClient.intelligence.projects.git.removeWorktree(projectId, {
         ...request,
         runtimeLocationId: await this.requireRemoteRuntimeLocationId(projectId),
       }),
     );
   }
 
-  async pruneProjectGitWorktrees(projectId: string): Promise<BirdCoderProjectGitOverview> {
+  async pruneProjectGitWorktrees(projectId: string): Promise<WorkbenchGitOverviewView> {
     return this.withTauriRuntimeFallback(
       (runtime) => runtime.pruneProjectGitWorktrees(projectId),
-      async () => this.appClient.pruneProjectGitWorktrees(
-        projectId,
-        await this.requireRemoteRuntimeLocationId(projectId),
-      ),
+      async () => this.appClient.intelligence.projects.git.pruneWorktrees(projectId, {
+        runtimeLocationId: await this.requireRemoteRuntimeLocationId(projectId),
+      }),
     );
   }
 
-  async getProjectGitDiff(projectId: string): Promise<BirdCoderProjectGitDiff> {
+  async getProjectGitDiff(projectId: string): Promise<WorkbenchGitDiffView> {
     return this.withTauriRuntimeFallback(
       (runtime) => runtime.getProjectGitDiff(projectId),
-      async () => this.appClient.getProjectGitDiff(
-        projectId,
-        await this.requireRemoteRuntimeLocationId(projectId),
-      ),
+      async () => this.appClient.intelligence.projects.git.diff.retrieve(projectId, {
+        runtimeLocationId: await this.requireRemoteRuntimeLocationId(projectId),
+      }),
     );
   }
 }

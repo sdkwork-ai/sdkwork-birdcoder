@@ -1,183 +1,169 @@
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 
-const persistencePath = new URL(
+const promptServicePath = new URL(
+  '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/src/services/impl/PromptsSdkPromptService.ts',
+  import.meta.url,
+);
+const promptClientPath = new URL(
+  '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/src/services/promptsSdkClient.ts',
+  import.meta.url,
+);
+const promptPortPath = new URL(
+  '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/src/services/interfaces/IPromptService.ts',
+  import.meta.url,
+);
+const chatPresentationStatePath = new URL(
   '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-workbench/src/chat/persistence.ts',
   import.meta.url,
 );
-const persistenceSource = fs.readFileSync(persistencePath, 'utf8');
-
-assert.doesNotMatch(
-  persistenceSource,
-  /createBirdCoderStorageProvider|createBirdCoderCodingSessionPromptHistoryRepository|getStoredJson|setStoredJson|SAVED_PROMPTS_KEY|readPromptEntries|writePromptEntries/,
-  'chat persistence must not construct prompt-domain storage dependencies directly or persist saved prompts through local JSON helpers; it should delegate to the canonical prompt service boundary.',
-);
-
-assert.match(
-  persistenceSource,
-  /createLazyDefaultIdeServices\(\)\.promptService|defaultIdeServices\.promptService|getPromptService\(\)/,
-  'chat persistence must delegate prompt-domain operations through the default IDE prompt service.',
-);
-
-assert.doesNotMatch(
-  persistenceSource,
-  /promptHistoryService/,
-  'chat persistence should not retain the legacy promptHistoryService name after prompt-domain standardization.',
-);
-
-const dataKernelModulePath = new URL(
-  '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/src/storage/dataKernel.ts',
-  import.meta.url,
-);
-const defaultIdeServicesModulePath = new URL(
-  '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/src/services/defaultIdeServices.ts',
-  import.meta.url,
-);
-const savedPromptRepositoryModulePath = new URL(
-  '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/src/storage/savedPromptEntryRepository.ts',
-  import.meta.url,
-);
-const sessionPromptRepositoryModulePath = new URL(
-  '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/src/storage/codingSessionPromptEntryRepository.ts',
-  import.meta.url,
-);
-const promptServiceModulePath = new URL(
+const retiredProviderServicePath = new URL(
   '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/src/services/impl/ProviderBackedPromptService.ts',
   import.meta.url,
 );
 
-const backingStore = new Map();
-const originalWindowDescriptor = Object.getOwnPropertyDescriptor(globalThis, 'window');
+const promptServiceSource = fs.readFileSync(promptServicePath, 'utf8');
+const promptClientSource = fs.readFileSync(promptClientPath, 'utf8');
+const promptPortSource = fs.readFileSync(promptPortPath, 'utf8');
+const chatPresentationStateSource = fs.readFileSync(chatPresentationStatePath, 'utf8');
 
-Object.defineProperty(globalThis, 'window', {
-  configurable: true,
-  value: {
-    localStorage: {
-      getItem(key) {
-        return backingStore.has(key) ? backingStore.get(key) : null;
+assert.match(
+  promptServiceSource,
+  /from '@sdkwork\/prompts-app-sdk'/u,
+  'Saved Prompt persistence must use the sdkwork-prompts generated App SDK.',
+);
+assert.match(
+  promptServiceSource,
+  /client\.prompts\.templateVersions\.(?:list|create)/u,
+  'Prompt template version operations must use the generated templateVersions module.',
+);
+assert.doesNotMatch(
+  promptServiceSource,
+  /templates\.versions|Repository|localStorage|fallback|mirror|projection|dualWrite|dual-write/iu,
+  'The Prompt SDK adapter must not recreate a local store, transport fallback, or persistence copy.',
+);
+assert.match(
+  promptClientSource,
+  /createClient\(\{[\s\S]*tokenManager:/u,
+  'The Prompts App SDK client must be created with the application TokenManager.',
+);
+assert.doesNotMatch(
+  promptPortSource,
+  /SessionPromptHistory|recordSessionPromptUsage|useCount/u,
+  'The Prompt service port must not own Agents Session input history or synthetic usage counters.',
+);
+assert.match(
+  chatPresentationStateSource,
+  /sessionPromptHistoryMemory = new Map/u,
+  'Composer recall must be explicit presentation-only memory.',
+);
+assert.doesNotMatch(
+  chatPresentationStateSource,
+  /createBirdCoderStorageProvider|agentSessionPromptEntryRepository|localStorage|getStoredJson|setStoredJson/u,
+  'Composer recall must not write BirdCoder local persistence.',
+);
+assert.equal(
+  fs.existsSync(retiredProviderServicePath),
+  false,
+  'The BirdCoder provider-backed Prompt persistence adapter must be retired.',
+);
+
+const templates = [];
+const versionsByTemplate = new Map();
+let templateSequence = 0;
+let versionSequence = 0;
+let versionCreateCount = 0;
+
+const fakeClient = {
+  prompts: {
+    templates: {
+      async list() {
+        return {
+          items: templates.map((template) => ({ ...template })),
+          pageInfo: { mode: 'cursor', hasMore: false, nextCursor: null },
+        };
       },
-      setItem(key, value) {
-        backingStore.set(key, value);
+      async create(body) {
+        templateSequence += 1;
+        const template = {
+          ...body,
+          id: String(templateSequence),
+          latest_version_id: null,
+          status: 'draft',
+          updated_at: '2026-07-23T00:00:00.000Z',
+        };
+        templates.unshift(template);
+        versionsByTemplate.set(template.id, []);
+        return { ...template };
       },
-      removeItem(key) {
-        backingStore.delete(key);
+      async get(templateId) {
+        const template = templates.find((candidate) => candidate.id === templateId);
+        assert.ok(template, `missing fake template ${templateId}`);
+        return { ...template };
+      },
+      async update(templateId, body) {
+        const template = templates.find((candidate) => candidate.id === templateId);
+        assert.ok(template, `missing fake template ${templateId}`);
+        Object.assign(template, body, { updated_at: '2026-07-23T00:01:00.000Z' });
+        return { ...template };
+      },
+    },
+    templateVersions: {
+      async list(templateId) {
+        return {
+          items: (versionsByTemplate.get(templateId) ?? []).map((version) => ({ ...version })),
+          pageInfo: { mode: 'cursor', hasMore: false, nextCursor: null },
+        };
+      },
+      async create(templateId, body) {
+        versionSequence += 1;
+        versionCreateCount += 1;
+        const version = {
+          ...body,
+          id: String(versionSequence),
+          template_id: templateId,
+          status: 'draft',
+        };
+        versionsByTemplate.get(templateId).unshift(version);
+        const template = templates.find((candidate) => candidate.id === templateId);
+        assert.ok(template, `missing fake template ${templateId}`);
+        template.latest_version_id = version.id;
+        return { ...version };
       },
     },
   },
-});
+};
 
-try {
-  const cacheBust = `?t=${Date.now()}`;
-  const { createBirdCoderStorageProvider } = await import(`${dataKernelModulePath.href}${cacheBust}`);
-  const { createBirdCoderSavedPromptEntryRepository } = await import(
-    `${savedPromptRepositoryModulePath.href}${cacheBust}`
-  );
-  const { createBirdCoderCodingSessionPromptHistoryRepository } = await import(
-    `${sessionPromptRepositoryModulePath.href}${cacheBust}`
-  );
-  const { ProviderBackedPromptService } = await import(`${promptServiceModulePath.href}${cacheBust}`);
-  const defaultIdeServicesSource = fs.readFileSync(defaultIdeServicesModulePath, 'utf8');
+const cacheBust = `?t=${Date.now()}`;
+const { PromptsSdkPromptService } = await import(`${promptServicePath.href}${cacheBust}`);
+const promptService = new PromptsSdkPromptService(fakeClient);
 
-  assert.match(
-    defaultIdeServicesSource,
-    /promptService:\s*runtime\.promptService/u,
-    'default IDE services must expose a canonical prompt service.',
-  );
-  assert.doesNotMatch(
-    defaultIdeServicesSource,
-    /promptHistoryService/u,
-    'default IDE services must remove the legacy promptHistoryService alias once prompt-domain standardization is complete.',
-  );
+const saved = await promptService.saveSavedPrompt('  summarize release notes  ');
+assert.equal(saved.text, 'summarize release notes');
+assert.equal(versionCreateCount, 1, 'first save must create exactly one content version.');
 
-  const providerId = 'sqlite';
-  const storageProvider = createBirdCoderStorageProvider(providerId);
-  const promptService = new ProviderBackedPromptService({
-    savedPromptRepository: createBirdCoderSavedPromptEntryRepository({
-      providerId,
-      storage: storageProvider,
-    }),
-    sessionPromptHistoryRepository: createBirdCoderCodingSessionPromptHistoryRepository({
-      providerId,
-      storage: storageProvider,
-    }),
-  });
+await promptService.saveSavedPrompt('summarize release notes');
+assert.equal(
+  versionCreateCount,
+  1,
+  're-saving unchanged content must not misuse Prompt Version as an input-usage counter.',
+);
+assert.deepEqual(
+  (await promptService.listSavedPrompts()).map((entry) => entry.text),
+  ['summarize release notes'],
+  'Saved Prompt reads must resolve content through sdkwork-prompts template versions.',
+);
 
-  assert.ok(
-    promptService,
-    'prompt-domain runtime must construct a canonical prompt service.',
-  );
-
-  await promptService.recordSessionPromptUsage('session-a', '  build api  ');
-  await promptService.recordSessionPromptUsage('session-a', 'review ui');
-  await promptService.recordSessionPromptUsage('session-a', 'build api');
-  await promptService.recordSessionPromptUsage('session-b', 'build api');
-
-  assert.deepEqual(
-    (await promptService.listSessionPromptHistory('session-a')).map((entry) => ({
-      text: entry.text,
-      useCount: entry.useCount,
-    })),
-    [
-      {
-        text: 'build api',
-        useCount: 2,
-      },
-      {
-        text: 'review ui',
-        useCount: 1,
-      },
-    ],
-    'prompt service must deduplicate and order prompts within the active session.',
-  );
-
-  await promptService.deleteSessionPromptHistoryEntry('session-a', 'build api');
-
-  assert.deepEqual(
-    (await promptService.listSessionPromptHistory('session-a')).map((entry) => entry.text),
-    ['review ui'],
-    'prompt service deletion must affect only the requested session prompt.',
-  );
-  assert.deepEqual(
-    (await promptService.listSessionPromptHistory('session-b')).map((entry) => entry.text),
-    ['build api'],
-    'prompt service must preserve other session histories.',
-  );
-
-  await promptService.saveSavedPrompt('  summarize release notes  ');
-  await promptService.saveSavedPrompt('review ui');
-  await promptService.saveSavedPrompt('summarize release notes');
-
-  assert.deepEqual(
-    (await promptService.listSavedPrompts()).map((entry) => ({
-      text: entry.text,
-      useCount: entry.useCount,
-    })),
-    [
-      {
-        text: 'summarize release notes',
-        useCount: 2,
-      },
-      {
-        text: 'review ui',
-        useCount: 1,
-      },
-    ],
-    'prompt service must persist saved prompts canonically, deduplicate them, and order them by latest save.',
-  );
-
-  await promptService.deleteSavedPrompt('review ui');
-
-  assert.deepEqual(
-    (await promptService.listSavedPrompts()).map((entry) => entry.text),
-    ['summarize release notes'],
-    'prompt service saved-prompt deletion must remove only the requested prompt.',
-  );
-} finally {
-  if (originalWindowDescriptor) {
-    Object.defineProperty(globalThis, 'window', originalWindowDescriptor);
-  } else {
-    Reflect.deleteProperty(globalThis, 'window');
-  }
-}
+await promptService.deleteSavedPrompt('summarize release notes');
+assert.deepEqual(
+  await promptService.listSavedPrompts(),
+  [],
+  'Saved Prompt deletion must archive the sdkwork-prompts template.',
+);
+await assert.rejects(
+  () => promptService.saveSavedPrompt('   '),
+  /text is required/u,
+  'Saved Prompt writes must reject empty content at the service boundary.',
+);
 
 console.log('prompt service contract passed.');

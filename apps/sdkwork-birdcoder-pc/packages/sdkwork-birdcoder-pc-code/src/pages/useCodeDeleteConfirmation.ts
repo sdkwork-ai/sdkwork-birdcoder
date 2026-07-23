@@ -1,21 +1,21 @@
 import { useCallback, useState } from 'react';
 import type { BirdCoderProject } from '@sdkwork/birdcoder-pc-contracts-commons';
-import { deleteWorkbenchCodingSessionMessages } from '@sdkwork/birdcoder-pc-workbench/workbench/codingSessionCreation';
+import { deleteWorkbenchAgentSessionItems } from '@sdkwork/birdcoder-pc-workbench/workbench/agentSessionCreation';
 import type { CodeDeleteConfirmation } from './CodePageDialogs';
 
 type ToastTone = 'error' | 'success';
 
-interface CodingSessionLocation {
+interface AgentSessionLocation {
   project: BirdCoderProject;
 }
 
 interface UseCodeDeleteConfirmationOptions {
   addToast: (message: string, tone: ToastTone) => void;
   currentProjectId: string;
-  deleteCodingSession: (projectId: string, codingSessionId: string) => Promise<void>;
-  deleteCodingSessionMessage: (
+  deleteAgentSession: (projectId: string, agentSessionId: string) => Promise<void>;
+  deleteAgentSessionItem: (
     projectId: string,
-    codingSessionId: string,
+    agentSessionId: string,
     messageId: string,
   ) => Promise<void>;
   deleteProject: (projectId: string) => Promise<void>;
@@ -23,11 +23,11 @@ interface UseCodeDeleteConfirmationOptions {
   projectRemovedMessage: string;
   resolveProjectById: (projectId: string) => BirdCoderProject | null;
   resolveSession: (
-    codingSessionId: string,
+    agentSessionId: string,
     projectId?: string | null,
-  ) => CodingSessionLocation | null;
+  ) => AgentSessionLocation | null;
   sessionId: string | null;
-  setSelectedSessionId: (codingSessionId: string | null) => void;
+  setSelectedSessionId: (agentSessionId: string | null) => void;
   setSelectedSessionProjectId: (projectId: string | null) => void;
   sessionDeletedMessage: string;
 }
@@ -35,8 +35,8 @@ interface UseCodeDeleteConfirmationOptions {
 export function useCodeDeleteConfirmation({
   addToast,
   currentProjectId,
-  deleteCodingSession,
-  deleteCodingSessionMessage,
+  deleteAgentSession,
+  deleteAgentSessionItem,
   deleteProject,
   onProjectChange,
   projectRemovedMessage,
@@ -49,8 +49,8 @@ export function useCodeDeleteConfirmation({
 }: UseCodeDeleteConfirmationOptions) {
   const [deleteConfirmation, setDeleteConfirmation] = useState<CodeDeleteConfirmation | null>(null);
 
-  const requestDeleteSession = useCallback((codingSessionId: string, projectId: string) => {
-    setDeleteConfirmation({ type: 'session', id: codingSessionId, projectId });
+  const requestDeleteSession = useCallback((agentSessionId: string, projectId: string) => {
+    setDeleteConfirmation({ type: 'session', id: agentSessionId, projectId });
   }, []);
 
   const requestDeleteProject = useCallback((projectId: string) => {
@@ -58,7 +58,7 @@ export function useCodeDeleteConfirmation({
   }, []);
 
   const requestDeleteMessage = useCallback((
-    codingSessionId: string,
+    agentSessionId: string,
     projectId: string,
     messageIds: string[],
   ) => {
@@ -73,7 +73,7 @@ export function useCodeDeleteConfirmation({
       type: 'message',
       id: normalizedMessageIds[normalizedMessageIds.length - 1]!,
       ids: normalizedMessageIds,
-      parentId: codingSessionId,
+      parentId: agentSessionId,
       projectId,
     });
   }, []);
@@ -91,7 +91,7 @@ export function useCodeDeleteConfirmation({
     if (confirmation.type === 'session') {
       const project = resolveSession(confirmation.id, confirmation.projectId)?.project;
       if (project) {
-        await deleteCodingSession(project.id, confirmation.id);
+        await deleteAgentSession(project.id, confirmation.id);
         if (sessionId === confirmation.id && currentProjectId === project.id) {
           setSelectedSessionId(null);
           setSelectedSessionProjectId(project.id);
@@ -108,7 +108,7 @@ export function useCodeDeleteConfirmation({
       if (
         currentProjectId === confirmation.id &&
         project &&
-        project.codingSessions.some((codingSession) => codingSession.id === sessionId)
+        project.agentSessions.some((agentSession) => agentSession.id === sessionId)
       ) {
         setSelectedSessionId(null);
         setSelectedSessionProjectId(null);
@@ -125,9 +125,9 @@ export function useCodeDeleteConfirmation({
       const project = resolveSession(confirmation.parentId, confirmation.projectId)?.project;
       if (project) {
         try {
-          const deletedMessageCount = await deleteWorkbenchCodingSessionMessages({
-            codingSessionId: confirmation.parentId,
-            deleteCodingSessionMessage,
+          const deletedMessageCount = await deleteWorkbenchAgentSessionItems({
+            agentSessionId: confirmation.parentId,
+            deleteAgentSessionItem,
             messageIds: confirmation.ids?.length
             ? confirmation.ids
             : [confirmation.id],
@@ -148,8 +148,8 @@ export function useCodeDeleteConfirmation({
   }, [
     addToast,
     currentProjectId,
-    deleteCodingSession,
-    deleteCodingSessionMessage,
+    deleteAgentSession,
+    deleteAgentSessionItem,
     deleteConfirmation,
     deleteProject,
     onProjectChange,

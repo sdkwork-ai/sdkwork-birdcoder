@@ -49,7 +49,7 @@ const localProject: BirdCoderProject = {
   path: 'D:\\repos\\birdcoder',
   createdAt: '2026-04-23T10:00:00.000Z',
   updatedAt: '2026-04-23T10:30:00.000Z',
-  codingSessions: [],
+  agentSessions: [],
 };
 
 const authorizedRootlessProject: BirdCoderProjectSummary = {
@@ -82,7 +82,7 @@ const writeService = {
 const service = new ApiBackedProjectService({
   appClient: client,
   codingRuntimeClient: {
-    async listCodingSessions() {
+    async listAgentSessions() {
       return [];
     },
   } as unknown as BirdCoderAppRuntimeReadSdkApiClient,

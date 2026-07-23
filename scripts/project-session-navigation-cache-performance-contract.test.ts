@@ -3,7 +3,7 @@ import { readFileSync } from 'node:fs';
 import type { BirdCoderProject } from '@sdkwork/birdcoder-pc-contracts-commons';
 
 const selectionModulePath = new URL(
-  '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-workbench/src/workbench/codingSessionSelection.ts',
+  '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-workbench/src/workbench/agentSessionSelection.ts',
   import.meta.url,
 );
 const codeCommandsPath = new URL(
@@ -20,14 +20,14 @@ const codeCommandsSource = readFileSync(codeCommandsPath, 'utf8');
 const studioBindingsSource = readFileSync(studioBindingsPath, 'utf8');
 
 const {
-  buildProjectCodingSessionIndex,
+  buildProjectAgentSessionIndex,
 } = await import(`${selectionModulePath.href}?t=${Date.now()}`);
 
 const projects: BirdCoderProject[] = [
   {
     archived: false,
     author: 'user-1',
-    codingSessions: [
+    agentSessions: [
       {
         archived: false,
         createdAt: '2026-04-22T00:00:00.000Z',
@@ -78,7 +78,7 @@ const projects: BirdCoderProject[] = [
   {
     archived: false,
     author: 'user-1',
-    codingSessions: [
+    agentSessions: [
       {
         archived: false,
         createdAt: '2026-04-22T00:02:00.000Z',
@@ -108,65 +108,65 @@ const projects: BirdCoderProject[] = [
   },
 ];
 
-const sessionIndex = buildProjectCodingSessionIndex(projects);
+const sessionIndex = buildProjectAgentSessionIndex(projects);
 
 assert.equal(
-  sessionIndex.previousCodingSessionIdById.get('session-a') ?? null,
+  sessionIndex.previousAgentSessionIdById.get('session-a') ?? null,
   null,
   'The first session in project/session traversal order must not report a previous session.',
 );
 
 assert.equal(
-  sessionIndex.nextCodingSessionIdById.get('session-a') ?? null,
+  sessionIndex.nextAgentSessionIdById.get('session-a') ?? null,
   'session-b',
   'The navigation index must link to the next session without rescanning the full project tree.',
 );
 
 assert.equal(
-  sessionIndex.previousCodingSessionIdById.get('session-c') ?? null,
+  sessionIndex.previousAgentSessionIdById.get('session-c') ?? null,
   'session-b',
   'The navigation index must preserve cross-project traversal order for previous-session commands.',
 );
 
 assert.equal(
-  sessionIndex.nextCodingSessionIdById.get('session-c') ?? null,
+  sessionIndex.nextAgentSessionIdById.get('session-c') ?? null,
   null,
   'The last session in project/session traversal order must not report a next session.',
 );
 
 assert.match(
   selectionSource,
-  /previousCodingSessionIdById: ReadonlyMap<string, string \| null>;/,
+  /previousAgentSessionIdById: ReadonlyMap<string, string \| null>;/,
   'The shared project/session index must expose previous-session navigation so command handlers can avoid rebuilding flattened session arrays.',
 );
 
 assert.match(
   selectionSource,
-  /nextCodingSessionIdById: ReadonlyMap<string, string \| null>;/,
+  /nextAgentSessionIdById: ReadonlyMap<string, string \| null>;/,
   'The shared project/session index must expose next-session navigation so command handlers can avoid rebuilding flattened session arrays.',
 );
 
 assert.match(
   codeCommandsSource,
-  /buildProjectCodingSessionIndex\(projectsRef\.current\)/,
+  /buildProjectAgentSessionIndex\(projectsRef\.current\)/,
   'Code workbench commands must reuse the shared project/session index when navigating between sessions.',
 );
 
 assert.doesNotMatch(
   codeCommandsSource,
-  /projectsRef\.current\.flatMap\(\(project\) => project\.codingSessions\)/,
+  /projectsRef\.current\.flatMap\(\(project\) => project\.agentSessions\)/,
   'Code workbench commands must not flatten all project sessions on every navigation command.',
 );
 
 assert.match(
   studioBindingsSource,
-  /buildProjectCodingSessionIndex\(projectsRef\.current\)/,
+  /buildProjectAgentSessionIndex\(projectsRef\.current\)/,
   'Studio workbench bindings must reuse the shared project/session index when navigating between sessions.',
 );
 
 assert.doesNotMatch(
   studioBindingsSource,
-  /flatMap\(\(project\) => project\.codingSessions\)/,
+  /flatMap\(\(project\) => project\.agentSessions\)/,
   'Studio workbench bindings must not flatten all project sessions on every navigation command.',
 );
 

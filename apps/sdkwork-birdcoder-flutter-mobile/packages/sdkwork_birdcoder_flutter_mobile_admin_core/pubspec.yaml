@@ -11,5 +11,3 @@ dependencies:
     sdk: flutter
   sdkwork_birdcoder_flutter_mobile_core:
     path: ../sdkwork_birdcoder_flutter_mobile_core
-  sdkwork_birdcoder_flutter_mobile_backend_sdk_consumer:
-    path: ../../sdks/sdkwork_birdcoder_flutter_mobile_backend_sdk_consumer

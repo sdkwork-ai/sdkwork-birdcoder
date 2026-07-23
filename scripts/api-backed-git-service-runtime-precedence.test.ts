@@ -6,7 +6,7 @@ import {
 } from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/src/platform/tauriProjectGitRuntime.ts';
 import { ApiBackedGitService } from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/src/services/impl/ApiBackedGitService.ts';
 import { ProjectRuntimeLocationExecutionUnavailableError } from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/src/services/interfaces/IProjectRuntimeLocationService.ts';
-import type { BirdCoderAppSdkApiClient } from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/src/services/sdkClients.ts';
+import type { BirdCoderAppSdkApiClient } from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/src/services/birdCoderSdkClient.ts';
 
 const projectId = 'runtime-precedence-project';
 const runtimeLocationId = 'runtime-location-runtime-precedence';
@@ -39,15 +39,22 @@ function createRuntime<T extends object>(
 }
 
 let appSdkCalls = 0;
-const appClient = createRuntime<BirdCoderAppSdkApiClient>(async (
-  nextProjectId,
-  nextRuntimeLocationId,
-) => {
-  appSdkCalls += 1;
-  assert.equal(nextProjectId, projectId);
-  assert.equal(nextRuntimeLocationId, runtimeLocationId);
-  return overview;
-});
+const appClient = {
+  intelligence: {
+    projects: {
+      git: {
+        overview: {
+          async retrieve(nextProjectId: string, request: { runtimeLocationId: string }) {
+            appSdkCalls += 1;
+            assert.equal(nextProjectId, projectId);
+            assert.equal(request.runtimeLocationId, runtimeLocationId);
+            return overview;
+          },
+        },
+      },
+    },
+  },
+} as unknown as BirdCoderAppSdkApiClient;
 let tauriCalls = 0;
 const mountedTauriRuntime = createRuntime<TauriProjectGitRuntime>(async (nextProjectId) => {
   tauriCalls += 1;

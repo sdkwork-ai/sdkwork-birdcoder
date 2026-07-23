@@ -8,16 +8,10 @@ authors.workspace = true
 [dependencies]
 async-trait = { workspace = true }
 sqlx = { workspace = true }
-serde = { version = "1", features = ["derive"] }
 serde_json = { workspace = true }
-uuid = { workspace = true }
-time = { workspace = true }
 tokio = { workspace = true }
 sdkwork-birdcoder-workspace-service = { workspace = true }
 sdkwork-birdcoder-project-service = { workspace = true }
-sdkwork-birdcoder-deployment-service = { workspace = true }
-sdkwork-birdcoder-errors = { workspace = true }
-sdkwork-birdcoder-sqlx-repository-pool = { workspace = true }
 sdkwork_database_id = { workspace = true }
 sdkwork_database_sqlx = { workspace = true }
 sdkwork-utils-rust.workspace = true

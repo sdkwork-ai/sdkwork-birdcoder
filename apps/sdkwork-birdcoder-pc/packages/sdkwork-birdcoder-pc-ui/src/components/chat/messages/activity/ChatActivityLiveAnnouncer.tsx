@@ -1,5 +1,5 @@
 import { memo, useEffect, useMemo, useRef, useState } from 'react';
-import type { BirdCoderChatMessage } from '@sdkwork/birdcoder-pc-workbench/chat/types';
+import type { AgentSessionItemView } from '@sdkwork/birdcoder-pc-workbench/chat/types';
 import type { ChatMessageTranslate } from '../types.ts';
 import {
   buildChatCommandLifecycleSnapshot,
@@ -12,7 +12,7 @@ interface ChatActivityLiveAnnouncerProps {
   engineId?: string;
   isActive: boolean;
   isLive: boolean;
-  messages: readonly BirdCoderChatMessage[];
+  messages: readonly AgentSessionItemView[];
   sessionId: string;
   t: ChatMessageTranslate;
 }

@@ -146,7 +146,7 @@ assert.deepEqual(
 assert.deepEqual(
   projectPage.items.map((project) => ({
     archived: project.archived,
-    codingSessions: project.codingSessions,
+    agentSessions: project.agentSessions,
     id: project.id,
     name: project.name,
     workspaceId: project.workspaceId,
@@ -154,7 +154,7 @@ assert.deepEqual(
   [
     {
       archived: false,
-      codingSessions: [],
+      agentSessions: [],
       id: remoteProjectSummary.id,
       name: remoteProjectSummary.name,
       workspaceId: remoteProjectSummary.workspaceId,

@@ -1,6 +1,6 @@
 import type {
   AppTab,
-  BirdCoderCodingSession,
+  AgentSessionView,
   BirdCoderProject,
   IWorkspace,
 } from '@sdkwork/birdcoder-pc-contracts-commons';
@@ -22,7 +22,7 @@ export interface WorkbenchRecoverySnapshot {
   activeTab: AppTab;
   activeWorkspaceId: string;
   activeProjectId: string;
-  activeCodingSessionId: string;
+  activeAgentSessionId: string;
   updatedAt: string;
   cleanExit: boolean;
 }
@@ -36,17 +36,17 @@ export interface ResolveStartupProjectIdOptions {
   workspaceId: string;
   projects: ReadonlyArray<
     Pick<BirdCoderProject, 'id' | 'workspaceId'> & {
-      codingSessions?: ReadonlyArray<Pick<BirdCoderCodingSession, 'id'>>;
+      agentSessions?: ReadonlyArray<Pick<AgentSessionView, 'id'>>;
     }
   >;
   recoverySnapshot: WorkbenchRecoverySnapshot;
 }
 
-export interface ResolveStartupCodingSessionIdOptions {
+export interface ResolveStartupAgentSessionIdOptions {
   projectId: string;
   projects: ReadonlyArray<
     Pick<BirdCoderProject, 'id'> & {
-      codingSessions: ReadonlyArray<Pick<BirdCoderCodingSession, 'id'>>;
+      agentSessions: ReadonlyArray<Pick<AgentSessionView, 'id'>>;
     }
   >;
   recoverySnapshot: WorkbenchRecoverySnapshot;
@@ -56,17 +56,17 @@ export interface BuildWorkbenchRecoveryAnnouncementOptions {
   recoverySnapshot: WorkbenchRecoverySnapshot;
   activeWorkspaceId: string;
   activeProjectId: string;
-  activeCodingSessionId: string;
+  activeAgentSessionId: string;
 }
 
 export interface ResolveWorkbenchRecoveryPersistenceSelectionOptions {
   currentWorkspaceId: string | null | undefined;
   currentProjectId: string | null | undefined;
-  currentCodingSessionId: string | null | undefined;
+  currentAgentSessionId: string | null | undefined;
   fallbackSnapshot?:
     | Pick<
         WorkbenchRecoverySnapshot,
-        'activeWorkspaceId' | 'activeProjectId' | 'activeCodingSessionId'
+        'activeWorkspaceId' | 'activeProjectId' | 'activeAgentSessionId'
       >
     | null
     | undefined;
@@ -84,7 +84,7 @@ export const DEFAULT_WORKBENCH_RECOVERY_SNAPSHOT: WorkbenchRecoverySnapshot = {
   activeTab: 'code',
   activeWorkspaceId: '',
   activeProjectId: '',
-  activeCodingSessionId: '',
+  activeAgentSessionId: '',
   updatedAt: ZERO_TIMESTAMP,
   cleanExit: true,
 };
@@ -125,24 +125,24 @@ function hasProjectId(
   return projects.some((project) => project.id === projectId);
 }
 
-function hasCodingSessionId(
-  codingSessions: ReadonlyArray<Pick<BirdCoderCodingSession, 'id'>>,
-  codingSessionId: string,
+function hasAgentSessionId(
+  agentSessions: ReadonlyArray<Pick<AgentSessionView, 'id'>>,
+  agentSessionId: string,
 ): boolean {
-  return codingSessions.some((codingSession) => codingSession.id === codingSessionId);
+  return agentSessions.some((agentSession) => agentSession.id === agentSessionId);
 }
 
-function findUniqueProjectByCodingSessionId(
+function findUniqueProjectByAgentSessionId(
   projects: ReadonlyArray<
     Pick<BirdCoderProject, 'id'> & {
-      codingSessions?: ReadonlyArray<Pick<BirdCoderCodingSession, 'id'>>;
+      agentSessions?: ReadonlyArray<Pick<AgentSessionView, 'id'>>;
     }
   >,
-  codingSessionId: string,
+  agentSessionId: string,
 ): Pick<BirdCoderProject, 'id'> | null {
   let matchedProject: Pick<BirdCoderProject, 'id'> | null = null;
   for (const project of projects) {
-    if (!hasCodingSessionId(project.codingSessions ?? [], codingSessionId)) {
+    if (!hasAgentSessionId(project.agentSessions ?? [], agentSessionId)) {
       continue;
     }
 
@@ -168,7 +168,7 @@ export function normalizeWorkbenchRecoverySnapshot(value: unknown): WorkbenchRec
     activeTab: normalizeActiveTab(snapshot.activeTab),
     activeWorkspaceId: normalizeIdentifier(snapshot.activeWorkspaceId),
     activeProjectId: normalizeIdentifier(snapshot.activeProjectId),
-    activeCodingSessionId: normalizeIdentifier(snapshot.activeCodingSessionId),
+    activeAgentSessionId: normalizeIdentifier(snapshot.activeAgentSessionId),
     updatedAt: normalizeTimestamp(snapshot.updatedAt),
     cleanExit: snapshot.cleanExit !== false,
   };
@@ -215,15 +215,15 @@ export function resolveWorkbenchRecoveryPersistenceSelection(
   options: ResolveWorkbenchRecoveryPersistenceSelectionOptions,
 ): Pick<
   WorkbenchRecoverySnapshot,
-  'activeWorkspaceId' | 'activeProjectId' | 'activeCodingSessionId'
+  'activeWorkspaceId' | 'activeProjectId' | 'activeAgentSessionId'
 > {
   const currentWorkspaceId = normalizeIdentifier(options.currentWorkspaceId);
   const currentProjectId = normalizeIdentifier(options.currentProjectId);
-  const currentCodingSessionId = normalizeIdentifier(options.currentCodingSessionId);
+  const currentAgentSessionId = normalizeIdentifier(options.currentAgentSessionId);
   const fallbackWorkspaceId = normalizeIdentifier(options.fallbackSnapshot?.activeWorkspaceId);
   const fallbackProjectId = normalizeIdentifier(options.fallbackSnapshot?.activeProjectId);
-  const fallbackCodingSessionId = normalizeIdentifier(
-    options.fallbackSnapshot?.activeCodingSessionId,
+  const fallbackAgentSessionId = normalizeIdentifier(
+    options.fallbackSnapshot?.activeAgentSessionId,
   );
   const workspacesReady = options.hasWorkspacesFetched;
   const projectsReady = workspacesReady && (!currentWorkspaceId || options.hasProjectsFetched);
@@ -231,9 +231,9 @@ export function resolveWorkbenchRecoveryPersistenceSelection(
   return {
     activeWorkspaceId: workspacesReady ? currentWorkspaceId : fallbackWorkspaceId,
     activeProjectId: projectsReady ? currentProjectId : fallbackProjectId,
-    activeCodingSessionId: projectsReady
-      ? currentCodingSessionId
-      : fallbackCodingSessionId,
+    activeAgentSessionId: projectsReady
+      ? currentAgentSessionId
+      : fallbackAgentSessionId,
   };
 }
 
@@ -261,34 +261,34 @@ export function resolveStartupProjectId(
     return recoveryProjectId;
   }
 
-  const recoveryCodingSessionId = options.recoverySnapshot.activeCodingSessionId;
-  if (recoveryCodingSessionId) {
-    const recoveryProjectByCodingSession = findUniqueProjectByCodingSessionId(
+  const recoveryAgentSessionId = options.recoverySnapshot.activeAgentSessionId;
+  if (recoveryAgentSessionId) {
+    const recoveryProjectByAgentSession = findUniqueProjectByAgentSessionId(
       scopedProjects,
-      recoveryCodingSessionId,
+      recoveryAgentSessionId,
     );
-    if (recoveryProjectByCodingSession) {
-      return recoveryProjectByCodingSession.id;
+    if (recoveryProjectByAgentSession) {
+      return recoveryProjectByAgentSession.id;
     }
   }
 
   return scopedProjects[0]?.id ?? '';
 }
 
-export function resolveStartupCodingSessionId(
-  options: ResolveStartupCodingSessionIdOptions,
+export function resolveStartupAgentSessionId(
+  options: ResolveStartupAgentSessionIdOptions,
 ): string {
-  const scopedCodingSessions =
-    options.projects.find((project) => project.id === options.projectId)?.codingSessions ?? [];
-  const recoveryCodingSessionId = options.recoverySnapshot.activeCodingSessionId;
+  const scopedAgentSessions =
+    options.projects.find((project) => project.id === options.projectId)?.agentSessions ?? [];
+  const recoveryAgentSessionId = options.recoverySnapshot.activeAgentSessionId;
   if (
-    recoveryCodingSessionId &&
-    hasCodingSessionId(scopedCodingSessions, recoveryCodingSessionId)
+    recoveryAgentSessionId &&
+    hasAgentSessionId(scopedAgentSessions, recoveryAgentSessionId)
   ) {
-    return recoveryCodingSessionId;
+    return recoveryAgentSessionId;
   }
 
-  return scopedCodingSessions[0]?.id ?? '';
+  return scopedAgentSessions[0]?.id ?? '';
 }
 
 export function buildWorkbenchRecoveryAnnouncement(
@@ -298,7 +298,7 @@ export function buildWorkbenchRecoveryAnnouncement(
     return null;
   }
 
-  if (normalizeIdentifier(options.activeCodingSessionId)) {
+  if (normalizeIdentifier(options.activeAgentSessionId)) {
     return 'Recovered previous coding session after the last unexpected shutdown.';
   }
 
@@ -323,7 +323,7 @@ export function recoverySnapshotsEqual(
     left.activeTab === right.activeTab &&
     left.activeWorkspaceId === right.activeWorkspaceId &&
     left.activeProjectId === right.activeProjectId &&
-    left.activeCodingSessionId === right.activeCodingSessionId &&
+    left.activeAgentSessionId === right.activeAgentSessionId &&
     left.cleanExit === right.cleanExit
   );
 }

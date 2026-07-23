@@ -7,8 +7,8 @@ import {
   type SetStateAction,
 } from 'react';
 import {
-  buildCodingSessionProjectScopedKey,
-  buildProjectCodingSessionIndex,
+  buildAgentSessionProjectScopedKey,
+  buildProjectAgentSessionIndex,
   buildTerminalProfileBlockedMessage,
   emitOpenTerminalRequest,
   getDefaultRunConfigurations,
@@ -16,7 +16,7 @@ import {
   getResolvedProjectRuntimeLocationWorkingDirectory,
   globalEventBus,
   resolveRunConfigurationTerminalLaunch,
-  type BirdCoderProjectCodingSessionIndex,
+  type BirdCoderProjectAgentSessionIndex,
   type RunConfigurationRecord,
   type ProjectRuntimeLocationResolver,
   type TerminalCommandRequest,
@@ -33,9 +33,9 @@ interface UseStudioWorkbenchEventBindingsOptions {
   projectsRef: MutableRefObject<BirdCoderProject[]>;
   resolveProjectRuntimeLocation: ProjectRuntimeLocationResolver;
   runConfigurationsRef: MutableRefObject<RunConfigurationRecord[]>;
-  selectedCodingSessionIdRef: MutableRefObject<string>;
-  selectCodingSessionRef: MutableRefObject<
-    (nextCodingSessionId: string, options?: { projectId?: string }) => void
+  selectedAgentSessionIdRef: MutableRefObject<string>;
+  selectAgentSessionRef: MutableRefObject<
+    (nextAgentSessionId: string, options?: { projectId?: string }) => void
   >;
   flushPendingAutosave: () => Promise<void>;
   setIsDebugConfigVisible: Dispatch<SetStateAction<boolean>>;
@@ -56,8 +56,8 @@ export function useStudioWorkbenchEventBindings({
   projectsRef,
   resolveProjectRuntimeLocation,
   runConfigurationsRef,
-  selectedCodingSessionIdRef,
-  selectCodingSessionRef,
+  selectedAgentSessionIdRef,
+  selectAgentSessionRef,
   flushPendingAutosave,
   setIsDebugConfigVisible,
   setIsFindVisible,
@@ -68,8 +68,8 @@ export function useStudioWorkbenchEventBindings({
   setTerminalRequest,
   t,
 }: UseStudioWorkbenchEventBindingsOptions) {
-  const projectCodingSessionIndexProjectsRef = useRef(projectsRef.current);
-  const projectCodingSessionIndexRef = useRef<BirdCoderProjectCodingSessionIndex | null>(null);
+  const projectAgentSessionIndexProjectsRef = useRef(projectsRef.current);
+  const projectAgentSessionIndexRef = useRef<BirdCoderProjectAgentSessionIndex | null>(null);
   const flushPendingAutosaveRef = useRef(flushPendingAutosave);
   const resolveProjectRuntimeLocationRef = useRef(resolveProjectRuntimeLocation);
 
@@ -87,16 +87,16 @@ export function useStudioWorkbenchEventBindings({
     resolveProjectRuntimeLocationRef.current = resolveProjectRuntimeLocation;
   }, [resolveProjectRuntimeLocation]);
 
-  const resolveProjectCodingSessionIndex = useCallback(() => {
+  const resolveProjectAgentSessionIndex = useCallback(() => {
     if (
-      projectCodingSessionIndexProjectsRef.current !== projectsRef.current ||
-      !projectCodingSessionIndexRef.current
+      projectAgentSessionIndexProjectsRef.current !== projectsRef.current ||
+      !projectAgentSessionIndexRef.current
     ) {
-      projectCodingSessionIndexProjectsRef.current = projectsRef.current;
-      projectCodingSessionIndexRef.current = buildProjectCodingSessionIndex(projectsRef.current);
+      projectAgentSessionIndexProjectsRef.current = projectsRef.current;
+      projectAgentSessionIndexRef.current = buildProjectAgentSessionIndex(projectsRef.current);
     }
 
-    return projectCodingSessionIndexRef.current;
+    return projectAgentSessionIndexRef.current;
   }, [projectsRef]);
 
   useEffect(() => {
@@ -136,41 +136,41 @@ export function useStudioWorkbenchEventBindings({
     const handleSaveAllFiles = () => {
       savePendingFileChanges(t('studio.allFilesSaved'));
     };
-    const handlePreviousCodingSession = () => {
-      const activeCodingSessionId = selectedCodingSessionIdRef.current;
-      if (!activeCodingSessionId) {
+    const handlePreviousAgentSession = () => {
+      const activeAgentSessionId = selectedAgentSessionIdRef.current;
+      if (!activeAgentSessionId) {
         return;
       }
 
       const activeProjectId = currentProjectIdRef.current;
-      const previousCodingSessionReference =
+      const previousAgentSessionReference =
         activeProjectId
-          ? resolveProjectCodingSessionIndex().previousCodingSessionReferenceByProjectIdAndId.get(
-              buildCodingSessionProjectScopedKey(activeProjectId, activeCodingSessionId),
+          ? resolveProjectAgentSessionIndex().previousAgentSessionReferenceByProjectIdAndId.get(
+              buildAgentSessionProjectScopedKey(activeProjectId, activeAgentSessionId),
             ) ?? null
           : null;
-      if (previousCodingSessionReference) {
-        selectCodingSessionRef.current(previousCodingSessionReference.codingSessionId, {
-          projectId: previousCodingSessionReference.projectId,
+      if (previousAgentSessionReference) {
+        selectAgentSessionRef.current(previousAgentSessionReference.agentSessionId, {
+          projectId: previousAgentSessionReference.projectId,
         });
       }
     };
-    const handleNextCodingSession = () => {
-      const activeCodingSessionId = selectedCodingSessionIdRef.current;
-      if (!activeCodingSessionId) {
+    const handleNextAgentSession = () => {
+      const activeAgentSessionId = selectedAgentSessionIdRef.current;
+      if (!activeAgentSessionId) {
         return;
       }
 
       const activeProjectId = currentProjectIdRef.current;
-      const nextCodingSessionReference =
+      const nextAgentSessionReference =
         activeProjectId
-          ? resolveProjectCodingSessionIndex().nextCodingSessionReferenceByProjectIdAndId.get(
-              buildCodingSessionProjectScopedKey(activeProjectId, activeCodingSessionId),
+          ? resolveProjectAgentSessionIndex().nextAgentSessionReferenceByProjectIdAndId.get(
+              buildAgentSessionProjectScopedKey(activeProjectId, activeAgentSessionId),
             ) ?? null
           : null;
-      if (nextCodingSessionReference) {
-        selectCodingSessionRef.current(nextCodingSessionReference.codingSessionId, {
-          projectId: nextCodingSessionReference.projectId,
+      if (nextAgentSessionReference) {
+        selectAgentSessionRef.current(nextAgentSessionReference.agentSessionId, {
+          projectId: nextAgentSessionReference.projectId,
         });
       }
     };
@@ -248,8 +248,8 @@ export function useStudioWorkbenchEventBindings({
     globalEventBus.on('terminalRequest', handleTerminalRequest);
     globalEventBus.on('saveActiveFile', handleSaveActiveFile);
     globalEventBus.on('saveAllFiles', handleSaveAllFiles);
-    globalEventBus.on('previousCodingSession', handlePreviousCodingSession);
-    globalEventBus.on('nextCodingSession', handleNextCodingSession);
+    globalEventBus.on('previousAgentSession', handlePreviousAgentSession);
+    globalEventBus.on('nextAgentSession', handleNextAgentSession);
     globalEventBus.on('runTask', handleRunTask);
     globalEventBus.on('startDebugging', handleStartDebugging);
     globalEventBus.on('runWithoutDebugging', handleRunWithoutDebugging);
@@ -264,8 +264,8 @@ export function useStudioWorkbenchEventBindings({
       globalEventBus.off('terminalRequest', handleTerminalRequest);
       globalEventBus.off('saveActiveFile', handleSaveActiveFile);
       globalEventBus.off('saveAllFiles', handleSaveAllFiles);
-      globalEventBus.off('previousCodingSession', handlePreviousCodingSession);
-      globalEventBus.off('nextCodingSession', handleNextCodingSession);
+      globalEventBus.off('previousAgentSession', handlePreviousAgentSession);
+      globalEventBus.off('nextAgentSession', handleNextAgentSession);
       globalEventBus.off('runTask', handleRunTask);
       globalEventBus.off('startDebugging', handleStartDebugging);
       globalEventBus.off('runWithoutDebugging', handleRunWithoutDebugging);
@@ -279,10 +279,10 @@ export function useStudioWorkbenchEventBindings({
     isActive,
     projectsRef,
     resolveProjectRuntimeLocationRef,
-    resolveProjectCodingSessionIndex,
+    resolveProjectAgentSessionIndex,
     runConfigurationsRef,
-    selectedCodingSessionIdRef,
-    selectCodingSessionRef,
+    selectedAgentSessionIdRef,
+    selectAgentSessionRef,
     setIsDebugConfigVisible,
     setIsFindVisible,
     setIsQuickOpenVisible,

@@ -4,25 +4,8 @@ use sdkwork_utils_rust::{
 };
 use serde::Serialize;
 
-pub const BIRDCODER_CODING_SERVER_API_VERSION: &str = "v1";
-
 pub type ApiDataEnvelope<T> = SdkWorkApiResponse<SdkWorkResourceData<T>>;
 pub type ApiListEnvelope<T> = SdkWorkApiResponse<SdkWorkPageData<T>>;
-
-#[derive(Clone, Debug, Serialize)]
-#[serde(rename_all = "camelCase")]
-pub struct ApiMeta {
-    pub version: &'static str,
-}
-
-#[derive(Clone, Debug, Serialize)]
-#[serde(rename_all = "camelCase")]
-pub struct ApiListMeta {
-    pub page: usize,
-    pub page_size: usize,
-    pub total: usize,
-    pub version: &'static str,
-}
 
 fn normalize_offset_page_size(page_size: usize) -> i64 {
     i64::try_from(page_size)

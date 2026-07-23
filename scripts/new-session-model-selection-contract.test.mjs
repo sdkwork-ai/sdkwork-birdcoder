@@ -60,7 +60,7 @@ assert.match(
 );
 assert.match(
   sidebarSource,
-  /onNewCodingSessionInProject\(selectedProjectId,\s*engineId,\s*modelId\)/,
+  /onNewAgentSessionInProject\(selectedProjectId,\s*engineId,\s*modelId\)/,
   'Project sidebar must forward modelId into project-scoped session creation.',
 );
 assert.match(

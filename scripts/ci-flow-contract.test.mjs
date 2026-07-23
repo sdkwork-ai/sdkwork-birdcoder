@@ -8,9 +8,9 @@ const rootDir = process.cwd();
 const ciWorkflow = fs
   .readFileSync(path.join(rootDir, '.github/workflows/ci.yml'), 'utf8')
   .replaceAll('\r\n', '\n');
-const nodeWrapperPath = path.join(rootDir, 'sdkwork-run-node');
-const pnpmWrapperPath = path.join(rootDir, 'sdkwork-run-pnpm');
-const rootPackageJson = JSON.parse(fs.readFileSync(path.join(rootDir, 'package.json'), 'utf8'));
+const rootPackageJson = JSON.parse(
+  fs.readFileSync(path.join(rootDir, 'package.json'), 'utf8'),
+);
 const qualityFastRunnerModule = await import(
   pathToFileURL(path.join(rootDir, 'scripts/run-quality-fast-check.mjs')).href
 );
@@ -35,384 +35,177 @@ function assertPrepareSharedSdkStepsUseGithubToken(workflowSource, workflowName)
   assert.match(
     workflowSource,
     /SDKWORK_SHARED_SDK_GITHUB_TOKEN:\s*\$\{\{\s*secrets\.SDKWORK_SHARED_SDK_GITHUB_TOKEN\s*\|\|\s*github\.token\s*\}\}/u,
-    `${workflowName} must expose a shared SDK GitHub token env with an org secret fallback before private SDK repository clones run.`,
+    `${workflowName} must expose the governed shared SDK GitHub token fallback.`,
   );
   assert.match(
     workflowSource,
     /SDKWORK_SHARED_SDK_GIT_PROTOCOL:\s*ssh/u,
-    `${workflowName} must request SSH transport for private shared SDK release sources.`,
+    `${workflowName} must request SSH transport for private shared SDK sources.`,
   );
-
-  const prepareSteps = extractWorkflowStepBlocks(workflowSource, 'Prepare shared SDK sources');
-  assert.ok(prepareSteps.length > 0, `${workflowName} must prepare shared SDK sources.`);
-
   assert.match(
     workflowSource,
     /webfactory\/ssh-agent@v[0-9]+/u,
-    `${workflowName} must configure ssh-agent before preparing private shared SDK sources.`,
+    `${workflowName} must configure ssh-agent before private SDK clones.`,
   );
   assert.match(
     workflowSource,
     /SDKWORK_SHARED_SDK_SSH_PRIVATE_KEY/u,
-    `${workflowName} must use the shared SDK SSH deploy key secret for passwordless private repository clones.`,
+    `${workflowName} must use the shared SDK deploy-key secret.`,
   );
 
+  const prepareSteps = extractWorkflowStepBlocks(workflowSource, 'Prepare shared SDK sources');
+  assert.ok(prepareSteps.length > 0, `${workflowName} must prepare shared SDK sources.`);
   for (const prepareStep of prepareSteps) {
-    assert.match(
-      prepareStep,
-      /prepare-shared-sdk-git-sources\.mjs/u,
-      `${workflowName} shared SDK preparation must use the governed git-source materializer.`,
+    assert.match(prepareStep, /prepare-shared-sdk-git-sources\.mjs/u);
+  }
+}
+
+function assertRootQualityCommandsExist(commands, label) {
+  for (const command of commands) {
+    const match = command.match(
+      /^node scripts\/run-workspace-package-script\.mjs \. ([a-z0-9:-]+)$/u,
+    );
+    assert.ok(match, `${label} contains a non-canonical root command: ${command}`);
+    assert.equal(
+      typeof rootPackageJson.scripts[match[1]],
+      'string',
+      `${label} references missing root script ${match[1]}.`,
     );
   }
 }
 
-assert.match(ciWorkflow, /concurrency:/);
-assert.match(ciWorkflow, /pnpm-lock\.yaml/);
-assert.match(ciWorkflow, /SDKWORK_SHARED_SDK_MODE:\s*git/);
-assert.equal(
-  fs.existsSync(nodeWrapperPath),
-  true,
-  'CI Linux runners need a POSIX sdkwork-run-node wrapper because package scripts invoke sdkwork-run-node without a .cmd extension.',
-);
-assert.equal(
-  fs.existsSync(pnpmWrapperPath),
-  true,
-  'CI Linux runners need a POSIX sdkwork-run-pnpm wrapper because package scripts invoke sdkwork-run-pnpm without a .cmd extension.',
-);
+assert.match(ciWorkflow, /concurrency:/u);
+assert.match(ciWorkflow, /pnpm-lock\.yaml/u);
+assert.match(ciWorkflow, /SDKWORK_SHARED_SDK_MODE:\s*git/u);
+assert.equal(fs.existsSync(path.join(rootDir, 'sdkwork-run-node')), true);
+assert.equal(fs.existsSync(path.join(rootDir, 'sdkwork-run-pnpm')), true);
 assert.match(
   ciWorkflow,
-  /Expose workspace command wrappers[\s\S]*command -v cygpath[\s\S]*chmod \+x "\$\{workspace_path\}\/sdkwork-run-node" "\$\{workspace_path\}\/sdkwork-run-pnpm"[\s\S]*printf '%s\\n' "\$GITHUB_WORKSPACE" >> "\$\{github_path_file\}"/,
-  'CI must add the checked-out workspace root to PATH before running pnpm scripts that call sdkwork-run-node or sdkwork-run-pnpm.',
+  /Expose workspace command wrappers[\s\S]*command -v cygpath[\s\S]*chmod \+x "\$\{workspace_path\}\/sdkwork-run-node" "\$\{workspace_path\}\/sdkwork-run-pnpm"[\s\S]*printf '%s\\n' "\$GITHUB_WORKSPACE" >> "\$\{github_path_file\}"/u,
+  'CI must expose the checked-in cross-platform command wrappers before pnpm scripts run.',
 );
 assert.equal(
-  ciWorkflow.match(/Expose workspace command wrappers/g)?.length ?? 0,
+  ciWorkflow.match(/Expose workspace command wrappers/gu)?.length ?? 0,
   4,
-  'CI must expose workspace command wrappers in each job that runs pnpm lifecycle scripts.',
+  'Every pnpm lifecycle job must expose the workspace command wrappers.',
 );
 assert.doesNotMatch(
   ciWorkflow,
-  /uses: pnpm\/action-setup@v4[\s\S]{0,80}version:\s*10/,
-  'CI must let pnpm/action-setup read pnpm@10.30.2 from packageManager instead of specifying a second pnpm version.',
+  /uses: pnpm\/action-setup@v4[\s\S]{0,80}version:\s*10/u,
+  'CI must read the single pnpm version authority from packageManager.',
 );
-assert.match(
-  ciWorkflow,
-  /uses:\s*dtolnay\/rust-toolchain@1\.90\.0/,
-  'CI must install the Claw-aligned Rust 1.90.0 toolchain that stabilizes release SDK builds.',
-);
-assert.doesNotMatch(
-  ciWorkflow,
-  /uses:\s*dtolnay\/rust-toolchain@1\.91\.1/,
-  'CI must not drift back to Rust 1.91.1 while the Claw release SDK build baseline is pinned to 1.90.0.',
-);
-assert.match(ciWorkflow, /prepare-shared-sdk-git-sources\.mjs/);
+assert.match(ciWorkflow, /uses:\s*dtolnay\/rust-toolchain@1\.90\.0/u);
+assert.doesNotMatch(ciWorkflow, /uses:\s*dtolnay\/rust-toolchain@1\.91\.1/u);
 assertPrepareSharedSdkStepsUseGithubToken(ciWorkflow, 'CI workflow');
-assert.match(ciWorkflow, /pnpm sdk:prepare/);
-assert.match(ciWorkflow, /pnpm lint/);
-assert.match(
-  ciWorkflow,
+
+for (const requiredPattern of [
+  /pnpm sdk:prepare/u,
+  /pnpm lint/u,
+  /pnpm check:desktop/u,
+  /pnpm check:server/u,
+  /pnpm build:server/u,
+  /pnpm docs:build/u,
+  /run-pc-playwright-e2e\.mjs/u,
+  /playwright install chromium/u,
   /Run governance regression report[\s\S]*pnpm check:governance-regression/u,
-  'CI must run the governance regression report on pull requests.',
-);
-assert.match(ciWorkflow, /run-pc-playwright-e2e\.mjs/);
-assert.match(ciWorkflow, /playwright install chromium/u);
-assert.match(ciWorkflow, /pnpm check:desktop/);
-assert.match(ciWorkflow, /pnpm check:server/);
+  /node scripts\/run-cargo\.mjs test --manifest-path apps\/sdkwork-birdcoder-pc\/packages\/sdkwork-birdcoder-pc-desktop\/src-tauri\/Cargo\.toml/u,
+]) {
+  assert.match(ciWorkflow, requiredPattern);
+}
+
 assert.match(
   ciWorkflow,
-  /node scripts\/run-cargo\.mjs test --manifest-path apps\/sdkwork-birdcoder-pc\/packages\/sdkwork-birdcoder-pc-desktop\/src-tauri\/Cargo\.toml/,
+  /postgresql-live-smoke:[\s\S]*postgres:16-alpine[\s\S]*SDKWORK_BIRDCODER_POSTGRES_TEST_URL:[\s\S]*pnpm release:smoke:postgresql-live/u,
+  'CI must run the canonical workbench repository PostgreSQL parity tests against PostgreSQL 16.',
 );
-assert.match(ciWorkflow, /pnpm build:server/);
-assert.match(
-  ciWorkflow,
-  /postgresql-live-smoke:[\s\S]*postgres:16-alpine[\s\S]*pnpm release:smoke:postgresql-live/u,
-  'CI must run PostgreSQL live smoke against a service-container PostgreSQL instance.',
-);
+assert.doesNotMatch(ciWorkflow, /BIRDCODER_POSTGRESQL_DSN:/u);
 assert.match(
   ciWorkflow,
   /mobile-surfaces:[\s\S]*pnpm typecheck:browser[\s\S]*pnpm build:browser[\s\S]*pnpm build:capacitor-android:sync[\s\S]*setup-java[\s\S]*setup-android[\s\S]*pnpm build:capacitor-android[\s\S]*pnpm check:flutter-android[\s\S]*pnpm test:flutter-android[\s\S]*h5-capacitor-native-platform-contract\.test\.mjs/u,
-  'CI must typecheck/build H5 via root runners, sync Capacitor, assemble Android debug APK, analyze/test Flutter, and run H5 Capacitor platform contracts.',
+  'CI must verify H5, Capacitor Android, and Flutter mobile surfaces.',
 );
-assert.match(ciWorkflow, /pnpm docs:build/);
+assert.match(ciWorkflow, /pnpm release:fixture:ready/u);
+assert.match(ciWorkflow, /pnpm release:candidate:dry-run/u);
 assert.match(
   ciWorkflow,
-  /pnpm release:fixture:ready/,
-  'CI must prove the finalized release readiness success path with a generated complete release fixture.',
+  /name:\s*Prove release candidate dry-run success path[\s\S]*run:\s*pnpm release:candidate:dry-run[\s\S]*name:\s*Upload release candidate dry-run evidence[\s\S]*uses:\s*actions\/upload-artifact@v4[\s\S]*name:\s*release-candidate-dry-run-evidence[\s\S]*path:\s*artifacts\/release-candidate-dry-run[\s\S]*if-no-files-found:\s*error[\s\S]*retention-days:\s*30/u,
+  'CI must retain release candidate evidence as a stable audit artifact.',
 );
-assert.match(
-  ciWorkflow,
-  /pnpm release:candidate:dry-run/,
-  'CI must prove the commercial release candidate dry-run entrypoint writes complete readiness evidence.',
-);
-assert.match(
-  ciWorkflow,
-  /name:\s*Prove release candidate dry-run success path[\s\S]*run:\s*pnpm release:candidate:dry-run[\s\S]*name:\s*Upload release candidate dry-run evidence[\s\S]*uses:\s*actions\/upload-artifact@v4[\s\S]*name:\s*release-candidate-dry-run-evidence[\s\S]*path:\s*artifacts\/release-candidate-dry-run[\s\S]*if-no-files-found:\s*error[\s\S]*retention-days:\s*30/,
-  'CI must upload the release candidate dry-run evidence directory as a stable audit artifact.',
-);
-assert.match(ciWorkflow, /libgbm-dev/);
-assert.match(ciWorkflow, /libpipewire-0\.3-dev/);
-assert.match(ciWorkflow, /desktop-rust-windows:/);
+assert.match(ciWorkflow, /libgbm-dev/u);
+assert.match(ciWorkflow, /libpipewire-0\.3-dev/u);
+assert.match(ciWorkflow, /desktop-rust-windows:/u);
 assert.equal(
   fs.existsSync(path.join(rootDir, '.github/workflows/user-center-upstream-sync.yml')),
   false,
-  'BirdCoder CI governance must not keep the retired user-center upstream sync workflow.',
 );
 
 assert.equal(rootPackageJson.scripts.typecheck, 'node scripts/run-local-typescript.mjs --noEmit');
-assert.equal(rootPackageJson.scripts['check:quality-matrix'], 'node scripts/quality-gate-matrix-contract.test.mjs');
-assert.equal(rootPackageJson.scripts['check:quality-report'], 'node scripts/quality-gate-matrix-report.mjs');
-assert.equal(rootPackageJson.scripts['check:quality:fast'], rootPackageJson.scripts.lint);
 assert.equal(rootPackageJson.scripts.lint, 'node scripts/run-quality-fast-check.mjs');
-assert.equal(rootPackageJson.scripts['check:quality:standard'], 'node scripts/run-quality-standard-check.mjs');
-assert.equal(rootPackageJson.scripts['check:quality:release'], 'node scripts/run-quality-release-check.mjs');
+assert.equal(rootPackageJson.scripts['check:quality:fast'], rootPackageJson.scripts.lint);
+assert.equal(
+  rootPackageJson.scripts['check:quality:standard'],
+  'node scripts/run-quality-standard-check.mjs',
+);
+assert.equal(
+  rootPackageJson.scripts['check:quality:release'],
+  'node scripts/run-quality-release-check.mjs',
+);
+assert.equal(
+  rootPackageJson.scripts['check:quality-matrix'],
+  'node scripts/quality-gate-matrix-contract.test.mjs',
+);
+assert.equal(
+  rootPackageJson.scripts['check:quality-report'],
+  'node scripts/quality-gate-matrix-report.mjs',
+);
 assert.equal(
   rootPackageJson.scripts['release:fixture:ready'],
   'node scripts/release/write-readiness-fixture.mjs',
-  'Root scripts must expose the complete release readiness fixture generator as a first-class CI command.',
 );
 assert.equal(
   rootPackageJson.scripts['release:candidate:dry-run'],
   'node scripts/release/candidate-dry-run.mjs',
-  'Root scripts must expose the release candidate dry-run evidence generator as a first-class CI command.',
 );
 assert.equal(
-  rootPackageJson.scripts['test:react-syntax-highlighter-types-contract'],
-  'node scripts/react-syntax-highlighter-types-contract.test.mjs',
-);
-assert.equal(
-  rootPackageJson.scripts['test:prompt-service-contract'],
-  'node scripts/prompt-service-contract.test.mjs',
-);
-assert.equal(
-  rootPackageJson.scripts['test:coding-session-prompt-history-persistence-contract'],
-  'node --experimental-strip-types scripts/coding-session-prompt-history-persistence-contract.test.ts',
-);
-assert.equal(
-  rootPackageJson.scripts['test:user-center-standard'],
-  undefined,
-  'BirdCoder CI governance must not expose the retired user-center standard runner.',
-);
-assert.equal(
-  rootPackageJson.scripts['check:auth-session-standard'],
-  'node scripts/auth-bootstrap-gating-contract.test.mjs && node scripts/auth-gate-provider-order-contract.test.mjs && node scripts/auth-required-tab-navigation-contract.test.mjs && node scripts/auth-workspace-loading-gating-contract.test.mjs && node scripts/auth-bootstrap-stale-current-user-guard-contract.test.mjs && node scripts/run-local-tsx.mjs scripts/auth-user-identity-contract.test.ts && node scripts/auth-surface-successful-login-adoption-contract.test.mjs && node scripts/run-local-tsx-contract.test.mjs && node scripts/run-local-tsx.mjs scripts/runtime-server-session-persistence-contract.test.ts && node scripts/runtime-server-session-token-manager-contract.test.mjs && node scripts/run-local-tsx.mjs scripts/app-sdk-session-unauthorized-boundary-contract.test.ts && node scripts/app-session-persistence-port-contract.test.mjs && node scripts/run-local-tsx.mjs scripts/app-session-retention-contract.test.ts && node scripts/run-local-tsx.mjs scripts/runtime-auth-unbound-profile-preserves-session-contract.test.ts && node scripts/pc-root-bootstrap-contract.test.mjs && node scripts/h5-root-bootstrap-contract.test.mjs && node scripts/h5-app-command-runner-contract.test.mjs && node scripts/h5-route-assembly-contract.test.mjs && node scripts/h5-architecture-boundary-contract.test.mjs && node scripts/h5-sdk-assembly-contract.test.mjs && node scripts/h5-host-adapter-contract.test.mjs && node scripts/h5-capacitor-preferences-contract.test.mjs && node scripts/h5-capacitor-config-ownership-contract.test.mjs && node scripts/h5-app-session-persistence-contract.test.mjs && node scripts/flutter-mobile-root-bootstrap-contract.test.mjs && node scripts/flutter-mobile-auth-surface-contract.test.mjs && node scripts/flutter-mobile-deep-link-auth-contract.test.mjs && node scripts/flutter-mobile-host-config-contract.test.mjs && node scripts/flutter-mobile-native-platform-contract.test.mjs && node scripts/flutter-iam-session-storage-contract.test.mjs && node scripts/flutter-admin-sdk-boundary-contract.test.mjs && node scripts/flutter-mobile-product-parity-contract.test.mjs && node scripts/flutter-mobile-android-release-signing-contract.test.mjs && node scripts/flutter-sdk-assembly-contract.test.mjs && node scripts/flutter-mobile-sdk-generation-contract.test.mjs && node scripts/flutter-mobile-command-runner-contract.test.mjs && node scripts/h5-capacitor-deep-link-auth-contract.test.mjs && node scripts/h5-capacitor-native-platform-contract.test.mjs && node scripts/pc-e2e-standard-contract.test.mjs',
-  'Root quality scripts must expose non-blocking SDKWork IAM auth bootstrap, urgent auth-required navigation, authenticated workspace loading gates, stale current-user guards, canonical auth user identity matching, IAM auth surface adoption, durable runtime session persistence, and PC/H5/Flutter root bootstrap delegation as one first-class standard.',
-);
-assert.equal(
-  rootPackageJson.scripts['check:terminal-surface-standard'],
-  'node scripts/terminal-request-surface-contract.test.mjs && node scripts/app-terminal-request-focus-contract.test.mjs && node scripts/code-topbar-terminal-default-path-contract.test.mjs && node scripts/code-terminal-panel-close-contract.test.mjs && node scripts/terminal-browser-runtime-contract.test.mjs && node scripts/run-local-tsx.mjs scripts/project-runtime-location-resolver-contract.test.ts && node scripts/run-local-tsx.mjs scripts/tauri-desktop-runtime-location-identity-contract.test.ts && node scripts/run-local-tsx.mjs scripts/composed-sdk-project-runtime-location-registration-contract.test.ts && node scripts/run-local-tsx.mjs scripts/terminal-governance-runtime-contract.test.ts',
-  'Root quality scripts must expose workspace-vs-embedded terminal routing, forced Terminal focus, topbar default paths, embedded terminal close behavior, browser runtime boundaries, durable desktop runtime-location resolution and identity registration, and executable command-governance enforcement as one first-class standard.',
-);
-assert.equal(
-  rootPackageJson.scripts['check:universal-chat-scroll'],
-  'node --experimental-strip-types scripts/universal-chat-scroll-behavior-contract.test.ts && node --experimental-strip-types scripts/universal-chat-scroll-ownership-contract.test.ts && node scripts/universal-chat-scroll-ownership-source-contract.test.mjs && node scripts/universal-chat-scroll-performance-contract.test.mjs && node scripts/universal-chat-transcript-performance-contract.test.mjs && node scripts/transcript-scroll-gating-performance-contract.test.mjs && node scripts/transcript-top-load-contract.test.mjs && node --experimental-strip-types scripts/transcript-pagination-contract.test.ts && node scripts/transcript-observer-pruning-performance-contract.test.mjs && node --experimental-strip-types scripts/transcript-prefix-cache-performance-contract.test.ts && node --experimental-strip-types scripts/transcript-virtualization-runtime-contract.test.ts',
-  'Root quality scripts must expose chat transcript scroll ownership, mount stability, overflow gating, observer pruning, prefix caching, and virtualization runtime behavior as one first-class standard.',
-);
-assert.equal(
-  rootPackageJson.scripts['check:workbench-activity-performance'],
-  'node scripts/hidden-workbench-activity-gating-contract.test.mjs && node scripts/hidden-workbench-sidebar-refresh-performance-contract.test.mjs && node scripts/app-main-body-tab-switch-performance-contract.test.mjs && node scripts/app-shell-startup-lazy-load-contract.test.mjs && node scripts/app-surface-error-isolation-contract.test.mjs && node scripts/startup-nonblocking-contract.test.mjs && node scripts/persisted-state-nonblocking-contract.test.mjs && node scripts/persisted-state-live-sync-contract.test.mjs && node --experimental-strip-types scripts/server-base-url-bootstrap-contract.test.ts && node --experimental-strip-types scripts/server-api-ready-bootstrap-contract.test.ts && node scripts/shell-runtime-bootstrap-concurrency-contract.test.mjs && node scripts/shell-user-bootstrap-resilience-contract.test.mjs && node scripts/workbench-preferences-performance-contract.test.mjs && node scripts/toast-provider-lifecycle-performance-contract.test.mjs && node scripts/copy-feedback-timer-lifecycle-contract.test.mjs && node scripts/workbench-save-command-contract.test.mjs',
-  'Root quality scripts must expose persistent workbench activity gating, sidebar refresh gating, tab switch, startup lazy-load, startup nonblocking, persisted state failure isolation, startup server base URL fallback, startup API readiness path-prefix safety, startup bootstrap concurrency, shell user-state bootstrap resilience, preference performance behavior, toast lifecycle performance, and copy feedback timer lifecycle performance as one first-class performance standard.',
-);
-assert.equal(
-  rootPackageJson.scripts['check:universal-chat-rendering-performance'],
-  'node scripts/universal-chat-inactive-gating-performance-contract.test.mjs && node scripts/universal-chat-row-animation-performance-contract.test.mjs && node scripts/transcript-inactive-measurement-gating-contract.test.mjs && node scripts/universal-chat-folder-upload-performance-contract.test.mjs && node --experimental-strip-types scripts/chat-markdown-rendering-performance-contract.test.ts && node --experimental-strip-types scripts/universal-chat-capability-message-display-contract.test.ts && node scripts/universal-chat-activity-summary-contract.test.mjs && node scripts/universal-chat-task-progress-contract.test.mjs && node --experimental-strip-types scripts/chat-message-view-contract.test.ts && node --experimental-strip-types scripts/chat-message-projection-contract.test.ts && node --experimental-strip-types scripts/chat-message-renderer-registry-contract.test.ts && node --experimental-strip-types scripts/chat-message-renderer-contract.test.ts && node --experimental-strip-types scripts/chat-message-tool-calls-contract.test.ts && node scripts/run-local-tsx.mjs scripts/chat-client-contracts-alignment-contract.test.ts && node scripts/universal-chat-copy-target-laziness-performance-contract.test.mjs',
-  'Root quality scripts must expose UniversalChat inactive gating, no per-row animation churn, inactive transcript measurement gating, bounded attachment uploads, oversized markdown rendering avoidance, capability message display, and professional activity summaries as one first-class rendering standard.',
-);
-assert.equal(
-  rootPackageJson.scripts['check:project-explorer-hover-stability'],
-  'node scripts/project-explorer-scrollbar-contract.test.mjs && node scripts/sidebar-row-animation-performance-contract.test.mjs && node scripts/sidebar-inventory-memo-contract.test.mjs && node scripts/sidebar-session-expansion-performance-contract.test.mjs && node scripts/sidebar-chronological-lazy-performance-contract.test.mjs',
-  'Root quality scripts must guard project/sidebar row hover geometry, per-row animation stability, sidebar inventory memoization, session expansion, and chronological lazy loading performance as one first-class standard.',
-);
-assert.equal(
-  rootPackageJson.scripts['check:code-page-componentization'],
-  'node scripts/code-page-componentization-contract.test.mjs && node scripts/code-tab-switch-performance-contract.test.mjs && node scripts/code-main-chat-width-stability-contract.test.mjs && node scripts/code-workspace-overlays-performance-contract.test.mjs && node scripts/quick-open-search-scheduling-performance-contract.test.mjs',
-  'Root quality scripts must keep Code view composition, tab switching, main chat width stability, workspace overlay search scheduling, and quick-open performance covered by one first-class standard.',
-);
-assert.equal(
-  rootPackageJson.scripts['check:code-active-surface-performance'],
-  'node scripts/code-active-surface-memo-contract.test.mjs && node scripts/code-sidebar-callback-stability-contract.test.mjs',
-  'Root quality scripts must expose Code active-surface memoization and sidebar callback identity stability as one first-class performance standard.',
-);
-assert.equal(
-  rootPackageJson.scripts['check:file-explorer-rendering-performance'],
-  'node scripts/file-explorer-inactive-gating-performance-contract.test.mjs && node scripts/file-explorer-node-render-performance-contract.test.mjs && node scripts/file-explorer-search-performance-contract.test.mjs && node scripts/file-explorer-search-scheduling-performance-contract.test.mjs',
-  'Root quality scripts must expose FileExplorer inactive gating, no per-node animation churn, and nonblocking scheduled search as one first-class rendering standard.',
-);
-assert.equal(
-  rootPackageJson.scripts['check:file-system-boundary'],
-  'node scripts/page-file-system-boundary-contract.test.mjs && node scripts/file-system-root-create-contract.test.mjs && node scripts/browser-mounted-binary-rename-contract.test.mjs && node --experimental-strip-types scripts/file-system-request-guard-contract.test.ts && node --experimental-strip-types scripts/file-selection-mutation-contract.test.ts && node --experimental-strip-types scripts/file-search-runtime-contract.test.ts && node scripts/runtime-file-search-snapshot-cache-performance-contract.test.mjs && node scripts/file-system-poller-timeout-performance-contract.test.mjs && node scripts/file-system-loaded-directory-index-performance-contract.test.mjs && node scripts/file-system-hook-tree-index-performance-contract.test.mjs && node --experimental-strip-types scripts/mock-file-system-search-contract.test.ts && node --experimental-strip-types scripts/project-mount-recovery-contract.test.ts && node scripts/run-local-tsx.mjs scripts/project-device-mount-subject-isolation-contract.test.ts && node --experimental-strip-types scripts/local-folder-project-import-contract.test.ts && node --experimental-strip-types scripts/code-local-folder-import-workspace-contract.test.ts',
-  'Root quality scripts must expose file-system boundaries, request guards, search runtime, snapshot cache, timeout-based polling, service and hook loaded-directory indexing, subject-isolated device mount recovery, and local-folder import behavior as one first-class file-system performance standard.',
-);
-assert.equal(
-  rootPackageJson.scripts['check:workbench-session-standard'],
-  'node scripts/code-new-session-transcript-reset-contract.test.mjs && node scripts/coding-session-creation-standardization-contract.test.mjs && node scripts/workbench-coding-session-creation-actions-contract.test.mjs && node scripts/selected-session-hydration-loading-contract.test.mjs && node scripts/run-local-tsx.mjs scripts/selected-session-authority-snapshot-contract.test.ts && pnpm exec vitest run scripts/selected-session-authority-snapshot-runtime.test.tsx --config apps/sdkwork-birdcoder-pc/vite.config.ts && node scripts/run-local-tsx.mjs scripts/selected-session-native-authority-hydration-contract.test.ts && node scripts/app-session-inventory-refresh-contract.test.mjs && node --experimental-strip-types scripts/project-mirror-snapshot-authoritative-sessions-contract.test.ts && node scripts/run-local-tsx.mjs scripts/coding-session-stale-runtime-status-startup-contract.test.ts && node scripts/run-local-tsx.mjs scripts/selected-session-stale-project-refresh-contract.test.ts && node scripts/run-local-tsx.mjs scripts/selected-session-user-scope-refresh-contract.test.ts && node scripts/run-local-tsx.mjs scripts/selected-session-location-mirror-performance-contract.test.ts && node scripts/run-local-tsx.mjs scripts/selected-session-local-transcript-hydration-contract.test.ts && node scripts/run-local-tsx.mjs scripts/selected-session-api-backed-local-transcript-contract.test.ts && node scripts/run-local-tsx.mjs scripts/session-refresh-timeout-contract.test.ts && node scripts/run-local-tsx.mjs scripts/workbench-recovery-user-scope-contract.test.ts && node scripts/run-local-tsx.mjs scripts/workspace-effective-selection-contract.test.ts',
-);
-assert.equal(
-  rootPackageJson.scripts['check:project-inventory-standard'],
-  'node scripts/project-inventory-mirror-snapshot-contract.test.mjs && node scripts/projects-pagination-store-isolation-contract.test.mjs && node scripts/workspaces-pagination-error-contract.test.mjs && node --experimental-strip-types scripts/project-mirror-snapshot-syncs-authority-project-contract.test.ts && node --experimental-strip-types scripts/session-inventory-native-session-id-contract.test.ts && node scripts/projects-inventory-lazy-transcript-contract.test.mjs && node scripts/projects-store-message-reuse-contract.test.mjs && node --experimental-strip-types scripts/projects-store-identity-deduplication-contract.test.ts && node scripts/run-local-tsx.mjs scripts/workspace-store-identity-deduplication-contract.test.ts && node --experimental-strip-types scripts/project-inventory-render-identity-contract.test.ts && node scripts/projects-store-nonblocking-contract.test.mjs && node --experimental-strip-types scripts/workspace-project-loading-timeout-contract.test.ts && node scripts/run-local-tsx.mjs scripts/workspace-realtime-client-resilience-contract.test.ts && node scripts/run-local-tsx.mjs scripts/workspace-realtime-browser-auth-contract.test.ts && node scripts/workspace-realtime-subscriber-limit-contract.test.mjs && node scripts/project-refresh-cache-bypass-contract.test.mjs && node scripts/use-projects-search-performance-contract.test.mjs && node scripts/api-backed-project-service-parallel-mirror-contract.test.mjs && node --experimental-strip-types scripts/api-backed-project-service-session-mirror-fallback-contract.test.ts && node --experimental-strip-types scripts/api-backed-project-service-user-scope-fallback-contract.test.ts && node --experimental-strip-types scripts/api-backed-project-service-imported-list-contract.test.ts && node --experimental-strip-types scripts/api-backed-project-service-import-authority-contract.test.ts && node --experimental-strip-types scripts/api-backed-project-service-authorized-catalog-no-delete-contract.test.ts && node --experimental-strip-types scripts/api-backed-workspace-service-user-scope-fallback-contract.test.ts',
-  'Root quality scripts must expose project inventory mirror, authority project mirror sync, native session id inventory, lazy transcript, store and render identity deduplication, nonblocking store, workspace/project loading timeout resilience, workspace realtime client resilience, workspace realtime subscriber limits, refresh cache bypass, search performance, parallel mirror behavior, session mirror fallback, authorized catalog visibility without a client mount, no client-side catalog deletion, and user-scoped local project/workspace fallback as one first-class project loading standard.',
-);
-assert.equal(
-  rootPackageJson.scripts['check:project-session-index-performance'],
-  'node scripts/project-session-index-performance-contract.test.mjs && node --experimental-strip-types scripts/project-session-index-cache-performance-contract.test.ts && node --experimental-strip-types scripts/project-session-location-cache-performance-contract.test.ts && node --experimental-strip-types scripts/project-session-navigation-cache-performance-contract.test.ts && node scripts/run-local-tsx.mjs scripts/coding-session-authoritative-summary-cache-contract.test.ts && node scripts/app-runtime-read-cache-memory-bound-contract.test.mjs',
-  'Root quality scripts must expose project/session index, location lookup, navigation lookup, and authoritative summary cache behavior as one first-class session loading performance standard.',
-);
-assert.equal(
-  rootPackageJson.scripts['check:code-session-standard'],
-  'node scripts/coding-session-runtime-status-contract.test.mjs && node --experimental-strip-types scripts/coding-session-runtime-status-resolution-contract.test.ts && node scripts/code-session-executing-ui-contract.test.mjs && node scripts/code-session-refresh-ui-contract.test.mjs && node scripts/selected-session-executing-refresh-performance-contract.test.mjs && node scripts/selected-session-background-refresh-loading-contract.test.mjs && node --experimental-strip-types scripts/coding-session-send-progress-contract.test.ts && node --experimental-strip-types scripts/api-backed-project-service-send-preflight-performance-contract.test.ts && node scripts/new-session-engine-management-contract.test.mjs && node scripts/code-session-sync-loop-contract.test.mjs && node scripts/selected-session-reselection-contract.test.mjs && node scripts/selected-session-stale-hydration-write-contract.test.mjs && node scripts/run-local-tsx.mjs scripts/coding-session-message-synchronization-contract.test.ts && node --experimental-strip-types scripts/universal-chat-queued-message-standard-contract.test.ts && node --experimental-strip-types scripts/universal-chat-send-recovery-contract.test.ts && node scripts/universal-chat-message-edit-contract.test.mjs && node scripts/universal-chat-composer-resize-interaction-contract.test.mjs && node scripts/universal-chat-composer-model-display-contract.test.mjs && node scripts/universal-chat-pending-interactions-contract.test.mjs && node scripts/coding-session-pending-interactions-reactivity-contract.test.mjs && node scripts/coding-session-pending-interactions-batch-projection-contract.test.mjs && node scripts/run-local-tsx.mjs scripts/coding-session-projection-lifecycle-contract.test.ts && node --experimental-strip-types scripts/coding-session-pending-interactions-stability-contract.test.ts && node scripts/coding-session-projection-session-switch-contract.test.mjs && node scripts/run-local-tsx.mjs scripts/coding-session-approval-consumer-contract.test.ts && node scripts/run-local-tsx.mjs scripts/coding-session-user-question-consumer-contract.test.ts',
-  'Root quality scripts must expose runtime-status semantics, code/session executing UI, refresh UI, refresh performance, background refresh loading, send progress, send preflight performance, queued-message settlement, send failure recovery, new-session engine management, synchronization behavior, pending interactions, projection session-switch safety, approval, and user-question behavior as a first-class standard.',
-);
-assert.equal(
-  rootPackageJson.scripts['check:api-transport-standard'],
-  'node --experimental-strip-types scripts/http-api-transport-cors-contract.test.ts && node scripts/run-local-tsx.mjs scripts/http-api-transport-content-integrity-contract.test.ts && node --experimental-strip-types scripts/http-api-transport-response-body-limit-contract.test.ts && node --experimental-strip-types scripts/http-api-transport-problem-detail-contract.test.ts && node scripts/birdcoder-public-runtime-env-contract.test.mjs && node scripts/frontend-request-id-ownership-contract.test.mjs && node scripts/run-local-tsx.mjs scripts/in-process-app-runtime-api-descriptor-contract.test.ts && node scripts/run-local-tsx.mjs scripts/coding-server-api-spec-path-contract.test.ts && node --experimental-strip-types scripts/api-observability-pagination-contract.test.ts && node --experimental-strip-types scripts/router-internal-error-sanitization-contract.test.ts && node scripts/skill-package-tenant-scope-contract.test.mjs',
-  'Root quality scripts must expose API transport/CORS and content-integrity behavior, frontend requestId ownership, in-process app/backend descriptor parity, canonical API_SPEC path governance, list pagination defaults, router internal error sanitization, and tenant scope enforcement as a first-class standard.',
-);
-assert.match(
-  rootPackageJson.scripts['check:data-kernel'] ?? '',
-  /provider-dialect-contract\.test\.mjs/,
-  'Root quality scripts must expose provider dialect and data-kernel storage contracts as a first-class standard.',
-);
-for (const plusEntityContract of [
-  'birdcoder-plus-entity-standard-contract.test.ts',
-  'runtime-plus-entity-standard-contract.test.mjs',
-  'engine-plus-entity-standard-contract.test.mjs',
-  'catalog-plus-entity-standard-contract.test.mjs',
-  'collaboration-plus-entity-standard-contract.test.mjs',
-  'delivery-governance-plus-entity-standard-contract.test.mjs',
-]) {
-  assert.match(
-    rootPackageJson.scripts['check:data-kernel'] ?? '',
-    new RegExp(escapeRegex(plusEntityContract)),
-    `Root quality scripts must expose ${plusEntityContract} so DATABASE_SPEC-aligned Plus entity contracts cannot drift outside the data-kernel gate.`,
-  );
-}
-assert.match(
-  rootPackageJson.scripts['check:data-kernel'] ?? '',
-  /app-templates-list-contract\.test\.mjs/,
-  'Root quality scripts must cover canonical app template listing instead of leaving /app/v3/api/app_templates on a 501 placeholder.',
-);
-assert.match(
-  rootPackageJson.scripts['check:data-kernel'] ?? '',
-  /canonical-server-realtime-event-publishers-contract\.test\.mjs/,
-  'Root quality scripts must forbid retired noop project/deployment event publishers on the canonical standalone-gateway.',
-);
-assert.match(
-  rootPackageJson.scripts['check:data-kernel'] ?? '',
-  /coding-session-repository-batch-loading-contract\.test\.ts/,
-  'Root quality scripts must cover batched coding-session repository reads so startup project inventory does not full-scan session transcripts.',
-);
-assert.match(
-  rootPackageJson.scripts['check:data-kernel'] ?? '',
-  /provider-backed-session-message-mutation-performance-contract\.test\.mjs/,
-  'Root quality scripts must cover targeted transcript mutation cleanup so session refresh and deletes do not full-scan persisted messages.',
-);
-assert.match(
-  rootPackageJson.scripts['check:data-kernel'] ?? '',
-  /console-default-bootstrap-contract\.test\.ts/,
-  'Root quality scripts must expose default console workspace bootstrap as part of the data-kernel standard.',
-);
-assert.match(
-  rootPackageJson.scripts['check:data-kernel'] ?? '',
-  /tauri-sql-storage-bridge-contract\.test\.ts/,
-  'Root quality scripts must cover the Tauri SQL storage bridge so desktop table repositories do not fall back to reserved local-store table keys.',
-);
-assert.match(
-  rootPackageJson.scripts['check:data-kernel'] ?? '',
-  /shell-user-bootstrap-tauri-sql-contract\.test\.ts/,
-  'Root quality scripts must cover Tauri shell bootstrap so startup does not read reserved table.sqlite.* keys through local_store.',
+  rootPackageJson.scripts['release:smoke:postgresql-live'],
+  'node --experimental-strip-types scripts/run-postgresql-live-smoke.ts',
 );
 
-assert.deepEqual(qualityFastRunnerModule.QUALITY_FAST_CHECK_COMMANDS, [
+for (const retiredScript of [
+  'check:workbench-session-standard',
+  'check:project-inventory-standard',
+  'check:project-session-index-performance',
+  'check:code-session-standard',
+  'check:data-kernel',
+  'test:user-center-standard',
+]) {
+  assert.equal(
+    rootPackageJson.scripts[retiredScript],
+    undefined,
+    `Root CI must not retain retired authority command ${retiredScript}.`,
+  );
+}
+
+const expectedFastChecks = [
   'node scripts/run-workspace-package-script.mjs . typecheck',
-  'node scripts/run-workspace-package-script.mjs . check:workspace-package-script-runner',
+  'node scripts/run-workspace-package-script.mjs . check:package-script-entrypoints',
   'node scripts/run-workspace-package-script.mjs . check:source-parse',
-  'node scripts/run-workspace-package-script.mjs . check:vite-config-esm',
-  'node scripts/run-workspace-package-script.mjs . check:vite-build-entry',
-  'node scripts/run-workspace-package-script.mjs . check:web-vite-build',
-  'node scripts/run-workspace-package-script.mjs . check:vite-windows-realpath',
-  'node scripts/run-workspace-package-script.mjs . check:vite-host-preflight',
-  'node scripts/run-workspace-package-script.mjs . check:i18n',
-  'node scripts/run-workspace-package-script.mjs . check:tauri-rust-toolchain',
-  'node scripts/run-workspace-package-script.mjs . check:run-tauri-cli',
-  'node scripts/run-workspace-package-script.mjs . check:desktop-tauri-dev',
-  'node scripts/run-workspace-package-script.mjs . check:windows-tauri-bundle',
-  'node scripts/run-workspace-package-script.mjs . check:tauri-dev-binary-unlock',
-  'node scripts/run-workspace-package-script.mjs . check:tauri-target-clean',
-  'node scripts/run-workspace-package-script.mjs . check:desktop-vite-host',
-  'node scripts/run-workspace-package-script.mjs . check:desktop-standard-vite-server',
-  'node scripts/run-workspace-package-script.mjs . check:desktop-react-compat',
-  'node scripts/run-workspace-package-script.mjs . check:desktop-startup-graph',
-  'node scripts/run-workspace-package-script.mjs . check:ui-dependency-resolution',
-  'node scripts/run-workspace-package-script.mjs . check:ui-bundle-segmentation',
-  'node scripts/run-workspace-package-script.mjs . check:workbench-activity-performance',
-  'node scripts/run-workspace-package-script.mjs . check:universal-chat-scroll',
-  'node scripts/run-workspace-package-script.mjs . check:universal-chat-rendering-performance',
-  'node scripts/run-workspace-package-script.mjs . test:react-syntax-highlighter-types-contract',
-  'node scripts/run-workspace-package-script.mjs . check:runtime-symlink-dependency-resolution',
-  'node scripts/run-workspace-package-script.mjs . check:tailwind-source',
-  'node scripts/run-workspace-package-script.mjs . check:studio-chat-layout',
-  'node scripts/run-workspace-package-script.mjs . check:studio-sidebar-stability',
-  'node scripts/run-workspace-package-script.mjs . check:studio-stage-header',
-  'node scripts/run-workspace-package-script.mjs . check:project-explorer-hover-stability',
-  'node scripts/run-workspace-package-script.mjs . check:project-git-header-controls',
-  'node scripts/run-workspace-package-script.mjs . check:code-topbar-git-overview',
-  'node scripts/run-workspace-package-script.mjs . check:git-overview-drawer',
-  'node scripts/run-workspace-package-script.mjs . check:studio-page-componentization',
-  'node scripts/run-workspace-package-script.mjs . check:code-page-componentization',
-  'node scripts/run-workspace-package-script.mjs . check:code-active-surface-performance',
-  'node scripts/run-workspace-package-script.mjs . check:code-editor-surface-boundary',
-  'node scripts/run-workspace-package-script.mjs . check:file-system-boundary',
-  'node scripts/run-workspace-package-script.mjs . check:file-explorer-rendering-performance',
-    'node scripts/run-workspace-package-script.mjs . check:code-workbench-command-boundary',
-    'node scripts/run-workspace-package-script.mjs . check:code-run-entry-boundary',
   'node scripts/run-workspace-package-script.mjs . check:api-transport-standard',
-  'node scripts/run-workspace-package-script.mjs . check:web-framework-standard',
-  'node scripts/run-workspace-package-script.mjs . check:database-framework-standard',
-  'node scripts/run-workspace-package-script.mjs . check:utils-standard',
-  'node scripts/run-workspace-package-script.mjs . check:drive-standard',
-  'node scripts/run-workspace-package-script.mjs . check:api-response-envelope',
-  'node scripts/run-workspace-package-script.mjs . check:app-composition',
-  'node scripts/run-workspace-package-script.mjs . check:dependency-management',
-  'node scripts/run-workspace-package-script.mjs . check:sdkwork-shared-package-boundary',
-  'node scripts/run-workspace-package-script.mjs . check:iam-standard',
-  'node scripts/run-workspace-package-script.mjs . check:auth-session-standard',
-  'node scripts/run-workspace-package-script.mjs . check:app-manifest-checksum',
-  'node scripts/run-workspace-package-script.mjs . check:birdcoder-chat-contracts-vite-alias',
-  'node scripts/run-workspace-package-script.mjs . check:default-ide-services-browser-backend-boundary',
-  'node scripts/run-workspace-package-script.mjs . check:terminal-surface-standard',
-  'node scripts/run-workspace-package-script.mjs . check:workbench-session-standard',
-  'node scripts/run-workspace-package-script.mjs . check:project-inventory-standard',
-  'node scripts/run-workspace-package-script.mjs . check:project-session-index-performance',
-  'node scripts/run-workspace-package-script.mjs . check:code-session-standard',
-  'node scripts/run-workspace-package-script.mjs . check:multiwindow-standard',
-  'node scripts/run-workspace-package-script.mjs . check:data-kernel',
+  'node scripts/run-workspace-package-script.mjs . check:local-business-storage-boundary',
+  'node scripts/run-workspace-package-script.mjs . check:domain-ownership',
+  'node scripts/run-workspace-package-script.mjs . check:agents-birdcoder-alignment',
   'node scripts/run-workspace-package-script.mjs . check:kernel-birdcoder-alignment',
+  'node scripts/run-workspace-package-script.mjs . test:agent-session-item-view-contract',
   'node scripts/run-workspace-package-script.mjs . check:sdk-family-standard',
   'node scripts/run-workspace-package-script.mjs . check:sdk-family-generated',
-  'node scripts/run-workspace-package-script.mjs . check:local-store-browser-fallback',
   'node scripts/run-workspace-package-script.mjs . check:package-governance',
   'node scripts/run-workspace-package-script.mjs . check:package-subpath-exports',
-  'node scripts/run-workspace-package-script.mjs . check:governance-baseline',
-  'node scripts/run-workspace-package-script.mjs . check:topology-standard',
+  'node scripts/run-workspace-package-script.mjs . check:app-composition',
   'node scripts/run-workspace-package-script.mjs . check:technical-debt',
-  'node scripts/run-workspace-package-script.mjs . check:governance-regression-contract',
-  'node scripts/run-workspace-package-script.mjs . check:live-docs-governance-baseline',
-  'node scripts/run-workspace-package-script.mjs . check:quality-matrix',
-  'node scripts/run-workspace-package-script.mjs . check:quality-loop-scoreboard',
-  'node scripts/run-workspace-package-script.mjs . test:prompt-service-contract',
-  'node scripts/run-workspace-package-script.mjs . test:coding-session-prompt-history-persistence-contract',
-  'node scripts/run-workspace-package-script.mjs . test:skills-sdk-boundary-contract',
-  'node scripts/run-workspace-package-script.mjs . test:template-instantiation-contract',
-  'node scripts/run-workspace-package-script.mjs . test:prompt-skill-template-runtime-assembly-contract',
-  'node scripts/run-workspace-package-script.mjs . test:prompt-skill-template-evidence-repository-contract',
-  'node scripts/run-workspace-package-script.mjs . test:prompt-skill-template-evidence-consumer-contract',
-  'node scripts/run-workspace-package-script.mjs . test:coding-server-prompt-skill-template-evidence-consumer-contract',
-  'node scripts/run-workspace-package-script.mjs . test:postgresql-live-smoke-contract',
-  'node scripts/run-workspace-package-script.mjs apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-web lint',
   'node scripts/run-workspace-package-script.mjs . check:arch',
   'node scripts/run-workspace-package-script.mjs . check:sdkwork-birdcoder-structure',
-  'node scripts/run-workspace-package-script.mjs . check:release-flow',
-  'node scripts/run-workspace-package-script.mjs . check:ci-flow',
-]);
-assert.deepEqual(qualityStandardRunnerModule.QUALITY_STANDARD_CHECK_COMMANDS, [
+];
+const expectedStandardChecks = [
   'node scripts/run-workspace-package-script.mjs . check:quality:mobile',
   'node scripts/run-workspace-package-script.mjs . check:desktop',
   'node scripts/run-workspace-package-script.mjs . check:server',
@@ -420,14 +213,21 @@ assert.deepEqual(qualityStandardRunnerModule.QUALITY_STANDARD_CHECK_COMMANDS, [
   'node scripts/run-workspace-package-script.mjs . check:web-bundle-budget',
   'node scripts/run-workspace-package-script.mjs . build:server',
   'node scripts/run-workspace-package-script.mjs . docs:build',
-]);
-assert.deepEqual(qualityReleaseRunnerModule.QUALITY_RELEASE_CHECK_COMMANDS, [
+];
+const expectedReleaseChecks = [
   'node scripts/run-workspace-package-script.mjs . check:quality:fast',
   'node scripts/run-workspace-package-script.mjs . check:quality:standard',
   'node scripts/run-workspace-package-script.mjs . check:quality-matrix',
   'node scripts/run-workspace-package-script.mjs . check:release-flow',
   'node scripts/run-workspace-package-script.mjs . check:ci-flow',
   'node scripts/run-workspace-package-script.mjs . check:governance-regression',
-]);
+];
+
+assert.deepEqual(qualityFastRunnerModule.QUALITY_FAST_CHECK_COMMANDS, expectedFastChecks);
+assert.deepEqual(qualityStandardRunnerModule.QUALITY_STANDARD_CHECK_COMMANDS, expectedStandardChecks);
+assert.deepEqual(qualityReleaseRunnerModule.QUALITY_RELEASE_CHECK_COMMANDS, expectedReleaseChecks);
+assertRootQualityCommandsExist(expectedFastChecks, 'fast quality runner');
+assertRootQualityCommandsExist(expectedStandardChecks, 'standard quality runner');
+assertRootQualityCommandsExist(expectedReleaseChecks, 'release quality runner');
 
 console.log('ci flow contract passed.');

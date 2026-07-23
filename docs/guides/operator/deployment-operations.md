@@ -2,24 +2,24 @@
 
 Status: active
 Owner: SDKWork maintainers
-Updated: 2026-07-16
+Updated: 2026-07-22
 Specs: DEPLOYMENT_SPEC.md, CONFIG_SPEC.md, RUNTIME_DIRECTORY_SPEC.md, SECURITY_SPEC.md, PRIVACY_SPEC.md, OBSERVABILITY_SPEC.md
 
 This guide covers the BirdCoder control plane and its ProjectRuntimeLocation
-authority. It does not describe an arbitrary remote-code runner: a persisted
-location is controlled metadata, not an execution grant.
+authority. A persisted location is controlled metadata, not an execution
+grant.
 
 ## Deployment Matrix
 
-| Deployment | Runtime target | Data baseline | Code execution |
+| Deployment profile | Runtime target | Data baseline | Code execution |
 | --- | --- | --- | --- |
-| Windows local IDE | standalone + desktop | User-private local binding plus encrypted server runtime-location metadata | Local host only after native root validation. |
-| Private Windows/Linux server | standalone + server | Server-controlled database, protected location data, and managed workspace base | Remote code execution unavailable until target/runner evidence exists. |
-| Container/Kubernetes control plane | cloud + container or server | PostgreSQL, protected database URL, runtime-location encryption material, explicit origins | Unavailable until an isolated runner is delivered. |
+| `standalone` | `desktop` | User-private native binding plus encrypted runtime-location metadata. | Desktop host only after native root validation. |
+| `standalone` | `server` | Server-controlled database and protected runtime-location data. | Disabled until a separately verified execution target and capability are available. |
+| `cloud` | `container` or `server` | PostgreSQL, protected database URL, runtime-location encryption material, and exact origins. | Disabled until an isolated execution target is delivered and enrolled. |
 
-SDKWORK_BIRDCODER_PROVIDER_RUNNER_ROOT is a server-owned base for controlled
-workspace provisioning. It is never a client mount, a public configuration
-value, a generic project path, or permission to start provider processes.
+Deployment profile and runtime target are orthogonal. Operators select the
+pair through `sdkwork-app` and verify the resolved plan against
+`specs/topology.spec.json` before rollout.
 
 ## Required Server Configuration
 
@@ -32,7 +32,6 @@ Set configuration through an operator-managed source:
     SDKWORK_BIRDCODER_SERVER_PORT=10240
     SDKWORK_BIRDCODER_ALLOWED_ORIGINS=https://ide.example.invalid
     SDKWORK_BIRDCODER_DATABASE_ENGINE=postgresql
-    SDKWORK_BIRDCODER_PROVIDER_RUNNER_ROOT=<server-private-project-workspace-root>
 
 Inject the database URL and these runtime-location secrets only through the
 approved server-side secret source:
@@ -70,9 +69,9 @@ diagnostic returns that plaintext.
 - Restrict workspace roots and target credentials to the appropriate service
   identity. Keep application binaries and configuration in separate
   read-only/operator-managed locations.
-- Do not expose plaintext roots, path ciphertext, key identifiers, provider
-  state, or credentials in API responses, browser bundles, traces, logs, or
-  metric labels.
+- Do not expose plaintext roots, path ciphertext, key identifiers, execution
+  target state, or credentials in API responses, browser bundles, traces,
+  logs, or metric labels.
 - Test cross-tenant, cross-organization, cross-user, cross-project, and
   cross-target denial before enabling any server-owned operation.
 
@@ -103,18 +102,17 @@ explicit origins, PostgreSQL live smoke, and the project runtime-location
 key-management procedure. Do not put either runtime-location secret in
 values.yaml or a ConfigMap.
 
-    pnpm release:smoke:postgresql-live
     helm upgrade --install sdkwork-birdcoder ./deployments/kubernetes \
       -f deployments/kubernetes/values.yaml \
       -f deployments/kubernetes/values-postgresql-ha.yaml
 
-The chart workspace base is server source/Git storage. It is not an encrypted
-runner volume, a user desktop mount, or a remote-execution switch.
+The chart deploys the BirdCoder control plane. It does not enroll an execution
+target, expose a user desktop mount, or enable remote execution.
 
 ## Upgrade, Rollback, And Capability Changes
 
-1. Verify target profile, runtime target, database, origins, workspace base,
-   and secret/key availability before rollout.
+1. Verify deployment profile, runtime target, database, origins, and
+   secret/key availability before rollout.
 2. Back up authoritative database records, lifecycle/audit state, and
    documented key-management references. Do not treat a Browser handle or
    Tauri local binding as server backup data.
@@ -124,14 +122,16 @@ runner volume, a user desktop mount, or a remote-execution switch.
    the previous compatible artifact/configuration pair. Re-verify affected
    runtime locations before re-enabling a capability.
 5. Treat remote terminal, filesystem, run, build, and deployment enablement as
-   separate release gates. A stored path or configured workspace base alone
-   cannot enable any of them.
+   separate release gates. A stored path alone cannot enable any of them.
 
 ## Verification
 
     pnpm db:validate
     pnpm test:migration-replay
+    pnpm topology:validate
+    pnpm topology:plan -- --deployment-profile cloud --environment production --runtime-target server
+    pnpm check:desktop
     pnpm check:server
-    pnpm check:multi-mode
+    pnpm check:release-flow
     pnpm release:smoke:server
     pnpm docs:build

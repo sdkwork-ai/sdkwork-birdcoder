@@ -1,19 +1,20 @@
-# @sdkwork/birdcoder-app-sdk
+# SDKWork BirdCoder App SDK
 
-BirdCoder app SDK family surface.
+This is the only BirdCoder-owned HTTP SDK family. Its OpenAPI authority contains 39 App API
+operations for system metadata, workspaces, projects, document and sandbox bindings, runtime
+locations, and project Git commands.
 
-- API prefix: `/app/v3/api`
-- TypeScript output: `sdkwork-birdcoder-app-sdk-typescript`
-- Rust output: `sdkwork-birdcoder-app-sdk-rust`
+- Authority: `openapi/sdkwork-birdcoder-app-api.openapi.json`
+- sdkgen input: `openapi/sdkwork-birdcoder-app-api.sdkgen.json`
+- TypeScript: `sdkwork-birdcoder-app-sdk-typescript`
+- Rust generated transport: `sdkwork-birdcoder-app-sdk-rust/generated/server-openapi`
+- Generator: `@sdkwork/sdk-generator`
 - Standard profile: `sdkwork-v3`
 
-Do not edit generated output by hand. Update `sdks/specs/openapi/birdcoder-app-v3.openapi.json` or `scripts/generate-birdcoder-sdk-family.mjs`, then run `pnpm sdk:generate`.
+Dependency-owned IAM, Agents, Drive, Messaging, Membership, Skills, Prompts, Documents,
+Deployments, and other domain operations are declared as SDK dependencies or composed by
+application bootstrap. They do not belong in this authority or its generated transport.
 
-Example TypeScript calls:
-
-```ts
-client.auth.sessions.create(body);
-client.auth.sessions.current.retrieve();
-client.platform.workspaces.list(params);
-client.collaboration.workspaceTeams.list(params);
-```
+Do not edit `generated/server-openapi`. Update the authority, run
+`node scripts/sync-birdcoder-sdk-openapi.mjs`, then run `pnpm sdk:generate` from the application
+root.

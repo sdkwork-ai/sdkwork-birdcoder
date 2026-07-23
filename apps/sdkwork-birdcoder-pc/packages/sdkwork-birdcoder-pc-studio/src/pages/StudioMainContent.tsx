@@ -26,8 +26,6 @@ export interface StudioMainContentModel {
   handleCloseProjectGitOverviewDrawer: StudioGitOverviewDrawerProps['onClose'];
   handleLaunchSimulatorFromHeader: StudioStageHeaderProps['onLaunchSimulator'];
   handleOpenPreviewInNewTab: StudioStageHeaderProps['onOpenPreviewInNewTab'];
-  handleOpenStudioPublish: StudioStageHeaderProps['onOpenPublish'];
-  handleOpenStudioShare: StudioStageHeaderProps['onOpenShare'];
   handlePreviewAppPlatformChange: StudioStageHeaderProps['onPreviewAppPlatformChange'];
   handlePreviewLandscapeToggle: StudioStageHeaderProps['onPreviewLandscapeToggle'];
   handleRefreshPreview: StudioStageHeaderProps['onRefreshPreview'];
@@ -100,8 +98,6 @@ export function StudioMainContent({ model }: StudioMainContentProps) {
     handleCloseProjectGitOverviewDrawer,
     handleLaunchSimulatorFromHeader,
     handleOpenPreviewInNewTab,
-    handleOpenStudioPublish,
-    handleOpenStudioShare,
     handlePreviewAppPlatformChange,
     handlePreviewLandscapeToggle,
     handleRefreshPreview,
@@ -203,8 +199,6 @@ export function StudioMainContent({ model }: StudioMainContentProps) {
         onAnalyzeCode={handleAnalyzeCode}
         onToggleTerminal={handleToggleStudioTerminal}
         onToggleProjectGitOverviewDrawer={handleToggleProjectGitOverviewDrawer}
-        onOpenShare={handleOpenStudioShare}
-        onOpenPublish={handleOpenStudioPublish}
       />
 
       <div className="flex-1 flex flex-col overflow-hidden">

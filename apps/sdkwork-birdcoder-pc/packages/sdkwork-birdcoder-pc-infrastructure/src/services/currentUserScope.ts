@@ -35,7 +35,6 @@ export function isOptionalCurrentUserScopeResolutionError(error: unknown): boole
   return (
     error.message.includes('/app/v3/api/iam/users/current')
     || error.message.includes('/app/v3/api/auth/sessions/current')
-    || error.message.includes('requires a bound coding-server runtime')
     || error.message.includes('Failed to resolve BirdCoder desktop runtime API base URL')
     || error.message.includes(' -> 401')
     || error.message.includes(' -> 403')

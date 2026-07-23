@@ -225,23 +225,6 @@ function runPlan(sdkgenEntrypoint, plan, options) {
   }
 }
 
-function mirrorGeneratedOutput(rootDir, plan) {
-  const relativeOutput = normalizeRelativePath(path.relative(rootDir, plan.output));
-  if (!relativeOutput.startsWith('sdks/')) {
-    return;
-  }
-  const mirrorOutput = path.join(rootDir, 'apps', 'sdkwork-birdcoder-pc', ...relativeOutput.split('/'));
-  const sourceRealPath = fs.realpathSync.native(plan.output);
-  const mirrorParentRealPath = fs.realpathSync.native(path.dirname(mirrorOutput));
-  const mirrorRealPath = path.join(mirrorParentRealPath, path.basename(mirrorOutput));
-  if (sourceRealPath.toLowerCase() === mirrorRealPath.toLowerCase()) {
-    return;
-  }
-  fs.mkdirSync(path.dirname(mirrorOutput), { recursive: true });
-  fs.rmSync(mirrorOutput, { force: true, recursive: true });
-  fs.cpSync(plan.output, mirrorOutput, { recursive: true });
-}
-
 export function generateBirdcoderSdkgenFamily(options = {}, rootDir = process.cwd()) {
   const sdkgenEntrypoint = resolveSdkgenEntrypoint(rootDir);
   assertSdkgenEntrypoint(sdkgenEntrypoint);
@@ -251,7 +234,6 @@ export function generateBirdcoderSdkgenFamily(options = {}, rootDir = process.cw
   }
   for (const plan of plans) {
     runPlan(sdkgenEntrypoint, plan, options);
-    mirrorGeneratedOutput(rootDir, plan);
   }
   return plans.map((plan) => ({
     language: plan.language,

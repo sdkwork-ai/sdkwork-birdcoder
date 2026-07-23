@@ -27,41 +27,13 @@
       "import": "./src/services/defaultIdeServicesShared.ts",
       "types": "./src/services/defaultIdeServicesShared.ts"
     },
-    "./services/workspaceRealtimeClient": {
-      "import": "./src/services/workspaceRealtimeClient.ts",
-      "types": "./src/services/workspaceRealtimeClient.ts"
+    "./services/dependencyAppSdkClients": {
+      "import": "./src/services/dependencyAppSdkClients.ts",
+      "types": "./src/services/dependencyAppSdkClients.ts"
     },
     "./platform/openLocalFolder": {
       "import": "./src/platform/openLocalFolder.ts",
       "types": "./src/platform/openLocalFolder.ts"
-    },
-    "./storage/runtime": {
-      "import": "./src/storage/runtime.ts",
-      "types": "./src/storage/runtime.ts"
-    },
-    "./storage/dataKernel": {
-      "import": "./src/storage/dataKernel.ts",
-      "types": "./src/storage/dataKernel.ts"
-    },
-    "./storage/appConsoleRepository": {
-      "import": "./src/storage/appConsoleRepository.ts",
-      "types": "./src/storage/appConsoleRepository.ts"
-    },
-    "./storage/codingSessionPromptEntryRepository": {
-      "import": "./src/storage/codingSessionPromptEntryRepository.ts",
-      "types": "./src/storage/codingSessionPromptEntryRepository.ts"
-    },
-    "./storage/promptSkillTemplateEvidenceRepository": {
-      "import": "./src/storage/promptSkillTemplateEvidenceRepository.ts",
-      "types": "./src/storage/promptSkillTemplateEvidenceRepository.ts"
-    },
-    "./storage/providers": {
-      "import": "./src/storage/providers.ts",
-      "types": "./src/storage/providers.ts"
-    },
-    "./storage/sqlRowCodec": {
-      "import": "./src/storage/sqlRowCodec.ts",
-      "types": "./src/storage/sqlRowCodec.ts"
     },
     "./services/interfaces/IPromptService": {
       "import": "./src/services/interfaces/IPromptService.ts",
@@ -74,14 +46,6 @@
     "./services/interfaces/ICatalogService": {
       "import": "./src/services/interfaces/ICatalogService.ts",
       "types": "./src/services/interfaces/ICatalogService.ts"
-    },
-    "./services/interfaces/ICollaborationService": {
-      "import": "./src/services/interfaces/ICollaborationService.ts",
-      "types": "./src/services/interfaces/ICollaborationService.ts"
-    },
-    "./services/interfaces/IDeploymentService": {
-      "import": "./src/services/interfaces/IDeploymentService.ts",
-      "types": "./src/services/interfaces/IDeploymentService.ts"
     },
     "./services/interfaces/IDocumentService": {
       "import": "./src/services/interfaces/IDocumentService.ts",
@@ -99,25 +63,9 @@
       "import": "./src/services/interfaces/IGitService.ts",
       "types": "./src/services/interfaces/IGitService.ts"
     },
-    "./services/interfaces/IAppRuntimeReadService": {
-      "import": "./src/services/interfaces/IAppRuntimeReadService.ts",
-      "types": "./src/services/interfaces/IAppRuntimeReadService.ts"
-    },
-    "./services/interfaces/IAppRuntimeWriteService": {
-      "import": "./src/services/interfaces/IAppRuntimeWriteService.ts",
-      "types": "./src/services/interfaces/IAppRuntimeWriteService.ts"
-    },
     "./services/interfaces/IProjectService": {
       "import": "./src/services/interfaces/IProjectService.ts",
       "types": "./src/services/interfaces/IProjectService.ts"
-    },
-    "./services/interfaces/IReleaseService": {
-      "import": "./src/services/interfaces/IReleaseService.ts",
-      "types": "./src/services/interfaces/IReleaseService.ts"
-    },
-    "./services/interfaces/ITeamService": {
-      "import": "./src/services/interfaces/ITeamService.ts",
-      "types": "./src/services/interfaces/ITeamService.ts"
     },
     "./services/interfaces/IVipMembershipService": {
       "import": "./src/services/interfaces/IVipMembershipService.ts",
@@ -127,13 +75,13 @@
       "import": "./src/services/interfaces/IWorkspaceService.ts",
       "types": "./src/services/interfaces/IWorkspaceService.ts"
     },
-    "./services/sdkClients": {
-      "import": "./src/services/sdkClients.ts",
-      "types": "./src/services/sdkClients.ts"
-    },
     "./services/skillsSdkClient": {
       "import": "./src/services/skillsSdkClient.ts",
       "types": "./src/services/skillsSdkClient.ts"
+    },
+    "./services/impl/PromptsSdkPromptService": {
+      "import": "./src/services/impl/PromptsSdkPromptService.ts",
+      "types": "./src/services/impl/PromptsSdkPromptService.ts"
     },
     "./services/iamRuntime": {
       "import": "./src/services/iamRuntime.ts",
@@ -147,13 +95,33 @@
       "import": "./src/services/appSessionTokenManager.ts",
       "types": "./src/services/appSessionTokenManager.ts"
     },
+    "./services/sdkBaseUrls": {
+      "import": "./src/services/sdkBaseUrls.ts",
+      "types": "./src/services/sdkBaseUrls.ts"
+    },
+    "./services/appSessionEvents": {
+      "import": "./src/services/appSessionEvents.ts",
+      "types": "./src/services/appSessionEvents.ts"
+    },
     "./services/runtimeTopology": {
       "import": "./src/services/runtimeTopology.ts",
       "types": "./src/services/runtimeTopology.ts"
     },
-    "./services/birdcoderMobileChatApi": {
-      "import": "./src/services/birdcoderMobileChatApi.ts",
-      "types": "./src/services/birdcoderMobileChatApi.ts"
+    "./services/agentsSessionService": {
+      "import": "./src/services/agentsSessionService.ts",
+      "types": "./src/services/agentsSessionService.ts"
+    },
+    "./services/agentsCatalogService": {
+      "import": "./src/services/agentsCatalogService.ts",
+      "types": "./src/services/agentsCatalogService.ts"
+    },
+    "./services/birdCoderSdkClient": {
+      "import": "./src/services/birdCoderSdkClient.ts",
+      "types": "./src/services/birdCoderSdkClient.ts"
+    },
+    "./services/interfaces/IAgentSessionService": {
+      "import": "./src/services/interfaces/IAgentSessionService.ts",
+      "types": "./src/services/interfaces/IAgentSessionService.ts"
     },
     "./services/birdcoderDriveUpload": {
       "import": "./src/services/birdcoderDriveUpload.ts",
@@ -162,10 +130,6 @@
     "./services/driveSandboxExplorerRuntime": {
       "import": "./src/services/driveSandboxExplorerRuntime.ts",
       "types": "./src/services/driveSandboxExplorerRuntime.ts"
-    },
-    "./services/sdkTransportShared": {
-      "import": "./src/services/sdkTransportShared.ts",
-      "types": "./src/services/sdkTransportShared.ts"
     },
     "./services/lazyDefaultIdeServices": {
       "import": "./src/services/lazyDefaultIdeServices.ts",
@@ -183,9 +147,7 @@
   "dependencies": {
     "@sdkwork/iam-app-sdk": "workspace:*",
     "@sdkwork/iam-backend-sdk": "workspace:*",
-    "@sdkwork/birdcoder-backend-sdk": "workspace:*",
     "@sdkwork/birdcoder-pc-admin-core": "workspace:*",
-    "@sdkwork/birdcoder-pc-codeengine": "workspace:*",
     "@sdkwork/birdcoder-pc-core": "workspace:*",
     "@sdkwork/birdcoder-pc-host-core": "workspace:*",
     "@sdkwork/birdcoder-pc-contracts-commons": "workspace:*",
@@ -195,7 +157,6 @@
     "@sdkwork/iam-service": "workspace:*",
     "@sdkwork/iam-sdk-ports": "workspace:*",
     "@sdkwork/sdk-common": "workspace:*",
-    "@sdkwork/skills-app-sdk": "workspace:*",
     "@sdkwork/utils": "workspace:*",
     "@sdkwork/membership-service": "workspace:*",
     "@sdkwork/order-service": "workspace:*",

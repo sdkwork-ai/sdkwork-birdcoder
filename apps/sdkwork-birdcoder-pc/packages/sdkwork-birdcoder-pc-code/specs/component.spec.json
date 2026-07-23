@@ -111,6 +111,13 @@
   ],
   "contracts": {
     "layerRole": "frontend-feature",
+    "providedPorts": [
+      {
+        "name": "codeFeature",
+        "export": "."
+      }
+    ],
+    "requiredPorts": [],
     "publicExports": [
       "."
     ],

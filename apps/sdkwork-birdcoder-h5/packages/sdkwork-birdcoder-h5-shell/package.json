@@ -13,10 +13,7 @@
   "dependencies": {
     "@sdkwork/birdcoder-h5-chat": "workspace:*",
     "@sdkwork/birdcoder-h5-core": "workspace:*",
-    "@sdkwork/birdcoder-pc-auth": "workspace:*",
-    "@sdkwork/birdcoder-pc-workbench": "workspace:*",
-    "@sdkwork/birdcoder-pc-shell": "workspace:*",
-    "@sdkwork/birdcoder-pc-shell-runtime": "workspace:*",
+    "@sdkwork/iam-h5-auth": "workspace:*",
     "react-router-dom": "catalog:"
   },
   "peerDependencies": {

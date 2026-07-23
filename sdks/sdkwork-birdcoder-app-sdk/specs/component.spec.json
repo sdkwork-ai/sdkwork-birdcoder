@@ -7,9 +7,9 @@
     "version": "0.1.0",
     "type": "sdk-family",
     "root": "sdkwork-birdcoder/sdks/sdkwork-birdcoder-app-sdk",
-    "domain": "platform",
+    "domain": "intelligence",
     "capability": "app-sdk",
-    "status": "standardizing",
+    "status": "active",
     "languages": [
       "typescript",
       "rust"
@@ -83,6 +83,7 @@
     }
   ],
   "contracts": {
+    "layerRole": "sdk-generated",
     "apiAuthority": {
       "name": "sdkwork-birdcoder-app-api",
       "prefix": "/app/v3/api",
@@ -90,12 +91,24 @@
       "derivedOpenApi": [
         "../openapi/sdkwork-birdcoder-app-api.sdkgen.json"
       ],
-      "owner": "sdkwork-birdcoder"
+      "owner": "sdkwork-birdcoder",
+      "operationCount": 39
     },
     "publicExports": [
       "@sdkwork/birdcoder-app-sdk",
       "sdkwork_birdcoder_app_sdk"
     ],
+    "providedPorts": [
+      {
+        "name": "birdcoderTypeScriptAppSdk",
+        "export": "@sdkwork/birdcoder-app-sdk"
+      },
+      {
+        "name": "birdcoderRustAppSdk",
+        "export": "sdkwork_birdcoder_app_sdk"
+      }
+    ],
+    "requiredPorts": [],
     "runtimeEntrypoints": [
       "sdk-manifest.json"
     ],
@@ -161,10 +174,47 @@
         "packageByLanguage": {
           "typescript": "@sdkwork/skills-app-sdk"
         }
+      },
+      {
+        "workspace": "sdkwork-agents-app-sdk",
+        "role": "agents-app-capability",
+        "required": true,
+        "dependencyMode": "consumer-sdk",
+        "apiPrefix": "/app/v3/api",
+        "apiAuthority": "sdkwork-agents-app-api",
+        "generatedTransportImportPolicy": "forbidden",
+        "packageByLanguage": {
+          "typescript": "@sdkwork/agents-app-sdk"
+        }
+      },
+      {
+        "workspace": "sdkwork-prompts-app-sdk",
+        "role": "prompts-app-capability",
+        "required": true,
+        "dependencyMode": "consumer-sdk",
+        "apiPrefix": "/app/v3/api",
+        "apiAuthority": "sdkwork-prompts-app-api",
+        "generatedTransportImportPolicy": "forbidden",
+        "packageByLanguage": {
+          "typescript": "@sdkwork/prompts-app-sdk"
+        }
+      },
+      {
+        "workspace": "sdkwork-documents-app-sdk",
+        "role": "documents-app-capability",
+        "required": true,
+        "dependencyMode": "consumer-sdk",
+        "apiPrefix": "/app/v3/api",
+        "apiAuthority": "sdkwork-documents-app-api",
+        "generatedTransportImportPolicy": "forbidden",
+        "packageByLanguage": {
+          "typescript": "@sdkwork/documents-app-sdk"
+        }
       }
     ],
+    "dependencyApiExports": [],
     "sdkClients": [
-      "@sdkwork/birdcoder-app-sdk#createBirdcoderAppSdkClient",
+      "@sdkwork/birdcoder-app-sdk#createClient",
       "sdkwork_birdcoder_app_sdk"
     ],
     "events": [],
@@ -176,17 +226,19 @@
   },
   "integration": {
     "authority": "BirdCoder app SDK owns only sdkwork-birdcoder app-api operations.",
-    "dependencyPolicy": "Appbase app, Drive app, Messaging app, and Membership app capabilities are consumed through dependency SDKs, not copied into BirdCoder generated transport.",
-    "sdkPolicy": "Generated transport must move under generated/server-openapi when canonical sdkgen dependencies are available.",
-    "languagePolicy": "TypeScript and Rust compatibility packages preserve current exports until composed wrappers replace direct generated compatibility output."
+    "dependencyPolicy": "IAM, Drive, Membership, Skills, Agents, Prompts, Documents, human IM, and external-delivery Messaging capabilities are consumed through owner SDKs and are never copied into BirdCoder generated transport.",
+    "sdkPolicy": "@sdkwork/sdk-generator owns generated/server-openapi; handwritten integration is confined to the composed TypeScript facade outside generated ownership.",
+    "languagePolicy": "TypeScript and Rust transports are regenerated from the same 39-operation owner-only input."
   },
   "verification": {
     "commands": [
-      "pnpm check:sdk-family-standard"
+      "node scripts/sync-birdcoder-sdk-openapi.mjs",
+      "pnpm check:sdk-family-standard",
+      "pnpm check:sdk-family-generated"
     ]
   },
   "metadata": {
-    "managedBy": "sdkwork-birdcoder-sdkwork-sdk-migration",
-    "standardVersion": "2026-06-06"
+    "managedBy": "@sdkwork/sdk-generator",
+    "standardVersion": "2026-07-23"
   }
 }

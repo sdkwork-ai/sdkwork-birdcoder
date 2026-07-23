@@ -55,7 +55,7 @@ export function storeAppSessionFromResult(
   options: StoreAppSessionOptions = {},
 ): StoredAppSessionToken {
   const previousToken = loadStoredAppSessionToken();
-  const data = readAppSessionPayload(result);
+  const data = isRecord(result) ? result : {};
   const accessToken = readString(data, 'accessToken');
   const authToken = readString(data, 'authToken');
   const responseExpiresAt = readOptionalExpiry(data, 'expiresAt');
@@ -257,26 +257,6 @@ export function clearStoredAppSessionToken(): void {
 export function resetAppSessionTokenStorageCache(): void {
   memoryToken = null;
   storageLoaded = false;
-}
-
-function readAppSessionPayload(result: unknown): Record<string, unknown> {
-  if (!isRecord(result)) {
-    return {};
-  }
-
-  const data = result.data;
-  if (isRecord(data)) {
-    if (isRecord(data.item)) {
-      return data.item;
-    }
-    return data;
-  }
-
-  if (isRecord(result.item)) {
-    return result.item;
-  }
-
-  return result;
 }
 
 function isExpired(token: StoredAppSessionToken, now: number): boolean {

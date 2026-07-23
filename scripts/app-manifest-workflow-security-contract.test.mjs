@@ -15,11 +15,17 @@ assert.equal(workflow.security?.sbomRequired, true, 'Release workflow must requi
 assert.equal(workflow.security?.signingRequired, true, 'Release workflow must require signing evidence.');
 assert.equal(workflow.security?.artifactAttestations, true, 'Release workflow must require artifact attestations.');
 
-const releaseEvidenceStatus = String(manifest.metadata?.releaseEvidenceStatus ?? '');
-assert.match(
-  releaseEvidenceStatus,
-  /contract-gates-green/u,
-  'App manifest must record contract-gate readiness before artifact evidence is finalized.',
+assert.equal(
+  manifest.metadata?.releaseEvidence?.status,
+  'blocked',
+  'Security policy declarations are not a substitute for signed production artifact evidence.',
+);
+assert.equal(
+  manifest.metadata?.releaseEvidence?.blockers?.includes(
+    'signed-production-artifact-evidence-missing',
+  ),
+  true,
+  'The pre-launch manifest must identify missing signed artifact evidence.',
 );
 
 const security = manifest.security ?? {};

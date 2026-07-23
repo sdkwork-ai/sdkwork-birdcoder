@@ -1,11 +1,11 @@
 import { useCallback } from 'react';
 import {
-  buildCodingSessionProjectScopedKey,
-  type BirdCoderProjectCodingSessionIndex,
-} from '@sdkwork/birdcoder-pc-workbench/workbench/codingSessionSelection';
+  buildAgentSessionProjectScopedKey,
+  type BirdCoderProjectAgentSessionIndex,
+} from '@sdkwork/birdcoder-pc-workbench/workbench/agentSessionSelection';
 
 export function useCodeProjectSessionResolution(
-  sessionIndex: BirdCoderProjectCodingSessionIndex,
+  sessionIndex: BirdCoderProjectAgentSessionIndex,
 ) {
   const resolveProjectById = useCallback(
     (id: string | null | undefined) => {
@@ -18,37 +18,37 @@ export function useCodeProjectSessionResolution(
   );
   const resolveSession = useCallback(
     (id: string | null | undefined) => {
-      const normalizedCodingSessionId = id?.trim() ?? '';
-      return normalizedCodingSessionId
-        ? sessionIndex.codingSessionLocationsById.get(normalizedCodingSessionId) ?? null
+      const normalizedAgentSessionId = id?.trim() ?? '';
+      return normalizedAgentSessionId
+        ? sessionIndex.agentSessionLocationsById.get(normalizedAgentSessionId) ?? null
         : null;
     },
     [sessionIndex],
   );
   const resolveSessionInProject = useCallback(
     (id: string | null | undefined, scopedProjectId?: string | null) => {
-      const normalizedCodingSessionId = id?.trim() ?? '';
-      if (!normalizedCodingSessionId) {
+      const normalizedAgentSessionId = id?.trim() ?? '';
+      if (!normalizedAgentSessionId) {
         return null;
       }
 
       const normalizedScopedProjectId = scopedProjectId?.trim() ?? '';
       if (normalizedScopedProjectId) {
-        return sessionIndex.codingSessionLocationsByProjectIdAndId.get(
-          buildCodingSessionProjectScopedKey(
+        return sessionIndex.agentSessionLocationsByProjectIdAndId.get(
+          buildAgentSessionProjectScopedKey(
             normalizedScopedProjectId,
-            normalizedCodingSessionId,
+            normalizedAgentSessionId,
           ),
         ) ?? null;
       }
 
-      return resolveSession(normalizedCodingSessionId);
+      return resolveSession(normalizedAgentSessionId);
     },
     [resolveSession, sessionIndex],
   );
 
   return {
-    latestCodingSessionIdByProjectId: sessionIndex.latestCodingSessionIdByProjectId,
+    latestAgentSessionIdByProjectId: sessionIndex.latestAgentSessionIdByProjectId,
     resolveProjectById,
     resolveSession,
     resolveSessionInProject,

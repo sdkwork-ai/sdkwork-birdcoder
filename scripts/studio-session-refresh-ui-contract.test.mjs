@@ -22,7 +22,7 @@ assert.match(
 
 assert.match(
   sidebarSource,
-  /onRefreshCodingSessionMessages: \(codingSessionId: string\) => Promise<void>;/,
+  /onRefreshAgentSessionItems: \(agentSessionId: string\) => Promise<void>;/,
   'Studio sidebar must accept a session refresh handler.',
 );
 
@@ -34,7 +34,7 @@ assert.match(
 
 assert.match(
   sidebarSource,
-  /refreshingCodingSessionId: string \| null;/,
+  /refreshingAgentSessionId: string \| null;/,
   'Studio sidebar must receive session-level loading state for refresh actions.',
 );
 
@@ -52,7 +52,7 @@ assert.match(
 
 assert.match(
   sidebarSource,
-  /const handleRefreshCurrentContext = \(\) => \{\s*if \(selectedCodingSessionId\) \{\s*void onRefreshCodingSessionMessages\(selectedCodingSessionId\);\s*return;\s*\}\s*if \(currentProjectId\) \{\s*void onRefreshProjectSessions\(currentProjectId\);\s*\}\s*\};/s,
+  /const handleRefreshCurrentContext = \(\) => \{\s*if \(selectedAgentSessionId\) \{\s*void onRefreshAgentSessionItems\(selectedAgentSessionId\);\s*return;\s*\}\s*if \(currentProjectId\) \{\s*void onRefreshProjectSessions\(currentProjectId\);\s*\}\s*\};/s,
   'Studio sidebar header should collapse refresh behavior into one context-aware action.',
 );
 

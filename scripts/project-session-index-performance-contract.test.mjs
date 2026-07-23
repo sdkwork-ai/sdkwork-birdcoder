@@ -1,8 +1,8 @@
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 
-const codingSessionSelectionPath = new URL(
-  '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-workbench/src/workbench/codingSessionSelection.ts',
+const agentSessionSelectionPath = new URL(
+  '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-workbench/src/workbench/agentSessionSelection.ts',
   import.meta.url,
 );
 const codePagePath = new URL(
@@ -14,55 +14,55 @@ const studioPagePath = new URL(
   import.meta.url,
 );
 
-const codingSessionSelectionSource = fs.readFileSync(codingSessionSelectionPath, 'utf8');
+const agentSessionSelectionSource = fs.readFileSync(agentSessionSelectionPath, 'utf8');
 const codePageSource = fs.readFileSync(codePagePath, 'utf8');
 const studioPageSource = fs.readFileSync(studioPagePath, 'utf8');
 
 assert.match(
-  codingSessionSelectionSource,
-  /export interface BirdCoderProjectCodingSessionIndex/,
-  'codingSessionSelection must define a reusable project/session lookup index.',
+  agentSessionSelectionSource,
+  /export interface BirdCoderProjectAgentSessionIndex/,
+  'agentSessionSelection must define a reusable project/session lookup index.',
 );
 
 assert.match(
-  codingSessionSelectionSource,
-  /export function buildProjectCodingSessionIndex\(/,
-  'codingSessionSelection must expose a shared project/session index builder.',
+  agentSessionSelectionSource,
+  /export function buildProjectAgentSessionIndex\(/,
+  'agentSessionSelection must expose a shared project/session index builder.',
 );
 
 assert.doesNotMatch(
-  codingSessionSelectionSource,
-  /resolveLatestCodingSessionIdForProject[\s\S]*?\.sort\(/,
-  'resolveLatestCodingSessionIdForProject must avoid full-array sorting in the hot path.',
+  agentSessionSelectionSource,
+  /resolveLatestAgentSessionIdForProject[\s\S]*?\.sort\(/,
+  'resolveLatestAgentSessionIdForProject must avoid full-array sorting in the hot path.',
 );
 
 assert.match(
-  codingSessionSelectionSource,
-  /resolveLatestCodingSessionIdForProject[\s\S]*buildProjectCodingSessionIndex\(projects\)/,
-  'resolveLatestCodingSessionIdForProject must reuse the shared project/session index instead of rescanning the project tree.',
+  agentSessionSelectionSource,
+  /resolveLatestAgentSessionIdForProject[\s\S]*buildProjectAgentSessionIndex\(projects\)/,
+  'resolveLatestAgentSessionIdForProject must reuse the shared project/session index instead of rescanning the project tree.',
 );
 
 assert.match(
   codePageSource,
-  /buildProjectCodingSessionIndex/,
+  /buildProjectAgentSessionIndex/,
   'CodePage must consume the shared project/session index to avoid repeated tree scans.',
 );
 
 assert.doesNotMatch(
   codePageSource,
-  /resolveSession\(sessionId\)\s*\?\?\s*resolveCodingSessionLocationInProjects\(projects,\s*sessionId\)/,
+  /resolveSession\(sessionId\)\s*\?\?\s*resolveAgentSessionLocationInProjects\(projects,\s*sessionId\)/,
   'CodePage must not perform a redundant fallback coding-session location scan once it already resolved the shared project/session index.',
 );
 
 assert.match(
   studioPageSource,
-  /buildProjectCodingSessionIndex/,
+  /buildProjectAgentSessionIndex/,
   'StudioPage must consume the shared project/session index to avoid repeated tree scans.',
 );
 
 assert.doesNotMatch(
   studioPageSource,
-  /resolveCodingSessionLocation\(sessionId\)\s*\?\?\s*resolveCodingSessionLocationInProjects\(projects,\s*sessionId\)/,
+  /resolveAgentSessionLocation\(sessionId\)\s*\?\?\s*resolveAgentSessionLocationInProjects\(projects,\s*sessionId\)/,
   'StudioPage must not perform a redundant fallback coding-session location scan once it already resolved the shared project/session index.',
 );
 

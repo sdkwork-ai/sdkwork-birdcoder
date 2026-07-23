@@ -11,27 +11,18 @@ function readJson(relativePath) {
 
 const componentSpec = readJson(componentSpecPath);
 const dependencies = componentSpec.contracts?.sdkDependencies ?? [];
-const appSurface = dependencies.find((dependency) => dependency.surface === 'app');
-const adminSurface = dependencies.find((dependency) => dependency.surface === 'backend-admin');
+const appSurface = dependencies.find((dependency) => dependency.surface === 'app-api');
 
 assert.ok(appSurface, 'H5 SDK assembly must declare an app surface.');
-assert.ok(adminSurface, 'H5 SDK assembly must declare a backend-admin surface.');
+assert.equal(dependencies.length, 1, 'H5 must consume only the BirdCoder App SDK family.');
+assert.equal(appSurface.workspace, 'sdkwork-birdcoder-app-sdk');
 
 assert.equal(appSurface.consumerPackageName, '@sdkwork/birdcoder-h5-core');
-assert.equal(adminSurface.consumerPackageName, '@sdkwork/birdcoder-h5-admin-core');
 
 assert.match(
   appSurface.manifestPath ?? '',
-  /sdkwork-birdcoder-pc\/sdks\/sdkwork-birdcoder-app-sdk\/sdk-manifest\.json/u,
-  'H5 app surface must consume the canonical PC-generated app SDK family.',
-);
-assert.match(
-  adminSurface.manifestPath ?? '',
-  /sdkwork-birdcoder-pc\/sdks\/sdkwork-birdcoder-backend-sdk\/sdk-manifest\.json/u,
-  'H5 backend-admin surface must consume the canonical PC-generated backend SDK family.',
+  /\.\.\/\.\.\/\.\.\/\.\.\/sdks\/sdkwork-birdcoder-app-sdk\/sdk-manifest\.json/u,
+  'H5 app surface must consume the application-root App SDK family.',
 );
 
-assert.equal(componentSpec.ownerPackage, '@sdkwork/birdcoder-h5-core');
-assert.equal(componentSpec.adminOwnerPackage, '@sdkwork/birdcoder-h5-admin-core');
-
-console.log('h5 sdk dependency contract passed.');
+console.log('H5 App-only SDK dependency contract passed.');

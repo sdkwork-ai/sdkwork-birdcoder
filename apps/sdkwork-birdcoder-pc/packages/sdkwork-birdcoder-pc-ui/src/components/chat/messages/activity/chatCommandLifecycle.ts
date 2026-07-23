@@ -1,9 +1,9 @@
 import {
-  projectChatMessageCommand,
-  projectChatMessageToolCalls,
+  normalizeChatMessageCommand,
+  normalizeChatMessageToolCalls,
   resolveBirdCoderCodeEngineCommandInteractionState,
-  type BirdCoderChatMessage,
-  type CommandExecution,
+  type AgentSessionItemView,
+  type AgentSessionCommandView,
 } from '@sdkwork/birdcoder-pc-workbench/chat/types';
 
 export type ChatCommandLifecycleTone =
@@ -28,7 +28,7 @@ export interface ChatCommandLiveAnnouncement {
 export type ChatCommandLifecycleSnapshot = ReadonlyMap<string, ChatCommandLifecycleTone>;
 
 export function resolveChatCommandLifecycleTone(
-  command: CommandExecution,
+  command: AgentSessionCommandView,
 ): ChatCommandLifecycleTone {
   if (command.runtimeStatus === 'terminated') {
     return 'cancelled';
@@ -52,9 +52,9 @@ export function resolveChatCommandLifecycleTone(
 }
 
 function resolveChatCommandLifecycleKey(
-  message: BirdCoderChatMessage,
+  message: AgentSessionItemView,
   messageIndex: number,
-  command: CommandExecution,
+  command: AgentSessionCommandView,
   commandIndex: number,
 ): string {
   const turnId = message.turnId?.trim() ?? '';
@@ -73,18 +73,18 @@ function resolveChatCommandLifecycleKey(
 }
 
 export function buildChatCommandLifecycleSnapshot(
-  messages: readonly BirdCoderChatMessage[],
+  messages: readonly AgentSessionItemView[],
   engineId?: string,
 ): ChatCommandLifecycleSnapshot {
   const snapshot = new Map<string, ChatCommandLifecycleTone>();
   for (let messageIndex = 0; messageIndex < messages.length; messageIndex += 1) {
     const message = messages[messageIndex]!;
-    const projectedCommands = projectChatMessageToolCalls(message.tool_calls, { engineId })
+    const normalizedCommands = normalizeChatMessageToolCalls(message.tool_calls, { engineId })
       .flatMap((call) => {
-        const command = projectChatMessageCommand(call);
+        const command = normalizeChatMessageCommand(call);
         return command ? [command] : [];
       });
-    const commands = [...(message.commands ?? []), ...projectedCommands];
+    const commands = [...(message.commands ?? []), ...normalizedCommands];
     for (let commandIndex = 0; commandIndex < commands.length; commandIndex += 1) {
       const command = commands[commandIndex];
       if (!command) {

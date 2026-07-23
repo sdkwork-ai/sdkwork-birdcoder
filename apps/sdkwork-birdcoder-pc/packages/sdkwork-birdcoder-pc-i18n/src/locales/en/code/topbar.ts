@@ -10,7 +10,6 @@ export default defineLocaleModule('code/topbar', {
     "createdAndSwitchedBranch": "Created and switched to branch: {{branch}}",
     "failedToCreateBranch": "Failed to create branch: {{error}}",
     "switchedToBranch": "Switched to branch: {{branch}}",
-    "failedToSwitchBranch": "Failed to switch branch: {{error}}",
-    "invitationSent": "Invitation sent"
+    "failedToSwitchBranch": "Failed to switch branch: {{error}}"
   }
 });

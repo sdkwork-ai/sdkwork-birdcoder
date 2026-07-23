@@ -23,9 +23,9 @@ import {
   readReleaseQualityEvidence,
 } from './quality-gate-release-evidence.mjs';
 import {
-  createCodingServerOpenApiEvidence,
-  normalizeCodingServerOpenApiEvidenceSummary,
-} from './coding-server-openapi-release-evidence.mjs';
+  createBirdcoderAppApiEvidence,
+  normalizeBirdcoderAppApiEvidenceSummary,
+} from './birdcoder-app-api-release-evidence.mjs';
 import {
   assertClearStopShipEvidence,
   buildPromotionReadinessSummary,
@@ -137,8 +137,8 @@ function normalizeQualitySummary(summary = {}) {
   return normalizeQualityEvidenceSummary(summary);
 }
 
-function normalizeCodingServerOpenApiSummary(summary = {}) {
-  return normalizeCodingServerOpenApiEvidenceSummary(summary);
+function normalizeBirdcoderAppApiSummary(summary = {}) {
+  return normalizeBirdcoderAppApiEvidenceSummary(summary);
 }
 
 function assertOptionalSummaryMatches({
@@ -247,28 +247,28 @@ function assertTestEvidenceSummaryMatches({
   });
 }
 
-function assertCodingServerOpenApiEvidenceSummaryMatches({
+function assertBirdcoderAppApiEvidenceSummaryMatches({
   manifest,
   releaseAssetsDir,
 } = {}) {
-  const archiveSummary = createCodingServerOpenApiEvidence({
+  const archiveSummary = createBirdcoderAppApiEvidence({
     releaseAssetsDir,
     assets: manifest.assets,
   });
   if (!archiveSummary) {
-    if (manifest.codingServerOpenApiEvidence) {
-      throw new Error('Finalized manifest codingServerOpenApiEvidence summary is present without packaged server OpenAPI assets.');
+    if (manifest.birdcoderAppApiEvidence) {
+      throw new Error('Finalized manifest birdcoderAppApiEvidence summary is present without packaged App API assets.');
     }
     return null;
   }
 
   return assertRequiredSummaryMatches({
-    manifestSummary: manifest.codingServerOpenApiEvidence,
+    manifestSummary: manifest.birdcoderAppApiEvidence,
     archiveSummary,
-    normalizeSummary: normalizeCodingServerOpenApiSummary,
-    missingManifestMessage: 'Missing finalized manifest codingServerOpenApiEvidence summary.',
-    missingArchiveMessage: `Missing packaged coding-server OpenAPI snapshot referenced by finalized manifest: ${releaseAssetsDir}`,
-    mismatchMessage: 'Finalized manifest codingServerOpenApiEvidence summary does not match the packaged coding-server OpenAPI snapshot.',
+    normalizeSummary: normalizeBirdcoderAppApiSummary,
+    missingManifestMessage: 'Missing finalized manifest birdcoderAppApiEvidence summary.',
+    missingArchiveMessage: `Missing packaged BirdCoder App API OpenAPI snapshot referenced by finalized manifest: ${releaseAssetsDir}`,
+    mismatchMessage: 'Finalized manifest birdcoderAppApiEvidence summary does not match the packaged BirdCoder App API OpenAPI snapshot.',
   });
 }
 
@@ -452,7 +452,7 @@ export function smokeFinalizedReleaseAssets({
     manifest,
     releaseAssetsDir,
   });
-  const codingServerOpenApiEvidence = assertCodingServerOpenApiEvidenceSummaryMatches({
+  const birdcoderAppApiEvidence = assertBirdcoderAppApiEvidenceSummaryMatches({
     manifest,
     releaseAssetsDir,
   });
@@ -510,11 +510,11 @@ export function smokeFinalizedReleaseAssets({
         detail: 'finalized release manifest exists and can be parsed',
       },
       {
-        id: 'coding-server-openapi-evidence-summary-match',
-        status: codingServerOpenApiEvidence ? 'passed' : 'skipped',
-        detail: codingServerOpenApiEvidence
-          ? 'finalized manifest codingServerOpenApiEvidence summary matches the packaged coding-server OpenAPI snapshot'
-          : 'no packaged server OpenAPI snapshot is attached to the finalized release manifest',
+        id: 'birdcoder-app-api-evidence-summary-match',
+        status: birdcoderAppApiEvidence ? 'passed' : 'skipped',
+        detail: birdcoderAppApiEvidence
+          ? 'finalized manifest birdcoderAppApiEvidence summary matches the packaged BirdCoder App API OpenAPI snapshot'
+          : 'no packaged BirdCoder App API OpenAPI snapshot is attached to the finalized release manifest',
       },
       {
         id: 'preview-evidence-summary-match',
@@ -564,7 +564,7 @@ export function smokeFinalizedReleaseAssets({
         detail: 'finalized manifest qualityEvidence summary matches the quality gate matrix report',
       },
     ],
-    codingServerOpenApiEvidence: codingServerOpenApiEvidence ?? null,
+    birdcoderAppApiEvidence: birdcoderAppApiEvidence ?? null,
     previewEvidence: previewEvidence ?? null,
     buildEvidence: buildEvidence ?? null,
     simulatorEvidence: simulatorEvidence ?? null,
@@ -585,7 +585,7 @@ export function smokeFinalizedReleaseAssets({
   return {
     manifestPath,
     reportPath,
-    codingServerOpenApiEvidence,
+    birdcoderAppApiEvidence,
     previewEvidence,
     buildEvidence,
     simulatorEvidence,

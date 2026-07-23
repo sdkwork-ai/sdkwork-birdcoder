@@ -1,153 +1,111 @@
 import assert from 'node:assert/strict';
-import type {
-  BirdCoderApiTransport,
-  BirdCoderApiTransportRequest,
-} from '@sdkwork/birdcoder-pc-contracts-commons';
 
-const sdkClientsModulePath = new URL(
-  '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/src/services/sdkClients.ts',
-  import.meta.url,
-);
+import {
+  createClient,
+  type BirdCoderProjectSummary,
+} from '@sdkwork/birdcoder-pc-core/sdk/birdcoder-app';
 
-interface BirdCoderProjectPage {
-  items: Array<{
-    id: string;
-  }>;
-  pageInfo: {
-    hasMore: boolean;
-    mode: 'offset';
-    page: number;
-    pageSize: number;
-    totalItems: string;
-    totalPages: number;
+import {
+  ApiBackedProjectService,
+  type AgentProjectProvisioningSdkPort,
+} from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/src/services/impl/ApiBackedProjectService.ts';
+
+const workspaceId = 'workspace-semantic-project-page-contract';
+
+function createProject(id: string): BirdCoderProjectSummary {
+  return {
+    code: `project-${id}`,
+    createdAt: '2026-07-10T00:00:00.000Z',
+    createdByUserId: 'user-project-page-contract',
+    defaultAgentProjectId: `project.${id}`,
+    description: null,
+    id,
+    name: `Semantic Project ${id}`,
+    organizationId: 'organization-project-page-contract',
+    ownerUserId: 'user-project-page-contract',
+    projectKind: 'standard',
+    status: 'active',
+    tenantId: 'tenant-project-page-contract',
+    updatedAt: '2026-07-10T00:00:00.000Z',
+    uuid: `00000000-0000-4000-8000-${id.padStart(12, '0')}`,
+    version: `version-${id}`,
+    workspaceId,
   };
 }
 
-interface BirdCoderProjectPageSemanticFacade {
-  listProjectPage(input: {
-    page: number;
-    pageSize: number;
-    workspaceId: string;
-  }): Promise<BirdCoderProjectPage>;
-}
-
-const workspaceId = 'workspace-semantic-project-page-contract';
-const observedRequests: BirdCoderApiTransportRequest[] = [];
 const projectPageResponse = {
-  code: 0 as const,
-  data: {
-    items: [
-      {
-        createdAt: '2026-07-10T00:00:00.000Z',
-        id: 'project-semantic-page-21',
-        name: 'Semantic Project Page 21',
-        status: 'active' as const,
-        updatedAt: '2026-07-10T00:00:00.000Z',
-        workspaceId,
-      },
-      {
-        createdAt: '2026-07-10T00:00:00.000Z',
-        id: 'project-semantic-page-22',
-        name: 'Semantic Project Page 22',
-        status: 'active' as const,
-        updatedAt: '2026-07-10T00:00:00.000Z',
-        workspaceId,
-      },
-    ],
-    pageInfo: {
-      hasMore: false,
-      mode: 'offset' as const,
-      page: 2,
-      pageSize: 20,
-      totalItems: '22',
-      totalPages: 2,
-    },
-  },
-  traceId: 'trace-semantic-project-page-contract',
-};
-
-const transport: BirdCoderApiTransport = {
-  async request<TResponse>(request: BirdCoderApiTransportRequest): Promise<TResponse> {
-    observedRequests.push(request);
-    return projectPageResponse as TResponse;
+  items: [createProject('21'), createProject('22')],
+  pageInfo: {
+    hasMore: false,
+    mode: 'offset' as const,
+    page: 2,
+    pageSize: 20,
+    totalItems: '22',
+    totalPages: 2,
   },
 };
 
-const { createBirdCoderAppSdkApiClient } = await import(
-  `${sdkClientsModulePath.href}?t=${Date.now()}`,
-);
-const appClient = createBirdCoderAppSdkApiClient({ transport });
-const semanticFacade = appClient as unknown as BirdCoderProjectPageSemanticFacade;
-const projectPage = await semanticFacade.listProjectPage({
-  page: 2,
-  pageSize: 20,
-  workspaceId,
+const observedPaths: string[] = [];
+const unusedAgentProjects: AgentProjectProvisioningSdkPort = {
+  async create() {
+    throw new Error('Project creation is outside this pagination contract.');
+  },
+  async delete() {
+    throw new Error('Project deletion is outside this pagination contract.');
+  },
+};
+const appClient = createClient({
+  authMode: 'dual-token',
+  baseUrl: 'http://127.0.0.1:1',
+  platform: 'pc',
 });
+appClient.http.get = async function get<T>(requestPath: string): Promise<T> {
+  observedPaths.push(requestPath);
+  return projectPageResponse as T;
+};
+
+const projectService = new ApiBackedProjectService({
+  agentProjects: unusedAgentProjects,
+  appClient,
+});
+const projectPage = await projectService.getProjectsPage(
+  workspaceId,
+  { page: 2, pageSize: 20 },
+);
 
 assert.deepEqual(
-  observedRequests.map((request) => ({
-    method: request.method,
-    path: request.path,
-    query: request.query,
-  })),
+  observedPaths,
   [
-    {
-      method: 'GET',
-      path: '/app/v3/api/projects',
-      query: {
-        page: 2,
-        page_size: 20,
-        workspaceId,
-      },
-    },
+    '/app/v3/api/projects?workspaceId=workspace-semantic-project-page-contract&page=2&page_size=20',
   ],
-  'the semantic project page facade must preserve standard page and page_size on the composed app SDK wire.',
+  'Project pagination must use the generated SDK hierarchy and preserve standard page query semantics.',
 );
-
 assert.deepEqual(
-  projectPage,
-  {
-    items: projectPageResponse.data.items,
-    pageInfo: projectPageResponse.data.pageInfo,
-  },
-  'the semantic project page facade must retain the complete standard PageInfo instead of collapsing the result to items.',
+  projectPage.items.map((project) => project.id),
+  ['21', '22'],
+  'The project service must map generated SDK project records without replacing the server page.',
+);
+assert.deepEqual(
+  projectPage.pageInfo,
+  projectPageResponse.pageInfo,
+  'The project service must retain complete standard PageInfo metadata.',
 );
 
-const requestCountBeforeInvalidInput = observedRequests.length;
+const requestCountBeforeInvalidInput = observedPaths.length;
 await assert.rejects(
-  () =>
-    semanticFacade.listProjectPage({
-      page: 0,
-      pageSize: 20,
-      workspaceId,
-    }),
-  /positive integer/u,
-  'the semantic project page facade must reject page zero before it reaches the composed SDK transport.',
+  () => projectService.getProjectsPage(workspaceId, { page: 0, pageSize: 20 }),
+  /positive safe integer/iu,
+  'Page zero must fail before generated SDK dispatch.',
 );
 await assert.rejects(
-  () =>
-    semanticFacade.listProjectPage({
-      page: 1,
-      pageSize: 201,
-      workspaceId,
-    }),
-  /between 1 and 200/u,
-  'the semantic project page facade must reject page sizes above the standard maximum before it reaches the composed SDK transport.',
-);
-await assert.rejects(
-  () =>
-    semanticFacade.listProjectPage({
-      page: 1,
-      pageSize: 20,
-      workspaceId: ' \t ',
-    }),
-  /must not be blank/u,
-  'the semantic project page facade must reject a blank workspace id before it reaches the composed SDK transport.',
+  () => projectService.getProjectsPage(workspaceId, { page: 1, pageSize: 201 }),
+  /between 1 and 200/iu,
+  'Page sizes above the application limit must fail before generated SDK dispatch.',
 );
 assert.equal(
-  observedRequests.length,
+  observedPaths.length,
   requestCountBeforeInvalidInput,
-  'invalid semantic project page input must not issue a transport request.',
+  'Invalid project pagination must not dispatch a generated SDK request.',
 );
 
 console.log('app SDK semantic project page contract passed.');

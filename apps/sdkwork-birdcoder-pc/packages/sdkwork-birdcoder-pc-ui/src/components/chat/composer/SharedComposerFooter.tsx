@@ -12,12 +12,11 @@ import {
   Plus,
 } from 'lucide-react';
 import { Button } from '@sdkwork/birdcoder-pc-ui-shell';
-import type { WorkbenchCodeEngineId } from '@sdkwork/birdcoder-pc-codeengine';
 import { createFallbackModel, ModelPicker } from '@sdkwork/models-pc-picker';
 import type { EngineComposerFooterProps } from './UniversalChatComposerFooter.types';
 
 interface SharedComposerFooterProps extends EngineComposerFooterProps {
-  engineId: WorkbenchCodeEngineId;
+  engineId: string;
 }
 
 export function SharedComposerFooter({

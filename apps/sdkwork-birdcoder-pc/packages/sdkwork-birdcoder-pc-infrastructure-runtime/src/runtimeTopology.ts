@@ -1,5 +1,4 @@
 export {
-  resolveBirdCoderAppbaseIamCompatibilityDeploymentMode,
   resolveBirdCoderRuntimeTopology,
   type BirdCoderDeploymentProfile,
   type BirdCoderExecutionLocation,

@@ -74,7 +74,7 @@ const engineSelectionHookPath = path.join(
   'sdkwork-birdcoder-pc-workbench',
   'src',
   'hooks',
-  'useCodingSessionEngineModelSelection.ts',
+  'useAgentSessionEngineModelSelection.ts',
 );
 const engineSelectionHookSource = fs.readFileSync(engineSelectionHookPath, 'utf8');
 const codePageSize = Buffer.byteLength(codePageSource, 'utf8');
@@ -207,7 +207,7 @@ assert.match(
 
 assert.doesNotMatch(
   engineSelectionHookSource,
-  /await updateCodingSession\(/,
+  /await updateAgentSession\(/,
   'The shared engine/model selection hook must no longer persist engine/model edits into an existing session after creation.',
 );
 

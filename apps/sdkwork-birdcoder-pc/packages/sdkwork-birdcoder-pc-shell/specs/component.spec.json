@@ -111,6 +111,13 @@
   ],
   "contracts": {
     "layerRole": "frontend-shell",
+    "providedPorts": [
+      {
+        "name": "applicationShell",
+        "export": "."
+      }
+    ],
+    "requiredPorts": [],
     "publicExports": [
       "."
     ],

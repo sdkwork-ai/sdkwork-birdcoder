@@ -1,280 +1,134 @@
 {
-  "schemaVersion": 1,
+  "schemaVersion": 2,
   "kind": "sdkwork.agents-birdcoder-alignment",
-  "updatedAt": "2026-07-08",
-  "summary": "Machine-readable alignment tracker for sdkwork-agents business layer and BirdCoder product integration.",
+  "updatedAt": "2026-07-22",
+  "summary": "BirdCoder consumes the canonical Agents session system through generated SDK clients and owns no parallel session, transcript, interaction, runtime, artifact, or checkpoint authority.",
   "authorityDocs": [
     "docs/architecture/tech/TECH_ARCHITECTURE.md",
     "docs/product/prd/PRD.md",
-    "../sdkwork-agents/docs/architecture/AGENTS_LAYERING.md"
+    "specs/domain-ownership.spec.json",
+    "specs/agent-session-item-view.spec.md"
   ],
-  "siblingDependencies": [
-    {
-      "id": "sdkwork-agents",
-      "path": "../sdkwork-agents",
-      "requiredCapabilities": [
-        "agents-runtime-facade",
-        "agents-engine-catalog-api",
-        "agents-domain-service",
-        "agents-task-api"
-      ]
-    }
-  ],
-  "phases": [
-    {
-      "id": "P1-boundary",
-      "title": "Agents application-layer boundary freeze",
-      "doc": "docs/architecture/tech/TECH_ARCHITECTURE.md"
-    },
-    {
-      "id": "P2-facade",
-      "title": "runtime-facade extension for BirdCoder",
-      "doc": "docs/architecture/tech/TECH_ARCHITECTURE.md"
-    },
-    {
-      "id": "P3-agents-service",
-      "title": "Agents service capability closure",
-      "doc": "../sdkwork-agents/docs/architecture/AGENTS_LAYERING.md"
-    },
-    {
-      "id": "P4-verification",
-      "title": "Contract verification and alignment loop",
-      "doc": "docs/architecture/tech/TECH_ARCHITECTURE.md"
-    },
-    {
-      "id": "P5-evolution",
-      "title": "Platformization and commercial-readiness evolution",
-      "doc": "docs/architecture/tech/TECH_ARCHITECTURE.md"
-    }
+  "dependencyDirection": [
+    "sdkwork-birdcoder -> sdkwork-agents -> sdkwork-kernel",
+    "sdkwork-birdcoder -> sdkwork-im -> sdkwork-agents",
+    "sdkwork-agents -/-> sdkwork-im"
   ],
   "tasks": [
     {
-      "id": "ABA-BC-01",
-      "phase": "P2-facade",
+      "id": "ABA-001",
       "owner": "agents",
-      "title": "sdkwork-agents-runtime-facade provides host, turn, catalog, and live interaction",
+      "title": "Use the canonical Agents domain and session contracts",
       "status": "done",
       "gate": true,
       "evidence": {
-        "paths": [
-          "../sdkwork-agents/crates/sdkwork-agents-runtime-facade/src/runtime_host.rs",
-          "../sdkwork-agents/crates/sdkwork-agents-runtime-facade/src/turn.rs",
-          "../sdkwork-agents/crates/sdkwork-agents-runtime-facade/src/engine_catalog.rs",
-          "../sdkwork-agents/crates/sdkwork-agents-runtime-facade/src/live_interaction.rs"
+        "siblingPaths": [
+          "../sdkwork-agents/specs/AGENTS_DOMAIN_SPEC.md",
+          "../sdkwork-agents/specs/AGENTS_SESSION_MODEL_SPEC.md",
+          "../sdkwork-agents/specs/AGENTS_IM_DEPENDENCY_BOUNDARY_SPEC.md",
+          "../sdkwork-agents/sdks/sdkwork-agents-app-sdk/sdkwork-agents-app-sdk-typescript/package.json"
         ]
       },
       "verification": {
         "commands": [
-          "cargo test -p sdkwork-agents-runtime-facade"
+          "pnpm check:agents-birdcoder-alignment"
         ]
       }
     },
     {
-      "id": "ABA-BC-02",
-      "phase": "P2-facade",
+      "id": "ABA-002",
       "owner": "birdcoder",
-      "title": "BirdCoder kernel bridge depends only on agents runtime facade",
+      "title": "Inject the generated Agents App SDK from the PC composition root",
       "status": "done",
       "gate": true,
       "evidence": {
         "paths": [
-          "crates/sdkwork-birdcoder-kernel-bridge/Cargo.toml",
-          "crates/sdkwork-birdcoder-kernel-bridge/src/host.rs",
-          "crates/sdkwork-birdcoder-kernel-bridge/src/turn_executor.rs"
+          "apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/src/services/agentsSdkClients.ts",
+          "apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/src/services/agentsCatalogService.ts"
         ],
-        "forbiddenPatterns": [
+        "requiredPatterns": [
           {
-            "file": "crates/sdkwork-birdcoder-kernel-bridge/Cargo.toml",
-            "pattern": "\\[dependencies\\][\\s\\S]*sdkwork-agent-kernel\\s*=",
-            "section": "dependencies"
+            "file": "apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/src/services/agentsSdkClients.ts",
+            "pattern": "getBirdCoderGlobalTokenManager"
           },
           {
-            "file": "crates/sdkwork-birdcoder-kernel-bridge/Cargo.toml",
-            "pattern": "sdkwork-code-kernel"
+            "file": "apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/src/services/agentsCatalogService.ts",
+            "pattern": "client\\.ai\\.agents"
           }
-        ]
-      },
-      "verification": {
-        "commands": [
-          "cargo test -p sdkwork-birdcoder-kernel-bridge",
-          "node scripts/birdcoder-agents-integration-contract.test.mjs"
-        ]
-      }
-    },
-    {
-      "id": "ABA-AG-01",
-      "phase": "P3-agents-service",
-      "owner": "agents",
-      "title": "agents-engine-catalog-api HTTP",
-      "status": "done",
-      "gate": true,
-      "evidence": {
-        "paths": [
-          "../sdkwork-agents/crates/sdkwork-intelligence-agents-service/src/code_engine_catalog.rs",
-          "../sdkwork-agents/crates/sdkwork-intelligence-agents-service/src/http.rs"
-        ],
-        "requiredPatterns": [
-          {
-            "file": "../sdkwork-agents/crates/sdkwork-intelligence-agents-service/src/http.rs",
-            "pattern": "/app/v3/api/ai/code_engines"
-          }
-        ]
-      },
-      "verification": {
-        "commands": [
-          "cargo test -p sdkwork-intelligence-agents-service --features http-axum --lib"
-        ]
-      }
-    },
-    {
-      "id": "ABA-AG-02",
-      "phase": "P3-agents-service",
-      "owner": "agents",
-      "title": "MCP marketplace HTTP route",
-      "status": "done",
-      "gate": true,
-      "evidence": {
-        "paths": [
-          "../sdkwork-agents/crates/sdkwork-intelligence-agents-service/src/mcp_marketplace.rs",
-          "../sdkwork-agents/crates/sdkwork-intelligence-agents-service/src/http.rs"
-        ],
-        "requiredPatterns": [
-          {
-            "file": "../sdkwork-agents/crates/sdkwork-intelligence-agents-service/src/http.rs",
-            "pattern": "/app/v3/api/ai/mcp_servers"
-          }
-        ]
-      },
-      "verification": {
-        "commands": [
-          "cargo test -p sdkwork-intelligence-agents-service --features http-axum --lib"
-        ]
-      }
-    },
-    {
-      "id": "ABA-AG-03",
-      "phase": "P3-agents-service",
-      "owner": "agents",
-      "title": "preview and prompt optimization use agents runtime facade",
-      "status": "done",
-      "gate": true,
-      "evidence": {
-        "paths": [
-          "../sdkwork-agents/crates/sdkwork-intelligence-agents-service/src/runtime_facade_bridge.rs",
-          "../sdkwork-agents/crates/sdkwork-intelligence-agents-service/src/application.rs"
         ],
         "forbiddenPatterns": [
           {
-            "file": "../sdkwork-agents/crates/sdkwork-intelligence-agents-service/src/application.rs",
-            "pattern": "deterministic-local-contract"
+            "file": "apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/src/services/agentsSdkClients.ts",
+            "pattern": "fetch\\(|Authorization|Bearer "
           }
         ]
       },
       "verification": {
         "commands": [
-          "cargo test -p sdkwork-intelligence-agents-service --features http-axum --lib"
+          "pnpm check:api-transport-standard"
         ]
       }
     },
     {
-      "id": "ABA-BC-03",
-      "phase": "P4-verification",
+      "id": "ABA-003",
       "owner": "birdcoder",
-      "title": "Contract tests and workflow dependency registration",
+      "title": "Remove all BirdCoder-owned duplicate Agents authorities",
+      "status": "done",
+      "gate": true,
+      "evidence": {
+        "forbiddenPaths": [
+          "apps/sdkwork-birdcoder-common/packages/sdkwork-birdcoder-chat-contracts",
+          "apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-codeengine",
+          "apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-projection",
+          "apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-contracts-commons/src/coding-session.ts",
+          "apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-contracts-commons/src/generated/coding-server-client.ts",
+          "apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-contracts-commons/src/generated/coding-server-openapi.ts",
+          "apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/src/services/codingSessionMessageProjection.ts",
+          "apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/src/storage/codingSessionRepository.ts"
+        ]
+      },
+      "verification": {
+        "commands": [
+          "pnpm check:domain-ownership"
+        ]
+      }
+    },
+    {
+      "id": "ABA-004",
+      "owner": "birdcoder",
+      "title": "Keep AI transcript and human IM semantics separate",
       "status": "done",
       "gate": true,
       "evidence": {
         "paths": [
-          "scripts/birdcoder-agents-integration-contract.test.mjs",
-          "sdkwork.workflow.json"
+          "specs/agent-session-item-view.spec.md",
+          "docs/architecture/tech/TECH_ARCHITECTURE.md"
+        ],
+        "requiredPatterns": [
+          {
+            "file": "specs/agent-session-item-view.spec.md",
+            "pattern": "Session Item"
+          },
+          {
+            "file": "specs/agent-session-item-view.spec.md",
+            "pattern": "human Conversation, Message, Member, and ReadCursor"
+          }
         ]
       },
       "verification": {
         "commands": [
-          "node scripts/birdcoder-agents-integration-contract.test.mjs"
+          "pnpm check:agents-birdcoder-alignment"
         ]
       }
-    },
-    {
-      "id": "ABA-BC-04",
-      "phase": "P5-evolution",
-      "owner": "birdcoder",
-      "title": "BirdCoder PC consumes @sdkwork/agents-app-sdk",
-      "status": "partial",
-      "gate": false,
-      "notes": "Code-engine catalog service is wired through composed agents app SDK. Full agent/session/message/task CRUD services and UI remain pending.",
-      "evidence": {
-        "paths": [
-          "apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-core/src/sdk/agents-app-sdk.ts",
-          "apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/src/services/agentsSdkClients.ts",
-          "apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/src/services/agentsCatalogService.ts",
-          "scripts/agents-catalog-sdk-unwrapped-response-contract.test.ts"
-        ]
-      },
-      "verification": {
-        "commands": [
-          "node scripts/run-local-tsx.mjs scripts/agents-catalog-sdk-unwrapped-response-contract.test.ts",
-          "node ../sdkwork-specs/tools/check-app-sdk-consumer-imports.mjs --workspace ."
-        ]
-      }
-    },
-    {
-      "id": "ABA-AG-04",
-      "phase": "P5-evolution",
-      "owner": "agents",
-      "title": "Agent task scheduling persistence and API surfaces",
-      "status": "done",
-      "gate": false,
-      "notes": "agents.tasks.* is live on Open/App/Backend surfaces with paginated list, create, retrieve, cancel, and execute semantics. Task-run projection remains tracked separately.",
-      "evidence": {
-        "paths": [
-          "../sdkwork-agents/docs/architecture/tech/TECH-api-specification.md",
-          "../sdkwork-agents/database/contract/table-registry.json",
-          "../sdkwork-agents/crates/sdkwork-intelligence-agents-service/src/http.rs",
-          "../sdkwork-agents/sdks/sdkwork-agents-app-sdk/sdkwork-agents-app-sdk-typescript/generated/server-openapi/src/types/agent-task-record.ts"
-        ]
-      }
-    },
-    {
-      "id": "ABA-AG-05",
-      "phase": "P5-evolution",
-      "owner": "agents",
-      "title": "sdkwork-memory composition slot runtime mount",
-      "status": "pending",
-      "gate": false,
-      "notes": "Permanent, user, and growth memory must mount through @sdkwork/memory-app-sdk; agents must not duplicate memory tables.",
-      "evidence": {
-        "paths": [
-          "../sdkwork-agents/specs/AGENTS_KERNEL_BOUNDARY_SPEC.md"
-        ]
-      }
-    },
-    {
-      "id": "ABA-AG-06",
-      "phase": "P5-evolution",
-      "owner": "agents",
-      "title": "Durable replayable message/run event stream",
-      "status": "pending",
-      "gate": false,
-      "notes": "messages.create streaming exists in generated app SDK. A replayable message/run event stream remains pending."
-    },
-    {
-      "id": "ABA-AG-07",
-      "phase": "P5-evolution",
-      "owner": "agents",
-      "title": "Task-run projection app-api and ai_agent_task_run",
-      "status": "pending",
-      "gate": false,
-      "notes": "agents.taskRuns.list and ai_agent_task_run wait for kernel AgentRun projection."
-    },
-    {
-      "id": "ABA-BC-05",
-      "phase": "P5-evolution",
-      "owner": "birdcoder",
-      "title": "Agent configuration and session management UI",
-      "status": "pending",
-      "gate": false,
-      "notes": "Depends on completing ABA-BC-04 service coverage for CRUD workflows."
     }
-  ]
+  ],
+  "verificationMatrix": {
+    "commands": [
+      "pnpm check:domain-ownership",
+      "pnpm check:agents-birdcoder-alignment",
+      "pnpm check:kernel-birdcoder-alignment",
+      "pnpm check:api-transport-standard",
+      "pnpm typecheck"
+    ]
+  }
 }

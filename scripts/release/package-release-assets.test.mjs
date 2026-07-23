@@ -13,7 +13,6 @@ import {
   WORKSPACE_CARGO_TARGET_REL,
 } from './release-build-paths.mjs';
 import { RELEASE_ASSET_MANIFEST_FILE_NAME } from './release-profiles.mjs';
-import { sha256File } from '../sdkwork-utils-digest.mjs';
 
 const SERVER_BINARY_TARGET = 'x86_64-unknown-linux-gnu';
 const SERVER_BINARY_NAME = SERVER_CRATE_BINARY_NAME;
@@ -40,56 +39,6 @@ const MISSING_CONTAINER_WEB_DIST_ERROR = new RegExp(
 function writeFile(targetPath, value) {
   fs.mkdirSync(path.dirname(targetPath), { recursive: true });
   fs.writeFileSync(targetPath, value);
-}
-
-function writeProviderRuntimeFixture(rootDir, platform, architecture) {
-  const runtimeRoot = path.join(rootDir, 'artifacts', 'provider-runtime');
-  const nodeRelativePath = platform === 'windows' ? 'node/node.exe' : 'node/bin/node';
-  const workerRelativePaths = [
-    'workers/generic-ts-sdk-worker.mjs',
-    'workers/engine-sdk-live.mjs',
-    'workers/codex-cli-live.mjs',
-    'workers/provider-cli-live.mjs',
-  ];
-  const writeAsset = (relativePath, value) => {
-    const absolutePath = path.join(runtimeRoot, relativePath);
-    writeFile(absolutePath, value);
-    return {
-      relativePath,
-      sha256: sha256File(absolutePath),
-      size: fs.statSync(absolutePath).size,
-    };
-  };
-  const node = {
-    version: '22.20.0',
-    ...writeAsset(nodeRelativePath, 'fixture-node-runtime\n'),
-  };
-  const workers = workerRelativePaths.map((relativePath) =>
-    writeAsset(relativePath, '// fixture ' + relativePath + '\n'),
-  );
-  writeFile(
-    path.join(runtimeRoot, 'runtime-manifest.json'),
-    JSON.stringify(
-      {
-        schemaVersion: 1,
-        kind: 'sdkwork.birdcoder.provider-runtime',
-        target: {
-          platform,
-          architecture,
-        },
-        node,
-        workers,
-        providers: [
-          { id: 'codex' },
-          { id: 'claude-code' },
-          { id: 'gemini-cli' },
-          { id: 'opencode' },
-        ],
-      },
-      null,
-      2,
-    ) + '\n',
-  );
 }
 
 function writeWebDistFixture(rootDir) {
@@ -230,21 +179,26 @@ function writeServerFixture(rootDir) {
     'compiled-birdcoder-server-binary.exe\n',
   );
   writeFile(
-    path.join(rootDir, 'artifacts', 'openapi', 'coding-server-v1.json'),
+    path.join(
+      rootDir,
+      'sdks',
+      'sdkwork-birdcoder-app-sdk',
+      'openapi',
+      'sdkwork-birdcoder-app-api.openapi.json',
+    ),
     JSON.stringify({
       openapi: '3.1.0',
       info: {
-        title: 'SDKWork BirdCoder Coding Server API',
-        version: 'v1',
+        title: 'SDKWork BirdCoder App API',
+        version: '0.1.0',
       },
       servers: [
         {
-          url: '/',
+          url: '/app/v3/api',
         },
       ],
-      'x-sdkwork-api-assembly': {
-        routeCatalogPath: '/app/v3/api/system/routes',
-      },
+      'x-sdkwork-api-authority': 'sdkwork-birdcoder-app-api',
+      'x-sdkwork-owner': 'sdkwork-birdcoder',
       paths: {
         '/app/v3/api/system/routes': {
           get: {
@@ -345,7 +299,6 @@ withFixture((fixtureRoot) => {
   writeDesktopInstallerBundleFixture(fixtureRoot, 'x86_64-pc-windows-msvc');
   writeServerFixture(fixtureRoot);
   writeDeploymentFixtures(fixtureRoot);
-  writeProviderRuntimeFixture(fixtureRoot, 'windows', 'x64');
 
   const webResult = packageReleaseAssets('web', {
     profile: 'sdkwork-birdcoder',
@@ -499,7 +452,6 @@ withFixture((fixtureRoot) => {
     'desktop package output must preserve the second same-basename native installer contents',
   );
 
-  writeProviderRuntimeFixture(fixtureRoot, 'linux', 'x64');
   const serverResult = packageReleaseAssets('server', {
     profile: 'sdkwork-birdcoder',
     'release-tag': 'release-local',
@@ -511,9 +463,9 @@ withFixture((fixtureRoot) => {
   assert.ok(fs.existsSync(serverResult.archivePath));
   assert.equal(serverResult.manifest.family, 'server');
   assertServerRuntimeArchiveShape(serverResult, 'sdkwork-birdcoder-server-release-local-linux-x64');
-  assert.ok(fs.existsSync(path.join(path.dirname(serverResult.manifestPath), 'openapi', 'coding-server-v1.json')));
+  assert.ok(fs.existsSync(path.join(path.dirname(serverResult.manifestPath), 'openapi', 'birdcoder-app-api.openapi.json')));
   assert.equal(
-    serverResult.manifest.artifacts.some((artifact) => artifact.relativePath.endsWith('/openapi/coding-server-v1.json')),
+    serverResult.manifest.artifacts.some((artifact) => artifact.relativePath.endsWith('/openapi/birdcoder-app-api.openapi.json')),
     true,
   );
 
@@ -566,7 +518,6 @@ withFixture((fixtureRoot) => {
 withFixture((fixtureRoot) => {
   writeDesktopDistFixture(fixtureRoot);
   writePartialDesktopInstallerBundleFixture(fixtureRoot, 'x86_64-pc-windows-msvc');
-  writeProviderRuntimeFixture(fixtureRoot, 'windows', 'x64');
 
   const desktopExeResult = packageReleaseAssets('desktop', {
     profile: 'sdkwork-birdcoder',
@@ -624,7 +575,10 @@ withFixture((fixtureRoot) => {
 withFixture((fixtureRoot) => {
   writeWebDistFixture(fixtureRoot);
   writeServerFixture(fixtureRoot);
-  fs.rmSync(path.join(fixtureRoot, 'artifacts', 'openapi'), { recursive: true, force: true });
+  fs.rmSync(
+    path.join(fixtureRoot, 'sdks', 'sdkwork-birdcoder-app-sdk', 'openapi'),
+    { recursive: true, force: true },
+  );
 
   assertThrowsWithMessage(
     () => packageReleaseAssets('server', {
@@ -635,7 +589,7 @@ withFixture((fixtureRoot) => {
       target: SERVER_BINARY_TARGET,
       'output-dir': 'artifacts/release',
     }),
-    /Missing required coding-server OpenAPI snapshot.*artifacts[\\/]openapi[\\/]coding-server-v1\.json.*Run `pnpm api:materialize:coding-server` before packaging server release assets/u,
+    /Missing required BirdCoder App API OpenAPI snapshot.*sdks[\\/]sdkwork-birdcoder-app-sdk[\\/]openapi[\\/]sdkwork-birdcoder-app-api\.openapi\.json.*Run `pnpm check:api-transport-standard` before packaging server release assets/u,
   );
 });
 
@@ -690,7 +644,6 @@ withFixture((fixtureRoot) => {
 withFixture((fixtureRoot) => {
   writeDesktopDistFixture(fixtureRoot);
   writeMacosDesktopInstallerBundleFixture(fixtureRoot, 'aarch64-apple-darwin', 'aarch64');
-  writeProviderRuntimeFixture(fixtureRoot, 'macos', 'arm64');
 
   const desktopResult = packageReleaseAssets('desktop', {
     profile: 'sdkwork-birdcoder',
@@ -718,7 +671,6 @@ withFixture((fixtureRoot) => {
 withFixture((fixtureRoot) => {
   writeDesktopDistFixture(fixtureRoot);
   writePartialDesktopInstallerBundleFixture(fixtureRoot, 'x86_64-pc-windows-msvc');
-  writeProviderRuntimeFixture(fixtureRoot, 'windows', 'x64');
   const outputFamilyDir = path.join(fixtureRoot, 'artifacts', 'release', 'desktop', 'windows', 'x64');
 
   assertThrowsWithMessage(
@@ -748,7 +700,6 @@ withFixture((fixtureRoot) => {
 withFixture((fixtureRoot) => {
   writeDesktopDistFixture(fixtureRoot);
   writeMismatchedDesktopInstallerBundleFixture(fixtureRoot, 'x86_64-pc-windows-msvc');
-  writeProviderRuntimeFixture(fixtureRoot, 'windows', 'x64');
 
   assertThrowsWithMessage(
     () => packageReleaseAssets('desktop', {

@@ -3,7 +3,7 @@ import type {
   ProjectGitOverviewViewState,
   TerminalCommandRequest,
 } from '@sdkwork/birdcoder-pc-workbench';
-import type { BirdCoderChatMessage, BirdCoderProject, FileChange } from '@sdkwork/birdcoder-pc-contracts-commons';
+import type { AgentSessionItemView, BirdCoderProject, FileChange } from '@sdkwork/birdcoder-pc-contracts-commons';
 import type { FileNode } from '@sdkwork/birdcoder-pc-ui/components/FileExplorer';
 import { ProjectGitOverviewDrawer } from '@sdkwork/birdcoder-pc-ui/components/ProjectGitOverviewDrawer';
 import type { UniversalChatProps } from '@sdkwork/birdcoder-pc-ui/components/UniversalChat';
@@ -30,7 +30,7 @@ type CodeTerminalIntegrationPanelComponentProps =
   ComponentProps<typeof CodeTerminalIntegrationPanel>;
 type CodeMobileProgrammingPanelComponentProps = CodeMobileProgrammingPanelProps;
 
-const EMPTY_CHAT_MESSAGES: BirdCoderChatMessage[] = [];
+const EMPTY_CHAT_MESSAGES: AgentSessionItemView[] = [];
 
 export interface CodePageSurfacePropsBundle {
   dialogProps: CodePageDialogsComponentProps;
@@ -77,12 +77,12 @@ interface UseCodePageSurfacePropsOptions {
   mainChatEmptyState?: ReactNode;
   mountRecoveryState: CodeWorkspaceOverlaysComponentProps['mountRecoveryState'];
   openFiles: string[];
-  refreshingCodingSessionId: string | null;
+  refreshingAgentSessionId: string | null;
   refreshingProjectId: string | null;
   runConfigurationDraft: CodePageDialogsComponentProps['runConfigurationDraft'];
   runConfigurations: CodePageDialogsComponentProps['runConfigurations'];
   searchQuery: string;
-  selectedCodingSessionMessages: BirdCoderChatMessage[];
+  selectedAgentSessionItems: AgentSessionItemView[];
   selectedEngineId: string;
   selectedFile?: string | null;
   selectedModelId: string;
@@ -100,7 +100,7 @@ interface UseCodePageSurfacePropsOptions {
   terminalRequest?: TerminalCommandRequest;
   viewingDiff: FileChange | null;
   workspaceId?: string;
-  onArchiveCodingSession: NonNullable<ProjectExplorerProps['onArchiveCodingSession']>;
+  onArchiveAgentSession: NonNullable<ProjectExplorerProps['onArchiveAgentSession']>;
   onArchiveProject: NonNullable<ProjectExplorerProps['onArchiveProject']>;
   onCancelDelete: NonNullable<CodePageDialogsComponentProps['onCancelDelete']>;
   onChatResize: CodeEditorWorkspacePanelProps['onChatResize'];
@@ -112,19 +112,17 @@ interface UseCodePageSurfacePropsOptions {
   onCloseRunTask: NonNullable<CodePageDialogsComponentProps['onCloseRunTask']>;
   onCloseTerminal: NonNullable<CodeTerminalIntegrationPanelComponentProps['onClose']>;
   onConfirmDelete: NonNullable<CodePageDialogsComponentProps['onConfirmDelete']>;
-  onCopyCodingSessionDeeplink: NonNullable<ProjectExplorerProps['onCopyCodingSessionDeeplink']>;
-  onCopyCodingSessionResumeCommand:
-    NonNullable<ProjectExplorerProps['onCopyCodingSessionResumeCommand']>;
-  onCopyCodingSessionSessionId: NonNullable<ProjectExplorerProps['onCopyCodingSessionSessionId']>;
-  onCopyCodingSessionWorkingDirectory:
-    NonNullable<ProjectExplorerProps['onCopyCodingSessionWorkingDirectory']>;
+  onCopyAgentSessionDeeplink: NonNullable<ProjectExplorerProps['onCopyAgentSessionDeeplink']>;
+  onCopyAgentSessionSessionId: NonNullable<ProjectExplorerProps['onCopyAgentSessionSessionId']>;
+  onCopyAgentSessionWorkingDirectory:
+    NonNullable<ProjectExplorerProps['onCopyAgentSessionWorkingDirectory']>;
   onCopyProjectPath: NonNullable<ProjectExplorerProps['onCopyProjectPath']>;
   onCopyWorkingDirectory: NonNullable<ProjectExplorerProps['onCopyWorkingDirectory']>;
   onCreateFile: CodeEditorWorkspacePanelProps['onCreateFile'];
   onCreateFolder: CodeEditorWorkspacePanelProps['onCreateFolder'];
   onCreateRootFile: CodeEditorWorkspacePanelProps['onCreateRootFile'];
   onCloseProjectGitOverviewDrawer: () => void;
-  onDeleteCodingSession: NonNullable<ProjectExplorerProps['onDeleteCodingSession']>;
+  onDeleteAgentSession: NonNullable<ProjectExplorerProps['onDeleteAgentSession']>;
   onDeleteFile: CodeEditorWorkspacePanelProps['onDeleteFile'];
   onDeleteFolder: CodeEditorWorkspacePanelProps['onDeleteFolder'];
   onDeleteMessage: NonNullable<UniversalChatComponentProps['onDeleteMessage']>;
@@ -133,10 +131,10 @@ interface UseCodePageSurfacePropsOptions {
   onExpandDirectory: CodeEditorWorkspacePanelProps['onExpandDirectory'];
   onExplorerResize: CodeEditorWorkspacePanelProps['onExplorerResize'];
   onFileDraftChange: CodeEditorWorkspacePanelProps['onFileDraftChange'];
-  onForkCodingSessionLocal: NonNullable<ProjectExplorerProps['onForkCodingSessionLocal']>;
-  onForkCodingSessionNewTree: NonNullable<ProjectExplorerProps['onForkCodingSessionNewTree']>;
-  onMarkCodingSessionUnread: NonNullable<ProjectExplorerProps['onMarkCodingSessionUnread']>;
-  onNewCodingSessionInProject: NonNullable<ProjectExplorerProps['onNewCodingSessionInProject']>;
+  onForkAgentSessionLocal: NonNullable<ProjectExplorerProps['onForkAgentSessionLocal']>;
+  onForkAgentSessionNewTree: NonNullable<ProjectExplorerProps['onForkAgentSessionNewTree']>;
+  onMarkAgentSessionUnread: NonNullable<ProjectExplorerProps['onMarkAgentSessionUnread']>;
+  onNewAgentSessionInProject: NonNullable<ProjectExplorerProps['onNewAgentSessionInProject']>;
   onNewProject: NonNullable<ProjectExplorerProps['onNewProject']>;
   onLoadMoreProjects: NonNullable<ProjectExplorerProps['onLoadMoreProjects']>;
   onLoadMoreProjectSessions: NonNullable<ProjectExplorerProps['onLoadMoreProjectSessions']>;
@@ -145,18 +143,16 @@ interface UseCodePageSurfacePropsOptions {
   onOpenInFileExplorer: NonNullable<ProjectExplorerProps['onOpenInFileExplorer']>;
   onOpenInTerminal: NonNullable<ProjectExplorerProps['onOpenInTerminal']>;
   onOpenMessageFile: NonNullable<UniversalChatComponentProps['onOpenFile']>;
-  onOpenCodingSessionInTerminal:
-    NonNullable<ProjectExplorerProps['onOpenCodingSessionInTerminal']>;
-  onPinCodingSession: NonNullable<ProjectExplorerProps['onPinCodingSession']>;
+  onPinAgentSession: NonNullable<ProjectExplorerProps['onPinAgentSession']>;
   onProjectSelect: NonNullable<ProjectExplorerProps['onSelectProject']>;
-  onRefreshCodingSessionMessages:
-    NonNullable<ProjectExplorerProps['onRefreshCodingSessionMessages']>;
+  onRefreshAgentSessionItems:
+    NonNullable<ProjectExplorerProps['onRefreshAgentSessionItems']>;
   onRefreshProjectSessions: NonNullable<ProjectExplorerProps['onRefreshProjectSessions']>;
   onRegenerateMessage: NonNullable<UniversalChatComponentProps['onRegenerateMessage']>;
   onCloseDiff: CodeEditorWorkspacePanelProps['onCloseDiff'];
   onReimportProjectFolder:
     NonNullable<CodeWorkspaceOverlaysComponentProps['onReimportProjectFolder']>;
-  onRenameCodingSession: NonNullable<ProjectExplorerProps['onRenameCodingSession']>;
+  onRenameAgentSession: NonNullable<ProjectExplorerProps['onRenameAgentSession']>;
   onRenameNode: CodeEditorWorkspacePanelProps['onRenameNode'];
   onRenameProject: NonNullable<ProjectExplorerProps['onRenameProject']>;
   onRestoreMessage: NonNullable<UniversalChatComponentProps['onRestore']>;
@@ -167,7 +163,7 @@ interface UseCodePageSurfacePropsOptions {
   onRunTask: NonNullable<CodePageDialogsComponentProps['onRunTask']>;
   onSaveDebugConfig: NonNullable<CodePageDialogsComponentProps['onSaveDebugConfig']>;
   onSearchFiles: NonNullable<CodeWorkspaceOverlaysComponentProps['searchFiles']>;
-  onSelectCodingSession: NonNullable<ProjectExplorerProps['onSelectCodingSession']>;
+  onSelectAgentSession: NonNullable<ProjectExplorerProps['onSelectAgentSession']>;
   onSelectFile: CodeEditorWorkspacePanelProps['onSelectFile'];
   onSelectedEngineIdChange: NonNullable<UniversalChatComponentProps['setSelectedEngineId']>;
   onSelectedModelIdChange: NonNullable<UniversalChatComponentProps['setSelectedModelId']>;
@@ -215,12 +211,12 @@ export function useCodePageSurfaceProps({
   mainChatEmptyState,
   mountRecoveryState,
   openFiles,
-  refreshingCodingSessionId,
+  refreshingAgentSessionId,
   refreshingProjectId,
   runConfigurationDraft,
   runConfigurations,
   searchQuery,
-  selectedCodingSessionMessages,
+  selectedAgentSessionItems,
   selectedEngineId,
   selectedFile,
   selectedModelId,
@@ -238,7 +234,7 @@ export function useCodePageSurfaceProps({
   terminalRequest,
   viewingDiff,
   workspaceId,
-  onArchiveCodingSession,
+  onArchiveAgentSession,
   onArchiveProject,
   onCancelDelete,
   onChatResize,
@@ -250,17 +246,16 @@ export function useCodePageSurfaceProps({
   onCloseRunTask,
   onCloseTerminal,
   onConfirmDelete,
-  onCopyCodingSessionDeeplink,
-  onCopyCodingSessionResumeCommand,
-  onCopyCodingSessionSessionId,
-  onCopyCodingSessionWorkingDirectory,
+  onCopyAgentSessionDeeplink,
+  onCopyAgentSessionSessionId,
+  onCopyAgentSessionWorkingDirectory,
   onCopyProjectPath,
   onCopyWorkingDirectory,
   onCreateFile,
   onCreateFolder,
   onCreateRootFile,
   onCloseProjectGitOverviewDrawer,
-  onDeleteCodingSession,
+  onDeleteAgentSession,
   onDeleteFile,
   onDeleteFolder,
   onDeleteMessage,
@@ -269,10 +264,10 @@ export function useCodePageSurfaceProps({
   onExpandDirectory,
   onExplorerResize,
   onFileDraftChange,
-  onForkCodingSessionLocal,
-  onForkCodingSessionNewTree,
-  onMarkCodingSessionUnread,
-  onNewCodingSessionInProject,
+  onForkAgentSessionLocal,
+  onForkAgentSessionNewTree,
+  onMarkAgentSessionUnread,
+  onNewAgentSessionInProject,
   onNewProject,
   onLoadMoreProjects,
   onLoadMoreProjectSessions,
@@ -281,15 +276,14 @@ export function useCodePageSurfaceProps({
   onOpenInFileExplorer,
   onOpenInTerminal,
   onOpenMessageFile,
-  onOpenCodingSessionInTerminal,
-  onPinCodingSession,
+  onPinAgentSession,
   onProjectSelect,
-  onRefreshCodingSessionMessages,
+  onRefreshAgentSessionItems,
   onRefreshProjectSessions,
   onRegenerateMessage,
   onCloseDiff,
   onReimportProjectFolder,
-  onRenameCodingSession,
+  onRenameAgentSession,
   onRenameNode,
   onRenameProject,
   onRestoreMessage,
@@ -298,7 +292,7 @@ export function useCodePageSurfaceProps({
   onRunTask,
   onSaveDebugConfig,
   onSearchFiles,
-  onSelectCodingSession,
+  onSelectAgentSession,
   onSelectFile,
   onSelectedEngineIdChange,
   onSelectedModelIdChange,
@@ -314,9 +308,9 @@ export function useCodePageSurfaceProps({
 }: UseCodePageSurfacePropsOptions): CodePageSurfacePropsBundle {
   const shouldShowCodeComposerModelSelector = showComposerEngineSelector;
   const mainChatMessages =
-    activeTab === 'ai' ? selectedCodingSessionMessages : EMPTY_CHAT_MESSAGES;
+    activeTab === 'ai' ? selectedAgentSessionItems : EMPTY_CHAT_MESSAGES;
   const editorChatMessages =
-    activeTab === 'editor' ? selectedCodingSessionMessages : EMPTY_CHAT_MESSAGES;
+    activeTab === 'editor' ? selectedAgentSessionItems : EMPTY_CHAT_MESSAGES;
   const transcriptSessionScopeKey =
     workspaceId && currentProjectId && sessionId
       ? `${workspaceId}\u0001${currentProjectId}\u0001${sessionId}`
@@ -344,7 +338,7 @@ export function useCodePageSurfaceProps({
     pendingApprovals,
     pendingUserQuestions,
   } = useCodePendingInteractions({
-    onRefreshCodingSessionMessages,
+    onRefreshAgentSessionItems,
     projectId: currentProjectId,
     refreshToken: pendingInteractionRefreshToken,
     sessionId,
@@ -358,37 +352,35 @@ export function useCodePageSurfaceProps({
     width: sidebarWidth,
     projects: filteredProjects,
     selectedProjectId: currentProjectId,
-    selectedCodingSessionId: sessionId,
+    selectedAgentSessionId: sessionId,
     onSelectProject: onProjectSelect,
-    onSelectCodingSession,
-    onRenameCodingSession,
-    onDeleteCodingSession,
+    onSelectAgentSession,
+    onRenameAgentSession,
+    onDeleteAgentSession,
     onRenameProject,
     onDeleteProject,
     onNewProject,
     onLoadMoreProjects,
     onLoadMoreProjectSessions,
     onOpenFolder,
-    onNewCodingSessionInProject,
+    onNewAgentSessionInProject,
     onRefreshProjectSessions,
-    onRefreshCodingSessionMessages,
+    onRefreshAgentSessionItems,
     onArchiveProject,
     onCopyWorkingDirectory,
     onCopyProjectPath,
     onOpenInTerminal,
     onOpenInFileExplorer,
-    onOpenCodingSessionInTerminal,
-    onPinCodingSession,
-    onArchiveCodingSession,
-    onMarkCodingSessionUnread,
-    onCopyCodingSessionWorkingDirectory,
-    onCopyCodingSessionSessionId,
-    onCopyCodingSessionResumeCommand,
-    onCopyCodingSessionDeeplink,
-    onForkCodingSessionLocal,
-    onForkCodingSessionNewTree,
+    onPinAgentSession,
+    onArchiveAgentSession,
+    onMarkAgentSessionUnread,
+    onCopyAgentSessionWorkingDirectory,
+    onCopyAgentSessionSessionId,
+    onCopyAgentSessionDeeplink,
+    onForkAgentSessionLocal,
+    onForkAgentSessionNewTree,
     refreshingProjectId,
-    refreshingCodingSessionId,
+    refreshingAgentSessionId,
     searchQuery,
     setSearchQuery,
   }), [
@@ -398,35 +390,33 @@ export function useCodePageSurfaceProps({
     isLoadingMoreProjects,
     isSidebarVisible,
     isVisible,
-    onArchiveCodingSession,
+    onArchiveAgentSession,
     onArchiveProject,
-    onCopyCodingSessionDeeplink,
-    onCopyCodingSessionResumeCommand,
-    onCopyCodingSessionSessionId,
-    onCopyCodingSessionWorkingDirectory,
+    onCopyAgentSessionDeeplink,
+    onCopyAgentSessionSessionId,
+    onCopyAgentSessionWorkingDirectory,
     onCopyProjectPath,
     onCopyWorkingDirectory,
-    onDeleteCodingSession,
+    onDeleteAgentSession,
     onDeleteProject,
-    onForkCodingSessionLocal,
-    onForkCodingSessionNewTree,
-    onMarkCodingSessionUnread,
-    onNewCodingSessionInProject,
+    onForkAgentSessionLocal,
+    onForkAgentSessionNewTree,
+    onMarkAgentSessionUnread,
+    onNewAgentSessionInProject,
     onNewProject,
     onLoadMoreProjects,
     onLoadMoreProjectSessions,
     onOpenFolder,
-    onOpenCodingSessionInTerminal,
     onOpenInFileExplorer,
     onOpenInTerminal,
-    onPinCodingSession,
+    onPinAgentSession,
     onProjectSelect,
-    onRefreshCodingSessionMessages,
+    onRefreshAgentSessionItems,
     onRefreshProjectSessions,
-    onRenameCodingSession,
+    onRenameAgentSession,
     onRenameProject,
-    onSelectCodingSession,
-    refreshingCodingSessionId,
+    onSelectAgentSession,
+    refreshingAgentSessionId,
     refreshingProjectId,
     searchQuery,
     sessionId,
@@ -589,8 +579,8 @@ export function useCodePageSurfaceProps({
     fileContent,
     explorerWidth: editorExplorerWidth,
     chatWidth,
-    selectedCodingSessionId: sessionId,
-    selectedCodingSessionScopeKey: transcriptSessionScopeKey,
+    selectedAgentSessionId: sessionId,
+    selectedAgentSessionScopeKey: transcriptSessionScopeKey,
     messages: editorChatMessages,
     pendingApprovals: activeTab === 'editor' ? pendingApprovals : [],
     pendingUserQuestions: activeTab === 'editor' ? pendingUserQuestions : [],

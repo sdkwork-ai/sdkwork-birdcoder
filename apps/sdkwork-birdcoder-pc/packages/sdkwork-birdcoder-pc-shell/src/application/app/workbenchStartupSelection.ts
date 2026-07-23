@@ -7,7 +7,7 @@ import type { AppTab } from '@sdkwork/birdcoder-pc-contracts-commons';
 import type { WorkbenchRecoverySnapshot } from '@sdkwork/birdcoder-pc-workbench';
 interface WorkbenchStartupSelectionLink {
   activeTab?: AppTab;
-  codingSessionId?: string;
+  agentSessionId?: string;
   projectId?: string;
   workspaceId?: string;
 }
@@ -22,12 +22,12 @@ function readWorkbenchStartupSelectionLink(): WorkbenchStartupSelectionLink | nu
   }
 
   const searchParams = new URLSearchParams(window.location.search);
-  const codingSessionId =
-    normalizeStartupSelectionParam(searchParams.get('codingSessionId')) ||
+  const agentSessionId =
+    normalizeStartupSelectionParam(searchParams.get('agentSessionId')) ||
     normalizeStartupSelectionParam(searchParams.get('sessionId'));
   const projectId = normalizeStartupSelectionParam(searchParams.get('projectId'));
   const workspaceId = normalizeStartupSelectionParam(searchParams.get('workspaceId'));
-  if (!codingSessionId && !projectId && !workspaceId) {
+  if (!agentSessionId && !projectId && !workspaceId) {
     return null;
   }
 
@@ -36,7 +36,7 @@ function readWorkbenchStartupSelectionLink(): WorkbenchStartupSelectionLink | nu
     activeTab: requestedTab === 'studio' ? 'studio' : 'code',
     ...(workspaceId ? { workspaceId } : {}),
     ...(projectId ? { projectId } : {}),
-    ...(codingSessionId ? { codingSessionId } : {}),
+    ...(agentSessionId ? { agentSessionId } : {}),
   };
 }
 
@@ -53,8 +53,8 @@ export function applyWorkbenchStartupSelectionLink(
     activeTab: selectionLink.activeTab ?? recoverySnapshot.activeTab,
     activeWorkspaceId: selectionLink.workspaceId ?? recoverySnapshot.activeWorkspaceId,
     activeProjectId: selectionLink.projectId ?? recoverySnapshot.activeProjectId,
-    activeCodingSessionId:
-      selectionLink.codingSessionId ?? recoverySnapshot.activeCodingSessionId,
+    activeAgentSessionId:
+      selectionLink.agentSessionId ?? recoverySnapshot.activeAgentSessionId,
     cleanExit: true,
   };
 }

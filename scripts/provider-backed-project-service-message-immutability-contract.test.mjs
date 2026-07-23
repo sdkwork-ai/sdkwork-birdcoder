@@ -11,7 +11,7 @@ const source = fs.readFileSync(
 
 assert.doesNotMatch(
   source,
-  /codingSession\.messages\.push\(/,
+  /agentSession\.messages\.push\(/,
   'ProviderBackedProjectService must not mutate cached coding-session message arrays in place when appending messages.',
 );
 
@@ -23,7 +23,7 @@ assert.doesNotMatch(
 
 assert.doesNotMatch(
   source,
-  /codingSession\.messages\s*=\s*codingSession\.messages\.filter\(/,
+  /agentSession\.messages\s*=\s*agentSession\.messages\.filter\(/,
   'ProviderBackedProjectService must replace the full cached coding-session snapshot instead of mutating its transcript field directly.',
 );
 

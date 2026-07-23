@@ -1,6 +1,8 @@
-import { createBirdcoderAppSdkClient } from '@sdkwork/birdcoder-pc-core/sdk/birdcoder-app';
-import { syncBirdCoderGlobalTokenManagerFromStorage } from '@sdkwork/birdcoder-pc-core/appSessionTokenManager';
-import { buildAuthHeaders } from '@sdkwork/sdk-common';
+import { createAppbaseAppSdkClient } from '@sdkwork/birdcoder-pc-core/sdk';
+import {
+  getBirdCoderGlobalTokenManager,
+  syncBirdCoderGlobalTokenManagerFromStorage,
+} from '@sdkwork/birdcoder-pc-core/appSessionTokenManager';
 import {
   APP_SESSION_CHANGE_EVENT_NAME,
   loadStoredAppSessionToken,
@@ -8,12 +10,9 @@ import {
   type StoredAppSessionToken,
 } from './appSessionToken.ts';
 import { getDefaultBirdCoderIdeServicesRuntimeConfig } from './defaultIdeServicesRuntime.ts';
-import {
-  getBirdCoderGlobalTokenManager,
-  resetBirdCoderSdkClients,
-  terminateBirdCoderAppSessionAfterRefreshFailure,
-} from './sdkClients.ts';
-import { createBirdCoderHttpApiTransport } from './sdkTransportShared.ts';
+import { resetBirdCoderAppClient } from './birdCoderSdkClient.ts';
+import { terminateBirdCoderAppSessionAfterRefreshFailure } from './sdkSession.ts';
+import { resolveBirdCoderDependencySdkBaseUrl } from './sdkBaseUrls.ts';
 
 const REFRESH_SKEW_SECONDS = 30;
 const MIN_REFRESH_DELAY_MS = 5_000;
@@ -160,38 +159,38 @@ async function refreshBirdCoderAppSession(): Promise<boolean> {
   }
 
   const runtimeConfig = getDefaultBirdCoderIdeServicesRuntimeConfig();
-  const baseUrl = (
-    runtimeConfig.apiBaseUrl?.trim()
-    || (typeof window !== 'undefined' ? window.location.origin : '')
-  );
-  if (!baseUrl) {
-    return false;
-  }
+  const baseUrl = resolveBirdCoderDependencySdkBaseUrl('IAM', {
+    overrideEnvNames: [
+      'VITE_SDKWORK_APPBASE_APP_API_BASE_URL',
+      'VITE_SDKWORK_IAM_APP_API_BASE_URL',
+    ],
+    platformApiGatewayBaseUrl: runtimeConfig.platformApiGatewayBaseUrl,
+  });
 
   const tokenManager = getBirdCoderGlobalTokenManager();
-  const client = createBirdcoderAppSdkClient({
-    transport: createBirdCoderHttpApiTransport({
-      baseUrl,
-      resolveHeaders: () => buildAuthHeaders('dual-token', undefined, tokenManager),
-    }),
+  const client = createAppbaseAppSdkClient({
+    authMode: 'dual-token',
+    baseUrl,
+    platform: 'pc',
+    tokenManager,
   });
 
   try {
-    const envelope = await client.auth.sessions.refresh({ refreshToken });
+    const refreshedSession = await client.auth.sessions.refresh({ refreshToken });
     if (!isBirdCoderSessionRefreshRequestCurrent(token, loadStoredAppSessionToken())) {
       return false;
     }
 
     suppressSessionChangeRefresh = true;
     try {
-      storeAppSessionFromResult(envelope, {
+      storeAppSessionFromResult(refreshedSession, {
         preserveSessionMetadata: true,
       });
     } finally {
       suppressSessionChangeRefresh = false;
     }
     syncBirdCoderGlobalTokenManagerFromStorage();
-    resetBirdCoderSdkClients();
+    resetBirdCoderAppClient();
     return true;
   } catch {
     terminateBirdCoderAppSessionAfterRefreshFailure();

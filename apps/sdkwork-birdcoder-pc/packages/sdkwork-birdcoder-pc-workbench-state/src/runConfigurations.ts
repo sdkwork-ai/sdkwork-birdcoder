@@ -2,7 +2,7 @@ export {
   buildRunConfigurationStorageKey,
   ensureStoredRunConfigurations,
   getDefaultRunConfigurations,
-  getRunConfigurationRepository,
+  getRunConfigurationStore,
   listStoredRunConfigurations,
   normalizeRunConfigurations,
   saveStoredRunConfigurations,

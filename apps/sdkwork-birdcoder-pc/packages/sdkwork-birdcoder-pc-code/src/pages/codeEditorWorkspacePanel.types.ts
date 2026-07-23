@@ -1,13 +1,11 @@
 import type { ReactNode } from 'react';
 import type {
-  BirdCoderCodingSessionPendingApproval,
-  BirdCoderCodingSessionPendingUserQuestion,
+  AgentApprovalDecisionInput,
+  AgentQuestionAnswerInput,
+  AgentSessionPendingApproval,
+  AgentSessionPendingQuestion,
 } from '@sdkwork/birdcoder-pc-workbench';
-import type { BirdCoderChatMessage, FileChange } from '@sdkwork/birdcoder-pc-contracts-commons';
-import type {
-  BirdCoderSubmitApprovalDecisionRequest,
-  BirdCoderSubmitUserQuestionAnswerRequest,
-} from '@sdkwork/birdcoder-pc-contracts-commons';
+import type { AgentSessionItemView, FileChange } from '@sdkwork/birdcoder-pc-contracts-commons';
 import type { FileNode } from '@sdkwork/birdcoder-pc-ui/components/FileExplorer';
 import type { UniversalChatComposerSelection } from '@sdkwork/birdcoder-pc-ui/components/UniversalChat';
 
@@ -22,11 +20,11 @@ export interface CodeEditorWorkspacePanelProps {
   fileContent: string;
   explorerWidth: number;
   chatWidth: number;
-  selectedCodingSessionId?: string | null;
-  selectedCodingSessionScopeKey?: string | null;
-  messages: BirdCoderChatMessage[];
-  pendingApprovals?: BirdCoderCodingSessionPendingApproval[];
-  pendingUserQuestions?: BirdCoderCodingSessionPendingUserQuestion[];
+  selectedAgentSessionId?: string | null;
+  selectedAgentSessionScopeKey?: string | null;
+  messages: AgentSessionItemView[];
+  pendingApprovals?: AgentSessionPendingApproval[];
+  pendingUserQuestions?: AgentSessionPendingQuestion[];
   chatEmptyState?: ReactNode;
   isBusy: boolean;
   isEngineBusy: boolean;
@@ -52,12 +50,12 @@ export interface CodeEditorWorkspacePanelProps {
     composerSelection?: UniversalChatComposerSelection,
   ) => void | Promise<void>;
   onSubmitApprovalDecision: (
-    interactionEventId: string,
-    request: BirdCoderSubmitApprovalDecisionRequest,
+    interactionId: string,
+    request: AgentApprovalDecisionInput,
   ) => void | Promise<void>;
   onSubmitUserQuestionAnswer: (
-    interactionEventId: string,
-    request: BirdCoderSubmitUserQuestionAnswerRequest,
+    interactionId: string,
+    request: AgentQuestionAnswerInput,
   ) => void | Promise<void>;
   onViewChanges: (file: FileChange) => void;
   onRestoreMessage: (messageId: string) => void;
@@ -73,14 +71,14 @@ export interface WorkspaceChatProps {
   isActive: boolean;
   isBusy: boolean;
   isEngineBusy: boolean;
-  messages: BirdCoderChatMessage[];
+  messages: AgentSessionItemView[];
   showComposerEngineSelector: boolean;
-  selectedCodingSessionId?: string | null;
-  selectedCodingSessionScopeKey?: string | null;
+  selectedAgentSessionId?: string | null;
+  selectedAgentSessionScopeKey?: string | null;
   selectedEngineId: string;
   selectedModelId: string;
-  pendingApprovals?: BirdCoderCodingSessionPendingApproval[];
-  pendingUserQuestions?: BirdCoderCodingSessionPendingUserQuestion[];
+  pendingApprovals?: AgentSessionPendingApproval[];
+  pendingUserQuestions?: AgentSessionPendingQuestion[];
   onDeleteMessage: (messageIds: string[]) => void;
   onEditMessage: (messageId: string, content: string) => void | Promise<void>;
   onRegenerateMessage: () => void;
@@ -92,12 +90,12 @@ export interface WorkspaceChatProps {
     composerSelection?: UniversalChatComposerSelection,
   ) => void | Promise<void>;
   onSubmitApprovalDecision: (
-    interactionEventId: string,
-    request: BirdCoderSubmitApprovalDecisionRequest,
+    interactionId: string,
+    request: AgentApprovalDecisionInput,
   ) => void | Promise<void>;
   onSubmitUserQuestionAnswer: (
-    interactionEventId: string,
-    request: BirdCoderSubmitUserQuestionAnswerRequest,
+    interactionId: string,
+    request: AgentQuestionAnswerInput,
   ) => void | Promise<void>;
   onViewChanges: (file: FileChange) => void;
   onOpenFile: (path: string) => void;

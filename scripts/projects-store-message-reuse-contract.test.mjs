@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
 import process from 'node:process';
-import { upsertCodingSessionIntoCollection } from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-workbench/src/stores/projectsStore.ts';
+import { upsertAgentSessionIntoCollection } from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-workbench/src/stores/projectsStore.ts';
 
 const rootDir = process.cwd();
 const projectsStoreSource = fs.readFileSync(
@@ -30,7 +30,7 @@ assert.doesNotMatch(
 
 assert.match(
   projectsStoreSource,
-  /function normalizeCodingSessionMessagesForStore\(/,
+  /function normalizeAgentSessionItemsForStore\(/,
   'projectsStore should normalize transcripts through one store boundary before adopting message arrays.',
 );
 
@@ -43,7 +43,7 @@ assert.match(
 function buildMessage(overrides = {}) {
   return {
     id: 'message-1',
-    codingSessionId: 'session-1',
+    agentSessionId: 'session-1',
     role: 'assistant',
     content: 'Ready.',
     createdAt: '2026-04-27T01:00:00.000Z',
@@ -51,7 +51,7 @@ function buildMessage(overrides = {}) {
   };
 }
 
-function buildCodingSession(overrides = {}) {
+function buildAgentSession(overrides = {}) {
   return {
     id: 'session-1',
     workspaceId: 'workspace-1',
@@ -79,19 +79,19 @@ function buildProject(overrides = {}) {
     createdAt: '2026-04-27T01:00:00.000Z',
     updatedAt: '2026-04-27T01:00:00.000Z',
     archived: false,
-    codingSessions: [],
+    agentSessions: [],
     ...overrides,
   };
 }
 
 const incomingMessages = [buildMessage()];
-const insertedProjects = upsertCodingSessionIntoCollection(
+const insertedProjects = upsertAgentSessionIntoCollection(
   [buildProject()],
   'project-1',
-  buildCodingSession({ messages: incomingMessages }),
+  buildAgentSession({ messages: incomingMessages }),
 );
-const insertedSession = insertedProjects[0]?.codingSessions.find(
-  (codingSession) => codingSession.id === 'session-1',
+const insertedSession = insertedProjects[0]?.agentSessions.find(
+  (agentSession) => agentSession.id === 'session-1',
 );
 
 assert.equal(
@@ -102,17 +102,17 @@ assert.equal(
 
 const existingMessages = [buildMessage()];
 const refreshedMessages = [buildMessage()];
-const refreshedProjects = upsertCodingSessionIntoCollection(
+const refreshedProjects = upsertAgentSessionIntoCollection(
   [
     buildProject({
-      codingSessions: [buildCodingSession({ messages: existingMessages })],
+      agentSessions: [buildAgentSession({ messages: existingMessages })],
     }),
   ],
   'project-1',
-  buildCodingSession({ messages: refreshedMessages }),
+  buildAgentSession({ messages: refreshedMessages }),
 );
-const refreshedSession = refreshedProjects[0]?.codingSessions.find(
-  (codingSession) => codingSession.id === 'session-1',
+const refreshedSession = refreshedProjects[0]?.agentSessions.find(
+  (agentSession) => agentSession.id === 'session-1',
 );
 
 assert.equal(
@@ -121,20 +121,20 @@ assert.equal(
   'projectsStore should reuse an existing transcript array when an authority refresh contains equivalent messages.',
 );
 
-const refreshedNativeSessionProjects = upsertCodingSessionIntoCollection(
+const refreshedNativeSessionProjects = upsertAgentSessionIntoCollection(
   [
     buildProject({
-      codingSessions: [buildCodingSession({ messages: existingMessages })],
+      agentSessions: [buildAgentSession({ messages: existingMessages })],
     }),
   ],
   'project-1',
-  buildCodingSession({
+  buildAgentSession({
     messages: refreshedMessages,
     nativeSessionId: 'store-native-session',
   }),
 );
-const refreshedNativeSession = refreshedNativeSessionProjects[0]?.codingSessions.find(
-  (codingSession) => codingSession.id === 'session-1',
+const refreshedNativeSession = refreshedNativeSessionProjects[0]?.agentSessions.find(
+  (agentSession) => agentSession.id === 'session-1',
 );
 
 assert.notEqual(

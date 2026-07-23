@@ -14,33 +14,24 @@
     "generated": false
   },
   "contracts": {
-    "sdkDependencies": [
+    "layerRole": "frontend-core",
+    "publicExports": [
+      ".",
+      "./sdk",
+      "./modules",
+      "./host",
+      "./session",
+      "./composition"
+    ],
+    "providedPorts": [
       {
-        "workspace": "sdkwork-birdcoder-app-sdk",
-        "surface": "app-api",
-        "credentialMode": "authenticated-app-api"
-      },
-      {
-        "workspace": "sdkwork-birdcoder-app-sdk-typescript",
-        "surface": "open-api",
-        "credentialMode": "protected-open-api-flexible"
-      },
-      {
-        "workspace": "sdkwork-drive-app-sdk-typescript",
-        "surface": "open-api",
-        "credentialMode": "protected-open-api-flexible"
-      },
-      {
-        "workspace": "sdkwork-iam-app-sdk-typescript",
-        "surface": "open-api",
-        "credentialMode": "protected-open-api-flexible"
-      },
-      {
-        "workspace": "sdkwork-messaging-app-sdk-typescript",
-        "surface": "open-api",
-        "credentialMode": "protected-open-api-flexible"
+        "name": "consoleRuntimeCore",
+        "export": "."
       }
     ],
+    "requiredPorts": [],
+    "sdkClients": [],
+    "sdkDependencies": [],
     "dependencyApiExports": [],
     "dependencyApiSurfaces": [],
     "permissionComposition": {

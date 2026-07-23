@@ -1,29 +1,26 @@
 import { useCallback, useRef, useState } from 'react';
-import type { BirdCoderCodingSession, BirdCoderProject } from '@sdkwork/birdcoder-pc-contracts-commons';
+import type { AgentSessionView, BirdCoderProject } from '@sdkwork/birdcoder-pc-contracts-commons';
+import type { IAgentSessionService } from '@sdkwork/birdcoder-pc-infrastructure-runtime';
 import { useAuth } from '../context/AuthContext.ts';
 import {
-  upsertCodingSessionIntoProjectsStore,
+  upsertAgentSessionIntoProjectsStore,
   upsertProjectIntoProjectsStore,
 } from '../stores/projectsStore.ts';
 import type { IProjectService } from '../services/interfaces/IProjectService.ts';
 import {
-  refreshCodingSessionMessages,
+  refreshAgentSessionItems,
   refreshProjectSessions,
 } from '../workbench/sessionRefresh.ts';
 
 type ToastTone = 'error' | 'success';
 
-type SessionRefreshAppRuntimeReadService = NonNullable<
-  Parameters<typeof refreshCodingSessionMessages>[0]['appRuntimeReadService']
->;
-
-interface SessionRefreshCodingSessionLocation {
-  codingSession: BirdCoderCodingSession;
+interface SessionRefreshAgentSessionLocation {
+  agentSession: AgentSessionView;
   project: BirdCoderProject;
 }
 
 interface PreservedSessionRefreshSelection {
-  codingSessionId: string | null;
+  agentSessionId: string | null;
   projectId: string;
 }
 
@@ -31,36 +28,36 @@ interface SessionRefreshMessages {
   failedToRefreshProjectSessions: string;
   failedToRefreshSessionMessages: string;
   projectSessionsRefreshed: (projectName: string) => string;
-  sessionMessagesRefreshed: (codingSessionTitle: string) => string;
+  sessionMessagesRefreshed: (agentSessionTitle: string) => string;
 }
 
 export interface UseSessionRefreshActionsOptions {
   addToast: (message: string, tone: ToastTone) => void;
-  appRuntimeReadService?: SessionRefreshAppRuntimeReadService;
+  agentSessionService: IAgentSessionService;
   getPreservedSelection: () => PreservedSessionRefreshSelection;
   messages: SessionRefreshMessages;
   projectService: IProjectService;
-  resolveCodingSessionLocation?: (
-    codingSessionId: string,
+  resolveAgentSessionLocation?: (
+    agentSessionId: string,
     projectId?: string | null,
-  ) => SessionRefreshCodingSessionLocation | null;
-  resolveCodingSessionTitle: (codingSessionId: string, projectId?: string | null) => string;
+  ) => SessionRefreshAgentSessionLocation | null;
+  resolveAgentSessionTitle: (agentSessionId: string, projectId?: string | null) => string;
   resolveProjectName: (projectId: string) => string;
   restoreSelectionAfterRefresh: (
     projectId: string,
-    codingSessionId: string | null,
+    agentSessionId: string | null,
   ) => void;
   workspaceId?: string;
 }
 
 export function useSessionRefreshActions({
   addToast,
-  appRuntimeReadService,
+  agentSessionService,
   getPreservedSelection,
   messages,
   projectService,
-  resolveCodingSessionLocation,
-  resolveCodingSessionTitle,
+  resolveAgentSessionLocation,
+  resolveAgentSessionTitle,
   resolveProjectName,
   restoreSelectionAfterRefresh,
   workspaceId,
@@ -68,19 +65,19 @@ export function useSessionRefreshActions({
   const { user } = useAuth();
   const normalizedUserScope = user?.id?.trim() ?? 'anonymous';
   const [refreshingProjectId, setRefreshingProjectId] = useState<string | null>(null);
-  const [refreshingCodingSessionScope, setRefreshingCodingSessionScope] = useState<{
-    codingSessionId: string;
+  const [refreshingAgentSessionScope, setRefreshingAgentSessionScope] = useState<{
+    agentSessionId: string;
     projectId: string | null;
   } | null>(null);
   const projectRefreshGenerationRef = useRef(0);
-  const codingSessionRefreshGenerationRef = useRef(0);
+  const agentSessionRefreshGenerationRef = useRef(0);
 
   const isPreservedSelectionStillCurrent = useCallback(
     (preservedSelection: PreservedSessionRefreshSelection) => {
       const currentSelection = getPreservedSelection();
       return (
         currentSelection.projectId === preservedSelection.projectId &&
-        currentSelection.codingSessionId === preservedSelection.codingSessionId
+        currentSelection.agentSessionId === preservedSelection.agentSessionId
       );
     },
     [getPreservedSelection],
@@ -100,8 +97,7 @@ export function useSessionRefreshActions({
     setRefreshingProjectId(targetProjectId);
     try {
       const result = await refreshProjectSessions({
-        appRuntimeReadService,
-        identityScope: normalizedUserScope,
+        agentSessionService,
         projectId: targetProjectId,
         projectService,
         workspaceId: normalizedWorkspaceId,
@@ -124,7 +120,7 @@ export function useSessionRefreshActions({
       if (isPreservedSelectionStillCurrent(preservedSelection)) {
         restoreSelectionAfterRefresh(
           preservedSelection.projectId,
-          preservedSelection.codingSessionId,
+          preservedSelection.agentSessionId,
         );
       }
       addToast(messages.projectSessionsRefreshed(projectName), 'success');
@@ -141,10 +137,9 @@ export function useSessionRefreshActions({
     }
   }, [
     addToast,
-    appRuntimeReadService,
+    agentSessionService,
     getPreservedSelection,
     messages,
-    normalizedUserScope,
     projectService,
     resolveProjectName,
     restoreSelectionAfterRefresh,
@@ -152,37 +147,35 @@ export function useSessionRefreshActions({
     workspaceId,
   ]);
 
-  const handleRefreshCodingSessionMessages = useCallback(async (
-    codingSessionId: string,
+  const handleRefreshAgentSessionItems = useCallback(async (
+    agentSessionId: string,
     projectId?: string | null,
   ) => {
     const normalizedProjectId = projectId?.trim() ?? '';
     const preservedSelection = getPreservedSelection();
-    const codingSessionTitle = resolveCodingSessionTitle(codingSessionId, normalizedProjectId);
+    const agentSessionTitle = resolveAgentSessionTitle(agentSessionId, normalizedProjectId);
     const resolvedLocation = normalizedProjectId
-      ? resolveCodingSessionLocation?.(codingSessionId, normalizedProjectId) ?? null
+      ? resolveAgentSessionLocation?.(agentSessionId, normalizedProjectId) ?? null
       : null;
     if (normalizedProjectId && !resolvedLocation) {
       addToast(messages.failedToRefreshSessionMessages, 'error');
       return;
     }
 
-    const requestGeneration = ++codingSessionRefreshGenerationRef.current;
+    const requestGeneration = ++agentSessionRefreshGenerationRef.current;
 
-    setRefreshingCodingSessionScope({
-      codingSessionId,
+    setRefreshingAgentSessionScope({
+      agentSessionId,
       projectId: normalizedProjectId || null,
     });
     try {
-      const result = await refreshCodingSessionMessages({
-        codingSessionId,
-        appRuntimeReadService,
-        identityScope: normalizedUserScope,
-        projectService,
+      const result = await refreshAgentSessionItems({
+        agentSessionService,
+        agentSessionId,
         ...(resolvedLocation ? { resolvedLocation } : {}),
         workspaceId,
       });
-      if (codingSessionRefreshGenerationRef.current !== requestGeneration) {
+      if (agentSessionRefreshGenerationRef.current !== requestGeneration) {
         return;
       }
       if (result.status !== 'refreshed') {
@@ -190,7 +183,7 @@ export function useSessionRefreshActions({
         return;
       }
 
-      if (result.codingSession) {
+      if (result.agentSession) {
         const synchronizedProject = await projectService.getProjectById(result.projectId).catch(
           (error) => {
             console.error(
@@ -200,7 +193,7 @@ export function useSessionRefreshActions({
             return null;
           },
         );
-        if (codingSessionRefreshGenerationRef.current !== requestGeneration) {
+        if (agentSessionRefreshGenerationRef.current !== requestGeneration) {
           return;
         }
 
@@ -211,13 +204,13 @@ export function useSessionRefreshActions({
             normalizedUserScope,
           );
         }
-        upsertCodingSessionIntoProjectsStore(
+        upsertAgentSessionIntoProjectsStore(
           result.workspaceId?.trim() ||
             synchronizedProject?.workspaceId?.trim() ||
             workspaceId?.trim() ||
-            result.codingSession.workspaceId,
+            result.agentSession.workspaceId,
           result.projectId,
-          result.codingSession,
+          result.agentSession,
           normalizedUserScope,
         );
       }
@@ -225,40 +218,39 @@ export function useSessionRefreshActions({
       if (isPreservedSelectionStillCurrent(preservedSelection)) {
         restoreSelectionAfterRefresh(
           preservedSelection.projectId,
-          preservedSelection.codingSessionId,
+          preservedSelection.agentSessionId,
         );
       }
-      addToast(messages.sessionMessagesRefreshed(codingSessionTitle), 'success');
+      addToast(messages.sessionMessagesRefreshed(agentSessionTitle), 'success');
     } catch (error) {
-      if (codingSessionRefreshGenerationRef.current !== requestGeneration) {
+      if (agentSessionRefreshGenerationRef.current !== requestGeneration) {
         return;
       }
       console.error('Failed to refresh coding session messages', error);
       addToast(messages.failedToRefreshSessionMessages, 'error');
     } finally {
-      if (codingSessionRefreshGenerationRef.current === requestGeneration) {
-        setRefreshingCodingSessionScope(null);
+      if (agentSessionRefreshGenerationRef.current === requestGeneration) {
+        setRefreshingAgentSessionScope(null);
       }
     }
   }, [
     addToast,
-    appRuntimeReadService,
+    agentSessionService,
     getPreservedSelection,
     messages,
-    normalizedUserScope,
     projectService,
-    resolveCodingSessionLocation,
-    resolveCodingSessionTitle,
+    resolveAgentSessionLocation,
+    resolveAgentSessionTitle,
     restoreSelectionAfterRefresh,
     isPreservedSelectionStillCurrent,
     workspaceId,
   ]);
 
   return {
-    handleRefreshCodingSessionMessages,
+    handleRefreshAgentSessionItems,
     handleRefreshProjectSessions,
-    refreshingCodingSessionId: refreshingCodingSessionScope?.codingSessionId ?? null,
-    refreshingCodingSessionProjectId: refreshingCodingSessionScope?.projectId ?? null,
+    refreshingAgentSessionId: refreshingAgentSessionScope?.agentSessionId ?? null,
+    refreshingAgentSessionProjectId: refreshingAgentSessionScope?.projectId ?? null,
     refreshingProjectId,
   };
 }

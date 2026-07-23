@@ -1,44 +1,18 @@
-# SDKWork BirdCoder SDK Family Specs
+# BirdCoder SDK Contracts
 
-This directory is the local standards index for the BirdCoder SDK family.
+`component.spec.json` is the SDK workspace contract. The family-specific contract is
+`../sdkwork-birdcoder-app-sdk/specs/component.spec.json`, and the family manifest is
+`../sdkwork-birdcoder-app-sdk/sdk-manifest.json`.
 
-Root SDKWork standards remain authoritative. The SDK family narrows those standards for BirdCoder app and backend SDK generation without copying or redefining them.
+The only API authority and sdkgen input are:
 
-## Component
+- `../sdkwork-birdcoder-app-sdk/openapi/sdkwork-birdcoder-app-api.openapi.json`
+- `../sdkwork-birdcoder-app-sdk/openapi/sdkwork-birdcoder-app-api.sdkgen.json`
 
-| Field | Value |
-| --- | --- |
-| Name | `sdkwork-birdcoder-sdk-family` |
-| Type | `sdk-family` |
-| Root | `sdkwork-birdcoder/sdks` |
-| Domain | `platform` |
-| Capability | `sdk` |
-| Languages | `typescript`, `rust` |
-| Standard profile | `sdkwork-v3` |
+Both contain the same 39 BirdCoder-owned App API operations. Backend API and Open API operation
+counts are zero, so no empty manifests, families, facades, or generated outputs exist for those
+surfaces. `domain-catalog.json` contains only domains present in this owner-only authority.
 
-## Contract Manifest
-
-- [component.spec.json](./component.spec.json) is the machine-readable component contract.
-- [../sdkwork-birdcoder-app-sdk/sdk-manifest.json](../sdkwork-birdcoder-app-sdk/sdk-manifest.json) is the app SDK family manifest.
-- [../sdkwork-birdcoder-backend-sdk/sdk-manifest.json](../sdkwork-birdcoder-backend-sdk/sdk-manifest.json) is the backend SDK family manifest.
-- [domain-catalog.json](./domain-catalog.json) registers the standard and app-local domains used by SDK OpenAPI `x-sdkwork-domain` metadata.
-- [openapi/birdcoder-app-v3.openapi.json](./openapi/birdcoder-app-v3.openapi.json) is the app SDK OpenAPI source.
-- [openapi/birdcoder-backend-v3.openapi.json](./openapi/birdcoder-backend-v3.openapi.json) is the backend SDK OpenAPI source.
-
-## Canonical Specs
-
-| Spec | Applies Because |
-| --- | --- |
-| [README.md](../../../sdkwork-specs/README.md) | Root SDKWork standards entrypoint. |
-| [API_SPEC.md](../../../sdkwork-specs/API_SPEC.md) | OpenAPI, app/backend surfaces, path, tag, operationId, auth, and error rules. |
-| [SDK_SPEC.md](../../../sdkwork-specs/SDK_SPEC.md) | SDK generation manifest, resource-style clients, auth handling, and generated output rules. |
-| [COMPONENT_SPEC.md](../../../sdkwork-specs/COMPONENT_SPEC.md) | Local sdk-family component spec and manifest rules. |
-| [DOCUMENTATION_SPEC.md](../../../sdkwork-specs/DOCUMENTATION_SPEC.md) | SDK README and example documentation rules. |
-| [TEST_SPEC.md](../../../sdkwork-specs/TEST_SPEC.md) | Executable API, SDK, generated output, and documentation verification rules. |
-| [DOMAIN_SPEC.md](../../../sdkwork-specs/DOMAIN_SPEC.md) | Canonical domain naming plus the local extension catalog for BirdCoder runtime and billing API domains. |
-
-## Verification
-
-- `pnpm check:sdk-family-standard`
-- `pnpm sdk:generate`
-- `pnpm check:sdk-family-generated`
+Canonical rules remain in `../../../sdkwork-specs/API_SPEC.md`,
+`../../../sdkwork-specs/SDK_SPEC.md`, and
+`../../../sdkwork-specs/SDK_WORKSPACE_GENERATION_SPEC.md`.

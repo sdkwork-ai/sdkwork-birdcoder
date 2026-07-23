@@ -1,0 +1,50 @@
+{
+  "schemaVersion": 1,
+  "kind": "sdkwork.component.spec",
+  "component": {
+    "name": "sdkwork_birdcoder_flutter_mobile_host",
+    "displayName": "SDKWork BirdCoder Flutter Mobile Host",
+    "version": "0.1.0",
+    "type": "dart-package",
+    "root": "sdkwork-birdcoder/apps/sdkwork-birdcoder-flutter-mobile/packages/sdkwork_birdcoder_flutter_mobile_host",
+    "domain": "device",
+    "capability": "mobile-host-adapters",
+    "surface": "native-host",
+    "languages": ["dart"],
+    "generated": false,
+    "private": false,
+    "manifests": ["pubspec.yaml"]
+  },
+  "canonicalSpecs": [
+    { "file": "COMPONENT_SPEC.md", "path": "../../../../../sdkwork-specs/COMPONENT_SPEC.md", "purpose": "Component ownership and port contracts." },
+    { "file": "CODE_STYLE_SPEC.md", "path": "../../../../../sdkwork-specs/CODE_STYLE_SPEC.md", "purpose": "Authored source and generated-code boundaries." },
+    { "file": "NAMING_SPEC.md", "path": "../../../../../sdkwork-specs/NAMING_SPEC.md", "purpose": "Canonical package and capability naming." },
+    { "file": "UI_ARCHITECTURE_SPEC.md", "path": "../../../../../sdkwork-specs/UI_ARCHITECTURE_SPEC.md", "purpose": "UI architecture selection rules." },
+    { "file": "APP_FLUTTER_UI_SPEC.md", "path": "../../../../../sdkwork-specs/APP_FLUTTER_UI_SPEC.md", "purpose": "Flutter host-adapter boundaries." },
+    { "file": "FLUTTER_APP_MOBILE_ARCHITECTURE_SPEC.md", "path": "../../../../../sdkwork-specs/FLUTTER_APP_MOBILE_ARCHITECTURE_SPEC.md", "purpose": "Mobile runtime and native host composition." }
+  ],
+  "contracts": {
+    "layerRole": "frontend-host",
+    "publicExports": ["lib/sdkwork_birdcoder_flutter_mobile_host.dart"],
+    "providedPorts": [
+      { "name": "mobileDeepLinkAdapter", "export": "lib/sdkwork_birdcoder_flutter_mobile_host.dart" },
+      { "name": "mobileSecureSessionStorage", "export": "lib/sdkwork_birdcoder_flutter_mobile_host.dart" },
+      { "name": "mobileExternalAuthLauncher", "export": "lib/sdkwork_birdcoder_flutter_mobile_host.dart" },
+      { "name": "mobileQrPayloadView", "export": "lib/sdkwork_birdcoder_flutter_mobile_host.dart" }
+    ],
+    "requiredPorts": [],
+    "runtimeEntrypoints": [],
+    "routeManifest": null,
+    "sdkClients": [],
+    "sdkDependencies": [],
+    "permissionComposition": {},
+    "dependencyApiExports": [],
+    "dependencyApiSurfaces": [],
+    "events": [],
+    "configKeys": []
+  },
+  "integration": {
+    "sessionBoundary": "Session storage is an IAM credential persistence adapter only; Agents Session remains owned by sdkwork-agents."
+  },
+  "verification": { "commands": ["pnpm check:flutter-android"] }
+}

@@ -80,7 +80,7 @@ impl WorkspaceService {
         if request
             .name
             .as_deref()
-            .is_some_and(|value| value.trim().is_empty() || value.trim().len() > 160)
+            .is_some_and(|value| is_blank(Some(value)) || value.trim().len() > 160)
         {
             return Err(WorkspaceError::InvalidInput(
                 "name must contain between 1 and 160 bytes.".to_owned(),
@@ -135,7 +135,7 @@ fn validate_workspace_id(id: &str) -> Result<(), WorkspaceError> {
 fn validate_workspace_code(code: Option<&str>) -> Result<(), WorkspaceError> {
     if code.is_some_and(|value| {
         let value = value.trim();
-        value.is_empty()
+        is_blank(Some(value))
             || value.len() > 96
             || !value
                 .bytes()

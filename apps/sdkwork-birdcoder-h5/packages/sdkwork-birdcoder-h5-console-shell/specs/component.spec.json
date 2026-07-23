@@ -1,0 +1,42 @@
+{
+  "schemaVersion": 1,
+  "kind": "sdkwork.component.spec",
+  "component": {
+    "name": "@sdkwork/birdcoder-h5-console-shell",
+    "displayName": "SDKWork BirdCoder H5 Console Shell",
+    "version": "0.1.0",
+    "type": "typescript-package",
+    "root": "sdkwork-birdcoder/apps/sdkwork-birdcoder-h5/packages/sdkwork-birdcoder-h5-console-shell",
+    "domain": "birdcoder",
+    "capability": "console-shell",
+    "surface": "console",
+    "languages": ["typescript"],
+    "generated": false,
+    "private": true,
+    "manifests": ["package.json"]
+  },
+  "canonicalSpecs": [
+    { "file": "COMPONENT_SPEC.md", "path": "../../../../../sdkwork-specs/COMPONENT_SPEC.md", "purpose": "Component ownership and port contracts." },
+    { "file": "CODE_STYLE_SPEC.md", "path": "../../../../../sdkwork-specs/CODE_STYLE_SPEC.md", "purpose": "Authored source boundaries." },
+    { "file": "NAMING_SPEC.md", "path": "../../../../../sdkwork-specs/NAMING_SPEC.md", "purpose": "Canonical package and capability naming." },
+    { "file": "TYPESCRIPT_CODE_SPEC.md", "path": "../../../../../sdkwork-specs/TYPESCRIPT_CODE_SPEC.md", "purpose": "TypeScript package rules." },
+    { "file": "UI_ARCHITECTURE_SPEC.md", "path": "../../../../../sdkwork-specs/UI_ARCHITECTURE_SPEC.md", "purpose": "UI architecture selection rules." },
+    { "file": "APP_MOBILE_REACT_UI_SPEC.md", "path": "../../../../../sdkwork-specs/APP_MOBILE_REACT_UI_SPEC.md", "purpose": "Mobile user-console shell boundaries." }
+  ],
+  "contracts": {
+    "layerRole": "frontend-shell",
+    "publicExports": ["."],
+    "providedPorts": [{ "name": "consoleShellConfiguration", "export": "." }],
+    "requiredPorts": [],
+    "runtimeEntrypoints": [],
+    "routeManifest": null,
+    "sdkClients": [],
+    "sdkDependencies": [],
+    "permissionComposition": {},
+    "dependencyApiExports": [],
+    "dependencyApiSurfaces": [],
+    "events": [],
+    "configKeys": []
+  },
+  "verification": { "commands": ["pnpm typecheck:browser"] }
+}

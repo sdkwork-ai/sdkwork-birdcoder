@@ -1,40 +1,40 @@
 import type {
-  BirdCoderCommitProjectGitChangesRequest,
-  BirdCoderCreateProjectGitBranchRequest,
-  BirdCoderCreateProjectGitWorktreeRequest,
-  BirdCoderProjectGitDiff,
-  BirdCoderProjectGitOverview,
-  BirdCoderPushProjectGitBranchRequest,
-  BirdCoderRemoveProjectGitWorktreeRequest,
-  BirdCoderSwitchProjectGitBranchRequest,
+  CommitWorkbenchGitChangesInput,
+  CreateWorkbenchGitBranchInput,
+  CreateWorkbenchGitWorktreeInput,
+  PushWorkbenchGitBranchInput,
+  RemoveWorkbenchGitWorktreeInput,
+  SwitchWorkbenchGitBranchInput,
+  WorkbenchGitDiffView,
+  WorkbenchGitOverviewView,
 } from '@sdkwork/birdcoder-pc-contracts-commons';
 
 export interface IGitService {
   commitProjectGitChanges(
     projectId: string,
-    request: BirdCoderCommitProjectGitChangesRequest,
-  ): Promise<BirdCoderProjectGitOverview>;
+    request: CommitWorkbenchGitChangesInput,
+  ): Promise<WorkbenchGitOverviewView>;
   createProjectGitBranch(
     projectId: string,
-    request: BirdCoderCreateProjectGitBranchRequest,
-  ): Promise<BirdCoderProjectGitOverview>;
+    request: CreateWorkbenchGitBranchInput,
+  ): Promise<WorkbenchGitOverviewView>;
   createProjectGitWorktree(
     projectId: string,
-    request: BirdCoderCreateProjectGitWorktreeRequest,
-  ): Promise<BirdCoderProjectGitOverview>;
-  getProjectGitOverview(projectId: string): Promise<BirdCoderProjectGitOverview>;
-  getProjectGitDiff(projectId: string): Promise<BirdCoderProjectGitDiff>;
+    request: CreateWorkbenchGitWorktreeInput,
+  ): Promise<WorkbenchGitOverviewView>;
+  getProjectGitOverview(projectId: string): Promise<WorkbenchGitOverviewView>;
+  getProjectGitDiff(projectId: string): Promise<WorkbenchGitDiffView>;
   pushProjectGitBranch(
     projectId: string,
-    request: BirdCoderPushProjectGitBranchRequest,
-  ): Promise<BirdCoderProjectGitOverview>;
-  pruneProjectGitWorktrees(projectId: string): Promise<BirdCoderProjectGitOverview>;
+    request: PushWorkbenchGitBranchInput,
+  ): Promise<WorkbenchGitOverviewView>;
+  pruneProjectGitWorktrees(projectId: string): Promise<WorkbenchGitOverviewView>;
   removeProjectGitWorktree(
     projectId: string,
-    request: BirdCoderRemoveProjectGitWorktreeRequest,
-  ): Promise<BirdCoderProjectGitOverview>;
+    request: RemoveWorkbenchGitWorktreeInput,
+  ): Promise<WorkbenchGitOverviewView>;
   switchProjectGitBranch(
     projectId: string,
-    request: BirdCoderSwitchProjectGitBranchRequest,
-  ): Promise<BirdCoderProjectGitOverview>;
+    request: SwitchWorkbenchGitBranchInput,
+  ): Promise<WorkbenchGitOverviewView>;
 }

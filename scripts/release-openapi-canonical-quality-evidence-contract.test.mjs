@@ -74,14 +74,13 @@ function normalizeStableQualitySummary(summary = {}) {
   };
 }
 
-function normalizeStableCodingServerOpenApiEvidence(summary = null) {
+function normalizeStableBirdcoderAppApiEvidence(summary = null) {
   if (!summary) {
     return null;
   }
 
   return {
     canonicalRelativePath: String(summary.canonicalRelativePath ?? '').trim().split(path.sep).join('/'),
-    mirroredRelativePaths: normalizeStringList(summary.mirroredRelativePaths ?? []),
     targetCount: Number(summary.targetCount ?? 0),
     targets: normalizeStringList(summary.targets ?? []),
     sha256: String(summary.sha256 ?? '').trim(),
@@ -129,8 +128,8 @@ function normalizeStableFinalizedSmokeReport(report = {}) {
       formalOrGaStatus: String(report.promotionReadiness?.formalOrGaStatus ?? '').trim(),
       stopShipSignals: normalizeStringList(report.promotionReadiness?.stopShipSignals ?? []),
     },
-    codingServerOpenApiEvidence: normalizeStableCodingServerOpenApiEvidence(
-      report.codingServerOpenApiEvidence ?? null,
+    birdcoderAppApiEvidence: normalizeStableBirdcoderAppApiEvidence(
+      report.birdcoderAppApiEvidence ?? null,
     ),
     previewEvidence: normalizeStableOptionalSummary(report.previewEvidence ?? null),
     buildEvidence: normalizeStableOptionalSummary(report.buildEvidence ?? null),

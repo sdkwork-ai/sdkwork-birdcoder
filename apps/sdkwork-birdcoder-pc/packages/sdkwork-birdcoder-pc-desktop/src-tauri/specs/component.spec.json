@@ -1,0 +1,54 @@
+{
+  "schemaVersion": 1,
+  "kind": "sdkwork.component.spec",
+  "component": {
+    "name": "sdkwork-birdcoder-pc-desktop",
+    "displayName": "SDKWork BirdCoder PC Desktop Native Entrypoint",
+    "version": "0.1.0",
+    "type": "tauri-host",
+    "root": "sdkwork-birdcoder/apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-desktop/src-tauri",
+    "domain": "device",
+    "capability": "desktop-native-entrypoint",
+    "surface": "native-host",
+    "languages": ["rust"],
+    "generated": false,
+    "private": true,
+    "manifests": ["Cargo.toml"]
+  },
+  "canonicalSpecs": [
+    { "file": "COMPONENT_SPEC.md", "path": "../../../../../../sdkwork-specs/COMPONENT_SPEC.md", "purpose": "Component ownership and port contracts." },
+    { "file": "CODE_STYLE_SPEC.md", "path": "../../../../../../sdkwork-specs/CODE_STYLE_SPEC.md", "purpose": "Authored source boundaries." },
+    { "file": "NAMING_SPEC.md", "path": "../../../../../../sdkwork-specs/NAMING_SPEC.md", "purpose": "Canonical crate and capability naming." },
+    { "file": "RUST_CODE_SPEC.md", "path": "../../../../../../sdkwork-specs/RUST_CODE_SPEC.md", "purpose": "Rust native-host and process-entrypoint rules." },
+    { "file": "APP_PC_ARCHITECTURE_SPEC.md", "path": "../../../../../../sdkwork-specs/APP_PC_ARCHITECTURE_SPEC.md", "purpose": "PC desktop application architecture." },
+    { "file": "DESKTOP_APP_ARCHITECTURE_SPEC.md", "path": "../../../../../../sdkwork-specs/DESKTOP_APP_ARCHITECTURE_SPEC.md", "purpose": "Tauri host composition and native security boundaries." }
+  ],
+  "contracts": {
+    "layerRole": "runtime-native-host",
+    "publicExports": ["sdkwork_birdcoder_pc_desktop_lib::run"],
+    "providedPorts": [
+      { "name": "desktopNativeProcess", "export": "sdkwork_birdcoder_pc_desktop_lib::run" }
+    ],
+    "requiredPorts": [
+      { "name": "birdcoderTauriHost", "export": "sdkwork_birdcoder_pc_desktop_lib::run" }
+    ],
+    "runtimeEntrypoints": ["src/lib.rs#run", "src/main.rs"],
+    "routeManifest": null,
+    "sdkClients": [],
+    "sdkDependencies": [],
+    "permissionComposition": {},
+    "dependencyApiExports": [],
+    "dependencyApiSurfaces": [],
+    "events": [],
+    "configKeys": []
+  },
+  "integration": {
+    "authority": "This crate is the thin Tauri process entrypoint. Native commands, credential storage, and embedded gateway startup remain owned by sdkwork-birdcoder-tauri-host.",
+    "sessionBoundary": "The process entrypoint defines no local Session domain; assistant sessions remain owned by sdkwork-agents."
+  },
+  "verification": {
+    "commands": [
+      "node scripts/run-cargo.mjs test --manifest-path apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-desktop/src-tauri/Cargo.toml"
+    ]
+  }
+}

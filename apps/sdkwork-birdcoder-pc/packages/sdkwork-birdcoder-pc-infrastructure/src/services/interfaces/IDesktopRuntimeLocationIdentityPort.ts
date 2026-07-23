@@ -5,7 +5,7 @@
  */
 export interface DesktopRuntimeLocationBindingIdentity {
   displayName: string;
-  locationKind: 'desktop_checkout';
+  locationKind: 'local_directory';
   pathFlavor: 'windows' | 'posix';
   requiresRebind: boolean;
   rootLocator: string;
@@ -13,7 +13,7 @@ export interface DesktopRuntimeLocationBindingIdentity {
   runtimeLocationId?: string;
   runtimeLocationVersion?: string;
   runtimeTargetId: string;
-  runtimeTargetKind: 'desktop_device';
+  runtimeTargetKind: 'desktop';
 }
 
 export interface DesktopRuntimeLocationIdentityPort {

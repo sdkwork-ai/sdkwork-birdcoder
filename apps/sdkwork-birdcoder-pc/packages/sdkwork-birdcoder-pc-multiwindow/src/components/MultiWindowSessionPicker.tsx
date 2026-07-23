@@ -1,6 +1,6 @@
 import {
-  formatBirdCoderSessionDisplayTime,
-  type BirdCoderCodingSession,
+  formatAgentSessionDisplayTime,
+  type AgentSessionView,
   type BirdCoderProject,
 } from '@sdkwork/birdcoder-pc-contracts-commons';
 import type { WorkbenchPreferences } from '@sdkwork/birdcoder-pc-workbench';
@@ -38,12 +38,12 @@ interface MultiWindowSessionPickerProps {
   pane: MultiWindowPaneConfig;
   preferences: WorkbenchPreferences;
   projects: readonly BirdCoderProject[];
-  selectedCodingSessionId: string;
+  selectedAgentSessionId: string;
   selectedProjectId: string;
   onClose: () => void;
   onCreateSession: (projectId: string) => void;
   onPaneChange: (pane: MultiWindowPaneConfig) => void;
-  onSelectSession: (projectId: string, codingSessionId: string) => void;
+  onSelectSession: (projectId: string, agentSessionId: string) => void;
   onStopPendingAddSequence?: () => void;
 }
 
@@ -73,25 +73,25 @@ function resolveProjectDetail(project: BirdCoderProject | null): string {
   return project.name || project.domainPrefix || project.id;
 }
 
-function resolveSessionActivityLabel(codingSession: BirdCoderCodingSession): string {
+function resolveSessionActivityLabel(agentSession: AgentSessionView): string {
   return (
-    codingSession.displayTime ||
-    formatBirdCoderSessionDisplayTime(
-      codingSession.transcriptUpdatedAt || codingSession.lastTurnAt || codingSession.updatedAt,
-      codingSession.createdAt,
+    agentSession.displayTime ||
+    formatAgentSessionDisplayTime(
+      agentSession.transcriptUpdatedAt || agentSession.lastTurnAt || agentSession.updatedAt,
+      agentSession.createdAt,
     )
   );
 }
 
-function buildSessionSearchText(codingSession: BirdCoderCodingSession): string {
+function buildSessionSearchText(agentSession: AgentSessionView): string {
   return [
-    codingSession.title,
-    codingSession.id,
-    codingSession.engineId,
-    codingSession.modelId,
-    codingSession.status,
-    codingSession.runtimeStatus,
-    codingSession.hostMode,
+    agentSession.title,
+    agentSession.id,
+    agentSession.engineId,
+    agentSession.modelId,
+    agentSession.status,
+    agentSession.runtimeStatus,
+    agentSession.hostMode,
   ]
     .filter(Boolean)
     .join(' ')
@@ -104,7 +104,7 @@ export const MultiWindowSessionPicker = memo(function MultiWindowSessionPicker({
   pane,
   preferences,
   projects,
-  selectedCodingSessionId,
+  selectedAgentSessionId,
   selectedProjectId,
   onClose,
   onCreateSession,
@@ -123,14 +123,14 @@ export const MultiWindowSessionPicker = memo(function MultiWindowSessionPicker({
   const activeProjectId = activeProject?.id ?? '';
   const activeProjectDetail = resolveProjectDetail(activeProject);
   const normalizedSessionSearchQuery = sessionSearchQuery.trim().toLowerCase();
-  const filteredCodingSessions = useMemo(() => {
-    const codingSessions = activeProject?.codingSessions ?? [];
+  const filteredAgentSessions = useMemo(() => {
+    const agentSessions = activeProject?.agentSessions ?? [];
     if (!normalizedSessionSearchQuery) {
-      return codingSessions;
+      return agentSessions;
     }
 
-    return codingSessions.filter((codingSession) =>
-      buildSessionSearchText(codingSession).includes(normalizedSessionSearchQuery),
+    return agentSessions.filter((agentSession) =>
+      buildSessionSearchText(agentSession).includes(normalizedSessionSearchQuery),
     );
   }, [activeProject, normalizedSessionSearchQuery]);
 
@@ -214,7 +214,7 @@ export const MultiWindowSessionPicker = memo(function MultiWindowSessionPicker({
                     </span>
                   </span>
                   <span className="shrink-0 rounded-md bg-white/[0.06] px-1.5 py-0.5 text-[10px] text-gray-400">
-                    {t('multiWindow.sessionCount', { count: project.codingSessions.length })}
+                    {t('multiWindow.sessionCount', { count: project.agentSessions.length })}
                   </span>
                 </button>
               ))
@@ -316,7 +316,7 @@ export const MultiWindowSessionPicker = memo(function MultiWindowSessionPicker({
                 </div>
 
                 <div className="min-h-0 flex-1 overflow-y-auto p-3">
-                  {(activeProject?.codingSessions.length ?? 0) === 0 ? (
+                  {(activeProject?.agentSessions.length ?? 0) === 0 ? (
                     <div className="flex h-full items-center justify-center">
                       <div className="w-full max-w-[420px] rounded-lg border border-white/10 bg-white/[0.025] p-5 text-center">
                         <MessageSquareText size={22} className="mx-auto text-gray-500" />
@@ -338,59 +338,59 @@ export const MultiWindowSessionPicker = memo(function MultiWindowSessionPicker({
                         </button>
                       </div>
                     </div>
-                  ) : filteredCodingSessions.length === 0 ? (
+                  ) : filteredAgentSessions.length === 0 ? (
                     <div className="flex h-full items-center justify-center text-xs text-gray-500">
                       {t('multiWindow.sessionNoMatches')}
                     </div>
                   ) : (
-                    filteredCodingSessions.map((codingSession) => {
+                    filteredAgentSessions.map((agentSession) => {
                       const isSelectedSession =
                         selectedProjectId === activeProjectId &&
-                        selectedCodingSessionId === codingSession.id;
+                        selectedAgentSessionId === agentSession.id;
 
                       return (
                         <button
-                          key={codingSession.id}
+                          key={agentSession.id}
                           type="button"
                           className={`mb-2 flex w-full items-start justify-between gap-3 rounded-lg border px-3 py-3 text-left text-xs transition-colors ${
                             isSelectedSession
                               ? 'border-blue-400/40 bg-blue-500/10 text-blue-100'
                               : 'border-white/10 bg-white/[0.025] text-gray-400 hover:border-white/20 hover:bg-white/[0.055] hover:text-gray-200'
                           }`}
-                          onClick={() => onSelectSession(activeProjectId, codingSession.id)}
+                          onClick={() => onSelectSession(activeProjectId, agentSession.id)}
                         >
                         <span className="min-w-0 flex-1">
                           <span className="flex min-w-0 items-center gap-2">
-                            <span className="truncate text-sm font-medium text-gray-100">{codingSession.title}</span>
+                            <span className="truncate text-sm font-medium text-gray-100">{agentSession.title}</span>
                             <span className="shrink-0 rounded-md bg-white/[0.06] px-1.5 py-0.5 font-mono text-[10px] text-gray-500">
-                              {formatShortSessionId(codingSession.id)}
+                              {formatShortSessionId(agentSession.id)}
                             </span>
                           </span>
                           <span className="mt-2 flex flex-wrap gap-1.5">
                             <span className="inline-flex max-w-full items-center gap-1 rounded-md bg-white/[0.06] px-2 py-1 text-[11px] text-gray-300">
                               <Cpu size={12} className="shrink-0 text-blue-300" />
-                              <span className="truncate">{codingSession.engineId}</span>
+                              <span className="truncate">{agentSession.engineId}</span>
                               <span className="text-gray-600">/</span>
                               <span className="truncate">
-                                {codingSession.modelId || t('multiWindow.sessionModelUnknown')}
+                                {agentSession.modelId || t('multiWindow.sessionModelUnknown')}
                               </span>
                             </span>
                             <span className="inline-flex items-center gap-1 rounded-md bg-white/[0.06] px-2 py-1 text-[11px] capitalize text-gray-300">
                               <Hash size={12} className="shrink-0 text-purple-300" />
                               {formatSessionToken(
-                                codingSession.runtimeStatus || codingSession.status,
+                                agentSession.runtimeStatus || agentSession.status,
                                 t('multiWindow.sessionStatusUnknown'),
                               )}
                             </span>
                             <span className="inline-flex items-center gap-1 rounded-md bg-white/[0.06] px-2 py-1 text-[11px] text-gray-300">
                               <MessageSquareText size={12} className="shrink-0 text-emerald-300" />
-                              {t('multiWindow.sessionMessageCount', { count: codingSession.messages.length })}
+                              {t('multiWindow.sessionMessageCount', { count: agentSession.items.length })}
                             </span>
                             <span className="inline-flex min-w-0 items-center gap-1 rounded-md bg-white/[0.06] px-2 py-1 text-[11px] text-gray-300">
                               <Clock3 size={12} className="shrink-0 text-amber-300" />
                               <span className="truncate">
                                 {t('multiWindow.sessionUpdatedAt', {
-                                  time: resolveSessionActivityLabel(codingSession),
+                                  time: resolveSessionActivityLabel(agentSession),
                                 })}
                               </span>
                             </span>

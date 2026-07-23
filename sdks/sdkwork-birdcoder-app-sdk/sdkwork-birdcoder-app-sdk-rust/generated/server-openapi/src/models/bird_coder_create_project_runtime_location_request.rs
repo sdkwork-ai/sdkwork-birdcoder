@@ -14,10 +14,6 @@ pub struct BirdCoderCreateProjectRuntimeLocationRequest {
     #[serde(rename = "pathFlavor")]
     pub path_flavor: String,
 
-    /// Opaque, path-free target locator. Do not provide a relative or absolute filesystem path.
-    #[serde(rename = "rootLocator")]
-    pub root_locator: String,
-
     /// Write-only absolute path for encrypted-at-rest registration. It is never returned.
     #[serde(rename = "absolutePath")]
     pub absolute_path: String,

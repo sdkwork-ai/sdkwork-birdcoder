@@ -86,22 +86,48 @@ if (fs.existsSync(repositoryDirectory)) {
   }
 }
 
-const gatewaySource = readRustTree('crates/sdkwork-api-birdcoder-standalone-gateway/src/bootstrap');
-failWhen(!gatewaySource.includes('DatabasePool'), 'standalone gateway must retain the canonical DatabasePool');
-failWhen(!gatewaySource.includes('bootstrap_birdcoder_database'), 'standalone gateway must delegate schema lifecycle to database-host');
-failWhen(
-  !gatewaySource.includes('SnowflakeNodeAllocator'),
-  'standalone gateway must allocate one fenced SDKWork Snowflake node lease per process',
+const assemblyDatabaseSource = read(
+  'crates/sdkwork-api-birdcoder-assembly/src/application_bootstrap/database.rs',
 );
+failWhen(
+  !assemblyDatabaseSource.includes('create_pool_from_config'),
+  'API assembly must create the canonical process DatabasePool',
+);
+failWhen(
+  !assemblyDatabaseSource.includes('bootstrap_birdcoder_database(pool)'),
+  'API assembly must inject the process pool into database-host',
+);
+
+const databaseHostSource = readRustTree('crates/sdkwork-birdcoder-database-host/src');
+failWhen(
+  !databaseHostSource.includes('DatabasePool'),
+  'database-host must retain and expose the canonical process DatabasePool',
+);
+failWhen(
+  !databaseHostSource.includes('LifecycleOrchestrator::new(pool.clone()'),
+  'database-host must run schema lifecycle through the injected process pool',
+);
+failWhen(
+  !databaseHostSource.includes('SnowflakeNodeAllocator::allocate_process_generator(&pool'),
+  'database-host must allocate one fenced SDKWork Snowflake node lease from the process pool',
+);
+
+const runtimeCompositionSource = [
+  readRustTree('crates/sdkwork-api-birdcoder-assembly/src/application_bootstrap'),
+  readRustTree('crates/sdkwork-api-birdcoder-standalone-gateway/src'),
+].join('\n');
 for (const forbiddenSymbol of [
-  'SqliteCodingSessionRepository',
+  'SqliteAgentSessionRepository',
   'SqliteDeploymentRepository',
   'SqliteDocumentRepository',
   'SqliteSkillPackageRepository',
   'SqliteTeamRepository',
   'SqliteProjectWorkspaceBindingRepository',
 ]) {
-  failWhen(gatewaySource.includes(forbiddenSymbol), `standalone gateway must not wire ${forbiddenSymbol}`);
+  failWhen(
+    runtimeCompositionSource.includes(forbiddenSymbol),
+    `BirdCoder runtime composition must not wire ${forbiddenSymbol}`,
+  );
 }
 
 for (const forbiddenPath of [
@@ -117,11 +143,15 @@ for (const forbiddenPath of [
   failWhen(exists(forbiddenPath), `${forbiddenPath} must be removed after owner cutover`);
 }
 
-const localDataKernel = [
-  read('apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-contracts-commons/src/data.ts'),
-  read('apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/src/storage/providers.ts'),
-].join('\n');
-failWhen(/CREATE\s+TABLE|BIRDCODER_SCHEMA_MIGRATIONS|ai_coding_session|chat_conversation|ai_skill_package/i.test(localDataKernel), 'frontend packages must not retain a second authoritative application schema or owner-domain migrations');
+for (const forbiddenFrontendAuthority of [
+  'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-contracts-commons/src/data.ts',
+  'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/src/storage/providers.ts',
+]) {
+  failWhen(
+    exists(forbiddenFrontendAuthority),
+    `${forbiddenFrontendAuthority} must remain removed with the retired frontend database authority`,
+  );
+}
 
 if (failures.length > 0) {
   process.stderr.write(`Database framework standard failed:\n${failures.map((item) => `- ${item}`).join('\n')}\n`);

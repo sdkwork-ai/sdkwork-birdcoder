@@ -23,7 +23,7 @@ const source = fs.readFileSync(
 
 assert.match(
   source,
-  /const EMPTY_PROJECT_INVENTORY_MESSAGES: BirdCoderChatMessage\[] = \[];/,
+  /const EMPTY_PROJECT_INVENTORY_MESSAGES: AgentSessionItemView\[] = \[];/,
   'useProjects must define a stable empty transcript reference for project inventory summaries.',
 );
 
@@ -41,7 +41,7 @@ assert.match(
 
 assert.match(
   source,
-  /messages:\s*codingSession\.messages\.length > 0 \? EMPTY_PROJECT_INVENTORY_MESSAGES : codingSession\.messages/s,
+  /messages:\s*agentSession\.messages\.length > 0 \? EMPTY_PROJECT_INVENTORY_MESSAGES : agentSession\.messages/s,
   'useProjects inventory normalization must strip transcript payloads from fetched project snapshots while preserving empty-array identity for summaries.',
 );
 

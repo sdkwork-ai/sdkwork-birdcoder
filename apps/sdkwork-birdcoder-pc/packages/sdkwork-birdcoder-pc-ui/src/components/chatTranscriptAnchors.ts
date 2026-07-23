@@ -1,4 +1,4 @@
-import type { BirdCoderChatMessage } from '@sdkwork/birdcoder-pc-workbench/chat/types';
+import type { AgentSessionItemView } from '@sdkwork/birdcoder-pc-workbench/chat/types';
 
 const MAX_TURN_PREVIEW_LENGTH = 220;
 
@@ -11,7 +11,7 @@ export interface ChatTranscriptTurnAnchor {
   turnNumber: number;
 }
 
-function isReplySegmentRole(role: BirdCoderChatMessage['role']): boolean {
+function isReplySegmentRole(role: AgentSessionItemView['role']): boolean {
   return role === 'assistant' || role === 'planner' || role === 'reviewer' || role === 'tool';
 }
 
@@ -37,7 +37,7 @@ function resolveFileLabel(path: string): string {
 }
 
 export function buildChatTranscriptTurnAnchors(
-  messages: readonly BirdCoderChatMessage[],
+  messages: readonly AgentSessionItemView[],
 ): ChatTranscriptTurnAnchor[] {
   const turns: ChatTranscriptTurnAnchor[] = [];
   let currentTurn: ChatTranscriptTurnAnchor | null = null;

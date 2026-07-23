@@ -76,7 +76,7 @@ export function runWorkspacePackageScriptRunnerContract() {
   {
     const plan = createWorkspacePackageScriptPlan({
       packageDir: 'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-web',
-      scriptName: 'dev:browser:standalone',
+      scriptName: 'start:browser',
       workspaceRootDir: rootDir,
       platform: 'win32',
     });
@@ -84,19 +84,19 @@ export function runWorkspacePackageScriptRunnerContract() {
     assert.equal(
       plan.command,
       process.execPath,
-      'Workspace package-script runner must execute the BirdCoder web dev entry through the current node executable so Windows root launches do not depend on nested cmd.exe PATH forwarding.',
+      'Workspace package-script runner must execute the renderer entry through the current Node executable.',
     );
     assert.deepEqual(
       plan.args,
-      ['../../../../scripts/run-birdcoder-dev-stack.mjs', 'web', '--iam-mode', 'server-private'],
-      'Workspace package-script runner must preserve the BirdCoder web dev command arguments when the package script routes private development through the server+client stack.',
+      ['../../../../scripts/run-vite-host.mjs', 'serve', '--host', '0.0.0.0', '--port', '3000', '--mode', 'development'],
+      'Workspace package-script runner must preserve the renderer command arguments.',
     );
   }
 
   {
     const plan = createWorkspacePackageScriptPlan({
       packageDir: 'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-desktop',
-      scriptName: 'dev:desktop',
+      scriptName: 'start:desktop-renderer',
       workspaceRootDir: rootDir,
       platform: 'win32',
       env: {
@@ -108,43 +108,12 @@ export function runWorkspacePackageScriptRunnerContract() {
     assert.equal(
       plan.command,
       process.execPath,
-      'Workspace package-script runner must resolve the standard BirdCoder desktop package path for root dev:desktop without failing before Tauri starts.',
+      'Workspace package-script runner must resolve the desktop renderer package without a shell hop.',
     );
     assert.deepEqual(
       plan.args,
-      ['../../../../scripts/run-birdcoder-desktop-command.mjs', 'dev:desktop', '--iam-mode', 'desktop-local'],
-      'Workspace package-script runner must preserve the BirdCoder desktop dev:desktop command arguments after the desktop package migration.',
-    );
-  }
-
-  {
-    const plan = createWorkspacePackageScriptPlan({
-      packageDir: 'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-server',
-      scriptName: 'start:server',
-      workspaceRootDir: rootDir,
-      platform: 'win32',
-      env: {
-        ComSpec: 'C:\\Windows\\System32\\cmd.exe',
-        PATH: 'C:\\Windows\\System32',
-      },
-    });
-
-    assert.equal(
-      plan.command,
-      process.execPath,
-      'Workspace package-script runner must execute the BirdCoder server dev entrypoint through the shared run-cargo wrapper.',
-    );
-    assert.deepEqual(
-      plan.args,
-      [
-        '../../../../scripts/run-cargo.mjs',
-        'run',
-        '--manifest-path',
-        '../../../../Cargo.toml',
-        '-p',
-        'sdkwork-api-birdcoder-standalone-gateway',
-      ],
-      'Workspace package-script runner must preserve the workspace standalone-gateway dev command.',
+      ['../../../../scripts/run-vite-host.mjs', 'serve', '--host', '127.0.0.1', '--port', '1520', '--strictPort', '--mode', 'development'],
+      'Workspace package-script runner must preserve the desktop renderer command arguments.',
     );
   }
 

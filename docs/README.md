@@ -30,10 +30,11 @@ Working documents must link back to the Canon and may be deleted or archived aft
 - [Developer guides](guide/)
 - [Reference](reference/)
 - [Runbooks](runbooks/)
-- [Release registry](release/releases.json)
+- [Current pre-launch release state](release/release-2026-07-22-01.md)
+- [Formal releases](releases/README.md)
 - [Archive](archive/)
 
-`docs/release/` is release evidence used by release automation and is excluded from the public documentation search index. Historical migrated material remains under `docs/archive/`; it is not current product or architecture authority.
+`docs/release/` is the current release-automation work area and is excluded from the public documentation search index. Formal immutable release evidence belongs in `docs/releases/`; no formal release exists before the signed-artifact promotion gate passes. Historical migrated material, when retained for a specific audit obligation, belongs under `docs/archive/` and is never current authority.
 
 ## Documentation Policy
 

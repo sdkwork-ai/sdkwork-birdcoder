@@ -1,5 +1,5 @@
 import type { RefObject } from 'react';
-import type { BirdCoderCodingSession } from '@sdkwork/birdcoder-pc-contracts-commons';
+import type { AgentSessionView } from '@sdkwork/birdcoder-pc-contracts-commons';
 import { useTranslation } from 'react-i18next';
 import type { ProjectExplorerMenuPosition } from './ProjectExplorer.shared';
 
@@ -9,7 +9,7 @@ interface ProjectExplorerSessionContextMenuProps {
   zIndex: number;
   sessionId: string;
   projectId: string;
-  session?: BirdCoderCodingSession;
+  session?: AgentSessionView;
   isRefreshing: boolean;
   onClose: () => void;
   onRefresh?: (id: string) => Promise<void> | void;
@@ -18,9 +18,7 @@ interface ProjectExplorerSessionContextMenuProps {
   onArchive?: (id: string, projectId: string) => void;
   onMarkUnread?: (id: string, projectId: string) => void;
   onCopyWorkingDirectory?: (id: string, projectId: string) => void;
-  onOpenInTerminal?: (id: string, projectId: string, nativeSessionId?: string) => void;
-  onCopySessionId?: (id: string, projectId: string, nativeSessionId?: string) => void;
-  onCopyResumeCommand?: (id: string, projectId: string, nativeSessionId?: string) => void;
+  onCopySessionId?: (id: string, projectId: string) => void;
   onCopyDeeplink?: (id: string, projectId: string) => void;
   onForkLocal?: (id: string, projectId: string) => void;
   onForkNewTree?: (id: string, projectId: string) => void;
@@ -42,9 +40,7 @@ export function ProjectExplorerSessionContextMenu({
   onArchive,
   onMarkUnread,
   onCopyWorkingDirectory,
-  onOpenInTerminal,
   onCopySessionId,
-  onCopyResumeCommand,
   onCopyDeeplink,
   onForkLocal,
   onForkNewTree,
@@ -131,31 +127,11 @@ export function ProjectExplorerSessionContextMenu({
         type="button"
         className="w-full px-4 py-1.5 text-left hover:bg-white/10 hover:text-white transition-colors"
         onClick={() => {
-          onOpenInTerminal?.(sessionId, projectId, session?.nativeSessionId?.trim());
-          onClose();
-        }}
-      >
-        {t('code.openInTerminal')}
-      </button>
-      <button
-        type="button"
-        className="w-full px-4 py-1.5 text-left hover:bg-white/10 hover:text-white transition-colors"
-        onClick={() => {
-          onCopySessionId?.(sessionId, projectId, session?.nativeSessionId?.trim());
+          onCopySessionId?.(sessionId, projectId);
           onClose();
         }}
       >
         {t('code.copySessionId')}
-      </button>
-      <button
-        type="button"
-        className="w-full px-4 py-1.5 text-left hover:bg-white/10 hover:text-white transition-colors"
-        onClick={() => {
-          onCopyResumeCommand?.(sessionId, projectId, session?.nativeSessionId?.trim());
-          onClose();
-        }}
-      >
-        {t('code.copySessionResumeCommand')}
       </button>
       <button
         type="button"

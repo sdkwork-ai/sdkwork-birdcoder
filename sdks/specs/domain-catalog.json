@@ -1,399 +1,46 @@
 {
   "schemaVersion": 1,
   "kind": "sdkwork.domain.catalog",
-  "name": "sdkwork-birdcoder-domain-catalog",
-  "displayName": "SDKWork BirdCoder Domain Catalog",
+  "name": "sdkwork-birdcoder-api-domain-catalog",
+  "displayName": "SDKWork BirdCoder Owner-Only API Domains",
   "version": "0.1.0",
   "sourceOfTruth": {
-    "domain": "../../../../specs/DOMAIN_SPEC.md",
-    "api": "../../../../specs/API_SPEC.md",
-    "database": "../../../../specs/DATABASE_SPEC.md",
-    "sdk": "../../../../specs/SDK_SPEC.md"
+    "domain": "../../../sdkwork-specs/DOMAIN_SPEC.md",
+    "api": "../../../sdkwork-specs/API_SPEC.md",
+    "database": "../../../sdkwork-specs/DATABASE_SPEC.md",
+    "sdk": "../../../sdkwork-specs/SDK_SPEC.md"
   },
   "domains": [
     {
-      "domain": "iam",
-      "status": "standard",
-      "owner": "sdkwork-platform",
-      "level": "L3",
-      "classification": "shared-foundation",
-      "boundary": "Tenant, organization, user, authentication, authorization, policy, audit, and SDKWork IAM runtime integration.",
-      "databasePrefix": "iam",
-      "databasePrefixes": [
-        "iam"
-      ],
-      "apiTags": [
-        "auth",
-        "iam",
-        "oauth",
-        "openPlatform",
-        "system"
-      ],
-      "sdkNamespaces": [
-        "auth",
-        "iam",
-        "oauth",
-        "openPlatform",
-        "system"
-      ],
-      "permissionPrefixes": [
-        "iam"
-      ],
-      "eventPrefixes": [
-        "iam"
-      ],
-      "frontendPackages": [
-        "@sdkwork/birdcoder-auth",
-        "@sdkwork/birdcoder-iam",
-        "@sdkwork/birdcoder-user"
-      ],
-      "capabilities": [
-        "authSessions",
-        "oauth",
-        "runtimeSettings",
-        "verificationPolicy",
-        "qrAuth",
-        "currentUser",
-        "teamMembership",
-        "teams",
-        "policies",
-        "auditEvents"
-      ],
-      "dependsOn": [],
-      "extends": [],
-      "javaParity": "required",
-      "rustParity": "required"
-    },
-    {
-      "domain": "collaboration",
+      "domain": "intelligence",
       "status": "app-local-extension",
       "owner": "sdkwork-birdcoder",
       "level": "L2",
-      "classification": "product-feature",
-      "boundary": "Workspace team catalog, project collaborator, and collaboration-oriented app resources owned by BirdCoder.",
+      "classification": "application-feature",
+      "boundary": "BirdCoder coding-workbench workspace and project lifecycle, Drive-backed project bindings, verified runtime locations, project Git orchestration, and application runtime metadata.",
       "databasePrefix": "studio",
-      "databasePrefixes": [
-        "studio"
-      ],
-      "databasePrefixMappingReason": "BirdCoder workspace team records are persisted under DATABASE_SPEC studio prefixes while the API contract exposes the collaboration capability.",
-      "apiTags": [
-        "collaboration"
-      ],
-      "sdkNamespaces": [
-        "collaboration"
-      ],
-      "permissionPrefixes": [
-        "collaboration"
-      ],
-      "eventPrefixes": [
-        "collaboration"
-      ],
+      "databasePrefixes": ["studio"],
+      "apiTags": ["intelligence", "system"],
+      "sdkNamespaces": ["intelligence", "system"],
+      "permissionPrefixes": ["birdcoder"],
+      "eventPrefixes": ["birdcoder"],
       "frontendPackages": [
-        "@sdkwork/birdcoder-code",
-        "@sdkwork/birdcoder-studio"
-      ],
-      "capabilities": [
-        "workspaceTeams"
-      ],
-      "dependsOn": [
-        "iam",
-        "platform"
-      ],
-      "extends": [],
-      "javaParity": "required",
-      "rustParity": "required"
-    },
-    {
-      "domain": "platform",
-      "status": "standard",
-      "owner": "sdkwork-platform",
-      "level": "L2",
-      "classification": "product-feature",
-      "boundary": "Workspace, project, deployment, release, git operation, and platform catalog APIs exposed to BirdCoder app and backend clients.",
-      "databasePrefix": "studio",
-      "databasePrefixes": [
-        "studio",
-        "ops"
-      ],
-      "databasePrefixMappingReason": "BirdCoder platform APIs expose design-time and operational records whose physical tables follow DATABASE_SPEC studio and ops prefixes.",
-      "apiTags": [
-        "platform"
-      ],
-      "sdkNamespaces": [
-        "platform"
-      ],
-      "permissionPrefixes": [
-        "platform"
-      ],
-      "eventPrefixes": [
-        "platform"
-      ],
-      "frontendPackages": [
-        "@sdkwork/birdcoder-code",
-        "@sdkwork/birdcoder-studio"
+        "@sdkwork/birdcoder-pc-core",
+        "@sdkwork/birdcoder-pc-infrastructure"
       ],
       "capabilities": [
         "workspaces",
         "projects",
-        "projectCollaborators",
+        "projectDocumentBindings",
+        "projectSandboxBinding",
+        "projectRuntimeLocations",
         "projectGit",
-        "deployments",
-        "deploymentGovernance",
-        "releases"
+        "systemDescriptor",
+        "systemHealth",
+        "systemOwnerRoutes",
+        "systemRuntimeMetadata"
       ],
-      "dependsOn": [
-        "iam"
-      ],
-      "extends": [],
-      "javaParity": "required",
-      "rustParity": "required"
-    },
-    {
-      "domain": "system",
-      "status": "standard",
-      "owner": "sdkwork-platform",
-      "level": "L3",
-      "classification": "shared-foundation",
-      "boundary": "Health, runtime descriptor, route catalog, operations, diagnostics, and system metadata.",
-      "databasePrefix": "ops",
-      "databasePrefixes": [
-        "ops"
-      ],
-      "apiTags": [
-        "oauth",
-        "system"
-      ],
-      "sdkNamespaces": [
-        "oauth",
-        "system"
-      ],
-      "permissionPrefixes": [
-        "system"
-      ],
-      "eventPrefixes": [
-        "system"
-      ],
-      "frontendPackages": [
-        "@sdkwork/birdcoder-infrastructure",
-        "@sdkwork/birdcoder-shell-runtime"
-      ],
-      "capabilities": [
-        "health",
-        "descriptor",
-        "routeCatalog",
-        "runtimeMetadata",
-        "operations",
-        "oauth"
-      ],
-      "dependsOn": [],
-      "extends": [],
-      "javaParity": "required",
-      "rustParity": "required"
-    },
-    {
-      "domain": "content",
-      "status": "standard",
-      "owner": "sdkwork-platform",
-      "level": "L2",
-      "classification": "product-feature",
-      "boundary": "Document, file, asset, and content catalog resources exposed to app clients.",
-      "databasePrefix": "content",
-      "databasePrefixes": [
-        "content",
-        "media"
-      ],
-      "apiTags": [
-        "content"
-      ],
-      "sdkNamespaces": [
-        "content"
-      ],
-      "permissionPrefixes": [
-        "content"
-      ],
-      "eventPrefixes": [
-        "content"
-      ],
-      "frontendPackages": [
-        "@sdkwork/birdcoder-studio"
-      ],
-      "capabilities": [
-        "documents",
-        "files",
-        "assets"
-      ],
-      "dependsOn": [
-        "iam",
-        "platform"
-      ],
-      "extends": [],
-      "javaParity": "required",
-      "rustParity": "required"
-    },
-    {
-      "domain": "intelligence",
-      "status": "standard",
-      "owner": "sdkwork-ai",
-      "level": "L3",
-      "classification": "product-feature",
-      "boundary": "AI coding sessions, turns, messages, approvals, questions, artifacts, checkpoints, engine capabilities, and model catalog resources.",
-      "databasePrefix": "ai",
-      "databasePrefixes": [
-        "ai"
-      ],
-      "apiTags": [
-        "intelligence"
-      ],
-      "sdkNamespaces": [
-        "intelligence"
-      ],
-      "permissionPrefixes": [
-        "intelligence"
-      ],
-      "eventPrefixes": [
-        "intelligence"
-      ],
-      "frontendPackages": [
-        "@sdkwork/birdcoder-chat",
-        "@sdkwork/birdcoder-codeengine"
-      ],
-      "capabilities": [
-        "codingSessions",
-        "codingSessionTurns",
-        "codingSessionMessages",
-        "approvals",
-        "questions",
-        "artifacts",
-        "checkpoints"
-      ],
-      "dependsOn": [
-        "iam",
-        "platform"
-      ],
-      "extends": [],
-      "javaParity": "required",
-      "rustParity": "required"
-    },
-    {
-      "domain": "ecosystem",
-      "status": "standard",
-      "owner": "sdkwork-platform",
-      "level": "L2",
-      "classification": "product-feature",
-      "boundary": "BirdCoder-owned application templates; installable Skills resources are consumed from sdkwork-skills.",
-      "databasePrefix": "studio",
-      "databasePrefixes": [
-        "studio"
-      ],
-      "databasePrefixMappingReason": "BirdCoder owns only application-template persistence under the DATABASE_SPEC studio prefix.",
-      "apiTags": [
-        "templates"
-      ],
-      "sdkNamespaces": [
-        "templates"
-      ],
-      "permissionPrefixes": [
-        "ecosystem"
-      ],
-      "eventPrefixes": [
-        "ecosystem"
-      ],
-      "frontendPackages": [
-        "@sdkwork/birdcoder-templates"
-      ],
-      "capabilities": [
-        "appTemplates"
-      ],
-      "dependsOn": [
-        "iam",
-        "platform"
-      ],
-      "extends": [],
-      "javaParity": "required",
-      "rustParity": "required"
-    },
-    {
-      "domain": "runtime",
-      "status": "app-local-extension",
-      "owner": "sdkwork-birdcoder",
-      "level": "L2",
-      "classification": "app-local-extension",
-      "boundary": "BirdCoder local and private runtime state for engines, native sessions, model configuration, provider descriptors, and browser or desktop host readiness.",
-      "databasePrefix": "ops",
-      "databasePrefixes": [
-        "ai",
-        "ops"
-      ],
-      "databasePrefixMappingReason": "Runtime APIs compose engine catalog and operational runtime records without introducing a runtime_ table prefix.",
-      "apiTags": [
-        "runtime"
-      ],
-      "sdkNamespaces": [
-        "runtime"
-      ],
-      "permissionPrefixes": [
-        "runtime"
-      ],
-      "eventPrefixes": [
-        "runtime"
-      ],
-      "frontendPackages": [
-        "@sdkwork/birdcoder-infrastructure",
-        "@sdkwork/birdcoder-shell-runtime"
-      ],
-      "capabilities": [
-        "engines",
-        "models",
-        "modelConfig",
-        "nativeSessionProviders"
-      ],
-      "dependsOn": [
-        "iam",
-        "intelligence",
-        "platform",
-        "system"
-      ],
-      "extends": [
-        "device",
-        "intelligence",
-        "platform"
-      ],
-      "javaParity": "required",
-      "rustParity": "required"
-    },
-    {
-      "domain": "commerce",
-      "status": "standard",
-      "owner": "sdkwork-commerce",
-      "level": "L3",
-      "classification": "shared-business",
-      "boundary": "Membership, package catalog, entitlement, order, payment, and commercial account resources exposed to BirdCoder app clients through the SDKWork commerce domain.",
-      "databasePrefix": "commerce",
-      "databasePrefixes": [
-        "commerce"
-      ],
-      "apiTags": [
-        "commerce"
-      ],
-      "sdkNamespaces": [
-        "commerce"
-      ],
-      "permissionPrefixes": [
-        "commerce"
-      ],
-      "eventPrefixes": [
-        "commerce"
-      ],
-      "frontendPackages": [
-        "@sdkwork/birdcoder-user"
-      ],
-      "capabilities": [
-        "membershipsCurrent",
-        "membershipsPackageGroups"
-      ],
-      "dependsOn": [
-        "iam"
-      ],
+      "dependsOn": ["drive"],
       "extends": [],
       "javaParity": "required",
       "rustParity": "required"

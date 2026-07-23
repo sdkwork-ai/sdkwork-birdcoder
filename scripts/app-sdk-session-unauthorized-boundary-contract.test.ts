@@ -1,10 +1,27 @@
 import assert from 'node:assert/strict';
-import { BirdCoderApiTransportError } from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-contracts-commons/src/apiTransportError.ts';
-import {
-  createBirdCoderAppSdkApiClient,
-  getBirdCoderGlobalTokenManager,
-  resetBirdCoderSdkSessionAuthRedirectState,
-} from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/src/services/sdkClients.ts';
+
+import { getBirdCoderGlobalTokenManager } from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-core/src/appSessionTokenManager.ts';
+import { createBirdCoderAppClient } from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/src/services/birdCoderSdkClient.ts';
+import { resetBirdCoderSdkSessionAuthRedirectState } from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/src/services/sdkSession.ts';
+
+const originalFetch = globalThis.fetch;
+const originalWindowDescriptor = Object.getOwnPropertyDescriptor(globalThis, 'window');
+const redirects: string[] = [];
+
+Object.defineProperty(globalThis, 'window', {
+  configurable: true,
+  value: {
+    location: {
+      hash: '#/app/workspace',
+      origin: 'https://birdcoder.test',
+      pathname: '/',
+      replace(path: string) {
+        redirects.push(path);
+      },
+      search: '',
+    },
+  },
+});
 
 const tokenManager = getBirdCoderGlobalTokenManager();
 tokenManager.setTokens({
@@ -13,30 +30,42 @@ tokenManager.setTokens({
 });
 resetBirdCoderSdkSessionAuthRedirectState();
 
-const unauthorizedError = new BirdCoderApiTransportError({
+globalThis.fetch = (async () => new Response(JSON.stringify({
   code: 40101,
   detail: 'The authenticated session is no longer valid.',
-  httpStatus: 401,
-  method: 'GET',
-  path: '/app/v3/api/intelligence/coding_sessions/session-unauthorized',
-});
-const client = createBirdCoderAppSdkApiClient({
-  transport: {
-    async request<TResponse>(): Promise<TResponse> {
-      throw unauthorizedError;
-    },
-  },
+  status: 401,
+  title: 'Unauthorized',
+  traceId: 'trace-app-sdk-session-unauthorized',
+  type: 'https://sdkwork.com/problems/authentication-required',
+}), {
+  headers: { 'Content-Type': 'application/problem+json' },
+  status: 401,
+  statusText: 'Unauthorized',
+})) as typeof fetch;
+
+const client = createBirdCoderAppClient({
+  apiBaseUrl: 'https://birdcoder.test',
+  tokenManager,
 });
 
 await assert.rejects(
-  client.getCodingSession('session-unauthorized'),
-  (error: unknown) => error === unauthorizedError,
-  'the composed SDK client must preserve the original unauthorized error for its caller.',
+  client.intelligence.projects.retrieve('project-unauthorized'),
+  (error: unknown) => error instanceof Error && error.message.includes('session is no longer valid'),
+  'The generated client must preserve its authentication error for the caller.',
 );
 assert.deepEqual(
   tokenManager.getTokens(),
   {},
-  'the composed SDK client must route 401 responses through the shared unauthorized boundary and clear the global session.',
+  'The composed client must route 401 responses through the shared unauthorized boundary.',
 );
+assert.equal(redirects.length, 1, 'Concurrent-safe unauthorized handling must redirect once.');
+assert.match(redirects[0]!, /\/auth\/login/u);
+
+globalThis.fetch = originalFetch;
+if (originalWindowDescriptor) {
+  Object.defineProperty(globalThis, 'window', originalWindowDescriptor);
+} else {
+  Reflect.deleteProperty(globalThis, 'window');
+}
 
 console.log('app SDK session unauthorized boundary contract passed.');

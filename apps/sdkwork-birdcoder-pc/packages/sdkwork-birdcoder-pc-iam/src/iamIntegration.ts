@@ -12,21 +12,22 @@ import {
   revokeAppSession,
 } from '@sdkwork/birdcoder-pc-infrastructure/services/sessionService';
 import { getBirdCoderIamRuntime } from '@sdkwork/birdcoder-pc-infrastructure/services/iamRuntime';
+import {
+  readBirdCoderRuntimePublicEnv,
+  resolveBirdCoderRuntimeTopology,
+  type BirdCoderRuntimeTopology,
+  type ResolveBirdCoderRuntimeTopologyOptions,
+} from '@sdkwork/birdcoder-pc-infrastructure/services/runtimeTopology';
 
-export type BirdCoderIamDeploymentMode = 'local' | 'private' | 'saas';
 export type BirdCoderIamEnvironment = 'dev' | 'prod' | 'test';
 
-export interface BirdCoderIamDeploymentProfile {
+export interface BirdCoderIamRuntimeProfile extends BirdCoderRuntimeTopology {
   environment: BirdCoderIamEnvironment;
-  iamMode: BirdCoderIamDeploymentMode;
-  usesDedicatedServer: boolean;
-  usesEmbeddedLocalAuthority: boolean;
-  usesSharedCloudAuthority: boolean;
 }
 
-export interface ResolveBirdCoderIamDeploymentProfileOptions {
+export interface ResolveBirdCoderIamRuntimeProfileOptions
+  extends ResolveBirdCoderRuntimeTopologyOptions {
   environment?: BirdCoderIamEnvironment;
-  iamMode?: BirdCoderIamDeploymentMode;
 }
 
 export interface BirdCoderIamPageLoaders {
@@ -46,7 +47,7 @@ export const BIRDCODER_IAM_ROUTES = Object.freeze({
 
 export interface BirdCoderIamIntegrationDefinition {
   authDefinition: typeof BIRDCODER_AUTH_DEFINITION;
-  deployment: BirdCoderIamDeploymentProfile;
+  runtime: BirdCoderIamRuntimeProfile;
   pageLoaders: BirdCoderIamPageLoaders;
   routes: typeof BIRDCODER_IAM_ROUTES;
   session: {
@@ -57,39 +58,6 @@ export interface BirdCoderIamIntegrationDefinition {
     storageScope: string;
   };
   getRuntime: typeof getBirdCoderIamRuntime;
-}
-
-function readBirdCoderPublicEnvValue(...keys: string[]): string | undefined {
-  const meta = import.meta as ImportMeta & {
-    env?: Record<string, string | boolean | undefined>;
-  };
-
-  for (const key of keys) {
-    const value = String(meta.env?.[key] ?? '').trim();
-    if (value) {
-      return value;
-    }
-  }
-
-  return undefined;
-}
-
-function resolveDeploymentModeFromAppScopedEnv(): BirdCoderIamDeploymentMode | undefined {
-  const profile = readBirdCoderPublicEnvValue(
-    'VITE_SDKWORK_BIRDCODER_DEPLOYMENT_PROFILE',
-    'VITE_SDKWORK_DEPLOYMENT_PROFILE',
-  )?.toLowerCase();
-  if (profile === 'cloud') {
-    return 'saas';
-  }
-  if (profile === 'standalone') {
-    const target = readBirdCoderPublicEnvValue(
-      'VITE_SDKWORK_BIRDCODER_RUNTIME_TARGET',
-      'VITE_SDKWORK_RUNTIME_TARGET',
-    )?.toLowerCase();
-    return target === 'desktop' ? 'local' : 'private';
-  }
-  return undefined;
 }
 
 function normalizeEnvironment(value: string | undefined): BirdCoderIamEnvironment | undefined {
@@ -106,30 +74,22 @@ function normalizeEnvironment(value: string | undefined): BirdCoderIamEnvironmen
   return undefined;
 }
 
-export function resolveBirdCoderIamDeploymentProfile(
-  options: ResolveBirdCoderIamDeploymentProfileOptions = {},
-): BirdCoderIamDeploymentProfile {
-  const iamMode =
-    options.iamMode
-    ?? resolveDeploymentModeFromAppScopedEnv()
-    ?? 'private';
+export function resolveBirdCoderIamRuntimeProfile(
+  options: ResolveBirdCoderIamRuntimeProfileOptions = {},
+): BirdCoderIamRuntimeProfile {
+  const topology = resolveBirdCoderRuntimeTopology(options);
   const environment =
     options.environment
     ?? normalizeEnvironment(
-      readBirdCoderPublicEnvValue(
-        'VITE_SDKWORK_ENVIRONMENT',
-        'MODE',
-        'SDKWORK_VITE_MODE',
-      ),
+      readBirdCoderRuntimePublicEnv('VITE_SDKWORK_ENVIRONMENT')
+      ?? readBirdCoderRuntimePublicEnv('MODE')
+      ?? readBirdCoderRuntimePublicEnv('SDKWORK_VITE_MODE'),
     )
     ?? 'dev';
 
   return {
+    ...topology,
     environment,
-    iamMode,
-    usesDedicatedServer: iamMode !== 'local',
-    usesEmbeddedLocalAuthority: iamMode === 'local',
-    usesSharedCloudAuthority: iamMode === 'saas',
   };
 }
 
@@ -146,14 +106,14 @@ export function createBirdCoderIamPageLoaders(): BirdCoderIamPageLoaders {
 }
 
 export function createBirdCoderIamIntegrationDefinition(
-  options: ResolveBirdCoderIamDeploymentProfileOptions = {},
+  options: ResolveBirdCoderIamRuntimeProfileOptions = {},
 ): BirdCoderIamIntegrationDefinition {
   return Object.freeze({
     authDefinition: BIRDCODER_AUTH_DEFINITION,
-    deployment: resolveBirdCoderIamDeploymentProfile(options),
     getRuntime: getBirdCoderIamRuntime,
     pageLoaders: createBirdCoderIamPageLoaders(),
     routes: BIRDCODER_IAM_ROUTES,
+    runtime: resolveBirdCoderIamRuntimeProfile(options),
     session: {
       clear: clearAppSession,
       create: createAppSession,

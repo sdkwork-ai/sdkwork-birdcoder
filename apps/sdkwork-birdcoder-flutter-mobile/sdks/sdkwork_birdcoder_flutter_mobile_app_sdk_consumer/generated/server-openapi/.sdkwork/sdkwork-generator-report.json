@@ -11,28 +11,22 @@
   "status": "ok",
   "mode": "apply",
   "hasChanges": true,
-  "hasDestructiveChanges": false,
-  "changeFingerprint": "abf770eebb0e32187e48e49efbeeb7b68bface3d87931c57f844a6e17b5dea3f",
+  "hasDestructiveChanges": true,
+  "changeFingerprint": "33535f6ca790966dc9730c8f3bd0c358b8f10cdff4f8a9bee18827957c6b27fd",
   "changeImpact": {
     "schemaVersion": 1,
     "areas": [
       "api-surface",
-      "models",
       "documentation"
     ],
     "details": [
       {
         "area": "api-surface",
         "paths": [
+          "lib/app_client.dart",
           "lib/src/api/api.dart",
-          "lib/src/api/commerce.dart",
-          "lib/src/api/runtime.dart"
-        ]
-      },
-      {
-        "area": "models",
-        "paths": [
-          "lib/src/models.dart"
+          "lib/src/api/intelligence.dart",
+          "lib/src/api/platform.dart"
         ]
       },
       {
@@ -43,16 +37,18 @@
       }
     ],
     "requiresVerification": true,
-    "summary": "Detected impact areas: api-surface, models, documentation. Verification is required."
+    "summary": "Detected impact areas: api-surface, documentation. Verification is required."
   },
   "executionDecision": {
     "schemaVersion": 1,
-    "riskLevel": "medium",
+    "riskLevel": "high",
     "nextAction": "verify",
     "requiresManualReview": false,
     "applyRequiresExpectedFingerprint": false,
     "summary": "Changes have been applied. Run the required verification plan now.",
     "reasons": [
+      "deleted-generated-files",
+      "manual-review-required",
       "verification-required"
     ]
   },
@@ -64,7 +60,7 @@
         "id": "verify-check",
         "title": "Unified package check",
         "required": true,
-        "rationale": "Validate the generated package with the unified publish helper. Triggered by: api-surface, models, documentation.",
+        "rationale": "Validate the generated package with the unified publish helper. Triggered by: api-surface, documentation.",
         "workingDirectory": "E:\\sdkwork-space\\sdkwork-birdcoder\\apps\\sdkwork-birdcoder-flutter-mobile\\sdks\\sdkwork_birdcoder_flutter_mobile_app_sdk_consumer\\generated\\server-openapi",
         "command": "node",
         "args": [
@@ -83,13 +79,13 @@
   "verificationPlan": {
     "shouldRun": true,
     "runPhase": "now",
-    "summary": "Detected impact areas: api-surface, models, documentation. Verification is required. Run the required verification commands now against the generated SDK output.",
+    "summary": "Detected impact areas: api-surface, documentation. Verification is required. Run the required verification commands now against the generated SDK output.",
     "steps": [
       {
         "id": "check",
         "title": "Unified package check",
         "required": true,
-        "rationale": "Validate the generated package with the unified publish helper. Triggered by: api-surface, models, documentation.",
+        "rationale": "Validate the generated package with the unified publish helper. Triggered by: api-surface, documentation.",
         "workingDirectory": "E:\\sdkwork-space\\sdkwork-birdcoder\\apps\\sdkwork-birdcoder-flutter-mobile\\sdks\\sdkwork_birdcoder_flutter_mobile_app_sdk_consumer\\generated\\server-openapi",
         "command": "node",
         "args": [
@@ -119,28 +115,28 @@
     "localVersions": []
   },
   "stats": {
-    "totalFiles": 29,
-    "models": 182,
-    "apis": 12,
+    "totalFiles": 19,
+    "models": 56,
+    "apis": 2,
     "types": 1
   },
   "warnings": [],
   "syncSummary": {
     "dryRun": false,
     "controlPlaneEnabled": true,
-    "writtenFiles": 5,
+    "writtenFiles": 4,
     "skippedScaffoldFiles": 1,
-    "skippedUnchangedGeneratedFiles": 23,
-    "deletedGeneratedFiles": 0,
+    "skippedUnchangedGeneratedFiles": 14,
+    "deletedGeneratedFiles": 1,
     "changeSummaryPath": ".sdkwork/sdkwork-generator-changes.json",
-    "changeFingerprint": "abf770eebb0e32187e48e49efbeeb7b68bface3d87931c57f844a6e17b5dea3f",
+    "changeFingerprint": "33535f6ca790966dc9730c8f3bd0c358b8f10cdff4f8a9bee18827957c6b27fd",
     "changes": {
-      "createdGeneratedFiles": [],
+      "createdGeneratedFiles": [
+        "lib/src/api/intelligence.dart"
+      ],
       "updatedGeneratedFiles": [
+        "lib/app_client.dart",
         "lib/src/api/api.dart",
-        "lib/src/api/commerce.dart",
-        "lib/src/api/runtime.dart",
-        "lib/src/models.dart",
         "README.md"
       ],
       "unchangedGeneratedFiles": [
@@ -148,27 +144,20 @@
         "bin/publish.ps1",
         "bin/publish.sh",
         "CHANGELOG.md",
-        "lib/app_client.dart",
         "lib/sdkwork_birdcoder_app_sdk.dart",
-        "lib/src/api/auth.dart",
-        "lib/src/api/collaboration.dart",
-        "lib/src/api/content.dart",
-        "lib/src/api/iam.dart",
-        "lib/src/api/intelligence.dart",
-        "lib/src/api/oauth.dart",
         "lib/src/api/paths.dart",
-        "lib/src/api/platform.dart",
         "lib/src/api/response_helpers.dart",
-        "lib/src/api/skills.dart",
         "lib/src/api/system.dart",
-        "lib/src/api/templates.dart",
         "lib/src/http/client.dart",
+        "lib/src/models.dart",
         "LICENSE",
         "pubspec_overrides.yaml",
         "pubspec.yaml",
         "sdkwork-sdk.json"
       ],
-      "deletedGeneratedFiles": [],
+      "deletedGeneratedFiles": [
+        "lib/src/api/platform.dart"
+      ],
       "scaffoldedFiles": [],
       "preservedScaffoldFiles": [
         "custom/README.md"
@@ -179,22 +168,16 @@
       "schemaVersion": 1,
       "areas": [
         "api-surface",
-        "models",
         "documentation"
       ],
       "details": [
         {
           "area": "api-surface",
           "paths": [
+            "lib/app_client.dart",
             "lib/src/api/api.dart",
-            "lib/src/api/commerce.dart",
-            "lib/src/api/runtime.dart"
-          ]
-        },
-        {
-          "area": "models",
-          "paths": [
-            "lib/src/models.dart"
+            "lib/src/api/intelligence.dart",
+            "lib/src/api/platform.dart"
           ]
         },
         {
@@ -205,18 +188,18 @@
         }
       ],
       "requiresVerification": true,
-      "summary": "Detected impact areas: api-surface, models, documentation. Verification is required."
+      "summary": "Detected impact areas: api-surface, documentation. Verification is required."
     },
     "verificationPlan": {
       "shouldRun": true,
       "runPhase": "now",
-      "summary": "Detected impact areas: api-surface, models, documentation. Verification is required. Run the required verification commands now against the generated SDK output.",
+      "summary": "Detected impact areas: api-surface, documentation. Verification is required. Run the required verification commands now against the generated SDK output.",
       "steps": [
         {
           "id": "check",
           "title": "Unified package check",
           "required": true,
-          "rationale": "Validate the generated package with the unified publish helper. Triggered by: api-surface, models, documentation.",
+          "rationale": "Validate the generated package with the unified publish helper. Triggered by: api-surface, documentation.",
           "workingDirectory": "E:\\sdkwork-space\\sdkwork-birdcoder\\apps\\sdkwork-birdcoder-flutter-mobile\\sdks\\sdkwork_birdcoder_flutter_mobile_app_sdk_consumer\\generated\\server-openapi",
           "command": "node",
           "args": [
@@ -234,12 +217,14 @@
     },
     "executionDecision": {
       "schemaVersion": 1,
-      "riskLevel": "medium",
+      "riskLevel": "high",
       "nextAction": "verify",
       "requiresManualReview": false,
       "applyRequiresExpectedFingerprint": false,
       "summary": "Changes have been applied. Run the required verification plan now.",
       "reasons": [
+        "deleted-generated-files",
+        "manual-review-required",
         "verification-required"
       ]
     },

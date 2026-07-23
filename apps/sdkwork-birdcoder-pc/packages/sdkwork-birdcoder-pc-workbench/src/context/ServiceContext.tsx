@@ -1,18 +1,4 @@
 import React, { createContext, useContext, useRef } from 'react';
-import {
-  IAppRuntimeReadService,
-  IAppRuntimeWriteService,
-  IDeploymentService,
-  IDocumentService,
-  IFileSystemService,
-  IGitService,
-  IPromptService,
-  IProjectService,
-  IReleaseService,
-  ITeamService,
-  IVipMembershipService,
-  IWorkspaceService,
-} from '@sdkwork/birdcoder-pc-infrastructure-runtime';
 import { createLazyDefaultIdeServices, type AppIdeServices } from './lazyDefaultIdeServices.ts';
 
 export interface IServices extends AppIdeServices {}

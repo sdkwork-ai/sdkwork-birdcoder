@@ -1,12 +1,12 @@
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import {
-  deduplicateBirdCoderCodingSessionsForRender,
+  deduplicateAgentSessionsForRender,
   deduplicateBirdCoderProjectsForRender,
 } from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-workbench/src/workbench/projectInventoryRender.ts';
 import type {
-  BirdCoderChatMessage,
-  BirdCoderCodingSession,
+  AgentSessionItemView,
+  AgentSessionView,
   BirdCoderProject,
 } from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-contracts-commons/src/index.ts';
 
@@ -32,7 +32,7 @@ assert.match(
 );
 assert.match(
   codeSidebarSource,
-  /deduplicateBirdCoderCodingSessionsForRender\(/,
+  /deduplicateAgentSessionsForRender\(/,
   'Code chronological sidebar must normalize flat session identities before building key={session.id} rows.',
 );
 assert.match(
@@ -42,11 +42,11 @@ assert.match(
 );
 
 function buildMessage(
-  overrides: Partial<BirdCoderChatMessage> = {},
-): BirdCoderChatMessage {
+  overrides: Partial<AgentSessionItemView> = {},
+): AgentSessionItemView {
   return {
     id: 'message-1',
-    codingSessionId: 'session-1',
+    agentSessionId: 'session-1',
     role: 'assistant',
     content: 'Ready.',
     createdAt: '2026-04-28T01:00:00.000Z',
@@ -54,9 +54,9 @@ function buildMessage(
   };
 }
 
-function buildCodingSession(
-  overrides: Partial<BirdCoderCodingSession> = {},
-): BirdCoderCodingSession {
+function buildAgentSession(
+  overrides: Partial<AgentSessionView> = {},
+): AgentSessionView {
   return {
     id: 'session-1',
     workspaceId: 'workspace-1',
@@ -86,22 +86,22 @@ function buildProject(
     createdAt: '2026-04-28T01:00:00.000Z',
     updatedAt: '2026-04-28T01:00:00.000Z',
     archived: false,
-    codingSessions: [],
+    agentSessions: [],
     ...overrides,
   };
 }
 
-const stableSession = buildCodingSession({ id: 'session-stable' });
+const stableSession = buildAgentSession({ id: 'session-stable' });
 const stableSessions = [stableSession];
 assert.equal(
-  deduplicateBirdCoderCodingSessionsForRender(stableSessions),
+  deduplicateAgentSessionsForRender(stableSessions),
   stableSessions,
   'render session identity deduplication must reuse already-unique arrays to avoid sidebar churn at startup.',
 );
 
 const stableProject = buildProject({
   id: 'project-stable',
-  codingSessions: stableSessions,
+  agentSessions: stableSessions,
 });
 const stableProjects = [stableProject];
 assert.equal(
@@ -113,7 +113,7 @@ assert.equal(
 const preservedMessages = [
   buildMessage({
     id: 'message-preserved',
-    codingSessionId: 'session-preserved',
+    agentSessionId: 'session-preserved',
     content: 'Keep the richer duplicate transcript.',
   }),
 ];
@@ -122,8 +122,8 @@ const deduplicatedDuplicateProjects = deduplicateBirdCoderProjectsForRender([
     id: 'project-duplicate',
     name: 'Duplicate Project With Sessions',
     updatedAt: '2026-04-28T01:00:00.000Z',
-    codingSessions: [
-      buildCodingSession({
+    agentSessions: [
+      buildAgentSession({
         id: 'session-preserved',
         projectId: 'project-duplicate',
         messages: preservedMessages,
@@ -134,7 +134,7 @@ const deduplicatedDuplicateProjects = deduplicateBirdCoderProjectsForRender([
     id: 'project-duplicate',
     name: 'Duplicate Project Authority',
     updatedAt: '2026-04-28T01:01:00.000Z',
-    codingSessions: [],
+    agentSessions: [],
   }),
 ]);
 
@@ -149,12 +149,12 @@ assert.equal(
   'render project inventory should keep the latest duplicate project scalars.',
 );
 assert.equal(
-  deduplicatedDuplicateProjects[0]?.codingSessions.length,
+  deduplicatedDuplicateProjects[0]?.agentSessions.length,
   1,
   'render project inventory should not let a later empty duplicate project summary erase visible sessions.',
 );
 assert.equal(
-  deduplicatedDuplicateProjects[0]?.codingSessions[0]?.messages,
+  deduplicatedDuplicateProjects[0]?.agentSessions[0]?.messages,
   preservedMessages,
   'render project inventory should preserve the richer duplicate session transcript by reference.',
 );
@@ -162,8 +162,8 @@ assert.equal(
 const deduplicatedDuplicateSessions = deduplicateBirdCoderProjectsForRender([
   buildProject({
     id: 'project-with-duplicate-sessions',
-    codingSessions: [
-      buildCodingSession({
+    agentSessions: [
+      buildAgentSession({
         id: 'session-duplicate',
         projectId: 'project-with-duplicate-sessions',
         title: 'Session With Transcript',
@@ -171,11 +171,11 @@ const deduplicatedDuplicateSessions = deduplicateBirdCoderProjectsForRender([
         messages: [
           buildMessage({
             id: 'message-session-duplicate',
-            codingSessionId: 'session-duplicate',
+            agentSessionId: 'session-duplicate',
           }),
         ],
       }),
-      buildCodingSession({
+      buildAgentSession({
         id: 'session-duplicate',
         projectId: 'project-with-duplicate-sessions',
         title: 'Session Authority',
@@ -184,7 +184,7 @@ const deduplicatedDuplicateSessions = deduplicateBirdCoderProjectsForRender([
       }),
     ],
   }),
-])[0]?.codingSessions ?? [];
+])[0]?.agentSessions ?? [];
 
 assert.equal(
   deduplicatedDuplicateSessions.length,
@@ -202,13 +202,13 @@ assert.deepEqual(
   'render project inventory should preserve transcript payload when a later duplicate summary arrives without messages.',
 );
 
-const deduplicatedChronologicalSessions = deduplicateBirdCoderCodingSessionsForRender([
-  buildCodingSession({
+const deduplicatedChronologicalSessions = deduplicateAgentSessionsForRender([
+  buildAgentSession({
     id: 'session-chronological',
     projectId: 'project-a',
     title: 'Chronological Draft',
   }),
-  buildCodingSession({
+  buildAgentSession({
     id: 'session-chronological',
     projectId: 'project-b',
     title: 'Chronological Authority',
@@ -216,7 +216,7 @@ const deduplicatedChronologicalSessions = deduplicateBirdCoderCodingSessionsForR
 ]);
 
 assert.deepEqual(
-  deduplicatedChronologicalSessions.map((codingSession) => codingSession.id),
+  deduplicatedChronologicalSessions.map((agentSession) => agentSession.id),
   ['session-chronological'],
   'chronological render inventories must collapse duplicate session ids before React renders one flat key={session.id} list.',
 );

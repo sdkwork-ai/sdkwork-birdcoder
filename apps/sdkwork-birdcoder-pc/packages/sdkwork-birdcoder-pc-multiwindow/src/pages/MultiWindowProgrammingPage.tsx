@@ -1,15 +1,15 @@
 import {
-  buildCodingSessionProjectScopedKey,
-  buildProjectCodingSessionIndex,
-  buildWorkbenchCodingSessionTurnContext,
+  buildAgentSessionProjectScopedKey,
+  buildProjectAgentSessionIndex,
+  buildWorkbenchAgentSessionTurnContext,
   useProjects,
   useToast,
   useWorkbenchChatSelection,
-  useWorkbenchCodingSessionCreationActions,
+  useWorkbenchAgentSessionCreationActions,
   useWorkbenchPreferences,
 } from '@sdkwork/birdcoder-pc-workbench';
 import type {
-  BirdCoderCodingSession,
+  AgentSessionView,
 } from '@sdkwork/birdcoder-pc-contracts-commons';
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -79,12 +79,12 @@ function buildPaneDispatchResultMap(
   );
 }
 
-function getSessionEngineId(codingSession: BirdCoderCodingSession | null): string {
-  return codingSession?.engineId?.trim() ?? '';
+function getSessionEngineId(agentSession: AgentSessionView | null): string {
+  return agentSession?.engineId?.trim() ?? '';
 }
 
-function getSessionModelId(codingSession: BirdCoderCodingSession | null): string {
-  return codingSession?.modelId?.trim() ?? '';
+function getSessionModelId(agentSession: AgentSessionView | null): string {
+  return agentSession?.modelId?.trim() ?? '';
 }
 
 function replacePane(
@@ -201,11 +201,11 @@ function buildInitialDispatchPaneResult(
 ): MultiWindowDispatchPaneResult {
   const provisioningStatus = resolveMultiWindowPaneSessionProvisioningStatus(
     pane,
-    binding?.codingSession,
+    binding?.agentSession,
   );
 
   return {
-    codingSessionId: pane.codingSessionId,
+    agentSessionId: pane.agentSessionId,
     durationMs: 0,
     paneId: pane.id,
     projectId: pane.projectId,
@@ -316,18 +316,18 @@ function buildFallbackDispatchSummary({
 }
 
 export const MultiWindowProgrammingPage = memo(function MultiWindowProgrammingPage({
-  initialCodingSessionId,
+  initialAgentSessionId,
   isVisible = true,
   projectId,
   workspaceId,
-  onCodingSessionChange,
+  onAgentSessionChange,
   onProjectChange,
 }: MultiWindowProgrammingPageProps) {
   const { t } = useTranslation();
   const { addToast } = useToast();
   const { preferences, updatePreferences } = useWorkbenchPreferences();
   const {
-    createCodingSession,
+    createAgentSession,
     hasFetched,
     projects,
     sendMessage,
@@ -335,16 +335,16 @@ export const MultiWindowProgrammingPage = memo(function MultiWindowProgrammingPa
     isActive: isVisible,
     targetProjectId: projectId,
   });
-  const { createCodingSessionWithSelection } = useWorkbenchChatSelection({
-    createCodingSession,
+  const { createAgentSessionWithSelection } = useWorkbenchChatSelection({
+    createAgentSession,
     preferences,
     updatePreferences,
   });
-  const { createCodingSessionFromRequest } = useWorkbenchCodingSessionCreationActions({
+  const { createAgentSessionFromRequest } = useWorkbenchAgentSessionCreationActions({
     addToast,
-    createCodingSessionWithSelection,
+    createAgentSessionWithSelection,
     currentProjectId: projectId?.trim() ?? '',
-    selectCodingSession: () => undefined,
+    selectAgentSession: () => undefined,
     labels: {
       creationFailed: t('multiWindow.failedToCreateSession'),
       creationSucceeded: t('multiWindow.sessionCreated'),
@@ -381,20 +381,20 @@ export const MultiWindowProgrammingPage = memo(function MultiWindowProgrammingPa
   const pendingWorkspaceStatePersistenceTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const pendingWorkspaceStatePersistenceRef = useRef<MultiWindowWorkspaceState | null>(null);
   const sessionIndex = useMemo(
-    () => buildProjectCodingSessionIndex(projects),
+    () => buildProjectAgentSessionIndex(projects),
     [projects],
   );
-  const notifyActiveCodingSessionSelection = useCallback((
+  const notifyActiveAgentSessionSelection = useCallback((
     nextProjectId: string,
-    nextCodingSessionId: string,
+    nextAgentSessionId: string,
   ) => {
     if (!isVisible) {
       return;
     }
 
     onProjectChange?.(nextProjectId);
-    onCodingSessionChange?.(nextCodingSessionId, nextProjectId);
-  }, [isVisible, onCodingSessionChange, onProjectChange]);
+    onAgentSessionChange?.(nextAgentSessionId, nextProjectId);
+  }, [isVisible, onAgentSessionChange, onProjectChange]);
   const visiblePanes = useMemo(
     () => panes.slice(0, windowCount),
     [panes, windowCount],
@@ -544,22 +544,22 @@ export const MultiWindowProgrammingPage = memo(function MultiWindowProgrammingPa
     const bindings = new Map<string, MultiWindowPaneBinding>();
     for (const pane of panes) {
       const sessionLocation =
-        pane.projectId && pane.codingSessionId
-          ? sessionIndex.codingSessionLocationsByProjectIdAndId.get(
-              buildCodingSessionProjectScopedKey(pane.projectId, pane.codingSessionId),
+        pane.projectId && pane.agentSessionId
+          ? sessionIndex.agentSessionLocationsByProjectIdAndId.get(
+              buildAgentSessionProjectScopedKey(pane.projectId, pane.agentSessionId),
             ) ?? null
           : null;
       const project =
         sessionLocation?.project ??
         sessionIndex.projectsById.get(pane.projectId) ??
         null;
-      const codingSession =
-        sessionLocation?.codingSession ??
-        project?.codingSessions.find((session) => session.id === pane.codingSessionId) ??
+      const agentSession =
+        sessionLocation?.agentSession ??
+        project?.agentSessions.find((session) => session.id === pane.agentSessionId) ??
         null;
       bindings.set(pane.id, {
-        codingSession,
-        messages: codingSession?.messages ?? [],
+        agentSession,
+        messages: agentSession?.items ?? [],
         project,
       });
     }
@@ -570,7 +570,7 @@ export const MultiWindowProgrammingPage = memo(function MultiWindowProgrammingPa
     () =>
       visiblePanes.map((pane) => ({
         pane,
-        binding: bindingsByPaneId.get(pane.id)?.codingSession,
+        binding: bindingsByPaneId.get(pane.id)?.agentSession,
       })),
     [bindingsByPaneId, visiblePanes],
   );
@@ -702,31 +702,31 @@ export const MultiWindowProgrammingPage = memo(function MultiWindowProgrammingPa
     setPendingWindowCountTarget(null);
   }, []);
 
-  const handleSelectSessionForPane = useCallback((nextProjectId: string, nextCodingSessionId: string) => {
+  const handleSelectSessionForPane = useCallback((nextProjectId: string, nextAgentSessionId: string) => {
     if (!selectedPickerPane) {
       return;
     }
 
     const sessionLocation =
-      sessionIndex.codingSessionLocationsByProjectIdAndId.get(
-        buildCodingSessionProjectScopedKey(nextProjectId, nextCodingSessionId),
+      sessionIndex.agentSessionLocationsByProjectIdAndId.get(
+        buildAgentSessionProjectScopedKey(nextProjectId, nextAgentSessionId),
       ) ?? null;
-    const codingSession = sessionLocation?.codingSession ?? null;
+    const agentSession = sessionLocation?.agentSession ?? null;
     setPanes((previousPanes) =>
       updatePaneById(previousPanes, selectedPickerPane.id, (pane) => ({
         ...pane,
-        codingSessionId: nextCodingSessionId,
+        agentSessionId: nextAgentSessionId,
         projectId: nextProjectId,
-        selectedEngineId: getSessionEngineId(codingSession) || pane.selectedEngineId,
-        selectedModelId: getSessionModelId(codingSession) || pane.selectedModelId,
-        title: codingSession?.title ? `${selectedPickerPane.title.split('.')[0]}. ${codingSession.title}` : pane.title,
+        selectedEngineId: getSessionEngineId(agentSession) || pane.selectedEngineId,
+        selectedModelId: getSessionModelId(agentSession) || pane.selectedModelId,
+        title: agentSession?.title ? `${selectedPickerPane.title.split('.')[0]}. ${agentSession.title}` : pane.title,
       })),
     );
-    notifyActiveCodingSessionSelection(nextProjectId, nextCodingSessionId);
+    notifyActiveAgentSessionSelection(nextProjectId, nextAgentSessionId);
     resolveNextPickerAfterActivation(activateSelectedPickerPane(selectedPickerPane.id));
   }, [
     activateSelectedPickerPane,
-    notifyActiveCodingSessionSelection,
+    notifyActiveAgentSessionSelection,
     resolveNextPickerAfterActivation,
     selectedPickerPane,
     sessionIndex,
@@ -739,7 +739,7 @@ export const MultiWindowProgrammingPage = memo(function MultiWindowProgrammingPa
 
     setCreatingSessionPaneId(selectedPickerPane.id);
     try {
-      const newSession = await createCodingSessionFromRequest({
+      const newSession = await createAgentSessionFromRequest({
         engineId: selectedPickerPane.selectedEngineId,
         modelId: selectedPickerPane.selectedModelId,
         projectId: nextProjectId,
@@ -754,14 +754,14 @@ export const MultiWindowProgrammingPage = memo(function MultiWindowProgrammingPa
       setPanes((previousPanes) =>
         updatePaneById(previousPanes, selectedPickerPane.id, (pane) => ({
           ...pane,
-          codingSessionId: newSession.id,
+          agentSessionId: newSession.id,
           projectId: nextProjectId,
           selectedEngineId: newSession.engineId?.trim() || pane.selectedEngineId,
           selectedModelId: newSession.modelId?.trim() || pane.selectedModelId,
           title: `${panes.indexOf(selectedPickerPane) + 1}. ${newSession.title}`,
         })),
       );
-      notifyActiveCodingSessionSelection(nextProjectId, newSession.id);
+      notifyActiveAgentSessionSelection(nextProjectId, newSession.id);
       resolveNextPickerAfterActivation(activateSelectedPickerPane(selectedPickerPane.id));
     } catch (error) {
       console.error('Failed to create multi-window coding session', error);
@@ -770,8 +770,8 @@ export const MultiWindowProgrammingPage = memo(function MultiWindowProgrammingPa
     }
   }, [
     activateSelectedPickerPane,
-    createCodingSessionFromRequest,
-    notifyActiveCodingSessionSelection,
+    createAgentSessionFromRequest,
+    notifyActiveAgentSessionSelection,
     panes,
     resolveNextPickerAfterActivation,
     selectedPickerPane,
@@ -840,14 +840,14 @@ export const MultiWindowProgrammingPage = memo(function MultiWindowProgrammingPa
           );
         },
         panes: dispatchTargets.map(({ pane, paneIndex }) => ({
-          codingSessionId: pane.codingSessionId,
+          agentSessionId: pane.agentSessionId,
           enabled: pane.enabled,
           id: pane.id,
           projectId: pane.projectId,
           requiresSessionProvisioning:
             resolveMultiWindowPaneSessionProvisioningStatus(
               pane,
-              bindingsByPaneId.get(pane.id)?.codingSession,
+              bindingsByPaneId.get(pane.id)?.agentSession,
             ).status === 'needs-session',
           sendPrompt: async ({ prompt: dispatchPrompt }) => {
             if (!isActiveDispatchBatch(dispatchBatchId) || dispatchAbortController.signal.aborted) {
@@ -855,13 +855,13 @@ export const MultiWindowProgrammingPage = memo(function MultiWindowProgrammingPa
             }
 
             let effectivePane = pane;
-            let effectiveCodingSessionId = pane.codingSessionId;
+            let effectiveAgentSessionId = pane.agentSessionId;
             const provisioningStatus = resolveMultiWindowPaneSessionProvisioningStatus(
               pane,
-              bindingsByPaneId.get(pane.id)?.codingSession,
+              bindingsByPaneId.get(pane.id)?.agentSession,
             );
             if (provisioningStatus.status === 'needs-session') {
-              const provisionedSession = await createCodingSessionFromRequest({
+              const provisionedSession = await createAgentSessionFromRequest({
                 engineId: pane.selectedEngineId,
                 modelId: pane.selectedModelId,
                 projectId: pane.projectId,
@@ -876,11 +876,11 @@ export const MultiWindowProgrammingPage = memo(function MultiWindowProgrammingPa
               if (!provisionedSession) {
                 throw new Error('Multi-window session provisioning returned no session.');
               }
-              effectiveCodingSessionId = provisionedSession.id;
+              effectiveAgentSessionId = provisionedSession.id;
               effectivePane = {
                 ...pane,
-                codingSessionId: provisionedSession.id,
-                projectId: provisionedSession.projectId?.trim() || pane.projectId,
+                agentSessionId: provisionedSession.id,
+                projectId: provisionedSession.birdCoderProjectId.trim() || pane.projectId,
                 selectedEngineId: provisionedSession.engineId?.trim() || pane.selectedEngineId,
                 selectedModelId: provisionedSession.modelId?.trim() || pane.selectedModelId,
                 title: buildMultiWindowProvisionedSessionTitle(pane, paneIndex),
@@ -889,9 +889,9 @@ export const MultiWindowProgrammingPage = memo(function MultiWindowProgrammingPa
                 setPanes((previousPanes) =>
                   updatePaneById(previousPanes, pane.id, () => effectivePane),
                 );
-                notifyActiveCodingSessionSelection(
+                notifyActiveAgentSessionSelection(
                   effectivePane.projectId,
-                  effectiveCodingSessionId,
+                  effectiveAgentSessionId,
                 );
               }
               if (!isActiveDispatchBatch(dispatchBatchId) || dispatchAbortController.signal.aborted) {
@@ -899,9 +899,9 @@ export const MultiWindowProgrammingPage = memo(function MultiWindowProgrammingPa
               }
             }
 
-            const context = buildWorkbenchCodingSessionTurnContext({
+            const context = buildWorkbenchAgentSessionTurnContext({
               projectId: effectivePane.projectId,
-              sessionId: effectiveCodingSessionId,
+              sessionId: effectiveAgentSessionId,
               workspaceId,
             });
             const dispatchPromptProfile = buildMultiWindowPaneDispatchPrompt(
@@ -913,7 +913,7 @@ export const MultiWindowProgrammingPage = memo(function MultiWindowProgrammingPa
             }
             const sentMessage = await sendMessage(
               effectivePane.projectId,
-              effectiveCodingSessionId,
+              effectiveAgentSessionId,
               dispatchPromptProfile.prompt,
               context,
               {
@@ -926,26 +926,26 @@ export const MultiWindowProgrammingPage = memo(function MultiWindowProgrammingPa
                 }),
               },
             );
-            const nextCodingSessionId = sentMessage?.codingSessionId?.trim() ?? '';
+            const nextAgentSessionId = sentMessage?.sessionId.trim() ?? '';
             if (
               isActiveDispatchBatch(dispatchBatchId) &&
-              nextCodingSessionId &&
-              nextCodingSessionId !== effectiveCodingSessionId
+              nextAgentSessionId &&
+              nextAgentSessionId !== effectiveAgentSessionId
             ) {
               setPanes((previousPanes) =>
                 updatePaneById(previousPanes, pane.id, (currentPane) => ({
                   ...currentPane,
-                  codingSessionId: nextCodingSessionId,
+                  agentSessionId: nextAgentSessionId,
                 })),
               );
-              notifyActiveCodingSessionSelection(effectivePane.projectId, nextCodingSessionId);
+              notifyActiveAgentSessionSelection(effectivePane.projectId, nextAgentSessionId);
               return {
-                codingSessionId: nextCodingSessionId,
+                agentSessionId: nextAgentSessionId,
               };
             }
 
             return {
-              codingSessionId: effectiveCodingSessionId,
+              agentSessionId: effectiveAgentSessionId,
             };
           },
         })),
@@ -1020,13 +1020,13 @@ export const MultiWindowProgrammingPage = memo(function MultiWindowProgrammingPa
   }, [
     addToast,
     bindingsByPaneId,
-    createCodingSessionFromRequest,
+    createAgentSessionFromRequest,
     discardActiveDispatchBatch,
     dispatchResults,
     dispatchSummary,
     isActiveDispatchBatch,
     isDispatching,
-    notifyActiveCodingSessionSelection,
+    notifyActiveAgentSessionSelection,
     sendMessage,
     t,
     visiblePanes,
@@ -1123,7 +1123,7 @@ export const MultiWindowProgrammingPage = memo(function MultiWindowProgrammingPa
           pane={selectedPickerPane}
           preferences={preferences}
           projects={projects}
-          selectedCodingSessionId={selectedPickerPane.codingSessionId}
+          selectedAgentSessionId={selectedPickerPane.agentSessionId}
           selectedProjectId={selectedPickerPane.projectId}
           onClose={handleCloseSessionPicker}
           onCreateSession={handleCreateSessionForPane}

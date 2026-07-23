@@ -4,8 +4,6 @@ export default defineLocaleModule('studio/actions', {
   "studio": {
     "analyzeCode": "分析代码",
     "terminal": "终端",
-    "share": "分享",
-    "publish": "发布",
     "accept": "接受",
     "reject": "拒绝",
     "projectEmpty": "项目为空，请添加文件",

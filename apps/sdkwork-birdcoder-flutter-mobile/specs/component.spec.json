@@ -79,12 +79,22 @@
     }
   ],
   "contracts": {
+    "layerRole": "runtime-composition",
+    "providedPorts": [],
+    "requiredPorts": [],
     "publicExports": [],
     "runtimeEntrypoints": [
       "pubspec.yaml"
     ],
     "sdkClients": [],
-    "sdkDependencies": [],
+    "sdkDependencies": [
+      {
+        "workspace": "sdkwork-agents-app-sdk",
+        "surface": "app-api",
+        "credentialMode": "authenticated-app-api",
+        "required": true
+      }
+    ],
     "dependencyApiExports": [],
     "dependencyApiSurfaces": [],
     "events": [],

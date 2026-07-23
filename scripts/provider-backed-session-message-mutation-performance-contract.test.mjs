@@ -14,37 +14,37 @@ function extractPrivateMethodBody(methodName) {
   return providerBackedProjectServiceSource.slice(methodStart, nextMethodStart);
 }
 
-const replacePersistedCodingSessionMessagesBody = extractPrivateMethodBody(
-  'replacePersistedCodingSessionMessages',
+const replacePersistedAgentSessionItemsBody = extractPrivateMethodBody(
+  'replacePersistedAgentSessionItems',
 );
 assert.match(
-  replacePersistedCodingSessionMessagesBody,
-  /listMessagesByCodingSessionIds\(\s*\[\s*normalizedCodingSessionId\s*,?\s*\]\s*\)/s,
-  'replacePersistedCodingSessionMessages must load only the target session messages through the batch repository accelerator.',
+  replacePersistedAgentSessionItemsBody,
+  /listMessagesByAgentSessionIds\(\s*\[\s*normalizedAgentSessionId\s*,?\s*\]\s*\)/s,
+  'replacePersistedAgentSessionItems must load only the target session messages through the batch repository accelerator.',
 );
 assert.doesNotMatch(
-  replacePersistedCodingSessionMessagesBody,
-  /codingSessionRepositories\.messages\.list\(\)/,
-  'replacePersistedCodingSessionMessages must not full-scan persisted transcript messages before filtering one session.',
+  replacePersistedAgentSessionItemsBody,
+  /agentSessionRepositories\.messages\.list\(\)/,
+  'replacePersistedAgentSessionItems must not full-scan persisted transcript messages before filtering one session.',
 );
 
-const deletePersistedCodingSessionBody = extractPrivateMethodBody(
-  'deletePersistedCodingSession',
+const deletePersistedAgentSessionBody = extractPrivateMethodBody(
+  'deletePersistedAgentSession',
 );
 assert.match(
-  deletePersistedCodingSessionBody,
-  /deleteMessagesByCodingSessionIds\(\s*\[\s*normalizedCodingSessionId\s*,?\s*\]\s*\)/s,
-  'deletePersistedCodingSession must use the direct batch delete accelerator instead of reading messages before delete.',
+  deletePersistedAgentSessionBody,
+  /deleteMessagesByAgentSessionIds\(\s*\[\s*normalizedAgentSessionId\s*,?\s*\]\s*\)/s,
+  'deletePersistedAgentSession must use the direct batch delete accelerator instead of reading messages before delete.',
 );
 assert.doesNotMatch(
-  deletePersistedCodingSessionBody,
-  /listMessagesByCodingSessionIds\(/,
-  'deletePersistedCodingSession must not read persisted transcript messages before deleting one session.',
+  deletePersistedAgentSessionBody,
+  /listMessagesByAgentSessionIds\(/,
+  'deletePersistedAgentSession must not read persisted transcript messages before deleting one session.',
 );
 assert.doesNotMatch(
-  deletePersistedCodingSessionBody,
-  /codingSessionRepositories\.messages\.list\(\)/,
-  'deletePersistedCodingSession must not full-scan persisted transcript messages before deleting one session.',
+  deletePersistedAgentSessionBody,
+  /agentSessionRepositories\.messages\.list\(\)/,
+  'deletePersistedAgentSession must not full-scan persisted transcript messages before deleting one session.',
 );
 
 console.log('provider backed session message mutation performance contract passed.');

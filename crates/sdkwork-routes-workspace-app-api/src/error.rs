@@ -4,7 +4,7 @@ use sdkwork_birdcoder_workspace_service::error::WorkspaceError;
 use sdkwork_utils_rust::SdkWorkResultCode;
 
 use sdkwork_birdcoder_errors::{
-    client_safe_data_access_problem, client_safe_internal_problem, traced_legacy_problem,
+    client_safe_data_access_problem, client_safe_internal_problem, client_safe_provider_problem,
     traced_platform_problem, traced_problem_json,
 };
 
@@ -100,9 +100,11 @@ pub fn map_project_error(
         ProjectError::Unavailable(message) => {
             traced_platform_problem(SdkWorkResultCode::ServiceUnavailable, message, trace_id)
         }
-        ProjectError::GitOperation(message) => {
-            traced_legacy_problem("git_operation", message, trace_id)
-        }
+        ProjectError::GitOperation(_) => traced_problem_json(
+            StatusCode::BAD_GATEWAY,
+            client_safe_provider_problem(),
+            trace_id,
+        ),
         ProjectError::Repository(_) => traced_problem_json(
             StatusCode::INTERNAL_SERVER_ERROR,
             client_safe_data_access_problem(),
@@ -150,5 +152,22 @@ mod tests {
             Some("trace-1"),
         );
         assert_eq!(status, StatusCode::SERVICE_UNAVAILABLE);
+    }
+
+    #[test]
+    fn git_failures_use_client_safe_standard_problem_details() {
+        let (status, _, axum::Json(problem)) = map_project_error(
+            ProjectError::GitOperation("credential-bearing provider error".to_owned()),
+            Some("trace-git-failure"),
+        );
+
+        assert_eq!(status, StatusCode::BAD_GATEWAY);
+        assert_eq!(problem.code, SdkWorkResultCode::BadGateway.as_i32());
+        assert_eq!(problem.trace_id, "trace-git-failure");
+        assert!(!problem
+            .detail
+            .as_deref()
+            .unwrap_or_default()
+            .contains("credential-bearing"));
     }
 }

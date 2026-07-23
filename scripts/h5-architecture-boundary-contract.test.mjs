@@ -7,9 +7,6 @@ const h5SrcDir = path.join(rootDir, 'apps/sdkwork-birdcoder-h5/src');
 const h5CoreIndex = read('apps/sdkwork-birdcoder-h5/packages/sdkwork-birdcoder-h5-core/src/index.ts');
 const h5AdminCoreIndex = read('apps/sdkwork-birdcoder-h5/packages/sdkwork-birdcoder-h5-admin-core/src/index.ts');
 const h5CoreAppSdk = read('apps/sdkwork-birdcoder-h5/packages/sdkwork-birdcoder-h5-core/src/sdk/appSdkClient.ts');
-const h5AdminBackendSdk = read(
-  'apps/sdkwork-birdcoder-h5/packages/sdkwork-birdcoder-h5-admin-core/src/sdk/backendSdkClient.ts',
-);
 
 function read(relativePath) {
   return fs.readFileSync(path.join(rootDir, relativePath), 'utf8');
@@ -56,24 +53,19 @@ for (const sourceFile of collectSourceFiles('apps/sdkwork-birdcoder-h5/src')) {
 
 assert.match(
   h5CoreAppSdk,
-  /getBirdCoderGeneratedAppSdkClient/u,
-  'h5-core must construct the generated app SDK client.',
+  /from ['"]@sdkwork\/birdcoder-app-sdk['"]/u,
+  'h5-core must construct the owner App SDK client through its composed package.',
 );
 assert.doesNotMatch(
   h5CoreIndex,
-  /BackendSdk|getBirdCoderGeneratedBackendSdkClient/u,
+  /BackendSdk|getBirdCoderGeneratedBackendSdkClient|birdcoder-backend-sdk/u,
   'h5-core must not export backend SDK wrappers.',
 );
 
-assert.match(
-  h5AdminBackendSdk,
-  /@sdkwork\/birdcoder-pc-admin-core/u,
-  'h5-admin-core must construct backend SDK clients through pc-admin-core.',
-);
 assert.doesNotMatch(
   h5AdminCoreIndex,
-  /getBirdCoderGeneratedAppSdkClient/u,
-  'h5-admin-core must not export app SDK wrappers.',
+  /BirdCoderBackendSdk|getBirdCoderGeneratedBackendSdkClient|birdcoder-backend-sdk/u,
+  'h5-admin-core must not expose a nonexistent BirdCoder Backend SDK facade.',
 );
 
 console.log('h5 architecture boundary contract passed.');

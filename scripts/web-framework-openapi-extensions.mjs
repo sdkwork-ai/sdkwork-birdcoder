@@ -27,27 +27,9 @@ export function applyWebFrameworkOpenApiExtensions(document, apiSurface) {
   return changed;
 }
 
-export const APP_SDK_OPENAPI_MIRROR_TARGETS = [
-  {
-    relativePath: 'sdks/specs/openapi/birdcoder-app-v3.openapi.json',
-    mirrorRelativePath: 'apps/sdkwork-birdcoder-pc/sdks/specs/openapi/birdcoder-app-v3.openapi.json',
-    apiSurface: 'app-api',
-  },
-  {
-    relativePath: 'sdks/specs/openapi/birdcoder-backend-v3.openapi.json',
-    mirrorRelativePath: 'apps/sdkwork-birdcoder-pc/sdks/specs/openapi/birdcoder-backend-v3.openapi.json',
-    apiSurface: 'backend-api',
-  },
+export const BIRDCODER_OPENAPI_AUTHORITY_TARGETS = [
   {
     relativePath: 'sdks/sdkwork-birdcoder-app-sdk/openapi/sdkwork-birdcoder-app-api.openapi.json',
-    mirrorRelativePath:
-      'apps/sdkwork-birdcoder-pc/sdks/sdkwork-birdcoder-app-sdk/openapi/sdkwork-birdcoder-app-api.openapi.json',
     apiSurface: 'app-api',
-  },
-  {
-    relativePath: 'sdks/sdkwork-birdcoder-backend-sdk/openapi/sdkwork-birdcoder-backend-api.openapi.json',
-    mirrorRelativePath:
-      'apps/sdkwork-birdcoder-pc/sdks/sdkwork-birdcoder-backend-sdk/openapi/sdkwork-birdcoder-backend-api.openapi.json',
-    apiSurface: 'backend-api',
   },
 ];

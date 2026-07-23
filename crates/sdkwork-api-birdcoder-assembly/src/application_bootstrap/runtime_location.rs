@@ -2,7 +2,6 @@ use std::fmt;
 use std::sync::Arc;
 
 use sdkwork_birdcoder_project_service::error::ProjectError;
-use sdkwork_birdcoder_project_service::ports::project_workspace_root::ProjectWorkspaceRootResolver;
 use sdkwork_birdcoder_project_service::ports::repository::ProjectRepository;
 use sdkwork_birdcoder_project_service::ports::runtime_location_repository::ProjectRuntimeLocationRepository;
 use sdkwork_birdcoder_project_service::ports::runtime_location_execution::DenyRuntimeLocationTargetExecutionAuthority;
@@ -20,7 +19,6 @@ pub fn wire_project_runtime_location_service(
     config: &BirdServerConfig,
     project_repository: Arc<dyn ProjectRepository>,
     runtime_location_repository: Arc<dyn ProjectRuntimeLocationRepository>,
-    workspace_root_resolver: Arc<dyn ProjectWorkspaceRootResolver>,
 ) -> Result<ProjectRuntimeLocationService, RuntimeLocationBootstrapError> {
     let encryption = config.runtime_location_path_encryption_config()?;
     let cipher = AesGcmRuntimeLocationPathCipher::with_keyring(
@@ -40,7 +38,6 @@ pub fn wire_project_runtime_location_service(
         // adapter must replace these deny defaults before remote execution.
         Arc::new(DenyRuntimeLocationVerificationAuthority),
         Arc::new(DenyRuntimeLocationVerificationRequestDispatcher),
-        workspace_root_resolver,
         Arc::new(DenyRuntimeLocationTargetExecutionAuthority),
     ))
 }

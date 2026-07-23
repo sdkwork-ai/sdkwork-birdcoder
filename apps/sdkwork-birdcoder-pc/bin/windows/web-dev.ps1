@@ -1,4 +1,4 @@
 $ErrorActionPreference = 'Stop'
-$appRoot = Resolve-Path (Join-Path $PSScriptRoot '..\..')
-Set-Location $appRoot
-node ../../../scripts/run-birdcoder-web-command.mjs dev --iam-mode server-private @args
+$repoRoot = Resolve-Path (Join-Path $PSScriptRoot '..\..\..\..')
+& pnpm --dir $repoRoot exec sdkwork-app dev --runtime-target browser --client-architecture pc-web --deployment-profile standalone @args
+exit $LASTEXITCODE

@@ -1,1092 +1,283 @@
-import {
-  areBirdCoderChatMessagesEquivalent,
-  buildBirdCoderSessionSynchronizationVersion,
-  compareBirdCoderLongIntegers,
-  formatBirdCoderSessionActivityDisplayTime,
-  type BirdCoderChatMessage,
-  type BirdCoderCodingSession,
-  type BirdCoderCodingSessionEvent,
-  type BirdCoderProject,
-  type BirdCoderListCodingSessionsRequest,
-  type BirdCoderCodingSessionSummary,
-  mergeBirdCoderProjectionMessages,
-  resolveBirdCoderCodingSessionRuntimeStatus,
-  resolveBirdCoderSessionSortTimestampString,
-} from '@sdkwork/birdcoder-pc-contracts-commons';
 import type {
-  BirdCoderCodingSessionMirrorSnapshot,
-  BirdCoderProjectMirrorSnapshot,
-  IProjectService,
-} from '../services/interfaces/IProjectService.ts';
-import { synchronizeProjectSessionsFromAuthority } from './projectSessionSynchronization.ts';
+  AgentSessionView,
+  BirdCoderProject,
+} from '@sdkwork/birdcoder-pc-contracts-commons';
+import type { IAgentSessionService } from '@sdkwork/birdcoder-pc-infrastructure-runtime';
 
-type CodingSessionRefreshAppRuntimeReadService =
-  Pick<
-    {
-      getCodingSession(codingSessionId: string): Promise<BirdCoderCodingSessionSummary>;
-      listCodingSessions(
-        request?: BirdCoderListCodingSessionsRequest,
-      ): Promise<BirdCoderCodingSessionSummary[]>;
-      listCodingSessionEvents(codingSessionId: string): Promise<BirdCoderCodingSessionEvent[]>;
-    },
-    'getCodingSession' | 'listCodingSessions' | 'listCodingSessionEvents'
-  >;
+import type { IProjectService } from '../services/interfaces/IProjectService.ts';
+import {
+  toAgentSessionView,
+  requireAgentProjectId,
+  type AgentSessionItemRecord,
+  type AgentSessionRecord,
+} from '../services/agentSessionViewModels.ts';
+
+const AGENT_PAGE_SIZE = 200;
+const DEFAULT_AGENT_REFRESH_TIMEOUT_MS = 30_000;
+const MAX_AGENT_REFRESH_TIMEOUT_MS = 300_000;
 
 export interface RefreshProjectSessionsOptions {
-  appRuntimeReadService?: CodingSessionRefreshAppRuntimeReadService;
-  identityScope?: string;
-  projectId?: string;
+  agentSessionService: IAgentSessionService;
+  projectId: string;
   projectService: IProjectService;
   refreshTimeoutMs?: number;
   workspaceId: string;
 }
 
-export interface RefreshCodingSessionMessagesOptions {
-  codingSessionId: string;
-  appRuntimeReadService?: CodingSessionRefreshAppRuntimeReadService;
-  identityScope?: string;
-  projectService: IProjectService;
+export interface ResolvedAgentSessionLocation {
+  agentSession: AgentSessionView;
+  project: BirdCoderProject;
+}
+
+export interface RefreshAgentSessionItemsOptions {
+  agentSessionService: IAgentSessionService;
+  agentSessionId: string;
   refreshTimeoutMs?: number;
-  resolvedLocation?: ResolvedCodingSessionLocation;
+  resolvedLocation?: ResolvedAgentSessionLocation;
   workspaceId?: string;
 }
 
 export interface RefreshProjectSessionsResult {
-  mirroredSessionIds: string[];
+  sessionIds: string[];
   projectIds: string[];
   projects?: BirdCoderProject[];
-  source: 'app-runtime' | 'project-service';
+  source: 'agents';
   status: 'failed' | 'refreshed';
 }
 
-export interface RefreshCodingSessionMessagesResult {
-  codingSessionId: string;
-  codingSession?: BirdCoderCodingSession;
-  messageCount: number;
+export interface RefreshAgentSessionItemsResult {
+  agentSessionId: string;
+  agentSession?: AgentSessionView;
+  itemCount: number;
   projectId: string;
-  source: 'app-runtime' | 'engine' | 'native-engine';
-  status: 'failed' | 'not-found' | 'refreshed' | 'unsupported';
-  synchronizationVersion?: string;
+  source: 'agents';
+  status: 'failed' | 'not-found' | 'refreshed';
   workspaceId?: string;
 }
 
-const inflightRefreshes = new Map<string, Promise<unknown>>();
-const DEFAULT_SESSION_REFRESH_TIMEOUT_MS = 30_000;
-const ORPHANED_EXECUTING_RUNTIME_STATUS_STALE_MS = 2 * 60 * 1000;
-const ORPHANABLE_EXECUTING_RUNTIME_STATUS_SET = new Set<
-  NonNullable<BirdCoderCodingSession['runtimeStatus']>
->(['initializing', 'streaming', 'awaiting_tool']);
-
-interface RefreshTimeoutBoundary {
-  clear: () => void;
-  promise: Promise<never>;
+export interface AgentSessionItemsRefreshScope {
+  agentSessionId: string;
+  birdCoderProjectId: string;
+  identityScope: string;
+  workspaceId: string;
 }
 
-function normalizeSessionRefreshTimeoutMs(timeoutMs: number | null | undefined): number {
-  return Number.isFinite(timeoutMs) && typeof timeoutMs === 'number' && timeoutMs > 0
-    ? timeoutMs
-    : DEFAULT_SESSION_REFRESH_TIMEOUT_MS;
-}
-
-function createRefreshTimeoutPromise(
-  operationName: string,
-  timeoutMs: number,
-): RefreshTimeoutBoundary {
-  let timeoutHandle: ReturnType<typeof setTimeout> | null = null;
-  const promise = new Promise<never>((_resolve, reject) => {
-    timeoutHandle = setTimeout(() => {
-      reject(new Error(`Timed out ${operationName} after ${timeoutMs} ms.`));
-    }, timeoutMs);
-  });
-
-  return {
-    clear: () => {
-      if (timeoutHandle) {
-        clearTimeout(timeoutHandle);
-        timeoutHandle = null;
-      }
-    },
-    promise,
-  };
-}
-
-function runRefreshTaskWithTimeout<T>(
-  operationName: string,
-  task: () => Promise<T>,
-  timeoutMs: number,
-): Promise<T> {
-  const timeoutBoundary = createRefreshTimeoutPromise(operationName, timeoutMs);
-  return Promise.race([
-    Promise.resolve().then(task),
-    timeoutBoundary.promise,
-  ]).finally(() => {
-    timeoutBoundary.clear();
-  });
-}
-
-function normalizeRefreshIdentityScope(identityScope: string | null | undefined): string {
-  const normalizedIdentityScope =
-    typeof identityScope === 'string' ? identityScope.trim() : '';
-  return normalizedIdentityScope || 'anonymous';
-}
-
-function copyMessagesIfNeeded(
-  existingMessages: readonly BirdCoderChatMessage[],
-  nextMessages?: readonly BirdCoderChatMessage[],
-): BirdCoderChatMessage[] {
-  if (!nextMessages) {
-    return existingMessages as BirdCoderChatMessage[];
+function normalizeRefreshScopePart(value: string, label: string): string {
+  const normalized = value.trim();
+  if (!normalized) {
+    throw new Error(`${label} is required for Agents session item refresh.`);
   }
+  return normalized;
+}
 
-  if (nextMessages === existingMessages) {
-    return existingMessages as BirdCoderChatMessage[];
+export function buildAgentSessionItemsRefreshScopeKey(
+  scope: AgentSessionItemsRefreshScope,
+): string {
+  return [
+    normalizeRefreshScopePart(scope.identityScope, 'Identity scope'),
+    normalizeRefreshScopePart(scope.workspaceId, 'Workspace id'),
+    normalizeRefreshScopePart(scope.birdCoderProjectId, 'BirdCoder project id'),
+    normalizeRefreshScopePart(scope.agentSessionId, 'Agent session id'),
+  ].join('\u0001');
+}
+
+function normalizeRefreshTimeoutMs(timeoutMs: number | undefined): number {
+  if (timeoutMs === undefined) {
+    return DEFAULT_AGENT_REFRESH_TIMEOUT_MS;
   }
-
-  return [...nextMessages];
-}
-
-function findLatestTranscriptTimestamp(
-  messages: readonly Pick<BirdCoderChatMessage, 'createdAt'>[],
-): string | null {
-  for (let index = messages.length - 1; index >= 0; index -= 1) {
-    const message = messages[index];
-    if (typeof message.createdAt === 'string' && !Number.isNaN(Date.parse(message.createdAt))) {
-      return message.createdAt;
-    }
-  }
-
-  return null;
-}
-
-function parseRefreshTimestamp(value: string | null | undefined): number {
-  if (typeof value !== 'string') {
-    return Number.NaN;
-  }
-
-  const timestamp = Date.parse(value);
-  return Number.isNaN(timestamp) ? Number.NaN : timestamp;
-}
-
-function resolveLatestRefreshTimestamp(
-  ...candidates: Array<string | null | undefined>
-): number {
-  let latestTimestamp = Number.NEGATIVE_INFINITY;
-
-  for (const candidate of candidates) {
-    const parsedTimestamp = parseRefreshTimestamp(candidate);
-    if (Number.isNaN(parsedTimestamp) || parsedTimestamp < latestTimestamp) {
-      continue;
-    }
-
-    latestTimestamp = parsedTimestamp;
-  }
-
-  return Number.isFinite(latestTimestamp) ? latestTimestamp : Number.NaN;
-}
-
-function resolveLatestRefreshIsoTimestamp(
-  ...candidates: Array<string | null | undefined>
-): string | null {
-  let latestCandidate: string | null = null;
-  let latestTimestamp = Number.NEGATIVE_INFINITY;
-
-  for (const candidate of candidates) {
-    const parsedTimestamp = parseRefreshTimestamp(candidate);
-    if (Number.isNaN(parsedTimestamp) || parsedTimestamp < latestTimestamp) {
-      continue;
-    }
-
-    latestTimestamp = parsedTimestamp;
-    latestCandidate = candidate ?? null;
-  }
-
-  return latestCandidate;
-}
-
-function resolveLatestRefreshEventTimestamp(
-  events: readonly BirdCoderCodingSessionEvent[],
-): number {
-  let latestTimestamp = Number.NEGATIVE_INFINITY;
-
-  for (const event of events) {
-    const parsedTimestamp = parseRefreshTimestamp(event.createdAt);
-    if (Number.isNaN(parsedTimestamp) || parsedTimestamp < latestTimestamp) {
-      continue;
-    }
-
-    latestTimestamp = parsedTimestamp;
-  }
-
-  return Number.isFinite(latestTimestamp) ? latestTimestamp : Number.NaN;
-}
-
-function isOrphanableExecutingRuntimeStatus(
-  runtimeStatus: BirdCoderCodingSession['runtimeStatus'],
-): runtimeStatus is NonNullable<BirdCoderCodingSession['runtimeStatus']> {
-  return Boolean(
-    runtimeStatus && ORPHANABLE_EXECUTING_RUNTIME_STATUS_SET.has(runtimeStatus),
-  );
-}
-
-function resolveRefreshRuntimeActivityTimestamp(
-  summary: BirdCoderCodingSessionSummary,
-  existingSession: BirdCoderCodingSession,
-  events: readonly BirdCoderCodingSessionEvent[],
-): number {
-  const candidateTimestamps = [
-    resolveLatestRefreshEventTimestamp(events),
-    resolveLatestRefreshTimestamp(
-      summary.transcriptUpdatedAt,
-      summary.lastTurnAt,
-      summary.updatedAt,
-    ),
-    resolveLatestRefreshTimestamp(
-      existingSession.transcriptUpdatedAt,
-      existingSession.lastTurnAt,
-      existingSession.updatedAt,
-    ),
-  ].filter((timestamp) => Number.isFinite(timestamp));
-
-  return candidateTimestamps.length > 0
-    ? Math.max(...candidateTimestamps)
-    : Number.NaN;
-}
-
-function resolveConvergedRefreshRuntimeStatus(
-  resolvedRuntimeStatus: BirdCoderCodingSession['runtimeStatus'],
-  summary: BirdCoderCodingSessionSummary,
-  existingSession: BirdCoderCodingSession,
-  events: readonly BirdCoderCodingSessionEvent[],
-): BirdCoderCodingSession['runtimeStatus'] {
-  if (!isOrphanableExecutingRuntimeStatus(resolvedRuntimeStatus)) {
-    return resolvedRuntimeStatus;
-  }
-
-  const latestRuntimeActivityTimestamp = resolveRefreshRuntimeActivityTimestamp(
-    summary,
-    existingSession,
-    events,
-  );
   if (
-    !Number.isFinite(latestRuntimeActivityTimestamp) ||
-    Date.now() - latestRuntimeActivityTimestamp < ORPHANED_EXECUTING_RUNTIME_STATUS_STALE_MS
+    !Number.isSafeInteger(timeoutMs)
+    || timeoutMs <= 0
+    || timeoutMs > MAX_AGENT_REFRESH_TIMEOUT_MS
   ) {
-    return resolvedRuntimeStatus;
+    throw new RangeError(
+      `Agents refresh timeout must be an integer between 1 and ${MAX_AGENT_REFRESH_TIMEOUT_MS} ms.`,
+    );
   }
-
-  return 'completed';
+  return timeoutMs;
 }
 
-function isStaleOrphanedRefreshRuntimeStatus(
-  codingSession: BirdCoderCodingSession,
-): boolean {
-  if (!isOrphanableExecutingRuntimeStatus(codingSession.runtimeStatus)) {
-    return false;
-  }
-
-  const latestRuntimeActivityTimestamp = resolveLatestRefreshTimestamp(
-    codingSession.transcriptUpdatedAt,
-    codingSession.lastTurnAt,
-    codingSession.updatedAt,
-  );
-  return (
-    Number.isFinite(latestRuntimeActivityTimestamp) &&
-    Date.now() - latestRuntimeActivityTimestamp >= ORPHANED_EXECUTING_RUNTIME_STATUS_STALE_MS
-  );
-}
-
-function areRefreshMessagesEquivalent(
-  left: readonly BirdCoderChatMessage[],
-  right: readonly BirdCoderChatMessage[],
-): boolean {
-  if (left === right) {
-    return true;
-  }
-
-  if (left.length !== right.length) {
-    return false;
-  }
-
-  if (left.length === 0) {
-    return true;
-  }
-
-  return left.every((message, index) =>
-    areBirdCoderChatMessagesEquivalent(message, right[index]!),
-  );
-}
-
-function areRefreshedCodingSessionScalarsEqual(
-  left: BirdCoderCodingSession,
-  right: BirdCoderCodingSession,
-): boolean {
-  return (
-    left.id === right.id &&
-    left.workspaceId === right.workspaceId &&
-    left.projectId === right.projectId &&
-    left.title === right.title &&
-    left.status === right.status &&
-    left.hostMode === right.hostMode &&
-    left.engineId === right.engineId &&
-    left.modelId === right.modelId &&
-    left.createdAt === right.createdAt &&
-    left.updatedAt === right.updatedAt &&
-    left.lastTurnAt === right.lastTurnAt &&
-    left.sortTimestamp === right.sortTimestamp &&
-    left.transcriptUpdatedAt === right.transcriptUpdatedAt &&
-    left.runtimeStatus === right.runtimeStatus &&
-    left.displayTime === right.displayTime &&
-    left.pinned === right.pinned &&
-    left.archived === right.archived &&
-    left.unread === right.unread
-  );
-}
-
-function canSkipRefreshedCodingSessionUpsert(
-  existingSession: BirdCoderCodingSession,
-  refreshedSession: BirdCoderCodingSession,
-): boolean {
-  return (
-    areRefreshedCodingSessionScalarsEqual(existingSession, refreshedSession) &&
-    areRefreshMessagesEquivalent(existingSession.messages, refreshedSession.messages)
-  );
-}
-
-function isMissingProjectPersistenceError(error: unknown, projectId: string): boolean {
-  if (!(error instanceof Error)) {
-    return false;
-  }
-
-  const normalizedMessage = error.message.trim().toLowerCase();
-  const normalizedProjectId = projectId.trim().toLowerCase();
-  return (
-    normalizedProjectId.length > 0 &&
-    (
-      normalizedMessage.includes(`project ${normalizedProjectId} not found`) ||
-      normalizedMessage.includes(`project ${normalizedProjectId} was not found`)
-    )
-  );
-}
-
-async function persistRefreshedCodingSessionIfNeeded(
-  projectService: IProjectService & Required<Pick<IProjectService, 'upsertCodingSession'>>,
-  projectId: string,
-  existingSession: BirdCoderCodingSession,
-  refreshedSession: BirdCoderCodingSession,
-): Promise<void> {
-  if (canSkipRefreshedCodingSessionUpsert(existingSession, refreshedSession)) {
-    return;
-  }
-
-  try {
-    await projectService.upsertCodingSession(projectId, refreshedSession);
-  } catch (error) {
-    if (isMissingProjectPersistenceError(error, projectId)) {
-      await recoverMissingProjectPersistenceAndRetryUpsert(
-        projectService,
-        projectId,
-        existingSession,
-        refreshedSession,
-      );
-      return;
-    }
-
-    throw error;
-  }
-}
-
-async function recoverMissingProjectPersistenceAndRetryUpsert(
-  projectService: IProjectService & Required<Pick<IProjectService, 'upsertCodingSession'>>,
-  projectId: string,
-  existingSession: BirdCoderCodingSession,
-  refreshedSession: BirdCoderCodingSession,
-): Promise<void> {
-  const workspaceId =
-    refreshedSession.workspaceId.trim() ||
-    existingSession.workspaceId.trim() ||
-    undefined;
-
-  try {
-    await projectService.invalidateProjectReadCache?.({
-      projectId,
-      workspaceId,
-    });
-    const recoveredProject = await projectService.getProjectById(projectId);
-    if (!recoveredProject) {
-      return;
-    }
-
-    await projectService.upsertCodingSession(projectId, refreshedSession);
-  } catch (error) {
-    if (isMissingProjectPersistenceError(error, projectId)) {
-      return;
-    }
-
-    throw error;
-  }
-}
-
-function requireProjectServiceUpsert(
-  projectService: IProjectService,
-): asserts projectService is IProjectService & Required<Pick<IProjectService, 'upsertCodingSession'>> {
-  if (typeof projectService.upsertCodingSession !== 'function') {
-    throw new Error('Project service must support upsertCodingSession for authority refresh synchronization.');
-  }
-}
-
-async function settleStaleOrphanedRefreshRuntimeStatus({
-  codingSessionId,
-  projectService,
-  resolvedLocation,
-  source,
-}: {
-  codingSessionId: string;
-  projectService: IProjectService & Required<Pick<IProjectService, 'upsertCodingSession'>>;
-  resolvedLocation: ResolvedCodingSessionLocation;
-  source: RefreshCodingSessionMessagesResult['source'];
-}): Promise<RefreshCodingSessionMessagesResult | null> {
-  if (!isStaleOrphanedRefreshRuntimeStatus(resolvedLocation.codingSession)) {
-    return null;
-  }
-
-  const refreshedSession = {
-    ...resolvedLocation.codingSession,
-    runtimeStatus: undefined,
-  } satisfies BirdCoderCodingSession;
-
-  await persistRefreshedCodingSessionIfNeeded(
-    projectService,
-    resolvedLocation.project.id,
-    resolvedLocation.codingSession,
-    refreshedSession,
-  );
-
-  return {
-    codingSessionId,
-    codingSession: refreshedSession,
-    messageCount: refreshedSession.messages.length,
-    projectId: resolvedLocation.project.id,
-    source,
-    status: 'refreshed',
-    synchronizationVersion: buildBirdCoderSessionSynchronizationVersion(
-      refreshedSession,
-      refreshedSession.messages.length,
-    ),
-    workspaceId: resolvedLocation.project.workspaceId,
-  } satisfies RefreshCodingSessionMessagesResult;
-}
-
-function buildRefreshedCodingSession(
-  existingSession: BirdCoderCodingSession,
-  summary: BirdCoderCodingSessionSummary,
-  messages?: readonly BirdCoderChatMessage[],
-  runtimeStatus?: BirdCoderCodingSession['runtimeStatus'],
-): BirdCoderCodingSession {
-  const resolvedTranscriptUpdatedAt = resolveLatestRefreshIsoTimestamp(
-    summary.transcriptUpdatedAt,
-    messages ? findLatestTranscriptTimestamp(messages) : null,
-    existingSession.transcriptUpdatedAt,
-  );
-  const resolvedUpdatedAt =
-    resolveLatestRefreshIsoTimestamp(summary.updatedAt, existingSession.updatedAt) ??
-    summary.updatedAt;
-  const resolvedLastTurnAt = resolveLatestRefreshIsoTimestamp(
-    summary.lastTurnAt,
-    existingSession.lastTurnAt,
-  ) ?? undefined;
-  const summarySortTimestamp = resolveBirdCoderSessionSortTimestampString(summary);
-  const existingSortTimestamp = resolveBirdCoderSessionSortTimestampString(existingSession);
-  const resolvedSortTimestamp =
-    compareBirdCoderLongIntegers(summarySortTimestamp, existingSortTimestamp) >= 0
-      ? summarySortTimestamp
-      : existingSortTimestamp;
-  const refreshedSession: BirdCoderCodingSession = {
-    id: summary.id,
-    workspaceId: summary.workspaceId.trim() || existingSession.workspaceId,
-    projectId: summary.projectId.trim() || existingSession.projectId,
-    runtimeLocationId: summary.runtimeLocationId ?? existingSession.runtimeLocationId,
-    title: summary.title,
-    status: summary.status,
-    hostMode: summary.hostMode,
-    engineId: summary.engineId,
-    modelId: summary.modelId,
-    nativeSessionId: summary.nativeSessionId ?? existingSession.nativeSessionId,
-    nativeAttributes: summary.nativeAttributes ?? existingSession.nativeAttributes,
-    createdAt: summary.createdAt,
-    updatedAt: resolvedUpdatedAt,
-    lastTurnAt: resolvedLastTurnAt,
-    sortTimestamp: resolvedSortTimestamp,
-    transcriptUpdatedAt: resolvedTranscriptUpdatedAt,
-    runtimeStatus: runtimeStatus ?? summary.runtimeStatus ?? existingSession.runtimeStatus,
-    displayTime: '',
-    pinned: existingSession.pinned ?? false,
-    archived: existingSession.archived ?? summary.status === 'archived',
-    unread: existingSession.unread ?? false,
-    messages: copyMessagesIfNeeded(existingSession.messages, messages),
-  };
-  return {
-    ...refreshedSession,
-    displayTime: formatBirdCoderSessionActivityDisplayTime(refreshedSession),
-  };
-}
-
-function isCodingSessionSummaryInResolvedLocationScope(
-  requestedCodingSessionId: string,
-  summary: BirdCoderCodingSessionSummary,
-  resolvedLocation: ResolvedCodingSessionLocation,
-  fallbackWorkspaceId: string,
-): boolean {
-  const summaryCodingSessionId = summary.id.trim();
-  if (summaryCodingSessionId && summaryCodingSessionId !== requestedCodingSessionId) {
-    return false;
-  }
-
-  const summaryProjectId = summary.projectId.trim();
-  const resolvedProjectId = resolvedLocation.project.id.trim();
-  if (summaryProjectId && resolvedProjectId && summaryProjectId !== resolvedProjectId) {
-    return false;
-  }
-
-  const summaryWorkspaceId = summary.workspaceId.trim();
-  const resolvedWorkspaceId =
-    resolvedLocation.project.workspaceId.trim() ||
-    resolvedLocation.codingSession.workspaceId.trim() ||
-    fallbackWorkspaceId;
-  return !summaryWorkspaceId || !resolvedWorkspaceId || summaryWorkspaceId === resolvedWorkspaceId;
-}
-
-function mergeCoreVisibleMessages(
-  codingSessionId: string,
-  existingMessages: readonly BirdCoderChatMessage[],
-  events: readonly BirdCoderCodingSessionEvent[],
-): BirdCoderChatMessage[] {
-  return mergeBirdCoderProjectionMessages({
-    codingSessionId,
-    events,
-    existingMessages,
-    idPrefix: 'authoritative',
-  });
-}
-
-async function runGuardedRefresh<T>(
-  key: string,
-  operationName: string,
-  timeoutMs: number | null | undefined,
-  task: () => Promise<T>,
+function withAgentRefreshTimeout<T>(
+  operation: () => Promise<T>,
+  timeoutMs: number | undefined,
+  label: string,
 ): Promise<T> {
-  const inflightRefresh = inflightRefreshes.get(key);
-  if (inflightRefresh) {
-    return inflightRefresh as Promise<T>;
-  }
-
-  const nextRefresh = runRefreshTaskWithTimeout(
-    operationName,
-    task,
-    normalizeSessionRefreshTimeoutMs(timeoutMs),
-  ).finally(() => {
-    if (inflightRefreshes.get(key) === nextRefresh) {
-      inflightRefreshes.delete(key);
+  const resolvedTimeoutMs = normalizeRefreshTimeoutMs(timeoutMs);
+  let timeoutHandle: ReturnType<typeof setTimeout> | undefined;
+  const timeout = new Promise<never>((_resolve, reject) => {
+    timeoutHandle = setTimeout(() => {
+      reject(new Error(`${label} timed out after ${resolvedTimeoutMs} ms.`));
+    }, resolvedTimeoutMs);
+  });
+  return Promise.race([operation(), timeout]).finally(() => {
+    if (timeoutHandle !== undefined) {
+      clearTimeout(timeoutHandle);
     }
   });
-  inflightRefreshes.set(key, nextRefresh);
-  return nextRefresh;
 }
 
-function findCodingSessionLocationInProjects(
-  projects: Awaited<ReturnType<IProjectService['getProjects']>>,
-  codingSessionId: string,
-) {
-  let matchedLocation: {
-    codingSession: BirdCoderCodingSession;
-    project: BirdCoderProject;
-  } | null = null;
-  for (const project of projects) {
-    const codingSession = project.codingSessions.find((candidate) => candidate.id === codingSessionId);
-    if (!codingSession) {
-      continue;
-    }
+async function loadSessionView(
+  service: IAgentSessionService,
+  session: AgentSessionRecord,
+  project: Pick<BirdCoderProject, 'defaultAgentProjectId' | 'id' | 'workspaceId'>,
+  items: readonly AgentSessionItemRecord[] = [],
+): Promise<AgentSessionView> {
+  const runtimeBindingPage = await service.listRuntimeBindings(
+    session.sessionId,
+    { page: 1, pageSize: 20 },
+  );
+  const currentBinding = runtimeBindingPage.items.find((binding) => binding.isCurrent);
+  return toAgentSessionView(
+    session,
+    {
+      agentProjectId: requireAgentProjectId(project),
+      birdCoderProjectId: project.id,
+      engineId: currentBinding?.providerId,
+      modelId: currentBinding?.modelId,
+      runtimeLocationId: currentBinding?.runtimeLocationId ?? undefined,
+      workspaceId: project.workspaceId,
+    },
+    items,
+  );
+}
 
-    if (matchedLocation) {
-      return null;
-    }
-    matchedLocation = {
-      codingSession,
-      project,
+async function loadInitialSessionItems(
+  service: IAgentSessionService,
+  sessionId: string,
+): Promise<AgentSessionItemRecord[]> {
+  const page = await service.listSessionItems(sessionId, {
+    page: 1,
+    pageSize: AGENT_PAGE_SIZE,
+  });
+  return page.items;
+}
+
+async function refreshProjectSessionsWithoutTimeout({
+  agentSessionService,
+  projectId,
+  projectService,
+  workspaceId,
+}: Omit<RefreshProjectSessionsOptions, 'refreshTimeoutMs'>): Promise<RefreshProjectSessionsResult> {
+  const normalizedProjectId = projectId.trim();
+  const normalizedWorkspaceId = workspaceId.trim();
+  if (!normalizedProjectId || !normalizedWorkspaceId) {
+    return {
+      sessionIds: [],
+      projectIds: [],
+      source: 'agents',
+      status: 'failed',
     };
   }
 
-  return matchedLocation;
-}
-
-function materializeCodingSessionFromMirrorSnapshot(
-  codingSessionSnapshot: BirdCoderCodingSessionMirrorSnapshot,
-): BirdCoderCodingSession {
-  const {
-    messageCount: _messageCount,
-    nativeTranscriptUpdatedAt: _nativeTranscriptUpdatedAt,
-    ...codingSession
-  } = codingSessionSnapshot;
-  return {
-    ...codingSession,
-    messages: [],
-  };
-}
-
-function materializeProjectFromMirrorSnapshot(
-  projectSnapshot: BirdCoderProjectMirrorSnapshot,
-): BirdCoderProject {
-  const { codingSessions, ...project } = projectSnapshot;
-  return {
-    ...project,
-    codingSessions: codingSessions.map(materializeCodingSessionFromMirrorSnapshot),
-  };
-}
-
-function findProjectMirrorSnapshotLocation(
-  projectSnapshots: readonly BirdCoderProjectMirrorSnapshot[],
-  codingSessionId: string,
-): ResolvedCodingSessionLocation | null {
-  let matchedLocation: ResolvedCodingSessionLocation | null = null;
-  for (const projectSnapshot of projectSnapshots) {
-    const codingSessionSnapshot = projectSnapshot.codingSessions.find(
-      (candidate) => candidate.id === codingSessionId,
-    );
-    if (!codingSessionSnapshot) {
-      continue;
-    }
-
-    if (matchedLocation) {
-      return null;
-    }
-    matchedLocation = {
-      codingSession: materializeCodingSessionFromMirrorSnapshot(codingSessionSnapshot),
-      project: materializeProjectFromMirrorSnapshot(projectSnapshot),
+  const project = await projectService.getProjectById(normalizedProjectId);
+  if (!project || project.workspaceId !== normalizedWorkspaceId) {
+    return {
+      sessionIds: [],
+      projectIds: [],
+      source: 'agents',
+      status: 'failed',
     };
   }
 
-  return matchedLocation;
-}
-
-async function readProjectMirrorSnapshotsForLocation(
-  projectService: IProjectService,
-  workspaceId: string,
-): Promise<readonly BirdCoderProjectMirrorSnapshot[] | null> {
-  const projectMirrorReader = projectService.getProjectMirrorSnapshots?.bind(projectService);
-  if (!projectMirrorReader) {
-    return null;
-  }
-
-  return projectMirrorReader(workspaceId || undefined);
-}
-
-async function resolveAuthorityProjectFromMirrorSnapshots(
-  projectService: IProjectService,
-  summary: BirdCoderCodingSessionSummary,
-): Promise<BirdCoderProject | null> {
-  const projectId = summary.projectId.trim();
-  const workspaceId = summary.workspaceId.trim();
-  const projectSnapshots = await readProjectMirrorSnapshotsForLocation(
-    projectService,
-    workspaceId,
+  const agentProjectId = requireAgentProjectId(project);
+  const sessionPage = await agentSessionService.listSessions({
+    page: 1,
+    pageSize: AGENT_PAGE_SIZE,
+    projectId: agentProjectId,
+  });
+  const agentSessions = await Promise.all(
+    sessionPage.items
+      .filter((session) => session.projectId === agentProjectId)
+      .map((session) => loadSessionView(agentSessionService, session, project)),
   );
-  if (!projectSnapshots) {
-    return null;
-  }
-
-  const projectSnapshot = projectSnapshots.find((candidate) => candidate.id === projectId);
-  return projectSnapshot ? materializeProjectFromMirrorSnapshot(projectSnapshot) : null;
-}
-
-async function resolveCodingSessionLocationFromMirrorSnapshots(
-  projectService: IProjectService,
-  codingSessionId: string,
-  workspaceId: string,
-): Promise<ResolvedCodingSessionLocation | null> {
-  const projectSnapshots = await readProjectMirrorSnapshotsForLocation(
-    projectService,
-    workspaceId,
-  );
-  return projectSnapshots
-    ? findProjectMirrorSnapshotLocation(projectSnapshots, codingSessionId)
-    : null;
-}
-
-function buildBootstrapCodingSession(
-  summary: BirdCoderCodingSessionSummary,
-): BirdCoderCodingSession {
   return {
-    ...summary,
-    runtimeStatus: summary.runtimeStatus,
-    displayTime: formatBirdCoderSessionActivityDisplayTime(summary),
-    pinned: false,
-    archived: summary.status === 'archived',
-    unread: false,
-    messages: [],
+    sessionIds: agentSessions.map((session) => session.id),
+    projectIds: [normalizedProjectId],
+    projects: [{ ...project, agentSessions }],
+    source: 'agents',
+    status: 'refreshed',
   };
 }
 
-interface ResolvedCodingSessionLocation {
-  codingSession: BirdCoderCodingSession;
-  project: BirdCoderProject;
-  summary?: BirdCoderCodingSessionSummary;
-}
-
-async function resolveAuthorityProjectForCodingSession(
-  projectService: IProjectService,
-  summary: BirdCoderCodingSessionSummary,
-): Promise<BirdCoderProject | null> {
-  const projectId = summary.projectId.trim();
-  if (!projectId) {
-    return null;
-  }
-
-  try {
-    const mirrorProject = await resolveAuthorityProjectFromMirrorSnapshots(
-      projectService,
-      summary,
-    );
-    if (mirrorProject) {
-      return mirrorProject;
-    }
-  } catch (error) {
-    console.error(
-      `Failed to resolve coding session "${summary.id}" from project mirror snapshots`,
-      error,
-    );
-  }
-
-  const authorityProject = await projectService.getProjectById(projectId);
-  if (authorityProject || !projectService.invalidateProjectReadCache) {
-    return authorityProject;
-  }
-
-  await projectService.invalidateProjectReadCache({
-    projectId,
-    workspaceId: summary.workspaceId.trim() || undefined,
-  });
-  return projectService.getProjectById(projectId);
-}
-
-async function resolveCodingSessionLocation(
-  projectService: IProjectService,
-  codingSessionId: string,
-  workspaceId?: string,
-  appRuntimeReadService?: CodingSessionRefreshAppRuntimeReadService,
-): Promise<ResolvedCodingSessionLocation | null> {
-  const normalizedCodingSessionId = codingSessionId.trim();
-  const normalizedWorkspaceId = workspaceId?.trim() || '';
-  let preferredProjects: Awaited<ReturnType<IProjectService['getProjects']>> | null = null;
-
-  if (!normalizedCodingSessionId) {
-    return null;
-  }
-
-  if (appRuntimeReadService) {
-    try {
-      const summary = await appRuntimeReadService.getCodingSession(normalizedCodingSessionId);
-      const authorityProject = await resolveAuthorityProjectForCodingSession(
-        projectService,
-        summary,
-      );
-
-      if (authorityProject) {
-        const authorityCodingSession = authorityProject.codingSessions.find(
-          (candidate) => candidate.id === normalizedCodingSessionId,
-        );
-        return {
-          codingSession:
-            authorityCodingSession ??
-            buildBootstrapCodingSession({
-              ...summary,
-              projectId: authorityProject.id,
-              workspaceId: authorityProject.workspaceId,
-            }),
-          project: authorityProject,
-          summary,
-        };
-      }
-
-    } catch (error) {
-      console.error(
-        `Failed to resolve coding session "${normalizedCodingSessionId}" from authority summary`,
-        error,
-      );
-    }
-  }
-
-  if (normalizedWorkspaceId) {
-    try {
-      if (appRuntimeReadService) {
-        const mirrorLocation = await resolveCodingSessionLocationFromMirrorSnapshots(
-          projectService,
-          normalizedCodingSessionId,
-          normalizedWorkspaceId,
-        );
-        if (mirrorLocation) {
-          return mirrorLocation;
-        }
-      }
-
-      preferredProjects = await projectService.getProjects(normalizedWorkspaceId);
-      return findCodingSessionLocationInProjects(
-        preferredProjects,
-        normalizedCodingSessionId,
-      );
-    } catch (error) {
-      console.error(
-        `Failed to resolve coding session "${normalizedCodingSessionId}" from workspace projects`,
-        error,
-      );
-    }
-  }
-
-  return null;
-}
-
-export async function refreshProjectSessions(
+export function refreshProjectSessions(
   options: RefreshProjectSessionsOptions,
 ): Promise<RefreshProjectSessionsResult> {
-  const normalizedWorkspaceId = options.workspaceId.trim();
-  const normalizedProjectId = options.projectId?.trim() || '';
-  const refreshIdentityScope = normalizeRefreshIdentityScope(options.identityScope);
-  return runGuardedRefresh(
-    `project:${refreshIdentityScope}:${normalizedWorkspaceId}:${normalizedProjectId || '*'}`,
-    'refreshing project sessions',
-    options.refreshTimeoutMs,
-    async () => {
-      if (!normalizedWorkspaceId) {
-        return {
-          mirroredSessionIds: [],
-          projectIds: [],
-          source: 'project-service',
-          status: 'failed',
-        } satisfies RefreshProjectSessionsResult;
-      }
-
-      await options.projectService.invalidateProjectReadCache?.({
-        projectId: normalizedProjectId || undefined,
-        workspaceId: normalizedWorkspaceId,
-      });
-
-      const preciseProject =
-        normalizedProjectId
-          ? await options.projectService.getProjectById(normalizedProjectId)
-          : null;
-      if (
-        normalizedProjectId &&
-        (!preciseProject || preciseProject.workspaceId.trim() !== normalizedWorkspaceId)
-      ) {
-        return {
-          mirroredSessionIds: [],
-          projectIds: [],
-          projects: [],
-          source: options.appRuntimeReadService ? 'app-runtime' : 'project-service',
-          status: 'failed',
-        } satisfies RefreshProjectSessionsResult;
-      }
-      let projects =
-        preciseProject
-          ? [preciseProject]
-          : (await options.projectService.getProjects(normalizedWorkspaceId)).filter((project) =>
-              normalizedProjectId ? project.id === normalizedProjectId : true,
-            );
-      if (normalizedProjectId && projects.length === 0) {
-        return {
-          mirroredSessionIds: [],
-          projectIds: [],
-          projects: [],
-          source: options.appRuntimeReadService ? 'app-runtime' : 'project-service',
-          status: 'failed',
-        } satisfies RefreshProjectSessionsResult;
-      }
-      if (options.appRuntimeReadService) {
-        const synchronizedProjects: BirdCoderProject[] = [];
-        for (const project of projects) {
-          const synchronized = await synchronizeProjectSessionsFromAuthority({
-            appRuntimeReadService: options.appRuntimeReadService,
-            project,
-            projectService: options.projectService,
-          });
-          synchronizedProjects.push(synchronized.project);
-        }
-        projects = synchronizedProjects;
-      }
-      const projectIds = projects.map((project) => project.id);
-      const mirroredSessionIds = projects.flatMap((project) =>
-        project.codingSessions.map((codingSession) => codingSession.id),
-      );
-
-      return {
-        mirroredSessionIds,
-        projectIds,
-        projects,
-        source: options.appRuntimeReadService ? 'app-runtime' : 'project-service',
-        status: 'refreshed',
-      } satisfies RefreshProjectSessionsResult;
-    },
+  const { refreshTimeoutMs, ...operationOptions } = options;
+  return withAgentRefreshTimeout(
+    () => refreshProjectSessionsWithoutTimeout(operationOptions),
+    refreshTimeoutMs,
+    'Refreshing Agents project sessions',
   );
 }
 
-export async function refreshCodingSessionMessages(
-  options: RefreshCodingSessionMessagesOptions,
-): Promise<RefreshCodingSessionMessagesResult> {
-  const normalizedCodingSessionId = options.codingSessionId.trim();
-  const normalizedWorkspaceId = options.workspaceId?.trim() ?? '';
-  const refreshIdentityScope = normalizeRefreshIdentityScope(options.identityScope);
-
-  if (!normalizedCodingSessionId) {
+async function refreshAgentSessionItemsWithoutTimeout({
+  agentSessionService,
+  agentSessionId,
+  resolvedLocation,
+  workspaceId,
+}: Omit<RefreshAgentSessionItemsOptions, 'refreshTimeoutMs'>): Promise<RefreshAgentSessionItemsResult> {
+  const normalizedSessionId = agentSessionId.trim();
+  if (!normalizedSessionId) {
     return {
-      codingSessionId: normalizedCodingSessionId,
-      messageCount: 0,
+      agentSessionId: normalizedSessionId,
+      itemCount: 0,
       projectId: '',
-      source: 'engine',
+      source: 'agents',
       status: 'not-found',
-    } satisfies RefreshCodingSessionMessagesResult;
+    };
   }
 
-  const resolvedLocation =
-    options.resolvedLocation ??
-    (await runGuardedRefresh(
-      `session-location:${refreshIdentityScope}:${normalizedWorkspaceId || '*'}:${normalizedCodingSessionId}`,
-      'resolving coding session location',
-      options.refreshTimeoutMs,
-      () => resolveCodingSessionLocation(
-        options.projectService,
-        normalizedCodingSessionId,
-        normalizedWorkspaceId,
-        options.appRuntimeReadService,
-      ),
-    ));
-  if (!resolvedLocation) {
+  const session = await agentSessionService.getSession(normalizedSessionId);
+  const project = resolvedLocation?.project;
+  if (!project) {
     return {
-      codingSessionId: normalizedCodingSessionId,
-      messageCount: 0,
+      agentSessionId: normalizedSessionId,
+      itemCount: 0,
       projectId: '',
-      source: 'engine',
+      source: 'agents',
+      status: 'failed',
+    };
+  }
+  const projectId = project.id.trim();
+  const agentProjectId = requireAgentProjectId(project);
+  if (!projectId || session.projectId?.trim() !== agentProjectId) {
+    return {
+      agentSessionId: normalizedSessionId,
+      itemCount: 0,
+      projectId,
+      source: 'agents',
       status: 'not-found',
-    } satisfies RefreshCodingSessionMessagesResult;
+    };
   }
 
-  const guardWorkspaceId =
-    normalizedWorkspaceId ||
-    resolvedLocation.project.workspaceId.trim() ||
-    resolvedLocation.codingSession.workspaceId.trim();
-  const guardProjectId =
-    resolvedLocation.project.id.trim() ||
-    resolvedLocation.codingSession.projectId.trim();
-
-  return runGuardedRefresh(
-    `session:${refreshIdentityScope}:${guardWorkspaceId}:${guardProjectId}:${normalizedCodingSessionId}`,
-    'refreshing coding session messages',
-    options.refreshTimeoutMs,
-    async () => {
-      requireProjectServiceUpsert(options.projectService);
-
-      if (!options.appRuntimeReadService) {
-        const settledRefresh = await settleStaleOrphanedRefreshRuntimeStatus({
-          codingSessionId: normalizedCodingSessionId,
-          projectService: options.projectService,
-          resolvedLocation,
-          source: 'engine',
-        });
-        if (settledRefresh) {
-          return settledRefresh;
-        }
-
-        return {
-          codingSessionId: normalizedCodingSessionId,
-          messageCount: resolvedLocation.codingSession.messages.length,
-          projectId: resolvedLocation.project.id,
-          source: 'engine',
-          status: 'unsupported',
-        } satisfies RefreshCodingSessionMessagesResult;
-      }
-
-      const appRuntimeReadService = options.appRuntimeReadService;
-      let summary: BirdCoderCodingSessionSummary;
-      let events: BirdCoderCodingSessionEvent[];
-      try {
-        summary =
-          resolvedLocation.summary ??
-          (await appRuntimeReadService.getCodingSession(normalizedCodingSessionId));
-        events = await appRuntimeReadService.listCodingSessionEvents(
-          normalizedCodingSessionId,
-        );
-      } catch (error) {
-        const settledRefresh = await settleStaleOrphanedRefreshRuntimeStatus({
-          codingSessionId: normalizedCodingSessionId,
-          projectService: options.projectService,
-          resolvedLocation,
-          source: 'app-runtime',
-        });
-        if (settledRefresh) {
-          return settledRefresh;
-        }
-
-        throw error;
-      }
-      if (
-        !isCodingSessionSummaryInResolvedLocationScope(
-          normalizedCodingSessionId,
-          summary,
-          resolvedLocation,
-          normalizedWorkspaceId,
-        )
-      ) {
-        return {
-          codingSessionId: normalizedCodingSessionId,
-          messageCount: resolvedLocation.codingSession.messages.length,
-          projectId: resolvedLocation.project.id,
-          source: 'app-runtime',
-          status: 'not-found',
-          workspaceId: resolvedLocation.project.workspaceId,
-        } satisfies RefreshCodingSessionMessagesResult;
-      }
-
-      const resolvedRuntimeStatus = resolveBirdCoderCodingSessionRuntimeStatus(
-        events,
-        summary.runtimeStatus ?? resolvedLocation.codingSession.runtimeStatus,
-      );
-      const convergedRuntimeStatus = resolveConvergedRefreshRuntimeStatus(
-        resolvedRuntimeStatus,
-        summary,
-        resolvedLocation.codingSession,
-        events,
-      );
-      const mergedMessages = mergeCoreVisibleMessages(
-        normalizedCodingSessionId,
-        resolvedLocation.codingSession.messages,
-        events,
-      );
-      const refreshedSession = buildRefreshedCodingSession(
-        resolvedLocation.codingSession,
-        summary,
-        mergedMessages,
-        convergedRuntimeStatus,
-      );
-
-      await persistRefreshedCodingSessionIfNeeded(
-        options.projectService,
-        resolvedLocation.project.id,
-        resolvedLocation.codingSession,
-        refreshedSession,
-      );
-
-      return {
-        codingSessionId: normalizedCodingSessionId,
-        codingSession: refreshedSession,
-        messageCount: refreshedSession.messages.length,
-        projectId: resolvedLocation.project.id,
-        source: resolvedLocation.codingSession.nativeSessionId?.trim()
-          ? 'native-engine'
-          : 'app-runtime',
-        status: 'refreshed',
-        synchronizationVersion: buildBirdCoderSessionSynchronizationVersion(
-          refreshedSession,
-          refreshedSession.messages.length,
-        ),
-        workspaceId: resolvedLocation.project.workspaceId,
-      } satisfies RefreshCodingSessionMessagesResult;
+  const items = await loadInitialSessionItems(agentSessionService, normalizedSessionId);
+  const agentSession = await loadSessionView(
+    agentSessionService,
+    session,
+    {
+      ...project,
+      workspaceId: project.workspaceId || workspaceId?.trim() || '',
     },
+    items,
+  );
+  return {
+    agentSessionId: normalizedSessionId,
+    agentSession,
+    itemCount: agentSession.items.length,
+    projectId,
+    source: 'agents',
+    status: 'refreshed',
+    workspaceId: project.workspaceId,
+  };
+}
+
+export function refreshAgentSessionItems(
+  options: RefreshAgentSessionItemsOptions,
+): Promise<RefreshAgentSessionItemsResult> {
+  const { refreshTimeoutMs, ...operationOptions } = options;
+  return withAgentRefreshTimeout(
+    () => refreshAgentSessionItemsWithoutTimeout(operationOptions),
+    refreshTimeoutMs,
+    'Refreshing Agents session items',
   );
 }

@@ -1,9 +1,9 @@
 import { useCallback, useState } from 'react';
 import type {
-  BirdCoderCommitProjectGitChangesRequest,
-  BirdCoderProjectGitOverview,
-  BirdCoderPushProjectGitBranchRequest,
-  BirdCoderRemoveProjectGitWorktreeRequest,
+  CommitWorkbenchGitChangesInput,
+  PushWorkbenchGitBranchInput,
+  RemoveWorkbenchGitWorktreeInput,
+  WorkbenchGitOverviewView,
 } from '@sdkwork/birdcoder-pc-contracts-commons';
 import { useIDEServices } from '../context/ideServices.ts';
 import {
@@ -15,7 +15,7 @@ import { normalizeGitBranchName } from '../workbench/gitBranches.ts';
 const MAX_COMMIT_MESSAGE_CHARACTERS = 500;
 
 export interface UseProjectGitMutationActionsOptions {
-  applyGitOverview: (overview: BirdCoderProjectGitOverview) => void;
+  applyGitOverview: (overview: WorkbenchGitOverviewView) => void;
   projectId?: string | null;
 }
 
@@ -33,10 +33,10 @@ export interface UseProjectGitMutationActionsResult {
   isPushingBranch: boolean;
   isRemovingWorktree: boolean;
   isSwitchingBranch: boolean;
-  pushBranch: (request: BirdCoderPushProjectGitBranchRequest) => Promise<string>;
+  pushBranch: (request: PushWorkbenchGitBranchInput) => Promise<string>;
   pruneWorktrees: () => Promise<void>;
   removeWorktree: (
-    request: BirdCoderRemoveProjectGitWorktreeRequest,
+    request: RemoveWorkbenchGitWorktreeInput,
   ) => Promise<{ worktreeKey: string }>;
   switchBranch: (branchName: string) => Promise<string>;
 }
@@ -78,7 +78,7 @@ export function useProjectGitMutationActions({
       );
     }
 
-    const request: BirdCoderCommitProjectGitChangesRequest = {
+    const request: CommitWorkbenchGitChangesInput = {
       includeUnstaged: options.includeUnstaged ?? true,
       message: normalizedMessage,
     };
@@ -145,7 +145,7 @@ export function useProjectGitMutationActions({
   }, [applyGitOverview, gitService, requireProjectId]);
 
   const pushBranch = useCallback(async (
-    request: BirdCoderPushProjectGitBranchRequest,
+    request: PushWorkbenchGitBranchInput,
   ): Promise<string> => {
     const nextProjectId = requireProjectId();
     const normalizedBranchName = request.branchName?.trim()
@@ -168,7 +168,7 @@ export function useProjectGitMutationActions({
   }, [applyGitOverview, gitService, requireProjectId]);
 
   const removeWorktree = useCallback(async (
-    request: BirdCoderRemoveProjectGitWorktreeRequest,
+    request: RemoveWorkbenchGitWorktreeInput,
   ): Promise<{ worktreeKey: string }> => {
     const nextProjectId = requireProjectId();
     const worktreeKey = request.worktreeKey.trim();

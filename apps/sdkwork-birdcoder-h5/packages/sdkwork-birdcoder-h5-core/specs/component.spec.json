@@ -20,6 +20,23 @@
     ]
   },
   "contracts": {
+    "layerRole": "frontend-core",
+    "providedPorts": [
+      {
+        "name": "applicationRuntimeCore",
+        "export": "."
+      },
+      {
+        "name": "assistantSessionServices",
+        "export": "./sdk"
+      }
+    ],
+    "requiredPorts": [
+      {
+        "name": "agentsAppSdkClient",
+        "export": "./sdk"
+      }
+    ],
     "publicExports": [
       ".",
       "./sdk",
@@ -36,24 +53,19 @@
         "credentialMode": "authenticated-app-api"
       },
       {
-        "workspace": "sdkwork-birdcoder-app-sdk-typescript",
+        "workspace": "sdkwork-agents-app-sdk",
         "surface": "app-api",
         "credentialMode": "authenticated-app-api"
       },
       {
-        "workspace": "sdkwork-drive-app-sdk-typescript",
+        "workspace": "sdkwork-drive-app-sdk",
         "surface": "app-api",
         "credentialMode": "authenticated-app-api"
       },
       {
-        "workspace": "sdkwork-iam-app-sdk-typescript",
+        "workspace": "sdkwork-iam-app-sdk",
         "surface": "app-api",
         "credentialMode": "authenticated-app-api"
-      },
-      {
-        "workspace": "sdkwork-messaging-app-sdk-typescript",
-        "surface": "open-api",
-        "credentialMode": "protected-open-api-flexible"
       }
     ],
     "permissionComposition": {
@@ -62,6 +74,12 @@
         "manifestRef": "../../../../../specs/iam.module.manifest.json"
       },
       "moduleCatalogRefs": [
+        {
+          "moduleId": "agents",
+          "manifestRef": "../../../../../../sdkwork-agents/specs/iam.module.manifest.json",
+          "inheritPermissions": true,
+          "inheritRoles": true
+        },
         {
           "moduleId": "drive",
           "manifestRef": "../../../../../../sdkwork-iam/iam/modules/drive/iam.module.manifest.json",
@@ -73,12 +91,6 @@
           "manifestRef": "../../../../../../sdkwork-iam/iam/modules/iam-kernel/iam.module.manifest.json",
           "inheritPermissions": true,
           "inheritRoles": false
-        },
-        {
-          "moduleId": "messaging",
-          "manifestRef": "../../../../../../sdkwork-iam/iam/modules/messaging/iam.module.manifest.json",
-          "inheritPermissions": true,
-          "inheritRoles": true
         },
         {
           "moduleId": "birdcoder",

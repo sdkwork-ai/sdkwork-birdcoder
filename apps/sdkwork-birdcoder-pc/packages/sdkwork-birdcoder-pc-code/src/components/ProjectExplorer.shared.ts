@@ -1,13 +1,13 @@
 import type { CSSProperties } from 'react';
-import type { BirdCoderCodingSession, BirdCoderProject } from '@sdkwork/birdcoder-pc-contracts-commons';
+import type { AgentSessionView, BirdCoderProject } from '@sdkwork/birdcoder-pc-contracts-commons';
 
 export interface ProjectExplorerProjectEntry {
   canShowMoreSessions: boolean;
-  filteredSessions: BirdCoderCodingSession[];
+  filteredSessions: AgentSessionView[];
   isLoadingMoreSessions: boolean;
   nextVisibleSessionCount: number;
   project: BirdCoderProject;
-  visibleSessions: BirdCoderCodingSession[];
+  visibleSessions: AgentSessionView[];
 }
 
 export type ProjectExplorerOrganizeBy = 'project' | 'chronological';

@@ -1,7 +1,0 @@
-{
-  "schemaVersion": 1,
-  "kind": "sdkwork.deployment-reference",
-  "application": "sdkwork-birdcoder-kernel-bridge",
-  "authority": "../../etc/sdkwork.deployment.config.json",
-  "supportedProfiles": ["standalone", "cloud"]
-}

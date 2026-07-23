@@ -1,7 +1,5 @@
 import React, { memo } from 'react';
 import { estimateChatMessageViewHeight } from '@sdkwork/birdcoder-pc-workbench/chat/types';
-import { BIRDCODER_CODE_ENGINE_KEYS } from '@sdkwork/birdcoder-pc-workbench/chat/types';
-import type { BirdCoderCodeEngineKey } from '@sdkwork/birdcoder-pc-workbench/chat/types';
 import type { ChatMessageRendererEntry, ChatMessageRendererProps } from '../types.ts';
 import { AssistantReplyMessageRenderer } from '../renderers/ReplyMessageRenderers.tsx';
 
@@ -12,7 +10,7 @@ const ENGINE_SURFACE_LABELS: Record<string, string> = {
   opencode: 'OpenCode',
 };
 
-function resolveEngineSurfaceLabel(engineId?: BirdCoderCodeEngineKey): string {
+function resolveEngineSurfaceLabel(engineId?: string): string {
   return engineId ? ENGINE_SURFACE_LABELS[engineId] ?? engineId : 'Engine';
 }
 
@@ -43,27 +41,27 @@ const EngineTaggedAssistantReplyMessageRenderer = memo(function EngineTaggedAssi
 });
 
 export function createEngineChatMessageRendererEntries(): ChatMessageRendererEntry[] {
-  return BIRDCODER_CODE_ENGINE_KEYS.flatMap((engineId) => [
+  return [
     {
-      id: `${engineId}.assistant.text`,
-      match: { viewKind: 'assistant.text', engineId },
+      id: 'agent-engine.assistant.text',
+      match: { viewKind: 'assistant.text' },
       priority: 30,
       Component: EngineTaggedAssistantReplyMessageRenderer,
       estimateHeight: estimateChatMessageViewHeight,
     },
     {
-      id: `${engineId}.assistant.activity`,
-      match: { viewKind: 'assistant.activity', engineId },
+      id: 'agent-engine.assistant.activity',
+      match: { viewKind: 'assistant.activity' },
       priority: 30,
       Component: EngineTaggedAssistantReplyMessageRenderer,
       estimateHeight: estimateChatMessageViewHeight,
     },
     {
-      id: `${engineId}.tool.result`,
-      match: { viewKind: 'tool.result', engineId },
+      id: 'agent-engine.tool.result',
+      match: { viewKind: 'tool.result' },
       priority: 30,
       Component: EngineTaggedAssistantReplyMessageRenderer,
       estimateHeight: estimateChatMessageViewHeight,
     },
-  ]);
+  ];
 }

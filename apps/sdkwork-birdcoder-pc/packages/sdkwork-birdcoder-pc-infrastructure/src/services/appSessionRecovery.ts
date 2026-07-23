@@ -2,7 +2,7 @@ import { refreshBirdCoderAppSessionNow } from './appSessionRefresh.ts';
 import {
   isBirdCoderSdkSessionAuthError,
   terminateBirdCoderAppSessionAfterRefreshFailure,
-} from './sdkClients.ts';
+} from './sdkSession.ts';
 
 export interface BirdCoderProtectedOperationRecoveryOptions {
   retryAfterRefresh?: boolean;

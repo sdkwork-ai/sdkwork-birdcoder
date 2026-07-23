@@ -27,6 +27,22 @@ for (const manifestPath of listSdkworkAppManifestPaths(rootDir)) {
     true,
     `${relativePath} metadata.preLaunch must remain true until real artifacts ship.`,
   );
+  assert.equal(
+    manifest.metadata?.releaseEvidence?.status,
+    'blocked',
+    `${relativePath} must not claim release readiness while production evidence is missing.`,
+  );
+  assert.deepEqual(
+    manifest.metadata?.releaseEvidence?.blockers,
+    [
+      'signed-production-artifact-evidence-missing',
+    ],
+    `${relativePath} must enumerate the active release blockers.`,
+  );
+  assert.equal(manifest.release?.defaultChannel, 'INTERNAL');
+  assert.equal(manifest.release?.latest?.INTERNAL, manifest.release?.currentVersion);
+  assert.equal(manifest.release?.notes?.filter((note) => note.current === true).length, 1);
+  assert.equal(manifest.release?.notes?.some((note) => 'publishedAt' in note), false);
 
   assert.equal(manifest.security?.checksumRequired, true, `${relativePath} must require checksums.`);
   assert.equal(manifest.security?.signatureRequired, true, `${relativePath} must require signatures.`);
@@ -54,6 +70,14 @@ for (const manifestPath of listSdkworkAppManifestPaths(rootDir)) {
       true,
       `${relativePath} package ${pkg.id} must declare artifactPending metadata.`,
     );
+    assert.equal(
+      pkg.metadata?.releaseBuildDeferred,
+      true,
+      `${relativePath} package ${pkg.id} must declare deferred pre-launch build evidence.`,
+    );
+    assert.equal(pkg.profileBinding, 'fixed');
+    assert.equal(typeof pkg.targetPlatform, 'string');
+    assert.equal(typeof pkg.clientArchitecture, 'string');
   }
 }
 

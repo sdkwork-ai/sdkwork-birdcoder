@@ -1,11 +1,11 @@
 export type {
-  BirdCoderChatMessageToolCall as ChatMessageToolCall,
-} from '@sdkwork/birdcoder-chat-contracts';
+  AgentSessionItemToolCallView as ChatMessageToolCall,
+} from './agent-session-view.ts';
 import type {
-  BirdCoderChatMessageToolCall as ChatMessageToolCall,
-  BirdCoderChatMessageToolCallKind,
-  BirdCoderChatMessageToolCallStatus,
-} from '@sdkwork/birdcoder-chat-contracts';
+  AgentSessionItemToolCallView as ChatMessageToolCall,
+  AgentSessionItemToolCallKind as AgentSessionItemToolCallKind,
+  AgentSessionItemToolCallStatus as AgentSessionItemToolCallStatus,
+} from './agent-session-view.ts';
 import {
   hasChatMessageToolErrorValue,
   hasStructuredChatMessageToolError,
@@ -13,7 +13,7 @@ import {
   resolveChatMessageToolCallResultBlocks,
 } from './chat-message-tool-results.ts';
 
-export interface ProjectChatMessageToolCallOptions {
+export interface NormalizeChatMessageToolCallOptions {
   engineId?: string;
   fallbackIdPrefix?: string;
 }
@@ -30,14 +30,14 @@ export const CHAT_MESSAGE_TOOL_PROTOCOL_ADAPTER_IDS = [
 export type ChatMessageToolProtocolAdapterId =
   (typeof CHAT_MESSAGE_TOOL_PROTOCOL_ADAPTER_IDS)[number];
 
-export interface ProjectChatMessageToolResultInput {
+export interface NormalizeChatMessageToolResultInput {
   content: string;
   id?: string;
   name?: string;
   status?: unknown;
 }
 
-export interface ProjectedChatMessageCommand {
+export interface NormalizedChatMessageCommand {
   command: string;
   status: 'running' | 'success' | 'error';
   output?: string;
@@ -47,7 +47,7 @@ export interface ProjectedChatMessageCommand {
   toolCallId: string;
 }
 
-export interface ProjectedChatMessageToolNotice {
+export interface NormalizedChatMessageToolNotice {
   content: string;
   description?: string;
   id: string;
@@ -92,7 +92,7 @@ interface GeminiToolDisplayContext {
   toolName: string;
 }
 
-interface GeminiToolDisplayResultProjection {
+interface GeminiToolDisplayResultView {
   blocks: readonly ChatMessageToolResultBlock[];
   semanticType?: 'agent';
   text: string;
@@ -923,7 +923,7 @@ function buildGeminiToolDisplayDiff(result: Record<string, unknown>): string {
 function projectGeminiToolDisplayResult(
   display: NormalizedGeminiToolDisplay,
   isError: boolean,
-): GeminiToolDisplayResultProjection {
+): GeminiToolDisplayResultView {
   const summary = boundGeminiToolDisplayText(
     display.resultSummary,
     MAX_GEMINI_TOOL_DISPLAY_SUMMARY_CHARACTERS,
@@ -1523,7 +1523,7 @@ function resolveToolCallKind(
   record: Record<string, unknown>,
   name: string,
   type: string,
-): BirdCoderChatMessageToolCallKind {
+): AgentSessionItemToolCallKind {
   const normalizedName = normalizeToolCallName(name);
   const normalizedSemanticName = normalizeToolCallName(
     readFirstString(record, ['semanticName', 'semantic_name']),
@@ -1589,7 +1589,7 @@ function resolveToolCallKind(
   return 'other';
 }
 
-function resolveToolCallStatus(record: Record<string, unknown>): BirdCoderChatMessageToolCallStatus | undefined {
+function resolveToolCallStatus(record: Record<string, unknown>): AgentSessionItemToolCallStatus | undefined {
   const stateRecord = readToolCallRecord(record.state);
   const stateMetadata = readToolCallRecord(stateRecord?.metadata);
   const rawStatus = readNonEmptyString(record.status)
@@ -1700,10 +1700,10 @@ function resolveSemanticArgument(
   return readFirstString(argumentsRecord, keys);
 }
 
-export function projectChatMessageToolCall(
+export function normalizeChatMessageToolCall(
   value: unknown,
   index: number,
-  options: ProjectChatMessageToolCallOptions = {},
+  options: NormalizeChatMessageToolCallOptions = {},
 ): ChatMessageToolCall | null {
   if (typeof value === 'string') {
     const content = value.trim();
@@ -1781,11 +1781,11 @@ export function projectChatMessageToolCall(
   };
 }
 
-export function projectChatMessageToolNotice(
+export function normalizeChatMessageToolNotice(
   value: unknown,
   index: number,
-  options: ProjectChatMessageToolCallOptions = {},
-): ProjectedChatMessageToolNotice | null {
+  options: NormalizeChatMessageToolCallOptions = {},
+): NormalizedChatMessageToolNotice | null {
   if (options.engineId?.trim().toLowerCase() !== 'gemini') {
     return null;
   }
@@ -1837,18 +1837,18 @@ export function projectChatMessageToolNotice(
   };
 }
 
-export function projectChatMessageToolNotices(
+export function normalizeChatMessageToolNotices(
   toolCalls: readonly unknown[] | undefined,
-  options: ProjectChatMessageToolCallOptions = {},
-): ProjectedChatMessageToolNotice[] {
+  options: NormalizeChatMessageToolCallOptions = {},
+): NormalizedChatMessageToolNotice[] {
   if (!toolCalls || toolCalls.length === 0) {
     return [];
   }
 
   const noticeOrder: string[] = [];
-  const noticesById = new Map<string, ProjectedChatMessageToolNotice>();
+  const noticesById = new Map<string, NormalizedChatMessageToolNotice>();
   toolCalls.forEach((toolCall, index) => {
-    const notice = projectChatMessageToolNotice(toolCall, index, options);
+    const notice = normalizeChatMessageToolNotice(toolCall, index, options);
     if (!notice) {
       return;
     }
@@ -1870,15 +1870,15 @@ export function projectChatMessageToolNotices(
   });
 }
 
-export function projectChatMessageToolResult(
-  input: ProjectChatMessageToolResultInput,
-  options: ProjectChatMessageToolCallOptions = {},
+export function normalizeChatMessageToolResult(
+  input: NormalizeChatMessageToolResultInput,
+  options: NormalizeChatMessageToolCallOptions = {},
 ): ChatMessageToolCall | null {
   if (!input.content.trim() && !input.name?.trim()) {
     return null;
   }
 
-  return projectChatMessageToolCall({
+  return normalizeChatMessageToolCall({
     id: input.id,
     type: 'tool_result',
     name: input.name ?? 'tool',
@@ -1887,9 +1887,9 @@ export function projectChatMessageToolResult(
   }, 0, options);
 }
 
-export function projectChatMessageCommand(
+export function normalizeChatMessageCommand(
   call: ChatMessageToolCall,
-): ProjectedChatMessageCommand | null {
+): NormalizedChatMessageCommand | null {
   if (call.presentation === 'notice' || call.kind !== 'command') {
     return null;
   }
@@ -1916,16 +1916,16 @@ export function projectChatMessageCommand(
   };
 }
 
-export function projectChatMessageToolCalls(
+export function normalizeChatMessageToolCalls(
   toolCalls: readonly unknown[] | undefined,
-  options: ProjectChatMessageToolCallOptions = {},
+  options: NormalizeChatMessageToolCallOptions = {},
 ): ChatMessageToolCall[] {
   if (!toolCalls || toolCalls.length === 0) {
     return [];
   }
 
   return toolCalls.flatMap((toolCall, index) => {
-    const projected = projectChatMessageToolCall(toolCall, index, options);
-    return projected ? [projected] : [];
+    const normalizedToolCall = normalizeChatMessageToolCall(toolCall, index, options);
+    return normalizedToolCall ? [normalizedToolCall] : [];
   });
 }

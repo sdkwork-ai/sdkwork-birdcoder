@@ -12,7 +12,6 @@ pub const DEFAULT_RATE_LIMIT_MAX_REQUESTS: u32 = 120;
 pub const DEFAULT_RATE_LIMIT_WINDOW_SECS: u64 = 60;
 const BIRDCODER_DATABASE_SERVICE: &str = "BIRDCODER";
 const CLAW_DATABASE_URL_ENV: &str = "SDKWORK_CLAW_DATABASE_URL";
-pub const PROVIDER_RUNNER_ROOT_ENV: &str = "SDKWORK_BIRDCODER_PROVIDER_RUNNER_ROOT";
 pub const DEPLOYMENT_PROFILE_ENV: &str = "SDKWORK_BIRDCODER_DEPLOYMENT_PROFILE";
 pub const ENVIRONMENT_ENV: &str = "SDKWORK_BIRDCODER_ENVIRONMENT";
 pub const RUNTIME_TARGET_ENV: &str = "SDKWORK_BIRDCODER_RUNTIME_TARGET";
@@ -30,11 +29,6 @@ pub const RUNTIME_LOCATION_FINGERPRINT_KEY_ENV: &str =
     "SDKWORK_BIRDCODER_RUNTIME_LOCATION_FINGERPRINT_KEY";
 pub const RETIRED_DEPLOYMENT_MODE_ENV: &str = "SDKWORK_DEPLOYMENT_MODE";
 pub const RETIRED_PUBLIC_DEPLOYMENT_MODE_ENV: &str = "VITE_SDKWORK_DEPLOYMENT_MODE";
-
-const LEGACY_SERVER_HOST_ENV: &str = "BIRDCODER_SERVER_HOST";
-const LEGACY_SERVER_PORT_ENV: &str = "BIRDCODER_SERVER_PORT";
-const LEGACY_DATABASE_FILE_ENV: &str = "BIRDCODER_CODING_SERVER_SQLITE_FILE";
-const LEGACY_ALLOWED_ORIGINS_ENV: &str = "BIRDCODER_CODING_SERVER_ALLOWED_ORIGINS";
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum BirdDeploymentProfile {
@@ -150,27 +144,6 @@ impl BirdRuntimeTarget {
             _ => Err(BirdServerConfigError::InvalidRuntimeTarget(
                 value.to_owned(),
             )),
-        }
-    }
-}
-
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub enum CodeExecutionCapability {
-    LocalHost,
-    UnavailableCloudRunner,
-    UnavailableNonLocalRuntime,
-}
-
-impl CodeExecutionCapability {
-    pub fn unavailable_reason(self) -> Option<&'static str> {
-        match self {
-            Self::LocalHost => None,
-            Self::UnavailableCloudRunner => Some(
-                "remote code execution is unavailable until a strongly isolated cloud runner is configured and verified.",
-            ),
-            Self::UnavailableNonLocalRuntime => Some(
-                "code execution is unavailable for non-local server and container runtimes without a strongly isolated runner.",
-            ),
         }
     }
 }
@@ -312,20 +285,16 @@ impl BirdServerConfig {
             .map(|value| parse_bind_address(&value))
             .transpose()?;
         let host = read_env(SERVER_HOST_ENV)
-            .or_else(|| read_env(LEGACY_SERVER_HOST_ENV))
             .or_else(|| ingress_bind.as_ref().map(|(host, _)| host.clone()))
             .unwrap_or_else(|| DEFAULT_HOST.to_string());
         let port: u16 = read_env(SERVER_PORT_ENV)
-            .or_else(|| read_env(LEGACY_SERVER_PORT_ENV))
             .and_then(|v| v.parse().ok())
             .or_else(|| ingress_bind.as_ref().map(|(_, port)| *port))
             .unwrap_or(DEFAULT_PORT);
         let sqlite_file = read_env(DATABASE_FILE_ENV)
-            .or_else(|| read_env(LEGACY_DATABASE_FILE_ENV))
             .map(PathBuf::from)
             .unwrap_or_else(|| PathBuf::from(DEFAULT_SQLITE_FILE));
         let allowed_origins = read_env(ALLOWED_ORIGINS_ENV)
-            .or_else(|| read_env(LEGACY_ALLOWED_ORIGINS_ENV))
             .map(|v| v.split(',').map(|s| s.trim().to_string()).collect())
             .unwrap_or_else(|| default_allowed_origins_for_host(&host));
         let project_root = std::env::var("BIRDCODER_LOCAL_BOOTSTRAP_PROJECT_ROOT").ok();
@@ -373,42 +342,6 @@ impl BirdServerConfig {
     pub fn resolved_database_engine(&self) -> String {
         let engine_key = format!("SDKWORK_{BIRDCODER_DATABASE_SERVICE}_DATABASE_ENGINE");
         std::env::var(&engine_key).unwrap_or_else(|_| "sqlite".to_string())
-    }
-
-    pub fn provider_runner_root(&self) -> Option<PathBuf> {
-        let configured_root = std::env::var_os(PROVIDER_RUNNER_ROOT_ENV)
-            .filter(|value| !value.is_empty())
-            .map(PathBuf::from)
-            .or_else(|| {
-                (self.code_execution_capability() == CodeExecutionCapability::LocalHost).then(
-                    || {
-                        self.sqlite_file
-                            .parent()
-                            .unwrap_or_else(|| Path::new("."))
-                            .join("project-workspaces")
-                    },
-                )
-            })?;
-        Some(resolve_runtime_path(configured_root))
-    }
-
-    pub fn code_execution_capability(&self) -> CodeExecutionCapability {
-        if self.deployment_profile == BirdDeploymentProfile::Cloud {
-            return CodeExecutionCapability::UnavailableCloudRunner;
-        }
-
-        if self.runtime_target == BirdRuntimeTarget::Desktop {
-            return CodeExecutionCapability::LocalHost;
-        }
-
-        if self.runtime_target == BirdRuntimeTarget::Server
-            && self.environment == BirdEnvironment::Development
-            && is_loopback_bind_host(&self.host)
-        {
-            return CodeExecutionCapability::LocalHost;
-        }
-
-        CodeExecutionCapability::UnavailableNonLocalRuntime
     }
 
     /// Reads deployment-secret key material only when the runtime-location
@@ -477,15 +410,6 @@ impl BirdServerConfig {
 
         Ok(())
     }
-}
-
-fn resolve_runtime_path(path: PathBuf) -> PathBuf {
-    if path.is_absolute() {
-        return path;
-    }
-    std::env::current_dir()
-        .map(|current_dir| current_dir.join(&path))
-        .unwrap_or(path)
 }
 
 fn read_env(key: &str) -> Option<String> {
@@ -654,39 +578,12 @@ pub fn default_loopback_browser_origins() -> Vec<String> {
 
 #[cfg(test)]
 mod tests {
-    use std::path::PathBuf;
-
     use super::{
         decode_runtime_location_master_key, default_allowed_origins_for_host,
         is_loopback_bind_host, is_safe_runtime_location_key_id, is_wildcard_bind_host,
         parse_bind_address, parse_runtime_location_previous_keys, BirdDeploymentProfile,
-        BirdEnvironment, BirdRuntimeTarget, BirdServerConfig, BirdServerConfigError,
-        CodeExecutionCapability, DEFAULT_RATE_LIMIT_ENABLED, DEFAULT_RATE_LIMIT_MAX_REQUESTS,
-        DEFAULT_RATE_LIMIT_WINDOW_SECS,
+        BirdEnvironment, BirdRuntimeTarget, BirdServerConfigError,
     };
-
-    use super::resolve_runtime_path;
-
-    fn config_for(
-        environment: BirdEnvironment,
-        deployment_profile: BirdDeploymentProfile,
-        runtime_target: BirdRuntimeTarget,
-        host: &str,
-    ) -> BirdServerConfig {
-        BirdServerConfig {
-            environment,
-            deployment_profile,
-            runtime_target,
-            host: host.to_owned(),
-            port: 0,
-            sqlite_file: PathBuf::from("target/test/birdcoder.sqlite"),
-            allowed_origins: Vec::new(),
-            project_root: None,
-            rate_limit_enabled: DEFAULT_RATE_LIMIT_ENABLED,
-            rate_limit_max_requests: DEFAULT_RATE_LIMIT_MAX_REQUESTS,
-            rate_limit_window_secs: DEFAULT_RATE_LIMIT_WINDOW_SECS,
-        }
-    }
 
     #[test]
     fn ipv4_loopback_127_0_0_1_is_loopback() {
@@ -780,63 +677,6 @@ mod tests {
         assert_eq!(BirdDeploymentProfile::Cloud.as_str(), "cloud");
         assert_eq!(BirdEnvironment::Production.as_str(), "production");
         assert_eq!(BirdRuntimeTarget::Container.as_str(), "container");
-    }
-
-    #[test]
-    fn runtime_paths_are_resolved_to_absolute_paths() {
-        assert!(resolve_runtime_path(PathBuf::from(".runtime/project-workspaces")).is_absolute());
-        let absolute = std::env::temp_dir().join("birdcoder-project-workspaces");
-        assert_eq!(resolve_runtime_path(absolute.clone()), absolute);
-    }
-
-    #[test]
-    fn cloud_profile_never_enables_the_process_local_provider_runner() {
-        let config = config_for(
-            BirdEnvironment::Production,
-            BirdDeploymentProfile::Cloud,
-            BirdRuntimeTarget::Container,
-            "0.0.0.0",
-        );
-
-        assert_eq!(
-            config.code_execution_capability(),
-            CodeExecutionCapability::UnavailableCloudRunner
-        );
-    }
-
-    #[test]
-    fn only_desktop_or_loopback_development_server_can_use_local_execution() {
-        let desktop = config_for(
-            BirdEnvironment::Production,
-            BirdDeploymentProfile::Standalone,
-            BirdRuntimeTarget::Desktop,
-            "127.0.0.1",
-        );
-        let local_development_server = config_for(
-            BirdEnvironment::Development,
-            BirdDeploymentProfile::Standalone,
-            BirdRuntimeTarget::Server,
-            "127.0.0.1",
-        );
-        let remote_windows_server = config_for(
-            BirdEnvironment::Production,
-            BirdDeploymentProfile::Standalone,
-            BirdRuntimeTarget::Server,
-            "0.0.0.0",
-        );
-
-        assert_eq!(
-            desktop.code_execution_capability(),
-            CodeExecutionCapability::LocalHost
-        );
-        assert_eq!(
-            local_development_server.code_execution_capability(),
-            CodeExecutionCapability::LocalHost
-        );
-        assert_eq!(
-            remote_windows_server.code_execution_capability(),
-            CodeExecutionCapability::UnavailableNonLocalRuntime
-        );
     }
 
     #[test]

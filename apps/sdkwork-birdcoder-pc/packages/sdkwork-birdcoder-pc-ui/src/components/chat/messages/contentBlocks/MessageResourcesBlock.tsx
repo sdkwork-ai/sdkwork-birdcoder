@@ -9,9 +9,9 @@ import {
   Sparkles,
 } from 'lucide-react';
 import type {
-  BirdCoderChatMessageResource,
+  AgentSessionItemResourceView,
 } from '@sdkwork/birdcoder-pc-workbench/chat/types';
-import { resolveBirdCoderChatMessageMediaSource } from '@sdkwork/birdcoder-pc-contracts-commons';
+import { resolveAgentSessionItemMediaSource } from '@sdkwork/birdcoder-pc-contracts-commons';
 import type { ChatMessageRenderContext } from '../types.ts';
 import type { ChatMessageContentBlockRendererProps } from './registry.ts';
 
@@ -25,18 +25,18 @@ const RESOURCE_ICON_BY_KIND = {
   uri: Link2,
 } as const;
 
-function resolveSafeMediaSource(resource: BirdCoderChatMessageResource): string | undefined {
+function resolveSafeMediaSource(resource: AgentSessionItemResourceView): string | undefined {
   if (resource.kind !== 'image' && resource.kind !== 'audio') {
     return undefined;
   }
-  return resolveBirdCoderChatMessageMediaSource(
+  return resolveAgentSessionItemMediaSource(
     resource.mediaSource,
     resource.kind,
     resource.mimeType,
   );
 }
 
-function resolveSafeExternalUri(resource: BirdCoderChatMessageResource): string | undefined {
+function resolveSafeExternalUri(resource: AgentSessionItemResourceView): string | undefined {
   for (const value of [resource.uri, resource.origin?.uri]) {
     const uri = value?.trim();
     if (uri && /^https?:\/\//iu.test(uri)) {
@@ -50,7 +50,7 @@ function isOpaqueMediaLocation(value: string | undefined): boolean {
   return Boolean(value && /^(?:data|blob):/iu.test(value.trim()));
 }
 
-function resolveOpenableFilePath(resource: BirdCoderChatMessageResource): string | undefined {
+function resolveOpenableFilePath(resource: AgentSessionItemResourceView): string | undefined {
   for (const value of [resource.path, resource.origin?.path]) {
     const path = value?.trim();
     if (path && !/^(?:data|blob|https?):/iu.test(path)) {
@@ -61,7 +61,7 @@ function resolveOpenableFilePath(resource: BirdCoderChatMessageResource): string
 }
 
 function resolveResourceKindLabel(
-  resource: BirdCoderChatMessageResource,
+  resource: AgentSessionItemResourceView,
   context: ChatMessageRenderContext,
 ): string {
   const labels = {
@@ -76,7 +76,7 @@ function resolveResourceKindLabel(
   return labels[resource.kind];
 }
 
-function formatLineLocation(resource: BirdCoderChatMessageResource): string {
+function formatLineLocation(resource: AgentSessionItemResourceView): string {
   const start = resource.citation?.lineStart ?? resource.origin?.lineStart;
   const end = resource.citation?.lineEnd ?? resource.origin?.lineEnd;
   if (start === undefined) {
@@ -85,7 +85,7 @@ function formatLineLocation(resource: BirdCoderChatMessageResource): string {
   return end !== undefined && end !== start ? `:${start}-${end}` : `:${start}`;
 }
 
-function resolvePrimaryLocation(resource: BirdCoderChatMessageResource): string {
+function resolvePrimaryLocation(resource: AgentSessionItemResourceView): string {
   return resolveOpenableFilePath(resource)
     ?? (!isOpaqueMediaLocation(resource.uri) ? resource.uri : undefined)
     ?? (!isOpaqueMediaLocation(resource.origin?.uri) ? resource.origin?.uri : undefined)
@@ -93,14 +93,14 @@ function resolvePrimaryLocation(resource: BirdCoderChatMessageResource): string 
 }
 
 function resolveResourceTitle(
-  resource: BirdCoderChatMessageResource,
+  resource: AgentSessionItemResourceView,
   kindLabel: string,
 ): string {
   const location = resolvePrimaryLocation(resource);
   return resource.name ?? resource.origin?.name ?? (location || kindLabel);
 }
 
-function buildResourceMetadata(resource: BirdCoderChatMessageResource): string[] {
+function buildResourceMetadata(resource: AgentSessionItemResourceView): string[] {
   const primaryLocation = resolvePrimaryLocation(resource);
   const metadata = [resource.mimeType];
   const originIdentity = resource.origin?.clientName ?? resource.origin?.name;

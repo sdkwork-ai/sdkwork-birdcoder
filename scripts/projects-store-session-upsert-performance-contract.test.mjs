@@ -7,11 +7,11 @@ const projectsStoreSource = fs.readFileSync(
 );
 
 const upsertBody = projectsStoreSource.match(
-  /export function upsertCodingSessionIntoCollection\([\s\S]*?\n\}/,
+  /export function upsertAgentSessionIntoCollection\([\s\S]*?\n\}/,
 )?.[0];
 assert.ok(
   upsertBody,
-  'projectsStore must expose a dedicated upsertCodingSessionIntoCollection helper.',
+  'projectsStore must expose a dedicated upsertAgentSessionIntoCollection helper.',
 );
 
 assert.match(
@@ -26,17 +26,17 @@ assert.doesNotMatch(
 );
 assert.match(
   upsertBody,
-  /const existingCodingSessionIndex = project\.codingSessions\.findIndex\(/,
+  /const existingAgentSessionIndex = project\.agentSessions\.findIndex\(/,
   'Single-session upserts must locate the target session once by index instead of combining filter and find scans.',
 );
 assert.doesNotMatch(
   upsertBody,
-  /project\.codingSessions\.filter\(/,
+  /project\.agentSessions\.filter\(/,
   'Single-session upserts must not allocate a full session filter result before inserting the clicked session transcript.',
 );
 
 const messageFilterBody = projectsStoreSource.match(
-  /function filterCodingSessionMessagesForStore\([\s\S]*?\n\}/,
+  /function filterAgentSessionItemsForStore\([\s\S]*?\n\}/,
 )?.[0];
 assert.ok(
   messageFilterBody,
@@ -49,16 +49,16 @@ assert.doesNotMatch(
 );
 assert.match(
   messageFilterBody,
-  /let scopedMessages: BirdCoderChatMessage\[\] \| null = null;/,
+  /let scopedMessages: AgentSessionItemView\[\] \| null = null;/,
   'projectsStore transcript filtering must stay allocation-free until the first out-of-scope message is actually found.',
 );
 
 const updateBody = projectsStoreSource.match(
-  /export function updateCodingSessionInCollection\([\s\S]*?\n\}/,
+  /export function updateAgentSessionInCollection\([\s\S]*?\n\}/,
 )?.[0];
 assert.ok(
   updateBody,
-  'projectsStore must expose a dedicated updateCodingSessionInCollection helper.',
+  'projectsStore must expose a dedicated updateAgentSessionInCollection helper.',
 );
 assert.match(
   updateBody,
@@ -72,21 +72,21 @@ assert.doesNotMatch(
 );
 assert.match(
   updateBody,
-  /const currentCodingSessionIndex = project\.codingSessions\.findIndex\(/,
+  /const currentAgentSessionIndex = project\.agentSessions\.findIndex\(/,
   'Hot selected-session mutations must locate the target session once by index.',
 );
 assert.doesNotMatch(
   updateBody,
-  /project\.codingSessions\.filter\(/,
+  /project\.agentSessions\.filter\(/,
   'Hot selected-session mutations must not allocate a full session filter result before replacing one session.',
 );
 
 const removeBody = projectsStoreSource.match(
-  /export function removeCodingSessionFromCollection\([\s\S]*?\n\}/,
+  /export function removeAgentSessionFromCollection\([\s\S]*?\n\}/,
 )?.[0];
 assert.ok(
   removeBody,
-  'projectsStore must expose a dedicated removeCodingSessionFromCollection helper.',
+  'projectsStore must expose a dedicated removeAgentSessionFromCollection helper.',
 );
 assert.match(
   removeBody,
@@ -100,12 +100,12 @@ assert.doesNotMatch(
 );
 assert.match(
   removeBody,
-  /const codingSessionIndex = project\.codingSessions\.findIndex\(/,
+  /const agentSessionIndex = project\.agentSessions\.findIndex\(/,
   'Session removal must locate the target session by index before mutating one project.',
 );
 assert.doesNotMatch(
   removeBody,
-  /project\.codingSessions\.filter\(/,
+  /project\.agentSessions\.filter\(/,
   'Session removal must not allocate a full filtered session array when only one session is removed.',
 );
 

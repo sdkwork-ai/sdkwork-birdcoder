@@ -1,346 +1,132 @@
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import fs from 'node:fs';
 
-const errorsSource = readFileSync(
-  new URL('../crates/sdkwork-birdcoder-errors/src/lib.rs', import.meta.url),
-  'utf8',
-);
-const codingSessionsErrorSource = readFileSync(
-  new URL('../crates/sdkwork-routes-coding-sessions-app-api/src/error.rs', import.meta.url),
-  'utf8',
-);
-const handlersSource = readFileSync(
-  new URL('../crates/sdkwork-routes-coding-sessions-app-api/src/handlers.rs', import.meta.url),
-  'utf8',
-);
-const sdkClientsSource = readFileSync(
-  new URL(
-    '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/src/services/sdkClients.ts',
-    import.meta.url,
-  ),
-  'utf8',
-);
+type Schema = {
+  allOf?: Array<{ $ref?: string } & Schema>;
+  items?: { $ref?: string };
+  properties?: Record<string, Schema>;
+  required?: string[];
+  type?: string;
+};
 
-assert.match(
-  errorsSource,
-  /SdkWorkProblemDetail|pub trace_id: String/,
-  'BirdCoder shared API errors must expose traceId on problem payloads.',
-);
-assert.match(
-  codingSessionsErrorSource,
-  /pub fn trace_service_error/,
-  'Coding session API errors must provide trace-aware service error mapping.',
-);
-assert.match(
-  errorsSource,
-  /trace_id_from_request_id/,
-  'BirdCoder shared API errors must expose request-id trace helpers.',
-);
-const workspaceErrorSource = readFileSync(
-  new URL('../crates/sdkwork-routes-workspace-app-api/src/error.rs', import.meta.url),
-  'utf8',
-);
-const workspaceHandlersSource = readFileSync(
-  new URL('../crates/sdkwork-routes-workspace-app-api/src/handlers.rs', import.meta.url),
-  'utf8',
-);
-const workspaceRequestMapperSource = readFileSync(
-  new URL('../crates/sdkwork-routes-workspace-app-api/src/mapper/request.rs', import.meta.url),
-  'utf8',
-);
-const projectPaginationSource = readFileSync(
-  new URL('../crates/sdkwork-birdcoder-project-service/src/pagination.rs', import.meta.url),
-  'utf8',
-);
-const SHARED_PROBLEM_PAYLOAD_PATTERN =
-  /sdkwork_birdcoder_errors::|traced_platform_problem|traced_problem_json|traced_legacy_problem|SdkWorkProblemDetail|ProblemDetailsPayload/;
+type Operation = {
+  operationId?: string;
+  parameters?: Array<{
+    in?: string;
+    name?: string;
+    schema?: { maximum?: number; minimum?: number; type?: string };
+  }>;
+  responses?: Record<string, {
+    content?: Record<string, { schema?: { $ref?: string } }>;
+  }>;
+  [key: string]: unknown;
+};
 
-assert.match(
-  workspaceErrorSource,
-  SHARED_PROBLEM_PAYLOAD_PATTERN,
-  'Workspace API errors must use shared problem payloads with traceId support.',
+const authorityUrl = new URL(
+  '../sdks/sdkwork-birdcoder-app-sdk/openapi/sdkwork-birdcoder-app-api.openapi.json',
+  import.meta.url,
 );
-assert.match(
-  workspaceHandlersSource,
-  /request_trace_id\(&web\)/,
-  'Workspace handlers must attach request trace IDs to error responses.',
-);
-assert.match(
-  errorsSource,
-  /pub mod envelope;/,
-  'BirdCoder shared API errors must expose canonical list/data envelope builders.',
-);
-assert.match(
-  workspaceHandlersSource,
-  /build_offset_list_envelope\(/,
-  'Workspace list handlers must return canonical BirdCoder list envelopes.',
-);
-assert.match(
-  handlersSource,
-  /build_offset_list_envelope\(/,
-  'Coding session list handlers must return canonical BirdCoder list envelopes.',
-);
-assert.match(
-  handlersSource,
-  /build_data_envelope\(/,
-  'Coding session mutation handlers must return canonical BirdCoder data envelopes.',
-);
-assert.doesNotMatch(
-  handlersSource,
-  /ApiListResponse/,
-  'Coding session handlers must not return legacy { data, total } list payloads.',
-);
-assert.match(
-  handlersSource,
-  /trace_service_error\(/,
-  'Coding session handlers must attach request trace IDs to AppError responses.',
+const document = JSON.parse(fs.readFileSync(authorityUrl, 'utf8')) as {
+  components?: { schemas?: Record<string, Schema> };
+  info?: { title?: string };
+  openapi?: string;
+  paths?: Record<string, Record<string, Operation>>;
+  'x-sdkwork-api-authority'?: string;
+  'x-sdkwork-owner'?: string;
+};
+
+assert.equal(document.openapi, '3.1.0');
+assert.equal(document.info?.title, 'SDKWork BirdCoder App API');
+assert.equal(document['x-sdkwork-api-authority'], 'sdkwork-birdcoder-app-api');
+assert.equal(document['x-sdkwork-owner'], 'sdkwork-birdcoder');
+
+const httpMethods = new Set(['delete', 'get', 'head', 'options', 'patch', 'post', 'put']);
+const operations = Object.entries(document.paths ?? {}).flatMap(([apiPath, pathItem]) =>
+  Object.entries(pathItem)
+    .filter(([method]) => httpMethods.has(method))
+    .map(([method, operation]) => ({ apiPath, method, operation })),
 );
 
-const strictOffsetRouteContracts = [
-  ['workspace-app-api', workspaceHandlersSource, workspaceRequestMapperSource, 9],
-  [
-    'deployment-backend-api',
-    readFileSync(
-      new URL('../crates/sdkwork-routes-deployment-backend-api/src/handlers.rs', import.meta.url),
-      'utf8',
-    ),
-    readFileSync(
-      new URL(
-        '../crates/sdkwork-routes-deployment-backend-api/src/mapper/request.rs',
-        import.meta.url,
-      ),
-      'utf8',
-    ),
-    5,
-  ],
-  [
-    'commerce-app-api',
-    readFileSync(
-      new URL('../crates/sdkwork-routes-commerce-app-api/src/handlers.rs', import.meta.url),
-      'utf8',
-    ),
-    readFileSync(
-      new URL('../crates/sdkwork-routes-commerce-app-api/src/mapper/request.rs', import.meta.url),
-      'utf8',
-    ),
-    3,
-  ],
-  [
-    'chat-app-api',
-    readFileSync(
-      new URL('../crates/sdkwork-routes-chat-app-api/src/handlers.rs', import.meta.url),
-      'utf8',
-    ),
-    readFileSync(
-      new URL('../crates/sdkwork-routes-chat-app-api/src/mapper/request.rs', import.meta.url),
-      'utf8',
-    ),
-    2,
-  ],
-  [
-    'skill-packages-app-api',
-    readFileSync(
-      new URL('../crates/sdkwork-routes-skill-packages-app-api/src/handlers.rs', import.meta.url),
-      'utf8',
-    ),
-    readFileSync(
-      new URL(
-        '../crates/sdkwork-routes-skill-packages-app-api/src/mapper/request.rs',
-        import.meta.url,
-      ),
-      'utf8',
-    ),
-    2,
-  ],
-  [
-    'document-app-api',
-    readFileSync(
-      new URL('../crates/sdkwork-routes-document-app-api/src/handlers.rs', import.meta.url),
-      'utf8',
-    ),
-    readFileSync(
-      new URL('../crates/sdkwork-routes-document-app-api/src/mapper/request.rs', import.meta.url),
-      'utf8',
-    ),
-    1,
-  ],
-] as const;
+assert.equal(operations.length, 39, 'BirdCoder App API must contain exactly 39 application-owned operations.');
 
-for (const [crate, routeHandlersSource, requestMapperSource, expectedListHandlers] of
-  strictOffsetRouteContracts) {
-  const strictExtractorCount =
-    routeHandlersSource.match(
-      /StrictOffsetListQuery\(pagination\): StrictOffsetListQuery/g,
-    )?.length ?? 0;
+const routeKeys = new Set<string>();
+const operationIds = new Set<string>();
+for (const { apiPath, method, operation } of operations) {
+  const routeKey = `${method.toUpperCase()} ${apiPath}`;
+  const operationId = String(operation.operationId ?? '');
+  assert.ok(apiPath.startsWith('/app/v3/api/'), `${routeKey} must use the App API v3 prefix.`);
+  assert.equal(operation['x-sdkwork-owner'], 'sdkwork-birdcoder', `${routeKey} owner drifted.`);
   assert.equal(
-    strictExtractorCount,
-    expectedListHandlers,
-    `${crate} must reject invalid pagination through StrictOffsetListQuery before repository access.`,
+    operation['x-sdkwork-api-authority'],
+    'sdkwork-birdcoder-app-api',
+    `${routeKey} authority drifted.`,
   );
-  assert.doesNotMatch(
-    routeHandlersSource,
-    /\.normalized_pagination\(\)/,
-    `${crate} handlers must not silently clamp HTTP pagination.`,
-  );
-  assert.doesNotMatch(
-    requestMapperSource,
-    /normalize_page_list_query|normalized_pagination/,
-    `${crate} request mappers must receive validated pagination from the shared HTTP extractor.`,
-  );
-  assert.doesNotMatch(
-    routeHandlersSource,
-    /usize::try_from\(total\)\.unwrap_or\(0\)/,
-    `${crate} list handlers must not turn an invalid repository total into a successful zero-total page.`,
-  );
+  assert.equal(operation['x-sdkwork-api-surface'], 'app-api', `${routeKey} surface drifted.`);
+  assert.ok(operationId, `${routeKey} must declare operationId.`);
+  assert.equal(routeKeys.has(routeKey), false, `Duplicate route: ${routeKey}.`);
+  assert.equal(operationIds.has(operationId), false, `Duplicate operationId: ${operationId}.`);
+  routeKeys.add(routeKey);
+  operationIds.add(operationId);
 }
 
-assert.doesNotMatch(
-  projectPaginationSource,
-  /pub fn normalize_page_list_query/,
-  'Project service must not expose an HTTP page normalizer that silently clamps invalid input.',
-);
-assert.doesNotMatch(
-  workspaceHandlersSource,
-  /paginate_vec\(/,
-  'Workspace list handlers must not use the removed in-memory paginate_vec helper (PAGINATION_SPEC.md §2 forbids in-memory skip/take).',
-);
-assert.match(
-  sdkClientsSource,
-  /DEFAULT_SDK_PAGE_SIZE = 20/,
-  'SDK list clients must apply the server-aligned default page size.',
-);
-assert.match(
-  sdkClientsSource,
-  /withDefaultPageSize\(request\)/,
-  'Paginated SDK list queries must apply the default page_size helper.',
-);
-assert.match(
-  sdkClientsSource,
-  /withDefaultPageSize\(options\)/,
-  'Workspace and project SDK list queries must apply the default page_size helper.',
-);
-
-const openApiSource = readFileSync(
-  new URL(
-    '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-server/src/openApiOperationDefinitions.ts',
-    import.meta.url,
-  ),
-  'utf8',
-);
-assert.match(
-  openApiSource,
-  /'workspaces\.list':[\s\S]*pageParameter[\s\S]*pageSizeParameter/,
-  'OpenAPI workspaces.list must document page and page_size query parameters.',
-);
-assert.match(
-  sdkClientsSource,
-  /toGeneratedPageQuery\(options\)/,
-  'Deployment and collaborator SDK list queries must apply the default page_size helper.',
-);
-assert.match(
-  openApiSource,
-  /'deployments\.list':[\s\S]*pageParameter[\s\S]*pageSizeParameter/,
-  'OpenAPI deployments.list must document page and page_size query parameters.',
-);
-assert.match(
-  openApiSource,
-  /'projects\.list':[\s\S]*pageParameter[\s\S]*pageSizeParameter/,
-  'OpenAPI projects.list must document page and page_size query parameters.',
-);
-assert.match(
-  openApiSource,
-  /'documents\.list':[\s\S]*projectIdParameter[\s\S]*pageParameter[\s\S]*pageSizeParameter/,
-  'OpenAPI documents.list must document projectId, page, and page_size query parameters.',
-);
-assert.doesNotMatch(
-  openApiSource,
-  /const limitParameter|const offsetParameter/,
-  'OpenAPI source must not keep pre-launch limit/offset HTTP query parameter aliases.',
-);
-
-const authBootstrapSource = readFileSync(
-  new URL('../crates/sdkwork-api-birdcoder-standalone-gateway/src/bootstrap/auth.rs', import.meta.url),
-  'utf8',
-);
-
-assert.match(
-  authBootstrapSource,
-  /validate_public_path_prefixes\(&birdcoder_public_path_prefixes\(\)\)/u,
-  'BirdCoder API bootstrap must validate route manifest public prefixes before serving traffic.',
-);
-assert.doesNotMatch(
-  authBootstrapSource,
-  /validate_public_path_prefixes\(&birdcoder_public_path_prefixes\(\)\)\s*\.expect\(/u,
-  'BirdCoder API bootstrap must not panic on route manifest public prefix validation failures.',
-);
-
-const alignedRouterCrates = [
-  'document-app-api',
-  'system-app-api',
-  'engine-catalog-app-api',
-  'skill-packages-app-api',
-  'deployment-backend-api',
-] as const;
-
-for (const crate of alignedRouterCrates) {
-  const errorSource = readFileSync(
-    new URL(`../crates/sdkwork-routes-${crate}/src/error.rs`, import.meta.url),
-    'utf8',
-  );
-  const handlersSource = readFileSync(
-    new URL(`../crates/sdkwork-routes-${crate}/src/handlers.rs`, import.meta.url),
-    'utf8',
-  );
-
-  assert.match(
-    errorSource,
-    SHARED_PROBLEM_PAYLOAD_PATTERN,
-    `${crate} errors must use shared problem payloads with traceId support.`,
-  );
-  assert.match(
-    handlersSource,
-    /request_trace_id\(&web\)/,
-    `${crate} handlers must attach request trace IDs to error responses.`,
-  );
-  assert.match(
-    handlersSource,
-    /build_(data|list|offset_list)_envelope\(/,
-    `${crate} handlers must return canonical BirdCoder API envelopes.`,
-  );
-  assert.doesNotMatch(
-    handlersSource,
-    /json!\(\{\s*"items":/,
-    `${crate} handlers must not return legacy bare { items } list payloads.`,
-  );
-  assert.doesNotMatch(
-    errorSource,
-    /#\[derive\(Serialize\)\][\s\S]*pub struct ProblemDetailsPayload/,
-    `${crate} must not define a local ProblemDetailsPayload struct.`,
-  );
+const schemas = document.components?.schemas ?? {};
+const pageInfo = schemas.PageInfo;
+assert.ok(pageInfo, 'App API authority must declare PageInfo.');
+assert.deepEqual(pageInfo.properties?.mode?.type, 'string');
+for (const field of ['page', 'pageSize', 'totalItems', 'totalPages', 'hasMore', 'nextCursor']) {
+  assert.ok(pageInfo.properties?.[field], `PageInfo must declare ${field}.`);
 }
 
-const systemHandlersSource = readFileSync(
-  new URL('../crates/sdkwork-routes-system-app-api/src/handlers.rs', import.meta.url),
-  'utf8',
-);
-const systemManifestSource = readFileSync(
-  new URL('../crates/sdkwork-routes-system-app-api/src/manifest.rs', import.meta.url),
-  'utf8',
-);
-assert.match(
-  systemHandlersSource,
-  /RequiredIamContext/,
-  'System handlers must require authenticated IAM context.',
-);
-assert.match(
-  systemManifestSource,
-  /HttpRoute::dual_token/,
-  'System route manifest must declare dual_token auth instead of legacy public routes.',
-);
-assert.doesNotMatch(
-  systemManifestSource,
-  /HttpRoute::public\(/,
-  'System route manifest must not expose legacy public HttpRoute entries.',
-);
+const boundedListOperationIds = new Set(['routes.list']);
+const listOperations = operations.filter(({ operation }) => operation.operationId?.endsWith('.list'));
+assert.equal(listOperations.length, 6, 'App API must expose the six declared list operations.');
 
-console.log('api observability and pagination contract passed.');
+for (const { apiPath, method, operation } of listOperations) {
+  const operationId = String(operation.operationId);
+  const queryParameters = (operation.parameters ?? []).filter((parameter) => parameter.in === 'query');
+  const queryParameterNames = queryParameters.map((parameter) => parameter.name);
+
+  if (boundedListOperationIds.has(operationId)) {
+    assert.deepEqual(
+      queryParameterNames,
+      [],
+      `${operationId} is the bounded runtime route catalog and must not expose fake pagination inputs.`,
+    );
+  } else {
+    assert.ok(queryParameterNames.includes('page'), `${operationId} must declare page.`);
+    assert.ok(queryParameterNames.includes('page_size'), `${operationId} must declare page_size.`);
+    assert.equal(
+      queryParameters.find((parameter) => parameter.name === 'page_size')?.schema?.maximum,
+      200,
+      `${operationId} page_size must be capped at 200.`,
+    );
+    assert.equal(
+      queryParameterNames.some((name) => ['limit', 'pageSize', 'page_no', 'pageNo', 'size'].includes(name ?? '')),
+      false,
+      `${operationId} must not expose a pagination alias.`,
+    );
+  }
+
+  const successRef = operation.responses?.['200']?.content?.['application/json']?.schema?.$ref;
+  const envelopeName = successRef?.split('/').at(-1) ?? '';
+  assert.match(envelopeName, /ListEnvelope$/u, `${operationId} must return a typed ListEnvelope.`);
+
+  const envelope = schemas[envelopeName];
+  assert.ok(
+    envelope?.allOf?.some((entry) => entry.$ref === '#/components/schemas/SdkWorkApiResponse'),
+    `${operationId} ListEnvelope must compose SdkWorkApiResponse.`,
+  );
+  const dataSchema = envelope?.allOf?.find((entry) => entry.properties?.data)?.properties?.data;
+  assert.equal(dataSchema?.properties?.items?.type, 'array', `${operationId} data.items must be an array.`);
+  assert.equal(
+    dataSchema?.properties?.pageInfo?.$ref,
+    '#/components/schemas/PageInfo',
+    `${operationId} data.pageInfo must use PageInfo.`,
+  );
+  assert.ok(dataSchema?.required?.includes('items'), `${operationId} must require data.items.`);
+  assert.ok(dataSchema?.required?.includes('pageInfo'), `${operationId} must require data.pageInfo.`);
+  assert.equal(method, 'get', `${operationId} list operation must use GET.`);
+  assert.ok(apiPath.startsWith('/app/v3/api/'));
+}
+
+console.log('App API authority, observability and pagination contract passed.');

@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 
 const hookSource = fs.readFileSync(
-  new URL('../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-workbench/src/hooks/useSelectedCodingSessionMessages.ts', import.meta.url),
+  new URL('../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-workbench/src/hooks/useSelectedAgentSessionItems.ts', import.meta.url),
   'utf8',
 );
 
@@ -45,7 +45,7 @@ assert.doesNotMatch(
 
 assert.match(
   hookSource,
-  /const selectedSessionWorkspaceId =[\s\S]*normalizedSelectedProjectWorkspaceId[\s\S]*normalizedSelectedCodingSessionWorkspaceId[\s\S]*workspaceId/s,
+  /const selectedSessionWorkspaceId =[\s\S]*normalizedSelectedProjectWorkspaceId[\s\S]*normalizedSelectedAgentSessionWorkspaceId[\s\S]*workspaceId/s,
   'Selected-session hydration must resolve the selected workspace before deciding whether realtime can own transcript updates.',
 );
 
@@ -63,7 +63,7 @@ assert.match(
 
 assert.match(
   hookSource,
-  /const fallbackRefreshDelay =\s*\(isSelectedCodingSessionExecuting \|\| hasSelectedCodingSessionPendingReply\)[\s\S]*SELECTED_SESSION_REALTIME_FALLBACK_EXECUTING_REFRESH_INTERVAL_MS[\s\S]*SELECTED_SESSION_REALTIME_FALLBACK_IDLE_REFRESH_INTERVAL_MS/s,
+  /const fallbackRefreshDelay =\s*\(isSelectedAgentSessionExecuting \|\| hasSelectedAgentSessionPendingReply\)[\s\S]*SELECTED_SESSION_REALTIME_FALLBACK_EXECUTING_REFRESH_INTERVAL_MS[\s\S]*SELECTED_SESSION_REALTIME_FALLBACK_IDLE_REFRESH_INTERVAL_MS/s,
   'When realtime is unavailable, selected-session hydration should use slow authority fallback intervals based on active/pending transcript state.',
 );
 
@@ -94,7 +94,7 @@ assert.match(
 
 assert.doesNotMatch(
   hookSource,
-  /selectedCodingSessionSynchronizationVersion/,
+  /selectedAgentSessionSynchronizationVersion/,
   'Selected-session hydration must not rerun authoritative message reads for every realtime transcript mutation.',
 );
 

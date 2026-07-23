@@ -3,41 +3,36 @@ import {
   createAgentsAppSdkClient,
   type AgentsAppSdkClient,
 } from '@sdkwork/birdcoder-pc-core/sdk';
-import { BIRDCODER_DEFAULT_LOCAL_API_BASE_URL } from '@sdkwork/birdcoder-pc-host-core';
+import { getBirdCoderGlobalTokenManager } from '@sdkwork/birdcoder-pc-core/appSessionTokenManager';
 import { getDefaultBirdCoderIdeServicesRuntimeConfig } from './defaultIdeServicesRuntime.ts';
+import { resolveBirdCoderPlatformSdkBaseUrl } from './sdkBaseUrls.ts';
+import { bindBirdCoderSdkSessionErrorHandler } from './sdkSessionErrorHandler.ts';
 
 export interface BirdCoderAgentsAppSdkClientOptions {
-  apiBaseUrl?: string;
+  platformApiGatewayBaseUrl?: string;
   tokenManager?: AuthTokenManager;
 }
 
 let agentsAppClient: AgentsAppSdkClient | null = null;
 
-function resolveAgentsAppApiBaseUrl(explicit?: string): string {
-  const normalized = explicit?.trim();
-  if (normalized) {
-    return normalized;
-  }
-
-  const runtimeConfig = getDefaultBirdCoderIdeServicesRuntimeConfig();
-  return runtimeConfig.apiBaseUrl ?? BIRDCODER_DEFAULT_LOCAL_API_BASE_URL;
-}
-
 export function createBirdCoderAgentsAppSdkClient(
   options: BirdCoderAgentsAppSdkClientOptions = {},
 ): AgentsAppSdkClient {
-  return createAgentsAppSdkClient({
+  const runtimeConfig = getDefaultBirdCoderIdeServicesRuntimeConfig();
+  return bindBirdCoderSdkSessionErrorHandler(createAgentsAppSdkClient({
     authMode: 'dual-token',
-    baseUrl: resolveAgentsAppApiBaseUrl(options.apiBaseUrl),
+    baseUrl: resolveBirdCoderPlatformSdkBaseUrl(
+      options.platformApiGatewayBaseUrl ?? runtimeConfig.platformApiGatewayBaseUrl,
+    ),
     platform: 'pc',
-    tokenManager: options.tokenManager,
-  });
+    tokenManager: options.tokenManager ?? getBirdCoderGlobalTokenManager(),
+  }));
 }
 
 export function getBirdCoderAgentsAppSdkClient(
   options: BirdCoderAgentsAppSdkClientOptions = {},
 ): AgentsAppSdkClient {
-  if (options.apiBaseUrl || options.tokenManager) {
+  if (options.platformApiGatewayBaseUrl || options.tokenManager) {
     return createBirdCoderAgentsAppSdkClient(options);
   }
 

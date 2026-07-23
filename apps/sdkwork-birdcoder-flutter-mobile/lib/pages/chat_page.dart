@@ -1,11 +1,10 @@
 import 'package:flutter/material.dart';
-import 'package:sdkwork_birdcoder_flutter_mobile_chat/sdkwork_birdcoder_flutter_mobile_chat.dart';
 import 'package:sdkwork_birdcoder_flutter_mobile_core/sdkwork_birdcoder_flutter_mobile_core.dart';
 
 import '../l10n/generated/app_localizations.dart';
 import '../providers/app_provider.dart';
 
-/// Mobile chat surface wired through the BirdCoder app SDK chat conversation API.
+/// Mobile assistant surface backed by Agents Session, Turn, and SessionItem.
 class ChatPage extends StatefulWidget {
   const ChatPage({super.key});
 
@@ -17,13 +16,15 @@ class _ChatPageState extends State<ChatPage> {
   final TextEditingController _inputController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
   final FocusNode _inputFocusNode = FocusNode();
-  final List<ChatMessage> _messages = <ChatMessage>[];
-  String? _conversationId;
+  final List<BirdCoderAgentSessionItemView> _sessionItems =
+      <BirdCoderAgentSessionItemView>[];
+  String? _sessionId;
   bool _isLoadingHistory = false;
   bool _isSending = false;
   String? _lastError;
 
-  BirdCoderFlutterSdkClients get _sdkClients => AppProvider.of(context).sdkClients;
+  BirdCoderFlutterSdkClients get _sdkClients =>
+      AppProvider.of(context).sdkClients;
 
   @override
   void initState() {
@@ -41,35 +42,30 @@ class _ChatPageState extends State<ChatPage> {
     super.dispose();
   }
 
-  DateTime _parseTimestamp(String value) {
-    return DateTime.tryParse(value) ?? DateTime.now();
-  }
-
-  ChatMessage _toChatMessage(BirdCoderMobileChatMessageRecord record) {
-    return ChatMessage(
-      id: record.id,
-      role: record.role,
-      content: record.content,
-      timestamp: _parseTimestamp(record.createdAt),
-    );
-  }
-
   Future<void> _loadHistory() async {
     setState(() {
       _isLoadingHistory = true;
       _lastError = null;
     });
     try {
-      final id = await ensureBirdCoderMobileChatConversation(_sdkClients);
-      final history = await listBirdCoderMobileChatMessages(_sdkClients, id);
+      final session = await ensureBirdCoderAssistantSession(_sdkClients);
+      final latestPage = session.itemCount == 0
+          ? 1
+          : (session.itemCount + birdCoderAssistantSessionPageSize - 1) ~/
+              birdCoderAssistantSessionPageSize;
+      final items = await listBirdCoderAssistantSessionItems(
+        _sdkClients,
+        session.sessionId,
+        page: latestPage,
+      );
       if (!mounted) {
         return;
       }
       setState(() {
-        _conversationId = id;
-        _messages
+        _sessionId = session.sessionId;
+        _sessionItems
           ..clear()
-          ..addAll(history.map(_toChatMessage));
+          ..addAll(items);
         _isLoadingHistory = false;
       });
       _scrollToBottom();
@@ -84,10 +80,10 @@ class _ChatPageState extends State<ChatPage> {
     }
   }
 
-  Future<void> _sendMessage() async {
+  Future<void> _sendTurn() async {
     final text = _inputController.text.trim();
-    final conversationId = _conversationId;
-    if (text.isEmpty || _isSending || conversationId == null) {
+    final sessionId = _sessionId;
+    if (text.isEmpty || _isSending || sessionId == null) {
       return;
     }
 
@@ -99,19 +95,19 @@ class _ChatPageState extends State<ChatPage> {
     _inputFocusNode.requestFocus();
 
     try {
-      await sendBirdCoderMobileChatMessage(
+      final completedItems = await submitBirdCoderAssistantTurn(
         _sdkClients,
-        conversationId,
+        sessionId,
         text,
       );
-      final history = await listBirdCoderMobileChatMessages(_sdkClients, conversationId);
       if (!mounted) {
         return;
       }
+      final mergedItems = _mergeSessionItems(_sessionItems, completedItems);
       setState(() {
-        _messages
+        _sessionItems
           ..clear()
-          ..addAll(history.map(_toChatMessage));
+          ..addAll(mergedItems);
         _isSending = false;
       });
       _scrollToBottom();
@@ -121,10 +117,26 @@ class _ChatPageState extends State<ChatPage> {
       }
       final l10n = AppLocalizations.of(context)!;
       setState(() {
-        _lastError = l10n.chat_send_failed;
+        if (_inputController.text.isEmpty) {
+          _inputController.text = text;
+        }
+        _lastError = l10n.agent_session_send_failed;
         _isSending = false;
       });
     }
+  }
+
+  List<BirdCoderAgentSessionItemView> _mergeSessionItems(
+    Iterable<BirdCoderAgentSessionItemView> current,
+    Iterable<BirdCoderAgentSessionItemView> incoming,
+  ) {
+    final itemsById = <String, BirdCoderAgentSessionItemView>{
+      for (final item in current) item.itemId: item,
+      for (final item in incoming) item.itemId: item,
+    };
+    final merged = itemsById.values.toList(growable: false)
+      ..sort((left, right) => left.sequence.compareTo(right.sequence));
+    return merged;
   }
 
   void _scrollToBottom() {
@@ -140,8 +152,7 @@ class _ChatPageState extends State<ChatPage> {
     });
   }
 
-  bool _isUserMessage(ChatMessage message) =>
-      message.role == 'user' || message.role.startsWith('user.');
+  bool _isUserItem(BirdCoderAgentSessionItemView item) => item.role == 'user';
 
   @override
   Widget build(BuildContext context) {
@@ -152,7 +163,7 @@ class _ChatPageState extends State<ChatPage> {
         Expanded(
           child: _isLoadingHistory
               ? _buildLoading(theme, l10n)
-              : _messages.isEmpty
+              : _sessionItems.isEmpty
                   ? _buildEmpty(theme, l10n)
                   : ListView.builder(
                       controller: _scrollController,
@@ -160,11 +171,11 @@ class _ChatPageState extends State<ChatPage> {
                         horizontal: 16,
                         vertical: 12,
                       ),
-                      itemCount: _messages.length,
+                      itemCount: _sessionItems.length,
                       itemBuilder: (BuildContext context, int index) =>
-                          _ChatMessageBubble(
-                        message: _messages[index],
-                        isUser: _isUserMessage(_messages[index]),
+                          _AgentSessionItemBubble(
+                        item: _sessionItems[index],
+                        isUser: _isUserItem(_sessionItems[index]),
                       ),
                     ),
         ),
@@ -180,7 +191,10 @@ class _ChatPageState extends State<ChatPage> {
           children: <Widget>[
             const CircularProgressIndicator(),
             const SizedBox(height: 12),
-            Text(l10n.chat_loading_history, style: theme.textTheme.bodyMedium),
+            Text(
+              l10n.agent_session_loading_items,
+              style: theme.textTheme.bodyMedium,
+            ),
           ],
         ),
       );
@@ -189,7 +203,7 @@ class _ChatPageState extends State<ChatPage> {
         child: Padding(
           padding: const EdgeInsets.all(24),
           child: Text(
-            l10n.chat_empty,
+            l10n.agent_session_empty,
             textAlign: TextAlign.center,
             style: theme.textTheme.bodyMedium
                 ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
@@ -232,7 +246,7 @@ class _ChatPageState extends State<ChatPage> {
 
   Widget _buildComposer(ThemeData theme, AppLocalizations l10n) {
     final bottomInset = MediaQuery.viewInsetsOf(context).bottom;
-    final canSend = _conversationId != null && !_isSending;
+    final canSend = _sessionId != null && !_isSending;
     return SafeArea(
       top: false,
       child: Padding(
@@ -249,18 +263,18 @@ class _ChatPageState extends State<ChatPage> {
                 maxLines: 5,
                 enabled: canSend,
                 decoration: InputDecoration(
-                  hintText: l10n.chat_input_placeholder,
+                  hintText: l10n.agent_session_input_placeholder,
                   border: const OutlineInputBorder(),
                   filled: true,
                   fillColor: theme.colorScheme.surfaceContainerHighest,
                 ),
-                onSubmitted: (_) => _sendMessage(),
+                onSubmitted: (_) => _sendTurn(),
               ),
             ),
             const SizedBox(width: 8),
             IconButton.filled(
-              tooltip: l10n.chat_send,
-              onPressed: canSend ? _sendMessage : null,
+              tooltip: l10n.agent_session_send,
+              onPressed: canSend ? _sendTurn : null,
               icon: _isSending
                   ? SizedBox(
                       width: 18,
@@ -279,10 +293,10 @@ class _ChatPageState extends State<ChatPage> {
   }
 }
 
-class _ChatMessageBubble extends StatelessWidget {
-  const _ChatMessageBubble({required this.message, required this.isUser});
+class _AgentSessionItemBubble extends StatelessWidget {
+  const _AgentSessionItemBubble({required this.item, required this.isUser});
 
-  final ChatMessage message;
+  final BirdCoderAgentSessionItemView item;
   final bool isUser;
 
   @override
@@ -313,7 +327,7 @@ class _ChatMessageBubble extends StatelessWidget {
             ),
           ),
           child: Text(
-            message.content,
+            item.content,
             style: theme.textTheme.bodyMedium?.copyWith(color: textColor),
           ),
         ),

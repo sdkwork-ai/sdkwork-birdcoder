@@ -1,223 +1,56 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import type {
-  BirdCoderEngineAccessLane,
-  BirdCoderEngineAccessPlan,
-  BirdCoderEngineOfficialIntegration,
-} from '@sdkwork/birdcoder-pc-contracts-commons';
+
 import {
-  BIRDCODER_STANDARD_DEFAULT_ENGINE_ID,
-  getWorkbenchCodeEngineKernel,
-  listWorkbenchCodeEngines,
+  loadWorkbenchCodeEngineCatalog,
   normalizeWorkbenchServerImplementedCodeEngineId,
-  resolveWorkbenchServerEngineSupportState,
+  resolveWorkbenchCodeEngineSelectedModelId,
+  useWorkbenchCodeEngineCatalog,
   type WorkbenchCodeEngineId,
-} from '@sdkwork/birdcoder-pc-codeengine';
+} from '@sdkwork/birdcoder-pc-workbench/workbench/codeEngineCatalog';
 import {
-  listTerminalCliProfileAvailability,
   setWorkbenchActiveCodeEngine,
   setWorkbenchCodeEngineDefaultModel,
-  type TerminalCliProfileAvailability,
   useToast,
 } from '@sdkwork/birdcoder-pc-workbench';
 import { Button, WorkbenchCodeEngineIcon } from '@sdkwork/birdcoder-pc-ui-shell';
 
 import type { SettingsProps } from './types';
 
-type EngineCliAvailabilityMap = Partial<
-  Record<WorkbenchCodeEngineId, TerminalCliProfileAvailability>
->;
-
 type CodeEngineSettingsSelectionProps = {
   activeEngineId?: WorkbenchCodeEngineId;
   setActiveEngineId?: (engineId: WorkbenchCodeEngineId) => void;
 };
 
-interface WorkbenchEnginePresentation {
-  vendor: string;
-  description: string;
-  accessPlan: BirdCoderEngineAccessPlan | undefined;
-  executionTopology: {
-    authorityPath: string;
-    officialSdkPackageName: string;
-    primaryLane: BirdCoderEngineAccessLane | null;
-    fallbackLanes: readonly BirdCoderEngineAccessLane[];
-    officialIntegration: BirdCoderEngineOfficialIntegration | undefined;
-  };
-}
-
-function resolveWorkbenchEnginePresentation(
-  engineId: WorkbenchCodeEngineId,
-): WorkbenchEnginePresentation {
-  const kernel = getWorkbenchCodeEngineKernel(engineId);
-  const accessPlan = kernel.descriptor.accessPlan;
-  const lanes = accessPlan?.lanes ?? [];
-  const primaryLane =
-    lanes.find((lane) => lane.laneId === accessPlan?.primaryLaneId) ?? lanes[0] ?? null;
-  const fallbackLanes = (accessPlan?.fallbackLaneIds ?? [])
-    .map((laneId) => lanes.find((lane) => lane.laneId === laneId))
-    .filter((lane): lane is BirdCoderEngineAccessLane => Boolean(lane));
-
-  return {
-    vendor: kernel.descriptor.vendor,
-    description: primaryLane?.description ?? kernel.descriptor.homepage ?? '',
-    accessPlan,
-    executionTopology: {
-      authorityPath: kernel.executionTopology.authorityPath,
-      officialSdkPackageName: kernel.executionTopology.officialSdkPackageName,
-      primaryLane,
-      fallbackLanes,
-      officialIntegration: kernel.descriptor.officialIntegration,
-    },
-  };
-}
-
-function listSortedWorkbenchCodeEngines(
-  workbenchPreferences: SettingsProps['workbenchPreferences'],
-) {
-  const listedEngines = [...listWorkbenchCodeEngines(workbenchPreferences)];
-  listedEngines.sort((left, right) => {
-    if (left.id === BIRDCODER_STANDARD_DEFAULT_ENGINE_ID) {
-      return -1;
-    }
-    if (right.id === BIRDCODER_STANDARD_DEFAULT_ENGINE_ID) {
-      return 1;
-    }
-    return left.label.localeCompare(right.label);
-  });
-  return listedEngines;
-}
-
-function formatStrategyLabel(
-  t: ReturnType<typeof useTranslation>['t'],
-  strategyKind: string,
-): string {
-  switch (strategyKind) {
-    case 'rust-native':
-      return t('settings.engines.strategyRustNative');
-    case 'grpc-bridge':
-      return t('settings.engines.strategyGrpcBridge');
-    case 'openapi-proxy':
-      return t('settings.engines.strategyOpenApiProxy');
-    case 'remote-control':
-      return t('settings.engines.strategyRemoteControl');
-    case 'cli-spawn':
-      return t('settings.engines.strategyCliSpawn');
-    default:
-      return strategyKind;
-  }
-}
-
-function formatRuntimeOwnerLabel(
-  t: ReturnType<typeof useTranslation>['t'],
-  runtimeOwner: string,
-): string {
-  switch (runtimeOwner) {
-    case 'rust-server':
-      return t('settings.engines.runtimeOwnerRustServer');
-    case 'typescript-bridge':
-      return t('settings.engines.runtimeOwnerTypescriptBridge');
-    case 'external-service':
-      return t('settings.engines.runtimeOwnerExternalService');
-    default:
-      return runtimeOwner;
-  }
-}
-
-function formatRuntimeModeLabel(
-  t: ReturnType<typeof useTranslation>['t'],
-  runtimeMode: string,
-): string {
-  switch (runtimeMode) {
-    case 'sdk':
-      return t('settings.engines.runtimeModeSdk');
-    case 'headless':
-      return t('settings.engines.runtimeModeHeadless');
-    case 'remote-control':
-      return t('settings.engines.runtimeModeRemoteControl');
-    case 'protocol-fallback':
-      return t('settings.engines.runtimeModeProtocolFallback');
-    default:
-      return runtimeMode;
-  }
-}
-
-function formatAuthorityPathLabel(
-  t: ReturnType<typeof useTranslation>['t'],
-  authorityPath: string,
-): string {
-  switch (authorityPath) {
-    case 'rust-native':
-      return t('settings.engines.authorityPathRustNative');
-    case 'rust-rpc-bridge':
-      return t('settings.engines.authorityPathRustRpcBridge');
-    case 'typescript-rpc-bridge':
-      return t('settings.engines.authorityPathTypescriptRpcBridge');
-    case 'external-service':
-      return t('settings.engines.authorityPathExternalService');
-    case 'unknown':
-      return t('settings.engines.authorityPathUnknown');
-    default:
-      return authorityPath;
-  }
-}
-
-function formatBridgeProtocolLabel(
-  t: ReturnType<typeof useTranslation>['t'],
-  bridgeProtocol: string,
-): string {
-  switch (bridgeProtocol) {
-    case 'direct':
-      return t('settings.engines.bridgeProtocolDirect');
-    case 'grpc':
-      return t('settings.engines.bridgeProtocolGrpc');
-    case 'http':
-      return t('settings.engines.bridgeProtocolHttp');
-    case 'websocket':
-      return t('settings.engines.bridgeProtocolWebsocket');
-    case 'stdio':
-      return t('settings.engines.bridgeProtocolStdio');
-    default:
-      return bridgeProtocol;
-  }
-}
-
-function formatTransportLabel(transportKind: string): string {
-  return transportKind
-    .split('-')
-    .map((fragment) => fragment.toUpperCase())
-    .join(' / ');
+function useSortedCodeEngines() {
+  const catalog = useWorkbenchCodeEngineCatalog();
+  return useMemo(
+    () => [...catalog.engines].sort((left, right) => left.label.localeCompare(right.label)),
+    [catalog.engines],
+  );
 }
 
 export function CodeEngineSettingsSidebar({
   workbenchPreferences,
   activeEngineId,
   setActiveEngineId,
-  cliAvailabilityByEngineId,
 }: Pick<SettingsProps, 'workbenchPreferences'> & {
   activeEngineId: WorkbenchCodeEngineId;
   setActiveEngineId: (engineId: WorkbenchCodeEngineId) => void;
-  cliAvailabilityByEngineId: EngineCliAvailabilityMap;
 }) {
   const { t } = useTranslation();
-  const engines = useMemo(
-    () => listSortedWorkbenchCodeEngines(workbenchPreferences),
-    [workbenchPreferences],
-  );
+  const engines = useSortedCodeEngines();
   const workspaceDefaultEngineId = normalizeWorkbenchServerImplementedCodeEngineId(
     workbenchPreferences?.codeEngineId,
     workbenchPreferences,
   );
-  const fallbackActiveEngineId =
-    engines.find((engine) => engine.id === BIRDCODER_STANDARD_DEFAULT_ENGINE_ID)?.id ??
-    engines[0]?.id ??
-    BIRDCODER_STANDARD_DEFAULT_ENGINE_ID;
 
   useEffect(() => {
-    if (!engines.some((engine) => engine.id === activeEngineId)) {
-      setActiveEngineId(fallbackActiveEngineId);
+    const fallbackEngineId = engines[0]?.id ?? '';
+    if (fallbackEngineId && !engines.some((engine) => engine.id === activeEngineId)) {
+      setActiveEngineId(fallbackEngineId);
     }
-  }, [activeEngineId, engines, fallbackActiveEngineId, setActiveEngineId]);
+  }, [activeEngineId, engines, setActiveEngineId]);
 
   return (
     <aside
@@ -228,21 +61,11 @@ export function CodeEngineSettingsSidebar({
         <div className="text-xs font-semibold uppercase tracking-wide text-gray-500">
           {t('settings.engines.sidebarTitle')}
         </div>
-        <div className="mt-2 text-sm leading-5 text-gray-400">
-          {t('settings.engines.description')}
-        </div>
       </div>
-
-      <div className="min-h-0 flex-1 space-y-2 overflow-y-auto p-3">
+      <div className="flex-1 space-y-2 overflow-y-auto p-3">
         {engines.map((engine) => {
-          const enginePresentation = resolveWorkbenchEnginePresentation(engine.id);
-          const engineSupport = resolveWorkbenchServerEngineSupportState(engine.id);
-          const cliAvailability = cliAvailabilityByEngineId[engine.id];
           const isActive = activeEngineId === engine.id;
           const isWorkspaceDefault = workspaceDefaultEngineId === engine.id;
-          const availabilityStatus = engineSupport.serverImplemented
-            ? cliAvailability?.status ?? 'unknown'
-            : 'unsupported';
           return (
             <button
               key={engine.id}
@@ -265,30 +88,8 @@ export function CodeEngineSettingsSidebar({
                     </span>
                   ) : null}
                 </div>
-                <div className="mt-1 truncate text-xs text-gray-500">{enginePresentation.vendor}</div>
-                <div className="mt-2 flex items-center gap-2 text-[10px] uppercase tracking-wide">
-                  <span
-                    className={`rounded px-2 py-0.5 font-medium ${
-                      availabilityStatus === 'available'
-                        ? 'bg-emerald-500/10 text-emerald-300'
-                        : availabilityStatus === 'missing'
-                          ? 'bg-red-500/10 text-red-300'
-                          : 'bg-amber-500/10 text-amber-300'
-                    }`}
-                  >
-                    {availabilityStatus === 'available'
-                      ? t('settings.engines.cliAvailable')
-                      : availabilityStatus === 'missing'
-                        ? t('settings.engines.cliMissing')
-                        : availabilityStatus === 'unknown'
-                          ? t('settings.engines.cliUnknown')
-                          : t('settings.engines.serverPlanned')}
-                  </span>
-                  <span className="text-gray-500">
-                    {t('settings.engines.modelCount', {
-                      count: engine.modelCatalog.length,
-                    })}
-                  </span>
+                <div className="mt-2 text-[10px] uppercase tracking-wide text-gray-500">
+                  {t('settings.engines.modelCount', { count: engine.modelCatalog.length })}
                 </div>
               </div>
             </button>
@@ -308,73 +109,30 @@ export function CodeEngineSettings({
   CodeEngineSettingsSelectionProps) {
   const { t } = useTranslation();
   const { addToast } = useToast();
-  const [internalActiveEngineId, setInternalActiveEngineId] = useState(
-    BIRDCODER_STANDARD_DEFAULT_ENGINE_ID,
-  );
-  const [cliAvailabilityByEngineId, setCliAvailabilityByEngineId] =
-    useState<EngineCliAvailabilityMap>({});
+  const engines = useSortedCodeEngines();
+  const [internalActiveEngineId, setInternalActiveEngineId] = useState('');
   const activeEngineId = controlledActiveEngineId ?? internalActiveEngineId;
   const setActiveEngineId = setControlledActiveEngineId ?? setInternalActiveEngineId;
 
   useEffect(() => {
-    let cancelled = false;
-
-    void listTerminalCliProfileAvailability().then((entries) => {
-      if (cancelled) {
-        return;
-      }
-      setCliAvailabilityByEngineId(
-        Object.fromEntries(entries.map((entry) => [entry.profileId, entry])) as EngineCliAvailabilityMap,
-      );
+    void loadWorkbenchCodeEngineCatalog().catch((error) => {
+      console.warn('[sdkwork-agents] failed to refresh code-engine catalog:', error);
     });
-
-    return () => {
-      cancelled = true;
-    };
   }, []);
-
-  const engines = useMemo(() => {
-    return listSortedWorkbenchCodeEngines(workbenchPreferences);
-  }, [workbenchPreferences]);
 
   const workspaceDefaultEngineId = normalizeWorkbenchServerImplementedCodeEngineId(
     workbenchPreferences?.codeEngineId,
     workbenchPreferences,
   );
-  const workspaceDefaultEngine = engines.find((engine) => engine.id === workspaceDefaultEngineId);
-
-  const fallbackActiveEngineId =
-    engines.find((engine) => engine.id === BIRDCODER_STANDARD_DEFAULT_ENGINE_ID)?.id ??
-    engines[0]?.id ??
-    BIRDCODER_STANDARD_DEFAULT_ENGINE_ID;
+  const activeEngine =
+    engines.find((engine) => engine.id === activeEngineId) ?? engines[0] ?? null;
 
   useEffect(() => {
-    if (!engines.some((engine) => engine.id === activeEngineId)) {
-      setActiveEngineId(fallbackActiveEngineId);
+    if (activeEngine && activeEngine.id !== activeEngineId) {
+      setActiveEngineId(activeEngine.id);
     }
-  }, [activeEngineId, engines, fallbackActiveEngineId, setActiveEngineId]);
+  }, [activeEngine, activeEngineId, setActiveEngineId]);
 
-  const activeEngine =
-    engines.find((engine) => engine.id === activeEngineId) ??
-    engines.find((engine) => engine.id === fallbackActiveEngineId) ??
-    null;
-
-  if (!activeEngine) {
-    return null;
-  }
-
-  const activeEngineSupport = resolveWorkbenchServerEngineSupportState(activeEngine.id);
-  const activeEnginePresentation = resolveWorkbenchEnginePresentation(activeEngine.id);
-  const activeCliAvailability = cliAvailabilityByEngineId[activeEngine.id];
-  const activeAvailabilityStatus = activeEngineSupport.serverImplemented
-    ? activeCliAvailability?.status ?? 'unknown'
-    : 'unsupported';
-  const canSelectAsDefault =
-    activeEngineSupport.serverImplemented && activeAvailabilityStatus !== 'missing';
-  const activeTopology = activeEnginePresentation.executionTopology;
-  const activePrimaryLane = activeTopology.primaryLane;
-  const activeFallbackLanes = activeTopology.fallbackLanes;
-  const activeOfficialIntegration = activeTopology.officialIntegration;
   if (!workbenchPreferences || !updateWorkbenchPreferences) {
     return null;
   }
@@ -382,87 +140,44 @@ export function CodeEngineSettings({
   return (
     <div className="flex min-w-0 flex-1 bg-[#0e0e11]">
       <CodeEngineSettingsSidebar
-        activeEngineId={activeEngine.id}
+        activeEngineId={activeEngine?.id ?? activeEngineId}
         setActiveEngineId={setActiveEngineId}
         workbenchPreferences={workbenchPreferences}
-        cliAvailabilityByEngineId={cliAvailabilityByEngineId}
       />
       <div className="min-w-0 flex-1 overflow-y-auto p-12">
-        <div className="mx-auto max-w-6xl animate-in fade-in slide-in-from-bottom-4 fill-mode-both">
+        <div className="mx-auto max-w-4xl animate-in fade-in slide-in-from-bottom-4 fill-mode-both">
           <h1 className="mb-4 text-2xl font-semibold text-white">{t('settings.engines.title')}</h1>
           <div className="mb-8 text-sm text-gray-400">{t('settings.engines.description')}</div>
 
-          <div className="rounded-xl border border-white/10 bg-[#18181b] p-5">
-            <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-              <div className="min-w-0 flex items-start gap-3">
-                <WorkbenchCodeEngineIcon engineId={activeEngine.id} size="md" />
-                <div className="min-w-0">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <div className="text-white font-medium">{activeEngine.label}</div>
-                    <span className="rounded bg-white/5 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-gray-400">
-                      {activeEnginePresentation.vendor}
-                    </span>
-                    <span
-                      className={`rounded px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide ${
-                        activeAvailabilityStatus === 'available'
-                          ? 'bg-emerald-500/10 text-emerald-300'
-                          : activeAvailabilityStatus === 'missing'
-                            ? 'bg-red-500/10 text-red-300'
-                            : 'bg-amber-500/10 text-amber-300'
-                      }`}
-                    >
-                      {activeAvailabilityStatus === 'available'
-                        ? t('settings.engines.cliAvailable')
-                        : activeAvailabilityStatus === 'missing'
-                          ? t('settings.engines.cliMissing')
-                          : activeAvailabilityStatus === 'unknown'
-                            ? t('settings.engines.cliUnknown')
-                            : t('settings.engines.serverPlanned')}
-                    </span>
-                    {workspaceDefaultEngineId === activeEngine.id ? (
-                      <span className="rounded bg-blue-500/15 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-blue-200">
-                        {t('settings.engines.workspaceDefaultBadge')}
-                      </span>
-                    ) : null}
-                  </div>
-                  <div className="mt-1 text-sm text-gray-500">{activeEnginePresentation.description}</div>
-                </div>
-              </div>
-
-              <div className="grid w-full gap-3 lg:max-w-sm">
-                <div className="rounded-xl border border-white/10 bg-[#141417] p-4">
-                  <div className="flex flex-wrap items-center justify-between gap-2">
-                    <div className="text-sm font-medium text-white">
-                      {t('settings.engines.workspaceDefaultEngine')}
+          {activeEngine ? (
+            <div className="rounded-xl border border-white/10 bg-[#18181b] p-5">
+              <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
+                <div className="flex min-w-0 items-start gap-3">
+                  <WorkbenchCodeEngineIcon engineId={activeEngine.id} size="md" />
+                  <div className="min-w-0">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <div className="font-medium text-white">{activeEngine.label}</div>
+                      {workspaceDefaultEngineId === activeEngine.id ? (
+                        <span className="rounded bg-blue-500/15 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-blue-200">
+                          {t('settings.engines.workspaceDefaultBadge')}
+                        </span>
+                      ) : null}
                     </div>
-                    {workspaceDefaultEngineId === activeEngine.id ? (
-                      <span className="rounded bg-blue-500/15 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-blue-200">
-                        {t('settings.engines.workspaceDefaultBadge')}
-                      </span>
-                    ) : null}
+                    <div className="mt-2 text-xs text-gray-500">
+                      {t('settings.engines.modelCount', { count: activeEngine.models.length })}
+                    </div>
                   </div>
-                  <div className="mt-2 text-xs leading-5 text-gray-500">
-                    {t('settings.engines.workspaceDefaultSummary', {
-                      engine: workspaceDefaultEngine?.label ?? workspaceDefaultEngineId,
-                    })}
-                  </div>
+                </div>
+
+                <div className="grid w-full gap-3 lg:max-w-sm">
                   {workspaceDefaultEngineId === activeEngine.id ? null : (
                     <Button
                       size="sm"
-                      className="mt-3 w-full"
-                      disabled={!canSelectAsDefault}
+                      className="w-full"
                       onClick={() => {
-                        if (!canSelectAsDefault) {
-                          return;
-                        }
-
-                        const nextEngineId = normalizeWorkbenchServerImplementedCodeEngineId(
-                          activeEngine.id,
-                          workbenchPreferences,
-                        );
-                        setActiveEngineId(nextEngineId);
+                        setActiveEngineId(activeEngine.id);
                         updateWorkbenchPreferences((previousState) =>
-                          setWorkbenchActiveCodeEngine(previousState, nextEngineId),
+                          setWorkbenchActiveCodeEngine(previousState, activeEngine.id),
                         );
                         addToast(
                           t('settings.engines.workspaceDefaultEngineUpdated', {
@@ -475,176 +190,62 @@ export function CodeEngineSettings({
                       {t('settings.engines.makeWorkspaceDefault')}
                     </Button>
                   )}
-                </div>
 
-                <div className="rounded-xl border border-white/10 bg-[#141417] p-4">
-                  <div className="mb-1 text-sm font-medium text-white">
+                  <label className="grid gap-2 text-sm font-medium text-white">
                     {t('settings.engines.defaultModel')}
-                  </div>
-                  <div className="mb-2 text-xs text-gray-500">
-                    {t('settings.engines.defaultModelDesc')}
-                  </div>
-                  <select
-                    value={activeEngine.defaultModelId}
-                    onChange={(event) => {
-                      updateWorkbenchPreferences((previousState) =>
-                        setWorkbenchCodeEngineDefaultModel(
-                          previousState,
-                          activeEngine.id,
-                          event.target.value,
-                        ),
-                      );
-                      addToast(
-                        t('settings.engines.defaultModelUpdated', {
-                          engine: activeEngine.label,
-                        }),
-                        'success',
-                      );
-                    }}
-                    className="w-full appearance-none rounded-lg border border-white/10 bg-[#0e0e11] px-3 py-2 text-sm text-white outline-none transition-colors hover:border-gray-500 focus:border-blue-500"
-                  >
-                    {activeEngine.modelCatalog.map((model) => (
-                      <option key={model.id} value={model.id}>
-                        {model.label}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              </div>
-            </div>
-
-            {activePrimaryLane ? (
-              <div className="mt-4 grid gap-2 text-xs text-gray-400 md:grid-cols-2 xl:grid-cols-6">
-                <div className="rounded-lg border border-white/10 bg-[#0e0e11] px-3 py-2">
-                  <div className="text-[10px] uppercase tracking-wide text-gray-500">
-                    {t('settings.engines.primaryLane')}
-                  </div>
-                  <div className="mt-1 font-medium text-gray-200">{activePrimaryLane.label}</div>
-                </div>
-                <div className="rounded-lg border border-white/10 bg-[#0e0e11] px-3 py-2">
-                  <div className="text-[10px] uppercase tracking-wide text-gray-500">
-                    {t('settings.engines.authorityPath')}
-                  </div>
-                  <div className="mt-1 font-medium text-gray-200">
-                    {formatAuthorityPathLabel(t, activeTopology.authorityPath)}
-                  </div>
-                </div>
-                <div className="rounded-lg border border-white/10 bg-[#0e0e11] px-3 py-2">
-                  <div className="text-[10px] uppercase tracking-wide text-gray-500">
-                    {t('settings.engines.runtimeMode')}
-                  </div>
-                  <div className="mt-1 font-medium text-gray-200">
-                    {activeOfficialIntegration
-                      ? formatRuntimeModeLabel(t, activeOfficialIntegration.runtimeMode)
-                      : t('settings.engines.none')}
-                  </div>
-                </div>
-                <div className="rounded-lg border border-white/10 bg-[#0e0e11] px-3 py-2">
-                  <div className="text-[10px] uppercase tracking-wide text-gray-500">
-                    {t('settings.engines.strategy')}
-                  </div>
-                  <div className="mt-1 font-medium text-gray-200">
-                    {formatStrategyLabel(t, activePrimaryLane.strategyKind)}
-                  </div>
-                </div>
-                <div className="rounded-lg border border-white/10 bg-[#0e0e11] px-3 py-2">
-                  <div className="text-[10px] uppercase tracking-wide text-gray-500">
-                    {t('settings.engines.runtimeOwner')}
-                  </div>
-                  <div className="mt-1 font-medium text-gray-200">
-                    {formatRuntimeOwnerLabel(t, activePrimaryLane.runtimeOwner)}
-                  </div>
-                </div>
-                <div className="rounded-lg border border-white/10 bg-[#0e0e11] px-3 py-2">
-                  <div className="text-[10px] uppercase tracking-wide text-gray-500">
-                    {t('settings.engines.bridgeProtocol')}
-                  </div>
-                  <div className="mt-1 font-medium text-gray-200">
-                    {formatBridgeProtocolLabel(t, activePrimaryLane.bridgeProtocol)}
-                  </div>
-                </div>
-                <div className="rounded-lg border border-white/10 bg-[#0e0e11] px-3 py-2">
-                  <div className="text-[10px] uppercase tracking-wide text-gray-500">
-                    {t('settings.engines.officialSdkPackage')}
-                  </div>
-                  <div className="mt-1 truncate font-medium text-gray-200">
-                    {activeTopology.officialSdkPackageName ?? t('settings.engines.none')}
-                  </div>
-                </div>
-              </div>
-            ) : null}
-
-            {activeOfficialIntegration?.notes ? (
-              <div className="mt-4 rounded-xl border border-white/10 bg-[#141417] p-4 text-xs text-gray-400">
-                <div className="text-[10px] uppercase tracking-wide text-gray-500">
-                  {t('settings.engines.integrationNotes')}
-                </div>
-                <div className="mt-2 leading-6 text-gray-300">{activeOfficialIntegration.notes}</div>
-              </div>
-            ) : null}
-
-            {activeEnginePresentation.accessPlan?.lanes.length ? (
-              <div className="mt-4 rounded-xl border border-white/10 bg-[#141417] p-4">
-                <div className="mb-3 text-sm font-medium text-white">
-                  {t('settings.engines.deliveryLanes')}
-                </div>
-                <div className="flex flex-wrap gap-2">
-                  {activeEnginePresentation.accessPlan.lanes.map((lane) => (
-                    <div
-                      key={lane.laneId}
-                      className="rounded-lg border border-white/10 bg-[#0e0e11] px-3 py-2 text-xs text-gray-200"
+                    <select
+                      value={
+                        resolveWorkbenchCodeEngineSelectedModelId(
+                          activeEngineId,
+                          workbenchPreferences,
+                          activeEngine.defaultModelId,
+                        )
+                      }
+                      onChange={(event) => {
+                        updateWorkbenchPreferences((previousState) =>
+                          setWorkbenchCodeEngineDefaultModel(
+                            previousState,
+                            activeEngine.id,
+                            event.target.value,
+                          ),
+                        );
+                        addToast(
+                          t('settings.engines.defaultModelUpdated', {
+                            engine: activeEngine.label,
+                          }),
+                          'success',
+                        );
+                      }}
+                      className="w-full appearance-none rounded-lg border border-white/10 bg-[#0e0e11] px-3 py-2 text-sm text-white outline-none transition-colors hover:border-gray-500 focus:border-blue-500"
                     >
-                      <div className="flex items-center gap-2">
-                        <span className="font-medium">{lane.label}</span>
-                        <span
-                          className={`rounded px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide ${
-                            lane.status === 'ready'
-                              ? 'bg-emerald-500/10 text-emerald-300'
-                              : 'bg-amber-500/10 text-amber-300'
-                          }`}
-                        >
-                          {lane.status === 'ready'
-                            ? t('settings.engines.laneImplemented')
-                            : t('settings.engines.lanePlanned')}
-                        </span>
-                      </div>
-                      <div className="mt-1 text-gray-500">
-                        {formatTransportLabel(lane.transportKind)} {' - '}
-                        {formatStrategyLabel(t, lane.strategyKind)}
-                      </div>
-                      <div className="mt-1 text-gray-500">{lane.description}</div>
-                    </div>
-                  ))}
-                </div>
-                <div className="mt-3 text-xs text-gray-500">
-                  {t('settings.engines.fallbackLanes')}:{' '}
-                  {activeFallbackLanes.length > 0
-                    ? activeFallbackLanes.map((lane) => lane.label).join(' / ')
-                    : t('settings.engines.none')}
+                      {activeEngine.models.map((model) => (
+                        <option key={model.id} value={model.id}>
+                          {model.label}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
                 </div>
               </div>
-            ) : null}
 
-            <div className="mt-4 flex flex-wrap gap-2">
-              {activeEngine.modelCatalog.map((model) => (
-                <div
-                  key={model.id}
-                  className="inline-flex items-center gap-2 rounded-lg border border-white/10 bg-[#0e0e11] px-3 py-2 text-xs text-gray-200"
-                >
-                  <span className="font-medium">{model.label}</span>
-                  <span className="text-gray-500">{model.id}</span>
-                  <span
-                    className="rounded bg-white/5 px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide text-gray-400"
+              <div className="mt-5 grid gap-2 sm:grid-cols-2">
+                {activeEngine.models.map((model) => (
+                  <div
+                    key={model.id}
+                    className="rounded-lg border border-white/10 bg-[#0e0e11] px-3 py-3"
                   >
-                    {t('settings.engines.builtInModel')}
-                  </span>
-                </div>
-              ))}
+                    <div className="text-sm font-medium text-gray-200">{model.label}</div>
+                    <div className="mt-1 text-xs text-gray-500">{model.id}</div>
+                    {model.description ? (
+                      <div className="mt-2 text-xs leading-5 text-gray-400">{model.description}</div>
+                    ) : null}
+                  </div>
+                ))}
+              </div>
             </div>
-          </div>
+          ) : null}
         </div>
       </div>
     </div>
   );
 }
-

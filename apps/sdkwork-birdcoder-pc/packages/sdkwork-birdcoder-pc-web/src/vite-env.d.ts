@@ -1,17 +1,14 @@
 /// <reference types="vite/client" />
 
 interface ImportMetaEnv {
-  readonly VITE_BIRDCODER_API_BASE_URL?: string;
+  readonly VITE_SDKWORK_BIRDCODER_APPLICATION_PUBLIC_HTTP_URL?: string;
+  readonly VITE_SDKWORK_BIRDCODER_PLATFORM_API_GATEWAY_HTTP_URL?: string;
   readonly VITE_BIRDCODER_AUTH_DEV_DEFAULT_ACCOUNT?: string;
   readonly VITE_BIRDCODER_AUTH_DEV_DEFAULT_EMAIL?: string;
   readonly VITE_BIRDCODER_AUTH_DEV_DEFAULT_LOGIN_METHOD?: string;
   readonly VITE_BIRDCODER_AUTH_DEV_DEFAULT_PASSWORD?: string;
   readonly VITE_BIRDCODER_AUTH_DEV_DEFAULT_PHONE?: string;
   readonly VITE_BIRDCODER_AUTH_DEV_PREFILL_ENABLED?: string;
-  readonly VITE_BIRDCODER_IAM_DEPLOYMENT_MODE?: string;
   readonly VITE_SDKWORK_BIRDCODER_DEPLOYMENT_PROFILE?: string;
   readonly VITE_SDKWORK_BIRDCODER_RUNTIME_TARGET?: string;
-  readonly VITE_SDKWORK_BIRDCODER_REALTIME_TRANSPORT?: 'auto' | 'sse' | 'websocket';
-  readonly VITE_SDKWORK_DEPLOYMENT_PROFILE?: string;
-  readonly VITE_SDKWORK_RUNTIME_TARGET?: string;
 }

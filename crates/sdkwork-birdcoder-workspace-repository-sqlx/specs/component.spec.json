@@ -7,8 +7,8 @@
     "version": "0.1.0",
     "type": "rust-crate",
     "root": "sdkwork-birdcoder/crates/sdkwork-birdcoder-workspace-repository-sqlx",
-    "domain": "workspace",
-    "declaredDomain": null,
+    "domain": "intelligence",
+    "declaredDomain": "intelligence",
     "capability": "workspace-persistence",
     "surface": "service",
     "status": "ACTIVE",
@@ -62,28 +62,42 @@
     "layerRole": "backend-repository",
     "publicExports": [
       ".",
-      "sdkwork_birdcoder_project_service::ports::sandbox_binding_repository::ProjectSandboxBindingRepository",
-      "sdkwork_database_sqlx::DatabasePool",
-      "sdkwork_birdcoder_workspace_repository_sqlx::repository::project_sandbox_binding::SqlxProjectSandboxBindingRepository"
+      "sdkwork_birdcoder_workspace_repository_sqlx::repository::workspace::SqlxWorkspaceRepository",
+      "sdkwork_birdcoder_workspace_repository_sqlx::repository::project::SqlxProjectRepository",
+      "sdkwork_birdcoder_workspace_repository_sqlx::repository::project_document_binding::SqlxProjectDocumentBindingRepository",
+      "sdkwork_birdcoder_workspace_repository_sqlx::repository::project_sandbox_binding::SqlxProjectSandboxBindingRepository",
+      "sdkwork_birdcoder_workspace_repository_sqlx::repository::project_runtime_location::SqlxProjectRuntimeLocationRepository"
     ],
     "providedPorts": [
       {
+        "name": "workspaceRepository",
+        "export": "sdkwork_birdcoder_workspace_repository_sqlx::repository::workspace::SqlxWorkspaceRepository"
+      },
+      {
+        "name": "projectRepository",
+        "export": "sdkwork_birdcoder_workspace_repository_sqlx::repository::project::SqlxProjectRepository"
+      },
+      {
+        "name": "projectDocumentBindingRepository",
+        "export": "sdkwork_birdcoder_workspace_repository_sqlx::repository::project_document_binding::SqlxProjectDocumentBindingRepository"
+      },
+      {
         "name": "projectSandboxBindingRepository",
         "export": "sdkwork_birdcoder_workspace_repository_sqlx::repository::project_sandbox_binding::SqlxProjectSandboxBindingRepository"
+      },
+      {
+        "name": "projectRuntimeLocationRepository",
+        "export": "sdkwork_birdcoder_workspace_repository_sqlx::repository::project_runtime_location::SqlxProjectRuntimeLocationRepository"
       }
     ],
     "requiredPorts": [
       {
-        "name": "projectSandboxBindingRepositoryPort",
-        "export": "sdkwork_birdcoder_project_service::ports::sandbox_binding_repository::ProjectSandboxBindingRepository"
-      },
-      {
         "name": "databasePool",
-        "export": "sdkwork_database_sqlx::DatabasePool"
+        "export": "."
       },
       {
         "name": "snowflakeIdGenerator",
-        "export": "sdkwork_database_id::SnowflakeIdGenerator"
+        "export": "."
       }
     ],
     "runtimeEntrypoints": [],

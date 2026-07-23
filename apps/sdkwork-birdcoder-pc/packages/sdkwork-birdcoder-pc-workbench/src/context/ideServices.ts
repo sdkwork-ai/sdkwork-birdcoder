@@ -1,62 +1,47 @@
 import { createContext, useContext } from 'react';
 import type {
   IAuthService,
+  IAgentSessionService,
   ICatalogService,
-  ICollaborationService,
-  IAppRuntimeReadService,
-  IAppRuntimeWriteService,
-  IDeploymentService,
   IDocumentService,
   IFileSystemService,
   IGitService,
   IProjectRuntimeLocationService,
-  IPromptService,
   IProjectService,
-  IReleaseService,
-  ITeamService,
+  IPromptService,
   IVipMembershipService,
   IWorkspaceService,
 } from '@sdkwork/birdcoder-pc-infrastructure-runtime';
 import { createLazyDefaultIdeServices, type AppIdeServices } from './lazyDefaultIdeServices.ts';
 
 export interface IIDEContext {
+  agentSessionService: IAgentSessionService;
   catalogService: ICatalogService;
   workspaceService: IWorkspaceService;
   projectService: IProjectService;
-  collaborationService: ICollaborationService;
-  appRuntimeReadService: IAppRuntimeReadService;
-  appRuntimeWriteService: IAppRuntimeWriteService;
-  deploymentService: IDeploymentService;
+  promptService: IPromptService;
   documentService: IDocumentService;
-  releaseService: IReleaseService;
-  teamService: ITeamService;
   vipMembershipService: IVipMembershipService;
   fileSystemService: IFileSystemService;
   projectRuntimeLocationService: IProjectRuntimeLocationService;
   gitService: IGitService;
   authService: IAuthService;
-  promptService: IPromptService;
 }
 
 export function createDefaultIdeContextValue(): IIDEContext {
   const defaultIdeServices: AppIdeServices = createLazyDefaultIdeServices();
   return {
+    agentSessionService: defaultIdeServices.agentSessionService,
     catalogService: defaultIdeServices.catalogService,
     workspaceService: defaultIdeServices.workspaceService,
     projectService: defaultIdeServices.projectService,
-    collaborationService: defaultIdeServices.collaborationService,
-    appRuntimeReadService: defaultIdeServices.appRuntimeReadService,
-    appRuntimeWriteService: defaultIdeServices.appRuntimeWriteService,
-    deploymentService: defaultIdeServices.deploymentService,
+    promptService: defaultIdeServices.promptService,
     documentService: defaultIdeServices.documentService,
-    releaseService: defaultIdeServices.releaseService,
-    teamService: defaultIdeServices.teamService,
     vipMembershipService: defaultIdeServices.vipMembershipService,
     fileSystemService: defaultIdeServices.fileSystemService,
     projectRuntimeLocationService: defaultIdeServices.projectRuntimeLocationService,
     gitService: defaultIdeServices.gitService,
     authService: defaultIdeServices.authService,
-    promptService: defaultIdeServices.promptService,
   };
 }
 

@@ -14,9 +14,6 @@ const valuesSource = readText('deployments/kubernetes/values.yaml');
 const authGateSource = readText(
   'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-auth/src/AuthGate.tsx',
 );
-const authPolicySource = readText(
-  'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-auth/src/authAccessPolicy.ts',
-);
 const desktopMainSource = readText(
   'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-desktop/src/main.tsx',
 );
@@ -54,13 +51,8 @@ assert.match(
 );
 assert.match(
   authGateSource,
-  /requiresAuthenticatedProductAccess/u,
-  'AuthGate must enforce authenticated product access outside local deployment mode.',
-);
-assert.match(
-  authPolicySource,
-  /requiresAuthenticatedProductAccess/u,
-  'Auth access policy must expose authenticated product access rules.',
+  /if \(!user\) \{/u,
+  'AuthGate must enforce authenticated product access for every runtime topology.',
 );
 assert.match(
   desktopMainSource,

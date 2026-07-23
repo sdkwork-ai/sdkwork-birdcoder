@@ -5,6 +5,7 @@ import { createSdkworkCredentialEntryBootstrapVitePlugin } from '@sdkwork/iam-cr
 import { defineConfig, loadEnv, type Plugin } from 'vite';
 import {
   BIRDCODER_VITE_DEDUPE_PACKAGES,
+  BIRDCODER_PLATFORM_DEV_PROXY_PATH,
   BIRDCODER_VITE_WEB_OPTIMIZE_DEPS_INCLUDE,
   configureBirdcoderSdkworkProxyProblemResponse,
   createBirdcoderWorkspaceAliasEntries,
@@ -14,8 +15,10 @@ import {
   resolveBirdcoderProductionCssMinify,
   resolveBirdcoderProductionMinify,
   resolveBirdcoderDevelopmentApiEnvDefines,
+  resolveBirdcoderDevProxyTargets,
   resolveBirdcoderViteRuntimeEnvSource,
   resolveBirdcoderWebRuntimeEnvSource,
+  rewriteBirdcoderPlatformDevProxyPath,
 } from '../../../../scripts/create-birdcoder-vite-plugins.mjs';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -141,14 +144,14 @@ function sdkworkModelsDataPlugin(): Plugin {
 // birdcoder-commons-root
 // birdcoder-infrastructure-root
 
-export default defineConfig(({ mode }) => {
+export default defineConfig(({ command, mode }) => {
   const runtimeEnvSource = resolveBirdcoderViteRuntimeEnvSource(
     loadEnv(mode, __dirname, ''),
   ) as Record<string, string | undefined>;
-  const devProxyTarget =
-    process.env.BIRDCODER_DEV_PROXY_TARGET ??
-    runtimeEnvSource.VITE_BIRDCODER_API_BASE_URL ??
-    'http://127.0.0.1:10240';
+  const devProxyTargets = resolveBirdcoderDevProxyTargets(
+    runtimeEnvSource,
+    command === 'serve',
+  );
   const publicRuntimeEnvSource = resolveBirdcoderWebRuntimeEnvSource(
     runtimeEnvSource,
     mode,
@@ -567,7 +570,6 @@ export default defineConfig(({ mode }) => {
           if (
             isAnySourcePath([
               '/packages/sdkwork-birdcoder-pc-workbench-storage/src/',
-              '/packages/sdkwork-birdcoder-pc-workbench/src/storage/dataKernel.ts',
               '/packages/sdkwork-birdcoder-pc-workbench/src/storage/localStore.ts',
             ])
           ) {
@@ -583,7 +585,6 @@ export default defineConfig(({ mode }) => {
 
           if (
             isAnySourcePath([
-              '/packages/sdkwork-birdcoder-pc-workbench/src/terminal/registry.ts',
               '/packages/sdkwork-birdcoder-pc-workbench/src/terminal/profiles.ts',
             ])
           ) {
@@ -713,7 +714,7 @@ export default defineConfig(({ mode }) => {
             isAnySourcePath([
               '/packages/sdkwork-birdcoder-pc-code/src/pages/useCodePageSessionSelection.ts',
               '/packages/sdkwork-birdcoder-pc-code/src/pages/useCodePendingInteractions.ts',
-              '/packages/sdkwork-birdcoder-pc-code/src/pages/useCodeNewCodingSessionRequestState.ts',
+              '/packages/sdkwork-birdcoder-pc-code/src/pages/useCodeNewAgentSessionRequestState.ts',
               '/packages/sdkwork-birdcoder-pc-code/src/pages/useCodeDeleteConfirmation.ts',
             ])
           ) {
@@ -734,7 +735,6 @@ export default defineConfig(({ mode }) => {
           if (
             isAnySourcePath([
               '/packages/sdkwork-birdcoder-pc-code/src/pages/useCodePageTerminalActions.ts',
-              '/packages/sdkwork-birdcoder-pc-code/src/pages/codingSessionTerminal.ts',
             ])
           ) {
             return 'birdcoder-code-terminal-runtime';
@@ -799,42 +799,8 @@ export default defineConfig(({ mode }) => {
             return 'birdcoder-shell-runtime';
           }
 
-          if (
-            isAnySourcePath([
-              '/packages/sdkwork-birdcoder-pc-contracts-commons/src/data.ts',
-            ])
-          ) {
-            return 'birdcoder-types-data';
-          }
-
-          if (
-            isAnySourcePath([
-              '/packages/sdkwork-birdcoder-pc-contracts-commons/src/server-api.ts',
-              '/packages/sdkwork-birdcoder-pc-contracts-commons/src/generated/',
-            ])
-          ) {
-            return 'birdcoder-types-api';
-          }
-
-          if (
-            isAnySourcePath([
-              '/packages/sdkwork-birdcoder-pc-contracts-commons/src/storageBindings.ts',
-              '/packages/sdkwork-birdcoder-pc-contracts-commons/src/runConfigurationStorage.ts',
-            ])
-          ) {
-            return 'birdcoder-types-storage';
-          }
-
           if (isSourcePath('/packages/sdkwork-birdcoder-pc-contracts-commons/src/')) {
             return 'birdcoder-types';
-          }
-
-          if (
-            isAnySourcePath([
-              '/packages/sdkwork-birdcoder-pc-codeengine/src/',
-            ])
-          ) {
-            return 'birdcoder-codeengine';
           }
 
           if (
@@ -908,10 +874,6 @@ export default defineConfig(({ mode }) => {
             return 'birdcoder-iam-surface';
           }
 
-          if (isSourcePath('/packages/sdkwork-birdcoder-pc-git/src/')) {
-            return 'birdcoder-git';
-          }
-
           if (isSourcePath('/packages/sdkwork-birdcoder-pc-workbench/src/index.ts')) {
             return 'birdcoder-commons-root';
           }
@@ -931,32 +893,20 @@ export default defineConfig(({ mode }) => {
 
           if (
             isAnySourcePath([
-              '/packages/sdkwork-birdcoder-pc-infrastructure/src/storage/runtime.ts',
-            ])
-          ) {
-            return 'birdcoder-storage-runtime';
-          }
-
-          if (
-            isAnySourcePath([
               '/packages/sdkwork-birdcoder-pc-infrastructure/src/services/defaultIdeServicesRuntime.ts',
               '/packages/sdkwork-birdcoder-pc-infrastructure/src/services/defaultIdeServicesShared.ts',
               '/packages/sdkwork-birdcoder-pc-infrastructure/src/services/lazyDefaultIdeServices.ts',
               '/packages/sdkwork-birdcoder-pc-infrastructure/src/services/defaultIdeServices.ts',
               '/packages/sdkwork-birdcoder-pc-infrastructure/src/services/appSessionToken.ts',
               '/packages/sdkwork-birdcoder-pc-infrastructure/src/services/appSessionRefresh.ts',
-              '/packages/sdkwork-birdcoder-pc-infrastructure/src/services/appSdkTransport.ts',
-              '/packages/sdkwork-birdcoder-pc-infrastructure/src/services/backendSdkTransport.ts',
-              '/packages/sdkwork-birdcoder-pc-infrastructure/src/services/appRuntimeTransport.ts',
+              '/packages/sdkwork-birdcoder-pc-infrastructure/src/services/birdCoderSdkClient.ts',
+              '/packages/sdkwork-birdcoder-pc-infrastructure/src/services/dependencyAppSdkClients.ts',
+              '/packages/sdkwork-birdcoder-pc-infrastructure/src/services/sdkSessionErrorHandler.ts',
               '/packages/sdkwork-birdcoder-pc-infrastructure/src/services/iamRuntime.ts',
               '/packages/sdkwork-birdcoder-pc-infrastructure/src/services/runtimeServerSession.ts',
               '/packages/sdkwork-birdcoder-pc-infrastructure/src/services/sessionService.ts',
-              '/packages/sdkwork-birdcoder-pc-infrastructure/src/services/sdkClients.ts',
-              '/packages/sdkwork-birdcoder-pc-infrastructure/src/services/sdkTransportShared.ts',
-              '/packages/sdkwork-birdcoder-pc-infrastructure/src/services/birdcoderMobileChatApi.ts',
               '/packages/sdkwork-birdcoder-pc-infrastructure/src/services/impl/RuntimeAuthService.ts',
               '/sdks/sdkwork-birdcoder-app-sdk/sdkwork-birdcoder-app-sdk-typescript/src/',
-              '/sdks/sdkwork-birdcoder-backend-sdk/sdkwork-birdcoder-backend-sdk-typescript/src/',
             ])
           ) {
             return 'birdcoder-platform-api-client';
@@ -974,36 +924,12 @@ export default defineConfig(({ mode }) => {
 
           if (
             isAnySourcePath([
-              '/packages/sdkwork-birdcoder-pc-infrastructure/src/storage/appConsoleRepository.ts',
-              '/packages/sdkwork-birdcoder-pc-infrastructure/src/services/consoleQueries.ts',
-              '/packages/sdkwork-birdcoder-pc-infrastructure/src/storage/bootstrapConsoleCatalog.ts',
-              '/packages/sdkwork-birdcoder-pc-infrastructure/src/storage/codingSessionPromptEntryRepository.ts',
-              '/packages/sdkwork-birdcoder-pc-infrastructure/src/storage/codingSessionRepository.ts',
-              '/packages/sdkwork-birdcoder-pc-infrastructure/src/storage/dataKernel.ts',
-              '/packages/sdkwork-birdcoder-pc-infrastructure/src/storage/dialects.ts',
-              '/packages/sdkwork-birdcoder-pc-infrastructure/src/storage/promptEntryText.ts',
-              '/packages/sdkwork-birdcoder-pc-infrastructure/src/storage/promptSkillTemplateEvidenceRepository.ts',
-              '/packages/sdkwork-birdcoder-pc-infrastructure/src/storage/providers.ts',
-              '/packages/sdkwork-birdcoder-pc-infrastructure/src/storage/savedPromptEntryRepository.ts',
-              '/packages/sdkwork-birdcoder-pc-infrastructure/src/storage/sqlBackendExecutors.ts',
-              '/packages/sdkwork-birdcoder-pc-infrastructure/src/storage/sqlExecutor.ts',
-              '/packages/sdkwork-birdcoder-pc-infrastructure/src/storage/sqlPlans.ts',
-              '/packages/sdkwork-birdcoder-pc-infrastructure/src/storage/sqlRowCodec.ts',
-            ])
-          ) {
-            return 'birdcoder-platform-storage';
-          }
-
-          if (
-            isAnySourcePath([
               '/packages/sdkwork-birdcoder-pc-infrastructure/src/services/localBusinessUuid.ts',
               '/packages/sdkwork-birdcoder-pc-infrastructure/src/services/localServerRequestId.ts',
               '/packages/sdkwork-birdcoder-pc-infrastructure/src/services/localUuid.ts',
               '/packages/sdkwork-birdcoder-pc-infrastructure/src/services/apiJson.ts',
               '/packages/sdkwork-birdcoder-pc-core/src/appSessionEvents.ts',
               '/packages/sdkwork-birdcoder-pc-infrastructure/src/services/appSessionEvents.ts',
-              '/packages/sdkwork-birdcoder-pc-infrastructure/src/services/codingSessionMessageProjection.ts',
-              '/packages/sdkwork-birdcoder-pc-infrastructure/src/services/codingSessionSelection.ts',
               '/packages/sdkwork-birdcoder-pc-infrastructure/src/services/currentUserScope.ts',
               '/packages/sdkwork-birdcoder-pc-infrastructure/src/services/runtimeApiRetry.ts',
             ])
@@ -1013,29 +939,9 @@ export default defineConfig(({ mode }) => {
 
           if (
             isAnySourcePath([
-              '/packages/sdkwork-birdcoder-pc-infrastructure/src/services/impl/ProviderBackedPromptService.ts',
-              '/packages/sdkwork-birdcoder-pc-infrastructure/src/services/impl/ProviderBackedProjectService.ts',
-              '/packages/sdkwork-birdcoder-pc-infrastructure/src/services/impl/ProviderBackedWorkspaceService.ts',
-            ])
-          ) {
-            return 'birdcoder-platform-provider-services';
-          }
-
-          if (
-            isAnySourcePath([
-              '/packages/sdkwork-birdcoder-pc-admin-core/src/services/impl/ApiBackedAdminDeploymentService.ts',
-              '/packages/sdkwork-birdcoder-pc-admin-core/src/services/impl/ApiBackedAdminPolicyService.ts',
-              '/packages/sdkwork-birdcoder-pc-admin-core/src/services/impl/ApiBackedAuditService.ts',
               '/packages/sdkwork-birdcoder-pc-infrastructure/src/services/impl/ApiBackedCatalogService.ts',
-              '/packages/sdkwork-birdcoder-pc-infrastructure/src/services/impl/ApiBackedCollaborationService.ts',
-              '/packages/sdkwork-birdcoder-pc-infrastructure/src/services/impl/ApiBackedAppRuntimeReadService.ts',
-              '/packages/sdkwork-birdcoder-pc-infrastructure/src/services/impl/ApiBackedAppRuntimeWriteService.ts',
-              '/packages/sdkwork-birdcoder-pc-infrastructure/src/services/impl/ApiBackedDeploymentService.ts',
-              '/packages/sdkwork-birdcoder-pc-infrastructure/src/services/impl/ApiBackedDocumentService.ts',
               '/packages/sdkwork-birdcoder-pc-infrastructure/src/services/impl/ApiBackedGitService.ts',
               '/packages/sdkwork-birdcoder-pc-infrastructure/src/services/impl/ApiBackedProjectService.ts',
-              '/packages/sdkwork-birdcoder-pc-infrastructure/src/services/impl/ApiBackedReleaseService.ts',
-              '/packages/sdkwork-birdcoder-pc-infrastructure/src/services/impl/ApiBackedTeamService.ts',
               '/packages/sdkwork-birdcoder-pc-infrastructure/src/services/impl/ApiBackedWorkspaceService.ts',
             ])
           ) {
@@ -1048,7 +954,7 @@ export default defineConfig(({ mode }) => {
               '/packages/sdkwork-birdcoder-pc-workbench/src/context/IDEContext.ts',
               '/packages/sdkwork-birdcoder-pc-workbench/src/context/AuthContext.ts',
               '/packages/sdkwork-birdcoder-pc-workbench/src/context/ServiceContext.tsx',
-              '/packages/sdkwork-birdcoder-pc-workbench/src/contexts/ToastProvider.tsx',
+              '/packages/sdkwork-birdcoder-pc-workbench/src/contexts/ToastProvider.ts',
               '/packages/sdkwork-birdcoder-pc-workbench/src/utils/EventBus.ts',
               '/packages/sdkwork-birdcoder-pc-workbench/src/hooks/useDebounce.ts',
               '/packages/sdkwork-birdcoder-pc-workbench/src/',
@@ -1076,47 +982,31 @@ export default defineConfig(({ mode }) => {
         allow: createBirdcoderWorkspaceFsAllowList(__dirname),
       },
       proxy: {
-        '/app': {
-          target: devProxyTarget,
-          changeOrigin: true,
-          ws: true,
-          configure: configureBirdcoderSdkworkProxyProblemResponse,
-        },
-        '/backend': {
-          target: devProxyTarget,
-          changeOrigin: true,
-          configure: configureBirdcoderSdkworkProxyProblemResponse,
-        },
-        '/api': {
-          target: devProxyTarget,
-          changeOrigin: true,
-          configure: configureBirdcoderSdkworkProxyProblemResponse,
-        },
-        '/readyz': {
-          target: devProxyTarget,
-          changeOrigin: true,
-          configure: configureBirdcoderSdkworkProxyProblemResponse,
-        },
-        '/healthz': {
-          target: devProxyTarget,
-          changeOrigin: true,
-          configure: configureBirdcoderSdkworkProxyProblemResponse,
-        },
-        '/livez': {
-          target: devProxyTarget,
-          changeOrigin: true,
-          configure: configureBirdcoderSdkworkProxyProblemResponse,
-        },
-        '/metrics': {
-          target: devProxyTarget,
-          changeOrigin: true,
-          configure: configureBirdcoderSdkworkProxyProblemResponse,
-        },
-        '/openapi.json': {
-          target: devProxyTarget,
-          changeOrigin: true,
-          configure: configureBirdcoderSdkworkProxyProblemResponse,
-        },
+        ...(devProxyTargets.platform
+          ? {
+              [BIRDCODER_PLATFORM_DEV_PROXY_PATH]: {
+                target: devProxyTargets.platform,
+                changeOrigin: true,
+                ws: true,
+                rewrite: rewriteBirdcoderPlatformDevProxyPath,
+                configure: configureBirdcoderSdkworkProxyProblemResponse,
+              },
+            }
+          : {}),
+        ...(devProxyTargets.application
+          ? Object.fromEntries(
+              ['/app', '/backend', '/api', '/readyz', '/healthz', '/livez', '/metrics', '/openapi.json']
+                .map((prefix) => [
+                  prefix,
+                  {
+                    target: devProxyTargets.application,
+                    changeOrigin: true,
+                    ws: prefix === '/app',
+                    configure: configureBirdcoderSdkworkProxyProblemResponse,
+                  },
+                ]),
+            )
+          : {}),
       },
     },
   });

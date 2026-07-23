@@ -7,8 +7,8 @@
     "version": "0.1.0",
     "type": "rust-crate",
     "root": "sdkwork-birdcoder/crates/sdkwork-birdcoder-git",
-    "domain": "workspace",
-    "declaredDomain": null,
+    "domain": "intelligence",
+    "declaredDomain": "intelligence",
     "capability": "project-git",
     "surface": "infrastructure",
     "status": "ACTIVE",
@@ -50,7 +50,7 @@
     {
       "file": "DOMAIN_SPEC.md",
       "path": "../../../../sdkwork-specs/DOMAIN_SPEC.md",
-      "purpose": "Workspace-domain ownership rules."
+      "purpose": "BirdCoder intelligence/coding-workbench ownership rules."
     },
     {
       "file": "SECURITY_SPEC.md",

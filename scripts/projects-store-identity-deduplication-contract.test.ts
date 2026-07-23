@@ -1,17 +1,17 @@
 import assert from 'node:assert/strict';
 import { mergeProjectsForStore } from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-workbench/src/stores/projectsStore.ts';
 import type {
-  BirdCoderChatMessage,
-  BirdCoderCodingSession,
+  AgentSessionItemView,
+  AgentSessionView,
   BirdCoderProject,
 } from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-contracts-commons/src/index.ts';
 
 function buildMessage(
-  overrides: Partial<BirdCoderChatMessage> = {},
-): BirdCoderChatMessage {
+  overrides: Partial<AgentSessionItemView> = {},
+): AgentSessionItemView {
   return {
     id: 'message-1',
-    codingSessionId: 'session-1',
+    agentSessionId: 'session-1',
     role: 'assistant',
     content: 'Ready.',
     createdAt: '2026-04-28T01:00:00.000Z',
@@ -19,9 +19,9 @@ function buildMessage(
   };
 }
 
-function buildCodingSession(
-  overrides: Partial<BirdCoderCodingSession> = {},
-): BirdCoderCodingSession {
+function buildAgentSession(
+  overrides: Partial<AgentSessionView> = {},
+): AgentSessionView {
   return {
     id: 'session-1',
     workspaceId: 'workspace-1',
@@ -51,7 +51,7 @@ function buildProject(
     createdAt: '2026-04-28T01:00:00.000Z',
     updatedAt: '2026-04-28T01:00:00.000Z',
     archived: false,
-    codingSessions: [],
+    agentSessions: [],
     ...overrides,
   };
 }
@@ -59,7 +59,7 @@ function buildProject(
 const preservedMessages = [
   buildMessage({
     id: 'message-preserved',
-    codingSessionId: 'session-preserved',
+    agentSessionId: 'session-preserved',
     content: 'Keep transcript payload from the richer duplicate.',
   }),
 ];
@@ -71,8 +71,8 @@ const mergedDuplicateProjects = mergeProjectsForStore(
       id: 'project-duplicate',
       name: 'Duplicate Project With Sessions',
       updatedAt: '2026-04-28T01:00:00.000Z',
-      codingSessions: [
-        buildCodingSession({
+      agentSessions: [
+        buildAgentSession({
           id: 'session-preserved',
           projectId: 'project-duplicate',
           messages: preservedMessages,
@@ -83,7 +83,7 @@ const mergedDuplicateProjects = mergeProjectsForStore(
       id: 'project-duplicate',
       name: 'Duplicate Project Authority',
       updatedAt: '2026-04-28T01:01:00.000Z',
-      codingSessions: [],
+      agentSessions: [],
     }),
   ],
 );
@@ -99,12 +99,12 @@ assert.equal(
   'project store should keep the latest duplicate project scalars while deduplicating identity.',
 );
 assert.equal(
-  mergedDuplicateProjects[0]?.codingSessions.length,
+  mergedDuplicateProjects[0]?.agentSessions.length,
   1,
   'project store should not let a later empty duplicate project snapshot erase sessions already present in the same refresh.',
 );
 assert.equal(
-  mergedDuplicateProjects[0]?.codingSessions[0]?.messages,
+  mergedDuplicateProjects[0]?.agentSessions[0]?.messages,
   preservedMessages,
   'project store should preserve the richer duplicate session transcript by reference after project deduplication.',
 );
@@ -114,8 +114,8 @@ const mergedDuplicateSessions = mergeProjectsForStore(
   [
     buildProject({
       id: 'project-with-duplicate-sessions',
-      codingSessions: [
-        buildCodingSession({
+      agentSessions: [
+        buildAgentSession({
           id: 'session-duplicate',
           projectId: 'project-with-duplicate-sessions',
           title: 'Session With Transcript',
@@ -123,11 +123,11 @@ const mergedDuplicateSessions = mergeProjectsForStore(
           messages: [
             buildMessage({
               id: 'message-session-duplicate',
-              codingSessionId: 'session-duplicate',
+              agentSessionId: 'session-duplicate',
             }),
           ],
         }),
-        buildCodingSession({
+        buildAgentSession({
           id: 'session-duplicate',
           projectId: 'project-with-duplicate-sessions',
           title: 'Session Authority',
@@ -139,7 +139,7 @@ const mergedDuplicateSessions = mergeProjectsForStore(
   ],
 );
 
-const deduplicatedSessions = mergedDuplicateSessions[0]?.codingSessions ?? [];
+const deduplicatedSessions = mergedDuplicateSessions[0]?.agentSessions ?? [];
 assert.equal(
   deduplicatedSessions.length,
   1,

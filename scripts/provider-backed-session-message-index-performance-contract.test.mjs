@@ -63,112 +63,112 @@ function extractBody(name) {
 
 assert.match(
   serviceSource,
-  /const CACHED_CODING_SESSION_MESSAGE_INDEX_MAX_ENTRIES = 128;/,
+  /const CACHED_AGENT_SESSION_ITEM_INDEX_MAX_ENTRIES = 128;/,
   'Provider-backed message indexes must be memory bounded.',
 );
 assert.match(
   serviceSource,
-  /private readonly messageIndexesBySessionKey = new Map<string, CachedCodingSessionMessageIndex>\(\);/,
+  /private readonly messageIndexesBySessionKey = new Map<string, CachedAgentSessionItemIndex>\(\);/,
   'Provider-backed project service must maintain selected transcript message indexes outside React render work.',
 );
 
-const indexMessagesBody = extractBody('indexCodingSessionMessages');
+const indexMessagesBody = extractBody('indexAgentSessionItems');
 assert.match(
   indexMessagesBody,
-  /rememberCodingSessionMessageIndexEntry\(index,\s*message,\s*messageIndex\)/,
+  /rememberAgentSessionItemIndexEntry\(index,\s*message,\s*messageIndex\)/,
   'Message indexes must centralize all per-message key registration.',
 );
 
-const rememberMessageIndexBody = extractBody('rememberCodingSessionMessageIndexEntry');
+const rememberMessageIndexBody = extractBody('rememberAgentSessionItemIndexEntry');
 assert.match(
   rememberMessageIndexBody,
-  /buildBirdCoderChatMessageSynchronizationSignature\(message\)/,
+  /buildAgentSessionItemSynchronizationSignature\(message\)/,
   'Message index entries must precompute synchronization signatures once per cached transcript.',
 );
 assert.match(
   rememberMessageIndexBody,
-  /buildBirdCoderChatMessageLogicalMatchKey\(message\)/,
+  /buildAgentSessionItemLogicalMatchKey\(message\)/,
   'Message index entries must precompute logical match keys once per cached transcript.',
 );
 
-const resolveIndexBody = extractBody('resolveCachedCodingSessionMessageIndex');
+const resolveIndexBody = extractBody('resolveCachedAgentSessionItemIndex');
 assert.match(
   resolveIndexBody,
-  /cachedIndex\?\.messages === codingSession\.messages/,
+  /cachedIndex\?\.messages === agentSession\.messages/,
   'Resolving a message index must reuse the existing index while the transcript array reference is unchanged.',
 );
 assert.match(
   resolveIndexBody,
-  /indexCodingSessionMessages\(codingSession\.messages\)/,
+  /indexAgentSessionItems\(agentSession\.messages\)/,
   'Resolving a missing or stale message index must build it from the selected transcript only.',
 );
 
-const findMatchingIndexBody = extractBody('findMatchingCachedCodingSessionMessageIndex');
+const findMatchingIndexBody = extractBody('findMatchingCachedAgentSessionItemIndex');
 assert.match(
   findMatchingIndexBody,
-  /findCachedCodingSessionMessageIndexById\(/,
+  /findCachedAgentSessionItemIndexById\(/,
   'The shared cached matcher must preserve the O(1) exact-id fast path before candidate matching.',
 );
 
-const addMessageBody = extractBody('addCodingSessionMessage');
+const addMessageBody = extractBody('addAgentSessionItem');
 assert.doesNotMatch(
   addMessageBody,
-  /codingSession\.messages\.find\(|findMatchingCodingSessionMessageIndex\(/,
+  /agentSession\.messages\.find\(|findMatchingAgentSessionItemIndex\(/,
   'Hot message append must not linearly scan the selected transcript for exact or logical matches.',
 );
 assert.match(
   addMessageBody,
-  /resolveCachedCodingSessionMessageIndex\(projectId,\s*codingSession\)/,
+  /resolveCachedAgentSessionItemIndex\(projectId,\s*agentSession\)/,
   'Hot message append must resolve the per-session message index once.',
 );
 assert.match(
   addMessageBody,
-  /findMatchingCachedCodingSessionMessageIndex\(/,
+  /findMatchingCachedAgentSessionItemIndex\(/,
   'Hot message append must use the exact-id fast path and precomputed candidate indexes through the shared matcher.',
 );
 assert.match(
   addMessageBody,
-  /appendCachedCodingSessionMessageIndex\(/,
+  /appendCachedAgentSessionItemIndex\(/,
   'Hot message append must incrementally append the message index instead of rebuilding it.',
 );
 assert.match(
   addMessageBody,
-  /replaceCachedCodingSessionMessageIndexEntry\(/,
+  /replaceCachedAgentSessionItemIndexEntry\(/,
   'Hot logical-message merge must update one message-index entry instead of rebuilding it.',
 );
 
-for (const methodName of ['editCodingSessionMessage', 'deleteCodingSessionMessage']) {
+for (const methodName of ['editAgentSessionItem', 'deleteAgentSessionItem']) {
   const methodBody = extractBody(methodName);
   assert.doesNotMatch(
     methodBody,
-    /codingSession\.messages\.findIndex\(/,
+    /agentSession\.messages\.findIndex\(/,
     `${methodName} must not linearly scan the selected transcript to locate one message.`,
   );
   assert.match(
     methodBody,
-    /findCachedCodingSessionMessageIndexById\(/,
+    /findCachedAgentSessionItemIndexById\(/,
     `${methodName} must locate the target message through the cached message id index.`,
   );
 }
 
-const editMessageBody = extractBody('editCodingSessionMessage');
+const editMessageBody = extractBody('editAgentSessionItem');
 assert.match(
   editMessageBody,
-  /replaceCachedCodingSessionMessageIndexEntry\(/,
+  /replaceCachedAgentSessionItemIndexEntry\(/,
   'Single-message edits must incrementally replace one message-index entry.',
 );
 
-const deleteMessageBody = extractBody('deleteCodingSessionMessage');
+const deleteMessageBody = extractBody('deleteAgentSessionItem');
 assert.match(
   deleteMessageBody,
-  /removeCachedCodingSessionMessageIndexEntry\(/,
+  /removeCachedAgentSessionItemIndexEntry\(/,
   'Single-message deletes must incrementally remove one message-index entry and shift only the tail positions.',
 );
 
-const setMessageIndexBody = extractBody('setCachedCodingSessionMessageIndex');
+const setMessageIndexBody = extractBody('setCachedAgentSessionItemIndex');
 assert.match(
   setMessageIndexBody,
-  /while \(\s*this\.messageIndexesBySessionKey\.size > CACHED_CODING_SESSION_MESSAGE_INDEX_MAX_ENTRIES\s*\)/,
+  /while \(\s*this\.messageIndexesBySessionKey\.size > CACHED_AGENT_SESSION_ITEM_INDEX_MAX_ENTRIES\s*\)/,
   'Cached message indexes must evict old selected transcripts to cap memory growth.',
 );
 

@@ -151,6 +151,27 @@
       "repository": "Sdkwork-Cloud/sdkwork-agents",
       "refInput": "SDKWORK_AGENTS_REF",
       "tokenSecret": "SDKWORK_RELEASE_TOKEN"
+    },
+    {
+      "id": "sdkwork-skills",
+      "repository": "Sdkwork-Cloud/sdkwork-skills",
+      "ref": "4893f1dc190ea8bc976795c900dbf92d02480a68",
+      "refInput": "SDKWORK_SKILLS_REF",
+      "tokenSecret": "SDKWORK_RELEASE_TOKEN"
+    },
+    {
+      "id": "sdkwork-prompts",
+      "repository": "Sdkwork-Cloud/sdkwork-prompts",
+      "ref": "5779986572ac172dc62b9686df0aef8da3f79456",
+      "refInput": "SDKWORK_PROMPTS_REF",
+      "tokenSecret": "SDKWORK_RELEASE_TOKEN"
+    },
+    {
+      "id": "sdkwork-documents",
+      "repository": "Sdkwork-Cloud/sdkwork-documents",
+      "ref": "36c8561050ce5938dad7f296eee840865c2210c7",
+      "refInput": "SDKWORK_DOCUMENTS_REF",
+      "tokenSecret": "SDKWORK_RELEASE_TOKEN"
     }
   ],
   "toolchains": {

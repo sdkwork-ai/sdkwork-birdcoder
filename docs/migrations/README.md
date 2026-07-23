@@ -5,6 +5,6 @@
 
 Migration evidence follows `MIGRATION_SPEC.md` and is linked to its governing
 requirement and architecture decision. BirdCoder is pre-launch, so this
-directory records direct-cleanup and forward-fix plans rather than preserving
-unsafe project-root behavior, duplicate domain authorities, projections,
+directory records executed direct-cleanup evidence and forward-fix procedures
+rather than preserving unsafe project-root behavior, duplicate domain authorities, projections,
 compatibility facades, or dual-write.

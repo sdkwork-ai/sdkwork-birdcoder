@@ -1,51 +1,78 @@
-import type { BirdCoderAppSdkApiClient } from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/src/services/sdkClients.ts';
 import assert from 'node:assert/strict';
-import type {
-  BirdCoderProjectDocumentSummary,
-} from '@sdkwork/birdcoder-pc-contracts-commons';
-import { createDefaultBirdCoderIdeServices } from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/src/services/defaultIdeServices.ts';
-import { createAppSdkClientContractStub, createBackendSdkClientContractStub } from './split-sdk-client-contract-stub.ts';
-import { installBirdCoderTestRuntimeEnv } from './test-birdcoder-runtime-env-fixture.ts';
 
-const documentFixtures: BirdCoderProjectDocumentSummary[] = [
-  {
-    id: 'doc-contract-1',
-    projectId: 'project-contract-1',
-    documentKind: 'architecture',
-    title: 'Document Contract Architecture',
-    slug: 'document-contract-architecture',
-    status: 'active',
-    updatedAt: '2026-04-11T14:00:00.000Z',
+import type { SdkworkDocumentsAppClient } from '@sdkwork/documents-app-sdk';
+import type { BirdCoderAppSdkApiClient } from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/src/services/birdCoderSdkClient.ts';
+import { DocumentsSdkProjectDocumentService } from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/src/services/impl/DocumentsSdkProjectDocumentService.ts';
+
+const binding = {
+  id: 'binding-contract-1',
+  uuid: 'binding-contract-uuid-1',
+  projectId: 'project-contract-1',
+  documentId: 'document-contract-1',
+  bindingKind: 'architecture',
+  version: '3',
+  createdAt: '2026-04-11T14:00:00.000Z',
+  updatedAt: '2026-04-11T14:01:00.000Z',
+};
+
+let listedProjectId = '';
+let listedPage = 0;
+let listedPageSize = 0;
+const appClient = {
+  platform: {
+    projects: {
+      documentBindings: {
+        async list(projectId: string, options: { page?: number; pageSize?: number }) {
+          listedProjectId = projectId;
+          listedPage = options.page ?? 0;
+          listedPageSize = options.pageSize ?? 0;
+          return {
+            items: [binding],
+            pageInfo: { page: 1, pageSize: 200, total: '1', totalPages: 1 },
+          };
+        },
+      },
+    },
   },
-];
+} as unknown as BirdCoderAppSdkApiClient;
 
-let listDocumentsCalls = 0;
-
-const appClient: BirdCoderAppSdkApiClient = createAppSdkClientContractStub({
-  async listDocuments() {
-    listDocumentsCalls += 1;
-    return documentFixtures;
+const retrievedDocumentIds: string[] = [];
+const documentsClient = {
+  documents: {
+    async retrieve(documentId: string) {
+      retrievedDocumentIds.push(documentId);
+      return {
+        id: documentId,
+        title: 'Document Contract Architecture',
+        status: 'active',
+        body: '# Architecture',
+      };
+    },
   },
+} as unknown as SdkworkDocumentsAppClient;
+
+const service = new DocumentsSdkProjectDocumentService({ appClient, documentsClient });
+const documents = await service.getDocuments({
+  projectId: ' project-contract-1 ',
+  page: 0,
+  pageSize: 500,
 });
 
-const restoreRuntimeEnv = installBirdCoderTestRuntimeEnv();
-const services = createDefaultBirdCoderIdeServices({
-  appClient,
-});
+assert.deepEqual(documents, [{
+  bindingId: binding.id,
+  projectId: binding.projectId,
+  documentId: binding.documentId,
+  bindingKind: binding.bindingKind,
+  bindingVersion: binding.version,
+  title: 'Document Contract Architecture',
+  status: 'active',
+  body: '# Architecture',
+  createdAt: binding.createdAt,
+  updatedAt: binding.updatedAt,
+}]);
+assert.equal(listedProjectId, binding.projectId);
+assert.equal(listedPage, 1, 'document binding reads must normalize page to the API minimum.');
+assert.equal(listedPageSize, 200, 'document binding reads must enforce the API page-size limit.');
+assert.deepEqual(retrievedDocumentIds, [binding.documentId]);
 
-const documents = await services.documentService.getDocuments();
-
-assert.deepEqual(
-  documents,
-  documentFixtures,
-  'default IDE services must expose document reads through the shared app SDK facade.',
-);
-
-assert.equal(
-  listDocumentsCalls,
-  1,
-  'documentService must delegate exactly one read to BirdCoderAppSdkApiClient.listDocuments().',
-);
-
-restoreRuntimeEnv();
-console.log('default IDE services document service contract passed.');
+console.log('Documents SDK project binding service contract passed.');

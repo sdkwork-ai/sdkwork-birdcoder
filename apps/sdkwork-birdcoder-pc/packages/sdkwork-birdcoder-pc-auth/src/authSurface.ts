@@ -1,18 +1,14 @@
-export const AUTH_SURFACE_BASE_PATH = '/auth';
-export const AUTH_SURFACE_DEFAULT_ROUTE = `${AUTH_SURFACE_BASE_PATH}/login`;
+import {
+  BIRDCODER_AUTH_SURFACE_BASE_PATH,
+  BIRDCODER_AUTH_SURFACE_LOGIN_PATH,
+  isBirdCoderAuthSurfacePath,
+  normalizeBirdCoderAuthSurfacePath,
+} from '@sdkwork/birdcoder-pc-contracts-commons/authSurfacePaths';
 
-export function normalizeAuthSurfaceLocationPath(rawPath: string | null | undefined): string {
-  const normalizedPath = (rawPath || '').trim();
-  if (!normalizedPath) {
-    return '';
-  }
-
-  return normalizedPath.startsWith('/') ? normalizedPath : `/${normalizedPath}`;
-}
-
-export function isAuthSurfaceLocationPath(path: string): boolean {
-  return path === AUTH_SURFACE_BASE_PATH || path.startsWith(`${AUTH_SURFACE_BASE_PATH}/`);
-}
+export const AUTH_SURFACE_BASE_PATH = BIRDCODER_AUTH_SURFACE_BASE_PATH;
+export const AUTH_SURFACE_DEFAULT_ROUTE = BIRDCODER_AUTH_SURFACE_LOGIN_PATH;
+export const normalizeAuthSurfaceLocationPath = normalizeBirdCoderAuthSurfacePath;
+export const isAuthSurfaceLocationPath = isBirdCoderAuthSurfacePath;
 
 export function readAuthSurfaceHashPath(): string {
   if (typeof window === 'undefined') {

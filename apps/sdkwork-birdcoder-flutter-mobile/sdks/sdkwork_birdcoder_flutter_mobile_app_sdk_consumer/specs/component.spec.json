@@ -1,0 +1,80 @@
+{
+  "schemaVersion": 1,
+  "kind": "sdkwork.component.spec",
+  "component": {
+    "name": "sdkwork_birdcoder_flutter_mobile_app_sdk_consumer",
+    "displayName": "SDKWork BirdCoder Flutter Mobile App SDK Consumer",
+    "version": "0.1.0",
+    "type": "sdk-consumer",
+    "root": "sdkwork-birdcoder/apps/sdkwork-birdcoder-flutter-mobile/sdks/sdkwork_birdcoder_flutter_mobile_app_sdk_consumer",
+    "domain": "platform",
+    "capability": "app-sdk-consumption",
+    "surface": "app",
+    "languages": ["dart"],
+    "generated": false,
+    "private": true,
+    "manifests": ["pubspec.yaml", "sdk-manifest.json"]
+  },
+  "canonicalSpecs": [
+    { "file": "COMPONENT_SPEC.md", "path": "../../../../../sdkwork-specs/COMPONENT_SPEC.md", "purpose": "Component ownership and facade contracts." },
+    { "file": "CODE_STYLE_SPEC.md", "path": "../../../../../sdkwork-specs/CODE_STYLE_SPEC.md", "purpose": "Authored facade and generated transport boundaries." },
+    { "file": "NAMING_SPEC.md", "path": "../../../../../sdkwork-specs/NAMING_SPEC.md", "purpose": "Canonical SDK consumer naming." },
+    { "file": "SDK_SPEC.md", "path": "../../../../../sdkwork-specs/SDK_SPEC.md", "purpose": "Generated SDK family ownership." },
+    { "file": "APP_SDK_INTEGRATION_SPEC.md", "path": "../../../../../sdkwork-specs/APP_SDK_INTEGRATION_SPEC.md", "purpose": "App SDK consumer and credential injection rules." }
+  ],
+  "contracts": {
+    "layerRole": "sdk-facade",
+    "publicExports": ["lib/sdkwork_birdcoder_flutter_mobile_app_sdk_consumer.dart"],
+    "providedPorts": [
+      { "name": "birdcoderFlutterAppSdkConsumer", "export": "lib/sdkwork_birdcoder_flutter_mobile_app_sdk_consumer.dart" }
+    ],
+    "requiredPorts": [
+      { "name": "birdcoderAppSdkGeneratedTransport", "export": "lib/sdkwork_birdcoder_flutter_mobile_app_sdk_consumer.dart" }
+    ],
+    "runtimeEntrypoints": [],
+    "routeManifest": null,
+    "sdkClients": [],
+    "sdkDependencies": [
+      {
+        "workspace": "sdkwork-birdcoder-app-sdk",
+        "surface": "app-api",
+        "credentialMode": "authenticated-app-api",
+        "required": true,
+        "manifestPath": "../../../../sdks/sdkwork-birdcoder-app-sdk/sdk-manifest.json"
+      }
+    ],
+    "permissionComposition": {
+      "inheritanceMode": "module-catalog-with-overrides",
+      "applicationModule": { "manifestRef": "../../../../specs/iam.module.manifest.json" },
+      "moduleCatalogRefs": [
+        {
+          "moduleId": "birdcoder",
+          "manifestRef": "../../../../specs/iam.module.manifest.json",
+          "inheritPermissions": true,
+          "inheritRoles": true
+        }
+      ],
+      "consumerPolicy": {
+        "forbidLocalPermissionCatalogForDependencyDomains": true,
+        "allowExplicitOverridesOnly": true
+      }
+    },
+    "dependencyApiExports": [],
+    "dependencyApiSurfaces": [
+      {
+        "workspace": "sdkwork-birdcoder",
+        "sdkFamily": "sdkwork-birdcoder-app-sdk",
+        "apiAuthority": "sdkwork-birdcoder-app-api",
+        "surface": "app-api",
+        "apiPrefix": "/app/v3/api",
+        "runtimeMode": "external-service"
+      }
+    ],
+    "events": [],
+    "configKeys": ["sdk-manifest.json"]
+  },
+  "integration": {
+    "generatedBoundary": "generated/server-openapi inherits this authored consumer contract and must not own an independent component spec."
+  },
+  "verification": { "commands": ["pnpm check:flutter-android"] }
+}

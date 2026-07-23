@@ -1,35 +1,38 @@
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 
-import {
-  BIRDCODER_DATA_ENTITY_DEFINITIONS,
-  BIRDCODER_PROMPT_COMPOSITION_LAYER_IDS,
-} from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-contracts-commons/src/index.ts';
+interface DomainDependencyOwnership {
+  owner: string;
+  consumerBoundary: string;
+  forbiddenLocalTables: string[];
+}
 
-const skillsOwnedEntityNames = new Set([
-  'agent_skill_package',
-  'agent_skill',
-  'user_agent_skill',
-  'skill_package',
-  'skill_version',
-  'skill_capability',
-  'skill_installation',
-  'skill_binding',
-  'skill_runtime_config',
-]);
+interface DomainOwnershipSpec {
+  persistence: {
+    tables: string[];
+  };
+  dependencies: DomainDependencyOwnership[];
+}
 
-assert.deepEqual(
-  BIRDCODER_DATA_ENTITY_DEFINITIONS
-    .map((definition) => definition.entityName)
-    .filter((entityName) => skillsOwnedEntityNames.has(entityName)),
-  [],
-  'BirdCoder must not own or materialize sdkwork-skills persistence entities.',
+const domainOwnership = JSON.parse(
+  readFileSync(new URL('../specs/domain-ownership.spec.json', import.meta.url), 'utf8'),
+) as DomainOwnershipSpec;
+const skillsOwnership = domainOwnership.dependencies.find(
+  (dependency) => dependency.owner === 'sdkwork-skills',
 );
 
-assert.equal(
-  BIRDCODER_PROMPT_COMPOSITION_LAYER_IDS.includes('skills_context'),
-  true,
-  'Prompt composition may reference canonical Skills installations without owning them.',
+assert.ok(skillsOwnership, 'BirdCoder domain ownership must declare sdkwork-skills.');
+assert.equal(skillsOwnership.consumerBoundary, 'generated Skills SDK');
+assert.deepEqual(skillsOwnership.forbiddenLocalTables, [
+  'ai_skill_package',
+  'ai_skill_version',
+  'ai_skill_capability',
+  'ai_skill_installation',
+]);
+assert.deepEqual(
+  domainOwnership.persistence.tables.filter((table) => table.includes('skill')),
+  [],
+  'BirdCoder must not own or materialize sdkwork-skills persistence tables.',
 );
 
 const catalogServiceSource = readFileSync(

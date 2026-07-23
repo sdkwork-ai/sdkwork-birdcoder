@@ -1,19 +1,19 @@
 import { useCallback } from 'react';
 import {
-  useCodingSessionPendingInteractionState,
-} from '@sdkwork/birdcoder-pc-workbench/hooks/useCodingSessionProjection';
+  useAgentSessionPendingInteractions,
+} from '@sdkwork/birdcoder-pc-workbench/hooks/useAgentSessionInteractions';
 import type {
-  BirdCoderSubmitApprovalDecisionRequest,
-  BirdCoderSubmitUserQuestionAnswerRequest,
-} from '@sdkwork/birdcoder-pc-contracts-commons';
+  AgentApprovalDecisionInput,
+  AgentQuestionAnswerInput,
+} from '@sdkwork/birdcoder-pc-workbench/hooks/useAgentSessionInteractions';
 
 interface UseCodePendingInteractionsOptions {
   refreshToken?: string | number | null;
   projectId?: string | null;
   sessionId: string | null;
   sessionScopeKey?: string | null;
-  onRefreshCodingSessionMessages: (
-    codingSessionId: string,
+  onRefreshAgentSessionItems: (
+    agentSessionId: string,
   ) => void | Promise<void>;
 }
 
@@ -22,14 +22,14 @@ export function useCodePendingInteractions({
   projectId,
   sessionId,
   sessionScopeKey,
-  onRefreshCodingSessionMessages,
+  onRefreshAgentSessionItems,
 }: UseCodePendingInteractionsOptions) {
   const {
     approvals: pendingApprovals,
     questions: pendingUserQuestions,
     submitApprovalDecision,
-    submitUserQuestionAnswer,
-  } = useCodingSessionPendingInteractionState(
+    submitQuestionAnswer,
+  } = useAgentSessionPendingInteractions(
     sessionId,
     refreshToken,
     sessionScopeKey,
@@ -37,24 +37,24 @@ export function useCodePendingInteractions({
   );
 
   const onSubmitApprovalDecision = useCallback(async (
-    interactionEventId: string,
-    request: BirdCoderSubmitApprovalDecisionRequest,
+    interactionId: string,
+    request: AgentApprovalDecisionInput,
   ) => {
-    await submitApprovalDecision(interactionEventId, request);
+    await submitApprovalDecision(interactionId, request);
     if (sessionId) {
-      await onRefreshCodingSessionMessages(sessionId);
+      await onRefreshAgentSessionItems(sessionId);
     }
-  }, [onRefreshCodingSessionMessages, sessionId, submitApprovalDecision]);
+  }, [onRefreshAgentSessionItems, sessionId, submitApprovalDecision]);
 
   const onSubmitUserQuestionAnswer = useCallback(async (
-    interactionEventId: string,
-    request: BirdCoderSubmitUserQuestionAnswerRequest,
+    interactionId: string,
+    request: AgentQuestionAnswerInput,
   ) => {
-    await submitUserQuestionAnswer(interactionEventId, request);
+    await submitQuestionAnswer(interactionId, request);
     if (sessionId) {
-      await onRefreshCodingSessionMessages(sessionId);
+      await onRefreshAgentSessionItems(sessionId);
     }
-  }, [onRefreshCodingSessionMessages, sessionId, submitUserQuestionAnswer]);
+  }, [onRefreshAgentSessionItems, sessionId, submitQuestionAnswer]);
 
   return {
     onSubmitApprovalDecision,

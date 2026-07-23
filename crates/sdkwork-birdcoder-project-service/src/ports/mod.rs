@@ -1,6 +1,5 @@
 pub mod document_binding_repository;
 pub mod git;
-pub mod project_workspace_root;
 pub mod repository;
 pub mod runtime_location_execution;
 pub mod runtime_location_path_cipher;

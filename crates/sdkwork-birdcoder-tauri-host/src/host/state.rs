@@ -1,45 +1,16 @@
 use rusqlite::Connection;
 use std::collections::HashSet;
 use std::fs;
-use std::path::{Component, Path, PathBuf};
+use std::path::PathBuf;
 use std::sync::{Mutex, OnceLock};
 use std::time::Duration;
 use tauri::{AppHandle, Manager};
 
 use crate::commands::filesystem_commands::register_allowed_fs_root;
 
-const DESKTOP_LOCAL_SQLITE_FILE_NAME: &str = "sdkwork-birdcoder-pc-desktop-local.sqlite3";
+const BIRDCODER_SQLITE_FILE_NAME: &str = "birdcoder.sqlite3";
 const DEFAULT_EMBEDDED_API_HOST: &str = "127.0.0.1";
 const DEFAULT_EMBEDDED_API_PORT: u16 = 10240;
-const PROVIDER_RUNTIME_ROOT_ENV: &str = "SDKWORK_AGENT_PROVIDER_RUNTIME_ROOT";
-const PROVIDER_RUNTIME_DIR_NAME: &str = "provider-runtime";
-const PROVIDER_RUNTIME_MANIFEST_FILE_NAME: &str = "runtime-manifest.json";
-const PROVIDER_RUNTIME_MANIFEST_SCHEMA_VERSION: u32 = 1;
-const PROVIDER_RUNTIME_MANIFEST_KIND: &str = "sdkwork.birdcoder.provider-runtime";
-
-#[derive(Debug, serde::Deserialize)]
-#[serde(rename_all = "camelCase")]
-struct ProviderRuntimeManifest {
-    schema_version: u32,
-    kind: String,
-    target: ProviderRuntimeTarget,
-    node: ProviderRuntimeAsset,
-    workers: Vec<ProviderRuntimeAsset>,
-}
-
-#[derive(Debug, serde::Deserialize)]
-struct ProviderRuntimeTarget {
-    platform: String,
-    architecture: String,
-}
-
-#[derive(Debug, serde::Deserialize)]
-#[serde(rename_all = "camelCase")]
-struct ProviderRuntimeAsset {
-    relative_path: String,
-    sha256: String,
-    size: u64,
-}
 
 static INITIALIZED_DATABASE_PATHS: OnceLock<Mutex<HashSet<PathBuf>>> = OnceLock::new();
 static EMBEDDED_RUNTIME_CONFIG: OnceLock<DesktopRuntimeConfig> = OnceLock::new();
@@ -74,138 +45,10 @@ impl TauriHostState {
     }
 
     pub fn register(app: &AppHandle) -> Result<(), String> {
-        configure_provider_runtime_root(app)?;
         let api_base_url_override = read_explicit_api_base_url()?;
         app.manage(TauriHostState::new(api_base_url_override));
         register_runtime_fs_roots()?;
         Ok(())
-    }
-}
-
-fn configure_provider_runtime_root(app: &AppHandle) -> Result<(), String> {
-    if std::env::var_os(PROVIDER_RUNTIME_ROOT_ENV).is_some_and(|value| !value.is_empty()) {
-        let configured_root = std::env::var_os(PROVIDER_RUNTIME_ROOT_ENV)
-            .map(PathBuf::from)
-            .ok_or_else(|| "provider runtime root environment value is invalid".to_string())?;
-        validate_provider_runtime_root(&configured_root)?;
-        return Ok(());
-    }
-
-    let resource_dir = app
-        .path()
-        .resource_dir()
-        .map_err(|error| format!("failed to resolve desktop resource directory: {error}"))?;
-    if let Some(runtime_root) = provider_runtime_root_from_resource_dir(&resource_dir)? {
-        std::env::set_var(PROVIDER_RUNTIME_ROOT_ENV, runtime_root);
-    }
-    Ok(())
-}
-
-fn provider_runtime_root_from_resource_dir(resource_dir: &Path) -> Result<Option<PathBuf>, String> {
-    let runtime_root = resource_dir.join(PROVIDER_RUNTIME_DIR_NAME);
-    if !runtime_root
-        .join(PROVIDER_RUNTIME_MANIFEST_FILE_NAME)
-        .is_file()
-    {
-        return Ok(None);
-    }
-    validate_provider_runtime_root(&runtime_root)?;
-    Ok(Some(runtime_root))
-}
-
-fn validate_provider_runtime_root(runtime_root: &Path) -> Result<(), String> {
-    let canonical_root = runtime_root
-        .canonicalize()
-        .map_err(|_| "provider runtime root cannot be resolved".to_string())?;
-    if !canonical_root.is_dir() {
-        return Err("provider runtime root must be a directory".to_string());
-    }
-    let manifest_path = canonical_root.join(PROVIDER_RUNTIME_MANIFEST_FILE_NAME);
-    let manifest_source = fs::read_to_string(&manifest_path)
-        .map_err(|_| "provider runtime manifest cannot be read".to_string())?;
-    let manifest: ProviderRuntimeManifest = serde_json::from_str(&manifest_source)
-        .map_err(|_| "provider runtime manifest is invalid".to_string())?;
-    if manifest.schema_version != PROVIDER_RUNTIME_MANIFEST_SCHEMA_VERSION
-        || manifest.kind != PROVIDER_RUNTIME_MANIFEST_KIND
-    {
-        return Err("provider runtime manifest has an unsupported schema or kind".to_string());
-    }
-    if manifest.target.platform != runtime_target_platform()
-        || manifest.target.architecture != runtime_target_architecture()
-    {
-        return Err("provider runtime manifest targets a different platform".to_string());
-    }
-    if manifest.workers.is_empty() {
-        return Err("provider runtime manifest must declare at least one worker".to_string());
-    }
-    validate_provider_runtime_asset(&canonical_root, &manifest.node, "node")?;
-    for worker in &manifest.workers {
-        validate_provider_runtime_asset(&canonical_root, worker, "worker")?;
-    }
-    Ok(())
-}
-
-fn validate_provider_runtime_asset(
-    canonical_root: &Path,
-    asset: &ProviderRuntimeAsset,
-    asset_kind: &str,
-) -> Result<(), String> {
-    let relative_path = Path::new(asset.relative_path.trim());
-    if relative_path.as_os_str().is_empty()
-        || relative_path.is_absolute()
-        || relative_path.components().any(|component| {
-            matches!(
-                component,
-                Component::ParentDir | Component::RootDir | Component::Prefix(_)
-            )
-        })
-        || asset.sha256.len() != 64
-        || !asset
-            .sha256
-            .chars()
-            .all(|character| character.is_ascii_hexdigit())
-    {
-        return Err(format!(
-            "provider runtime {asset_kind} asset metadata is invalid"
-        ));
-    }
-    let asset_path = canonical_root.join(relative_path);
-    let canonical_asset_path = asset_path
-        .canonicalize()
-        .map_err(|_| format!("provider runtime {asset_kind} asset is missing"))?;
-    if !canonical_asset_path.starts_with(canonical_root) || !canonical_asset_path.is_file() {
-        return Err(format!(
-            "provider runtime {asset_kind} asset escapes its runtime root"
-        ));
-    }
-    let actual_size = fs::metadata(&canonical_asset_path)
-        .map_err(|_| format!("provider runtime {asset_kind} asset metadata is unavailable"))?
-        .len();
-    if actual_size != asset.size {
-        return Err(format!(
-            "provider runtime {asset_kind} asset size does not match manifest"
-        ));
-    }
-    Ok(())
-}
-
-fn runtime_target_platform() -> &'static str {
-    if cfg!(target_os = "windows") {
-        "windows"
-    } else if cfg!(target_os = "macos") {
-        "macos"
-    } else {
-        "linux"
-    }
-}
-
-fn runtime_target_architecture() -> &'static str {
-    if cfg!(target_arch = "x86_64") {
-        "x64"
-    } else if cfg!(target_arch = "aarch64") {
-        "arm64"
-    } else {
-        "unknown"
     }
 }
 
@@ -296,7 +139,7 @@ fn embedded_runtime_startup() -> &'static tokio::sync::OnceCell<DesktopRuntimeCo
     EMBEDDED_RUNTIME_STARTUP.get_or_init(tokio::sync::OnceCell::new)
 }
 
-pub fn start_embedded_coding_server(app: &AppHandle) -> Result<DesktopRuntimeConfig, String> {
+pub fn start_embedded_application_gateway(app: &AppHandle) -> Result<DesktopRuntimeConfig, String> {
     if let Some(runtime_config) = EMBEDDED_RUNTIME_CONFIG.get() {
         return Ok(runtime_config.clone());
     }
@@ -369,7 +212,7 @@ pub fn start_embedded_coding_server(app: &AppHandle) -> Result<DesktopRuntimeCon
 pub async fn ensure_desktop_runtime_config(app: AppHandle) -> Result<DesktopRuntimeConfig, String> {
     embedded_runtime_startup()
         .get_or_try_init(|| async move {
-            tauri::async_runtime::spawn_blocking(move || start_embedded_coding_server(&app))
+            tauri::async_runtime::spawn_blocking(move || start_embedded_application_gateway(&app))
                 .await
                 .map_err(|error| {
                     format!("failed to join embedded BirdCoder API startup task: {error}")
@@ -379,7 +222,7 @@ pub async fn ensure_desktop_runtime_config(app: AppHandle) -> Result<DesktopRunt
         .map(Clone::clone)
 }
 
-pub fn spawn_embedded_coding_server_startup(app: AppHandle) {
+pub fn spawn_embedded_application_gateway_startup(app: AppHandle) {
     tauri::async_runtime::spawn(async move {
         if let Err(error) = ensure_desktop_runtime_config(app).await {
             eprintln!("failed to start embedded BirdCoder API: {error}");
@@ -400,7 +243,7 @@ fn print_embedded_api_startup_summary(api_base_url: &str) {
 
 pub fn local_database_path(app: &AppHandle) -> Result<PathBuf, String> {
     let database_path = if let Some(configured_path) =
-        std::env::var_os("BIRDCODER_CODING_SERVER_SQLITE_FILE")
+        std::env::var_os("SDKWORK_BIRDCODER_DATABASE_FILE")
             .map(PathBuf::from)
             .filter(|path| !path.as_os_str().is_empty())
     {
@@ -410,7 +253,7 @@ pub fn local_database_path(app: &AppHandle) -> Result<PathBuf, String> {
             .path()
             .app_data_dir()
             .map_err(|error| format!("failed to resolve app data directory: {error}"))?;
-        app_dir.push(DESKTOP_LOCAL_SQLITE_FILE_NAME);
+        app_dir.push(BIRDCODER_SQLITE_FILE_NAME);
         app_dir
     };
     let parent_directory = database_path.parent().ok_or_else(|| {
@@ -529,54 +372,4 @@ mod tests {
         let _ = std::fs::remove_file(database_path);
     }
 
-    #[test]
-    fn provider_runtime_root_requires_packaged_manifest() {
-        let resource_dir = std::env::temp_dir().join(format!(
-            "birdcoder-tauri-provider-runtime-{}",
-            std::process::id()
-        ));
-        let runtime_root = resource_dir.join(PROVIDER_RUNTIME_DIR_NAME);
-        std::fs::create_dir_all(&runtime_root).expect("provider runtime fixture directory");
-
-        assert_eq!(
-            provider_runtime_root_from_resource_dir(&resource_dir)
-                .expect("missing provider runtime manifest should be accepted as absent"),
-            None
-        );
-
-        let node_path = runtime_root.join("node/node.exe");
-        let worker_path = runtime_root.join("workers/worker.mjs");
-        std::fs::create_dir_all(node_path.parent().expect("node fixture parent"))
-            .expect("provider runtime node directory");
-        std::fs::create_dir_all(worker_path.parent().expect("worker fixture parent"))
-            .expect("provider runtime worker directory");
-        std::fs::write(&node_path, b"node").expect("provider runtime node fixture");
-        std::fs::write(&worker_path, b"worker").expect("provider runtime worker fixture");
-        let manifest = format!(
-            r#"{{
-                "schemaVersion": 1,
-                "kind": "{PROVIDER_RUNTIME_MANIFEST_KIND}",
-                "target": {{"platform": "{}", "architecture": "{}"}},
-                "node": {{"relativePath": "node/node.exe", "sha256": "{}", "size": 4}},
-                "workers": [{{"relativePath": "workers/worker.mjs", "sha256": "{}", "size": 6}}]
-            }}
-            "#,
-            runtime_target_platform(),
-            runtime_target_architecture(),
-            "0".repeat(64),
-            "0".repeat(64),
-        );
-        std::fs::write(
-            runtime_root.join(PROVIDER_RUNTIME_MANIFEST_FILE_NAME),
-            manifest,
-        )
-        .expect("provider runtime fixture manifest");
-        assert_eq!(
-            provider_runtime_root_from_resource_dir(&resource_dir)
-                .expect("valid provider runtime manifest should validate"),
-            Some(runtime_root)
-        );
-
-        let _ = std::fs::remove_dir_all(resource_dir);
-    }
 }

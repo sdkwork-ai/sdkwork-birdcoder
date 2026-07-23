@@ -1,14 +1,12 @@
 /**
  * BirdCoder VIP membership service adapter.
  *
- * Delegates to `@sdkwork/membership-service` which is bootstrapped with the
- * BirdCoder global TokenManager (same token-sharing approach as
- * sdkwork-clawrouter). The membership service provider is configured globally
+ * Delegates to `@sdkwork/membership-service`, which is bootstrapped with the
+ * BirdCoder global TokenManager. The membership service provider is configured
  * by `bootstrapBirdCoderMembershipSdk()` during shell bootstrap.
  *
- * This adapter exists to maintain backward compatibility with the BirdCoder
- * IDE services context (`IVipMembershipService`) while the actual data
- * retrieval is handled by the sdkwork-membership service layer.
+ * This adapter binds the BirdCoder presentation port (`IVipMembershipService`)
+ * to the sdkwork-membership owner service.
  */
 
 import {

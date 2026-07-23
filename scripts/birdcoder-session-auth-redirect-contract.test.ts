@@ -1,16 +1,18 @@
 import assert from 'node:assert/strict';
 
 import {
-  buildBirdCoderProtectedLoginBrowserUrl,
   buildBirdCoderProtectedLoginPath,
   isBirdCoderAuthSurfacePath,
-} from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-core/src/appSessionAuthRedirect.ts';
-import { buildProtectedRouteLoginPath } from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-auth/src/authAccessPolicy.ts';
-import { BirdCoderApiTransportError, readBirdCoderApiTransportErrorHttpStatus } from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-contracts-commons/src/apiTransportError.ts';
+} from '@sdkwork/birdcoder-pc-contracts-commons/authSurfacePaths';
+import { BirdCoderApiTransportError, readBirdCoderApiTransportErrorHttpStatus } from '@sdkwork/birdcoder-pc-contracts-commons/apiTransportError';
+import { buildBirdCoderProtectedLoginBrowserUrl } from '@sdkwork/birdcoder-pc-core/appSessionAuthRedirect';
 
 assert.equal(buildBirdCoderProtectedLoginPath('/app/chat'), '/auth/login?redirect=%2Fapp%2Fchat');
-assert.equal(buildProtectedRouteLoginPath('/app/chat'), buildBirdCoderProtectedLoginPath('/app/chat'));
 assert.equal(buildBirdCoderProtectedLoginPath('/auth/login'), '/auth/login');
+assert.equal(
+  buildBirdCoderProtectedLoginPath('/authentication'),
+  '/auth/login?redirect=%2Fauthentication',
+);
 assert.equal(isBirdCoderAuthSurfacePath('/auth/login'), true);
 assert.equal(isBirdCoderAuthSurfacePath('/app/chat'), false);
 

@@ -1,5 +1,4 @@
 #!/usr/bin/env bash
 set -euo pipefail
-app_root="$(cd "$(dirname "$0")/../.." && pwd)"
-cd "$app_root"
-exec node ../../../scripts/run-birdcoder-server-command.mjs dev --iam-mode server-private "$@"
+repo_root="$(cd "$(dirname "$0")/../../../.." && pwd)"
+exec pnpm --dir "$repo_root" exec sdkwork-app dev --runtime-target server --deployment-profile standalone "$@"

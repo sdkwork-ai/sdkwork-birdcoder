@@ -211,13 +211,13 @@ assert.ok(
 
 assert.match(
   chatMessageViewSource,
-  /BirdCoderChatMessageViewKind/,
-  'pc-types must export BirdCoderChatMessageViewKind for transcript message views.',
+  /AgentSessionItemViewKind/,
+  'pc-types must export AgentSessionItemViewKind for transcript message views.',
 );
 assert.match(
   chatMessageViewSource,
-  /@sdkwork\/birdcoder-chat-contracts/,
-  'pc-types chat message view kinds must align with shared chat contracts.',
+  /from '.\/agent-session-view\.ts'/,
+  'Transcript rendering types must derive from the local ephemeral Agents Session Item view adapter.',
 );
 assert.match(
   chatMessageViewSource,
@@ -231,8 +231,8 @@ assert.match(
 );
 assert.match(
   enginePluginsSource,
-  /BIRDCODER_CODE_ENGINE_KEYS/,
-  'engine transcript plugins must cover all built-in code engines.',
+  /ENGINE_SURFACE_LABELS[\s\S]*codex:[\s\S]*'claude-code':[\s\S]*gemini:[\s\S]*opencode:/,
+  'Engine transcript labels must cover every built-in code engine.',
 );
 assert.match(
   enginePluginsSource,

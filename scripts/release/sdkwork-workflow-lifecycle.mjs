@@ -401,15 +401,14 @@ function buildBuildCommands(target) {
     return [
       nodeCommand(['scripts/run-desktop-release-build.mjs', '--profile', DEFAULT_RELEASE_PROFILE_ID, '--phase', 'sync', '--target', target.target, '--release']),
       nodeCommand(['scripts/run-desktop-release-build.mjs', '--profile', DEFAULT_RELEASE_PROFILE_ID, '--phase', 'prepare-target', '--target', target.target]),
-      nodeCommand(['scripts/run-desktop-release-build.mjs', '--profile', DEFAULT_RELEASE_PROFILE_ID, '--phase', 'prepare-openclaw', '--target', target.target]),
+      nodeCommand(['scripts/run-desktop-release-build.mjs', '--profile', DEFAULT_RELEASE_PROFILE_ID, '--phase', 'prepare-server', '--target', target.target]),
       nodeCommand(['scripts/run-desktop-release-build.mjs', '--profile', DEFAULT_RELEASE_PROFILE_ID, '--phase', 'bundle', '--target', target.target, '--platform', target.platform, '--bundles', target.bundle, '--release']),
     ];
   }
 
   if (target.family === 'server' || target.family === 'container') {
     return [
-      nodeCommand(['scripts/run-claw-server-build.mjs', '--target', target.target]),
-      nodeCommand(['scripts/run-local-tsx.mjs', 'scripts/coding-server-openapi-export.ts']),
+      nodeCommand(['scripts/run-birdcoder-server-build.mjs', '--target', target.target]),
       pnpmCommand(['build']),
     ];
   }
@@ -597,32 +596,6 @@ function writePackageSbomEvidenceCommand(target, env = process.env) {
   ];
   if (nonEmpty(env.SDKWORK_PACKAGE_VERSION)) {
     args.push('--package-version', nonEmpty(env.SDKWORK_PACKAGE_VERSION));
-  }
-  if (target.family === 'desktop' || target.family === 'server') {
-    args.push(
-      '--provider-runtime-manifest',
-      path.posix.join(
-        RELEASE_ASSETS_DIR,
-        target.family,
-        target.platform,
-        target.arch,
-        'provider-runtime',
-        'runtime-manifest.json',
-      ),
-    );
-  } else if (target.family === 'container') {
-    args.push(
-      '--provider-runtime-manifest',
-      path.posix.join(
-        RELEASE_ASSETS_DIR,
-        target.family,
-        target.platform,
-        target.arch,
-        target.accelerator || 'cpu',
-        'provider-runtime',
-        'runtime-manifest.json',
-      ),
-    );
   }
   return nodeCommand(args);
 }

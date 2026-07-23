@@ -4,19 +4,18 @@ import {
   MAX_CHAT_MESSAGE_REASONING_ITEMS,
   MAX_CHAT_MESSAGE_REASONING_SUMMARY_CHARACTERS,
   mergeChatMessageReasoning,
-  projectChatMessageReasoning,
+  normalizeChatMessageReasoning,
 } from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-contracts-commons/src/chat-message-reasoning.ts';
-import { resolveMessageCopyContent } from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-contracts-commons/src/chat-message-activity-projection.ts';
-import { deduplicateBirdCoderComparableChatMessages } from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-contracts-commons/src/coding-session.ts';
+import { resolveMessageCopyContent } from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-contracts-commons/src/chat-message-activity-view.ts';
+import { deduplicateAgentSessionItemViews } from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-contracts-commons/src/agent-session-view.ts';
 import { resolveChatMessageView } from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-contracts-commons/src/chat-message-view.ts';
-import { mergeBirdCoderProjectionMessages } from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-contracts-commons/src/index.ts';
 
 const PRIVATE_THOUGHT_SENTINEL = 'PRIVATE_CHAIN_OF_THOUGHT_SENTINEL_27d912';
 
-const distinctReasoningMessages = deduplicateBirdCoderComparableChatMessages([
+const distinctReasoningMessages = deduplicateAgentSessionItemViews([
   {
     id: 'reasoning-only-one',
-    codingSessionId: 'reasoning-dedup-session',
+    sessionId: 'reasoning-dedup-session',
     turnId: 'reasoning-dedup-turn',
     role: 'assistant' as const,
     content: '',
@@ -25,7 +24,7 @@ const distinctReasoningMessages = deduplicateBirdCoderComparableChatMessages([
   },
   {
     id: 'reasoning-only-two',
-    codingSessionId: 'reasoning-dedup-session',
+    sessionId: 'reasoning-dedup-session',
     turnId: 'reasoning-dedup-turn',
     role: 'assistant' as const,
     content: '',
@@ -39,11 +38,10 @@ assert.deepEqual(
   'Distinct reasoning-only records in one provider turn must not overwrite each other.',
 );
 
-const updatedReasoningMessage = deduplicateBirdCoderComparableChatMessages([
+const updatedReasoningMessage = deduplicateAgentSessionItemViews([
   distinctReasoningMessages[0]!,
   {
     ...distinctReasoningMessages[0]!,
-    id: 'reasoning-only-one-authoritative',
     reasoning: [{ id: 'reasoning-r1', summary: 'Updated first provider summary.' }],
   },
 ]);
@@ -54,7 +52,7 @@ assert.equal(
   'The same canonical reasoning id must accept an authoritative summary update.',
 );
 
-const mergedReasoningMessage = deduplicateBirdCoderComparableChatMessages([
+const mergedReasoningMessage = deduplicateAgentSessionItemViews([
   distinctReasoningMessages[0]!,
   {
     ...distinctReasoningMessages[0]!,
@@ -67,7 +65,7 @@ assert.deepEqual(
   'Duplicate message records must merge distinct reasoning ids in provider order.',
 );
 
-const projected = projectChatMessageReasoning([
+const projected = normalizeChatMessageReasoning([
   {
     id: 'reasoning-1',
     title: 'Planning',
@@ -97,7 +95,7 @@ assert.doesNotMatch(
   'Private thought bodies, signatures, and provider envelopes must not cross the projector.',
 );
 
-const bounded = projectChatMessageReasoning([
+const bounded = normalizeChatMessageReasoning([
   {
     id: 'oversized',
     summary: 'x'.repeat(MAX_CHAT_MESSAGE_REASONING_SUMMARY_CHARACTERS + 100),
@@ -115,7 +113,7 @@ assert.equal(
 );
 
 assert.deepEqual(
-  projectChatMessageReasoning([
+  normalizeChatMessageReasoning([
     { id: 'stable', summary: 'First summary' },
     { id: 'second', summary: 'Second summary' },
     { id: 'stable', summary: 'Updated summary' },
@@ -146,7 +144,7 @@ assert.equal(mergedAtCapacity.some((item) => item.id === 'new-after-capacity'), 
 
 const reasoningOnlyMessage = {
   id: 'reasoning-only',
-  codingSessionId: 'reasoning-session',
+  sessionId: 'reasoning-session',
   role: 'assistant' as const,
   content: '',
   reasoning: projected,
@@ -176,91 +174,8 @@ assert.equal(
   'Provider reasoning summaries are valid only on agent-authored message roles.',
 );
 
-const completedProjection = mergeBirdCoderProjectionMessages({
-  codingSessionId: 'reasoning-completed-session',
-  existingMessages: [],
-  idPrefix: 'authoritative',
-  events: [{
-    id: 'reasoning-completed-event',
-    codingSessionId: 'reasoning-completed-session',
-    turnId: 'reasoning-completed-turn',
-    kind: 'message.completed',
-    sequence: '1',
-    payload: {
-      role: 'assistant',
-      content: '',
-      reasoning: [{
-        id: 'completed-reasoning',
-        summary: 'Validated the public protocol boundary.',
-        content: PRIVATE_THOUGHT_SENTINEL,
-        signature: PRIVATE_THOUGHT_SENTINEL,
-      }],
-    },
-    createdAt: '2026-07-20T02:00:01.000Z',
-  }],
-});
-assert.equal(completedProjection.length, 1);
-assert.deepEqual(completedProjection[0]?.reasoning, [{
-  id: 'completed-reasoning',
-  summary: 'Validated the public protocol boundary.',
-}]);
-
-const deltaProjection = mergeBirdCoderProjectionMessages({
-  codingSessionId: 'reasoning-delta-session',
-  existingMessages: [],
-  idPrefix: 'authoritative',
-  events: [
-    {
-      id: 'reasoning-delta-1',
-      codingSessionId: 'reasoning-delta-session',
-      turnId: 'reasoning-delta-turn',
-      kind: 'message.delta',
-      sequence: '1',
-      payload: {
-        role: 'assistant',
-        reasoning: [{ id: 'reasoning-a', summary: 'Initial A' }],
-      },
-      createdAt: '2026-07-20T02:00:02.000Z',
-    },
-    {
-      id: 'reasoning-delta-2',
-      codingSessionId: 'reasoning-delta-session',
-      turnId: 'reasoning-delta-turn',
-      kind: 'message.delta',
-      sequence: '2',
-      payload: {
-        role: 'assistant',
-        reasoning: [{ id: 'reasoning-b', summary: 'Summary B' }],
-      },
-      createdAt: '2026-07-20T02:00:03.000Z',
-    },
-    {
-      id: 'reasoning-delta-3',
-      codingSessionId: 'reasoning-delta-session',
-      turnId: 'reasoning-delta-turn',
-      kind: 'message.delta',
-      sequence: '3',
-      payload: {
-        role: 'assistant',
-        reasoning: [{ id: 'reasoning-a', summary: 'Updated A' }],
-      },
-      createdAt: '2026-07-20T02:00:04.000Z',
-    },
-  ],
-});
-assert.equal(deltaProjection.length, 2);
-assert.deepEqual(
-  deltaProjection.map((message) => message.reasoning?.[0]),
-  [
-    { id: 'reasoning-a', summary: 'Updated A' },
-    { id: 'reasoning-b', summary: 'Summary B' },
-  ],
-  'Distinct structured-only reasoning records must retain provider order while same-id updates reuse the first slot.',
-);
-
 const publicSurfaceSnapshot = JSON.stringify({
-  completedProjection,
-  deltaProjection,
+  projected,
   reasoningOnlyView,
   replyCopy: resolveMessageCopyContent(reasoningOnlyMessage),
 });

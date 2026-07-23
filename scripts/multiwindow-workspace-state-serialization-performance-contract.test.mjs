@@ -11,7 +11,7 @@ const state = runtimeModule.buildMultiWindowWorkspaceState({
   now: () => '2026-04-29T00:00:00.000Z',
   panes: [
     {
-      codingSessionId: 'session-1',
+      agentSessionId: 'session-1',
       enabled: true,
       id: 'pane-1',
       mode: 'chat',

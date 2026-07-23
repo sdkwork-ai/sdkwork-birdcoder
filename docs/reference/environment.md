@@ -1,8 +1,9 @@
 # Environment
 
-BirdCoder normalizes deployment profile, runtime target, environment, IAM
-binding, and public API origin separately. Active templates are under
-etc/topology. Source-controlled examples contain no credentials or
+BirdCoder resolves deployment profile, runtime target, lifecycle environment,
+and connectivity-plane URLs as independent values. Active templates are under
+`etc/topology`; `specs/topology.spec.json` is the vocabulary and orchestration
+authority. Source-controlled examples contain no credentials or
 project-location paths.
 
 ## Runtime Selectors
@@ -10,22 +11,21 @@ project-location paths.
 | Variable | Scope | Allowed or purpose |
 | --- | --- | --- |
 | SDKWORK_BIRDCODER_DEPLOYMENT_PROFILE | Server, desktop host | standalone or cloud. |
-| SDKWORK_BIRDCODER_RUNTIME_TARGET | Server, desktop host | Explicit target such as desktop, server, or container. |
+| SDKWORK_BIRDCODER_RUNTIME_TARGET | Process host | Explicit target such as browser, desktop, server, container, test-runner, or a supported mobile host. |
 | SDKWORK_BIRDCODER_ENVIRONMENT | Server, desktop host | development, test, staging, or production. |
+| SDKWORK_BIRDCODER_PROFILE_ID | Topology materialization | Exact `<deploymentProfile>.<environment>` profile id. |
 | VITE_SDKWORK_BIRDCODER_DEPLOYMENT_PROFILE | Browser renderer | Public mirror of the selected deployment profile. |
 | VITE_SDKWORK_BIRDCODER_RUNTIME_TARGET | Browser renderer | Public mirror of the renderer target. |
-| BIRDCODER_IAM_DEPLOYMENT_MODE | Development wrappers | desktop-local, server-private, or cloud-saas IAM binding selection. |
-| SDKWORK_IAM_MODE | IAM runtime | local, private, or cloud. |
 
-SDKWORK_DEPLOYMENT_MODE and VITE_SDKWORK_DEPLOYMENT_MODE are retired. Do not
-introduce a third deployment profile to represent a project root, runtime
-location, or execution capability.
+Deployment profile does not encode process shape, database engine, IAM
+implementation, project root, runtime location, or execution capability. Do
+not add another public deployment axis for any of those concerns.
 
 ## Server Configuration
 
 | Variable | Purpose | Security boundary |
 | --- | --- | --- |
-| SDKWORK_BIRDCODER_SERVER_HOST / SDKWORK_BIRDCODER_SERVER_PORT | Native server bind address and port. | Cloud deployments cannot bind loopback-only. |
+| SDKWORK_BIRDCODER_APPLICATION_PUBLIC_INGRESS_BIND | BirdCoder application ingress bind in `<host>:<port>` form. | Production and cloud server targets cannot bind loopback-only. |
 | SDKWORK_BIRDCODER_ALLOWED_ORIGINS | Comma-separated browser origins. | Required to be explicit and non-wildcard for cloud. |
 | SDKWORK_BIRDCODER_DATABASE_ENGINE | sqlite or postgresql. | Cloud requires PostgreSQL. |
 | SDKWORK_CLAW_DATABASE_URL | Canonical protected PostgreSQL connection string. | Inject through protected host configuration or a secret manager; never expose to Vite. |
@@ -35,7 +35,6 @@ location, or execution capability.
 | SDKWORK_BIRDCODER_RUNTIME_LOCATION_KEY_ID | Stable identifier for the active runtime-location encryption key. | Server/container only. Must be a non-empty safe key id and must not enter public configuration, logs, or client bundles. |
 | SDKWORK_BIRDCODER_RUNTIME_LOCATION_PREVIOUS_KEYS_JSON | JSON object mapping historical key ids to decryption-only key material. | Server/container only. Optional, limited to 15 entries, and must never contain the active key id. |
 | SDKWORK_BIRDCODER_RUNTIME_LOCATION_FINGERPRINT_KEY | Stable secret used only for scoped duplicate-path fingerprints. | Required whenever historical keys are configured. Preserve it across encryption-key rotations. |
-| SDKWORK_BIRDCODER_PROVIDER_RUNNER_ROOT | Server-owned base for controlled workspace provisioning. | Not a client mount, public config value, or remote-execution switch. |
 | SDKWORK_BIRDCODER_APP_ROOT | Read-only installed application asset root. | Never use as mutable project data. |
 
 A server or container target accepts authenticated project and
@@ -62,10 +61,13 @@ or downgrade to plaintext storage.
 
 ## Client API Configuration
 
-BIRDCODER_API_BASE_URL and VITE_BIRDCODER_API_BASE_URL select a remote
-BirdCoder server for private or cloud-backed Browser/Tauri clients. Packaged
-remote clients require an explicit base URL so they do not silently fall back
-to localhost.
+`SDKWORK_BIRDCODER_APPLICATION_PUBLIC_HTTP_URL` and its public
+`VITE_SDKWORK_BIRDCODER_APPLICATION_PUBLIC_HTTP_URL` mirror select the
+BirdCoder application ingress. `SDKWORK_BIRDCODER_PLATFORM_API_GATEWAY_HTTP_URL`
+and its `VITE_*` mirror select the platform gateway used by dependency SDKs.
+One value must not be reused for both connectivity planes. Packaged clients
+require explicit topology materialization and must not silently fall back to
+localhost.
 
 VITE values are public build/runtime configuration. They must not contain
 database URLs, access tokens, provider credentials, native paths, encrypted
@@ -89,39 +91,36 @@ No environment variable represents a user-selected project root.
 - Tauri stores a native binding in host-private local storage, scoped to the
   active deployment realm and IAM subject. The binding is used only by the
   local native adapter and is not a server path reveal.
-- BIRDCODER_LOCAL_BOOTSTRAP_PROJECT_ROOT is a development/local-host
+- BIRDCODER_LOCAL_BOOTSTRAP_PROJECT_ROOT is a standalone-development host
   convenience. It must not be returned by an API, recorded as production
   metadata, used to infer a remote target root, or treated as a project
   execution or native-session-discovery grant. Server execution requires an
-  explicit, project-bound runtime-location resolution or synchronized runner
-  source authority.
+  explicit, project-bound runtime-location resolution and a separately
+  verified execution capability.
 
 ## Safe Production Baseline
 
     SDKWORK_BIRDCODER_DEPLOYMENT_PROFILE=standalone
     SDKWORK_BIRDCODER_ENVIRONMENT=production
     SDKWORK_BIRDCODER_RUNTIME_TARGET=server
-    SDKWORK_BIRDCODER_SERVER_HOST=0.0.0.0
-    SDKWORK_BIRDCODER_SERVER_PORT=10240
+    SDKWORK_BIRDCODER_APPLICATION_PUBLIC_INGRESS_BIND=0.0.0.0:10240
     SDKWORK_BIRDCODER_ALLOWED_ORIGINS=https://ide.example.invalid
     SDKWORK_BIRDCODER_DATABASE_ENGINE=postgresql
-    SDKWORK_BIRDCODER_PROVIDER_RUNNER_ROOT=<server-private-project-workspace-root>
 
 The database URL is injected through a protected secret source and is not
 included in a source-controlled environment file. Cloud keeps the same explicit
 server/container target, PostgreSQL, non-loopback bind, and exact origins. A
-configured runner root does not enable a cloud runner. The runtime-location
-master key and key id are deliberately omitted from this public baseline; a
+topology selection does not enable code execution. The runtime-location master
+key and key id are deliberately omitted from this public baseline; a
 secret-capable deployment wrapper provides them without printing their values.
 
 ## Inspection Commands
 
-    pnpm check:env:desktop:local
-    pnpm check:env:browser:standalone
-    pnpm check:env:server:cloud
-    pnpm check:iam:desktop:local
-    pnpm check:iam:browser:standalone
-    pnpm check:iam:server:cloud
+    pnpm topology:validate
+    pnpm topology:plan -- --deployment-profile standalone --environment development --runtime-target desktop
+    pnpm topology:plan -- --deployment-profile standalone --environment development --runtime-target server
+    pnpm topology:plan -- --deployment-profile cloud --environment development --runtime-target browser
+    pnpm check:iam-standard
 
-Inspection commands mask secret-like values. Do not add paths, encrypted path
-material, tokens, or database credentials to diagnostic output.
+Topology plans consume source-controlled profiles only. Do not add paths,
+encrypted path material, tokens, or database credentials to diagnostic output.

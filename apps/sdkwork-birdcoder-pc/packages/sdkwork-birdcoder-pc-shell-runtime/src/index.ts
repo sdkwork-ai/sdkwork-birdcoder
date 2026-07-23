@@ -15,8 +15,8 @@ export {
 } from './application/bootstrap/bootstrapShellRuntime';
 export {
   isBirdCoderDevelopmentBrowserRuntime,
-  readConfiguredBirdCoderApiBaseUrl,
-  readConfiguredBirdCoderRealtimeTransport,
+  readConfiguredBirdCoderApplicationApiBaseUrl,
+  readConfiguredBirdCoderPlatformApiGatewayBaseUrl,
   type BirdCoderPublicRuntimeEnv,
 } from './application/bootstrap/bootstrapPublicRuntimeConfig';
 export {
@@ -37,7 +37,6 @@ export {
 export {
   isBirdCoderDesktopTauriRuntime,
   publishBirdCoderDesktopSdkRuntimeEnv,
-  publishBirdCoderEmbeddedSdkRuntimeEnv,
   publishBirdCoderRuntimeEnvPatch,
   readDesktopEmbeddedRuntimeConfig,
   readDesktopRuntimeConfig,

@@ -1,0 +1,59 @@
+{
+  "schemaVersion": 1,
+  "kind": "sdkwork.component.spec",
+  "component": {
+    "name": "@sdkwork/birdcoder-pc-desktop",
+    "displayName": "SDKWork BirdCoder PC Desktop Renderer",
+    "version": "0.1.0",
+    "type": "react-tauri-package",
+    "root": "sdkwork-birdcoder/apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-desktop",
+    "domain": "device",
+    "capability": "desktop-renderer-host",
+    "surface": "app",
+    "languages": ["typescript", "react"],
+    "generated": false,
+    "private": true,
+    "manifests": ["package.json"]
+  },
+  "canonicalSpecs": [
+    { "file": "COMPONENT_SPEC.md", "path": "../../../../../sdkwork-specs/COMPONENT_SPEC.md", "purpose": "Component ownership and port contracts." },
+    { "file": "CODE_STYLE_SPEC.md", "path": "../../../../../sdkwork-specs/CODE_STYLE_SPEC.md", "purpose": "Authored source boundaries." },
+    { "file": "NAMING_SPEC.md", "path": "../../../../../sdkwork-specs/NAMING_SPEC.md", "purpose": "Canonical package and capability naming." },
+    { "file": "TYPESCRIPT_CODE_SPEC.md", "path": "../../../../../sdkwork-specs/TYPESCRIPT_CODE_SPEC.md", "purpose": "TypeScript package rules." },
+    { "file": "FRONTEND_CODE_SPEC.md", "path": "../../../../../sdkwork-specs/FRONTEND_CODE_SPEC.md", "purpose": "Frontend bootstrap and service boundaries." },
+    { "file": "UI_ARCHITECTURE_SPEC.md", "path": "../../../../../sdkwork-specs/UI_ARCHITECTURE_SPEC.md", "purpose": "UI architecture selection rules." },
+    { "file": "APP_PC_REACT_UI_SPEC.md", "path": "../../../../../sdkwork-specs/APP_PC_REACT_UI_SPEC.md", "purpose": "PC React host composition." },
+    { "file": "DESKTOP_APP_ARCHITECTURE_SPEC.md", "path": "../../../../../sdkwork-specs/DESKTOP_APP_ARCHITECTURE_SPEC.md", "purpose": "Desktop renderer and native-host separation." }
+  ],
+  "contracts": {
+    "layerRole": "frontend-host",
+    "publicExports": ["."],
+    "providedPorts": [{ "name": "desktopRuntimeResolver", "export": "." }],
+    "requiredPorts": [
+      { "name": "desktopDistributionManifest", "export": "." },
+      { "name": "birdcoderApplicationShell", "export": "." },
+      { "name": "birdcoderShellRuntime", "export": "." },
+      { "name": "desktopAppSessionPersistence", "export": "." }
+    ],
+    "runtimeEntrypoints": [
+      "package.json#scripts.dev",
+      "package.json#scripts.build",
+      "package.json#scripts.start:desktop"
+    ],
+    "routeManifest": null,
+    "sdkClients": [],
+    "sdkDependencies": [],
+    "permissionComposition": {},
+    "dependencyApiExports": [],
+    "dependencyApiSurfaces": [],
+    "events": [],
+    "configKeys": [
+      "VITE_SDKWORK_BIRDCODER_APPLICATION_PUBLIC_HTTP_URL",
+      "VITE_SDKWORK_BIRDCODER_PLATFORM_API_GATEWAY_HTTP_URL"
+    ]
+  },
+  "integration": {
+    "runtimeBoundary": "The renderer composes shell/runtime packages and invokes typed Tauri commands. The Tauri runtime config supplies only the embedded BirdCoder application ingress; the SDKWork platform gateway is an independent required deployment value. The renderer owns no HTTP API authority, generated SDK construction, or native persistence."
+  },
+  "verification": { "commands": ["pnpm --dir apps/sdkwork-birdcoder-pc typecheck"] }
+}

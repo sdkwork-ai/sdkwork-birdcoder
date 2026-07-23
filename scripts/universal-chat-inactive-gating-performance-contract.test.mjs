@@ -42,7 +42,7 @@ assert.match(
 
 assert.match(
   progressiveTranscriptSource,
-  /export function useProgressiveTranscriptWindow\(\s*messages: readonly BirdCoderChatMessage\[\],\s*messagesEndRef: RefObject<HTMLDivElement \| null>,\s*isActive = true,\s*transcriptScopeKey = '',\s*\)/s,
+  /export function useProgressiveTranscriptWindow\(\s*messages: readonly AgentSessionItemView\[\],\s*messagesEndRef: RefObject<HTMLDivElement \| null>,\s*isActive = true,\s*transcriptScopeKey = '',\s*\)/s,
   'useProgressiveTranscriptWindow must accept an activity flag so transcript repair work can be disabled while hidden.',
 );
 

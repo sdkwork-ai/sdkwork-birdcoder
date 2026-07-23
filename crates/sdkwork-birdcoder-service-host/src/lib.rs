@@ -1,1 +1,0 @@
-// sdkwork-birdcoder-service-host

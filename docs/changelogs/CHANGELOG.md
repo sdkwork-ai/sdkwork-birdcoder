@@ -4,62 +4,29 @@ Status: active
 Owner: SDKWork maintainers
 Specs: `DOCUMENTATION_SPEC.md`, `ARCHITECTURE_DECISION_SPEC.md`, `DEPLOYMENT_SPEC.md`
 
-## 2026-07-16
+## Unreleased
 
 ### Changed
 
-- Superseded the project/device-mount-only architecture with
-  [ADR-20260716](../architecture/decisions/ADR-20260716-distributed-project-runtime-locations.md)
-  and [REQ-2026-0001](../product/requirements/REQ-2026-0001-distributed-project-runtime-locations.md).
-- Established ProjectRuntimeLocation as the server-persisted authority for a
-  project root on one target, including encrypted absolute-path storage,
-  target identity, capability/health lifecycle, Git snapshot, and
-  subject-scoped terminal/Git/build preferences.
-- Defined write-only path registration, redacted app API responses,
-  target-owned decryption/canonicalization, explicit rebind, and no process-cwd
-  fallback for terminal, Git, build, worktree, or file actions.
-- Added the runtime-location operator runbook and updated product,
-  architecture, topology, desktop, environment, deployment, and Windows Server
-  documentation to use the same authority.
-
-### Compatibility
-
-BirdCoder is pre-launch. Obsolete public path behavior is removed directly.
-The superseded ADR remains historical evidence; legacy path stores are
-migration inputs only and must not remain parallel authorities after cutover.
+- Converged BirdCoder on the coding-workbench bounded context with exactly ten
+  `studio_*` tables, 39 App API operations, and no BirdCoder Backend or Open API.
+- Moved AI Session, Turn, Session Item, Interaction, Runtime Binding, artifact,
+  checkpoint, and provider-execution authority to `sdkwork-agents`.
+- Moved all Skill authority to `sdkwork-skills` and kept human IM Conversation
+  and Message semantics separate from Agents assistant content.
+- Standardized dependency consumption on canonical generated SDK families and
+  one global `TokenManager`; removed copied APIs, raw HTTP, local SDK forks,
+  compatibility facades, projections, shadow tables, and dual writes.
+- Established target-scoped `ProjectRuntimeLocation` as the only executable
+  project-root authority, with write-only encrypted paths and stable-ID Agents
+  Session Runtime Bindings.
+- Replaced the TypeScript PC server entrypoint with the canonical Rust
+  `sdkwork-api-birdcoder-standalone-gateway`.
+- Consolidated pre-launch release notes and documentation on the current
+  architecture; formal release history begins with the first signed release.
 
 ### Verification
 
-- Runtime-location repository/service/route/OpenAPI/SDK/desktop contract tests.
-- Database, migration, API envelope, operation-pattern, pagination,
-  SDK-consumer, server, desktop, and documentation checks.
-
-## 2026-07-14
-
-### Changed
-
-- Established the unified Project, ClientMount, ProjectWorkspaceRoot,
-  ExecutionLocation, and DeploymentProfile boundary in
-  [ADR-20260713](../architecture/decisions/ADR-20260713-unified-project-runtime-boundary.md).
-- Removed client-local project paths from the public project contract. Browser
-  directory handles and Tauri native paths remain device-private capabilities.
-- Documented Browser IndexedDB structured-clone recovery, Tauri host-private
-  `local_store_*` SQLite KV recovery, scope isolation, explicit rebind, and the
-  Tauri plaintext-at-rest limitation.
-- Added the Windows Server control-plane operating model and clarified that a
-  configured server workspace root does not enable remote code execution.
-- Declared remote execution and real project deployment unavailable until a
-  durable isolated runner and deployment executor are implemented and verified.
-- Aligned deployment templates on app-scoped runtime identity, explicit
-  PostgreSQL/cloud prerequisites, and non-wildcard browser origins.
-
-### Compatibility
-
-This is a pre-launch breaking cleanup. There is no compatibility layer for
-legacy client path fields, legacy deployment-mode variables, or metadata-only
-project deployment success.
-
-### Verification
-
-- Project API, SDK, server-root, and cross-runtime contract checks.
-- Deployment template and documentation validation recorded with this change.
+- Domain ownership, database parity, API, pagination, route, layering, SDK,
+  package governance, desktop, H5, Flutter, documentation, release, and
+  production-operation gates must all pass before this section is released.

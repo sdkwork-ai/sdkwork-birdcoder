@@ -1,19 +1,14 @@
 import React, { ReactNode, useRef } from 'react';
 import type {
   IAuthService,
+  IAgentSessionService,
   ICatalogService,
-  ICollaborationService,
-  IAppRuntimeReadService,
-  IAppRuntimeWriteService,
-  IDeploymentService,
   IDocumentService,
   IFileSystemService,
   IGitService,
   IProjectRuntimeLocationService,
-  IPromptService,
   IProjectService,
-  IReleaseService,
-  ITeamService,
+  IPromptService,
   IVipMembershipService,
   IWorkspaceService,
 } from '@sdkwork/birdcoder-pc-infrastructure-runtime';
@@ -29,42 +24,32 @@ import {
 
 export interface IDEProviderProps {
   children: ReactNode;
+  agentSessionService?: IAgentSessionService;
   catalogService?: ICatalogService;
   workspaceService?: IWorkspaceService;
   projectService?: IProjectService;
-  collaborationService?: ICollaborationService;
-  appRuntimeReadService?: IAppRuntimeReadService;
-  appRuntimeWriteService?: IAppRuntimeWriteService;
-  deploymentService?: IDeploymentService;
+  promptService?: IPromptService;
   documentService?: IDocumentService;
-  releaseService?: IReleaseService;
-  teamService?: ITeamService;
   vipMembershipService?: IVipMembershipService;
   fileSystemService?: IFileSystemService;
   projectRuntimeLocationService?: IProjectRuntimeLocationService;
   gitService?: IGitService;
   authService?: IAuthService;
-  promptService?: IPromptService;
 }
 
 export const IDEProvider: React.FC<IDEProviderProps> = ({
   children,
+  agentSessionService,
   catalogService,
   workspaceService,
   projectService,
-  collaborationService,
-  appRuntimeReadService,
-  appRuntimeWriteService,
-  deploymentService,
+  promptService,
   documentService,
-  releaseService,
-  teamService,
   vipMembershipService,
   fileSystemService,
   projectRuntimeLocationService,
   gitService,
   authService,
-  promptService,
 }) => {
   const defaultContextRef = useRef<IIDEContext | null>(null);
   defaultContextRef.current ??= createDefaultIdeContextValue();
@@ -73,23 +58,18 @@ export const IDEProvider: React.FC<IDEProviderProps> = ({
   return (
     <IDEContext.Provider
       value={{
+        agentSessionService: agentSessionService ?? defaultContext.agentSessionService,
         catalogService: catalogService ?? defaultContext.catalogService,
         workspaceService: workspaceService ?? defaultContext.workspaceService,
         projectService: projectService ?? defaultContext.projectService,
-        collaborationService: collaborationService ?? defaultContext.collaborationService,
-        appRuntimeReadService: appRuntimeReadService ?? defaultContext.appRuntimeReadService,
-        appRuntimeWriteService: appRuntimeWriteService ?? defaultContext.appRuntimeWriteService,
-        deploymentService: deploymentService ?? defaultContext.deploymentService,
+        promptService: promptService ?? defaultContext.promptService,
         documentService: documentService ?? defaultContext.documentService,
-        releaseService: releaseService ?? defaultContext.releaseService,
-        teamService: teamService ?? defaultContext.teamService,
         vipMembershipService: vipMembershipService ?? defaultContext.vipMembershipService,
         fileSystemService: fileSystemService ?? defaultContext.fileSystemService,
         projectRuntimeLocationService:
           projectRuntimeLocationService ?? defaultContext.projectRuntimeLocationService,
         gitService: gitService ?? defaultContext.gitService,
         authService: authService ?? defaultContext.authService,
-        promptService: promptService ?? defaultContext.promptService,
       }}
     >
       {children}

@@ -16,7 +16,6 @@ const tokenManagerSource = read(`${corePrefix}/token_manager.dart`);
 const iamRuntimeSource = read(`${corePrefix}/iam_runtime.dart`);
 const sessionStorageSource = read(`${hostPrefix}/birdcoder_session_storage.dart`);
 const configureStorageSource = read(`${hostPrefix}/configure_birdcoder_session_storage.dart`);
-const sessionProbeSource = read(`${hostPrefix}/iam_session_probe.dart`);
 const hostPubspec = read(
   'apps/sdkwork-birdcoder-flutter-mobile/packages/sdkwork_birdcoder_flutter_mobile_host/pubspec.yaml',
 );
@@ -46,8 +45,8 @@ assert.match(
 
 assert.match(
   iamRuntimeSource,
-  /iamRuntimeRetrieve/u,
-  'Flutter IAM runtime must validate stored sessions through generated SDK IAM runtime metadata.',
+  /sessionsCurrentRetrieve/u,
+  'Flutter IAM runtime must validate stored credentials through the generated SDK current-session authority.',
 );
 assert.match(
   iamRuntimeSource,
@@ -60,10 +59,10 @@ assert.doesNotMatch(
   'Flutter IAM runtime must not unconditionally mark stored sessions as validated.',
 );
 
-assert.match(
-  sessionProbeSource,
-  /\/app\/v3\/api\/system\/iam\/runtime/u,
-  'Flutter IAM session probe must target the canonical IAM runtime endpoint.',
+assert.doesNotMatch(
+  read('apps/sdkwork-birdcoder-flutter-mobile/packages/sdkwork_birdcoder_flutter_mobile_host/lib/src/index.dart'),
+  /iam_session_probe/u,
+  'Flutter host must not expose a raw-HTTP IAM session probe beside the generated SDK authority.',
 );
 
 assert.match(

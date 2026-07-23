@@ -12,7 +12,6 @@
 # - allow-fs-write-file / allow-fs-create-file / allow-fs-create-directory
 # - allow-fs-delete-entry / allow-fs-rename-entry
 # - allow-fs-watch-start / allow-fs-watch-stop (kept — non-destructive)
-# - allow-local-sql-execute-plan
 # - allow-user-home-config-write
 # - allow-desktop-local-shell-exec
 # - allow-desktop-local-shell-session-create
@@ -70,7 +69,6 @@ permissions = [
   "allow-fs-watch-stop",
 
   # Desktop shell host bridge commands (non-destructive subset)
-  "allow-terminal-cli-profile-detect",
   "allow-desktop-pick-working-directory",
   "allow-desktop-reveal-in-file-manager",
   "allow-desktop-window-controls-bridge-capabilities",

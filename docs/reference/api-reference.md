@@ -2,7 +2,7 @@
 
 Status: active
 Owner: SDKWork maintainers
-Updated: 2026-07-16
+Updated: 2026-07-22
 
 This page is navigation, not a parallel API contract. The authored OpenAPI
 document and composed SDK facade are authoritative for request shapes,
@@ -12,9 +12,8 @@ responses, operation IDs, authentication, and errors.
 
 | Need | Authority |
 | --- | --- |
-| App API source | [BirdCoder app OpenAPI](../../sdks/specs/openapi/birdcoder-app-v3.openapi.json) |
+| App API source | [BirdCoder app OpenAPI](../../sdks/sdkwork-birdcoder-app-sdk/openapi/sdkwork-birdcoder-app-api.openapi.json) |
 | Generated consumer facade | [@sdkwork/birdcoder-app-sdk](../../sdks/sdkwork-birdcoder-app-sdk/sdkwork-birdcoder-app-sdk-typescript/src/index.ts) |
-| Session lifecycle and provider boundary | [Engine SDK Integration](engine-sdk-integration.md) |
 | Project runtime-location lifecycle and privacy | [Runtime-location operator guide](../guides/operator/project-runtime-locations.md) and [ADR-20260716](../architecture/decisions/ADR-20260716-distributed-project-runtime-locations.md) |
 | Root architecture and product scope | [Technical Architecture](../architecture/tech/TECH_ARCHITECTURE.md) and [PRD](../product/prd/PRD.md) |
 
@@ -25,11 +24,12 @@ editing generated files or importing a generated transport package directly.
 
 ## Consumer Rule
 
-Application code consumes @sdkwork/birdcoder-app-sdk through its composed
+Application code consumes `@sdkwork/birdcoder-app-sdk` through its composed
 facade. API behavior must be checked against the OpenAPI operation and the
 generated facade, including the SDKWork success envelope and
-application/problem+json errors. Provider-native session behavior is not a
-second app API contract; it is described by the session reference above.
+`application/problem+json` errors. AI session behavior is consumed from the
+canonical Agents App SDK, and Skills behavior is consumed from the canonical
+Skills App SDK; neither surface is copied into the BirdCoder OpenAPI or SDK.
 
 ## Verification
 

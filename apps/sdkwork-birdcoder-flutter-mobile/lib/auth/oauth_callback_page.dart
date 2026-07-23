@@ -17,10 +17,12 @@ class BirdCoderOAuthCallbackPage extends StatefulWidget {
   });
 
   @override
-  State<BirdCoderOAuthCallbackPage> createState() => _BirdCoderOAuthCallbackPageState();
+  State<BirdCoderOAuthCallbackPage> createState() =>
+      _BirdCoderOAuthCallbackPageState();
 }
 
-class _BirdCoderOAuthCallbackPageState extends State<BirdCoderOAuthCallbackPage> {
+class _BirdCoderOAuthCallbackPageState
+    extends State<BirdCoderOAuthCallbackPage> {
   String? _errorMessage;
   bool _completed = false;
 
@@ -54,8 +56,7 @@ class _BirdCoderOAuthCallbackPageState extends State<BirdCoderOAuthCallbackPage>
 
     final providerState = AppProvider.of(context);
     try {
-      await birdCoderIamAuthService.completeOAuthCallback(
-        apiBaseUrl: providerState.apiBaseUrl,
+      await providerState.iamAuthService.completeOAuthCallback(
         iamRuntime: providerState.iamRuntime,
         code: code,
         provider: provider,
@@ -79,7 +80,8 @@ class _BirdCoderOAuthCallbackPageState extends State<BirdCoderOAuthCallbackPage>
         return;
       }
       setState(() {
-        _errorMessage = 'OAuth sign-in failed. Try again or use password login.';
+        _errorMessage =
+            'OAuth sign-in failed. Try again or use password login.';
       });
     }
   }

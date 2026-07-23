@@ -8,98 +8,92 @@ import {
 } from './lib/sdkwork-app-manifest-paths.mjs';
 
 const rootDir = process.cwd();
-
 const requiredManifestPaths = [
   'sdkwork.app.config.json',
   'apps/sdkwork-birdcoder-pc/sdkwork.app.config.json',
   'apps/sdkwork-birdcoder-h5/sdkwork.app.config.json',
   'apps/sdkwork-birdcoder-flutter-mobile/sdkwork.app.config.json',
 ];
+const releaseBlockers = [
+  'signed-production-artifact-evidence-missing',
+];
 
-for (const relativePath of requiredManifestPaths) {
-  assert.equal(
-    fs.existsSync(path.join(rootDir, relativePath)),
-    true,
-    `${relativePath} must exist for unified surface manifest parity.`,
-  );
-}
+const expectedSurfacePackages = {
+  'apps/sdkwork-birdcoder-pc/sdkwork.app.config.json': [
+    ['WEB', 'browser', 'web', 'pc-web'],
+    ['DESKTOP_WINDOWS', 'desktop', 'windows', 'tauri'],
+    ['DESKTOP_MACOS', 'desktop', 'macos', 'tauri'],
+    ['DESKTOP_LINUX', 'desktop', 'linux', 'tauri'],
+  ],
+  'apps/sdkwork-birdcoder-h5/sdkwork.app.config.json': [
+    ['H5', 'browser', 'h5', 'h5'],
+    ['APP_IOS', 'capacitor-ios', 'ios', 'capacitor'],
+    ['APP_ANDROID', 'capacitor-android', 'android', 'capacitor'],
+  ],
+  'apps/sdkwork-birdcoder-flutter-mobile/sdkwork.app.config.json': [
+    ['APP_ANDROID', 'flutter-android', 'android', 'flutter'],
+    ['APP_IOS', 'flutter-ios', 'ios', 'flutter'],
+  ],
+};
 
 const discoveredPaths = listSdkworkAppManifestPaths(rootDir).map((absolutePath) =>
   path.relative(rootDir, absolutePath).split(path.sep).join('/'),
 );
-
-for (const relativePath of requiredManifestPaths) {
-  assert.ok(
-    discoveredPaths.includes(relativePath),
-    `${relativePath} must be discovered by listSdkworkAppManifestPaths for preLaunch governance.`,
-  );
-}
+assert.deepEqual(discoveredPaths.sort(), [...requiredManifestPaths].sort());
 
 for (const relativePath of requiredManifestPaths) {
   const manifest = readSdkworkAppManifest(path.join(rootDir, relativePath));
-  assert.equal(
-    manifest.publish?.status,
-    'DRAFT',
-    `${relativePath} must stay DRAFT until the first governed release.`,
-  );
-  assert.equal(
-    manifest.publish?.preLaunch,
-    true,
-    `${relativePath} must declare publish.preLaunch while artifacts are pending.`,
-  );
-  assert.equal(
-    manifest.metadata?.preLaunch,
-    true,
-    `${relativePath} must declare metadata.preLaunch while artifacts are pending.`,
-  );
-  assert.match(
-    String(manifest.metadata?.releaseEvidenceStatus ?? ''),
-    /contract-gates-green/u,
-    `${relativePath} must record contract-gates-green release evidence.`,
-  );
-  assert.match(
-    String(manifest.metadata?.releaseEvidenceStatus ?? ''),
-    /prelaunch-artifacts-pending/u,
-    `${relativePath} must record prelaunch-artifacts-pending honesty.`,
-  );
-
+  const currentNotes = manifest.release?.notes?.filter((note) => note.current === true) ?? [];
   const packages = manifest.artifacts?.installConfig?.packages ?? [];
-  if (packages.length > 0) {
-    assert.equal(
-      manifest.security?.checksumRequired,
-      true,
-      `${relativePath} must require checksums when install packages are declared.`,
+
+  assert.equal(manifest.publish?.status, 'DRAFT', `${relativePath} must remain DRAFT.`);
+  assert.equal(manifest.publish?.preLaunch, true, `${relativePath} must remain pre-launch.`);
+  assert.equal(manifest.metadata?.preLaunch, true, `${relativePath} metadata must remain pre-launch.`);
+  assert.equal(manifest.metadata?.deploymentConfig, 'etc/sdkwork.deployment.config.json');
+  assert.deepEqual(manifest.metadata?.releaseEvidence, {
+    status: 'blocked',
+    verifiedAt: '2026-07-22',
+    blockers: releaseBlockers,
+  });
+  assert.equal(manifest.release?.currentVersion, '0.1.0');
+  assert.equal(manifest.release?.defaultChannel, 'INTERNAL');
+  assert.deepEqual(manifest.release?.latest, { INTERNAL: '0.1.0' });
+  assert.equal(currentNotes.length, 1);
+  assert.equal(currentNotes[0].releaseChannel, 'INTERNAL');
+  assert.equal('publishedAt' in currentNotes[0], false);
+  assert.deepEqual([...currentNotes[0].packageIds].sort(), packages.map((pkg) => pkg.id).sort());
+  assert.equal(manifest.security?.checksumRequired, true);
+  assert.equal(manifest.security?.signatureRequired, true);
+  assert.equal(manifest.security?.sbomRequired, true);
+
+  for (const pkg of packages) {
+    assert.equal(pkg.enabled, false, `${relativePath} package ${pkg.id} must remain disabled.`);
+    assert.equal(pkg.checksum, undefined, `${relativePath} package ${pkg.id} must not use a placeholder checksum.`);
+    assert.equal(pkg.profileBinding, 'fixed');
+    assert.equal(pkg.metadata?.releaseBuildDeferred, true);
+  }
+
+  const expectedPackages = expectedSurfacePackages[relativePath];
+  if (expectedPackages) {
+    assert.deepEqual(
+      packages.map((pkg) => [
+        pkg.platform,
+        pkg.runtimeTarget,
+        pkg.targetPlatform,
+        pkg.clientArchitecture,
+      ]),
+      expectedPackages,
     );
-    for (const pkg of packages) {
-      assert.equal(
-        pkg.enabled,
-        false,
-        `${relativePath} package ${pkg.id} must stay disabled until real release artifacts exist.`,
-      );
-      assert.equal(
-        pkg.checksum,
-        undefined,
-        `${relativePath} package ${pkg.id} must not ship placeholder checksum values.`,
-      );
-    }
   }
 }
 
 const rootManifest = readSdkworkAppManifest(path.join(rootDir, 'sdkwork.app.config.json'));
-assert.match(
-  String(rootManifest.metadata?.commercialReadiness?.pcPrivateBeta ?? ''),
-  /http-openapi-155-route-catalog-156/u,
-  'Root manifest must record HTTP OpenAPI 155-operation alignment and 156-entry route catalog truth.',
-);
-assert.match(
-  String(rootManifest.metadata?.commercialReadiness?.mobileProductParity ?? ''),
-  /chat/u,
-  'Root manifest must record mobile chat API alignment.',
-);
-assert.match(
-  String(rootManifest.metadata?.commercialReadiness?.manifestHonesty ?? ''),
-  /pc|h5|flutter/u,
-  'Root manifest must record PC/H5/Flutter manifest honesty.',
-);
+assert.deepEqual(rootManifest.metadata?.domainOwnership?.apiOperationCounts, {
+  appApi: 39,
+  backendApi: 0,
+  openApi: 0,
+});
+assert.equal(rootManifest.metadata?.domainOwnership?.databaseTableCount, 10);
+assert.equal(rootManifest.metadata?.domainOwnership?.permissionCount, 33);
 
 console.log('surface manifest parity contract passed.');

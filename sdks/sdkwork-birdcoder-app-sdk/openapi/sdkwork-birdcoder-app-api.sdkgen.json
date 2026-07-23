@@ -5,7 +5,7 @@
   "info": {
     "title": "SDKWork BirdCoder App API",
     "version": "0.1.0",
-    "description": "BirdCoder app SDK source of truth generated from the canonical coding-server OpenAPI app surface."
+    "description": "Canonical BirdCoder coding-workbench App API authority."
   },
   "servers": [
     {
@@ -14,8 +14,8 @@
   ],
   "tags": [
     {
-      "name": "platform",
-      "description": "Workspace, project, release, deployment, and delivery resources."
+      "name": "intelligence",
+      "description": "Workspace, project, document binding, sandbox binding, runtime location, and Git resources."
     },
     {
       "name": "system",
@@ -26,18 +26,18 @@
     "/app/v3/api/system/descriptor": {
       "get": {
         "operationId": "descriptor.retrieve",
-        "summary": "Get coding-server descriptor",
-        "description": "Get coding-server descriptor. Requires an authenticated BirdCoder user session.",
+        "summary": "Get BirdCoder application descriptor",
+        "description": "Get the BirdCoder application descriptor. Requires an authenticated BirdCoder user session.",
         "tags": [
           "system"
         ],
         "responses": {
           "200": {
-            "description": "Coding server descriptor returned successfully.",
+            "description": "BirdCoder application descriptor returned successfully.",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/BirdCoderCodingServerDescriptorEnvelope"
+                  "$ref": "#/components/schemas/BirdCoderApplicationDescriptorEnvelope"
                 }
               }
             }
@@ -77,8 +77,8 @@
     "/app/v3/api/system/health": {
       "get": {
         "operationId": "health.retrieve",
-        "summary": "Get coding-server health",
-        "description": "Get coding-server health. Requires an authenticated BirdCoder user session.",
+        "summary": "Get BirdCoder application health",
+        "description": "Get BirdCoder application health. Requires an authenticated BirdCoder user session.",
         "tags": [
           "system"
         ],
@@ -233,7 +233,7 @@
         "summary": "Create project",
         "description": "Create project. Requires an authenticated BirdCoder user session.",
         "tags": [
-          "platform"
+          "intelligence"
         ],
         "requestBody": {
           "required": true,
@@ -296,10 +296,10 @@
         "x-sdkwork-auth-mode": "user",
         "x-sdkwork-data-scope": "organization",
         "x-sdkwork-deployment": "all",
-        "x-sdkwork-domain": "platform",
-        "x-sdkwork-permission": "birdcoder.platform-projects.create",
+        "x-sdkwork-domain": "intelligence",
+        "x-sdkwork-permission": "birdcoder.intelligence-projects.create",
         "x-sdkwork-public": false,
-        "x-sdkwork-resource": "birdcoder.platform-projects",
+        "x-sdkwork-resource": "birdcoder.intelligence-projects",
         "x-sdkwork-surface": "app",
         "x-sdkwork-tenant-scope": "tenant",
         "x-sdkwork-api-authority": "sdkwork-birdcoder-app-api",
@@ -312,7 +312,7 @@
         "summary": "List projects",
         "description": "List projects. Requires an authenticated BirdCoder user session.",
         "tags": [
-          "platform"
+          "intelligence"
         ],
         "parameters": [
           {
@@ -382,10 +382,10 @@
         "x-sdkwork-auth-mode": "user",
         "x-sdkwork-data-scope": "organization",
         "x-sdkwork-deployment": "all",
-        "x-sdkwork-domain": "platform",
-        "x-sdkwork-permission": "birdcoder.platform-projects.read",
+        "x-sdkwork-domain": "intelligence",
+        "x-sdkwork-permission": "birdcoder.intelligence-projects.read",
         "x-sdkwork-public": false,
-        "x-sdkwork-resource": "birdcoder.platform-projects",
+        "x-sdkwork-resource": "birdcoder.intelligence-projects",
         "x-sdkwork-surface": "app",
         "x-sdkwork-tenant-scope": "tenant",
         "x-sdkwork-api-authority": "sdkwork-birdcoder-app-api",
@@ -400,7 +400,7 @@
         "summary": "Create workspace",
         "description": "Create workspace. Requires an authenticated BirdCoder user session.",
         "tags": [
-          "platform"
+          "intelligence"
         ],
         "requestBody": {
           "required": true,
@@ -453,10 +453,10 @@
         "x-sdkwork-auth-mode": "user",
         "x-sdkwork-data-scope": "organization",
         "x-sdkwork-deployment": "all",
-        "x-sdkwork-domain": "platform",
-        "x-sdkwork-permission": "birdcoder.platform-workspaces.create",
+        "x-sdkwork-domain": "intelligence",
+        "x-sdkwork-permission": "birdcoder.intelligence-workspaces.create",
         "x-sdkwork-public": false,
-        "x-sdkwork-resource": "birdcoder.platform-workspaces",
+        "x-sdkwork-resource": "birdcoder.intelligence-workspaces",
         "x-sdkwork-surface": "app",
         "x-sdkwork-tenant-scope": "tenant",
         "x-sdkwork-api-authority": "sdkwork-birdcoder-app-api",
@@ -469,7 +469,7 @@
         "summary": "List workspaces",
         "description": "List workspaces. Requires an authenticated BirdCoder user session.",
         "tags": [
-          "platform"
+          "intelligence"
         ],
         "parameters": [
           {
@@ -531,10 +531,10 @@
         "x-sdkwork-auth-mode": "user",
         "x-sdkwork-data-scope": "organization",
         "x-sdkwork-deployment": "all",
-        "x-sdkwork-domain": "platform",
-        "x-sdkwork-permission": "birdcoder.platform-workspaces.read",
+        "x-sdkwork-domain": "intelligence",
+        "x-sdkwork-permission": "birdcoder.intelligence-workspaces.read",
         "x-sdkwork-public": false,
-        "x-sdkwork-resource": "birdcoder.platform-workspaces",
+        "x-sdkwork-resource": "birdcoder.intelligence-workspaces",
         "x-sdkwork-surface": "app",
         "x-sdkwork-tenant-scope": "tenant",
         "x-sdkwork-api-authority": "sdkwork-birdcoder-app-api",
@@ -549,7 +549,7 @@
         "summary": "Delete project",
         "description": "Delete project. Requires an authenticated BirdCoder user session.",
         "tags": [
-          "platform"
+          "intelligence"
         ],
         "parameters": [
           {
@@ -560,6 +560,18 @@
             "schema": {
               "type": "string"
             }
+          },
+          {
+            "name": "If-Match",
+            "in": "header",
+            "description": "Current resource version required for optimistic concurrency.",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "maxLength": 32,
+              "minLength": 1,
+              "pattern": "[0-9]+"
+            }
           }
         ],
         "responses": {
@@ -568,6 +580,26 @@
           },
           "404": {
             "description": "Project was not found.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            }
+          },
+          "412": {
+            "description": "Project version precondition failed.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            }
+          },
+          "428": {
+            "description": "Project deletion requires If-Match.",
             "content": {
               "application/problem+json": {
                 "schema": {
@@ -596,10 +628,10 @@
         "x-sdkwork-auth-mode": "user",
         "x-sdkwork-data-scope": "organization",
         "x-sdkwork-deployment": "all",
-        "x-sdkwork-domain": "platform",
-        "x-sdkwork-permission": "birdcoder.platform-projects.delete",
+        "x-sdkwork-domain": "intelligence",
+        "x-sdkwork-permission": "birdcoder.intelligence-projects.delete",
         "x-sdkwork-public": false,
-        "x-sdkwork-resource": "birdcoder.platform-projects",
+        "x-sdkwork-resource": "birdcoder.intelligence-projects",
         "x-sdkwork-surface": "app",
         "x-sdkwork-tenant-scope": "tenant",
         "x-sdkwork-api-authority": "sdkwork-birdcoder-app-api",
@@ -612,7 +644,7 @@
         "summary": "Get project",
         "description": "Get project. Requires an authenticated BirdCoder user session.",
         "tags": [
-          "platform"
+          "intelligence"
         ],
         "parameters": [
           {
@@ -666,10 +698,10 @@
         "x-sdkwork-auth-mode": "user",
         "x-sdkwork-data-scope": "organization",
         "x-sdkwork-deployment": "all",
-        "x-sdkwork-domain": "platform",
-        "x-sdkwork-permission": "birdcoder.platform-projects.read",
+        "x-sdkwork-domain": "intelligence",
+        "x-sdkwork-permission": "birdcoder.intelligence-projects.read",
         "x-sdkwork-public": false,
-        "x-sdkwork-resource": "birdcoder.platform-projects",
+        "x-sdkwork-resource": "birdcoder.intelligence-projects",
         "x-sdkwork-surface": "app",
         "x-sdkwork-tenant-scope": "tenant",
         "x-sdkwork-api-authority": "sdkwork-birdcoder-app-api",
@@ -682,7 +714,7 @@
         "summary": "Update project",
         "description": "Update project. Requires an authenticated BirdCoder user session.",
         "tags": [
-          "platform"
+          "intelligence"
         ],
         "parameters": [
           {
@@ -692,6 +724,18 @@
             "description": "BirdCoder project identifier.",
             "schema": {
               "type": "string"
+            }
+          },
+          {
+            "name": "If-Match",
+            "in": "header",
+            "description": "Current resource version required for optimistic concurrency.",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "maxLength": 32,
+              "minLength": 1,
+              "pattern": "[0-9]+"
             }
           }
         ],
@@ -736,6 +780,26 @@
               }
             }
           },
+          "412": {
+            "description": "Project version precondition failed.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            }
+          },
+          "428": {
+            "description": "Project update requires If-Match.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            }
+          },
           "default": {
             "description": "Problem response envelope.",
             "content": {
@@ -756,10 +820,10 @@
         "x-sdkwork-auth-mode": "user",
         "x-sdkwork-data-scope": "organization",
         "x-sdkwork-deployment": "all",
-        "x-sdkwork-domain": "platform",
-        "x-sdkwork-permission": "birdcoder.platform-projects.update",
+        "x-sdkwork-domain": "intelligence",
+        "x-sdkwork-permission": "birdcoder.intelligence-projects.update",
         "x-sdkwork-public": false,
-        "x-sdkwork-resource": "birdcoder.platform-projects",
+        "x-sdkwork-resource": "birdcoder.intelligence-projects",
         "x-sdkwork-surface": "app",
         "x-sdkwork-tenant-scope": "tenant",
         "x-sdkwork-api-authority": "sdkwork-birdcoder-app-api",
@@ -774,7 +838,7 @@
         "summary": "Delete workspace",
         "description": "Delete workspace. Requires an authenticated BirdCoder user session.",
         "tags": [
-          "platform"
+          "intelligence"
         ],
         "parameters": [
           {
@@ -784,6 +848,18 @@
             "description": "BirdCoder workspace identifier.",
             "schema": {
               "type": "string"
+            }
+          },
+          {
+            "name": "If-Match",
+            "in": "header",
+            "description": "Current resource version required for optimistic concurrency.",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "maxLength": 32,
+              "minLength": 1,
+              "pattern": "[0-9]+"
             }
           }
         ],
@@ -801,6 +877,26 @@
               }
             }
           },
+          "412": {
+            "description": "Workspace version precondition failed.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            }
+          },
+          "428": {
+            "description": "Workspace deletion requires If-Match.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            }
+          },
           "default": {
             "description": "Problem response envelope.",
             "content": {
@@ -821,10 +917,10 @@
         "x-sdkwork-auth-mode": "user",
         "x-sdkwork-data-scope": "organization",
         "x-sdkwork-deployment": "all",
-        "x-sdkwork-domain": "platform",
-        "x-sdkwork-permission": "birdcoder.platform-workspaces.delete",
+        "x-sdkwork-domain": "intelligence",
+        "x-sdkwork-permission": "birdcoder.intelligence-workspaces.delete",
         "x-sdkwork-public": false,
-        "x-sdkwork-resource": "birdcoder.platform-workspaces",
+        "x-sdkwork-resource": "birdcoder.intelligence-workspaces",
         "x-sdkwork-surface": "app",
         "x-sdkwork-tenant-scope": "tenant",
         "x-sdkwork-api-authority": "sdkwork-birdcoder-app-api",
@@ -837,7 +933,7 @@
         "summary": "Get workspace",
         "description": "Get workspace. Requires an authenticated BirdCoder user session.",
         "tags": [
-          "platform"
+          "intelligence"
         ],
         "parameters": [
           {
@@ -891,10 +987,10 @@
         "x-sdkwork-auth-mode": "user",
         "x-sdkwork-data-scope": "organization",
         "x-sdkwork-deployment": "all",
-        "x-sdkwork-domain": "platform",
-        "x-sdkwork-permission": "birdcoder.platform-workspaces.read",
+        "x-sdkwork-domain": "intelligence",
+        "x-sdkwork-permission": "birdcoder.intelligence-workspaces.read",
         "x-sdkwork-public": false,
-        "x-sdkwork-resource": "birdcoder.platform-workspaces",
+        "x-sdkwork-resource": "birdcoder.intelligence-workspaces",
         "x-sdkwork-surface": "app",
         "x-sdkwork-tenant-scope": "tenant",
         "x-sdkwork-api-authority": "sdkwork-birdcoder-app-api",
@@ -907,7 +1003,7 @@
         "summary": "Update workspace",
         "description": "Update workspace. Requires an authenticated BirdCoder user session.",
         "tags": [
-          "platform"
+          "intelligence"
         ],
         "parameters": [
           {
@@ -917,6 +1013,18 @@
             "description": "BirdCoder workspace identifier.",
             "schema": {
               "type": "string"
+            }
+          },
+          {
+            "name": "If-Match",
+            "in": "header",
+            "description": "Current resource version required for optimistic concurrency.",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "maxLength": 32,
+              "minLength": 1,
+              "pattern": "[0-9]+"
             }
           }
         ],
@@ -961,6 +1069,26 @@
               }
             }
           },
+          "412": {
+            "description": "Workspace version precondition failed.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            }
+          },
+          "428": {
+            "description": "Workspace update requires If-Match.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            }
+          },
           "default": {
             "description": "Problem response envelope.",
             "content": {
@@ -981,10 +1109,10 @@
         "x-sdkwork-auth-mode": "user",
         "x-sdkwork-data-scope": "organization",
         "x-sdkwork-deployment": "all",
-        "x-sdkwork-domain": "platform",
-        "x-sdkwork-permission": "birdcoder.platform-workspaces.update",
+        "x-sdkwork-domain": "intelligence",
+        "x-sdkwork-permission": "birdcoder.intelligence-workspaces.update",
         "x-sdkwork-public": false,
-        "x-sdkwork-resource": "birdcoder.platform-workspaces",
+        "x-sdkwork-resource": "birdcoder.intelligence-workspaces",
         "x-sdkwork-surface": "app",
         "x-sdkwork-tenant-scope": "tenant",
         "x-sdkwork-api-authority": "sdkwork-birdcoder-app-api",
@@ -993,13 +1121,389 @@
         "x-sdkwork-api-surface": "app-api"
       }
     },
-    "/app/v3/api/projects/{projectId}/workspace_binding": {
+    "/app/v3/api/projects/{projectId}/document_bindings": {
       "get": {
-        "operationId": "projects.workspaceBinding.retrieve",
-        "summary": "Get project workspace binding",
-        "description": "Get project workspace binding. Requires an authenticated BirdCoder user session.",
+        "operationId": "projects.documentBindings.list",
+        "summary": "List project document bindings",
+        "description": "List project document bindings. Requires an authenticated BirdCoder user session.",
         "tags": [
-          "platform"
+          "intelligence"
+        ],
+        "parameters": [
+          {
+            "name": "projectId",
+            "in": "path",
+            "required": true,
+            "description": "BirdCoder project identifier.",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "description": "One-based page number used for offset-mode pagination.",
+            "schema": {
+              "type": "integer",
+              "minimum": 1
+            }
+          },
+          {
+            "name": "page_size",
+            "in": "query",
+            "description": "Maximum number of items to return. Defaults to 20 and must not exceed 200.",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 200
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Project document bindings returned successfully.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BirdCoderProjectDocumentBindingListEnvelope"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Project was not found.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Problem response envelope.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "AuthToken": [],
+            "AccessToken": []
+          }
+        ],
+        "x-sdkwork-auth-mode": "user",
+        "x-sdkwork-data-scope": "organization",
+        "x-sdkwork-deployment": "all",
+        "x-sdkwork-domain": "intelligence",
+        "x-sdkwork-permission": "birdcoder.intelligence-projects-document-bindings.read",
+        "x-sdkwork-public": false,
+        "x-sdkwork-resource": "birdcoder.intelligence-projects-document-bindings",
+        "x-sdkwork-surface": "app",
+        "x-sdkwork-tenant-scope": "tenant",
+        "x-sdkwork-api-authority": "sdkwork-birdcoder-app-api",
+        "x-sdkwork-owner": "sdkwork-birdcoder",
+        "x-sdkwork-request-context": "WebRequestContext",
+        "x-sdkwork-api-surface": "app-api"
+      },
+      "post": {
+        "operationId": "projects.documentBindings.create",
+        "summary": "Create project document binding",
+        "description": "Create project document binding. Requires an authenticated BirdCoder user session.",
+        "tags": [
+          "intelligence"
+        ],
+        "parameters": [
+          {
+            "name": "projectId",
+            "in": "path",
+            "required": true,
+            "description": "BirdCoder project identifier.",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BirdCoderCreateProjectDocumentBindingRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Project document binding created successfully.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BirdCoderProjectDocumentBindingEnvelope"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Project document-binding input is invalid.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Project was not found.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Project document binding already exists.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Problem response envelope.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "AuthToken": [],
+            "AccessToken": []
+          }
+        ],
+        "x-sdkwork-auth-mode": "user",
+        "x-sdkwork-data-scope": "organization",
+        "x-sdkwork-deployment": "all",
+        "x-sdkwork-domain": "intelligence",
+        "x-sdkwork-permission": "birdcoder.intelligence-projects-document-bindings.create",
+        "x-sdkwork-public": false,
+        "x-sdkwork-resource": "birdcoder.intelligence-projects-document-bindings",
+        "x-sdkwork-surface": "app",
+        "x-sdkwork-tenant-scope": "tenant",
+        "x-sdkwork-api-authority": "sdkwork-birdcoder-app-api",
+        "x-sdkwork-owner": "sdkwork-birdcoder",
+        "x-sdkwork-request-context": "WebRequestContext",
+        "x-sdkwork-api-surface": "app-api"
+      }
+    },
+    "/app/v3/api/projects/{projectId}/document_bindings/{bindingId}": {
+      "get": {
+        "operationId": "projects.documentBindings.retrieve",
+        "summary": "Get project document binding",
+        "description": "Get project document binding. Requires an authenticated BirdCoder user session.",
+        "tags": [
+          "intelligence"
+        ],
+        "parameters": [
+          {
+            "name": "projectId",
+            "in": "path",
+            "required": true,
+            "description": "BirdCoder project identifier.",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "bindingId",
+            "in": "path",
+            "required": true,
+            "description": "BirdCoder project document-binding identifier.",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Project document binding returned successfully.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BirdCoderProjectDocumentBindingEnvelope"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Project document binding was not found.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Problem response envelope.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "AuthToken": [],
+            "AccessToken": []
+          }
+        ],
+        "x-sdkwork-auth-mode": "user",
+        "x-sdkwork-data-scope": "organization",
+        "x-sdkwork-deployment": "all",
+        "x-sdkwork-domain": "intelligence",
+        "x-sdkwork-permission": "birdcoder.intelligence-projects-document-bindings.read",
+        "x-sdkwork-public": false,
+        "x-sdkwork-resource": "birdcoder.intelligence-projects-document-bindings",
+        "x-sdkwork-surface": "app",
+        "x-sdkwork-tenant-scope": "tenant",
+        "x-sdkwork-api-authority": "sdkwork-birdcoder-app-api",
+        "x-sdkwork-owner": "sdkwork-birdcoder",
+        "x-sdkwork-request-context": "WebRequestContext",
+        "x-sdkwork-api-surface": "app-api"
+      },
+      "delete": {
+        "operationId": "projects.documentBindings.delete",
+        "summary": "Delete project document binding",
+        "description": "Delete project document binding. Requires an authenticated BirdCoder user session.",
+        "tags": [
+          "intelligence"
+        ],
+        "parameters": [
+          {
+            "name": "projectId",
+            "in": "path",
+            "required": true,
+            "description": "BirdCoder project identifier.",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "bindingId",
+            "in": "path",
+            "required": true,
+            "description": "BirdCoder project document-binding identifier.",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "If-Match",
+            "in": "header",
+            "description": "Current resource version required for optimistic concurrency.",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "maxLength": 32,
+              "minLength": 1,
+              "pattern": "[0-9]+"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Project document binding removed successfully."
+          },
+          "404": {
+            "description": "Project document binding was not found.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            }
+          },
+          "412": {
+            "description": "Project document-binding version precondition failed.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            }
+          },
+          "428": {
+            "description": "Project document-binding deletion requires If-Match.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Problem response envelope.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "AuthToken": [],
+            "AccessToken": []
+          }
+        ],
+        "x-sdkwork-auth-mode": "user",
+        "x-sdkwork-data-scope": "organization",
+        "x-sdkwork-deployment": "all",
+        "x-sdkwork-domain": "intelligence",
+        "x-sdkwork-permission": "birdcoder.intelligence-projects-document-bindings.delete",
+        "x-sdkwork-public": false,
+        "x-sdkwork-resource": "birdcoder.intelligence-projects-document-bindings",
+        "x-sdkwork-surface": "app",
+        "x-sdkwork-tenant-scope": "tenant",
+        "x-sdkwork-api-authority": "sdkwork-birdcoder-app-api",
+        "x-sdkwork-owner": "sdkwork-birdcoder",
+        "x-sdkwork-request-context": "WebRequestContext",
+        "x-sdkwork-api-surface": "app-api"
+      }
+    },
+    "/app/v3/api/projects/{projectId}/sandbox_binding": {
+      "get": {
+        "operationId": "projects.sandboxBinding.retrieve",
+        "summary": "Get project sandbox binding",
+        "description": "Get project sandbox binding. Requires an authenticated BirdCoder user session.",
+        "tags": [
+          "intelligence"
         ],
         "parameters": [
           {
@@ -1014,17 +1518,17 @@
         ],
         "responses": {
           "200": {
-            "description": "Project workspace binding returned successfully.",
+            "description": "Project sandbox binding returned successfully.",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/BirdCoderProjectWorkspaceBindingEnvelope"
+                  "$ref": "#/components/schemas/BirdCoderProjectSandboxBindingEnvelope"
                 }
               }
             }
           },
           "404": {
-            "description": "Project workspace binding was not found.",
+            "description": "Project sandbox binding was not found.",
             "content": {
               "application/problem+json": {
                 "schema": {
@@ -1053,10 +1557,10 @@
         "x-sdkwork-auth-mode": "user",
         "x-sdkwork-data-scope": "organization",
         "x-sdkwork-deployment": "all",
-        "x-sdkwork-domain": "platform",
-        "x-sdkwork-permission": "birdcoder.platform-projects-workspace-binding.read",
+        "x-sdkwork-domain": "intelligence",
+        "x-sdkwork-permission": "birdcoder.intelligence-projects-sandbox-binding.read",
         "x-sdkwork-public": false,
-        "x-sdkwork-resource": "birdcoder.platform-projects-workspace-binding",
+        "x-sdkwork-resource": "birdcoder.intelligence-projects-sandbox-binding",
         "x-sdkwork-surface": "app",
         "x-sdkwork-tenant-scope": "tenant",
         "x-sdkwork-api-authority": "sdkwork-birdcoder-app-api",
@@ -1065,11 +1569,11 @@
         "x-sdkwork-api-surface": "app-api"
       },
       "put": {
-        "operationId": "projects.workspaceBinding.update",
-        "summary": "Create or update project workspace binding",
-        "description": "Create or update project workspace binding. Requires an authenticated BirdCoder user session.",
+        "operationId": "projects.sandboxBinding.update",
+        "summary": "Create or update project sandbox binding",
+        "description": "Create or update project sandbox binding. Requires an authenticated BirdCoder user session.",
         "tags": [
-          "platform"
+          "intelligence"
         ],
         "parameters": [
           {
@@ -1110,24 +1614,24 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/BirdCoderUpsertProjectWorkspaceBindingRequest"
+                "$ref": "#/components/schemas/BirdCoderUpsertProjectSandboxBindingRequest"
               }
             }
           }
         },
         "responses": {
           "200": {
-            "description": "Project workspace binding updated successfully.",
+            "description": "Project sandbox binding updated successfully.",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/BirdCoderProjectWorkspaceBindingEnvelope"
+                  "$ref": "#/components/schemas/BirdCoderProjectSandboxBindingEnvelope"
                 }
               }
             }
           },
           "400": {
-            "description": "Project workspace binding input is invalid.",
+            "description": "Project sandbox-binding input is invalid.",
             "content": {
               "application/problem+json": {
                 "schema": {
@@ -1147,7 +1651,7 @@
             }
           },
           "409": {
-            "description": "Project workspace binding idempotency conflicts with another request.",
+            "description": "Project sandbox-binding idempotency conflicts with another request.",
             "content": {
               "application/problem+json": {
                 "schema": {
@@ -1157,7 +1661,7 @@
             }
           },
           "412": {
-            "description": "Project workspace-binding version precondition failed.",
+            "description": "Project sandbox-binding version precondition failed.",
             "content": {
               "application/problem+json": {
                 "schema": {
@@ -1167,7 +1671,7 @@
             }
           },
           "428": {
-            "description": "An existing project workspace binding requires If-Match.",
+            "description": "Project sandbox-binding update requires Idempotency-Key; replacing an existing binding also requires If-Match.",
             "content": {
               "application/problem+json": {
                 "schema": {
@@ -1194,14 +1698,14 @@
           }
         ],
         "x-sdkwork-auth-mode": "user",
-        "x-sdkwork-audit-event": "project.workspace_binding.upsert",
+        "x-sdkwork-audit-event": "project.sandbox_binding.upsert",
         "x-sdkwork-data-scope": "organization",
         "x-sdkwork-deployment": "all",
-        "x-sdkwork-domain": "platform",
+        "x-sdkwork-domain": "intelligence",
         "x-sdkwork-idempotent": true,
-        "x-sdkwork-permission": "birdcoder.platform-projects-workspace-binding.update",
+        "x-sdkwork-permission": "birdcoder.intelligence-projects-sandbox-binding.update",
         "x-sdkwork-public": false,
-        "x-sdkwork-resource": "birdcoder.platform-projects-workspace-binding",
+        "x-sdkwork-resource": "birdcoder.intelligence-projects-sandbox-binding",
         "x-sdkwork-surface": "app",
         "x-sdkwork-tenant-scope": "tenant",
         "x-sdkwork-api-authority": "sdkwork-birdcoder-app-api",
@@ -1210,11 +1714,11 @@
         "x-sdkwork-api-surface": "app-api"
       },
       "delete": {
-        "operationId": "projects.workspaceBinding.delete",
-        "summary": "Delete project workspace binding",
-        "description": "Delete project workspace binding. Requires an authenticated BirdCoder user session.",
+        "operationId": "projects.sandboxBinding.delete",
+        "summary": "Delete project sandbox binding",
+        "description": "Delete project sandbox binding. Requires an authenticated BirdCoder user session.",
         "tags": [
-          "platform"
+          "intelligence"
         ],
         "parameters": [
           {
@@ -1241,10 +1745,10 @@
         ],
         "responses": {
           "204": {
-            "description": "Project workspace binding removed successfully."
+            "description": "Project sandbox binding removed successfully."
           },
           "404": {
-            "description": "Project workspace binding was not found.",
+            "description": "Project sandbox binding was not found.",
             "content": {
               "application/problem+json": {
                 "schema": {
@@ -1254,7 +1758,7 @@
             }
           },
           "412": {
-            "description": "Project workspace-binding version precondition failed.",
+            "description": "Project sandbox-binding version precondition failed.",
             "content": {
               "application/problem+json": {
                 "schema": {
@@ -1264,7 +1768,7 @@
             }
           },
           "428": {
-            "description": "Project workspace-binding deletion requires If-Match.",
+            "description": "Project sandbox-binding deletion requires If-Match.",
             "content": {
               "application/problem+json": {
                 "schema": {
@@ -1291,13 +1795,13 @@
           }
         ],
         "x-sdkwork-auth-mode": "user",
-        "x-sdkwork-audit-event": "project.workspace_binding.delete",
+        "x-sdkwork-audit-event": "project.sandbox_binding.delete",
         "x-sdkwork-data-scope": "organization",
         "x-sdkwork-deployment": "all",
-        "x-sdkwork-domain": "platform",
-        "x-sdkwork-permission": "birdcoder.platform-projects-workspace-binding.delete",
+        "x-sdkwork-domain": "intelligence",
+        "x-sdkwork-permission": "birdcoder.intelligence-projects-sandbox-binding.delete",
         "x-sdkwork-public": false,
-        "x-sdkwork-resource": "birdcoder.platform-projects-workspace-binding",
+        "x-sdkwork-resource": "birdcoder.intelligence-projects-sandbox-binding",
         "x-sdkwork-surface": "app",
         "x-sdkwork-tenant-scope": "tenant",
         "x-sdkwork-api-authority": "sdkwork-birdcoder-app-api",
@@ -1312,7 +1816,7 @@
         "summary": "List project runtime locations",
         "description": "List project runtime locations. Requires an authenticated BirdCoder user session.",
         "tags": [
-          "platform"
+          "intelligence"
         ],
         "parameters": [
           {
@@ -1385,10 +1889,10 @@
         "x-sdkwork-auth-mode": "user",
         "x-sdkwork-data-scope": "organization",
         "x-sdkwork-deployment": "all",
-        "x-sdkwork-domain": "platform",
-        "x-sdkwork-permission": "birdcoder.platform-projects-runtime-locations.read",
+        "x-sdkwork-domain": "intelligence",
+        "x-sdkwork-permission": "birdcoder.intelligence-projects-runtime-locations.read",
         "x-sdkwork-public": false,
-        "x-sdkwork-resource": "birdcoder.platform-projects-runtime-locations",
+        "x-sdkwork-resource": "birdcoder.intelligence-projects-runtime-locations",
         "x-sdkwork-surface": "app",
         "x-sdkwork-tenant-scope": "tenant",
         "x-sdkwork-api-authority": "sdkwork-birdcoder-app-api",
@@ -1401,7 +1905,7 @@
         "summary": "Register project runtime location",
         "description": "Register project runtime location. Requires an authenticated BirdCoder user session.",
         "tags": [
-          "platform"
+          "intelligence"
         ],
         "parameters": [
           {
@@ -1507,11 +2011,11 @@
         "x-sdkwork-auth-mode": "user",
         "x-sdkwork-data-scope": "organization",
         "x-sdkwork-deployment": "all",
-        "x-sdkwork-domain": "platform",
+        "x-sdkwork-domain": "intelligence",
         "x-sdkwork-idempotent": true,
-        "x-sdkwork-permission": "birdcoder.platform-projects-runtime-locations.create",
+        "x-sdkwork-permission": "birdcoder.intelligence-projects-runtime-locations.create",
         "x-sdkwork-public": false,
-        "x-sdkwork-resource": "birdcoder.platform-projects-runtime-locations",
+        "x-sdkwork-resource": "birdcoder.intelligence-projects-runtime-locations",
         "x-sdkwork-surface": "app",
         "x-sdkwork-tenant-scope": "tenant",
         "x-sdkwork-api-authority": "sdkwork-birdcoder-app-api",
@@ -1526,7 +2030,7 @@
         "summary": "Get project runtime location",
         "description": "Get project runtime location. Requires an authenticated BirdCoder user session.",
         "tags": [
-          "platform"
+          "intelligence"
         ],
         "parameters": [
           {
@@ -1589,10 +2093,10 @@
         "x-sdkwork-auth-mode": "user",
         "x-sdkwork-data-scope": "organization",
         "x-sdkwork-deployment": "all",
-        "x-sdkwork-domain": "platform",
-        "x-sdkwork-permission": "birdcoder.platform-projects-runtime-locations.read",
+        "x-sdkwork-domain": "intelligence",
+        "x-sdkwork-permission": "birdcoder.intelligence-projects-runtime-locations.read",
         "x-sdkwork-public": false,
-        "x-sdkwork-resource": "birdcoder.platform-projects-runtime-locations",
+        "x-sdkwork-resource": "birdcoder.intelligence-projects-runtime-locations",
         "x-sdkwork-surface": "app",
         "x-sdkwork-tenant-scope": "tenant",
         "x-sdkwork-api-authority": "sdkwork-birdcoder-app-api",
@@ -1605,7 +2109,7 @@
         "summary": "Update project runtime location",
         "description": "Update project runtime location. Requires an authenticated BirdCoder user session.",
         "tags": [
-          "platform"
+          "intelligence"
         ],
         "parameters": [
           {
@@ -1732,11 +2236,11 @@
         "x-sdkwork-auth-mode": "user",
         "x-sdkwork-data-scope": "organization",
         "x-sdkwork-deployment": "all",
-        "x-sdkwork-domain": "platform",
+        "x-sdkwork-domain": "intelligence",
         "x-sdkwork-idempotent": true,
-        "x-sdkwork-permission": "birdcoder.platform-projects-runtime-locations.update",
+        "x-sdkwork-permission": "birdcoder.intelligence-projects-runtime-locations.update",
         "x-sdkwork-public": false,
-        "x-sdkwork-resource": "birdcoder.platform-projects-runtime-locations",
+        "x-sdkwork-resource": "birdcoder.intelligence-projects-runtime-locations",
         "x-sdkwork-surface": "app",
         "x-sdkwork-tenant-scope": "tenant",
         "x-sdkwork-api-authority": "sdkwork-birdcoder-app-api",
@@ -1749,7 +2253,7 @@
         "summary": "Delete project runtime location",
         "description": "Delete project runtime location. Requires an authenticated BirdCoder user session.",
         "tags": [
-          "platform"
+          "intelligence"
         ],
         "parameters": [
           {
@@ -1837,10 +2341,10 @@
         "x-sdkwork-auth-mode": "user",
         "x-sdkwork-data-scope": "organization",
         "x-sdkwork-deployment": "all",
-        "x-sdkwork-domain": "platform",
-        "x-sdkwork-permission": "birdcoder.platform-projects-runtime-locations.delete",
+        "x-sdkwork-domain": "intelligence",
+        "x-sdkwork-permission": "birdcoder.intelligence-projects-runtime-locations.delete",
         "x-sdkwork-public": false,
-        "x-sdkwork-resource": "birdcoder.platform-projects-runtime-locations",
+        "x-sdkwork-resource": "birdcoder.intelligence-projects-runtime-locations",
         "x-sdkwork-surface": "app",
         "x-sdkwork-tenant-scope": "tenant",
         "x-sdkwork-api-authority": "sdkwork-birdcoder-app-api",
@@ -1855,7 +2359,7 @@
         "summary": "Rebind project runtime location",
         "description": "Rebind project runtime location. Requires an authenticated BirdCoder user session.",
         "tags": [
-          "platform"
+          "intelligence"
         ],
         "parameters": [
           {
@@ -1992,11 +2496,11 @@
         "x-sdkwork-auth-mode": "user",
         "x-sdkwork-data-scope": "organization",
         "x-sdkwork-deployment": "all",
-        "x-sdkwork-domain": "platform",
+        "x-sdkwork-domain": "intelligence",
         "x-sdkwork-idempotent": true,
-        "x-sdkwork-permission": "birdcoder.platform-projects-runtime-locations.create",
+        "x-sdkwork-permission": "birdcoder.intelligence-projects-runtime-locations.update",
         "x-sdkwork-public": false,
-        "x-sdkwork-resource": "birdcoder.platform-projects-runtime-locations",
+        "x-sdkwork-resource": "birdcoder.intelligence-projects-runtime-locations",
         "x-sdkwork-surface": "app",
         "x-sdkwork-tenant-scope": "tenant",
         "x-sdkwork-api-authority": "sdkwork-birdcoder-app-api",
@@ -2011,7 +2515,7 @@
         "summary": "Request project runtime-location verification",
         "description": "Request project runtime-location verification. Requires an authenticated BirdCoder user session.",
         "tags": [
-          "platform"
+          "intelligence"
         ],
         "parameters": [
           {
@@ -2058,7 +2562,7 @@
           }
         ],
         "responses": {
-          "200": {
+          "202": {
             "description": "Project runtime-location verification was requested successfully.",
             "content": {
               "application/json": {
@@ -2138,11 +2642,11 @@
         "x-sdkwork-auth-mode": "user",
         "x-sdkwork-data-scope": "organization",
         "x-sdkwork-deployment": "all",
-        "x-sdkwork-domain": "platform",
+        "x-sdkwork-domain": "intelligence",
         "x-sdkwork-idempotent": true,
-        "x-sdkwork-permission": "birdcoder.platform-projects-runtime-locations.create",
+        "x-sdkwork-permission": "birdcoder.intelligence-projects-runtime-locations.update",
         "x-sdkwork-public": false,
-        "x-sdkwork-resource": "birdcoder.platform-projects-runtime-locations",
+        "x-sdkwork-resource": "birdcoder.intelligence-projects-runtime-locations",
         "x-sdkwork-surface": "app",
         "x-sdkwork-tenant-scope": "tenant",
         "x-sdkwork-api-authority": "sdkwork-birdcoder-app-api",
@@ -2157,7 +2661,7 @@
         "summary": "List project runtime-location preferences",
         "description": "List project runtime-location preferences. Requires an authenticated BirdCoder user session.",
         "tags": [
-          "platform"
+          "intelligence"
         ],
         "parameters": [
           {
@@ -2230,10 +2734,10 @@
         "x-sdkwork-auth-mode": "user",
         "x-sdkwork-data-scope": "organization",
         "x-sdkwork-deployment": "all",
-        "x-sdkwork-domain": "platform",
-        "x-sdkwork-permission": "birdcoder.platform-projects-runtime-locations-preferences.read",
+        "x-sdkwork-domain": "intelligence",
+        "x-sdkwork-permission": "birdcoder.intelligence-projects-runtime-locations-preferences.read",
         "x-sdkwork-public": false,
-        "x-sdkwork-resource": "birdcoder.platform-projects-runtime-locations-preferences",
+        "x-sdkwork-resource": "birdcoder.intelligence-projects-runtime-locations-preferences",
         "x-sdkwork-surface": "app",
         "x-sdkwork-tenant-scope": "tenant",
         "x-sdkwork-api-authority": "sdkwork-birdcoder-app-api",
@@ -2248,7 +2752,7 @@
         "summary": "Update project runtime-location preference",
         "description": "Update project runtime-location preference. Requires an authenticated BirdCoder user session.",
         "tags": [
-          "platform"
+          "intelligence"
         ],
         "parameters": [
           {
@@ -2384,11 +2888,11 @@
         "x-sdkwork-auth-mode": "user",
         "x-sdkwork-data-scope": "organization",
         "x-sdkwork-deployment": "all",
-        "x-sdkwork-domain": "platform",
+        "x-sdkwork-domain": "intelligence",
         "x-sdkwork-idempotent": true,
-        "x-sdkwork-permission": "birdcoder.platform-projects-runtime-locations-preferences.update",
+        "x-sdkwork-permission": "birdcoder.intelligence-projects-runtime-locations-preferences.update",
         "x-sdkwork-public": false,
-        "x-sdkwork-resource": "birdcoder.platform-projects-runtime-locations-preferences",
+        "x-sdkwork-resource": "birdcoder.intelligence-projects-runtime-locations-preferences",
         "x-sdkwork-surface": "app",
         "x-sdkwork-tenant-scope": "tenant",
         "x-sdkwork-api-authority": "sdkwork-birdcoder-app-api",
@@ -2403,7 +2907,7 @@
         "summary": "Get project Git overview",
         "description": "Get project Git overview. Requires an authenticated BirdCoder user session.",
         "tags": [
-          "platform"
+          "intelligence"
         ],
         "parameters": [
           {
@@ -2476,10 +2980,10 @@
         "x-sdkwork-auth-mode": "user",
         "x-sdkwork-data-scope": "organization",
         "x-sdkwork-deployment": "all",
-        "x-sdkwork-domain": "platform",
-        "x-sdkwork-permission": "birdcoder.platform-projects-git-overview.read",
+        "x-sdkwork-domain": "intelligence",
+        "x-sdkwork-permission": "birdcoder.intelligence-projects-git-overview.read",
         "x-sdkwork-public": false,
-        "x-sdkwork-resource": "birdcoder.platform-projects-git-overview",
+        "x-sdkwork-resource": "birdcoder.intelligence-projects-git-overview",
         "x-sdkwork-surface": "app",
         "x-sdkwork-tenant-scope": "tenant",
         "x-sdkwork-api-authority": "sdkwork-birdcoder-app-api",
@@ -2494,7 +2998,7 @@
         "summary": "Get project Git diff",
         "description": "Get project Git diff. Requires an authenticated BirdCoder user session.",
         "tags": [
-          "platform"
+          "intelligence"
         ],
         "parameters": [
           {
@@ -2567,10 +3071,10 @@
         "x-sdkwork-auth-mode": "user",
         "x-sdkwork-data-scope": "organization",
         "x-sdkwork-deployment": "all",
-        "x-sdkwork-domain": "platform",
-        "x-sdkwork-permission": "birdcoder.platform-projects-git-overview.read",
+        "x-sdkwork-domain": "intelligence",
+        "x-sdkwork-permission": "birdcoder.intelligence-projects-git-diff.read",
         "x-sdkwork-public": false,
-        "x-sdkwork-resource": "birdcoder.platform-projects-git-overview",
+        "x-sdkwork-resource": "birdcoder.intelligence-projects-git-diff",
         "x-sdkwork-surface": "app",
         "x-sdkwork-tenant-scope": "tenant",
         "x-sdkwork-api-authority": "sdkwork-birdcoder-app-api",
@@ -2585,7 +3089,7 @@
         "summary": "Create project Git branch",
         "description": "Create project Git branch. Requires an authenticated BirdCoder user session.",
         "tags": [
-          "platform"
+          "intelligence"
         ],
         "parameters": [
           {
@@ -2669,10 +3173,10 @@
         "x-sdkwork-auth-mode": "user",
         "x-sdkwork-data-scope": "organization",
         "x-sdkwork-deployment": "all",
-        "x-sdkwork-domain": "platform",
-        "x-sdkwork-permission": "birdcoder.platform-projects-git-branches.create",
+        "x-sdkwork-domain": "intelligence",
+        "x-sdkwork-permission": "birdcoder.intelligence-projects-git-branches.create",
         "x-sdkwork-public": false,
-        "x-sdkwork-resource": "birdcoder.platform-projects-git-branches",
+        "x-sdkwork-resource": "birdcoder.intelligence-projects-git-branches",
         "x-sdkwork-surface": "app",
         "x-sdkwork-tenant-scope": "tenant",
         "x-sdkwork-api-authority": "sdkwork-birdcoder-app-api",
@@ -2681,13 +3185,13 @@
         "x-sdkwork-api-surface": "app-api"
       }
     },
-    "/app/v3/api/projects/{projectId}/git/branch_switch": {
+    "/app/v3/api/projects/{projectId}/git/switch_branch": {
       "post": {
-        "operationId": "projects.git.branchSwitch.create",
+        "operationId": "projects.git.switchBranch",
         "summary": "Switch project Git branch",
         "description": "Switch project Git branch. Requires an authenticated BirdCoder user session.",
         "tags": [
-          "platform"
+          "intelligence"
         ],
         "parameters": [
           {
@@ -2711,7 +3215,7 @@
           }
         },
         "responses": {
-          "201": {
+          "200": {
             "description": "Project Git branch switched successfully.",
             "content": {
               "application/json": {
@@ -2771,10 +3275,10 @@
         "x-sdkwork-auth-mode": "user",
         "x-sdkwork-data-scope": "organization",
         "x-sdkwork-deployment": "all",
-        "x-sdkwork-domain": "platform",
-        "x-sdkwork-permission": "birdcoder.platform-projects-git-branch-switch.create",
+        "x-sdkwork-domain": "intelligence",
+        "x-sdkwork-permission": "birdcoder.intelligence-projects-git-branches.update",
         "x-sdkwork-public": false,
-        "x-sdkwork-resource": "birdcoder.platform-projects-git-branch-switch",
+        "x-sdkwork-resource": "birdcoder.intelligence-projects-git-branches",
         "x-sdkwork-surface": "app",
         "x-sdkwork-tenant-scope": "tenant",
         "x-sdkwork-api-authority": "sdkwork-birdcoder-app-api",
@@ -2789,7 +3293,7 @@
         "summary": "Commit project Git changes",
         "description": "Commit project Git changes. Requires an authenticated BirdCoder user session.",
         "tags": [
-          "platform"
+          "intelligence"
         ],
         "parameters": [
           {
@@ -2873,10 +3377,10 @@
         "x-sdkwork-auth-mode": "user",
         "x-sdkwork-data-scope": "organization",
         "x-sdkwork-deployment": "all",
-        "x-sdkwork-domain": "platform",
-        "x-sdkwork-permission": "birdcoder.platform-projects-git-commits.create",
+        "x-sdkwork-domain": "intelligence",
+        "x-sdkwork-permission": "birdcoder.intelligence-projects-git-commits.create",
         "x-sdkwork-public": false,
-        "x-sdkwork-resource": "birdcoder.platform-projects-git-commits",
+        "x-sdkwork-resource": "birdcoder.intelligence-projects-git-commits",
         "x-sdkwork-surface": "app",
         "x-sdkwork-tenant-scope": "tenant",
         "x-sdkwork-api-authority": "sdkwork-birdcoder-app-api",
@@ -2885,13 +3389,13 @@
         "x-sdkwork-api-surface": "app-api"
       }
     },
-    "/app/v3/api/projects/{projectId}/git/pushes": {
+    "/app/v3/api/projects/{projectId}/git/push": {
       "post": {
-        "operationId": "projects.git.pushes.create",
+        "operationId": "projects.git.push",
         "summary": "Push project Git branch",
         "description": "Push project Git branch. Requires an authenticated BirdCoder user session.",
         "tags": [
-          "platform"
+          "intelligence"
         ],
         "parameters": [
           {
@@ -2915,7 +3419,7 @@
           }
         },
         "responses": {
-          "201": {
+          "200": {
             "description": "Project Git branch pushed successfully.",
             "content": {
               "application/json": {
@@ -2975,10 +3479,10 @@
         "x-sdkwork-auth-mode": "user",
         "x-sdkwork-data-scope": "organization",
         "x-sdkwork-deployment": "all",
-        "x-sdkwork-domain": "platform",
-        "x-sdkwork-permission": "birdcoder.platform-projects-git-pushes.create",
+        "x-sdkwork-domain": "intelligence",
+        "x-sdkwork-permission": "birdcoder.intelligence-projects-git-pushes.create",
         "x-sdkwork-public": false,
-        "x-sdkwork-resource": "birdcoder.platform-projects-git-pushes",
+        "x-sdkwork-resource": "birdcoder.intelligence-projects-git-pushes",
         "x-sdkwork-surface": "app",
         "x-sdkwork-tenant-scope": "tenant",
         "x-sdkwork-api-authority": "sdkwork-birdcoder-app-api",
@@ -2993,7 +3497,7 @@
         "summary": "Create project Git worktree",
         "description": "Create project Git worktree. Requires an authenticated BirdCoder user session.",
         "tags": [
-          "platform"
+          "intelligence"
         ],
         "parameters": [
           {
@@ -3077,10 +3581,10 @@
         "x-sdkwork-auth-mode": "user",
         "x-sdkwork-data-scope": "organization",
         "x-sdkwork-deployment": "all",
-        "x-sdkwork-domain": "platform",
-        "x-sdkwork-permission": "birdcoder.platform-projects-git-worktrees.create",
+        "x-sdkwork-domain": "intelligence",
+        "x-sdkwork-permission": "birdcoder.intelligence-projects-git-worktrees.create",
         "x-sdkwork-public": false,
-        "x-sdkwork-resource": "birdcoder.platform-projects-git-worktrees",
+        "x-sdkwork-resource": "birdcoder.intelligence-projects-git-worktrees",
         "x-sdkwork-surface": "app",
         "x-sdkwork-tenant-scope": "tenant",
         "x-sdkwork-api-authority": "sdkwork-birdcoder-app-api",
@@ -3089,13 +3593,13 @@
         "x-sdkwork-api-surface": "app-api"
       }
     },
-    "/app/v3/api/projects/{projectId}/git/worktree_removals": {
+    "/app/v3/api/projects/{projectId}/git/remove_worktree": {
       "post": {
-        "operationId": "projects.git.worktreeRemovals.create",
+        "operationId": "projects.git.removeWorktree",
         "summary": "Remove project Git worktree",
         "description": "Remove project Git worktree. Requires an authenticated BirdCoder user session.",
         "tags": [
-          "platform"
+          "intelligence"
         ],
         "parameters": [
           {
@@ -3119,7 +3623,7 @@
           }
         },
         "responses": {
-          "201": {
+          "200": {
             "description": "Project Git worktree removed successfully.",
             "content": {
               "application/json": {
@@ -3179,10 +3683,10 @@
         "x-sdkwork-auth-mode": "user",
         "x-sdkwork-data-scope": "organization",
         "x-sdkwork-deployment": "all",
-        "x-sdkwork-domain": "platform",
-        "x-sdkwork-permission": "birdcoder.platform-projects-git-worktree-removals.create",
+        "x-sdkwork-domain": "intelligence",
+        "x-sdkwork-permission": "birdcoder.intelligence-projects-git-worktree-removals.create",
         "x-sdkwork-public": false,
-        "x-sdkwork-resource": "birdcoder.platform-projects-git-worktree-removals",
+        "x-sdkwork-resource": "birdcoder.intelligence-projects-git-worktree-removals",
         "x-sdkwork-surface": "app",
         "x-sdkwork-tenant-scope": "tenant",
         "x-sdkwork-api-authority": "sdkwork-birdcoder-app-api",
@@ -3191,13 +3695,13 @@
         "x-sdkwork-api-surface": "app-api"
       }
     },
-    "/app/v3/api/projects/{projectId}/git/worktree_prune": {
+    "/app/v3/api/projects/{projectId}/git/prune_worktrees": {
       "post": {
-        "operationId": "projects.git.worktreePrune.create",
+        "operationId": "projects.git.pruneWorktrees",
         "summary": "Prune project Git worktrees",
         "description": "Prune project Git worktrees. Requires an authenticated BirdCoder user session.",
         "tags": [
-          "platform"
+          "intelligence"
         ],
         "parameters": [
           {
@@ -3221,7 +3725,7 @@
           }
         },
         "responses": {
-          "201": {
+          "200": {
             "description": "Project Git worktrees pruned successfully.",
             "content": {
               "application/json": {
@@ -3281,10 +3785,10 @@
         "x-sdkwork-auth-mode": "user",
         "x-sdkwork-data-scope": "organization",
         "x-sdkwork-deployment": "all",
-        "x-sdkwork-domain": "platform",
-        "x-sdkwork-permission": "birdcoder.platform-projects-git-worktree-prune.create",
+        "x-sdkwork-domain": "intelligence",
+        "x-sdkwork-permission": "birdcoder.intelligence-projects-git-worktree-prune.create",
         "x-sdkwork-public": false,
-        "x-sdkwork-resource": "birdcoder.platform-projects-git-worktree-prune",
+        "x-sdkwork-resource": "birdcoder.intelligence-projects-git-worktree-prune",
         "x-sdkwork-surface": "app",
         "x-sdkwork-tenant-scope": "tenant",
         "x-sdkwork-api-authority": "sdkwork-birdcoder-app-api",
@@ -3488,7 +3992,7 @@
           }
         ]
       },
-      "BirdCoderCodingServerDescriptor": {
+      "BirdCoderApplicationDescriptor": {
         "type": "object",
         "properties": {
           "apiVersion": {
@@ -3508,7 +4012,7 @@
           "moduleId": {
             "type": "string",
             "enum": [
-              "coding-server"
+              "sdkwork-birdcoder"
             ]
           },
           "openApiPath": {
@@ -3535,7 +4039,7 @@
         ],
         "additionalProperties": false
       },
-      "BirdCoderCodingServerDescriptorEnvelope": {
+      "BirdCoderApplicationDescriptorEnvelope": {
         "allOf": [
           {
             "$ref": "#/components/schemas/SdkWorkApiResponse"
@@ -3547,7 +4051,7 @@
                 "type": "object",
                 "properties": {
                   "item": {
-                    "$ref": "#/components/schemas/BirdCoderCodingServerDescriptor"
+                    "$ref": "#/components/schemas/BirdCoderApplicationDescriptor"
                   }
                 },
                 "required": [
@@ -3676,6 +4180,29 @@
           }
         ]
       },
+      "BirdCoderCreateProjectDocumentBindingRequest": {
+        "type": "object",
+        "properties": {
+          "documentId": {
+            "type": "string",
+            "description": "Stable sdkwork-documents identifier.",
+            "maxLength": 160,
+            "minLength": 1
+          },
+          "bindingKind": {
+            "type": "string",
+            "description": "Lower-snake-case binding purpose.",
+            "maxLength": 64,
+            "minLength": 1,
+            "pattern": "^[a-z0-9_]+$"
+          }
+        },
+        "required": [
+          "bindingKind",
+          "documentId"
+        ],
+        "additionalProperties": false
+      },
       "BirdCoderCreateProjectGitBranchRequest": {
         "type": "object",
         "properties": {
@@ -3713,14 +4240,52 @@
       "BirdCoderCreateProjectRequest": {
         "type": "object",
         "properties": {
-          "description": {
+          "workspaceId": {
             "type": "string"
           },
           "name": {
             "type": "string"
           },
-          "workspaceId": {
-            "type": "string"
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "projectKind": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "defaultAgentProjectId": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Stable sdkwork-agents project identifier."
           }
         },
         "required": [
@@ -3740,20 +4305,20 @@
               "runtimeTargetKind": {
                 "type": "string",
                 "enum": [
-                  "desktop_device",
+                  "desktop",
                   "server",
                   "runner",
                   "container",
-                  "remote_workspace"
+                  "remote"
                 ]
               },
               "locationKind": {
                 "type": "string",
                 "enum": [
-                  "desktop_checkout",
+                  "local_directory",
                   "server_workspace",
-                  "runner_worktree",
-                  "container_volume",
+                  "runner_workspace",
+                  "container_workspace",
                   "remote_workspace"
                 ]
               },
@@ -3761,15 +4326,9 @@
                 "type": "string",
                 "enum": [
                   "windows",
-                  "posix"
+                  "posix",
+                  "virtual"
                 ]
-              },
-              "rootLocator": {
-                "type": "string",
-                "description": "Opaque, path-free target locator. Do not provide a relative or absolute filesystem path.",
-                "maxLength": 160,
-                "minLength": 1,
-                "pattern": "^(?!.*\\.\\.)[A-Za-z0-9][A-Za-z0-9._:-]*$"
               },
               "absolutePath": {
                 "type": "string",
@@ -3789,7 +4348,6 @@
               "absolutePath",
               "locationKind",
               "pathFlavor",
-              "rootLocator",
               "runtimeTargetId",
               "runtimeTargetKind"
             ],
@@ -3801,10 +4359,10 @@
                 "type": "object",
                 "properties": {
                   "runtimeTargetKind": {
-                    "const": "desktop_device"
+                    "const": "desktop"
                   },
                   "locationKind": {
-                    "const": "desktop_checkout"
+                    "const": "local_directory"
                   }
                 },
                 "required": [
@@ -3834,7 +4392,7 @@
                     "const": "runner"
                   },
                   "locationKind": {
-                    "const": "runner_worktree"
+                    "const": "runner_workspace"
                   }
                 },
                 "required": [
@@ -3849,7 +4407,7 @@
                     "const": "container"
                   },
                   "locationKind": {
-                    "const": "container_volume"
+                    "const": "container_workspace"
                   }
                 },
                 "required": [
@@ -3861,7 +4419,7 @@
                 "type": "object",
                 "properties": {
                   "runtimeTargetKind": {
-                    "const": "remote_workspace"
+                    "const": "remote"
                   },
                   "locationKind": {
                     "const": "remote_workspace"
@@ -3879,89 +4437,62 @@
       "BirdCoderCreateWorkspaceRequest": {
         "type": "object",
         "properties": {
-          "description": {
-            "type": "string"
-          },
           "name": {
             "type": "string"
           },
-          "tenantId": {
-            "type": "string"
-          },
-          "organizationId": {
-            "type": "string"
-          },
-          "dataScope": {
-            "type": "string",
-            "enum": [
-              "DEFAULT",
-              "PRIVATE",
-              "ORGANIZATION",
-              "TENANT",
-              "PUBLIC"
-            ],
-            "description": "DATABASE_SPEC.md standard data scope."
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "code": {
-            "type": "string"
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
-          "title": {
-            "type": "string"
-          },
-          "ownerId": {
-            "type": "string"
-          },
-          "leaderId": {
-            "type": "string"
-          },
-          "createdByUserId": {
-            "type": "string"
-          },
-          "icon": {
-            "type": "string"
+          "iconUrl": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "color": {
-            "type": "string"
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
-          "type": {
-            "type": "string"
-          },
-          "startTime": {
-            "type": "string"
-          },
-          "endTime": {
-            "type": "string"
-          },
-          "maxMembers": {
-            "type": "integer",
-            "minimum": 0
-          },
-          "currentMembers": {
-            "type": "integer",
-            "minimum": 0
-          },
-          "memberCount": {
-            "type": "integer",
-            "minimum": 0
-          },
-          "maxStorage": {
-            "type": "string",
-            "description": "Java Long/BIGINT value serialized as an exact decimal string."
-          },
-          "usedStorage": {
-            "type": "string",
-            "description": "Java Long/BIGINT value serialized as an exact decimal string."
-          },
-          "settings": {
-            "type": "object",
-            "properties": {},
-            "additionalProperties": true
-          },
-          "isPublic": {
-            "type": "boolean"
-          },
-          "isTemplate": {
-            "type": "boolean"
+          "visibility": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "private",
+                  "organization"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ]
           }
         },
         "required": [
@@ -4035,6 +4566,117 @@
           "isCurrent"
         ],
         "additionalProperties": false
+      },
+      "BirdCoderProjectDocumentBinding": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "uuid": {
+            "type": "string"
+          },
+          "projectId": {
+            "type": "string"
+          },
+          "documentId": {
+            "type": "string",
+            "description": "Stable sdkwork-documents identifier; no cross-domain foreign key is created."
+          },
+          "bindingKind": {
+            "type": "string",
+            "description": "Lower-snake-case binding purpose.",
+            "maxLength": 64,
+            "minLength": 1,
+            "pattern": "^[a-z0-9_]+$"
+          },
+          "version": {
+            "type": "string",
+            "description": "Optimistic concurrency version used with the If-Match request header."
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "id",
+          "uuid",
+          "projectId",
+          "documentId",
+          "bindingKind",
+          "version",
+          "createdAt",
+          "updatedAt"
+        ],
+        "additionalProperties": false
+      },
+      "BirdCoderProjectDocumentBindingEnvelope": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/SdkWorkApiResponse"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "data": {
+                "type": "object",
+                "properties": {
+                  "item": {
+                    "$ref": "#/components/schemas/BirdCoderProjectDocumentBinding"
+                  }
+                },
+                "required": [
+                  "item"
+                ],
+                "additionalProperties": false
+              }
+            },
+            "required": [
+              "data"
+            ],
+            "additionalProperties": false
+          }
+        ]
+      },
+      "BirdCoderProjectDocumentBindingListEnvelope": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/SdkWorkApiResponse"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "data": {
+                "type": "object",
+                "properties": {
+                  "items": {
+                    "type": "array",
+                    "items": {
+                      "$ref": "#/components/schemas/BirdCoderProjectDocumentBinding"
+                    }
+                  },
+                  "pageInfo": {
+                    "$ref": "#/components/schemas/PageInfo"
+                  }
+                },
+                "required": [
+                  "items",
+                  "pageInfo"
+                ],
+                "additionalProperties": false
+              }
+            },
+            "required": [
+              "data"
+            ],
+            "additionalProperties": false
+          }
+        ]
       },
       "BirdCoderProjectGitDiff": {
         "type": "object",
@@ -4170,20 +4812,20 @@
           "runtimeTargetKind": {
             "type": "string",
             "enum": [
-              "desktop_device",
+              "desktop",
               "server",
               "runner",
               "container",
-              "remote_workspace"
+              "remote"
             ]
           },
           "locationKind": {
             "type": "string",
             "enum": [
-              "desktop_checkout",
+              "local_directory",
               "server_workspace",
-              "runner_worktree",
-              "container_volume",
+              "runner_workspace",
+              "container_workspace",
               "remote_workspace"
             ]
           },
@@ -4191,23 +4833,13 @@
             "type": "string",
             "enum": [
               "windows",
-              "posix"
+              "posix",
+              "virtual"
             ]
-          },
-          "rootLocator": {
-            "type": "string",
-            "description": "Opaque, path-free runtime target locator. It is not a filesystem path.",
-            "maxLength": 160,
-            "minLength": 1,
-            "pattern": "^(?!.*\\.\\.)[A-Za-z0-9][A-Za-z0-9._:-]*$"
           },
           "displayName": {
             "type": "string",
             "description": "Safe display label for this location."
-          },
-          "hasAbsolutePath": {
-            "type": "boolean",
-            "description": "Whether encrypted absolute path material is registered. The path itself is never returned."
           },
           "terminalAvailable": {
             "type": "boolean"
@@ -4218,17 +4850,16 @@
           "buildAvailable": {
             "type": "boolean"
           },
-          "fileSystemAvailable": {
+          "filesystemAvailable": {
             "type": "boolean"
           },
           "healthStatus": {
             "type": "string",
             "enum": [
-              "pending_verification",
-              "local_observed",
+              "pending",
               "healthy",
               "degraded",
-              "unavailable",
+              "unreachable",
               "revoked"
             ]
           },
@@ -4239,22 +4870,6 @@
           "lastSeenAt": {
             "type": "string",
             "format": "date-time"
-          },
-          "gitRepositoryUrl": {
-            "type": "string",
-            "description": "Credential-free sanitized Git repository URL reported by a trusted target."
-          },
-          "gitRemoteName": {
-            "type": "string"
-          },
-          "gitBranch": {
-            "type": "string"
-          },
-          "gitCommit": {
-            "type": "string"
-          },
-          "gitWorktreeKey": {
-            "type": "string"
           },
           "version": {
             "type": "string",
@@ -4273,15 +4888,14 @@
           "buildAvailable",
           "createdAt",
           "displayName",
-          "fileSystemAvailable",
+          "filesystemAvailable",
           "gitAvailable",
-          "hasAbsolutePath",
           "healthStatus",
           "id",
+          "uuid",
           "locationKind",
           "pathFlavor",
           "projectId",
-          "rootLocator",
           "runtimeTargetId",
           "runtimeTargetKind",
           "terminalAvailable",
@@ -4303,11 +4917,10 @@
           "status": {
             "type": "string",
             "enum": [
-              "pending_verification",
-              "local_observed",
+              "pending",
               "healthy",
               "degraded",
-              "unavailable",
+              "unreachable",
               "revoked"
             ]
           }
@@ -4419,7 +5032,7 @@
               "terminal",
               "git",
               "build",
-              "file_system"
+              "filesystem"
             ]
           },
           "runtimeLocationId": {
@@ -4513,13 +5126,95 @@
           }
         ]
       },
-      "BirdCoderProjectSummary": {
+      "BirdCoderProjectSandboxBinding": {
         "type": "object",
         "properties": {
+          "id": {
+            "type": "string",
+            "description": "Opaque BirdCoder sandbox-binding identifier."
+          },
+          "projectId": {
+            "type": "string"
+          },
+          "sandboxId": {
+            "type": "string",
+            "description": "Opaque Drive sandbox identifier. This reference does not grant Drive access."
+          },
+          "rootEntryId": {
+            "type": "string",
+            "description": "Opaque Drive entry identifier selected as the project root."
+          },
+          "logicalPath": {
+            "type": "string",
+            "description": "Canonical sandbox-relative path using forward-slash segments. Empty means the sandbox root.",
+            "maxLength": 4096,
+            "pattern": "^(?:$|(?!/)(?!.*//)(?!.*(?:^|/)\\.{1,2}(?:/|$))(?!.*\\\\)(?!.*[\\u0000-\\u001F\\u007F])[^/]{1,255}(?:/[^/]{1,255})*)$"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "active",
+              "revoked"
+            ]
+          },
+          "version": {
+            "type": "string",
+            "description": "Optimistic concurrency version used with the If-Match request header."
+          },
           "createdAt": {
             "type": "string",
             "format": "date-time"
           },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "createdAt",
+          "id",
+          "status",
+          "logicalPath",
+          "projectId",
+          "rootEntryId",
+          "sandboxId",
+          "updatedAt",
+          "version"
+        ],
+        "description": "BirdCoder-owned binding to a Drive sandbox directory. Physical paths, provider roots, browser handles, and Tauri paths are never stored or returned. Every filesystem operation must authorize against Drive again.",
+        "additionalProperties": false
+      },
+      "BirdCoderProjectSandboxBindingEnvelope": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/SdkWorkApiResponse"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "data": {
+                "type": "object",
+                "properties": {
+                  "item": {
+                    "$ref": "#/components/schemas/BirdCoderProjectSandboxBinding"
+                  }
+                },
+                "required": [
+                  "item"
+                ],
+                "additionalProperties": false
+              }
+            },
+            "required": [
+              "data"
+            ],
+            "additionalProperties": false
+          }
+        ]
+      },
+      "BirdCoderProjectSummary": {
+        "type": "object",
+        "properties": {
           "id": {
             "type": "string"
           },
@@ -4532,94 +5227,44 @@
           "organizationId": {
             "type": "string"
           },
-          "dataScope": {
-            "type": "string",
-            "enum": [
-              "DEFAULT",
-              "PRIVATE",
-              "ORGANIZATION",
-              "TENANT",
-              "PUBLIC"
-            ],
-            "description": "DATABASE_SPEC.md standard data scope."
-          },
           "workspaceId": {
             "type": "string"
           },
-          "workspaceUuid": {
+          "ownerUserId": {
             "type": "string"
           },
-          "userId": {
+          "createdByUserId": {
             "type": "string"
-          },
-          "parentId": {
-            "type": "string"
-          },
-          "parentUuid": {
-            "type": "string"
-          },
-          "parentMetadata": {
-            "type": "object",
-            "properties": {},
-            "additionalProperties": true
           },
           "code": {
-            "type": "string"
-          },
-          "title": {
             "type": "string"
           },
           "name": {
             "type": "string"
           },
           "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "projectKind": {
             "type": "string"
           },
-          "domainPrefix": {
-            "type": "string"
-          },
-          "ownerId": {
-            "type": "string"
-          },
-          "leaderId": {
-            "type": "string"
-          },
-          "createdByUserId": {
-            "type": "string"
-          },
-          "author": {
-            "type": "string"
-          },
-          "fileId": {
-            "type": "string"
-          },
-          "conversationId": {
-            "type": "string"
-          },
-          "type": {
-            "type": "string"
-          },
-          "startTime": {
-            "type": "string"
-          },
-          "endTime": {
-            "type": "string"
-          },
-          "budgetAmount": {
-            "type": "string",
-            "description": "Java Long/BIGINT value serialized as an exact decimal string."
-          },
-          "coverImage": {
-            "type": "object",
-            "properties": {},
-            "additionalProperties": true
-          },
-          "isTemplate": {
-            "type": "boolean"
-          },
-          "collaboratorCount": {
-            "type": "integer",
-            "minimum": 0
+          "defaultAgentProjectId": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Stable sdkwork-agents project identifier; no cross-domain foreign key is created."
           },
           "status": {
             "type": "string",
@@ -4628,26 +5273,35 @@
               "archived"
             ]
           },
-          "updatedAt": {
+          "version": {
+            "type": "string",
+            "description": "Optimistic concurrency version used with the If-Match request header."
+          },
+          "createdAt": {
             "type": "string",
             "format": "date-time"
           },
-          "viewerRole": {
+          "updatedAt": {
             "type": "string",
-            "enum": [
-              "owner",
-              "admin",
-              "member",
-              "viewer"
-            ]
+            "format": "date-time"
           }
         },
         "required": [
-          "createdAt",
           "id",
+          "uuid",
+          "tenantId",
+          "organizationId",
           "workspaceId",
+          "ownerUserId",
+          "createdByUserId",
+          "code",
           "name",
+          "description",
+          "projectKind",
+          "defaultAgentProjectId",
           "status",
+          "version",
+          "createdAt",
           "updatedAt"
         ],
         "additionalProperties": false
@@ -4715,91 +5369,6 @@
           }
         ]
       },
-      "BirdCoderProjectWorkspaceBinding": {
-        "type": "object",
-        "properties": {
-          "id": {
-            "type": "string",
-            "description": "Opaque BirdCoder workspace-binding identifier."
-          },
-          "projectId": {
-            "type": "string"
-          },
-          "sandboxId": {
-            "type": "string",
-            "description": "Opaque Drive sandbox identifier. This reference does not grant Drive access."
-          },
-          "rootEntryId": {
-            "type": "string",
-            "description": "Opaque Drive entry identifier selected as the project root."
-          },
-          "logicalPath": {
-            "type": "string",
-            "description": "Canonical sandbox-relative path using forward-slash segments. Empty means the sandbox root.",
-            "maxLength": 4096,
-            "pattern": "^(?:$|(?!/)(?!.*//)(?!.*(?:^|/)\\.{1,2}(?:/|$))(?!.*\\\\)(?!.*[\\u0000-\\u001F\\u007F])[^/]{1,255}(?:/[^/]{1,255})*)$"
-          },
-          "lifecycleStatus": {
-            "type": "string",
-            "enum": [
-              "active"
-            ]
-          },
-          "version": {
-            "type": "string",
-            "description": "Optimistic concurrency version used with the If-Match request header."
-          },
-          "createdAt": {
-            "type": "string",
-            "format": "date-time"
-          },
-          "updatedAt": {
-            "type": "string",
-            "format": "date-time"
-          }
-        },
-        "required": [
-          "createdAt",
-          "id",
-          "lifecycleStatus",
-          "logicalPath",
-          "projectId",
-          "rootEntryId",
-          "sandboxId",
-          "updatedAt",
-          "version"
-        ],
-        "description": "BirdCoder-owned binding to a Drive sandbox directory. Physical paths, provider roots, browser handles, and Tauri paths are never stored or returned. Every filesystem operation must authorize against Drive again.",
-        "additionalProperties": false
-      },
-      "BirdCoderProjectWorkspaceBindingEnvelope": {
-        "allOf": [
-          {
-            "$ref": "#/components/schemas/SdkWorkApiResponse"
-          },
-          {
-            "type": "object",
-            "properties": {
-              "data": {
-                "type": "object",
-                "properties": {
-                  "item": {
-                    "$ref": "#/components/schemas/BirdCoderProjectWorkspaceBinding"
-                  }
-                },
-                "required": [
-                  "item"
-                ],
-                "additionalProperties": false
-              }
-            },
-            "required": [
-              "data"
-            ],
-            "additionalProperties": false
-          }
-        ]
-      },
       "BirdCoderPruneProjectGitWorktreesRequest": {
         "type": "object",
         "properties": {
@@ -4839,15 +5408,9 @@
             "type": "string",
             "enum": [
               "windows",
-              "posix"
+              "posix",
+              "virtual"
             ]
-          },
-          "rootLocator": {
-            "type": "string",
-            "description": "Opaque, path-free target locator. Do not provide a relative or absolute filesystem path.",
-            "maxLength": 160,
-            "minLength": 1,
-            "pattern": "^(?!.*\\.\\.)[A-Za-z0-9][A-Za-z0-9._:-]*$"
           },
           "absolutePath": {
             "type": "string",
@@ -4857,16 +5420,22 @@
             "writeOnly": true
           },
           "displayName": {
-            "type": "string",
-            "description": "Safe display label for the rebound location.",
-            "maxLength": 160,
-            "minLength": 1
+            "anyOf": [
+              {
+                "type": "string",
+                "description": "Safe display label for the rebound location.",
+                "maxLength": 160,
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ]
           }
         },
         "required": [
           "absolutePath",
-          "pathFlavor",
-          "rootLocator"
+          "pathFlavor"
         ],
         "additionalProperties": false
       },
@@ -4922,17 +5491,69 @@
       "BirdCoderUpdateProjectRequest": {
         "type": "object",
         "properties": {
-          "description": {
-            "type": "string"
-          },
           "name": {
-            "type": "string"
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "projectKind": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "defaultAgentProjectId": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Stable sdkwork-agents project identifier."
           },
           "status": {
-            "type": "string",
-            "enum": [
-              "active",
-              "archived"
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "active",
+                  "archived"
+                ]
+              },
+              {
+                "type": "null"
+              }
             ]
           }
         },
@@ -4942,10 +5563,17 @@
         "type": "object",
         "properties": {
           "displayName": {
-            "type": "string",
-            "description": "Safe display label for the runtime location.",
-            "maxLength": 160,
-            "minLength": 1
+            "anyOf": [
+              {
+                "type": "string",
+                "description": "Safe display label for the runtime location.",
+                "maxLength": 160,
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ]
           }
         },
         "additionalProperties": false,
@@ -4954,95 +5582,88 @@
       "BirdCoderUpdateWorkspaceRequest": {
         "type": "object",
         "properties": {
-          "description": {
-            "type": "string"
+          "name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
-          "dataScope": {
-            "type": "string",
-            "enum": [
-              "DEFAULT",
-              "PRIVATE",
-              "ORGANIZATION",
-              "TENANT",
-              "PUBLIC"
-            ],
-            "description": "DATABASE_SPEC.md standard data scope."
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "code": {
-            "type": "string"
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
-          "title": {
-            "type": "string"
-          },
-          "name": {
-            "type": "string"
-          },
-          "ownerId": {
-            "type": "string"
-          },
-          "leaderId": {
-            "type": "string"
-          },
-          "createdByUserId": {
-            "type": "string"
-          },
-          "icon": {
-            "type": "string"
+          "iconUrl": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "color": {
-            "type": "string"
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
-          "type": {
-            "type": "string"
-          },
-          "startTime": {
-            "type": "string"
-          },
-          "endTime": {
-            "type": "string"
-          },
-          "maxMembers": {
-            "type": "integer",
-            "minimum": 0
-          },
-          "currentMembers": {
-            "type": "integer",
-            "minimum": 0
-          },
-          "memberCount": {
-            "type": "integer",
-            "minimum": 0
-          },
-          "maxStorage": {
-            "type": "string",
-            "description": "Java Long/BIGINT value serialized as an exact decimal string."
-          },
-          "usedStorage": {
-            "type": "string",
-            "description": "Java Long/BIGINT value serialized as an exact decimal string."
-          },
-          "settings": {
-            "type": "object",
-            "properties": {},
-            "additionalProperties": true
-          },
-          "isPublic": {
-            "type": "boolean"
-          },
-          "isTemplate": {
-            "type": "boolean"
+          "visibility": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "private",
+                  "organization"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "status": {
-            "type": "string",
-            "enum": [
-              "active",
-              "archived"
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "active",
+                  "archived"
+                ]
+              },
+              {
+                "type": "null"
+              }
             ]
           }
         },
         "additionalProperties": false
       },
-      "BirdCoderUpsertProjectWorkspaceBindingRequest": {
+      "BirdCoderUpsertProjectSandboxBindingRequest": {
         "type": "object",
         "properties": {
           "sandboxId": {
@@ -5088,83 +5709,54 @@
           "organizationId": {
             "type": "string"
           },
-          "dataScope": {
-            "type": "string",
-            "enum": [
-              "DEFAULT",
-              "PRIVATE",
-              "ORGANIZATION",
-              "TENANT",
-              "PUBLIC"
-            ],
-            "description": "DATABASE_SPEC.md standard data scope."
-          },
-          "code": {
+          "ownerUserId": {
             "type": "string"
           },
-          "title": {
+          "createdByUserId": {
+            "type": "string"
+          },
+          "code": {
             "type": "string"
           },
           "name": {
             "type": "string"
           },
           "description": {
-            "type": "string"
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
-          "icon": {
-            "type": "string"
+          "iconUrl": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "color": {
-            "type": "string"
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
-          "ownerId": {
-            "type": "string"
-          },
-          "leaderId": {
-            "type": "string"
-          },
-          "createdByUserId": {
-            "type": "string"
-          },
-          "type": {
-            "type": "string"
-          },
-          "startTime": {
-            "type": "string"
-          },
-          "endTime": {
-            "type": "string"
-          },
-          "maxMembers": {
-            "type": "integer",
-            "minimum": 0
-          },
-          "currentMembers": {
-            "type": "integer",
-            "minimum": 0
-          },
-          "memberCount": {
-            "type": "integer",
-            "minimum": 0
-          },
-          "maxStorage": {
+          "visibility": {
             "type": "string",
-            "description": "Java Long/BIGINT value serialized as an exact decimal string."
-          },
-          "usedStorage": {
-            "type": "string",
-            "description": "Java Long/BIGINT value serialized as an exact decimal string."
-          },
-          "settings": {
-            "type": "object",
-            "properties": {},
-            "additionalProperties": true
-          },
-          "isPublic": {
-            "type": "boolean"
-          },
-          "isTemplate": {
-            "type": "boolean"
+            "enum": [
+              "private",
+              "organization"
+            ]
           },
           "status": {
             "type": "string",
@@ -5173,20 +5765,36 @@
               "archived"
             ]
           },
-          "viewerRole": {
+          "version": {
             "type": "string",
-            "enum": [
-              "owner",
-              "admin",
-              "member",
-              "viewer"
-            ]
+            "description": "Optimistic concurrency version used with the If-Match request header."
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time"
           }
         },
         "required": [
           "id",
+          "uuid",
+          "tenantId",
+          "organizationId",
+          "ownerUserId",
+          "createdByUserId",
+          "code",
           "name",
-          "status"
+          "description",
+          "iconUrl",
+          "color",
+          "visibility",
+          "status",
+          "version",
+          "createdAt",
+          "updatedAt"
         ],
         "additionalProperties": false
       },

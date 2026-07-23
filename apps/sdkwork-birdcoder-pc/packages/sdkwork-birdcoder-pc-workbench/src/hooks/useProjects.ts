@@ -2,20 +2,16 @@ import { startTransition, useCallback, useDeferredValue, useEffect, useMemo, use
 import { randomString } from '@sdkwork/utils/id';
 import { DEFAULT_LIST_PAGE_SIZE } from '@sdkwork/utils/pagination';
 import type {
-  BirdCoderChatMessage,
-  BirdCoderCodingSession,
-  BirdCoderCodingSessionTurnIdeContext,
+  AgentSessionItemView,
+  AgentSessionView,
   BirdCoderProject,
 } from '@sdkwork/birdcoder-pc-contracts-commons';
 import {
-  areBirdCoderChatMessagesEquivalent,
-  areBirdCoderChatMessagesLogicallyMatched,
-  mergeBirdCoderComparableChatMessages,
-  stringifyBirdCoderLongInteger,
+  areAgentSessionItemsEquivalent,
+  areAgentSessionItemsLogicallyMatched,
+  mergeAgentSessionItemViews,
+  stringifyWorkbenchLongInteger,
 } from '@sdkwork/birdcoder-pc-contracts-commons';
-import {
-  canSubscribeBirdCoderWorkspaceRealtime,
-} from '@sdkwork/birdcoder-pc-infrastructure-runtime/workspaceRealtime';
 import { useAuth } from '../context/AuthContext.ts';
 import { buildBirdCoderAuthSessionInventoryScope } from '../context/authSessionScope.ts';
 import { useIDEServices } from '../context/IDEContext.ts';
@@ -28,46 +24,59 @@ import {
   mutateProjectsStore,
   normalizeProjectsStoreUserScope,
   peekProjectsStore,
-  removeCodingSessionFromCollection,
+  removeAgentSessionFromCollection,
   removeProjectFromCollection,
   type ProjectsStore,
-  type ProjectsStoreRealtimeBinding,
   type ProjectsStoreSnapshot,
-  updateCodingSessionInCollection,
+  updateAgentSessionInCollection,
   updateProjectInCollection,
   updateProjectsStoreSnapshot,
-  upsertCodingSessionIntoCollection,
+  upsertAgentSessionIntoCollection,
   upsertProjectIntoCollection,
   upsertProjectIntoProjectsStore,
 } from '../stores/projectsStore.ts';
-import {
-  applyWorkspaceRealtimeEventToProjects,
-  isWorkspaceRealtimeEventSatisfiedByProjects,
-} from '../stores/workspaceRealtime.ts';
 import type {
   BirdCoderServiceListPage,
   BirdCoderServicePageRequest,
-  CreateCodingSessionOptions,
   CreateProjectOptions,
-  UpdateCodingSessionOptions,
   UpdateProjectOptions,
 } from '../services/interfaces/IProjectService.ts';
 import {
-  synchronizeProjectSessionsFromAuthority,
-  synchronizeProjectsSessionsFromAuthority,
-} from '../workbench/projectSessionSynchronization.ts';
+  loadProjectAgentSessionPage,
+  loadProjectsAgentSessionInventory,
+  requireAgentProjectId,
+  toAgentSessionItemView,
+  toAgentSessionView,
+} from '../services/agentSessionViewModels.ts';
 import { useProjectRuntimeLocationExecutionId } from './useProjectRuntimeLocation.ts';
-import { createProjectRealtimeSubscriptionCoordinator } from '../services/projectRealtimeSubscriptionCoordinator.ts';
+import type { WorkbenchAgentSessionTurnContext } from '../workbench/agentSessionCreation.ts';
 
 export interface LoadMoreProjectSessionsResult {
   hasMore: boolean;
   loadedCount: number;
 }
 
-type CreateProjectCodingSessionOptions = Omit<
-  CreateCodingSessionOptions,
+type CreateProjectAgentSessionOptions = Omit<
+  CreateAgentSessionOptions,
   'runtimeLocationId'
 >;
+
+interface CreateAgentSessionOptions {
+  engineId: AgentSessionView['engineId'];
+  hostMode?: AgentSessionView['hostMode'];
+  modelId: string;
+  runtimeLocationId: string;
+  workspaceId?: string;
+}
+
+interface UpdateAgentSessionOptions {
+  archived?: boolean;
+  hostMode?: AgentSessionView['hostMode'];
+  pinned?: boolean;
+  status?: AgentSessionView['status'];
+  title?: string;
+  unread?: boolean;
+}
 
 interface ProjectSessionLoadInflightEntry {
   promise: Promise<LoadMoreProjectSessionsResult>;
@@ -104,27 +113,27 @@ function resolveMessageActivitySortTimestamp(timestamp: string): string | undefi
   const parsedTimestamp = Date.parse(timestamp);
   return Number.isNaN(parsedTimestamp)
     ? undefined
-    : stringifyBirdCoderLongInteger(parsedTimestamp);
+    : stringifyWorkbenchLongInteger(parsedTimestamp);
 }
 
-type EditableCodingSessionMessage = Omit<
-  BirdCoderChatMessage,
-  'codingSessionId' | 'createdAt' | 'id'
+type EditableAgentSessionItem = Omit<
+  AgentSessionItemView,
+  'sessionId' | 'createdAt' | 'id'
 >;
 
-interface ProjectSearchInventoryCodingSessionEntry {
-  codingSession: BirdCoderCodingSession;
+interface ProjectSearchInventoryAgentSessionEntry {
+  agentSession: AgentSessionView;
   normalizedTitle: string;
 }
 
 interface ProjectSearchInventoryEntry {
-  codingSessions: ProjectSearchInventoryCodingSessionEntry[];
+  agentSessions: ProjectSearchInventoryAgentSessionEntry[];
   normalizedName: string;
   project: BirdCoderProject;
 }
 
-interface ScoredCodingSessionCandidate {
-  codingSession: BirdCoderCodingSession;
+interface ScoredAgentSessionCandidate {
+  agentSession: AgentSessionView;
   score: number;
 }
 
@@ -133,13 +142,12 @@ interface ScoredProjectCandidate {
   score: number;
 }
 
-type BirdCoderSendMessageContext = BirdCoderCodingSessionTurnIdeContext;
+type BirdCoderSendMessageContext = WorkbenchAgentSessionTurnContext;
 interface BirdCoderSendMessageOptions {
   metadata?: Record<string, unknown>;
 }
-const WORKSPACE_REALTIME_EVENT_DEDUP_LIMIT = 256;
-const EMPTY_PROJECT_INVENTORY_MESSAGES: BirdCoderChatMessage[] = [];
-const EMPTY_FILTERED_PROJECT_CODING_SESSIONS: BirdCoderCodingSession[] = [];
+const EMPTY_PROJECT_INVENTORY_MESSAGES: AgentSessionItemView[] = [];
+const EMPTY_FILTERED_PROJECT_AGENT_SESSIONS: AgentSessionView[] = [];
 const PROJECTS_FETCH_TIMEOUT_MS = 30_000;
 const MAX_TARGET_PROJECT_RESOLUTION_PAGES = 20;
 
@@ -167,18 +175,18 @@ function createProjectsFetchTimeoutPromise(timeoutMs: number): ProjectsFetchTime
   };
 }
 
-function sanitizeCodingSessionMessageUpdates(
-  updates: Partial<BirdCoderChatMessage>,
-): Partial<BirdCoderChatMessage> {
+function sanitizeAgentSessionItemUpdates(
+  updates: Partial<AgentSessionItemView>,
+): Partial<AgentSessionItemView> {
   const {
-    codingSessionId: _codingSessionId,
+    sessionId: _sessionId,
     createdAt: _createdAt,
     id: _id,
     role: _role,
     turnId: _turnId,
     ...editableUpdates
   } = updates;
-  void _codingSessionId;
+  void _sessionId;
   void _createdAt;
   void _id;
   void _role;
@@ -196,27 +204,27 @@ function buildProjectSearchInventory(
   return projects.map((project) => ({
     project,
     normalizedName: normalizeSearchValue(project.name),
-    codingSessions: project.codingSessions.map((codingSession) => ({
-      codingSession,
-      normalizedTitle: normalizeSearchValue(codingSession.title),
+    agentSessions: project.agentSessions.map((agentSession) => ({
+      agentSession,
+      normalizedTitle: normalizeSearchValue(agentSession.title),
     })),
   }));
 }
 
-function areCodingSessionListsIdentical(
-  left: readonly BirdCoderCodingSession[],
-  right: readonly BirdCoderCodingSession[],
+function areAgentSessionListsIdentical(
+  left: readonly AgentSessionView[],
+  right: readonly AgentSessionView[],
 ): boolean {
   if (left.length !== right.length) {
     return false;
   }
 
-  return left.every((codingSession, index) => codingSession === right[index]);
+  return left.every((agentSession, index) => agentSession === right[index]);
 }
 
-function compareScoredCodingSessions(
-  left: ScoredCodingSessionCandidate,
-  right: ScoredCodingSessionCandidate,
+function compareScoredAgentSessions(
+  left: ScoredAgentSessionCandidate,
+  right: ScoredAgentSessionCandidate,
 ): number {
   return right.score - left.score;
 }
@@ -240,57 +248,57 @@ function searchProjectsInventory(
 
   for (const projectEntry of projectSearchInventory) {
     const projectScore = fuzzyScore(normalizedSearchQuery, projectEntry.normalizedName);
-    let maxCodingSessionScore = 0;
-    let scoredCodingSessions: ScoredCodingSessionCandidate[] | null = null;
+    let maxAgentSessionScore = 0;
+    let scoredAgentSessions: ScoredAgentSessionCandidate[] | null = null;
 
-    for (const codingSessionEntry of projectEntry.codingSessions) {
-      const score = fuzzyScore(normalizedSearchQuery, codingSessionEntry.normalizedTitle);
+    for (const agentSessionEntry of projectEntry.agentSessions) {
+      const score = fuzzyScore(normalizedSearchQuery, agentSessionEntry.normalizedTitle);
       if (score <= 0) {
         continue;
       }
 
-      maxCodingSessionScore = Math.max(maxCodingSessionScore, score);
-      if (scoredCodingSessions === null) {
-        scoredCodingSessions = [
+      maxAgentSessionScore = Math.max(maxAgentSessionScore, score);
+      if (scoredAgentSessions === null) {
+        scoredAgentSessions = [
           {
-            codingSession: codingSessionEntry.codingSession,
+            agentSession: agentSessionEntry.agentSession,
             score,
           },
         ];
         continue;
       }
 
-      scoredCodingSessions.push({
-        codingSession: codingSessionEntry.codingSession,
+      scoredAgentSessions.push({
+        agentSession: agentSessionEntry.agentSession,
         score,
       });
     }
 
-    const totalScore = Math.max(projectScore, maxCodingSessionScore);
+    const totalScore = Math.max(projectScore, maxAgentSessionScore);
     if (totalScore <= 0) {
       continue;
     }
 
     let matchedProject = projectEntry.project;
 
-    if (scoredCodingSessions && scoredCodingSessions.length > 0) {
-      if (scoredCodingSessions.length > 1) {
-        scoredCodingSessions.sort(compareScoredCodingSessions);
+    if (scoredAgentSessions && scoredAgentSessions.length > 0) {
+      if (scoredAgentSessions.length > 1) {
+        scoredAgentSessions.sort(compareScoredAgentSessions);
       }
 
-      const filteredCodingSessions = scoredCodingSessions.map(
-        (candidate) => candidate.codingSession,
+      const filteredAgentSessions = scoredAgentSessions.map(
+        (candidate) => candidate.agentSession,
       );
-      if (!areCodingSessionListsIdentical(projectEntry.project.codingSessions, filteredCodingSessions)) {
+      if (!areAgentSessionListsIdentical(projectEntry.project.agentSessions, filteredAgentSessions)) {
         matchedProject = {
           ...projectEntry.project,
-          codingSessions: filteredCodingSessions,
+          agentSessions: filteredAgentSessions,
         };
       }
     } else if (projectScore > 0) {
       matchedProject = {
         ...projectEntry.project,
-        codingSessions: EMPTY_FILTERED_PROJECT_CODING_SESSIONS,
+        agentSessions: EMPTY_FILTERED_PROJECT_AGENT_SESSIONS,
       };
     }
 
@@ -312,43 +320,43 @@ function normalizeProjectsForInventoryStore(
 ): BirdCoderProject[] {
   return projects.map((project) => {
     let hasTranscriptPayload = false;
-    const normalizedCodingSessions = project.codingSessions.map((codingSession) => {
-      if (codingSession.messages.length === 0) {
-        return codingSession;
+    const normalizedAgentSessions = project.agentSessions.map((agentSession) => {
+      if (agentSession.items.length === 0) {
+        return agentSession;
       }
 
       hasTranscriptPayload = true;
       return {
-        ...codingSession,
-        messages: codingSession.messages.length > 0 ? EMPTY_PROJECT_INVENTORY_MESSAGES : codingSession.messages,
+        ...agentSession,
+        items: agentSession.items.length > 0 ? EMPTY_PROJECT_INVENTORY_MESSAGES : agentSession.items,
       };
     });
 
     return hasTranscriptPayload
       ? {
           ...project,
-          codingSessions: normalizedCodingSessions,
+          agentSessions: normalizedAgentSessions,
         }
       : project;
   });
 }
 
-function appendCodingSessionMessageIfMissing(
-  messages: readonly BirdCoderChatMessage[],
-  incomingMessage: BirdCoderChatMessage,
-): BirdCoderChatMessage[] {
+function appendAgentSessionItemIfMissing(
+  messages: readonly AgentSessionItemView[],
+  incomingMessage: AgentSessionItemView,
+): AgentSessionItemView[] {
   const matchingMessageIndex = messages.findIndex((message) =>
-    areBirdCoderChatMessagesEquivalent(message, incomingMessage) ||
-    areBirdCoderChatMessagesLogicallyMatched(message, incomingMessage),
+    areAgentSessionItemsEquivalent(message, incomingMessage) ||
+    areAgentSessionItemsLogicallyMatched(message, incomingMessage),
   );
   if (matchingMessageIndex < 0) {
     return [...messages, incomingMessage];
   }
 
   const existingMessage = messages[matchingMessageIndex]!;
-  const mergedMessage = mergeBirdCoderComparableChatMessages(existingMessage, incomingMessage);
+  const mergedMessage = mergeAgentSessionItemViews(existingMessage, incomingMessage);
   if (mergedMessage === existingMessage) {
-    return messages as BirdCoderChatMessage[];
+    return messages as AgentSessionItemView[];
   }
 
   const nextMessages = [...messages];
@@ -356,17 +364,17 @@ function appendCodingSessionMessageIfMissing(
   return nextMessages;
 }
 
-function replaceCodingSessionMessageAtIndex(
-  messages: readonly BirdCoderChatMessage[],
+function replaceAgentSessionItemAtIndex(
+  messages: readonly AgentSessionItemView[],
   messageIndex: number,
-  nextMessage: BirdCoderChatMessage,
-): BirdCoderChatMessage[] {
+  nextMessage: AgentSessionItemView,
+): AgentSessionItemView[] {
   if (
     messageIndex < 0 ||
     messageIndex >= messages.length ||
     messages[messageIndex] === nextMessage
   ) {
-    return messages as BirdCoderChatMessage[];
+    return messages as AgentSessionItemView[];
   }
 
   const nextMessages = [...messages];
@@ -374,14 +382,14 @@ function replaceCodingSessionMessageAtIndex(
   return nextMessages;
 }
 
-function replaceCodingSessionMessageById(
-  messages: readonly BirdCoderChatMessage[],
+function replaceAgentSessionItemById(
+  messages: readonly AgentSessionItemView[],
   messageId: string,
-  updates: Partial<BirdCoderChatMessage>,
-): BirdCoderChatMessage[] {
+  updates: Partial<AgentSessionItemView>,
+): AgentSessionItemView[] {
   const messageIndex = messages.findIndex((message) => message.id === messageId);
   if (messageIndex < 0) {
-    return messages as BirdCoderChatMessage[];
+    return messages as AgentSessionItemView[];
   }
 
   const existingMessage = messages[messageIndex]!;
@@ -389,35 +397,35 @@ function replaceCodingSessionMessageById(
     ...existingMessage,
     ...updates,
   };
-  return areBirdCoderChatMessagesEquivalent(existingMessage, nextMessage)
-    ? (messages as BirdCoderChatMessage[])
-    : replaceCodingSessionMessageAtIndex(messages, messageIndex, nextMessage);
+  return areAgentSessionItemsEquivalent(existingMessage, nextMessage)
+    ? (messages as AgentSessionItemView[])
+    : replaceAgentSessionItemAtIndex(messages, messageIndex, nextMessage);
 }
 
-function reconcileCodingSessionMessage(
-  messages: readonly BirdCoderChatMessage[],
+function reconcileAgentSessionItem(
+  messages: readonly AgentSessionItemView[],
   optimisticMessageId: string,
-  resolvedMessage: BirdCoderChatMessage,
-): BirdCoderChatMessage[] {
+  resolvedMessage: AgentSessionItemView,
+): AgentSessionItemView[] {
   const optimisticMessageIndex = messages.findIndex(
     (message) => message.id === optimisticMessageId,
   );
-  const messagesWithoutOptimistic = removeCodingSessionMessageById(
+  const messagesWithoutOptimistic = removeAgentSessionItemById(
     messages,
     optimisticMessageId,
   );
   const matchingResolvedMessageIndex = messagesWithoutOptimistic.findIndex((message) =>
-    areBirdCoderChatMessagesEquivalent(message, resolvedMessage) ||
-    areBirdCoderChatMessagesLogicallyMatched(message, resolvedMessage),
+    areAgentSessionItemsEquivalent(message, resolvedMessage) ||
+    areAgentSessionItemsLogicallyMatched(message, resolvedMessage),
   );
   if (matchingResolvedMessageIndex >= 0) {
     const existingMessage = messagesWithoutOptimistic[matchingResolvedMessageIndex]!;
-    const mergedMessage = mergeBirdCoderComparableChatMessages(existingMessage, resolvedMessage);
+    const mergedMessage = mergeAgentSessionItemViews(existingMessage, resolvedMessage);
     if (mergedMessage === existingMessage) {
-      return messagesWithoutOptimistic as BirdCoderChatMessage[];
+      return messagesWithoutOptimistic as AgentSessionItemView[];
     }
 
-    return replaceCodingSessionMessageAtIndex(
+    return replaceAgentSessionItemAtIndex(
       messagesWithoutOptimistic,
       matchingResolvedMessageIndex,
       mergedMessage,
@@ -436,17 +444,17 @@ function reconcileCodingSessionMessage(
   return nextMessages;
 }
 
-function buildOptimisticCodingSessionMessage(
-  codingSessionId: string,
+function buildOptimisticAgentSessionItem(
+  agentSessionId: string,
   content: string,
   context?: BirdCoderSendMessageContext,
   options?: BirdCoderSendMessageOptions,
-): BirdCoderChatMessage {
+): AgentSessionItemView {
   const createdAt = new Date().toISOString();
   const randomToken = randomString(8);
   return {
-    id: `${codingSessionId}:optimistic:${createdAt}:${randomToken}`,
-    codingSessionId,
+    id: `${agentSessionId}:optimistic:${createdAt}:${randomToken}`,
+    sessionId: agentSessionId,
     role: 'user',
     content,
     metadata: buildSendMessageMetadata(context, options),
@@ -469,16 +477,16 @@ function buildSendMessageMetadata(
   return Object.keys(metadata).length > 0 ? metadata : undefined;
 }
 
-function removeCodingSessionMessageById(
-  messages: readonly BirdCoderChatMessage[],
+function removeAgentSessionItemById(
+  messages: readonly AgentSessionItemView[],
   messageId: string,
-): BirdCoderChatMessage[] {
-  let nextMessages: BirdCoderChatMessage[] | null = null;
+): AgentSessionItemView[] {
+  let nextMessages: AgentSessionItemView[] | null = null;
   for (let index = 0; index < messages.length; index += 1) {
     const message = messages[index]!;
     if (message.id === messageId) {
       if (!nextMessages) {
-        nextMessages = messages.slice(0, index) as BirdCoderChatMessage[];
+        nextMessages = messages.slice(0, index) as AgentSessionItemView[];
       }
       continue;
     }
@@ -486,20 +494,20 @@ function removeCodingSessionMessageById(
     nextMessages?.push(message);
   }
 
-  return nextMessages ?? (messages as BirdCoderChatMessage[]);
+  return nextMessages ?? (messages as AgentSessionItemView[]);
 }
 
-function rollbackOptimisticCodingSessionMessage(
-  codingSession: BirdCoderCodingSession,
-  previousCodingSession: BirdCoderCodingSession | null,
-  optimisticMessage: BirdCoderChatMessage,
-): BirdCoderCodingSession {
-  const messages = removeCodingSessionMessageById(
-    codingSession.messages,
+function rollbackOptimisticAgentSessionItem(
+  agentSession: AgentSessionView,
+  previousAgentSession: AgentSessionView | null,
+  optimisticMessage: AgentSessionItemView,
+): AgentSessionView {
+  const messages = removeAgentSessionItemById(
+    agentSession.items,
     optimisticMessage.id,
   );
   const previousMessageIds = new Set(
-    previousCodingSession?.messages.map((message) => message.id) ?? [],
+    previousAgentSession?.items.map((message) => message.id) ?? [],
   );
   const hasConcurrentMessage = messages.some(
     (message) => !previousMessageIds.has(message.id),
@@ -510,71 +518,48 @@ function rollbackOptimisticCodingSessionMessage(
   const canRestoreOwnedActivity = !hasConcurrentMessage;
 
   return {
-    ...codingSession,
-    messages,
+    ...agentSession,
+    items: messages,
     runtimeStatus:
-      canRestoreOwnedActivity && codingSession.runtimeStatus === 'streaming'
-        ? previousCodingSession?.runtimeStatus
-        : codingSession.runtimeStatus,
+      canRestoreOwnedActivity && agentSession.runtimeStatus === 'streaming'
+        ? previousAgentSession?.runtimeStatus
+        : agentSession.runtimeStatus,
     updatedAt:
-      canRestoreOwnedActivity && codingSession.updatedAt === optimisticMessage.createdAt
-        ? previousCodingSession?.updatedAt ?? codingSession.updatedAt
-        : codingSession.updatedAt,
+      canRestoreOwnedActivity && agentSession.updatedAt === optimisticMessage.createdAt
+        ? previousAgentSession?.updatedAt ?? agentSession.updatedAt
+        : agentSession.updatedAt,
     lastTurnAt:
-      canRestoreOwnedActivity && codingSession.lastTurnAt === optimisticMessage.createdAt
-        ? previousCodingSession?.lastTurnAt
-        : codingSession.lastTurnAt,
+      canRestoreOwnedActivity && agentSession.lastTurnAt === optimisticMessage.createdAt
+        ? previousAgentSession?.lastTurnAt
+        : agentSession.lastTurnAt,
     sortTimestamp:
       canRestoreOwnedActivity &&
       optimisticSortTimestamp !== undefined &&
-      codingSession.sortTimestamp === optimisticSortTimestamp
-        ? previousCodingSession?.sortTimestamp
-        : codingSession.sortTimestamp,
+      agentSession.sortTimestamp === optimisticSortTimestamp
+        ? previousAgentSession?.sortTimestamp
+        : agentSession.sortTimestamp,
     transcriptUpdatedAt:
       canRestoreOwnedActivity &&
-      codingSession.transcriptUpdatedAt === optimisticMessage.createdAt
-        ? previousCodingSession?.transcriptUpdatedAt
-        : codingSession.transcriptUpdatedAt,
+      agentSession.transcriptUpdatedAt === optimisticMessage.createdAt
+        ? previousAgentSession?.transcriptUpdatedAt
+        : agentSession.transcriptUpdatedAt,
   };
 }
 
-function findCodingSessionInCollection(
+function findAgentSessionInCollection(
   projects: readonly BirdCoderProject[],
   projectId: string,
-  codingSessionId: string,
-): BirdCoderCodingSession | null {
+  agentSessionId: string,
+): AgentSessionView | null {
   const project = projects.find((candidateProject) => candidateProject.id === projectId);
   if (!project) {
     return null;
   }
 
   return (
-    project.codingSessions.find(
-      (candidateCodingSession) => candidateCodingSession.id === codingSessionId,
+    project.agentSessions.find(
+      (candidateAgentSession) => candidateAgentSession.id === agentSessionId,
     ) ?? null
-  );
-}
-
-function isRecoverableCodingSessionMirrorSendError(
-  error: unknown,
-  projectId: string,
-  codingSessionId: string,
-): boolean {
-  const message = error instanceof Error ? error.message : String(error ?? '');
-  const normalizedMessage = message.toLowerCase();
-  if (!normalizedMessage.includes('not found')) {
-    return false;
-  }
-
-  const normalizedProjectId = projectId.trim().toLowerCase();
-  const normalizedCodingSessionId = codingSessionId.trim().toLowerCase();
-  return (
-    (normalizedCodingSessionId.length > 0 &&
-      normalizedMessage.includes(normalizedCodingSessionId)) ||
-    normalizedMessage.includes('coding session projection') ||
-    normalizedMessage.includes('coding session') ||
-    normalizedMessage.includes('coding-session') ||
-    (normalizedProjectId.length > 0 && normalizedMessage.includes(normalizedProjectId))
   );
 }
 
@@ -585,15 +570,6 @@ function setProjectsStoreError(store: ProjectsStore, message: string): void {
     hasFetched: true,
     isLoading: false,
   }));
-}
-
-function clearProjectsStorePendingRefresh(store: ProjectsStore): void {
-  if (store.pendingRefreshTimer === null) {
-    return;
-  }
-
-  clearTimeout(store.pendingRefreshTimer);
-  store.pendingRefreshTimer = null;
 }
 
 function readProjectInventoryPageForWorkspace(
@@ -624,8 +600,8 @@ async function fetchProjectsForWorkspace(
   workspaceId: string,
   projectService: ReturnType<typeof useIDEServices>['projectService'],
   pageRequest: BirdCoderServicePageRequest,
-  mode: 'append' | 'replace' = 'replace',
-  appRuntimeReadService?: ReturnType<typeof useIDEServices>['appRuntimeReadService'],
+  mode: 'append' | 'replace',
+  agentSessionService: ReturnType<typeof useIDEServices>['agentSessionService'],
 ): Promise<BirdCoderProject[]> {
   const requestKey = `${mode}:${pageRequest.page}:${pageRequest.pageSize}`;
   if (store.inflight) {
@@ -640,7 +616,7 @@ async function fetchProjectsForWorkspace(
       projectService,
       pageRequest,
       mode,
-      appRuntimeReadService,
+      agentSessionService,
     );
   }
 
@@ -668,19 +644,10 @@ async function fetchProjectsForWorkspace(
       }
 
       const fetchedProjects = normalizeProjectsForInventoryStore(page.items.filter(Boolean));
-      let incomingProjects = fetchedProjects;
-      if (appRuntimeReadService) {
-        try {
-          incomingProjects = await synchronizeProjectsSessionsFromAuthority({
-            appRuntimeReadService,
-            projects: fetchedProjects,
-            projectService,
-            workspaceId,
-          });
-        } catch (error) {
-          console.warn('Failed to synchronize project session inventory from runtime authority', error);
-        }
-      }
+      const incomingProjects = await loadProjectsAgentSessionInventory(
+        agentSessionService,
+        fetchedProjects,
+      );
       if (store.inventoryVersion !== requestInventoryVersion) {
         updateProjectsStoreSnapshot(store, (previousSnapshot) => ({
           ...previousSnapshot,
@@ -710,7 +677,7 @@ async function fetchProjectsForWorkspace(
       return nextProjects;
     })
     .catch((error: unknown) => {
-      // A mutation or realtime event may have invalidated this request while it
+      // A local mutation may have invalidated this request while it
       // was in flight. In that case the failure belongs to the old inventory
       // generation and must not replace the current store error or loading
       // state. Keep propagating it so the request owner can observe failure.
@@ -737,159 +704,7 @@ async function fetchProjectsForWorkspace(
   return request;
 }
 
-function scheduleProjectsRefresh(
-  scopeKey: string,
-  workspaceId: string,
-  projectService: ReturnType<typeof useIDEServices>['projectService'],
-  appRuntimeReadService?: ReturnType<typeof useIDEServices>['appRuntimeReadService'],
-  trigger: 'local-mutation' | 'realtime' = 'local-mutation',
-): void {
-  const normalizedWorkspaceId = workspaceId.trim();
-  if (!normalizedWorkspaceId) {
-    return;
-  }
-
-  const store = getProjectsStore(scopeKey);
-  if (trigger === 'local-mutation' && store.realtime !== null) {
-    return;
-  }
-
-  clearProjectsStorePendingRefresh(store);
-  store.pendingRefreshTimer = setTimeout(() => {
-    store.pendingRefreshTimer = null;
-    void fetchProjectsForWorkspace(
-      store,
-      normalizedWorkspaceId,
-      projectService,
-      {
-        page: 1,
-        pageSize: store.snapshot.pageInfo?.pageSize ?? DEFAULT_LIST_PAGE_SIZE,
-      },
-      'replace',
-      appRuntimeReadService,
-    ).catch(() => {
-      // Error state is already propagated through the shared store snapshot.
-    });
-  }, trigger === 'realtime' ? 120 : 0);
-}
-
-function createProjectsStoreRealtimeBinding(
-  scopeKey: string,
-  workspaceId: string,
-  store: ProjectsStore,
-  projectService: ReturnType<typeof useIDEServices>['projectService'],
-  appRuntimeReadService?: ReturnType<typeof useIDEServices>['appRuntimeReadService'],
-): ProjectsStoreRealtimeBinding | null {
-  if (!canSubscribeBirdCoderWorkspaceRealtime()) {
-    return null;
-  }
-
-  const seenEventIds = new Set<string>();
-  const eventIdQueue: string[] = [];
-
-  const rememberEventId = (eventId: string): void => {
-    if (seenEventIds.has(eventId)) {
-      return;
-    }
-
-    seenEventIds.add(eventId);
-    eventIdQueue.push(eventId);
-
-    while (eventIdQueue.length > WORKSPACE_REALTIME_EVENT_DEDUP_LIMIT) {
-      const evictedEventId = eventIdQueue.shift();
-      if (evictedEventId) {
-        seenEventIds.delete(evictedEventId);
-      }
-    }
-  };
-
-  const binding: ProjectsStoreRealtimeBinding =
-    createProjectRealtimeSubscriptionCoordinator({
-      getProjects: () => store.snapshot.projects,
-      isActive: () => store.listeners.size > 0 && store.realtime === binding,
-      onEvent: (event) => {
-        const normalizedEventId = event.eventId.trim();
-        if (normalizedEventId) {
-          if (seenEventIds.has(normalizedEventId)) {
-            return;
-          }
-          rememberEventId(normalizedEventId);
-        }
-
-        const nextProjects = applyWorkspaceRealtimeEventToProjects(
-          store.snapshot.projects,
-          event,
-        );
-        if (nextProjects !== null) {
-          if (nextProjects !== store.snapshot.projects) {
-            store.inventoryVersion += 1;
-            updateProjectsStoreSnapshot(store, (previousSnapshot) => ({
-              ...previousSnapshot,
-              error: null,
-              hasFetched: true,
-              pageInfo: null,
-              projects: nextProjects,
-            }));
-          }
-          return;
-        }
-
-        if (isWorkspaceRealtimeEventSatisfiedByProjects(store.snapshot.projects, event)) {
-          return;
-        }
-
-        scheduleProjectsRefresh(
-          scopeKey,
-          workspaceId,
-          projectService,
-          appRuntimeReadService,
-          'realtime',
-        );
-      },
-      onWorkspaceReady: () => {
-        scheduleProjectsRefresh(
-          scopeKey,
-          workspaceId,
-          projectService,
-          appRuntimeReadService,
-          'realtime',
-        );
-      },
-      workspaceId,
-    });
-
-  return binding;
-}
-
-function ensureProjectsStoreRealtime(
-  scopeKey: string,
-  workspaceId: string,
-  projectService: ReturnType<typeof useIDEServices>['projectService'],
-  appRuntimeReadService?: ReturnType<typeof useIDEServices>['appRuntimeReadService'],
-): void {
-  const normalizedWorkspaceId = workspaceId.trim();
-  if (!normalizedWorkspaceId) {
-    return;
-  }
-
-  const store = getProjectsStore(scopeKey);
-  if (store.realtime !== null) {
-    store.realtime.synchronize();
-    return;
-  }
-
-  const binding = createProjectsStoreRealtimeBinding(
-    scopeKey,
-    normalizedWorkspaceId,
-    store,
-    projectService,
-    appRuntimeReadService,
-  );
-  store.realtime = binding;
-  binding?.start();
-}
-
-function disposeProjectsStoreRealtimeIfUnused(scopeKey: string): void {
+function disposeProjectsStoreIfUnused(scopeKey: string): void {
   const store = getProjectsStore(scopeKey);
   if (store.listeners.size > 0) {
     return;
@@ -903,14 +718,11 @@ function disposeProjectsStoreRealtimeIfUnused(scopeKey: string): void {
       return;
     }
 
-    clearProjectsStorePendingRefresh(store);
-    store.realtime?.close();
     deleteProjectsStore(scopeKey);
   });
 }
 
 export interface UseProjectsOptions {
-  enableRealtime?: boolean;
   fetchOnMount?: boolean;
   isActive?: boolean;
   limit?: number;
@@ -919,14 +731,13 @@ export interface UseProjectsOptions {
 }
 
 export function useProjects(workspaceId?: string, options?: UseProjectsOptions) {
-  const { appRuntimeReadService, projectService } = useIDEServices();
+  const { agentSessionService, projectService } = useIDEServices();
   const resolveProjectRuntimeLocationExecutionId = useProjectRuntimeLocationExecutionId();
   const { sessionRevision, user } = useAuth();
   const normalizedUserScope = normalizeProjectsStoreUserScope(
     buildBirdCoderAuthSessionInventoryScope(user?.id, sessionRevision),
   );
   const normalizedWorkspaceId = workspaceId?.trim() ?? '';
-  const shouldEnableRealtime = options?.enableRealtime ?? true;
   const shouldFetchOnMount = options?.fetchOnMount ?? true;
   const isActive = options?.isActive ?? true;
   const pageRequest = useMemo<BirdCoderServicePageRequest>(
@@ -987,15 +798,6 @@ export function useProjects(workspaceId?: string, options?: UseProjectsOptions) 
 
     const hadActiveListeners = store.listeners.size > 0;
     store.listeners.add(handleStoreChange);
-    if (shouldEnableRealtime) {
-      ensureProjectsStoreRealtime(
-        storeScopeKey,
-        normalizedWorkspaceId,
-        projectService,
-        appRuntimeReadService,
-      );
-    }
-
     if (
       shouldFetchOnMount &&
       (!store.snapshot.hasFetched ||
@@ -1008,7 +810,7 @@ export function useProjects(workspaceId?: string, options?: UseProjectsOptions) 
         projectService,
         pageRequest,
         'replace',
-        appRuntimeReadService,
+        agentSessionService,
       ).catch(() => {
         // Error state is already propagated through the shared store snapshot.
       });
@@ -1016,13 +818,12 @@ export function useProjects(workspaceId?: string, options?: UseProjectsOptions) 
 
     return () => {
       store.listeners.delete(handleStoreChange);
-      disposeProjectsStoreRealtimeIfUnused(storeScopeKey);
+      disposeProjectsStoreIfUnused(storeScopeKey);
     };
   }, [
     normalizedWorkspaceId,
-    appRuntimeReadService,
+    agentSessionService,
     projectService,
-    shouldEnableRealtime,
     shouldFetchOnMount,
     isActive,
     storeScopeKey,
@@ -1046,10 +847,10 @@ export function useProjects(workspaceId?: string, options?: UseProjectsOptions) 
       projectService,
       pageRequest,
       'replace',
-      appRuntimeReadService,
+      agentSessionService,
     );
   }, [
-    appRuntimeReadService,
+    agentSessionService,
     normalizedWorkspaceId,
     projectService,
     storeScopeKey,
@@ -1076,9 +877,9 @@ export function useProjects(workspaceId?: string, options?: UseProjectsOptions) 
         pageSize: pageInfo.pageSize,
       },
       'append',
-      appRuntimeReadService,
+      agentSessionService,
     );
-  }, [appRuntimeReadService, normalizedWorkspaceId, projectService, storeScopeKey]);
+  }, [agentSessionService, normalizedWorkspaceId, projectService, storeScopeKey]);
 
   const loadMoreProjectSessions = useCallback(
     async (
@@ -1114,23 +915,20 @@ export function useProjects(workspaceId?: string, options?: UseProjectsOptions) 
       const request = (async (): Promise<LoadMoreProjectSessionsResult> => {
         const store = getProjectsStore(storeScopeKey);
         let project = store.snapshot.projects.find((candidate) => candidate.id === normalizedProjectId);
-        if (!project || !appRuntimeReadService) {
+        if (!project) {
           return {
             hasMore: false,
-            loadedCount: project?.codingSessions.length ?? 0,
+            loadedCount: 0,
           };
         }
 
         for (let attempt = 0; attempt < 2; attempt += 1) {
           const requestInventoryVersion = store.inventoryVersion;
-          const synchronized = await synchronizeProjectSessionsFromAuthority({
-            appRuntimeReadService,
+          const synchronized = await loadProjectAgentSessionPage(
+            agentSessionService,
             project,
-            projectService,
-            // Keep one hidden sentinel row so the sidebar can distinguish
-            // "exactly at the end" from "the next page has not been loaded".
-            sessionLimit: Math.min(200_000, targetCount + 1),
-          });
+            targetCount,
+          );
           const currentProject = store.snapshot.projects.find(
             (candidate) => candidate.id === normalizedProjectId,
           );
@@ -1155,8 +953,8 @@ export function useProjects(workspaceId?: string, options?: UseProjectsOptions) 
           }
 
           return {
-            hasMore: synchronized.hasMoreSessions,
-            loadedCount: synchronized.loadedSessionCount,
+            hasMore: synchronized.hasMore,
+            loadedCount: synchronized.project.agentSessions.length,
           };
         }
 
@@ -1165,7 +963,7 @@ export function useProjects(workspaceId?: string, options?: UseProjectsOptions) 
         );
         return {
           hasMore: currentProject !== undefined,
-          loadedCount: currentProject?.codingSessions.length ?? 0,
+          loadedCount: currentProject?.agentSessions.length ?? 0,
         };
       })();
 
@@ -1183,7 +981,7 @@ export function useProjects(workspaceId?: string, options?: UseProjectsOptions) 
       }
     },
     [
-      appRuntimeReadService,
+      agentSessionService,
       normalizedUserScope,
       normalizedWorkspaceId,
       projectService,
@@ -1213,13 +1011,13 @@ export function useProjects(workspaceId?: string, options?: UseProjectsOptions) 
         pageSize: pageRequest.pageSize,
       },
       'replace',
-      appRuntimeReadService,
+      agentSessionService,
     ).catch(() => {
       // Error state is already propagated through the shared store snapshot.
     });
   }, [
     isActive,
-    appRuntimeReadService,
+    agentSessionService,
     normalizedWorkspaceId,
     pageRequest.pageSize,
     projectService,
@@ -1404,36 +1202,49 @@ export function useProjects(workspaceId?: string, options?: UseProjectsOptions) 
     }
   };
 
-  const createCodingSession = async (
+  const createAgentSession = async (
     projectId: string,
     title: string,
-    options: CreateProjectCodingSessionOptions,
+    options: CreateProjectAgentSessionOptions,
   ) => {
     try {
+      const project = storeSnapshot.projects.find((candidate) => candidate.id === projectId);
+      if (!project) {
+        throw new Error(`BirdCoder project ${projectId} is not loaded.`);
+      }
+      const agentProjectId = requireAgentProjectId(project);
       const runtimeLocationId = await resolveProjectRuntimeLocationExecutionId(
         projectId,
         'terminal',
         { allowFolderSelection: true },
       );
-      const codingSession = await projectService.createCodingSession(projectId, title, {
-        ...options,
+      const session = await agentSessionService.createSession({
+        projectId: agentProjectId,
+        sourceContextId: projectId,
+        sourceContextKind: 'birdcoder-project',
+        title,
+      });
+      await agentSessionService.createRuntimeBinding(session.sessionId, {
         runtimeLocationId,
-        ...(normalizedWorkspaceId ? { workspaceId: normalizedWorkspaceId } : {}),
+        hostMode: options.hostMode ?? 'desktop',
+        transportKind: 'sdk-stream',
+        providerBindingId: options.engineId,
+        modelId: options.modelId,
+        providerId: options.engineId,
+        requestedAt: new Date().toISOString(),
+      });
+      const agentSession = toAgentSessionView(session, {
+        agentProjectId,
+        birdCoderProjectId: projectId,
+        engineId: options.engineId,
+        modelId: options.modelId,
+        runtimeLocationId,
+        workspaceId: normalizedWorkspaceId,
       });
       mutateProjectsStore(normalizedUserScope, normalizedWorkspaceId, (projects) =>
-        upsertCodingSessionIntoCollection(projects, projectId, codingSession),
+        upsertAgentSessionIntoCollection(projects, projectId, agentSession),
       );
-      void resolveSynchronizedProjectSession(projectId, codingSession.id)
-        .then((synchronizedProjectSession) => {
-          if (synchronizedProjectSession?.project) {
-            upsertProjectIntoProjectsStore(
-              synchronizedProjectSession.project.workspaceId,
-              synchronizedProjectSession.project,
-              normalizedUserScope,
-            );
-          }
-        });
-      return codingSession;
+      return agentSession;
     } catch (error: unknown) {
       const message =
         error instanceof Error && error.message.trim()
@@ -1511,19 +1322,18 @@ export function useProjects(workspaceId?: string, options?: UseProjectsOptions) 
     }
   };
 
-  const renameCodingSession = async (
+  const renameAgentSession = async (
     projectId: string,
-    codingSessionId: string,
+    agentSessionId: string,
     title: string,
   ) => {
     try {
-      await projectService.renameCodingSession(projectId, codingSessionId, title);
-      const updatedAt = new Date().toISOString();
+      const updatedSession = await agentSessionService.updateSession(agentSessionId, { title });
       mutateProjectsStore(normalizedUserScope, normalizedWorkspaceId, (projects) =>
-        updateCodingSessionInCollection(projects, projectId, codingSessionId, (codingSession) => ({
-          ...codingSession,
-          title,
-            updatedAt,
+        updateAgentSessionInCollection(projects, projectId, agentSessionId, (agentSession) => ({
+          ...agentSession,
+          title: updatedSession.title?.trim() || title,
+          updatedAt: updatedSession.updatedAt,
         })),
       );
     } catch (error: unknown) {
@@ -1538,19 +1348,55 @@ export function useProjects(workspaceId?: string, options?: UseProjectsOptions) 
     }
   };
 
-  const updateCodingSession = async (
+  const updateAgentSession = async (
     projectId: string,
-    codingSessionId: string,
-    updates: UpdateCodingSessionOptions,
+    agentSessionId: string,
+    updates: UpdateAgentSessionOptions,
   ) => {
     try {
-      await projectService.updateCodingSession(projectId, codingSessionId, updates);
-      const updatedAt = new Date().toISOString();
+      if (updates.hostMode !== undefined) {
+        throw new Error('Session host mode is managed by the active Agents runtime binding.');
+      }
+      let session = await agentSessionService.getSession(agentSessionId);
+      if (updates.title !== undefined) {
+        session = await agentSessionService.updateSession(agentSessionId, {
+          expectedVersion: session.version,
+          title: updates.title,
+        });
+      }
+      if (updates.status === 'completed') {
+        session = await agentSessionService.closeSession(agentSessionId, session.version);
+      } else if (
+        updates.status !== undefined &&
+        updates.status !== 'active' &&
+        updates.status !== 'archived'
+      ) {
+        throw new Error(`Agents does not support changing a session to "${updates.status}".`);
+      }
+      if (
+        updates.archived !== undefined ||
+        updates.pinned !== undefined ||
+        updates.unread !== undefined ||
+        updates.status === 'archived'
+      ) {
+        await agentSessionService.updateSessionUserState(agentSessionId, {
+          hidden: updates.archived ?? updates.status === 'archived',
+          pinned: updates.pinned,
+          markOpened: updates.unread === false ? true : undefined,
+          lastReadItemSequence:
+            updates.unread === undefined
+              ? undefined
+              : updates.unread
+                ? '0'
+                : session.lastItemSequence,
+        });
+      }
       mutateProjectsStore(normalizedUserScope, normalizedWorkspaceId, (projects) =>
-        updateCodingSessionInCollection(projects, projectId, codingSessionId, (codingSession) => ({
-          ...codingSession,
+        updateAgentSessionInCollection(projects, projectId, agentSessionId, (agentSession) => ({
+          ...agentSession,
           ...updates,
-            updatedAt,
+          status: updates.status ?? agentSession.status,
+          updatedAt: session.updatedAt,
         })),
       );
     } catch (error: unknown) {
@@ -1565,33 +1411,62 @@ export function useProjects(workspaceId?: string, options?: UseProjectsOptions) 
     }
   };
 
-  const forkCodingSession = async (
+  const forkAgentSession = async (
     projectId: string,
-    codingSessionId: string,
+    agentSessionId: string,
     newTitle?: string,
   ) => {
     try {
-      const codingSession = await projectService.forkCodingSession(
-        projectId,
-        codingSessionId,
-        newTitle,
-      );
-      const synchronizedProjectSession = await resolveSynchronizedProjectSession(
-        projectId,
-        codingSession.id,
-      );
-      if (synchronizedProjectSession?.project) {
-        upsertProjectIntoProjectsStore(
-          synchronizedProjectSession.project.workspaceId,
-          synchronizedProjectSession.project,
-          normalizedUserScope,
-        );
-      } else {
-        mutateProjectsStore(normalizedUserScope, normalizedWorkspaceId, (projects) =>
-          upsertCodingSessionIntoCollection(projects, projectId, codingSession),
+      const project = storeSnapshot.projects.find((candidate) => candidate.id === projectId);
+      if (!project) {
+        throw new Error(`BirdCoder project ${projectId} is not loaded.`);
+      }
+      const agentProjectId = requireAgentProjectId(project);
+      const [parentSession, parentTurnPage, runtimeBindingPage] = await Promise.all([
+        agentSessionService.getSession(agentSessionId),
+        agentSessionService.listTurns(agentSessionId, { page: 1, pageSize: 200 }),
+        agentSessionService.listRuntimeBindings(agentSessionId, { page: 1, pageSize: 20 }),
+      ]);
+      const lastTurn = parentTurnPage.items.at(-1);
+      if (parentSession.projectId?.trim() !== agentProjectId) {
+        throw new Error(
+          `Agent session ${agentSessionId} does not belong to Agents project ${agentProjectId}.`,
         );
       }
-      return codingSession;
+      const forkedSession = await agentSessionService.createSession({
+        forkedFromTurnId: lastTurn?.turnId,
+        parentSessionId: parentSession.sessionId,
+        projectId: agentProjectId,
+        sourceContextId: projectId,
+        sourceContextKind: 'birdcoder-project',
+        title: newTitle?.trim() || `${parentSession.title?.trim() || 'Session'} (fork)`,
+      });
+      const currentBinding = runtimeBindingPage.items.find((binding) => binding.isCurrent);
+      if (currentBinding) {
+        await agentSessionService.createRuntimeBinding(forkedSession.sessionId, {
+          runtimeLocationId: currentBinding.runtimeLocationId ?? undefined,
+          hostMode: currentBinding.hostMode,
+          transportKind: currentBinding.transportKind,
+          providerBindingId: currentBinding.providerBindingId,
+          modelId: currentBinding.modelId,
+          providerId: currentBinding.providerId,
+          nativeParentSessionId: currentBinding.nativeSessionId ?? undefined,
+          nativeForkedFromSessionId: currentBinding.nativeSessionId ?? undefined,
+          requestedAt: new Date().toISOString(),
+        });
+      }
+      const agentSession = toAgentSessionView(forkedSession, {
+        agentProjectId,
+        birdCoderProjectId: projectId,
+        engineId: currentBinding?.providerId,
+        modelId: currentBinding?.modelId,
+        runtimeLocationId: currentBinding?.runtimeLocationId ?? undefined,
+        workspaceId: normalizedWorkspaceId,
+      });
+      mutateProjectsStore(normalizedUserScope, normalizedWorkspaceId, (projects) =>
+        upsertAgentSessionIntoCollection(projects, projectId, agentSession),
+      );
+      return agentSession;
     } catch (error: unknown) {
       const message =
         error instanceof Error && error.message.trim()
@@ -1605,11 +1480,11 @@ export function useProjects(workspaceId?: string, options?: UseProjectsOptions) 
     }
   };
 
-  const deleteCodingSession = async (projectId: string, codingSessionId: string) => {
+  const deleteAgentSession = async (projectId: string, agentSessionId: string) => {
     try {
-      await projectService.deleteCodingSession(projectId, codingSessionId);
+      await agentSessionService.deleteSession(agentSessionId);
       mutateProjectsStore(normalizedUserScope, normalizedWorkspaceId, (projects) =>
-        removeCodingSessionFromCollection(projects, projectId, codingSessionId),
+        removeAgentSessionFromCollection(projects, projectId, agentSessionId),
       );
     } catch (error: unknown) {
       const message =
@@ -1623,290 +1498,63 @@ export function useProjects(workspaceId?: string, options?: UseProjectsOptions) 
     }
   };
 
-  const resolveSynchronizedProjectSession = async (
-    projectId: string,
-    codingSessionId: string,
-  ): Promise<{ codingSession: BirdCoderCodingSession | null; project: BirdCoderProject } | null> => {
-    try {
-      const refreshedProject = await projectService.getProjectById(projectId);
-      if (!refreshedProject) {
-        return null;
-      }
-
-      return {
-        codingSession:
-          refreshedProject.codingSessions.find(
-            (candidateCodingSession) => candidateCodingSession.id === codingSessionId,
-          ) ?? null,
-        project: refreshedProject,
-      };
-    } catch (error) {
-      console.error('Failed to rehydrate coding session after message mutation', error);
-      return null;
-    }
-  };
-
-  const synchronizeProjectSessionInBackground = (
-    projectId: string,
-    codingSessionId: string,
-    onMissingProject?: () => void,
-  ): void => {
-    void resolveSynchronizedProjectSession(projectId, codingSessionId)
-      .then((synchronizedProjectSession) => {
-        if (synchronizedProjectSession?.project) {
-          upsertProjectIntoProjectsStore(
-            synchronizedProjectSession.project.workspaceId,
-            synchronizedProjectSession.project,
-            normalizedUserScope,
-          );
-          return;
-        }
-
-        onMissingProject?.();
-      });
-  };
-
-  const addCodingSessionMessage = async (
-    projectId: string,
-    codingSessionId: string,
-    message: EditableCodingSessionMessage,
+  const editAgentSessionItem = async (
+    _projectId: string,
+    _agentSessionId: string,
+    _messageId: string,
+    _updates: Partial<AgentSessionItemView>,
   ) => {
-    try {
-      const newMessage = await projectService.addCodingSessionMessage(
-        projectId,
-        codingSessionId,
-        message,
-      );
-      mutateProjectsStore(normalizedUserScope, normalizedWorkspaceId, (projects) =>
-        updateCodingSessionInCollection(projects, projectId, codingSessionId, (codingSession) => ({
-          ...codingSession,
-          messages: appendCodingSessionMessageIfMissing(
-            codingSession.messages,
-            newMessage,
-          ),
-          updatedAt: newMessage.createdAt,
-          lastTurnAt: newMessage.createdAt,
-          sortTimestamp:
-            resolveMessageActivitySortTimestamp(newMessage.createdAt) ??
-            codingSession.sortTimestamp,
-          transcriptUpdatedAt: newMessage.createdAt,
-        })),
-      );
-      return newMessage;
-    } catch (error: unknown) {
-      const message =
-        error instanceof Error && error.message.trim()
-          ? error.message
-          : 'Failed to add message';
-      setStoreSnapshot((previousSnapshot) => ({
-        ...previousSnapshot,
-        error: message,
-      }));
-      throw error;
-    }
+    throw new Error('Agents session items are immutable and cannot be edited in place.');
   };
 
-  const editCodingSessionMessage = async (
-    projectId: string,
-    codingSessionId: string,
-    messageId: string,
-    updates: Partial<BirdCoderChatMessage>,
+  const deleteAgentSessionItem = async (
+    _projectId: string,
+    _agentSessionId: string,
+    _messageId: string,
   ) => {
-    try {
-      const editableUpdates = sanitizeCodingSessionMessageUpdates(updates);
-      await projectService.editCodingSessionMessage(
-        projectId,
-        codingSessionId,
-        messageId,
-        editableUpdates,
-      );
-      const updatedAt = new Date().toISOString();
-      mutateProjectsStore(normalizedUserScope, normalizedWorkspaceId, (projects) =>
-        updateCodingSessionInCollection(projects, projectId, codingSessionId, (codingSession) => ({
-          ...codingSession,
-          messages: replaceCodingSessionMessageById(
-            codingSession.messages,
-            messageId,
-            editableUpdates,
-          ),
-          updatedAt,
-          sortTimestamp:
-            resolveMessageActivitySortTimestamp(updatedAt) ?? codingSession.sortTimestamp,
-          transcriptUpdatedAt: updatedAt,
-        })),
-      );
-    } catch (error: unknown) {
-      const message =
-        error instanceof Error && error.message.trim()
-          ? error.message
-          : 'Failed to edit message';
-      setStoreSnapshot((previousSnapshot) => ({
-        ...previousSnapshot,
-        error: message,
-      }));
-      throw error;
-    }
-  };
-
-  const deleteCodingSessionMessage = async (
-    projectId: string,
-    codingSessionId: string,
-    messageId: string,
-  ) => {
-    try {
-      await projectService.deleteCodingSessionMessage(projectId, codingSessionId, messageId);
-      const updatedAt = new Date().toISOString();
-      mutateProjectsStore(normalizedUserScope, normalizedWorkspaceId, (projects) =>
-        updateCodingSessionInCollection(projects, projectId, codingSessionId, (codingSession) => ({
-          ...codingSession,
-          messages: removeCodingSessionMessageById(
-            codingSession.messages,
-            messageId,
-          ),
-          updatedAt,
-          sortTimestamp:
-            resolveMessageActivitySortTimestamp(updatedAt) ?? codingSession.sortTimestamp,
-          transcriptUpdatedAt: updatedAt,
-        })),
-      );
-    } catch (error: unknown) {
-      const message =
-        error instanceof Error && error.message.trim()
-          ? error.message
-          : 'Failed to delete message';
-      setStoreSnapshot((previousSnapshot) => ({
-        ...previousSnapshot,
-        error: message,
-      }));
-      throw error;
-    }
+    throw new Error('Agents session items are immutable and cannot be deleted in place.');
   };
 
   const sendMessage = async (
     projectId: string,
-    codingSessionId: string,
+    agentSessionId: string,
     content: string,
     context?: BirdCoderSendMessageContext,
     options?: BirdCoderSendMessageOptions,
   ) => {
-    const sendProjects = storeScopeKey
-      ? getProjectsStore(storeScopeKey).snapshot.projects
-      : storeSnapshot.projects;
-    const previousCodingSession = findCodingSessionInCollection(
-      sendProjects,
-      projectId,
-      codingSessionId,
-    );
-    const optimisticMessage = buildOptimisticCodingSessionMessage(
-      codingSessionId,
-      content,
-      context,
-      options,
-    );
-    mutateProjectsStore(normalizedUserScope, normalizedWorkspaceId, (projects) =>
-      updateCodingSessionInCollection(projects, projectId, codingSessionId, (codingSession) => ({
-        ...codingSession,
-        messages: appendCodingSessionMessageIfMissing(
-          codingSession.messages,
-          optimisticMessage,
-        ),
-        runtimeStatus: 'streaming',
-        updatedAt: optimisticMessage.createdAt,
-        lastTurnAt: optimisticMessage.createdAt,
-        sortTimestamp:
-          resolveMessageActivitySortTimestamp(optimisticMessage.createdAt) ??
-          codingSession.sortTimestamp,
-        transcriptUpdatedAt: optimisticMessage.createdAt,
-      })),
-    );
-
     try {
-      let preSendMirrorUpsert: Promise<void> | null = null;
-      if (previousCodingSession && projectService.upsertCodingSession) {
-        const previousProject = sendProjects.find(
-          (candidateProject) => candidateProject.id === projectId,
-        );
-        const mirrorCodingSession = {
-          ...previousCodingSession,
-          projectId: previousCodingSession.projectId?.trim() || projectId,
-          workspaceId:
-            previousCodingSession.workspaceId?.trim() ||
-            previousProject?.workspaceId?.trim() ||
-            normalizedWorkspaceId,
-        };
-        preSendMirrorUpsert = projectService.upsertCodingSession(projectId, mirrorCodingSession).catch((error) => {
-          console.warn(
-            `Failed to synchronize coding session "${codingSessionId}" mirror before sending`,
-            error,
-          );
-          throw error;
-        });
-        void preSendMirrorUpsert.catch(() => undefined);
-      }
-
-      let newMessage: BirdCoderChatMessage;
-      try {
-        newMessage = await projectService.addCodingSessionMessage(projectId, codingSessionId, {
-          role: 'user',
-          content,
-          metadata: buildSendMessageMetadata(context, options),
-        });
-      } catch (error) {
-        if (
-          !preSendMirrorUpsert ||
-          !isRecoverableCodingSessionMirrorSendError(error, projectId, codingSessionId)
-        ) {
-          throw error;
-        }
-
-        try {
-          await preSendMirrorUpsert;
-        } catch {
-          throw error;
-        }
-
-        newMessage = await projectService.addCodingSessionMessage(projectId, codingSessionId, {
-          role: 'user',
-          content,
-          metadata: buildSendMessageMetadata(context, options),
-        });
-      }
-      const effectiveCodingSessionId = newMessage.codingSessionId.trim() || codingSessionId;
-      if (effectiveCodingSessionId !== codingSessionId) {
-        synchronizeProjectSessionInBackground(projectId, effectiveCodingSessionId, () => {
-          mutateProjectsStore(normalizedUserScope, normalizedWorkspaceId, (projects) =>
-            updateCodingSessionInCollection(projects, projectId, codingSessionId, (codingSession) =>
-              rollbackOptimisticCodingSessionMessage(
-                codingSession,
-                previousCodingSession,
-                optimisticMessage,
-              ),
-            ),
-          );
-        });
-        return newMessage;
-      }
+      const selectedSession = findAgentSessionInCollection(
+        storeScopeKey
+          ? getProjectsStore(storeScopeKey).snapshot.projects
+          : storeSnapshot.projects,
+        projectId,
+        agentSessionId,
+      );
+      const completed = await agentSessionService.submitTurn(agentSessionId, {
+        content,
+        contentType: 'text/plain',
+        requestedModelId: selectedSession?.modelId,
+        turnMode: 'interactive',
+      });
+      const newMessages = completed.items.map(toAgentSessionItemView);
+      const activityAt = completed.turn.completedAt ?? completed.turn.updatedAt;
       mutateProjectsStore(normalizedUserScope, normalizedWorkspaceId, (projects) =>
-        updateCodingSessionInCollection(projects, projectId, codingSessionId, (codingSession) => ({
-          ...codingSession,
-          messages: reconcileCodingSessionMessage(
-            codingSession.messages,
-            optimisticMessage.id,
-            newMessage,
+        updateAgentSessionInCollection(projects, projectId, agentSessionId, (agentSession) => ({
+          ...agentSession,
+          items: newMessages.reduce(
+            (messages, message) => appendAgentSessionItemIfMissing(messages, message),
+            agentSession.items,
           ),
+          runtimeStatus: completed.turn.status === 'failed' ? 'failed' : 'ready',
+          updatedAt: activityAt,
+          lastTurnAt: activityAt,
+          sortTimestamp:
+            resolveMessageActivitySortTimestamp(activityAt) ?? agentSession.sortTimestamp,
+          transcriptUpdatedAt: activityAt,
         })),
       );
-      return newMessage;
+      return newMessages.find((message) => message.role === 'user') ?? newMessages.at(-1);
     } catch (error: unknown) {
-      mutateProjectsStore(normalizedUserScope, normalizedWorkspaceId, (projects) =>
-        updateCodingSessionInCollection(projects, projectId, codingSessionId, (codingSession) =>
-          rollbackOptimisticCodingSessionMessage(
-            codingSession,
-            previousCodingSession,
-            optimisticMessage,
-          ),
-        ),
-      );
       const message =
         error instanceof Error && error.message.trim()
           ? error.message
@@ -1934,17 +1582,16 @@ export function useProjects(workspaceId?: string, options?: UseProjectsOptions) 
     searchQuery,
     setSearchQuery,
     createProject,
-    createCodingSession,
+    createAgentSession,
     renameProject,
     updateProject,
     deleteProject,
-    renameCodingSession,
-    updateCodingSession,
-    forkCodingSession,
-    deleteCodingSession,
-    addCodingSessionMessage,
-    editCodingSessionMessage,
-    deleteCodingSessionMessage,
+    renameAgentSession,
+    updateAgentSession,
+    forkAgentSession,
+    deleteAgentSession,
+    editAgentSessionItem,
+    deleteAgentSessionItem,
     sendMessage,
     loadMoreProjects,
     loadMoreProjectSessions,

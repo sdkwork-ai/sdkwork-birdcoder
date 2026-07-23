@@ -11,37 +11,36 @@ function readJson(relativePath) {
 
 const componentSpec = readJson(componentSpecPath);
 const dependencies = componentSpec.contracts?.sdkDependencies ?? [];
-const appSurface = dependencies.find((dependency) => dependency.surface === 'app');
-const adminSurface = dependencies.find((dependency) => dependency.surface === 'backend-admin');
-
-assert.ok(appSurface, 'Flutter mobile SDK assembly must declare an app surface.');
-assert.ok(adminSurface, 'Flutter mobile SDK assembly must declare a backend-admin surface.');
-
-assert.equal(appSurface.consumerPackageName, 'sdkwork_birdcoder_flutter_mobile_core');
-assert.equal(adminSurface.consumerPackageName, 'sdkwork_birdcoder_flutter_mobile_admin_core');
-
-assert.match(
-  appSurface.manifestPath ?? '',
-  /sdkwork-birdcoder-pc\/sdks\/sdkwork-birdcoder-app-sdk\/sdk-manifest\.json/u,
-  'Flutter app surface must consume the canonical PC-generated app SDK family.',
-);
-assert.match(
-  adminSurface.manifestPath ?? '',
-  /sdkwork-birdcoder-pc\/sdks\/sdkwork-birdcoder-backend-sdk\/sdk-manifest\.json/u,
-  'Flutter backend-admin surface must consume the canonical PC-generated backend SDK family.',
+const appApiDependency = dependencies.find(
+  (dependency) => dependency.surface === 'app-api',
 );
 
+assert.ok(
+  appApiDependency,
+  'Flutter mobile SDK assembly must declare the BirdCoder app-api dependency.',
+);
+assert.equal(
+  dependencies.length,
+  1,
+  'Flutter local SDK consumer workspace must generate only the BirdCoder App SDK family.',
+);
+
+assert.equal(
+  appApiDependency.consumerPackageName,
+  'sdkwork_birdcoder_flutter_mobile_core',
+);
+
 assert.match(
-  appSurface.dartConsumerPath ?? '',
+  appApiDependency.manifestPath ?? '',
+  /\.\.\/\.\.\/\.\.\/\.\.\/sdks\/sdkwork-birdcoder-app-sdk\/sdk-manifest\.json/u,
+  'Flutter app surface must consume the application-root App SDK family.',
+);
+
+assert.match(
+  appApiDependency.dartConsumerPath ?? '',
   /sdkwork_birdcoder_flutter_mobile_app_sdk_consumer/u,
   'Flutter app surface must declare a local Dart consumer assembly package.',
 );
-assert.match(
-  adminSurface.dartConsumerPath ?? '',
-  /sdkwork_birdcoder_flutter_mobile_backend_sdk_consumer/u,
-  'Flutter backend-admin surface must declare a local Dart consumer assembly package.',
-);
-
 assert.equal(
   fs.existsSync(
     path.join(
@@ -51,19 +50,8 @@ assert.equal(
   ),
   true,
 );
-assert.equal(
-  fs.existsSync(
-    path.join(
-      rootDir,
-      'apps/sdkwork-birdcoder-flutter-mobile/sdks/sdkwork_birdcoder_flutter_mobile_backend_sdk_consumer/pubspec.yaml',
-    ),
-  ),
-  true,
-);
-
 for (const consumerPath of [
   'apps/sdkwork-birdcoder-flutter-mobile/sdks/sdkwork_birdcoder_flutter_mobile_app_sdk_consumer',
-  'apps/sdkwork-birdcoder-flutter-mobile/sdks/sdkwork_birdcoder_flutter_mobile_backend_sdk_consumer',
 ]) {
   assert.equal(
     fs.existsSync(path.join(rootDir, consumerPath, 'sdk-manifest.json')),
@@ -77,8 +65,8 @@ for (const consumerPath of [
   );
   assert.match(
     consumerManifest.generationInputSpec,
-    /sdkwork-birdcoder-pc\/sdks/u,
-    `${consumerPath} must consume PC OpenAPI authority instead of forking local specs.`,
+    /\.\.\/\.\.\/\.\.\/\.\.\/sdks\/sdkwork-birdcoder-app-sdk\/openapi\/sdkwork-birdcoder-app-api\.sdkgen\.json/u,
+    `${consumerPath} must consume the application-root sdkgen input instead of forking local specs.`,
   );
   assert.equal(
     consumerManifest.standardProfile,
@@ -92,7 +80,23 @@ for (const consumerPath of [
   );
 }
 
-assert.equal(componentSpec.ownerPackage, 'sdkwork_birdcoder_flutter_mobile_core');
-assert.equal(componentSpec.adminOwnerPackage, 'sdkwork_birdcoder_flutter_mobile_admin_core');
+assert.equal(
+  fs.existsSync(
+    path.join(
+      rootDir,
+      'apps/sdkwork-birdcoder-flutter-mobile/sdks/sdkwork_birdcoder_flutter_mobile_backend_sdk_consumer',
+    ),
+  ),
+  false,
+  'Flutter must not retain a BirdCoder Backend SDK consumer assembly.',
+);
 
-console.log('flutter sdk dependency contract passed.');
+assert.equal(
+  componentSpec.component?.name,
+  'sdkwork-birdcoder-flutter-mobile-sdk-consumer-workspace',
+);
+assert.equal(componentSpec.component?.surface, 'app');
+assert.equal(componentSpec.contracts?.layerRole, 'sdk-facade');
+assert.deepEqual(componentSpec.contracts?.dependencyApiExports, []);
+
+console.log('Flutter App-only SDK dependency contract passed.');

@@ -2,4 +2,7 @@ import 'package:sdkwork_birdcoder_flutter_mobile_core/sdkwork_birdcoder_flutter_
 
 typedef IamRuntime = BirdCoderIamRuntime;
 
-BirdCoderIamRuntime createIamRuntime() => createBirdCoderIamRuntime();
+BirdCoderIamRuntime createIamRuntime({
+  required BirdCoderFlutterSdkClients sdkClients,
+}) =>
+    createBirdCoderIamRuntime(sdkClients: sdkClients);

@@ -12,7 +12,7 @@ import {
   X,
 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
-import type { BirdCoderProjectGitDiff } from '@sdkwork/birdcoder-pc-contracts-commons';
+import type { WorkbenchGitDiffView } from '@sdkwork/birdcoder-pc-contracts-commons';
 import { useIDEServices } from '@sdkwork/birdcoder-pc-workbench/context/IDEContext';
 
 interface ProjectGitDiffDialogProps {
@@ -189,7 +189,7 @@ export const ProjectGitDiffDialog = memo(function ProjectGitDiffDialog({
   const { t } = useTranslation();
   const { gitService } = useIDEServices();
   const normalizedProjectId = projectId?.trim() ?? '';
-  const [diff, setDiff] = useState<BirdCoderProjectGitDiff | null>(null);
+  const [diff, setDiff] = useState<WorkbenchGitDiffView | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [fileFilter, setFileFilter] = useState('');
   const [isLoading, setIsLoading] = useState(false);

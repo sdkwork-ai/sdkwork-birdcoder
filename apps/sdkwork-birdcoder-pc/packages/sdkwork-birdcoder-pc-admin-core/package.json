@@ -15,11 +15,6 @@
       "import": "./src/sdk/index.ts",
       "default": "./src/sdk/index.ts"
     },
-    "./sdk/backendGeneratedSdkClient": {
-      "types": "./src/sdk/backendGeneratedSdkClient.ts",
-      "import": "./src/sdk/backendGeneratedSdkClient.ts",
-      "default": "./src/sdk/backendGeneratedSdkClient.ts"
-    },
     "./modules": {
       "types": "./src/modules/index.ts",
       "import": "./src/modules/index.ts",
@@ -42,7 +37,6 @@
     }
   },
   "dependencies": {
-    "@sdkwork/birdcoder-backend-sdk": "workspace:*",
     "@sdkwork/birdcoder-pc-core": "workspace:*",
     "@sdkwork/birdcoder-pc-contracts-commons": "workspace:*",
     "@sdkwork/membership-backend-sdk": "workspace:*",

@@ -8,7 +8,7 @@ const sidebarSource = fs.readFileSync(
 
 assert.match(
   sidebarSource,
-  /function filterSidebarProjectSessions\(\s*codingSessions: readonly BirdCoderCodingSession\[\],\s*showArchived: boolean,\s*normalizedSearchQuery: string,\s*\): BirdCoderCodingSession\[\] \{/s,
+  /function filterSidebarProjectSessions\(\s*agentSessions: readonly AgentSessionView\[\],\s*showArchived: boolean,\s*normalizedSearchQuery: string,\s*\): AgentSessionView\[\] \{/s,
   'Code sidebar must centralize project-session filtering in a single-pass helper.',
 );
 
@@ -26,12 +26,12 @@ const helperSource = sidebarSource.slice(
 
 assert.match(
   helperSource,
-  /if \(showArchived && !normalizedSearchQuery\) \{[\s\S]*return codingSessions(?: as BirdCoderCodingSession\[\])?;[\s\S]*\}/s,
+  /if \(showArchived && !normalizedSearchQuery\) \{[\s\S]*return agentSessions(?: as AgentSessionView\[\])?;[\s\S]*\}/s,
   'Project-session filtering must reuse the original already-sorted array when no project-session filters are active.',
 );
 assert.match(
   helperSource,
-  /for \(const codingSession of codingSessions\)/,
+  /for \(const agentSession of agentSessions\)/,
   'Project-session filtering must use one imperative pass for large project session lists.',
 );
 assert.doesNotMatch(
@@ -59,12 +59,12 @@ const filteredProjectSessionsSource = sidebarSource.slice(
 
 assert.doesNotMatch(
   filteredProjectSessionsSource,
-  /project\.codingSessions\s*\.filter\(/,
+  /project\.agentSessions\s*\.filter\(/,
   'Project-organized sidebar render must not chain filters over every project session list.',
 );
 assert.match(
   filteredProjectSessionsSource,
-  /filterSidebarProjectSessions\(\s*project\.codingSessions,\s*showArchived,\s*normalizedSearchQuery,\s*\)/s,
+  /filterSidebarProjectSessions\(\s*project\.agentSessions,\s*showArchived,\s*normalizedSearchQuery,\s*\)/s,
   'Project-organized sidebar render must use the single-pass project-session filter helper.',
 );
 

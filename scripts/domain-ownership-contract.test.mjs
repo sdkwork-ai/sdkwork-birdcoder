@@ -71,6 +71,48 @@ function operationsFromOpenApi(document) {
   return operations;
 }
 
+function escapeRegExp(value) {
+  return value.replace(/[.*+?^${}()|[\]\\]/gu, '\\$&');
+}
+
+function listAuthoredSurfaceFiles(scan) {
+  const extensions = new Set(scan.extensions ?? []);
+  const excludedSegments = new Set(scan.excludedSegments ?? []);
+  const files = [];
+
+  function visit(absolutePath) {
+    const relativePath = normalizePath(path.relative(root, absolutePath));
+    if (
+      relativePath
+        .split('/')
+        .some((segment) => excludedSegments.has(segment))
+    ) {
+      return;
+    }
+
+    const entry = fs.statSync(absolutePath);
+    if (entry.isDirectory()) {
+      for (const child of fs.readdirSync(absolutePath)) {
+        visit(path.join(absolutePath, child));
+      }
+      return;
+    }
+
+    if (entry.isFile() && extensions.has(path.extname(absolutePath).toLowerCase())) {
+      files.push({ absolutePath, relativePath });
+    }
+  }
+
+  for (const relativeRoot of scan.roots ?? []) {
+    const absoluteRoot = resolve(relativeRoot);
+    if (fs.existsSync(absoluteRoot)) {
+      visit(absoluteRoot);
+    }
+  }
+
+  return files.sort((left, right) => left.relativePath.localeCompare(right.relativePath));
+}
+
 function pathMatchesPrefix(routePath, prefix) {
   return routePath === prefix || routePath.startsWith(`${prefix}/`);
 }
@@ -130,6 +172,12 @@ const forbiddenPathPrefixes = sortedUnique(
 const appAuthority = spec.apiOwnership.appApi;
 const appDocument = readJson(appAuthority.authorityFile);
 const appOperations = operationsFromOpenApi(appDocument);
+if (appOperations.length !== appAuthority.operationCount) {
+  addViolation(
+    'app API',
+    `expected ${appAuthority.operationCount} owned operations, found ${appOperations.length}`,
+  );
+}
 for (const entry of appOperations) {
   const forbiddenPrefix = forbiddenPathPrefixes.find((prefix) =>
     pathMatchesPrefix(entry.path, prefix),
@@ -153,8 +201,10 @@ for (const entry of appOperations) {
 }
 
 const backendAuthority = spec.apiOwnership.backendApi;
-const backendPath = resolve(backendAuthority.authorityFile);
-if (fs.existsSync(backendPath)) {
+const backendPath = backendAuthority.authorityFile
+  ? resolve(backendAuthority.authorityFile)
+  : null;
+if (backendPath && fs.existsSync(backendPath)) {
   const backendCount = operationsFromOpenApi(JSON.parse(fs.readFileSync(backendPath, 'utf8'))).length;
   if (backendCount !== backendAuthority.operationCount) {
     addViolation(
@@ -162,10 +212,49 @@ if (fs.existsSync(backendPath)) {
       `expected ${backendAuthority.operationCount} owned operations, found ${backendCount}`,
     );
   }
+} else if (backendAuthority.operationCount !== 0) {
+  addViolation('backend API', 'non-zero operation count requires an authority file');
 }
 
 if (spec.apiOwnership.openApi.owned || spec.apiOwnership.openApi.operationCount !== 0) {
   addViolation('open API', 'BirdCoder must own zero Open API operations');
+}
+
+const runtimeAuthority = spec.runtimeAuthority;
+const topology = readJson(runtimeAuthority.topology);
+const topologySource = JSON.stringify(topology);
+const expectedGateway = runtimeAuthority.standaloneGateway;
+if (
+  topology.components?.applicationServer?.crate !== expectedGateway.crate
+  || topology.components?.applicationServer?.binary !== expectedGateway.binary
+) {
+  addViolation(
+    'runtime authority',
+    `topology applicationServer must be ${expectedGateway.crate}/${expectedGateway.binary}`,
+  );
+}
+for (const [profileId, profile] of Object.entries(topology.orchestration?.profiles ?? {})) {
+  for (const process of profile.processes ?? []) {
+    if (process.role !== 'api-standalone-gateway') {
+      continue;
+    }
+    if (
+      process.crate !== expectedGateway.crate
+      || process.binary !== expectedGateway.binary
+      || 'package' in process
+      || 'script' in process
+    ) {
+      addViolation(
+        'runtime authority',
+        `${profileId} must use the canonical Rust standalone gateway`,
+      );
+    }
+  }
+}
+for (const entrypoint of runtimeAuthority.forbiddenApplicationEntrypoints ?? []) {
+  if (topologySource.includes(entrypoint)) {
+    addViolation('runtime authority', `topology retains forbidden entrypoint ${entrypoint}`);
+  }
 }
 
 const rootCargo = fs.readFileSync(resolve('Cargo.toml'), 'utf8');
@@ -179,8 +268,47 @@ for (const component of spec.forbiddenLocalComponents) {
   }
 }
 
+for (const relativePath of spec.forbiddenApplicationComponents ?? []) {
+  if (fs.existsSync(resolve(`${relativePath}/package.json`))) {
+    addViolation('application component roots', `retains forbidden directory ${relativePath}`);
+  }
+}
+
+for (const relativePath of spec.forbiddenLocalAuthorityPaths ?? []) {
+  if (fs.existsSync(resolve(relativePath))) {
+    addViolation('local authority paths', `retains forbidden path ${relativePath}`);
+  }
+}
+
+const authoredSurfaceScan = spec.authoredSurfaceScan ?? {};
+const authoredFiles = listAuthoredSurfaceFiles(authoredSurfaceScan);
+const apiDefinitionFiles = listAuthoredSurfaceFiles({
+  ...authoredSurfaceScan,
+  roots: authoredSurfaceScan.apiDefinitionRoots ?? [],
+});
+const forbiddenTablePatterns = forbiddenTables.map((tableName) => ({
+  tableName,
+  pattern: new RegExp(`\\b${escapeRegExp(tableName)}\\b`, 'iu'),
+}));
+for (const { absolutePath, relativePath } of authoredFiles) {
+  const source = fs.readFileSync(absolutePath, 'utf8');
+  for (const { tableName, pattern } of forbiddenTablePatterns) {
+    if (pattern.test(source)) {
+      addViolation('authored persistence surface', `${relativePath} retains forbidden table ${tableName}`);
+    }
+  }
+}
+for (const { absolutePath, relativePath } of apiDefinitionFiles) {
+  const source = fs.readFileSync(absolutePath, 'utf8');
+  for (const routePrefix of forbiddenPathPrefixes) {
+    if (source.includes(routePrefix)) {
+      addViolation('authored API surface', `${relativePath} retains dependency-owned route ${routePrefix}`);
+    }
+  }
+}
+
 const staleCanonPatterns = [
-  /`codingSessionId` is the BirdCoder logical identity/gu,
+  /`agentSessionId` is the BirdCoder logical identity/gu,
   /chat_conversation\/chat_message.*sdkwork-im/giu,
   /BirdCoder owns.*coding session/giu,
 ];

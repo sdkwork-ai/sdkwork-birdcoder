@@ -1076,8 +1076,8 @@ async fn openapi_endpoint_returns_canonical_snapshot() {
         .expect("read openapi body");
     let text = String::from_utf8(body.to_vec()).expect("openapi body must be utf-8");
     assert!(
-        text.contains("\"openapi\"") && text.contains("SDKWork BirdCoder Coding Server API"),
-        "openapi payload must expose canonical coding-server snapshot"
+        text.contains("\"openapi\"") && text.contains("SDKWork BirdCoder App API"),
+        "openapi payload must expose the canonical BirdCoder App API snapshot"
     );
 
     cleanup_smoke_database(&config.sqlite_file);
@@ -1185,29 +1185,6 @@ async fn build_app_with_invalid_sqlite_target_fails_gracefully() {
     );
 
     let _ = std::fs::remove_dir_all(&sqlite_dir);
-}
-
-#[tokio::test]
-async fn intelligence_session_list_requires_authentication() {
-    let config = smoke_config("bootstrap-smoke-intelligence.db");
-
-    let app = build_smoke_app(&config)
-        .await
-        .expect("build_app should succeed");
-
-    let response = app
-        .request(
-            Request::builder()
-                .uri("/app/v3/api/intelligence/coding_sessions")
-                .body(Body::empty())
-                .expect("build list sessions request"),
-        )
-        .await
-        .expect("serve list sessions request");
-
-    assert_eq!(response.status(), StatusCode::UNAUTHORIZED);
-
-    cleanup_smoke_database(&config.sqlite_file);
 }
 
 #[tokio::test]

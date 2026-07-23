@@ -1,52 +1,62 @@
-# @sdkwork/birdcoder-infrastructure
+# @sdkwork/birdcoder-pc-infrastructure
 
-Domain: platform
-Capability: component
-Package type: node-package
-Status: standardizing
-
-This README is the SDKWork module entrypoint for `@sdkwork/birdcoder-infrastructure`. The machine-readable component contract is `specs/component.spec.json`; canonical standards are under `../../../sdkwork-specs/`.
+PC runtime composition and adapter package for SDKWork BirdCoder. Its
+machine-readable integration contract is
+[specs/component.spec.json](./specs/component.spec.json).
 
 ## Public API
 
-- `.`
-- `./runtime/defaultIdeServices`
-- `./services/defaultIdeServices`
-- `./services/defaultIdeServicesRuntime`
-- `./services/workspaceRealtimeClient`
-- `./platform/openLocalFolder`
-- `./storage/runtime`
-- `./storage/dataKernel`
-- `./storage/appConsoleRepository`
-- `./storage/codingSessionPromptEntryRepository`
-- `./storage/promptSkillTemplateEvidenceRepository`
-- `./storage/providers`
-- `./storage/sqlRowCodec`
+The package exports runtime composition, generated SDK adapters, typed service
+ports, Drive/document/prompt/skill integrations, and native host adapters through
+the `exports` map in [package.json](./package.json). It intentionally exposes no
+storage repository, SQL executor, projection, or handwritten transport surface.
 
 ## Required SDK Surface
 
-- None declared in `specs/component.spec.json`.
+The PC core declares the authenticated BirdCoder, Agents, Skills, Prompts,
+Documents, Drive, IAM, Messaging, Membership, and Order SDK inventory. This
+package consumes only PC core SDK exports or injected service ports. Its
+dependency-client factory binds Documents and Prompts clients to the shared
+application TokenManager without exposing generated transports.
 
 ## Configuration
 
-Configuration keys, runtime entrypoints, and integration contracts are declared in `specs/component.spec.json`. Shared modules must receive configuration through typed bootstrap or service boundaries rather than reading host-local environment state directly.
+Runtime topology is supplied through typed application bootstrap as two fields:
+`applicationApiBaseUrl` for the BirdCoder-owned SDK and
+`platformApiGatewayBaseUrl` for dependency SDKs. `sdkBaseUrls` validates gateway
+roots and rejects credentials, query strings, fragments, generated API paths,
+missing values, and cross-plane fallbacks. Feature code receives service ports
+or generated SDK clients and does not read environment variables or assemble
+authentication headers.
 
-## SaaS/Private/Local Behavior
+## Deployment Profile And Runtime Target Behavior
 
-This component follows the deployment and runtime rules referenced by its `canonicalSpecs` entries. SaaS, private, and local behavior must stay compatible with the relevant SDKWork specs before implementation changes are made.
+Browser development binds dependency SDKs to `/__sdkwork/platform`, whose Vite
+proxy target is the server-only platform topology value. Tauri binds the
+embedded application ingress returned by `desktop_runtime_config` and a
+separately configured direct platform gateway. Cloud and standalone profiles
+retain the same SDK contracts and fail before service bootstrap when either
+required connection plane is unavailable.
 
 ## Security
 
-Do not add secrets, live tokens, manual auth headers, or app-local credential handling to this module. Protected API and SDK access must use the generated SDK or approved service boundary declared in the component contract.
+Desktop IAM session payloads use the Tauri secure-session commands and the
+operating-system credential store. Generic local KV, SQLite, localStorage, and
+business repositories are outside the credential path. Persistence failures are
+reported through `sdkwork:desktop-app-session-persistence-error` and never fall
+back to plaintext storage.
 
 ## Extension Points
 
-Extension points are limited to public exports, runtime entrypoints, SDK clients, events, and config keys declared in `specs/component.spec.json`.
+Add capabilities by implementing an existing typed port. A new remote SDK must
+first be declared and exported by PC core, then consumed here through that
+stable entrypoint. New business persistence and raw HTTP fallbacks are not
+extension points of this package.
 
 ## Verification
 
-- `node ../sdkwork-specs/tools/check-component-port-bindings.mjs --root .`
-
-## Owner And Status
-
-Owner and lifecycle status are tracked in `specs/component.spec.json`. Update that contract before changing public integration behavior.
+- `pnpm --dir apps/sdkwork-birdcoder-pc typecheck`
+- `node scripts/desktop-app-session-persistence-contract.test.mjs`
+- `node scripts/pc-local-business-storage-boundary-contract.test.mjs`
+- `node scripts/run-local-tsx.mjs scripts/pc-runtime-boundary-ports-contract.test.ts`
+- `node scripts/vite-config-esm-contract.test.mjs`

@@ -3,15 +3,12 @@ use std::sync::{Arc, Mutex};
 use async_trait::async_trait;
 use sdkwork_birdcoder_project_service::context::ProjectContext;
 use sdkwork_birdcoder_project_service::domain::commands::{
-    CreateProjectRequest, UpdateProjectRequest, UpsertProjectCollaboratorRequest,
+    CreateProjectRequest, UpdateProjectRequest,
 };
-use sdkwork_birdcoder_project_service::domain::results::{
-    ProjectCollaboratorPayload, ProjectPayload,
-};
+use sdkwork_birdcoder_project_service::domain::results::ProjectPayload;
 use sdkwork_birdcoder_project_service::domain::sandbox_binding::{
-    NewProjectSandboxBinding, ProjectSandboxBindingAuditContext,
-    ProjectSandboxBindingAuditEntry, ProjectSandboxBindingPayload,
-    UpsertProjectSandboxBindingRequest,
+    NewProjectSandboxBinding, ProjectSandboxBindingAuditContext, ProjectSandboxBindingAuditEntry,
+    ProjectSandboxBindingPayload, UpsertProjectSandboxBindingRequest,
 };
 use sdkwork_birdcoder_project_service::error::ProjectError;
 use sdkwork_birdcoder_project_service::ports::repository::ProjectRepository;
@@ -65,14 +62,6 @@ impl ProjectRepository for StubProjectRepository {
         self.write_result.clone()
     }
 
-    async fn ensure_project_manage_access(
-        &self,
-        _context: &ProjectContext,
-        _project_id: &str,
-    ) -> Result<(), ProjectError> {
-        Err(unused_project_repository_method())
-    }
-
     async fn list_projects_by_workspace(
         &self,
         _context: &ProjectContext,
@@ -105,34 +94,7 @@ impl ProjectRepository for StubProjectRepository {
         &self,
         _context: &ProjectContext,
         _project_id: &str,
-    ) -> Result<(), ProjectError> {
-        Err(unused_project_repository_method())
-    }
-
-    async fn list_project_collaborators(
-        &self,
-        _context: &ProjectContext,
-        _project_id: &str,
-        _offset: usize,
-        _limit: usize,
-    ) -> Result<(Vec<ProjectCollaboratorPayload>, usize), ProjectError> {
-        Err(unused_project_repository_method())
-    }
-
-    async fn upsert_project_collaborator(
-        &self,
-        _context: &ProjectContext,
-        _project_id: &str,
-        _request: &UpsertProjectCollaboratorRequest,
-    ) -> Result<ProjectCollaboratorPayload, ProjectError> {
-        Err(unused_project_repository_method())
-    }
-
-    async fn remove_project_collaborator(
-        &self,
-        _context: &ProjectContext,
-        _project_id: &str,
-        _user_id: &str,
+        _expected_version: i64,
     ) -> Result<(), ProjectError> {
         Err(unused_project_repository_method())
     }
@@ -227,39 +189,22 @@ fn unused_project_repository_method() -> ProjectError {
 
 fn project() -> ProjectPayload {
     ProjectPayload {
-        created_at: None,
         id: "1".to_owned(),
-        uuid: None,
-        tenant_id: Some("100001".to_owned()),
-        organization_id: Some("0".to_owned()),
-        data_scope: Some("1".to_owned()),
+        uuid: "project-uuid-1".to_owned(),
+        tenant_id: "100001".to_owned(),
+        organization_id: "0".to_owned(),
         workspace_id: "1".to_owned(),
-        workspace_uuid: None,
-        user_id: Some("200001".to_owned()),
-        parent_id: None,
-        parent_uuid: None,
-        parent_metadata: None,
-        code: None,
-        title: None,
+        owner_user_id: "200001".to_owned(),
+        created_by_user_id: "200001".to_owned(),
+        code: "project-code-1".to_owned(),
         name: "Project".to_owned(),
         description: None,
-        domain_prefix: None,
-        owner_id: Some("200001".to_owned()),
-        leader_id: None,
-        created_by_user_id: Some("200001".to_owned()),
-        author: None,
-        file_id: None,
-        conversation_id: None,
-        entity_type: None,
-        start_time: None,
-        end_time: None,
-        budget_amount: None,
-        cover_image: None,
-        is_template: Some(false),
-        collaborator_count: None,
+        project_kind: "coding".to_owned(),
+        default_agent_project_id: None,
         status: "active".to_owned(),
-        updated_at: None,
-        viewer_role: Some("owner".to_owned()),
+        version: "1".to_owned(),
+        created_at: "2026-07-16T00:00:00Z".to_owned(),
+        updated_at: "2026-07-16T00:00:00Z".to_owned(),
     }
 }
 
@@ -279,11 +224,7 @@ fn audit_context() -> ProjectSandboxBindingAuditContext {
 
 fn service(
     project: Option<ProjectPayload>,
-) -> (
-    ProjectSandboxBindingService,
-    ProjectCallLog,
-    BindingCallLog,
-) {
+) -> (ProjectSandboxBindingService, ProjectCallLog, BindingCallLog) {
     let project_calls = Arc::new(Mutex::new(Vec::new()));
     let binding_calls = Arc::new(Mutex::new(Vec::new()));
     (

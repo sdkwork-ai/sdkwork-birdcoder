@@ -25,7 +25,7 @@ assert.match(
 );
 assert.match(
   dockerfile,
-  /SDKWORK_OPENAPI_SNAPSHOT_PATH=\/opt\/sdkwork-birdcoder\/openapi\/coding-server-v1\.json/u,
+  /SDKWORK_OPENAPI_SNAPSHOT_PATH=\/opt\/sdkwork-birdcoder\/openapi\/birdcoder-app-api\.openapi\.json/u,
   'Dockerfile must set SDKWORK_OPENAPI_SNAPSHOT_PATH for live OpenAPI serving.',
 );
 assert.match(
@@ -35,7 +35,7 @@ assert.match(
 );
 assert.match(
   defaultEnv,
-  /SDKWORK_OPENAPI_SNAPSHOT_PATH=\/opt\/sdkwork-birdcoder\/openapi\/coding-server-v1\.json/u,
+  /SDKWORK_OPENAPI_SNAPSHOT_PATH=\/opt\/sdkwork-birdcoder\/openapi\/birdcoder-app-api\.openapi\.json/u,
   'Docker default env must expose SDKWORK_OPENAPI_SNAPSHOT_PATH.',
 );
 assert.match(

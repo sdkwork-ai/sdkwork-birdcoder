@@ -25,7 +25,7 @@ const studioSyncPath = path.join(
   'sdkwork-birdcoder-pc-studio',
   'src',
   'pages',
-  'useStudioCodingSessionSync.ts',
+  'useStudioAgentSessionSync.ts',
 );
 
 const codePageSessionSelectionSource = fs.readFileSync(codePageSessionSelectionPath, 'utf8');
@@ -33,37 +33,37 @@ const studioSyncSource = fs.readFileSync(studioSyncPath, 'utf8');
 
 assert.match(
   codePageSessionSelectionSource,
-  /lastNotifiedCodingSessionSelectionKeyRef\s*=\s*useRef<string \| null>\(null\)/,
+  /lastNotifiedAgentSessionSelectionKeyRef\s*=\s*useRef<string \| null>\(null\)/,
   'Code page session selection must track the last notified project-scoped coding session key so parent selection sync cannot loop on the same local session.',
 );
 
 assert.match(
   codePageSessionSelectionSource,
-  /if \(nextSelectionKey === initialSelectionKey\) \{\s*lastNotifiedCodingSessionSelectionKeyRef\.current = nextSelectionKey;[\s\S]*return;\s*\}/s,
+  /if \(nextSelectionKey === initialSelectionKey\) \{\s*lastNotifiedAgentSessionSelectionKeyRef\.current = nextSelectionKey;[\s\S]*return;\s*\}/s,
   'Code page session selection must align its notification dedupe ref when the parent has already accepted the current project-scoped coding session selection.',
 );
 
 assert.match(
   codePageSessionSelectionSource,
-  /if \(lastNotifiedCodingSessionSelectionKeyRef\.current === nextSelectionKey\) \{\s*return;\s*\}/s,
+  /if \(lastNotifiedAgentSessionSelectionKeyRef\.current === nextSelectionKey\) \{\s*return;\s*\}/s,
   'Code page session selection must not notify the parent repeatedly for the same local project-scoped coding session key.',
 );
 
 assert.match(
   studioSyncSource,
-  /lastNotifiedCodingSessionIdRef\s*=\s*useRef<string>\(''\)/,
+  /lastNotifiedAgentSessionIdRef\s*=\s*useRef<string>\(''\)/,
   'Studio session sync must track the last notified project-scoped coding session key so the shell selection cannot bounce indefinitely.',
 );
 
 assert.match(
   studioSyncSource,
-  /if \(selectedSelectionKey === initialSelectionKey\) \{\s*lastNotifiedCodingSessionIdRef\.current = selectedSelectionKey;[\s\S]*return;\s*\}/s,
+  /if \(selectedSelectionKey === initialSelectionKey\) \{\s*lastNotifiedAgentSessionIdRef\.current = selectedSelectionKey;[\s\S]*return;\s*\}/s,
   'Studio session sync must align its notification dedupe ref when the shell has already accepted the current project-scoped coding session selection.',
 );
 
 assert.match(
   studioSyncSource,
-  /if \(lastNotifiedCodingSessionIdRef\.current === selectedSelectionKey\) \{\s*return;\s*\}/s,
+  /if \(lastNotifiedAgentSessionIdRef\.current === selectedSelectionKey\) \{\s*return;\s*\}/s,
   'Studio session sync must not re-notify the shell for the same local project-scoped coding session key.',
 );
 

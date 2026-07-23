@@ -10,7 +10,6 @@ export default defineLocaleModule('code/topbar', {
     "createdAndSwitchedBranch": "已创建并切换到分支: {{branch}}",
     "failedToCreateBranch": "创建分支失败: {{error}}",
     "switchedToBranch": "已切换到分支: {{branch}}",
-    "failedToSwitchBranch": "切换分支失败: {{error}}",
-    "invitationSent": "邀请已发送"
+    "failedToSwitchBranch": "切换分支失败: {{error}}"
   }
 });

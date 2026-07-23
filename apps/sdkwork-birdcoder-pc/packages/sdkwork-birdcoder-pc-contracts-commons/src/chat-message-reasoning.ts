@@ -1,8 +1,8 @@
 import type {
-  BirdCoderChatMessageReasoningItem,
-} from '@sdkwork/birdcoder-chat-contracts';
+  AgentSessionItemReasoningView as AgentSessionItemReasoningView,
+} from './agent-session-view.ts';
 
-export type { BirdCoderChatMessageReasoningItem };
+export type { AgentSessionItemReasoningView } from './agent-session-view.ts';
 
 export const MAX_CHAT_MESSAGE_REASONING_ITEMS = 32;
 export const MAX_CHAT_MESSAGE_REASONING_ID_CHARACTERS = 256;
@@ -55,7 +55,7 @@ function readDurationMs(value: unknown): number | undefined {
   return Math.floor(value);
 }
 
-function projectReasoningItem(value: unknown): BirdCoderChatMessageReasoningItem | null {
+function normalizeReasoningItem(value: unknown): AgentSessionItemReasoningView | null {
   if (!isRecord(value)) {
     return null;
   }
@@ -86,16 +86,16 @@ function projectReasoningItem(value: unknown): BirdCoderChatMessageReasoningItem
   };
 }
 
-export function projectChatMessageReasoning(
+export function normalizeChatMessageReasoning(
   values: readonly unknown[] | undefined,
-): BirdCoderChatMessageReasoningItem[] {
+): AgentSessionItemReasoningView[] {
   if (!values || values.length === 0) {
     return [];
   }
   const order: string[] = [];
-  const itemsById = new Map<string, BirdCoderChatMessageReasoningItem>();
+  const itemsById = new Map<string, AgentSessionItemReasoningView>();
   for (const value of values.slice(0, MAX_CHAT_MESSAGE_REASONING_INPUT_ITEMS)) {
-    const item = projectReasoningItem(value);
+    const item = normalizeReasoningItem(value);
     if (!item) {
       continue;
     }
@@ -115,11 +115,11 @@ export function projectChatMessageReasoning(
 
 export function mergeChatMessageReasoning(
   ...sources: Array<readonly unknown[] | undefined>
-): BirdCoderChatMessageReasoningItem[] {
+): AgentSessionItemReasoningView[] {
   const order: string[] = [];
-  const itemsById = new Map<string, BirdCoderChatMessageReasoningItem>();
+  const itemsById = new Map<string, AgentSessionItemReasoningView>();
   for (const source of sources) {
-    for (const item of projectChatMessageReasoning(source)) {
+    for (const item of normalizeChatMessageReasoning(source)) {
       if (!itemsById.has(item.id)) {
         if (order.length >= MAX_CHAT_MESSAGE_REASONING_ITEMS) {
           continue;

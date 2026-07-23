@@ -1,15 +1,15 @@
-import type { CommandExecution } from '@sdkwork/birdcoder-pc-workbench/chat/types';
+import type { AgentSessionCommandView } from '@sdkwork/birdcoder-pc-workbench/chat/types';
 import type { ActivityFileChange } from '../messageActivity.ts';
 
 export function filterCommandExecutions(
   commands: readonly unknown[] | undefined,
-): CommandExecution[] {
-  return (commands ?? []).filter((command): command is CommandExecution => {
+): AgentSessionCommandView[] {
+  return (commands ?? []).filter((command): command is AgentSessionCommandView => {
     if (typeof command !== 'object' || command === null) {
       return false;
     }
 
-    const value = (command as CommandExecution).command;
+    const value = (command as AgentSessionCommandView).command;
     return typeof value === 'string' && value.trim().length > 0;
   });
 }

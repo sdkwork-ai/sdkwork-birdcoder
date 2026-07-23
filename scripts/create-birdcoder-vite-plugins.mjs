@@ -38,6 +38,7 @@ const terminalPcPackageIds = [
 const defaultBirdcoderNamespace = 'sdkwork-birdcoder-pc-desktop';
 const SDKWORK_BAD_GATEWAY_CODE = 50201;
 const SDKWORK_BAD_GATEWAY_STATUS = 502;
+export const BIRDCODER_PLATFORM_DEV_PROXY_PATH = '/__sdkwork/platform';
 
 const BIRDCODER_VITE_DEDUPE_PACKAGES = [
   'react',
@@ -74,13 +75,8 @@ const BIRDCODER_PUBLIC_RUNTIME_ENV_ALLOWED_KEYS = new Set([
   ...BIRDCODER_PUBLIC_RUNTIME_ENV_EXACT_KEYS,
   'SDKWORK_RUNTIME_TARGET',
   'SDKWORK_VITE_MODE',
-  'SDKWORK_BIRDCODER_APP_API_BASE_URL',
-  'SDKWORK_BIRDCODER_APPLICATION_PUBLIC_HTTP_URL',
   'SDKWORK_BIRDCODER_DEPLOYMENT_PROFILE',
   'SDKWORK_BIRDCODER_RUNTIME_TARGET',
-  'VITE_BIRDCODER_API_BASE_URL',
-  'VITE_BIRDCODER_IAM_DEPLOYMENT_MODE',
-  'VITE_BIRDCODER_APP_API_BASE_URL',
   'VITE_BIRDCODER_AUTH_DEV_DEFAULT_ACCOUNT',
   'VITE_BIRDCODER_AUTH_DEV_DEFAULT_EMAIL',
   'VITE_BIRDCODER_AUTH_DEV_DEFAULT_PHONE',
@@ -94,24 +90,23 @@ const BIRDCODER_PUBLIC_RUNTIME_ENV_ALLOWED_KEYS = new Set([
   'VITE_BIRDCODER_SUPPORT_URL',
   'VITE_BIRDCODER_TERMS_OF_SERVICE_URL',
   'VITE_SDKWORK_APPBASE_APP_API_BASE_URL',
-  'VITE_SDKWORK_APP_API_BASE_URL',
-  'VITE_SDKWORK_BIRDCODER_API_BASE_URL',
-  'VITE_SDKWORK_BIRDCODER_APP_API_BASE_URL',
   'VITE_SDKWORK_BIRDCODER_APPLICATION_PUBLIC_HTTP_URL',
   'VITE_SDKWORK_BIRDCODER_DEPLOYMENT_PROFILE',
-  'VITE_SDKWORK_BIRDCODER_IAM_DEPLOYMENT_MODE',
   'VITE_SDKWORK_BIRDCODER_OFFICIAL_WEBSITE_URL',
   'VITE_SDKWORK_BIRDCODER_PLATFORM_API_GATEWAY_HTTP_URL',
-  'VITE_SDKWORK_BIRDCODER_REALTIME_TRANSPORT',
   'VITE_SDKWORK_BIRDCODER_PRIVACY_POLICY_URL',
   'VITE_SDKWORK_BIRDCODER_RUNTIME_TARGET',
   'VITE_SDKWORK_BIRDCODER_SUPPORT_URL',
   'VITE_SDKWORK_BIRDCODER_TERMS_OF_SERVICE_URL',
   'VITE_SDKWORK_DEPLOYMENT_PROFILE',
+  'VITE_SDKWORK_DOCUMENTS_APP_API_BASE_URL',
   'VITE_SDKWORK_DRIVE_APP_API_BASE_URL',
   'VITE_SDKWORK_ENVIRONMENT',
   'VITE_SDKWORK_IAM_APP_API_BASE_URL',
+  'VITE_SDKWORK_MEMBERSHIP_APP_API_BASE_URL',
   'VITE_SDKWORK_MESSAGING_APP_API_BASE_URL',
+  'VITE_SDKWORK_ORDER_APP_API_BASE_URL',
+  'VITE_SDKWORK_PROMPTS_APP_API_BASE_URL',
   'VITE_SDKWORK_RUNTIME_TARGET',
   'VITE_SDKWORK_AUTH_DEV_DEFAULT_ACCOUNT',
   'VITE_SDKWORK_AUTH_DEV_DEFAULT_EMAIL',
@@ -141,19 +136,16 @@ const BIRDCODER_PUBLIC_RUNTIME_ENV_DEV_ONLY_KEYS = new Set([
   'VITE_SDKWORK_AUTH_DEV_VERIFICATION_CODE_PREFILL_ENABLED',
 ]);
 const BIRDCODER_PUBLIC_RUNTIME_ENV_API_ORIGIN_KEYS = new Set([
-  'SDKWORK_BIRDCODER_APP_API_BASE_URL',
-  'SDKWORK_BIRDCODER_APPLICATION_PUBLIC_HTTP_URL',
-  'VITE_BIRDCODER_API_BASE_URL',
-  'VITE_BIRDCODER_APP_API_BASE_URL',
   'VITE_SDKWORK_APPBASE_APP_API_BASE_URL',
-  'VITE_SDKWORK_APP_API_BASE_URL',
-  'VITE_SDKWORK_BACKEND_API_BASE_URL',
-  'VITE_SDKWORK_BIRDCODER_API_BASE_URL',
-  'VITE_SDKWORK_BIRDCODER_APP_API_BASE_URL',
   'VITE_SDKWORK_BIRDCODER_APPLICATION_PUBLIC_HTTP_URL',
-  'VITE_SDKWORK_BIRDCODER_BACKEND_API_BASE_URL',
+  'VITE_SDKWORK_BIRDCODER_PLATFORM_API_GATEWAY_HTTP_URL',
+  'VITE_SDKWORK_DOCUMENTS_APP_API_BASE_URL',
+  'VITE_SDKWORK_DRIVE_APP_API_BASE_URL',
   'VITE_SDKWORK_IAM_APP_API_BASE_URL',
+  'VITE_SDKWORK_MEMBERSHIP_APP_API_BASE_URL',
   'VITE_SDKWORK_MESSAGING_APP_API_BASE_URL',
+  'VITE_SDKWORK_ORDER_APP_API_BASE_URL',
+  'VITE_SDKWORK_PROMPTS_APP_API_BASE_URL',
 ]);
 
 export function resolveBirdcoderDevelopmentApiEnvDefines(mode = 'development') {
@@ -566,27 +558,6 @@ function createBirdcoderWorkspaceAliasEntries(appRootDir = defaultBirdcoderAppRo
       ),
     },
     {
-      find: '@sdkwork/birdcoder-backend-sdk',
-      replacement: path.resolve(
-        appRootDir,
-        '../../sdks/sdkwork-birdcoder-backend-sdk/sdkwork-birdcoder-backend-sdk-typescript/src/index.ts',
-      ),
-    },
-    {
-      find: /^@sdkwork\/birdcoder-chat-contracts\/(.+)$/u,
-      replacement: path.resolve(
-        workspaceRootDir,
-        'apps/sdkwork-birdcoder-common/packages/sdkwork-birdcoder-chat-contracts/src/$1',
-      ),
-    },
-    {
-      find: '@sdkwork/birdcoder-chat-contracts',
-      replacement: path.resolve(
-        workspaceRootDir,
-        'apps/sdkwork-birdcoder-common/packages/sdkwork-birdcoder-chat-contracts/src/index.ts',
-      ),
-    },
-    {
       find: '@sdkwork/drive-app-sdk',
       replacement: resolveDependencyPath('sdkwork-drive', 'sdks/sdkwork-drive-app-sdk/sdkwork-drive-app-sdk-typescript/src/index.ts'),
     },
@@ -976,7 +947,71 @@ export function resolveBirdcoderWebRuntimeEnvSource(
   for (const key of BIRDCODER_PUBLIC_RUNTIME_ENV_API_ORIGIN_KEYS) {
     delete resolvedRuntimeEnvSource[key];
   }
+  resolvedRuntimeEnvSource.VITE_SDKWORK_BIRDCODER_PLATFORM_API_GATEWAY_HTTP_URL =
+    BIRDCODER_PLATFORM_DEV_PROXY_PATH;
   return resolvedRuntimeEnvSource;
+}
+
+function normalizeBirdcoderDevProxyTarget(value, label) {
+  const normalizedValue = String(value ?? '').trim();
+  if (!normalizedValue) {
+    return undefined;
+  }
+
+  let parsedUrl;
+  try {
+    parsedUrl = new URL(normalizedValue);
+  } catch {
+    throw new Error(`${label} must be an absolute HTTP(S) URL.`);
+  }
+  if (parsedUrl.protocol !== 'http:' && parsedUrl.protocol !== 'https:') {
+    throw new Error(`${label} must use HTTP or HTTPS.`);
+  }
+  if (parsedUrl.username || parsedUrl.password || parsedUrl.search || parsedUrl.hash) {
+    throw new Error(`${label} must not contain credentials, a query, or a fragment.`);
+  }
+
+  const pathname = parsedUrl.pathname.replace(/\/+$/u, '');
+  return pathname && pathname !== '/'
+    ? `${parsedUrl.origin}${pathname}`
+    : parsedUrl.origin;
+}
+
+export function resolveBirdcoderDevProxyTargets(
+  runtimeEnvSource = {},
+  required = true,
+) {
+  const application = normalizeBirdcoderDevProxyTarget(
+    runtimeEnvSource.SDKWORK_BIRDCODER_APPLICATION_PUBLIC_HTTP_URL,
+    'BirdCoder application development proxy target',
+  );
+  const platform = normalizeBirdcoderDevProxyTarget(
+    runtimeEnvSource.SDKWORK_BIRDCODER_PLATFORM_API_GATEWAY_HTTP_URL,
+    'SDKWork platform development proxy target',
+  );
+
+  if (required && (!application || !platform)) {
+    const missingKeys = [
+      !application && 'SDKWORK_BIRDCODER_APPLICATION_PUBLIC_HTTP_URL',
+      !platform && 'SDKWORK_BIRDCODER_PLATFORM_API_GATEWAY_HTTP_URL',
+    ].filter(Boolean);
+    throw new Error(
+      `BirdCoder development proxy topology is incomplete. Configure ${missingKeys.join(' and ')}.`,
+    );
+  }
+
+  return { application, platform };
+}
+
+export function rewriteBirdcoderPlatformDevProxyPath(requestPath = '') {
+  if (!requestPath.startsWith(BIRDCODER_PLATFORM_DEV_PROXY_PATH)) {
+    return requestPath;
+  }
+  const rewrittenPath = requestPath.slice(BIRDCODER_PLATFORM_DEV_PROXY_PATH.length);
+  if (!rewrittenPath) {
+    return '/';
+  }
+  return rewrittenPath.startsWith('?') ? `/${rewrittenPath}` : rewrittenPath;
 }
 
 export function resolveBirdcoderViteRuntimeEnvSource(

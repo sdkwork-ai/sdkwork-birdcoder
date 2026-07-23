@@ -8,7 +8,7 @@ import {
 
 const userMessage: ChatMessageViewSource = {
   id: 'msg-user-1',
-  codingSessionId: 'session-1',
+  agentSessionId: 'session-1',
   role: 'user',
   content: 'Build a chat message registry',
   createdAt: '2026-06-22T00:00:00.000Z',
@@ -16,7 +16,7 @@ const userMessage: ChatMessageViewSource = {
 
 const activityMessage: ChatMessageViewSource = {
   id: 'msg-assistant-1',
-  codingSessionId: 'session-1',
+  agentSessionId: 'session-1',
   role: 'assistant',
   content: 'Updated the following files:',
   createdAt: '2026-06-22T00:00:01.000Z',
@@ -86,7 +86,7 @@ assert.deepEqual(
 
 const detailedTaskProgressView = resolveChatMessageView({
   id: 'msg-assistant-detailed-task-progress',
-  codingSessionId: 'session-1',
+  agentSessionId: 'session-1',
   role: 'assistant',
   content: '',
   createdAt: '2026-06-22T00:00:02.000Z',
@@ -132,7 +132,7 @@ assert.deepEqual(
 
 const geminiDetailedTaskProgressView = resolveChatMessageView({
   id: 'msg-assistant-gemini-detailed-task-progress',
-  codingSessionId: 'session-1',
+  agentSessionId: 'session-1',
   role: 'assistant',
   content: '',
   createdAt: '2026-06-22T00:00:03.000Z',

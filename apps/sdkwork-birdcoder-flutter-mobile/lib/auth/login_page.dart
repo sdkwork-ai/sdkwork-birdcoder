@@ -65,9 +65,7 @@ class _BirdCoderLoginPageState extends State<BirdCoderLoginPage> {
     final provider = AppProvider.of(context);
 
     try {
-      final settings = await birdCoderIamAuthService.fetchIamRuntimeSettings(
-        apiBaseUrl: provider.apiBaseUrl,
-      );
+      final settings = await provider.iamAuthService.fetchIamRuntimeSettings();
       if (!mounted) {
         return;
       }
@@ -101,8 +99,7 @@ class _BirdCoderLoginPageState extends State<BirdCoderLoginPage> {
     });
 
     try {
-      await birdCoderIamAuthService.signInWithPassword(
-        apiBaseUrl: provider.apiBaseUrl,
+      await provider.iamAuthService.signInWithPassword(
         iamRuntime: provider.iamRuntime,
         username: _usernameController.text,
         password: _passwordController.text,
@@ -142,15 +139,17 @@ class _BirdCoderLoginPageState extends State<BirdCoderLoginPage> {
     });
 
     try {
-      final authUrl = await birdCoderIamAuthService.resolveOAuthAuthorizationUrl(
-        apiBaseUrl: provider.apiBaseUrl,
+      final authUrl =
+          await provider.iamAuthService.resolveOAuthAuthorizationUrl(
         provider: providerName,
-        redirectUri: buildBirdCoderOAuthCallbackReturnUrl(provider: providerName),
+        redirectUri:
+            buildBirdCoderOAuthCallbackReturnUrl(provider: providerName),
       );
       final launched = await launchBirdCoderExternalAuthUrl(authUrl);
       if (!launched && mounted) {
         setState(() {
-          _errorMessage = 'Unable to open the OAuth provider. Check your device browser settings.';
+          _errorMessage =
+              'Unable to open the OAuth provider. Check your device browser settings.';
         });
       }
     } on BirdCoderIamAuthException catch (error) {
@@ -165,7 +164,8 @@ class _BirdCoderLoginPageState extends State<BirdCoderLoginPage> {
         return;
       }
       setState(() {
-        _errorMessage = 'OAuth sign-in failed. Try again or use password login.';
+        _errorMessage =
+            'OAuth sign-in failed. Try again or use password login.';
       });
     } finally {
       if (mounted) {
@@ -271,7 +271,9 @@ class _BirdCoderLoginPageState extends State<BirdCoderLoginPage> {
             const SizedBox(height: 12),
             for (final providerName in oauthProviders) ...[
               OutlinedButton(
-                onPressed: _activeOAuthProvider == null ? () => _handleOAuthSignIn(providerName) : null,
+                onPressed: _activeOAuthProvider == null
+                    ? () => _handleOAuthSignIn(providerName)
+                    : null,
                 child: _activeOAuthProvider == providerName
                     ? const SizedBox(
                         height: 20,
@@ -285,11 +287,13 @@ class _BirdCoderLoginPageState extends State<BirdCoderLoginPage> {
           ],
           const SizedBox(height: 16),
           TextButton(
-            onPressed: () => widget.onNavigate(BirdCoderAuthSurfaceRoute.register),
+            onPressed: () =>
+                widget.onNavigate(BirdCoderAuthSurfaceRoute.register),
             child: const Text('Create account'),
           ),
           TextButton(
-            onPressed: () => widget.onNavigate(BirdCoderAuthSurfaceRoute.recovery),
+            onPressed: () =>
+                widget.onNavigate(BirdCoderAuthSurfaceRoute.recovery),
             child: const Text('Forgot password'),
           ),
           TextButton(

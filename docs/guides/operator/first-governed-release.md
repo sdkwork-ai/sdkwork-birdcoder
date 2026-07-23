@@ -57,8 +57,8 @@ Only after `pnpm release:assert-ready` passes against **real** `artifacts/releas
 2. Set `enabled: true` per package that has a verified artifact URL.
 3. Set `publish.status` to the governed publish state approved by release owners on **all four manifests** (root + PC + H5 + Flutter).
 4. Set `metadata.preLaunch` and `publish.preLaunch` to `false` on all four manifests.
-5. Update `metadata.releaseEvidenceStatus` to reference the release tag and attestation paths.
-6. Run `node scripts/app-manifest-pre-launch-contract.test.mjs` — it must be updated or replaced with a post-launch contract before packages can stay enabled.
+5. Set `metadata.releaseEvidence.status` to the governed release state, replace the pre-launch blockers with immutable release-tag and attestation references, and record the verification time.
+6. Replace the pre-launch manifest contract with a post-launch contract before packages can stay enabled, then run the replacement gate.
 
 **Never** enable packages with synthetic fixture checksums from `artifacts/release-readiness-fixture/` or `artifacts/release-candidate-dry-run/`.
 

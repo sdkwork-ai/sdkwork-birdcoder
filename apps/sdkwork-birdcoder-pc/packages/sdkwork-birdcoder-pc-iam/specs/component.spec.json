@@ -114,6 +114,14 @@
     }
   ],
   "contracts": {
+    "layerRole": "frontend-feature",
+    "providedPorts": [
+      {
+        "name": "iamIntegrationFeature",
+        "export": "."
+      }
+    ],
+    "requiredPorts": [],
     "publicExports": [
       "."
     ],

@@ -40,6 +40,7 @@ async function openAuthenticatedCodeWorkspace(page: Page) {
     title: 'E2E Workspace',
     name: 'E2E Workspace',
     description: 'Git submit dialog browser fixture.',
+    defaultAgentProjectId: 'project.e2e-git-submit',
     ownerId: 'e2e-user-1',
     leaderId: 'e2e-user-1',
     createdByUserId: 'e2e-user-1',
@@ -67,15 +68,27 @@ async function openAuthenticatedCodeWorkspace(page: Page) {
     createdAt: '2026-01-01T00:00:00.000Z',
     updatedAt: '2026-01-01T00:00:00.000Z',
   };
-  const codingSession = {
-    id: 'e2e-coding-session-1',
-    workspaceId: workspace.id,
-    projectId: project.id,
+  const agentSession = {
+    sessionId: 'session.e2e-git-submit-1',
+    tenantId: '0',
+    organizationId: '0',
+    agentId: 'agent.birdcoder',
+    ownerUserId: '1',
+    projectId: project.defaultAgentProjectId,
+    sessionKind: 'coding',
+    entrySurface: 'pc',
+    sourceModule: 'sdkwork-birdcoder',
+    sourceContextKind: 'coding-project',
+    sourceContextId: project.id,
     title: 'E2E Session',
     status: 'active',
-    hostMode: 'web',
-    engineId: 'codex',
-    modelId: 'e2e-model',
+    itemCount: '0',
+    lastItemSequence: '0',
+    totalInputTokens: '0',
+    totalOutputTokens: '0',
+    createdBy: '1',
+    updatedBy: '1',
+    version: '1',
     createdAt: '2026-01-01T00:00:00.000Z',
     updatedAt: '2026-01-01T00:00:00.000Z',
   };
@@ -146,10 +159,10 @@ async function openAuthenticatedCodeWorkspace(page: Page) {
   await page.route('**/app/v3/api/workspaces?**', (route) => route.fulfill({ json: offsetPage(route, [workspace]) }));
   await page.route('**/app/v3/api/projects?**', (route) => route.fulfill({ json: offsetPage(route, [project]) }));
   await page.route('**/app/v3/api/projects/e2e-project-1', (route) => route.fulfill({ json: itemEnvelope(project) }));
-  await page.route('**/app/v3/api/intelligence/coding_sessions?**', (route) => route.fulfill({ json: offsetPage(route, [codingSession]) }));
-  await page.route('**/app/v3/api/intelligence/coding_sessions/e2e-coding-session-1', (route) => route.fulfill({ json: itemEnvelope(codingSession) }));
+  await page.route('**/app/v3/api/ai/agents/agent.birdcoder/sessions?**', (route) => route.fulfill({ json: offsetPage(route, [agentSession]) }));
+  await page.route('**/app/v3/api/ai/agents/agent.birdcoder/sessions/session.e2e-git-submit-1', (route) => route.fulfill({ json: itemEnvelope(agentSession) }));
   await page.route(
-    /\/app\/v3\/api\/intelligence\/coding_sessions\/e2e-coding-session-1\/(?:artifacts|checkpoints|events)(?:\?.*)?$/,
+    /\/app\/v3\/api\/ai\/agents\/agent\.birdcoder\/sessions\/session\.e2e-git-submit-1\/(?:checkpoints|interactions|items|runtime_bindings|turns)(?:\?.*)?$/,
     (route) => route.fulfill({ json: offsetPage(route, []) }),
   );
   await page.addInitScript(({ accessToken: persistedAccessToken, authToken: persistedAuthToken }) => {

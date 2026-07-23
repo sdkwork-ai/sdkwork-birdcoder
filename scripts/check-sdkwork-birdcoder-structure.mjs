@@ -9,7 +9,6 @@ const workspaceConfigPath = path.join(rootDir, 'pnpm-workspace.yaml');
 
 const requiredPackages = [
   ['apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-auth', '@sdkwork/birdcoder-pc-auth'],
-  ['apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-projection', '@sdkwork/birdcoder-pc-projection'],
   ['apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-code', '@sdkwork/birdcoder-pc-code'],
   ['apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-workbench', '@sdkwork/birdcoder-pc-workbench'],
   ['apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-core', '@sdkwork/birdcoder-pc-core'],
@@ -19,7 +18,6 @@ const requiredPackages = [
   ['apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-host-studio', '@sdkwork/birdcoder-pc-host-studio'],
   ['apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-i18n', '@sdkwork/birdcoder-pc-i18n'],
   ['apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure', '@sdkwork/birdcoder-pc-infrastructure'],
-  ['apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-server', '@sdkwork/birdcoder-pc-server'],
   ['apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-settings', '@sdkwork/birdcoder-pc-settings'],
   ['apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-shell', '@sdkwork/birdcoder-pc-shell'],
   ['apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-shell-runtime', '@sdkwork/birdcoder-pc-shell-runtime'],
@@ -84,7 +82,10 @@ const requiredPaths = [
   'scripts/run-tauri-dev-binary-unlock.mjs',
   'scripts/run-tauri-dev-binary-unlock-check.mjs',
   'scripts/run-tauri-dev-binary-unlock-check.test.mjs',
-  'scripts/provider-sdk-package-manifest-contract.test.mjs',
+  'scripts/birdcoder-sdk-owner-boundary-contract.test.mjs',
+  'scripts/birdcoder-sdk-family-standard-contract.test.mjs',
+  'scripts/birdcoder-sdk-family-generated-contract.test.mjs',
+  'scripts/birdcoder-sdk-consumer-boundary-contract.test.mjs',
   'scripts/prepare-shared-sdk-git-sources.mjs',
   'scripts/prepare-shared-sdk-packages.mjs',
   'scripts/run-vitepress.mjs',
@@ -136,23 +137,15 @@ const requiredPaths = [
   'scripts/release/studio-simulator-evidence-archive.mjs',
   'scripts/release/studio-test-evidence-archive.mjs',
   'sdks/sdkwork-birdcoder-app-sdk/sdk-manifest.json',
-  'sdks/sdkwork-birdcoder-backend-sdk/sdk-manifest.json',
   'sdks/README.md',
   'sdks/specs/README.md',
   'sdks/specs/component.spec.json',
   'sdks/specs/domain-catalog.json',
-  'sdks/specs/openapi/birdcoder-app-v3.openapi.json',
-  'sdks/specs/openapi/birdcoder-backend-v3.openapi.json',
   'sdks/sdkwork-birdcoder-app-sdk/README.md',
+  'sdks/sdkwork-birdcoder-app-sdk/openapi/sdkwork-birdcoder-app-api.openapi.json',
+  'sdks/sdkwork-birdcoder-app-sdk/openapi/sdkwork-birdcoder-app-api.sdkgen.json',
   'sdks/sdkwork-birdcoder-app-sdk/sdkwork-birdcoder-app-sdk-typescript/package.json',
   'sdks/sdkwork-birdcoder-app-sdk/sdkwork-birdcoder-app-sdk-typescript/src/index.ts',
-  'sdks/sdkwork-birdcoder-app-sdk/sdkwork-birdcoder-app-sdk-rust/Cargo.toml',
-  'sdks/sdkwork-birdcoder-app-sdk/sdkwork-birdcoder-app-sdk-rust/src/lib.rs',
-  'sdks/sdkwork-birdcoder-backend-sdk/README.md',
-  'sdks/sdkwork-birdcoder-backend-sdk/sdkwork-birdcoder-backend-sdk-typescript/package.json',
-  'sdks/sdkwork-birdcoder-backend-sdk/sdkwork-birdcoder-backend-sdk-typescript/src/index.ts',
-  'sdks/sdkwork-birdcoder-backend-sdk/sdkwork-birdcoder-backend-sdk-rust/Cargo.toml',
-  'sdks/sdkwork-birdcoder-backend-sdk/sdkwork-birdcoder-backend-sdk-rust/src/lib.rs',
   'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-studio/src/evidence/viewer.ts',
   'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-studio/src/evidence/StudioEvidencePanel.tsx',
 ];
@@ -163,6 +156,12 @@ const forbiddenResidualPaths = [
   'sdks/.sdkwork-assembly.json',
   'sdks/sdkwork-birdcoder-sdk',
   'sdks/sdkwork-birdcoder-sdk-admin',
+  'sdks/sdkwork-birdcoder-backend-sdk',
+  'sdks/sdkwork-birdcoder-open-sdk',
+  'sdks/specs/openapi',
+  'apps/sdkwork-birdcoder-pc/sdks',
+  'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-server',
+  'scripts/generate-birdcoder-sdk-family.mjs',
 ];
 
 const rootScanTargets = [
@@ -214,6 +213,13 @@ function assertExists(relativePath, label = 'required path') {
   if (!fs.existsSync(path.join(rootDir, relativePath))) {
     errors.push(`Missing ${label}: ${relativePath}`);
   }
+}
+
+function containsFiles(absolutePath) {
+  if (!fs.existsSync(absolutePath)) return false;
+  if (!fs.statSync(absolutePath).isDirectory()) return true;
+  return fs.readdirSync(absolutePath, { recursive: true, withFileTypes: true })
+    .some((entry) => entry.isFile() || entry.isSymbolicLink());
 }
 
 function readJson(relativePath) {
@@ -434,8 +440,8 @@ export function runSdkworkBirdcoderStructureCheck({
   }
 
   for (const relativePath of forbiddenResidualPaths) {
-    if (fs.existsSync(path.join(rootDir, relativePath))) {
-      errors.push(`Retired standalone package directory must stay removed: ${relativePath}`);
+    if (containsFiles(path.join(rootDir, relativePath))) {
+      errors.push(`Retired standalone package content must stay removed: ${relativePath}`);
     }
   }
 

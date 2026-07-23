@@ -14,14 +14,24 @@
     "generated": false
   },
   "contracts": {
-    "sdkDependencies": [
+    "layerRole": "frontend-core",
+    "publicExports": [
+      ".",
+      "./sdk",
+      "./modules",
+      "./host",
+      "./session",
+      "./composition"
+    ],
+    "providedPorts": [
       {
-        "workspace": "sdkwork-membership-backend-sdk",
-        "surface": "backend-api",
-        "credentialMode": "authenticated-backend-admin",
-        "providedBy": "@sdkwork/birdcoder-pc-admin-core"
+        "name": "adminRuntimeCore",
+        "export": "."
       }
     ],
+    "requiredPorts": [],
+    "sdkClients": [],
+    "sdkDependencies": [],
     "permissionComposition": {
       "inheritanceMode": "module-catalog-with-overrides",
       "applicationModule": {

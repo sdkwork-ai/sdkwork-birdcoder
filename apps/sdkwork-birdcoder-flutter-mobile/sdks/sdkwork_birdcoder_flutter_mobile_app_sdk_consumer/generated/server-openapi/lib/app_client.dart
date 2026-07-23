@@ -1,49 +1,19 @@
 import 'package:sdkwork_common_flutter/sdkwork_common_flutter.dart';
 import 'src/http/client.dart';
-import 'src/api/intelligence.dart';
 import 'src/api/system.dart';
-import 'src/api/runtime.dart';
-import 'src/api/oauth.dart';
-import 'src/api/auth.dart';
-import 'src/api/iam.dart';
-import 'src/api/templates.dart';
-import 'src/api/platform.dart';
-import 'src/api/content.dart';
-import 'src/api/skills.dart';
-import 'src/api/collaboration.dart';
-import 'src/api/commerce.dart';
+import 'src/api/intelligence.dart';
 
 class SdkworkAppClient {
   final HttpClient _httpClient;
 
-  late final IntelligenceApi intelligence;
   late final SystemApi system;
-  late final RuntimeApi runtime;
-  late final OauthApi oauth;
-  late final AuthApi auth;
-  late final IamApi iam;
-  late final TemplatesApi templates;
-  late final PlatformApi platform;
-  late final ContentApi content;
-  late final SkillsApi skills;
-  late final CollaborationApi collaboration;
-  late final CommerceApi commerce;
+  late final IntelligenceApi intelligence;
 
   SdkworkAppClient({
     required SdkConfig config,
   }) : _httpClient = HttpClient(config: config) {
-    intelligence = IntelligenceApi(_httpClient);
     system = SystemApi(_httpClient);
-    runtime = RuntimeApi(_httpClient);
-    oauth = OauthApi(_httpClient);
-    auth = AuthApi(_httpClient);
-    iam = IamApi(_httpClient);
-    templates = TemplatesApi(_httpClient);
-    platform = PlatformApi(_httpClient);
-    content = ContentApi(_httpClient);
-    skills = SkillsApi(_httpClient);
-    collaboration = CollaborationApi(_httpClient);
-    commerce = CommerceApi(_httpClient);
+    intelligence = IntelligenceApi(_httpClient);
   }
 
   factory SdkworkAppClient.withBaseUrl({

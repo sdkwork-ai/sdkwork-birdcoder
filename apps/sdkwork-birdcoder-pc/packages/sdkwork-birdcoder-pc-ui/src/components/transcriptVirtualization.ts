@@ -1,24 +1,26 @@
-import type { BirdCoderChatMessage, BirdCoderCodeEngineKey } from '../../../sdkwork-birdcoder-pc-contracts-commons/src/index.ts';
-import { estimateTranscriptMessageHeight } from '../../../sdkwork-birdcoder-pc-contracts-commons/src/chat-message-view.ts';
+import {
+  estimateTranscriptMessageHeight,
+  type AgentSessionItemView,
+} from '@sdkwork/birdcoder-pc-contracts-commons';
 
 export const MIN_VIRTUALIZED_MESSAGE_COUNT = 96;
 export const VIRTUALIZED_OVERSCAN_PX = 720;
 
 export interface TranscriptHeightEstimateOptions {
-  engineId?: BirdCoderCodeEngineKey;
+  engineId?: string;
   layout?: 'sidebar' | 'main';
 }
 
 interface TranscriptPrefixHeightCacheEntry {
   height: number;
   key: string;
-  message: BirdCoderChatMessage;
+  message: AgentSessionItemView;
 }
 
 export interface TranscriptPrefixHeightsCache {
   entries: readonly TranscriptPrefixHeightCacheEntry[];
   messageIndexesByKey: ReadonlyMap<string, number>;
-  messages: readonly BirdCoderChatMessage[];
+  messages: readonly AgentSessionItemView[];
   prefixHeights: readonly number[];
 }
 
@@ -30,12 +32,12 @@ export interface TranscriptViewport {
 export interface VirtualizedTranscriptWindowState {
   paddingBottom: number;
   paddingTop: number;
-  visibleMessages: readonly BirdCoderChatMessage[];
+  visibleMessages: readonly AgentSessionItemView[];
   visibleStartIndex: number;
 }
 
 export function resolveTranscriptMessageKey(
-  message: BirdCoderChatMessage | undefined,
+  message: AgentSessionItemView | undefined,
   index: number,
 ): string {
   const normalizedMessageId = message?.id.trim() ?? '';
@@ -43,7 +45,7 @@ export function resolveTranscriptMessageKey(
 }
 
 export function hasTranscriptMessageKey(
-  messages: readonly BirdCoderChatMessage[],
+  messages: readonly AgentSessionItemView[],
   messageKey: string,
 ): boolean {
   const separatorIndex = messageKey.indexOf('\u0001');
@@ -60,7 +62,7 @@ export function hasTranscriptMessageKey(
 }
 
 function estimateTranscriptMessageHeightForLayout(
-  message: BirdCoderChatMessage,
+  message: AgentSessionItemView,
   options: TranscriptHeightEstimateOptions = {},
 ): number {
   return estimateTranscriptMessageHeight(message, {
@@ -70,7 +72,7 @@ function estimateTranscriptMessageHeightForLayout(
 }
 
 function resolveTranscriptMessageHeight(
-  message: BirdCoderChatMessage,
+  message: AgentSessionItemView,
   index: number,
   measuredHeights: ReadonlyMap<string, number>,
   options: TranscriptHeightEstimateOptions = {},
@@ -80,7 +82,7 @@ function resolveTranscriptMessageHeight(
 }
 
 function buildTranscriptPrefixHeightsCache(
-  messages: readonly BirdCoderChatMessage[],
+  messages: readonly AgentSessionItemView[],
   measuredHeights: ReadonlyMap<string, number>,
   options: TranscriptHeightEstimateOptions = {},
 ): TranscriptPrefixHeightsCache {
@@ -181,7 +183,7 @@ function reconcileMeasuredTranscriptPrefixHeightsCache(
 function reconcileAppendOnlyTranscriptPrefixHeightsCache(
   previousCache: TranscriptPrefixHeightsCache,
   measuredHeights: ReadonlyMap<string, number>,
-  messages: readonly BirdCoderChatMessage[],
+  messages: readonly AgentSessionItemView[],
   invalidatedMessageIds: readonly string[],
   options: TranscriptHeightEstimateOptions = {},
 ): TranscriptPrefixHeightsCache | null {
@@ -265,7 +267,7 @@ function resolveVisibleEndIndex(prefixHeights: readonly number[], offset: number
 }
 
 export function buildTranscriptPrefixHeights(
-  messages: readonly BirdCoderChatMessage[],
+  messages: readonly AgentSessionItemView[],
   measuredHeights: ReadonlyMap<string, number>,
   options: TranscriptHeightEstimateOptions = {},
 ): number[] {
@@ -281,7 +283,7 @@ export function reconcileTranscriptPrefixHeightsCache({
 }: {
   invalidatedMessageIds?: readonly string[];
   measuredHeights: ReadonlyMap<string, number>;
-  messages: readonly BirdCoderChatMessage[];
+  messages: readonly AgentSessionItemView[];
   options?: TranscriptHeightEstimateOptions;
   previousCache?: TranscriptPrefixHeightsCache | null;
 }): TranscriptPrefixHeightsCache {
@@ -393,7 +395,7 @@ export function resolveVirtualizedTranscriptWindow({
   viewport,
 }: {
   isActive: boolean;
-  messages: readonly BirdCoderChatMessage[];
+  messages: readonly AgentSessionItemView[];
   minVirtualizedMessageCount?: number;
   overscanPx?: number;
   prefixHeights: readonly number[];

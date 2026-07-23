@@ -4,8 +4,6 @@ export default defineLocaleModule('studio/actions', {
   "studio": {
     "analyzeCode": "Analyze Code",
     "terminal": "Terminal",
-    "share": "Share",
-    "publish": "Publish",
     "accept": "Accept",
     "reject": "Reject",
     "projectEmpty": "Project is empty, please add files",

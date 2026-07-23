@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useSyncExternalStore } from 'react';
 import type {
-  BirdCoderGitWorktreeSummary,
-  BirdCoderProjectGitOverview,
+  WorkbenchGitOverviewView,
+  WorkbenchGitWorktreeView,
 } from '@sdkwork/birdcoder-pc-contracts-commons';
 import { ProjectRuntimeLocationExecutionUnavailableError } from '@sdkwork/birdcoder-pc-infrastructure-runtime/projectRuntimeLocation';
 import { useIDEServices } from '../context/ideServices.ts';
@@ -11,11 +11,11 @@ import { getProjectGitWorktreeDisplayName } from '../workbench/gitWorktrees.ts';
 interface ProjectGitOverviewSnapshot {
   isLoading: boolean;
   loadErrorMessage: string | null;
-  overview: BirdCoderProjectGitOverview | null;
+  overview: WorkbenchGitOverviewView | null;
 }
 
 interface ProjectGitOverviewCacheEntry {
-  inFlight: Promise<BirdCoderProjectGitOverview | null> | null;
+  inFlight: Promise<WorkbenchGitOverviewView | null> | null;
   listeners: Set<() => void>;
   requestVersion: number;
   snapshot: ProjectGitOverviewSnapshot;
@@ -27,15 +27,15 @@ export interface UseProjectGitOverviewOptions {
 }
 
 export interface ProjectGitOverviewViewState extends ProjectGitOverviewSnapshot {
-  applyGitOverview: (overview: BirdCoderProjectGitOverview) => void;
+  applyGitOverview: (overview: WorkbenchGitOverviewView) => void;
   branches: string[];
   currentBranchLabel: string;
-  currentWorktree: BirdCoderGitWorktreeSummary | null;
+  currentWorktree: WorkbenchGitWorktreeView | null;
   currentWorktreeLabel: string;
   isGitRepositoryReady: boolean;
   normalizedProjectId: string;
-  refreshGitOverview: () => Promise<BirdCoderProjectGitOverview | null>;
-  worktrees: BirdCoderGitWorktreeSummary[];
+  refreshGitOverview: () => Promise<WorkbenchGitOverviewView | null>;
+  worktrees: WorkbenchGitWorktreeView[];
 }
 
 export interface UseProjectGitOverviewResult extends ProjectGitOverviewViewState {}
@@ -84,7 +84,7 @@ function loadProjectGitOverviewWithTimeout(
   gitService: ReturnType<typeof useIDEServices>['gitService'],
   projectId: string,
   timeoutMs: number = PROJECT_GIT_OVERVIEW_LOAD_TIMEOUT_MS,
-): Promise<BirdCoderProjectGitOverview> {
+): Promise<WorkbenchGitOverviewView> {
   const timeoutBoundary = createProjectGitOverviewLoadTimeoutPromise(
     projectId,
     timeoutMs,
@@ -156,7 +156,7 @@ function getProjectGitOverviewSnapshot(projectId: string): ProjectGitOverviewSna
 
 function applyProjectGitOverviewSnapshot(
   projectId: string,
-  overview: BirdCoderProjectGitOverview,
+  overview: WorkbenchGitOverviewView,
 ): void {
   if (!projectId) {
     return;
@@ -208,7 +208,7 @@ export function useProjectGitOverview({
     getSnapshot,
   );
 
-  const refreshGitOverview = useCallback(async (): Promise<BirdCoderProjectGitOverview | null> => {
+  const refreshGitOverview = useCallback(async (): Promise<WorkbenchGitOverviewView | null> => {
     if (!normalizedProjectId) {
       return null;
     }
@@ -275,7 +275,7 @@ export function useProjectGitOverview({
   }, [gitService, normalizedProjectId]);
 
   const applyGitOverview = useCallback(
-    (nextOverview: BirdCoderProjectGitOverview) => {
+    (nextOverview: WorkbenchGitOverviewView) => {
       applyProjectGitOverviewSnapshot(normalizedProjectId, nextOverview);
     },
     [normalizedProjectId],

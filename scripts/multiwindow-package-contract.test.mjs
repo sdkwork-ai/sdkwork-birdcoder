@@ -41,7 +41,6 @@ assert.equal(
 );
 
 const requiredDependencies = [
-  '@sdkwork/birdcoder-pc-codeengine',
   '@sdkwork/birdcoder-pc-workbench',
   '@sdkwork/birdcoder-pc-contracts-commons',
   '@sdkwork/birdcoder-pc-ui',

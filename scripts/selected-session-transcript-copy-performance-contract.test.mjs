@@ -47,43 +47,43 @@ function extractPrivateMethodSource(methodName) {
   );
 }
 
-const getCodingSessionTranscriptSource = extractPublicMethodSource(
-  'getCodingSessionTranscript',
+const getAgentSessionTranscriptSource = extractPublicMethodSource(
+  'getAgentSessionTranscript',
 );
 
 assert.doesNotMatch(
-  getCodingSessionTranscriptSource,
+  getAgentSessionTranscriptSource,
   /persistedMessages\.map\(\s*\(message\)\s*=>\s*cloneChatMessage\(message\)\s*\)/s,
   'Selected-session transcript hydration must not clone every persisted message before mapping the hydrated session.',
 );
 
 assert.doesNotMatch(
-  getCodingSessionTranscriptSource,
-  /return\s+cloneCodingSession\(hydratedSession\)/,
+  getAgentSessionTranscriptSource,
+  /return\s+cloneAgentSession\(hydratedSession\)/,
   'Selected-session transcript hydration must not clone the whole hydrated transcript again before returning it.',
 );
 
 assert.match(
-  getCodingSessionTranscriptSource,
+  getAgentSessionTranscriptSource,
   /cloneMessages:\s*false/,
   'Selected-session transcript hydration must ask the persisted mapper to reuse freshly loaded SQL message rows.',
 );
 
 assert.doesNotMatch(
-  getCodingSessionTranscriptSource,
-  /return\s+cloneCodingSession\(cachedSession\)/,
+  getAgentSessionTranscriptSource,
+  /return\s+cloneAgentSession\(cachedSession\)/,
   'Cached selected-session transcript reads must not deep-clone the whole transcript on every repeated read.',
 );
 
 assert.match(
-  getCodingSessionTranscriptSource,
-  /resolvePublicCodingSessionTranscriptSnapshot\(cachedSession\)/,
+  getAgentSessionTranscriptSource,
+  /resolvePublicAgentSessionTranscriptSnapshot\(cachedSession\)/,
   'Cached selected-session transcript reads must return a versioned public transcript snapshot instead of cloning every message.',
 );
 
 assert.match(
-  getCodingSessionTranscriptSource,
-  /buildCachedCodingSessionTranscript\(/,
+  getAgentSessionTranscriptSource,
+  /buildCachedAgentSessionTranscript\(/,
   'Selected-session transcript hydration must still keep an isolated internal cache copy.',
 );
 
@@ -95,22 +95,22 @@ assert.match(
 
 assert.match(
   providerBackedProjectServiceSource,
-  /function buildReadonlyCodingSessionTranscriptSnapshot\(/,
+  /function buildReadonlyAgentSessionTranscriptSnapshot\(/,
   'ProviderBackedProjectService must publish read-only transcript snapshots so O(1) repeated reads cannot let callers mutate internal cache state.',
 );
 
-const mapPersistedCodingSessionRecordSource = extractPrivateMethodSource(
-  'mapPersistedCodingSessionRecord',
+const mapPersistedAgentSessionRecordSource = extractPrivateMethodSource(
+  'mapPersistedAgentSessionRecord',
 );
 
 assert.match(
-  mapPersistedCodingSessionRecordSource,
+  mapPersistedAgentSessionRecordSource,
   /cloneMessages\?:\s*boolean/,
   'Persisted session mapping must allow selected-session hydration to reuse freshly loaded message rows instead of always deep-cloning them.',
 );
 
 assert.match(
-  mapPersistedCodingSessionRecordSource,
+  mapPersistedAgentSessionRecordSource,
   /const transcriptUpdatedAt =[\s\S]*findLatestTranscriptTimestamp\(messages\)/,
   'Persisted session mapping must compute latest transcript timestamp once instead of scanning large transcripts repeatedly.',
 );

@@ -1,17 +1,32 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { isBlank } from '@sdkwork/utils/string';
 import {
-  buildDriveMediaResourceContentBlock,
-  ensureBirdCoderMobileChatConversation,
-  listBirdCoderMobileChatMessages,
-  resolveChatAttachmentUploadProfile,
-  sendBirdCoderMobileChatMessage,
-  uploadBirdCoderChatAttachmentToDrive,
+  ensureBirdCoderAssistantSession,
+  listBirdCoderAssistantSessionItems,
+  resolveAgentSessionAttachmentUploadProfile,
+  submitBirdCoderAssistantTurn,
+  type BirdCoderAgentSessionItemView,
+  type BirdCoderAssistantTurnOptions,
+  uploadBirdCoderAgentSessionAttachmentToDrive,
 } from '@sdkwork/birdcoder-h5-core/sdk';
 import { DEFAULT_LIST_PAGE_SIZE } from '@sdkwork/utils/pagination';
-import { createChatMessage } from '../index.ts';
 import { resolveChatPageMessages } from '../messages/chatPageMessages.ts';
 import { useBirdCoderSettings } from '../state/settingsState.tsx';
+
+function mergeSessionItems(
+  current: readonly BirdCoderAgentSessionItemView[],
+  incoming: readonly BirdCoderAgentSessionItemView[],
+): BirdCoderAgentSessionItemView[] {
+  const itemsById = new Map(current.map((item) => [item.itemId, item]));
+  for (const item of incoming) {
+    itemsById.set(item.itemId, item);
+  }
+  return [...itemsById.values()].sort((left, right) => {
+    const leftSequence = BigInt(left.sequence);
+    const rightSequence = BigInt(right.sequence);
+    return leftSequence < rightSequence ? -1 : leftSequence > rightSequence ? 1 : 0;
+  });
+}
 
 export function ChatPage() {
   const { state: settings } = useBirdCoderSettings();
@@ -20,8 +35,8 @@ export function ChatPage() {
     [settings.language],
   );
   const [input, setInput] = useState('');
-  const [messages, setMessages] = useState(() => [] as ReturnType<typeof createChatMessage>[]);
-  const [conversationId, setConversationId] = useState<string | null>(null);
+  const [sessionItems, setSessionItems] = useState<BirdCoderAgentSessionItemView[]>([]);
+  const [sessionId, setSessionId] = useState<string | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -30,31 +45,30 @@ export function ChatPage() {
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   const canSend = useMemo(
-    () => !isBlank(input) && !isSending && conversationId != null,
-    [conversationId, input, isSending],
+    () => !isBlank(input) && !isSending && sessionId != null,
+    [input, isSending, sessionId],
   );
 
   useEffect(() => {
     let cancelled = false;
-    async function loadConversation() {
+    async function loadSession() {
       setIsLoading(true);
       setLoadError(null);
       try {
-        const id = await ensureBirdCoderMobileChatConversation();
-        const history = await listBirdCoderMobileChatMessages(id, {
-          offset: 0,
-          limit: DEFAULT_LIST_PAGE_SIZE,
+        const session = await ensureBirdCoderAssistantSession();
+        const latestPage = Math.max(
+          1,
+          Math.ceil(session.itemCount / DEFAULT_LIST_PAGE_SIZE),
+        );
+        const items = await listBirdCoderAssistantSessionItems(session.sessionId, {
+          page: latestPage,
+          pageSize: DEFAULT_LIST_PAGE_SIZE,
         });
         if (cancelled) {
           return;
         }
-        setConversationId(id);
-        setMessages(
-          history.map((message) => ({
-            ...createChatMessage(message.role, message.content, message.id),
-            createdAt: message.createdAt,
-          })),
-        );
+        setSessionId(session.sessionId);
+        setSessionItems(items);
       } catch (error) {
         if (cancelled) {
           return;
@@ -67,48 +81,41 @@ export function ChatPage() {
         }
       }
     }
-    void loadConversation();
+    void loadSession();
     return () => {
       cancelled = true;
     };
   }, [messagesCopy.loadHistoryFailed]);
 
-  async function persistUserMessage(content: string) {
-    if (!conversationId) {
-      throw new Error('Chat conversation is not ready.');
+  async function submitUserTurn(
+    content: string,
+    driveRefs?: BirdCoderAssistantTurnOptions['driveRefs'],
+  ) {
+    if (!sessionId) {
+      throw new Error('Assistant session is not ready.');
     }
-    await sendBirdCoderMobileChatMessage(conversationId, content);
-    const history = await listBirdCoderMobileChatMessages(conversationId, {
-      offset: 0,
-      limit: DEFAULT_LIST_PAGE_SIZE,
+    const completedItems = await submitBirdCoderAssistantTurn(sessionId, content, {
+      driveRefs,
     });
-    setMessages(
-      history.map((message) => ({
-        ...createChatMessage(message.role, message.content, message.id),
-        createdAt: message.createdAt,
-      })),
-    );
+    setSessionItems((current) => mergeSessionItems(current, completedItems));
   }
 
   async function handleAttachmentSelected(fileList: FileList | null) {
     const file = fileList?.item(0);
-    if (!file || !conversationId) {
+    if (!file || !sessionId) {
       return;
     }
 
     setUploadError(null);
     setIsUploading(true);
     try {
-      const profile = resolveChatAttachmentUploadProfile(file);
-      const uploadResult = await uploadBirdCoderChatAttachmentToDrive({
+      const profile = resolveAgentSessionAttachmentUploadProfile(file);
+      const uploadResult = await uploadBirdCoderAgentSessionAttachmentToDrive({
         file,
         profile,
+        sessionId,
       });
-      const content = `${file.name}${buildDriveMediaResourceContentBlock(
-        uploadResult.mediaResource,
-        uploadResult.previewUrl,
-      )}`.trim();
-      await persistUserMessage(content);
+      await submitUserTurn(file.name, [uploadResult.driveRef]);
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Drive upload failed.';
       setUploadError(isBlank(message) ? 'Drive upload failed.' : message);
@@ -132,10 +139,10 @@ export function ChatPage() {
         {isLoading ? (
           <p className="text-sm text-muted-foreground">{messagesCopy.loadingHistory}</p>
         ) : null}
-        {messages.map((message) => (
-          <article key={message.id} className="rounded-xl bg-muted px-3 py-2 text-sm">
-            <div className="text-xs uppercase tracking-wide text-muted-foreground">{message.role}</div>
-            <p className="mt-1 whitespace-pre-wrap">{message.content}</p>
+        {sessionItems.map((item) => (
+          <article key={item.itemId} className="rounded-xl bg-muted px-3 py-2 text-sm">
+            <div className="text-xs uppercase tracking-wide text-muted-foreground">{item.role}</div>
+            <p className="mt-1 whitespace-pre-wrap">{item.content}</p>
           </article>
         ))}
       </div>
@@ -154,11 +161,11 @@ export function ChatPage() {
         onSubmit={(event) => {
           event.preventDefault();
           const content = input.trim();
-          if (!content || !conversationId) {
+          if (!content || !sessionId) {
             return;
           }
           setIsSending(true);
-          void persistUserMessage(content)
+          void submitUserTurn(content)
             .then(() => {
               setInput('');
             })
@@ -181,7 +188,7 @@ export function ChatPage() {
         />
         <button
           type="button"
-          disabled={isUploading || isLoading || conversationId == null}
+          disabled={isUploading || isLoading || sessionId == null}
           onClick={() => fileInputRef.current?.click()}
           className="rounded-xl border border-border bg-background px-3 py-2 text-sm disabled:opacity-50"
         >
@@ -191,7 +198,7 @@ export function ChatPage() {
           value={input}
           onChange={(event) => setInput(event.target.value)}
           placeholder={messagesCopy.inputPlaceholder}
-          disabled={isLoading || conversationId == null}
+          disabled={isLoading || sessionId == null}
           className="min-w-0 flex-1 rounded-xl border border-border bg-background px-3 py-2 text-sm outline-none disabled:opacity-50"
         />
         <button

@@ -2,7 +2,7 @@ import type { BirdCoderCoreRuntimeSummary } from './bird-coder-core-runtime-summ
 
 export interface BirdCoderCoreRuntimeSummaryEnvelope {
   code: 0;
-  data: unknown & Record<string, unknown>;
+  data: unknown & { item: BirdCoderCoreRuntimeSummary; };
   /** Server-owned request correlation id. */
   traceId: string;
 }

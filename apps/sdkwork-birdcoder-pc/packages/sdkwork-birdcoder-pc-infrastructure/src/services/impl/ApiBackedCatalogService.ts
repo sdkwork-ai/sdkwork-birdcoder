@@ -1,4 +1,3 @@
-import type { BirdCoderAppTemplateSummary } from '@sdkwork/birdcoder-pc-contracts-commons';
 import type {
   SdkworkSkillsAppClient,
   SkillArtifactsPageData,
@@ -6,29 +5,21 @@ import type {
   SkillPackagesPageData,
   SkillsSkillPackagesArtifactsListParams,
   SkillsSkillPackagesListParams,
-} from '@sdkwork/skills-app-sdk';
+} from '@sdkwork/birdcoder-pc-core/sdk/skills-app';
 import type {
   ICatalogService,
   InstallSkillPackageOptions,
 } from '../interfaces/ICatalogService.ts';
-import type { BirdCoderAppSdkApiClient } from '../sdkClients.ts';
 
 export interface ApiBackedCatalogServiceOptions {
-  appClient: BirdCoderAppSdkApiClient;
   skillsClient: SdkworkSkillsAppClient;
 }
 
 export class ApiBackedCatalogService implements ICatalogService {
-  private readonly appClient: BirdCoderAppSdkApiClient;
   private readonly skillsClient: SdkworkSkillsAppClient;
 
-  constructor({ appClient, skillsClient }: ApiBackedCatalogServiceOptions) {
-    this.appClient = appClient;
+  constructor({ skillsClient }: ApiBackedCatalogServiceOptions) {
     this.skillsClient = skillsClient;
-  }
-
-  async getAppTemplates(): Promise<BirdCoderAppTemplateSummary[]> {
-    return this.appClient.listAppTemplates();
   }
 
   async getSkillPackages(

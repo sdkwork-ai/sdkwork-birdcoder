@@ -3,13 +3,13 @@
   "kind": "sdkwork.component.spec",
   "component": {
     "name": "sdkwork-birdcoder",
-    "displayName": "SDKWork Birdcoder",
+    "displayName": "SDKWork BirdCoder",
     "version": "0.1.0",
     "type": "react-tauri-app",
     "root": "sdkwork-birdcoder",
-    "domain": "platform",
-    "declaredDomain": null,
-    "capability": "component",
+    "domain": "intelligence",
+    "declaredDomain": "intelligence",
+    "capability": "coding-workbench",
     "surface": "app",
     "status": "ACTIVE",
     "languages": [
@@ -21,324 +21,246 @@
     "private": true,
     "manifests": [
       "sdkwork.app.config.json",
-      "package.json"
+      "package.json",
+      "Cargo.toml"
     ]
   },
-  "apiSurfaces": [
-    {
-      "surface": "app",
-      "prefix": "/app/v3/api/drive",
-      "ownership": "dependency",
-      "dependencyServiceId": "sdkwork-drive-app-api"
-    },
-    {
-      "surface": "app",
-      "prefix": "/app/v3/api/memberships",
-      "ownership": "dependency",
-      "dependencyServiceId": "sdkwork-membership-app-api"
-    },
-    {
-      "surface": "backend",
-      "prefix": "/backend/v3/api/memberships",
-      "ownership": "dependency",
-      "dependencyServiceId": "sdkwork-membership-backend-api"
-    }
-  ],
-  "dependencies": [
-    {
-      "serviceId": "sdkwork-drive-app-api",
-      "workspace": "sdkwork-drive",
-      "sdkFamily": "sdkwork-drive-app-sdk",
-      "apiAuthority": "sdkwork-drive-app-api",
-      "runtimeModes": [
-        "embedded"
-      ],
-      "executableExport": "sdkwork_api_drive_assembly::assemble_business_routes_with_process_pool",
-      "cargoFeature": "foundation-drive",
-      "cargoDependency": "sdkwork-api-drive-assembly",
-      "coverage": "drive-app-api-embedded-assembly-routes"
-    },
-    {
-      "serviceId": "sdkwork-membership-app-api",
-      "workspace": "sdkwork-membership",
-      "sdkFamily": "sdkwork-membership-app-sdk",
-      "apiAuthority": "sdkwork-membership-app-api",
-      "runtimeModes": [
-        "embedded"
-      ],
-      "executableExport": "sdkwork_api_membership_assembly::assemble_api_router_with_process_pool",
-      "cargoFeature": "foundation-membership",
-      "cargoDependency": "sdkwork-api-membership-assembly",
-      "coverage": "sdkwork-membership-app-api-embedded-assembly-routes"
-    },
-    {
-      "serviceId": "sdkwork-membership-backend-api",
-      "workspace": "sdkwork-membership",
-      "sdkFamily": "sdkwork-membership-backend-sdk",
-      "apiAuthority": "sdkwork-membership-backend-api",
-      "runtimeModes": [
-        "embedded"
-      ],
-      "executableExport": "sdkwork_api_membership_assembly::assemble_api_router_with_process_pool",
-      "cargoFeature": "foundation-membership",
-      "cargoDependency": "sdkwork-api-membership-assembly",
-      "coverage": "sdkwork-membership-backend-api-embedded-assembly-routes"
-    }
-  ],
   "canonicalSpecs": [
     {
       "file": "APP_MANIFEST_SPEC.md",
       "path": "../../sdkwork-specs/APP_MANIFEST_SPEC.md",
-      "purpose": "sdkwork.app.config.json application registration rules."
+      "purpose": "Application identity and publication contract."
     },
     {
       "file": "APPLICATION_SPEC.md",
       "path": "../../sdkwork-specs/APPLICATION_SPEC.md",
-      "purpose": "Application shell and module composition."
+      "purpose": "Application composition boundary."
     },
     {
       "file": "APP_PC_ARCHITECTURE_SPEC.md",
       "path": "../../sdkwork-specs/APP_PC_ARCHITECTURE_SPEC.md",
-      "purpose": "PC browser/desktop/tablet application root architecture."
+      "purpose": "PC and desktop application architecture."
     },
     {
       "file": "APP_CLIENT_ARCHITECTURE_ALIGNMENT_SPEC.md",
       "path": "../../sdkwork-specs/APP_CLIENT_ARCHITECTURE_ALIGNMENT_SPEC.md",
-      "purpose": "Cross-client package taxonomy, route identity, component boundaries."
-    },
-    {
-      "file": "COMPONENT_SPEC.md",
-      "path": "../../sdkwork-specs/COMPONENT_SPEC.md",
-      "purpose": "Local component specs directory and manifest rules."
-    },
-    {
-      "file": "CONFIG_SPEC.md",
-      "path": "../../sdkwork-specs/CONFIG_SPEC.md",
-      "purpose": "Runtime configuration, environment, SDK bootstrap, and feature flag rules."
-    },
-    {
-      "file": "DEPLOYMENT_SPEC.md",
-      "path": "../../sdkwork-specs/DEPLOYMENT_SPEC.md",
-      "purpose": "SaaS/private/local runtime parity and deployment rules."
-    },
-    {
-      "file": "DOCUMENTATION_SPEC.md",
-      "path": "../../sdkwork-specs/DOCUMENTATION_SPEC.md",
-      "purpose": "Module README, examples, ADR, changelog, and runbook rules."
-    },
-    {
-      "file": "DOMAIN_SPEC.md",
-      "path": "../../sdkwork-specs/DOMAIN_SPEC.md",
-      "purpose": "Canonical domain ownership and naming."
-    },
-    {
-      "file": "FRONTEND_SPEC.md",
-      "path": "../../sdkwork-specs/FRONTEND_SPEC.md",
-      "purpose": "UI, service, SDK, accessibility, and frontend runtime rules."
-    },
-    {
-      "file": "GOVERNANCE_SPEC.md",
-      "path": "../../sdkwork-specs/GOVERNANCE_SPEC.md",
-      "purpose": "Standard ownership, exception, compatibility, and migration rules."
-    },
-    {
-      "file": "I18N_SPEC.md",
-      "path": "../../sdkwork-specs/I18N_SPEC.md",
-      "purpose": "User-facing language, locale, message catalog, and fallback rules."
-    },
-    {
-      "file": "MODULE_SPEC.md",
-      "path": "../../sdkwork-specs/MODULE_SPEC.md",
-      "purpose": "Reusable package contract and dependency direction."
-    },
-    {
-      "file": "OBSERVABILITY_SPEC.md",
-      "path": "../../sdkwork-specs/OBSERVABILITY_SPEC.md",
-      "purpose": "Log, metric, trace, audit, and diagnostic rules."
-    },
-    {
-      "file": "PERFORMANCE_SPEC.md",
-      "path": "../../sdkwork-specs/PERFORMANCE_SPEC.md",
-      "purpose": "Latency, pagination, bundle, scalability, and retry budget rules."
-    },
-    {
-      "file": "README.md",
-      "path": "../../sdkwork-specs/README.md",
-      "purpose": "SDKWork root standards entrypoint."
-    },
-    {
-      "file": "SDK_SPEC.md",
-      "path": "../../sdkwork-specs/SDK_SPEC.md",
-      "purpose": "SDK generation and SDK integration rules."
-    },
-    {
-      "file": "TEST_SPEC.md",
-      "path": "../../sdkwork-specs/TEST_SPEC.md",
-      "purpose": "Contract, frontend, SDK, security, parity, and documentation verification rules."
-    },
-    {
-      "file": "CODE_STYLE_SPEC.md",
-      "path": "../../sdkwork-specs/CODE_STYLE_SPEC.md",
-      "purpose": "Authored source structure and generated code boundaries."
-    },
-    {
-      "file": "NAMING_SPEC.md",
-      "path": "../../sdkwork-specs/NAMING_SPEC.md",
-      "purpose": "Canonical SDKWork naming rules."
-    },
-    {
-      "file": "TYPESCRIPT_CODE_SPEC.md",
-      "path": "../../sdkwork-specs/TYPESCRIPT_CODE_SPEC.md",
-      "purpose": "TypeScript and Node package rules."
-    },
-    {
-      "file": "FRONTEND_CODE_SPEC.md",
-      "path": "../../sdkwork-specs/FRONTEND_CODE_SPEC.md",
-      "purpose": "Frontend authored source structure."
-    },
-    {
-      "file": "UI_ARCHITECTURE_SPEC.md",
-      "path": "../../sdkwork-specs/UI_ARCHITECTURE_SPEC.md",
-      "purpose": "UI architecture selection rules."
-    },
-    {
-      "file": "APP_PC_REACT_UI_SPEC.md",
-      "path": "../../sdkwork-specs/APP_PC_REACT_UI_SPEC.md",
-      "purpose": "PC React package rules."
-    },
-    {
-      "file": "DESKTOP_APP_ARCHITECTURE_SPEC.md",
-      "path": "../../sdkwork-specs/DESKTOP_APP_ARCHITECTURE_SPEC.md",
-      "purpose": "Desktop/tablet native app shell, Tauri host boundary."
+      "purpose": "Cross-surface application alignment."
     },
     {
       "file": "APP_SDK_INTEGRATION_SPEC.md",
       "path": "../../sdkwork-specs/APP_SDK_INTEGRATION_SPEC.md",
-      "purpose": "Cross-architecture app SDK integration, dependency composition, TokenManager wiring."
+      "purpose": "Generated SDK injection and token management."
     },
     {
-      "file": "IAM_LOGIN_INTEGRATION_SPEC.md",
-      "path": "../../sdkwork-specs/IAM_LOGIN_INTEGRATION_SPEC.md",
-      "purpose": "Fast IAM login/session integration, appbase auth UI/runtime, route guards."
-    },
-    {
-      "file": "SECURITY_SPEC.md",
-      "path": "../../sdkwork-specs/SECURITY_SPEC.md",
-      "purpose": "Token model, tenant-bound signing, authn/authz, secrets, rate limits, CORS."
-    },
-    {
-      "file": "WEB_FRAMEWORK_SPEC.md",
-      "path": "../../sdkwork-specs/WEB_FRAMEWORK_SPEC.md",
-      "purpose": "Mandatory sdkwork-web-framework integration for HTTP *-api surfaces."
-    },
-    {
-      "file": "WEB_BACKEND_SPEC.md",
-      "path": "../../sdkwork-specs/WEB_BACKEND_SPEC.md",
-      "purpose": "HTTP backend handler/service/repository layering after the web framework boundary."
+      "file": "COMPONENT_SPEC.md",
+      "path": "../../sdkwork-specs/COMPONENT_SPEC.md",
+      "purpose": "Component contract shape."
     },
     {
       "file": "DATABASE_SPEC.md",
       "path": "../../sdkwork-specs/DATABASE_SPEC.md",
-      "purpose": "Portable data contracts, sdkwork-database pool management, and repository standards."
+      "purpose": "Database ownership and repository rules."
+    },
+    {
+      "file": "API_SPEC.md",
+      "path": "../../sdkwork-specs/API_SPEC.md",
+      "purpose": "API surface and input/output contracts."
+    },
+    {
+      "file": "SDK_SPEC.md",
+      "path": "../../sdkwork-specs/SDK_SPEC.md",
+      "purpose": "SDK family ownership and generation rules."
+    },
+    {
+      "file": "DOCUMENTATION_SPEC.md",
+      "path": "../../sdkwork-specs/DOCUMENTATION_SPEC.md",
+      "purpose": "Documentation canon and lifecycle."
+    },
+    {
+      "file": "DOMAIN_SPEC.md",
+      "path": "../../sdkwork-specs/DOMAIN_SPEC.md",
+      "purpose": "Bounded-context ownership."
+    },
+    {
+      "file": "SECURITY_SPEC.md",
+      "path": "../../sdkwork-specs/SECURITY_SPEC.md",
+      "purpose": "Authentication, authorization, and tenant isolation."
+    },
+    {
+      "file": "CODE_STYLE_SPEC.md",
+      "path": "../../sdkwork-specs/CODE_STYLE_SPEC.md",
+      "purpose": "Authored source standards."
+    },
+    {
+      "file": "NAMING_SPEC.md",
+      "path": "../../sdkwork-specs/NAMING_SPEC.md",
+      "purpose": "Canonical naming."
+    },
+    {
+      "file": "TYPESCRIPT_CODE_SPEC.md",
+      "path": "../../sdkwork-specs/TYPESCRIPT_CODE_SPEC.md",
+      "purpose": "TypeScript source standards."
+    },
+    {
+      "file": "RUST_CODE_SPEC.md",
+      "path": "../../sdkwork-specs/RUST_CODE_SPEC.md",
+      "purpose": "Rust source standards."
+    },
+    {
+      "file": "FRONTEND_SPEC.md",
+      "path": "../../sdkwork-specs/FRONTEND_SPEC.md",
+      "purpose": "Frontend service and UI boundaries."
+    },
+    {
+      "file": "FRONTEND_CODE_SPEC.md",
+      "path": "../../sdkwork-specs/FRONTEND_CODE_SPEC.md",
+      "purpose": "Frontend source standards."
+    },
+    {
+      "file": "UI_ARCHITECTURE_SPEC.md",
+      "path": "../../sdkwork-specs/UI_ARCHITECTURE_SPEC.md",
+      "purpose": "UI architecture selection."
+    },
+    {
+      "file": "APP_PC_REACT_UI_SPEC.md",
+      "path": "../../sdkwork-specs/APP_PC_REACT_UI_SPEC.md",
+      "purpose": "PC React UI architecture."
     }
   ],
   "contracts": {
+    "layerRole": "runtime-composition",
     "publicExports": [],
+    "providedPorts": [],
+    "requiredPorts": [],
     "runtimeEntrypoints": [
-      "sdkwork.app.config.json",
       "package.json#scripts.dev",
       "package.json#scripts.build",
       "package.json#scripts.typecheck"
     ],
+    "routeManifest": null,
     "sdkClients": [],
     "sdkDependencies": [
       {
-        "workspace": "sdkwork-birdcoder-app-sdk-typescript",
+        "workspace": "sdkwork-birdcoder-app-sdk",
         "surface": "app-api",
         "credentialMode": "authenticated-app-api",
         "required": true
       },
       {
-        "workspace": "sdkwork-iam-app-sdk-typescript",
+        "workspace": "sdkwork-iam-app-sdk",
         "surface": "app-api",
         "credentialMode": "authenticated-app-api",
         "required": true
       },
       {
-        "workspace": "sdkwork-drive-app-sdk-typescript",
+        "workspace": "sdkwork-drive-app-sdk",
         "surface": "app-api",
         "credentialMode": "authenticated-app-api",
         "required": true
       },
       {
-        "workspace": "sdkwork-messaging-app-sdk-typescript",
+        "workspace": "sdkwork-agents-app-sdk",
         "surface": "app-api",
         "credentialMode": "authenticated-app-api",
         "required": true
       },
       {
-        "workspace": "sdkwork-membership-app-sdk-typescript",
+        "workspace": "sdkwork-skills-app-sdk",
         "surface": "app-api",
         "credentialMode": "authenticated-app-api",
         "required": true
       },
       {
-        "workspace": "sdkwork-skills-app-sdk-typescript",
+        "workspace": "sdkwork-prompts-app-sdk",
         "surface": "app-api",
         "credentialMode": "authenticated-app-api",
         "required": true
+      },
+      {
+        "workspace": "sdkwork-documents-app-sdk",
+        "surface": "app-api",
+        "credentialMode": "authenticated-app-api",
+        "required": true
+      },
+      {
+        "workspace": "sdkwork-messaging-app-sdk",
+        "surface": "app-api",
+        "credentialMode": "authenticated-app-api",
+        "required": false
+      },
+      {
+        "workspace": "sdkwork-membership-app-sdk",
+        "surface": "app-api",
+        "credentialMode": "authenticated-app-api",
+        "required": false
       }
     ],
+    "permissionComposition": {
+      "inheritanceMode": "module-catalog-with-overrides",
+      "applicationModule": {
+        "manifestRef": "specs/iam.module.manifest.json"
+      },
+      "moduleCatalogRefs": [
+        {
+          "moduleId": "birdcoder",
+          "manifestRef": "specs/iam.module.manifest.json",
+          "inheritPermissions": true,
+          "inheritRoles": true
+        },
+        {
+          "moduleId": "agents",
+          "manifestRef": "../sdkwork-agents/specs/iam.module.manifest.json",
+          "inheritPermissions": true,
+          "inheritRoles": true
+        },
+        {
+          "moduleId": "skills",
+          "manifestRef": "../sdkwork-skills/specs/iam.module.manifest.json",
+          "inheritPermissions": true,
+          "inheritRoles": true
+        }
+      ],
+      "bootstrapAccessTokenScope": {
+        "inheritFrom": "sdkwork.app.config.json#backend.accessTokenPermissionScope",
+        "supplement": [],
+        "overrideReplace": false
+      }
+    },
     "dependencyApiExports": [],
     "dependencyApiSurfaces": [],
     "events": [],
     "configKeys": [
       "sdkwork.app.config.json"
-    ],
-    "routeManifest": null
+    ]
+  },
+  "ownership": {
+    "boundedContext": "intelligence/coding-workbench",
+    "domainContract": "specs/domain-ownership.spec.json",
+    "databaseTableCount": 10,
+    "appApiOperationCount": 39,
+    "backendApiOperationCount": 0,
+    "openApiOperationCount": 0,
+    "iamPermissionCount": 33
   },
   "integration": {
-    "authority": "Root SDKWork specs remain authoritative. Local specs may extend but must not contradict them.",
-    "dependencyPolicy": "Consumers integrate through public package exports, declared runtime entrypoints, generated SDK clients, or documented adapters only.",
-    "sdkPolicy": "Generated SDK clients are injected through service/runtime boundaries; reusable UI must not create raw HTTP clients or manual auth headers.",
-    "languagePolicy": "Language-specific packages follow their native manifest and build tools while preserving the same component contract.",
-    "siblingRepositories": [
-      {
-        "id": "sdkwork-kernel",
-        "path": "../sdkwork-kernel",
-        "role": "agent-code-kernel-spi",
-        "consumerRule": "BirdCoder MUST NOT depend directly; consume via sdkwork-agents-runtime-facade only."
-      },
-      {
-        "id": "sdkwork-agents",
-        "path": "../sdkwork-agents",
-        "role": "managed-agents-business-layer",
-        "consumerRule": "All agent operations via runtime-facade (Rust) and @sdkwork/agents-app-sdk (TypeScript target)."
-      }
-    ],
-    "alignmentSpecs": [
-      "specs/kernel-birdcoder-alignment.spec.json",
-      "specs/agents-birdcoder-alignment.spec.json"
-    ]
+    "authority": "Root SDKWork specs and specs/domain-ownership.spec.json are authoritative.",
+    "dependencyPolicy": "Dependency capabilities are consumed through generated SDK families and injected service ports only.",
+    "sdkPolicy": "Bootstrap constructs SDK clients with the global TokenManager; feature UI never constructs transport clients.",
+    "kernelPolicy": "BirdCoder has no direct Kernel dependency and reaches execution only through sdkwork-agents.",
+    "messagePolicy": "Agents Session Items are AI-assistant facts; sdkwork-im Conversation and Message are human communication facts; sdkwork-messaging remains external delivery infrastructure."
   },
   "verification": {
     "commands": [
-      "pnpm typecheck",
-      "pnpm check:sdkwork-birdcoder-structure",
-      "pnpm check:kernel-birdcoder-alignment",
+      "pnpm check:domain-ownership",
       "pnpm check:agents-birdcoder-alignment",
-      "pnpm check:web-framework-standard",
-      "pnpm check:database-framework-standard",
-      "pnpm check:utils-standard",
-      "pnpm check:drive-standard",
-      "pnpm check:dependency-management",
-      "pnpm check:api-response-envelope",
-      "pnpm check:app-composition"
+      "pnpm check:kernel-birdcoder-alignment",
+      "pnpm check:api-transport-standard",
+      "pnpm typecheck"
     ]
   },
   "metadata": {
-    "managedBy": "apps/scripts/initialize-component-specs.mjs",
-    "standardVersion": "2026-07-06",
-    "threeLayerArchitectureDoc": "docs/architecture/tech/TECH_ARCHITECTURE.md"
+    "managedBy": "sdkwork-birdcoder",
+    "standardVersion": "2026-07-22",
+    "architectureDoc": "docs/architecture/tech/TECH_ARCHITECTURE.md"
   }
 }

@@ -68,14 +68,14 @@ assert.match(
 
 assert.match(
   serviceSource,
-  /function indexCodingSessionPositionsById\(\s*sessions: readonly BirdCoderCodingSession\[\],\s*\): Map<string, number> \{/s,
+  /function indexAgentSessionPositionsById\(\s*sessions: readonly AgentSessionView\[\],\s*\): Map<string, number> \{/s,
   'Provider-backed project service must centralize project session position index construction.',
 );
 
 const setCacheBody = extractBody('setProjectSessionsCache');
 assert.match(
   setCacheBody,
-  /this\.sessionPositionsByProjectId\.set\(\s*projectId,\s*options\.sessionPositionsById \?\? indexCodingSessionPositionsById\(cachedSessions\),\s*\);/s,
+  /this\.sessionPositionsByProjectId\.set\(\s*projectId,\s*options\.sessionPositionsById \?\? indexAgentSessionPositionsById\(cachedSessions\),\s*\);/s,
   'Project session cache writes must update the sorted position index while allowing hot replacements to reuse an unchanged position map.',
 );
 
@@ -86,7 +86,7 @@ assert.match(
   'Project session cache deletes must clear the sorted position index.',
 );
 
-const upsertBody = extractBody('upsertCodingSessionByActivity');
+const upsertBody = extractBody('upsertAgentSessionByActivity');
 assert.match(
   upsertBody,
   /existingIndex\?: number/,
@@ -99,7 +99,7 @@ assert.doesNotMatch(
 );
 assert.match(
   upsertBody,
-  /canReplaceCodingSessionAtActivityIndex\(sessions,\s*nextSession,\s*existingIndex\)/,
+  /canReplaceAgentSessionAtActivityIndex\(sessions,\s*nextSession,\s*existingIndex\)/,
   'Sorted session upsert must detect when a hot update can replace the existing row without splice movement.',
 );
 assert.match(
@@ -108,7 +108,7 @@ assert.match(
   'Sorted session upsert must use a single shallow array copy plus indexed replacement when ordering is unchanged.',
 );
 
-const canReplaceBody = extractBody('canReplaceCodingSessionAtActivityIndex');
+const canReplaceBody = extractBody('canReplaceAgentSessionAtActivityIndex');
 assert.match(
   canReplaceBody,
   /previousSession[\s\S]*nextNeighborSession/s,
@@ -120,25 +120,25 @@ assert.doesNotMatch(
   'Activity-position replacement checks must not scan, filter, or sort the whole session list.',
 );
 
-const replaceCachedBody = extractBody('replaceCachedCodingSession');
+const replaceCachedBody = extractBody('replaceCachedAgentSession');
 assert.match(
   replaceCachedBody,
-  /const existingIndex = this\.sessionPositionsByProjectId\.get\(projectId\)\?\.get\(nextCodingSession\.id\);/,
-  'replaceCachedCodingSession must read the cached sorted position before updating the session array.',
+  /const existingIndex = this\.sessionPositionsByProjectId\.get\(projectId\)\?\.get\(nextAgentSession\.id\);/,
+  'replaceCachedAgentSession must read the cached sorted position before updating the session array.',
 );
 assert.match(
   replaceCachedBody,
-  /const canReplaceAtExistingIndex = canReplaceCodingSessionAtActivityIndex\(/,
-  'replaceCachedCodingSession must detect in-place hot replacements before rebuilding cache indexes.',
+  /const canReplaceAtExistingIndex = canReplaceAgentSessionAtActivityIndex\(/,
+  'replaceCachedAgentSession must detect in-place hot replacements before rebuilding cache indexes.',
 );
 assert.match(
   replaceCachedBody,
-  /upsertCodingSessionByActivity\(currentSessions,\s*nextCodingSession,\s*existingIndex\)/,
-  'replaceCachedCodingSession must pass the cached sorted position into the minimal-move upsert.',
+  /upsertAgentSessionByActivity\(currentSessions,\s*nextAgentSession,\s*existingIndex\)/,
+  'replaceCachedAgentSession must pass the cached sorted position into the minimal-move upsert.',
 );
 assert.match(
   replaceCachedBody,
-  /currentSessionIndex\.set\(nextCodingSession\.id,\s*nextCodingSession\);[\s\S]*sessionIndexById: currentSessionIndex,[\s\S]*sessionPositionsById: currentPositionIndex,/s,
+  /currentSessionIndex\.set\(nextAgentSession\.id,\s*nextAgentSession\);[\s\S]*sessionIndexById: currentSessionIndex,[\s\S]*sessionPositionsById: currentPositionIndex,/s,
   'In-place hot replacements must update the existing lookup index entry and reuse the unchanged position map instead of rebuilding both maps.',
 );
 

@@ -1,5 +1,4 @@
 import {
-  bindBirdCoderH5AppSessionPersistence,
   bindBirdCoderSecureStorageAdapter,
   createBrowserSecureStorageAdapter,
   createDefaultHostAdapters,
@@ -31,7 +30,6 @@ export function registerCapacitorBirdCoderHostAdapters(): SecureStorageHostAdapt
 export function registerBirdCoderHostAdapters(): HostAdapters {
   const secureStorage = registerCapacitorBirdCoderHostAdapters();
   const deepLinks = registerCapacitorBirdCoderDeepLinkAdapter();
-  bindBirdCoderH5AppSessionPersistence();
   return createHostAdapters(secureStorage, deepLinks);
 }
 
@@ -39,7 +37,6 @@ export function registerBrowserBirdCoderHostAdapters(): HostAdapters {
   const secureStorage = createBrowserSecureStorageAdapter();
   bindBirdCoderSecureStorageAdapter(secureStorage);
   const deepLinks = registerCapacitorBirdCoderDeepLinkAdapter();
-  bindBirdCoderH5AppSessionPersistence();
   return createHostAdapters(secureStorage, deepLinks);
 }
 
@@ -53,7 +50,6 @@ export function createBirdCoderHostAdapters(options: {
   const secureStorage = createCapacitorSecureStorageAdapter();
   bindBirdCoderSecureStorageAdapter(secureStorage);
   const deepLinks = registerCapacitorBirdCoderDeepLinkAdapter();
-  bindBirdCoderH5AppSessionPersistence();
   return createHostAdapters(secureStorage, deepLinks);
 }
 

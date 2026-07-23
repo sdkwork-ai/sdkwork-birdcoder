@@ -80,8 +80,8 @@ class _BirdCoderQrLoginPageState extends State<BirdCoderQrLoginPage> {
 
     final provider = AppProvider.of(context);
     try {
-      final authorization = await birdCoderIamAuthService.createQrLoginAuthorization(
-        apiBaseUrl: provider.apiBaseUrl,
+      final authorization =
+          await provider.iamAuthService.createQrLoginAuthorization(
         purpose: 'login',
       );
       if (!mounted) {
@@ -128,7 +128,8 @@ class _BirdCoderQrLoginPageState extends State<BirdCoderQrLoginPage> {
     final pollSecret = _pollSecret?.trim() ?? '';
     if (pollSecret.isEmpty) {
       setState(() {
-        _errorMessage = 'QR sign-in is missing the poll secret required for session exchange.';
+        _errorMessage =
+            'QR sign-in is missing the poll secret required for session exchange.';
       });
       return;
     }
@@ -140,8 +141,7 @@ class _BirdCoderQrLoginPageState extends State<BirdCoderQrLoginPage> {
     });
 
     try {
-      await birdCoderIamAuthService.exchangeQrLoginSession(
-        apiBaseUrl: provider.apiBaseUrl,
+      await provider.iamAuthService.exchangeQrLoginSession(
         iamRuntime: provider.iamRuntime,
         deviceAuthorizationId: deviceAuthorizationId,
         pollSecret: pollSecret,
@@ -172,8 +172,8 @@ class _BirdCoderQrLoginPageState extends State<BirdCoderQrLoginPage> {
 
     final provider = AppProvider.of(context);
     try {
-      final authorization = await birdCoderIamAuthService.retrieveQrLoginAuthorization(
-        apiBaseUrl: provider.apiBaseUrl,
+      final authorization =
+          await provider.iamAuthService.retrieveQrLoginAuthorization(
         deviceAuthorizationId: deviceAuthorizationId,
       );
       if (!mounted) {
@@ -195,7 +195,8 @@ class _BirdCoderQrLoginPageState extends State<BirdCoderQrLoginPage> {
       if (status == 'cancelled' || status == 'expired' || status == 'failed') {
         _pollTimer?.cancel();
         setState(() {
-          _errorMessage = 'QR sign-in expired or was cancelled. Generate a new code.';
+          _errorMessage =
+              'QR sign-in expired or was cancelled. Generate a new code.';
         });
       }
     } catch (_) {
@@ -284,7 +285,8 @@ class _BirdCoderQrLoginPageState extends State<BirdCoderQrLoginPage> {
             textAlign: TextAlign.center,
           ),
         ],
-        if ((qrContent == null || qrContent.isEmpty) && (qrUrl == null || qrUrl.isEmpty))
+        if ((qrContent == null || qrContent.isEmpty) &&
+            (qrUrl == null || qrUrl.isEmpty))
           const Text(
             'QR payload was not returned by the authorization service.',
             textAlign: TextAlign.center,

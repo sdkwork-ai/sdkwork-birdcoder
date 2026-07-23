@@ -20,7 +20,7 @@ interface UseCodePageClipboardActionsOptions {
   resolveLocalWorkingDirectory: (projectId: string) => Promise<string | null>;
   resolveProjectById: (projectId: string) => CodePageClipboardProjectLike | null;
   resolveSession: (
-    codingSessionId: string,
+    agentSessionId: string,
     projectId?: string | null,
   ) => CodePageClipboardSessionLocation | null;
   t: (key: string, values?: Record<string, string>) => string;
@@ -73,11 +73,11 @@ export function useCodePageClipboardActions({
   }, [addToast, resolveLocalWorkingDirectory, resolveProjectActionTarget, resolveProjectById]);
 
   const handleCopySessionWorkingDirectory = useCallback(async (
-    codingSessionId: string,
+    agentSessionId: string,
     projectId: string,
   ) => {
     const target = resolveProjectActionTarget(
-      resolveSession(codingSessionId, projectId)?.project,
+      resolveSession(agentSessionId, projectId)?.project,
     );
     if (!target) {
       return;
@@ -97,16 +97,16 @@ export function useCodePageClipboardActions({
   }, [addToast, resolveLocalWorkingDirectory, resolveProjectActionTarget, resolveSession]);
 
   const handleCopySessionDeeplink = useCallback(async (
-    codingSessionId: string,
+    agentSessionId: string,
     projectId: string,
   ) => {
-    const sessionLocation = resolveSession(codingSessionId, projectId);
+    const sessionLocation = resolveSession(agentSessionId, projectId);
     const linkUrl = new URL(window.location.href);
     linkUrl.searchParams.delete('sessionId');
     linkUrl.searchParams.delete('workspaceId');
     linkUrl.searchParams.set('tab', 'code');
     linkUrl.searchParams.set('projectId', projectId);
-    linkUrl.searchParams.set('codingSessionId', codingSessionId);
+    linkUrl.searchParams.set('agentSessionId', agentSessionId);
     const workspaceId = sessionLocation?.project?.workspaceId?.trim();
     if (workspaceId) {
       linkUrl.searchParams.set('workspaceId', workspaceId);

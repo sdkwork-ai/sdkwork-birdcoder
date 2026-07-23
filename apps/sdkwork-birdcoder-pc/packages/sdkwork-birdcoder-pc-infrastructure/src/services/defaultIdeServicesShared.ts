@@ -1,81 +1,47 @@
+import type { AgentsAppSdkClient } from '@sdkwork/birdcoder-pc-core/sdk';
+import type { SdkworkDocumentsAppClient } from '@sdkwork/birdcoder-pc-core/sdk/documents-app';
+import type { SdkworkPromptsAppClient } from '@sdkwork/birdcoder-pc-core/sdk/prompts-app';
+import type { SdkworkSkillsAppClient } from '@sdkwork/birdcoder-pc-core/sdk/skills-app';
+
+import { TauriDesktopRuntimeLocationIdentityPort } from '../platform/tauriDesktopRuntimeLocationIdentity.ts';
+import { createBirdCoderAgentsAppSdkClient } from './agentsSdkClients.ts';
 import {
-  createBirdCoderStorageProvider,
-  type BirdCoderTransactionalStorageProvider,
-} from '../storage/dataKernel.ts';
-import { createBirdCoderConsoleRepositories } from '../storage/appConsoleRepository.ts';
-import { createBirdCoderCodingSessionRepositories } from '../storage/codingSessionRepository.ts';
-import { createBirdCoderPromptSkillTemplateEvidenceRepositories } from '../storage/promptSkillTemplateEvidenceRepository.ts';
-import { createBirdCoderSavedPromptEntryRepository } from '../storage/savedPromptEntryRepository.ts';
-import { createBirdCoderConsoleQueries } from './consoleQueries.ts';
-import { createBirdCoderInProcessAppSdkTransport } from './appSdkTransport.ts';
-import { createBirdCoderInProcessBackendSdkTransport } from './backendSdkTransport.ts';
+  createBirdCoderAppClient,
+  type BirdCoderAppSdkApiClient,
+} from './birdCoderSdkClient.ts';
 import { getDefaultBirdCoderIdeServicesRuntimeConfig } from './defaultIdeServicesRuntime.ts';
-import { ProviderBackedProjectService } from './impl/ProviderBackedProjectService.ts';
-import { ProviderBackedPromptService } from './impl/ProviderBackedPromptService.ts';
-import { ProviderBackedWorkspaceService } from './impl/ProviderBackedWorkspaceService.ts';
+import { createBirdCoderDriveSandboxExplorerPort } from './driveSandboxExplorerRuntime.ts';
+import { ComposedSdkProjectRuntimeLocationRegistrationPort } from './impl/ComposedSdkProjectRuntimeLocationRegistrationPort.ts';
+import { DriveSandboxProjectFileSystemService } from './impl/DriveSandboxProjectFileSystemService.ts';
 import { createBirdCoderRuntimeAuthService } from './impl/RuntimeAuthService.ts';
 import { RuntimeFileSystemService } from './impl/RuntimeFileSystemService.ts';
-import { DriveSandboxProjectFileSystemService } from './impl/DriveSandboxProjectFileSystemService.ts';
 import { RuntimeProjectRuntimeLocationService } from './impl/RuntimeProjectRuntimeLocationService.ts';
-import { ComposedSdkProjectRuntimeLocationRegistrationPort } from './impl/ComposedSdkProjectRuntimeLocationRegistrationPort.ts';
-import { createBirdCoderDriveSandboxExplorerPort } from './driveSandboxExplorerRuntime.ts';
-import { ProjectDeviceMountRegistry } from './ProjectDeviceMountRegistry.ts';
-import { createProjectDeviceMountSubjectProvider } from './projectDeviceMountSubject.ts';
-import { TauriDesktopRuntimeLocationIdentityPort } from '../platform/tauriDesktopRuntimeLocationIdentity.ts';
 import type { IAuthService } from './interfaces/IAuthService.ts';
-import type {
-  IAdminDeploymentService,
-  IAdminPolicyService,
-  IAuditService,
-} from '@sdkwork/birdcoder-pc-admin-core';
+import type { IAgentSessionService } from './interfaces/IAgentSessionService.ts';
 import type { ICatalogService } from './interfaces/ICatalogService.ts';
-import type { ICollaborationService } from './interfaces/ICollaborationService.ts';
-import type { IAppRuntimeReadService } from './interfaces/IAppRuntimeReadService.ts';
-import type { IAppRuntimeWriteService } from './interfaces/IAppRuntimeWriteService.ts';
-import type { IDeploymentService } from './interfaces/IDeploymentService.ts';
 import type { IDocumentService } from './interfaces/IDocumentService.ts';
 import type { IFileSystemService } from './interfaces/IFileSystemService.ts';
 import type { IGitService } from './interfaces/IGitService.ts';
-import type { IPromptService } from './interfaces/IPromptService.ts';
-import type { IProjectService } from './interfaces/IProjectService.ts';
 import type { IProjectRuntimeLocationService } from './interfaces/IProjectRuntimeLocationService.ts';
-import type { IReleaseService } from './interfaces/IReleaseService.ts';
-import type { ITeamService } from './interfaces/ITeamService.ts';
+import type { IProjectService } from './interfaces/IProjectService.ts';
+import type { IPromptService } from './interfaces/IPromptService.ts';
 import type { IVipMembershipService } from './interfaces/IVipMembershipService.ts';
 import type { IWorkspaceService } from './interfaces/IWorkspaceService.ts';
-import type { SdkworkSkillsAppClient } from '@sdkwork/skills-app-sdk';
-import { resolveRuntimeServerSessionHeaders } from './runtimeServerSession.ts';
-import {
-  createBirdCoderAppSdkApiClient,
-  createBirdCoderBackendSdkApiClient,
-  type BirdCoderAppRuntimeReadSdkApiClient,
-  type BirdCoderAppRuntimeSdkApiClient,
-  type BirdCoderAppRuntimeWriteSdkApiClient,
-  type BirdCoderAppSdkApiClient,
-  type BirdCoderBackendSdkApiClient,
-} from './sdkClients.ts';
-import { createBirdCoderHttpApiTransport } from './sdkTransportShared.ts';
-import { createBirdCoderSkillsAppSdkClient } from './skillsSdkClient.ts';
+import { ProjectDeviceMountRegistry } from './ProjectDeviceMountRegistry.ts';
+import { createProjectDeviceMountSubjectProvider } from './projectDeviceMountSubject.ts';
 import { resolveBirdCoderRuntimeTopology } from './runtimeTopology.ts';
+import { createBirdCoderSkillsAppSdkClient } from './skillsSdkClient.ts';
 
 export interface BirdCoderDefaultIdeServices {
-  adminDeploymentService: IAdminDeploymentService;
-  adminPolicyService: IAdminPolicyService;
+  agentSessionService: IAgentSessionService;
   authService: IAuthService;
-  auditService: IAuditService;
   catalogService: ICatalogService;
-  collaborationService: ICollaborationService;
-  appRuntimeReadService: IAppRuntimeReadService;
-  appRuntimeWriteService: IAppRuntimeWriteService;
-  deploymentService: IDeploymentService;
   documentService: IDocumentService;
   fileSystemService: IFileSystemService;
-  projectRuntimeLocationService: IProjectRuntimeLocationService;
   gitService: IGitService;
   promptService: IPromptService;
+  projectRuntimeLocationService: IProjectRuntimeLocationService;
   projectService: IProjectService;
-  releaseService: IReleaseService;
-  teamService: ITeamService;
   vipMembershipService: IVipMembershipService;
   workspaceService: IWorkspaceService;
 }
@@ -83,287 +49,92 @@ export interface BirdCoderDefaultIdeServices {
 export type BirdCoderDefaultIdeServiceKey = keyof BirdCoderDefaultIdeServices;
 
 export interface CreateBirdCoderDefaultIdeServicesOptions {
+  agentsClient?: AgentsAppSdkClient;
   appClient?: BirdCoderAppSdkApiClient;
-  appRuntimeClient?:
-    | BirdCoderAppRuntimeReadSdkApiClient
-    | BirdCoderAppRuntimeSdkApiClient
-    | BirdCoderAppRuntimeWriteSdkApiClient;
-  backendClient?: BirdCoderBackendSdkApiClient;
+  documentsClient?: SdkworkDocumentsAppClient;
+  promptsClient?: SdkworkPromptsAppClient;
   skillsClient?: SdkworkSkillsAppClient;
-  storageProvider?: BirdCoderTransactionalStorageProvider;
 }
 
 export interface BirdCoderDefaultIdeSharedRuntime {
+  agentsClient: AgentsAppSdkClient;
   appClient: BirdCoderAppSdkApiClient;
-  appRuntimeClient: BirdCoderAppRuntimeSdkApiClient;
   authService: IAuthService;
-  backendClient: BirdCoderBackendSdkApiClient;
-  hasBoundAppClient: boolean;
-  hasBoundBackendClient: boolean;
-  hasExplicitBackendClient: boolean;
+  documentsClient: SdkworkDocumentsAppClient;
   fileSystemService: IFileSystemService;
+  promptsClient: SdkworkPromptsAppClient;
   projectRuntimeLocationService: IProjectRuntimeLocationService;
-  promptService: ProviderBackedPromptService;
-  projectDeviceMountRegistry: ProjectDeviceMountRegistry;
-  providerBackedProjectService: ProviderBackedProjectService;
-  providerBackedWorkspaceService: ProviderBackedWorkspaceService;
   skillsClient: SdkworkSkillsAppClient;
 }
 
-const DEFAULT_RUNTIME_HTTP_API_TIMEOUT_MS = 20_000;
-
-function isBrowserRuntime(): boolean {
-  return typeof window !== 'undefined' && typeof document !== 'undefined';
-}
-
-function hasConfiguredRemoteAppAccess(
-  runtimeConfig: ReturnType<typeof getDefaultBirdCoderIdeServicesRuntimeConfig>,
-  options: CreateBirdCoderDefaultIdeServicesOptions,
-): boolean {
-  return Boolean(
-    options.appClient ||
-      options.appRuntimeClient ||
-      runtimeConfig.appClient ||
-      runtimeConfig.apiBaseUrl,
-  );
-}
-
-function hasConfiguredRemoteBackendAccess(
-  runtimeConfig: ReturnType<typeof getDefaultBirdCoderIdeServicesRuntimeConfig>,
-  options: CreateBirdCoderDefaultIdeServicesOptions,
-): boolean {
-  return Boolean(
-    options.backendClient ||
-      runtimeConfig.backendClient ||
-      runtimeConfig.apiBaseUrl,
-  );
-}
-
-function assertRuntimeAuthorityConfigured(
-  runtimeConfig: ReturnType<typeof getDefaultBirdCoderIdeServicesRuntimeConfig>,
-  options: CreateBirdCoderDefaultIdeServicesOptions,
-): void {
-  const requiresRemoteAuthority =
-    isBrowserRuntime() || runtimeConfig.executionAuthorityMode === 'remote-required';
-  if (!requiresRemoteAuthority) {
-    return;
-  }
-
-  const missingBoundaries: string[] = [];
-  if (!hasConfiguredRemoteAppAccess(runtimeConfig, options)) {
-    missingBoundaries.push('app SDK');
-  }
-  if (
-    !isBrowserRuntime()
-    && !hasConfiguredRemoteBackendAccess(runtimeConfig, options)
-  ) {
-    missingBoundaries.push('backend SDK');
-  }
-  if (missingBoundaries.length === 0) {
-    return;
-  }
-
-  const runtimeLabel = isBrowserRuntime() ? 'BirdCoder browser runtime' : 'BirdCoder runtime';
-  throw new Error(
-    `${runtimeLabel} requires authoritative remote API composition. Missing ${missingBoundaries.join(' and ')} bindings. Configure apiBaseUrl or explicit generated API clients before bootstrapping IDE services.`,
-  );
-}
-
-function resolveRuntimeAppClient(): BirdCoderAppSdkApiClient | undefined {
-  const runtimeConfig = getDefaultBirdCoderIdeServicesRuntimeConfig();
-  if (runtimeConfig.appClient) {
-    return runtimeConfig.appClient;
-  }
-
-  if (runtimeConfig.apiBaseUrl) {
-    return createBirdCoderAppSdkApiClient({
-      transport: createBirdCoderHttpApiTransport({
-        baseUrl: runtimeConfig.apiBaseUrl,
-        resolveHeaders: resolveRuntimeServerSessionHeaders,
-        timeoutMs: DEFAULT_RUNTIME_HTTP_API_TIMEOUT_MS,
-      }),
-    });
-  }
-
-  return undefined;
-}
-
-function resolveRuntimeBackendClient(): BirdCoderBackendSdkApiClient | undefined {
-  const runtimeConfig = getDefaultBirdCoderIdeServicesRuntimeConfig();
-  if (runtimeConfig.backendClient) {
-    return runtimeConfig.backendClient;
-  }
-
-  if (runtimeConfig.apiBaseUrl) {
-    return createBirdCoderBackendSdkApiClient({
-      transport: createBirdCoderHttpApiTransport({
-        baseUrl: runtimeConfig.apiBaseUrl,
-        resolveHeaders: resolveRuntimeServerSessionHeaders,
-        timeoutMs: DEFAULT_RUNTIME_HTTP_API_TIMEOUT_MS,
-      }),
-    });
-  }
-
-  return undefined;
-}
-
-function createUnavailableBirdCoderAppClient(): BirdCoderAppSdkApiClient {
-  return createBirdCoderAppSdkApiClient({
-    transport: {
-      async request(request) {
-        throw new Error(
-          `BirdCoder app runtime client is unavailable. Configure a real server API base URL or explicit app SDK client before using ${request.method} ${request.path}.`,
-        );
-      },
-    },
-  });
-}
-
-function createUnavailableBirdCoderBackendClient(): BirdCoderBackendSdkApiClient {
-  return createBirdCoderBackendSdkApiClient({
-    transport: {
-      async request(request) {
-        throw new Error(
-          `BirdCoder backend runtime client is unavailable. Configure a real server API base URL or explicit backend SDK client before using ${request.method} ${request.path}.`,
-        );
-      },
-    },
-  });
-}
-
-function createInProcessBirdCoderAppClient(
-  queries: ReturnType<typeof createBirdCoderConsoleQueries>,
-  projectService: ProviderBackedProjectService,
-): BirdCoderAppSdkApiClient {
-  return createBirdCoderAppSdkApiClient({
-    transport: createBirdCoderInProcessAppSdkTransport({
-      projectService,
-      queries,
-    }),
-  });
-}
-
-function createInProcessBirdCoderBackendClient(
-  queries: ReturnType<typeof createBirdCoderConsoleQueries>,
-): BirdCoderBackendSdkApiClient {
-  return createBirdCoderBackendSdkApiClient({
-    transport: createBirdCoderInProcessBackendSdkTransport({
-      queries,
-    }),
-  });
-}
-
+/**
+ * Builds the remote-authority composition shared by all feature ports.
+ * BirdCoder never creates a second SQL repository or an in-process API fallback.
+ */
 export function createBirdCoderDefaultIdeSharedRuntime(
   options: CreateBirdCoderDefaultIdeServicesOptions = {},
 ): BirdCoderDefaultIdeSharedRuntime {
   const runtimeConfig = getDefaultBirdCoderIdeServicesRuntimeConfig();
-  assertRuntimeAuthorityConfigured(runtimeConfig, options);
-
-  const storageProvider = options.storageProvider ?? createBirdCoderStorageProvider('sqlite');
-  const repositories = createBirdCoderConsoleRepositories({
-    providerId: storageProvider.providerId,
-    storage: storageProvider,
-  });
-  const queries = createBirdCoderConsoleQueries({ repositories });
-  const codingSessionRepositories = createBirdCoderCodingSessionRepositories({
-    providerId: storageProvider.providerId,
-    storage: storageProvider,
-  });
-  const promptSkillTemplateEvidenceRepositories =
-    createBirdCoderPromptSkillTemplateEvidenceRepositories({
-      providerId: storageProvider.providerId,
-      storage: storageProvider,
-    });
-  const savedPromptRepository = createBirdCoderSavedPromptEntryRepository({
-    providerId: storageProvider.providerId,
-    storage: storageProvider,
-  });
-  const promptService = new ProviderBackedPromptService({
-    savedPromptRepository,
-    sessionPromptHistoryRepository: codingSessionRepositories.promptEntries,
-  });
-  const providerBackedWorkspaceService = new ProviderBackedWorkspaceService({
-    repository: repositories.workspaces,
-  });
-  const providerBackedProjectService = new ProviderBackedProjectService({
-    codingSessionRepositories,
-    evidenceRepositories: promptSkillTemplateEvidenceRepositories,
-    repository: repositories.projects,
-  });
-  const hasBoundAppClient = hasConfiguredRemoteAppAccess(runtimeConfig, options);
-  const hasBoundBackendClient = hasConfiguredRemoteBackendAccess(runtimeConfig, options);
-  const hasExplicitBackendClient = Boolean(
-    options.backendClient || runtimeConfig.backendClient,
-  );
   const appClient =
     options.appClient ??
-    resolveRuntimeAppClient() ??
-    (runtimeConfig.executionAuthorityMode === 'remote-required'
-      ? createUnavailableBirdCoderAppClient()
-      : createInProcessBirdCoderAppClient(queries, providerBackedProjectService));
-  const appRuntimeClient = options.appRuntimeClient
-    ? ({
-        ...appClient,
-        ...options.appRuntimeClient,
-      } as BirdCoderAppRuntimeSdkApiClient)
-    : appClient;
-  const backendClient =
-    options.backendClient ??
-    resolveRuntimeBackendClient() ??
-    (hasExplicitBackendClient
-      ? runtimeConfig.executionAuthorityMode === 'remote-required'
-        ? createUnavailableBirdCoderBackendClient()
-        : createInProcessBirdCoderBackendClient(queries)
-      : createUnavailableBirdCoderBackendClient());
+    runtimeConfig.appClient ??
+    createBirdCoderAppClient({
+      applicationApiBaseUrl: runtimeConfig.applicationApiBaseUrl,
+    });
+  const agentsClient =
+    options.agentsClient ??
+    createBirdCoderAgentsAppSdkClient({
+      platformApiGatewayBaseUrl: runtimeConfig.platformApiGatewayBaseUrl,
+    });
   const skillsClient =
     options.skillsClient ??
-    createBirdCoderSkillsAppSdkClient({ apiBaseUrl: runtimeConfig.apiBaseUrl });
+    createBirdCoderSkillsAppSdkClient({
+      platformApiGatewayBaseUrl: runtimeConfig.platformApiGatewayBaseUrl,
+    });
+  const promptsClient =
+    options.promptsClient ??
+    runtimeConfig.promptsClient;
+  const documentsClient =
+    options.documentsClient ??
+    runtimeConfig.documentsClient;
+  if (!promptsClient || !documentsClient) {
+    throw new Error(
+      'Documents and Prompts SDK clients must be injected by the PC runtime bootstrap.',
+    );
+  }
   const authService = createBirdCoderRuntimeAuthService();
   const projectDeviceMountRegistry = new ProjectDeviceMountRegistry({
     subjectProvider: createProjectDeviceMountSubjectProvider(),
   });
-  const runtimeFileSystemService = new RuntimeFileSystemService({
+  const localFileSystem = new RuntimeFileSystemService({
     mountRegistry: projectDeviceMountRegistry,
   });
   const runtimeTopology = runtimeConfig.runtimeTopology ?? resolveBirdCoderRuntimeTopology();
   const fileSystemService = runtimeTopology.executionLocation === 'local-host'
-    ? runtimeFileSystemService
+    ? localFileSystem
     : new DriveSandboxProjectFileSystemService({
-        allowLocalFallback: false,
-        bindingClient: hasBoundAppClient
-          ? appClient
-          : { getProjectWorkspaceBinding: async () => null },
+        bindingClient: appClient,
         drivePort: createBirdCoderDriveSandboxExplorerPort(),
-        localFileSystem: runtimeFileSystemService,
       });
-  const projectRuntimeLocationRegistrationPort = hasBoundAppClient
-    ? new ComposedSdkProjectRuntimeLocationRegistrationPort({
-        identityPort: new TauriDesktopRuntimeLocationIdentityPort({
-          mountRegistry: projectDeviceMountRegistry,
-        }),
-        sdkPort: appClient,
-      })
-    : undefined;
   const projectRuntimeLocationService = new RuntimeProjectRuntimeLocationService({
     executionLocation: runtimeTopology.executionLocation,
     fileSystemService,
-    registrationPort: projectRuntimeLocationRegistrationPort,
+    registrationPort: new ComposedSdkProjectRuntimeLocationRegistrationPort({
+      identityPort: new TauriDesktopRuntimeLocationIdentityPort({
+        mountRegistry: projectDeviceMountRegistry,
+      }),
+      sdkPort: appClient,
+    }),
   });
 
   return {
+    agentsClient,
     appClient,
-    appRuntimeClient,
     authService,
-    backendClient,
-    hasBoundAppClient,
-    hasBoundBackendClient,
-    hasExplicitBackendClient,
+    documentsClient,
     fileSystemService,
+    promptsClient,
     projectRuntimeLocationService,
-    promptService,
-    projectDeviceMountRegistry,
-    providerBackedProjectService,
-    providerBackedWorkspaceService,
     skillsClient,
   };
 }

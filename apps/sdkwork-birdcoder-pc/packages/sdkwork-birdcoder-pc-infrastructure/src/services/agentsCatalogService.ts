@@ -1,82 +1,61 @@
+import type {
+  CodeEngineCatalogEngine,
+  CodeEngineModelCatalogEntry,
+} from '@sdkwork/birdcoder-pc-core/sdk/agents-app';
 import type { AgentsAppSdkClient } from '@sdkwork/birdcoder-pc-core/sdk';
 import { getBirdCoderAgentsAppSdkClient } from './agentsSdkClients.ts';
 
+export interface BirdCoderCodeEngineCatalogModelEntry {
+  modelId: string;
+  label: string;
+  description: string;
+  providerId: string;
+  bindingId: string;
+  defaultForEngine: boolean;
+}
+
 export interface BirdCoderCodeEngineCatalogEntry {
   engineId: string;
+  agentId: string;
   displayName: string;
   providerId: string;
   bindingId: string;
   healthy: boolean;
+  defaultModelId: string;
+  models: readonly BirdCoderCodeEngineCatalogModelEntry[];
   tier?: string;
 }
 
-function readCatalogItems(payload: Record<string, unknown>): BirdCoderCodeEngineCatalogEntry[] {
-  const item = readResourceItem(payload);
-  if (!item) {
-    return [];
-  }
-
-  const engines = item.engines;
-  if (!Array.isArray(engines)) {
-    return [];
-  }
-
-  return engines.flatMap((entry) => {
-    if (!entry || typeof entry !== 'object') {
-      return [];
-    }
-    const row = entry as Record<string, unknown>;
-    const model = readFirstModel(row);
-    const engineId = readString(row, 'engineId', 'engine_id', 'engineKey', 'engine_key');
-    if (!engineId) {
-      return [];
-    }
-    return [{
-      engineId,
-      displayName: readString(row, 'displayName', 'display_name', 'label') || readString(model, 'label') || engineId,
-      providerId: readString(row, 'providerId', 'provider_id') || readString(model, 'providerId', 'provider_id'),
-      bindingId: readString(row, 'bindingId', 'binding_id') || readString(model, 'bindingId', 'binding_id'),
-      healthy: typeof row.healthy === 'boolean' ? row.healthy : false,
-      tier: typeof row.tier === 'string' ? row.tier : undefined,
-    }];
-  });
+function toModelEntry(model: CodeEngineModelCatalogEntry): BirdCoderCodeEngineCatalogModelEntry {
+  return {
+    modelId: model.modelId,
+    label: model.label,
+    description: model.description,
+    providerId: model.providerId,
+    bindingId: model.bindingId,
+    defaultForEngine: model.defaultForEngine,
+  };
 }
 
-function readResourceItem(payload: Record<string, unknown>): Record<string, unknown> | null {
-  if (payload.item && typeof payload.item === 'object') {
-    return payload.item as Record<string, unknown>;
-  }
-
-  const data = payload.data;
-  if (!data || typeof data !== 'object') {
-    return null;
-  }
-
-  const item = (data as Record<string, unknown>).item;
-  return item && typeof item === 'object' ? item as Record<string, unknown> : null;
-}
-
-function readFirstModel(row: Record<string, unknown>): Record<string, unknown> {
-  const models = row.models;
-  const model = Array.isArray(models) ? models[0] : undefined;
-  return model && typeof model === 'object' ? model as Record<string, unknown> : {};
-}
-
-function readString(row: Record<string, unknown>, ...keys: string[]): string {
-  for (const key of keys) {
-    const value = row[key];
-    if (typeof value === 'string' && value.trim()) {
-      return value;
-    }
-  }
-  return '';
+function toCatalogEntry(engine: CodeEngineCatalogEngine): BirdCoderCodeEngineCatalogEntry {
+  const defaultModel = engine.models.find((model) => model.defaultForEngine) ?? engine.models[0];
+  return {
+    engineId: engine.engineKey,
+    agentId: engine.agentId,
+    displayName: engine.engineKey,
+    providerId: defaultModel?.providerId ?? '',
+    bindingId: engine.bindingId,
+    healthy: engine.models.length > 0,
+    defaultModelId: defaultModel?.modelId ?? '',
+    models: engine.models.map(toModelEntry),
+  };
 }
 
 export async function listBirdCoderCodeEngineCatalog(
   client: AgentsAppSdkClient = getBirdCoderAgentsAppSdkClient(),
 ): Promise<BirdCoderCodeEngineCatalogEntry[]> {
   const response = await client.ai.agents.codeEngines.list();
-  return readCatalogItems(response as Record<string, unknown>);
+  return response.engines.map(toCatalogEntry);
 }
 
 export async function listBirdCoderMcpMarketplace(

@@ -14,7 +14,7 @@ const projectsHookSource = fs.readFileSync(
   'utf8',
 );
 const selectedMessagesHookSource = fs.readFileSync(
-  new URL('../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-workbench/src/hooks/useSelectedCodingSessionMessages.ts', import.meta.url),
+  new URL('../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-workbench/src/hooks/useSelectedAgentSessionItems.ts', import.meta.url),
   'utf8',
 );
 const fileSystemHookSource = fs.readFileSync(
@@ -36,8 +36,8 @@ const studioBindingsHookSource = fs.readFileSync(
   new URL('../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-studio/src/pages/useStudioWorkbenchEventBindings.ts', import.meta.url),
   'utf8',
 );
-const codingSessionActionsHookSource = fs.readFileSync(
-  new URL('../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-workbench/src/hooks/useCodingSessionActions.ts', import.meta.url),
+const agentSessionActionsHookSource = fs.readFileSync(
+  new URL('../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-workbench/src/hooks/useAgentSessionActions.ts', import.meta.url),
   'utf8',
 );
 
@@ -73,19 +73,19 @@ assert.match(
 
 assert.match(
   codePageSource,
-  /useCodingSessionActions\(\s*currentProjectId,\s*createCodingSessionWithSelection,\s*selectSession,\s*\{[\s\S]*isActive:\s*isVisible,[\s\S]*\},?\s*\)/s,
+  /useAgentSessionActions\(\s*currentProjectId,\s*createAgentSessionWithSelection,\s*selectSession,\s*\{[\s\S]*isActive:\s*isVisible,[\s\S]*\},?\s*\)/s,
   'CodePage must gate coding-session command listeners behind page visibility.',
 );
 
 assert.match(
   codePageSource,
-  /const isSelectedCodingSessionTranscriptVisible =\s*isVisible && \(\s*activeTab === 'ai' \|\| activeTab === 'editor'\s*\);/s,
+  /const isSelectedAgentSessionTranscriptVisible =\s*isVisible && \(\s*activeTab === 'ai' \|\| activeTab === 'editor'\s*\);/s,
   'CodePage must compute transcript visibility from the currently visible chat surfaces so transcript synchronization does not keep running while the mobile programming surface is active.',
 );
 
 assert.match(
   codePageSource,
-  /useSelectedCodingSessionMessages\(\{[\s\S]*isActive:\s*isSelectedCodingSessionTranscriptVisible,[\s\S]*\}\)/s,
+  /useSelectedAgentSessionItems\(\{[\s\S]*isActive:\s*isSelectedAgentSessionTranscriptVisible,[\s\S]*\}\)/s,
   'CodePage must gate selected-session transcript synchronization behind transcript visibility instead of only page visibility.',
 );
 
@@ -115,19 +115,19 @@ assert.match(
 
 assert.match(
   studioPageSource,
-  /useCodingSessionActions\(\s*currentProjectId,\s*createCodingSessionWithSelection,\s*\(codingSessionId\) => \{[\s\S]*\},\s*\{[\s\S]*isActive:\s*isVisible,[\s\S]*\},?\s*\)/s,
+  /useAgentSessionActions\(\s*currentProjectId,\s*createAgentSessionWithSelection,\s*\(agentSessionId\) => \{[\s\S]*\},\s*\{[\s\S]*isActive:\s*isVisible,[\s\S]*\},?\s*\)/s,
   'StudioPage must gate coding-session command listeners behind page visibility.',
 );
 
 assert.match(
   studioPageSource,
-  /const isSelectedCodingSessionTranscriptVisible = isVisible && isSidebarVisible;/s,
+  /const isSelectedAgentSessionTranscriptVisible = isVisible && isSidebarVisible;/s,
   'StudioPage must compute transcript visibility from the sidebar visibility so transcript synchronization pauses when the chat surface is collapsed.',
 );
 
 assert.match(
   studioPageSource,
-  /useSelectedCodingSessionMessages\(\{[\s\S]*isActive:\s*isSelectedCodingSessionTranscriptVisible,[\s\S]*\}\)/s,
+  /useSelectedAgentSessionItems\(\{[\s\S]*isActive:\s*isSelectedAgentSessionTranscriptVisible,[\s\S]*\}\)/s,
   'StudioPage must gate selected-session transcript synchronization behind transcript visibility instead of only page visibility.',
 );
 
@@ -158,13 +158,18 @@ assert.match(
 assert.match(
   selectedMessagesHookSource,
   /isActive\?: boolean;/,
-  'useSelectedCodingSessionMessages options must expose an activity flag.',
+  'useSelectedAgentSessionItems options must expose an activity flag.',
 );
 
 assert.match(
   selectedMessagesHookSource,
-  /if \(\s*!isActive \|\|\s*!normalizedCodingSessionId \|\|\s*\(!appRuntimeReadService && !localTranscriptReader\)\s*\) \{/,
-  'useSelectedCodingSessionMessages must skip transcript synchronization while inactive.',
+  /if \(!isActive \|\| !normalizedSessionId \|\| activeRequestKeyRef\.current === requestKey\) \{/,
+  'useSelectedAgentSessionItems must skip transcript synchronization while inactive.',
+);
+assert.doesNotMatch(
+  selectedMessagesHookSource,
+  /appRuntimeReadService|localTranscriptReader/,
+  'Selected-session item refresh must use only the canonical Agents session service.',
 );
 
 assert.match(
@@ -222,21 +227,21 @@ assert.match(
 );
 
 assert.match(
-  codingSessionActionsHookSource,
+  agentSessionActionsHookSource,
   /options\?: \{[\s\S]*isActive\?: boolean;[\s\S]*\}/s,
-  'useCodingSessionActions must accept an activity flag.',
+  'useAgentSessionActions must accept an activity flag.',
 );
 
 assert.match(
-  codingSessionActionsHookSource,
+  agentSessionActionsHookSource,
   /const isActive = options\?\.isActive \?\? true;/,
-  'useCodingSessionActions must default the activity flag to true.',
+  'useAgentSessionActions must default the activity flag to true.',
 );
 
 assert.match(
-  codingSessionActionsHookSource,
+  agentSessionActionsHookSource,
   /if \(!isActive\) \{\s*return undefined;\s*\}/s,
-  'useCodingSessionActions must not bind create-session listeners while inactive.',
+  'useAgentSessionActions must not bind create-session listeners while inactive.',
 );
 
 console.log('hidden workbench activity gating contract passed.');

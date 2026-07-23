@@ -219,7 +219,7 @@ test('Browser terminal uses the protected App API and renders the full xterm sur
       }),
     });
   });
-  await page.route('**/app/v3/api/intelligence/coding_sessions?**', (route) => route.fulfill({ json: pageEnvelope(route, []) }));
+  await page.route('**/app/v3/api/ai/agents/agent.birdcoder/sessions?**', (route) => route.fulfill({ json: pageEnvelope(route, []) }));
 
   await page.route('**/app/v3/api/device/terminal/**', async (route) => {
     const request = route.request();

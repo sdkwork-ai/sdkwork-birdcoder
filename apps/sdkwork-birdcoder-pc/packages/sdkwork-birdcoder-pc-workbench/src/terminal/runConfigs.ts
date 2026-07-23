@@ -1,9 +1,7 @@
 import { getTerminalProfile, type TerminalProfileId } from './profiles.ts';
 import {
-  listTerminalCliProfileAvailability,
   resolveTerminalProfileBlockedAction,
   resolveTerminalProfileLaunchPresentation,
-  type TerminalCliProfileAvailability,
   type TerminalProfileBlockedAction,
   type TerminalProfileLaunchPresentation,
 } from './profileAvailability.ts';
@@ -30,10 +28,8 @@ interface BuildRunConfigurationTerminalRequestOptions {
   timestamp?: number;
 }
 
-export interface ResolveRunConfigurationTerminalLaunchOptions
-  extends BuildRunConfigurationTerminalRequestOptions {
-  cliAvailabilityByProfileId?: Partial<Record<TerminalProfileId, TerminalCliProfileAvailability>>;
-}
+export type ResolveRunConfigurationTerminalLaunchOptions =
+  BuildRunConfigurationTerminalRequestOptions;
 
 export interface RunConfigurationTerminalLaunchResult {
   request: RunConfigurationTerminalRequest | null;
@@ -78,16 +74,8 @@ export async function resolveRunConfigurationTerminalLaunch(
   options: ResolveRunConfigurationTerminalLaunchOptions,
 ): Promise<RunConfigurationTerminalLaunchResult> {
   const profile = getTerminalProfile(configuration.profileId);
-  let availability = options.cliAvailabilityByProfileId?.[profile.id];
-
-  if (profile.kind === 'cli' && !availability) {
-    availability = (await listTerminalCliProfileAvailability()).find(
-      (entry) => entry.profileId === profile.id,
-    );
-  }
-
-  const launchPresentation = resolveTerminalProfileLaunchPresentation(profile.id, availability);
-  const blockedAction = resolveTerminalProfileBlockedAction(profile.id, availability);
+  const launchPresentation = resolveTerminalProfileLaunchPresentation(profile.id);
+  const blockedAction = resolveTerminalProfileBlockedAction(profile.id);
 
   if (!launchPresentation.canLaunch) {
     return {

@@ -3,8 +3,7 @@
  *
  * Replaces the legacy `VipPage` (which used `SdkworkMembershipPage` from
  * `@sdkwork/membership-pc-membership`) with the unified Token Plan catalog
- * from `@sdkwork/membership-pc-subscription/catalog`, following the same
- * integration pattern as sdkwork-clawrouter's `ClawRouterTokenPlanPage`.
+ * from `@sdkwork/membership-pc-subscription/catalog`.
  *
  * The `SdkworkSubscriptionCatalogPage` owns the subscription catalog and its
  * checkout payment state. BirdCoder supplies only non-payment host modals

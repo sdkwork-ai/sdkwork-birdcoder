@@ -8,13 +8,25 @@ import {
 } from './lib/sdkwork-app-manifest-paths.mjs';
 
 const rootDir = process.cwd();
+const releaseBlockers = [
+  'signed-production-artifact-evidence-missing',
+];
 
 function readText(relativePath) {
   return fs.readFileSync(path.join(rootDir, relativePath), 'utf8');
 }
 
-function exists(relativePath) {
-  return fs.existsSync(path.join(rootDir, relativePath));
+function readJson(relativePath) {
+  return JSON.parse(readText(relativePath));
+}
+
+function operationCount(openApi) {
+  const methods = new Set(['get', 'post', 'put', 'patch', 'delete', 'options', 'head', 'trace']);
+  return Object.values(openApi.paths ?? {}).reduce(
+    (count, pathItem) => count + Object.keys(pathItem ?? {})
+      .filter((method) => methods.has(method.toLowerCase())).length,
+    0,
+  );
 }
 
 const requiredOperatorDocs = [
@@ -26,64 +38,30 @@ const requiredOperatorDocs = [
 ];
 
 for (const docPath of requiredOperatorDocs) {
-  assert.equal(exists(docPath), true, `${docPath} must exist for commercial operator readiness.`);
-  const source = readText(docPath);
+  assert.equal(fs.existsSync(path.join(rootDir, docPath)), true, `${docPath} must exist.`);
   assert.doesNotMatch(
-    source,
+    readText(docPath),
     /See `DOCUMENTATION_SPEC\.md` section 2\.\s*$/u,
-    `${docPath} must not remain a stub placeholder.`,
+    `${docPath} must not remain a placeholder.`,
   );
 }
 
-const commercialTruthDoc = readText(
-  'docs/architecture/tech/TECH_ARCHITECTURE.md',
-);
+const technicalArchitecture = readText('docs/architecture/tech/TECH_ARCHITECTURE.md');
+assert.match(technicalArchitecture, /## 2\. Current Implementation Truth/u);
+assert.match(technicalArchitecture, /## 8\. Deployment And Runtime Topology/u);
 assert.match(
-  commercialTruthDoc,
-  /## 2\. Current Implementation Truth/u,
-  'Technical architecture must expose current implementation truth.',
-);
-assert.match(
-  commercialTruthDoc,
-  /## 8\. Deployment And Runtime Topology/u,
-  'Technical architecture must define deployment and runtime topology.',
-);
-assert.match(
-  commercialTruthDoc,
+  technicalArchitecture,
   /Cloud execution \| Blocked/u,
-  'Technical architecture must not claim the cloud runner is complete.',
-);
-assert.doesNotMatch(
-  commercialTruthDoc,
-  /pathname `\/auth`/u,
-  'Commercial truth doc must not prescribe stale pathname auth redirects.',
+  'Architecture documentation must not claim unverified cloud execution readiness.',
 );
 
 const operatorReadme = readText('docs/guides/operator/README.md');
-assert.match(
-  operatorReadme,
-  /Deployment operations/u,
-  'Operator README must link deployment operations runbook.',
-);
-assert.match(
-  operatorReadme,
-  /Backup and restore/u,
-  'Operator README must link backup runbook.',
-);
-assert.match(
-  operatorReadme,
-  /Route and OpenAPI counts prove catalog alignment only/u,
-  'Operator README must explain that route and OpenAPI counts are catalog-alignment evidence only.',
-);
-assert.match(
-  operatorReadme,
-  /Project runtime locations/u,
-  'Operator README must link the runtime-location operating guide.',
-);
+assert.match(operatorReadme, /Route and OpenAPI counts prove catalog alignment only/u);
+assert.match(operatorReadme, /Project runtime locations/u);
 assert.doesNotMatch(
   operatorReadme,
   /HTTP OpenAPI \d+ operations/u,
-  'Operator README must not make a historical OpenAPI count a production-readiness claim.',
+  'Operator documentation must not present a historical operation count as release evidence.',
 );
 
 const runtimeLocationSecretDocs = [
@@ -92,158 +70,77 @@ const runtimeLocationSecretDocs = [
   readText('docs/guides/operator/windows-server-control-plane.md'),
 ];
 for (const source of runtimeLocationSecretDocs) {
-  assert.match(
-    source,
-    /SDKWORK_BIRDCODER_RUNTIME_LOCATION_MASTER_KEY/u,
-    'Runtime-location operations docs must name the server-only master-key setting.',
-  );
-  assert.match(
-    source,
-    /SDKWORK_BIRDCODER_RUNTIME_LOCATION_KEY_ID/u,
-    'Runtime-location operations docs must name the server-only key-id setting.',
-  );
+  assert.match(source, /SDKWORK_BIRDCODER_RUNTIME_LOCATION_MASTER_KEY/u);
+  assert.match(source, /SDKWORK_BIRDCODER_RUNTIME_LOCATION_KEY_ID/u);
 }
-const environmentReference = runtimeLocationSecretDocs[0];
-assert.match(
-  environmentReference,
-  /at least 32 bytes/u,
-  'Environment reference must require at least 32 bytes of decoded or raw master-key material.',
-);
-assert.match(
-  environmentReference,
-  /fail-closed/u,
-  'Environment reference must require fail-closed handling for missing or invalid key material.',
-);
-assert.match(
-  environmentReference,
-  /VITE_\*/u,
-  'Environment reference must prohibit exposing runtime-location secrets through VITE variables.',
-);
+assert.match(runtimeLocationSecretDocs[0], /at least 32 bytes/u);
+assert.match(runtimeLocationSecretDocs[0], /fail-closed/u);
+assert.match(runtimeLocationSecretDocs[0], /VITE_\*/u);
 
-const appConfig = JSON.parse(readText('sdkwork.app.config.json'));
-assert.match(
-  String(appConfig.metadata?.commercialReadiness?.pcPrivateBeta ?? ''),
-  /iam|federation|openapi|aligned/u,
-  'sdkwork.app.config.json must record IAM federation OpenAPI alignment.',
-);
-assert.match(
-  String(appConfig.metadata?.commercialReadiness?.enterpriseK8s ?? ''),
-  /postgresql|ci-smoke|aligned/u,
-  'sdkwork.app.config.json must record enterprise K8s PostgreSQL CI smoke alignment.',
-);
-assert.match(
-  String(appConfig.metadata?.commercialReadiness?.saasPublicCloud ?? ''),
-  /governance|pr-ci|aligned/u,
-  'sdkwork.app.config.json must record SaaS governance regression PR CI alignment.',
-);
-assert.match(
-  String(appConfig.metadata?.commercialReadiness?.mobileProductParity ?? ''),
-  /h5|flutter|chat|capacitor|ci|android-assemble/u,
-  'sdkwork.app.config.json must record mobile chat and CI smoke alignment.',
-);
-assert.match(
-  String(appConfig.metadata?.commercialReadiness?.manifestHonesty ?? ''),
-  /draft|prelaunch|manifest|pc|h5|flutter/u,
-  'sdkwork.app.config.json must record unified manifest preLaunch honesty across PC/H5/Flutter surfaces.',
-);
-assert.equal(appConfig.publish?.preLaunch, true, 'Root manifest must declare preLaunch while publish.status is DRAFT.');
-assert.equal(appConfig.metadata?.preLaunch, true, 'Root manifest metadata must declare preLaunch.');
-assert.match(
-  String(appConfig.metadata?.releaseEvidenceStatus ?? ''),
-  /contract-gates-green/u,
-  'Root manifest must record contract-gates-green readiness before artifact evidence.',
-);
-assert.match(
-  String(appConfig.metadata?.releaseEvidenceStatus ?? ''),
-  /release-rehearsal/u,
-  'Root manifest must record release rehearsal alignment while preLaunch remains true.',
-);
+const ownership = readJson('specs/domain-ownership.spec.json');
+const tableRegistry = readJson(ownership.persistence.tableRegistry);
+const appOpenApi = readJson(ownership.apiOwnership.appApi.authorityFile);
+const iamManifest = readJson('specs/iam.module.manifest.json');
+const rootManifest = readJson('sdkwork.app.config.json');
+const manifestOwnership = rootManifest.metadata?.domainOwnership;
 
-const deferRegistry = JSON.parse(readText('specs/coding-server-openapi-rust-defer-registry.json'));
+assert.equal(manifestOwnership?.owner, ownership.ownedBoundedContext.owner);
+assert.equal(manifestOwnership?.capability, ownership.ownedBoundedContext.capability);
+assert.equal(manifestOwnership?.databaseTableCount, tableRegistry.tables.length);
 assert.equal(
-  deferRegistry.summary.contractOperationCount,
-  155,
-  'Defer registry must track the governed app/backend HTTP OpenAPI contract after legacy /api/v1 routes are retired.',
+  manifestOwnership?.apiOperationCounts?.appApi,
+  operationCount(appOpenApi),
+  'Manifest App API count must be derived from the canonical owner OpenAPI.',
 );
 assert.equal(
-  deferRegistry.summary.implementedOperationCount,
-  155,
-  'Defer registry must record full product, federated IAM, commerce, and chat app/backend coverage.',
+  manifestOwnership?.apiOperationCounts?.backendApi,
+  ownership.apiOwnership.backendApi.operationCount,
 );
 assert.equal(
-  deferRegistry.summary.deferredOperationCount,
-  0,
-  'Defer registry must not track any deferred OpenAPI operations.',
+  manifestOwnership?.apiOperationCounts?.openApi,
+  ownership.apiOwnership.openApi.operationCount,
 );
-assert.match(
-  commercialTruthDoc,
-  /Synthetic\s+smoke fixtures[\s\S]*not installed-runtime[\s\S]*release-artifact evidence/u,
-  'Technical architecture must distinguish synthetic contract fixtures from installed runtime and release-artifact evidence.',
-);
-assert.doesNotMatch(
-  commercialTruthDoc,
-  /commerce pre-launch deferred/u,
-  'Commercial truth doc must not describe stale commerce defer lane.',
-);
-assert.doesNotMatch(
-  commercialTruthDoc,
-  /3 deferred \(teams lane\)/u,
-  'Commercial truth doc must not describe stale teams defer gap.',
-);
-
-const manifestGeneratorSource = readText('scripts/generate-birdcoder-http-route-manifests.mjs');
-assert.match(manifestGeneratorSource, /TEAMS_PATH/u);
-assert.match(manifestGeneratorSource, /ADMIN_TEAMS_PATH/u);
-
-const iamRuntimeSource = readText(
-  'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/src/services/iamRuntime.ts',
-);
-const wsSource = readText(
-  'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/src/services/workspaceRealtimeClient.ts',
-);
-const routerSource = readText('crates/sdkwork-api-birdcoder-standalone-gateway/src/bootstrap/routers.rs');
-
-assert.match(iamRuntimeSource, /startBirdCoderAppSessionRefreshLoop/u);
-assert.match(wsSource, /scheduleReconnect/u);
-assert.match(routerSource, /openapi::serve_openapi_json/u);
-
-const packageJson = JSON.parse(readText('package.json'));
 assert.equal(
-  packageJson.scripts['build:capacitor-android'],
-  'node scripts/run-h5-capacitor-android-assemble.mjs',
-  'Root manifest commercial readiness requires Capacitor Android assemble runner.',
+  manifestOwnership?.permissionCount,
+  iamManifest.permissions.catalog.length,
+  'Manifest permission count must match the IAM module catalog.',
 );
-
-const releaseRehearsalContract = readText('scripts/release-rehearsal-readiness-contract.test.mjs');
-assert.match(
-  releaseRehearsalContract,
-  /release:fixture:ready/u,
-  'Release rehearsal contract must guard readiness fixture entrypoint.',
-);
+assert.deepEqual(manifestOwnership?.dependencyAuthorities, {
+  agentSessions: 'sdkwork-agents',
+  agentSessionItems: 'sdkwork-agents',
+  skills: 'sdkwork-skills',
+  savedPrompts: 'sdkwork-prompts',
+  documentContent: 'sdkwork-documents',
+  humanMessaging: 'sdkwork-im',
+});
 
 for (const manifestPath of listSdkworkAppManifestPaths(rootDir)) {
   const relativePath = path.relative(rootDir, manifestPath);
   const manifest = readSdkworkAppManifest(manifestPath);
-  assert.equal(
-    manifest.publish?.status,
-    'DRAFT',
-    `${relativePath} must stay DRAFT until the first governed release.`,
-  );
-  assert.equal(
-    manifest.publish?.preLaunch,
-    true,
-    `${relativePath} must declare publish.preLaunch while preLaunch artifacts are pending.`,
-  );
-  assert.match(
-    String(manifest.metadata?.releaseEvidenceStatus ?? ''),
-    /contract-gates-green/u,
-    `${relativePath} must record contract-gates-green release evidence status.`,
-  );
-  assert.match(
-    String(manifest.metadata?.releaseEvidenceStatus ?? ''),
-    /prelaunch-artifacts-pending/u,
-    `${relativePath} must record prelaunch-artifacts-pending honesty.`,
-  );
+  const source = JSON.stringify(manifest);
+
+  assert.equal(manifest.publish?.status, 'DRAFT', `${relativePath} must remain DRAFT.`);
+  assert.equal(manifest.publish?.preLaunch, true, `${relativePath} must remain pre-launch.`);
+  assert.equal(manifest.metadata?.preLaunch, true, `${relativePath} metadata must remain pre-launch.`);
+  assert.equal(manifest.metadata?.deploymentConfig, 'etc/sdkwork.deployment.config.json');
+  assert.equal(manifest.metadata?.releaseEvidence?.status, 'blocked');
+  assert.deepEqual(manifest.metadata?.releaseEvidence?.blockers, releaseBlockers);
+  assert.equal(manifest.release?.defaultChannel, 'INTERNAL');
+  assert.equal(manifest.release?.latest?.INTERNAL, manifest.release?.currentVersion);
+  assert.equal(manifest.release?.notes?.filter((note) => note.current === true).length, 1);
+  assert.equal(manifest.release?.notes?.some((note) => 'publishedAt' in note), false);
+
+  for (const pkg of manifest.artifacts?.installConfig?.packages ?? []) {
+    assert.equal(pkg.enabled, false, `${relativePath} package ${pkg.id} must remain disabled.`);
+    assert.equal(pkg.profileBinding, 'fixed');
+    assert.equal(pkg.metadata?.releaseBuildDeferred, true);
+    assert.equal(pkg.metadata?.releaseAuthority, 'sdkwork-birdcoder');
+    assert.equal(typeof pkg.targetPlatform, 'string');
+    assert.equal(typeof pkg.clientArchitecture, 'string');
+  }
+
+  assert.doesNotMatch(source, /commercialReadiness|releaseEvidenceStatus/u);
+  assert.doesNotMatch(source, /http-openapi-155|route-catalog-156|agents-95/u);
 }
 
 console.log('commercial readiness truth contract passed.');

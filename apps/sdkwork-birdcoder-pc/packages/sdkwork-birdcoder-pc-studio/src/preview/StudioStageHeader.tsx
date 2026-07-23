@@ -28,11 +28,9 @@ import {
   MonitorPlay,
   RefreshCw,
   RotateCcw,
-  Share,
   Smartphone,
   Tablet,
   Terminal,
-  Upload,
 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 
@@ -163,8 +161,6 @@ interface StudioStageHeaderProps {
   onAnalyzeCode: () => void;
   onToggleTerminal: () => void;
   onToggleProjectGitOverviewDrawer: () => void;
-  onOpenShare: () => void;
-  onOpenPublish: () => void;
 }
 
 function resolveSimulatorTargetLabel(
@@ -210,8 +206,6 @@ export const StudioStageHeader = memo(function StudioStageHeader({
   onAnalyzeCode,
   onToggleTerminal,
   onToggleProjectGitOverviewDrawer,
-  onOpenShare,
-  onOpenPublish,
 }: StudioStageHeaderProps) {
   const { t } = useTranslation();
   const normalizedProjectId = projectId?.trim() ?? '';
@@ -526,23 +520,6 @@ export const StudioStageHeader = memo(function StudioStageHeader({
           onClick={onToggleTerminal}
         >
           <Terminal size={14} className="mr-1.5" /> {t('studio.terminal')}
-        </Button>
-        <Button
-          variant="outline"
-          size="sm"
-          className="h-8 bg-white/5 border-white/10 hover:bg-white/10 hover:text-white text-xs animate-in fade-in slide-in-from-top-2 fill-mode-both"
-          style={{ animationDelay: '250ms' }}
-          onClick={onOpenShare}
-        >
-          <Share size={14} className="mr-1" /> {t('studio.share')}
-        </Button>
-        <Button
-          size="sm"
-          className="h-8 bg-blue-600 hover:bg-blue-500 text-white text-xs animate-in fade-in slide-in-from-top-2 fill-mode-both shadow-sm shadow-blue-900/20"
-          style={{ animationDelay: '300ms' }}
-          onClick={onOpenPublish}
-        >
-          <Upload size={14} className="mr-1" /> {t('studio.publish')}
         </Button>
         </div>
       </div>

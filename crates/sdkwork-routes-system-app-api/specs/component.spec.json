@@ -3,84 +3,124 @@
   "kind": "sdkwork.component.spec",
   "component": {
     "name": "sdkwork-routes-system-app-api",
-    "displayName": "SDKWork System APP API Routes",
+    "displayName": "SDKWork BirdCoder System App API Routes",
     "version": "0.1.0",
     "type": "rust-route-crate",
-    "root": "crates/sdkwork-routes-system-app-api",
-    "domain": "platform",
-    "capability": "system",
+    "root": "sdkwork-birdcoder/crates/sdkwork-routes-system-app-api",
+    "domain": "system",
+    "declaredDomain": "system",
+    "capability": "application-diagnostics",
     "surface": "app-api",
+    "status": "ACTIVE",
     "languages": [
       "rust"
     ],
     "generated": false,
+    "private": true,
     "manifests": [
       "Cargo.toml"
     ]
   },
   "canonicalSpecs": [
     {
+      "file": "COMPONENT_SPEC.md",
+      "path": "../../../../sdkwork-specs/COMPONENT_SPEC.md",
+      "purpose": "Component-local contract and discovery rules."
+    },
+    {
       "file": "CODE_STYLE_SPEC.md",
-      "path": "../../../sdkwork-specs/CODE_STYLE_SPEC.md",
+      "path": "../../../../sdkwork-specs/CODE_STYLE_SPEC.md",
       "purpose": "Authored source structure and generated code boundaries."
     },
     {
       "file": "NAMING_SPEC.md",
-      "path": "../../../sdkwork-specs/NAMING_SPEC.md",
+      "path": "../../../../sdkwork-specs/NAMING_SPEC.md",
       "purpose": "Canonical SDKWork naming rules."
     },
     {
       "file": "API_SPEC.md",
-      "path": "../../../sdkwork-specs/API_SPEC.md",
+      "path": "../../../../sdkwork-specs/API_SPEC.md",
       "purpose": "OpenAPI authority and route manifest rules."
     },
     {
       "file": "WEB_FRAMEWORK_SPEC.md",
-      "path": "../../../sdkwork-specs/WEB_FRAMEWORK_SPEC.md",
+      "path": "../../../../sdkwork-specs/WEB_FRAMEWORK_SPEC.md",
       "purpose": "Mandatory Web Framework integration for HTTP surfaces."
     },
     {
       "file": "WEB_BACKEND_SPEC.md",
-      "path": "../../../sdkwork-specs/WEB_BACKEND_SPEC.md",
+      "path": "../../../../sdkwork-specs/WEB_BACKEND_SPEC.md",
       "purpose": "HTTP backend route boundary rules."
     },
     {
       "file": "SDK_WORKSPACE_GENERATION_SPEC.md",
-      "path": "../../../sdkwork-specs/SDK_WORKSPACE_GENERATION_SPEC.md",
+      "path": "../../../../sdkwork-specs/SDK_WORKSPACE_GENERATION_SPEC.md",
       "purpose": "Route manifest and SDK generation ownership."
     },
     {
       "file": "RUST_CODE_SPEC.md",
-      "path": "../../../sdkwork-specs/RUST_CODE_SPEC.md",
+      "path": "../../../../sdkwork-specs/RUST_CODE_SPEC.md",
       "purpose": "Rust crate rules."
     },
     {
+      "file": "SDK_SPEC.md",
+      "path": "../../../../sdkwork-specs/SDK_SPEC.md",
+      "purpose": "Application API and generated SDK boundary rules."
+    },
+    {
+      "file": "DOMAIN_SPEC.md",
+      "path": "../../../../sdkwork-specs/DOMAIN_SPEC.md",
+      "purpose": "System diagnostics bounded-context rules."
+    },
+    {
+      "file": "SECURITY_SPEC.md",
+      "path": "../../../../sdkwork-specs/SECURITY_SPEC.md",
+      "purpose": "Authenticated diagnostics exposure rules."
+    },
+    {
       "file": "TEST_SPEC.md",
-      "path": "../../../sdkwork-specs/TEST_SPEC.md",
+      "path": "../../../../sdkwork-specs/TEST_SPEC.md",
       "purpose": "Route contract and composition verification."
     }
   ],
   "contracts": {
     "layerRole": "backend-route",
     "publicExports": [
-      "."
+      ".",
+      "sdkwork_routes_system_app_api::SystemAppState",
+      "sdkwork_routes_system_app_api::build_system_app_router",
+      "sdkwork_routes_system_app_api::system_app_api_route_manifest"
     ],
-    "providedPorts": [],
-    "requiredPorts": [],
+    "providedPorts": [
+      {
+        "name": "systemAppApiRouter",
+        "export": "sdkwork_routes_system_app_api::build_system_app_router"
+      },
+      {
+        "name": "systemAppApiRouteManifest",
+        "export": "sdkwork_routes_system_app_api::system_app_api_route_manifest"
+      }
+    ],
+    "requiredPorts": [
+      {
+        "name": "systemApplicationState",
+        "export": "sdkwork_routes_system_app_api::SystemAppState"
+      }
+    ],
     "runtimeEntrypoints": [
-      "build_system_app_router",
-      "gateway_mount",
-      "gateway_route_manifest",
-      "list_routes",
-      "system_app_api_route_manifest"
+      "sdkwork_routes_system_app_api::build_system_app_router"
     ],
     "routeManifest": "src/manifest.rs#system_app_api_route_manifest",
     "sdkClients": [],
     "sdkDependencies": [],
+    "permissionComposition": {},
     "dependencyApiExports": [],
     "dependencyApiSurfaces": [],
     "events": [],
     "configKeys": []
+  },
+  "integration": {
+    "authority": "Adapts BirdCoder-owned application descriptor, health, route catalog, and runtime metadata reads to the App API. It does not own the SDKWork platform registry domain or any dependency API."
   },
   "verification": {
     "commands": [

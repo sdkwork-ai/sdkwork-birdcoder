@@ -81,8 +81,8 @@ assert.match(
 );
 assert.match(
   mockServer,
-  /coding_sessions/u,
-  'PC e2e mock API server must mock the authenticated coding session catalog.',
+  /ai\/agents\/agent\.birdcoder\/sessions/u,
+  'PC e2e mock API server must mock the canonical Agents coding session catalog.',
 );
 assert.match(
   mockServer,

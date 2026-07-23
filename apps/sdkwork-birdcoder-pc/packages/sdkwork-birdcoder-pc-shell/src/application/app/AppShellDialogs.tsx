@@ -171,8 +171,8 @@ export const AppShellDialogs = memo(function AppShellDialogs({
                 <h4 className="text-sm font-medium text-gray-400 mb-2 uppercase tracking-wider">{t('app.shortcutsNavigation')}</h4>
                 <div className="space-y-2">
                   <div className="flex justify-between items-center"><span className="text-sm text-gray-200">{t('app.menu.goToFile')}</span><kbd className="bg-white/10 px-2 py-1 rounded text-xs text-gray-300 font-mono">Ctrl+P</kbd></div>
-                  <div className="flex justify-between items-center"><span className="text-sm text-gray-200">{t('app.menu.previousCodingSession')}</span><kbd className="bg-white/10 px-2 py-1 rounded text-xs text-gray-300 font-mono">Ctrl+Shift+[</kbd></div>
-                  <div className="flex justify-between items-center"><span className="text-sm text-gray-200">{t('app.menu.nextCodingSession')}</span><kbd className="bg-white/10 px-2 py-1 rounded text-xs text-gray-300 font-mono">Ctrl+Shift+]</kbd></div>
+                  <div className="flex justify-between items-center"><span className="text-sm text-gray-200">{t('app.menu.previousAgentSession')}</span><kbd className="bg-white/10 px-2 py-1 rounded text-xs text-gray-300 font-mono">Ctrl+Shift+[</kbd></div>
+                  <div className="flex justify-between items-center"><span className="text-sm text-gray-200">{t('app.menu.nextAgentSession')}</span><kbd className="bg-white/10 px-2 py-1 rounded text-xs text-gray-300 font-mono">Ctrl+Shift+]</kbd></div>
                 </div>
               </div>
             </div>

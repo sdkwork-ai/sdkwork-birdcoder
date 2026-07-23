@@ -102,7 +102,7 @@ function resolveDesktopDevSqlitePath({
     return undefined;
   }
 
-  return pathModule.join(cwd, '.local', 'sdkwork-birdcoder-pc-desktop-local.sqlite3');
+  return pathModule.join(cwd, '.local', 'birdcoder.sqlite3');
 }
 
 export function createTauriCliPlan({

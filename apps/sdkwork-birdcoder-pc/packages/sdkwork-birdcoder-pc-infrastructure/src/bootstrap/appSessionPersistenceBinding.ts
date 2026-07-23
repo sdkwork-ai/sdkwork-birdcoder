@@ -1,5 +1,4 @@
 import {
-  APP_SESSION_STORAGE_KEY,
   bindAppSessionPersistencePort,
   hydrateAppSessionPersistence,
   type AsyncAppSessionPersistencePort,
@@ -7,12 +6,13 @@ import {
 import { resetAppSessionTokenStorageCache } from '@sdkwork/birdcoder-pc-core/appSessionToken';
 
 import {
-  getStoredRawValue,
-  removeStoredValue,
-  setStoredRawValue,
-} from '../storage/runtime.ts';
+  deleteSecureAppSession,
+  readSecureAppSession,
+  writeSecureAppSession,
+} from '../platform/secureAppSessionStore.ts';
 
-const DESKTOP_APP_SESSION_SCOPE = 'secure-app-session';
+export const DESKTOP_APP_SESSION_PERSISTENCE_ERROR_EVENT =
+  'sdkwork:desktop-app-session-persistence-error';
 
 let desktopPersistenceBound = false;
 
@@ -23,6 +23,31 @@ export function bindBirdCoderDesktopAppSessionPersistence(): void {
 
   let cache: string | null = null;
   let hydrated = false;
+  let persistenceQueue = Promise.resolve();
+
+  const reportPersistenceFailure = (
+    operation: 'delete' | 'read' | 'write',
+  ): void => {
+    globalThis.console?.error(
+      `Desktop IAM session ${operation} failed in the operating-system credential store.`,
+    );
+    globalThis.dispatchEvent?.(
+      new CustomEvent(DESKTOP_APP_SESSION_PERSISTENCE_ERROR_EVENT, {
+        detail: { operation },
+      }),
+    );
+  };
+
+  const enqueuePersistence = (
+    operation: 'delete' | 'write',
+    task: () => Promise<void>,
+  ): void => {
+    persistenceQueue = persistenceQueue
+      .then(task)
+      .catch(() => {
+        reportPersistenceFailure(operation);
+      });
+  };
 
   const port: AsyncAppSessionPersistencePort = {
     read() {
@@ -31,19 +56,25 @@ export function bindBirdCoderDesktopAppSessionPersistence(): void {
     write(raw) {
       cache = raw;
       hydrated = true;
-      void setStoredRawValue(DESKTOP_APP_SESSION_SCOPE, APP_SESSION_STORAGE_KEY, raw);
+      enqueuePersistence('write', () => writeSecureAppSession(raw));
     },
     remove() {
       cache = null;
       hydrated = true;
-      void removeStoredValue(DESKTOP_APP_SESSION_SCOPE, APP_SESSION_STORAGE_KEY);
+      enqueuePersistence('delete', deleteSecureAppSession);
     },
     async hydrate() {
       if (hydrated) {
         return;
       }
 
-      cache = await getStoredRawValue(DESKTOP_APP_SESSION_SCOPE, APP_SESSION_STORAGE_KEY);
+      await persistenceQueue;
+      try {
+        cache = await readSecureAppSession();
+      } catch {
+        cache = null;
+        reportPersistenceFailure('read');
+      }
       hydrated = true;
       // A runtime may have synchronously read the empty adapter cache while
       // this host read was pending. Force the next session read to consume the

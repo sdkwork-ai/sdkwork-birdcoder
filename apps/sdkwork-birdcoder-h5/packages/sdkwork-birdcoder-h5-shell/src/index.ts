@@ -12,11 +12,21 @@ export function createDefaultShellConfig(): H5ShellConfig {
   };
 }
 
-export { BootstrapGate, type BootstrapGateProps } from './bootstrap/BootstrapGate.ts';
-export { createBootstrapGateMessages } from '@sdkwork/birdcoder-pc-workbench/bootstrap/createBootstrapGateMessages';
+export {
+  BootstrapGate,
+  type BootstrapGateMessages,
+  type BootstrapGateProps,
+} from './bootstrap/BootstrapGate.tsx';
+export { createBootstrapGateMessages } from './bootstrap/createBootstrapGateMessages.ts';
 export { createBirdCoderH5BootstrapRuntime } from './bootstrap/createBootstrapRuntime.ts';
-export { ShellRuntimeProviders } from './providers/ShellRuntimeProviders.ts';
+export { ShellRuntimeProviders } from './providers/ShellRuntimeProviders.tsx';
 export { BirdCoderAuthGate } from './auth/BirdCoderAuthGate.tsx';
+export {
+  BirdCoderH5AuthProvider,
+  useBirdCoderH5Auth,
+  type BirdCoderH5AuthContextValue,
+  type BirdCoderH5AuthUser,
+} from './auth/BirdCoderH5AuthContext.tsx';
 export { MobileShellLayout } from './layout/MobileShellLayout.tsx';
 export { BirdCoderH5AppRoutes } from './routing/BirdCoderH5AppRoutes.tsx';
 export { createBirdCoderH5AppRouter } from './routing/createBirdCoderH5AppRouter.tsx';

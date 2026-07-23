@@ -1,544 +1,78 @@
 {
-  "schemaVersion": 1,
-  "kind": "sdkwork.kernel-birdcoder-alignment",
-  "updatedAt": "2026-07-08",
-  "summary": "Machine-readable alignment tracker for sdkwork-kernel SPI/provider bindings, sdkwork-agents business boundary, and BirdCoder product/tooling consumption rules.",
+  "schemaVersion": 2,
+  "kind": "sdkwork.kernel-birdcoder-boundary",
+  "updatedAt": "2026-07-22",
+  "summary": "BirdCoder consumes agent execution through sdkwork-agents and never integrates sdkwork-kernel directly.",
   "authorityDocs": [
     "docs/architecture/tech/TECH_ARCHITECTURE.md",
-    "docs/product/prd/PRD.md"
+    "docs/product/prd/PRD.md",
+    "specs/domain-ownership.spec.json"
   ],
-  "siblingDependencies": [
-    {
-      "id": "sdkwork-kernel",
-      "path": "../sdkwork-kernel",
-      "requiredBindings": [
-        "claude-code",
-        "gemini-cli",
-        "codex",
-        "opencode",
-        "openclaw",
-        "hermes",
-        "rig"
-      ]
-    }
+  "dependencyDirection": [
+    "sdkwork-birdcoder -> sdkwork-agents -> sdkwork-kernel",
+    "sdkwork-birdcoder -/-> sdkwork-kernel"
   ],
-  "phases": [
-    {
-      "id": "P1-boundary",
-      "title": "职责边界冻结",
-      "doc": "docs/architecture/tech/TECH_ARCHITECTURE.md"
-    },
-    {
-      "id": "P2-birdcoder-bridge",
-      "title": "BirdCoder kernel-bridge 落地",
-      "doc": "docs/architecture/tech/TECH_ARCHITECTURE.md"
-    },
-    {
-      "id": "P3-verification",
-      "title": "契约与反复核对",
-      "doc": "docs/architecture/tech/TECH_ARCHITECTURE.md"
-    },
-    {
-      "id": "P4-kernel-production",
-      "title": "sdkwork-kernel 生产化",
-      "doc": "docs/architecture/tech/TECH_ARCHITECTURE.md"
-    },
-    {
-      "id": "P5-evolution",
-      "title": "扩展 provider 与 SPI 补齐",
-      "doc": "docs/architecture/tech/TECH_ARCHITECTURE.md"
-    }
-  ],
+  "siblingDependencies": [],
   "tasks": [
     {
-      "id": "KBA-BC-01",
-      "phase": "P2-birdcoder-bridge",
+      "id": "KBB-001",
+      "phase": "boundary",
       "owner": "birdcoder",
-      "title": "sdkwork-birdcoder-kernel-bridge crate（host / turn / registry）",
-      "status": "done",
-      "gate": true,
-      "evidence": {
-        "paths": [
-          "crates/sdkwork-birdcoder-kernel-bridge/src/host.rs",
-          "crates/sdkwork-birdcoder-kernel-bridge/src/turn_executor.rs",
-          "crates/sdkwork-birdcoder-kernel-bridge/src/engine_registry.rs",
-          "crates/sdkwork-birdcoder-kernel-bridge/src/bin/kernel_turn.rs"
-        ]
-      },
-      "verification": {
-        "commands": [
-          "cargo test -p sdkwork-birdcoder-kernel-bridge"
-        ]
-      }
-    },
-    {
-      "id": "KBA-BC-02",
-      "phase": "P2-birdcoder-bridge",
-      "owner": "birdcoder",
-      "title": "standalone-gateway 注入 KernelBridgeCodeEngineProvider",
-      "status": "done",
-      "gate": true,
-      "evidence": {
-        "paths": [
-          "crates/sdkwork-api-birdcoder-standalone-gateway/src/bootstrap/adapters.rs"
-        ],
-        "requiredPatterns": [
-          {
-            "file": "crates/sdkwork-api-birdcoder-standalone-gateway/src/bootstrap/adapters.rs",
-            "pattern": "BirdcoderKernelHost"
-          },
-          {
-            "file": "crates/sdkwork-api-birdcoder-standalone-gateway/src/bootstrap/adapters.rs",
-            "pattern": "KernelBridgeCodeEngineProvider"
-          }
-        ],
-        "forbiddenPatterns": [
-          {
-            "file": "crates/sdkwork-api-birdcoder-standalone-gateway/src/bootstrap/adapters.rs",
-            "pattern": "RegistryCodeEngineProvider"
-          }
-        ]
-      },
-      "verification": {
-        "commands": [
-          "node --experimental-strip-types scripts/kernel-runtime-adapter-contract.test.ts"
-        ]
-      }
-    },
-    {
-      "id": "KBA-BC-03",
-      "phase": "P2-birdcoder-bridge",
-      "owner": "birdcoder",
-      "title": "TS kernelRuntime + sendCanonicalEvents 执行路径",
-      "status": "done",
-      "gate": true,
-      "evidence": {
-        "paths": [
-          "apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-codeengine/src/kernelRuntime.ts"
-        ],
-        "requiredPatterns": [
-          {
-            "file": "apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-codeengine/src/kernelRuntime.ts",
-            "pattern": "birdcoder-kernel-turn"
-          },
-          {
-            "file": "apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-codeengine/src/kernelRuntime.ts",
-            "pattern": "sendCanonicalEvents"
-          }
-        ],
-        "forbiddenPatterns": [
-          {
-            "file": "apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-codeengine/src/kernelRuntime.ts",
-            "pattern": "officialSdkBridgeLoader"
-          }
-        ]
-      },
-      "verification": {
-        "commands": [
-          "node --experimental-strip-types scripts/engine-conformance-contract.test.ts"
-        ]
-      }
-    },
-    {
-      "id": "KBA-BC-04",
-      "phase": "P2-birdcoder-bridge",
-      "owner": "birdcoder",
-      "title": "pc-projection 投影层与 pc-chat 退役",
-      "status": "done",
-      "gate": true,
-      "evidence": {
-        "paths": [
-          "apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-projection/package.json"
-        ],
-        "forbiddenPaths": [
-          "apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-chat",
-          "apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-chat-codex",
-          "apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-chat-claude",
-          "apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-chat-gemini",
-          "apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-chat-opencode",
-          "scripts/codeengine-official-sdk-bridge.ts"
-        ]
-      },
-      "verification": {
-        "commands": [
-          "node scripts/birdcoder-kernel-integration-contract.test.mjs"
-        ]
-      }
-    },
-    {
-      "id": "KBA-BC-05",
-      "phase": "P2-birdcoder-bridge",
-      "owner": "birdcoder",
-      "title": "codeengine 仅保留 native-session catalog + dialect",
-      "status": "done",
-      "gate": true,
-      "evidence": {
-        "requiredPatterns": [
-          {
-            "file": "crates/sdkwork-birdcoder-codeengine/src/provider.rs",
-            "pattern": "NativeSessionProviderPlugin"
-          }
-        ],
-        "forbiddenPatterns": [
-          {
-            "file": "crates/sdkwork-birdcoder-codeengine/src/codex_provider.rs",
-            "pattern": "fn execute_turn"
-          },
-          {
-            "file": "crates/sdkwork-birdcoder-codeengine/src/claude_code_provider.rs",
-            "pattern": "fn execute_turn"
-          },
-          {
-            "file": "crates/sdkwork-birdcoder-codeengine/src/gemini_provider.rs",
-            "pattern": "fn execute_turn"
-          },
-          {
-            "file": "crates/sdkwork-birdcoder-codeengine/src/opencode_provider.rs",
-            "pattern": "fn execute_turn"
-          },
-          {
-            "file": "crates/sdkwork-birdcoder-codeengine/src/sdk_bridge.rs",
-            "pattern": "execute_official_sdk_bridge_turn"
-          }
-        ]
-      },
-      "verification": {
-        "commands": [
-          "node --experimental-strip-types scripts/codeengine-native-provider-completeness-contract.test.ts",
-          "node --experimental-strip-types scripts/codeengine-official-sdk-bridge-contract.test.ts"
-        ]
-      }
-    },
-    {
-      "id": "KBA-BC-06",
-      "phase": "P3-verification",
-      "owner": "birdcoder",
-      "title": "契约测试迁移至 kernel 路径",
-      "status": "done",
-      "gate": true,
-      "evidence": {
-        "paths": [
-          "scripts/kernel-runtime-adapter-contract.test.ts",
-          "scripts/birdcoder-kernel-integration-contract.test.mjs",
-          "scripts/kernel-birdcoder-alignment-contract.test.mjs"
-        ]
-      },
-      "verification": {
-        "commands": [
-          "node scripts/kernel-birdcoder-alignment-contract.test.mjs"
-        ]
-      }
-    },
-    {
-      "id": "KBA-DOC-01",
-      "phase": "P3-verification",
-      "owner": "birdcoder",
-      "title": "Canonical architecture and alignment spec",
-      "status": "done",
-      "gate": true,
-      "evidence": {
-        "paths": [
-          "docs/architecture/tech/TECH_ARCHITECTURE.md",
-          "specs/kernel-birdcoder-alignment.spec.json"
-        ]
-      },
-      "verification": {
-        "commands": [
-          "node scripts/kernel-birdcoder-alignment-contract.test.mjs"
-        ]
-      }
-    },
-    {
-      "id": "KBA-DOC-02",
-      "phase": "P3-verification",
-      "owner": "birdcoder",
-      "title": "engine-sdk-integration 参考文档与 kernel 路径对齐",
-      "status": "done",
-      "gate": true,
-      "evidence": {
-        "paths": [
-          "docs/reference/engine-sdk-integration.md"
-        ],
-        "requiredPatterns": [
-          {
-            "file": "docs/reference/engine-sdk-integration.md",
-            "pattern": "sdkwork-birdcoder-kernel-bridge"
-          },
-          {
-            "file": "docs/reference/engine-sdk-integration.md",
-            "pattern": "birdcoder-pc-projection"
-          }
-        ],
-        "forbiddenPatterns": [
-          {
-            "file": "docs/reference/engine-sdk-integration.md",
-            "pattern": "sdkwork-birdcoder-chat"
-          }
-        ]
-      },
-      "verification": {
-        "commands": [
-          "node scripts/kernel-birdcoder-alignment-contract.test.mjs"
-        ]
-      }
-    },
-    {
-      "id": "KBA-BC-08",
-      "phase": "P3-verification",
-      "owner": "birdcoder",
-      "title": "src-host legacy-archive 退役（canonical crates 为唯一 Rust 权威）",
+      "title": "Remove BirdCoder-owned Kernel bridges and code-engine authorities",
       "status": "done",
       "gate": true,
       "evidence": {
         "forbiddenPaths": [
-          "apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-server/src-host/legacy-archive",
-          "apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-codeengine/src-host/legacy-archive"
-        ],
-        "requiredPatterns": [
-          {
-            "file": "README.md",
-            "pattern": "birdcoder-pc-projection"
-          }
-        ],
-        "forbiddenPatterns": [
-          {
-            "file": "README.md",
-            "pattern": "birdcoder-pc-chat"
-          }
+          "crates/sdkwork-birdcoder-kernel-bridge",
+          "crates/sdkwork-birdcoder-codeengine",
+          "apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-codeengine",
+          "apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-projection"
         ]
       },
       "verification": {
         "commands": [
-          "node scripts/legacy-src-host-retirement-contract.test.mjs",
-          "node scripts/kernel-birdcoder-alignment-contract.test.mjs"
+          "pnpm check:domain-ownership"
         ]
       }
     },
     {
-      "id": "KBA-BC-09",
-      "phase": "P2-birdcoder-bridge",
+      "id": "KBB-002",
+      "phase": "boundary",
       "owner": "birdcoder",
-      "title": "浏览器 bundle 与 Node kernel turn 边界隔离",
+      "title": "Keep Kernel ownership and provider bindings outside BirdCoder",
       "status": "done",
       "gate": true,
       "evidence": {
-        "requiredPatterns": [
-          {
-            "file": "apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-codeengine/package.json",
-            "pattern": "./serverRuntime"
-          }
-        ],
-        "forbiddenPatterns": [
-          {
-            "file": "apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-codeengine/src/index.ts",
-            "pattern": "serverRuntime"
-          },
-          {
-            "file": "apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-codeengine/src/index.ts",
-            "pattern": "kernelRuntime"
-          }
-        ]
-      },
-      "verification": {
-        "commands": [
-          "node scripts/birdcoder-kernel-integration-contract.test.mjs"
-        ]
-      }
-    },
-    {
-      "id": "KBA-K-01",
-      "phase": "P4-kernel-production",
-      "owner": "kernel",
-      "title": "四引擎 sdk_integration + binding manifest",
-      "status": "done",
-      "gate": false,
-      "evidence": {
-        "siblingPaths": [
-          "../sdkwork-kernel/bindings/agent-providers/claude-code/provider-binding.manifest.json",
-          "../sdkwork-kernel/bindings/agent-providers/gemini-cli/provider-binding.manifest.json",
-          "../sdkwork-kernel/bindings/agent-providers/codex/provider-binding.manifest.json",
-          "../sdkwork-kernel/bindings/agent-providers/opencode/provider-binding.manifest.json"
-        ]
-      },
-      "verification": {
-        "commands": [
-          "node scripts/birdcoder-kernel-integration-contract.test.mjs"
-        ]
-      }
-    },
-    {
-      "id": "KBA-K-02",
-      "phase": "P4-kernel-production",
-      "owner": "kernel",
-      "title": "release 模式 mock ModelProvider fail-closed",
-      "status": "done",
-      "gate": false,
-      "notes": "sdkwork-agent-provider-core/mock_policy.rs + provider-spi bridge fail-closed + node worker fail_closed transport.",
-      "evidence": {
-        "siblingPaths": [
-          "../sdkwork-kernel/sdkwork-kernel-plugins/crates/sdkwork-agent-provider-core/src/mock_policy.rs",
-          "../sdkwork-kernel/sdkwork-agent-provider-spi/src/bridge.rs",
-          "../sdkwork-kernel/sdkwork-agent-provider-transport-node/src/worker_runtime.rs"
-        ]
-      },
-      "verification": {
-        "commands": [
-          "cargo test -p sdkwork-agent-provider-core",
-          "cargo test -p sdkwork-agent-provider-spi"
-        ]
-      }
-    },
-    {
-      "id": "KBA-K-03",
-      "phase": "P4-kernel-production",
-      "owner": "kernel",
-      "title": "真实官方 SDK backend 接通（非 mock inner provider）",
-      "status": "done",
-      "gate": false,
-      "notes": "engine-sdk-live.mjs dispatches live official SDK invokes (mode=sdk_live); codex routes model.chat through TypeScriptNode; production rejects stub/sdk_probe/sdk_live_failed.",
-      "evidence": {
-        "siblingPaths": [
-          "../sdkwork-kernel/scripts/provider-transport-workers/engine-sdk-live.mjs",
-          "../sdkwork-kernel/scripts/provider-transport-workers/generic-ts-sdk-worker.mjs",
-          "../sdkwork-kernel/bindings/agent-providers/codex/provider-binding.manifest.json",
-          "../sdkwork-kernel/agent-providers/crates/sdkwork-agent-provider-codex/src/sdk_integration.rs"
-        ]
-      },
-      "verification": {
-        "commands": [
-          "node ../sdkwork-kernel/scripts/provider-transport-workers/engine-sdk-live.test.mjs",
-          "cargo test -p sdkwork-agent-provider-codex",
-          "cargo test -p sdkwork-agent-provider-opencode",
-          "cargo test -p sdkwork-agent-provider-claude-code",
-          "cargo test -p sdkwork-agent-provider-gemini-cli"
-        ]
-      }
-    },
-    {
-      "id": "KBA-K-04",
-      "phase": "P4-kernel-production",
-      "owner": "kernel",
-      "title": "KERNEL_PRODUCT_PROJECTION_SPEC（KernelEvent → coding_session_event）",
-      "status": "done",
-      "gate": false,
-      "notes": "Formal mapping in sdkwork-kernel/specs/KERNEL_PRODUCT_PROJECTION_SPEC.md",
-      "evidence": {
-        "siblingPaths": [
-          "../sdkwork-kernel/specs/KERNEL_PRODUCT_PROJECTION_SPEC.md"
-        ]
-      }
-    },
-    {
-      "id": "KBA-BC-07",
-      "phase": "P2-birdcoder-bridge",
-      "owner": "birdcoder",
-      "title": "OpenCode live approval / user-question 迁入 kernel bridge",
-      "status": "done",
-      "gate": false,
-      "notes": "live reply 经 kernel-bridge/host.rs 路由；opencode_provider 仅保留 catalog。",
-      "evidence": {
         "paths": [
-          "crates/sdkwork-birdcoder-kernel-bridge/src/host.rs",
-          "crates/sdkwork-api-birdcoder-standalone-gateway/src/bootstrap/adapters.rs"
-        ],
-        "requiredPatterns": [
-          {
-            "file": "crates/sdkwork-birdcoder-kernel-bridge/src/host.rs",
-            "pattern": "submit_approval_decision"
-          },
-          {
-            "file": "crates/sdkwork-api-birdcoder-standalone-gateway/src/bootstrap/adapters.rs",
-            "pattern": "host.submit_approval_decision"
-          }
+          "specs/domain-ownership.spec.json",
+          "docs/architecture/tech/TECH_ARCHITECTURE.md"
         ],
         "forbiddenPatterns": [
           {
-            "file": "crates/sdkwork-birdcoder-codeengine/src/opencode_provider.rs",
-            "pattern": "fn submit_approval_decision"
+            "file": "Cargo.toml",
+            "pattern": "sdkwork[-_]kernel|sdkwork-agent-kernel|sdkwork-code-kernel"
           },
           {
-            "file": "crates/sdkwork-birdcoder-codeengine/src/opencode_provider.rs",
-            "pattern": "fn submit_user_question_answer"
+            "file": "package.json",
+            "pattern": "@sdkwork/kernel|birdcoder-kernel-bridge|birdcoder-pc-codeengine"
           }
         ]
       },
       "verification": {
         "commands": [
-          "cargo test -p sdkwork-birdcoder-kernel-bridge"
+          "pnpm check:kernel-birdcoder-alignment"
         ]
       }
-    },
-    {
-      "id": "KBA-K-05",
-      "phase": "P5-evolution",
-      "owner": "kernel",
-      "title": "OpenClaw/Hermes/Rig autonomous provider conformance and product gate",
-      "status": "pending",
-      "gate": false,
-      "notes": "OpenClaw has an experimental official SDK/gateway binding; Hermes has a Python process/JSON-RPC IPC binding; Rig is a Rust-native standardizing provider with live execution still fail-closed/live_pending. BirdCoder product exposure remains disabled until conformance tests, feature flag, and operator runbook are complete.",
-      "evidence": {
-        "siblingPaths": [
-          "../sdkwork-kernel/agent-providers/crates/sdkwork-agent-provider-openclaw",
-          "../sdkwork-kernel/agent-providers/crates/sdkwork-agent-provider-hermes",
-          "../sdkwork-kernel/agent-providers/crates/sdkwork-agent-provider-rig",
-          "../sdkwork-kernel/bindings/agent-providers/openclaw/provider-binding.manifest.json",
-          "../sdkwork-kernel/bindings/agent-providers/hermes/provider-binding.manifest.json",
-          "../sdkwork-kernel/bindings/agent-providers/rig/provider-binding.manifest.json",
-          "../sdkwork-kernel/sdkwork-kernel-plugins/specs/mappings/openclaw.md",
-          "../sdkwork-kernel/sdkwork-kernel-plugins/specs/mappings/hermes-agent.md",
-          "../sdkwork-kernel/sdkwork-kernel-plugins/specs/mappings/rig.md"
-        ]
-      }
-    },
-    {
-      "id": "KBA-K-06",
-      "phase": "P5-evolution",
-      "owner": "kernel",
-      "title": "AGENT_TASK_SCHEDULING_SPI_SPEC 独立规范成文",
-      "status": "pending",
-      "gate": false,
-      "notes": "从 kernel-local-conventions task_scheduling 条目抽出正式 SPI spec + schema。"
-    },
-    {
-      "id": "KBA-K-07",
-      "phase": "P5-evolution",
-      "owner": "kernel",
-      "title": "Live interaction 迁入 kernel AgentInteractionProvider SPI",
-      "status": "pending",
-      "gate": false,
-      "notes": "agents runtime-facade live_interaction 模块瘦身；approval/user-question 语义归 kernel。"
-    },
-    {
-      "id": "KBA-BC-10",
-      "phase": "P5-evolution",
-      "owner": "birdcoder",
-      "title": "自主智能体可选 catalog（openclaw/hermes）feature flag",
-      "status": "pending",
-      "gate": false,
-      "notes": "依赖 KBA-K-05 conformance；默认关闭，与四代码引擎 P0 分离。"
     }
   ],
   "verificationMatrix": {
     "alignmentLoop": [
-      "node scripts/kernel-birdcoder-alignment-contract.test.mjs",
-      "cargo build -p sdkwork-birdcoder-kernel-bridge --bin birdcoder-kernel-turn",
-      "cargo test -p sdkwork-birdcoder-kernel-bridge",
-      "node scripts/birdcoder-kernel-integration-contract.test.mjs",
-      "node --experimental-strip-types scripts/kernel-runtime-adapter-contract.test.ts",
-      "node --experimental-strip-types scripts/engine-kernel-contract.test.ts",
-      "node --experimental-strip-types scripts/codeengine-native-provider-completeness-contract.test.ts",
-      "node --experimental-strip-types scripts/codeengine-official-sdk-bridge-contract.test.ts",
-      "node scripts/run-local-typescript.mjs --noEmit",
-      "node scripts/check-arch-boundaries.mjs",
-      "node scripts/check-sdkwork-birdcoder-structure.mjs",
-      "node scripts/legacy-src-host-retirement-contract.test.mjs"
+      "pnpm check:domain-ownership",
+      "pnpm check:kernel-birdcoder-alignment",
+      "pnpm check:arch"
     ],
     "governanceSubset": [
-      "pnpm run test:engine-runtime-adapter",
-      "pnpm run test:engine-kernel-contract",
-      "pnpm run test:birdcoder-kernel-integration-contract",
-      "pnpm run test:codeengine-native-provider-completeness-contract",
-      "pnpm run test:codeengine-official-sdk-bridge-contract"
+      "pnpm run check:domain-ownership"
     ]
   }
 }

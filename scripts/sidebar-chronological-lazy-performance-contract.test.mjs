@@ -8,7 +8,7 @@ const sidebarSource = fs.readFileSync(
 
 assert.match(
   sidebarSource,
-  /const EMPTY_SIDEBAR_CODING_SESSIONS: BirdCoderCodingSession\[\] = \[\];/,
+  /const EMPTY_SIDEBAR_AGENT_SESSIONS: AgentSessionView\[\] = \[\];/,
   'Code sidebar must keep a stable empty coding-session collection for lazy inactive views.',
 );
 
@@ -26,7 +26,7 @@ assert.match(
 
 assert.match(
   sidebarSource,
-  /const chronologicalSessions = useMemo\([\s\S]*if \(organizeBy !== 'chronological'\) \{[\s\S]*return EMPTY_SIDEBAR_CODING_SESSIONS;[\s\S]*\}/s,
+  /const chronologicalSessions = useMemo\([\s\S]*if \(organizeBy !== 'chronological'\) \{[\s\S]*return EMPTY_SIDEBAR_AGENT_SESSIONS;[\s\S]*\}/s,
   'Code sidebar must not build the chronological all-session list while the project-organized view is active.',
 );
 
@@ -56,13 +56,13 @@ assert.doesNotMatch(
 
 assert.match(
   sidebarSource,
-  /function resolveSidebarProjectViewSessions\([\s\S]*if \(sortBy === 'updated'\) \{[\s\S]*return codingSessions as BirdCoderCodingSession\[\];[\s\S]*\}/s,
+  /function resolveSidebarProjectViewSessions\([\s\S]*if \(sortBy === 'updated'\) \{[\s\S]*return agentSessions as AgentSessionView\[\];[\s\S]*\}/s,
   'Project-organized sidebar view must reuse the already activity-sorted session order when sorting by updated time.',
 );
 
 assert.doesNotMatch(
   sidebarSource,
-  /filteredSessions:\s*buildSortedCodingSessions\(/,
+  /filteredSessions:\s*buildSortedAgentSessions\(/,
   'Project-organized sidebar view must not re-sort every project session list on the default updated-time render path.',
 );
 

@@ -45,6 +45,8 @@
     "publicExports": [
       "."
     ],
+    "providedPorts": [],
+    "requiredPorts": [],
     "runtimeEntrypoints": [],
     "routeManifest": "assembly-manifest.json",
     "sdkClients": [],

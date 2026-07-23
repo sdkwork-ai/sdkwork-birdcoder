@@ -11,7 +11,7 @@ import {
   RotateCcw,
   Terminal,
 } from 'lucide-react';
-import type { CommandExecution, FileChange } from '@sdkwork/birdcoder-pc-workbench/chat/types';
+import type { AgentSessionCommandView, FileChange } from '@sdkwork/birdcoder-pc-workbench/chat/types';
 import { hasRestorableFileChanges } from '@sdkwork/birdcoder-pc-workbench/workbench/fileChangeRestore';
 import {
   buildChatContentPreview,
@@ -61,7 +61,7 @@ export interface ActivityFileChangeLineImpact {
 }
 
 export interface ChatActivitySummaryProps {
-  commands?: readonly CommandExecution[];
+  commands?: readonly AgentSessionCommandView[];
   compact?: boolean;
   copyLabel: string;
   copyMessageToClipboard: (content: string) => void;
@@ -75,7 +75,7 @@ export interface ChatActivitySummaryProps {
 }
 
 interface RenderCommandExecutionCardOptions {
-  cmd: CommandExecution;
+  cmd: AgentSessionCommandView;
   commandDetailsId: string;
   commandLabel: string;
   commandKey: string;

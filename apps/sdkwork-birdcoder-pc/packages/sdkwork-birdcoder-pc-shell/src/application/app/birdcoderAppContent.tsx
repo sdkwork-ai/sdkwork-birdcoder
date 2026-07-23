@@ -14,16 +14,16 @@ import {
   normalizeWorkbenchRecoveryUserScope,
   recoverySnapshotsEqual,
   resolveWorkbenchRecoverySnapshotForUser,
-  resolveStartupCodingSessionId,
+  resolveStartupAgentSessionId,
   resolveStartupProjectId,
   resolveStartupWorkspaceId,
   resolveWorkbenchRecoveryPersistenceSelection,
   type WorkbenchRecoverySnapshot,
 } from '@sdkwork/birdcoder-pc-workbench/workbench/recovery';
 import {
-  buildCodingSessionProjectScopedKey,
-  buildProjectCodingSessionIndex,
-} from '@sdkwork/birdcoder-pc-workbench/workbench/codingSessionSelection';
+  buildAgentSessionProjectScopedKey,
+  buildProjectAgentSessionIndex,
+} from '@sdkwork/birdcoder-pc-workbench/workbench/agentSessionSelection';
 import { hydrateImportedProjectFromAuthority } from '@sdkwork/birdcoder-pc-workbench/workbench/importedProjectHydration';
 import { importSandboxDirectoryProject } from '@sdkwork/birdcoder-pc-workbench/workbench/sandboxDirectoryProjectImport';
 import { resolveProjectImportWorkspaceId } from '@sdkwork/birdcoder-pc-workbench/workbench/projectImportWorkspace';
@@ -53,14 +53,17 @@ import { buildBirdCoderAuthSessionInventoryScope } from '@sdkwork/birdcoder-pc-w
 import { usePersistedState } from '@sdkwork/birdcoder-pc-workbench/hooks/usePersistedState';
 import { useProjects } from '@sdkwork/birdcoder-pc-workbench/hooks/useProjects';
 import { useWorkbenchChatSelection } from '@sdkwork/birdcoder-pc-workbench/hooks/useWorkbenchChatSelection';
-import { useWorkbenchCodingSessionCreationActions } from '@sdkwork/birdcoder-pc-workbench/hooks/useWorkbenchCodingSessionCreationActions';
-import type { CreateNewCodingSessionRequest } from '@sdkwork/birdcoder-pc-workbench/workbench/codingSessionCreation';
+import { useWorkbenchAgentSessionCreationActions } from '@sdkwork/birdcoder-pc-workbench/hooks/useWorkbenchAgentSessionCreationActions';
+import type { CreateNewAgentSessionRequest } from '@sdkwork/birdcoder-pc-workbench/workbench/agentSessionCreation';
 import { useWorkbenchPreferences } from '@sdkwork/birdcoder-pc-workbench/hooks/useWorkbenchPreferences';
 import { useWorkspaces } from '@sdkwork/birdcoder-pc-workbench/hooks/useWorkspaces';
 import { Button, TopMenu, type TopMenuItem } from '@sdkwork/birdcoder-pc-ui-shell';
 import { copyTextToClipboard } from '@sdkwork/birdcoder-pc-ui/components/clipboard';
 import type { AppTab, BirdCoderProject } from '@sdkwork/birdcoder-pc-contracts-commons';
-import { resolveWorkbenchCodeEngineSelectedModelId, resolveWorkbenchNewSessionEngineCatalog } from '@sdkwork/birdcoder-pc-codeengine';
+import {
+  resolveWorkbenchCodeEngineSelectedModelId,
+  resolveWorkbenchNewSessionEngineCatalog,
+} from '@sdkwork/birdcoder-pc-workbench/workbench/codeEngineCatalog';
 import { useSandboxDirectoryPicker } from '@sdkwork/drive-pc-sandbox-explorer';
 import { useTranslation } from 'react-i18next';
 import {
@@ -97,7 +100,7 @@ export function AppContent() {
   const { t } = useTranslation();
   const { pickDirectory } = useSandboxDirectoryPicker();
   const {
-    appRuntimeReadService,
+    agentSessionService,
     fileSystemService,
     projectRuntimeLocationService,
     projectService,
@@ -131,14 +134,14 @@ export function AppContent() {
   );
   const [activeWorkspaceId, setActiveWorkspaceId] = useState<string>('');
   const [activeProjectId, setActiveProjectId] = useState<string>('');
-  const [activeCodingSessionId, setActiveCodingSessionId] = useState<string>('');
+  const [activeAgentSessionId, setActiveAgentSessionId] = useState<string>('');
   const previousWorkbenchSessionScopeRef = useRef(currentWorkbenchSessionScope);
   const isWorkbenchSelectionForCurrentSession =
     previousWorkbenchSessionScopeRef.current === currentWorkbenchSessionScope;
   const scopedActiveWorkspaceId = isWorkbenchSelectionForCurrentSession ? activeWorkspaceId : '';
   const scopedActiveProjectId = isWorkbenchSelectionForCurrentSession ? activeProjectId : '';
-  const scopedActiveCodingSessionId =
-    isWorkbenchSelectionForCurrentSession ? activeCodingSessionId : '';
+  const scopedActiveAgentSessionId =
+    isWorkbenchSelectionForCurrentSession ? activeAgentSessionId : '';
   const {
     workspaces,
     error: workspacesError,
@@ -193,7 +196,7 @@ export function AppContent() {
     refreshProjects: refreshActiveProjects,
     updateProject: updateActiveProject,
     deleteProject: deleteActiveProject,
-    createCodingSession: createActiveCodingSession,
+    createAgentSession: createActiveAgentSession,
   } = useProjects(projectsWorkspaceId, {
     targetProjectId:
       scopedActiveProjectId ||
@@ -202,7 +205,7 @@ export function AppContent() {
         : null),
   });
   const activeProjectsIndex = useMemo(
-    () => buildProjectCodingSessionIndex(activeProjects),
+    () => buildProjectAgentSessionIndex(activeProjects),
     [activeProjects],
   );
   const {
@@ -212,19 +215,18 @@ export function AppContent() {
     isLoadingMore: isDistinctMenuProjectsLoadingMore,
     createProject: createDistinctMenuProject,
     loadMoreProjects: loadMoreDistinctMenuProjects,
-    createCodingSession: createDistinctMenuCodingSession,
+    createAgentSession: createDistinctMenuAgentSession,
     refreshProjects: refreshDistinctMenuProjects,
     updateProject: updateDistinctMenuProject,
     deleteProject: deleteDistinctMenuProject,
   } = useProjects(
     shouldUseDistinctMenuProjectsStore ? menuProjectsScopeWorkspaceId : '',
     {
-      enableRealtime: false,
     },
   );
   const menuProjects = shouldUseDistinctMenuProjectsStore ? distinctMenuProjects : activeProjects;
   const menuProjectsIndex = useMemo(
-    () => buildProjectCodingSessionIndex(menuProjects),
+    () => buildProjectAgentSessionIndex(menuProjects),
     [menuProjects],
   );
   const menuProjectsHasFetched =
@@ -279,7 +281,7 @@ export function AppContent() {
   const minimizeWindowControlButtonRef = useRef<HTMLButtonElement | null>(null);
   const maximizeWindowControlButtonRef = useRef<HTMLButtonElement | null>(null);
   const closeWindowControlButtonRef = useRef<HTMLButtonElement | null>(null);
-  const createCodingSessionCommandRef = useRef<(request?: CreateNewCodingSessionRequest) => void>(() => {});
+  const createAgentSessionCommandRef = useRef<(request?: CreateNewAgentSessionRequest) => void>(() => {});
   const openFolderHandlerRef = useRef<() => void>(() => {});
   const zoomHandlerRef = useRef<(direction: 'in' | 'out' | 'reset') => void>(() => {});
   const toggleFullScreenHandlerRef = useRef<() => void>(() => {});
@@ -316,24 +318,24 @@ export function AppContent() {
   const projectMountRecoveryIdentityRef = useRef('');
   const projectMountRecoveryActiveSurfaceRef = useRef('');
   const workspaceBootstrapPromiseRef = useRef<Promise<string> | null>(null);
-  const activeCodingSessionSelectionScopeKeyRef = useRef('');
+  const activeAgentSessionSelectionScopeKeyRef = useRef('');
 
-  const clearActiveCodingSessionSelection = useCallback(() => {
-    activeCodingSessionSelectionScopeKeyRef.current = '';
-    setActiveCodingSessionId('');
+  const clearActiveAgentSessionSelection = useCallback(() => {
+    activeAgentSessionSelectionScopeKeyRef.current = '';
+    setActiveAgentSessionId('');
   }, []);
 
-  const commitActiveCodingSessionSelection = useCallback((
+  const commitActiveAgentSessionSelection = useCallback((
     projectId: string,
-    codingSessionId: string,
+    agentSessionId: string,
   ) => {
     const normalizedProjectId = projectId.trim();
-    const normalizedCodingSessionId = codingSessionId.trim();
-    activeCodingSessionSelectionScopeKeyRef.current =
-      normalizedProjectId && normalizedCodingSessionId
-        ? buildCodingSessionProjectScopedKey(normalizedProjectId, normalizedCodingSessionId)
+    const normalizedAgentSessionId = agentSessionId.trim();
+    activeAgentSessionSelectionScopeKeyRef.current =
+      normalizedProjectId && normalizedAgentSessionId
+        ? buildAgentSessionProjectScopedKey(normalizedProjectId, normalizedAgentSessionId)
         : '';
-    setActiveCodingSessionId(normalizedCodingSessionId);
+    setActiveAgentSessionId(normalizedAgentSessionId);
   }, []);
 
   useEffect(() => {
@@ -445,9 +447,9 @@ export function AppContent() {
     setActiveWorkspaceId(normalizedWorkspaceId);
     setMenuActiveWorkspaceId(normalizedWorkspaceId);
     setActiveProjectId('');
-    clearActiveCodingSessionSelection();
+    clearActiveAgentSessionSelection();
     setProjectActionsMenuId(null);
-  }, [clearActiveCodingSessionSelection]);
+  }, [clearActiveAgentSessionSelection]);
 
   const previewWorkspaceSelection = useCallback((workspaceId: string) => {
     const normalizedWorkspaceId = workspaceId.trim();
@@ -477,35 +479,35 @@ export function AppContent() {
     recoverySnapshot: normalizedRecoverySnapshot,
   });
   const effectiveProjectId = (scopedActiveProjectId || resolvedProjectId).trim();
-  const activeProjectCodingSessions =
-    activeProjectsIndex.projectsById.get(effectiveProjectId)?.codingSessions ?? [];
-  const activeProjectCodingSessionIds = useMemo(
-    () => new Set(activeProjectCodingSessions.map((codingSession) => codingSession.id)),
-    [activeProjectCodingSessions],
+  const activeProjectAgentSessions =
+    activeProjectsIndex.projectsById.get(effectiveProjectId)?.agentSessions ?? [];
+  const activeProjectAgentSessionIds = useMemo(
+    () => new Set(activeProjectAgentSessions.map((agentSession) => agentSession.id)),
+    [activeProjectAgentSessions],
   );
-  const resolvedCodingSessionId = resolveStartupCodingSessionId({
+  const resolvedAgentSessionId = resolveStartupAgentSessionId({
     projectId: effectiveProjectId,
     projects: activeProjects,
     recoverySnapshot: normalizedRecoverySnapshot,
   });
-  const scopedActiveCodingSessionScopeKey =
-    effectiveProjectId && scopedActiveCodingSessionId
-      ? buildCodingSessionProjectScopedKey(effectiveProjectId, scopedActiveCodingSessionId)
+  const scopedActiveAgentSessionScopeKey =
+    effectiveProjectId && scopedActiveAgentSessionId
+      ? buildAgentSessionProjectScopedKey(effectiveProjectId, scopedActiveAgentSessionId)
       : '';
-  const isScopedActiveCodingSessionInProject = Boolean(
-    scopedActiveCodingSessionId &&
-    activeProjectCodingSessionIds.has(scopedActiveCodingSessionId),
+  const isScopedActiveAgentSessionInProject = Boolean(
+    scopedActiveAgentSessionId &&
+    activeProjectAgentSessionIds.has(scopedActiveAgentSessionId),
   );
-  const isPendingScopedActiveCodingSession = Boolean(
-    scopedActiveCodingSessionId &&
-    scopedActiveCodingSessionScopeKey &&
-    activeCodingSessionSelectionScopeKeyRef.current === scopedActiveCodingSessionScopeKey &&
+  const isPendingScopedActiveAgentSession = Boolean(
+    scopedActiveAgentSessionId &&
+    scopedActiveAgentSessionScopeKey &&
+    activeAgentSessionSelectionScopeKeyRef.current === scopedActiveAgentSessionScopeKey &&
     activeProjectsIndex.projectsById.has(effectiveProjectId),
   );
-  const effectiveCodingSessionId = (
-    isScopedActiveCodingSessionInProject || isPendingScopedActiveCodingSession
-      ? scopedActiveCodingSessionId
-      : resolvedCodingSessionId
+  const effectiveAgentSessionId = (
+    isScopedActiveAgentSessionInProject || isPendingScopedActiveAgentSession
+      ? scopedActiveAgentSessionId
+      : resolvedAgentSessionId
   ).trim();
   const currentUserFallbackRecoverySnapshot =
     lastPersistedRecoverySnapshotRef.current?.userScope === currentWorkbenchUserScope
@@ -514,14 +516,14 @@ export function AppContent() {
   const persistedRecoverySelection = useMemo(() => resolveWorkbenchRecoveryPersistenceSelection({
       currentWorkspaceId: effectiveWorkspaceId,
       currentProjectId: effectiveProjectId,
-      currentCodingSessionId: effectiveCodingSessionId,
+      currentAgentSessionId: effectiveAgentSessionId,
       fallbackSnapshot: currentUserFallbackRecoverySnapshot,
       hasProjectsFetched: activeProjectsHasFetched,
       hasWorkspacesFetched: workspacesHasFetched,
     }), [
       activeProjectsHasFetched,
       currentUserFallbackRecoverySnapshot,
-      effectiveCodingSessionId,
+      effectiveAgentSessionId,
       effectiveProjectId,
       effectiveWorkspaceId,
       workspacesHasFetched,
@@ -542,7 +544,7 @@ export function AppContent() {
     recoverySnapshot: normalizedRecoverySnapshot,
     activeWorkspaceId: effectiveWorkspaceId,
     activeProjectId: effectiveProjectId,
-    activeCodingSessionId: effectiveCodingSessionId,
+    activeAgentSessionId: effectiveAgentSessionId,
   });
   const resolveImmediateProjectIndex = useCallback(
     (workspaceId: string) => {
@@ -572,11 +574,11 @@ export function AppContent() {
       setActiveProjectId(projectId);
 
       const immediateProjectIndex = resolveImmediateProjectIndex(workspaceId);
-      const latestCodingSessionId =
-        immediateProjectIndex?.latestCodingSessionIdByProjectId.get(projectId) ?? null;
-      commitActiveCodingSessionSelection(projectId, latestCodingSessionId ?? '');
+      const latestAgentSessionId =
+        immediateProjectIndex?.latestAgentSessionIdByProjectId.get(projectId) ?? null;
+      commitActiveAgentSessionSelection(projectId, latestAgentSessionId ?? '');
     },
-    [commitActiveCodingSessionSelection, resolveImmediateProjectIndex],
+    [commitActiveAgentSessionSelection, resolveImmediateProjectIndex],
   );
 
   const hydrateImportedProjectSelectionInBackground = useCallback(
@@ -591,7 +593,7 @@ export function AppContent() {
           }
 
           const hydratedProject = await hydrateImportedProjectFromAuthority({
-            appRuntimeReadService,
+            agentSessionService,
             knownProjects:
               workspaceId === effectiveWorkspaceId
                 ? activeProjects
@@ -607,9 +609,9 @@ export function AppContent() {
             return;
           }
 
-          commitActiveCodingSessionSelection(
+          commitActiveAgentSessionSelection(
             projectId,
-            hydratedProject.latestCodingSessionId ?? '',
+            hydratedProject.latestAgentSessionId ?? '',
           );
           pendingImportedProjectIdRef.current = '';
           pendingImportedWorkspaceIdRef.current = '';
@@ -620,12 +622,12 @@ export function AppContent() {
     },
     [
       activeProjects,
-      appRuntimeReadService,
+      agentSessionService,
       effectiveMenuWorkspaceId,
       effectiveWorkspaceId,
       menuProjects,
       projectService,
-      commitActiveCodingSessionSelection,
+      commitActiveAgentSessionSelection,
       user?.id,
     ],
   );
@@ -644,10 +646,10 @@ export function AppContent() {
     setActiveWorkspaceId('');
     setMenuActiveWorkspaceId('');
     setActiveProjectId('');
-    clearActiveCodingSessionSelection();
+    clearActiveAgentSessionSelection();
     setProjectActionsMenuId(null);
     setShowWorkspaceMenu(false);
-  }, [clearActiveCodingSessionSelection, currentWorkbenchSessionScope]);
+  }, [clearActiveAgentSessionSelection, currentWorkbenchSessionScope]);
 
   useEffect(() => {
     if (!isRecoveryHydrated || recoverySessionIdRef.current) {
@@ -662,7 +664,7 @@ export function AppContent() {
       activeTab: normalizedRecoverySnapshot.activeTab,
       activeWorkspaceId: normalizedRecoverySnapshot.activeWorkspaceId,
       activeProjectId: normalizedRecoverySnapshot.activeProjectId,
-      activeCodingSessionId: normalizedRecoverySnapshot.activeCodingSessionId,
+      activeAgentSessionId: normalizedRecoverySnapshot.activeAgentSessionId,
       cleanExit: normalizedRecoverySnapshot.cleanExit,
     });
   }, [currentWorkbenchUserScope, isRecoveryHydrated, normalizedRecoverySnapshot]);
@@ -763,55 +765,55 @@ export function AppContent() {
     }
 
     if (!effectiveProjectId) {
-      if (activeCodingSessionId) {
-        clearActiveCodingSessionSelection();
+      if (activeAgentSessionId) {
+        clearActiveAgentSessionSelection();
       }
       return;
     }
 
-    if (activeCodingSessionId) {
-      const activeSelectionScopeKey = buildCodingSessionProjectScopedKey(
+    if (activeAgentSessionId) {
+      const activeSelectionScopeKey = buildAgentSessionProjectScopedKey(
         effectiveProjectId,
-        activeCodingSessionId,
+        activeAgentSessionId,
       );
-      if (activeProjectCodingSessionIds.has(activeCodingSessionId)) {
-        activeCodingSessionSelectionScopeKeyRef.current = activeSelectionScopeKey;
+      if (activeProjectAgentSessionIds.has(activeAgentSessionId)) {
+        activeAgentSessionSelectionScopeKeyRef.current = activeSelectionScopeKey;
         return;
       }
 
       if (
-        activeCodingSessionSelectionScopeKeyRef.current === activeSelectionScopeKey &&
+        activeAgentSessionSelectionScopeKeyRef.current === activeSelectionScopeKey &&
         activeProjectsIndex.projectsById.has(effectiveProjectId)
       ) {
         return;
       }
 
-      if (resolvedCodingSessionId) {
-        commitActiveCodingSessionSelection(effectiveProjectId, resolvedCodingSessionId);
+      if (resolvedAgentSessionId) {
+        commitActiveAgentSessionSelection(effectiveProjectId, resolvedAgentSessionId);
         return;
       }
 
-      clearActiveCodingSessionSelection();
+      clearActiveAgentSessionSelection();
       return;
     }
 
     if (
-      activeProjectCodingSessions.length > 0 &&
-      resolvedCodingSessionId
+      activeProjectAgentSessions.length > 0 &&
+      resolvedAgentSessionId
     ) {
-      commitActiveCodingSessionSelection(effectiveProjectId, resolvedCodingSessionId);
+      commitActiveAgentSessionSelection(effectiveProjectId, resolvedAgentSessionId);
     }
   }, [
-    activeCodingSessionId,
+    activeAgentSessionId,
     activeProjectsHasFetched,
     activeProjectsIndex,
-    activeProjectCodingSessionIds,
-    activeProjectCodingSessions.length,
-    clearActiveCodingSessionSelection,
-    commitActiveCodingSessionSelection,
+    activeProjectAgentSessionIds,
+    activeProjectAgentSessions.length,
+    clearActiveAgentSessionSelection,
+    commitActiveAgentSessionSelection,
     effectiveProjectId,
     effectiveWorkspaceId.length,
-    resolvedCodingSessionId,
+    resolvedAgentSessionId,
   ]);
 
   const clearPendingRecoverySnapshotPersistence = useCallback(() => {
@@ -838,7 +840,7 @@ export function AppContent() {
       activeTab,
       activeWorkspaceId: persistedRecoverySelection.activeWorkspaceId,
       activeProjectId: persistedRecoverySelection.activeProjectId,
-      activeCodingSessionId: persistedRecoverySelection.activeCodingSessionId,
+      activeAgentSessionId: persistedRecoverySelection.activeAgentSessionId,
       cleanExit: false,
     });
 
@@ -894,7 +896,7 @@ export function AppContent() {
           activeTab,
           activeWorkspaceId: persistedRecoverySelection.activeWorkspaceId,
           activeProjectId: persistedRecoverySelection.activeProjectId,
-          activeCodingSessionId: persistedRecoverySelection.activeCodingSessionId,
+          activeAgentSessionId: persistedRecoverySelection.activeAgentSessionId,
           cleanExit: true,
         }),
       );
@@ -1148,7 +1150,7 @@ export function AppContent() {
       if (cmdOrCtrl && e.key === 'n') {
         e.preventDefault();
         if (e.repeat) return;
-        void createCodingSessionCommandRef.current({ source: 'keyboard-shortcut' });
+        void createAgentSessionCommandRef.current({ source: 'keyboard-shortcut' });
       } else if (cmdOrCtrl && e.key === 'o') {
         e.preventDefault();
         openFolderHandlerRef.current();
@@ -1190,10 +1192,10 @@ export function AppContent() {
         globalEventBus.emit('openQuickOpen');
       } else if (cmdOrCtrl && e.shiftKey && e.key === '[') {
         e.preventDefault();
-        globalEventBus.emit('previousCodingSession');
+        globalEventBus.emit('previousAgentSession');
       } else if (cmdOrCtrl && e.shiftKey && e.key === ']') {
         e.preventDefault();
-        globalEventBus.emit('nextCodingSession');
+        globalEventBus.emit('nextAgentSession');
       } else if (cmdOrCtrl && e.key === '[' && !e.shiftKey) {
         e.preventDefault();
         window.history.back();
@@ -1404,7 +1406,7 @@ export function AppContent() {
       await deleteProject(projectToDelete);
       if (activeProjectId === projectToDelete) {
         setActiveProjectId('');
-        clearActiveCodingSessionSelection();
+        clearActiveAgentSessionSelection();
       }
       addToast(t('app.projectRemoved'), "success");
     } catch (error) {
@@ -1441,9 +1443,9 @@ export function AppContent() {
         return;
       }
 
-      const nextCodingSessionId =
-        nextProjectIndex.latestCodingSessionIdByProjectId.get(nextProjectId) ?? '';
-      const shouldResetCodingSession =
+      const nextAgentSessionId =
+        nextProjectIndex.latestAgentSessionIdByProjectId.get(nextProjectId) ?? '';
+      const shouldResetAgentSession =
         nextWorkspaceId !== effectiveWorkspaceId || nextProjectId !== effectiveProjectId;
 
       if (nextWorkspaceId && nextWorkspaceId !== effectiveWorkspaceId) {
@@ -1451,8 +1453,8 @@ export function AppContent() {
       }
       setMenuActiveWorkspaceId(nextWorkspaceId || effectiveWorkspaceId);
       setActiveProjectId(nextProjectId);
-      if (shouldResetCodingSession || nextCodingSessionId) {
-        commitActiveCodingSessionSelection(nextProjectId, nextCodingSessionId);
+      if (shouldResetAgentSession || nextAgentSessionId) {
+        commitActiveAgentSessionSelection(nextProjectId, nextAgentSessionId);
       }
       setProjectActionsMenuId(null);
       setShowWorkspaceMenu(false);
@@ -1461,7 +1463,7 @@ export function AppContent() {
       effectiveMenuWorkspaceId,
       effectiveProjectId,
       effectiveWorkspaceId,
-      commitActiveCodingSessionSelection,
+      commitActiveAgentSessionSelection,
       resolveImmediateProjectIndex,
     ],
   );
@@ -1952,37 +1954,37 @@ export function AppContent() {
 
   const activeWorkspace = workspacesById.get(effectiveWorkspaceId) || workspaces[0];
   const activeProject = activeProjectsIndex.projectsById.get(effectiveProjectId) ?? null;
-  const activeCodingSession =
-    activeProjectsIndex.codingSessionLocationsByProjectIdAndId.get(
-      buildCodingSessionProjectScopedKey(effectiveProjectId, effectiveCodingSessionId),
-    )?.codingSession ??
+  const activeAgentSession =
+    activeProjectsIndex.agentSessionLocationsByProjectIdAndId.get(
+      buildAgentSessionProjectScopedKey(effectiveProjectId, effectiveAgentSessionId),
+    )?.agentSession ??
     null;
-  const createShellCodingSession = useCallback((
+  const createShellAgentSession = useCallback((
     projectId: string,
     title: string,
     options: { engineId: string; modelId: string },
   ) => {
     if (shouldUseDistinctMenuProjectsStore && menuProjectsIndex.projectsById.has(projectId)) {
-      return createDistinctMenuCodingSession(projectId, title, options);
+      return createDistinctMenuAgentSession(projectId, title, options);
     }
-    return createActiveCodingSession(projectId, title, options);
-  }, [createActiveCodingSession, createDistinctMenuCodingSession, menuProjectsIndex, shouldUseDistinctMenuProjectsStore]);
-  const { createCodingSessionWithSelection } = useWorkbenchChatSelection({
-    createCodingSession: createShellCodingSession,
-    currentSessionEngineId: activeCodingSession?.engineId,
-    currentSessionModelId: activeCodingSession?.modelId,
+    return createActiveAgentSession(projectId, title, options);
+  }, [createActiveAgentSession, createDistinctMenuAgentSession, menuProjectsIndex, shouldUseDistinctMenuProjectsStore]);
+  const { createAgentSessionWithSelection } = useWorkbenchChatSelection({
+    createAgentSession: createShellAgentSession,
+    currentSessionEngineId: activeAgentSession?.engineId,
+    currentSessionModelId: activeAgentSession?.modelId,
     preferences,
     updatePreferences,
   });
-  const handleSelectCreatedCodingSession = useCallback(
+  const handleSelectCreatedAgentSession = useCallback(
     (
-      codingSessionId: string,
+      agentSessionId: string,
       options?: {
         projectId?: string;
       },
     ) => {
-      const normalizedCodingSessionId = codingSessionId.trim();
-      if (!normalizedCodingSessionId) {
+      const normalizedAgentSessionId = agentSessionId.trim();
+      if (!normalizedAgentSessionId) {
         return;
       }
 
@@ -1998,7 +2000,7 @@ export function AppContent() {
         setActiveProjectId(targetProjectId);
       }
 
-      commitActiveCodingSessionSelection(targetProjectId, normalizedCodingSessionId);
+      commitActiveAgentSessionSelection(targetProjectId, normalizedAgentSessionId);
       setActiveTab((previousActiveTab) =>
         previousActiveTab === 'code' || previousActiveTab === 'studio'
           ? previousActiveTab
@@ -2007,33 +2009,33 @@ export function AppContent() {
       setProjectActionsMenuId(null);
       setShowWorkspaceMenu(false);
     },
-    [activeProjectsIndex, commitActiveCodingSessionSelection, effectiveProjectId, effectiveWorkspaceId, menuProjectsIndex],
+    [activeProjectsIndex, commitActiveAgentSessionSelection, effectiveProjectId, effectiveWorkspaceId, menuProjectsIndex],
   );
   const handleActiveProjectChange = useCallback((projectId: string) => {
     const normalizedProjectId = projectId.trim();
     setActiveProjectId(normalizedProjectId);
-    clearActiveCodingSessionSelection();
-  }, [clearActiveCodingSessionSelection]);
-  const handleActiveCodingSessionChange = useCallback((
-    codingSessionId: string,
+    clearActiveAgentSessionSelection();
+  }, [clearActiveAgentSessionSelection]);
+  const handleActiveAgentSessionChange = useCallback((
+    agentSessionId: string,
     projectId?: string,
   ) => {
     const normalizedProjectId = projectId?.trim() ?? '';
     if (normalizedProjectId) {
       setActiveProjectId(normalizedProjectId);
     }
-    commitActiveCodingSessionSelection(
+    commitActiveAgentSessionSelection(
       normalizedProjectId || effectiveProjectId,
-      codingSessionId,
+      agentSessionId,
     );
-  }, [commitActiveCodingSessionSelection, effectiveProjectId]);
+  }, [commitActiveAgentSessionSelection, effectiveProjectId]);
   const {
-    createCodingSessionFromRequest,
-  } = useWorkbenchCodingSessionCreationActions({
+    createAgentSessionFromRequest,
+  } = useWorkbenchAgentSessionCreationActions({
     addToast,
-    createCodingSessionWithSelection,
+    createAgentSessionWithSelection,
     currentProjectId: effectiveProjectId,
-    selectCodingSession: handleSelectCreatedCodingSession,
+    selectAgentSession: handleSelectCreatedAgentSession,
     labels: {
       creationFailed: t('code.failedToCreateSession'),
       creationSucceeded: t('code.newSessionCreated'),
@@ -2044,16 +2046,16 @@ export function AppContent() {
     () =>
       resolveWorkbenchNewSessionEngineCatalog(
         {
-          currentSessionEngineId: activeCodingSession?.engineId,
-          currentSessionModelId: activeCodingSession?.modelId,
+          currentSessionEngineId: activeAgentSession?.engineId,
+          currentSessionModelId: activeAgentSession?.modelId,
           preferredEngineId: preferences.codeEngineId,
           preferredModelId: preferences.codeModelId,
         },
         preferences,
       ),
     [
-      activeCodingSession?.engineId,
-      activeCodingSession?.modelId,
+      activeAgentSession?.engineId,
+      activeAgentSession?.modelId,
       preferences,
     ],
   );
@@ -2085,22 +2087,22 @@ export function AppContent() {
         return;
       }
 
-      await createCodingSessionFromRequest({
+      await createAgentSessionFromRequest({
         engineId: requestedEngineId,
         modelId: requestedModelId,
         projectId: normalizedProjectId,
         source: 'workspace-menu',
       });
     },
-    [addToast, createCodingSessionFromRequest, menuProjectsIndex, t],
+    [addToast, createAgentSessionFromRequest, menuProjectsIndex, t],
   );
-  const handleCreateCodingSessionCommand = useCallback(
-    (request?: CreateNewCodingSessionRequest) => {
-      void createCodingSessionFromRequest(request);
+  const handleCreateAgentSessionCommand = useCallback(
+    (request?: CreateNewAgentSessionRequest) => {
+      void createAgentSessionFromRequest(request);
     },
-    [createCodingSessionFromRequest],
+    [createAgentSessionFromRequest],
   );
-  createCodingSessionCommandRef.current = handleCreateCodingSessionCommand;
+  createAgentSessionCommandRef.current = handleCreateAgentSessionCommand;
 
   const fileMenuItems = useMemo<TopMenuItem[]>(
     () => [
@@ -2108,7 +2110,7 @@ export function AppContent() {
         label: t('app.menu.newSession'),
         shortcut: 'Ctrl+N',
         onClick: () =>
-          handleCreateCodingSessionCommand({
+          handleCreateAgentSessionCommand({
             engineId: newSessionEngineCatalog.preferredSelection.engineId,
             modelId: newSessionEngineCatalog.preferredSelection.modelId,
             source: 'file-menu',
@@ -2116,7 +2118,7 @@ export function AppContent() {
       },
       ...availableNewSessionEngines.map((engine) => ({
         label: `${engine.label} ${t('app.menu.newSession')}`,
-        onClick: () => handleCreateCodingSessionCommand({
+        onClick: () => handleCreateAgentSessionCommand({
           engineId: engine.id,
           modelId: engine.modelId,
           source: 'file-menu',
@@ -2145,7 +2147,7 @@ export function AppContent() {
     [
       availableNewSessionEngines,
       handleClose,
-      handleCreateCodingSessionCommand,
+      handleCreateAgentSessionCommand,
       handleOpenFolder,
       handleLogout,
       newSessionEngineCatalog.preferredSelection.engineId,
@@ -2227,14 +2229,14 @@ export function AppContent() {
       },
       { label: '', divider: true },
       {
-        label: t('app.menu.previousCodingSession'),
+        label: t('app.menu.previousAgentSession'),
         shortcut: 'Ctrl+Shift+[',
-        onClick: () => globalEventBus.emit('previousCodingSession'),
+        onClick: () => globalEventBus.emit('previousAgentSession'),
       },
       {
-        label: t('app.menu.nextCodingSession'),
+        label: t('app.menu.nextAgentSession'),
         shortcut: 'Ctrl+Shift+]',
-        onClick: () => globalEventBus.emit('nextCodingSession'),
+        onClick: () => globalEventBus.emit('nextAgentSession'),
       },
       { label: t('app.menu.back'), shortcut: 'Ctrl+[', onClick: () => window.history.back() },
       {
@@ -2473,11 +2475,11 @@ export function AppContent() {
         workspaceId={effectiveWorkspaceId}
         projectId={effectiveProjectId}
         projectName={activeProject?.name}
-        codingSessionId={effectiveCodingSessionId}
+        agentSessionId={effectiveAgentSessionId}
         onActiveTabChange={handleActiveTabChange}
         onRequireAuth={openAuthenticationSurface}
         onProjectChange={handleActiveProjectChange}
-        onCodingSessionChange={handleActiveCodingSessionChange}
+        onAgentSessionChange={handleActiveAgentSessionChange}
       />
 
       <AppShellDialogs

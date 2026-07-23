@@ -109,12 +109,43 @@
     }
   ],
   "contracts": {
+    "layerRole": "frontend-core",
+    "providedPorts": [
+      {
+        "name": "applicationRuntimeCore",
+        "export": "."
+      },
+      {
+        "name": "applicationSdkFactories",
+        "export": "./sdk"
+      },
+      {
+        "name": "globalTokenManager",
+        "export": "./appSessionTokenManager"
+      },
+      {
+        "name": "browserSessionAuthRedirect",
+        "export": "./appSessionAuthRedirect"
+      }
+    ],
+    "requiredPorts": [
+      {
+        "name": "authSurfacePathContract",
+        "export": "./appSessionAuthRedirect"
+      }
+    ],
     "publicExports": [
       ".",
+      "./appSessionAuthRedirect",
+      "./appSessionTokenManager",
       "./sdk",
+      "./sdk/agents-app",
       "./sdk/birdcoder-app",
+      "./sdk/documents-app",
       "./sdk/drive-app",
-      "./sdk/messaging-app"
+      "./sdk/messaging-app",
+      "./sdk/prompts-app",
+      "./sdk/skills-app"
     ],
     "runtimeEntrypoints": [
       "package.json#scripts.dev",
@@ -132,17 +163,7 @@
         "credentialMode": "authenticated-app-api"
       },
       {
-        "workspace": "sdkwork-birdcoder-app-sdk-typescript",
-        "surface": "app-api",
-        "credentialMode": "authenticated-app-api"
-      },
-      {
         "workspace": "sdkwork-drive-app-sdk",
-        "surface": "app-api",
-        "credentialMode": "authenticated-app-api"
-      },
-      {
-        "workspace": "sdkwork-drive-app-sdk-typescript",
         "surface": "app-api",
         "credentialMode": "authenticated-app-api"
       },
@@ -152,17 +173,27 @@
         "credentialMode": "authenticated-app-api"
       },
       {
-        "workspace": "sdkwork-iam-app-sdk-typescript",
-        "surface": "app-api",
-        "credentialMode": "authenticated-app-api"
-      },
-      {
         "workspace": "sdkwork-messaging-app-sdk",
         "surface": "app-api",
         "credentialMode": "authenticated-app-api"
       },
       {
-        "workspace": "sdkwork-messaging-app-sdk-typescript",
+        "workspace": "sdkwork-agents-app-sdk",
+        "surface": "app-api",
+        "credentialMode": "authenticated-app-api"
+      },
+      {
+        "workspace": "sdkwork-documents-app-sdk",
+        "surface": "app-api",
+        "credentialMode": "authenticated-app-api"
+      },
+      {
+        "workspace": "sdkwork-prompts-app-sdk",
+        "surface": "app-api",
+        "credentialMode": "authenticated-app-api"
+      },
+      {
+        "workspace": "sdkwork-skills-app-sdk",
         "surface": "app-api",
         "credentialMode": "authenticated-app-api"
       }
@@ -175,6 +206,18 @@
         "manifestRef": "../../../../../specs/iam.module.manifest.json"
       },
       "moduleCatalogRefs": [
+        {
+          "moduleId": "agents",
+          "manifestRef": "../../../../../../sdkwork-agents/specs/iam.module.manifest.json",
+          "inheritPermissions": true,
+          "inheritRoles": true
+        },
+        {
+          "moduleId": "documents",
+          "manifestRef": "../../../../../../sdkwork-documents/specs/iam.module.manifest.json",
+          "inheritPermissions": true,
+          "inheritRoles": true
+        },
         {
           "moduleId": "drive",
           "manifestRef": "../../../../../../sdkwork-iam/iam/modules/drive/iam.module.manifest.json",
@@ -190,6 +233,18 @@
         {
           "moduleId": "messaging",
           "manifestRef": "../../../../../../sdkwork-iam/iam/modules/messaging/iam.module.manifest.json",
+          "inheritPermissions": true,
+          "inheritRoles": true
+        },
+        {
+          "moduleId": "prompts",
+          "manifestRef": "../../../../../../sdkwork-prompts/specs/iam.module.manifest.json",
+          "inheritPermissions": true,
+          "inheritRoles": true
+        },
+        {
+          "moduleId": "skills",
+          "manifestRef": "../../../../../../sdkwork-skills/specs/iam.module.manifest.json",
           "inheritPermissions": true,
           "inheritRoles": true
         },
@@ -218,18 +273,19 @@
     }
   },
   "integration": {
-    "authority": "Root SDKWork specs remain authoritative. Local specs may extend but must not contradict them.",
-    "dependencyPolicy": "Consumers integrate through public package exports, declared runtime entrypoints, generated SDK clients, or documented adapters only.",
-    "sdkPolicy": "Generated SDK clients are injected through service/runtime boundaries; reusable UI must not create raw HTTP clients or manual auth headers.",
+    "authority": "This component is the PC frontend SDK inventory and public composition boundary; it owns no dependency API or generated transport.",
+    "dependencyPolicy": "Feature and infrastructure packages consume dependency SDK access only through this package's public SDK exports or injected service ports.",
+    "sdkPolicy": "Runtime bootstrap constructs authenticated clients from these exports with one global TokenManager; UI packages never create clients or authentication headers.",
     "languagePolicy": "Language-specific packages follow their native manifest and build tools while preserving the same component contract."
   },
   "verification": {
     "commands": [
-      "pnpm --filter @sdkwork/sdkwork-birdcoder-core typecheck"
+      "pnpm --filter @sdkwork/birdcoder-pc-core typecheck",
+      "node scripts/run-local-tsx.mjs scripts/birdcoder-session-auth-redirect-contract.test.ts"
     ]
   },
   "metadata": {
     "managedBy": "apps/scripts/initialize-component-specs.mjs",
-    "standardVersion": "2026-05-13"
+    "standardVersion": "2026-07-23"
   }
 }

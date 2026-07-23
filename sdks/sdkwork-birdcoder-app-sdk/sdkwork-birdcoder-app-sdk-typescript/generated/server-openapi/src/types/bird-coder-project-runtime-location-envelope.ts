@@ -2,7 +2,7 @@ import type { BirdCoderProjectRuntimeLocation } from './bird-coder-project-runti
 
 export interface BirdCoderProjectRuntimeLocationEnvelope {
   code: 0;
-  data: unknown & Record<string, unknown>;
+  data: unknown & { item: BirdCoderProjectRuntimeLocation; };
   /** Server-owned request correlation id. */
   traceId: string;
 }

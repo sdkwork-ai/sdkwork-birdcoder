@@ -1,10 +1,6 @@
 /**
  * BirdCoder Token Plan member summary hook.
  *
- * Adapted from sdkwork-clawrouter's `tokenPlanMemberSummary`, using
- * `hasSdkworkMembershipSession` from `@sdkwork/membership-service` instead
- * of clawrouter's `hasPortalIamSession` to detect an authenticated session.
- *
  * The BirdCoder global TokenManager is wired into the membership SDK via
  * `bootstrapBirdCoderMembershipSdk()` during shell bootstrap, so the
  * membership controller can consume the same IAM session tokens.

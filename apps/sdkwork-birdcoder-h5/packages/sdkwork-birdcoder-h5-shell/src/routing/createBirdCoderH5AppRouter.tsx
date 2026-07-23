@@ -15,17 +15,31 @@ function isAppSurfaceRoute(route: BirdCoderH5RouteDefinition): boolean {
 function buildRouteElement(route: BirdCoderH5RouteDefinition) {
   return (
     <BirdCoderH5ProtectedRoute required={route.auth === 'required'}>
-      <Suspense fallback={<div className="px-4 py-6 text-sm text-muted-foreground">Loading route…</div>}>
+      <Suspense fallback={<div className="px-4 py-6 text-sm text-muted-foreground">Loading route...</div>}>
         {resolveBirdCoderH5RouteComponent(route.component)}
       </Suspense>
     </BirdCoderH5ProtectedRoute>
   );
 }
 
+function buildPublicRouteElement(route: BirdCoderH5RouteDefinition) {
+  return (
+    <Suspense fallback={<div className="px-4 py-6 text-sm text-muted-foreground">Loading route...</div>}>
+      {resolveBirdCoderH5RouteComponent(route.component)}
+    </Suspense>
+  );
+}
+
 export function createBirdCoderH5AppRouter() {
-  const appRoutes = createBirdCoderH5RouteCatalog().filter(isAppSurfaceRoute);
+  const routeCatalog = createBirdCoderH5RouteCatalog();
+  const appRoutes = routeCatalog.filter(isAppSurfaceRoute);
+  const publicRoutes = routeCatalog.filter((route) => route.auth === 'public');
 
   return createBrowserRouter([
+    ...publicRoutes.map((route) => ({
+      path: route.path,
+      element: buildPublicRouteElement(route),
+    })),
     {
       path: '/',
       element: <MobileShellLayout />,
@@ -38,7 +52,7 @@ export function createBirdCoderH5AppRouter() {
         }
 
         return {
-          path: route.path.replace(/^\//, ''),
+          path: route.path.replace(/^\//u, ''),
           element: buildRouteElement(route),
         };
       }),

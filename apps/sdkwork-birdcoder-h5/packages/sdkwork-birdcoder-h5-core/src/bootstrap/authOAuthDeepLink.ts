@@ -1,4 +1,4 @@
-import { BIRDCODER_AUTH_BASE_PATH } from '@sdkwork/birdcoder-pc-auth/auth';
+const BIRDCODER_AUTH_BASE_PATH = '/auth';
 
 export const BIRDCODER_H5_OAUTH_SCHEME = 'sdkwork.birdcoder';
 export const BIRDCODER_H5_OAUTH_CALLBACK_AUTHORITY = 'auth';

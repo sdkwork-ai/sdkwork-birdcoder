@@ -78,12 +78,15 @@
     "publicExports": [
       ".",
       "setup_tauri_host",
-      "start_embedded_coding_server",
+      "start_embedded_application_gateway",
       "ensure_desktop_runtime_config",
-      "spawn_embedded_coding_server_startup",
+      "spawn_embedded_application_gateway_startup",
       "request_embedded_api_shutdown",
       "desktop_runtime_location_install_identity",
-      "desktop_runtime_location_create_root_locator"
+      "desktop_runtime_location_create_root_locator",
+      "secure_app_session_read",
+      "secure_app_session_write",
+      "secure_app_session_delete"
     ],
     "providedPorts": [
       {
@@ -92,7 +95,7 @@
       },
       {
         "name": "embeddedGatewayRuntime",
-        "export": "start_embedded_coding_server"
+        "export": "start_embedded_application_gateway"
       },
       {
         "name": "desktopRuntimeConfig",
@@ -101,6 +104,15 @@
       {
         "name": "desktopRuntimeLocationIdentity",
         "export": "desktop_runtime_location_install_identity"
+      },
+      {
+        "name": "secureAppSessionCredentialStore",
+        "export": "secure_app_session_read",
+        "operations": [
+          "secure_app_session_read",
+          "secure_app_session_write",
+          "secure_app_session_delete"
+        ]
       }
     ],
     "requiredPorts": [
@@ -111,11 +123,15 @@
     ],
     "runtimeEntrypoints": [
       "src/lib.rs#setup_tauri_host",
-      "src/host/state.rs#start_embedded_coding_server",
+      "src/host/state.rs#start_embedded_application_gateway",
       "src/host/state.rs#ensure_desktop_runtime_config",
-      "src/host/state.rs#spawn_embedded_coding_server_startup",
+      "src/host/state.rs#spawn_embedded_application_gateway_startup",
       "src/commands/local_store_commands.rs#desktop_runtime_location_install_identity",
       "src/commands/local_store_commands.rs#desktop_runtime_location_create_root_locator",
+      "src/commands/secure_app_session_commands.rs#secure_app_session_read",
+      "src/commands/secure_app_session_commands.rs#secure_app_session_write",
+      "src/commands/secure_app_session_commands.rs#secure_app_session_delete",
+      "src/adapters/secure_app_session_store.rs",
       "src/commands/mod.rs",
       "Cargo.toml"
     ],
@@ -133,9 +149,9 @@
         "apiPrefix": "/app/v3/api",
         "runtimeMode": "same-origin-embedded",
         "cargoDependency": "sdkwork-api-birdcoder-standalone-gateway",
-        "embeddedExecutableExport": "start_embedded_coding_server",
+        "embeddedExecutableExport": "start_embedded_application_gateway",
         "coverageEvidence": [
-          "src/host/state.rs#start_embedded_coding_server",
+          "src/host/state.rs#start_embedded_application_gateway",
           "src/host/state.rs#ensure_desktop_runtime_config"
         ]
       }
@@ -144,14 +160,15 @@
     "configKeys": [
       "VITE_BIRDCODER_API_BASE_URL",
       "BIRDCODER_API_BASE_URL",
-      "BIRDCODER_CODING_SERVER_SQLITE_FILE",
+      "SDKWORK_BIRDCODER_DATABASE_FILE",
       "BIRDCODER_LOCAL_BOOTSTRAP_PROJECT_ROOT"
     ]
   },
   "integration": {
-    "authority": "The Tauri host owns native commands, local filesystem boundaries, local SQLite key-value storage, and embedded gateway startup. Provider-native session discovery and detail reads remain app-api business operations; the host never accepts a renderer-supplied project root for them.",
+    "authority": "The Tauri host owns native commands, local filesystem boundaries, device and host state, operating-system credential-store access, and embedded gateway startup. It owns no business database or Session domain.",
     "gatewayPolicy": "Business HTTP and agent workflows are executed through the embedded sdkwork-api-birdcoder-standalone-gateway and sdkwork-agents routes.",
-    "securityPolicy": "Filesystem roots and native commands must remain explicitly registered and must not create raw unaudited host access paths."
+    "persistencePolicy": "Generic host-local SQLite key-value storage is limited to non-sensitive device and host state. IAM accessToken, authToken, refresh material, and persisted application-session payloads use only the operating-system credential store.",
+    "securityPolicy": "Filesystem roots and native commands are explicitly registered with least-privilege Tauri permissions. Credential-store failures fail closed and never fall back to SQLite or plaintext storage."
   },
   "verification": {
     "commands": [

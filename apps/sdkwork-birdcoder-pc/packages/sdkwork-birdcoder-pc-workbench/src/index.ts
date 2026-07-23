@@ -5,12 +5,9 @@ export { parseBirdCoderApiJson } from '@sdkwork/birdcoder-pc-contracts-commons';
 export * from './hooks/useDebounce.ts';
 export * from './hooks/useWorkspaces.ts';
 export * from './hooks/useProjects.ts';
-export * from './hooks/useCodingSessionActions.ts';
+export * from './hooks/useAgentSessionActions.ts';
 export * from './hooks/useDocuments.ts';
-export * from './hooks/useDeployments.ts';
-export * from './hooks/useReleases.ts';
-export * from './hooks/useCodingServerOverview.ts';
-export * from './hooks/useCodingSessionProjection.ts';
+export * from './hooks/useAgentSessionInteractions.ts';
 export * from './hooks/useFileSystem.ts';
 export * from './hooks/useProjectLocalWorkingDirectory.ts';
 export * from './hooks/useProjectRuntimeLocation.ts';
@@ -18,11 +15,11 @@ export * from './hooks/usePersistedState.ts';
 export * from './hooks/useProjectGitOverview.ts';
 export * from './hooks/useProjectGitMutationActions.ts';
 export * from './hooks/useProjectRunConfigurations.ts';
-export * from './hooks/useSelectedCodingSessionMessages.ts';
+export * from './hooks/useSelectedAgentSessionItems.ts';
 export * from './hooks/useSessionRefreshActions.ts';
-export * from './hooks/useCodingSessionEngineModelSelection.ts';
-export * from './hooks/useWorkbenchCodingSessionMessageEditAction.ts';
-export * from './hooks/useWorkbenchCodingSessionCreationActions.ts';
+export * from './hooks/useAgentSessionEngineModelSelection.ts';
+export * from './hooks/useWorkbenchAgentSessionItemEditAction.ts';
+export * from './hooks/useWorkbenchAgentSessionCreationActions.ts';
 export * from './hooks/useWorkbenchChatSelection.ts';
 export * from './hooks/useWorkbenchPreferences.ts';
 export * from './hooks/useBirdcoderAppSettings.ts';
@@ -38,22 +35,13 @@ export * from './utils/EventBus.ts';
 export * from './components/ErrorBoundary.tsx';
 export * from './platform/fileSystem.ts';
 export * from './platform/tauriFileManager.ts';
-export * from './storage/dataKernel.ts';
 export * from './storage/localStore.ts';
 export * from './chat/draftStore.ts';
 export * from './chat/messageQueueStore.ts';
 export * from './chat/persistence.ts';
 export * from './terminal/profiles.ts';
-export {
-  TERMINAL_CLI_PROFILE_IDS,
-  TERMINAL_CLI_PROFILE_REGISTRY,
-  getTerminalCliProfileDefinition,
-  isTerminalCliProfileId,
-  normalizeTerminalCliExecutable,
-  type TerminalCliProfileDefinition,
-} from './terminal/registry.ts';
 export * from './terminal/runtime.ts';
-export * from './terminal/auditStore.ts';
+export * from './terminal/governanceDiagnostics.ts';
 export * from './terminal/runConfigDefinitions.ts';
 export {
   buildRunConfigurationTerminalRequest,
@@ -79,16 +67,13 @@ export * from './workbench/gitBranches.ts';
 export * from './workbench/gitWorktrees.ts';
 export * from './workbench/fileSelectionMutation.ts';
 export * from './workbench/fileSystemRequestGuard.ts';
-export * from './workbench/codingSessionCreation.ts';
-export * from './workbench/codingSessionSelection.ts';
+export * from './workbench/agentSessionCreation.ts';
+export * from './workbench/agentSessionSelection.ts';
 export * from './workbench/preferences.ts';
 export * from './workbench/recovery.ts';
 export * from './workbench/sessionRefresh.ts';
-export * from './workbench/sessionInventory.ts';
-export * from './workbench/projectSessionSynchronization.ts';
 export * from './workbench/projectInventoryRender.ts';
 export * from './workbench/workspaceBootstrap.ts';
-export * from './stores/workspaceRealtime.ts';
 export {
   buildDriveMediaResourceContentBlock,
   resolveChatAttachmentUploadProfile,

@@ -1,12 +1,10 @@
-import { normalizeBirdCoderServerBaseUrl } from './bootstrapServerBaseUrl.ts';
-import type { BirdCoderRealtimeTransportPreference } from './bootstrapShellRuntime.ts';
+import { normalizeBirdCoderSdkBaseUrl } from '@sdkwork/birdcoder-pc-infrastructure-runtime';
 
 export interface BirdCoderPublicRuntimeEnv {
   DEV?: string;
   MODE?: string;
-  VITE_BIRDCODER_API_BASE_URL?: string;
   VITE_SDKWORK_BIRDCODER_APPLICATION_PUBLIC_HTTP_URL?: string;
-  VITE_SDKWORK_BIRDCODER_REALTIME_TRANSPORT?: string;
+  VITE_SDKWORK_BIRDCODER_PLATFORM_API_GATEWAY_HTTP_URL?: string;
 }
 
 interface BirdCoderPublicRuntimeGlobal {
@@ -24,20 +22,18 @@ export function isBirdCoderDevelopmentBrowserRuntime(): boolean {
   return runtimeEnv?.DEV === 'true' || mode === 'development' || mode === 'test';
 }
 
-export function readConfiguredBirdCoderApiBaseUrl(): string | undefined {
-  const runtimeEnv = readBirdCoderPublicRuntimeEnv();
-  return normalizeBirdCoderServerBaseUrl(
-    runtimeEnv?.VITE_SDKWORK_BIRDCODER_APPLICATION_PUBLIC_HTTP_URL
-      ?? runtimeEnv?.VITE_BIRDCODER_API_BASE_URL,
+export function readConfiguredBirdCoderApplicationApiBaseUrl(): string | undefined {
+  return normalizeBirdCoderSdkBaseUrl(
+    readBirdCoderPublicRuntimeEnv()
+      ?.VITE_SDKWORK_BIRDCODER_APPLICATION_PUBLIC_HTTP_URL,
+    'BirdCoder application SDK base URL',
   );
 }
 
-export function readConfiguredBirdCoderRealtimeTransport(): BirdCoderRealtimeTransportPreference {
-  const configuredValue = readBirdCoderPublicRuntimeEnv()
-    ?.VITE_SDKWORK_BIRDCODER_REALTIME_TRANSPORT
-    ?.trim()
-    .toLowerCase();
-  return configuredValue === 'sse' || configuredValue === 'websocket'
-    ? configuredValue
-    : 'auto';
+export function readConfiguredBirdCoderPlatformApiGatewayBaseUrl(): string | undefined {
+  return normalizeBirdCoderSdkBaseUrl(
+    readBirdCoderPublicRuntimeEnv()
+      ?.VITE_SDKWORK_BIRDCODER_PLATFORM_API_GATEWAY_HTTP_URL,
+    'SDKWork platform API gateway base URL',
+  );
 }

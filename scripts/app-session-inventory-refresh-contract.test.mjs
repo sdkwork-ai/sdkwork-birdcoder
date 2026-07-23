@@ -20,7 +20,7 @@ const sharedRefreshHookSource = fs.readFileSync(
   'utf8',
 );
 const selectedSessionMessagesHookSource = fs.readFileSync(
-  new URL('../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-workbench/src/hooks/useSelectedCodingSessionMessages.ts', import.meta.url),
+  new URL('../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-workbench/src/hooks/useSelectedAgentSessionItems.ts', import.meta.url),
   'utf8',
 );
 
@@ -68,7 +68,7 @@ assert.match(
 
 assert.match(
   studioPageSource,
-  /handleRefreshCodingSessionMessages/,
+  /handleRefreshAgentSessionItems/,
   'StudioPage must receive a session refresh handler from the shared refresh hook.',
 );
 
@@ -80,7 +80,7 @@ assert.match(
 
 assert.match(
   sharedRefreshHookSource,
-  /upsertCodingSessionIntoProjectsStore\(/,
+  /upsertAgentSessionIntoProjectsStore\(/,
   'Shared refresh hook must upsert refreshed coding session inventory into the shared projects store.',
 );
 
@@ -104,13 +104,13 @@ assert.match(
 
 assert.match(
   sharedRefreshHookSource,
-  /refreshCodingSessionMessages\(/,
+  /refreshAgentSessionItems\(/,
   'Shared refresh hook must call the session message refresh orchestrator.',
 );
 
 assert.match(
   sharedRefreshHookSource,
-  /projectRefreshGenerationRef\s*=\s*useRef\(0\)[\s\S]*codingSessionRefreshGenerationRef\s*=\s*useRef\(0\)/,
+  /projectRefreshGenerationRef\s*=\s*useRef\(0\)[\s\S]*agentSessionRefreshGenerationRef\s*=\s*useRef\(0\)/,
   'Session refresh actions must track independent request generations so an older response cannot clear a newer refresh state.',
 );
 
@@ -122,7 +122,7 @@ assert.match(
 
 assert.match(
   sharedRefreshHookSource,
-  /const requestGeneration = \+\+codingSessionRefreshGenerationRef\.current;[\s\S]*await refreshCodingSessionMessages\([\s\S]*if \(codingSessionRefreshGenerationRef\.current !== requestGeneration\) \{\s*return;/,
+  /const requestGeneration = \+\+agentSessionRefreshGenerationRef\.current;[\s\S]*await refreshAgentSessionItems\([\s\S]*if \(agentSessionRefreshGenerationRef\.current !== requestGeneration\) \{\s*return;/,
   'Coding-session refresh actions must ignore stale responses before applying inventory or error state.',
 );
 
@@ -134,7 +134,7 @@ assert.match(
 
 assert.match(
   sharedRefreshHookSource,
-  /if \(codingSessionRefreshGenerationRef\.current === requestGeneration\) \{\s*setRefreshingCodingSessionScope\(null\);/,
+  /if \(agentSessionRefreshGenerationRef\.current === requestGeneration\) \{\s*setRefreshingAgentSessionScope\(null\);/,
   'An older coding-session refresh must not clear the visible state for a newer session refresh.',
 );
 
@@ -146,25 +146,25 @@ assert.match(
 
 assert.match(
   sharedRefreshHookSource,
-  /if \(synchronizedProject\) \{[\s\S]*upsertProjectIntoProjectsStore\([\s\S]*\);\s*\}\s*upsertCodingSessionIntoProjectsStore\(/,
+  /if \(synchronizedProject\) \{[\s\S]*upsertProjectIntoProjectsStore\([\s\S]*\);\s*\}\s*upsertAgentSessionIntoProjectsStore\(/,
   'Manual session refresh must apply the authoritative refreshed session after any synchronized project snapshot so stale project inventory cannot keep a failed row visible.',
 );
 
 assert.match(
   selectedSessionMessagesHookSource,
-  /if \(synchronizedProject\) \{[\s\S]*upsertProjectIntoProjectsStore\([\s\S]*\);\s*\}\s*upsertCodingSessionIntoProjectsStore\(/,
+  /if \(synchronizedProject\) \{[\s\S]*upsertProjectIntoProjectsStore\([\s\S]*\);\s*\}\s*upsertAgentSessionIntoProjectsStore\(/,
   'Selected-session hydration must apply the authoritative refreshed session after any synchronized project snapshot so clicking a successfully loaded transcript clears stale failed status in the sidebar.',
 );
 
 assert.match(
   codePageSessionSelectionHookSource,
-  /const restoreSelectionAfterRefresh = useCallback\(\(\s*targetProjectId: string,\s*targetCodingSessionId: string \| null,\s*\) => \{/,
+  /const restoreSelectionAfterRefresh = useCallback\(\(\s*targetProjectId: string,\s*targetAgentSessionId: string \| null,\s*\) => \{/,
   'CodePage session-selection hook must explicitly preserve the selected project and session after refresh.',
 );
 
 assert.match(
   studioPageSource,
-  /const restoreSelectionAfterRefresh = \(\s*targetProjectId: string,\s*targetCodingSessionId: string \| null,\s*\) => \{/,
+  /const restoreSelectionAfterRefresh = \(\s*targetProjectId: string,\s*targetAgentSessionId: string \| null,\s*\) => \{/,
   'StudioPage must explicitly preserve the selected project and session after refresh.',
 );
 

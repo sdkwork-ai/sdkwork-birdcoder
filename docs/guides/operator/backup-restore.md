@@ -1,70 +1,73 @@
-# Backup and Restore
+# Backup And Restore
 
-Updated: 2026-07-16
-Specs: `DATABASE_FRAMEWORK_SPEC.md`, `DEPLOYMENT_SPEC.md`
+Updated: 2026-07-22
+Specs: `DATABASE_FRAMEWORK_SPEC.md`, `DEPLOYMENT_SPEC.md`, `SECURITY_SPEC.md`
 
-## SQLite (standalone single-node profile)
+## Ownership Boundary
 
-### Backup
+BirdCoder backup owns only the ten `studio_*` workbench tables declared in
+`database/contract/table-registry.json`. AI sessions and Session Items are
+restored by `sdkwork-agents`; Skills and human IM data are restored by
+`sdkwork-skills` and `sdkwork-im`. BirdCoder never restores dependency-owned
+tables from a local mirror.
 
-```bash
-kubectl exec -n <namespace> deploy/sdkwork-birdcoder -- \
-  cp /var/lib/sdkwork-birdcoder/data.sqlite3 /tmp/birdcoder-backup.sqlite3
-kubectl cp <namespace>/<pod>:/tmp/birdcoder-backup.sqlite3 ./birdcoder-backup-$(date +%Y%m%d).sqlite3
-```
+Cross-domain identifiers such as `default_agent_project_id`, `document_id`, and
+`sandbox_id` have no cross-domain foreign keys. A coordinated restore must
+therefore restore each owner to a mutually compatible recovery point and run
+explicit reference-integrity probes before reopening writes.
 
-Prefer consistent volume snapshots when the storage class supports them.
+## SQLite Standalone Profile
 
-### Restore
+1. Stop the standalone gateway so the SQLite file has no writers.
+2. Snapshot the configured database file and its encryption-key metadata using
+   the platform secret backup procedure.
+3. Restore the file to the configured location with owner-only filesystem
+   permissions.
+4. Start one gateway replica and run `pnpm db:validate` and
+   `pnpm db:pool:validate`.
+5. Verify a known workspace, project, runtime location, preference, document
+   binding, and sandbox binding through authenticated App SDK operations.
+6. Verify each stable dependency reference against its owner SDK before
+   restoring normal traffic.
 
-1. Scale the deployment to 0 replicas.
-2. Replace PVC data or restore the snapshot into `/var/lib/sdkwork-birdcoder/data.sqlite3`.
-3. Scale back to 1 replica.
-4. Verify `GET /readyz` returns `"status":"ready"`.
-5. Verify a known coding session has monotonic event sequences and a terminal event.
+Do not copy a live SQLite file with active writers. Use a consistent volume
+snapshot or stop the gateway first.
 
-## PostgreSQL (HA profile)
+## PostgreSQL Profile
 
-### Backup
+Create an encrypted custom-format dump from an authorized maintenance identity:
 
 ```bash
 pg_dump --format=custom --no-owner --dbname="$DATABASE_URL" \
   > birdcoder-$(date +%Y%m%d).dump
 ```
 
-When `backup.enabled: true`, `database.engine: postgresql`, and either an
-existing runtime Secret or an explicit non-production database URL is present,
-the Helm chart renders `templates/backup-cronjob.yaml`. Production config sets
-`backup.verifyDatabaseUrlSecretKey` to a key in `auth.existingSecret`; every
-dump must restore successfully into that isolated database or the job fails.
+Store verified dumps in immutable storage in another failure domain. Retention,
+RPO, RTO, and restore-test cadence are deployment policy and must have measured
+evidence before production promotion.
 
-The chart PVC is a staging location, not a complete disaster-recovery system.
-Copy verified dumps to encrypted, immutable object storage in another failure
-domain, enforce retention there, monitor copy failures, and periodically restore
-from the off-cluster copy. Public promotion requires measured RPO/RTO evidence.
+Restore procedure:
 
-### Restore
+1. Put the application ingress in maintenance mode and stop all writers.
+2. Restore into an isolated database first; never test a dump against the live
+   production database.
+3. Run the canonical database bootstrap/migration flow for the restored schema
+   version.
+4. Run `pnpm db:validate`, `pnpm db:pool:validate`, and the authorized live
+   PostgreSQL smoke check.
+5. Verify the ten-table registry exactly and run owner-SDK reference probes.
+6. Restore traffic gradually while monitoring database errors, authorization
+   failures, and dependency health.
 
-1. Put the API deployment in maintenance mode.
-2. Recreate the schema from `database/ddl/baseline/postgres/` only when corruption requires it.
-3. Run `pg_restore --clean --if-exists --no-owner --dbname="$DATABASE_URL" <dump>`.
-4. Run database bootstrap/migrations when the schema version changed.
-5. Run `pnpm release:smoke:postgresql-live` before restoring traffic.
-6. Verify coding-session replay from a cursor on both SSE and WebSocket.
+## Cache And Event Infrastructure
 
-## Redis (realtime HA)
+Redis, in-memory caches, and UI state are not BirdCoder systems of record and
+must be rebuildable from canonical owner APIs. Durable Agents turn/session-item
+recovery follows the Agents runbook; IM delivery recovery follows the IM
+runbook. Do not describe either as a BirdCoder database replay.
 
-Redis holds ephemeral workspace fan-out state only. Canonical coding-session events live in the
-application database, so Redis can be rebuilt empty. Session-scoped clients reconnect with
-`codingSessionId` and their last applied database sequence, replay the missing range, and then
-return to live fan-out. Redis backup is not required for coding-session event correctness.
+## Release Evidence
 
-After rebuilding Redis, verify a session with known traffic over both transports. JSON
-`eventId`, `codingSessionEventSequence`, event kind, and payload must match the database and be
-identical across SSE and WebSocket. Workspace lifecycle notifications are live-only; reconcile
-workspace/project inventory from authenticated list APIs after an outage.
-
-## Release artifact backup
-
-Retain finalized release bundles (`release-manifest.json`, OpenAPI sidecar, and `SHA256SUMS`) per
-`RELEASE_SPEC.md` for rollback correlation.
+Retain the immutable release manifest, checksums, attestations, schema contract,
+SDK manifests, and rollback plan together. A restore is incomplete until the
+running binary, database contract, and SDK/API versions match that evidence.

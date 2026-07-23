@@ -1,8 +1,8 @@
 import React, { memo } from 'react';
-import type { BirdCoderChatMessageViewKind } from '@sdkwork/birdcoder-pc-workbench/chat/types';
+import type { AgentSessionItemViewKind } from '@sdkwork/birdcoder-pc-workbench/chat/types';
 import type { ChatMessageTranslate } from '../types.ts';
 
-const ROLE_HEADER_LABELS: Partial<Record<BirdCoderChatMessageViewKind, {
+const ROLE_HEADER_LABELS: Partial<Record<AgentSessionItemViewKind, {
   fallback: string;
   translationKey: string;
 }>> = {
@@ -16,7 +16,7 @@ export const RoleHeader = memo(function RoleHeader({
   layout,
   t,
 }: {
-  viewKind: BirdCoderChatMessageViewKind;
+  viewKind: AgentSessionItemViewKind;
   layout: 'main' | 'sidebar';
   t?: ChatMessageTranslate;
 }) {

@@ -18,9 +18,9 @@ const useProjectsSource = fs.readFileSync(
   ),
   'utf8',
 );
-const useSelectedCodingSessionMessagesSource = fs.readFileSync(
+const useSelectedAgentSessionItemsSource = fs.readFileSync(
   new URL(
-    '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-workbench/src/hooks/useSelectedCodingSessionMessages.ts',
+    '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-workbench/src/hooks/useSelectedAgentSessionItems.ts',
     import.meta.url,
   ),
   'utf8',
@@ -61,7 +61,7 @@ const userARecoverySnapshot = recoveryModule.buildWorkbenchRecoverySnapshot({
   activeTab: 'code',
   activeWorkspaceId: 'workspace-user-a',
   activeProjectId: 'project-user-a',
-  activeCodingSessionId: 'coding-session-user-a',
+  activeAgentSessionId: 'coding-session-user-a',
   cleanExit: false,
 });
 
@@ -92,7 +92,7 @@ const normalizedLegacySnapshot = recoveryModule.normalizeWorkbenchRecoverySnapsh
   activeTab: 'terminal',
   activeWorkspaceId: 'legacy-workspace',
   activeProjectId: 'legacy-project',
-  activeCodingSessionId: 'legacy-coding-session',
+  activeAgentSessionId: 'legacy-coding-session',
   cleanExit: false,
 });
 
@@ -134,7 +134,7 @@ assert.match(
   'project inventory must be scoped by authenticated session revision, not only user id.',
 );
 assert.match(
-  useSelectedCodingSessionMessagesSource,
+  useSelectedAgentSessionItemsSource,
   /buildBirdCoderAuthSessionInventoryScope\(\s*user\?\.id,\s*sessionRevision,?\s*\)/,
   'selected-session transcript hydration must write into the same authenticated-session project inventory scope.',
 );

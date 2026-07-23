@@ -1,32 +1,19 @@
 export interface BirdCoderWorkspaceSummary {
   id: string;
-  uuid?: string;
-  tenantId?: string;
-  organizationId?: string;
-  /** DATABASE_SPEC.md standard data scope. */
-  dataScope?: 'DEFAULT' | 'PRIVATE' | 'ORGANIZATION' | 'TENANT' | 'PUBLIC';
-  code?: string;
-  title?: string;
+  uuid: string;
+  tenantId: string;
+  organizationId: string;
+  ownerUserId: string;
+  createdByUserId: string;
+  code: string;
   name: string;
-  description?: string;
-  icon?: string;
-  color?: string;
-  ownerId?: string;
-  leaderId?: string;
-  createdByUserId?: string;
-  type?: string;
-  startTime?: string;
-  endTime?: string;
-  maxMembers?: number;
-  currentMembers?: number;
-  memberCount?: number;
-  /** Java Long/BIGINT value serialized as an exact decimal string. */
-  maxStorage?: string;
-  /** Java Long/BIGINT value serialized as an exact decimal string. */
-  usedStorage?: string;
-  settings?: Record<string, unknown>;
-  isPublic?: boolean;
-  isTemplate?: boolean;
+  description: string | null;
+  iconUrl: string | null;
+  color: string | null;
+  visibility: 'private' | 'organization';
   status: 'active' | 'archived';
-  viewerRole?: 'owner' | 'admin' | 'member' | 'viewer';
+  /** Optimistic concurrency version used with the If-Match request header. */
+  version: string;
+  createdAt: string;
+  updatedAt: string;
 }

@@ -93,8 +93,19 @@
         "processes": [
           {
             "id": "application.public-ingress",
-            "package": "@sdkwork/birdcoder-pc-server",
-            "script": "start:server",
+            "crate": "sdkwork-api-birdcoder-standalone-gateway",
+            "binary": "sdkwork-api-birdcoder-standalone-gateway",
+            "runtimeTargets": [
+              "browser",
+              "desktop",
+              "server",
+              "test-runner",
+              "capacitor-ios",
+              "capacitor-android"
+            ],
+            "env": {
+              "SDKWORK_BIRDCODER_RUNTIME_TARGET": "server"
+            },
             "required": true,
             "role": "api-standalone-gateway"
           },
@@ -102,6 +113,85 @@
             "id": "pc-web-renderer",
             "package": "@sdkwork/birdcoder-pc-web",
             "script": "start:browser",
+            "runtimeTargets": [
+              "browser"
+            ],
+            "clientArchitectures": [
+              "pc-web"
+            ],
+            "env": {
+              "SDKWORK_BIRDCODER_RUNTIME_TARGET": "browser",
+              "VITE_SDKWORK_BIRDCODER_RUNTIME_TARGET": "browser"
+            },
+            "bindEnv": "SDKWORK_BIRDCODER_PC_DEV_BIND",
+            "required": true,
+            "role": "client"
+          },
+          {
+            "id": "h5-browser-renderer",
+            "package": "@sdkwork/birdcoder-h5",
+            "script": "start:browser",
+            "runtimeTargets": [
+              "browser"
+            ],
+            "clientArchitectures": [
+              "h5"
+            ],
+            "env": {
+              "SDKWORK_BIRDCODER_RUNTIME_TARGET": "browser",
+              "VITE_SDKWORK_BIRDCODER_RUNTIME_TARGET": "browser",
+              "VITE_SDKWORK_RUNTIME_TARGET": "h5"
+            },
+            "bindEnv": "SDKWORK_BIRDCODER_PC_DEV_BIND",
+            "required": true,
+            "role": "client"
+          },
+          {
+            "id": "h5-capacitor-renderer",
+            "package": "@sdkwork/birdcoder-h5",
+            "script": "start:browser",
+            "runtimeTargets": [
+              "capacitor-ios",
+              "capacitor-android"
+            ],
+            "clientArchitectures": [
+              "capacitor"
+            ],
+            "env": {
+              "VITE_SDKWORK_RUNTIME_TARGET": "capacitor"
+            },
+            "bindEnv": "SDKWORK_BIRDCODER_PC_DEV_BIND",
+            "required": true,
+            "role": "client"
+          },
+          {
+            "id": "pc-desktop-renderer",
+            "package": "@sdkwork/birdcoder-pc-desktop",
+            "script": "start:desktop",
+            "runtimeTargets": [
+              "desktop"
+            ],
+            "clientArchitectures": [
+              "tauri"
+            ],
+            "env": {
+              "SDKWORK_BIRDCODER_RUNTIME_TARGET": "desktop",
+              "VITE_SDKWORK_BIRDCODER_RUNTIME_TARGET": "desktop"
+            },
+            "required": true,
+            "role": "client"
+          },
+          {
+            "id": "pc-web-test-runner",
+            "package": "@sdkwork/birdcoder-pc-web",
+            "script": "start:browser:check",
+            "runtimeTargets": [
+              "test-runner"
+            ],
+            "env": {
+              "SDKWORK_BIRDCODER_RUNTIME_TARGET": "test-runner",
+              "VITE_SDKWORK_BIRDCODER_RUNTIME_TARGET": "test-runner"
+            },
             "bindEnv": "SDKWORK_BIRDCODER_PC_DEV_BIND",
             "required": true,
             "role": "client"
@@ -116,7 +206,68 @@
           {
             "id": "pc-web-renderer",
             "package": "@sdkwork/birdcoder-pc-web",
-            "script": "dev:browser:cloud",
+            "script": "start:browser",
+            "runtimeTargets": [
+              "browser"
+            ],
+            "clientArchitectures": [
+              "pc-web"
+            ],
+            "env": {
+              "SDKWORK_BIRDCODER_RUNTIME_TARGET": "browser",
+              "VITE_SDKWORK_BIRDCODER_RUNTIME_TARGET": "browser"
+            },
+            "bindEnv": "SDKWORK_BIRDCODER_PC_DEV_BIND",
+            "required": true,
+            "role": "client"
+          },
+          {
+            "id": "h5-browser-renderer",
+            "package": "@sdkwork/birdcoder-h5",
+            "script": "start:browser",
+            "runtimeTargets": [
+              "browser"
+            ],
+            "clientArchitectures": [
+              "h5"
+            ],
+            "env": {
+              "SDKWORK_BIRDCODER_RUNTIME_TARGET": "browser",
+              "VITE_SDKWORK_BIRDCODER_RUNTIME_TARGET": "browser",
+              "VITE_SDKWORK_RUNTIME_TARGET": "h5"
+            },
+            "bindEnv": "SDKWORK_BIRDCODER_PC_DEV_BIND",
+            "required": true,
+            "role": "client"
+          },
+          {
+            "id": "pc-desktop-renderer",
+            "package": "@sdkwork/birdcoder-pc-desktop",
+            "script": "start:desktop",
+            "runtimeTargets": [
+              "desktop"
+            ],
+            "clientArchitectures": [
+              "tauri"
+            ],
+            "env": {
+              "SDKWORK_BIRDCODER_RUNTIME_TARGET": "desktop",
+              "VITE_SDKWORK_BIRDCODER_RUNTIME_TARGET": "desktop"
+            },
+            "required": true,
+            "role": "client"
+          },
+          {
+            "id": "pc-web-test-runner",
+            "package": "@sdkwork/birdcoder-pc-web",
+            "script": "start:browser:check",
+            "runtimeTargets": [
+              "test-runner"
+            ],
+            "env": {
+              "SDKWORK_BIRDCODER_RUNTIME_TARGET": "test-runner",
+              "VITE_SDKWORK_BIRDCODER_RUNTIME_TARGET": "test-runner"
+            },
             "bindEnv": "SDKWORK_BIRDCODER_PC_DEV_BIND",
             "required": true,
             "role": "client"
@@ -131,22 +282,49 @@
         "processes": [
           {
             "id": "application.public-ingress",
-            "package": "apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-server",
-            "script": "dev:base",
+            "crate": "sdkwork-api-birdcoder-standalone-gateway",
+            "binary": "sdkwork-api-birdcoder-standalone-gateway",
+            "runtimeTargets": [
+              "server",
+              "container"
+            ],
+            "env": {
+              "SDKWORK_BIRDCODER_RUNTIME_TARGET": "server"
+            },
             "required": true,
             "role": "api-standalone-gateway"
           },
           {
             "id": "pc-web-renderer",
-            "package": "apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-web",
-            "script": "dev:base",
+            "package": "@sdkwork/birdcoder-pc-web",
+            "script": "start:browser",
+            "runtimeTargets": [
+              "browser"
+            ],
+            "clientArchitectures": [
+              "pc-web"
+            ],
+            "env": {
+              "SDKWORK_BIRDCODER_RUNTIME_TARGET": "browser",
+              "VITE_SDKWORK_BIRDCODER_RUNTIME_TARGET": "browser"
+            },
             "required": false,
             "role": "client"
           },
           {
             "id": "pc-desktop-renderer",
-            "package": "apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-desktop",
+            "package": "@sdkwork/birdcoder-pc-desktop",
             "script": "start:desktop",
+            "runtimeTargets": [
+              "desktop"
+            ],
+            "clientArchitectures": [
+              "tauri"
+            ],
+            "env": {
+              "SDKWORK_BIRDCODER_RUNTIME_TARGET": "desktop",
+              "VITE_SDKWORK_BIRDCODER_RUNTIME_TARGET": "desktop"
+            },
             "required": false,
             "role": "client"
           }
@@ -160,8 +338,18 @@
         "processes": [
           {
             "id": "pc-desktop-renderer",
-            "package": "apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-desktop",
+            "package": "@sdkwork/birdcoder-pc-desktop",
             "script": "start:desktop",
+            "runtimeTargets": [
+              "desktop"
+            ],
+            "clientArchitectures": [
+              "tauri"
+            ],
+            "env": {
+              "SDKWORK_BIRDCODER_RUNTIME_TARGET": "desktop",
+              "VITE_SDKWORK_BIRDCODER_RUNTIME_TARGET": "desktop"
+            },
             "required": true,
             "role": "client"
           }
@@ -172,8 +360,18 @@
         "processes": [
           {
             "id": "pc-desktop-renderer",
-            "package": "apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-desktop",
+            "package": "@sdkwork/birdcoder-pc-desktop",
             "script": "start:desktop",
+            "runtimeTargets": [
+              "desktop"
+            ],
+            "clientArchitectures": [
+              "tauri"
+            ],
+            "env": {
+              "SDKWORK_BIRDCODER_RUNTIME_TARGET": "desktop",
+              "VITE_SDKWORK_BIRDCODER_RUNTIME_TARGET": "desktop"
+            },
             "required": true,
             "role": "client"
           }
@@ -184,8 +382,18 @@
         "processes": [
           {
             "id": "pc-desktop-renderer",
-            "package": "apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-desktop",
+            "package": "@sdkwork/birdcoder-pc-desktop",
             "script": "start:desktop",
+            "runtimeTargets": [
+              "desktop"
+            ],
+            "clientArchitectures": [
+              "tauri"
+            ],
+            "env": {
+              "SDKWORK_BIRDCODER_RUNTIME_TARGET": "desktop",
+              "VITE_SDKWORK_BIRDCODER_RUNTIME_TARGET": "desktop"
+            },
             "required": true,
             "role": "client"
           }
@@ -196,8 +404,18 @@
         "processes": [
           {
             "id": "pc-desktop-renderer",
-            "package": "apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-desktop",
+            "package": "@sdkwork/birdcoder-pc-desktop",
             "script": "start:desktop",
+            "runtimeTargets": [
+              "desktop"
+            ],
+            "clientArchitectures": [
+              "tauri"
+            ],
+            "env": {
+              "SDKWORK_BIRDCODER_RUNTIME_TARGET": "desktop",
+              "VITE_SDKWORK_BIRDCODER_RUNTIME_TARGET": "desktop"
+            },
             "required": true,
             "role": "client"
           }
@@ -210,8 +428,18 @@
         "processes": [
           {
             "id": "pc-desktop-renderer",
-            "package": "apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-desktop",
+            "package": "@sdkwork/birdcoder-pc-desktop",
             "script": "start:desktop",
+            "runtimeTargets": [
+              "desktop"
+            ],
+            "clientArchitectures": [
+              "tauri"
+            ],
+            "env": {
+              "SDKWORK_BIRDCODER_RUNTIME_TARGET": "desktop",
+              "VITE_SDKWORK_BIRDCODER_RUNTIME_TARGET": "desktop"
+            },
             "required": true,
             "role": "client"
           }
@@ -221,9 +449,6 @@
         ]
       }
     }
-  },
-  "scripts": {
-    "birdcoderDev": "scripts/birdcoder-dev.mjs"
   },
   "retired": {
     "vocabulary": {

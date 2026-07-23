@@ -246,8 +246,12 @@ assertSourceIncludes(lifecycleSource, /preflight-desktop-signing-environment\.mj
 assertSourceIncludes(lifecycleSource, /verify-desktop-installer-trust\.mjs/u);
 assertSourceIncludes(lifecycleSource, /smoke-desktop-installers\.mjs/u);
 assertSourceIncludes(lifecycleSource, /smoke-desktop-packaged-launch\.mjs/u);
-assertSourceIncludes(lifecycleSource, /run-claw-server-build\.mjs/u);
-assertSourceIncludes(lifecycleSource, /coding-server-openapi-export\.ts/u);
+assertSourceIncludes(lifecycleSource, /run-birdcoder-server-build\.mjs/u);
+assert.doesNotMatch(
+  lifecycleSource,
+  /run-claw-server-build|coding-server-openapi-export|provider-runtime/u,
+  'Release lifecycle must build the BirdCoder gateway and must not restore retired coding-server or provider-runtime authorities.',
+);
 assertSourceIncludes(lifecycleSource, /package-release-assets\.mjs[\s\S]*server/u);
 assertSourceIncludes(lifecycleSource, /smoke-server-release-assets\.mjs/u);
 assertSourceIncludes(lifecycleSource, /pnpm[\s\S]*docs:build/u);
@@ -341,10 +345,10 @@ const packageSbomPlan = commandPlanText(lifecycleModule.buildLifecycleCommands('
 }));
 assert.match(packageSbomPlan, /sbom\/linux-x64-standalone-server-tar-gz\.sbom\.json/u);
 assert.match(packageSbomPlan, /write-package-sbom-evidence\.mjs/u);
-assert.match(
+assert.doesNotMatch(
   packageSbomPlan,
-  /server\/linux\/x64\/provider-runtime\/runtime-manifest\.json/u,
-  'server package SBOM must inventory the packaged Provider runtime sidecar',
+  /provider-runtime|providerRuntime/u,
+  'server package SBOM must not claim an application-owned Provider runtime; Agents owns provider execution.',
 );
 
 const webSbomPlan = commandPlanText(lifecycleModule.buildLifecycleCommands('sbom', {
@@ -354,8 +358,8 @@ const webSbomPlan = commandPlanText(lifecycleModule.buildLifecycleCommands('sbom
 }));
 assert.doesNotMatch(
   webSbomPlan,
-  /provider-runtime\/runtime-manifest\.json/u,
-  'web package SBOM must not claim a bundled Provider runtime',
+  /provider-runtime|providerRuntime/u,
+  'web package SBOM must not claim a bundled Provider runtime.',
 );
 
 const aggregateFixtureRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'birdcoder-aggregate-release-'));

@@ -1,63 +1,30 @@
-# SDKs Directory
+# BirdCoder SDK Workspace
 
-## Purpose
-SDK family workspaces, SDK generation manifests, authority OpenAPI materialization outputs, derived `sdkgen` inputs, generated SDK language workspaces, and SDK component specs.
+BirdCoder owns one SDK family: `sdkwork-birdcoder-app-sdk`. It is generated from the 39-operation
+BirdCoder App API authority at
+`sdkwork-birdcoder-app-sdk/openapi/sdkwork-birdcoder-app-api.openapi.json`.
 
-## Owner
-SDKWork Birdcoder team.
+| Surface | Owned operations | SDK family |
+| --- | ---: | --- |
+| App API | 39 | `sdkwork-birdcoder-app-sdk` |
+| Backend API | 0 | None |
+| Open API | 0 | None |
 
-## SDK Families
-- `@sdkwork/birdcoder-app-sdk` — Generated app SDK for BirdCoder client-side API consumption
-- `@sdkwork/birdcoder-backend-sdk` — Generated backend SDK for BirdCoder server-side API consumption
+IAM, Drive, Messaging, Membership, Skills, Agents, Deployments, and other external capabilities are
+consumed from their owner SDK families. They are not copied into BirdCoder OpenAPI or generated
+transport.
 
-## Allowed Content
-- SDK family directories (e.g., sdkwork-birdcoder-sdk/)
-- SDK generation manifests
-- OpenAPI materialization outputs
-- Derived sdkgen inputs
-- Generated SDK language workspaces
-- SDK component specs
-- Family-root sdk-manifest.json files
+TypeScript consumers import `@sdkwork/birdcoder-app-sdk` through the application-root workspace.
+Rust consumers use `sdkwork-birdcoder-app-sdk-rust`. Generated transport is owned by
+`@sdkwork/sdk-generator` under each language workspace's `generated/server-openapi` directory.
 
-## Forbidden Content
-- Authored API contracts (belongs in apis/)
-- Implementation code
-- Runtime secrets or credentials
-- Temporary build artifacts
-
-## SDK Standard
-All generated SDKs follow the `sdkwork-v3` standard. Authentication uses the canonical `Access-Token` header pattern.
-
-App SDK examples:
-```ts
-import { createBirdcoderAppSdkClient } from '@sdkwork/birdcoder-app-sdk';
-const client = createBirdcoderAppSdkClient({ baseUrl });
-await client.auth.sessions.create({ ... });
-const teams = await client.collaboration.workspaceTeams.list(params);
-const currentUser = await client.iam.users.current.retrieve();
+```powershell
+node scripts/sync-birdcoder-sdk-openapi.mjs
+pnpm sdk:generate
+pnpm check:sdk-family-standard
+pnpm check:sdk-family-generated
 ```
 
-Backend SDK examples:
-```ts
-import { createBirdcoderBackendSdkClient } from '@sdkwork/birdcoder-backend-sdk';
-const client = createBirdcoderBackendSdkClient({ baseUrl });
-const teams = await client.iam.teams.list(params);
-const users = await client.iam.users.list();
-const roles = await client.iam.users.roles.list({ userId });
-const auditEvents = await client.iam.auditEvents.list();
-```
-
-## Related Specs
-- [SDK_SPEC.md](../sdkwork-specs/SDK_SPEC.md)
-- [SDK_WORKSPACE_GENERATION_SPEC.md](../sdkwork-specs/SDK_WORKSPACE_GENERATION_SPEC.md)
-- [API_SPEC.md](../sdkwork-specs/API_SPEC.md)
-- [APP_SDK_INTEGRATION_SPEC.md](../sdkwork-specs/APP_SDK_INTEGRATION_SPEC.md)
-
-## Verification
-- [ ] SDK families follow SDKWork naming conventions
-- [ ] Generated SDK output is properly structured
-- [ ] No authored API contracts in sdks/
-- [ ] Family-root sdk-manifest.json files are valid
-
-## Notes
-API contracts and materialization inputs should be in apis/, while SDK family workspaces and generated SDK output should be in sdks/.
+The synchronization and generation commands must be idempotent. PC-local SDK mirrors, BirdCoder
+backend SDKs, empty Open API families, duplicate authority files, raw HTTP fallbacks, and manual
+edits under generated ownership are forbidden.

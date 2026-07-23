@@ -1,57 +1,57 @@
 import {
-  buildCodingSessionProjectScopedKey,
+  buildAgentSessionProjectScopedKey,
 } from '@sdkwork/birdcoder-pc-workbench';
-import type { BirdCoderChatMessage } from '@sdkwork/birdcoder-pc-contracts-commons';
+import type { AgentSessionItemView } from '@sdkwork/birdcoder-pc-contracts-commons';
 import type { Dispatch, MutableRefObject, SetStateAction } from 'react';
 
 export interface StudioPageProps {
   isVisible?: boolean;
   workspaceId?: string;
   projectId?: string;
-  initialCodingSessionId?: string;
+  initialAgentSessionId?: string;
   onProjectChange?: (projectId: string) => void;
-  onCodingSessionChange?: (codingSessionId: string, projectId?: string) => void;
+  onAgentSessionChange?: (agentSessionId: string, projectId?: string) => void;
 }
 
-export const EMPTY_STUDIO_CHAT_MESSAGES: BirdCoderChatMessage[] = [];
+export const EMPTY_STUDIO_CHAT_MESSAGES: AgentSessionItemView[] = [];
 
 interface RestoreStudioSelectionAfterRefreshOptions {
   currentProjectId: string;
   notifyProjectChange: (projectId: string) => void;
-  pendingLocalCodingSessionSelectionKeyRef: MutableRefObject<string | null>;
-  selectCodingSession: (codingSessionId: string, options?: { projectId?: string }) => void;
+  pendingLocalAgentSessionSelectionKeyRef: MutableRefObject<string | null>;
+  selectAgentSession: (agentSessionId: string, options?: { projectId?: string }) => void;
   sessionId: string;
   setMenuActiveProjectId: Dispatch<SetStateAction<string>>;
   setSelectedSessionProjectId: Dispatch<SetStateAction<string | null>>;
   setSessionId: Dispatch<SetStateAction<string>>;
-  targetCodingSessionId: string | null;
+  targetAgentSessionId: string | null;
   targetProjectId: string;
 }
 
 export function restoreStudioSelectionAfterRefresh({
   currentProjectId,
   notifyProjectChange,
-  pendingLocalCodingSessionSelectionKeyRef,
-  selectCodingSession,
+  pendingLocalAgentSessionSelectionKeyRef,
+  selectAgentSession,
   sessionId,
   setMenuActiveProjectId,
   setSelectedSessionProjectId,
   setSessionId,
-  targetCodingSessionId,
+  targetAgentSessionId,
   targetProjectId,
 }: RestoreStudioSelectionAfterRefreshOptions): void {
   const normalizedTargetProjectId = targetProjectId.trim();
-  const normalizedTargetCodingSessionId = targetCodingSessionId?.trim() ?? '';
+  const normalizedTargetAgentSessionId = targetAgentSessionId?.trim() ?? '';
   if (
-    normalizedTargetCodingSessionId &&
-    normalizedTargetCodingSessionId === sessionId.trim() &&
+    normalizedTargetAgentSessionId &&
+    normalizedTargetAgentSessionId === sessionId.trim() &&
     normalizedTargetProjectId === currentProjectId
   ) {
     return;
   }
 
-  if (targetCodingSessionId) {
-    selectCodingSession(targetCodingSessionId, { projectId: targetProjectId });
+  if (targetAgentSessionId) {
+    selectAgentSession(targetAgentSessionId, { projectId: targetProjectId });
     return;
   }
 
@@ -63,8 +63,8 @@ export function restoreStudioSelectionAfterRefresh({
   setMenuActiveProjectId(targetProjectId);
   setSessionId('');
   setSelectedSessionProjectId(targetProjectId);
-  pendingLocalCodingSessionSelectionKeyRef.current =
-    buildCodingSessionProjectScopedKey(targetProjectId, '');
+  pendingLocalAgentSessionSelectionKeyRef.current =
+    buildAgentSessionProjectScopedKey(targetProjectId, '');
 }
 
 export function getLanguageFromPath(path: string): string {

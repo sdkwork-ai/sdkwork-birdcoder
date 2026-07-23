@@ -3,7 +3,7 @@ import {
   normalizeWorkbenchServerImplementedCodeEngineId,
   resolveWorkbenchCodeEngineSelectedModelId,
   type WorkbenchCodeEngineSettingsCarrier,
-} from '@sdkwork/birdcoder-pc-codeengine';
+} from '@sdkwork/birdcoder-pc-workbench/workbench/codeEngineCatalog';
 import type { BirdCoderProject } from '@sdkwork/birdcoder-pc-contracts-commons';
 
 import {
@@ -18,7 +18,7 @@ import type {
 } from '../types.ts';
 
 interface BuildInitialMultiWindowPaneConfigsOptions {
-  initialCodingSessionId?: string | null;
+  initialAgentSessionId?: string | null;
   initialProjectId?: string | null;
   preferences?: WorkbenchCodeEngineSettingsCarrier | null;
   projects: readonly BirdCoderProject[];
@@ -41,7 +41,7 @@ export function normalizeMultiWindowPaneMode(
 export function createDefaultMultiWindowPaneConfig(
   index: number,
   options: {
-    codingSessionId?: string | null;
+    agentSessionId?: string | null;
     engineId?: string | null;
     modelId?: string | null;
     mode?: string | null;
@@ -59,7 +59,7 @@ export function createDefaultMultiWindowPaneConfig(
     : resolveWorkbenchCodeEngineSelectedModelId(selectedEngineId, preferences);
 
   return {
-    codingSessionId: normalizeText(options.codingSessionId),
+    agentSessionId: normalizeText(options.agentSessionId),
     enabled: true,
     id: createMultiWindowPaneId(index),
     mode: normalizeMultiWindowPaneMode(options.mode),
@@ -73,25 +73,25 @@ export function createDefaultMultiWindowPaneConfig(
 }
 
 function collectSessionSeeds({
-  initialCodingSessionId,
+  initialAgentSessionId,
   initialProjectId,
   projects,
 }: BuildInitialMultiWindowPaneConfigsOptions): Array<{
-  codingSessionId: string;
+  agentSessionId: string;
   engineId?: string;
   modelId?: string;
   projectId: string;
   title: string;
 }> {
-  const normalizedInitialCodingSessionId = normalizeText(initialCodingSessionId);
+  const normalizedInitialAgentSessionId = normalizeText(initialAgentSessionId);
   const normalizedInitialProjectId = normalizeText(initialProjectId);
   const seeds = projects.flatMap((project) =>
-    project.codingSessions.map((codingSession) => ({
-      codingSessionId: codingSession.id,
-      engineId: codingSession.engineId,
-      modelId: codingSession.modelId,
+    project.agentSessions.map((agentSession) => ({
+      agentSessionId: agentSession.id,
+      engineId: agentSession.engineId,
+      modelId: agentSession.modelId,
       projectId: project.id,
-      title: codingSession.title,
+      title: agentSession.title,
     })),
   );
   const initialProjectExists = normalizedInitialProjectId
@@ -101,14 +101,14 @@ function collectSessionSeeds({
     ? seeds.filter((seed) => seed.projectId === normalizedInitialProjectId)
     : [];
   if (initialProjectExists) {
-    if (normalizedInitialCodingSessionId) {
+    if (normalizedInitialAgentSessionId) {
       const exactScopedSeed = scopedProjectSeeds.find(
-        (seed) => seed.codingSessionId === normalizedInitialCodingSessionId,
+        (seed) => seed.agentSessionId === normalizedInitialAgentSessionId,
       );
       if (!exactScopedSeed) {
         return [
           {
-            codingSessionId: normalizedInitialCodingSessionId,
+            agentSessionId: normalizedInitialAgentSessionId,
             projectId: normalizedInitialProjectId,
             title: '',
           },
@@ -130,11 +130,11 @@ function collectSessionSeeds({
       : [];
   }
 
-  const matchingSessionSeeds = normalizedInitialCodingSessionId
-    ? seeds.filter((seed) => seed.codingSessionId === normalizedInitialCodingSessionId)
+  const matchingSessionSeeds = normalizedInitialAgentSessionId
+    ? seeds.filter((seed) => seed.agentSessionId === normalizedInitialAgentSessionId)
     : [];
   const preferredSeedIndex =
-    normalizedInitialCodingSessionId && matchingSessionSeeds.length === 1
+    normalizedInitialAgentSessionId && matchingSessionSeeds.length === 1
       ? seeds.indexOf(matchingSessionSeeds[0])
       : -1;
 
@@ -162,7 +162,7 @@ export function buildInitialMultiWindowPaneConfigs(
     return createDefaultMultiWindowPaneConfig(
       index,
       {
-        codingSessionId: seed?.codingSessionId,
+        agentSessionId: seed?.agentSessionId,
         engineId: seed?.engineId,
         modelId: seed?.modelId,
         projectId: seed?.projectId ?? fallbackProjectId,

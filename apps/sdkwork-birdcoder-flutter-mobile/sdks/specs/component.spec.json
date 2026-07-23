@@ -1,26 +1,78 @@
 {
   "schemaVersion": 1,
-  "componentId": "sdkwork-birdcoder-flutter-mobile-sdks",
-  "displayName": "SDKWork BirdCoder Flutter Mobile SDK Workspace",
-  "description": "Flutter mobile SDK consumers for BirdCoder app and backend-admin boundaries.",
-  "ownerPackage": "sdkwork_birdcoder_flutter_mobile_core",
-  "adminOwnerPackage": "sdkwork_birdcoder_flutter_mobile_admin_core",
+  "kind": "sdkwork.component.spec",
+  "component": {
+    "name": "sdkwork-birdcoder-flutter-mobile-sdk-consumer-workspace",
+    "displayName": "SDKWork BirdCoder Flutter Mobile SDK Consumer Workspace",
+    "version": "0.1.0",
+    "type": "sdk-consumer-workspace",
+    "root": "sdkwork-birdcoder/apps/sdkwork-birdcoder-flutter-mobile/sdks",
+    "domain": "platform",
+    "capability": "app-sdk-consumption",
+    "surface": "app",
+    "status": "ACTIVE",
+    "languages": [
+      "dart"
+    ],
+    "generated": false,
+    "private": true,
+    "manifests": [
+      "sdkwork_birdcoder_flutter_mobile_app_sdk_consumer/sdk-manifest.json",
+      "sdkwork_birdcoder_flutter_mobile_app_sdk_consumer/pubspec.yaml"
+    ]
+  },
+  "canonicalSpecs": [
+    {
+      "file": "COMPONENT_SPEC.md",
+      "path": "../../../../../sdkwork-specs/COMPONENT_SPEC.md",
+      "purpose": "Component-local SDK consumer contract rules."
+    },
+    {
+      "file": "APP_SDK_INTEGRATION_SPEC.md",
+      "path": "../../../../../sdkwork-specs/APP_SDK_INTEGRATION_SPEC.md",
+      "purpose": "Application SDK consumption and injection rules."
+    },
+    {
+      "file": "SDK_SPEC.md",
+      "path": "../../../../../sdkwork-specs/SDK_SPEC.md",
+      "purpose": "Owner SDK family and consumer-facade boundaries."
+    }
+  ],
   "contracts": {
+    "layerRole": "sdk-facade",
+    "publicExports": [
+      "sdkwork_birdcoder_flutter_mobile_app_sdk_consumer"
+    ],
+    "providedPorts": [
+      {
+        "name": "birdcoderFlutterAppSdkConsumer",
+        "export": "sdkwork_birdcoder_flutter_mobile_app_sdk_consumer"
+      }
+    ],
+    "requiredPorts": [],
+    "runtimeEntrypoints": [],
+    "routeManifest": null,
+    "sdkClients": [],
     "sdkDependencies": [
       {
-        "surface": "app",
         "workspace": "sdkwork-birdcoder-app-sdk",
+        "surface": "app-api",
+        "credentialMode": "authenticated-app-api",
+        "required": true,
         "consumerPackageName": "sdkwork_birdcoder_flutter_mobile_core",
         "dartConsumerPath": "sdks/sdkwork_birdcoder_flutter_mobile_app_sdk_consumer",
-        "manifestPath": "../../sdkwork-birdcoder-pc/sdks/sdkwork-birdcoder-app-sdk/sdk-manifest.json"
-      },
-      {
-        "surface": "backend-admin",
-        "workspace": "sdkwork-birdcoder-backend-sdk",
-        "consumerPackageName": "sdkwork_birdcoder_flutter_mobile_admin_core",
-        "dartConsumerPath": "sdks/sdkwork_birdcoder_flutter_mobile_backend_sdk_consumer",
-        "manifestPath": "../../sdkwork-birdcoder-pc/sdks/sdkwork-birdcoder-backend-sdk/sdk-manifest.json"
+        "manifestPath": "../../../../sdks/sdkwork-birdcoder-app-sdk/sdk-manifest.json"
       }
+    ],
+    "dependencyApiExports": [],
+    "dependencyApiSurfaces": [],
+    "events": [],
+    "configKeys": [
+      "sdkwork_birdcoder_flutter_mobile_app_sdk_consumer/sdk-manifest.json"
     ]
+  },
+  "integration": {
+    "authority": "The application-root BirdCoder App SDK family is the only BirdCoder HTTP SDK authority.",
+    "consumerPolicy": "The Dart consumer facade wraps generated transport without owning a second API authority or backend SDK family."
   }
 }

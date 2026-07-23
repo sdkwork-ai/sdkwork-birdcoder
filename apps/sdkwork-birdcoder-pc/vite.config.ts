@@ -4,6 +4,7 @@ import { createSdkworkCredentialEntryBootstrapVitePlugin } from '@sdkwork/iam-cr
 import { defineConfig, loadEnv } from 'vite';
 import {
   BIRDCODER_VITE_DEDUPE_PACKAGES,
+  BIRDCODER_PLATFORM_DEV_PROXY_PATH,
   BIRDCODER_VITE_WEB_OPTIMIZE_DEPS_INCLUDE,
   configureBirdcoderSdkworkProxyProblemResponse,
   createBirdcoderWorkspaceAliasEntries,
@@ -13,18 +14,19 @@ import {
   resolveBirdcoderProductionCssMinify,
   resolveBirdcoderProductionMinify,
   resolveBirdcoderDevelopmentApiEnvDefines,
+  resolveBirdcoderDevProxyTargets,
   resolveBirdcoderViteRuntimeEnvSource,
   resolveBirdcoderWebRuntimeEnvSource,
+  rewriteBirdcoderPlatformDevProxyPath,
 } from '../../scripts/create-birdcoder-vite-plugins.mjs';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const rootHostAppRootDir = path.resolve(__dirname, 'packages', 'sdkwork-birdcoder-pc-web');
 
-export default defineConfig(({ mode }) => {
+export default defineConfig(({ command, mode }) => {
   const env = resolveBirdcoderViteRuntimeEnvSource(loadEnv(mode, '.', ''));
-  const applicationDevProxyTarget =
-    process.env.BIRDCODER_DEV_PROXY_TARGET ?? 'http://127.0.0.1:10240';
+  const devProxyTargets = resolveBirdcoderDevProxyTargets(env, command === 'serve');
   return {
     define: resolveBirdcoderDevelopmentApiEnvDefines(mode),
     plugins: [
@@ -64,47 +66,31 @@ export default defineConfig(({ mode }) => {
         allow: createBirdcoderWorkspaceFsAllowList(rootHostAppRootDir),
       },
       proxy: {
-        '/app': {
-          target: applicationDevProxyTarget,
-          changeOrigin: true,
-          ws: true,
-          configure: configureBirdcoderSdkworkProxyProblemResponse,
-        },
-        '/backend': {
-          target: applicationDevProxyTarget,
-          changeOrigin: true,
-          configure: configureBirdcoderSdkworkProxyProblemResponse,
-        },
-        '/api': {
-          target: applicationDevProxyTarget,
-          changeOrigin: true,
-          configure: configureBirdcoderSdkworkProxyProblemResponse,
-        },
-        '/readyz': {
-          target: applicationDevProxyTarget,
-          changeOrigin: true,
-          configure: configureBirdcoderSdkworkProxyProblemResponse,
-        },
-        '/healthz': {
-          target: applicationDevProxyTarget,
-          changeOrigin: true,
-          configure: configureBirdcoderSdkworkProxyProblemResponse,
-        },
-        '/livez': {
-          target: applicationDevProxyTarget,
-          changeOrigin: true,
-          configure: configureBirdcoderSdkworkProxyProblemResponse,
-        },
-        '/metrics': {
-          target: applicationDevProxyTarget,
-          changeOrigin: true,
-          configure: configureBirdcoderSdkworkProxyProblemResponse,
-        },
-        '/openapi.json': {
-          target: applicationDevProxyTarget,
-          changeOrigin: true,
-          configure: configureBirdcoderSdkworkProxyProblemResponse,
-        },
+        ...(devProxyTargets.platform
+          ? {
+              [BIRDCODER_PLATFORM_DEV_PROXY_PATH]: {
+                target: devProxyTargets.platform,
+                changeOrigin: true,
+                ws: true,
+                rewrite: rewriteBirdcoderPlatformDevProxyPath,
+                configure: configureBirdcoderSdkworkProxyProblemResponse,
+              },
+            }
+          : {}),
+        ...(devProxyTargets.application
+          ? Object.fromEntries(
+              ['/app', '/backend', '/api', '/readyz', '/healthz', '/livez', '/metrics', '/openapi.json']
+                .map((prefix) => [
+                  prefix,
+                  {
+                    target: devProxyTargets.application,
+                    changeOrigin: true,
+                    ws: prefix === '/app',
+                    configure: configureBirdcoderSdkworkProxyProblemResponse,
+                  },
+                ]),
+            )
+          : {}),
       },
     },
   };

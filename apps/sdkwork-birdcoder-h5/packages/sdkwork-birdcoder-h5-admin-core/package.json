@@ -35,11 +35,5 @@
       "default": "./src/composition/index.ts"
     }
   },
-  "dependencies": {
-    "@sdkwork/birdcoder-pc-admin-core": "workspace:*",
-    "@sdkwork/birdcoder-pc-core": "workspace:*",
-    "@sdkwork/birdcoder-pc-infrastructure": "workspace:*",
-    "@sdkwork/sdk-common": "workspace:*"
-  },
   "scripts": {}
 }

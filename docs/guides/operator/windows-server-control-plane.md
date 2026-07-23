@@ -5,10 +5,9 @@ Owner: SDKWork maintainers
 Updated: 2026-07-16
 Specs: DEPLOYMENT_SPEC.md, RUNTIME_DIRECTORY_SPEC.md, SECURITY_SPEC.md, PRIVACY_SPEC.md, OBSERVABILITY_SPEC.md
 
-This guide deploys the BirdCoder control plane on Windows Server. It is not an
-instruction to turn the server into a shared remote IDE runtime. A
-ProjectRuntimeLocation can be persisted for a server target, but it cannot
-enable remote code execution until an isolated runner is separately verified.
+This guide deploys the BirdCoder control plane on Windows Server. The process
+owns coding-workbench APIs and does not package, configure, or supervise an AI
+provider runner. Agents, Kernel, and Providers own code execution.
 
 ## Preconditions
 
@@ -42,15 +41,12 @@ Use the SDKWork Windows namespace:
 | Operator configuration | %ProgramData%\sdkwork\birdcoder\config | Administrators and service account only. |
 | Protected secrets and key references | %ProgramData%\sdkwork\birdcoder\Secrets | Service account and designated secret operators only. |
 | Database and mutable server data | %ProgramData%\sdkwork\birdcoder\Data | Service account only, except approved backup restore. |
-| Server-owned project workspace base | %ProgramData%\sdkwork\birdcoder\Data\ProjectWorkspaces | Service account only. |
 | Logs | %ProgramData%\sdkwork\birdcoder\Logs | Service account writes; operators read redacted output. |
 | Cache and temporary state | %ProgramData%\sdkwork\birdcoder\Cache | Service account only. |
 
 Apply inheritance deliberately so ordinary users, IIS identities, build agents,
-and RDP users cannot browse or change Data, ProjectWorkspaces, Secrets, or
-cache state. The application never maps a raw user-supplied path into this
-tree. A server target resolves only its own registered location through the
-authenticated internal resolver.
+and RDP users cannot browse or change Data, Secrets, or cache state. The
+application never maps a raw user-supplied path into these directories.
 
 ## Service Configuration
 
@@ -64,13 +60,11 @@ secret-capable service wrapper:
     SDKWORK_BIRDCODER_SERVER_PORT=10240
     SDKWORK_BIRDCODER_ALLOWED_ORIGINS=https://ide.example.invalid
     SDKWORK_BIRDCODER_DATABASE_ENGINE=postgresql
-    SDKWORK_BIRDCODER_PROVIDER_RUNNER_ROOT=%ProgramData%\sdkwork\birdcoder\Data\ProjectWorkspaces
 
 Inject the database URL and runtime-location keyring through a
 protected secret source. The service wrapper must preserve file/secret ACLs,
 must not print the effective values, and must not synthesize a missing key.
-Neither standalone nor cloud turns a workspace base or persisted location into
-a remote execution switch.
+Neither standalone nor cloud adds a BirdCoder-owned execution runtime.
 
 Test a release under the intended service account before registering it with a
 service manager:
@@ -109,13 +103,12 @@ boundary supplements, but never replaces, server-side authorization.
   and metrics through the approved monitoring path.
 - Redact paths, key material, credentials, and private identifiers from logs,
   traces, metric labels, and exported attributes.
-- Back up the authoritative database and documented server-owned workspace
-  data according to the retention policy. Preserve protected key-management
-  references separately. Do not back up Browser/Tauri local bindings as server
-  data.
-- Treat requests to enable remote file, terminal, run, build, or deployment as
-  product capability changes requiring target/runner isolation and release
-  evidence.
+- Back up the authoritative database according to the retention policy.
+  Preserve protected key-management references separately. Do not back up
+  Browser/Tauri local bindings as server data.
+- Integrate remote file, terminal, run, build, or deployment capabilities only
+  through the canonical Agents, Kernel, and Providers contracts and their
+  release evidence.
 
 ## Verification
 

@@ -18,8 +18,8 @@ const CodeEditorWorkspaceChatPanel = memo(function CodeEditorWorkspaceChatPanel(
   pendingApprovals,
   pendingUserQuestions,
   showComposerEngineSelector,
-  selectedCodingSessionId,
-  selectedCodingSessionScopeKey,
+  selectedAgentSessionId,
+  selectedAgentSessionScopeKey,
   selectedEngineId,
   selectedModelId,
   onDeleteMessage,
@@ -36,8 +36,8 @@ const CodeEditorWorkspaceChatPanel = memo(function CodeEditorWorkspaceChatPanel(
 }: WorkspaceChatProps) {
   return (
     <DeferredUniversalChat
-      sessionId={selectedCodingSessionId || undefined}
-      sessionScopeKey={selectedCodingSessionScopeKey || undefined}
+      sessionId={selectedAgentSessionId || undefined}
+      sessionScopeKey={selectedAgentSessionScopeKey || undefined}
       isActive={isActive}
       messages={messages}
       pendingApprovals={pendingApprovals}
@@ -91,8 +91,8 @@ export const CodeEditorWorkspacePanel = memo(function CodeEditorWorkspacePanel({
   fileContent,
   explorerWidth,
   chatWidth,
-  selectedCodingSessionId,
-  selectedCodingSessionScopeKey,
+  selectedAgentSessionId,
+  selectedAgentSessionScopeKey,
   messages,
   pendingApprovals,
   pendingUserQuestions,
@@ -165,8 +165,8 @@ export const CodeEditorWorkspacePanel = memo(function CodeEditorWorkspacePanel({
         <div className="flex min-w-0 max-w-full flex-col shrink-0 overflow-hidden bg-[#0e0e11]" style={{ width: chatWidth }}>
           <div className="min-h-0 flex-1">
             <CodeEditorWorkspaceChatPanel
-              selectedCodingSessionId={selectedCodingSessionId}
-              selectedCodingSessionScopeKey={selectedCodingSessionScopeKey}
+              selectedAgentSessionId={selectedAgentSessionId}
+              selectedAgentSessionScopeKey={selectedAgentSessionScopeKey}
               messages={messages}
               pendingApprovals={pendingApprovals}
               pendingUserQuestions={pendingUserQuestions}

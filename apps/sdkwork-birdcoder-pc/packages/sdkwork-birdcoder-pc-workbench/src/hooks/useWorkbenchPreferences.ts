@@ -3,7 +3,7 @@ import {
   normalizeWorkbenchCodeModelId,
   normalizeWorkbenchServerImplementedCodeEngineId,
   type WorkbenchCodeEngineId,
-} from '@sdkwork/birdcoder-pc-codeengine';
+} from '../workbench/codeEngineCatalog.ts';
 
 import {
   DEFAULT_WORKBENCH_PREFERENCES,

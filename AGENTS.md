@@ -43,7 +43,7 @@ This is a multi-surface SDKWork application repository. Read `sdkwork.app.config
 
 ### Shared Packages
 
-- `packages/sdkwork-birdcoder-*` — Cross-surface shared contracts owned by this repository (currently 1 package: `sdkwork-birdcoder-chat-contracts`)
+- `packages/sdkwork-birdcoder-*` — Cross-surface shared contracts owned by this repository when a BirdCoder-owned capability requires them; no shared contract package is currently declared.
 - Each app root has its own surface-specific packages in `packages/`
 - Shared SDKWork platform packages (`sdkwork-iam`, `sdkwork-appbase`, `sdkwork-ui`, `sdkwork-core`, `sdkwork-utils`, etc.) are external workspace dependencies resolved through `pnpm-workspace.yaml`, not owned by this repository
 

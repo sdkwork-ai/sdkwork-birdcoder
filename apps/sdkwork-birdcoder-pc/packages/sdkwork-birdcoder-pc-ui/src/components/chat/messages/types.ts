@@ -1,9 +1,8 @@
 import type { ComponentType, ReactNode } from 'react';
 import type {
-  BirdCoderChatMessage,
-  BirdCoderChatMessageView,
-  BirdCoderChatMessageViewKind,
-  BirdCoderCodeEngineKey,
+  AgentSessionItemView,
+  AgentSessionItemPresentation,
+  AgentSessionItemViewKind,
   ChatMessageViewSource,
   FileChange,
 } from '@sdkwork/birdcoder-pc-workbench/chat/types';
@@ -43,9 +42,9 @@ export interface ChatMessageRenderContext {
   layout: ChatMessageLayout;
   index: number;
   sessionId: string;
-  engineId?: BirdCoderCodeEngineKey;
+  engineId?: string;
   environment: ChatMessageEnvironment | null;
-  allMessages: readonly BirdCoderChatMessage[];
+  allMessages: readonly AgentSessionItemView[];
   actionTarget: ChatMessageActionTarget | null;
   showMessageActions: boolean;
   copyMessageToClipboard: (content: string) => void;
@@ -55,7 +54,7 @@ export interface ChatMessageRenderContext {
 }
 
 export interface ChatMessageRendererProps {
-  view: BirdCoderChatMessageView;
+  view: AgentSessionItemPresentation;
   context: ChatMessageRenderContext;
   messageRef?: (element: HTMLDivElement | null) => void;
 }
@@ -63,9 +62,9 @@ export interface ChatMessageRendererProps {
 export type ChatMessageRendererComponent = ComponentType<ChatMessageRendererProps>;
 
 export interface ChatMessageRendererMatch {
-  viewKind?: BirdCoderChatMessageViewKind | readonly BirdCoderChatMessageViewKind[];
-  engineId?: BirdCoderCodeEngineKey;
-  role?: BirdCoderChatMessage['role'] | readonly BirdCoderChatMessage['role'][];
+  viewKind?: AgentSessionItemViewKind | readonly AgentSessionItemViewKind[];
+  engineId?: string;
+  role?: AgentSessionItemView['role'] | readonly AgentSessionItemView['role'][];
 }
 
 export interface ChatMessageRendererEntry {
@@ -74,7 +73,7 @@ export interface ChatMessageRendererEntry {
   priority: number;
   Component: ChatMessageRendererComponent;
   estimateHeight: (
-    view: BirdCoderChatMessageView,
+    view: AgentSessionItemPresentation,
     layout?: 'sidebar' | 'main',
   ) => number;
 }

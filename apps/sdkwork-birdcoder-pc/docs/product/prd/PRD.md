@@ -6,36 +6,46 @@ Application: sdkwork-birdcoder-pc
 Updated: 2026-07-22
 Specs: REQUIREMENTS_SPEC.md, DOCUMENTATION_SPEC.md, APP_PC_ARCHITECTURE_SPEC.md
 
-This is a PC-surface supplement, not a competing product Canon. Product scope,
-outcomes, requirements, and release gates remain in the root
-[BirdCoder PRD](../../../../../docs/product/prd/PRD.md).
+This document narrows the root [BirdCoder PRD](../../../../../docs/product/prd/PRD.md)
+to browser and Tauri behavior. The root PRD remains the product Canon.
 
 ## PC Surface Scope
 
-The PC surface presents the same BirdCoder application model in browser and
-Tauri modes. Both modes read the unified coding-session inventory, detail, and
-events through the composed BirdCoder app SDK. Provider-native discovery and
-history reads remain behind the server's internal native-session service;
-browser mode does not gain provider SDK access or a desktop filesystem
-capability from the renderer.
+The PC surface provides the coding workbench, project navigation, editor,
+terminal, Git, and AI-assisted coding workflows. Browser and Tauri share the
+same feature services and owner SDK contracts; Tauri adds explicitly injected
+local filesystem and terminal capabilities.
 
-## Coding-Session Experience
+AI-assisted coding uses the Agents aggregate end to end. BirdCoder selects an
+Agents Project, creates or selects an Agents Session, submits Turns, and renders
+Session Items. The Agents Session id is the only AI-session identity. Provider,
+model, native-session, runtime binding, interaction, artifact, and checkpoint
+facts remain owned by `sdkwork-agents`.
 
-The workbench starts a new coding session from an explicit P0 provider and
-model selection: codex, claude-code, gemini, or opencode. The resulting
-engine/model pair belongs to that newly created logical session and is not
-changed in place. A different selection creates another session.
+## Product Boundaries
 
-The UI keeps BirdCoder's codingSessionId as the application identity. For a
-bound provider conversation, the server uses the persisted engineId and raw
-nativeSessionId internally to reconcile canonical events onto that logical
-session. A raw binding exposed with a coding-session summary is metadata for
-explicit terminal resume, never a second public resource identity, and it is
-never replaced with a different provider conversation.
+- BirdCoder owns workspace, project, runtime-location, document-binding, and
+  sandbox-binding behavior only.
+- A BirdCoder project may keep the stable default Agents Project id required to
+  enter the assistant workflow; it does not persist a Session or transcript.
+- AI transcript items are Agents Session Items. Human Conversation, Message,
+  Member, and ReadCursor workflows, when enabled, use `sdkwork-im` and remain a
+  different business capability.
+- Skill packages and installations use `sdkwork-skills`; saved prompts use
+  `sdkwork-prompts`; document content uses `sdkwork-documents`.
+- Browser code never receives provider credentials, plaintext remote project
+  roots, or native provider-session authority.
+
+## Acceptance
+
+The PC surface must consume generated owner SDKs or approved composed services,
+share the application TokenManager for authenticated App SDKs, keep local host
+capabilities behind typed adapters, and fail closed when an authorized runtime
+location is unavailable. It must not add raw HTTP, copied DTOs, local business
+persistence, transcript projections, or a compatibility Session facade.
 
 ## Canonical References
 
 - [Root PRD](../../../../../docs/product/prd/PRD.md)
 - [Root technical architecture](../../../../../docs/architecture/tech/TECH_ARCHITECTURE.md)
-- [Engine SDK integration](../../../../../docs/reference/engine-sdk-integration.md)
 - [API reference](../../../../../docs/reference/api-reference.md)

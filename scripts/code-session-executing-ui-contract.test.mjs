@@ -18,12 +18,12 @@ const zhLocaleSource = fs.readFileSync(
   'utf8',
 );
 const legacyExecutionSelectionPattern = new RegExp(
-  ['selectedCodingSessionId === ', ['th', 'read'].join(''), '\\.id && isSending'].join(''),
+  ['selectedAgentSessionId === ', ['th', 'read'].join(''), '\\.id && isSending'].join(''),
 );
 
 assert.match(
   projectExplorerSessionRowSource,
-  /const isEngineBusySession = isBirdCoderCodingSessionEngineBusy\(session\);/,
+  /const isEngineBusySession = isAgentSessionViewEngineBusy\(session\);/,
   'Code ProjectExplorer session rows should derive spinning rows from the engine-busy runtime state.',
 );
 

@@ -12,7 +12,7 @@ export type MultiWindowPaneSessionProvisioningReason =
   | 'session-ready';
 
 export interface MultiWindowPaneSessionBindingSummary {
-  codingSessionId?: string | null;
+  agentSessionId?: string | null;
   engineId?: string | null;
   id?: string | null;
   modelId?: string | null;
@@ -49,8 +49,8 @@ export function resolveMultiWindowPaneSessionProvisioningStatus(
     };
   }
 
-  const paneSessionId = normalizeText(pane.codingSessionId);
-  const bindingSessionId = normalizeText(binding?.codingSessionId ?? binding?.id);
+  const paneSessionId = normalizeText(pane.agentSessionId);
+  const bindingSessionId = normalizeText(binding?.agentSessionId ?? binding?.id);
   if (!paneSessionId || !bindingSessionId || paneSessionId !== bindingSessionId) {
     return {
       reason: 'missing-session',

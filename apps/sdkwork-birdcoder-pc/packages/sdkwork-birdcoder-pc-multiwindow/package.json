@@ -14,7 +14,6 @@
     "typecheck": "node ../../../../scripts/run-local-typescript.mjs --noEmit"
   },
   "dependencies": {
-    "@sdkwork/birdcoder-pc-codeengine": "workspace:*",
     "@sdkwork/birdcoder-pc-workbench": "workspace:*",
     "@sdkwork/birdcoder-pc-contracts-commons": "workspace:*",
     "@sdkwork/birdcoder-pc-ui": "workspace:*",

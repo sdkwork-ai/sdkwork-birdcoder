@@ -1,28 +1,48 @@
-# SDKWork Birdcoder H5 Technical Architecture
+# SDKWork BirdCoder H5 Architecture Supplement
 
-Status: draft
+Status: active
 Owner: SDKWork maintainers
-Updated: 2026-06-24
-Specs: ARCHITECTURE_DECISION_SPEC.md, DOCUMENTATION_SPEC.md
+Application: sdkwork-birdcoder-h5
+Updated: 2026-07-22
+Specs: ARCHITECTURE_DECISION_SPEC.md, DOCUMENTATION_SPEC.md, APP_H5_ARCHITECTURE_SPEC.md, APP_SDK_INTEGRATION_SPEC.md
 
-## Document Map
+This document narrows the root
+[technical architecture](../../../../../docs/architecture/tech/TECH_ARCHITECTURE.md)
+to the React/Vite H5 and Capacitor runtime.
 
-- Add `TECH-<topic>.md` shards in this directory when the architecture grows beyond one reviewable screen.
+## Composition
 
-## 1. Architecture Overview
+The H5 shell owns routes and providers. H5 core owns typed runtime config, the
+global TokenManager, and SDK client factories. Feature packages receive service
+ports; they do not construct clients or access generated transport internals.
 
-## 2. Technology Choices
+BirdCoder App API calls use `@sdkwork/birdcoder-app-sdk`. Assistant operations
+use `@sdkwork/agents-app-sdk`; the core assistant service calls Agents Session,
+Session Item, and Turn resources with bounded pagination. Dependency operations
+are not regenerated into the BirdCoder SDK family.
 
-## 3. System Boundaries And Modules
+## Data And Message Semantics
 
-## 4. Directory And Package Layout
+H5 persists no BirdCoder business database. Browser session storage is limited
+to governed IAM credential state. AI transcript items are Agents Session Items,
+while human Conversation and Message facts belong to IM. The H5 assistant route
+does not create an IM persistence or projection boundary.
 
-## 5. API, SDK, And Data Ownership
+## Security And Runtime
 
-## 6. Security, Privacy, And Observability
+SDK authentication is supplied by the shared TokenManager. Public runtime
+configuration contains base URLs and non-secret flags only. Capacitor device
+capabilities are accessed through typed host adapters, and no local path is
+accepted as remote execution authority.
 
-## 7. Deployment And Runtime Topology
+## Verification
 
-## 8. Architecture Decision Index
+    node scripts/h5-architecture-boundary-contract.test.mjs
+    node scripts/h5-sdk-assembly-contract.test.mjs
+    node scripts/h5-app-session-persistence-contract.test.mjs
+    pnpm typecheck
 
-## 9. Verification
+## Canonical References
+
+- [Root technical architecture](../../../../../docs/architecture/tech/TECH_ARCHITECTURE.md)
+- [Root PRD](../../../../../docs/product/prd/PRD.md)

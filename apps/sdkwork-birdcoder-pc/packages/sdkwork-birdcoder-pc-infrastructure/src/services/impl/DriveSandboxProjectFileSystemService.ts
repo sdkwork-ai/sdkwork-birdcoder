@@ -14,14 +14,13 @@ import {
   type WorkspaceFileSearchExecutionResult,
   type WorkspaceFileSearchOptions,
 } from '@sdkwork/birdcoder-pc-contracts-commons';
+import { readBirdCoderApiTransportErrorHttpStatus } from '@sdkwork/birdcoder-pc-contracts-commons/apiTransportError';
+import type { BirdCoderProjectSandboxBinding } from '@sdkwork/birdcoder-pc-core/sdk/birdcoder-app';
 import type {
   FileSystemChangeSubscriptionOptions,
   IFileSystemService,
 } from '../interfaces/IFileSystemService.ts';
-import type {
-  BirdCoderAppSdkApiClient,
-  BirdCoderProjectWorkspaceBindingRecord,
-} from '../sdkClients.ts';
+import type { BirdCoderAppSdkApiClient } from '../birdCoderSdkClient.ts';
 import {
   createDriveSandboxProjectPathContext,
   replaceDirectoryInTree,
@@ -38,15 +37,13 @@ const REMOTE_POLL_INTERVAL_MS = 2_000;
 const MAX_REMOTE_POLLED_FILES = 16;
 
 interface DriveSandboxProjectFileSystemServiceOptions {
-  readonly allowLocalFallback: boolean;
-  readonly bindingClient: Pick<BirdCoderAppSdkApiClient, 'getProjectWorkspaceBinding'>;
+  readonly bindingClient: BirdCoderAppSdkApiClient;
   readonly drivePort: SandboxExplorerPort;
-  readonly localFileSystem: IFileSystemService;
   readonly remotePollIntervalMs?: number;
 }
 
 interface RemoteProjectState {
-  readonly binding: BirdCoderProjectWorkspaceBindingRecord;
+  readonly binding: BirdCoderProjectSandboxBinding;
   readonly context: DriveSandboxProjectPathContext;
   readonly entriesByVirtualPath: Map<string, SandboxEntry>;
   tree: IFileNode[];
@@ -68,7 +65,7 @@ function normalizeProjectId(projectId: string): string {
   return normalized;
 }
 
-function bindingIdentity(binding: BirdCoderProjectWorkspaceBindingRecord): string {
+function bindingIdentity(binding: BirdCoderProjectSandboxBinding): string {
   return [
     binding.id,
     binding.version,
@@ -106,18 +103,14 @@ function createRootNode(state: RemoteProjectState, children: IFileNode[]): IFile
 }
 
 export class DriveSandboxProjectFileSystemService implements IFileSystemService {
-  private readonly allowLocalFallback: boolean;
   private readonly bindingClient: DriveSandboxProjectFileSystemServiceOptions['bindingClient'];
   private readonly drivePort: SandboxExplorerPort;
-  private readonly localFileSystem: IFileSystemService;
   private readonly projectStates = new Map<string, RemoteProjectState>();
   private readonly remotePollIntervalMs: number;
 
   constructor(options: DriveSandboxProjectFileSystemServiceOptions) {
-    this.allowLocalFallback = options.allowLocalFallback;
     this.bindingClient = options.bindingClient;
     this.drivePort = options.drivePort;
-    this.localFileSystem = options.localFileSystem;
     this.remotePollIntervalMs = Math.max(500, options.remotePollIntervalMs ?? REMOTE_POLL_INTERVAL_MS);
   }
 
@@ -136,12 +129,19 @@ export class DriveSandboxProjectFileSystemService implements IFileSystemService 
 
   private async resolveRemoteProject(projectId: string): Promise<RemoteProjectState | null> {
     const normalizedProjectId = normalizeProjectId(projectId);
-    const binding = await this.bindingClient.getProjectWorkspaceBinding(normalizedProjectId);
+    const binding = await this.bindingClient.intelligence.projects.sandboxBinding
+      .retrieve(normalizedProjectId)
+      .catch((error: unknown) => {
+        if (readBirdCoderApiTransportErrorHttpStatus(error) === 404) {
+          return null;
+        }
+        throw error;
+      });
     if (!binding) {
       this.projectStates.delete(normalizedProjectId);
       return null;
     }
-    if (binding.projectId !== normalizedProjectId || binding.lifecycleStatus !== 'active') {
+    if (binding.projectId !== normalizedProjectId || binding.status !== 'active') {
       throw new Error('Project workspace binding does not match the active project.');
     }
 
@@ -201,19 +201,13 @@ export class DriveSandboxProjectFileSystemService implements IFileSystemService 
     };
   }
 
-  private async requireRemoteOrTauri<T>(
+  private async requireRemote<T>(
     projectId: string,
     remote: (state: RemoteProjectState) => Promise<T>,
-    local: () => Promise<T>,
   ): Promise<T> {
     const normalizedProjectId = normalizeProjectId(projectId);
     const state = await this.resolveRemoteProject(normalizedProjectId);
     if (state) return remote(state);
-    if (!this.allowLocalFallback) {
-      throw new ProjectWorkspaceBindingRequiredError(normalizedProjectId);
-    }
-    const mountState = await this.localFileSystem.getProjectMountState(normalizedProjectId);
-    if (mountState.host === 'tauri') return local();
     throw new ProjectWorkspaceBindingRequiredError(normalizedProjectId);
   }
 
@@ -238,13 +232,6 @@ export class DriveSandboxProjectFileSystemService implements IFileSystemService 
     const normalizedProjectId = normalizeProjectId(projectId);
     const state = await this.resolveRemoteProject(normalizedProjectId);
     if (!state) {
-      if (!this.allowLocalFallback) {
-        throw new ProjectWorkspaceBindingRequiredError(normalizedProjectId);
-      }
-      const mountState = await this.localFileSystem.getProjectMountState(normalizedProjectId);
-      if (mountState.host === 'tauri') {
-        return this.localFileSystem.getFiles(normalizedProjectId);
-      }
       throw new ProjectWorkspaceBindingRequiredError(normalizedProjectId);
     }
     const root = await this.loadRemoteDirectory(state, state.context.virtualRootPath);
@@ -253,7 +240,7 @@ export class DriveSandboxProjectFileSystemService implements IFileSystemService 
   }
 
   async loadDirectory(projectId: string, path: string): Promise<IFileNode[]> {
-    return this.requireRemoteOrTauri(
+    return this.requireRemote(
       projectId,
       async (state) => {
         if (state.tree.length === 0) await this.getFiles(projectId);
@@ -261,7 +248,6 @@ export class DriveSandboxProjectFileSystemService implements IFileSystemService 
         state.tree = replaceDirectoryInTree(state.tree, directory);
         return state.tree;
       },
-      () => this.localFileSystem.loadDirectory(projectId, path),
     );
   }
 
@@ -278,7 +264,7 @@ export class DriveSandboxProjectFileSystemService implements IFileSystemService 
   }
 
   async getFileContent(projectId: string, path: string): Promise<string> {
-    return this.requireRemoteOrTauri(
+    return this.requireRemote(
       projectId,
       async (state) => {
         const entry = await this.resolveRemoteEntry(state, path);
@@ -292,15 +278,13 @@ export class DriveSandboxProjectFileSystemService implements IFileSystemService 
         state.entriesByVirtualPath.set(path, result.entry);
         return result.content;
       },
-      () => this.localFileSystem.getFileContent(projectId, path),
     );
   }
 
   async getFileRevision(projectId: string, path: string): Promise<string> {
-    return this.requireRemoteOrTauri(
+    return this.requireRemote(
       projectId,
       async (state) => (await this.resolveRemoteEntry(state, path)).revision,
-      () => this.localFileSystem.getFileRevision(projectId, path),
     );
   }
 
@@ -311,13 +295,6 @@ export class DriveSandboxProjectFileSystemService implements IFileSystemService 
     const normalizedProjectId = normalizeProjectId(projectId);
     const state = await this.resolveRemoteProject(normalizedProjectId);
     if (!state) {
-      if (!this.allowLocalFallback) {
-        throw new ProjectWorkspaceBindingRequiredError(normalizedProjectId);
-      }
-      const mountState = await this.localFileSystem.getProjectMountState(normalizedProjectId);
-      if (mountState.host === 'tauri') {
-        return this.localFileSystem.getFileRevisions(normalizedProjectId, paths);
-      }
       throw new ProjectWorkspaceBindingRequiredError(normalizedProjectId);
     }
     return Promise.all(paths.map(async (path): Promise<FileRevisionLookupResult> => {
@@ -335,7 +312,7 @@ export class DriveSandboxProjectFileSystemService implements IFileSystemService 
   }
 
   async saveFileContent(projectId: string, path: string, content: string): Promise<void> {
-    await this.requireRemoteOrTauri(
+    await this.requireRemote(
       projectId,
       async (state) => {
         const entry = await this.resolveRemoteEntry(state, path);
@@ -350,12 +327,11 @@ export class DriveSandboxProjectFileSystemService implements IFileSystemService 
         });
         state.entriesByVirtualPath.set(path, updated);
       },
-      () => this.localFileSystem.saveFileContent(projectId, path, content),
     );
   }
 
   async createFile(projectId: string, path: string): Promise<void> {
-    await this.requireRemoteOrTauri(
+    await this.requireRemote(
       projectId,
       async (state) => {
         const target = splitVirtualMutationPath(state.context, path);
@@ -368,12 +344,11 @@ export class DriveSandboxProjectFileSystemService implements IFileSystemService 
         });
         state.entriesByVirtualPath.set(path, entry);
       },
-      () => this.localFileSystem.createFile(projectId, path),
     );
   }
 
   async createFolder(projectId: string, path: string): Promise<void> {
-    await this.requireRemoteOrTauri(
+    await this.requireRemote(
       projectId,
       async (state) => {
         const target = splitVirtualMutationPath(state.context, path);
@@ -384,7 +359,6 @@ export class DriveSandboxProjectFileSystemService implements IFileSystemService 
         });
         state.entriesByVirtualPath.set(path, entry);
       },
-      () => this.localFileSystem.createFolder(projectId, path),
     );
   }
 
@@ -407,23 +381,21 @@ export class DriveSandboxProjectFileSystemService implements IFileSystemService 
   }
 
   async deleteFile(projectId: string, path: string): Promise<void> {
-    await this.requireRemoteOrTauri(
+    await this.requireRemote(
       projectId,
       (state) => this.deleteRemoteEntry(state, path, false, 'file'),
-      () => this.localFileSystem.deleteFile(projectId, path),
     );
   }
 
   async deleteFolder(projectId: string, path: string): Promise<void> {
-    await this.requireRemoteOrTauri(
+    await this.requireRemote(
       projectId,
       (state) => this.deleteRemoteEntry(state, path, true, 'directory'),
-      () => this.localFileSystem.deleteFolder(projectId, path),
     );
   }
 
   async renameNode(projectId: string, oldPath: string, newPath: string): Promise<void> {
-    await this.requireRemoteOrTauri(
+    await this.requireRemote(
       projectId,
       async (state) => {
         const entry = await this.resolveRemoteEntry(state, oldPath);
@@ -439,7 +411,6 @@ export class DriveSandboxProjectFileSystemService implements IFileSystemService 
         state.entriesByVirtualPath.delete(oldPath);
         state.entriesByVirtualPath.set(newPath, moved);
       },
-      () => this.localFileSystem.renameNode(projectId, oldPath, newPath),
     );
   }
 
@@ -477,7 +448,7 @@ export class DriveSandboxProjectFileSystemService implements IFileSystemService 
     projectId: string,
     options: WorkspaceFileSearchOptions,
   ): Promise<WorkspaceFileSearchExecutionResult> {
-    return this.requireRemoteOrTauri(
+    return this.requireRemote(
       projectId,
       async (state) => {
         const snapshot = await this.buildRemoteSearchTree(state, options.signal);
@@ -498,7 +469,6 @@ export class DriveSandboxProjectFileSystemService implements IFileSystemService 
         });
         return { ...result, limitReached: result.limitReached || snapshot.limitReached };
       },
-      () => this.localFileSystem.searchFiles(projectId, options),
     );
   }
 
@@ -511,17 +481,6 @@ export class DriveSandboxProjectFileSystemService implements IFileSystemService 
     let closed = false;
     let polling = false;
     const knownRevisions = new Map<string, string | null>();
-    const unsubscribeLocal = this.allowLocalFallback
-      ? this.localFileSystem.subscribeToFileChanges(
-          normalizedProjectId,
-          (event) => {
-            void this.localFileSystem.getProjectMountState(normalizedProjectId).then((state) => {
-              if (!closed && state.host === 'tauri') listener(event);
-            });
-          },
-          options,
-        )
-      : () => undefined;
     const timer = setInterval(() => {
       if (closed || polling) return;
       polling = true;
@@ -554,7 +513,6 @@ export class DriveSandboxProjectFileSystemService implements IFileSystemService 
     return () => {
       closed = true;
       clearInterval(timer);
-      unsubscribeLocal();
     };
   }
 
@@ -569,13 +527,7 @@ export class DriveSandboxProjectFileSystemService implements IFileSystemService 
         status: 'mounted',
       };
     }
-    if (!this.allowLocalFallback) {
-      return { displayName: null, host: null, status: 'mount_required' };
-    }
-    const local = await this.localFileSystem.getProjectMountState(normalizedProjectId);
-    return local.host === 'tauri'
-      ? local
-      : { displayName: null, host: null, status: 'mount_required' };
+    return { displayName: null, host: null, status: 'mount_required' };
   }
 
   async restoreProjectMount(projectId: string): Promise<ProjectDeviceMountRecoveryResult> {
@@ -591,38 +543,21 @@ export class DriveSandboxProjectFileSystemService implements IFileSystemService 
         },
       };
     }
-    if (!this.allowLocalFallback) {
-      return {
-        restored: false,
-        state: { displayName: null, host: null, status: 'mount_required' },
-      };
-    }
-    const localState = await this.localFileSystem.getProjectMountState(projectId);
-    return localState.host === 'tauri'
-      ? this.localFileSystem.restoreProjectMount(projectId)
-      : {
-          restored: false,
-          state: { displayName: null, host: null, status: 'mount_required' },
-        };
+    return {
+      restored: false,
+      state: { displayName: null, host: null, status: 'mount_required' },
+    };
   }
 
   resolveLocalWorkingDirectory(projectId: string, mountedPath?: string): Promise<string | null> {
-    if (!this.allowLocalFallback) return Promise.resolve(null);
-    return this.localFileSystem.resolveLocalWorkingDirectory(projectId, mountedPath);
+    return Promise.resolve(null);
   }
 
   revealProjectInFileManager(projectId: string, mountedPath?: string): Promise<boolean> {
-    if (!this.allowLocalFallback) return Promise.resolve(false);
-    return this.localFileSystem.revealProjectInFileManager(projectId, mountedPath);
+    return Promise.resolve(false);
   }
 
   async mountFolder(projectId: string, folderInfo: LocalFolderMountSource): Promise<void> {
-    if (!this.allowLocalFallback) {
-      throw new Error('Local folders are unavailable while BirdCoder uses a remote Drive workspace.');
-    }
-    if (folderInfo.type !== 'tauri') {
-      throw new Error('Browser folder handles are not a server workspace and cannot be mounted to BirdCoder.');
-    }
-    await this.localFileSystem.mountFolder(projectId, folderInfo);
+    throw new Error('Local folders are unavailable while BirdCoder uses a remote Drive workspace.');
   }
 }

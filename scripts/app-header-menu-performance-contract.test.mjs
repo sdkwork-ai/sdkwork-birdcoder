@@ -41,13 +41,13 @@ assert.doesNotMatch(
 
 assert.match(
   appSource,
-  /const handleSelectMenuProject = useCallback\([\s\S]*latestCodingSessionIdByProjectId\.get\(nextProjectId\)/,
+  /const handleSelectMenuProject = useCallback\([\s\S]*latestAgentSessionIdByProjectId\.get\(nextProjectId\)/,
   'Workspace menu project selection must resolve the next session through the prebuilt project/session index instead of scanning project arrays inline.',
 );
 
 assert.doesNotMatch(
   appSource,
-  /resolveLatestCodingSessionIdForProject/,
+  /resolveLatestAgentSessionIdForProject/,
   'App header project selection must not fall back to per-click array scans for latest coding session lookup.',
 );
 

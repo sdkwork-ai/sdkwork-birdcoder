@@ -9,7 +9,7 @@ function readSource(...segments) {
   return fs.readFileSync(path.join(rootDir, ...segments), 'utf8');
 }
 
-const codingSessionCreationSource = readSource(
+const agentSessionCreationSource = readSource(
   'apps',
   
   'sdkwork-birdcoder-pc',
@@ -19,7 +19,7 @@ const codingSessionCreationSource = readSource(
   'sdkwork-birdcoder-pc-workbench',
   'src',
   'workbench',
-  'codingSessionCreation.ts',
+  'agentSessionCreation.ts',
 );
 const codePageSource = readSource(
   'apps',
@@ -47,21 +47,21 @@ const studioPageSource = readSource(
 );
 
 assert.match(
-  codingSessionCreationSource,
-  /export function buildWorkbenchCodingSessionTurnContext\(/,
-  'Workbench messaging must expose a shared buildWorkbenchCodingSessionTurnContext helper so every surface emits the same authoritative turn context structure.',
+  agentSessionCreationSource,
+  /export function buildWorkbenchAgentSessionTurnContext\(/,
+  'Workbench messaging must expose a shared buildWorkbenchAgentSessionTurnContext helper so every surface emits the same authoritative turn context structure.',
 );
 
 assert.match(
   `${codePageSource}\n${studioPageSource}`,
-  /buildWorkbenchCodingSessionTurnContext\(/,
-  'CodePage and StudioPage must reuse buildWorkbenchCodingSessionTurnContext instead of rebuilding turn context objects inline.',
+  /buildWorkbenchAgentSessionTurnContext\(/,
+  'CodePage and StudioPage must reuse buildWorkbenchAgentSessionTurnContext instead of rebuilding turn context objects inline.',
 );
 
 assert.doesNotMatch(
   `${codePageSource}\n${studioPageSource}`,
   /currentFile:\s*selectedFile\s*\?\s*\{/,
-  'CodePage and StudioPage must not inline currentFile turn context payloads once buildWorkbenchCodingSessionTurnContext owns that structure.',
+  'CodePage and StudioPage must not inline currentFile turn context payloads once buildWorkbenchAgentSessionTurnContext owns that structure.',
 );
 
 console.log('message context standardization contract passed.');

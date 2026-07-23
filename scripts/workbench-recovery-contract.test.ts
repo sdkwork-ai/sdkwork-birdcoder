@@ -16,11 +16,11 @@ assert.deepEqual(
   resolveWorkbenchRecoveryPersistenceSelection({
     currentWorkspaceId: '',
     currentProjectId: '',
-    currentCodingSessionId: '',
+    currentAgentSessionId: '',
     fallbackSnapshot: {
       activeWorkspaceId: 'workspace-recovered',
       activeProjectId: 'project-recovered',
-      activeCodingSessionId: 'session-recovered',
+      activeAgentSessionId: 'session-recovered',
     },
     hasProjectsFetched: false,
     hasWorkspacesFetched: false,
@@ -28,7 +28,7 @@ assert.deepEqual(
   {
     activeWorkspaceId: 'workspace-recovered',
     activeProjectId: 'project-recovered',
-    activeCodingSessionId: 'session-recovered',
+    activeAgentSessionId: 'session-recovered',
   },
   'Recovery persistence must preserve the previously recovered workspace/project/session ids until startup workspace loading finishes.',
 );
@@ -37,11 +37,11 @@ assert.deepEqual(
   resolveWorkbenchRecoveryPersistenceSelection({
     currentWorkspaceId: 'workspace-current',
     currentProjectId: '',
-    currentCodingSessionId: '',
+    currentAgentSessionId: '',
     fallbackSnapshot: {
       activeWorkspaceId: 'workspace-recovered',
       activeProjectId: 'project-recovered',
-      activeCodingSessionId: 'session-recovered',
+      activeAgentSessionId: 'session-recovered',
     },
     hasProjectsFetched: false,
     hasWorkspacesFetched: true,
@@ -49,7 +49,7 @@ assert.deepEqual(
   {
     activeWorkspaceId: 'workspace-current',
     activeProjectId: 'project-recovered',
-    activeCodingSessionId: 'session-recovered',
+    activeAgentSessionId: 'session-recovered',
   },
   'Recovery persistence must keep the recovered project/session ids intact while the selected workspace project list is still loading.',
 );
@@ -58,11 +58,11 @@ assert.deepEqual(
   resolveWorkbenchRecoveryPersistenceSelection({
     currentWorkspaceId: 'workspace-current',
     currentProjectId: '',
-    currentCodingSessionId: '',
+    currentAgentSessionId: '',
     fallbackSnapshot: {
       activeWorkspaceId: 'workspace-recovered',
       activeProjectId: 'project-recovered',
-      activeCodingSessionId: 'session-recovered',
+      activeAgentSessionId: 'session-recovered',
     },
     hasProjectsFetched: true,
     hasWorkspacesFetched: true,
@@ -70,7 +70,7 @@ assert.deepEqual(
   {
     activeWorkspaceId: 'workspace-current',
     activeProjectId: '',
-    activeCodingSessionId: '',
+    activeAgentSessionId: '',
   },
   'Recovery persistence must allow authoritative empty project/session selections once startup resolution is complete.',
 );

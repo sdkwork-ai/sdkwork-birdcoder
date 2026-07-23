@@ -1,4 +1,4 @@
-import type { BirdCoderChatMessage } from '@sdkwork/birdcoder-pc-workbench/chat/types';
+import type { AgentSessionItemView } from '@sdkwork/birdcoder-pc-workbench/chat/types';
 import type { RefObject } from 'react';
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 
@@ -37,7 +37,7 @@ function readTranscriptScrollMetrics(
 }
 
 export function useProgressiveTranscriptWindow(
-  messages: readonly BirdCoderChatMessage[],
+  messages: readonly AgentSessionItemView[],
   messagesEndRef: RefObject<HTMLDivElement | null>,
   isActive = true,
   transcriptScopeKey = '',

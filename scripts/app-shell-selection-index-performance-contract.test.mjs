@@ -6,7 +6,7 @@ const appSource = readBirdcoderAppShellSource();
 
 assert.match(
   appSource,
-  /buildProjectCodingSessionIndex/,
+  /buildProjectAgentSessionIndex/,
   'App must import the shared project/session index utilities for shell-level selection performance.',
 );
 
@@ -18,19 +18,19 @@ assert.match(
 
 assert.match(
   appSource,
-  /latestCodingSessionIdByProjectId\.get\(projectId\)/,
+  /latestAgentSessionIdByProjectId\.get\(projectId\)/,
   'App must resolve latest coding session ids through the shared index cache instead of project-array scans.',
 );
 
 assert.match(
   appSource,
-  /const activeProjectsIndex = useMemo\(\s*\(\) => buildProjectCodingSessionIndex\(activeProjects\)/,
+  /const activeProjectsIndex = useMemo\(\s*\(\) => buildProjectAgentSessionIndex\(activeProjects\)/,
   'App must build a memoized project/session index for the active workspace instead of repeatedly scanning project arrays.',
 );
 
 assert.match(
   appSource,
-  /const menuProjectsIndex = useMemo\(\s*\(\) => buildProjectCodingSessionIndex\(menuProjects\)/,
+  /const menuProjectsIndex = useMemo\(\s*\(\) => buildProjectAgentSessionIndex\(menuProjects\)/,
   'App must build a memoized project/session index for the workspace menu project collection.',
 );
 

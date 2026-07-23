@@ -51,8 +51,8 @@ assert.match(
 
 assert.match(
   authGateSource,
-  /requiresAuthenticatedProductAccess/u,
-  'AuthGate must enforce authenticated product access outside local deployment mode.',
+  /if \(!user\) \{/u,
+  'AuthGate must enforce authenticated product access for every runtime topology.',
 );
 assert.match(
   authGateSource,

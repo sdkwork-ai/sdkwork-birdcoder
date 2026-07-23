@@ -29,7 +29,7 @@ const never = new Promise<never>(() => undefined);
 function buildProject(): BirdCoderProject {
   return {
     archived: false,
-    codingSessions: [],
+    agentSessions: [],
     createdAt: '2026-04-28T10:00:00.000Z',
     id: projectId,
     name: 'Loading Timeout Project',
@@ -65,29 +65,29 @@ function buildProjectService(
     async deleteProject() {
       return fail('deleteProject');
     },
-    async createCodingSession() {
-      return fail('createCodingSession');
+    async createAgentSession() {
+      return fail('createAgentSession');
     },
-    async renameCodingSession() {
-      return fail('renameCodingSession');
+    async renameAgentSession() {
+      return fail('renameAgentSession');
     },
-    async updateCodingSession() {
-      return fail('updateCodingSession');
+    async updateAgentSession() {
+      return fail('updateAgentSession');
     },
-    async forkCodingSession() {
-      return fail('forkCodingSession');
+    async forkAgentSession() {
+      return fail('forkAgentSession');
     },
-    async deleteCodingSession() {
-      return fail('deleteCodingSession');
+    async deleteAgentSession() {
+      return fail('deleteAgentSession');
     },
-    async addCodingSessionMessage() {
-      return fail('addCodingSessionMessage');
+    async addAgentSessionItem() {
+      return fail('addAgentSessionItem');
     },
-    async editCodingSessionMessage() {
-      return fail('editCodingSessionMessage');
+    async editAgentSessionItem() {
+      return fail('editAgentSessionItem');
     },
-    async deleteCodingSessionMessage() {
-      return fail('deleteCodingSessionMessage');
+    async deleteAgentSessionItem() {
+      return fail('deleteAgentSessionItem');
     },
     ...implementation,
   };

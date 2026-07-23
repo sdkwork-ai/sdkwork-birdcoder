@@ -36,8 +36,8 @@ assert.match(
 
 assert.doesNotMatch(
   sidebarSource,
-  /const projectEntries = useMemo<SidebarProjectEntry\[\]>\([\s\S]*buildSortedCodingSessions\(/s,
-  'Code sidebar project entry derivation must not call buildSortedCodingSessions directly because visible-count updates would re-sort every project session list.',
+  /const projectEntries = useMemo<SidebarProjectEntry\[\]>\([\s\S]*buildSortedAgentSessions\(/s,
+  'Code sidebar project entry derivation must not call buildSortedAgentSessions directly because visible-count updates would re-sort every project session list.',
 );
 
 for (const [surfaceName, source] of [

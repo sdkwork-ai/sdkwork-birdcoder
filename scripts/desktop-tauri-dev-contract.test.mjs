@@ -262,8 +262,8 @@ assert.match(
 
 assert.equal(
   rootPackageJson.scripts['dev:desktop'],
-  'pnpm dev:desktop:postgres:standalone',
-  'Root dev:desktop must delegate to the canonical PostgreSQL standalone development profile.',
+  'pnpm dev:desktop:standalone',
+  'Root dev:desktop must delegate to the canonical standalone desktop topology.',
 );
 assert.equal(
   rootPackageJson.scripts['dev:desktop:check'],
@@ -753,7 +753,6 @@ for (const command of [
   'local_store_set',
   'local_store_delete',
   'local_store_list',
-  'local_sql_execute_plan',
   'terminal_cli_profile_detect',
   'desktop_pick_working_directory',
   'desktop_reveal_in_file_manager',
@@ -778,6 +777,11 @@ for (const command of [
     `Desktop application permission manifest must allow the ${command} Rust command.`,
   );
 }
+assert.doesNotMatch(
+  desktopAppPermissionsSource,
+  /local_sql_execute_plan|allow-local-sql-execute-plan/u,
+  'Desktop permissions must not expose a renderer-controlled generic SQL execution bridge.',
+);
 assert.match(
   desktopTauriHostFileSystemSource,
   /const USER_HOME_CONFIG_RELATIVE_ROOT:\s*&str\s*=\s*"\.sdkwork\/birdcoder";/,

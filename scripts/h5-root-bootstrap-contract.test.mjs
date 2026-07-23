@@ -5,7 +5,6 @@ import path from 'node:path';
 const rootDir = process.cwd();
 const corePrefix = 'apps/sdkwork-birdcoder-h5/packages/sdkwork-birdcoder-h5-core/src';
 const shellPrefix = 'apps/sdkwork-birdcoder-h5/packages/sdkwork-birdcoder-h5-shell/src';
-const adminPrefix = 'apps/sdkwork-birdcoder-h5/packages/sdkwork-birdcoder-h5-admin-core/src';
 const rootPrefix = 'apps/sdkwork-birdcoder-h5/src';
 
 function readText(relativePath) {
@@ -14,7 +13,6 @@ function readText(relativePath) {
 
 const iamRuntimeSource = readText(`${corePrefix}/bootstrap/iamRuntime.ts`);
 const appSdkSource = readText(`${corePrefix}/sdk/appSdkClient.ts`);
-const backendSdkSource = readText(`${adminPrefix}/sdk/backendSdkClient.ts`);
 const environmentSource = readText(`${corePrefix}/bootstrap/environment.ts`);
 const runtimeSource = readText(`${rootPrefix}/bootstrap/runtime.ts`);
 const routesSource = readText(`${shellPrefix}/routes/routeCatalog.ts`);
@@ -24,8 +22,13 @@ const appSource = readText(`${rootPrefix}/App.tsx`);
 
 assert.match(
   iamRuntimeSource,
-  /from ['"]@sdkwork\/birdcoder-pc-infrastructure(?:\/services\/iamRuntime)?['"]/u,
-  'H5 IAM bootstrap must delegate to the infrastructure-owned appbase runtime.',
+  /from ['"]@sdkwork\/auth-runtime-pc-react\/appbasePcAuthRuntime['"]/u,
+  'H5 IAM bootstrap must consume the canonical high-level appbase auth runtime.',
+);
+assert.match(
+  iamRuntimeSource,
+  /createSdkworkAppbasePcAuthRuntime\(\{/u,
+  'H5 IAM bootstrap must compose the high-level appbase auth runtime.',
 );
 assert.doesNotMatch(
   iamRuntimeSource,
@@ -35,19 +38,13 @@ assert.doesNotMatch(
 
 assert.match(
   appSdkSource,
-  /getBirdCoderGeneratedAppSdkClient/u,
-  'H5 core must construct generated app SDK clients.',
+  /from ['"]@sdkwork\/birdcoder-app-sdk['"]/u,
+  'H5 core must construct the owner App SDK through its composed package.',
 );
-assert.doesNotMatch(
-  appSdkSource,
-  /appSdk:\s*null/u,
-  'H5 core must not return null app SDK clients.',
-);
-
 assert.match(
-  backendSdkSource,
-  /getBirdCoderGeneratedBackendSdkClient/u,
-  'H5 admin core must construct generated backend SDK clients.',
+  appSdkSource,
+  /tokenManager:\s*getBirdCoderGlobalTokenManager\(\)/u,
+  'H5 App SDK must share the global TokenManager.',
 );
 
 assert.match(
@@ -55,10 +52,10 @@ assert.match(
   /createBirdCoderH5AppSdkClient/u,
   'H5 root SDK bootstrap must compose app SDK clients through h5-core.',
 );
-assert.match(
+assert.doesNotMatch(
   sdkClientsSource,
-  /createBirdCoderH5BackendSdkClient/u,
-  'H5 root SDK bootstrap must compose backend SDK clients through h5-admin-core.',
+  /BackendSdk|backendSdk|birdcoder-backend-sdk/u,
+  'H5 root must not construct the nonexistent BirdCoder Backend SDK.',
 );
 
 assert.match(

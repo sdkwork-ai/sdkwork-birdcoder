@@ -1,7 +1,7 @@
 use axum::http::{header, HeaderValue, StatusCode};
 use axum::response::{IntoResponse, Response};
 use axum::Json;
-use sdkwork_utils_rust::{legacy_wire_result_code, uuid, SdkWorkProblemDetail, SdkWorkResultCode};
+use sdkwork_utils_rust::{is_blank, uuid, SdkWorkProblemDetail, SdkWorkResultCode};
 
 pub mod client_safe;
 pub mod envelope;
@@ -13,18 +13,16 @@ pub use client_safe::{
 };
 pub use envelope::{
     build_data_envelope, build_list_envelope, build_offset_list_envelope,
-    build_unbounded_list_envelope, ApiDataEnvelope, ApiListEnvelope, ApiListMeta, ApiMeta,
-    BIRDCODER_CODING_SERVER_API_VERSION,
+    build_unbounded_list_envelope, ApiDataEnvelope, ApiListEnvelope,
 };
 pub use sdkwork_utils_rust::SdkWorkProblemDetail as ProblemDetailsPayload;
 pub use tenant_scope::{require_scoped_tenant_id, require_scoped_user_id, TenantScopeViolation};
 
 pub fn resolve_trace_id(trace_id: Option<&str>) -> String {
-    trace_id
-        .map(str::trim)
-        .filter(|value| !value.is_empty())
-        .map(str::to_owned)
-        .unwrap_or_else(uuid)
+    match trace_id {
+        Some(value) if !is_blank(Some(value)) => value.trim().to_owned(),
+        _ => uuid(),
+    }
 }
 
 pub fn platform_problem(
@@ -33,14 +31,6 @@ pub fn platform_problem(
     trace_id: Option<&str>,
 ) -> SdkWorkProblemDetail {
     SdkWorkProblemDetail::platform(result_code, detail, resolve_trace_id(trace_id))
-}
-
-pub fn legacy_problem(
-    wire_code: &str,
-    detail: impl Into<String>,
-    trace_id: Option<&str>,
-) -> SdkWorkProblemDetail {
-    platform_problem(legacy_wire_result_code(wire_code), detail, trace_id)
 }
 
 #[derive(Debug)]
@@ -113,14 +103,6 @@ pub fn traced_platform_problem(
     )
 }
 
-pub fn traced_legacy_problem(
-    wire_code: &str,
-    detail: impl Into<String>,
-    trace_id: Option<&str>,
-) -> ProblemJsonBody {
-    traced_platform_problem(legacy_wire_result_code(wire_code), detail, trace_id)
-}
-
 pub fn traced_problem_json(
     status: StatusCode,
     body: SdkWorkProblemDetail,
@@ -173,11 +155,10 @@ where
 }
 
 pub fn trace_id_from_request_id(request_id: &str) -> Option<&str> {
-    let trimmed = request_id.trim();
-    if trimmed.is_empty() {
+    if is_blank(Some(request_id)) {
         None
     } else {
-        Some(trimmed)
+        Some(request_id.trim())
     }
 }
 

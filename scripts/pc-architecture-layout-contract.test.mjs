@@ -29,12 +29,35 @@ for (const scriptPath of requiredBinScripts) {
   assert.equal(exists(scriptPath), true, `PC app root must provide operational script: ${scriptPath}`);
 }
 
-const windowsDesktopDev = readText(`${pcRoot}/bin/windows/desktop-dev.ps1`);
-assert.match(
-  windowsDesktopDev,
-  /run-birdcoder-desktop-command\.mjs/u,
-  'Windows desktop bin script must delegate to the canonical desktop command runner.',
-);
+for (const [scriptPath, runtimeTarget] of [
+  [`${pcRoot}/bin/windows/desktop-dev.ps1`, 'desktop'],
+  [`${pcRoot}/bin/windows/web-dev.ps1`, 'browser'],
+  [`${pcRoot}/bin/windows/server-dev.ps1`, 'server'],
+  [`${pcRoot}/bin/linux/desktop-dev.sh`, 'desktop'],
+  [`${pcRoot}/bin/linux/web-dev.sh`, 'browser'],
+  [`${pcRoot}/bin/linux/server-dev.sh`, 'server'],
+  [`${pcRoot}/bin/macos/desktop-dev.sh`, 'desktop'],
+  [`${pcRoot}/bin/macos/web-dev.sh`, 'browser'],
+  [`${pcRoot}/bin/macos/server-dev.sh`, 'server'],
+]) {
+  const source = readText(scriptPath);
+  assert.match(source, /sdkwork-app dev/u, `${scriptPath} must enter through sdkwork-app.`);
+  assert.match(
+    source,
+    new RegExp(`--runtime-target ${runtimeTarget}\\b`, 'u'),
+    `${scriptPath} must select the ${runtimeTarget} runtime target.`,
+  );
+  assert.match(
+    source,
+    /--deployment-profile standalone/u,
+    `${scriptPath} must select the standalone deployment profile.`,
+  );
+  assert.doesNotMatch(
+    source,
+    /desktop-local|server-private|cloud-saas/u,
+    `${scriptPath} must not recreate retired deployment-mode vocabulary.`,
+  );
+}
 
 assert.equal(
   exists(`${pcRoot}/config/tauri/README.md`),

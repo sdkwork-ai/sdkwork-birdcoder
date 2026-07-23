@@ -1,0 +1,108 @@
+{
+  "schemaVersion": 1,
+  "kind": "sdkwork.component.spec",
+  "component": {
+    "name": "sdkwork-birdcoder-system-descriptor-service",
+    "displayName": "SDKWork BirdCoder System Descriptor Service",
+    "version": "0.1.0",
+    "type": "rust-crate",
+    "root": "sdkwork-birdcoder/crates/sdkwork-birdcoder-system-descriptor-service",
+    "domain": "system",
+    "capability": "application-diagnostics",
+    "surface": "service",
+    "status": "ACTIVE",
+    "languages": [
+      "rust"
+    ],
+    "generated": false,
+    "private": true,
+    "manifests": [
+      "Cargo.toml"
+    ]
+  },
+  "canonicalSpecs": [
+    {
+      "file": "COMPONENT_SPEC.md",
+      "path": "../../../../sdkwork-specs/COMPONENT_SPEC.md",
+      "purpose": "Component-local contract and discovery rules."
+    },
+    {
+      "file": "MODULE_SPEC.md",
+      "path": "../../../../sdkwork-specs/MODULE_SPEC.md",
+      "purpose": "Reusable Rust service boundaries."
+    },
+    {
+      "file": "CODE_STYLE_SPEC.md",
+      "path": "../../../../sdkwork-specs/CODE_STYLE_SPEC.md",
+      "purpose": "Authored source and public export rules."
+    },
+    {
+      "file": "NAMING_SPEC.md",
+      "path": "../../../../sdkwork-specs/NAMING_SPEC.md",
+      "purpose": "Canonical system capability naming."
+    },
+    {
+      "file": "RUST_CODE_SPEC.md",
+      "path": "../../../../sdkwork-specs/RUST_CODE_SPEC.md",
+      "purpose": "Rust service module rules."
+    },
+    {
+      "file": "DOMAIN_SPEC.md",
+      "path": "../../../../sdkwork-specs/DOMAIN_SPEC.md",
+      "purpose": "System diagnostics domain boundary."
+    },
+    {
+      "file": "API_SPEC.md",
+      "path": "../../../../sdkwork-specs/API_SPEC.md",
+      "purpose": "System descriptor and route catalog response contracts."
+    },
+    {
+      "file": "OBSERVABILITY_SPEC.md",
+      "path": "../../../../sdkwork-specs/OBSERVABILITY_SPEC.md",
+      "purpose": "Health and diagnostic exposure rules."
+    },
+    {
+      "file": "TEST_SPEC.md",
+      "path": "../../../../sdkwork-specs/TEST_SPEC.md",
+      "purpose": "Component verification rules."
+    }
+  ],
+  "contracts": {
+    "layerRole": "backend-service",
+    "publicExports": [
+      ".",
+      "sdkwork_birdcoder_system_descriptor_service::service::SystemService",
+      "sdkwork_birdcoder_system_descriptor_service::service::RouteCatalogProvider",
+      "sdkwork_birdcoder_system_descriptor_service::service::ManifestRouteCatalogProvider",
+      "sdkwork_birdcoder_system_descriptor_service::route_catalog::build_route_catalog_entries"
+    ],
+    "providedPorts": [
+      {
+        "name": "systemDescriptorApplicationService",
+        "export": "sdkwork_birdcoder_system_descriptor_service::service::SystemService"
+      },
+      {
+        "name": "routeCatalogProvider",
+        "export": "sdkwork_birdcoder_system_descriptor_service::service::RouteCatalogProvider"
+      }
+    ],
+    "requiredPorts": [],
+    "runtimeEntrypoints": [],
+    "routeManifest": null,
+    "sdkClients": [],
+    "sdkDependencies": [],
+    "permissionComposition": {},
+    "dependencyApiExports": [],
+    "dependencyApiSurfaces": [],
+    "events": [],
+    "configKeys": []
+  },
+  "integration": {
+    "authority": "Owns BirdCoder application descriptor, health, runtime metadata, and owner-route catalog read models. It derives route catalog facts from the assembled route manifest and owns no platform registry or business persistence."
+  },
+  "verification": {
+    "commands": [
+      "cargo test -p sdkwork-birdcoder-system-descriptor-service"
+    ]
+  }
+}

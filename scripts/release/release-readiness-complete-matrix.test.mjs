@@ -218,15 +218,15 @@ function writeServerTarget(releaseAssetsDir, entry) {
     releaseAssetsDir,
     `server/${entry.platform}/${entry.arch}/sdkwork-birdcoder-server-${entry.platform}-${entry.arch}.tar.gz`,
   );
-  const openApiRelativePath = `server/${entry.platform}/${entry.arch}/openapi/coding-server-v1.json`;
+  const openApiRelativePath = `server/${entry.platform}/${entry.arch}/openapi/birdcoder-app-api.openapi.json`;
   writeArtifact(
     releaseAssetsDir,
     openApiRelativePath,
     `${JSON.stringify({
       openapi: '3.1.0',
       info: {
-        title: 'SDKWork BirdCoder Coding Server API',
-        version: 'v1',
+        title: 'SDKWork BirdCoder App API',
+        version: '0.1.0',
       },
     }, null, 2)}\n`,
   );

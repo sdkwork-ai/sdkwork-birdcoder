@@ -8,9 +8,9 @@
     "type": "react-package",
     "root": "sdkwork-birdcoder/apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-shell-runtime",
     "domain": "platform",
-    "declaredDomain": null,
-    "capability": "im",
-    "status": "standardizing",
+    "declaredDomain": "platform",
+    "capability": "pc-shell-runtime",
+    "status": "ACTIVE",
     "languages": [
       "typescript",
       "react"
@@ -110,22 +110,33 @@
     }
   ],
   "contracts": {
+    "layerRole": "runtime-composition",
+    "providedPorts": [
+      {
+        "name": "shellRuntimeBootstrap",
+        "export": "."
+      }
+    ],
+    "requiredPorts": [],
     "publicExports": [
       "."
     ],
     "runtimeEntrypoints": [],
     "sdkClients": [],
     "events": [],
-    "configKeys": [],
+    "configKeys": [
+      "VITE_SDKWORK_BIRDCODER_APPLICATION_PUBLIC_HTTP_URL",
+      "VITE_SDKWORK_BIRDCODER_PLATFORM_API_GATEWAY_HTTP_URL"
+    ],
     "routeManifest": null,
     "sdkDependencies": [],
     "dependencyApiExports": [],
     "dependencyApiSurfaces": []
   },
   "integration": {
-    "authority": "Root SDKWork specs remain authoritative. Local specs may extend but must not contradict them.",
+    "authority": "This package owns browser and desktop bootstrap ordering only. It binds the application and platform connection planes before constructing feature services and owns no API or database authority.",
     "dependencyPolicy": "Consumers integrate through public package exports, declared runtime entrypoints, generated SDK clients, or documented adapters only.",
-    "sdkPolicy": "Generated SDK clients are injected through service/runtime boundaries; reusable UI must not create raw HTTP clients or manual auth headers.",
+    "sdkPolicy": "Generated SDK clients are injected through service/runtime boundaries. Browser development receives a controlled same-origin platform proxy; desktop receives a direct platform gateway URL. Missing required topology fails closed.",
     "languagePolicy": "Language-specific packages follow their native manifest and build tools while preserving the same component contract."
   },
   "verification": {

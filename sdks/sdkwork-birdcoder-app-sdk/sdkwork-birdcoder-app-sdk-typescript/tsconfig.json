@@ -2,10 +2,10 @@
   "extends": "../../../tsconfig.json",
   "compilerOptions": {
     "allowImportingTsExtensions": true,
-    "noEmit": true,
-    "rootDir": "src"
+    "noEmit": true
   },
   "include": [
-    "src/**/*.ts"
+    "src/**/*.ts",
+    "generated/server-openapi/src/**/*.ts"
   ]
 }

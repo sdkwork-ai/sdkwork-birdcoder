@@ -10,12 +10,12 @@ const serviceSource = fs.readFileSync(
 );
 
 const methodStart = serviceSource.indexOf(
-  'private async loadPersistedCodingSessionInventorySnapshot(',
+  'private async loadPersistedAgentSessionInventorySnapshot(',
 );
 assert.notEqual(
   methodStart,
   -1,
-  'ProviderBackedProjectService must define loadPersistedCodingSessionInventorySnapshot.',
+  'ProviderBackedProjectService must define loadPersistedAgentSessionInventorySnapshot.',
 );
 const methodEnd = serviceSource.indexOf('\n  private async ', methodStart + 1);
 const methodSource = serviceSource.slice(
@@ -45,7 +45,7 @@ assert.match(
 );
 assert.match(
   methodSource,
-  /if \(hasCachedTranscriptReuseByProjectId\.get\(projectId\) === true\) \{[\s\S]*cacheSessions\.sort\(compareCodingSessionsByActivity\);[\s\S]*this\.setProjectSessionsCache\(projectId,\s*cacheSessions\);[\s\S]*\} else \{[\s\S]*this\.setProjectSessionsCache\(projectId,\s*sessions\);[\s\S]*\}/s,
+  /if \(hasCachedTranscriptReuseByProjectId\.get\(projectId\) === true\) \{[\s\S]*cacheSessions\.sort\(compareAgentSessionsByActivity\);[\s\S]*this\.setProjectSessionsCache\(projectId,\s*cacheSessions\);[\s\S]*\} else \{[\s\S]*this\.setProjectSessionsCache\(projectId,\s*sessions\);[\s\S]*\}/s,
   'inventory refresh must sort a second cache array only when cached transcripts were actually reused.',
 );
 

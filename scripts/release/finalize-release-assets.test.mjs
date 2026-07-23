@@ -5,7 +5,7 @@ import path from 'node:path';
 
 import { sha256Value } from '../sdkwork-utils-digest.mjs';
 
-import { ENGINE_GOVERNANCE_REGRESSION_CHECK_IDS } from '../governance-regression-report.mjs';
+import { RELEASE_GOVERNANCE_CHECK_IDS } from '../governance-regression-report.mjs';
 import { finalizeReleaseAssets } from './finalize-release-assets.mjs';
 import { summarizeQualityLoopScoreboard } from './quality-gate-release-evidence.mjs';
 import { RELEASE_ASSET_MANIFEST_FILE_NAME } from './release-profiles.mjs';
@@ -197,7 +197,7 @@ fs.writeFileSync(
     arch: 'x64',
     archiveRelativePath: 'server/windows/x64/sdkwork-birdcoder-server-release-local-windows-x64.tar.gz',
     artifacts: [
-      { relativePath: 'server/windows/x64/openapi/coding-server-v1.json', size: 181 },
+      { relativePath: 'server/windows/x64/openapi/birdcoder-app-api.openapi.json', size: 181 },
       { relativePath: 'server/windows/x64/sdkwork-birdcoder-server-release-local-windows-x64.tar.gz', size: 3 },
     ],
   }, null, 2),
@@ -214,12 +214,12 @@ fs.writeFileSync(
   }, null, 2),
 );
 fs.writeFileSync(
-  path.join(releaseAssetsDir, 'server', 'windows', 'x64', 'openapi', 'coding-server-v1.json'),
+  path.join(releaseAssetsDir, 'server', 'windows', 'x64', 'openapi', 'birdcoder-app-api.openapi.json'),
   JSON.stringify({
     openapi: '3.1.0',
     info: {
-      title: 'SDKWork BirdCoder Coding Server API',
-      version: 'v1',
+      title: 'SDKWork BirdCoder App API',
+      version: '0.1.0',
     },
   }, null, 2),
 );
@@ -587,7 +587,7 @@ assert.deepEqual(
       hasSize: true,
     },
     {
-      relativePath: 'server/windows/x64/openapi/coding-server-v1.json',
+      relativePath: 'server/windows/x64/openapi/birdcoder-app-api.openapi.json',
       family: 'server',
       platform: 'windows',
       arch: 'x64',
@@ -677,17 +677,16 @@ assert.deepEqual(manifest.assets[1].desktopStartupEvidence.readinessEvidence, {
     reimportSupported: true,
   },
 });
-assert.deepEqual(manifest.codingServerOpenApiEvidence, {
-  canonicalRelativePath: 'server/windows/x64/openapi/coding-server-v1.json',
-  mirroredRelativePaths: ['server/windows/x64/openapi/coding-server-v1.json'],
+assert.deepEqual(manifest.birdcoderAppApiEvidence, {
+  canonicalRelativePath: 'server/windows/x64/openapi/birdcoder-app-api.openapi.json',
   targetCount: 1,
   targets: ['windows/x64'],
-  sha256: manifest.codingServerOpenApiEvidence.sha256,
+  sha256: manifest.birdcoderAppApiEvidence.sha256,
   openapi: '3.1.0',
-  version: 'v1',
-  title: 'SDKWork BirdCoder Coding Server API',
+  version: '0.1.0',
+  title: 'SDKWork BirdCoder App API',
 });
-assert.match(manifest.codingServerOpenApiEvidence.sha256, /^[a-f0-9]{64}$/);
+assert.match(manifest.birdcoderAppApiEvidence.sha256, /^[a-f0-9]{64}$/);
 assert.deepEqual(manifest.previewEvidence, {
   archiveRelativePath: 'studio/preview/studio-preview-evidence.json',
   entryCount: 1,
@@ -726,7 +725,7 @@ const expectedLoopScoreboard = summarizeQualityLoopScoreboard({
   workflowBoundTiers: qualityReport.summary.workflowBoundTiers,
   manifestBoundTiers: qualityReport.summary.manifestBoundTiers,
   tierIds: qualityReport.tiers.map((tier) => tier.id),
-  releaseGovernanceCheckIds: ENGINE_GOVERNANCE_REGRESSION_CHECK_IDS,
+  releaseGovernanceCheckIds: RELEASE_GOVERNANCE_CHECK_IDS,
   blockingDiagnosticIds: qualityReport.summary.blockingDiagnosticIds,
   executionStatus: 'blocked',
   executionBlockingTierIds: ['standard'],
@@ -744,7 +743,7 @@ assert.deepEqual(manifest.qualityEvidence, {
   failureClassificationIds: qualityReport.failureClassifications.map((classification) => classification.id),
   environmentDiagnostics: qualityReport.summary.environmentDiagnostics,
   blockingDiagnosticIds: qualityReport.summary.blockingDiagnosticIds,
-  releaseGovernanceCheckIds: ENGINE_GOVERNANCE_REGRESSION_CHECK_IDS,
+  releaseGovernanceCheckIds: RELEASE_GOVERNANCE_CHECK_IDS,
   blockingDiagnostics: qualityReport.environmentDiagnostics
     .filter((diagnostic) => diagnostic.status === 'blocked')
     .map((diagnostic) => ({
@@ -862,7 +861,7 @@ assert.deepEqual(
     workflowBoundTiers: qualityReport.summary.workflowBoundTiers,
     manifestBoundTiers: qualityReport.summary.manifestBoundTiers,
     tierIds: qualityReport.tiers.map((tier) => tier.id),
-    releaseGovernanceCheckIds: ENGINE_GOVERNANCE_REGRESSION_CHECK_IDS,
+    releaseGovernanceCheckIds: RELEASE_GOVERNANCE_CHECK_IDS,
     blockingDiagnosticIds: qualityReport.summary.blockingDiagnosticIds,
     executionStatus: 'blocked',
     executionBlockingTierIds: ['standard'],

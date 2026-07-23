@@ -10,8 +10,3 @@ export {
   replaceAuthSurfaceHashPath,
   shouldBootIntoAuthSurface,
 } from '@sdkwork/birdcoder-pc-auth';
-export {
-  buildProtectedRouteLoginPath,
-  requiresAuthenticatedProductAccess,
-  resolveBirdCoderAuthDeploymentMode,
-} from '@sdkwork/birdcoder-pc-auth';

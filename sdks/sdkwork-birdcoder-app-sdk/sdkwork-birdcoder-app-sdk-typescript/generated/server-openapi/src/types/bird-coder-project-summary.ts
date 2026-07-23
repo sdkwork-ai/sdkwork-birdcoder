@@ -1,37 +1,20 @@
 export interface BirdCoderProjectSummary {
-  createdAt: string;
   id: string;
-  uuid?: string;
-  tenantId?: string;
-  organizationId?: string;
-  /** DATABASE_SPEC.md standard data scope. */
-  dataScope?: 'DEFAULT' | 'PRIVATE' | 'ORGANIZATION' | 'TENANT' | 'PUBLIC';
+  uuid: string;
+  tenantId: string;
+  organizationId: string;
   workspaceId: string;
-  workspaceUuid?: string;
-  userId?: string;
-  parentId?: string;
-  parentUuid?: string;
-  parentMetadata?: Record<string, unknown>;
-  code?: string;
-  title?: string;
+  ownerUserId: string;
+  createdByUserId: string;
+  code: string;
   name: string;
-  description?: string;
-  domainPrefix?: string;
-  ownerId?: string;
-  leaderId?: string;
-  createdByUserId?: string;
-  author?: string;
-  fileId?: string;
-  conversationId?: string;
-  type?: string;
-  startTime?: string;
-  endTime?: string;
-  /** Java Long/BIGINT value serialized as an exact decimal string. */
-  budgetAmount?: string;
-  coverImage?: Record<string, unknown>;
-  isTemplate?: boolean;
-  collaboratorCount?: number;
+  description: string | null;
+  projectKind: string;
+  /** Stable sdkwork-agents project identifier; no cross-domain foreign key is created. */
+  defaultAgentProjectId: string | null;
   status: 'active' | 'archived';
+  /** Optimistic concurrency version used with the If-Match request header. */
+  version: string;
+  createdAt: string;
   updatedAt: string;
-  viewerRole?: 'owner' | 'admin' | 'member' | 'viewer';
 }

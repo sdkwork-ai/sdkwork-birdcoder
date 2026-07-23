@@ -27,21 +27,7 @@ client.setAuthToken('your-auth-token');
 client.setAccessToken('your-access-token');
 
 // Use the SDK
-const body = {
-  account: 'account',
-  appVersion: 'appVersion',
-  code: 'code',
-  deviceId: 'deviceId',
-  deviceName: 'deviceName',
-  deviceType: 'android',
-  email: 'email',
-  grantType: 'password',
-  loginMethod: 'emailCode',
-  password: 'password',
-  phone: 'phone',
-  username: 'username',
-};
-const result = await client.auth.sessions.create(body);
+const result = await client.system.descriptor.retrieve();
 ```
 
 ## Authentication
@@ -68,158 +54,28 @@ const client = new SdkworkAppClient({
 
 ## API Modules
 
-- `client.intelligence` - intelligence API
 - `client.system` - system API
-- `client.runtime` - runtime API
-- `client.oauth` - oauth API
-- `client.auth` - auth API
-- `client.iam` - iam API
-- `client.templates` - templates API
-- `client.platform` - platform API
-- `client.content` - content API
-- `client.skills` - skills API
-- `client.collaboration` - collaboration API
-- `client.commerce` - commerce API
+- `client.intelligence` - intelligence API
 
 ## Usage Examples
-
-### intelligence
-
-```typescript
-// List coding sessions
-const params = {
-  workspaceId: 'workspaceId',
-  projectId: 'projectId',
-  runtimeLocationId: 'runtimeLocationId',
-  engineId: 'codex',
-  page: 5,
-  page_size: 6,
-};
-const result = await client.intelligence.codingSessions.list(params);
-```
 
 ### system
 
 ```typescript
-// Get coding-server descriptor
+// Get BirdCoder application descriptor
 const result = await client.system.descriptor.retrieve();
 ```
 
-### runtime
+### intelligence
 
 ```typescript
-// List available engines
-const result = await client.runtime.engines.list();
-```
-
-### oauth
-
-```typescript
-// Resolve OAuth authorization URL for SDKWork IAM sign-in
-const body = {
-  provider: 'provider',
-  redirectUri: 'redirectUri',
-  scope: 'scope',
-  state: 'state',
-};
-const result = await client.oauth.authorizationUrls.create(body);
-```
-
-### auth
-
-```typescript
-// Create SDKWork IAM session
-const body = {
-  account: 'account',
-  appVersion: 'appVersion',
-  code: 'code',
-  deviceId: 'deviceId',
-  deviceName: 'deviceName',
-  deviceType: 'android',
-  email: 'email',
-  grantType: 'password',
-  loginMethod: 'emailCode',
-  password: 'password',
-  phone: 'phone',
-  username: 'username',
-};
-const result = await client.auth.sessions.create(body);
-```
-
-### iam
-
-```typescript
-// Get current SDKWork IAM user
-const result = await client.iam.users.current.retrieve();
-```
-
-### templates
-
-```typescript
-// List app templates
+// List workspaces
 const params = {
-  page: 1,
-  page_size: 2,
-};
-const result = await client.templates.appTemplates.list(params);
-```
-
-### platform
-
-```typescript
-// List deployments
-const params = {
-  page: 1,
-  page_size: 2,
-};
-const result = await client.platform.deployments.list(params);
-```
-
-### content
-
-```typescript
-// List project documents
-const params = {
-  projectId: 'projectId',
+  userId: 'userId',
   page: 2,
   page_size: 3,
 };
-const result = await client.content.documents.list(params);
-```
-
-### skills
-
-```typescript
-// List skill packages
-const params = {
-  userId: 'userId',
-  workspaceId: 'workspaceId',
-  page: 3,
-  page_size: 4,
-};
-const result = await client.skills.skillPackages.list(params);
-```
-
-### collaboration
-
-```typescript
-// List workspace teams
-const params = {
-  userId: 'userId',
-  workspaceId: 'workspaceId',
-};
-const result = await client.collaboration.workspaceTeams.list(params);
-```
-
-### commerce
-
-```typescript
-// List SDKWork commerce orders
-const params = {
-  page: 1,
-  page_size: 2,
-};
-const result = await client.commerce.orders.list(params);
+const result = await client.intelligence.workspaces.list(params);
 ```
 
 ## Error Handling
@@ -228,21 +84,7 @@ const result = await client.commerce.orders.list(params);
 import { SdkworkAppClient, NetworkError, TimeoutError, AuthenticationError } from 'sdkwork-birdcoder-app-sdk-generated-typescript';
 
 try {
-  const body = {
-    account: 'account',
-    appVersion: 'appVersion',
-    code: 'code',
-    deviceId: 'deviceId',
-    deviceName: 'deviceName',
-    deviceType: 'android',
-    email: 'email',
-    grantType: 'password',
-    loginMethod: 'emailCode',
-    password: 'password',
-    phone: 'phone',
-    username: 'username',
-  };
-  const result = await client.auth.sessions.create(body);
+  const result = await client.system.descriptor.retrieve();
 } catch (error) {
   if (error instanceof AuthenticationError) {
     console.error('Authentication failed:', error.message);

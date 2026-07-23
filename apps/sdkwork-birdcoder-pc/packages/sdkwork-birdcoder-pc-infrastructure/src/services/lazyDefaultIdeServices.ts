@@ -1,3 +1,4 @@
+import { BirdCoderAgentSessionService } from './agentsSessionService.ts';
 import {
   createBirdCoderDefaultIdeSharedRuntime,
   type BirdCoderDefaultIdeServiceKey,
@@ -5,29 +6,19 @@ import {
   type BirdCoderDefaultIdeSharedRuntime,
   type CreateBirdCoderDefaultIdeServicesOptions,
 } from './defaultIdeServicesShared.ts';
-import {
-  createBirdCoderAdminIdeServices,
-  createUnavailableAdminDeploymentService,
-  createUnavailableAdminPolicyService,
-  createUnavailableAuditService,
-} from '@sdkwork/birdcoder-pc-admin-core';
 import { ApiBackedCatalogService } from './impl/ApiBackedCatalogService.ts';
-import { ApiBackedCollaborationService } from './impl/ApiBackedCollaborationService.ts';
-import { ApiBackedAppRuntimeReadService } from './impl/ApiBackedAppRuntimeReadService.ts';
-import { ApiBackedAppRuntimeWriteService } from './impl/ApiBackedAppRuntimeWriteService.ts';
-import { ApiBackedDeploymentService } from './impl/ApiBackedDeploymentService.ts';
-import { ApiBackedDocumentService } from './impl/ApiBackedDocumentService.ts';
 import { ApiBackedGitService } from './impl/ApiBackedGitService.ts';
 import { ApiBackedProjectService } from './impl/ApiBackedProjectService.ts';
-import { ApiBackedReleaseService } from './impl/ApiBackedReleaseService.ts';
-import { ApiBackedTeamService } from './impl/ApiBackedTeamService.ts';
-import { ApiBackedWorkspaceService } from './impl/ApiBackedWorkspaceService.ts';
 import { ApiBackedVipMembershipService } from './impl/ApiBackedVipMembershipService.ts';
-import { createUnavailableReleaseService } from './impl/UnavailableReleaseService.ts';
+import { ApiBackedWorkspaceService } from './impl/ApiBackedWorkspaceService.ts';
+import { PromptsSdkPromptService } from './impl/PromptsSdkPromptService.ts';
+import { DocumentsSdkProjectDocumentService } from './impl/DocumentsSdkProjectDocumentService.ts';
+
 export type {
   BirdCoderDefaultIdeServiceKey,
   BirdCoderDefaultIdeServices,
 } from './defaultIdeServicesShared.ts';
+
 let sharedRuntimePromise: Promise<BirdCoderDefaultIdeSharedRuntime> | null = null;
 const servicePromiseByKey = new Map<
   BirdCoderDefaultIdeServiceKey,
@@ -40,43 +31,10 @@ function loadSharedRuntime(
   if (options) {
     return Promise.resolve(createBirdCoderDefaultIdeSharedRuntime(options));
   }
-
   sharedRuntimePromise ??= Promise.resolve().then(() =>
     createBirdCoderDefaultIdeSharedRuntime(),
   );
   return sharedRuntimePromise;
-}
-
-async function loadWorkspaceService(
-  runtime: BirdCoderDefaultIdeSharedRuntime,
-): Promise<BirdCoderDefaultIdeServices['workspaceService']> {
-  if (!runtime.hasBoundAppClient) {
-    return runtime.providerBackedWorkspaceService;
-  }
-
-  return new ApiBackedWorkspaceService({
-    appClient: runtime.appClient,
-    currentUserProvider: runtime.authService,
-    workspaceMirror: runtime.providerBackedWorkspaceService,
-    writeService: runtime.providerBackedWorkspaceService,
-  });
-}
-
-async function loadProjectService(
-  runtime: BirdCoderDefaultIdeSharedRuntime,
-): Promise<BirdCoderDefaultIdeServices['projectService']> {
-  if (!runtime.hasBoundAppClient) {
-    return runtime.providerBackedProjectService;
-  }
-
-  return new ApiBackedProjectService({
-    appClient: runtime.appClient,
-    codingSessionMirror: runtime.providerBackedProjectService,
-    codingRuntimeClient: runtime.appRuntimeClient,
-    currentUserProvider: runtime.authService,
-    projectMirror: runtime.providerBackedProjectService,
-    writeService: runtime.providerBackedProjectService,
-  });
 }
 
 export function loadDefaultBirdCoderIdeService<K extends BirdCoderDefaultIdeServiceKey>(
@@ -92,68 +50,22 @@ export function loadDefaultBirdCoderIdeService<K extends BirdCoderDefaultIdeServ
     }
   }
 
-  const servicePromise = loadSharedRuntime(options).then(async (runtime) => {
+  const servicePromise = loadSharedRuntime(options).then((runtime) => {
     switch (serviceKey) {
-      case 'adminDeploymentService': {
-        if (!runtime.hasExplicitBackendClient) {
-          return createUnavailableAdminDeploymentService();
-        }
-        return createBirdCoderAdminIdeServices(runtime.backendClient).adminDeploymentService;
-      }
-      case 'adminPolicyService': {
-        if (!runtime.hasExplicitBackendClient) {
-          return createUnavailableAdminPolicyService();
-        }
-        return createBirdCoderAdminIdeServices(runtime.backendClient).adminPolicyService;
-      }
+      case 'agentSessionService':
+        return new BirdCoderAgentSessionService({ client: runtime.agentsClient });
       case 'authService':
         return runtime.authService;
-      case 'auditService': {
-        if (!runtime.hasExplicitBackendClient) {
-          return createUnavailableAuditService();
-        }
-        return createBirdCoderAdminIdeServices(runtime.backendClient).auditService;
-      }
-      case 'catalogService': {
-        return new ApiBackedCatalogService({
+      case 'catalogService':
+        return new ApiBackedCatalogService({ skillsClient: runtime.skillsClient });
+      case 'documentService':
+        return new DocumentsSdkProjectDocumentService({
           appClient: runtime.appClient,
-          skillsClient: runtime.skillsClient,
+          documentsClient: runtime.documentsClient,
         });
-      }
-      case 'collaborationService': {
-        return new ApiBackedCollaborationService({
-          appClient: runtime.appClient,
-          currentUserProvider: runtime.authService,
-        });
-      }
-      case 'appRuntimeReadService': {
-        return new ApiBackedAppRuntimeReadService({
-          client: runtime.appRuntimeClient,
-          currentUserProvider: runtime.authService,
-        });
-      }
-      case 'appRuntimeWriteService': {
-        return new ApiBackedAppRuntimeWriteService({
-          client: runtime.appRuntimeClient,
-        });
-      }
-      case 'deploymentService': {
-        return new ApiBackedDeploymentService({
-          appClient: runtime.appClient,
-        });
-      }
-      case 'documentService': {
-        return new ApiBackedDocumentService({
-          appClient: runtime.appClient,
-        });
-      }
-      case 'fileSystemService': {
+      case 'fileSystemService':
         return runtime.fileSystemService;
-      }
-      case 'projectRuntimeLocationService': {
-        return runtime.projectRuntimeLocationService;
-      }
-      case 'gitService': {
+      case 'gitService':
         return new ApiBackedGitService({
           appClient: runtime.appClient,
           resolveProjectRuntimeLocation: (projectId) =>
@@ -167,28 +79,19 @@ export function loadDefaultBirdCoderIdeService<K extends BirdCoderDefaultIdeServ
               'git',
             ),
         });
-      }
+      case 'projectRuntimeLocationService':
+        return runtime.projectRuntimeLocationService;
       case 'promptService':
-        return runtime.promptService;
+        return new PromptsSdkPromptService(runtime.promptsClient);
       case 'projectService':
-        return loadProjectService(runtime);
-      case 'releaseService': {
-        if (!runtime.hasExplicitBackendClient) {
-          return createUnavailableReleaseService();
-        }
-        return new ApiBackedReleaseService({ backendClient: runtime.backendClient });
-      }
-      case 'teamService': {
-        return new ApiBackedTeamService({
+        return new ApiBackedProjectService({
+          agentProjects: runtime.agentsClient.ai.agents.projects,
           appClient: runtime.appClient,
-          currentUserProvider: runtime.authService,
         });
-      }
-      case 'vipMembershipService': {
+      case 'vipMembershipService':
         return new ApiBackedVipMembershipService();
-      }
       case 'workspaceService':
-        return loadWorkspaceService(runtime);
+        return new ApiBackedWorkspaceService({ appClient: runtime.appClient });
       default:
         throw new Error(`Unsupported BirdCoder IDE service key: ${String(serviceKey)}`);
     }
@@ -200,6 +103,5 @@ export function loadDefaultBirdCoderIdeService<K extends BirdCoderDefaultIdeServ
       servicePromise as Promise<BirdCoderDefaultIdeServices[BirdCoderDefaultIdeServiceKey]>,
     );
   }
-
   return servicePromise;
 }

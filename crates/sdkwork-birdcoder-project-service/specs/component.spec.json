@@ -7,7 +7,7 @@
     "version": "0.1.0",
     "type": "rust-crate",
     "root": "sdkwork-birdcoder/crates/sdkwork-birdcoder-project-service",
-    "domain": "workspace",
+    "domain": "intelligence",
     "declaredDomain": null,
     "capability": "projects",
     "surface": "service",
@@ -50,7 +50,7 @@
     {
       "file": "DOMAIN_SPEC.md",
       "path": "../../../../sdkwork-specs/DOMAIN_SPEC.md",
-      "purpose": "Workspace-domain ownership rules."
+      "purpose": "BirdCoder intelligence and coding-workbench domain ownership rules."
     },
     {
       "file": "PAGINATION_SPEC.md",
@@ -80,8 +80,7 @@
       "sdkwork_birdcoder_project_service::ports::runtime_location_verification::RuntimeLocationVerificationAuthority",
       "sdkwork_birdcoder_project_service::ports::runtime_location_verification::RuntimeLocationVerificationRequestDispatcher",
       "sdkwork_birdcoder_project_service::ports::events::ProjectEventPublisher",
-      "sdkwork_birdcoder_project_service::ports::git::GitOperations",
-      "sdkwork_birdcoder_project_service::ports::project_workspace_root::ProjectWorkspaceRootResolver"
+      "sdkwork_birdcoder_project_service::ports::git::GitOperations"
     ],
     "providedPorts": [
       {
@@ -133,10 +132,6 @@
       {
         "name": "projectGitOperations",
         "export": "sdkwork_birdcoder_project_service::ports::git::GitOperations"
-      },
-      {
-        "name": "projectWorkspaceRootResolver",
-        "export": "sdkwork_birdcoder_project_service::ports::project_workspace_root::ProjectWorkspaceRootResolver"
       }
     ],
     "runtimeEntrypoints": [],

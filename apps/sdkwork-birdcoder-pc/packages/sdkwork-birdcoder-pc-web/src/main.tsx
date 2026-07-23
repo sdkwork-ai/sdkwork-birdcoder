@@ -3,8 +3,8 @@ import {
   BootstrapGate,
   bootstrapShellRuntime,
   isBirdCoderDevelopmentBrowserRuntime,
-  readConfiguredBirdCoderApiBaseUrl,
-  readConfiguredBirdCoderRealtimeTransport,
+  readConfiguredBirdCoderApplicationApiBaseUrl,
+  readConfiguredBirdCoderPlatformApiGatewayBaseUrl,
   readStoredBirdCoderServerBaseUrl,
   publishBirdCoderBootstrapProgress,
   resolveBirdCoderBrowserServerBaseUrl,
@@ -12,13 +12,16 @@ import {
   waitForBirdCoderApiReady,
 } from '@sdkwork/birdcoder-pc-shell-runtime';
 import { createBootstrapGateMessages, ErrorBoundary } from '@sdkwork/birdcoder-pc-workbench';
-import { loadCatalog } from '@sdkwork/birdcoder-pc-codeengine/catalogBridge';
+import { loadWorkbenchCodeEngineCatalog } from '@sdkwork/birdcoder-pc-workbench/workbench/codeEngineCatalog';
 import { resolveWebRuntime } from './web/resolveWebRuntime';
 import App from './App';
 
 async function bootstrapRuntime() {
   publishBirdCoderBootstrapProgress({ progress: 18, stage: 'runtime' });
-  const configuredRuntimeApiBaseUrl = readConfiguredBirdCoderApiBaseUrl();
+  const configuredRuntimeApiBaseUrl =
+    readConfiguredBirdCoderApplicationApiBaseUrl();
+  const platformApiGatewayBaseUrl =
+    readConfiguredBirdCoderPlatformApiGatewayBaseUrl();
   const storedApiBaseUrl = await readStoredBirdCoderServerBaseUrl();
   publishBirdCoderBootstrapProgress({ progress: 28, stage: 'runtime' });
   const configuredApiBaseUrl = resolveBirdCoderBootstrapServerBaseUrl({
@@ -37,12 +40,12 @@ async function bootstrapRuntime() {
     host: resolveWebRuntime('global', {
       apiBaseUrl: resolvedApiBaseUrl,
     }),
-    realtimeTransport: readConfiguredBirdCoderRealtimeTransport(),
+    platformApiGatewayBaseUrl,
   });
   publishBirdCoderBootstrapProgress({ progress: 62, stage: 'runtime' });
 
-  void loadCatalog().catch((error) => {
-    console.warn('[sdkwork-models] failed to load model catalog:', error);
+  void loadWorkbenchCodeEngineCatalog().catch((error) => {
+    console.warn('[sdkwork-agents] failed to load code-engine catalog:', error);
   });
 }
 

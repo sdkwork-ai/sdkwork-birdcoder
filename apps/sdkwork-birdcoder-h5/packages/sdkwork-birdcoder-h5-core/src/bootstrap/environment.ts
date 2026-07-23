@@ -1,4 +1,7 @@
-import { getDefaultBirdCoderIdeServicesRuntimeConfig } from '@sdkwork/birdcoder-pc-infrastructure/services/defaultIdeServicesRuntime';
+import {
+  getBirdCoderH5RuntimeConfig,
+  resolveBirdCoderH5ApplicationApiBaseUrl,
+} from './runtimeConfig.ts';
 
 interface BirdCoderPublicRuntimeEnv {
   VITE_SDKWORK_BIRDCODER_APPLICATION_PUBLIC_HTTP_URL?: string;
@@ -8,7 +11,7 @@ interface BirdCoderPublicRuntimeEnv {
 }
 
 export function resolveBirdCoderH5Environment() {
-  const runtimeConfig = getDefaultBirdCoderIdeServicesRuntimeConfig();
+  const runtimeConfig = getBirdCoderH5RuntimeConfig();
   const mode = import.meta.env.MODE || 'development';
   const runtimeGlobal = globalThis as typeof globalThis & {
     __SDKWORK_H5_REACT_ENV__?: BirdCoderPublicRuntimeEnv;
@@ -19,7 +22,8 @@ export function resolveBirdCoderH5Environment() {
     apiBaseUrl:
       runtimeConfig.apiBaseUrl
       ?? publicRuntimeEnv?.VITE_SDKWORK_BIRDCODER_APPLICATION_PUBLIC_HTTP_URL
-      ?? publicRuntimeEnv?.VITE_BIRDCODER_API_BASE_URL,
+      ?? publicRuntimeEnv?.VITE_BIRDCODER_API_BASE_URL
+      ?? resolveBirdCoderH5ApplicationApiBaseUrl(),
     deploymentProfile: publicRuntimeEnv?.VITE_SDKWORK_DEPLOYMENT_PROFILE ?? 'cloud',
     environment: mode,
     executionAuthorityMode: runtimeConfig.executionAuthorityMode ?? 'auto',

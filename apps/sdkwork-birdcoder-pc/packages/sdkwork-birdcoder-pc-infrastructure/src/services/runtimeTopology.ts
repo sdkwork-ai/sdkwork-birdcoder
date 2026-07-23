@@ -20,8 +20,6 @@ type RuntimeEnvHost = typeof globalThis & {
   __SDKWORK_PC_REACT_ENV__?: Record<string, unknown>;
 };
 
-type AppbaseIamCompatibilityDeploymentMode = 'local' | 'private' | 'saas';
-
 const RUNTIME_TARGETS = new Set<BirdCoderRuntimeTarget>([
   'browser',
   'desktop',
@@ -107,12 +105,4 @@ export function resolveBirdCoderRuntimeTopology(
         : 'cloud-workspace'
     );
   return { deploymentProfile, executionLocation, runtimeTarget };
-}
-
-export function resolveBirdCoderAppbaseIamCompatibilityDeploymentMode(
-  topology: Pick<BirdCoderRuntimeTopology, 'deploymentProfile' | 'executionLocation'>,
-): AppbaseIamCompatibilityDeploymentMode {
-  return topology.deploymentProfile === 'cloud'
-    ? 'saas'
-    : topology.executionLocation === 'local-host' ? 'local' : 'private';
 }

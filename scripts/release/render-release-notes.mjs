@@ -5,7 +5,7 @@ import { fileURLToPath } from 'node:url';
 
 import { DEFAULT_RELEASE_PROFILE_ID, resolveReleaseProfile } from './release-profiles.mjs';
 import { normalizeQualityEvidenceSummary } from './quality-gate-release-evidence.mjs';
-import { normalizeCodingServerOpenApiEvidenceSummary } from './coding-server-openapi-release-evidence.mjs';
+import { normalizeBirdcoderAppApiEvidenceSummary } from './birdcoder-app-api-release-evidence.mjs';
 import {
   buildPromotionReadinessSummary,
   collectReleaseStopShipSignals,
@@ -277,17 +277,16 @@ function buildQualityEvidenceSummaryLines(qualityEvidence) {
   return lines;
 }
 
-function buildCodingServerOpenApiEvidenceSummaryLines(summary) {
+function buildBirdcoderAppApiEvidenceSummaryLines(summary) {
   if (!summary) {
     return [];
   }
 
-  const normalized = normalizeCodingServerOpenApiEvidenceSummary(summary);
+  const normalized = normalizeBirdcoderAppApiEvidenceSummary(summary);
   return [
-    '## Coding-server OpenAPI evidence',
+    '## BirdCoder App API evidence',
     '',
     `- Canonical snapshot: \`${normalized.canonicalRelativePath || 'pending'}\``,
-    `- Mirrored snapshots: ${normalized.mirroredRelativePaths.length > 0 ? normalized.mirroredRelativePaths.map((entry) => `\`${entry}\``).join(', ') : '`pending`'}`,
     `- Targets: ${normalized.targets.length > 0 ? normalized.targets.map((entry) => `\`${entry}\``).join(', ') : '`pending`'}`,
     `- Target count: \`${normalized.targetCount}\``,
     `- OpenAPI version: \`${normalized.openapi || 'pending'}\``,
@@ -471,7 +470,7 @@ function buildManifestEvidenceSections({
 
   const assets = Array.isArray(manifest?.assets) ? manifest.assets : [];
   const releaseControl = manifest?.releaseControl ?? null;
-  const codingServerOpenApiEvidence = manifest?.codingServerOpenApiEvidence ?? null;
+  const birdcoderAppApiEvidence = manifest?.birdcoderAppApiEvidence ?? null;
   const qualityEvidence = manifest?.qualityEvidence ?? null;
   const familySummaryLines = assets.length > 0
     ? assets.map((entry) => {
@@ -514,7 +513,7 @@ function buildManifestEvidenceSections({
     '',
     ...familySummaryLines,
     '',
-    ...buildCodingServerOpenApiEvidenceSummaryLines(codingServerOpenApiEvidence),
+    ...buildBirdcoderAppApiEvidenceSummaryLines(birdcoderAppApiEvidence),
     ...buildQualityEvidenceSummaryLines(qualityEvidence),
     ...buildPostReleaseOperationsLines({
       manifest,

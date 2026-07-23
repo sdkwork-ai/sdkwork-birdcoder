@@ -2,14 +2,12 @@ import type { BirdHostDescriptor } from '@sdkwork/birdcoder-pc-host-core';
 import { bindDefaultBirdCoderIdeServicesRuntime } from '@sdkwork/birdcoder-pc-infrastructure-runtime/defaultIdeServices';
 import type {
   BirdCoderAppSdkApiClient,
-  BirdCoderBackendSdkApiClient,
   BirdCoderDeploymentProfile,
   BirdCoderExecutionLocation,
   BirdCoderRuntimeTarget,
 } from '@sdkwork/birdcoder-pc-infrastructure-runtime';
 import { bootstrapBirdCoderMembershipSdk } from '@sdkwork/birdcoder-pc-infrastructure-runtime/membershipSdkBootstrap';
 import { bootstrapBirdCoderDriveSandboxExplorer } from '@sdkwork/birdcoder-pc-infrastructure-runtime/driveSandboxExplorer';
-import type { BirdCoderRealtimeTransportPreference } from './bootstrapShellRuntime.ts';
 import { bootstrapShellUserState } from './bootstrapShellUserState.ts';
 
 const SHELL_RUNTIME_BOOTSTRAP_TIMEOUT_MS = 30_000;
@@ -20,14 +18,13 @@ let bootstrapShellRuntimeAttemptId = 0;
 const abandonedBootstrapAttemptIds = new Set<number>();
 
 export interface BootstrapShellRuntimeOptions {
+  applicationApiBaseUrl?: string;
   appClient?: BirdCoderAppSdkApiClient;
-  apiBaseUrl?: string;
-  backendClient?: BirdCoderBackendSdkApiClient;
   bootstrapTimeoutMs?: number;
   deploymentProfile?: BirdCoderDeploymentProfile;
   executionLocation?: BirdCoderExecutionLocation;
   host?: BirdHostDescriptor;
-  realtimeTransport?: BirdCoderRealtimeTransportPreference;
+  platformApiGatewayBaseUrl?: string;
   runtimeTarget?: BirdCoderRuntimeTarget;
 }
 

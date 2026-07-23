@@ -26,8 +26,6 @@ const skipPathFragments = [
   '/external/',
   'sdkwork-birdcoder-topology-baggage.test.mjs',
   'docs/architecture/topology-standard.md',
-  'scripts/birdcoder-iam-env.mjs',
-  'scripts/lib/birdcoder-topology.mjs',
 ];
 
 const allowlistPathFragments = ['specs/topology.spec.json'];
@@ -38,6 +36,16 @@ const bannedPatterns = [
   { id: 'client topology v1 sdkwork env key', pattern: /VITE_SDKWORK_BIRDCODER_TOPOLOGY/u },
   { id: 'topology CLI flag', pattern: /--topology\b/u },
   { id: 'legacy root server package path', pattern: /packages\/sdkwork-birdcoder-server/u },
+  { id: 'retired IAM mode flag', pattern: /--iam-mode\b/u },
+  { id: 'retired IAM mode env', pattern: /SDKWORK_IAM_MODE/u },
+  {
+    id: 'retired IAM deployment vocabulary',
+    pattern: /(?:=|["'`])(?:desktop-local|server-private|cloud-saas)(?:\b|["'`])/u,
+  },
+  {
+    id: 'retired application command wrapper',
+    pattern: /run-birdcoder-(?:desktop-command|server-command|web-command|dev-stack)\.mjs/u,
+  },
 ];
 
 function slash(value) {
@@ -147,21 +155,50 @@ assert.equal(
   'pnpm exec sdkwork-app dev --deployment-profile standalone',
   'package.json dev:standalone must enter through the shared sdkwork-app facade.',
 );
-assert.equal(
-  packageJson.scripts?.['_sdkwork:dev:standalone'],
-  'node scripts/birdcoder-dev.mjs --deployment-profile standalone',
-  'BirdCoder-specific development orchestration must remain behind the private lifecycle hook.',
-);
+assert.equal(packageJson.scripts?.['_sdkwork:dev:standalone'], undefined);
+assert.equal(packageJson.scripts?.['_sdkwork:dev:cloud'], undefined);
 assert.match(
   JSON.stringify(packageJson.scripts ?? {}),
   /check:topology-standard/u,
   'package.json must expose check:topology-standard',
 );
 
-assert.ok(fs.existsSync(path.join(repoRoot, 'scripts/birdcoder-dev.mjs')), 'birdcoder-dev orchestrator required');
-assert.ok(
-  fs.existsSync(path.join(repoRoot, 'scripts/lib/birdcoder-topology.mjs')),
-  'birdcoder topology adapter required',
+for (const retiredPath of [
+  'scripts/birdcoder-dev.mjs',
+  'scripts/birdcoder-command-options.mjs',
+  'scripts/birdcoder-iam-command-matrix.mjs',
+  'scripts/birdcoder-iam-env.mjs',
+  'scripts/lib/birdcoder-topology.mjs',
+  'scripts/run-birdcoder-desktop-command.mjs',
+  'scripts/run-birdcoder-server-command.mjs',
+  'scripts/run-birdcoder-web-command.mjs',
+  'scripts/run-birdcoder-dev-stack.mjs',
+]) {
+  assert.equal(
+    fs.existsSync(path.join(repoRoot, retiredPath)),
+    false,
+    `${retiredPath} must remain retired; sdkwork-app owns topology orchestration.`,
+  );
+}
+const standaloneProcesses = spec.orchestration.profiles['standalone.development'].processes;
+assert.deepEqual(
+  standaloneProcesses
+    .filter((processDefinition) => processDefinition.role === 'client')
+    .find((processDefinition) => processDefinition.id === 'pc-web-renderer')
+    ?.clientArchitectures,
+  ['pc-web'],
+);
+assert.deepEqual(
+  standaloneProcesses
+    .find((processDefinition) => processDefinition.id === 'pc-desktop-renderer')
+    ?.runtimeTargets,
+  ['desktop'],
+);
+assert.deepEqual(
+  standaloneProcesses
+    .find((processDefinition) => processDefinition.id === 'h5-browser-renderer')
+    ?.clientArchitectures,
+  ['h5'],
 );
 assert.ok(
   fs.existsSync(path.join(repoRoot, 'docs/architecture/topology-standard.md')),

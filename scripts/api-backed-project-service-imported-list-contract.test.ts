@@ -21,7 +21,7 @@ function createLocalProject(
     description: `${id} has been imported into this IDE.`,
     createdAt: '2026-04-27T10:00:00.000Z',
     updatedAt: '2026-04-27T10:00:00.000Z',
-    codingSessions: [],
+    agentSessions: [],
   };
 }
 
@@ -94,7 +94,7 @@ const writeService = {
       .filter((project) => !workspaceId || project.workspaceId === workspaceId)
       .map((project) => ({
         ...structuredClone(project),
-        codingSessions: [],
+        agentSessions: [],
       }));
   },
   async syncProjectSummary(summary: BirdCoderProjectSummary): Promise<BirdCoderProject> {
@@ -107,7 +107,7 @@ const writeService = {
       createdAt: summary.createdAt,
       updatedAt: summary.updatedAt,
       archived: summary.status === 'archived',
-      codingSessions: [],
+      agentSessions: [],
     };
   },
 } as unknown as IProjectService & {
@@ -117,7 +117,7 @@ const writeService = {
 const service = new ApiBackedProjectService({
   appClient: client,
   codingRuntimeClient: {
-    async listCodingSessions() {
+    async listAgentSessions() {
       return [];
     },
   } as unknown as BirdCoderAppRuntimeReadSdkApiClient,

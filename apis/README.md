@@ -1,82 +1,98 @@
-# APIs Directory
+# BirdCoder API Catalog
 
-## Purpose
+This catalog lists only APIs owned by the BirdCoder application. The canonical request, response,
+authentication, permission, and error contract is the authored OpenAPI document at
+`../sdks/sdkwork-birdcoder-app-sdk/openapi/sdkwork-birdcoder-app-api.openapi.json`.
 
-Author-owned API contracts and API source inputs for all API kinds, including HTTP OpenAPI surfaces, RPC/proto contracts, async/event API manifests, API examples, API changelogs, and API validation inputs.
+| Surface | Prefix | Operations | Authority |
+| --- | --- | ---: | --- |
+| App API | `/app/v3/api` | 39 | `sdkwork-birdcoder-app-api` |
+| Backend API | None | 0 | None |
+| Open API | None | 0 | None |
 
-BirdCoder materializes HTTP OpenAPI authority under the PC application SDK workspace and exports a unified coding-server snapshot for deployment handoff. This directory records the active authority locations.
+## App API Operations
 
-## Active HTTP OpenAPI Authority (PC)
+### System
 
-| Surface | Authority path |
-| --- | --- |
-| app-api | `apps/sdkwork-birdcoder-pc/sdks/sdkwork-birdcoder-app-sdk/openapi/sdkwork-birdcoder-app-api.openapi.json` |
-| backend-api | `apps/sdkwork-birdcoder-pc/sdks/sdkwork-birdcoder-backend-sdk/openapi/sdkwork-birdcoder-backend-api.openapi.json` |
-| derived app input | `apps/sdkwork-birdcoder-pc/sdks/specs/openapi/birdcoder-app-v3.openapi.json` |
-| derived backend input | `apps/sdkwork-birdcoder-pc/sdks/specs/openapi/birdcoder-backend-v3.openapi.json` |
-| live coding-server export | `apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-server/src/routeCatalog.ts` |
-| deployment handoff | `deployments/server-windows/x64/openapi/coding-server-v1.json` |
+| Method | Path | operationId |
+| --- | --- | --- |
+| `GET` | `/app/v3/api/system/descriptor` | `descriptor.retrieve` |
+| `GET` | `/app/v3/api/system/health` | `health.retrieve` |
+| `GET` | `/app/v3/api/system/routes` | `routes.list` |
+| `GET` | `/app/v3/api/system/runtime` | `runtime.retrieve` |
 
-BirdCoder does not expose a legacy API-key-authenticated `/api/v1/*` surface. App and backend operations use the canonical SDKWORK dual-token surfaces; API-key authentication is reserved for separately owned protected open-api authorities.
+### Workspaces And Projects
 
-## Project Runtime Location Contract
+| Method | Path | operationId |
+| --- | --- | --- |
+| `GET` | `/app/v3/api/workspaces` | `workspaces.list` |
+| `POST` | `/app/v3/api/workspaces` | `workspaces.create` |
+| `GET` | `/app/v3/api/workspaces/{workspaceId}` | `workspaces.retrieve` |
+| `PATCH` | `/app/v3/api/workspaces/{workspaceId}` | `workspaces.update` |
+| `DELETE` | `/app/v3/api/workspaces/{workspaceId}` | `workspaces.delete` |
+| `GET` | `/app/v3/api/projects` | `projects.list` |
+| `POST` | `/app/v3/api/projects` | `projects.create` |
+| `GET` | `/app/v3/api/projects/{projectId}` | `projects.retrieve` |
+| `PATCH` | `/app/v3/api/projects/{projectId}` | `projects.update` |
+| `DELETE` | `/app/v3/api/projects/{projectId}` | `projects.delete` |
 
-ProjectRuntimeLocation is an app-api resource owned by the workspace/project
-route authority. It persists one target-specific project root and exposes
-separate location list, registration, retrieval, update, delete, verification,
-and subject-capability preference operations.
+### Project Bindings
 
-- Registration carries an authenticated write-only absolutePath input. The
-  control plane encrypts it before persistence.
-- Generic Project and runtime-location response DTOs contain only safe
-  metadata; they never return plaintext paths, browser handles, secrets, or
-  credential-bearing Git URLs.
-- A client supplies runtimeLocationId as the opaque selector for a terminal,
-  Git, build, worktree, or file capability. Only the authenticated owning
-  target resolves the protected root internally.
-- OpenAPI/route ownership changes are authored in the canonical route/API
-  source and regenerated into all SDK authority and generated-output mirrors.
-  Do not hand-edit generated SDK output.
+| Method | Path | operationId |
+| --- | --- | --- |
+| `GET` | `/app/v3/api/projects/{projectId}/document_bindings` | `projects.documentBindings.list` |
+| `POST` | `/app/v3/api/projects/{projectId}/document_bindings` | `projects.documentBindings.create` |
+| `GET` | `/app/v3/api/projects/{projectId}/document_bindings/{bindingId}` | `projects.documentBindings.retrieve` |
+| `DELETE` | `/app/v3/api/projects/{projectId}/document_bindings/{bindingId}` | `projects.documentBindings.delete` |
+| `GET` | `/app/v3/api/projects/{projectId}/sandbox_binding` | `projects.sandboxBinding.retrieve` |
+| `PUT` | `/app/v3/api/projects/{projectId}/sandbox_binding` | `projects.sandboxBinding.update` |
+| `DELETE` | `/app/v3/api/projects/{projectId}/sandbox_binding` | `projects.sandboxBinding.delete` |
 
-## RPC / Discovery
+### Runtime Locations
 
-BirdCoder is HTTP-first. No first-party gRPC/RPC service catalog is published from this repository, so `sdkwork-discovery` registration is not required until RPC services are introduced.
+| Method | Path | operationId |
+| --- | --- | --- |
+| `GET` | `/app/v3/api/projects/{projectId}/runtime_locations` | `projects.runtimeLocations.list` |
+| `POST` | `/app/v3/api/projects/{projectId}/runtime_locations` | `projects.runtimeLocations.create` |
+| `GET` | `/app/v3/api/projects/{projectId}/runtime_locations/{runtimeLocationId}` | `projects.runtimeLocations.retrieve` |
+| `PATCH` | `/app/v3/api/projects/{projectId}/runtime_locations/{runtimeLocationId}` | `projects.runtimeLocations.update` |
+| `DELETE` | `/app/v3/api/projects/{projectId}/runtime_locations/{runtimeLocationId}` | `projects.runtimeLocations.delete` |
+| `POST` | `/app/v3/api/projects/{projectId}/runtime_locations/{runtimeLocationId}/rebind` | `projects.runtimeLocations.rebind` |
+| `POST` | `/app/v3/api/projects/{projectId}/runtime_locations/{runtimeLocationId}/request_verification` | `projects.runtimeLocations.requestVerification` |
+| `GET` | `/app/v3/api/projects/{projectId}/runtime_location_preferences` | `projects.runtimeLocations.preferences.list` |
+| `PUT` | `/app/v3/api/projects/{projectId}/runtime_location_preferences/{capability}` | `projects.runtimeLocations.preferences.update` |
 
-## Shared Utilities
+### Project Git
 
-BirdCoder consumes `sdkwork-utils` through:
+| Method | Path | operationId |
+| --- | --- | --- |
+| `GET` | `/app/v3/api/projects/{projectId}/git/overview` | `projects.git.overview.retrieve` |
+| `GET` | `/app/v3/api/projects/{projectId}/git/diff` | `projects.git.diff.retrieve` |
+| `POST` | `/app/v3/api/projects/{projectId}/git/branches` | `projects.git.branches.create` |
+| `POST` | `/app/v3/api/projects/{projectId}/git/switch_branch` | `projects.git.switchBranch` |
+| `POST` | `/app/v3/api/projects/{projectId}/git/commits` | `projects.git.commits.create` |
+| `POST` | `/app/v3/api/projects/{projectId}/git/push` | `projects.git.push` |
+| `POST` | `/app/v3/api/projects/{projectId}/git/worktrees` | `projects.git.worktrees.create` |
+| `POST` | `/app/v3/api/projects/{projectId}/git/remove_worktree` | `projects.git.removeWorktree` |
+| `POST` | `/app/v3/api/projects/{projectId}/git/prune_worktrees` | `projects.git.pruneWorktrees` |
 
-- TypeScript release/digest helpers via `@sdkwork/utils`
-- Rust service validation via `sdkwork-utils-rust`
+## Ownership Boundary
 
-Verification: `pnpm run check:utils-standard`
+Agents sessions, turns, session items, interactions, runtime bindings, artifacts, and checkpoints are
+consumed from the Agents App SDK. Skills, saved prompts, document content, IAM, human IM,
+membership, commerce, and deployment operations are consumed from their owner SDK families. They
+are intentionally absent from the BirdCoder API authority and are not counted above.
 
-## Drive Upload Integration
-
-All attachment uploads route through `@sdkwork/drive-app-sdk` on PC and H5. Server-side multipart upload handlers must use Drive uploader services or approved Rust facades when introduced.
-
-Verification: `pnpm run check:drive-standard`
-
-## Owner
-
-SDKWork Birdcoder team.
-
-## Related Specs
-
-- [API_SPEC.md](../sdkwork-specs/API_SPEC.md)
-- [WEB_FRAMEWORK_SPEC.md](../sdkwork-specs/WEB_FRAMEWORK_SPEC.md)
-- [APP_COMPOSITION_SPEC.md](../sdkwork-specs/APP_COMPOSITION_SPEC.md)
-- [SDK_SPEC.md](../sdkwork-specs/SDK_SPEC.md)
-- [SDK_WORKSPACE_GENERATION_SPEC.md](../sdkwork-specs/SDK_WORKSPACE_GENERATION_SPEC.md)
-- [WEB_BACKEND_SPEC.md](../sdkwork-specs/WEB_BACKEND_SPEC.md)
-- [DRIVE_SPEC.md](../sdkwork-specs/DRIVE_SPEC.md)
+Application code consumes generated SDK clients through injected services. Raw HTTP, manual auth
+headers, dependency DTO copies, and local SDK forks are forbidden. Successful responses use the
+SDKWork response envelope; failures use RFC 9457 `application/problem+json`.
 
 ## Verification
 
-- [x] API contracts follow OpenAPI 3.1.2 stable profile
-- [x] No generated SDK output in `apis/`
-- [x] `pnpm run check:web-framework-standard` passes for framework OpenAPI extensions
-- [x] `pnpm run check:api-response-envelope` passes for SdkWorkApiResponse / ProblemDetail alignment
-- [x] `pnpm run check:app-composition` passes for native composition architecture
-- [ ] `node ../sdkwork-specs/tools/check-api-operation-patterns.mjs --workspace .` passes after runtime-location routes are materialized
-- [ ] `node ../sdkwork-specs/tools/check-pagination.mjs --workspace .` passes after runtime-location list implementation is materialized
+```bash
+node scripts/sync-birdcoder-sdk-openapi.mjs --check
+node ../sdkwork-specs/tools/check-api-operation-patterns.mjs --root .
+node ../sdkwork-specs/tools/check-api-response-envelope.mjs --root .
+pnpm check:sdk-family-standard
+pnpm check:sdk-family-generated
+```

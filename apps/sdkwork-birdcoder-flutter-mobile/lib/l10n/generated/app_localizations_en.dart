@@ -15,6 +15,18 @@ class AppLocalizationsEn extends AppLocalizations {
   String get app_loading => 'Loading...';
 
   @override
+  String get nav_home => 'Home';
+
+  @override
+  String get nav_chat => 'Chat';
+
+  @override
+  String get nav_settings => 'Settings';
+
+  @override
+  String get nav_profile => 'Profile';
+
+  @override
   String get common_cancel => 'Cancel';
 
   @override
@@ -63,28 +75,21 @@ class AppLocalizationsEn extends AppLocalizations {
   String get common_no => 'No';
 
   @override
-  String get chat_send => 'Send';
+  String get agent_session_send => 'Send';
 
   @override
-  String get chat_input_placeholder => 'Send a message...';
+  String get agent_session_input_placeholder => 'Send an instruction...';
 
   @override
-  String get chat_empty => 'No messages yet. Start a conversation below.';
+  String get agent_session_empty =>
+      'No session items yet. Start an assistant turn below.';
 
   @override
-  String get chat_loading_history => 'Loading chat history...';
+  String get agent_session_loading_items => 'Loading session items...';
 
   @override
-  String get chat_message_user => 'You';
-
-  @override
-  String get chat_message_assistant => 'BirdCoder';
-
-  @override
-  String get chat_send_failed => 'Failed to send message.';
-
-  @override
-  String get chat_typing => 'BirdCoder is typing...';
+  String get agent_session_send_failed =>
+      'Failed to submit the assistant turn.';
 
   @override
   String get auth_login => 'Log in';
@@ -233,18 +238,6 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get native_error_failed => 'The operation failed.';
-
-  @override
-  String get nav_home => 'Home';
-
-  @override
-  String get nav_chat => 'Chat';
-
-  @override
-  String get nav_settings => 'Settings';
-
-  @override
-  String get nav_profile => 'Profile';
 
   @override
   String get error_network => 'Network error. Please check your connection.';

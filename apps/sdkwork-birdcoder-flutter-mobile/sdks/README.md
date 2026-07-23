@@ -1,8 +1,9 @@
 # SDKWork BirdCoder Flutter Mobile SDKs
 
-This directory contains SDK consumer workspaces and generation manifests for the Flutter mobile
-application. Surface composition is declared in `specs/component.spec.json`. Each Dart consumer SDK
-family declares its generation metadata in its own `sdk-manifest.json`.
+This directory contains the owner-only BirdCoder App API consumer workspace and its generation
+manifest for the Flutter mobile application. Surface composition is declared in
+`specs/component.spec.json`; the Dart consumer declares its source authority and generated output in
+its own `sdk-manifest.json`.
 
 ## Expected Structure
 
@@ -15,16 +16,21 @@ sdks/
     sdk-manifest.json
     generated/server-openapi/
     lib/
-  sdkwork_birdcoder_flutter_mobile_backend_sdk_consumer/
-    sdk-manifest.json
-    generated/server-openapi/
-    lib/
 ```
+
+BirdCoder does not own a Backend API or Open API, so this application must not create Flutter
+consumers for those surfaces. IAM and AI session capabilities are consumed directly from the
+canonical IAM and Agents App SDK packages by the mobile core composition layer. Agents owns
+Session, Turn, Session Item, Interaction, Runtime Binding, Artifact, and Checkpoint facts; no
+BirdCoder or IM transcript model is generated here.
 
 ## Generation
 
-To generate Dart SDK families, run:
+From the BirdCoder repository root, generate the Flutter App SDK consumer with:
 
 ```bash
-flutter pub run build_runner build
+pnpm sdk:generate:flutter-mobile
 ```
+
+Verify the mobile SDK boundary with `node scripts/flutter-sdk-assembly-contract.test.mjs` and
+`node scripts/flutter-mobile-sdk-generation-contract.test.mjs`.

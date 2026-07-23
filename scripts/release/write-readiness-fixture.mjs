@@ -470,15 +470,15 @@ function writeServerTarget({
     releaseAssetsDir,
     `server/${entry.platform}/${entry.arch}/sdkwork-birdcoder-server-${releaseTag}-${entry.platform}-${entry.arch}.tar.gz`,
   );
-  const openApiRelativePath = `server/${entry.platform}/${entry.arch}/openapi/coding-server-v1.json`;
+  const openApiRelativePath = `server/${entry.platform}/${entry.arch}/openapi/birdcoder-app-api.openapi.json`;
   writeArtifact(
     releaseAssetsDir,
     openApiRelativePath,
     `${JSON.stringify({
       openapi: '3.1.0',
       info: {
-        title: 'SDKWork BirdCoder Coding Server API',
-        version: 'v1',
+        title: 'SDKWork BirdCoder App API',
+        version: '0.1.0',
       },
     }, null, 2)}\n`,
   );
@@ -513,7 +513,7 @@ function writeServerTarget({
       {
         id: 'openapi-snapshot-present',
         status: 'passed',
-        detail: 'coding server OpenAPI snapshot is packaged',
+        detail: 'BirdCoder App API OpenAPI snapshot is packaged',
       },
     ],
     verifiedAt: DEFAULT_VERIFIED_AT,

@@ -1,4 +1,3 @@
-export * from './authAccessPolicy.ts';
 export * from './auth.ts';
 export * from './auth-context.ts';
 export * from './auth-surface.ts';

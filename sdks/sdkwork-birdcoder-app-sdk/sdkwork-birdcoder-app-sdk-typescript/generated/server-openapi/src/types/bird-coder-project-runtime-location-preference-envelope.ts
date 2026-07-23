@@ -2,7 +2,7 @@ import type { BirdCoderProjectRuntimeLocationPreference } from './bird-coder-pro
 
 export interface BirdCoderProjectRuntimeLocationPreferenceEnvelope {
   code: 0;
-  data: unknown & Record<string, unknown>;
+  data: unknown & { item: BirdCoderProjectRuntimeLocationPreference; };
   /** Server-owned request correlation id. */
   traceId: string;
 }

@@ -3,12 +3,12 @@ import { readFileSync } from 'node:fs';
 import type { BirdCoderProject } from '@sdkwork/birdcoder-pc-contracts-commons';
 
 const modulePath = new URL(
-  '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-workbench/src/workbench/codingSessionSelection.ts',
+  '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-workbench/src/workbench/agentSessionSelection.ts',
   import.meta.url,
 );
 
 const {
-  buildProjectCodingSessionIndex,
+  buildProjectAgentSessionIndex,
 } = await import(`${modulePath.href}?t=${Date.now()}`);
 
 const source = readFileSync(modulePath, 'utf8');
@@ -17,7 +17,7 @@ const projects: BirdCoderProject[] = [
   {
     archived: false,
     author: 'user-1',
-    codingSessions: [
+    agentSessions: [
       {
         archived: false,
         createdAt: '2026-04-22T00:00:00.000Z',
@@ -47,19 +47,19 @@ const projects: BirdCoderProject[] = [
   },
 ];
 
-const firstIndex = buildProjectCodingSessionIndex(projects);
-const secondIndex = buildProjectCodingSessionIndex(projects);
+const firstIndex = buildProjectAgentSessionIndex(projects);
+const secondIndex = buildProjectAgentSessionIndex(projects);
 
 assert.equal(
   secondIndex,
   firstIndex,
-  'buildProjectCodingSessionIndex must reuse the same computed index for the same projects snapshot reference.',
+  'buildProjectAgentSessionIndex must reuse the same computed index for the same projects snapshot reference.',
 );
 
 assert.match(
   source,
-  /new WeakMap<[\s\S]*readonly BirdCoderProject\[\],[\s\S]*BirdCoderProjectCodingSessionIndex[\s\S]*>\(\)/,
-  'codingSessionSelection must keep a weak cache keyed by the projects snapshot reference.',
+  /new WeakMap<[\s\S]*readonly BirdCoderProject\[\],[\s\S]*BirdCoderProjectAgentSessionIndex[\s\S]*>\(\)/,
+  'agentSessionSelection must keep a weak cache keyed by the projects snapshot reference.',
 );
 
 console.log('project/session index cache performance contract passed.');

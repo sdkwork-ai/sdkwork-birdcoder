@@ -74,7 +74,7 @@ assert.match(
 
 assert.match(
   appSessionRefreshSource,
-  /if \(!isBirdCoderSessionRefreshRequestCurrent\(token, loadStoredAppSessionToken\(\)\)\) \{\s*return false;\s*\}[\s\S]*storeAppSessionFromResult\(envelope,/,
+  /if \(!isBirdCoderSessionRefreshRequestCurrent\(token, loadStoredAppSessionToken\(\)\)\) \{\s*return false;\s*\}[\s\S]*storeAppSessionFromResult\(refreshedSession,/,
   'A session refresh response must be discarded when logout or a newer login replaces the token while refresh is in flight.',
 );
 

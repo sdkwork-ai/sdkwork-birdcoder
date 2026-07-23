@@ -6,26 +6,10 @@
   "module": "./src/index.ts",
   "types": "./src/index.ts",
   "exports": {
-    ".": {
-      "import": "./src/index.ts",
-      "types": "./src/index.ts"
-    },
-    "./storageBindings": {
-      "import": "./src/storageBindings.ts",
-      "types": "./src/storageBindings.ts"
-    },
-    "./dataScopes": {
-      "import": "./src/dataScopes.ts",
-      "types": "./src/dataScopes.ts"
-    },
-    "./apiTransportError": {
-      "import": "./src/apiTransportError.ts",
-      "types": "./src/apiTransportError.ts"
-    },
-    "./runConfigurationStorage": {
-      "import": "./src/runConfigurationStorage.ts",
-      "types": "./src/runConfigurationStorage.ts"
-    }
+    ".": { "import": "./src/index.ts", "types": "./src/index.ts" },
+    "./authSurfacePaths": { "import": "./src/authSurfacePaths.ts", "types": "./src/authSurfacePaths.ts" },
+    "./dataScopes": { "import": "./src/dataScopes.ts", "types": "./src/dataScopes.ts" },
+    "./apiTransportError": { "import": "./src/apiTransportError.ts", "types": "./src/apiTransportError.ts" }
   },
   "scripts": {
     "dev": "vite build --watch",
@@ -33,9 +17,7 @@
     "typecheck": "node ../../../../scripts/run-local-typescript.mjs --noEmit"
   },
   "devDependencies": {
-    "@vitejs/plugin-react": "catalog:"
-  },
-  "dependencies": {
-    "@sdkwork/birdcoder-chat-contracts": "workspace:*"
+    "@vitejs/plugin-react": "catalog:",
+    "vite": "catalog:"
   }
 }

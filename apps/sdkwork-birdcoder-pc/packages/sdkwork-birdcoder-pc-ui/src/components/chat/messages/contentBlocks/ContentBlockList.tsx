@@ -1,11 +1,11 @@
 import { memo } from 'react';
-import type { BirdCoderChatMessageView } from '@sdkwork/birdcoder-pc-workbench/chat/types';
+import type { AgentSessionItemPresentation } from '@sdkwork/birdcoder-pc-workbench/chat/types';
 import type { ChatMessageRenderContext } from '../types.ts';
 import { defaultChatMessageContentBlockRendererRegistry } from './defaultRegistry.ts';
 import type { ChatMessageContentBlockRendererRegistry } from './registry.ts';
 
 export interface ContentBlockListProps {
-  view: BirdCoderChatMessageView;
+  view: AgentSessionItemPresentation;
   context: ChatMessageRenderContext;
   registry?: ChatMessageContentBlockRendererRegistry;
 }

@@ -17,6 +17,7 @@ class AppProvider extends InheritedWidget {
   String get apiBaseUrl => bootstrapState.apiBaseUrl;
   String get deploymentProfile => bootstrapState.environment.deploymentProfile;
   BirdCoderIamRuntime get iamRuntime => bootstrapState.iamRuntime;
+  BirdCoderIamAuthService get iamAuthService => bootstrapState.iamAuthService;
   BirdCoderFlutterSdkClients get sdkClients => bootstrapState.sdkClients;
   List<BirdCoderRouteDefinition> get routes => bootstrapState.routes;
 

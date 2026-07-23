@@ -34,7 +34,7 @@ const forbiddenReleaseDocPatterns = [
     message: 'release docs must describe app-runtime SDK/facade ownership instead of shared/generated core.',
   },
   {
-    pattern: /\bcore\.(?:createCodingSession|createCodingSessionTurn|submitApprovalDecision)\b/u,
+    pattern: /\bcore\.(?:createAgentSession|createAgentSessionTurn|submitApprovalDecision)\b/u,
     message: 'release docs must describe app-runtime operation ownership instead of retired core operation ids.',
   },
   {

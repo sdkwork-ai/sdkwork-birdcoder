@@ -10,8 +10,8 @@ export {
   setWorkbenchActiveCodeEngine,
   setWorkbenchActiveChatSelection,
   setWorkbenchActiveCodeModel,
-  syncWorkbenchCodeEngineModelConfig,
-  getWorkbenchPreferencesRepository,
+  ensureWorkbenchPreferences,
+  getWorkbenchPreferencesStore,
   readWorkbenchPreferences,
   writeWorkbenchPreferences,
 } from '@sdkwork/birdcoder-pc-workbench';
@@ -23,7 +23,7 @@ export {
   resolveWorkbenchRecoveryPersistenceSelection,
   isWorkbenchRecoverySelectionResolutionReady,
   resolveStartupProjectId,
-  resolveStartupCodingSessionId,
+  resolveStartupAgentSessionId,
   buildWorkbenchRecoveryAnnouncement,
   recoverySnapshotsEqual,
 } from '@sdkwork/birdcoder-pc-workbench';
@@ -33,19 +33,14 @@ export type {
   RunConfigurationRecord,
 } from '@sdkwork/birdcoder-pc-workbench';
 export type {
-  SyncWorkbenchCodeEngineModelConfigOptions,
-  WorkbenchCodeEngineModelConfigAppRuntimeReadService,
-  WorkbenchCodeEngineModelConfigAppRuntimeWriteService,
-  WorkbenchCodeEngineDefinition,
-  WorkbenchCodeEngineId,
-  WorkbenchCodeEngineSettingsMap,
+  WorkbenchPreferencesStore,
   WorkbenchPreferences,
 } from '@sdkwork/birdcoder-pc-workbench';
 export type {
   WorkbenchRecoverySnapshot,
   ResolveStartupWorkspaceIdOptions,
   ResolveStartupProjectIdOptions,
-  ResolveStartupCodingSessionIdOptions,
+  ResolveStartupAgentSessionIdOptions,
   BuildWorkbenchRecoveryAnnouncementOptions,
   ResolveWorkbenchRecoveryPersistenceSelectionOptions,
 } from '@sdkwork/birdcoder-pc-workbench';

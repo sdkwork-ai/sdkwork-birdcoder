@@ -6,6 +6,6 @@ export interface BirdCoderApiGatewaySummary {
   openApiPath: string;
   routeCatalogPath: string;
   routeCount: number;
-  routesBySurface: Record<string, unknown>;
+  routesBySurface: { app: number; backend: number; };
   surfaces: BirdCoderApiGatewaySurfaceSummary[];
 }

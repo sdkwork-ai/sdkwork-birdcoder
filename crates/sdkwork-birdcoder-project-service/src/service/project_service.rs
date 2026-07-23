@@ -13,7 +13,6 @@ use crate::domain::results::{DeleteEntityPayload, ProjectPayload};
 use crate::domain::runtime_location::RuntimeLocationCapability;
 use crate::error::ProjectError;
 use crate::ports::git::{GitMutationError, GitOperations, GitProjectDiff, GitProjectOverview};
-use crate::ports::project_workspace_root::ProjectWorkspaceRootResolver;
 use crate::ports::repository::ProjectRepository;
 use crate::ports::runtime_location_execution::ProjectRuntimeLocationExecutionResolver;
 use crate::service::git_operation_coordinator::GitOperationCoordinator;
@@ -23,7 +22,6 @@ pub struct ProjectService {
     repository: Arc<dyn ProjectRepository>,
     git: Arc<dyn GitOperations>,
     git_operation_coordinator: GitOperationCoordinator,
-    workspace_root_resolver: Arc<dyn ProjectWorkspaceRootResolver>,
     runtime_location_execution_resolver: Arc<dyn ProjectRuntimeLocationExecutionResolver>,
 }
 
@@ -31,14 +29,12 @@ impl ProjectService {
     pub fn new(
         repository: Arc<dyn ProjectRepository>,
         git: Arc<dyn GitOperations>,
-        workspace_root_resolver: Arc<dyn ProjectWorkspaceRootResolver>,
         runtime_location_execution_resolver: Arc<dyn ProjectRuntimeLocationExecutionResolver>,
     ) -> Self {
         Self {
             repository,
             git,
             git_operation_coordinator: GitOperationCoordinator::default(),
-            workspace_root_resolver,
             runtime_location_execution_resolver,
         }
     }
@@ -106,32 +102,6 @@ impl ProjectService {
             .ensure_project_write_access(ctx, project_id)
             .await?;
         self.get_project(ctx, project_id).await
-    }
-
-    /// Resolve the server-owned root for an already authorized project scope.
-    ///
-    /// Native provider session discovery uses this boundary to associate
-    /// provider records that only carry a working directory with the current
-    /// project. The workspace check is deliberate: a valid project id from a
-    /// different workspace must never be usable as a scope alias.
-    pub async fn resolve_project_root_for_scope(
-        &self,
-        ctx: &ProjectContext,
-        workspace_id: &str,
-        project_id: &str,
-    ) -> Result<PathBuf, ProjectError> {
-        let project = self.get_project(ctx, project_id).await?;
-        if project.workspace_id != workspace_id {
-            return Err(ProjectError::Forbidden(
-                "Project does not belong to the requested workspace.".to_owned(),
-            ));
-        }
-        let root = self.workspace_root_resolver.resolve_project_root(
-            ctx,
-            &project.workspace_id,
-            &project.id,
-        )?;
-        canonical_server_project_root(root)
     }
 
     /// Resolves one explicit, target-owned execution location after checking
@@ -590,20 +560,6 @@ fn derived_worktree_key(branch_name: &str) -> Result<String, ProjectError> {
         ));
     }
     Ok(sha256_hash(branch_name.as_bytes()))
-}
-
-fn canonical_server_project_root(root: PathBuf) -> Result<PathBuf, ProjectError> {
-    let metadata = std::fs::symlink_metadata(&root).map_err(|_| {
-        ProjectError::Unavailable("Server project workspace is unavailable.".to_owned())
-    })?;
-    if metadata.file_type().is_symlink() || !metadata.is_dir() {
-        return Err(ProjectError::Unavailable(
-            "Server project workspace is unavailable.".to_owned(),
-        ));
-    }
-    std::fs::canonicalize(root).map_err(|_| {
-        ProjectError::Unavailable("Server project workspace is unavailable.".to_owned())
-    })
 }
 
 fn managed_worktree_path(

@@ -1,29 +1,42 @@
-# SDKWork Birdcoder H5 PRD
+# SDKWork BirdCoder H5 Product Supplement
 
-Status: draft
+Status: active
 Owner: SDKWork maintainers
 Application: sdkwork-birdcoder-h5
-Updated: 2026-06-24
-Specs: REQUIREMENTS_SPEC.md, DOCUMENTATION_SPEC.md
+Updated: 2026-07-22
+Specs: REQUIREMENTS_SPEC.md, DOCUMENTATION_SPEC.md, APP_H5_ARCHITECTURE_SPEC.md
 
-## Document Map
+This document narrows the root [BirdCoder PRD](../../../../../docs/product/prd/PRD.md)
+to the H5 and Capacitor surface.
 
-- Add `PRD-<topic>.md` shards in this directory when the PRD grows beyond one reviewable screen.
+## Surface Scope
 
-## 1. Background And Problem
+The H5 client provides mobile project navigation, the assistant workflow,
+authentication, and settings while preserving the same domain ownership as the
+PC surface. It consumes BirdCoder workbench operations through the BirdCoder
+App SDK and AI workflows through the Agents App SDK.
 
-## 2. Target Users
+The assistant surface selects or creates an Agents Session, lists paginated
+Session Items, and submits Turns. Session and transcript facts remain in
+`sdkwork-agents`; H5 owns only disposable presentation state. Human IM Message
+semantics are not used for AI transcript items.
 
-## 3. Goals And Non-Goals
+## Non-Goals
 
-## 4. Scope
+- No H5-owned database, Session authority, transcript cache, or copied OpenAPI.
+- No provider SDK, native provider-session, raw HTTP, or manual auth headers in
+  feature packages.
+- No assumption that a browser or Capacitor path is a server execution root.
+- No IM dependency unless a separate human communication feature is introduced.
 
-## 5. User Scenarios
+## Acceptance
 
-## 6. Success Metrics
+Authenticated SDKs share the application TokenManager, SDK base URLs come from
+typed runtime configuration, list operations remain bounded and paginated, and
+host capabilities are injected through H5/Capacitor adapters. Failures surface
+explicitly; fake success and compatibility paths are prohibited.
 
-## 7. Phases
+## Canonical References
 
-## 8. Linked Requirements
-
-## 9. Open Questions
+- [Root PRD](../../../../../docs/product/prd/PRD.md)
+- [Root technical architecture](../../../../../docs/architecture/tech/TECH_ARCHITECTURE.md)

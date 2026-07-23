@@ -16,7 +16,7 @@ const hookSource = fs.readFileSync(
     'sdkwork-birdcoder-pc-workbench',
     'src',
     'hooks',
-    'useSelectedCodingSessionMessages.ts',
+    'useSelectedAgentSessionItems.ts',
   ),
   'utf8',
 );
@@ -55,62 +55,62 @@ const studioPageSource = fs.readFileSync(
 
 assert.match(
   hookSource,
-  /export function useSelectedCodingSessionMessages\([\s\S]*\): boolean \{/,
-  'useSelectedCodingSessionMessages must expose whether the selected session transcript is currently hydrating.',
+  /export function useSelectedAgentSessionItems\([\s\S]*\): boolean \{/,
+  'useSelectedAgentSessionItems must expose whether the selected session transcript is currently hydrating.',
 );
 
 assert.match(
   hookSource,
-  /const \[isSelectedCodingSessionMessagesLoading,\s*setIsSelectedCodingSessionMessagesLoading\] = useState\(false\);/,
-  'useSelectedCodingSessionMessages must track a local loading state for selected session hydration.',
+  /const \[isSelectedAgentSessionItemsLoading,\s*setIsSelectedAgentSessionItemsLoading\] = useState\(false\);/,
+  'useSelectedAgentSessionItems must track a local loading state for selected session hydration.',
 );
 
 assert.match(
   hookSource,
   /const isMountedRef = useRef\(true\);/,
-  'useSelectedCodingSessionMessages must track hook mount state separately from per-refresh disposal so stale refreshes can still release shared loading ownership.',
+  'useSelectedAgentSessionItems must track hook mount state separately from per-refresh disposal so stale refreshes can still release shared loading ownership.',
 );
 
 assert.match(
   hookSource,
   /if \(isMountedRef\.current && activeSynchronizationCountRef\.current === 0\) \{/,
-  'useSelectedCodingSessionMessages must clear loading when all refreshes settle, even if the last completed refresh belonged to a previous selected session.',
+  'useSelectedAgentSessionItems must clear loading when all refreshes settle, even if the last completed refresh belonged to a previous selected session.',
 );
 
 assert.doesNotMatch(
   hookSource,
   /if \(!isDisposed && activeSynchronizationCountRef\.current === 0\) \{/,
-  'useSelectedCodingSessionMessages must not couple loading release to per-refresh disposal because session switches can otherwise leave hydration stuck.',
+  'useSelectedAgentSessionItems must not couple loading release to per-refresh disposal because session switches can otherwise leave hydration stuck.',
 );
 
 assert.match(
   hookSource,
-  /return isSelectedCodingSessionMessagesLoading;/,
-  'useSelectedCodingSessionMessages must return the selected session hydration state.',
+  /return isSelectedAgentSessionItemsLoading;/,
+  'useSelectedAgentSessionItems must return the selected session hydration state.',
 );
 
 assert.match(
   codePageSource,
-  /const isSelectedCodingSessionMessagesLoading = useSelectedCodingSessionMessages\(/,
-  'CodePage must consume the selected session hydration state from useSelectedCodingSessionMessages.',
+  /const isSelectedAgentSessionItemsLoading = useSelectedAgentSessionItems\(/,
+  'CodePage must consume the selected session hydration state from useSelectedAgentSessionItems.',
 );
 
 assert.match(
   codePageSource,
-  /const selectedCodingSessionMessages = useMemo\(\s*\(\) => \(isNewCodingSessionCreating \? \[\] : selectedCodingSession\?\.messages \?\? \[\]\),\s*\[isNewCodingSessionCreating,\s*selectedCodingSession\?\.messages\],\s*\);/s,
+  /const selectedAgentSessionItems = useMemo\(\s*\(\) => \(isNewAgentSessionCreating \? \[\] : selectedAgentSession\?\.messages \?\? \[\]\),\s*\[isNewAgentSessionCreating,\s*selectedAgentSession\?\.messages\],\s*\);/s,
   'CodePage must normalize the visible selected session transcript and mask it to an empty collection while a new coding session is being created.',
 );
 
 assert.match(
   codePageSource,
-  /const isSelectedCodingSessionHydrating = Boolean\(\s*isNewCodingSessionCreating \|\|[\s\S]*visibleSessionId[\s\S]*isSelectedCodingSessionMessagesLoading[\s\S]*selectedCodingSessionMessages\.length === 0/s,
+  /const isSelectedAgentSessionHydrating = Boolean\(\s*isNewAgentSessionCreating \|\|[\s\S]*visibleSessionId[\s\S]*isSelectedAgentSessionItemsLoading[\s\S]*selectedAgentSessionItems\.length === 0/s,
   'CodePage must render transcript loading immediately while a new session is being created and while authority history is syncing for an existing visible session.',
 );
 
 assert.match(
   studioPageSource,
-  /const isSelectedCodingSessionMessagesLoading = useSelectedCodingSessionMessages\(/,
-  'StudioPage must consume the selected session hydration state from useSelectedCodingSessionMessages.',
+  /const isSelectedAgentSessionItemsLoading = useSelectedAgentSessionItems\(/,
+  'StudioPage must consume the selected session hydration state from useSelectedAgentSessionItems.',
 );
 
 assert.match(
@@ -121,7 +121,7 @@ assert.match(
 
 assert.match(
   studioPageSource,
-  /const isSelectedCodingSessionHydrating = Boolean\([\s\S]*isSelectedCodingSessionMessagesLoading[\s\S]*selectedSessionMessages\.length === 0/s,
+  /const isSelectedAgentSessionHydrating = Boolean\([\s\S]*isSelectedAgentSessionItemsLoading[\s\S]*selectedSessionMessages\.length === 0/s,
   'StudioPage must derive a session transcript hydration state from the normalized visible message collection so authority-backed transcript sync does not fall through to an empty chat state.',
 );
 

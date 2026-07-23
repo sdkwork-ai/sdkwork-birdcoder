@@ -5,7 +5,6 @@ pub mod git_operations;
 pub mod repositories;
 pub mod route_manifest;
 pub mod routers;
-pub mod runner_isolation;
 pub mod runtime_location;
 pub mod services;
 pub mod state;

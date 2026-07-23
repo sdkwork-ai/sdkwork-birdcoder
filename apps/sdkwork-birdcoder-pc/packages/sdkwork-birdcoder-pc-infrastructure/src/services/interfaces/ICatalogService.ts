@@ -1,11 +1,10 @@
-import type { BirdCoderAppTemplateSummary } from '@sdkwork/birdcoder-pc-contracts-commons';
 import type {
   SkillArtifactsPageData,
   SkillInstallationRecord,
   SkillPackagesPageData,
   SkillsSkillPackagesArtifactsListParams,
   SkillsSkillPackagesListParams,
-} from '@sdkwork/skills-app-sdk';
+} from '@sdkwork/birdcoder-pc-core/sdk/skills-app';
 
 export interface InstallSkillPackageOptions {
   artifactId: string;
@@ -14,7 +13,6 @@ export interface InstallSkillPackageOptions {
 }
 
 export interface ICatalogService {
-  getAppTemplates(): Promise<BirdCoderAppTemplateSummary[]>;
   getSkillPackages(params?: SkillsSkillPackagesListParams): Promise<SkillPackagesPageData>;
   listInstallableArtifacts(
     packageId: string,

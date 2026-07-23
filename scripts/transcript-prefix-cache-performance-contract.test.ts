@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import type { BirdCoderChatMessage } from '@sdkwork/birdcoder-pc-contracts-commons';
+import type { AgentSessionItemView } from '@sdkwork/birdcoder-pc-contracts-commons';
 
 const modulePath = new URL(
   '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-ui/src/components/transcriptVirtualization.ts',
@@ -20,16 +20,16 @@ const virtualizationSource = readFileSync(
   'utf8',
 );
 
-const messages: BirdCoderChatMessage[] = [
+const messages: AgentSessionItemView[] = [
   {
-    codingSessionId: 'session-1',
+    agentSessionId: 'session-1',
     id: 'user-1',
     role: 'user',
     content: 'hello',
     createdAt: '2026-04-21T00:00:00.000Z',
   },
   {
-    codingSessionId: 'session-1',
+    agentSessionId: 'session-1',
     id: 'assistant-1',
     role: 'assistant',
     content: 'reply',

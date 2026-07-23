@@ -86,22 +86,19 @@ locally.
   duplicate cannot resurrect the deleted location. Operators should expect a
   delete audit record followed by a distinct create audit record.
 
-### Current Server Workspace Boundary
+### External Execution Boundary
 
-`SDKWORK_BIRDCODER_PROVIDER_RUNNER_ROOT` and other server workspace settings
-define only a private provisioning base. They are not a server-workspace
-enrollment, a source-of-truth project checkout, or permission to derive a
-runtime location from a project id. The current server does not have a trusted
-server-checkout enrollment aggregate or a source-sync/verification adapter.
+BirdCoder does not provision server workspaces or derive an execution root from
+a project id or application configuration. Agents, Kernel, and Providers own
+remote execution, target enrollment, source synchronization, and verification.
 
 - Do not register a server location by copying a configured workspace root,
   a request path, or an old project path field into runtime-location storage.
 - Do not advertise server Git, terminal, worktree, build, or file-system
   capability, and do not write a preference that points to a server location.
-- Server, container, and cloud code actions must return a typed unavailable
-  result until a dedicated service identity enrolls a checkout, verifies the
-  canonical root and containment, and publishes capability/Git evidence
-  through the trusted target boundary.
+- Server, container, and cloud code actions must use the canonical external
+  execution contract. BirdCoder must not add a local runner, fallback facade,
+  or parallel target authority.
 
 ## Preferences And Selection
 
@@ -117,9 +114,9 @@ target. The current device uses its durable local mount plus the safe location
 identifier for local work; it must wait for trusted verification before a
 remote preference can be created.
 
-A configured server workspace is also not an eligible preference target. It
-must remain unselectable until the explicit server-workspace enrollment and
-trusted verification path are delivered.
+BirdCoder configuration cannot create an eligible remote execution target.
+Target selection and verification remain inside the owning Agents, Kernel, and
+Providers boundary.
 
 ## Backup, Restore, And Key Management
 

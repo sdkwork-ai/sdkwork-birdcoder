@@ -1,23 +1,73 @@
-import 'package:sdkwork_birdcoder_flutter_mobile_app_sdk_consumer/sdkwork_birdcoder_flutter_mobile_app_sdk_consumer.dart';
+import 'package:sdkwork_iam_app_sdk/sdkwork_iam_app_sdk.dart' as iam_sdk;
 
 import 'auth_oauth_deep_link.dart';
 import 'iam_runtime.dart';
-import 'token_manager.dart';
+import 'sdk_clients.dart';
 
 class BirdCoderIamAuthException implements Exception {
-  BirdCoderIamAuthException(this.message);
+  BirdCoderIamAuthException(this.message, {this.traceId});
 
   final String message;
+  final String? traceId;
 
   @override
   String toString() => message;
 }
 
+class BirdCoderIamAuthOptions {
+  const BirdCoderIamAuthOptions({
+    required this.oauthLoginEnabled,
+    required this.oauthProviders,
+  });
+
+  final bool oauthLoginEnabled;
+  final List<String> oauthProviders;
+}
+
+class BirdCoderIamDeviceAuthorization {
+  const BirdCoderIamDeviceAuthorization({
+    required this.deviceAuthorizationId,
+    required this.status,
+    required this.sessionReady,
+    this.expiresAt,
+    this.pollSecret,
+    this.qrContent,
+    this.qrUrl,
+  });
+
+  final String deviceAuthorizationId;
+  final String status;
+  final bool sessionReady;
+  final String? expiresAt;
+  final String? pollSecret;
+  final String? qrContent;
+  final String? qrUrl;
+}
+
+class _BirdCoderIamSession {
+  const _BirdCoderIamSession({
+    required this.accessToken,
+    required this.authToken,
+    this.refreshToken,
+    this.sessionId,
+    this.expiresAt,
+  });
+
+  final String accessToken;
+  final String authToken;
+  final String? refreshToken;
+  final String? sessionId;
+  final int? expiresAt;
+}
+
 class BirdCoderIamAuthService {
-  const BirdCoderIamAuthService();
+  const BirdCoderIamAuthService({
+    required BirdCoderFlutterSdkClients sdkClients,
+  }) : _sdkClients = sdkClients;
+
+  final BirdCoderFlutterSdkClients _sdkClients;
 
   Future<void> signInWithPassword({
-    required String apiBaseUrl,
     required BirdCoderIamRuntime iamRuntime,
     required String username,
     required String password,
@@ -27,20 +77,16 @@ class BirdCoderIamAuthService {
       throw BirdCoderIamAuthException('Account and password are required.');
     }
 
-    final client = _createClient(apiBaseUrl);
-    final envelope = await client.auth.sessionsCreate(
-      BirdCoderIamCreateSessionRequest(
-        grantType: 'password',
+    final response = await _sdkClients.anonymousIamSdk.auth.sessionsCreate(
+      iam_sdk.AppbaseSessionCreateCommand(
         username: account,
         password: password,
       ),
     );
-
-    await _commitSession(iamRuntime, envelope?.data);
+    await _commitSession(iamRuntime, response, 'password sign-in');
   }
 
   Future<void> registerWithPassword({
-    required String apiBaseUrl,
     required BirdCoderIamRuntime iamRuntime,
     required String username,
     required String password,
@@ -55,21 +101,18 @@ class BirdCoderIamAuthService {
       throw BirdCoderIamAuthException('Passwords do not match.');
     }
 
-    final client = _createClient(apiBaseUrl);
-    final envelope = await client.auth.registrationsCreate(
-      BirdCoderIamRegistrationCreateRequest(
-        username: account,
-        password: password,
-        confirmPassword: confirmPassword,
-        email: email?.trim().isEmpty ?? true ? null : email?.trim(),
-      ),
+    final response = await _sdkClients.anonymousIamSdk.auth.registrationsCreate(
+      <String, dynamic>{
+        'username': account,
+        'password': password,
+        'confirmPassword': confirmPassword,
+        if (_normalizeOptionalString(email) case final value?) 'email': value,
+      },
     );
-
-    await _commitSession(iamRuntime, envelope?.data);
+    await _commitSession(iamRuntime, response, 'registration');
   }
 
   Future<void> requestPasswordReset({
-    required String apiBaseUrl,
     required String account,
     String channel = 'email',
   }) async {
@@ -78,21 +121,15 @@ class BirdCoderIamAuthService {
       throw BirdCoderIamAuthException('Account is required.');
     }
 
-    final client = _createClient(apiBaseUrl);
-    final envelope = await client.auth.passwordResetRequestsCreate(
-      BirdCoderIamPasswordResetRequestCreateRequest(
-        account: normalizedAccount,
-        channel: channel,
-      ),
-    );
-
-    if (envelope?.data.success != true) {
-      throw BirdCoderIamAuthException('Password reset request failed.');
-    }
+    final response = await _sdkClients.anonymousIamSdk.auth
+        .passwordResetRequestsCreate(<String, dynamic>{
+      'account': normalizedAccount,
+      'channel': channel,
+    });
+    _requireResourceItem(response, 'password reset request');
   }
 
   Future<void> resetPassword({
-    required String apiBaseUrl,
     required String account,
     required String code,
     required String newPassword,
@@ -100,30 +137,28 @@ class BirdCoderIamAuthService {
   }) async {
     final normalizedAccount = account.trim();
     final normalizedCode = code.trim();
-    if (normalizedAccount.isEmpty || normalizedCode.isEmpty || newPassword.isEmpty) {
-      throw BirdCoderIamAuthException('Account, verification code, and password are required.');
+    if (normalizedAccount.isEmpty ||
+        normalizedCode.isEmpty ||
+        newPassword.isEmpty) {
+      throw BirdCoderIamAuthException(
+        'Account, verification code, and password are required.',
+      );
     }
     if (newPassword != confirmPassword) {
       throw BirdCoderIamAuthException('Passwords do not match.');
     }
 
-    final client = _createClient(apiBaseUrl);
-    final envelope = await client.auth.passwordResetsCreate(
-      BirdCoderIamPasswordResetCreateRequest(
-        account: normalizedAccount,
-        code: normalizedCode,
-        newPassword: newPassword,
-        confirmPassword: confirmPassword,
-      ),
-    );
-
-    if (envelope?.data.success != true) {
-      throw BirdCoderIamAuthException('Password reset failed.');
-    }
+    final response = await _sdkClients.anonymousIamSdk.auth
+        .passwordResetsCreate(<String, dynamic>{
+      'account': normalizedAccount,
+      'code': normalizedCode,
+      'newPassword': newPassword,
+      'confirmPassword': confirmPassword,
+    });
+    _requireResourceItem(response, 'password reset');
   }
 
   Future<void> completeOAuthCallback({
-    required String apiBaseUrl,
     required BirdCoderIamRuntime iamRuntime,
     required String code,
     required String provider,
@@ -132,36 +167,54 @@ class BirdCoderIamAuthService {
     final normalizedCode = code.trim();
     final normalizedProvider = provider.trim();
     if (normalizedCode.isEmpty || normalizedProvider.isEmpty) {
-      throw BirdCoderIamAuthException('OAuth callback is missing required parameters.');
+      throw BirdCoderIamAuthException(
+        'OAuth callback is missing required parameters.',
+      );
     }
 
-    final client = _createClient(apiBaseUrl);
-    final envelope = await client.oauth.sessionsCreate(
-      BirdCoderIamOAuthSessionCreateRequest(
-        code: normalizedCode,
-        provider: normalizedProvider,
-        state: state?.trim().isEmpty ?? true ? null : state?.trim(),
-        deviceType: 'mobile',
-      ),
+    final response = await _sdkClients.anonymousIamSdk.oauth.sessionsCreate(
+      <String, dynamic>{
+        'code': normalizedCode,
+        'provider': normalizedProvider,
+        if (_normalizeOptionalString(state) case final value?) 'state': value,
+        'deviceType': 'mobile',
+      },
     );
-
-    await _commitSession(iamRuntime, envelope?.data);
+    await _commitSession(iamRuntime, response, 'OAuth sign-in');
   }
 
-  Future<BirdCoderIamRuntimeSettingsSummary> fetchIamRuntimeSettings({
-    required String apiBaseUrl,
-  }) async {
-    final client = _createClient(apiBaseUrl);
-    final envelope = await client.system.iamRuntimeRetrieve();
-    final summary = envelope?.data;
-    if (summary == null) {
-      throw BirdCoderIamAuthException('IAM runtime settings response was empty.');
+  Future<BirdCoderIamAuthOptions> fetchIamRuntimeSettings() async {
+    final response =
+        await _sdkClients.anonymousIamSdk.system.iamRuntimeRetrieve();
+    final item = _requireResourceItem(response, 'IAM runtime settings');
+    final oauthLoginEnabled = item['oauthLoginEnabled'];
+    if (oauthLoginEnabled is! bool) {
+      throw BirdCoderIamAuthException(
+        'IAM runtime settings omitted oauthLoginEnabled.',
+        traceId: response?.traceId,
+      );
     }
-    return summary;
+
+    final providers = item['oauthProviders'];
+    if (providers is! List) {
+      throw BirdCoderIamAuthException(
+        'IAM runtime settings omitted oauthProviders.',
+        traceId: response?.traceId,
+      );
+    }
+
+    return BirdCoderIamAuthOptions(
+      oauthLoginEnabled: oauthLoginEnabled,
+      oauthProviders: List<String>.unmodifiable(
+        providers
+            .whereType<String>()
+            .map((provider) => provider.trim())
+            .where((provider) => provider.isNotEmpty),
+      ),
+    );
   }
 
   Future<String> resolveOAuthAuthorizationUrl({
-    required String apiBaseUrl,
     required String provider,
     String? redirectUri,
     String? state,
@@ -172,57 +225,53 @@ class BirdCoderIamAuthService {
       throw BirdCoderIamAuthException('OAuth provider is required.');
     }
 
-    final client = _createClient(apiBaseUrl);
-    final envelope = await client.oauth.authorizationUrlsCreate(
-      BirdCoderIamOAuthAuthorizationCreateRequest(
-        provider: normalizedProvider,
-        redirectUri: redirectUri ?? buildBirdCoderOAuthCallbackReturnUrl(),
-        scope: scope,
-        state: state,
-      ),
+    final response =
+        await _sdkClients.anonymousIamSdk.oauth.authorizationUrlsCreate(
+      <String, dynamic>{
+        'provider': normalizedProvider,
+        'redirectUri': redirectUri ?? buildBirdCoderOAuthCallbackReturnUrl(),
+        if (_normalizeOptionalString(scope) case final value?) 'scope': value,
+        if (_normalizeOptionalString(state) case final value?) 'state': value,
+      },
     );
-    final authUrl = envelope?.data.authUrl;
-    if (authUrl == null || authUrl.isEmpty) {
-      throw BirdCoderIamAuthException('OAuth authorization URL response was empty.');
-    }
-    return authUrl;
+    final item = _requireResourceItem(response, 'OAuth authorization URL');
+    return _requireNonBlankString(
+      item,
+      'authUrl',
+      'OAuth authorization URL',
+      response?.traceId,
+    );
   }
 
-  Future<BirdCoderIamDeviceAuthorizationSummary> createQrLoginAuthorization({
-    required String apiBaseUrl,
+  Future<BirdCoderIamDeviceAuthorization> createQrLoginAuthorization({
     String purpose = 'login',
   }) async {
-    final client = _createClient(apiBaseUrl);
-    final envelope = await client.oauth.deviceAuthorizationsCreate(
-      BirdCoderIamDeviceAuthorizationCreateRequest(purpose: purpose),
+    final response =
+        await _sdkClients.anonymousIamSdk.oauth.deviceAuthorizationsCreate(
+      <String, dynamic>{'purpose': purpose},
     );
-    final summary = envelope?.data;
-    if (summary == null) {
-      throw BirdCoderIamAuthException('QR login authorization response was empty.');
-    }
-    return summary;
+    return _parseDeviceAuthorization(response, 'QR login authorization');
   }
 
-  Future<BirdCoderIamDeviceAuthorizationSummary> retrieveQrLoginAuthorization({
-    required String apiBaseUrl,
+  Future<BirdCoderIamDeviceAuthorization> retrieveQrLoginAuthorization({
     required String deviceAuthorizationId,
   }) async {
     final normalizedId = deviceAuthorizationId.trim();
     if (normalizedId.isEmpty) {
-      throw BirdCoderIamAuthException('QR login authorization id is required.');
+      throw BirdCoderIamAuthException(
+        'QR login authorization id is required.',
+      );
     }
 
-    final client = _createClient(apiBaseUrl);
-    final envelope = await client.oauth.deviceAuthorizationsRetrieve(normalizedId);
-    final summary = envelope?.data;
-    if (summary == null) {
-      throw BirdCoderIamAuthException('QR login authorization status response was empty.');
-    }
-    return summary;
+    final response = await _sdkClients.anonymousIamSdk.oauth
+        .deviceAuthorizationsRetrieve(normalizedId);
+    return _parseDeviceAuthorization(
+      response,
+      'QR login authorization status',
+    );
   }
 
   Future<void> exchangeQrLoginSession({
-    required String apiBaseUrl,
     required BirdCoderIamRuntime iamRuntime,
     required String deviceAuthorizationId,
     required String pollSecret,
@@ -230,75 +279,170 @@ class BirdCoderIamAuthService {
     final normalizedId = deviceAuthorizationId.trim();
     final normalizedSecret = pollSecret.trim();
     if (normalizedId.isEmpty || normalizedSecret.isEmpty) {
-      throw BirdCoderIamAuthException('QR login exchange requires authorization id and poll secret.');
+      throw BirdCoderIamAuthException(
+        'QR login exchange requires authorization id and poll secret.',
+      );
     }
 
-    final client = _createClient(apiBaseUrl);
-    final envelope = await client.oauth.deviceAuthorizationsSessionExchangesCreate(
+    final response = await _sdkClients.anonymousIamSdk.oauth
+        .deviceAuthorizationsSessionExchangesCreate(
       normalizedId,
-      BirdCoderIamDeviceAuthorizationSessionExchangeRequest(
-        pollSecret: normalizedSecret,
-      ),
+      <String, dynamic>{'pollSecret': normalizedSecret},
     );
-
-    await _commitSession(iamRuntime, envelope?.data);
+    await _commitSession(iamRuntime, response, 'QR login session exchange');
   }
 
-  Future<void> signOut({
-    required String apiBaseUrl,
-    required BirdCoderIamRuntime iamRuntime,
-  }) async {
-    final tokenManager = getBirdCoderGlobalTokenManager();
-    if (tokenManager.hasAccessToken) {
-      try {
-        final client = createBirdCoderAppSdkConsumer(
-          apiBaseUrl: apiBaseUrl,
-          authToken: tokenManager.authToken ?? tokenManager.accessToken,
-          accessToken: tokenManager.accessToken,
-        ).createClient();
-        await client.auth.sessionsCurrentDelete();
-      } catch (_) {
-        // Local logout must still succeed when remote revoke is unavailable.
+  Future<void> signOut({required BirdCoderIamRuntime iamRuntime}) async {
+    try {
+      if (_sdkClients.tokenManager.hasAccessToken) {
+        await _sdkClients.iamSdk.auth.sessionsCurrentDelete();
       }
+    } catch (_) {
+      // Clearing local credentials is mandatory even when remote revoke fails.
+    } finally {
+      await iamRuntime.logout();
     }
-
-    await iamRuntime.logout();
-  }
-
-  SdkworkAppClient _createClient(String apiBaseUrl) {
-    return createBirdCoderAppSdkConsumer(apiBaseUrl: apiBaseUrl).createClient();
   }
 
   Future<void> _commitSession(
     BirdCoderIamRuntime iamRuntime,
-    BirdCoderIamSessionSummary? session,
+    iam_sdk.SdkWorkResourceResponse? response,
+    String operation,
   ) async {
-    if (session == null) {
-      throw BirdCoderIamAuthException('IAM session response was empty.');
-    }
+    final item = _requireResourceItem(response, operation);
+    final session = _BirdCoderIamSession(
+      accessToken: _requireNonBlankString(
+        item,
+        'accessToken',
+        operation,
+        response?.traceId,
+      ),
+      authToken: _requireNonBlankString(
+        item,
+        'authToken',
+        operation,
+        response?.traceId,
+      ),
+      refreshToken: _normalizeOptionalString(item['refreshToken']),
+      sessionId: _normalizeOptionalString(item['sessionId']),
+      expiresAt: _parseExpiresAt(item['expiresAt']),
+    );
 
     await iamRuntime.login(
       accessToken: session.accessToken,
       authToken: session.authToken,
       refreshToken: session.refreshToken,
       sessionId: session.sessionId,
-      expiresAt: _parseExpiresAt(session.expiresAt),
+      expiresAt: session.expiresAt,
+    );
+  }
+
+  BirdCoderIamDeviceAuthorization _parseDeviceAuthorization(
+    iam_sdk.SdkWorkResourceResponse? response,
+    String operation,
+  ) {
+    final item = _requireResourceItem(response, operation);
+    final sessionReady = item['sessionReady'];
+    if (sessionReady != null && sessionReady is! bool) {
+      throw BirdCoderIamAuthException(
+        '$operation returned an invalid sessionReady value.',
+        traceId: response?.traceId,
+      );
+    }
+    return BirdCoderIamDeviceAuthorization(
+      deviceAuthorizationId: _requireNonBlankString(
+        item,
+        'deviceAuthorizationId',
+        operation,
+        response?.traceId,
+      ),
+      status: _requireNonBlankString(
+        item,
+        'status',
+        operation,
+        response?.traceId,
+      ),
+      sessionReady: sessionReady == true,
+      expiresAt: _normalizeOptionalString(item['expiresAt']),
+      pollSecret: _normalizeOptionalString(item['pollSecret']),
+      qrContent: _normalizeOptionalString(item['qrContent']),
+      qrUrl: _normalizeOptionalString(item['qrUrl']),
     );
   }
 }
 
-int? _parseExpiresAt(String? value) {
-  if (value == null || value.isEmpty) {
+Map<String, dynamic> _requireResourceItem(
+  iam_sdk.SdkWorkResourceResponse? response,
+  String operation,
+) {
+  if (response == null) {
+    throw BirdCoderIamAuthException('$operation returned an empty response.');
+  }
+  if (response.code != 0) {
+    throw BirdCoderIamAuthException(
+      '$operation failed.',
+      traceId: response.traceId,
+    );
+  }
+
+  final data = _asStringKeyedMap(response.data);
+  final item = _asStringKeyedMap(data?['item']);
+  if (item == null) {
+    throw BirdCoderIamAuthException(
+      '$operation returned an invalid resource payload.',
+      traceId: response.traceId,
+    );
+  }
+  return item;
+}
+
+Map<String, dynamic>? _asStringKeyedMap(Object? value) {
+  if (value is Map<String, dynamic>) {
+    return value;
+  }
+  if (value is Map) {
+    return value.map(
+      (key, item) => MapEntry(key.toString(), item),
+    );
+  }
+  return null;
+}
+
+String _requireNonBlankString(
+  Map<String, dynamic> source,
+  String key,
+  String operation,
+  String? traceId,
+) {
+  final value = _normalizeOptionalString(source[key]);
+  if (value == null) {
+    throw BirdCoderIamAuthException(
+      '$operation omitted $key.',
+      traceId: traceId,
+    );
+  }
+  return value;
+}
+
+String? _normalizeOptionalString(Object? value) {
+  if (value == null) {
+    return null;
+  }
+  final normalized = value.toString().trim();
+  return normalized.isEmpty ? null : normalized;
+}
+
+int? _parseExpiresAt(Object? value) {
+  final normalized = _normalizeOptionalString(value);
+  if (normalized == null) {
     return null;
   }
 
-  final parsed = int.tryParse(value);
+  final parsed = int.tryParse(normalized);
   if (parsed != null) {
     return parsed;
   }
 
-  final date = DateTime.tryParse(value);
+  final date = DateTime.tryParse(normalized);
   return date == null ? null : date.millisecondsSinceEpoch ~/ 1000;
 }
-
-const birdCoderIamAuthService = BirdCoderIamAuthService();

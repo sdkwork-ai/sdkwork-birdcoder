@@ -13,7 +13,7 @@ export const QUALITY_MOBILE_CHECK_COMMANDS = [
   'node scripts/h5-app-session-persistence-contract.test.mjs',
   'node scripts/flutter-sdk-assembly-contract.test.mjs',
   'node scripts/flutter-mobile-product-parity-contract.test.mjs',
-  'node scripts/flutter-mobile-chat-api-contract.test.mjs',
+  'node scripts/flutter-mobile-agents-session-contract.test.mjs',
   'node scripts/flutter-mobile-auth-surface-contract.test.mjs',
   'node scripts/flutter-iam-session-storage-contract.test.mjs',
 ];

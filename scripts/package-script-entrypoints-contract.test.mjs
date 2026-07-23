@@ -1,102 +1,90 @@
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
-import process from 'node:process';
 
-const rootDir = process.cwd();
-const rootPackageJson = JSON.parse(
-  fs.readFileSync(path.join(rootDir, 'package.json'), 'utf8'),
-);
+const root = path.resolve(import.meta.dirname, '..');
+const packageJson = JSON.parse(fs.readFileSync(path.join(root, 'package.json'), 'utf8'));
+const scripts = packageJson.scripts ?? {};
 
-const entrypointContracts = [
-  {
-    scriptName: 'check:arch',
-    command:
-      'node scripts/check-arch-boundaries.mjs && node scripts/commercial-alignment-contract.test.mjs && node scripts/commercial-readiness-truth-contract.test.mjs && node scripts/release-rehearsal-readiness-contract.test.mjs && node scripts/prelaunch-publish-gate-contract.test.mjs && node scripts/surface-manifest-parity-contract.test.mjs && node scripts/pc-server-module-size-contract.test.mjs && node scripts/coding-server-openapi-rust-defer-registry-contract.test.mjs && node scripts/chat-route-catalog-contract.test.mjs && node scripts/commerce-quota-turn-pipeline-contract.test.mjs && node scripts/commerce-transactions-contract.test.mjs && node scripts/production-deployment-mode-contract.test.mjs && node scripts/problem-json-response-contract.test.mjs && node scripts/desktop-app-session-persistence-contract.test.mjs && node scripts/commercial-postgresql-ha-readiness-contract.test.mjs && node scripts/postgresql-ha-values-contract.test.mjs && node scripts/workspace-realtime-redis-contract.test.mjs && node scripts/workspace-realtime-reconnect-contract.test.mjs && node scripts/settings-surface-honesty-contract.test.mjs && node scripts/run-local-tsx.mjs scripts/config-settings-import-contract.test.ts && node scripts/public-share-surface-honesty-contract.test.mjs && node scripts/docker-container-readiness-contract.test.mjs && node scripts/publish-runtime-truth-contract.test.mjs && node scripts/code-header-publish-ide-experience-contract.test.mjs && node scripts/release/release-build-paths-contract.test.mjs && node scripts/birdcoder-iam-workspace-path-contract.test.mjs && node scripts/federated-pc-server-contract-runner-contract.test.mjs && node scripts/birdcoder-app-shell-componentization-contract.test.mjs && node scripts/app-sdk-surface-boundary-contract.test.mjs && node scripts/pc-architecture-layout-contract.test.mjs && node scripts/database-baseline-engine-parity-contract.test.mjs && node scripts/database-drift-policy-contract.test.mjs && node scripts/repository-soft-delete-dialect-contract.test.mjs',
-    filePath: path.join(rootDir, 'scripts', 'check-arch-boundaries.mjs'),
-    exportedFunctionPattern: /export function runArchitectureBoundaryCheck\(/,
-    launchPattern: /void runArchitectureBoundaryCheckCli\(\)/,
-  },
-  {
-    scriptName: 'check:sdkwork-birdcoder-structure',
-    command: 'node scripts/check-sdkwork-birdcoder-structure.mjs',
-    filePath: path.join(rootDir, 'scripts', 'check-sdkwork-birdcoder-structure.mjs'),
-    exportedFunctionPattern: /export function runSdkworkBirdcoderStructureCheck\(/,
-    launchPattern: /void runSdkworkBirdcoderStructureCheckCli\(\)/,
-  },
-  {
-    scriptName: 'models:generate:rust-host-engine-catalog',
-    command: 'node --experimental-strip-types scripts/generate-rust-host-engine-catalog.ts',
-    filePath: path.join(rootDir, 'scripts', 'generate-rust-host-engine-catalog.ts'),
-    exportedFunctionPattern: /export function generateRustHostEngineCatalog\(/,
-    launchPattern: /void generateRustHostEngineCatalogCli\(\)/,
-  },
-  {
-    scriptName: 'typecheck',
-    command: 'node scripts/run-local-typescript.mjs --noEmit',
-    filePath: path.join(rootDir, 'scripts', 'run-local-typescript.mjs'),
-    exportedFunctionPattern: /export function createLocalTypescriptPlan\(/,
-    launchPattern: /runLocalTypescriptCli\(\)\.catch\(/,
-  },
-  {
-    scriptName: 'check:workspace-package-script-runner',
-    command: 'node scripts/workspace-package-script-runner-contract.test.mjs',
-    filePath: path.join(rootDir, 'scripts', 'workspace-package-script-runner-contract.test.mjs'),
-    exportedFunctionPattern: /export function runWorkspacePackageScriptRunnerContract\(/,
-    launchPattern: /void runWorkspacePackageScriptRunnerContractCli\(\)\.catch\(/,
-  },
-  {
-    scriptName: 'check:tauri-dev-binary-unlock',
-    command: 'node scripts/run-tauri-dev-binary-unlock-check.mjs',
-    filePath: path.join(rootDir, 'scripts', 'run-tauri-dev-binary-unlock-check.mjs'),
-    exportedFunctionPattern: /export function runTauriDevBinaryUnlockCheck\(/,
-    launchPattern: /process\.exit\(runTauriDevBinaryUnlockCheck\(\)\)/,
-  },
-  {
-    scriptName: 'lint',
-    command: 'node scripts/run-quality-fast-check.mjs',
-    filePath: path.join(rootDir, 'scripts', 'run-quality-fast-check.mjs'),
-    exportedFunctionPattern: /export function runQualityFastCheck\(/,
-    launchPattern: /process\.exit\(runQualityFastCheck\(\)\)/,
-  },
-  {
-    scriptName: 'check:quality:standard',
-    command: 'node scripts/run-quality-standard-check.mjs',
-    filePath: path.join(rootDir, 'scripts', 'run-quality-standard-check.mjs'),
-    exportedFunctionPattern: /export function runQualityStandardCheck\(/,
-    launchPattern: /process\.exit\(runQualityStandardCheck\(\)\)/,
-  },
-  {
-    scriptName: 'check:quality:release',
-    command: 'node scripts/run-quality-release-check.mjs',
-    filePath: path.join(rootDir, 'scripts', 'run-quality-release-check.mjs'),
-    exportedFunctionPattern: /export function runQualityReleaseCheck\(/,
-    launchPattern: /process\.exit\(runQualityReleaseCheck\(\)\)/,
-  },
-];
+for (const scriptName of [
+  'build',
+  'dev',
+  'lint',
+  'typecheck',
+  'check:arch',
+  'check:domain-ownership',
+  'check:agents-birdcoder-alignment',
+  'check:kernel-birdcoder-alignment',
+  'check:api-transport-standard',
+  'check:local-business-storage-boundary',
+  'check:server',
+  'db:validate',
+  'docs:build',
+]) {
+  assert.equal(typeof scripts[scriptName], 'string', `package.json must declare ${scriptName}.`);
+}
 
-for (const contract of entrypointContracts) {
-  const source = fs.readFileSync(contract.filePath, 'utf8');
-
-  assert.equal(
-    rootPackageJson.scripts[contract.scriptName],
-    contract.command,
-    `${contract.scriptName} must keep its governed package.json command binding.`,
-  );
+const architectureCommand = scripts['check:arch'];
+for (const requiredEntrypoint of [
+  'scripts/domain-ownership-contract.test.mjs',
+  'scripts/agents-birdcoder-alignment-contract.test.mjs',
+  'scripts/kernel-birdcoder-alignment-contract.test.mjs',
+  'scripts/app-sdk-surface-boundary-contract.test.mjs',
+  'scripts/pc-local-business-storage-boundary-contract.test.mjs',
+  'scripts/database-baseline-engine-parity-contract.test.mjs',
+]) {
   assert.match(
-    source,
-    contract.exportedFunctionPattern,
-    `${path.basename(contract.filePath)} must expose an explicit callable function instead of executing purely at import time.`,
+    architectureCommand,
+    new RegExp(requiredEntrypoint.replace(/[.*+?^${}()|[\]\\]/gu, '\\$&')),
+    `check:arch must include ${requiredEntrypoint}.`,
   );
-  assert.match(
-    source,
-    /pathToFileURL\(process\.argv\[1\]\)\.href/,
-    `${path.basename(contract.filePath)} must gate CLI execution behind a direct-entry check.`,
-  );
-  assert.match(
-    source,
-    contract.launchPattern,
-    `${path.basename(contract.filePath)} must launch its CLI path without coupling execution to module import.`,
+}
+
+const nodeScriptPattern = /(?:^|\s)((?:\.\.\/)*scripts\/[A-Za-z0-9_./-]+\.(?:cjs|js|mjs|py|ts|tsx))/gu;
+const internalPnpmScriptPattern = /\bpnpm\s+(?:run\s+)?([a-z][A-Za-z0-9:_-]*)/gu;
+const workspaceRootScriptPattern = /run-workspace-package-script\.mjs\s+\.\s+([^\s]+)/gu;
+
+for (const [scriptName, command] of Object.entries(scripts)) {
+  for (const match of String(command).matchAll(nodeScriptPattern)) {
+    const absolutePath = path.resolve(root, match[1]);
+    assert.equal(
+      fs.existsSync(absolutePath),
+      true,
+      `${scriptName} references a missing script entrypoint: ${match[1]}.`,
+    );
+  }
+
+  for (const match of String(command).matchAll(internalPnpmScriptPattern)) {
+    const referencedScript = match[1];
+    if (referencedScript === 'exec' || referencedScript === 'install') continue;
+    assert.equal(
+      typeof scripts[referencedScript],
+      'string',
+      `${scriptName} references an undefined root pnpm script: ${referencedScript}.`,
+    );
+  }
+
+  for (const match of String(command).matchAll(workspaceRootScriptPattern)) {
+    assert.equal(
+      typeof scripts[match[1]],
+      'string',
+      `${scriptName} dispatches to an undefined root script: ${match[1]}.`,
+    );
+  }
+}
+
+const serializedScripts = JSON.stringify(scripts);
+for (const retiredToken of [
+  'birdcoder-pc-codeengine',
+  'birdcoder-pc-projection',
+  'birdcoder-chat-contracts',
+  'birdcoder-pc-server',
+  'check:data-kernel',
+]) {
+  assert.doesNotMatch(
+    serializedScripts,
+    new RegExp(retiredToken.replace(/[.*+?^${}()|[\]\\]/gu, '\\$&'), 'u'),
+    `Root scripts must not restore retired authority or command token ${retiredToken}.`,
   );
 }
 

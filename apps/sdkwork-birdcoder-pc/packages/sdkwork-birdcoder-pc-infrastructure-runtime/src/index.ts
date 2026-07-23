@@ -3,10 +3,14 @@ export { openLocalFolder } from '@sdkwork/birdcoder-pc-infrastructure/platform/o
 export {
   bindDefaultBirdCoderIdeServicesRuntime,
   configureDefaultBirdCoderIdeServicesRuntime,
+  createBirdCoderDependencyAppSdkClients,
   getDefaultBirdCoderIdeServicesRuntimeConfig,
+  loadDefaultBirdCoderIdeService,
   resetDefaultBirdCoderIdeServicesRuntimeForTests,
-} from '@sdkwork/birdcoder-pc-infrastructure/services/defaultIdeServicesRuntime';
-export { loadDefaultBirdCoderIdeService } from '@sdkwork/birdcoder-pc-infrastructure/services/lazyDefaultIdeServices';
+  type BindDefaultBirdCoderIdeServicesRuntimeOptions,
+  type BirdCoderDefaultIdeServicesRuntimeConfig,
+  type BirdCoderDependencyAppSdkClients,
+} from './defaultIdeServices.ts';
 
 export {
   bootstrapBirdCoderMembershipSdk,
@@ -19,29 +23,29 @@ export {
 } from '@sdkwork/birdcoder-pc-infrastructure/services/driveSandboxExplorerRuntime';
 export type { BirdCoderDriveSandboxExplorerRuntimeOptions } from '@sdkwork/birdcoder-pc-infrastructure/services/driveSandboxExplorerRuntime';
 
-export {
-  canSubscribeBirdCoderWorkspaceRealtime,
-  resolveBirdCoderRealtimeTransportOrder,
-  resolveBirdCoderWorkspaceRealtimeUrl,
-  subscribeBirdCoderWorkspaceRealtime,
-} from '@sdkwork/birdcoder-pc-infrastructure/services/workspaceRealtimeClient';
-export type {
-  BirdCoderRealtimeAgentCapabilities,
-  BirdCoderRealtimeTransport,
-  BirdCoderWorkspaceRealtimeSubscription,
-  SubscribeBirdCoderWorkspaceRealtimeOptions,
-} from '@sdkwork/birdcoder-pc-infrastructure/services/workspaceRealtimeClient';
-
 export type {
   BirdCoderAppSdkApiClient,
-  BirdCoderBackendSdkApiClient,
-} from '@sdkwork/birdcoder-pc-infrastructure/services/sdkClients';
+} from '@sdkwork/birdcoder-pc-infrastructure/services/birdCoderSdkClient';
+
+export {
+  BIRDCODER_PLATFORM_DEV_PROXY_PATH,
+  normalizeBirdCoderSdkBaseUrl,
+  readBirdCoderRuntimeEnv,
+  resolveBirdCoderApplicationSdkBaseUrl,
+  resolveBirdCoderDependencySdkBaseUrl,
+  resolveBirdCoderPlatformSdkBaseUrl,
+} from '@sdkwork/birdcoder-pc-infrastructure/services/sdkBaseUrls';
+
+export {
+  resolveBirdCoderRuntimeTopology,
+  type BirdCoderDeploymentProfile,
+  type BirdCoderExecutionLocation,
+  type BirdCoderRuntimeTarget,
+  type BirdCoderRuntimeTopology,
+} from '@sdkwork/birdcoder-pc-infrastructure/services/runtimeTopology';
 
 export type {
-  BirdCoderDeploymentProfile,
-  BirdCoderExecutionLocation,
-  BirdCoderRuntimeTarget,
-  BirdCoderRuntimeTopology,
+  ResolveBirdCoderRuntimeTopologyOptions,
 } from '@sdkwork/birdcoder-pc-infrastructure/services/runtimeTopology';
 
 export type {
@@ -59,11 +63,14 @@ export type {
 } from '@sdkwork/birdcoder-pc-infrastructure/services/interfaces/IVipMembershipService';
 
 export type { IAuthService } from '@sdkwork/birdcoder-pc-infrastructure/services/interfaces/IAuthService';
-export type { IAppRuntimeReadService } from '@sdkwork/birdcoder-pc-infrastructure/services/interfaces/IAppRuntimeReadService';
-export type { IAppRuntimeWriteService } from '@sdkwork/birdcoder-pc-infrastructure/services/interfaces/IAppRuntimeWriteService';
+export type {
+  AgentInteractionClaim,
+  AgentSessionPageRequest,
+  CreateAgentSessionInput,
+  IAgentSessionService,
+  SubmitAgentTurnInput,
+} from '@sdkwork/birdcoder-pc-infrastructure/services/interfaces/IAgentSessionService';
 export type { ICatalogService } from '@sdkwork/birdcoder-pc-infrastructure/services/interfaces/ICatalogService';
-export type { ICollaborationService } from '@sdkwork/birdcoder-pc-infrastructure/services/interfaces/ICollaborationService';
-export type { IDeploymentService } from '@sdkwork/birdcoder-pc-infrastructure/services/interfaces/IDeploymentService';
 export type { IDocumentService, DocumentListOptions } from '@sdkwork/birdcoder-pc-infrastructure/services/interfaces/IDocumentService';
 export type { IFileSystemService } from '@sdkwork/birdcoder-pc-infrastructure/services/interfaces/IFileSystemService';
 export type {
@@ -83,6 +90,4 @@ export {
 export type { IGitService } from '@sdkwork/birdcoder-pc-infrastructure/services/interfaces/IGitService';
 export type { IPromptService } from '@sdkwork/birdcoder-pc-infrastructure/services/interfaces/IPromptService';
 export type { IProjectService } from '@sdkwork/birdcoder-pc-infrastructure/services/interfaces/IProjectService';
-export type { IReleaseService } from '@sdkwork/birdcoder-pc-infrastructure/services/interfaces/IReleaseService';
-export type { ITeamService } from '@sdkwork/birdcoder-pc-infrastructure/services/interfaces/ITeamService';
 export type { IWorkspaceService } from '@sdkwork/birdcoder-pc-infrastructure/services/interfaces/IWorkspaceService';

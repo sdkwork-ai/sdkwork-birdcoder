@@ -1,13 +1,13 @@
-import type { BirdCoderGitWorktreeSummary } from '@sdkwork/birdcoder-pc-contracts-commons';
+import type { WorkbenchGitWorktreeView } from '@sdkwork/birdcoder-pc-contracts-commons';
 
 export function getProjectGitWorktreeKey(
-  worktree: BirdCoderGitWorktreeSummary | null | undefined,
+  worktree: WorkbenchGitWorktreeView | null | undefined,
 ): string {
   return worktree?.worktreeKey?.trim() ?? '';
 }
 
 export function getProjectGitWorktreeDisplayName(
-  worktree: BirdCoderGitWorktreeSummary | null | undefined,
+  worktree: WorkbenchGitWorktreeView | null | undefined,
 ): string {
   return (
     worktree?.branch?.trim()
@@ -18,13 +18,13 @@ export function getProjectGitWorktreeDisplayName(
 }
 
 export function isProjectGitWorktreePrunable(
-  worktree: BirdCoderGitWorktreeSummary | null | undefined,
+  worktree: WorkbenchGitWorktreeView | null | undefined,
 ): boolean {
   return Boolean(worktree?.prunableReason?.trim());
 }
 
 export function isProjectGitWorktreeRemovable(
-  worktree: BirdCoderGitWorktreeSummary,
+  worktree: WorkbenchGitWorktreeView,
 ): boolean {
   return !worktree.isCurrent && Boolean(getProjectGitWorktreeKey(worktree));
 }

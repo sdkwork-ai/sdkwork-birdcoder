@@ -1,6 +1,8 @@
 {
-  "apiBaseUrl": "https://api.sdkwork.com/apps/sdkwork-birdcoder",
+  "VITE_SDKWORK_BIRDCODER_APPLICATION_PUBLIC_HTTP_URL": "https://birdcoder.sdkwork.com",
+  "VITE_SDKWORK_BIRDCODER_PLATFORM_API_GATEWAY_HTTP_URL": "https://api.sdkwork.com",
   "appVersion": "0.1.0",
-  "deploymentMode": "saas",
-  "environment": "production"
+  "deploymentProfile": "cloud",
+  "environment": "production",
+  "runtimeTarget": "browser"
 }

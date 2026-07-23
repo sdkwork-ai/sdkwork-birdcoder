@@ -5,9 +5,6 @@
       "@/*": [
         "./src/*"
       ],
-      "@sdkwork/birdcoder-codeengine/*": [
-        "./packages/sdkwork-birdcoder-codeengine/src/*"
-      ],
       "@sdkwork/birdcoder-host-core": [
         "./packages/sdkwork-birdcoder-host-core/src/index.ts"
       ],
@@ -15,10 +12,7 @@
         "./packages/sdkwork-birdcoder-host-studio/src/index.ts"
       ],
       "@sdkwork/birdcoder-app-sdk": [
-        "./sdks/sdkwork-birdcoder-app-sdk/sdkwork-birdcoder-app-sdk-typescript/src/index.ts"
-      ],
-      "@sdkwork/birdcoder-backend-sdk": [
-        "./sdks/sdkwork-birdcoder-backend-sdk/sdkwork-birdcoder-backend-sdk-typescript/src/index.ts"
+        "../../sdks/sdkwork-birdcoder-app-sdk/sdkwork-birdcoder-app-sdk-typescript/src/index.ts"
       ],
       "@sdkwork/iam-app-sdk": [
         "../../../sdkwork-iam/sdks/sdkwork-iam-app-sdk/sdkwork-iam-app-sdk-typescript/src/index.ts"

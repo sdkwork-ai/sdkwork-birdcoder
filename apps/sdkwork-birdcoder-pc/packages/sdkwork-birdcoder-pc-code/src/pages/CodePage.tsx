@@ -1,13 +1,13 @@
 import { memo, startTransition, useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { buildProjectCodingSessionIndex } from '@sdkwork/birdcoder-pc-workbench/workbench/codingSessionSelection';
+import { buildProjectAgentSessionIndex } from '@sdkwork/birdcoder-pc-workbench/workbench/agentSessionSelection';
 import {
-  buildWorkbenchCodingSessionTurnContext,
-  ensureWorkbenchCodingSessionForMessage,
-  regenerateWorkbenchCodingSessionFromLastUserMessage,
-  restoreWorkbenchCodingSessionMessageFiles,
-  type CreateCodingSessionActionOptions,
-  type CreateNewCodingSessionRequest,
-} from '@sdkwork/birdcoder-pc-workbench/workbench/codingSessionCreation';
+  buildWorkbenchAgentSessionTurnContext,
+  ensureWorkbenchAgentSessionForMessage,
+  regenerateWorkbenchAgentSessionFromLastUserMessage,
+  restoreWorkbenchAgentSessionItemFiles,
+  type CreateAgentSessionActionOptions,
+  type CreateNewAgentSessionRequest,
+} from '@sdkwork/birdcoder-pc-workbench/workbench/agentSessionCreation';
 import { createIdleProjectMountRecoveryState } from '@sdkwork/birdcoder-pc-workbench/workbench/projectMountRecovery';
 import { hydrateImportedProjectFromAuthority } from '@sdkwork/birdcoder-pc-workbench/workbench/importedProjectHydration';
 import { rebindLocalFolderProject } from '@sdkwork/birdcoder-pc-workbench/workbench/localFolderProjectImport';
@@ -16,25 +16,25 @@ import { emitRevealProjectInFileManager } from '@sdkwork/birdcoder-pc-workbench/
 import { emitProjectMountRecoveryState } from '@sdkwork/birdcoder-pc-workbench/events/projectMountRecoveryEvents';
 import { globalEventBus } from '@sdkwork/birdcoder-pc-workbench/utils/EventBus';
 import type { TerminalCommandRequest } from '@sdkwork/birdcoder-pc-workbench/terminal/runtime';
-import { useCodingSessionActions } from '@sdkwork/birdcoder-pc-workbench/hooks/useCodingSessionActions';
-import { useCodingSessionEngineModelSelection } from '@sdkwork/birdcoder-pc-workbench/hooks/useCodingSessionEngineModelSelection';
+import { useAgentSessionActions } from '@sdkwork/birdcoder-pc-workbench/hooks/useAgentSessionActions';
+import { useAgentSessionEngineModelSelection } from '@sdkwork/birdcoder-pc-workbench/hooks/useAgentSessionEngineModelSelection';
 import { useFileSystem } from '@sdkwork/birdcoder-pc-workbench/hooks/useFileSystem';
 import { useIDEServices } from '@sdkwork/birdcoder-pc-workbench/context/IDEContext';
 import { useProjectLocalWorkingDirectory } from '@sdkwork/birdcoder-pc-workbench/hooks/useProjectLocalWorkingDirectory';
 import { useProjectRuntimeLocation } from '@sdkwork/birdcoder-pc-workbench/hooks/useProjectRuntimeLocation';
 import { useProjectGitOverview } from '@sdkwork/birdcoder-pc-workbench/hooks/useProjectGitOverview';
 import { useProjects } from '@sdkwork/birdcoder-pc-workbench/hooks/useProjects';
-import { useSelectedCodingSessionMessages } from '@sdkwork/birdcoder-pc-workbench/hooks/useSelectedCodingSessionMessages';
+import { useSelectedAgentSessionItems } from '@sdkwork/birdcoder-pc-workbench/hooks/useSelectedAgentSessionItems';
 import { useSessionRefreshActions } from '@sdkwork/birdcoder-pc-workbench/hooks/useSessionRefreshActions';
-import { useWorkbenchCodingSessionMessageEditAction } from '@sdkwork/birdcoder-pc-workbench/hooks/useWorkbenchCodingSessionMessageEditAction';
-import { useWorkbenchCodingSessionCreationActions } from '@sdkwork/birdcoder-pc-workbench/hooks/useWorkbenchCodingSessionCreationActions';
+import { useWorkbenchAgentSessionItemEditAction } from '@sdkwork/birdcoder-pc-workbench/hooks/useWorkbenchAgentSessionItemEditAction';
+import { useWorkbenchAgentSessionCreationActions } from '@sdkwork/birdcoder-pc-workbench/hooks/useWorkbenchAgentSessionCreationActions';
 import { useWorkbenchChatSelection } from '@sdkwork/birdcoder-pc-workbench/hooks/useWorkbenchChatSelection';
 import { useWorkbenchPreferences } from '@sdkwork/birdcoder-pc-workbench/hooks/useWorkbenchPreferences';
 import { useAuth } from '@sdkwork/birdcoder-pc-workbench/context/AuthContext';
 import { useToast } from '@sdkwork/birdcoder-pc-workbench/contexts/ToastProvider';
 import {
-  isBirdCoderCodingSessionEngineBusy,
-  isBirdCoderCodingSessionExecuting,
+  isAgentSessionViewEngineBusy,
+  isAgentSessionViewExecuting,
   type FileChange,
 } from '@sdkwork/birdcoder-pc-contracts-commons';
 import { useTranslation } from 'react-i18next';
@@ -50,7 +50,7 @@ import { useCodeDeleteConfirmation } from './useCodeDeleteConfirmation';
 import { useCodeEditorChatLayout } from './useCodeEditorChatLayout';
 import { useCodeEffectiveWorkspaceId } from './useCodeEffectiveWorkspaceId';
 import { useCodeServerDirectoryProjectImport } from './useCodeServerDirectoryProjectImport';
-import { useCodeNewCodingSessionRequestState } from './useCodeNewCodingSessionRequestState';
+import { useCodeNewAgentSessionRequestState } from './useCodeNewAgentSessionRequestState';
 import { useCodePageSessionSelection } from './useCodePageSessionSelection';
 import { useCodePageSurfaceProps } from './useCodePageSurfaceProps';
 import { useCodeRunEntryActions } from './useCodeRunEntryActions';
@@ -61,9 +61,9 @@ function CodePageComponent({
   isVisible = true,
   workspaceId,
   projectId,
-  initialCodingSessionId,
+  initialAgentSessionId,
   onProjectChange,
-  onCodingSessionChange,
+  onAgentSessionChange,
 }: CodePageProps) {
   const { t } = useTranslation();
   const { createWorkspace, effectiveWorkspaceId, refreshWorkspaces } = useCodeEffectiveWorkspaceId({
@@ -79,17 +79,17 @@ function CodePageComponent({
     searchQuery,
     setSearchQuery,
     createProject,
-    createCodingSession,
+    createAgentSession,
     renameProject,
     updateProject,
     deleteProject,
-    renameCodingSession,
-    updateCodingSession,
-    deleteCodingSession,
-    editCodingSessionMessage,
-    deleteCodingSessionMessage,
+    renameAgentSession,
+    updateAgentSession,
+    deleteAgentSession,
+    editAgentSessionItem,
+    deleteAgentSessionItem,
     sendMessage,
-    forkCodingSession,
+    forkAgentSession,
     loadMoreProjects,
     loadMoreProjectSessions,
   } = useProjects(effectiveWorkspaceId, {
@@ -97,7 +97,7 @@ function CodePageComponent({
     targetProjectId: projectId,
   });
   const {
-    appRuntimeReadService,
+    agentSessionService,
     projectRuntimeLocationService,
     projectService,
   } = useIDEServices();
@@ -108,11 +108,11 @@ function CodePageComponent({
   const { addToast } = useToast();
   const { preferences, updatePreferences } = useWorkbenchPreferences();
   const {
-    beginPendingNewCodingSessionRequest,
-    clearPendingNewCodingSessionRequest,
-    isNewCodingSessionCreating,
-    pendingNewCodingSessionRequestRef,
-  } = useCodeNewCodingSessionRequestState();
+    beginPendingNewAgentSessionRequest,
+    clearPendingNewAgentSessionRequest,
+    isNewAgentSessionCreating,
+    pendingNewAgentSessionRequestRef,
+  } = useCodeNewAgentSessionRequestState();
   const [isSubmittingTurn, setIsSubmittingTurn] = useState(false);
   const [activeTab, setActiveTab] = useState<'ai' | 'editor' | 'mobile'>('ai');
   const handleActiveTabChange = useCallback((tab: 'ai' | 'editor' | 'mobile') => {
@@ -155,22 +155,22 @@ function CodePageComponent({
     initialChatWidth: preferences.codeEditorChatWidth,
     updatePreferences,
   });
-  const projectCodingSessionIndex = useMemo(
-    () => buildProjectCodingSessionIndex(projects),
+  const projectAgentSessionIndex = useMemo(
+    () => buildProjectAgentSessionIndex(projects),
     [projects],
   );
   const {
     currentProject,
     currentProjectId,
     handleProjectSelect,
-    handleSidebarCodingSessionSelect,
-    latestCodingSessionIdByProjectId,
+    handleSidebarAgentSessionSelect,
+    latestAgentSessionIdByProjectId,
     resolveProjectById,
     resolveSession,
     resolveSessionInProject,
     restoreSelectionAfterRefresh,
-    selectedCodingSessionLocation,
-    selectProjectWithoutCodingSession,
+    selectedAgentSessionLocation,
+    selectProjectWithoutAgentSession,
     selectSession,
     selectionRefreshToken,
     sessionId,
@@ -178,66 +178,36 @@ function CodePageComponent({
     setSelectedSessionProjectId,
     setSelectionRefreshToken,
   } = useCodePageSessionSelection({
-    clearPendingNewCodingSessionRequest,
+    clearPendingNewAgentSessionRequest,
     hasFetchedProjects,
-    initialCodingSessionId,
+    initialAgentSessionId,
     isVisible,
-    onCodingSessionChange,
+    onAgentSessionChange,
     onProjectChange,
-    projectCodingSessionIndex,
+    projectAgentSessionIndex,
     projectId,
   });
   const resolveSessionActionLocation = useCallback((
-    codingSessionId: string,
+    agentSessionId: string,
     projectId?: string | null,
   ) => {
     const scopedProjectId = projectId?.trim() || currentProjectId;
     return scopedProjectId
-      ? resolveSessionInProject(codingSessionId, scopedProjectId)
-      : resolveSession(codingSessionId);
+      ? resolveSessionInProject(agentSessionId, scopedProjectId)
+      : resolveSession(agentSessionId);
   }, [currentProjectId, resolveSession, resolveSessionInProject]);
-  const resolveCodingSessionNativeSessionId = useCallback(async (
-    codingSessionId: string,
-    projectId?: string | null,
-  ) => {
-    const resolvedSessionLocation = resolveSessionActionLocation(
-      codingSessionId,
-      projectId,
-    );
-    const local = resolvedSessionLocation?.codingSession.nativeSessionId?.trim();
-    if (local) {
-      return local;
-    }
-
-    const expectedProjectId = resolvedSessionLocation?.project.id?.trim() || projectId?.trim() || '';
-    const expectedEngineId = resolvedSessionLocation?.codingSession.engineId?.trim() ?? '';
-    return appRuntimeReadService.getCodingSession(codingSessionId)
-      .then((session) => {
-        if (expectedProjectId && session.projectId?.trim() !== expectedProjectId) {
-          return null;
-        }
-        if (expectedEngineId && session.engineId?.trim() !== expectedEngineId) {
-          return null;
-        }
-        return session.nativeSessionId?.trim() || null;
-      })
-      .catch(() => null);
-  }, [
-    appRuntimeReadService,
-    resolveSessionActionLocation,
-  ]);
   const projectGitOverviewState = useProjectGitOverview({
     projectId: currentProject?.id,
   });
-  const session = selectedCodingSessionLocation?.codingSession;
+  const session = selectedAgentSessionLocation?.agentSession;
   const {
-    createCodingSessionWithSelection,
+    createAgentSessionWithSelection,
     selectedEngineId,
     selectedModelId,
     setSelectedEngineId,
     setSelectedModelId,
   } = useWorkbenchChatSelection({
-    createCodingSession,
+    createAgentSession,
     preferences,
     updatePreferences,
     currentSessionEngineId: session?.engineId,
@@ -257,42 +227,42 @@ function CodePageComponent({
       setIsProjectGitOverviewDrawerOpen(false);
     }
   }, [activeTab, currentProjectId]);
-  const isSelectedSessionTurnActive = isBirdCoderCodingSessionExecuting(session);
-  const isSelectedSessionEngineBusy = isBirdCoderCodingSessionEngineBusy(session);
-  const isChatBusy = isSubmittingTurn || isSelectedSessionTurnActive || isNewCodingSessionCreating;
-  const isChatEngineBusy = isSubmittingTurn || isSelectedSessionEngineBusy || isNewCodingSessionCreating;
+  const isSelectedSessionTurnActive = isAgentSessionViewExecuting(session);
+  const isSelectedSessionEngineBusy = isAgentSessionViewEngineBusy(session);
+  const isChatBusy = isSubmittingTurn || isSelectedSessionTurnActive || isNewAgentSessionCreating;
+  const isChatEngineBusy = isSubmittingTurn || isSelectedSessionEngineBusy || isNewAgentSessionCreating;
   const {
-    createCodingSessionFromRequest,
-  } = useWorkbenchCodingSessionCreationActions({
+    createAgentSessionFromRequest,
+  } = useWorkbenchAgentSessionCreationActions({
     addToast,
-    createCodingSessionWithSelection,
+    createAgentSessionWithSelection,
     currentProjectId,
-    selectCodingSession: selectSession,
+    selectAgentSession: selectSession,
     labels: {
       creationFailed: t('code.failedToCreateSession'),
       creationSucceeded: t('code.newSessionCreated'),
       noProjectSelected: t('code.selectProjectFirst'),
     },
   });
-  const createCodingSessionWithTranscriptReset = useCallback(async (
-    request: CreateNewCodingSessionRequest,
-    actionOptions?: CreateCodingSessionActionOptions,
+  const createAgentSessionWithTranscriptReset = useCallback(async (
+    request: CreateNewAgentSessionRequest,
+    actionOptions?: CreateAgentSessionActionOptions,
   ) => {
     const normalizedProjectId = request.projectId?.trim() || currentProjectId.trim();
     if (!normalizedProjectId) {
-      return createCodingSessionFromRequest(request);
+      return createAgentSessionFromRequest(request);
     }
 
-    const pendingRequest = beginPendingNewCodingSessionRequest(normalizedProjectId);
+    const pendingRequest = beginPendingNewAgentSessionRequest(normalizedProjectId);
 
     try {
-      return await createCodingSessionFromRequest({
+      return await createAgentSessionFromRequest({
         ...request,
         projectId: normalizedProjectId,
       }, {
         ...actionOptions,
         shouldSelectCreatedSession: (newSession, selectionContext) => {
-          const activePendingRequest = pendingNewCodingSessionRequestRef.current;
+          const activePendingRequest = pendingNewAgentSessionRequestRef.current;
           const isPendingRequestActive = (
             activePendingRequest?.requestId === pendingRequest.requestId &&
             activePendingRequest.projectId === selectionContext.projectId
@@ -303,27 +273,27 @@ function CodePageComponent({
         },
       });
     } finally {
-      clearPendingNewCodingSessionRequest(pendingRequest.requestId);
+      clearPendingNewAgentSessionRequest(pendingRequest.requestId);
     }
   }, [
-    beginPendingNewCodingSessionRequest,
-    clearPendingNewCodingSessionRequest,
-    createCodingSessionFromRequest,
+    beginPendingNewAgentSessionRequest,
+    clearPendingNewAgentSessionRequest,
+    createAgentSessionFromRequest,
     currentProjectId,
-    pendingNewCodingSessionRequestRef,
+    pendingNewAgentSessionRequestRef,
   ]);
-  const createCodingSessionInProjectWithTranscriptReset = useCallback(async (
+  const createAgentSessionInProjectWithTranscriptReset = useCallback(async (
     projectId: string,
     requestedEngineId?: string,
     requestedModelId?: string,
   ) => {
-    await createCodingSessionWithTranscriptReset({
+    await createAgentSessionWithTranscriptReset({
       engineId: requestedEngineId,
       modelId: requestedModelId,
       projectId,
       source: 'code-sidebar',
     });
-  }, [createCodingSessionWithTranscriptReset]);
+  }, [createAgentSessionWithTranscriptReset]);
   const {
     runConfigurations,
     runConfigurationDraft,
@@ -341,13 +311,13 @@ function CodePageComponent({
     setIsRunTaskVisible,
     addToast,
   });
-  useCodingSessionActions(
+  useAgentSessionActions(
     currentProjectId,
-    createCodingSessionWithSelection,
+    createAgentSessionWithSelection,
     selectSession,
     {
       isActive: isVisible,
-      createCodingSessionFromRequest: createCodingSessionWithTranscriptReset,
+      createAgentSessionFromRequest: createAgentSessionWithTranscriptReset,
     },
   );
 
@@ -383,10 +353,10 @@ function CodePageComponent({
   useCodeWorkbenchCommands({
     isActive: isVisible,
     projects,
-    selectedCodingSessionId: sessionId,
+    selectedAgentSessionId: sessionId,
     selectedProjectId: currentProjectId || null,
     resolveProjectRuntimeLocation,
-    selectCodingSession: selectSession,
+    selectAgentSession: selectSession,
     setIsTerminalOpen,
     setTerminalRequest,
     setIsSidebarVisible,
@@ -459,14 +429,14 @@ function CodePageComponent({
   });
 
   const activateImportedProject = useCallback((projectId: string) => {
-    const latestCodingSessionId = latestCodingSessionIdByProjectId.get(projectId) ?? null;
-    if (latestCodingSessionId) {
-      selectSession(latestCodingSessionId, { projectId });
+    const latestAgentSessionId = latestAgentSessionIdByProjectId.get(projectId) ?? null;
+    if (latestAgentSessionId) {
+      selectSession(latestAgentSessionId, { projectId });
       return;
     }
 
-    selectProjectWithoutCodingSession(projectId);
-  }, [latestCodingSessionIdByProjectId, selectProjectWithoutCodingSession, selectSession]);
+    selectProjectWithoutAgentSession(projectId);
+  }, [latestAgentSessionIdByProjectId, selectProjectWithoutAgentSession, selectSession]);
 
   const syncImportedProjectInBackground = useCallback((projectId: string, workspaceId: string) => {
     const normalizedWorkspaceId = workspaceId.trim();
@@ -477,7 +447,7 @@ function CodePageComponent({
     void (async () => {
       try {
         const hydratedProject = await hydrateImportedProjectFromAuthority({
-          appRuntimeReadService,
+          agentSessionService,
           knownProjects: projects,
           projectId,
           projectService,
@@ -488,25 +458,25 @@ function CodePageComponent({
           return;
         }
 
-        const latestCodingSessionId = hydratedProject.latestCodingSessionId;
-        if (latestCodingSessionId) {
-          selectSession(latestCodingSessionId, { projectId });
+        const latestAgentSessionId = hydratedProject.latestAgentSessionId;
+        if (latestAgentSessionId) {
+          selectSession(latestAgentSessionId, { projectId });
         }
       } catch (error) {
         console.error('Failed to refresh imported project sessions', error);
       }
     })();
-  }, [appRuntimeReadService, projectService, projects, selectSession, user?.id]);
+  }, [agentSessionService, projectService, projects, selectSession, user?.id]);
   const {
-    handleRefreshCodingSessionMessages,
+    handleRefreshAgentSessionItems,
     handleRefreshProjectSessions,
-    refreshingCodingSessionId,
+    refreshingAgentSessionId,
     refreshingProjectId,
   } = useSessionRefreshActions({
     addToast,
-    appRuntimeReadService,
+    agentSessionService,
     getPreservedSelection: () => ({
-      codingSessionId: sessionId,
+      agentSessionId: sessionId,
       projectId: currentProjectId,
     }),
     messages: {
@@ -514,15 +484,15 @@ function CodePageComponent({
       failedToRefreshSessionMessages: t('code.failedToRefreshSessionMessages'),
       projectSessionsRefreshed: (projectName: string) =>
         t('code.projectSessionsRefreshed', { name: projectName }),
-      sessionMessagesRefreshed: (codingSessionTitle: string) =>
-        t('code.sessionMessagesRefreshed', { name: codingSessionTitle }),
+      sessionMessagesRefreshed: (agentSessionTitle: string) =>
+        t('code.sessionMessagesRefreshed', { name: agentSessionTitle }),
     },
     projectService,
-    resolveCodingSessionLocation: (codingSessionId: string, targetProjectId?: string | null) =>
-      resolveSessionActionLocation(codingSessionId, targetProjectId),
-    resolveCodingSessionTitle: (codingSessionId: string, targetProjectId?: string | null) =>
-      resolveSessionActionLocation(codingSessionId, targetProjectId)
-        ?.codingSession.title ?? codingSessionId,
+    resolveAgentSessionLocation: (agentSessionId: string, targetProjectId?: string | null) =>
+      resolveSessionActionLocation(agentSessionId, targetProjectId),
+    resolveAgentSessionTitle: (agentSessionId: string, targetProjectId?: string | null) =>
+      resolveSessionActionLocation(agentSessionId, targetProjectId)
+        ?.agentSession.title ?? agentSessionId,
     resolveProjectName: (targetProjectId: string) =>
       resolveProjectById(targetProjectId)?.name ?? targetProjectId,
     restoreSelectionAfterRefresh,
@@ -530,17 +500,17 @@ function CodePageComponent({
   });
 
   const handleRenameSession = useCallback(async (
-    codingSessionId: string,
+    agentSessionId: string,
     projectId: string,
     newName?: string,
   ) => {
     if (newName && newName.trim()) {
-      const project = resolveSessionActionLocation(codingSessionId, projectId)?.project;
+      const project = resolveSessionActionLocation(agentSessionId, projectId)?.project;
       if (project) {
-        await renameCodingSession(project.id, codingSessionId, newName.trim());
+        await renameAgentSession(project.id, agentSessionId, newName.trim());
       }
     }
-  }, [renameCodingSession, resolveSessionActionLocation]);
+  }, [renameAgentSession, resolveSessionActionLocation]);
 
   const handleRenameProject = useCallback(async (projectId: string, newName?: string) => {
     if (newName && newName.trim()) {
@@ -558,8 +528,8 @@ function CodePageComponent({
   } = useCodeDeleteConfirmation({
     addToast,
     currentProjectId,
-    deleteCodingSession,
-    deleteCodingSessionMessage,
+    deleteAgentSession,
+    deleteAgentSessionItem,
     deleteProject,
     onProjectChange,
     projectRemovedMessage: t('code.projectRemoved'),
@@ -572,10 +542,10 @@ function CodePageComponent({
   });
 
   const handleDeleteSession = useCallback(async (
-    codingSessionId: string,
+    agentSessionId: string,
     projectId: string,
   ) => {
-    requestDeleteSession(codingSessionId, projectId);
+    requestDeleteSession(agentSessionId, projectId);
   }, [requestDeleteSession]);
 
   const handleDeleteProject = useCallback(async (projectId: string) => {
@@ -723,18 +693,14 @@ function CodePageComponent({
 
   const {
     handleCopySessionId,
-    handleOpenCodingSessionInTerminal,
     handleOpenInTerminal,
-    handleCopySessionResumeCommand,
     handleTopBarTerminalVisibilityChange,
   } = useCodePageTerminalActions({
     addToast,
     currentProjectId,
-    resolveCodingSessionNativeSessionId,
     resolveProjectActionTarget,
     resolveProjectRuntimeLocation,
     resolveProjectById,
-    resolveSession: resolveSessionActionLocation,
     setIsTerminalOpen,
     setTerminalRequest,
     t,
@@ -750,76 +716,76 @@ function CodePageComponent({
   }, [resolveProjectById]);
 
   const handlePinSession = useCallback(async (
-    codingSessionId: string,
+    agentSessionId: string,
     projectId: string,
   ) => {
-    const resolvedSessionLocation = resolveSessionActionLocation(codingSessionId, projectId);
+    const resolvedSessionLocation = resolveSessionActionLocation(agentSessionId, projectId);
     const project = resolvedSessionLocation?.project;
     if (project) {
-      const codingSession = resolvedSessionLocation?.codingSession;
-      if (codingSession) {
-        await updateCodingSession(project.id, codingSessionId, { pinned: !codingSession.pinned });
+      const agentSession = resolvedSessionLocation?.agentSession;
+      if (agentSession) {
+        await updateAgentSession(project.id, agentSessionId, { pinned: !agentSession.pinned });
         addToast(
-          t(codingSession.pinned ? 'code.unpinnedSession' : 'code.pinnedSession', {
-            name: codingSession.title,
+          t(agentSession.pinned ? 'code.unpinnedSession' : 'code.pinnedSession', {
+            name: agentSession.title,
           }),
           'success',
         );
       }
     }
-  }, [addToast, resolveSessionActionLocation, t, updateCodingSession]);
+  }, [addToast, resolveSessionActionLocation, t, updateAgentSession]);
 
   const handleArchiveSession = useCallback(async (
-    codingSessionId: string,
+    agentSessionId: string,
     projectId: string,
   ) => {
-    const resolvedSessionLocation = resolveSessionActionLocation(codingSessionId, projectId);
+    const resolvedSessionLocation = resolveSessionActionLocation(agentSessionId, projectId);
     const project = resolvedSessionLocation?.project;
     if (project) {
-      const codingSession = resolvedSessionLocation?.codingSession;
-      if (!codingSession) {
+      const agentSession = resolvedSessionLocation?.agentSession;
+      if (!agentSession) {
         return;
       }
 
-      await updateCodingSession(project.id, codingSessionId, { archived: !codingSession.archived });
+      await updateAgentSession(project.id, agentSessionId, { archived: !agentSession.archived });
       addToast(
-        t(codingSession.archived ? 'code.unarchivedSession' : 'code.archivedSession', {
-          id: codingSessionId,
+        t(agentSession.archived ? 'code.unarchivedSession' : 'code.archivedSession', {
+          id: agentSessionId,
         }),
         'info',
       );
     }
-  }, [addToast, resolveSessionActionLocation, t, updateCodingSession]);
+  }, [addToast, resolveSessionActionLocation, t, updateAgentSession]);
 
   const handleMarkSessionUnread = useCallback(async (
-    codingSessionId: string,
+    agentSessionId: string,
     projectId: string,
   ) => {
-    const resolvedSessionLocation = resolveSessionActionLocation(codingSessionId, projectId);
+    const resolvedSessionLocation = resolveSessionActionLocation(agentSessionId, projectId);
     const project = resolvedSessionLocation?.project;
     if (project) {
-      const codingSession = resolvedSessionLocation?.codingSession;
-      if (codingSession) {
-        await updateCodingSession(project.id, codingSessionId, { unread: !codingSession.unread });
+      const agentSession = resolvedSessionLocation?.agentSession;
+      if (agentSession) {
+        await updateAgentSession(project.id, agentSessionId, { unread: !agentSession.unread });
         addToast(
-          t(codingSession.unread ? 'code.markedAsRead' : 'code.markedAsUnread', {
-            name: codingSession.title,
+          t(agentSession.unread ? 'code.markedAsRead' : 'code.markedAsUnread', {
+            name: agentSession.title,
           }),
           'info',
         );
       }
     }
-  }, [addToast, resolveSessionActionLocation, t, updateCodingSession]);
+  }, [addToast, resolveSessionActionLocation, t, updateAgentSession]);
 
   const handleForkSessionLocal = useCallback(async (
-    codingSessionId: string,
+    agentSessionId: string,
     projectId: string,
   ) => {
-    const resolvedSessionLocation = resolveSessionActionLocation(codingSessionId, projectId);
+    const resolvedSessionLocation = resolveSessionActionLocation(agentSessionId, projectId);
     const project = resolvedSessionLocation?.project;
     if (project) {
       try {
-        const newSession = await forkCodingSession(project.id, codingSessionId);
+        const newSession = await forkAgentSession(project.id, agentSessionId);
         selectSession(newSession.id, { projectId: project.id });
         addToast(
           t('code.forkedToLocal', {
@@ -831,20 +797,20 @@ function CodePageComponent({
         addToast(t('code.failedToForkSession'), 'error');
       }
     }
-  }, [addToast, forkCodingSession, resolveSessionActionLocation, selectSession, t]);
+  }, [addToast, forkAgentSession, resolveSessionActionLocation, selectSession, t]);
 
   const handleForkSessionNewTree = useCallback(async (
-    codingSessionId: string,
+    agentSessionId: string,
     projectId: string,
   ) => {
-    const resolvedSessionLocation = resolveSessionActionLocation(codingSessionId, projectId);
+    const resolvedSessionLocation = resolveSessionActionLocation(agentSessionId, projectId);
     const project = resolvedSessionLocation?.project;
     if (project) {
       try {
-        const newSession = await forkCodingSession(
+        const newSession = await forkAgentSession(
           project.id,
-          codingSessionId,
-          `${resolvedSessionLocation?.codingSession.title} (New Tree)`,
+          agentSessionId,
+          `${resolvedSessionLocation?.agentSession.title} (New Tree)`,
         );
         selectSession(newSession.id, { projectId: project.id });
         addToast(
@@ -857,54 +823,54 @@ function CodePageComponent({
         addToast(t('code.failedToForkSession'), 'error');
       }
     }
-  }, [addToast, forkCodingSession, resolveSessionActionLocation, selectSession, t]);
+  }, [addToast, forkAgentSession, resolveSessionActionLocation, selectSession, t]);
 
-  const handleEditMessage = useWorkbenchCodingSessionMessageEditAction({
-    editCodingSessionMessage,
-    resolveCodingSessionLocation: (codingSessionId: string) =>
-      resolveSessionActionLocation(codingSessionId, currentProjectId),
+  const handleEditMessage = useWorkbenchAgentSessionItemEditAction({
+    editAgentSessionItem,
+    resolveAgentSessionLocation: (agentSessionId: string) =>
+      resolveSessionActionLocation(agentSessionId, currentProjectId),
     sessionUnavailableMessage: t('chat.sendMessageSessionUnavailable'),
     setSelectionRefreshToken,
   });
 
   const handleDeleteMessage = useCallback(async (
-    codingSessionId: string,
+    agentSessionId: string,
     projectId: string,
     messageIds: string[],
   ) => {
-    requestDeleteMessage(codingSessionId, projectId, messageIds);
+    requestDeleteMessage(agentSessionId, projectId, messageIds);
   }, [requestDeleteMessage]);
 
   const handleRegenerateMessage = useCallback(async (
-    codingSessionId: string,
+    agentSessionId: string,
     projectId: string,
   ) => {
     if (isChatBusy) {
       return;
     }
 
-    const resolvedSessionLocation = resolveSessionActionLocation(codingSessionId, projectId);
+    const resolvedSessionLocation = resolveSessionActionLocation(agentSessionId, projectId);
     const project = resolvedSessionLocation?.project;
     if (project) {
-      const codingSession = resolvedSessionLocation?.codingSession;
-      if (codingSession && codingSession.messages && codingSession.messages.length > 0) {
+      const agentSession = resolvedSessionLocation?.agentSession;
+      if (agentSession && agentSession.items.length > 0) {
         setIsSubmittingTurn(true);
         try {
           const didRegenerate =
-            await regenerateWorkbenchCodingSessionFromLastUserMessage({
-              codingSession,
-              deleteCodingSessionMessage,
+            await regenerateWorkbenchAgentSessionFromLastUserMessage({
+              agentSession,
+              deleteAgentSessionItem,
               projectId: project.id,
-              regenerateMessageContext: buildWorkbenchCodingSessionTurnContext({
+              regenerateMessageContext: buildWorkbenchAgentSessionTurnContext({
                 currentFileContent: fileContent,
                 currentFileLanguage: selectedFile ? getLanguageFromPath(selectedFile) : null,
                 currentFilePath: selectedFile,
                 projectId: project.id,
-                sessionId: codingSession.id,
+                sessionId: agentSession.id,
                 workspaceId,
               }),
-              sendCodingSessionMessage: (targetProjectId, targetCodingSessionId, content, context) =>
-                sendMessage(targetProjectId, targetCodingSessionId, content, context),
+              submitAgentTurn: (targetProjectId, targetAgentSessionId, content, context) =>
+                sendMessage(targetProjectId, targetAgentSessionId, content, context),
             });
           if (didRegenerate) {
             setSelectionRefreshToken((previousState) => previousState + 1);
@@ -915,12 +881,12 @@ function CodePageComponent({
       }
     }
   }, [
-    deleteCodingSessionMessage,
+    deleteAgentSessionItem,
     fileContent,
     getLanguageFromPath,
     isChatBusy,
-    buildWorkbenchCodingSessionTurnContext,
-    regenerateWorkbenchCodingSessionFromLastUserMessage,
+    buildWorkbenchAgentSessionTurnContext,
+    regenerateWorkbenchAgentSessionFromLastUserMessage,
     resolveSessionActionLocation,
     selectedFile,
     sendMessage,
@@ -929,15 +895,15 @@ function CodePageComponent({
   ]);
 
   const handleRestoreMessage = useCallback(async (
-    codingSessionId: string,
+    agentSessionId: string,
     projectId: string,
     messageId: string,
   ) => {
-    const codingSession =
-      resolveSessionActionLocation(codingSessionId, projectId)?.codingSession;
-    const msg = codingSession?.messages?.find(m => m.id === messageId);
+    const agentSession =
+      resolveSessionActionLocation(agentSessionId, projectId)?.agentSession;
+    const msg = agentSession?.items.find(m => m.id === messageId);
     try {
-      const didRestore = await restoreWorkbenchCodingSessionMessageFiles({
+      const didRestore = await restoreWorkbenchAgentSessionItemFiles({
         fileChanges: msg?.fileChanges,
         saveFileContent,
       });
@@ -953,7 +919,7 @@ function CodePageComponent({
   }, [
     addToast,
     resolveSessionActionLocation,
-    restoreWorkbenchCodingSessionMessageFiles,
+    restoreWorkbenchAgentSessionItemFiles,
     saveFileContent,
   ]);
 
@@ -975,16 +941,16 @@ function CodePageComponent({
     const requestedModelId = composerSelection?.modelId?.trim() ?? '';
     const currentSessionEngineId = session?.engineId?.trim() ?? '';
     const currentSessionModelId = session?.modelId?.trim() ?? '';
-    const currentCodingSessionId =
+    const currentAgentSessionId =
       (requestedEngineId &&
         requestedEngineId.toLowerCase() !== currentSessionEngineId.toLowerCase()) ||
       (requestedModelId &&
         requestedModelId.toLowerCase() !== currentSessionModelId.toLowerCase())
         ? null
         : sessionId;
-    const bootstrappedSession = await ensureWorkbenchCodingSessionForMessage({
-      createCodingSessionFromRequest: createCodingSessionWithTranscriptReset,
-      currentCodingSessionId,
+    const bootstrappedSession = await ensureWorkbenchAgentSessionForMessage({
+      createAgentSessionFromRequest: createAgentSessionWithTranscriptReset,
+      currentAgentSessionId,
       currentProjectId,
       messageContent: trimmedContent,
       requestedEngineId: composerSelection?.engineId,
@@ -1002,34 +968,34 @@ function CodePageComponent({
 
     setIsSubmittingTurn(true);
     try {
-      const context = buildWorkbenchCodingSessionTurnContext({
+      const context = buildWorkbenchAgentSessionTurnContext({
         currentFileContent: fileContent,
         currentFileLanguage: selectedFile ? getLanguageFromPath(selectedFile) : null,
         currentFilePath: selectedFile,
         projectId: bootstrappedSession.projectId,
-        sessionId: bootstrappedSession.codingSessionId,
+        sessionId: bootstrappedSession.agentSessionId,
         workspaceId,
       });
       const sentMessage = await sendMessage(
         bootstrappedSession.projectId,
-        bootstrappedSession.codingSessionId,
+        bootstrappedSession.agentSessionId,
         trimmedContent,
         context,
       );
       if (
-        sentMessage?.codingSessionId &&
-        sentMessage.codingSessionId !== bootstrappedSession.codingSessionId
+        sentMessage?.sessionId &&
+        sentMessage.sessionId !== bootstrappedSession.agentSessionId
       ) {
-        selectSession(sentMessage.codingSessionId, { projectId: bootstrappedSession.projectId });
+        selectSession(sentMessage.sessionId, { projectId: bootstrappedSession.projectId });
       }
       setSelectionRefreshToken((previousState) => previousState + 1);
     } finally {
       setIsSubmittingTurn(false);
     }
   }, [
-    buildWorkbenchCodingSessionTurnContext,
-    ensureWorkbenchCodingSessionForMessage,
-    createCodingSessionWithTranscriptReset,
+    buildWorkbenchAgentSessionTurnContext,
+    ensureWorkbenchAgentSessionForMessage,
+    createAgentSessionWithTranscriptReset,
     currentProjectId,
     fileContent,
     handleNewProject,
@@ -1046,48 +1012,48 @@ function CodePageComponent({
     t,
     workspaceId,
   ]);
-  const visibleSessionId = isNewCodingSessionCreating ? null : sessionId;
-  const selectedCodingSession = isNewCodingSessionCreating ? null : session;
+  const visibleSessionId = isNewAgentSessionCreating ? null : sessionId;
+  const selectedAgentSession = isNewAgentSessionCreating ? null : session;
   const {
     handleSelectedEngineChange,
     handleSelectedModelChange,
-  } = useCodingSessionEngineModelSelection({
+  } = useAgentSessionEngineModelSelection({
     preferences,
     selectedModelId,
     sessionId: visibleSessionId,
     setSelectedEngineId,
     setSelectedModelId,
   });
-  const isSelectedCodingSessionTranscriptVisible =
+  const isSelectedAgentSessionTranscriptVisible =
     isVisible && (activeTab === 'ai' || activeTab === 'editor');
-  const isSelectedCodingSessionMessagesLoading = useSelectedCodingSessionMessages({
-    appRuntimeReadService,
-    isActive: isSelectedCodingSessionTranscriptVisible,
+  const isSelectedAgentSessionItemsLoading = useSelectedAgentSessionItems({
+    agentSessionService,
+    isActive: isSelectedAgentSessionTranscriptVisible,
     projectService,
     selectionRefreshToken,
-    selectedCodingSession,
-    selectedCodingSessionId: visibleSessionId,
-    selectedProject: selectedCodingSessionLocation?.project ?? currentProject ?? null,
+    selectedAgentSession,
+    selectedAgentSessionId: visibleSessionId,
+    selectedProject: selectedAgentSessionLocation?.project ?? currentProject ?? null,
     workspaceId,
   });
-  const selectedCodingSessionMessages = useMemo(
-    () => (isNewCodingSessionCreating ? [] : selectedCodingSession?.messages ?? []),
-    [isNewCodingSessionCreating, selectedCodingSession?.messages],
+  const selectedAgentSessionItems = useMemo(
+    () => (isNewAgentSessionCreating ? [] : selectedAgentSession?.items ?? []),
+    [isNewAgentSessionCreating, selectedAgentSession?.items],
   );
-  const isSelectedCodingSessionHydrating = Boolean(
-    isNewCodingSessionCreating ||
+  const isSelectedAgentSessionHydrating = Boolean(
+    isNewAgentSessionCreating ||
     (
       visibleSessionId &&
-      isSelectedCodingSessionMessagesLoading &&
-      selectedCodingSessionMessages.length === 0
+      isSelectedAgentSessionItemsLoading &&
+      selectedAgentSessionItems.length === 0
     )
   );
   const {
     mainChatEmptyState,
     editorChatEmptyState,
   } = useMemo(
-    () => createCodeChatEmptyStates(isSelectedCodingSessionHydrating),
-    [isSelectedCodingSessionHydrating],
+    () => createCodeChatEmptyStates(isSelectedAgentSessionHydrating),
+    [isSelectedAgentSessionHydrating],
   );
 
   const handleCreateRootFile = useCallback(() => {
@@ -1139,23 +1105,23 @@ function CodePageComponent({
   const handleCloseViewingDiff = useCallback(() => {
     setViewingDiff(null);
   }, []);
-  const handleEditSelectedCodingSessionMessage = useCallback((messageId: string, content: string) => {
+  const handleEditSelectedAgentSessionItem = useCallback((messageId: string, content: string) => {
     if (session) {
       return handleEditMessage(session.id, messageId, content);
     }
     return Promise.resolve();
   }, [handleEditMessage, session]);
-  const handleDeleteSelectedCodingSessionMessage = useCallback((messageIds: string[]) => {
+  const handleDeleteSelectedAgentSessionItem = useCallback((messageIds: string[]) => {
     if (session) {
       void handleDeleteMessage(session.id, currentProjectId, messageIds);
     }
   }, [currentProjectId, handleDeleteMessage, session]);
-  const handleRegenerateSelectedCodingSessionMessage = useCallback(() => {
+  const handleRegenerateSelectedAgentSessionItem = useCallback(() => {
     if (session) {
       void handleRegenerateMessage(session.id, currentProjectId);
     }
   }, [currentProjectId, handleRegenerateMessage, session]);
-  const handleRestoreSelectedCodingSessionMessage = useCallback((messageId: string) => {
+  const handleRestoreSelectedAgentSessionItem = useCallback((messageId: string) => {
     if (session) {
       void handleRestoreMessage(session.id, currentProjectId, messageId);
     }
@@ -1224,20 +1190,20 @@ function CodePageComponent({
     mainChatEmptyState,
     mountRecoveryState,
     openFiles,
-    refreshingCodingSessionId,
+    refreshingAgentSessionId,
     refreshingProjectId,
     runConfigurationDraft,
     runConfigurations,
     searchQuery,
-    selectedCodingSessionMessages,
+    selectedAgentSessionItems,
     selectedFile,
-    selectedSessionLastTurnAt: selectedCodingSession?.lastTurnAt,
-    selectedSessionTitle: selectedCodingSession?.title,
-    selectedSessionEngineId: selectedCodingSession?.engineId,
-    selectedSessionModelId: selectedCodingSession?.modelId,
-    selectedSessionRuntimeStatus: selectedCodingSession?.runtimeStatus,
-    selectedSessionTranscriptUpdatedAt: selectedCodingSession?.transcriptUpdatedAt,
-    selectedSessionUpdatedAt: selectedCodingSession?.updatedAt,
+    selectedSessionLastTurnAt: selectedAgentSession?.lastTurnAt,
+    selectedSessionTitle: selectedAgentSession?.title,
+    selectedSessionEngineId: selectedAgentSession?.engineId,
+    selectedSessionModelId: selectedAgentSession?.modelId,
+    selectedSessionRuntimeStatus: selectedAgentSession?.runtimeStatus,
+    selectedSessionTranscriptUpdatedAt: selectedAgentSession?.transcriptUpdatedAt,
+    selectedSessionUpdatedAt: selectedAgentSession?.updatedAt,
     sessionId: visibleSessionId,
     showComposerEngineSelector: true,
     sidebarWidth,
@@ -1245,7 +1211,7 @@ function CodePageComponent({
     terminalRequest,
     viewingDiff,
     workspaceId,
-    onArchiveCodingSession: handleArchiveSession,
+    onArchiveAgentSession: handleArchiveSession,
     onArchiveProject: handleArchiveProject,
     onCancelDelete: handleCancelDelete,
     onChatResize: handleEditorChatResize,
@@ -1257,55 +1223,53 @@ function CodePageComponent({
     onCloseRunTask: handleCloseRunTask,
     onCloseTerminal: handleCloseTerminal,
     onConfirmDelete: handleConfirmDelete,
-    onCopyCodingSessionDeeplink: handleCopySessionDeeplink,
-    onCopyCodingSessionResumeCommand: handleCopySessionResumeCommand,
-    onCopyCodingSessionSessionId: handleCopySessionId,
-    onCopyCodingSessionWorkingDirectory: handleCopySessionWorkingDirectory,
+    onCopyAgentSessionDeeplink: handleCopySessionDeeplink,
+    onCopyAgentSessionSessionId: handleCopySessionId,
+    onCopyAgentSessionWorkingDirectory: handleCopySessionWorkingDirectory,
     onCopyProjectPath: handleCopyProjectPath,
     onCopyWorkingDirectory: handleCopyWorkingDirectory,
     onCreateFile: createFile,
     onCreateFolder: createFolder,
     onCreateRootFile: handleCreateRootFile,
     onCloseProjectGitOverviewDrawer: handleCloseProjectGitOverviewDrawer,
-    onDeleteCodingSession: handleDeleteSession,
+    onDeleteAgentSession: handleDeleteSession,
     onDeleteFile: deleteFile,
     onDeleteFolder: deleteFolder,
-    onDeleteMessage: handleDeleteSelectedCodingSessionMessage,
+    onDeleteMessage: handleDeleteSelectedAgentSessionItem,
     onDeleteProject: handleDeleteProject,
-    onEditMessage: handleEditSelectedCodingSessionMessage,
+    onEditMessage: handleEditSelectedAgentSessionItem,
     onExpandDirectory: loadDirectory,
     onExplorerResize: handleEditorExplorerResize,
     onFileDraftChange: updateFileDraft,
-    onForkCodingSessionLocal: handleForkSessionLocal,
-    onForkCodingSessionNewTree: handleForkSessionNewTree,
-    onMarkCodingSessionUnread: handleMarkSessionUnread,
-    onNewCodingSessionInProject: createCodingSessionInProjectWithTranscriptReset,
+    onForkAgentSessionLocal: handleForkSessionLocal,
+    onForkAgentSessionNewTree: handleForkSessionNewTree,
+    onMarkAgentSessionUnread: handleMarkSessionUnread,
+    onNewAgentSessionInProject: createAgentSessionInProjectWithTranscriptReset,
     onNewProject: handleNewProject,
     onLoadMoreProjects: loadMoreProjects,
     onLoadMoreProjectSessions: loadMoreProjectSessions,
     onNotifyNoResults: handleNotifyNoCodeResults,
     onOpenFolder: handleOpenFolder,
-    onOpenCodingSessionInTerminal: handleOpenCodingSessionInTerminal,
     onOpenInFileExplorer: handleOpenInFileExplorer,
     onOpenInTerminal: handleOpenInTerminal,
     onOpenMessageFile: handleOpenMessageFile,
-    onPinCodingSession: handlePinSession,
+    onPinAgentSession: handlePinSession,
     onProjectSelect: handleProjectSelect,
-    onRefreshCodingSessionMessages: handleRefreshCodingSessionMessages,
+    onRefreshAgentSessionItems: handleRefreshAgentSessionItems,
     onRefreshProjectSessions: handleRefreshProjectSessions,
-    onRegenerateMessage: handleRegenerateSelectedCodingSessionMessage,
+    onRegenerateMessage: handleRegenerateSelectedAgentSessionItem,
     onCloseDiff: handleCloseViewingDiff,
     onReimportProjectFolder: handleReimportProjectFolderAction,
-    onRenameCodingSession: handleRenameSession,
+    onRenameAgentSession: handleRenameSession,
     onRenameNode: renameNode,
     onRenameProject: handleRenameProject,
-    onRestoreMessage: handleRestoreSelectedCodingSessionMessage,
+    onRestoreMessage: handleRestoreSelectedAgentSessionItem,
     onRetryMountRecovery: handleRetryMountRecoveryAction,
     onRunConfigurationDraftChange: setRunConfigurationDraft,
     onRunTask: handleRunTaskExecution,
     onSaveDebugConfig: handleSaveDebugConfiguration,
     onSearchFiles: searchFiles,
-    onSelectCodingSession: handleSidebarCodingSessionSelect,
+    onSelectAgentSession: handleSidebarAgentSessionSelect,
     onSelectFile: handleSelectWorkspaceFile,
     onSelectedEngineIdChange: handleSelectedEngineChange,
     onSelectedModelIdChange: handleSelectedModelChange,

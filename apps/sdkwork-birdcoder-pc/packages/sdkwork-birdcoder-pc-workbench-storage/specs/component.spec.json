@@ -99,6 +99,14 @@
     }
   ],
   "contracts": {
+    "layerRole": "frontend-host",
+    "providedPorts": [
+      {
+        "name": "deviceLocalWorkbenchStorage",
+        "export": "."
+      }
+    ],
+    "requiredPorts": [],
     "publicExports": [
       "."
     ],

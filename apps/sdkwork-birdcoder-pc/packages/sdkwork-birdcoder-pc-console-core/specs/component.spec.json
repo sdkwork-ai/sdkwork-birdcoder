@@ -20,52 +20,19 @@
     ]
   },
   "contracts": {
+    "layerRole": "frontend-core",
+    "providedPorts": [
+      {
+        "name": "consoleRuntimeCore",
+        "export": "."
+      }
+    ],
+    "requiredPorts": [],
     "publicExports": [
       "."
     ],
     "sdkClients": [],
-    "sdkDependencies": [
-      {
-        "workspace": "sdkwork-birdcoder-app-sdk",
-        "surface": "app-api",
-        "credentialMode": "authenticated-app-api"
-      },
-      {
-        "workspace": "sdkwork-birdcoder-app-sdk-typescript",
-        "surface": "open-api",
-        "credentialMode": "protected-open-api-flexible"
-      },
-      {
-        "workspace": "sdkwork-drive-app-sdk",
-        "surface": "app-api",
-        "credentialMode": "authenticated-app-api"
-      },
-      {
-        "workspace": "sdkwork-drive-app-sdk-typescript",
-        "surface": "open-api",
-        "credentialMode": "protected-open-api-flexible"
-      },
-      {
-        "workspace": "sdkwork-iam-app-sdk",
-        "surface": "app-api",
-        "credentialMode": "authenticated-app-api"
-      },
-      {
-        "workspace": "sdkwork-iam-app-sdk-typescript",
-        "surface": "open-api",
-        "credentialMode": "protected-open-api-flexible"
-      },
-      {
-        "workspace": "sdkwork-messaging-app-sdk",
-        "surface": "app-api",
-        "credentialMode": "authenticated-app-api"
-      },
-      {
-        "workspace": "sdkwork-messaging-app-sdk-typescript",
-        "surface": "open-api",
-        "credentialMode": "protected-open-api-flexible"
-      }
-    ],
+    "sdkDependencies": [],
     "permissionComposition": {
       "inheritanceMode": "module-catalog-with-overrides",
       "applicationModule": {

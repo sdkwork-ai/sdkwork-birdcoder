@@ -2,9 +2,8 @@ import React, { memo, useMemo } from 'react';
 import {
   resolveChatTurnActivitySummary,
   resolveChatMessageView,
-  type BirdCoderCodeEngineKey,
 } from '@sdkwork/birdcoder-pc-workbench/chat/types';
-import type { BirdCoderChatMessage } from '@sdkwork/birdcoder-pc-workbench/chat/types';
+import type { AgentSessionItemView } from '@sdkwork/birdcoder-pc-workbench/chat/types';
 import { defaultChatMessageRendererRegistry } from './defaultRegistry.ts';
 import {
   buildTranscriptSurfaceStyle,
@@ -17,11 +16,11 @@ import type {
 import type { ChatMessageRendererRegistry } from './registry.ts';
 
 export interface ChatTranscriptMessageProps {
-  message: BirdCoderChatMessage;
+  message: AgentSessionItemView;
   index: number;
   sessionId: string;
   layout: ChatMessageLayout;
-  engineId?: BirdCoderCodeEngineKey;
+  engineId?: string;
   messageRenderKey?: string;
   messageRef?: (element: HTMLDivElement | null) => void;
   context: ChatMessageRenderContext;

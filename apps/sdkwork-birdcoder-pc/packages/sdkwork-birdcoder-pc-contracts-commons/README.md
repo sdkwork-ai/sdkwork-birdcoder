@@ -1,41 +1,9 @@
-# @sdkwork/birdcoder-types
+# @sdkwork/birdcoder-pc-contracts-commons
 
-Domain: platform
-Capability: component
-Package type: node-package
-Status: standardizing
+BirdCoder PC coding-workbench presentation contracts and value objects.
 
-This README is the SDKWork module entrypoint for `@sdkwork/birdcoder-types`. The machine-readable component contract is `specs/component.spec.json`; canonical standards are under `../../../sdkwork-specs/`.
+AI conversations are canonical `sdkwork-agents` Sessions and Session Items. This package owns only memory views. Human messages belong to `sdkwork-im`. Documents and IAM values are read-only views composed from their owning generated SDKs.
 
-## Public API
+This package defines no database catalog, storage binding, hand-written API client, generated SDK fork, persisted read model, synchronized data copy, or parallel session authority.
 
-- `.`
-- `./storageBindings`
-
-## Required SDK Surface
-
-- None declared in `specs/component.spec.json`.
-
-## Configuration
-
-Configuration keys, runtime entrypoints, and integration contracts are declared in `specs/component.spec.json`. Shared modules must receive configuration through typed bootstrap or service boundaries rather than reading host-local environment state directly.
-
-## SaaS/Private/Local Behavior
-
-This component follows the deployment and runtime rules referenced by its `canonicalSpecs` entries. SaaS, private, and local behavior must stay compatible with the relevant SDKWork specs before implementation changes are made.
-
-## Security
-
-Do not add secrets, live tokens, manual auth headers, or app-local credential handling to this module. Protected API and SDK access must use the generated SDK or approved service boundary declared in the component contract.
-
-## Extension Points
-
-Extension points are limited to public exports, runtime entrypoints, SDK clients, events, and config keys declared in `specs/component.spec.json`.
-
-## Verification
-
-- `pnpm --filter @sdkwork/birdcoder-types typecheck`
-
-## Owner And Status
-
-Owner and lifecycle status are tracked in `specs/component.spec.json`. Update that contract before changing public integration behavior.
+Verification: `pnpm --filter @sdkwork/birdcoder-pc-contracts-commons typecheck`.

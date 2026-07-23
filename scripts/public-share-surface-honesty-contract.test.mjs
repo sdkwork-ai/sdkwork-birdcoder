@@ -21,7 +21,7 @@ const collaborationServiceSource = readText(
   'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/src/services/interfaces/ICollaborationService.ts',
 );
 const appOpenApi = JSON.parse(
-  readText('apps/sdkwork-birdcoder-pc/sdks/specs/openapi/birdcoder-app-v3.openapi.json'),
+  readText('sdks/sdkwork-birdcoder-app-sdk/openapi/sdkwork-birdcoder-app-api.openapi.json'),
 );
 const shareLocaleSources = [
   readText(

@@ -110,6 +110,14 @@
     }
   ],
   "contracts": {
+    "layerRole": "frontend-commons",
+    "providedPorts": [
+      {
+        "name": "shellUiPrimitives",
+        "export": "."
+      }
+    ],
+    "requiredPorts": [],
     "publicExports": [
       "."
     ],

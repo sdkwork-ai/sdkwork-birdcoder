@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use crate::api::{IntelligenceApi, SystemApi, RuntimeApi, OauthApi, AuthApi, IamApi, TemplatesApi, PlatformApi, ContentApi, SkillsApi, CollaborationApi, CommerceApi};
+use crate::api::{SystemApi, IntelligenceApi};
 use crate::http::{SdkworkConfig, SdkworkError, SdkworkHttpClient};
 
 #[derive(Clone)]
@@ -38,51 +38,11 @@ impl SdkworkAppClient {
         Arc::clone(&self.http)
     }
 
-    pub fn intelligence(&self) -> IntelligenceApi {
-            IntelligenceApi::new(Arc::clone(&self.http))
-        }
-
     pub fn system(&self) -> SystemApi {
             SystemApi::new(Arc::clone(&self.http))
         }
 
-    pub fn runtime(&self) -> RuntimeApi {
-            RuntimeApi::new(Arc::clone(&self.http))
-        }
-
-    pub fn oauth(&self) -> OauthApi {
-            OauthApi::new(Arc::clone(&self.http))
-        }
-
-    pub fn auth(&self) -> AuthApi {
-            AuthApi::new(Arc::clone(&self.http))
-        }
-
-    pub fn iam(&self) -> IamApi {
-            IamApi::new(Arc::clone(&self.http))
-        }
-
-    pub fn templates(&self) -> TemplatesApi {
-            TemplatesApi::new(Arc::clone(&self.http))
-        }
-
-    pub fn platform(&self) -> PlatformApi {
-            PlatformApi::new(Arc::clone(&self.http))
-        }
-
-    pub fn content(&self) -> ContentApi {
-            ContentApi::new(Arc::clone(&self.http))
-        }
-
-    pub fn skills(&self) -> SkillsApi {
-            SkillsApi::new(Arc::clone(&self.http))
-        }
-
-    pub fn collaboration(&self) -> CollaborationApi {
-            CollaborationApi::new(Arc::clone(&self.http))
-        }
-
-    pub fn commerce(&self) -> CommerceApi {
-            CommerceApi::new(Arc::clone(&self.http))
+    pub fn intelligence(&self) -> IntelligenceApi {
+            IntelligenceApi::new(Arc::clone(&self.http))
         }
 }

@@ -1,31 +1,8 @@
-export const BIRDCODER_AUTH_SURFACE_BASE_PATH = '/auth';
-export const BIRDCODER_AUTH_SURFACE_LOGIN_PATH = `${BIRDCODER_AUTH_SURFACE_BASE_PATH}/login`;
-
-export function buildBirdCoderProtectedLoginPath(redirectTarget?: string | null): string {
-  const normalizedTarget = (redirectTarget ?? '').trim();
-  if (!normalizedTarget || normalizedTarget.startsWith(BIRDCODER_AUTH_SURFACE_BASE_PATH)) {
-    return BIRDCODER_AUTH_SURFACE_LOGIN_PATH;
-  }
-
-  return `${BIRDCODER_AUTH_SURFACE_LOGIN_PATH}?redirect=${encodeURIComponent(normalizedTarget)}`;
-}
-
-export function normalizeBirdCoderAuthSurfacePath(rawPath: string | null | undefined): string {
-  const normalizedPath = (rawPath ?? '').trim();
-  if (!normalizedPath) {
-    return '';
-  }
-
-  return normalizedPath.startsWith('/') ? normalizedPath : `/${normalizedPath}`;
-}
-
-export function isBirdCoderAuthSurfacePath(path: string): boolean {
-  const normalizedPath = normalizeBirdCoderAuthSurfacePath(path);
-  return (
-    normalizedPath === BIRDCODER_AUTH_SURFACE_BASE_PATH
-    || normalizedPath.startsWith(`${BIRDCODER_AUTH_SURFACE_BASE_PATH}/`)
-  );
-}
+import {
+  buildBirdCoderProtectedLoginPath,
+  isBirdCoderAuthSurfacePath,
+  normalizeBirdCoderAuthSurfacePath,
+} from '@sdkwork/birdcoder-pc-contracts-commons/authSurfacePaths';
 
 export function readBrowserAuthRedirectTarget(): string {
   if (typeof window === 'undefined') {

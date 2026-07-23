@@ -111,6 +111,30 @@ abstract class AppLocalizations {
   /// **'Loading...'**
   String get app_loading;
 
+  /// No description provided for @nav_home.
+  ///
+  /// In en, this message translates to:
+  /// **'Home'**
+  String get nav_home;
+
+  /// No description provided for @nav_chat.
+  ///
+  /// In en, this message translates to:
+  /// **'Chat'**
+  String get nav_chat;
+
+  /// No description provided for @nav_settings.
+  ///
+  /// In en, this message translates to:
+  /// **'Settings'**
+  String get nav_settings;
+
+  /// No description provided for @nav_profile.
+  ///
+  /// In en, this message translates to:
+  /// **'Profile'**
+  String get nav_profile;
+
   /// No description provided for @common_cancel.
   ///
   /// In en, this message translates to:
@@ -207,53 +231,35 @@ abstract class AppLocalizations {
   /// **'No'**
   String get common_no;
 
-  /// No description provided for @chat_send.
+  /// No description provided for @agent_session_send.
   ///
   /// In en, this message translates to:
   /// **'Send'**
-  String get chat_send;
+  String get agent_session_send;
 
-  /// No description provided for @chat_input_placeholder.
+  /// No description provided for @agent_session_input_placeholder.
   ///
   /// In en, this message translates to:
-  /// **'Send a message...'**
-  String get chat_input_placeholder;
+  /// **'Send an instruction...'**
+  String get agent_session_input_placeholder;
 
-  /// No description provided for @chat_empty.
+  /// No description provided for @agent_session_empty.
   ///
   /// In en, this message translates to:
-  /// **'No messages yet. Start a conversation below.'**
-  String get chat_empty;
+  /// **'No session items yet. Start an assistant turn below.'**
+  String get agent_session_empty;
 
-  /// No description provided for @chat_loading_history.
+  /// No description provided for @agent_session_loading_items.
   ///
   /// In en, this message translates to:
-  /// **'Loading chat history...'**
-  String get chat_loading_history;
+  /// **'Loading session items...'**
+  String get agent_session_loading_items;
 
-  /// No description provided for @chat_message_user.
+  /// No description provided for @agent_session_send_failed.
   ///
   /// In en, this message translates to:
-  /// **'You'**
-  String get chat_message_user;
-
-  /// No description provided for @chat_message_assistant.
-  ///
-  /// In en, this message translates to:
-  /// **'BirdCoder'**
-  String get chat_message_assistant;
-
-  /// No description provided for @chat_send_failed.
-  ///
-  /// In en, this message translates to:
-  /// **'Failed to send message.'**
-  String get chat_send_failed;
-
-  /// No description provided for @chat_typing.
-  ///
-  /// In en, this message translates to:
-  /// **'BirdCoder is typing...'**
-  String get chat_typing;
+  /// **'Failed to submit the assistant turn.'**
+  String get agent_session_send_failed;
 
   /// No description provided for @auth_login.
   ///
@@ -530,30 +536,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'The operation failed.'**
   String get native_error_failed;
-
-  /// No description provided for @nav_home.
-  ///
-  /// In en, this message translates to:
-  /// **'Home'**
-  String get nav_home;
-
-  /// No description provided for @nav_chat.
-  ///
-  /// In en, this message translates to:
-  /// **'Chat'**
-  String get nav_chat;
-
-  /// No description provided for @nav_settings.
-  ///
-  /// In en, this message translates to:
-  /// **'Settings'**
-  String get nav_settings;
-
-  /// No description provided for @nav_profile.
-  ///
-  /// In en, this message translates to:
-  /// **'Profile'**
-  String get nav_profile;
 
   /// No description provided for @error_network.
   ///

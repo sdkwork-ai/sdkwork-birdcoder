@@ -6,7 +6,7 @@ import {
   getWorkbenchModelVendorLabel,
   type WorkbenchCodeEngineDefinition,
   type WorkbenchCodeEngineModelDefinition,
-} from '@sdkwork/birdcoder-pc-codeengine';
+} from '@sdkwork/birdcoder-pc-workbench/workbench/codeEngineCatalog';
 
 export interface WorkbenchModelPickerSelection {
   engineId: string;

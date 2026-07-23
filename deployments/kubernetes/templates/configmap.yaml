@@ -7,7 +7,6 @@ data:
   SDKWORK_BIRDCODER_RUNTIME_TARGET: {{ .Values.runtime.runtimeTarget | quote }}
   SDKWORK_BIRDCODER_ENVIRONMENT: {{ .Values.runtime.environment | quote }}
   SDKWORK_BIRDCODER_ALLOWED_ORIGINS: {{ join "," .Values.runtime.allowedOrigins | quote }}
-  SDKWORK_BIRDCODER_PROVIDER_RUNNER_ROOT: {{ .Values.runtime.projectWorkspaceRoot | quote }}
   OTEL_SERVICE_NAME: {{ .Values.runtime.otelServiceName | quote }}
   SDKWORK_BIRDCODER_DATABASE_ENGINE: {{ .Values.database.engine | quote }}
   SDKWORK_CLAW_DATABASE_ENGINE: {{ .Values.database.engine | quote }}
@@ -26,7 +25,7 @@ data:
   SDKWORK_BIRDCODER_DATABASE_FILE: "/var/lib/sdkwork-birdcoder/data.sqlite3"
   {{- end }}
   SDKWORK_BIRDCODER_APP_ROOT: "/opt/sdkwork-birdcoder"
-  SDKWORK_OPENAPI_SNAPSHOT_PATH: "/opt/sdkwork-birdcoder/openapi/coding-server-v1.json"
+  SDKWORK_OPENAPI_SNAPSHOT_PATH: "/opt/sdkwork-birdcoder/openapi/birdcoder-app-api.openapi.json"
   {{- if .Values.observability }}
   {{- with .Values.observability }}
   RUST_LOG: {{ .logLevel | default "info" | quote }}

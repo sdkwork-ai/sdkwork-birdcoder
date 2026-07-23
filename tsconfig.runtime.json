@@ -7,9 +7,6 @@
       "@/*": [
         "apps/sdkwork-birdcoder-pc/src/*"
       ],
-      "@sdkwork/birdcoder-codeengine/*": [
-        "apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-codeengine/src/*"
-      ],
       "@sdkwork/birdcoder-host-core": [
         "apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-host-core/src/index.ts"
       ],
@@ -17,10 +14,7 @@
         "apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-host-studio/src/index.ts"
       ],
       "@sdkwork/birdcoder-app-sdk": [
-        "apps/sdkwork-birdcoder-pc/sdks/sdkwork-birdcoder-app-sdk/sdkwork-birdcoder-app-sdk-typescript/src/index.ts"
-      ],
-      "@sdkwork/birdcoder-backend-sdk": [
-        "apps/sdkwork-birdcoder-pc/sdks/sdkwork-birdcoder-backend-sdk/sdkwork-birdcoder-backend-sdk-typescript/src/index.ts"
+        "sdks/sdkwork-birdcoder-app-sdk/sdkwork-birdcoder-app-sdk-typescript/src/index.ts"
       ],
       "@sdkwork/iam-app-sdk": [
         "../sdkwork-iam/sdks/sdkwork-iam-app-sdk/sdkwork-iam-app-sdk-typescript/src/index.ts"

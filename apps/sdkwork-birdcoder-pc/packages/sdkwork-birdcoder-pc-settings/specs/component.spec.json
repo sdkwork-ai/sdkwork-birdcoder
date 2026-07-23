@@ -109,6 +109,14 @@
     }
   ],
   "contracts": {
+    "layerRole": "frontend-feature",
+    "providedPorts": [
+      {
+        "name": "settingsFeature",
+        "export": "."
+      }
+    ],
+    "requiredPorts": [],
     "publicExports": [
       "."
     ],

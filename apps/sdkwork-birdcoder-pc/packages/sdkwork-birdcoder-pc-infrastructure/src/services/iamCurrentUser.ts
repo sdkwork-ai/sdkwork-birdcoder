@@ -249,10 +249,10 @@ function adoptCurrentUser(
 }
 
 function normalizeIamUser(value: unknown): IamUser {
-  const payload = readCurrentUserPayload(value);
-  if (!payload) {
+  if (!isRecord(value)) {
     throw new Error('Current IAM user response is invalid.');
   }
+  const payload = value;
 
   const email = optionalToken(payload.email);
   const username = optionalToken(payload.username);
@@ -273,16 +273,6 @@ function normalizeIamUser(value: unknown): IamUser {
     ...(id ? { id } : {}),
     ...(username ? { username } : {}),
   } as unknown as IamUser;
-}
-
-function readCurrentUserPayload(value: unknown): Record<string, unknown> | null {
-  if (!isRecord(value)) {
-    return null;
-  }
-  if (isRecord(value.data)) {
-    return isRecord(value.data.item) ? value.data.item : value.data;
-  }
-  return isRecord(value.item) ? value.item : value;
 }
 
 function getCurrentUserRetriever(

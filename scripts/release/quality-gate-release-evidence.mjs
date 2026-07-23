@@ -2,7 +2,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import process from 'node:process';
 
-import { ENGINE_GOVERNANCE_REGRESSION_CHECK_IDS } from '../governance-regression-report.mjs';
+import { RELEASE_GOVERNANCE_CHECK_IDS } from '../governance-regression-report.mjs';
 import { buildQualityGateMatrixReport } from '../quality-gate-matrix-report.mjs';
 
 export const RELEASE_QUALITY_EVIDENCE_DIR = 'quality';
@@ -19,7 +19,7 @@ const LOOP_SCORE_ITEMS = Object.freeze([
   'test_closure',
   'commercial_readiness',
 ]);
-const RELEASE_GOVERNANCE_CHECK_COUNT = Math.max(ENGINE_GOVERNANCE_REGRESSION_CHECK_IDS.length, 1);
+const RELEASE_GOVERNANCE_CHECK_COUNT = Math.max(RELEASE_GOVERNANCE_CHECK_IDS.length, 1);
 
 function normalizeStringList(values) {
   const normalized = [];

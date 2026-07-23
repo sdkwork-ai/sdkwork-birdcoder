@@ -9,7 +9,7 @@ function readSource(...segments) {
   return fs.readFileSync(path.join(rootDir, ...segments), 'utf8');
 }
 
-const codingSessionCreationSource = readSource(
+const agentSessionCreationSource = readSource(
   'apps',
   
   'sdkwork-birdcoder-pc',
@@ -19,7 +19,7 @@ const codingSessionCreationSource = readSource(
   'sdkwork-birdcoder-pc-workbench',
   'src',
   'workbench',
-  'codingSessionCreation.ts',
+  'agentSessionCreation.ts',
 );
 const codePageSource = readSource(
   'apps',
@@ -47,21 +47,21 @@ const studioPageSource = readSource(
 );
 
 assert.doesNotMatch(
-  codingSessionCreationSource,
+  agentSessionCreationSource,
   /throw new Error\(\s*'Workbench message session bootstrap requires a project before sending a message\./,
-  'ensureWorkbenchCodingSessionForMessage must not throw when the user cancels project resolution; first-turn sending should abort gracefully just like the previous page-local implementations.',
+  'ensureWorkbenchAgentSessionForMessage must not throw when the user cancels project resolution; first-turn sending should abort gracefully just like the previous page-local implementations.',
 );
 
 assert.match(
-  codingSessionCreationSource,
+  agentSessionCreationSource,
   /if \(!projectId\) \{\s*return null;\s*\}/s,
-  'ensureWorkbenchCodingSessionForMessage must return null when no project can be resolved so callers can stop sending without surfacing an exception.',
+  'ensureWorkbenchAgentSessionForMessage must return null when no project can be resolved so callers can stop sending without surfacing an exception.',
 );
 
 assert.match(
   `${codePageSource}\n${studioPageSource}`,
   /if \(!bootstrappedSession\) \{\s*return;\s*\}/s,
-  'CodePage and StudioPage must bail out cleanly when ensureWorkbenchCodingSessionForMessage returns null after a canceled project resolution flow.',
+  'CodePage and StudioPage must bail out cleanly when ensureWorkbenchAgentSessionForMessage returns null after a canceled project resolution flow.',
 );
 
 console.log('message session bootstrap cancellation contract passed.');

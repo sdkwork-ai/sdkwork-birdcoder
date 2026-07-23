@@ -11,7 +11,7 @@ function read(relativePath) {
 const packageJson = JSON.parse(read('package.json'));
 const ciWorkflow = read('.github/workflows/ci.yml');
 const assembleScript = read('scripts/run-h5-capacitor-android-assemble.mjs');
-const appConfig = JSON.parse(read('sdkwork.app.config.json'));
+const h5AppConfig = JSON.parse(read('apps/sdkwork-birdcoder-h5/sdkwork.app.config.json'));
 
 assert.equal(
   packageJson.scripts['build:capacitor-android'],
@@ -46,10 +46,13 @@ assert.match(
   'CI mobile-surfaces job must provision the Android SDK before Gradle assemble.',
 );
 
-assert.match(
-  String(appConfig.metadata?.commercialReadiness?.mobileProductParity ?? ''),
-  /android-assemble|capacitor-android-assemble/u,
-  'Root manifest must record Capacitor Android assemble alignment.',
+const capacitorAndroidPackage = h5AppConfig.artifacts?.installConfig?.packages?.find(
+  (pkg) => pkg.runtimeTarget === 'capacitor-android',
 );
+assert.equal(capacitorAndroidPackage?.platform, 'APP_ANDROID');
+assert.equal(capacitorAndroidPackage?.targetPlatform, 'android');
+assert.equal(capacitorAndroidPackage?.clientArchitecture, 'capacitor');
+assert.equal(capacitorAndroidPackage?.enabled, false);
+assert.equal(capacitorAndroidPackage?.metadata?.releaseBuildDeferred, true);
 
 console.log('h5 capacitor android assemble contract passed.');

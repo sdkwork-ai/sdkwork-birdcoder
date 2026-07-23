@@ -20,16 +20,19 @@
     ]
   },
   "contracts": {
+    "layerRole": "frontend-core",
+    "providedPorts": [
+      {
+        "name": "adminRuntimeCore",
+        "export": "."
+      }
+    ],
+    "requiredPorts": [],
     "publicExports": [
       "."
     ],
     "sdkClients": [],
     "sdkDependencies": [
-      {
-        "workspace": "sdkwork-birdcoder-backend-sdk",
-        "surface": "backend-api",
-        "credentialMode": "authenticated-backend-admin"
-      },
       {
         "workspace": "sdkwork-iam-backend-sdk",
         "surface": "backend-api",

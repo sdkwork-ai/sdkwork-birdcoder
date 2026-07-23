@@ -50,6 +50,21 @@ async fn local_store_list(
 }
 
 #[tauri::command]
+async fn secure_app_session_read() -> Result<Option<String>, String> {
+    host::secure_app_session_read().await
+}
+
+#[tauri::command]
+async fn secure_app_session_write(raw: String) -> Result<(), String> {
+    host::secure_app_session_write(raw).await
+}
+
+#[tauri::command]
+async fn secure_app_session_delete() -> Result<(), String> {
+    host::secure_app_session_delete().await
+}
+
+#[tauri::command]
 async fn desktop_runtime_location_install_identity(
     app: tauri::AppHandle,
 ) -> Result<host::DesktopRuntimeLocationInstallIdentity, String> {
@@ -59,14 +74,6 @@ async fn desktop_runtime_location_install_identity(
 #[tauri::command]
 fn desktop_runtime_location_create_root_locator() -> String {
     host::desktop_runtime_location_create_root_locator()
-}
-
-#[tauri::command]
-async fn local_sql_execute_plan(
-    app: tauri::AppHandle,
-    plan: host::LocalSqlPlan,
-) -> Result<host::LocalSqlExecutionResult, String> {
-    host::local_sql_execute_plan(app, plan).await
 }
 
 #[tauri::command]
@@ -250,13 +257,6 @@ async fn user_home_config_write(relative_path: String, content: String) -> Resul
 }
 
 #[tauri::command]
-async fn terminal_cli_profile_detect(
-    request: host::TerminalCliProfileDetectRequest,
-) -> Result<host::TerminalCliProfileAvailability, String> {
-    host::terminal_cli_profile_detect(request).await
-}
-
-#[tauri::command]
 async fn desktop_pick_working_directory(
     window: tauri::Window,
     request: host::DesktopWorkingDirectoryPickerRequest,
@@ -408,7 +408,7 @@ pub fn run() {
         .setup(|app| {
             app.manage(host::FileSystemWatchState::new());
             host::setup_tauri_host(app.handle())?;
-            host::spawn_embedded_coding_server_startup(app.handle().clone());
+            host::spawn_embedded_application_gateway_startup(app.handle().clone());
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
@@ -418,9 +418,11 @@ pub fn run() {
             local_store_set,
             local_store_delete,
             local_store_list,
+            secure_app_session_read,
+            secure_app_session_write,
+            secure_app_session_delete,
             desktop_runtime_location_install_identity,
             desktop_runtime_location_create_root_locator,
-            local_sql_execute_plan,
             fs_snapshot_folder,
             fs_list_directory,
             fs_read_file,
@@ -445,7 +447,6 @@ pub fn run() {
             git_prune_worktrees,
             user_home_config_read,
             user_home_config_write,
-            terminal_cli_profile_detect,
             desktop_pick_working_directory,
             desktop_reveal_in_file_manager,
             desktop_window_controls_bridge_capabilities,

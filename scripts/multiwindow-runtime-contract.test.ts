@@ -111,7 +111,7 @@ const result = await dispatchMultiWindowPrompt({
       id: 'pane-1',
       enabled: true,
       projectId: 'project-a',
-      codingSessionId: 'session-a',
+      agentSessionId: 'session-a',
       sendPrompt: async ({ prompt }) => {
         activeDispatches += 1;
         maxActiveDispatches = Math.max(maxActiveDispatches, activeDispatches);
@@ -124,7 +124,7 @@ const result = await dispatchMultiWindowPrompt({
       id: 'pane-2',
       enabled: true,
       projectId: 'project-b',
-      codingSessionId: 'session-b',
+      agentSessionId: 'session-b',
       sendPrompt: async ({ prompt }) => {
         activeDispatches += 1;
         maxActiveDispatches = Math.max(maxActiveDispatches, activeDispatches);
@@ -138,7 +138,7 @@ const result = await dispatchMultiWindowPrompt({
       id: 'pane-3',
       enabled: true,
       projectId: 'project-c',
-      codingSessionId: 'session-c',
+      agentSessionId: 'session-c',
       sendPrompt: async ({ prompt }) => {
         activeDispatches += 1;
         maxActiveDispatches = Math.max(maxActiveDispatches, activeDispatches);
@@ -151,7 +151,7 @@ const result = await dispatchMultiWindowPrompt({
       id: 'pane-4',
       enabled: false,
       projectId: 'project-d',
-      codingSessionId: 'session-d',
+      agentSessionId: 'session-d',
       sendPrompt: async () => {
         throw new Error('disabled panes must not dispatch');
       },
@@ -230,14 +230,14 @@ assert.deepEqual(
   collectFailedMultiWindowDispatchPaneIds([
     ...result.results,
     {
-      codingSessionId: 'duplicate-session',
+      agentSessionId: 'duplicate-session',
       durationMs: 1,
       paneId: 'pane-2',
       projectId: 'project-b',
       status: 'failed',
     },
     {
-      codingSessionId: 'session-late-failure',
+      agentSessionId: 'session-late-failure',
       durationMs: 1,
       paneId: 'pane-5',
       projectId: 'project-e',
@@ -254,17 +254,17 @@ const autoProvisionedResult = await dispatchMultiWindowPrompt({
       id: 'pane-auto-session',
       enabled: true,
       projectId: 'project-auto',
-      codingSessionId: '',
+      agentSessionId: '',
       requiresSessionProvisioning: true,
-      sendPrompt: async ({ codingSessionId, prompt }) => {
+      sendPrompt: async ({ agentSessionId, prompt }) => {
         assert.equal(
-          codingSessionId,
+          agentSessionId,
           '',
           'Auto-provisioned panes must be able to dispatch before a session id exists.',
         );
         assert.equal(prompt, 'Create a comparative mobile UI');
         return {
-          codingSessionId: 'session-auto-created',
+          agentSessionId: 'session-auto-created',
         };
       },
     },
@@ -277,7 +277,7 @@ assert.equal(
   'Panes that can create their own session must participate in the broadcast.',
 );
 assert.equal(
-  autoProvisionedResult.results[0]?.codingSessionId,
+  autoProvisionedResult.results[0]?.agentSessionId,
   'session-auto-created',
   'Dispatch results must expose the newly provisioned session id for pane state reconciliation.',
 );
@@ -293,14 +293,14 @@ await dispatchMultiWindowPrompt({
       id: 'progress-pane-1',
       enabled: true,
       projectId: 'project-a',
-      codingSessionId: 'session-a',
+      agentSessionId: 'session-a',
       sendPrompt: async () => undefined,
     },
     {
       id: 'progress-pane-2',
       enabled: true,
       projectId: 'project-b',
-      codingSessionId: 'session-b',
+      agentSessionId: 'session-b',
       sendPrompt: async () => {
         throw new Error('provider quota exceeded');
       },
@@ -309,7 +309,7 @@ await dispatchMultiWindowPrompt({
       id: 'progress-pane-3',
       enabled: false,
       projectId: 'project-c',
-      codingSessionId: 'session-c',
+      agentSessionId: 'session-c',
       sendPrompt: async () => {
         throw new Error('skipped pane should not run');
       },
@@ -345,7 +345,7 @@ try {
         id: 'observer-failure-pane',
         enabled: true,
         projectId: 'project-observer-failure',
-        codingSessionId: 'session-observer-failure',
+        agentSessionId: 'session-observer-failure',
         sendPrompt: async () => undefined,
       },
     ],
@@ -387,7 +387,7 @@ const stoppedResult = await dispatchMultiWindowPrompt({
       id: 'stopped-pane-1',
       enabled: true,
       projectId: 'project-a',
-      codingSessionId: 'session-a',
+      agentSessionId: 'session-a',
       sendPrompt: async () => {
         throw new Error('stopped panes must not dispatch');
       },
@@ -396,7 +396,7 @@ const stoppedResult = await dispatchMultiWindowPrompt({
       id: 'stopped-pane-2',
       enabled: true,
       projectId: 'project-b',
-      codingSessionId: 'session-b',
+      agentSessionId: 'session-b',
       sendPrompt: async () => {
         throw new Error('stopped panes must not dispatch');
       },
@@ -449,7 +449,7 @@ const midFlightResultPromise = dispatchMultiWindowPrompt({
       id: 'mid-flight-active',
       enabled: true,
       projectId: 'project-mid-flight-a',
-      codingSessionId: 'session-mid-flight-a',
+      agentSessionId: 'session-mid-flight-a',
       sendPrompt: async () => {
         activePaneStarted?.();
         await activePaneReleasePromise;
@@ -459,7 +459,7 @@ const midFlightResultPromise = dispatchMultiWindowPrompt({
       id: 'mid-flight-pending',
       enabled: true,
       projectId: 'project-mid-flight-b',
-      codingSessionId: 'session-mid-flight-b',
+      agentSessionId: 'session-mid-flight-b',
       sendPrompt: async () => {
         midFlightSecondPaneCalls += 1;
       },
@@ -498,7 +498,7 @@ const persistedState = buildMultiWindowWorkspaceState({
   now: () => '2026-04-28T00:00:00.000Z',
   panes: [
     {
-      codingSessionId: 'session-a',
+      agentSessionId: 'session-a',
       enabled: true,
       id: 'multiwindow-pane-1',
       mode: 'preview',
@@ -729,7 +729,7 @@ assert.equal(
 );
 
 const alignedPane = {
-  codingSessionId: 'session-aligned',
+  agentSessionId: 'session-aligned',
   enabled: true,
   id: 'multiwindow-pane-aligned',
   mode: 'chat' as const,
@@ -747,7 +747,7 @@ const alignedPane = {
 };
 assert.deepEqual(
   resolveMultiWindowPaneSessionProvisioningStatus(alignedPane, {
-    codingSessionId: 'session-aligned',
+    agentSessionId: 'session-aligned',
     engineId: 'codex',
     modelId: 'gpt-5-codex',
   }),
@@ -759,7 +759,7 @@ assert.deepEqual(
 );
 assert.deepEqual(
   resolveMultiWindowPaneDispatchability(alignedPane, {
-    codingSessionId: 'session-aligned',
+    agentSessionId: 'session-aligned',
     engineId: 'codex',
     modelId: 'gpt-5-codex',
   }),
@@ -777,7 +777,7 @@ assert.deepEqual(
       selectedModelId: 'gpt-5.4',
     },
     {
-      codingSessionId: 'session-aligned',
+      agentSessionId: 'session-aligned',
       engineId: 'codex',
       modelId: 'gpt-5-codex',
     },
@@ -823,7 +823,7 @@ assert.equal(
   countMultiWindowDispatchablePanes([
     {
       binding: {
-        codingSessionId: 'session-aligned',
+        agentSessionId: 'session-aligned',
         engineId: 'codex',
         modelId: 'gpt-5-codex',
       },
@@ -833,7 +833,7 @@ assert.equal(
       binding: null,
       pane: {
         ...alignedPane,
-        codingSessionId: '',
+        agentSessionId: '',
       },
     },
     {
@@ -911,7 +911,7 @@ assert.deepEqual(
       selectedModelId: 'gpt-5.4',
     },
     {
-      codingSessionId: 'session-aligned',
+      agentSessionId: 'session-aligned',
       engineId: 'codex',
       modelId: 'gpt-5-codex',
     },
@@ -926,7 +926,7 @@ assert.deepEqual(
   resolveMultiWindowPaneSessionProvisioningStatus(
     {
       ...alignedPane,
-      codingSessionId: '',
+      agentSessionId: '',
     },
     null,
   ),

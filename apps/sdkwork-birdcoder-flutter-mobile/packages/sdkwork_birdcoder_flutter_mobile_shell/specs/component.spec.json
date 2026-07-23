@@ -1,0 +1,44 @@
+{
+  "schemaVersion": 1,
+  "kind": "sdkwork.component.spec",
+  "component": {
+    "name": "sdkwork_birdcoder_flutter_mobile_shell",
+    "displayName": "SDKWork BirdCoder Flutter Mobile Shell",
+    "version": "0.1.0",
+    "type": "dart-package",
+    "root": "sdkwork-birdcoder/apps/sdkwork-birdcoder-flutter-mobile/packages/sdkwork_birdcoder_flutter_mobile_shell",
+    "domain": "birdcoder",
+    "capability": "mobile-shell",
+    "surface": "app",
+    "languages": ["dart"],
+    "generated": false,
+    "private": true,
+    "manifests": ["pubspec.yaml"]
+  },
+  "canonicalSpecs": [
+    { "file": "COMPONENT_SPEC.md", "path": "../../../../../sdkwork-specs/COMPONENT_SPEC.md", "purpose": "Component ownership and port contracts." },
+    { "file": "CODE_STYLE_SPEC.md", "path": "../../../../../sdkwork-specs/CODE_STYLE_SPEC.md", "purpose": "Authored source and generated-code boundaries." },
+    { "file": "NAMING_SPEC.md", "path": "../../../../../sdkwork-specs/NAMING_SPEC.md", "purpose": "Canonical package and capability naming." },
+    { "file": "UI_ARCHITECTURE_SPEC.md", "path": "../../../../../sdkwork-specs/UI_ARCHITECTURE_SPEC.md", "purpose": "UI architecture selection rules." },
+    { "file": "APP_FLUTTER_UI_SPEC.md", "path": "../../../../../sdkwork-specs/APP_FLUTTER_UI_SPEC.md", "purpose": "Flutter shell composition rules." },
+    { "file": "FLUTTER_APP_MOBILE_ARCHITECTURE_SPEC.md", "path": "../../../../../sdkwork-specs/FLUTTER_APP_MOBILE_ARCHITECTURE_SPEC.md", "purpose": "Flutter app-root architecture." }
+  ],
+  "contracts": {
+    "layerRole": "frontend-shell",
+    "publicExports": ["lib/sdkwork_birdcoder_flutter_mobile_shell.dart"],
+    "providedPorts": [
+      { "name": "mobileShellConfiguration", "export": "lib/sdkwork_birdcoder_flutter_mobile_shell.dart" }
+    ],
+    "requiredPorts": [],
+    "runtimeEntrypoints": [],
+    "routeManifest": null,
+    "sdkClients": [],
+    "sdkDependencies": [],
+    "permissionComposition": {},
+    "dependencyApiExports": [],
+    "dependencyApiSurfaces": [],
+    "events": [],
+    "configKeys": []
+  },
+  "verification": { "commands": ["pnpm check:flutter-android"] }
+}

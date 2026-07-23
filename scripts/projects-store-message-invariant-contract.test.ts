@@ -1,21 +1,21 @@
 import assert from 'node:assert/strict';
 import type {
-  BirdCoderChatMessage,
-  BirdCoderCodingSession,
+  AgentSessionItemView,
+  AgentSessionView,
   BirdCoderProject,
 } from '@sdkwork/birdcoder-pc-contracts-commons';
 import {
   mergeProjectsForStore,
-  updateCodingSessionInCollection,
-  upsertCodingSessionIntoCollection,
+  updateAgentSessionInCollection,
+  upsertAgentSessionIntoCollection,
 } from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-workbench/src/stores/projectsStore.ts';
 
 function buildMessage(
-  overrides: Partial<BirdCoderChatMessage> = {},
-): BirdCoderChatMessage {
+  overrides: Partial<AgentSessionItemView> = {},
+): AgentSessionItemView {
   return {
     id: 'message-1',
-    codingSessionId: 'session-1',
+    agentSessionId: 'session-1',
     role: 'user',
     content: 'Implement store-level transcript invariants.',
     createdAt: '2026-04-27T01:00:00.000Z',
@@ -23,9 +23,9 @@ function buildMessage(
   };
 }
 
-function buildCodingSession(
-  overrides: Partial<BirdCoderCodingSession> = {},
-): BirdCoderCodingSession {
+function buildAgentSession(
+  overrides: Partial<AgentSessionView> = {},
+): AgentSessionView {
   return {
     id: 'session-1',
     workspaceId: 'workspace-1',
@@ -56,7 +56,7 @@ function buildProject(
     createdAt: '2026-04-27T01:00:00.000Z',
     updatedAt: '2026-04-27T01:00:00.000Z',
     archived: false,
-    codingSessions: [buildCodingSession()],
+    agentSessions: [buildAgentSession()],
     ...overrides,
   };
 }
@@ -73,14 +73,14 @@ const richerDuplicateMessage = buildMessage({
 });
 const foreignSessionMessage = buildMessage({
   id: 'foreign-message',
-  codingSessionId: 'session-foreign',
+  agentSessionId: 'session-foreign',
   content: 'This message belongs to a different session.',
 });
 
-const upsertedProjects = upsertCodingSessionIntoCollection(
+const upsertedProjects = upsertAgentSessionIntoCollection(
   [buildProject()],
   'project-1',
-  buildCodingSession({
+  buildAgentSession({
     messages: [
       duplicateBaseMessage,
       foreignSessionMessage,
@@ -88,21 +88,21 @@ const upsertedProjects = upsertCodingSessionIntoCollection(
     ],
   }),
 );
-const upsertedSession = upsertedProjects[0]!.codingSessions.find(
-  (codingSession) => codingSession.id === 'session-1',
+const upsertedSession = upsertedProjects[0]!.agentSessions.find(
+  (agentSession) => agentSession.id === 'session-1',
 );
 
 assert.deepEqual(
   upsertedSession?.messages.map((message) => ({
     id: message.id,
-    codingSessionId: message.codingSessionId,
+    agentSessionId: message.agentSessionId,
     content: message.content,
     commands: message.commands,
   })),
   [
     {
       id: 'message-1',
-      codingSessionId: 'session-1',
+      agentSessionId: 'session-1',
       content: 'Implement store-level transcript invariants with richer payload.',
       commands: [
         {
@@ -115,39 +115,39 @@ assert.deepEqual(
   'project store upserts must enforce session-scoped, deduplicated transcripts before the UI can render duplicates.',
 );
 
-const updatedProjects = updateCodingSessionInCollection(
+const updatedProjects = updateAgentSessionInCollection(
   [buildProject({
-    codingSessions: [
-      buildCodingSession({
+    agentSessions: [
+      buildAgentSession({
         messages: [duplicateBaseMessage],
       }),
     ],
   })],
   'project-1',
   'session-1',
-  (codingSession) => ({
-    ...codingSession,
+  (agentSession) => ({
+    ...agentSession,
     messages: [
-      ...codingSession.messages,
+      ...agentSession.messages,
       foreignSessionMessage,
       richerDuplicateMessage,
     ],
   }),
 );
-const updatedSession = updatedProjects[0]!.codingSessions.find(
-  (codingSession) => codingSession.id === 'session-1',
+const updatedSession = updatedProjects[0]!.agentSessions.find(
+  (agentSession) => agentSession.id === 'session-1',
 );
 
 assert.deepEqual(
   updatedSession?.messages.map((message) => ({
     id: message.id,
-    codingSessionId: message.codingSessionId,
+    agentSessionId: message.agentSessionId,
     content: message.content,
   })),
   [
     {
       id: 'message-1',
-      codingSessionId: 'session-1',
+      agentSessionId: 'session-1',
       content: 'Implement store-level transcript invariants with richer payload.',
     },
   ],

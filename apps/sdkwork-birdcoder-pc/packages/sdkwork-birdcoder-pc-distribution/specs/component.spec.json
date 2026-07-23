@@ -93,6 +93,14 @@
     }
   ],
   "contracts": {
+    "layerRole": "contract",
+    "providedPorts": [
+      {
+        "name": "distributionManifest",
+        "export": "."
+      }
+    ],
+    "requiredPorts": [],
     "publicExports": [
       "."
     ],

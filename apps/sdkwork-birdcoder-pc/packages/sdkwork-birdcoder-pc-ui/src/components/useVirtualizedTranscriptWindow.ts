@@ -1,4 +1,4 @@
-import type { BirdCoderChatMessage, BirdCoderCodeEngineKey } from '@sdkwork/birdcoder-pc-workbench/chat/types';
+import type { AgentSessionItemView } from '@sdkwork/birdcoder-pc-workbench/chat/types';
 import type { RefObject } from 'react';
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import {
@@ -14,7 +14,7 @@ interface VirtualizedTranscriptWindowResult {
   paddingBottom: number;
   paddingTop: number;
   registerMessageElement: (messageId: string) => (element: HTMLDivElement | null) => void;
-  visibleMessages: readonly BirdCoderChatMessage[];
+  visibleMessages: readonly AgentSessionItemView[];
   visibleStartIndex: number;
 }
 
@@ -26,12 +26,12 @@ interface TranscriptMeasurementState {
 }
 
 export function useVirtualizedTranscriptWindow(
-  messages: readonly BirdCoderChatMessage[],
+  messages: readonly AgentSessionItemView[],
   scrollContainerRef: RefObject<HTMLDivElement | null>,
   isActive = true,
   measurementScopeKey = '',
   layout: 'sidebar' | 'main' = 'main',
-  engineId?: BirdCoderCodeEngineKey,
+  engineId?: string,
 ): VirtualizedTranscriptWindowResult {
   const normalizedMeasurementScopeKey = measurementScopeKey.trim();
   const [viewport, setViewport] = useState<TranscriptViewport>({

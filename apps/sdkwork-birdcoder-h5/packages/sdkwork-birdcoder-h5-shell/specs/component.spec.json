@@ -1,0 +1,84 @@
+{
+  "schemaVersion": 1,
+  "kind": "sdkwork.component.spec",
+  "component": {
+    "name": "@sdkwork/birdcoder-h5-shell",
+    "displayName": "SDKWork BirdCoder H5 Shell",
+    "version": "0.1.0",
+    "type": "react-package",
+    "root": "sdkwork-birdcoder/apps/sdkwork-birdcoder-h5/packages/sdkwork-birdcoder-h5-shell",
+    "domain": "birdcoder",
+    "capability": "shell",
+    "surface": "app",
+    "languages": [
+      "typescript",
+      "react"
+    ],
+    "generated": false,
+    "private": true,
+    "manifests": [
+      "package.json"
+    ]
+  },
+  "canonicalSpecs": [
+    {
+      "file": "APP_H5_ARCHITECTURE_SPEC.md",
+      "path": "../../../../../sdkwork-specs/APP_H5_ARCHITECTURE_SPEC.md",
+      "purpose": "H5 shell, bootstrap, routing, and provider boundaries."
+    },
+    {
+      "file": "APP_MOBILE_REACT_UI_SPEC.md",
+      "path": "../../../../../sdkwork-specs/APP_MOBILE_REACT_UI_SPEC.md",
+      "purpose": "Mobile React shell and navigation composition."
+    },
+    {
+      "file": "IAM_LOGIN_INTEGRATION_SPEC.md",
+      "path": "../../../../../sdkwork-specs/IAM_LOGIN_INTEGRATION_SPEC.md",
+      "purpose": "AuthGate, current-session validation, and logout semantics."
+    },
+    {
+      "file": "TYPESCRIPT_CODE_SPEC.md",
+      "path": "../../../../../sdkwork-specs/TYPESCRIPT_CODE_SPEC.md",
+      "purpose": "Typed package and public export boundaries."
+    },
+    {
+      "file": "FRONTEND_CODE_SPEC.md",
+      "path": "../../../../../sdkwork-specs/FRONTEND_CODE_SPEC.md",
+      "purpose": "Frontend provider, state, and service flow."
+    }
+  ],
+  "contracts": {
+    "layerRole": "frontend-shell",
+    "providedPorts": [
+      {
+        "name": "mobileApplicationShell",
+        "export": "."
+      }
+    ],
+    "requiredPorts": [
+      {
+        "name": "h5CoreRuntime",
+        "export": "."
+      }
+    ],
+    "publicExports": [
+      "."
+    ],
+    "sdkClients": [],
+    "sdkDependencies": [],
+    "dependencyApiExports": [],
+    "dependencyApiSurfaces": [],
+    "events": [],
+    "routeManifest": null
+  },
+  "integration": {
+    "authority": "The H5 shell consumes sdkwork-iam-h5-auth and the H5 core IAM runtime through public package exports.",
+    "dependencyPolicy": "H5 shell code must not import BirdCoder PC packages or construct generated SDK clients.",
+    "sdkPolicy": "Authenticated API clients and the global TokenManager remain owned by H5 core bootstrap."
+  },
+  "verification": {
+    "commands": [
+      "pnpm typecheck"
+    ]
+  }
+}

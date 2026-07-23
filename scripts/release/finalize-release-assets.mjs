@@ -42,8 +42,8 @@ import {
   enrichQualityEvidenceSummary,
 } from './quality-gate-release-evidence.mjs';
 import {
-  createCodingServerOpenApiEvidence,
-} from './coding-server-openapi-release-evidence.mjs';
+  createBirdcoderAppApiEvidence,
+} from './birdcoder-app-api-release-evidence.mjs';
 import {
   assertClearStopShipEvidence,
   buildPromotionReadinessSummary,
@@ -703,12 +703,12 @@ export function finalizeReleaseAssets(options = {}) {
       latestLaunchedAt: testEvidence.latestLaunchedAt,
     };
   }
-  const codingServerOpenApiEvidence = createCodingServerOpenApiEvidence({
+  const birdcoderAppApiEvidence = createBirdcoderAppApiEvidence({
     releaseAssetsDir,
     assets: manifest.assets,
   });
-  if (codingServerOpenApiEvidence) {
-    manifest.codingServerOpenApiEvidence = codingServerOpenApiEvidence;
+  if (birdcoderAppApiEvidence) {
+    manifest.birdcoderAppApiEvidence = birdcoderAppApiEvidence;
   }
   const qualityEvidence = createReleaseQualityEvidence({
     rootDir,

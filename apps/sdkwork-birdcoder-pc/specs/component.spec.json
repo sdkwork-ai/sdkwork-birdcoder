@@ -97,19 +97,16 @@
     }
   ],
   "contracts": {
+    "layerRole": "runtime-composition",
+    "providedPorts": [],
+    "requiredPorts": [],
     "publicExports": [],
     "runtimeEntrypoints": [
       "package.json#scripts.dev",
       "package.json#scripts.build",
       "package.json#scripts.dev:desktop"
     ],
-    "sdkClients": [
-      "@sdkwork/birdcoder-app-sdk",
-      "@sdkwork/iam-app-sdk",
-      "@sdkwork/drive-app-sdk",
-      "@sdkwork/messaging-app-sdk",
-      "@sdkwork/membership-app-sdk"
-    ],
+    "sdkClients": [],
     "sdkDependencies": [
       {
         "workspace": "sdkwork-birdcoder-app-sdk",
@@ -146,9 +143,16 @@
     "dependencyApiSurfaces": [],
     "events": [],
     "configKeys": [
+      "VITE_SDKWORK_BIRDCODER_APPLICATION_PUBLIC_HTTP_URL",
       "VITE_SDKWORK_BIRDCODER_PLATFORM_API_GATEWAY_HTTP_URL",
+      "VITE_SDKWORK_APPBASE_APP_API_BASE_URL",
+      "VITE_SDKWORK_DOCUMENTS_APP_API_BASE_URL",
       "VITE_SDKWORK_DRIVE_APP_API_BASE_URL",
-      "VITE_SDKWORK_MEMBERSHIP_APP_API_BASE_URL"
+      "VITE_SDKWORK_IAM_APP_API_BASE_URL",
+      "VITE_SDKWORK_MEMBERSHIP_APP_API_BASE_URL",
+      "VITE_SDKWORK_MESSAGING_APP_API_BASE_URL",
+      "VITE_SDKWORK_ORDER_APP_API_BASE_URL",
+      "VITE_SDKWORK_PROMPTS_APP_API_BASE_URL"
     ],
     "routeManifest": null,
     "permissionComposition": {

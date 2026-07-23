@@ -1,8 +1,0 @@
-import type { BirdCoderIamTenantMemberSummary } from './bird-coder-iam-tenant-member-summary';
-
-export interface BirdCoderIamTenantMemberSummaryEnvelope {
-  code: 0;
-  data: unknown & Record<string, unknown>;
-  /** Server-owned request correlation id. */
-  traceId: string;
-}

@@ -5,12 +5,15 @@ import {
   deserializeStoredValue,
   serializeStoredValue,
 } from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-workbench/src/storage/localStore.ts';
-import { createJsonRecordRepository } from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-workbench/src/storage/dataKernel.ts';
 
-assert.equal(buildLocalStoreKey('settings', 'app'), 'sdkwork-birdcoder:settings:app');
+assert.equal(
+  buildLocalStoreKey('settings', 'app'),
+  'sdkwork-birdcoder.ui.v1:settings:app',
+  'Workbench local settings must use the versioned UI-only namespace.',
+);
 
-const raw = serializeStoredValue({ theme: 'dark', engine: 'codex' });
-assert.equal(raw, '{"theme":"dark","engine":"codex"}');
+const raw = serializeStoredValue({ theme: 'dark', density: 'compact' });
+assert.equal(raw, '{"theme":"dark","density":"compact"}');
 assert.equal(
   serializeStoredValue({
     id: 101777208078558047n,
@@ -23,7 +26,7 @@ assert.equal(
   '{"id":"101777208078558047","workspaceId":"1001","ids":["1002"],"nested":{"pointBalance":"4097"}}',
   'local store serialization must use the shared BirdCoder JSON codec so Long ids and BIGINT fields are written as exact strings.',
 );
-assert.deepEqual(deserializeStoredValue(raw, null), { theme: 'dark', engine: 'codex' });
+assert.deepEqual(deserializeStoredValue(raw, null), { theme: 'dark', density: 'compact' });
 assert.deepEqual(deserializeStoredValue('{invalid', { ok: true }), { ok: true });
 assert.deepEqual(
   deserializeStoredValue(
@@ -39,21 +42,10 @@ assert.deepEqual(
   'local store deserialization must preserve unsafe Long identifiers as strings.',
 );
 
-const demoRepository = createJsonRecordRepository({
-  binding: {
-    entityName: 'workbench_preference',
-    preferredProvider: 'sqlite',
-    storageKey: 'demo',
-    storageMode: 'key-value',
-    storageScope: 'tests',
-  },
-  fallback: { theme: 'dark' },
-});
-
-assert.equal(
-  demoRepository.definition.entityName,
-  'workbench_preference',
-  'JSON record repositories should default their lightweight definition entityName from the binding so browser consumers do not need to import the heavier entity-definition registry.',
+assert.throws(
+  () => serializeStoredValue({ unsafeId: Number.MAX_SAFE_INTEGER + 1 }),
+  /unsafe JavaScript number/u,
+  'UI settings must reject unsafe numeric identifiers instead of silently losing precision.',
 );
 
 console.log('local store contract passed.');

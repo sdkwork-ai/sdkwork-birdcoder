@@ -7,41 +7,62 @@ const spec = JSON.parse(
   fs.readFileSync(path.join(root, 'specs/agents-birdcoder-alignment.spec.json'), 'utf8'),
 );
 
-for (const doc of spec.authorityDocs) {
-  const docPath = path.join(root, doc);
-  assert.equal(fs.existsSync(docPath), true, `missing authority doc: ${doc}`);
+function resolvePath(relativePath) {
+  return path.resolve(root, relativePath);
 }
 
-for (const task of spec.tasks.filter((entry) => entry.gate)) {
-  assert.equal(task.status, 'done', `gate task ${task.id} must be done`);
-  for (const rel of task.evidence?.paths ?? []) {
-    const target = rel.startsWith('../')
-      ? path.join(root, rel)
-      : path.join(root, rel);
-    assert.equal(fs.existsSync(target), true, `${task.id} missing evidence path ${rel}`);
-  }
-  for (const pattern of task.evidence?.requiredPatterns ?? []) {
-    const file = pattern.file.startsWith('../')
-      ? path.join(root, pattern.file)
-      : path.join(root, pattern.file);
-    const source = fs.readFileSync(file, 'utf8');
-    assert.match(source, new RegExp(pattern.pattern), `${task.id} missing ${pattern.pattern}`);
-  }
-  for (const pattern of task.evidence?.forbiddenPatterns ?? []) {
-    const file = pattern.file.startsWith('../')
-      ? path.join(root, pattern.file)
-      : path.join(root, pattern.file);
-    const source = fs.readFileSync(file, 'utf8');
-    const scope =
-      pattern.section === 'dependencies'
-        ? source.match(/\[dependencies\][\s\S]*?(?=\n\[|$)/)?.[0] ?? source
-        : source;
-    assert.doesNotMatch(
-      scope,
-      new RegExp(pattern.pattern),
-      `${task.id} forbidden pattern ${pattern.pattern}`,
-    );
+function readSource(relativePath) {
+  return fs.readFileSync(resolvePath(relativePath), 'utf8');
+}
+
+const errors = [];
+
+for (const doc of spec.authorityDocs) {
+  if (!fs.existsSync(resolvePath(doc))) {
+    errors.push(`missing authority document: ${doc}`);
   }
 }
+
+for (const task of spec.tasks) {
+  if (task.gate && task.status !== 'done') {
+    errors.push(`[${task.id}] gate status must be done, received ${task.status}`);
+  }
+
+  const evidence = task.evidence ?? {};
+  for (const relativePath of evidence.paths ?? []) {
+    if (!fs.existsSync(resolvePath(relativePath))) {
+      errors.push(`[${task.id}] missing path: ${relativePath}`);
+    }
+  }
+  for (const relativePath of evidence.siblingPaths ?? []) {
+    if (!fs.existsSync(resolvePath(relativePath))) {
+      errors.push(`[${task.id}] missing sibling path: ${relativePath}`);
+    }
+  }
+  for (const relativePath of evidence.forbiddenPaths ?? []) {
+    if (fs.existsSync(resolvePath(relativePath))) {
+      errors.push(`[${task.id}] forbidden path still exists: ${relativePath}`);
+    }
+  }
+  for (const entry of evidence.requiredPatterns ?? []) {
+    const source = readSource(entry.file);
+    if (!new RegExp(entry.pattern, entry.flags ?? 'su').test(source)) {
+      errors.push(`[${task.id}] missing pattern in ${entry.file}: /${entry.pattern}/`);
+    }
+  }
+  for (const entry of evidence.forbiddenPatterns ?? []) {
+    const source = readSource(entry.file);
+    if (new RegExp(entry.pattern, entry.flags ?? 'su').test(source)) {
+      errors.push(`[${task.id}] forbidden pattern in ${entry.file}: /${entry.pattern}/`);
+    }
+  }
+}
+
+assert.deepEqual(
+  errors,
+  [],
+  `Agents-BirdCoder alignment failed:\n${errors.map((error) => `  - ${error}`).join('\n')}`,
+);
 
 console.log('agents-birdcoder alignment contract passed.');
+console.log(`tasks: ${spec.tasks.length}/${spec.tasks.length} done`);

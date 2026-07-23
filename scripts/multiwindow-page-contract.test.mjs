@@ -144,7 +144,7 @@ assert.match(
 
 assert.match(
   pageSource,
-  /createCodingSessionFromRequest\(\{[\s\S]*engineId: pane\.selectedEngineId[\s\S]*modelId: pane\.selectedModelId[\s\S]*projectId: pane\.projectId[\s\S]*source: 'multi-window'[\s\S]*title: buildMultiWindowProvisionedSessionTitle\(pane, paneIndex\)[\s\S]*rethrowError: true[\s\S]*shouldSelectCreatedSession: \(\) => false[\s\S]*showFailureToast: false[\s\S]*showSuccessToast: false/,
+  /createAgentSessionFromRequest\(\{[\s\S]*engineId: pane\.selectedEngineId[\s\S]*modelId: pane\.selectedModelId[\s\S]*projectId: pane\.projectId[\s\S]*source: 'multi-window'[\s\S]*title: buildMultiWindowProvisionedSessionTitle\(pane, paneIndex\)[\s\S]*rethrowError: true[\s\S]*shouldSelectCreatedSession: \(\) => false[\s\S]*showFailureToast: false[\s\S]*showSuccessToast: false/,
   'Multi-window panes must provision matching sessions through the unified command without selecting them or emitting per-pane toasts.',
 );
 
@@ -412,7 +412,7 @@ assert.match(
 );
 assert.match(
   pageSource,
-  /const visiblePaneDispatchabilityInputs = useMemo\([\s\S]*pane[\s\S]*binding: bindingsByPaneId\.get\(pane\.id\)\?\.codingSession/,
+  /const visiblePaneDispatchabilityInputs = useMemo\([\s\S]*pane[\s\S]*binding: bindingsByPaneId\.get\(pane\.id\)\?\.agentSession/,
   'Multi-window page must build standard pane dispatchability inputs from visible panes and bindings.',
 );
 assert.match(
@@ -622,27 +622,27 @@ assert.match(
 );
 assert.match(
   sessionPickerSource,
-  /filteredCodingSessions/,
+  /filteredAgentSessions/,
   'The multi-window session picker must filter sessions by title, model, engine, status, and id.',
 );
 assert.match(
   sessionPickerSource,
-  /formatBirdCoderSessionDisplayTime\(/,
+  /formatAgentSessionDisplayTime\(/,
   'The multi-window session picker must show recent activity so similar session titles can be distinguished.',
 );
 assert.match(
   sessionPickerSource,
-  /codingSession\.engineId[\s\S]*codingSession\.modelId/,
+  /agentSession\.engineId[\s\S]*agentSession\.modelId/,
   'The multi-window session picker must show engine and model metadata for every session.',
 );
 assert.match(
   sessionPickerSource,
-  /codingSession\.messages\.length/,
-  'The multi-window session picker must show message count metadata for every session.',
+  /agentSession\.items\.length/,
+  'The multi-window session picker must show Agents Session Item count metadata for every session.',
 );
 assert.match(
   sessionPickerSource,
-  /formatShortSessionId\(codingSession\.id\)/,
+  /formatShortSessionId\(agentSession\.id\)/,
   'The multi-window session picker must expose a short session id for disambiguating similar sessions.',
 );
 assert.match(
@@ -722,7 +722,7 @@ assert.match(
 );
 assert.match(
   pageSource,
-  /const handleCreateSessionForPane = useCallback\(async \(nextProjectId: string\)[\s\S]*createCodingSessionFromRequest\(\{[\s\S]*engineId: selectedPickerPane\.selectedEngineId[\s\S]*modelId: selectedPickerPane\.selectedModelId[\s\S]*projectId: nextProjectId[\s\S]*source: 'multi-window'[\s\S]*shouldSelectCreatedSession: \(\) => false[\s\S]*activateSelectedPickerPane\(selectedPickerPane\.id\)/,
+  /const handleCreateSessionForPane = useCallback\(async \(nextProjectId: string\)[\s\S]*createAgentSessionFromRequest\(\{[\s\S]*engineId: selectedPickerPane\.selectedEngineId[\s\S]*modelId: selectedPickerPane\.selectedModelId[\s\S]*projectId: nextProjectId[\s\S]*source: 'multi-window'[\s\S]*shouldSelectCreatedSession: \(\) => false[\s\S]*activateSelectedPickerPane\(selectedPickerPane\.id\)/,
   'Creating a session from the picker must use the unified command with the pane model configuration and activate only the pending window.',
 );
 

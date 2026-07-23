@@ -1,13 +1,13 @@
-import type { BirdCoderChatMessage, ChatMessageViewSource } from '@sdkwork/birdcoder-pc-workbench/chat/types';
-import type { ProjectedActivityFileChange } from '@sdkwork/birdcoder-pc-workbench/chat/types';
-import { resolveProjectedActivityFileChanges } from '@sdkwork/birdcoder-pc-workbench/chat/types';
+import type { AgentSessionItemView, ChatMessageViewSource } from '@sdkwork/birdcoder-pc-workbench/chat/types';
+import type { ActivityFileChangeView } from '@sdkwork/birdcoder-pc-workbench/chat/types';
+import { resolveActivityFileChangeViews } from '@sdkwork/birdcoder-pc-workbench/chat/types';
 
-export type ActivityFileChange = ProjectedActivityFileChange;
+export type ActivityFileChange = ActivityFileChangeView;
 
 export {
   parseFileUpdateSummaryContent,
   resolveMessageCopyContent,
-  resolveProjectedActivityFileChanges,
+  resolveActivityFileChangeViews,
   resolveVisibleAssistantMessageContent,
   resolveVisibleMarkdownBlockContent,
   shouldHideMessageContentAsFileUpdateSummary,
@@ -15,8 +15,8 @@ export {
 } from '@sdkwork/birdcoder-pc-workbench/chat/types';
 
 export function resolveMessageActivityFileChanges(
-  message: BirdCoderChatMessage | ChatMessageViewSource,
+  message: AgentSessionItemView | ChatMessageViewSource,
 ): ActivityFileChange[] | undefined {
-  const fileChanges = resolveProjectedActivityFileChanges(message);
+  const fileChanges = resolveActivityFileChangeViews(message);
   return fileChanges.length > 0 ? fileChanges : undefined;
 }

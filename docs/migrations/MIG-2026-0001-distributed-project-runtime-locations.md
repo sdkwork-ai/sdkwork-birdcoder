@@ -4,119 +4,89 @@ Status: active
 Owner: SDKWork maintainers
 Requirement: [REQ-2026-0001](../product/requirements/REQ-2026-0001-distributed-project-runtime-locations.md)
 Decision: [ADR-20260716](../architecture/decisions/ADR-20260716-distributed-project-runtime-locations.md)
-Type: mixed
-Specs: `MIGRATION_SPEC.md`, `DATABASE_SPEC.md`, `API_SPEC.md`, `SDK_SPEC.md`, `SECURITY_SPEC.md`, `PRIVACY_SPEC.md`, `DOCUMENTATION_SPEC.md`
+Type: database, API, SDK, desktop, and cross-domain contract
+Specs: `MIGRATION_SPEC.md`, `DATABASE_SPEC.md`, `API_SPEC.md`, `SDK_SPEC.md`, `SECURITY_SPEC.md`, `PRIVACY_SPEC.md`
 
 ```yaml
 id: MIG-2026-0001
 owner: SDKWork maintainers
 status: active
 requirement: REQ-2026-0001
-type: mixed
-scope:
-  producers:
-    - sdkwork-birdcoder-project-service
-    - sdkwork-birdcoder-workspace-repository-sqlx
-    - sdkwork-routes-workspace-app-api
-    - sdkwork-birdcoder-coding-sessions-service
-    - sdkwork-routes-coding-sessions-app-api
-    - sdkwork-routes-engine-catalog-app-api
-    - sdkwork-api-birdcoder-standalone-gateway
-    - sdkwork-routes-terminal-app-api
-    - sdkwork-birdcoder-pc-server
-    - sdkwork-birdcoder-app-sdk
-  consumers:
-    - sdkwork-birdcoder-pc-workbench
-    - sdkwork-birdcoder-pc-infrastructure
-    - sdkwork-birdcoder-pc-code
-    - sdkwork-birdcoder-pc-shell
-    - sdkwork-birdcoder-pc-contracts-commons
-    - sdkwork-terminal-pc
-compatibility_window:
-  starts_at: 2026-07-16
-  ends_at: 2026-07-16
-strategy: no-compatibility-approved
-approval: customer-authorized pre-launch direct cleanup on 2026-07-16
+strategy: pre-launch-direct-cutover
+producers:
+  - sdkwork-birdcoder-workspace-service
+  - sdkwork-routes-workspace-app-api
+  - sdkwork-api-birdcoder-standalone-gateway
+  - sdkwork-birdcoder-app-sdk
+  - sdkwork-birdcoder-tauri-host
+consumers:
+  - sdkwork-agents-session-runtime-binding
+  - sdkwork-agents-app-sdk
+  - sdkwork-birdcoder-pc
+  - sdkwork-birdcoder-h5
+  - sdkwork-birdcoder-flutter-mobile
 rollback:
-  supported: true
-  steps:
-    - Disable the affected execution action when its target resolver or contract fails verification.
-    - Apply a forward fix to the authoritative baseline, route/OpenAPI contract, SDK generation input, and consumer service.
-    - For an unlaunched development database only, reinitialize from the corrected baseline after preserving required test evidence; never restore a project-root or process-CWD fallback.
+  strategy: forward-fix-or-reinitialize-unlaunched-database
 verification:
-  - pnpm db:generate:ddl
   - pnpm db:validate
-  - pnpm test:migration-replay
-  - pnpm api:materialize:coding-server
+  - pnpm db:pool:validate
   - pnpm sdk:generate
   - node ../sdkwork-specs/tools/check-api-operation-patterns.mjs --workspace .
   - node ../sdkwork-specs/tools/check-api-response-envelope.mjs --workspace .
+  - node ../sdkwork-specs/tools/check-pagination.mjs --workspace .
   - node ../sdkwork-specs/tools/check-app-sdk-consumer-imports.mjs --workspace .
   - pnpm docs:build
 ```
 
-## Scope And Cutover
+## Cutover
 
-BirdCoder is pre-launch. This is a direct cleanup of ambiguous project-root
-behavior, not an adapter period for a released public contract. The canonical
-model is `ProjectRuntimeLocation`: one Project may own zero or more
-target-bound locations, each with an encrypted absolute path and an opaque
-`runtimeLocationId`. Generic Project data, `studio_project.site_path`, browser
-directory handles, local mount records, configured runner roots, session JSON
-paths, and process CWD cannot authorize execution.
+`ProjectRuntimeLocation` is the only BirdCoder authority for a project root on
+one trusted execution target. Generic Project metadata, browser handles, local
+mount records, configuration, user preferences, session metadata, and process
+CWD cannot authorize execution.
 
-Terminal, Git, worktree, build, file-system, Coding Session, and provider/native
-session operations carry or persist an exact `runtimeLocationId`. A
-subject-and-capability preference can assist interactive selection only; the
-execution request resolves it to an exact identifier and never asks a server to
-infer a project root. A local Tauri action additionally requires the
-current-device mounted binding. A server, runner, container, or remote-workspace
-action remains unavailable until its mutually authenticated target enrollment
-and verification authority exist.
+BirdCoder and Agents keep independent aggregates connected by a stable ID:
 
-## Data And Contract Steps
+- BirdCoder owns the runtime-location lifecycle, encrypted path, target binding,
+  capabilities, preference, Git observation, idempotency, and audit facts.
+- Agents owns Session and Session Runtime Binding facts and stores only the
+  stable BirdCoder `runtimeLocationId` required for an execution.
+- At execution time Agents invokes the authorized BirdCoder runtime-location
+  resolver port. It never receives a renderer-supplied root and never stores a
+  BirdCoder path copy.
 
-1. Fold the runtime-location and Coding Session binding columns, indexes, and
-   constraints into the initialization baseline DDL. This repository is in
-   database initialization state, so no new incremental `.up.sql` migration is
-   introduced for this pre-GA schema cleanup.
-2. Regenerate checked-in SQLite and PostgreSQL DDL from the baseline and verify
-   that `runtime_location_id` appears once for Coding Sessions and remains
-   nullable only to represent historical unbound records.
-3. Remove execution reads of project-only roots, `site_path`, session root/CWD
-   values, current-subject preferences, configured runner roots, and process
-   CWD. Preserve target-private provider CWD only for scoped matching after an
-   exact runtime location has been authorized.
-4. Require `runtimeLocationId` for new Coding Session creation and persist it
-   immutably. Old rows without the value remain readable but turn execution,
-   recovery, and provider-history reconciliation return typed `503` unavailable
-   results. Aggregate discovery through the unified coding-session inventory
-   requires an explicit authorized runtime location.
-5. Update OpenAPI authorities and regenerate composed BirdCoder and terminal
-   SDKs. Public request, response, replay, and SSE models omit absolute paths,
-   `cwd`, `nativeCwd`, `workingDirectory`, and equivalent path fields.
-6. Reconcile Tauri durable mounts with location identity. A mount is considered
-   usable only after durable local binding persistence succeeds; failed recovery
-   or rebind fails closed.
+No projection, dual write, shared table, cross-domain foreign key, compatibility
+facade, or fallback path is introduced.
 
-## Safety And Privacy
+## Implementation Steps
 
-Absolute paths are write-only sensitive inputs, encrypted at rest, and available
-only to the authenticated owning target for a validated action. Path fingerprints
-are scoped one-way identifiers. Logs, traces, metrics, audit projections,
-generic Project data, runtime-location responses, Coding Session data,
-native-session data, replay, and SSE never expose plaintext paths, ciphertext,
-fingerprints, browser handles, credentials, or credential-bearing Git URLs.
+1. Keep the runtime-location, preference, idempotency, and audit structures in
+   the BirdCoder initialization baseline and exact ten-table registry.
+2. Remove `studio_project.site_path` and every project/session/CWD fallback from
+   executable flows.
+3. Require target identity, tenant and organization scope, project authority,
+   lifecycle, health, and capability before path resolution.
+4. Wire Agents Session Runtime Binding creation to the stable
+   `runtimeLocationId`; provider/model/session identity remains entirely in
+   Agents.
+5. Keep Tauri mount data as a device-private capability materialization. It may
+   resolve the current device's local path only after matching the authorized
+   runtime-location identity.
+6. Regenerate the BirdCoder and Agents SDK families from their owner OpenAPI
+   authorities, then migrate PC, H5, and Flutter consumers.
+7. Remove all obsolete local Session, SQL bridge, projection, copied DTO, and
+   route artifacts after consumer cutover.
 
-No compatibility reader may reconstruct an execution root from an old field.
-Failures are explicit and typed; the supported operational response is repair,
-re-registration, verified target enrollment, or a forward fix, not fallback to a
-different directory.
+## Security And Privacy
 
-## Evidence And Completion Criteria
+Absolute paths are write-only sensitive inputs, encrypted at rest, and
+available only to the authenticated owning target for a validated action. API
+responses, SDK models, logs, traces, metrics, errors, audit payloads, Agents
+Session records, and IM messages must not expose plaintext paths, ciphertext,
+browser handles, credentials, or credential-bearing Git URLs.
 
-The migration completes when baseline DDL, OpenAPI authorities, generated SDKs,
-route handlers, runtime resolvers, desktop bindings, and documentation agree on
-the same identity boundary; focused tests prove location scope/capability checks,
-session immutability, legacy fail-closed behavior, path redaction, and no CWD
-fallback; and the verification commands in the YAML block pass.
+## Completion
+
+The migration completes only when database, API, SDK, desktop, cross-domain
+binding, path-redaction, target-authorization, documentation, and production
+gates pass and all former local Session/root authorities are absent.

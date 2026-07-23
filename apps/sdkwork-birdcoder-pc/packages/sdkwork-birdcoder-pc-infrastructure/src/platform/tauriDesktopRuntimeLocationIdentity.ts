@@ -73,7 +73,7 @@ function toIdentity(
 
   return {
     displayName: binding.displayName,
-    locationKind: 'desktop_checkout',
+    locationKind: 'local_directory',
     pathFlavor,
     requiresRebind: binding.requiresRebind,
     rootLocator: binding.rootLocator,
@@ -83,7 +83,7 @@ function toIdentity(
       ? { runtimeLocationVersion: binding.runtimeLocationVersion }
       : {}),
     runtimeTargetId,
-    runtimeTargetKind: 'desktop_device',
+    runtimeTargetKind: 'desktop',
   };
 }
 

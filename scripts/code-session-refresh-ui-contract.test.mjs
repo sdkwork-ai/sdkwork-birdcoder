@@ -34,7 +34,7 @@ assert.match(
 
 assert.match(
   projectExplorerTypesSource,
-  /onRefreshCodingSessionMessages\?: \(id: string\) => Promise<void> \| void;/,
+  /onRefreshAgentSessionItems\?: \(id: string\) => Promise<void> \| void;/,
   'Code ProjectExplorer must accept a session refresh handler.',
 );
 
@@ -46,7 +46,7 @@ assert.match(
 
 assert.match(
   projectExplorerTypesSource,
-  /refreshingCodingSessionId\?: string \| null;/,
+  /refreshingAgentSessionId\?: string \| null;/,
   'Code ProjectExplorer must receive session-level loading state for refresh actions.',
 );
 
@@ -82,7 +82,7 @@ assert.match(
 
 assert.match(
   sidebarSource,
-  /refreshingCodingSessionId === contextMenu\.codingSessionId/,
+  /refreshingAgentSessionId === contextMenu\.agentSessionId/,
   'Code sidebar session menu must disable only the active session refresh target.',
 );
 

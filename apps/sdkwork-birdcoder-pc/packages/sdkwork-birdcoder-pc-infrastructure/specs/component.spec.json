@@ -3,14 +3,15 @@
   "kind": "sdkwork.component.spec",
   "component": {
     "name": "@sdkwork/birdcoder-pc-infrastructure",
-    "displayName": "SDKWork Birdcoder Infrastructure",
+    "displayName": "SDKWork BirdCoder PC Infrastructure",
     "version": "0.1.0",
-    "type": "node-package",
+    "type": "typescript-package",
     "root": "sdkwork-birdcoder/apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure",
     "domain": "platform",
-    "declaredDomain": null,
-    "capability": "component",
-    "status": "ready",
+    "declaredDomain": "platform",
+    "capability": "pc-infrastructure",
+    "surface": "app",
+    "status": "ACTIVE",
     "languages": [
       "typescript"
     ],
@@ -22,150 +23,256 @@
   },
   "canonicalSpecs": [
     {
+      "file": "APPLICATION_LAYERED_ARCHITECTURE_SPEC.md",
+      "path": "../../../../../sdkwork-specs/APPLICATION_LAYERED_ARCHITECTURE_SPEC.md",
+      "purpose": "Runtime composition, adapter ownership, and dependency direction."
+    },
+    {
+      "file": "APP_SDK_INTEGRATION_SPEC.md",
+      "path": "../../../../../sdkwork-specs/APP_SDK_INTEGRATION_SPEC.md",
+      "purpose": "Generated SDK construction, injection, and TokenManager integration."
+    },
+    {
       "file": "COMPONENT_SPEC.md",
-      "path": "../../../sdkwork-specs/COMPONENT_SPEC.md",
-      "purpose": "Local component specs directory and manifest rules."
+      "path": "../../../../../sdkwork-specs/COMPONENT_SPEC.md",
+      "purpose": "Component-local contract and discovery rules."
     },
     {
-      "file": "CONFIG_SPEC.md",
-      "path": "../../../sdkwork-specs/CONFIG_SPEC.md",
-      "purpose": "Runtime configuration, environment, SDK bootstrap, and feature flag rules."
-    },
-    {
-      "file": "DOCUMENTATION_SPEC.md",
-      "path": "../../../sdkwork-specs/DOCUMENTATION_SPEC.md",
-      "purpose": "Module README, examples, ADR, changelog, and runbook rules."
-    },
-    {
-      "file": "DOMAIN_SPEC.md",
-      "path": "../../../sdkwork-specs/DOMAIN_SPEC.md",
-      "purpose": "Canonical domain ownership and naming."
+      "file": "DESKTOP_APP_ARCHITECTURE_SPEC.md",
+      "path": "../../../../../sdkwork-specs/DESKTOP_APP_ARCHITECTURE_SPEC.md",
+      "purpose": "Desktop renderer and native host adapter boundary."
     },
     {
       "file": "FRONTEND_SPEC.md",
-      "path": "../../../sdkwork-specs/FRONTEND_SPEC.md",
-      "purpose": "UI, service, SDK, accessibility, and frontend runtime rules."
+      "path": "../../../../../sdkwork-specs/FRONTEND_SPEC.md",
+      "purpose": "Frontend service, SDK, state, and host boundaries."
     },
     {
-      "file": "GOVERNANCE_SPEC.md",
-      "path": "../../../sdkwork-specs/GOVERNANCE_SPEC.md",
-      "purpose": "Standard ownership, exception, compatibility, and migration rules."
-    },
-    {
-      "file": "I18N_SPEC.md",
-      "path": "../../../sdkwork-specs/I18N_SPEC.md",
-      "purpose": "User-facing language, locale, message catalog, and fallback rules."
-    },
-    {
-      "file": "MODULE_SPEC.md",
-      "path": "../../../sdkwork-specs/MODULE_SPEC.md",
-      "purpose": "Reusable package contract and dependency direction."
-    },
-    {
-      "file": "README.md",
-      "path": "../../../sdkwork-specs/README.md",
-      "purpose": "SDKWork root standards entrypoint."
-    },
-    {
-      "file": "SDK_SPEC.md",
-      "path": "../../../sdkwork-specs/SDK_SPEC.md",
-      "purpose": "SDK generation and SDK integration rules."
-    },
-    {
-      "file": "TEST_SPEC.md",
-      "path": "../../../sdkwork-specs/TEST_SPEC.md",
-      "purpose": "Contract, frontend, SDK, security, parity, and documentation verification rules."
+      "file": "SECURITY_SPEC.md",
+      "path": "../../../../../sdkwork-specs/SECURITY_SPEC.md",
+      "purpose": "Credential storage, token safety, and least-privilege host access."
     },
     {
       "file": "CODE_STYLE_SPEC.md",
-      "path": "../../../sdkwork-specs/CODE_STYLE_SPEC.md",
-      "purpose": "Authored source structure and generated code boundaries."
+      "path": "../../../../../sdkwork-specs/CODE_STYLE_SPEC.md",
+      "purpose": "Authored source and public export rules."
     },
     {
       "file": "NAMING_SPEC.md",
-      "path": "../../../sdkwork-specs/NAMING_SPEC.md",
-      "purpose": "Canonical SDKWork naming rules."
+      "path": "../../../../../sdkwork-specs/NAMING_SPEC.md",
+      "purpose": "Canonical package, component, and SDK naming."
     },
     {
       "file": "TYPESCRIPT_CODE_SPEC.md",
-      "path": "../../../sdkwork-specs/TYPESCRIPT_CODE_SPEC.md",
-      "purpose": "TypeScript and Node package rules."
+      "path": "../../../../../sdkwork-specs/TYPESCRIPT_CODE_SPEC.md",
+      "purpose": "TypeScript package and generated SDK boundaries."
+    },
+    {
+      "file": "DOCUMENTATION_SPEC.md",
+      "path": "../../../../../sdkwork-specs/DOCUMENTATION_SPEC.md",
+      "purpose": "Module documentation lifecycle and acceptance rules."
     }
   ],
   "contracts": {
-    "layerRole": "frontend-feature",
+    "layerRole": "frontend-core",
     "publicExports": [
       ".",
       "./runtime/defaultIdeServices",
       "./services/defaultIdeServices",
       "./services/defaultIdeServicesRuntime",
-      "./services/workspaceRealtimeClient",
-      "./services/driveSandboxExplorerRuntime",
+      "./services/defaultIdeServicesShared",
+      "./services/dependencyAppSdkClients",
       "./platform/openLocalFolder",
-      "./storage/runtime",
-      "./storage/dataKernel",
-      "./storage/appConsoleRepository",
-      "./storage/codingSessionPromptEntryRepository",
-      "./storage/promptSkillTemplateEvidenceRepository",
-      "./storage/providers",
-      "./storage/sqlRowCodec"
+      "./services/interfaces/IPromptService",
+      "./services/interfaces/IAuthService",
+      "./services/interfaces/ICatalogService",
+      "./services/interfaces/IDocumentService",
+      "./services/interfaces/IFileSystemService",
+      "./services/interfaces/IProjectRuntimeLocationService",
+      "./services/interfaces/IGitService",
+      "./services/interfaces/IProjectService",
+      "./services/interfaces/IVipMembershipService",
+      "./services/interfaces/IWorkspaceService",
+      "./services/skillsSdkClient",
+      "./services/impl/PromptsSdkPromptService",
+      "./services/iamRuntime",
+      "./services/sessionService",
+      "./services/appSessionTokenManager",
+      "./services/sdkBaseUrls",
+      "./services/appSessionEvents",
+      "./services/runtimeTopology",
+      "./services/agentsSessionService",
+      "./services/agentsCatalogService",
+      "./services/birdCoderSdkClient",
+      "./services/interfaces/IAgentSessionService",
+      "./services/birdcoderDriveUpload",
+      "./services/driveSandboxExplorerRuntime",
+      "./services/lazyDefaultIdeServices",
+      "./services/membershipSdkBootstrap",
+      "./bootstrap/appSessionPersistenceBinding"
     ],
-    "runtimeEntrypoints": [],
-    "sdkClients": [
-      "@sdkwork/birdcoder-app-sdk",
-      "@sdkwork/drive-app-sdk",
-      "@sdkwork/membership-app-sdk"
+    "providedPorts": [
+      {
+        "name": "ideServiceComposition",
+        "export": "./services/defaultIdeServicesRuntime"
+      },
+      {
+        "name": "agentsSessionAdapter",
+        "export": "./services/agentsSessionService"
+      },
+      {
+        "name": "skillsCatalogAdapter",
+        "export": "./services/skillsSdkClient"
+      },
+      {
+        "name": "desktopAppSessionPersistence",
+        "export": "./bootstrap/appSessionPersistenceBinding"
+      },
+      {
+        "name": "nativeFolderPicker",
+        "export": "./platform/openLocalFolder"
+      },
+      {
+        "name": "sdkConnectivityPlaneResolver",
+        "export": "./services/sdkBaseUrls"
+      },
+      {
+        "name": "dependencyAppSdkClientFactory",
+        "export": "./services/dependencyAppSdkClients"
+      }
     ],
-    "events": [],
-    "configKeys": [
-      "VITE_SDKWORK_BIRDCODER_PLATFORM_API_GATEWAY_HTTP_URL",
-      "VITE_SDKWORK_BIRDCODER_REALTIME_TRANSPORT",
-      "VITE_SDKWORK_DRIVE_APP_API_BASE_URL",
-      "VITE_SDKWORK_MEMBERSHIP_APP_API_BASE_URL"
+    "requiredPorts": [
+      {
+        "name": "globalTokenManager",
+        "export": "./services/appSessionTokenManager",
+        "sourcePackage": "@sdkwork/birdcoder-pc-core",
+        "sourceExport": "./appSessionTokenManager"
+      },
+      {
+        "name": "secureAppSessionHost",
+        "export": "./bootstrap/appSessionPersistenceBinding",
+        "hostCommands": [
+          "secure_app_session_read",
+          "secure_app_session_write",
+          "secure_app_session_delete"
+        ]
+      }
+    ],
+    "runtimeEntrypoints": [
+      "src/services/defaultIdeServicesRuntime.ts",
+      "src/services/iamRuntime.ts",
+      "src/bootstrap/appSessionPersistenceBinding.ts"
     ],
     "routeManifest": null,
+    "sdkClients": [
+      "@sdkwork/agents-app-sdk",
+      "@sdkwork/birdcoder-app-sdk",
+      "@sdkwork/documents-app-sdk",
+      "@sdkwork/drive-app-sdk",
+      "@sdkwork/iam-app-sdk",
+      "@sdkwork/membership-app-sdk",
+      "@sdkwork/messaging-app-sdk",
+      "@sdkwork/order-app-sdk",
+      "@sdkwork/prompts-app-sdk",
+      "@sdkwork/skills-app-sdk"
+    ],
     "sdkDependencies": [
       {
+        "workspace": "sdkwork-agents-app-sdk",
+        "surface": "app-api",
+        "credentialMode": "authenticated-app-api",
+        "required": true
+      },
+      {
+        "workspace": "sdkwork-birdcoder-app-sdk",
+        "surface": "app-api",
+        "credentialMode": "authenticated-app-api",
+        "required": true
+      },
+      {
+        "workspace": "sdkwork-documents-app-sdk",
+        "surface": "app-api",
+        "credentialMode": "authenticated-app-api",
+        "required": true
+      },
+      {
         "workspace": "sdkwork-drive-app-sdk",
-        "role": "drive-app-capability",
-        "required": true,
-        "dependencyMode": "consumer-sdk",
-        "apiPrefix": "/app/v3/api",
-        "apiAuthority": "sdkwork-drive.app",
-        "generatedTransportImportPolicy": "forbidden",
-        "packageByLanguage": {
-          "typescript": "@sdkwork/drive-app-sdk"
-        }
+        "surface": "app-api",
+        "credentialMode": "authenticated-app-api",
+        "required": true
+      },
+      {
+        "workspace": "sdkwork-iam-app-sdk",
+        "surface": "app-api",
+        "credentialMode": "authenticated-app-api",
+        "required": true
       },
       {
         "workspace": "sdkwork-membership-app-sdk",
-        "role": "membership-app-capability",
-        "required": true,
-        "dependencyMode": "consumer-sdk",
-        "apiPrefix": "/app/v3/api/memberships",
-        "apiAuthority": "sdkwork-membership-app-api",
-        "generatedTransportImportPolicy": "forbidden",
-        "packageByLanguage": {
-          "typescript": "@sdkwork/membership-app-sdk"
-        }
+        "surface": "app-api",
+        "credentialMode": "authenticated-app-api",
+        "required": true
+      },
+      {
+        "workspace": "sdkwork-messaging-app-sdk",
+        "surface": "app-api",
+        "credentialMode": "authenticated-app-api",
+        "required": true
+      },
+      {
+        "workspace": "sdkwork-order-app-sdk",
+        "surface": "app-api",
+        "credentialMode": "authenticated-app-api",
+        "required": true
+      },
+      {
+        "workspace": "sdkwork-prompts-app-sdk",
+        "surface": "app-api",
+        "credentialMode": "authenticated-app-api",
+        "required": true
+      },
+      {
+        "workspace": "sdkwork-skills-app-sdk",
+        "surface": "app-api",
+        "credentialMode": "authenticated-app-api",
+        "required": true
       }
     ],
     "dependencyApiExports": [],
-    "dependencyApiSurfaces": []
+    "dependencyApiSurfaces": [],
+    "events": [
+      "sdkwork:desktop-app-session-persistence-error"
+    ],
+    "configKeys": [
+      "VITE_SDKWORK_BIRDCODER_APPLICATION_PUBLIC_HTTP_URL",
+      "VITE_SDKWORK_BIRDCODER_PLATFORM_API_GATEWAY_HTTP_URL",
+      "VITE_SDKWORK_APPBASE_APP_API_BASE_URL",
+      "VITE_SDKWORK_DOCUMENTS_APP_API_BASE_URL",
+      "VITE_SDKWORK_DRIVE_APP_API_BASE_URL",
+      "VITE_SDKWORK_IAM_APP_API_BASE_URL",
+      "VITE_SDKWORK_MEMBERSHIP_APP_API_BASE_URL",
+      "VITE_SDKWORK_MESSAGING_APP_API_BASE_URL",
+      "VITE_SDKWORK_ORDER_APP_API_BASE_URL",
+      "VITE_SDKWORK_PROMPTS_APP_API_BASE_URL"
+    ]
   },
   "integration": {
-    "authority": "Root SDKWork specs remain authoritative. Local specs may extend but must not contradict them.",
-    "dependencyPolicy": "Consumers integrate through public package exports, declared runtime entrypoints, generated SDK clients, or documented adapters only.",
-    "sdkPolicy": "Generated SDK clients are injected through service/runtime boundaries; reusable UI must not create raw HTTP clients or manual auth headers.",
-    "languagePolicy": "Language-specific packages follow their native manifest and build tools while preserving the same component contract."
+    "authority": "This component composes generated SDK adapters and native host adapters; it owns no business database or domain record.",
+    "dependencyPolicy": "BirdCoder-owned SDK clients use application.public-ingress. Agents, Skills, Documents, Prompts, IAM, Drive, Messaging, Membership, and Order clients use platform.api-gateway or an explicit dependency override with the shared TokenManager; cross-plane fallback is forbidden.",
+    "persistencePolicy": "Agent sessions, assistant items, prompts, skills, documents, and coding-workbench facts are never persisted by this package. Desktop IAM session credentials use only the operating-system credential store host port.",
+    "transportPolicy": "Handwritten HTTP transports, raw auth headers, local SDK forks, projection repositories, local business SQL, ambiguous global SDK URLs, and connection-plane compatibility fallbacks are forbidden."
   },
   "verification": {
     "commands": [
+      "pnpm --dir apps/sdkwork-birdcoder-pc typecheck",
+      "node scripts/desktop-app-session-persistence-contract.test.mjs",
+      "node scripts/run-local-tsx.mjs scripts/pc-runtime-boundary-ports-contract.test.ts",
+      "node scripts/pc-local-business-storage-boundary-contract.test.mjs",
       "node ../sdkwork-specs/tools/check-component-port-bindings.mjs --root ."
     ]
   },
   "metadata": {
-    "managedBy": "apps/scripts/initialize-component-specs.mjs",
-    "standardVersion": "2026-05-13"
+    "managedBy": "sdkwork-birdcoder",
+    "standardVersion": "2026-07-23"
   }
 }

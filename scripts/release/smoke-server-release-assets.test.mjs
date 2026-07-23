@@ -22,16 +22,16 @@ writeTarGzArchive(
 );
 fs.mkdirSync(path.join(familyDir, 'openapi'), { recursive: true });
 fs.writeFileSync(
-  path.join(familyDir, 'openapi', 'coding-server-v1.json'),
+  path.join(familyDir, 'openapi', 'birdcoder-app-api.openapi.json'),
   JSON.stringify({
     openapi: '3.1.0',
     info: {
-      title: 'SDKWork BirdCoder Coding Server API',
-      version: 'v1',
+      title: 'SDKWork BirdCoder App API',
+      version: '0.1.0',
     },
     servers: [
       {
-        url: '/',
+        url: '/app/v3/api',
       },
     ],
     paths: {
@@ -41,9 +41,8 @@ fs.writeFileSync(
         },
       },
     },
-    'x-sdkwork-api-assembly': {
-      routeCatalogPath: '/app/v3/api/system/routes',
-    },
+    'x-sdkwork-api-authority': 'sdkwork-birdcoder-app-api',
+    'x-sdkwork-owner': 'sdkwork-birdcoder',
   }, null, 2) + '\n',
 );
 fs.writeFileSync(
@@ -55,7 +54,7 @@ fs.writeFileSync(
     archiveRelativePath: 'server/linux/x64/sdkwork-birdcoder-server-release-local-linux-x64.tar.gz',
     artifacts: [
       {
-        relativePath: 'server/linux/x64/openapi/coding-server-v1.json',
+        relativePath: 'server/linux/x64/openapi/birdcoder-app-api.openapi.json',
       },
     ],
   }, null, 2),
@@ -86,8 +85,8 @@ try {
   );
   fs.mkdirSync(path.join(missingBinaryFamilyDir, 'openapi'), { recursive: true });
   fs.copyFileSync(
-    path.join(familyDir, 'openapi', 'coding-server-v1.json'),
-    path.join(missingBinaryFamilyDir, 'openapi', 'coding-server-v1.json'),
+    path.join(familyDir, 'openapi', 'birdcoder-app-api.openapi.json'),
+    path.join(missingBinaryFamilyDir, 'openapi', 'birdcoder-app-api.openapi.json'),
   );
   fs.writeFileSync(
     path.join(missingBinaryFamilyDir, 'release-asset-manifest.json'),

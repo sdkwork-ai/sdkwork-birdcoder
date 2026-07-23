@@ -7,9 +7,9 @@ export interface CodePageProps {
   isVisible?: boolean;
   workspaceId?: string;
   projectId?: string;
-  initialCodingSessionId?: string;
+  initialAgentSessionId?: string;
   onProjectChange?: (projectId: string) => void;
-  onCodingSessionChange?: (codingSessionId: string, projectId?: string) => void;
+  onAgentSessionChange?: (agentSessionId: string, projectId?: string) => void;
 }
 
 export function resolveCodeProjectActionTarget<TProject extends { id: string; name: string }>(

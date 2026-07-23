@@ -3,171 +3,150 @@ import fs from 'node:fs';
 import path from 'node:path';
 
 const rootDir = process.cwd();
-const failures = [];
+const httpMethods = new Set(['delete', 'get', 'patch', 'post', 'put']);
 
-function read(relativePath) {
-  const absolutePath = path.join(rootDir, relativePath);
-  assert.ok(fs.existsSync(absolutePath), `${relativePath} must exist`);
-  return fs.readFileSync(absolutePath, 'utf8');
+function absolutePath(relativePath) {
+  return path.join(rootDir, ...relativePath.split('/'));
+}
+
+function readText(relativePath) {
+  return fs.readFileSync(absolutePath(relativePath), 'utf8');
 }
 
 function readJson(relativePath) {
-  return JSON.parse(read(relativePath));
+  return JSON.parse(readText(relativePath));
 }
 
-function fail(message) {
-  failures.push(message);
+const rootCargo = readText('Cargo.toml');
+for (const dependency of ['sdkwork-web-core', 'sdkwork-web-axum', 'sdkwork-web-contract']) {
+  assert.match(rootCargo, new RegExp(`^${dependency} = \\{`, 'mu'));
 }
 
-const rootCargo = read('Cargo.toml');
-for (const crate of ['sdkwork-web-core', 'sdkwork-web-axum', 'sdkwork-web-contract']) {
-  if (!rootCargo.includes(`${crate} = {`)) {
-    fail(`root Cargo.toml must declare workspace dependency ${crate}`);
+const assembly = readJson('crates/sdkwork-api-birdcoder-assembly/assembly-manifest.json');
+assert.equal(assembly.apiMode, 'served');
+assert.deepEqual(
+  assembly.routeCrates.map((entry) => entry.packageName),
+  ['sdkwork-routes-system-app-api', 'sdkwork-routes-workspace-app-api'],
+  'BirdCoder API assembly must contain only its system and coding-workbench App route crates.',
+);
+
+for (const routeCrate of assembly.routeCrates) {
+  assert.equal(routeCrate.surface, 'app-api');
+  const crateRoot = routeCrate.memberDir;
+  const cargo = readText(`${crateRoot}/Cargo.toml`);
+  const manifest = readText(`${crateRoot}/src/manifest.rs`);
+  const handlers = readText(`${crateRoot}/src/handlers.rs`);
+  const lib = readText(`${crateRoot}/src/lib.rs`);
+  assert.match(cargo, /sdkwork-web-contract/u);
+  assert.match(cargo, /sdkwork-web-core/u);
+  assert.match(manifest, /HttpRouteManifest/u);
+  assert.match(manifest, /HttpRoute::dual_token/u);
+  assert.match(manifest, /with_required_permission/u);
+  assert.match(handlers, /WebRequestContext/u);
+  assert.doesNotMatch(handlers, /["'](?:authorization|access-token|x-api-key)["']/iu);
+  assert.doesNotMatch(handlers, /header::(?:AUTHORIZATION|PROXY_AUTHORIZATION)/u);
+  assert.match(lib, /pub mod manifest/u);
+}
+
+for (const retiredCrate of [
+  'sdkwork-routes-chat-app-api',
+  'sdkwork-routes-coding-sessions-app-api',
+  'sdkwork-routes-commerce-app-api',
+  'sdkwork-routes-deployment-backend-api',
+  'sdkwork-routes-document-app-api',
+  'sdkwork-routes-engine-catalog-app-api',
+  'sdkwork-routes-skill-packages-app-api',
+]) {
+  assert.equal(
+    fs.existsSync(absolutePath(`crates/${retiredCrate}`)),
+    false,
+    `${retiredCrate} is dependency-owned and must not be restored in BirdCoder.`,
+  );
+}
+
+const gatewayCargo = readText('crates/sdkwork-api-birdcoder-standalone-gateway/Cargo.toml');
+assert.match(gatewayCargo, /sdkwork-web-bootstrap\.workspace = true/u);
+assert.match(gatewayCargo, /sdkwork-api-birdcoder-assembly\.workspace = true/u);
+for (const assemblyOwnedDependency of [
+  'sdkwork-web-axum',
+  'sdkwork-web-core',
+  'sdkwork-web-contract',
+  'sdkwork-routes-system-app-api',
+  'sdkwork-routes-workspace-app-api',
+]) {
+  assert.doesNotMatch(
+    gatewayCargo,
+    new RegExp(`^${assemblyOwnedDependency}(?:\\.workspace)?\\s*=`, 'mu'),
+    `Standalone gateway must not duplicate assembly dependency ${assemblyOwnedDependency}.`,
+  );
+}
+
+const assemblyCargo = readText('crates/sdkwork-api-birdcoder-assembly/Cargo.toml');
+for (const frameworkDependency of [
+  'sdkwork-web-bootstrap',
+  'sdkwork-web-axum',
+  'sdkwork-web-core',
+  'sdkwork-web-contract',
+]) {
+  assert.match(
+    assemblyCargo,
+    new RegExp(`^${frameworkDependency}(?:\\.workspace)?\\s*=`, 'mu'),
+    `API assembly must own framework dependency ${frameworkDependency}.`,
+  );
+}
+
+const authBootstrap = readText(
+  'crates/sdkwork-api-birdcoder-assembly/src/application_bootstrap/auth.rs',
+);
+assert.match(authBootstrap, /build_web_framework_layer/u);
+assert.match(authBootstrap, /with_web_request_context/u);
+assert.match(authBootstrap, /birdcoder_app_api_route_manifest/u);
+assert.match(authBootstrap, /SecurityPolicy/u);
+
+const assemblyRouters = readText(
+  'crates/sdkwork-api-birdcoder-assembly/src/application_bootstrap/routers.rs',
+);
+assert.match(assemblyRouters, /sdkwork_web_bootstrap::mount_infra_routes/u);
+const gatewayMain = readText('crates/sdkwork-api-birdcoder-standalone-gateway/src/main.rs');
+assert.match(gatewayMain, /assemble_api_router/u);
+assert.match(gatewayMain, /sdkwork_web_bootstrap::init_tracing_from_env/u);
+assert.match(gatewayMain, /server::listen::serve/u);
+
+const authorityPath = 'sdks/sdkwork-birdcoder-app-sdk/openapi/sdkwork-birdcoder-app-api.openapi.json';
+const authority = readJson(authorityPath);
+let operationCount = 0;
+const domainOperationCounts = new Map();
+for (const [routePath, pathItem] of Object.entries(authority.paths ?? {})) {
+  assert.ok(routePath.startsWith('/app/v3/api/'));
+  for (const [method, operation] of Object.entries(pathItem ?? {})) {
+    if (!httpMethods.has(method)) continue;
+    operationCount += 1;
+    assert.equal(operation['x-sdkwork-request-context'], 'WebRequestContext');
+    assert.equal(operation['x-sdkwork-api-surface'], 'app-api');
+    assert.equal(operation['x-sdkwork-owner'], 'sdkwork-birdcoder');
+    assert.equal(operation['x-sdkwork-api-authority'], 'sdkwork-birdcoder-app-api');
+    assert.deepEqual(
+      operation.tags,
+      [operation['x-sdkwork-domain']],
+      `${operation.operationId} tag must match its canonical domain`,
+    );
+    domainOperationCounts.set(
+      operation['x-sdkwork-domain'],
+      (domainOperationCounts.get(operation['x-sdkwork-domain']) ?? 0) + 1,
+    );
   }
 }
+assert.equal(operationCount, 39);
+assert.deepEqual(Object.fromEntries(domainOperationCounts), {
+  system: 4,
+  intelligence: 35,
+});
 
-const routeCrates = [
-  'crates/sdkwork-routes-system-app-api',
-  'crates/sdkwork-routes-engine-catalog-app-api',
-  'crates/sdkwork-routes-coding-sessions-app-api',
-  'crates/sdkwork-routes-workspace-app-api',
-  'crates/sdkwork-routes-document-app-api',
-  'crates/sdkwork-routes-skill-packages-app-api',
-  'crates/sdkwork-routes-deployment-backend-api',
-];
+const extensionTargetsSource = readText('scripts/web-framework-openapi-extensions.mjs');
+assert.match(extensionTargetsSource, new RegExp(authorityPath.replace(/[.*+?^${}()|[\]\\]/gu, '\\$&'), 'u'));
+assert.doesNotMatch(extensionTargetsSource, /mirrorRelativePath|backend-api|sdks\/specs\/openapi/u);
+const ensureSource = readText('scripts/ensure-web-framework-openapi-extensions.mjs');
+assert.match(ensureSource, /BIRDCODER_OPENAPI_AUTHORITY_TARGETS/u);
+assert.doesNotMatch(ensureSource, /mirrorPath|mkdirSync/u);
 
-for (const crateDir of routeCrates) {
-  const manifestPath = `${crateDir}/src/manifest.rs`;
-  const manifest = read(manifestPath);
-  if (!manifest.includes('HttpRouteManifest')) {
-    fail(`${manifestPath} must export HttpRouteManifest via sdkwork-web-core`);
-  }
-  if (!manifest.includes('HttpRoute::')) {
-    fail(`${manifestPath} must declare HttpRoute entries`);
-  }
-
-  const cargoToml = read(`${crateDir}/Cargo.toml`);
-  if (!cargoToml.includes('sdkwork-web-contract')) {
-    fail(`${crateDir}/Cargo.toml must depend on sdkwork-web-contract`);
-  }
-  if (!cargoToml.includes('sdkwork-web-core')) {
-    fail(`${crateDir}/Cargo.toml must depend on sdkwork-web-core`);
-  }
-
-  if (!manifest.includes('with_required_permission')) {
-    fail(`${manifestPath} must declare with_required_permission on protected routes`);
-  }
-
-  const libRs = read(`${crateDir}/src/lib.rs`);
-  if (!libRs.includes('pub mod manifest')) {
-    fail(`${crateDir}/src/lib.rs must expose manifest module`);
-  }
-}
-
-const routeManifestBootstrap = read('crates/sdkwork-api-birdcoder-standalone-gateway/src/bootstrap/route_manifest.rs');
-if (!routeManifestBootstrap.includes('birdcoder_product_app_api_route_manifest')) {
-  fail('standalone-gateway must compose product HttpRouteManifest from route crates');
-}
-
-const appOpenApiDocument = readJson('sdks/specs/openapi/birdcoder-app-v3.openapi.json');
-const appOpenApiPathKeys = Object.keys(appOpenApiDocument.paths ?? {});
-const requiredOpenApiPaths = [
-  '/app/v3/api/intelligence/coding_sessions',
-  '/app/v3/api/intelligence/coding_sessions/{sessionId}',
-  '/app/v3/api/intelligence/coding_sessions/{sessionId}/turns',
-  '/app/v3/api/intelligence/coding_sessions/{sessionId}/checkpoints/{checkpointId}/approval',
-  '/app/v3/api/intelligence/coding_sessions/{sessionId}/questions/{questionId}/answer',
-];
-for (const routePath of requiredOpenApiPaths) {
-  if (!appOpenApiPathKeys.includes(routePath)) {
-    fail(`birdcoder-app-v3.openapi.json must declare route path ${routePath}`);
-  }
-}
-if (appOpenApiPathKeys.some((routePath) => routePath === '/app/v3/api/coding_sessions' || routePath.startsWith('/app/v3/api/coding_sessions/'))) {
-  fail('birdcoder-app-v3.openapi.json must not keep legacy /app/v3/api/coding_sessions paths');
-}
-if (appOpenApiPathKeys.some((routePath) => routePath.includes('coding-sessions'))) {
-  fail('birdcoder-app-v3.openapi.json must use lower_snake_case coding_sessions path segments');
-}
-
-const apiServerCargo = read('crates/sdkwork-api-birdcoder-standalone-gateway/Cargo.toml');
-if (!apiServerCargo.includes('sdkwork-web-axum.workspace = true')) {
-  fail('sdkwork-api-birdcoder-standalone-gateway must depend on sdkwork-web-axum');
-}
-if (!apiServerCargo.includes('sdkwork-web-core')) {
-  fail('sdkwork-api-birdcoder-standalone-gateway must depend on sdkwork-web-core');
-}
-
-const authBootstrap = read('crates/sdkwork-api-birdcoder-standalone-gateway/src/bootstrap/auth.rs');
-if (!authBootstrap.includes('build_web_framework_layer')) {
-  fail('standalone-gateway auth bootstrap must compose sdkwork-web-framework layer');
-}
-if (!authBootstrap.includes('with_web_request_context')) {
-  fail('standalone-gateway auth bootstrap must mount WebRequestContext middleware');
-}
-if (!authBootstrap.includes('birdcoder_product_app_api_route_manifest')) {
-  fail('standalone-gateway auth bootstrap must use product HttpRouteManifest');
-}
-if (!authBootstrap.includes('SecurityPolicy')) {
-  fail('standalone-gateway auth bootstrap must configure SecurityPolicy/CorsPolicy via web-framework');
-}
-
-const routerContext = read('crates/sdkwork-birdcoder-router-context/src/lib.rs');
-if (!routerContext.includes('WebRequestContext')) {
-  fail('sdkwork-birdcoder-router-context must resolve IAM from WebRequestContext');
-}
-const requiredIamContextExtractor = routerContext.match(
-  /impl<S>\s+FromRequestParts<S>\s+for\s+RequiredIamContext\b[\s\S]*?^\}/mu,
-)?.[0];
-if (!requiredIamContextExtractor) {
-  fail('sdkwork-birdcoder-router-context must implement FromRequestParts for RequiredIamContext');
-} else if (!/^\s*type\s+Rejection\s*=\s*ProblemJsonBody\s*;\s*$/mu.test(requiredIamContextExtractor)) {
-  fail('RequiredIamContext must reject missing IAM context with ProblemJsonBody');
-}
-if (routerContext.includes('ProblemDetailsPayload')) {
-  fail('sdkwork-birdcoder-router-context must not reintroduce retired ProblemDetailsPayload');
-}
-
-const handlerFiles = [
-  'crates/sdkwork-routes-coding-sessions-app-api/src/handlers.rs',
-  'crates/sdkwork-routes-workspace-app-api/src/handlers.rs',
-  'crates/sdkwork-routes-engine-catalog-app-api/src/handlers.rs',
-  'crates/sdkwork-routes-document-app-api/src/handlers.rs',
-  'crates/sdkwork-routes-skill-packages-app-api/src/handlers.rs',
-  'crates/sdkwork-routes-deployment-backend-api/src/handlers.rs',
-];
-
-for (const relativePath of handlerFiles) {
-  const source = read(relativePath);
-  if (!source.includes('WebRequestContext')) {
-    fail(`${relativePath} handlers must declare WebRequestContext per WEB_FRAMEWORK_SPEC.md`);
-  }
-  if (
-    /["'](?:authorization|access-token|x-api-key)["']/iu.test(source) ||
-    /header::(?:AUTHORIZATION|PROXY_AUTHORIZATION)/u.test(source)
-  ) {
-    fail(`${relativePath} must not parse credential headers directly`);
-  }
-}
-
-const openApiPaths = [
-  'apps/sdkwork-birdcoder-pc/sdks/sdkwork-birdcoder-app-sdk/openapi/sdkwork-birdcoder-app-api.openapi.json',
-  'apps/sdkwork-birdcoder-pc/sdks/sdkwork-birdcoder-backend-sdk/openapi/sdkwork-birdcoder-backend-api.openapi.json',
-];
-
-for (const relativePath of openApiPaths) {
-  const openApi = read(relativePath);
-  if (!openApi.includes('x-sdkwork-request-context')) {
-    fail(`${relativePath} must declare x-sdkwork-request-context on operations`);
-  }
-  if (!openApi.includes('x-sdkwork-api-surface')) {
-    fail(`${relativePath} must declare x-sdkwork-api-surface on operations`);
-  }
-}
-
-if (failures.length > 0) {
-  process.stderr.write(`Web framework standard failed:\n${failures.map((item) => `- ${item}`).join('\n')}\n`);
-  process.exit(1);
-}
-
-process.stdout.write('Web framework standard passed\n');
+console.log('BirdCoder App-only web framework standard passed.');

@@ -1,9 +1,10 @@
 use std::sync::Arc;
 
+use crate::api::base::{RequestHeaders};
 use crate::api::paths::app_path;
 use crate::api::paths::append_query_string;
 use crate::http::{SdkworkError, SdkworkHttpClient};
-use crate::models::{BirdCoderApprovalDecisionResult, BirdCoderCodingSessionSummary, BirdCoderCodingSessionTurn, BirdCoderCreateCodingSessionRequest, BirdCoderCreateCodingSessionTurnRequest, BirdCoderEditCodingSessionMessageRequest, BirdCoderEditCodingSessionMessageResult, BirdCoderForkCodingSessionRequest, BirdCoderSubmitApprovalDecisionRequest, BirdCoderSubmitUserQuestionAnswerRequest, BirdCoderUpdateCodingSessionRequest, BirdCoderUserQuestionAnswerResult};
+use crate::models::{BirdCoderCommitProjectGitChangesRequest, BirdCoderCreateProjectDocumentBindingRequest, BirdCoderCreateProjectGitBranchRequest, BirdCoderCreateProjectGitWorktreeRequest, BirdCoderCreateProjectRequest, BirdCoderCreateProjectRuntimeLocationRequest, BirdCoderCreateWorkspaceRequest, BirdCoderProjectDocumentBinding, BirdCoderProjectGitDiff, BirdCoderProjectGitOverview, BirdCoderProjectRuntimeLocation, BirdCoderProjectRuntimeLocationCommandAccepted, BirdCoderProjectRuntimeLocationPreference, BirdCoderProjectSandboxBinding, BirdCoderProjectSummary, BirdCoderPruneProjectGitWorktreesRequest, BirdCoderPushProjectGitBranchRequest, BirdCoderRebindProjectRuntimeLocationRequest, BirdCoderRemoveProjectGitWorktreeRequest, BirdCoderSetProjectRuntimeLocationPreferenceRequest, BirdCoderSwitchProjectGitBranchRequest, BirdCoderUpdateProjectRequest, BirdCoderUpdateProjectRuntimeLocationRequest, BirdCoderUpdateWorkspaceRequest, BirdCoderUpsertProjectSandboxBindingRequest, BirdCoderWorkspaceSummary};
 
 #[derive(Clone)]
 pub struct IntelligenceApi {
@@ -15,100 +16,326 @@ impl IntelligenceApi {
         Self { client }
     }
 
-    /// Get coding session
-    pub async fn coding_sessions_retrieve(&self, session_id: &str) -> Result<BirdCoderCodingSessionSummary, SdkworkError> {
-        let path = app_path(&format!("/intelligence/coding_sessions/{}", serialize_path_parameter(session_id, PathParameterSpec::new("sessionId", "simple", false))));
-        self.client.get(&path, None, None).await
+    /// Create project
+    pub async fn projects_create(&self, body: &BirdCoderCreateProjectRequest) -> Result<BirdCoderProjectSummary, SdkworkError> {
+        let path = app_path(&"/projects".to_string());
+        self.client.post(&path, Some(body), None, None, Some("application/json")).await
     }
 
-    /// Delete coding session
-    pub async fn coding_sessions_delete(&self, session_id: &str) -> Result<(), SdkworkError> {
-        let path = app_path(&format!("/intelligence/coding_sessions/{}", serialize_path_parameter(session_id, PathParameterSpec::new("sessionId", "simple", false))));
-        self.client.delete(&path, None, None).await
-    }
-
-    /// Update coding session
-    pub async fn coding_sessions_update(&self, session_id: &str, body: &BirdCoderUpdateCodingSessionRequest) -> Result<BirdCoderCodingSessionSummary, SdkworkError> {
-        let path = app_path(&format!("/intelligence/coding_sessions/{}", serialize_path_parameter(session_id, PathParameterSpec::new("sessionId", "simple", false))));
-        self.client.patch(&path, Some(body), None, None, Some("application/json")).await
-    }
-
-    /// List coding sessions
-    pub async fn coding_sessions_list(&self, workspace_id: Option<&str>, project_id: Option<&str>, runtime_location_id: Option<&str>, engine_id: Option<&str>, page: Option<i64>, page_size: Option<i64>) -> Result<serde_json::Value, SdkworkError> {
+    /// List projects
+    pub async fn projects_list(&self, user_id: Option<&str>, workspace_id: Option<&str>, page: Option<i64>, page_size: Option<i64>) -> Result<serde_json::Value, SdkworkError> {
         let query = build_query_string(&[
+            QueryParameterSpec::new("userId", user_id, "form", true, false, None),
             QueryParameterSpec::new("workspaceId", workspace_id, "form", true, false, None),
-            QueryParameterSpec::new("projectId", project_id, "form", true, false, None),
-            QueryParameterSpec::new("runtimeLocationId", runtime_location_id, "form", true, false, None),
-            QueryParameterSpec::new("engineId", engine_id, "form", true, false, None),
             QueryParameterSpec::new("page", page, "form", true, false, None),
             QueryParameterSpec::new("page_size", page_size, "form", true, false, None),
         ]);
-        let path = append_query_string(app_path(&"/intelligence/coding_sessions".to_string()), &query);
+        let path = append_query_string(app_path(&"/projects".to_string()), &query);
         self.client.get(&path, None, None).await
     }
 
-    /// Create coding session
-    pub async fn coding_sessions_create(&self, body: &BirdCoderCreateCodingSessionRequest) -> Result<BirdCoderCodingSessionSummary, SdkworkError> {
-        let path = app_path(&"/intelligence/coding_sessions".to_string());
+    /// Create workspace
+    pub async fn workspaces_create(&self, body: &BirdCoderCreateWorkspaceRequest) -> Result<BirdCoderWorkspaceSummary, SdkworkError> {
+        let path = app_path(&"/workspaces".to_string());
         self.client.post(&path, Some(body), None, None, Some("application/json")).await
     }
 
-    /// Fork coding session
-    pub async fn coding_sessions_forks_create(&self, session_id: &str, body: &BirdCoderForkCodingSessionRequest) -> Result<BirdCoderCodingSessionSummary, SdkworkError> {
-        let path = app_path(&format!("/intelligence/coding_sessions/{}/fork", serialize_path_parameter(session_id, PathParameterSpec::new("sessionId", "simple", false))));
-        self.client.post(&path, Some(body), None, None, Some("application/json")).await
+    /// List workspaces
+    pub async fn workspaces_list(&self, user_id: Option<&str>, page: Option<i64>, page_size: Option<i64>) -> Result<serde_json::Value, SdkworkError> {
+        let query = build_query_string(&[
+            QueryParameterSpec::new("userId", user_id, "form", true, false, None),
+            QueryParameterSpec::new("page", page, "form", true, false, None),
+            QueryParameterSpec::new("page_size", page_size, "form", true, false, None),
+        ]);
+        let path = append_query_string(app_path(&"/workspaces".to_string()), &query);
+        self.client.get(&path, None, None).await
     }
 
-    /// Replay or subscribe to coding session events
-    pub async fn coding_sessions_events_list(&self, session_id: &str, page: Option<i64>, page_size: Option<i64>) -> Result<serde_json::Value, SdkworkError> {
+    /// Delete project
+    pub async fn projects_delete(&self, project_id: &str, if_match: &str) -> Result<(), SdkworkError> {
+        let path = app_path(&format!("/projects/{}", serialize_path_parameter(project_id, PathParameterSpec::new("projectId", "simple", false))));
+        let headers = build_request_headers(
+            &[
+                ("If-Match", HeaderParameterSpec::new(if_match, "simple", false, None)),
+            ],
+            &[],
+        );
+        self.client.delete(&path, None, headers.as_ref()).await
+    }
+
+    /// Get project
+    pub async fn projects_retrieve(&self, project_id: &str) -> Result<BirdCoderProjectSummary, SdkworkError> {
+        let path = app_path(&format!("/projects/{}", serialize_path_parameter(project_id, PathParameterSpec::new("projectId", "simple", false))));
+        self.client.get(&path, None, None).await
+    }
+
+    /// Update project
+    pub async fn projects_update(&self, project_id: &str, body: &BirdCoderUpdateProjectRequest, if_match: &str) -> Result<BirdCoderProjectSummary, SdkworkError> {
+        let path = app_path(&format!("/projects/{}", serialize_path_parameter(project_id, PathParameterSpec::new("projectId", "simple", false))));
+        let headers = build_request_headers(
+            &[
+                ("If-Match", HeaderParameterSpec::new(if_match, "simple", false, None)),
+            ],
+            &[],
+        );
+        self.client.patch(&path, Some(body), None, headers.as_ref(), Some("application/json")).await
+    }
+
+    /// Delete workspace
+    pub async fn workspaces_delete(&self, workspace_id: &str, if_match: &str) -> Result<(), SdkworkError> {
+        let path = app_path(&format!("/workspaces/{}", serialize_path_parameter(workspace_id, PathParameterSpec::new("workspaceId", "simple", false))));
+        let headers = build_request_headers(
+            &[
+                ("If-Match", HeaderParameterSpec::new(if_match, "simple", false, None)),
+            ],
+            &[],
+        );
+        self.client.delete(&path, None, headers.as_ref()).await
+    }
+
+    /// Get workspace
+    pub async fn workspaces_retrieve(&self, workspace_id: &str) -> Result<BirdCoderWorkspaceSummary, SdkworkError> {
+        let path = app_path(&format!("/workspaces/{}", serialize_path_parameter(workspace_id, PathParameterSpec::new("workspaceId", "simple", false))));
+        self.client.get(&path, None, None).await
+    }
+
+    /// Update workspace
+    pub async fn workspaces_update(&self, workspace_id: &str, body: &BirdCoderUpdateWorkspaceRequest, if_match: &str) -> Result<BirdCoderWorkspaceSummary, SdkworkError> {
+        let path = app_path(&format!("/workspaces/{}", serialize_path_parameter(workspace_id, PathParameterSpec::new("workspaceId", "simple", false))));
+        let headers = build_request_headers(
+            &[
+                ("If-Match", HeaderParameterSpec::new(if_match, "simple", false, None)),
+            ],
+            &[],
+        );
+        self.client.patch(&path, Some(body), None, headers.as_ref(), Some("application/json")).await
+    }
+
+    /// List project document bindings
+    pub async fn projects_document_bindings_list(&self, project_id: &str, page: Option<i64>, page_size: Option<i64>) -> Result<serde_json::Value, SdkworkError> {
         let query = build_query_string(&[
             QueryParameterSpec::new("page", page, "form", true, false, None),
             QueryParameterSpec::new("page_size", page_size, "form", true, false, None),
         ]);
-        let path = append_query_string(app_path(&format!("/intelligence/coding_sessions/{}/events", serialize_path_parameter(session_id, PathParameterSpec::new("sessionId", "simple", false)))), &query);
+        let path = append_query_string(app_path(&format!("/projects/{}/document_bindings", serialize_path_parameter(project_id, PathParameterSpec::new("projectId", "simple", false)))), &query);
         self.client.get(&path, None, None).await
     }
 
-    /// Submit approval decision
-    pub async fn coding_sessions_checkpoints_approval_create(&self, session_id: &str, checkpoint_id: &str, body: &BirdCoderSubmitApprovalDecisionRequest) -> Result<BirdCoderApprovalDecisionResult, SdkworkError> {
-        let path = app_path(&format!("/intelligence/coding_sessions/{}/checkpoints/{}/approval", serialize_path_parameter(session_id, PathParameterSpec::new("sessionId", "simple", false)), serialize_path_parameter(checkpoint_id, PathParameterSpec::new("checkpointId", "simple", false))));
+    /// Create project document binding
+    pub async fn projects_document_bindings_create(&self, project_id: &str, body: &BirdCoderCreateProjectDocumentBindingRequest) -> Result<BirdCoderProjectDocumentBinding, SdkworkError> {
+        let path = app_path(&format!("/projects/{}/document_bindings", serialize_path_parameter(project_id, PathParameterSpec::new("projectId", "simple", false))));
         self.client.post(&path, Some(body), None, None, Some("application/json")).await
     }
 
-    /// Submit user-question answer
-    pub async fn coding_sessions_questions_answers_create(&self, session_id: &str, question_id: &str, body: &BirdCoderSubmitUserQuestionAnswerRequest) -> Result<BirdCoderUserQuestionAnswerResult, SdkworkError> {
-        let path = app_path(&format!("/intelligence/coding_sessions/{}/questions/{}/answer", serialize_path_parameter(session_id, PathParameterSpec::new("sessionId", "simple", false)), serialize_path_parameter(question_id, PathParameterSpec::new("questionId", "simple", false))));
-        self.client.post(&path, Some(body), None, None, Some("application/json")).await
-    }
-
-    /// List coding session artifacts
-    pub async fn coding_sessions_artifacts_list(&self, session_id: &str) -> Result<serde_json::Value, SdkworkError> {
-        let path = app_path(&format!("/intelligence/coding_sessions/{}/artifacts", serialize_path_parameter(session_id, PathParameterSpec::new("sessionId", "simple", false))));
+    /// Get project document binding
+    pub async fn projects_document_bindings_retrieve(&self, project_id: &str, binding_id: &str) -> Result<BirdCoderProjectDocumentBinding, SdkworkError> {
+        let path = app_path(&format!("/projects/{}/document_bindings/{}", serialize_path_parameter(project_id, PathParameterSpec::new("projectId", "simple", false)), serialize_path_parameter(binding_id, PathParameterSpec::new("bindingId", "simple", false))));
         self.client.get(&path, None, None).await
     }
 
-    /// List coding session checkpoints
-    pub async fn coding_sessions_checkpoints_list(&self, session_id: &str) -> Result<serde_json::Value, SdkworkError> {
-        let path = app_path(&format!("/intelligence/coding_sessions/{}/checkpoints", serialize_path_parameter(session_id, PathParameterSpec::new("sessionId", "simple", false))));
+    /// Delete project document binding
+    pub async fn projects_document_bindings_delete(&self, project_id: &str, binding_id: &str, if_match: &str) -> Result<(), SdkworkError> {
+        let path = app_path(&format!("/projects/{}/document_bindings/{}", serialize_path_parameter(project_id, PathParameterSpec::new("projectId", "simple", false)), serialize_path_parameter(binding_id, PathParameterSpec::new("bindingId", "simple", false))));
+        let headers = build_request_headers(
+            &[
+                ("If-Match", HeaderParameterSpec::new(if_match, "simple", false, None)),
+            ],
+            &[],
+        );
+        self.client.delete(&path, None, headers.as_ref()).await
+    }
+
+    /// Get project sandbox binding
+    pub async fn projects_sandbox_binding_retrieve(&self, project_id: &str) -> Result<BirdCoderProjectSandboxBinding, SdkworkError> {
+        let path = app_path(&format!("/projects/{}/sandbox_binding", serialize_path_parameter(project_id, PathParameterSpec::new("projectId", "simple", false))));
         self.client.get(&path, None, None).await
     }
 
-    /// Create coding session turn
-    pub async fn coding_sessions_turns_create(&self, session_id: &str, body: &BirdCoderCreateCodingSessionTurnRequest) -> Result<BirdCoderCodingSessionTurn, SdkworkError> {
-        let path = app_path(&format!("/intelligence/coding_sessions/{}/turns", serialize_path_parameter(session_id, PathParameterSpec::new("sessionId", "simple", false))));
+    /// Create or update project sandbox binding
+    pub async fn projects_sandbox_binding_update(&self, project_id: &str, body: &BirdCoderUpsertProjectSandboxBindingRequest, idempotency_key: &str, if_match: Option<&str>) -> Result<BirdCoderProjectSandboxBinding, SdkworkError> {
+        let path = app_path(&format!("/projects/{}/sandbox_binding", serialize_path_parameter(project_id, PathParameterSpec::new("projectId", "simple", false))));
+        let headers = build_request_headers(
+            &[
+                ("If-Match", HeaderParameterSpec::new(if_match, "simple", false, None)),
+                ("Idempotency-Key", HeaderParameterSpec::new(idempotency_key, "simple", false, None)),
+            ],
+            &[],
+        );
+        self.client.put(&path, Some(body), None, headers.as_ref(), Some("application/json")).await
+    }
+
+    /// Delete project sandbox binding
+    pub async fn projects_sandbox_binding_delete(&self, project_id: &str, if_match: &str) -> Result<(), SdkworkError> {
+        let path = app_path(&format!("/projects/{}/sandbox_binding", serialize_path_parameter(project_id, PathParameterSpec::new("projectId", "simple", false))));
+        let headers = build_request_headers(
+            &[
+                ("If-Match", HeaderParameterSpec::new(if_match, "simple", false, None)),
+            ],
+            &[],
+        );
+        self.client.delete(&path, None, headers.as_ref()).await
+    }
+
+    /// List project runtime locations
+    pub async fn projects_runtime_locations_list(&self, project_id: &str, page: Option<i64>, page_size: Option<i64>) -> Result<serde_json::Value, SdkworkError> {
+        let query = build_query_string(&[
+            QueryParameterSpec::new("page", page, "form", true, false, None),
+            QueryParameterSpec::new("page_size", page_size, "form", true, false, None),
+        ]);
+        let path = append_query_string(app_path(&format!("/projects/{}/runtime_locations", serialize_path_parameter(project_id, PathParameterSpec::new("projectId", "simple", false)))), &query);
+        self.client.get(&path, None, None).await
+    }
+
+    /// Register project runtime location
+    pub async fn projects_runtime_locations_create(&self, project_id: &str, body: &BirdCoderCreateProjectRuntimeLocationRequest, idempotency_key: &str) -> Result<BirdCoderProjectRuntimeLocation, SdkworkError> {
+        let path = app_path(&format!("/projects/{}/runtime_locations", serialize_path_parameter(project_id, PathParameterSpec::new("projectId", "simple", false))));
+        let headers = build_request_headers(
+            &[
+                ("Idempotency-Key", HeaderParameterSpec::new(idempotency_key, "simple", false, None)),
+            ],
+            &[],
+        );
+        self.client.post(&path, Some(body), None, headers.as_ref(), Some("application/json")).await
+    }
+
+    /// Get project runtime location
+    pub async fn projects_runtime_locations_retrieve(&self, project_id: &str, runtime_location_id: &str) -> Result<BirdCoderProjectRuntimeLocation, SdkworkError> {
+        let path = app_path(&format!("/projects/{}/runtime_locations/{}", serialize_path_parameter(project_id, PathParameterSpec::new("projectId", "simple", false)), serialize_path_parameter(runtime_location_id, PathParameterSpec::new("runtimeLocationId", "simple", false))));
+        self.client.get(&path, None, None).await
+    }
+
+    /// Update project runtime location
+    pub async fn projects_runtime_locations_update(&self, project_id: &str, runtime_location_id: &str, body: &BirdCoderUpdateProjectRuntimeLocationRequest, if_match: &str, idempotency_key: &str) -> Result<BirdCoderProjectRuntimeLocation, SdkworkError> {
+        let path = app_path(&format!("/projects/{}/runtime_locations/{}", serialize_path_parameter(project_id, PathParameterSpec::new("projectId", "simple", false)), serialize_path_parameter(runtime_location_id, PathParameterSpec::new("runtimeLocationId", "simple", false))));
+        let headers = build_request_headers(
+            &[
+                ("If-Match", HeaderParameterSpec::new(if_match, "simple", false, None)),
+                ("Idempotency-Key", HeaderParameterSpec::new(idempotency_key, "simple", false, None)),
+            ],
+            &[],
+        );
+        self.client.patch(&path, Some(body), None, headers.as_ref(), Some("application/json")).await
+    }
+
+    /// Delete project runtime location
+    pub async fn projects_runtime_locations_delete(&self, project_id: &str, runtime_location_id: &str, if_match: &str) -> Result<(), SdkworkError> {
+        let path = app_path(&format!("/projects/{}/runtime_locations/{}", serialize_path_parameter(project_id, PathParameterSpec::new("projectId", "simple", false)), serialize_path_parameter(runtime_location_id, PathParameterSpec::new("runtimeLocationId", "simple", false))));
+        let headers = build_request_headers(
+            &[
+                ("If-Match", HeaderParameterSpec::new(if_match, "simple", false, None)),
+            ],
+            &[],
+        );
+        self.client.delete(&path, None, headers.as_ref()).await
+    }
+
+    /// Rebind project runtime location
+    pub async fn projects_runtime_locations_rebind(&self, project_id: &str, runtime_location_id: &str, body: &BirdCoderRebindProjectRuntimeLocationRequest, if_match: &str, idempotency_key: &str) -> Result<BirdCoderProjectRuntimeLocationCommandAccepted, SdkworkError> {
+        let path = app_path(&format!("/projects/{}/runtime_locations/{}/rebind", serialize_path_parameter(project_id, PathParameterSpec::new("projectId", "simple", false)), serialize_path_parameter(runtime_location_id, PathParameterSpec::new("runtimeLocationId", "simple", false))));
+        let headers = build_request_headers(
+            &[
+                ("If-Match", HeaderParameterSpec::new(if_match, "simple", false, None)),
+                ("Idempotency-Key", HeaderParameterSpec::new(idempotency_key, "simple", false, None)),
+            ],
+            &[],
+        );
+        self.client.post(&path, Some(body), None, headers.as_ref(), Some("application/json")).await
+    }
+
+    /// Request project runtime-location verification
+    pub async fn projects_runtime_locations_request_verification(&self, project_id: &str, runtime_location_id: &str, if_match: &str, idempotency_key: &str) -> Result<BirdCoderProjectRuntimeLocationCommandAccepted, SdkworkError> {
+        let path = app_path(&format!("/projects/{}/runtime_locations/{}/request_verification", serialize_path_parameter(project_id, PathParameterSpec::new("projectId", "simple", false)), serialize_path_parameter(runtime_location_id, PathParameterSpec::new("runtimeLocationId", "simple", false))));
+        let headers = build_request_headers(
+            &[
+                ("If-Match", HeaderParameterSpec::new(if_match, "simple", false, None)),
+                ("Idempotency-Key", HeaderParameterSpec::new(idempotency_key, "simple", false, None)),
+            ],
+            &[],
+        );
+        self.client.post(&path, Option::<&serde_json::Value>::None, None, headers.as_ref(), None).await
+    }
+
+    /// List project runtime-location preferences
+    pub async fn projects_runtime_locations_preferences_list(&self, project_id: &str, page: Option<i64>, page_size: Option<i64>) -> Result<serde_json::Value, SdkworkError> {
+        let query = build_query_string(&[
+            QueryParameterSpec::new("page", page, "form", true, false, None),
+            QueryParameterSpec::new("page_size", page_size, "form", true, false, None),
+        ]);
+        let path = append_query_string(app_path(&format!("/projects/{}/runtime_location_preferences", serialize_path_parameter(project_id, PathParameterSpec::new("projectId", "simple", false)))), &query);
+        self.client.get(&path, None, None).await
+    }
+
+    /// Update project runtime-location preference
+    pub async fn projects_runtime_locations_preferences_update(&self, project_id: &str, capability: &str, body: &BirdCoderSetProjectRuntimeLocationPreferenceRequest, idempotency_key: &str, if_match: Option<&str>) -> Result<BirdCoderProjectRuntimeLocationPreference, SdkworkError> {
+        let path = app_path(&format!("/projects/{}/runtime_location_preferences/{}", serialize_path_parameter(project_id, PathParameterSpec::new("projectId", "simple", false)), serialize_path_parameter(capability, PathParameterSpec::new("capability", "simple", false))));
+        let headers = build_request_headers(
+            &[
+                ("If-Match", HeaderParameterSpec::new(if_match, "simple", false, None)),
+                ("Idempotency-Key", HeaderParameterSpec::new(idempotency_key, "simple", false, None)),
+            ],
+            &[],
+        );
+        self.client.put(&path, Some(body), None, headers.as_ref(), Some("application/json")).await
+    }
+
+    /// Get project Git overview
+    pub async fn projects_git_overview_retrieve(&self, project_id: &str, runtime_location_id: &str) -> Result<BirdCoderProjectGitOverview, SdkworkError> {
+        let query = build_query_string(&[
+            QueryParameterSpec::new("runtime_location_id", runtime_location_id, "form", true, false, None),
+        ]);
+        let path = append_query_string(app_path(&format!("/projects/{}/git/overview", serialize_path_parameter(project_id, PathParameterSpec::new("projectId", "simple", false)))), &query);
+        self.client.get(&path, None, None).await
+    }
+
+    /// Get project Git diff
+    pub async fn projects_git_diff_retrieve(&self, project_id: &str, runtime_location_id: &str) -> Result<BirdCoderProjectGitDiff, SdkworkError> {
+        let query = build_query_string(&[
+            QueryParameterSpec::new("runtime_location_id", runtime_location_id, "form", true, false, None),
+        ]);
+        let path = append_query_string(app_path(&format!("/projects/{}/git/diff", serialize_path_parameter(project_id, PathParameterSpec::new("projectId", "simple", false)))), &query);
+        self.client.get(&path, None, None).await
+    }
+
+    /// Create project Git branch
+    pub async fn projects_git_branches_create(&self, project_id: &str, body: &BirdCoderCreateProjectGitBranchRequest) -> Result<BirdCoderProjectGitOverview, SdkworkError> {
+        let path = app_path(&format!("/projects/{}/git/branches", serialize_path_parameter(project_id, PathParameterSpec::new("projectId", "simple", false))));
         self.client.post(&path, Some(body), None, None, Some("application/json")).await
     }
 
-    /// Edit coding session message
-    pub async fn coding_sessions_messages_update(&self, session_id: &str, message_id: &str, body: &BirdCoderEditCodingSessionMessageRequest) -> Result<BirdCoderEditCodingSessionMessageResult, SdkworkError> {
-        let path = app_path(&format!("/intelligence/coding_sessions/{}/messages/{}", serialize_path_parameter(session_id, PathParameterSpec::new("sessionId", "simple", false)), serialize_path_parameter(message_id, PathParameterSpec::new("messageId", "simple", false))));
-        self.client.patch(&path, Some(body), None, None, Some("application/json")).await
+    /// Switch project Git branch
+    pub async fn projects_git_switch_branch(&self, project_id: &str, body: &BirdCoderSwitchProjectGitBranchRequest) -> Result<BirdCoderProjectGitOverview, SdkworkError> {
+        let path = app_path(&format!("/projects/{}/git/switch_branch", serialize_path_parameter(project_id, PathParameterSpec::new("projectId", "simple", false))));
+        self.client.post(&path, Some(body), None, None, Some("application/json")).await
     }
 
-    /// Delete coding session message
-    pub async fn coding_sessions_messages_delete(&self, session_id: &str, message_id: &str) -> Result<(), SdkworkError> {
-        let path = app_path(&format!("/intelligence/coding_sessions/{}/messages/{}", serialize_path_parameter(session_id, PathParameterSpec::new("sessionId", "simple", false)), serialize_path_parameter(message_id, PathParameterSpec::new("messageId", "simple", false))));
-        self.client.delete(&path, None, None).await
+    /// Commit project Git changes
+    pub async fn projects_git_commits_create(&self, project_id: &str, body: &BirdCoderCommitProjectGitChangesRequest) -> Result<BirdCoderProjectGitOverview, SdkworkError> {
+        let path = app_path(&format!("/projects/{}/git/commits", serialize_path_parameter(project_id, PathParameterSpec::new("projectId", "simple", false))));
+        self.client.post(&path, Some(body), None, None, Some("application/json")).await
+    }
+
+    /// Push project Git branch
+    pub async fn projects_git_push(&self, project_id: &str, body: &BirdCoderPushProjectGitBranchRequest) -> Result<BirdCoderProjectGitOverview, SdkworkError> {
+        let path = app_path(&format!("/projects/{}/git/push", serialize_path_parameter(project_id, PathParameterSpec::new("projectId", "simple", false))));
+        self.client.post(&path, Some(body), None, None, Some("application/json")).await
+    }
+
+    /// Create project Git worktree
+    pub async fn projects_git_worktrees_create(&self, project_id: &str, body: &BirdCoderCreateProjectGitWorktreeRequest) -> Result<BirdCoderProjectGitOverview, SdkworkError> {
+        let path = app_path(&format!("/projects/{}/git/worktrees", serialize_path_parameter(project_id, PathParameterSpec::new("projectId", "simple", false))));
+        self.client.post(&path, Some(body), None, None, Some("application/json")).await
+    }
+
+    /// Remove project Git worktree
+    pub async fn projects_git_remove_worktree(&self, project_id: &str, body: &BirdCoderRemoveProjectGitWorktreeRequest) -> Result<BirdCoderProjectGitOverview, SdkworkError> {
+        let path = app_path(&format!("/projects/{}/git/remove_worktree", serialize_path_parameter(project_id, PathParameterSpec::new("projectId", "simple", false))));
+        self.client.post(&path, Some(body), None, None, Some("application/json")).await
+    }
+
+    /// Prune project Git worktrees
+    pub async fn projects_git_prune_worktrees(&self, project_id: &str, body: &BirdCoderPruneProjectGitWorktreesRequest) -> Result<BirdCoderProjectGitOverview, SdkworkError> {
+        let path = app_path(&format!("/projects/{}/git/prune_worktrees", serialize_path_parameter(project_id, PathParameterSpec::new("projectId", "simple", false))));
+        self.client.post(&path, Some(body), None, None, Some("application/json")).await
     }
 
 }
@@ -211,6 +438,118 @@ fn path_primitive_prefix(name: &str, style: &str) -> String {
     }
 }
 
+struct HeaderParameterSpec {
+    value: serde_json::Value,
+    explode: bool,
+    content_type: Option<&'static str>,
+}
+
+impl HeaderParameterSpec {
+    fn new<T: serde::Serialize>(
+        value: T,
+        _style: &'static str,
+        explode: bool,
+        content_type: Option<&'static str>,
+    ) -> Self {
+        Self {
+            value: serde_json::to_value(value).unwrap_or(serde_json::Value::Null),
+            explode,
+            content_type,
+        }
+    }
+}
+
+fn build_request_headers(headers: &[(&str, HeaderParameterSpec)], cookies: &[(&str, HeaderParameterSpec)]) -> Option<RequestHeaders> {
+    let mut request_headers = RequestHeaders::new();
+    for (name, parameter) in headers {
+        if let Some(value) = serialize_header_parameter(parameter) {
+            request_headers.insert((*name).to_string(), value);
+        }
+    }
+
+    let cookie_header = build_cookie_header(cookies);
+    if !cookie_header.is_empty() {
+        request_headers
+            .entry("Cookie".to_string())
+            .and_modify(|existing| {
+                existing.push_str("; ");
+                existing.push_str(&cookie_header);
+            })
+            .or_insert(cookie_header);
+    }
+
+    if request_headers.is_empty() {
+        None
+    } else {
+        Some(request_headers)
+    }
+}
+
+fn build_cookie_header(cookies: &[(&str, HeaderParameterSpec)]) -> String {
+    cookies
+        .iter()
+        .filter_map(|(name, value)| {
+            serialize_header_parameter(value)
+                .map(|value| format!("{}={}", percent_encode(name), percent_encode(&value)))
+        })
+        .collect::<Vec<_>>()
+        .join("; ")
+}
+
+fn serialize_header_parameter(parameter: &HeaderParameterSpec) -> Option<String> {
+    if parameter.value.is_null() {
+        return None;
+    }
+    if parameter.content_type.is_some() {
+        return Some(parameter.value.to_string());
+    }
+    match &parameter.value {
+        serde_json::Value::Null => None,
+        serde_json::Value::String(value) => Some(value.clone()),
+        serde_json::Value::Number(value) => Some(value.to_string()),
+        serde_json::Value::Bool(value) => Some(value.to_string()),
+        serde_json::Value::Array(values) => {
+            let serialized = values
+                .iter()
+                .filter_map(serialize_json_value)
+                .collect::<Vec<_>>();
+            if serialized.is_empty() {
+                None
+            } else {
+                Some(serialized.join(","))
+            }
+        }
+        serde_json::Value::Object(values) => {
+            let serialized = values
+                .iter()
+                .filter_map(|(key, value)| {
+                    serialize_json_value(value).map(|serialized| {
+                        if parameter.explode {
+                            format!("{}={}", key, serialized)
+                        } else {
+                            format!("{},{}", key, serialized)
+                        }
+                    })
+                })
+                .collect::<Vec<_>>();
+            if serialized.is_empty() {
+                None
+            } else {
+                Some(serialized.join(","))
+            }
+        }
+    }
+}
+
+fn serialize_json_value(value: &serde_json::Value) -> Option<String> {
+    match value {
+        serde_json::Value::Null => None,
+        serde_json::Value::String(value) => Some(value.clone()),
+        serde_json::Value::Number(value) => Some(value.to_string()),
+        serde_json::Value::Bool(value) => Some(value.to_string()),
+        other => Some(other.to_string()),
+    }
+}
 
 struct QueryParameterSpec<'a> {
     name: &'a str,

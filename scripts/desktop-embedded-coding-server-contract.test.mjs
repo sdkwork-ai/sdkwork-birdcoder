@@ -60,13 +60,13 @@ assert.match(
 
 assert.match(
   desktopLibRsSource,
-  /host::spawn_embedded_coding_server_startup\(app\.handle\(\)\.clone\(\)\);/u,
+  /host::spawn_embedded_application_gateway_startup\(app\.handle\(\)\.clone\(\)\);/u,
   'Desktop Tauri setup must dispatch embedded BirdCoder API startup without blocking window creation.',
 );
 
 assert.doesNotMatch(
   desktopLibRsSource,
-  /host::start_embedded_coding_server\(app\.handle\(\)\)\?/u,
+  /host::start_embedded_application_gateway\(app\.handle\(\)\)\?/u,
   'Desktop Tauri setup must not synchronously start the embedded BirdCoder API before the window is created.',
 );
 
@@ -85,7 +85,7 @@ assert.match(
 assert.match(
   desktopMainSource,
   /publishBirdCoderDesktopSdkRuntimeEnv/u,
-  'Desktop shell bootstrap must publish the resolved topology and API base URL before appbase and BirdCoder SDK clients initialize.',
+  'Desktop shell bootstrap must publish both resolved connectivity planes before SDK clients initialize.',
 );
 
 assert.doesNotMatch(
@@ -106,16 +106,26 @@ assert.match(
   'Desktop runtime bootstrap must prefer the injected Tauri core invoke bridge before falling back to the npm module.',
 );
 
-assert.match(
+assert.doesNotMatch(
   desktopRuntimeBootstrapSource,
   /publishBirdCoderEmbeddedSdkRuntimeEnv/u,
-  'Desktop runtime bootstrap must publish appbase and BirdCoder SDK base URLs from the embedded API base URL.',
+  'Desktop runtime bootstrap must not copy the embedded BirdCoder URL into dependency SDK aliases.',
 );
 
 assert.match(
   desktopRuntimeBootstrapSource,
-  /topology\.executionLocation === 'cloud-workspace'[\s\S]*readConfiguredBirdCoderApiBaseUrl/u,
+  /topology\.executionLocation === 'cloud-workspace'[\s\S]*readConfiguredBirdCoderApplicationApiBaseUrl/u,
   'Remote desktop bootstrap must use its configured cloud API and must not request embedded runtime config.',
+);
+assert.match(
+  desktopRuntimeBootstrapSource,
+  /resolveDesktopPlatformApiGatewayBaseUrl/u,
+  'Desktop bootstrap must resolve an independent required platform API gateway.',
+);
+assert.doesNotMatch(
+  desktopRuntimeBootstrapSource,
+  /VITE_SDKWORK_APP_API_BASE_URL|VITE_SDKWORK_APPBASE_APP_API_BASE_URL|VITE_BIRDCODER_API_BASE_URL/u,
+  'Desktop bootstrap must publish only canonical topology keys and no unified SDK URL aliases.',
 );
 
 console.log('desktop embedded coding server contract passed.');

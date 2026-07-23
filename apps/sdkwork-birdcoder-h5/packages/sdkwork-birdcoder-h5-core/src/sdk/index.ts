@@ -1,12 +1,17 @@
 export {
-  ensureBirdCoderMobileChatConversation,
-  listBirdCoderMobileChatMessages,
-  sendBirdCoderMobileChatMessage,
-} from '@sdkwork/birdcoder-pc-infrastructure/services/birdcoderMobileChatApi';
+  BIRDCODER_ASSISTANT_AGENT_ID,
+  ensureBirdCoderAssistantSession,
+  listBirdCoderAssistantSessionItems,
+  submitBirdCoderAssistantTurn,
+  type BirdCoderAgentSessionItemRole,
+  type BirdCoderAgentSessionItemView,
+  type BirdCoderAssistantSessionServiceOptions,
+  type BirdCoderAssistantSessionView,
+  type BirdCoderAssistantTurnOptions,
+} from './assistantSessionService.ts';
 export {
-  uploadBirdCoderChatAttachmentToDrive,
-  buildDriveMediaResourceContentBlock,
-  resolveChatAttachmentUploadProfile,
-  type BirdCoderChatDriveUploadOptions,
-  type BirdCoderChatDriveUploadResult,
-} from '@sdkwork/birdcoder-pc-infrastructure/services/birdcoderDriveUpload';
+  resolveAgentSessionAttachmentUploadProfile,
+  uploadBirdCoderAgentSessionAttachmentToDrive,
+  type BirdCoderAgentSessionAttachmentUploadOptions,
+  type BirdCoderAgentSessionAttachmentUploadResult,
+} from './agentSessionAttachmentService.ts';

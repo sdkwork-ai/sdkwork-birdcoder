@@ -16,7 +16,7 @@ function readText(relativePath) {
 }
 
 const serverSource = readCanonicalServerRustSource(
-  CANONICAL_SERVER_RUST_PATHS.codingSessionsEventPayload,
+  CANONICAL_SERVER_RUST_PATHS.agentSessionsEventPayload,
 );
 const bootstrapCatalogSource = readText(
   'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/src/storage/bootstrapConsoleCatalog.ts',

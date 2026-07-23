@@ -132,6 +132,16 @@ function main() {
   const workflow = read('.github/workflows/package.yml');
   const workflowConfig = read('sdkwork.workflow.json');
   const lifecycle = read('scripts/release/sdkwork-workflow-lifecycle.mjs');
+  const releasePackager = read('scripts/release/package-release-assets.mjs');
+  const canonicalAppApiOpenApi = read(
+    'sdks/sdkwork-birdcoder-app-sdk/openapi/sdkwork-birdcoder-app-api.openapi.json',
+  );
+  const materializedAppApiOpenApi = read(
+    'deployments/server-windows/x64/openapi/birdcoder-app-api.openapi.json',
+  );
+  const materializedServerManifest = JSON.parse(
+    read('deployments/server-windows/x64/release-asset-manifest.json'),
+  );
   const kubernetesValues = read('deployments/kubernetes/values.yaml');
   const kubernetesDeployment = read('deployments/kubernetes/templates/deployment.yaml');
   const kubernetesReadme = read('deployments/kubernetes/README.md');
@@ -147,6 +157,29 @@ function main() {
   );
 
   validateLatestReleaseRegistryEntry(latestReleaseEntry);
+
+  assert.equal(
+    materializedAppApiOpenApi,
+    canonicalAppApiOpenApi,
+    'the materialized Windows server App API sidecar must be byte-identical to the canonical App SDK OpenAPI authority.',
+  );
+  assert.match(
+    releasePackager,
+    /sdks['"], 'sdkwork-birdcoder-app-sdk'[\s\S]*openapi['"], 'sdkwork-birdcoder-app-api\.openapi\.json'[\s\S]*birdcoder-app-api\.openapi\.json/u,
+    'server release packaging must materialize the App API sidecar from the canonical App SDK OpenAPI authority.',
+  );
+  const materializedOpenApiArtifacts = (materializedServerManifest.artifacts ?? [])
+    .filter((artifact) => String(artifact?.relativePath ?? '').endsWith('/openapi/birdcoder-app-api.openapi.json'));
+  assert.equal(
+    materializedOpenApiArtifacts.length,
+    1,
+    'the materialized Windows server manifest must contain exactly one BirdCoder App API sidecar.',
+  );
+  assert.equal(
+    materializedOpenApiArtifacts[0].size,
+    Buffer.byteLength(canonicalAppApiOpenApi),
+    'the materialized Windows server manifest must record the canonical App API sidecar byte size.',
+  );
 
   const latestReleaseNote = read(path.join('docs/release', latestReleaseEntry.notesFile));
   validateLatestReleaseNoteAgainstRegistry(latestReleaseEntry, latestReleaseNote);

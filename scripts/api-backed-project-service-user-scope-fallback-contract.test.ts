@@ -22,7 +22,7 @@ function createLocalProject(
     author: userId,
     createdAt: '2026-04-25T10:00:00.000Z',
     updatedAt: '2026-04-25T10:00:00.000Z',
-    codingSessions: [],
+    agentSessions: [],
   };
 }
 

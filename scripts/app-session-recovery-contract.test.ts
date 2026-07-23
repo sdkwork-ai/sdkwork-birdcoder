@@ -6,7 +6,7 @@ import {
 } from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/src/services/appSessionToken.ts';
 import { executeBirdCoderProtectedOperationWithRecovery } from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/src/services/appSessionRecovery.ts';
 import { stopBirdCoderAppSessionRefreshLoop } from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/src/services/appSessionRefresh.ts';
-import { getBirdCoderGlobalTokenManager } from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/src/services/sdkClients.ts';
+import { getBirdCoderGlobalTokenManager } from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-core/src/appSessionTokenManager.ts';
 import { BirdCoderApiTransportError } from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-contracts-commons/src/apiTransportError.ts';
 
 const originalFetch = globalThis.fetch;
@@ -18,6 +18,10 @@ let refreshShouldFail = false;
 Object.defineProperty(globalThis, 'window', {
   configurable: true,
   value: {
+    __SDKWORK_PC_REACT_ENV__: {
+      VITE_SDKWORK_BIRDCODER_PLATFORM_API_GATEWAY_HTTP_URL:
+        'http://platform.test',
+    },
     location: {
       hash: '#/workspace',
       origin: 'http://birdcoder.test',

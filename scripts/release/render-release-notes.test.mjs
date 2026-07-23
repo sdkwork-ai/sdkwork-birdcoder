@@ -5,7 +5,7 @@ import path from 'node:path';
 
 import { sha256Value } from '../sdkwork-utils-digest.mjs';
 
-import { ENGINE_GOVERNANCE_REGRESSION_CHECK_IDS } from '../governance-regression-report.mjs';
+import { RELEASE_GOVERNANCE_CHECK_IDS } from '../governance-regression-report.mjs';
 import {
   buildReleaseNotesMarkdown,
   parseArgs,
@@ -16,7 +16,7 @@ function escapeRegExp(value) {
   return String(value ?? '').replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
-const expectedReleaseGovernanceLine = `Release governance checks: ${ENGINE_GOVERNANCE_REGRESSION_CHECK_IDS.map((entry) => `\`${entry}\``).join(', ')}`;
+const expectedReleaseGovernanceLine = `Release governance checks: ${RELEASE_GOVERNANCE_CHECK_IDS.map((entry) => `\`${entry}\``).join(', ')}`;
 
 const fixtureRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'birdcoder-release-notes-'));
 const releaseAssetsDir = path.join(fixtureRoot, 'assets');
@@ -81,15 +81,14 @@ fs.writeFileSync(
         file: 'web/release-manifest.json',
       },
     ],
-    codingServerOpenApiEvidence: {
-      canonicalRelativePath: 'server/windows/x64/openapi/coding-server-v1.json',
-      mirroredRelativePaths: ['server/windows/x64/openapi/coding-server-v1.json'],
+    birdcoderAppApiEvidence: {
+      canonicalRelativePath: 'server/windows/x64/openapi/birdcoder-app-api.openapi.json',
       targetCount: 1,
       targets: ['windows/x64'],
       sha256: '0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef',
       openapi: '3.1.0',
-      version: 'v1',
-      title: 'SDKWork BirdCoder Coding Server API',
+      version: '0.1.0',
+      title: 'SDKWork BirdCoder App API',
     },
     artifacts: [
       {
@@ -115,7 +114,7 @@ fs.writeFileSync(
       failureClassificationIds: ['contract-drift', 'toolchain-platform', 'artifact-integrity', 'evidence-gap'],
       environmentDiagnostics: 1,
       blockingDiagnosticIds: ['vite-host-build-preflight'],
-      releaseGovernanceCheckIds: ENGINE_GOVERNANCE_REGRESSION_CHECK_IDS,
+      releaseGovernanceCheckIds: RELEASE_GOVERNANCE_CHECK_IDS,
       blockingDiagnostics: [
         {
           id: 'vite-host-build-preflight',
@@ -171,11 +170,11 @@ assert.match(markdown, /smoke: `passed`/);
 assert.match(markdown, /startup readiness: `ready`/);
 assert.match(markdown, /workspace bootstrap: `defaultProjectReady`, `defaultWorkspaceReady`, `recoverySnapshotReady`/);
 assert.match(markdown, /local project recovery: `autoRemountSupported`, `failedStateVisible`, `recoveringStateVisible`, `reimportSupported`, `retrySupported`/);
-assert.match(markdown, /## Coding-server OpenAPI evidence/);
-assert.match(markdown, /Canonical snapshot: `server\/windows\/x64\/openapi\/coding-server-v1\.json`/);
+assert.match(markdown, /## BirdCoder App API evidence/);
+assert.match(markdown, /Canonical snapshot: `server\/windows\/x64\/openapi\/birdcoder-app-api\.openapi\.json`/);
 assert.match(markdown, /Targets: `windows\/x64`/);
 assert.match(markdown, /OpenAPI version: `3\.1\.0`/);
-assert.match(markdown, /API version: `v1`/);
+assert.match(markdown, /API version: `0\.1\.0`/);
 assert.match(markdown, /## Quality evidence/);
 assert.match(markdown, /quality\/quality-gate-matrix-report\.json/);
 assert.match(markdown, /Quality tiers: `fast`, `standard`, `release`/);
@@ -223,7 +222,7 @@ fs.writeFileSync(
       failureClassificationIds: ['contract-drift'],
       environmentDiagnostics: 0,
       blockingDiagnosticIds: [],
-      releaseGovernanceCheckIds: ENGINE_GOVERNANCE_REGRESSION_CHECK_IDS,
+      releaseGovernanceCheckIds: RELEASE_GOVERNANCE_CHECK_IDS,
       executionStatus: 'passed',
       executionBlockingTierIds: [],
       executionFailedTierIds: [],

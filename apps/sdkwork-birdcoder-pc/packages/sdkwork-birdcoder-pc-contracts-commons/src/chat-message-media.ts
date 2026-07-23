@@ -1,10 +1,10 @@
 export const BIRDCODER_CHAT_MESSAGE_MAX_MEDIA_SOURCE_CHARACTERS = 4 * 1_024 * 1_024;
 export const BIRDCODER_CHAT_MESSAGE_MAX_EXTERNAL_MEDIA_SOURCE_CHARACTERS = 4_096;
 
-export type BirdCoderChatMessageMediaKind = 'audio' | 'image';
+export type AgentSessionItemMediaKind = 'audio' | 'image';
 
-export interface BirdCoderChatMessageDataMediaSource {
-  kind?: BirdCoderChatMessageMediaKind;
+export interface AgentSessionItemDataMediaSource {
+  kind?: AgentSessionItemMediaKind;
   mimeType: string;
   payload: string;
   source: string;
@@ -20,7 +20,7 @@ const SAFE_INLINE_IMAGE_MIME_TYPES = new Set([
   'image/webp',
 ]);
 
-export function isBirdCoderChatMessageBase64Payload(value: string): boolean {
+export function isAgentSessionItemBase64Payload(value: string): boolean {
   if (!value || !BASE64_ALPHABET_PATTERN.test(value)) {
     return false;
   }
@@ -37,11 +37,11 @@ export function isBirdCoderChatMessageBase64Payload(value: string): boolean {
   return unpaddedLength % 4 !== 1;
 }
 
-export function parseBirdCoderChatMessageDataMediaSource(
+export function parseAgentSessionItemDataMediaSource(
   value: unknown,
-  expectedKind?: BirdCoderChatMessageMediaKind,
+  expectedKind?: AgentSessionItemMediaKind,
   expectedMimeType?: string,
-): BirdCoderChatMessageDataMediaSource | null {
+): AgentSessionItemDataMediaSource | null {
   if (
     typeof value !== 'string'
     || value.length === 0
@@ -59,7 +59,7 @@ export function parseBirdCoderChatMessageDataMediaSource(
   }
   const mimeType = match[1]!.trim().toLowerCase();
   const payload = match[2]!;
-  if (!MIME_TYPE_PATTERN.test(mimeType) || !isBirdCoderChatMessageBase64Payload(payload)) {
+  if (!MIME_TYPE_PATTERN.test(mimeType) || !isAgentSessionItemBase64Payload(payload)) {
     return null;
   }
   const kind = mimeType.startsWith('image/')
@@ -85,9 +85,9 @@ export function parseBirdCoderChatMessageDataMediaSource(
   };
 }
 
-export function resolveBirdCoderChatMessageMediaSource(
+export function resolveAgentSessionItemMediaSource(
   value: unknown,
-  expectedKind: BirdCoderChatMessageMediaKind,
+  expectedKind: AgentSessionItemMediaKind,
   expectedMimeType?: string,
 ): string | undefined {
   if (
@@ -106,14 +106,14 @@ export function resolveBirdCoderChatMessageMediaSource(
       ? source
       : undefined;
   }
-  return parseBirdCoderChatMessageDataMediaSource(
+  return parseAgentSessionItemDataMediaSource(
     source,
     expectedKind,
     expectedMimeType,
   )?.source;
 }
 
-export function buildBirdCoderChatMessageDataMediaSource(
+export function buildAgentSessionItemDataMediaSource(
   data: unknown,
   mimeType: unknown,
 ): string | undefined {
@@ -127,7 +127,7 @@ export function buildBirdCoderChatMessageDataMediaSource(
       normalizedMimeType.startsWith('image/')
       && !SAFE_INLINE_IMAGE_MIME_TYPES.has(normalizedMimeType)
     )
-    || !isBirdCoderChatMessageBase64Payload(data)
+    || !isAgentSessionItemBase64Payload(data)
   ) {
     return undefined;
   }

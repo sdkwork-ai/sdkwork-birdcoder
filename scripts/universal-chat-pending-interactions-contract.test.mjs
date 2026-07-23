@@ -27,25 +27,25 @@ const studioSidebarSource = readText('apps/sdkwork-birdcoder-pc/packages/sdkwork
 
 assert.match(
   universalChatSource,
-  /pendingUserQuestions\?:\s*BirdCoderCodingSessionPendingUserQuestion\[\]/,
-  'UniversalChatProps must expose pending user questions as a first-class SDK interaction surface.',
+  /pendingUserQuestions\?:\s*AgentSessionPendingQuestion\[\]/,
+  'UniversalChatProps must expose pending Agents user questions as a first-class interaction surface.',
 );
 
 assert.match(
   universalChatSource,
-  /pendingApprovals\?:\s*BirdCoderCodingSessionPendingApproval\[\]/,
-  'UniversalChatProps must expose pending approvals as a first-class SDK interaction surface.',
+  /pendingApprovals\?:\s*AgentSessionPendingApproval\[\]/,
+  'UniversalChatProps must expose pending Agents approvals as a first-class interaction surface.',
 );
 
 assert.match(
   universalChatSource,
-  /onSubmitUserQuestionAnswer\?:\s*\([^)]*BirdCoderSubmitUserQuestionAnswerRequest[^)]*\)\s*=>\s*void\s*\|\s*Promise<void>/s,
+  /onSubmitUserQuestionAnswer\?:\s*\([^)]*AgentQuestionAnswerInput[^)]*\)\s*=>\s*void\s*\|\s*Promise<void>/s,
   'UniversalChatProps must expose an async-capable user-question answer submission handler.',
 );
 
 assert.match(
   universalChatSource,
-  /onSubmitApprovalDecision\?:\s*\([^)]*BirdCoderSubmitApprovalDecisionRequest[^)]*\)\s*=>\s*void\s*\|\s*Promise<void>/s,
+  /onSubmitApprovalDecision\?:\s*\([^)]*AgentApprovalDecisionInput[^)]*\)\s*=>\s*void\s*\|\s*Promise<void>/s,
   'UniversalChatProps must expose an async-capable approval decision submission handler.',
 );
 
@@ -69,8 +69,8 @@ assert.match(
 
 assert.match(
   pendingInteractionsSource,
-  /optionId[\s\S]*optionLabel[\s\S]*answer/,
-  'Pending question option clicks must preserve SDK optionId, optionLabel, and answer payload semantics.',
+  /answer:\s*option\.value\?\.trim\(\)\s*\|\|\s*option\.label[\s\S]*optionValue:\s*option\.value[\s\S]*optionLabel:\s*option\.label/,
+  'Pending question option clicks must preserve the canonical Agents option value, label, and answer semantics.',
 );
 
 assert.match(
@@ -111,8 +111,8 @@ assert.match(
 
 assert.match(
   codePendingInteractionsSource,
-  /useCodingSessionPendingInteractionState\(\s*sessionId,\s*refreshToken,\s*sessionScopeKey,\s*projectId,\s*\)/,
-  'Code pending interaction hook must consume the shared combined pending interaction projection hook with the scoped session and project keys.',
+  /useAgentSessionPendingInteractions\(\s*sessionId,\s*refreshToken,\s*sessionScopeKey,\s*projectId,\s*\)/,
+  'Code pending interaction hook must consume canonical Agents Interactions with scoped session and project keys.',
 );
 
 assert.match(
@@ -147,8 +147,8 @@ assert.match(
 
 assert.match(
   studioPageSource,
-  /useCodingSessionPendingInteractionState\(\s*sessionId \|\| null,\s*pendingInteractionRefreshToken,\s*pendingInteractionScopeKey,\s*currentProjectId,\s*\)/,
-  'StudioPage must consume pending approval and user-question state from the shared combined projection hook with the scoped session and project keys.',
+  /useAgentSessionPendingInteractions\(\s*sessionId \|\| null,\s*pendingInteractionRefreshToken,\s*pendingInteractionScopeKey,\s*currentProjectId,\s*\)/,
+  'StudioPage must consume canonical Agents approval and user-question interactions with scoped session and project keys.',
 );
 
 assert.match(

@@ -36,22 +36,22 @@ assert.match(
 );
 assert.match(
   loginPageSource,
-  /birdCoderIamAuthService\.signInWithPassword/u,
+  /\.iamAuthService\.signInWithPassword/u,
   'Flutter login page must sign in through the generated IAM auth service.',
 );
 assert.match(
   registerPageSource,
-  /birdCoderIamAuthService\.registerWithPassword/u,
+  /\.iamAuthService\.registerWithPassword/u,
   'Flutter register page must register through the generated IAM auth service.',
 );
 assert.match(
   recoveryPageSource,
-  /birdCoderIamAuthService\.requestPasswordReset/u,
+  /\.iamAuthService\.requestPasswordReset/u,
   'Flutter recovery page must request password reset through the generated IAM auth service.',
 );
 assert.match(
   recoveryPageSource,
-  /birdCoderIamAuthService\.resetPassword/u,
+  /\.iamAuthService\.resetPassword/u,
   'Flutter recovery page must complete password reset through the generated IAM auth service.',
 );
 assert.match(
@@ -81,22 +81,22 @@ assert.match(
 );
 assert.match(
   oauthCallbackPageSource,
-  /birdCoderIamAuthService\.completeOAuthCallback/u,
+  /\.iamAuthService\.completeOAuthCallback/u,
   'Flutter OAuth callback page must complete sign-in through the generated IAM auth service.',
 );
 assert.match(
   qrLoginPageSource,
-  /birdCoderIamAuthService\.createQrLoginAuthorization/u,
+  /\.iamAuthService\.createQrLoginAuthorization/u,
   'Flutter QR login page must create device authorizations through the generated IAM auth service.',
 );
 assert.match(
   qrLoginPageSource,
-  /birdCoderIamAuthService\.retrieveQrLoginAuthorization/u,
+  /\.iamAuthService\.retrieveQrLoginAuthorization/u,
   'Flutter QR login page must poll device authorizations through the generated IAM auth service.',
 );
 assert.match(
   qrLoginPageSource,
-  /birdCoderIamAuthService\.exchangeQrLoginSession/u,
+  /\.iamAuthService\.exchangeQrLoginSession/u,
   'Flutter QR login page must exchange confirmed QR authorizations through the generated IAM auth service.',
 );
 assert.match(

@@ -1,6 +1,6 @@
 import { useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
-import type { BirdCoderCodingSession } from '@sdkwork/birdcoder-pc-contracts-commons';
+import type { AgentSessionView } from '@sdkwork/birdcoder-pc-contracts-commons';
 import {
   findWorkbenchCodeEngineDefinition,
   getDefaultWorkbenchServerImplementedCodeEngineId,
@@ -9,7 +9,7 @@ import {
   normalizeWorkbenchCodeModelId,
   normalizeWorkbenchServerImplementedCodeEngineId,
   resolveWorkbenchPreferredNewSessionSelection,
-} from '@sdkwork/birdcoder-pc-codeengine';
+} from '../workbench/codeEngineCatalog.ts';
 
 import { useToast } from '../contexts/ToastProvider.ts';
 import {
@@ -25,30 +25,30 @@ type WorkbenchPreferencesUpdate =
 
 type UpdatePreferencesFn = (value: WorkbenchPreferencesUpdate) => void;
 
-type CreateCodingSessionFn = (
+type CreateAgentSessionFn = (
   projectId: string,
   title: string,
   options: {
     engineId: string;
     modelId: string;
   },
-) => Promise<BirdCoderCodingSession>;
+) => Promise<AgentSessionView>;
 
 interface UseWorkbenchChatSelectionOptions {
-  createCodingSession: CreateCodingSessionFn;
+  createAgentSession: CreateAgentSessionFn;
   currentSessionEngineId?: string | null;
   currentSessionModelId?: string | null;
   preferences: WorkbenchPreferences;
   updatePreferences: UpdatePreferencesFn;
 }
 
-interface CreateCodingSessionWithSelectionOptions {
+interface CreateAgentSessionWithSelectionOptions {
   engineId?: string;
   modelId?: string;
 }
 
 export function useWorkbenchChatSelection({
-  createCodingSession,
+  createAgentSession,
   currentSessionEngineId,
   currentSessionModelId,
   preferences,
@@ -68,7 +68,7 @@ export function useWorkbenchChatSelection({
 
   const setSelectedEngineId = useCallback(
     (engineId: string) => {
-      const fallbackEngineId = getDefaultWorkbenchServerImplementedCodeEngineId(preferences);
+      const fallbackEngineId = getDefaultWorkbenchServerImplementedCodeEngineId();
       const resolvedRequestedEngineId =
         findWorkbenchCodeEngineDefinition(engineId, preferences)?.id ?? null;
       if (!resolvedRequestedEngineId || !isWorkbenchServerImplementedEngineId(engineId)) {
@@ -81,7 +81,7 @@ export function useWorkbenchChatSelection({
         updatePreferences((previousState) =>
           setWorkbenchActiveCodeEngine(
             previousState,
-            getDefaultWorkbenchServerImplementedCodeEngineId(previousState),
+            getDefaultWorkbenchServerImplementedCodeEngineId(),
           ),
         );
         return;
@@ -117,11 +117,11 @@ export function useWorkbenchChatSelection({
     [updatePreferences],
   );
 
-  const createCodingSessionWithSelection = useCallback(
+  const createAgentSessionWithSelection = useCallback(
     (
       projectId: string,
       title?: string,
-      options?: CreateCodingSessionWithSelectionOptions,
+      options?: CreateAgentSessionWithSelectionOptions,
     ) => {
       const requestedEngineId = options?.engineId?.trim() || undefined;
       const requestedModelId = options?.modelId?.trim() || undefined;
@@ -155,13 +155,13 @@ export function useWorkbenchChatSelection({
         setWorkbenchActiveChatSelection(previousState, resolvedEngineId, resolvedModelId),
       );
 
-      return createCodingSession(projectId, resolvedTitle, {
+      return createAgentSession(projectId, resolvedTitle, {
         engineId: resolvedEngineId,
         modelId: resolvedModelId,
       });
     },
     [
-      createCodingSession,
+      createAgentSession,
     currentSessionEngineId,
     currentSessionModelId,
     preferences,
@@ -172,7 +172,7 @@ export function useWorkbenchChatSelection({
   );
 
   return {
-    createCodingSessionWithSelection,
+    createAgentSessionWithSelection,
     selectedEngineId,
     selectedModelId,
     setSelectedChatSelection,

@@ -1,5 +1,4 @@
 import type { ChangeEvent, RefObject } from 'react';
-import type { WorkbenchCodeEngineId } from '@sdkwork/birdcoder-pc-codeengine';
 import type { ModelsPickerGroup } from '@sdkwork/models-pc-picker';
 
 export interface UniversalChatComposerFooterCommonProps {
@@ -36,7 +35,7 @@ export interface UniversalChatComposerFooterCommonProps {
 
 export interface UniversalChatComposerFooterProps
   extends UniversalChatComposerFooterCommonProps {
-  engineId: WorkbenchCodeEngineId;
+  engineId: string;
 }
 
 export interface EngineComposerFooterProps

@@ -15,8 +15,8 @@ const activityAnnouncerSource = await readFile(
   'utf8',
 );
 
-const activityProjectionSource = await readFile(
-  resolve('apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-contracts-commons/src/chat-message-activity-projection.ts'),
+const activityViewSource = await readFile(
+  resolve('apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-contracts-commons/src/chat-message-activity-view.ts'),
   'utf8',
 );
 
@@ -313,45 +313,45 @@ assert.match(
 );
 
 assert.match(
-  activityProjectionSource,
+  activityViewSource,
   /export function parseFileUpdateSummaryContent\(/,
-  'Activity projection must parse tool-style "Updated the following files" content into structured file rows instead of rendering it as raw text.',
+  'The activity view adapter must parse tool-style "Updated the following files" content into structured file rows instead of rendering it as raw text.',
 );
 
 assert.match(
-  activityProjectionSource,
+  activityViewSource,
   /FILE_UPDATE_SUMMARY_HEADER_PATTERN = \/\^\(\?:Success\\\.\\s\+\)\?Updated the following files:/,
   'The file update summary parser must recognize successful apply-patch output headers.',
 );
 
 assert.match(
-  activityProjectionSource,
-  /export function resolveProjectedActivityFileChanges\(/,
-  'Activity projection must merge parsed file update summaries with structured fileChanges so line-count and diff metadata are preserved.',
+  activityViewSource,
+  /export function resolveActivityFileChangeViews\(/,
+  'The activity view adapter must merge parsed file update summaries with structured fileChanges so line-count and diff metadata are preserved.',
 );
 
 assert.match(
-  activityProjectionSource,
+  activityViewSource,
   /export function shouldHideMessageContentAsFileUpdateSummary/,
-  'Activity projection must suppress raw "Updated the following files" markdown when the same content is represented by the expandable activity summary.',
+  'The activity view adapter must suppress raw "Updated the following files" markdown when the same content is represented by the expandable activity summary.',
 );
 
 assert.match(
   chatMessageViewSource,
   /resolveVisibleMarkdownBlockContent\(message\)/,
-  'Chat message view projection must strip embedded tool update summaries before building markdown blocks.',
+  'The Session Item view adapter must strip embedded tool update summaries before building markdown blocks.',
 );
 
 assert.match(
   chatMessageViewSource,
-  /resolveProjectedActivityFileChanges\(message\)/,
-  'Chat message view projection must include parsed and structured file changes in activity blocks.',
+  /resolveActivityFileChangeViews\(message\)/,
+  'The Session Item view adapter must include parsed and structured file changes in activity blocks.',
 );
 
 assert.match(
   contentBlockRenderersSource,
   /block\.content/,
-  'Markdown block rendering must consume pre-projected markdown content from the view model.',
+  'Markdown block rendering must consume prepared markdown content from the view model.',
 );
 
 assert.match(
@@ -408,12 +408,12 @@ assert.match(
 
 assert.match(
   messageActivitySource,
-  /resolveProjectedActivityFileChanges/,
-  'UI activity helpers must delegate file-change projection to pc-types instead of duplicating parser logic.',
+  /resolveActivityFileChangeViews/,
+  'UI activity helpers must delegate file-change adaptation to pc-types instead of duplicating parser logic.',
 );
 
 assert.match(
-  activityProjectionSource,
+  activityViewSource,
   /lineImpactKnown: false/,
   'Parsed raw file update summaries must not fake +0/-0 line impact when the tool output did not include diff metadata.',
 );

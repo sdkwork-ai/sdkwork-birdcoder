@@ -150,19 +150,19 @@ assert.doesNotMatch(
 
 assert.match(
   codePageSource,
-  /const isSelectedSessionTurnActive = isBirdCoderCodingSessionExecuting\(session\);/,
+  /const isSelectedSessionTurnActive = isAgentSessionViewExecuting\(session\);/,
   'CodePage should name the broader executing helper as turn-active instead of treating it as engine-busy UI state.',
 );
 
 assert.match(
   codePageSource,
-  /const isChatBusy = isSubmittingTurn \|\| isSelectedSessionTurnActive \|\| isNewCodingSessionCreating;/,
+  /const isChatBusy = isSubmittingTurn \|\| isSelectedSessionTurnActive \|\| isNewAgentSessionCreating;/,
   'CodePage must keep isChatBusy as the turn-blocking signal so queued follow-up prompts still wait behind pending interactions.',
 );
 
 assert.match(
   codePageSource,
-  /const isChatEngineBusy = isSubmittingTurn \|\| isSelectedSessionEngineBusy \|\| isNewCodingSessionCreating;/,
+  /const isChatEngineBusy = isSubmittingTurn \|\| isSelectedSessionEngineBusy \|\| isNewAgentSessionCreating;/,
   'CodePage must derive a strict engine-busy signal for spinner rendering.',
 );
 
@@ -204,13 +204,13 @@ assert.match(
 
 assert.match(
   studioPageSource,
-  /isBirdCoderCodingSessionEngineBusy,/,
+  /isAgentSessionViewEngineBusy,/,
   'StudioPage must import the strict engine-busy helper.',
 );
 
 assert.match(
   studioPageSource,
-  /const isSelectedSessionTurnActive = isBirdCoderCodingSessionExecuting\(selectedSession\);/,
+  /const isSelectedSessionTurnActive = isAgentSessionViewExecuting\(selectedSession\);/,
   'StudioPage should name the broader executing helper as turn-active instead of treating it as engine-busy UI state.',
 );
 

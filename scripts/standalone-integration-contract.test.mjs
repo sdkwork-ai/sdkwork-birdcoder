@@ -3,12 +3,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import process from 'node:process';
 
-import {
-  bridgeLegacyApiEnv,
-} from './lib/birdcoder-topology.mjs';
-import {
-  resolveBirdcoderIamCommandEnv,
-} from './birdcoder-iam-env.mjs';
+import { createTopologyRuntime, loadTopologySpec } from '@sdkwork/app-topology';
 
 const rootDir = process.cwd();
 
@@ -30,95 +25,59 @@ function extractTomlArray(source, key) {
   return parseTomlStringArray(match.groups.body);
 }
 
-{
-  const bridgedStandaloneEnv = bridgeLegacyApiEnv({
-    SDKWORK_BIRDCODER_APPLICATION_PUBLIC_HTTP_URL: 'http://127.0.0.1:10240',
-    SDKWORK_BIRDCODER_DEPLOYMENT_PROFILE: 'standalone',
-    SDKWORK_BIRDCODER_ENVIRONMENT: 'development',
-    SDKWORK_BIRDCODER_PLATFORM_API_GATEWAY_HTTP_URL: 'http://127.0.0.1:3900',
-  });
+const topologySpecPath = path.join(rootDir, 'specs', 'topology.spec.json');
+const topologyRuntime = createTopologyRuntime(
+  loadTopologySpec(topologySpecPath),
+  rootDir,
+  topologySpecPath,
+);
+const standaloneDevelopmentProfile = topologyRuntime.loadProfile('standalone.development');
+const standaloneDesktopPlan = topologyRuntime.resolvePlan(
+  'standalone.development',
+  'desktop',
+  'tauri',
+);
+const standaloneServerPlan = topologyRuntime.resolvePlan(
+  'standalone.development',
+  'server',
+);
 
-  assert.equal(
-    bridgedStandaloneEnv.VITE_SDKWORK_BIRDCODER_DEPLOYMENT_PROFILE,
-    'standalone',
-    'Topology bridge must materialize the app-scoped public deployment profile for renderer bootstrap.',
-  );
-  assert.equal(
-    bridgedStandaloneEnv.VITE_SDKWORK_DEPLOYMENT_PROFILE,
-    'standalone',
-    'Topology bridge may keep the generic public deployment profile only as compatibility, normalized from the app-scoped profile.',
-  );
-  assert.equal(
-    bridgedStandaloneEnv.VITE_SDKWORK_BIRDCODER_PLATFORM_API_GATEWAY_HTTP_URL,
-    'http://127.0.0.1:3900',
-    'Topology bridge must publish the platform gateway URL to the renderer.',
-  );
-  assert.equal(
-    bridgedStandaloneEnv.VITE_SDKWORK_DRIVE_APP_API_BASE_URL,
-    'http://127.0.0.1:3900',
-    'Drive app SDK must use the platform gateway instead of BirdCoder application ingress.',
-  );
-}
-
-{
-  const resolvedDesktopEnv = resolveBirdcoderIamCommandEnv({
-    env: {},
-    iamMode: 'desktop-local',
-    target: 'desktop-dev',
-    viteMode: 'development',
-  });
-
-  assert.equal(
-    resolvedDesktopEnv.env.SDKWORK_BIRDCODER_DEPLOYMENT_PROFILE,
-    'standalone',
-    'Desktop-local commands must resolve the private deployment profile to standalone.',
-  );
-  assert.equal(
-    resolvedDesktopEnv.env.VITE_SDKWORK_BIRDCODER_DEPLOYMENT_PROFILE,
-    'standalone',
-    'Desktop-local commands must expose the app-scoped public deployment profile to Vite.',
-  );
-  assert.equal(
-    resolvedDesktopEnv.env.SDKWORK_BIRDCODER_RUNTIME_TARGET,
-    'desktop',
-    'Desktop-local commands must resolve runtime target separately from deployment profile.',
-  );
-  assert.equal(
-    resolvedDesktopEnv.env.VITE_SDKWORK_BIRDCODER_RUNTIME_TARGET,
-    'desktop',
-    'Desktop-local commands must expose the app-scoped public runtime target to Vite.',
-  );
-}
-
-{
-  const resolvedServerEnv = resolveBirdcoderIamCommandEnv({
-    env: {},
-    iamMode: 'server-private',
-    target: 'server-dev',
-    viteMode: 'development',
-  });
-
-  assert.equal(
-    resolvedServerEnv.env.SDKWORK_BIRDCODER_DATABASE_ENGINE,
-    'postgresql',
-    'Standalone development server commands must use the PostgreSQL engine selected by the topology profile.',
-  );
-  assert.equal(
-    resolvedServerEnv.env.SDKWORK_BIRDCODER_DATABASE_SCHEMA,
-    undefined,
-    'Standalone development must not override the canonical workspace PostgreSQL schema.',
-  );
-  assert.equal(
-    resolvedServerEnv.env.SDKWORK_BIRDCODER_DATABASE_URL,
-    undefined,
-    'PostgreSQL server commands must not receive the legacy SQLite URL fallback; sdkwork-database resolves the shared PostgreSQL profile.',
-  );
-  assert.equal(
-    resolvedServerEnv.env.BIRDCODER_CODING_SERVER_SQLITE_FILE,
-    undefined,
-    'PostgreSQL server commands must not receive a legacy SQLite file path.',
-  );
-}
+assert.notEqual(
+  standaloneDevelopmentProfile.SDKWORK_BIRDCODER_PLATFORM_API_GATEWAY_HTTP_URL,
+  standaloneDevelopmentProfile.SDKWORK_BIRDCODER_APPLICATION_PUBLIC_HTTP_URL,
+  'Standalone dependency SDKs must not fall back to the BirdCoder application gateway origin.',
+);
+assert.equal(
+  standaloneDevelopmentProfile.SDKWORK_BIRDCODER_PLATFORM_API_GATEWAY_HTTP_URL,
+  'http://127.0.0.1:3900',
+  'Standalone development must declare its external platform API surface explicitly.',
+);
+assert.equal(
+  standaloneDevelopmentProfile.SDKWORK_BIRDCODER_RUNTIME_TARGET,
+  undefined,
+  'Runtime target is selected by the lifecycle command and must not be frozen in a deployment profile.',
+);
+assert.deepEqual(
+  standaloneDesktopPlan.localProcesses.map((processDefinition) => processDefinition.id),
+  ['application.public-ingress', 'pc-desktop-renderer'],
+  'Desktop development must select the gateway and desktop renderer only.',
+);
+assert.equal(
+  standaloneDesktopPlan.localProcesses[1].env.VITE_SDKWORK_BIRDCODER_RUNTIME_TARGET,
+  'desktop',
+);
+assert.deepEqual(
+  standaloneServerPlan.localProcesses.map((processDefinition) => processDefinition.id),
+  ['application.public-ingress'],
+  'Server development must not launch a renderer.',
+);
+assert.equal(
+  standaloneDevelopmentProfile.SDKWORK_BIRDCODER_DATABASE_ENGINE,
+  'postgresql',
+  'Standalone development uses the database engine selected by its environment profile.',
+);
+assert.equal(standaloneDevelopmentProfile.SDKWORK_BIRDCODER_DATABASE_URL, undefined);
+assert.equal(standaloneDevelopmentProfile.SDKWORK_BIRDCODER_DATABASE_SCHEMA, undefined);
 
 {
   const postgresExample = readText('.env.postgres.example');
@@ -148,6 +107,22 @@ function extractTomlArray(source, key) {
     environmentSource,
     /VITE_SDKWORK_BIRDCODER_RUNTIME_TARGET/u,
     'PC bootstrap must read the app-scoped runtime target before legacy generic keys.',
+  );
+}
+
+{
+  const h5RuntimeConfigSource = readText(
+    'apps/sdkwork-birdcoder-h5/packages/sdkwork-birdcoder-h5-core/src/bootstrap/runtimeConfig.ts',
+  );
+  assert.match(
+    h5RuntimeConfigSource,
+    /resolveRequiredDependencyApiBaseUrl/u,
+    'H5 dependency SDK URLs must fail closed through one shared resolver.',
+  );
+  assert.doesNotMatch(
+    h5RuntimeConfigSource,
+    /VITE_SDKWORK_BIRDCODER_PLATFORM_API_GATEWAY_HTTP_URL,\s*resolveBirdCoderH5ApplicationApiBaseUrl\(\)/u,
+    'H5 dependency SDKs must not fall back to the BirdCoder application API origin.',
   );
 }
 
@@ -264,7 +239,6 @@ for (const topologyEnvPath of [
   }
 
   for (const highRiskPermission of [
-    'allow-local-sql-execute-plan',
     'allow-user-home-config-write',
     'allow-fs-write-file',
     'allow-fs-create-file',
@@ -289,6 +263,11 @@ for (const topologyEnvPath of [
       `Test desktop capability must not inherit high-risk permission ${highRiskPermission}.`,
     );
   }
+  assert.doesNotMatch(
+    `${defaultCapabilitySource}\n${testCapabilitySource}\n${defaultPermissionsSource}`,
+    /local_sql_execute_plan|allow-local-sql-execute-plan/u,
+    'Desktop capability manifests must not expose a generic renderer SQL bridge.',
+  );
 }
 
 console.log('standalone integration contract passed.');

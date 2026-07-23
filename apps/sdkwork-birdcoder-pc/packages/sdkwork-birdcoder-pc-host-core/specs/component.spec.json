@@ -94,6 +94,14 @@
     }
   ],
   "contracts": {
+    "layerRole": "frontend-host",
+    "providedPorts": [
+      {
+        "name": "hostDescriptorFactory",
+        "export": "."
+      }
+    ],
+    "requiredPorts": [],
     "publicExports": [
       "."
     ],

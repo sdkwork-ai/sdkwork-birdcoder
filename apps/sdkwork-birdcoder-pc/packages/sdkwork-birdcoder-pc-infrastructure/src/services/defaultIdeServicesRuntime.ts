@@ -1,8 +1,8 @@
 import type { BirdHostDescriptor } from '@sdkwork/birdcoder-pc-host-core';
-import type {
-  BirdCoderAppSdkApiClient,
-  BirdCoderBackendSdkApiClient,
-} from './sdkClients.ts';
+import type { SdkworkDocumentsAppClient } from '@sdkwork/birdcoder-pc-core/sdk/documents-app';
+import type { SdkworkPromptsAppClient } from '@sdkwork/birdcoder-pc-core/sdk/prompts-app';
+import type { BirdCoderAppSdkApiClient } from './birdCoderSdkClient.ts';
+import { normalizeBirdCoderSdkBaseUrl } from './sdkBaseUrls.ts';
 import {
   resolveBirdCoderRuntimeTopology,
   type BirdCoderDeploymentProfile,
@@ -11,24 +11,24 @@ import {
   type BirdCoderRuntimeTopology,
 } from './runtimeTopology.ts';
 
-export type BirdCoderRealtimeTransportPreference = 'auto' | 'sse' | 'websocket';
-
 export interface BirdCoderDefaultIdeServicesRuntimeConfig {
-  apiBaseUrl?: string;
+  applicationApiBaseUrl?: string;
   appClient?: BirdCoderAppSdkApiClient;
-  backendClient?: BirdCoderBackendSdkApiClient;
+  documentsClient?: SdkworkDocumentsAppClient;
   executionAuthorityMode?: 'auto' | 'remote-required';
-  realtimeTransport?: BirdCoderRealtimeTransportPreference;
+  promptsClient?: SdkworkPromptsAppClient;
+  platformApiGatewayBaseUrl?: string;
   runtimeTopology?: BirdCoderRuntimeTopology;
 }
 
 export interface BindDefaultBirdCoderIdeServicesRuntimeOptions {
-  apiBaseUrl?: string;
+  applicationApiBaseUrl?: string;
   appClient?: BirdCoderAppSdkApiClient;
-  backendClient?: BirdCoderBackendSdkApiClient;
+  documentsClient?: SdkworkDocumentsAppClient;
   executionAuthorityMode?: 'auto' | 'remote-required';
-  realtimeTransport?: BirdCoderRealtimeTransportPreference;
   host?: BirdHostDescriptor;
+  promptsClient?: SdkworkPromptsAppClient;
+  platformApiGatewayBaseUrl?: string;
   deploymentProfile?: BirdCoderDeploymentProfile;
   executionLocation?: BirdCoderExecutionLocation;
   runtimeTarget?: BirdCoderRuntimeTarget;
@@ -36,29 +36,21 @@ export interface BindDefaultBirdCoderIdeServicesRuntimeOptions {
 
 let defaultIdeServicesRuntimeConfig: BirdCoderDefaultIdeServicesRuntimeConfig = {};
 
-function normalizeApiBaseUrl(apiBaseUrl?: string): string | undefined {
-  const normalizedApiBaseUrl = apiBaseUrl?.trim();
-  return normalizedApiBaseUrl ? normalizedApiBaseUrl : undefined;
-}
-
-function normalizeRealtimeTransport(
-  value?: string,
-): BirdCoderRealtimeTransportPreference {
-  const normalizedValue = value?.trim().toLowerCase();
-  return normalizedValue === 'sse' || normalizedValue === 'websocket'
-    ? normalizedValue
-    : 'auto';
-}
-
-function resolveBoundApiBaseUrl(
+function resolveBoundApplicationApiBaseUrl(
   options: BindDefaultBirdCoderIdeServicesRuntimeOptions,
 ): string | undefined {
-  const explicitApiBaseUrl = normalizeApiBaseUrl(options.apiBaseUrl);
+  const explicitApiBaseUrl = normalizeBirdCoderSdkBaseUrl(
+    options.applicationApiBaseUrl,
+    'BirdCoder application SDK base URL',
+  );
   if (explicitApiBaseUrl) {
     return explicitApiBaseUrl;
   }
 
-  return normalizeApiBaseUrl(options.host?.apiBaseUrl);
+  return normalizeBirdCoderSdkBaseUrl(
+    options.host?.apiBaseUrl,
+    'BirdCoder host application SDK base URL',
+  );
 }
 
 function resolveExecutionAuthorityMode(
@@ -69,9 +61,7 @@ function resolveExecutionAuthorityMode(
   }
 
   if (
-    resolveBoundApiBaseUrl(options) ||
-    options.appClient ||
-    options.backendClient
+    resolveBoundApplicationApiBaseUrl(options) || options.appClient
   ) {
     return 'remote-required';
   }
@@ -102,14 +92,21 @@ export function configureDefaultBirdCoderIdeServicesRuntime(
   config: BirdCoderDefaultIdeServicesRuntimeConfig = {},
 ): void {
   defaultIdeServicesRuntimeConfig = {
+    applicationApiBaseUrl: normalizeBirdCoderSdkBaseUrl(
+      config.applicationApiBaseUrl,
+      'BirdCoder application SDK base URL',
+    ),
     appClient: config.appClient,
-    backendClient: config.backendClient,
+    documentsClient: config.documentsClient,
     executionAuthorityMode: config.executionAuthorityMode ?? 'auto',
-    realtimeTransport: normalizeRealtimeTransport(config.realtimeTransport),
+    promptsClient: config.promptsClient,
+    platformApiGatewayBaseUrl: normalizeBirdCoderSdkBaseUrl(
+      config.platformApiGatewayBaseUrl,
+      'SDKWork platform API gateway base URL',
+    ),
     runtimeTopology: config.runtimeTopology
       ? { ...config.runtimeTopology }
       : resolveBirdCoderRuntimeTopology(),
-    apiBaseUrl: normalizeApiBaseUrl(config.apiBaseUrl),
   };
 }
 
@@ -117,11 +114,15 @@ export function bindDefaultBirdCoderIdeServicesRuntime(
   options: BindDefaultBirdCoderIdeServicesRuntimeOptions = {},
 ): void {
   configureDefaultBirdCoderIdeServicesRuntime({
+    applicationApiBaseUrl: resolveBoundApplicationApiBaseUrl(options),
     appClient: options.appClient,
-    backendClient: options.backendClient,
+    documentsClient: options.documentsClient,
     executionAuthorityMode: resolveExecutionAuthorityMode(options),
-    realtimeTransport: options.realtimeTransport,
-    apiBaseUrl: resolveBoundApiBaseUrl(options),
+    promptsClient: options.promptsClient,
+    platformApiGatewayBaseUrl: normalizeBirdCoderSdkBaseUrl(
+      options.platformApiGatewayBaseUrl,
+      'SDKWork platform API gateway base URL',
+    ),
     runtimeTopology: resolveBirdCoderRuntimeTopology({
       deploymentProfile: options.deploymentProfile,
       executionLocation: options.executionLocation,

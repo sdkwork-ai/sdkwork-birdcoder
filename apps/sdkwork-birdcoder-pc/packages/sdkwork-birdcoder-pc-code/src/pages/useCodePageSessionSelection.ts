@@ -1,82 +1,82 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
-  buildCodingSessionProjectScopedKey,
-  type BirdCoderProjectCodingSessionIndex,
-} from '@sdkwork/birdcoder-pc-workbench/workbench/codingSessionSelection';
+  buildAgentSessionProjectScopedKey,
+  type BirdCoderProjectAgentSessionIndex,
+} from '@sdkwork/birdcoder-pc-workbench/workbench/agentSessionSelection';
 import type { BirdCoderProject } from '@sdkwork/birdcoder-pc-contracts-commons';
 import { useCodeProjectSessionResolution } from './useCodeProjectSessionResolution';
 
 interface UseCodePageSessionSelectionOptions {
-  clearPendingNewCodingSessionRequest: () => void;
+  clearPendingNewAgentSessionRequest: () => void;
   hasFetchedProjects: boolean;
-  initialCodingSessionId?: string;
+  initialAgentSessionId?: string;
   isVisible: boolean;
-  onCodingSessionChange?: (codingSessionId: string, projectId?: string) => void;
+  onAgentSessionChange?: (agentSessionId: string, projectId?: string) => void;
   onProjectChange?: (projectId: string) => void;
-  projectCodingSessionIndex: BirdCoderProjectCodingSessionIndex;
+  projectAgentSessionIndex: BirdCoderProjectAgentSessionIndex;
   projectId?: string;
 }
 
 export function useCodePageSessionSelection({
-  clearPendingNewCodingSessionRequest,
+  clearPendingNewAgentSessionRequest,
   hasFetchedProjects,
-  initialCodingSessionId,
+  initialAgentSessionId,
   isVisible,
-  onCodingSessionChange,
+  onAgentSessionChange,
   onProjectChange,
-  projectCodingSessionIndex,
+  projectAgentSessionIndex,
   projectId,
 }: UseCodePageSessionSelectionOptions) {
   const [sessionId, setSelectedSessionId] = useState<string | null>(null);
   const [selectedSessionProjectId, setSelectedSessionProjectId] = useState<string | null>(null);
   const [selectionRefreshToken, setSelectionRefreshToken] = useState(0);
-  const pendingLocalCodingSessionSelectionKeyRef = useRef<string | null>(null);
-  const lastNotifiedCodingSessionSelectionKeyRef = useRef<string | null>(null);
+  const pendingLocalAgentSessionSelectionKeyRef = useRef<string | null>(null);
+  const lastNotifiedAgentSessionSelectionKeyRef = useRef<string | null>(null);
   const {
-    latestCodingSessionIdByProjectId,
+    latestAgentSessionIdByProjectId,
     resolveProjectById,
     resolveSession,
     resolveSessionInProject,
-  } = useCodeProjectSessionResolution(projectCodingSessionIndex);
+  } = useCodeProjectSessionResolution(projectAgentSessionIndex);
 
-  const selectedCodingSessionLocation = resolveSessionInProject(
+  const selectedAgentSessionLocation = resolveSessionInProject(
     sessionId,
     selectedSessionProjectId ?? projectId,
   );
-  const sessionProjectId = selectedCodingSessionLocation?.project.id ?? '';
+  const sessionProjectId = selectedAgentSessionLocation?.project.id ?? '';
   const normalizedProjectId = projectId?.trim() ?? '';
   const normalizedSelectedSessionProjectId = selectedSessionProjectId?.trim() ?? '';
   const normalizedSessionProjectId = sessionProjectId?.trim() ?? '';
-  const normalizedInitialCodingSessionId = initialCodingSessionId?.trim() || '';
+  const normalizedInitialAgentSessionId = initialAgentSessionId?.trim() || '';
   const currentProjectId =
     normalizedSessionProjectId || normalizedSelectedSessionProjectId || normalizedProjectId;
   const currentProject =
-    selectedCodingSessionLocation?.project ??
+    selectedAgentSessionLocation?.project ??
     resolveProjectById(currentProjectId);
 
-  const selectProjectWithoutCodingSession = useCallback((nextProjectId: string | null) => {
+  const selectProjectWithoutAgentSession = useCallback((nextProjectId: string | null) => {
     const normalizedNextProjectId = nextProjectId?.trim() ?? '';
     setSelectedSessionId(null);
     setSelectedSessionProjectId(normalizedNextProjectId || null);
     if (normalizedNextProjectId) {
-      pendingLocalCodingSessionSelectionKeyRef.current =
-        buildCodingSessionProjectScopedKey(normalizedNextProjectId, '');
+      pendingLocalAgentSessionSelectionKeyRef.current =
+        buildAgentSessionProjectScopedKey(normalizedNextProjectId, '');
     }
   }, []);
 
   const selectSession = useCallback((
-    nextCodingSessionId: string,
+    nextAgentSessionId: string,
     options?: { projectId?: string },
   ) => {
-    const normalizedCodingSessionId = nextCodingSessionId.trim();
-    if (!normalizedCodingSessionId) {
+    const normalizedAgentSessionId = nextAgentSessionId.trim();
+    if (!normalizedAgentSessionId) {
       return;
     }
 
-    clearPendingNewCodingSessionRequest();
+    clearPendingNewAgentSessionRequest();
 
     const resolvedScopedSession = resolveSessionInProject(
-      normalizedCodingSessionId,
+      normalizedAgentSessionId,
       options?.projectId,
     );
     const nextProjectId =
@@ -85,72 +85,72 @@ export function useCodePageSessionSelection({
       '';
 
     if (
-      normalizedCodingSessionId === (sessionId?.trim() || '') &&
+      normalizedAgentSessionId === (sessionId?.trim() || '') &&
       nextProjectId === currentProjectId
     ) {
       setSelectionRefreshToken((previousState) => previousState + 1);
       return;
     }
 
-    pendingLocalCodingSessionSelectionKeyRef.current = nextProjectId
-      ? buildCodingSessionProjectScopedKey(nextProjectId, normalizedCodingSessionId)
-      : normalizedCodingSessionId;
-    setSelectedSessionId(normalizedCodingSessionId);
+    pendingLocalAgentSessionSelectionKeyRef.current = nextProjectId
+      ? buildAgentSessionProjectScopedKey(nextProjectId, normalizedAgentSessionId)
+      : normalizedAgentSessionId;
+    setSelectedSessionId(normalizedAgentSessionId);
     setSelectedSessionProjectId(nextProjectId || null);
   }, [
-    clearPendingNewCodingSessionRequest,
+    clearPendingNewAgentSessionRequest,
     currentProjectId,
     resolveSessionInProject,
     sessionId,
   ]);
 
-  const handleSidebarCodingSessionSelect = useCallback((
-    nextCodingSessionId: string | null,
+  const handleSidebarAgentSessionSelect = useCallback((
+    nextAgentSessionId: string | null,
     nextProjectId?: string | null,
   ) => {
-    clearPendingNewCodingSessionRequest();
-    if (!nextCodingSessionId) {
-      selectProjectWithoutCodingSession(null);
+    clearPendingNewAgentSessionRequest();
+    if (!nextAgentSessionId) {
+      selectProjectWithoutAgentSession(null);
       return;
     }
 
-    selectSession(nextCodingSessionId, {
+    selectSession(nextAgentSessionId, {
       projectId: nextProjectId?.trim() || undefined,
     });
   }, [
-    clearPendingNewCodingSessionRequest,
-    selectProjectWithoutCodingSession,
+    clearPendingNewAgentSessionRequest,
+    selectProjectWithoutAgentSession,
     selectSession,
   ]);
 
   const restoreSelectionAfterRefresh = useCallback((
     targetProjectId: string,
-    targetCodingSessionId: string | null,
+    targetAgentSessionId: string | null,
   ) => {
     const normalizedTargetProjectId = targetProjectId.trim();
-    const normalizedTargetCodingSessionId = targetCodingSessionId?.trim() ?? '';
-    const normalizedSelectedCodingSessionId = sessionId?.trim() ?? '';
+    const normalizedTargetAgentSessionId = targetAgentSessionId?.trim() ?? '';
+    const normalizedSelectedAgentSessionId = sessionId?.trim() ?? '';
 
     if (
-      normalizedTargetCodingSessionId &&
-      normalizedTargetCodingSessionId === normalizedSelectedCodingSessionId &&
+      normalizedTargetAgentSessionId &&
+      normalizedTargetAgentSessionId === normalizedSelectedAgentSessionId &&
       normalizedTargetProjectId === currentProjectId
     ) {
       return;
     }
 
-    if (targetCodingSessionId) {
-      selectSession(targetCodingSessionId, {
+    if (targetAgentSessionId) {
+      selectSession(targetAgentSessionId, {
         projectId: targetProjectId,
       });
       return;
     }
     if (targetProjectId) {
-      selectProjectWithoutCodingSession(targetProjectId);
+      selectProjectWithoutAgentSession(targetProjectId);
     }
   }, [
     currentProjectId,
-    selectProjectWithoutCodingSession,
+    selectProjectWithoutAgentSession,
     selectSession,
     sessionId,
   ]);
@@ -159,7 +159,7 @@ export function useCodePageSessionSelection({
     if (
       !normalizedSessionProjectId ||
       !onProjectChange ||
-      onCodingSessionChange ||
+      onAgentSessionChange ||
       !isVisible ||
       normalizedSessionProjectId === normalizedProjectId
     ) {
@@ -171,7 +171,7 @@ export function useCodePageSessionSelection({
     isVisible,
     normalizedProjectId,
     normalizedSessionProjectId,
-    onCodingSessionChange,
+    onAgentSessionChange,
     onProjectChange,
   ]);
 
@@ -180,34 +180,34 @@ export function useCodePageSessionSelection({
       return;
     }
 
-    const currentLocalCodingSessionId = sessionId?.trim() || '';
+    const currentLocalAgentSessionId = sessionId?.trim() || '';
     const currentLocalProjectId =
       normalizedSessionProjectId || normalizedSelectedSessionProjectId || '';
     const currentLocalSelectionKey = currentLocalProjectId
-      ? buildCodingSessionProjectScopedKey(currentLocalProjectId, currentLocalCodingSessionId)
-      : currentLocalCodingSessionId;
+      ? buildAgentSessionProjectScopedKey(currentLocalProjectId, currentLocalAgentSessionId)
+      : currentLocalAgentSessionId;
     if (
-      pendingLocalCodingSessionSelectionKeyRef.current &&
-      pendingLocalCodingSessionSelectionKeyRef.current === currentLocalSelectionKey
+      pendingLocalAgentSessionSelectionKeyRef.current &&
+      pendingLocalAgentSessionSelectionKeyRef.current === currentLocalSelectionKey
     ) {
       return;
     }
 
-    if (!normalizedInitialCodingSessionId) {
+    if (!normalizedInitialAgentSessionId) {
       if (
-        currentLocalCodingSessionId ||
+        currentLocalAgentSessionId ||
         (
           normalizedProjectId &&
           normalizedSelectedSessionProjectId !== normalizedProjectId
         )
       ) {
-        selectProjectWithoutCodingSession(normalizedProjectId || null);
+        selectProjectWithoutAgentSession(normalizedProjectId || null);
       }
       return;
     }
 
     const resolvedInitialLocation = resolveSessionInProject(
-      normalizedInitialCodingSessionId,
+      normalizedInitialAgentSessionId,
       normalizedProjectId || undefined,
     );
     const scopedInitialProject = normalizedProjectId
@@ -221,26 +221,26 @@ export function useCodePageSessionSelection({
       return;
     }
 
-    const nextSelectionKey = buildCodingSessionProjectScopedKey(
+    const nextSelectionKey = buildAgentSessionProjectScopedKey(
       nextProjectId,
-      normalizedInitialCodingSessionId,
+      normalizedInitialAgentSessionId,
     );
     if (currentLocalSelectionKey === nextSelectionKey) {
       return;
     }
 
-    setSelectedSessionId(normalizedInitialCodingSessionId);
+    setSelectedSessionId(normalizedInitialAgentSessionId);
     setSelectedSessionProjectId(nextProjectId);
-    lastNotifiedCodingSessionSelectionKeyRef.current = nextSelectionKey;
+    lastNotifiedAgentSessionSelectionKeyRef.current = nextSelectionKey;
   }, [
     isVisible,
-    normalizedInitialCodingSessionId,
+    normalizedInitialAgentSessionId,
     normalizedProjectId,
     normalizedSelectedSessionProjectId,
     normalizedSessionProjectId,
     resolveProjectById,
     resolveSessionInProject,
-    selectProjectWithoutCodingSession,
+    selectProjectWithoutAgentSession,
     sessionId,
   ]);
 
@@ -249,40 +249,40 @@ export function useCodePageSessionSelection({
       return;
     }
 
-    const nextCodingSessionId = sessionId?.trim() ?? '';
+    const nextAgentSessionId = sessionId?.trim() ?? '';
     const nextSelectionKey = currentProjectId
-      ? buildCodingSessionProjectScopedKey(currentProjectId, nextCodingSessionId)
-      : nextCodingSessionId;
+      ? buildAgentSessionProjectScopedKey(currentProjectId, nextAgentSessionId)
+      : nextAgentSessionId;
     const initialSelectionKey =
-      normalizedProjectId && normalizedInitialCodingSessionId
-        ? buildCodingSessionProjectScopedKey(
+      normalizedProjectId && normalizedInitialAgentSessionId
+        ? buildAgentSessionProjectScopedKey(
             normalizedProjectId,
-            normalizedInitialCodingSessionId,
+            normalizedInitialAgentSessionId,
           )
-        : normalizedInitialCodingSessionId;
+        : normalizedInitialAgentSessionId;
     if (nextSelectionKey === initialSelectionKey) {
-      lastNotifiedCodingSessionSelectionKeyRef.current = nextSelectionKey;
-      if (pendingLocalCodingSessionSelectionKeyRef.current === nextSelectionKey) {
-        pendingLocalCodingSessionSelectionKeyRef.current = null;
+      lastNotifiedAgentSessionSelectionKeyRef.current = nextSelectionKey;
+      if (pendingLocalAgentSessionSelectionKeyRef.current === nextSelectionKey) {
+        pendingLocalAgentSessionSelectionKeyRef.current = null;
       }
       return;
     }
 
-    if (lastNotifiedCodingSessionSelectionKeyRef.current === nextSelectionKey) {
+    if (lastNotifiedAgentSessionSelectionKeyRef.current === nextSelectionKey) {
       return;
     }
 
-    lastNotifiedCodingSessionSelectionKeyRef.current = nextSelectionKey;
-    onCodingSessionChange?.(nextCodingSessionId, currentProjectId);
-    if (pendingLocalCodingSessionSelectionKeyRef.current === nextSelectionKey) {
-      pendingLocalCodingSessionSelectionKeyRef.current = null;
+    lastNotifiedAgentSessionSelectionKeyRef.current = nextSelectionKey;
+    onAgentSessionChange?.(nextAgentSessionId, currentProjectId);
+    if (pendingLocalAgentSessionSelectionKeyRef.current === nextSelectionKey) {
+      pendingLocalAgentSessionSelectionKeyRef.current = null;
     }
   }, [
     currentProjectId,
     isVisible,
-    normalizedInitialCodingSessionId,
+    normalizedInitialAgentSessionId,
     normalizedProjectId,
-    onCodingSessionChange,
+    onAgentSessionChange,
     sessionId,
   ]);
 
@@ -291,8 +291,8 @@ export function useCodePageSessionSelection({
       return;
     }
 
-    const normalizedSelectedCodingSessionId = sessionId?.trim() ?? '';
-    if (!normalizedSelectedCodingSessionId) {
+    const normalizedSelectedAgentSessionId = sessionId?.trim() ?? '';
+    if (!normalizedSelectedAgentSessionId) {
       return;
     }
 
@@ -300,7 +300,7 @@ export function useCodePageSessionSelection({
       selectedSessionProjectId?.trim() ||
       projectId?.trim() ||
       currentProjectId;
-    if (resolveSessionInProject(normalizedSelectedCodingSessionId, retainedProjectId)) {
+    if (resolveSessionInProject(normalizedSelectedAgentSessionId, retainedProjectId)) {
       return;
     }
 
@@ -308,7 +308,7 @@ export function useCodePageSessionSelection({
       return;
     }
 
-    selectProjectWithoutCodingSession(retainedProjectId || null);
+    selectProjectWithoutAgentSession(retainedProjectId || null);
   }, [
     currentProjectId,
     hasFetchedProjects,
@@ -316,41 +316,41 @@ export function useCodePageSessionSelection({
     projectId,
     resolveProjectById,
     resolveSessionInProject,
-    selectProjectWithoutCodingSession,
+    selectProjectWithoutAgentSession,
     sessionId,
     selectedSessionProjectId,
   ]);
 
   const handleProjectSelect = useCallback((id: string | null) => {
-    clearPendingNewCodingSessionRequest();
+    clearPendingNewAgentSessionRequest();
     if (id) {
       const targetProject = resolveProjectById(id);
-      const targetLatestCodingSessionId = latestCodingSessionIdByProjectId.get(id) ?? null;
+      const targetLatestAgentSessionId = latestAgentSessionIdByProjectId.get(id) ?? null;
       const sessionBelongsToProject =
         !!sessionId &&
-        selectedCodingSessionLocation?.project.id === id &&
-        !!targetProject?.codingSessions.some(
-          (codingSession) => codingSession.id === sessionId,
+        selectedAgentSessionLocation?.project.id === id &&
+        !!targetProject?.agentSessions.some(
+          (agentSession) => agentSession.id === sessionId,
         );
 
       if (sessionBelongsToProject) {
         return;
       }
 
-      if (targetLatestCodingSessionId) {
-        selectSession(targetLatestCodingSessionId, { projectId: id });
+      if (targetLatestAgentSessionId) {
+        selectSession(targetLatestAgentSessionId, { projectId: id });
         return;
       }
 
-      selectProjectWithoutCodingSession(id);
+      selectProjectWithoutAgentSession(id);
     }
   }, [
-    clearPendingNewCodingSessionRequest,
-    latestCodingSessionIdByProjectId,
+    clearPendingNewAgentSessionRequest,
+    latestAgentSessionIdByProjectId,
     resolveProjectById,
-    selectProjectWithoutCodingSession,
+    selectProjectWithoutAgentSession,
     selectSession,
-    selectedCodingSessionLocation?.project.id,
+    selectedAgentSessionLocation?.project.id,
     sessionId,
   ]);
 
@@ -358,14 +358,14 @@ export function useCodePageSessionSelection({
     currentProject: currentProject as BirdCoderProject | null,
     currentProjectId,
     handleProjectSelect,
-    handleSidebarCodingSessionSelect,
-    latestCodingSessionIdByProjectId,
+    handleSidebarAgentSessionSelect,
+    latestAgentSessionIdByProjectId,
     resolveProjectById,
     resolveSession,
     resolveSessionInProject,
     restoreSelectionAfterRefresh,
-    selectedCodingSessionLocation,
-    selectProjectWithoutCodingSession,
+    selectedAgentSessionLocation,
+    selectProjectWithoutAgentSession,
     selectSession,
     selectionRefreshToken,
     sessionId,

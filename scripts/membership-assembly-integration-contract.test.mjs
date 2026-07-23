@@ -11,33 +11,42 @@ function read(relativePath) {
 
 const assemblyCargo = read('crates/sdkwork-api-birdcoder-assembly/Cargo.toml');
 const assemblyBootstrap = read('crates/sdkwork-api-birdcoder-assembly/src/bootstrap.rs');
-const stackRunner = read('scripts/run-birdcoder-dev-stack.mjs');
-assert.match(assemblyCargo, /sdkwork-api-membership-assembly\.workspace = true/u);
-assert.match(
-  assemblyBootstrap,
-  /sdkwork_api_membership_assembly::assemble_api_router_with_process_pool\(/u,
-);
-assert.match(assemblyBootstrap, /birdcoder\.database_pool\.as_ref\(\)/u);
+const topologySpec = JSON.parse(read('specs/topology.spec.json'));
 assert.doesNotMatch(
   assemblyBootstrap,
-  /sdkwork_api_membership_assembly::assemble_api_router_from_env\(\)/u,
+  /sdkwork_api_membership_assembly|foundation[_-]membership/u,
+  'BirdCoder application assembly must not mount the dependency-owned Membership API.',
 );
-assert.match(assemblyBootstrap, /\.merge\(membership\.router\)/u);
-assert.match(stackRunner, /SDKWORK_MEMBERSHIP_APP_ROOT/u);
 assert.doesNotMatch(
-  stackRunner,
-  /SDKWORK_MEMBERSHIP_DATABASE_(?:URL|ENGINE|MAX_CONNECTIONS)/u,
+  assemblyCargo,
+  /sdkwork-api-membership-assembly|foundation-membership/u,
+  'BirdCoder application assembly must not depend on the Membership assembly.',
 );
-assert.doesNotMatch(stackRunner, /platformGateway|cloud-gateway/u);
+const standaloneProcesses = topologySpec.orchestration.profiles['standalone.development'].processes;
+assert.deepEqual(
+  standaloneProcesses
+    .filter((processDefinition) => processDefinition.role === 'api-standalone-gateway')
+    .map((processDefinition) => processDefinition.binary),
+  ['sdkwork-api-birdcoder-standalone-gateway'],
+);
+assert.equal(
+  standaloneProcesses.some(
+    (processDefinition) => /membership|platform-gateway/u.test(processDefinition.id),
+  ),
+  false,
+  'BirdCoder must not supervise or embed a Membership gateway; the client uses platform.api-gateway.',
+);
 
 const membershipBootstrap = read(
   'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/src/services/membershipSdkBootstrap.ts',
 );
 assert.match(membershipBootstrap, /VITE_SDKWORK_MEMBERSHIP_APP_API_BASE_URL/u);
-assert.match(membershipBootstrap, /VITE_SDKWORK_BIRDCODER_PLATFORM_API_GATEWAY_HTTP_URL/u);
+assert.match(membershipBootstrap, /VITE_SDKWORK_ORDER_APP_API_BASE_URL/u);
+assert.match(membershipBootstrap, /resolveBirdCoderDependencySdkBaseUrl/u);
 assert.match(membershipBootstrap, /bootstrapSdkworkMembershipAppService/u);
 assert.match(membershipBootstrap, /getBirdCoderGlobalTokenManager/u);
-assert.match(membershipBootstrap, /getDefaultBirdCoderIdeServicesRuntimeConfig\(\)\.apiBaseUrl/u);
+assert.match(membershipBootstrap, /runtimeConfig\.platformApiGatewayBaseUrl/u);
+assert.doesNotMatch(membershipBootstrap, /runtimeConfig\.applicationApiBaseUrl|return false/u);
 
 const adminClient = read(
   'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-admin-core/src/sdk/membershipBackendSdkClient.ts',
@@ -60,7 +69,9 @@ for (const relativePath of forbiddenLocalAuthority) {
   );
 }
 
-const birdCoderOpenApi = JSON.parse(read('artifacts/openapi/coding-server-v1.json'));
+const birdCoderOpenApi = JSON.parse(
+  read('sdks/sdkwork-birdcoder-app-sdk/openapi/sdkwork-birdcoder-app-api.openapi.json'),
+);
 assert.equal(birdCoderOpenApi.paths?.['/app/v3/api/memberships/current'], undefined);
 assert.equal(birdCoderOpenApi.paths?.['/app/v3/api/memberships/package_groups'], undefined);
 

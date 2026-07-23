@@ -2,10 +2,7 @@ import { Suspense, lazy, useEffect, useMemo, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '@sdkwork/birdcoder-pc-workbench/context/AuthContext';
 import { StartupScreen } from '@sdkwork/birdcoder-pc-ui-shell';
-import {
-  buildProtectedRouteLoginPath,
-  requiresAuthenticatedProductAccess,
-} from './authAccessPolicy.ts';
+import { buildBirdCoderProtectedLoginPath } from '@sdkwork/birdcoder-pc-contracts-commons/authSurfacePaths';
 import {
   AUTH_SURFACE_DEFAULT_ROUTE,
   isAuthSurfaceLocationPath,
@@ -76,7 +73,6 @@ function AuthGateAuthSurface({ getRuntime }: Pick<AuthGateProps, 'getRuntime'>) 
 export function AuthGate({ children, getRuntime }: AuthGateProps) {
   const { isLoading, user } = useAuth();
   const onAuthSurface = shouldBootIntoAuthSurface();
-  const productAccessRequiresAuth = requiresAuthenticatedProductAccess();
 
   useEffect(() => {
     if (typeof window === 'undefined' || isLoading || !user || !onAuthSurface) {
@@ -91,21 +87,20 @@ export function AuthGate({ children, getRuntime }: AuthGateProps) {
       typeof window === 'undefined'
       || isLoading
       || user
-      || !productAccessRequiresAuth
       || onAuthSurface
     ) {
       return;
     }
 
-    const loginPath = buildProtectedRouteLoginPath(readCurrentProtectedRouteTarget());
+    const loginPath = buildBirdCoderProtectedLoginPath(readCurrentProtectedRouteTarget());
     replaceAuthSurfaceHashPath(loginPath);
-  }, [isLoading, onAuthSurface, productAccessRequiresAuth, user]);
+  }, [isLoading, onAuthSurface, user]);
 
   if (isLoading) {
     return <AuthGateLoadingState />;
   }
 
-  if (!user && (onAuthSurface || productAccessRequiresAuth)) {
+  if (!user) {
     return <AuthGateAuthSurface getRuntime={getRuntime} />;
   }
 

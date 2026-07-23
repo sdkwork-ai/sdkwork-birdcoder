@@ -1,72 +1,58 @@
-# SDKWork Birdcoder Infrastructure Component Specs
+# SDKWork BirdCoder PC Infrastructure Specs
 
-This directory is the local standards index for `@sdkwork/birdcoder-pc-infrastructure`.
+This directory indexes the local contract for `@sdkwork/birdcoder-pc-infrastructure`.
+The machine authority is [component.spec.json](./component.spec.json); global rules
+remain in [sdkwork-specs](../../../../../../sdkwork-specs/README.md).
 
-Root SDKWork standards remain authoritative. Local component specs can narrow or document this component, but they must not contradict [the root standards](../../../../../../sdkwork-specs/README.md).
+## Owned Boundary
 
-## Component
+The package owns PC runtime composition, generated SDK adapters, native host
+adapters, and the app-session persistence port binding. It owns no business
+database, business table, HTTP API, generated SDK transport, or domain record.
 
-| Field | Value |
+## Dependency Authorities
+
+SDK inventory authority lives in `@sdkwork/birdcoder-pc-core`. Infrastructure
+adapters import only its public SDK entrypoints or receive injected clients.
+
+| Capability | Authority |
 | --- | --- |
-| Name | `@sdkwork/birdcoder-pc-infrastructure` |
-| Type | `node-package` |
-| Root | `sdkwork-birdcoder/apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure` |
-| Domain | `platform` |
-| Capability | `component` |
-| Languages | `typescript` |
-| Status | `ready` |
+| Coding workbench | `sdkwork-birdcoder` App SDK |
+| Agent Session, Turn, and Item | `sdkwork-agents` App SDK |
+| AI skill catalog and installation | `sdkwork-skills` App SDK |
+| Saved prompts and prompt templates | `sdkwork-prompts` App SDK |
+| Project documents | `sdkwork-documents` App SDK |
+| Files and media | `sdkwork-drive` App SDK |
+| IAM application session | `sdkwork-iam` App SDK and the shared TokenManager |
+| Business messages and notifications | `sdkwork-messaging` App SDK |
+| Membership state and benefits | `sdkwork-membership` App SDK |
+| Commercial orders | `sdkwork-order` App SDK |
 
-## Contract Manifest
+`./services/dependencyAppSdkClients` is the runtime-facing factory for
+Documents and Prompts. It is a composed port, not a second SDK inventory.
 
-- [component.spec.json](./component.spec.json) is the machine-readable component contract.
-- Consumers should integrate through public exports, runtime entrypoints, SDK clients, or adapters declared in the manifest.
-- Generated SDK language outputs are represented at their SDK family root instead of duplicating local specs in generated folders.
+## Connectivity Planes
 
-## Canonical Specs
-
-| Spec | Applies Because |
+| Client family | Required connection plane |
 | --- | --- |
-| [COMPONENT_SPEC.md](../../../../../../sdkwork-specs/COMPONENT_SPEC.md) | Local component specs directory and manifest rules. |
-| [CONFIG_SPEC.md](../../../../../../sdkwork-specs/CONFIG_SPEC.md) | Runtime configuration, environment, SDK bootstrap, and feature flag rules. |
-| [DOCUMENTATION_SPEC.md](../../../../../../sdkwork-specs/DOCUMENTATION_SPEC.md) | Module README, examples, ADR, changelog, and runbook rules. |
-| [DOMAIN_SPEC.md](../../../../../../sdkwork-specs/DOMAIN_SPEC.md) | Canonical domain ownership and naming. |
-| [FRONTEND_SPEC.md](../../../../../../sdkwork-specs/FRONTEND_SPEC.md) | UI, service, SDK, accessibility, and frontend runtime rules. |
-| [GOVERNANCE_SPEC.md](../../../../../../sdkwork-specs/GOVERNANCE_SPEC.md) | Standard ownership, exception, compatibility, and migration rules. |
-| [I18N_SPEC.md](../../../../../../sdkwork-specs/I18N_SPEC.md) | User-facing language, locale, message catalog, and fallback rules. |
-| [MODULE_SPEC.md](../../../../../../sdkwork-specs/MODULE_SPEC.md) | Reusable package contract and dependency direction. |
-| [README.md](../../../../../../sdkwork-specs/README.md) | SDKWork root standards entrypoint. |
-| [SDK_SPEC.md](../../../../../../sdkwork-specs/SDK_SPEC.md) | SDK generation and SDK integration rules. |
-| [TEST_SPEC.md](../../../../../../sdkwork-specs/TEST_SPEC.md) | Contract, frontend, SDK, security, parity, and documentation verification rules. |
+| BirdCoder App SDK | `application.public-ingress` |
+| Agents, Skills, Documents, Prompts, IAM, Drive, Messaging, Membership, Order | `platform.api-gateway` or an explicit owner-specific override |
 
-## Public Exports
+The two fields are `applicationApiBaseUrl` and
+`platformApiGatewayBaseUrl`. Ambiguous `apiBaseUrl` runtime state, local URL
+defaults, path stripping, and application-to-platform fallback are retired.
+Browser development uses only the controlled `/__sdkwork/platform` proxy;
+desktop uses a direct platform URL.
 
-- `.`
-- `./runtime/defaultIdeServices`
-- `./services/defaultIdeServices`
-- `./services/defaultIdeServicesRuntime`
-- `./services/workspaceRealtimeClient`
-- `./services/driveSandboxExplorerRuntime`
-- `./platform/openLocalFolder`
-- `./storage/runtime`
-- `./storage/dataKernel`
-- `./storage/appConsoleRepository`
-- `./storage/codingSessionPromptEntryRepository`
-- `./storage/promptSkillTemplateEvidenceRepository`
-- `./storage/providers`
-- `./storage/sqlRowCodec`
+## Persistence Boundary
 
-## SDK Clients
-
-- `@sdkwork/birdcoder-app-sdk` is the authenticated App API boundary for
-  BirdCoder runtime reads, including provider-native session discovery and
-  detail.
-- `@sdkwork/drive-app-sdk` is the authenticated App API boundary for Drive
-  capabilities.
-
-## Local Extension Specs
-
-- No local extension specs are declared yet.
+Desktop IAM session credentials are bound to the Tauri secure-session host port
+and stored in the operating-system credential store. This package does not use
+SQLite, browser local storage, projection tables, shadow records, or dual-write
+for business or IAM session facts.
 
 ## Verification
 
-- `node ../sdkwork-specs/tools/check-component-port-bindings.mjs --root .`
+- `pnpm --dir apps/sdkwork-birdcoder-pc typecheck`
+- `node scripts/desktop-app-session-persistence-contract.test.mjs`
+- `node scripts/pc-local-business-storage-boundary-contract.test.mjs`

@@ -3,7 +3,7 @@ import {
   listWorkbenchServerImplementedCodeEngines,
   normalizeWorkbenchCodeModelId,
   resolveWorkbenchCodeEngineSelectedModelId,
-} from '@sdkwork/birdcoder-pc-codeengine';
+} from '@sdkwork/birdcoder-pc-workbench/workbench/codeEngineCatalog';
 import type { WorkbenchPreferences } from '@sdkwork/birdcoder-pc-workbench';
 import { WorkbenchCodeEngineIcon } from '@sdkwork/birdcoder-pc-ui-shell';
 import { memo } from 'react';

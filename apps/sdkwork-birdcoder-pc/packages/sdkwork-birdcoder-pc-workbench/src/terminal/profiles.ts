@@ -1,10 +1,3 @@
-import {
-  getTerminalCliProfileDefinition,
-  isTerminalCliProfileId,
-  normalizeTerminalCliExecutable,
-} from './registry.ts';
-import { listWorkbenchCliEngines, type WorkbenchCodeEngineId } from '@sdkwork/birdcoder-pc-codeengine';
-
 export type TerminalShellProfileId =
   | 'powershell'
   | 'cmd'
@@ -12,10 +5,9 @@ export type TerminalShellProfileId =
   | 'bash'
   | 'node';
 
-export type TerminalCliProfileId = WorkbenchCodeEngineId;
-export type TerminalProfileId = TerminalShellProfileId | TerminalCliProfileId;
+export type TerminalProfileId = TerminalShellProfileId;
 
-export type TerminalProfileKind = 'shell' | 'cli';
+export type TerminalProfileKind = 'shell';
 
 export interface TerminalProfileDefinition {
   id: TerminalProfileId;
@@ -40,7 +32,7 @@ export interface TerminalLaunchProfileOption extends TerminalProfileDefinition {
   installHint?: string;
 }
 
-const BUILTIN_TERMINAL_SHELL_PROFILES: ReadonlyArray<TerminalProfileDefinition> = [
+export const BUILTIN_TERMINAL_PROFILES: ReadonlyArray<TerminalProfileDefinition> = [
   {
     id: 'powershell',
     title: 'Windows PowerShell',
@@ -77,27 +69,6 @@ const BUILTIN_TERMINAL_SHELL_PROFILES: ReadonlyArray<TerminalProfileDefinition> 
     kind: 'shell',
   },
 ] as const;
-
-const TERMINAL_CLI_SHORTCUTS: Readonly<Record<TerminalCliProfileId, string>> = {
-  codex: 'Ctrl+Shift+6',
-  'claude-code': 'Ctrl+Shift+7',
-  gemini: 'Ctrl+Shift+8',
-  opencode: 'Ctrl+Shift+9',
-};
-
-const BUILTIN_TERMINAL_CLI_PROFILES: ReadonlyArray<TerminalProfileDefinition> =
-  listWorkbenchCliEngines().map((engine) => ({
-    id: engine.terminalProfileId,
-    title: engine.label,
-    shortcut: TERMINAL_CLI_SHORTCUTS[engine.terminalProfileId],
-    defaultCwd: '~/sdkwork-birdcoder',
-    kind: 'cli',
-  }));
-
-export const BUILTIN_TERMINAL_PROFILES: ReadonlyArray<TerminalProfileDefinition> = [
-  ...BUILTIN_TERMINAL_SHELL_PROFILES,
-  ...BUILTIN_TERMINAL_CLI_PROFILES,
-];
 
 export const TERMINAL_PROFILE_IDS = BUILTIN_TERMINAL_PROFILES.map((profile) => profile.id);
 
@@ -199,26 +170,14 @@ export function buildTerminalExecutionPlan(
         args: ['-e', command],
         cwd: targetCwd,
       };
-    default: {
-      if (!isTerminalCliProfileId(profile.id)) {
-        return {
-          profileId: profile.id,
-          kind: profile.kind,
-          executable: 'powershell',
-          args: ['-NoLogo', '-Command', command],
-          cwd: targetCwd,
-        };
-      }
-
-      const cliProfile = getTerminalCliProfileDefinition(profile.id);
+    default:
       return {
         profileId: profile.id,
         kind: profile.kind,
-        executable: normalizeTerminalCliExecutable(profile.id, cliProfile.executable),
-        args: [...cliProfile.startupArgs, ...tokenizeTerminalCommand(command)],
+        executable: 'powershell',
+        args: ['-NoLogo', '-Command', command],
         cwd: targetCwd,
       };
-    }
   }
 }
 
@@ -243,17 +202,6 @@ export function resolveTerminalLaunchProfileOption(
   profileId: TerminalProfileId | string,
 ): TerminalLaunchProfileOption {
   const profile = getTerminalProfile(profileId);
-
-  if (profile.kind === 'cli' && isTerminalCliProfileId(profile.id)) {
-    const cliProfile = getTerminalCliProfileDefinition(profile.id);
-    return {
-      ...profile,
-      executable: normalizeTerminalCliExecutable(profile.id, cliProfile.executable),
-      aliases: [...cliProfile.aliases],
-      startupArgs: [...cliProfile.startupArgs],
-      installHint: cliProfile.installHint,
-    };
-  }
 
   return {
     ...profile,

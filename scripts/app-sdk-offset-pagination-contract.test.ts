@@ -36,9 +36,9 @@ const { createBirdCoderAppSdkApiClient } = await import(
 );
 const client = createBirdCoderAppSdkApiClient({ transport });
 
-await client.listCodingSessions();
-await client.listCodingSessions({ limit: 40, offset: 80 });
-await client.listCodingSessions({ limit: 20, offset: 0 });
+await client.listAgentSessions();
+await client.listAgentSessions({ limit: 40, offset: 80 });
+await client.listAgentSessions({ limit: 20, offset: 0 });
 
 assert.deepEqual(
   observedRequests.map((request) => request.query),
@@ -54,7 +54,7 @@ const requestCountBeforeInvalidInputs = observedRequests.length;
 
 for (const limit of [0, -1, 1.5, 201, Number.NaN, Number.POSITIVE_INFINITY]) {
   await assert.rejects(
-    () => client.listCodingSessions({ limit }),
+    () => client.listAgentSessions({ limit }),
     /limit must be an integer between 1 and 200/u,
     `invalid pagination limit ${String(limit)} must fail before transport dispatch.`,
   );
@@ -68,20 +68,20 @@ for (const offset of [
   Number.MAX_SAFE_INTEGER + 1,
 ]) {
   await assert.rejects(
-    () => client.listCodingSessions({ limit: 20, offset }),
+    () => client.listAgentSessions({ limit: 20, offset }),
     /offset must be a non-negative safe integer/u,
     `invalid pagination offset ${String(offset)} must fail before transport dispatch.`,
   );
 }
 
 await assert.rejects(
-  () => client.listCodingSessions({ limit: 20, offset: 5 }),
+  () => client.listAgentSessions({ limit: 20, offset: 5 }),
   /offset must be aligned to page size 20/u,
   'a non-aligned offset must not silently select the wrong generated SDK page.',
 );
 
 await assert.rejects(
-  () => client.listCodingSessions({ limit: 1, offset: Number.MAX_SAFE_INTEGER }),
+  () => client.listAgentSessions({ limit: 1, offset: Number.MAX_SAFE_INTEGER }),
   /offset produces an unsafe page number/u,
   'an aligned safe offset must still fail when the generated one-based page would overflow.',
 );

@@ -1,6 +1,6 @@
 import type {
-  BirdCoderChatMessageView,
-  BirdCoderChatMessageViewKind,
+  AgentSessionItemPresentation,
+  AgentSessionItemViewKind,
 } from '@sdkwork/birdcoder-pc-workbench/chat/types';
 import type {
   ChatMessageLayout,
@@ -10,7 +10,7 @@ import type {
 
 export interface ChatMessageRendererRegistry {
   register(entry: ChatMessageRendererEntry): void;
-  resolve(view: BirdCoderChatMessageView): ChatMessageRendererEntry;
+  resolve(view: AgentSessionItemPresentation): ChatMessageRendererEntry;
   list(): readonly ChatMessageRendererEntry[];
 }
 
@@ -26,7 +26,7 @@ function normalizeMatchValues<T extends string>(
 
 function matchesViewKind(
   match: ChatMessageRendererMatch,
-  viewKind: BirdCoderChatMessageViewKind,
+  viewKind: AgentSessionItemViewKind,
 ): boolean {
   const viewKinds = normalizeMatchValues(match.viewKind);
   return viewKinds.length === 0 || viewKinds.includes(viewKind);
@@ -45,7 +45,7 @@ function matchesEngineId(
 
 function matchesRole(
   match: ChatMessageRendererMatch,
-  role: BirdCoderChatMessageView['source']['role'],
+  role: AgentSessionItemPresentation['source']['role'],
 ): boolean {
   const roles = normalizeMatchValues(match.role);
   return roles.length === 0 || roles.includes(role);
@@ -53,7 +53,7 @@ function matchesRole(
 
 function scoreRendererMatch(
   entry: ChatMessageRendererEntry,
-  view: BirdCoderChatMessageView,
+  view: AgentSessionItemPresentation,
 ): number {
   const { match } = entry;
   if (!matchesViewKind(match, view.kind)) {
@@ -115,7 +115,7 @@ export function createChatMessageRendererRegistry(
 
 export function estimateRendererHeight(
   registry: ChatMessageRendererRegistry,
-  view: BirdCoderChatMessageView,
+  view: AgentSessionItemPresentation,
   layout: ChatMessageLayout,
 ): number {
   return registry.resolve(view).estimateHeight(view, layout);

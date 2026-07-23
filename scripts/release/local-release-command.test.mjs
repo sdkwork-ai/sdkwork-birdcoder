@@ -3,7 +3,6 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 
-import { prepareProviderRuntimeAssets } from '../prepare-provider-runtime-assets.mjs';
 import { parseArgs, runLocalReleaseCommand } from './local-release-command.mjs';
 import {
   PC_WEB_DIST_REL,
@@ -163,7 +162,10 @@ const fixtureRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'birdcoder-local-relea
 try {
   fs.mkdirSync(path.join(fixtureRoot, WORKSPACE_CARGO_TARGET_REL, 'release'), { recursive: true });
   fs.mkdirSync(path.join(fixtureRoot, PC_WEB_DIST_REL, 'assets'), { recursive: true });
-  fs.mkdirSync(path.join(fixtureRoot, 'artifacts', 'openapi'), { recursive: true });
+  fs.mkdirSync(
+    path.join(fixtureRoot, 'sdks', 'sdkwork-birdcoder-app-sdk', 'openapi'),
+    { recursive: true },
+  );
   const localServerBinaryName = process.platform === 'win32'
     ? `${SERVER_CRATE_BINARY_NAME}.exe`
     : SERVER_CRATE_BINARY_NAME;
@@ -180,47 +182,21 @@ try {
     'export const web = true;\n',
   );
   fs.writeFileSync(
-    path.join(fixtureRoot, 'artifacts', 'openapi', 'coding-server-v1.json'),
+    path.join(
+      fixtureRoot,
+      'sdks',
+      'sdkwork-birdcoder-app-sdk',
+      'openapi',
+      'sdkwork-birdcoder-app-api.openapi.json',
+    ),
     JSON.stringify({
       openapi: '3.1.0',
       info: {
-        title: 'SDKWork BirdCoder Coding Server API',
-        version: 'v1',
+        title: 'SDKWork BirdCoder App API',
+        version: '0.1.0',
       },
     }, null, 2) + '\n',
   );
-
-  const providerKernelRoot = path.join(fixtureRoot, 'sdkwork-kernel');
-  const providerWorkerRoot = path.join(
-    providerKernelRoot,
-    'scripts',
-    'provider-transport-workers',
-  );
-  fs.mkdirSync(providerWorkerRoot, { recursive: true });
-  for (const workerFile of [
-    'generic-ts-sdk-worker.mjs',
-    'engine-sdk-live.mjs',
-    'codex-cli-live.mjs',
-    'provider-cli-live.mjs',
-  ]) {
-    fs.writeFileSync(
-      path.join(providerWorkerRoot, workerFile),
-      `export const worker = '${workerFile}';\n`,
-    );
-  }
-  const providerNodeBinary = path.join(
-    fixtureRoot,
-    process.platform === 'win32' ? 'provider-node.exe' : 'provider-node',
-  );
-  fs.writeFileSync(providerNodeBinary, 'portable-node-binary\n');
-  prepareProviderRuntimeAssets({
-    rootDir: fixtureRoot,
-    kernelRoot: providerKernelRoot,
-    nodeBinary: providerNodeBinary,
-    nodeVersion: '22.20.0-test',
-    targetPlatform: process.platform,
-    targetArchitecture: process.arch,
-  });
 
   process.chdir(fixtureRoot);
 
@@ -269,7 +245,7 @@ try {
     ['artifacts', 'release', 'server', normalizedHostPlatform, process.arch, `sdkwork-birdcoder-server-release-local-${normalizedHostPlatform}-${process.arch}.tar.gz`].join('/'),
   );
   assert.equal(serverPackage.artifacts.includes(
-    ['server', normalizedHostPlatform, process.arch, 'openapi', 'coding-server-v1.json'].join('/'),
+    ['server', normalizedHostPlatform, process.arch, 'openapi', 'birdcoder-app-api.openapi.json'].join('/'),
   ), true);
   assert.equal(fs.existsSync(expectedOutputFamilyDir), true);
   assert.equal(fs.existsSync(expectedManifestPath), true);

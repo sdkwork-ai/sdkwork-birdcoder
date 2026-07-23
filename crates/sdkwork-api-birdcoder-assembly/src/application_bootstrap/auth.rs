@@ -136,7 +136,7 @@ pub(crate) fn build_cors_policy(config: &BirdServerConfig) -> CorsPolicy {
         }
         if uses_wildcard {
             tracing::warn!(
-                "BIRDCODER_CODING_SERVER_ALLOWED_ORIGINS contains '*' which is forbidden; using the development private-network policy and explicit origins only."
+                "SDKWORK_BIRDCODER_ALLOWED_ORIGINS contains '*' which is forbidden; using the development private-network policy and explicit origins only."
             );
         }
         return policy;
@@ -157,7 +157,7 @@ pub(crate) fn build_cors_policy(config: &BirdServerConfig) -> CorsPolicy {
 
     if uses_wildcard {
         tracing::warn!(
-            "BIRDCODER_CODING_SERVER_ALLOWED_ORIGINS contains '*' which is forbidden; falling back to explicit origins only."
+            "SDKWORK_BIRDCODER_ALLOWED_ORIGINS contains '*' which is forbidden; using explicit origins only."
         );
         CorsPolicy {
             allow_all_origins: false,

@@ -11,7 +11,7 @@ const GENERATOR_PACKAGE_NAME = '@sdkwork/sdk-generator';
 const GENERATOR_CLI_NAME = 'sdkgen';
 const STANDARD_PROFILE = 'sdkwork-v3';
 const FLUTTER_MOBILE_ROOT = 'apps/sdkwork-birdcoder-flutter-mobile';
-const PC_SDK_ROOT = 'apps/sdkwork-birdcoder-pc/sdks';
+const SDK_ROOT = 'sdks';
 const DEFAULT_WORKSPACE_GENERATOR_ENTRYPOINT = '../sdkwork-sdk-generator/bin/sdkgen.js';
 const CANONICAL_GENERATOR_ENTRYPOINT = path.resolve(
   path.dirname(fileURLToPath(import.meta.url)),
@@ -27,21 +27,12 @@ const SUPPORTED_LANGUAGES = new Set(['flutter', 'dart']);
 const SURFACE_PLAN = {
   app: {
     apiPrefix: '/app/v3/api',
-    pcFamily: 'sdkwork-birdcoder-app-sdk',
-    pcApiAuthority: 'sdkwork-birdcoder-app-api',
+    sdkFamily: 'sdkwork-birdcoder-app-sdk',
+    apiAuthority: 'sdkwork-birdcoder-app-api',
     consumerPackage: 'sdkwork_birdcoder_flutter_mobile_app_sdk_consumer',
     dartPackageName: 'sdkwork_birdcoder_app_sdk',
     surface: 'app',
     sdkgenType: 'app',
-  },
-  'backend-admin': {
-    apiPrefix: '/backend/v3/api',
-    pcFamily: 'sdkwork-birdcoder-backend-sdk',
-    pcApiAuthority: 'sdkwork-birdcoder-backend-api',
-    consumerPackage: 'sdkwork_birdcoder_flutter_mobile_backend_sdk_consumer',
-    dartPackageName: 'sdkwork_birdcoder_backend_sdk',
-    surface: 'backend-admin',
-    sdkgenType: 'backend',
   },
 };
 
@@ -130,15 +121,15 @@ function createGenerationPlans(rootDir, options) {
   return Object.values(SURFACE_PLAN)
     .filter((plan) => !options.surface || plan.surface === options.surface)
     .map((plan) => {
-      const familyManifest = readJson(path.join(rootDir, PC_SDK_ROOT, plan.pcFamily, 'sdk-manifest.json'));
+      const familyManifest = readJson(path.join(rootDir, SDK_ROOT, plan.sdkFamily, 'sdk-manifest.json'));
       assert.equal(familyManifest.sdkOwner, 'sdkwork-birdcoder');
       assert.equal(familyManifest.standardProfile, STANDARD_PROFILE);
-      assert.equal(familyManifest.apiAuthority, plan.pcApiAuthority);
+      assert.equal(familyManifest.apiAuthority, plan.apiAuthority);
 
       const input = path.join(
         rootDir,
-        PC_SDK_ROOT,
-        plan.pcFamily,
+        SDK_ROOT,
+        plan.sdkFamily,
         ...familyManifest.generationInputSpec.split('/'),
       );
       const output = path.join(
@@ -157,7 +148,7 @@ function createGenerationPlans(rootDir, options) {
         language: options.language,
         output,
         packageName: plan.dartPackageName,
-        sdkName: plan.pcFamily,
+        sdkName: plan.sdkFamily,
         surface: plan.surface,
         sdkgenType: plan.sdkgenType,
       };

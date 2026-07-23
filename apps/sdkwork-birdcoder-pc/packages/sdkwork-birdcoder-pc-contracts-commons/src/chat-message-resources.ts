@@ -1,22 +1,22 @@
 import {
-  BIRDCODER_CHAT_MESSAGE_RESOURCE_KINDS,
-  type BirdCoderChatMessageResource,
-  type BirdCoderChatMessageResourceCitation,
-  type BirdCoderChatMessageResourceKind,
-  type BirdCoderChatMessageResourceOrigin,
-} from '@sdkwork/birdcoder-chat-contracts';
+  AGENT_SESSION_ITEM_RESOURCE_KINDS as BIRDCODER_CHAT_MESSAGE_RESOURCE_KINDS,
+  type AgentSessionItemResourceView as AgentSessionItemResourceView,
+  type AgentSessionItemResourceCitationView as AgentSessionItemResourceCitationView,
+  type AgentSessionItemResourceKind as AgentSessionItemResourceKind,
+  type AgentSessionItemResourceOriginView as AgentSessionItemResourceOriginView,
+} from './agent-session-view.ts';
 import {
-  resolveBirdCoderChatMessageMediaSource,
-  type BirdCoderChatMessageMediaKind,
+  resolveAgentSessionItemMediaSource,
+  type AgentSessionItemMediaKind,
 } from './chat-message-media.ts';
 
 export {
-  BIRDCODER_CHAT_MESSAGE_RESOURCE_KINDS,
-  type BirdCoderChatMessageResource,
-  type BirdCoderChatMessageResourceCitation,
-  type BirdCoderChatMessageResourceKind,
-  type BirdCoderChatMessageResourceOrigin,
-};
+  AGENT_SESSION_ITEM_RESOURCE_KINDS,
+  type AgentSessionItemResourceView,
+  type AgentSessionItemResourceCitationView,
+  type AgentSessionItemResourceKind,
+  type AgentSessionItemResourceOriginView,
+} from './agent-session-view.ts';
 
 const MAX_MESSAGE_RESOURCES = 32;
 const MAX_RESOURCE_NAME_CHARACTERS = 256;
@@ -58,7 +58,7 @@ function readNonNegativeInteger(value: unknown): number | undefined {
   return Math.max(0, Math.floor(value));
 }
 
-function projectResourceOrigin(value: unknown): BirdCoderChatMessageResourceOrigin | undefined {
+function projectResourceOrigin(value: unknown): AgentSessionItemResourceOriginView | undefined {
   if (!isRecord(value)) {
     return undefined;
   }
@@ -77,7 +77,7 @@ function projectResourceOrigin(value: unknown): BirdCoderChatMessageResourceOrig
   const columnStart = readNonNegativeInteger(value.columnStart);
   const columnEnd = readNonNegativeInteger(value.columnEnd);
   return {
-    kind: kind as BirdCoderChatMessageResourceOrigin['kind'],
+    kind: kind as AgentSessionItemResourceOriginView['kind'],
     ...(name ? { name } : {}),
     ...(path ? { path } : {}),
     ...(uri ? { uri } : {}),
@@ -92,7 +92,7 @@ function projectResourceOrigin(value: unknown): BirdCoderChatMessageResourceOrig
 
 function projectResourceCitation(
   value: unknown,
-): BirdCoderChatMessageResourceCitation | undefined {
+): AgentSessionItemResourceCitationView | undefined {
   if (!isRecord(value)) {
     return undefined;
   }
@@ -118,10 +118,10 @@ function projectResourceCitation(
   };
 }
 
-function projectMessageResource(
+function normalizeMessageResource(
   value: unknown,
   index: number,
-): BirdCoderChatMessageResource | null {
+): AgentSessionItemResourceView | null {
   if (!isRecord(value)) {
     return null;
   }
@@ -136,10 +136,10 @@ function projectMessageResource(
   const rawUri = readBoundedString(value.uri, MAX_RESOURCE_LOCATION_CHARACTERS);
   const uri = isOpaqueMediaSource(rawUri) ? undefined : rawUri;
   const mimeType = readBoundedString(value.mimeType, MAX_RESOURCE_MIME_TYPE_CHARACTERS);
-  const mediaKind: BirdCoderChatMessageMediaKind | undefined =
+  const mediaKind: AgentSessionItemMediaKind | undefined =
     kind === 'image' || kind === 'audio' ? kind : undefined;
   const mediaSource = mediaKind
-    ? resolveBirdCoderChatMessageMediaSource(value.mediaSource, mediaKind, mimeType)
+    ? resolveAgentSessionItemMediaSource(value.mediaSource, mediaKind, mimeType)
     : undefined;
   const description = readBoundedString(
     value.description,
@@ -152,7 +152,7 @@ function projectMessageResource(
   }
   return {
     id,
-    kind: kind as BirdCoderChatMessageResourceKind,
+    kind: kind as AgentSessionItemResourceKind,
     ...(name ? { name } : {}),
     ...(path ? { path } : {}),
     ...(uri ? { uri } : {}),
@@ -164,16 +164,16 @@ function projectMessageResource(
   };
 }
 
-export function projectChatMessageResources(
+export function normalizeChatMessageResources(
   values: readonly unknown[] | undefined,
-): BirdCoderChatMessageResource[] {
+): AgentSessionItemResourceView[] {
   if (!values || values.length === 0) {
     return [];
   }
   const order: string[] = [];
-  const resourcesById = new Map<string, BirdCoderChatMessageResource>();
+  const resourcesById = new Map<string, AgentSessionItemResourceView>();
   values.slice(0, MAX_MESSAGE_RESOURCES).forEach((value, index) => {
-    const resource = projectMessageResource(value, index);
+    const resource = normalizeMessageResource(value, index);
     if (!resource) {
       return;
     }

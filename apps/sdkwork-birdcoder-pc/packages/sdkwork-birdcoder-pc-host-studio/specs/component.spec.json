@@ -1,0 +1,41 @@
+{
+  "schemaVersion": 1,
+  "kind": "sdkwork.component.spec",
+  "component": {
+    "name": "@sdkwork/birdcoder-pc-host-studio",
+    "displayName": "SDKWork BirdCoder PC Host Studio",
+    "version": "0.1.0",
+    "type": "typescript-package",
+    "root": "sdkwork-birdcoder/apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-host-studio",
+    "domain": "device",
+    "capability": "host-studio",
+    "surface": "app",
+    "languages": ["typescript"],
+    "generated": false,
+    "private": true,
+    "manifests": ["package.json"]
+  },
+  "canonicalSpecs": [
+    { "file": "COMPONENT_SPEC.md", "path": "../../../../../sdkwork-specs/COMPONENT_SPEC.md", "purpose": "Component ownership and port contracts." },
+    { "file": "CODE_STYLE_SPEC.md", "path": "../../../../../sdkwork-specs/CODE_STYLE_SPEC.md", "purpose": "Authored source boundaries." },
+    { "file": "NAMING_SPEC.md", "path": "../../../../../sdkwork-specs/NAMING_SPEC.md", "purpose": "Canonical package and capability naming." },
+    { "file": "TYPESCRIPT_CODE_SPEC.md", "path": "../../../../../sdkwork-specs/TYPESCRIPT_CODE_SPEC.md", "purpose": "TypeScript package rules." },
+    { "file": "APP_PC_ARCHITECTURE_SPEC.md", "path": "../../../../../sdkwork-specs/APP_PC_ARCHITECTURE_SPEC.md", "purpose": "PC host composition." }
+  ],
+  "contracts": {
+    "layerRole": "frontend-host",
+    "publicExports": ["."],
+    "providedPorts": [{ "name": "hostStudioPreviewAndSimulator", "export": "." }],
+    "requiredPorts": [{ "name": "hostDescriptorFactory", "export": "." }],
+    "runtimeEntrypoints": [],
+    "routeManifest": null,
+    "sdkClients": [],
+    "sdkDependencies": [],
+    "permissionComposition": {},
+    "dependencyApiExports": [],
+    "dependencyApiSurfaces": [],
+    "events": [],
+    "configKeys": []
+  },
+  "verification": { "commands": ["pnpm --dir apps/sdkwork-birdcoder-pc typecheck"] }
+}

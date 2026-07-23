@@ -27,11 +27,11 @@ pub const PROJECT_GIT_OVERVIEW_PATH: &str = "/app/v3/api/projects/{projectId}/gi
 pub const PROJECT_GIT_DIFF_PATH: &str = "/app/v3/api/projects/{projectId}/git/diff";
 pub const PROJECT_GIT_BRANCHES_PATH: &str = "/app/v3/api/projects/{projectId}/git/branches";
 pub const PROJECT_GIT_BRANCH_SWITCH_PATH: &str =
-    "/app/v3/api/projects/{projectId}/git/branch_switch";
+    "/app/v3/api/projects/{projectId}/git/switch_branch";
 pub const PROJECT_GIT_COMMITS_PATH: &str = "/app/v3/api/projects/{projectId}/git/commits";
-pub const PROJECT_GIT_PUSHES_PATH: &str = "/app/v3/api/projects/{projectId}/git/pushes";
+pub const PROJECT_GIT_PUSHES_PATH: &str = "/app/v3/api/projects/{projectId}/git/push";
 pub const PROJECT_GIT_WORKTREES_PATH: &str = "/app/v3/api/projects/{projectId}/git/worktrees";
 pub const PROJECT_GIT_WORKTREE_REMOVALS_PATH: &str =
-    "/app/v3/api/projects/{projectId}/git/worktree_removals";
+    "/app/v3/api/projects/{projectId}/git/remove_worktree";
 pub const PROJECT_GIT_WORKTREE_PRUNE_PATH: &str =
-    "/app/v3/api/projects/{projectId}/git/worktree_prune";
+    "/app/v3/api/projects/{projectId}/git/prune_worktrees";

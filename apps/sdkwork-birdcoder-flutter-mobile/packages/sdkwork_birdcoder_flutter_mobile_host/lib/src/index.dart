@@ -8,7 +8,6 @@ export 'qr/birdcoder_qr_payload_view.dart';
 export 'session/birdcoder_session_record.dart';
 export 'session/birdcoder_session_storage.dart';
 export 'session/configure_birdcoder_session_storage.dart';
-export 'session/iam_session_probe.dart';
 
 const String kFlutterMobileHostVersion = '0.1.0';
 

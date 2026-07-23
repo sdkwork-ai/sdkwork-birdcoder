@@ -1,14 +1,14 @@
 import {
-  getBirdCoderGeneratedAppSdkClient,
-  type BirdCoderTokenManagerAwareAppSdkClient,
-} from '@sdkwork/birdcoder-pc-infrastructure/services/sdkClients';
+  getBirdCoderAppClient,
+  type BirdCoderAppSdkApiClient,
+} from '@sdkwork/birdcoder-pc-infrastructure/services/birdCoderSdkClient';
 
 export interface BirdCoderAppSdkClients {
-  appSdk: BirdCoderTokenManagerAwareAppSdkClient;
+  appSdk: BirdCoderAppSdkApiClient;
 }
 
 export function createBirdCoderAppSdkClients(): BirdCoderAppSdkClients {
   return {
-    appSdk: getBirdCoderGeneratedAppSdkClient(),
+    appSdk: getBirdCoderAppClient(),
   };
 }

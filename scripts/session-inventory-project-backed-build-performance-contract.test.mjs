@@ -46,13 +46,13 @@ assert.match(
 
 assert.match(
   buildSource,
-  /for \(const codingSession of project\.codingSessions\)/,
+  /for \(const agentSession of project\.agentSessions\)/,
   'Project-backed session inventory must scan project sessions with an imperative pass.',
 );
 
 assert.match(
   buildSource,
-  /records\.push\(toProjectBackedCodingSessionInventoryRecord\(codingSession\)\);/,
+  /records\.push\(toProjectBackedAgentSessionInventoryRecord\(agentSession\)\);/,
   'Project-backed coding sessions must be appended directly to the shared records array.',
 );
 
@@ -76,7 +76,7 @@ assert.doesNotMatch(
 
 assert.doesNotMatch(
   buildSource,
-  /\[\s*\.\.\.terminalSessions,\s*\.\.\.codingSessions,\s*\]\.sort/s,
+  /\[\s*\.\.\.terminalSessions,\s*\.\.\.agentSessions,\s*\]\.sort/s,
   'Project-backed session inventory must not spread separate session arrays before sorting.',
 );
 

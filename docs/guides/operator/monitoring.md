@@ -1,66 +1,59 @@
-# Monitoring and Alerting
+# Monitoring And Alerting
 
-Updated: 2026-07-16
-Specs: `OBSERVABILITY_SPEC.md`, `PERFORMANCE_SPEC.md`
+Updated: 2026-07-22
+Specs: `OBSERVABILITY_SPEC.md`, `PERFORMANCE_SPEC.md`, `SECURITY_SPEC.md`
 
-## Built-in endpoints
+## Built-In Surfaces
 
-| Endpoint | Auth | Purpose |
+| Surface | Authentication | Purpose |
 | --- | --- | --- |
-| `/healthz` | No | Process liveness |
-| `/readyz` | No | Database, IAM, and configured realtime backend readiness |
-| `/metrics` | No | Prometheus text exposition |
-| `/app/v3/api/system/*` | Yes | Authenticated product health and descriptor |
+| `/healthz` | Public, no sensitive detail | Process liveness |
+| `/readyz` | Public, no sensitive detail | Required runtime dependency readiness |
+| `/metrics` | Deployment-policy controlled | Bounded Prometheus metrics |
+| `/app/v3/api/system/*` | Authenticated | Product descriptor, route, runtime, and health detail |
 
-Helm values enable ServiceMonitor scraping of `/metrics` when `serviceMonitor.enabled: true`.
-
-## Recommended alerts
+## Required Alerts
 
 | Alert | Condition | Severity |
 | --- | --- | --- |
-| BirdCoderHealthDegraded | `sdkwork_health_status != 1` for 5m | critical |
-| BirdCoderHigh5xxRate | 5xx / total > 1% for 10m | warning |
-| BirdCoderAuth401Spike | protected-route 401 rate > baseline 3x | warning |
-| BirdCoderDBProbeFailed | `/readyz` fails for a database-backed profile | critical |
-| BirdCoderRedisRealtimeDown | HA profile cannot reach Redis | critical |
-| BirdCoderRealtimePublishFailures | durable commits followed by hub publish failures for 5m | warning |
-| BirdCoderRealtimeReplayFailures | replay scope, cursor, or store failures for 5m | critical |
-| BirdCoderRealtimeLagRecoverySpike | lag/gap recoveries exceed baseline 3x | warning |
-| BirdCoderRealtimeReconnectExhausted | clients exhaust the reconnect budget | warning |
+| BirdCoderIngressUnavailable | Readiness fails for the configured window | Critical |
+| BirdCoderHigh5xxRate | 5xx ratio exceeds the deployment SLO | Warning |
+| BirdCoderAuthFailureSpike | Protected-route 401/403 rate exceeds baseline | Warning |
+| BirdCoderDatabaseUnavailable | Required database probe fails | Critical |
+| BirdCoderDatabasePoolSaturated | Pool wait time or utilization exceeds budget | Warning |
+| BirdCoderDependencyUnavailable | A required owner SDK/API is unavailable | Warning or critical by capability |
+| BirdCoderRuntimeLocationFailures | Authorized location resolution or decryption failures exceed baseline | Critical |
 
-## SLO starting points
+Agents turn/session-item, Skills, IM delivery, and IAM authentication metrics
+remain owned and named by those modules. BirdCoder dashboards may link or compose
+their health summaries but must not republish them as BirdCoder-owned facts.
+
+## Initial SLOs
 
 | Signal | Target |
 | --- | --- |
-| API availability, excluding maintenance | 99.5% monthly |
-| P95 protected route latency | < 800ms at 50 RPS |
-| Session refresh success | > 99% |
-| Durable chat event recovery | 100% ordered replay with no missing sequence |
-| Realtime fan-out delivery | > 99.9%; replay covers committed misses |
+| Application ingress availability, excluding maintenance | 99.5% monthly |
+| P95 protected workbench route latency | Less than 800 ms at the qualified load profile |
+| Authentication refresh success | Greater than 99% |
+| Workbench database mutation durability | 100% committed-or-failed atomic outcome |
+| Cross-domain reference probe success | 100% for required dependencies during readiness verification |
 
-## Dashboards
+## Dashboard Minimums
 
-Grafana dashboards are operator-owned. Include panels for:
+- request rate, latency, and response class by bounded route template;
+- gateway liveness/readiness and deployment digest;
+- database pool utilization, wait duration, errors, and migration version;
+- owner dependency latency, availability, retry, and circuit state;
+- runtime-location lifecycle and capability failures without plaintext paths;
+- client build/version adoption and failed SDK contract decoding.
 
-- `sdkwork_http_requests_total` by route and status
-- `sdkwork_health_status`
-- PostgreSQL pool saturation
-- Redis connection and pub/sub health
-- `birdcoder_realtime_active_connections{transport="sse|websocket"}`
-- `birdcoder_realtime_publish_failures_total`
-- `birdcoder_realtime_replay_requests_total`, `birdcoder_realtime_replay_events_total`, and
-  `birdcoder_realtime_replay_failures_total`
-- `birdcoder_realtime_lag_recoveries_total` and
-  `birdcoder_realtime_sequence_gap_recoveries_total`
-- client reconnect attempts, transport fallback, and retry exhaustion
+Never use tenant, organization, user, workspace, project, session, turn, message,
+event, provider request, path, token, or credential values as metric labels. Put
+authorized identifiers only in access-controlled, trace-correlated structured
+logs, apply retention policy, and redact all secrets and target-private paths.
 
-Never label metrics by tenant, user, workspace, coding session, turn, event UUID, or provider
-request ID. Put those values in trace-correlated structured logs; metric labels must remain
-bounded to deployment profile, transport, outcome, and error class.
+## Correlation
 
-## Tracing and log correlation
-
-`OTEL_SERVICE_NAME` is published through the Kubernetes ConfigMap. Wire an OTLP collector per
-platform standard. Problem JSON and success envelopes include `traceId`; correlate it with
-structured server logs. Realtime warnings include the bounded error class and cursor context,
-while sensitive provider payloads and credentials must never be logged.
+Success envelopes and Problem Detail responses expose `traceId`. Correlate it
+with gateway and owner-module traces without copying provider payloads or
+dependency-owned business records into BirdCoder logs.

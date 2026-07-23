@@ -61,7 +61,6 @@
     "remark-rehype": "catalog:",
     "remark-parse": "catalog:",
     "qrcode": "catalog:",
-    "@sdkwork/birdcoder-pc-codeengine": "workspace:*",
     "@sdkwork/birdcoder-pc-workbench": "workspace:*",
     "@sdkwork/birdcoder-pc-contracts-commons": "workspace:*",
     "@sdkwork/birdcoder-pc-ui-shell": "workspace:*",
@@ -84,7 +83,8 @@
     "vfile-message": "catalog:"
   },
   "devDependencies": {
-    "@vitejs/plugin-react": "catalog:"
+    "@vitejs/plugin-react": "catalog:",
+    "vite": "catalog:"
   },
   "peerDependencies": {
     "react": "catalog:",

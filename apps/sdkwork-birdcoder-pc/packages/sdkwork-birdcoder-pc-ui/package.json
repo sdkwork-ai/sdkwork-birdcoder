@@ -131,7 +131,6 @@
     "refractor": "^5.0.0",
     "remark-parse": "catalog:",
     "remark-rehype": "catalog:",
-    "@sdkwork/birdcoder-pc-codeengine": "workspace:*",
     "@sdkwork/birdcoder-pc-workbench": "workspace:*",
     "@sdkwork/birdcoder-pc-ui-shell": "workspace:*",
     "@sdkwork/models-pc-picker": "workspace:*",
@@ -154,7 +153,8 @@
     "yaml": "catalog:"
   },
   "devDependencies": {
-    "@vitejs/plugin-react": "^5.2.0"
+    "@vitejs/plugin-react": "^5.2.0",
+    "vite": "catalog:"
   },
   "peerDependencies": {
     "react": "catalog:",

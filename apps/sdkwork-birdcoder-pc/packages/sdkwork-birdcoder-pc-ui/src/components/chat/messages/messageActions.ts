@@ -1,10 +1,10 @@
-import type { BirdCoderChatMessage } from '@sdkwork/birdcoder-pc-workbench/chat/types';
+import type { AgentSessionItemView } from '@sdkwork/birdcoder-pc-workbench/chat/types';
 import { resolveMessageCopyContent } from '@sdkwork/birdcoder-pc-workbench/chat/types';
 import type { ChatMessageActionTarget } from './types.ts';
 
 const EMPTY_MESSAGE_ACTION_TARGETS = new Map<number, ChatMessageActionTarget>();
 
-export function isReplySegmentRole(role: BirdCoderChatMessage['role']): boolean {
+export function isReplySegmentRole(role: AgentSessionItemView['role']): boolean {
   return (
     role === 'assistant' ||
     role === 'planner' ||
@@ -14,7 +14,7 @@ export function isReplySegmentRole(role: BirdCoderChatMessage['role']): boolean 
 }
 
 export function buildVisibleMessageActionTargets(
-  messages: readonly BirdCoderChatMessage[],
+  messages: readonly AgentSessionItemView[],
   visibleStartIndex: number,
   visibleCount: number,
 ): ReadonlyMap<number, ChatMessageActionTarget> {
@@ -84,7 +84,7 @@ export function buildVisibleMessageActionTargets(
 }
 
 export function resolveMessageActionTargetCopyText(
-  messages: readonly BirdCoderChatMessage[],
+  messages: readonly AgentSessionItemView[],
   target: ChatMessageActionTarget | null | undefined,
   fallbackContent: string,
 ): string {
@@ -116,7 +116,7 @@ export function resolveMessageActionTargetCopyText(
 }
 
 export function resolveMessageActionTargetMessageIds(
-  messages: readonly BirdCoderChatMessage[],
+  messages: readonly AgentSessionItemView[],
   target: ChatMessageActionTarget | null | undefined,
   fallbackMessageId: string,
 ): string[] {

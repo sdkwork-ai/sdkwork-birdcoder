@@ -26,7 +26,6 @@ use crate::domain::runtime_location::{
     RUNTIME_TARGET_KIND_SERVER,
 };
 use crate::error::ProjectError;
-use crate::ports::project_workspace_root::ProjectWorkspaceRootResolver;
 use crate::ports::repository::ProjectRepository;
 use crate::ports::runtime_location_execution::{
     ProjectRuntimeLocationExecutionResolver, RuntimeLocationTargetExecutionAuthority,
@@ -49,7 +48,6 @@ pub struct ProjectRuntimeLocationService {
     path_cipher: Arc<dyn RuntimeLocationPathCipher>,
     verification_authority: Arc<dyn RuntimeLocationVerificationAuthority>,
     verification_dispatcher: Arc<dyn RuntimeLocationVerificationRequestDispatcher>,
-    workspace_root_resolver: Arc<dyn ProjectWorkspaceRootResolver>,
     target_execution_authority: Arc<dyn RuntimeLocationTargetExecutionAuthority>,
 }
 
@@ -92,7 +90,6 @@ impl ProjectRuntimeLocationService {
         path_cipher: Arc<dyn RuntimeLocationPathCipher>,
         verification_authority: Arc<dyn RuntimeLocationVerificationAuthority>,
         verification_dispatcher: Arc<dyn RuntimeLocationVerificationRequestDispatcher>,
-        workspace_root_resolver: Arc<dyn ProjectWorkspaceRootResolver>,
         target_execution_authority: Arc<dyn RuntimeLocationTargetExecutionAuthority>,
     ) -> Self {
         Self {
@@ -101,7 +98,6 @@ impl ProjectRuntimeLocationService {
             path_cipher,
             verification_authority,
             verification_dispatcher,
-            workspace_root_resolver,
             target_execution_authority,
         }
     }
@@ -620,37 +616,6 @@ impl ProjectRuntimeLocationService {
             })
     }
 
-    async fn resolve_server_workspace_root(
-        &self,
-        context: &ProjectContext,
-        project_id: &str,
-        location: &StoredProjectRuntimeLocation,
-    ) -> Result<PathBuf, ProjectError> {
-        let project = self
-            .project_repository
-            .find_project_by_id(context, project_id)
-            .await?
-            .ok_or_else(|| ProjectError::NotFound("Project was not found.".to_owned()))?;
-        let expected_root = self.workspace_root_resolver.resolve_project_root(
-            context,
-            &project.workspace_id,
-            &project.id,
-        )?;
-        let expected_root = canonical_directory(expected_root)?;
-        let decrypted_root = self.path_cipher.decrypt(
-            context,
-            &location.uuid,
-            &location.path_encryption_key_id,
-            &location.encrypted_absolute_path,
-        )?;
-        let decrypted_root = canonical_directory(PathBuf::from(decrypted_root))?;
-        if decrypted_root != expected_root {
-            return Err(ProjectError::Unavailable(
-                "Project runtime location is not available on this execution target.".to_owned(),
-            ));
-        }
-        Ok(expected_root)
-    }
 }
 
 #[async_trait::async_trait]
@@ -698,18 +663,11 @@ impl ProjectRuntimeLocationExecutionResolver for ProjectRuntimeLocationService {
             ));
         }
 
-        let canonical_root = if location.runtime_target_kind == RUNTIME_TARGET_KIND_SERVER
-            && location.location_kind == LOCATION_KIND_SERVER_WORKSPACE
-        {
-            self.resolve_server_workspace_root(context, project_id, &location)
-                .await?
-        } else {
-            let root = self
-                .target_execution_authority
-                .resolve_target_owned_root(context, &location, capability)
-                .await?;
-            canonical_directory(root)?
-        };
+        let root = self
+            .target_execution_authority
+            .resolve_target_owned_root(context, &location, capability)
+            .await?;
+        let canonical_root = canonical_directory(root)?;
 
         Ok(ResolvedProjectRuntimeLocationExecution {
             runtime_location_id: location.id.clone(),

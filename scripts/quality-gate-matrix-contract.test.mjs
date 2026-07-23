@@ -12,6 +12,7 @@ import {
   QUALITY_FAILURE_CLASSIFICATIONS,
   QUALITY_GATE_TIERS,
 } from './quality-gate-matrix-report.mjs';
+import { RELEASE_GOVERNANCE_CHECK_IDS } from './governance-regression-report.mjs';
 
 const rootDir = process.cwd();
 const rootPackageJson = JSON.parse(fs.readFileSync(path.join(rootDir, 'package.json'), 'utf8'));
@@ -122,21 +123,24 @@ assert.equal(
 );
 assert.equal(
   rootPackageJson.scripts['check:server'],
-  'node scripts/server-observability-contract.test.mjs && node scripts/legacy-src-host-retirement-contract.test.mjs && node scripts/legacy-codeengine-src-host-retirement-contract.test.mjs && node scripts/birdcoder-iam-runtime-standard-contract.test.mjs && node scripts/iam-seed-parity-contract.test.mjs && node scripts/dev/sdkwork-birdcoder-iam-application-bootstrap-standard.test.mjs && node scripts/rust-long-id-standard-contract.test.mjs && node scripts/rust-workspace-project-schema-parity-contract.test.mjs && node scripts/codeengine-catalog-tenant-standard-contract.test.mjs && node scripts/router-handler-smoke-contract.test.mjs && node scripts/run-local-typescript.mjs --cwd apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-server --noEmit && node scripts/run-cargo.mjs test -p sdkwork-api-birdcoder-standalone-gateway && node scripts/run-cargo.mjs test -p sdkwork-routes-coding-sessions-app-api --test handler_smoke && node scripts/run-cargo.mjs test -p sdkwork-routes-workspace-app-api --test handler_smoke && node scripts/run-cargo.mjs test -p sdkwork-routes-system-app-api --test handler_smoke && node scripts/run-cargo.mjs test -p sdkwork-routes-deployment-backend-api --test handler_smoke',
+  'node scripts/server-observability-contract.test.mjs && node scripts/router-handler-smoke-contract.test.mjs && node scripts/run-cargo.mjs test -p sdkwork-api-birdcoder-standalone-gateway && node scripts/run-cargo.mjs test -p sdkwork-routes-workspace-app-api --test handler_smoke && node scripts/run-cargo.mjs test -p sdkwork-routes-system-app-api --test handler_smoke',
 );
 assert.equal(rootPackageJson.scripts['check:quality:standard'], 'node scripts/run-quality-standard-check.mjs');
 assert.equal(rootPackageJson.scripts['check:quality:release'], 'node scripts/run-quality-release-check.mjs');
 assert.deepEqual(qualityFastRunnerModule.QUALITY_FAST_CHECK_COMMANDS.at(0), 'node scripts/run-workspace-package-script.mjs . typecheck');
-assert.deepEqual(qualityFastRunnerModule.QUALITY_FAST_CHECK_COMMANDS.at(-1), 'node scripts/run-workspace-package-script.mjs . check:ci-flow');
+assert.deepEqual(
+  qualityFastRunnerModule.QUALITY_FAST_CHECK_COMMANDS.at(-1),
+  'node scripts/run-workspace-package-script.mjs . check:sdkwork-birdcoder-structure',
+);
 assert.equal(
   qualityFastRunnerModule.QUALITY_FAST_CHECK_COMMANDS.includes(
-    'node scripts/run-workspace-package-script.mjs . check:iam-standard',
+    'node scripts/run-workspace-package-script.mjs . check:agents-birdcoder-alignment',
   ),
   true,
 );
 assert.equal(
   qualityFastRunnerModule.QUALITY_FAST_CHECK_COMMANDS.includes(
-    'node scripts/run-workspace-package-script.mjs . check:quality-matrix',
+    'node scripts/run-workspace-package-script.mjs . check:kernel-birdcoder-alignment',
   ),
   true,
 );
@@ -295,35 +299,15 @@ assert.equal(
 );
 assert.match(
   report.tiers.find((tier) => tier.id === 'release')?.focus.join(' ') ?? '',
-  /engine-adapter governance and conformance/u,
+  /domain ownership and SDK composition governance/u,
 );
 assert.match(
   report.tiers.find((tier) => tier.id === 'release')?.evidence.join(' ') ?? '',
-  /engine governance regression checks/u,
+  /release governance regression checks/u,
 );
 assert.deepEqual(
   report.tiers.find((tier) => tier.id === 'release')?.governanceCheckIds ?? [],
-  [
-    'engine-official-sdk',
-    'engine-official-sdk-runtime-selection',
-    'engine-runtime-adapter',
-    'engine-kernel',
-    'engine-environment-health',
-    'engine-capability-extension',
-    'engine-experimental-capability-gating',
-    'engine-canonical-registry-governance',
-    'provider-sdk-import-governance',
-    'provider-sdk-package-manifest',
-    'provider-adapter-browser-safety',
-    'engine-official-sdk-error-propagation',
-    'provider-official-sdk-bridge',
-    'codeengine-turn-options-provider',
-    'codex-cli-resume-runtime',
-    'opencode-official-sdk-bridge',
-    'engine-conformance',
-    'tool-protocol',
-    'engine-resume-recovery',
-  ],
+  RELEASE_GOVERNANCE_CHECK_IDS,
 );
 assert.deepEqual(report.environmentDiagnostics.map((entry) => entry.id), ['vite-host-build-preflight']);
 assert.equal(report.environmentDiagnostics[0].classification, 'toolchain-platform');

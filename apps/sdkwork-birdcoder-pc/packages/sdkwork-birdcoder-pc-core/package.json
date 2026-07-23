@@ -11,15 +11,20 @@
   "dependencies": {
     "@sdkwork/birdcoder-app-sdk": "workspace:*",
     "@sdkwork/birdcoder-pc-contracts-commons": "workspace:*",
+    "@sdkwork/documents-app-sdk": "workspace:*",
     "@sdkwork/drive-app-sdk": "workspace:*",
     "@sdkwork/iam-app-sdk": "workspace:*",
     "@sdkwork/iam-service": "workspace:*",
     "@sdkwork/agents-app-sdk": "workspace:*",
     "@sdkwork/messaging-app-sdk": "workspace:*",
+    "@sdkwork/prompts-app-sdk": "workspace:*",
+    "@sdkwork/skills-app-sdk": "workspace:*",
     "@sdkwork/sdk-common": "workspace:*"
   },
   "devDependencies": {
-    "@vitejs/plugin-react": "catalog:"
+    "@vitejs/plugin-react": "catalog:",
+    "typescript": "catalog:",
+    "vite": "catalog:"
   },
   "peerDependencies": {
     "react": "catalog:",
@@ -46,6 +51,16 @@
       "import": "./src/sdk/birdcoder-app-sdk.ts",
       "default": "./src/sdk/birdcoder-app-sdk.ts"
     },
+    "./sdk/agents-app": {
+      "types": "./src/sdk/agents-app-sdk.ts",
+      "import": "./src/sdk/agents-app-sdk.ts",
+      "default": "./src/sdk/agents-app-sdk.ts"
+    },
+    "./sdk/documents-app": {
+      "types": "./src/sdk/documents-app-sdk.ts",
+      "import": "./src/sdk/documents-app-sdk.ts",
+      "default": "./src/sdk/documents-app-sdk.ts"
+    },
     "./sdk/drive-app": {
       "types": "./src/sdk/drive-app-sdk.ts",
       "import": "./src/sdk/drive-app-sdk.ts",
@@ -55,6 +70,16 @@
       "types": "./src/sdk/messaging-app-sdk.ts",
       "import": "./src/sdk/messaging-app-sdk.ts",
       "default": "./src/sdk/messaging-app-sdk.ts"
+    },
+    "./sdk/prompts-app": {
+      "types": "./src/sdk/prompts-app-sdk.ts",
+      "import": "./src/sdk/prompts-app-sdk.ts",
+      "default": "./src/sdk/prompts-app-sdk.ts"
+    },
+    "./sdk/skills-app": {
+      "types": "./src/sdk/skills-app-sdk.ts",
+      "import": "./src/sdk/skills-app-sdk.ts",
+      "default": "./src/sdk/skills-app-sdk.ts"
     },
     "./modules": {
       "types": "./src/modules/index.ts",

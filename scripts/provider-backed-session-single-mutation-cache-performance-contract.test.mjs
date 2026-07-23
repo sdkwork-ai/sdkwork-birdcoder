@@ -61,63 +61,63 @@ function extractBody(name) {
   assert.fail(`Unable to extract ${name} body.`);
 }
 
-const createCodingSessionBody = extractBody('createCodingSession');
+const createAgentSessionBody = extractBody('createAgentSession');
 assert.doesNotMatch(
-  createCodingSessionBody,
-  /storeProjectSessions|\[\s*codingSession,\s*\.\.\.sessions\s*\]/,
+  createAgentSessionBody,
+  /storeProjectSessions|\[\s*agentSession,\s*\.\.\.sessions\s*\]/,
   'Creating one coding session must not build a full replacement array and re-sort the whole project session cache.',
 );
 assert.match(
-  createCodingSessionBody,
-  /insertCachedCodingSession\(projectId,\s*codingSession,\s*sessions\)/,
+  createAgentSessionBody,
+  /insertCachedAgentSession\(projectId,\s*agentSession,\s*sessions\)/,
   'Creating one coding session must use the binary-insert cache path.',
 );
 
-const upsertCodingSessionBody = extractBody('upsertCodingSession');
+const upsertAgentSessionBody = extractBody('upsertAgentSession');
 assert.doesNotMatch(
-  upsertCodingSessionBody,
+  upsertAgentSessionBody,
   /storeProjectSessions|sessions\.filter\(/,
   'Upserting one coding session must not filter the full cache and then re-sort it.',
 );
 assert.match(
-  upsertCodingSessionBody,
-  /replaceCachedCodingSession\(projectId,\s*nextCodingSession,\s*sessions\)/,
+  upsertAgentSessionBody,
+  /replaceCachedAgentSession\(projectId,\s*nextAgentSession,\s*sessions\)/,
   'Upserting one coding session must use the cached-position upsert path.',
 );
 
-const forkCodingSessionBody = extractBody('forkCodingSession');
+const forkAgentSessionBody = extractBody('forkAgentSession');
 assert.doesNotMatch(
-  forkCodingSessionBody,
+  forkAgentSessionBody,
   /storeProjectSessions|\[\s*nextForkedSession,\s*\.\.\.sessions\s*\]/,
   'Forking one coding session must not build a full replacement array and re-sort the whole project session cache.',
 );
 assert.match(
-  forkCodingSessionBody,
-  /insertCachedCodingSession\(projectId,\s*nextForkedSession,\s*sessions\)/,
+  forkAgentSessionBody,
+  /insertCachedAgentSession\(projectId,\s*nextForkedSession,\s*sessions\)/,
   'Forking one coding session must use the binary-insert cache path.',
 );
 
-const deleteCodingSessionBody = extractBody('deleteCodingSession');
+const deleteAgentSessionBody = extractBody('deleteAgentSession');
 assert.doesNotMatch(
-  deleteCodingSessionBody,
+  deleteAgentSessionBody,
   /\.filter\(/,
   'Deleting one coding session must not scan the full cache with filter before updating cached session indexes.',
 );
 assert.match(
-  deleteCodingSessionBody,
-  /removeCachedCodingSession\(projectId,\s*codingSessionId,\s*sessions\)/,
+  deleteAgentSessionBody,
+  /removeCachedAgentSession\(projectId,\s*agentSessionId,\s*sessions\)/,
   'Deleting one coding session must remove by cached sorted position.',
 );
 
-const insertCachedBody = extractBody('insertCachedCodingSession');
+const insertCachedBody = extractBody('insertCachedAgentSession');
 assert.match(
   insertCachedBody,
-  /findCodingSessionActivityInsertionIndex\(currentSessions,\s*nextCodingSession\)/,
+  /findAgentSessionActivityInsertionIndex\(currentSessions,\s*nextAgentSession\)/,
   'Single-session insertions must find the cache insertion point with binary search.',
 );
 assert.match(
   insertCachedBody,
-  /currentSessionIndex\.set\(nextCodingSession\.id,\s*nextCodingSession\);/,
+  /currentSessionIndex\.set\(nextAgentSession\.id,\s*nextAgentSession\);/,
   'Single-session insertions must update the existing O(1) session lookup map instead of rebuilding it.',
 );
 assert.match(
@@ -132,14 +132,14 @@ assert.match(
 );
 assert.doesNotMatch(
   insertCachedBody,
-  /sortCodingSessionsByActivity|storeProjectSessions|\[\s*nextCodingSession,\s*\.\.\.currentSessions\s*\]/,
+  /sortAgentSessionsByActivity|storeProjectSessions|\[\s*nextAgentSession,\s*\.\.\.currentSessions\s*\]/,
   'Single-session insertions must not full-sort or spread-copy the whole cache.',
 );
 
-const removeCachedBody = extractBody('removeCachedCodingSession');
+const removeCachedBody = extractBody('removeCachedAgentSession');
 assert.match(
   removeCachedBody,
-  /const existingIndex = this\.sessionPositionsByProjectId\.get\(projectId\)\?\.get\(codingSessionId\);/,
+  /const existingIndex = this\.sessionPositionsByProjectId\.get\(projectId\)\?\.get\(agentSessionId\);/,
   'Single-session removals must read the cached sorted position.',
 );
 assert.match(
@@ -149,7 +149,7 @@ assert.match(
 );
 assert.match(
   removeCachedBody,
-  /currentSessionIndex\.delete\(codingSessionId\);/,
+  /currentSessionIndex\.delete\(agentSessionId\);/,
   'Single-session removals must update the existing O(1) session lookup map instead of rebuilding it.',
 );
 assert.match(
@@ -159,7 +159,7 @@ assert.match(
 );
 assert.doesNotMatch(
   removeCachedBody,
-  /\.filter\(|sortCodingSessionsByActivity|storeProjectSessions/,
+  /\.filter\(|sortAgentSessionsByActivity|storeProjectSessions/,
   'Single-session removals must not full-filter or full-sort the cache.',
 );
 

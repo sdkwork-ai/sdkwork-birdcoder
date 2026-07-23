@@ -113,23 +113,23 @@
       },
       {
         "name": "workspaceApplicationService",
-        "export": "sdkwork_birdcoder_workspace_service::service::workspace_service::WorkspaceService"
+        "export": "sdkwork_routes_workspace_app_api::WorkspaceAppState"
       },
       {
         "name": "projectApplicationService",
-        "export": "sdkwork_birdcoder_project_service::service::project_service::ProjectService"
+        "export": "sdkwork_routes_workspace_app_api::WorkspaceAppState"
       },
       {
         "name": "projectDocumentBindingApplicationService",
-        "export": "sdkwork_birdcoder_project_service::service::project_document_binding_service::ProjectDocumentBindingService"
+        "export": "sdkwork_routes_workspace_app_api::WorkspaceAppState"
       },
       {
         "name": "projectSandboxBindingApplicationService",
-        "export": "sdkwork_birdcoder_project_service::service::project_sandbox_binding_service::ProjectSandboxBindingService"
+        "export": "sdkwork_routes_workspace_app_api::WorkspaceAppState"
       },
       {
         "name": "projectRuntimeLocationApplicationService",
-        "export": "sdkwork_birdcoder_project_service::service::project_runtime_location_service::ProjectRuntimeLocationService"
+        "export": "sdkwork_routes_workspace_app_api::WorkspaceAppState"
       }
     ],
     "runtimeEntrypoints": [

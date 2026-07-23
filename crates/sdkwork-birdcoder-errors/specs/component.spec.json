@@ -1,0 +1,103 @@
+{
+  "schemaVersion": 1,
+  "kind": "sdkwork.component.spec",
+  "component": {
+    "name": "sdkwork-birdcoder-errors",
+    "displayName": "SDKWork BirdCoder HTTP Errors",
+    "version": "0.1.0",
+    "type": "rust-crate",
+    "root": "sdkwork-birdcoder/crates/sdkwork-birdcoder-errors",
+    "domain": "system",
+    "capability": "http-problem-details",
+    "surface": "service",
+    "status": "ACTIVE",
+    "languages": [
+      "rust"
+    ],
+    "generated": false,
+    "private": true,
+    "manifests": [
+      "Cargo.toml"
+    ]
+  },
+  "canonicalSpecs": [
+    {
+      "file": "COMPONENT_SPEC.md",
+      "path": "../../../../sdkwork-specs/COMPONENT_SPEC.md",
+      "purpose": "Component-local contract and discovery rules."
+    },
+    {
+      "file": "MODULE_SPEC.md",
+      "path": "../../../../sdkwork-specs/MODULE_SPEC.md",
+      "purpose": "Reusable Rust module boundaries."
+    },
+    {
+      "file": "CODE_STYLE_SPEC.md",
+      "path": "../../../../sdkwork-specs/CODE_STYLE_SPEC.md",
+      "purpose": "Typed error and public export rules."
+    },
+    {
+      "file": "NAMING_SPEC.md",
+      "path": "../../../../sdkwork-specs/NAMING_SPEC.md",
+      "purpose": "Canonical component and result naming."
+    },
+    {
+      "file": "RUST_CODE_SPEC.md",
+      "path": "../../../../sdkwork-specs/RUST_CODE_SPEC.md",
+      "purpose": "Rust error and result rules."
+    },
+    {
+      "file": "API_SPEC.md",
+      "path": "../../../../sdkwork-specs/API_SPEC.md",
+      "purpose": "Standard numeric result codes, response envelopes, and RFC 9457 Problem Details."
+    },
+    {
+      "file": "SECURITY_SPEC.md",
+      "path": "../../../../sdkwork-specs/SECURITY_SPEC.md",
+      "purpose": "Client-safe error disclosure rules."
+    },
+    {
+      "file": "TEST_SPEC.md",
+      "path": "../../../../sdkwork-specs/TEST_SPEC.md",
+      "purpose": "Component verification rules."
+    }
+  ],
+  "contracts": {
+    "layerRole": "backend-domain",
+    "publicExports": [
+      ".",
+      "sdkwork_birdcoder_errors::AppError",
+      "sdkwork_birdcoder_errors::ProblemJsonBody",
+      "sdkwork_birdcoder_errors::traced_platform_problem",
+      "sdkwork_birdcoder_errors::traced_problem_json"
+    ],
+    "providedPorts": [
+      {
+        "name": "standardProblemDetails",
+        "export": "sdkwork_birdcoder_errors::ProblemJsonBody"
+      },
+      {
+        "name": "clientSafeHttpErrorMapping",
+        "export": "sdkwork_birdcoder_errors::traced_problem_json"
+      }
+    ],
+    "requiredPorts": [],
+    "runtimeEntrypoints": [],
+    "routeManifest": null,
+    "sdkClients": [],
+    "sdkDependencies": [],
+    "permissionComposition": {},
+    "dependencyApiExports": [],
+    "dependencyApiSurfaces": [],
+    "events": [],
+    "configKeys": []
+  },
+  "integration": {
+    "authority": "Provides BirdCoder route adapters with canonical success envelopes, numeric SDKWork result codes, RFC 9457 Problem Details, trace propagation, and client-safe infrastructure error mapping. It contains no legacy wire-code compatibility API."
+  },
+  "verification": {
+    "commands": [
+      "cargo test -p sdkwork-birdcoder-errors"
+    ]
+  }
+}

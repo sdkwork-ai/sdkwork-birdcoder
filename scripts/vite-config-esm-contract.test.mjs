@@ -11,6 +11,10 @@ const workspaceRootDir = path.resolve(__dirname, '..');
 const rootTsconfigPath = path.resolve(workspaceRootDir, 'tsconfig.json');
 const dependencyPath = (dependencyId, ...relativePathParts) =>
   path.resolve(workspaceRootDir, '..', dependencyId, ...relativePathParts);
+const infrastructurePackageSubpathProbe = [
+  '@sdkwork/birdcoder-pc-infrastructure',
+  '__contract_probe__',
+].join('/');
 const expectedDependencyFsAllowList = [
   workspaceRootDir,
   dependencyPath('sdkwork-appbase'),
@@ -332,6 +336,15 @@ async function loadConfigModule(relativePath) {
   }
 }
 
+const previousApplicationProxyTarget =
+  process.env.SDKWORK_BIRDCODER_APPLICATION_PUBLIC_HTTP_URL;
+const previousPlatformProxyTarget =
+  process.env.SDKWORK_BIRDCODER_PLATFORM_API_GATEWAY_HTTP_URL;
+process.env.SDKWORK_BIRDCODER_APPLICATION_PUBLIC_HTTP_URL =
+  'http://127.0.0.1:10240';
+process.env.SDKWORK_BIRDCODER_PLATFORM_API_GATEWAY_HTTP_URL =
+  'http://127.0.0.1:3900';
+
 const rootConfig = await loadConfigModule('apps/sdkwork-birdcoder-pc/vite.config.ts');
 assert.equal(rootConfig.resolve?.alias?.[0]?.find, '@');
 assert.equal(
@@ -371,6 +384,23 @@ assert.equal(
   rootConfig.server?.proxy?.['/app']?.ws,
   true,
   'Root Vite config must proxy realtime WebSocket upgrades through the same-origin /app boundary.',
+);
+assert.equal(
+  rootConfig.server?.proxy?.['/app']?.target,
+  'http://127.0.0.1:10240',
+  'Root /app proxy must use the BirdCoder application ingress.',
+);
+assert.equal(
+  rootConfig.server?.proxy?.['/__sdkwork/platform']?.target,
+  'http://127.0.0.1:3900',
+  'Root dependency SDK proxy must use the independent platform gateway.',
+);
+assert.equal(
+  rootConfig.server?.proxy?.['/__sdkwork/platform']?.rewrite(
+    '/__sdkwork/platform/app/v3/api/iam/users/current',
+  ),
+  '/app/v3/api/iam/users/current',
+  'The platform proxy must remove only its controlled renderer prefix.',
 );
 
 const webConfig = await loadConfigModule('apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-web/vite.config.ts');
@@ -418,6 +448,26 @@ assert.equal(
   true,
   'Web Vite config must proxy realtime WebSocket upgrades through the same-origin /app boundary.',
 );
+assert.equal(
+  webConfig.server?.proxy?.['/app']?.target,
+  'http://127.0.0.1:10240',
+);
+assert.equal(
+  webConfig.server?.proxy?.['/__sdkwork/platform']?.target,
+  'http://127.0.0.1:3900',
+);
+if (previousApplicationProxyTarget === undefined) {
+  delete process.env.SDKWORK_BIRDCODER_APPLICATION_PUBLIC_HTTP_URL;
+} else {
+  process.env.SDKWORK_BIRDCODER_APPLICATION_PUBLIC_HTTP_URL =
+    previousApplicationProxyTarget;
+}
+if (previousPlatformProxyTarget === undefined) {
+  delete process.env.SDKWORK_BIRDCODER_PLATFORM_API_GATEWAY_HTTP_URL;
+} else {
+  process.env.SDKWORK_BIRDCODER_PLATFORM_API_GATEWAY_HTTP_URL =
+    previousPlatformProxyTarget;
+}
 assertSharedCoreBrowserFacadeAlias(webConfig.resolve?.alias, 'Web Vite config');
 assertXtermCssAlias(webConfig.resolve?.alias, 'Web Vite config');
 assertTauriApiAlias(webConfig.resolve?.alias, 'Web Vite config');
@@ -429,7 +479,7 @@ assert.equal(
     candidate?.find instanceof RegExp
     && (
       candidate.find.test('@sdkwork/birdcoder-pc-infrastructure')
-      || candidate.find.test('@sdkwork/birdcoder-pc-infrastructure/storage/dataKernel')
+      || candidate.find.test(infrastructurePackageSubpathProbe)
     )),
   false,
   'Web Vite config must resolve BirdCoder workspace packages through package exports.',
@@ -506,8 +556,10 @@ for (const platformRuntimeModuleId of [
 }
 for (const platformApiClientModuleId of [
   '/repo/apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/src/services/appSessionToken.ts',
-  '/repo/apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/src/services/appSdkTransport.ts',
-  '/repo/apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/src/services/appRuntimeTransport.ts',
+  '/repo/apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/src/services/appSessionRefresh.ts',
+  '/repo/apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/src/services/birdCoderSdkClient.ts',
+  '/repo/apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/src/services/dependencyAppSdkClients.ts',
+  '/repo/apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/src/services/sdkSessionErrorHandler.ts',
   '/repo/apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/src/services/defaultIdeServicesRuntime.ts',
   '/repo/apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/src/services/defaultIdeServicesShared.ts',
   '/repo/apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/src/services/lazyDefaultIdeServices.ts',
@@ -515,7 +567,7 @@ for (const platformApiClientModuleId of [
   '/repo/apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/src/services/iamRuntime.ts',
   '/repo/apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/src/services/runtimeServerSession.ts',
   '/repo/apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/src/services/sessionService.ts',
-  '/repo/apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/src/services/birdcoderMobileChatApi.ts',
+  '/repo/apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/src/services/impl/RuntimeAuthService.ts',
 ]) {
   assert.equal(
     webManualChunks(platformApiClientModuleId),
@@ -539,21 +591,15 @@ for (const platformFileSystemModuleId of [
     `Web Vite config must split local filesystem and Tauri filesystem bridge runtime from generic platform orchestration for ${platformFileSystemModuleId}.`,
   );
 }
-for (const providerRuntimeModuleId of [
-  '/repo/apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/src/services/impl/ProviderBackedProjectService.ts',
-  '/repo/apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/src/services/impl/ProviderBackedWorkspaceService.ts',
-]) {
-  assert.equal(
-    webManualChunks(providerRuntimeModuleId),
-    'birdcoder-platform-provider-services',
-    `Web Vite config must split local provider-backed services from platform orchestration for ${providerRuntimeModuleId}.`,
-  );
-}
 for (const serviceCoreModuleId of [
+  '/repo/apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/src/services/localBusinessUuid.ts',
+  '/repo/apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/src/services/localServerRequestId.ts',
+  '/repo/apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/src/services/localUuid.ts',
+  '/repo/apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/src/services/apiJson.ts',
   '/repo/apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-core/src/appSessionEvents.ts',
+  '/repo/apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/src/services/appSessionEvents.ts',
+  '/repo/apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/src/services/currentUserScope.ts',
   '/repo/apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/src/services/runtimeApiRetry.ts',
-  '/repo/apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/src/services/codingSessionSelection.ts',
-  '/repo/apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/src/services/codingSessionMessageProjection.ts',
 ]) {
   assert.equal(
     webManualChunks(serviceCoreModuleId),
@@ -561,16 +607,6 @@ for (const serviceCoreModuleId of [
     `Web Vite config must split service support modules from platform orchestration to preserve acyclic chunks for ${serviceCoreModuleId}.`,
   );
 }
-assert.equal(
-  webManualChunks('/repo/apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/src/storage/bootstrapConsoleCatalog.ts'),
-  'birdcoder-platform-storage',
-  'Web Vite config must keep bootstrap storage catalog helpers in the storage chunk so provider-backed services do not depend back on platform orchestration.',
-);
-assert.equal(
-  webManualChunks('/repo/apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/src/services/consoleQueries.ts'),
-  'birdcoder-platform-storage',
-  'Web Vite config must keep console query helpers with storage repositories to avoid api-client/platform-runtime circular chunk edges.',
-);
 for (const terminalDesktopModuleId of [
   '/repo/sdkwork-terminal/apps/sdkwork-terminal-pc/packages/sdkwork-terminal-pc-desktop/src/index.ts',
   '/repo/sdkwork-terminal/apps/sdkwork-terminal-pc/packages/sdkwork-terminal-pc-desktop/src/surface/App.tsx',
@@ -838,39 +874,22 @@ for (const productSurfaceModule of [
     );
   }
 }
-for (const typeDataModuleId of [
-  '/repo/apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-contracts-commons/src/data.ts',
+for (const sharedContractModuleId of [
+  '/repo/apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-contracts-commons/src/workbench-view.ts',
+  '/repo/apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-contracts-commons/src/agent-session-view.ts',
+  '/repo/apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-contracts-commons/src/apiTransportError.ts',
 ]) {
   assert.equal(
-    webManualChunks(typeDataModuleId),
-    'birdcoder-types-data',
-    `Web Vite config must split large static data entity definitions from the shared types runtime for ${typeDataModuleId}.`,
+    webManualChunks(sharedContractModuleId),
+    'birdcoder-types',
+    `Web Vite config must keep active presentation and boundary contracts in the shared types chunk for ${sharedContractModuleId}.`,
   );
 }
-for (const typeApiModuleId of [
-  '/repo/apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-contracts-commons/src/server-api.ts',
-  '/repo/apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-contracts-commons/src/generated/coding-server-client.ts',
-  '/repo/apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-contracts-commons/src/generated/coding-server-openapi.ts',
-]) {
-  assert.equal(
-    webManualChunks(typeApiModuleId),
-    'birdcoder-types-api',
-    `Web Vite config must split generated server API contracts from the shared types runtime for ${typeApiModuleId}.`,
-  );
-}
-assert.equal(
-  webManualChunks('/repo/apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-contracts-commons/src/storageBindings.ts'),
-  'birdcoder-types-storage',
-  'Web Vite config must keep storage binding contracts in the dedicated storage types chunk.',
-);
-assert.equal(
-  webManualChunks('/repo/apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-contracts-commons/src/coding-session.ts'),
-  'birdcoder-types',
-  'Web Vite config must keep general runtime type helpers in the shared types fallback chunk.',
-);
 for (const apiRuntimeModuleId of [
+  '/repo/apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/src/services/impl/ApiBackedCatalogService.ts',
+  '/repo/apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/src/services/impl/ApiBackedGitService.ts',
   '/repo/apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/src/services/impl/ApiBackedProjectService.ts',
-  '/repo/apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/src/services/impl/ApiBackedAppRuntimeReadService.ts',
+  '/repo/apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/src/services/impl/ApiBackedWorkspaceService.ts',
 ]) {
   assert.equal(
     webManualChunks(apiRuntimeModuleId),
@@ -939,7 +958,7 @@ assert.equal(
     candidate?.find instanceof RegExp
     && (
       candidate.find.test('@sdkwork/birdcoder-pc-infrastructure')
-      || candidate.find.test('@sdkwork/birdcoder-pc-infrastructure/storage/dataKernel')
+      || candidate.find.test(infrastructurePackageSubpathProbe)
     )),
   false,
   'Desktop Vite config must resolve BirdCoder workspace packages through package exports.',

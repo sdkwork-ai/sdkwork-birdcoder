@@ -40,11 +40,11 @@ interface AppMainBodyProps {
   workspaceId: string;
   projectId: string;
   projectName?: string;
-  codingSessionId: string;
+  agentSessionId: string;
   onActiveTabChange: (tab: AppTab) => void;
   onRequireAuth: (targetTab: AppTab) => void;
   onProjectChange: (projectId: string) => void;
-  onCodingSessionChange: (codingSessionId: string, projectId?: string) => void;
+  onAgentSessionChange: (agentSessionId: string, projectId?: string) => void;
 }
 
 const PersistentAppTabPanel = React.memo(function PersistentAppTabPanel({
@@ -76,11 +76,11 @@ export const AppMainBody = React.memo(function AppMainBody({
   workspaceId,
   projectId,
   projectName,
-  codingSessionId,
+  agentSessionId,
   onActiveTabChange,
   onRequireAuth,
   onProjectChange,
-  onCodingSessionChange,
+  onAgentSessionChange,
 }: AppMainBodyProps) {
   const { t } = useTranslation();
   const { addToast } = useToast();
@@ -152,9 +152,9 @@ export const AppMainBody = React.memo(function AppMainBody({
                   isVisible={activeTab === 'code'}
                   workspaceId={workspaceId}
                   projectId={projectId}
-                  initialCodingSessionId={codingSessionId}
+                  initialAgentSessionId={agentSessionId}
                   onProjectChange={onProjectChange}
-                  onCodingSessionChange={onCodingSessionChange}
+                  onAgentSessionChange={onAgentSessionChange}
                 />
               </SurfaceErrorBoundaryWithTranslation>
             </PersistentAppTabPanel>
@@ -169,9 +169,9 @@ export const AppMainBody = React.memo(function AppMainBody({
                   isVisible={activeTab === 'studio'}
                   workspaceId={workspaceId}
                   projectId={projectId}
-                  initialCodingSessionId={codingSessionId}
+                  initialAgentSessionId={agentSessionId}
                   onProjectChange={onProjectChange}
-                  onCodingSessionChange={onCodingSessionChange}
+                  onAgentSessionChange={onAgentSessionChange}
                 />
               </SurfaceErrorBoundaryWithTranslation>
             </PersistentAppTabPanel>
@@ -186,9 +186,9 @@ export const AppMainBody = React.memo(function AppMainBody({
                   isVisible={activeTab === 'multiwindow'}
                   workspaceId={workspaceId}
                   projectId={projectId}
-                  initialCodingSessionId={codingSessionId}
+                  initialAgentSessionId={agentSessionId}
                   onProjectChange={onProjectChange}
-                  onCodingSessionChange={onCodingSessionChange}
+                  onAgentSessionChange={onAgentSessionChange}
                 />
               </SurfaceErrorBoundaryWithTranslation>
             </PersistentAppTabPanel>

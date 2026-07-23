@@ -80,7 +80,7 @@ Non-goals:
   project has no verified location.
 - Enabling a production remote runner before durable scheduling, isolation,
   secret brokering, quotas, recovery, and operator evidence exist.
-- Persisting platform-domain shadow tables, projections, synchronized caches,
+- Persisting dependency-owned shadow tables, projections, synchronized caches,
   dual-write, copied OpenAPI, or local generated SDK forks in BirdCoder.
 
 ## 4. In-Scope User Scenarios
@@ -171,7 +171,7 @@ Non-goals:
 | Data completeness | Project locations, target identity, path protection, capability state, Git snapshot, lifecycle, and audit metadata are persisted and retrievable through authorized service boundaries. |
 | Path confidentiality | Absolute paths are encrypted at rest, write-only at the app API edge, redacted from all responses and diagnostics, and decrypted only by the authorized owning target. |
 | Target isolation | Tests deny cross-tenant, cross-organization, cross-project, cross-subject, and cross-target location access or execution. |
-| Location correctness | Terminal, Git, build, worktree, file, Coding Session, and native-session workflows use an exact runtime location and reject project-root, preference, process-CWD, or unrelated-root fallback. |
+| Location correctness | Terminal, Git, build, worktree, file, Agents Session, and provider-native-session workflows use an exact runtime location and reject project-root, preference, process-CWD, or unrelated-root fallback. |
 | Desktop recovery | Tests cover persisted binding, missing record, canceled selection, unsupported host, invalid root, stale subject, rebind, and persistence-failure compensation. |
 | Browser safety | Tests prove browser handles remain local capabilities and cannot become a server path or executable target. |
 | API and SDK | OpenAPI, route manifests, generated SDKs, composed SDK imports, typed ProblemDetail errors, pagination, permissions, idempotency, and concurrency checks pass. |
@@ -181,21 +181,21 @@ Non-goals:
 
 ## 7. Delivery Phases
 
-1. Distributed location foundation: ProjectRuntimeLocation persistence,
+1. Available distributed location foundation: ProjectRuntimeLocation persistence,
    permissions, API contracts, generated SDK, path encryption, target identity,
    verification lifecycle, and location preferences.
-2. Desktop convergence: import, local binding recovery, terminal default path,
+2. Available desktop integration: import, local binding recovery, terminal default path,
    Git/worktree resolution, explicit rebind, and failure compensation use the
    runtime-location authority.
-3. Server and runner convergence: server-workspace locations, target agent
-   authentication, health leases, Git/build/file resolvers, migration of
-   legacy path sources, and operational runbooks.
-4. Qualified remote execution: durable scheduler, isolated runner lifecycle,
+3. Governed server control plane: server-workspace locations, target agent
+   authentication, health leases, Git/build/file resolvers, and operational
+   runbooks. Isolated runner execution is not part of the promoted capability.
+4. Promotion-gated remote execution: durable scheduler, isolated runner lifecycle,
    resource limits, secret boundary, recovery, audit, and capacity evidence.
-5. Domain ownership cutover: Agents, Skills, and IM owner contracts reach
-   parity; BirdCoder clients consume their SDKs/facades; duplicate database,
-   API, SDK, package, test, and documentation authorities are removed.
-6. Commercial promotion: signed packages, rollback evidence, production
+5. Completed domain ownership: Agents, Skills, and IM own their contracts;
+   BirdCoder clients consume canonical SDKs; duplicate database, API, SDK,
+   package, test, and documentation authorities are absent.
+6. Commercial promotion gate: signed packages, rollback evidence, production
    monitoring, capacity validation, and successful release gates for each
    enabled capability.
 
@@ -206,7 +206,6 @@ Non-goals:
 - [ADR-20260722: Domain ownership and single-write authority](../../architecture/decisions/ADR-20260722-domain-ownership-and-single-write-authority.md)
 - [ADR-20260716: Distributed project runtime locations](../../architecture/decisions/ADR-20260716-distributed-project-runtime-locations.md)
 - [Technical architecture](../../architecture/tech/TECH_ARCHITECTURE.md)
-- [Engine and coding-session lifecycle](../../reference/engine-sdk-integration.md)
 - [Deployment operations](../../guides/operator/deployment-operations.md)
 - [Windows Server control plane](../../guides/operator/windows-server-control-plane.md)
 

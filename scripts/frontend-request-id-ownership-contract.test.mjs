@@ -9,8 +9,7 @@ const scanRoots = [
   'src',
   'packages',
   'sdks/sdkwork-birdcoder-app-sdk/sdkwork-birdcoder-app-sdk-typescript/src',
-  'sdks/sdkwork-birdcoder-backend-sdk/sdkwork-birdcoder-backend-sdk-typescript/src',
-  'sdks/specs/openapi',
+  'sdks/sdkwork-birdcoder-app-sdk/openapi',
 ];
 
 const scannableExtensions = new Set([
@@ -33,7 +32,6 @@ const excludedDirectoryNames = new Set([
 
 const excludedPathPatterns = [
   /^packages\/sdkwork-birdcoder-pc-server\//u,
-  /^packages\/sdkwork-birdcoder-pc-codeengine\/src-host\/legacy-archive\//u,
   /^sdks\/sdkwork-birdcoder-(?:app|backend)-sdk\/sdkwork-birdcoder-(?:app|backend)-sdk-typescript\/src\/types\//u,
 ];
 
@@ -180,7 +178,7 @@ for (const filePath of files) {
   const relativePath = normalizeRelativePath(path.relative(rootDir, filePath));
   const source = fs.readFileSync(filePath, 'utf8');
 
-  if (relativePath.startsWith('sdks/specs/openapi/') && relativePath.endsWith('.json')) {
+  if (relativePath.startsWith('sdks/sdkwork-birdcoder-app-sdk/openapi/') && relativePath.endsWith('.json')) {
     openApiRequestBodyViolations.push(
       ...collectOpenApiRequestBodyViolations(relativePath, source),
     );

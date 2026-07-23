@@ -9,7 +9,13 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
+  crypto: ^3.0.7
+  sdkwork_agents_app_sdk:
+    path: ../../../../../sdkwork-agents/sdks/sdkwork-agents-app-sdk/sdkwork-agents-app-sdk-flutter/generated/server-openapi
+  sdkwork_iam_app_sdk:
+    path: ../../../../../sdkwork-iam/sdks/sdkwork-iam-app-sdk/sdkwork-iam-app-sdk-flutter/generated/server-openapi
   sdkwork_birdcoder_flutter_mobile_app_sdk_consumer:
     path: ../../sdks/sdkwork_birdcoder_flutter_mobile_app_sdk_consumer
   sdkwork_birdcoder_flutter_mobile_host:
     path: ../sdkwork_birdcoder_flutter_mobile_host
+  uuid: ^4.5.3

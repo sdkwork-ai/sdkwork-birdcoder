@@ -21,11 +21,11 @@
     "class-variance-authority": "catalog:",
     "clsx": "catalog:",
     "lucide-react": "catalog:",
-    "tailwind-merge": "catalog:",
-    "@sdkwork/birdcoder-pc-codeengine": "workspace:*"
+    "tailwind-merge": "catalog:"
   },
   "devDependencies": {
-    "@vitejs/plugin-react": "catalog:"
+    "@vitejs/plugin-react": "catalog:",
+    "vite": "catalog:"
   },
   "peerDependencies": {
     "react": "catalog:",

@@ -3,7 +3,6 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 
-import { sha256File } from '../sdkwork-utils-digest.mjs';
 import { writePackageSbomEvidence } from './write-package-sbom-evidence.mjs';
 
 const fixtureRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'birdcoder-package-sbom-'));
@@ -13,68 +12,18 @@ function writeFile(filePath, content) {
   fs.writeFileSync(filePath, content);
 }
 
-function runtimeAsset(runtimeRoot, relativePath, content) {
-  const absolutePath = path.join(runtimeRoot, ...relativePath.split('/'));
-  writeFile(absolutePath, content);
-  return {
-    relativePath,
-    sha256: sha256File(absolutePath),
-    size: fs.statSync(absolutePath).size,
-  };
-}
-
 try {
   writeFile(
     path.join(fixtureRoot, 'package.json'),
     `${JSON.stringify({
-      name: 'sdkwork-birdcoder-fixture',
+      name: '@sdkwork/birdcoder-workspace',
       version: '0.1.0-test',
       dependencies: {
-        '@sdkwork/utils': 'workspace:*',
+        '@sdkwork/agents-app-sdk': 'workspace:*',
+        '@sdkwork/utils': '^1.2.3',
       },
-    }, null, 2)}\n`,
-  );
-
-  const runtimeRoot = path.join(
-    fixtureRoot,
-    'artifacts',
-    'release',
-    'server',
-    'linux',
-    'x64',
-    'provider-runtime',
-  );
-  const node = runtimeAsset(runtimeRoot, 'node/bin/node', 'portable node runtime\n');
-  const workers = [
-    runtimeAsset(runtimeRoot, 'workers/generic-ts-sdk-worker.mjs', 'export const worker = "generic";\n'),
-    runtimeAsset(runtimeRoot, 'workers/engine-sdk-live.mjs', 'export const worker = "engine";\n'),
-    runtimeAsset(runtimeRoot, 'workers/codex-cli-live.mjs', 'export const worker = "codex";\n'),
-    runtimeAsset(runtimeRoot, 'workers/provider-cli-live.mjs', 'export const worker = "provider";\n'),
-  ];
-  const manifestPath = path.join(runtimeRoot, 'runtime-manifest.json');
-  writeFile(
-    manifestPath,
-    `${JSON.stringify({
-      schemaVersion: 1,
-      kind: 'sdkwork.birdcoder.provider-runtime',
-      target: {
-        platform: 'linux',
-        architecture: 'x64',
-      },
-      node: {
-        version: '22.20.0-test',
-        ...node,
-      },
-      workers,
-      providers: [
-        { id: 'codex', bundled: false },
-        { id: 'claude-code', bundled: false },
-        { id: 'gemini-cli', bundled: false },
-        { id: 'opencode', bundled: false },
-      ],
-      providerExecution: {
-        bundledProviderExecutables: false,
-        missingBehavior: 'fail-closed',
+      optionalDependencies: {
+        '@sdkwork/native-observability': '~2.0.0',
       },
     }, null, 2)}\n`,
   );
@@ -85,7 +34,6 @@ try {
     deploymentProfile: 'standalone',
     outputPath,
     packageId: 'linux-x64-standalone-server-tar-gz',
-    providerRuntimeManifestPath: manifestPath,
     releaseTag: 'release-0.1.0',
     rootDir: fixtureRoot,
     runtimeTarget: 'server',
@@ -98,97 +46,46 @@ try {
   assert.equal(fs.existsSync(outputPath), true);
   assert.equal(result.sbom.bomFormat, 'CycloneDX');
   assert.equal(result.sbom.specVersion, '1.6');
+  assert.equal(result.sbom.metadata.component.name, 'sdkwork-birdcoder');
+  assert.equal(result.sbom.metadata.component.version, 'release-0.1.0');
+  assert.deepEqual(
+    result.sbom.components.map((component) => component.name),
+    [
+      '@sdkwork/agents-app-sdk',
+      '@sdkwork/native-observability',
+      '@sdkwork/utils',
+    ],
+    'SBOM dependency inventory must be deterministic.',
+  );
   assert.equal(
-    result.sbom.components.some((component) => component.name === '@sdkwork/utils'),
+    result.sbom.components.find((component) => component.name === '@sdkwork/agents-app-sdk')?.version,
+    '0.1.0-test',
+    'workspace dependency versions must resolve to the application version.',
+  );
+  assert.equal(
+    result.sbom.components.find((component) => component.name === '@sdkwork/native-observability')
+      ?.properties.some((property) => property.name === 'sdkwork:dependencyScope' && property.value === 'optional'),
     true,
-    'package SBOM must retain root dependency inventory',
   );
-
-  const manifestComponent = result.sbom.components.find(
-    (component) => component.name === 'sdkwork-birdcoder-provider-runtime-manifest',
-  );
-  assert.equal(manifestComponent.hashes[0].content, sha256File(manifestPath));
-
-  const nodeComponent = result.sbom.components.find(
-    (component) => component['bom-ref']?.startsWith('provider-runtime:node:'),
-  );
-  assert.equal(nodeComponent.version, '22.20.0-test');
-  assert.equal(nodeComponent.hashes[0].content, node.sha256);
-
-  const workerComponents = result.sbom.components.filter(
-    (component) => component['bom-ref']?.startsWith('provider-runtime:worker:'),
-  );
-  assert.equal(workerComponents.length, workers.length);
-  for (const worker of workers) {
-    const component = workerComponents.find(
-      (candidate) => candidate['bom-ref'] === `provider-runtime:worker:${worker.relativePath}`,
-    );
-    assert.equal(component.hashes[0].content, worker.sha256);
-    assert.equal(
-      component.properties.some(
-        (property) => property.name === 'sdkwork:providerRuntimeSize' && property.value === String(worker.size),
-      ),
-      true,
-    );
-  }
   assert.equal(
     result.sbom.metadata.properties.some(
-      (property) => property.name === 'sdkwork:providerExecutablesBundled' && property.value === 'false',
+      (property) => property.name === 'sdkwork:targetArchitecture' && property.value === 'x64',
     ),
     true,
-    'SBOM must not claim external Provider CLI executables are bundled',
   );
 
   assert.throws(
     () => writePackageSbomEvidence({
-      outputPath: path.join(fixtureRoot, 'missing-runtime.sbom.json'),
-      rootDir: fixtureRoot,
-      targetFamily: 'server',
+      outputPath: path.join(fixtureRoot, 'missing-package.sbom.json'),
+      rootDir: path.join(fixtureRoot, 'missing-root'),
     }),
-    /Provider runtime manifest is required/u,
+    /Missing required root package manifest/u,
   );
 
-  writeFile(
-    path.join(runtimeRoot, ...workers[0].relativePath.split('/')),
-    'tampered worker\n',
-  );
-  assert.throws(
-    () => writePackageSbomEvidence({
-      outputPath: path.join(fixtureRoot, 'tampered-runtime.sbom.json'),
-      providerRuntimeManifestPath: manifestPath,
-      rootDir: fixtureRoot,
-      targetFamily: 'server',
-    }),
-    /Provider runtime checksum mismatch/u,
-  );
-
-  assert.throws(
-    () => writePackageSbomEvidence({
-      outputPath: path.join(fixtureRoot, 'wrong-target-runtime.sbom.json'),
-      providerRuntimeManifestPath: manifestPath,
-      rootDir: fixtureRoot,
-      targetArchitecture: 'arm64',
-      targetFamily: 'server',
-      targetPlatform: 'linux',
-    }),
-    /Provider runtime target mismatch/u,
-  );
-
-  const webOutputPath = path.join(fixtureRoot, 'web.sbom.json');
-  const webResult = writePackageSbomEvidence({
-    outputPath: webOutputPath,
-    rootDir: fixtureRoot,
-    targetFamily: 'web',
-  });
-  assert.equal(
-    webResult.sbom.components.some(
-      (component) => component['bom-ref']?.startsWith('provider-runtime:'),
-    ),
-    false,
-    'web SBOM must not invent a bundled Provider runtime',
-  );
+  const writtenSbom = JSON.parse(fs.readFileSync(outputPath, 'utf8'));
+  assert.deepEqual(writtenSbom, result.sbom);
 } finally {
   fs.rmSync(fixtureRoot, { recursive: true, force: true });
 }
 
-console.log('package SBOM provider runtime evidence contract passed.');
+console.log('package SBOM ownership contract passed.');

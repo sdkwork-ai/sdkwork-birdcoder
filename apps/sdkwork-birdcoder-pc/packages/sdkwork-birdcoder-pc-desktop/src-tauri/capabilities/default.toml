@@ -1,8 +1,8 @@
 # Tauri 2 capability for the main BirdCoder desktop PRODUCTION window.
 # Follows sdkwork-specs/SECURITY_SPEC.md: every command permission is declared
 # explicitly so the allowlist is auditable. High-risk mutating commands
-# (fs_write_file, fs_delete_entry, local_sql_execute_plan,
-# desktop_local_shell_exec) are listed individually rather than through a broad
+# (fs_write_file, fs_delete_entry, desktop_local_shell_exec) are listed
+# individually rather than through a broad
 # permission set, making their exposure explicit and reviewable.
 #
 # Capability differentiation (per SECURITY_SPEC.md):
@@ -53,9 +53,6 @@ permissions = [
   "allow-local-store-delete",
   "allow-local-store-list",
 
-  # HIGH-RISK: local SQL execution — explicit allowlist for DDL/DML access
-  "allow-local-sql-execute-plan",
-
   # User home config commands
   "allow-user-home-config-read",
   "allow-user-home-config-write",
@@ -92,7 +89,6 @@ permissions = [
   "allow-git-prune-worktrees",
 
   # Desktop shell host bridge commands
-  "allow-terminal-cli-profile-detect",
   "allow-desktop-pick-working-directory",
   "allow-desktop-reveal-in-file-manager",
   "allow-desktop-window-controls-bridge-capabilities",

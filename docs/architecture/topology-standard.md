@@ -16,7 +16,7 @@ choices, not extra profiles.
 | standalone + desktop | Windows local IDE | A Tauri desktop location is registered for an imported root and materialized as a current-device binding. | Local actions use the device binding after canonical-root validation. |
 | standalone + browser + server | Private server with web client | Browser handles remain local; server locations belong to trusted server targets and persist protected root data. | Browser does not create an OS path or execution grant. |
 | standalone + desktop + server | Tauri client against private server | Desktop and server can hold different locations for the same project. | Each action resolves an explicit location and target; no cross-target path reuse. |
-| cloud + server or container | Cloud control plane | Locations are tenant-scoped records associated with registered server or future runner targets. | Remote execution remains unavailable until runner promotion. |
+| cloud + server or container | Cloud control plane | BirdCoder stores only coding-workbench state and stable external execution references. | Agents, Kernel, and Providers own remote execution. |
 
 Development defaults and checked-in templates use the canonical
 deploymentProfile.environment form under etc/topology.
@@ -48,26 +48,27 @@ needed for local host execution but does not replace the server record. A
 server/container target must authenticate and validate ownership before it
 decrypts or uses its registered location path.
 
-SDKWORK_BIRDCODER_PROVIDER_RUNNER_ROOT is a server-owned base for controlled
-workspace provisioning. It does not convert a browser or Tauri folder into a
-server root and does not enable remote execution by itself.
-
 ## Ingress Ownership
 
 application.public-ingress is the BirdCoder-owned public entrypoint for
 BirdCoder application APIs. The platform API gateway remains a separate
 SDKWork-owned entrypoint for shared platform APIs such as IAM. Client bootstrap
-keeps the application app-SDK base URL and platform/IAM configuration explicit.
+keeps `applicationApiBaseUrl` and `platformApiGatewayBaseUrl` explicit.
+
+BirdCoder, readiness checks, terminal bridges, and project bindings use the
+application ingress. Agents, Skills, Documents, Prompts, IAM, Drive, Messaging,
+Membership, and Order SDKs use the platform gateway or an explicit
+dependency-specific override. They never fall back to the application ingress.
+Browser development uses `/__sdkwork/platform` as a controlled same-origin
+proxy; desktop and release runtimes use a direct platform URL. Missing or
+invalid required URLs fail before SDK construction.
 
 ## Execution Capability
 
-Runtime locations describe candidate targets; they do not authorize execution
-on their own. Terminal, Git (including worktree), build, and file-system
-actions require project/target/capability/health validation and a canonical
-root resolved by the owning target. Worktree uses the Git capability rather
-than a separate preference. Current remote server, container, and cloud
-profiles return typed unavailable outcomes for code execution until
-isolated-runner evidence exists.
+BirdCoder does not package, configure, supervise, or emulate a provider runner.
+Agents, Kernel, and Providers own code execution and its target validation.
+BirdCoder passes stable workbench references through their canonical SDK/API
+boundary and never derives an execution root from application configuration.
 
 ## Verification
 

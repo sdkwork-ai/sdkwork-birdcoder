@@ -36,7 +36,7 @@ assert.deepEqual(
 assert.equal(testPlan.env.SDKWORK_VITE_MODE, 'test');
 assert.equal(
   testPlan.env.BIRDCODER_CODING_SERVER_SQLITE_FILE,
-  'D:\\workspace\\sdkwork-birdcoder\\packages\\sdkwork-birdcoder-pc-desktop\\.local\\sdkwork-birdcoder-pc-desktop-local.sqlite3',
+  'D:\\workspace\\sdkwork-birdcoder\\packages\\sdkwork-birdcoder-pc-desktop\\.local\\birdcoder.sqlite3',
 );
 assert.equal(testPlan.shell, false);
 
@@ -51,7 +51,7 @@ const linuxDesktopPlan = createTauriCliPlan({
 
 assert.equal(
   linuxDesktopPlan.env.BIRDCODER_CODING_SERVER_SQLITE_FILE,
-  '/home/runner/work/sdkwork-birdcoder/sdkwork-birdcoder/apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-desktop/.local/sdkwork-birdcoder-pc-desktop-local.sqlite3',
+  '/home/runner/work/sdkwork-birdcoder/sdkwork-birdcoder/apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-desktop/.local/birdcoder.sqlite3',
   'desktop dev sqlite fallback should use the target platform path model instead of the host OS path model',
 );
 

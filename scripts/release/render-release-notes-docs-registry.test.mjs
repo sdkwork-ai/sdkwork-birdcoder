@@ -56,15 +56,14 @@ fs.writeFileSync(
   JSON.stringify({
     generatedAt: '2026-04-08T00:00:00.000Z',
     assets: [],
-    codingServerOpenApiEvidence: {
-      canonicalRelativePath: 'server/windows/x64/openapi/coding-server-v1.json',
-      mirroredRelativePaths: ['server/windows/x64/openapi/coding-server-v1.json'],
+    birdcoderAppApiEvidence: {
+      canonicalRelativePath: 'server/windows/x64/openapi/birdcoder-app-api.openapi.json',
       targetCount: 1,
       targets: ['windows/x64'],
       sha256: '0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef',
       openapi: '3.1.0',
-      version: 'v1',
-      title: 'SDKWork BirdCoder Coding Server API',
+      version: '0.1.0',
+      title: 'SDKWork BirdCoder App API',
     },
     qualityEvidence: {
       archiveRelativePath: 'quality/quality-gate-matrix-report.json',
@@ -113,8 +112,8 @@ assert.match(rendered, /Carried Forward From Earlier Unpublished Tags/);
 assert.match(rendered, /release-2026-04-08-00/);
 assert.match(rendered, /Carried forward release note body/);
 assert.match(rendered, /## Finalized Release Evidence/);
-assert.match(rendered, /## Coding-server OpenAPI evidence/);
-assert.match(rendered, /Canonical snapshot: `server\/windows\/x64\/openapi\/coding-server-v1\.json`/);
+assert.match(rendered, /## BirdCoder App API evidence/);
+assert.match(rendered, /Canonical snapshot: `server\/windows\/x64\/openapi\/birdcoder-app-api\.openapi\.json`/);
 assert.match(rendered, /## Quality evidence/);
 assert.match(rendered, /Manifest-bound tiers: `3\/3`/);
 assert.match(rendered, /Blocking diagnostics: `vite-host-build-preflight`/);

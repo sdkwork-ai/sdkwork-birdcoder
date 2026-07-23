@@ -119,7 +119,7 @@ export function GeneralSettings({
               >
                 {terminalLaunchProfiles.map((profile) => (
                   <option key={profile.id} value={profile.id}>
-                    {profile.kind === 'cli' ? `${profile.title} CLI` : profile.title}
+                    {profile.title}
                   </option>
                 ))}
               </select>

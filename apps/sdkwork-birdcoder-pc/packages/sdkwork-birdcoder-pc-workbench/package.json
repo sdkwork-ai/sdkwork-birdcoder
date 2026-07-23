@@ -67,10 +67,6 @@
       "import": "./src/terminal/BirdcoderTerminalApp.tsx",
       "types": "./src/terminal/BirdcoderTerminalApp.tsx"
     },
-    "./storage/dataKernel": {
-      "import": "./src/storage/dataKernel.ts",
-      "types": "./src/storage/dataKernel.ts"
-    },
     "./storage/localStore": {
       "import": "./src/storage/localStore.ts",
       "types": "./src/storage/localStore.ts"
@@ -92,8 +88,6 @@
   },
   "dependencies": {
     "@tauri-apps/api": "catalog:",
-    "@sdkwork/birdcoder-pc-codeengine": "workspace:*",
-    "@sdkwork/birdcoder-pc-projection": "workspace:*",
     "@sdkwork/birdcoder-pc-i18n": "workspace:*",
     "@sdkwork/birdcoder-pc-infrastructure": "workspace:*",
     "@sdkwork/birdcoder-pc-infrastructure-runtime": "workspace:*",
@@ -110,6 +104,7 @@
     "@types/react-dom": "catalog:",
     "@vitejs/plugin-react": "catalog:",
     "typescript": "catalog:",
+    "vite": "catalog:",
     "vitest": "catalog:"
   },
   "peerDependencies": {

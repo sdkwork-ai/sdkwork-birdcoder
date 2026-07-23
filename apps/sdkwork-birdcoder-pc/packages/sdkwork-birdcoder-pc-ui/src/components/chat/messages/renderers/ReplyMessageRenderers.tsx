@@ -2,7 +2,7 @@ import React, { memo } from 'react';
 import { Copy, Edit2, RotateCcw, Trash2 } from 'lucide-react';
 import { Button } from '@sdkwork/birdcoder-pc-ui-shell';
 import type { ChatMessageViewSource } from '@sdkwork/birdcoder-pc-workbench/chat/types';
-import type { BirdCoderChatMessageView } from '@sdkwork/birdcoder-pc-workbench/chat/types';
+import type { AgentSessionItemPresentation } from '@sdkwork/birdcoder-pc-workbench/chat/types';
 import { ContentBlockList } from '../contentBlocks/ContentBlockList.tsx';
 import {
   resolveMessageActionTargetCopyText,
@@ -11,7 +11,7 @@ import {
 import type { ChatMessageRendererProps } from '../types.ts';
 import { RoleHeader } from './RoleHeader.tsx';
 
-function resolveViewMarkdownCopyFallback(view: BirdCoderChatMessageView): string {
+function resolveViewMarkdownCopyFallback(view: AgentSessionItemPresentation): string {
   return view.blocks
     .filter((block) => block.type === 'markdown')
     .map((block) => block.content.trim())

@@ -1,68 +1,94 @@
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
-import {
-  createEnvelope as createTransportEnvelope,
-  createListEnvelope as createTransportListEnvelope,
-} from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/src/services/sdkTransportShared.ts';
-import { createBirdCoderInProcessAppRuntimeTransport } from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/src/services/appRuntimeTransport.ts';
 
-const traceIdPattern =
-  /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/u;
+const authorityUrl = new URL(
+  '../sdks/sdkwork-birdcoder-app-sdk/openapi/sdkwork-birdcoder-app-api.openapi.json',
+  import.meta.url,
+);
+const document = JSON.parse(fs.readFileSync(authorityUrl, 'utf8')) as {
+  components?: {
+    schemas?: Record<string, {
+      allOf?: Array<{ $ref?: string }>;
+      properties?: Record<string, unknown>;
+      required?: string[];
+    }>;
+  };
+  paths?: Record<string, Record<string, {
+    responses?: Record<string, {
+      content?: Record<string, { schema?: { $ref?: string } }>;
+    }>;
+  }>>;
+};
 
-const originalDateNow = Date.now;
-Date.now = () => 1779761360000;
+const schemas = document.components?.schemas ?? {};
+const successEnvelope = schemas.SdkWorkApiResponse;
+const problemDetail = schemas.ProblemDetail;
 
-try {
-  const traceIds = [
-    createTransportEnvelope({ id: 'first' }).traceId,
-    createTransportEnvelope({ id: 'second' }).traceId,
-    createTransportListEnvelope([{ id: 'third' }]).traceId,
-    createTransportListEnvelope([{ id: 'fourth' }]).traceId,
-  ];
-  const appRuntimeTransport = createBirdCoderInProcessAppRuntimeTransport({
-    projectService: {} as never,
-  });
-  const appRuntimeDescriptorEnvelope = await appRuntimeTransport.request<{
-    traceId: string;
-  }>({
-    method: 'GET',
-    path: '/app/v3/api/system/descriptor',
-  });
-  const appRuntimeRoutesEnvelope = await appRuntimeTransport.request<{
-    traceId: string;
-  }>({
-    method: 'GET',
-    path: '/app/v3/api/system/routes',
-  });
-  traceIds.push(
-    appRuntimeDescriptorEnvelope.traceId,
-    appRuntimeRoutesEnvelope.traceId,
+assert.ok(successEnvelope, 'App API authority must declare SdkWorkApiResponse.');
+assert.deepEqual(
+  successEnvelope.required,
+  ['code', 'data', 'traceId'],
+  'Success envelopes must require code, data and the server-owned traceId.',
+);
+assert.deepEqual(
+  Object.keys(successEnvelope.properties ?? {}).sort(),
+  ['code', 'data', 'traceId'],
+  'Success envelopes must not add a client-owned request identifier or a second payload shape.',
+);
+
+assert.ok(problemDetail, 'App API authority must declare RFC 9457 ProblemDetail.');
+for (const requiredField of ['type', 'title', 'status', 'code', 'traceId']) {
+  assert.ok(
+    problemDetail.required?.includes(requiredField),
+    `ProblemDetail must require ${requiredField}.`,
   );
+}
+assert.ok(
+  problemDetail.properties?.traceId,
+  'ProblemDetail must expose the same server-owned traceId correlation field as success envelopes.',
+);
 
-  assert.equal(
-    new Set(traceIds).size,
-    traceIds.length,
-    'transport envelopes must produce unique traceId values even when multiple responses are created in the same millisecond.',
-  );
-  for (const traceId of traceIds) {
-    assert.match(
-      traceId,
-      traceIdPattern,
-      'transport envelope traceId must use a standard UUID v4 shape for per-request correlation.',
-    );
-  }
-
-  const serverEntrypointSource = fs.readFileSync(
-    new URL('../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-server/src/index.ts', import.meta.url),
-    'utf8',
-  );
-  assert.doesNotMatch(
-    serverEntrypointSource,
-    /function buildTraceId\([^)]*\)[\s\S]*?Date\.now\(\)\.toString\(36\)/u,
-    'server API envelope traceId generation must not use timestamp-derived IDs.',
-  );
-} finally {
-  Date.now = originalDateNow;
+function schemaComposesSuccessEnvelope(schemaName: string): boolean {
+  if (schemaName === 'SdkWorkApiResponse') return true;
+  return schemas[schemaName]?.allOf?.some(
+    (entry) => entry.$ref === '#/components/schemas/SdkWorkApiResponse',
+  ) ?? false;
 }
 
-console.log('api envelope traceId contract passed.');
+const httpMethods = new Set(['delete', 'get', 'head', 'options', 'patch', 'post', 'put']);
+let jsonSuccessResponseCount = 0;
+for (const [apiPath, pathItem] of Object.entries(document.paths ?? {})) {
+  for (const [method, operation] of Object.entries(pathItem)) {
+    if (!httpMethods.has(method)) continue;
+    for (const [status, response] of Object.entries(operation.responses ?? {})) {
+      const schemaRef = response.content?.['application/json']?.schema?.$ref;
+      if (/^2\d\d$/u.test(status) && schemaRef) {
+        const schemaName = schemaRef.split('/').at(-1) ?? '';
+        assert.equal(
+          schemaComposesSuccessEnvelope(schemaName),
+          true,
+          `${method.toUpperCase()} ${apiPath} success schema must compose SdkWorkApiResponse.`,
+        );
+        jsonSuccessResponseCount += 1;
+      }
+
+      const problemRef = response.content?.['application/problem+json']?.schema?.$ref;
+      if (problemRef) {
+        assert.equal(
+          problemRef,
+          '#/components/schemas/ProblemDetail',
+          `${method.toUpperCase()} ${apiPath} errors must use the canonical ProblemDetail schema.`,
+        );
+      }
+    }
+  }
+}
+
+assert.ok(jsonSuccessResponseCount > 0, 'App API authority must declare typed JSON success responses.');
+assert.doesNotMatch(
+  JSON.stringify(document),
+  /request_?id|x-request-id/iu,
+  'Clients must not provide or own requestId; correlation identifiers are generated by the server as traceId.',
+);
+
+console.log('App API envelope and trace ownership contract passed.');

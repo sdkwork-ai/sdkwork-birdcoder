@@ -22,7 +22,6 @@ export {
 } from './bootstrap/serverBaseUrl.ts';
 export { waitForBirdCoderApiReady } from './bootstrap/apiReady.ts';
 export {
-  bindBirdCoderH5AppSessionPersistence,
   hydrateBirdCoderH5AppSessionPersistence,
 } from './bootstrap/appSessionPersistenceBinding.ts';
 export { startBirdCoderAuthDeepLinkRouting } from './bootstrap/authDeepLinkBootstrap.ts';

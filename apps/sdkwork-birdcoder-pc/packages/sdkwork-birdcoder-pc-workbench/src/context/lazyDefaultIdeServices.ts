@@ -4,20 +4,15 @@ import type {
 } from '@sdkwork/birdcoder-pc-infrastructure-runtime';
 
 const APP_IDE_SERVICE_KEYS = [
+  'agentSessionService',
   'authService',
   'catalogService',
-  'collaborationService',
-  'appRuntimeReadService',
-  'appRuntimeWriteService',
-  'deploymentService',
   'documentService',
   'fileSystemService',
   'projectRuntimeLocationService',
   'gitService',
   'promptService',
   'projectService',
-  'releaseService',
-  'teamService',
   'vipMembershipService',
   'workspaceService',
 ] as const satisfies readonly BirdCoderDefaultIdeServiceKey[];
@@ -143,20 +138,11 @@ function createLazyServiceProxy<Service extends object>(
 
 export function createLazyDefaultIdeServices(): AppIdeServices {
   return {
+    agentSessionService: createLazyServiceProxy(
+      async () => loadDefaultIdeService('agentSessionService'),
+    ),
     authService: createLazyServiceProxy(async () => loadDefaultIdeService('authService')),
     catalogService: createLazyServiceProxy(async () => loadDefaultIdeService('catalogService')),
-    collaborationService: createLazyServiceProxy(
-      async () => loadDefaultIdeService('collaborationService'),
-    ),
-    appRuntimeReadService: createLazyServiceProxy(
-      async () => loadDefaultIdeService('appRuntimeReadService'),
-    ),
-    appRuntimeWriteService: createLazyServiceProxy(
-      async () => loadDefaultIdeService('appRuntimeWriteService'),
-    ),
-    deploymentService: createLazyServiceProxy(
-      async () => loadDefaultIdeService('deploymentService'),
-    ),
     documentService: createLazyServiceProxy(async () => loadDefaultIdeService('documentService')),
     fileSystemService: createLazyServiceProxy(
       async () => loadDefaultIdeService('fileSystemService'),
@@ -172,8 +158,6 @@ export function createLazyDefaultIdeServices(): AppIdeServices {
     gitService: createLazyServiceProxy(async () => loadDefaultIdeService('gitService')),
     promptService: createLazyServiceProxy(async () => loadDefaultIdeService('promptService')),
     projectService: createLazyServiceProxy(async () => loadDefaultIdeService('projectService')),
-    releaseService: createLazyServiceProxy(async () => loadDefaultIdeService('releaseService')),
-    teamService: createLazyServiceProxy(async () => loadDefaultIdeService('teamService')),
     vipMembershipService: createLazyServiceProxy(
       async () => loadDefaultIdeService('vipMembershipService'),
     ),

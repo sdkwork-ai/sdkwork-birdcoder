@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import type {
-  BirdCoderChatMessage,
+  AgentSessionItemView,
   CommandExecution,
 } from '@sdkwork/birdcoder-pc-contracts-commons';
 
@@ -61,16 +61,16 @@ const universalChatSource = readFileSync(
   'utf8',
 );
 
-const messages: BirdCoderChatMessage[] = [
+const messages: AgentSessionItemView[] = [
   {
-    codingSessionId: 'session-1',
+    agentSessionId: 'session-1',
     id: 'user-1',
     role: 'user',
     content: 'hello',
     createdAt: '2026-04-21T00:00:00.000Z',
   },
   {
-    codingSessionId: 'session-1',
+    agentSessionId: 'session-1',
     id: 'assistant-1',
     role: 'assistant',
     content: 'reply',
@@ -104,7 +104,7 @@ const windowedTranscript = resolveVirtualizedTranscriptWindow({
 
 assert.equal(windowedTranscript.visibleStartIndex, 1);
 assert.deepEqual(
-  windowedTranscript.visibleMessages.map((message: BirdCoderChatMessage) => message.id),
+  windowedTranscript.visibleMessages.map((message: AgentSessionItemView) => message.id),
   ['assistant-1'],
   'scroll windowing should slice against precomputed height prefixes',
 );
@@ -128,16 +128,16 @@ assert.equal(
   'transcript prefix cache should preserve unchanged prefix entries when only a later row measurement changes.',
 );
 
-const duplicateIdMessages: BirdCoderChatMessage[] = [
+const duplicateIdMessages: AgentSessionItemView[] = [
   {
-    codingSessionId: 'session-duplicates',
+    agentSessionId: 'session-duplicates',
     id: 'provider-message',
     role: 'user',
     content: 'short duplicate id message',
     createdAt: '2026-04-21T00:00:00.000Z',
   },
   {
-    codingSessionId: 'session-duplicates',
+    agentSessionId: 'session-duplicates',
     id: 'provider-message',
     role: 'assistant',
     content: 'longer duplicate id message\nwith multiple lines\nand a separate measured height',
@@ -165,9 +165,9 @@ assert.deepEqual(
   'duplicate provider message ids must keep independent measured heights so spacer padding remains accurate.',
 );
 
-const taskProgressMessages: BirdCoderChatMessage[] = [
+const taskProgressMessages: AgentSessionItemView[] = [
   {
-    codingSessionId: 'session-progress',
+    agentSessionId: 'session-progress',
     id: 'assistant-progress',
     role: 'assistant',
     content: 'progress',
@@ -304,8 +304,8 @@ const createAnnouncementCommand = (
 const createAnnouncementMessage = (
   id: string,
   commands: CommandExecution[],
-): BirdCoderChatMessage => ({
-  codingSessionId: 'session-announcements',
+): AgentSessionItemView => ({
+  agentSessionId: 'session-announcements',
   commands,
   content: '',
   createdAt: '2026-07-21T00:00:00.000Z',
@@ -319,7 +319,7 @@ const runningCommandSnapshot = buildChatCommandLifecycleSnapshot([
 ]);
 
 const providerToolCallSnapshot = buildChatCommandLifecycleSnapshot([{
-  codingSessionId: 'session-announcements',
+  agentSessionId: 'session-announcements',
   content: '',
   createdAt: '2026-07-21T00:00:00.000Z',
   id: 'activity-provider-tool-call',

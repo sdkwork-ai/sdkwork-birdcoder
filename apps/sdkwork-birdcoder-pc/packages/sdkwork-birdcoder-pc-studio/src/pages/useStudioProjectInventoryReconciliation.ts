@@ -10,7 +10,7 @@ interface UseStudioProjectInventoryReconciliationOptions {
   notifyProjectChange: (projectId: string) => void;
   projectId?: string;
   projects: readonly BirdCoderProject[];
-  resolveCodingSessionLocation: (codingSessionId: string, projectId?: string | null) => unknown;
+  resolveAgentSessionLocation: (agentSessionId: string, projectId?: string | null) => unknown;
   resolveProjectById: (projectId: string) => unknown;
   selectedSessionProjectId: string | null;
   sessionId: string;
@@ -27,7 +27,7 @@ export function useStudioProjectInventoryReconciliation({
   notifyProjectChange,
   projectId,
   projects,
-  resolveCodingSessionLocation,
+  resolveAgentSessionLocation,
   resolveProjectById,
   selectedSessionProjectId,
   sessionId,
@@ -66,7 +66,7 @@ export function useStudioProjectInventoryReconciliation({
     const retainedProjectId =
       selectedSessionProjectId?.trim() || projectId?.trim() || currentProjectId;
     if (
-      !resolveCodingSessionLocation(sessionId, retainedProjectId) &&
+      !resolveAgentSessionLocation(sessionId, retainedProjectId) &&
       (!retainedProjectId || !resolveProjectById(retainedProjectId))
     ) {
       setSessionId('');
@@ -80,7 +80,7 @@ export function useStudioProjectInventoryReconciliation({
     notifyProjectChange,
     projectId,
     projects,
-    resolveCodingSessionLocation,
+    resolveAgentSessionLocation,
     resolveProjectById,
     selectedSessionProjectId,
     sessionId,

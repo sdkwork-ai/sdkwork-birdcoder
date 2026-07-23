@@ -39,7 +39,6 @@
     "is-hexadecimal": "catalog:",
     "is-plain-obj": "catalog:",
     "lucide-react": "catalog:",
-    "@sdkwork/birdcoder-pc-codeengine": "workspace:*",
     "@sdkwork/birdcoder-pc-workbench": "workspace:*",
     "@sdkwork/birdcoder-pc-host-studio": "workspace:*",
     "@sdkwork/birdcoder-pc-ui-shell": "workspace:*",
@@ -82,7 +81,8 @@
     "vfile-message": "catalog:"
   },
   "devDependencies": {
-    "@vitejs/plugin-react": "catalog:"
+    "@vitejs/plugin-react": "catalog:",
+    "vite": "catalog:"
   },
   "peerDependencies": {
     "react": "catalog:",

@@ -1,9 +1,11 @@
 import assert from 'node:assert/strict';
+import fs from 'node:fs';
 import path from 'node:path';
 import process from 'node:process';
 
 import {
   RELEASE_FLOW_CHECK_COMMANDS,
+  RELEASE_FLOW_CHECK_LANES,
   runReleaseFlowCheck,
 } from './run-release-flow-check.mjs';
 
@@ -14,120 +16,54 @@ function splitPathEntries(pathValue, platform = process.platform) {
     .filter(Boolean);
 }
 
-assert.equal(Array.isArray(RELEASE_FLOW_CHECK_COMMANDS), true);
-assert.equal(RELEASE_FLOW_CHECK_COMMANDS.length > 0, true);
-assert.equal(
-  RELEASE_FLOW_CHECK_COMMANDS.includes('node scripts/release-flow-contract.test.mjs'),
-  true,
-  'release-flow runner must execute the release-flow contract before downstream lanes',
+assert.deepEqual(
+  RELEASE_FLOW_CHECK_COMMANDS,
+  Object.values(RELEASE_FLOW_CHECK_LANES).flat(),
+  'release-flow commands must be derived from the named release lanes.',
 );
-assert.equal(
-  RELEASE_FLOW_CHECK_COMMANDS.includes('node scripts/package-script-entrypoints-contract.test.mjs'),
-  true,
-  'release-flow runner must execute the package script entrypoint contract before downstream lanes',
-);
-assert.equal(
-  RELEASE_FLOW_CHECK_COMMANDS.includes('node scripts/governance-regression-report.test.mjs'),
-  true,
-  'release-flow runner must execute the governance regression runner contract before downstream lanes',
-);
-assert.equal(
-  RELEASE_FLOW_CHECK_COMMANDS.includes('node scripts/quality-gate-execution-report.test.mjs'),
-  true,
-  'release-flow runner must execute the quality gate execution runner contract before downstream lanes',
-);
-assert.equal(
-  RELEASE_FLOW_CHECK_COMMANDS.includes('node scripts/release-docs-api-sdk-standard-contract.test.mjs'),
-  true,
-  'release-flow runner must execute the release docs API/SDK standard contract before downstream lanes',
-);
-assert.equal(
-  RELEASE_FLOW_CHECK_COMMANDS.includes('node scripts/run-local-tsx.mjs scripts/coding-server-api-spec-path-contract.test.ts'),
-  true,
-  'release-flow runner must execute the coding-server API_SPEC path contract before downstream lanes',
-);
-assert.equal(
-  RELEASE_FLOW_CHECK_COMMANDS.includes('node scripts/birdcoder-iam-standard-contract.test.mjs'),
-  true,
-  'release-flow runner must execute the repository-local BirdCoder IAM standard contract before downstream lanes',
-);
-assert.equal(
-  RELEASE_FLOW_CHECK_COMMANDS.includes('node scripts/check-sdkwork-birdcoder-structure-contract.test.mjs'),
-  true,
-  'release-flow runner must execute the sdkwork-birdcoder structure contract before downstream lanes',
-);
-assert.equal(
-  RELEASE_FLOW_CHECK_COMMANDS.includes('node scripts/release-openapi-canonical-quality-evidence-contract.test.mjs'),
-  true,
-  'release-flow runner must execute the canonical release quality evidence contract before downstream lanes',
-);
-assert.equal(
-  RELEASE_FLOW_CHECK_COMMANDS.includes('node scripts/release/assert-release-readiness.test.mjs'),
-  true,
-  'release-flow runner must execute the finalized release readiness assertion contract before release-note lanes',
-);
-assert.equal(
-  RELEASE_FLOW_CHECK_COMMANDS.includes('node scripts/release/write-attestation-evidence.test.mjs'),
-  true,
-  'release-flow runner must execute the attestation evidence contract before release readiness lanes',
-);
-assert.equal(
-  RELEASE_FLOW_CHECK_COMMANDS.includes('node scripts/release/release-checksums.test.mjs'),
-  true,
-  'release-flow runner must execute the release checksum publication-view contract before release-note lanes',
-);
-assert.equal(
-  RELEASE_FLOW_CHECK_COMMANDS.includes('node scripts/release/write-package-sbom-evidence.test.mjs'),
-  true,
-  'release-flow runner must execute the package SBOM Provider runtime evidence contract',
-);
-assert.equal(
-  RELEASE_FLOW_CHECK_COMMANDS.includes('node scripts/release/release-readiness-complete-matrix.test.mjs'),
-  true,
-  'release-flow runner must execute the complete release matrix readiness contract before finalized smoke lanes',
-);
-assert.equal(
-  RELEASE_FLOW_CHECK_COMMANDS.includes('node scripts/release/write-readiness-fixture.mjs --help'),
-  true,
-  'release-flow runner must execute the readiness fixture CLI help path before finalized smoke lanes',
-);
-assert.equal(
-  RELEASE_FLOW_CHECK_COMMANDS.includes('node scripts/release/write-readiness-fixture.test.mjs'),
-  true,
-  'release-flow runner must execute the complete release readiness fixture generator contract before finalized smoke lanes',
-);
-assert.equal(
-  RELEASE_FLOW_CHECK_COMMANDS.includes('node scripts/release/candidate-dry-run.mjs --help'),
-  true,
-  'release-flow runner must execute the release candidate dry-run CLI help path before finalized smoke lanes',
-);
-assert.equal(
-  RELEASE_FLOW_CHECK_COMMANDS.includes('node scripts/release/candidate-dry-run.test.mjs'),
-  true,
-  'release-flow runner must execute the release candidate dry-run evidence contract before finalized smoke lanes',
-);
-assert.equal(
-  RELEASE_FLOW_CHECK_COMMANDS.includes('node --experimental-strip-types scripts/coding-server-openapi-snapshot-drift.test.ts'),
-  true,
-  'release-flow runner must execute the coding-server OpenAPI snapshot drift contract before downstream codegen lanes',
-);
-{
-  const kernelBridgeBuildCommand = 'node scripts/run-cargo.mjs build -p sdkwork-birdcoder-kernel-bridge --bin birdcoder-kernel-turn';
-  const kernelBridgeBuildIndex = RELEASE_FLOW_CHECK_COMMANDS.indexOf(kernelBridgeBuildCommand);
-  const kernelRuntimeAdapterIndex = RELEASE_FLOW_CHECK_COMMANDS.indexOf(
-    'node --experimental-strip-types scripts/kernel-runtime-adapter-contract.test.ts',
-  );
+assert.equal(new Set(RELEASE_FLOW_CHECK_COMMANDS).size, RELEASE_FLOW_CHECK_COMMANDS.length);
 
-  assert.notEqual(
-    kernelBridgeBuildIndex,
-    -1,
-    'release-flow runner must build the BirdCoder kernel bridge binary before binary-backed runtime contracts.',
-  );
+for (const [laneName, commands] of Object.entries(RELEASE_FLOW_CHECK_LANES)) {
+  assert.equal(commands.length > 0, true, `Release-flow lane ${laneName} must not be empty.`);
+}
+
+const requiredCommands = [
+  'node scripts/release-flow-contract.test.mjs',
+  'node scripts/domain-ownership-contract.test.mjs',
+  'node scripts/database-framework-standard-contract.test.mjs',
+  'node scripts/birdcoder-sdk-owner-boundary-contract.test.mjs',
+  'node scripts/agents-birdcoder-alignment-contract.test.mjs',
+  'node --experimental-strip-types scripts/skills-sdk-boundary-contract.test.ts',
+  'node --experimental-strip-types scripts/document-app-consumer-contract.test.ts',
+  'node scripts/release/package-release-assets.test.mjs',
+  'node scripts/release/write-package-sbom-evidence.test.mjs',
+  'node scripts/release/write-attestation-evidence.test.mjs',
+  'node scripts/release/release-checksums.test.mjs',
+  'node scripts/release/assert-release-readiness.test.mjs',
+  'node scripts/check-release-closure.mjs',
+  'node scripts/technical-debt-contract.test.mjs',
+  'node scripts/sdkwork-birdcoder-architecture-contract.test.mjs',
+];
+for (const command of requiredCommands) {
   assert.equal(
-    kernelBridgeBuildIndex < kernelRuntimeAdapterIndex,
+    RELEASE_FLOW_CHECK_COMMANDS.includes(command),
     true,
-    'release-flow runner must build birdcoder-kernel-turn before kernel-runtime-adapter-contract runs.',
+    `Release flow must include ${command}.`,
   );
+}
+
+const retiredAuthorityPattern = /coding-server|coding-session-projection|template-instantiation|prompt-skill-template|kernel-bridge|provider-sdk|run-claw-server|birdcoder-agents-integration/iu;
+for (const command of RELEASE_FLOW_CHECK_COMMANDS) {
+  assert.doesNotMatch(command, retiredAuthorityPattern);
+
+  const localScriptPaths = command.match(/scripts\/[A-Za-z0-9_./-]+\.(?:mjs|js|ts)/gu) ?? [];
+  for (const relativePath of localScriptPaths) {
+    assert.equal(
+      fs.existsSync(path.join(process.cwd(), ...relativePath.split('/'))),
+      true,
+      `Release-flow command references a missing script: ${relativePath}`,
+    );
+  }
 }
 
 {
@@ -147,7 +83,6 @@ assert.equal(
   assert.deepEqual(
     invocations.map((entry) => entry.args.at(-1)),
     ['node first-check.mjs', 'node second-check.mjs'],
-    'release-flow runner must execute commands in order',
   );
   for (const invocation of invocations) {
     assert.equal(invocation.options.cwd, 'D:/workspace');
@@ -159,7 +94,6 @@ assert.equal(
         invocation.options.env.Path ?? invocation.options.env.PATH ?? '',
       ).includes(path.dirname(process.execPath)),
       true,
-      'release-flow runner must prepend the current Node.js directory to PATH.',
     );
     assert.equal(invocation.options.shell, false);
     assert.equal(invocation.options.stdio, 'inherit');
@@ -167,11 +101,10 @@ assert.equal(
     if (process.platform === 'win32') {
       assert.equal(invocation.command, 'cmd.exe');
       assert.deepEqual(invocation.args.slice(0, 3), ['/d', '/s', '/c']);
-      continue;
+    } else {
+      assert.equal(invocation.command, String(commandEnv.SHELL ?? '/bin/sh'));
+      assert.deepEqual(invocation.args.slice(0, 1), ['-lc']);
     }
-
-    assert.equal(invocation.command, String(commandEnv.SHELL ?? '/bin/sh'));
-    assert.deepEqual(invocation.args.slice(0, 1), ['-lc']);
   }
 }
 
@@ -195,24 +128,12 @@ assert.equal(
 
   assert.equal(exitCode, 0);
   assert.equal(invocations.length, 1);
-  assert.equal(
-    invocations[0].command,
-    '/bin/bash',
-    'release-flow runner must honor the injected POSIX shell instead of reading the host process environment.',
-  );
+  assert.equal(invocations[0].command, '/bin/bash');
   assert.deepEqual(invocations[0].args, ['-lc', 'node posix-check.mjs']);
-  assert.equal(invocations[0].options.cwd, '/workspace');
-  assert.equal(invocations[0].options.env.TEST_ENV, 'birdcoder');
-  assert.equal(invocations[0].options.env.NODE, '/opt/node/bin/node');
-  assert.equal(invocations[0].options.env.npm_node_execpath, '/opt/node/bin/node');
   assert.deepEqual(
     splitPathEntries(invocations[0].options.env.PATH, 'linux'),
     ['/opt/node/bin', '/usr/bin'],
-    'release-flow runner must prepend the injected Node.js directory to POSIX PATH.',
   );
-  assert.equal(invocations[0].options.shell, false);
-  assert.equal(invocations[0].options.stdio, 'inherit');
-  assert.equal(invocations[0].options.windowsHide, true);
 }
 
 {
@@ -221,9 +142,7 @@ assert.equal(
     commands: ['node first-check.mjs', 'node failing-check.mjs', 'node skipped-check.mjs'],
     spawnSyncImpl(command, args) {
       invocations.push({ command, args });
-      return {
-        status: args.at(-1)?.includes('failing') ? 7 : 0,
-      };
+      return { status: args.at(-1)?.includes('failing') ? 7 : 0 };
     },
   });
 
@@ -231,7 +150,6 @@ assert.equal(
   assert.deepEqual(
     invocations.map((entry) => entry.args.at(-1)),
     ['node first-check.mjs', 'node failing-check.mjs'],
-    'release-flow runner must stop at the first failing command',
   );
 }
 

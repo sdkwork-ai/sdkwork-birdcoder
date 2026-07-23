@@ -7,8 +7,8 @@
     "version": "0.1.0",
     "type": "rust-crate",
     "root": "sdkwork-birdcoder/crates/sdkwork-birdcoder-router-context",
-    "domain": "iam",
-    "declaredDomain": null,
+    "domain": "intelligence",
+    "declaredDomain": "intelligence",
     "capability": "route-context",
     "surface": "route-context",
     "status": "ACTIVE",
@@ -91,10 +91,8 @@
       "sdkwork_birdcoder_router_context::RequiredIamContext",
       "sdkwork_birdcoder_router_context::StrictOffsetListQuery",
       "sdkwork_birdcoder_router_context::strict_offset_list_params",
-      "sdkwork_birdcoder_router_context::coding_session_context",
       "sdkwork_birdcoder_router_context::workspace_context",
-      "sdkwork_birdcoder_router_context::project_context",
-      "sdkwork_birdcoder_router_context::deployment_context"
+      "sdkwork_birdcoder_router_context::project_context"
     ],
     "providedPorts": [
       {
@@ -124,7 +122,7 @@
   },
   "integration": {
     "authority": "Provides typed request extractors and context translation for BirdCoder route crates; it does not own IAM authentication, permission policy, or route handlers.",
-    "crossDomainComposition": "Maps a verified IAM app context into typed product service contexts for intelligence, workspace, project, and deployment route adapters."
+    "crossDomainComposition": "Maps a verified IAM app context into BirdCoder-owned intelligence/coding-workbench workspace and project service contexts. It does not define Agents Session, IM messaging, or deployment contexts."
   },
   "verification": {
     "commands": [
