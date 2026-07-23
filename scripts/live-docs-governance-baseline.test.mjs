@@ -59,20 +59,27 @@ assert.match(prd, /^# SDKWork BirdCoder PRD/m);
 assert.match(prd, /## 5\. Functional Requirements/u);
 assert.match(prd, /## 6\. Quality, Security, And Commercial Gates/u);
 assert.match(tech, /^# SDKWork BirdCoder Technical Architecture/m);
-assert.match(tech, /## 3\. Location Data And Lifecycle/u);
+assert.match(tech, /## 3\. Data And Lifecycle/u);
+assert.match(tech, /## 5\. Project, Composition, And Session Flow/u);
 assert.match(tech, /## 8\. Deployment And Runtime Topology/u);
 assert.match(
   tech,
-  /ProjectRuntimeLocation/u,
-  'Technical architecture must identify the distributed location authority.',
+  /BirdCoder server business tables: \*\*0\*\*/u,
+  'Technical architecture must state that BirdCoder owns no server business tables.',
 );
 assert.match(
   tech,
-  /ADR-20260716/u,
-  'Technical architecture must link the active runtime-location architecture decision.',
+  /Agents `sessionRuntimeBindings`/u,
+  'Technical architecture must identify Agents runtime bindings as the session runtime authority.',
 );
+assert.match(tech, /ProjectDeviceMountRegistry/u);
+assert.match(tech, /Human Conversation, Message, Member, ReadCursor/u);
+assert.match(tech, /ADR-20260722/u);
 assert.doesNotMatch(prd, /^- \[ \]/mu);
-assert.doesNotMatch(tech, /TECH-(?:0[0-9]|[1-9][0-9])-|ADR-20260710/u);
+assert.doesNotMatch(
+  tech,
+  /ProjectRuntimeLocation|ADR-20260716|TECH-(?:0[0-9]|[1-9][0-9])-|ADR-20260710/u,
+);
 
 const releaseDoc = fs.readFileSync(path.join(docsDir, 'core', 'release-and-deployment.md'), 'utf8');
 assert.match(releaseDoc, /pnpm\.cmd check:release-flow/u);

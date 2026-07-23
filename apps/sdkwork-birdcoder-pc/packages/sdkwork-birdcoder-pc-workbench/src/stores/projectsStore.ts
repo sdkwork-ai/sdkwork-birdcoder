@@ -1,7 +1,7 @@
 import type {
   AgentSessionItemView,
   AgentSessionView,
-  BirdCoderProject,
+  AgentProjectView,
 } from '@sdkwork/birdcoder-pc-contracts-commons';
 import {
   areAgentSessionItemsEquivalent,
@@ -11,21 +11,20 @@ import {
   deduplicateAgentSessionItemViews,
   formatAgentSessionActivityDisplayTime,
   resolveAgentSessionViewSortTimestampString,
-  stringifyBirdCoderApiJson,
 } from '@sdkwork/birdcoder-pc-contracts-commons';
-import type { BirdCoderServiceOffsetPageInfo } from '../services/interfaces/IProjectService.ts';
+import type { AgentProjectViewPage } from '../services/interfaces/IProjectService.ts';
 
 export interface ProjectsStoreSnapshot {
   error: string | null;
   hasFetched: boolean;
   isLoading: boolean;
-  pageInfo: BirdCoderServiceOffsetPageInfo | null;
-  projects: BirdCoderProject[];
+  pageInfo: AgentProjectViewPage['pageInfo'] | null;
+  projects: AgentProjectView[];
 }
 
 export interface ProjectsStore {
   inventoryVersion: number;
-  inflight: Promise<BirdCoderProject[]> | null;
+  inflight: Promise<AgentProjectView[]> | null;
   inflightKey: string | null;
   listeners: Set<(snapshot: ProjectsStoreSnapshot) => void>;
   snapshot: ProjectsStoreSnapshot;
@@ -46,9 +45,8 @@ export function normalizeProjectsStoreUserScope(
 
 export function buildProjectsStoreScopeKey(
   userScope: string,
-  workspaceId: string,
 ): string {
-  return `${normalizeProjectsStoreUserScope(userScope)}::${workspaceId.trim()}`;
+  return normalizeProjectsStoreUserScope(userScope);
 }
 
 export function createProjectsStoreSnapshot(): ProjectsStoreSnapshot {
@@ -62,44 +60,25 @@ export function createProjectsStoreSnapshot(): ProjectsStoreSnapshot {
 }
 
 function areProjectScalarsEqual(
-  left: BirdCoderProject,
-  right: BirdCoderProject,
+  left: AgentProjectView,
+  right: AgentProjectView,
 ): boolean {
   return (
-    left.id === right.id &&
-    left.uuid === right.uuid &&
+    left.projectId === right.projectId &&
     left.tenantId === right.tenantId &&
     left.organizationId === right.organizationId &&
-    left.defaultAgentProjectId === right.defaultAgentProjectId &&
-    left.dataScope === right.dataScope &&
-    left.workspaceId === right.workspaceId &&
-    left.workspaceUuid === right.workspaceUuid &&
-    left.userId === right.userId &&
-    left.parentId === right.parentId &&
-    left.parentUuid === right.parentUuid &&
-    stringifyBirdCoderApiJson(left.parentMetadata ?? null) ===
-      stringifyBirdCoderApiJson(right.parentMetadata ?? null) &&
-    left.code === right.code &&
-    left.title === right.title &&
+    left.ownerUserId === right.ownerUserId &&
     left.name === right.name &&
     left.description === right.description &&
-    left.domainPrefix === right.domainPrefix &&
-    left.ownerId === right.ownerId &&
-    left.leaderId === right.leaderId &&
-    left.createdByUserId === right.createdByUserId &&
-    left.author === right.author &&
-    left.fileId === right.fileId &&
-    left.type === right.type &&
-    stringifyBirdCoderApiJson(left.coverImage ?? null) ===
-      stringifyBirdCoderApiJson(right.coverImage ?? null) &&
-    left.startTime === right.startTime &&
-    left.endTime === right.endTime &&
-    left.budgetAmount === right.budgetAmount &&
-    left.isTemplate === right.isTemplate &&
-    left.viewerRole === right.viewerRole &&
+    left.visibility === right.visibility &&
+    left.status === right.status &&
+    left.driveAccessMode === right.driveAccessMode &&
+    left.defaultAgentId === right.defaultAgentId &&
+    left.defaultModelId === right.defaultModelId &&
+    left.version === right.version &&
     left.createdAt === right.createdAt &&
     left.updatedAt === right.updatedAt &&
-    left.archived === right.archived
+    left.archivedAt === right.archivedAt
   );
 }
 
@@ -109,9 +88,7 @@ function areAgentSessionScalarsEqual(
 ): boolean {
   return (
     left.id === right.id &&
-    left.workspaceId === right.workspaceId &&
-    left.birdCoderProjectId === right.birdCoderProjectId &&
-    left.agentProjectId === right.agentProjectId &&
+    left.projectId === right.projectId &&
     left.runtimeLocationId === right.runtimeLocationId &&
     left.title === right.title &&
     left.status === right.status &&
@@ -161,11 +138,11 @@ function areProjectsStoreSnapshotsEqual(
 }
 
 export function reuseProjectCollectionIfUnchanged(
-  previousProjects: readonly BirdCoderProject[],
-  nextProjects: readonly BirdCoderProject[],
-): BirdCoderProject[] {
+  previousProjects: readonly AgentProjectView[],
+  nextProjects: readonly AgentProjectView[],
+): AgentProjectView[] {
   return areCollectionsReferentiallyEqual(previousProjects, nextProjects)
-    ? (previousProjects as BirdCoderProject[])
+    ? (previousProjects as AgentProjectView[])
     : [...nextProjects];
 }
 
@@ -254,17 +231,17 @@ function normalizeAgentSessionItemsForStore(
 
 interface CloneAgentSessionForStoreOptions {
   preserveEmptyMessages?: boolean;
-  birdCoderProjectId?: string;
+  projectId?: string;
 }
 
 function normalizeAgentSessionProjectScope(
   agentSession: AgentSessionView,
-  birdCoderProjectId?: string,
+  projectId?: string,
 ): AgentSessionView {
-  const normalizedProjectId = birdCoderProjectId?.trim() ?? '';
-  if (normalizedProjectId && agentSession.birdCoderProjectId !== normalizedProjectId) {
+  const normalizedProjectId = projectId?.trim() ?? '';
+  if (normalizedProjectId && agentSession.projectId !== normalizedProjectId) {
     throw new Error(
-      `Agent session ${agentSession.id} does not belong to BirdCoder project ${normalizedProjectId}.`,
+      `Agent session ${agentSession.id} does not belong to Agents project ${normalizedProjectId}.`,
     );
   }
   return agentSession;
@@ -278,7 +255,7 @@ function cloneAgentSessionForStore(
   const preserveEmptyMessages = options.preserveEmptyMessages ?? true;
   const projectScopedAgentSession = normalizeAgentSessionProjectScope(
     agentSession,
-    options.birdCoderProjectId,
+    options.projectId,
   );
   const incomingMessages =
     projectScopedAgentSession.items.length > 0
@@ -347,15 +324,15 @@ function sortAgentSessionsForStore(
 }
 
 function compareProjectsForStore(
-  left: BirdCoderProject,
-  right: BirdCoderProject,
+  left: AgentProjectView,
+  right: AgentProjectView,
 ): number {
   return compareWorkbenchProjectsByActivity(left, right);
 }
 
-function sortProjectsForStore(projects: readonly BirdCoderProject[]): BirdCoderProject[] {
+function sortProjectsForStore(projects: readonly AgentProjectView[]): AgentProjectView[] {
   if (projects.length < 2) {
-    return projects as BirdCoderProject[];
+    return projects as AgentProjectView[];
   }
 
   for (let index = 1; index < projects.length; index += 1) {
@@ -364,7 +341,7 @@ function sortProjectsForStore(projects: readonly BirdCoderProject[]): BirdCoderP
     }
   }
 
-  return projects as BirdCoderProject[];
+  return projects as AgentProjectView[];
 }
 
 function reconcileProjectAgentSessionsForStore(
@@ -382,7 +359,7 @@ function reconcileProjectAgentSessionsForStore(
       agentSession,
       nextAgentSessionsById.get(agentSession.id) ??
         existingAgentSessionsById.get(agentSession.id),
-      { birdCoderProjectId: projectId },
+      { projectId },
     );
     nextAgentSessionsById.set(agentSession.id, mergedAgentSession);
   });
@@ -391,16 +368,16 @@ function reconcileProjectAgentSessionsForStore(
 }
 
 function mergeProjectForStore(
-  existingProject: BirdCoderProject | undefined,
-  incomingProject: BirdCoderProject,
-): BirdCoderProject {
+  existingProject: AgentProjectView | undefined,
+  incomingProject: AgentProjectView,
+): AgentProjectView {
   const incomingProjectAgentSessions =
     incomingProject.agentSessions.length === 0 &&
     (existingProject?.agentSessions.length ?? 0) > 0
       ? existingProject!.agentSessions
       : incomingProject.agentSessions;
   const nextAgentSessions = reconcileProjectAgentSessionsForStore(
-    incomingProject.id,
+    incomingProject.projectId,
     incomingProjectAgentSessions,
     existingProject?.agentSessions ?? [],
   );
@@ -420,34 +397,36 @@ function mergeProjectForStore(
 }
 
 export function upsertProjectIntoCollection(
-  projects: readonly BirdCoderProject[],
-  incomingProject: BirdCoderProject,
-): BirdCoderProject[] {
-  const existingProject = projects.find((project) => project.id === incomingProject.id);
+  projects: readonly AgentProjectView[],
+  incomingProject: AgentProjectView,
+): AgentProjectView[] {
+  const existingProject = projects.find(
+    (project) => project.projectId === incomingProject.projectId,
+  );
   const mergedProject = mergeProjectForStore(existingProject, incomingProject);
   return reuseProjectCollectionIfUnchanged(
     projects,
     sortProjectsForStore([
-      ...projects.filter((project) => project.id !== incomingProject.id),
+      ...projects.filter((project) => project.projectId !== incomingProject.projectId),
       mergedProject,
     ]),
   );
 }
 
 export function mergeProjectsForStore(
-  existingProjects: readonly BirdCoderProject[],
-  incomingProjects: readonly BirdCoderProject[],
-): BirdCoderProject[] {
+  existingProjects: readonly AgentProjectView[],
+  incomingProjects: readonly AgentProjectView[],
+): AgentProjectView[] {
   const existingProjectsById = new Map(
-    existingProjects.map((project) => [project.id, project]),
+    existingProjects.map((project) => [project.projectId, project]),
   );
-  const nextProjectsById = new Map<string, BirdCoderProject>();
+  const nextProjectsById = new Map<string, AgentProjectView>();
   incomingProjects.forEach((project) => {
     const mergedProject = mergeProjectForStore(
-      nextProjectsById.get(project.id) ?? existingProjectsById.get(project.id),
+      nextProjectsById.get(project.projectId) ?? existingProjectsById.get(project.projectId),
       project,
     );
-    nextProjectsById.set(project.id, mergedProject);
+    nextProjectsById.set(project.projectId, mergedProject);
   });
   return reuseProjectCollectionIfUnchanged(
     existingProjects,
@@ -456,16 +435,16 @@ export function mergeProjectsForStore(
 }
 
 export function updateProjectInCollection(
-  projects: readonly BirdCoderProject[],
+  projects: readonly AgentProjectView[],
   projectId: string,
-  updates: Partial<BirdCoderProject>,
-): BirdCoderProject[] {
+  updates: Partial<AgentProjectView>,
+): AgentProjectView[] {
   const nextTimestamp = new Date().toISOString();
   return reuseProjectCollectionIfUnchanged(
     projects,
     sortProjectsForStore(
       projects.map((project) =>
-        project.id === projectId
+        project.projectId === projectId
           ? {
               ...project,
               ...updates,
@@ -479,23 +458,23 @@ export function updateProjectInCollection(
 }
 
 export function removeProjectFromCollection(
-  projects: readonly BirdCoderProject[],
+  projects: readonly AgentProjectView[],
   projectId: string,
-): BirdCoderProject[] {
+): AgentProjectView[] {
   return reuseProjectCollectionIfUnchanged(
     projects,
-    sortProjectsForStore(projects.filter((project) => project.id !== projectId)),
+    sortProjectsForStore(projects.filter((project) => project.projectId !== projectId)),
   );
 }
 
 export function upsertAgentSessionIntoCollection(
-  projects: readonly BirdCoderProject[],
+  projects: readonly AgentProjectView[],
   projectId: string,
   agentSession: AgentSessionView,
-): BirdCoderProject[] {
-  const projectIndex = projects.findIndex((project) => project.id === projectId);
+): AgentProjectView[] {
+  const projectIndex = projects.findIndex((project) => project.projectId === projectId);
   if (projectIndex < 0) {
-    return projects as BirdCoderProject[];
+    return projects as AgentProjectView[];
   }
 
   const nextTimestamp = new Date().toISOString();
@@ -510,7 +489,7 @@ export function upsertAgentSessionIntoCollection(
   const nextAgentSession = cloneAgentSessionForStore(
     agentSession,
     existingAgentSession,
-    { preserveEmptyMessages: false, birdCoderProjectId: projectId },
+    { preserveEmptyMessages: false, projectId },
   );
   let unsortedAgentSessions: readonly AgentSessionView[];
   if (existingAgentSessionIndex >= 0) {
@@ -540,7 +519,7 @@ export function upsertAgentSessionIntoCollection(
       : nextProject;
 
   if (mergedProject === project) {
-    return projects as BirdCoderProject[];
+    return projects as AgentProjectView[];
   }
 
   const nextProjects = [...projects];
@@ -571,14 +550,14 @@ function finalizeAgentSessionForStore(
 }
 
 export function updateAgentSessionInCollection(
-  projects: readonly BirdCoderProject[],
+  projects: readonly AgentProjectView[],
   projectId: string,
   agentSessionId: string,
   updater: (agentSession: AgentSessionView) => AgentSessionView,
-): BirdCoderProject[] {
-  const projectIndex = projects.findIndex((project) => project.id === projectId);
+): AgentProjectView[] {
+  const projectIndex = projects.findIndex((project) => project.projectId === projectId);
   if (projectIndex < 0) {
-    return projects as BirdCoderProject[];
+    return projects as AgentProjectView[];
   }
 
   const project = projects[projectIndex]!;
@@ -586,7 +565,7 @@ export function updateAgentSessionInCollection(
     (candidateAgentSession) => candidateAgentSession.id === agentSessionId,
   );
   if (currentAgentSessionIndex < 0) {
-    return projects as BirdCoderProject[];
+    return projects as AgentProjectView[];
   }
 
   const currentAgentSession = project.agentSessions[currentAgentSessionIndex]!;
@@ -617,7 +596,7 @@ export function updateAgentSessionInCollection(
       : nextProject;
 
   if (mergedProject === project) {
-    return projects as BirdCoderProject[];
+    return projects as AgentProjectView[];
   }
 
   const nextProjects = [...projects];
@@ -629,13 +608,13 @@ export function updateAgentSessionInCollection(
 }
 
 export function removeAgentSessionFromCollection(
-  projects: readonly BirdCoderProject[],
+  projects: readonly AgentProjectView[],
   projectId: string,
   agentSessionId: string,
-): BirdCoderProject[] {
-  const projectIndex = projects.findIndex((project) => project.id === projectId);
+): AgentProjectView[] {
+  const projectIndex = projects.findIndex((project) => project.projectId === projectId);
   if (projectIndex < 0) {
-    return projects as BirdCoderProject[];
+    return projects as AgentProjectView[];
   }
 
   const project = projects[projectIndex]!;
@@ -643,7 +622,7 @@ export function removeAgentSessionFromCollection(
     (agentSession) => agentSession.id === agentSessionId,
   );
   if (agentSessionIndex < 0) {
-    return projects as BirdCoderProject[];
+    return projects as AgentProjectView[];
   }
 
   const nextAgentSessions = [...project.agentSessions];
@@ -698,18 +677,10 @@ export function updateProjectsStoreSnapshot(
 
 export function mutateProjectsStore(
   userScope: string,
-  workspaceId: string,
-  updater: (projects: readonly BirdCoderProject[]) => BirdCoderProject[],
+  updater: (projects: readonly AgentProjectView[]) => AgentProjectView[],
   options: { invalidatePagination?: boolean } = {},
 ): void {
-  const normalizedWorkspaceId = workspaceId.trim();
-  if (!normalizedWorkspaceId) {
-    return;
-  }
-
-  const store = getProjectsStore(
-    buildProjectsStoreScopeKey(userScope, normalizedWorkspaceId),
-  );
+  const store = getProjectsStore(buildProjectsStoreScopeKey(userScope));
   updateProjectsStoreSnapshot(store, (previousSnapshot) => {
     const nextProjects = updater(previousSnapshot.projects);
     if (
@@ -735,36 +706,30 @@ export function mutateProjectsStore(
 }
 
 export function upsertAgentSessionIntoProjectsStore(
-  workspaceId: string,
   projectId: string,
   agentSession: AgentSessionView,
   userScope?: string,
 ): void {
-  const normalizedWorkspaceId = workspaceId.trim();
-  if (!normalizedWorkspaceId) {
+  if (!projectId.trim()) {
     return;
   }
 
   mutateProjectsStore(
     normalizeProjectsStoreUserScope(userScope),
-    normalizedWorkspaceId,
     (projects) => upsertAgentSessionIntoCollection(projects, projectId, agentSession),
   );
 }
 
 export function upsertProjectIntoProjectsStore(
-  workspaceId: string,
-  project: BirdCoderProject,
+  project: AgentProjectView,
   userScope?: string,
 ): void {
-  const normalizedWorkspaceId = workspaceId.trim();
-  if (!normalizedWorkspaceId) {
+  if (!project.projectId.trim()) {
     return;
   }
 
   mutateProjectsStore(
     normalizeProjectsStoreUserScope(userScope),
-    normalizedWorkspaceId,
     (projects) => upsertProjectIntoCollection(projects, project),
   );
 }

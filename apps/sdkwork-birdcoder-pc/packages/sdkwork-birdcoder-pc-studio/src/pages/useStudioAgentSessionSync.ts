@@ -1,11 +1,11 @@
 import { useEffect, useRef, type Dispatch, type MutableRefObject, type SetStateAction } from 'react';
 
-import type { BirdCoderProject } from '@sdkwork/birdcoder-pc-contracts-commons';
+import type { AgentProjectView } from '@sdkwork/birdcoder-pc-contracts-commons';
 import { buildAgentSessionProjectScopedKey } from '@sdkwork/birdcoder-pc-workbench';
 
 interface UseStudioAgentSessionSyncOptions {
   isActive?: boolean;
-  projects: BirdCoderProject[];
+  projects: AgentProjectView[];
   initialAgentSessionId?: string;
   initialProjectId?: string;
   onAgentSessionChange?: (agentSessionId: string, projectId?: string) => void;
@@ -47,7 +47,7 @@ export function useStudioAgentSessionSync({
 
     if (
       normalizedProjectId &&
-      projects.some((project) => project.id === normalizedProjectId)
+      projects.some((project) => project.projectId === normalizedProjectId)
     ) {
       return normalizedProjectId;
     }
@@ -65,7 +65,7 @@ export function useStudioAgentSessionSync({
       if (matchedProjectId) {
         return '';
       }
-      matchedProjectId = project.id;
+      matchedProjectId = project.projectId;
     }
 
     return matchedProjectId;

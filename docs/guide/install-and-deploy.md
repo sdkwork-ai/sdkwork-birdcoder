@@ -1,33 +1,35 @@
 # Install And Deploy
 
-BirdCoder separates local development from release packaging, but both paths use the same workspace sources and release scripts.
-
 ## Development
 
 ```bash
-pnpm dev
+pnpm install --frozen-lockfile
+pnpm dev:browser:standalone
 pnpm dev:desktop:standalone
 pnpm dev:server:standalone
-pnpm dev:browser:cloud
-pnpm topology:validate
+pnpm test:topology-validate
 ```
 
-These commands delegate to `sdkwork-app`; the selected deployment profile and
-runtime target remain independent topology inputs.
+## Build
 
-## Release families
+```bash
+pnpm build:prod
+pnpm build:desktop
+pnpm build:server
+```
+
+## Governed Packages
 
 ```bash
 pnpm release:package:desktop
+pnpm release:package:web
 pnpm release:package:server
 pnpm release:package:container
 pnpm release:package:kubernetes
-pnpm release:package:web
-pnpm release:package:standalone
-pnpm release:package:cloud
 ```
 
-Target-family commands package a concrete delivery surface. Profile-family
-commands use the application manifest and topology contract to select the
-declared package set. For the full delivery contract, use
-[Release And Deployment](/core/release-and-deployment).
+The server families are stateless and must not add database or PC
+device-state configuration. Follow
+[Release And Deployment](../core/release-and-deployment.md) and
+[Deployment Operations](../guides/operator/deployment-operations.md) before
+promotion.

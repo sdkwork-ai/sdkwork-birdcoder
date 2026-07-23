@@ -819,7 +819,6 @@ function stageFamilyPayload(bundleRoot, family, descriptor, rootDir, profile) {
 
   if (family === 'container') {
     copyIfExists(path.join(rootDir, 'deployments', 'docker'), path.join(bundleRoot, 'deploy', 'docker'));
-    copyIfExists(path.join(rootDir, 'database'), path.join(bundleRoot, 'database'));
     copyRequiredFile({
       sourcePath: path.join(rootDir, 'sdks', 'sdkwork-birdcoder-app-sdk', 'openapi', 'sdkwork-birdcoder-app-api.openapi.json'),
       targetPath: path.join(bundleRoot, 'openapi', 'birdcoder-app-api.openapi.json'),
@@ -847,10 +846,6 @@ function stageFamilyPayload(bundleRoot, family, descriptor, rootDir, profile) {
 
   if (family === 'kubernetes') {
     copyIfExists(path.join(rootDir, 'deployments', 'kubernetes'), path.join(bundleRoot, 'chart'));
-    copyIfExists(
-      path.join(rootDir, 'deployments', 'kubernetes', 'values-postgresql-ha.yaml'),
-      path.join(bundleRoot, 'chart', 'values-postgresql-ha.yaml'),
-    );
     writeKubernetesReleaseSidecars(bundleRoot, descriptor);
     return;
   }

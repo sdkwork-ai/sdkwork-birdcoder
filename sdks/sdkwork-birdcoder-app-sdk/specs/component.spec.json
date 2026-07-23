@@ -92,7 +92,7 @@
         "../openapi/sdkwork-birdcoder-app-api.sdkgen.json"
       ],
       "owner": "sdkwork-birdcoder",
-      "operationCount": 39
+      "operationCount": 4
     },
     "publicExports": [
       "@sdkwork/birdcoder-app-sdk",

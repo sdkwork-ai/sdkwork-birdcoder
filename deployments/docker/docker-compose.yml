@@ -7,8 +7,6 @@ services:
       - profiles/default.env
     ports:
       - "18989:18989"
-    volumes:
-      - sdkwork-birdcoder-data:/var/lib/sdkwork-birdcoder
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "curl", "--fail", "--silent", "http://127.0.0.1:18989/readyz"]
@@ -39,6 +37,3 @@ services:
       options:
         max-size: "10m"
         max-file: "3"
-
-volumes:
-  sdkwork-birdcoder-data:

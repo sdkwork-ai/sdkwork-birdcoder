@@ -19,7 +19,6 @@ export {
   DEFAULT_WORKBENCH_RECOVERY_SNAPSHOT,
   normalizeWorkbenchRecoverySnapshot,
   buildWorkbenchRecoverySnapshot,
-  resolveStartupWorkspaceId,
   resolveWorkbenchRecoveryPersistenceSelection,
   isWorkbenchRecoverySelectionResolutionReady,
   resolveStartupProjectId,
@@ -38,7 +37,6 @@ export type {
 } from '@sdkwork/birdcoder-pc-workbench';
 export type {
   WorkbenchRecoverySnapshot,
-  ResolveStartupWorkspaceIdOptions,
   ResolveStartupProjectIdOptions,
   ResolveStartupAgentSessionIdOptions,
   BuildWorkbenchRecoveryAnnouncementOptions,

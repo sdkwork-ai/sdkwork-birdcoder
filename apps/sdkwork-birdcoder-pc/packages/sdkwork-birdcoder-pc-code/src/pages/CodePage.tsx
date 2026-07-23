@@ -48,7 +48,6 @@ import { CodePageSurface } from './CodePageSurface';
 import { useCodePageClipboardActions } from './useCodePageClipboardActions';
 import { useCodeDeleteConfirmation } from './useCodeDeleteConfirmation';
 import { useCodeEditorChatLayout } from './useCodeEditorChatLayout';
-import { useCodeEffectiveWorkspaceId } from './useCodeEffectiveWorkspaceId';
 import { useCodeServerDirectoryProjectImport } from './useCodeServerDirectoryProjectImport';
 import { useCodeNewAgentSessionRequestState } from './useCodeNewAgentSessionRequestState';
 import { useCodePageSessionSelection } from './useCodePageSessionSelection';
@@ -59,17 +58,12 @@ import { useCodeWorkbenchCommands } from './useCodeWorkbenchCommands';
 
 function CodePageComponent({
   isVisible = true,
-  workspaceId,
   projectId,
   initialAgentSessionId,
   onProjectChange,
   onAgentSessionChange,
 }: CodePageProps) {
   const { t } = useTranslation();
-  const { createWorkspace, effectiveWorkspaceId, refreshWorkspaces } = useCodeEffectiveWorkspaceId({
-    isVisible,
-    workspaceId,
-  });
   const {
     hasMore: hasMoreProjects,
     hasFetched: hasFetchedProjects,
@@ -81,7 +75,7 @@ function CodePageComponent({
     createProject,
     createAgentSession,
     renameProject,
-    updateProject,
+    archiveProject,
     deleteProject,
     renameAgentSession,
     updateAgentSession,
@@ -92,7 +86,7 @@ function CodePageComponent({
     forkAgentSession,
     loadMoreProjects,
     loadMoreProjectSessions,
-  } = useProjects(effectiveWorkspaceId, {
+  } = useProjects({
     isActive: isVisible,
     targetProjectId: projectId,
   });
@@ -197,7 +191,7 @@ function CodePageComponent({
       : resolveSession(agentSessionId);
   }, [currentProjectId, resolveSession, resolveSessionInProject]);
   const projectGitOverviewState = useProjectGitOverview({
-    projectId: currentProject?.id,
+    projectId: currentProject?.projectId,
   });
   const session = selectedAgentSessionLocation?.agentSession;
   const {
@@ -415,17 +409,16 @@ function CodePageComponent({
     };
   }, [currentProject?.name, currentProjectId, isVisible, mountRecoveryState]);
 
-  const resolveProjectActionTarget = useCallback((project?: { id: string; name: string } | null) => {
+  const resolveProjectActionTarget = useCallback((
+    project?: { name: string; projectId: string } | null,
+  ) => {
     return resolveCodeProjectActionTarget(project, addToast);
   }, [addToast]);
 
   const { selectFolderAndImportProject } = useCodeServerDirectoryProjectImport({
     createProject,
-    createWorkspace,
     deleteProject,
-    effectiveWorkspaceId,
     projectService,
-    refreshWorkspaces,
   });
 
   const activateImportedProject = useCallback((projectId: string) => {
@@ -438,12 +431,7 @@ function CodePageComponent({
     selectProjectWithoutAgentSession(projectId);
   }, [latestAgentSessionIdByProjectId, selectProjectWithoutAgentSession, selectSession]);
 
-  const syncImportedProjectInBackground = useCallback((projectId: string, workspaceId: string) => {
-    const normalizedWorkspaceId = workspaceId.trim();
-    if (!normalizedWorkspaceId) {
-      return;
-    }
-
+  const syncImportedProjectInBackground = useCallback((projectId: string) => {
     void (async () => {
       try {
         const hydratedProject = await hydrateImportedProjectFromAuthority({
@@ -452,7 +440,6 @@ function CodePageComponent({
           projectId,
           projectService,
           userScope: user?.id,
-          workspaceId: normalizedWorkspaceId,
         });
         if (!hydratedProject) {
           return;
@@ -496,7 +483,6 @@ function CodePageComponent({
     resolveProjectName: (targetProjectId: string) =>
       resolveProjectById(targetProjectId)?.name ?? targetProjectId,
     restoreSelectionAfterRefresh,
-    workspaceId,
   });
 
   const handleRenameSession = useCallback(async (
@@ -507,7 +493,7 @@ function CodePageComponent({
     if (newName && newName.trim()) {
       const project = resolveSessionActionLocation(agentSessionId, projectId)?.project;
       if (project) {
-        await renameAgentSession(project.id, agentSessionId, newName.trim());
+        await renameAgentSession(project.projectId, agentSessionId, newName.trim());
       }
     }
   }, [renameAgentSession, resolveSessionActionLocation]);
@@ -532,7 +518,7 @@ function CodePageComponent({
     deleteAgentSessionItem,
     deleteProject,
     onProjectChange,
-    projectRemovedMessage: t('code.projectRemoved'),
+    projectDeletedMessage: t('code.projectDeleted'),
     resolveProjectById,
     resolveSession: resolveSessionActionLocation,
     sessionId,
@@ -560,7 +546,7 @@ function CodePageComponent({
       }
 
       activateImportedProject(importedProject.projectId);
-      syncImportedProjectInBackground(importedProject.projectId, importedProject.workspaceId);
+      syncImportedProjectInBackground(importedProject.projectId);
       addToast(`Project created successfully: ${importedProject.projectName}`, 'success');
       return importedProject.projectId;
     } catch (error) {
@@ -580,7 +566,7 @@ function CodePageComponent({
       const importedProject = await selectFolderAndImportProject(t('app.serverDirectory'));
       if (importedProject) {
         activateImportedProject(importedProject.projectId);
-        syncImportedProjectInBackground(importedProject.projectId, importedProject.workspaceId);
+        syncImportedProjectInBackground(importedProject.projectId);
         addToast(`Opened folder: ${importedProject.projectName}`, 'success');
       }
     } catch (error) {
@@ -641,10 +627,7 @@ function CodePageComponent({
         folderInfo: pickerResult.source,
       });
 
-      syncImportedProjectInBackground(
-        currentProjectId,
-        currentProject?.workspaceId?.trim() || effectiveWorkspaceId,
-      );
+      syncImportedProjectInBackground(currentProjectId);
       addToast(`Opened folder: ${reboundProject.projectName}`, 'success');
     } catch (error) {
       console.error('Failed to rebind local project folder', error);
@@ -660,22 +643,19 @@ function CodePageComponent({
   }, [
     addToast,
     currentProject?.name,
-    currentProject?.workspaceId,
     currentProjectId,
-    effectiveWorkspaceId,
     projectRuntimeLocationService,
     syncImportedProjectInBackground,
   ]);
 
   const handleArchiveProject = useCallback(async (projectId: string) => {
     const project = resolveProjectById(projectId);
-    if (project) {
-      await updateProject(projectId, {
-        status: project.archived ? 'active' : 'archived',
-      });
-      addToast(`${!project.archived ? 'Archived' : 'Unarchived'} project: ${project.name}`, 'info');
+    if (!project || project.status === 'archived') {
+      return;
     }
-  }, [addToast, resolveProjectById, updateProject]);
+    await archiveProject(projectId);
+    addToast(`Archived project: ${project.name}`, 'info');
+  }, [addToast, archiveProject, resolveProjectById]);
 
   const {
     handleCopyProjectPath,
@@ -712,7 +692,7 @@ function CodePageComponent({
       return;
     }
 
-    emitRevealProjectInFileManager({ projectId: project.id });
+    emitRevealProjectInFileManager({ projectId: project.projectId });
   }, [resolveProjectById]);
 
   const handlePinSession = useCallback(async (
@@ -724,7 +704,7 @@ function CodePageComponent({
     if (project) {
       const agentSession = resolvedSessionLocation?.agentSession;
       if (agentSession) {
-        await updateAgentSession(project.id, agentSessionId, { pinned: !agentSession.pinned });
+        await updateAgentSession(project.projectId, agentSessionId, { pinned: !agentSession.pinned });
         addToast(
           t(agentSession.pinned ? 'code.unpinnedSession' : 'code.pinnedSession', {
             name: agentSession.title,
@@ -747,7 +727,7 @@ function CodePageComponent({
         return;
       }
 
-      await updateAgentSession(project.id, agentSessionId, { archived: !agentSession.archived });
+      await updateAgentSession(project.projectId, agentSessionId, { archived: !agentSession.archived });
       addToast(
         t(agentSession.archived ? 'code.unarchivedSession' : 'code.archivedSession', {
           id: agentSessionId,
@@ -766,7 +746,7 @@ function CodePageComponent({
     if (project) {
       const agentSession = resolvedSessionLocation?.agentSession;
       if (agentSession) {
-        await updateAgentSession(project.id, agentSessionId, { unread: !agentSession.unread });
+        await updateAgentSession(project.projectId, agentSessionId, { unread: !agentSession.unread });
         addToast(
           t(agentSession.unread ? 'code.markedAsRead' : 'code.markedAsUnread', {
             name: agentSession.title,
@@ -785,8 +765,8 @@ function CodePageComponent({
     const project = resolvedSessionLocation?.project;
     if (project) {
       try {
-        const newSession = await forkAgentSession(project.id, agentSessionId);
-        selectSession(newSession.id, { projectId: project.id });
+        const newSession = await forkAgentSession(project.projectId, agentSessionId);
+        selectSession(newSession.id, { projectId: project.projectId });
         addToast(
           t('code.forkedToLocal', {
             name: newSession.title ?? newSession.id,
@@ -808,11 +788,11 @@ function CodePageComponent({
     if (project) {
       try {
         const newSession = await forkAgentSession(
-          project.id,
+          project.projectId,
           agentSessionId,
           `${resolvedSessionLocation?.agentSession.title} (New Tree)`,
         );
-        selectSession(newSession.id, { projectId: project.id });
+        selectSession(newSession.id, { projectId: project.projectId });
         addToast(
           t('code.forkedToNewWorktree', {
             name: newSession.title ?? newSession.id,
@@ -860,14 +840,13 @@ function CodePageComponent({
             await regenerateWorkbenchAgentSessionFromLastUserMessage({
               agentSession,
               deleteAgentSessionItem,
-              projectId: project.id,
+              projectId: project.projectId,
               regenerateMessageContext: buildWorkbenchAgentSessionTurnContext({
                 currentFileContent: fileContent,
                 currentFileLanguage: selectedFile ? getLanguageFromPath(selectedFile) : null,
                 currentFilePath: selectedFile,
-                projectId: project.id,
+                projectId: project.projectId,
                 sessionId: agentSession.id,
-                workspaceId,
               }),
               submitAgentTurn: (targetProjectId, targetAgentSessionId, content, context) =>
                 sendMessage(targetProjectId, targetAgentSessionId, content, context),
@@ -891,7 +870,6 @@ function CodePageComponent({
     selectedFile,
     sendMessage,
     setSelectionRefreshToken,
-    workspaceId,
   ]);
 
   const handleRestoreMessage = useCallback(async (
@@ -959,7 +937,7 @@ function CodePageComponent({
         if (!projects.length) {
           return handleNewProject();
         }
-        return projects[0]?.id;
+        return projects[0]?.projectId;
       },
     });
     if (!bootstrappedSession) {
@@ -974,7 +952,6 @@ function CodePageComponent({
         currentFilePath: selectedFile,
         projectId: bootstrappedSession.projectId,
         sessionId: bootstrappedSession.agentSessionId,
-        workspaceId,
       });
       const sentMessage = await sendMessage(
         bootstrappedSession.projectId,
@@ -1010,7 +987,6 @@ function CodePageComponent({
     sendMessage,
     setSelectionRefreshToken,
     t,
-    workspaceId,
   ]);
   const visibleSessionId = isNewAgentSessionCreating ? null : sessionId;
   const selectedAgentSession = isNewAgentSessionCreating ? null : session;
@@ -1034,7 +1010,6 @@ function CodePageComponent({
     selectedAgentSession,
     selectedAgentSessionId: visibleSessionId,
     selectedProject: selectedAgentSessionLocation?.project ?? currentProject ?? null,
-    workspaceId,
   });
   const selectedAgentSessionItems = useMemo(
     () => (isNewAgentSessionCreating ? [] : selectedAgentSession?.items ?? []),
@@ -1159,7 +1134,7 @@ function CodePageComponent({
     activeTab,
     currentProjectId,
     isProjectGitOverviewDrawerOpen,
-    projectId: currentProject?.id,
+    projectId: currentProject?.projectId,
     projectGitOverviewState,
     projectName: currentProject?.name,
     deleteConfirmation,
@@ -1210,7 +1185,6 @@ function CodePageComponent({
     terminalHeight,
     terminalRequest,
     viewingDiff,
-    workspaceId,
     onArchiveAgentSession: handleArchiveSession,
     onArchiveProject: handleArchiveProject,
     onCancelDelete: handleCancelDelete,

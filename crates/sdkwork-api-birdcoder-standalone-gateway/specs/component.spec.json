@@ -83,11 +83,6 @@
       "purpose": "Generated SDK and SDK consumer boundary rules."
     },
     {
-      "file": "DATABASE_SPEC.md",
-      "path": "../../../../sdkwork-specs/DATABASE_SPEC.md",
-      "purpose": "Portable SQLite/PostgreSQL database lifecycle and repository rules."
-    },
-    {
       "file": "SECURITY_SPEC.md",
       "path": "../../../../sdkwork-specs/SECURITY_SPEC.md",
       "purpose": "Authn, authz, CORS, rate limiting, and secret-handling rules."
@@ -105,7 +100,7 @@
     {
       "file": "TEST_SPEC.md",
       "path": "../../../../sdkwork-specs/TEST_SPEC.md",
-      "purpose": "Contract, smoke, database parity, and release verification rules."
+      "purpose": "Contract, smoke, and release verification rules."
     }
   ],
   "contracts": {
@@ -114,8 +109,7 @@
       ".",
       "sdkwork_api_birdcoder_standalone_gateway::assemble_api_router",
       "sdkwork_api_birdcoder_standalone_gateway::bootstrap::build_app",
-      "sdkwork_api_birdcoder_standalone_gateway::server::listen::serve",
-      "sdkwork_api_birdcoder_standalone_gateway::enable_process_shared_database_pool"
+      "sdkwork_api_birdcoder_standalone_gateway::server::listen::serve"
     ],
     "providedPorts": [
       {
@@ -125,10 +119,6 @@
       {
         "name": "standaloneGatewayServer",
         "export": "sdkwork_api_birdcoder_standalone_gateway::server::listen::serve"
-      },
-      {
-        "name": "sharedDatabasePoolRuntime",
-        "export": "sdkwork_api_birdcoder_standalone_gateway::enable_process_shared_database_pool"
       }
     ],
     "requiredPorts": [
@@ -140,7 +130,6 @@
     "runtimeEntrypoints": [
       "src/main.rs#main",
       "src/main.rs#run",
-      "src/lib.rs#enable_process_shared_database_pool",
       "src/server/listen.rs#serve",
       "Cargo.toml[[bin]].sdkwork-api-birdcoder-standalone-gateway"
     ],
@@ -152,10 +141,6 @@
     "dependencyApiSurfaces": [],
     "events": [],
     "configKeys": [
-      "SDKWORK_BIRDCODER_DATABASE_ENGINE",
-      "SDKWORK_CLAW_DATABASE_URL",
-      "SDKWORK_CLAW_DATABASE_SCHEMA",
-      "SDKWORK_BIRDCODER_DATABASE_FILE",
       "SDKWORK_BIRDCODER_DEPLOYMENT_PROFILE",
       "SDKWORK_BIRDCODER_RUNTIME_TARGET",
       "SDKWORK_BIRDCODER_ENVIRONMENT"
@@ -163,7 +148,7 @@
   },
   "integration": {
     "authority": "The standalone gateway is a thin runtime host: it initializes process infrastructure, asks the host-neutral BirdCoder API assembly to build the router, and binds the single standalone listener. It owns no route, service, repository, Agents, IAM, or Provider behavior.",
-    "databasePolicy": "The gateway enables the process-shared sdkwork-database pool before assembly startup; the BirdCoder assembly and database host own lifecycle and persistence composition.",
+    "statePolicy": "The gateway and BirdCoder assembly are stateless composition hosts and own no database, migration, backup, repository, or persistence lifecycle.",
     "assemblyPolicy": "BirdCoder HTTP behavior is consumed only through sdkwork-api-birdcoder-assembly. The gateway must not depend directly on route crates or duplicate assembly implementation dependencies.",
     "securityPolicy": "The BirdCoder API assembly owns sdkwork-web-framework request context, authorization, CORS, and response policy; the gateway owns listener lifecycle only."
   },
@@ -172,8 +157,7 @@
       "cargo test -p sdkwork-api-birdcoder-standalone-gateway --test bootstrap_smoke -- --nocapture",
       "node ../../../../sdkwork-specs/tools/check-component-port-bindings.mjs --root .",
       "node ../../../../sdkwork-specs/tools/check-route-path-collisions.mjs --root .",
-      "node scripts/web-framework-standard-contract.test.mjs",
-      "node scripts/database-framework-standard-contract.test.mjs"
+      "node scripts/web-framework-standard-contract.test.mjs"
     ]
   }
 }

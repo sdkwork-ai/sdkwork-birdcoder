@@ -22,7 +22,6 @@ export type {
 } from '@sdkwork/birdcoder-pc-admin-core';
 export * from './services/interfaces/ICatalogService.ts';
 export * from './services/interfaces/IDocumentService.ts';
-export * from './services/interfaces/IWorkspaceService.ts';
 export * from './services/interfaces/IProjectService.ts';
 export * from './services/interfaces/IGitService.ts';
 export * from './services/interfaces/IPromptService.ts';

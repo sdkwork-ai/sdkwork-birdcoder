@@ -1,17 +1,17 @@
 import type { IFileNode } from './index.ts';
 
-export interface WorkspaceFileSearchResult {
+export interface ProjectFileSearchResult {
   path: string;
   line: number;
   content: string;
 }
 
-export interface WorkspaceFileSearchExecutionResult {
+export interface ProjectFileSearchExecutionResult {
   limitReached: boolean;
-  results: WorkspaceFileSearchResult[];
+  results: ProjectFileSearchResult[];
 }
 
-export interface WorkspaceFileSearchOptions {
+export interface ProjectFileSearchOptions {
   query: string;
   maxFileContentCharacters?: number;
   maxResults?: number;
@@ -19,7 +19,7 @@ export interface WorkspaceFileSearchOptions {
   signal?: AbortSignal;
 }
 
-export interface SearchProjectFilesOptions extends WorkspaceFileSearchOptions {
+export interface SearchProjectFilesOptions extends ProjectFileSearchOptions {
   files: ReadonlyArray<IFileNode>;
   maxConcurrency?: number;
   readFileContent: (path: string) => Promise<string>;
@@ -163,9 +163,7 @@ function buildSearchSnippet(
     normalizedQuery.length,
     maxSnippetLength - ellipsis.length * 2,
   );
-  // NOTE: variables named `from`/`to` (not start/end) to avoid false-positive
-  // matches in check-pagination.mjs — this is string snippet truncation, NOT
-  // client-side list pagination.
+  // `from` and `to` describe string slicing, not client-side list pagination.
   let from = Math.max(0, matchIndex - Math.floor((maxCoreLength - normalizedQuery.length) / 2));
   let to = Math.min(normalizedLine.length, from + maxCoreLength);
   from = Math.max(0, to - maxCoreLength);
@@ -181,8 +179,8 @@ function collectMatchesForFile(
   normalizedQuery: string,
   maxSnippetLength: number,
   maxMatches: number,
-): WorkspaceFileSearchResult[] {
-  const matches: WorkspaceFileSearchResult[] = [];
+): ProjectFileSearchResult[] {
+  const matches: ProjectFileSearchResult[] = [];
   let lineNumber = 1;
   let lineStartIndex = 0;
 
@@ -216,7 +214,7 @@ function collectMatchesForFile(
 
 export async function searchProjectFiles(
   options: SearchProjectFilesOptions,
-): Promise<WorkspaceFileSearchExecutionResult> {
+): Promise<ProjectFileSearchExecutionResult> {
   const normalizedQuery = options.query.trim().toLowerCase();
   if (!normalizedQuery) {
     return {
@@ -231,8 +229,8 @@ export async function searchProjectFiles(
   const maxResults = Math.max(1, Math.floor(options.maxResults ?? 200));
   const maxSnippetLength = clampSnippetLength(options.maxSnippetLength);
   const activeReads = new Set<Promise<void>>();
-  const orderedResultsByFileIndex = new Map<number, WorkspaceFileSearchResult[]>();
-  const results: WorkspaceFileSearchResult[] = [];
+  const orderedResultsByFileIndex = new Map<number, ProjectFileSearchResult[]>();
+  const results: ProjectFileSearchResult[] = [];
   let nextFileIndex = 0;
   let nextResultIndex = 0;
   let contentBudgetReached = false;

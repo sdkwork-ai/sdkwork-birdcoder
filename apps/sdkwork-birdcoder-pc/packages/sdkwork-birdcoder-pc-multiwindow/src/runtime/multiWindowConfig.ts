@@ -4,7 +4,7 @@ import {
   resolveWorkbenchCodeEngineSelectedModelId,
   type WorkbenchCodeEngineSettingsCarrier,
 } from '@sdkwork/birdcoder-pc-workbench/workbench/codeEngineCatalog';
-import type { BirdCoderProject } from '@sdkwork/birdcoder-pc-contracts-commons';
+import type { AgentProjectView } from '@sdkwork/birdcoder-pc-contracts-commons';
 
 import {
   MAX_MULTI_WINDOW_PANES,
@@ -21,7 +21,7 @@ interface BuildInitialMultiWindowPaneConfigsOptions {
   initialAgentSessionId?: string | null;
   initialProjectId?: string | null;
   preferences?: WorkbenchCodeEngineSettingsCarrier | null;
-  projects: readonly BirdCoderProject[];
+  projects: readonly AgentProjectView[];
 }
 
 function normalizeText(value: string | null | undefined): string {
@@ -90,12 +90,12 @@ function collectSessionSeeds({
       agentSessionId: agentSession.id,
       engineId: agentSession.engineId,
       modelId: agentSession.modelId,
-      projectId: project.id,
+      projectId: project.projectId,
       title: agentSession.title,
     })),
   );
   const initialProjectExists = normalizedInitialProjectId
-    ? projects.some((project) => project.id === normalizedInitialProjectId)
+    ? projects.some((project) => project.projectId === normalizedInitialProjectId)
     : false;
   const scopedProjectSeeds = initialProjectExists
     ? seeds.filter((seed) => seed.projectId === normalizedInitialProjectId)
@@ -154,7 +154,7 @@ export function buildInitialMultiWindowPaneConfigs(
   const sessionSeeds = collectSessionSeeds(options);
   const fallbackProjectId =
     normalizeText(options.initialProjectId) ||
-    options.projects[0]?.id ||
+    options.projects[0]?.projectId ||
     '';
 
   return Array.from({ length: MAX_MULTI_WINDOW_PANES }, (_, index) => {

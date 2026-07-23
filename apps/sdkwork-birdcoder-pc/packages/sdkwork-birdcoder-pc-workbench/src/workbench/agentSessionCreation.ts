@@ -7,7 +7,6 @@ import { globalEventBus } from '../utils/EventBus.ts';
 import { buildFileChangeRestorePlan } from './fileChangeRestore.ts';
 
 export interface WorkbenchAgentSessionTurnContext {
-  workspaceId?: string;
   projectId?: string;
   sessionId?: string;
   currentFile?: {
@@ -29,7 +28,7 @@ export interface CreateNewAgentSessionRequest {
     | 'message-submit'
     | 'multi-window'
     | 'studio'
-    | 'workspace-menu';
+    | 'project-menu';
   title?: string;
 }
 
@@ -211,21 +210,17 @@ export function buildWorkbenchAgentSessionTurnContext({
   currentFilePath,
   projectId,
   sessionId,
-  workspaceId,
 }: {
   currentFileContent?: string | null;
   currentFileLanguage?: string | null;
   currentFilePath?: string | null;
   projectId: string;
   sessionId: string;
-  workspaceId?: string | null;
 }): WorkbenchAgentSessionTurnContext {
-  const normalizedWorkspaceId = workspaceId?.trim() ?? '';
   const normalizedCurrentFilePath = currentFilePath?.trim() ?? '';
   const normalizedCurrentFileLanguage = currentFileLanguage?.trim() ?? '';
 
   return {
-    ...(normalizedWorkspaceId ? { workspaceId: normalizedWorkspaceId } : {}),
     projectId,
     sessionId,
     ...(normalizedCurrentFilePath

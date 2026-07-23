@@ -1,12 +1,12 @@
 import type { CSSProperties } from 'react';
-import type { AgentSessionView, BirdCoderProject } from '@sdkwork/birdcoder-pc-contracts-commons';
+import type { AgentSessionView, AgentProjectView } from '@sdkwork/birdcoder-pc-contracts-commons';
 
 export interface ProjectExplorerProjectEntry {
   canShowMoreSessions: boolean;
   filteredSessions: AgentSessionView[];
   isLoadingMoreSessions: boolean;
   nextVisibleSessionCount: number;
-  project: BirdCoderProject;
+  project: AgentProjectView;
   visibleSessions: AgentSessionView[];
 }
 

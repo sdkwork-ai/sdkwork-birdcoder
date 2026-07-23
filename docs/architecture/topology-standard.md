@@ -1,79 +1,56 @@
 # BirdCoder Runtime Topology
 
-This document narrows the SDKWork runtime topology standard for BirdCoder. The
-machine-readable authority is specs/topology.spec.json; the global authorities
-are APP_RUNTIME_TOPOLOGY_SPEC.md, CONFIG_SPEC.md, and DEPLOYMENT_SPEC.md.
-When they disagree, the machine contract and global specs take precedence.
+Status: active
+Owner: SDKWork maintainers
+Updated: 2026-07-23
+Specs: APP_RUNTIME_TOPOLOGY_SPEC.md, CONFIG_SPEC.md, DEPLOYMENT_SPEC.md
 
-## Deployment Profiles And Targets
+`specs/topology.spec.json` is the machine authority. BirdCoder supports
+`standalone` and `cloud` deployment profiles; browser, desktop, server,
+container, and test-runner are runtime targets rather than additional
+profiles.
 
-BirdCoder supports exactly two deployment profiles: standalone and cloud.
-Runtime targets such as browser, desktop, server, and container are host
-choices, not extra profiles.
+## Connectivity Planes
 
-| Profile + target | Primary use | Project location behavior | Runtime behavior |
-| --- | --- | --- | --- |
-| standalone + desktop | Windows local IDE | A Tauri desktop location is registered for an imported root and materialized as a current-device binding. | Local actions use the device binding after canonical-root validation. |
-| standalone + browser + server | Private server with web client | Browser handles remain local; server locations belong to trusted server targets and persist protected root data. | Browser does not create an OS path or execution grant. |
-| standalone + desktop + server | Tauri client against private server | Desktop and server can hold different locations for the same project. | Each action resolves an explicit location and target; no cross-target path reuse. |
-| cloud + server or container | Cloud control plane | BirdCoder stores only coding-workbench state and stable external execution references. | Agents, Kernel, and Providers own remote execution. |
+| Plane | Purpose |
+| --- | --- |
+| `application.public-ingress` | Four BirdCoder System operations |
+| `platform.api-gateway` | Default endpoint for generated dependency SDKs |
+| Owner-specific override | Explicit endpoint for one dependency SDK |
 
-Development defaults and checked-in templates use the canonical
-deploymentProfile.environment form under etc/topology.
+Dependency clients never fall back silently to the BirdCoder application
+ingress. Browser development may use the declared same-origin platform proxy;
+desktop and release builds require explicit materialized endpoints.
 
-## Project And Location Boundary
+## Runtime Matrix
 
-Project, ProjectRuntimeLocation, local host binding, and runtime target are
-separate objects:
+| Profile and target | BirdCoder persistence | Local capability |
+| --- | --- | --- |
+| `standalone + desktop` | Tauri device state only | Authorized local mount, filesystem, Git, worktree, terminal |
+| `standalone + browser` | Browser-local capability handles only | Browser file capability; no native path |
+| `standalone + server` | None | Stateless gateway; no project directory |
+| `cloud + server/container` | None | Stateless gateway; no remote runner |
 
-    remote Project identity + IAM scope
-      -> server authorization and generic metadata
+Project and Session facts remain in Agents for every topology. Selecting a
+profile or target does not create a database, Project authority, runtime
+target, or execution grant.
 
-    ProjectRuntimeLocation + runtime target identity
-      -> encrypted absolute path, capability, health, and verified Git snapshot
+## Local And Remote Execution
 
-    project + active device IAM scope + location semantics
-      -> Browser directory handle or Tauri native local binding
+The desktop host resolves a subject-scoped `ProjectDeviceMountRegistry`
+record by canonical Agents `projectId`. The Agents Session may hold an opaque
+runtime location id through `sessionRuntimeBindings`; neither record exposes a
+native path to the BirdCoder server.
 
-    project + runtimeLocationId + authenticated target
-      -> internal canonical root for one verified action
-
-ProjectRuntimeLocation is the distributed source of truth for target-specific
-root information. Generic Project API data stays path-free. The public app API
-accepts a path only as a typed write-only registration input and never returns
-plaintext paths in list or detail responses.
-
-Browser handles are capability objects, not paths. A Tauri local binding is
-needed for local host execution but does not replace the server record. A
-server/container target must authenticate and validate ownership before it
-decrypts or uses its registered location path.
-
-## Ingress Ownership
-
-application.public-ingress is the BirdCoder-owned public entrypoint for
-BirdCoder application APIs. The platform API gateway remains a separate
-SDKWork-owned entrypoint for shared platform APIs such as IAM. Client bootstrap
-keeps `applicationApiBaseUrl` and `platformApiGatewayBaseUrl` explicit.
-
-BirdCoder, readiness checks, terminal bridges, and project bindings use the
-application ingress. Agents, Skills, Documents, Prompts, IAM, Drive, Messaging,
-Membership, and Order SDKs use the platform gateway or an explicit
-dependency-specific override. They never fall back to the application ingress.
-Browser development uses `/__sdkwork/platform` as a controlled same-origin
-proxy; desktop and release runtimes use a direct platform URL. Missing or
-invalid required URLs fail before SDK construction.
-
-## Execution Capability
-
-BirdCoder does not package, configure, supervise, or emulate a provider runner.
-Agents, Kernel, and Providers own code execution and its target validation.
-BirdCoder passes stable workbench references through their canonical SDK/API
-boundary and never derives an execution root from application configuration.
+Remote execution, target enrollment, scheduling, source synchronization, and
+provider isolation remain with Agents, Kernel, and provider infrastructure.
+The BirdCoder gateway does not emulate those capabilities.
 
 ## Verification
 
-    pnpm check:topology-standard
-    pnpm check:server
-    pnpm check:multi-mode
-    pnpm db:validate
-    node ../sdkwork-specs/tools/check-repository-docs-standard.mjs --root . --profile application
+```bash
+pnpm check:topology-standard
+pnpm check:desktop
+pnpm check:server
+pnpm check:multi-mode
+```

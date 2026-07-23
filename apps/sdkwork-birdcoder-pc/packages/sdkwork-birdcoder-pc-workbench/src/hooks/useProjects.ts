@@ -4,7 +4,7 @@ import { DEFAULT_LIST_PAGE_SIZE } from '@sdkwork/utils/pagination';
 import type {
   AgentSessionItemView,
   AgentSessionView,
-  BirdCoderProject,
+  AgentProjectView,
 } from '@sdkwork/birdcoder-pc-contracts-commons';
 import {
   areAgentSessionItemsEquivalent,
@@ -36,15 +36,14 @@ import {
   upsertProjectIntoProjectsStore,
 } from '../stores/projectsStore.ts';
 import type {
-  BirdCoderServiceListPage,
-  BirdCoderServicePageRequest,
+  AgentProjectPageRequest,
+  AgentProjectViewPage,
   CreateProjectOptions,
   UpdateProjectOptions,
 } from '../services/interfaces/IProjectService.ts';
 import {
   loadProjectAgentSessionPage,
   loadProjectsAgentSessionInventory,
-  requireAgentProjectId,
   toAgentSessionItemView,
   toAgentSessionView,
 } from '../services/agentSessionViewModels.ts';
@@ -66,7 +65,6 @@ interface CreateAgentSessionOptions {
   hostMode?: AgentSessionView['hostMode'];
   modelId: string;
   runtimeLocationId: string;
-  workspaceId?: string;
 }
 
 interface UpdateAgentSessionOptions {
@@ -129,7 +127,7 @@ interface ProjectSearchInventoryAgentSessionEntry {
 interface ProjectSearchInventoryEntry {
   agentSessions: ProjectSearchInventoryAgentSessionEntry[];
   normalizedName: string;
-  project: BirdCoderProject;
+  project: AgentProjectView;
 }
 
 interface ScoredAgentSessionCandidate {
@@ -138,7 +136,7 @@ interface ScoredAgentSessionCandidate {
 }
 
 interface ScoredProjectCandidate {
-  project: BirdCoderProject;
+  project: AgentProjectView;
   score: number;
 }
 
@@ -199,7 +197,7 @@ function normalizeSearchValue(value: string): string {
 }
 
 function buildProjectSearchInventory(
-  projects: readonly BirdCoderProject[],
+  projects: readonly AgentProjectView[],
 ): ProjectSearchInventoryEntry[] {
   return projects.map((project) => ({
     project,
@@ -239,7 +237,7 @@ function compareScoredProjects(
 function searchProjectsInventory(
   projectSearchInventory: readonly ProjectSearchInventoryEntry[],
   normalizedSearchQuery: string,
-): BirdCoderProject[] {
+): AgentProjectView[] {
   if (!normalizedSearchQuery) {
     return projectSearchInventory.map((entry) => entry.project);
   }
@@ -316,8 +314,8 @@ function searchProjectsInventory(
 }
 
 function normalizeProjectsForInventoryStore(
-  projects: readonly BirdCoderProject[],
-): BirdCoderProject[] {
+  projects: readonly AgentProjectView[],
+): AgentProjectView[] {
   return projects.map((project) => {
     let hasTranscriptPayload = false;
     const normalizedAgentSessions = project.agentSessions.map((agentSession) => {
@@ -547,11 +545,13 @@ function rollbackOptimisticAgentSessionItem(
 }
 
 function findAgentSessionInCollection(
-  projects: readonly BirdCoderProject[],
+  projects: readonly AgentProjectView[],
   projectId: string,
   agentSessionId: string,
 ): AgentSessionView | null {
-  const project = projects.find((candidateProject) => candidateProject.id === projectId);
+  const project = projects.find(
+    (candidateProject) => candidateProject.projectId === projectId,
+  );
   if (!project) {
     return null;
   }
@@ -572,37 +572,34 @@ function setProjectsStoreError(store: ProjectsStore, message: string): void {
   }));
 }
 
-function readProjectInventoryPageForWorkspace(
-  workspaceId: string,
+function readProjectInventoryPage(
   projectService: ReturnType<typeof useIDEServices>['projectService'],
-  request: BirdCoderServicePageRequest,
-): Promise<BirdCoderServiceListPage<BirdCoderProject>> {
-  return projectService.getProjectsPage(workspaceId, request);
+  request: AgentProjectPageRequest,
+): Promise<AgentProjectViewPage> {
+  return projectService.getProjectsPage(request);
 }
 
-function readProjectInventoryPageForWorkspaceWithTimeout(
-  workspaceId: string,
+function readProjectInventoryPageWithTimeout(
   projectService: ReturnType<typeof useIDEServices>['projectService'],
-  request: BirdCoderServicePageRequest,
+  request: AgentProjectPageRequest,
   timeoutMs: number = PROJECTS_FETCH_TIMEOUT_MS,
-): Promise<BirdCoderServiceListPage<BirdCoderProject>> {
+): Promise<AgentProjectViewPage> {
   const timeoutBoundary = createProjectsFetchTimeoutPromise(timeoutMs);
   return Promise.race([
-    readProjectInventoryPageForWorkspace(workspaceId, projectService, request),
+    readProjectInventoryPage(projectService, request),
     timeoutBoundary.promise,
   ]).finally(() => {
     timeoutBoundary.clear();
   });
 }
 
-async function fetchProjectsForWorkspace(
+async function fetchProjects(
   store: ProjectsStore,
-  workspaceId: string,
   projectService: ReturnType<typeof useIDEServices>['projectService'],
-  pageRequest: BirdCoderServicePageRequest,
+  pageRequest: AgentProjectPageRequest,
   mode: 'append' | 'replace',
   agentSessionService: ReturnType<typeof useIDEServices>['agentSessionService'],
-): Promise<BirdCoderProject[]> {
+): Promise<AgentProjectView[]> {
   const requestKey = `${mode}:${pageRequest.page}:${pageRequest.pageSize}`;
   if (store.inflight) {
     if (store.inflightKey === requestKey) {
@@ -610,9 +607,8 @@ async function fetchProjectsForWorkspace(
     }
 
     await store.inflight.catch(() => undefined);
-    return fetchProjectsForWorkspace(
+    return fetchProjects(
       store,
-      workspaceId,
       projectService,
       pageRequest,
       mode,
@@ -627,8 +623,7 @@ async function fetchProjectsForWorkspace(
   }));
 
   const requestInventoryVersion = store.inventoryVersion;
-  const request = readProjectInventoryPageForWorkspaceWithTimeout(
-    workspaceId,
+  const request = readProjectInventoryPageWithTimeout(
     projectService,
     pageRequest,
     PROJECTS_FETCH_TIMEOUT_MS,
@@ -711,8 +706,7 @@ function disposeProjectsStoreIfUnused(scopeKey: string): void {
   }
 
   // React cleans up changed subscriptions before mounting their replacements.
-  // Defer eviction so a workspace preview store can become the active store in
-  // that same effect flush without losing its in-flight request or snapshot.
+  // Defer eviction so a replacement subscriber can reuse in-flight inventory.
   queueMicrotask(() => {
     if (store.listeners.size > 0 || peekProjectsStore(scopeKey) !== store) {
       return;
@@ -730,17 +724,16 @@ export interface UseProjectsOptions {
   targetProjectId?: string | null;
 }
 
-export function useProjects(workspaceId?: string, options?: UseProjectsOptions) {
+export function useProjects(options?: UseProjectsOptions) {
   const { agentSessionService, projectService } = useIDEServices();
   const resolveProjectRuntimeLocationExecutionId = useProjectRuntimeLocationExecutionId();
   const { sessionRevision, user } = useAuth();
   const normalizedUserScope = normalizeProjectsStoreUserScope(
     buildBirdCoderAuthSessionInventoryScope(user?.id, sessionRevision),
   );
-  const normalizedWorkspaceId = workspaceId?.trim() ?? '';
   const shouldFetchOnMount = options?.fetchOnMount ?? true;
   const isActive = options?.isActive ?? true;
-  const pageRequest = useMemo<BirdCoderServicePageRequest>(
+  const pageRequest = useMemo<AgentProjectPageRequest>(
     () => {
       const pageSize = options?.limit ?? DEFAULT_LIST_PAGE_SIZE;
       const offset = options?.offset ?? 0;
@@ -757,9 +750,7 @@ export function useProjects(workspaceId?: string, options?: UseProjectsOptions) 
     },
     [options?.limit, options?.offset],
   );
-  const baseStoreScopeKey = normalizedWorkspaceId
-    ? buildProjectsStoreScopeKey(normalizedUserScope, normalizedWorkspaceId)
-    : '';
+  const baseStoreScopeKey = buildProjectsStoreScopeKey(normalizedUserScope);
   const isDefaultPagination =
     pageRequest.pageSize === DEFAULT_LIST_PAGE_SIZE && pageRequest.page === 1;
   const storeScopeKey = baseStoreScopeKey && !isDefaultPagination
@@ -777,7 +768,7 @@ export function useProjects(workspaceId?: string, options?: UseProjectsOptions) 
   );
 
   useEffect(() => {
-    if (!normalizedWorkspaceId || !storeScopeKey) {
+    if (!storeScopeKey) {
       setStoreSnapshot(createProjectsStoreSnapshot());
       return;
     }
@@ -804,9 +795,8 @@ export function useProjects(workspaceId?: string, options?: UseProjectsOptions) 
         (!!store.snapshot.error && store.snapshot.projects.length === 0 && !hadActiveListeners)) &&
       !store.inflight
     ) {
-      void fetchProjectsForWorkspace(
+      void fetchProjects(
         store,
-        normalizedWorkspaceId,
         projectService,
         pageRequest,
         'replace',
@@ -821,7 +811,6 @@ export function useProjects(workspaceId?: string, options?: UseProjectsOptions) 
       disposeProjectsStoreIfUnused(storeScopeKey);
     };
   }, [
-    normalizedWorkspaceId,
     agentSessionService,
     projectService,
     shouldFetchOnMount,
@@ -831,19 +820,15 @@ export function useProjects(workspaceId?: string, options?: UseProjectsOptions) 
   ]);
 
   const refreshProjects = useCallback(async () => {
-    if (!normalizedWorkspaceId || !storeScopeKey) {
+    if (!storeScopeKey) {
       const emptySnapshot = createProjectsStoreSnapshot();
       setStoreSnapshot(emptySnapshot);
       return emptySnapshot.projects;
     }
 
     const store = getProjectsStore(storeScopeKey);
-    await projectService.invalidateProjectReadCache?.({
-      workspaceId: normalizedWorkspaceId,
-    });
-    return fetchProjectsForWorkspace(
+    return fetchProjects(
       store,
-      normalizedWorkspaceId,
       projectService,
       pageRequest,
       'replace',
@@ -851,14 +836,13 @@ export function useProjects(workspaceId?: string, options?: UseProjectsOptions) 
     );
   }, [
     agentSessionService,
-    normalizedWorkspaceId,
     projectService,
     storeScopeKey,
     pageRequest,
   ]);
 
   const loadMoreProjects = useCallback(async () => {
-    if (!normalizedWorkspaceId || !storeScopeKey) {
+    if (!storeScopeKey) {
       return [];
     }
 
@@ -868,18 +852,17 @@ export function useProjects(workspaceId?: string, options?: UseProjectsOptions) 
       return store.snapshot.projects;
     }
 
-    return fetchProjectsForWorkspace(
+    return fetchProjects(
       store,
-      normalizedWorkspaceId,
       projectService,
       {
-        page: pageInfo.page + 1,
-        pageSize: pageInfo.pageSize,
+        page: (pageInfo.page ?? 1) + 1,
+        pageSize: pageInfo.pageSize ?? pageRequest.pageSize,
       },
       'append',
       agentSessionService,
     );
-  }, [agentSessionService, normalizedWorkspaceId, projectService, storeScopeKey]);
+  }, [agentSessionService, projectService, storeScopeKey]);
 
   const loadMoreProjectSessions = useCallback(
     async (
@@ -890,7 +873,7 @@ export function useProjects(workspaceId?: string, options?: UseProjectsOptions) 
       const targetCount = Number.isFinite(requestedCount)
         ? Math.max(1, Math.min(200_000, Math.floor(requestedCount)))
         : 1;
-      if (!normalizedWorkspaceId || !storeScopeKey || !normalizedProjectId) {
+      if (!storeScopeKey || !normalizedProjectId) {
         return { hasMore: false, loadedCount: 0 };
       }
 
@@ -914,7 +897,9 @@ export function useProjects(workspaceId?: string, options?: UseProjectsOptions) 
 
       const request = (async (): Promise<LoadMoreProjectSessionsResult> => {
         const store = getProjectsStore(storeScopeKey);
-        let project = store.snapshot.projects.find((candidate) => candidate.id === normalizedProjectId);
+        let project = store.snapshot.projects.find(
+          (candidate) => candidate.projectId === normalizedProjectId,
+        );
         if (!project) {
           return {
             hasMore: false,
@@ -930,7 +915,7 @@ export function useProjects(workspaceId?: string, options?: UseProjectsOptions) 
             targetCount,
           );
           const currentProject = store.snapshot.projects.find(
-            (candidate) => candidate.id === normalizedProjectId,
+            (candidate) => candidate.projectId === normalizedProjectId,
           );
           if (!currentProject) {
             return { hasMore: false, loadedCount: 0 };
@@ -945,11 +930,7 @@ export function useProjects(workspaceId?: string, options?: UseProjectsOptions) 
           }
 
           if (synchronized.project !== project) {
-            upsertProjectIntoProjectsStore(
-              synchronized.project.workspaceId,
-              synchronized.project,
-              normalizedUserScope,
-            );
+            upsertProjectIntoProjectsStore(synchronized.project, normalizedUserScope);
           }
 
           return {
@@ -959,7 +940,7 @@ export function useProjects(workspaceId?: string, options?: UseProjectsOptions) 
         }
 
         const currentProject = store.snapshot.projects.find(
-          (candidate) => candidate.id === normalizedProjectId,
+          (candidate) => candidate.projectId === normalizedProjectId,
         );
         return {
           hasMore: currentProject !== undefined,
@@ -983,7 +964,6 @@ export function useProjects(workspaceId?: string, options?: UseProjectsOptions) 
     [
       agentSessionService,
       normalizedUserScope,
-      normalizedWorkspaceId,
       projectService,
       storeScopeKey,
     ],
@@ -992,7 +972,6 @@ export function useProjects(workspaceId?: string, options?: UseProjectsOptions) 
   useEffect(() => {
     if (
       !isActive ||
-      !normalizedWorkspaceId ||
       !storeScopeKey ||
       !storeSnapshot.hasFetched ||
       storeSnapshot.isLoading ||
@@ -1002,9 +981,8 @@ export function useProjects(workspaceId?: string, options?: UseProjectsOptions) 
       return;
     }
 
-    void fetchProjectsForWorkspace(
+    void fetchProjects(
       getProjectsStore(storeScopeKey),
-      normalizedWorkspaceId,
       projectService,
       {
         page: 1,
@@ -1018,7 +996,6 @@ export function useProjects(workspaceId?: string, options?: UseProjectsOptions) 
   }, [
     isActive,
     agentSessionService,
-    normalizedWorkspaceId,
     pageRequest.pageSize,
     projectService,
     storeScopeKey,
@@ -1035,7 +1012,7 @@ export function useProjects(workspaceId?: string, options?: UseProjectsOptions) 
     pagesRequested: 0,
     lookupStatus: 'idle' as 'idle' | 'pending' | 'found' | 'missing' | 'failed',
   });
-  const targetResolutionKey = `${normalizedUserScope}\u0001${normalizedWorkspaceId}\u0001${normalizedTargetProjectId}`;
+  const targetResolutionKey = `${normalizedUserScope}\u0001${normalizedTargetProjectId}`;
   if (targetResolutionStateRef.current.key !== targetResolutionKey) {
     targetResolutionStateRef.current = {
       key: targetResolutionKey,
@@ -1046,7 +1023,7 @@ export function useProjects(workspaceId?: string, options?: UseProjectsOptions) 
   const targetResolutionBudgetExhausted =
     targetResolutionStateRef.current.pagesRequested >= MAX_TARGET_PROJECT_RESOLUTION_PAGES;
   const hasTargetProject = normalizedTargetProjectId
-    ? storeSnapshot.projects.some((project) => project.id === normalizedTargetProjectId)
+    ? storeSnapshot.projects.some((project) => project.projectId === normalizedTargetProjectId)
     : true;
   const isResolvingTargetProject = Boolean(
     normalizedTargetProjectId &&
@@ -1071,7 +1048,6 @@ export function useProjects(workspaceId?: string, options?: UseProjectsOptions) 
     const resolutionState = targetResolutionStateRef.current;
     if (
       !isActive ||
-      !normalizedWorkspaceId ||
       !storeScopeKey ||
       !normalizedTargetProjectId ||
       !storeSnapshot.hasFetched ||
@@ -1091,7 +1067,7 @@ export function useProjects(workspaceId?: string, options?: UseProjectsOptions) 
           return;
         }
 
-        if (!project || project.workspaceId !== normalizedWorkspaceId) {
+        if (!project) {
           currentState.lookupStatus = 'missing';
           setTargetResolutionRevision((revision) => revision + 1);
           return;
@@ -1121,7 +1097,6 @@ export function useProjects(workspaceId?: string, options?: UseProjectsOptions) 
     hasTargetProject,
     isActive,
     normalizedTargetProjectId,
-    normalizedWorkspaceId,
     projectService,
     storeScopeKey,
     storeSnapshot.error,
@@ -1173,18 +1148,9 @@ export function useProjects(workspaceId?: string, options?: UseProjectsOptions) 
   }, [normalizedSearchQuery, projectSearchInventory, storeSnapshot.projects]);
 
   const createProject = async (name: string, options?: CreateProjectOptions) => {
-    if (!normalizedWorkspaceId) {
-      const message = 'Workspace ID is required to create a project';
-      setStoreSnapshot((previousSnapshot) => ({
-        ...previousSnapshot,
-        error: message,
-      }));
-      throw new Error(message);
-    }
-
     try {
-      const newProject = await projectService.createProject(normalizedWorkspaceId, name, options);
-      mutateProjectsStore(normalizedUserScope, normalizedWorkspaceId, (projects) =>
+      const newProject = await projectService.createProject(name, options);
+      mutateProjectsStore(normalizedUserScope, (projects) =>
         upsertProjectIntoCollection(projects, newProject),
         { invalidatePagination: true },
       );
@@ -1208,20 +1174,21 @@ export function useProjects(workspaceId?: string, options?: UseProjectsOptions) 
     options: CreateProjectAgentSessionOptions,
   ) => {
     try {
-      const project = storeSnapshot.projects.find((candidate) => candidate.id === projectId);
+      const project = storeSnapshot.projects.find(
+        (candidate) => candidate.projectId === projectId,
+      );
       if (!project) {
-        throw new Error(`BirdCoder project ${projectId} is not loaded.`);
+        throw new Error(`Agents project ${projectId} is not loaded.`);
       }
-      const agentProjectId = requireAgentProjectId(project);
       const runtimeLocationId = await resolveProjectRuntimeLocationExecutionId(
-        projectId,
+        project.projectId,
         'terminal',
         { allowFolderSelection: true },
       );
       const session = await agentSessionService.createSession({
-        projectId: agentProjectId,
-        sourceContextId: projectId,
-        sourceContextKind: 'birdcoder-project',
+        projectId: project.projectId,
+        sourceContextId: project.projectId,
+        sourceContextKind: 'agent-project',
         title,
       });
       await agentSessionService.createRuntimeBinding(session.sessionId, {
@@ -1234,15 +1201,13 @@ export function useProjects(workspaceId?: string, options?: UseProjectsOptions) 
         requestedAt: new Date().toISOString(),
       });
       const agentSession = toAgentSessionView(session, {
-        agentProjectId,
-        birdCoderProjectId: projectId,
+        projectId: project.projectId,
         engineId: options.engineId,
         modelId: options.modelId,
         runtimeLocationId,
-        workspaceId: normalizedWorkspaceId,
       });
-      mutateProjectsStore(normalizedUserScope, normalizedWorkspaceId, (projects) =>
-        upsertAgentSessionIntoCollection(projects, projectId, agentSession),
+      mutateProjectsStore(normalizedUserScope, (projects) =>
+        upsertAgentSessionIntoCollection(projects, project.projectId, agentSession),
       );
       return agentSession;
     } catch (error: unknown) {
@@ -1261,7 +1226,7 @@ export function useProjects(workspaceId?: string, options?: UseProjectsOptions) 
   const renameProject = async (projectId: string, name: string) => {
     try {
       await projectService.renameProject(projectId, name);
-      mutateProjectsStore(normalizedUserScope, normalizedWorkspaceId, (projects) =>
+      mutateProjectsStore(normalizedUserScope, (projects) =>
         updateProjectInCollection(projects, projectId, { name }),
         { invalidatePagination: true },
       );
@@ -1280,14 +1245,11 @@ export function useProjects(workspaceId?: string, options?: UseProjectsOptions) 
   const updateProject = async (projectId: string, updates: UpdateProjectOptions) => {
     try {
       await projectService.updateProject(projectId, updates);
-      const projectPatch: Partial<BirdCoderProject> = {
+      const projectPatch: Partial<AgentProjectView> = {
         ...(updates.name === undefined ? {} : { name: updates.name }),
         ...(updates.description === undefined ? {} : { description: updates.description }),
-        ...(updates.status === undefined
-          ? {}
-          : { archived: updates.status === 'archived' }),
       };
-      mutateProjectsStore(normalizedUserScope, normalizedWorkspaceId, (projects) =>
+      mutateProjectsStore(normalizedUserScope, (projects) =>
         updateProjectInCollection(projects, projectId, projectPatch),
         { invalidatePagination: true },
       );
@@ -1303,10 +1265,28 @@ export function useProjects(workspaceId?: string, options?: UseProjectsOptions) 
     }
   };
 
+  const archiveProject = async (projectId: string) => {
+    try {
+      await projectService.archiveProject(projectId);
+      mutateProjectsStore(normalizedUserScope, (projects) =>
+        updateProjectInCollection(projects, projectId, { status: 'archived' }),
+        { invalidatePagination: true },
+      );
+    } catch (error: unknown) {
+      const message =
+        error instanceof Error ? error.message : 'Failed to archive project';
+      updateProjectsStoreSnapshot(getProjectsStore(storeScopeKey), (previousSnapshot) => ({
+        ...previousSnapshot,
+        error: message,
+      }));
+      throw error;
+    }
+  };
+
   const deleteProject = async (projectId: string) => {
     try {
       await projectService.deleteProject(projectId);
-      mutateProjectsStore(normalizedUserScope, normalizedWorkspaceId, (projects) =>
+      mutateProjectsStore(normalizedUserScope, (projects) =>
         removeProjectFromCollection(projects, projectId),
         { invalidatePagination: true },
       );
@@ -1329,7 +1309,7 @@ export function useProjects(workspaceId?: string, options?: UseProjectsOptions) 
   ) => {
     try {
       const updatedSession = await agentSessionService.updateSession(agentSessionId, { title });
-      mutateProjectsStore(normalizedUserScope, normalizedWorkspaceId, (projects) =>
+      mutateProjectsStore(normalizedUserScope, (projects) =>
         updateAgentSessionInCollection(projects, projectId, agentSessionId, (agentSession) => ({
           ...agentSession,
           title: updatedSession.title?.trim() || title,
@@ -1391,7 +1371,7 @@ export function useProjects(workspaceId?: string, options?: UseProjectsOptions) 
                 : session.lastItemSequence,
         });
       }
-      mutateProjectsStore(normalizedUserScope, normalizedWorkspaceId, (projects) =>
+      mutateProjectsStore(normalizedUserScope, (projects) =>
         updateAgentSessionInCollection(projects, projectId, agentSessionId, (agentSession) => ({
           ...agentSession,
           ...updates,
@@ -1417,28 +1397,29 @@ export function useProjects(workspaceId?: string, options?: UseProjectsOptions) 
     newTitle?: string,
   ) => {
     try {
-      const project = storeSnapshot.projects.find((candidate) => candidate.id === projectId);
+      const project = storeSnapshot.projects.find(
+        (candidate) => candidate.projectId === projectId,
+      );
       if (!project) {
-        throw new Error(`BirdCoder project ${projectId} is not loaded.`);
+        throw new Error(`Agents project ${projectId} is not loaded.`);
       }
-      const agentProjectId = requireAgentProjectId(project);
       const [parentSession, parentTurnPage, runtimeBindingPage] = await Promise.all([
         agentSessionService.getSession(agentSessionId),
         agentSessionService.listTurns(agentSessionId, { page: 1, pageSize: 200 }),
         agentSessionService.listRuntimeBindings(agentSessionId, { page: 1, pageSize: 20 }),
       ]);
       const lastTurn = parentTurnPage.items.at(-1);
-      if (parentSession.projectId?.trim() !== agentProjectId) {
+      if (parentSession.projectId?.trim() !== project.projectId) {
         throw new Error(
-          `Agent session ${agentSessionId} does not belong to Agents project ${agentProjectId}.`,
+          `Agent session ${agentSessionId} does not belong to Agents project ${project.projectId}.`,
         );
       }
       const forkedSession = await agentSessionService.createSession({
         forkedFromTurnId: lastTurn?.turnId,
         parentSessionId: parentSession.sessionId,
-        projectId: agentProjectId,
-        sourceContextId: projectId,
-        sourceContextKind: 'birdcoder-project',
+        projectId: project.projectId,
+        sourceContextId: project.projectId,
+        sourceContextKind: 'agent-project',
         title: newTitle?.trim() || `${parentSession.title?.trim() || 'Session'} (fork)`,
       });
       const currentBinding = runtimeBindingPage.items.find((binding) => binding.isCurrent);
@@ -1456,15 +1437,13 @@ export function useProjects(workspaceId?: string, options?: UseProjectsOptions) 
         });
       }
       const agentSession = toAgentSessionView(forkedSession, {
-        agentProjectId,
-        birdCoderProjectId: projectId,
+        projectId: project.projectId,
         engineId: currentBinding?.providerId,
         modelId: currentBinding?.modelId,
         runtimeLocationId: currentBinding?.runtimeLocationId ?? undefined,
-        workspaceId: normalizedWorkspaceId,
       });
-      mutateProjectsStore(normalizedUserScope, normalizedWorkspaceId, (projects) =>
-        upsertAgentSessionIntoCollection(projects, projectId, agentSession),
+      mutateProjectsStore(normalizedUserScope, (projects) =>
+        upsertAgentSessionIntoCollection(projects, project.projectId, agentSession),
       );
       return agentSession;
     } catch (error: unknown) {
@@ -1483,7 +1462,7 @@ export function useProjects(workspaceId?: string, options?: UseProjectsOptions) 
   const deleteAgentSession = async (projectId: string, agentSessionId: string) => {
     try {
       await agentSessionService.deleteSession(agentSessionId);
-      mutateProjectsStore(normalizedUserScope, normalizedWorkspaceId, (projects) =>
+      mutateProjectsStore(normalizedUserScope, (projects) =>
         removeAgentSessionFromCollection(projects, projectId, agentSessionId),
       );
     } catch (error: unknown) {
@@ -1538,7 +1517,7 @@ export function useProjects(workspaceId?: string, options?: UseProjectsOptions) 
       });
       const newMessages = completed.items.map(toAgentSessionItemView);
       const activityAt = completed.turn.completedAt ?? completed.turn.updatedAt;
-      mutateProjectsStore(normalizedUserScope, normalizedWorkspaceId, (projects) =>
+      mutateProjectsStore(normalizedUserScope, (projects) =>
         updateAgentSessionInCollection(projects, projectId, agentSessionId, (agentSession) => ({
           ...agentSession,
           items: newMessages.reduce(
@@ -1585,6 +1564,7 @@ export function useProjects(workspaceId?: string, options?: UseProjectsOptions) 
     createAgentSession,
     renameProject,
     updateProject,
+    archiveProject,
     deleteProject,
     renameAgentSession,
     updateAgentSession,

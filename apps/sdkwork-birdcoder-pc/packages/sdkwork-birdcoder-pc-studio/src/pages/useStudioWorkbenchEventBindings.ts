@@ -16,12 +16,12 @@ import {
   getResolvedProjectRuntimeLocationWorkingDirectory,
   globalEventBus,
   resolveRunConfigurationTerminalLaunch,
-  type BirdCoderProjectAgentSessionIndex,
+  type AgentProjectSessionIndex,
   type RunConfigurationRecord,
   type ProjectRuntimeLocationResolver,
   type TerminalCommandRequest,
 } from '@sdkwork/birdcoder-pc-workbench';
-import type { BirdCoderProject } from '@sdkwork/birdcoder-pc-contracts-commons';
+import type { AgentProjectView } from '@sdkwork/birdcoder-pc-contracts-commons';
 
 type ToastVariant = 'success' | 'info' | 'error';
 
@@ -30,7 +30,7 @@ interface UseStudioWorkbenchEventBindingsOptions {
   saveError?: string | null;
   isActive?: boolean;
   currentProjectIdRef: MutableRefObject<string>;
-  projectsRef: MutableRefObject<BirdCoderProject[]>;
+  projectsRef: MutableRefObject<AgentProjectView[]>;
   resolveProjectRuntimeLocation: ProjectRuntimeLocationResolver;
   runConfigurationsRef: MutableRefObject<RunConfigurationRecord[]>;
   selectedAgentSessionIdRef: MutableRefObject<string>;
@@ -69,7 +69,7 @@ export function useStudioWorkbenchEventBindings({
   t,
 }: UseStudioWorkbenchEventBindingsOptions) {
   const projectAgentSessionIndexProjectsRef = useRef(projectsRef.current);
-  const projectAgentSessionIndexRef = useRef<BirdCoderProjectAgentSessionIndex | null>(null);
+  const projectAgentSessionIndexRef = useRef<AgentProjectSessionIndex | null>(null);
   const flushPendingAutosaveRef = useRef(flushPendingAutosave);
   const resolveProjectRuntimeLocationRef = useRef(resolveProjectRuntimeLocation);
 

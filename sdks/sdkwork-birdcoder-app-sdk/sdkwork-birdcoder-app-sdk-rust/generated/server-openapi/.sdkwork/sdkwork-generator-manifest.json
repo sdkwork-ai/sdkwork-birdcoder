@@ -36,7 +36,7 @@
     },
     {
       "path": "README.md",
-      "sha256": "e009a163c8a57ced795308c020158de8a76b4695b43b4224a8a017141bd6d129"
+      "sha256": "85f0b42c556d9d97259780441f32dd15e9c036db985a249cb77ac6cc4497debb"
     },
     {
       "path": "sdkwork-sdk.json",
@@ -47,12 +47,8 @@
       "sha256": "737b6040c149e8f06366dd3e16903552c04f0e52f50e8605e4700b167b3cf1fe"
     },
     {
-      "path": "src/api/intelligence.rs",
-      "sha256": "12f0dc87b271f66df208c642413a82a893fad7a603715cb6655f7771e0344ffe"
-    },
-    {
       "path": "src/api/mod.rs",
-      "sha256": "04b2152f47830f12e15cf6d659e62032b1012492ecd12cf2860f9bec3cb0cdd8"
+      "sha256": "abef1a5f3312c33fdad1733eff071165a6af2c5ba3955f9c64feb0dc458d61f7"
     },
     {
       "path": "src/api/paths.rs",
@@ -64,7 +60,7 @@
     },
     {
       "path": "src/client.rs",
-      "sha256": "02b37f82531d1febe93caee8ca340031677efccf28dc3afe8bbe2148e38afcad"
+      "sha256": "a168a1209af09ab4affddf6a3308d346ae4297e8a3caf9d8938a6033f7b6cd89"
     },
     {
       "path": "src/http/client.rs",
@@ -103,10 +99,6 @@
       "sha256": "386ecff51e2b6122c45b61b2c23c91256068c15f75cc5bea23095a5cf698e633"
     },
     {
-      "path": "src/models/bird_coder_commit_project_git_changes_request.rs",
-      "sha256": "fafc8139a80e4a929cb0daf66667c02ae813275688e3c01165baa38f3c39f76b"
-    },
-    {
       "path": "src/models/bird_coder_core_health_summary_envelope.rs",
       "sha256": "34c1c28f77736348f04bcced138d758df3bf5eb06083106e10db53c1ef59c8d8"
     },
@@ -123,180 +115,12 @@
       "sha256": "6168ec492981c3eff70ed29b86b8923a64538e49b9289d10789d99032f65e303"
     },
     {
-      "path": "src/models/bird_coder_create_project_document_binding_request.rs",
-      "sha256": "83a6faaa86351dc5db7190a9530c6f5c496e5dafb00b3c9c455ea69b4a0ec853"
-    },
-    {
-      "path": "src/models/bird_coder_create_project_git_branch_request.rs",
-      "sha256": "454496d09e70c0adba924cfe09260eea98eb71be38cd7815a8db6c8138b06e61"
-    },
-    {
-      "path": "src/models/bird_coder_create_project_git_worktree_request.rs",
-      "sha256": "8975067e6cfb53188045c9653f1d4ddde9ee039747de0e00346a9334236b87fd"
-    },
-    {
-      "path": "src/models/bird_coder_create_project_request.rs",
-      "sha256": "c6197b3d458c115bda43c2b012a0310e133ab8c848f009042ada01884c076ad0"
-    },
-    {
-      "path": "src/models/bird_coder_create_project_runtime_location_request.rs",
-      "sha256": "08361a47f570d27d4a912e12634e12a49e9435373490e82527f6cf7c1ecfd6d8"
-    },
-    {
-      "path": "src/models/bird_coder_create_workspace_request.rs",
-      "sha256": "0443ccda7982735c63f82b6a01ce66d27e66bf1c3ffc8042e0d88dcb596aef4c"
-    },
-    {
-      "path": "src/models/bird_coder_git_branch_summary.rs",
-      "sha256": "b81900fb43f3f8d5c98563f28e0f2162adaa063af1d80e3a479451bb3321f177"
-    },
-    {
-      "path": "src/models/bird_coder_git_status_counts.rs",
-      "sha256": "b384fb9f25b7666f5b6a4c764f76f32cceebd1cd59a9eea383dbbab1599eba8f"
-    },
-    {
-      "path": "src/models/bird_coder_git_worktree_summary.rs",
-      "sha256": "8771363e173beb2805018db116eca667a290b8c25d70533deff2ef9cf10cf643"
-    },
-    {
-      "path": "src/models/bird_coder_project_document_binding_envelope.rs",
-      "sha256": "37dea1b1ac7b713e7ad4e6828642bc3b33c7d3e0e832165fe640fb2294e6499a"
-    },
-    {
-      "path": "src/models/bird_coder_project_document_binding_list_envelope.rs",
-      "sha256": "c65ec0013fe3fd1ecc51addffdf0ee0d75e6faa52e76d47685eb1eec065194f9"
-    },
-    {
-      "path": "src/models/bird_coder_project_document_binding.rs",
-      "sha256": "1fd5b18312c2c4edd7473f72c42199c8058190be7952392cac0badef79730eac"
-    },
-    {
-      "path": "src/models/bird_coder_project_git_diff_envelope.rs",
-      "sha256": "39190f28f42bd5cc8d9df8439fd0eaec5da238f3aaa3849db24c45024bc18f53"
-    },
-    {
-      "path": "src/models/bird_coder_project_git_diff.rs",
-      "sha256": "b23bee6a3f8be7e2a5381358a2660a2c584713502cc961fc99deb8102a02932c"
-    },
-    {
-      "path": "src/models/bird_coder_project_git_overview_envelope.rs",
-      "sha256": "01fd401d1c8392dc46eca5861ae47c72a40c1d054b5240eeeeca1cd1efb347e6"
-    },
-    {
-      "path": "src/models/bird_coder_project_git_overview.rs",
-      "sha256": "aa1abe0b4c8995759d3b11d3755169e1514abea5fa66fb5d435f12b587fcbdae"
-    },
-    {
-      "path": "src/models/bird_coder_project_runtime_location_command_accepted.rs",
-      "sha256": "933f429a856666085a5ff63253b11444a6dbf65fe297e26de967d0134d06a74a"
-    },
-    {
-      "path": "src/models/bird_coder_project_runtime_location_command_envelope.rs",
-      "sha256": "5089dbb5d500f95dc3e23d439b289c586393671bc10fb9a3996011aa46eab2af"
-    },
-    {
-      "path": "src/models/bird_coder_project_runtime_location_envelope.rs",
-      "sha256": "aacce1d27985762a676fa362618c391fa6746bc19dd32eb9bc352d8442b6d414"
-    },
-    {
-      "path": "src/models/bird_coder_project_runtime_location_list_envelope.rs",
-      "sha256": "cb7ec66052914f84f650353bfcbb5f3cf1ca56fda5ab6674a045b60f44089055"
-    },
-    {
-      "path": "src/models/bird_coder_project_runtime_location_preference_envelope.rs",
-      "sha256": "d31807f430b346703dd04c2d05d68a3b2ba2c69557b8e6561a5b59252d84c257"
-    },
-    {
-      "path": "src/models/bird_coder_project_runtime_location_preference_list_envelope.rs",
-      "sha256": "b352f04d7bbaaca3a72d2eeaf8ff7a7c7685d94945476589b637f8826c752b9d"
-    },
-    {
-      "path": "src/models/bird_coder_project_runtime_location_preference.rs",
-      "sha256": "6f4f431c730031d4cc40a88a809760846a4f32d5af022e724ed7723a533c79cc"
-    },
-    {
-      "path": "src/models/bird_coder_project_runtime_location.rs",
-      "sha256": "e08f03160a425928951084dce863c71a2c6b94ac28a4d0ad621f60cace77a8e9"
-    },
-    {
-      "path": "src/models/bird_coder_project_sandbox_binding_envelope.rs",
-      "sha256": "d16f5b17a87b0f1950168a70ef1eaec595e25c82ec5c8f4285d8e08e5d1e11ae"
-    },
-    {
-      "path": "src/models/bird_coder_project_sandbox_binding.rs",
-      "sha256": "dd44cbb10b267f278b4fc378e6cfaf19379cf38ab07b740542e1f8cb6ad1ff17"
-    },
-    {
-      "path": "src/models/bird_coder_project_summary_envelope.rs",
-      "sha256": "e28f388403ea0aecf6303b7f92a243a3000011295fd49644bb0e143eb28d327c"
-    },
-    {
-      "path": "src/models/bird_coder_project_summary_list_envelope.rs",
-      "sha256": "0d6eaae6ccd66b393674b070e71c3b794df23c4baa1542bf7994f4f385ac93cc"
-    },
-    {
-      "path": "src/models/bird_coder_project_summary.rs",
-      "sha256": "34c7d91e2a13fb66d7faf4c86f753d60a300151eb4b0bb8fba079e6acf5317f5"
-    },
-    {
-      "path": "src/models/bird_coder_prune_project_git_worktrees_request.rs",
-      "sha256": "45b41b1f3cf06fb0fa9ae707bfa05bfe33463884274935fab41326e649fb5ade"
-    },
-    {
-      "path": "src/models/bird_coder_push_project_git_branch_request.rs",
-      "sha256": "69380f9e68a445b8e53739341c2eb287a9fe590ce58caf033379856238680f03"
-    },
-    {
-      "path": "src/models/bird_coder_rebind_project_runtime_location_request.rs",
-      "sha256": "88d3aefd35ad5f7bc8c857d36312e64ca6da2202e51e3d63f9c2da4b6b54c2ef"
-    },
-    {
-      "path": "src/models/bird_coder_remove_project_git_worktree_request.rs",
-      "sha256": "872cc98a6efc21bf41922b857e8dc1822ab5b5c419df51f2ed32f4d4e64a59cb"
-    },
-    {
-      "path": "src/models/bird_coder_set_project_runtime_location_preference_request.rs",
-      "sha256": "766531e760b32760e48ba0435cd4368c581e24db7840ff0ca503fafc263e1472"
-    },
-    {
-      "path": "src/models/bird_coder_switch_project_git_branch_request.rs",
-      "sha256": "1d01896ec201dfb34a8b14cc6551d431a408c950db351463d1ca1303bfe585ae"
-    },
-    {
-      "path": "src/models/bird_coder_update_project_request.rs",
-      "sha256": "ae4905569f7e073c550b917d5a166499cb7323f0a20167e15507a577b3bd5eed"
-    },
-    {
-      "path": "src/models/bird_coder_update_project_runtime_location_request.rs",
-      "sha256": "84858db670ad9c7f687843386cac9256097c5afd23d21fa68fe0fffd852c5cea"
-    },
-    {
-      "path": "src/models/bird_coder_update_workspace_request.rs",
-      "sha256": "ed4ce92c36829d0d62363f00c4d1bf38d9353e549d620124bb62d03dd2b0247d"
-    },
-    {
-      "path": "src/models/bird_coder_upsert_project_sandbox_binding_request.rs",
-      "sha256": "14d588e1bc5807e73d035cd5e65143135098e60c46568c5726d668e839a0408c"
-    },
-    {
-      "path": "src/models/bird_coder_workspace_summary_envelope.rs",
-      "sha256": "0f8e831f89c57b1e536dabf344419d64ddef5533edb7243098adbac39d2733b7"
-    },
-    {
-      "path": "src/models/bird_coder_workspace_summary_list_envelope.rs",
-      "sha256": "8734fe15685b23a9e359df0fcc3665fafa5138b9a920b2ee142bce711153b953"
-    },
-    {
-      "path": "src/models/bird_coder_workspace_summary.rs",
-      "sha256": "569ee417c476d28e55563c108e2d33c09540dfccc2b7ffbeabc250014bdab369"
-    },
-    {
       "path": "src/models/common.rs",
       "sha256": "fce0239d85066b1c42435ab8c96676ea2d5300e5dcb87c52fd3e33d29a603a5e"
     },
     {
       "path": "src/models/mod.rs",
-      "sha256": "aee5454e3fd2738f76ad858ca32739e6f31ea1ca79c84a11d52ad0a5717f1a13"
+      "sha256": "7515504d4dde763847155246f745d4c6f90af8727f73a6580dd602d8804d37ac"
     },
     {
       "path": "src/models/page_info.rs",

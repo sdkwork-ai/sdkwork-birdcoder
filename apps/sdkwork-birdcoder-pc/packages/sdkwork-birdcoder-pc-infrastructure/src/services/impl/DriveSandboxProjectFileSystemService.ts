@@ -11,16 +11,17 @@ import {
   type ProjectDeviceMountRecoveryResult,
   type ProjectDeviceMountState,
   type ProjectFileSystemChangeEvent,
-  type WorkspaceFileSearchExecutionResult,
-  type WorkspaceFileSearchOptions,
+  type ProjectFileSearchExecutionResult,
+  type ProjectFileSearchOptions,
 } from '@sdkwork/birdcoder-pc-contracts-commons';
-import { readBirdCoderApiTransportErrorHttpStatus } from '@sdkwork/birdcoder-pc-contracts-commons/apiTransportError';
-import type { BirdCoderProjectSandboxBinding } from '@sdkwork/birdcoder-pc-core/sdk/birdcoder-app';
 import type {
   FileSystemChangeSubscriptionOptions,
   IFileSystemService,
 } from '../interfaces/IFileSystemService.ts';
-import type { BirdCoderAppSdkApiClient } from '../birdCoderSdkClient.ts';
+import type {
+  IProjectService,
+  ProjectDriveComposition,
+} from '../interfaces/IProjectService.ts';
 import {
   createDriveSandboxProjectPathContext,
   replaceDirectoryInTree,
@@ -37,24 +38,24 @@ const REMOTE_POLL_INTERVAL_MS = 2_000;
 const MAX_REMOTE_POLLED_FILES = 16;
 
 interface DriveSandboxProjectFileSystemServiceOptions {
-  readonly bindingClient: BirdCoderAppSdkApiClient;
   readonly drivePort: SandboxExplorerPort;
+  readonly projectService: Pick<IProjectService, 'getProjectDrive'>;
   readonly remotePollIntervalMs?: number;
 }
 
 interface RemoteProjectState {
-  readonly binding: BirdCoderProjectSandboxBinding;
+  readonly binding: ProjectDriveComposition;
   readonly context: DriveSandboxProjectPathContext;
   readonly entriesByVirtualPath: Map<string, SandboxEntry>;
   tree: IFileNode[];
 }
 
-export class ProjectWorkspaceBindingRequiredError extends Error {
+export class ProjectDriveCompositionRequiredError extends Error {
   readonly projectId: string;
 
   constructor(projectId: string) {
-    super('The project is not bound to a server workspace and has no active Tauri folder mount.');
-    this.name = 'ProjectWorkspaceBindingRequiredError';
+    super('The Agents project has no primary Drive composition.');
+    this.name = 'ProjectDriveCompositionRequiredError';
     this.projectId = projectId;
   }
 }
@@ -65,11 +66,11 @@ function normalizeProjectId(projectId: string): string {
   return normalized;
 }
 
-function bindingIdentity(binding: BirdCoderProjectSandboxBinding): string {
+function bindingIdentity(binding: ProjectDriveComposition): string {
   return [
-    binding.id,
+    binding.slotId,
     binding.version,
-    binding.sandboxId,
+    binding.driveId,
     binding.rootEntryId,
     binding.logicalPath,
   ].join('\u001f');
@@ -103,14 +104,14 @@ function createRootNode(state: RemoteProjectState, children: IFileNode[]): IFile
 }
 
 export class DriveSandboxProjectFileSystemService implements IFileSystemService {
-  private readonly bindingClient: DriveSandboxProjectFileSystemServiceOptions['bindingClient'];
   private readonly drivePort: SandboxExplorerPort;
+  private readonly projectService: DriveSandboxProjectFileSystemServiceOptions['projectService'];
   private readonly projectStates = new Map<string, RemoteProjectState>();
   private readonly remotePollIntervalMs: number;
 
   constructor(options: DriveSandboxProjectFileSystemServiceOptions) {
-    this.bindingClient = options.bindingClient;
     this.drivePort = options.drivePort;
+    this.projectService = options.projectService;
     this.remotePollIntervalMs = Math.max(500, options.remotePollIntervalMs ?? REMOTE_POLL_INTERVAL_MS);
   }
 
@@ -129,20 +130,13 @@ export class DriveSandboxProjectFileSystemService implements IFileSystemService 
 
   private async resolveRemoteProject(projectId: string): Promise<RemoteProjectState | null> {
     const normalizedProjectId = normalizeProjectId(projectId);
-    const binding = await this.bindingClient.intelligence.projects.sandboxBinding
-      .retrieve(normalizedProjectId)
-      .catch((error: unknown) => {
-        if (readBirdCoderApiTransportErrorHttpStatus(error) === 404) {
-          return null;
-        }
-        throw error;
-      });
+    const binding = await this.projectService.getProjectDrive(normalizedProjectId);
     if (!binding) {
       this.projectStates.delete(normalizedProjectId);
       return null;
     }
-    if (binding.projectId !== normalizedProjectId || binding.status !== 'active') {
-      throw new Error('Project workspace binding does not match the active project.');
+    if (binding.projectId !== normalizedProjectId) {
+      throw new Error('Project Drive composition does not match the active project.');
     }
 
     const current = this.projectStates.get(normalizedProjectId);
@@ -150,7 +144,7 @@ export class DriveSandboxProjectFileSystemService implements IFileSystemService 
       return current;
     }
 
-    const sandboxRoot = await this.findSandboxRoot(binding.sandboxId);
+    const sandboxRoot = await this.findSandboxRoot(binding.driveId);
     if (!binding.logicalPath && sandboxRoot.rootEntryId !== binding.rootEntryId) {
       throw new Error('Project workspace root identity no longer matches the Drive sandbox root.');
     }
@@ -172,7 +166,7 @@ export class DriveSandboxProjectFileSystemService implements IFileSystemService 
     let cursor: string | undefined;
     for (let page = 1; page <= MAX_DIRECTORY_PAGES; page += 1) {
       const result = await this.drivePort.listChildren({
-        sandboxId: state.binding.sandboxId,
+        sandboxId: state.binding.driveId,
         parentPath: logicalPath,
         pageSize: DIRECTORY_PAGE_SIZE,
         ...(cursor ? { cursor } : {}),
@@ -208,7 +202,7 @@ export class DriveSandboxProjectFileSystemService implements IFileSystemService 
     const normalizedProjectId = normalizeProjectId(projectId);
     const state = await this.resolveRemoteProject(normalizedProjectId);
     if (state) return remote(state);
-    throw new ProjectWorkspaceBindingRequiredError(normalizedProjectId);
+    throw new ProjectDriveCompositionRequiredError(normalizedProjectId);
   }
 
   private async resolveRemoteEntry(
@@ -223,7 +217,7 @@ export class DriveSandboxProjectFileSystemService implements IFileSystemService 
     const parentPath = separatorIndex < 0 ? '' : logicalPath.slice(0, separatorIndex);
     const entries = await this.collectDirectoryChildrenBounded(state, parentPath);
     const entry = entries.find((candidate) => candidate.logicalPath === logicalPath);
-    if (!entry) throw new Error('The requested server workspace entry no longer exists.');
+    if (!entry) throw new Error('The requested project Drive entry no longer exists.');
     state.entriesByVirtualPath.set(virtualPath, entry);
     return entry;
   }
@@ -232,7 +226,7 @@ export class DriveSandboxProjectFileSystemService implements IFileSystemService 
     const normalizedProjectId = normalizeProjectId(projectId);
     const state = await this.resolveRemoteProject(normalizedProjectId);
     if (!state) {
-      throw new ProjectWorkspaceBindingRequiredError(normalizedProjectId);
+      throw new ProjectDriveCompositionRequiredError(normalizedProjectId);
     }
     const root = await this.loadRemoteDirectory(state, state.context.virtualRootPath);
     state.tree = [root];
@@ -268,9 +262,9 @@ export class DriveSandboxProjectFileSystemService implements IFileSystemService 
       projectId,
       async (state) => {
         const entry = await this.resolveRemoteEntry(state, path);
-        if (entry.kind !== 'file') throw new Error('The requested server workspace entry is not a file.');
+        if (entry.kind !== 'file') throw new Error('The requested project Drive entry is not a file.');
         const result = await this.drivePort.readFile({
-          sandboxId: state.binding.sandboxId,
+          sandboxId: state.binding.driveId,
           entryId: entry.id,
           logicalPath: entry.logicalPath,
           encoding: 'utf8',
@@ -295,7 +289,7 @@ export class DriveSandboxProjectFileSystemService implements IFileSystemService 
     const normalizedProjectId = normalizeProjectId(projectId);
     const state = await this.resolveRemoteProject(normalizedProjectId);
     if (!state) {
-      throw new ProjectWorkspaceBindingRequiredError(normalizedProjectId);
+      throw new ProjectDriveCompositionRequiredError(normalizedProjectId);
     }
     return Promise.all(paths.map(async (path): Promise<FileRevisionLookupResult> => {
       try {
@@ -316,9 +310,9 @@ export class DriveSandboxProjectFileSystemService implements IFileSystemService 
       projectId,
       async (state) => {
         const entry = await this.resolveRemoteEntry(state, path);
-        if (entry.kind !== 'file') throw new Error('The requested server workspace entry is not a file.');
+        if (entry.kind !== 'file') throw new Error('The requested project Drive entry is not a file.');
         const updated = await this.drivePort.updateFile({
-          sandboxId: state.binding.sandboxId,
+          sandboxId: state.binding.driveId,
           entryId: entry.id,
           logicalPath: entry.logicalPath,
           revision: entry.revision,
@@ -336,7 +330,7 @@ export class DriveSandboxProjectFileSystemService implements IFileSystemService 
       async (state) => {
         const target = splitVirtualMutationPath(state.context, path);
         const entry = await this.drivePort.createFile({
-          sandboxId: state.binding.sandboxId,
+          sandboxId: state.binding.driveId,
           parentPath: target.logicalParentPath,
           name: target.name,
           content: '',
@@ -353,7 +347,7 @@ export class DriveSandboxProjectFileSystemService implements IFileSystemService 
       async (state) => {
         const target = splitVirtualMutationPath(state.context, path);
         const entry = await this.drivePort.createDirectory({
-          sandboxId: state.binding.sandboxId,
+          sandboxId: state.binding.driveId,
           parentPath: target.logicalParentPath,
           name: target.name,
         });
@@ -371,7 +365,7 @@ export class DriveSandboxProjectFileSystemService implements IFileSystemService 
     const entry = await this.resolveRemoteEntry(state, path);
     if (entry.kind !== expectedKind) throw new Error(`The requested entry is not a ${expectedKind}.`);
     await this.drivePort.deleteEntry({
-      sandboxId: state.binding.sandboxId,
+      sandboxId: state.binding.driveId,
       entryId: entry.id,
       logicalPath: entry.logicalPath,
       revision: entry.revision,
@@ -401,7 +395,7 @@ export class DriveSandboxProjectFileSystemService implements IFileSystemService 
         const entry = await this.resolveRemoteEntry(state, oldPath);
         const target = splitVirtualMutationPath(state.context, newPath);
         const moved = await this.drivePort.moveEntry({
-          sandboxId: state.binding.sandboxId,
+          sandboxId: state.binding.driveId,
           entryId: entry.id,
           logicalPath: entry.logicalPath,
           revision: entry.revision,
@@ -446,8 +440,8 @@ export class DriveSandboxProjectFileSystemService implements IFileSystemService 
 
   async searchFiles(
     projectId: string,
-    options: WorkspaceFileSearchOptions,
-  ): Promise<WorkspaceFileSearchExecutionResult> {
+    options: ProjectFileSearchOptions,
+  ): Promise<ProjectFileSearchExecutionResult> {
     return this.requireRemote(
       projectId,
       async (state) => {
@@ -459,7 +453,7 @@ export class DriveSandboxProjectFileSystemService implements IFileSystemService 
             const entry = state.entriesByVirtualPath.get(path)
               ?? await this.resolveRemoteEntry(state, path);
             const content = await this.drivePort.readFile({
-              sandboxId: state.binding.sandboxId,
+              sandboxId: state.binding.driveId,
               entryId: entry.id,
               logicalPath: entry.logicalPath,
               encoding: 'utf8',

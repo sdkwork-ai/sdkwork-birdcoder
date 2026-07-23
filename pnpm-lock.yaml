@@ -435,9 +435,6 @@ importers:
       autoprefixer:
         specifier: ^10.4.21
         version: 10.4.27(postcss@8.5.22)
-      pg:
-        specifier: 'catalog:'
-        version: 8.20.0
       tailwindcss:
         specifier: 'catalog:'
         version: 4.2.2

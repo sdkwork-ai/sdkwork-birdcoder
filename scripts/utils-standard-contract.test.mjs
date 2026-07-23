@@ -70,10 +70,9 @@ if (!digestHelper.includes('@sdkwork/utils/crypto')) {
 }
 
 const rustServiceCrates = [
-  'crates/sdkwork-birdcoder-workspace-service',
-  'crates/sdkwork-birdcoder-project-service',
+  'crates/sdkwork-birdcoder-errors',
+  'crates/sdkwork-birdcoder-router-context',
   'crates/sdkwork-birdcoder-system-descriptor-service',
-  'crates/sdkwork-routes-workspace-app-api',
 ];
 
 const retiredRustCrates = [
@@ -100,7 +99,7 @@ for (const crateDir of retiredRustCrates) {
 
 for (const crateDir of rustServiceCrates) {
   const cargoToml = read(`${crateDir}/Cargo.toml`);
-  if (!cargoToml.includes('sdkwork-utils-rust.workspace = true')) {
+  if (!/sdkwork-utils-rust(?:\.workspace\s*=\s*true|\s*=\s*\{\s*workspace\s*=\s*true\s*\})/u.test(cargoToml)) {
     fail(`${crateDir}/Cargo.toml must depend on sdkwork-utils-rust`);
   }
 

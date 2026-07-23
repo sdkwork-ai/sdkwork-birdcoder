@@ -14,7 +14,6 @@ export interface TerminalSessionRecord {
   profileId: TerminalProfileId;
   cwd: string;
   updatedAt: number;
-  workspaceId: string;
   projectId: string;
   status: TerminalSessionStatus;
   lastExitCode: number | null;
@@ -42,6 +41,7 @@ async function resolveDesktopRuntimeClient(): Promise<DesktopRuntimeBridgeClient
 
 interface BrowserRuntimeSessionDescriptor {
   sessionId: string;
+  /** Terminal runtime multiplexing scope, unrelated to the Agents Project domain. */
   workspaceId: string;
   state: string;
   createdAt: string;
@@ -73,7 +73,6 @@ export function normalizeBrowserRuntimeSessionRecord(
     profileId,
     cwd: '',
     updatedAt: Number.isNaN(updatedAt) ? 0 : updatedAt,
-    workspaceId: record.workspaceId?.trim() || '',
     projectId: readSessionTag(record.tags, 'project:'),
     status: normalizeTerminalSessionStatus(record.state),
     lastExitCode: null,
@@ -125,7 +124,6 @@ function normalizeRuntimeTerminalSessionRecord(
     profileId,
     cwd: record.cwd?.trim() || '',
     updatedAt: Number.isNaN(Date.parse(record.updatedAt)) ? 0 : Date.parse(record.updatedAt),
-    workspaceId: record.workspaceId?.trim() || '',
     projectId: record.projectId?.trim() || '',
     status: normalizeTerminalSessionStatus(record.status),
     lastExitCode: typeof record.lastExitCode === 'number' ? record.lastExitCode : null,

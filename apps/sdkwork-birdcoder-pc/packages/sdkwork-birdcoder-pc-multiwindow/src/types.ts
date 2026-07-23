@@ -1,7 +1,7 @@
 import type {
   AgentSessionItemView,
   AgentSessionView,
-  BirdCoderProject,
+  AgentProjectView,
 } from '@sdkwork/birdcoder-pc-contracts-commons';
 
 export type MultiWindowGlobalMode = 'chat' | 'preview';
@@ -45,14 +45,13 @@ export interface MultiWindowPaneConfig {
 export interface MultiWindowPaneBinding {
   agentSession: AgentSessionView | null;
   messages: AgentSessionItemView[];
-  project: BirdCoderProject | null;
+  project: AgentProjectView | null;
 }
 
 export interface MultiWindowProgrammingPageProps {
   initialAgentSessionId?: string;
   isVisible?: boolean;
   projectId?: string;
-  workspaceId: string;
   onAgentSessionChange?: (agentSessionId: string, projectId?: string) => void;
   onProjectChange?: (projectId: string) => void;
 }

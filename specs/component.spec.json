@@ -236,11 +236,11 @@
   "ownership": {
     "boundedContext": "intelligence/coding-workbench",
     "domainContract": "specs/domain-ownership.spec.json",
-    "databaseTableCount": 10,
-    "appApiOperationCount": 39,
+    "databaseTableCount": 0,
+    "appApiOperationCount": 4,
     "backendApiOperationCount": 0,
     "openApiOperationCount": 0,
-    "iamPermissionCount": 33
+    "iamPermissionCount": 4
   },
   "integration": {
     "authority": "Root SDKWork specs and specs/domain-ownership.spec.json are authoritative.",

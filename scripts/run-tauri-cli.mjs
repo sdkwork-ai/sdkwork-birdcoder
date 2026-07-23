@@ -14,7 +14,7 @@ const require = createRequire(import.meta.url);
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const rootDir = path.resolve(__dirname, '..');
-const DESKTOP_SQLITE_OVERRIDE_ENV = 'BIRDCODER_CODING_SERVER_SQLITE_FILE';
+const DESKTOP_DEVICE_STATE_OVERRIDE_ENV = 'SDKWORK_BIRDCODER_DEVICE_STATE_FILE';
 
 function resolveFromRequire(requireImpl, specifier) {
   try {
@@ -87,7 +87,7 @@ function parseArgs(argv = []) {
   };
 }
 
-function resolveDesktopDevSqlitePath({
+function resolveDesktopDevDeviceStatePath({
   cwd = process.cwd(),
   args = [],
   platform = process.platform,
@@ -102,7 +102,7 @@ function resolveDesktopDevSqlitePath({
     return undefined;
   }
 
-  return pathModule.join(cwd, '.local', 'birdcoder.sqlite3');
+  return pathModule.join(cwd, '.local', 'birdcoder-device-state.sqlite3');
 }
 
 export function createTauriCliPlan({
@@ -123,10 +123,12 @@ export function createTauriCliPlan({
   const tauriCliEntrypoint = typeof resolveTauriCliEntrypoint === 'function'
     ? resolveTauriCliEntrypoint({ cwd })
     : '';
-  const explicitDesktopSqlitePath = String(tauriEnv[DESKTOP_SQLITE_OVERRIDE_ENV] ?? '').trim();
-  const desktopDevSqlitePath = explicitDesktopSqlitePath
-    ? explicitDesktopSqlitePath
-    : resolveDesktopDevSqlitePath({ cwd, args, platform });
+  const explicitDesktopDeviceStatePath = String(
+    tauriEnv[DESKTOP_DEVICE_STATE_OVERRIDE_ENV] ?? '',
+  ).trim();
+  const desktopDevDeviceStatePath = explicitDesktopDeviceStatePath
+    ? explicitDesktopDeviceStatePath
+    : resolveDesktopDevDeviceStatePath({ cwd, args, platform });
 
   if (!tauriCliEntrypoint) {
     throw new Error('Unable to resolve the local @tauri-apps/cli entrypoint.');
@@ -139,8 +141,8 @@ export function createTauriCliPlan({
     env: {
       ...tauriEnv,
       SDKWORK_VITE_MODE: resolvedMode,
-      ...(desktopDevSqlitePath
-        ? { [DESKTOP_SQLITE_OVERRIDE_ENV]: desktopDevSqlitePath }
+      ...(desktopDevDeviceStatePath
+        ? { [DESKTOP_DEVICE_STATE_OVERRIDE_ENV]: desktopDevDeviceStatePath }
         : {}),
     },
     shell: false,

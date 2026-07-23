@@ -18,7 +18,7 @@ assert.deepEqual(
   RELEASE_GOVERNANCE_CHECK_IDS,
   [
     'domain-ownership',
-    'database-framework',
+    'persistence-ownership',
     'app-api-surface',
     'sdk-owner-boundary',
     'app-sdk-composition',

@@ -1,18 +1,16 @@
 use rusqlite::Connection;
 use std::collections::HashSet;
 use std::fs;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::sync::{Mutex, OnceLock};
 use std::time::Duration;
 use tauri::{AppHandle, Manager};
 
-use crate::commands::filesystem_commands::register_allowed_fs_root;
-
-const BIRDCODER_SQLITE_FILE_NAME: &str = "birdcoder.sqlite3";
+const BIRDCODER_DEVICE_STATE_FILE_NAME: &str = "birdcoder-device-state.sqlite3";
 const DEFAULT_EMBEDDED_API_HOST: &str = "127.0.0.1";
 const DEFAULT_EMBEDDED_API_PORT: u16 = 10240;
 
-static INITIALIZED_DATABASE_PATHS: OnceLock<Mutex<HashSet<PathBuf>>> = OnceLock::new();
+static INITIALIZED_DEVICE_STATE_PATHS: OnceLock<Mutex<HashSet<PathBuf>>> = OnceLock::new();
 static EMBEDDED_RUNTIME_CONFIG: OnceLock<DesktopRuntimeConfig> = OnceLock::new();
 static EMBEDDED_RUNTIME_STARTUP: OnceLock<tokio::sync::OnceCell<DesktopRuntimeConfig>> =
     OnceLock::new();
@@ -47,19 +45,8 @@ impl TauriHostState {
     pub fn register(app: &AppHandle) -> Result<(), String> {
         let api_base_url_override = read_explicit_api_base_url()?;
         app.manage(TauriHostState::new(api_base_url_override));
-        register_runtime_fs_roots()?;
         Ok(())
     }
-}
-
-fn register_runtime_fs_roots() -> Result<(), String> {
-    if let Ok(project_root) = std::env::var("BIRDCODER_LOCAL_BOOTSTRAP_PROJECT_ROOT") {
-        let trimmed = project_root.trim();
-        if !trimmed.is_empty() {
-            register_allowed_fs_root(PathBuf::from(trimmed))?;
-        }
-    }
-    Ok(())
 }
 
 fn normalize_api_base_url(api_base_url: &str) -> Result<Option<String>, String> {
@@ -151,7 +138,6 @@ pub fn start_embedded_application_gateway(app: &AppHandle) -> Result<DesktopRunt
         return Ok(runtime_config);
     }
 
-    let database_path = local_database_path(app)?;
     let config = sdkwork_api_birdcoder_standalone_gateway::bootstrap::config::BirdServerConfig {
         environment: sdkwork_api_birdcoder_standalone_gateway::bootstrap::config::BirdEnvironment::Development,
         deployment_profile:
@@ -160,11 +146,9 @@ pub fn start_embedded_application_gateway(app: &AppHandle) -> Result<DesktopRunt
             sdkwork_api_birdcoder_standalone_gateway::bootstrap::config::BirdRuntimeTarget::Desktop,
         host: DEFAULT_EMBEDDED_API_HOST.to_string(),
         port: DEFAULT_EMBEDDED_API_PORT,
-        sqlite_file: database_path,
         allowed_origins: sdkwork_api_birdcoder_standalone_gateway::bootstrap::config::default_allowed_origins_for_host(
             DEFAULT_EMBEDDED_API_HOST,
         ),
-        project_root: std::env::var("BIRDCODER_LOCAL_BOOTSTRAP_PROJECT_ROOT").ok(),
         rate_limit_enabled: sdkwork_api_birdcoder_standalone_gateway::bootstrap::config::DEFAULT_RATE_LIMIT_ENABLED,
         rate_limit_max_requests: sdkwork_api_birdcoder_standalone_gateway::bootstrap::config::DEFAULT_RATE_LIMIT_MAX_REQUESTS,
         rate_limit_window_secs: sdkwork_api_birdcoder_standalone_gateway::bootstrap::config::DEFAULT_RATE_LIMIT_WINDOW_SECS,
@@ -241,9 +225,9 @@ fn print_embedded_api_startup_summary(api_base_url: &str) {
     println!("SDKWork BirdCoder embedded API: {api_base_url}");
 }
 
-pub fn local_database_path(app: &AppHandle) -> Result<PathBuf, String> {
-    let database_path = if let Some(configured_path) =
-        std::env::var_os("SDKWORK_BIRDCODER_DATABASE_FILE")
+pub fn device_state_path(app: &AppHandle) -> Result<PathBuf, String> {
+    let device_state_path = if let Some(configured_path) =
+        std::env::var_os("SDKWORK_BIRDCODER_DEVICE_STATE_FILE")
             .map(PathBuf::from)
             .filter(|path| !path.as_os_str().is_empty())
     {
@@ -253,30 +237,30 @@ pub fn local_database_path(app: &AppHandle) -> Result<PathBuf, String> {
             .path()
             .app_data_dir()
             .map_err(|error| format!("failed to resolve app data directory: {error}"))?;
-        app_dir.push(BIRDCODER_SQLITE_FILE_NAME);
+        app_dir.push(BIRDCODER_DEVICE_STATE_FILE_NAME);
         app_dir
     };
-    let parent_directory = database_path.parent().ok_or_else(|| {
+    let parent_directory = device_state_path.parent().ok_or_else(|| {
         format!(
-            "failed to resolve parent directory for sqlite database path: {}",
-            database_path.display()
+            "failed to resolve parent directory for device-state path: {}",
+            device_state_path.display()
         )
     })?;
     fs::create_dir_all(parent_directory)
-        .map_err(|error| format!("failed to create sqlite database directory: {error}"))?;
-    Ok(database_path)
+        .map_err(|error| format!("failed to create device-state directory: {error}"))?;
+    Ok(device_state_path)
 }
 
-pub fn open_database(app: &AppHandle) -> Result<Connection, String> {
-    let database_path = local_database_path(app)?;
-    let connection = Connection::open(&database_path)
-        .map_err(|error| format!("failed to open sqlite database: {error}"))?;
-    configure_database_connection(&connection)?;
-    ensure_database_ready(&connection, &database_path)?;
+pub fn open_device_state(app: &AppHandle) -> Result<Connection, String> {
+    let device_state_path = device_state_path(app)?;
+    let connection = Connection::open(&device_state_path)
+        .map_err(|error| format!("failed to open SQLite device state: {error}"))?;
+    configure_device_state_connection(&connection)?;
+    ensure_device_state_ready(&connection, &device_state_path)?;
     Ok(connection)
 }
 
-fn configure_database_connection(connection: &Connection) -> Result<(), String> {
+fn configure_device_state_connection(connection: &Connection) -> Result<(), String> {
     connection
         .busy_timeout(Duration::from_secs(5))
         .map_err(|_| "failed to configure sqlite busy timeout".to_string())?;
@@ -287,33 +271,50 @@ fn configure_database_connection(connection: &Connection) -> Result<(), String> 
         .map_err(|_| "failed to configure sqlite connection pragmas".to_string())
 }
 
-fn ensure_database_ready(connection: &Connection, database_path: &PathBuf) -> Result<(), String> {
-    let initialized_paths = INITIALIZED_DATABASE_PATHS.get_or_init(|| Mutex::new(HashSet::new()));
+fn ensure_device_state_ready(
+    connection: &Connection,
+    device_state_path: &Path,
+) -> Result<(), String> {
+    let initialized_paths =
+        INITIALIZED_DEVICE_STATE_PATHS.get_or_init(|| Mutex::new(HashSet::new()));
     let mut guard = initialized_paths
         .lock()
-        .map_err(|error| format!("failed to lock sqlite initialization guard: {error}"))?;
-    if guard.contains(database_path) {
+        .map_err(|error| format!("failed to lock device-state initialization guard: {error}"))?;
+    if guard.contains(device_state_path) {
         return Ok(());
     }
-    initialize_minimal_schema(connection)?;
-    guard.insert(database_path.clone());
+    initialize_device_state_schema(connection)?;
+    guard.insert(device_state_path.to_path_buf());
     Ok(())
 }
 
-fn initialize_minimal_schema(connection: &Connection) -> Result<(), String> {
+fn initialize_device_state_schema(connection: &Connection) -> Result<(), String> {
     connection
         .execute_batch(
             r#"
-            CREATE TABLE IF NOT EXISTS kv_store (
+            CREATE TABLE IF NOT EXISTS device_state_entry (
                 scope TEXT NOT NULL,
                 key TEXT NOT NULL,
                 value TEXT NOT NULL,
                 updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
-                PRIMARY KEY (scope, key)
+                PRIMARY KEY (scope, key),
+                CHECK (
+                    (scope = 'settings' AND key = 'app')
+                    OR (
+                        scope = 'project-device-mounts'
+                        AND length(key) = 64
+                        AND key NOT GLOB '*[^0-9A-Fa-f]*'
+                    )
+                    OR (
+                        scope = 'desktop-runtime-location-identity'
+                        AND key = 'installation.v1'
+                    )
+                ),
+                CHECK (length(CAST(value AS BLOB)) <= 262144)
             );
             "#,
         )
-        .map_err(|error| format!("failed to initialize sqlite schema: {error}"))
+        .map_err(|error| format!("failed to initialize SQLite device-state schema: {error}"))
 }
 
 #[cfg(test)]
@@ -337,17 +338,19 @@ mod tests {
     }
 
     #[test]
-    fn sqlite_connections_enable_busy_timeout_foreign_keys_and_wal() {
+    fn device_state_connections_enable_busy_timeout_foreign_keys_and_wal() {
         let nonce = std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)
             .expect("test clock must be after Unix epoch")
             .as_nanos();
-        let database_path = std::env::temp_dir().join(format!(
-            "sdkwork-birdcoder-sqlite-pragmas-{}-{nonce}.sqlite3",
+        let device_state_path = std::env::temp_dir().join(format!(
+            "sdkwork-birdcoder-device-state-pragmas-{}-{nonce}.sqlite3",
             std::process::id()
         ));
-        let connection = Connection::open(&database_path).expect("temporary sqlite connection");
-        configure_database_connection(&connection).expect("sqlite pragmas should configure");
+        let connection =
+            Connection::open(&device_state_path).expect("temporary device-state connection");
+        configure_device_state_connection(&connection)
+            .expect("device-state pragmas should configure");
 
         let foreign_keys: i64 = connection
             .query_row("PRAGMA foreign_keys", [], |row| row.get(0))
@@ -367,9 +370,30 @@ mod tests {
         assert_eq!(synchronous, 1);
 
         drop(connection);
-        let _ = std::fs::remove_file(database_path.with_extension("sqlite3-shm"));
-        let _ = std::fs::remove_file(database_path.with_extension("sqlite3-wal"));
-        let _ = std::fs::remove_file(database_path);
+        let _ = std::fs::remove_file(device_state_path.with_extension("sqlite3-shm"));
+        let _ = std::fs::remove_file(device_state_path.with_extension("sqlite3-wal"));
+        let _ = std::fs::remove_file(device_state_path);
     }
 
+    #[test]
+    fn device_state_schema_rejects_business_aggregate_scopes() {
+        let connection = Connection::open_in_memory().expect("in-memory device state");
+        initialize_device_state_schema(&connection).expect("device-state schema should initialize");
+
+        connection
+            .execute(
+                "INSERT INTO device_state_entry (scope, key, value) VALUES (?1, ?2, ?3)",
+                ("settings", "app", "{}"),
+            )
+            .expect("allowlisted device setting should persist");
+
+        for forbidden_scope in ["project", "session", "conversation", "message"] {
+            assert!(connection
+                .execute(
+                    "INSERT INTO device_state_entry (scope, key, value) VALUES (?1, ?2, ?3)",
+                    (forbidden_scope, "aggregate", "{}"),
+                )
+                .is_err());
+        }
+    }
 }

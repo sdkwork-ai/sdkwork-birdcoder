@@ -1,7 +1,7 @@
 import {
   formatAgentSessionDisplayTime,
   type AgentSessionView,
-  type BirdCoderProject,
+  type AgentProjectView,
 } from '@sdkwork/birdcoder-pc-contracts-commons';
 import type { WorkbenchPreferences } from '@sdkwork/birdcoder-pc-workbench';
 import {
@@ -37,7 +37,7 @@ interface MultiWindowSessionPickerProps {
   isCreatingSession: boolean;
   pane: MultiWindowPaneConfig;
   preferences: WorkbenchPreferences;
-  projects: readonly BirdCoderProject[];
+  projects: readonly AgentProjectView[];
   selectedAgentSessionId: string;
   selectedProjectId: string;
   onClose: () => void;
@@ -65,12 +65,12 @@ function formatSessionToken(value: string | null | undefined, fallback: string):
   return normalizedValue.replace(/[_-]+/g, ' ');
 }
 
-function resolveProjectDetail(project: BirdCoderProject | null): string {
+function resolveProjectDetail(project: AgentProjectView | null): string {
   if (!project) {
     return '-';
   }
 
-  return project.name || project.domainPrefix || project.id;
+  return project.name || project.projectId;
 }
 
 function resolveSessionActivityLabel(agentSession: AgentSessionView): string {
@@ -113,14 +113,16 @@ export const MultiWindowSessionPicker = memo(function MultiWindowSessionPicker({
   onStopPendingAddSequence,
 }: MultiWindowSessionPickerProps) {
   const { t } = useTranslation();
-  const [draftProjectId, setDraftProjectId] = useState(selectedProjectId || projects[0]?.id || '');
+  const [draftProjectId, setDraftProjectId] = useState(
+    selectedProjectId || projects[0]?.projectId || '',
+  );
   const [sessionSearchQuery, setSessionSearchQuery] = useState('');
   const [sessionPickerMode, setSessionPickerMode] = useState<SessionPickerMode>('select');
   const activeProject = useMemo(
-    () => projects.find((project) => project.id === draftProjectId) ?? projects[0] ?? null,
+    () => projects.find((project) => project.projectId === draftProjectId) ?? projects[0] ?? null,
     [draftProjectId, projects],
   );
-  const activeProjectId = activeProject?.id ?? '';
+  const activeProjectId = activeProject?.projectId ?? '';
   const activeProjectDetail = resolveProjectDetail(activeProject);
   const normalizedSessionSearchQuery = sessionSearchQuery.trim().toLowerCase();
   const filteredAgentSessions = useMemo(() => {
@@ -194,15 +196,15 @@ export const MultiWindowSessionPicker = memo(function MultiWindowSessionPicker({
             ) : (
               projects.map((project) => (
                 <button
-                  key={project.id}
+                  key={project.projectId}
                   type="button"
                   className={`mb-1 flex w-full items-center gap-3 rounded-md px-3 py-2.5 text-left text-xs transition-colors ${
-                    activeProjectId === project.id
+                    activeProjectId === project.projectId
                       ? 'bg-white/10 text-white'
                       : 'text-gray-400 hover:bg-white/6 hover:text-gray-200'
                   }`}
                   onClick={() => {
-                    setDraftProjectId(project.id);
+                    setDraftProjectId(project.projectId);
                     setSessionSearchQuery('');
                   }}
                 >

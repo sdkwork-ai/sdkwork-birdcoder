@@ -1,98 +1,46 @@
-# BirdCoder API Catalog
+# BirdCoder API Inventory
 
-This catalog lists only APIs owned by the BirdCoder application. The canonical request, response,
-authentication, permission, and error contract is the authored OpenAPI document at
-`../sdks/sdkwork-birdcoder-app-sdk/openapi/sdkwork-birdcoder-app-api.openapi.json`.
+`apis/` indexes authored BirdCoder API contracts. It does not own generated
+SDK output or dependency-module routes.
 
-| Surface | Prefix | Operations | Authority |
-| --- | --- | ---: | --- |
-| App API | `/app/v3/api` | 39 | `sdkwork-birdcoder-app-api` |
-| Backend API | None | 0 | None |
-| Open API | None | 0 | None |
+## Backend API
 
-## App API Operations
+BirdCoder owns **0 Backend API operations**.
 
-### System
+## Open API
 
-| Method | Path | operationId |
-| --- | --- | --- |
-| `GET` | `/app/v3/api/system/descriptor` | `descriptor.retrieve` |
-| `GET` | `/app/v3/api/system/health` | `health.retrieve` |
-| `GET` | `/app/v3/api/system/routes` | `routes.list` |
-| `GET` | `/app/v3/api/system/runtime` | `runtime.retrieve` |
+BirdCoder owns **0 Open API operations**.
 
-### Workspaces And Projects
+## App API
 
-| Method | Path | operationId |
-| --- | --- | --- |
-| `GET` | `/app/v3/api/workspaces` | `workspaces.list` |
-| `POST` | `/app/v3/api/workspaces` | `workspaces.create` |
-| `GET` | `/app/v3/api/workspaces/{workspaceId}` | `workspaces.retrieve` |
-| `PATCH` | `/app/v3/api/workspaces/{workspaceId}` | `workspaces.update` |
-| `DELETE` | `/app/v3/api/workspaces/{workspaceId}` | `workspaces.delete` |
-| `GET` | `/app/v3/api/projects` | `projects.list` |
-| `POST` | `/app/v3/api/projects` | `projects.create` |
-| `GET` | `/app/v3/api/projects/{projectId}` | `projects.retrieve` |
-| `PATCH` | `/app/v3/api/projects/{projectId}` | `projects.update` |
-| `DELETE` | `/app/v3/api/projects/{projectId}` | `projects.delete` |
+The sole authority is
+[`sdkwork-birdcoder-app-api.openapi.json`](../sdks/sdkwork-birdcoder-app-sdk/openapi/sdkwork-birdcoder-app-api.openapi.json).
+It contains exactly four System operations:
 
-### Project Bindings
+| Method | Path | Operation ID | Permission |
+| --- | --- | --- | --- |
+| `GET` | `/app/v3/api/system/descriptor` | `descriptor.retrieve` | `birdcoder.system-descriptor.read` |
+| `GET` | `/app/v3/api/system/health` | `health.retrieve` | `birdcoder.system-health.read` |
+| `GET` | `/app/v3/api/system/routes` | `routes.list` | `birdcoder.system-routes.read` |
+| `GET` | `/app/v3/api/system/runtime` | `runtime.retrieve` | `birdcoder.system-runtime.read` |
 
-| Method | Path | operationId |
-| --- | --- | --- |
-| `GET` | `/app/v3/api/projects/{projectId}/document_bindings` | `projects.documentBindings.list` |
-| `POST` | `/app/v3/api/projects/{projectId}/document_bindings` | `projects.documentBindings.create` |
-| `GET` | `/app/v3/api/projects/{projectId}/document_bindings/{bindingId}` | `projects.documentBindings.retrieve` |
-| `DELETE` | `/app/v3/api/projects/{projectId}/document_bindings/{bindingId}` | `projects.documentBindings.delete` |
-| `GET` | `/app/v3/api/projects/{projectId}/sandbox_binding` | `projects.sandboxBinding.retrieve` |
-| `PUT` | `/app/v3/api/projects/{projectId}/sandbox_binding` | `projects.sandboxBinding.update` |
-| `DELETE` | `/app/v3/api/projects/{projectId}/sandbox_binding` | `projects.sandboxBinding.delete` |
+The standalone gateway may compose executable dependency assemblies, but that
+does not transfer API ownership. Project, composition, Session, Turn, Session
+Item, and Runtime Binding operations remain in the Agents API. Skill operations
+remain in Skills. Human messaging remains in IM. Their routes and schemas must
+not appear in the BirdCoder OpenAPI or SDK generation input.
 
-### Runtime Locations
+## Consumer Boundary
 
-| Method | Path | operationId |
-| --- | --- | --- |
-| `GET` | `/app/v3/api/projects/{projectId}/runtime_locations` | `projects.runtimeLocations.list` |
-| `POST` | `/app/v3/api/projects/{projectId}/runtime_locations` | `projects.runtimeLocations.create` |
-| `GET` | `/app/v3/api/projects/{projectId}/runtime_locations/{runtimeLocationId}` | `projects.runtimeLocations.retrieve` |
-| `PATCH` | `/app/v3/api/projects/{projectId}/runtime_locations/{runtimeLocationId}` | `projects.runtimeLocations.update` |
-| `DELETE` | `/app/v3/api/projects/{projectId}/runtime_locations/{runtimeLocationId}` | `projects.runtimeLocations.delete` |
-| `POST` | `/app/v3/api/projects/{projectId}/runtime_locations/{runtimeLocationId}/rebind` | `projects.runtimeLocations.rebind` |
-| `POST` | `/app/v3/api/projects/{projectId}/runtime_locations/{runtimeLocationId}/request_verification` | `projects.runtimeLocations.requestVerification` |
-| `GET` | `/app/v3/api/projects/{projectId}/runtime_location_preferences` | `projects.runtimeLocations.preferences.list` |
-| `PUT` | `/app/v3/api/projects/{projectId}/runtime_location_preferences/{capability}` | `projects.runtimeLocations.preferences.update` |
-
-### Project Git
-
-| Method | Path | operationId |
-| --- | --- | --- |
-| `GET` | `/app/v3/api/projects/{projectId}/git/overview` | `projects.git.overview.retrieve` |
-| `GET` | `/app/v3/api/projects/{projectId}/git/diff` | `projects.git.diff.retrieve` |
-| `POST` | `/app/v3/api/projects/{projectId}/git/branches` | `projects.git.branches.create` |
-| `POST` | `/app/v3/api/projects/{projectId}/git/switch_branch` | `projects.git.switchBranch` |
-| `POST` | `/app/v3/api/projects/{projectId}/git/commits` | `projects.git.commits.create` |
-| `POST` | `/app/v3/api/projects/{projectId}/git/push` | `projects.git.push` |
-| `POST` | `/app/v3/api/projects/{projectId}/git/worktrees` | `projects.git.worktrees.create` |
-| `POST` | `/app/v3/api/projects/{projectId}/git/remove_worktree` | `projects.git.removeWorktree` |
-| `POST` | `/app/v3/api/projects/{projectId}/git/prune_worktrees` | `projects.git.pruneWorktrees` |
-
-## Ownership Boundary
-
-Agents sessions, turns, session items, interactions, runtime bindings, artifacts, and checkpoints are
-consumed from the Agents App SDK. Skills, saved prompts, document content, IAM, human IM,
-membership, commerce, and deployment operations are consumed from their owner SDK families. They
-are intentionally absent from the BirdCoder API authority and are not counted above.
-
-Application code consumes generated SDK clients through injected services. Raw HTTP, manual auth
-headers, dependency DTO copies, and local SDK forks are forbidden. Successful responses use the
-SDKWork response envelope; failures use RFC 9457 `application/problem+json`.
+PC code consumes generated owner SDK clients through the application
+composition root. It must not call API paths with raw HTTP, assemble
+authentication headers, parse envelopes by hand, or maintain local DTO forks.
 
 ## Verification
 
 ```bash
-node scripts/sync-birdcoder-sdk-openapi.mjs --check
-node ../sdkwork-specs/tools/check-api-operation-patterns.mjs --root .
-node ../sdkwork-specs/tools/check-api-response-envelope.mjs --root .
+pnpm api:assembly:validate
+pnpm check:api-response-envelope
+pnpm check:api-transport-standard
 pnpm check:sdk-family-standard
-pnpm check:sdk-family-generated
 ```

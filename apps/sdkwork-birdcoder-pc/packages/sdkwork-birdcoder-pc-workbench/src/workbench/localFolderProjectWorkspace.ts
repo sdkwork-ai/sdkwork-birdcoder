@@ -1,7 +1,0 @@
-export {
-  DEFAULT_PROJECT_IMPORT_WORKSPACE_DESCRIPTION as DEFAULT_LOCAL_FOLDER_IMPORT_WORKSPACE_DESCRIPTION,
-  DEFAULT_PROJECT_IMPORT_WORKSPACE_NAME as DEFAULT_LOCAL_FOLDER_IMPORT_WORKSPACE_NAME,
-  resolveProjectImportWorkspaceId as resolveLocalFolderImportWorkspaceId,
-  type ProjectImportWorkspaceIdentity as LocalFolderImportWorkspaceIdentity,
-  type ResolveProjectImportWorkspaceIdOptions as ResolveLocalFolderImportWorkspaceIdOptions,
-} from './projectImportWorkspace.ts';

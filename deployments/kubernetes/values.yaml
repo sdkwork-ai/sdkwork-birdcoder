@@ -11,15 +11,8 @@ service:
   type: ClusterIP
   port: 18989
 
-# Cloud control-plane baseline. PostgreSQL and a pre-provisioned runtime Secret
-# are required; this chart intentionally does not start against a SQLite fallback.
+# Stateless cloud gateway baseline.
 replicaCount: 1
-
-database:
-  engine: postgresql
-  schema: sdkwork_ai_prod
-  # Inject SDKWORK_CLAW_DATABASE_URL through auth.existingSecret.
-  url: ""
 
 realtime:
   backend: memory
@@ -39,11 +32,6 @@ ingress:
   # runtime.allowedOrigins value are supplied by an operator.
   enabled: false
 
-persistence:
-  enabled: true
-  size: 5Gi
-  storageClass: ""
-
 runtime:
   deploymentProfile: cloud
   runtimeTarget: container
@@ -57,11 +45,9 @@ runtime:
 auth:
   manageUsername: ""
   managePassword: ""
-  # The deployment references an operator-provisioned Secret (External
-  # Secrets Operator, Sealed Secrets, or cloud KMS). It must contain
-  # manageUsername, managePassword, SDKWORK_CLAW_DATABASE_URL, and any
-  # enabled Redis credential keys, runtime-location active/fingerprint/keyring
-  # secrets, and any backup restore-test DSN. Secrets are never stored in values.
+  # The deployment may reference an operator-provisioned Secret (External
+  # Secrets Operator, Sealed Secrets, or cloud KMS). It contains only gateway
+  # credentials and enabled Redis credential keys. Secrets are never stored in values.
   existingSecret: sdkwork-birdcoder-runtime
 
 podSecurityContext:
@@ -92,7 +78,7 @@ resources:
 
 autoscaling:
   enabled: false
-  # Enable through values-postgresql-ha.yaml after PostgreSQL HA smoke passes.
+  # Enable through values-ha.yaml after the target cluster smoke passes.
   minReplicas: 1
   maxReplicas: 10
   targetCPUUtilizationPercentage: 80
@@ -182,9 +168,8 @@ serviceMonitor:
 observability:
   logLevel: info
   tracesExporter: otlp
-  # Standalone/dev profile ships no OTLP collector. Production MUST inject the
-  # collector endpoint via `values-postgresql-ha.yaml` or an external secret
-  # (see `observability.otlpEndpoint` in that overlay).
+  # Standalone/dev profile ships no OTLP collector. Production injects the
+  # collector endpoint via `values-ha.yaml` or a deployment-specific overlay.
   otlpEndpoint: ""
   otlpProtocol: grpc
   metricsExporter: prometheus
@@ -193,15 +178,3 @@ observability:
   # The ConfigMap emits OTEL_TRACES_SAMPLER=parentbased_traceidratio plus
   # OTEL_TRACES_SAMPLER_ARG only when this value is non-empty.
   tracesSamplingRatio: "0.1"
-
-backup:
-  enabled: false
-  schedule: "0 3 * * *"
-  retentionDays: 14
-  # Production deployments MUST pin the backup image with an immutable digest.
-  # Set imageDigest to override the tag-based reference (e.g. sha256:abc123...).
-  image: postgres:16-alpine
-  imageDigest: ""
-  # Optional key in auth.existingSecret containing an isolated restore-test DSN.
-  # Production HA enables this so every backup must pass a real restore.
-  verifyDatabaseUrlSecretKey: ""

@@ -11,22 +11,11 @@
       "memberDir": "crates/sdkwork-routes-system-app-api",
       "libName": "sdkwork_routes_system_app_api",
       "surface": "app-api",
-      "pathPrefix": "/app/v3/api/system",
+      "pathPrefix": null,
       "mountOrder": 0,
       "componentRef": "crates/sdkwork-routes-system-app-api/specs/component.spec.json",
       "routeManifestRef": "crates/sdkwork-routes-system-app-api/src/manifest.rs#system_app_api_route_manifest",
       "sourceRef": "crates/sdkwork-routes-system-app-api/Cargo.toml"
-    },
-    {
-      "packageName": "sdkwork-routes-workspace-app-api",
-      "memberDir": "crates/sdkwork-routes-workspace-app-api",
-      "libName": "sdkwork_routes_workspace_app_api",
-      "surface": "app-api",
-      "pathPrefix": "/app/v3/api",
-      "mountOrder": 1,
-      "componentRef": "crates/sdkwork-routes-workspace-app-api/specs/component.spec.json",
-      "routeManifestRef": "crates/sdkwork-routes-workspace-app-api/src/manifest.rs#workspace_app_api_route_manifest",
-      "sourceRef": "crates/sdkwork-routes-workspace-app-api/Cargo.toml"
     }
   ]
 }

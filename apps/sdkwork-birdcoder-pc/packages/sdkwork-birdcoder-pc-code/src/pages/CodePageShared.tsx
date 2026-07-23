@@ -5,14 +5,13 @@ import { CodeChatEmptyState } from './CodeChatEmptyState';
 
 export interface CodePageProps {
   isVisible?: boolean;
-  workspaceId?: string;
   projectId?: string;
   initialAgentSessionId?: string;
   onProjectChange?: (projectId: string) => void;
   onAgentSessionChange?: (agentSessionId: string, projectId?: string) => void;
 }
 
-export function resolveCodeProjectActionTarget<TProject extends { id: string; name: string }>(
+export function resolveCodeProjectActionTarget<TProject extends { projectId: string; name: string }>(
   project: TProject | null | undefined,
   addToast: (message: string, type: 'error') => void,
 ): TProject | null {
@@ -21,7 +20,7 @@ export function resolveCodeProjectActionTarget<TProject extends { id: string; na
     return null;
   }
 
-  if (!project.id.trim()) {
+  if (!project.projectId.trim()) {
     addToast(i18n.t('code.projectFolderUnavailableNamed', { name: project.name }), 'error');
     return null;
   }

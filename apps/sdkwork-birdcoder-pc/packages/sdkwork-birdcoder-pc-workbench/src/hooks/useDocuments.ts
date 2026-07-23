@@ -1,18 +1,18 @@
 import { useCallback, useEffect, useState } from 'react';
-import type { BirdCoderProjectDocumentSummary } from '@sdkwork/birdcoder-pc-contracts-commons';
+import type { ProjectDocumentSummary } from '@sdkwork/birdcoder-pc-contracts-commons';
 import type { DocumentListOptions, IDocumentService } from '@sdkwork/birdcoder-pc-infrastructure-runtime';
 import { useIDEServices } from '../context/ideServices.ts';
 
 export async function loadDocuments(
   documentService: Pick<IDocumentService, 'getDocuments'>,
   options: DocumentListOptions,
-): Promise<BirdCoderProjectDocumentSummary[]> {
+): Promise<ProjectDocumentSummary[]> {
   return documentService.getDocuments(options);
 }
 
 export function useDocuments(projectId: string | null | undefined) {
   const { documentService } = useIDEServices();
-  const [documents, setDocuments] = useState<BirdCoderProjectDocumentSummary[]>([]);
+  const [documents, setDocuments] = useState<ProjectDocumentSummary[]>([]);
   const [isLoading, setIsLoading] = useState(false);
 
   const refreshDocuments = useCallback(async () => {

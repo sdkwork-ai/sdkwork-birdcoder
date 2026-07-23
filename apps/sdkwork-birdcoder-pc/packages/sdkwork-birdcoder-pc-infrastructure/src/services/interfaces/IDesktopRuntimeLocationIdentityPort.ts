@@ -7,11 +7,7 @@ export interface DesktopRuntimeLocationBindingIdentity {
   displayName: string;
   locationKind: 'local_directory';
   pathFlavor: 'windows' | 'posix';
-  requiresRebind: boolean;
   rootLocator: string;
-  runtimeLocationCreateGeneration: number;
-  runtimeLocationId?: string;
-  runtimeLocationVersion?: string;
   runtimeTargetId: string;
   runtimeTargetKind: 'desktop';
 }
@@ -21,18 +17,4 @@ export interface DesktopRuntimeLocationIdentityPort {
     absolutePath: string;
     projectId: string;
   }): Promise<DesktopRuntimeLocationBindingIdentity | null>;
-
-  persistRemoteRuntimeLocationBinding(input: {
-    absolutePath: string;
-    projectId: string;
-    rootLocator: string;
-    runtimeLocationId: string;
-    runtimeLocationVersion: string;
-  }): Promise<void>;
-
-  clearRemoteRuntimeLocationBinding(input: {
-    absolutePath: string;
-    projectId: string;
-    rootLocator: string;
-  }): Promise<void>;
 }

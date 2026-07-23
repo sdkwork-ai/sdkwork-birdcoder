@@ -111,8 +111,8 @@ export const ProjectExplorerProjectSection = React.memo(function ProjectExplorer
   const sessionsRegionId = React.useId();
 
   const handleProjectRowClick = (event: React.MouseEvent<HTMLDivElement>) => {
-    onSelectProject(project.id);
-    onToggleProject(project.id, event);
+    onSelectProject(project.projectId);
+    onToggleProject(project.projectId, event);
   };
 
   return (
@@ -125,7 +125,7 @@ export const ProjectExplorerProjectSection = React.memo(function ProjectExplorer
           isSelectedProject ? 'text-white' : 'text-gray-300'
         }`}
         onClick={handleProjectRowClick}
-        onContextMenu={(event) => onProjectContextMenu(event, project.id)}
+        onContextMenu={(event) => onProjectContextMenu(event, project.projectId)}
       >
         <button
           type="button"
@@ -134,7 +134,7 @@ export const ProjectExplorerProjectSection = React.memo(function ProjectExplorer
               ? 'text-gray-100 hover:bg-white/10'
               : 'text-gray-400 hover:bg-white/[0.08] hover:text-gray-200 group-hover:text-gray-300'
           }`}
-          onClick={(event) => onToggleProject(project.id, event)}
+          onClick={(event) => onToggleProject(project.projectId, event)}
           aria-expanded={expanded}
           aria-controls={sessionsRegionId}
           aria-label={expanded ? collapseProjectLabel : expandProjectLabel}
@@ -142,7 +142,7 @@ export const ProjectExplorerProjectSection = React.memo(function ProjectExplorer
         >
           {expanded ? <FolderOpen size={15} aria-hidden="true" /> : <Folder size={15} aria-hidden="true" />}
         </button>
-        {project.archived && <Archive size={14} className="text-gray-500 shrink-0" />}
+        {project.status === 'archived' && <Archive size={14} className="text-gray-500 shrink-0" />}
         {isRenamingProject ? (
           <input
             type="text"
@@ -151,7 +151,7 @@ export const ProjectExplorerProjectSection = React.memo(function ProjectExplorer
             onChange={(event) => onProjectRenameValueChange(event.target.value)}
             onKeyDown={(event) => {
               if (event.key === 'Enter') {
-                onProjectRenameSubmit(project.id, projectRenameValue, project.name);
+                onProjectRenameSubmit(project.projectId, projectRenameValue, project.name);
               } else if (event.key === 'Escape') {
                 onProjectRenameCancel();
               }
@@ -172,7 +172,7 @@ export const ProjectExplorerProjectSection = React.memo(function ProjectExplorer
               onClick={(event) => {
                 event.stopPropagation();
                 onNewAgentSessionInProject(
-                  project.id,
+                  project.projectId,
                   defaultNewSessionEngineId,
                   defaultNewSessionModelId,
                 );
@@ -184,7 +184,7 @@ export const ProjectExplorerProjectSection = React.memo(function ProjectExplorer
               type="button"
               className="rounded-md p-1 text-gray-500 transition-all hover:bg-white/10 hover:text-white"
               title={moreActionsLabel}
-              onClick={(event) => onOpenProjectContextMenuFromButton(event, project.id)}
+              onClick={(event) => onOpenProjectContextMenuFromButton(event, project.projectId)}
             >
               <MoreHorizontal size={12} />
             </button>
@@ -210,7 +210,7 @@ export const ProjectExplorerProjectSection = React.memo(function ProjectExplorer
                 key={session.id}
                 relativeTimeNow={relativeTimeNow}
                 session={session}
-                sessionProjectId={project.id}
+                sessionProjectId={project.projectId}
                 isSelected={selectedVisibleSessionId === session.id}
                 isRenaming={renamingVisibleSessionId === session.id}
                 renameValue={renamingVisibleSessionId === session.id ? sessionRenameValue : ''}
@@ -244,7 +244,7 @@ export const ProjectExplorerProjectSection = React.memo(function ProjectExplorer
                   disabled={entry.isLoadingMoreSessions === true}
                   aria-busy={entry.isLoadingMoreSessions === true}
               onClick={() =>
-                onLoadMoreProjectSessions(project.id, entry.nextVisibleSessionCount)
+                onLoadMoreProjectSessions(project.projectId, entry.nextVisibleSessionCount)
               }
             >
               {entry.isLoadingMoreSessions ? (

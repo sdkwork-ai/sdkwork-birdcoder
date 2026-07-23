@@ -61,9 +61,15 @@ mod tests {
     #[test]
     fn canonical_app_api_authority_is_loadable() {
         let body = load_openapi_authority().unwrap_or_else(|_| {
-            panic!("OpenAPI authority not found at {:?}", openapi_candidate_paths())
+            panic!(
+                "OpenAPI authority not found at {:?}",
+                openapi_candidate_paths()
+            )
         });
         let document: serde_json::Value = serde_json::from_str(&body).expect("valid OpenAPI JSON");
-        assert_eq!(document["x-sdkwork-api-authority"], "sdkwork-birdcoder-app-api");
+        assert_eq!(
+            document["x-sdkwork-api-authority"],
+            "sdkwork-birdcoder-app-api"
+        );
     }
 }

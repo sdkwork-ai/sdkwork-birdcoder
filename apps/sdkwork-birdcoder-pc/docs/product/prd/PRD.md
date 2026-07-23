@@ -3,49 +3,56 @@
 Status: active
 Owner: SDKWork maintainers
 Application: sdkwork-birdcoder-pc
-Updated: 2026-07-22
+Updated: 2026-07-23
 Specs: REQUIREMENTS_SPEC.md, DOCUMENTATION_SPEC.md, APP_PC_ARCHITECTURE_SPEC.md
 
-This document narrows the root [BirdCoder PRD](../../../../../docs/product/prd/PRD.md)
-to browser and Tauri behavior. The root PRD remains the product Canon.
+This document narrows the
+[repository PRD](../../../../../docs/product/prd/PRD.md) to PC behavior.
 
-## PC Surface Scope
+## Scope
 
-The PC surface provides the coding workbench, project navigation, editor,
-terminal, Git, and AI-assisted coding workflows. Browser and Tauri share the
-same feature services and owner SDK contracts; Tauri adds explicitly injected
-local filesystem and terminal capabilities.
+PC provides Project navigation, editor, terminal, Git/worktree, filesystem,
+multiwindow, and AI-assisted coding workflows for browser and Tauri hosts.
 
-AI-assisted coding uses the Agents aggregate end to end. BirdCoder selects an
-Agents Project, creates or selects an Agents Session, submits Turns, and renders
-Session Items. The Agents Session id is the only AI-session identity. Provider,
-model, native-session, runtime binding, interaction, artifact, and checkpoint
-facts remain owned by `sdkwork-agents`.
+AI workflows use Agents Project, Session, Turn, Session Item, Interaction, and
+Runtime Binding resources. Human communication, when enabled, uses IM
+Conversation and Message resources. A shared visual chat surface does not merge
+their business semantics.
+
+## User Outcomes
+
+- Select or create one canonical Agents Project.
+- Create and continue Agents Sessions under the same `projectId`.
+- Render Session Items without a local transcript authority.
+- Bind a Session to an opaque local runtime id through Agents.
+- Authorize a local directory on the current device and use it for filesystem,
+  Git, worktree, and terminal actions.
+- Use Skills and other platform capabilities through their owner SDKs.
 
 ## Product Boundaries
 
-- BirdCoder owns workspace, project, runtime-location, document-binding, and
-  sandbox-binding behavior only.
-- A BirdCoder project may keep the stable default Agents Project id required to
-  enter the assistant workflow; it does not persist a Session or transcript.
-- AI transcript items are Agents Session Items. Human Conversation, Message,
-  Member, and ReadCursor workflows, when enabled, use `sdkwork-im` and remain a
-  different business capability.
-- Skill packages and installations use `sdkwork-skills`; saved prompts use
-  `sdkwork-prompts`; document content uses `sdkwork-documents`.
-- Browser code never receives provider credentials, plaintext remote project
-  roots, or native provider-session authority.
+- IAM organization scope replaces workbench Workspace grouping.
+- PC does not create a BirdCoder Project or second Project id.
+- Device mounts are subject-scoped local capability material.
+- Native paths and execution handles do not enter server APIs.
+- Sandbox composition uses Agents `drive/drive`.
+- Project document composition is explicitly unavailable until Agents adds
+  `document/documents`.
+- Missing owner SDK connectivity, local permission, mount, runtime binding, or
+  composition support fails closed.
 
 ## Acceptance
 
-The PC surface must consume generated owner SDKs or approved composed services,
-share the application TokenManager for authenticated App SDKs, keep local host
-capabilities behind typed adapters, and fail closed when an authorized runtime
-location is unavailable. It must not add raw HTTP, copied DTOs, local business
-persistence, transcript projections, or a compatibility Session facade.
+- PC typecheck and architecture gates pass without compatibility fields.
+- Owner SDK calls use the shared TokenManager and correct connectivity plane.
+- Project and Session views preserve canonical identifiers.
+- Local storage contains no Project, Session, Conversation, Message, or Skill
+  business record.
+- Filesystem and execution actions never use process-CWD or unrelated-mount
+  fallback.
 
-## Canonical References
+## References
 
-- [Root PRD](../../../../../docs/product/prd/PRD.md)
-- [Root technical architecture](../../../../../docs/architecture/tech/TECH_ARCHITECTURE.md)
-- [API reference](../../../../../docs/reference/api-reference.md)
+- [Repository PRD](../../../../../docs/product/prd/PRD.md)
+- [PC architecture](../../architecture/tech/TECH_ARCHITECTURE.md)
+- [Runtime bindings and device mounts](../../../../../docs/guides/operator/runtime-bindings-and-device-mounts.md)

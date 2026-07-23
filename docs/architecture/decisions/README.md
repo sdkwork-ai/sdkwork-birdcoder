@@ -8,12 +8,10 @@ The current baseline remains in
 [TECH_ARCHITECTURE.md](../tech/TECH_ARCHITECTURE.md). Decisions record durable
 boundaries without copying generated contracts or global standards.
 
-- [ADR-20260722: Domain ownership and single-write authority](ADR-20260722-domain-ownership-and-single-write-authority.md)
-- [ADR-20260716: Distributed project runtime locations](ADR-20260716-distributed-project-runtime-locations.md)
-- [ADR-20260719: Repository pool driver closure](ADR-20260719-birdcoder-repository-pool-driver-migration.md)
+- [ADR-20260722: Owner-composed stateless workbench](ADR-20260722-domain-ownership-and-single-write-authority.md)
 
 Superseded pre-launch decisions are removed after their valid constraints are
-incorporated into the active Canon.
+incorporated into the active Canon. Git history remains the audit source.
 
 ## Verification
 

@@ -4,8 +4,8 @@ use axum::extract::State;
 use axum::Json;
 
 use sdkwork_birdcoder_errors::{
-    build_data_envelope, build_unbounded_list_envelope, trace_id_from_request_id,
-    ApiDataEnvelope, ApiListEnvelope,
+    build_data_envelope, build_unbounded_list_envelope, trace_id_from_request_id, ApiDataEnvelope,
+    ApiListEnvelope,
 };
 use sdkwork_birdcoder_router_context::{RequiredIamContext, WebRequestContext};
 use sdkwork_birdcoder_system_descriptor_service::domain::models::{
@@ -39,7 +39,9 @@ impl SystemAppState {
         config_file_name: impl Into<String>,
     ) -> Self {
         Self {
-            service: Arc::new(SystemService::new(ManifestRouteCatalogProvider::new(routes))),
+            service: Arc::new(SystemService::new(ManifestRouteCatalogProvider::new(
+                routes,
+            ))),
             routes,
             runtime_host: host.into(),
             runtime_port: port,
@@ -96,5 +98,8 @@ pub async fn get_health(
     RequiredIamContext(_iam): RequiredIamContext,
     State(state): State<SystemAppState>,
 ) -> Json<ApiDataEnvelope<HealthPayload>> {
-    Json(build_data_envelope(state.service.health(), request_id(&web)))
+    Json(build_data_envelope(
+        state.service.health(),
+        request_id(&web),
+    ))
 }

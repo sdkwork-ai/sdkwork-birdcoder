@@ -1,4 +1,4 @@
-import type { BirdCoderProject } from '@sdkwork/birdcoder-pc-contracts-commons';
+import type { AgentProjectView } from '@sdkwork/birdcoder-pc-contracts-commons';
 
 export interface ProjectSessionLoadMoreResult {
   hasMore?: boolean;
@@ -9,7 +9,7 @@ export interface ProjectExplorerProps {
   hasMoreProjects?: boolean;
   isLoadingMoreProjects?: boolean;
   isVisible?: boolean;
-  projects: BirdCoderProject[];
+  projects: AgentProjectView[];
   selectedProjectId?: string | null;
   selectedAgentSessionId: string | null;
   onSelectProject?: (id: string | null) => void;

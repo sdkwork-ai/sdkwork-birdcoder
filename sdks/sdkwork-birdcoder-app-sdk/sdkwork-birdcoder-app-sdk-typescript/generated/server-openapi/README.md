@@ -55,7 +55,6 @@ const client = new SdkworkAppClient({
 ## API Modules
 
 - `client.system` - system API
-- `client.intelligence` - intelligence API
 
 ## Usage Examples
 
@@ -64,18 +63,6 @@ const client = new SdkworkAppClient({
 ```typescript
 // Get BirdCoder application descriptor
 const result = await client.system.descriptor.retrieve();
-```
-
-### intelligence
-
-```typescript
-// List workspaces
-const params = {
-  userId: 'userId',
-  page: 2,
-  page_size: 3,
-};
-const result = await client.intelligence.workspaces.list(params);
 ```
 
 ## Error Handling

@@ -7,7 +7,7 @@ import {
 
 interface WorkbenchAgentSessionItemEditLocation {
   project?: {
-    id: string;
+    projectId: string;
   } | null;
 }
 
@@ -37,7 +37,7 @@ export function useWorkbenchAgentSessionItemEditAction({
       content,
       editAgentSessionItem,
       messageId,
-      projectId: project.id,
+      projectId: project.projectId,
     });
     if (!didEditMessage) {
       return;

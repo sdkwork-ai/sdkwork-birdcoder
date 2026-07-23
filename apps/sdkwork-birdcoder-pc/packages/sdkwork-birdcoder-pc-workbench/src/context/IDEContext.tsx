@@ -10,7 +10,6 @@ import type {
   IProjectService,
   IPromptService,
   IVipMembershipService,
-  IWorkspaceService,
 } from '@sdkwork/birdcoder-pc-infrastructure-runtime';
 import {
   IDEContext,
@@ -26,7 +25,6 @@ export interface IDEProviderProps {
   children: ReactNode;
   agentSessionService?: IAgentSessionService;
   catalogService?: ICatalogService;
-  workspaceService?: IWorkspaceService;
   projectService?: IProjectService;
   promptService?: IPromptService;
   documentService?: IDocumentService;
@@ -41,7 +39,6 @@ export const IDEProvider: React.FC<IDEProviderProps> = ({
   children,
   agentSessionService,
   catalogService,
-  workspaceService,
   projectService,
   promptService,
   documentService,
@@ -60,7 +57,6 @@ export const IDEProvider: React.FC<IDEProviderProps> = ({
       value={{
         agentSessionService: agentSessionService ?? defaultContext.agentSessionService,
         catalogService: catalogService ?? defaultContext.catalogService,
-        workspaceService: workspaceService ?? defaultContext.workspaceService,
         projectService: projectService ?? defaultContext.projectService,
         promptService: promptService ?? defaultContext.promptService,
         documentService: documentService ?? defaultContext.documentService,

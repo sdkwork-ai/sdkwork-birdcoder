@@ -1,83 +1,57 @@
-# First Governed Release (Pre-Launch → Publish)
+# First Governed Rust And PC Release
 
-Updated: 2026-06-30  
-Status: active operator checklist  
-Specs: `RELEASE_SPEC.md`, `TECH-09-installation-deployment-releasestandard.md`
+Status: active pre-launch checklist
+Owner: SDKWork maintainers
+Updated: 2026-07-23
+Specs: RELEASE_SPEC.md, SUPPLY_CHAIN_SECURITY_SPEC.md
 
-BirdCoder remains **pre-launch** (`publish.status: DRAFT`, `metadata.preLaunch: true`) across **four governed manifests**: root `sdkwork.app.config.json` plus surface manifests under `apps/sdkwork-birdcoder-{pc,h5,flutter-mobile}/`. Install packages stay **disabled** until this checklist completes with **real** build artifacts — not synthetic rehearsal fixtures.
+This checklist covers the Rust gateway, PC web artifact, and Tauri desktop
+artifact. H5 and Flutter are outside this release evidence.
 
-## 1. Rehearsal gates (must be green before real packaging)
+## Architecture Preconditions
 
-These prove the release pipeline shape without claiming production artifacts:
+- BirdCoder ownership is 0 server business tables, 4 System App operations,
+  0 Backend/Open operations, and 4 permissions.
+- PC uses canonical Agents Projects, Sessions, and Runtime Bindings.
+- Tauri device state passes its allowlist and local mount isolation tests.
+- No active compatibility, projection, copied SDK, raw HTTP, or remote
+  project-path authority remains.
+
+## Rehearsal
 
 ```bash
-pnpm lint
 pnpm check:arch
+pnpm check:desktop
 pnpm check:server
-pnpm release:plan
+pnpm check:multi-mode
+pnpm check:release-flow
 pnpm release:fixture:ready
 pnpm release:candidate:dry-run
-pnpm release:rehearsal:verify   # expect status "blocked" until artifacts/release/ is populated
+pnpm release:rehearsal:verify
 ```
 
-CI runs `release:fixture:ready` and `release:candidate:dry-run` and uploads `release-candidate-dry-run-evidence`.
+Rehearsal output cannot be promoted as a real release artifact.
 
-## 2. Real artifact build sequence
-
-Follow the `rehearsalPlan` embedded in `artifacts/release-candidate-dry-run/release-candidate-dry-run-report.json`:
+## Real Artifacts
 
 ```bash
 pnpm release:plan
 pnpm release:preflight:desktop-signing
 pnpm release:package:desktop
+pnpm release:package:web
 pnpm release:package:server
 pnpm release:package:container
 pnpm release:package:kubernetes
-pnpm release:package:web
 pnpm release:verify-trust:desktop
 pnpm release:smoke:desktop
-pnpm release:smoke:desktop-packaged-launch
 pnpm release:smoke:server
 pnpm release:smoke:container
 pnpm release:smoke:kubernetes
 pnpm release:smoke:web
 pnpm release:finalize
 pnpm release:smoke:finalized
-pnpm release:write-attestation-evidence -- --repository <owner/repo> --release-tag <tag>
 pnpm release:assert-ready
 ```
 
-Outputs land under `artifacts/release/` with `release-manifest.json`, `SHA256SUMS.txt`, and `release-attestations.json`.
-
-## 3. Manifest promotion rules
-
-Only after `pnpm release:assert-ready` passes against **real** `artifacts/release/`:
-
-1. Copy checksums from `SHA256SUMS.txt` into each enabled install package entry across root and surface manifests (no placeholders).
-2. Set `enabled: true` per package that has a verified artifact URL.
-3. Set `publish.status` to the governed publish state approved by release owners on **all four manifests** (root + PC + H5 + Flutter).
-4. Set `metadata.preLaunch` and `publish.preLaunch` to `false` on all four manifests.
-5. Set `metadata.releaseEvidence.status` to the governed release state, replace the pre-launch blockers with immutable release-tag and attestation references, and record the verification time.
-6. Replace the pre-launch manifest contract with a post-launch contract before packages can stay enabled, then run the replacement gate.
-
-**Never** enable packages with synthetic fixture checksums from `artifacts/release-readiness-fixture/` or `artifacts/release-candidate-dry-run/`.
-
-## 4. Security evidence
-
-When `security.checksumRequired`, `security.signatureRequired`, and `security.sbomRequired` are true in `sdkwork.app.config.json`:
-
-- Desktop installers: signing + trust smoke (`release:verify-trust:desktop`)
-- Server/container/k8s: manifest checksums + attestation evidence
-- SBOM: attach to release attestation bundle per `RELEASE_SPEC.md`
-
-## 5. Post-publish verification
-
-```bash
-pnpm release:smoke:finalized
-pnpm check:governance-regression
-pnpm release:smoke:postgresql-live   # when PostgreSQL is production engine
-```
-
-## 6. Rollback
-
-Use `rollbackRunbookRef` on the release manifest and redeploy the previous Helm/Docker tag with known-good checksums.
+Enable publication only after immutable checksums, signatures, SBOM,
+attestations, rollback evidence, and every stop-ship gate are verified.

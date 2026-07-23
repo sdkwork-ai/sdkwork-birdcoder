@@ -9,7 +9,6 @@ interface WorkbenchStartupSelectionLink {
   activeTab?: AppTab;
   agentSessionId?: string;
   projectId?: string;
-  workspaceId?: string;
 }
 
 function normalizeStartupSelectionParam(value: string | null): string {
@@ -26,15 +25,13 @@ function readWorkbenchStartupSelectionLink(): WorkbenchStartupSelectionLink | nu
     normalizeStartupSelectionParam(searchParams.get('agentSessionId')) ||
     normalizeStartupSelectionParam(searchParams.get('sessionId'));
   const projectId = normalizeStartupSelectionParam(searchParams.get('projectId'));
-  const workspaceId = normalizeStartupSelectionParam(searchParams.get('workspaceId'));
-  if (!agentSessionId && !projectId && !workspaceId) {
+  if (!agentSessionId && !projectId) {
     return null;
   }
 
   const requestedTab = normalizeStartupSelectionParam(searchParams.get('tab'));
   return {
     activeTab: requestedTab === 'studio' ? 'studio' : 'code',
-    ...(workspaceId ? { workspaceId } : {}),
     ...(projectId ? { projectId } : {}),
     ...(agentSessionId ? { agentSessionId } : {}),
   };
@@ -51,7 +48,6 @@ export function applyWorkbenchStartupSelectionLink(
   return {
     ...recoverySnapshot,
     activeTab: selectionLink.activeTab ?? recoverySnapshot.activeTab,
-    activeWorkspaceId: selectionLink.workspaceId ?? recoverySnapshot.activeWorkspaceId,
     activeProjectId: selectionLink.projectId ?? recoverySnapshot.activeProjectId,
     activeAgentSessionId:
       selectionLink.agentSessionId ?? recoverySnapshot.activeAgentSessionId,

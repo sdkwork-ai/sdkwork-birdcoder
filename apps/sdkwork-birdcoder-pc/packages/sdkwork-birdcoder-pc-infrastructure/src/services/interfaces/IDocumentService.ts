@@ -1,4 +1,4 @@
-import type { BirdCoderProjectDocumentSummary } from '@sdkwork/birdcoder-pc-contracts-commons';
+import type { ProjectDocumentSummary } from '@sdkwork/birdcoder-pc-contracts-commons';
 
 export interface DocumentListOptions {
   projectId: string;
@@ -7,5 +7,5 @@ export interface DocumentListOptions {
 }
 
 export interface IDocumentService {
-  getDocuments(options: DocumentListOptions): Promise<BirdCoderProjectDocumentSummary[]>;
+  getDocuments(options: DocumentListOptions): Promise<ProjectDocumentSummary[]>;
 }

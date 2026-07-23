@@ -56,12 +56,13 @@ import {
   resolveMultiWindowPaneSessionProvisioningStatus,
 } from '../runtime/multiWindowSessionProvisioning.ts';
 import {
-  buildMultiWindowWorkspaceState,
-  readMultiWindowWorkspaceState,
-  resolveBrowserMultiWindowWorkspaceStorage,
-  type MultiWindowWorkspaceState,
-  writeMultiWindowWorkspaceState,
-} from '../runtime/multiWindowWorkspaceState.ts';
+  buildMultiWindowLayoutState,
+  MULTI_WINDOW_DEFAULT_LAYOUT_SCOPE_ID,
+  readMultiWindowLayoutState,
+  resolveBrowserMultiWindowLayoutStorage,
+  type MultiWindowLayoutState,
+  writeMultiWindowLayoutState,
+} from '../runtime/multiWindowLayoutState.ts';
 import type {
   MultiWindowDispatchState,
   MultiWindowGlobalMode,
@@ -104,7 +105,7 @@ function updatePaneById(
 
 type MultiWindowPreferencesCarrier = Parameters<typeof createDefaultMultiWindowPaneConfig>[2];
 
-const MULTI_WINDOW_WORKSPACE_STATE_PERSIST_DELAY_MS = 160;
+const MULTI_WINDOW_LAYOUT_STATE_PERSIST_DELAY_MS = 160;
 
 function createFallbackPaneConfigs(
   preferences?: MultiWindowPreferencesCarrier,
@@ -319,7 +320,6 @@ export const MultiWindowProgrammingPage = memo(function MultiWindowProgrammingPa
   initialAgentSessionId,
   isVisible = true,
   projectId,
-  workspaceId,
   onAgentSessionChange,
   onProjectChange,
 }: MultiWindowProgrammingPageProps) {
@@ -331,7 +331,7 @@ export const MultiWindowProgrammingPage = memo(function MultiWindowProgrammingPa
     hasFetched,
     projects,
     sendMessage,
-  } = useProjects(workspaceId, {
+  } = useProjects({
     isActive: isVisible,
     targetProjectId: projectId,
   });
@@ -351,18 +351,18 @@ export const MultiWindowProgrammingPage = memo(function MultiWindowProgrammingPa
       noProjectSelected: t('multiWindow.selectProjectFirst'),
     },
   });
-  const [initialWorkspaceState] = useState(() =>
-    readMultiWindowWorkspaceState(
-      resolveBrowserMultiWindowWorkspaceStorage(),
-      workspaceId,
+  const [initialLayoutState] = useState(() =>
+    readMultiWindowLayoutState(
+      resolveBrowserMultiWindowLayoutStorage(),
+      MULTI_WINDOW_DEFAULT_LAYOUT_SCOPE_ID,
     ),
   );
   const [windowCount, setWindowCount] = useState(
-    initialWorkspaceState?.windowCount ?? DEFAULT_MULTI_WINDOW_ACTIVE_WINDOW_COUNT,
+    initialLayoutState?.windowCount ?? DEFAULT_MULTI_WINDOW_ACTIVE_WINDOW_COUNT,
   );
   const [panes, setPanes] = useState<MultiWindowPaneConfig[]>(() =>
-    initialWorkspaceState?.panes.length
-      ? ensureMultiWindowPaneCapacity(initialWorkspaceState.panes, preferences)
+    initialLayoutState?.panes.length
+      ? ensureMultiWindowPaneCapacity(initialLayoutState.panes, preferences)
       : createFallbackPaneConfigs(preferences),
   );
   const [composerValue, setComposerValue] = useState('');
@@ -375,11 +375,10 @@ export const MultiWindowProgrammingPage = memo(function MultiWindowProgrammingPa
   const [sessionPickerPaneId, setSessionPickerPaneId] = useState<string | null>(null);
   const [pendingWindowCountTarget, setPendingWindowCountTarget] = useState<number | null>(null);
   const [creatingSessionPaneId, setCreatingSessionPaneId] = useState<string | null>(null);
-  const activeWorkspaceIdRef = useRef(workspaceId);
   const activeDispatchBatchIdRef = useRef<string | null>(null);
   const activeDispatchAbortControllerRef = useRef<AbortController | null>(null);
-  const pendingWorkspaceStatePersistenceTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const pendingWorkspaceStatePersistenceRef = useRef<MultiWindowWorkspaceState | null>(null);
+  const pendingLayoutStatePersistenceTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const pendingLayoutStatePersistenceRef = useRef<MultiWindowLayoutState | null>(null);
   const sessionIndex = useMemo(
     () => buildProjectAgentSessionIndex(projects),
     [projects],
@@ -453,92 +452,61 @@ export const MultiWindowProgrammingPage = memo(function MultiWindowProgrammingPa
     }
   }, []);
 
-  const flushPendingMultiWindowWorkspaceStatePersistence = useCallback(() => {
-    if (pendingWorkspaceStatePersistenceTimeoutRef.current !== null) {
-      clearTimeout(pendingWorkspaceStatePersistenceTimeoutRef.current);
-      pendingWorkspaceStatePersistenceTimeoutRef.current = null;
+  const flushPendingMultiWindowLayoutStatePersistence = useCallback(() => {
+    if (pendingLayoutStatePersistenceTimeoutRef.current !== null) {
+      clearTimeout(pendingLayoutStatePersistenceTimeoutRef.current);
+      pendingLayoutStatePersistenceTimeoutRef.current = null;
     }
 
-    const pendingWorkspaceState = pendingWorkspaceStatePersistenceRef.current;
-    pendingWorkspaceStatePersistenceRef.current = null;
-    if (!pendingWorkspaceState) {
+    const pendingLayoutState = pendingLayoutStatePersistenceRef.current;
+    pendingLayoutStatePersistenceRef.current = null;
+    if (!pendingLayoutState) {
       return;
     }
 
-    writeMultiWindowWorkspaceState(
-      resolveBrowserMultiWindowWorkspaceStorage(),
-      pendingWorkspaceState,
+    writeMultiWindowLayoutState(
+      resolveBrowserMultiWindowLayoutStorage(),
+      pendingLayoutState,
     );
   }, []);
 
-  const scheduleMultiWindowWorkspaceStatePersistence = useCallback((
-    workspaceState: MultiWindowWorkspaceState,
+  const scheduleMultiWindowLayoutStatePersistence = useCallback((
+    layoutState: MultiWindowLayoutState,
   ) => {
-    pendingWorkspaceStatePersistenceRef.current = workspaceState;
-    if (pendingWorkspaceStatePersistenceTimeoutRef.current !== null) {
-      clearTimeout(pendingWorkspaceStatePersistenceTimeoutRef.current);
+    pendingLayoutStatePersistenceRef.current = layoutState;
+    if (pendingLayoutStatePersistenceTimeoutRef.current !== null) {
+      clearTimeout(pendingLayoutStatePersistenceTimeoutRef.current);
     }
 
-    pendingWorkspaceStatePersistenceTimeoutRef.current = setTimeout(() => {
-      pendingWorkspaceStatePersistenceTimeoutRef.current = null;
-      const pendingWorkspaceState = pendingWorkspaceStatePersistenceRef.current;
-      pendingWorkspaceStatePersistenceRef.current = null;
-      if (!pendingWorkspaceState) {
+    pendingLayoutStatePersistenceTimeoutRef.current = setTimeout(() => {
+      pendingLayoutStatePersistenceTimeoutRef.current = null;
+      const pendingLayoutState = pendingLayoutStatePersistenceRef.current;
+      pendingLayoutStatePersistenceRef.current = null;
+      if (!pendingLayoutState) {
         return;
       }
 
-      writeMultiWindowWorkspaceState(
-        resolveBrowserMultiWindowWorkspaceStorage(),
-        pendingWorkspaceState,
+      writeMultiWindowLayoutState(
+        resolveBrowserMultiWindowLayoutStorage(),
+        pendingLayoutState,
       );
-    }, MULTI_WINDOW_WORKSPACE_STATE_PERSIST_DELAY_MS);
+    }, MULTI_WINDOW_LAYOUT_STATE_PERSIST_DELAY_MS);
   }, []);
 
   useEffect(() => {
-    if (activeWorkspaceIdRef.current !== workspaceId) {
-      return;
-    }
-
-    scheduleMultiWindowWorkspaceStatePersistence(
-      buildMultiWindowWorkspaceState({
+    scheduleMultiWindowLayoutStatePersistence(
+      buildMultiWindowLayoutState({
+        layoutScopeId: MULTI_WINDOW_DEFAULT_LAYOUT_SCOPE_ID,
         panes,
         windowCount,
-        workspaceId,
       }),
     );
-  }, [panes, scheduleMultiWindowWorkspaceStatePersistence, windowCount, workspaceId]);
-
-  useEffect(() => {
-    if (activeWorkspaceIdRef.current === workspaceId) {
-      return;
-    }
-
-    flushPendingMultiWindowWorkspaceStatePersistence();
-    discardActiveDispatchBatch();
-    activeWorkspaceIdRef.current = workspaceId;
-    const nextWorkspaceState = readMultiWindowWorkspaceState(
-      resolveBrowserMultiWindowWorkspaceStorage(),
-      workspaceId,
-    );
-    setWindowCount(nextWorkspaceState?.windowCount ?? DEFAULT_MULTI_WINDOW_ACTIVE_WINDOW_COUNT);
-    setPanes(
-      nextWorkspaceState?.panes.length
-        ? ensureMultiWindowPaneCapacity(nextWorkspaceState.panes, preferences)
-        : createFallbackPaneConfigs(preferences),
-    );
-    setDispatchState('idle');
-    setDispatchResults([]);
-    setDispatchSummary(null);
-    setLastBroadcastPrompt('');
-    setSessionPickerPaneId(null);
-    setPendingWindowCountTarget(null);
-    setCreatingSessionPaneId(null);
-  }, [discardActiveDispatchBatch, flushPendingMultiWindowWorkspaceStatePersistence, preferences, workspaceId]);
+  }, [panes, scheduleMultiWindowLayoutStatePersistence, windowCount]);
 
   useEffect(() => () => {
-    flushPendingMultiWindowWorkspaceStatePersistence();
+    flushPendingMultiWindowLayoutStatePersistence();
     discardActiveDispatchBatch({ resetDispatching: false });
-  }, [discardActiveDispatchBatch, flushPendingMultiWindowWorkspaceStatePersistence]);
+  }, [discardActiveDispatchBatch, flushPendingMultiWindowLayoutStatePersistence]);
 
   const bindingsByPaneId = useMemo(() => {
     const bindings = new Map<string, MultiWindowPaneBinding>();
@@ -880,7 +848,7 @@ export const MultiWindowProgrammingPage = memo(function MultiWindowProgrammingPa
               effectivePane = {
                 ...pane,
                 agentSessionId: provisionedSession.id,
-                projectId: provisionedSession.birdCoderProjectId.trim() || pane.projectId,
+                projectId: provisionedSession.projectId.trim() || pane.projectId,
                 selectedEngineId: provisionedSession.engineId?.trim() || pane.selectedEngineId,
                 selectedModelId: provisionedSession.modelId?.trim() || pane.selectedModelId,
                 title: buildMultiWindowProvisionedSessionTitle(pane, paneIndex),
@@ -902,7 +870,6 @@ export const MultiWindowProgrammingPage = memo(function MultiWindowProgrammingPa
             const context = buildWorkbenchAgentSessionTurnContext({
               projectId: effectivePane.projectId,
               sessionId: effectiveAgentSessionId,
-              workspaceId,
             });
             const dispatchPromptProfile = buildMultiWindowPaneDispatchPrompt(
               dispatchPrompt,
@@ -1031,7 +998,6 @@ export const MultiWindowProgrammingPage = memo(function MultiWindowProgrammingPa
     t,
     visiblePanes,
     windowCount,
-    workspaceId,
   ]);
 
   const handleBroadcastPrompt = useCallback(async () => {

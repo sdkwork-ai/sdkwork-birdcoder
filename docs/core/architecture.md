@@ -1,13 +1,10 @@
 # Architecture
 
-This navigation page points to the active repository architecture Canon.
+This page routes to the active architecture documents:
 
 - [Technical architecture](../architecture/tech/TECH_ARCHITECTURE.md)
-- [Distributed project runtime locations](../architecture/decisions/ADR-20260716-distributed-project-runtime-locations.md)
-- [Domain ownership and single-write authority](../architecture/decisions/ADR-20260722-domain-ownership-and-single-write-authority.md)
+- [Owner-composed stateless workbench ADR](../architecture/decisions/ADR-20260722-domain-ownership-and-single-write-authority.md)
 - [Runtime topology](../architecture/topology-standard.md)
-- [Deployment operations](../guides/operator/deployment-operations.md)
+- [PC architecture supplement](../../apps/sdkwork-birdcoder-pc/docs/architecture/tech/TECH_ARCHITECTURE.md)
 
-Do not add product, runtime, or release claims here. The Canon and ADRs own
-those statements; historical release evidence remains outside the current
-architecture baseline.
+Machine authority remains in `specs/`, OpenAPI, and native manifests.

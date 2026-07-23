@@ -1,7 +1,6 @@
 import {
   createBirdCoderDependencyAppSdkClients,
   type BirdCoderDependencyAppSdkClients,
-  type SdkworkDocumentsAppClient,
   type SdkworkPromptsAppClient,
 } from '@sdkwork/birdcoder-pc-infrastructure/services/dependencyAppSdkClients';
 import {
@@ -29,19 +28,17 @@ export type { BirdCoderDependencyAppSdkClients };
 
 function resolveInjectedDependencyClients(
   platformApiGatewayBaseUrl: string | undefined,
-  documentsClient: SdkworkDocumentsAppClient | undefined,
   promptsClient: SdkworkPromptsAppClient | undefined,
 ): BirdCoderDependencyAppSdkClients {
-  if (documentsClient && promptsClient) {
-    return { documentsClient, promptsClient };
+  if (promptsClient) {
+    return { promptsClient };
   }
 
   const createdClients = createBirdCoderDependencyAppSdkClients({
     platformApiGatewayBaseUrl,
   });
   return {
-    documentsClient: documentsClient ?? createdClients.documentsClient,
-    promptsClient: promptsClient ?? createdClients.promptsClient,
+    promptsClient: createdClients.promptsClient,
   };
 }
 
@@ -50,7 +47,6 @@ export function configureDefaultBirdCoderIdeServicesRuntime(
 ): void {
   const dependencyClients = resolveInjectedDependencyClients(
     config.platformApiGatewayBaseUrl,
-    config.documentsClient,
     config.promptsClient,
   );
   configureInfrastructureRuntime({
@@ -64,7 +60,6 @@ export function bindDefaultBirdCoderIdeServicesRuntime(
 ): void {
   const dependencyClients = resolveInjectedDependencyClients(
     options.platformApiGatewayBaseUrl,
-    options.documentsClient,
     options.promptsClient,
   );
   bindInfrastructureRuntime({

@@ -35,8 +35,8 @@ assert.deepEqual(
 );
 assert.equal(testPlan.env.SDKWORK_VITE_MODE, 'test');
 assert.equal(
-  testPlan.env.BIRDCODER_CODING_SERVER_SQLITE_FILE,
-  'D:\\workspace\\sdkwork-birdcoder\\packages\\sdkwork-birdcoder-pc-desktop\\.local\\birdcoder.sqlite3',
+  testPlan.env.SDKWORK_BIRDCODER_DEVICE_STATE_FILE,
+  'D:\\workspace\\sdkwork-birdcoder\\packages\\sdkwork-birdcoder-pc-desktop\\.local\\birdcoder-device-state.sqlite3',
 );
 assert.equal(testPlan.shell, false);
 
@@ -50,15 +50,15 @@ const linuxDesktopPlan = createTauriCliPlan({
 });
 
 assert.equal(
-  linuxDesktopPlan.env.BIRDCODER_CODING_SERVER_SQLITE_FILE,
-  '/home/runner/work/sdkwork-birdcoder/sdkwork-birdcoder/apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-desktop/.local/birdcoder.sqlite3',
-  'desktop dev sqlite fallback should use the target platform path model instead of the host OS path model',
+  linuxDesktopPlan.env.SDKWORK_BIRDCODER_DEVICE_STATE_FILE,
+  '/home/runner/work/sdkwork-birdcoder/sdkwork-birdcoder/apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-desktop/.local/birdcoder-device-state.sqlite3',
+  'desktop dev device-state fallback should use the target platform path model instead of the host OS path model',
 );
 
-assert.doesNotMatch(
+assert.match(
   readFileSync(modulePath, 'utf8'),
-  /sdkwork-birdcoder\.sqlite3/u,
-  'tauri dev runner must not seed the retired desktop sqlite file name.',
+  /SDKWORK_BIRDCODER_DEVICE_STATE_FILE/u,
+  'tauri dev runner must publish the canonical desktop device-state override.',
 );
 
 assert.throws(

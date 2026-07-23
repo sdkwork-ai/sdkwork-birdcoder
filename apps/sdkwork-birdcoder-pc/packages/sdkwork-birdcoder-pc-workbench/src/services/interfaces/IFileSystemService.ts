@@ -3,8 +3,8 @@ import type {
   IFileNode,
   LocalFolderMountSource,
   ProjectFileSystemChangeEvent,
-  WorkspaceFileSearchExecutionResult,
-  WorkspaceFileSearchOptions,
+  ProjectFileSearchExecutionResult,
+  ProjectFileSearchOptions,
 } from '@sdkwork/birdcoder-pc-contracts-commons';
 
 export interface FileSystemChangeSubscriptionOptions {
@@ -118,8 +118,8 @@ export interface IFileSystemService {
    */
   searchFiles(
     projectId: string,
-    options: WorkspaceFileSearchOptions,
-  ): Promise<WorkspaceFileSearchExecutionResult>;
+    options: ProjectFileSearchOptions,
+  ): Promise<ProjectFileSearchExecutionResult>;
 
   /**
    * Subscribes to external file-system changes for a mounted project.

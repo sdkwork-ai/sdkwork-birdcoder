@@ -21,6 +21,7 @@ AMD ROCm overlay:
 docker compose -f deployments/docker/docker-compose.yml -f deployments/docker/docker-compose.amd-rocm.yml up -d
 ```
 
-Container images bundle `database/` and the OpenAPI snapshot under `/opt/sdkwork-birdcoder`.
-Set `SDKWORK_BIRDCODER_APP_ROOT` and `SDKWORK_OPENAPI_SNAPSHOT_PATH` when overriding the default
-layout.
+The container is a stateless BirdCoder gateway. It bundles the OpenAPI snapshot under
+`/opt/sdkwork-birdcoder` and owns no database, migration, backup, or persistent data volume.
+Set `SDKWORK_BIRDCODER_APP_ROOT` and `SDKWORK_OPENAPI_SNAPSHOT_PATH` only when overriding the
+packaged application layout.

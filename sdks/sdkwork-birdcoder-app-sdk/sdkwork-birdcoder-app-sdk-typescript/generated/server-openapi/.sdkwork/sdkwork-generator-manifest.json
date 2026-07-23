@@ -44,7 +44,7 @@
     },
     {
       "path": "README.md",
-      "sha256": "ae43867b89c4223022c1c4f111b711b41baf2963f7acf2d28fd3c7a22861d56b"
+      "sha256": "5b2e631a1c9f0c984120c1bc0d0802be672074dd6b7ada5104fdd765adca0d69"
     },
     {
       "path": "sdkwork-sdk.json",
@@ -56,11 +56,7 @@
     },
     {
       "path": "src/api/index.ts",
-      "sha256": "f99efc84132374801b0be0128ed1d9e8443e400ae6177980e28cd19ec5eb60e0"
-    },
-    {
-      "path": "src/api/intelligence.ts",
-      "sha256": "1feffafa941deaa9bb2b3758f08ee6aeaca7563674de9a9add3b8925dbe13930"
+      "sha256": "0f85cfff7cb6146bd275facc7763017e5a26822dff76a75af5d56b347755bf03"
     },
     {
       "path": "src/api/paths.ts",
@@ -88,7 +84,7 @@
     },
     {
       "path": "src/sdk.ts",
-      "sha256": "dd336b78e7420a73c482655a8e388f8d2ad9112884822965cb123e709b272baa"
+      "sha256": "4879baf704d1041e1e98ed1733144fe884fb4c6ca483385577abdb41d09486bd"
     },
     {
       "path": "src/types/bird-coder-api-gateway-summary.ts",
@@ -115,10 +111,6 @@
       "sha256": "f4ce6bfc18c47d42fde09253454593b48a3e47c0d8b88f743b9c384a0225fcfe"
     },
     {
-      "path": "src/types/bird-coder-commit-project-git-changes-request.ts",
-      "sha256": "475dd4e6a23e55db8b8b8880be14dd8d4f21900494cec8f19ec9c4cd5ab18d25"
-    },
-    {
       "path": "src/types/bird-coder-core-health-summary-envelope.ts",
       "sha256": "34f2f868741791b9affc23f9f28f5dab34dde155945116f5137f40ee1db73c95"
     },
@@ -135,180 +127,12 @@
       "sha256": "ee9c02891eeb29fdc5cc01a34cf38b2dc18749eb2b59fb60f6e37888d3ce16ea"
     },
     {
-      "path": "src/types/bird-coder-create-project-document-binding-request.ts",
-      "sha256": "0f7ea84b969ee6fbaea66c4e130266dcc57755018c4035cd0989fddb03e9a1fd"
-    },
-    {
-      "path": "src/types/bird-coder-create-project-git-branch-request.ts",
-      "sha256": "f64abfbb0ff8f6e75cbf1d05edcfacbdac72512a2c8c244d1db2a08f9a3d9d9d"
-    },
-    {
-      "path": "src/types/bird-coder-create-project-git-worktree-request.ts",
-      "sha256": "198497a47735ba9069cdd03647fb79a5be4282f3e50a69f3b48eae696c9b864d"
-    },
-    {
-      "path": "src/types/bird-coder-create-project-request.ts",
-      "sha256": "c14601a0401895d3a8fa8b880c3261425805aaa12cf5a71a034c7c8cbc558123"
-    },
-    {
-      "path": "src/types/bird-coder-create-project-runtime-location-request.ts",
-      "sha256": "41c7a20bdee61bd80908313678653a0851f8382353d6eef3d8f30743032c4961"
-    },
-    {
-      "path": "src/types/bird-coder-create-workspace-request.ts",
-      "sha256": "53055ce72a160dbc712a8a4f56fb06e437598bd02dda1421a1d37767b28a8c53"
-    },
-    {
-      "path": "src/types/bird-coder-git-branch-summary.ts",
-      "sha256": "cc03ff4524b981eaa01b05bb7ad87dee0550d61257f01254b145e248811fc21c"
-    },
-    {
-      "path": "src/types/bird-coder-git-status-counts.ts",
-      "sha256": "d7421e1ae595578166852cd051ec3da7719729b4d7f105be99c3ef505b9a7a09"
-    },
-    {
-      "path": "src/types/bird-coder-git-worktree-summary.ts",
-      "sha256": "8110af6169539a2dd5eca5b5373bcfe2945e1f4099e1168866d00591851894d1"
-    },
-    {
-      "path": "src/types/bird-coder-project-document-binding-envelope.ts",
-      "sha256": "26f00ce931eddff326238fb032941682a594a1501dcf9ae5227579a5122bcbed"
-    },
-    {
-      "path": "src/types/bird-coder-project-document-binding-list-envelope.ts",
-      "sha256": "ad88e5af1b5189cc1b48eb8e11aa6b587c0f40d2ef4fabb59ac12ea68db68188"
-    },
-    {
-      "path": "src/types/bird-coder-project-document-binding.ts",
-      "sha256": "2eff3851c9010f4a0e560f85eb65c0e0184191079aaf5729f7ebb1744b798adf"
-    },
-    {
-      "path": "src/types/bird-coder-project-git-diff-envelope.ts",
-      "sha256": "490395c1b7289cc52446f4b9bf33c82fb63dd0cfa5022f1874b9344a41de0364"
-    },
-    {
-      "path": "src/types/bird-coder-project-git-diff.ts",
-      "sha256": "efd0dd907c1ba65cc37f48986eef6bdc0757c4354b97f1ed6114551af67d2628"
-    },
-    {
-      "path": "src/types/bird-coder-project-git-overview-envelope.ts",
-      "sha256": "b224f3775311ebf8e95775529faf7cf43059f80c54bf52a836962ad65016ab9d"
-    },
-    {
-      "path": "src/types/bird-coder-project-git-overview.ts",
-      "sha256": "9bd7e52108155263233b3a57e49d2ad9637bd76a029f9ef682c4123c9868ef67"
-    },
-    {
-      "path": "src/types/bird-coder-project-runtime-location-command-accepted.ts",
-      "sha256": "395096b0b3a0065a0535877af544c6ef1866eff0db8bca20e41b7a9ac1e65b3a"
-    },
-    {
-      "path": "src/types/bird-coder-project-runtime-location-command-envelope.ts",
-      "sha256": "b48e04891ad920e0845e6179a93701e6e6c70f7daa021cee42555391820a6e77"
-    },
-    {
-      "path": "src/types/bird-coder-project-runtime-location-envelope.ts",
-      "sha256": "1828bc44880e49c505cf8256b6679d0978f9d0c50db86ecf07978c5382acb875"
-    },
-    {
-      "path": "src/types/bird-coder-project-runtime-location-list-envelope.ts",
-      "sha256": "b068f8ce6e6c58a79de3997a8ac220b59a096426ac05ad92cd532953b3c790da"
-    },
-    {
-      "path": "src/types/bird-coder-project-runtime-location-preference-envelope.ts",
-      "sha256": "51b2058e81cb9c8ce198707e3e03a3d6b9e916dd50250d655e14a219a97de6ac"
-    },
-    {
-      "path": "src/types/bird-coder-project-runtime-location-preference-list-envelope.ts",
-      "sha256": "a88dd86a49d614f638e0407a4c99a73e585f3a45570f44a3c9ac0dcfefc7975d"
-    },
-    {
-      "path": "src/types/bird-coder-project-runtime-location-preference.ts",
-      "sha256": "62e7c5cac2705a2e8ad678fa49a2f89c184c30c58a4b4ef9aea172ba689cdd8d"
-    },
-    {
-      "path": "src/types/bird-coder-project-runtime-location.ts",
-      "sha256": "e72a85fb748cd5ba4e2a391741e4adaa0ff52addf3048c79831cf1b2c73daa5c"
-    },
-    {
-      "path": "src/types/bird-coder-project-sandbox-binding-envelope.ts",
-      "sha256": "82babb93b54d0206b3fb085c1e6a56fc0885a8d4afef074583d258fc585861dd"
-    },
-    {
-      "path": "src/types/bird-coder-project-sandbox-binding.ts",
-      "sha256": "5aec0c406bb768b42ff80bad735eb5b6105e292d18fb42598dac0b0855b5541d"
-    },
-    {
-      "path": "src/types/bird-coder-project-summary-envelope.ts",
-      "sha256": "c9755a09a3e2c586de2206abc75ab7df475e6f7762fb1bbb360ec8c960d44fc7"
-    },
-    {
-      "path": "src/types/bird-coder-project-summary-list-envelope.ts",
-      "sha256": "0b8484fb87785139cb8879718535df12530362c9568538c01bf85bed80fd6718"
-    },
-    {
-      "path": "src/types/bird-coder-project-summary.ts",
-      "sha256": "7894f562eeca9169861c42f6916f680d12aeb8ebff466be6dbfea69dfc562038"
-    },
-    {
-      "path": "src/types/bird-coder-prune-project-git-worktrees-request.ts",
-      "sha256": "055ecb81dbd5c34e4d5d2b636a428f047f02cca2cee86fbd942c97adab3d1cfd"
-    },
-    {
-      "path": "src/types/bird-coder-push-project-git-branch-request.ts",
-      "sha256": "fedb3132b90d73a064a36083538356d655f506107335d068d5c819b73ac1863b"
-    },
-    {
-      "path": "src/types/bird-coder-rebind-project-runtime-location-request.ts",
-      "sha256": "7c129fa108c81313cd271010a892f3f06d2649438d180c0c33fab1ca8136f1b0"
-    },
-    {
-      "path": "src/types/bird-coder-remove-project-git-worktree-request.ts",
-      "sha256": "ad354516dc333abaa16e26fd5c412234ed0b1d700072a96eada0cdc2903e42f4"
-    },
-    {
-      "path": "src/types/bird-coder-set-project-runtime-location-preference-request.ts",
-      "sha256": "88d78823a023b7b031512275bb7fe446ff8bf68da484ca24562fdbb90541eb13"
-    },
-    {
-      "path": "src/types/bird-coder-switch-project-git-branch-request.ts",
-      "sha256": "b412cfe66e0d310433be40aef734114d9b98bb214e1a2be713f427fb71d99cbe"
-    },
-    {
-      "path": "src/types/bird-coder-update-project-request.ts",
-      "sha256": "1b206f6aeb51eec6084bb3dddb9e3020eac7cb511b12ded6c9a0d9b81499d238"
-    },
-    {
-      "path": "src/types/bird-coder-update-project-runtime-location-request.ts",
-      "sha256": "0d67e68846d0e883ecf3a4a85e9ab35d8678de6d133439534f337edfb6de4581"
-    },
-    {
-      "path": "src/types/bird-coder-update-workspace-request.ts",
-      "sha256": "4117306f4d9c7ddaa4b368c7a7268e453d382e4a6c07451b18e300413b9b11c3"
-    },
-    {
-      "path": "src/types/bird-coder-upsert-project-sandbox-binding-request.ts",
-      "sha256": "da5333dbc2a33a728fa6b8d9004ea98a01e6be09a504d658d8e6362800f570b0"
-    },
-    {
-      "path": "src/types/bird-coder-workspace-summary-envelope.ts",
-      "sha256": "027ac341f60ff71b6c73c7511ae7a2b67061b821f010391af6e64d5b37a3121c"
-    },
-    {
-      "path": "src/types/bird-coder-workspace-summary-list-envelope.ts",
-      "sha256": "e8475e03fc0b7134b7653ba1bff9a17ed08ef7a597f4d247798d6cf3d9ad2129"
-    },
-    {
-      "path": "src/types/bird-coder-workspace-summary.ts",
-      "sha256": "5a5ca74f5a94d9b85eebf21acc558eed14065f18c894d2bf51d1ee280c3e034a"
-    },
-    {
       "path": "src/types/common.ts",
       "sha256": "d2506be8c4bdbe8e7059393467e6e71d75ef1d8c018dbf997bb0ab2a77b6c7b6"
     },
     {
       "path": "src/types/index.ts",
-      "sha256": "46e659f4f50046fac8422d4f177bcbecb824cf3564d21c44ff9ada6389a7779f"
+      "sha256": "3e8f38233ebdddd1b2a91bb2c09aa0f9db2eca954ede6b1f3511b35ec9b82c11"
     },
     {
       "path": "src/types/page-info.ts",

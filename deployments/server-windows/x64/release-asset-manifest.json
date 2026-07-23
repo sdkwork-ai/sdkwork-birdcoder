@@ -15,7 +15,7 @@
   "artifacts": [
     {
       "relativePath": "server/windows/x64/openapi/birdcoder-app-api.openapi.json",
-      "size": 178856
+      "size": 18470
     },
     {
       "relativePath": "server/windows/x64/sdkwork-birdcoder-server-release-local-windows-x64.tar.gz",

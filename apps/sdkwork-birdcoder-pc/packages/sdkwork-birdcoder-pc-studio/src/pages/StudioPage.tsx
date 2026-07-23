@@ -67,7 +67,6 @@ import {
 
 function StudioPageComponent({
   isVisible = true,
-  workspaceId,
   projectId,
   initialAgentSessionId,
   onProjectChange,
@@ -93,13 +92,12 @@ function StudioPageComponent({
     sendMessage,
     createProject,
     createAgentSession,
-    updateProject,
     deleteProject,
     editAgentSessionItem,
     deleteAgentSessionItem,
     loadMoreProjects,
     loadMoreProjectSessions,
-  } = useProjects(workspaceId, {
+  } = useProjects({
     isActive: isVisible,
     targetProjectId: projectId,
   });
@@ -191,7 +189,7 @@ function StudioPageComponent({
     sessionId,
     selectedSessionProjectId ?? projectId,
   );
-  const sessionProjectId = selectedAgentSessionLocation?.project.id ?? '';
+  const sessionProjectId = selectedAgentSessionLocation?.project.projectId ?? '';
   const normalizedProjectId = projectId?.trim() ?? '';
   const normalizedSelectedSessionProjectId = selectedSessionProjectId?.trim() ?? '';
   const normalizedSessionProjectId = sessionProjectId?.trim() ?? '';
@@ -241,7 +239,7 @@ function StudioPageComponent({
 
     const nextProjectId =
       options?.projectId?.trim() ||
-      (resolveAgentSessionLocation(normalizedAgentSessionId)?.project.id ?? '');
+      (resolveAgentSessionLocation(normalizedAgentSessionId)?.project.projectId ?? '');
 
     if (
       normalizedAgentSessionId === sessionId &&
@@ -465,7 +463,6 @@ function StudioPageComponent({
           projectId,
           projectService,
           userScope: user?.id,
-          workspaceId: workspaceId?.trim() || '',
         });
         if (!hydratedProject) {
           return;
@@ -493,7 +490,6 @@ function StudioPageComponent({
     projects,
     selectAgentSession,
     user?.id,
-    workspaceId,
   ]);
   const restoreSelectionAfterRefresh = (
     targetProjectId: string,
@@ -632,7 +628,6 @@ function StudioPageComponent({
     selectedAgentSession: selectedSession,
     selectedAgentSessionId: sessionId,
     selectedProject: selectedAgentSessionLocation?.project ?? currentProject ?? null,
-    workspaceId,
   });
   const isSelectedAgentSessionHydrating = Boolean(
     sessionId &&
@@ -668,7 +663,6 @@ function StudioPageComponent({
     resolveProjectName: (targetProjectId: string) =>
       resolveProjectById(targetProjectId)?.name ?? targetProjectId,
     restoreSelectionAfterRefresh,
-    workspaceId,
   });
   const pendingInteractionRefreshToken = useMemo(() => [
     currentProjectId,
@@ -680,7 +674,7 @@ function StudioPageComponent({
   ].join('\u0001'), [currentProjectId, selectedSession]);
   const pendingInteractionScopeKey =
     currentProjectId && sessionId
-      ? `${workspaceId ?? ''}\u0001${currentProjectId}\u0001${sessionId}`
+      ? `${currentProjectId}\u0001${sessionId}`
       : sessionId || null;
   const {
     approvals: pendingApprovals,
@@ -769,7 +763,7 @@ function StudioPageComponent({
           agentSessionId,
           deleteAgentSessionItem,
           messageIds,
-          projectId: project.id,
+          projectId: project.projectId,
         });
         addToast(
           deletedMessageCount > 1 ? 'Reply deleted successfully' : t('studio.messageDeleted'),
@@ -799,14 +793,13 @@ function StudioPageComponent({
           await regenerateWorkbenchAgentSessionFromLastUserMessage({
             agentSession,
             deleteAgentSessionItem,
-            projectId: project.id,
+            projectId: project.projectId,
             regenerateMessageContext: buildWorkbenchAgentSessionTurnContext({
               currentFileContent: fileContent,
               currentFileLanguage: selectedFile ? getLanguageFromPath(selectedFile) : null,
               currentFilePath: selectedFile,
-              projectId: project.id,
+              projectId: project.projectId,
               sessionId: agentSession.id,
-              workspaceId,
             }),
             submitAgentTurn: (targetProjectId, targetAgentSessionId, content, context) =>
               sendMessage(targetProjectId, targetAgentSessionId, content, context),
@@ -829,7 +822,6 @@ function StudioPageComponent({
     selectedFile,
     sendMessage,
     setSelectionRefreshToken,
-    workspaceId,
   ]);
 
   const handleRestoreMessage = useCallback(async (agentSessionId: string, messageId: string) => {
@@ -902,7 +894,7 @@ function StudioPageComponent({
           return importedProject.projectId;
         }
 
-        return projects[0]?.id;
+        return projects[0]?.projectId;
       },
     });
     if (!bootstrappedSession) {
@@ -917,7 +909,6 @@ function StudioPageComponent({
         currentFilePath: selectedFile,
         projectId: bootstrappedSession.projectId,
         sessionId: bootstrappedSession.agentSessionId,
-        workspaceId,
       });
       const sentMessage = await sendMessage(
         bootstrappedSession.projectId,
@@ -952,7 +943,6 @@ function StudioPageComponent({
     sendMessage,
     setSelectionRefreshToken,
     t,
-    workspaceId,
   ]);
 
   const handlePreviewAppPlatformChange = useCallback((platform: 'ios' | 'android' | 'harmony') => {
@@ -1306,7 +1296,6 @@ function StudioPageComponent({
           terminalRequest,
           updateFileDraft,
           viewingDiff,
-          workspaceId,
           closeFile,
           createFile,
           createFolder,

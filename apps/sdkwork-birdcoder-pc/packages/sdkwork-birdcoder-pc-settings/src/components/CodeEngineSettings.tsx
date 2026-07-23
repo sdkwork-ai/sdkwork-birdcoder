@@ -40,7 +40,7 @@ export function CodeEngineSettingsSidebar({
 }) {
   const { t } = useTranslation();
   const engines = useSortedCodeEngines();
-  const workspaceDefaultEngineId = normalizeWorkbenchServerImplementedCodeEngineId(
+  const defaultEngineId = normalizeWorkbenchServerImplementedCodeEngineId(
     workbenchPreferences?.codeEngineId,
     workbenchPreferences,
   );
@@ -65,7 +65,7 @@ export function CodeEngineSettingsSidebar({
       <div className="flex-1 space-y-2 overflow-y-auto p-3">
         {engines.map((engine) => {
           const isActive = activeEngineId === engine.id;
-          const isWorkspaceDefault = workspaceDefaultEngineId === engine.id;
+          const isDefault = defaultEngineId === engine.id;
           return (
             <button
               key={engine.id}
@@ -82,9 +82,9 @@ export function CodeEngineSettingsSidebar({
               <div className="min-w-0 flex-1">
                 <div className="flex flex-wrap items-center gap-2">
                   <span className="truncate text-sm font-medium">{engine.label}</span>
-                  {isWorkspaceDefault ? (
+                  {isDefault ? (
                     <span className="rounded bg-blue-500/15 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-blue-200">
-                      {t('settings.engines.workspaceDefaultBadge')}
+                      {t('settings.engines.defaultBadge')}
                     </span>
                   ) : null}
                 </div>
@@ -120,7 +120,7 @@ export function CodeEngineSettings({
     });
   }, []);
 
-  const workspaceDefaultEngineId = normalizeWorkbenchServerImplementedCodeEngineId(
+  const defaultEngineId = normalizeWorkbenchServerImplementedCodeEngineId(
     workbenchPreferences?.codeEngineId,
     workbenchPreferences,
   );
@@ -157,9 +157,9 @@ export function CodeEngineSettings({
                   <div className="min-w-0">
                     <div className="flex flex-wrap items-center gap-2">
                       <div className="font-medium text-white">{activeEngine.label}</div>
-                      {workspaceDefaultEngineId === activeEngine.id ? (
+                      {defaultEngineId === activeEngine.id ? (
                         <span className="rounded bg-blue-500/15 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-blue-200">
-                          {t('settings.engines.workspaceDefaultBadge')}
+                          {t('settings.engines.defaultBadge')}
                         </span>
                       ) : null}
                     </div>
@@ -170,7 +170,7 @@ export function CodeEngineSettings({
                 </div>
 
                 <div className="grid w-full gap-3 lg:max-w-sm">
-                  {workspaceDefaultEngineId === activeEngine.id ? null : (
+                  {defaultEngineId === activeEngine.id ? null : (
                     <Button
                       size="sm"
                       className="w-full"
@@ -180,14 +180,14 @@ export function CodeEngineSettings({
                           setWorkbenchActiveCodeEngine(previousState, activeEngine.id),
                         );
                         addToast(
-                          t('settings.engines.workspaceDefaultEngineUpdated', {
+                          t('settings.engines.defaultEngineUpdated', {
                             engine: activeEngine.label,
                           }),
                           'success',
                         );
                       }}
                     >
-                      {t('settings.engines.makeWorkspaceDefault')}
+                      {t('settings.engines.makeDefault')}
                     </Button>
                   )}
 

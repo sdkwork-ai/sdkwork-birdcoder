@@ -16,7 +16,7 @@ The repository root `sdkwork.app.config.json` governs the primary application ma
 | --- | --- | --- | --- | --- |
 | sdkwork-birdcoder-flutter-mobile | flutter-mobile | yes | SDKWork Birdcoder Flutter Mobile flutter-mobile application root. | `sdkwork-birdcoder-flutter-mobile/` |
 | sdkwork-birdcoder-h5 | h5 | yes | SDKWork Birdcoder H5 h5 application root. | `sdkwork-birdcoder-h5/` |
-| sdkwork-birdcoder-pc | pc | yes | SDKWork BirdCoder PC pc application root. | `sdkwork-birdcoder-pc/` |
+| sdkwork-birdcoder-pc | pc | yes | Rust-backed PC browser and Tauri coding workbench. | [README](sdkwork-birdcoder-pc/README.md) |
 
 ## Allowed Content
 

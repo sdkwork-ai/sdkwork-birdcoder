@@ -9,19 +9,18 @@ import {
   useBirdcoderBrowserTerminalClient,
 } from './birdcoderTerminalRuntime.ts';
 import { isBirdcoderTauriRuntime } from './runtimeTarget.ts';
-import { useRemoteProjectRuntimeLocationId } from '../hooks/useProjectRuntimeLocation.ts';
+import { useProjectRuntimeLocationId } from '../hooks/useProjectRuntimeLocation.ts';
 import { useAuth } from '../context/AuthContext.ts';
 
 export interface BirdcoderTerminalAppProps
   extends Omit<DesktopTerminalAppProps<TerminalCommandRequest>, 'children'> {
-  workspaceId?: string;
   projectId?: string;
 }
 
 export function BirdcoderTerminalApp(props: BirdcoderTerminalAppProps) {
   const desktop = isBirdcoderTauriRuntime();
   const webClient = useBirdcoderBrowserTerminalClient();
-  const resolveRemoteProjectRuntimeLocationId = useRemoteProjectRuntimeLocationId();
+  const resolveProjectRuntimeLocationId = useProjectRuntimeLocationId();
   const { sessionRevision } = useAuth();
   const [runtimeLocationResolution, setRuntimeLocationResolution] = useState<{
     projectId: string | null;
@@ -52,7 +51,7 @@ export function BirdcoderTerminalApp(props: BirdcoderTerminalAppProps) {
       runtimeLocationId: null,
       status: 'loading',
     });
-    void resolveRemoteProjectRuntimeLocationId(projectId, 'terminal')
+    void resolveProjectRuntimeLocationId(projectId, 'terminal')
       .then((resolvedRuntimeLocationId) => {
         if (active) {
           setRuntimeLocationResolution({
@@ -75,7 +74,7 @@ export function BirdcoderTerminalApp(props: BirdcoderTerminalAppProps) {
     return () => {
       active = false;
     };
-  }, [desktop, projectId, resolveRemoteProjectRuntimeLocationId, sessionRevision]);
+  }, [desktop, projectId, resolveProjectRuntimeLocationId, sessionRevision]);
 
   const runtimeLocationId = runtimeLocationResolution.projectId === projectId
     ? runtimeLocationResolution.runtimeLocationId

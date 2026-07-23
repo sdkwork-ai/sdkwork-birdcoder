@@ -4,13 +4,10 @@ import { Button } from '@sdkwork/birdcoder-pc-ui-shell';
 import { useTranslation } from 'react-i18next';
 
 interface AppShellDialogsProps {
-  workspaceToDelete: string | null;
   projectToDelete: string | null;
   showAboutModal: boolean;
   showWhatsNewModal: boolean;
   showShortcutsModal: boolean;
-  onCloseWorkspaceDelete: () => void;
-  onConfirmWorkspaceDelete: () => void | Promise<void>;
   onCloseProjectDelete: () => void;
   onConfirmProjectDelete: () => void | Promise<void>;
   onCloseAbout: () => void;
@@ -19,13 +16,10 @@ interface AppShellDialogsProps {
 }
 
 export const AppShellDialogs = memo(function AppShellDialogs({
-  workspaceToDelete,
   projectToDelete,
   showAboutModal,
   showWhatsNewModal,
   showShortcutsModal,
-  onCloseWorkspaceDelete,
-  onConfirmWorkspaceDelete,
   onCloseProjectDelete,
   onConfirmProjectDelete,
   onCloseAbout,
@@ -36,36 +30,11 @@ export const AppShellDialogs = memo(function AppShellDialogs({
 
   return (
     <>
-      {workspaceToDelete ? (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[100]">
-          <div className="bg-[#18181b] border border-white/10 rounded-2xl p-6 max-w-sm w-full shadow-2xl animate-in fade-in zoom-in-95 duration-200">
-            <h3 className="text-lg font-semibold text-white mb-2">{t('app.deleteWorkspaceTitle')}</h3>
-            <p className="text-sm text-gray-400 mb-6">{t('app.deleteWorkspaceConfirm')}</p>
-            <div className="flex justify-end gap-3">
-              <Button
-                variant="outline"
-                onClick={onCloseWorkspaceDelete}
-                className="border-white/10 text-gray-300 hover:bg-white/5"
-              >
-                {t('app.cancel')}
-              </Button>
-              <Button
-                variant="default"
-                onClick={onConfirmWorkspaceDelete}
-                className="bg-red-500 hover:bg-red-600 text-white border-transparent"
-              >
-                {t('app.delete')}
-              </Button>
-            </div>
-          </div>
-        </div>
-      ) : null}
-
       {projectToDelete ? (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[100]">
           <div className="bg-[#18181b] border border-white/10 rounded-2xl p-6 max-w-sm w-full shadow-2xl animate-in fade-in zoom-in-95 duration-200">
-            <h3 className="text-lg font-semibold text-white mb-2">{t('app.removeProjectTitle')}</h3>
-            <p className="text-sm text-gray-400 mb-6">{t('app.removeProjectConfirm')}</p>
+            <h3 className="text-lg font-semibold text-white mb-2">{t('app.deleteProjectTitle')}</h3>
+            <p className="text-sm text-gray-400 mb-6">{t('app.deleteProjectConfirm')}</p>
             <div className="flex justify-end gap-3">
               <Button
                 variant="outline"

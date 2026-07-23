@@ -3,7 +3,6 @@ export const APP_VERSION = '1.0.0';
 
 export { parseBirdCoderApiJson } from '@sdkwork/birdcoder-pc-contracts-commons';
 export * from './hooks/useDebounce.ts';
-export * from './hooks/useWorkspaces.ts';
 export * from './hooks/useProjects.ts';
 export * from './hooks/useAgentSessionActions.ts';
 export * from './hooks/useDocuments.ts';
@@ -60,7 +59,6 @@ export * from './workbench/fileChangeRestore.ts';
 export * from './workbench/fileSearch.ts';
 export * from './workbench/importedProjectHydration.ts';
 export * from './workbench/localFolderProjectImport.ts';
-export * from './workbench/localFolderProjectWorkspace.ts';
 export * from './workbench/projectMountRecovery.ts';
 export * from './workbench/projectRuntimeLocationResolution.ts';
 export * from './workbench/gitBranches.ts';
@@ -73,7 +71,6 @@ export * from './workbench/preferences.ts';
 export * from './workbench/recovery.ts';
 export * from './workbench/sessionRefresh.ts';
 export * from './workbench/projectInventoryRender.ts';
-export * from './workbench/workspaceBootstrap.ts';
 export {
   buildDriveMediaResourceContentBlock,
   resolveChatAttachmentUploadProfile,

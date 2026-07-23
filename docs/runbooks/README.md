@@ -14,7 +14,7 @@ copy their steps or create a second runbook system.
 
 - [Deployment operations](../guides/operator/deployment-operations.md)
 - [Windows Server control plane](../guides/operator/windows-server-control-plane.md)
-- [Project runtime locations](../guides/operator/project-runtime-locations.md)
+- [Agents runtime bindings and PC device mounts](../guides/operator/runtime-bindings-and-device-mounts.md)
 - [Backup and restore](../guides/operator/backup-restore.md)
 - [Monitoring and alerting](../guides/operator/monitoring.md)
 - [Incident response](../guides/operator/incident-response.md)

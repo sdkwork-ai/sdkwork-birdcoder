@@ -78,7 +78,6 @@ export type {
   ProjectRuntimeLocationBindingResult,
   ProjectRuntimeLocationCapability,
   ProjectRuntimeLocationExecutionUnavailableCode,
-  ProjectRuntimeLocationRegistrationPort,
   ProjectRuntimeLocationResolution,
   ProjectRuntimeLocationResolutionRequest,
   ResolvedProjectRuntimeLocation,
@@ -89,5 +88,12 @@ export {
 } from '@sdkwork/birdcoder-pc-infrastructure/services/interfaces/IProjectRuntimeLocationService';
 export type { IGitService } from '@sdkwork/birdcoder-pc-infrastructure/services/interfaces/IGitService';
 export type { IPromptService } from '@sdkwork/birdcoder-pc-infrastructure/services/interfaces/IPromptService';
-export type { IProjectService } from '@sdkwork/birdcoder-pc-infrastructure/services/interfaces/IProjectService';
-export type { IWorkspaceService } from '@sdkwork/birdcoder-pc-infrastructure/services/interfaces/IWorkspaceService';
+export type {
+  AgentProjectPageRequest,
+  AgentProjectViewPage,
+  BindProjectDriveCompositionInput,
+  CreateProjectOptions,
+  IProjectService,
+  ProjectDriveComposition,
+  UpdateProjectOptions,
+} from '@sdkwork/birdcoder-pc-infrastructure/services/interfaces/IProjectService';

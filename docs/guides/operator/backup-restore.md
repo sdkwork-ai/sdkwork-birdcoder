@@ -1,73 +1,54 @@
-# Backup And Restore
+# Recovery And Backup Ownership
 
-Updated: 2026-07-22
-Specs: `DATABASE_FRAMEWORK_SPEC.md`, `DEPLOYMENT_SPEC.md`, `SECURITY_SPEC.md`
+Updated: 2026-07-23
+Specs: `DEPLOYMENT_SPEC.md`, `RELEASE_SPEC.md`, `SECURITY_SPEC.md`
 
 ## Ownership Boundary
 
-BirdCoder backup owns only the ten `studio_*` workbench tables declared in
-`database/contract/table-registry.json`. AI sessions and Session Items are
-restored by `sdkwork-agents`; Skills and human IM data are restored by
-`sdkwork-skills` and `sdkwork-im`. BirdCoder never restores dependency-owned
-tables from a local mirror.
+BirdCoder is a stateless composition host and has no business database to back
+up or restore. Domain recovery follows the owning module:
 
-Cross-domain identifiers such as `default_agent_project_id`, `document_id`, and
-`sandbox_id` have no cross-domain foreign keys. A coordinated restore must
-therefore restore each owner to a mutually compatible recovery point and run
-explicit reference-integrity probes before reopening writes.
+| Facts | Recovery owner |
+| --- | --- |
+| Project, composition, Session, Turn, Session Item, interaction, checkpoint, and runtime binding | `sdkwork-agents` |
+| Skill package, version, capability, installation, asset, and action | `sdkwork-skills` |
+| Human conversation, message, member, and read cursor | `sdkwork-im` |
+| Identity, organization, role, permission, and credential | `sdkwork-iam` |
 
-## SQLite Standalone Profile
+BirdCoder does not copy these facts into a local mirror. A coordinated recovery
+selects mutually compatible owner recovery points and validates references via
+the owner SDK contracts before reopening traffic.
 
-1. Stop the standalone gateway so the SQLite file has no writers.
-2. Snapshot the configured database file and its encryption-key metadata using
-   the platform secret backup procedure.
-3. Restore the file to the configured location with owner-only filesystem
-   permissions.
-4. Start one gateway replica and run `pnpm db:validate` and
-   `pnpm db:pool:validate`.
-5. Verify a known workspace, project, runtime location, preference, document
-   binding, and sandbox binding through authenticated App SDK operations.
-6. Verify each stable dependency reference against its owner SDK before
-   restoring normal traffic.
+## Gateway Recovery
 
-Do not copy a live SQLite file with active writers. Use a consistent volume
-snapshot or stop the gateway first.
+1. Select the last verified immutable server or container artifact.
+2. Restore its matching topology profile, exact CORS origins, dependency
+   endpoints, and operator-managed credentials.
+3. Start one stateless replica and verify `/healthz`, `/readyz`, `/metrics`, and
+   the four-operation owner OpenAPI document.
+4. Verify authentication and one read-only owner-module request through each
+   required generated SDK.
+5. Restore traffic, then scale replicas or apply `values-ha.yaml`.
 
-## PostgreSQL Profile
+There is no BirdCoder schema replay, data-volume restore, migration job, or
+backup archive. Redis and in-memory gateway state are rebuildable and are not a
+BirdCoder system of record.
 
-Create an encrypted custom-format dump from an authorized maintenance identity:
+## PC Device Recovery
 
-```bash
-pg_dump --format=custom --no-owner --dbname="$DATABASE_URL" \
-  > birdcoder-$(date +%Y%m%d).dump
-```
+PC/Tauri device state is local capability material, not server backup data. If
+it is lost, restore application settings where supported, reselect local
+project folders, and rebuild the `ProjectDeviceMountRegistry` using canonical
+Agents `projectId` values. Never upload native paths or the device-state file to
+the gateway as recovery data.
 
-Store verified dumps in immutable storage in another failure domain. Retention,
-RPO, RTO, and restore-test cadence are deployment policy and must have measured
-evidence before production promotion.
-
-Restore procedure:
-
-1. Put the application ingress in maintenance mode and stop all writers.
-2. Restore into an isolated database first; never test a dump against the live
-   production database.
-3. Run the canonical database bootstrap/migration flow for the restored schema
-   version.
-4. Run `pnpm db:validate`, `pnpm db:pool:validate`, and the authorized live
-   PostgreSQL smoke check.
-5. Verify the ten-table registry exactly and run owner-SDK reference probes.
-6. Restore traffic gradually while monitoring database errors, authorization
-   failures, and dependency health.
-
-## Cache And Event Infrastructure
-
-Redis, in-memory caches, and UI state are not BirdCoder systems of record and
-must be rebuildable from canonical owner APIs. Durable Agents turn/session-item
-recovery follows the Agents runbook; IM delivery recovery follows the IM
-runbook. Do not describe either as a BirdCoder database replay.
+Agents Session runtime bindings contain opaque runtime location identifiers,
+not recoverable local filesystem paths. A missing local mount fails closed and
+requires user-authorized rebinding on that device.
 
 ## Release Evidence
 
-Retain the immutable release manifest, checksums, attestations, schema contract,
-SDK manifests, and rollback plan together. A restore is incomplete until the
-running binary, database contract, and SDK/API versions match that evidence.
+Retain the immutable release manifest, checksums, attestations, SBOM, owner
+OpenAPI, SDK manifests, topology profile, and rollback plan together. Recovery
+is complete only when the deployed artifact and configuration match that
+evidence and all required owner dependencies pass their own recovery checks.

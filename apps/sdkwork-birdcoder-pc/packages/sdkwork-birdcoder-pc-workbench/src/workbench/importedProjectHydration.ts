@@ -1,4 +1,4 @@
-import type { BirdCoderProject } from '@sdkwork/birdcoder-pc-contracts-commons';
+import type { AgentProjectView } from '@sdkwork/birdcoder-pc-contracts-commons';
 import type { IAgentSessionService } from '@sdkwork/birdcoder-pc-infrastructure-runtime';
 
 import type { IProjectService } from '../services/interfaces/IProjectService.ts';
@@ -8,16 +8,15 @@ import { refreshProjectSessions } from './sessionRefresh.ts';
 
 export interface HydrateImportedProjectFromAuthorityOptions {
   agentSessionService: IAgentSessionService;
-  knownProjects?: readonly BirdCoderProject[];
+  knownProjects?: readonly AgentProjectView[];
   projectId: string;
   projectService: IProjectService;
   userScope?: string;
-  workspaceId: string;
 }
 
 export interface HydrateImportedProjectFromAuthorityResult {
   latestAgentSessionId: string | null;
-  project: BirdCoderProject;
+  project: AgentProjectView;
 }
 
 const inflightHydrations = new Map<
@@ -28,12 +27,11 @@ const inflightHydrations = new Map<
 export async function hydrateImportedProjectFromAuthority(
   options: HydrateImportedProjectFromAuthorityOptions,
 ): Promise<HydrateImportedProjectFromAuthorityResult | null> {
-  const workspaceId = options.workspaceId.trim();
   const projectId = options.projectId.trim();
-  if (!workspaceId || !projectId) {
+  if (!projectId) {
     return null;
   }
-  const scopeKey = `${options.userScope?.trim() || 'anonymous'}:${workspaceId}:${projectId}`;
+  const scopeKey = `${options.userScope?.trim() || 'anonymous'}:${projectId}`;
   const inflight = inflightHydrations.get(scopeKey);
   if (inflight) {
     return inflight;
@@ -44,13 +42,12 @@ export async function hydrateImportedProjectFromAuthority(
       agentSessionService: options.agentSessionService,
       projectId,
       projectService: options.projectService,
-      workspaceId,
     });
     const project = result.projects?.[0] ?? null;
     if (!project) {
       return null;
     }
-    upsertProjectIntoProjectsStore(workspaceId, project, options.userScope);
+    upsertProjectIntoProjectsStore(project, options.userScope);
     return {
       latestAgentSessionId: resolveLatestAgentSessionIdForProject([project], projectId),
       project,

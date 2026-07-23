@@ -1,167 +1,118 @@
 # SDKWork BirdCoder
 
-[English](./README.md) | **简体中文**
+[English](README.md) | 简体中文
 
-`sdkwork-birdcoder` 是 SDKWork 的 AI 编程工作台应用。它提供 PC、H5 和
-Flutter 三类用户端，同时将可复用的平台领域能力保留在各自的 SDKWork
-工程中。
+repository-kind: application
 
-当前应用尚未上线，契约版本为 `0.1.0`。数据库和 API 采用绿地直接切换，
-不保留旧路由、影子表、双写、投影权威或兼容 facade。
+`sdkwork-birdcoder` 是 SDKWork 的 AI 编程工作台应用。当前架构收口只覆盖
+Rust 后端与 PC 浏览器/Tauri，不把 H5、Flutter 或其他移动端纳入本次迁移及
+验收证据。
 
-## 应用端
+应用尚未上线，因此领域调整采用一次性直接切换，不保留数据投影、影子表、
+同步副本、双写、别名、兼容 facade 或第二套标识体系。
 
-| 应用端 | 根目录 | 架构规范 |
-| --- | --- | --- |
-| PC Web 与桌面端 | `apps/sdkwork-birdcoder-pc/` | `APP_PC_ARCHITECTURE_SPEC.md` |
-| H5 与 Capacitor | `apps/sdkwork-birdcoder-h5/` | `APP_H5_ARCHITECTURE_SPEC.md` |
-| Flutter 移动端 | `apps/sdkwork-birdcoder-flutter-mobile/` | `FLUTTER_APP_MOBILE_ARCHITECTURE_SPEC.md` |
+## 当前领域归属
 
-应用身份、运行配置和发布元数据由 `sdkwork.app.config.json` 及各应用端清单
-统一声明。
+BirdCoder 是无状态的应用组合宿主，只拥有应用描述、健康、路由目录和运行时
+元数据。业务事实由对应的高内聚模块负责：
 
-## 领域所有权
-
-BirdCoder 只拥有一个限界上下文：
-
-```text
-domain: intelligence
-capability: coding-workbench
-```
-
-其业务事实仅包括工作区/项目身份、项目文档绑定、项目运行位置与偏好、项目
-沙箱绑定。机器权威为 `specs/domain-ownership.spec.json`。
-
-可复用领域必须保留在对应工程中：
-
-| 所有者 | BirdCoder 使用的权威事实 |
+| 所有者 | 权威业务事实 |
 | --- | --- |
-| `sdkwork-agents` | Agent Project、Session、Turn、Session Item、Interaction、Runtime Binding、Artifact、Checkpoint |
-| `sdkwork-skills` | 技能包、版本、制品、能力、安装状态、API、SDK 与运行逻辑 |
-| `sdkwork-prompts` | Saved Prompt 身份、内容、生命周期、API 与 SDK |
+| `sdkwork-agents` | Agent Project、组合槽、Session、Turn、Session Item、Interaction、Runtime Binding、Artifact、Checkpoint |
+| `sdkwork-skills` | Skill 包、版本、制品、能力、安装状态与执行元数据 |
 | `sdkwork-im` | 人际 Conversation、Message、Member、ReadCursor |
-| `sdkwork-iam` | 认证、用户、组织、成员关系、角色、权限与审计 |
-| `sdkwork-drive` | 沙箱与文件存储 |
-| `sdkwork-documents` | 文档身份、内容、生命周期、API 与 SDK |
-| 其他 SDKWork 模块 | Appstore、Deployments、Models、Settings、Messaging 与 Commerce 事实 |
+| `sdkwork-iam` | 认证、组织范围、成员关系、角色、权限与审计 |
+| `sdkwork-drive` | Drive 与沙箱存储 |
+| `sdkwork-documents` | 文档身份与内容 |
 
-AI 助手对话是 Agents Session Item 流，不是 IM 会话，也不得持久化为 IM
-Message。BirdCoder 只允许使用 `specs/agent-session-item-view.spec.md` 定义的
-内存 UI 适配。
+旧工作台 Workspace 聚合直接折叠为 IAM organization scope 加 canonical
+Agents `AgentProject`。BirdCoder 与 PC 全程只使用一个 `projectId`，不再
+存在 Workspace 服务、BirdCoder Project、双 ID 映射或兼容层。
 
-依赖方向固定为：
+AI 助手内容是 Agents Session Item 流；IM Message 表达人际或频道通信。
+两者可以使用稳定关联标识，但都不能持久化为对方的副本。详细边界见
+[`agent-session-item-view.spec.md`](specs/agent-session-item-view.spec.md)。
 
-```text
-BirdCoder -> Agents -> Kernel
-BirdCoder -> IM
-IM -> Agents
-Agents -/-> IM
-BirdCoder -/-> Kernel
-```
+## 数据库设计
 
-## 数据库
+BirdCoder 服务端业务表为 **0**，没有 BirdCoder 服务端数据库、迁移、种子、
+Schema、备份或恢复生命周期。
 
-BirdCoder 只拥有以下 10 张 `studio_*` 表：
+Tauri 宿主仅有一张本机 SQLite 表 `device_state_entry`，用于宿主私有设备
+状态。允许范围只有应用设置、以 canonical Agents `projectId` 为键的设备
+目录挂载，以及桌面 runtime-location 安装身份。`ProjectDeviceMountRegistry`
+属于 PC 本地能力；原生路径、Git 进程、worktree 和终端句柄不能进入 BirdCoder
+服务端记录。
 
-1. `studio_workspace`
-2. `studio_project`
-3. `studio_project_document_binding`
-4. `studio_project_runtime_location`
-5. `studio_project_runtime_location_preference`
-6. `studio_project_runtime_location_idempotency`
-7. `studio_project_runtime_location_audit`
-8. `studio_project_sandbox_binding`
-9. `studio_project_sandbox_binding_idempotency`
-10. `studio_project_sandbox_binding_audit`
+## API 与权限
 
-表注册表为 `database/contract/table-registry.json`，SQLite 与 PostgreSQL
-绿地基线位于 `database/ddl/baseline/`。跨领域标识只保存稳定的不透明引用，
-不建立跨领域数据库外键。
+BirdCoder 只拥有 4 个 App API：
 
-## API 与 SDK
+| 方法 | 路径 | 权限 |
+| --- | --- | --- |
+| `GET` | `/app/v3/api/system/descriptor` | `birdcoder.system-descriptor.read` |
+| `GET` | `/app/v3/api/system/health` | `birdcoder.system-health.read` |
+| `GET` | `/app/v3/api/system/routes` | `birdcoder.system-routes.read` |
+| `GET` | `/app/v3/api/system/runtime` | `birdcoder.system-runtime.read` |
 
-| API 面 | 权威文件 | 操作数 |
-| --- | --- | ---: |
-| App API | `sdks/sdkwork-birdcoder-app-sdk/openapi/sdkwork-birdcoder-app-api.openapi.json` | 39 |
-| Backend API | 无 | 0 |
-| Open API | 无 | 0 |
+Backend API 为 **0**，Open API 为 **0**。作者态权威是
+[BirdCoder App OpenAPI](sdks/sdkwork-birdcoder-app-sdk/openapi/sdkwork-birdcoder-app-api.openapi.json)。
+Project、Composition、Session、Skills、IM、IAM、Drive 和 Documents API
+均由所属模块 SDK 提供，不复制进 BirdCoder。
 
-App API 只包含工作区、项目、项目绑定、项目运行位置/偏好、项目 Git 编排和
-系统元数据，不复制 Agents、Skills、IM、IAM、Drive 或其他 SDKWork 领域的
-路由。
+## PC 运行时边界
 
-所有前端统一遵循：
-
-```text
-UI -> feature service/port -> 注入的生成 SDK client
-```
-
-bootstrap 使用应用全局 TokenManager 构造 SDK client。功能 UI 不得直接构造
-HTTP client、手工设置认证头、导入其他工程私有源码或维护本地生成 SDK 副本。
+- Project 与 Session 使用 `@sdkwork/agents-app-sdk`。
+- Session 与 Project 使用同一个 canonical `projectId`，创建后通过 Agents
+  `sessionRuntimeBindings` 写入不透明 runtime location id。
+- 沙箱组合使用 Agents `drive/drive` 组合槽。
+- 在 Agents 提供 canonical `document/documents` 组合槽之前，文档组合必须
+  fail closed，不能借用其他类型冒充。
+- 文件系统、Git、worktree 和终端只走 PC/Tauri 宿主适配器与授权设备挂载。
+- 前端不得使用 raw HTTP、手写认证头、本地 DTO/SDK 副本或生成传输层内部实现。
 
 ## 目录
 
 | 路径 | 职责 |
 | --- | --- |
-| `apps/` | PC、H5 与 Flutter 应用端 |
-| `crates/` | BirdCoder 工作台服务、仓储、路由、宿主与 Git 集成 |
-| `sdks/` | BirdCoder 自有 App SDK family |
-| `database/` | 10 表工作台数据库权威 |
-| `apis/` | API 权威索引 |
-| `specs/` | 组件、领域、依赖、IAM 与拓扑契约 |
-| `docs/` | 产品、架构、需求、迁移、运维与发布文档 |
-| `scripts/` | 架构、生成、构建和验证入口 |
-| `etc/` | 源运行配置和部署 profile |
+| [`apps/`](apps/README.md) | 应用端根目录；本次收口只覆盖 PC |
+| `crates/` | 无状态 Rust assembly、gateway、System 路由与 Tauri 宿主 |
+| [`apis/`](apis/README.md) | 作者态 API 权威索引 |
+| [`sdks/`](sdks/README.md) | 仅包含 System 能力的 BirdCoder SDK family |
+| [`specs/`](specs/README.md) | 应用机器合同及说明索引 |
+| [`docs/`](docs/README.md) | 产品、架构、运维与证据文档 |
+| `etc/` | 源码受控的安全运行配置 |
+| `scripts/` | 生成与验证入口 |
 
-共享 SDKWork 模块通过 `pnpm-workspace.yaml` 引用同级工程，不属于本仓库，
-也不得复制到本仓库。
+仓库有意不再包含 `database/`。公共 SDKWork 能力通过同级工程和原生依赖清单
+引用，不复制到本仓库。
 
-## 开发
-
-基本依赖：Node.js、`pnpm` 10、Rust/Cargo；Flutter 应用端还需要 Flutter。
+## 开发与验证
 
 ```bash
 pnpm install --frozen-lockfile
-pnpm dev
-```
-
-常用入口：
-
-```bash
 pnpm dev:desktop
 pnpm dev:browser:standalone
-pnpm dev:browser:cloud
-pnpm docs:dev
-```
+pnpm build:server
 
-运行参数来自 `etc/` 源配置和 `sdkwork.app.config.json`。不得在客户端源码中
-提交密钥或固定生产身份。
-
-## 验证
-
-架构收敛主循环：
-
-```bash
 pnpm check:domain-ownership
 pnpm check:agents-birdcoder-alignment
-pnpm check:kernel-birdcoder-alignment
 pnpm check:api-transport-standard
-pnpm db:validate
+pnpm check:desktop
+pnpm check:server
 pnpm typecheck
 pnpm lint
+pnpm docs:build
 ```
 
-发布或部署变更还必须执行 `AGENTS.md` 与 `sdkwork-specs` 选择的发布流程和目标
-宿主验证。
+全局规范位于 [`../sdkwork-specs/`](../sdkwork-specs/README.md)。本仓库只引用
+规范与机器合同，不复制规范正文。
 
-## 文档权威
+## 文档
 
-- `docs/README.md`：文档索引。
-- `docs/product/prd/PRD.md`：产品权威。
-- `docs/architecture/tech/TECH_ARCHITECTURE.md`：技术架构权威。
-- `apis/README.md`：当前项目 API 列表。
-- `database/README.md`：当前项目数据库设计。
-- `specs/README.md`：本地机器契约与说明索引。
-
-全局 SDKWork 规则位于同级 `sdkwork-specs` 工程。本仓库只引用规范，不复制
-其规范正文。
+- [文档索引](docs/README.md)
+- [产品 PRD](docs/product/prd/PRD.md)
+- [技术架构](docs/architecture/tech/TECH_ARCHITECTURE.md)
+- [PC 应用文档](apps/sdkwork-birdcoder-pc/docs/README.md)
+- [API 清单](apis/README.md)
+- [本地 Specs 索引](specs/README.md)

@@ -21,7 +21,7 @@ function run(command, args, options = {}) {
 }
 
 const syncOutput = run(process.execPath, ['scripts/sync-birdcoder-sdk-openapi.mjs', '--check']);
-assert.match(syncOutput, /39 operations/u);
+assert.match(syncOutput, /4 operations/u);
 
 const dryRunOutput = run(process.execPath, [
   'scripts/generate-birdcoder-sdkgen-family.mjs',

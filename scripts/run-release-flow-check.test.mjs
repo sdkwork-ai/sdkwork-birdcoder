@@ -30,7 +30,7 @@ for (const [laneName, commands] of Object.entries(RELEASE_FLOW_CHECK_LANES)) {
 const requiredCommands = [
   'node scripts/release-flow-contract.test.mjs',
   'node scripts/domain-ownership-contract.test.mjs',
-  'node scripts/database-framework-standard-contract.test.mjs',
+  'node scripts/persistence-ownership-contract.test.mjs',
   'node scripts/birdcoder-sdk-owner-boundary-contract.test.mjs',
   'node scripts/agents-birdcoder-alignment-contract.test.mjs',
   'node --experimental-strip-types scripts/skills-sdk-boundary-contract.test.ts',

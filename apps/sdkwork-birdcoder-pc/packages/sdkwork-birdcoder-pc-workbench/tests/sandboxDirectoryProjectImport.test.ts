@@ -16,10 +16,10 @@ const selection: SandboxSelection = {
 
 describe('importSandboxDirectoryProject', () => {
   it('creates a project and binds only the selected logical Drive identity', async () => {
-    const bindProjectWorkspace = vi.fn(async () => undefined);
+    const bindProjectDrive = vi.fn(async () => undefined);
     const result = await importSandboxDirectoryProject({
-      bindingPort: { bindProjectWorkspace },
-      createProject: vi.fn(async () => ({ id: 'project-1' })),
+      compositionPort: { bindProjectDrive },
+      createProject: vi.fn(async () => ({ projectId: 'project-1' })),
       fallbackProjectName: 'Fallback',
       selection,
     });
@@ -29,19 +29,19 @@ describe('importSandboxDirectoryProject', () => {
       projectName: 'demo',
       selection,
     });
-    expect(bindProjectWorkspace).toHaveBeenCalledWith('project-1', selection);
+    expect(bindProjectDrive).toHaveBeenCalledWith('project-1', selection);
     expect(JSON.stringify(result)).not.toMatch(/[A-Za-z]:\\|providerRootRef|fileSystemHandle/u);
   });
 
   it('deletes only the newly created project when binding fails', async () => {
     const deleteCreatedProject = vi.fn(async () => undefined);
     await expect(importSandboxDirectoryProject({
-      bindingPort: {
-        bindProjectWorkspace: vi.fn(async () => {
+      compositionPort: {
+        bindProjectDrive: vi.fn(async () => {
           throw new Error('Drive grant is no longer available.');
         }),
       },
-      createProject: vi.fn(async () => ({ id: 'project-2' })),
+      createProject: vi.fn(async () => ({ projectId: 'project-2' })),
       deleteCreatedProject,
       fallbackProjectName: 'Fallback',
       selection,
@@ -56,12 +56,12 @@ describe('importSandboxDirectoryProject', () => {
     let caught: unknown;
     try {
       await importSandboxDirectoryProject({
-        bindingPort: {
-          bindProjectWorkspace: vi.fn(async () => {
+        compositionPort: {
+          bindProjectDrive: vi.fn(async () => {
             throw new Error('Binding rejected.');
           }),
         },
-        createProject: vi.fn(async () => ({ id: 'project-3' })),
+        createProject: vi.fn(async () => ({ projectId: 'project-3' })),
         deleteCreatedProject: vi.fn(async () => {
           throw new Error('Cleanup rejected.');
         }),

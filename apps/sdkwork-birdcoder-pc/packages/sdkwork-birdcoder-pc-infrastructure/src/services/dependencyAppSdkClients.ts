@@ -1,8 +1,4 @@
 import {
-  createClient as createDocumentsAppClient,
-  type SdkworkDocumentsAppClient,
-} from '@sdkwork/birdcoder-pc-core/sdk/documents-app';
-import {
   createClient as createPromptsAppClient,
   type SdkworkPromptsAppClient,
 } from '@sdkwork/birdcoder-pc-core/sdk/prompts-app';
@@ -12,15 +8,13 @@ import { getDefaultBirdCoderIdeServicesRuntimeConfig } from './defaultIdeService
 import { resolveBirdCoderDependencySdkBaseUrl } from './sdkBaseUrls.ts';
 import { bindBirdCoderSdkSessionErrorHandler } from './sdkSessionErrorHandler.ts';
 
-export type { SdkworkDocumentsAppClient, SdkworkPromptsAppClient };
+export type { SdkworkPromptsAppClient };
 
 export interface BirdCoderDependencyAppSdkClients {
-  documentsClient: SdkworkDocumentsAppClient;
   promptsClient: SdkworkPromptsAppClient;
 }
 
 export interface CreateBirdCoderDependencyAppSdkClientsOptions {
-  documentsApiBaseUrl?: string;
   platformApiGatewayBaseUrl?: string;
   promptsApiBaseUrl?: string;
 }
@@ -31,11 +25,6 @@ export function createBirdCoderDependencyAppSdkClients(
   const runtimeConfig = getDefaultBirdCoderIdeServicesRuntimeConfig();
   const platformApiGatewayBaseUrl = options.platformApiGatewayBaseUrl
     ?? runtimeConfig.platformApiGatewayBaseUrl;
-  const documentsBaseUrl = resolveBirdCoderDependencySdkBaseUrl('Documents', {
-    dependencyApiBaseUrl: options.documentsApiBaseUrl,
-    overrideEnvNames: ['VITE_SDKWORK_DOCUMENTS_APP_API_BASE_URL'],
-    platformApiGatewayBaseUrl,
-  });
   const promptsBaseUrl = resolveBirdCoderDependencySdkBaseUrl('Prompts', {
     dependencyApiBaseUrl: options.promptsApiBaseUrl,
     overrideEnvNames: ['VITE_SDKWORK_PROMPTS_APP_API_BASE_URL'],
@@ -43,12 +32,6 @@ export function createBirdCoderDependencyAppSdkClients(
   });
   const tokenManager = getBirdCoderGlobalTokenManager();
   return {
-    documentsClient: bindBirdCoderSdkSessionErrorHandler(createDocumentsAppClient({
-      authMode: 'dual-token',
-      baseUrl: documentsBaseUrl,
-      platform: 'pc',
-      tokenManager,
-    })),
     promptsClient: bindBirdCoderSdkSessionErrorHandler(createPromptsAppClient({
       authMode: 'dual-token',
       baseUrl: promptsBaseUrl,

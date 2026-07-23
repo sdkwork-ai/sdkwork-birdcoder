@@ -1,12 +1,12 @@
 import { useCallback, useState } from 'react';
-import type { BirdCoderProject } from '@sdkwork/birdcoder-pc-contracts-commons';
+import type { AgentProjectView } from '@sdkwork/birdcoder-pc-contracts-commons';
 import { deleteWorkbenchAgentSessionItems } from '@sdkwork/birdcoder-pc-workbench/workbench/agentSessionCreation';
 import type { CodeDeleteConfirmation } from './CodePageDialogs';
 
 type ToastTone = 'error' | 'success';
 
 interface AgentSessionLocation {
-  project: BirdCoderProject;
+  project: AgentProjectView;
 }
 
 interface UseCodeDeleteConfirmationOptions {
@@ -20,8 +20,8 @@ interface UseCodeDeleteConfirmationOptions {
   ) => Promise<void>;
   deleteProject: (projectId: string) => Promise<void>;
   onProjectChange?: (projectId: string) => void;
-  projectRemovedMessage: string;
-  resolveProjectById: (projectId: string) => BirdCoderProject | null;
+  projectDeletedMessage: string;
+  resolveProjectById: (projectId: string) => AgentProjectView | null;
   resolveSession: (
     agentSessionId: string,
     projectId?: string | null,
@@ -39,7 +39,7 @@ export function useCodeDeleteConfirmation({
   deleteAgentSessionItem,
   deleteProject,
   onProjectChange,
-  projectRemovedMessage,
+  projectDeletedMessage,
   resolveProjectById,
   resolveSession,
   sessionId,
@@ -91,10 +91,10 @@ export function useCodeDeleteConfirmation({
     if (confirmation.type === 'session') {
       const project = resolveSession(confirmation.id, confirmation.projectId)?.project;
       if (project) {
-        await deleteAgentSession(project.id, confirmation.id);
-        if (sessionId === confirmation.id && currentProjectId === project.id) {
+        await deleteAgentSession(project.projectId, confirmation.id);
+        if (sessionId === confirmation.id && currentProjectId === project.projectId) {
           setSelectedSessionId(null);
-          setSelectedSessionProjectId(project.id);
+          setSelectedSessionProjectId(project.projectId);
         }
         addToast(sessionDeletedMessage, 'success');
       }
@@ -116,7 +116,7 @@ export function useCodeDeleteConfirmation({
       if (currentProjectId === confirmation.id) {
         onProjectChange?.('');
       }
-      addToast(projectRemovedMessage, 'success');
+      addToast(projectDeletedMessage, 'success');
       setDeleteConfirmation(null);
       return;
     }
@@ -131,7 +131,7 @@ export function useCodeDeleteConfirmation({
             messageIds: confirmation.ids?.length
             ? confirmation.ids
             : [confirmation.id],
-            projectId: project.id,
+            projectId: project.projectId,
           });
           addToast(
             deletedMessageCount > 1 ? 'Reply deleted successfully' : 'Message deleted successfully',
@@ -153,7 +153,7 @@ export function useCodeDeleteConfirmation({
     deleteConfirmation,
     deleteProject,
     onProjectChange,
-    projectRemovedMessage,
+    projectDeletedMessage,
     resolveProjectById,
     resolveSession,
     sessionId,

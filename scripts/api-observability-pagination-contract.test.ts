@@ -47,14 +47,14 @@ const operations = Object.entries(document.paths ?? {}).flatMap(([apiPath, pathI
     .map(([method, operation]) => ({ apiPath, method, operation })),
 );
 
-assert.equal(operations.length, 39, 'BirdCoder App API must contain exactly 39 application-owned operations.');
+assert.equal(operations.length, 4, 'BirdCoder App API must contain exactly four System operations.');
 
 const routeKeys = new Set<string>();
 const operationIds = new Set<string>();
 for (const { apiPath, method, operation } of operations) {
   const routeKey = `${method.toUpperCase()} ${apiPath}`;
   const operationId = String(operation.operationId ?? '');
-  assert.ok(apiPath.startsWith('/app/v3/api/'), `${routeKey} must use the App API v3 prefix.`);
+  assert.ok(apiPath.startsWith('/app/v3/api/system/'), `${routeKey} must use the System App API prefix.`);
   assert.equal(operation['x-sdkwork-owner'], 'sdkwork-birdcoder', `${routeKey} owner drifted.`);
   assert.equal(
     operation['x-sdkwork-api-authority'],
@@ -79,7 +79,7 @@ for (const field of ['page', 'pageSize', 'totalItems', 'totalPages', 'hasMore', 
 
 const boundedListOperationIds = new Set(['routes.list']);
 const listOperations = operations.filter(({ operation }) => operation.operationId?.endsWith('.list'));
-assert.equal(listOperations.length, 6, 'App API must expose the six declared list operations.');
+assert.equal(listOperations.length, 1, 'App API must expose only the bounded System route catalog list.');
 
 for (const { apiPath, method, operation } of listOperations) {
   const operationId = String(operation.operationId);

@@ -11,7 +11,7 @@ import {
 import type { ProjectRuntimeLocationResolver } from '@sdkwork/birdcoder-pc-workbench/hooks/useProjectRuntimeLocation';
 
 interface CodePageTerminalProjectLike {
-  id: string;
+  projectId: string;
   name: string;
 }
 
@@ -87,7 +87,7 @@ export function useCodePageTerminalActions({
       return;
     }
 
-    const localWorkingDirectory = await resolveTerminalWorkingDirectory(target.id);
+    const localWorkingDirectory = await resolveTerminalWorkingDirectory(target.projectId);
     if (!localWorkingDirectory) {
       return;
     }

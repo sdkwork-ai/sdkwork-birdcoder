@@ -7,7 +7,6 @@ export default defineLocaleModule('code/mobile-programming', {
       title: '像在真实手机上一样体验移动端编程',
       description:
         '扫码打开当前项目，在手机里继续通过代码编程助手完成需求、改代码、看预览。',
-      workspaceLabel: '\u5de5\u4f5c\u533a',
       projectLabel: '\u9879\u76ee',
       sessionLabel: '\u4f1a\u8bdd',
       unavailable: '\u6682\u672a\u63d0\u4f9b',
@@ -15,7 +14,7 @@ export default defineLocaleModule('code/mobile-programming', {
       qrLoadingTitle: '\u6b63\u5728\u751f\u6210\u4e8c\u7ef4\u7801',
       qrUnavailableTitle: '\u4e8c\u7ef4\u7801\u751f\u6210\u5931\u8d25',
       contextHint:
-        '\u8fd9\u4e2a\u4e8c\u7ef4\u7801\u5df2\u7ecf\u5305\u542b\u5f53\u524d\u5de5\u4f5c\u533a\u3001\u9879\u76ee\u548c\u4f1a\u8bdd\u4e0a\u4e0b\u6587\uff0c\u624b\u673a\u7aef\u53ef\u4ee5\u4ece\u540c\u4e00\u4e2a\u7f16\u7a0b\u573a\u666f\u7ee7\u7eed\u3002',
+        '这个二维码已经包含当前 Agents 项目和会话上下文，手机端可以从同一个编程场景继续。',
       simulatorLabel: '展示移动端代码助手对话的手机模拟器',
       simulatorStatus: '移动端助手在线',
       simulatorSubtitle: '已接入当前代码会话',

@@ -1,16 +1,12 @@
-use std::sync::Arc;
-
 use axum::Router;
 use sdkwork_routes_system_app_api::SystemAppState;
-use sdkwork_routes_workspace_app_api::WorkspaceAppState;
 use sdkwork_web_core::{HttpMetricsDimensions, HttpMetricsRegistry};
 
 use crate::bootstrap::auth::{build_protected_app_router, with_gateway_cors};
 use crate::bootstrap::config::BirdServerConfig;
 use crate::bootstrap::route_manifest::birdcoder_app_api_routes;
-use crate::bootstrap::state::AppState;
 use crate::business_metrics::BusinessMetricsRegistry;
-use crate::{health, observability, openapi};
+use crate::{observability, openapi};
 
 fn resolve_http_metrics_dimensions(config: &BirdServerConfig) -> HttpMetricsDimensions {
     let mut dimensions = HttpMetricsDimensions::default()
@@ -22,7 +18,7 @@ fn resolve_http_metrics_dimensions(config: &BirdServerConfig) -> HttpMetricsDime
 }
 
 pub async fn build_router(
-    state: AppState,
+    agents_router: Router,
     config: &BirdServerConfig,
 ) -> Result<Router, Box<dyn std::error::Error>> {
     let metrics = HttpMetricsRegistry::with_dimensions(resolve_http_metrics_dimensions(config));
@@ -37,19 +33,10 @@ pub async fn build_router(
             "sdkwork.app.config.json",
         ),
     );
-    let workspace_router = sdkwork_routes_workspace_app_api::build_workspace_app_router()
-        .with_state(WorkspaceAppState {
-            workspace_service: state.services.workspace.clone(),
-            project_service: state.services.project.clone(),
-            document_binding_service: state.services.document_binding.clone(),
-            sandbox_binding_service: state.services.sandbox_binding.clone(),
-            runtime_location_service: state.services.runtime_location.clone(),
-        });
-
-    let protected = Router::new().merge(system_router).merge(workspace_router);
-    let readiness_check = health::BirdCoderReadinessCheck::new(state.database_host.pool().clone());
+    let protected = build_protected_app_router(system_router, config, metrics.clone()).await?;
     let app = Router::new()
-        .merge(build_protected_app_router(protected, config, metrics.clone()).await?)
+        .merge(protected)
+        .merge(agents_router)
         .route(
             "/openapi.json",
             axum::routing::get(openapi::serve_openapi_json),
@@ -69,9 +56,7 @@ pub async fn build_router(
 
     let app = sdkwork_web_bootstrap::mount_infra_routes(
         app,
-        sdkwork_web_bootstrap::ServiceRouterConfig::default()
-            .with_readiness_check(Arc::new(readiness_check))
-            .skip_metrics(),
+        sdkwork_web_bootstrap::ServiceRouterConfig::default().skip_metrics(),
     );
     let app = with_gateway_cors(app, config);
     Ok(observability::with_business_metrics(app, business_metrics))

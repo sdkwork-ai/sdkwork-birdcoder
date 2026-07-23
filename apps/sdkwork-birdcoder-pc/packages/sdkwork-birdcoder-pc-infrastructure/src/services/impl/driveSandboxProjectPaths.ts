@@ -55,7 +55,7 @@ export function toSandboxLogicalPath(
   }
   const prefix = `${context.virtualRootPath}/`;
   if (!normalized.startsWith(prefix)) {
-    throw new Error('Project file path is outside the bound server workspace.');
+    throw new Error('Project file path is outside the primary Drive composition.');
   }
   const relativePath = assertCanonicalLogicalPath(normalized.slice(prefix.length), false);
   return context.bindingLogicalPath

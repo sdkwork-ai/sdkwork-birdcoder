@@ -1,5 +1,4 @@
 import type { AgentsAppSdkClient } from '@sdkwork/birdcoder-pc-core/sdk';
-import type { SdkworkDocumentsAppClient } from '@sdkwork/birdcoder-pc-core/sdk/documents-app';
 import type { SdkworkPromptsAppClient } from '@sdkwork/birdcoder-pc-core/sdk/prompts-app';
 import type { SdkworkSkillsAppClient } from '@sdkwork/birdcoder-pc-core/sdk/skills-app';
 
@@ -11,11 +10,12 @@ import {
 } from './birdCoderSdkClient.ts';
 import { getDefaultBirdCoderIdeServicesRuntimeConfig } from './defaultIdeServicesRuntime.ts';
 import { createBirdCoderDriveSandboxExplorerPort } from './driveSandboxExplorerRuntime.ts';
-import { ComposedSdkProjectRuntimeLocationRegistrationPort } from './impl/ComposedSdkProjectRuntimeLocationRegistrationPort.ts';
 import { DriveSandboxProjectFileSystemService } from './impl/DriveSandboxProjectFileSystemService.ts';
+import { ApiBackedProjectService } from './impl/ApiBackedProjectService.ts';
 import { createBirdCoderRuntimeAuthService } from './impl/RuntimeAuthService.ts';
 import { RuntimeFileSystemService } from './impl/RuntimeFileSystemService.ts';
 import { RuntimeProjectRuntimeLocationService } from './impl/RuntimeProjectRuntimeLocationService.ts';
+import { createTauriProjectGitRuntime } from '../platform/tauriProjectGitRuntime.ts';
 import type { IAuthService } from './interfaces/IAuthService.ts';
 import type { IAgentSessionService } from './interfaces/IAgentSessionService.ts';
 import type { ICatalogService } from './interfaces/ICatalogService.ts';
@@ -26,7 +26,6 @@ import type { IProjectRuntimeLocationService } from './interfaces/IProjectRuntim
 import type { IProjectService } from './interfaces/IProjectService.ts';
 import type { IPromptService } from './interfaces/IPromptService.ts';
 import type { IVipMembershipService } from './interfaces/IVipMembershipService.ts';
-import type { IWorkspaceService } from './interfaces/IWorkspaceService.ts';
 import { ProjectDeviceMountRegistry } from './ProjectDeviceMountRegistry.ts';
 import { createProjectDeviceMountSubjectProvider } from './projectDeviceMountSubject.ts';
 import { resolveBirdCoderRuntimeTopology } from './runtimeTopology.ts';
@@ -43,7 +42,6 @@ export interface BirdCoderDefaultIdeServices {
   projectRuntimeLocationService: IProjectRuntimeLocationService;
   projectService: IProjectService;
   vipMembershipService: IVipMembershipService;
-  workspaceService: IWorkspaceService;
 }
 
 export type BirdCoderDefaultIdeServiceKey = keyof BirdCoderDefaultIdeServices;
@@ -51,7 +49,6 @@ export type BirdCoderDefaultIdeServiceKey = keyof BirdCoderDefaultIdeServices;
 export interface CreateBirdCoderDefaultIdeServicesOptions {
   agentsClient?: AgentsAppSdkClient;
   appClient?: BirdCoderAppSdkApiClient;
-  documentsClient?: SdkworkDocumentsAppClient;
   promptsClient?: SdkworkPromptsAppClient;
   skillsClient?: SdkworkSkillsAppClient;
 }
@@ -60,10 +57,11 @@ export interface BirdCoderDefaultIdeSharedRuntime {
   agentsClient: AgentsAppSdkClient;
   appClient: BirdCoderAppSdkApiClient;
   authService: IAuthService;
-  documentsClient: SdkworkDocumentsAppClient;
   fileSystemService: IFileSystemService;
+  gitService: IGitService;
   promptsClient: SdkworkPromptsAppClient;
   projectRuntimeLocationService: IProjectRuntimeLocationService;
+  projectService: IProjectService;
   skillsClient: SdkworkSkillsAppClient;
 }
 
@@ -94,13 +92,8 @@ export function createBirdCoderDefaultIdeSharedRuntime(
   const promptsClient =
     options.promptsClient ??
     runtimeConfig.promptsClient;
-  const documentsClient =
-    options.documentsClient ??
-    runtimeConfig.documentsClient;
-  if (!promptsClient || !documentsClient) {
-    throw new Error(
-      'Documents and Prompts SDK clients must be injected by the PC runtime bootstrap.',
-    );
+  if (!promptsClient) {
+    throw new Error('The Prompts SDK client must be injected by the PC runtime bootstrap.');
   }
   const authService = createBirdCoderRuntimeAuthService();
   const projectDeviceMountRegistry = new ProjectDeviceMountRegistry({
@@ -109,32 +102,48 @@ export function createBirdCoderDefaultIdeSharedRuntime(
   const localFileSystem = new RuntimeFileSystemService({
     mountRegistry: projectDeviceMountRegistry,
   });
+  const projectService = new ApiBackedProjectService({
+    projectCompositionSlots: agentsClient.ai.agents.projectCompositionSlots,
+    projects: agentsClient.ai.agents.projects,
+  });
   const runtimeTopology = runtimeConfig.runtimeTopology ?? resolveBirdCoderRuntimeTopology();
   const fileSystemService = runtimeTopology.executionLocation === 'local-host'
     ? localFileSystem
     : new DriveSandboxProjectFileSystemService({
-        bindingClient: appClient,
         drivePort: createBirdCoderDriveSandboxExplorerPort(),
+        projectService,
       });
   const projectRuntimeLocationService = new RuntimeProjectRuntimeLocationService({
     executionLocation: runtimeTopology.executionLocation,
     fileSystemService,
-    registrationPort: new ComposedSdkProjectRuntimeLocationRegistrationPort({
-      identityPort: new TauriDesktopRuntimeLocationIdentityPort({
-        mountRegistry: projectDeviceMountRegistry,
-      }),
-      sdkPort: appClient,
+    identityPort: new TauriDesktopRuntimeLocationIdentityPort({
+      mountRegistry: projectDeviceMountRegistry,
     }),
+  });
+  const gitService = createTauriProjectGitRuntime({
+    resolveProjectRoot: async (projectId) => {
+      const resolution = await projectRuntimeLocationService.resolveProjectRuntimeLocation(
+        projectId,
+        {
+          allowFolderSelection: false,
+          capability: 'git',
+        },
+      );
+      return resolution.status === 'resolved'
+        ? resolution.location.localWorkingDirectory
+        : null;
+    },
   });
 
   return {
     agentsClient,
     appClient,
     authService,
-    documentsClient,
     fileSystemService,
+    gitService,
     promptsClient,
     projectRuntimeLocationService,
+    projectService,
     skillsClient,
   };
 }

@@ -94,7 +94,7 @@
     "configKeys": []
   },
   "integration": {
-    "authority": "Owns local Git process execution, repository inspection, branch and worktree validation, and filesystem-safe Git mutations. Project authorization and managed worktree identity remain owned by sdkwork-birdcoder-project-service; process wiring remains owned by the standalone gateway adapter."
+    "authority": "Owns local Git process execution, repository inspection, branch and worktree validation, and filesystem-safe Git mutations only. Canonical Project authorization comes from sdkwork-agents before this adapter is invoked; mounted path authorization and device-local mount identity remain in the PC/Tauri host. This crate owns no Project aggregate or remote API."
   },
   "verification": {
     "commands": [

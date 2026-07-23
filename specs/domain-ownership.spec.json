@@ -3,7 +3,7 @@
   "kind": "sdkwork.application-domain-ownership",
   "application": "sdkwork-birdcoder",
   "status": "active",
-  "updatedAt": "2026-07-22",
+  "updatedAt": "2026-07-23",
   "authority": {
     "globalSpecs": [
       "../../sdkwork-specs/DOMAIN_SPEC.md",
@@ -32,79 +32,28 @@
     "domain": "intelligence",
     "capability": "coding-workbench",
     "owner": "sdkwork-birdcoder",
-    "databasePrefix": "studio",
+    "databasePrefix": null,
     "businessFacts": [
-      "coding workspace identity and lifecycle",
-      "coding project identity and lifecycle",
-      "project-to-document stable bindings",
-      "target-scoped project runtime locations",
-      "subject runtime-location preferences",
-      "project-to-sandbox stable bindings"
+      "BirdCoder application descriptor",
+      "BirdCoder runtime and route metadata"
     ]
   },
   "persistence": {
-    "systemOfRecord": "sdkwork-birdcoder",
-    "tableRegistry": "database/contract/table-registry.json",
-    "baselines": [
-      "database/ddl/baseline/sqlite/0001_birdcoder_baseline.sql",
-      "database/ddl/baseline/postgres/0001_birdcoder_baseline.sql"
-    ],
-    "engines": [
-      "sqlite",
-      "postgres"
-    ],
-    "tables": [
-      "studio_workspace",
-      "studio_project",
-      "studio_project_document_binding",
-      "studio_project_runtime_location",
-      "studio_project_runtime_location_preference",
-      "studio_project_runtime_location_idempotency",
-      "studio_project_runtime_location_audit",
-      "studio_project_sandbox_binding",
-      "studio_project_sandbox_binding_idempotency",
-      "studio_project_sandbox_binding_audit"
-    ],
-    "externalReferences": [
-      {
-        "table": "studio_project",
-        "column": "default_agent_project_id",
-        "owner": "sdkwork-agents",
-        "contract": "Agent Project projectId",
-        "foreignKey": false
-      },
-      {
-        "table": "studio_project_document_binding",
-        "column": "document_id",
-        "owner": "sdkwork-documents",
-        "contract": "Document id",
-        "foreignKey": false
-      },
-      {
-        "table": "studio_project_sandbox_binding",
-        "column": "sandbox_id",
-        "owner": "sdkwork-drive",
-        "contract": "Drive Sandbox id",
-        "foreignKey": false
-      },
-      {
-        "table": "studio_project_sandbox_binding",
-        "column": "root_entry_id",
-        "owner": "sdkwork-drive",
-        "contract": "Drive Sandbox root entry id",
-        "foreignKey": false
-      }
-    ]
+    "systemOfRecord": null,
+    "tableRegistry": null,
+    "baselines": [],
+    "engines": [],
+    "tables": [],
+    "externalReferences": [],
+    "reason": "BirdCoder is a stateless coding-workbench composition host. Agent Project, composition, Session, Turn, Item, and runtime-binding facts are owned by sdkwork-agents; local filesystem state remains in the PC host."
   },
   "apiOwnership": {
     "appApi": {
       "authority": "sdkwork-birdcoder-app-api",
       "sdkFamily": "sdkwork-birdcoder-app-sdk",
       "authorityFile": "sdks/sdkwork-birdcoder-app-sdk/openapi/sdkwork-birdcoder-app-api.openapi.json",
-      "operationCount": 39,
+      "operationCount": 4,
       "ownedPathPrefixes": [
-        "/app/v3/api/workspaces",
-        "/app/v3/api/projects",
         "/app/v3/api/system/descriptor",
         "/app/v3/api/system/health",
         "/app/v3/api/system/routes",
@@ -122,6 +71,17 @@
       "reason": "BirdCoder does not publish an external domain API."
     }
   },
+  "permissionOwnership": {
+    "authority": "specs/iam.module.manifest.json",
+    "permissionCount": 4,
+    "ownedPermissions": [
+      "birdcoder.system-descriptor.read",
+      "birdcoder.system-health.read",
+      "birdcoder.system-routes.read",
+      "birdcoder.system-runtime.read"
+    ],
+    "dependencyPermissions": "inherited from owner module catalogs; never copied into the BirdCoder catalog"
+  },
   "runtimeAuthority": {
     "topology": "specs/topology.spec.json",
     "standaloneGateway": {
@@ -138,6 +98,7 @@
       "owner": "sdkwork-agents",
       "capabilities": [
         "agent projects",
+        "project composition",
         "sessions",
         "turns",
         "session items",
@@ -148,6 +109,24 @@
       ],
       "consumerBoundary": "generated Agents SDK or runtime facade",
       "forbiddenLocalTables": [
+        "studio_workspace",
+        "studio_project",
+        "studio_project_document_binding",
+        "studio_project_runtime_location",
+        "studio_project_runtime_location_preference",
+        "studio_project_runtime_location_idempotency",
+        "studio_project_runtime_location_audit",
+        "studio_project_sandbox_binding",
+        "studio_project_sandbox_binding_idempotency",
+        "studio_project_sandbox_binding_audit",
+        "ai_agent_project",
+        "ai_agent_project_composition_slot",
+        "ai_agent_session",
+        "ai_agent_session_runtime_binding",
+        "ai_agent_turn",
+        "ai_agent_session_item",
+        "ai_agent_interaction",
+        "ai_agent_session_checkpoint",
         "ai_coding_session",
         "ai_coding_session_message",
         "ai_coding_session_runtime",
@@ -156,13 +135,12 @@
         "ai_coding_session_artifact",
         "ai_coding_session_checkpoint",
         "ai_coding_session_operation",
-        "ai_coding_session_prompt_entry",
-        "chat_conversation",
-        "chat_message"
+        "ai_coding_session_prompt_entry"
       ],
       "forbiddenLocalPathPrefixes": [
-        "/app/v3/api/intelligence/coding_sessions",
-        "/app/v3/api/chat/conversations"
+        "/app/v3/api/workspaces",
+        "/app/v3/api/projects",
+        "/app/v3/api/intelligence/coding_sessions"
       ]
     },
     {
@@ -205,8 +183,19 @@
         "read cursors"
       ],
       "consumerBoundary": "generated IM SDK",
-      "forbiddenLocalTables": [],
-      "forbiddenLocalPathPrefixes": []
+      "forbiddenLocalTables": [
+        "chat_conversation",
+        "chat_conversation_member",
+        "chat_conversation_read_cursor",
+        "chat_message",
+        "im_conversations",
+        "im_conversation_members",
+        "im_conversation_read_cursors",
+        "im_conversation_messages"
+      ],
+      "forbiddenLocalPathPrefixes": [
+        "/app/v3/api/chat/conversations"
+      ]
     },
     {
       "owner": "sdkwork-iam",
@@ -406,6 +395,11 @@
     "sdkwork-agents -/-> sdkwork-im"
   ],
   "forbiddenLocalComponents": [
+    "sdkwork-birdcoder-workspace-service",
+    "sdkwork-birdcoder-project-service",
+    "sdkwork-birdcoder-workspace-repository-sqlx",
+    "sdkwork-routes-workspace-app-api",
+    "sdkwork-birdcoder-database-host",
     "sdkwork-routes-engine-catalog-app-api",
     "sdkwork-birdcoder-coding-sessions-service",
     "sdkwork-birdcoder-coding-sessions-repository-sqlx",
@@ -464,9 +458,8 @@
   "authoredSurfaceScan": {
     "roots": [
       "apis",
-      "apps",
-      "crates",
-      "database"
+      "apps/sdkwork-birdcoder-pc",
+      "crates"
     ],
     "extensions": [
       ".dart",
@@ -491,10 +484,6 @@
       "target"
     ],
     "apiDefinitionRoots": [
-      "apps/sdkwork-birdcoder-flutter-mobile/sdks",
-      "apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-contracts-commons/src/generated",
-      "apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-server/src",
-      "apps/sdkwork-birdcoder-pc/sdks",
       "sdks"
     ]
   }

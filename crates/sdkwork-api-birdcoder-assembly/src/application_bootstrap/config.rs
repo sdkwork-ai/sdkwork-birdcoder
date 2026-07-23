@@ -1,17 +1,10 @@
-use std::collections::BTreeMap;
 use std::fmt;
-use std::path::{Path, PathBuf};
-
-use sdkwork_utils_rust::base64url_decode;
 
 pub const DEFAULT_HOST: &str = "127.0.0.1";
 pub const DEFAULT_PORT: u16 = 10240;
-pub const DEFAULT_SQLITE_FILE: &str = "target/dev/birdcoder/data/birdcoder.sqlite3";
 pub const DEFAULT_RATE_LIMIT_ENABLED: bool = true;
 pub const DEFAULT_RATE_LIMIT_MAX_REQUESTS: u32 = 120;
 pub const DEFAULT_RATE_LIMIT_WINDOW_SECS: u64 = 60;
-const BIRDCODER_DATABASE_SERVICE: &str = "BIRDCODER";
-const CLAW_DATABASE_URL_ENV: &str = "SDKWORK_CLAW_DATABASE_URL";
 pub const DEPLOYMENT_PROFILE_ENV: &str = "SDKWORK_BIRDCODER_DEPLOYMENT_PROFILE";
 pub const ENVIRONMENT_ENV: &str = "SDKWORK_BIRDCODER_ENVIRONMENT";
 pub const RUNTIME_TARGET_ENV: &str = "SDKWORK_BIRDCODER_RUNTIME_TARGET";
@@ -19,14 +12,7 @@ pub const SERVER_HOST_ENV: &str = "SDKWORK_BIRDCODER_SERVER_HOST";
 pub const SERVER_PORT_ENV: &str = "SDKWORK_BIRDCODER_SERVER_PORT";
 pub const APPLICATION_PUBLIC_INGRESS_BIND_ENV: &str =
     "SDKWORK_BIRDCODER_APPLICATION_PUBLIC_INGRESS_BIND";
-pub const DATABASE_FILE_ENV: &str = "SDKWORK_BIRDCODER_DATABASE_FILE";
 pub const ALLOWED_ORIGINS_ENV: &str = "SDKWORK_BIRDCODER_ALLOWED_ORIGINS";
-pub const RUNTIME_LOCATION_MASTER_KEY_ENV: &str = "SDKWORK_BIRDCODER_RUNTIME_LOCATION_MASTER_KEY";
-pub const RUNTIME_LOCATION_KEY_ID_ENV: &str = "SDKWORK_BIRDCODER_RUNTIME_LOCATION_KEY_ID";
-pub const RUNTIME_LOCATION_PREVIOUS_KEYS_ENV: &str =
-    "SDKWORK_BIRDCODER_RUNTIME_LOCATION_PREVIOUS_KEYS_JSON";
-pub const RUNTIME_LOCATION_FINGERPRINT_KEY_ENV: &str =
-    "SDKWORK_BIRDCODER_RUNTIME_LOCATION_FINGERPRINT_KEY";
 pub const RETIRED_DEPLOYMENT_MODE_ENV: &str = "SDKWORK_DEPLOYMENT_MODE";
 pub const RETIRED_PUBLIC_DEPLOYMENT_MODE_ENV: &str = "VITE_SDKWORK_DEPLOYMENT_MODE";
 
@@ -156,17 +142,8 @@ pub enum BirdServerConfigError {
     InvalidRuntimeTarget(String),
     RetiredDeploymentMode { key: &'static str, value: String },
     CloudRuntimeTarget,
-    CloudDatabaseEngine,
-    CloudDatabaseUrl,
     CloudAllowedOrigins,
     CloudLoopbackBind,
-    MissingRuntimeLocationMasterKey,
-    InvalidRuntimeLocationMasterKey,
-    MissingRuntimeLocationKeyId,
-    InvalidRuntimeLocationKeyId,
-    InvalidRuntimeLocationPreviousKeys,
-    MissingRuntimeLocationFingerprintKey,
-    InvalidRuntimeLocationFingerprintKey,
     InvalidApplicationPublicIngressBind(String),
 }
 
@@ -197,14 +174,6 @@ impl fmt::Display for BirdServerConfigError {
                 formatter,
                 "cloud server configuration requires {RUNTIME_TARGET_ENV}=server or container"
             ),
-            Self::CloudDatabaseEngine => write!(
-                formatter,
-                "cloud server configuration requires SDKWORK_BIRDCODER_DATABASE_ENGINE=postgresql"
-            ),
-            Self::CloudDatabaseUrl => write!(
-                formatter,
-                "cloud server configuration requires a protected {CLAW_DATABASE_URL_ENV}"
-            ),
             Self::CloudAllowedOrigins => write!(
                 formatter,
                 "cloud server configuration requires explicit non-wildcard {ALLOWED_ORIGINS_ENV}"
@@ -212,34 +181,6 @@ impl fmt::Display for BirdServerConfigError {
             Self::CloudLoopbackBind => write!(
                 formatter,
                 "cloud server configuration must not bind only to a loopback address"
-            ),
-            Self::MissingRuntimeLocationMasterKey => write!(
-                formatter,
-                "{RUNTIME_LOCATION_MASTER_KEY_ENV} must be configured for encrypted project runtime locations"
-            ),
-            Self::InvalidRuntimeLocationMasterKey => write!(
-                formatter,
-                "{RUNTIME_LOCATION_MASTER_KEY_ENV} must contain at least 32 bytes of base64url-decoded or raw key material"
-            ),
-            Self::MissingRuntimeLocationKeyId => write!(
-                formatter,
-                "{RUNTIME_LOCATION_KEY_ID_ENV} must be configured for encrypted project runtime locations"
-            ),
-            Self::InvalidRuntimeLocationKeyId => write!(
-                formatter,
-                "{RUNTIME_LOCATION_KEY_ID_ENV} must be a non-empty safe key identifier"
-            ),
-            Self::InvalidRuntimeLocationPreviousKeys => write!(
-                formatter,
-                "{RUNTIME_LOCATION_PREVIOUS_KEYS_ENV} must be a JSON object containing at most 15 safe key ids and valid key values"
-            ),
-            Self::MissingRuntimeLocationFingerprintKey => write!(
-                formatter,
-                "{RUNTIME_LOCATION_FINGERPRINT_KEY_ENV} is required while previous runtime-location keys are configured"
-            ),
-            Self::InvalidRuntimeLocationFingerprintKey => write!(
-                formatter,
-                "{RUNTIME_LOCATION_FINGERPRINT_KEY_ENV} must contain at least 32 bytes of base64url-decoded or raw key material"
             ),
             Self::InvalidApplicationPublicIngressBind(value) => write!(
                 formatter,
@@ -257,21 +198,10 @@ pub struct BirdServerConfig {
     pub runtime_target: BirdRuntimeTarget,
     pub host: String,
     pub port: u16,
-    pub sqlite_file: PathBuf,
     pub allowed_origins: Vec<String>,
-    pub project_root: Option<String>,
     pub rate_limit_enabled: bool,
     pub rate_limit_max_requests: u32,
     pub rate_limit_window_secs: u64,
-}
-
-/// Server-only encryption material. It is intentionally not stored in public
-/// application runtime configuration and does not implement Debug.
-pub struct RuntimeLocationPathEncryptionConfig {
-    pub fingerprint_key: Vec<u8>,
-    pub master_key: Vec<u8>,
-    pub key_id: String,
-    pub previous_keys: Vec<(String, Vec<u8>)>,
 }
 
 impl BirdServerConfig {
@@ -291,13 +221,9 @@ impl BirdServerConfig {
             .and_then(|v| v.parse().ok())
             .or_else(|| ingress_bind.as_ref().map(|(_, port)| *port))
             .unwrap_or(DEFAULT_PORT);
-        let sqlite_file = read_env(DATABASE_FILE_ENV)
-            .map(PathBuf::from)
-            .unwrap_or_else(|| PathBuf::from(DEFAULT_SQLITE_FILE));
         let allowed_origins = read_env(ALLOWED_ORIGINS_ENV)
             .map(|v| v.split(',').map(|s| s.trim().to_string()).collect())
             .unwrap_or_else(|| default_allowed_origins_for_host(&host));
-        let project_root = std::env::var("BIRDCODER_LOCAL_BOOTSTRAP_PROJECT_ROOT").ok();
         let rate_limit_enabled = std::env::var("BIRDCODER_RATE_LIMIT_ENABLED")
             .ok()
             .map(|value| matches!(value.trim(), "1" | "true" | "TRUE" | "yes" | "YES"))
@@ -317,9 +243,7 @@ impl BirdServerConfig {
             runtime_target,
             host,
             port,
-            sqlite_file,
             allowed_origins,
-            project_root,
             rate_limit_enabled,
             rate_limit_max_requests,
             rate_limit_window_secs,
@@ -328,52 +252,6 @@ impl BirdServerConfig {
 
     pub fn bind_address(&self) -> String {
         format!("{}:{}", self.host, self.port)
-    }
-
-    /// Returns the resolved database URL, preferring env var over config default.
-    /// This replaces the former `seed_birdcoder_database_env` method to avoid
-    /// `std::env::set_var` which is unsafe in multi-threaded contexts.
-    pub fn resolved_database_url(&self) -> String {
-        let url_key = format!("SDKWORK_{BIRDCODER_DATABASE_SERVICE}_DATABASE_URL");
-        std::env::var(&url_key).unwrap_or_else(|_| sqlite_database_url(&self.sqlite_file))
-    }
-
-    /// Returns the resolved database engine, preferring env var over default.
-    pub fn resolved_database_engine(&self) -> String {
-        let engine_key = format!("SDKWORK_{BIRDCODER_DATABASE_SERVICE}_DATABASE_ENGINE");
-        std::env::var(&engine_key).unwrap_or_else(|_| "sqlite".to_string())
-    }
-
-    /// Reads deployment-secret key material only when the runtime-location
-    /// service is wired. There is no generated, plaintext, or local fallback.
-    pub fn runtime_location_path_encryption_config(
-        &self,
-    ) -> Result<RuntimeLocationPathEncryptionConfig, BirdServerConfigError> {
-        let raw_master_key = read_env(RUNTIME_LOCATION_MASTER_KEY_ENV)
-            .ok_or(BirdServerConfigError::MissingRuntimeLocationMasterKey)?;
-        let master_key = decode_runtime_location_master_key(&raw_master_key)
-            .ok_or(BirdServerConfigError::InvalidRuntimeLocationMasterKey)?;
-        let key_id = read_env(RUNTIME_LOCATION_KEY_ID_ENV)
-            .ok_or(BirdServerConfigError::MissingRuntimeLocationKeyId)?;
-        if !is_safe_runtime_location_key_id(&key_id) {
-            return Err(BirdServerConfigError::InvalidRuntimeLocationKeyId);
-        }
-        let previous_keys = read_env(RUNTIME_LOCATION_PREVIOUS_KEYS_ENV)
-            .map(|value| parse_runtime_location_previous_keys(&value, &key_id))
-            .transpose()?
-            .unwrap_or_default();
-        let fingerprint_key = match read_env(RUNTIME_LOCATION_FINGERPRINT_KEY_ENV) {
-            Some(value) => decode_runtime_location_master_key(&value)
-                .ok_or(BirdServerConfigError::InvalidRuntimeLocationFingerprintKey)?,
-            None if previous_keys.is_empty() => master_key.clone(),
-            None => return Err(BirdServerConfigError::MissingRuntimeLocationFingerprintKey),
-        };
-        Ok(RuntimeLocationPathEncryptionConfig {
-            fingerprint_key,
-            master_key,
-            key_id,
-            previous_keys,
-        })
     }
 
     pub fn validate_runtime(&self) -> Result<(), BirdServerConfigError> {
@@ -386,18 +264,6 @@ impl BirdServerConfig {
             BirdRuntimeTarget::Server | BirdRuntimeTarget::Container
         ) {
             return Err(BirdServerConfigError::CloudRuntimeTarget);
-        }
-        if !matches!(
-            self.resolved_database_engine()
-                .trim()
-                .to_ascii_lowercase()
-                .as_str(),
-            "postgres" | "postgresql"
-        ) {
-            return Err(BirdServerConfigError::CloudDatabaseEngine);
-        }
-        if read_env(CLAW_DATABASE_URL_ENV).is_none() {
-            return Err(BirdServerConfigError::CloudDatabaseUrl);
         }
         if self.allowed_origins.is_empty()
             || self.allowed_origins.iter().any(|origin| origin == "*")
@@ -453,47 +319,6 @@ fn parse_bind_address(value: &str) -> Result<(String, u16), BirdServerConfigErro
     Ok((host.to_owned(), port))
 }
 
-fn decode_runtime_location_master_key(value: &str) -> Option<Vec<u8>> {
-    let value = value.trim();
-    if value.is_empty() {
-        return None;
-    }
-    if let Some(decoded) = base64url_decode(value).filter(|decoded| decoded.len() >= 32) {
-        return Some(decoded);
-    }
-    (value.len() >= 32).then(|| value.as_bytes().to_vec())
-}
-
-fn parse_runtime_location_previous_keys(
-    value: &str,
-    active_key_id: &str,
-) -> Result<Vec<(String, Vec<u8>)>, BirdServerConfigError> {
-    let encoded_keys = serde_json::from_str::<BTreeMap<String, String>>(value)
-        .map_err(|_| BirdServerConfigError::InvalidRuntimeLocationPreviousKeys)?;
-    if encoded_keys.len() > 15 || encoded_keys.contains_key(active_key_id) {
-        return Err(BirdServerConfigError::InvalidRuntimeLocationPreviousKeys);
-    }
-    encoded_keys
-        .into_iter()
-        .map(|(key_id, encoded_key)| {
-            if !is_safe_runtime_location_key_id(&key_id) {
-                return Err(BirdServerConfigError::InvalidRuntimeLocationPreviousKeys);
-            }
-            let key = decode_runtime_location_master_key(&encoded_key)
-                .ok_or(BirdServerConfigError::InvalidRuntimeLocationPreviousKeys)?;
-            Ok((key_id, key))
-        })
-        .collect()
-}
-
-fn is_safe_runtime_location_key_id(value: &str) -> bool {
-    !value.is_empty()
-        && value.len() <= 128
-        && value
-            .bytes()
-            .all(|byte| byte.is_ascii_alphanumeric() || matches!(byte, b'.' | b'_' | b'-' | b':'))
-}
-
 fn reject_retired_deployment_mode_env() -> Result<(), BirdServerConfigError> {
     for key in [
         RETIRED_DEPLOYMENT_MODE_ENV,
@@ -504,18 +329,6 @@ fn reject_retired_deployment_mode_env() -> Result<(), BirdServerConfigError> {
         }
     }
     Ok(())
-}
-
-pub fn sqlite_database_url(path: &Path) -> String {
-    let absolute = if path.is_absolute() {
-        path.to_path_buf()
-    } else {
-        std::env::current_dir()
-            .unwrap_or_else(|_| PathBuf::from("."))
-            .join(path)
-    };
-    let normalized = absolute.to_string_lossy().replace('\\', "/");
-    format!("sqlite:///{normalized}?mode=rwc")
 }
 
 pub fn default_allowed_origins_for_host(host: &str) -> Vec<String> {
@@ -579,10 +392,9 @@ pub fn default_loopback_browser_origins() -> Vec<String> {
 #[cfg(test)]
 mod tests {
     use super::{
-        decode_runtime_location_master_key, default_allowed_origins_for_host,
-        is_loopback_bind_host, is_safe_runtime_location_key_id, is_wildcard_bind_host,
-        parse_bind_address, parse_runtime_location_previous_keys, BirdDeploymentProfile,
-        BirdEnvironment, BirdRuntimeTarget, BirdServerConfigError,
+        default_allowed_origins_for_host, is_loopback_bind_host, is_wildcard_bind_host,
+        parse_bind_address, BirdDeploymentProfile, BirdEnvironment, BirdRuntimeTarget,
+        BirdServerConfigError,
     };
 
     #[test]
@@ -677,52 +489,5 @@ mod tests {
         assert_eq!(BirdDeploymentProfile::Cloud.as_str(), "cloud");
         assert_eq!(BirdEnvironment::Production.as_str(), "production");
         assert_eq!(BirdRuntimeTarget::Container.as_str(), "container");
-    }
-
-    #[test]
-    fn runtime_location_master_key_accepts_raw_or_base64url_material_at_least_32_bytes() {
-        let raw = "runtime-location-master-key!material-at-least-32-bytes";
-        assert_eq!(
-            decode_runtime_location_master_key(raw).expect("raw key"),
-            raw.as_bytes()
-        );
-        let encoded = sdkwork_utils_rust::base64url_encode(raw.as_bytes());
-        assert_eq!(
-            decode_runtime_location_master_key(&encoded).expect("encoded key"),
-            raw.as_bytes()
-        );
-        assert!(decode_runtime_location_master_key("short").is_none());
-    }
-
-    #[test]
-    fn runtime_location_key_id_is_bounded_and_path_free() {
-        assert!(is_safe_runtime_location_key_id("runtime-location-v1"));
-        assert!(is_safe_runtime_location_key_id("kms:2026-07"));
-        assert!(!is_safe_runtime_location_key_id(""));
-        assert!(!is_safe_runtime_location_key_id("../secret"));
-        assert!(!is_safe_runtime_location_key_id("key with whitespace"));
-    }
-
-    #[test]
-    fn runtime_location_previous_keyring_is_bounded_and_rejects_active_key() {
-        let valid = parse_runtime_location_previous_keys(
-            r#"{"runtime-location-v1":"previous-master-secret-with-at-least-thirty-two-bytes"}"#,
-            "runtime-location-v2",
-        )
-        .expect("parse previous keyring");
-        assert_eq!(valid.len(), 1);
-        assert_eq!(valid[0].0, "runtime-location-v1");
-
-        assert_eq!(
-            parse_runtime_location_previous_keys(
-                r#"{"runtime-location-v2":"previous-master-secret-with-at-least-thirty-two-bytes"}"#,
-                "runtime-location-v2",
-            ),
-            Err(BirdServerConfigError::InvalidRuntimeLocationPreviousKeys),
-        );
-        assert_eq!(
-            parse_runtime_location_previous_keys("[]", "runtime-location-v2"),
-            Err(BirdServerConfigError::InvalidRuntimeLocationPreviousKeys),
-        );
     }
 }

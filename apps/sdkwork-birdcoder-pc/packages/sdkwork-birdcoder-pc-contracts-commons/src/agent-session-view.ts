@@ -175,9 +175,7 @@ export type AgentSessionProtocolNoticeKind =
 
 export interface AgentSessionView {
   id: string;
-  workspaceId: string;
-  birdCoderProjectId: string;
-  agentProjectId: string;
+  projectId: string;
   runtimeLocationId?: string;
   title: string;
   status: AgentSessionDisplayStatus;

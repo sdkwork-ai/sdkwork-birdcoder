@@ -6,7 +6,6 @@ import type { Dispatch, MutableRefObject, SetStateAction } from 'react';
 
 export interface StudioPageProps {
   isVisible?: boolean;
-  workspaceId?: string;
   projectId?: string;
   initialAgentSessionId?: string;
   onProjectChange?: (projectId: string) => void;

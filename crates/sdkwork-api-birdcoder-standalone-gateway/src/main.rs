@@ -3,7 +3,6 @@ use sdkwork_api_birdcoder_standalone_gateway::server;
 
 #[tokio::main]
 async fn main() {
-    sdkwork_api_birdcoder_standalone_gateway::enable_process_shared_database_pool();
     if let Err(error) = run().await {
         tracing::error!(%error, "sdkwork-api-birdcoder-standalone-gateway failed");
         std::process::exit(1);

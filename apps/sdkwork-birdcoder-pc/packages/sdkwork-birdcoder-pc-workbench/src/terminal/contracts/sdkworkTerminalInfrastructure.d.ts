@@ -7,6 +7,7 @@ export interface DesktopTerminalSessionInventorySnapshot {
   status: string;
   title?: string | null;
   updatedAt: string;
+  /** Terminal runtime multiplexing scope, unrelated to the Agents Project domain. */
   workspaceId?: string | null;
 }
 

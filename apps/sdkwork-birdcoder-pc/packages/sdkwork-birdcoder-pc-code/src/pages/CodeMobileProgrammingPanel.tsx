@@ -5,7 +5,6 @@ import { useTranslation } from 'react-i18next';
 
 export interface CodeMobileProgrammingPanelProps {
   isActive: boolean;
-  workspaceId?: string;
   projectId?: string;
   projectName?: string;
   sessionId?: string;
@@ -13,7 +12,6 @@ export interface CodeMobileProgrammingPanelProps {
 }
 
 interface BuildCodeMobileProgrammingQrValueOptions {
-  workspaceId?: string;
   projectId?: string;
   projectName?: string;
   sessionId?: string;
@@ -33,7 +31,6 @@ function areCodeMobileProgrammingPanelPropsEqual(
   }
 
   return (
-    left.workspaceId === right.workspaceId &&
     left.projectId === right.projectId &&
     left.projectName === right.projectName &&
     left.sessionId === right.sessionId &&
@@ -54,15 +51,10 @@ export function buildCodeMobileProgrammingQrValue(
     source: 'desktop-code-view',
   });
 
-  const normalizedWorkspaceId = normalizeQrValuePart(options.workspaceId);
   const normalizedProjectId = normalizeQrValuePart(options.projectId);
   const normalizedProjectName = normalizeQrValuePart(options.projectName);
   const normalizedSessionId = normalizeQrValuePart(options.sessionId);
   const normalizedSessionTitle = normalizeQrValuePart(options.sessionTitle);
-
-  if (normalizedWorkspaceId) {
-    params.set('workspaceId', normalizedWorkspaceId);
-  }
 
   if (normalizedProjectId) {
     params.set('projectId', normalizedProjectId);
@@ -85,7 +77,6 @@ export function buildCodeMobileProgrammingQrValue(
 
 function CodeMobileProgrammingPanelComponent({
   isActive,
-  workspaceId,
   projectId,
   projectName,
   sessionId,
@@ -97,13 +88,12 @@ function CodeMobileProgrammingPanelComponent({
   const qrValue = useMemo(
     () =>
       buildCodeMobileProgrammingQrValue({
-        workspaceId,
         projectId,
         projectName,
         sessionId,
         sessionTitle,
       }),
-    [projectId, projectName, sessionId, sessionTitle, workspaceId],
+    [projectId, projectName, sessionId, sessionTitle],
   );
 
   useEffect(() => {

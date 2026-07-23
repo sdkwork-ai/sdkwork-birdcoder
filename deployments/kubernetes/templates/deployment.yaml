@@ -74,18 +74,9 @@ spec:
             failureThreshold: {{ .Values.probes.startup.failureThreshold }}
           {{- end }}
           volumeMounts:
-            - name: data
-              mountPath: /var/lib/sdkwork-birdcoder
             - name: tmp
               mountPath: /tmp
       volumes:
-        - name: data
-{{- if .Values.persistence.enabled }}
-          persistentVolumeClaim:
-            claimName: {{ include "sdkwork-birdcoder.fullname" . }}-data
-{{- else }}
-          emptyDir: {}
-{{- end }}
         - name: tmp
           emptyDir: {}
       {{- with .Values.nodeSelector }}

@@ -1,11 +1,11 @@
 import { useCallback } from 'react';
 import {
   buildAgentSessionProjectScopedKey,
-  type BirdCoderProjectAgentSessionIndex,
+  type AgentProjectSessionIndex,
 } from '@sdkwork/birdcoder-pc-workbench/workbench/agentSessionSelection';
 
 export function useCodeProjectSessionResolution(
-  sessionIndex: BirdCoderProjectAgentSessionIndex,
+  sessionIndex: AgentProjectSessionIndex,
 ) {
   const resolveProjectById = useCallback(
     (id: string | null | undefined) => {

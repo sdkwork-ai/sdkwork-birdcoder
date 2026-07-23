@@ -71,7 +71,6 @@ export interface StudioMainContentModel {
   terminalRequest: StudioTerminalIntegrationPanelProps['terminalRequest'];
   updateFileDraft: StudioCodeWorkspacePanelProps['onFileDraftChange'];
   viewingDiff: StudioCodeWorkspacePanelProps['viewingDiff'];
-  workspaceId: StudioTerminalIntegrationPanelProps['workspaceId'];
   closeFile: StudioCodeWorkspacePanelProps['onCloseFile'];
   createFile: StudioCodeWorkspacePanelProps['onCreateFile'];
   createFolder: StudioCodeWorkspacePanelProps['onCreateFolder'];
@@ -143,7 +142,6 @@ export function StudioMainContent({ model }: StudioMainContentProps) {
     terminalRequest,
     updateFileDraft,
     viewingDiff,
-    workspaceId,
     closeFile,
     createFile,
     createFolder,
@@ -243,7 +241,6 @@ export function StudioMainContent({ model }: StudioMainContentProps) {
           isOpen={isTerminalOpen}
           height={terminalHeight}
           terminalRequest={terminalRequest}
-          workspaceId={workspaceId}
           projectId={currentProjectId}
           onResize={handleStudioTerminalResize}
         />

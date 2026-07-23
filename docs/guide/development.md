@@ -1,99 +1,51 @@
 # Development
 
-BirdCoder development follows the SDKWork application and SDK integration
-standards. Read the root `AGENTS.md`, `sdkwork.app.config.json`, and the
-task-specific `sdkwork-specs` authority before changing behavior.
+Read the root `AGENTS.md`, `sdkwork.app.config.json`, the local component
+spec, and the task-selected SDKWork standard before editing.
 
-## Prerequisites
-
-- Node.js and `pnpm` 10
-- Rust and Cargo for BirdCoder service and Tauri hosts
-- Flutter for the Flutter mobile surface
-- Docker only for container or PostgreSQL workflows
-
-Sibling SDKWork repositories referenced by `pnpm-workspace.yaml` must resolve
-from the same workspace root.
-
-## Install
-
-```bash
-pnpm install --frozen-lockfile
-```
-
-Do not replace sibling SDK packages with local forks or raw HTTP wrappers when
-installation or generation fails. Fix the declared workspace, SDK family, or
-runtime configuration authority.
-
-## Run
-
-```bash
-pnpm dev
-pnpm dev:desktop:standalone
-pnpm dev:browser:standalone
-pnpm dev:browser:cloud
-pnpm dev:server:standalone
-pnpm topology:plan -- --deployment-profile standalone --environment development --runtime-target desktop
-pnpm docs:dev
-```
-
-These root commands delegate runtime composition to `sdkwork-app` and the
-topology contract. Deployment profile (`standalone` or `cloud`) and runtime
-target (`browser`, `desktop`, `server`, `container`, and other declared
-targets) are orthogonal. Cloud development requires explicit remote endpoints
-from `cloud.development`; it does not start remote dependencies locally.
-
-A standalone desktop selection still uses the same 39-operation BirdCoder App
-API and injected dependency SDK clients as every other selection. Renderer code
-has no generic SQL bridge and cannot query application tables directly.
-
-Configuration comes from the `etc/` source profiles and the application
-manifest. Client code receives only public runtime values. Authentication
-claims come from the global SDKWork TokenManager; fixed tenant, organization,
-user, or production credential values must not be injected through source.
-
-## SDK Integration
-
-Every feature follows:
+## Integration Rule
 
 ```text
-composition root -> generated SDK client -> feature service/port -> UI
+composition root
+  -> generated owner SDK client
+  -> feature service or typed port
+  -> UI
 ```
 
-- BirdCoder workspaces and projects use the BirdCoder App SDK.
-- Agent Project, Session, Turn, Session Item, Interaction, Runtime Binding,
-  Artifact, and Checkpoint operations use the Agents App SDK.
-- Skill operations use the Skills App SDK.
-- Human chat uses the IM SDK; AI-assistant transcript rows use Agents Session
-  Items and are not IM Messages.
-- All authenticated App SDK clients share the application TokenManager.
+- Projects, composition, Sessions, Turns, Session Items, Interactions, and
+  Runtime Bindings use the Agents App SDK.
+- Skills use the Skills App SDK.
+- Human messaging uses the IM SDK. AI assistant rows remain Agents Session
+  Items.
+- All protected clients use the application TokenManager.
+- Tauri filesystem, Git, worktree, and terminal behavior uses host adapters.
 
-Raw `fetch`, manual `Authorization` headers, copied OpenAPI DTOs, local generated
-SDK forks, compatibility facades, and silent local fallbacks are prohibited.
+Do not add raw HTTP, manual auth headers, copied DTOs, generated transport
+imports, local business tables, Project/Session aliases, or compatibility
+fallbacks.
 
-## Verification
-
-Run the smallest check that covers the changed boundary, then expand when the
-change crosses API, persistence, SDK, host, or release boundaries.
+## Commands
 
 ```bash
+pnpm dev:desktop
+pnpm dev:browser:standalone
+pnpm build:server
+pnpm docs:dev
+
 pnpm check:domain-ownership
 pnpm check:agents-birdcoder-alignment
-pnpm check:kernel-birdcoder-alignment
 pnpm check:api-transport-standard
-pnpm db:validate
+pnpm check:local-business-storage-boundary
 pnpm typecheck
 pnpm lint
-pnpm docs:build
 ```
 
-Database, API, generated SDK, security, and deployment changes require the
-additional validators selected by `AGENTS.md` and `sdkwork-specs`. Mutating
-alignment or generation commands are not substitutes for verification; inspect
-their diff and run the corresponding read-only gate afterward.
+Generation and alignment commands may change files. Inspect their diff, then
+run the corresponding read-only validator. Generated files are never edited by
+hand.
 
-## Pre-Launch Changes
+## Pre-Launch Cutover
 
-BirdCoder is not yet in production. A domain cutover therefore removes obsolete
-tables, routes, DTOs, packages, tests, scripts, and documentation in the same
-change. Do not retain a legacy path, dual-write, or compatibility branch for a
-consumer that has not shipped.
+When an owner contract replaces an obsolete local capability, remove the local
+route, service, DTO, persistence, tests, and documentation in the same change.
+Do not keep a dormant branch for compatibility.

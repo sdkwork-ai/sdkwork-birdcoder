@@ -28,14 +28,6 @@ const ROUTE_CRATE_CONFIG = new Map([
       tag: resolveOperationDomainTag,
     },
   ],
-  [
-    'sdkwork-routes-workspace-app-api',
-    {
-      fnName: 'workspace_app_api_route_manifest',
-      routesConst: 'WORKSPACE_APP_API_ROUTES',
-      tag: resolveOperationDomainTag,
-    },
-  ],
 ]);
 
 function readJson(filePath) {

@@ -3,17 +3,11 @@ import type { ProjectRuntimeLocationBindingResult } from '@sdkwork/birdcoder-pc-
 import { emitProjectGitOverviewRefresh } from './projectGitOverview.ts';
 
 interface ProjectIdentifier {
-  id: string;
+  projectId: string;
 }
 
 export interface ImportLocalFolderProjectOptions {
-  createProject: (
-    name: string,
-    options?: {
-      appTemplateVersionId?: string;
-      templatePresetKey?: string;
-    },
-  ) => Promise<ProjectIdentifier>;
+  createProject: (name: string) => Promise<ProjectIdentifier>;
   fallbackProjectName: string;
   folderInfo: LocalFolderMountSource;
   bindLocalProjectRuntimeLocation: (
@@ -179,7 +173,7 @@ export async function importLocalFolderProject(
     options.fallbackProjectName,
   );
   const projectName = localMount.displayName;
-  const targetProjectId = (await options.createProject(projectName)).id;
+  const targetProjectId = (await options.createProject(projectName)).projectId;
 
   try {
     await bindImportedProjectFolder(

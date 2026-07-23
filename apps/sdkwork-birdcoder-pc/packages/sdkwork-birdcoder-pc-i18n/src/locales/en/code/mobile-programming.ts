@@ -7,7 +7,6 @@ export default defineLocaleModule('code/mobile-programming', {
       title: 'Experience mobile programming in a phone workflow',
       description:
         'Scan the QR code to open this project on your phone and keep coding through the same assistant conversation.',
-      workspaceLabel: 'Workspace',
       projectLabel: 'Project',
       sessionLabel: 'Session',
       unavailable: 'Unavailable',
@@ -15,7 +14,7 @@ export default defineLocaleModule('code/mobile-programming', {
       qrLoadingTitle: 'Generating QR code',
       qrUnavailableTitle: 'QR code unavailable',
       contextHint:
-        'The QR code already contains the current workspace, project, and session context so the mobile app can continue from the same coding surface.',
+        'The QR code already contains the current Agents project and session context so the mobile app can continue from the same coding surface.',
       simulatorLabel: 'Phone simulator showing mobile coding assistant conversation',
       simulatorStatus: 'Mobile assistant online',
       simulatorSubtitle: 'Connected to the current code session',

@@ -66,7 +66,7 @@ export interface CodeEditorWorkspacePanelProps {
   getLanguageFromPath: (path: string) => string;
 }
 
-export interface WorkspaceChatProps {
+export interface EditorChatProps {
   chatEmptyState?: ReactNode;
   isActive: boolean;
   isBusy: boolean;

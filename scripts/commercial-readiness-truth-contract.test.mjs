@@ -47,38 +47,47 @@ for (const docPath of requiredOperatorDocs) {
 }
 
 const technicalArchitecture = readText('docs/architecture/tech/TECH_ARCHITECTURE.md');
-assert.match(technicalArchitecture, /## 2\. Current Implementation Truth/u);
+assert.match(technicalArchitecture, /## 3\. Data And Lifecycle/u);
 assert.match(technicalArchitecture, /## 8\. Deployment And Runtime Topology/u);
 assert.match(
   technicalArchitecture,
-  /Cloud execution \| Blocked/u,
-  'Architecture documentation must not claim unverified cloud execution readiness.',
+  /BirdCoder server business tables: \*\*0\*\*/u,
+  'Architecture documentation must state the stateless server persistence boundary.',
+);
+assert.match(
+  technicalArchitecture,
+  /`cloud \+ server\/container` \| None \| Stateless ingress; no project directory or remote runner/u,
+  'Architecture documentation must not claim a BirdCoder cloud execution runtime.',
 );
 
 const operatorReadme = readText('docs/guides/operator/README.md');
 assert.match(operatorReadme, /Route and OpenAPI counts prove catalog alignment only/u);
-assert.match(operatorReadme, /Project runtime locations/u);
+assert.match(operatorReadme, /Agents runtime bindings and PC device mounts/u);
 assert.doesNotMatch(
   operatorReadme,
   /HTTP OpenAPI \d+ operations/u,
   'Operator documentation must not present a historical operation count as release evidence.',
 );
 
-const runtimeLocationSecretDocs = [
+const statelessServerDocs = [
   readText('docs/reference/environment.md'),
   readText('docs/guides/operator/deployment-operations.md'),
   readText('docs/guides/operator/windows-server-control-plane.md'),
 ];
-for (const source of runtimeLocationSecretDocs) {
-  assert.match(source, /SDKWORK_BIRDCODER_RUNTIME_LOCATION_MASTER_KEY/u);
-  assert.match(source, /SDKWORK_BIRDCODER_RUNTIME_LOCATION_KEY_ID/u);
+for (const source of statelessServerDocs) {
+  assert.doesNotMatch(source, /SDKWORK_BIRDCODER_RUNTIME_LOCATION_(?:MASTER_KEY|KEY_ID)/u);
+  assert.match(
+    source,
+    /BirdCoder database|business database/iu,
+  );
 }
-assert.match(runtimeLocationSecretDocs[0], /at least 32 bytes/u);
-assert.match(runtimeLocationSecretDocs[0], /fail-closed/u);
-assert.match(runtimeLocationSecretDocs[0], /VITE_\*/u);
+
+const runtimeBindingGuide = readText('docs/guides/operator/runtime-bindings-and-device-mounts.md');
+assert.match(runtimeBindingGuide, /sessionRuntimeBindings/u);
+assert.match(runtimeBindingGuide, /ProjectDeviceMountRegistry/u);
+assert.match(runtimeBindingGuide, /opaque (?:runtime )?location id|opaque id/u);
 
 const ownership = readJson('specs/domain-ownership.spec.json');
-const tableRegistry = readJson(ownership.persistence.tableRegistry);
 const appOpenApi = readJson(ownership.apiOwnership.appApi.authorityFile);
 const iamManifest = readJson('specs/iam.module.manifest.json');
 const rootManifest = readJson('sdkwork.app.config.json');
@@ -86,7 +95,9 @@ const manifestOwnership = rootManifest.metadata?.domainOwnership;
 
 assert.equal(manifestOwnership?.owner, ownership.ownedBoundedContext.owner);
 assert.equal(manifestOwnership?.capability, ownership.ownedBoundedContext.capability);
-assert.equal(manifestOwnership?.databaseTableCount, tableRegistry.tables.length);
+assert.equal(ownership.persistence.systemOfRecord, null);
+assert.deepEqual(ownership.persistence.tables, []);
+assert.equal(manifestOwnership?.databaseTableCount, ownership.persistence.tables.length);
 assert.equal(
   manifestOwnership?.apiOperationCounts?.appApi,
   operationCount(appOpenApi),
@@ -106,8 +117,11 @@ assert.equal(
   'Manifest permission count must match the IAM module catalog.',
 );
 assert.deepEqual(manifestOwnership?.dependencyAuthorities, {
+  agentProjects: 'sdkwork-agents',
+  agentProjectComposition: 'sdkwork-agents',
   agentSessions: 'sdkwork-agents',
   agentSessionItems: 'sdkwork-agents',
+  agentRuntimeBindings: 'sdkwork-agents',
   skills: 'sdkwork-skills',
   savedPrompts: 'sdkwork-prompts',
   documentContent: 'sdkwork-documents',

@@ -1,13 +1,12 @@
 import type {
   AgentSessionView,
-  BirdCoderProject,
+  AgentProjectView,
 } from '@sdkwork/birdcoder-pc-contracts-commons';
 import type { IAgentSessionService } from '@sdkwork/birdcoder-pc-infrastructure-runtime';
 
 import type { IProjectService } from '../services/interfaces/IProjectService.ts';
 import {
   toAgentSessionView,
-  requireAgentProjectId,
   type AgentSessionItemRecord,
   type AgentSessionRecord,
 } from '../services/agentSessionViewModels.ts';
@@ -21,12 +20,11 @@ export interface RefreshProjectSessionsOptions {
   projectId: string;
   projectService: IProjectService;
   refreshTimeoutMs?: number;
-  workspaceId: string;
 }
 
 export interface ResolvedAgentSessionLocation {
   agentSession: AgentSessionView;
-  project: BirdCoderProject;
+  project: AgentProjectView;
 }
 
 export interface RefreshAgentSessionItemsOptions {
@@ -34,13 +32,12 @@ export interface RefreshAgentSessionItemsOptions {
   agentSessionId: string;
   refreshTimeoutMs?: number;
   resolvedLocation?: ResolvedAgentSessionLocation;
-  workspaceId?: string;
 }
 
 export interface RefreshProjectSessionsResult {
   sessionIds: string[];
   projectIds: string[];
-  projects?: BirdCoderProject[];
+  projects?: AgentProjectView[];
   source: 'agents';
   status: 'failed' | 'refreshed';
 }
@@ -52,14 +49,12 @@ export interface RefreshAgentSessionItemsResult {
   projectId: string;
   source: 'agents';
   status: 'failed' | 'not-found' | 'refreshed';
-  workspaceId?: string;
 }
 
 export interface AgentSessionItemsRefreshScope {
   agentSessionId: string;
-  birdCoderProjectId: string;
   identityScope: string;
-  workspaceId: string;
+  projectId: string;
 }
 
 function normalizeRefreshScopePart(value: string, label: string): string {
@@ -75,8 +70,7 @@ export function buildAgentSessionItemsRefreshScopeKey(
 ): string {
   return [
     normalizeRefreshScopePart(scope.identityScope, 'Identity scope'),
-    normalizeRefreshScopePart(scope.workspaceId, 'Workspace id'),
-    normalizeRefreshScopePart(scope.birdCoderProjectId, 'BirdCoder project id'),
+    normalizeRefreshScopePart(scope.projectId, 'Agents project id'),
     normalizeRefreshScopePart(scope.agentSessionId, 'Agent session id'),
   ].join('\u0001');
 }
@@ -119,7 +113,7 @@ function withAgentRefreshTimeout<T>(
 async function loadSessionView(
   service: IAgentSessionService,
   session: AgentSessionRecord,
-  project: Pick<BirdCoderProject, 'defaultAgentProjectId' | 'id' | 'workspaceId'>,
+  project: Pick<AgentProjectView, 'projectId'>,
   items: readonly AgentSessionItemRecord[] = [],
 ): Promise<AgentSessionView> {
   const runtimeBindingPage = await service.listRuntimeBindings(
@@ -130,12 +124,10 @@ async function loadSessionView(
   return toAgentSessionView(
     session,
     {
-      agentProjectId: requireAgentProjectId(project),
-      birdCoderProjectId: project.id,
+      projectId: project.projectId,
       engineId: currentBinding?.providerId,
       modelId: currentBinding?.modelId,
       runtimeLocationId: currentBinding?.runtimeLocationId ?? undefined,
-      workspaceId: project.workspaceId,
     },
     items,
   );
@@ -156,11 +148,9 @@ async function refreshProjectSessionsWithoutTimeout({
   agentSessionService,
   projectId,
   projectService,
-  workspaceId,
 }: Omit<RefreshProjectSessionsOptions, 'refreshTimeoutMs'>): Promise<RefreshProjectSessionsResult> {
   const normalizedProjectId = projectId.trim();
-  const normalizedWorkspaceId = workspaceId.trim();
-  if (!normalizedProjectId || !normalizedWorkspaceId) {
+  if (!normalizedProjectId) {
     return {
       sessionIds: [],
       projectIds: [],
@@ -170,7 +160,7 @@ async function refreshProjectSessionsWithoutTimeout({
   }
 
   const project = await projectService.getProjectById(normalizedProjectId);
-  if (!project || project.workspaceId !== normalizedWorkspaceId) {
+  if (!project || project.projectId !== normalizedProjectId) {
     return {
       sessionIds: [],
       projectIds: [],
@@ -179,15 +169,14 @@ async function refreshProjectSessionsWithoutTimeout({
     };
   }
 
-  const agentProjectId = requireAgentProjectId(project);
   const sessionPage = await agentSessionService.listSessions({
     page: 1,
     pageSize: AGENT_PAGE_SIZE,
-    projectId: agentProjectId,
+    projectId: normalizedProjectId,
   });
   const agentSessions = await Promise.all(
     sessionPage.items
-      .filter((session) => session.projectId === agentProjectId)
+      .filter((session) => session.projectId === normalizedProjectId)
       .map((session) => loadSessionView(agentSessionService, session, project)),
   );
   return {
@@ -214,7 +203,6 @@ async function refreshAgentSessionItemsWithoutTimeout({
   agentSessionService,
   agentSessionId,
   resolvedLocation,
-  workspaceId,
 }: Omit<RefreshAgentSessionItemsOptions, 'refreshTimeoutMs'>): Promise<RefreshAgentSessionItemsResult> {
   const normalizedSessionId = agentSessionId.trim();
   if (!normalizedSessionId) {
@@ -227,7 +215,6 @@ async function refreshAgentSessionItemsWithoutTimeout({
     };
   }
 
-  const session = await agentSessionService.getSession(normalizedSessionId);
   const project = resolvedLocation?.project;
   if (!project) {
     return {
@@ -238,9 +225,10 @@ async function refreshAgentSessionItemsWithoutTimeout({
       status: 'failed',
     };
   }
-  const projectId = project.id.trim();
-  const agentProjectId = requireAgentProjectId(project);
-  if (!projectId || session.projectId?.trim() !== agentProjectId) {
+
+  const session = await agentSessionService.getSession(normalizedSessionId);
+  const projectId = project.projectId.trim();
+  if (!projectId || session.projectId?.trim() !== projectId) {
     return {
       agentSessionId: normalizedSessionId,
       itemCount: 0,
@@ -251,15 +239,7 @@ async function refreshAgentSessionItemsWithoutTimeout({
   }
 
   const items = await loadInitialSessionItems(agentSessionService, normalizedSessionId);
-  const agentSession = await loadSessionView(
-    agentSessionService,
-    session,
-    {
-      ...project,
-      workspaceId: project.workspaceId || workspaceId?.trim() || '',
-    },
-    items,
-  );
+  const agentSession = await loadSessionView(agentSessionService, session, project, items);
   return {
     agentSessionId: normalizedSessionId,
     agentSession,
@@ -267,7 +247,6 @@ async function refreshAgentSessionItemsWithoutTimeout({
     projectId,
     source: 'agents',
     status: 'refreshed',
-    workspaceId: project.workspaceId,
   };
 }
 

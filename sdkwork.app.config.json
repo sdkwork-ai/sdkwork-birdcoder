@@ -280,9 +280,9 @@
         "summary": "Internal pre-launch build; every install package remains disabled until governed artifacts are signed and verified.",
         "content": "BirdCoder owns the coding workbench only. Agent Project, Session, Turn, Session Item, and Interaction facts are owned by sdkwork-agents; skills are owned by sdkwork-skills; human Conversation and Message facts are owned by sdkwork-im.",
         "highlights": [
-          "Canonical BirdCoder persistence contains 10 coding-workbench tables",
-          "BirdCoder exposes 39 App API operations and no Backend API or Open API operations",
-          "The application declares exactly 33 BirdCoder permissions; dependency capabilities remain in their owner SDKs"
+          "BirdCoder is a stateless coding-workbench composition host with no application-owned business tables",
+          "BirdCoder exposes four System App API operations and no Backend API or Open API operations",
+          "Agent Project, composition, Session, Turn, Item, and runtime bindings are consumed from sdkwork-agents"
         ],
         "packageIds": [
           "web-universal-cloud-browser-zip",
@@ -316,16 +316,19 @@
     "domainOwnership": {
       "owner": "sdkwork-birdcoder",
       "capability": "coding-workbench",
-      "databaseTableCount": 10,
+      "databaseTableCount": 0,
       "apiOperationCounts": {
-        "appApi": 39,
+        "appApi": 4,
         "backendApi": 0,
         "openApi": 0
       },
-      "permissionCount": 33,
+      "permissionCount": 4,
       "dependencyAuthorities": {
+        "agentProjects": "sdkwork-agents",
+        "agentProjectComposition": "sdkwork-agents",
         "agentSessions": "sdkwork-agents",
         "agentSessionItems": "sdkwork-agents",
+        "agentRuntimeBindings": "sdkwork-agents",
         "skills": "sdkwork-skills",
         "savedPrompts": "sdkwork-prompts",
         "documentContent": "sdkwork-documents",

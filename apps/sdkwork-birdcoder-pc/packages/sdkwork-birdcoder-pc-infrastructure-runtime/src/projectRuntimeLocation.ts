@@ -3,7 +3,6 @@ export type {
   ProjectRuntimeLocationBindingResult,
   ProjectRuntimeLocationCapability,
   ProjectRuntimeLocationExecutionUnavailableCode,
-  ProjectRuntimeLocationRegistrationPort,
   ProjectRuntimeLocationResolution,
   ProjectRuntimeLocationResolutionRequest,
   ResolvedProjectRuntimeLocation,

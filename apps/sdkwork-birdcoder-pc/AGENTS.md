@@ -1,4 +1,4 @@
-# SDKWork BirdCoder PC Application
+# Repository Guidelines
 
 <!-- SDKWORK-AGENTS-GENERATED: v1 -->
 
@@ -36,13 +36,14 @@ This is the PC application root for sdkwork-birdcoder. It supports:
 - Browser web mode (Vite dev server + production build)
 - Desktop mode (Tauri native host)
 
-Read `../../sdkwork.app.config.json` before changing application behavior.
+Read `sdkwork.app.config.json` for PC-surface identity and
+`../../sdkwork.app.config.json` for repository-wide application identity before
+changing application behavior, runtime config, SDK wiring, or release metadata.
 
 ## Local Dictionary Structure
 
 - `src/`: Root shell entry (main.tsx, App.tsx, BootstrapGate.tsx, bootstrap/)
 - `packages/`: All PC and shared packages
-- `sdks/`: SDK families and generation manifests
 - `specs/`: Component specs
 - `config/`: Runtime config templates (browser/desktop/server/container)
 - `etc/`: PC renderer source configuration and repository deployment-authority reference.
@@ -52,6 +53,12 @@ Read `../../sdkwork.app.config.json` before changing application behavior.
 - `vite.config.ts`: Vite build configuration
 - `tsconfig.json`: TypeScript configuration
 - `Cargo.toml`: Rust workspace for server/desktop crates
+
+## Documentation Canon
+
+- [docs/README.md](docs/README.md)
+- [docs/product/prd/PRD.md](docs/product/prd/PRD.md)
+- [docs/architecture/tech/TECH_ARCHITECTURE.md](docs/architecture/tech/TECH_ARCHITECTURE.md)
 
 ## Required Specs By Task Type
 
@@ -92,7 +99,7 @@ Use dynamic progressive loading for the current task: resolve the selected root 
 <!-- /SDKWORK-PROGRESSIVE-LOADING: v1 -->
 
 1. Read this `AGENTS.md` and any nearer component-level `AGENTS.md`.
-2. Read `../../sdkwork.app.config.json` when present.
+2. Read local `sdkwork.app.config.json` and `../../sdkwork.app.config.json` when the task reaches application identity.
 3. Read local `specs/README.md` and `specs/component.spec.json` when present.
 4. Read `../../../sdkwork-specs/README.md` and the task-specific root specs.
 5. Inspect implementation files only after the relevant dictionary entries are clear.

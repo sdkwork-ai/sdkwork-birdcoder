@@ -1,6 +1,6 @@
 import type {
   AgentSessionView,
-  BirdCoderProject,
+  AgentProjectView,
 } from '@sdkwork/birdcoder-pc-contracts-commons';
 import { mergeProjectsForStore } from '../stores/projectsStore.ts';
 
@@ -25,9 +25,9 @@ function hasDuplicateIdentity<TValue>(
 }
 
 function hasDuplicateProjectRenderIdentity(
-  projects: readonly BirdCoderProject[],
+  projects: readonly AgentProjectView[],
 ): boolean {
-  if (hasDuplicateIdentity(projects, (project) => project.id)) {
+  if (hasDuplicateIdentity(projects, (project) => project.projectId)) {
     return true;
   }
 
@@ -40,11 +40,11 @@ function buildAgentSessionRenderIdentity(agentSession: AgentSessionView): string
   return agentSession.id;
 }
 
-export function deduplicateBirdCoderProjectsForRender(
-  projects: readonly BirdCoderProject[],
-): BirdCoderProject[] {
+export function deduplicateAgentProjectsForRender(
+  projects: readonly AgentProjectView[],
+): AgentProjectView[] {
   if (!hasDuplicateProjectRenderIdentity(projects)) {
-    return projects as BirdCoderProject[];
+    return projects as AgentProjectView[];
   }
 
   return mergeProjectsForStore(projects, projects);

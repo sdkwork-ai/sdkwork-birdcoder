@@ -1,69 +1,72 @@
-# SDKWork BirdCoder Documentation
+# BirdCoder Documentation
 
-This directory is the human documentation layer for the BirdCoder product. Global standards remain in `../sdkwork-specs`; machine contracts remain in `specs/`, manifests, OpenAPI, and module `component.spec.json` files.
+Status: active
+Owner: SDKWork maintainers
+Updated: 2026-07-23
+Specs: [`DOCUMENTATION_SPEC.md`](../../sdkwork-specs/DOCUMENTATION_SPEC.md)
+
+This is the human documentation index for the Rust backend and PC
+browser/Tauri application. Machine contracts remain in `specs/`, authored
+API contracts in `apis/` and `sdks/*/openapi/`, and generated code in its
+declared SDK workspace.
 
 ## Canon
 
 - [Product PRD](product/prd/PRD.md)
 - [Technical architecture](architecture/tech/TECH_ARCHITECTURE.md)
+- [PC product and architecture supplement](../apps/sdkwork-birdcoder-pc/docs/README.md)
 
-These two files are the onboarding and review entrypoints. Product behavior belongs in the PRD. Repository-specific runtime, data, deployment, and ownership boundaries belong in the technical architecture.
+## Current Boundary
 
-## Working Documents
+- BirdCoder server business tables: **0**
+- BirdCoder App API operations: **4 System reads**
+- BirdCoder Backend API operations: **0**
+- BirdCoder Open API operations: **0**
+- BirdCoder IAM permissions: **4**
 
-- [Requirements](product/requirements/)
-- [Architecture decisions](architecture/decisions/)
-- [Domain ownership convergence](product/requirements/REQ-2026-0002-domain-ownership-convergence.md)
-- [Domain ownership decision](architecture/decisions/ADR-20260722-domain-ownership-and-single-write-authority.md)
-- [Domain ownership cutover](migrations/MIG-2026-0002-domain-ownership-cutover.md)
-- [Distributed project runtime locations](architecture/decisions/ADR-20260716-distributed-project-runtime-locations.md)
-- [Runtime-location migration plan](migrations/MIG-2026-0001-distributed-project-runtime-locations.md)
-- [Engineering plans](engineering/)
+Project, composition, Session, Turn, Session Item, Interaction, Runtime
+Binding, Artifact, and Checkpoint belong to `sdkwork-agents`. Skills belong to
+`sdkwork-skills`. Human Conversation, Message, Member, and ReadCursor belong
+to `sdkwork-im`. AI Session Items and IM Messages have different business
+semantics and are never persisted as copies of each other.
 
-Working documents must link back to the Canon and may be deleted or archived after the requirement is closed. New implementation diaries and tool-specific `superpowers` plans are not accepted as a parallel documentation system.
+The retired workbench Workspace grouping is IAM organization scope plus one
+canonical Agents Project. The pre-launch cutover keeps no projection, shadow
+table, dual write, alias, facade, or second Project id.
 
-## Guides And Evidence
+## Working And Evidence
 
-- [Operator guides](guides/operator/README.md)
-- [Deployment operations](guides/operator/deployment-operations.md)
-- [Windows Server control plane](guides/operator/windows-server-control-plane.md)
-- [Developer guides](guide/)
-- [Reference](reference/)
-- [Runbooks](runbooks/)
-- [Current pre-launch release state](release/release-2026-07-22-01.md)
-- [Formal releases](releases/README.md)
-- [Archive](archive/)
+- [Requirement: domain ownership convergence](product/requirements/REQ-2026-0002-domain-ownership-convergence.md)
+- [Decision: owner-composed stateless workbench](architecture/decisions/ADR-20260722-domain-ownership-and-single-write-authority.md)
+- [Implementation plan](engineering/plans/PLAN-2026-0001-domain-boundary-cutover.md)
+- [Direct cutover record](migrations/MIG-2026-0002-domain-ownership-cutover.md)
+- [Changelog](changelogs/CHANGELOG.md)
+- [Pre-launch release state](release/release-2026-07-22-01.md)
 
-`docs/release/` is the current release-automation work area and is excluded from the public documentation search index. Formal immutable release evidence belongs in `docs/releases/`; no formal release exists before the signed-artifact promotion gate passes. Historical migrated material, when retained for a specific audit obligation, belongs under `docs/archive/` and is never current authority.
+## Guides And Reference
+
+- [Getting started](guide/getting-started.md)
+- [Development](guide/development.md)
+- [Deployment profiles and runtime targets](guide/application-modes.md)
+- [Release and deployment](core/release-and-deployment.md)
+- [Desktop host boundary](core/desktop.md)
+- [Operator guide](guides/operator/README.md)
+- [Agents runtime bindings and PC device mounts](guides/operator/runtime-bindings-and-device-mounts.md)
+- [API reference](reference/api-reference.md)
+- [Environment reference](reference/environment.md)
+- [Command reference](reference/commands.md)
 
 ## Documentation Policy
 
-- Do not copy SDKWork standards into this repository.
-- Do not create a second PRD or technical-architecture root.
-- Prefer one concise Canon document plus traceable REQ/ADR records.
-- Generated contracts, route inventories, package graphs, and database schemas are linked, not duplicated as prose.
-- Release notes and verification evidence do not become architecture standards.
-- Project identities remain distinct from runtime locations. Authorized
-  runtime-location records own target-specific encrypted paths, Git snapshots,
-  and execution capabilities; generic project metadata remains path-free.
-- Runtime-location app-api responses use safe metadata only. A plaintext path
-  is accepted only through a protected write-only registration flow and is
-  decrypted only by the authenticated owning target for a verified action.
-- Remote execution is not described as available until the isolated-runner
-  capability has implementation and release evidence.
-- BirdCoder owns only workbench workspace, project, document-binding,
-  runtime-location, and sandbox-binding facts. AI sessions and assistant
-  content use Agents; human messages use IM; Skills and all other platform
-  domains use their owner SDKs.
-- Active documents do not describe projections, shadow tables, synchronized
-  caches, copied OpenAPI, or compatibility facades as supported architecture.
-
-Authority: `../sdkwork-specs/DOCUMENTATION_SPEC.md`.
+Current documents describe only the final architecture. Superseded local
+database, Workspace/Project authority, remote runtime-location service, and
+copied API designs are not retained as active guidance. Historical migration
+sequencing is recorded only where required for the direct-cutover evidence.
 
 ## Verification
 
 ```bash
 node ../sdkwork-specs/tools/check-repository-docs-standard.mjs --root . --profile application
-pnpm check:domain-ownership
+pnpm check:live-docs-governance-baseline
 pnpm docs:build
 ```

@@ -3,10 +3,8 @@ import { LoaderCircle } from 'lucide-react';
 import type { ProjectMountRecoveryEventPayload } from '@sdkwork/birdcoder-pc-workbench';
 
 type HeaderLoadingStatusProps = {
-  activeWorkspaceName?: string | null;
-  workspaceId: string;
-  isWorkspacesLoading: boolean;
-  hasActiveProjectsFetched: boolean;
+  isProjectsLoading: boolean;
+  hasProjectsFetched: boolean;
   projectMountRecoveryNotice: ProjectMountRecoveryEventPayload | null;
   projectMountRecoveryStartedAt: number | null;
 };
@@ -30,10 +28,8 @@ function formatElapsedDuration(milliseconds: number) {
 }
 
 export const HeaderLoadingStatus = React.memo(function HeaderLoadingStatus({
-  activeWorkspaceName,
-  workspaceId,
-  isWorkspacesLoading,
-  hasActiveProjectsFetched,
+  isProjectsLoading,
+  hasProjectsFetched,
   projectMountRecoveryNotice,
   projectMountRecoveryStartedAt,
 }: HeaderLoadingStatusProps) {
@@ -110,20 +106,11 @@ export const HeaderLoadingStatus = React.memo(function HeaderLoadingStatus({
   const headerLoadingItems = useMemo<HeaderLoadingItem[]>(() => {
     const items: HeaderLoadingItem[] = [];
 
-    if (isWorkspacesLoading) {
-      items.push({
-        id: 'workspaces-loading',
-        title: 'Loading workspaces',
-        detail: 'Synchronizing available workspaces and restoring the startup scope.',
-      });
-    }
-
-    if (workspaceId.length > 0 && !hasActiveProjectsFetched) {
+    if (isProjectsLoading && !hasProjectsFetched) {
       items.push({
         id: 'projects-loading',
         title: 'Loading projects',
-        detail: 'Reading imported projects from the active workspace authority.',
-        meta: activeWorkspaceName ?? workspaceId,
+        detail: 'Synchronizing the Agents project inventory and restoring the active project.',
       });
     }
 
@@ -146,13 +133,11 @@ export const HeaderLoadingStatus = React.memo(function HeaderLoadingStatus({
 
     return items;
   }, [
-    activeWorkspaceName,
-    hasActiveProjectsFetched,
-    isWorkspacesLoading,
+    hasProjectsFetched,
+    isProjectsLoading,
     isProjectMountRecovering,
     projectMountRecoveryElapsedLabel,
     projectMountRecoveryNotice,
-    workspaceId,
   ]);
 
   useEffect(() => {
@@ -209,7 +194,7 @@ export const HeaderLoadingStatus = React.memo(function HeaderLoadingStatus({
             <div className="min-w-0">
               <div className="text-xs font-semibold text-white">Background loading</div>
               <div className="text-[11px] text-gray-400">
-                Loading details live in the header so the workspace stays visually clean.
+                Current project synchronization and local mount activity.
               </div>
             </div>
           </div>

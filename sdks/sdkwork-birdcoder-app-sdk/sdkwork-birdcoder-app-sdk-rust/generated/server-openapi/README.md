@@ -44,7 +44,6 @@ client.set_header("X-Custom-Header", "value");
 ## API Modules
 
 - `client.system()` - system API
-- `client.intelligence()` - intelligence API
 
 ## Usage Examples
 
@@ -53,19 +52,6 @@ client.set_header("X-Custom-Header", "value");
 ```rust
 // Get BirdCoder application descriptor
 let result = client.system().descriptor_retrieve().await?;
-println!("{result:?}");
-```
-
-### intelligence
-
-```rust
-use std::collections::HashMap;
-// List workspaces
-let mut query = HashMap::new();
-query.insert("userId".to_string(), serde_json::json!("1"));
-query.insert("page".to_string(), serde_json::json!(2));
-query.insert("page_size".to_string(), serde_json::json!(3));
-let result = client.intelligence().workspaces_list(Some(&query)).await?;
 println!("{result:?}");
 ```
 

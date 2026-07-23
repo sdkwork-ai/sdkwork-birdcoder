@@ -15,7 +15,6 @@ export * from './file-change.ts';
 export * from './fileSearch.ts';
 export * from './governance.ts';
 export * from './json.ts';
-export * from './projectBusinessIdentity.ts';
 export * from './workbench-values.ts';
 export * from './workbench-git-view.ts';
 export * from './workbench-view.ts';

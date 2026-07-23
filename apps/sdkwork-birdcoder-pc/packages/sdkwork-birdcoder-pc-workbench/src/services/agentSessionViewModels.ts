@@ -1,7 +1,7 @@
 import type {
   AgentSessionItemView,
   AgentSessionView,
-  BirdCoderProject,
+  AgentProjectView,
 } from '@sdkwork/birdcoder-pc-contracts-commons';
 import {
   formatAgentSessionDisplayTime,
@@ -19,33 +19,16 @@ export type AgentSessionUserStateRecord = Awaited<
 >;
 
 export interface AgentSessionViewContext {
-  agentProjectId: string;
-  birdCoderProjectId: string;
+  projectId: string;
   engineId?: string;
   modelId?: string;
   runtimeLocationId?: string;
   userState?: AgentSessionUserStateRecord | null;
-  workspaceId: string;
 }
 
 export interface ProjectAgentSessionPage {
   hasMore: boolean;
-  project: BirdCoderProject;
-}
-
-export function requireAgentProjectId(
-  project: Pick<BirdCoderProject, 'defaultAgentProjectId' | 'id'>,
-): string {
-  const agentProjectId = project.defaultAgentProjectId.trim();
-  if (
-    !agentProjectId.startsWith('project.')
-    || /[\u0000-\u001f\u007f]/u.test(agentProjectId)
-  ) {
-    throw new Error(
-      `BirdCoder project ${project.id} has no valid canonical Agents project reference.`,
-    );
-  }
-  return agentProjectId;
+  project: AgentProjectView;
 }
 
 function resolveItemRole(
@@ -119,14 +102,10 @@ export function toAgentSessionView(
   context: AgentSessionViewContext,
   items: readonly AgentSessionItemRecord[] = [],
 ): AgentSessionView {
-  const agentProjectId = context.agentProjectId.trim();
-  const birdCoderProjectId = context.birdCoderProjectId.trim();
-  if (!birdCoderProjectId) {
-    throw new Error('BirdCoder project id is required for an agent session view.');
-  }
-  if (!agentProjectId || session.projectId?.trim() !== agentProjectId) {
+  const projectId = context.projectId.trim();
+  if (!projectId || session.projectId?.trim() !== projectId) {
     throw new Error(
-      `Agent session ${session.sessionId} does not belong to Agents project ${agentProjectId}.`,
+      `Agent session ${session.sessionId} does not belong to Agents project ${projectId}.`,
     );
   }
   const activityAt = session.lastItemAt ?? session.updatedAt;
@@ -141,9 +120,7 @@ export function toAgentSessionView(
     .map(toAgentSessionItemView);
   return {
     id: session.sessionId,
-    workspaceId: context.workspaceId,
-    birdCoderProjectId,
-    agentProjectId,
+    projectId,
     runtimeLocationId: context.runtimeLocationId,
     title: context.userState?.customTitle?.trim() || session.title?.trim() || 'Untitled session',
     status: resolveSessionStatus(session.status),
@@ -168,22 +145,20 @@ export function toAgentSessionView(
 
 export async function loadProjectAgentSessionPage(
   agentSessionService: IAgentSessionService,
-  project: BirdCoderProject,
+  project: AgentProjectView,
   requestedCount: number,
 ): Promise<ProjectAgentSessionPage> {
   const pageSize = Math.max(1, Math.min(200, Math.trunc(requestedCount)));
-  const agentProjectId = requireAgentProjectId(project);
+  const projectId = project.projectId;
   const sessionPage = await agentSessionService.listSessions({
     page: 1,
     pageSize,
-    projectId: agentProjectId,
+    projectId,
   });
   const visibleSessions = sessionPage.items
-    .filter((session) => session.projectId === agentProjectId)
+    .filter((session) => session.projectId === projectId)
     .map((session) => toAgentSessionView(session, {
-      agentProjectId,
-      birdCoderProjectId: project.id,
-      workspaceId: project.workspaceId,
+      projectId,
     }));
   return {
     hasMore: sessionPage.pageInfo.hasMore === true,
@@ -196,9 +171,9 @@ export async function loadProjectAgentSessionPage(
 
 export async function loadProjectsAgentSessionInventory(
   agentSessionService: IAgentSessionService,
-  projects: readonly BirdCoderProject[],
+  projects: readonly AgentProjectView[],
   requestedCount = 20,
-): Promise<BirdCoderProject[]> {
+): Promise<AgentProjectView[]> {
   return Promise.all(
     projects.map(async (project) =>
       (await loadProjectAgentSessionPage(agentSessionService, project, requestedCount)).project,

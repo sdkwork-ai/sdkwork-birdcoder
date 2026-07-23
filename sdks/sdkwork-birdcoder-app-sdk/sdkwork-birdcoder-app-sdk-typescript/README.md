@@ -1,22 +1,43 @@
 # @sdkwork/birdcoder-app-sdk
 
-TypeScript consumer facade for the BirdCoder-owned App API. The package exposes only the 39
-BirdCoder coding-workbench operations under `/app/v3/api`; authentication, agent sessions, skills,
-saved prompts, document content, messaging, and membership remain in their owner SDK families.
+Domain: intelligence
+Capability: BirdCoder System metadata
+Package type: TypeScript App SDK facade
+Status: active
 
-- Authority: `../openapi/sdkwork-birdcoder-app-api.openapi.json`
-- Generated transport: `generated/server-openapi`
-- Generator: `@sdkwork/sdk-generator`
-- Standard profile: `sdkwork-v3`
+The package exposes the generated four-operation BirdCoder App SDK. It does not
+wrap dependency-domain APIs.
 
-Application bootstrap creates this client once, configures the shared token manager, and injects it
-into infrastructure services. Feature components do not construct SDK clients or call raw HTTP.
+## Public API
 
 ```ts
-const workspaces = await client.intelligence.workspaces.list({ page: 1, pageSize: 20 });
-const project = await client.intelligence.projects.retrieve(projectId);
-await client.intelligence.projects.git.switchBranch(projectId, request);
+import { createClient } from '@sdkwork/birdcoder-app-sdk';
+
+const client = createClient({
+  baseUrl: applicationApiBaseUrl,
+  tokenManager,
+});
+
+const descriptor = await client.system.descriptor.retrieve();
+const health = await client.system.health.retrieve();
+const routes = await client.system.routes.list();
+const runtime = await client.system.runtime.retrieve();
 ```
 
-Do not edit `generated/server-openapi`. Change the authority and run `pnpm sdk:generate` from the
-application root.
+Use the platform or owner-specific base URL when constructing Agents, Skills,
+IM, IAM, Drive, or Documents clients. Do not route those SDKs through the
+BirdCoder application URL as a silent fallback.
+
+## Exports
+
+The facade exports the generated client, System API types, standard transport
+types, and authentication integration. Consumers should import this package,
+not `generated/server-openapi` internals.
+
+## Verification
+
+```bash
+pnpm sdk:generate
+pnpm check:sdk-family-generated
+pnpm check:api-transport-standard
+```

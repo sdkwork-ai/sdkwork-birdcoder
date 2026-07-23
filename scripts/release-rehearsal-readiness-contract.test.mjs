@@ -50,8 +50,8 @@ assert.match(
 );
 assert.match(
   operatorReadme,
-  /Project runtime locations/u,
-  'Operator README must link the runtime-location operating guide.',
+  /Agents runtime bindings and PC device mounts/u,
+  'Operator README must link the canonical runtime-binding and device-mount guide.',
 );
 assert.doesNotMatch(
   operatorReadme,
@@ -60,9 +60,10 @@ assert.doesNotMatch(
 );
 assert.match(
   governedReleaseRunbook,
-  /apps\/sdkwork-birdcoder-\{pc,h5,flutter-mobile\}/u,
-  'Governed release runbook must reference all surface manifests.',
+  /Rust gateway, PC web artifact, and Tauri desktop/u,
+  'Governed release runbook must identify the current Rust and PC evidence scope.',
 );
+assert.match(governedReleaseRunbook, /H5 and Flutter are outside this release evidence/u);
 
 assert.match(
   governanceReport,

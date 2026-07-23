@@ -3,15 +3,15 @@ import { existsSync, readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 
 const smokeFiles = [
-  '../crates/sdkwork-routes-workspace-app-api/tests/handler_smoke.rs',
   '../crates/sdkwork-routes-system-app-api/tests/handler_smoke.rs',
 ];
 
 const retiredAuthorityPaths = [
-  '../crates/sdkwork-routes-coding-sessions-app-api',
-  '../crates/sdkwork-routes-deployment-backend-api',
-  '../crates/sdkwork-birdcoder-coding-sessions-repository-sqlx',
-  '../crates/sdkwork-birdcoder-coding-sessions-service',
+  '../crates/sdkwork-routes-coding-sessions-app-api/Cargo.toml',
+  '../crates/sdkwork-routes-deployment-backend-api/Cargo.toml',
+  '../crates/sdkwork-birdcoder-coding-sessions-repository-sqlx/Cargo.toml',
+  '../crates/sdkwork-birdcoder-coding-sessions-service/Cargo.toml',
+  '../crates/sdkwork-routes-workspace-app-api/Cargo.toml',
 ];
 
 for (const relativePath of smokeFiles) {

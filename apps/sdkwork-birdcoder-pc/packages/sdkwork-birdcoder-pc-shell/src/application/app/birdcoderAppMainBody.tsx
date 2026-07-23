@@ -37,7 +37,6 @@ interface AppMainBodyProps {
   activeTab: AppTab;
   isAuthenticated: boolean;
   terminalRequest?: TerminalCommandRequest;
-  workspaceId: string;
   projectId: string;
   projectName?: string;
   agentSessionId: string;
@@ -66,14 +65,13 @@ const PersistentAppTabPanel = React.memo(function PersistentAppTabPanel({
 
 PersistentAppTabPanel.displayName = 'PersistentAppTabPanel';
 
-export const isWorkspaceTerminalRequest = (request: TerminalCommandRequest): boolean =>
+export const isProjectTerminalRequest = (request: TerminalCommandRequest): boolean =>
   request.surface === 'workspace';
 
 export const AppMainBody = React.memo(function AppMainBody({
   activeTab,
   isAuthenticated,
   terminalRequest,
-  workspaceId,
   projectId,
   projectName,
   agentSessionId,
@@ -89,7 +87,6 @@ export const AppMainBody = React.memo(function AppMainBody({
     [addToast],
   );
   const resolveTerminalLaunchPlan = useBirdcoderTerminalLaunchPlanResolver(
-    workspaceId,
     projectId || null,
     handleTerminalLaunchBlocked,
   );
@@ -150,7 +147,6 @@ export const AppMainBody = React.memo(function AppMainBody({
               >
                 <CodePage
                   isVisible={activeTab === 'code'}
-                  workspaceId={workspaceId}
                   projectId={projectId}
                   initialAgentSessionId={agentSessionId}
                   onProjectChange={onProjectChange}
@@ -167,7 +163,6 @@ export const AppMainBody = React.memo(function AppMainBody({
               >
                 <StudioPage
                   isVisible={activeTab === 'studio'}
-                  workspaceId={workspaceId}
                   projectId={projectId}
                   initialAgentSessionId={agentSessionId}
                   onProjectChange={onProjectChange}
@@ -184,7 +179,6 @@ export const AppMainBody = React.memo(function AppMainBody({
               >
                 <MultiWindowProgrammingPage
                   isVisible={activeTab === 'multiwindow'}
-                  workspaceId={workspaceId}
                   projectId={projectId}
                   initialAgentSessionId={agentSessionId}
                   onProjectChange={onProjectChange}
@@ -204,7 +198,6 @@ export const AppMainBody = React.memo(function AppMainBody({
                   launchRequestKey={terminalRequest?.timestamp ?? null}
                   resolveLaunchPlan={resolveTerminalLaunchPlan}
                   showWindowControls={false}
-                  workspaceId={workspaceId}
                   projectId={projectId}
                 />
               </SurfaceErrorBoundaryWithTranslation>

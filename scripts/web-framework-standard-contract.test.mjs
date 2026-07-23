@@ -26,8 +26,8 @@ const assembly = readJson('crates/sdkwork-api-birdcoder-assembly/assembly-manife
 assert.equal(assembly.apiMode, 'served');
 assert.deepEqual(
   assembly.routeCrates.map((entry) => entry.packageName),
-  ['sdkwork-routes-system-app-api', 'sdkwork-routes-workspace-app-api'],
-  'BirdCoder API assembly must contain only its system and coding-workbench App route crates.',
+  ['sdkwork-routes-system-app-api'],
+  'BirdCoder API assembly must contain only its System App route crate.',
 );
 
 for (const routeCrate of assembly.routeCrates) {
@@ -56,9 +56,10 @@ for (const retiredCrate of [
   'sdkwork-routes-document-app-api',
   'sdkwork-routes-engine-catalog-app-api',
   'sdkwork-routes-skill-packages-app-api',
+  'sdkwork-routes-workspace-app-api',
 ]) {
   assert.equal(
-    fs.existsSync(absolutePath(`crates/${retiredCrate}`)),
+    fs.existsSync(absolutePath(`crates/${retiredCrate}/Cargo.toml`)),
     false,
     `${retiredCrate} is dependency-owned and must not be restored in BirdCoder.`,
   );
@@ -72,7 +73,6 @@ for (const assemblyOwnedDependency of [
   'sdkwork-web-core',
   'sdkwork-web-contract',
   'sdkwork-routes-system-app-api',
-  'sdkwork-routes-workspace-app-api',
 ]) {
   assert.doesNotMatch(
     gatewayCargo,
@@ -136,10 +136,9 @@ for (const [routePath, pathItem] of Object.entries(authority.paths ?? {})) {
     );
   }
 }
-assert.equal(operationCount, 39);
+assert.equal(operationCount, 4);
 assert.deepEqual(Object.fromEntries(domainOperationCounts), {
   system: 4,
-  intelligence: 35,
 });
 
 const extensionTargetsSource = readText('scripts/web-framework-openapi-extensions.mjs');

@@ -1,5 +1,5 @@
 /** Read-only SDK-composed views; never persistence or transport authorities. */
-export interface BirdCoderProjectDocumentSummary {
+export interface ProjectDocumentSummary {
   bindingId: string; projectId: string; documentId: string; bindingKind: string;
   bindingVersion: string; title: string; status: string; body?: string;
   createdAt: string; updatedAt: string;
@@ -14,4 +14,3 @@ export interface BirdCoderIamPolicySummary {
   id: string; tenantId: string; code: string; name: string;
   policy: Record<string, unknown>; status: string; createdAt?: string; updatedAt?: string;
 }
-

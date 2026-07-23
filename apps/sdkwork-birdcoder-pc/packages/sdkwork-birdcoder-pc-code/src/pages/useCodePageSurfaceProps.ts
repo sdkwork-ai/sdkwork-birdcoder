@@ -3,7 +3,7 @@ import type {
   ProjectGitOverviewViewState,
   TerminalCommandRequest,
 } from '@sdkwork/birdcoder-pc-workbench';
-import type { AgentSessionItemView, BirdCoderProject, FileChange } from '@sdkwork/birdcoder-pc-contracts-commons';
+import type { AgentSessionItemView, AgentProjectView, FileChange } from '@sdkwork/birdcoder-pc-contracts-commons';
 import type { FileNode } from '@sdkwork/birdcoder-pc-ui/components/FileExplorer';
 import { ProjectGitOverviewDrawer } from '@sdkwork/birdcoder-pc-ui/components/ProjectGitOverviewDrawer';
 import type { UniversalChatProps } from '@sdkwork/birdcoder-pc-ui/components/UniversalChat';
@@ -57,7 +57,7 @@ interface UseCodePageSurfacePropsOptions {
   chatWidth: number;
   fileContent: string;
   files: FileNode[];
-  filteredProjects: BirdCoderProject[];
+  filteredProjects: AgentProjectView[];
   hasMoreProjects: boolean;
   isChatBusy: boolean;
   isChatEngineBusy: boolean;
@@ -99,7 +99,6 @@ interface UseCodePageSurfacePropsOptions {
   terminalHeight: number;
   terminalRequest?: TerminalCommandRequest;
   viewingDiff: FileChange | null;
-  workspaceId?: string;
   onArchiveAgentSession: NonNullable<ProjectExplorerProps['onArchiveAgentSession']>;
   onArchiveProject: NonNullable<ProjectExplorerProps['onArchiveProject']>;
   onCancelDelete: NonNullable<CodePageDialogsComponentProps['onCancelDelete']>;
@@ -233,7 +232,6 @@ export function useCodePageSurfaceProps({
   terminalHeight,
   terminalRequest,
   viewingDiff,
-  workspaceId,
   onArchiveAgentSession,
   onArchiveProject,
   onCancelDelete,
@@ -312,8 +310,8 @@ export function useCodePageSurfaceProps({
   const editorChatMessages =
     activeTab === 'editor' ? selectedAgentSessionItems : EMPTY_CHAT_MESSAGES;
   const transcriptSessionScopeKey =
-    workspaceId && currentProjectId && sessionId
-      ? `${workspaceId}\u0001${currentProjectId}\u0001${sessionId}`
+    currentProjectId && sessionId
+      ? `${currentProjectId}\u0001${sessionId}`
       : sessionId || undefined;
   const pendingInteractionRefreshToken = useMemo(() => {
     return [
@@ -678,7 +676,6 @@ export function useCodePageSurfaceProps({
   const mobileProgrammingProps = useMemo<
     Omit<CodeMobileProgrammingPanelComponentProps, 'isActive'>
   >(() => ({
-    workspaceId,
     projectId: currentProjectId || undefined,
     projectName,
     sessionId: sessionId || undefined,
@@ -688,14 +685,12 @@ export function useCodePageSurfaceProps({
     projectName,
     selectedSessionTitle,
     sessionId,
-    workspaceId,
   ]);
 
   const terminalProps = useMemo<CodeTerminalIntegrationPanelComponentProps>(() => ({
     isOpen: isTerminalOpen,
     height: terminalHeight,
     terminalRequest,
-    workspaceId,
     projectId: currentProjectId,
     onResize: onTerminalResize,
     onClose: onCloseTerminal,
@@ -706,7 +701,6 @@ export function useCodePageSurfaceProps({
     onTerminalResize,
     terminalHeight,
     terminalRequest,
-    workspaceId,
   ]);
 
   return {

@@ -21,7 +21,7 @@
   },
   "sdkOwner": "sdkwork-birdcoder",
   "apiAuthority": "sdkwork-birdcoder-app-api",
-  "ownerOnlyOperationCount": 39,
+  "ownerOnlyOperationCount": 4,
   "discoverySurface": {
     "sdkTarget": "app",
     "apiPrefix": "/app/v3/api",

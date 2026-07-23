@@ -16,4 +16,8 @@ tokio.workspace = true
 tracing = "0.1"
 sdkwork-web-bootstrap.workspace = true
 sdkwork-api-birdcoder-assembly.workspace = true
-sdkwork_database_sqlx.workspace = true
+
+[dev-dependencies]
+serde_json.workspace = true
+tokio = { workspace = true, features = ["test-util"] }
+tower = { version = "0.5", features = ["util"] }

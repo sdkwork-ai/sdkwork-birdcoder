@@ -7,14 +7,9 @@ export default defineLocaleModule('settings/engine', {
       description: 'Choose the default built-in model for each code engine.',
       sidebarTitle: 'Code Engine',
       sidebarLabel: 'Code engine list',
-      workspaceDefaultEngine: 'Default code engine',
-      workspaceDefaultEngineDesc:
-        'Used as the default engine for new sessions and chat composer selections.',
-      workspaceDefaultSummary:
-        'Current workspace default: {{engine}}. This controls new sessions and chat composer selections.',
-      makeWorkspaceDefault: 'Make workspace default',
-      workspaceDefaultEngineUpdated: '{{engine}} is now the default code engine.',
-      workspaceDefaultBadge: 'Workspace default',
+      makeDefault: 'Make default',
+      defaultEngineUpdated: '{{engine}} is now the default code engine.',
+      defaultBadge: 'Default',
       engineTabs: 'Engine tabs',
       modelCount: '{{count}} models',
       defaultModel: 'Default model',

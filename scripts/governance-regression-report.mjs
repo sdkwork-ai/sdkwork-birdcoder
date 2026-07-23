@@ -17,10 +17,10 @@ export const RELEASE_GOVERNANCE_CHECKS = Object.freeze([
     command: 'node scripts/domain-ownership-contract.test.mjs',
   }),
   Object.freeze({
-    id: 'database-framework',
-    label: 'Database framework contract',
-    scriptPath: 'scripts/database-framework-standard-contract.test.mjs',
-    command: 'node scripts/database-framework-standard-contract.test.mjs',
+    id: 'persistence-ownership',
+    label: 'Persistence ownership contract',
+    scriptPath: 'scripts/persistence-ownership-contract.test.mjs',
+    command: 'node scripts/persistence-ownership-contract.test.mjs',
   }),
   Object.freeze({
     id: 'app-api-surface',

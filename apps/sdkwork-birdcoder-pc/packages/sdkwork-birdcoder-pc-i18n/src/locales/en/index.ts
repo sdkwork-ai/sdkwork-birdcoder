@@ -10,7 +10,7 @@ import multiWindow from './multiwindow.ts';
 import appErrors from './app/errors.ts';
 import appBootstrap from './app/bootstrap.ts';
 import appMenu from './app/menu.ts';
-import appWorkspace from './app/workspace.ts';
+import appProject from './app/project.ts';
 import appSidebar from './app/sidebar.ts';
 import appDialogs from './app/dialogs.ts';
 import appGit from './app/git.ts';
@@ -39,7 +39,7 @@ export const enModules = [
   appErrors,
   appBootstrap,
   appMenu,
-  appWorkspace,
+  appProject,
   appSidebar,
   appDialogs,
   appGit,

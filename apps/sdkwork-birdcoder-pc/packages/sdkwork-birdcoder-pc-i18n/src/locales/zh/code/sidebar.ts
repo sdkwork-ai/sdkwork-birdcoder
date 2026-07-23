@@ -77,7 +77,7 @@ export default defineLocaleModule('code/sidebar', {
     sessionMessagesRefreshed: '\u5df2\u5237\u65b0\u4f1a\u8bdd\u6d88\u606f\uff1a{{name}}',
     failedToRefreshProjectSessions: '\u5237\u65b0\u9879\u76ee\u4f1a\u8bdd\u5931\u8d25',
     failedToRefreshSessionMessages: '\u5237\u65b0\u4f1a\u8bdd\u6d88\u606f\u5931\u8d25',
-    projectRemoved: '\u5df2\u4ece\u5de5\u4f5c\u533a\u79fb\u9664\u9879\u76ee',
+    projectDeleted: '\u9879\u76ee\u5df2\u5220\u9664',
     unpinSession: '\u53d6\u6d88\u7f6e\u9876\u4f1a\u8bdd',
     pinSession: '\u7f6e\u9876\u4f1a\u8bdd',
     renameSession: '\u91cd\u547d\u540d\u4f1a\u8bdd',

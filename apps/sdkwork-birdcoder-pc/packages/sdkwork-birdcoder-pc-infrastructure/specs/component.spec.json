@@ -92,7 +92,6 @@
       "./services/interfaces/IGitService",
       "./services/interfaces/IProjectService",
       "./services/interfaces/IVipMembershipService",
-      "./services/interfaces/IWorkspaceService",
       "./services/skillsSdkClient",
       "./services/impl/PromptsSdkPromptService",
       "./services/iamRuntime",
@@ -167,7 +166,6 @@
     "sdkClients": [
       "@sdkwork/agents-app-sdk",
       "@sdkwork/birdcoder-app-sdk",
-      "@sdkwork/documents-app-sdk",
       "@sdkwork/drive-app-sdk",
       "@sdkwork/iam-app-sdk",
       "@sdkwork/membership-app-sdk",
@@ -185,12 +183,6 @@
       },
       {
         "workspace": "sdkwork-birdcoder-app-sdk",
-        "surface": "app-api",
-        "credentialMode": "authenticated-app-api",
-        "required": true
-      },
-      {
-        "workspace": "sdkwork-documents-app-sdk",
         "surface": "app-api",
         "credentialMode": "authenticated-app-api",
         "required": true
@@ -247,7 +239,6 @@
       "VITE_SDKWORK_BIRDCODER_APPLICATION_PUBLIC_HTTP_URL",
       "VITE_SDKWORK_BIRDCODER_PLATFORM_API_GATEWAY_HTTP_URL",
       "VITE_SDKWORK_APPBASE_APP_API_BASE_URL",
-      "VITE_SDKWORK_DOCUMENTS_APP_API_BASE_URL",
       "VITE_SDKWORK_DRIVE_APP_API_BASE_URL",
       "VITE_SDKWORK_IAM_APP_API_BASE_URL",
       "VITE_SDKWORK_MEMBERSHIP_APP_API_BASE_URL",
@@ -258,7 +249,7 @@
   },
   "integration": {
     "authority": "This component composes generated SDK adapters and native host adapters; it owns no business database or domain record.",
-    "dependencyPolicy": "BirdCoder-owned SDK clients use application.public-ingress. Agents, Skills, Documents, Prompts, IAM, Drive, Messaging, Membership, and Order clients use platform.api-gateway or an explicit dependency override with the shared TokenManager; cross-plane fallback is forbidden.",
+    "dependencyPolicy": "BirdCoder-owned SDK clients use application.public-ingress. Agents, Skills, Prompts, IAM, Drive, Messaging, Membership, and Order clients use platform.api-gateway or an explicit dependency override with the shared TokenManager; cross-plane fallback is forbidden. Project documents remain unavailable until Agents exposes a canonical document composition slot.",
     "persistencePolicy": "Agent sessions, assistant items, prompts, skills, documents, and coding-workbench facts are never persisted by this package. Desktop IAM session credentials use only the operating-system credential store host port.",
     "transportPolicy": "Handwritten HTTP transports, raw auth headers, local SDK forks, projection repositories, local business SQL, ambiguous global SDK URLs, and connection-plane compatibility fallbacks are forbidden."
   },

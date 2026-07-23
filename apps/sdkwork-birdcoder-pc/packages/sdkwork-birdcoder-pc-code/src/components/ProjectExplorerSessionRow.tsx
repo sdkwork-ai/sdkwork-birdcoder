@@ -60,7 +60,7 @@ export const ProjectExplorerSessionRow = React.memo(function ProjectExplorerSess
   onRenameSubmit,
   onRenameCancel,
 }: ProjectExplorerSessionRowProps) {
-  const resolvedSessionProjectId = sessionProjectId?.trim() || session.birdCoderProjectId;
+  const resolvedSessionProjectId = sessionProjectId?.trim() || session.projectId;
   const isEngineBusySession = isAgentSessionViewEngineBusy(session);
   const runtimeStatusLabel =
     session.runtimeStatus === 'initializing'

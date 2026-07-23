@@ -86,7 +86,7 @@ assert.match(
 );
 assert.equal(
   ciWorkflow.match(/Expose workspace command wrappers/gu)?.length ?? 0,
-  4,
+  3,
   'Every pnpm lifecycle job must expose the workspace command wrappers.',
 );
 assert.doesNotMatch(
@@ -113,12 +113,11 @@ for (const requiredPattern of [
   assert.match(ciWorkflow, requiredPattern);
 }
 
-assert.match(
+assert.doesNotMatch(
   ciWorkflow,
-  /postgresql-live-smoke:[\s\S]*postgres:16-alpine[\s\S]*SDKWORK_BIRDCODER_POSTGRES_TEST_URL:[\s\S]*pnpm release:smoke:postgresql-live/u,
-  'CI must run the canonical workbench repository PostgreSQL parity tests against PostgreSQL 16.',
+  /postgresql-live-smoke|postgres:16-alpine|SDKWORK_BIRDCODER_POSTGRES_TEST_URL|release:smoke:postgresql-live/u,
+  'CI must not provision an application-owned database for stateless BirdCoder verification.',
 );
-assert.doesNotMatch(ciWorkflow, /BIRDCODER_POSTGRESQL_DSN:/u);
 assert.match(
   ciWorkflow,
   /mobile-surfaces:[\s\S]*pnpm typecheck:browser[\s\S]*pnpm build:browser[\s\S]*pnpm build:capacitor-android:sync[\s\S]*setup-java[\s\S]*setup-android[\s\S]*pnpm build:capacitor-android[\s\S]*pnpm check:flutter-android[\s\S]*pnpm test:flutter-android[\s\S]*h5-capacitor-native-platform-contract\.test\.mjs/u,
@@ -166,10 +165,7 @@ assert.equal(
   rootPackageJson.scripts['release:candidate:dry-run'],
   'node scripts/release/candidate-dry-run.mjs',
 );
-assert.equal(
-  rootPackageJson.scripts['release:smoke:postgresql-live'],
-  'node --experimental-strip-types scripts/run-postgresql-live-smoke.ts',
-);
+assert.equal(rootPackageJson.scripts['release:smoke:postgresql-live'], undefined);
 
 for (const retiredScript of [
   'check:workbench-session-standard',

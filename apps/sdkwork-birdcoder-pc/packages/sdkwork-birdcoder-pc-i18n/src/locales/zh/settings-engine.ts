@@ -7,15 +7,10 @@ export default defineLocaleModule('settings/engine', {
       description: '\u4e3a\u6bcf\u4e2a\u4ee3\u7801\u5f15\u64ce\u9009\u62e9\u5185\u7f6e\u9ed8\u8ba4\u6a21\u578b\u3002',
       sidebarTitle: '\u4ee3\u7801\u5f15\u64ce',
       sidebarLabel: '\u4ee3\u7801\u5f15\u64ce\u5217\u8868',
-      workspaceDefaultEngine: '\u9ed8\u8ba4\u4ee3\u7801\u5f15\u64ce',
-      workspaceDefaultEngineDesc:
-        '\u7528\u4e8e\u65b0\u5efa\u4f1a\u8bdd\u4ee5\u53ca\u804a\u5929\u8f93\u5165\u533a\u7684\u9ed8\u8ba4\u4ee3\u7801\u5f15\u64ce\u3002',
-      workspaceDefaultSummary:
-        '\u5f53\u524d\u5de5\u4f5c\u533a\u9ed8\u8ba4\uff1a{{engine}}\u3002\u5b83\u4f1a\u7528\u4e8e\u65b0\u5efa\u4f1a\u8bdd\u548c\u804a\u5929\u8f93\u5165\u533a\u9009\u62e9\u3002',
-      makeWorkspaceDefault: '\u8bbe\u4e3a\u5de5\u4f5c\u533a\u9ed8\u8ba4',
-      workspaceDefaultEngineUpdated:
+      makeDefault: '\u8bbe\u4e3a\u9ed8\u8ba4',
+      defaultEngineUpdated:
         '\u5df2\u5c06\u9ed8\u8ba4\u4ee3\u7801\u5f15\u64ce\u5207\u6362\u4e3a {{engine}}\u3002',
-      workspaceDefaultBadge: '\u9ed8\u8ba4\u5f15\u64ce',
+      defaultBadge: '\u9ed8\u8ba4',
       engineTabs: '\u5f15\u64ce\u6807\u7b7e',
       modelCount: '{{count}} \u4e2a\u6a21\u578b',
       defaultModel: '\u9ed8\u8ba4\u6a21\u578b',

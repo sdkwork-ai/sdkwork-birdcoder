@@ -1,0 +1,33 @@
+import { defineLocaleModule } from '../../resource.ts';
+
+export default defineLocaleModule('app/project', {
+  app: {
+    revealedInExplorer: '已在资源管理器中打开: {{path}}',
+    revealInExplorerDesktopOnly: '“在资源管理器中显示”仅在桌面应用中可用。',
+    failedToRenameProject: '重命名项目失败',
+    failedToDeleteProject: '删除项目失败',
+    localFolder: '本地文件夹',
+    serverDirectory: '服务端目录',
+    selectServerDirectory: '选择服务端项目目录',
+    openedFolder: '已打开文件夹: {{name}}',
+    failedToOpenFolder: '打开文件夹失败',
+    traceRecordingStopped: '轨迹记录已停止',
+    traceRecordingStarted: '轨迹记录已开始',
+    projects: '项目',
+    renameProject: '重命名项目',
+    deleteProject: '删除项目',
+    projectDeleted: '项目已删除',
+    projectPathUnavailable: '项目路径不可用: {{name}}',
+    moreActions: '更多操作',
+    noProjectsFound: '未找到项目',
+    cancel: '取消',
+    create: '创建',
+    projectNamePlaceholder: '项目名称...',
+    newProject: '新建项目',
+    code: '代码',
+    studio: '工作室',
+    terminal: '终端',
+    userProfile: '用户资料',
+    settings: '设置',
+  },
+});

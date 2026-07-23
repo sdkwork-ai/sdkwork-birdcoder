@@ -15,36 +15,16 @@ entries:
     layer: work
     audience: [architecture, engineering, security, operations]
     status: accepted
-  - id: ADR-20260719
-    path: docs/architecture/decisions/ADR-20260719-birdcoder-repository-pool-driver-migration.md
-    layer: work
-    audience: [architecture, engineering, operations]
-    status: accepted
   - id: PLAN-2026-0001
     path: docs/engineering/plans/PLAN-2026-0001-domain-boundary-cutover.md
     layer: work
-    audience: [architecture, engineering, security, operations]
-    status: complete
+    audience: [architecture, engineering]
+    status: active
   - id: MIG-2026-0002
     path: docs/migrations/MIG-2026-0002-domain-ownership-cutover.md
     layer: evidence
     audience: [architecture, engineering, security, operations]
-    status: completed
-  - id: REQ-2026-0001
-    path: docs/product/requirements/REQ-2026-0001-distributed-project-runtime-locations.md
-    layer: work
-    audience: [product, architecture, engineering, security, operations]
-    status: accepted
-  - id: ADR-20260716
-    path: docs/architecture/decisions/ADR-20260716-distributed-project-runtime-locations.md
-    layer: work
-    audience: [architecture, engineering, security, operations]
-    status: accepted
-  - id: MIG-2026-0001
-    path: docs/migrations/MIG-2026-0001-distributed-project-runtime-locations.md
-    layer: evidence
-    audience: [architecture, engineering, security, operations]
-    status: active
+    status: in-progress
 domains:
   - id: product
     title: Product
@@ -52,6 +32,6 @@ domains:
   - id: architecture
     title: Architecture
     paths: [docs/architecture/]
-  - id: operator
-    title: Operator guides
-    paths: [docs/guides/operator/]
+  - id: operations
+    title: Operations
+    paths: [docs/guides/operator/, docs/runbooks/]

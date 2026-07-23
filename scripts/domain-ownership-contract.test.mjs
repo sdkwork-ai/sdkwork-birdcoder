@@ -28,34 +28,25 @@ function sortedUnique(values) {
   return [...new Set(values)].sort((left, right) => left.localeCompare(right));
 }
 
-function compareExactSet(scope, actualValues, expectedValues) {
-  const actual = sortedUnique(actualValues);
-  const expected = sortedUnique(expectedValues);
-  const missing = expected.filter((value) => !actual.includes(value));
-  const unexpected = actual.filter((value) => !expected.includes(value));
-
-  for (const value of missing) {
-    addViolation(scope, `missing ${value}`);
+function listMaterializedFiles(relativeRoot) {
+  const absoluteRoot = resolve(relativeRoot);
+  if (!fs.existsSync(absoluteRoot)) {
+    return [];
   }
-  for (const value of unexpected) {
-    addViolation(scope, `unexpected ${value}`);
+  const files = [];
+  const pending = [absoluteRoot];
+  while (pending.length > 0) {
+    const current = pending.pop();
+    for (const entry of fs.readdirSync(current, { withFileTypes: true })) {
+      const child = path.join(current, entry.name);
+      if (entry.isDirectory()) {
+        pending.push(child);
+      } else if (entry.isFile()) {
+        files.push(normalizePath(path.relative(root, child)));
+      }
+    }
   }
-}
-
-function tableNamesFromRegistry(registry) {
-  return (registry.tables ?? []).map((entry) =>
-    typeof entry === 'string' ? entry : entry.table_name ?? entry.name ?? entry.table,
-  );
-}
-
-function tableNamesFromDdl(source) {
-  return [...source.matchAll(/CREATE\s+TABLE(?:\s+IF\s+NOT\s+EXISTS)?\s+(?:["`\[]?\w+["`\]]?\.)?["`\[]?([a-z][a-z0-9_]*)["`\]]?/giu)]
-    .map((match) => match[1]);
-}
-
-function tableBlocksFromDdl(source) {
-  return [...source.matchAll(/CREATE\s+TABLE(?:\s+IF\s+NOT\s+EXISTS)?\s+(?:["`\[]?\w+["`\]]?\.)?["`\[]?([a-z][a-z0-9_]*)["`\]]?\s*\(([\s\S]*?)\);/giu)]
-    .map((match) => ({ name: match[1], body: match[2] }));
+  return files.sort((left, right) => left.localeCompare(right));
 }
 
 function operationsFromOpenApi(document) {
@@ -129,42 +120,46 @@ assert.equal(spec.principles.dualWrite, false);
 assert.equal(spec.principles.compatibilityFacade, false);
 
 const ownedTables = sortedUnique(spec.persistence.tables);
-assert.equal(ownedTables.length, 10, 'BirdCoder target persistence must contain exactly ten tables');
-assert.equal(ownedTables.every((name) => name.startsWith('studio_')), true);
+assert.deepEqual(ownedTables, [], 'BirdCoder must not own business tables');
+assert.equal(spec.persistence.systemOfRecord, null);
+assert.equal(spec.persistence.tableRegistry, null);
+assert.deepEqual(spec.persistence.baselines, []);
+assert.deepEqual(spec.persistence.engines, []);
+assert.deepEqual(spec.persistence.externalReferences, []);
+assert.deepEqual(
+  listMaterializedFiles('database'),
+  [],
+  'BirdCoder must not retain authored files under the retired database authority root',
+);
+
+const agentsDependency = spec.dependencies.find((dependency) => dependency.owner === 'sdkwork-agents');
+const imDependency = spec.dependencies.find((dependency) => dependency.owner === 'sdkwork-im');
+assert.ok(agentsDependency, 'sdkwork-agents dependency ownership must be declared');
+assert.ok(imDependency, 'sdkwork-im dependency ownership must be declared');
+for (const capability of [
+  'agent projects',
+  'project composition',
+  'sessions',
+  'turns',
+  'session items',
+  'interactions',
+  'runtime bindings',
+]) {
+  assert.ok(agentsDependency.capabilities.includes(capability), `Agents must own ${capability}`);
+}
+assert.deepEqual(
+  imDependency.capabilities,
+  ['human conversations', 'human messages', 'members', 'read cursors'],
+);
+for (const legacyTable of ['chat_conversation', 'chat_message']) {
+  assert.equal(agentsDependency.forbiddenLocalTables.includes(legacyTable), false);
+  assert.equal(imDependency.forbiddenLocalTables.includes(legacyTable), true);
+}
 
 const forbiddenTables = sortedUnique(
   spec.dependencies.flatMap((dependency) => dependency.forbiddenLocalTables ?? []),
 );
-for (const tableName of ownedTables.filter((name) => forbiddenTables.includes(name))) {
-  addViolation('ownership contract', `${tableName} is both owned and forbidden`);
-}
-
-const registry = readJson(spec.persistence.tableRegistry);
-compareExactSet('table registry', tableNamesFromRegistry(registry), ownedTables);
-
-for (const baseline of spec.persistence.baselines) {
-  const source = fs.readFileSync(resolve(baseline), 'utf8');
-  const tables = tableNamesFromDdl(source);
-  compareExactSet(baseline, tables, ownedTables);
-
-  if (/\bBIGSERIAL\b|\bSERIAL\b|\bAUTOINCREMENT\b|\bINTEGER\s+PRIMARY\s+KEY\b/iu.test(source)) {
-    addViolation(baseline, 'database-allocated or SQLite rowid primary key syntax is forbidden');
-  }
-
-  for (const { name, body } of tableBlocksFromDdl(source)) {
-    if (!ownedTables.includes(name)) {
-      continue;
-    }
-    if (!/^\s*id\s+BIGINT\s+NOT\s+NULL\s+PRIMARY\s+KEY\s*(?:,|$)/imu.test(body)) {
-      addViolation(baseline, `${name}.id must be explicit BIGINT NOT NULL PRIMARY KEY`);
-    }
-    for (const reference of body.matchAll(/\bREFERENCES\s+["`\[]?([a-z][a-z0-9_]*)["`\]]?/giu)) {
-      if (!ownedTables.includes(reference[1])) {
-        addViolation(baseline, `${name} has cross-domain foreign key to ${reference[1]}`);
-      }
-    }
-  }
-}
+assert.ok(forbiddenTables.length > 0, 'dependency-owned table denylist must not be empty');
 
 const forbiddenPathPrefixes = sortedUnique(
   spec.dependencies.flatMap((dependency) => dependency.forbiddenLocalPathPrefixes ?? []),
@@ -178,6 +173,21 @@ if (appOperations.length !== appAuthority.operationCount) {
     `expected ${appAuthority.operationCount} owned operations, found ${appOperations.length}`,
   );
 }
+const ownedPermissions = sortedUnique(
+  appOperations.map((entry) => entry.operation['x-sdkwork-permission']),
+);
+assert.equal(spec.permissionOwnership.permissionCount, 4);
+assert.deepEqual(
+  sortedUnique(spec.permissionOwnership.ownedPermissions),
+  ownedPermissions,
+  'Permission ownership must match the permissions referenced by the App API authority',
+);
+const iamManifest = readJson(spec.permissionOwnership.authority);
+assert.deepEqual(
+  sortedUnique((iamManifest.permissions?.catalog ?? []).map((entry) => entry.code)),
+  ownedPermissions,
+  'The BirdCoder IAM catalog must contain only App API permissions',
+);
 for (const entry of appOperations) {
   const forbiddenPrefix = forbiddenPathPrefixes.find((prefix) =>
     pathMatchesPrefix(entry.path, prefix),
@@ -263,8 +273,8 @@ for (const component of spec.forbiddenLocalComponents) {
     addViolation('Cargo workspace', `retains forbidden component ${component}`);
   }
   const componentRoot = resolve(`crates/${component}`);
-  if (fs.existsSync(componentRoot)) {
-    addViolation('component roots', `retains forbidden directory crates/${component}`);
+  if (fs.existsSync(componentRoot) && listMaterializedFiles(`crates/${component}`).length > 0) {
+    addViolation('component roots', `retains authored files under crates/${component}`);
   }
 }
 
@@ -309,8 +319,9 @@ for (const { absolutePath, relativePath } of apiDefinitionFiles) {
 
 const staleCanonPatterns = [
   /`agentSessionId` is the BirdCoder logical identity/gu,
-  /chat_conversation\/chat_message.*sdkwork-im/giu,
   /BirdCoder owns.*coding session/giu,
+  /BirdCoder owns.*(?:workspace|project)/giu,
+  /(?:chat_conversation|chat_message).*owned by sdkwork-agents/giu,
 ];
 for (const relativePath of [
   'docs/README.md',
@@ -330,7 +341,7 @@ violations.sort((left, right) => left.localeCompare(right));
 if (reportOnly) {
   const summary = {
     targetTableCount: ownedTables.length,
-    currentRegistryTableCount: tableNamesFromRegistry(registry).length,
+    currentRegistryTableCount: 0,
     currentAppOperationCount: appOperations.length,
     violationCount: violations.length,
   };

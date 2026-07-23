@@ -71,10 +71,6 @@
       "import": "./src/services/interfaces/IVipMembershipService.ts",
       "types": "./src/services/interfaces/IVipMembershipService.ts"
     },
-    "./services/interfaces/IWorkspaceService": {
-      "import": "./src/services/interfaces/IWorkspaceService.ts",
-      "types": "./src/services/interfaces/IWorkspaceService.ts"
-    },
     "./services/skillsSdkClient": {
       "import": "./src/services/skillsSdkClient.ts",
       "types": "./src/services/skillsSdkClient.ts"

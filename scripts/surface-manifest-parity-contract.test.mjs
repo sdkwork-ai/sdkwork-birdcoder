@@ -89,11 +89,11 @@ for (const relativePath of requiredManifestPaths) {
 
 const rootManifest = readSdkworkAppManifest(path.join(rootDir, 'sdkwork.app.config.json'));
 assert.deepEqual(rootManifest.metadata?.domainOwnership?.apiOperationCounts, {
-  appApi: 39,
+  appApi: 4,
   backendApi: 0,
   openApi: 0,
 });
-assert.equal(rootManifest.metadata?.domainOwnership?.databaseTableCount, 10);
-assert.equal(rootManifest.metadata?.domainOwnership?.permissionCount, 33);
+assert.equal(rootManifest.metadata?.domainOwnership?.databaseTableCount, 0);
+assert.equal(rootManifest.metadata?.domainOwnership?.permissionCount, 4);
 
 console.log('surface manifest parity contract passed.');

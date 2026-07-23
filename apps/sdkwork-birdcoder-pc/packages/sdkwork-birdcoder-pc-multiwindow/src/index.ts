@@ -10,7 +10,7 @@ export * from './runtime/multiWindowParameters.ts';
 export * from './runtime/multiWindowPromptProfile.ts';
 export * from './runtime/multiWindowPreviewUrl.ts';
 export * from './runtime/multiWindowSessionProvisioning.ts';
-export * from './runtime/multiWindowWorkspaceState.ts';
+export * from './runtime/multiWindowLayoutState.ts';
 
 export type {
   MultiWindowDispatchState,

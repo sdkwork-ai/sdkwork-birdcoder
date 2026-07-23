@@ -1,5 +1,5 @@
 import type { RefObject } from 'react';
-import type { BirdCoderProject } from '@sdkwork/birdcoder-pc-contracts-commons';
+import type { AgentProjectView } from '@sdkwork/birdcoder-pc-contracts-commons';
 import { WorkbenchCodeEngineIcon } from '@sdkwork/birdcoder-pc-ui-shell';
 import { useTranslation } from 'react-i18next';
 import type {
@@ -12,7 +12,7 @@ interface ProjectExplorerProjectContextMenuProps {
   position: ProjectExplorerMenuPosition;
   zIndex: number;
   projectId: string;
-  project?: BirdCoderProject;
+  project?: AgentProjectView;
   newSessionEngineOptions: readonly ProjectExplorerEngineOption[];
   terminalEngineOptions: readonly ProjectExplorerEngineOption[];
   isRefreshing: boolean;
@@ -109,7 +109,7 @@ export function ProjectExplorerProjectContextMenu({
           onClose();
         }}
       >
-        {project?.archived ? t('code.unarchiveProject') : t('code.archiveProject')}
+        {project?.status === 'archived' ? t('code.unarchiveProject') : t('code.archiveProject')}
       </button>
       <div className="h-px bg-white/10 my-1.5"></div>
       <button

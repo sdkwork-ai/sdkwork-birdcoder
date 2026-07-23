@@ -27,14 +27,14 @@ export function useProjectRuntimeLocation(): ProjectRuntimeLocationResolver {
   }, [projectRuntimeLocationService]);
 }
 
-export function useRemoteProjectRuntimeLocationId(): (
+export function useProjectRuntimeLocationId(): (
   projectId: string,
   capability: ProjectRuntimeLocationResolutionRequest['capability'],
 ) => Promise<string | null> {
   const { projectRuntimeLocationService } = useIDEServices();
 
   return useCallback(async (projectId, capability) => {
-    return await projectRuntimeLocationService.resolveRemoteProjectRuntimeLocationId(
+    return await projectRuntimeLocationService.resolveProjectRuntimeLocationId(
       projectId,
       capability,
     );

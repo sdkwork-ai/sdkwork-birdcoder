@@ -6,7 +6,6 @@ import type { TerminalCommandRequest } from './runtime.ts';
 import type { DesktopTerminalLaunchPlan } from './contracts/sdkworkTerminalShell.d.ts';
 
 export function useBirdcoderTerminalLaunchPlanResolver(
-  workspaceId?: string | null,
   projectId?: string | null,
   onLaunchBlocked?: (message: string) => void,
 ) {
@@ -17,7 +16,6 @@ export function useBirdcoderTerminalLaunchPlanResolver(
     async (request: TerminalCommandRequest): Promise<DesktopTerminalLaunchPlan> => {
       const resolution = await resolveBirdcoderTerminalLaunchRequest(request, {
         defaultWorkingDirectory,
-        workspaceId,
         projectId,
       });
 
@@ -32,6 +30,6 @@ export function useBirdcoderTerminalLaunchPlanResolver(
 
       return resolution.plan;
     },
-    [defaultWorkingDirectory, onLaunchBlocked, projectId, workspaceId],
+    [defaultWorkingDirectory, onLaunchBlocked, projectId],
   );
 }

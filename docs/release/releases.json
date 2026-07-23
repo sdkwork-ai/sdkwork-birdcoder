@@ -5,7 +5,7 @@
       "title": "SDKWork BirdCoder pre-launch architecture cutover",
       "date": "2026-07-22",
       "status": "pending",
-      "summary": "Current pre-launch release state for the completed direct ownership alignment across BirdCoder and its canonical dependency owners.",
+      "summary": "Pre-launch release candidate for the direct ownership cutover across BirdCoder and its canonical dependency owners; production promotion remains blocked pending signed artifact evidence.",
       "notesFile": "release-2026-07-22-01.md",
       "stopShipSignals": [
         "signed-production-artifact-evidence-missing"

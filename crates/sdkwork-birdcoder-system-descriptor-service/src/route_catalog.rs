@@ -111,15 +111,12 @@ mod tests {
     fn converts_express_style_path_params_to_openapi_templates() {
         let route = HttpRoute::dual_token(
             HttpMethod::Get,
-            "/app/v3/api/projects/:projectId/runtime_locations/:runtimeLocationId",
-            "project-runtime-locations",
-            "projects.runtimeLocations.retrieve",
+            "/app/v3/api/system/routes/:routeId",
+            "system",
+            "routes.retrieve",
         );
         let entry = build_route_catalog_entry(&route);
 
-        assert_eq!(
-            entry.open_api_path,
-            "/app/v3/api/projects/{projectId}/runtime_locations/{runtimeLocationId}"
-        );
+        assert_eq!(entry.open_api_path, "/app/v3/api/system/routes/{routeId}");
     }
 }

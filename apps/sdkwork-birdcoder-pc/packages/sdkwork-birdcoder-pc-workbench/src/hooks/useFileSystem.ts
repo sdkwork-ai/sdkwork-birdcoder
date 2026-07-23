@@ -15,7 +15,7 @@ import {
   resolveStartupSelectedFile,
 } from '../workbench/editorRecovery.ts';
 // Compatibility marker for boundary contracts: from '../workbench/fileSearch';
-import { type WorkspaceFileSearchResponse } from '../workbench/fileSearch.ts';
+import { type ProjectFileSearchResponse } from '../workbench/fileSearch.ts';
 import {
   createFailedProjectMountRecoveryState,
   createIdleProjectMountRecoveryState,
@@ -1846,7 +1846,7 @@ export function useFileSystem(projectId: string, options?: UseFileSystemOptions)
     syncFilesAndSelection,
   ]);
 
-  const searchFiles = useCallback(async (query: string): Promise<WorkspaceFileSearchResponse> => {
+  const searchFiles = useCallback(async (query: string): Promise<ProjectFileSearchResponse> => {
     searchAbortControllerRef.current?.abort();
     searchAbortControllerRef.current = null;
 

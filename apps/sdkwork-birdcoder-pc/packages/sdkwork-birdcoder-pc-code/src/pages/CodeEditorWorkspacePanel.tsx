@@ -5,7 +5,7 @@ import { memo } from 'react';
 import { areCodeEditorWorkspacePanelRenderInputsEqual } from './codeEditorWorkspacePanelEquality';
 import type {
   CodeEditorWorkspacePanelProps,
-  WorkspaceChatProps,
+  EditorChatProps,
 } from './codeEditorWorkspacePanel.types';
 import { CodeEditorSurface } from './CodeEditorSurface';
 
@@ -33,7 +33,7 @@ const CodeEditorWorkspaceChatPanel = memo(function CodeEditorWorkspaceChatPanel(
   onSubmitApprovalDecision,
   onSubmitUserQuestionAnswer,
   onViewChanges,
-}: WorkspaceChatProps) {
+}: EditorChatProps) {
   return (
     <DeferredUniversalChat
       sessionId={selectedAgentSessionId || undefined}

@@ -123,7 +123,7 @@ assert.equal(
 );
 assert.equal(
   rootPackageJson.scripts['check:server'],
-  'node scripts/server-observability-contract.test.mjs && node scripts/router-handler-smoke-contract.test.mjs && node scripts/run-cargo.mjs test -p sdkwork-api-birdcoder-standalone-gateway && node scripts/run-cargo.mjs test -p sdkwork-routes-workspace-app-api --test handler_smoke && node scripts/run-cargo.mjs test -p sdkwork-routes-system-app-api --test handler_smoke',
+  'node scripts/server-observability-contract.test.mjs && node scripts/router-handler-smoke-contract.test.mjs && node scripts/run-cargo.mjs test -p sdkwork-api-birdcoder-standalone-gateway && node scripts/run-cargo.mjs test -p sdkwork-routes-system-app-api --test handler_smoke',
 );
 assert.equal(rootPackageJson.scripts['check:quality:standard'], 'node scripts/run-quality-standard-check.mjs');
 assert.equal(rootPackageJson.scripts['check:quality:release'], 'node scripts/run-quality-release-check.mjs');

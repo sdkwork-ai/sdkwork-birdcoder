@@ -1,11 +1,14 @@
-import type { LocalFolderMountSource, ProjectDeviceMountState } from '@sdkwork/birdcoder-pc-contracts-commons';
+import type {
+  LocalFolderMountSource,
+  ProjectDeviceMountState,
+} from '@sdkwork/birdcoder-pc-contracts-commons';
+
 import { openLocalFolder } from '../../platform/openLocalFolder.ts';
 import type { IFileSystemService } from '../interfaces/IFileSystemService.ts';
+import type { DesktopRuntimeLocationIdentityPort } from '../interfaces/IDesktopRuntimeLocationIdentityPort.ts';
 import type {
   IProjectRuntimeLocationService,
   ProjectRuntimeLocationBindingResult,
-  ProjectRuntimeLocationRegistrationPort,
-  ProjectRuntimeLocationRegistrationResult,
   ProjectRuntimeLocationCapability,
   ProjectRuntimeLocationResolution,
   ProjectRuntimeLocationResolutionRequest,
@@ -19,13 +22,12 @@ import type { BirdCoderExecutionLocation } from '../runtimeTopology.ts';
 export interface RuntimeProjectRuntimeLocationServiceOptions {
   executionLocation?: BirdCoderExecutionLocation;
   fileSystemService: IFileSystemService;
+  identityPort?: Pick<DesktopRuntimeLocationIdentityPort, 'resolveDesktopRuntimeLocationBinding'>;
   openLocalFolder?: typeof openLocalFolder;
-  registrationPort?: ProjectRuntimeLocationRegistrationPort;
 }
 
 function normalizeProjectId(projectId: string): string | null {
-  const normalizedProjectId = projectId.trim();
-  return normalizedProjectId || null;
+  return projectId.trim() || null;
 }
 
 function mapUnavailableMountState(
@@ -54,7 +56,7 @@ function mapUnavailableMountState(
     case 'recoverable':
       return {
         code: 'browser_path_unavailable',
-        message: 'This project is mounted in a browser and does not have a local desktop path.',
+        message: 'This project mount does not expose a native desktop path.',
         mountState,
         projectId,
         status: 'unavailable',
@@ -74,7 +76,6 @@ function mapBindingFailure(projectId: string, error: unknown): ProjectRuntimeLoc
   const message = error instanceof Error && error.message.trim()
     ? error.message.trim()
     : 'The local project folder could not be persisted.';
-
   return {
     code: /sign in|session/iu.test(message) ? 'session_required' : 'persistence_failed',
     message,
@@ -83,31 +84,22 @@ function mapBindingFailure(projectId: string, error: unknown): ProjectRuntimeLoc
   };
 }
 
-/**
- * Resolves the local execution side of a project runtime location. It keeps
- * native paths inside the local adapter and delegates registration only to an
- * injected composed-SDK adapter with a trusted desktop target binding.
- */
 export class RuntimeProjectRuntimeLocationService implements IProjectRuntimeLocationService {
-  private readonly fileSystemService: IFileSystemService;
   private readonly executionLocation: BirdCoderExecutionLocation;
+  private readonly fileSystemService: IFileSystemService;
+  private readonly identityPort?: RuntimeProjectRuntimeLocationServiceOptions['identityPort'];
   private readonly openLocalFolder: typeof openLocalFolder;
-  private readonly registrationPort?: ProjectRuntimeLocationRegistrationPort;
-  private readonly synchronizationTasks = new Map<
-    string,
-    Promise<ProjectRuntimeLocationRegistrationResult>
-  >();
 
   constructor({
     executionLocation = 'local-host',
     fileSystemService,
+    identityPort,
     openLocalFolder: openLocalFolderOverride,
-    registrationPort,
   }: RuntimeProjectRuntimeLocationServiceOptions) {
     this.executionLocation = executionLocation;
     this.fileSystemService = fileSystemService;
+    this.identityPort = identityPort;
     this.openLocalFolder = openLocalFolderOverride ?? openLocalFolder;
-    this.registrationPort = registrationPort;
   }
 
   async bindLocalProjectRuntimeLocation(
@@ -136,18 +128,12 @@ export class RuntimeProjectRuntimeLocationService implements IProjectRuntimeLoca
         };
       }
 
-      let runtimeLocationId: string | undefined;
-      const registration = await this.inspectAndScheduleDesktopSynchronization(
-        normalizedProjectId,
-        source.type === 'tauri' ? source.path : null,
-        mountState,
-      );
-      runtimeLocationId = registration.runtimeLocationId;
-
+      const runtimeLocationId = source.type === 'tauri'
+        ? await this.resolveOpaqueRuntimeLocationId(normalizedProjectId, source.path, mountState)
+        : null;
       return {
         host: source.type,
         projectId: normalizedProjectId,
-        remoteSynchronization: registration.remoteSynchronization,
         ...(runtimeLocationId ? { runtimeLocationId } : {}),
         status: 'bound',
       };
@@ -175,28 +161,18 @@ export class RuntimeProjectRuntimeLocationService implements IProjectRuntimeLoca
       request.mountedPath,
     );
     if (activeWorkingDirectory) {
-      const registration = await this.inspectAndScheduleDesktopSynchronization(
+      return this.buildResolvedLocation(
         normalizedProjectId,
         activeWorkingDirectory,
-        await this.readMountState(normalizedProjectId),
+        'active_mount',
       );
-      return {
-        location: {
-          localWorkingDirectory: activeWorkingDirectory,
-          projectId: normalizedProjectId,
-          remoteSynchronization: registration.remoteSynchronization,
-          ...(registration.runtimeLocationId
-            ? { runtimeLocationId: registration.runtimeLocationId }
-            : {}),
-          source: 'active_mount',
-        },
-        status: 'resolved',
-      };
     }
 
     let recoveredMountState: ProjectDeviceMountState | undefined;
     try {
-      recoveredMountState = (await this.fileSystemService.restoreProjectMount(normalizedProjectId)).state;
+      recoveredMountState = (
+        await this.fileSystemService.restoreProjectMount(normalizedProjectId)
+      ).state;
     } catch {
       recoveredMountState = await this.readMountState(normalizedProjectId);
     }
@@ -206,23 +182,11 @@ export class RuntimeProjectRuntimeLocationService implements IProjectRuntimeLoca
       request.mountedPath,
     );
     if (recoveredWorkingDirectory) {
-      const registration = await this.inspectAndScheduleDesktopSynchronization(
+      return this.buildResolvedLocation(
         normalizedProjectId,
         recoveredWorkingDirectory,
-        await this.readMountState(normalizedProjectId),
+        'recovered_mount',
       );
-      return {
-        location: {
-          localWorkingDirectory: recoveredWorkingDirectory,
-          projectId: normalizedProjectId,
-          remoteSynchronization: registration.remoteSynchronization,
-          ...(registration.runtimeLocationId
-            ? { runtimeLocationId: registration.runtimeLocationId }
-            : {}),
-          source: 'recovered_mount',
-        },
-        status: 'resolved',
-      };
     }
 
     if (!request.allowFolderSelection) {
@@ -236,24 +200,19 @@ export class RuntimeProjectRuntimeLocationService implements IProjectRuntimeLoca
     try {
       pickerResult = await this.openLocalFolder();
     } catch (error) {
-      const message = error instanceof Error && error.message.trim()
-        ? error.message.trim()
-        : 'The local folder picker could not be opened.';
       return {
         code: 'unavailable',
-        message,
+        message: error instanceof Error && error.message.trim()
+          ? error.message.trim()
+          : 'The local folder picker could not be opened.',
         projectId: normalizedProjectId,
         status: 'unavailable',
       };
     }
 
     if (pickerResult.status === 'cancelled') {
-      return {
-        projectId: normalizedProjectId,
-        status: 'cancelled',
-      };
+      return { projectId: normalizedProjectId, status: 'cancelled' };
     }
-
     if (pickerResult.status === 'unsupported') {
       return {
         message: pickerResult.message,
@@ -290,7 +249,6 @@ export class RuntimeProjectRuntimeLocationService implements IProjectRuntimeLoca
       location: {
         localWorkingDirectory: selectedWorkingDirectory,
         projectId: normalizedProjectId,
-        remoteSynchronization: binding.remoteSynchronization,
         ...(binding.runtimeLocationId ? { runtimeLocationId: binding.runtimeLocationId } : {}),
         source: 'selected_folder',
       },
@@ -298,19 +256,21 @@ export class RuntimeProjectRuntimeLocationService implements IProjectRuntimeLoca
     };
   }
 
-  async resolveRemoteProjectRuntimeLocationId(
+  async resolveProjectRuntimeLocationId(
     projectId: string,
     capability: ProjectRuntimeLocationCapability,
   ): Promise<string | null> {
-    const normalizedProjectId = normalizeProjectId(projectId);
-    if (!normalizedProjectId || !this.registrationPort) {
+    void capability;
+    if (this.executionLocation === 'cloud-workspace') {
       return null;
     }
-
-    return await this.registrationPort.resolvePreferredProjectRuntimeLocationId(
-      normalizedProjectId,
+    const resolution = await this.resolveProjectRuntimeLocation(projectId, {
+      allowFolderSelection: false,
       capability,
-    );
+    });
+    return resolution.status === 'resolved'
+      ? resolution.location.runtimeLocationId?.trim() || null
+      : null;
   }
 
   async resolveProjectRuntimeLocationExecutionId(
@@ -326,48 +286,56 @@ export class RuntimeProjectRuntimeLocationService implements IProjectRuntimeLoca
         projectId: projectId.trim(),
       });
     }
-
     if (this.executionLocation === 'cloud-workspace') {
-      const runtimeLocationId = await this.resolveRemoteProjectRuntimeLocationId(
-        normalizedProjectId,
+      throw new ProjectRuntimeLocationExecutionUnavailableError({
+        code: 'missing_runtime_location_id',
+        message: 'No authorized remote runtime location is configured for this project.',
+        projectId: normalizedProjectId,
+      });
+    }
+    return requireProjectRuntimeLocationExecutionId(
+      await this.resolveProjectRuntimeLocation(normalizedProjectId, {
+        allowFolderSelection: options.allowFolderSelection ?? false,
         capability,
-      );
-      if (!runtimeLocationId) {
-        throw new ProjectRuntimeLocationExecutionUnavailableError({
-          code: 'missing_runtime_location_id',
-          message:
-            'This server workspace has no verified terminal runtime location. Bind an authorized runtime before creating a coding session.',
-          projectId: normalizedProjectId,
-        });
-      }
-      return runtimeLocationId;
-    }
+      }),
+    );
+  }
 
-    const resolution = await this.resolveProjectRuntimeLocation(normalizedProjectId, {
-      allowFolderSelection: options.allowFolderSelection ?? false,
-      capability,
-    });
-    if (
-      resolution.status === 'resolved'
-      && resolution.location.remoteSynchronization !== 'registered'
-      && this.registrationPort
-    ) {
-      const mountState = await this.readMountState(normalizedProjectId);
-      if (mountState?.host === 'tauri') {
-        const registration = await this.synchronizeDesktopRuntimeLocation({
-          absolutePath: resolution.location.localWorkingDirectory,
-          displayName: mountState.displayName,
-          projectId: normalizedProjectId,
-        });
-        if (
-          registration.remoteSynchronization === 'registered'
-          && registration.runtimeLocationId?.trim()
-        ) {
-          return registration.runtimeLocationId.trim();
-        }
-      }
+  private async buildResolvedLocation(
+    projectId: string,
+    localWorkingDirectory: string,
+    source: 'active_mount' | 'recovered_mount',
+  ): Promise<ProjectRuntimeLocationResolution> {
+    const mountState = await this.readMountState(projectId);
+    const runtimeLocationId = await this.resolveOpaqueRuntimeLocationId(
+      projectId,
+      localWorkingDirectory,
+      mountState,
+    );
+    return {
+      location: {
+        localWorkingDirectory,
+        projectId,
+        ...(runtimeLocationId ? { runtimeLocationId } : {}),
+        source,
+      },
+      status: 'resolved',
+    };
+  }
+
+  private async resolveOpaqueRuntimeLocationId(
+    projectId: string,
+    absolutePath: string,
+    mountState: ProjectDeviceMountState | undefined,
+  ): Promise<string | null> {
+    if (mountState?.host !== 'tauri' || !this.identityPort) {
+      return null;
     }
-    return requireProjectRuntimeLocationExecutionId(resolution);
+    const identity = await this.identityPort.resolveDesktopRuntimeLocationBinding({
+      absolutePath,
+      projectId,
+    });
+    return identity?.rootLocator.trim() || null;
   }
 
   private async readMountState(projectId: string): Promise<ProjectDeviceMountState | undefined> {
@@ -387,58 +355,5 @@ export class RuntimeProjectRuntimeLocationService implements IProjectRuntimeLoca
     } catch {
       return null;
     }
-  }
-
-  private async inspectAndScheduleDesktopSynchronization(
-    projectId: string,
-    absolutePath: string | null,
-    mountState: ProjectDeviceMountState | undefined,
-  ): Promise<ProjectRuntimeLocationRegistrationResult> {
-    if (!absolutePath || mountState?.host !== 'tauri' || !this.registrationPort) {
-      return { remoteSynchronization: 'not_configured' };
-    }
-
-    const input = {
-      absolutePath,
-      displayName: mountState.displayName,
-      projectId,
-    };
-    let registration: ProjectRuntimeLocationRegistrationResult;
-    try {
-      registration = await this.registrationPort.inspectLocalDesktopRuntimeLocation(input);
-    } catch {
-      registration = { remoteSynchronization: 'pending' };
-    }
-
-    if (registration.remoteSynchronization !== 'not_configured') {
-      void this.synchronizeDesktopRuntimeLocation(input).catch(() => undefined);
-    }
-
-    return registration;
-  }
-
-  private synchronizeDesktopRuntimeLocation(input: {
-    absolutePath: string;
-    displayName: string | null;
-    projectId: string;
-  }): Promise<ProjectRuntimeLocationRegistrationResult> {
-    if (!this.registrationPort) {
-      return Promise.resolve({ remoteSynchronization: 'not_configured' });
-    }
-
-    const taskKey = `${input.projectId}\u001f${input.absolutePath}`;
-    const activeTask = this.synchronizationTasks.get(taskKey);
-    if (activeTask) return activeTask;
-
-    const task = this.registrationPort.synchronizeLocalDesktopRuntimeLocation(input);
-    this.synchronizationTasks.set(taskKey, task);
-    void task.finally(() => {
-      globalThis.setTimeout(() => {
-        if (this.synchronizationTasks.get(taskKey) === task) {
-          this.synchronizationTasks.delete(taskKey);
-        }
-      }, 0);
-    }).catch(() => undefined);
-    return task;
   }
 }

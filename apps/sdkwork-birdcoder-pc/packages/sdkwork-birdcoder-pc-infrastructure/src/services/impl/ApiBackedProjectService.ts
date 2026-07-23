@@ -1,145 +1,172 @@
-import type { AgentsAppSdkClient } from '@sdkwork/birdcoder-pc-core/sdk/agents-app';
-import type { BirdCoderProjectSummary } from '@sdkwork/birdcoder-pc-core/sdk/birdcoder-app';
-import type { BirdCoderProject } from '@sdkwork/birdcoder-pc-contracts-commons';
-import { readBirdCoderApiTransportErrorHttpStatus } from '@sdkwork/birdcoder-pc-contracts-commons/apiTransportError';
-import { uuid } from '@sdkwork/utils/id';
-
-import type { BirdCoderAppSdkApiClient } from '../birdCoderSdkClient.ts';
 import type {
-  BindProjectWorkspaceInput,
-  BirdCoderServiceListPage,
-  BirdCoderServicePageRequest,
+  AgentProjectCompositionSlotRecord,
+  AgentProjectRecord,
+  AgentsAppSdkClient,
+} from '@sdkwork/birdcoder-pc-core/sdk/agents-app';
+import type { AgentProjectView } from '@sdkwork/birdcoder-pc-contracts-commons';
+import { readBirdCoderApiTransportErrorHttpStatus } from '@sdkwork/birdcoder-pc-contracts-commons/apiTransportError';
+import { normalizeOffsetListQuery } from '@sdkwork/utils/pagination';
+
+import type {
+  AgentProjectPageRequest,
+  AgentProjectViewPage,
+  BindProjectDriveCompositionInput,
   CreateProjectOptions,
   IProjectService,
+  ProjectDriveComposition,
   UpdateProjectOptions,
 } from '../interfaces/IProjectService.ts';
-import { resolveBirdCoderServicePageRequest } from '../servicePagination.ts';
-
-export interface ApiBackedProjectServiceOptions {
-  agentProjects: AgentProjectProvisioningSdkPort;
-  appClient: BirdCoderAppSdkApiClient;
-}
 
 type AgentsProjectsSdkApi = AgentsAppSdkClient['ai']['agents']['projects'];
+type AgentsProjectCompositionSlotsSdkApi =
+  AgentsAppSdkClient['ai']['agents']['projectCompositionSlots'];
 
-export type AgentProjectProvisioningSdkPort = Pick<
+export type AgentProjectsSdkPort = Pick<
   AgentsProjectsSdkApi,
-  'create' | 'delete'
+  'archive' | 'create' | 'delete' | 'list' | 'retrieve' | 'update'
 >;
 
-function requireAgentProjectId(value: string | null | undefined): string {
-  const projectId = value?.trim() ?? '';
-  if (
-    !projectId.startsWith('project.')
-    || projectId !== value
-    || /[\u0000-\u001f\u007f]/u.test(projectId)
-  ) {
-    throw new Error('BirdCoder project is missing its canonical Agents project reference.');
-  }
-  return projectId;
+export interface ApiBackedProjectServiceOptions {
+  projectCompositionSlots: Pick<
+    AgentsProjectCompositionSlotsSdkApi,
+    'create' | 'retrieve' | 'update'
+  >;
+  projects: AgentProjectsSdkPort;
 }
 
-function mapProject(summary: BirdCoderProjectSummary): BirdCoderProject {
+const PRIMARY_DRIVE_SLOT_ID = 'primary-drive';
+const PROJECT_DRIVE_POLICY_SCHEMA = 'sdkwork.agents.project-drive/v1';
+
+interface ProjectDrivePolicy {
+  logicalPath: string;
+  rootEntryId: string;
+  schema: typeof PROJECT_DRIVE_POLICY_SCHEMA;
+}
+
+function normalizeRequired(value: string, label: string): string {
+  const normalized = value.trim();
+  if (!normalized) {
+    throw new Error(`${label} is required.`);
+  }
+  return normalized;
+}
+
+function buildProjectDrivePolicy(
+  input: BindProjectDriveCompositionInput,
+): ProjectDrivePolicy {
   return {
-    id: summary.id,
-    uuid: summary.uuid,
-    tenantId: summary.tenantId,
-    organizationId: summary.organizationId,
-    workspaceId: summary.workspaceId,
-    defaultAgentProjectId: requireAgentProjectId(summary.defaultAgentProjectId),
-    userId: summary.ownerUserId,
-    code: summary.code,
-    title: summary.name,
-    name: summary.name,
-    description: summary.description ?? undefined,
-    ownerId: summary.ownerUserId,
-    createdByUserId: summary.createdByUserId,
-    type: summary.projectKind,
-    createdAt: summary.createdAt,
-    updatedAt: summary.updatedAt,
-    agentSessions: [],
-    archived: summary.status === 'archived',
+    logicalPath: input.logicalPath.trim(),
+    rootEntryId: normalizeRequired(input.rootEntryId, 'Drive root entry ID'),
+    schema: PROJECT_DRIVE_POLICY_SCHEMA,
   };
 }
 
-function mapProjectPage(
-  request: BirdCoderServicePageRequest,
-  response: Awaited<ReturnType<BirdCoderAppSdkApiClient['intelligence']['projects']['list']>>,
-): BirdCoderServiceListPage<BirdCoderProject> {
-  const items = response.items.map(mapProject);
-  const page = response.pageInfo.page ?? request.page;
-  const pageSize = response.pageInfo.pageSize ?? request.pageSize;
-  const totalItems = response.pageInfo.totalItems ?? String(items.length);
-  const totalPages = response.pageInfo.totalPages ?? (items.length > 0 ? page : 0);
+function parseProjectDrivePolicy(policyJson: string | null | undefined): ProjectDrivePolicy {
+  let value: unknown;
+  try {
+    value = JSON.parse(policyJson ?? '');
+  } catch {
+    throw new Error('The Agents project Drive composition policy is invalid JSON.');
+  }
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    throw new Error('The Agents project Drive composition policy must be an object.');
+  }
+  const policy = value as Record<string, unknown>;
+  if (
+    policy.schema !== PROJECT_DRIVE_POLICY_SCHEMA ||
+    typeof policy.logicalPath !== 'string' ||
+    typeof policy.rootEntryId !== 'string' ||
+    !policy.rootEntryId.trim()
+  ) {
+    throw new Error('The Agents project Drive composition policy is incompatible.');
+  }
   return {
-    items,
-    pageInfo: {
-      mode: 'offset',
-      page,
-      pageSize,
-      totalItems,
-      totalPages,
-      hasMore: response.pageInfo.hasMore ?? page < totalPages,
-    },
+    logicalPath: policy.logicalPath.trim(),
+    rootEntryId: policy.rootEntryId.trim(),
+    schema: PROJECT_DRIVE_POLICY_SCHEMA,
+  };
+}
+
+function mapProjectDriveComposition(
+  slot: AgentProjectCompositionSlotRecord,
+): ProjectDriveComposition {
+  if (
+    slot.slotId !== PRIMARY_DRIVE_SLOT_ID ||
+    slot.slotKind !== 'drive' ||
+    slot.targetModule !== 'drive' ||
+    !slot.enabled
+  ) {
+    throw new Error('The Agents project primary Drive composition is incompatible.');
+  }
+  const policy = parseProjectDrivePolicy(slot.policyJson);
+  return {
+    driveId: normalizeRequired(slot.targetRef, 'Drive target reference'),
+    logicalPath: policy.logicalPath,
+    projectId: normalizeRequired(slot.projectId, 'Project ID'),
+    rootEntryId: policy.rootEntryId,
+    slotId: slot.slotId,
+    version: slot.version,
+  };
+}
+
+function mapProject(project: AgentProjectRecord): AgentProjectView {
+  return {
+    projectId: project.projectId,
+    tenantId: project.tenantId,
+    organizationId: project.organizationId,
+    ownerUserId: project.ownerUserId,
+    name: project.name,
+    ...(project.description == null ? {} : { description: project.description }),
+    visibility: project.visibility,
+    status: project.status,
+    driveAccessMode: project.driveAccessMode,
+    ...(project.defaultAgentId == null ? {} : { defaultAgentId: project.defaultAgentId }),
+    ...(project.defaultModelId == null ? {} : { defaultModelId: project.defaultModelId }),
+    version: project.version,
+    createdAt: project.createdAt,
+    updatedAt: project.updatedAt,
+    ...(project.archivedAt ? { archivedAt: project.archivedAt } : {}),
+    agentSessions: [],
   };
 }
 
 export class ApiBackedProjectService implements IProjectService {
-  private readonly agentProjects: AgentProjectProvisioningSdkPort;
-  private readonly appClient: BirdCoderAppSdkApiClient;
+  private readonly projectCompositionSlots: ApiBackedProjectServiceOptions['projectCompositionSlots'];
+  private readonly projects: AgentProjectsSdkPort;
   private readonly versions = new Map<string, string>();
 
-  constructor({ agentProjects, appClient }: ApiBackedProjectServiceOptions) {
-    this.agentProjects = agentProjects;
-    this.appClient = appClient;
+  constructor({ projectCompositionSlots, projects }: ApiBackedProjectServiceOptions) {
+    this.projectCompositionSlots = projectCompositionSlots;
+    this.projects = projects;
   }
 
-  async bindProjectWorkspace(
-    projectId: string,
-    input: BindProjectWorkspaceInput,
-  ): Promise<void> {
-    const current = await this.appClient.intelligence.projects.sandboxBinding
-      .retrieve(projectId)
-      .catch((error: unknown) => {
-        if (readBirdCoderApiTransportErrorHttpStatus(error) === 404) {
-          return null;
-        }
-        throw error;
-      });
-    await this.appClient.intelligence.projects.sandboxBinding.update(
-      projectId,
-      {
-        logicalPath: input.logicalPath,
-        rootEntryId: input.rootEntryId,
-        sandboxId: input.sandboxId,
-      },
-      {
-        idempotencyKey: uuid(),
-        ...(current ? { ifMatch: current.version } : {}),
-      },
-    );
-  }
-
-  async getProjectsPage(
-    workspaceId: string | undefined,
-    request: BirdCoderServicePageRequest,
-  ): Promise<BirdCoderServiceListPage<BirdCoderProject>> {
-    resolveBirdCoderServicePageRequest(request);
-    const response = await this.appClient.intelligence.projects.list({
+  async getProjectsPage(request: AgentProjectPageRequest): Promise<AgentProjectViewPage> {
+    const pagination = normalizeOffsetListQuery({
       page: request.page,
-      pageSize: request.pageSize,
-      workspaceId: workspaceId?.trim() || undefined,
+      page_size: request.pageSize,
+    });
+    const response = await this.projects.list({
+      page: pagination.page,
+      pageSize: pagination.page_size,
+      ...(request.q?.trim() ? { q: request.q.trim() } : {}),
+      ...(request.status ? { status: request.status } : {}),
+      ...(request.includeDeleted === undefined
+        ? {}
+        : { includeDeleted: request.includeDeleted }),
     });
     for (const project of response.items) {
-      this.versions.set(project.id, project.version);
+      this.versions.set(project.projectId, project.version);
     }
-    return mapProjectPage(request, response);
+    return {
+      items: response.items.map(mapProject),
+      pageInfo: response.pageInfo,
+    };
   }
 
-  async getProjectById(projectId: string): Promise<BirdCoderProject | null> {
+  async getProjectById(projectId: string): Promise<AgentProjectView | null> {
     try {
-      const project = await this.appClient.intelligence.projects.retrieve(projectId);
-      this.versions.set(project.id, project.version);
+      const project = await this.projects.retrieve(projectId);
+      this.versions.set(project.projectId, project.version);
       return mapProject(project);
     } catch (error) {
       if (readBirdCoderApiTransportErrorHttpStatus(error) === 404) {
@@ -149,41 +176,18 @@ export class ApiBackedProjectService implements IProjectService {
     }
   }
 
-  invalidateProjectReadCache(): void {
-    // The generated client is authoritative and this service keeps no record cache.
-  }
-
   async createProject(
-    workspaceId: string,
     name: string,
     options: CreateProjectOptions = {},
-  ): Promise<BirdCoderProject> {
-    const requestedAgentProjectId = `project.${uuid()}`;
-    const agentProjectResponse = await this.agentProjects.create({
-      projectId: requestedAgentProjectId,
+  ): Promise<AgentProjectView> {
+    const project = await this.projects.create({
       name,
-      description: options.description,
+      ...(options.description?.trim()
+        ? { description: options.description.trim() }
+        : {}),
     });
-    const agentProjectId = requireAgentProjectId(agentProjectResponse.projectId);
-    if (agentProjectId !== requestedAgentProjectId) {
-      return this.compensateAgentProject(
-        agentProjectId,
-        new Error('Agents returned a different project id than the requested stable id.'),
-      );
-    }
-
-    try {
-      const project = await this.appClient.intelligence.projects.create({
-        workspaceId,
-        name,
-        description: options.description ?? null,
-        defaultAgentProjectId: agentProjectId,
-      });
-      this.versions.set(project.id, project.version);
-      return mapProject(project);
-    } catch (error) {
-      return this.compensateAgentProject(agentProjectId, error);
-    }
+    this.versions.set(project.projectId, project.version);
+    return mapProject(project);
   }
 
   async renameProject(projectId: string, name: string): Promise<void> {
@@ -191,26 +195,78 @@ export class ApiBackedProjectService implements IProjectService {
   }
 
   async updateProject(projectId: string, updates: UpdateProjectOptions): Promise<void> {
-    const version = await this.resolveVersion(projectId);
-    const project = await this.appClient.intelligence.projects.update(
-      projectId,
-      {
-        ...(updates.name !== undefined ? { name: updates.name } : {}),
-        ...(updates.description !== undefined
-          ? { description: updates.description }
-          : {}),
-        ...(updates.status !== undefined ? { status: updates.status } : {}),
-      },
-      { ifMatch: version },
-    );
-    this.versions.set(project.id, project.version);
+    const project = await this.projects.update(projectId, {
+      expectedVersion: await this.resolveVersion(projectId),
+      ...(updates.name === undefined ? {} : { name: updates.name }),
+      ...(updates.description === undefined
+        ? {}
+        : { description: updates.description }),
+    });
+    this.versions.set(project.projectId, project.version);
+  }
+
+  async archiveProject(projectId: string): Promise<void> {
+    const project = await this.projects.archive(projectId, {
+      expectedVersion: await this.resolveVersion(projectId),
+    });
+    this.versions.set(project.projectId, project.version);
   }
 
   async deleteProject(projectId: string): Promise<void> {
-    await this.appClient.intelligence.projects.delete(projectId, {
-      ifMatch: await this.resolveVersion(projectId),
-    });
+    await this.projects.delete(projectId);
     this.versions.delete(projectId);
+  }
+
+  async bindProjectDrive(
+    projectId: string,
+    input: BindProjectDriveCompositionInput,
+  ): Promise<ProjectDriveComposition> {
+    const normalizedProjectId = normalizeRequired(projectId, 'Project ID');
+    const driveId = normalizeRequired(input.driveId, 'Drive target reference');
+    const policyJson = JSON.stringify(buildProjectDrivePolicy(input));
+    const current = await this.projectCompositionSlots
+      .retrieve(normalizedProjectId, PRIMARY_DRIVE_SLOT_ID)
+      .catch((error: unknown) => {
+        if (readBirdCoderApiTransportErrorHttpStatus(error) === 404) {
+          return null;
+        }
+        throw error;
+      });
+    const slot = current
+      ? await this.projectCompositionSlots.update(
+          normalizedProjectId,
+          PRIMARY_DRIVE_SLOT_ID,
+          {
+            enabled: true,
+            expectedVersion: current.version,
+            policyJson,
+            slotKind: 'drive',
+            targetModule: 'drive',
+            targetRef: driveId,
+          },
+        )
+      : await this.projectCompositionSlots.create(normalizedProjectId, {
+          enabled: true,
+          policyJson,
+          slotId: PRIMARY_DRIVE_SLOT_ID,
+          slotKind: 'drive',
+          targetModule: 'drive',
+          targetRef: driveId,
+        });
+    return mapProjectDriveComposition(slot);
+  }
+
+  async getProjectDrive(projectId: string): Promise<ProjectDriveComposition | null> {
+    const normalizedProjectId = normalizeRequired(projectId, 'Project ID');
+    const slot = await this.projectCompositionSlots
+      .retrieve(normalizedProjectId, PRIMARY_DRIVE_SLOT_ID)
+      .catch((error: unknown) => {
+        if (readBirdCoderApiTransportErrorHttpStatus(error) === 404) {
+          return null;
+        }
+        throw error;
+      });
+    return slot ? mapProjectDriveComposition(slot) : null;
   }
 
   private async resolveVersion(projectId: string): Promise<string> {
@@ -218,23 +274,8 @@ export class ApiBackedProjectService implements IProjectService {
     if (knownVersion) {
       return knownVersion;
     }
-    const project = await this.appClient.intelligence.projects.retrieve(projectId);
-    this.versions.set(project.id, project.version);
+    const project = await this.projects.retrieve(projectId);
+    this.versions.set(project.projectId, project.version);
     return project.version;
-  }
-
-  private async compensateAgentProject(
-    agentProjectId: string,
-    cause: unknown,
-  ): Promise<never> {
-    try {
-      await this.agentProjects.delete(agentProjectId);
-    } catch (compensationError) {
-      throw new AggregateError(
-        [cause, compensationError],
-        `BirdCoder project creation failed and Agents project ${agentProjectId} compensation also failed.`,
-      );
-    }
-    throw cause;
   }
 }

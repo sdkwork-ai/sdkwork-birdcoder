@@ -16,7 +16,6 @@ import {
   resolveWorkbenchRecoverySnapshotForUser,
   resolveStartupAgentSessionId,
   resolveStartupProjectId,
-  resolveStartupWorkspaceId,
   resolveWorkbenchRecoveryPersistenceSelection,
   type WorkbenchRecoverySnapshot,
 } from '@sdkwork/birdcoder-pc-workbench/workbench/recovery';
@@ -26,8 +25,6 @@ import {
 } from '@sdkwork/birdcoder-pc-workbench/workbench/agentSessionSelection';
 import { hydrateImportedProjectFromAuthority } from '@sdkwork/birdcoder-pc-workbench/workbench/importedProjectHydration';
 import { importSandboxDirectoryProject } from '@sdkwork/birdcoder-pc-workbench/workbench/sandboxDirectoryProjectImport';
-import { resolveProjectImportWorkspaceId } from '@sdkwork/birdcoder-pc-workbench/workbench/projectImportWorkspace';
-import { resolveEffectiveWorkspaceId } from '@sdkwork/birdcoder-pc-workbench/workbench/workspaceBootstrap';
 import {
   buildDefaultTerminalCommandRequest,
   emitOpenTerminalRequest,
@@ -56,10 +53,9 @@ import { useWorkbenchChatSelection } from '@sdkwork/birdcoder-pc-workbench/hooks
 import { useWorkbenchAgentSessionCreationActions } from '@sdkwork/birdcoder-pc-workbench/hooks/useWorkbenchAgentSessionCreationActions';
 import type { CreateNewAgentSessionRequest } from '@sdkwork/birdcoder-pc-workbench/workbench/agentSessionCreation';
 import { useWorkbenchPreferences } from '@sdkwork/birdcoder-pc-workbench/hooks/useWorkbenchPreferences';
-import { useWorkspaces } from '@sdkwork/birdcoder-pc-workbench/hooks/useWorkspaces';
 import { Button, TopMenu, type TopMenuItem } from '@sdkwork/birdcoder-pc-ui-shell';
 import { copyTextToClipboard } from '@sdkwork/birdcoder-pc-ui/components/clipboard';
-import type { AppTab, BirdCoderProject } from '@sdkwork/birdcoder-pc-contracts-commons';
+import type { AppTab, AgentProjectView } from '@sdkwork/birdcoder-pc-contracts-commons';
 import {
   resolveWorkbenchCodeEngineSelectedModelId,
   resolveWorkbenchNewSessionEngineCatalog,
@@ -75,13 +71,13 @@ import {
   useBirdCoderAuthAppTabRouting,
 } from './authAppTabRouting.ts';
 import { AppShellDialogs } from './AppShellDialogs.tsx';
-import { AppWorkspaceMenu } from './AppWorkspaceMenu.tsx';
+import { AppProjectMenu } from './AppProjectMenu.tsx';
 import {
   performNativeWindowControlAction,
   useNativeWindowControlsBridge,
 } from './nativeWindowControlsBridge.ts';
 import { BirdcoderAppHeader } from './BirdcoderAppHeader.tsx';
-import { AppMainBody, isWorkspaceTerminalRequest } from './birdcoderAppMainBody.tsx';
+import { AppMainBody, isProjectTerminalRequest } from './birdcoderAppMainBody.tsx';
 import {
   DESKTOP_WINDOW_FRAME_STATE_CACHE_TTL_MS,
   DESKTOP_WINDOW_FRAME_STATE_RECONCILIATION_DELAY_MS,
@@ -132,144 +128,60 @@ export function AppContent() {
     ),
     [currentWorkbenchUserScope, normalizedStoredRecoverySnapshot],
   );
-  const [activeWorkspaceId, setActiveWorkspaceId] = useState<string>('');
   const [activeProjectId, setActiveProjectId] = useState<string>('');
   const [activeAgentSessionId, setActiveAgentSessionId] = useState<string>('');
   const previousWorkbenchSessionScopeRef = useRef(currentWorkbenchSessionScope);
   const isWorkbenchSelectionForCurrentSession =
     previousWorkbenchSessionScopeRef.current === currentWorkbenchSessionScope;
-  const scopedActiveWorkspaceId = isWorkbenchSelectionForCurrentSession ? activeWorkspaceId : '';
   const scopedActiveProjectId = isWorkbenchSelectionForCurrentSession ? activeProjectId : '';
   const scopedActiveAgentSessionId =
     isWorkbenchSelectionForCurrentSession ? activeAgentSessionId : '';
+  const [showProjectMenu, setShowProjectMenu] = useState(false);
   const {
-    workspaces,
-    error: workspacesError,
-    hasFetched: workspacesHasFetched,
-    hasMore: hasMoreWorkspaces,
-    isLoading: isWorkspacesLoading,
-    isLoadingMore: isLoadingMoreWorkspaces,
-    createWorkspace,
-    updateWorkspace,
-    deleteWorkspace,
-    loadMoreWorkspaces: loadMoreWorkspaceInventory,
-    refreshWorkspaces,
-  } = useWorkspaces({
+    projects,
+    error: projectsError,
+    hasFetched: projectsHasFetched,
+    hasMore: projectsHasMore,
+    isLoading: isProjectsLoading,
+    isLoadingMore: isProjectsLoadingMore,
+    createProject,
+    loadMoreProjects,
+    refreshProjects,
+    renameProject,
+    archiveProject,
+    deleteProject,
+    createAgentSession,
+  } = useProjects({
     isActive: Boolean(user),
-    targetWorkspaceId:
-      scopedActiveWorkspaceId || normalizedRecoverySnapshot.activeWorkspaceId,
+    targetProjectId:
+      scopedActiveProjectId || normalizedRecoverySnapshot.activeProjectId,
   });
+  const projectsIndex = useMemo(
+    () => buildProjectAgentSessionIndex(projects),
+    [projects],
+  );
 
   useEffect(() => {
-    if (workspacesError) {
-      addToast(workspacesError, 'error');
+    if (projectsError) {
+      addToast(projectsError, 'error');
     }
-  }, [addToast, workspacesError]);
-  const workspacesById = useMemo(
-    () => new Map(workspaces.map((workspace) => [workspace.id, workspace])),
-    [workspaces],
-  );
+  }, [addToast, projectsError]);
 
-  const [showWorkspaceMenu, setShowWorkspaceMenu] = useState(false);
-  const [menuActiveWorkspaceId, setMenuActiveWorkspaceId] = useState<string>('');
-  const resolvedWorkspaceId = resolveStartupWorkspaceId({
-    workspaces,
-    recoverySnapshot: normalizedRecoverySnapshot,
-  });
-  const fallbackWorkspaceId = workspaces[0]?.id ?? '';
-  const effectiveWorkspaceId = (scopedActiveWorkspaceId || resolvedWorkspaceId || fallbackWorkspaceId).trim();
-  const effectiveMenuWorkspaceId = (menuActiveWorkspaceId || effectiveWorkspaceId).trim();
-  const projectsWorkspaceId = user ? effectiveWorkspaceId : '';
-  const menuProjectsScopeWorkspaceId =
-    user && showWorkspaceMenu ? effectiveMenuWorkspaceId : '';
-  const shouldUseDistinctMenuProjectsStore =
-    !!menuProjectsScopeWorkspaceId && menuProjectsScopeWorkspaceId !== projectsWorkspaceId;
-
-  // Fetch projects for the active workspace to know the active project's name
-  const {
-    projects: activeProjects,
-    hasFetched: activeProjectsHasFetched,
-    hasMore: activeProjectsHasMore,
-    isLoadingMore: isActiveProjectsLoadingMore,
-    createProject: createActiveProject,
-    loadMoreProjects: loadMoreActiveProjects,
-    refreshProjects: refreshActiveProjects,
-    updateProject: updateActiveProject,
-    deleteProject: deleteActiveProject,
-    createAgentSession: createActiveAgentSession,
-  } = useProjects(projectsWorkspaceId, {
-    targetProjectId:
-      scopedActiveProjectId ||
-      (normalizedRecoverySnapshot.activeWorkspaceId === projectsWorkspaceId
-        ? normalizedRecoverySnapshot.activeProjectId
-        : null),
-  });
-  const activeProjectsIndex = useMemo(
-    () => buildProjectAgentSessionIndex(activeProjects),
-    [activeProjects],
-  );
-  const {
-    projects: distinctMenuProjects,
-    hasFetched: distinctMenuProjectsHasFetched,
-    hasMore: distinctMenuProjectsHasMore,
-    isLoadingMore: isDistinctMenuProjectsLoadingMore,
-    createProject: createDistinctMenuProject,
-    loadMoreProjects: loadMoreDistinctMenuProjects,
-    createAgentSession: createDistinctMenuAgentSession,
-    refreshProjects: refreshDistinctMenuProjects,
-    updateProject: updateDistinctMenuProject,
-    deleteProject: deleteDistinctMenuProject,
-  } = useProjects(
-    shouldUseDistinctMenuProjectsStore ? menuProjectsScopeWorkspaceId : '',
-    {
-    },
-  );
-  const menuProjects = shouldUseDistinctMenuProjectsStore ? distinctMenuProjects : activeProjects;
-  const menuProjectsIndex = useMemo(
-    () => buildProjectAgentSessionIndex(menuProjects),
-    [menuProjects],
-  );
-  const menuProjectsHasFetched =
-    shouldUseDistinctMenuProjectsStore
-      ? distinctMenuProjectsHasFetched
-      : activeProjectsHasFetched;
-  const menuProjectsHasMore = shouldUseDistinctMenuProjectsStore
-    ? distinctMenuProjectsHasMore
-    : activeProjectsHasMore;
-  const isMenuProjectsLoadingMore = shouldUseDistinctMenuProjectsStore
-    ? isDistinctMenuProjectsLoadingMore
-    : isActiveProjectsLoadingMore;
-  const loadMoreMenuProjects = shouldUseDistinctMenuProjectsStore
-    ? loadMoreDistinctMenuProjects
-    : loadMoreActiveProjects;
-  const handleLoadMoreMenuProjects = useCallback(async () => {
+  const handleLoadMoreProjects = useCallback(async () => {
     try {
-      await loadMoreMenuProjects();
+      await loadMoreProjects();
     } catch (error) {
       const message = error instanceof Error && error.message.trim()
         ? error.message
         : t('code.failedToLoadMoreProjects');
       addToast(message, 'error');
     }
-  }, [addToast, loadMoreMenuProjects, t]);
-  const createMenuProject =
-    shouldUseDistinctMenuProjectsStore ? createDistinctMenuProject : createActiveProject;
-  const refreshMenuProjects =
-    shouldUseDistinctMenuProjectsStore ? refreshDistinctMenuProjects : refreshActiveProjects;
-  const updateMenuProject =
-    shouldUseDistinctMenuProjectsStore ? updateDistinctMenuProject : updateActiveProject;
-  const deleteProject =
-    shouldUseDistinctMenuProjectsStore ? deleteDistinctMenuProject : deleteActiveProject;
+  }, [addToast, loadMoreProjects, t]);
 
-  const [isCreatingWorkspace, setIsCreatingWorkspace] = useState(false);
-  const [newWorkspaceName, setNewWorkspaceName] = useState('');
   const [isCreatingProject, setIsCreatingProject] = useState(false);
   const [newProjectName, setNewProjectName] = useState('');
-  const [renamingWorkspaceId, setRenamingWorkspaceId] = useState<string | null>(null);
-  const [renameWorkspaceValue, setRenameWorkspaceValue] = useState('');
   const [renamingProjectId, setRenamingProjectId] = useState<string | null>(null);
   const [renameProjectValue, setRenameProjectValue] = useState('');
-  const [workspaceToDelete, setWorkspaceToDelete] = useState<string | null>(null);
   const [projectToDelete, setProjectToDelete] = useState<string | null>(null);
   const [projectActionsMenuId, setProjectActionsMenuId] = useState<string | null>(null);
   const [projectMountRecoveryNotice, setProjectMountRecoveryNotice] =
@@ -277,7 +189,7 @@ export function AppContent() {
   const [projectMountRecoveryStartedAt, setProjectMountRecoveryStartedAt] = useState<number | null>(
     null,
   );
-  const workspaceMenuRef = useRef<HTMLDivElement>(null);
+  const projectMenuRef = useRef<HTMLDivElement>(null);
   const minimizeWindowControlButtonRef = useRef<HTMLButtonElement | null>(null);
   const maximizeWindowControlButtonRef = useRef<HTMLButtonElement | null>(null);
   const closeWindowControlButtonRef = useRef<HTMLButtonElement | null>(null);
@@ -313,11 +225,8 @@ export function AppContent() {
   const recoverySessionIdRef = useRef('');
   const lastPersistedRecoverySnapshotRef = useRef<WorkbenchRecoverySnapshot | null>(null);
   const pendingImportedProjectIdRef = useRef('');
-  const pendingImportedWorkspaceIdRef = useRef('');
-  const previousShowWorkspaceMenuRef = useRef(false);
   const projectMountRecoveryIdentityRef = useRef('');
   const projectMountRecoveryActiveSurfaceRef = useRef('');
-  const workspaceBootstrapPromiseRef = useRef<Promise<string> | null>(null);
   const activeAgentSessionSelectionScopeKeyRef = useRef('');
 
   const clearActiveAgentSessionSelection = useCallback(() => {
@@ -338,92 +247,6 @@ export function AppContent() {
     setActiveAgentSessionId(normalizedAgentSessionId);
   }, []);
 
-  useEffect(() => {
-    if (
-      !user ||
-      isAuthLoading ||
-      !isRecoveryHydrated ||
-      !workspacesHasFetched ||
-      workspacesError ||
-      workspaceBootstrapPromiseRef.current
-    ) {
-      return;
-    }
-
-    const activeWorkspaceStillExists =
-      scopedActiveWorkspaceId &&
-      workspacesById.has(scopedActiveWorkspaceId);
-    if (activeWorkspaceStillExists) {
-      return;
-    }
-
-    const request = resolveEffectiveWorkspaceId({
-      createWorkspace,
-      currentWorkspaceId: scopedActiveWorkspaceId,
-      recoveryWorkspaceId: normalizedRecoverySnapshot.activeWorkspaceId,
-      refreshWorkspaces,
-      workspaces,
-    });
-    const requestedWorkspaceId = scopedActiveWorkspaceId.trim();
-    workspaceBootstrapPromiseRef.current = request;
-    let isCancelled = false;
-    void request
-      .then((resolvedWorkspaceId) => {
-        if (isCancelled) {
-          return;
-        }
-
-        setActiveWorkspaceId((currentWorkspaceId) => {
-          const normalizedCurrentWorkspaceId = currentWorkspaceId.trim();
-          if (
-            normalizedCurrentWorkspaceId &&
-            normalizedCurrentWorkspaceId !== requestedWorkspaceId
-          ) {
-            return currentWorkspaceId;
-          }
-          return normalizedCurrentWorkspaceId === resolvedWorkspaceId
-            ? currentWorkspaceId
-            : resolvedWorkspaceId;
-        });
-        setMenuActiveWorkspaceId((currentWorkspaceId) => {
-          const normalizedCurrentWorkspaceId = currentWorkspaceId.trim();
-          if (
-            normalizedCurrentWorkspaceId &&
-            normalizedCurrentWorkspaceId !== requestedWorkspaceId
-          ) {
-            return currentWorkspaceId;
-          }
-          return normalizedCurrentWorkspaceId === resolvedWorkspaceId
-            ? currentWorkspaceId
-            : resolvedWorkspaceId;
-        });
-      })
-      .catch((error) => {
-        console.error('Failed to initialize workspace selection', error);
-      })
-      .finally(() => {
-        if (workspaceBootstrapPromiseRef.current === request) {
-          workspaceBootstrapPromiseRef.current = null;
-        }
-      });
-
-    return () => {
-      isCancelled = true;
-    };
-  }, [
-    createWorkspace,
-    isAuthLoading,
-    isRecoveryHydrated,
-    normalizedRecoverySnapshot.activeWorkspaceId,
-    refreshWorkspaces,
-    scopedActiveWorkspaceId,
-    user,
-    workspaces,
-    workspacesById,
-    workspacesError,
-    workspacesHasFetched,
-  ]);
-
   const {
     handleActiveTabChange,
     handleLogout,
@@ -438,56 +261,27 @@ export function AppContent() {
     user,
   });
 
-  const commitWorkspaceSelection = useCallback((workspaceId: string) => {
-    const normalizedWorkspaceId = workspaceId.trim();
-    if (!normalizedWorkspaceId) {
-      return;
-    }
-
-    setActiveWorkspaceId(normalizedWorkspaceId);
-    setMenuActiveWorkspaceId(normalizedWorkspaceId);
-    setActiveProjectId('');
-    clearActiveAgentSessionSelection();
-    setProjectActionsMenuId(null);
-  }, [clearActiveAgentSessionSelection]);
-
-  const previewWorkspaceSelection = useCallback((workspaceId: string) => {
-    const normalizedWorkspaceId = workspaceId.trim();
-    if (
-      !normalizedWorkspaceId ||
-      normalizedWorkspaceId === effectiveMenuWorkspaceId
-    ) {
-      return;
-    }
-
-    setMenuActiveWorkspaceId(normalizedWorkspaceId);
-    setProjectActionsMenuId(null);
-  }, [effectiveMenuWorkspaceId]);
-
-  const closeWorkspaceMenuSurface = useCallback(() => {
-    setShowWorkspaceMenu(false);
-    setIsCreatingWorkspace(false);
-    setNewWorkspaceName('');
+  const closeProjectMenuSurface = useCallback(() => {
+    setShowProjectMenu(false);
     setIsCreatingProject(false);
     setNewProjectName('');
     setProjectActionsMenuId(null);
   }, []);
 
   const resolvedProjectId = resolveStartupProjectId({
-    workspaceId: effectiveWorkspaceId,
-    projects: activeProjects,
+    projects,
     recoverySnapshot: normalizedRecoverySnapshot,
   });
   const effectiveProjectId = (scopedActiveProjectId || resolvedProjectId).trim();
   const activeProjectAgentSessions =
-    activeProjectsIndex.projectsById.get(effectiveProjectId)?.agentSessions ?? [];
+    projectsIndex.projectsById.get(effectiveProjectId)?.agentSessions ?? [];
   const activeProjectAgentSessionIds = useMemo(
     () => new Set(activeProjectAgentSessions.map((agentSession) => agentSession.id)),
     [activeProjectAgentSessions],
   );
   const resolvedAgentSessionId = resolveStartupAgentSessionId({
     projectId: effectiveProjectId,
-    projects: activeProjects,
+    projects,
     recoverySnapshot: normalizedRecoverySnapshot,
   });
   const scopedActiveAgentSessionScopeKey =
@@ -502,7 +296,7 @@ export function AppContent() {
     scopedActiveAgentSessionId &&
     scopedActiveAgentSessionScopeKey &&
     activeAgentSessionSelectionScopeKeyRef.current === scopedActiveAgentSessionScopeKey &&
-    activeProjectsIndex.projectsById.has(effectiveProjectId),
+    projectsIndex.projectsById.has(effectiveProjectId),
   );
   const effectiveAgentSessionId = (
     isScopedActiveAgentSessionInProject || isPendingScopedActiveAgentSession
@@ -514,96 +308,54 @@ export function AppContent() {
       ? lastPersistedRecoverySnapshotRef.current
       : normalizedRecoverySnapshot;
   const persistedRecoverySelection = useMemo(() => resolveWorkbenchRecoveryPersistenceSelection({
-      currentWorkspaceId: effectiveWorkspaceId,
       currentProjectId: effectiveProjectId,
       currentAgentSessionId: effectiveAgentSessionId,
       fallbackSnapshot: currentUserFallbackRecoverySnapshot,
-      hasProjectsFetched: activeProjectsHasFetched,
-      hasWorkspacesFetched: workspacesHasFetched,
+      hasProjectsFetched: projectsHasFetched,
     }), [
-      activeProjectsHasFetched,
       currentUserFallbackRecoverySnapshot,
       effectiveAgentSessionId,
       effectiveProjectId,
-      effectiveWorkspaceId,
-      workspacesHasFetched,
+      projectsHasFetched,
     ]);
   const recoverySelectionResolutionReady = useMemo(
     () => isWorkbenchRecoverySelectionResolutionReady({
-      currentWorkspaceId: effectiveWorkspaceId,
-      hasProjectsFetched: activeProjectsHasFetched,
-      hasWorkspacesFetched: workspacesHasFetched,
+      hasProjectsFetched: projectsHasFetched,
     }),
-    [
-      activeProjectsHasFetched,
-      effectiveWorkspaceId,
-      workspacesHasFetched,
-    ],
+    [projectsHasFetched],
   );
   const recoveryAnnouncement = buildWorkbenchRecoveryAnnouncement({
     recoverySnapshot: normalizedRecoverySnapshot,
-    activeWorkspaceId: effectiveWorkspaceId,
     activeProjectId: effectiveProjectId,
     activeAgentSessionId: effectiveAgentSessionId,
   });
-  const resolveImmediateProjectIndex = useCallback(
-    (workspaceId: string) => {
-      const normalizedWorkspaceId = workspaceId.trim();
-      if (normalizedWorkspaceId === effectiveWorkspaceId) {
-        return activeProjectsIndex;
-      }
-      if (normalizedWorkspaceId === effectiveMenuWorkspaceId) {
-        return menuProjectsIndex;
-      }
-      return null;
-    },
-    [
-      activeProjectsIndex,
-      effectiveMenuWorkspaceId,
-      effectiveWorkspaceId,
-      menuProjectsIndex,
-    ],
-  );
 
   const activateImportedProject = useCallback(
-    (workspaceId: string, projectId: string) => {
-      pendingImportedWorkspaceIdRef.current = workspaceId;
+    (projectId: string) => {
       pendingImportedProjectIdRef.current = projectId;
-      setActiveWorkspaceId(workspaceId);
-      setMenuActiveWorkspaceId(workspaceId);
       setActiveProjectId(projectId);
 
-      const immediateProjectIndex = resolveImmediateProjectIndex(workspaceId);
       const latestAgentSessionId =
-        immediateProjectIndex?.latestAgentSessionIdByProjectId.get(projectId) ?? null;
+        projectsIndex.latestAgentSessionIdByProjectId.get(projectId) ?? null;
       commitActiveAgentSessionSelection(projectId, latestAgentSessionId ?? '');
     },
-    [commitActiveAgentSessionSelection, resolveImmediateProjectIndex],
+    [commitActiveAgentSessionSelection, projectsIndex],
   );
 
   const hydrateImportedProjectSelectionInBackground = useCallback(
-    (workspaceId: string, projectId: string) => {
+    (projectId: string) => {
       void (async () => {
         try {
-          if (
-            pendingImportedWorkspaceIdRef.current !== workspaceId ||
-            pendingImportedProjectIdRef.current !== projectId
-          ) {
+          if (pendingImportedProjectIdRef.current !== projectId) {
             return;
           }
 
           const hydratedProject = await hydrateImportedProjectFromAuthority({
             agentSessionService,
-            knownProjects:
-              workspaceId === effectiveWorkspaceId
-                ? activeProjects
-                : workspaceId === effectiveMenuWorkspaceId
-                  ? menuProjects
-                  : [],
+            knownProjects: projects,
             projectId,
             projectService,
             userScope: user?.id,
-            workspaceId,
           });
           if (!hydratedProject) {
             return;
@@ -614,18 +366,14 @@ export function AppContent() {
             hydratedProject.latestAgentSessionId ?? '',
           );
           pendingImportedProjectIdRef.current = '';
-          pendingImportedWorkspaceIdRef.current = '';
         } catch (error) {
           console.error('Failed to hydrate imported project state from server authority', error);
         }
       })();
     },
     [
-      activeProjects,
       agentSessionService,
-      effectiveMenuWorkspaceId,
-      effectiveWorkspaceId,
-      menuProjects,
+      projects,
       projectService,
       commitActiveAgentSessionSelection,
       user?.id,
@@ -640,15 +388,12 @@ export function AppContent() {
 
     previousWorkbenchSessionScopeRef.current = currentWorkbenchSessionScope;
     pendingImportedProjectIdRef.current = '';
-    pendingImportedWorkspaceIdRef.current = '';
     lastPersistedRecoverySnapshotRef.current = null;
     hasAnnouncedRecoveryRef.current = false;
-    setActiveWorkspaceId('');
-    setMenuActiveWorkspaceId('');
     setActiveProjectId('');
     clearActiveAgentSessionSelection();
     setProjectActionsMenuId(null);
-    setShowWorkspaceMenu(false);
+    setShowProjectMenu(false);
   }, [clearActiveAgentSessionSelection, currentWorkbenchSessionScope]);
 
   useEffect(() => {
@@ -662,7 +407,6 @@ export function AppContent() {
       userScope: currentWorkbenchUserScope,
       sessionId: recoverySessionIdRef.current,
       activeTab: normalizedRecoverySnapshot.activeTab,
-      activeWorkspaceId: normalizedRecoverySnapshot.activeWorkspaceId,
       activeProjectId: normalizedRecoverySnapshot.activeProjectId,
       activeAgentSessionId: normalizedRecoverySnapshot.activeAgentSessionId,
       cleanExit: normalizedRecoverySnapshot.cleanExit,
@@ -689,39 +433,11 @@ export function AppContent() {
   ]);
 
   useEffect(() => {
-    if (!workspacesHasFetched) {
+    if (!projectsHasFetched) {
       return;
     }
 
-    if (workspaces.length === 0) {
-      if (activeWorkspaceId) {
-        setActiveWorkspaceId('');
-      }
-      return;
-    }
-
-    if (hasMoreWorkspaces) {
-      return;
-    }
-
-    if (!workspacesById.has(activeWorkspaceId) && resolvedWorkspaceId) {
-      setActiveWorkspaceId(resolvedWorkspaceId);
-    }
-  }, [
-    activeWorkspaceId,
-    hasMoreWorkspaces,
-    resolvedWorkspaceId,
-    workspaces.length,
-    workspacesById,
-    workspacesHasFetched,
-  ]);
-
-  useEffect(() => {
-    if (effectiveWorkspaceId.length > 0 && !activeProjectsHasFetched) {
-      return;
-    }
-
-    if (activeProjects.length === 0) {
+    if (projects.length === 0) {
       if (pendingImportedProjectIdRef.current) {
         return;
       }
@@ -733,34 +449,33 @@ export function AppContent() {
 
     if (
       activeProjectId &&
-      !activeProjectsIndex.projectsById.has(activeProjectId) &&
-      activeProjectsHasMore
+      !projectsIndex.projectsById.has(activeProjectId) &&
+      projectsHasMore
     ) {
       return;
     }
 
     if (
       pendingImportedProjectIdRef.current &&
-      activeProjectsIndex.projectsById.has(pendingImportedProjectIdRef.current)
+      projectsIndex.projectsById.has(pendingImportedProjectIdRef.current)
     ) {
       pendingImportedProjectIdRef.current = '';
-      pendingImportedWorkspaceIdRef.current = '';
     }
 
-    if (!activeProjectsIndex.projectsById.has(activeProjectId) && resolvedProjectId) {
+    if (!projectsIndex.projectsById.has(activeProjectId) && resolvedProjectId) {
       setActiveProjectId(resolvedProjectId);
     }
   }, [
     activeProjectId,
-    activeProjectsHasMore,
-    activeProjectsHasFetched,
-    activeProjectsIndex,
-    effectiveWorkspaceId.length,
+    projects,
+    projectsHasMore,
+    projectsHasFetched,
+    projectsIndex,
     resolvedProjectId,
   ]);
 
   useEffect(() => {
-    if (effectiveWorkspaceId.length > 0 && !activeProjectsHasFetched) {
+    if (!projectsHasFetched) {
       return;
     }
 
@@ -783,7 +498,7 @@ export function AppContent() {
 
       if (
         activeAgentSessionSelectionScopeKeyRef.current === activeSelectionScopeKey &&
-        activeProjectsIndex.projectsById.has(effectiveProjectId)
+        projectsIndex.projectsById.has(effectiveProjectId)
       ) {
         return;
       }
@@ -805,14 +520,13 @@ export function AppContent() {
     }
   }, [
     activeAgentSessionId,
-    activeProjectsHasFetched,
-    activeProjectsIndex,
     activeProjectAgentSessionIds,
     activeProjectAgentSessions.length,
     clearActiveAgentSessionSelection,
     commitActiveAgentSessionSelection,
     effectiveProjectId,
-    effectiveWorkspaceId.length,
+    projectsHasFetched,
+    projectsIndex,
     resolvedAgentSessionId,
   ]);
 
@@ -835,10 +549,9 @@ export function AppContent() {
       userScope: currentWorkbenchUserScope,
       sessionId:
         recoverySessionIdRef.current ||
-        normalizedRecoverySnapshot.sessionId ||
-        createWorkbenchRecoverySessionId(),
+      normalizedRecoverySnapshot.sessionId ||
+      createWorkbenchRecoverySessionId(),
       activeTab,
-      activeWorkspaceId: persistedRecoverySelection.activeWorkspaceId,
       activeProjectId: persistedRecoverySelection.activeProjectId,
       activeAgentSessionId: persistedRecoverySelection.activeAgentSessionId,
       cleanExit: false,
@@ -894,7 +607,6 @@ export function AppContent() {
             normalizedRecoverySnapshot.sessionId ||
             createWorkbenchRecoverySessionId(),
           activeTab,
-          activeWorkspaceId: persistedRecoverySelection.activeWorkspaceId,
           activeProjectId: persistedRecoverySelection.activeProjectId,
           activeAgentSessionId: persistedRecoverySelection.activeAgentSessionId,
           cleanExit: true,
@@ -914,24 +626,6 @@ export function AppContent() {
     normalizedRecoverySnapshot.sessionId,
     persistedRecoverySelection,
   ]);
-
-  useEffect(() => {
-    const wasWorkspaceMenuOpen = previousShowWorkspaceMenuRef.current;
-    previousShowWorkspaceMenuRef.current = showWorkspaceMenu;
-
-    if (showWorkspaceMenu && !wasWorkspaceMenuOpen) {
-      setMenuActiveWorkspaceId((currentWorkspaceId) =>
-        currentWorkspaceId === effectiveWorkspaceId
-          ? currentWorkspaceId
-          : effectiveWorkspaceId,
-      );
-      return;
-    }
-
-    if (!showWorkspaceMenu && !menuActiveWorkspaceId && effectiveWorkspaceId) {
-      setMenuActiveWorkspaceId(effectiveWorkspaceId);
-    }
-  }, [effectiveWorkspaceId, menuActiveWorkspaceId, showWorkspaceMenu]);
 
   useEffect(() => {
     const focusTerminalSurface = (options?: { forceWorkspace?: boolean }) => {
@@ -1024,7 +718,7 @@ export function AppContent() {
       setActiveTab('settings');
     };
     const handleTerminalRequest = (req: TerminalCommandRequest) => {
-      if (!isWorkspaceTerminalRequest(req)) {
+      if (!isProjectTerminalRequest(req)) {
         return;
       }
 
@@ -1081,9 +775,8 @@ export function AppContent() {
     };
   }, [addToast, fileSystemService, projectRuntimeLocationService, t]);
 
-  const hasOpenWorkspaceMenuSurface =
-    showWorkspaceMenu ||
-    isCreatingWorkspace ||
+  const hasOpenProjectMenuSurface =
+    showProjectMenu ||
     isCreatingProject ||
     projectActionsMenuId !== null;
 
@@ -1124,23 +817,23 @@ export function AppContent() {
     }
   }, [addToast, effectiveProjectId, projectRuntimeLocationService]);
 
-  const handleWorkspaceMenuClickOutside = useCallback(
+  const handleProjectMenuClickOutside = useCallback(
     (event: MouseEvent) => {
-      if (workspaceMenuRef.current && !workspaceMenuRef.current.contains(event.target as Node)) {
-        closeWorkspaceMenuSurface();
+      if (projectMenuRef.current && !projectMenuRef.current.contains(event.target as Node)) {
+        closeProjectMenuSurface();
       }
     },
-    [closeWorkspaceMenuSurface],
+    [closeProjectMenuSurface],
   );
 
   useEffect(() => {
-    if (!hasOpenWorkspaceMenuSurface) {
+    if (!hasOpenProjectMenuSurface) {
       return;
     }
 
-    document.addEventListener('mousedown', handleWorkspaceMenuClickOutside);
-    return () => document.removeEventListener('mousedown', handleWorkspaceMenuClickOutside);
-  }, [handleWorkspaceMenuClickOutside, hasOpenWorkspaceMenuSurface]);
+    document.addEventListener('mousedown', handleProjectMenuClickOutside);
+    return () => document.removeEventListener('mousedown', handleProjectMenuClickOutside);
+  }, [handleProjectMenuClickOutside, hasOpenProjectMenuSurface]);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -1226,62 +919,21 @@ export function AppContent() {
       return null;
     }
 
-    const targetWorkspaceId = await resolveProjectImportWorkspaceId({
-      createWorkspace,
-      effectiveWorkspaceId:
-        effectiveMenuWorkspaceId ||
-        effectiveWorkspaceId ||
-        activeWorkspaceId ||
-        workspaces[0]?.id ||
-        '',
-      refreshWorkspaces,
-      selectWorkspaceId: (refreshedWorkspaces) =>
-        resolveStartupWorkspaceId({
-          workspaces: refreshedWorkspaces,
-          recoverySnapshot: normalizedRecoverySnapshot,
-        }) ||
-        refreshedWorkspaces[0]?.id ||
-        '',
-    });
-    setActiveWorkspaceId((currentWorkspaceId) => currentWorkspaceId || targetWorkspaceId);
-    setMenuActiveWorkspaceId(targetWorkspaceId);
-    const normalizedTargetWorkspaceId = targetWorkspaceId.trim();
-    const createProjectForTargetWorkspace = (name: string, options?: Parameters<typeof createMenuProject>[1]) => {
-      if (normalizedTargetWorkspaceId === menuProjectsScopeWorkspaceId) {
-        return createMenuProject(name, options);
-      }
-      if (normalizedTargetWorkspaceId === projectsWorkspaceId) {
-        return createActiveProject(name, options);
-      }
-      return projectService.createProject(normalizedTargetWorkspaceId, name, options);
-    };
-    const bindProjectWorkspace = projectService.bindProjectWorkspace?.bind(projectService);
-    if (!bindProjectWorkspace) {
-      throw new Error(
-        'The BirdCoder project service does not provide the server workspace binding capability.',
-      );
-    }
     const importedProject = await importSandboxDirectoryProject({
-      bindingPort: {
-        bindProjectWorkspace: (projectId, selectedDirectory) =>
-          bindProjectWorkspace(projectId, {
+      compositionPort: {
+        bindProjectDrive: async (projectId, selectedDirectory) => {
+          await projectService.bindProjectDrive(projectId, {
+            driveId: selectedDirectory.sandboxId,
             logicalPath: selectedDirectory.logicalPath,
             rootEntryId: selectedDirectory.entryId,
-            sandboxId: selectedDirectory.sandboxId,
-          }),
+          });
+        },
       },
-      createProject: createProjectForTargetWorkspace,
-      deleteCreatedProject: async (projectId) => {
-        if (normalizedTargetWorkspaceId === menuProjectsScopeWorkspaceId) {
-          await deleteDistinctMenuProject(projectId);
-          return;
-        }
-        if (normalizedTargetWorkspaceId === projectsWorkspaceId) {
-          await deleteActiveProject(projectId);
-          return;
-        }
-        await projectService.deleteProject(projectId);
+      createProject: async (name) => {
+        const project = await createProject(name);
+        return { projectId: project.projectId };
       },
+      deleteCreatedProject: (projectId) => projectService.deleteProject(projectId),
       fallbackProjectName,
       selection,
     });
@@ -1289,23 +941,7 @@ export function AppContent() {
     return {
       ...importedProject,
       reusedExistingProject: false,
-      workspaceId: targetWorkspaceId,
     };
-  };
-
-  const handleCreateWorkspace = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!newWorkspaceName.trim()) return;
-    
-    try {
-      const newWs = await createWorkspace(newWorkspaceName);
-      commitWorkspaceSelection(newWs.id);
-      setIsCreatingWorkspace(false);
-      setNewWorkspaceName('');
-      setShowWorkspaceMenu(false);
-    } catch (error) {
-      console.error("Failed to create workspace", error);
-    }
   };
 
   const handleCreateProject = async (e: React.FormEvent) => {
@@ -1322,81 +958,47 @@ export function AppContent() {
         !importedProject.reusedExistingProject &&
         importedProject.projectName !== normalizedProjectName
       ) {
-        const updateImportedProjectName =
-          importedProject.workspaceId === menuProjectsScopeWorkspaceId
-            ? updateMenuProject
-            : importedProject.workspaceId === projectsWorkspaceId
-              ? updateActiveProject
-              : projectService.updateProject;
-        await updateImportedProjectName(importedProject.projectId, {
-          name: normalizedProjectName,
-        });
+        await renameProject(importedProject.projectId, normalizedProjectName);
       }
 
-      activateImportedProject(importedProject.workspaceId, importedProject.projectId);
-      hydrateImportedProjectSelectionInBackground(
-        importedProject.workspaceId,
-        importedProject.projectId,
-      );
+      activateImportedProject(importedProject.projectId);
+      hydrateImportedProjectSelectionInBackground(importedProject.projectId);
       setIsCreatingProject(false);
       setNewProjectName('');
-      setShowWorkspaceMenu(false);
+      setShowProjectMenu(false);
     } catch (error) {
       console.error("Failed to create project", error);
     }
-  };
-
-  const confirmDeleteWorkspace = (e: React.MouseEvent, id: string) => {
-    e.stopPropagation();
-    if (workspaces.length <= 1) {
-      addToast(t('app.cannotDeleteLastWorkspace'), "error");
-      return;
-    }
-    setWorkspaceToDelete(id);
-    setShowWorkspaceMenu(false);
   };
 
   const confirmDeleteProject = (e: React.MouseEvent, id: string) => {
     e.stopPropagation();
     setProjectToDelete(id);
     setProjectActionsMenuId(null);
-    setShowWorkspaceMenu(false);
-  };
-
-  const executeDeleteWorkspace = async () => {
-    if (!workspaceToDelete) return;
-    try {
-      await deleteWorkspace(workspaceToDelete);
-      if (activeWorkspaceId === workspaceToDelete) {
-        const remaining = workspaces.filter(w => w.id !== workspaceToDelete);
-        if (remaining.length > 0) {
-          setActiveWorkspaceId(remaining[0].id);
-        }
-      }
-    } catch (error) {
-      console.error("Failed to delete workspace", error);
-    } finally {
-      setWorkspaceToDelete(null);
-    }
-  };
-
-  const handleRenameWorkspace = async (id: string, newName: string) => {
-    if (!newName.trim()) return;
-    try {
-      await updateWorkspace(id, newName.trim());
-    } catch (error) {
-      console.error("Failed to rename workspace", error);
-      addToast(t('app.failedToRenameWorkspace'), "error");
-    }
+    setShowProjectMenu(false);
   };
 
   const handleRenameProject = async (id: string, newName: string) => {
     if (!newName.trim()) return;
     try {
-      await updateMenuProject(id, { name: newName.trim() });
+      await renameProject(id, newName.trim());
     } catch (error) {
       console.error("Failed to rename project", error);
       addToast(t('app.failedToRenameProject'), "error");
+    }
+  };
+
+  const handleArchiveProject = async (projectId: string) => {
+    try {
+      await archiveProject(projectId);
+      await refreshProjects();
+      if (activeProjectId === projectId) {
+        setActiveProjectId('');
+        clearActiveAgentSessionSelection();
+      }
+    } catch (error) {
+      console.error('Failed to archive project', error);
+      addToast(t('app.failedToRemoveProject'), 'error');
     }
   };
 
@@ -1408,10 +1010,10 @@ export function AppContent() {
         setActiveProjectId('');
         clearActiveAgentSessionSelection();
       }
-      addToast(t('app.projectRemoved'), "success");
+      addToast(t('app.projectDeleted'), "success");
     } catch (error) {
       console.error("Failed to delete project", error);
-      addToast(t('app.failedToRemoveProject'), "error");
+      addToast(t('app.failedToDeleteProject'), "error");
     } finally {
       setProjectToDelete(null);
     }
@@ -1432,39 +1034,29 @@ export function AppContent() {
 
   const handleSelectMenuProject = useCallback(
     (projectId: string) => {
-      const nextWorkspaceId = effectiveMenuWorkspaceId.trim();
       const nextProjectId = projectId.trim();
-      const nextProjectIndex = resolveImmediateProjectIndex(nextWorkspaceId);
       if (
-        !nextWorkspaceId ||
         !nextProjectId ||
-        !nextProjectIndex?.projectsById.has(nextProjectId)
+        !projectsIndex.projectsById.has(nextProjectId)
       ) {
         return;
       }
 
       const nextAgentSessionId =
-        nextProjectIndex.latestAgentSessionIdByProjectId.get(nextProjectId) ?? '';
-      const shouldResetAgentSession =
-        nextWorkspaceId !== effectiveWorkspaceId || nextProjectId !== effectiveProjectId;
+        projectsIndex.latestAgentSessionIdByProjectId.get(nextProjectId) ?? '';
+      const shouldResetAgentSession = nextProjectId !== effectiveProjectId;
 
-      if (nextWorkspaceId && nextWorkspaceId !== effectiveWorkspaceId) {
-        setActiveWorkspaceId(nextWorkspaceId);
-      }
-      setMenuActiveWorkspaceId(nextWorkspaceId || effectiveWorkspaceId);
       setActiveProjectId(nextProjectId);
       if (shouldResetAgentSession || nextAgentSessionId) {
         commitActiveAgentSessionSelection(nextProjectId, nextAgentSessionId);
       }
       setProjectActionsMenuId(null);
-      setShowWorkspaceMenu(false);
+      setShowProjectMenu(false);
     },
     [
-      effectiveMenuWorkspaceId,
       effectiveProjectId,
-      effectiveWorkspaceId,
       commitActiveAgentSessionSelection,
-      resolveImmediateProjectIndex,
+      projectsIndex,
     ],
   );
 
@@ -1900,11 +1492,8 @@ export function AppContent() {
     try {
       const importedProject = await selectFolderAndImportProject(t('app.serverDirectory'));
       if (importedProject) {
-        activateImportedProject(importedProject.workspaceId, importedProject.projectId);
-        hydrateImportedProjectSelectionInBackground(
-          importedProject.workspaceId,
-          importedProject.projectId,
-        );
+        activateImportedProject(importedProject.projectId);
+        hydrateImportedProjectSelectionInBackground(importedProject.projectId);
         addToast(t('app.openedFolder', { name: importedProject.projectName }), 'success');
       }
     } catch (e) {
@@ -1952,25 +1541,14 @@ export function AppContent() {
   zoomHandlerRef.current = handleZoom;
   toggleFullScreenHandlerRef.current = toggleFullScreen;
 
-  const activeWorkspace = workspacesById.get(effectiveWorkspaceId) || workspaces[0];
-  const activeProject = activeProjectsIndex.projectsById.get(effectiveProjectId) ?? null;
+  const activeProject = projectsIndex.projectsById.get(effectiveProjectId) ?? null;
   const activeAgentSession =
-    activeProjectsIndex.agentSessionLocationsByProjectIdAndId.get(
+    projectsIndex.agentSessionLocationsByProjectIdAndId.get(
       buildAgentSessionProjectScopedKey(effectiveProjectId, effectiveAgentSessionId),
     )?.agentSession ??
     null;
-  const createShellAgentSession = useCallback((
-    projectId: string,
-    title: string,
-    options: { engineId: string; modelId: string },
-  ) => {
-    if (shouldUseDistinctMenuProjectsStore && menuProjectsIndex.projectsById.has(projectId)) {
-      return createDistinctMenuAgentSession(projectId, title, options);
-    }
-    return createActiveAgentSession(projectId, title, options);
-  }, [createActiveAgentSession, createDistinctMenuAgentSession, menuProjectsIndex, shouldUseDistinctMenuProjectsStore]);
   const { createAgentSessionWithSelection } = useWorkbenchChatSelection({
-    createAgentSession: createShellAgentSession,
+    createAgentSession,
     currentSessionEngineId: activeAgentSession?.engineId,
     currentSessionModelId: activeAgentSession?.modelId,
     preferences,
@@ -1989,13 +1567,6 @@ export function AppContent() {
       }
 
       const targetProjectId = options?.projectId?.trim() || effectiveProjectId;
-      const targetProject = menuProjectsIndex.projectsById.get(targetProjectId)
-        ?? activeProjectsIndex.projectsById.get(targetProjectId);
-      const targetWorkspaceId = targetProject?.workspaceId?.trim() || effectiveWorkspaceId;
-      if (targetWorkspaceId) {
-        setActiveWorkspaceId(targetWorkspaceId);
-        setMenuActiveWorkspaceId(targetWorkspaceId);
-      }
       if (targetProjectId) {
         setActiveProjectId(targetProjectId);
       }
@@ -2007,9 +1578,9 @@ export function AppContent() {
           : 'code',
       );
       setProjectActionsMenuId(null);
-      setShowWorkspaceMenu(false);
+      setShowProjectMenu(false);
     },
-    [activeProjectsIndex, commitActiveAgentSessionSelection, effectiveProjectId, effectiveWorkspaceId, menuProjectsIndex],
+    [commitActiveAgentSessionSelection, effectiveProjectId],
   );
   const handleActiveProjectChange = useCallback((projectId: string) => {
     const normalizedProjectId = projectId.trim();
@@ -2082,7 +1653,7 @@ export function AppContent() {
   const handleCreateProjectSession = useCallback(
     async (projectId: string, requestedEngineId?: string, requestedModelId?: string) => {
       const normalizedProjectId = projectId.trim();
-      if (!menuProjectsIndex.projectsById.has(normalizedProjectId)) {
+      if (!projectsIndex.projectsById.has(normalizedProjectId)) {
         addToast(t('app.noProjectsFound'), 'error');
         return;
       }
@@ -2091,10 +1662,10 @@ export function AppContent() {
         engineId: requestedEngineId,
         modelId: requestedModelId,
         projectId: normalizedProjectId,
-        source: 'workspace-menu',
+        source: 'project-menu',
       });
     },
-    [addToast, createAgentSessionFromRequest, menuProjectsIndex, t],
+    [addToast, createAgentSessionFromRequest, projectsIndex, t],
   );
   const handleCreateAgentSessionCommand = useCallback(
     (request?: CreateNewAgentSessionRequest) => {
@@ -2322,21 +1893,14 @@ export function AppContent() {
     [handleToggleRecording, isRecording, t],
   );
 
-  const handleWorkspaceMenuToggle = useCallback(() => {
-    if (showWorkspaceMenu) {
-      closeWorkspaceMenuSurface();
+  const handleProjectMenuToggle = useCallback(() => {
+    if (showProjectMenu) {
+      closeProjectMenuSurface();
       return;
     }
 
-    setShowWorkspaceMenu(true);
-  }, [closeWorkspaceMenuSurface, showWorkspaceMenu]);
-  const handleStartWorkspaceRename = useCallback((workspaceId: string, currentName: string) => {
-    setRenamingWorkspaceId(workspaceId);
-    setRenameWorkspaceValue(currentName);
-  }, []);
-  const handleFinishWorkspaceRename = useCallback(() => {
-    setRenamingWorkspaceId(null);
-  }, []);
+    setShowProjectMenu(true);
+  }, [closeProjectMenuSurface, showProjectMenu]);
   const handleStartProjectRename = useCallback((projectId: string, currentName: string) => {
     setRenamingProjectId(projectId);
     setRenameProjectValue(currentName);
@@ -2347,15 +1911,6 @@ export function AppContent() {
   const handleToggleProjectActionsMenu = useCallback((projectId: string) => {
     setProjectActionsMenuId((currentValue) => (currentValue === projectId ? null : projectId));
   }, []);
-  const handleStartCreatingWorkspace = useCallback(() => {
-    setIsCreatingWorkspace(true);
-  }, []);
-  const handleCancelCreatingWorkspace = useCallback(() => {
-    setIsCreatingWorkspace(false);
-  }, []);
-  const handleWorkspaceNameChange = useCallback((value: string) => {
-    setNewWorkspaceName(value);
-  }, []);
   const handleStartCreatingProject = useCallback(() => {
     setIsCreatingProject(true);
   }, []);
@@ -2364,9 +1919,6 @@ export function AppContent() {
   }, []);
   const handleProjectNameChange = useCallback((value: string) => {
     setNewProjectName(value);
-  }, []);
-  const handleCloseWorkspaceDeleteDialog = useCallback(() => {
-    setWorkspaceToDelete(null);
   }, []);
   const handleCloseProjectDeleteDialog = useCallback(() => {
     setProjectToDelete(null);
@@ -2378,61 +1930,39 @@ export function AppContent() {
       >
       <BirdcoderAppHeader
         centerContent={shouldShowWorkbenchHeaderChrome ? (
-          <AppWorkspaceMenu
-            workspaceMenuRef={workspaceMenuRef}
-            activeWorkspace={activeWorkspace}
+          <AppProjectMenu
+            projectMenuRef={projectMenuRef}
             activeProjectName={activeProject?.name ?? null}
-            effectiveWorkspaceId={effectiveWorkspaceId}
-            effectiveMenuWorkspaceId={effectiveMenuWorkspaceId}
             effectiveProjectId={effectiveProjectId}
-            showWorkspaceMenu={showWorkspaceMenu}
-            workspaces={workspaces}
-            hasMoreWorkspaces={hasMoreWorkspaces}
-            isLoadingMoreWorkspaces={isLoadingMoreWorkspaces}
-            menuProjects={menuProjects}
-            menuProjectsHasFetched={menuProjectsHasFetched}
-            menuProjectsHasMore={menuProjectsHasMore}
-            isMenuProjectsLoadingMore={isMenuProjectsLoadingMore}
-            shouldUseDistinctMenuProjectsStore={shouldUseDistinctMenuProjectsStore}
-            isWorkspacesLoading={isWorkspacesLoading}
-            hasActiveProjectsFetched={activeProjectsHasFetched}
+            showProjectMenu={showProjectMenu}
+            projects={projects}
+            hasProjectsFetched={projectsHasFetched}
+            hasMoreProjects={projectsHasMore}
+            isProjectsLoading={isProjectsLoading}
+            isLoadingMoreProjects={isProjectsLoadingMore}
             projectMountRecoveryNotice={projectMountRecoveryNotice}
             projectMountRecoveryStartedAt={projectMountRecoveryStartedAt}
-            isCreatingWorkspace={isCreatingWorkspace}
-            newWorkspaceName={newWorkspaceName}
             isCreatingProject={isCreatingProject}
             newProjectName={newProjectName}
-            renamingWorkspaceId={renamingWorkspaceId}
-            renameWorkspaceValue={renameWorkspaceValue}
             renamingProjectId={renamingProjectId}
             renameProjectValue={renameProjectValue}
             projectActionsMenuId={projectActionsMenuId}
             availableNewSessionEngines={availableNewSessionEngines}
             preferredEngineId={newSessionEngineCatalog.preferredSelection.engineId}
             preferredModelId={newSessionEngineCatalog.preferredSelection.modelId}
-            onToggleMenu={handleWorkspaceMenuToggle}
-            onCloseMenuSurface={closeWorkspaceMenuSurface}
-            onPreviewWorkspaceSelection={previewWorkspaceSelection}
-            onLoadMoreWorkspaces={loadMoreWorkspaceInventory}
-            onStartWorkspaceRename={handleStartWorkspaceRename}
-            onWorkspaceRenameValueChange={setRenameWorkspaceValue}
-            onFinishWorkspaceRename={handleFinishWorkspaceRename}
-            onCommitWorkspaceRename={handleRenameWorkspace}
-            onConfirmDeleteWorkspace={confirmDeleteWorkspace}
+            onToggleMenu={handleProjectMenuToggle}
+            onCloseMenuSurface={closeProjectMenuSurface}
             onSelectProject={handleSelectMenuProject}
-            onLoadMoreMenuProjects={handleLoadMoreMenuProjects}
+            onLoadMoreProjects={handleLoadMoreProjects}
             onStartProjectRename={handleStartProjectRename}
             onProjectRenameValueChange={setRenameProjectValue}
             onFinishProjectRename={handleFinishProjectRename}
             onCommitProjectRename={handleRenameProject}
+            onArchiveProject={handleArchiveProject}
             onCreateProjectSession={handleCreateProjectSession}
             onToggleProjectActionsMenu={handleToggleProjectActionsMenu}
             onOpenProjectInExplorer={handleOpenProjectInExplorer}
             onConfirmDeleteProject={confirmDeleteProject}
-            onStartCreatingWorkspace={handleStartCreatingWorkspace}
-            onCancelCreatingWorkspace={handleCancelCreatingWorkspace}
-            onWorkspaceNameChange={handleWorkspaceNameChange}
-            onCreateWorkspace={handleCreateWorkspace}
             onStartCreatingProject={handleStartCreatingProject}
             onCancelCreatingProject={handleCancelCreatingProject}
             onProjectNameChange={handleProjectNameChange}
@@ -2472,7 +2002,6 @@ export function AppContent() {
         activeTab={activeTab}
         isAuthenticated={Boolean(user)}
         terminalRequest={terminalRequest}
-        workspaceId={effectiveWorkspaceId}
         projectId={effectiveProjectId}
         projectName={activeProject?.name}
         agentSessionId={effectiveAgentSessionId}
@@ -2483,13 +2012,10 @@ export function AppContent() {
       />
 
       <AppShellDialogs
-        workspaceToDelete={workspaceToDelete}
         projectToDelete={projectToDelete}
         showAboutModal={showAboutModal}
         showWhatsNewModal={showWhatsNewModal}
         showShortcutsModal={showShortcutsModal}
-        onCloseWorkspaceDelete={handleCloseWorkspaceDeleteDialog}
-        onConfirmWorkspaceDelete={executeDeleteWorkspace}
         onCloseProjectDelete={handleCloseProjectDeleteDialog}
         onConfirmProjectDelete={executeDeleteProject}
         onCloseAbout={() => setShowAboutModal(false)}

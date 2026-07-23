@@ -12,7 +12,6 @@ interface StudioTerminalIntegrationPanelProps {
   isOpen: boolean;
   height: number;
   terminalRequest?: TerminalCommandRequest;
-  workspaceId?: string;
   projectId?: string;
   onResize: (delta: number) => void;
 }
@@ -24,7 +23,6 @@ function areStudioTerminalIntegrationPanelPropsEqual(
   return (
     left.isOpen === right.isOpen &&
     left.height === right.height &&
-    left.workspaceId === right.workspaceId &&
     left.projectId === right.projectId &&
     areTerminalCommandRequestsEqual(left.terminalRequest, right.terminalRequest)
   );
@@ -34,7 +32,6 @@ export const StudioTerminalIntegrationPanel = memo(function StudioTerminalIntegr
   isOpen,
   height,
   terminalRequest,
-  workspaceId,
   projectId,
   onResize,
 }: StudioTerminalIntegrationPanelProps) {
@@ -44,7 +41,6 @@ export const StudioTerminalIntegrationPanel = memo(function StudioTerminalIntegr
     [addToast],
   );
   const resolveTerminalLaunchPlan = useBirdcoderTerminalLaunchPlanResolver(
-    workspaceId,
     projectId,
     handleLaunchBlocked,
   );
@@ -62,7 +58,6 @@ export const StudioTerminalIntegrationPanel = memo(function StudioTerminalIntegr
             launchRequestKey={terminalRequest?.timestamp ?? null}
             resolveLaunchPlan={resolveTerminalLaunchPlan}
             showWindowControls={false}
-            workspaceId={workspaceId}
             projectId={projectId}
           />
         ) : null}

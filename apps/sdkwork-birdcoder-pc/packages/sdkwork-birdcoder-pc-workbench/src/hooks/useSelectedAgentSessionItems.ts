@@ -3,7 +3,7 @@ import type { IAgentSessionService } from '@sdkwork/birdcoder-pc-infrastructure-
 import {
   isAgentSessionViewExecuting,
   type AgentSessionView,
-  type BirdCoderProject,
+  type AgentProjectView,
 } from '@sdkwork/birdcoder-pc-contracts-commons';
 
 import { useAuth } from '../context/AuthContext.ts';
@@ -27,8 +27,7 @@ export interface UseSelectedAgentSessionItemsOptions {
   selectionRefreshToken: number;
   selectedAgentSession?: AgentSessionView | null;
   selectedAgentSessionId?: string | null;
-  selectedProject?: BirdCoderProject | null;
-  workspaceId?: string;
+  selectedProject?: AgentProjectView | null;
 }
 
 function normalize(value: string | null | undefined): string {
@@ -43,7 +42,6 @@ export function useSelectedAgentSessionItems({
   selectedAgentSession,
   selectedAgentSessionId,
   selectedProject,
-  workspaceId,
 }: UseSelectedAgentSessionItemsOptions): boolean {
   const { sessionRevision, user } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
@@ -51,24 +49,19 @@ export function useSelectedAgentSessionItems({
   const activeRequestKeyRef = useRef('');
   const normalizedSessionId = normalize(selectedAgentSessionId);
   const userScope = `${normalize(user?.id) || 'anonymous'}:${sessionRevision}`;
-  const resolvedWorkspaceId =
-    normalize(selectedProject?.workspaceId) ||
-    normalize(selectedAgentSession?.workspaceId) ||
-    normalize(workspaceId);
   const resolvedProjectId =
-    normalize(selectedProject?.id) || normalize(selectedAgentSession?.birdCoderProjectId);
+    normalize(selectedProject?.projectId) || normalize(selectedAgentSession?.projectId);
   const isExecuting = isAgentSessionViewExecuting(selectedAgentSession);
   const refreshScopeKey = useMemo(
     () =>
-      normalizedSessionId && resolvedWorkspaceId && resolvedProjectId
+      normalizedSessionId && resolvedProjectId
         ? buildAgentSessionItemsRefreshScopeKey({
             agentSessionId: normalizedSessionId,
-            birdCoderProjectId: resolvedProjectId,
             identityScope: userScope,
-            workspaceId: resolvedWorkspaceId,
+            projectId: resolvedProjectId,
           })
         : '',
-    [normalizedSessionId, resolvedProjectId, resolvedWorkspaceId, userScope],
+    [normalizedSessionId, resolvedProjectId, userScope],
   );
 
   const requestKey = useMemo(
@@ -116,24 +109,22 @@ export function useSelectedAgentSessionItems({
         selectedProject && selectedAgentSession
           ? { agentSession: selectedAgentSession, project: selectedProject }
           : undefined,
-      workspaceId: resolvedWorkspaceId,
     })
       .then(async (result) => {
         if (disposed || result.status !== 'refreshed' || !result.agentSession) {
           return;
         }
         const project =
-          selectedProject?.id === result.projectId
+          selectedProject?.projectId === result.projectId
             ? selectedProject
             : await projectService.getProjectById(result.projectId);
         if (disposed) {
           return;
         }
         if (project) {
-          upsertProjectIntoProjectsStore(project.workspaceId, project, userScope);
+          upsertProjectIntoProjectsStore(project, userScope);
         }
         upsertAgentSessionIntoProjectsStore(
-          result.workspaceId || project?.workspaceId || resolvedWorkspaceId,
           result.projectId,
           result.agentSession,
           userScope,
@@ -159,7 +150,6 @@ export function useSelectedAgentSessionItems({
     normalizedSessionId,
     projectService,
     requestKey,
-    resolvedWorkspaceId,
     selectedAgentSession,
     selectedProject,
     userScope,

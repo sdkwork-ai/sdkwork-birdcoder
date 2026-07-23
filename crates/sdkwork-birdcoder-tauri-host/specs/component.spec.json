@@ -65,7 +65,7 @@
     {
       "file": "DATABASE_SPEC.md",
       "path": "../../../../sdkwork-specs/DATABASE_SPEC.md",
-      "purpose": "Local SQLite lifecycle and data access rules."
+      "purpose": "Device-local SQLite lifecycle and data access rules."
     },
     {
       "file": "TEST_SPEC.md",
@@ -126,6 +126,7 @@
       "src/host/state.rs#start_embedded_application_gateway",
       "src/host/state.rs#ensure_desktop_runtime_config",
       "src/host/state.rs#spawn_embedded_application_gateway_startup",
+      "src/host/state.rs#open_device_state",
       "src/commands/local_store_commands.rs#desktop_runtime_location_install_identity",
       "src/commands/local_store_commands.rs#desktop_runtime_location_create_root_locator",
       "src/commands/secure_app_session_commands.rs#secure_app_session_read",
@@ -160,21 +161,21 @@
     "configKeys": [
       "VITE_BIRDCODER_API_BASE_URL",
       "BIRDCODER_API_BASE_URL",
-      "SDKWORK_BIRDCODER_DATABASE_FILE",
-      "BIRDCODER_LOCAL_BOOTSTRAP_PROJECT_ROOT"
+      "SDKWORK_BIRDCODER_DEVICE_STATE_FILE"
     ]
   },
   "integration": {
     "authority": "The Tauri host owns native commands, local filesystem boundaries, device and host state, operating-system credential-store access, and embedded gateway startup. It owns no business database or Session domain.",
     "gatewayPolicy": "Business HTTP and agent workflows are executed through the embedded sdkwork-api-birdcoder-standalone-gateway and sdkwork-agents routes.",
-    "persistencePolicy": "Generic host-local SQLite key-value storage is limited to non-sensitive device and host state. IAM accessToken, authToken, refresh material, and persisted application-session payloads use only the operating-system credential store.",
+    "persistencePolicy": "Host-local SQLite owns exactly one device_state_entry table. Its allowlist permits settings/app, project-device-mounts/<sha256>, and the internal desktop-runtime-location-identity/installation.v1 row only. Project, Session, Conversation, Message, and other business aggregates are forbidden. IAM accessToken, authToken, refresh material, and persisted application-session payloads use only the operating-system credential store.",
     "securityPolicy": "Filesystem roots and native commands are explicitly registered with least-privilege Tauri permissions. Credential-store failures fail closed and never fall back to SQLite or plaintext storage."
   },
   "verification": {
     "commands": [
       "cargo test -p sdkwork-birdcoder-tauri-host",
       "node ../../../../sdkwork-specs/tools/check-component-port-bindings.mjs --root .",
-      "node scripts/desktop-embedded-coding-server-contract.test.mjs"
+      "node scripts/desktop-embedded-coding-server-contract.test.mjs",
+      "node scripts/pc-local-business-storage-boundary-contract.test.mjs"
     ]
   }
 }

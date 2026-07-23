@@ -100,4 +100,47 @@ assert.equal(
   'Infrastructure must expose no local business storage subpath.',
 );
 
+const deviceStateSource = fs.readFileSync(
+  path.join(
+    rootDir,
+    'crates/sdkwork-birdcoder-tauri-host/src/commands/local_store_commands.rs',
+  ),
+  'utf8',
+);
+const hostStateSource = fs.readFileSync(
+  path.join(rootDir, 'crates/sdkwork-birdcoder-tauri-host/src/host/state.rs'),
+  'utf8',
+);
+
+assert.match(
+  deviceStateSource,
+  /APP_SETTINGS_SCOPE\s*=>\s*key\s*==\s*APP_SETTINGS_KEY,[\s\S]*PROJECT_DEVICE_MOUNTS_SCOPE\s*=>\s*is_project_device_mount_key\(key\),[\s\S]*_\s*=>\s*false,/u,
+  'Tauri device-state access must fail closed outside its explicit scope/key allowlist.',
+);
+assert.doesNotMatch(
+  deviceStateSource,
+  /\bkv_store\b/u,
+  'Tauri device-state commands must not retain the generic kv_store table name.',
+);
+assert.match(
+  deviceStateSource,
+  /\bdevice_state_entry\b/u,
+  'Tauri device-state commands must target the device_state_entry table.',
+);
+assert.match(
+  hostStateSource,
+  /CHECK\s*\([\s\S]*scope = 'settings'[\s\S]*scope = 'project-device-mounts'[\s\S]*scope = 'desktop-runtime-location-identity'[\s\S]*\)/u,
+  'The device-state table must enforce the same scope allowlist at the SQLite boundary.',
+);
+assert.match(
+  hostStateSource,
+  /SDKWORK_BIRDCODER_DEVICE_STATE_FILE/u,
+  'The Tauri host must use the device-state-specific runtime override.',
+);
+assert.match(
+  hostStateSource,
+  /birdcoder-device-state\.sqlite3/u,
+  'The Tauri host default file must be named as device state rather than business storage.',
+);
+
 console.log('PC local business storage boundary contract passed.');

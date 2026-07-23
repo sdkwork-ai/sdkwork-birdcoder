@@ -695,7 +695,6 @@ export default defineConfig(({ command, mode }) => {
 
           if (
             isAnySourcePath([
-              '/packages/sdkwork-birdcoder-pc-code/src/pages/useCodeEffectiveWorkspaceId.ts',
               '/packages/sdkwork-birdcoder-pc-code/src/pages/useCodeServerDirectoryProjectImport.ts',
             ])
           ) {
@@ -940,9 +939,7 @@ export default defineConfig(({ command, mode }) => {
           if (
             isAnySourcePath([
               '/packages/sdkwork-birdcoder-pc-infrastructure/src/services/impl/ApiBackedCatalogService.ts',
-              '/packages/sdkwork-birdcoder-pc-infrastructure/src/services/impl/ApiBackedGitService.ts',
               '/packages/sdkwork-birdcoder-pc-infrastructure/src/services/impl/ApiBackedProjectService.ts',
-              '/packages/sdkwork-birdcoder-pc-infrastructure/src/services/impl/ApiBackedWorkspaceService.ts',
             ])
           ) {
             return 'birdcoder-platform-api-services';

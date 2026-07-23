@@ -10,139 +10,37 @@
   },
   "status": "ok",
   "mode": "apply",
-  "hasChanges": true,
-  "hasDestructiveChanges": true,
-  "changeFingerprint": "2bbc610fd3a0342f3cc2124fef514780605cc28ee197a5673e53501eedf5e0dc",
+  "hasChanges": false,
+  "hasDestructiveChanges": false,
+  "changeFingerprint": "313d2018ccd757e5893a1016a7b785ea31432810a72727d06dbf1af0839bf125",
   "changeImpact": {
     "schemaVersion": 1,
-    "areas": [
-      "api-surface",
-      "documentation",
-      "unknown"
-    ],
-    "details": [
-      {
-        "area": "api-surface",
-        "paths": [
-          "src/api/intelligence.rs",
-          "src/api/mod.rs",
-          "src/api/platform.rs"
-        ]
-      },
-      {
-        "area": "documentation",
-        "paths": [
-          "README.md"
-        ]
-      },
-      {
-        "area": "unknown",
-        "paths": [
-          "src/client.rs"
-        ]
-      }
-    ],
-    "requiresVerification": true,
-    "summary": "Detected impact areas: api-surface, documentation, unknown. Verification is required."
+    "areas": [],
+    "details": [],
+    "requiresVerification": false,
+    "summary": "No generated, scaffold, or backup changes detected. Verification can be skipped."
   },
   "executionDecision": {
     "schemaVersion": 1,
-    "riskLevel": "high",
-    "nextAction": "verify",
+    "riskLevel": "low",
+    "nextAction": "skip",
     "requiresManualReview": false,
     "applyRequiresExpectedFingerprint": false,
-    "summary": "Changes have been applied. Run the required verification plan now.",
+    "summary": "No actionable changes were detected. No apply or verification step is required.",
     "reasons": [
-      "deleted-generated-files",
-      "manual-review-required",
-      "unknown-impact",
-      "verification-required"
+      "no-actionable-changes"
     ]
   },
   "executionHandoff": {
     "schemaVersion": 1,
-    "summary": "Run the required verification commands now.",
-    "steps": [
-      {
-        "id": "verify-check",
-        "title": "Unified package check",
-        "required": true,
-        "rationale": "Validate the generated package with the unified publish helper. Triggered by: api-surface, documentation, unknown.",
-        "workingDirectory": "E:\\sdkwork-space\\sdkwork-birdcoder\\sdks\\sdkwork-birdcoder-app-sdk\\sdkwork-birdcoder-app-sdk-rust\\generated\\server-openapi",
-        "command": "node",
-        "args": [
-          "./bin/publish-core.mjs",
-          "--language",
-          "rust",
-          "--project-dir",
-          ".",
-          "--action",
-          "check"
-        ],
-        "displayCommand": "node ./bin/publish-core.mjs --language rust --project-dir . --action check"
-      },
-      {
-        "id": "verify-build",
-        "title": "Unified package build",
-        "required": true,
-        "rationale": "Run the full package build because this language uses a lighter check path than the final build. Triggered by: api-surface, documentation, unknown.",
-        "workingDirectory": "E:\\sdkwork-space\\sdkwork-birdcoder\\sdks\\sdkwork-birdcoder-app-sdk\\sdkwork-birdcoder-app-sdk-rust\\generated\\server-openapi",
-        "command": "node",
-        "args": [
-          "./bin/publish-core.mjs",
-          "--language",
-          "rust",
-          "--project-dir",
-          ".",
-          "--action",
-          "build"
-        ],
-        "displayCommand": "node ./bin/publish-core.mjs --language rust --project-dir . --action build"
-      }
-    ]
+    "summary": "No further commands are required.",
+    "steps": []
   },
   "verificationPlan": {
-    "shouldRun": true,
-    "runPhase": "now",
-    "summary": "Detected impact areas: api-surface, documentation, unknown. Verification is required. Run the required verification commands now against the generated SDK output.",
-    "steps": [
-      {
-        "id": "check",
-        "title": "Unified package check",
-        "required": true,
-        "rationale": "Validate the generated package with the unified publish helper. Triggered by: api-surface, documentation, unknown.",
-        "workingDirectory": "E:\\sdkwork-space\\sdkwork-birdcoder\\sdks\\sdkwork-birdcoder-app-sdk\\sdkwork-birdcoder-app-sdk-rust\\generated\\server-openapi",
-        "command": "node",
-        "args": [
-          "./bin/publish-core.mjs",
-          "--language",
-          "rust",
-          "--project-dir",
-          ".",
-          "--action",
-          "check"
-        ],
-        "displayCommand": "node ./bin/publish-core.mjs --language rust --project-dir . --action check"
-      },
-      {
-        "id": "build",
-        "title": "Unified package build",
-        "required": true,
-        "rationale": "Run the full package build because this language uses a lighter check path than the final build. Triggered by: api-surface, documentation, unknown.",
-        "workingDirectory": "E:\\sdkwork-space\\sdkwork-birdcoder\\sdks\\sdkwork-birdcoder-app-sdk\\sdkwork-birdcoder-app-sdk-rust\\generated\\server-openapi",
-        "command": "node",
-        "args": [
-          "./bin/publish-core.mjs",
-          "--language",
-          "rust",
-          "--project-dir",
-          ".",
-          "--action",
-          "build"
-        ],
-        "displayCommand": "node ./bin/publish-core.mjs --language rust --project-dir . --action build"
-      }
-    ]
+    "shouldRun": false,
+    "runPhase": "skip",
+    "summary": "No generated, scaffold, or backup changes detected. Verification can be skipped.",
+    "steps": []
   },
   "sdk": {
     "name": "sdkwork-birdcoder-app-sdk",
@@ -158,30 +56,24 @@
     "localVersions": []
   },
   "stats": {
-    "totalFiles": 76,
-    "models": 56,
-    "apis": 2,
-    "types": 58
+    "totalFiles": 32,
+    "models": 13,
+    "apis": 1,
+    "types": 15
   },
   "warnings": [],
   "syncSummary": {
     "dryRun": false,
     "controlPlaneEnabled": true,
-    "writtenFiles": 4,
+    "writtenFiles": 0,
     "skippedScaffoldFiles": 1,
-    "skippedUnchangedGeneratedFiles": 71,
-    "deletedGeneratedFiles": 1,
+    "skippedUnchangedGeneratedFiles": 31,
+    "deletedGeneratedFiles": 0,
     "changeSummaryPath": ".sdkwork/sdkwork-generator-changes.json",
-    "changeFingerprint": "2bbc610fd3a0342f3cc2124fef514780605cc28ee197a5673e53501eedf5e0dc",
+    "changeFingerprint": "313d2018ccd757e5893a1016a7b785ea31432810a72727d06dbf1af0839bf125",
     "changes": {
-      "createdGeneratedFiles": [
-        "src/api/intelligence.rs"
-      ],
-      "updatedGeneratedFiles": [
-        "README.md",
-        "src/api/mod.rs",
-        "src/client.rs"
-      ],
+      "createdGeneratedFiles": [],
+      "updatedGeneratedFiles": [],
       "unchangedGeneratedFiles": [
         "bin/publish-core.mjs",
         "bin/publish.ps1",
@@ -189,10 +81,13 @@
         "Cargo.toml",
         "CHANGELOG.md",
         "LICENSE",
+        "README.md",
         "sdkwork-sdk.json",
         "src/api/base.rs",
+        "src/api/mod.rs",
         "src/api/paths.rs",
         "src/api/system.rs",
+        "src/client.rs",
         "src/http/client.rs",
         "src/http/mod.rs",
         "src/lib.rs",
@@ -202,62 +97,17 @@
         "src/models/bird_coder_api_route_catalog_entry.rs",
         "src/models/bird_coder_application_descriptor_envelope.rs",
         "src/models/bird_coder_application_descriptor.rs",
-        "src/models/bird_coder_commit_project_git_changes_request.rs",
         "src/models/bird_coder_core_health_summary_envelope.rs",
         "src/models/bird_coder_core_health_summary.rs",
         "src/models/bird_coder_core_runtime_summary_envelope.rs",
         "src/models/bird_coder_core_runtime_summary.rs",
-        "src/models/bird_coder_create_project_document_binding_request.rs",
-        "src/models/bird_coder_create_project_git_branch_request.rs",
-        "src/models/bird_coder_create_project_git_worktree_request.rs",
-        "src/models/bird_coder_create_project_request.rs",
-        "src/models/bird_coder_create_project_runtime_location_request.rs",
-        "src/models/bird_coder_create_workspace_request.rs",
-        "src/models/bird_coder_git_branch_summary.rs",
-        "src/models/bird_coder_git_status_counts.rs",
-        "src/models/bird_coder_git_worktree_summary.rs",
-        "src/models/bird_coder_project_document_binding_envelope.rs",
-        "src/models/bird_coder_project_document_binding_list_envelope.rs",
-        "src/models/bird_coder_project_document_binding.rs",
-        "src/models/bird_coder_project_git_diff_envelope.rs",
-        "src/models/bird_coder_project_git_diff.rs",
-        "src/models/bird_coder_project_git_overview_envelope.rs",
-        "src/models/bird_coder_project_git_overview.rs",
-        "src/models/bird_coder_project_runtime_location_command_accepted.rs",
-        "src/models/bird_coder_project_runtime_location_command_envelope.rs",
-        "src/models/bird_coder_project_runtime_location_envelope.rs",
-        "src/models/bird_coder_project_runtime_location_list_envelope.rs",
-        "src/models/bird_coder_project_runtime_location_preference_envelope.rs",
-        "src/models/bird_coder_project_runtime_location_preference_list_envelope.rs",
-        "src/models/bird_coder_project_runtime_location_preference.rs",
-        "src/models/bird_coder_project_runtime_location.rs",
-        "src/models/bird_coder_project_sandbox_binding_envelope.rs",
-        "src/models/bird_coder_project_sandbox_binding.rs",
-        "src/models/bird_coder_project_summary_envelope.rs",
-        "src/models/bird_coder_project_summary_list_envelope.rs",
-        "src/models/bird_coder_project_summary.rs",
-        "src/models/bird_coder_prune_project_git_worktrees_request.rs",
-        "src/models/bird_coder_push_project_git_branch_request.rs",
-        "src/models/bird_coder_rebind_project_runtime_location_request.rs",
-        "src/models/bird_coder_remove_project_git_worktree_request.rs",
-        "src/models/bird_coder_set_project_runtime_location_preference_request.rs",
-        "src/models/bird_coder_switch_project_git_branch_request.rs",
-        "src/models/bird_coder_update_project_request.rs",
-        "src/models/bird_coder_update_project_runtime_location_request.rs",
-        "src/models/bird_coder_update_workspace_request.rs",
-        "src/models/bird_coder_upsert_project_sandbox_binding_request.rs",
-        "src/models/bird_coder_workspace_summary_envelope.rs",
-        "src/models/bird_coder_workspace_summary_list_envelope.rs",
-        "src/models/bird_coder_workspace_summary.rs",
         "src/models/common.rs",
         "src/models/mod.rs",
         "src/models/page_info.rs",
         "src/models/problem_detail.rs",
         "src/models/sdk_work_api_response.rs"
       ],
-      "deletedGeneratedFiles": [
-        "src/api/platform.rs"
-      ],
+      "deletedGeneratedFiles": [],
       "scaffoldedFiles": [],
       "preservedScaffoldFiles": [
         "custom/README.md"
@@ -266,91 +116,26 @@
     },
     "impact": {
       "schemaVersion": 1,
-      "areas": [
-        "api-surface",
-        "documentation",
-        "unknown"
-      ],
-      "details": [
-        {
-          "area": "api-surface",
-          "paths": [
-            "src/api/intelligence.rs",
-            "src/api/mod.rs",
-            "src/api/platform.rs"
-          ]
-        },
-        {
-          "area": "documentation",
-          "paths": [
-            "README.md"
-          ]
-        },
-        {
-          "area": "unknown",
-          "paths": [
-            "src/client.rs"
-          ]
-        }
-      ],
-      "requiresVerification": true,
-      "summary": "Detected impact areas: api-surface, documentation, unknown. Verification is required."
+      "areas": [],
+      "details": [],
+      "requiresVerification": false,
+      "summary": "No generated, scaffold, or backup changes detected. Verification can be skipped."
     },
     "verificationPlan": {
-      "shouldRun": true,
-      "runPhase": "now",
-      "summary": "Detected impact areas: api-surface, documentation, unknown. Verification is required. Run the required verification commands now against the generated SDK output.",
-      "steps": [
-        {
-          "id": "check",
-          "title": "Unified package check",
-          "required": true,
-          "rationale": "Validate the generated package with the unified publish helper. Triggered by: api-surface, documentation, unknown.",
-          "workingDirectory": "E:\\sdkwork-space\\sdkwork-birdcoder\\sdks\\sdkwork-birdcoder-app-sdk\\sdkwork-birdcoder-app-sdk-rust\\generated\\server-openapi",
-          "command": "node",
-          "args": [
-            "./bin/publish-core.mjs",
-            "--language",
-            "rust",
-            "--project-dir",
-            ".",
-            "--action",
-            "check"
-          ],
-          "displayCommand": "node ./bin/publish-core.mjs --language rust --project-dir . --action check"
-        },
-        {
-          "id": "build",
-          "title": "Unified package build",
-          "required": true,
-          "rationale": "Run the full package build because this language uses a lighter check path than the final build. Triggered by: api-surface, documentation, unknown.",
-          "workingDirectory": "E:\\sdkwork-space\\sdkwork-birdcoder\\sdks\\sdkwork-birdcoder-app-sdk\\sdkwork-birdcoder-app-sdk-rust\\generated\\server-openapi",
-          "command": "node",
-          "args": [
-            "./bin/publish-core.mjs",
-            "--language",
-            "rust",
-            "--project-dir",
-            ".",
-            "--action",
-            "build"
-          ],
-          "displayCommand": "node ./bin/publish-core.mjs --language rust --project-dir . --action build"
-        }
-      ]
+      "shouldRun": false,
+      "runPhase": "skip",
+      "summary": "No generated, scaffold, or backup changes detected. Verification can be skipped.",
+      "steps": []
     },
     "executionDecision": {
       "schemaVersion": 1,
-      "riskLevel": "high",
-      "nextAction": "verify",
+      "riskLevel": "low",
+      "nextAction": "skip",
       "requiresManualReview": false,
       "applyRequiresExpectedFingerprint": false,
-      "summary": "Changes have been applied. Run the required verification plan now.",
+      "summary": "No actionable changes were detected. No apply or verification step is required.",
       "reasons": [
-        "deleted-generated-files",
-        "manual-review-required",
-        "unknown-impact",
-        "verification-required"
+        "no-actionable-changes"
       ]
     },
     "backedUpFiles": [],

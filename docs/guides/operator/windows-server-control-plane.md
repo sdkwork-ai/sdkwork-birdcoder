@@ -2,117 +2,101 @@
 
 Status: active
 Owner: SDKWork maintainers
-Updated: 2026-07-16
-Specs: DEPLOYMENT_SPEC.md, RUNTIME_DIRECTORY_SPEC.md, SECURITY_SPEC.md, PRIVACY_SPEC.md, OBSERVABILITY_SPEC.md
+Updated: 2026-07-23
+Specs: DEPLOYMENT_SPEC.md, SOURCE_CONFIG_SPEC.md, SECURITY_SPEC.md, OBSERVABILITY_SPEC.md
 
-This guide deploys the BirdCoder control plane on Windows Server. The process
-owns coding-workbench APIs and does not package, configure, or supervise an AI
-provider runner. Agents, Kernel, and Providers own code execution.
+This guide deploys the stateless BirdCoder gateway on Windows Server. The
+process owns the coding-workbench composition and System endpoints only. Agents,
+Skills, IAM, IM, Kernel, and Providers retain their own domain authority.
 
 ## Preconditions
 
 - Use a verified Windows x64 release containing
-  sdkwork-api-birdcoder-standalone-gateway.exe and matching assets.
-- Run it under a dedicated, non-administrator service account. Do not run the
-  service as LocalSystem or as an interactive developer account.
-- Use a supported database configuration. Production cloud configuration
-  requires PostgreSQL and protected database credentials.
-- Inject runtime-location encryption settings through an approved secret
-  source: `SDKWORK_BIRDCODER_RUNTIME_LOCATION_MASTER_KEY` must be base64url or
-  raw material with at least 32 decoded/raw bytes, and
-  `SDKWORK_BIRDCODER_RUNTIME_LOCATION_KEY_ID` must be a non-empty safe key id.
-  Rotation also uses `SDKWORK_BIRDCODER_RUNTIME_LOCATION_PREVIOUS_KEYS_JSON`
-  and a stable `SDKWORK_BIRDCODER_RUNTIME_LOCATION_FINGERPRINT_KEY`. The
-  service must fail closed when required values are missing or invalid; no key
-  value may appear in a tracked environment file, `VITE_*` or client runtime
-  config, command line, log, or diagnostic.
+  `sdkwork-api-birdcoder-standalone-gateway.exe` and matching immutable assets.
+- Run it under a dedicated non-administrator service account, never LocalSystem
+  or an interactive developer identity.
 - Put TLS termination, public DNS, and certificate management at an approved
   reverse proxy or load balancer. Configure exact browser origins.
-- Keep the Tauri desktop application off the server. A desktop local binding
-  proves only the current desktop capability, not server access.
+- Keep the Tauri desktop application and its device-state file off the server.
+- Do not provision a BirdCoder database, schema, migration runner, backup job,
+  project directory, or runtime-location keyring.
 
 ## Directory And ACL Model
 
-Use the SDKWork Windows namespace:
-
 | Purpose | Recommended location | Required access |
 | --- | --- | --- |
-| Installed binary and immutable assets | %ProgramFiles%\sdkwork\birdcoder | Administrators write; service account reads/executes. |
-| Operator configuration | %ProgramData%\sdkwork\birdcoder\config | Administrators and service account only. |
-| Protected secrets and key references | %ProgramData%\sdkwork\birdcoder\Secrets | Service account and designated secret operators only. |
-| Database and mutable server data | %ProgramData%\sdkwork\birdcoder\Data | Service account only, except approved backup restore. |
-| Logs | %ProgramData%\sdkwork\birdcoder\Logs | Service account writes; operators read redacted output. |
-| Cache and temporary state | %ProgramData%\sdkwork\birdcoder\Cache | Service account only. |
+| Installed binary and immutable assets | `%ProgramFiles%\sdkwork\birdcoder` | Administrators write; service account reads and executes. |
+| Operator configuration | `%ProgramData%\sdkwork\birdcoder\config` | Administrators and service account only. |
+| Protected dependency credentials | `%ProgramData%\sdkwork\birdcoder\Secrets` | Service account and designated secret operators only. |
+| Logs | `%ProgramData%\sdkwork\birdcoder\Logs` | Service account writes; operators read redacted output. |
+| Ephemeral cache and temporary state | `%ProgramData%\sdkwork\birdcoder\Cache` | Service account only; safe to recreate. |
 
-Apply inheritance deliberately so ordinary users, IIS identities, build agents,
-and RDP users cannot browse or change Data, Secrets, or cache state. The
-application never maps a raw user-supplied path into these directories.
+The gateway has no durable application data directory. Apply inheritance so
+ordinary users, IIS identities, build agents, and RDP users cannot change
+configuration, credentials, logs, or executable assets.
 
 ## Service Configuration
 
-The native server reads configuration from process environment or an approved
-secret-capable service wrapper:
+```text
+SDKWORK_BIRDCODER_DEPLOYMENT_PROFILE=standalone
+SDKWORK_BIRDCODER_ENVIRONMENT=production
+SDKWORK_BIRDCODER_RUNTIME_TARGET=server
+SDKWORK_BIRDCODER_SERVER_HOST=0.0.0.0
+SDKWORK_BIRDCODER_SERVER_PORT=10240
+SDKWORK_BIRDCODER_ALLOWED_ORIGINS=https://ide.example.invalid
+```
 
-    SDKWORK_BIRDCODER_DEPLOYMENT_PROFILE=standalone
-    SDKWORK_BIRDCODER_ENVIRONMENT=production
-    SDKWORK_BIRDCODER_RUNTIME_TARGET=server
-    SDKWORK_BIRDCODER_SERVER_HOST=0.0.0.0
-    SDKWORK_BIRDCODER_SERVER_PORT=10240
-    SDKWORK_BIRDCODER_ALLOWED_ORIGINS=https://ide.example.invalid
-    SDKWORK_BIRDCODER_DATABASE_ENGINE=postgresql
+The service wrapper must preserve configuration and credential ACLs and must
+not print private values. Neither standalone nor cloud adds a BirdCoder-owned
+execution runtime or persistence layer.
 
-Inject the database URL and runtime-location keyring through a
-protected secret source. The service wrapper must preserve file/secret ACLs,
-must not print the effective values, and must not synthesize a missing key.
-Neither standalone nor cloud adds a BirdCoder-owned execution runtime.
+Test the release under the intended service account before registering it with
+the service manager:
 
-Test a release under the intended service account before registering it with a
-service manager:
-
-    & "$env:ProgramFiles\sdkwork\birdcoder\sdkwork-api-birdcoder-standalone-gateway.exe"
-    Invoke-WebRequest http://127.0.0.1:10240/healthz -UseBasicParsing
-    Invoke-WebRequest http://127.0.0.1:10240/readyz -UseBasicParsing
+```powershell
+& "$env:ProgramFiles\sdkwork\birdcoder\sdkwork-api-birdcoder-standalone-gateway.exe"
+Invoke-WebRequest http://127.0.0.1:10240/healthz -UseBasicParsing
+Invoke-WebRequest http://127.0.0.1:10240/readyz -UseBasicParsing
+Invoke-WebRequest http://127.0.0.1:10240/openapi.json -UseBasicParsing
+```
 
 Stop the process before the service manager owns the port. Record the service
-wrapper choice, account, secret source, configuration source, and recovery
-policy in deployment evidence without including secret or plaintext path
-values.
+wrapper, account, configuration source, image/archive checksum, and rollback
+reference in deployment evidence.
 
-## Client Connection And Isolation
+## Client And Local Capability Boundary
 
-Browser and Tauri clients point to the server through public API base URL
-configuration. Those URLs are endpoints, not credentials. The server may
-receive a typed, authenticated, write-only location-registration request from a
-trusted desktop import, but it never returns that path and never treats it as
-a server filesystem root.
+Browser and Tauri clients point to the gateway through public API base URL
+configuration. URLs are endpoints, not credentials. The Windows service never
+receives or uses:
 
-The server must never receive or use:
-
-- Browser FileSystemDirectoryHandle values;
-- a plaintext path as a remote terminal/Git/build execution argument;
-- mount registry records or local filesystem telemetry as target authority;
+- a browser directory handle;
+- a plaintext local path as a terminal, Git, build, or execution argument;
+- a PC project-device mount record;
+- a Tauri device-state path;
 - unvalidated target identity or capability claims.
 
-Before enabling users, verify that tenant, organization, user, project, target,
-and location boundaries deny cross-scope access. A Windows service account
-boundary supplements, but never replaces, server-side authorization.
+Local directories, Git processes, worktrees, and terminals remain PC/Tauri
+capabilities. The server uses canonical Agents project and Session contracts
+without creating a second Project or runtime-location authority.
 
-## Monitoring And Operations
+## Monitoring And Recovery
 
-- Use health for liveness, readiness for migration/key/dependency readiness,
-  and metrics through the approved monitoring path.
-- Redact paths, key material, credentials, and private identifiers from logs,
-  traces, metric labels, and exported attributes.
-- Back up the authoritative database according to the retention policy.
-  Preserve protected key-management references separately. Do not back up
-  Browser/Tauri local bindings as server data.
-- Integrate remote file, terminal, run, build, or deployment capabilities only
-  through the canonical Agents, Kernel, and Providers contracts and their
-  release evidence.
+- Use `/healthz` for liveness, `/readyz` for dependency readiness, and
+  `/metrics` through the approved monitoring path.
+- Redact credentials and private identifiers from logs, traces, metric labels,
+  and exported attributes.
+- Restore the gateway by redeploying the prior immutable artifact and matching
+  configuration. There is no BirdCoder database backup or migration replay.
+- Coordinate domain-data recovery with the owning Agents, Skills, IAM, or IM
+  service, not with this gateway.
 
 ## Verification
 
-    pnpm db:validate
-    pnpm check:server
-    pnpm release:smoke:server
-    pnpm docs:build
+```powershell
+pnpm test:topology-validate
+node scripts/server-observability-contract.test.mjs
+pnpm check:server
+pnpm release:smoke:server
+pnpm docs:build
+```

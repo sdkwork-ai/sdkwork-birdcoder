@@ -71,29 +71,30 @@ assert.deepEqual(
   ['application.public-ingress'],
   'Server development must not launch a renderer.',
 );
-assert.equal(
-  standaloneDevelopmentProfile.SDKWORK_BIRDCODER_DATABASE_ENGINE,
-  'postgresql',
-  'Standalone development uses the database engine selected by its environment profile.',
+assert.deepEqual(
+  Object.keys(standaloneDevelopmentProfile).filter((key) => (
+    /^SDKWORK_(?:BIRDCODER|CLAW)_DATABASE/u.test(key)
+  )),
+  [],
+  'Stateless BirdCoder profiles must not publish application database configuration.',
 );
-assert.equal(standaloneDevelopmentProfile.SDKWORK_BIRDCODER_DATABASE_URL, undefined);
-assert.equal(standaloneDevelopmentProfile.SDKWORK_BIRDCODER_DATABASE_SCHEMA, undefined);
 
 {
-  const postgresExample = readText('.env.postgres.example');
-  assert.match(postgresExample, /SDKWORK_CLAW_DATABASE_NAME=sdkwork_ai_dev/u);
-  assert.match(postgresExample, /SDKWORK_CLAW_DATABASE_SCHEMA=sdkwork_ai_dev/u);
-  assert.doesNotMatch(
-    postgresExample,
-    /SDKWORK_BIRDCODER_DATABASE_(?:HOST|PORT|NAME|SCHEMA|USERNAME|PASSWORD|URL)/u,
-    'The checked-in PostgreSQL profile must use only the canonical Claw connection identity.',
+  assert.equal(
+    fs.existsSync(path.join(rootDir, '.env.postgres.example')),
+    false,
+    'BirdCoder must not publish an application-owned PostgreSQL profile.',
   );
-
-  const databaseBootstrap = readText(
-    'crates/sdkwork-api-birdcoder-assembly/src/application_bootstrap/database.rs',
+  assert.equal(
+    fs.existsSync(
+      path.join(
+        rootDir,
+        'crates/sdkwork-api-birdcoder-assembly/src/application_bootstrap/database.rs',
+      ),
+    ),
+    false,
+    'BirdCoder assembly must not restore an application database bootstrap.',
   );
-  assert.match(databaseBootstrap, /DatabaseConfig::from_env\("CLAW"\)/u);
-  assert.doesNotMatch(databaseBootstrap, /DatabaseConfig::from_env\("BIRDCODER"\)/u);
 }
 
 {

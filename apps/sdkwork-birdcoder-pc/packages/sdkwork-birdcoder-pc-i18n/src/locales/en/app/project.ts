@@ -1,0 +1,33 @@
+import { defineLocaleModule } from '../../resource.ts';
+
+export default defineLocaleModule('app/project', {
+  app: {
+    revealedInExplorer: 'Revealed in Explorer: {{path}}',
+    revealInExplorerDesktopOnly: 'Reveal in Explorer is available in the desktop app only.',
+    failedToRenameProject: 'Failed to rename project',
+    failedToDeleteProject: 'Failed to delete project',
+    localFolder: 'Local Folder',
+    serverDirectory: 'Server Directory',
+    selectServerDirectory: 'Select a server project directory',
+    openedFolder: 'Opened folder: {{name}}',
+    failedToOpenFolder: 'Failed to open folder',
+    traceRecordingStopped: 'Trace recording stopped',
+    traceRecordingStarted: 'Trace recording started',
+    projects: 'Projects',
+    renameProject: 'Rename Project',
+    deleteProject: 'Delete Project',
+    projectDeleted: 'Project deleted',
+    projectPathUnavailable: 'Project path is unavailable: {{name}}',
+    moreActions: 'More actions',
+    noProjectsFound: 'No projects found',
+    cancel: 'Cancel',
+    create: 'Create',
+    projectNamePlaceholder: 'Project name...',
+    newProject: 'New Project',
+    code: 'Code',
+    studio: 'Studio',
+    terminal: 'Terminal',
+    userProfile: 'User Profile',
+    settings: 'Settings',
+  },
+});

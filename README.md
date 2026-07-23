@@ -1,179 +1,129 @@
 # SDKWork BirdCoder
 
-`sdkwork-birdcoder` is the SDKWork coding workbench application. It provides
-PC, H5, and Flutter user experiences while keeping reusable platform domains in
-their owning SDKWork projects.
+repository-kind: application
 
-The repository is pre-launch. Its current contract version is `0.1.0`, and
-schema/API changes use a direct greenfield cutover without legacy routes,
-shadow tables, dual-write, or compatibility facades.
+`sdkwork-birdcoder` is the SDKWork coding workbench application. The current
+architecture work is scoped to the Rust backend and PC browser/Tauri surfaces.
+H5 and Flutter remain declared application roots, but they are not part of this
+cutover or its verification evidence.
 
-## Application Surfaces
+BirdCoder is pre-launch. Domain changes therefore use one direct cutover with
+no data projection, shadow table, synchronized copy, dual write, alias,
+compatibility facade, or second identifier system.
 
-| Surface | Root | Architecture authority |
-| --- | --- | --- |
-| PC web and desktop | `apps/sdkwork-birdcoder-pc/` | `APP_PC_ARCHITECTURE_SPEC.md` |
-| H5 and Capacitor | `apps/sdkwork-birdcoder-h5/` | `APP_H5_ARCHITECTURE_SPEC.md` |
-| Flutter mobile | `apps/sdkwork-birdcoder-flutter-mobile/` | `FLUTTER_APP_MOBILE_ARCHITECTURE_SPEC.md` |
+## Current Ownership
 
-Application identity, runtime profiles, and release metadata are declared in
-`sdkwork.app.config.json` and the corresponding surface manifests.
+BirdCoder is a stateless application-composition host. It owns only its
+descriptor, health, route catalog, and runtime metadata. Reusable business
+facts remain with their domain owners:
 
-## Domain Ownership
-
-BirdCoder owns one bounded context:
-
-```text
-domain: intelligence
-capability: coding-workbench
-```
-
-Its business facts are limited to workspace/project identity, project document
-bindings, project runtime locations and preferences, and project sandbox
-bindings. The machine-readable authority is
-`specs/domain-ownership.spec.json`.
-
-Reusable domains remain external:
-
-| Owner | Canonical facts used by BirdCoder |
+| Owner | Canonical facts |
 | --- | --- |
-| `sdkwork-agents` | Agent Project, Session, Turn, Session Item, Interaction, Runtime Binding, Artifact, Checkpoint |
-| `sdkwork-skills` | Skill package, version, artifact, capability, installation, API, SDK, and runtime logic |
-| `sdkwork-prompts` | Saved Prompt identity, content, lifecycle, API, and SDK |
+| `sdkwork-agents` | Agent Project, composition slot, Session, Turn, Session Item, Interaction, Runtime Binding, Artifact, and Checkpoint |
+| `sdkwork-skills` | Skill package, version, artifact, capability, installation, and execution metadata |
 | `sdkwork-im` | Human Conversation, Message, Member, and ReadCursor |
-| `sdkwork-iam` | Authentication, users, organizations, memberships, roles, permissions, and audit |
-| `sdkwork-drive` | Sandbox and file storage |
-| `sdkwork-documents` | Document identity, content, lifecycle, API, and SDK |
-| Other SDKWork modules | Appstore, deployments, models, settings, messaging, and commerce facts |
+| `sdkwork-iam` | Authentication, organization scope, membership, role, permission, and audit |
+| `sdkwork-drive` | Drive and sandbox storage |
+| `sdkwork-documents` | Document identity and content |
 
-An AI-assistant transcript is an Agents Session Item stream. It is not an IM
-conversation and is never persisted as an IM Message. BirdCoder uses an
-in-memory UI adapter only, as defined by
-`specs/agent-session-item-view.spec.md`.
+The retired workbench Workspace aggregate is folded directly into IAM
+organization scope plus the canonical Agents `AgentProject`. BirdCoder and
+the PC client use one `projectId`; there is no Workspace service, BirdCoder
+Project, id mapping, or compatibility layer.
 
-The execution dependency is one-way:
+AI assistant content is an Agents Session Item stream. IM messaging is human
+or channel communication. The two models may carry stable correlation
+identifiers, but neither is a persisted copy of the other. See
+[the Session Item UI contract](specs/agent-session-item-view.spec.md).
 
-```text
-BirdCoder -> Agents -> Kernel
-BirdCoder -> IM
-IM -> Agents
-Agents -/-> IM
-BirdCoder -/-> Kernel
-```
+## Database Design
 
-## Database
+BirdCoder owns zero server business tables and has no server database,
+migration, seed, schema, backup, or restore lifecycle.
 
-BirdCoder owns exactly ten `studio_*` tables:
+The Tauri host has one local SQLite table, `device_state_entry`, for
+host-private device state only. Its allowlist is limited to application
+settings, canonical-project device mounts, and the desktop runtime-location
+installation identity. `ProjectDeviceMountRegistry` is keyed by the Agents
+`projectId`. Native paths, Git processes, worktrees, and terminal handles stay
+inside the PC/Tauri boundary and are never BirdCoder server records.
 
-1. `studio_workspace`
-2. `studio_project`
-3. `studio_project_document_binding`
-4. `studio_project_runtime_location`
-5. `studio_project_runtime_location_preference`
-6. `studio_project_runtime_location_idempotency`
-7. `studio_project_runtime_location_audit`
-8. `studio_project_sandbox_binding`
-9. `studio_project_sandbox_binding_idempotency`
-10. `studio_project_sandbox_binding_audit`
+## API And Permissions
 
-The registry is `database/contract/table-registry.json`. SQLite and PostgreSQL
-greenfield baselines are under `database/ddl/baseline/`. Cross-domain ids are
-opaque references and do not create cross-domain database foreign keys.
+BirdCoder owns four App API operations:
 
-## API And SDK
+| Method | Path | Permission |
+| --- | --- | --- |
+| `GET` | `/app/v3/api/system/descriptor` | `birdcoder.system-descriptor.read` |
+| `GET` | `/app/v3/api/system/health` | `birdcoder.system-health.read` |
+| `GET` | `/app/v3/api/system/routes` | `birdcoder.system-routes.read` |
+| `GET` | `/app/v3/api/system/runtime` | `birdcoder.system-runtime.read` |
 
-| Surface | Authority | Operations |
-| --- | --- | ---: |
-| App API | `sdks/sdkwork-birdcoder-app-sdk/openapi/sdkwork-birdcoder-app-api.openapi.json` | 39 |
-| Backend API | None | 0 |
-| Open API | None | 0 |
+Backend API operations: **0**. Open API operations: **0**. The authored
+authority is
+[the BirdCoder App OpenAPI](sdks/sdkwork-birdcoder-app-sdk/openapi/sdkwork-birdcoder-app-api.openapi.json).
+Project, composition, Session, Skill, IM, IAM, Drive, and Document operations
+are consumed from their owner SDK families and are not copied into BirdCoder.
 
-The App API owns only workspaces, projects, project bindings, project runtime
-locations/preferences, project Git orchestration, and system metadata. It does
-not copy routes from Agents, Skills, IM, IAM, Drive, or another SDKWork domain.
+## PC Runtime Boundary
 
-Frontend integration follows one path:
+PC feature packages receive generated owner SDK clients or typed ports from
+the composition root. They do not issue raw HTTP, add manual authentication
+headers, fork DTOs, or import generated transport internals.
 
-```text
-UI -> feature service/port -> injected generated SDK client
-```
+- Project and Session workflows use `@sdkwork/agents-app-sdk`.
+- A Session uses the same canonical `projectId`, then records its opaque
+  runtime location through Agents `sessionRuntimeBindings`.
+- Sandbox composition uses the Agents `drive/drive` composition slot.
+- Document composition remains unavailable and fails closed until Agents owns
+  the canonical `document/documents` slot pair.
+- Local filesystem, Git, worktree, and terminal operations use PC/Tauri host
+  adapters and an authorized device mount.
 
-Bootstrap code constructs SDK clients with the application-wide TokenManager.
-Feature UI must not construct raw HTTP clients, add manual authentication
-headers, import another project's private source, or maintain local generated
-SDK forks.
-
-## Workspace Layout
+## Repository Layout
 
 | Path | Purpose |
 | --- | --- |
-| `apps/` | PC, H5, and Flutter application surfaces |
-| `crates/` | BirdCoder workbench services, repositories, routes, hosts, and Git integration |
-| `sdks/` | BirdCoder-owned App SDK family only |
-| `database/` | Ten-table coding-workbench database authority |
-| `apis/` | API authority index |
-| `specs/` | Local component, ownership, dependency, IAM, and topology contracts |
-| `docs/` | Product, architecture, requirement, migration, operator, and release documentation |
-| `scripts/` | Focused architecture, generation, build, and verification entrypoints |
-| `etc/` | Source runtime configuration and deployment profiles |
+| [`apps/`](apps/README.md) | Application surface roots; the current cutover covers PC only |
+| `crates/` | Stateless Rust assembly, gateway, System routes, and Tauri host adapters |
+| [`apis/`](apis/README.md) | Authored API authority index |
+| [`sdks/`](sdks/README.md) | BirdCoder System-only SDK family and generated outputs |
+| [`specs/`](specs/README.md) | Application machine contracts and human index |
+| [`docs/`](docs/README.md) | Product, architecture, operations, and evidence |
+| `etc/` | Source-controlled safe runtime profiles |
+| `scripts/` | Generation and verification entrypoints |
 
-Shared SDKWork modules are sibling workspace dependencies resolved through
-`pnpm-workspace.yaml`; they are not owned or copied by this repository.
+There is intentionally no `database/` directory. Shared SDKWork packages are
+sibling workspace dependencies resolved through native package manifests, not
+copied source.
 
-## Development
-
-Prerequisites:
-
-- Node.js and `pnpm` 10
-- Rust and Cargo for the service and Tauri hosts
-- Flutter for the Flutter mobile surface
-- Docker only for container or PostgreSQL-oriented workflows
-
-Install the workspace:
+## Development And Verification
 
 ```bash
 pnpm install --frozen-lockfile
-```
-
-Common entrypoints:
-
-```bash
-pnpm dev
 pnpm dev:desktop
 pnpm dev:browser:standalone
-pnpm dev:browser:cloud
-pnpm docs:dev
-```
+pnpm build:server
 
-Runtime values come from the `etc/` source profiles and
-`sdkwork.app.config.json`. Secrets and fixed production identities must not be
-committed or embedded in client code.
-
-## Verification
-
-Run the narrowest relevant check first. The architecture convergence loop is:
-
-```bash
 pnpm check:domain-ownership
 pnpm check:agents-birdcoder-alignment
-pnpm check:kernel-birdcoder-alignment
 pnpm check:api-transport-standard
-pnpm db:validate
+pnpm check:desktop
+pnpm check:server
 pnpm typecheck
 pnpm lint
+pnpm docs:build
 ```
 
-For a release or deployment change, also run the release-flow and target-host
-checks selected by `AGENTS.md` and `sdkwork-specs`.
+Run the narrowest check for the changed boundary first. Global standards live
+in [`../sdkwork-specs/`](../sdkwork-specs/README.md); this repository links
+them instead of copying their normative text.
 
 ## Documentation
 
-- `docs/README.md` is the documentation canon index.
-- `docs/product/prd/PRD.md` is the product authority.
-- `docs/architecture/tech/TECH_ARCHITECTURE.md` is the technical architecture authority.
-- `apis/README.md` lists the owned API surfaces.
-- `database/README.md` explains database ownership and initialization.
-- `specs/README.md` indexes the local machine and narrative contracts.
-
-Global SDKWork rules live in the sibling `sdkwork-specs` repository. This
-repository links those standards and does not duplicate their normative text.
+- [Documentation index](docs/README.md)
+- [Product PRD](docs/product/prd/PRD.md)
+- [Technical architecture](docs/architecture/tech/TECH_ARCHITECTURE.md)
+- [PC application documentation](apps/sdkwork-birdcoder-pc/docs/README.md)
+- [API inventory](apis/README.md)
+- [Local specs index](specs/README.md)

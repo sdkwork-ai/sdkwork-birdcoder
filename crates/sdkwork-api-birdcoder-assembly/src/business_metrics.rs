@@ -152,13 +152,13 @@ mod tests {
         let registry = BusinessMetricsRegistry::default();
         registry.record_api_request(
             "GET",
-            "/app/v3/api/projects/{projectId}",
+            "/app/v3/api/system/routes",
             200,
             Duration::from_millis(40),
         );
         let rendered = registry.render_prometheus();
         assert!(rendered.contains("birdcoder_workbench_api_request_total"));
-        assert!(rendered.contains("route=\"/app/v3/api/projects/{projectId}\""));
+        assert!(rendered.contains("route=\"/app/v3/api/system/routes\""));
         assert!(!rendered.contains("coding_session"));
     }
 

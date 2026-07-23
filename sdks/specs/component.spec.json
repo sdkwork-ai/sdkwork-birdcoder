@@ -160,7 +160,7 @@
       "familyDiscovery": "sdks/*/sdk-manifest.json",
       "generator": "@sdkwork/sdk-generator",
       "surfaces": {
-        "app-api": {"owned": true, "operationCount": 39},
+        "app-api": {"owned": true, "operationCount": 4},
         "backend-api": {"owned": false, "operationCount": 0},
         "open-api": {"owned": false, "operationCount": 0}
       }

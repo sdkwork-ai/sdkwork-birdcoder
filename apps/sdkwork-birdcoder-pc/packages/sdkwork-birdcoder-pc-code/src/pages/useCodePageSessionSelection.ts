@@ -1,9 +1,9 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   buildAgentSessionProjectScopedKey,
-  type BirdCoderProjectAgentSessionIndex,
+  type AgentProjectSessionIndex,
 } from '@sdkwork/birdcoder-pc-workbench/workbench/agentSessionSelection';
-import type { BirdCoderProject } from '@sdkwork/birdcoder-pc-contracts-commons';
+import type { AgentProjectView } from '@sdkwork/birdcoder-pc-contracts-commons';
 import { useCodeProjectSessionResolution } from './useCodeProjectSessionResolution';
 
 interface UseCodePageSessionSelectionOptions {
@@ -13,7 +13,7 @@ interface UseCodePageSessionSelectionOptions {
   isVisible: boolean;
   onAgentSessionChange?: (agentSessionId: string, projectId?: string) => void;
   onProjectChange?: (projectId: string) => void;
-  projectAgentSessionIndex: BirdCoderProjectAgentSessionIndex;
+  projectAgentSessionIndex: AgentProjectSessionIndex;
   projectId?: string;
 }
 
@@ -43,7 +43,7 @@ export function useCodePageSessionSelection({
     sessionId,
     selectedSessionProjectId ?? projectId,
   );
-  const sessionProjectId = selectedAgentSessionLocation?.project.id ?? '';
+  const sessionProjectId = selectedAgentSessionLocation?.project.projectId ?? '';
   const normalizedProjectId = projectId?.trim() ?? '';
   const normalizedSelectedSessionProjectId = selectedSessionProjectId?.trim() ?? '';
   const normalizedSessionProjectId = sessionProjectId?.trim() ?? '';
@@ -81,7 +81,7 @@ export function useCodePageSessionSelection({
     );
     const nextProjectId =
       options?.projectId?.trim() ||
-      resolvedScopedSession?.project.id?.trim() ||
+      resolvedScopedSession?.project.projectId?.trim() ||
       '';
 
     if (
@@ -214,8 +214,8 @@ export function useCodePageSessionSelection({
       ? resolveProjectById(normalizedProjectId)
       : null;
     const nextProjectId =
-      resolvedInitialLocation?.project.id ??
-      scopedInitialProject?.id ??
+      resolvedInitialLocation?.project.projectId ??
+      scopedInitialProject?.projectId ??
       '';
     if (!nextProjectId) {
       return;
@@ -328,7 +328,7 @@ export function useCodePageSessionSelection({
       const targetLatestAgentSessionId = latestAgentSessionIdByProjectId.get(id) ?? null;
       const sessionBelongsToProject =
         !!sessionId &&
-        selectedAgentSessionLocation?.project.id === id &&
+        selectedAgentSessionLocation?.project.projectId === id &&
         !!targetProject?.agentSessions.some(
           (agentSession) => agentSession.id === sessionId,
         );
@@ -350,12 +350,12 @@ export function useCodePageSessionSelection({
     resolveProjectById,
     selectProjectWithoutAgentSession,
     selectSession,
-    selectedAgentSessionLocation?.project.id,
+    selectedAgentSessionLocation?.project.projectId,
     sessionId,
   ]);
 
   return {
-    currentProject: currentProject as BirdCoderProject | null,
+    currentProject: currentProject as AgentProjectView | null,
     currentProjectId,
     handleProjectSelect,
     handleSidebarAgentSessionSelect,

@@ -1,6 +1,6 @@
 import { useEffect, type Dispatch, type SetStateAction } from 'react';
 
-import type { BirdCoderProject } from '@sdkwork/birdcoder-pc-contracts-commons';
+import type { AgentProjectView } from '@sdkwork/birdcoder-pc-contracts-commons';
 
 interface UseStudioProjectInventoryReconciliationOptions {
   currentProjectId: string;
@@ -9,7 +9,7 @@ interface UseStudioProjectInventoryReconciliationOptions {
   menuActiveProjectId: string;
   notifyProjectChange: (projectId: string) => void;
   projectId?: string;
-  projects: readonly BirdCoderProject[];
+  projects: readonly AgentProjectView[];
   resolveAgentSessionLocation: (agentSessionId: string, projectId?: string | null) => unknown;
   resolveProjectById: (projectId: string) => unknown;
   selectedSessionProjectId: string | null;
@@ -51,7 +51,7 @@ export function useStudioProjectInventoryReconciliation({
     }
 
     if (!menuActiveProjectId || !resolveProjectById(menuActiveProjectId)) {
-      setMenuActiveProjectId(projects[0].id);
+      setMenuActiveProjectId(projects[0].projectId);
     }
     if (currentProjectId && !resolveProjectById(currentProjectId)) {
       notifyProjectChange('');

@@ -4,71 +4,79 @@ Status: active
 Owner: SDKWork maintainers
 Application: sdkwork-birdcoder-pc
 Updated: 2026-07-23
-Specs: DOCUMENTATION_SPEC.md, APP_PC_ARCHITECTURE_SPEC.md, DESKTOP_APP_ARCHITECTURE_SPEC.md, APP_SDK_INTEGRATION_SPEC.md, APP_RUNTIME_TOPOLOGY_SPEC.md
+Specs: DOCUMENTATION_SPEC.md, ARCHITECTURE_DECISION_SPEC.md, APP_PC_ARCHITECTURE_SPEC.md, DESKTOP_APP_ARCHITECTURE_SPEC.md, APP_SDK_INTEGRATION_SPEC.md
 
-This document narrows the root
-[technical architecture](../../../../../docs/architecture/tech/TECH_ARCHITECTURE.md)
-to the PC surface. It is not a second architecture authority.
+This document narrows the
+[repository technical architecture](../../../../../docs/architecture/tech/TECH_ARCHITECTURE.md)
+to PC. The repository document remains the architecture Canon.
 
-## Composition Boundary
+## Composition Root
 
-The shell owns routing, runtime configuration, the shared TokenManager, SDK
-client construction, and browser/Tauri host adapters. Feature packages receive
-services or typed ports through injection. They do not construct SDK clients,
-read environment variables, assemble authentication headers, or import
+The PC shell/runtime owns route bootstrap, runtime configuration, the shared
+TokenManager, generated owner SDK clients, and browser/Tauri host adapters.
+Features receive typed services or ports. They do not construct HTTP clients,
+read private environment values, set authentication headers, or import
 generated transport internals.
 
-Remote workbench operations use the composed BirdCoder App SDK. AI workflows
-use the Agents App SDK through the infrastructure `AgentSessionService`. Skills,
-Prompts, Documents, Drive, IAM, and other dependency capabilities use their
-owner SDK families. BirdCoder-generated transport contains only BirdCoder-owned
-App API operations.
+## Connectivity
 
-## SDK Connectivity Planes
+| Plane | Clients |
+| --- | --- |
+| BirdCoder application ingress | Four-operation BirdCoder System SDK |
+| Platform gateway or owner override | Agents, Skills, IM, IAM, Drive, Documents, and other owner SDKs |
 
-`application.public-ingress` is the exclusive base URL for the BirdCoder App
-SDK. `platform.api-gateway` is the default base URL for Agents, Skills,
-Documents, Prompts, IAM, Drive, Messaging, Membership, and Order SDKs. An
-owner-specific dependency override may replace the platform URL for one SDK;
-the BirdCoder application URL is never a dependency fallback.
+Browser development may use the declared platform proxy. Desktop requires an
+explicit platform endpoint. An unavailable required plane fails before feature
+bootstrap.
 
-Browser development maps the platform plane to the same-origin
-`/__sdkwork/platform` path and Vite forwards it to the server-only platform
-target after removing the prefix. `/app` remains bound to BirdCoder. Desktop
-uses the embedded Tauri address only for BirdCoder and requires a separate
-direct platform gateway. Invalid or missing topology fails before feature
-services, session refresh, or commercial SDK bootstrap.
+## Project And Session
 
-## Agent Session Boundary
+```text
+IAM organization scope
+  -> Agents Project (projectId)
+       -> composition slot
+       -> Session
+            -> Turn
+            -> Session Item
+            -> Interaction
+            -> Runtime Binding
+```
 
-The canonical lifecycle is:
+PC view models preserve the owner `projectId` and Session identifiers. There
+is no Workspace bootstrap, second Project id, parallel Session id, persistent
+transcript view, or mapping facade.
 
-    Agents Project -> Session -> Turn -> Session Item -> Interaction
+Session creation and local execution context use:
 
-The PC surface keeps the Agents identifiers returned by the owner SDK and maps
-owner records into disposable UI views. It creates no BirdCoder Session id,
-transcript table, persistent projection, provider runtime, or native-session
-authority. Provider execution and native-session translation remain behind
-Agents and Kernel owner adapters.
+1. the selected canonical `projectId`;
+2. a subject-scoped `ProjectDeviceMountRegistry` record;
+3. the Agents Session;
+4. Agents `sessionRuntimeBindings` with the opaque Tauri runtime id.
 
-## Host And Runtime Location Boundary
+## Host Boundary
 
-A Tauri folder selection is current-device capability material. Distributed
-execution uses an authorized BirdCoder `ProjectRuntimeLocation` id; absolute
-paths remain encrypted and target-private. Browser code cannot turn a local
-directory handle, process CWD, or provider-reported CWD into remote execution
-authority. Unsupported resolution fails closed.
+Browser directory handles stay in browser capability storage. Tauri commands
+own native directory selection, canonicalization, filesystem operations, Git,
+worktrees, terminals, and allowlisted device state.
+
+The Tauri SQLite table `device_state_entry` is not a business store. It cannot
+contain Project, Session, Conversation, Message, Skill, transcript, or owner
+SDK response records. Missing or unauthorized local capability fails closed.
+
+## Composition Slots
+
+- Sandbox: Agents `drive/drive`, with Drive as the target owner.
+- Document: unavailable until Agents publishes `document/documents`.
+
+PC does not cast or serialize an unsupported slot value to bypass the owner
+contract.
 
 ## Verification
 
-    pnpm check:agents-birdcoder-alignment
-    pnpm check:api-transport-standard
-    pnpm check:app-composition
-    pnpm check:desktop
-    pnpm typecheck
-
-## Canonical References
-
-- [Root technical architecture](../../../../../docs/architecture/tech/TECH_ARCHITECTURE.md)
-- [Root PRD](../../../../../docs/product/prd/PRD.md)
-- [API reference](../../../../../docs/reference/api-reference.md)
+```bash
+pnpm --dir apps/sdkwork-birdcoder-pc typecheck
+pnpm check:agents-birdcoder-alignment
+pnpm check:api-transport-standard
+pnpm check:local-business-storage-boundary
+pnpm check:desktop
+```

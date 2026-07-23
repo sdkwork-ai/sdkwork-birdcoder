@@ -2,7 +2,7 @@ import { useEffect, useRef } from 'react';
 import { buildProjectAgentSessionIndex, buildAgentSessionProjectScopedKey } from '@sdkwork/birdcoder-pc-workbench/workbench/agentSessionSelection';
 import { emitOpenTerminalRequest } from '@sdkwork/birdcoder-pc-workbench/terminal/requests';
 import { globalEventBus } from '@sdkwork/birdcoder-pc-workbench/utils/EventBus';
-import type { BirdCoderProjectAgentSessionIndex } from '@sdkwork/birdcoder-pc-workbench/workbench/agentSessionSelection';
+import type { AgentProjectSessionIndex } from '@sdkwork/birdcoder-pc-workbench/workbench/agentSessionSelection';
 import type { TerminalCommandRequest } from '@sdkwork/birdcoder-pc-workbench/terminal/requests';
 import type { ToastType } from '@sdkwork/birdcoder-pc-workbench/contexts/ToastProvider';
 import type { ProjectRuntimeLocationResolver } from '@sdkwork/birdcoder-pc-workbench/hooks/useProjectRuntimeLocation';
@@ -10,12 +10,12 @@ import {
   getProjectRuntimeLocationFailureMessage,
   getResolvedProjectRuntimeLocationWorkingDirectory,
 } from '@sdkwork/birdcoder-pc-workbench/workbench/projectRuntimeLocationResolution';
-import type { BirdCoderProject } from '@sdkwork/birdcoder-pc-contracts-commons';
+import type { AgentProjectView } from '@sdkwork/birdcoder-pc-contracts-commons';
 import { useTranslation } from 'react-i18next';
 
 interface UseCodeWorkbenchCommandsOptions {
   isActive?: boolean;
-  projects: BirdCoderProject[];
+  projects: AgentProjectView[];
   selectedAgentSessionId: string | null;
   selectedProjectId: string | null;
   resolveProjectRuntimeLocation: ProjectRuntimeLocationResolver;
@@ -57,7 +57,7 @@ export function useCodeWorkbenchCommands({
 }: UseCodeWorkbenchCommandsOptions) {
   const { t } = useTranslation();
   const projectsRef = useRef(projects);
-  const projectAgentSessionIndexRef = useRef<BirdCoderProjectAgentSessionIndex | null>(null);
+  const projectAgentSessionIndexRef = useRef<AgentProjectSessionIndex | null>(null);
   const selectedAgentSessionIdRef = useRef(selectedAgentSessionId);
   const selectedProjectIdRef = useRef(selectedProjectId);
   const resolveProjectRuntimeLocationRef = useRef(resolveProjectRuntimeLocation);

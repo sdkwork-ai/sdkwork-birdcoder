@@ -1,18 +1,18 @@
 import type { SandboxSelection } from '@sdkwork/drive-pc-sandbox-contracts';
 
 interface ProjectIdentifier {
-  readonly id: string;
+  readonly projectId: string;
 }
 
-export interface ProjectWorkspaceBindingPort {
-  bindProjectWorkspace(
+export interface ProjectDriveCompositionPort {
+  bindProjectDrive(
     projectId: string,
     selection: SandboxSelection,
   ): Promise<void>;
 }
 
 export interface ImportSandboxDirectoryProjectOptions {
-  readonly bindingPort: ProjectWorkspaceBindingPort;
+  readonly compositionPort: ProjectDriveCompositionPort;
   readonly createProject: (name: string) => Promise<ProjectIdentifier>;
   readonly deleteCreatedProject?: (projectId: string) => Promise<void>;
   readonly fallbackProjectName: string;
@@ -26,7 +26,7 @@ export interface ImportedSandboxDirectoryProject {
 }
 
 export interface RebindSandboxDirectoryProjectOptions {
-  readonly bindingPort: ProjectWorkspaceBindingPort;
+  readonly compositionPort: ProjectDriveCompositionPort;
   readonly projectId: string;
   readonly selection: SandboxSelection;
 }
@@ -56,13 +56,13 @@ export async function importSandboxDirectoryProject(
   options: ImportSandboxDirectoryProjectOptions,
 ): Promise<ImportedSandboxDirectoryProject> {
   const projectName = resolveProjectName(options.selection, options.fallbackProjectName);
-  const projectId = (await options.createProject(projectName)).id.trim();
+  const projectId = (await options.createProject(projectName)).projectId.trim();
   if (!projectId) {
     throw new Error('Project creation returned an empty project id.');
   }
 
   try {
-    await options.bindingPort.bindProjectWorkspace(projectId, options.selection);
+    await options.compositionPort.bindProjectDrive(projectId, options.selection);
   } catch (error) {
     let cleanupError: unknown = null;
     if (options.deleteCreatedProject) {
@@ -89,5 +89,5 @@ export async function rebindSandboxDirectoryProject(
   if (!projectId) {
     throw new Error('Project id is required to bind a server directory.');
   }
-  await options.bindingPort.bindProjectWorkspace(projectId, options.selection);
+  await options.compositionPort.bindProjectDrive(projectId, options.selection);
 }

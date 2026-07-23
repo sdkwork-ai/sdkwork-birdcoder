@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use crate::api::{SystemApi, IntelligenceApi};
+use crate::api::{SystemApi};
 use crate::http::{SdkworkConfig, SdkworkError, SdkworkHttpClient};
 
 #[derive(Clone)]
@@ -40,9 +40,5 @@ impl SdkworkAppClient {
 
     pub fn system(&self) -> SystemApi {
             SystemApi::new(Arc::clone(&self.http))
-        }
-
-    pub fn intelligence(&self) -> IntelligenceApi {
-            IntelligenceApi::new(Arc::clone(&self.http))
         }
 }

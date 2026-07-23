@@ -7,12 +7,9 @@ import {
   type CreateBirdCoderDefaultIdeServicesOptions,
 } from './defaultIdeServicesShared.ts';
 import { ApiBackedCatalogService } from './impl/ApiBackedCatalogService.ts';
-import { ApiBackedGitService } from './impl/ApiBackedGitService.ts';
-import { ApiBackedProjectService } from './impl/ApiBackedProjectService.ts';
 import { ApiBackedVipMembershipService } from './impl/ApiBackedVipMembershipService.ts';
-import { ApiBackedWorkspaceService } from './impl/ApiBackedWorkspaceService.ts';
 import { PromptsSdkPromptService } from './impl/PromptsSdkPromptService.ts';
-import { DocumentsSdkProjectDocumentService } from './impl/DocumentsSdkProjectDocumentService.ts';
+import { UnavailableProjectDocumentService } from './impl/UnavailableProjectDocumentService.ts';
 
 export type {
   BirdCoderDefaultIdeServiceKey,
@@ -59,39 +56,19 @@ export function loadDefaultBirdCoderIdeService<K extends BirdCoderDefaultIdeServ
       case 'catalogService':
         return new ApiBackedCatalogService({ skillsClient: runtime.skillsClient });
       case 'documentService':
-        return new DocumentsSdkProjectDocumentService({
-          appClient: runtime.appClient,
-          documentsClient: runtime.documentsClient,
-        });
+        return new UnavailableProjectDocumentService();
       case 'fileSystemService':
         return runtime.fileSystemService;
       case 'gitService':
-        return new ApiBackedGitService({
-          appClient: runtime.appClient,
-          resolveProjectRuntimeLocation: (projectId) =>
-            runtime.projectRuntimeLocationService.resolveProjectRuntimeLocation(projectId, {
-              allowFolderSelection: false,
-              capability: 'git',
-            }),
-          resolveRemoteRuntimeLocationId: (projectId) =>
-            runtime.projectRuntimeLocationService.resolveRemoteProjectRuntimeLocationId(
-              projectId,
-              'git',
-            ),
-        });
+        return runtime.gitService;
       case 'projectRuntimeLocationService':
         return runtime.projectRuntimeLocationService;
       case 'promptService':
         return new PromptsSdkPromptService(runtime.promptsClient);
       case 'projectService':
-        return new ApiBackedProjectService({
-          agentProjects: runtime.agentsClient.ai.agents.projects,
-          appClient: runtime.appClient,
-        });
+        return runtime.projectService;
       case 'vipMembershipService':
         return new ApiBackedVipMembershipService();
-      case 'workspaceService':
-        return new ApiBackedWorkspaceService({ appClient: runtime.appClient });
       default:
         throw new Error(`Unsupported BirdCoder IDE service key: ${String(serviceKey)}`);
     }

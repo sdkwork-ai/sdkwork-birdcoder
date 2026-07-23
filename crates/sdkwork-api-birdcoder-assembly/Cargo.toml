@@ -12,28 +12,15 @@ path = "src/lib.rs"
 [dependencies]
 axum.workspace = true
 tokio.workspace = true
-serde.workspace = true
 serde_json.workspace = true
-uuid.workspace = true
-async-trait.workspace = true
 tracing = "0.1"
 sdkwork-web-bootstrap = { workspace = true, features = ["otel"] }
 sdkwork-web-axum.workspace = true
 sdkwork-web-core.workspace = true
 sdkwork-web-contract.workspace = true
 sdkwork_iam_web_adapter.workspace = true
-sdkwork_database_sqlx.workspace = true
-sdkwork_database_id.workspace = true
-sdkwork_database_config.workspace = true
-sdkwork-birdcoder-database-host.workspace = true
-sqlx.workspace = true
-sdkwork-utils-rust.workspace = true
-sdkwork-birdcoder-workspace-service.workspace = true
-sdkwork-birdcoder-project-service.workspace = true
-sdkwork-birdcoder-git.workspace = true
-sdkwork-birdcoder-workspace-repository-sqlx.workspace = true
+sdkwork-api-agents-assembly.workspace = true
 sdkwork-routes-system-app-api.workspace = true
-sdkwork-routes-workspace-app-api.workspace = true
 
 [dev-dependencies]
 tower = { version = "0.5", features = ["util"] }

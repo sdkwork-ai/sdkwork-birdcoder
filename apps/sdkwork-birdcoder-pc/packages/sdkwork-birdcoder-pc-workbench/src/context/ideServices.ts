@@ -10,14 +10,12 @@ import type {
   IProjectService,
   IPromptService,
   IVipMembershipService,
-  IWorkspaceService,
 } from '@sdkwork/birdcoder-pc-infrastructure-runtime';
 import { createLazyDefaultIdeServices, type AppIdeServices } from './lazyDefaultIdeServices.ts';
 
 export interface IIDEContext {
   agentSessionService: IAgentSessionService;
   catalogService: ICatalogService;
-  workspaceService: IWorkspaceService;
   projectService: IProjectService;
   promptService: IPromptService;
   documentService: IDocumentService;
@@ -33,7 +31,6 @@ export function createDefaultIdeContextValue(): IIDEContext {
   return {
     agentSessionService: defaultIdeServices.agentSessionService,
     catalogService: defaultIdeServices.catalogService,
-    workspaceService: defaultIdeServices.workspaceService,
     projectService: defaultIdeServices.projectService,
     promptService: defaultIdeServices.promptService,
     documentService: defaultIdeServices.documentService,

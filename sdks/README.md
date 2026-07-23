@@ -1,30 +1,35 @@
-# BirdCoder SDK Workspace
+# BirdCoder SDKs
 
-BirdCoder owns one SDK family: `sdkwork-birdcoder-app-sdk`. It is generated from the 39-operation
-BirdCoder App API authority at
-`sdkwork-birdcoder-app-sdk/openapi/sdkwork-birdcoder-app-api.openapi.json`.
+`sdks/` contains the one BirdCoder-owned App SDK family. Authored OpenAPI and
+SDK-family manifests live at the family root; language-specific generated
+transports are derived output.
 
-| Surface | Owned operations | SDK family |
-| --- | ---: | --- |
-| App API | 39 | `sdkwork-birdcoder-app-sdk` |
-| Backend API | 0 | None |
-| Open API | 0 | None |
+| SDK family | API plane | Owned operations |
+| --- | --- | ---: |
+| [`sdkwork-birdcoder-app-sdk`](sdkwork-birdcoder-app-sdk/README.md) | App API | 4 |
 
-IAM, Drive, Messaging, Membership, Skills, Agents, Deployments, and other external capabilities are
-consumed from their owner SDK families. They are not copied into BirdCoder OpenAPI or generated
-transport.
+BirdCoder has no Backend SDK family and no Open SDK family because it owns zero
+operations on those planes.
 
-TypeScript consumers import `@sdkwork/birdcoder-app-sdk` through the application-root workspace.
-Rust consumers use `sdkwork-birdcoder-app-sdk-rust`. Generated transport is owned by
-`@sdkwork/sdk-generator` under each language workspace's `generated/server-openapi` directory.
+Project, composition, Session, Skill, IM, IAM, Drive, and Document consumers
+must import their owner SDK families. They are not re-exported as BirdCoder
+domain operations and are not copied into this workspace.
 
-```powershell
-node scripts/sync-birdcoder-sdk-openapi.mjs
+## Source And Generated Boundaries
+
+- `openapi/` contains the materialized BirdCoder App API authority.
+- `sdk-manifest.json` declares SDK ownership and generation inputs.
+- `sdkwork-birdcoder-app-sdk-*/generated/` is generated and never hand-edited.
+- Language family facades may expose approved generated exports without
+  implementing a second transport.
+
+## Verification
+
+```bash
 pnpm sdk:generate
 pnpm check:sdk-family-standard
 pnpm check:sdk-family-generated
 ```
 
-The synchronization and generation commands must be idempotent. PC-local SDK mirrors, BirdCoder
-backend SDKs, empty Open API families, duplicate authority files, raw HTTP fallbacks, and manual
-edits under generated ownership are forbidden.
+Run generation twice when validating reproducibility; the second run must
+produce no new source diff.

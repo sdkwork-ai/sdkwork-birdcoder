@@ -1,25 +1,34 @@
-# PC App Documentation
+# BirdCoder PC Documentation
 
-This directory contains app architecture notes, runbooks, release notes, and local decisions for the PC application.
+Status: active
+Owner: SDKWork maintainers
+Updated: 2026-07-23
+Specs: DOCUMENTATION_SPEC.md, APP_PC_ARCHITECTURE_SPEC.md
 
-## Purpose
+This directory narrows the repository Canon to PC browser and Tauri behavior.
+It does not redefine shared product, API, SDK, or domain contracts.
 
-Documentation specific to the PC application surface.
+## Canon Supplements
 
-## Allowed Content
+- [PC product supplement](product/prd/PRD.md)
+- [PC architecture supplement](architecture/tech/TECH_ARCHITECTURE.md)
+- [Repository PRD](../../../docs/product/prd/PRD.md)
+- [Repository technical architecture](../../../docs/architecture/tech/TECH_ARCHITECTURE.md)
 
-- Architecture notes
-- Runbooks
-- Release notes
-- Local decisions
-- Platform-specific documentation
+## Current PC Boundary
 
-## Forbidden Content
+- one canonical Agents `projectId`;
+- Agents Project, composition, Session, Session Item, and Runtime Binding SDKs;
+- Skills and IM through their owner SDKs;
+- browser-local directory handles;
+- Tauri-local filesystem, Git, worktree, terminal, and allowlisted device
+  state;
+- no PC business database, raw HTTP transport, or copied SDK authority.
 
-- Shared documentation (belongs in root `docs/`)
-- API documentation (belongs in `sdks/` or `apis/`)
+## Verification
 
-## Related Specs
-
-- `APP_PC_ARCHITECTURE_SPEC.md` section 2
-- `DOCUMENTATION_SPEC.md`
+```bash
+pnpm --dir apps/sdkwork-birdcoder-pc typecheck
+pnpm check:desktop
+pnpm docs:build
+```

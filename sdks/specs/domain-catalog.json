@@ -17,11 +17,11 @@
       "owner": "sdkwork-birdcoder",
       "level": "L2",
       "classification": "application-feature",
-      "boundary": "BirdCoder coding-workbench workspace and project lifecycle, Drive-backed project bindings, verified runtime locations, project Git orchestration, and application runtime metadata.",
-      "databasePrefix": "studio",
-      "databasePrefixes": ["studio"],
-      "apiTags": ["intelligence", "system"],
-      "sdkNamespaces": ["intelligence", "system"],
+      "boundary": "Stateless BirdCoder application descriptor, health, route catalog, and runtime metadata. Project, composition, AI execution, Skills, and human messaging facts remain in their owner modules.",
+      "databasePrefix": null,
+      "databasePrefixes": [],
+      "apiTags": ["system"],
+      "sdkNamespaces": ["system"],
       "permissionPrefixes": ["birdcoder"],
       "eventPrefixes": ["birdcoder"],
       "frontendPackages": [
@@ -29,20 +29,23 @@
         "@sdkwork/birdcoder-pc-infrastructure"
       ],
       "capabilities": [
-        "workspaces",
-        "projects",
-        "projectDocumentBindings",
-        "projectSandboxBinding",
-        "projectRuntimeLocations",
-        "projectGit",
         "systemDescriptor",
         "systemHealth",
         "systemOwnerRoutes",
         "systemRuntimeMetadata"
       ],
-      "dependsOn": ["drive"],
+      "dependsOn": [
+        "iam",
+        "drive",
+        "messaging",
+        "membership",
+        "skills",
+        "agents",
+        "prompts",
+        "documents"
+      ],
       "extends": [],
-      "javaParity": "required",
+      "javaParity": "not-applicable",
       "rustParity": "required"
     }
   ]

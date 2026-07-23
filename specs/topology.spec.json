@@ -78,9 +78,6 @@
       "httpHost": "api.sdkwork.com"
     }
   },
-  "database": {
-    "appPrefix": "SDKWORK_BIRDCODER"
-  },
   "components": {
     "applicationServer": {
       "crate": "sdkwork-api-birdcoder-standalone-gateway",

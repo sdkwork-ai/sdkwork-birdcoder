@@ -1,13 +1,11 @@
 # SDKWork BirdCoder Kubernetes Deployment
 
-Helm chart for the BirdCoder API server with production safety defaults:
+This Helm chart deploys the stateless BirdCoder API gateway. BirdCoder owns no
+database, migration, backup job, or persistent volume. Agents, skills, IAM, and
+other dependency domains operate their own persistence and recovery procedures.
 
-- `replicaCount: 1` for the non-HA cloud control-plane baseline
-- PostgreSQL is mandatory; the chart never falls back to SQLite
-- `autoscaling.enabled: false` until the PostgreSQL/Redis HA overlay and live smoke pass
-- Probes and ServiceMonitor scrape `/healthz`, `/readyz`, and `/metrics` respectively
-- `database.engine` is published through ConfigMap as `SDKWORK_BIRDCODER_DATABASE_ENGINE`
-- `auth.existingSecret` allows referencing a pre-provisioned Secret (External Secrets Operator, Sealed Secrets, cloud KMS) instead of embedding credentials in values.yaml
+The baseline includes hardened pod security, exact-origin CORS configuration,
+health probes, a network policy, and optional ServiceMonitor integration.
 
 ## Install
 
@@ -17,87 +15,33 @@ helm upgrade --install sdkwork-birdcoder ./deployments/kubernetes \
   --set image.digest='sha256:<immutable-image-digest>'
 ```
 
-## PostgreSQL HA
+Set a real image digest and replace the reserved origin before enabling public
+traffic. `auth.existingSecret` may reference an operator-managed Secret for
+gateway credentials and enabled Redis credentials. Database credentials do not
+belong in this chart.
 
-1. Provision `auth.existingSecret` with the PostgreSQL DSN, Redis credentials,
-   runtime-location keyring, and isolated backup restore-test DSN. Do not put
-   secret values in Helm values or command-line arguments.
-2. Run database bootstrap/migrations against the PostgreSQL baseline in `database/ddl/baseline/postgres/`.
-3. BirdCoder repositories resolve a shared sqlx `AnyPool` from the bootstrap `DatabasePool`, so PostgreSQL no longer fails fast at repository wiring.
-4. Provision Redis and apply `values-postgresql-ha.yaml`, which sets `realtime.backend: redis` and `redis.enabled: true`. Workspace WebSocket events fan out through Redis pub/sub so multiple API replicas stay consistent.
-5. Re-enable autoscaling and raise `replicaCount` only after PostgreSQL HA smoke passes in the target environment.
+Use an immutable image tag, and pin the matching `sha256` digest during
+production promotion so a tag cannot resolve to different bytes later.
 
-6. Enable scheduled backups with a restore-test DSN key in the existing Secret:
+## High Availability
 
-```yaml
-backup:
-  enabled: true
-  verifyDatabaseUrlSecretKey: SDKWORK_BIRDCODER_BACKUP_VERIFY_DATABASE_URL
-database:
-  engine: postgresql
-  schema: sdkwork_ai_prod
-  url: ""
-```
-
-See `docs/guides/operator/backup-restore.md` for restore procedures.
-
-Apply the production overlay:
+`values-ha.yaml` scales the stateless gateway, enables Redis-backed realtime,
+sets a three-replica autoscaling floor, configures a disruption budget, and
+publishes the production OpenTelemetry collector endpoint.
 
 ```bash
 helm upgrade --install sdkwork-birdcoder ./deployments/kubernetes \
   -f deployments/kubernetes/values.yaml \
-  -f deployments/kubernetes/values-postgresql-ha.yaml \
+  -f deployments/kubernetes/values-ha.yaml \
   --set image.digest='sha256:<immutable-image-digest>'
 ```
 
-### HA overlay configuration
-
-`values-postgresql-ha.yaml` strengthens the deployment for PostgreSQL HA with the following overrides on top of `values.yaml`:
-
-| Field | Value | Purpose |
-| --- | --- | --- |
-| `replicaCount` | `3` | Baseline replicas for HA quorum |
-| `database.engine` | `postgresql` | Switch from SQLite to external PostgreSQL |
-| `realtime.backend` | `redis` | Fan out WebSocket events across replicas via Redis pub/sub |
-| `redis.enabled` | `true` | Enable Redis with TLS (`redis-master` host) |
-| `autoscaling.minReplicas` | `3` | HPA floor matching HA quorum |
-| `autoscaling.maxReplicas` | `10` | HPA ceiling for load spikes |
-| `podDisruptionBudget.minAvailable` | `2` | Keep at least 2 replicas during disruptions |
-| `backup.schedule` | `0 2 * * *` | Daily 02:00 UTC backup, 30-day retention |
-| `observability.otlpEndpoint` | `http://otel-collector.observability.svc.cluster.local:4317` | OTLP/gRPC traces at 10% sampling |
-| `resources.limits` | `cpu: "4", memory: 8Gi` | Production resource envelope |
-| `persistence.enabled` | `false` | Application SQLite PVC disabled; data lives in PostgreSQL. `storageClass: premium-rwo` is reused by the backup PVC |
-
-Required secrets are injected through `auth.existingSecret` by an external
-secret manager:
-
-- `SDKWORK_CLAW_DATABASE_URL` - canonical PostgreSQL connection string
-- Redis credential keys required by the selected Redis deployment
-- Runtime-location active, fingerprint, and historical decryption keys
-- `SDKWORK_BIRDCODER_BACKUP_VERIFY_DATABASE_URL` - isolated restore-test DSN
-
-Prerequisites:
-
-- PostgreSQL HA cluster (CloudNativePG or crunchydata postgres-operator)
-- Redis HA (redis-ha chart)
-- OpenTelemetry collector deployed in `observability` namespace
-
-Release bundles generated by `scripts/release/package-release-assets.mjs` also emit `values.release.yaml` with immutable image tags and optional digests.
+Redis credentials must come from `auth.existingSecret`; do not place them in
+Helm values or command-line arguments.
 
 ## Observability
 
-The chart exposes the BirdCoder API server's `/metrics` (Prometheus text), `/healthz` liveness, and `/readyz` readiness endpoints and wires OpenTelemetry runtime env through the ConfigMap (`deployments/kubernetes/templates/configmap.yaml`).
-
-| `observability` field | Default (`values.yaml`) | Effect |
-| --- | --- | --- |
-| `logLevel` | `info` | Published as `RUST_LOG`. |
-| `tracesExporter` | `otlp` | Published as `OTEL_TRACES_EXPORTER`. |
-| `otlpEndpoint` | `""` | Published as `OTEL_EXPORTER_OTLP_ENDPOINT`. Standalone/dev ships no collector; production injects the collector URL via `values-postgresql-ha.yaml` or an external secret. |
-| `otlpProtocol` | `grpc` | Published as `OTEL_EXPORTER_OTLP_PROTOCOL`. The Rust bootstrap expects a gRPC OTLP collector (port `4317`). |
-| `metricsExporter` | `prometheus` | Published as `OTEL_METRICS_EXPORTER`. Scraped via `serviceMonitor`. |
-| `logsExporter` | `otlp` | Published as `OTEL_LOGS_EXPORTER`. |
-| `tracesSamplingRatio` | `"0.1"` | 10% `parentbased_traceidratio` sampling. The ConfigMap emits `OTEL_TRACES_SAMPLER=parentbased_traceidratio` and `OTEL_TRACES_SAMPLER_ARG` only when this value is non-empty; an empty string disables trace sampling configuration. |
-
-To disable trace export in a non-production overlay, set `observability.otlpEndpoint: ""` (the bootstrap then falls back to structured `tracing` logs). To raise sampling for a staging environment, override `observability.tracesSamplingRatio: "1.0"`.
-
-`values-postgresql-ha.yaml` overrides the production collector endpoint to `http://otel-collector.observability.svc.cluster.local:4317` at 10% sampling.
+The chart exposes `/healthz`, `/readyz`, and `/metrics`. The ConfigMap publishes
+the lifecycle environment, deployment profile, runtime target, exact CORS
+origins, Redis settings, and OpenTelemetry settings only. It intentionally
+publishes no database or device-state configuration.

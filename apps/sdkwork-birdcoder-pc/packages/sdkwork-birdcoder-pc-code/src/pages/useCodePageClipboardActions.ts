@@ -3,9 +3,8 @@ import type { ToastType } from '@sdkwork/birdcoder-pc-workbench/contexts/ToastPr
 import { copyTextToClipboard } from '@sdkwork/birdcoder-pc-ui/components/clipboard';
 
 interface CodePageClipboardProjectLike {
-  id: string;
+  projectId: string;
   name: string;
-  workspaceId?: string;
 }
 
 interface CodePageClipboardSessionLocation {
@@ -40,7 +39,7 @@ export function useCodePageClipboardActions({
       return;
     }
 
-    const localWorkingDirectory = await resolveLocalWorkingDirectory(target.id);
+    const localWorkingDirectory = await resolveLocalWorkingDirectory(target.projectId);
     if (!localWorkingDirectory) {
       addToast('A local desktop folder must be mounted before copying its directory.', 'error');
       return;
@@ -59,7 +58,7 @@ export function useCodePageClipboardActions({
       return;
     }
 
-    const localWorkingDirectory = await resolveLocalWorkingDirectory(target.id);
+    const localWorkingDirectory = await resolveLocalWorkingDirectory(target.projectId);
     if (!localWorkingDirectory) {
       addToast('A local desktop folder must be mounted before copying its path.', 'error');
       return;
@@ -83,7 +82,7 @@ export function useCodePageClipboardActions({
       return;
     }
 
-    const localWorkingDirectory = await resolveLocalWorkingDirectory(target.id);
+    const localWorkingDirectory = await resolveLocalWorkingDirectory(target.projectId);
     if (!localWorkingDirectory) {
       addToast('A local desktop folder must be mounted before copying its directory.', 'error');
       return;
@@ -100,24 +99,18 @@ export function useCodePageClipboardActions({
     agentSessionId: string,
     projectId: string,
   ) => {
-    const sessionLocation = resolveSession(agentSessionId, projectId);
     const linkUrl = new URL(window.location.href);
     linkUrl.searchParams.delete('sessionId');
-    linkUrl.searchParams.delete('workspaceId');
     linkUrl.searchParams.set('tab', 'code');
     linkUrl.searchParams.set('projectId', projectId);
     linkUrl.searchParams.set('agentSessionId', agentSessionId);
-    const workspaceId = sessionLocation?.project?.workspaceId?.trim();
-    if (workspaceId) {
-      linkUrl.searchParams.set('workspaceId', workspaceId);
-    }
     const link = linkUrl.toString();
     const didCopy = await copyTextToClipboard(link);
     addToast(
       didCopy ? t('code.copiedDeeplink', { link }) : 'Unable to copy session link',
       didCopy ? 'success' : 'error',
     );
-  }, [addToast, resolveSession, t]);
+  }, [addToast, t]);
 
   return {
     handleCopyProjectPath,

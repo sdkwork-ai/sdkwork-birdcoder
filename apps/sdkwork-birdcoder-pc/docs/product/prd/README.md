@@ -1,15 +1,10 @@
-# Product PRD Directory
+# PC Product PRD Directory
 
-This directory owns the product Canon for the repository.
+[`PRD.md`](PRD.md) is the PC product supplement. The repository-level PRD
+remains the product Canon.
 
-## Fixed Entry
+Keep PC-specific outcomes here. Shared requirements, API inventories,
+architecture decisions, and generated contracts remain in their repository
+authorities.
 
-- [PRD.md](PRD.md) — required entry document. Keep summary, status, and links here.
-
-## Splitting Rules
-
-- Split large PRD content into sibling shards named `PRD-<kebab-topic>.md`.
-- Every shard `MUST` be linked from `PRD.md`.
-- Do not create competing product roots such as `docs/product/PRD.md`; that path is retired and redirect-only.
-
-See `DOCUMENTATION_SPEC.md` section 2.2.
+Authority: `DOCUMENTATION_SPEC.md` section 2.2.

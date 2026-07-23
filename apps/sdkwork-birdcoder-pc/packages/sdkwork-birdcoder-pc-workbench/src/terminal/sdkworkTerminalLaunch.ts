@@ -21,7 +21,6 @@ import type { DesktopTerminalLaunchPlan } from './contracts/sdkworkTerminalShell
 export interface BirdcoderTerminalSessionMetadata {
   projectId?: string | null;
   title?: string | null;
-  workspaceId?: string | null;
 }
 
 export interface ResolveBirdcoderTerminalLaunchRequestOptions
@@ -95,7 +94,6 @@ function buildLocalProcessRequest(
     workingDirectory,
     cols: DEFAULT_TERMINAL_COLS,
     rows: DEFAULT_TERMINAL_ROWS,
-    workspaceId: metadata.workspaceId ?? null,
     projectId: metadata.projectId ?? null,
     title: metadata.title ?? null,
     profileId: profileId ?? null,
@@ -113,7 +111,6 @@ function buildLocalShellRequest(
     workingDirectory,
     cols: DEFAULT_TERMINAL_COLS,
     rows: DEFAULT_TERMINAL_ROWS,
-    workspaceId: metadata.workspaceId ?? null,
     projectId: metadata.projectId ?? null,
     title: metadata.title ?? null,
     profileId: profileId ?? null,

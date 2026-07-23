@@ -7,8 +7,8 @@ import {
   type ProjectFileSystemChangeEvent,
   type IFileNode,
   type LocalFolderMountSource,
-  type WorkspaceFileSearchExecutionResult,
-  type WorkspaceFileSearchOptions,
+  type ProjectFileSearchExecutionResult,
+  type ProjectFileSearchOptions,
 } from '@sdkwork/birdcoder-pc-contracts-commons';
 import { APP_SESSION_CHANGE_EVENT_NAME } from '@sdkwork/birdcoder-pc-core/appSessionEvents';
 import {
@@ -266,7 +266,7 @@ function normalizeRuntimeFileSearchContentBudget(maxFileContentCharacters?: numb
   return Math.max(MIN_RUNTIME_FILE_SEARCH_CONTENT_CHARACTERS, Math.floor(maxFileContentCharacters));
 }
 
-function createEmptyRuntimeFileSearchResult(): WorkspaceFileSearchExecutionResult {
+function createEmptyRuntimeFileSearchResult(): ProjectFileSearchExecutionResult {
   return {
     limitReached: false,
     results: [],
@@ -1442,8 +1442,8 @@ export class RuntimeFileSystemService implements IFileSystemService {
 
   async searchFiles(
     projectId: string,
-    options: WorkspaceFileSearchOptions,
-  ): Promise<WorkspaceFileSearchExecutionResult> {
+    options: ProjectFileSearchOptions,
+  ): Promise<ProjectFileSearchExecutionResult> {
     const scope = await this.reconcileMountedProjectSubject();
     if (!this.isProjectMountOwnedByScope(projectId, scope)) {
       return createEmptyRuntimeFileSearchResult();

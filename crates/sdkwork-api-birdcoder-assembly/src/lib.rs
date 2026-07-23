@@ -8,7 +8,6 @@ mod assembly_entry;
 pub mod bootstrap;
 pub mod business_metrics;
 mod generated;
-pub mod health;
 pub mod observability;
 pub mod openapi;
 

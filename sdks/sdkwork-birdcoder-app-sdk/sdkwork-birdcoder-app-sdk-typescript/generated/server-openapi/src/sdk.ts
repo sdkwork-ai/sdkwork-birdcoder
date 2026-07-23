@@ -3,19 +3,15 @@ import type { SdkworkAppConfig } from './types/common';
 import type { AuthTokenManager } from '@sdkwork/sdk-common';
 
 import { SystemApi, createSystemApi } from './api/system';
-import { IntelligenceApi, createIntelligenceApi } from './api/intelligence';
 
 export class SdkworkAppClient {
   private httpClient: HttpClient;
 
   public readonly system: SystemApi;
-  public readonly intelligence: IntelligenceApi;
 
   constructor(config: SdkworkAppConfig) {
     this.httpClient = createHttpClient(config);
     this.system = createSystemApi(this.httpClient);
-
-    this.intelligence = createIntelligenceApi(this.httpClient);
   }
   setAuthToken(token: string): this {
     this.httpClient.setAuthToken(token);

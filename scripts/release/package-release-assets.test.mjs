@@ -217,7 +217,7 @@ function writeDeploymentFixtures(rootDir) {
   );
   writeFile(
     path.join(rootDir, 'deployments', 'docker', 'profiles', 'default.env'),
-    'BIRDCODER_DATA_DIR=/var/lib/sdkwork-birdcoder\n',
+    'SDKWORK_BIRDCODER_RUNTIME_TARGET=container\n',
   );
   writeFile(
     path.join(rootDir, 'deployments', 'docker', 'docker-compose.yml'),

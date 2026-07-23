@@ -75,13 +75,7 @@ function toIdentity(
     displayName: binding.displayName,
     locationKind: 'local_directory',
     pathFlavor,
-    requiresRebind: binding.requiresRebind,
     rootLocator: binding.rootLocator,
-    runtimeLocationCreateGeneration: binding.runtimeLocationCreateGeneration,
-    ...(binding.runtimeLocationId ? { runtimeLocationId: binding.runtimeLocationId } : {}),
-    ...(binding.runtimeLocationVersion
-      ? { runtimeLocationVersion: binding.runtimeLocationVersion }
-      : {}),
     runtimeTargetId,
     runtimeTargetKind: 'desktop',
   };
@@ -155,53 +149,6 @@ export class TauriDesktopRuntimeLocationIdentityPort
     return binding ? toIdentity(runtimeTargetId, pathFlavor, binding) : null;
   }
 
-  async persistRemoteRuntimeLocationBinding(input: {
-    absolutePath: string;
-    projectId: string;
-    rootLocator: string;
-    runtimeLocationId: string;
-    runtimeLocationVersion: string;
-  }): Promise<void> {
-    if (!(await this.isTauriRuntime())) {
-      throw new Error('Desktop runtime location persistence is unavailable outside Tauri.');
-    }
-
-    const subjectKey = await this.mountRegistry.getCurrentSubjectKey();
-    if (!subjectKey) {
-      throw new Error('Sign in before persisting a desktop runtime location binding.');
-    }
-
-    const persisted = await this.mountRegistry.persistTauriRuntimeLocationRemoteBinding({
-      ...input,
-      expectedSubjectKey: subjectKey,
-    });
-    if (!persisted) {
-      throw new Error('The desktop runtime location binding could not be retained locally.');
-    }
-  }
-
-  async clearRemoteRuntimeLocationBinding(input: {
-    absolutePath: string;
-    projectId: string;
-    rootLocator: string;
-  }): Promise<void> {
-    if (!(await this.isTauriRuntime())) {
-      throw new Error('Desktop runtime location persistence is unavailable outside Tauri.');
-    }
-
-    const subjectKey = await this.mountRegistry.getCurrentSubjectKey();
-    if (!subjectKey) {
-      throw new Error('Sign in before clearing a desktop runtime location binding.');
-    }
-
-    const cleared = await this.mountRegistry.clearTauriRuntimeLocationRemoteBinding({
-      ...input,
-      expectedSubjectKey: subjectKey,
-    });
-    if (cleared === null) {
-      throw new Error('The stale desktop runtime location binding could not be cleared locally.');
-    }
-  }
 }
 
 export { resolveDesktopPathFlavor };

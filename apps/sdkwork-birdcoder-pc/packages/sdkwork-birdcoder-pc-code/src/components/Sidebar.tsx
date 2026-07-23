@@ -1,6 +1,6 @@
 import React, { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import type { AgentSessionView, BirdCoderProject } from '@sdkwork/birdcoder-pc-contracts-commons';
+import type { AgentSessionView, AgentProjectView } from '@sdkwork/birdcoder-pc-contracts-commons';
 import {
   compareAgentSessionViewSortTimestamps,
 } from '@sdkwork/birdcoder-pc-contracts-commons';
@@ -10,7 +10,7 @@ import {
 } from '@sdkwork/birdcoder-pc-workbench/workbench/codeEngineCatalog';
 import {
   deduplicateAgentSessionsForRender,
-  deduplicateBirdCoderProjectsForRender,
+  deduplicateAgentProjectsForRender,
 } from '@sdkwork/birdcoder-pc-workbench/workbench/projectInventoryRender';
 import { useWorkbenchPreferences } from '@sdkwork/birdcoder-pc-workbench/hooks/useWorkbenchPreferences';
 import { useToast } from '@sdkwork/birdcoder-pc-workbench/contexts/ToastProvider';
@@ -69,7 +69,7 @@ function clampSidebarContextMenuCoordinates(
 }
 
 function buildSidebarSessionRenderKey(session: AgentSessionView): string {
-  return `${session.birdCoderProjectId}\u0001${session.id}`;
+  return `${session.projectId}\u0001${session.id}`;
 }
 
 function buildSidebarSessionScopedKey(projectId: string, sessionId: string): string {
@@ -81,7 +81,7 @@ function resolveSidebarSessionProjectId(
   containingProjectId: string,
 ): string {
   const projectId = containingProjectId.trim();
-  if (!projectId || session.birdCoderProjectId !== projectId) {
+  if (!projectId || session.projectId !== projectId) {
     throw new Error(
       `Agent session ${session.id} does not belong to BirdCoder project ${projectId || '<empty>'}.`,
     );
@@ -95,14 +95,14 @@ interface SidebarAgentSessionLookup {
 }
 
 function buildSidebarAgentSessionLookup(
-  projects: readonly BirdCoderProject[],
+  projects: readonly AgentProjectView[],
 ): SidebarAgentSessionLookup {
   const byProjectIdAndId = new Map<string, AgentSessionView>();
   const uniqueById = new Map<string, AgentSessionView>();
   const ambiguousSessionIds = new Set<string>();
   for (const project of projects) {
     for (const agentSession of project.agentSessions) {
-      const scopedProjectId = resolveSidebarSessionProjectId(agentSession, project.id);
+      const scopedProjectId = resolveSidebarSessionProjectId(agentSession, project.projectId);
       const scopedAgentSession = agentSession;
       byProjectIdAndId.set(
         buildSidebarSessionScopedKey(scopedProjectId, agentSession.id),
@@ -123,19 +123,19 @@ function buildSidebarAgentSessionLookup(
 }
 
 function collectSidebarChronologicalSessions(
-  projects: readonly BirdCoderProject[],
+  projects: readonly AgentProjectView[],
   showArchived: boolean,
   normalizedSearchQuery: string,
   visibleSessionCountByProjectId: Readonly<Record<string, number>>,
 ): AgentSessionView[] {
   const sessions: AgentSessionView[] = [];
   for (const project of projects) {
-    if (!showArchived && project.archived) {
+    if (!showArchived && project.status === 'archived') {
       continue;
     }
     const visibleSessionCount = Math.max(
       INITIAL_VISIBLE_SESSIONS_PER_PROJECT,
-      visibleSessionCountByProjectId[project.id] ?? INITIAL_VISIBLE_SESSIONS_PER_PROJECT,
+      visibleSessionCountByProjectId[project.projectId] ?? INITIAL_VISIBLE_SESSIONS_PER_PROJECT,
     );
     const sessionCount = Math.min(visibleSessionCount, project.agentSessions.length);
     for (let sessionIndex = 0; sessionIndex < sessionCount; sessionIndex += 1) {
@@ -143,7 +143,7 @@ function collectSidebarChronologicalSessions(
       if (!agentSession) {
         continue;
       }
-      const scopedProjectId = resolveSidebarSessionProjectId(agentSession, project.id);
+      const scopedProjectId = resolveSidebarSessionProjectId(agentSession, project.projectId);
       const scopedAgentSession = agentSession;
       if (!showArchived && agentSession.archived) {
         continue;
@@ -218,8 +218,8 @@ function resolveSidebarProjectViewSessions(
 }
 
 function areSidebarProjectInventoriesEqual(
-  leftProjects: readonly BirdCoderProject[],
-  rightProjects: readonly BirdCoderProject[],
+  leftProjects: readonly AgentProjectView[],
+  rightProjects: readonly AgentProjectView[],
 ): boolean {
   if (leftProjects === rightProjects) {
     return true;
@@ -284,13 +284,13 @@ type SidebarProjectEntry = ProjectExplorerProjectEntry;
 
 type SidebarFilteredProjectSessionsEntry = {
   filteredSessions: AgentSessionView[];
-  project: BirdCoderProject;
+  project: AgentProjectView;
 };
 
 type SidebarChronologicalContinuationEntry = {
   isLoading: boolean;
   nextVisibleSessionCount: number;
-  project: BirdCoderProject;
+  project: AgentProjectView;
 };
 
 const EMPTY_SIDEBAR_FILTERED_PROJECT_SESSIONS: SidebarFilteredProjectSessionsEntry[] = [];
@@ -371,7 +371,7 @@ export const Sidebar = React.memo(function Sidebar({
   const rootContextMenuRef = useRef<HTMLDivElement>(null);
 
   const [renamingAgentSession, setRenamingAgentSession] = useState<{
-    birdCoderProjectId: string;
+    projectId: string;
     id: string;
   } | null>(null);
   const [renamingProjectId, setRenamingProjectId] = useState<string | null>(null);
@@ -380,7 +380,7 @@ export const Sidebar = React.memo(function Sidebar({
   const scrollRegionRef = useRef<HTMLDivElement>(null);
   const relativeTimeNow = useRelativeMinuteNow({ isEnabled: isVisible });
   const renderProjects = useMemo(
-    () => deduplicateBirdCoderProjectsForRender(projects),
+    () => deduplicateAgentProjectsForRender(projects),
     [projects],
   );
 
@@ -449,8 +449,8 @@ export const Sidebar = React.memo(function Sidebar({
         const newExpanded = { ...prev };
         let changed = false;
         renderProjects.forEach(p => {
-          if (newExpanded[p.id] === undefined) {
-            newExpanded[p.id] = true;
+          if (newExpanded[p.projectId] === undefined) {
+            newExpanded[p.projectId] = true;
             changed = true;
           }
         });
@@ -466,8 +466,8 @@ export const Sidebar = React.memo(function Sidebar({
         let changed = false;
         const nextExpandedProjects = { ...previousExpandedProjects };
         renderProjects.forEach((project) => {
-          if (project.agentSessions.length > 0 && nextExpandedProjects[project.id] !== true) {
-            nextExpandedProjects[project.id] = true;
+          if (project.agentSessions.length > 0 && nextExpandedProjects[project.projectId] !== true) {
+            nextExpandedProjects[project.projectId] = true;
             changed = true;
           }
         });
@@ -482,17 +482,17 @@ export const Sidebar = React.memo(function Sidebar({
       const nextState: Record<string, number> = {};
 
       for (const project of renderProjects) {
-        const existingCount = previousState[project.id];
+        const existingCount = previousState[project.projectId];
         const shouldRestoreInitialWindow =
           typeof existingCount === 'number' &&
           existingCount > INITIAL_VISIBLE_SESSIONS_PER_PROJECT &&
           existingCount > project.agentSessions.length;
-        nextState[project.id] = shouldRestoreInitialWindow
+        nextState[project.projectId] = shouldRestoreInitialWindow
           ? INITIAL_VISIBLE_SESSIONS_PER_PROJECT
           : typeof existingCount === 'number'
             ? existingCount
             : INITIAL_VISIBLE_SESSIONS_PER_PROJECT;
-        if (nextState[project.id] !== existingCount) {
+        if (nextState[project.projectId] !== existingCount) {
           changed = true;
         }
       }
@@ -510,8 +510,8 @@ export const Sidebar = React.memo(function Sidebar({
       let changed = false;
       const nextState: Record<string, boolean> = {};
       for (const project of renderProjects) {
-        if (previousState[project.id] === true) {
-          nextState[project.id] = true;
+        if (previousState[project.projectId] === true) {
+          nextState[project.projectId] = true;
         }
       }
       if (Object.keys(previousState).length !== Object.keys(nextState).length) {
@@ -620,7 +620,7 @@ export const Sidebar = React.memo(function Sidebar({
     () =>
       new Map(
         renderProjects.map(
-          (project) => [project.id, project] satisfies [string, BirdCoderProject],
+          (project) => [project.projectId, project] satisfies [string, AgentProjectView],
         ),
       ),
     [renderProjects],
@@ -849,7 +849,7 @@ export const Sidebar = React.memo(function Sidebar({
   ]);
   const handleStartRenamingCurrentSession = useCallback(
     (agentSessionId: string, projectId: string, title: string) => {
-      setRenamingAgentSession({ birdCoderProjectId: projectId, id: agentSessionId });
+      setRenamingAgentSession({ projectId, id: agentSessionId });
       setRenameValue(title);
     },
     [],
@@ -913,7 +913,7 @@ export const Sidebar = React.memo(function Sidebar({
       }
 
       return renderProjects
-        .filter((project) => showArchived || !project.archived)
+        .filter((project) => showArchived || project.status !== 'archived')
         .map((project) => ({
           project,
           filteredSessions: resolveProjectViewSessions(
@@ -970,12 +970,12 @@ export const Sidebar = React.memo(function Sidebar({
       }
 
       return renderProjects
-        .filter((project) => showArchived || !project.archived)
+        .filter((project) => showArchived || project.status !== 'archived')
         .map((project) => {
           const visibleSessionCount =
-            visibleSessionCountByProjectId[project.id] ?? INITIAL_VISIBLE_SESSIONS_PER_PROJECT;
+            visibleSessionCountByProjectId[project.projectId] ?? INITIAL_VISIBLE_SESSIONS_PER_PROJECT;
           return {
-            isLoading: loadingMoreSessionProjectIds[project.id] === true,
+            isLoading: loadingMoreSessionProjectIds[project.projectId] === true,
             nextVisibleSessionCount: visibleSessionCount + SESSION_EXPANSION_BATCH_SIZE,
             project,
           };
@@ -1002,14 +1002,14 @@ export const Sidebar = React.memo(function Sidebar({
       return filteredProjectSessions
         .map(({ project, filteredSessions }) => {
           const visibleSessionCount =
-            visibleSessionCountByProjectId[project.id] ?? INITIAL_VISIBLE_SESSIONS_PER_PROJECT;
+            visibleSessionCountByProjectId[project.projectId] ?? INITIAL_VISIBLE_SESSIONS_PER_PROJECT;
 
           return {
             canShowMoreSessions:
               visibleSessionCount < filteredSessions.length ||
               visibleSessionCount < project.agentSessions.length,
             filteredSessions,
-            isLoadingMoreSessions: loadingMoreSessionProjectIds[project.id] === true,
+            isLoadingMoreSessions: loadingMoreSessionProjectIds[project.projectId] === true,
             nextVisibleSessionCount: visibleSessionCount + SESSION_EXPANSION_BATCH_SIZE,
             project,
             visibleSessions: filteredSessions.slice(0, visibleSessionCount),
@@ -1110,14 +1110,14 @@ export const Sidebar = React.memo(function Sidebar({
             projectEntries.map((entry) => {
               const selectedVisibleSessionId = entry.visibleSessions.some(
                 (session) =>
-                  entry.project.id === selectedProjectId &&
+                  entry.project.projectId === selectedProjectId &&
                   session.id === selectedAgentSessionId,
               )
                 ? selectedAgentSessionId
                 : null;
               const renamingVisibleSessionId = entry.visibleSessions.some(
                 (session) =>
-                  entry.project.id === renamingAgentSession?.birdCoderProjectId &&
+                  entry.project.projectId === renamingAgentSession?.projectId &&
                   session.id === renamingAgentSession?.id,
               )
                 ? renamingAgentSession?.id ?? null
@@ -1125,16 +1125,16 @@ export const Sidebar = React.memo(function Sidebar({
 
               return (
                 <ProjectExplorerProjectSection
-                  key={entry.project.id}
+                  key={entry.project.projectId}
                   entry={entry}
                   relativeTimeNow={relativeTimeNow}
-                  expanded={expandedProjects[entry.project.id] === true}
-                  isSelectedProject={selectedProjectId === entry.project.id}
+                  expanded={expandedProjects[entry.project.projectId] === true}
+                  isSelectedProject={selectedProjectId === entry.project.projectId}
                   selectedVisibleSessionId={selectedVisibleSessionId}
                   renamingVisibleSessionId={renamingVisibleSessionId}
                   sessionRenameValue={renamingVisibleSessionId ? renameValue : ''}
-                  isRenamingProject={renamingProjectId === entry.project.id}
-                  projectRenameValue={renamingProjectId === entry.project.id ? renameValue : ''}
+                  isRenamingProject={renamingProjectId === entry.project.projectId}
+                  projectRenameValue={renamingProjectId === entry.project.projectId ? renameValue : ''}
                   noSessionsLabel={t('app.noSessions')}
                   expandProjectLabel={t('code.expandProject', { name: entry.project.name })}
                   collapseProjectLabel={t('code.collapseProject', { name: entry.project.name })}
@@ -1178,20 +1178,20 @@ export const Sidebar = React.memo(function Sidebar({
                     key={buildSidebarSessionRenderKey(session)}
                     relativeTimeNow={relativeTimeNow}
                     session={session}
-                    sessionProjectId={session.birdCoderProjectId}
+                    sessionProjectId={session.projectId}
                     isSelected={
                       selectedProjectId
                         ? selectedAgentSessionId === session.id &&
-                          selectedProjectId === session.birdCoderProjectId
+                          selectedProjectId === session.projectId
                         : selectedSidebarAgentSession?.id === session.id &&
-                          selectedSidebarAgentSession.birdCoderProjectId === session.birdCoderProjectId
+                          selectedSidebarAgentSession.projectId === session.projectId
                     }
                     isRenaming={
-                      renamingAgentSession?.birdCoderProjectId === session.birdCoderProjectId &&
+                      renamingAgentSession?.projectId === session.projectId &&
                       renamingAgentSession.id === session.id
                     }
                     renameValue={
-                      renamingAgentSession?.birdCoderProjectId === session.birdCoderProjectId &&
+                      renamingAgentSession?.projectId === session.projectId &&
                       renamingAgentSession.id === session.id
                         ? renameValue
                         : ''
@@ -1217,14 +1217,14 @@ export const Sidebar = React.memo(function Sidebar({
               ) : null}
               {chronologicalContinuationEntries.map((entry) => (
                 <button
-                  key={`chronological-continuation:${entry.project.id}`}
+                  key={`chronological-continuation:${entry.project.projectId}`}
                   type="button"
                   className="mx-2 mt-1 inline-flex min-h-8 items-center justify-start gap-1.5 rounded-md px-2 py-1 text-[11px] font-medium text-gray-500 transition-colors hover:bg-white/5 hover:text-gray-200 disabled:cursor-wait disabled:opacity-60"
                   disabled={entry.isLoading}
                   aria-busy={entry.isLoading}
                   onClick={() =>
                     handleLoadMoreProjectSessions(
-                      entry.project.id,
+                      entry.project.projectId,
                       entry.nextVisibleSessionCount,
                     )
                   }

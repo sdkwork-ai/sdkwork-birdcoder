@@ -89,7 +89,7 @@ mod tests {
         assert!(!is_observability_infra_path("/health"));
         assert!(!is_observability_infra_path("/health/live"));
         assert!(!is_observability_infra_path("/ready"));
-        assert!(!is_observability_infra_path("/app/v3/api/projects"));
+        assert!(!is_observability_infra_path("/app/v3/api/system/routes"));
     }
 
     #[test]
@@ -98,7 +98,7 @@ mod tests {
         let business = BusinessMetricsRegistry::new();
         business.record_api_request(
             "GET",
-            "/app/v3/api/projects",
+            "/app/v3/api/system/health",
             200,
             std::time::Duration::from_millis(10),
         );

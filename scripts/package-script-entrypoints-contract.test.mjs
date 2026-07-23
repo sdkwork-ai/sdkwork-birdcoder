@@ -17,8 +17,8 @@ for (const scriptName of [
   'check:kernel-birdcoder-alignment',
   'check:api-transport-standard',
   'check:local-business-storage-boundary',
+  'check:persistence-ownership',
   'check:server',
-  'db:validate',
   'docs:build',
 ]) {
   assert.equal(typeof scripts[scriptName], 'string', `package.json must declare ${scriptName}.`);
@@ -31,7 +31,7 @@ for (const requiredEntrypoint of [
   'scripts/kernel-birdcoder-alignment-contract.test.mjs',
   'scripts/app-sdk-surface-boundary-contract.test.mjs',
   'scripts/pc-local-business-storage-boundary-contract.test.mjs',
-  'scripts/database-baseline-engine-parity-contract.test.mjs',
+  'scripts/persistence-ownership-contract.test.mjs',
 ]) {
   assert.match(
     architectureCommand,

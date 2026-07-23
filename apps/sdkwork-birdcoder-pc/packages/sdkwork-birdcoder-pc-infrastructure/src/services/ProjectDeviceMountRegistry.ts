@@ -26,11 +26,7 @@ interface BrowserStoredProjectMount {
 interface TauriStoredProjectMount {
   displayName: string;
   path: string;
-  requiresRebind?: boolean;
   rootLocator?: string;
-  runtimeLocationCreateGeneration?: number;
-  runtimeLocationId?: string;
-  runtimeLocationVersion?: string;
   version: number;
 }
 
@@ -57,11 +53,7 @@ export interface ProjectDeviceMountRecoverySource {
  */
 export interface TauriProjectRuntimeLocationBinding {
   displayName: string;
-  requiresRebind: boolean;
   rootLocator?: string;
-  runtimeLocationCreateGeneration: number;
-  runtimeLocationId?: string;
-  runtimeLocationVersion?: string;
 }
 
 export interface ResolveTauriProjectRuntimeLocationBindingInput {
@@ -71,18 +63,6 @@ export interface ResolveTauriProjectRuntimeLocationBindingInput {
 }
 
 export interface EnsureTauriProjectRuntimeLocationRootLocatorInput
-  extends ResolveTauriProjectRuntimeLocationBindingInput {
-  rootLocator: string;
-}
-
-export interface PersistTauriProjectRuntimeLocationRemoteBindingInput
-  extends ResolveTauriProjectRuntimeLocationBindingInput {
-  rootLocator: string;
-  runtimeLocationId: string;
-  runtimeLocationVersion: string;
-}
-
-export interface ClearTauriProjectRuntimeLocationRemoteBindingInput
   extends ResolveTauriProjectRuntimeLocationBindingInput {
   rootLocator: string;
 }
@@ -170,24 +150,6 @@ function normalizeRootLocator(value: unknown): string | undefined {
     : undefined;
 }
 
-function normalizeSafeRuntimeBindingValue(value: unknown): string | undefined {
-  const normalizedValue = typeof value === 'string' ? value.trim() : '';
-  return normalizedValue
-    && normalizedValue.length <= 512
-    && !/[\u0000-\u001f\u007f]/u.test(normalizedValue)
-    ? normalizedValue
-    : undefined;
-}
-
-function normalizeRuntimeLocationCreateGeneration(value: unknown): number {
-  return typeof value === 'number'
-    && Number.isSafeInteger(value)
-    && value >= 0
-    && value <= 2_147_483_647
-    ? value
-    : 0;
-}
-
 function normalizeMountSubject(
   subject: ProjectDeviceMountSubject | null,
 ): ProjectDeviceMountSubject | null {
@@ -230,25 +192,10 @@ function parseTauriStoredProjectMount(value: string | null): TauriStoredProjectM
     }
 
     const rootLocator = normalizeRootLocator(parsed.rootLocator);
-    const runtimeLocationCreateGeneration = normalizeRuntimeLocationCreateGeneration(
-      parsed.runtimeLocationCreateGeneration,
-    );
-    const runtimeLocationId = normalizeSafeRuntimeBindingValue(parsed.runtimeLocationId);
-    const runtimeLocationVersion = normalizeSafeRuntimeBindingValue(parsed.runtimeLocationVersion);
-    const hasCompleteRemoteBinding = Boolean(runtimeLocationId && runtimeLocationVersion);
-
     return {
       displayName: normalizeDisplayName(parsed.displayName),
       path,
-      runtimeLocationCreateGeneration,
       ...(rootLocator ? { rootLocator } : {}),
-      ...(hasCompleteRemoteBinding
-        ? {
-            runtimeLocationId,
-            runtimeLocationVersion,
-            requiresRebind: Boolean(parsed.requiresRebind),
-          }
-        : {}),
       version: TAURI_MOUNT_STORAGE_VERSION,
     };
   } catch {
@@ -418,20 +365,9 @@ async function writeTauriStoredProjectMount(
 function toTauriRuntimeLocationBinding(
   mount: TauriStoredProjectMount,
 ): TauriProjectRuntimeLocationBinding {
-  const hasCompleteRemoteBinding = Boolean(
-    mount.runtimeLocationId && mount.runtimeLocationVersion,
-  );
   return {
     displayName: mount.displayName,
-    requiresRebind: hasCompleteRemoteBinding && Boolean(mount.requiresRebind),
-    runtimeLocationCreateGeneration: mount.runtimeLocationCreateGeneration ?? 0,
     ...(mount.rootLocator ? { rootLocator: mount.rootLocator } : {}),
-    ...(hasCompleteRemoteBinding
-      ? {
-          runtimeLocationId: mount.runtimeLocationId,
-          runtimeLocationVersion: mount.runtimeLocationVersion,
-        }
-      : {}),
   };
 }
 
@@ -444,23 +380,10 @@ function createTauriStoredProjectMount(
     return null;
   }
 
-  const hasCompleteRemoteBinding = Boolean(
-    previousMount?.runtimeLocationId && previousMount.runtimeLocationVersion,
-  );
-  const pathChanged = previousMount ? !isSameTauriPath(previousMount.path, path) : false;
-
   return {
     displayName: resolveTauriMountDisplayName(path),
     path,
     ...(previousMount?.rootLocator ? { rootLocator: previousMount.rootLocator } : {}),
-    runtimeLocationCreateGeneration: previousMount?.runtimeLocationCreateGeneration ?? 0,
-    ...(hasCompleteRemoteBinding
-      ? {
-          runtimeLocationId: previousMount?.runtimeLocationId,
-          runtimeLocationVersion: previousMount?.runtimeLocationVersion,
-          requiresRebind: Boolean(previousMount?.requiresRebind || pathChanged),
-        }
-      : {}),
     version: TAURI_MOUNT_STORAGE_VERSION,
   };
 }
@@ -468,8 +391,8 @@ function createTauriStoredProjectMount(
 /**
  * Persists a local folder reference only in the active device boundary.
  * Generic Project records and app SDK DTOs never receive the stored source.
- * The dedicated runtime-location registration boundary persists encrypted,
- * write-only path material for the authoritative target-specific record.
+ * The Tauri host owns the private native path and issues only opaque local
+ * root locators for Agents runtime bindings.
  */
 export class ProjectDeviceMountRegistry {
   private readonly subjectProvider?: ProjectDeviceMountSubjectProvider;
@@ -526,82 +449,6 @@ export class ProjectDeviceMountRegistry {
     }
 
     return toTauriRuntimeLocationBinding(updatedMount);
-  }
-
-  /**
-   * Stores the safe remote binding after the composed SDK has accepted a
-   * create or rebind request. A changed mount or changed subject rejects the
-   * write so stale asynchronous work cannot cross project-owner boundaries.
-   */
-  async persistTauriRuntimeLocationRemoteBinding(
-    input: PersistTauriProjectRuntimeLocationRemoteBindingInput,
-  ): Promise<boolean> {
-    const rootLocator = normalizeRootLocator(input.rootLocator);
-    const runtimeLocationId = normalizeSafeRuntimeBindingValue(input.runtimeLocationId);
-    const runtimeLocationVersion = normalizeSafeRuntimeBindingValue(input.runtimeLocationVersion);
-    if (!rootLocator || !runtimeLocationId || !runtimeLocationVersion) {
-      return false;
-    }
-
-    const resolvedMount = await this.resolveCurrentTauriStoredMount(input);
-    if (!resolvedMount || resolvedMount.mount.rootLocator !== rootLocator) {
-      return false;
-    }
-
-    const updatedMount: TauriStoredProjectMount = {
-      ...resolvedMount.mount,
-      requiresRebind: false,
-      runtimeLocationId,
-      runtimeLocationVersion,
-    };
-    const persisted = await writeTauriStoredProjectMount(resolvedMount.key, updatedMount);
-    return persisted && (await this.isCurrentSubjectKey(resolvedMount.subjectKey));
-  }
-
-  /**
-   * Removes only stale remote identifiers after a server-side 404 or binding
-   * mismatch. The opaque root locator remains stable while the persisted
-   * create generation advances, giving the replacement create a new safe
-   * idempotency key without changing ordinary retry behavior.
-   */
-  async clearTauriRuntimeLocationRemoteBinding(
-    input: ClearTauriProjectRuntimeLocationRemoteBindingInput,
-  ): Promise<number | null> {
-    const rootLocator = normalizeRootLocator(input.rootLocator);
-    if (!rootLocator) {
-      return null;
-    }
-
-    const resolvedMount = await this.resolveCurrentTauriStoredMount(input);
-    if (!resolvedMount || resolvedMount.mount.rootLocator !== rootLocator) {
-      return null;
-    }
-
-    const currentGeneration = normalizeRuntimeLocationCreateGeneration(
-      resolvedMount.mount.runtimeLocationCreateGeneration,
-    );
-    if (currentGeneration >= 2_147_483_647) {
-      return null;
-    }
-    const nextGeneration = currentGeneration + 1;
-
-    const {
-      requiresRebind: _requiresRebind,
-      runtimeLocationId: _runtimeLocationId,
-      runtimeLocationVersion: _runtimeLocationVersion,
-      ...mountWithoutRemoteBinding
-    } = resolvedMount.mount;
-    const updatedMount: TauriStoredProjectMount = {
-      ...mountWithoutRemoteBinding,
-      runtimeLocationCreateGeneration: nextGeneration,
-    };
-    const persisted = await writeTauriStoredProjectMount(
-      resolvedMount.key,
-      updatedMount,
-    );
-    return persisted && (await this.isCurrentSubjectKey(resolvedMount.subjectKey))
-      ? nextGeneration
-      : null;
   }
 
   async register(

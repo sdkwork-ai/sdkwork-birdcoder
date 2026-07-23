@@ -56,7 +56,7 @@ assert.equal(authority['x-sdkwork-api-authority'], 'sdkwork-birdcoder-app-api');
 assert.equal(authority.servers?.[0]?.url, '/app/v3/api');
 
 const operations = collectOperations(authority);
-assert.equal(operations.length, 39, 'BirdCoder must own exactly 39 App API operations.');
+assert.equal(operations.length, 4, 'BirdCoder must own exactly four System App API operations.');
 assert.equal(sdkManifest.ownerOnlyOperationCount, operations.length);
 assert.equal(componentSpec.contracts?.apiAuthority?.operationCount, operations.length);
 assert.equal(domainOwnership.apiOwnership?.appApi?.operationCount, operations.length);
@@ -82,7 +82,7 @@ const operationIds = new Set();
 const expectedPermissions = new Map();
 for (const { method, operation, routePath } of operations) {
   const context = `${method.toUpperCase()} ${routePath}`;
-  assert.ok(routePath.startsWith('/app/v3/api/'), `${context} must remain on App API.`);
+  assert.ok(routePath.startsWith('/app/v3/api/system/'), `${context} must remain in the System App API boundary.`);
   assert.equal(operation['x-sdkwork-owner'], 'sdkwork-birdcoder', `${context} owner drifted.`);
   assert.equal(
     operation['x-sdkwork-api-authority'],
@@ -112,7 +112,7 @@ for (const { method, operation, routePath } of operations) {
   }
 }
 
-assert.equal(expectedPermissions.size, 33, 'The 39 operations must resolve to 33 unique permissions.');
+assert.equal(expectedPermissions.size, 4, 'The four System operations must resolve to four permissions.');
 assert.equal(permissionManifest.moduleId, 'birdcoder');
 assert.equal(permissionManifest.domain, 'birdcoder');
 assert.equal(permissionManifest.owner, 'sdkwork-birdcoder');
@@ -133,5 +133,12 @@ for (const entry of permissionCatalog) {
   assert.equal(entry.status, 'active', `${entry.code} must be active.`);
   assert.equal(entry.replacementCode, null, `${entry.code} must not retain a compatibility alias.`);
 }
+
+assert.equal(domainOwnership.permissionOwnership?.permissionCount, 4);
+assert.deepEqual(
+  [...domainOwnership.permissionOwnership.ownedPermissions].sort(),
+  [...expectedPermissions.keys()].sort(),
+  'Domain permission ownership must match the App authority exactly.',
+);
 
 console.log('BirdCoder SDK owner and IAM permission boundary contract passed.');

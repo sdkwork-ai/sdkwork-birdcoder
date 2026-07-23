@@ -64,7 +64,7 @@ assert.equal(manifest.sdkFamily, 'sdkwork-birdcoder-app-sdk');
 assert.equal(manifest.sdkOwner, 'sdkwork-birdcoder');
 assert.equal(manifest.apiAuthority, 'sdkwork-birdcoder-app-api');
 assert.equal(manifest.standardProfile, 'sdkwork-v3');
-assert.equal(manifest.ownerOnlyOperationCount, 39);
+assert.equal(manifest.ownerOnlyOperationCount, 4);
 assert.equal(manifest.metadata?.managedBy, '@sdkwork/sdk-generator');
 assert.equal(manifest.discoverySurface?.sdkTarget, 'app');
 assert.equal(manifest.discoverySurface?.apiPrefix, '/app/v3/api');
@@ -157,8 +157,8 @@ for (const generatedRoot of [
   const source = files.map((file) => fs.readFileSync(file, 'utf8')).join('\n');
   assert.doesNotMatch(
     source,
-    /coding[_-]?sessions|chat[_-]?(?:conversation|message)|commerce|skill[_-]?packages|oauth|iam[_-]/iu,
-    `${generatedRoot} must contain only BirdCoder-owned workspace, project and system transport.`,
+    /workspaces?|projects?|coding[_-]?sessions|chat[_-]?(?:conversation|message)|commerce|skill[_-]?packages|oauth|iam[_-]/iu,
+    `${generatedRoot} must contain only BirdCoder-owned System transport.`,
   );
 }
 

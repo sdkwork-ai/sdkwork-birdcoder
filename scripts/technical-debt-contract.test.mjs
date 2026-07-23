@@ -90,9 +90,6 @@ assert.deepEqual(
 
 const activeSourceRoots = [
   'apps/sdkwork-birdcoder-pc/packages',
-  'apps/sdkwork-birdcoder-h5/packages',
-  'apps/sdkwork-birdcoder-flutter-mobile/lib',
-  'apps/sdkwork-birdcoder-flutter-mobile/packages',
   'crates',
   'deployments',
 ];
@@ -188,7 +185,6 @@ const activeDocs = [
   'docs/product/prd/PRD.md',
   'docs/architecture/tech/TECH_ARCHITECTURE.md',
   'apis/README.md',
-  'database/README.md',
   'specs/README.md',
 ];
 for (const relativePath of activeDocs) {

@@ -1,5 +1,5 @@
 import { useCallback, useRef, useState } from 'react';
-import type { AgentSessionView, BirdCoderProject } from '@sdkwork/birdcoder-pc-contracts-commons';
+import type { AgentSessionView, AgentProjectView } from '@sdkwork/birdcoder-pc-contracts-commons';
 import type { IAgentSessionService } from '@sdkwork/birdcoder-pc-infrastructure-runtime';
 import { useAuth } from '../context/AuthContext.ts';
 import {
@@ -16,7 +16,7 @@ type ToastTone = 'error' | 'success';
 
 interface SessionRefreshAgentSessionLocation {
   agentSession: AgentSessionView;
-  project: BirdCoderProject;
+  project: AgentProjectView;
 }
 
 interface PreservedSessionRefreshSelection {
@@ -47,7 +47,6 @@ export interface UseSessionRefreshActionsOptions {
     projectId: string,
     agentSessionId: string | null,
   ) => void;
-  workspaceId?: string;
 }
 
 export function useSessionRefreshActions({
@@ -60,7 +59,6 @@ export function useSessionRefreshActions({
   resolveAgentSessionTitle,
   resolveProjectName,
   restoreSelectionAfterRefresh,
-  workspaceId,
 }: UseSessionRefreshActionsOptions) {
   const { user } = useAuth();
   const normalizedUserScope = user?.id?.trim() ?? 'anonymous';
@@ -84,12 +82,6 @@ export function useSessionRefreshActions({
   );
 
   const handleRefreshProjectSessions = useCallback(async (targetProjectId: string) => {
-    const normalizedWorkspaceId = workspaceId?.trim() ?? '';
-    if (!normalizedWorkspaceId) {
-      addToast(messages.failedToRefreshProjectSessions, 'error');
-      return;
-    }
-
     const preservedSelection = getPreservedSelection();
     const projectName = resolveProjectName(targetProjectId);
     const requestGeneration = ++projectRefreshGenerationRef.current;
@@ -100,7 +92,6 @@ export function useSessionRefreshActions({
         agentSessionService,
         projectId: targetProjectId,
         projectService,
-        workspaceId: normalizedWorkspaceId,
       });
       if (projectRefreshGenerationRef.current !== requestGeneration) {
         return;
@@ -111,11 +102,7 @@ export function useSessionRefreshActions({
       }
 
       for (const project of result.projects ?? []) {
-        upsertProjectIntoProjectsStore(
-          project.workspaceId?.trim() || normalizedWorkspaceId,
-          project,
-          normalizedUserScope,
-        );
+        upsertProjectIntoProjectsStore(project, normalizedUserScope);
       }
       if (isPreservedSelectionStillCurrent(preservedSelection)) {
         restoreSelectionAfterRefresh(
@@ -144,7 +131,6 @@ export function useSessionRefreshActions({
     resolveProjectName,
     restoreSelectionAfterRefresh,
     isPreservedSelectionStillCurrent,
-    workspaceId,
   ]);
 
   const handleRefreshAgentSessionItems = useCallback(async (
@@ -173,7 +159,6 @@ export function useSessionRefreshActions({
         agentSessionService,
         agentSessionId,
         ...(resolvedLocation ? { resolvedLocation } : {}),
-        workspaceId,
       });
       if (agentSessionRefreshGenerationRef.current !== requestGeneration) {
         return;
@@ -198,17 +183,9 @@ export function useSessionRefreshActions({
         }
 
         if (synchronizedProject) {
-          upsertProjectIntoProjectsStore(
-            synchronizedProject.workspaceId,
-            synchronizedProject,
-            normalizedUserScope,
-          );
+          upsertProjectIntoProjectsStore(synchronizedProject, normalizedUserScope);
         }
         upsertAgentSessionIntoProjectsStore(
-          result.workspaceId?.trim() ||
-            synchronizedProject?.workspaceId?.trim() ||
-            workspaceId?.trim() ||
-            result.agentSession.workspaceId,
           result.projectId,
           result.agentSession,
           normalizedUserScope,
@@ -243,7 +220,6 @@ export function useSessionRefreshActions({
     resolveAgentSessionTitle,
     restoreSelectionAfterRefresh,
     isPreservedSelectionStillCurrent,
-    workspaceId,
   ]);
 
   return {
