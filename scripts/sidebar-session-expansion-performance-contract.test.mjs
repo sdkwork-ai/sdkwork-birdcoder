@@ -21,6 +21,13 @@ const projectsHookSource = fs.readFileSync(
   new URL('../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-workbench/src/hooks/useProjects.ts', import.meta.url),
   'utf8',
 );
+const agentSessionViewModelsSource = fs.readFileSync(
+  new URL(
+    '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-workbench/src/services/agentSessionViewModels.ts',
+    import.meta.url,
+  ),
+  'utf8',
+);
 
 assert.match(
   sidebarSource,
@@ -89,7 +96,7 @@ assert.match(
 assert.match(
   projectSectionSource,
   /entry\.canShowMoreSessions && \(/,
-  'Code must render Show more only while the loaded project inventory contains a hidden sentinel.',
+  'Code must render Show more only while the Agents page reports a continuation.',
 );
 assert.match(
   projectSectionSource,
@@ -118,12 +125,17 @@ assert.match(
 );
 assert.match(
   projectsHookSource,
-  /sessionLimit:\s*Math\.min\(200_000, targetCount \+ 1\)/,
-  'Show more must request one hidden authority sentinel beyond the visible target count.',
+  /loadProjectAgentSessionPage\([\s\S]*agentSessionService,[\s\S]*project,[\s\S]*targetCount,[\s\S]*\)/,
+  'Show more must pass the requested visible target to the canonical Agents session page loader.',
+);
+assert.match(
+  agentSessionViewModelsSource,
+  /const pageSize = Math\.max\(1, Math\.min\(200, Math\.trunc\(requestedCount\)\)\);[\s\S]*hasMore: sessionPage\.pageInfo\.hasMore === true/,
+  'The Agents session page loader must bound page size and use standard pageInfo continuation semantics.',
 );
 assert.match(
   projectsHookSource,
-  /loadedCount:\s*synchronized\.loadedSessionCount/,
+  /loadedCount:\s*synchronized\.project\.agentSessions\.length/,
   'Show more must return the authority-confirmed project session count to both IDE surfaces.',
 );
 assert.match(
@@ -133,8 +145,8 @@ assert.match(
 );
 assert.match(
   projectsHookSource,
-  /runtimeStatus:\s*'streaming',[\s\S]*?updatedAt:\s*optimisticMessage\.createdAt,[\s\S]*?lastTurnAt:\s*optimisticMessage\.createdAt,[\s\S]*?resolveMessageActivitySortTimestamp\(optimisticMessage\.createdAt\)/,
-  'The optimistic send must update the session activity timestamp and stable sort key exactly once.',
+  /const completed = await agentSessionService\.submitTurn\([\s\S]*const activityAt = completed\.turn\.completedAt \?\? completed\.turn\.updatedAt;[\s\S]*runtimeStatus: completed\.turn\.status === 'failed' \? 'failed' : 'ready',[\s\S]*resolveMessageActivitySortTimestamp\(activityAt\)/,
+  'A completed Agents turn must update runtime status, activity time, and the stable sort key from the canonical turn result.',
 );
 assert.match(
   sidebarSource,
@@ -165,12 +177,12 @@ for (const [surfaceName, source, translationKey] of [
 assert.match(
   sidebarSource,
   /collectSidebarChronologicalSessions\([\s\S]*?visibleSessionCountByProjectId[\s\S]*?sessionIndex < sessionCount/,
-  'Chronological mode must flatten only each project\'s visible five-plus-ten window and keep the hidden sentinel out of the list.',
+  'Chronological mode must flatten only each project\'s visible five-plus-ten window.',
 );
 assert.match(
   sidebarSource,
-  /chronologicalContinuationEntries\.map\([\s\S]*?entry\.project\.id,[\s\S]*?entry\.nextVisibleSessionCount/,
-  'Chronological mode must retain a project-scoped Show more path for every project with a continuation sentinel.',
+  /chronologicalContinuationEntries\.map\([\s\S]*?entry\.project\.projectId,[\s\S]*?entry\.nextVisibleSessionCount/,
+  'Chronological mode must retain a project-scoped Show more path for every project with another Agents page.',
 );
 
 console.log('sidebar session expansion performance contract passed.');

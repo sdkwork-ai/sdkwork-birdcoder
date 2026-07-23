@@ -61,7 +61,7 @@ const terminalButtonIndex = shellSource.indexOf("onActiveTabChange('terminal')")
 
 assert.ok(
   studioButtonIndex >= 0 && multiwindowButtonIndex > studioButtonIndex,
-  'Sidebar must place 多窗口编�?directly after the Studio entry.',
+  'Sidebar must place multi-window programming directly after the Studio entry.',
 );
 assert.ok(
   terminalButtonIndex > multiwindowButtonIndex,
