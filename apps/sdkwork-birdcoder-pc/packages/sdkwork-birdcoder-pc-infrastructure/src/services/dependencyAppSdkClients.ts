@@ -14,19 +14,14 @@ import { bindBirdCoderSdkSessionErrorHandler } from './sdkSessionErrorHandler.ts
 
 export type { SdkworkDocumentsAppClient, SdkworkPromptsAppClient };
 
-export interface BirdCoderDependencyAppSdkClients {
-  documentsClient: SdkworkDocumentsAppClient;
-  promptsClient: SdkworkPromptsAppClient;
-}
-
-export interface CreateBirdCoderDependencyAppSdkClientsOptions {
+export interface BirdCoderDependencyAppSdkClientOptions {
   documentsApiBaseUrl?: string;
   platformApiGatewayBaseUrl?: string;
   promptsApiBaseUrl?: string;
 }
 
 export function createBirdCoderDocumentsAppSdkClient(
-  options: CreateBirdCoderDependencyAppSdkClientsOptions = {},
+  options: BirdCoderDependencyAppSdkClientOptions = {},
 ): SdkworkDocumentsAppClient {
   const runtimeConfig = getDefaultBirdCoderIdeServicesRuntimeConfig();
   const baseUrl = resolveBirdCoderDependencySdkBaseUrl('Documents', {
@@ -44,7 +39,7 @@ export function createBirdCoderDocumentsAppSdkClient(
 }
 
 export function createBirdCoderPromptsAppSdkClient(
-  options: CreateBirdCoderDependencyAppSdkClientsOptions = {},
+  options: BirdCoderDependencyAppSdkClientOptions = {},
 ): SdkworkPromptsAppClient {
   const runtimeConfig = getDefaultBirdCoderIdeServicesRuntimeConfig();
   const baseUrl = resolveBirdCoderDependencySdkBaseUrl('Prompts', {
@@ -59,13 +54,4 @@ export function createBirdCoderPromptsAppSdkClient(
     platform: 'pc',
     tokenManager: getBirdCoderGlobalTokenManager(),
   }));
-}
-
-export function createBirdCoderDependencyAppSdkClients(
-  options: CreateBirdCoderDependencyAppSdkClientsOptions = {},
-): BirdCoderDependencyAppSdkClients {
-  return {
-    documentsClient: createBirdCoderDocumentsAppSdkClient(options),
-    promptsClient: createBirdCoderPromptsAppSdkClient(options),
-  };
 }

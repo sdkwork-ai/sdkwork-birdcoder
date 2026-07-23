@@ -1,12 +1,30 @@
 import { expect, test, type Page, type Route } from '@playwright/test';
 
-const terminalSessionId = 'browser-terminal-e2e-session';
+function pageEnvelope(route: Route, items: unknown[]) {
+  return {
+    code: 0,
+    data: {
+      items,
+      pageInfo: {
+        hasMore: false,
+        mode: 'offset',
+        page: 1,
+        pageSize: Number(
+          new URL(route.request().url()).searchParams.get('page_size') ?? 20,
+        ),
+        totalItems: String(items.length),
+        totalPages: items.length > 0 ? 1 : 0,
+      },
+    },
+    traceId: 'terminal-browser-project-page',
+  };
+}
 
 function itemEnvelope(item: unknown) {
   return {
     code: 0,
     data: { item },
-    traceId: '00000000-0000-4000-8000-000000000001',
+    traceId: 'terminal-browser-project-item',
   };
 }
 
@@ -18,32 +36,21 @@ async function unloadPageForTeardown(page: Page) {
   await page.goto('/__birdcoder_e2e_teardown__');
 }
 
-test('Browser terminal uses the protected App API and renders the full xterm surface', async ({
+test('Browser terminal fails closed without a governed project runtime binding', async ({
   page,
 }, testInfo) => {
-  page.on('pageerror', (error) => {
-    console.log(`[terminal-e2e:pageerror] ${error.message}`);
-  });
-  page.on('console', (message) => {
-    if (message.type() === 'error') {
-      console.log(`[terminal-e2e:console] ${message.text()}`);
+  const legacyProjectRequests: string[] = [];
+  const terminalRequests: string[] = [];
+
+  page.on('request', (request) => {
+    const url = new URL(request.url());
+    if (/^\/app\/v3\/api\/(?:workspaces|projects)(?:\/|$)/u.test(url.pathname)) {
+      legacyProjectRequests.push(url.pathname);
+    }
+    if (url.pathname.startsWith('/app/v3/api/device/terminal/')) {
+      terminalRequests.push(url.pathname);
     }
   });
-  page.on('requestfailed', (request) => {
-    console.log(`[terminal-e2e:requestfailed] ${request.method()} ${request.url()} ${request.failure()?.errorText ?? ''}`);
-  });
-  page.on('response', async (response) => {
-    if (response.status() >= 400) {
-      console.log(`[terminal-e2e:http] ${response.status()} ${response.request().method()} ${response.url()}`);
-    }
-  });
-  const terminalRequests: Array<{
-    method: string;
-    path: string;
-    authorization: string | undefined;
-    accessToken: string | undefined;
-    body: string | null;
-  }> = [];
 
   await page.addInitScript(() => {
     localStorage.setItem('sdkwork.birdcoder.appSession.v1', JSON.stringify({
@@ -100,6 +107,22 @@ test('Browser terminal uses the protected App API and renders the full xterm sur
       userId: 'e2e-user-1',
     },
   };
+  const project = {
+    id: '10001',
+    projectId: 'project.e2e-terminal',
+    tenantId: '0',
+    organizationId: '0',
+    ownerUserId: '1',
+    name: 'E2E Project',
+    description: 'Browser terminal boundary fixture.',
+    visibility: 'private',
+    status: 'active',
+    driveAccessMode: 'disabled',
+    defaultAgentId: 'agent.birdcoder',
+    version: '1',
+    createdAt: '2026-07-15T12:00:00.000Z',
+    updatedAt: '2026-07-15T12:00:00.000Z',
+  };
 
   await page.route('**/app/v3/api/auth/sessions/current', (route) => route.fulfill({
     json: {
@@ -115,295 +138,40 @@ test('Browser terminal uses the protected App API and renders the full xterm sur
       traceId: 'terminal-browser-current-user',
     },
   }));
-  const workspace = {
-    id: 'e2e-workspace-1',
-    uuid: 'e2e-workspace-uuid-1',
-    tenantId: '0',
-    organizationId: '0',
-    dataScope: 'PRIVATE',
-    code: 'e2e-workspace',
-    title: 'E2E Workspace',
-    name: 'E2E Workspace',
-    ownerId: 'e2e-user-1',
-    leaderId: 'e2e-user-1',
-    createdByUserId: 'e2e-user-1',
-    status: 'active',
-    viewerRole: 'owner',
-    createdAt: '2026-07-15T12:00:00.000Z',
-    updatedAt: '2026-07-15T12:00:00.000Z',
-  };
-  const project = {
-    id: 'e2e-project-1',
-    uuid: 'e2e-project-uuid-1',
-    tenantId: '0',
-    organizationId: '0',
-    dataScope: 'PRIVATE',
-    workspaceId: workspace.id,
-    workspaceUuid: workspace.uuid,
-    userId: 'e2e-user-1',
-    ownerId: 'e2e-user-1',
-    leaderId: 'e2e-user-1',
-    code: 'e2e-project',
-    title: 'E2E Project',
-    name: 'E2E Project',
-    status: 'active',
-    createdAt: '2026-07-15T12:00:00.000Z',
-    updatedAt: '2026-07-15T12:00:00.000Z',
-  };
-  const pageEnvelope = (route: Route, items: unknown[]) => ({
-    code: 0,
-    data: {
-      items,
-      pageInfo: {
-        hasMore: false,
-        mode: 'offset',
-        page: 1,
-        pageSize: Number(
-          new URL(route.request().url()).searchParams.get('page_size') ?? 20,
-        ),
-        totalItems: String(items.length),
-        totalPages: items.length > 0 ? 1 : 0,
-      },
-    },
-    traceId: 'terminal-browser-empty-page',
-  });
-  await page.route('**/app/v3/api/workspaces?**', (route) => route.fulfill({ json: pageEnvelope(route, [workspace]) }));
-  await page.route('**/app/v3/api/projects?**', (route) => route.fulfill({ json: pageEnvelope(route, [project]) }));
-  await page.route('**/app/v3/api/projects/e2e-project-1', (route) => route.fulfill({ json: itemEnvelope(project) }));
-  await page.route('**/app/v3/api/projects/e2e-project-1/runtime_location_preferences?**', (route) => {
-    const url = new URL(route.request().url());
-    expect(url.searchParams.get('page')).toBe('1');
-    expect(url.searchParams.get('page_size')).toBe('20');
-    expect(url.searchParams.has('pageSize')).toBe(false);
-    return route.fulfill({
-      json: pageEnvelope(route, [
-        {
-          id: 'e2e-terminal-preference-1',
-          projectId: project.id,
-          subjectUserId: 'e2e-user-1',
-          capability: 'terminal',
-          runtimeLocationId: 'e2e-runtime-location-1',
-          version: '1',
-          createdAt: '2026-07-15T12:00:00.000Z',
-          updatedAt: '2026-07-15T12:00:00.000Z',
-        },
-        {
-          id: 'e2e-git-preference-1',
-          projectId: project.id,
-          subjectUserId: 'e2e-user-1',
-          capability: 'git',
-          runtimeLocationId: 'e2e-runtime-location-1',
-          version: '1',
-          createdAt: '2026-07-15T12:00:00.000Z',
-          updatedAt: '2026-07-15T12:00:00.000Z',
-        },
-      ]),
-    });
-  });
-  await page.route('**/app/v3/api/projects/e2e-project-1/git/overview?**', (route) => {
-    const url = new URL(route.request().url());
-    expect(url.searchParams.get('runtime_location_id')).toBe('e2e-runtime-location-1');
-    return route.fulfill({
-      json: itemEnvelope({
-        branches: [{ isCurrent: true, isRemote: false, name: 'main' }],
-        currentBranch: 'main',
-        currentRevision: 'e2e-revision',
-        detachedHead: false,
-        status: 'ready',
-        statusCounts: {
-          staged: 0,
-          unstaged: 0,
-          untracked: 0,
-        },
-        worktrees: [],
-      }),
-    });
-  });
-  await page.route('**/app/v3/api/ai/agents/agent.birdcoder/sessions?**', (route) => route.fulfill({ json: pageEnvelope(route, []) }));
-
-  await page.route('**/app/v3/api/device/terminal/**', async (route) => {
-    const request = route.request();
-    const url = new URL(request.url());
-    terminalRequests.push({
-      method: request.method(),
-      path: `${url.pathname}${url.search}`,
-      authorization: request.headers().authorization,
-      accessToken: request.headers()['access-token'],
-      body: request.postData(),
-    });
-
-    if (url.pathname.endsWith('/events')) {
-      await route.fulfill({
-        status: 200,
-        contentType: 'text/event-stream',
-        body: [
-          'event: session.output',
-          `data: ${JSON.stringify({
-            sessionId: terminalSessionId,
-            nextCursor: '2',
-            entry: {
-              sequence: 2,
-              kind: 'output',
-              payload: 'SDKWork Browser terminal ready\r\n$ ',
-              occurredAt: '2026-07-15T12:00:01.000Z',
-            },
-          })}`,
-          '',
-          '',
-        ].join('\n'),
-      });
-      return;
-    }
-
-    if (request.method() === 'GET' && url.pathname.endsWith('/sessions')) {
-      await route.fulfill({ json: itemEnvelope({ sessions: [], attachments: [] }) });
-      return;
-    }
-
-    if (request.method() === 'POST' && url.pathname.endsWith('/sessions')) {
-      await route.fulfill({
-        status: 201,
-        json: itemEnvelope({
-          sessionId: terminalSessionId,
-          projectId: project.id,
-          runtimeLocationId: 'e2e-runtime-location-1',
-          target: 'server-runtime-node',
-          state: 'Running',
-          createdAt: '2026-07-15T12:00:00.000Z',
-          lastActiveAt: '2026-07-15T12:00:00.000Z',
-          modeTags: ['cli-native'],
-          tags: ['surface:browser', 'profile:bash'],
-          attachmentId: 'browser-terminal-e2e-attachment',
-          cursor: '1',
-          lastAckSequence: 1,
-          writable: true,
-          invokedProgram: '/bin/bash',
-          invokedArgs: ['-l'],
-          replayEntry: {
-            sequence: 1,
-            kind: 'state',
-            payload: '{"state":"running"}',
-            occurredAt: '2026-07-15T12:00:00.000Z',
-          },
-        }),
-      });
-      return;
-    }
-
-    if (request.method() === 'GET' && url.pathname.endsWith('/replay')) {
-      await route.fulfill({
-        json: itemEnvelope({
-          sessionId: terminalSessionId,
-          fromCursor: null,
-          nextCursor: '1',
-          hasMore: false,
-          entries: [],
-        }),
-      });
-      return;
-    }
-
-    if (url.pathname.endsWith('/input') || url.pathname.endsWith('/input_bytes')) {
-      await route.fulfill({
-        json: itemEnvelope({ sessionId: terminalSessionId, acceptedBytes: 24 }),
-      });
-      return;
-    }
-
-    if (url.pathname.endsWith('/resize')) {
-      await route.fulfill({
-        json: itemEnvelope({ sessionId: terminalSessionId, cols: 120, rows: 30 }),
-      });
-      return;
-    }
-
-    if (url.pathname.endsWith('/terminate')) {
-      await route.fulfill({
-        json: itemEnvelope({ sessionId: terminalSessionId, state: 'Stopping' }),
-      });
-      return;
-    }
-
-    await route.abort();
-  });
+  await page.route('**/app/v3/api/ai/projects?**', (route) => route.fulfill({
+    json: pageEnvelope(route, [project]),
+  }));
+  await page.route(
+    '**/app/v3/api/ai/projects/project.e2e-terminal',
+    (route) => route.fulfill({ json: itemEnvelope(project) }),
+  );
+  await page.route(
+    '**/app/v3/api/ai/agents/agent.birdcoder/sessions?**',
+    (route) => route.fulfill({ json: pageEnvelope(route, []) }),
+  );
 
   await page.goto('/#/app/code');
   await expect(page.locator('.sdkwork-birdcoder-auth-shell')).toHaveCount(0, {
     timeout: 45_000,
   });
+  await expect(page.getByText('E2E Project').first()).toBeVisible({ timeout: 45_000 });
 
   const terminalNavigation = page.locator('button:has(svg.lucide-terminal):visible').first();
   await expect(terminalNavigation).toBeVisible({ timeout: 45_000 });
   await terminalNavigation.click();
 
-  const shell = page.locator('[data-shell-layout="terminal-tabs"]');
-  const xterm = page.locator('.xterm');
-  const screen = page.locator('.xterm-screen');
-  const helperTextarea = page.locator('.xterm-helper-textarea');
-  await expect(shell).toBeVisible({ timeout: 60_000 });
-  await expect(screen).toBeVisible({ timeout: 30_000 });
-  await expect.poll(
-    () => terminalRequests.some((request) => request.path.endsWith('/events')),
-  ).toBe(true);
-
-  const shellBox = await shell.boundingBox();
-  const xtermBox = await xterm.boundingBox();
-  const screenBox = await screen.boundingBox();
-  expect(shellBox?.width).toBeGreaterThan(1000);
-  expect(shellBox?.height).toBeGreaterThan(600);
-  expect(xtermBox?.width).toBeGreaterThan(900);
-  expect(screenBox?.width).toBeGreaterThan(900);
-  await expect(helperTextarea).toHaveCSS('position', 'absolute');
-
-  await helperTextarea.focus();
-  await page.keyboard.type('echo browser-terminal');
-  await page.keyboard.press('Enter');
-  await expect.poll(
-    () => terminalRequests.some((request) => request.path.endsWith('/input')),
-  ).toBe(true);
+  const unavailableStage = page.locator('[data-shell-layout="terminal-runtime-unavailable"]');
+  await expect(unavailableStage).toBeVisible({ timeout: 30_000 });
+  await expect(unavailableStage).toContainText(
+    'No remote terminal runtime is configured for the current project.',
+  );
 
   await page.screenshot({
-    path: testInfo.outputPath('birdcoder-browser-terminal-desktop.png'),
+    path: testInfo.outputPath('birdcoder-browser-terminal-unavailable.png'),
     fullPage: true,
   });
 
-  await page.setViewportSize({ width: 390, height: 844 });
-  const mobileShellBox = await shell.boundingBox();
-  expect(mobileShellBox?.width).toBeGreaterThanOrEqual(320);
-  expect(mobileShellBox?.height).toBeGreaterThan(600);
-  await page.screenshot({
-    path: testInfo.outputPath('birdcoder-browser-terminal-mobile.png'),
-    fullPage: true,
-  });
-
-  expect(terminalRequests).toEqual(expect.arrayContaining([
-    expect.objectContaining({
-      method: 'POST',
-      path: '/app/v3/api/device/terminal/sessions',
-    }),
-    expect.objectContaining({
-      path: `/app/v3/api/device/terminal/sessions/${terminalSessionId}/events`,
-    }),
-    expect.objectContaining({
-      path: `/app/v3/api/device/terminal/sessions/${terminalSessionId}/input`,
-    }),
-  ]));
-  expect(terminalRequests.every((request) => (
-    request.path.startsWith('/app/v3/api/device/terminal/')
-  ))).toBe(true);
-  expect(terminalRequests.every((request) => (
-    request.authorization === 'Bearer e2e-auth-token'
-  ))).toBe(true);
-  expect(terminalRequests.every((request) => (
-    request.accessToken === 'e2e-access-token'
-  ))).toBe(true);
-  const createRequest = terminalRequests.find((request) => (
-    request.method === 'POST' && request.path === '/app/v3/api/device/terminal/sessions'
-  ));
-  expect(JSON.parse(createRequest?.body ?? '{}')).toMatchObject({
-    projectId: project.id,
-    runtimeLocationId: 'e2e-runtime-location-1',
-  });
-  expect(JSON.parse(createRequest?.body ?? '{}')).not.toHaveProperty('workspaceId');
+  expect(legacyProjectRequests).toEqual([]);
+  expect(terminalRequests).toEqual([]);
   await unloadPageForTeardown(page);
 });

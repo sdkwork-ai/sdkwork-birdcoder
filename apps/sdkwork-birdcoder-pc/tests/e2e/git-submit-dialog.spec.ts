@@ -12,7 +12,7 @@ test.afterEach(async ({ page }) => {
   }
 });
 
-async function openAuthenticatedCodeWorkspace(page: Page) {
+async function openAuthenticatedCodeProject(page: Page) {
   const tokenExpiresAt = Math.floor(Date.parse('2099-01-01T00:00:00.000Z') / 1_000);
   const accessToken = createE2eJwt({
     app_id: 'sdkwork-birdcoder',
@@ -30,41 +30,19 @@ async function openAuthenticatedCodeWorkspace(page: Page) {
     token_kind: 'auth',
     user_id: 'e2e-user-1',
   });
-  const workspace = {
-    id: 'e2e-workspace-1',
-    uuid: 'e2e-workspace-uuid-1',
-    tenantId: '0',
-    organizationId: '0',
-    dataScope: 'PRIVATE',
-    code: 'e2e-workspace',
-    title: 'E2E Workspace',
-    name: 'E2E Workspace',
-    description: 'Git submit dialog browser fixture.',
-    defaultAgentProjectId: 'project.e2e-git-submit',
-    ownerId: 'e2e-user-1',
-    leaderId: 'e2e-user-1',
-    createdByUserId: 'e2e-user-1',
-    status: 'active',
-    viewerRole: 'owner',
-    createdAt: '2026-01-01T00:00:00.000Z',
-    updatedAt: '2026-01-01T00:00:00.000Z',
-  };
   const project = {
-    id: 'e2e-project-1',
-    uuid: 'e2e-project-uuid-1',
+    id: '10001',
+    projectId: 'project.e2e-git-submit',
     tenantId: '0',
     organizationId: '0',
-    dataScope: 'PRIVATE',
-    workspaceId: workspace.id,
-    workspaceUuid: workspace.uuid,
-    userId: 'e2e-user-1',
-    ownerId: 'e2e-user-1',
-    leaderId: 'e2e-user-1',
-    code: 'e2e-project',
-    title: 'E2E Project',
+    ownerUserId: '1',
     name: 'E2E Project',
     description: 'Git submit dialog browser fixture.',
+    visibility: 'private',
     status: 'active',
+    driveAccessMode: 'disabled',
+    defaultAgentId: 'agent.birdcoder',
+    version: '1',
     createdAt: '2026-01-01T00:00:00.000Z',
     updatedAt: '2026-01-01T00:00:00.000Z',
   };
@@ -74,12 +52,12 @@ async function openAuthenticatedCodeWorkspace(page: Page) {
     organizationId: '0',
     agentId: 'agent.birdcoder',
     ownerUserId: '1',
-    projectId: project.defaultAgentProjectId,
+    projectId: project.projectId,
     sessionKind: 'coding',
     entrySurface: 'pc',
     sourceModule: 'sdkwork-birdcoder',
     sourceContextKind: 'coding-project',
-    sourceContextId: project.id,
+    sourceContextId: project.projectId,
     title: 'E2E Session',
     status: 'active',
     itemCount: '0',
@@ -156,9 +134,11 @@ async function openAuthenticatedCodeWorkspace(page: Page) {
       traceId: 'git-submit-dialog-current-user',
     },
   }));
-  await page.route('**/app/v3/api/workspaces?**', (route) => route.fulfill({ json: offsetPage(route, [workspace]) }));
-  await page.route('**/app/v3/api/projects?**', (route) => route.fulfill({ json: offsetPage(route, [project]) }));
-  await page.route('**/app/v3/api/projects/e2e-project-1', (route) => route.fulfill({ json: itemEnvelope(project) }));
+  await page.route('**/app/v3/api/ai/projects?**', (route) => route.fulfill({ json: offsetPage(route, [project]) }));
+  await page.route(
+    '**/app/v3/api/ai/projects/project.e2e-git-submit',
+    (route) => route.fulfill({ json: itemEnvelope(project) }),
+  );
   await page.route('**/app/v3/api/ai/agents/agent.birdcoder/sessions?**', (route) => route.fulfill({ json: offsetPage(route, [agentSession]) }));
   await page.route('**/app/v3/api/ai/agents/agent.birdcoder/sessions/session.e2e-git-submit-1', (route) => route.fulfill({ json: itemEnvelope(agentSession) }));
   await page.route(
@@ -286,7 +266,7 @@ async function routeLargeSandboxDirectory(page: Page) {
 test('Git commit and push requires a commit message without mutating the repository', async ({
   page,
 }, testInfo) => {
-  await openAuthenticatedCodeWorkspace(page);
+  await openAuthenticatedCodeProject(page);
   await expect(page.getByText('E2E Project').first()).toBeVisible({ timeout: 60_000 });
 
   const gitControl = page.locator('button:has(svg.lucide-folder-git-2):visible').first();
@@ -322,7 +302,7 @@ test('sandbox explorer presents a responsive professional large-directory experi
 }, testInfo) => {
   await page.setViewportSize({ width: 1_920, height: 1_080 });
   await routeLargeSandboxDirectory(page);
-  await openAuthenticatedCodeWorkspace(page);
+  await openAuthenticatedCodeProject(page);
 
   const openFolderButton = page.getByRole('button', { name: 'Open Server Folder', exact: true }).first();
   await expect(openFolderButton).toBeVisible({ timeout: 60_000 });

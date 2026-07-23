@@ -3,13 +3,11 @@ export { openLocalFolder } from '@sdkwork/birdcoder-pc-infrastructure/platform/o
 export {
   bindDefaultBirdCoderIdeServicesRuntime,
   configureDefaultBirdCoderIdeServicesRuntime,
-  createBirdCoderDependencyAppSdkClients,
   getDefaultBirdCoderIdeServicesRuntimeConfig,
   loadDefaultBirdCoderIdeService,
   resetDefaultBirdCoderIdeServicesRuntimeForTests,
   type BindDefaultBirdCoderIdeServicesRuntimeOptions,
   type BirdCoderDefaultIdeServicesRuntimeConfig,
-  type BirdCoderDependencyAppSdkClients,
 } from './defaultIdeServices.ts';
 
 export {

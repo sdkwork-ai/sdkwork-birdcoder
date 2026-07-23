@@ -28,6 +28,11 @@ adapters import only its public SDK entrypoints or receive injected clients.
 | Membership state and benefits | `sdkwork-membership` App SDK |
 | Commercial orders | `sdkwork-order` App SDK |
 
+Project-document discovery composes two independent authorities: Agents owns the
+enabled project `document` / `documents` slot and Documents owns the referenced
+content. BirdCoder stores neither side and does not maintain a projection,
+shadow binding, compatibility facade, or dual-write path.
+
 `./services/dependencyAppSdkClients` is the runtime-facing factory for
 Documents and Prompts. It is a composed port, not a second SDK inventory.
 

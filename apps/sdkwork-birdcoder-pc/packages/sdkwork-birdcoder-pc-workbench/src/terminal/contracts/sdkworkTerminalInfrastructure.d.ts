@@ -117,6 +117,7 @@ export interface DesktopLocalShellExecutionResult {
 }
 
 export interface DesktopConnectorInteractiveSessionCreateRequest {
+  /** Terminal runtime multiplexing scope, unrelated to the Agents Project domain. */
   workspaceId?: string | null;
   target?: string;
   authority?: string;
@@ -136,6 +137,7 @@ export interface DesktopLocalProcessSessionCreateRequest {
   rows?: number;
   title?: string | null;
   workingDirectory?: string;
+  /** Terminal runtime multiplexing scope, unrelated to the Agents Project domain. */
   workspaceId?: string | null;
 }
 
@@ -147,6 +149,7 @@ export interface DesktopLocalShellSessionCreateRequest {
   rows?: number;
   title?: string | null;
   workingDirectory?: string;
+  /** Terminal runtime multiplexing scope, unrelated to the Agents Project domain. */
   workspaceId?: string | null;
 }
 

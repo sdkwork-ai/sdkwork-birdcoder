@@ -18,9 +18,12 @@ transport, token store, or feature state.
 Documents and Prompts remain owner-generated SDKs declared by PC core; this
 runtime neither imports those packages nor duplicates their component specs.
 
+Prompts is prepared during bootstrap. Documents remains lazy until the Agents
+project-composition service resolves an enabled canonical `document` /
+`documents` slot, so an empty project does not initialize or call Documents.
+
 ## Verification
 
 - `pnpm --dir apps/sdkwork-birdcoder-pc typecheck`
 - `node scripts/run-local-tsx.mjs scripts/pc-runtime-boundary-ports-contract.test.ts`
 - `node ../sdkwork-specs/tools/check-component-port-bindings.mjs --root . --strict`
-

@@ -91,7 +91,7 @@ assert.match(
 
 assert.match(
   pageSource,
-  /useProjects\(workspaceId,\s*\{[\s\S]*?isActive: isVisible,[\s\S]*?\}\)/,
+  /useProjects\(\{[\s\S]*?isActive: isVisible,[\s\S]*?targetProjectId: projectId,[\s\S]*?\}\)/,
   'Multi-window page must reuse the shared workbench project/session inventory.',
 );
 
@@ -150,14 +150,14 @@ assert.match(
 
 assert.match(
   pageSource,
-  /readMultiWindowWorkspaceState\(/,
-  'Multi-window page must restore workspace-scoped pane layout and configuration.',
+  /readMultiWindowLayoutState\([\s\S]*MULTI_WINDOW_DEFAULT_LAYOUT_SCOPE_ID/,
+  'Multi-window page must restore device-local pane layout and configuration from the default layout scope.',
 );
 
 assert.match(
   pageSource,
-  /writeMultiWindowWorkspaceState\(/,
-  'Multi-window page must persist workspace-scoped pane layout and configuration.',
+  /writeMultiWindowLayoutState\(/,
+  'Multi-window page must persist device-local pane layout and configuration.',
 );
 assert.doesNotMatch(
   pageSource,
@@ -478,7 +478,7 @@ assert.match(
 assert.match(
   pageSource,
   /discardActiveDispatchBatch\(/,
-  'Multi-window page must discard the active batch during workspace lifecycle resets.',
+  'Multi-window page must discard the active batch during layout lifecycle resets.',
 );
 assert.match(
   pageSource,

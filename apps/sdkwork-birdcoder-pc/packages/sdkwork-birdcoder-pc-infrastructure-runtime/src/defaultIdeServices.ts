@@ -1,7 +1,5 @@
 import {
-  createBirdCoderDependencyAppSdkClients,
   createBirdCoderPromptsAppSdkClient,
-  type BirdCoderDependencyAppSdkClients,
   type SdkworkPromptsAppClient,
 } from '@sdkwork/birdcoder-pc-infrastructure/services/dependencyAppSdkClients';
 import {
@@ -19,13 +17,10 @@ export type {
   BirdCoderDefaultIdeServicesRuntimeConfig,
 };
 export {
-  createBirdCoderDependencyAppSdkClients,
   getDefaultBirdCoderIdeServicesRuntimeConfig,
   loadDefaultBirdCoderIdeService,
   resetDefaultBirdCoderIdeServicesRuntimeForTests,
 };
-
-export type { BirdCoderDependencyAppSdkClients };
 
 function resolvePromptsClient(
   platformApiGatewayBaseUrl: string | undefined,

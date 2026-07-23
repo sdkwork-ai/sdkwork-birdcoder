@@ -26,8 +26,6 @@ export interface RuntimeServerTokenStore {
   readTokenBundle(): RuntimeServerTokenBundle;
 }
 
-export const RUNTIME_SERVER_ACCESS_TOKEN_HEADER_NAME = 'Access-Token';
-export const RUNTIME_SERVER_AUTHORIZATION_HEADER_NAME = 'Authorization';
 export const RUNTIME_SERVER_SESSION_HEADER_NAME = 'X-SDKWork-Session-Id';
 const RUNTIME_SERVER_DEFAULT_TOKEN_TYPE = 'Bearer';
 

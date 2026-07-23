@@ -3,7 +3,10 @@ import fs from 'node:fs';
 import { readBirdcoderAppShellSource } from './birdcoder-app-shell-contract-sources.mjs';
 
 const appTabSource = fs.readFileSync(
-  new URL('../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-contracts-commons/src/index.ts', import.meta.url),
+  new URL(
+    '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-contracts-commons/src/workbench-view.ts',
+    import.meta.url,
+  ),
   'utf8',
 );
 const shellSource = readBirdcoderAppShellSource();

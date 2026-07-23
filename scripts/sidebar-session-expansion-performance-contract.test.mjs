@@ -98,7 +98,7 @@ assert.match(
 );
 assert.match(
   projectSectionSource,
-  /onLoadMoreProjectSessions\(project\.id, entry\.nextVisibleSessionCount\)/,
+  /onLoadMoreProjectSessions\(project\.projectId, entry\.nextVisibleSessionCount\)/,
   'Code Show more must send the owning project id and the next +10 target to its callback.',
 );
 assert.match(

@@ -34,13 +34,14 @@ import {
   resolveMultiWindowPaneSessionProvisioningStatus,
 } from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-multiwindow/src/runtime/multiWindowSessionProvisioning.ts';
 import {
-  buildMultiWindowWorkspaceState,
-  createMultiWindowWorkspaceStateStorageKey,
+  buildMultiWindowLayoutState,
+  createMultiWindowLayoutStateStorageKey,
+  MULTI_WINDOW_DEFAULT_LAYOUT_SCOPE_ID,
   MAX_MULTI_WINDOW_DURABLE_SYSTEM_PROMPT_CHARS,
-  MAX_MULTI_WINDOW_DURABLE_WORKSPACE_STATE_BYTES,
-  readMultiWindowWorkspaceState,
-  writeMultiWindowWorkspaceState,
-} from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-multiwindow/src/runtime/multiWindowWorkspaceState.ts';
+  MAX_MULTI_WINDOW_DURABLE_LAYOUT_STATE_BYTES,
+  readMultiWindowLayoutState,
+  writeMultiWindowLayoutState,
+} from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-multiwindow/src/runtime/multiWindowLayoutState.ts';
 
 assert.deepEqual(
   [...MULTI_WINDOW_LAYOUT_COUNTS],
@@ -494,7 +495,8 @@ const storage = {
     memoryStorage.set(key, value);
   },
 };
-const persistedState = buildMultiWindowWorkspaceState({
+const persistedState = buildMultiWindowLayoutState({
+  layoutScopeId: MULTI_WINDOW_DEFAULT_LAYOUT_SCOPE_ID,
   now: () => '2026-04-28T00:00:00.000Z',
   panes: [
     {
@@ -516,21 +518,23 @@ const persistedState = buildMultiWindowWorkspaceState({
     },
   ],
   windowCount: 3,
-  workspaceId: 'workspace-a',
 });
-writeMultiWindowWorkspaceState(storage, persistedState);
+writeMultiWindowLayoutState(storage, persistedState);
 assert.ok(
-  memoryStorage.has(createMultiWindowWorkspaceStateStorageKey('workspace-a')),
-  'Multi-window workspace state must be stored under a workspace-scoped key.',
+  memoryStorage.has(createMultiWindowLayoutStateStorageKey(MULTI_WINDOW_DEFAULT_LAYOUT_SCOPE_ID)),
+  'Multi-window layout state must be stored under the selected layout-scope key.',
 );
 assert.deepEqual(
-  readMultiWindowWorkspaceState(storage, 'workspace-a'),
+  readMultiWindowLayoutState(storage, MULTI_WINDOW_DEFAULT_LAYOUT_SCOPE_ID),
   persistedState,
-  'Multi-window workspace state must round-trip every pane configuration and layout setting.',
+  'Multi-window layout state must round-trip every pane configuration and layout setting.',
 );
-storage.setItem(createMultiWindowWorkspaceStateStorageKey('workspace-a'), '{"version":999}');
+storage.setItem(
+  createMultiWindowLayoutStateStorageKey(MULTI_WINDOW_DEFAULT_LAYOUT_SCOPE_ID),
+  '{"version":999}',
+);
 assert.equal(
-  readMultiWindowWorkspaceState(storage, 'workspace-a'),
+  readMultiWindowLayoutState(storage, MULTI_WINDOW_DEFAULT_LAYOUT_SCOPE_ID),
   null,
   'Unsupported persisted state versions must be ignored instead of crashing the page.',
 );
@@ -546,14 +550,14 @@ const inaccessibleStorage = {
   },
 };
 assert.equal(
-  readMultiWindowWorkspaceState(inaccessibleStorage, 'workspace-inaccessible'),
+  readMultiWindowLayoutState(inaccessibleStorage, 'layout-inaccessible'),
   null,
   'Blocked browser storage reads must be ignored instead of crashing startup hydration.',
 );
 assert.equal(
   inaccessibleGetItemCount,
   1,
-  'Startup hydration should attempt each workspace storage read once before falling back.',
+  'Startup hydration should attempt each layout storage read once before falling back.',
 );
 
 let quotaExceededSetItemCount = 0;
@@ -568,7 +572,8 @@ const quotaExceededStorage = {
     throw error;
   },
 };
-const quotaFallbackState = buildMultiWindowWorkspaceState({
+const quotaFallbackState = buildMultiWindowLayoutState({
+  layoutScopeId: 'layout-quota',
   now: () => '2026-04-28T00:00:01.000Z',
   panes: [
     {
@@ -582,25 +587,24 @@ const quotaFallbackState = buildMultiWindowWorkspaceState({
     },
   ],
   windowCount: 2,
-  workspaceId: 'workspace-quota',
 });
 assert.doesNotThrow(
-  () => writeMultiWindowWorkspaceState(quotaExceededStorage, quotaFallbackState),
-  'Multi-window workspace persistence must not crash React effects when browser storage quota is exceeded.',
+  () => writeMultiWindowLayoutState(quotaExceededStorage, quotaFallbackState),
+  'Multi-window layout persistence must not crash React effects when browser storage quota is exceeded.',
 );
 assert.deepEqual(
-  readMultiWindowWorkspaceState(quotaExceededStorage, 'workspace-quota'),
+  readMultiWindowLayoutState(quotaExceededStorage, 'layout-quota'),
   quotaFallbackState,
-  'Quota-exceeded writes must keep the latest workspace state in a same-session volatile fallback.',
+  'Quota-exceeded writes must keep the latest layout state in a same-session volatile fallback.',
 );
-writeMultiWindowWorkspaceState(quotaExceededStorage, {
+writeMultiWindowLayoutState(quotaExceededStorage, {
   ...quotaFallbackState,
   updatedAt: '2026-04-28T00:00:02.000Z',
 });
 assert.equal(
   quotaExceededSetItemCount,
   1,
-  'After a quota failure, repeated multi-window writes for the same workspace key must use volatile fallback without hammering localStorage.setItem again.',
+  'After a quota failure, repeated writes for the same layout key must use volatile fallback without hammering localStorage.setItem again.',
 );
 
 let recoveringSetItemCount = 0;
@@ -620,7 +624,8 @@ const recoveringStorage = {
     recoveringMemoryStorage.set(key, value);
   },
 };
-const recoveringLargeState = buildMultiWindowWorkspaceState({
+const recoveringLargeState = buildMultiWindowLayoutState({
+  layoutScopeId: 'layout-recovering',
   now: () => '2026-04-28T00:00:03.000Z',
   panes: [
     {
@@ -634,9 +639,9 @@ const recoveringLargeState = buildMultiWindowWorkspaceState({
     },
   ],
   windowCount: 2,
-  workspaceId: 'workspace-recovering',
 });
-const recoveringSmallState = buildMultiWindowWorkspaceState({
+const recoveringSmallState = buildMultiWindowLayoutState({
+  layoutScopeId: 'layout-recovering',
   now: () => '2026-04-28T00:00:04.000Z',
   panes: [
     {
@@ -650,17 +655,16 @@ const recoveringSmallState = buildMultiWindowWorkspaceState({
     },
   ],
   windowCount: 2,
-  workspaceId: 'workspace-recovering',
 });
-writeMultiWindowWorkspaceState(recoveringStorage, recoveringLargeState);
-writeMultiWindowWorkspaceState(recoveringStorage, recoveringSmallState);
+writeMultiWindowLayoutState(recoveringStorage, recoveringLargeState);
+writeMultiWindowLayoutState(recoveringStorage, recoveringSmallState);
 assert.equal(
   recoveringSetItemCount,
   2,
   'Durable multi-window persistence must retry after a quota failure once the next payload is smaller.',
 );
 assert.deepEqual(
-  readMultiWindowWorkspaceState(recoveringStorage, 'workspace-recovering'),
+  readMultiWindowLayoutState(recoveringStorage, 'layout-recovering'),
   recoveringSmallState,
   'A recovered durable write must clear the volatile fallback and expose the latest persisted state.',
 );
@@ -678,7 +682,8 @@ const oversizedStorage = {
     oversizedMemoryStorage.set(key, value);
   },
 };
-const oversizedState = buildMultiWindowWorkspaceState({
+const oversizedState = buildMultiWindowLayoutState({
+  layoutScopeId: 'layout-oversized',
   now: () => '2026-04-28T00:00:05.000Z',
   panes: [
     {
@@ -692,18 +697,17 @@ const oversizedState = buildMultiWindowWorkspaceState({
     },
   ],
   windowCount: 2,
-  workspaceId: 'workspace-oversized',
 });
-writeMultiWindowWorkspaceState(oversizedStorage, oversizedState);
+writeMultiWindowLayoutState(oversizedStorage, oversizedState);
 assert.equal(
   oversizedSetItemCount,
   1,
-  'Oversized multi-window workspace state must compact durable localStorage writes instead of writing the full payload.',
+  'Oversized multi-window layout state must compact durable localStorage writes instead of writing the full payload.',
 );
 assert.ok(
   new TextEncoder().encode(oversizedStoredValue).byteLength <=
-    MAX_MULTI_WINDOW_DURABLE_WORKSPACE_STATE_BYTES,
-  'Compacted multi-window workspace state must stay within the durable storage byte budget.',
+    MAX_MULTI_WINDOW_DURABLE_LAYOUT_STATE_BYTES,
+  'Compacted multi-window layout state must stay within the durable storage byte budget.',
 );
 assert.equal(
   JSON.parse(oversizedStoredValue).panes[0].parameters.systemPrompt.length,
@@ -711,19 +715,19 @@ assert.equal(
   'Durable multi-window persistence must bound large system prompts while preserving the active in-memory prompt.',
 );
 assert.deepEqual(
-  readMultiWindowWorkspaceState(oversizedStorage, 'workspace-oversized'),
+  readMultiWindowLayoutState(oversizedStorage, 'layout-oversized'),
   oversizedState,
-  'Oversized workspace state must remain available through same-session volatile fallback.',
+  'Oversized layout state must remain available through same-session volatile fallback.',
 );
 assert.equal(
-  readMultiWindowWorkspaceState({
+  readMultiWindowLayoutState({
     getItem(key: string) {
       return oversizedMemoryStorage.get(key) ?? null;
     },
     setItem() {
       throw new Error('reloaded storage should only be read');
     },
-  }, 'workspace-oversized')?.panes[0]?.parameters.systemPrompt.length,
+  }, 'layout-oversized')?.panes[0]?.parameters.systemPrompt.length,
   MAX_MULTI_WINDOW_DURABLE_SYSTEM_PROMPT_CHARS,
   'A fresh page load must hydrate the compact durable state instead of a stale oversized payload.',
 );

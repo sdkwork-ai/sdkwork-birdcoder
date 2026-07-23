@@ -9,8 +9,9 @@ import {
   resolveBirdCoderDependencySdkBaseUrl,
 } from '@sdkwork/birdcoder-pc-infrastructure/services/sdkBaseUrls';
 import {
-  createBirdCoderDependencyAppSdkClients,
-} from '@sdkwork/birdcoder-pc-infrastructure-runtime/defaultIdeServices';
+  createBirdCoderDocumentsAppSdkClient,
+  createBirdCoderPromptsAppSdkClient,
+} from '@sdkwork/birdcoder-pc-infrastructure/services/dependencyAppSdkClients';
 
 assert.equal(buildBirdCoderProtectedLoginPath('app/chat'), '/auth/login?redirect=%2Fapp%2Fchat');
 assert.equal(buildBirdCoderProtectedLoginPath('https://example.com'), '/auth/login');
@@ -56,10 +57,13 @@ assert.throws(
   'A dependency SDK must not fall back to the BirdCoder application URL or a local default.',
 );
 
-const dependencyClients = createBirdCoderDependencyAppSdkClients({
+const documentsClient = createBirdCoderDocumentsAppSdkClient({
   platformApiGatewayBaseUrl: 'https://platform.example.com',
 });
-assert.ok(dependencyClients.documentsClient);
-assert.ok(dependencyClients.promptsClient);
+const promptsClient = createBirdCoderPromptsAppSdkClient({
+  platformApiGatewayBaseUrl: 'https://platform.example.com',
+});
+assert.ok(documentsClient);
+assert.ok(promptsClient);
 
 console.log('PC runtime boundary port contract passed.');

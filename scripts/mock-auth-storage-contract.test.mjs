@@ -129,13 +129,8 @@ assert.doesNotMatch(
 
 assert.match(
   runtimeServerSessionSource,
-  /RUNTIME_SERVER_ACCESS_TOKEN_HEADER_NAME = 'Access-Token'/u,
-  'runtime auth storage must expose the canonical SDKWork access-token header.',
-);
-assert.match(
-  runtimeServerSessionSource,
-  /RUNTIME_SERVER_AUTHORIZATION_HEADER_NAME = 'Authorization'/u,
-  'runtime auth storage must expose the canonical SDKWork auth-token header.',
+  /buildAuthHeaders\('dual-token', undefined, getBirdCoderGlobalTokenManager\(\)\)/u,
+  'runtime auth storage must delegate dual-token header construction to the shared SDK helper and global TokenManager.',
 );
 assert.match(
   runtimeServerSessionSource,

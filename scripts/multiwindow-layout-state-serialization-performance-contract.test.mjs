@@ -2,12 +2,13 @@ import assert from 'node:assert/strict';
 
 const runtimeModule = await import(
   new URL(
-    '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-multiwindow/src/runtime/multiWindowWorkspaceState.ts',
+    '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-multiwindow/src/runtime/multiWindowLayoutState.ts',
     import.meta.url,
   ).href
 );
 
-const state = runtimeModule.buildMultiWindowWorkspaceState({
+const state = runtimeModule.buildMultiWindowLayoutState({
+  layoutScopeId: runtimeModule.MULTI_WINDOW_DEFAULT_LAYOUT_SCOPE_ID,
   now: () => '2026-04-29T00:00:00.000Z',
   panes: [
     {
@@ -17,7 +18,7 @@ const state = runtimeModule.buildMultiWindowWorkspaceState({
       mode: 'chat',
       parameters: {
         maxOutputTokens: 4096,
-        systemPrompt: 'Keep the workspace state compact.',
+        systemPrompt: 'Keep the layout state compact.',
         temperature: 0.2,
         topP: 0.9,
       },
@@ -29,7 +30,6 @@ const state = runtimeModule.buildMultiWindowWorkspaceState({
     },
   ],
   windowCount: 1,
-  workspaceId: 'workspace-1',
 });
 
 let completeStateSerializationCount = 0;
@@ -44,7 +44,7 @@ JSON.stringify = function stringifyWithStateCounter(value, ...args) {
 };
 
 try {
-  runtimeModule.writeMultiWindowWorkspaceState(
+  runtimeModule.writeMultiWindowLayoutState(
     {
       getItem() {
         return null;
@@ -62,7 +62,7 @@ try {
 assert.equal(
   completeStateSerializationCount,
   1,
-  'MultiWindow workspace persistence must serialize the complete state at most once per scheduled write; duplicated JSON.stringify work grows with prompt and pane payload size on the UI thread.',
+  'Multi-window layout persistence must serialize the complete state at most once per scheduled write.',
 );
 
-console.log('multiwindow workspace-state serialization performance contract passed.');
+console.log('multiwindow layout-state serialization performance contract passed.');
