@@ -148,60 +148,19 @@ export function createIamDeviceAuthorizationFixture() {
   };
 }
 
-export function createWorkspaceFixture(overrides = {}) {
+export function createAgentProjectFixture(overrides = {}) {
   return {
-    id: 'e2e-workspace-1',
-    uuid: 'e2e-workspace-uuid-1',
+    id: '10001',
+    projectId: 'project.e2e-1',
     tenantId: E2E_USER.tenantId,
     organizationId: E2E_USER.organizationId,
-    dataScope: 'PRIVATE',
-    code: 'e2e-workspace',
-    title: 'E2E Workspace',
-    name: 'E2E Workspace',
-    description: 'Playwright fixture workspace for BirdCoder authenticated code smoke.',
-    ownerId: E2E_USER.id,
-    leaderId: E2E_USER.id,
-    createdByUserId: E2E_USER.id,
-    status: 'active',
-    viewerRole: 'owner',
-    createdAt: '2026-01-01T00:00:00.000Z',
-    updatedAt: '2026-01-01T00:00:00.000Z',
-    ...overrides,
-  };
-}
-
-export function createProjectFixture(overrides = {}) {
-  const workspace = createWorkspaceFixture();
-  return {
-    id: 'e2e-project-1',
-    uuid: 'e2e-project-uuid-1',
-    tenantId: E2E_USER.tenantId,
-    organizationId: E2E_USER.organizationId,
-    dataScope: 'PRIVATE',
-    workspaceId: workspace.id,
-    workspaceUuid: workspace.uuid,
-    userId: E2E_USER.id,
-    ownerId: E2E_USER.id,
-    leaderId: E2E_USER.id,
-    code: 'e2e-project',
-    title: 'E2E Project',
+    ownerUserId: E2E_USER.id,
     name: 'E2E Project',
-    description: 'Playwright fixture project for BirdCoder authenticated code smoke.',
+    description: 'Playwright fixture for the canonical Agents project catalog.',
+    visibility: 'private',
     status: 'active',
-    createdAt: '2026-01-01T00:00:00.000Z',
-    updatedAt: '2026-01-01T00:00:00.000Z',
-    ...overrides,
-  };
-}
-
-export function createProjectRuntimeLocationPreferenceFixture(overrides = {}) {
-  const project = createProjectFixture();
-  return {
-    id: 'e2e-git-preference-1',
-    projectId: project.id,
-    subjectUserId: E2E_USER.id,
-    capability: 'git',
-    runtimeLocationId: 'e2e-runtime-location-1',
+    driveAccessMode: 'disabled',
+    defaultAgentId: 'agent.birdcoder',
     version: '1',
     createdAt: '2026-01-01T00:00:00.000Z',
     updatedAt: '2026-01-01T00:00:00.000Z',
@@ -209,36 +168,20 @@ export function createProjectRuntimeLocationPreferenceFixture(overrides = {}) {
   };
 }
 
-export function createProjectGitOverviewFixture() {
-  return {
-    branches: [{ isCurrent: true, isRemote: false, name: 'main' }],
-    currentBranch: 'main',
-    currentRevision: 'e2e-revision',
-    detachedHead: false,
-    status: 'ready',
-    statusCounts: {
-      staged: 0,
-      unstaged: 1,
-      untracked: 0,
-    },
-    worktrees: [],
-  };
-}
-
 export function createAgentSessionFixture(overrides = {}) {
-  const project = createProjectFixture();
+  const project = createAgentProjectFixture();
   return {
     sessionId: 'e2e-coding-session-1',
     tenantId: '0',
     organizationId: '0',
     agentId: 'agent.birdcoder',
     ownerUserId: '1',
-    projectId: project.id,
+    projectId: project.projectId,
     sessionKind: 'coding',
     entrySurface: 'pc',
     sourceModule: 'sdkwork-birdcoder',
     sourceContextKind: 'coding-project',
-    sourceContextId: project.id,
+    sourceContextId: project.projectId,
     title: 'E2E Session',
     status: 'active',
     itemCount: '0',

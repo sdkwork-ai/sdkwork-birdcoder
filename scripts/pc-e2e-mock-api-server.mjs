@@ -5,6 +5,7 @@ import process from 'node:process';
 import {
   createAppbaseFailure,
   createAppbaseSuccess,
+  createAgentProjectFixture,
   createAppTemplateFixture,
   createBirdCoderDataEnvelope,
   createBirdCoderListEnvelope,
@@ -12,10 +13,6 @@ import {
   createIamDeviceAuthorizationFixture,
   createIamRuntimeSettings,
   createIamSessionData,
-  createProjectGitOverviewFixture,
-  createProjectFixture,
-  createProjectRuntimeLocationPreferenceFixture,
-  createWorkspaceFixture,
   credentialsMatchSessionRequest,
   isAuthenticatedRequest,
 } from './pc-e2e-mock-api-fixtures.mjs';
@@ -182,7 +179,7 @@ function handleRoute(method, url, request, body) {
     };
   }
 
-  if (pathname === '/app/v3/api/workspaces' && method === 'GET') {
+  if (pathname === '/app/v3/api/ai/projects' && method === 'GET') {
     if (!isAuthenticatedRequest(request)) {
       return {
         statusCode: 401,
@@ -192,11 +189,11 @@ function handleRoute(method, url, request, body) {
 
     return {
       statusCode: 200,
-      payload: createBirdCoderListEnvelope([createWorkspaceFixture()]),
+      payload: createBirdCoderListEnvelope([createAgentProjectFixture()]),
     };
   }
 
-  if (pathname === '/app/v3/api/workspaces' && method === 'POST') {
+  if (pathname === '/app/v3/api/ai/projects' && method === 'POST') {
     if (!isAuthenticatedRequest(request)) {
       return {
         statusCode: 401,
@@ -204,21 +201,21 @@ function handleRoute(method, url, request, body) {
       };
     }
 
-    const requestedName = String(body.name ?? body.title ?? '').trim();
+    const requestedName = String(body.name ?? '').trim();
     const requestedDescription = String(body.description ?? '').trim();
     return {
       statusCode: 201,
       payload: createBirdCoderDataEnvelope(
-        createWorkspaceFixture({
-          name: requestedName || 'E2E Workspace',
-          title: requestedName || 'E2E Workspace',
-          description: requestedDescription || createWorkspaceFixture().description,
+        createAgentProjectFixture({
+          name: requestedName || 'E2E Project',
+          description:
+            requestedDescription || createAgentProjectFixture().description,
         }),
       ),
     };
   }
 
-  if (pathname === '/app/v3/api/projects' && method === 'GET') {
+  if (pathname === '/app/v3/api/ai/projects/project.e2e-1' && method === 'GET') {
     if (!isAuthenticatedRequest(request)) {
       return {
         statusCode: 401,
@@ -228,52 +225,7 @@ function handleRoute(method, url, request, body) {
 
     return {
       statusCode: 200,
-      payload: createBirdCoderListEnvelope([createProjectFixture()]),
-    };
-  }
-
-  if (pathname === '/app/v3/api/projects/e2e-project-1' && method === 'GET') {
-    if (!isAuthenticatedRequest(request)) {
-      return {
-        statusCode: 401,
-        payload: createAppbaseFailure('No authenticated SDKWork IAM user.', '401'),
-      };
-    }
-
-    return {
-      statusCode: 200,
-      payload: createBirdCoderDataEnvelope(createProjectFixture()),
-    };
-  }
-
-  if (
-    pathname === '/app/v3/api/projects/e2e-project-1/runtime_location_preferences'
-    && method === 'GET'
-  ) {
-    if (!isAuthenticatedRequest(request)) {
-      return {
-        statusCode: 401,
-        payload: createAppbaseFailure('No authenticated SDKWork IAM user.', '401'),
-      };
-    }
-
-    return {
-      statusCode: 200,
-      payload: createBirdCoderListEnvelope([createProjectRuntimeLocationPreferenceFixture()]),
-    };
-  }
-
-  if (pathname === '/app/v3/api/projects/e2e-project-1/git/overview' && method === 'GET') {
-    if (!isAuthenticatedRequest(request)) {
-      return {
-        statusCode: 401,
-        payload: createAppbaseFailure('No authenticated SDKWork IAM user.', '401'),
-      };
-    }
-
-    return {
-      statusCode: 200,
-      payload: createBirdCoderDataEnvelope(createProjectGitOverviewFixture()),
+      payload: createBirdCoderDataEnvelope(createAgentProjectFixture()),
     };
   }
 

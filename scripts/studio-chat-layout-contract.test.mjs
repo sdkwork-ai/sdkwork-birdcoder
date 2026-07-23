@@ -26,8 +26,13 @@ assert.match(
 
 assert.match(
   studioPageSource,
-  /const currentProjectWorkspaceId = currentProject\?\.workspaceId\?\.trim\(\) \?\? '';[\s\S]*`\$\{currentProjectWorkspaceId\}\\u0001\$\{currentProjectId\}\\u0001\$\{selectedAgentSessionId\}`/s,
-  'StudioChatSidebar must scope transcript virtualization by workspace, project, and session so equal session ids from different workspaces cannot reuse chat window state.',
+  /currentProjectId && selectedAgentSessionId[\s\S]*`\$\{currentProjectId\}\\u0001\$\{selectedAgentSessionId\}`/s,
+  'StudioChatSidebar must scope transcript virtualization by the canonical Agents project and session identifiers.',
+);
+assert.doesNotMatch(
+  studioPageSource,
+  /workspaceId|currentProjectWorkspaceId/u,
+  'StudioChatSidebar must not restore a second Workspace scope around canonical Agents project/session identity.',
 );
 
 console.log('studio chat layout contract passed.');

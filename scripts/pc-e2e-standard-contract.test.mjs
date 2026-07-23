@@ -71,28 +71,23 @@ assert.match(
 );
 assert.match(
   mockServer,
-  /\/workspaces/u,
-  'PC e2e mock API server must mock workspace bootstrap APIs.',
-);
-assert.match(
-  mockServer,
-  /\/projects/u,
-  'PC e2e mock API server must mock the authenticated project catalog.',
+  /\/ai\/projects/u,
+  'PC e2e mock API server must mock the canonical Agents project catalog.',
 );
 assert.match(
   mockServer,
   /ai\/agents\/agent\.birdcoder\/sessions/u,
   'PC e2e mock API server must mock the canonical Agents coding session catalog.',
 );
-assert.match(
+assert.doesNotMatch(
   mockServer,
-  /runtime_location_preferences/u,
-  'PC e2e mock API server must mock project runtime location preferences.',
+  /\/app\/v3\/api\/(?:workspaces|projects)(?:\/|['"])/u,
+  'PC e2e mock API server must not restore BirdCoder-owned Workspace or Project routes.',
 );
-assert.match(
+assert.doesNotMatch(
   mockServer,
-  /git\/overview/u,
-  'PC e2e mock API server must mock the remote Git overview.',
+  /runtime_location_preferences|git\/overview/u,
+  'PC e2e mock API server must not restore remote runtime-location or Git authority.',
 );
 
 assert.match(
@@ -143,13 +138,13 @@ assert.match(
 );
 assert.match(
   playwrightConfig,
-  /VITE_BIRDCODER_API_BASE_URL/u,
-  'PC Playwright must inject the mock API base URL for browser bootstrap.',
+  /SDKWORK_BIRDCODER_APPLICATION_PUBLIC_HTTP_URL: mockApiBaseUrl/u,
+  'PC Playwright must inject the application-public mock API URL through source-config keys.',
 );
 assert.match(
   playwrightConfig,
-  /BIRDCODER_DEV_PROXY_TARGET: mockApiBaseUrl/u,
-  'PC Playwright must route the Vite development proxy to the isolated mock API.',
+  /SDKWORK_BIRDCODER_PLATFORM_API_GATEWAY_HTTP_URL: mockApiBaseUrl/u,
+  'PC Playwright must inject the platform gateway mock API URL through source-config keys.',
 );
 assert.match(
   mockServer,
@@ -229,18 +224,18 @@ assert.match(
 
 assert.match(
   terminalSpec,
-  /runtime_location_preferences/u,
-  'PC browser terminal e2e must provide capability-specific runtime location preferences.',
+  /\/app\/v3\/api\/ai\/projects/u,
+  'PC browser terminal e2e must consume the canonical Agents project catalog.',
 );
 assert.match(
   terminalSpec,
-  /git\/overview/u,
-  'PC browser terminal e2e must isolate the remote Git overview request.',
+  /legacyProjectRequests[\s\S]*toEqual\(\[\]\)/u,
+  'PC browser terminal e2e must prove no retired application-owned project route is called.',
 );
 assert.match(
   terminalSpec,
-  /runtime_location_id/u,
-  'PC browser terminal e2e must verify the remote Git runtime location query.',
+  /terminalRequests[\s\S]*toEqual\(\[\]\)/u,
+  'PC browser terminal must fail closed before invoking a device terminal without a governed runtime binding.',
 );
 
 console.log('pc e2e standard contract passed.');

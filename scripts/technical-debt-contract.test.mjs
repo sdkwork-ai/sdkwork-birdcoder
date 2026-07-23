@@ -46,18 +46,29 @@ const forbiddenFiles = [
   'scripts/coding-session-stale-runtime-status-startup-contract.test.ts',
   'scripts/flutter-mobile-chat-api-contract.test.mjs',
   'scripts/http-api-transport-long-id-contract.test.ts',
+  'scripts/lazy-ide-services-sync-contract.test.mjs',
   'scripts/migrate-coding-sessions-repo-to-sqlx.py',
   'scripts/multiwindow-release-writeback-contract.test.mjs',
   'scripts/multiwindow-workspace-state-persistence-performance-contract.test.mjs',
   'scripts/multiwindow-workspace-state-serialization-performance-contract.test.mjs',
   'scripts/patch-coding-session-repo.py',
   'scripts/postgres-returning-id-portability-contract.test.mjs',
+  'scripts/project-inventory-render-identity-contract.test.ts',
+  'scripts/project-session-index-cache-performance-contract.test.ts',
+  'scripts/project-session-index-performance-contract.test.mjs',
+  'scripts/project-session-location-cache-performance-contract.test.ts',
+  'scripts/project-session-navigation-cache-performance-contract.test.ts',
+  'scripts/projects-store-identity-deduplication-contract.test.ts',
+  'scripts/projects-store-message-invariant-contract.test.ts',
+  'scripts/provider-backed-project-inventory-clone-performance-contract.test.mjs',
   'scripts/project-agent-project-composition-contract.test.ts',
   'scripts/runtime-location-key-rotation-contract.test.mjs',
   'scripts/session-activity-sorting-contract.test.mjs',
   'scripts/session-aware-coding-session-creation-contract.test.mjs',
+  'scripts/session-refresh-timeout-contract.test.ts',
   'scripts/shell-coding-session-creation-standardization-contract.test.mjs',
   'scripts/unified-coding-session-inventory-contract.test.ts',
+  'scripts/selected-session-user-scope-refresh-contract.test.ts',
   'scripts/workspace-effective-selection-contract.test.ts',
   'scripts/workspace-project-loading-timeout-contract.test.ts',
   'scripts/workspace-realtime-browser-auth-contract.test.ts',
@@ -85,10 +96,12 @@ const governedCommandFiles = [
   'scripts/run-quality-release-check.mjs',
   'scripts/run-quality-mobile-check.mjs',
   'scripts/run-release-flow-check.mjs',
+  'scripts/pc-e2e-mock-api-fixtures.mjs',
+  'scripts/pc-e2e-mock-api-server.mjs',
   'scripts/release/sdkwork-workflow-lifecycle.mjs',
   'scripts/release/write-package-sbom-evidence.mjs',
 ];
-const retiredCommandPattern = /sdkwork-birdcoder-(?:coding-sessions|chat|skill-packages|kernel-bridge)|run-claw-server|coding-server-openapi|provider-runtime|test:birdcoder-agents-integration|coding-session-prompt-history|flutter-mobile-chat-api|check:data-kernel|appRuntimeTransport|ProviderBackedProjectService|auth-workspace-loading-gating|project-agent-project-composition|workspace-realtime-browser-auth|code-local-folder-import-workspace|composed-sdk-project-runtime-location-registration/iu;
+const retiredCommandPattern = /sdkwork-birdcoder-(?:coding-sessions|chat|skill-packages|kernel-bridge)|run-claw-server|coding-server-openapi|provider-runtime|test:birdcoder-agents-integration|coding-session-prompt-history|flutter-mobile-chat-api|check:data-kernel|appRuntimeTransport|ProviderBackedProjectService|auth-workspace-loading-gating|project-agent-project-composition|workspace-realtime-browser-auth|code-local-folder-import-workspace|composed-sdk-project-runtime-location-registration|createWorkspaceFixture|createProjectFixture|ProjectRuntimeLocationPreference|ProjectGitOverviewFixture|\/app\/v3\/api\/(?:workspaces|projects)/iu;
 const commandViolations = governedCommandFiles.flatMap((relativePath) => {
   const source = fs.readFileSync(resolvePath(relativePath), 'utf8');
   return retiredCommandPattern.test(source) ? [relativePath] : [];
