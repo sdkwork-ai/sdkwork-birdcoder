@@ -138,7 +138,7 @@
   "integration": {
     "authority": "This package exposes BirdCoder PC runtime composition adapters and owns no business records, APIs, or persistence.",
     "dependencyPolicy": "This package consumes only Infrastructure public ports and does not declare or import dependency SDK families directly.",
-    "sdkPolicy": "This runtime composition root binds BirdCoder application ingress separately from the SDKWork platform gateway, requests authenticated Documents and Prompts clients from the Infrastructure dependency-client factory, and injects them into typed service adapters. Missing dependency topology fails closed.",
+    "sdkPolicy": "This runtime composition root binds BirdCoder application ingress separately from the SDKWork platform gateway, eagerly injects Prompts, and leaves Documents client construction lazy until a canonical Agents document/documents slot is resolved. Missing dependency topology or an invalid composition pair fails closed.",
     "languagePolicy": "Language-specific packages follow their native manifest and build tools while preserving the same component contract."
   },
   "verification": {

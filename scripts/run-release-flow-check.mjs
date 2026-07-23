@@ -39,7 +39,7 @@ export const RELEASE_FLOW_CHECK_LANES = Object.freeze({
     'node scripts/agent-session-interaction-refresh-performance-contract.test.mjs',
     'node scripts/universal-chat-pending-interactions-contract.test.mjs',
     'node --experimental-strip-types scripts/app-sdk-composition-boundary-contract.test.ts',
-    'node scripts/run-local-tsx.mjs scripts/project-agent-project-composition-contract.test.ts',
+    'node scripts/run-local-tsx.mjs scripts/agents-project-service-contract.test.ts',
   ]),
   releaseEvidence: Object.freeze([
     'node scripts/release/local-release-command.test.mjs',

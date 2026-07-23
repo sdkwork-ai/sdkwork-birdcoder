@@ -17,7 +17,9 @@ The PC core declares the authenticated BirdCoder, Agents, Skills, Prompts,
 Documents, Drive, IAM, Messaging, Membership, and Order SDK inventory. This
 package consumes only PC core SDK exports or injected service ports. Its
 dependency-client factory binds Documents and Prompts clients to the shared
-application TokenManager without exposing generated transports.
+application TokenManager without exposing generated transports. Project document
+reads first resolve an enabled Agents `document` / `documents` composition slot;
+the Documents client remains lazy when a project has no such slot.
 
 ## Configuration
 

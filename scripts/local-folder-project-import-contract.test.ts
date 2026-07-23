@@ -27,7 +27,7 @@ const browserImportResult = await importLocalFolderProject({
   createProject: async (name: string, options) => {
     assert.equal(options, undefined, 'browser imports must not send a local path to createProject.');
     browserCalls.push(`create:${name}`);
-    return { id: 'browser-project' };
+    return { projectId: 'browser-project' };
   },
   fallbackProjectName: 'Local Folder',
   folderInfo: browserFolderInfo,
@@ -61,7 +61,7 @@ const tauriImportResult = await importLocalFolderProject({
   createProject: async (name: string, options) => {
     assert.equal(options, undefined, 'Tauri imports must not send a local path to createProject.');
     tauriCalls.push(`create:${name}`);
-    return { id: 'desktop-project' };
+    return { projectId: 'desktop-project' };
   },
   fallbackProjectName: 'Local Folder',
   folderInfo: tauriFolderInfo,
@@ -147,7 +147,7 @@ await assert.rejects(
         status: 'failed',
       };
     },
-    createProject: async () => ({ id: 'failed-desktop-project' }),
+    createProject: async () => ({ projectId: 'failed-desktop-project' }),
     deleteCreatedProject: async (projectId) => {
       failedImportCalls.push(`delete:${projectId}`);
     },

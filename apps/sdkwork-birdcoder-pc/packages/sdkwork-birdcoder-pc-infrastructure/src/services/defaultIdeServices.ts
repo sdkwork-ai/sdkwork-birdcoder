@@ -7,7 +7,6 @@ import {
 import { ApiBackedCatalogService } from './impl/ApiBackedCatalogService.ts';
 import { ApiBackedVipMembershipService } from './impl/ApiBackedVipMembershipService.ts';
 import { PromptsSdkPromptService } from './impl/PromptsSdkPromptService.ts';
-import { UnavailableProjectDocumentService } from './impl/UnavailableProjectDocumentService.ts';
 
 export {
   type BirdCoderDefaultIdeServices,
@@ -27,7 +26,7 @@ export function createDefaultBirdCoderIdeServices(
     catalogService: new ApiBackedCatalogService({
       skillsClient: runtime.skillsClient,
     }),
-    documentService: new UnavailableProjectDocumentService(),
+    documentService: runtime.documentService,
     fileSystemService: runtime.fileSystemService,
     gitService: runtime.gitService,
     projectRuntimeLocationService: runtime.projectRuntimeLocationService,

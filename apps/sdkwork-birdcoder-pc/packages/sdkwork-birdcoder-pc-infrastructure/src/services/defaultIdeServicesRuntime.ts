@@ -1,6 +1,6 @@
 import type { BirdHostDescriptor } from '@sdkwork/birdcoder-pc-host-core';
+import type { SdkworkDocumentsAppClient } from '@sdkwork/birdcoder-pc-core/sdk/documents-app';
 import type { SdkworkPromptsAppClient } from '@sdkwork/birdcoder-pc-core/sdk/prompts-app';
-import type { BirdCoderAppSdkApiClient } from './birdCoderSdkClient.ts';
 import { normalizeBirdCoderSdkBaseUrl } from './sdkBaseUrls.ts';
 import {
   resolveBirdCoderRuntimeTopology,
@@ -12,8 +12,7 @@ import {
 
 export interface BirdCoderDefaultIdeServicesRuntimeConfig {
   applicationApiBaseUrl?: string;
-  appClient?: BirdCoderAppSdkApiClient;
-  executionAuthorityMode?: 'auto' | 'remote-required';
+  documentsClient?: SdkworkDocumentsAppClient;
   promptsClient?: SdkworkPromptsAppClient;
   platformApiGatewayBaseUrl?: string;
   runtimeTopology?: BirdCoderRuntimeTopology;
@@ -21,8 +20,7 @@ export interface BirdCoderDefaultIdeServicesRuntimeConfig {
 
 export interface BindDefaultBirdCoderIdeServicesRuntimeOptions {
   applicationApiBaseUrl?: string;
-  appClient?: BirdCoderAppSdkApiClient;
-  executionAuthorityMode?: 'auto' | 'remote-required';
+  documentsClient?: SdkworkDocumentsAppClient;
   host?: BirdHostDescriptor;
   promptsClient?: SdkworkPromptsAppClient;
   platformApiGatewayBaseUrl?: string;
@@ -48,22 +46,6 @@ function resolveBoundApplicationApiBaseUrl(
     options.host?.apiBaseUrl,
     'BirdCoder host application SDK base URL',
   );
-}
-
-function resolveExecutionAuthorityMode(
-  options: BindDefaultBirdCoderIdeServicesRuntimeOptions,
-): 'auto' | 'remote-required' {
-  if (options.executionAuthorityMode) {
-    return options.executionAuthorityMode;
-  }
-
-  if (
-    resolveBoundApplicationApiBaseUrl(options) || options.appClient
-  ) {
-    return 'remote-required';
-  }
-
-  return 'auto';
 }
 
 function resolveRuntimeTarget(
@@ -93,8 +75,7 @@ export function configureDefaultBirdCoderIdeServicesRuntime(
       config.applicationApiBaseUrl,
       'BirdCoder application SDK base URL',
     ),
-    appClient: config.appClient,
-    executionAuthorityMode: config.executionAuthorityMode ?? 'auto',
+    documentsClient: config.documentsClient,
     promptsClient: config.promptsClient,
     platformApiGatewayBaseUrl: normalizeBirdCoderSdkBaseUrl(
       config.platformApiGatewayBaseUrl,
@@ -111,8 +92,7 @@ export function bindDefaultBirdCoderIdeServicesRuntime(
 ): void {
   configureDefaultBirdCoderIdeServicesRuntime({
     applicationApiBaseUrl: resolveBoundApplicationApiBaseUrl(options),
-    appClient: options.appClient,
-    executionAuthorityMode: resolveExecutionAuthorityMode(options),
+    documentsClient: options.documentsClient,
     promptsClient: options.promptsClient,
     platformApiGatewayBaseUrl: normalizeBirdCoderSdkBaseUrl(
       options.platformApiGatewayBaseUrl,

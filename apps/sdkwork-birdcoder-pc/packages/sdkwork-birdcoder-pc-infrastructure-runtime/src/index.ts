@@ -71,7 +71,11 @@ export type {
   SubmitAgentTurnInput,
 } from '@sdkwork/birdcoder-pc-infrastructure/services/interfaces/IAgentSessionService';
 export type { ICatalogService } from '@sdkwork/birdcoder-pc-infrastructure/services/interfaces/ICatalogService';
-export type { IDocumentService, DocumentListOptions } from '@sdkwork/birdcoder-pc-infrastructure/services/interfaces/IDocumentService';
+export type {
+  DocumentListOptions,
+  IDocumentService,
+  ProjectDocumentPage,
+} from '@sdkwork/birdcoder-pc-infrastructure/services/interfaces/IDocumentService';
 export type { IFileSystemService } from '@sdkwork/birdcoder-pc-infrastructure/services/interfaces/IFileSystemService';
 export type {
   IProjectRuntimeLocationService,

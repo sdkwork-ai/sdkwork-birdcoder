@@ -28,8 +28,10 @@ core remains the only frontend SDK inventory authority.
 ## Configuration
 
 Bootstrap supplies the resolved application edge URL and runtime topology.
-Tests may inject typed clients; production composition obtains authenticated
-clients through the Infrastructure factory before feature services load.
+Tests may inject typed clients; production composition obtains Prompts through
+the Infrastructure factory before feature services load. Documents construction
+is deferred until the Agents project composition returns a canonical enabled
+`document` / `documents` slot.
 
 ## Deployment Profile And Runtime Target Behavior
 
@@ -55,4 +57,3 @@ packages or a duplicate `sdkDependencies` inventory to this runtime package.
 - `node scripts/run-local-tsx.mjs scripts/pc-runtime-boundary-ports-contract.test.ts`
 - `node ../sdkwork-specs/tools/check-frontend-composition.mjs --root .`
 - `node ../sdkwork-specs/tools/check-component-port-bindings.mjs --root . --strict`
-

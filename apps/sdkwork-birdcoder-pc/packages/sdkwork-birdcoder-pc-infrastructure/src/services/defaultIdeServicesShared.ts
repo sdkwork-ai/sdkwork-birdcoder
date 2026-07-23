@@ -1,15 +1,14 @@
 import type { AgentsAppSdkClient } from '@sdkwork/birdcoder-pc-core/sdk';
+import type { SdkworkDocumentsAppClient } from '@sdkwork/birdcoder-pc-core/sdk/documents-app';
 import type { SdkworkPromptsAppClient } from '@sdkwork/birdcoder-pc-core/sdk/prompts-app';
 import type { SdkworkSkillsAppClient } from '@sdkwork/birdcoder-pc-core/sdk/skills-app';
 
 import { TauriDesktopRuntimeLocationIdentityPort } from '../platform/tauriDesktopRuntimeLocationIdentity.ts';
 import { createBirdCoderAgentsAppSdkClient } from './agentsSdkClients.ts';
-import {
-  createBirdCoderAppClient,
-  type BirdCoderAppSdkApiClient,
-} from './birdCoderSdkClient.ts';
+import { createBirdCoderDocumentsAppSdkClient } from './dependencyAppSdkClients.ts';
 import { getDefaultBirdCoderIdeServicesRuntimeConfig } from './defaultIdeServicesRuntime.ts';
 import { createBirdCoderDriveSandboxExplorerPort } from './driveSandboxExplorerRuntime.ts';
+import { AgentsDocumentsProjectDocumentService } from './impl/AgentsDocumentsProjectDocumentService.ts';
 import { DriveSandboxProjectFileSystemService } from './impl/DriveSandboxProjectFileSystemService.ts';
 import { ApiBackedProjectService } from './impl/ApiBackedProjectService.ts';
 import { createBirdCoderRuntimeAuthService } from './impl/RuntimeAuthService.ts';
@@ -48,15 +47,15 @@ export type BirdCoderDefaultIdeServiceKey = keyof BirdCoderDefaultIdeServices;
 
 export interface CreateBirdCoderDefaultIdeServicesOptions {
   agentsClient?: AgentsAppSdkClient;
-  appClient?: BirdCoderAppSdkApiClient;
+  documentsClient?: SdkworkDocumentsAppClient;
   promptsClient?: SdkworkPromptsAppClient;
   skillsClient?: SdkworkSkillsAppClient;
 }
 
 export interface BirdCoderDefaultIdeSharedRuntime {
   agentsClient: AgentsAppSdkClient;
-  appClient: BirdCoderAppSdkApiClient;
   authService: IAuthService;
+  documentService: IDocumentService;
   fileSystemService: IFileSystemService;
   gitService: IGitService;
   promptsClient: SdkworkPromptsAppClient;
@@ -73,12 +72,6 @@ export function createBirdCoderDefaultIdeSharedRuntime(
   options: CreateBirdCoderDefaultIdeServicesOptions = {},
 ): BirdCoderDefaultIdeSharedRuntime {
   const runtimeConfig = getDefaultBirdCoderIdeServicesRuntimeConfig();
-  const appClient =
-    options.appClient ??
-    runtimeConfig.appClient ??
-    createBirdCoderAppClient({
-      applicationApiBaseUrl: runtimeConfig.applicationApiBaseUrl,
-    });
   const agentsClient =
     options.agentsClient ??
     createBirdCoderAgentsAppSdkClient({
@@ -105,6 +98,16 @@ export function createBirdCoderDefaultIdeSharedRuntime(
   const projectService = new ApiBackedProjectService({
     projectCompositionSlots: agentsClient.ai.agents.projectCompositionSlots,
     projects: agentsClient.ai.agents.projects,
+  });
+  let documentsClient = options.documentsClient ?? runtimeConfig.documentsClient;
+  const documentService = new AgentsDocumentsProjectDocumentService({
+    projectCompositionSlots: agentsClient.ai.agents.projectCompositionSlots,
+    resolveDocumentsClient: () => {
+      documentsClient ??= createBirdCoderDocumentsAppSdkClient({
+        platformApiGatewayBaseUrl: runtimeConfig.platformApiGatewayBaseUrl,
+      });
+      return documentsClient.documents;
+    },
   });
   const runtimeTopology = runtimeConfig.runtimeTopology ?? resolveBirdCoderRuntimeTopology();
   const fileSystemService = runtimeTopology.executionLocation === 'local-host'
@@ -137,8 +140,8 @@ export function createBirdCoderDefaultIdeSharedRuntime(
 
   return {
     agentsClient,
-    appClient,
     authService,
+    documentService,
     fileSystemService,
     gitService,
     promptsClient,

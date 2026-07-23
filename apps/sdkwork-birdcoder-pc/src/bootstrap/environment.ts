@@ -26,7 +26,6 @@ export function resolveEnvironment() {
       ?? publicRuntimeEnv?.VITE_SDKWORK_DEPLOYMENT_PROFILE
       ?? 'cloud',
     environment: mode,
-    executionAuthorityMode: runtimeConfig.executionAuthorityMode ?? 'auto',
     isDevelopment: import.meta.env.DEV,
     isProduction: import.meta.env.PROD,
     mode,

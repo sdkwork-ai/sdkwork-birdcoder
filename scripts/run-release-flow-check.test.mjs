@@ -35,6 +35,7 @@ const requiredCommands = [
   'node scripts/agents-birdcoder-alignment-contract.test.mjs',
   'node --experimental-strip-types scripts/skills-sdk-boundary-contract.test.ts',
   'node --experimental-strip-types scripts/document-app-consumer-contract.test.ts',
+  'node scripts/run-local-tsx.mjs scripts/agents-project-service-contract.test.ts',
   'node scripts/release/package-release-assets.test.mjs',
   'node scripts/release/write-package-sbom-evidence.test.mjs',
   'node scripts/release/write-attestation-evidence.test.mjs',
@@ -52,7 +53,7 @@ for (const command of requiredCommands) {
   );
 }
 
-const retiredAuthorityPattern = /coding-server|coding-session-projection|template-instantiation|prompt-skill-template|kernel-bridge|provider-sdk|run-claw-server|birdcoder-agents-integration/iu;
+const retiredAuthorityPattern = /coding-server|coding-session-projection|template-instantiation|prompt-skill-template|kernel-bridge|provider-sdk|run-claw-server|birdcoder-agents-integration|project-agent-project-composition|composed-sdk-project-runtime-location-registration/iu;
 for (const command of RELEASE_FLOW_CHECK_COMMANDS) {
   assert.doesNotMatch(command, retiredAuthorityPattern);
 
