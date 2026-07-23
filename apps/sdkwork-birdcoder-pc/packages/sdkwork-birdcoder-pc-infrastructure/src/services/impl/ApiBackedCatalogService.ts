@@ -42,8 +42,8 @@ export class ApiBackedCatalogService implements ICatalogService {
     return this.skillsClient.skills.skillPackages.installations.create(packageId, {
       artifactId: options.artifactId,
       target: {
-        id: options.workspaceId,
-        kind: 'workspace',
+        id: options.projectId,
+        kind: 'project',
       },
       ...(options.config ? { config: options.config } : {}),
     });

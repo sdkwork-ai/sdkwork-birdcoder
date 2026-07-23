@@ -131,7 +131,5 @@ export default defineLocaleModule('code/sidebar', {
     loadMoreProjects: 'Load more projects',
     loadingMoreProjects: 'Loading more projects...',
     failedToLoadMoreProjects: 'Failed to load more projects',
-    loadMoreWorkspaces: 'Load more workspaces',
-    loadingMoreWorkspaces: 'Loading more workspaces...',
   },
 });

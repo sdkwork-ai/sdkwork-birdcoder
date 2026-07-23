@@ -52,16 +52,16 @@ export const CodePageDialogs = memo(function CodePageDialogs({
   onConfirmDelete,
 }: CodePageDialogsProps) {
   const { t } = useTranslation();
-  const isProjectRemoval = deleteConfirmation?.type === 'project';
-  const deleteDialogTitle = isProjectRemoval
-    ? t('app.removeProjectTitle')
+  const isProjectDeletion = deleteConfirmation?.type === 'project';
+  const deleteDialogTitle = isProjectDeletion
+    ? t('app.deleteProjectTitle')
     : `${t('app.delete')} ${
         deleteConfirmation?.type.charAt(0).toUpperCase() ?? ''
       }${deleteConfirmation?.type.slice(1) ?? ''}`;
-  const deleteDialogDescription = isProjectRemoval
-    ? t('app.removeProjectConfirm')
+  const deleteDialogDescription = isProjectDeletion
+    ? t('app.deleteProjectConfirm')
     : `Are you sure you want to delete this ${deleteConfirmation?.type}? This action cannot be undone.`;
-  const deleteDialogActionLabel = isProjectRemoval ? t('common.remove') : t('app.delete');
+  const deleteDialogActionLabel = t('app.delete');
 
   return (
     <>

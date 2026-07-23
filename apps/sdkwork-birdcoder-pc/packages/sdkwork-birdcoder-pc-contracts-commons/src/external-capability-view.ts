@@ -1,8 +1,15 @@
 /** Read-only SDK-composed views; never persistence or transport authorities. */
 export interface ProjectDocumentSummary {
-  bindingId: string; projectId: string; documentId: string; bindingKind: string;
-  bindingVersion: string; title: string; status: string; body?: string;
-  createdAt: string; updatedAt: string;
+  projectId: string;
+  compositionSlotId: string;
+  compositionVersion: string;
+  documentId: string;
+  documentVersionRef?: string;
+  title: string;
+  status: string;
+  body?: string;
+  createdAt: string;
+  updatedAt: string;
 }
 export interface BirdCoderIamAuditEventSummary {
   id: string; tenantId: string; organizationId?: string; actorUserId?: string;

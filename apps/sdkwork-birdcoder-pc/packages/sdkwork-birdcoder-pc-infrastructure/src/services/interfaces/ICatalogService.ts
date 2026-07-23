@@ -9,7 +9,7 @@ import type {
 export interface InstallSkillPackageOptions {
   artifactId: string;
   config?: Record<string, unknown>;
-  workspaceId: string;
+  projectId: string;
 }
 
 export interface ICatalogService {

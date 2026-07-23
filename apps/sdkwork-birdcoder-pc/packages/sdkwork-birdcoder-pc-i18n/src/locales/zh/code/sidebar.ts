@@ -132,7 +132,5 @@ export default defineLocaleModule('code/sidebar', {
     loadMoreProjects: '\u52a0\u8f7d\u66f4\u591a\u9879\u76ee',
     loadingMoreProjects: '\u6b63\u5728\u52a0\u8f7d\u66f4\u591a\u9879\u76ee...',
     failedToLoadMoreProjects: '\u52a0\u8f7d\u66f4\u591a\u9879\u76ee\u5931\u8d25',
-    loadMoreWorkspaces: '\u52a0\u8f7d\u66f4\u591a\u5de5\u4f5c\u533a',
-    loadingMoreWorkspaces: '\u6b63\u5728\u52a0\u8f7d\u66f4\u591a\u5de5\u4f5c\u533a...',
   },
 });

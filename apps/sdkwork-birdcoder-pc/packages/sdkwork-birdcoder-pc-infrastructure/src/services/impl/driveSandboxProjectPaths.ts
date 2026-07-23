@@ -28,7 +28,7 @@ function sanitizeVirtualRootName(value: string): string {
     .replace(/[\\/]/gu, '-')
     .replace(/[\u0000-\u001f\u007f]/gu, '')
     .trim();
-  return normalized || 'Server workspace';
+  return normalized || 'Project Drive';
 }
 
 export function createDriveSandboxProjectPathContext(

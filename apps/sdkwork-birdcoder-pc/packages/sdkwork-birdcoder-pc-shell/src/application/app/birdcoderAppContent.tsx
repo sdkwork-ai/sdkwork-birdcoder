@@ -998,7 +998,7 @@ export function AppContent() {
       }
     } catch (error) {
       console.error('Failed to archive project', error);
-      addToast(t('app.failedToRemoveProject'), 'error');
+      addToast(t('app.failedToDeleteProject'), 'error');
     }
   };
 

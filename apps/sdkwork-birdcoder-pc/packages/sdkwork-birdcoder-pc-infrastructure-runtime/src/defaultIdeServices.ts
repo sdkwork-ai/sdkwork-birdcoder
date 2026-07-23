@@ -1,5 +1,6 @@
 import {
   createBirdCoderDependencyAppSdkClients,
+  createBirdCoderPromptsAppSdkClient,
   type BirdCoderDependencyAppSdkClients,
   type SdkworkPromptsAppClient,
 } from '@sdkwork/birdcoder-pc-infrastructure/services/dependencyAppSdkClients';
@@ -26,44 +27,41 @@ export {
 
 export type { BirdCoderDependencyAppSdkClients };
 
-function resolveInjectedDependencyClients(
+function resolvePromptsClient(
   platformApiGatewayBaseUrl: string | undefined,
   promptsClient: SdkworkPromptsAppClient | undefined,
-): BirdCoderDependencyAppSdkClients {
+): SdkworkPromptsAppClient {
   if (promptsClient) {
-    return { promptsClient };
+    return promptsClient;
   }
 
-  const createdClients = createBirdCoderDependencyAppSdkClients({
+  return createBirdCoderPromptsAppSdkClient({
     platformApiGatewayBaseUrl,
   });
-  return {
-    promptsClient: createdClients.promptsClient,
-  };
 }
 
 export function configureDefaultBirdCoderIdeServicesRuntime(
   config: BirdCoderDefaultIdeServicesRuntimeConfig = {},
 ): void {
-  const dependencyClients = resolveInjectedDependencyClients(
+  const promptsClient = resolvePromptsClient(
     config.platformApiGatewayBaseUrl,
     config.promptsClient,
   );
   configureInfrastructureRuntime({
     ...config,
-    ...dependencyClients,
+    promptsClient,
   });
 }
 
 export function bindDefaultBirdCoderIdeServicesRuntime(
   options: BindDefaultBirdCoderIdeServicesRuntimeOptions = {},
 ): void {
-  const dependencyClients = resolveInjectedDependencyClients(
+  const promptsClient = resolvePromptsClient(
     options.platformApiGatewayBaseUrl,
     options.promptsClient,
   );
   bindInfrastructureRuntime({
     ...options,
-    ...dependencyClients,
+    promptsClient,
   });
 }
