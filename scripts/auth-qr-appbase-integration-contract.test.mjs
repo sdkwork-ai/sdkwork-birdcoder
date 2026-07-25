@@ -66,16 +66,15 @@ const birdcoderApiAssemblySource = [
     'sdkwork-api-birdcoder-assembly',
     'src',
     'application_bootstrap',
-    'auth.rs',
-  ),
-  readText(
-    'crates',
-    'sdkwork-api-birdcoder-assembly',
-    'src',
-    'application_bootstrap',
     'routers.rs',
   ),
 ].join('\n');
+const birdcoderStandaloneGatewayProfileSource = readText(
+  'crates',
+  'sdkwork-api-birdcoder-standalone-gateway',
+  'src',
+  'profile.rs',
+);
 const sharedAuthPageSource = readIamText(
   `${IAM_AUTH_PC_REACT_ROOT_REL}/src/pages/AuthPage.tsx`,
 );
@@ -154,7 +153,7 @@ assert.doesNotMatch(
 );
 assert.match(
   appbaseAppOauthSdkSource,
-  /retrieve\(deviceAuthorizationId:\s*string\)/u,
+  /retrieve\(deviceAuthorizationId:\s*string(?:,\s*requestOptions\?:\s*ApiRequestOptions)?\)/u,
   'sdkwork-appbase generated app SDK must expose OAuth device authorization retrieve(deviceAuthorizationId) directly.',
 );
 assert.match(
@@ -187,6 +186,16 @@ assert.doesNotMatch(
   birdcoderApiAssemblySource,
   /sdkwork_routes_iam_app_api|build_sdkwork_iam_app_api_router/u,
   'BirdCoder API assembly must consume IAM request context without embedding dependency-owned IAM routes.',
+);
+assert.match(
+  birdcoderStandaloneGatewayProfileSource,
+  /sdkwork_api_iam_assembly::assemble_app_api_contribution\(\)/u,
+  'BirdCoder standalone gateway must mount IAM through the dependency owner assembly contribution.',
+);
+assert.match(
+  birdcoderStandaloneGatewayProfileSource,
+  /owner:\s*"sdkwork-iam"[\s\S]*router:\s*iam\.router[\s\S]*route_manifest:\s*iam\.route_manifest/u,
+  'BirdCoder standalone gateway must compose IAM routes and their manifest together.',
 );
 
 console.log('auth qr appbase integration contract passed.');

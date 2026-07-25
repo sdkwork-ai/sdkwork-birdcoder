@@ -23,6 +23,7 @@ import {
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
+const appRootDir = path.resolve(__dirname, '../..');
 
 // 自定义插件：为 /data/sdkwork-models/ 提供静态文件服务
 function sdkworkModelsDataPlugin(): Plugin {
@@ -146,7 +147,7 @@ function sdkworkModelsDataPlugin(): Plugin {
 
 export default defineConfig(({ command, mode }) => {
   const runtimeEnvSource = resolveBirdcoderViteRuntimeEnvSource(
-    loadEnv(mode, __dirname, ''),
+    loadEnv(mode, appRootDir, ''),
   ) as Record<string, string | undefined>;
   const devProxyTargets = resolveBirdcoderDevProxyTargets(
     runtimeEnvSource,

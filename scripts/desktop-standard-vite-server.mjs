@@ -4,6 +4,7 @@ import path from 'node:path';
 import { createRequire } from 'node:module';
 import { pathToFileURL } from 'node:url';
 import { createDesktopVitePlugins } from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-desktop/vite/createDesktopVitePlugins.mjs';
+import { resolveBirdcoderViteRuntimeEnvSource } from './create-birdcoder-vite-plugins.mjs';
 import { createDesktopViteServerConfig } from './run-desktop-vite-host.mjs';
 
 const rootDir = process.cwd();
@@ -21,7 +22,10 @@ async function createDesktopConfiguredViteServer({
   mode = 'development',
   customLogger,
 } = {}) {
-  const { createServer } = await loadDesktopVite();
+  const { createServer, loadEnv } = await loadDesktopVite();
+  const runtimeEnvSource = resolveBirdcoderViteRuntimeEnvSource(
+    loadEnv(mode, path.resolve(desktopRootDir, '../..'), ''),
+  );
   const argv = [
     '--host',
     host,
@@ -38,6 +42,7 @@ async function createDesktopConfiguredViteServer({
     plugins: createDesktopVitePlugins({
       desktopRootDir,
       mode,
+      runtimeEnvSource,
     }),
   });
 

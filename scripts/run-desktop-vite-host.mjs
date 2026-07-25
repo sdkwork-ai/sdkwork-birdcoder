@@ -14,6 +14,7 @@ import {
   BIRDCODER_VITE_DEV_WATCH_IGNORED,
   createBirdcoderWorkspaceAliasEntries,
   createBirdcoderWorkspaceFsAllowList,
+  resolveBirdcoderViteRuntimeEnvSource,
   resolveBirdcoderTerminalInfrastructureRuntimePath,
   resolveSdkworkTerminalInfrastructureEntryPath,
 } from './create-birdcoder-vite-plugins.mjs';
@@ -277,10 +278,13 @@ function createDesktopViteServerConfig({
 }
 
 async function runDesktopViteHost(argv = process.argv.slice(2)) {
-  const [{ createServer }] = await Promise.all([
+  const [{ createServer, loadEnv }] = await Promise.all([
     importDesktopDependency('vite'),
   ]);
   const { mode } = parseArgs(argv);
+  const runtimeEnvSource = resolveBirdcoderViteRuntimeEnvSource(
+    loadEnv(mode, path.resolve(desktopRootDir, '../..'), ''),
+  );
 
   const server = await createServer(
     createDesktopViteServerConfig({
@@ -291,6 +295,7 @@ async function runDesktopViteHost(argv = process.argv.slice(2)) {
       plugins: createDesktopVitePlugins({
         desktopRootDir,
         mode,
+        runtimeEnvSource,
       }),
     }),
   );

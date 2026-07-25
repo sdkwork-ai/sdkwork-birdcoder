@@ -134,7 +134,6 @@ const credentialEntryViteConfigs = [
   '../apps/sdkwork-birdcoder-pc/vite.config.ts',
   '../apps/sdkwork-birdcoder-h5/vite.config.ts',
   '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-web/vite.config.ts',
-  '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-desktop/vite/createDesktopVitePlugins.mjs',
 ];
 for (const relativePath of credentialEntryViteConfigs) {
   const source = fs.readFileSync(new URL(relativePath, import.meta.url), 'utf8');
@@ -143,36 +142,6 @@ for (const relativePath of credentialEntryViteConfigs) {
   assert.match(source, /createSdkworkCredentialEntryBootstrapVitePlugin/u);
   assert.doesNotMatch(source, /['"]process\.env\.SDKWORK_ACCESS_TOKEN['"]\s*:/u);
 }
-const pcRootViteConfigSource = fs.readFileSync(
-  new URL('../apps/sdkwork-birdcoder-pc/vite.config.ts', import.meta.url),
-  'utf8',
-);
-assert.match(
-  pcRootViteConfigSource,
-  /accessToken:\s*env\.SDKWORK_ACCESS_TOKEN/u,
-  'The PC root Vite config must inject the merged private bootstrap token from loadEnv and process.env.',
-);
-const pcWebViteConfigSource = fs.readFileSync(
-  new URL('../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-web/vite.config.ts', import.meta.url),
-  'utf8',
-);
-assert.match(
-  pcWebViteConfigSource,
-  /accessToken:\s*runtimeEnvSource\.SDKWORK_ACCESS_TOKEN/u,
-  'The PC web Vite config must inject the merged private bootstrap token from loadEnv and process.env.',
-);
-const pcDesktopVitePluginsSource = fs.readFileSync(
-  new URL(
-    '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-desktop/vite/createDesktopVitePlugins.mjs',
-    import.meta.url,
-  ),
-  'utf8',
-);
-assert.match(
-  pcDesktopVitePluginsSource,
-  /accessToken:\s*runtimeEnvSource\.SDKWORK_ACCESS_TOKEN/u,
-  'The PC desktop renderer must inject the private bootstrap token through the credential-entry Vite plugin.',
-);
 
 const viteHelperSource = fs.readFileSync(
   new URL('./create-birdcoder-vite-plugins.mjs', import.meta.url),

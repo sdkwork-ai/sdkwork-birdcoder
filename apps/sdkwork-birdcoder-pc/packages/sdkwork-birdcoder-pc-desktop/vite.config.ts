@@ -16,10 +16,11 @@ import {
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
+const appRootDir = path.resolve(__dirname, '../..');
 
 export default defineConfig(({ mode }) => {
   const runtimeEnvSource = resolveBirdcoderViteRuntimeEnvSource(
-    loadEnv(mode, __dirname, ''),
+    loadEnv(mode, appRootDir, ''),
   );
 
   return {

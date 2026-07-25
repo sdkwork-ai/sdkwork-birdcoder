@@ -25,7 +25,7 @@ const __dirname = path.dirname(__filename);
 const rootHostAppRootDir = path.resolve(__dirname, 'packages', 'sdkwork-birdcoder-pc-web');
 
 export default defineConfig(({ command, mode }) => {
-  const env = resolveBirdcoderViteRuntimeEnvSource(loadEnv(mode, '.', ''));
+  const env = resolveBirdcoderViteRuntimeEnvSource(loadEnv(mode, __dirname, ''));
   const devProxyTargets = resolveBirdcoderDevProxyTargets(env, command === 'serve');
   return {
     define: resolveBirdcoderDevelopmentApiEnvDefines(mode),

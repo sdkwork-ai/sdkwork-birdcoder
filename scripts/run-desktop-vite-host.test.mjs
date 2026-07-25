@@ -16,6 +16,7 @@ import {
   resolveBirdcoderTerminalInfrastructureRuntimePath,
   resolveSdkworkTerminalInfrastructureEntryPath,
 } from './create-birdcoder-vite-plugins.mjs';
+import { createDesktopVitePlugins } from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-desktop/vite/createDesktopVitePlugins.mjs';
 
 assert.deepEqual(parseArgs([]), {
   host: undefined,
@@ -41,6 +42,26 @@ const infrastructurePackageSubpathProbe = [
   '@sdkwork/birdcoder-pc-infrastructure',
   '__contract_probe__',
 ].join('/');
+const desktopCredentialEntryPlugins = createDesktopVitePlugins({
+  desktopRootDir,
+  mode: 'development',
+  runtimeEnvSource: {
+    SDKWORK_ACCESS_TOKEN: 'desktop-bootstrap-token',
+  },
+});
+const desktopCredentialEntryPlugin = desktopCredentialEntryPlugins.find(
+  (plugin) => plugin?.name === 'sdkwork-iam-credential-entry-bootstrap',
+);
+assert.ok(
+  desktopCredentialEntryPlugin,
+  'Desktop renderer development must install the IAM credential-entry bootstrap plugin.',
+);
+const desktopCredentialEntryHtml = desktopCredentialEntryPlugin.transformIndexHtml.handler('<html></html>');
+assert.match(
+  desktopCredentialEntryHtml.tags[0]?.children ?? '',
+  /__SDKWORK_CREDENTIAL_ENTRY_BOOTSTRAP_ACCESS_TOKEN__\s*=\s*"desktop-bootstrap-token"/u,
+  'Desktop renderer development must inject the private bootstrap Access-Token before application modules execute.',
+);
 const config = createDesktopViteServerConfig({
   argv: ['--host', '127.0.0.1', '--port', '1520', '--strictPort', '--mode', 'test'],
   env: {

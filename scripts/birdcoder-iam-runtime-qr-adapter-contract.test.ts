@@ -12,6 +12,21 @@ const appbaseOauthSdkSource = fs.readFileSync(
   ),
   'utf8',
 );
+const pcRootViteConfigSource = fs.readFileSync(
+  new URL('../apps/sdkwork-birdcoder-pc/vite.config.ts', import.meta.url),
+  'utf8',
+);
+const pcWebViteConfigSource = fs.readFileSync(
+  new URL('../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-web/vite.config.ts', import.meta.url),
+  'utf8',
+);
+const pcDesktopVitePluginsSource = fs.readFileSync(
+  new URL(
+    '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-desktop/vite/createDesktopVitePlugins.mjs',
+    import.meta.url,
+  ),
+  'utf8',
+);
 
 assert.match(
   iamRuntimeSource,
@@ -37,6 +52,21 @@ assert.match(
   appbaseOauthSdkSource,
   /OauthDeviceAuthorizationsPasswordCompletionsApi[\s\S]*create\(deviceAuthorizationId:\s*string,\s*body/u,
   'sdkwork-appbase generated app SDK must expose OAuth device authorization password completion create(deviceAuthorizationId, body).',
+);
+assert.match(
+  pcRootViteConfigSource,
+  /loadEnv\(mode,\s*__dirname,\s*['"]['"]\)[\s\S]*accessToken:\s*env\.SDKWORK_ACCESS_TOKEN/u,
+  'The PC root Vite config must inject the merged private bootstrap Access-Token from the PC app root.',
+);
+assert.match(
+  pcWebViteConfigSource,
+  /appRootDir\s*=\s*path\.resolve\(__dirname,\s*['"]\.\.\/\.\.['"]\)[\s\S]*loadEnv\(mode,\s*appRootDir,\s*['"]['"]\)[\s\S]*accessToken:\s*runtimeEnvSource\.SDKWORK_ACCESS_TOKEN/u,
+  'The PC web Vite config must inject the private bootstrap Access-Token loaded from the PC app root.',
+);
+assert.match(
+  pcDesktopVitePluginsSource,
+  /createSdkworkCredentialEntryBootstrapVitePlugin\(\{[\s\S]*accessToken:\s*runtimeEnvSource\.SDKWORK_ACCESS_TOKEN/u,
+  'The PC desktop renderer must inject the private bootstrap Access-Token before IAM credential-entry requests.',
 );
 
 console.log('birdcoder IAM runtime QR adapter contract passed.');
