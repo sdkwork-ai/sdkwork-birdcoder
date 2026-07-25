@@ -25,7 +25,7 @@ assert.doesNotMatch(
 );
 assert.match(
   appbaseOauthSdkSource,
-  /retrieve\(deviceAuthorizationId:\s*string\)/u,
+  /retrieve\(deviceAuthorizationId:\s*string(?:,\s*requestOptions\?:\s*ApiRequestOptions)?\)/u,
   'sdkwork-appbase generated app SDK must expose OAuth device authorization retrieve(deviceAuthorizationId).',
 );
 assert.match(

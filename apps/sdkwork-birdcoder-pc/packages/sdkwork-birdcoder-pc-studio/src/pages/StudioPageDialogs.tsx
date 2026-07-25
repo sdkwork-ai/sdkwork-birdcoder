@@ -145,7 +145,7 @@ export function StudioPageDialogs({
         cancelLabel={t('studio.cancel')}
         submitLabel={t('studio.save')}
         projectLabel="Project"
-        workspaceLabel="Workspace"
+        workspaceLabel="Repository Root"
         customLabel="Custom"
         devLabel="Dev"
         buildLabel="Build"

@@ -8,6 +8,7 @@ import { uuid } from '@sdkwork/utils/id';
 import { normalizeOffsetListQuery } from '@sdkwork/utils/pagination';
 
 import type {
+  AgentSessionReadOptions,
   AgentSessionPageRequest,
   CreateAgentSessionInput,
   IAgentSessionService,
@@ -31,6 +32,13 @@ function normalizePageRequest(request: AgentSessionPageRequest = {}) {
     page_size: request.pageSize,
   });
   return { page, pageSize };
+}
+
+function toApiRequestOptions(options: AgentSessionReadOptions = {}) {
+  return {
+    signal: options.signal,
+    timeout: options.timeoutMs,
+  };
 }
 
 export class BirdCoderAgentSessionService implements IAgentSessionService {
@@ -65,21 +73,23 @@ export class BirdCoderAgentSessionService implements IAgentSessionService {
     return response;
   }
 
-  async getSession(sessionId: string) {
+  async getSession(sessionId: string, options: AgentSessionReadOptions = {}) {
     const response = await this.client.ai.agents.sessions.retrieve(
       this.agentId,
       sessionId,
+      toApiRequestOptions(options),
     );
     return response;
   }
 
   async listSessions(
     request: AgentSessionPageRequest = {},
+    options: AgentSessionReadOptions = {},
   ) {
     const response = await this.client.ai.agents.sessions.list(this.agentId, {
       ...normalizePageRequest(request),
       projectId: request.projectId,
-    });
+    }, toApiRequestOptions(options));
     return {
       items: (response.items as AgentSessionRecord[])
         .filter((session) => session.sessionKind === 'coding'),
@@ -112,20 +122,33 @@ export class BirdCoderAgentSessionService implements IAgentSessionService {
     return this.client.ai.agents.sessions.delete(this.agentId, sessionId);
   }
 
-  async listSessionItems(sessionId: string, request: AgentSessionPageRequest = {}) {
+  async listSessionItems(
+    sessionId: string,
+    request: AgentSessionPageRequest = {},
+    options: AgentSessionReadOptions = {},
+  ) {
     const response = await this.client.ai.agents.sessionItems.list(
       this.agentId,
       sessionId,
-      normalizePageRequest(request),
+      {
+        ...normalizePageRequest(request),
+        sort: request.sort,
+      },
+      toApiRequestOptions(options),
     );
     return response;
   }
 
-  async listTurns(sessionId: string, request: AgentSessionPageRequest = {}) {
+  async listTurns(
+    sessionId: string,
+    request: AgentSessionPageRequest = {},
+    options: AgentSessionReadOptions = {},
+  ) {
     const response = await this.client.ai.agents.turns.list(
       this.agentId,
       sessionId,
       normalizePageRequest(request),
+      toApiRequestOptions(options),
     );
     return response;
   }
@@ -150,20 +173,30 @@ export class BirdCoderAgentSessionService implements IAgentSessionService {
     return response;
   }
 
-  async listInteractions(sessionId: string, request: AgentSessionPageRequest = {}) {
+  async listInteractions(
+    sessionId: string,
+    request: AgentSessionPageRequest = {},
+    options: AgentSessionReadOptions = {},
+  ) {
     const response = await this.client.ai.agents.interactions.list(
       this.agentId,
       sessionId,
       normalizePageRequest(request),
+      toApiRequestOptions(options),
     );
     return response;
   }
 
-  async getInteraction(sessionId: string, interactionId: string) {
+  async getInteraction(
+    sessionId: string,
+    interactionId: string,
+    options: AgentSessionReadOptions = {},
+  ) {
     const response = await this.client.ai.agents.interactions.retrieve(
       this.agentId,
       sessionId,
       interactionId,
+      toApiRequestOptions(options),
     );
     return response;
   }
@@ -210,11 +243,16 @@ export class BirdCoderAgentSessionService implements IAgentSessionService {
     return response;
   }
 
-  async listRuntimeBindings(sessionId: string, request: AgentSessionPageRequest = {}) {
+  async listRuntimeBindings(
+    sessionId: string,
+    request: AgentSessionPageRequest = {},
+    options: AgentSessionReadOptions = {},
+  ) {
     const response = await this.client.ai.agents.sessionRuntimeBindings.list(
       this.agentId,
       sessionId,
       normalizePageRequest(request),
+      toApiRequestOptions(options),
     );
     return response;
   }
@@ -231,19 +269,25 @@ export class BirdCoderAgentSessionService implements IAgentSessionService {
     return response;
   }
 
-  async listCheckpoints(sessionId: string, request: AgentSessionPageRequest = {}) {
+  async listCheckpoints(
+    sessionId: string,
+    request: AgentSessionPageRequest = {},
+    options: AgentSessionReadOptions = {},
+  ) {
     const response = await this.client.ai.agents.checkpoints.list(
       this.agentId,
       sessionId,
       normalizePageRequest(request),
+      toApiRequestOptions(options),
     );
     return response;
   }
 
-  async getSessionUserState(sessionId: string) {
+  async getSessionUserState(sessionId: string, options: AgentSessionReadOptions = {}) {
     const response = await this.client.ai.agents.sessionUserStates.retrieve(
       this.agentId,
       sessionId,
+      toApiRequestOptions(options),
     );
     return response;
   }

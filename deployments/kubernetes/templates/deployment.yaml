@@ -21,6 +21,7 @@ spec:
         app.kubernetes.io/name: sdkwork-birdcoder
     spec:
       serviceAccountName: {{ include "sdkwork-birdcoder.fullname" . }}
+      terminationGracePeriodSeconds: 30
       securityContext:
         {{- toYaml .Values.podSecurityContext | nindent 8 }}
       containers:

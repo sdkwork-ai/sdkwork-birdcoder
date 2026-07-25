@@ -154,7 +154,7 @@ pub fn start_embedded_application_gateway(app: &AppHandle) -> Result<DesktopRunt
         rate_limit_window_secs: sdkwork_api_birdcoder_standalone_gateway::bootstrap::config::DEFAULT_RATE_LIMIT_WINDOW_SECS,
     };
     let router = tauri::async_runtime::block_on(
-        sdkwork_api_birdcoder_standalone_gateway::bootstrap::build_app(&config),
+        sdkwork_api_birdcoder_standalone_gateway::build_app(&config),
     )
     .map_err(|error| format!("failed to build embedded BirdCoder API router: {error}"))?;
     let (listener, api_base_url) = bind_embedded_api_listener()?;

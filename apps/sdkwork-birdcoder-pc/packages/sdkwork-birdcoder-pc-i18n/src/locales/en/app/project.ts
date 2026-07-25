@@ -16,6 +16,7 @@ export default defineLocaleModule('app/project', {
     projects: 'Projects',
     renameProject: 'Rename Project',
     deleteProject: 'Delete Project',
+    removeProject: 'Remove Project',
     projectDeleted: 'Project deleted',
     projectPathUnavailable: 'Project path is unavailable: {{name}}',
     moreActions: 'More actions',

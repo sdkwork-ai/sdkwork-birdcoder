@@ -1,5 +1,5 @@
 use axum::body::Body;
-use axum::http::{Request, StatusCode};
+use axum::http::{Method, Request, StatusCode};
 use tower::ServiceExt;
 
 use sdkwork_api_birdcoder_standalone_gateway::bootstrap::config::{
@@ -69,6 +69,32 @@ async fn request(router: &axum::Router, uri: &str) -> axum::response::Response {
         .expect("serve smoke request")
 }
 
+async fn request_method(
+    router: &axum::Router,
+    method: Method,
+    uri: &str,
+) -> axum::response::Response {
+    router
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method(method)
+                .uri(uri)
+                .header("content-type", "application/json")
+                .body(Body::from("{}"))
+                .expect("build smoke request"),
+        )
+        .await
+        .expect("serve smoke request")
+}
+
+async fn json_body(response: axum::response::Response) -> serde_json::Value {
+    let bytes = axum::body::to_bytes(response.into_body(), usize::MAX)
+        .await
+        .expect("read JSON response");
+    serde_json::from_slice(&bytes).expect("parse JSON response")
+}
+
 async fn assert_unclassified_owner_route(router: &axum::Router, uri: &str) {
     let owner_manifest =
         sdkwork_api_birdcoder_assembly::bootstrap::route_manifest::birdcoder_app_api_route_manifest(
@@ -89,14 +115,43 @@ async fn assert_unclassified_owner_route(router: &axum::Router, uri: &str) {
 #[tokio::test(flavor = "current_thread")]
 async fn gateway_mounts_system_and_agents_without_birdcoder_project_authority() {
     let _environment = EnvironmentGuard::install();
-    let router = sdkwork_api_birdcoder_standalone_gateway::bootstrap::build_app(&test_config())
+    let router = sdkwork_api_birdcoder_standalone_gateway::build_app(&test_config())
         .await
         .expect("build BirdCoder composition gateway");
 
-    assert_eq!(request(&router, "/healthz").await.status(), StatusCode::OK);
+    let health_response = request(&router, "/healthz").await;
+    assert_eq!(health_response.status(), StatusCode::OK);
+    assert_eq!(
+        json_body(health_response).await,
+        serde_json::json!({ "status": "ok" })
+    );
+    let liveness_response = request(&router, "/livez").await;
+    assert_eq!(liveness_response.status(), StatusCode::OK);
+    assert_eq!(
+        json_body(liveness_response).await,
+        serde_json::json!({ "status": "ok" })
+    );
+    let readiness_response = request(&router, "/readyz").await;
+    assert_eq!(readiness_response.status(), StatusCode::OK);
+    assert_eq!(
+        json_body(readiness_response).await,
+        serde_json::json!({ "status": "ready" })
+    );
     assert_eq!(
         request(&router, "/app/v3/api/system/health").await.status(),
         StatusCode::UNAUTHORIZED
+    );
+
+    let iam_response = request_method(
+        &router,
+        Method::POST,
+        "/app/v3/api/oauth/device_authorizations",
+    )
+    .await;
+    assert_ne!(
+        iam_response.status(),
+        StatusCode::NOT_FOUND,
+        "sdkwork-iam device authorization route must be mounted by the BirdCoder gateway"
     );
 
     let agents_response = request(&router, "/app/v3/api/ai/projects?page=1&page_size=20").await;
@@ -113,14 +168,24 @@ async fn gateway_mounts_system_and_agents_without_birdcoder_project_authority() 
     assert_eq!(openapi_response.status(), StatusCode::OK);
     let bytes = axum::body::to_bytes(openapi_response.into_body(), usize::MAX)
         .await
-        .expect("read owner OpenAPI response");
+        .expect("read standalone OpenAPI response");
     let document: serde_json::Value =
-        serde_json::from_slice(&bytes).expect("parse owner OpenAPI response");
+        serde_json::from_slice(&bytes).expect("parse standalone OpenAPI response");
     let paths = document["paths"]
         .as_object()
-        .expect("owner OpenAPI paths object");
-    assert_eq!(paths.len(), 4);
-    assert!(paths
-        .keys()
-        .all(|path| path.starts_with("/app/v3/api/system/")));
+        .expect("standalone OpenAPI paths object");
+    for selected_owner_path in [
+        "/app/v3/api/system/health",
+        "/app/v3/api/oauth/device_authorizations",
+        "/app/v3/api/ai/projects",
+    ] {
+        assert!(
+            paths.contains_key(selected_owner_path),
+            "standalone OpenAPI must contain {selected_owner_path}"
+        );
+    }
+    assert!(
+        paths.len() > 4,
+        "standalone OpenAPI must include all owners"
+    );
 }

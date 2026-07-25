@@ -109,7 +109,7 @@ const tauriCliRunnerScriptPath = path.join(rootDir, 'scripts', 'run-tauri-cli.mj
 const tauriTargetCleanScriptPath = path.join(rootDir, 'scripts', 'ensure-tauri-target-clean.mjs');
 
 const workspacePackageScriptRunnerPath = path.join(rootDir, 'scripts', 'run-workspace-package-script.mjs');
-const appWorkspaceMenuSourcePath = path.join(
+const appProjectMenuSourcePath = path.join(
   rootDir,
   'apps',
     'sdkwork-birdcoder-pc',
@@ -119,7 +119,7 @@ const appWorkspaceMenuSourcePath = path.join(
   'src',
   'application',
   'app',
-  'AppWorkspaceMenu.tsx',
+  'AppProjectMenu.tsx',
 );
 const codeTopBarPath = path.join(
   rootDir,
@@ -181,7 +181,7 @@ const desktopTauriHostFileSystemSource = fs.readFileSync(
 const desktopViteConfigSource = fs.readFileSync(desktopViteConfigPath, 'utf8');
 const desktopViteHostSource = fs.readFileSync(desktopViteHostPath, 'utf8');
 const appSource = readBirdcoderAppShellSource(rootDir);
-const appWorkspaceMenuSource = fs.readFileSync(appWorkspaceMenuSourcePath, 'utf8');
+const appProjectMenuSource = fs.readFileSync(appProjectMenuSourcePath, 'utf8');
 const codeTopBarSource = fs.readFileSync(codeTopBarPath, 'utf8');
 const desktopIndexHtmlSource = fs.readFileSync(desktopIndexHtmlPath, 'utf8');
 const workspacePackageScriptRunnerSource = fs.existsSync(workspacePackageScriptRunnerPath)
@@ -675,12 +675,12 @@ assert.equal(
 assert.match(
   desktopLibRsSource,
   /\.setup\(/,
-  'Desktop runtime must attach a setup hook so the local BirdCoder server can start before the window bootstraps API-backed workbench data.',
+  'Desktop runtime must attach a setup hook so the embedded application gateway can start before the window bootstraps API-backed workbench data.',
 );
 assert.match(
   desktopLibRsSource,
-  /spawn_embedded_coding_server_startup\(/,
-  'Desktop runtime setup must dispatch embedded server bootstrap asynchronously so localhost API requests do not race against an unstarted Rust server.',
+  /spawn_embedded_application_gateway_startup\(/,
+  'Desktop runtime setup must dispatch embedded application gateway bootstrap asynchronously so localhost API requests do not race against an unstarted Rust gateway.',
 );
 assert.ok(
   fs.existsSync(desktopCapabilityPath),
@@ -753,7 +753,6 @@ for (const command of [
   'local_store_set',
   'local_store_delete',
   'local_store_list',
-  'terminal_cli_profile_detect',
   'desktop_pick_working_directory',
   'desktop_reveal_in_file_manager',
   'desktop_session_index',
@@ -885,19 +884,19 @@ assert.match(
 assert.ok(
   (
     (appSource.match(/data-no-drag="true"/g) ?? []).length
-    + (appWorkspaceMenuSource.match(/data-no-drag="true"/g) ?? []).length
+    + (appProjectMenuSource.match(/data-no-drag="true"/g) ?? []).length
   ) >= 4,
   'The custom application header must mark interactive title-bar regions as data-no-drag so menus and window controls do not accidentally start a pending window drag.',
 );
 assert.match(
-  appWorkspaceMenuSource,
+  appProjectMenuSource,
   /<button\r?\n\s+type="button"\r?\n\s+data-no-drag="true"[\s\S]*?aria-haspopup="menu"/u,
-  'The workspace menu trigger must stay data-no-drag so clicking the active workspace/project selector never starts window movement.',
+  'The project menu trigger must stay data-no-drag so clicking the active project selector never starts window movement.',
 );
 assert.match(
-  appWorkspaceMenuSource,
-  /<div\r?\n\s+data-no-drag="true"\r?\n\s+className="absolute top-full/u,
-  'The workspace menu popover must stay data-no-drag so project and workspace controls inside the menu remain fully interactive.',
+  appProjectMenuSource,
+  /<div\r?\n\s+data-no-drag="true"\r?\n[\s\S]*?className="absolute top-full/u,
+  'The project menu popover must stay data-no-drag so project controls inside the menu remain fully interactive.',
 );
 assert.doesNotMatch(
   appSource,
@@ -907,7 +906,7 @@ assert.doesNotMatch(
 assert.match(
   appSource,
   /<div\r?\n\s+className="flex min-w-0 items-center justify-center"\r?\n\s+>\r?\n\s+\{centerContent\}/u,
-  'The custom application header must keep the center title-bar slot as draggable surface while the nested workspace menu button and popover own their data-no-drag exclusions.',
+  'The custom application header must keep the center title-bar slot as draggable surface while the nested project menu button and popover own their data-no-drag exclusions.',
 );
 const titleBarPointerDownHandlerMatch = appSource.match(
   /const handleTitleBarPointerDown = \(event: React\.PointerEvent<HTMLDivElement>\) => \{([\s\S]*?)\n  \};/u,

@@ -16,6 +16,7 @@ export default defineLocaleModule('app/project', {
     projects: '项目',
     renameProject: '重命名项目',
     deleteProject: '删除项目',
+    removeProject: '\u79fb\u9664\u9879\u76ee',
     projectDeleted: '项目已删除',
     projectPathUnavailable: '项目路径不可用: {{name}}',
     moreActions: '更多操作',

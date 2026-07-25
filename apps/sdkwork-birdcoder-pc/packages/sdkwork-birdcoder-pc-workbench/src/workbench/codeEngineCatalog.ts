@@ -94,6 +94,7 @@ const EMPTY_CATALOG_SNAPSHOT: WorkbenchCodeEngineCatalogSnapshot = {
 
 let catalogSnapshot = EMPTY_CATALOG_SNAPSHOT;
 let catalogLoad: Promise<readonly WorkbenchCodeEngineDefinition[]> | null = null;
+let catalogGeneration = 0;
 const catalogListeners = new Set<() => void>();
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -199,18 +200,33 @@ export async function loadWorkbenchCodeEngineCatalog(): Promise<
   if (catalogLoad) {
     return catalogLoad;
   }
-  catalogLoad = listBirdCoderCodeEngineCatalog()
+  const requestGeneration = catalogGeneration;
+  const loadPromise = listBirdCoderCodeEngineCatalog()
     .then((entries) => {
       const engines = entries
         .map(toWorkbenchDefinition)
         .filter((entry): entry is WorkbenchCodeEngineDefinition => entry !== null);
-      publishCatalog(engines);
+      if (requestGeneration === catalogGeneration) {
+        publishCatalog(engines);
+      }
       return engines;
     })
     .finally(() => {
-      catalogLoad = null;
+      if (catalogLoad === loadPromise) {
+        catalogLoad = null;
+      }
     });
-  return catalogLoad;
+  catalogLoad = loadPromise;
+  return loadPromise;
+}
+
+export function resetWorkbenchCodeEngineCatalog(): void {
+  catalogGeneration += 1;
+  catalogLoad = null;
+  catalogSnapshot = EMPTY_CATALOG_SNAPSHOT;
+  for (const listener of catalogListeners) {
+    listener();
+  }
 }
 
 export function replaceWorkbenchCodeEngineCatalogForTesting(

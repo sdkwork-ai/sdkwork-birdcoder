@@ -83,8 +83,8 @@ for (const locale of ['en', 'zh']) {
     `${locale} runtime resources must preserve the merged app.menu.file label.`,
   );
   assert.ok(
-    resources[locale]?.translation?.app?.workspace,
-    `${locale} runtime resources must preserve the merged app.workspace label.`,
+    resources[locale]?.translation?.app?.projects,
+    `${locale} runtime resources must preserve the canonical app.projects label.`,
   );
   assert.ok(
     resources[locale]?.translation?.app?.somethingWentWrong,

@@ -15,14 +15,14 @@ const studioChatSidebarSource = read('apps/sdkwork-birdcoder-pc/packages/sdkwork
 
 assert.match(
   appSource,
-  /const hasOpenWorkspaceMenuSurface =[\s\S]*showWorkspaceMenu[\s\S]*projectActionsMenuId !== null;/,
-  'App must derive workspace-menu listener activation from actual open surface state instead of keeping a global outside-click listener mounted all the time.',
+  /const hasOpenProjectMenuSurface =[\s\S]*showProjectMenu[\s\S]*projectActionsMenuId !== null;/,
+  'App must derive project-menu listener activation from actual open surface state instead of keeping a global outside-click listener mounted all the time.',
 );
 
 assert.match(
   appSource,
-  /if \(!hasOpenWorkspaceMenuSurface\) \{\s*return;\s*\}[\s\S]*document\.addEventListener\('mousedown', handleWorkspaceMenuClickOutside\);/s,
-  'App workspace menu must only subscribe to outside clicks while the workspace menu surface is open.',
+  /if \(!hasOpenProjectMenuSurface\) \{\s*return;\s*\}[\s\S]*document\.addEventListener\('mousedown', handleProjectMenuClickOutside\);/s,
+  'App project menu must only subscribe to outside clicks while the project menu surface is open.',
 );
 
 assert.match(
@@ -43,22 +43,22 @@ assert.match(
   'Sidebar viewport listener must stay passive while floating menus are open.',
 );
 
-assert.match(
+assert.doesNotMatch(
   topBarSource,
-  /if \(!showSubmitMenu\) \{\s*return;\s*\}[\s\S]*document\.addEventListener\('mousedown', handleClickOutside\);/s,
-  'TopBar must only subscribe to outside clicks for the submit menu while shared branch and worktree menus manage their own listener lifecycles.',
+  /document\.addEventListener\('mousedown'/,
+  'TopBar must not own a global menu listener after Git branch, worktree, and submit controls move into their focused components.',
 );
 
 assert.match(
   universalChatSource,
-  /const hasOpenFloatingMenu = showModelMenu \|\| showAttachmentMenu;/,
-  'UniversalChat must derive menu-listener activation from its model and attachment menu state.',
+  /const hasOpenFloatingMenu = showAttachmentMenu;/,
+  'UniversalChat must limit its shared outside-click listener to the attachment menu; the model picker owns its focused listener lifecycle.',
 );
 
 assert.match(
   universalChatSource,
   /if \(!hasOpenFloatingMenu\) \{\s*return;\s*\}[\s\S]*document\.addEventListener\('mousedown', handleFloatingMenuClickOutside\);/s,
-  'UniversalChat must only subscribe to outside clicks while the model or attachment menu is open.',
+  'UniversalChat must only subscribe to outside clicks while its attachment menu is open.',
 );
 
 assert.match(

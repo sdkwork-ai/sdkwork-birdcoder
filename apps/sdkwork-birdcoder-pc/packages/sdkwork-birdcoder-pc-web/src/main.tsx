@@ -12,7 +12,6 @@ import {
   waitForBirdCoderApiReady,
 } from '@sdkwork/birdcoder-pc-shell-runtime';
 import { createBootstrapGateMessages, ErrorBoundary } from '@sdkwork/birdcoder-pc-workbench';
-import { loadWorkbenchCodeEngineCatalog } from '@sdkwork/birdcoder-pc-workbench/workbench/codeEngineCatalog';
 import { resolveWebRuntime } from './web/resolveWebRuntime';
 import App from './App';
 
@@ -43,10 +42,6 @@ async function bootstrapRuntime() {
     platformApiGatewayBaseUrl,
   });
   publishBirdCoderBootstrapProgress({ progress: 62, stage: 'runtime' });
-
-  void loadWorkbenchCodeEngineCatalog().catch((error) => {
-    console.warn('[sdkwork-agents] failed to load code-engine catalog:', error);
-  });
 }
 
 if (!document.getElementById('root')) {

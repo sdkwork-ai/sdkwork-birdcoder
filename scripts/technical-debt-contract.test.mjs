@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { execFileSync } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
 import process from 'node:process';
@@ -18,6 +19,38 @@ function resolvePath(relativePath) {
 function normalizeRelativePath(absolutePath) {
   return path.relative(rootDir, absolutePath).split(path.sep).join('/');
 }
+
+const trackedFiles = execFileSync('git', [
+  'ls-files',
+  '-z',
+  '--',
+  '.tmp',
+  '.vs',
+  ':(glob)**/*.db',
+  ':(glob)**/*.db-shm',
+  ':(glob)**/*.db-wal',
+  ':(glob)**/*.sqlite',
+  ':(glob)**/*.sqlite-shm',
+  ':(glob)**/*.sqlite-wal',
+  ':(glob)**/*.sqlite3',
+  ':(glob)**/*.sqlite3-shm',
+  ':(glob)**/*.sqlite3-wal',
+], {
+  cwd: rootDir,
+  encoding: 'utf8',
+  windowsHide: true,
+})
+  .split('\0')
+  .filter(Boolean);
+const trackedRuntimeArtifacts = trackedFiles.filter((relativePath) =>
+  fs.existsSync(resolvePath(relativePath))
+  && /(?:^|\/)\.(?:tmp|vs)\/|\.(?:db|sqlite|sqlite3)(?:-(?:shm|wal))?$/iu.test(relativePath),
+);
+assert.deepEqual(
+  trackedRuntimeArtifacts,
+  [],
+  `Git must not track runtime database, .tmp, or .vs artifacts:\n${trackedRuntimeArtifacts.join('\n')}`,
+);
 
 const forbiddenFiles = [
   ...ownership.forbiddenLocalAuthorityPaths,
@@ -92,6 +125,7 @@ const forbiddenFiles = [
   'scripts/claw-release-parity-baseline.mjs',
   'scripts/claw-release-parity-contract.test.mjs',
   'crates/sdkwork-birdcoder-errors/src/tenant_scope.rs',
+  'crates/sdkwork-birdcoder-tauri-host/src/commands/terminal_commands.rs',
 ];
 const remainingForbiddenFiles = [...new Set(forbiddenFiles)]
   .filter((relativePath) => fs.existsSync(resolvePath(relativePath)));
@@ -191,7 +225,7 @@ const activeSourceFiles = [];
 for (const relativeRoot of activeSourceRoots) {
   collectActiveSourceFiles(resolvePath(relativeRoot), activeSourceFiles);
 }
-const retiredImplementationPattern = /useAgentSessionProjection|createBirdCoderAppRuntimeTransport|BirdCoderProjectMirror|ensureBirdCoderMobileChatConversation|listBirdCoderMobileChatMessages|sendBirdCoderMobileChatMessage|chatConversationsList|chatConversationsMessagesCreate|probeBirdCoderIamSession|HttpHeaders\.authorizationHeader|sdkwork\.birdcoder\.provider-runtime|sdkwork-birdcoder-provider-runtime|sdkwork-birdcoder-kernel-bridge|\/app\/v3\/api\/intelligence\/coding_sessions|\/app\/v3\/api\/chat\/conversations|persistentProjection|shadowTable|dualWrite|compatibilityFacade|ApiBackedWorkspaceService|IWorkspaceService|defaultAgentProjectId|BirdCoderProjectSummary|ComposedSdkProjectRuntimeLocationRegistrationPort|ProjectWorkspaceBindingRequiredError|ApiBackedGitService|remoteSynchronization|forceWorkspace|isWorkspaceTerminalRequest|EMPTY_PROJECT_INVENTORY_MESSAGES|multiWindowWorkspaceState|workspaceBootstrap|projectImportWorkspace|localFolderProjectWorkspace|apps\/scripts\/initialize-component-specs\.mjs/iu;
+const retiredImplementationPattern = /useAgentSessionProjection|createBirdCoderAppRuntimeTransport|BirdCoderProjectMirror|ensureBirdCoderMobileChatConversation|listBirdCoderMobileChatMessages|sendBirdCoderMobileChatMessage|chatConversationsList|chatConversationsMessagesCreate|probeBirdCoderIamSession|terminal_cli_profile_detect|HttpHeaders\.authorizationHeader|sdkwork\.birdcoder\.provider-runtime|sdkwork-birdcoder-provider-runtime|sdkwork-birdcoder-kernel-bridge|sdkwork_birdcoder_router_context::(?:workspace_context|project_context)|BirdCoder-owned intelligence\/coding-workbench workspace and project service contexts|\/app\/v3\/api\/intelligence\/coding_sessions|\/app\/v3\/api\/chat\/conversations|persistentProjection|shadowTable|dualWrite|compatibilityFacade|ApiBackedWorkspaceService|IWorkspaceService|defaultAgentProjectId|BirdCoderProjectSummary|ComposedSdkProjectRuntimeLocationRegistrationPort|ProjectWorkspaceBindingRequiredError|ApiBackedGitService|remoteSynchronization|forceWorkspace|isWorkspaceTerminalRequest|EMPTY_PROJECT_INVENTORY_MESSAGES|multiWindowWorkspaceState|workspaceBootstrap|projectImportWorkspace|localFolderProjectWorkspace|apps\/scripts\/initialize-component-specs\.mjs/iu;
 const implementationViolations = [];
 for (const absolutePath of activeSourceFiles) {
   const source = fs.readFileSync(absolutePath, 'utf8');

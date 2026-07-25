@@ -64,6 +64,7 @@ configs/*.local.toml
 # SDKWork local runtime state
 .runtime/
 **/.runtime/
+.tmp/
 **/node_modules/
 /target/
 **/target/
@@ -72,6 +73,7 @@ configs/*.local.toml
 **/.pnpm-store/
 Thumbs.db
 .idea/
+.vs/
 .vscode/
 **/.sdkwork/local/
 **/.sdkwork/secrets/
@@ -84,8 +86,15 @@ Thumbs.db
 **/.sdkwork/sdkwork-generator-report.json
 
 # Common runtime/build artifacts (auto-aligned)
+*.db
+*.db-shm
+*.db-wal
+*.sqlite
 *.sqlite-shm
 *.sqlite-wal
+*.sqlite3
+*.sqlite3-shm
+*.sqlite3-wal
 **/test-results/
 .turbo/
 **/.turbo/

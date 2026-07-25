@@ -26,8 +26,14 @@ const selectedSessionMessagesHookSource = fs.readFileSync(
 
 assert.match(
   appSource,
-  /refreshProjects: refreshActiveProjects,[\s\S]*\} = useProjects\(projectsWorkspaceId(?:,\s*\{[\s\S]*?\})?\);/,
-  'App must own the active workspace session inventory through the shared useProjects store.',
+  /refreshProjects,[\s\S]*\} = useProjects\(\{[\s\S]*isActive: Boolean\(user\),[\s\S]*targetProjectId:/,
+  'App must own the active project session inventory through the shared useProjects store.',
+);
+
+assert.doesNotMatch(
+  appSource,
+  /projectsWorkspaceId|AppWorkspaceMenu|showWorkspaceMenu/,
+  'App session inventory must not depend on the retired BirdCoder Workspace identity or menu contract.',
 );
 
 assert.doesNotMatch(
@@ -152,7 +158,7 @@ assert.match(
 
 assert.match(
   selectedSessionMessagesHookSource,
-  /if \(synchronizedProject\) \{[\s\S]*upsertProjectIntoProjectsStore\([\s\S]*\);\s*\}\s*upsertAgentSessionIntoProjectsStore\(/,
+  /if \(project\) \{[\s\S]*upsertProjectIntoProjectsStore\(project, userScope\);\s*\}\s*upsertAgentSessionIntoProjectsStore\(/,
   'Selected-session hydration must apply the authoritative refreshed session after any synchronized project snapshot so clicking a successfully loaded transcript clears stale failed status in the sidebar.',
 );
 

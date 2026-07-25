@@ -73,11 +73,6 @@
       "purpose": "Authenticated-context and secure error-boundary rules."
     },
     {
-      "file": "PAGINATION_SPEC.md",
-      "path": "../../../../sdkwork-specs/PAGINATION_SPEC.md",
-      "purpose": "Strict list-query parsing and pagination boundary rules."
-    },
-    {
       "file": "TEST_SPEC.md",
       "path": "../../../../sdkwork-specs/TEST_SPEC.md",
       "purpose": "Component verification rules."
@@ -88,20 +83,12 @@
     "publicExports": [
       ".",
       "sdkwork_birdcoder_router_context::WebRequestContext",
-      "sdkwork_birdcoder_router_context::RequiredIamContext",
-      "sdkwork_birdcoder_router_context::StrictOffsetListQuery",
-      "sdkwork_birdcoder_router_context::strict_offset_list_params",
-      "sdkwork_birdcoder_router_context::workspace_context",
-      "sdkwork_birdcoder_router_context::project_context"
+      "sdkwork_birdcoder_router_context::RequiredIamContext"
     ],
     "providedPorts": [
       {
         "name": "authenticatedRouteContext",
         "export": "sdkwork_birdcoder_router_context::RequiredIamContext"
-      },
-      {
-        "name": "strictOffsetListPagination",
-        "export": "sdkwork_birdcoder_router_context::StrictOffsetListQuery"
       }
     ],
     "requiredPorts": [
@@ -122,7 +109,7 @@
   },
   "integration": {
     "authority": "Provides typed request extractors and context translation for BirdCoder route crates; it does not own IAM authentication, permission policy, or route handlers.",
-    "crossDomainComposition": "Maps a verified IAM app context into BirdCoder-owned intelligence/coding-workbench workspace and project service contexts. It does not define Agents Session, IM messaging, or deployment contexts."
+    "crossDomainComposition": "Resolves a verified IAM app context at the BirdCoder HTTP boundary. It does not create a BirdCoder Workspace, Project, Session, IM messaging, or deployment context."
   },
   "verification": {
     "commands": [

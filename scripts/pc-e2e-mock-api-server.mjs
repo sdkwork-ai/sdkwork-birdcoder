@@ -10,6 +10,7 @@ import {
   createBirdCoderDataEnvelope,
   createBirdCoderListEnvelope,
   createAgentSessionFixture,
+  createCodeEngineCatalogFixture,
   createIamDeviceAuthorizationFixture,
   createIamRuntimeSettings,
   createIamSessionData,
@@ -176,6 +177,20 @@ function handleRoute(method, url, request, body) {
         engines: [],
         models: [],
       }),
+    };
+  }
+
+  if (pathname === '/app/v3/api/ai/code_engines' && method === 'GET') {
+    if (!isAuthenticatedRequest(request)) {
+      return {
+        statusCode: 401,
+        payload: createAppbaseFailure('No authenticated SDKWork IAM user.', '401'),
+      };
+    }
+
+    return {
+      statusCode: 200,
+      payload: createBirdCoderDataEnvelope(createCodeEngineCatalogFixture()),
     };
   }
 

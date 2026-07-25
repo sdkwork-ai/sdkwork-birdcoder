@@ -5,7 +5,6 @@ import path from 'node:path';
 const rootDir = process.cwd();
 const hostCommandSources = [
   'crates/sdkwork-birdcoder-tauri-host/src/commands/filesystem_commands.rs',
-  'crates/sdkwork-birdcoder-tauri-host/src/commands/terminal_commands.rs',
 ].map((relativePath) => fs.readFileSync(path.join(rootDir, relativePath), 'utf8')).join('\n');
 
 function readCommandSource(commandName) {
@@ -58,7 +57,6 @@ function assertBlockingCommandOffloaded(commandName) {
   'fs_create_directory',
   'fs_delete_entry',
   'fs_rename_entry',
-  'terminal_cli_profile_detect',
 ].forEach(assertBlockingCommandOffloaded);
 
 console.log('desktop blocking IPC performance contract passed.');

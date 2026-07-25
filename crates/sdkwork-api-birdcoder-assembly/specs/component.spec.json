@@ -10,16 +10,43 @@
     "domain": "intelligence",
     "capability": "api-assembly",
     "surface": "api-assembly",
+    "status": "standard",
     "languages": [
       "rust"
     ],
     "generated": false,
+    "private": false,
     "manifests": [
       "Cargo.toml",
       "assembly-manifest.json"
     ]
   },
   "canonicalSpecs": [
+    {
+      "file": "COMPONENT_SPEC.md",
+      "path": "../../../sdkwork-specs/COMPONENT_SPEC.md",
+      "purpose": "Component-local integration contracts and port declarations."
+    },
+    {
+      "file": "CODE_STYLE_SPEC.md",
+      "path": "../../../sdkwork-specs/CODE_STYLE_SPEC.md",
+      "purpose": "Authored source structure and stable public export rules."
+    },
+    {
+      "file": "NAMING_SPEC.md",
+      "path": "../../../sdkwork-specs/NAMING_SPEC.md",
+      "purpose": "Canonical API assembly and Rust naming rules."
+    },
+    {
+      "file": "RUST_CODE_SPEC.md",
+      "path": "../../../sdkwork-specs/RUST_CODE_SPEC.md",
+      "purpose": "Rust API assembly and dependency composition rules."
+    },
+    {
+      "file": "HEALTH_CHECK_SPEC.md",
+      "path": "../../../sdkwork-specs/HEALTH_CHECK_SPEC.md",
+      "purpose": "Listener-level liveness and composed dependency readiness rules."
+    },
     {
       "file": "API_ASSEMBLY_SPEC.md",
       "path": "../../../sdkwork-specs/API_ASSEMBLY_SPEC.md",
@@ -34,15 +61,55 @@
       "file": "WEB_FRAMEWORK_SPEC.md",
       "path": "../../../sdkwork-specs/WEB_FRAMEWORK_SPEC.md",
       "purpose": "Typed request context and HTTP framework composition rules."
+    },
+    {
+      "file": "WEB_BACKEND_SPEC.md",
+      "path": "../../../sdkwork-specs/WEB_BACKEND_SPEC.md",
+      "purpose": "HTTP service, repository, adapter, and composition boundaries."
+    },
+    {
+      "file": "APP_COMPOSITION_SPEC.md",
+      "path": "../../../sdkwork-specs/APP_COMPOSITION_SPEC.md",
+      "purpose": "Application-owned dependency composition and public runtime ports."
+    },
+    {
+      "file": "TEST_SPEC.md",
+      "path": "../../../sdkwork-specs/TEST_SPEC.md",
+      "purpose": "Behavior and component contract verification rules."
     }
   ],
   "contracts": {
     "publicExports": [
-      "."
+      ".",
+      "sdkwork_api_birdcoder_assembly::assemble_api_router",
+      "sdkwork_api_birdcoder_assembly::ApiAssembly::readiness_check",
+      "sdkwork_api_agents_assembly::assemble_app_business_runtime",
+      "sdkwork_api_agents_assembly::AppBusinessRuntimeAssembly::readiness_check"
     ],
-    "providedPorts": [],
-    "requiredPorts": [],
-    "runtimeEntrypoints": [],
+    "providedPorts": [
+      {
+        "name": "birdcoderApiAssembly",
+        "export": "sdkwork_api_birdcoder_assembly::assemble_api_router"
+      },
+      {
+        "name": "birdcoderDependencyReadiness",
+        "export": "sdkwork_api_birdcoder_assembly::ApiAssembly::readiness_check"
+      }
+    ],
+    "requiredPorts": [
+      {
+        "name": "agentsAppBusinessRuntime",
+        "export": "sdkwork_api_agents_assembly::assemble_app_business_runtime"
+      },
+      {
+        "name": "agentsReadinessCheck",
+        "export": "sdkwork_api_agents_assembly::AppBusinessRuntimeAssembly::readiness_check"
+      }
+    ],
+    "runtimeEntrypoints": [
+      "src/bootstrap.rs#assemble_api_router",
+      "src/application_bootstrap/mod.rs#build_application"
+    ],
     "routeManifest": "assembly-manifest.json",
     "sdkClients": [],
     "sdkDependencies": [],

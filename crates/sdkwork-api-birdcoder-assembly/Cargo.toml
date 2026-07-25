@@ -3,7 +3,7 @@ name = "sdkwork-api-birdcoder-assembly"
 edition.workspace = true
 license.workspace = true
 version.workspace = true
-description = "Generated API assembly for sdkwork-birdcoder application HTTP plane."
+description = "Host-neutral API assembly for sdkwork-birdcoder application HTTP plane."
 
 [lib]
 name = "sdkwork_api_birdcoder_assembly"
@@ -11,15 +11,10 @@ path = "src/lib.rs"
 
 [dependencies]
 axum.workspace = true
-tokio.workspace = true
 serde_json.workspace = true
-tracing = "0.1"
 sdkwork-web-bootstrap = { workspace = true, features = ["otel"] }
-sdkwork-web-axum.workspace = true
 sdkwork-web-core.workspace = true
 sdkwork-web-contract.workspace = true
-sdkwork_iam_web_adapter.workspace = true
-sdkwork-api-agents-assembly.workspace = true
 sdkwork-routes-system-app-api.workspace = true
 
 [dev-dependencies]

@@ -163,7 +163,7 @@ export default defineConfig(({ command, mode }) => {
     define: resolveBirdcoderDevelopmentApiEnvDefines(mode),
     plugins: [
       createSdkworkCredentialEntryBootstrapVitePlugin({
-        accessToken: process.env.SDKWORK_ACCESS_TOKEN,
+        accessToken: runtimeEnvSource.SDKWORK_ACCESS_TOKEN,
         allowTestInjection: mode === 'test',
         environment: mode,
       }),

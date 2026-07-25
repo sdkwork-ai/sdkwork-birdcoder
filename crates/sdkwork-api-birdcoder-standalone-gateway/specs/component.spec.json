@@ -24,82 +24,87 @@
   "canonicalSpecs": [
     {
       "file": "COMPONENT_SPEC.md",
-      "path": "../../../../sdkwork-specs/COMPONENT_SPEC.md",
+      "path": "../../../sdkwork-specs/COMPONENT_SPEC.md",
       "purpose": "Component-local contract and discovery rules."
     },
     {
       "file": "CODE_STYLE_SPEC.md",
-      "path": "../../../../sdkwork-specs/CODE_STYLE_SPEC.md",
+      "path": "../../../sdkwork-specs/CODE_STYLE_SPEC.md",
       "purpose": "Authored source structure and generated code boundaries."
     },
     {
       "file": "NAMING_SPEC.md",
-      "path": "../../../../sdkwork-specs/NAMING_SPEC.md",
+      "path": "../../../sdkwork-specs/NAMING_SPEC.md",
       "purpose": "Canonical SDKWork naming rules."
     },
     {
       "file": "RUST_CODE_SPEC.md",
-      "path": "../../../../sdkwork-specs/RUST_CODE_SPEC.md",
+      "path": "../../../sdkwork-specs/RUST_CODE_SPEC.md",
       "purpose": "Rust crate and module rules."
     },
     {
       "file": "API_ASSEMBLY_SPEC.md",
-      "path": "../../../../sdkwork-specs/API_ASSEMBLY_SPEC.md",
+      "path": "../../../sdkwork-specs/API_ASSEMBLY_SPEC.md",
       "purpose": "Host-neutral BirdCoder API assembly composition rules."
     },
     {
       "file": "APPLICATION_GATEWAY_SPEC.md",
-      "path": "../../../../sdkwork-specs/APPLICATION_GATEWAY_SPEC.md",
+      "path": "../../../sdkwork-specs/APPLICATION_GATEWAY_SPEC.md",
       "purpose": "Standalone gateway ownership, route composition, and runtime ingress."
     },
     {
       "file": "WEB_FRAMEWORK_SPEC.md",
-      "path": "../../../../sdkwork-specs/WEB_FRAMEWORK_SPEC.md",
+      "path": "../../../sdkwork-specs/WEB_FRAMEWORK_SPEC.md",
       "purpose": "SDKWork web framework integration for HTTP API surfaces."
     },
     {
       "file": "WEB_BACKEND_SPEC.md",
-      "path": "../../../../sdkwork-specs/WEB_BACKEND_SPEC.md",
+      "path": "../../../sdkwork-specs/WEB_BACKEND_SPEC.md",
       "purpose": "HTTP backend handler, service, repository, and transaction boundaries."
     },
     {
       "file": "APP_RUNTIME_TOPOLOGY_SPEC.md",
-      "path": "../../../../sdkwork-specs/APP_RUNTIME_TOPOLOGY_SPEC.md",
+      "path": "../../../sdkwork-specs/APP_RUNTIME_TOPOLOGY_SPEC.md",
       "purpose": "Application runtime topology and standalone/cloud deployment modes."
     },
     {
       "file": "PNPM_SCRIPT_SPEC.md",
-      "path": "../../../../sdkwork-specs/PNPM_SCRIPT_SPEC.md",
+      "path": "../../../sdkwork-specs/PNPM_SCRIPT_SPEC.md",
       "purpose": "Canonical application gateway command and verification entrypoints."
     },
     {
       "file": "API_SPEC.md",
-      "path": "../../../../sdkwork-specs/API_SPEC.md",
+      "path": "../../../sdkwork-specs/API_SPEC.md",
       "purpose": "SDKWork HTTP API envelope, operation pattern, and OpenAPI rules."
     },
     {
       "file": "SDK_SPEC.md",
-      "path": "../../../../sdkwork-specs/SDK_SPEC.md",
+      "path": "../../../sdkwork-specs/SDK_SPEC.md",
       "purpose": "Generated SDK and SDK consumer boundary rules."
     },
     {
       "file": "SECURITY_SPEC.md",
-      "path": "../../../../sdkwork-specs/SECURITY_SPEC.md",
+      "path": "../../../sdkwork-specs/SECURITY_SPEC.md",
       "purpose": "Authn, authz, CORS, rate limiting, and secret-handling rules."
     },
     {
       "file": "OBSERVABILITY_SPEC.md",
-      "path": "../../../../sdkwork-specs/OBSERVABILITY_SPEC.md",
+      "path": "../../../sdkwork-specs/OBSERVABILITY_SPEC.md",
       "purpose": "Trace, metric, health, readiness, and diagnostic rules."
     },
     {
+      "file": "HEALTH_CHECK_SPEC.md",
+      "path": "../../../sdkwork-specs/HEALTH_CHECK_SPEC.md",
+      "purpose": "Canonical liveness/readiness endpoints and safe dependency failure responses."
+    },
+    {
       "file": "PERFORMANCE_SPEC.md",
-      "path": "../../../../sdkwork-specs/PERFORMANCE_SPEC.md",
+      "path": "../../../sdkwork-specs/PERFORMANCE_SPEC.md",
       "purpose": "Latency, concurrency, pagination, and scalability rules."
     },
     {
       "file": "TEST_SPEC.md",
-      "path": "../../../../sdkwork-specs/TEST_SPEC.md",
+      "path": "../../../sdkwork-specs/TEST_SPEC.md",
       "purpose": "Contract, smoke, and release verification rules."
     }
   ],
@@ -108,13 +113,13 @@
     "publicExports": [
       ".",
       "sdkwork_api_birdcoder_standalone_gateway::assemble_api_router",
-      "sdkwork_api_birdcoder_standalone_gateway::bootstrap::build_app",
+      "sdkwork_api_birdcoder_standalone_gateway::build_app",
       "sdkwork_api_birdcoder_standalone_gateway::server::listen::serve"
     ],
     "providedPorts": [
       {
         "name": "standaloneGatewayAppBuilder",
-        "export": "sdkwork_api_birdcoder_standalone_gateway::bootstrap::build_app"
+        "export": "sdkwork_api_birdcoder_standalone_gateway::build_app"
       },
       {
         "name": "standaloneGatewayServer",
@@ -148,15 +153,15 @@
   },
   "integration": {
     "authority": "The standalone gateway is a thin runtime host: it initializes process infrastructure, asks the host-neutral BirdCoder API assembly to build the router, and binds the single standalone listener. It owns no route, service, repository, Agents, IAM, or Provider behavior.",
-    "statePolicy": "The gateway and BirdCoder assembly are stateless composition hosts and own no database, migration, backup, repository, or persistence lifecycle.",
+    "statePolicy": "The gateway and BirdCoder assembly are stateless composition hosts and own no database, migration, backup, repository, or persistence lifecycle. Readiness reuses the canonical Agents runtime repository pool and never creates a BirdCoder or secondary Agents database pool.",
     "assemblyPolicy": "BirdCoder HTTP behavior is consumed only through sdkwork-api-birdcoder-assembly. The gateway must not depend directly on route crates or duplicate assembly implementation dependencies.",
-    "securityPolicy": "The BirdCoder API assembly owns sdkwork-web-framework request context, authorization, CORS, and response policy; the gateway owns listener lifecycle only."
+    "securityPolicy": "The standalone gateway owns process-wide sdkwork-web-framework request context, authorization, CORS, rate limiting, metrics, and listener lifecycle. The host-neutral BirdCoder API assembly contributes the router and route manifest without mounting process middleware."
   },
   "verification": {
     "commands": [
       "cargo test -p sdkwork-api-birdcoder-standalone-gateway --test bootstrap_smoke -- --nocapture",
-      "node ../../../../sdkwork-specs/tools/check-component-port-bindings.mjs --root .",
-      "node ../../../../sdkwork-specs/tools/check-route-path-collisions.mjs --root .",
+      "node ../sdkwork-specs/tools/check-component-port-bindings.mjs --root .",
+      "node ../sdkwork-specs/tools/check-route-path-collisions.mjs --root .",
       "node scripts/web-framework-standard-contract.test.mjs"
     ]
   }

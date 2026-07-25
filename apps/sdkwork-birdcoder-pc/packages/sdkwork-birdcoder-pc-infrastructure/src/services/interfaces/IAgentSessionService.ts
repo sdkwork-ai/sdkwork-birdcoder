@@ -20,6 +20,12 @@ export interface AgentSessionPageRequest {
   page?: number;
   pageSize?: number;
   projectId?: string;
+  sort?: 'sequence' | '-sequence';
+}
+
+export interface AgentSessionReadOptions {
+  signal?: AbortSignal;
+  timeoutMs?: number;
 }
 
 export interface AgentSessionPage<TItem> {
@@ -68,9 +74,10 @@ export interface AgentInteractionClaim {
  */
 export interface IAgentSessionService {
   createSession(input: CreateAgentSessionInput): Promise<AgentSessionRecord>;
-  getSession(sessionId: string): Promise<AgentSessionRecord>;
+  getSession(sessionId: string, options?: AgentSessionReadOptions): Promise<AgentSessionRecord>;
   listSessions(
     request?: AgentSessionPageRequest,
+    options?: AgentSessionReadOptions,
   ): Promise<AgentSessionPage<AgentSessionRecord>>;
   updateSession(
     sessionId: string,
@@ -81,17 +88,24 @@ export interface IAgentSessionService {
   listSessionItems(
     sessionId: string,
     request?: AgentSessionPageRequest,
+    options?: AgentSessionReadOptions,
   ): Promise<AgentSessionPage<AgentSessionItemRecord>>;
   listTurns(
     sessionId: string,
     request?: AgentSessionPageRequest,
+    options?: AgentSessionReadOptions,
   ): Promise<AgentSessionPage<AgentTurnRecord>>;
   submitTurn(sessionId: string, input: SubmitAgentTurnInput): Promise<AgentTurnCompletion>;
   listInteractions(
     sessionId: string,
     request?: AgentSessionPageRequest,
+    options?: AgentSessionReadOptions,
   ): Promise<AgentSessionPage<AgentInteractionRecord>>;
-  getInteraction(sessionId: string, interactionId: string): Promise<AgentInteractionRecord>;
+  getInteraction(
+    sessionId: string,
+    interactionId: string,
+    options?: AgentSessionReadOptions,
+  ): Promise<AgentInteractionRecord>;
   claimInteraction(
     sessionId: string,
     interactionId: string,
@@ -110,6 +124,7 @@ export interface IAgentSessionService {
   listRuntimeBindings(
     sessionId: string,
     request?: AgentSessionPageRequest,
+    options?: AgentSessionReadOptions,
   ): Promise<AgentSessionPage<AgentSessionRuntimeBindingRecord>>;
   createRuntimeBinding(
     sessionId: string,
@@ -118,8 +133,12 @@ export interface IAgentSessionService {
   listCheckpoints(
     sessionId: string,
     request?: AgentSessionPageRequest,
+    options?: AgentSessionReadOptions,
   ): Promise<AgentSessionPage<AgentSessionCheckpointRecord>>;
-  getSessionUserState(sessionId: string): Promise<AgentResourceUserStateRecord>;
+  getSessionUserState(
+    sessionId: string,
+    options?: AgentSessionReadOptions,
+  ): Promise<AgentResourceUserStateRecord>;
   updateSessionUserState(
     sessionId: string,
     request: UpdateAgentSessionUserStateRequest,

@@ -46,6 +46,7 @@ fn with_request_context(mut request: Request<Body>, authenticated: bool) -> Requ
             auth_token_present: true,
             access_token_present: true,
             api_key_present: false,
+            ingress_token_present: false,
             oauth_bearer_present: false,
             agent_token_present: false,
         },

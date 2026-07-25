@@ -6,6 +6,7 @@ data:
   SDKWORK_BIRDCODER_DEPLOYMENT_PROFILE: {{ .Values.runtime.deploymentProfile | quote }}
   SDKWORK_BIRDCODER_RUNTIME_TARGET: {{ .Values.runtime.runtimeTarget | quote }}
   SDKWORK_BIRDCODER_ENVIRONMENT: {{ .Values.runtime.environment | quote }}
+  SDKWORK_BIRDCODER_SERVER_HOST: {{ .Values.runtime.serverHost | quote }}
   SDKWORK_BIRDCODER_ALLOWED_ORIGINS: {{ join "," .Values.runtime.allowedOrigins | quote }}
   OTEL_SERVICE_NAME: {{ .Values.runtime.otelServiceName | quote }}
   SDKWORK_BIRDCODER_REALTIME_BACKEND: {{ .Values.realtime.backend | quote }}

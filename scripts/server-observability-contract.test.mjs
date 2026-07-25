@@ -27,6 +27,7 @@ function collectFiles(relativeRoot) {
 
 const mainSource = read('crates/sdkwork-api-birdcoder-standalone-gateway/src/main.rs');
 const libSource = read('crates/sdkwork-api-birdcoder-standalone-gateway/src/lib.rs');
+const libRuntimeSource = libSource.split('\n#[cfg(test)]')[0];
 const gatewayComponent = read(
   'crates/sdkwork-api-birdcoder-standalone-gateway/specs/component.spec.json',
 );
@@ -45,11 +46,16 @@ assert.match(
 );
 assert.match(
   mainSource,
-  /assemble_api_router\(&config\)/u,
-  'The gateway must consume the host-neutral BirdCoder assembly.',
+  /build_app\(&config\)/u,
+  'The gateway binary must construct the application through its gateway app builder.',
+);
+assert.match(
+  libSource,
+  /assemble_api_router\(config\)/u,
+  'The gateway app builder must consume the host-neutral BirdCoder assembly.',
 );
 assert.doesNotMatch(
-  `${mainSource}\n${libSource}`,
+  `${mainSource}\n${libRuntimeSource}`,
   /database|postgres|sqlite|migration|backup|enable_process_shared_database_pool/iu,
   'The standalone gateway must remain a stateless composition host.',
 );
@@ -106,8 +112,12 @@ assert.doesNotMatch(
 assert.doesNotMatch(deployment, /persistentVolumeClaim|mountPath:\s*\/var\/lib\/sdkwork-birdcoder/iu);
 assert.match(values, /path: \/healthz/u);
 assert.match(values, /path: \/readyz/u);
+assert.match(values, /serverHost: "0\.0\.0\.0"/u);
+assert.match(values, /startup:[\s\S]*?path: \/livez/u);
 assert.match(values, /serviceMonitor:/u);
 assert.match(configMap, /OTEL_SERVICE_NAME/u);
+assert.match(configMap, /SDKWORK_BIRDCODER_SERVER_HOST/u);
+assert.match(deployment, /terminationGracePeriodSeconds:\s*30/u);
 assert.match(haValues, /^replicaCount: 3$/mu);
 assert.match(haValues, /^\s*backend: redis$/mu);
 assert.match(haValues, /^\s*minReplicas: 3$/mu);

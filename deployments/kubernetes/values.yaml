@@ -36,6 +36,7 @@ runtime:
   deploymentProfile: cloud
   runtimeTarget: container
   environment: production
+  serverHost: "0.0.0.0"
   otelServiceName: sdkwork-api-birdcoder-standalone-gateway
   # Replace the reserved hostname before enabling browser traffic. Wildcards
   # are rejected by the server's cloud runtime validation.
@@ -127,7 +128,7 @@ probes:
   startup:
     enabled: true
     httpGet:
-      path: /readyz
+      path: /livez
       port: 18989
     initialDelaySeconds: 5
     periodSeconds: 10

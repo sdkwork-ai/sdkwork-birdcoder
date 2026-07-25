@@ -168,6 +168,12 @@ export interface AgentSessionItemView {
   taskProgress?: AgentSessionTaskProgressView;
 }
 
+export interface AgentSessionPageInfoView {
+  hasMore: boolean;
+  page: number;
+  pageSize: number;
+}
+
 export type AgentSessionItemViewSource = Readonly<AgentSessionItemView>;
 export type AgentSessionProtocolNoticeKind =
   | 'blocked' | 'cancelled' | 'compression' | 'failed' | 'info' | 'retry'
@@ -193,6 +199,7 @@ export interface AgentSessionView {
   pinned?: boolean;
   archived?: boolean;
   unread?: boolean;
+  itemPageInfo?: AgentSessionPageInfoView;
   items: AgentSessionItemView[];
 }
 

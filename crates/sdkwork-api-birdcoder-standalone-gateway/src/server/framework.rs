@@ -1,108 +1,84 @@
-use axum::extract::{Request, State};
-use axum::http::StatusCode;
-use axum::middleware::{from_fn_with_state, Next};
-use axum::response::Response;
+//! Gateway-level web framework infrastructure.
+//!
+//! Per `APPLICATION_GATEWAY_SPEC.md` section 2: "Gateways own listener lifecycle,
+//! process-wide Web Framework infrastructure, observability, topology
+//! materialization, assembly selection, and cross-assembly collision
+//! validation."
+//!
+//! This module constructs the `WebFrameworkLayer` using `sdkwork_iam_web_adapter`
+//! and wraps the assembly-provided raw router. The assembly is host-neutral and
+//! does not depend on `sdkwork_iam_web_adapter`.
+
 use axum::Router;
-use sdkwork_iam_web_adapter::{
-    build_web_framework_layer, iam_web_request_context_resolver_from_env, IamAuthorizationPolicy,
+use sdkwork_iam_web_adapter::{iam_web_request_context_resolver_from_env, IamAuthorizationPolicy};
+use sdkwork_web_axum::{with_web_request_context, WebFrameworkLayer};
+use sdkwork_web_core::{
+    CorsPolicy, DomainContextInjector, HttpMetricsRegistry, HttpRouteManifest, RateLimitPolicy,
+    SecurityPolicy, WebEnvironment, WebRequestContextProfile,
 };
-use sdkwork_web_axum::with_web_request_context;
-use sdkwork_web_core::{CorsPolicy, HttpMetricsRegistry, RateLimitPolicy, SecurityPolicy};
 use std::sync::Arc;
 
-use crate::bootstrap::config::{
+use sdkwork_api_birdcoder_assembly::bootstrap::config::{
     default_loopback_browser_origins, is_loopback_bind_host, is_wildcard_bind_host,
-    BirdDeploymentProfile, BirdServerConfig,
+    BirdDeploymentProfile, BirdEnvironment, BirdServerConfig,
 };
-use crate::bootstrap::route_manifest::birdcoder_app_api_route_manifest;
 
+/// Product route packages declare public operations in the combined route
+/// manifest. Infrastructure probes are mounted outside this framework layer,
+/// so the gateway does not need broad public path-prefix exceptions.
 pub fn birdcoder_public_path_prefixes() -> Vec<String> {
     Vec::new()
 }
 
-pub async fn build_protected_app_router(
+/// Wraps the raw assembly router with the IAM web framework layer.
+///
+/// This is the gateway-owned "process-wide Web Framework infrastructure"
+/// per `APPLICATION_GATEWAY_SPEC.md` section 2. The assembly provides the raw router
+/// and the combined route manifest; the gateway constructs the middleware
+/// pipeline (auth, CORS, rate limiting, authorization) using
+/// `sdkwork_iam_web_adapter`.
+pub async fn wrap_with_web_framework(
     router: Router,
+    route_manifest: HttpRouteManifest,
+    domain_context_injectors: Vec<Arc<dyn DomainContextInjector>>,
     config: &BirdServerConfig,
     metrics: Arc<HttpMetricsRegistry>,
 ) -> Result<Router, String> {
     let resolver = iam_web_request_context_resolver_from_env().await;
-    let manifest = birdcoder_app_api_route_manifest();
-    manifest
-        .validate_public_path_prefixes(&birdcoder_public_path_prefixes())
+    let public_prefixes = birdcoder_public_path_prefixes();
+    let profile = WebRequestContextProfile {
+        public_path_prefixes: public_prefixes.clone(),
+        environment: match config.environment {
+            BirdEnvironment::Development => WebEnvironment::Dev,
+            BirdEnvironment::Test => WebEnvironment::Test,
+            BirdEnvironment::Staging | BirdEnvironment::Production => WebEnvironment::Prod,
+        },
+        ..WebRequestContextProfile::default()
+    };
+    route_manifest
+        .validate_public_path_prefixes(&public_prefixes)
         .map_err(|error| format!("route manifest public prefix validation failed: {error}"))?;
+    route_manifest
+        .validate_route_auth_for_surfaces(&profile)
+        .map_err(|error| format!("route manifest auth validation failed: {error}"))?;
+    route_manifest
+        .validate_no_ambient_context_path_markers(&profile)
+        .map_err(|error| format!("route manifest context validation failed: {error}"))?;
 
-    let authorization_policy = Arc::new(IamAuthorizationPolicy::new(manifest));
-
-    let layer = build_web_framework_layer(resolver, manifest, birdcoder_public_path_prefixes())
+    let authorization_policy = Arc::new(IamAuthorizationPolicy::new(route_manifest.clone()));
+    let mut layer = WebFrameworkLayer::new(resolver)
+        .with_profile(profile)
         .with_security_policy(build_security_policy(config))
         .with_authorization_policy(authorization_policy)
+        .with_route_manifest(route_manifest)
         .with_metrics(metrics);
+    for injector in domain_context_injectors {
+        layer = layer.with_domain_injector(injector);
+    }
     Ok(with_web_request_context(router, layer))
 }
 
-/// Gateway-wide CORS middleware.
-///
-/// Applies the BirdCoder CORS policy to every response and short-circuits
-/// OPTIONS preflight requests with `200 OK` so that browsers accept the
-/// preflight response. This is necessary because:
-///
-/// 1. IAM routes (`/app/v3/api/oauth/*`, `/app/v3/api/auth/*`) are wrapped by
-///    the IAM web framework layer whose CORS policy is derived from
-///    `SDKWORK_IM_ENVIRONMENT`. When that variable is unset (production
-///    default), the IAM layer rejects cross-origin requests from the BirdCoder
-///    dev server origins.
-/// 2. Axum returns `405 Method Not Allowed` for OPTIONS requests on routes
-///    that only register `POST`/`GET`/etc., causing browsers to fail the
-///    preflight with "It does not have HTTP ok status".
-///
-/// By applying the BirdCoder `build_cors_policy` at the gateway boundary and
-/// short-circuiting preflight, CORS is handled uniformly regardless of the
-/// inner router's security policy.
-pub(crate) fn with_gateway_cors<S>(router: Router<S>, config: &BirdServerConfig) -> Router<S>
-where
-    S: Clone + Send + Sync + 'static,
-{
-    router.layer(from_fn_with_state(
-        Arc::new(build_cors_policy(config)),
-        gateway_cors_middleware,
-    ))
-}
-
-async fn gateway_cors_middleware(
-    State(cors): State<Arc<CorsPolicy>>,
-    request: Request,
-    next: Next,
-) -> Response {
-    let origin = request
-        .headers()
-        .get("origin")
-        .and_then(|value| value.to_str().ok())
-        .map(str::to_owned);
-
-    // Short-circuit CORS preflight (OPTIONS) requests with 200 OK so the
-    // browser accepts the preflight. Without this, axum returns 405 for
-    // routes that don't explicitly register an OPTIONS handler.
-    if request.method() == axum::http::Method::OPTIONS {
-        let mut response = Response::new(axum::body::Body::empty());
-        *response.status_mut() = StatusCode::OK;
-        SecurityPolicy::apply_cors_policy_headers_from_origin(
-            cors.as_ref(),
-            origin.as_deref(),
-            &mut response,
-        );
-        return response;
-    }
-
-    let mut response = next.run(request).await;
-    SecurityPolicy::apply_cors_policy_headers_from_origin(
-        cors.as_ref(),
-        origin.as_deref(),
-        &mut response,
-    );
-    response
-}
-
-pub(crate) fn build_cors_policy(config: &BirdServerConfig) -> CorsPolicy {
+pub fn build_cors_policy(config: &BirdServerConfig) -> CorsPolicy {
     let uses_wildcard = config.allowed_origins.iter().any(|origin| origin == "*");
     let mut explicit_origins: Vec<String> = config
         .allowed_origins
@@ -111,15 +87,11 @@ pub(crate) fn build_cors_policy(config: &BirdServerConfig) -> CorsPolicy {
         .cloned()
         .collect();
 
-    // Development clients can be served from dynamically assigned LAN IPs and
-    // arbitrary dev-server ports. The shared framework policy keeps this
-    // limited to loopback/private-network origins and is production-invalid.
     let uses_development_private_network =
         matches!(config.deployment_profile, BirdDeploymentProfile::Standalone)
             && matches!(
                 config.environment,
-                crate::bootstrap::config::BirdEnvironment::Development
-                    | crate::bootstrap::config::BirdEnvironment::Test
+                BirdEnvironment::Development | BirdEnvironment::Test
             );
     if uses_development_private_network {
         let mut policy = CorsPolicy::development_private_network();
@@ -136,8 +108,6 @@ pub(crate) fn build_cors_policy(config: &BirdServerConfig) -> CorsPolicy {
         return policy;
     }
 
-    // Non-development standalone servers retain exact loopback defaults when
-    // bound locally. Cloud deployments always require operator-owned origins.
     let is_local_standalone =
         matches!(config.deployment_profile, BirdDeploymentProfile::Standalone)
             && (is_loopback_bind_host(&config.host) || is_wildcard_bind_host(&config.host));
@@ -192,7 +162,8 @@ fn build_security_policy(config: &BirdServerConfig) -> SecurityPolicy {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::bootstrap::config::{BirdEnvironment, BirdRuntimeTarget};
+    use axum::extract::Request;
+    use sdkwork_api_birdcoder_assembly::bootstrap::config::BirdRuntimeTarget;
 
     fn test_config(deployment_profile: BirdDeploymentProfile) -> BirdServerConfig {
         BirdServerConfig {

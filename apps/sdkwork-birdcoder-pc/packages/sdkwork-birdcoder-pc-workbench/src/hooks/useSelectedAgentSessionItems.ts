@@ -100,11 +100,13 @@ export function useSelectedAgentSessionItems({
     }
     activeRequestKeyRef.current = requestKey;
     let disposed = false;
+    const controller = new AbortController();
     setIsLoading(true);
 
     void refreshAgentSessionItems({
       agentSessionService,
       agentSessionId: normalizedSessionId,
+      signal: controller.signal,
       resolvedLocation:
         selectedProject && selectedAgentSession
           ? { agentSession: selectedAgentSession, project: selectedProject }
@@ -143,6 +145,7 @@ export function useSelectedAgentSessionItems({
 
     return () => {
       disposed = true;
+      controller.abort(new Error('Selected Agents session item request was superseded.'));
     };
   }, [
     agentSessionService,

@@ -5,10 +5,11 @@ import {
 } from '@sdkwork/birdcoder-pc-core/sdk';
 import { getBirdCoderGlobalTokenManager } from '@sdkwork/birdcoder-pc-core/appSessionTokenManager';
 import { getDefaultBirdCoderIdeServicesRuntimeConfig } from './defaultIdeServicesRuntime.ts';
-import { resolveBirdCoderPlatformSdkBaseUrl } from './sdkBaseUrls.ts';
+import { resolveBirdCoderDependencySdkBaseUrl } from './sdkBaseUrls.ts';
 import { bindBirdCoderSdkSessionErrorHandler } from './sdkSessionErrorHandler.ts';
 
 export interface BirdCoderAgentsAppSdkClientOptions {
+  applicationApiBaseUrl?: string;
   platformApiGatewayBaseUrl?: string;
   tokenManager?: AuthTokenManager;
 }
@@ -21,9 +22,14 @@ export function createBirdCoderAgentsAppSdkClient(
   const runtimeConfig = getDefaultBirdCoderIdeServicesRuntimeConfig();
   return bindBirdCoderSdkSessionErrorHandler(createAgentsAppSdkClient({
     authMode: 'dual-token',
-    baseUrl: resolveBirdCoderPlatformSdkBaseUrl(
-      options.platformApiGatewayBaseUrl ?? runtimeConfig.platformApiGatewayBaseUrl,
-    ),
+    baseUrl: resolveBirdCoderDependencySdkBaseUrl('Agents', {
+      applicationApiBaseUrl:
+        options.applicationApiBaseUrl ?? runtimeConfig.applicationApiBaseUrl,
+      platformApiGatewayBaseUrl:
+        options.platformApiGatewayBaseUrl ?? runtimeConfig.platformApiGatewayBaseUrl,
+      runtimeTopology: runtimeConfig.runtimeTopology,
+      sameOriginAllowed: true,
+    }),
     platform: 'pc',
     tokenManager: options.tokenManager ?? getBirdCoderGlobalTokenManager(),
   }));
@@ -32,7 +38,7 @@ export function createBirdCoderAgentsAppSdkClient(
 export function getBirdCoderAgentsAppSdkClient(
   options: BirdCoderAgentsAppSdkClientOptions = {},
 ): AgentsAppSdkClient {
-  if (options.platformApiGatewayBaseUrl || options.tokenManager) {
+  if (options.applicationApiBaseUrl || options.platformApiGatewayBaseUrl || options.tokenManager) {
     return createBirdCoderAgentsAppSdkClient(options);
   }
 

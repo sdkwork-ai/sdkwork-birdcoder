@@ -1,5 +1,6 @@
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { createSdkworkCredentialEntryBootstrapVitePlugin } from '@sdkwork/iam-credential-entry/vite';
 
 import {
   createBirdcoderCommonJsDefaultCompatPlugin,
@@ -49,13 +50,20 @@ function createDesktopVitePlugins({
   mode = 'development',
   runtimeEnvSource = process.env,
 } = {}) {
-  return createBirdcoderVitePlugins({
-    appRootDir: desktopRootDir,
-    runtimeEnvSource,
-    toolingRootDir: desktopRootDir,
-    mode,
-    namespace: desktopNamespace,
-  });
+  return [
+    createSdkworkCredentialEntryBootstrapVitePlugin({
+      accessToken: runtimeEnvSource.SDKWORK_ACCESS_TOKEN,
+      allowTestInjection: mode === 'test',
+      environment: mode,
+    }),
+    ...createBirdcoderVitePlugins({
+      appRootDir: desktopRootDir,
+      runtimeEnvSource,
+      toolingRootDir: desktopRootDir,
+      mode,
+      namespace: desktopNamespace,
+    }),
+  ].filter(Boolean);
 }
 
 export {

@@ -57,6 +57,8 @@ import { Button, TopMenu, type TopMenuItem } from '@sdkwork/birdcoder-pc-ui-shel
 import { copyTextToClipboard } from '@sdkwork/birdcoder-pc-ui/components/clipboard';
 import type { AppTab, AgentProjectView } from '@sdkwork/birdcoder-pc-contracts-commons';
 import {
+  loadWorkbenchCodeEngineCatalog,
+  resetWorkbenchCodeEngineCatalog,
   resolveWorkbenchCodeEngineSelectedModelId,
   resolveWorkbenchNewSessionEngineCatalog,
 } from '@sdkwork/birdcoder-pc-workbench/workbench/codeEngineCatalog';
@@ -115,6 +117,27 @@ export function AppContent() {
     user?.id,
     sessionRevision,
   );
+  const isAuthenticated = Boolean(user);
+  useEffect(() => {
+    if (isAuthLoading) {
+      return undefined;
+    }
+    if (!isAuthenticated) {
+      resetWorkbenchCodeEngineCatalog();
+      return undefined;
+    }
+
+    let disposed = false;
+    void loadWorkbenchCodeEngineCatalog().catch((error) => {
+      if (!disposed) {
+        console.warn('[sdkwork-agents] failed to load code-engine catalog:', error);
+      }
+    });
+    return () => {
+      disposed = true;
+      resetWorkbenchCodeEngineCatalog();
+    };
+  }, [currentWorkbenchSessionScope, isAuthLoading, isAuthenticated]);
   const normalizedStoredRecoverySnapshot = useMemo(
     () => normalizeWorkbenchRecoverySnapshot(recoverySnapshot),
     [recoverySnapshot],
@@ -2000,7 +2023,7 @@ export function AppContent() {
 
       <AppMainBody
         activeTab={activeTab}
-        isAuthenticated={Boolean(user)}
+        isAuthenticated={isAuthenticated}
         terminalRequest={terminalRequest}
         projectId={effectiveProjectId}
         projectName={activeProject?.name}

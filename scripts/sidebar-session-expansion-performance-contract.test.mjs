@@ -130,8 +130,18 @@ assert.match(
 );
 assert.match(
   agentSessionViewModelsSource,
-  /const pageSize = Math\.max\(1, Math\.min\(200, Math\.trunc\(requestedCount\)\)\);[\s\S]*hasMore: sessionPage\.pageInfo\.hasMore === true/,
-  'The Agents session page loader must bound page size and use standard pageInfo continuation semantics.',
+  /const currentPageInfo = project\.agentSessionPageInfo;[\s\S]*const requestedPage = currentPageInfo \? currentPageInfo\.page \+ 1 : 1;[\s\S]*pageSize: PROJECT_SESSION_PAGE_SIZE[\s\S]*agentSessionPageInfo: pageInfo/,
+  'The Agents session page loader must persist standard pageInfo and request exactly the next server page.',
+);
+assert.match(
+  agentSessionViewModelsSource,
+  /PROJECT_SESSION_INVENTORY_CONCURRENCY = 6;[\s\S]*mapWithConcurrency\([\s\S]*PROJECT_SESSION_INVENTORY_CONCURRENCY/,
+  'Project inventory hydration must use bounded concurrency instead of one request per project at once.',
+);
+assert.doesNotMatch(
+  agentSessionViewModelsSource,
+  /listSessions\(\{\s*page: 1,\s*pageSize: Math\.max/s,
+  'Project session expansion must not re-fetch an ever-growing first-page prefix.',
 );
 assert.match(
   projectsHookSource,

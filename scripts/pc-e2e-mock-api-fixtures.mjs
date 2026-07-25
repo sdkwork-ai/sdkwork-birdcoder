@@ -197,6 +197,12 @@ export function createAgentSessionFixture(overrides = {}) {
   };
 }
 
+export function createCodeEngineCatalogFixture() {
+  return {
+    engines: [],
+  };
+}
+
 export function createAppTemplateFixture() {
   return {
     id: 'e2e-template-1',

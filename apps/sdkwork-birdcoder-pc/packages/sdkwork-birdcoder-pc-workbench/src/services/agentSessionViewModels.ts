@@ -1,4 +1,5 @@
 import type {
+  AgentSessionPageInfoView,
   AgentSessionItemView,
   AgentSessionView,
   AgentProjectView,
@@ -24,11 +25,69 @@ export interface AgentSessionViewContext {
   modelId?: string;
   runtimeLocationId?: string;
   userState?: AgentSessionUserStateRecord | null;
+  itemPageInfo?: AgentSessionPageInfoView;
 }
 
 export interface ProjectAgentSessionPage {
   hasMore: boolean;
   project: AgentProjectView;
+}
+
+const PROJECT_SESSION_PAGE_SIZE = 20;
+const PROJECT_SESSION_INVENTORY_CONCURRENCY = 6;
+
+function normalizePageInfo(
+  pageInfo: Awaited<ReturnType<IAgentSessionService['listSessions']>>['pageInfo'],
+  requestedPage: number,
+  requestedPageSize: number,
+): AgentSessionPageInfoView {
+  if (pageInfo.mode !== 'offset') {
+    throw new Error('Agents session inventory must use offset pagination.');
+  }
+  const page = pageInfo.page ?? requestedPage;
+  const pageSize = pageInfo.pageSize ?? requestedPageSize;
+  if (page !== requestedPage) {
+    throw new Error(
+      `Agents session inventory returned page ${page} while page ${requestedPage} was requested.`,
+    );
+  }
+  if (!Number.isSafeInteger(pageSize) || pageSize < 1 || pageSize > 200) {
+    throw new Error('Agents session inventory returned an invalid page size.');
+  }
+  return {
+    hasMore: pageInfo.hasMore === true,
+    page,
+    pageSize,
+  };
+}
+
+async function mapWithConcurrency<TInput, TOutput>(
+  inputs: readonly TInput[],
+  concurrency: number,
+  worker: (input: TInput, index: number) => Promise<TOutput>,
+): Promise<TOutput[]> {
+  const results = new Array<TOutput>(inputs.length);
+  let nextIndex = 0;
+  const workerCount = Math.min(inputs.length, Math.max(1, Math.trunc(concurrency)));
+  await Promise.all(Array.from({ length: workerCount }, async () => {
+    while (nextIndex < inputs.length) {
+      const index = nextIndex;
+      nextIndex += 1;
+      results[index] = await worker(inputs[index]!, index);
+    }
+  }));
+  return results;
+}
+
+function mergeAgentSessions(
+  existing: readonly AgentSessionView[],
+  incoming: readonly AgentSessionView[],
+): AgentSessionView[] {
+  const sessionsById = new Map(existing.map((session) => [session.id, session]));
+  for (const session of incoming) {
+    sessionsById.set(session.id, session);
+  }
+  return [...sessionsById.values()];
 }
 
 function resolveItemRole(
@@ -139,6 +198,7 @@ export function toAgentSessionView(
     pinned: Boolean(context.userState?.pinnedAt),
     archived: session.status === 'archived' || Boolean(context.userState?.hiddenAt),
     unread: context.userState?.lastReadItemSequence !== session.lastItemSequence,
+    itemPageInfo: context.itemPageInfo,
     items: sessionItems,
   };
 }
@@ -148,23 +208,50 @@ export async function loadProjectAgentSessionPage(
   project: AgentProjectView,
   requestedCount: number,
 ): Promise<ProjectAgentSessionPage> {
-  const pageSize = Math.max(1, Math.min(200, Math.trunc(requestedCount)));
+  const targetCount = Math.max(1, Math.min(200_000, Math.trunc(requestedCount)));
   const projectId = project.projectId;
+  const currentPageInfo = project.agentSessionPageInfo;
+  if (
+    project.agentSessions.length >= targetCount
+    || (currentPageInfo && !currentPageInfo.hasMore)
+  ) {
+    return {
+      hasMore: project.agentSessions.length > targetCount || currentPageInfo?.hasMore === true,
+      project,
+    };
+  }
+
+  const requestedPage = currentPageInfo ? currentPageInfo.page + 1 : 1;
   const sessionPage = await agentSessionService.listSessions({
-    page: 1,
-    pageSize,
+    page: requestedPage,
+    pageSize: PROJECT_SESSION_PAGE_SIZE,
     projectId,
   });
+  const pageInfo = normalizePageInfo(
+    sessionPage.pageInfo,
+    requestedPage,
+    PROJECT_SESSION_PAGE_SIZE,
+  );
+  if (sessionPage.items.length > pageInfo.pageSize) {
+    throw new Error('Agents session inventory exceeded its declared page size.');
+  }
+  if (sessionPage.items.length === 0 && pageInfo.hasMore) {
+    throw new Error('Agents session inventory returned an empty page with hasMore=true.');
+  }
   const visibleSessions = sessionPage.items
     .filter((session) => session.projectId === projectId)
     .map((session) => toAgentSessionView(session, {
       projectId,
     }));
+  const agentSessions = requestedPage === 1
+    ? visibleSessions
+    : mergeAgentSessions(project.agentSessions, visibleSessions);
   return {
-    hasMore: sessionPage.pageInfo.hasMore === true,
+    hasMore: agentSessions.length > targetCount || pageInfo.hasMore,
     project: {
       ...project,
-      agentSessions: visibleSessions,
+      agentSessionPageInfo: pageInfo,
+      agentSessions,
     },
   };
 }
@@ -174,9 +261,10 @@ export async function loadProjectsAgentSessionInventory(
   projects: readonly AgentProjectView[],
   requestedCount = 20,
 ): Promise<AgentProjectView[]> {
-  return Promise.all(
-    projects.map(async (project) =>
+  return mapWithConcurrency(
+    projects,
+    PROJECT_SESSION_INVENTORY_CONCURRENCY,
+    async (project) =>
       (await loadProjectAgentSessionPage(agentSessionService, project, requestedCount)).project,
-    ),
   );
 }

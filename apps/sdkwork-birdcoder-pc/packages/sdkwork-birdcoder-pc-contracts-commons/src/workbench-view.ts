@@ -1,4 +1,4 @@
-import type { AgentSessionView } from './agent-session-view.ts';
+import type { AgentSessionPageInfoView, AgentSessionView } from './agent-session-view.ts';
 import type { WorkbenchEntityId, WorkbenchLongIntegerString } from './workbench-values.ts';
 
 export type AppTab = 'code' | 'studio' | 'multiwindow' | 'terminal' | 'settings' | 'auth' | 'user' | 'vip';
@@ -32,6 +32,7 @@ export interface AgentProjectView {
   createdAt: string;
   updatedAt: string;
   archivedAt?: string;
+  agentSessionPageInfo?: AgentSessionPageInfoView;
   agentSessions: AgentSessionView[];
 }
 

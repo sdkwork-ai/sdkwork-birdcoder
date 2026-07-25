@@ -48,6 +48,8 @@ const MAX_EXEC_OUTPUT_BYTES: usize = 2 * 1024 * 1024;
 const MAX_SHUTDOWN_DRAIN_EVENTS: usize = 1_024;
 const TERMINAL_EVENT_THREAD_POLL_INTERVAL: Duration = Duration::from_millis(250);
 const TRUNCATION_SUFFIX: &str = "\n[BirdCoder terminal output truncated]";
+// Required sdkwork-terminal multiplexing scope; it is not an Agents Project identity.
+const LOCAL_TERMINAL_MULTIPLEXING_SCOPE: &str = "workspace-local";
 
 pub struct DesktopTerminalRuntimeState {
     session_runtime: Arc<Mutex<SessionRuntime>>,
@@ -251,8 +253,7 @@ impl DesktopTerminalRuntimeState {
         let occurred_at = current_occurred_at();
         let resolved_profile_tag = normalize_optional_metadata(profile_id.as_deref())
             .unwrap_or_else(|| profile.trim().to_lowercase());
-        let resolved_workspace_id = normalize_optional_metadata(workspace_id.as_deref())
-            .unwrap_or_else(|| "workspace-local".to_string());
+        let resolved_workspace_id = resolve_terminal_multiplexing_scope(workspace_id.as_deref());
         let mut tags = vec![format!("profile:{resolved_profile_tag}")];
         push_optional_tag(&mut tags, "project", project_id.as_deref());
         push_optional_tag(&mut tags, "title", title.as_deref());
@@ -335,8 +336,7 @@ impl DesktopTerminalRuntimeState {
         let program_target = derive_local_process_target(program);
         let target = normalize_optional_metadata(profile_id.as_deref())
             .unwrap_or_else(|| program_target.clone());
-        let resolved_workspace_id = normalize_optional_metadata(workspace_id.as_deref())
-            .unwrap_or_else(|| "workspace-local".to_string());
+        let resolved_workspace_id = resolve_terminal_multiplexing_scope(workspace_id.as_deref());
         let mut tags = vec![
             "launcher:local-process".to_string(),
             format!("program:{program_target}"),
@@ -861,8 +861,17 @@ fn validate_session_metadata(
 ) -> Result<(), String> {
     validate_optional_text("terminal title", title, MAX_METADATA_BYTES)?;
     validate_optional_text("terminal profile id", profile_id, MAX_METADATA_BYTES)?;
-    validate_optional_text("terminal workspace id", workspace_id, MAX_METADATA_BYTES)?;
+    validate_optional_text(
+        "terminal multiplexing scope",
+        workspace_id,
+        MAX_METADATA_BYTES,
+    )?;
     validate_optional_text("terminal project id", project_id, MAX_METADATA_BYTES)
+}
+
+fn resolve_terminal_multiplexing_scope(workspace_id: Option<&str>) -> String {
+    normalize_optional_metadata(workspace_id)
+        .unwrap_or_else(|| LOCAL_TERMINAL_MULTIPLEXING_SCOPE.to_string())
 }
 
 fn validate_required_text(label: &str, value: &str, max_bytes: usize) -> Result<(), String> {
@@ -960,6 +969,18 @@ mod tests {
         assert_eq!(
             build_local_shell_runtime_event_name("session.output"),
             "sdkwork-terminal:runtime:v1:session:output"
+        );
+    }
+
+    #[test]
+    fn terminal_multiplexing_scope_has_a_device_runtime_default() {
+        assert_eq!(
+            resolve_terminal_multiplexing_scope(None),
+            LOCAL_TERMINAL_MULTIPLEXING_SCOPE
+        );
+        assert_eq!(
+            resolve_terminal_multiplexing_scope(Some(" terminal-window-2 ")),
+            "terminal-window-2"
         );
     }
 

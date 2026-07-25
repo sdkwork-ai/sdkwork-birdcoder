@@ -1,6 +1,5 @@
 import { readBirdcoderAppShellSource } from './birdcoder-app-shell-contract-sources.mjs';
 import assert from 'node:assert/strict';
-import fs from 'node:fs';
 
 const appSource = readBirdcoderAppShellSource();
 
@@ -12,8 +11,8 @@ assert.match(
 
 assert.match(
   appSource,
-  /const resolveImmediateProjectIndex = useCallback\(/,
-  'App must centralize immediate workspace/project index resolution so selection flows do not rebuild array-scan logic inline.',
+  /const projectsIndex = useMemo\(\s*\(\) => buildProjectAgentSessionIndex\(projects\),\s*\[projects\],\s*\);/,
+  'App must build one memoized project/session index for canonical Agents Project inventory.',
 );
 
 assert.match(
@@ -24,26 +23,20 @@ assert.match(
 
 assert.match(
   appSource,
-  /const activeProjectsIndex = useMemo\(\s*\(\) => buildProjectAgentSessionIndex\(activeProjects\)/,
-  'App must build a memoized project/session index for the active workspace instead of repeatedly scanning project arrays.',
-);
-
-assert.match(
-  appSource,
-  /const menuProjectsIndex = useMemo\(\s*\(\) => buildProjectAgentSessionIndex\(menuProjects\)/,
-  'App must build a memoized project/session index for the workspace menu project collection.',
-);
-
-assert.match(
-  appSource,
-  /activeProjectsIndex\.projectsById\.get\(effectiveProjectId\)/,
+  /projectsIndex\.projectsById\.get\(effectiveProjectId\)/,
   'App must resolve the active project through the shared index instead of repeated array finds.',
 );
 
 assert.match(
   appSource,
-  /activeProjectsIndex\.projectsById\.has\(activeProjectId\)/,
+  /projectsIndex\.projectsById\.has\(activeProjectId\)/,
   'App must validate the selected project through the shared index instead of repeated array scans.',
+);
+
+assert.doesNotMatch(
+  appSource,
+  /activeProjectsIndex|menuProjectsIndex|resolveImmediateProjectIndex/,
+  'App must not maintain duplicate project indexes after converging on one canonical Agents Project collection.',
 );
 
 console.log('app shell selection index performance contract passed.');

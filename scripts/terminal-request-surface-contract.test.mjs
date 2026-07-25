@@ -10,6 +10,9 @@ function read(relativePath) {
 const runtimeSource = read('../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-workbench/src/terminal/runtime.ts');
 const requestsSource = read('../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-workbench/src/terminal/requests.ts');
 const runConfigsSource = read('../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-workbench/src/terminal/runConfigs.ts');
+const terminalLaunchSource = read('../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-workbench/src/terminal/sdkworkTerminalLaunch.ts');
+const terminalSessionsSource = read('../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-workbench/src/terminal/sessions.ts');
+const tauriTerminalRuntimeSource = read('../crates/sdkwork-birdcoder-tauri-host/src/host/terminal_runtime.rs');
 const codeWorkbenchCommandsSource = read('../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-code/src/pages/useCodeWorkbenchCommands.ts');
 const terminalActionsSource = read('../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-code/src/pages/useCodePageTerminalActions.ts');
 const studioBindingsSource = read('../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-studio/src/pages/useStudioWorkbenchEventBindings.ts');
@@ -67,6 +70,31 @@ assert.doesNotMatch(
   requestsSource,
   /'workspace'/,
   'The terminal request contract must not reintroduce the retired Workspace domain term.',
+);
+assert.doesNotMatch(
+  terminalLaunchSource,
+  /workspaceId|workspace_id/,
+  'BirdCoder terminal launch plans must carry the canonical Agents projectId and must not author a second Workspace identifier.',
+);
+assert.match(
+  terminalLaunchSource,
+  /projectId: metadata\.projectId \?\? null/,
+  'BirdCoder terminal launch metadata must forward the canonical Agents projectId.',
+);
+assert.match(
+  terminalSessionsSource,
+  /projectId: readSessionTag\(record\.tags, 'project:'\)/,
+  'Terminal inventory must recover Agents projectId from the explicit project tag, not from terminal multiplexing scope.',
+);
+assert.match(
+  tauriTerminalRuntimeSource,
+  /const LOCAL_TERMINAL_MULTIPLEXING_SCOPE: &str = "workspace-local";/,
+  'The Tauri host must keep the dependency protocol scope fixed and explicitly separate from Agents Project identity.',
+);
+assert.match(
+  tauriTerminalRuntimeSource,
+  /project_id: session_tag_value\(&session\.tags, "project"\)\.unwrap_or_default\(\)/,
+  'The Tauri terminal inventory must recover project identity only from the canonical project tag.',
 );
 assert.match(
   terminalActionsSource,

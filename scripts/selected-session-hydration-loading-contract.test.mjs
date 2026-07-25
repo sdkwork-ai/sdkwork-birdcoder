@@ -73,8 +73,8 @@ assert.match(
 
 assert.match(
   hookSource,
-  /let disposed = false;\s*setIsLoading\(true\);[\s\S]*\.finally\(\(\) => \{\s*if \(!disposed\) \{\s*setIsLoading\(false\);\s*\}\s*\}\);[\s\S]*return \(\) => \{\s*disposed = true;\s*\};/,
-  'useSelectedAgentSessionItems must set loading before authority refresh, clear it when the active refresh settles, and prevent stale requests from updating observable state.',
+  /let disposed = false;\s*const controller = new AbortController\(\);\s*setIsLoading\(true\);[\s\S]*signal: controller\.signal,[\s\S]*\.finally\(\(\) => \{\s*if \(!disposed\) \{\s*setIsLoading\(false\);\s*\}\s*\}\);[\s\S]*return \(\) => \{\s*disposed = true;\s*controller\.abort\([\s\S]*\);\s*\};/,
+  'useSelectedAgentSessionItems must set loading before authority refresh, pass an abort signal, clear active loading when the request settles, and cancel stale requests.',
 );
 
 assert.doesNotMatch(

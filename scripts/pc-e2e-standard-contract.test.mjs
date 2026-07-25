@@ -20,6 +20,8 @@ const authSpec = readText(`${pcAppRoot}/tests/e2e/auth-surface.spec.ts`);
 const guestSpec = readText(`${pcAppRoot}/tests/e2e/guest-home.spec.ts`);
 const authenticatedCodeSpec = readText(`${pcAppRoot}/tests/e2e/authenticated-code.spec.ts`);
 const terminalSpec = readText(`${pcAppRoot}/tests/e2e/terminal-browser.spec.ts`);
+const webMain = readText(`${pcAppRoot}/packages/sdkwork-birdcoder-pc-web/src/main.tsx`);
+const appContent = readText(`${pcAppRoot}/packages/sdkwork-birdcoder-pc-shell/src/application/app/birdcoderAppContent.tsx`);
 const testEnv = readText(`${pcAppRoot}/packages/sdkwork-birdcoder-pc-web/.env.test`);
 const mockServer = readText('scripts/pc-e2e-mock-api-server.mjs');
 const mockFixtures = readText('scripts/pc-e2e-mock-api-fixtures.mjs');
@@ -220,6 +222,26 @@ assert.match(
   authenticatedCodeSpec,
   /e2e-password/u,
   'PC authenticated-code e2e must exercise the mock IAM password credential.',
+);
+assert.match(
+  authenticatedCodeSpec,
+  /__sdkwork\/platform/u,
+  'PC authenticated-code e2e must observe IAM login through the test-mode platform proxy topology.',
+);
+assert.match(
+  mockServer,
+  /\/app\/v3\/api\/ai\/code_engines[\s\S]*createBirdCoderDataEnvelope\(createCodeEngineCatalogFixture\(\)\)/u,
+  'PC mock API must expose the canonical authenticated Agents code-engine catalog envelope.',
+);
+assert.doesNotMatch(
+  webMain,
+  /loadWorkbenchCodeEngineCatalog/u,
+  'PC runtime bootstrap must not request the authenticated code-engine catalog before IAM authentication completes.',
+);
+assert.match(
+  appContent,
+  /if \(isAuthLoading\)[\s\S]*if \(!isAuthenticated\)[\s\S]*resetWorkbenchCodeEngineCatalog\(\)[\s\S]*loadWorkbenchCodeEngineCatalog\(\)/u,
+  'PC app content must load the code-engine catalog only after authentication and clear it outside an authenticated session.',
 );
 
 assert.match(

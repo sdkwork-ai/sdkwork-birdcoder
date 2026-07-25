@@ -75,6 +75,7 @@ export function createBirdCoderDefaultIdeSharedRuntime(
   const agentsClient =
     options.agentsClient ??
     createBirdCoderAgentsAppSdkClient({
+      applicationApiBaseUrl: runtimeConfig.applicationApiBaseUrl,
       platformApiGatewayBaseUrl: runtimeConfig.platformApiGatewayBaseUrl,
     });
   const skillsClient =
