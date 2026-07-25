@@ -391,16 +391,24 @@ assert.equal(
   'Root /app proxy must use the BirdCoder application ingress.',
 );
 assert.equal(
-  rootConfig.server?.proxy?.['/__sdkwork/platform']?.target,
+  rootConfig.server?.proxy?.['/app/v3/api/drive']?.target,
   'http://127.0.0.1:3900',
-  'Root dependency SDK proxy must use the independent platform gateway.',
+  'Root canonical Drive API proxy must use the independent platform gateway.',
 );
 assert.equal(
-  rootConfig.server?.proxy?.['/__sdkwork/platform']?.rewrite(
-    '/__sdkwork/platform/app/v3/api/iam/users/current',
-  ),
-  '/app/v3/api/iam/users/current',
-  'The platform proxy must remove only its controlled renderer prefix.',
+  rootConfig.server?.proxy?.['/app/v3/api/auth']?.target,
+  'http://127.0.0.1:3900',
+  'Root canonical IAM auth API proxy must use the independent platform gateway.',
+);
+assert.equal(
+  rootConfig.server?.proxy?.['/__sdkwork/platform'],
+  undefined,
+  'Root Vite config must not expose a synthetic platform proxy selector path.',
+);
+assert.ok(
+  Object.keys(rootConfig.server?.proxy ?? {}).indexOf('/app/v3/api/drive')
+    < Object.keys(rootConfig.server?.proxy ?? {}).indexOf('/app'),
+  'Root Vite config must register dependency API namespaces before the broad /app fallback.',
 );
 
 const webConfig = await loadConfigModule('apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-web/vite.config.ts');
@@ -453,8 +461,24 @@ assert.equal(
   'http://127.0.0.1:10240',
 );
 assert.equal(
-  webConfig.server?.proxy?.['/__sdkwork/platform']?.target,
+  webConfig.server?.proxy?.['/app/v3/api/drive']?.target,
   'http://127.0.0.1:3900',
+  'Web canonical Drive API proxy must use the independent platform gateway.',
+);
+assert.equal(
+  webConfig.server?.proxy?.['/app/v3/api/auth']?.target,
+  'http://127.0.0.1:3900',
+  'Web canonical IAM auth API proxy must use the independent platform gateway.',
+);
+assert.equal(
+  webConfig.server?.proxy?.['/__sdkwork/platform'],
+  undefined,
+  'Web Vite config must not expose a synthetic platform proxy selector path.',
+);
+assert.ok(
+  Object.keys(webConfig.server?.proxy ?? {}).indexOf('/app/v3/api/drive')
+    < Object.keys(webConfig.server?.proxy ?? {}).indexOf('/app'),
+  'Web Vite config must register dependency API namespaces before the broad /app fallback.',
 );
 if (previousApplicationProxyTarget === undefined) {
   delete process.env.SDKWORK_BIRDCODER_APPLICATION_PUBLIC_HTTP_URL;

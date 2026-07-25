@@ -1,15 +1,9 @@
-export const BIRDCODER_PLATFORM_DEV_PROXY_PATH = '/__sdkwork/platform';
-
-import {
-  resolveBirdCoderRuntimeTopology,
-  type BirdCoderRuntimeTopology,
-} from './runtimeTopology.ts';
-
 const BIRDCODER_APPLICATION_HTTP_ENV =
   'VITE_SDKWORK_BIRDCODER_APPLICATION_PUBLIC_HTTP_URL';
 const BIRDCODER_PLATFORM_HTTP_ENV =
   'VITE_SDKWORK_BIRDCODER_PLATFORM_API_GATEWAY_HTTP_URL';
 const GENERATED_APP_API_PATH = '/app/v3/api';
+const FORBIDDEN_BROWSER_PROXY_SELECTOR_PATH = /^\/(?:__sdkwork|proxy|gateway|platform)(?:\/|$)/u;
 
 interface BirdCoderRuntimeEnvGlobal {
   __BIRDCODER_ENV__?: Record<string, unknown>;
@@ -18,12 +12,9 @@ interface BirdCoderRuntimeEnvGlobal {
 }
 
 export interface ResolveBirdCoderDependencySdkBaseUrlOptions {
-  applicationApiBaseUrl?: string;
   dependencyApiBaseUrl?: string;
   overrideEnvNames?: readonly string[];
   platformApiGatewayBaseUrl?: string;
-  runtimeTopology?: Pick<BirdCoderRuntimeTopology, 'deploymentProfile'>;
-  sameOriginAllowed?: boolean;
 }
 
 function readNonBlankString(value: unknown): string | undefined {
@@ -61,12 +52,9 @@ export function readBirdCoderRuntimeEnv(name: string): string | undefined {
 
 function parseBirdCoderSdkBaseUrl(value: string, label: string): URL {
   if (value.startsWith('/')) {
-    if (
-      value !== BIRDCODER_PLATFORM_DEV_PROXY_PATH
-      && !value.startsWith(`${BIRDCODER_PLATFORM_DEV_PROXY_PATH}/`)
-    ) {
+    if (FORBIDDEN_BROWSER_PROXY_SELECTOR_PATH.test(value)) {
       throw new Error(
-        `${label} may only use the controlled browser development proxy ${BIRDCODER_PLATFORM_DEV_PROXY_PATH}.`,
+        `${label} must preserve canonical API paths; browser-visible proxy selector paths are forbidden.`,
       );
     }
     if (typeof window === 'undefined' || !window.location?.origin) {
@@ -104,6 +92,11 @@ export function normalizeBirdCoderSdkBaseUrl(
   }
 
   const pathname = parsedUrl.pathname.replace(/\/+$/u, '');
+  if (FORBIDDEN_BROWSER_PROXY_SELECTOR_PATH.test(pathname)) {
+    throw new Error(
+      `${label} must preserve canonical API paths; browser-visible proxy selector paths are forbidden.`,
+    );
+  }
   if (pathname.endsWith(GENERATED_APP_API_PATH)) {
     throw new Error(
       `${label} must identify the gateway root; generated SDKs append ${GENERATED_APP_API_PATH}.`,
@@ -160,16 +153,6 @@ export function resolveBirdCoderDependencySdkBaseUrl(
       dependencyOverride,
       `${dependencyName} app SDK base URL`,
       overrideEnvNames,
-    );
-  }
-
-  const runtimeTopology = options.runtimeTopology ?? resolveBirdCoderRuntimeTopology();
-  if (options.sameOriginAllowed && runtimeTopology.deploymentProfile === 'standalone') {
-    return requireBirdCoderSdkBaseUrl(
-      options.applicationApiBaseUrl
-        ?? readBirdCoderRuntimeEnv(BIRDCODER_APPLICATION_HTTP_ENV),
-      `${dependencyName} app SDK same-origin base URL`,
-      [BIRDCODER_APPLICATION_HTTP_ENV],
     );
   }
 

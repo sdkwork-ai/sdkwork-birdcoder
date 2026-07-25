@@ -11,126 +11,132 @@ function read(relativePath, root = repoRoot) {
   return fs.readFileSync(path.join(root, relativePath), 'utf8');
 }
 
-const bootstrapSource = read('crates/sdkwork-api-birdcoder-standalone-gateway/src/bootstrap/iam.rs');
-const apiServerCargo = read('crates/sdkwork-api-birdcoder-standalone-gateway/Cargo.toml');
+const gatewayProfileSource = read(
+  'crates/sdkwork-api-birdcoder-standalone-gateway/src/profile.rs',
+);
+const gatewayCargo = read('crates/sdkwork-api-birdcoder-standalone-gateway/Cargo.toml');
 const workspaceCargo = read('Cargo.toml');
+const developmentTopology = read('etc/topology/standalone.development.env');
+const iamAssemblySource = read('crates/sdkwork-api-iam-assembly/src/bootstrap.rs', iamRepoRoot);
 const sharedBootstrapSource = read(
   'crates/sdkwork-iam-web-adapter/src/embedded_bootstrap.rs',
   iamRepoRoot,
 );
+const flutterRunnerSource = read('scripts/run-flutter-mobile-command.mjs');
+const topology = JSON.parse(read('specs/topology.spec.json'));
+const surfaceManifestPaths = [
+  'apps/sdkwork-birdcoder-pc/sdkwork.app.config.json',
+  'apps/sdkwork-birdcoder-h5/sdkwork.app.config.json',
+  'apps/sdkwork-birdcoder-flutter-mobile/sdkwork.app.config.json',
+];
 
 assert.match(
-  bootstrapSource,
-  /ensure_tenant_application_from_app_root/u,
-  'Birdcoder IAM bootstrap must delegate to the shared embedded bootstrap crate.',
-);
-
-assert.match(
-  bootstrapSource,
-  /ensure_tenant_application_from_app_root\(\s*bootstrap\.app_root\.as_path\(\)/su,
-  'BirdCoder must pass its selected application root to the shared embedded bootstrap helper.',
-);
-
-const birdCoderRootResolverStart = bootstrapSource.indexOf(
-  'fn resolve_birdcoder_deployment_app_root',
-);
-assert.notEqual(
-  birdCoderRootResolverStart,
-  -1,
-  'BirdCoder must own an application-scoped root resolver for its embedded IAM bootstrap.',
-);
-const birdCoderRootResolverSource = bootstrapSource.slice(
-  birdCoderRootResolverStart,
-  bootstrapSource.indexOf('async fn ensure_birdcoder_tenant_application_bootstrap'),
+  gatewayProfileSource,
+  /sdkwork_api_iam_assembly::assemble_app_api_contribution\(\)/u,
+  'BirdCoder must mount IAM through the IAM-owned App API assembly entrypoint.',
 );
 assert.match(
-  birdCoderRootResolverSource,
-  /SDKWORK_APP_ROOT/u,
-  'BirdCoder root resolution must honor the generic consumer application root.',
+  gatewayCargo,
+  /sdkwork-api-iam-assembly\.workspace\s*=\s*true/u,
+  'BirdCoder gateway must depend on the IAM-owned assembly.',
 );
-assert.match(
-  birdCoderRootResolverSource,
-  /SDKWORK_BIRDCODER_APP_ROOT/u,
-  'BirdCoder root resolution must honor its application-specific root.',
-);
-assert.doesNotMatch(
-  birdCoderRootResolverSource,
-  /SDKWORK_IAM_APP_ROOT/u,
-  'BirdCoder root resolution must never select the sibling IAM catalog root.',
-);
-assert.doesNotMatch(
-  bootstrapSource,
-  /resolve_application_app_root_with_fallback/u,
-  'BirdCoder must not delegate application-root selection to the multi-application fallback resolver.',
-);
-
-assert.match(
-  bootstrapSource,
-  /resolve_birdcoder_app_root/u,
-  'Birdcoder IAM bootstrap must provision tenant applications from the BirdCoder repository manifest.',
-);
-
-assert.match(
-  bootstrapSource,
-  /ensure_birdcoder_tenant_application_bootstrap/u,
-  'Birdcoder IAM wiring must provision tenant applications before building the IAM router.',
-);
-
-assert.match(
-  bootstrapSource,
-  /sdkwork_iam_database_host::bootstrap_iam_database_from_env\(\)/u,
-  'BirdCoder must delegate IAM lifecycle bootstrap to the platform-owned database host.',
-);
-assert.doesNotMatch(
-  bootstrapSource,
-  /bootstrap_iam_database_from_birdcoder_profile/u,
-  'BirdCoder must not recreate the IAM database-host lifecycle in an app-local helper.',
-);
-assert.doesNotMatch(
-  bootstrapSource,
-  /sdkwork_database_sqlx::create_pool_from_env/u,
-  'BirdCoder must not create IAM pools outside the platform-owned database host.',
-);
-assert.doesNotMatch(
-  bootstrapSource,
-  /sdkwork_iam_database_host::bootstrap_iam_database\(pool\)/u,
-  'BirdCoder must not invoke IAM lifecycle internals after constructing an app-local pool.',
-);
-
-const wireIamAppRouterStart = bootstrapSource.indexOf('pub async fn wire_iam_app_router');
-assert.notEqual(
-  wireIamAppRouterStart,
-  -1,
-  'BirdCoder IAM bootstrap must expose the IAM app router wiring function.',
-);
-const wireIamAppRouterSource = bootstrapSource.slice(wireIamAppRouterStart);
-assert.match(
-  wireIamAppRouterSource,
-  /resolve_birdcoder_iam_bootstrap_config\(\)\s*;\s*sdkwork_iam_database_host::bootstrap_iam_database_from_env\(\)/su,
-  'BirdCoder must use the platform IAM lifecycle before tenant application provisioning.',
-);
-assert.match(
-  wireIamAppRouterSource,
-  /bootstrap_iam_database_from_env\(\)[\s\S]*ensure_birdcoder_tenant_application_bootstrap/u,
-  'BirdCoder must provision tenant applications only after IAM schema bootstrap completes.',
-);
-
-assert.match(
-  apiServerCargo,
-  /sdkwork_iam_embedded_application_bootstrap/u,
-  'API server must depend on sdkwork-iam-embedded-application-bootstrap.',
-);
-
 assert.match(
   workspaceCargo,
-  /sdkwork-iam-embedded-application-bootstrap/u,
-  'Workspace must include sdkwork-iam-embedded-application-bootstrap.',
+  /sdkwork-api-iam-assembly\s*=\s*\{\s*path\s*=\s*"\.\.\/sdkwork-iam\/crates\/sdkwork-api-iam-assembly"\s*\}/u,
+  'BirdCoder workspace must resolve the IAM assembly from the canonical IAM repository.',
 );
+
+const iamApplicationBootstrapStart = iamAssemblySource.indexOf(
+  'async fn bootstrap_iam_application_state',
+);
+assert.notEqual(
+  iamApplicationBootstrapStart,
+  -1,
+  'IAM assembly must own application-scoped persistence bootstrap.',
+);
+const iamApplicationBootstrapSource = iamAssemblySource.slice(iamApplicationBootstrapStart);
+assert.match(
+  iamApplicationBootstrapSource,
+  /bootstrap_iam_database_from_env\(\)[\s\S]*ensure_tenant_application_from_app_root_with_env_and_fallback/u,
+  'IAM schema bootstrap must complete before tenant applications are provisioned.',
+);
+assert.match(
+  iamApplicationBootstrapSource,
+  /std::env::current_dir\(\)/u,
+  'IAM assembly must use the consuming application working directory as its fallback root.',
+);
+
+for (const appRootKey of ['SDKWORK_APP_ROOT', 'SDKWORK_BIRDCODER_APP_ROOT']) {
+  assert.match(
+    developmentTopology,
+    new RegExp(`^${appRootKey}=\\.$`, 'mu'),
+    `BirdCoder development topology must inject ${appRootKey} at the repository root.`,
+  );
+  assert.match(
+    sharedBootstrapSource,
+    new RegExp(`"${appRootKey}"`, 'u'),
+    `Shared embedded bootstrap must resolve ${appRootKey}.`,
+  );
+}
 
 assert.match(
   sharedBootstrapSource,
-  /SDKWORK_BIRDCODER_APP_ROOT/u,
-  'Shared embedded bootstrap must resolve SDKWORK_BIRDCODER_APP_ROOT.',
+  /discover_application_manifest_roots/u,
+  'Shared embedded bootstrap must discover root and surface application manifests.',
 );
+assert.match(
+  sharedBootstrapSource,
+  /ensure_tenant_applications_on_pool/u,
+  'Shared embedded bootstrap must delegate persistence to the canonical IAM registry service.',
+);
+assert.doesNotMatch(
+  gatewayProfileSource,
+  /INSERT\s+INTO\s+iam_(?:application_template|tenant_application)/iu,
+  'BirdCoder gateway must not own IAM application registry SQL.',
+);
+
+const surfaceAppIds = surfaceManifestPaths.map((manifestPath) => {
+  const manifest = JSON.parse(read(manifestPath));
+  assert.equal(
+    manifest.backend?.appId,
+    manifest.app?.key,
+    `${manifestPath} must declare one canonical surface app identity.`,
+  );
+  return manifest.backend.appId;
+});
+assert.equal(
+  new Set(surfaceAppIds).size,
+  surfaceAppIds.length,
+  'Every BirdCoder credential-entry surface must have a distinct backend.appId.',
+);
+
+assert.match(
+  flutterRunnerSource,
+  /mergeRepoDevBootstrapAccessTokenEnv/u,
+  'Flutter development must use the canonical IAM bootstrap token generator.',
+);
+assert.match(
+  flutterRunnerSource,
+  /apps\/sdkwork-birdcoder-flutter-mobile\/sdkwork\.app\.config\.json/u,
+  'Flutter development must select its own surface manifest explicitly.',
+);
+
+const standaloneDevelopmentProcesses =
+  topology.orchestration.profiles['standalone.development'].processes;
+for (const [runtimeTarget, clientArchitecture, expectedApplicationRoot] of [
+  ['browser', 'pc-web', 'apps/sdkwork-birdcoder-pc'],
+  ['browser', 'h5', 'apps/sdkwork-birdcoder-h5'],
+  ['flutter-android', 'flutter', 'apps/sdkwork-birdcoder-flutter-mobile'],
+  ['flutter-ios', 'flutter', 'apps/sdkwork-birdcoder-flutter-mobile'],
+]) {
+  assert.ok(
+    standaloneDevelopmentProcesses.some((processEntry) =>
+      processEntry.role === 'client'
+      && processEntry.applicationRoot === expectedApplicationRoot
+      && processEntry.clientArchitectures?.includes(clientArchitecture)
+      && processEntry.runtimeTargets?.includes(runtimeTarget)),
+    `${runtimeTarget}/${clientArchitecture} startup must bind token generation to ${expectedApplicationRoot}.`,
+  );
+}
 
 console.log('sdkwork-birdcoder IAM application bootstrap standard passed.');

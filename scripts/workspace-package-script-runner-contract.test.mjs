@@ -88,8 +88,28 @@ export function runWorkspacePackageScriptRunnerContract() {
     );
     assert.deepEqual(
       plan.args,
-      ['../../../../scripts/run-vite-host.mjs', 'serve', '--host', '0.0.0.0', '--port', '3000', '--mode', 'development'],
+      ['../../../../scripts/run-vite-host.mjs', 'serve', '--mode', 'development'],
       'Workspace package-script runner must preserve the renderer command arguments.',
+    );
+  }
+
+  {
+    const plan = createWorkspacePackageScriptPlan({
+      packageDir: 'apps/sdkwork-birdcoder-h5',
+      scriptName: 'start:browser',
+      workspaceRootDir: rootDir,
+      platform: 'win32',
+    });
+
+    assert.equal(
+      plan.command,
+      process.execPath,
+      'Workspace package-script runner must execute the H5 renderer through the current Node executable.',
+    );
+    assert.deepEqual(
+      plan.args,
+      ['../../scripts/run-vite-host.mjs', 'serve', '--mode', 'development'],
+      'Workspace package-script runner must leave the H5 bind to the topology-aware Vite config.',
     );
   }
 

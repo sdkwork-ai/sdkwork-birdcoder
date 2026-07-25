@@ -22,13 +22,17 @@ assert.equal(
   normalizeBirdCoderSdkBaseUrl('https://birdcoder.example.com/'),
   'https://birdcoder.example.com',
 );
-assert.equal(
-  normalizeBirdCoderSdkBaseUrl('https://api.example.com/platform/'),
-  'https://api.example.com/platform',
+assert.throws(
+  () => normalizeBirdCoderSdkBaseUrl('https://api.example.com/platform/'),
+  /proxy selector/u,
 );
 assert.throws(
   () => normalizeBirdCoderSdkBaseUrl('https://api.example.com/app/v3/api/'),
   /gateway root/u,
+);
+assert.throws(
+  () => normalizeBirdCoderSdkBaseUrl('https://api.example.com/__sdkwork/platform'),
+  /proxy selector/u,
 );
 assert.throws(
   () => normalizeBirdCoderSdkBaseUrl('https://user:secret@api.example.com'),

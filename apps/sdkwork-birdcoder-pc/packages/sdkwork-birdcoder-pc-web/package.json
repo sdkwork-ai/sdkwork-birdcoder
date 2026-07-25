@@ -4,8 +4,8 @@
   "version": "0.1.0",
   "type": "module",
   "scripts": {
-    "start:browser": "node ../../../../scripts/run-vite-host.mjs serve --host 0.0.0.0 --port 3000 --mode development",
-    "start:browser:check": "node ../../../../scripts/run-vite-host.mjs serve --host 0.0.0.0 --port 3000 --mode test",
+    "start:browser": "node ../../../../scripts/run-vite-host.mjs serve --mode development",
+    "start:browser:check": "node ../../../../scripts/run-vite-host.mjs serve --mode test",
     "release:build:browser": "node ../../../../scripts/prepare-shared-sdk-packages.mjs && node ../../../../scripts/run-vite-host.mjs build --mode production",
     "release:build:browser:debug": "node ../../../../scripts/prepare-shared-sdk-packages.mjs && node ../../../../scripts/run-vite-host.mjs build --mode development",
     "release:build:browser:check": "node ../../../../scripts/prepare-shared-sdk-packages.mjs && node ../../../../scripts/run-vite-host.mjs build --mode test",

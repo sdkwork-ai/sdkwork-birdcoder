@@ -14,6 +14,8 @@ dependencies:
     path: ../../../../../sdkwork-agents/sdks/sdkwork-agents-app-sdk/sdkwork-agents-app-sdk-flutter/generated/server-openapi
   sdkwork_iam_app_sdk:
     path: ../../../../../sdkwork-iam/sdks/sdkwork-iam-app-sdk/sdkwork-iam-app-sdk-flutter/generated/server-openapi
+  sdkwork_iam_flutter_mobile_core:
+    path: ../../../../../sdkwork-iam/apps/sdkwork-iam-flutter-mobile/packages/sdkwork_iam_flutter_mobile_core
   sdkwork_birdcoder_flutter_mobile_app_sdk_consumer:
     path: ../../sdks/sdkwork_birdcoder_flutter_mobile_app_sdk_consumer
   sdkwork_birdcoder_flutter_mobile_host:

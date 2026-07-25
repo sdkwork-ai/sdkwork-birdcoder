@@ -7,6 +7,7 @@ import {
   configureBirdcoderSdkworkProxyProblemResponse,
   createBirdcoderVitePlugins,
   onBirdcoderRollupWarning,
+  resolveBirdcoderViteDevServer,
   resolveBirdcoderViteRuntimeEnvSource,
 } from '../../scripts/create-birdcoder-vite-plugins.mjs';
 
@@ -40,7 +41,7 @@ export default defineConfig(({ mode }) => {
   return {
     plugins: [
       createSdkworkCredentialEntryBootstrapVitePlugin({
-        accessToken: process.env.SDKWORK_ACCESS_TOKEN,
+        accessToken: env.SDKWORK_ACCESS_TOKEN,
         allowTestInjection: mode === 'test',
         environment: mode,
       }),
@@ -65,8 +66,7 @@ export default defineConfig(({ mode }) => {
       },
     },
     server: {
-      port: 3001,
-      host: true,
+      ...resolveBirdcoderViteDevServer(env),
       fs: {
         allow: createBirdCoderH5WorkspaceFsAllowList(),
       },

@@ -4,9 +4,9 @@ import { createSdkworkCredentialEntryBootstrapVitePlugin } from '@sdkwork/iam-cr
 import { defineConfig, loadEnv } from 'vite';
 import {
   BIRDCODER_VITE_DEDUPE_PACKAGES,
-  BIRDCODER_PLATFORM_DEV_PROXY_PATH,
   BIRDCODER_VITE_WEB_OPTIMIZE_DEPS_INCLUDE,
   configureBirdcoderSdkworkProxyProblemResponse,
+  createBirdcoderCanonicalPlatformDevProxyEntries,
   createBirdcoderWorkspaceAliasEntries,
   createBirdcoderWorkspaceFsAllowList,
   createBirdcoderVitePlugins,
@@ -15,9 +15,9 @@ import {
   resolveBirdcoderProductionMinify,
   resolveBirdcoderDevelopmentApiEnvDefines,
   resolveBirdcoderDevProxyTargets,
+  resolveBirdcoderViteDevServer,
   resolveBirdcoderViteRuntimeEnvSource,
   resolveBirdcoderWebRuntimeEnvSource,
-  rewriteBirdcoderPlatformDevProxyPath,
 } from '../../scripts/create-birdcoder-vite-plugins.mjs';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -61,22 +61,13 @@ export default defineConfig(({ command, mode }) => {
       dedupe: [...BIRDCODER_VITE_DEDUPE_PACKAGES],
     },
     server: {
+      ...resolveBirdcoderViteDevServer(env),
       hmr: process.env.DISABLE_HMR !== 'true',
       fs: {
         allow: createBirdcoderWorkspaceFsAllowList(rootHostAppRootDir),
       },
       proxy: {
-        ...(devProxyTargets.platform
-          ? {
-              [BIRDCODER_PLATFORM_DEV_PROXY_PATH]: {
-                target: devProxyTargets.platform,
-                changeOrigin: true,
-                ws: true,
-                rewrite: rewriteBirdcoderPlatformDevProxyPath,
-                configure: configureBirdcoderSdkworkProxyProblemResponse,
-              },
-            }
-          : {}),
+        ...createBirdcoderCanonicalPlatformDevProxyEntries(devProxyTargets.platform),
         ...(devProxyTargets.application
           ? Object.fromEntries(
               ['/app', '/backend', '/api', '/readyz', '/healthz', '/livez', '/metrics', '/openapi.json']

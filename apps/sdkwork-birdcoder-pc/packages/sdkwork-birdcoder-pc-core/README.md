@@ -53,10 +53,10 @@ They do not read environment variables or construct credentials.
 ## Deployment Profile And Runtime Target Behavior
 
 Browser and desktop renderers use the same SDK contracts and separate
-connection planes. Browser development exposes the platform gateway through
-the controlled same-origin `/__sdkwork/platform` proxy. Desktop and release
-runtimes receive a direct platform gateway URL. Neither surface falls back to
-the BirdCoder application URL.
+connection planes. Browser development may expose one same-origin API edge
+root, but dependency requests must keep canonical API paths such as
+`/app/v3/api/drive`. Desktop and release runtimes receive a direct platform
+gateway URL. Neither surface falls back to the BirdCoder application URL.
 
 ## Security
 

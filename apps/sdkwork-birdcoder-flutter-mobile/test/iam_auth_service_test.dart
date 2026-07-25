@@ -19,7 +19,8 @@ class _FailingWriteSessionStorage implements BirdCoderSessionStorage {
 }
 
 void main() {
-  test('password sign-in uses anonymous IAM SDK and atomically commits tokens',
+  test(
+      'password sign-in uses credential-entry IAM SDK and atomically commits tokens',
       () async {
     Map<String, dynamic>? requestBody;
     String? authorization;
@@ -60,6 +61,7 @@ void main() {
     );
     final clients = createBirdCoderFlutterSdkClients(
       apiBaseUrl: 'http://127.0.0.1:${server.port}',
+      credentialEntryBootstrapAccessToken: 'flutter-bootstrap-token',
       tokenManager: tokenManager,
     );
     final runtime = createBirdCoderIamRuntime(sdkClients: clients);
@@ -73,7 +75,7 @@ void main() {
     );
 
     expect(authorization, isNull);
-    expect(accessTokenHeader, isNull);
+    expect(accessTokenHeader, 'flutter-bootstrap-token');
     expect(requestBody, <String, dynamic>{
       'email': null,
       'username': 'birdcoder-user',
@@ -137,6 +139,42 @@ void main() {
     expect(accessTokenHeader, 'stored-access-token');
     expect(runtime.sessionPresent, isTrue);
     expect(runtime.sessionValidated, isTrue);
+  });
+
+  test('missing credential-entry bootstrap token fails before dispatch',
+      () async {
+    var requestCount = 0;
+    final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+    final subscription = server.listen((request) async {
+      requestCount += 1;
+      request.response.statusCode = HttpStatus.internalServerError;
+      await request.response.close();
+    });
+    addTearDown(() async {
+      await subscription.cancel();
+      await server.close(force: true);
+    });
+
+    final clients = createBirdCoderFlutterSdkClients(
+      apiBaseUrl: 'http://127.0.0.1:${server.port}',
+      tokenManager: BirdCoderTokenManager(
+        sessionStorage: MemoryBirdCoderSessionStorage(),
+      ),
+    );
+    final runtime = createBirdCoderIamRuntime(sdkClients: clients);
+    addTearDown(runtime.dispose);
+    final service = BirdCoderIamAuthService(sdkClients: clients);
+
+    await expectLater(
+      service.signInWithPassword(
+        iamRuntime: runtime,
+        username: 'birdcoder-user',
+        password: 'secret-value',
+      ),
+      throwsStateError,
+    );
+    await Future<void>.delayed(const Duration(milliseconds: 25));
+    expect(requestCount, 0);
   });
 
   test('failed remote sign-out still clears local IAM session state', () async {

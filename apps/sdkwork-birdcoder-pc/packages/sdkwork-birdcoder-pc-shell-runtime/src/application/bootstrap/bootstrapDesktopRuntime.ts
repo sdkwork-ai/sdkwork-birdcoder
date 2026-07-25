@@ -1,5 +1,4 @@
 import {
-  BIRDCODER_PLATFORM_DEV_PROXY_PATH,
   normalizeBirdCoderSdkBaseUrl,
   resolveBirdCoderPlatformSdkBaseUrl,
   resolveBirdCoderRuntimeTopology,
@@ -125,16 +124,14 @@ export async function readDesktopEmbeddedRuntimeConfig(): Promise<DesktopEmbedde
 function resolveDesktopPlatformApiGatewayBaseUrl(
   configuredBaseUrl?: string,
 ): string {
+  if (configuredBaseUrl?.trim().startsWith('/')) {
+    throw new Error(
+      'BirdCoder desktop requires a direct SDKWork platform API gateway URL, not a browser same-origin API edge.',
+    );
+  }
   const platformApiGatewayBaseUrl = resolveBirdCoderPlatformSdkBaseUrl(
     configuredBaseUrl ?? readConfiguredBirdCoderPlatformApiGatewayBaseUrl(),
   );
-  if (new URL(platformApiGatewayBaseUrl).pathname.startsWith(
-    BIRDCODER_PLATFORM_DEV_PROXY_PATH,
-  )) {
-    throw new Error(
-      'BirdCoder desktop requires a direct SDKWork platform API gateway URL, not the browser development proxy.',
-    );
-  }
   return platformApiGatewayBaseUrl;
 }
 

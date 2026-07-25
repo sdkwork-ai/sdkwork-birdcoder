@@ -43,7 +43,7 @@ import {
   resolveBirdCoderDependencySdkBaseUrl,
 } from './sdkBaseUrls.ts';
 
-const BIRDCODER_IAM_RUNTIME_APP_ID = 'sdkwork-birdcoder';
+const BIRDCODER_IAM_RUNTIME_APP_ID = 'sdkwork-birdcoder-pc';
 
 function readIamPlatform(): string {
   const target = (
@@ -218,10 +218,7 @@ function resolveBirdCoderRuntimeSdkBaseUrls(): BirdCoderRuntimeSdkBaseUrls {
         'VITE_SDKWORK_APPBASE_APP_API_BASE_URL',
         'VITE_SDKWORK_IAM_APP_API_BASE_URL',
       ],
-      applicationApiBaseUrl: runtimeConfig.applicationApiBaseUrl,
       platformApiGatewayBaseUrl: runtimeConfig.platformApiGatewayBaseUrl,
-      runtimeTopology: runtimeConfig.runtimeTopology,
-      sameOriginAllowed: true,
     }),
     birdcoderAppApiBaseUrl: resolveBirdCoderApplicationSdkBaseUrl(
       runtimeConfig.applicationApiBaseUrl,
@@ -283,11 +280,6 @@ export function resetBirdCoderIamRuntime(): void {
 function clearBirdCoderIamRuntimeSession(): void {
   invalidateBirdCoderCurrentSession();
   invalidateBirdCoderCurrentUser();
-  // The unauthorized boundary can invoke this bridge directly, bypassing
-  // the IAM runtime's normal clearSession hook. Clear the shared manager
-  // explicitly so a rejected request cannot leave stale credentials attached
-  // to the next current-session validation.
-  getBirdCoderGlobalTokenManager().clearTokens();
   clearStoredAppSessionToken();
   resetBirdCoderAppClient();
 }
@@ -450,10 +442,7 @@ function installBirdCoderCurrentUserAuthority(
             'VITE_SDKWORK_APPBASE_APP_API_BASE_URL',
             'VITE_SDKWORK_IAM_APP_API_BASE_URL',
           ],
-          applicationApiBaseUrl: runtimeConfig.applicationApiBaseUrl,
           platformApiGatewayBaseUrl: runtimeConfig.platformApiGatewayBaseUrl,
-          runtimeTopology: runtimeConfig.runtimeTopology,
-          sameOriginAllowed: true,
         },
       ),
       platform: readIamPlatform(),

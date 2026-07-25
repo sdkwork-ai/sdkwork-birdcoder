@@ -41,10 +41,15 @@ assert.match(
   /resolveBirdCoderDependencySdkBaseUrl\('IAM'/u,
   'IAM must resolve through the dependency SDK topology boundary.',
 );
-assert.match(
+assertNoMatch(
   sdkBaseUrlsSource,
-  /BIRDCODER_PLATFORM_DEV_PROXY_PATH\s*=\s*['"]\/__sdkwork\/platform['"]/u,
-  'PC web development must use the controlled same-origin platform proxy path.',
+  /BIRDCODER_PLATFORM_DEV_PROXY_PATH|['"]\/__sdkwork\/platform['"]/u,
+  'Dependency SDK base URL parsing must not expose a synthetic platform proxy path.',
+);
+assertMatch(
+  sdkBaseUrlsSource,
+  /FORBIDDEN_BROWSER_PROXY_SELECTOR_PATH/u,
+  'Dependency SDK base URL parsing must reject browser-visible proxy selector paths.',
 );
 assertNoMatch(
   iamRuntimeSource,
@@ -326,7 +331,7 @@ assertNoMatch(
 );
 assertMatch(
   iamRuntimeSource,
-  /BIRDCODER_IAM_RUNTIME_APP_ID\s*=\s*['"]sdkwork-birdcoder['"]/u,
+  /BIRDCODER_IAM_RUNTIME_APP_ID\s*=\s*['"]sdkwork-birdcoder-pc['"]/u,
   'BirdCoder IAM runtime must use the compile-time manifest app identifier.',
 );
 assertNoMatch(

@@ -164,10 +164,7 @@ async function refreshBirdCoderAppSession(): Promise<boolean> {
       'VITE_SDKWORK_APPBASE_APP_API_BASE_URL',
       'VITE_SDKWORK_IAM_APP_API_BASE_URL',
     ],
-    applicationApiBaseUrl: runtimeConfig.applicationApiBaseUrl,
     platformApiGatewayBaseUrl: runtimeConfig.platformApiGatewayBaseUrl,
-    runtimeTopology: runtimeConfig.runtimeTopology,
-    sameOriginAllowed: true,
   });
 
   const tokenManager = getBirdCoderGlobalTokenManager();

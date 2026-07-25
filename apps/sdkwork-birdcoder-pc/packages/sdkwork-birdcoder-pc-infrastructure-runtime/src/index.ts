@@ -26,7 +26,6 @@ export type {
 } from '@sdkwork/birdcoder-pc-infrastructure/services/birdCoderSdkClient';
 
 export {
-  BIRDCODER_PLATFORM_DEV_PROXY_PATH,
   normalizeBirdCoderSdkBaseUrl,
   readBirdCoderRuntimeEnv,
   resolveBirdCoderApplicationSdkBaseUrl,

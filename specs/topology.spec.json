@@ -98,7 +98,9 @@
               "server",
               "test-runner",
               "capacitor-ios",
-              "capacitor-android"
+              "capacitor-android",
+              "flutter-ios",
+              "flutter-android"
             ],
             "env": {
               "SDKWORK_BIRDCODER_RUNTIME_TARGET": "server"
@@ -108,6 +110,7 @@
           },
           {
             "id": "pc-web-renderer",
+            "applicationRoot": "apps/sdkwork-birdcoder-pc",
             "package": "@sdkwork/birdcoder-pc-web",
             "script": "start:browser",
             "runtimeTargets": [
@@ -126,6 +129,7 @@
           },
           {
             "id": "h5-browser-renderer",
+            "applicationRoot": "apps/sdkwork-birdcoder-h5",
             "package": "@sdkwork/birdcoder-h5",
             "script": "start:browser",
             "runtimeTargets": [
@@ -145,6 +149,7 @@
           },
           {
             "id": "h5-capacitor-renderer",
+            "applicationRoot": "apps/sdkwork-birdcoder-h5",
             "package": "@sdkwork/birdcoder-h5",
             "script": "start:browser",
             "runtimeTargets": [
@@ -163,6 +168,7 @@
           },
           {
             "id": "pc-desktop-renderer",
+            "applicationRoot": "apps/sdkwork-birdcoder-pc",
             "package": "@sdkwork/birdcoder-pc-desktop",
             "script": "start:desktop",
             "runtimeTargets": [
@@ -179,7 +185,34 @@
             "role": "client"
           },
           {
+            "id": "flutter-android-client",
+            "applicationRoot": "apps/sdkwork-birdcoder-flutter-mobile",
+            "script": "_sdkwork:flutter-android",
+            "runtimeTargets": [
+              "flutter-android"
+            ],
+            "clientArchitectures": [
+              "flutter"
+            ],
+            "required": true,
+            "role": "client"
+          },
+          {
+            "id": "flutter-ios-client",
+            "applicationRoot": "apps/sdkwork-birdcoder-flutter-mobile",
+            "script": "_sdkwork:flutter-ios",
+            "runtimeTargets": [
+              "flutter-ios"
+            ],
+            "clientArchitectures": [
+              "flutter"
+            ],
+            "required": true,
+            "role": "client"
+          },
+          {
             "id": "pc-web-test-runner",
+            "applicationRoot": "apps/sdkwork-birdcoder-pc",
             "package": "@sdkwork/birdcoder-pc-web",
             "script": "start:browser:check",
             "runtimeTargets": [
@@ -202,6 +235,7 @@
         "processes": [
           {
             "id": "pc-web-renderer",
+            "applicationRoot": "apps/sdkwork-birdcoder-pc",
             "package": "@sdkwork/birdcoder-pc-web",
             "script": "start:browser",
             "runtimeTargets": [
@@ -220,6 +254,7 @@
           },
           {
             "id": "h5-browser-renderer",
+            "applicationRoot": "apps/sdkwork-birdcoder-h5",
             "package": "@sdkwork/birdcoder-h5",
             "script": "start:browser",
             "runtimeTargets": [
@@ -239,6 +274,7 @@
           },
           {
             "id": "pc-desktop-renderer",
+            "applicationRoot": "apps/sdkwork-birdcoder-pc",
             "package": "@sdkwork/birdcoder-pc-desktop",
             "script": "start:desktop",
             "runtimeTargets": [
@@ -256,6 +292,7 @@
           },
           {
             "id": "pc-web-test-runner",
+            "applicationRoot": "apps/sdkwork-birdcoder-pc",
             "package": "@sdkwork/birdcoder-pc-web",
             "script": "start:browser:check",
             "runtimeTargets": [
@@ -293,6 +330,7 @@
           },
           {
             "id": "pc-web-renderer",
+            "applicationRoot": "apps/sdkwork-birdcoder-pc",
             "package": "@sdkwork/birdcoder-pc-web",
             "script": "start:browser",
             "runtimeTargets": [
@@ -310,6 +348,7 @@
           },
           {
             "id": "pc-desktop-renderer",
+            "applicationRoot": "apps/sdkwork-birdcoder-pc",
             "package": "@sdkwork/birdcoder-pc-desktop",
             "script": "start:desktop",
             "runtimeTargets": [
@@ -335,6 +374,7 @@
         "processes": [
           {
             "id": "pc-desktop-renderer",
+            "applicationRoot": "apps/sdkwork-birdcoder-pc",
             "package": "@sdkwork/birdcoder-pc-desktop",
             "script": "start:desktop",
             "runtimeTargets": [
@@ -357,6 +397,7 @@
         "processes": [
           {
             "id": "pc-desktop-renderer",
+            "applicationRoot": "apps/sdkwork-birdcoder-pc",
             "package": "@sdkwork/birdcoder-pc-desktop",
             "script": "start:desktop",
             "runtimeTargets": [
@@ -379,6 +420,7 @@
         "processes": [
           {
             "id": "pc-desktop-renderer",
+            "applicationRoot": "apps/sdkwork-birdcoder-pc",
             "package": "@sdkwork/birdcoder-pc-desktop",
             "script": "start:desktop",
             "runtimeTargets": [
@@ -401,6 +443,7 @@
         "processes": [
           {
             "id": "pc-desktop-renderer",
+            "applicationRoot": "apps/sdkwork-birdcoder-pc",
             "package": "@sdkwork/birdcoder-pc-desktop",
             "script": "start:desktop",
             "runtimeTargets": [
@@ -425,6 +468,7 @@
         "processes": [
           {
             "id": "pc-desktop-renderer",
+            "applicationRoot": "apps/sdkwork-birdcoder-pc",
             "package": "@sdkwork/birdcoder-pc-desktop",
             "script": "start:desktop",
             "runtimeTargets": [

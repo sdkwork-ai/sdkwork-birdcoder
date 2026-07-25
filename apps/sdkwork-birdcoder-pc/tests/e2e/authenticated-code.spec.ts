@@ -1,15 +1,13 @@
 import { expect, test } from '@playwright/test';
 
 const IAM_SESSION_PATH = '/app/v3/api/auth/sessions';
-const TEST_PLATFORM_PROXY_PREFIX = '/__sdkwork/platform';
 
 function isPasswordSessionResponse(response: import('@playwright/test').Response): boolean {
   if (response.request().method() !== 'POST') {
     return false;
   }
   const pathname = new URL(response.url()).pathname;
-  return pathname === IAM_SESSION_PATH
-    || pathname === `${TEST_PLATFORM_PROXY_PREFIX}${IAM_SESSION_PATH}`;
+  return pathname === IAM_SESSION_PATH;
 }
 
 test('password sign-in lands on the authenticated code workbench', async ({ page }) => {

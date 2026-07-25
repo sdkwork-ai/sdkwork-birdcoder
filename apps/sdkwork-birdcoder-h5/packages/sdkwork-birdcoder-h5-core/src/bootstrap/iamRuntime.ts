@@ -22,7 +22,7 @@ import {
 } from './runtimeConfig.ts';
 import { getBirdCoderGlobalTokenManager } from './tokenManager.ts';
 
-const APP_ID = 'sdkwork-birdcoder';
+const APP_ID = 'sdkwork-birdcoder-h5';
 
 let composition: SdkworkAppbasePcAuthRuntimeComposition | null = null;
 
@@ -90,7 +90,6 @@ export function createBirdCoderIamRuntimeComposition(): SdkworkAppbasePcAuthRunt
     sessionBridge: {
       clearSession: async () => {
         await clearBirdCoderSessionRecord();
-        tokenManager.clearTokens();
       },
       commitSession: async (session) => {
         const persisted = toPersistedSession(session as unknown as Record<string, unknown>);

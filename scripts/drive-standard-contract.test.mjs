@@ -111,8 +111,8 @@ for (const viteConfigPath of [
   'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-web/vite.config.ts',
 ]) {
   const viteConfig = read(viteConfigPath);
-  if (viteConfig.includes("'/app/v3/api/drive'") || viteConfig.includes('driveDevProxyTarget')) {
-    fail(`${viteConfigPath} must not proxy Drive through the renderer; the composed SDK targets the platform assembly gateway`);
+  if (/\/__sdkwork\/platform|driveDevProxyTarget/u.test(viteConfig)) {
+    fail(`${viteConfigPath} must not expose synthetic Drive proxy paths or Drive-specific proxy targets`);
   }
 }
 
@@ -159,8 +159,14 @@ if (/sdkwork_api_drive_assembly|foundation[_-]drive/u.test(birdcoderAssembly)) {
 const birdcoderGateway = read(
   'crates/sdkwork-api-birdcoder-standalone-gateway/src/main.rs',
 );
-if (!birdcoderGateway.includes('use sdkwork_api_birdcoder_assembly::{assemble_api_router, bootstrap}')) {
-  fail('BirdCoder standalone gateway must consume the canonical API assembly.');
+const birdcoderGatewayLib = read(
+  'crates/sdkwork-api-birdcoder-standalone-gateway/src/lib.rs',
+);
+if (
+  !birdcoderGateway.includes('use sdkwork_api_birdcoder_standalone_gateway::{bootstrap, build_app}')
+  || !birdcoderGatewayLib.includes('pub use sdkwork_api_birdcoder_assembly')
+) {
+  fail('BirdCoder standalone gateway must consume the canonical API assembly through its gateway crate re-export.');
 }
 
 const birdcoderAssemblyCargo = read('crates/sdkwork-api-birdcoder-assembly/Cargo.toml');
@@ -199,7 +205,10 @@ const h5PackageJson = JSON.parse(read('apps/sdkwork-birdcoder-h5/package.json'))
 if (h5PackageJson.scripts?.['dev:standalone'] !== 'pnpm exec sdkwork-app dev --root ../.. --runtime-target browser --client-architecture h5 --deployment-profile standalone') {
   fail('H5 dev must use the shared sdkwork-app facade and select the H5 client architecture');
 }
-if (h5PackageJson.scripts?.['start:browser'] !== 'vite') {
+if (
+  !/run-vite-host\.mjs serve --mode development/u.test(h5PackageJson.scripts?.['start:browser'] ?? '')
+  || /\bpnpm\b/u.test(h5PackageJson.scripts?.['start:browser'] ?? '')
+) {
   fail('H5 must expose a non-recursive renderer-only start:browser script for the stack');
 }
 

@@ -46,8 +46,9 @@ Documents and Prompts. It is a composed port, not a second SDK inventory.
 The two fields are `applicationApiBaseUrl` and
 `platformApiGatewayBaseUrl`. Ambiguous `apiBaseUrl` runtime state, local URL
 defaults, path stripping, and application-to-platform fallback are retired.
-Browser development uses only the controlled `/__sdkwork/platform` proxy;
-desktop uses a direct platform URL.
+Browser development may use a same-origin API edge root only when dependency
+requests keep canonical API paths and owned dependency namespaces are routed
+internally to the platform gateway; desktop uses a direct platform URL.
 
 ## Persistence Boundary
 

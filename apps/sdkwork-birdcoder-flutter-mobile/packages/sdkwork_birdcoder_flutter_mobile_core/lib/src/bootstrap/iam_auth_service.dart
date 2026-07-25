@@ -77,7 +77,8 @@ class BirdCoderIamAuthService {
       throw BirdCoderIamAuthException('Account and password are required.');
     }
 
-    final response = await _sdkClients.anonymousIamSdk.auth.sessionsCreate(
+    final response =
+        await _sdkClients.credentialEntryIamSdk.auth.sessionsCreate(
       iam_sdk.AppbaseSessionCreateCommand(
         username: account,
         password: password,
@@ -101,7 +102,8 @@ class BirdCoderIamAuthService {
       throw BirdCoderIamAuthException('Passwords do not match.');
     }
 
-    final response = await _sdkClients.anonymousIamSdk.auth.registrationsCreate(
+    final response =
+        await _sdkClients.credentialEntryIamSdk.auth.registrationsCreate(
       <String, dynamic>{
         'username': account,
         'password': password,
@@ -121,7 +123,7 @@ class BirdCoderIamAuthService {
       throw BirdCoderIamAuthException('Account is required.');
     }
 
-    final response = await _sdkClients.anonymousIamSdk.auth
+    final response = await _sdkClients.credentialEntryIamSdk.auth
         .passwordResetRequestsCreate(<String, dynamic>{
       'account': normalizedAccount,
       'channel': channel,
@@ -148,7 +150,7 @@ class BirdCoderIamAuthService {
       throw BirdCoderIamAuthException('Passwords do not match.');
     }
 
-    final response = await _sdkClients.anonymousIamSdk.auth
+    final response = await _sdkClients.credentialEntryIamSdk.auth
         .passwordResetsCreate(<String, dynamic>{
       'account': normalizedAccount,
       'code': normalizedCode,
@@ -172,7 +174,8 @@ class BirdCoderIamAuthService {
       );
     }
 
-    final response = await _sdkClients.anonymousIamSdk.oauth.sessionsCreate(
+    final response =
+        await _sdkClients.credentialEntryIamSdk.oauth.sessionsCreate(
       <String, dynamic>{
         'code': normalizedCode,
         'provider': normalizedProvider,
@@ -185,7 +188,7 @@ class BirdCoderIamAuthService {
 
   Future<BirdCoderIamAuthOptions> fetchIamRuntimeSettings() async {
     final response =
-        await _sdkClients.anonymousIamSdk.system.iamRuntimeRetrieve();
+        await _sdkClients.credentialEntryIamSdk.system.iamRuntimeRetrieve();
     final item = _requireResourceItem(response, 'IAM runtime settings');
     final oauthLoginEnabled = item['oauthLoginEnabled'];
     if (oauthLoginEnabled is! bool) {
@@ -226,7 +229,7 @@ class BirdCoderIamAuthService {
     }
 
     final response =
-        await _sdkClients.anonymousIamSdk.oauth.authorizationUrlsCreate(
+        await _sdkClients.credentialEntryIamSdk.oauth.authorizationUrlsCreate(
       <String, dynamic>{
         'provider': normalizedProvider,
         'redirectUri': redirectUri ?? buildBirdCoderOAuthCallbackReturnUrl(),

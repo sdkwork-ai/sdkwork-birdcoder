@@ -5,7 +5,6 @@ export async function hydrateBirdCoderH5AppSessionPersistence(): Promise<void> {
   const session = await readBirdCoderSessionRecord();
   const tokenManager = getBirdCoderGlobalTokenManager();
   if (!session) {
-    tokenManager.clearTokens();
     return;
   }
   tokenManager.setTokens({

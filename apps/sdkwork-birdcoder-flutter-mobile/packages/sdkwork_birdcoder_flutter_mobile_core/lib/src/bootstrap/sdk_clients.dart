@@ -3,6 +3,7 @@ import 'package:sdkwork_agents_app_sdk/sdkwork_agents_app_sdk.dart'
 import 'package:sdkwork_birdcoder_flutter_mobile_app_sdk_consumer/sdkwork_birdcoder_flutter_mobile_app_sdk_consumer.dart'
     as birdcoder_sdk;
 import 'package:sdkwork_iam_app_sdk/sdkwork_iam_app_sdk.dart' as iam_sdk;
+import 'package:sdkwork_iam_flutter_mobile_core/sdkwork_iam_flutter_mobile_core.dart';
 
 import 'token_manager.dart';
 
@@ -12,11 +13,13 @@ class BirdCoderFlutterSdkClients {
   BirdCoderFlutterSdkClients({
     required this.apiBaseUrl,
     required this.appSdkConsumer,
+    required this.credentialEntryBootstrapAccessToken,
     required this.tokenManager,
   });
 
   final String apiBaseUrl;
   final birdcoder_sdk.BirdCoderAppSdkConsumer appSdkConsumer;
+  final String? credentialEntryBootstrapAccessToken;
   final BirdCoderTokenManager tokenManager;
 
   bool get pendingGeneratedSdk =>
@@ -39,6 +42,14 @@ class BirdCoderFlutterSdkClients {
         accessToken: tokenManager.accessToken,
       );
 
+  iam_sdk.SdkworkAppClient get credentialEntryIamSdk =>
+      iam_sdk.SdkworkAppClient.withBaseUrl(
+        baseUrl: resolveBirdCoderAppApiTransportBaseUrl(appApiBaseUrl),
+        accessToken: requireSdkworkFlutterCredentialEntryBootstrapAccessToken(
+          credentialEntryBootstrapAccessToken,
+        ),
+      );
+
   iam_sdk.SdkworkAppClient get anonymousIamSdk =>
       iam_sdk.SdkworkAppClient.withBaseUrl(
         baseUrl: resolveBirdCoderAppApiTransportBaseUrl(appApiBaseUrl),
@@ -47,6 +58,7 @@ class BirdCoderFlutterSdkClients {
 
 BirdCoderFlutterSdkClients createBirdCoderFlutterSdkClients({
   required String apiBaseUrl,
+  String? credentialEntryBootstrapAccessToken,
   BirdCoderTokenManager? tokenManager,
 }) {
   final tokens = tokenManager ?? getBirdCoderGlobalTokenManager();
@@ -56,6 +68,10 @@ BirdCoderFlutterSdkClients createBirdCoderFlutterSdkClients({
       apiBaseUrl: apiBaseUrl,
       authTokenProvider: () => tokens.authToken ?? tokens.accessToken,
       accessTokenProvider: () => tokens.accessToken,
+    ),
+    credentialEntryBootstrapAccessToken:
+        resolveSdkworkFlutterCredentialEntryBootstrapAccessToken(
+      hostAccessToken: credentialEntryBootstrapAccessToken,
     ),
     tokenManager: tokens,
   );

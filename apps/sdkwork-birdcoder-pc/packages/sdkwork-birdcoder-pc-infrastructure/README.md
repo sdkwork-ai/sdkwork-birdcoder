@@ -33,12 +33,13 @@ authentication headers.
 
 ## Deployment Profile And Runtime Target Behavior
 
-Browser development binds dependency SDKs to `/__sdkwork/platform`, whose Vite
-proxy target is the server-only platform topology value. Tauri binds the
-embedded application ingress returned by `desktop_runtime_config` and a
-separately configured direct platform gateway. Cloud and standalone profiles
-retain the same SDK contracts and fail before service bootstrap when either
-required connection plane is unavailable.
+Browser development binds dependency SDKs to a same-origin API edge root while
+preserving canonical request paths such as `/app/v3/api/drive`; Vite routes the
+owned dependency namespaces internally to the server-only platform topology
+value. Tauri binds the embedded application ingress returned by
+`desktop_runtime_config` and a separately configured direct platform gateway.
+Cloud and standalone profiles retain the same SDK contracts and fail before
+service bootstrap when either required connection plane is unavailable.
 
 ## Security
 

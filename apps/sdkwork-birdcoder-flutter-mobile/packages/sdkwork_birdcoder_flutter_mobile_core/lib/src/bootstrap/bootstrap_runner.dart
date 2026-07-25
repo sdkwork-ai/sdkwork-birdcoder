@@ -9,6 +9,7 @@ import 'sdk_clients.dart';
 import 'token_manager.dart';
 
 Future<BirdCoderFlutterBootstrapState> bootstrapBirdCoderFlutterShell({
+  String? credentialEntryBootstrapAccessToken,
   String? storedApiBaseUrl,
 }) async {
   final environment = BirdCoderFlutterEnvironment.resolve();
@@ -23,6 +24,7 @@ Future<BirdCoderFlutterBootstrapState> bootstrapBirdCoderFlutterShell({
   final tokenManager = getBirdCoderGlobalTokenManager();
   final sdkClients = createBirdCoderFlutterSdkClients(
     apiBaseUrl: apiBaseUrl,
+    credentialEntryBootstrapAccessToken: credentialEntryBootstrapAccessToken,
     tokenManager: tokenManager,
   );
   final iamRuntime = createBirdCoderIamRuntime(sdkClients: sdkClients);

@@ -24,7 +24,7 @@
     "ownerMode": "tenant",
     "grantMode": "current",
     "platform": "WEB",
-    "appId": "sdkwork-birdcoder",
+    "appId": "sdkwork-birdcoder-h5",
     "organizationId": "0",
     "tenantId": "100001",
     "accessTokenPermissionScope": [

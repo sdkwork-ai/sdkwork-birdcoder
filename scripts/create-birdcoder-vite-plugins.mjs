@@ -38,7 +38,27 @@ const terminalPcPackageIds = [
 const defaultBirdcoderNamespace = 'sdkwork-birdcoder-pc-desktop';
 const SDKWORK_BAD_GATEWAY_CODE = 50201;
 const SDKWORK_BAD_GATEWAY_STATUS = 502;
-export const BIRDCODER_PLATFORM_DEV_PROXY_PATH = '/__sdkwork/platform';
+export const BIRDCODER_CANONICAL_DEV_PROXY_ROOT = '/';
+export const BIRDCODER_PLATFORM_CANONICAL_APP_API_PROXY_PREFIXES = [
+  '/app/v3/api/after_sales',
+  '/app/v3/api/ai',
+  '/app/v3/api/auth',
+  '/app/v3/api/checkout',
+  '/app/v3/api/documents',
+  '/app/v3/api/drive',
+  '/app/v3/api/fulfillments',
+  '/app/v3/api/iam',
+  '/app/v3/api/memberships',
+  '/app/v3/api/messaging',
+  '/app/v3/api/oauth',
+  '/app/v3/api/orders',
+  '/app/v3/api/prompts',
+  '/app/v3/api/recharges',
+  '/app/v3/api/shipments',
+  '/app/v3/api/skills',
+  '/app/v3/api/system/iam',
+  '/app/v3/api/withdrawals',
+];
 
 const BIRDCODER_VITE_DEDUPE_PACKAGES = [
   'react',
@@ -146,6 +166,11 @@ const BIRDCODER_PUBLIC_RUNTIME_ENV_API_ORIGIN_KEYS = new Set([
   'VITE_SDKWORK_MESSAGING_APP_API_BASE_URL',
   'VITE_SDKWORK_ORDER_APP_API_BASE_URL',
   'VITE_SDKWORK_PROMPTS_APP_API_BASE_URL',
+]);
+const BIRDCODER_PUBLIC_RUNTIME_ENV_LEGACY_API_ORIGIN_KEYS = new Set([
+  'VITE_BIRDCODER_API_BASE_URL',
+  'VITE_SDKWORK_BIRDCODER_API_BASE_URL',
+  'VITE_SDKWORK_BIRDCODER_BACKEND_API_BASE_URL',
 ]);
 
 export function resolveBirdcoderDevelopmentApiEnvDefines(mode = 'development') {
@@ -948,11 +973,14 @@ export function resolveBirdcoderWebRuntimeEnvSource(
     return resolvedRuntimeEnvSource;
   }
 
+  for (const key of BIRDCODER_PUBLIC_RUNTIME_ENV_LEGACY_API_ORIGIN_KEYS) {
+    delete resolvedRuntimeEnvSource[key];
+  }
   for (const key of BIRDCODER_PUBLIC_RUNTIME_ENV_API_ORIGIN_KEYS) {
     delete resolvedRuntimeEnvSource[key];
   }
   resolvedRuntimeEnvSource.VITE_SDKWORK_BIRDCODER_PLATFORM_API_GATEWAY_HTTP_URL =
-    BIRDCODER_PLATFORM_DEV_PROXY_PATH;
+    BIRDCODER_CANONICAL_DEV_PROXY_ROOT;
   return resolvedRuntimeEnvSource;
 }
 
@@ -1007,17 +1035,6 @@ export function resolveBirdcoderDevProxyTargets(
   return { application, platform };
 }
 
-export function rewriteBirdcoderPlatformDevProxyPath(requestPath = '') {
-  if (!requestPath.startsWith(BIRDCODER_PLATFORM_DEV_PROXY_PATH)) {
-    return requestPath;
-  }
-  const rewrittenPath = requestPath.slice(BIRDCODER_PLATFORM_DEV_PROXY_PATH.length);
-  if (!rewrittenPath) {
-    return '/';
-  }
-  return rewrittenPath.startsWith('?') ? `/${rewrittenPath}` : rewrittenPath;
-}
-
 export function resolveBirdcoderViteRuntimeEnvSource(
   fileRuntimeEnvSource = {},
   processRuntimeEnvSource = process.env,
@@ -1025,6 +1042,38 @@ export function resolveBirdcoderViteRuntimeEnvSource(
   return {
     ...fileRuntimeEnvSource,
     ...processRuntimeEnvSource,
+  };
+}
+
+export function resolveBirdcoderViteDevServer(
+  runtimeEnvSource = {},
+  fallbackBind = '127.0.0.1:5173',
+) {
+  const bind = String(
+    runtimeEnvSource.SDKWORK_BIRDCODER_PC_DEV_BIND ?? fallbackBind,
+  ).trim();
+  const separatorIndex = bind.lastIndexOf(':');
+  const host = bind.slice(0, separatorIndex).trim();
+  const portText = bind.slice(separatorIndex + 1).trim();
+  const port = Number(portText);
+
+  if (
+    separatorIndex <= 0
+    || !host
+    || !/^\d+$/u.test(portText)
+    || !Number.isSafeInteger(port)
+    || port < 1
+    || port > 65_535
+  ) {
+    throw new Error(
+      'SDKWORK_BIRDCODER_PC_DEV_BIND must use the <host>:<port> format with a port from 1 to 65535.',
+    );
+  }
+
+  return {
+    host,
+    port,
+    strictPort: true,
   };
 }
 
@@ -1058,6 +1107,27 @@ export function configureBirdcoderSdkworkProxyProblemResponse(proxy) {
     response.setHeader('Content-Length', Buffer.byteLength(body));
     response.end(body);
   });
+}
+
+export function createBirdcoderCanonicalPlatformDevProxyEntries(
+  platformTarget,
+) {
+  const normalizedPlatformTarget = String(platformTarget ?? '').trim();
+  if (!normalizedPlatformTarget) {
+    return {};
+  }
+
+  return Object.fromEntries(
+    BIRDCODER_PLATFORM_CANONICAL_APP_API_PROXY_PREFIXES.map((prefix) => [
+      prefix,
+      {
+        target: normalizedPlatformTarget,
+        changeOrigin: true,
+        ws: false,
+        configure: configureBirdcoderSdkworkProxyProblemResponse,
+      },
+    ]),
+  );
 }
 
 function onBirdcoderRollupWarning(warning, warn) {

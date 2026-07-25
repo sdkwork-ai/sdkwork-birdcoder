@@ -5,6 +5,7 @@ import {
   isBirdcoderPublicRuntimeEnvKey,
   resolveBirdcoderPublicRuntimeEnv,
   resolveBirdcoderDevelopmentApiEnvDefines,
+  resolveBirdcoderViteDevServer,
   resolveBirdcoderViteRuntimeEnvSource,
   resolveBirdcoderWebRuntimeEnvSource,
 } from './create-birdcoder-vite-plugins.mjs';
@@ -21,8 +22,32 @@ const mergedRuntimeEnv = resolveBirdcoderViteRuntimeEnvSource(
 );
 assert.equal(mergedRuntimeEnv.SDKWORK_ACCESS_TOKEN, 'process-token');
 assert.equal(mergedRuntimeEnv.VITE_BIRDCODER_API_BASE_URL, 'http://127.0.0.1:10240');
+assert.deepEqual(
+  resolveBirdcoderViteDevServer({
+    SDKWORK_BIRDCODER_PC_DEV_BIND: '127.0.0.1:5173',
+  }),
+  {
+    host: '127.0.0.1',
+    port: 5173,
+    strictPort: true,
+  },
+);
+assert.throws(
+  () => resolveBirdcoderViteDevServer({
+    SDKWORK_BIRDCODER_PC_DEV_BIND: '127.0.0.1:not-a-port',
+  }),
+  /SDKWORK_BIRDCODER_PC_DEV_BIND/u,
+);
+assert.throws(
+  () => resolveBirdcoderViteDevServer({
+    SDKWORK_BIRDCODER_PC_DEV_BIND: '127.0.0.1:70000',
+  }),
+  /SDKWORK_BIRDCODER_PC_DEV_BIND/u,
+);
 assert.equal(
-  resolveBirdcoderDevelopmentApiEnvDefines('test')['import.meta.env.VITE_BIRDCODER_API_BASE_URL'],
+  resolveBirdcoderDevelopmentApiEnvDefines('test')[
+    'import.meta.env.VITE_SDKWORK_BIRDCODER_APPLICATION_PUBLIC_HTTP_URL'
+  ],
   'undefined',
 );
 
@@ -47,8 +72,8 @@ assert.match(
 );
 assert.match(
   webMainSource,
-  /readConfiguredBirdCoderRealtimeTransport\(\)/u,
-  'Web bootstrap must resolve the realtime transport through the shared public runtime authority.',
+  /host:\s*resolveWebRuntime\(['"]global['"],\s*\{[\s\S]*apiBaseUrl:\s*resolvedApiBaseUrl/u,
+  'Web bootstrap must construct its host descriptor through the shared web runtime authority.',
 );
 assert.doesNotMatch(
   webMainSource,
@@ -85,12 +110,12 @@ assert.equal(
 );
 assert.equal(
   resolved.SDKWORK_BIRDCODER_APP_API_BASE_URL,
-  'http://127.0.0.1:10240/app/v3/api',
+  undefined,
 );
 assert.equal(isBirdcoderPublicRuntimeEnvKey('SDKWORK_ACCESS_TOKEN'), false);
 assert.equal(isBirdcoderPublicRuntimeEnvKey('SDKWORK_SIGNING_KEY'), false);
 assert.equal(isBirdcoderPublicRuntimeEnvKey('VITE_PRIVATE_KEY'), false);
-assert.equal(isBirdcoderPublicRuntimeEnvKey('VITE_SDKWORK_BIRDCODER_API_BASE_URL'), true);
+assert.equal(isBirdcoderPublicRuntimeEnvKey('VITE_SDKWORK_BIRDCODER_API_BASE_URL'), false);
 assert.equal(
   isBirdcoderPublicRuntimeEnvKey('VITE_SDKWORK_BIRDCODER_PLATFORM_API_GATEWAY_HTTP_URL'),
   true,
@@ -109,15 +134,15 @@ assert.equal(webDevelopmentRuntimeEnv.VITE_SDKWORK_APPBASE_APP_API_BASE_URL, und
 assert.equal(webDevelopmentRuntimeEnv.VITE_SDKWORK_BIRDCODER_BACKEND_API_BASE_URL, undefined);
 assert.equal(
   webDevelopmentRuntimeEnv.VITE_SDKWORK_BIRDCODER_PLATFORM_API_GATEWAY_HTTP_URL,
-  'http://127.0.0.1:3900',
+  '/',
 );
 assert.equal(
   webDevelopmentRuntimeEnv.VITE_SDKWORK_DRIVE_APP_API_BASE_URL,
-  'http://127.0.0.1:3900',
+  undefined,
 );
 assert.equal(
   resolveBirdcoderDevelopmentApiEnvDefines('test')['import.meta.env.VITE_SDKWORK_DRIVE_APP_API_BASE_URL'],
-  undefined,
+  'undefined',
 );
 assert.equal(webDevelopmentRuntimeEnv.VITE_SDKWORK_RUNTIME_TARGET, 'browser');
 
@@ -140,6 +165,7 @@ for (const relativePath of credentialEntryViteConfigs) {
   assert.match(source, /from ['"]@sdkwork\/iam-credential-entry\/vite['"]/u);
   assert.doesNotMatch(source, /sdkwork-iam-credential-entry\/src\/vite\.ts/u);
   assert.match(source, /createSdkworkCredentialEntryBootstrapVitePlugin/u);
+  assert.match(source, /resolveBirdcoderViteDevServer/u);
   assert.doesNotMatch(source, /['"]process\.env\.SDKWORK_ACCESS_TOKEN['"]\s*:/u);
 }
 
