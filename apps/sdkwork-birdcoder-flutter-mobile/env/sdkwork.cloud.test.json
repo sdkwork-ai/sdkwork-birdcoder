@@ -1,0 +1,19 @@
+{
+  "_generated": {
+    "command": "pnpm config:materialize",
+    "profileId": "cloud.test",
+    "source": "etc/topology/cloud.test.env"
+  },
+  "FLUTTER_ENV": "test",
+  "SDKWORK_ENVIRONMENT": "test",
+  "SDKWORK_DEPLOYMENT_PROFILE": "cloud",
+  "SDKWORK_RUNTIME_TARGET": "flutter-android",
+  "SDKWORK_BIRDCODER_ENVIRONMENT": "test",
+  "SDKWORK_BIRDCODER_DEPLOYMENT_PROFILE": "cloud",
+  "SDKWORK_BIRDCODER_PROFILE_ID": "cloud.test",
+  "SDKWORK_BIRDCODER_RUNTIME_TARGET": "flutter-android",
+  "SDKWORK_BIRDCODER_APPLICATION_PUBLIC_HTTP_URL": "https://birdcoder-test.sdkwork.com",
+  "SDKWORK_BIRDCODER_PLATFORM_API_GATEWAY_HTTP_URL": "https://api-test.sdkwork.com",
+  "API_BASE_URL": "https://birdcoder-test.sdkwork.com",
+  "SDKWORK_ACCESS_TOKEN": ""
+}

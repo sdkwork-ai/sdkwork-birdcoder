@@ -43,6 +43,10 @@ NUL
 # SDKWork environment templates (keep only the root .env.example tracked)
 !.env.example
 !.env.postgres.example
+!apps/sdkwork-birdcoder-pc/.env.standalone.*
+!apps/sdkwork-birdcoder-pc/.env.cloud.*
+!apps/sdkwork-birdcoder-h5/.env.standalone.*
+!apps/sdkwork-birdcoder-h5/.env.cloud.*
 
 # SDKWork topology configs (non-sensitive deployment profiles, safe to track)
 !configs/topology/*.env

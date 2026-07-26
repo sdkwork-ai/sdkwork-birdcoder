@@ -1,0 +1,19 @@
+{
+  "_generated": {
+    "command": "pnpm config:materialize",
+    "profileId": "cloud.staging",
+    "source": "etc/topology/cloud.staging.env"
+  },
+  "FLUTTER_ENV": "staging",
+  "SDKWORK_ENVIRONMENT": "staging",
+  "SDKWORK_DEPLOYMENT_PROFILE": "cloud",
+  "SDKWORK_RUNTIME_TARGET": "flutter-android",
+  "SDKWORK_BIRDCODER_ENVIRONMENT": "staging",
+  "SDKWORK_BIRDCODER_DEPLOYMENT_PROFILE": "cloud",
+  "SDKWORK_BIRDCODER_PROFILE_ID": "cloud.staging",
+  "SDKWORK_BIRDCODER_RUNTIME_TARGET": "flutter-android",
+  "SDKWORK_BIRDCODER_APPLICATION_PUBLIC_HTTP_URL": "https://birdcoder-staging.sdkwork.com",
+  "SDKWORK_BIRDCODER_PLATFORM_API_GATEWAY_HTTP_URL": "https://api-staging.sdkwork.com",
+  "API_BASE_URL": "https://birdcoder-staging.sdkwork.com",
+  "SDKWORK_ACCESS_TOKEN": ""
+}

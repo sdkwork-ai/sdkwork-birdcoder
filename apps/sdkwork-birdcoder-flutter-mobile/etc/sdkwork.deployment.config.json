@@ -4,5 +4,21 @@
   "application": "sdkwork-birdcoder-flutter-mobile",
   "parentDeploymentConfig": "../../../etc/sdkwork.deployment.config.json",
   "parentTopologySpec": "../../../specs/topology.spec.json",
-  "runtimeConfig": "flutter.runtime.json"
+  "runtimeConfig": "flutter.runtime.json",
+  "materialization": {
+    "authority": "../../../etc/sdkwork.deployment.config.json",
+    "command": "pnpm config:materialize",
+    "format": "dart-define-json",
+    "outputPattern": "../env/sdkwork.{deploymentProfile}.{environment}.json",
+    "profiles": [
+      "standalone.development",
+      "standalone.test",
+      "standalone.staging",
+      "standalone.production",
+      "cloud.development",
+      "cloud.test",
+      "cloud.staging",
+      "cloud.production"
+    ]
+  }
 }

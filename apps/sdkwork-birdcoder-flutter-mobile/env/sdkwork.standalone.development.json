@@ -1,0 +1,18 @@
+{
+  "_generated": {
+    "command": "pnpm config:materialize",
+    "profileId": "standalone.development",
+    "source": "etc/topology/standalone.development.env"
+  },
+  "FLUTTER_ENV": "development",
+  "SDKWORK_ENVIRONMENT": "development",
+  "SDKWORK_DEPLOYMENT_PROFILE": "standalone",
+  "SDKWORK_RUNTIME_TARGET": "flutter-android",
+  "SDKWORK_BIRDCODER_ENVIRONMENT": "development",
+  "SDKWORK_BIRDCODER_DEPLOYMENT_PROFILE": "standalone",
+  "SDKWORK_BIRDCODER_PROFILE_ID": "standalone.development",
+  "SDKWORK_BIRDCODER_RUNTIME_TARGET": "flutter-android",
+  "SDKWORK_BIRDCODER_APPLICATION_PUBLIC_HTTP_URL": "http://127.0.0.1:10240",
+  "API_BASE_URL": "http://127.0.0.1:10240",
+  "SDKWORK_ACCESS_TOKEN": ""
+}
