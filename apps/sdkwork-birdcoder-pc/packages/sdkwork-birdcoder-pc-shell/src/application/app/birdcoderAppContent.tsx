@@ -24,7 +24,11 @@ import {
   buildProjectAgentSessionIndex,
 } from '@sdkwork/birdcoder-pc-workbench/workbench/agentSessionSelection';
 import { hydrateImportedProjectFromAuthority } from '@sdkwork/birdcoder-pc-workbench/workbench/importedProjectHydration';
-import { importSandboxDirectoryProject } from '@sdkwork/birdcoder-pc-workbench/workbench/sandboxDirectoryProjectImport';
+import { importLocalFolderProject } from '@sdkwork/birdcoder-pc-workbench/workbench/localFolderProjectImport';
+import {
+  openLocalFolder,
+  resolveSelectedLocalFolderSource,
+} from '@sdkwork/birdcoder-pc-workbench/utils/fileSystem';
 import {
   buildDefaultTerminalCommandRequest,
   emitOpenTerminalRequest,
@@ -49,20 +53,24 @@ import { useAuth } from '@sdkwork/birdcoder-pc-workbench/context/AuthContext';
 import { buildBirdCoderAuthSessionInventoryScope } from '@sdkwork/birdcoder-pc-workbench/context/authSessionScope';
 import { usePersistedState } from '@sdkwork/birdcoder-pc-workbench/hooks/usePersistedState';
 import { useProjects } from '@sdkwork/birdcoder-pc-workbench/hooks/useProjects';
+import { useWorkspaces } from '@sdkwork/birdcoder-pc-workbench/hooks/useWorkspaces';
 import { useWorkbenchChatSelection } from '@sdkwork/birdcoder-pc-workbench/hooks/useWorkbenchChatSelection';
 import { useWorkbenchAgentSessionCreationActions } from '@sdkwork/birdcoder-pc-workbench/hooks/useWorkbenchAgentSessionCreationActions';
 import type { CreateNewAgentSessionRequest } from '@sdkwork/birdcoder-pc-workbench/workbench/agentSessionCreation';
 import { useWorkbenchPreferences } from '@sdkwork/birdcoder-pc-workbench/hooks/useWorkbenchPreferences';
 import { Button, TopMenu, type TopMenuItem } from '@sdkwork/birdcoder-pc-ui-shell';
 import { copyTextToClipboard } from '@sdkwork/birdcoder-pc-ui/components/clipboard';
-import type { AppTab, AgentProjectView } from '@sdkwork/birdcoder-pc-contracts-commons';
+import type {
+  AppTab,
+  AgentProjectView,
+  AgentWorkspaceView,
+} from '@sdkwork/birdcoder-pc-contracts-commons';
 import {
   loadWorkbenchCodeEngineCatalog,
   resetWorkbenchCodeEngineCatalog,
   resolveWorkbenchCodeEngineSelectedModelId,
   resolveWorkbenchNewSessionEngineCatalog,
 } from '@sdkwork/birdcoder-pc-workbench/workbench/codeEngineCatalog';
-import { useSandboxDirectoryPicker } from '@sdkwork/drive-pc-sandbox-explorer';
 import { useTranslation } from 'react-i18next';
 import {
   createAppHeaderWindowDragController,
@@ -73,7 +81,7 @@ import {
   useBirdCoderAuthAppTabRouting,
 } from './authAppTabRouting.ts';
 import { AppShellDialogs } from './AppShellDialogs.tsx';
-import { AppProjectMenu } from './AppProjectMenu.tsx';
+import { AppWorkspaceProjectPopover } from './AppWorkspaceProjectPopover.tsx';
 import {
   performNativeWindowControlAction,
   useNativeWindowControlsBridge,
@@ -96,7 +104,6 @@ import {
 
 export function AppContent() {
   const { t } = useTranslation();
-  const { pickDirectory } = useSandboxDirectoryPicker();
   const {
     agentSessionService,
     fileSystemService,
@@ -159,7 +166,24 @@ export function AppContent() {
   const scopedActiveProjectId = isWorkbenchSelectionForCurrentSession ? activeProjectId : '';
   const scopedActiveAgentSessionId =
     isWorkbenchSelectionForCurrentSession ? activeAgentSessionId : '';
-  const [showProjectMenu, setShowProjectMenu] = useState(false);
+  const [showWorkspaceProjectPopover, setShowWorkspaceProjectPopover] = useState(false);
+  const {
+    error: workspacesError,
+    hasFetched: workspacesHasFetched,
+    hasMore: workspacesHasMore,
+    isLoading: isWorkspacesLoading,
+    isLoadingMore: isWorkspacesLoadingMore,
+    archiveWorkspace,
+    createWorkspace,
+    deleteWorkspace,
+    loadMoreWorkspaces,
+    refreshWorkspaces,
+    selectedWorkspace,
+    selectedWorkspaceId,
+    selectWorkspace,
+    updateWorkspace,
+    workspaces,
+  } = useWorkspaces({ isActive: Boolean(user) });
   const {
     projects,
     error: projectsError,
@@ -175,9 +199,10 @@ export function AppContent() {
     deleteProject,
     createAgentSession,
   } = useProjects({
-    isActive: Boolean(user),
+    isActive: Boolean(user) && Boolean(selectedWorkspaceId),
     targetProjectId:
       scopedActiveProjectId || normalizedRecoverySnapshot.activeProjectId,
+    workspaceId: selectedWorkspaceId,
   });
   const projectsIndex = useMemo(
     () => buildProjectAgentSessionIndex(projects),
@@ -201,18 +226,36 @@ export function AppContent() {
     }
   }, [addToast, loadMoreProjects, t]);
 
+  const handleLoadMoreWorkspaces = useCallback(async () => {
+    try {
+      await loadMoreWorkspaces();
+    } catch (error) {
+      const message = error instanceof Error && error.message.trim()
+        ? error.message
+        : t('app.failedToLoadMoreWorkspaces');
+      addToast(message, 'error');
+    }
+  }, [addToast, loadMoreWorkspaces, t]);
+
   const [isCreatingProject, setIsCreatingProject] = useState(false);
+  const [isProjectCreationPending, setIsProjectCreationPending] = useState(false);
+  const [projectCreationOptionsVisible, setProjectCreationOptionsVisible] = useState(false);
   const [newProjectName, setNewProjectName] = useState('');
   const [renamingProjectId, setRenamingProjectId] = useState<string | null>(null);
   const [renameProjectValue, setRenameProjectValue] = useState('');
   const [projectToDelete, setProjectToDelete] = useState<string | null>(null);
   const [projectActionsMenuId, setProjectActionsMenuId] = useState<string | null>(null);
+  const [isCreatingWorkspace, setIsCreatingWorkspace] = useState(false);
+  const [newWorkspaceName, setNewWorkspaceName] = useState('');
+  const [renamingWorkspaceId, setRenamingWorkspaceId] = useState<string | null>(null);
+  const [workspaceRenameValue, setWorkspaceRenameValue] = useState('');
+  const [workspaceActionsMenuId, setWorkspaceActionsMenuId] = useState<string | null>(null);
   const [projectMountRecoveryNotice, setProjectMountRecoveryNotice] =
     useState<ProjectMountRecoveryEventPayload | null>(null);
   const [projectMountRecoveryStartedAt, setProjectMountRecoveryStartedAt] = useState<number | null>(
     null,
   );
-  const projectMenuRef = useRef<HTMLDivElement>(null);
+  const workspaceProjectPopoverRef = useRef<HTMLDivElement>(null);
   const minimizeWindowControlButtonRef = useRef<HTMLButtonElement | null>(null);
   const maximizeWindowControlButtonRef = useRef<HTMLButtonElement | null>(null);
   const closeWindowControlButtonRef = useRef<HTMLButtonElement | null>(null);
@@ -284,11 +327,19 @@ export function AppContent() {
     user,
   });
 
-  const closeProjectMenuSurface = useCallback(() => {
-    setShowProjectMenu(false);
+  const closeWorkspaceProjectPopover = useCallback(() => {
+    setShowWorkspaceProjectPopover(false);
     setIsCreatingProject(false);
+    setProjectCreationOptionsVisible(false);
     setNewProjectName('');
+    setRenamingProjectId(null);
+    setRenameProjectValue('');
     setProjectActionsMenuId(null);
+    setIsCreatingWorkspace(false);
+    setNewWorkspaceName('');
+    setRenamingWorkspaceId(null);
+    setWorkspaceRenameValue('');
+    setWorkspaceActionsMenuId(null);
   }, []);
 
   const resolvedProjectId = resolveStartupProjectId({
@@ -378,7 +429,8 @@ export function AppContent() {
             knownProjects: projects,
             projectId,
             projectService,
-            userScope: user?.id,
+            userScope: currentWorkbenchSessionScope,
+            workspaceId: selectedWorkspaceId,
           });
           if (!hydratedProject) {
             return;
@@ -399,7 +451,8 @@ export function AppContent() {
       projects,
       projectService,
       commitActiveAgentSessionSelection,
-      user?.id,
+      currentWorkbenchSessionScope,
+      selectedWorkspaceId,
     ],
   );
 
@@ -416,8 +469,24 @@ export function AppContent() {
     setActiveProjectId('');
     clearActiveAgentSessionSelection();
     setProjectActionsMenuId(null);
-    setShowProjectMenu(false);
+    setShowWorkspaceProjectPopover(false);
   }, [clearActiveAgentSessionSelection, currentWorkbenchSessionScope]);
+
+  const previousSelectedWorkspaceIdRef = useRef(selectedWorkspaceId);
+  useEffect(() => {
+    const previousWorkspaceId = previousSelectedWorkspaceIdRef.current;
+    previousSelectedWorkspaceIdRef.current = selectedWorkspaceId;
+    if (!previousWorkspaceId || previousWorkspaceId === selectedWorkspaceId) {
+      return;
+    }
+
+    pendingImportedProjectIdRef.current = '';
+    setActiveProjectId('');
+    clearActiveAgentSessionSelection();
+  }, [
+    clearActiveAgentSessionSelection,
+    selectedWorkspaceId,
+  ]);
 
   useEffect(() => {
     if (!isRecoveryHydrated || recoverySessionIdRef.current) {
@@ -798,10 +867,14 @@ export function AppContent() {
     };
   }, [addToast, fileSystemService, projectRuntimeLocationService, t]);
 
-  const hasOpenProjectMenuSurface =
-    showProjectMenu ||
+  const hasOpenHeaderSelectionSurface =
+    showWorkspaceProjectPopover ||
     isCreatingProject ||
-    projectActionsMenuId !== null;
+    projectCreationOptionsVisible ||
+    projectActionsMenuId !== null ||
+    isCreatingWorkspace ||
+    workspaceActionsMenuId !== null ||
+    renamingWorkspaceId !== null;
 
   const handleCreateTerminal = useCallback(async () => {
     if (!effectiveProjectId) {
@@ -840,23 +913,38 @@ export function AppContent() {
     }
   }, [addToast, effectiveProjectId, projectRuntimeLocationService]);
 
-  const handleProjectMenuClickOutside = useCallback(
+  const handleWorkspaceProjectPopoverClickOutside = useCallback(
     (event: MouseEvent) => {
-      if (projectMenuRef.current && !projectMenuRef.current.contains(event.target as Node)) {
-        closeProjectMenuSurface();
+      const target = event.target as Node;
+      const isInsidePopover = workspaceProjectPopoverRef.current?.contains(target) ?? false;
+      if (!isInsidePopover) {
+        closeWorkspaceProjectPopover();
       }
     },
-    [closeProjectMenuSurface],
+    [closeWorkspaceProjectPopover],
   );
 
   useEffect(() => {
-    if (!hasOpenProjectMenuSurface) {
+    if (!hasOpenHeaderSelectionSurface) {
       return;
     }
 
-    document.addEventListener('mousedown', handleProjectMenuClickOutside);
-    return () => document.removeEventListener('mousedown', handleProjectMenuClickOutside);
-  }, [handleProjectMenuClickOutside, hasOpenProjectMenuSurface]);
+    document.addEventListener('mousedown', handleWorkspaceProjectPopoverClickOutside);
+    return () => document.removeEventListener('mousedown', handleWorkspaceProjectPopoverClickOutside);
+  }, [handleWorkspaceProjectPopoverClickOutside, hasOpenHeaderSelectionSurface]);
+
+  useEffect(() => {
+    if (!hasOpenHeaderSelectionSurface) {
+      return;
+    }
+    const handleEscape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        closeWorkspaceProjectPopover();
+      }
+    };
+    document.addEventListener('keydown', handleEscape);
+    return () => document.removeEventListener('keydown', handleEscape);
+  }, [closeWorkspaceProjectPopover, hasOpenHeaderSelectionSurface]);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -935,70 +1023,87 @@ export function AppContent() {
   }, [handleCreateTerminal]);
 
   const selectFolderAndImportProject = async (fallbackProjectName: string) => {
-    const selection = await pickDirectory({
-      title: t('app.selectServerDirectory'),
-    });
-    if (!selection) {
+    if (!selectedWorkspaceId) {
+      throw new Error('Select a Workspace before importing a Project.');
+    }
+    const folderInfo = resolveSelectedLocalFolderSource(await openLocalFolder());
+    if (!folderInfo) {
       return null;
     }
 
-    const importedProject = await importSandboxDirectoryProject({
-      compositionPort: {
-        bindProjectDrive: async (projectId, selectedDirectory) => {
-          await projectService.bindProjectDrive(projectId, {
-            driveId: selectedDirectory.sandboxId,
-            logicalPath: selectedDirectory.logicalPath,
-            rootEntryId: selectedDirectory.entryId,
-          });
-        },
-      },
-      createProject: async (name) => {
-        const project = await createProject(name);
-        return { projectId: project.projectId };
-      },
-      deleteCreatedProject: (projectId) => projectService.deleteProject(projectId),
+    const importedProject = await importLocalFolderProject({
+      bindLocalProjectRuntimeLocation: (projectId, source) =>
+        projectRuntimeLocationService.bindLocalProjectRuntimeLocation(projectId, source),
+      createProject: (name) => createProject(name),
+      deleteCreatedProject: deleteProject,
       fallbackProjectName,
-      selection,
+      folderInfo,
     });
-
-    return {
-      ...importedProject,
-      reusedExistingProject: false,
-    };
+    return importedProject;
   };
 
   const handleCreateProject = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newProjectName.trim()) return;
+    const normalizedProjectName = newProjectName.trim();
+    if (!normalizedProjectName || isProjectCreationPending) return;
+    setIsProjectCreationPending(true);
     try {
-      const normalizedProjectName = newProjectName.trim();
-      const importedProject = await selectFolderAndImportProject(normalizedProjectName);
+      const project = await createProject(normalizedProjectName);
+      activateImportedProject(project.projectId);
+      closeWorkspaceProjectPopover();
+      addToast(t('app.projectCreated'), 'success');
+    } catch (error) {
+      console.error('Failed to create project', error);
+      addToast(
+        error instanceof Error && error.message.trim()
+          ? error.message
+          : t('app.failedToCreateProject'),
+        'error',
+      );
+    } finally {
+      setIsProjectCreationPending(false);
+    }
+  };
+
+  const handleCreateProjectFromFolder = useCallback(async () => {
+    if (isProjectCreationPending) {
+      return;
+    }
+    setIsProjectCreationPending(true);
+    try {
+      const importedProject = await selectFolderAndImportProject(t('app.localFolder'));
       if (!importedProject) {
         return;
       }
-
-      if (
-        !importedProject.reusedExistingProject &&
-        importedProject.projectName !== normalizedProjectName
-      ) {
-        await renameProject(importedProject.projectId, normalizedProjectName);
-      }
-
       activateImportedProject(importedProject.projectId);
       hydrateImportedProjectSelectionInBackground(importedProject.projectId);
-      setIsCreatingProject(false);
-      setNewProjectName('');
-      setShowProjectMenu(false);
+      closeWorkspaceProjectPopover();
+      addToast(t('app.folderProjectCreated', { name: importedProject.projectName }), 'success');
     } catch (error) {
-      console.error("Failed to create project", error);
+      console.error('Failed to create project from folder', error);
+      addToast(
+        error instanceof Error && error.message.trim()
+          ? error.message
+          : t('app.failedToCreateProjectFromFolder'),
+        'error',
+      );
+    } finally {
+      setIsProjectCreationPending(false);
     }
-  };
+  }, [
+    activateImportedProject,
+    addToast,
+    hydrateImportedProjectSelectionInBackground,
+    isProjectCreationPending,
+    closeWorkspaceProjectPopover,
+    selectFolderAndImportProject,
+    t,
+  ]);
 
   const confirmDeleteProject = (e: React.MouseEvent, id: string) => {
     e.stopPropagation();
     setProjectToDelete(id);
-    setProjectActionsMenuId(null);
-    setShowProjectMenu(false);
+    closeWorkspaceProjectPopover();
   };
 
   const handleRenameProject = async (id: string, newName: string) => {
@@ -1055,7 +1160,7 @@ export function AppContent() {
     [addToast, t],
   );
 
-  const handleSelectMenuProject = useCallback(
+  const handleSelectPopoverProject = useCallback(
     (projectId: string) => {
       const nextProjectId = projectId.trim();
       if (
@@ -1073,11 +1178,11 @@ export function AppContent() {
       if (shouldResetAgentSession || nextAgentSessionId) {
         commitActiveAgentSessionSelection(nextProjectId, nextAgentSessionId);
       }
-      setProjectActionsMenuId(null);
-      setShowProjectMenu(false);
+      closeWorkspaceProjectPopover();
     },
     [
       effectiveProjectId,
+      closeWorkspaceProjectPopover,
       commitActiveAgentSessionSelection,
       projectsIndex,
     ],
@@ -1601,7 +1706,7 @@ export function AppContent() {
           : 'code',
       );
       setProjectActionsMenuId(null);
-      setShowProjectMenu(false);
+      setShowWorkspaceProjectPopover(false);
     },
     [commitActiveAgentSessionSelection, effectiveProjectId],
   );
@@ -1685,7 +1790,7 @@ export function AppContent() {
         engineId: requestedEngineId,
         modelId: requestedModelId,
         projectId: normalizedProjectId,
-        source: 'project-menu',
+        source: 'workspace-project-popover',
       });
     },
     [addToast, createAgentSessionFromRequest, projectsIndex, t],
@@ -1916,14 +2021,154 @@ export function AppContent() {
     [handleToggleRecording, isRecording, t],
   );
 
-  const handleProjectMenuToggle = useCallback(() => {
-    if (showProjectMenu) {
-      closeProjectMenuSurface();
+  const handleWorkspaceProjectPopoverToggle = useCallback(() => {
+    if (showWorkspaceProjectPopover) {
+      closeWorkspaceProjectPopover();
       return;
     }
 
-    setShowProjectMenu(true);
-  }, [closeProjectMenuSurface, showProjectMenu]);
+    setShowWorkspaceProjectPopover(true);
+  }, [closeWorkspaceProjectPopover, showWorkspaceProjectPopover]);
+  const handleSelectWorkspace = useCallback((workspaceId: string) => {
+    const normalizedWorkspaceId = workspaceId.trim();
+    if (!normalizedWorkspaceId || normalizedWorkspaceId === selectedWorkspaceId) {
+      return;
+    }
+    selectWorkspace(normalizedWorkspaceId);
+    setIsCreatingProject(false);
+    setProjectCreationOptionsVisible(false);
+    setNewProjectName('');
+    setProjectActionsMenuId(null);
+    setWorkspaceActionsMenuId(null);
+  }, [selectWorkspace, selectedWorkspaceId]);
+  const handleStartCreatingWorkspace = useCallback(() => {
+    setIsCreatingWorkspace(true);
+    setWorkspaceActionsMenuId(null);
+    setRenamingWorkspaceId(null);
+  }, []);
+  const handleCancelCreatingWorkspace = useCallback(() => {
+    setIsCreatingWorkspace(false);
+    setNewWorkspaceName('');
+  }, []);
+  const handleCreateWorkspace = useCallback(async (event: React.FormEvent) => {
+    event.preventDefault();
+    const name = newWorkspaceName.trim();
+    if (!name) {
+      return;
+    }
+    try {
+      await createWorkspace(name);
+      setIsCreatingWorkspace(false);
+      setNewWorkspaceName('');
+      setActiveProjectId('');
+      clearActiveAgentSessionSelection();
+      addToast(t('app.workspaceCreated'), 'success');
+    } catch (error) {
+      console.error('Failed to create Workspace', error);
+      addToast(
+        error instanceof Error && error.message.trim()
+          ? error.message
+          : t('app.failedToCreateWorkspace'),
+        'error',
+      );
+    }
+  }, [
+    addToast,
+    clearActiveAgentSessionSelection,
+    createWorkspace,
+    newWorkspaceName,
+    t,
+  ]);
+  const handleStartWorkspaceRename = useCallback((workspace: AgentWorkspaceView) => {
+    setRenamingWorkspaceId(workspace.workspaceId);
+    setWorkspaceRenameValue(workspace.name);
+    setWorkspaceActionsMenuId(null);
+  }, []);
+  const handleFinishWorkspaceRename = useCallback(() => {
+    setRenamingWorkspaceId(null);
+    setWorkspaceRenameValue('');
+  }, []);
+  const handleRenameWorkspace = useCallback(async (
+    workspace: AgentWorkspaceView,
+    name: string,
+  ) => {
+    const normalizedName = name.trim();
+    if (!normalizedName || normalizedName === workspace.name) {
+      handleFinishWorkspaceRename();
+      return;
+    }
+    try {
+      await updateWorkspace(workspace.workspaceId, workspace.version, {
+        name: normalizedName,
+      });
+      handleFinishWorkspaceRename();
+      addToast(t('app.workspaceRenamed'), 'success');
+    } catch (error) {
+      console.error('Failed to rename Workspace', error);
+      addToast(
+        error instanceof Error && error.message.trim()
+          ? error.message
+          : t('app.failedToRenameWorkspace'),
+        'error',
+      );
+    }
+  }, [addToast, handleFinishWorkspaceRename, t, updateWorkspace]);
+  const handleToggleWorkspaceActionsMenu = useCallback((workspaceId: string) => {
+    setWorkspaceActionsMenuId((current) => current === workspaceId ? null : workspaceId);
+  }, []);
+  const handleArchiveWorkspace = useCallback(async (workspace: AgentWorkspaceView) => {
+    setWorkspaceActionsMenuId(null);
+    try {
+      await archiveWorkspace(workspace.workspaceId, workspace.version);
+      if (selectedWorkspaceId === workspace.workspaceId) {
+        setActiveProjectId('');
+        clearActiveAgentSessionSelection();
+      }
+      addToast(t('app.workspaceArchived'), 'success');
+    } catch (error) {
+      console.error('Failed to archive Workspace', error);
+      addToast(
+        error instanceof Error && error.message.trim()
+          ? error.message
+          : t('app.failedToArchiveWorkspace'),
+        'error',
+      );
+    }
+  }, [
+    addToast,
+    archiveWorkspace,
+    clearActiveAgentSessionSelection,
+    selectedWorkspaceId,
+    t,
+  ]);
+  const handleDeleteWorkspace = useCallback(async (workspace: AgentWorkspaceView) => {
+    setWorkspaceActionsMenuId(null);
+    if (!window.confirm(t('app.deleteWorkspaceConfirmation', { name: workspace.name }))) {
+      return;
+    }
+    try {
+      await deleteWorkspace(workspace.workspaceId, workspace.version);
+      if (selectedWorkspaceId === workspace.workspaceId) {
+        setActiveProjectId('');
+        clearActiveAgentSessionSelection();
+      }
+      addToast(t('app.workspaceDeleted'), 'success');
+    } catch (error) {
+      console.error('Failed to delete Workspace', error);
+      addToast(
+        error instanceof Error && error.message.trim()
+          ? error.message
+          : t('app.failedToDeleteWorkspace'),
+        'error',
+      );
+    }
+  }, [
+    addToast,
+    clearActiveAgentSessionSelection,
+    deleteWorkspace,
+    selectedWorkspaceId,
+    t,
+  ]);
   const handleStartProjectRename = useCallback((projectId: string, currentName: string) => {
     setRenamingProjectId(projectId);
     setRenameProjectValue(currentName);
@@ -1935,10 +2180,20 @@ export function AppContent() {
     setProjectActionsMenuId((currentValue) => (currentValue === projectId ? null : projectId));
   }, []);
   const handleStartCreatingProject = useCallback(() => {
+    setProjectCreationOptionsVisible(true);
+    setIsCreatingProject(false);
+    setNewProjectName('');
+    setProjectActionsMenuId(null);
+  }, []);
+  const handleStartBlankProject = useCallback(() => {
+    setProjectCreationOptionsVisible(false);
     setIsCreatingProject(true);
+    setNewProjectName('');
   }, []);
   const handleCancelCreatingProject = useCallback(() => {
     setIsCreatingProject(false);
+    setProjectCreationOptionsVisible(false);
+    setNewProjectName('');
   }, []);
   const handleProjectNameChange = useCallback((value: string) => {
     setNewProjectName(value);
@@ -1953,44 +2208,78 @@ export function AppContent() {
       >
       <BirdcoderAppHeader
         centerContent={shouldShowWorkbenchHeaderChrome ? (
-          <AppProjectMenu
-            projectMenuRef={projectMenuRef}
-            activeProjectName={activeProject?.name ?? null}
-            effectiveProjectId={effectiveProjectId}
-            showProjectMenu={showProjectMenu}
-            projects={projects}
-            hasProjectsFetched={projectsHasFetched}
-            hasMoreProjects={projectsHasMore}
-            isProjectsLoading={isProjectsLoading}
-            isLoadingMoreProjects={isProjectsLoadingMore}
-            projectMountRecoveryNotice={projectMountRecoveryNotice}
-            projectMountRecoveryStartedAt={projectMountRecoveryStartedAt}
-            isCreatingProject={isCreatingProject}
-            newProjectName={newProjectName}
-            renamingProjectId={renamingProjectId}
-            renameProjectValue={renameProjectValue}
-            projectActionsMenuId={projectActionsMenuId}
-            availableNewSessionEngines={availableNewSessionEngines}
-            preferredEngineId={newSessionEngineCatalog.preferredSelection.engineId}
-            preferredModelId={newSessionEngineCatalog.preferredSelection.modelId}
-            onToggleMenu={handleProjectMenuToggle}
-            onCloseMenuSurface={closeProjectMenuSurface}
-            onSelectProject={handleSelectMenuProject}
-            onLoadMoreProjects={handleLoadMoreProjects}
-            onStartProjectRename={handleStartProjectRename}
-            onProjectRenameValueChange={setRenameProjectValue}
-            onFinishProjectRename={handleFinishProjectRename}
-            onCommitProjectRename={handleRenameProject}
-            onArchiveProject={handleArchiveProject}
-            onCreateProjectSession={handleCreateProjectSession}
-            onToggleProjectActionsMenu={handleToggleProjectActionsMenu}
-            onOpenProjectInExplorer={handleOpenProjectInExplorer}
-            onConfirmDeleteProject={confirmDeleteProject}
-            onStartCreatingProject={handleStartCreatingProject}
-            onCancelCreatingProject={handleCancelCreatingProject}
-            onProjectNameChange={handleProjectNameChange}
-            onCreateProject={handleCreateProject}
-          />
+          <div className="flex h-full min-w-0 items-center justify-center">
+            <AppWorkspaceProjectPopover
+              activeProjectName={activeProject?.name ?? null}
+              availableNewSessionEngines={availableNewSessionEngines}
+              effectiveProjectId={effectiveProjectId}
+              hasMoreProjects={projectsHasMore}
+              hasMoreWorkspaces={workspacesHasMore}
+              hasProjectsFetched={projectsHasFetched}
+              hasWorkspacesFetched={workspacesHasFetched}
+              isCreatingBlankProject={isCreatingProject}
+              isLoadingMoreProjects={isProjectsLoadingMore}
+              isLoadingMoreWorkspaces={isWorkspacesLoadingMore}
+              isProjectCreationPending={isProjectCreationPending}
+              isProjectsLoading={isProjectsLoading}
+              isWorkspaceCreating={isCreatingWorkspace}
+              isWorkspacesLoading={isWorkspacesLoading}
+              newProjectName={newProjectName}
+              newWorkspaceName={newWorkspaceName}
+              onArchiveProject={handleArchiveProject}
+              onArchiveWorkspace={handleArchiveWorkspace}
+              onCancelBlankProject={handleCancelCreatingProject}
+              onCancelWorkspaceCreation={handleCancelCreatingWorkspace}
+              onClosePopover={closeWorkspaceProjectPopover}
+              onCommitProjectRename={handleRenameProject}
+              onCommitWorkspaceRename={handleRenameWorkspace}
+              onConfirmDeleteProject={confirmDeleteProject}
+              onCreateBlankProject={handleCreateProject}
+              onCreateProjectFromFolder={handleCreateProjectFromFolder}
+              onCreateProjectSession={handleCreateProjectSession}
+              onCreateWorkspace={handleCreateWorkspace}
+              onDeleteWorkspace={handleDeleteWorkspace}
+              onFinishProjectRename={handleFinishProjectRename}
+              onFinishWorkspaceRename={handleFinishWorkspaceRename}
+              onLoadMoreProjects={handleLoadMoreProjects}
+              onLoadMoreWorkspaces={handleLoadMoreWorkspaces}
+              onNewProjectNameChange={handleProjectNameChange}
+              onNewWorkspaceNameChange={setNewWorkspaceName}
+              onOpenProjectInExplorer={handleOpenProjectInExplorer}
+              onProjectRenameValueChange={setRenameProjectValue}
+              onRefreshProjects={refreshProjects}
+              onRefreshWorkspaces={refreshWorkspaces}
+              onSelectProject={handleSelectPopoverProject}
+              onSelectWorkspace={handleSelectWorkspace}
+              onShowProjectCreationOptions={handleStartCreatingProject}
+              onStartBlankProject={handleStartBlankProject}
+              onStartProjectRename={handleStartProjectRename}
+              onStartWorkspaceCreation={handleStartCreatingWorkspace}
+              onStartWorkspaceRename={handleStartWorkspaceRename}
+              onTogglePopover={handleWorkspaceProjectPopoverToggle}
+              onToggleProjectActions={handleToggleProjectActionsMenu}
+              onToggleWorkspaceActions={handleToggleWorkspaceActionsMenu}
+              onWorkspaceRenameValueChange={setWorkspaceRenameValue}
+              popoverRef={workspaceProjectPopoverRef}
+              preferredEngineId={newSessionEngineCatalog.preferredSelection.engineId}
+              preferredModelId={newSessionEngineCatalog.preferredSelection.modelId}
+              projectActionsMenuId={projectActionsMenuId}
+              projectCreationOptionsVisible={projectCreationOptionsVisible}
+              projectMountRecoveryNotice={projectMountRecoveryNotice}
+              projectMountRecoveryStartedAt={projectMountRecoveryStartedAt}
+              projects={projects}
+              projectsError={projectsError}
+              renameProjectValue={renameProjectValue}
+              renamingProjectId={renamingProjectId}
+              renamingWorkspaceId={renamingWorkspaceId}
+              selectedWorkspace={selectedWorkspace}
+              showPopover={showWorkspaceProjectPopover}
+              workspaceActionsMenuId={workspaceActionsMenuId}
+              workspaceError={workspacesError}
+              workspaceRenameValue={workspaceRenameValue}
+              workspaces={workspaces}
+            />
+          </div>
         ) : null}
         closeButtonRef={closeWindowControlButtonRef}
         handleClose={handleClose}
@@ -2025,6 +2314,7 @@ export function AppContent() {
         activeTab={activeTab}
         isAuthenticated={isAuthenticated}
         terminalRequest={terminalRequest}
+        workspaceId={selectedWorkspaceId}
         projectId={effectiveProjectId}
         projectName={activeProject?.name}
         agentSessionId={effectiveAgentSessionId}

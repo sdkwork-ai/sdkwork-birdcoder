@@ -5,7 +5,7 @@ import path from "node:path";
 import process from "node:process";
 import { fileURLToPath } from "node:url";
 
-import { mergeRepoDevBootstrapAccessTokenEnv } from "../../sdkwork-iam/scripts/dev/create-dev-bootstrap-access-token-env.mjs";
+import { mergeRepoDevBootstrapAccessTokenEnv } from "@sdkwork/iam-credential-entry/node-bootstrap";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);

@@ -29,10 +29,10 @@ Browser development may use the declared platform proxy. Desktop requires an
 explicit platform endpoint. An unavailable required plane fails before feature
 bootstrap.
 
-## Project And Session
+## Workspace, Project, And Session
 
 ```text
-IAM organization scope
+Agents Workspace (workspaceId; default initialized per user)
   -> Agents Project (projectId)
        -> composition slot
        -> Session
@@ -42,9 +42,11 @@ IAM organization scope
             -> Runtime Binding
 ```
 
-PC view models preserve the owner `projectId` and Session identifiers. There
-is no Workspace bootstrap, second Project id, parallel Session id, persistent
-transcript view, or mapping facade.
+PC view models preserve the owner `workspaceId`, `projectId`, and Session
+identifiers. The Header renders Workspace selection first and the selected
+Workspace's Project selector second. Workspace bootstrap is an Agents SDK
+operation; there is no BirdCoder Workspace authority, second Project id,
+parallel Session id, persistent transcript view, or mapping facade.
 
 Session creation and local execution context use:
 
@@ -74,11 +76,13 @@ contract.
 
 ## Data Naming And Ownership
 
-PC owns no business tables. Agents Project and Session records remain in the
+PC owns no business tables. Agents Workspace, Project, and Session records remain in the
 `sdkwork-agents` database authority and are outside the BirdCoder database
 design. The PC surface does not define aliases, projections, compatibility
 tables, or an additional Workspace, Project, Session, Conversation, Message,
-or transcript authority.
+or transcript authority. Drive sandbox import sends only the selected
+Workspace and Drive resource identifiers to Agents; local paths and handles
+remain device-local.
 
 Human communication remains the `sdkwork-im` Conversation/Message domain and
 must never be represented as an Agents Session Item. Product AI Skills remain

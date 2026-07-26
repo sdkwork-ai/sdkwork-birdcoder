@@ -51,6 +51,7 @@ export interface MultiWindowPaneBinding {
 export interface MultiWindowProgrammingPageProps {
   initialAgentSessionId?: string;
   isVisible?: boolean;
+  workspaceId: string;
   projectId?: string;
   onAgentSessionChange?: (agentSessionId: string, projectId?: string) => void;
   onProjectChange?: (projectId: string) => void;

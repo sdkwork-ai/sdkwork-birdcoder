@@ -26,7 +26,7 @@ const selectedSessionMessagesHookSource = fs.readFileSync(
 
 assert.match(
   appSource,
-  /refreshProjects,[\s\S]*\} = useProjects\(\{[\s\S]*isActive: Boolean\(user\),[\s\S]*targetProjectId:/,
+  /refreshProjects,[\s\S]*\} = useProjects\(\{[\s\S]*isActive: Boolean\(user\) && Boolean\(selectedWorkspaceId\),[\s\S]*targetProjectId:[\s\S]*workspaceId: selectedWorkspaceId,/,
   'App must own the active project session inventory through the shared useProjects store.',
 );
 
@@ -152,13 +152,13 @@ assert.match(
 
 assert.match(
   sharedRefreshHookSource,
-  /if \(synchronizedProject\) \{[\s\S]*upsertProjectIntoProjectsStore\([\s\S]*\);\s*\}\s*upsertAgentSessionIntoProjectsStore\(/,
+  /if \(synchronizedProject\) \{[\s\S]*upsertProjectIntoProjectsStore\([\s\S]*\);\s*\}[\s\S]*const workspaceId =[\s\S]*synchronizedProject\?\.workspaceId[\s\S]*if \(workspaceId\) \{[\s\S]*upsertAgentSessionIntoProjectsStore\(/,
   'Manual session refresh must apply the authoritative refreshed session after any synchronized project snapshot so stale project inventory cannot keep a failed row visible.',
 );
 
 assert.match(
   selectedSessionMessagesHookSource,
-  /if \(project\) \{[\s\S]*upsertProjectIntoProjectsStore\(project, userScope\);\s*\}\s*upsertAgentSessionIntoProjectsStore\(/,
+  /if \(!project\) \{\s*return;\s*\}[\s\S]*upsertProjectIntoProjectsStore\(project, userScope\);[\s\S]*upsertAgentSessionIntoProjectsStore\(/,
   'Selected-session hydration must apply the authoritative refreshed session after any synchronized project snapshot so clicking a successfully loaded transcript clears stale failed status in the sidebar.',
 );
 

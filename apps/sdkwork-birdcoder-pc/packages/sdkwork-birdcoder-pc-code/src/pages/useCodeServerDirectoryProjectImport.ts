@@ -3,20 +3,23 @@ import { useTranslation } from 'react-i18next';
 import { useSandboxDirectoryPicker } from '@sdkwork/drive-pc-sandbox-explorer';
 import { importSandboxDirectoryProject } from '@sdkwork/birdcoder-pc-workbench/workbench/sandboxDirectoryProjectImport';
 import type { AgentProjectView } from '@sdkwork/birdcoder-pc-contracts-commons';
-import type { IProjectService } from '@sdkwork/birdcoder-pc-infrastructure-runtime';
 
-type CreateProjectOptions = {
+type ImportProject = (options: {
   description?: string;
-};
+  driveLogicalPath?: string;
+  driveRootEntryId: string;
+  driveSpaceId: string;
+  name: string;
+  sourceKind: string;
+  sourceRef: string;
+}) => Promise<AgentProjectView>;
 
 export function useCodeServerDirectoryProjectImport({
-  createProject,
-  deleteProject,
-  projectService,
+  importProject,
+  workspaceId,
 }: {
-  createProject: (name: string, options?: CreateProjectOptions) => Promise<AgentProjectView>;
-  deleteProject: (projectId: string) => Promise<void>;
-  projectService: Pick<IProjectService, 'bindProjectDrive'>;
+  importProject: ImportProject;
+  workspaceId: string;
 }) {
   const { t } = useTranslation();
   const { pickDirectory } = useSandboxDirectoryPicker();
@@ -30,26 +33,16 @@ export function useCodeServerDirectoryProjectImport({
     }
 
     return importSandboxDirectoryProject({
-      compositionPort: {
-        bindProjectDrive: async (projectId, selectedDirectory) => {
-          await projectService.bindProjectDrive(projectId, {
-            driveId: selectedDirectory.sandboxId,
-            logicalPath: selectedDirectory.logicalPath,
-            rootEntryId: selectedDirectory.entryId,
-          });
-        },
-      },
-      createProject,
-      deleteCreatedProject: deleteProject,
       fallbackProjectName,
+      importPort: { importProject },
       selection,
+      workspaceId,
     });
   }, [
-    createProject,
-    deleteProject,
+    importProject,
     pickDirectory,
-    projectService,
     t,
+    workspaceId,
   ]);
 
   return {

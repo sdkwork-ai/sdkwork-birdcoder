@@ -39,6 +39,7 @@ import {
   useAuth,
   useToast,
 } from '@sdkwork/birdcoder-pc-workbench';
+import { buildBirdCoderAuthSessionInventoryScope } from '@sdkwork/birdcoder-pc-workbench/context/authSessionScope';
 import {
   FileChange,
   isAgentSessionViewEngineBusy,
@@ -67,6 +68,7 @@ import {
 
 function StudioPageComponent({
   isVisible = true,
+  workspaceId,
   projectId,
   initialAgentSessionId,
   onProjectChange,
@@ -100,6 +102,7 @@ function StudioPageComponent({
   } = useProjects({
     isActive: isVisible,
     targetProjectId: projectId,
+    workspaceId,
   });
   const {
     agentSessionService,
@@ -108,7 +111,8 @@ function StudioPageComponent({
   } = useIDEServices();
   const resolveProjectLocalWorkingDirectory = useProjectLocalWorkingDirectory();
   const resolveProjectRuntimeLocation = useProjectRuntimeLocation();
-  const { user } = useAuth();
+  const { sessionRevision, user } = useAuth();
+  const userScope = buildBirdCoderAuthSessionInventoryScope(user?.id, sessionRevision);
   const { addToast } = useToast();
   const [sessionId, setSessionId] = useState<string>('');
   const [selectedSessionProjectId, setSelectedSessionProjectId] = useState<string | null>(null);
@@ -462,7 +466,8 @@ function StudioPageComponent({
           knownProjects: projects,
           projectId,
           projectService,
-          userScope: user?.id,
+          userScope,
+          workspaceId,
         });
         if (!hydratedProject) {
           return;
@@ -489,7 +494,8 @@ function StudioPageComponent({
     projectService,
     projects,
     selectAgentSession,
-    user?.id,
+    userScope,
+    workspaceId,
   ]);
   const restoreSelectionAfterRefresh = (
     targetProjectId: string,

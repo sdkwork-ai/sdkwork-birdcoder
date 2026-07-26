@@ -33,6 +33,7 @@ async function openAuthenticatedCodeProject(page: Page) {
   const project = {
     id: '10001',
     projectId: 'project.e2e-git-submit',
+    workspaceId: 'workspace.e2e-default',
     tenantId: '0',
     organizationId: '0',
     ownerUserId: '1',
@@ -66,6 +67,20 @@ async function openAuthenticatedCodeProject(page: Page) {
     totalOutputTokens: '0',
     createdBy: '1',
     updatedBy: '1',
+    version: '1',
+    createdAt: '2026-01-01T00:00:00.000Z',
+    updatedAt: '2026-01-01T00:00:00.000Z',
+  };
+  const workspace = {
+    id: '9001',
+    workspaceId: project.workspaceId,
+    tenantId: '0',
+    organizationId: '0',
+    ownerUserId: '1',
+    name: 'Default Workspace',
+    description: 'Git submit dialog Workspace fixture.',
+    isDefault: true,
+    status: 'active',
     version: '1',
     createdAt: '2026-01-01T00:00:00.000Z',
     updatedAt: '2026-01-01T00:00:00.000Z',
@@ -134,6 +149,12 @@ async function openAuthenticatedCodeProject(page: Page) {
       traceId: 'git-submit-dialog-current-user',
     },
   }));
+  await page.route('**/app/v3/api/ai/workspaces/default', (route) => route.fulfill({
+    json: itemEnvelope(workspace),
+  }));
+  await page.route('**/app/v3/api/ai/workspaces?**', (route) => route.fulfill({
+    json: offsetPage(route, [workspace]),
+  }));
   await page.route('**/app/v3/api/ai/projects?**', (route) => route.fulfill({ json: offsetPage(route, [project]) }));
   await page.route(
     '**/app/v3/api/ai/projects/project.e2e-git-submit',
@@ -176,17 +197,19 @@ async function openAuthenticatedCodeProject(page: Page) {
     }));
   }, { accessToken, authToken });
   await page.goto('/#/app/code');
-  const newProjectButton = page.getByRole('button', { name: 'New Project' });
+  const workspaceProjectTrigger = page.getByRole('button', {
+    name: 'Workspace and Projects',
+  });
   const signInButton = page.getByRole('button', { name: 'Sign in' });
   await expect.poll(async () => (
-    await newProjectButton.isVisible() || await signInButton.isVisible()
+    await workspaceProjectTrigger.isVisible() || await signInButton.isVisible()
   ), { timeout: 45_000 }).toBe(true);
   if (await signInButton.isVisible()) {
     await page.getByRole('textbox', { name: 'Account' }).fill('e2e@test.sdkwork.local');
     await page.locator('input[type="password"]').first().fill('e2e-password');
     await signInButton.click();
   }
-  await expect(newProjectButton).toBeVisible({
+  await expect(workspaceProjectTrigger).toBeVisible({
     timeout: 60_000,
   });
 }

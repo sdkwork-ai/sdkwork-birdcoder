@@ -94,7 +94,13 @@ export type {
   AgentProjectViewPage,
   BindProjectDriveCompositionInput,
   CreateProjectOptions,
+  ImportProjectOptions,
   IProjectService,
   ProjectDriveComposition,
   UpdateProjectOptions,
 } from '@sdkwork/birdcoder-pc-infrastructure/services/interfaces/IProjectService';
+export type {
+  AgentWorkspacePageRequest,
+  AgentWorkspaceViewPage,
+  IWorkspaceService,
+} from '@sdkwork/birdcoder-pc-infrastructure/services/interfaces/IWorkspaceService';

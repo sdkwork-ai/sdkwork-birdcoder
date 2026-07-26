@@ -16,8 +16,23 @@ export type LocalFolderPickerResult =
   | { status: 'selected'; source: LocalFolderMountSource }
   | { status: 'cancelled' }
   | { status: 'unsupported'; capability: 'local_folder_picker'; code: 'browser_file_system_access_unavailable'; message: string };
+export interface AgentWorkspaceView {
+  workspaceId: string;
+  tenantId: WorkbenchEntityId;
+  organizationId: WorkbenchEntityId;
+  ownerUserId: WorkbenchEntityId;
+  name: string;
+  description?: string;
+  isDefault: boolean;
+  status: 'active' | 'archived' | 'deleted';
+  version: WorkbenchLongIntegerString;
+  createdAt: string;
+  updatedAt: string;
+  archivedAt?: string;
+}
 export interface AgentProjectView {
   projectId: string;
+  workspaceId: string;
   tenantId: WorkbenchEntityId;
   organizationId: WorkbenchEntityId;
   ownerUserId: WorkbenchEntityId;
@@ -28,6 +43,11 @@ export interface AgentProjectView {
   driveAccessMode: 'disabled' | 'owner_library' | 'explicit_resources';
   defaultAgentId?: string;
   defaultModelId?: string;
+  importSourceKind?: string;
+  importSourceRef?: string;
+  driveSpaceId?: string;
+  driveRootEntryId?: string;
+  driveLogicalPath?: string;
   version: WorkbenchLongIntegerString;
   createdAt: string;
   updatedAt: string;

@@ -28,7 +28,7 @@ export interface CreateNewAgentSessionRequest {
     | 'turn-submit'
     | 'multi-window'
     | 'studio'
-    | 'project-menu';
+    | 'workspace-project-popover';
   title?: string;
 }
 

@@ -12,8 +12,9 @@ Specs: DOCUMENTATION_SPEC.md, RELEASE_SPEC.md
   API reads, zero Backend/Open operations, and four permissions.
 - Standardized Project, composition, Session, Turn, Session Item, Interaction,
   Runtime Binding, Artifact, and Checkpoint integration on `sdkwork-agents`.
-- Folded the retired workbench Workspace grouping into IAM organization scope
-  plus canonical Agents Project.
+- Migrated the retired BirdCoder Workspace authority to canonical Agents
+  Workspace and Workspace-scoped Project aggregates, including per-user default
+  initialization and Drive sandbox Project import.
 - Standardized Skills on `sdkwork-skills` and human communication on
   `sdkwork-im`, while keeping AI Session Item semantics separate.
 - Restricted Tauri SQLite to one allowlisted device-state table and canonical

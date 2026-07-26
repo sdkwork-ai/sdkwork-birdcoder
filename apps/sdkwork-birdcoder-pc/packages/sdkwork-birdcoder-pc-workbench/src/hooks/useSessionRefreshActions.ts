@@ -2,6 +2,7 @@ import { useCallback, useRef, useState } from 'react';
 import type { AgentSessionView, AgentProjectView } from '@sdkwork/birdcoder-pc-contracts-commons';
 import type { IAgentSessionService } from '@sdkwork/birdcoder-pc-infrastructure-runtime';
 import { useAuth } from '../context/AuthContext.ts';
+import { buildBirdCoderAuthSessionInventoryScope } from '../context/authSessionScope.ts';
 import {
   upsertAgentSessionIntoProjectsStore,
   upsertProjectIntoProjectsStore,
@@ -60,8 +61,8 @@ export function useSessionRefreshActions({
   resolveProjectName,
   restoreSelectionAfterRefresh,
 }: UseSessionRefreshActionsOptions) {
-  const { user } = useAuth();
-  const normalizedUserScope = user?.id?.trim() ?? 'anonymous';
+  const { sessionRevision, user } = useAuth();
+  const userScope = buildBirdCoderAuthSessionInventoryScope(user?.id, sessionRevision);
   const [refreshingProjectId, setRefreshingProjectId] = useState<string | null>(null);
   const [refreshingAgentSessionScope, setRefreshingAgentSessionScope] = useState<{
     agentSessionId: string;
@@ -102,7 +103,7 @@ export function useSessionRefreshActions({
       }
 
       for (const project of result.projects ?? []) {
-        upsertProjectIntoProjectsStore(project, normalizedUserScope);
+        upsertProjectIntoProjectsStore(project, userScope);
       }
       if (isPreservedSelectionStillCurrent(preservedSelection)) {
         restoreSelectionAfterRefresh(
@@ -131,6 +132,7 @@ export function useSessionRefreshActions({
     resolveProjectName,
     restoreSelectionAfterRefresh,
     isPreservedSelectionStillCurrent,
+    userScope,
   ]);
 
   const handleRefreshAgentSessionItems = useCallback(async (
@@ -183,13 +185,18 @@ export function useSessionRefreshActions({
         }
 
         if (synchronizedProject) {
-          upsertProjectIntoProjectsStore(synchronizedProject, normalizedUserScope);
+          upsertProjectIntoProjectsStore(synchronizedProject, userScope);
         }
-        upsertAgentSessionIntoProjectsStore(
-          result.projectId,
-          result.agentSession,
-          normalizedUserScope,
-        );
+        const workspaceId =
+          synchronizedProject?.workspaceId ?? resolvedLocation?.project.workspaceId ?? '';
+        if (workspaceId) {
+          upsertAgentSessionIntoProjectsStore(
+            result.projectId,
+            result.agentSession,
+            workspaceId,
+            userScope,
+          );
+        }
       }
 
       if (isPreservedSelectionStillCurrent(preservedSelection)) {
@@ -220,6 +227,7 @@ export function useSessionRefreshActions({
     resolveAgentSessionTitle,
     restoreSelectionAfterRefresh,
     isPreservedSelectionStillCurrent,
+    userScope,
   ]);
 
   return {

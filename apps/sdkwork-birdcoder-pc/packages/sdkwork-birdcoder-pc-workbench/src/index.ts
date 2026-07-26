@@ -4,6 +4,7 @@ export const APP_VERSION = '1.0.0';
 export { parseBirdCoderApiJson } from '@sdkwork/birdcoder-pc-contracts-commons';
 export * from './hooks/useDebounce.ts';
 export * from './hooks/useProjects.ts';
+export * from './hooks/useWorkspaces.ts';
 export * from './hooks/useAgentSessionActions.ts';
 export * from './hooks/useDocuments.ts';
 export * from './hooks/useAgentSessionInteractions.ts';

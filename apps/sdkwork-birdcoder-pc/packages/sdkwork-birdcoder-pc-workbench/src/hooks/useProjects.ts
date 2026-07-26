@@ -21,7 +21,7 @@ import {
   deleteProjectsStore,
   getProjectsStore,
   mergeProjectsForStore,
-  mutateProjectsStore,
+  mutateProjectsStoreByScopeKey,
   normalizeProjectsStoreUserScope,
   peekProjectsStore,
   removeAgentSessionFromCollection,
@@ -33,12 +33,12 @@ import {
   updateProjectsStoreSnapshot,
   upsertAgentSessionIntoCollection,
   upsertProjectIntoCollection,
-  upsertProjectIntoProjectsStore,
 } from '../stores/projectsStore.ts';
 import type {
   AgentProjectPageRequest,
   AgentProjectViewPage,
   CreateProjectOptions,
+  ImportProjectOptions,
   UpdateProjectOptions,
 } from '../services/interfaces/IProjectService.ts';
 import {
@@ -722,6 +722,7 @@ export interface UseProjectsOptions {
   limit?: number;
   offset?: number;
   targetProjectId?: string | null;
+  workspaceId?: string | null;
 }
 
 export function useProjects(options?: UseProjectsOptions) {
@@ -733,6 +734,7 @@ export function useProjects(options?: UseProjectsOptions) {
   );
   const shouldFetchOnMount = options?.fetchOnMount ?? true;
   const isActive = options?.isActive ?? true;
+  const workspaceId = options?.workspaceId?.trim() ?? '';
   const pageRequest = useMemo<AgentProjectPageRequest>(
     () => {
       const pageSize = options?.limit ?? DEFAULT_LIST_PAGE_SIZE;
@@ -746,11 +748,14 @@ export function useProjects(options?: UseProjectsOptions) {
       return {
         page: offset / pageSize + 1,
         pageSize,
+        workspaceId,
       };
     },
-    [options?.limit, options?.offset],
+    [options?.limit, options?.offset, workspaceId],
   );
-  const baseStoreScopeKey = buildProjectsStoreScopeKey(normalizedUserScope);
+  const baseStoreScopeKey = workspaceId
+    ? buildProjectsStoreScopeKey(normalizedUserScope, workspaceId)
+    : '';
   const isDefaultPagination =
     pageRequest.pageSize === DEFAULT_LIST_PAGE_SIZE && pageRequest.page === 1;
   const storeScopeKey = baseStoreScopeKey && !isDefaultPagination
@@ -858,11 +863,12 @@ export function useProjects(options?: UseProjectsOptions) {
       {
         page: (pageInfo.page ?? 1) + 1,
         pageSize: pageInfo.pageSize ?? pageRequest.pageSize,
+        workspaceId,
       },
       'append',
       agentSessionService,
     );
-  }, [agentSessionService, projectService, storeScopeKey]);
+  }, [agentSessionService, pageRequest.pageSize, projectService, storeScopeKey, workspaceId]);
 
   const loadMoreProjectSessions = useCallback(
     async (
@@ -930,7 +936,9 @@ export function useProjects(options?: UseProjectsOptions) {
           }
 
           if (synchronized.project !== project) {
-            upsertProjectIntoProjectsStore(synchronized.project, normalizedUserScope);
+            mutateProjectsStoreByScopeKey(baseStoreScopeKey, (projects) =>
+              upsertProjectIntoCollection(projects, synchronized.project),
+            );
           }
 
           return {
@@ -963,7 +971,7 @@ export function useProjects(options?: UseProjectsOptions) {
     },
     [
       agentSessionService,
-      normalizedUserScope,
+      baseStoreScopeKey,
       projectService,
       storeScopeKey,
     ],
@@ -987,6 +995,7 @@ export function useProjects(options?: UseProjectsOptions) {
       {
         page: 1,
         pageSize: pageRequest.pageSize,
+        workspaceId,
       },
       'replace',
       agentSessionService,
@@ -1003,6 +1012,7 @@ export function useProjects(options?: UseProjectsOptions) {
     storeSnapshot.hasFetched,
     storeSnapshot.isLoading,
     storeSnapshot.pageInfo,
+    workspaceId,
   ]);
 
   const normalizedTargetProjectId = options?.targetProjectId?.trim() ?? '';
@@ -1012,7 +1022,7 @@ export function useProjects(options?: UseProjectsOptions) {
     pagesRequested: 0,
     lookupStatus: 'idle' as 'idle' | 'pending' | 'found' | 'missing' | 'failed',
   });
-  const targetResolutionKey = `${normalizedUserScope}\u0001${normalizedTargetProjectId}`;
+  const targetResolutionKey = `${normalizedUserScope}\u0001${workspaceId}\u0001${normalizedTargetProjectId}`;
   if (targetResolutionStateRef.current.key !== targetResolutionKey) {
     targetResolutionStateRef.current = {
       key: targetResolutionKey,
@@ -1067,7 +1077,7 @@ export function useProjects(options?: UseProjectsOptions) {
           return;
         }
 
-        if (!project) {
+        if (!project || project.workspaceId !== workspaceId) {
           currentState.lookupStatus = 'missing';
           setTargetResolutionRevision((revision) => revision + 1);
           return;
@@ -1149,8 +1159,14 @@ export function useProjects(options?: UseProjectsOptions) {
 
   const createProject = async (name: string, options?: CreateProjectOptions) => {
     try {
-      const newProject = await projectService.createProject(name, options);
-      mutateProjectsStore(normalizedUserScope, (projects) =>
+      if (!workspaceId) {
+        throw new Error('Select a Workspace before creating a Project.');
+      }
+      const newProject = await projectService.createProject(name, {
+        ...options,
+        workspaceId,
+      });
+      mutateProjectsStoreByScopeKey(baseStoreScopeKey, (projects) =>
         upsertProjectIntoCollection(projects, newProject),
         { invalidatePagination: true },
       );
@@ -1160,6 +1176,35 @@ export function useProjects(options?: UseProjectsOptions) {
         error instanceof Error && error.message.trim()
           ? error.message
           : 'Failed to create project';
+      setStoreSnapshot((previousSnapshot) => ({
+        ...previousSnapshot,
+        error: message,
+      }));
+      throw error;
+    }
+  };
+
+  const importProject = async (
+    options: Omit<ImportProjectOptions, 'workspaceId'>,
+  ) => {
+    try {
+      if (!workspaceId) {
+        throw new Error('Select a Workspace before importing a Project.');
+      }
+      const importedProject = await projectService.importProject({
+        ...options,
+        workspaceId,
+      });
+      mutateProjectsStoreByScopeKey(baseStoreScopeKey, (projects) =>
+        upsertProjectIntoCollection(projects, importedProject),
+        { invalidatePagination: true },
+      );
+      return importedProject;
+    } catch (error: unknown) {
+      const message =
+        error instanceof Error && error.message.trim()
+          ? error.message
+          : 'Failed to import project';
       setStoreSnapshot((previousSnapshot) => ({
         ...previousSnapshot,
         error: message,
@@ -1206,7 +1251,7 @@ export function useProjects(options?: UseProjectsOptions) {
         modelId: options.modelId,
         runtimeLocationId,
       });
-      mutateProjectsStore(normalizedUserScope, (projects) =>
+      mutateProjectsStoreByScopeKey(baseStoreScopeKey, (projects) =>
         upsertAgentSessionIntoCollection(projects, project.projectId, agentSession),
       );
       return agentSession;
@@ -1226,7 +1271,7 @@ export function useProjects(options?: UseProjectsOptions) {
   const renameProject = async (projectId: string, name: string) => {
     try {
       await projectService.renameProject(projectId, name);
-      mutateProjectsStore(normalizedUserScope, (projects) =>
+      mutateProjectsStoreByScopeKey(baseStoreScopeKey, (projects) =>
         updateProjectInCollection(projects, projectId, { name }),
         { invalidatePagination: true },
       );
@@ -1249,7 +1294,7 @@ export function useProjects(options?: UseProjectsOptions) {
         ...(updates.name === undefined ? {} : { name: updates.name }),
         ...(updates.description === undefined ? {} : { description: updates.description }),
       };
-      mutateProjectsStore(normalizedUserScope, (projects) =>
+      mutateProjectsStoreByScopeKey(baseStoreScopeKey, (projects) =>
         updateProjectInCollection(projects, projectId, projectPatch),
         { invalidatePagination: true },
       );
@@ -1268,7 +1313,7 @@ export function useProjects(options?: UseProjectsOptions) {
   const archiveProject = async (projectId: string) => {
     try {
       await projectService.archiveProject(projectId);
-      mutateProjectsStore(normalizedUserScope, (projects) =>
+      mutateProjectsStoreByScopeKey(baseStoreScopeKey, (projects) =>
         updateProjectInCollection(projects, projectId, { status: 'archived' }),
         { invalidatePagination: true },
       );
@@ -1286,7 +1331,7 @@ export function useProjects(options?: UseProjectsOptions) {
   const deleteProject = async (projectId: string) => {
     try {
       await projectService.deleteProject(projectId);
-      mutateProjectsStore(normalizedUserScope, (projects) =>
+      mutateProjectsStoreByScopeKey(baseStoreScopeKey, (projects) =>
         removeProjectFromCollection(projects, projectId),
         { invalidatePagination: true },
       );
@@ -1309,7 +1354,7 @@ export function useProjects(options?: UseProjectsOptions) {
   ) => {
     try {
       const updatedSession = await agentSessionService.updateSession(agentSessionId, { title });
-      mutateProjectsStore(normalizedUserScope, (projects) =>
+      mutateProjectsStoreByScopeKey(baseStoreScopeKey, (projects) =>
         updateAgentSessionInCollection(projects, projectId, agentSessionId, (agentSession) => ({
           ...agentSession,
           title: updatedSession.title?.trim() || title,
@@ -1371,7 +1416,7 @@ export function useProjects(options?: UseProjectsOptions) {
                 : session.lastItemSequence,
         });
       }
-      mutateProjectsStore(normalizedUserScope, (projects) =>
+      mutateProjectsStoreByScopeKey(baseStoreScopeKey, (projects) =>
         updateAgentSessionInCollection(projects, projectId, agentSessionId, (agentSession) => ({
           ...agentSession,
           ...updates,
@@ -1442,7 +1487,7 @@ export function useProjects(options?: UseProjectsOptions) {
         modelId: currentBinding?.modelId,
         runtimeLocationId: currentBinding?.runtimeLocationId ?? undefined,
       });
-      mutateProjectsStore(normalizedUserScope, (projects) =>
+      mutateProjectsStoreByScopeKey(baseStoreScopeKey, (projects) =>
         upsertAgentSessionIntoCollection(projects, project.projectId, agentSession),
       );
       return agentSession;
@@ -1462,7 +1507,7 @@ export function useProjects(options?: UseProjectsOptions) {
   const deleteAgentSession = async (projectId: string, agentSessionId: string) => {
     try {
       await agentSessionService.deleteSession(agentSessionId);
-      mutateProjectsStore(normalizedUserScope, (projects) =>
+      mutateProjectsStoreByScopeKey(baseStoreScopeKey, (projects) =>
         removeAgentSessionFromCollection(projects, projectId, agentSessionId),
       );
     } catch (error: unknown) {
@@ -1517,7 +1562,7 @@ export function useProjects(options?: UseProjectsOptions) {
       });
       const submittedItems = completed.items.map(toAgentSessionItemView);
       const activityAt = completed.turn.completedAt ?? completed.turn.updatedAt;
-      mutateProjectsStore(normalizedUserScope, (projects) =>
+      mutateProjectsStoreByScopeKey(baseStoreScopeKey, (projects) =>
         updateAgentSessionInCollection(projects, projectId, agentSessionId, (agentSession) => ({
           ...agentSession,
           items: submittedItems.reduce(
@@ -1561,6 +1606,7 @@ export function useProjects(options?: UseProjectsOptions) {
     searchQuery,
     setSearchQuery,
     createProject,
+    importProject,
     createAgentSession,
     renameProject,
     updateProject,

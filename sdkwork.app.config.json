@@ -278,11 +278,11 @@
         "releaseChannel": "INTERNAL",
         "title": "SDKWork BirdCoder 0.1.0 pre-launch",
         "summary": "Internal pre-launch build; every install package remains disabled until governed artifacts are signed and verified.",
-        "content": "BirdCoder owns the coding workbench only. Agent Project, Session, Turn, Session Item, and Interaction facts are owned by sdkwork-agents; skills are owned by sdkwork-skills; human Conversation and Message facts are owned by sdkwork-im.",
+        "content": "BirdCoder owns the coding workbench only. Workspace, Agent Project, Session, Turn, Session Item, and Interaction facts are owned by sdkwork-agents; skills are owned by sdkwork-skills; human Conversation and Message facts are owned by sdkwork-im.",
         "highlights": [
           "BirdCoder is a stateless coding-workbench composition host with no application-owned business tables",
           "BirdCoder exposes four System App API operations and no Backend API or Open API operations",
-          "Agent Project, composition, Session, Turn, Item, and runtime bindings are consumed from sdkwork-agents"
+          "Workspace, Agent Project, composition, Session, Turn, Item, and runtime bindings are consumed from sdkwork-agents"
         ],
         "packageIds": [
           "web-universal-cloud-browser-zip",
@@ -324,6 +324,7 @@
       },
       "permissionCount": 4,
       "dependencyAuthorities": {
+        "agentWorkspaces": "sdkwork-agents",
         "agentProjects": "sdkwork-agents",
         "agentProjectComposition": "sdkwork-agents",
         "agentSessions": "sdkwork-agents",

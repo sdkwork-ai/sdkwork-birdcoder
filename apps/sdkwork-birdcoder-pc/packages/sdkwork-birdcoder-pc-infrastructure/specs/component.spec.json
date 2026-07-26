@@ -91,6 +91,7 @@
       "./services/interfaces/IProjectRuntimeLocationService",
       "./services/interfaces/IGitService",
       "./services/interfaces/IProjectService",
+      "./services/interfaces/IWorkspaceService",
       "./services/interfaces/IVipMembershipService",
       "./services/skillsSdkClient",
       "./services/impl/PromptsSdkPromptService",

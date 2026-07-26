@@ -4,6 +4,20 @@ interface ProjectIdentifier {
   readonly projectId: string;
 }
 
+export interface SandboxDirectoryProjectImportInput {
+  readonly driveLogicalPath: string;
+  readonly driveRootEntryId: string;
+  readonly driveSpaceId: string;
+  readonly name: string;
+  readonly sourceKind: 'drive_sandbox';
+  readonly sourceRef: string;
+  readonly workspaceId: string;
+}
+
+export interface SandboxDirectoryProjectImportPort {
+  importProject(input: SandboxDirectoryProjectImportInput): Promise<ProjectIdentifier>;
+}
+
 export interface ProjectDriveCompositionPort {
   bindProjectDrive(
     projectId: string,
@@ -12,11 +26,10 @@ export interface ProjectDriveCompositionPort {
 }
 
 export interface ImportSandboxDirectoryProjectOptions {
-  readonly compositionPort: ProjectDriveCompositionPort;
-  readonly createProject: (name: string) => Promise<ProjectIdentifier>;
-  readonly deleteCreatedProject?: (projectId: string) => Promise<void>;
   readonly fallbackProjectName: string;
+  readonly importPort: SandboxDirectoryProjectImportPort;
   readonly selection: SandboxSelection;
+  readonly workspaceId: string;
 }
 
 export interface ImportedSandboxDirectoryProject {
@@ -31,19 +44,12 @@ export interface RebindSandboxDirectoryProjectOptions {
   readonly selection: SandboxSelection;
 }
 
-export class SandboxDirectoryProjectImportError extends Error {
-  readonly cleanupError: unknown;
-  readonly projectId: string;
-
-  constructor(projectId: string, cause: unknown, cleanupError: unknown = null) {
-    const reason = cause instanceof Error && cause.message.trim()
-      ? cause.message.trim()
-      : 'The server directory could not be bound to the project.';
-    super(reason, { cause });
-    this.name = 'SandboxDirectoryProjectImportError';
-    this.cleanupError = cleanupError;
-    this.projectId = projectId;
+function normalizeRequired(value: string, label: string): string {
+  const normalized = value.trim();
+  if (!normalized) {
+    throw new Error(`${label} is required.`);
   }
+  return normalized;
 }
 
 function resolveProjectName(selection: SandboxSelection, fallbackProjectName: string): string {
@@ -52,28 +58,27 @@ function resolveProjectName(selection: SandboxSelection, fallbackProjectName: st
     || 'Server project';
 }
 
+export function buildSandboxDirectoryProjectSourceRef(
+  selection: SandboxSelection,
+): string {
+  return `drive://${encodeURIComponent(normalizeRequired(selection.sandboxId, 'Drive space ID'))}/${encodeURIComponent(normalizeRequired(selection.entryId, 'Drive root entry ID'))}`;
+}
+
 export async function importSandboxDirectoryProject(
   options: ImportSandboxDirectoryProjectOptions,
 ): Promise<ImportedSandboxDirectoryProject> {
+  const workspaceId = normalizeRequired(options.workspaceId, 'Workspace ID');
   const projectName = resolveProjectName(options.selection, options.fallbackProjectName);
-  const projectId = (await options.createProject(projectName)).projectId.trim();
-  if (!projectId) {
-    throw new Error('Project creation returned an empty project id.');
-  }
-
-  try {
-    await options.compositionPort.bindProjectDrive(projectId, options.selection);
-  } catch (error) {
-    let cleanupError: unknown = null;
-    if (options.deleteCreatedProject) {
-      try {
-        await options.deleteCreatedProject(projectId);
-      } catch (deleteError) {
-        cleanupError = deleteError;
-      }
-    }
-    throw new SandboxDirectoryProjectImportError(projectId, error, cleanupError);
-  }
+  const importedProject = await options.importPort.importProject({
+    driveLogicalPath: options.selection.logicalPath.trim(),
+    driveRootEntryId: normalizeRequired(options.selection.entryId, 'Drive root entry ID'),
+    driveSpaceId: normalizeRequired(options.selection.sandboxId, 'Drive space ID'),
+    name: projectName,
+    sourceKind: 'drive_sandbox',
+    sourceRef: buildSandboxDirectoryProjectSourceRef(options.selection),
+    workspaceId,
+  });
+  const projectId = normalizeRequired(importedProject.projectId, 'Imported Project ID');
 
   return {
     projectId,
@@ -85,9 +90,6 @@ export async function importSandboxDirectoryProject(
 export async function rebindSandboxDirectoryProject(
   options: RebindSandboxDirectoryProjectOptions,
 ): Promise<void> {
-  const projectId = options.projectId.trim();
-  if (!projectId) {
-    throw new Error('Project id is required to bind a server directory.');
-  }
+  const projectId = normalizeRequired(options.projectId, 'Project ID');
   await options.compositionPort.bindProjectDrive(projectId, options.selection);
 }

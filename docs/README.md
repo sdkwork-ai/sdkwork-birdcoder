@@ -30,9 +30,11 @@ Binding, Artifact, and Checkpoint belong to `sdkwork-agents`. Skills belong to
 to `sdkwork-im`. AI Session Items and IM Messages have different business
 semantics and are never persisted as copies of each other.
 
-The retired workbench Workspace grouping is IAM organization scope plus one
-canonical Agents Project. The pre-launch cutover keeps no projection, shadow
-table, dual write, alias, facade, or second Project id.
+The retired BirdCoder Workspace authority is replaced by canonical Agents
+Workspace and Project aggregates. Agents initializes one default Workspace per
+user; BirdCoder keeps only the selected Workspace/Project UI state. The
+pre-launch cutover keeps no projection, shadow table, dual write, alias,
+facade, or second identifier.
 
 ## Working And Evidence
 

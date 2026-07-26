@@ -15,8 +15,10 @@ Specs: APP_PC_ARCHITECTURE_SPEC.md, SECURITY_SPEC.md, OBSERVABILITY_SPEC.md
 | Current-device project directory mount | PC `ProjectDeviceMountRegistry` |
 | Native path, Git process, worktree, terminal | PC/Tauri host |
 
-The registry uses the canonical Agents `projectId`. There is no workbench
-Workspace id, second Project id, mapping record, or server mount API.
+The registry uses the canonical Agents `projectId`. The selected canonical
+Agents `workspaceId` scopes Project inventory but is not duplicated in a
+BirdCoder database. There is no second Workspace/Project id, mapping record, or
+server mount API.
 
 ## Session Flow
 

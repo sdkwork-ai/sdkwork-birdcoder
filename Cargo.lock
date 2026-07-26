@@ -4771,6 +4771,7 @@ dependencies = [
  "sdkwork-agent-server",
  "sdkwork-agents-database-host",
  "sdkwork-agents-kernel-bridge",
+ "sdkwork-agents-runtime-facade",
  "sdkwork-iam-database-host",
  "sdkwork-iam-embedded-application-bootstrap",
  "sdkwork-intelligence-agents-service",
@@ -4876,7 +4877,6 @@ dependencies = [
  "axum 0.8.9",
  "sdkwork-birdcoder-errors",
  "sdkwork-iam-context-service",
- "sdkwork-iam-web-adapter",
  "sdkwork-utils-rust",
  "sdkwork-web-core",
 ]

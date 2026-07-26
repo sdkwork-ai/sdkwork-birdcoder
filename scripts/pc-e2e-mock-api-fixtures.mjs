@@ -152,6 +152,7 @@ export function createAgentProjectFixture(overrides = {}) {
   return {
     id: '10001',
     projectId: 'project.e2e-1',
+    workspaceId: 'workspace.e2e-default',
     tenantId: E2E_USER.tenantId,
     organizationId: E2E_USER.organizationId,
     ownerUserId: E2E_USER.id,
@@ -161,6 +162,24 @@ export function createAgentProjectFixture(overrides = {}) {
     status: 'active',
     driveAccessMode: 'disabled',
     defaultAgentId: 'agent.birdcoder',
+    version: '1',
+    createdAt: '2026-01-01T00:00:00.000Z',
+    updatedAt: '2026-01-01T00:00:00.000Z',
+    ...overrides,
+  };
+}
+
+export function createAgentWorkspaceFixture(overrides = {}) {
+  return {
+    id: '9001',
+    workspaceId: 'workspace.e2e-default',
+    tenantId: E2E_USER.tenantId,
+    organizationId: E2E_USER.organizationId,
+    ownerUserId: E2E_USER.id,
+    name: 'Default Workspace',
+    description: 'Playwright fixture for the canonical Agents Workspace catalog.',
+    isDefault: true,
+    status: 'active',
     version: '1',
     createdAt: '2026-01-01T00:00:00.000Z',
     updatedAt: '2026-01-01T00:00:00.000Z',

@@ -1,8 +1,8 @@
 {
   "schemaVersion": 2,
   "kind": "sdkwork.agents-birdcoder-alignment",
-  "updatedAt": "2026-07-22",
-  "summary": "BirdCoder consumes the canonical Agents session system through generated SDK clients and owns no parallel session, transcript, interaction, runtime, artifact, or checkpoint authority.",
+  "updatedAt": "2026-07-25",
+  "summary": "BirdCoder consumes canonical Agents Workspace, Project, and Session systems through generated SDK clients and owns no parallel workspace, project, session, transcript, interaction, runtime, artifact, or checkpoint authority.",
   "authorityDocs": [
     "docs/architecture/tech/TECH_ARCHITECTURE.md",
     "docs/product/prd/PRD.md",

@@ -19,17 +19,21 @@ facts remain with their domain owners:
 
 | Owner | Canonical facts |
 | --- | --- |
-| `sdkwork-agents` | Agent Project, composition slot, Session, Turn, Session Item, Interaction, Runtime Binding, Artifact, and Checkpoint |
+| `sdkwork-agents` | Workspace, Agent Project, composition slot, Session, Turn, Session Item, Interaction, Runtime Binding, Artifact, and Checkpoint |
 | `sdkwork-skills` | Skill package, version, artifact, capability, and installation |
 | `sdkwork-im` | Human Conversation, Message, Member, and ReadCursor |
 | `sdkwork-iam` | Authentication, organization scope, membership, role, permission, and audit |
 | `sdkwork-drive` | Drive and sandbox storage |
 | `sdkwork-documents` | Document identity and content |
 
-The retired workbench Workspace aggregate is folded directly into IAM
-organization scope plus the canonical Agents `AgentProject`. BirdCoder and
-the PC client use one `projectId`; there is no Workspace service, BirdCoder
-Project, id mapping, or compatibility layer.
+Workspace and Project are canonical `sdkwork-agents` aggregates. Every user has
+an idempotently initialized default Workspace, and every Project belongs to one
+Workspace. BirdCoder consumes both through the generated Agents App SDK and
+keeps only the current Workspace/Project selection as UI session state; it has
+no BirdCoder-owned Workspace/Project service, persistence, id mapping, or
+compatibility layer. The Header can create and rename Workspaces and can archive
+or delete empty non-default Workspaces; the default Workspace is protected by
+Agents.
 
 AI assistant content is an Agents Session Item stream. IM messaging is human
 or channel communication. The two models may carry stable correlation
@@ -62,7 +66,7 @@ BirdCoder owns four App API operations:
 Backend API operations: **0**. Open API operations: **0**. The authored
 authority is
 [the BirdCoder App OpenAPI](sdks/sdkwork-birdcoder-app-sdk/openapi/sdkwork-birdcoder-app-api.openapi.json).
-Project, composition, Session, Skill, IAM, Drive, and Document operations are
+Workspace, Project, composition, Session, Skill, IAM, Drive, and Document operations are
 consumed from their owner SDK families and are not copied into BirdCoder. Human
 Conversation and Message facts remain owned by IM; BirdCoder consumes the IM
 SDK only when an independent human messaging feature is enabled.
@@ -73,7 +77,10 @@ PC feature packages receive generated owner SDK clients or typed ports from
 the composition root. They do not issue raw HTTP, add manual authentication
 headers, fork DTOs, or import generated transport internals.
 
-- Project and Session workflows use `@sdkwork/agents-app-sdk`.
+- Workspace, Project, and Session workflows use `@sdkwork/agents-app-sdk`.
+- The Header selects a Workspace first and lists only that Workspace's Projects.
+- Drive sandbox import uses the Agents Project import command with the selected
+  `workspaceId`; local directory paths and handles remain device-local.
 - A Session uses the same canonical `projectId`, then records its opaque
   runtime location through Agents `sessionRuntimeBindings`.
 - Sandbox composition uses the Agents `drive/drive` composition slot.

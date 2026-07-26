@@ -126,9 +126,14 @@ const agentsRegistry = readJson(agentsRoot, 'database/contract/table-registry.js
 const agentsTables = new Set((agentsRegistry.tables ?? []).map((entry) => entry.table_name));
 assert.ok(agentsTables.size > 0, 'sdkwork-agents canonical table registry must not be empty');
 assert.equal(
-  [...agentsTables].some((tableName) => tableName.includes('workspace')),
-  false,
-  'sdkwork-agents must use Project as the aggregate and must not introduce a Workspace table',
+  agentsTables.has('ai_agent_workspace'),
+  true,
+  'sdkwork-agents must publish the canonical Workspace aggregate table.',
+);
+assert.equal(
+  agentsTables.has('ai_agent_project'),
+  true,
+  'sdkwork-agents must publish the canonical Workspace-scoped Project aggregate table.',
 );
 
 assert.equal(

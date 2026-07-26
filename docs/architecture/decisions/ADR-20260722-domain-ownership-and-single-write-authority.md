@@ -27,8 +27,9 @@ BirdCoder becomes a stateless composition host:
 | BirdCoder App API | Four read-only System operations |
 | Backend/Open API | No BirdCoder operations |
 | Permissions | Four System read permissions |
-| Project | Canonical Agents `AgentProject` and `projectId` |
-| Grouping scope | IAM organization context; no workbench Workspace aggregate |
+| Workspace | Canonical Agents `AgentWorkspace` and `workspaceId`; one default per user |
+| Project | Canonical Workspace-scoped Agents `AgentProject` and `projectId` |
+| Authorization scope | IAM organization context; no BirdCoder-owned Workspace aggregate |
 | AI execution | Agents Session, Turn, Session Item, Interaction, and Runtime Binding |
 | Skills | `sdkwork-skills` |
 | Human communication | IM Conversation, Message, Member, and ReadCursor |

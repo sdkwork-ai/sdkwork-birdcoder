@@ -13,7 +13,7 @@ Migration: [MIG-2026-0002](../../migrations/MIG-2026-0002-domain-ownership-cutov
 | --- | --- |
 | Rust ownership | Stateless System assembly; no BirdCoder business database, Project/Workspace service, or business route |
 | API, SDK, IAM | 4 App operations, 0 Backend/Open operations, 4 permissions, reproducible generation |
-| PC Project and Session | Agents SDK, one `projectId`, Agents runtime bindings, no Workspace authority |
+| PC Workspace, Project and Session | Agents SDK, canonical `workspaceId`/`projectId`, default Workspace initialization, Agents runtime bindings, no BirdCoder-owned authority |
 | PC local capability | Allowlisted device state; mount, filesystem, Git, worktree, and terminal remain local |
 | Composition | `drive/drive` sandbox; `document/documents` references resolved through the Documents App SDK without a local projection |
 | Documentation | Canon, guides, evidence, API/SDK indexes, and PC docs describe only the final boundary |

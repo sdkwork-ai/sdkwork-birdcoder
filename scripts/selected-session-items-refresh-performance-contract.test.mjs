@@ -58,8 +58,13 @@ assert.match(
 );
 assert.doesNotMatch(
   hookSource,
-  /Workspace|workspaceId|workspaceRealtime|ChatMessage|\.messages\b/,
-  'Selected Agent Session Item hydration must not reintroduce Workspace or IM Message semantics.',
+  /workspaceRealtime|ChatMessage|\.messages\b/,
+  'Selected Agent Session Item hydration must not reintroduce realtime Workspace or IM Message semantics.',
+);
+assert.match(
+  hookSource,
+  /upsertAgentSessionIntoProjectsStore\([\s\S]*project\.workspaceId,[\s\S]*userScope,/s,
+  'Selected Agent Session Item hydration must preserve the canonical Workspace partition when updating the Project store.',
 );
 
 console.log('selected Agent Session Item refresh performance contract passed.');

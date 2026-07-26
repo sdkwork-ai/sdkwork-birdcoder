@@ -5,6 +5,7 @@ import { CodeChatEmptyState } from './CodeChatEmptyState';
 
 export interface CodePageProps {
   isVisible?: boolean;
+  workspaceId: string;
   projectId?: string;
   initialAgentSessionId?: string;
   onProjectChange?: (projectId: string) => void;

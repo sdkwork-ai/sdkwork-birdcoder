@@ -3,6 +3,18 @@ import type { AgentProjectView } from '@sdkwork/birdcoder-pc-contracts-commons';
 
 export interface CreateProjectOptions {
   description?: string;
+  workspaceId: string;
+}
+
+export interface ImportProjectOptions {
+  description?: string;
+  driveLogicalPath?: string;
+  driveRootEntryId: string;
+  driveSpaceId: string;
+  name: string;
+  sourceKind: string;
+  sourceRef: string;
+  workspaceId: string;
 }
 
 export interface UpdateProjectOptions {
@@ -31,6 +43,7 @@ export interface AgentProjectPageRequest {
   pageSize: number;
   q?: string;
   status?: AgentProjectView['status'];
+  workspaceId: string;
 }
 
 export interface AgentProjectViewPage {
@@ -41,7 +54,8 @@ export interface AgentProjectViewPage {
 export interface IProjectService {
   getProjectsPage(request: AgentProjectPageRequest): Promise<AgentProjectViewPage>;
   getProjectById(projectId: string): Promise<AgentProjectView | null>;
-  createProject(name: string, options?: CreateProjectOptions): Promise<AgentProjectView>;
+  createProject(name: string, options: CreateProjectOptions): Promise<AgentProjectView>;
+  importProject(options: ImportProjectOptions): Promise<AgentProjectView>;
   renameProject(projectId: string, name: string): Promise<void>;
   updateProject(projectId: string, updates: UpdateProjectOptions): Promise<void>;
   archiveProject(projectId: string): Promise<void>;

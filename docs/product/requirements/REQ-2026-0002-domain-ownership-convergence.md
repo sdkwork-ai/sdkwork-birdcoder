@@ -24,12 +24,12 @@ of IM.
 - BirdCoder server owns zero business tables.
 - BirdCoder owns four System App API operations, zero Backend API operations,
   zero Open API operations, and four matching IAM permissions.
-- Agents owns Project, composition, Session, Turn, Session Item, Interaction,
+- Agents owns Workspace, Project, composition, Session, Turn, Session Item, Interaction,
   Runtime Binding, Artifact, and Checkpoint.
 - Skills owns package, version, artifact, capability, and installation facts.
 - IM owns human Conversation, Message, Member, and ReadCursor.
-- IAM organization scope plus Agents Project replaces the former workbench
-  Workspace grouping.
+- Agents Workspace and Project replace the former BirdCoder-owned Workspace
+  grouping; IAM organization scope remains authorization context.
 - PC uses one canonical `projectId` for owner API calls, local mounts, and
   Sessions.
 - Tauri stores only allowlisted device state; local filesystem, Git, worktree,
@@ -54,7 +54,8 @@ of IM.
    operations.
 3. Rust assembly and gateway contain no BirdCoder business database, Project
    service, Workspace service, persistence repository, or matching route.
-4. PC Project operations use the Agents SDK and exactly one `projectId`.
+4. PC Workspace and Project operations use the Agents SDK; each user has a
+   default Workspace and every Project operation is Workspace-scoped.
 5. PC Session operations use the Agents Session hierarchy and
    `sessionRuntimeBindings`; no parallel Session or transcript authority
    remains.

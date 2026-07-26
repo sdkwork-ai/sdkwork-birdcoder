@@ -18,8 +18,8 @@ const projects = read(
 const services = read(
   "apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/src/services/defaultIdeServicesShared.ts",
 );
-const projectMenu = read(
-  "apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-shell/src/application/app/AppProjectMenu.tsx",
+const workspaceProjectPopover = read(
+  "apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-shell/src/application/app/AppWorkspaceProjectPopover.tsx",
 );
 const multiWindow = read(
   "apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-multiwindow/src/pages/MultiWindowProgrammingPage.tsx",
@@ -47,12 +47,12 @@ assert.doesNotMatch(
 );
 assert.match(shell, /source: 'file-menu'/);
 assert.match(shell, /source: 'keyboard-shortcut'/);
-assert.match(shell, /source: 'project-menu'/);
+assert.match(shell, /source: 'workspace-project-popover'/);
 assert.match(
   shell,
   /modelId: newSessionEngineCatalog\.preferredSelection\.modelId/,
 );
-assert.match(projectMenu, /engine\.modelId/);
+assert.match(workspaceProjectPopover, /engine\.modelId/);
 assert.match(hook, /normalizeCreateNewAgentSessionRequest\(/);
 assert.match(hook, /inFlightCreationsRef/);
 assert.match(hook, /creation\.promise/);

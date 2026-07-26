@@ -13,6 +13,7 @@ const APP_IDE_SERVICE_KEYS = [
   'gitService',
   'promptService',
   'projectService',
+  'workspaceService',
   'vipMembershipService',
 ] as const satisfies readonly BirdCoderDefaultIdeServiceKey[];
 
@@ -157,6 +158,7 @@ export function createLazyDefaultIdeServices(): AppIdeServices {
     gitService: createLazyServiceProxy(async () => loadDefaultIdeService('gitService')),
     promptService: createLazyServiceProxy(async () => loadDefaultIdeService('promptService')),
     projectService: createLazyServiceProxy(async () => loadDefaultIdeService('projectService')),
+    workspaceService: createLazyServiceProxy(async () => loadDefaultIdeService('workspaceService')),
     vipMembershipService: createLazyServiceProxy(
       async () => loadDefaultIdeService('vipMembershipService'),
     ),

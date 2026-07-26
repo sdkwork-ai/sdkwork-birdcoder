@@ -12,6 +12,7 @@ export interface HydrateImportedProjectFromAuthorityOptions {
   projectId: string;
   projectService: IProjectService;
   userScope?: string;
+  workspaceId: string;
 }
 
 export interface HydrateImportedProjectFromAuthorityResult {
@@ -28,10 +29,11 @@ export async function hydrateImportedProjectFromAuthority(
   options: HydrateImportedProjectFromAuthorityOptions,
 ): Promise<HydrateImportedProjectFromAuthorityResult | null> {
   const projectId = options.projectId.trim();
-  if (!projectId) {
+  const workspaceId = options.workspaceId.trim();
+  if (!projectId || !workspaceId) {
     return null;
   }
-  const scopeKey = `${options.userScope?.trim() || 'anonymous'}:${projectId}`;
+  const scopeKey = `${options.userScope?.trim() || 'anonymous'}:${workspaceId}:${projectId}`;
   const inflight = inflightHydrations.get(scopeKey);
   if (inflight) {
     return inflight;
@@ -44,7 +46,7 @@ export async function hydrateImportedProjectFromAuthority(
       projectService: options.projectService,
     });
     const project = result.projects?.[0] ?? null;
-    if (!project) {
+    if (!project || project.workspaceId !== workspaceId) {
       return null;
     }
     upsertProjectIntoProjectsStore(project, options.userScope);

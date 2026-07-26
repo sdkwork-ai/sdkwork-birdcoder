@@ -20,6 +20,9 @@ const authSpec = readText(`${pcAppRoot}/tests/e2e/auth-surface.spec.ts`);
 const guestSpec = readText(`${pcAppRoot}/tests/e2e/guest-home.spec.ts`);
 const authenticatedCodeSpec = readText(`${pcAppRoot}/tests/e2e/authenticated-code.spec.ts`);
 const terminalSpec = readText(`${pcAppRoot}/tests/e2e/terminal-browser.spec.ts`);
+const webViteConfig = readText(
+  `${pcAppRoot}/packages/sdkwork-birdcoder-pc-web/vite.config.ts`,
+);
 const webMain = readText(`${pcAppRoot}/packages/sdkwork-birdcoder-pc-web/src/main.tsx`);
 const appContent = readText(`${pcAppRoot}/packages/sdkwork-birdcoder-pc-shell/src/application/app/birdcoderAppContent.tsx`);
 const testEnv = readText(`${pcAppRoot}/packages/sdkwork-birdcoder-pc-web/.env.test`);
@@ -224,9 +227,9 @@ assert.match(
   'PC authenticated-code e2e must exercise the mock IAM password credential.',
 );
 assert.match(
-  authenticatedCodeSpec,
-  /__sdkwork\/platform/u,
-  'PC authenticated-code e2e must observe IAM login through the test-mode platform proxy topology.',
+  webViteConfig,
+  /createBirdcoderCanonicalPlatformDevProxyEntries\(devProxyTargets\.platform\)/u,
+  'PC web test mode must preserve canonical IAM paths through the governed platform proxy topology.',
 );
 assert.match(
   mockServer,

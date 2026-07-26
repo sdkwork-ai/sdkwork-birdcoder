@@ -110,6 +110,7 @@ test('Browser terminal fails closed without a governed project runtime binding',
   const project = {
     id: '10001',
     projectId: 'project.e2e-terminal',
+    workspaceId: 'workspace.e2e-default',
     tenantId: '0',
     organizationId: '0',
     ownerUserId: '1',
@@ -119,6 +120,20 @@ test('Browser terminal fails closed without a governed project runtime binding',
     status: 'active',
     driveAccessMode: 'disabled',
     defaultAgentId: 'agent.birdcoder',
+    version: '1',
+    createdAt: '2026-07-15T12:00:00.000Z',
+    updatedAt: '2026-07-15T12:00:00.000Z',
+  };
+  const workspace = {
+    id: '9001',
+    workspaceId: project.workspaceId,
+    tenantId: '0',
+    organizationId: '0',
+    ownerUserId: '1',
+    name: 'Default Workspace',
+    description: 'Browser terminal Workspace fixture.',
+    isDefault: true,
+    status: 'active',
     version: '1',
     createdAt: '2026-07-15T12:00:00.000Z',
     updatedAt: '2026-07-15T12:00:00.000Z',
@@ -137,6 +152,12 @@ test('Browser terminal fails closed without a governed project runtime binding',
       data: authenticatedSession.user,
       traceId: 'terminal-browser-current-user',
     },
+  }));
+  await page.route('**/app/v3/api/ai/workspaces/default', (route) => route.fulfill({
+    json: itemEnvelope(workspace),
+  }));
+  await page.route('**/app/v3/api/ai/workspaces?**', (route) => route.fulfill({
+    json: pageEnvelope(route, [workspace]),
   }));
   await page.route('**/app/v3/api/ai/projects?**', (route) => route.fulfill({
     json: pageEnvelope(route, [project]),

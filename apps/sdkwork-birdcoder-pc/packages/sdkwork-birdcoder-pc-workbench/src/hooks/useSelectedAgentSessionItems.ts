@@ -7,6 +7,7 @@ import {
 } from '@sdkwork/birdcoder-pc-contracts-commons';
 
 import { useAuth } from '../context/AuthContext.ts';
+import { buildBirdCoderAuthSessionInventoryScope } from '../context/authSessionScope.ts';
 import type { IProjectService } from '../services/interfaces/IProjectService.ts';
 import {
   upsertAgentSessionIntoProjectsStore,
@@ -48,7 +49,7 @@ export function useSelectedAgentSessionItems({
   const [pollRevision, setPollRevision] = useState(0);
   const activeRequestKeyRef = useRef('');
   const normalizedSessionId = normalize(selectedAgentSessionId);
-  const userScope = `${normalize(user?.id) || 'anonymous'}:${sessionRevision}`;
+  const userScope = buildBirdCoderAuthSessionInventoryScope(user?.id, sessionRevision);
   const resolvedProjectId =
     normalize(selectedProject?.projectId) || normalize(selectedAgentSession?.projectId);
   const isExecuting = isAgentSessionViewExecuting(selectedAgentSession);
@@ -123,12 +124,14 @@ export function useSelectedAgentSessionItems({
         if (disposed) {
           return;
         }
-        if (project) {
-          upsertProjectIntoProjectsStore(project, userScope);
+        if (!project) {
+          return;
         }
+        upsertProjectIntoProjectsStore(project, userScope);
         upsertAgentSessionIntoProjectsStore(
           result.projectId,
           result.agentSession,
+          project.workspaceId,
           userScope,
         );
       })

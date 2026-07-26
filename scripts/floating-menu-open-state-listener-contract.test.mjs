@@ -15,14 +15,19 @@ const studioChatSidebarSource = read('apps/sdkwork-birdcoder-pc/packages/sdkwork
 
 assert.match(
   appSource,
-  /const hasOpenProjectMenuSurface =[\s\S]*showProjectMenu[\s\S]*projectActionsMenuId !== null;/,
-  'App must derive project-menu listener activation from actual open surface state instead of keeping a global outside-click listener mounted all the time.',
+  /const hasOpenHeaderSelectionSurface =/,
+  'App must define a shared open-state boundary for the unified Header selection surface.',
+);
+assert.match(
+  appSource,
+  /showWorkspaceProjectPopover \|\|[\s\S]*projectActionsMenuId !== null/,
+  'App must derive unified Header Popover listener activation from the Popover and its nested action states.',
 );
 
 assert.match(
   appSource,
-  /if \(!hasOpenProjectMenuSurface\) \{\s*return;\s*\}[\s\S]*document\.addEventListener\('mousedown', handleProjectMenuClickOutside\);/s,
-  'App project menu must only subscribe to outside clicks while the project menu surface is open.',
+  /if \(!hasOpenHeaderSelectionSurface\) \{\s*return;\s*\}[\s\S]*document\.addEventListener\('mousedown', handleWorkspaceProjectPopoverClickOutside\);/s,
+  'App Workspace and Project Popover must only subscribe to outside clicks while the unified Header selection surface is open.',
 );
 
 assert.match(

@@ -22,17 +22,18 @@ has no server persistence authority.
 
 | Owner | External facts and integration state |
 | --- | --- |
-| `sdkwork-agents` | Project, composition, Session, Turn, Session Item, Interaction, Runtime Binding, Artifact, Checkpoint |
+| `sdkwork-agents` | Workspace, Project, composition, Session, Turn, Session Item, Interaction, Runtime Binding, Artifact, Checkpoint |
 | `sdkwork-skills` | Skill package, version, artifact, capability, installation |
 | `sdkwork-im` | Owns Human Conversation, Message, Member, and ReadCursor; consumed only when an independent human messaging feature is enabled |
 | `sdkwork-iam` | Authentication, organization scope, membership, authorization, audit |
 | `sdkwork-drive` | Drive and sandbox storage |
 | `sdkwork-documents` | Document identity and content |
 
-The former workbench Workspace is not migrated into another BirdCoder
-aggregate. Its grouping scope is IAM organization context and its project
-identity is the canonical Agents `AgentProject`. PC state carries one
-`projectId`.
+The former BirdCoder-owned Workspace authority is retired. Workspace and
+Project now remain canonical Agents aggregates: default Workspace initialization
+and Project import/list/create ownership live in `sdkwork-agents`, while PC
+keeps only session-scoped `workspaceId`/`projectId` selection and device-local
+mount state.
 
 AI assistant rows are rendering views over Agents Session Items, not IM
 Messages. The exact UI boundary is

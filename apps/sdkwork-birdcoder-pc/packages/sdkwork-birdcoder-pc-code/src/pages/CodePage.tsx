@@ -20,6 +20,7 @@ import { useAgentSessionActions } from '@sdkwork/birdcoder-pc-workbench/hooks/us
 import { useAgentSessionEngineModelSelection } from '@sdkwork/birdcoder-pc-workbench/hooks/useAgentSessionEngineModelSelection';
 import { useFileSystem } from '@sdkwork/birdcoder-pc-workbench/hooks/useFileSystem';
 import { useIDEServices } from '@sdkwork/birdcoder-pc-workbench/context/IDEContext';
+import { buildBirdCoderAuthSessionInventoryScope } from '@sdkwork/birdcoder-pc-workbench/context/authSessionScope';
 import { useProjectLocalWorkingDirectory } from '@sdkwork/birdcoder-pc-workbench/hooks/useProjectLocalWorkingDirectory';
 import { useProjectRuntimeLocation } from '@sdkwork/birdcoder-pc-workbench/hooks/useProjectRuntimeLocation';
 import { useProjectGitOverview } from '@sdkwork/birdcoder-pc-workbench/hooks/useProjectGitOverview';
@@ -58,6 +59,7 @@ import { useCodeWorkbenchCommands } from './useCodeWorkbenchCommands';
 
 function CodePageComponent({
   isVisible = true,
+  workspaceId,
   projectId,
   initialAgentSessionId,
   onProjectChange,
@@ -73,6 +75,7 @@ function CodePageComponent({
     searchQuery,
     setSearchQuery,
     createProject,
+    importProject,
     createAgentSession,
     renameProject,
     archiveProject,
@@ -89,6 +92,7 @@ function CodePageComponent({
   } = useProjects({
     isActive: isVisible,
     targetProjectId: projectId,
+    workspaceId,
   });
   const {
     agentSessionService,
@@ -97,7 +101,8 @@ function CodePageComponent({
   } = useIDEServices();
   const resolveProjectLocalWorkingDirectory = useProjectLocalWorkingDirectory();
   const resolveProjectRuntimeLocation = useProjectRuntimeLocation();
-  const { user } = useAuth();
+  const { sessionRevision, user } = useAuth();
+  const userScope = buildBirdCoderAuthSessionInventoryScope(user?.id, sessionRevision);
 
   const { addToast } = useToast();
   const { preferences, updatePreferences } = useWorkbenchPreferences();
@@ -416,9 +421,8 @@ function CodePageComponent({
   }, [addToast]);
 
   const { selectFolderAndImportProject } = useCodeServerDirectoryProjectImport({
-    createProject,
-    deleteProject,
-    projectService,
+    importProject,
+    workspaceId,
   });
 
   const activateImportedProject = useCallback((projectId: string) => {
@@ -439,7 +443,8 @@ function CodePageComponent({
           knownProjects: projects,
           projectId,
           projectService,
-          userScope: user?.id,
+          userScope,
+          workspaceId,
         });
         if (!hydratedProject) {
           return;
@@ -453,7 +458,7 @@ function CodePageComponent({
         console.error('Failed to refresh imported project sessions', error);
       }
     })();
-  }, [agentSessionService, projectService, projects, selectSession, user?.id]);
+  }, [agentSessionService, projectService, projects, selectSession, userScope, workspaceId]);
   const {
     handleRefreshAgentSessionItems,
     handleRefreshProjectSessions,

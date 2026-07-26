@@ -319,6 +319,7 @@ function buildFallbackDispatchSummary({
 export const MultiWindowProgrammingPage = memo(function MultiWindowProgrammingPage({
   initialAgentSessionId,
   isVisible = true,
+  workspaceId,
   projectId,
   onAgentSessionChange,
   onProjectChange,
@@ -334,6 +335,7 @@ export const MultiWindowProgrammingPage = memo(function MultiWindowProgrammingPa
   } = useProjects({
     isActive: isVisible,
     targetProjectId: projectId,
+    workspaceId,
   });
   const { createAgentSessionWithSelection } = useWorkbenchChatSelection({
     createAgentSession,

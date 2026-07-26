@@ -12,6 +12,7 @@ import type {
   AgentProjectViewPage,
   BindProjectDriveCompositionInput,
   CreateProjectOptions,
+  ImportProjectOptions,
   IProjectService,
   ProjectDriveComposition,
   UpdateProjectOptions,
@@ -23,7 +24,7 @@ type AgentsProjectCompositionSlotsSdkApi =
 
 export type AgentProjectsSdkPort = Pick<
   AgentsProjectsSdkApi,
-  'archive' | 'create' | 'delete' | 'list' | 'retrieve' | 'update'
+  'archive' | 'create' | 'delete' | 'import' | 'list' | 'retrieve' | 'update'
 >;
 
 export interface ApiBackedProjectServiceOptions {
@@ -112,6 +113,7 @@ function mapProjectDriveComposition(
 function mapProject(project: AgentProjectRecord): AgentProjectView {
   return {
     projectId: project.projectId,
+    workspaceId: project.workspaceId,
     tenantId: project.tenantId,
     organizationId: project.organizationId,
     ownerUserId: project.ownerUserId,
@@ -122,6 +124,15 @@ function mapProject(project: AgentProjectRecord): AgentProjectView {
     driveAccessMode: project.driveAccessMode,
     ...(project.defaultAgentId == null ? {} : { defaultAgentId: project.defaultAgentId }),
     ...(project.defaultModelId == null ? {} : { defaultModelId: project.defaultModelId }),
+    ...(project.importSourceKind == null ? {} : { importSourceKind: project.importSourceKind }),
+    ...(project.importSourceRef == null ? {} : { importSourceRef: project.importSourceRef }),
+    ...(project.driveSpaceId == null ? {} : { driveSpaceId: project.driveSpaceId }),
+    ...(project.driveRootEntryId == null
+      ? {}
+      : { driveRootEntryId: project.driveRootEntryId }),
+    ...(project.driveLogicalPath == null
+      ? {}
+      : { driveLogicalPath: project.driveLogicalPath }),
     version: project.version,
     createdAt: project.createdAt,
     updatedAt: project.updatedAt,
@@ -148,6 +159,7 @@ export class ApiBackedProjectService implements IProjectService {
     const response = await this.projects.list({
       page: pagination.page,
       pageSize: pagination.page_size,
+      workspaceId: request.workspaceId,
       ...(request.q?.trim() ? { q: request.q.trim() } : {}),
       ...(request.status ? { status: request.status } : {}),
       ...(request.includeDeleted === undefined
@@ -178,12 +190,35 @@ export class ApiBackedProjectService implements IProjectService {
 
   async createProject(
     name: string,
-    options: CreateProjectOptions = {},
+    options: CreateProjectOptions,
   ): Promise<AgentProjectView> {
     const project = await this.projects.create({
       name,
+      workspaceId: normalizeRequired(options.workspaceId, 'Workspace ID'),
       ...(options.description?.trim()
         ? { description: options.description.trim() }
+        : {}),
+    });
+    this.versions.set(project.projectId, project.version);
+    return mapProject(project);
+  }
+
+  async importProject(options: ImportProjectOptions): Promise<AgentProjectView> {
+    const project = await this.projects.import({
+      workspaceId: normalizeRequired(options.workspaceId, 'Workspace ID'),
+      name: normalizeRequired(options.name, 'Project name'),
+      sourceKind: normalizeRequired(options.sourceKind, 'Import source kind'),
+      sourceRef: normalizeRequired(options.sourceRef, 'Import source reference'),
+      driveSpaceId: normalizeRequired(options.driveSpaceId, 'Drive space ID'),
+      driveRootEntryId: normalizeRequired(
+        options.driveRootEntryId,
+        'Drive root entry ID',
+      ),
+      ...(options.description?.trim()
+        ? { description: options.description.trim() }
+        : {}),
+      ...(options.driveLogicalPath?.trim()
+        ? { driveLogicalPath: options.driveLogicalPath.trim() }
         : {}),
     });
     this.versions.set(project.projectId, project.version);
@@ -258,6 +293,17 @@ export class ApiBackedProjectService implements IProjectService {
 
   async getProjectDrive(projectId: string): Promise<ProjectDriveComposition | null> {
     const normalizedProjectId = normalizeRequired(projectId, 'Project ID');
+    const project = await this.projects.retrieve(normalizedProjectId);
+    if (project.driveSpaceId && project.driveRootEntryId) {
+      return {
+        driveId: project.driveSpaceId,
+        logicalPath: project.driveLogicalPath ?? '',
+        projectId: project.projectId,
+        rootEntryId: project.driveRootEntryId,
+        slotId: 'import-source',
+        version: project.version,
+      };
+    }
     const slot = await this.projectCompositionSlots
       .retrieve(normalizedProjectId, PRIMARY_DRIVE_SLOT_ID)
       .catch((error: unknown) => {

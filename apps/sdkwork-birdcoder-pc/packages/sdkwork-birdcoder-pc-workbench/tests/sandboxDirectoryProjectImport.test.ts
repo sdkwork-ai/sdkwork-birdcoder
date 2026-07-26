@@ -1,8 +1,8 @@
 import { describe, expect, it, vi } from 'vitest';
 import type { SandboxSelection } from '@sdkwork/drive-pc-sandbox-contracts';
 import {
+  buildSandboxDirectoryProjectSourceRef,
   importSandboxDirectoryProject,
-  SandboxDirectoryProjectImportError,
 } from '../src/workbench/sandboxDirectoryProjectImport';
 
 const selection: SandboxSelection = {
@@ -15,13 +15,13 @@ const selection: SandboxSelection = {
 };
 
 describe('importSandboxDirectoryProject', () => {
-  it('creates a project and binds only the selected logical Drive identity', async () => {
-    const bindProjectDrive = vi.fn(async () => undefined);
+  it('imports once with Workspace and selected Drive identity', async () => {
+    const importProject = vi.fn(async () => ({ projectId: 'project-1' }));
     const result = await importSandboxDirectoryProject({
-      compositionPort: { bindProjectDrive },
-      createProject: vi.fn(async () => ({ projectId: 'project-1' })),
       fallbackProjectName: 'Fallback',
+      importPort: { importProject },
       selection,
+      workspaceId: 'workspace.default.100',
     });
 
     expect(result).toEqual({
@@ -29,54 +29,38 @@ describe('importSandboxDirectoryProject', () => {
       projectName: 'demo',
       selection,
     });
-    expect(bindProjectDrive).toHaveBeenCalledWith('project-1', selection);
-    expect(JSON.stringify(result)).not.toMatch(/[A-Za-z]:\\|providerRootRef|fileSystemHandle/u);
+    expect(importProject).toHaveBeenCalledTimes(1);
+    expect(importProject).toHaveBeenCalledWith({
+      driveLogicalPath: 'projects/demo',
+      driveRootEntryId: 'entry-projects-demo',
+      driveSpaceId: 'sandbox-1',
+      name: 'demo',
+      sourceKind: 'drive_sandbox',
+      sourceRef: 'drive://sandbox-1/entry-projects-demo',
+      workspaceId: 'workspace.default.100',
+    });
+    expect(JSON.stringify(importProject.mock.calls)).not.toMatch(
+      /[A-Za-z]:\\|providerRootRef|fileSystemHandle/u,
+    );
   });
 
-  it('deletes only the newly created project when binding fails', async () => {
-    const deleteCreatedProject = vi.fn(async () => undefined);
+  it('rejects import when no Workspace is selected', async () => {
+    const importProject = vi.fn(async () => ({ projectId: 'project-2' }));
+
     await expect(importSandboxDirectoryProject({
-      compositionPort: {
-        bindProjectDrive: vi.fn(async () => {
-          throw new Error('Drive grant is no longer available.');
-        }),
-      },
-      createProject: vi.fn(async () => ({ projectId: 'project-2' })),
-      deleteCreatedProject,
       fallbackProjectName: 'Fallback',
+      importPort: { importProject },
       selection,
-    })).rejects.toMatchObject({
-      message: 'Drive grant is no longer available.',
-      projectId: 'project-2',
-    });
-    expect(deleteCreatedProject).toHaveBeenCalledWith('project-2');
+      workspaceId: ' ',
+    })).rejects.toThrow('Workspace ID is required.');
+    expect(importProject).not.toHaveBeenCalled();
   });
 
-  it('preserves cleanup failure evidence without masking the binding error', async () => {
-    let caught: unknown;
-    try {
-      await importSandboxDirectoryProject({
-        compositionPort: {
-          bindProjectDrive: vi.fn(async () => {
-            throw new Error('Binding rejected.');
-          }),
-        },
-        createProject: vi.fn(async () => ({ projectId: 'project-3' })),
-        deleteCreatedProject: vi.fn(async () => {
-          throw new Error('Cleanup rejected.');
-        }),
-        fallbackProjectName: 'Fallback',
-        selection,
-      });
-    } catch (error) {
-      caught = error;
-    }
-
-    expect(caught).toBeInstanceOf(SandboxDirectoryProjectImportError);
-    expect(caught).toMatchObject({
-      message: 'Binding rejected.',
-      projectId: 'project-3',
-      cleanupError: expect.objectContaining({ message: 'Cleanup rejected.' }),
-    });
+  it('builds an encoded stable source reference', () => {
+    expect(buildSandboxDirectoryProjectSourceRef({
+      ...selection,
+      sandboxId: 'space/alpha',
+      entryId: 'root beta',
+    })).toBe('drive://space%2Falpha/root%20beta');
   });
 });

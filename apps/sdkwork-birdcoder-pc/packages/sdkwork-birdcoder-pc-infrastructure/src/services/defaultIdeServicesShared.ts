@@ -11,6 +11,7 @@ import { createBirdCoderDriveSandboxExplorerPort } from './driveSandboxExplorerR
 import { AgentsDocumentsProjectDocumentService } from './impl/AgentsDocumentsProjectDocumentService.ts';
 import { DriveSandboxProjectFileSystemService } from './impl/DriveSandboxProjectFileSystemService.ts';
 import { ApiBackedProjectService } from './impl/ApiBackedProjectService.ts';
+import { ApiBackedWorkspaceService } from './impl/ApiBackedWorkspaceService.ts';
 import { createBirdCoderRuntimeAuthService } from './impl/RuntimeAuthService.ts';
 import { RuntimeFileSystemService } from './impl/RuntimeFileSystemService.ts';
 import { RuntimeProjectRuntimeLocationService } from './impl/RuntimeProjectRuntimeLocationService.ts';
@@ -23,6 +24,7 @@ import type { IFileSystemService } from './interfaces/IFileSystemService.ts';
 import type { IGitService } from './interfaces/IGitService.ts';
 import type { IProjectRuntimeLocationService } from './interfaces/IProjectRuntimeLocationService.ts';
 import type { IProjectService } from './interfaces/IProjectService.ts';
+import type { IWorkspaceService } from './interfaces/IWorkspaceService.ts';
 import type { IPromptService } from './interfaces/IPromptService.ts';
 import type { IVipMembershipService } from './interfaces/IVipMembershipService.ts';
 import { ProjectDeviceMountRegistry } from './ProjectDeviceMountRegistry.ts';
@@ -40,6 +42,7 @@ export interface BirdCoderDefaultIdeServices {
   promptService: IPromptService;
   projectRuntimeLocationService: IProjectRuntimeLocationService;
   projectService: IProjectService;
+  workspaceService: IWorkspaceService;
   vipMembershipService: IVipMembershipService;
 }
 
@@ -62,6 +65,7 @@ export interface BirdCoderDefaultIdeSharedRuntime {
   projectRuntimeLocationService: IProjectRuntimeLocationService;
   projectService: IProjectService;
   skillsClient: SdkworkSkillsAppClient;
+  workspaceService: IWorkspaceService;
 }
 
 /**
@@ -75,7 +79,6 @@ export function createBirdCoderDefaultIdeSharedRuntime(
   const agentsClient =
     options.agentsClient ??
     createBirdCoderAgentsAppSdkClient({
-      applicationApiBaseUrl: runtimeConfig.applicationApiBaseUrl,
       platformApiGatewayBaseUrl: runtimeConfig.platformApiGatewayBaseUrl,
     });
   const skillsClient =
@@ -100,6 +103,9 @@ export function createBirdCoderDefaultIdeSharedRuntime(
     projectCompositionSlots: agentsClient.ai.agents.projectCompositionSlots,
     projects: agentsClient.ai.agents.projects,
   });
+  const workspaceService = new ApiBackedWorkspaceService(
+    agentsClient.ai.agents.workspaces,
+  );
   let documentsClient = options.documentsClient ?? runtimeConfig.documentsClient;
   const documentService = new AgentsDocumentsProjectDocumentService({
     projectCompositionSlots: agentsClient.ai.agents.projectCompositionSlots,
@@ -149,5 +155,6 @@ export function createBirdCoderDefaultIdeSharedRuntime(
     projectRuntimeLocationService,
     projectService,
     skillsClient,
+    workspaceService,
   };
 }

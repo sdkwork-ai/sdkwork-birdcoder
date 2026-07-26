@@ -15,10 +15,10 @@ const uiShell = (relativePath) =>
 
 const appSource = readBirdcoderAppShellSource();
 const topMenuPath = uiShell('TopMenu.tsx');
-const appProjectMenuPath = shellApp('AppProjectMenu.tsx');
+const workspaceProjectPopoverPath = shellApp('AppWorkspaceProjectPopover.tsx');
 const headerLoadingPath = shellApp('HeaderLoadingStatus.tsx');
 const topMenuSource = fs.readFileSync(topMenuPath, 'utf8');
-const appProjectMenuSource = fs.readFileSync(appProjectMenuPath, 'utf8');
+const workspaceProjectPopoverSource = fs.readFileSync(workspaceProjectPopoverPath, 'utf8');
 const headerLoadingSource = fs.readFileSync(headerLoadingPath, 'utf8');
 
 assert.match(
@@ -41,7 +41,7 @@ assert.doesNotMatch(
 
 assert.match(
   appSource,
-  /const handleSelectMenuProject = useCallback\([\s\S]*latestAgentSessionIdByProjectId\.get\(nextProjectId\)/,
+  /const handleSelectPopoverProject = useCallback\([\s\S]*latestAgentSessionIdByProjectId\.get\(nextProjectId\)/,
   'Project menu selection must resolve the next session through the prebuilt project/session index instead of scanning project arrays inline.',
 );
 
@@ -52,15 +52,15 @@ assert.doesNotMatch(
 );
 
 assert.match(
-  appProjectMenuSource,
+  workspaceProjectPopoverSource,
   /import \{ HeaderLoadingStatus \} from '\.\/HeaderLoadingStatus\.tsx';/,
-  'App header loading must be isolated into a dedicated project-menu child component so recovery timers do not rerender the entire shell.',
+  'App header loading must be isolated into the unified Popover child so recovery timers do not rerender the entire shell.',
 );
 
 assert.match(
   appSource,
-  /import \{ AppProjectMenu \} from '\.\/AppProjectMenu\.tsx';/,
-  'BirdcoderApp must delegate project header rendering into AppProjectMenu so the shell header stays modular and easier to contain.',
+  /import \{ AppWorkspaceProjectPopover \} from '\.\/AppWorkspaceProjectPopover\.tsx';/,
+  'BirdcoderApp must delegate unified Workspace and Project header rendering into AppWorkspaceProjectPopover so the shell header stays modular and easier to contain.',
 );
 
 assert.doesNotMatch(

@@ -45,7 +45,7 @@
     "engines": [],
     "tables": [],
     "externalReferences": [],
-    "reason": "BirdCoder is a stateless coding-workbench composition host. Agent Project, composition, Session, Turn, Item, and runtime-binding facts are owned by sdkwork-agents; local filesystem state remains in the PC host."
+    "reason": "BirdCoder is a stateless coding-workbench composition host. Workspace, Agent Project, composition, Session, Turn, Item, and runtime-binding facts are owned by sdkwork-agents; local filesystem state remains in the PC host."
   },
   "apiOwnership": {
     "appApi": {
@@ -97,6 +97,7 @@
     {
       "owner": "sdkwork-agents",
       "capabilities": [
+        "agent workspaces",
         "agent projects",
         "project composition",
         "sessions",

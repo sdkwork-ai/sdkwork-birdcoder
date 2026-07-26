@@ -45,8 +45,13 @@ export function normalizeProjectsStoreUserScope(
 
 export function buildProjectsStoreScopeKey(
   userScope: string,
+  workspaceId: string,
 ): string {
-  return normalizeProjectsStoreUserScope(userScope);
+  const normalizedWorkspaceId = workspaceId.trim();
+  if (!normalizedWorkspaceId) {
+    throw new Error('Workspace ID is required for the Projects store scope.');
+  }
+  return `${normalizeProjectsStoreUserScope(userScope)}::${normalizedWorkspaceId}`;
 }
 
 export function createProjectsStoreSnapshot(): ProjectsStoreSnapshot {
@@ -65,6 +70,7 @@ function areProjectScalarsEqual(
 ): boolean {
   return (
     left.projectId === right.projectId &&
+    left.workspaceId === right.workspaceId &&
     left.tenantId === right.tenantId &&
     left.organizationId === right.organizationId &&
     left.ownerUserId === right.ownerUserId &&
@@ -675,12 +681,15 @@ export function updateProjectsStoreSnapshot(
   emitProjectsStoreSnapshot(store);
 }
 
-export function mutateProjectsStore(
-  userScope: string,
+export function mutateProjectsStoreByScopeKey(
+  scopeKey: string,
   updater: (projects: readonly AgentProjectView[]) => AgentProjectView[],
   options: { invalidatePagination?: boolean } = {},
 ): void {
-  const store = getProjectsStore(buildProjectsStoreScopeKey(userScope));
+  if (!scopeKey) {
+    return;
+  }
+  const store = getProjectsStore(scopeKey);
   updateProjectsStoreSnapshot(store, (previousSnapshot) => {
     const nextProjects = updater(previousSnapshot.projects);
     if (
@@ -708,14 +717,19 @@ export function mutateProjectsStore(
 export function upsertAgentSessionIntoProjectsStore(
   projectId: string,
   agentSession: AgentSessionView,
+  workspaceId: string,
   userScope?: string,
 ): void {
-  if (!projectId.trim()) {
+  const normalizedWorkspaceId = workspaceId.trim();
+  if (!projectId.trim() || !normalizedWorkspaceId) {
     return;
   }
 
-  mutateProjectsStore(
-    normalizeProjectsStoreUserScope(userScope),
+  mutateProjectsStoreByScopeKey(
+    buildProjectsStoreScopeKey(
+      normalizeProjectsStoreUserScope(userScope),
+      normalizedWorkspaceId,
+    ),
     (projects) => upsertAgentSessionIntoCollection(projects, projectId, agentSession),
   );
 }
@@ -728,8 +742,11 @@ export function upsertProjectIntoProjectsStore(
     return;
   }
 
-  mutateProjectsStore(
-    normalizeProjectsStoreUserScope(userScope),
+  mutateProjectsStoreByScopeKey(
+    buildProjectsStoreScopeKey(
+      normalizeProjectsStoreUserScope(userScope),
+      project.workspaceId,
+    ),
     (projects) => upsertProjectIntoCollection(projects, project),
   );
 }

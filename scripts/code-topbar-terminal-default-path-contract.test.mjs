@@ -15,7 +15,7 @@ const appShellSource = fs.readFileSync(
 );
 const appShellCreateTerminalStart = appShellSource.indexOf('const handleCreateTerminal = useCallback');
 const appShellCreateTerminalEnd = appShellSource.indexOf(
-  'const handleProjectMenuClickOutside',
+  'const handleWorkspaceProjectPopoverClickOutside',
   appShellCreateTerminalStart,
 );
 const appShellCreateTerminalSource = appShellSource.slice(

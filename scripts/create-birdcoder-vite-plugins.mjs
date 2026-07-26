@@ -38,6 +38,17 @@ const terminalPcPackageIds = [
 const defaultBirdcoderNamespace = 'sdkwork-birdcoder-pc-desktop';
 const SDKWORK_BAD_GATEWAY_CODE = 50201;
 const SDKWORK_BAD_GATEWAY_STATUS = 502;
+const BIRDCODER_NON_CANONICAL_API_PREFIXES = [
+  '/__sdkwork',
+  '/proxy/app',
+  '/proxy/backend',
+  '/gateway/app',
+  '/gateway/backend',
+  '/platform/app',
+  '/platform/backend',
+  '/api/app/v3/api',
+  '/api/backend/v3/api',
+];
 export const BIRDCODER_CANONICAL_DEV_PROXY_ROOT = '/';
 export const BIRDCODER_PLATFORM_CANONICAL_APP_API_PROXY_PREFIXES = [
   '/app/v3/api/after_sales',
@@ -1854,6 +1865,52 @@ function createBirdcoderRuntimeEnvBootstrapPlugin({
   return plugin;
 }
 
+function isBirdcoderNonCanonicalApiPath(pathname) {
+  return BIRDCODER_NON_CANONICAL_API_PREFIXES.some(
+    (prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`),
+  );
+}
+
+function createBirdcoderCanonicalApiPathGuardPlugin({
+  namespace = defaultBirdcoderNamespace,
+} = {}) {
+  return {
+    name: `${namespace}-canonical-api-path-guard`,
+    configureServer(server) {
+      server.middlewares.use((req, res, next) => {
+        let pathname;
+        try {
+          pathname = new URL(req.url ?? '/', 'http://birdcoder.local').pathname;
+        } catch {
+          next();
+          return;
+        }
+        if (!isBirdcoderNonCanonicalApiPath(pathname)) {
+          next();
+          return;
+        }
+
+        const traceId = uuid().replaceAll('-', '');
+        const body = JSON.stringify({
+          type: 'https://docs.sdkwork.com/problems/40401',
+          title: 'Resource not found',
+          status: 404,
+          code: 40401,
+          detail: 'The requested API path is not canonical.',
+          instance: `${req.method ?? 'GET'} ${pathname}`,
+          traceId,
+          i18nKey: 'errors.result.40401',
+          reason: 'noncanonical-api-path',
+        });
+        res.statusCode = 404;
+        res.setHeader('Content-Type', 'application/problem+json');
+        res.setHeader('X-SdkWork-Trace-Id', traceId);
+        res.end(body);
+      });
+    },
+  };
+}
+
 function createBirdcoderTailwindcssPlugin({
   namespace = defaultBirdcoderNamespace,
   toolingRootDir = defaultBirdcoderToolingRootDir,
@@ -1883,6 +1940,7 @@ function createBirdcoderVitePlugins({
 } = {}) {
   /** @type {BirdcoderOpaqueVitePluginOption[]} */
   const plugins = [
+    createBirdcoderCanonicalApiPathGuardPlugin({ namespace }),
     createBirdcoderCommonJsDefaultCompatPlugin({
       appRootDir,
       toolingRootDir,
@@ -1930,6 +1988,7 @@ export {
   BIRDCODER_VITE_DEV_WATCH_IGNORED,
   BIRDCODER_VITE_WEB_OPTIMIZE_DEPS_INCLUDE,
   createBirdcoderCommonJsDefaultCompatPlugin,
+  createBirdcoderCanonicalApiPathGuardPlugin,
   createBirdcoderCoreEnvCompatPlugin,
   createBirdcoderWorkspaceAliasEntries,
   createBirdcoderWorkspaceFsAllowList,
@@ -1939,6 +1998,7 @@ export {
   createBirdcoderSharedRouterCompatPlugin,
   createBirdcoderTypeScriptTransformPlugin,
   createBirdcoderVitePlugins,
+  isBirdcoderNonCanonicalApiPath,
   onBirdcoderRollupWarning,
   resolveBirdcoderPublicRuntimeEnv,
   resolveBirdcoderTerminalInfrastructureRuntimePath,

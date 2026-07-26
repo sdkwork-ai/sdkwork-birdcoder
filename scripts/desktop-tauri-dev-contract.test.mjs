@@ -109,7 +109,7 @@ const tauriCliRunnerScriptPath = path.join(rootDir, 'scripts', 'run-tauri-cli.mj
 const tauriTargetCleanScriptPath = path.join(rootDir, 'scripts', 'ensure-tauri-target-clean.mjs');
 
 const workspacePackageScriptRunnerPath = path.join(rootDir, 'scripts', 'run-workspace-package-script.mjs');
-const appProjectMenuSourcePath = path.join(
+const workspaceProjectPopoverSourcePath = path.join(
   rootDir,
   'apps',
     'sdkwork-birdcoder-pc',
@@ -119,7 +119,7 @@ const appProjectMenuSourcePath = path.join(
   'src',
   'application',
   'app',
-  'AppProjectMenu.tsx',
+  'AppWorkspaceProjectPopover.tsx',
 );
 const codeTopBarPath = path.join(
   rootDir,
@@ -181,7 +181,10 @@ const desktopTauriHostFileSystemSource = fs.readFileSync(
 const desktopViteConfigSource = fs.readFileSync(desktopViteConfigPath, 'utf8');
 const desktopViteHostSource = fs.readFileSync(desktopViteHostPath, 'utf8');
 const appSource = readBirdcoderAppShellSource(rootDir);
-const appProjectMenuSource = fs.readFileSync(appProjectMenuSourcePath, 'utf8');
+const workspaceProjectPopoverSource = fs.readFileSync(
+  workspaceProjectPopoverSourcePath,
+  'utf8',
+);
 const codeTopBarSource = fs.readFileSync(codeTopBarPath, 'utf8');
 const desktopIndexHtmlSource = fs.readFileSync(desktopIndexHtmlPath, 'utf8');
 const workspacePackageScriptRunnerSource = fs.existsSync(workspacePackageScriptRunnerPath)
@@ -884,19 +887,19 @@ assert.match(
 assert.ok(
   (
     (appSource.match(/data-no-drag="true"/g) ?? []).length
-    + (appProjectMenuSource.match(/data-no-drag="true"/g) ?? []).length
+    + (workspaceProjectPopoverSource.match(/data-no-drag="true"/g) ?? []).length
   ) >= 4,
   'The custom application header must mark interactive title-bar regions as data-no-drag so menus and window controls do not accidentally start a pending window drag.',
 );
 assert.match(
-  appProjectMenuSource,
-  /<button\r?\n\s+type="button"\r?\n\s+data-no-drag="true"[\s\S]*?aria-haspopup="menu"/u,
-  'The project menu trigger must stay data-no-drag so clicking the active project selector never starts window movement.',
+  workspaceProjectPopoverSource,
+  /<button\r?\n\s+type="button"\r?\n\s+data-no-drag="true"[\s\S]*?aria-haspopup="dialog"/u,
+  'The Workspace and Project trigger must stay data-no-drag so clicking the active selection never starts window movement.',
 );
 assert.match(
-  appProjectMenuSource,
-  /<div\r?\n\s+data-no-drag="true"\r?\n[\s\S]*?className="absolute top-full/u,
-  'The project menu popover must stay data-no-drag so project controls inside the menu remain fully interactive.',
+  workspaceProjectPopoverSource,
+  /<section\r?\n\s+data-no-drag="true"\r?\n\s+role="dialog"/u,
+  'The Workspace and Project Popover must stay data-no-drag so all controls inside remain fully interactive.',
 );
 assert.doesNotMatch(
   appSource,

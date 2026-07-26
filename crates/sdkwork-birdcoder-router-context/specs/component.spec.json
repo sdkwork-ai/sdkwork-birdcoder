@@ -83,6 +83,7 @@
     "publicExports": [
       ".",
       "sdkwork_birdcoder_router_context::WebRequestContext",
+      "sdkwork_birdcoder_router_context::IamAppContext",
       "sdkwork_birdcoder_router_context::RequiredIamContext"
     ],
     "providedPorts": [
@@ -93,8 +94,8 @@
     ],
     "requiredPorts": [
       {
-        "name": "iamWebRequestContext",
-        "export": "."
+        "name": "iamAppContext",
+        "export": "sdkwork_birdcoder_router_context::IamAppContext"
       }
     ],
     "runtimeEntrypoints": [],
@@ -108,8 +109,8 @@
     "configKeys": []
   },
   "integration": {
-    "authority": "Provides typed request extractors and context translation for BirdCoder route crates; it does not own IAM authentication, permission policy, or route handlers.",
-    "crossDomainComposition": "Resolves a verified IAM app context at the BirdCoder HTTP boundary. It does not create a BirdCoder Workspace, Project, Session, IM messaging, or deployment context."
+    "authority": "Provides typed request extractors for BirdCoder route crates over the IAM context contract injected by the composed assembly; it does not own IAM authentication, permission policy, context translation, or route handlers.",
+    "crossDomainComposition": "Consumes a verified IamAppContext at the BirdCoder HTTP boundary. It does not depend on IAM web-adapter implementation details or create a BirdCoder Workspace, Project, Session, IM messaging, or deployment context."
   },
   "verification": {
     "commands": [

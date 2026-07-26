@@ -22,7 +22,8 @@ PC browser/Tauri
 ```
 
 There is no BirdCoder server business database and no second Workspace,
-Project, Session, transcript, or runtime-location aggregate.
+Project, Session, transcript, or runtime-location aggregate. Canonical Workspace
+and Project aggregates live in `sdkwork-agents`.
 
 ## 2. Technology Choices
 
@@ -81,7 +82,7 @@ not SQL business records and cannot be converted into native or remote paths.
 
 | Facts | System of record |
 | --- | --- |
-| Project, composition, Session, Turn, Session Item, Interaction, Runtime Binding, Artifact, Checkpoint | `sdkwork-agents` |
+| Workspace, Project, composition, Session, Turn, Session Item, Interaction, Runtime Binding, Artifact, Checkpoint | `sdkwork-agents` |
 | Skill package, version, artifact, capability, installation | `sdkwork-skills` |
 | Human Conversation, Message, Member, ReadCursor | `sdkwork-im` |
 | Authentication, organization scope, membership, role, permission, audit | `sdkwork-iam` |
@@ -123,14 +124,15 @@ runtime composition
 No layer may substitute raw HTTP, manual auth headers, hand-written envelope
 parsing, a copied DTO, or another project's private source.
 
-## 5. Project, Composition, And Session Flow
+## 5. Workspace, Project, Composition, And Session Flow
 
-The former BirdCoder Workspace is removed, not migrated into another local
-model. IAM organization scope provides grouping and authorization context.
-Agents `AgentProject` is the only Project aggregate.
+The former BirdCoder Workspace is removed as a local authority. Agents
+`AgentWorkspace` and `AgentProject` are the only Workspace and Project
+aggregates. IAM organization scope remains authorization context, not a
+replacement Workspace identity.
 
 ```text
-IAM organization scope
+Agents AgentWorkspace (canonical workspaceId; one default per user)
   -> Agents AgentProject (canonical projectId)
        -> composition slots
        -> Session
@@ -140,9 +142,16 @@ IAM organization scope
             -> Session Runtime Binding
 ```
 
-PC creates, lists, updates, archives, and deletes Projects through the Agents
-App SDK. Every UI and device-mount reference uses the returned `projectId`.
-There is no alias, dual ID, or mapping table.
+PC ensures, creates, retrieves, lists, renames, archives, and deletes Workspaces
+through the Agents App SDK, renders Workspace selection on the left side of the
+Header, and lists only Projects in the selected Workspace on its right. The
+default Workspace cannot be archived or deleted, and non-default Workspaces
+must contain no non-deleted Projects before either transition. PC creates,
+imports, lists, updates, archives, and deletes Projects through the same SDK.
+Every UI and device-mount reference uses the returned `workspaceId` and
+`projectId`; there is no alias, dual ID, or mapping table. Drive sandbox imports
+use the Agents Project import command.
+Local folder paths and browser handles never cross the PC host boundary.
 
 When a Session needs local execution context:
 

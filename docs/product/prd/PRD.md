@@ -22,8 +22,8 @@ presentation and local host capabilities, not remote business aggregates.
 
 | User | Outcome |
 | --- | --- |
-| PC developer | Organize canonical Agents Projects, use AI Sessions, edit files, run local terminals, and operate Git from one workbench. |
-| Team developer | Use IAM organization scope and owner-module authorization without a second workbench Workspace identity. |
+| PC developer | Organize canonical Agents Workspaces and Projects, use AI Sessions, edit files, run local terminals, and operate Git from one workbench. |
+| Team developer | Use Agents Workspace/Project scope with IAM organization authorization and no BirdCoder-owned duplicate aggregate. |
 | Operator | Deploy and observe a stateless BirdCoder gateway without a BirdCoder database lifecycle. |
 | Security reviewer | Trace every fact to one owner and verify that local paths, credentials, and human messages do not cross incorrect boundaries. |
 
@@ -31,7 +31,9 @@ presentation and local host capabilities, not remote business aggregates.
 
 Goals:
 
-- Use one canonical Agents Project and one `projectId` across PC workflows.
+- Use canonical Agents Workspace and Project identifiers across PC workflows.
+- Ensure each signed-in user has one idempotently initialized default Workspace.
+- Scope Project listing, creation, and import to the selected Workspace.
 - Use the Agents Session, Turn, Session Item, Interaction, and Runtime Binding
   lifecycle for every AI assistant workflow.
 - Keep human IM communication semantically and operationally distinct.
@@ -44,7 +46,7 @@ Goals:
 
 Non-goals:
 
-- Maintaining a BirdCoder Workspace, Project, Session, message, Skill, or
+- Maintaining a BirdCoder-owned Workspace, Project, Session, message, Skill, or
   runtime-location system of record.
 - Retaining pre-launch compatibility data, route aliases, dual identifiers, or
   synchronized copies.
@@ -57,8 +59,10 @@ Non-goals:
 
 ## 4. User Scenarios
 
-1. A signed-in user works within IAM organization scope and lists or creates
-   canonical Agents Projects.
+1. A signed-in user receives an idempotently initialized default Agents
+   Workspace, selects a Workspace in the Header, and lists or creates only its
+   canonical Agents Projects. The same Header creates and renames Workspaces
+   and archives or deletes empty non-default Workspaces.
 2. The PC client selects an Agents Project, creates an Agents Session with the
    same `projectId`, and writes the opaque local runtime reference through
    Agents `sessionRuntimeBindings`.
@@ -69,8 +73,10 @@ Non-goals:
    host boundary.
 5. Terminal, filesystem, Git, and worktree actions resolve the authorized local
    mount and fail closed when it is missing or stale.
-6. A project uses an Agents `drive/drive` composition slot for sandbox
-   storage and `document/documents` slots for project documents. PC resolves
+6. A Drive sandbox directory is imported once through the Agents Project
+   import command under the selected Workspace. A project uses an Agents
+   `drive/drive` composition slot for sandbox storage and `document/documents`
+   slots for project documents. PC resolves
    document references through the injected Documents App SDK and owns no
    document binding, content, version, or projection authority.
 7. An operator deploys the Rust gateway without a BirdCoder database,
@@ -80,8 +86,8 @@ Non-goals:
 
 1. BirdCoder owns only System descriptor, health, route, and runtime metadata.
 2. The server owns no business table or database lifecycle.
-3. PC Project operations use the generated Agents App SDK and one canonical
-   `projectId`.
+3. PC Workspace and Project operations use the generated Agents App SDK;
+   Project inventory, creation, and import require the selected `workspaceId`.
 4. PC AI workflows use canonical Agents Sessions and Session Items without a
    local Session or transcript authority.
 5. Session creation records runtime association through the Agents runtime
@@ -95,7 +101,9 @@ Non-goals:
    SDK call when the slot pairing or reference is invalid.
 9. Frontend features consume injected owner clients or ports and do not
    implement raw transport or local SDK forks.
-10. Rust and PC documentation, contracts, generated SDKs, and runtime behavior
+10. The Header renders Workspace selection on the left and the selected
+    Workspace's Project inventory on the right.
+11. Rust and PC documentation, contracts, generated SDKs, and runtime behavior
     remain mutually consistent.
 
 ## 6. Quality, Security, And Commercial Gates

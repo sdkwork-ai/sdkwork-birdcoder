@@ -10,6 +10,7 @@ import {
   createBirdCoderDataEnvelope,
   createBirdCoderListEnvelope,
   createAgentSessionFixture,
+  createAgentWorkspaceFixture,
   createCodeEngineCatalogFixture,
   createIamDeviceAuthorizationFixture,
   createIamRuntimeSettings,
@@ -26,6 +27,11 @@ const allowedOrigins = new Set(
     .map((origin) => origin.trim())
     .filter(Boolean),
 );
+const defaultWorkspace = createAgentWorkspaceFixture();
+const workspaces = [defaultWorkspace];
+const projects = [createAgentProjectFixture()];
+let createdWorkspaceSequence = 0;
+let createdProjectSequence = 0;
 
 function corsHeaders(request) {
   const origin = request.headers.origin?.trim();
@@ -194,7 +200,7 @@ function handleRoute(method, url, request, body) {
     };
   }
 
-  if (pathname === '/app/v3/api/ai/projects' && method === 'GET') {
+  if (pathname === '/app/v3/api/ai/workspaces/default' && method === 'POST') {
     if (!isAuthenticatedRequest(request)) {
       return {
         statusCode: 401,
@@ -204,7 +210,64 @@ function handleRoute(method, url, request, body) {
 
     return {
       statusCode: 200,
-      payload: createBirdCoderListEnvelope([createAgentProjectFixture()]),
+      payload: createBirdCoderDataEnvelope(defaultWorkspace),
+    };
+  }
+
+  if (pathname === '/app/v3/api/ai/workspaces' && method === 'GET') {
+    if (!isAuthenticatedRequest(request)) {
+      return {
+        statusCode: 401,
+        payload: createAppbaseFailure('No authenticated SDKWork IAM user.', '401'),
+      };
+    }
+
+    return {
+      statusCode: 200,
+      payload: createBirdCoderListEnvelope(
+        workspaces.filter((workspace) => workspace.status === 'active'),
+      ),
+    };
+  }
+
+  if (pathname === '/app/v3/api/ai/workspaces' && method === 'POST') {
+    if (!isAuthenticatedRequest(request)) {
+      return {
+        statusCode: 401,
+        payload: createAppbaseFailure('No authenticated SDKWork IAM user.', '401'),
+      };
+    }
+
+    createdWorkspaceSequence += 1;
+    const workspace = createAgentWorkspaceFixture({
+      id: String(9_001 + createdWorkspaceSequence),
+      workspaceId: `workspace.e2e-created-${createdWorkspaceSequence}`,
+      name: String(body.name ?? '').trim() || `E2E Workspace ${createdWorkspaceSequence}`,
+      description: String(body.description ?? '').trim() || null,
+      isDefault: false,
+    });
+    workspaces.push(workspace);
+    return {
+      statusCode: 201,
+      payload: createBirdCoderDataEnvelope(workspace),
+    };
+  }
+
+  if (pathname === '/app/v3/api/ai/projects' && method === 'GET') {
+    if (!isAuthenticatedRequest(request)) {
+      return {
+        statusCode: 401,
+        payload: createAppbaseFailure('No authenticated SDKWork IAM user.', '401'),
+      };
+    }
+
+    const workspaceId = searchParams.get('workspaceId')?.trim();
+    const workspaceProjects = workspaceId
+      ? projects.filter((project) => project.workspaceId === workspaceId)
+      : projects;
+    return {
+      statusCode: 200,
+      payload: createBirdCoderListEnvelope(workspaceProjects),
     };
   }
 
@@ -218,15 +281,18 @@ function handleRoute(method, url, request, body) {
 
     const requestedName = String(body.name ?? '').trim();
     const requestedDescription = String(body.description ?? '').trim();
+    createdProjectSequence += 1;
+    const project = createAgentProjectFixture({
+      id: String(10_001 + createdProjectSequence),
+      projectId: `project.e2e-created-${createdProjectSequence}`,
+      workspaceId: String(body.workspaceId ?? '').trim() || defaultWorkspace.workspaceId,
+      name: requestedName || 'E2E Project',
+      description: requestedDescription || createAgentProjectFixture().description,
+    });
+    projects.push(project);
     return {
       statusCode: 201,
-      payload: createBirdCoderDataEnvelope(
-        createAgentProjectFixture({
-          name: requestedName || 'E2E Project',
-          description:
-            requestedDescription || createAgentProjectFixture().description,
-        }),
-      ),
+      payload: createBirdCoderDataEnvelope(project),
     };
   }
 
