@@ -11,9 +11,16 @@ interface BirdCoderPublicRuntimeEnv {
   VITE_SDKWORK_AGENTS_APP_API_BASE_URL?: string;
   VITE_SDKWORK_APPBASE_APP_API_BASE_URL?: string;
   VITE_SDKWORK_BIRDCODER_APPLICATION_PUBLIC_HTTP_URL?: string;
+  VITE_SDKWORK_BIRDCODER_DEPLOYMENT_PROFILE?: string;
   VITE_SDKWORK_BIRDCODER_PLATFORM_API_GATEWAY_HTTP_URL?: string;
   VITE_SDKWORK_DRIVE_APP_API_BASE_URL?: string;
   VITE_SDKWORK_IAM_APP_API_BASE_URL?: string;
+}
+
+function isStandaloneProfile(): boolean {
+  return readPublicRuntimeEnv().VITE_SDKWORK_BIRDCODER_DEPLOYMENT_PROFILE
+    ?.trim()
+    .toLowerCase() === 'standalone';
 }
 
 let boundRuntimeConfig: BirdCoderH5RuntimeConfig = {};
@@ -81,12 +88,14 @@ export function resolveBirdCoderH5ApplicationApiBaseUrl(): string {
 
 export function resolveBirdCoderH5AgentsAppApiBaseUrl(): string {
   const env = readPublicRuntimeEnv();
-  const configured = resolveRequiredDependencyApiBaseUrl(
-    'Agents',
-    boundRuntimeConfig.agentsAppApiBaseUrl,
-    env.VITE_SDKWORK_AGENTS_APP_API_BASE_URL,
-    env.VITE_SDKWORK_BIRDCODER_PLATFORM_API_GATEWAY_HTTP_URL,
-  );
+  const configured = isStandaloneProfile()
+    ? resolveBirdCoderH5ApplicationApiBaseUrl()
+    : resolveRequiredDependencyApiBaseUrl(
+        'Agents',
+        boundRuntimeConfig.agentsAppApiBaseUrl,
+        env.VITE_SDKWORK_AGENTS_APP_API_BASE_URL,
+        env.VITE_SDKWORK_BIRDCODER_PLATFORM_API_GATEWAY_HTTP_URL,
+      );
   return configured.endsWith('/app/v3/api')
     ? configured
     : `${configured}/app/v3/api`;
@@ -94,6 +103,9 @@ export function resolveBirdCoderH5AgentsAppApiBaseUrl(): string {
 
 export function resolveBirdCoderH5DriveAppApiBaseUrl(): string {
   const env = readPublicRuntimeEnv();
+  if (isStandaloneProfile()) {
+    return resolveBirdCoderH5ApplicationApiBaseUrl();
+  }
   return resolveRequiredDependencyApiBaseUrl(
     'Drive',
     boundRuntimeConfig.driveAppApiBaseUrl,
@@ -104,6 +116,9 @@ export function resolveBirdCoderH5DriveAppApiBaseUrl(): string {
 
 export function resolveBirdCoderH5AppbaseAppApiBaseUrl(): string {
   const env = readPublicRuntimeEnv();
+  if (isStandaloneProfile()) {
+    return resolveBirdCoderH5ApplicationApiBaseUrl();
+  }
   return resolveRequiredDependencyApiBaseUrl(
     'IAM',
     boundRuntimeConfig.appbaseAppApiBaseUrl,

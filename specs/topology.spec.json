@@ -31,7 +31,7 @@
     "developmentProfileId": "standalone.development",
     "productionProfileId": "cloud.production",
     "desktopBuildProfileId": "standalone.production",
-    "gatewayBind": "127.0.0.1:3900"
+    "gatewayBind": "127.0.0.1:10240"
   },
   "profileFiles": {
     "standalone.development": "etc/topology/standalone.development.env",

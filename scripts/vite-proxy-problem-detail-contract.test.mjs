@@ -22,7 +22,7 @@ const response = {
 configureBirdcoderSdkworkProxyProblemResponse(proxy);
 proxy.emit(
   'error',
-  new Error('connect ECONNREFUSED 127.0.0.1:3900'),
+  new Error('connect ECONNREFUSED 127.0.0.1:10440'),
   { method: 'GET', url: '/app/v3/api/drive/sandboxes?page=1&page_size=50' },
   response,
 );
@@ -56,6 +56,6 @@ assert.match(
   /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/u,
 );
 assert.equal(headers.get('x-sdkwork-trace-id'), problem.traceId);
-assert.doesNotMatch(responseBody, /127\.0\.0\.1|3900|ECONNREFUSED/u);
+assert.doesNotMatch(responseBody, /127\.0\.0\.1|10440|ECONNREFUSED/u);
 
 console.log('Vite proxy ProblemDetail contract passed.');

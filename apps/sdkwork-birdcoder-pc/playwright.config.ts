@@ -37,7 +37,7 @@ export default defineConfig({
       timeout: 120_000,
       env: {
         SDKWORK_BIRDCODER_APPLICATION_PUBLIC_HTTP_URL: mockApiBaseUrl,
-        SDKWORK_BIRDCODER_PLATFORM_API_GATEWAY_HTTP_URL: mockApiBaseUrl,
+        SDKWORK_BIRDCODER_DEPLOYMENT_PROFILE: 'standalone',
       },
     },
   ],

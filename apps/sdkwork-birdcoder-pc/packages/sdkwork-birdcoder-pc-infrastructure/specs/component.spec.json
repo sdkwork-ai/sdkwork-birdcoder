@@ -258,7 +258,7 @@
   },
   "integration": {
     "authority": "This component composes generated SDK adapters and native host adapters; it owns no business database or domain record.",
-    "dependencyPolicy": "BirdCoder-owned SDK clients use application.public-ingress. Agents, Skills, Documents, Prompts, IAM, Drive, Messaging, Membership, and Order clients use platform.api-gateway or an explicit dependency override with the shared TokenManager; cross-plane fallback is forbidden. Project documents resolve only through canonical Agents document/documents composition slots and the injected Documents App SDK.",
+    "dependencyPolicy": "BirdCoder-owned SDK clients use application.public-ingress. Standalone-capable dependency clients use that same ingress only when the standalone gateway declares and mounts the owner api-assembly contribution; cloud dependency clients use platform.api-gateway or an explicit dependency override. All authenticated clients share the TokenManager, and cross-profile fallback is forbidden. Project documents resolve only through canonical Agents document/documents composition slots and the injected Documents App SDK.",
     "persistencePolicy": "Agent sessions, assistant items, prompts, skills, documents, and coding-workbench facts are never persisted by this package. Desktop IAM session credentials use only the operating-system credential store host port.",
     "transportPolicy": "Handwritten HTTP transports, raw auth headers, local SDK forks, projection repositories, local business SQL, ambiguous global SDK URLs, and connection-plane compatibility fallbacks are forbidden."
   },

@@ -992,8 +992,17 @@ export function resolveBirdcoderWebRuntimeEnvSource(
   for (const key of BIRDCODER_PUBLIC_RUNTIME_ENV_API_ORIGIN_KEYS) {
     delete resolvedRuntimeEnvSource[key];
   }
-  resolvedRuntimeEnvSource.VITE_SDKWORK_BIRDCODER_PLATFORM_API_GATEWAY_HTTP_URL =
+  resolvedRuntimeEnvSource.VITE_SDKWORK_BIRDCODER_APPLICATION_PUBLIC_HTTP_URL =
     BIRDCODER_CANONICAL_DEV_PROXY_ROOT;
+  const deploymentProfile = String(
+    runtimeEnvSource.SDKWORK_BIRDCODER_DEPLOYMENT_PROFILE
+      ?? runtimeEnvSource.VITE_SDKWORK_BIRDCODER_DEPLOYMENT_PROFILE
+      ?? '',
+  ).trim().toLowerCase();
+  if (deploymentProfile !== 'standalone') {
+    resolvedRuntimeEnvSource.VITE_SDKWORK_BIRDCODER_PLATFORM_API_GATEWAY_HTTP_URL =
+      BIRDCODER_CANONICAL_DEV_PROXY_ROOT;
+  }
   return resolvedRuntimeEnvSource;
 }
 
@@ -1026,19 +1035,27 @@ export function resolveBirdcoderDevProxyTargets(
   runtimeEnvSource = {},
   required = true,
 ) {
+  const deploymentProfile = String(
+    runtimeEnvSource.SDKWORK_BIRDCODER_DEPLOYMENT_PROFILE ?? '',
+  ).trim().toLowerCase();
+  const standalone = deploymentProfile === 'standalone';
   const application = normalizeBirdcoderDevProxyTarget(
     runtimeEnvSource.SDKWORK_BIRDCODER_APPLICATION_PUBLIC_HTTP_URL,
     'BirdCoder application development proxy target',
   );
-  const platform = normalizeBirdcoderDevProxyTarget(
-    runtimeEnvSource.SDKWORK_BIRDCODER_PLATFORM_API_GATEWAY_HTTP_URL,
-    'SDKWork platform development proxy target',
-  );
+  const platform = standalone
+    ? undefined
+    : normalizeBirdcoderDevProxyTarget(
+        runtimeEnvSource.SDKWORK_BIRDCODER_PLATFORM_API_GATEWAY_HTTP_URL,
+        'SDKWork platform development proxy target',
+      );
 
-  if (required && (!application || !platform)) {
+  if (required && (!application || (!standalone && !platform))) {
     const missingKeys = [
       !application && 'SDKWORK_BIRDCODER_APPLICATION_PUBLIC_HTTP_URL',
-      !platform && 'SDKWORK_BIRDCODER_PLATFORM_API_GATEWAY_HTTP_URL',
+      !standalone
+        && !platform
+        && 'SDKWORK_BIRDCODER_PLATFORM_API_GATEWAY_HTTP_URL',
     ].filter(Boolean);
     throw new Error(
       `BirdCoder development proxy topology is incomplete. Configure ${missingKeys.join(' and ')}.`,

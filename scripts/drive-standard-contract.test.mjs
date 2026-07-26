@@ -135,20 +135,6 @@ assert.deepEqual(
   [],
   'BirdCoder PC must not re-export Drive APIs.',
 );
-const driveApiSurface = pcComponentSpec.contracts?.dependencyApiSurfaces?.find(
-  (surface) => surface.workspace === 'sdkwork-drive-app-sdk',
-);
-assert.equal(
-  driveApiSurface?.runtimeMode,
-  'external-via-platform-surface',
-  'BirdCoder PC must resolve Drive through the platform API surface.',
-);
-assert.equal(
-  driveApiSurface?.sameOriginAllowed,
-  false,
-  'BirdCoder PC must not claim that its application gateway embeds Drive.',
-);
-
 const birdcoderAssembly = read(
   'crates/sdkwork-api-birdcoder-assembly/src/bootstrap.rs',
 );
@@ -182,10 +168,33 @@ assert.deepEqual(
   [],
   'The standalone gateway must remain a thin BirdCoder host without dependency SDK ownership.',
 );
-assert.deepEqual(
-  birdcoderGatewayComponent.contracts?.dependencyApiSurfaces,
-  [],
-  'The standalone gateway must not advertise Drive as a same-origin mounted surface.',
+const driveApiSurface = birdcoderGatewayComponent.contracts?.dependencyApiSurfaces?.find(
+  (surface) => surface.workspace === 'sdkwork-drive',
+);
+assert.equal(driveApiSurface?.runtimeMode, 'same-origin');
+assert.equal(driveApiSurface?.sameOriginAllowed, true);
+assert.equal(driveApiSurface?.cargoDependency, 'sdkwork-api-drive-assembly');
+assert.equal(
+  driveApiSurface?.embeddedExecutableExport,
+  'sdkwork_api_drive_assembly::assemble_app_api_contribution',
+);
+assert.deepEqual(driveApiSurface?.profileCoverage, ['standalone']);
+
+const birdcoderGatewayCargo = read(
+  'crates/sdkwork-api-birdcoder-standalone-gateway/Cargo.toml',
+);
+const birdcoderGatewayProfile = read(
+  'crates/sdkwork-api-birdcoder-standalone-gateway/src/profile.rs',
+);
+assert.match(birdcoderGatewayCargo, /sdkwork-api-drive-assembly/u);
+assert.match(
+  birdcoderGatewayProfile,
+  /sdkwork_api_drive_assembly::assemble_app_api_contribution/u,
+);
+assert.doesNotMatch(
+  `${birdcoderGatewayCargo}\n${birdcoderGatewayProfile}`,
+  /sdkwork-routes-drive/u,
+  'The BirdCoder standalone gateway must consume Drive only through its owner assembly contribution.',
 );
 
 const birdcoderRuntimeConfig = read(
@@ -197,8 +206,14 @@ if (!birdcoderRuntimeConfig.includes('SDKWORK_BIRDCODER_APPLICATION_PUBLIC_INGRE
 if (!iamRuntime.includes("resolveBirdCoderDependencySdkBaseUrl('Drive'")) {
   fail('iamRuntime must resolve Drive through the dependency SDK topology boundary');
 }
-if (/runtimeConfig\.apiBaseUrl|resolveBirdCoderBrowserDependencySdkBaseUrl|window\.location\.origin/u.test(iamRuntime)) {
-  fail('Drive dependency resolution must not fall back to the BirdCoder application or renderer origin');
+const sdkBaseUrls = read(
+  'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/src/services/sdkBaseUrls.ts',
+);
+if (!/standalone[\s\S]*resolveBirdCoderApplicationSdkBaseUrl/u.test(sdkBaseUrls)) {
+  fail('Standalone Drive SDK resolution must use the assembled BirdCoder application ingress');
+}
+if (/resolveBirdCoderBrowserDependencySdkBaseUrl|window\.location\.origin/u.test(iamRuntime)) {
+  fail('Drive dependency resolution must stay inside the governed SDK base URL resolver');
 }
 
 const h5PackageJson = JSON.parse(read('apps/sdkwork-birdcoder-h5/package.json'));
@@ -221,13 +236,13 @@ const topologyRuntime = createTopologyRuntime(
 const standaloneDevelopmentProfile = topologyRuntime.loadProfile('standalone.development');
 assert.equal(
   standaloneDevelopmentProfile.SDKWORK_BIRDCODER_PLATFORM_API_GATEWAY_HTTP_URL,
-  'http://127.0.0.1:3900',
-  'Standalone development must name the external platform API surface explicitly.',
+  undefined,
+  'Standalone development must not publish a second platform API surface.',
 );
-assert.notEqual(
-  standaloneDevelopmentProfile.SDKWORK_BIRDCODER_PLATFORM_API_GATEWAY_HTTP_URL,
+assert.equal(
   standaloneDevelopmentProfile.SDKWORK_BIRDCODER_APPLICATION_PUBLIC_HTTP_URL,
-  'Drive must not fall back to the BirdCoder application-owned API origin.',
+  'http://127.0.0.1:10240',
+  'Standalone Drive routes must be served by the single BirdCoder application ingress.',
 );
 const standaloneBrowserPlan = topologyRuntime.resolvePlan(
   'standalone.development',

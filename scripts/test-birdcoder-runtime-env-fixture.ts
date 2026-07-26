@@ -6,7 +6,8 @@ interface BirdCoderTestRuntimeWindow {
 }
 
 const DEFAULT_TEST_RUNTIME_ENV = {
-  VITE_SDKWORK_BIRDCODER_PLATFORM_API_GATEWAY_HTTP_URL: 'http://127.0.0.1:3900',
+  VITE_SDKWORK_BIRDCODER_APPLICATION_PUBLIC_HTTP_URL: 'http://127.0.0.1:10240',
+  VITE_SDKWORK_BIRDCODER_DEPLOYMENT_PROFILE: 'standalone',
 } as const;
 
 export function installBirdCoderTestRuntimeEnv(

@@ -53,7 +53,7 @@
     ]
   },
   "integration": {
-    "runtimeBoundary": "The renderer composes shell/runtime packages and invokes typed Tauri commands. The Tauri runtime config supplies only the embedded BirdCoder application ingress; the SDKWork platform gateway is an independent required deployment value. The renderer owns no HTTP API authority, generated SDK construction, or native persistence."
+    "runtimeBoundary": "The renderer composes shell/runtime packages and invokes typed Tauri commands. Standalone uses only the embedded BirdCoder application ingress returned by Tauri. Cloud additionally requires an explicit SDKWork platform gateway value. The renderer owns no HTTP API authority, generated SDK construction, or native persistence."
   },
   "verification": { "commands": ["pnpm --dir apps/sdkwork-birdcoder-pc typecheck"] }
 }

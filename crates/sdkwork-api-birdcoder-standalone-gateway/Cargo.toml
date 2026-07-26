@@ -23,6 +23,12 @@ sdkwork_iam_web_adapter.workspace = true
 sdkwork-api-birdcoder-assembly.workspace = true
 sdkwork-api-iam-assembly.workspace = true
 sdkwork-api-agents-assembly.workspace = true
+sdkwork-api-documents-assembly.workspace = true
+sdkwork-api-drive-assembly.workspace = true
+sdkwork-api-membership-assembly.workspace = true
+sdkwork-api-order-assembly.workspace = true
+sdkwork-api-prompts-assembly.workspace = true
+sdkwork-api-skills-assembly.workspace = true
 
 [dev-dependencies]
 tokio = { workspace = true, features = ["test-util"] }

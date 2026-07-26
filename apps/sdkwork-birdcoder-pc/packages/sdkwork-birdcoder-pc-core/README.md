@@ -25,11 +25,12 @@ standards remain under [sdkwork-specs](../../../../../sdkwork-specs/README.md).
 
 ## Required SDK Surface
 
-BirdCoder's own App SDK is bound only to `application.public-ingress`. Agents,
+BirdCoder's own App SDK is bound to `application.public-ingress`. Agents,
 Documents, Drive, IAM, Messaging, Membership, Order, Prompts, and Skills remain
-owner-generated dependency App SDKs and are bound to `platform.api-gateway` or
-an explicit owner-specific override. This package does not copy dependency
-operations into the BirdCoder SDK family.
+owner-generated dependency App SDKs. Standalone-capable dependencies use their
+owner assembly contribution through the same application ingress; cloud uses
+`platform.api-gateway` or an explicit owner-specific override. This package
+does not copy dependency operations into the BirdCoder SDK family.
 
 ## Configuration
 
@@ -52,11 +53,11 @@ They do not read environment variables or construct credentials.
 
 ## Deployment Profile And Runtime Target Behavior
 
-Browser and desktop renderers use the same SDK contracts and separate
-connection planes. Browser development may expose one same-origin API edge
-root, but dependency requests must keep canonical API paths such as
-`/app/v3/api/drive`. Desktop and release runtimes receive a direct platform
-gateway URL. Neither surface falls back to the BirdCoder application URL.
+Browser and desktop renderers use the same SDK contracts. Standalone resolves
+all mounted dependency SDKs to the application ingress and keeps canonical
+paths such as `/app/v3/api/drive`; no dependency proxy listener is started.
+Cloud receives distinct application and platform URLs and fails closed when a
+required remote surface is missing.
 
 ## Security
 

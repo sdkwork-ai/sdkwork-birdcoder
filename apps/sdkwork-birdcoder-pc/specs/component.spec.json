@@ -244,6 +244,7 @@
         "apiPrefix": "/app/v3/api",
         "runtimeMode": "external-via-platform-surface",
         "sameOriginAllowed": false,
+        "profileCoverage": ["cloud"],
         "requiredBaseUrlKey": "VITE_SDKWORK_BIRDCODER_PLATFORM_API_GATEWAY_HTTP_URL"
       },
       {
@@ -254,6 +255,7 @@
         "apiPrefix": "/app/v3/api",
         "runtimeMode": "external-via-platform-surface",
         "sameOriginAllowed": false,
+        "profileCoverage": ["cloud"],
         "requiredBaseUrlKey": "VITE_SDKWORK_BIRDCODER_PLATFORM_API_GATEWAY_HTTP_URL",
         "optionalBaseUrlKeys": [
           "VITE_SDKWORK_DOCUMENTS_APP_API_BASE_URL"
@@ -267,6 +269,7 @@
         "apiPrefix": "/app/v3/api",
         "runtimeMode": "external-via-platform-surface",
         "sameOriginAllowed": false,
+        "profileCoverage": ["cloud"],
         "requiredBaseUrlKey": "VITE_SDKWORK_BIRDCODER_PLATFORM_API_GATEWAY_HTTP_URL",
         "optionalBaseUrlKeys": [
           "VITE_SDKWORK_DRIVE_APP_API_BASE_URL"
@@ -280,6 +283,7 @@
         "apiPrefix": "/app/v3/api",
         "runtimeMode": "external-via-platform-surface",
         "sameOriginAllowed": false,
+        "profileCoverage": ["cloud"],
         "requiredBaseUrlKey": "VITE_SDKWORK_BIRDCODER_PLATFORM_API_GATEWAY_HTTP_URL",
         "optionalBaseUrlKeys": [
           "VITE_SDKWORK_APPBASE_APP_API_BASE_URL",
@@ -294,6 +298,7 @@
         "apiPrefix": "/app/v3/api",
         "runtimeMode": "external-via-platform-surface",
         "sameOriginAllowed": false,
+        "profileCoverage": ["cloud"],
         "requiredBaseUrlKey": "VITE_SDKWORK_BIRDCODER_PLATFORM_API_GATEWAY_HTTP_URL",
         "optionalBaseUrlKeys": [
           "VITE_SDKWORK_MEMBERSHIP_APP_API_BASE_URL"
@@ -307,6 +312,7 @@
         "apiPrefix": "/app/v3/api",
         "runtimeMode": "external-via-platform-surface",
         "sameOriginAllowed": false,
+        "profileCoverage": ["cloud"],
         "requiredBaseUrlKey": "VITE_SDKWORK_BIRDCODER_PLATFORM_API_GATEWAY_HTTP_URL",
         "optionalBaseUrlKeys": [
           "VITE_SDKWORK_MESSAGING_APP_API_BASE_URL"
@@ -320,6 +326,7 @@
         "apiPrefix": "/app/v3/api",
         "runtimeMode": "external-via-platform-surface",
         "sameOriginAllowed": false,
+        "profileCoverage": ["cloud"],
         "requiredBaseUrlKey": "VITE_SDKWORK_BIRDCODER_PLATFORM_API_GATEWAY_HTTP_URL",
         "optionalBaseUrlKeys": [
           "VITE_SDKWORK_ORDER_APP_API_BASE_URL"
@@ -333,6 +340,7 @@
         "apiPrefix": "/app/v3/api",
         "runtimeMode": "external-via-platform-surface",
         "sameOriginAllowed": false,
+        "profileCoverage": ["cloud"],
         "requiredBaseUrlKey": "VITE_SDKWORK_BIRDCODER_PLATFORM_API_GATEWAY_HTTP_URL",
         "optionalBaseUrlKeys": [
           "VITE_SDKWORK_PROMPTS_APP_API_BASE_URL"
@@ -346,6 +354,7 @@
         "apiPrefix": "/app/v3/api",
         "runtimeMode": "external-via-platform-surface",
         "sameOriginAllowed": false,
+        "profileCoverage": ["cloud"],
         "requiredBaseUrlKey": "VITE_SDKWORK_BIRDCODER_PLATFORM_API_GATEWAY_HTTP_URL"
       }
     ],
@@ -449,7 +458,7 @@
   },
   "integration": {
     "authority": "This PC composition root owns presentation and local host capability only; it owns no business database, dependency API, or generated transport.",
-    "dependencyPolicy": "Remote capabilities use their generated owner App SDK through the application ingress or platform gateway with one global TokenManager; raw HTTP and copied SDK authority are forbidden.",
+    "dependencyPolicy": "Remote capabilities use their generated owner App SDK with one global TokenManager. Standalone-capable dependencies resolve through application.public-ingress only when the standalone gateway mounts the owner api-assembly contribution; cloud dependencies resolve through platform.api-gateway or an explicit owner override. Raw HTTP and copied SDK authority are forbidden.",
     "projectPolicy": "Project, composition, Session, Turn, Session Item, Interaction, Checkpoint, and Runtime Binding facts are canonical sdkwork-agents resources identified by one projectId.",
     "persistencePolicy": "Only allowlisted device state may persist locally. Agents, Skills, Documents, IM, IAM, Drive, Messaging, Membership, Order, and Prompts business records are never projected or cached as PC authority.",
     "messagePolicy": "Agents Session Items are AI-assistant facts; sdkwork-im Conversation and Message are human communication facts and must remain semantically distinct."

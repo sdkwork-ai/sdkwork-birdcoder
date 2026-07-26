@@ -112,9 +112,18 @@
     "layerRole": "runtime-gateway",
     "publicExports": [
       ".",
+      "sdkwork_api_birdcoder_assembly::assemble_api_router",
       "sdkwork_api_birdcoder_standalone_gateway::assemble_api_router",
       "sdkwork_api_birdcoder_standalone_gateway::build_app",
-      "sdkwork_api_birdcoder_standalone_gateway::server::listen::serve"
+      "sdkwork_api_birdcoder_standalone_gateway::server::listen::serve",
+      "sdkwork_api_iam_assembly::assemble_app_api_contribution",
+      "sdkwork_api_agents_assembly::assemble_app_api_contribution",
+      "sdkwork_api_documents_assembly::assemble_app_api_contribution",
+      "sdkwork_api_drive_assembly::assemble_app_api_contribution",
+      "sdkwork_api_membership_assembly::assemble_app_api_contribution",
+      "sdkwork_api_order_assembly::assemble_app_api_contribution",
+      "sdkwork_api_prompts_assembly::assemble_app_api_contribution",
+      "sdkwork_api_skills_assembly::assemble_app_api_contribution"
     ],
     "providedPorts": [
       {
@@ -129,12 +138,45 @@
     "requiredPorts": [
       {
         "name": "birdcoderApiAssembly",
-        "export": "sdkwork_api_birdcoder_standalone_gateway::assemble_api_router"
+        "export": "sdkwork_api_birdcoder_assembly::assemble_api_router"
+      },
+      {
+        "name": "iamAppApiContribution",
+        "export": "sdkwork_api_iam_assembly::assemble_app_api_contribution"
+      },
+      {
+        "name": "agentsAppApiContribution",
+        "export": "sdkwork_api_agents_assembly::assemble_app_api_contribution"
+      },
+      {
+        "name": "documentsAppApiContribution",
+        "export": "sdkwork_api_documents_assembly::assemble_app_api_contribution"
+      },
+      {
+        "name": "driveAppApiContribution",
+        "export": "sdkwork_api_drive_assembly::assemble_app_api_contribution"
+      },
+      {
+        "name": "membershipAppApiContribution",
+        "export": "sdkwork_api_membership_assembly::assemble_app_api_contribution"
+      },
+      {
+        "name": "orderAppApiContribution",
+        "export": "sdkwork_api_order_assembly::assemble_app_api_contribution"
+      },
+      {
+        "name": "promptsAppApiContribution",
+        "export": "sdkwork_api_prompts_assembly::assemble_app_api_contribution"
+      },
+      {
+        "name": "skillsAppApiContribution",
+        "export": "sdkwork_api_skills_assembly::assemble_app_api_contribution"
       }
     ],
     "runtimeEntrypoints": [
       "src/main.rs#main",
       "src/main.rs#run",
+      "sdkwork_api_birdcoder_standalone_gateway::build_app",
       "src/server/listen.rs#serve",
       "Cargo.toml[[bin]].sdkwork-api-birdcoder-standalone-gateway"
     ],
@@ -143,7 +185,112 @@
     "sdkDependencies": [],
     "permissionComposition": {},
     "dependencyApiExports": [],
-    "dependencyApiSurfaces": [],
+    "dependencyApiSurfaces": [
+      {
+        "workspace": "sdkwork-iam",
+        "sdkFamily": "sdkwork-iam-app-sdk",
+        "apiAuthority": "sdkwork-iam-app-api",
+        "surface": "app-api",
+        "apiPrefix": "/app/v3/api",
+        "runtimeMode": "same-origin",
+        "sameOriginAllowed": true,
+        "cargoDependency": "sdkwork-api-iam-assembly",
+        "embeddedExecutableExport": "sdkwork_api_iam_assembly::assemble_app_api_contribution",
+        "profileCoverage": ["standalone"],
+        "coverageEvidence": ["src/profile.rs", "tests/bootstrap_smoke.rs"]
+      },
+      {
+        "workspace": "sdkwork-agents",
+        "sdkFamily": "sdkwork-agents-app-sdk",
+        "apiAuthority": "sdkwork-agents-app-api",
+        "surface": "app-api",
+        "apiPrefix": "/app/v3/api/ai",
+        "runtimeMode": "same-origin",
+        "sameOriginAllowed": true,
+        "cargoDependency": "sdkwork-api-agents-assembly",
+        "embeddedExecutableExport": "sdkwork_api_agents_assembly::assemble_app_api_contribution",
+        "profileCoverage": ["standalone"],
+        "coverageEvidence": ["src/profile.rs", "tests/bootstrap_smoke.rs"]
+      },
+      {
+        "workspace": "sdkwork-documents",
+        "sdkFamily": "sdkwork-documents-app-sdk",
+        "apiAuthority": "sdkwork-documents-app-api",
+        "surface": "app-api",
+        "apiPrefix": "/app/v3/api/documents",
+        "runtimeMode": "same-origin",
+        "sameOriginAllowed": true,
+        "cargoDependency": "sdkwork-api-documents-assembly",
+        "embeddedExecutableExport": "sdkwork_api_documents_assembly::assemble_app_api_contribution",
+        "profileCoverage": ["standalone"],
+        "coverageEvidence": ["src/profile.rs", "tests/bootstrap_smoke.rs"]
+      },
+      {
+        "workspace": "sdkwork-drive",
+        "sdkFamily": "sdkwork-drive-app-sdk",
+        "apiAuthority": "sdkwork-drive-app-api",
+        "surface": "app-api",
+        "apiPrefix": "/app/v3/api/drive",
+        "runtimeMode": "same-origin",
+        "sameOriginAllowed": true,
+        "cargoDependency": "sdkwork-api-drive-assembly",
+        "embeddedExecutableExport": "sdkwork_api_drive_assembly::assemble_app_api_contribution",
+        "profileCoverage": ["standalone"],
+        "coverageEvidence": ["src/profile.rs", "tests/bootstrap_smoke.rs"]
+      },
+      {
+        "workspace": "sdkwork-membership",
+        "sdkFamily": "sdkwork-membership-app-sdk",
+        "apiAuthority": "sdkwork-membership-app-api",
+        "surface": "app-api",
+        "apiPrefix": "/app/v3/api/memberships",
+        "runtimeMode": "same-origin",
+        "sameOriginAllowed": true,
+        "cargoDependency": "sdkwork-api-membership-assembly",
+        "embeddedExecutableExport": "sdkwork_api_membership_assembly::assemble_app_api_contribution",
+        "profileCoverage": ["standalone"],
+        "coverageEvidence": ["src/profile.rs", "tests/bootstrap_smoke.rs"]
+      },
+      {
+        "workspace": "sdkwork-order",
+        "sdkFamily": "sdkwork-order-app-sdk",
+        "apiAuthority": "sdkwork-order-app-api",
+        "surface": "app-api",
+        "apiPrefix": "/app/v3/api/orders",
+        "runtimeMode": "same-origin",
+        "sameOriginAllowed": true,
+        "cargoDependency": "sdkwork-api-order-assembly",
+        "embeddedExecutableExport": "sdkwork_api_order_assembly::assemble_app_api_contribution",
+        "profileCoverage": ["standalone"],
+        "coverageEvidence": ["src/profile.rs", "tests/bootstrap_smoke.rs"]
+      },
+      {
+        "workspace": "sdkwork-prompts",
+        "sdkFamily": "sdkwork-prompts-app-sdk",
+        "apiAuthority": "sdkwork-prompts-app-api",
+        "surface": "app-api",
+        "apiPrefix": "/app/v3/api/prompts",
+        "runtimeMode": "same-origin",
+        "sameOriginAllowed": true,
+        "cargoDependency": "sdkwork-api-prompts-assembly",
+        "embeddedExecutableExport": "sdkwork_api_prompts_assembly::assemble_app_api_contribution",
+        "profileCoverage": ["standalone"],
+        "coverageEvidence": ["src/profile.rs", "tests/bootstrap_smoke.rs"]
+      },
+      {
+        "workspace": "sdkwork-skills",
+        "sdkFamily": "sdkwork-skills-app-sdk",
+        "apiAuthority": "sdkwork-skills-app-api",
+        "surface": "app-api",
+        "apiPrefix": "/app/v3/api/skills",
+        "runtimeMode": "same-origin",
+        "sameOriginAllowed": true,
+        "cargoDependency": "sdkwork-api-skills-assembly",
+        "embeddedExecutableExport": "sdkwork_api_skills_assembly::assemble_app_api_contribution",
+        "profileCoverage": ["standalone"],
+        "coverageEvidence": ["src/profile.rs", "tests/bootstrap_smoke.rs"]
+      }
+    ],
     "events": [],
     "configKeys": [
       "SDKWORK_BIRDCODER_DEPLOYMENT_PROFILE",
@@ -154,7 +301,7 @@
   "integration": {
     "authority": "The standalone gateway is a thin runtime host: it initializes process infrastructure, asks the host-neutral BirdCoder API assembly to build the router, and binds the single standalone listener. It owns no route, service, repository, Agents, IAM, or Provider behavior.",
     "statePolicy": "The gateway and BirdCoder assembly are stateless composition hosts and own no database, migration, backup, repository, or persistence lifecycle. Readiness reuses the canonical Agents runtime repository pool and never creates a BirdCoder or secondary Agents database pool.",
-    "assemblyPolicy": "BirdCoder HTTP behavior is consumed only through sdkwork-api-birdcoder-assembly. The gateway must not depend directly on route crates or duplicate assembly implementation dependencies.",
+    "assemblyPolicy": "BirdCoder-owned HTTP behavior is consumed through sdkwork-api-birdcoder-assembly. Standalone dependency behavior is consumed only through each dependency owner's App API contribution. The gateway must not depend directly on dependency route crates, discard contribution metadata, or duplicate assembly implementation dependencies.",
     "securityPolicy": "The standalone gateway owns process-wide sdkwork-web-framework request context, authorization, CORS, rate limiting, metrics, and listener lifecycle. The host-neutral BirdCoder API assembly contributes the router and route manifest without mounting process middleware."
   },
   "verification": {

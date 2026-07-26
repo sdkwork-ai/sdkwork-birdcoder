@@ -340,10 +340,13 @@ const previousApplicationProxyTarget =
   process.env.SDKWORK_BIRDCODER_APPLICATION_PUBLIC_HTTP_URL;
 const previousPlatformProxyTarget =
   process.env.SDKWORK_BIRDCODER_PLATFORM_API_GATEWAY_HTTP_URL;
+const previousDeploymentProfile =
+  process.env.SDKWORK_BIRDCODER_DEPLOYMENT_PROFILE;
 process.env.SDKWORK_BIRDCODER_APPLICATION_PUBLIC_HTTP_URL =
   'http://127.0.0.1:10240';
 process.env.SDKWORK_BIRDCODER_PLATFORM_API_GATEWAY_HTTP_URL =
-  'http://127.0.0.1:3900';
+  'http://127.0.0.1:10440';
+process.env.SDKWORK_BIRDCODER_DEPLOYMENT_PROFILE = 'standalone';
 
 const rootConfig = await loadConfigModule('apps/sdkwork-birdcoder-pc/vite.config.ts');
 assert.equal(rootConfig.resolve?.alias?.[0]?.find, '@');
@@ -391,9 +394,9 @@ assert.equal(
   'Root /app proxy must use the BirdCoder application ingress.',
 );
 assert.equal(
-  rootConfig.server?.proxy?.['/app/v3/api/drive']?.target,
-  'http://127.0.0.1:3900',
-  'Root canonical Drive API proxy must use the independent platform gateway.',
+  rootConfig.server?.proxy?.['/app/v3/api/drive'],
+  undefined,
+  'Standalone Root Vite config must let the broad /app edge reach the assembled Drive routes on the application ingress.',
 );
 assert.equal(
   rootConfig.server?.proxy?.['/app/v3/api/auth']?.target,
@@ -415,11 +418,15 @@ assert.equal(
   undefined,
   'Root Vite config must not expose a synthetic platform proxy selector path.',
 );
-assert.ok(
-  Object.keys(rootConfig.server?.proxy ?? {}).indexOf('/app/v3/api/drive')
-    < Object.keys(rootConfig.server?.proxy ?? {}).indexOf('/app'),
-  'Root Vite config must register dependency API namespaces before the broad /app fallback.',
-);
+for (const [prefix, proxy] of Object.entries(rootConfig.server?.proxy ?? {})) {
+  if (prefix === '/app' || prefix.startsWith('/app/')) {
+    assert.equal(
+      proxy.target,
+      'http://127.0.0.1:10240',
+      `Standalone Root Vite proxy ${prefix} must target the single application ingress.`,
+    );
+  }
+}
 
 const webConfig = await loadConfigModule('apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-web/vite.config.ts');
 const webViteConfigSource = readFileSync(
@@ -471,9 +478,9 @@ assert.equal(
   'http://127.0.0.1:10240',
 );
 assert.equal(
-  webConfig.server?.proxy?.['/app/v3/api/drive']?.target,
-  'http://127.0.0.1:3900',
-  'Web canonical Drive API proxy must use the independent platform gateway.',
+  webConfig.server?.proxy?.['/app/v3/api/drive'],
+  undefined,
+  'Standalone Web Vite config must let the broad /app edge reach the assembled Drive routes on the application ingress.',
 );
 assert.equal(
   webConfig.server?.proxy?.['/app/v3/api/auth']?.target,
@@ -495,11 +502,36 @@ assert.equal(
   undefined,
   'Web Vite config must not expose a synthetic platform proxy selector path.',
 );
-assert.ok(
-  Object.keys(webConfig.server?.proxy ?? {}).indexOf('/app/v3/api/drive')
-    < Object.keys(webConfig.server?.proxy ?? {}).indexOf('/app'),
-  'Web Vite config must register dependency API namespaces before the broad /app fallback.',
+for (const [prefix, proxy] of Object.entries(webConfig.server?.proxy ?? {})) {
+  if (prefix === '/app' || prefix.startsWith('/app/')) {
+    assert.equal(
+      proxy.target,
+      'http://127.0.0.1:10240',
+      `Standalone Web Vite proxy ${prefix} must target the single application ingress.`,
+    );
+  }
+}
+
+process.env.SDKWORK_BIRDCODER_DEPLOYMENT_PROFILE = 'cloud';
+const cloudRootConfig = await loadConfigModule('apps/sdkwork-birdcoder-pc/vite.config.ts');
+const cloudWebConfig = await loadConfigModule(
+  'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-web/vite.config.ts',
 );
+for (const [label, config] of [
+  ['Root', cloudRootConfig],
+  ['Web', cloudWebConfig],
+]) {
+  assert.equal(
+    config.server?.proxy?.['/app']?.target,
+    'http://127.0.0.1:10240',
+    `${label} cloud /app fallback must retain the explicit application ingress.`,
+  );
+  assert.equal(
+    config.server?.proxy?.['/app/v3/api/drive']?.target,
+    'http://127.0.0.1:10440',
+    `${label} cloud Drive namespace must retain the explicit platform surface.`,
+  );
+}
 if (previousApplicationProxyTarget === undefined) {
   delete process.env.SDKWORK_BIRDCODER_APPLICATION_PUBLIC_HTTP_URL;
 } else {
@@ -511,6 +543,12 @@ if (previousPlatformProxyTarget === undefined) {
 } else {
   process.env.SDKWORK_BIRDCODER_PLATFORM_API_GATEWAY_HTTP_URL =
     previousPlatformProxyTarget;
+}
+if (previousDeploymentProfile === undefined) {
+  delete process.env.SDKWORK_BIRDCODER_DEPLOYMENT_PROFILE;
+} else {
+  process.env.SDKWORK_BIRDCODER_DEPLOYMENT_PROFILE =
+    previousDeploymentProfile;
 }
 assertSharedCoreBrowserFacadeAlias(webConfig.resolve?.alias, 'Web Vite config');
 assertXtermCssAlias(webConfig.resolve?.alias, 'Web Vite config');

@@ -14,13 +14,15 @@ profiles.
 
 | Plane | Purpose |
 | --- | --- |
-| `application.public-ingress` | Four BirdCoder System operations |
-| `platform.api-gateway` | Default endpoint for generated dependency SDKs |
-| Owner-specific override | Explicit endpoint for one dependency SDK |
+| `application.public-ingress` | BirdCoder APIs and all selected owner assembly contributions in `standalone` |
+| `platform.api-gateway` | Explicit remote dependency surface for `cloud` only |
+| Owner-specific override | Explicit cloud endpoint for one dependency SDK |
 
-Dependency clients never fall back silently to the BirdCoder application
-ingress. Browser development may use the declared same-origin platform proxy;
-desktop and release builds require explicit materialized endpoints.
+The standalone gateway is the only application-plane HTTP listener and mounts
+dependency-owned executable contributions before binding. It does not forward
+dependency requests to another loopback gateway. Browser development proxies
+canonical API paths only to `application.public-ingress`. Cloud clients keep
+application and platform URLs explicit and never start a local platform host.
 
 ## Runtime Matrix
 

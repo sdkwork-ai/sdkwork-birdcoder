@@ -41,6 +41,24 @@ pub(crate) async fn assemble_standalone_profile(
     let agents = sdkwork_api_agents_assembly::assemble_app_api_contribution()
         .await
         .map_err(|error| format!("assemble Agents owner App API failed: {error}"))?;
+    let documents = sdkwork_api_documents_assembly::assemble_app_api_contribution()
+        .await
+        .map_err(|error| format!("assemble Documents owner App API failed: {error}"))?;
+    let drive = sdkwork_api_drive_assembly::assemble_app_api_contribution()
+        .await
+        .map_err(|error| format!("assemble Drive owner App API failed: {error}"))?;
+    let membership = sdkwork_api_membership_assembly::assemble_app_api_contribution()
+        .await
+        .map_err(|error| format!("assemble Membership owner App API failed: {error}"))?;
+    let order = sdkwork_api_order_assembly::assemble_app_api_contribution()
+        .await
+        .map_err(|error| format!("assemble Order owner App API failed: {error}"))?;
+    let prompts = sdkwork_api_prompts_assembly::assemble_app_api_contribution()
+        .await
+        .map_err(|error| format!("assemble Prompts owner App API failed: {error}"))?;
+    let skills = sdkwork_api_skills_assembly::assemble_app_api_contribution()
+        .await
+        .map_err(|error| format!("assemble Skills owner App API failed: {error}"))?;
 
     compose_owner_contributions(vec![
         OwnerApiContribution {
@@ -69,6 +87,60 @@ pub(crate) async fn assemble_standalone_profile(
             permission_catalog: agents.permission_catalog,
             domain_context_injectors: agents.domain_context_injectors,
             readiness_check: agents.readiness_check,
+        },
+        OwnerApiContribution {
+            owner: "sdkwork-documents",
+            router: documents.router,
+            route_manifest: documents.route_manifest,
+            openapi: documents.openapi,
+            permission_catalog: documents.permission_catalog,
+            domain_context_injectors: documents.domain_context_injectors,
+            readiness_check: documents.readiness_check,
+        },
+        OwnerApiContribution {
+            owner: "sdkwork-drive",
+            router: drive.router,
+            route_manifest: drive.route_manifest,
+            openapi: drive.openapi,
+            permission_catalog: drive.permission_catalog,
+            domain_context_injectors: drive.domain_context_injectors,
+            readiness_check: drive.readiness_check,
+        },
+        OwnerApiContribution {
+            owner: "sdkwork-membership",
+            router: membership.router,
+            route_manifest: membership.route_manifest,
+            openapi: membership.openapi,
+            permission_catalog: membership.permission_catalog,
+            domain_context_injectors: membership.domain_context_injectors,
+            readiness_check: membership.readiness_check,
+        },
+        OwnerApiContribution {
+            owner: "sdkwork-order",
+            router: order.router,
+            route_manifest: order.route_manifest,
+            openapi: order.openapi,
+            permission_catalog: order.permission_catalog,
+            domain_context_injectors: order.domain_context_injectors,
+            readiness_check: order.readiness_check,
+        },
+        OwnerApiContribution {
+            owner: "sdkwork-prompts",
+            router: prompts.router,
+            route_manifest: prompts.route_manifest,
+            openapi: prompts.openapi,
+            permission_catalog: prompts.permission_catalog,
+            domain_context_injectors: prompts.domain_context_injectors,
+            readiness_check: prompts.readiness_check,
+        },
+        OwnerApiContribution {
+            owner: "sdkwork-skills",
+            router: skills.router,
+            route_manifest: skills.route_manifest,
+            openapi: skills.openapi,
+            permission_catalog: skills.permission_catalog,
+            domain_context_injectors: skills.domain_context_injectors,
+            readiness_check: skills.readiness_check,
         },
     ])
 }

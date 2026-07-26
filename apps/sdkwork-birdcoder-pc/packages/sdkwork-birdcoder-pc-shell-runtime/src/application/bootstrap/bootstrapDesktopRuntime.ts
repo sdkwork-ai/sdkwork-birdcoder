@@ -80,15 +80,20 @@ export function publishBirdCoderRuntimeEnvPatch(
 export function publishBirdCoderDesktopSdkRuntimeEnv(
   config: DesktopRuntimeConfig,
 ): void {
-  publishBirdCoderRuntimeEnvPatch({
+  const patch = {
     VITE_SDKWORK_BIRDCODER_APPLICATION_PUBLIC_HTTP_URL:
       config.applicationApiBaseUrl,
-    VITE_SDKWORK_BIRDCODER_PLATFORM_API_GATEWAY_HTTP_URL:
-      config.platformApiGatewayBaseUrl,
     VITE_SDKWORK_BIRDCODER_DEPLOYMENT_PROFILE: config.deploymentProfile,
     VITE_SDKWORK_BIRDCODER_EXECUTION_LOCATION: config.executionLocation,
     VITE_SDKWORK_BIRDCODER_RUNTIME_TARGET: config.runtimeTarget,
-  });
+    ...(config.deploymentProfile === 'cloud'
+      ? {
+          VITE_SDKWORK_BIRDCODER_PLATFORM_API_GATEWAY_HTTP_URL:
+            config.platformApiGatewayBaseUrl,
+        }
+      : {}),
+  };
+  publishBirdCoderRuntimeEnvPatch(patch);
 }
 
 export async function readDesktopEmbeddedRuntimeConfig(): Promise<DesktopEmbeddedRuntimeConfig> {
@@ -126,7 +131,7 @@ function resolveDesktopPlatformApiGatewayBaseUrl(
 ): string {
   if (configuredBaseUrl?.trim().startsWith('/')) {
     throw new Error(
-      'BirdCoder desktop requires a direct SDKWork platform API gateway URL, not a browser same-origin API edge.',
+      'BirdCoder cloud desktop requires a direct SDKWork platform API gateway URL, not a browser same-origin API edge.',
     );
   }
   const platformApiGatewayBaseUrl = resolveBirdCoderPlatformSdkBaseUrl(
@@ -143,10 +148,6 @@ export async function readDesktopRuntimeConfig(
     executionLocation: options.executionLocation,
     runtimeTarget: 'desktop',
   });
-  const platformApiGatewayBaseUrl = resolveDesktopPlatformApiGatewayBaseUrl(
-    options.configuredPlatformApiGatewayBaseUrl,
-  );
-
   if (topology.executionLocation === 'cloud-workspace') {
     const applicationApiBaseUrl = normalizeBirdCoderSdkBaseUrl(
       options.configuredApplicationApiBaseUrl
@@ -158,6 +159,11 @@ export async function readDesktopRuntimeConfig(
         'BirdCoder remote desktop requires a configured application API base URL.',
       );
     }
+    const platformApiGatewayBaseUrl = topology.deploymentProfile === 'standalone'
+      ? applicationApiBaseUrl
+      : resolveDesktopPlatformApiGatewayBaseUrl(
+          options.configuredPlatformApiGatewayBaseUrl,
+        );
     return {
       ...topology,
       applicationApiBaseUrl,
@@ -166,6 +172,11 @@ export async function readDesktopRuntimeConfig(
   }
 
   const embeddedRuntime = await readDesktopEmbeddedRuntimeConfig();
+  const platformApiGatewayBaseUrl = topology.deploymentProfile === 'standalone'
+    ? embeddedRuntime.applicationApiBaseUrl
+    : resolveDesktopPlatformApiGatewayBaseUrl(
+        options.configuredPlatformApiGatewayBaseUrl,
+      );
   return {
     ...topology,
     applicationApiBaseUrl: embeddedRuntime.applicationApiBaseUrl,

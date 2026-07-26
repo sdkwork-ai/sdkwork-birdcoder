@@ -2,6 +2,8 @@ const BIRDCODER_APPLICATION_HTTP_ENV =
   'VITE_SDKWORK_BIRDCODER_APPLICATION_PUBLIC_HTTP_URL';
 const BIRDCODER_PLATFORM_HTTP_ENV =
   'VITE_SDKWORK_BIRDCODER_PLATFORM_API_GATEWAY_HTTP_URL';
+const BIRDCODER_DEPLOYMENT_PROFILE_ENV =
+  'VITE_SDKWORK_BIRDCODER_DEPLOYMENT_PROFILE';
 const GENERATED_APP_API_PATH = '/app/v3/api';
 const FORBIDDEN_BROWSER_PROXY_SELECTOR_PATH = /^\/(?:__sdkwork|proxy|gateway|platform)(?:\/|$)/u;
 
@@ -132,6 +134,9 @@ export function resolveBirdCoderApplicationSdkBaseUrl(explicit?: string): string
 }
 
 export function resolveBirdCoderPlatformSdkBaseUrl(explicit?: string): string {
+  if (readBirdCoderRuntimeEnv(BIRDCODER_DEPLOYMENT_PROFILE_ENV) === 'standalone') {
+    return resolveBirdCoderApplicationSdkBaseUrl();
+  }
   return requireBirdCoderSdkBaseUrl(
     explicit ?? readBirdCoderRuntimeEnv(BIRDCODER_PLATFORM_HTTP_ENV),
     'SDKWork platform API gateway base URL',
@@ -143,6 +148,10 @@ export function resolveBirdCoderDependencySdkBaseUrl(
   dependencyName: string,
   options: ResolveBirdCoderDependencySdkBaseUrlOptions = {},
 ): string {
+  if (readBirdCoderRuntimeEnv(BIRDCODER_DEPLOYMENT_PROFILE_ENV) === 'standalone') {
+    return resolveBirdCoderApplicationSdkBaseUrl();
+  }
+
   const overrideEnvNames = options.overrideEnvNames ?? [];
   const overrideFromEnv = overrideEnvNames
     .map((envName) => readBirdCoderRuntimeEnv(envName))

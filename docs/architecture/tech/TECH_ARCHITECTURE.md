@@ -207,10 +207,13 @@ and target validation.
 | `standalone + server` | None | Stateless System API and composed owner routes |
 | `cloud + server/container` | None | Stateless ingress; no project directory or remote runner |
 
-`application.public-ingress` serves BirdCoder System operations.
-`platform.api-gateway` or an explicit owner override serves dependency SDKs.
-Missing required topology fails before SDK construction. Server and container
-profiles contain no BirdCoder database or PC device-state setting.
+In standalone, `application.public-ingress` serves BirdCoder System operations
+and every selected dependency owner contribution through one listener. In
+cloud, `platform.api-gateway` or an explicit owner override serves dependency
+SDKs while BirdCoder APIs remain on the application ingress. Missing required
+topology or a dependency assembly initialization failure stops bootstrap.
+Server and container profiles contain no BirdCoder database or PC device-state
+setting.
 
 ## 9. Architecture Decision Index
 

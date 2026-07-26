@@ -42,15 +42,20 @@ const standaloneServerPlan = topologyRuntime.resolvePlan(
   'server',
 );
 
-assert.notEqual(
-  standaloneDevelopmentProfile.SDKWORK_BIRDCODER_PLATFORM_API_GATEWAY_HTTP_URL,
-  standaloneDevelopmentProfile.SDKWORK_BIRDCODER_APPLICATION_PUBLIC_HTTP_URL,
-  'Standalone dependency SDKs must not fall back to the BirdCoder application gateway origin.',
-);
 assert.equal(
   standaloneDevelopmentProfile.SDKWORK_BIRDCODER_PLATFORM_API_GATEWAY_HTTP_URL,
-  'http://127.0.0.1:3900',
-  'Standalone development must declare its external platform API surface explicitly.',
+  undefined,
+  'Standalone development must not publish a second platform API surface.',
+);
+assert.equal(
+  standaloneDevelopmentProfile.VITE_SDKWORK_BIRDCODER_PLATFORM_API_GATEWAY_HTTP_URL,
+  undefined,
+  'Standalone renderer config must not publish a second platform API surface.',
+);
+assert.equal(
+  standaloneDevelopmentProfile.SDKWORK_BIRDCODER_APPLICATION_PUBLIC_HTTP_URL,
+  'http://127.0.0.1:10240',
+  'Standalone dependency SDKs must use the single assembled application ingress.',
 );
 assert.equal(
   standaloneDevelopmentProfile.SDKWORK_BIRDCODER_RUNTIME_TARGET,
@@ -117,13 +122,13 @@ assert.deepEqual(
   );
   assert.match(
     h5RuntimeConfigSource,
-    /resolveRequiredDependencyApiBaseUrl/u,
-    'H5 dependency SDK URLs must fail closed through one shared resolver.',
+    /isStandaloneProfile\(\)[\s\S]*resolveBirdCoderH5ApplicationApiBaseUrl\(\)/u,
+    'H5 standalone dependency SDK URLs must resolve through the application ingress.',
   );
-  assert.doesNotMatch(
+  assert.match(
     h5RuntimeConfigSource,
-    /VITE_SDKWORK_BIRDCODER_PLATFORM_API_GATEWAY_HTTP_URL,\s*resolveBirdCoderH5ApplicationApiBaseUrl\(\)/u,
-    'H5 dependency SDKs must not fall back to the BirdCoder application API origin.',
+    /resolveRequiredDependencyApiBaseUrl/u,
+    'H5 cloud dependency SDK URLs must still fail closed through the explicit dependency resolver.',
   );
 }
 
@@ -268,6 +273,20 @@ for (const topologyEnvPath of [
     `${defaultCapabilitySource}\n${testCapabilitySource}\n${defaultPermissionsSource}`,
     /local_sql_execute_plan|allow-local-sql-execute-plan/u,
     'Desktop capability manifests must not expose a generic renderer SQL bridge.',
+  );
+}
+
+for (const topologyEnvPath of [
+  'etc/topology/standalone.development.env',
+  'etc/topology/standalone.test.env',
+  'etc/topology/standalone.staging.env',
+  'etc/topology/standalone.production.env',
+]) {
+  const topologyEnvSource = readText(topologyEnvPath);
+  assert.doesNotMatch(
+    topologyEnvSource,
+    /BIRDCODER_PLATFORM_API_GATEWAY_HTTP_URL/u,
+    `${topologyEnvPath} must expose only application.public-ingress.`,
   );
 }
 

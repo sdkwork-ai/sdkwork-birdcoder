@@ -13,7 +13,7 @@ import {
 const mergedRuntimeEnv = resolveBirdcoderViteRuntimeEnvSource(
   {
     SDKWORK_ACCESS_TOKEN: 'file-token',
-    VITE_BIRDCODER_API_BASE_URL: 'http://127.0.0.1:3900',
+    VITE_BIRDCODER_API_BASE_URL: 'http://127.0.0.1:10440',
   },
   {
     SDKWORK_ACCESS_TOKEN: 'process-token',
@@ -122,19 +122,24 @@ assert.equal(
 );
 
 const webDevelopmentRuntimeEnv = resolveBirdcoderWebRuntimeEnvSource({
+  SDKWORK_BIRDCODER_DEPLOYMENT_PROFILE: 'standalone',
   VITE_BIRDCODER_API_BASE_URL: 'http://127.0.0.1:10240',
-  VITE_SDKWORK_APPBASE_APP_API_BASE_URL: 'http://127.0.0.1:3900',
+  VITE_SDKWORK_APPBASE_APP_API_BASE_URL: 'http://127.0.0.1:10440',
   VITE_SDKWORK_BIRDCODER_BACKEND_API_BASE_URL: 'http://127.0.0.1:10240',
-  VITE_SDKWORK_BIRDCODER_PLATFORM_API_GATEWAY_HTTP_URL: 'http://127.0.0.1:3900',
-  VITE_SDKWORK_DRIVE_APP_API_BASE_URL: 'http://127.0.0.1:3900',
+  VITE_SDKWORK_BIRDCODER_PLATFORM_API_GATEWAY_HTTP_URL: 'http://127.0.0.1:10440',
+  VITE_SDKWORK_DRIVE_APP_API_BASE_URL: 'http://127.0.0.1:10440',
   VITE_SDKWORK_RUNTIME_TARGET: 'browser',
 }, 'development');
 assert.equal(webDevelopmentRuntimeEnv.VITE_BIRDCODER_API_BASE_URL, undefined);
 assert.equal(webDevelopmentRuntimeEnv.VITE_SDKWORK_APPBASE_APP_API_BASE_URL, undefined);
 assert.equal(webDevelopmentRuntimeEnv.VITE_SDKWORK_BIRDCODER_BACKEND_API_BASE_URL, undefined);
 assert.equal(
-  webDevelopmentRuntimeEnv.VITE_SDKWORK_BIRDCODER_PLATFORM_API_GATEWAY_HTTP_URL,
+  webDevelopmentRuntimeEnv.VITE_SDKWORK_BIRDCODER_APPLICATION_PUBLIC_HTTP_URL,
   '/',
+);
+assert.equal(
+  webDevelopmentRuntimeEnv.VITE_SDKWORK_BIRDCODER_PLATFORM_API_GATEWAY_HTTP_URL,
+  undefined,
 );
 assert.equal(
   webDevelopmentRuntimeEnv.VITE_SDKWORK_DRIVE_APP_API_BASE_URL,
@@ -145,6 +150,20 @@ assert.equal(
   'undefined',
 );
 assert.equal(webDevelopmentRuntimeEnv.VITE_SDKWORK_RUNTIME_TARGET, 'browser');
+
+const webCloudDevelopmentRuntimeEnv = resolveBirdcoderWebRuntimeEnvSource({
+  SDKWORK_BIRDCODER_DEPLOYMENT_PROFILE: 'cloud',
+  VITE_SDKWORK_BIRDCODER_APPLICATION_PUBLIC_HTTP_URL: 'https://birdcoder.example.test',
+  VITE_SDKWORK_BIRDCODER_PLATFORM_API_GATEWAY_HTTP_URL: 'https://api.example.test',
+}, 'development');
+assert.equal(
+  webCloudDevelopmentRuntimeEnv.VITE_SDKWORK_BIRDCODER_APPLICATION_PUBLIC_HTTP_URL,
+  '/',
+);
+assert.equal(
+  webCloudDevelopmentRuntimeEnv.VITE_SDKWORK_BIRDCODER_PLATFORM_API_GATEWAY_HTTP_URL,
+  '/',
+);
 
 const webProductionRuntimeEnv = resolveBirdcoderWebRuntimeEnvSource({
   VITE_BIRDCODER_API_BASE_URL: 'https://birdcoder.example.test',

@@ -11,6 +11,11 @@ function read(relativePath) {
 
 const assemblyCargo = read('crates/sdkwork-api-birdcoder-assembly/Cargo.toml');
 const assemblyBootstrap = read('crates/sdkwork-api-birdcoder-assembly/src/bootstrap.rs');
+const gatewayCargo = read('crates/sdkwork-api-birdcoder-standalone-gateway/Cargo.toml');
+const gatewayProfile = read('crates/sdkwork-api-birdcoder-standalone-gateway/src/profile.rs');
+const gatewayComponent = JSON.parse(
+  read('crates/sdkwork-api-birdcoder-standalone-gateway/specs/component.spec.json'),
+);
 const topologySpec = JSON.parse(read('specs/topology.spec.json'));
 assert.doesNotMatch(
   assemblyBootstrap,
@@ -22,6 +27,26 @@ assert.doesNotMatch(
   /sdkwork-api-membership-assembly|foundation-membership/u,
   'BirdCoder application assembly must not depend on the Membership assembly.',
 );
+assert.match(gatewayCargo, /sdkwork-api-membership-assembly/u);
+assert.match(
+  gatewayProfile,
+  /sdkwork_api_membership_assembly::assemble_app_api_contribution/u,
+);
+assert.doesNotMatch(
+  `${gatewayCargo}\n${gatewayProfile}`,
+  /sdkwork-routes-membership/u,
+  'The standalone gateway must consume Membership only through its owner assembly contribution.',
+);
+const membershipSurface = gatewayComponent.contracts?.dependencyApiSurfaces?.find(
+  (surface) => surface.workspace === 'sdkwork-membership',
+);
+assert.equal(membershipSurface?.runtimeMode, 'same-origin');
+assert.equal(membershipSurface?.sameOriginAllowed, true);
+assert.equal(
+  membershipSurface?.embeddedExecutableExport,
+  'sdkwork_api_membership_assembly::assemble_app_api_contribution',
+);
+assert.deepEqual(membershipSurface?.profileCoverage, ['standalone']);
 const standaloneProcesses = topologySpec.orchestration.profiles['standalone.development'].processes;
 assert.deepEqual(
   standaloneProcesses
@@ -34,7 +59,7 @@ assert.equal(
     (processDefinition) => /membership|platform-gateway/u.test(processDefinition.id),
   ),
   false,
-  'BirdCoder must not supervise or embed a Membership gateway; the client uses platform.api-gateway.',
+  'BirdCoder must not supervise a separate Membership or platform gateway process.',
 );
 
 const membershipBootstrap = read(

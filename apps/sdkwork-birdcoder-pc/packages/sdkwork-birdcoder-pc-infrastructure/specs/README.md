@@ -41,14 +41,15 @@ Documents and Prompts. It is a composed port, not a second SDK inventory.
 | Client family | Required connection plane |
 | --- | --- |
 | BirdCoder App SDK | `application.public-ingress` |
-| Agents, Skills, Documents, Prompts, IAM, Drive, Messaging, Membership, Order | `platform.api-gateway` or an explicit owner-specific override |
+| Standalone-capable dependency SDKs | `application.public-ingress` through owner `api-assembly` contributions |
+| Cloud dependency SDKs | `platform.api-gateway` or an explicit owner-specific override |
 
-The two fields are `applicationApiBaseUrl` and
-`platformApiGatewayBaseUrl`. Ambiguous `apiBaseUrl` runtime state, local URL
-defaults, path stripping, and application-to-platform fallback are retired.
-Browser development may use a same-origin API edge root only when dependency
-requests keep canonical API paths and owned dependency namespaces are routed
-internally to the platform gateway; desktop uses a direct platform URL.
+The runtime retains `applicationApiBaseUrl` and the cloud-only
+`platformApiGatewayBaseUrl` field. In standalone, dependency resolvers select
+the application URL because the gateway mounts owner contributions in-process;
+there is no internal HTTP forwarding hop. In cloud, dependency resolvers
+require the platform URL or an explicit override. Ambiguous `apiBaseUrl` state,
+path stripping, and implicit cross-profile fallback are retired.
 
 ## Persistence Boundary
 

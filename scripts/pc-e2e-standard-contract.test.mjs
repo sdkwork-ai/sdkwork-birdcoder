@@ -148,8 +148,13 @@ assert.match(
 );
 assert.match(
   playwrightConfig,
+  /SDKWORK_BIRDCODER_DEPLOYMENT_PROFILE: 'standalone'/u,
+  'PC Playwright must select the standalone profile for its single mock application ingress.',
+);
+assert.doesNotMatch(
+  playwrightConfig,
   /SDKWORK_BIRDCODER_PLATFORM_API_GATEWAY_HTTP_URL: mockApiBaseUrl/u,
-  'PC Playwright must inject the platform gateway mock API URL through source-config keys.',
+  'PC Playwright standalone topology must not inject a second platform API URL.',
 );
 assert.match(
   mockServer,
@@ -229,7 +234,7 @@ assert.match(
 assert.match(
   webViteConfig,
   /createBirdcoderCanonicalPlatformDevProxyEntries\(devProxyTargets\.platform\)/u,
-  'PC web test mode must preserve external dependency paths through the governed platform proxy topology.',
+  'PC web Vite config must retain the cloud-only platform proxy implementation.',
 );
 assert.match(
   webViteConfig,

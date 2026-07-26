@@ -35,6 +35,12 @@ sdkwork-api-birdcoder-assembly = { path = "crates/sdkwork-api-birdcoder-assembly
 sdkwork-api-birdcoder-standalone-gateway = { path = "crates/sdkwork-api-birdcoder-standalone-gateway" }
 sdkwork-api-agents-assembly = { path = "../sdkwork-agents/crates/sdkwork-api-agents-assembly" }
 sdkwork-api-iam-assembly = { path = "../sdkwork-iam/crates/sdkwork-api-iam-assembly" }
+sdkwork-api-documents-assembly = { path = "../sdkwork-documents/crates/sdkwork-api-documents-assembly" }
+sdkwork-api-drive-assembly = { path = "../sdkwork-drive/crates/sdkwork-api-drive-assembly" }
+sdkwork-api-membership-assembly = { path = "../sdkwork-membership/crates/sdkwork-api-membership-assembly" }
+sdkwork-api-order-assembly = { path = "../sdkwork-order/crates/sdkwork-api-order-assembly" }
+sdkwork-api-prompts-assembly = { path = "../sdkwork-prompts/crates/sdkwork-api-prompts-assembly" }
+sdkwork-api-skills-assembly = { path = "../sdkwork-skills/crates/sdkwork-api-skills-assembly" }
 sdkwork-routes-system-app-api = { path = "crates/sdkwork-routes-system-app-api" }
 sdkwork-birdcoder-router-context = { path = "crates/sdkwork-birdcoder-router-context" }
 sdkwork-birdcoder-system-descriptor-service = { path = "crates/sdkwork-birdcoder-system-descriptor-service" }

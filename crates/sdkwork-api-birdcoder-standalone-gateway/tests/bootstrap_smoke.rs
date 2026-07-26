@@ -13,19 +13,27 @@ struct EnvironmentGuard {
 
 impl EnvironmentGuard {
     fn install() -> Self {
+        let application_root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("../..")
+            .canonicalize()
+            .expect("resolve BirdCoder application root")
+            .to_string_lossy()
+            .into_owned();
         let values = [
-            ("SDKWORK_DEPLOYMENT_ENV", "development"),
-            ("SDKWORK_AGENTS_ENVIRONMENT", "development"),
-            ("SDKWORK_AGENTS_CONFIG_PROFILE", "development"),
-            ("SDKWORK_AGENTS_DEV_AUTH_BYPASS", "true"),
-            ("SDKWORK_ENV", "dev"),
+            ("SDKWORK_APP_ROOT", application_root.clone()),
+            ("SDKWORK_BIRDCODER_APP_ROOT", application_root),
+            ("SDKWORK_DEPLOYMENT_ENV", "development".to_owned()),
+            ("SDKWORK_AGENTS_ENVIRONMENT", "development".to_owned()),
+            ("SDKWORK_AGENTS_CONFIG_PROFILE", "development".to_owned()),
+            ("SDKWORK_AGENTS_DEV_AUTH_BYPASS", "true".to_owned()),
+            ("SDKWORK_ENV", "dev".to_owned()),
         ];
         let previous = values
             .iter()
             .map(|(key, _)| (*key, std::env::var(key).ok()))
             .collect();
         for (key, value) in values {
-            std::env::set_var(key, value);
+            std::env::set_var(key, &value);
         }
         Self { previous }
     }
@@ -112,8 +120,55 @@ async fn assert_unclassified_owner_route(router: &axum::Router, uri: &str) {
     );
 }
 
+async fn assert_matched_problem_route(
+    router: &axum::Router,
+    openapi: &serde_json::Value,
+    method: Method,
+    request_uri: &str,
+    route_template: &str,
+    expected_status: StatusCode,
+) {
+    let owner_manifest =
+        sdkwork_api_birdcoder_assembly::bootstrap::route_manifest::birdcoder_app_api_route_manifest(
+        );
+    assert!(
+        owner_manifest
+            .match_route(method.as_str(), route_template)
+            .is_none(),
+        "{method} {route_template} must remain dependency-owned"
+    );
+
+    let operation_id = openapi["paths"][route_template][method.as_str().to_ascii_lowercase()]
+        ["operationId"]
+        .as_str()
+        .unwrap_or_else(|| panic!("OpenAPI operation missing for {method} {route_template}"));
+    let response = request_method(router, method.clone(), request_uri).await;
+    assert_eq!(
+        response.status(),
+        expected_status,
+        "{method} {request_uri} must match the assembled dependency route"
+    );
+    assert_eq!(
+        response
+            .headers()
+            .get("content-type")
+            .and_then(|value| value.to_str().ok()),
+        Some("application/problem+json")
+    );
+    let problem = json_body(response).await;
+    assert_eq!(
+        problem["instance"],
+        format!("{method} {route_template}"),
+        "{method} {request_uri} must expose the matched route template"
+    );
+    assert_eq!(
+        problem["operationId"], operation_id,
+        "{method} {request_uri} must expose the owner operationId"
+    );
+}
+
 #[tokio::test(flavor = "current_thread")]
-async fn gateway_mounts_system_and_agents_without_birdcoder_project_authority() {
+async fn gateway_mounts_selected_owner_contributions_on_one_router() {
     let _environment = EnvironmentGuard::install();
     let router = sdkwork_api_birdcoder_standalone_gateway::build_app(&test_config())
         .await
@@ -142,28 +197,6 @@ async fn gateway_mounts_system_and_agents_without_birdcoder_project_authority() 
         StatusCode::UNAUTHORIZED
     );
 
-    let iam_response = request_method(
-        &router,
-        Method::POST,
-        "/app/v3/api/oauth/device_authorizations",
-    )
-    .await;
-    assert_ne!(
-        iam_response.status(),
-        StatusCode::NOT_FOUND,
-        "sdkwork-iam device authorization route must be mounted by the BirdCoder gateway"
-    );
-
-    let agents_response = request(&router, "/app/v3/api/ai/projects?page=1&page_size=20").await;
-    assert_ne!(
-        agents_response.status(),
-        StatusCode::NOT_FOUND,
-        "sdkwork-agents Project routes must be mounted by the BirdCoder gateway"
-    );
-
-    assert_unclassified_owner_route(&router, "/app/v3/api/workspaces").await;
-    assert_unclassified_owner_route(&router, "/app/v3/api/projects").await;
-
     let openapi_response = request(&router, "/openapi.json").await;
     assert_eq!(openapi_response.status(), StatusCode::OK);
     let bytes = axum::body::to_bytes(openapi_response.into_body(), usize::MAX)
@@ -171,21 +204,83 @@ async fn gateway_mounts_system_and_agents_without_birdcoder_project_authority() 
         .expect("read standalone OpenAPI response");
     let document: serde_json::Value =
         serde_json::from_slice(&bytes).expect("parse standalone OpenAPI response");
-    let paths = document["paths"]
-        .as_object()
-        .expect("standalone OpenAPI paths object");
     for selected_owner_path in [
         "/app/v3/api/system/health",
+        "/app/v3/api/auth/sessions/current",
         "/app/v3/api/oauth/device_authorizations",
         "/app/v3/api/ai/projects",
+        "/app/v3/api/documents",
+        "/app/v3/api/drive/spaces",
+        "/app/v3/api/memberships/current",
+        "/app/v3/api/orders",
+        "/app/v3/api/prompts/templates",
+        "/app/v3/api/skills",
     ] {
         assert!(
-            paths.contains_key(selected_owner_path),
+            document["paths"].get(selected_owner_path).is_some(),
             "standalone OpenAPI must contain {selected_owner_path}"
         );
     }
+
+    for (request_uri, route_template) in [
+        (
+            "/app/v3/api/auth/sessions/current",
+            "/app/v3/api/auth/sessions/current",
+        ),
+        (
+            "/app/v3/api/ai/projects?page=1&page_size=20",
+            "/app/v3/api/ai/projects",
+        ),
+        (
+            "/app/v3/api/documents?page=1&page_size=20",
+            "/app/v3/api/documents",
+        ),
+        (
+            "/app/v3/api/drive/spaces?page=1&page_size=20",
+            "/app/v3/api/drive/spaces",
+        ),
+        (
+            "/app/v3/api/memberships/current",
+            "/app/v3/api/memberships/current",
+        ),
+        (
+            "/app/v3/api/orders?page=1&page_size=20",
+            "/app/v3/api/orders",
+        ),
+        (
+            "/app/v3/api/prompts/templates?page=1&page_size=20",
+            "/app/v3/api/prompts/templates",
+        ),
+        (
+            "/app/v3/api/skills?page=1&page_size=20",
+            "/app/v3/api/skills",
+        ),
+    ] {
+        assert_matched_problem_route(
+            &router,
+            &document,
+            Method::GET,
+            request_uri,
+            route_template,
+            StatusCode::UNAUTHORIZED,
+        )
+        .await;
+    }
+
+    let device_authorization_response = request_method(
+        &router,
+        Method::POST,
+        "/app/v3/api/oauth/device_authorizations",
+    )
+    .await;
+    assert_eq!(device_authorization_response.status(), StatusCode::OK);
+    let device_authorization = json_body(device_authorization_response).await;
+    assert_eq!(device_authorization["code"], 0);
     assert!(
-        paths.len() > 4,
-        "standalone OpenAPI must include all owners"
+        device_authorization["data"].is_object(),
+        "IAM device authorization must return its real SDKWork success envelope"
     );
+
+    assert_unclassified_owner_route(&router, "/app/v3/api/workspaces").await;
+    assert_unclassified_owner_route(&router, "/app/v3/api/projects").await;
 }

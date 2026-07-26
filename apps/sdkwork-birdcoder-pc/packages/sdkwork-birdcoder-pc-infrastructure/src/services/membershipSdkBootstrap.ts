@@ -1,9 +1,10 @@
 /**
  * BirdCoder membership SDK bootstrap.
  *
- * Membership and Order remain dependency-owned capabilities. Both SDKs use
- * the platform gateway (or an explicit dependency override) and share the
- * BirdCoder IAM TokenManager.
+ * Membership and Order remain dependency-owned capabilities. Standalone uses
+ * their owner assembly contributions through the application ingress; cloud
+ * uses the platform gateway or an explicit dependency override. Both SDKs
+ * share the BirdCoder IAM TokenManager.
  */
 
 import {

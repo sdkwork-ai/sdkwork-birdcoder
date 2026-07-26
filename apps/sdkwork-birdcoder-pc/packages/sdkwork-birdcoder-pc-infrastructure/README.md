@@ -25,21 +25,23 @@ the Documents client remains lazy when a project has no such slot.
 
 Runtime topology is supplied through typed application bootstrap as two fields:
 `applicationApiBaseUrl` for the BirdCoder-owned SDK and
-`platformApiGatewayBaseUrl` for dependency SDKs. `sdkBaseUrls` validates gateway
-roots and rejects credentials, query strings, fragments, generated API paths,
-missing values, and cross-plane fallbacks. Feature code receives service ports
-or generated SDK clients and does not read environment variables or assemble
-authentication headers.
+the cloud-only `platformApiGatewayBaseUrl` for remote dependency SDKs. In
+standalone, `sdkBaseUrls` resolves mounted dependency SDKs to the application
+URL. It validates roots and rejects credentials, query strings, fragments,
+generated API paths, missing values, and profile-incompatible fallbacks.
+Feature code receives service ports or generated SDK clients and does not read
+environment variables or assemble authentication headers.
 
 ## Deployment Profile And Runtime Target Behavior
 
-Browser development binds dependency SDKs to a same-origin API edge root while
-preserving canonical request paths such as `/app/v3/api/drive`; Vite routes the
-owned dependency namespaces internally to the server-only platform topology
-value. Tauri binds the embedded application ingress returned by
-`desktop_runtime_config` and a separately configured direct platform gateway.
-Cloud and standalone profiles retain the same SDK contracts and fail before
-service bootstrap when either required connection plane is unavailable.
+Standalone browser development binds canonical dependency paths such as
+`/app/v3/api/drive` to the single application ingress. The standalone gateway
+serves those routes from dependency owner assembly contributions rather than an
+HTTP proxy. Tauri uses the embedded application ingress returned by
+`desktop_runtime_config` for the same purpose. Cloud keeps a separately
+configured direct platform gateway. Both profiles retain the same owner SDK
+contracts and fail before service bootstrap when their selected surface is
+unavailable.
 
 ## Security
 

@@ -55,11 +55,13 @@ runtime location id required by its Session runtime-binding contract.
 ## Client API Configuration
 
 `SDKWORK_BIRDCODER_APPLICATION_PUBLIC_HTTP_URL` and its public `VITE_*` mirror
-select the BirdCoder application ingress.
+select the BirdCoder application ingress. Standalone publishes only this API
+URL; dependency SDKs resolve to the same origin because their executable owner
+assembly contributions are mounted by the standalone gateway.
 `SDKWORK_BIRDCODER_PLATFORM_API_GATEWAY_HTTP_URL` and its public `VITE_*`
-mirror select the platform gateway used by dependency SDKs. Packaged clients
-require explicit topology materialization and must not silently fall back to
-localhost.
+mirror select the remote platform gateway for cloud profiles only. Cloud
+clients require explicit topology materialization and must not silently fall
+back to localhost or start a platform gateway process.
 
 Browser-visible values must not contain access tokens, provider credentials,
 native paths, local mount identities, device-state paths, or private dependency
