@@ -397,8 +397,18 @@ assert.equal(
 );
 assert.equal(
   rootConfig.server?.proxy?.['/app/v3/api/auth']?.target,
-  'http://127.0.0.1:3900',
-  'Root canonical IAM auth API proxy must use the independent platform gateway.',
+  'http://127.0.0.1:10240',
+  'Root canonical IAM auth API proxy must use the embedded BirdCoder application gateway.',
+);
+assert.equal(
+  rootConfig.server?.proxy?.['/app/v3/api/oauth']?.target,
+  'http://127.0.0.1:10240',
+  'Root canonical IAM OAuth API proxy must use the embedded BirdCoder application gateway.',
+);
+assert.equal(
+  rootConfig.server?.proxy?.['/app/v3/api/ai']?.target,
+  'http://127.0.0.1:10240',
+  'Root canonical Agents API proxy must use the embedded BirdCoder application gateway.',
 );
 assert.equal(
   rootConfig.server?.proxy?.['/__sdkwork/platform'],
@@ -467,8 +477,18 @@ assert.equal(
 );
 assert.equal(
   webConfig.server?.proxy?.['/app/v3/api/auth']?.target,
-  'http://127.0.0.1:3900',
-  'Web canonical IAM auth API proxy must use the independent platform gateway.',
+  'http://127.0.0.1:10240',
+  'Web canonical IAM auth API proxy must use the embedded BirdCoder application gateway.',
+);
+assert.equal(
+  webConfig.server?.proxy?.['/app/v3/api/oauth']?.target,
+  'http://127.0.0.1:10240',
+  'Web canonical IAM OAuth API proxy must use the embedded BirdCoder application gateway.',
+);
+assert.equal(
+  webConfig.server?.proxy?.['/app/v3/api/ai']?.target,
+  'http://127.0.0.1:10240',
+  'Web canonical Agents API proxy must use the embedded BirdCoder application gateway.',
 );
 assert.equal(
   webConfig.server?.proxy?.['/__sdkwork/platform'],

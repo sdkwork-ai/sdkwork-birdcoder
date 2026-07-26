@@ -50,24 +50,26 @@ const BIRDCODER_NON_CANONICAL_API_PREFIXES = [
   '/api/backend/v3/api',
 ];
 export const BIRDCODER_CANONICAL_DEV_PROXY_ROOT = '/';
-export const BIRDCODER_PLATFORM_CANONICAL_APP_API_PROXY_PREFIXES = [
-  '/app/v3/api/after_sales',
+export const BIRDCODER_APPLICATION_EMBEDDED_APP_API_PROXY_PREFIXES = [
   '/app/v3/api/ai',
   '/app/v3/api/auth',
+  '/app/v3/api/iam',
+  '/app/v3/api/oauth',
+  '/app/v3/api/system/iam',
+];
+export const BIRDCODER_PLATFORM_CANONICAL_APP_API_PROXY_PREFIXES = [
+  '/app/v3/api/after_sales',
   '/app/v3/api/checkout',
   '/app/v3/api/documents',
   '/app/v3/api/drive',
   '/app/v3/api/fulfillments',
-  '/app/v3/api/iam',
   '/app/v3/api/memberships',
   '/app/v3/api/messaging',
-  '/app/v3/api/oauth',
   '/app/v3/api/orders',
   '/app/v3/api/prompts',
   '/app/v3/api/recharges',
   '/app/v3/api/shipments',
   '/app/v3/api/skills',
-  '/app/v3/api/system/iam',
   '/app/v3/api/withdrawals',
 ];
 
@@ -1133,6 +1135,27 @@ export function createBirdcoderCanonicalPlatformDevProxyEntries(
       prefix,
       {
         target: normalizedPlatformTarget,
+        changeOrigin: true,
+        ws: false,
+        configure: configureBirdcoderSdkworkProxyProblemResponse,
+      },
+    ]),
+  );
+}
+
+export function createBirdcoderCanonicalEmbeddedAppDevProxyEntries(
+  applicationTarget,
+) {
+  const normalizedApplicationTarget = String(applicationTarget ?? '').trim();
+  if (!normalizedApplicationTarget) {
+    return {};
+  }
+
+  return Object.fromEntries(
+    BIRDCODER_APPLICATION_EMBEDDED_APP_API_PROXY_PREFIXES.map((prefix) => [
+      prefix,
+      {
+        target: normalizedApplicationTarget,
         changeOrigin: true,
         ws: false,
         configure: configureBirdcoderSdkworkProxyProblemResponse,

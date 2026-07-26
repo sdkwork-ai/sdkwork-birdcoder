@@ -6,6 +6,7 @@ import {
   BIRDCODER_VITE_DEDUPE_PACKAGES,
   BIRDCODER_VITE_WEB_OPTIMIZE_DEPS_INCLUDE,
   configureBirdcoderSdkworkProxyProblemResponse,
+  createBirdcoderCanonicalEmbeddedAppDevProxyEntries,
   createBirdcoderCanonicalPlatformDevProxyEntries,
   createBirdcoderWorkspaceAliasEntries,
   createBirdcoderWorkspaceFsAllowList,
@@ -67,6 +68,7 @@ export default defineConfig(({ command, mode }) => {
         allow: createBirdcoderWorkspaceFsAllowList(rootHostAppRootDir),
       },
       proxy: {
+        ...createBirdcoderCanonicalEmbeddedAppDevProxyEntries(devProxyTargets.application),
         ...createBirdcoderCanonicalPlatformDevProxyEntries(devProxyTargets.platform),
         ...(devProxyTargets.application
           ? Object.fromEntries(

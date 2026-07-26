@@ -229,7 +229,12 @@ assert.match(
 assert.match(
   webViteConfig,
   /createBirdcoderCanonicalPlatformDevProxyEntries\(devProxyTargets\.platform\)/u,
-  'PC web test mode must preserve canonical IAM paths through the governed platform proxy topology.',
+  'PC web test mode must preserve external dependency paths through the governed platform proxy topology.',
+);
+assert.match(
+  webViteConfig,
+  /createBirdcoderCanonicalEmbeddedAppDevProxyEntries\(devProxyTargets\.application\)/u,
+  'PC web test mode must route embedded IAM and Agents paths through the BirdCoder application gateway.',
 );
 assert.match(
   mockServer,
