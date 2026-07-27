@@ -12,6 +12,7 @@ import {
   composeAgentSessionTranscriptActivity,
   resolveAgentTurnActivityPresentation,
 } from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-contracts-commons/src/agent-session-item-activity-presentation.ts';
+import { normalizeAgentSessionItemToolCalls } from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-contracts-commons/src/agent-session-item-tool-calls.ts';
 import {
   toAgentSessionItemView,
   toAgentSessionTranscriptItemViews,
@@ -272,6 +273,133 @@ assert.deepEqual(transientToolView.tool_calls, [{
   output: canonicalToolItem.toolResult,
 }]);
 
+const codexNativeCall = {
+  type: 'function_call',
+  id: 'codex-call-item-1',
+  call_id: 'codex-call-1',
+  name: 'shell_command',
+  arguments: '{"command":"pnpm typecheck"}',
+};
+const codexNativeToolView = toAgentSessionItemView({
+  ...canonicalToolItem,
+  itemId: 'agent-item-codex-native-call',
+  kind: 'tool_call',
+  status: 'pending',
+  toolName: 'shell_command',
+  toolCallId: 'codex-call-1',
+  toolArguments: codexNativeCall,
+  toolResult: undefined,
+});
+assert.equal(
+  (codexNativeToolView.tool_calls?.[0] as Record<string, unknown>).type,
+  'function_call',
+  'Codex response items must reach the Codex protocol adapter without an arguments wrapper.',
+);
+assert.equal(
+  (codexNativeToolView.tool_calls?.[0] as Record<string, unknown>).arguments,
+  codexNativeCall.arguments,
+);
+const normalizedCodexCall = normalizeAgentSessionItemToolCalls(
+  codexNativeToolView.tool_calls,
+  { engineId: 'codex' },
+)[0];
+assert.equal(normalizedCodexCall?.id, 'codex-call-1');
+assert.equal(normalizedCodexCall?.name, 'shell_command');
+assert.equal(normalizedCodexCall?.command, 'pnpm typecheck');
+
+const claudeNativeResult = {
+  type: 'mcp_tool_result',
+  tool_use_id: 'claude-call-1',
+  content: [{ type: 'text', text: 'found' }],
+};
+const claudeNativeToolView = toAgentSessionItemView({
+  ...canonicalToolItem,
+  itemId: 'agent-item-claude-native-result',
+  toolName: 'mcp__docs__search',
+  toolCallId: 'claude-call-1',
+  toolResult: claudeNativeResult,
+});
+assert.equal(
+  (claudeNativeToolView.tool_calls?.[0] as Record<string, unknown>).type,
+  'mcp_tool_result',
+  'Claude content blocks must reach the Claude protocol adapter without an output wrapper.',
+);
+assert.deepEqual(
+  (claudeNativeToolView.tool_calls?.[0] as Record<string, unknown>).content,
+  claudeNativeResult.content,
+);
+const normalizedClaudeResult = normalizeAgentSessionItemToolCalls(
+  claudeNativeToolView.tool_calls,
+  { engineId: 'claude-code' },
+)[0];
+assert.equal(normalizedClaudeResult?.id, 'claude-call-1');
+assert.equal(normalizedClaudeResult?.name, 'search');
+assert.equal(normalizedClaudeResult?.serverName, 'docs');
+assert.match(normalizedClaudeResult?.output ?? '', /found/);
+
+const claudeHookEvent = {
+  type: 'system',
+  subtype: 'hook_response',
+  tool_use_id: 'claude-call-1',
+  hook_name: 'post-tool',
+  outcome: 'success',
+  output: 'checked',
+};
+const claudeHookView = toAgentSessionItemView({
+  ...canonicalToolItem,
+  itemId: 'agent-item-claude-hook',
+  kind: 'tool_call',
+  toolName: 'post-tool',
+  toolCallId: 'claude-call-1',
+  toolArguments: claudeHookEvent,
+  toolResult: claudeHookEvent,
+});
+const normalizedClaudeHook = normalizeAgentSessionItemToolCalls(
+  claudeHookView.tool_calls,
+  { engineId: 'claude-code' },
+)[0];
+assert.equal(normalizedClaudeHook?.id, 'claude-call-1');
+assert.equal(normalizedClaudeHook?.name, 'post-tool');
+assert.equal(normalizedClaudeHook?.status, 'success');
+assert.match(normalizedClaudeHook?.output ?? '', /checked/);
+
+const openCodeNativeTool = {
+  type: 'tool',
+  callID: 'opencode-call-1',
+  tool: 'mcp__docs__search',
+  state: {
+    status: 'completed',
+    input: { q: 'session items' },
+    output: 'found',
+  },
+};
+const openCodeNativeToolView = toAgentSessionItemView({
+  ...canonicalToolItem,
+  itemId: 'agent-item-opencode-native-tool',
+  kind: 'tool_call',
+  toolName: 'mcp__docs__search',
+  toolCallId: 'opencode-call-1',
+  toolArguments: openCodeNativeTool,
+  toolResult: openCodeNativeTool,
+});
+assert.equal(
+  (openCodeNativeToolView.tool_calls?.[0] as Record<string, unknown>).type,
+  'tool',
+  'OpenCode parts must reach the OpenCode protocol adapter without an arguments wrapper.',
+);
+assert.deepEqual(
+  (openCodeNativeToolView.tool_calls?.[0] as Record<string, unknown>).state,
+  openCodeNativeTool.state,
+);
+const normalizedOpenCodeTool = normalizeAgentSessionItemToolCalls(
+  openCodeNativeToolView.tool_calls,
+  { engineId: 'opencode' },
+)[0];
+assert.equal(normalizedOpenCodeTool?.id, 'opencode-call-1');
+assert.equal(normalizedOpenCodeTool?.name, 'mcp__docs__search');
+assert.equal(normalizedOpenCodeTool?.status, 'success');
+assert.equal(normalizedOpenCodeTool?.output, 'found');
+
 const commandText = 'pnpm typecheck';
 const canonicalCommandCall: AgentSessionItemRecord = {
   ...canonicalItem,
@@ -330,6 +458,124 @@ assert.deepEqual(commandActivity.commands, [{
   toolName: canonicalCommandCall.toolName,
   toolCallId: canonicalCommandCall.toolCallId,
 }]);
+const commandActivityItem = commandTranscript.find((item) => item.role === 'tool');
+assert.ok(commandActivityItem);
+const commandActivityView = resolveAgentSessionItemPresentation(commandActivityItem, {
+  activitySummary: commandActivity,
+  engineId: 'codex',
+});
+const commandActivityBlocks = commandActivityView.blocks.filter(
+  (block) => block.type === 'activity',
+);
+assert.equal(
+  commandActivityBlocks.length,
+  1,
+  'A tool lifecycle with commands and file changes must render as one activity disclosure.',
+);
+assert.equal(commandActivityBlocks[0]?.commands.length, 1);
+assert.equal(commandActivityBlocks[0]?.fileChanges.length, 1);
+
+const providerTodoFixtures = [
+  {
+    engineId: 'codex',
+    toolCall: {
+      id: 'codex-plan-1',
+      type: 'todo_list',
+      items: [
+        { text: 'Inspect message protocol parts', status: 'completed' },
+        { text: 'Align the shared renderer', status: 'in_progress' },
+        { text: 'Verify compact layout', status: 'pending' },
+      ],
+    },
+  },
+  {
+    engineId: 'opencode',
+    toolCall: {
+      type: 'tool',
+      part: {
+        id: 'opencode-plan-1',
+        type: 'tool',
+        tool: 'todowrite',
+        state: {
+          status: 'completed',
+          input: {
+            todos: [
+              { content: 'Inspect message protocol parts', status: 'completed' },
+              { content: 'Align the shared renderer', status: 'in_progress' },
+              { content: 'Verify compact layout', status: 'pending' },
+            ],
+          },
+        },
+      },
+    },
+  },
+  {
+    engineId: 'claude-code',
+    toolCall: {
+      contentBlock: {
+        id: 'claude-plan-1',
+        type: 'tool_use',
+        name: 'TodoWrite',
+        input: {
+          todos: [
+            { content: 'Inspect message protocol parts', status: 'completed' },
+            { content: 'Align the shared renderer', status: 'in_progress' },
+            { content: 'Verify compact layout', status: 'pending' },
+          ],
+        },
+      },
+    },
+  },
+  {
+    engineId: 'gemini',
+    toolCall: {
+      id: 'gemini-plan-1',
+      type: 'tool_use',
+      tool_id: 'gemini-plan-1',
+      tool_name: 'write_todos',
+      parameters: {
+        tasks: [
+          { description: 'Inspect message protocol parts', status: 'completed' },
+          { description: 'Align the shared renderer', status: 'running' },
+          { description: 'Verify compact layout', status: 'pending' },
+        ],
+      },
+      status: 'completed',
+    },
+  },
+] as const;
+
+for (const fixture of providerTodoFixtures) {
+  const presentation = resolveAgentSessionItemPresentation({
+    ...transientItemView,
+    id: `${fixture.engineId}-todo-item`,
+    content: '',
+    tool_calls: [fixture.toolCall],
+  }, { engineId: fixture.engineId });
+  const taskProgressBlock = presentation.blocks.find((block) => block.type === 'task-progress');
+  assert.ok(
+    taskProgressBlock && taskProgressBlock.type === 'task-progress',
+    `${fixture.engineId} todo updates must project into the shared task progress block.`,
+  );
+  assert.deepEqual(
+    taskProgressBlock.progress.items.map((item) => ({ status: item.status, text: item.text })),
+    [
+      { status: 'completed', text: 'Inspect message protocol parts' },
+      { status: 'running', text: 'Align the shared renderer' },
+      { status: 'pending', text: 'Verify compact layout' },
+    ],
+  );
+  assert.equal(taskProgressBlock.progress.completed, 1);
+  assert.equal(taskProgressBlock.progress.total, 3);
+  assert.equal(
+    presentation.blocks.some((block) =>
+      block.type === 'tool-calls'
+      && block.calls.some((call) => /todo|plan/u.test(call.name.toLowerCase())),
+    ),
+    false,
+    `${fixture.engineId} todo payloads must not render a duplicate generic tool card.`,
+  );
+}
 
 const provisionalUserItem: AgentSessionItemView = {
   id: '',

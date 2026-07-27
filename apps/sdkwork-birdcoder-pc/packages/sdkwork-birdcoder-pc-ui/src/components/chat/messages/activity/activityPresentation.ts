@@ -242,12 +242,3 @@ export function resolveDiffPreviewLineClassName(tone: ActivityDiffPreviewLineTon
   }
   return 'text-gray-300';
 }
-
-export function revealChatActivityDetails(detailsId: string): void {
-  if (typeof window === 'undefined') {
-    return;
-  }
-  window.requestAnimationFrame(() => {
-    document.getElementById(detailsId)?.scrollIntoView({ block: 'nearest', inline: 'nearest' });
-  });
-}

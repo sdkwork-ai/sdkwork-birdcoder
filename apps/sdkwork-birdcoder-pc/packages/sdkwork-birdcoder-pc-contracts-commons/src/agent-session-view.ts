@@ -121,7 +121,7 @@ export type AgentSessionItemViewKind = (typeof AGENT_SESSION_ITEM_VIEW_KINDS)[nu
 
 export const AGENT_SESSION_ITEM_CONTENT_BLOCK_TYPES = [
   'markdown', 'notice', 'reasoning', 'activity', 'file-changes', 'commands',
-  'resources', 'task-progress', 'tool-calls',
+  'resources', 'task-progress', 'lifecycle', 'interactions', 'tool-calls',
 ] as const;
 export type AgentSessionItemContentBlockType =
   (typeof AGENT_SESSION_ITEM_CONTENT_BLOCK_TYPES)[number];
@@ -150,6 +150,72 @@ export interface AgentSessionItemReasoningView {
   startedAt?: string;
   completedAt?: string;
   durationMs?: number;
+}
+
+export const AGENT_SESSION_ITEM_LIFECYCLE_EVENT_KINDS = [
+  'started', 'completed', 'retrying', 'compacted', 'checkpoint', 'blocked',
+  'stopped', 'cancelled', 'failed',
+] as const;
+export type AgentSessionItemLifecycleEventKind =
+  (typeof AGENT_SESSION_ITEM_LIFECYCLE_EVENT_KINDS)[number];
+
+export interface AgentSessionItemTokenUsageView {
+  inputTokens?: number;
+  outputTokens?: number;
+  reasoningTokens?: number;
+  cacheReadTokens?: number;
+  cacheWriteTokens?: number;
+  totalTokens?: number;
+}
+
+export interface AgentSessionItemLifecycleEventView {
+  id: string;
+  kind: AgentSessionItemLifecycleEventKind;
+  detail?: string;
+  attempt?: number;
+  retryAt?: string;
+  durationMs?: number;
+  cost?: number;
+  usage?: AgentSessionItemTokenUsageView;
+  automatic?: boolean;
+}
+
+export const AGENT_SESSION_ITEM_INTERACTION_STATUSES = [
+  'pending', 'approved', 'answered', 'completed', 'denied', 'rejected',
+  'cancelled', 'failed',
+] as const;
+export type AgentSessionItemInteractionStatus =
+  (typeof AGENT_SESSION_ITEM_INTERACTION_STATUSES)[number];
+
+export interface AgentSessionItemInteractionOptionView {
+  label: string;
+  value?: string;
+  description?: string;
+}
+
+export interface AgentSessionItemInteractionQuestionView {
+  id?: string;
+  header?: string;
+  question: string;
+  options?: readonly AgentSessionItemInteractionOptionView[];
+  multiple?: boolean;
+  allowCustomAnswer?: boolean;
+  answers?: readonly string[];
+}
+
+export interface AgentSessionItemInteractionView {
+  id: string;
+  kind: 'approval' | 'question';
+  status: AgentSessionItemInteractionStatus;
+  title?: string;
+  prompt?: string;
+  detail?: string;
+  action?: string;
+  resources?: readonly string[];
+  questions?: readonly AgentSessionItemInteractionQuestionView[];
+  answer?: string;
+  decision?: string;
+  requiresResponse?: boolean;
 }
 
 export interface AgentSessionItemResourceOriginView {
@@ -210,6 +276,7 @@ export interface AgentSessionItemToolCallView {
   title?: string;
   durationMs?: number;
   resultBlocks?: readonly AgentSessionItemToolResultBlockView[];
+  interaction?: AgentSessionItemInteractionView;
 }
 
 export interface AgentSessionCommandView {
@@ -224,7 +291,22 @@ export interface AgentSessionCommandView {
   requiresReply?: boolean;
 }
 
-export interface AgentSessionTaskProgressView { total: number; completed: number }
+export const AGENT_SESSION_TASK_ITEM_STATUSES = [
+  'blocked', 'cancelled', 'completed', 'pending', 'running',
+] as const;
+export type AgentSessionTaskItemStatus = (typeof AGENT_SESSION_TASK_ITEM_STATUSES)[number];
+
+export interface AgentSessionTaskItemView {
+  id?: string;
+  text: string;
+  status: AgentSessionTaskItemStatus;
+}
+
+export interface AgentSessionTaskProgressView {
+  total: number;
+  completed: number;
+  items?: readonly AgentSessionTaskItemView[];
+}
 
 export interface AgentSessionItemView {
   id: string;
@@ -241,6 +323,7 @@ export interface AgentSessionItemView {
   fileChanges?: FileChange[];
   commands?: AgentSessionCommandView[];
   reasoning?: AgentSessionItemReasoningView[];
+  lifecycleEvents?: AgentSessionItemLifecycleEventView[];
   resources?: AgentSessionItemResourceView[];
   taskProgress?: AgentSessionTaskProgressView;
 }
@@ -387,6 +470,7 @@ function buildAgentSessionItemSynchronizationSignature(item: AgentSessionItemVie
     fileChanges: item.fileChanges ?? null,
     id: item.id,
     metadata: item.metadata ?? null,
+    lifecycleEvents: item.lifecycleEvents ?? null,
     name: item.name ?? null,
     reasoning: item.reasoning ?? null,
     resources: item.resources ?? null,
@@ -461,6 +545,10 @@ export function mergeAgentSessionItemViews(
     commands: incoming.commands ?? existing.commands,
     fileChanges: incoming.fileChanges ?? existing.fileChanges,
     metadata: incoming.metadata ?? existing.metadata,
+    lifecycleEvents: mergeAgentSessionItemCollection(
+      existing.lifecycleEvents,
+      incoming.lifecycleEvents,
+    ),
     reasoning: mergeAgentSessionItemCollection(existing.reasoning, incoming.reasoning),
     resources: mergeAgentSessionItemCollection(existing.resources, incoming.resources),
     taskProgress: incoming.taskProgress ?? existing.taskProgress,

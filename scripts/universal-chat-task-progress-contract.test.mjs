@@ -12,6 +12,16 @@ const taskProgressUiSource = await readFile(
   'utf8',
 );
 
+const taskProgressSummarySource = await readFile(
+  resolve('apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-ui/src/components/chat/messages/blocks/ChatTaskProgressSummary.tsx'),
+  'utf8',
+);
+
+const taskProgressItemListSource = await readFile(
+  resolve('apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-ui/src/components/chat/messages/blocks/ChatTaskProgressItemList.tsx'),
+  'utf8',
+);
+
 const contentBlockRenderersSource = await readFile(
   resolve('apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-ui/src/components/chat/messages/contentBlocks/ContentBlockRenderers.tsx'),
   'utf8',
@@ -41,6 +51,18 @@ assert.match(
 );
 
 assert.match(
+  taskProgressSource,
+  /export function resolveToolCallsTaskProgressDisplayState\(/,
+  'Provider todo tools must project into one provider-neutral task progress display state.',
+);
+
+assert.match(
+  taskProgressSource,
+  /TASK_PROGRESS_COLLECTION_KEYS = \['items', 'todos', 'tasks', 'plan', 'steps'\]/,
+  'Task progress normalization must support the structured collection names used by Codex, OpenCode, Claude Code, and Gemini.',
+);
+
+assert.match(
   taskProgressUiSource,
   /resolveTaskProgressDisplayState\(taskProgress\)/,
   'Task progress rendering must use the normalized display state rather than reading raw payload fields directly.',
@@ -59,7 +81,7 @@ assert.match(
 );
 
 assert.match(
-  taskProgressUiSource,
+  taskProgressSummarySource,
   /role="progressbar"[\s\S]*aria-valuemax=\{total\}[\s\S]*aria-valuenow=\{completed\}/,
   'Task progress must expose its normalized completed and total values to assistive technology.',
 );
@@ -84,8 +106,20 @@ assert.doesNotMatch(
 
 assert.match(
   contentBlockRenderersSource,
-  /<ChatTaskProgress taskProgress=\{block\.progress\} t=\{context\.environment\?\.t\} \/>/,
-  'Content block renderers must delegate task progress rendering to ChatTaskProgress instead of UniversalChat injection hooks.',
+  /<ChatTaskProgress[\s\S]*isExpanded=\{context\.expandedDisclosureKeys\.has\(disclosureKey\)\}[\s\S]*onToggle=\{\(\) => context\.toggleDisclosure\(disclosureKey\)\}[\s\S]*taskProgress=\{block\.progress\}/,
+  'Content block renderers must delegate controlled task disclosure rendering to ChatTaskProgress.',
+);
+
+assert.match(
+  taskProgressUiSource,
+  /<ChatTaskProgressSummary[\s\S]*<ChatTaskProgressItemList/,
+  'Task progress orchestration must remain separate from its summary and item-list presentation components.',
+);
+
+assert.match(
+  taskProgressItemListSource,
+  /data-chat-task-item-status=\{item\.status\}/,
+  'Expanded task lists must expose each normalized lifecycle state for styling and UI verification.',
 );
 
 console.log('universal chat task progress contract passed.');

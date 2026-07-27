@@ -288,6 +288,38 @@ assert.equal(
   'Known execution providers must use distinct badge colors.',
 );
 
+const additionalProviderVisualCases = [
+  ['amazon-bedrock', 'AB', 'amazon-bedrock', 'violet'],
+  ['bedrock', 'AB', 'amazon-bedrock', 'violet'],
+  ['azure-openai', 'AO', 'azure-openai', 'blue'],
+  ['anthropic', 'AN', 'anthropic', 'orange'],
+  ['deepseek', 'DS', 'deepseek', 'indigo'],
+  ['google', 'GO', 'google', 'red'],
+  ['groq', 'GQ', 'groq', 'lime'],
+  ['mistral', 'MI', 'mistral', 'yellow'],
+  ['openai', 'OA', 'openai', 'cyan'],
+  ['openrouter', 'OR', 'openrouter', 'fuchsia'],
+  ['xai', 'XA', 'xai', 'teal'],
+] as const;
+for (const [providerId, expectedAbbreviation, expectedId, expectedTone]
+  of additionalProviderVisualCases) {
+  const visualIdentity = resolveProviderVisualIdentity({ providerId });
+  assert.equal(visualIdentity.abbreviation, expectedAbbreviation);
+  assert.equal(visualIdentity.id, expectedId);
+  assert.equal(visualIdentity.tone, expectedTone);
+}
+const canonicalProviderTones = [
+  ...providerVisualCases.map(([, , id, tone]) => [id, tone] as const),
+  ...additionalProviderVisualCases
+    .filter(([providerId]) => providerId !== 'bedrock')
+    .map(([, , id, tone]) => [id, tone] as const),
+];
+assert.equal(
+  new Set(canonicalProviderTones.map(([, tone]) => tone)).size,
+  canonicalProviderTones.length,
+  'Every registered canonical provider must use a distinct visual tone.',
+);
+
 const fallbackSessionBadgeHtml = renderToStaticMarkup(
   <SessionProviderBadge providerId="provider.acme-cloud" />,
 );

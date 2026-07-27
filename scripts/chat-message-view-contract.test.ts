@@ -114,20 +114,34 @@ assert.deepEqual(
   {
     type: 'task-progress',
     progress: {
-      total: 2,
+      activeItem: {
+        id: 'task-2',
+        status: 'pending',
+        text: 'Align Claude messages',
+      },
       completed: 1,
+      items: [
+        {
+          id: 'task-1',
+          status: 'completed',
+          text: 'Inspect Codex messages',
+        },
+        {
+          id: 'task-2',
+          status: 'pending',
+          text: 'Align Claude messages',
+        },
+      ],
+      percent: 50,
+      total: 2,
     },
   },
-  'Provider-neutral task progress must preserve its compact completion summary.',
+  'Provider-neutral task progress must preserve its completion summary and normalized task items.',
 );
-assert.ok(detailedTaskToolBlock && detailedTaskToolBlock.type === 'tool-calls');
-assert.deepEqual(
-  detailedTaskToolBlock.calls[0]?.resultBlocks,
-  [{
-    type: 'list',
-    items: ['[x] Inspect Codex messages', '[ ] Align Claude messages'],
-  }],
-  'A compact task-progress counter must not discard the provider task checklist or its text.',
+assert.equal(
+  detailedTaskToolBlock,
+  undefined,
+  'A todo tool projected into the shared task-progress block must not render a duplicate generic tool card.',
 );
 
 const geminiDetailedTaskProgressView = resolveAgentSessionItemPresentation({
@@ -156,14 +170,42 @@ const geminiDetailedTaskProgressView = resolveAgentSessionItemPresentation({
 const geminiDetailedTaskToolBlock = geminiDetailedTaskProgressView.blocks.find(
   (block) => block.type === 'tool-calls',
 );
-assert.ok(geminiDetailedTaskToolBlock && geminiDetailedTaskToolBlock.type === 'tool-calls');
+const geminiDetailedTaskProgressBlock = geminiDetailedTaskProgressView.blocks.find(
+  (block) => block.type === 'task-progress',
+);
 assert.deepEqual(
-  geminiDetailedTaskToolBlock.calls[0]?.resultBlocks,
-  [{
-    type: 'list',
-    items: ['[x] Inspect Gemini messages', '[~] Align shared rendering'],
-  }],
-  'Gemini resultDisplay.todos must survive alongside its normalized progress counter.',
+  geminiDetailedTaskProgressBlock,
+  {
+    type: 'task-progress',
+    progress: {
+      activeItem: {
+        id: 'task-2',
+        status: 'running',
+        text: 'Align shared rendering',
+      },
+      completed: 1,
+      items: [
+        {
+          id: 'task-1',
+          status: 'completed',
+          text: 'Inspect Gemini messages',
+        },
+        {
+          id: 'task-2',
+          status: 'running',
+          text: 'Align shared rendering',
+        },
+      ],
+      percent: 50,
+      total: 2,
+    },
+  },
+  'Gemini resultDisplay.todos must normalize into the shared task-progress presentation.',
+);
+assert.equal(
+  geminiDetailedTaskToolBlock,
+  undefined,
+  'Gemini write_todos must not render a duplicate generic tool card after task-progress projection.',
 );
 
 console.log('chat message view contract passed.');

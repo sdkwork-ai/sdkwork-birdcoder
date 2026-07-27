@@ -115,7 +115,7 @@ function TopBarComponent({
     <>
       <div
         ref={topBarRef}
-        className="birdcoder-workbench-header relative z-50 flex h-12 shrink-0 items-center gap-2 overflow-visible border-b px-3 text-sm text-gray-100 sm:px-4"
+        className="birdcoder-workbench-header relative z-50 grid h-12 shrink-0 grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-2 overflow-visible border-b px-3 text-sm text-gray-100 sm:px-4"
       >
         <div
           aria-hidden={topBarDensity === 'minimal' ? 'true' : undefined}
@@ -148,7 +148,7 @@ function TopBarComponent({
         </div>
 
         <div
-          className="absolute left-1/2 z-10 flex -translate-x-1/2 items-center gap-0.5 rounded-lg bg-transparent p-0 animate-in fade-in slide-in-from-top-2 fill-mode-both"
+          className="z-10 flex items-center gap-0.5 rounded-lg bg-transparent p-0 animate-in fade-in slide-in-from-top-2 fill-mode-both"
           style={{ animationDelay: '125ms' }}
           aria-label="Code view mode"
         >
@@ -192,7 +192,7 @@ function TopBarComponent({
           </button>
         </div>
 
-        <div className={`ml-auto flex w-max max-w-full shrink-0 flex-nowrap items-center justify-end whitespace-nowrap text-gray-400 [&>*]:shrink-0 ${topBarActionGapClassName}`}>
+        <div className={`ml-auto flex w-max max-w-full min-w-0 flex-nowrap items-center justify-end whitespace-nowrap text-gray-400 [&>*]:shrink-0 ${topBarActionGapClassName}`}>
           <ProjectGitHeaderControls
             compactControls={useCompactGitControls}
             isOverviewDrawerOpen={isProjectGitOverviewDrawerOpen}

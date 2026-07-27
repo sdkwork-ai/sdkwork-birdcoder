@@ -76,8 +76,14 @@ export function useBirdCoderAuthAppTabRouting({
       return;
     }
 
-    setActiveTab(resolveInitialAppTab(recoveredTab, Boolean(user)));
-  }, [isAuthLoading, isRecoveryHydrated, recoveredTab, setActiveTab, user]);
+    const recoveredTargetTab = resolveInitialAppTab(recoveredTab, Boolean(user));
+    if (user && activeTab === 'auth' && recoveredTargetTab !== 'auth') {
+      // The auth effect below observes this render's previous activeTab. Preserve
+      // the recovered target so both effects converge when hydration completes.
+      pendingAuthTargetTabRef.current = recoveredTargetTab;
+    }
+    setActiveTab(recoveredTargetTab);
+  }, [activeTab, isAuthLoading, isRecoveryHydrated, recoveredTab, setActiveTab, user]);
 
   useEffect(() => {
     if (typeof window === 'undefined') {

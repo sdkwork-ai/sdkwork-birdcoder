@@ -89,10 +89,12 @@ const BIRDCODER_VITE_WEB_OPTIMIZE_DEPS_INCLUDE = [
   '@xterm/addon-search',
   '@xterm/addon-unicode11',
   '@xterm/addon-web-links',
+  'mermaid',
   'qrcode',
   'qrcode/lib/browser.js',
 ];
 const BIRDCODER_VITE_DESKTOP_OPTIMIZE_DEPS_INCLUDE = [
+  'mermaid',
   'qrcode',
   'qrcode/lib/browser.js',
 ];

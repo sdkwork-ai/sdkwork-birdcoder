@@ -113,6 +113,7 @@
     "mdast-util-to-hast": "catalog:",
     "mdast-util-to-markdown": "catalog:",
     "mdast-util-to-string": "catalog:",
+    "mermaid": "^11.16.0",
     "micromark": "catalog:",
     "micromark-util-character": "catalog:",
     "micromark-util-decode-numeric-character-reference": "catalog:",

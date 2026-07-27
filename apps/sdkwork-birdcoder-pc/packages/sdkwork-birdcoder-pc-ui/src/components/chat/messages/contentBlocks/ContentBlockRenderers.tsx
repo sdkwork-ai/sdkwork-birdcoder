@@ -7,6 +7,8 @@ import {
   normalizeActivityFileChanges,
 } from '../activity/activityBlockSupport.ts';
 import { ChatTaskProgress } from '../blocks/ChatTaskProgress.tsx';
+import { ChatLifecycleEvents } from '../blocks/ChatLifecycleEvents.tsx';
+import { ChatInteractionEvents } from '../blocks/ChatInteractionEvents.tsx';
 import { buildChatContentPreview } from '../contentPreview.ts';
 import { CHAT_MESSAGE_INLINE_CODE_PROSE_CLASSNAME } from '../messageLayout.ts';
 import type { ChatMessageContentBlockRendererProps } from './registry.ts';
@@ -70,7 +72,7 @@ function ActivitySummaryBlock({
   }\u0001activity`;
 
   return (
-    <div className={compact ? 'mt-1' : 'mt-1.5'}>
+    <div className={`w-full min-w-0 max-w-full ${compact ? 'mt-1' : 'mt-1.5'}`}>
       <ChatActivitySummary
         compact={compact}
         commands={commands}
@@ -300,9 +302,69 @@ export const TaskProgressContentBlockRenderer = memo(function TaskProgressConten
     return null;
   }
 
+  const sourceMessage = context.allMessages[context.index];
+  const disclosureKey = `${context.sessionId}\u0001${
+    sourceMessage?.turnId?.trim() || sourceMessage?.id?.trim() || String(context.index)
+  }\u0001task-progress`;
+
   return (
-    <div className={context.layout === 'sidebar' ? 'mt-1.5' : 'mt-2'}>
-      <ChatTaskProgress taskProgress={block.progress} t={context.environment?.t} />
+    <div className={`w-full min-w-0 ${context.layout === 'sidebar' ? 'mt-1' : 'mt-1.5'}`}>
+      <ChatTaskProgress
+        isExpanded={context.expandedDisclosureKeys.has(disclosureKey)}
+        onToggle={() => context.toggleDisclosure(disclosureKey)}
+        taskProgress={block.progress}
+        t={context.environment?.t}
+      />
+    </div>
+  );
+});
+
+export const LifecycleContentBlockRenderer = memo(function LifecycleContentBlockRenderer({
+  block,
+  context,
+}: ChatMessageContentBlockRendererProps) {
+  if (block.type !== 'lifecycle' || block.events.length === 0) {
+    return null;
+  }
+  const sourceMessage = context.allMessages[context.index];
+  const disclosureScopeKey = `${context.sessionId}\u0001${
+    sourceMessage?.turnId?.trim() || sourceMessage?.id?.trim() || String(context.index)
+  }\u0001lifecycle`;
+  return (
+    <div className={`w-full min-w-0 ${context.layout === 'sidebar' ? 'mt-1' : 'mt-1.5'}`}>
+      <ChatLifecycleEvents
+        copyMessageToClipboard={context.copyMessageToClipboard}
+        disclosureScopeKey={disclosureScopeKey}
+        events={block.events}
+        expandedDisclosureKeys={context.expandedDisclosureKeys}
+        t={context.environment?.t}
+        toggleDisclosure={context.toggleDisclosure}
+      />
+    </div>
+  );
+});
+
+export const InteractionsContentBlockRenderer = memo(function InteractionsContentBlockRenderer({
+  block,
+  context,
+}: ChatMessageContentBlockRendererProps) {
+  if (block.type !== 'interactions' || block.items.length === 0) {
+    return null;
+  }
+  const sourceMessage = context.allMessages[context.index];
+  const disclosureScopeKey = `${context.sessionId}\u0001${
+    sourceMessage?.turnId?.trim() || sourceMessage?.id?.trim() || String(context.index)
+  }\u0001interaction`;
+  return (
+    <div className={`w-full min-w-0 ${context.layout === 'sidebar' ? 'mt-1' : 'mt-1.5'}`}>
+      <ChatInteractionEvents
+        copyMessageToClipboard={context.copyMessageToClipboard}
+        disclosureScopeKey={disclosureScopeKey}
+        expandedDisclosureKeys={context.expandedDisclosureKeys}
+        interactions={block.items}
+        t={context.environment?.t}
+        toggleDisclosure={context.toggleDisclosure}
+      />
     </div>
   );
 });

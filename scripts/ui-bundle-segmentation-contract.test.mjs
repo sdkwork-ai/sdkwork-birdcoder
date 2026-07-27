@@ -176,6 +176,7 @@ assert.ok(
 const universalChatSource = readText('apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-ui/src/components/UniversalChat.tsx');
 const universalChatMarkdownSource = readText('apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-ui/src/components/UniversalChatMarkdown.tsx');
 const universalChatCodeBlockSource = readText('apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-ui/src/components/UniversalChatCodeBlock.tsx');
+const universalChatMermaidSource = readText('apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-ui/src/components/UniversalChatMermaid.tsx');
 
 assert.doesNotMatch(
   universalChatSource,
@@ -202,6 +203,21 @@ assert.match(
   /from ['"]react-syntax-highlighter\/dist\/esm\/prism-light['"]/u,
   'UniversalChatCodeBlock must own syntax-highlighting dependencies.',
 );
+assert.doesNotMatch(
+  universalChatMarkdownSource,
+  /from ['"]mermaid['"]/u,
+  'UniversalChatMarkdown must not statically import Mermaid.',
+);
+assert.match(
+  universalChatMarkdownSource,
+  /import\(['"]\.\/UniversalChatMermaid['"]\)/u,
+  'UniversalChatMarkdown must lazy-load UniversalChatMermaid.',
+);
+assert.match(
+  universalChatMermaidSource,
+  /from ['"]mermaid['"]/u,
+  'UniversalChatMermaid must own the Mermaid runtime dependency.',
+);
 
 const webViteConfigSource = readText('apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-web/vite.config.ts');
 for (const staleChunkName of [
@@ -222,6 +238,9 @@ for (const staleChunkName of [
 for (const requiredChunkName of [
   'ui-shell',
   'ui-workbench',
+  'ui-chat-markdown',
+  'ui-chat-code-highlight',
+  'ui-chat-mermaid',
   'birdcoder-platform',
   'birdcoder-platform-api-client',
   'birdcoder-platform-filesystem',
@@ -247,6 +266,8 @@ for (const requiredChunkName of [
   'birdcoder-infrastructure-root',
   'vendor-markdown',
   'vendor-code-highlight',
+  'vendor-mermaid',
+  'vendor-mermaid-parser',
 ]) {
   assert.match(
     webViteConfigSource,
@@ -267,6 +288,9 @@ assert.match(
 );
 for (const filteredChunk of [
   'ui-workbench',
+  'ui-chat-markdown',
+  'ui-chat-code-highlight',
+  'ui-chat-mermaid',
   'birdcoder-iam-surface',
   'birdcoder-platform',
   'birdcoder-platform-api-client',
@@ -288,6 +312,8 @@ for (const filteredChunk of [
   'vendor-tauri-window',
   'vendor-markdown',
   'vendor-code-highlight',
+  'vendor-mermaid',
+  'vendor-mermaid-parser',
   'vendor-monaco',
 ]) {
   assert.match(

@@ -16,8 +16,8 @@ import {
   resolveActivityFileChangeLineImpact,
   resolveActivityFileChangeStatusLabel,
   resolveDiffPreviewLineClassName,
-  revealChatActivityDetails,
 } from './activityPresentation.ts';
+import { revealChatDisclosureDetails } from '../revealChatDisclosureDetails.ts';
 
 export interface ChatFileActivityListProps {
   compact: boolean;
@@ -89,7 +89,7 @@ export const ChatFileActivityList = memo(function ChatFileActivityList({
           );
           const toggleDetails = () => {
             toggleDisclosure(disclosureKey);
-            if (!isExpanded) revealChatActivityDetails(detailsId);
+            if (!isExpanded) revealChatDisclosureDetails(detailsId);
           };
 
           return (

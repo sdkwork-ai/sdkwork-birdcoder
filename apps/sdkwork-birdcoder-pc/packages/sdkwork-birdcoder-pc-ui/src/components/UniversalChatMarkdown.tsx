@@ -1,7 +1,8 @@
 import React, { Suspense, lazy } from 'react';
-import { FileCode2, Hexagon } from 'lucide-react';
+import { FileCode2, Hexagon, RefreshCw, Workflow } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
+import { useTranslation } from 'react-i18next';
 import type { ChatSkill } from './UniversalChat';
 import { resolveChatCodeFenceLanguage } from './chatMarkdownHeuristics';
 import {
@@ -23,6 +24,11 @@ export interface UniversalChatMarkdownProps {
 const UniversalChatCodeBlock = lazy(async () => {
   const module = await import('./UniversalChatCodeBlock');
   return { default: module.UniversalChatCodeBlock };
+});
+
+const UniversalChatMermaid = lazy(async () => {
+  const module = await import('./UniversalChatMermaid');
+  return { default: module.UniversalChatMermaid };
 });
 
 const CHAT_MARKDOWN_REMARK_PLUGINS = [remarkGfm];
@@ -79,6 +85,79 @@ function PlainCodeBlock({
         <code>{String(children).replace(/\n$/, '')}</code>
       </pre>
     </div>
+  );
+}
+
+function MermaidBlockFallback() {
+  const { t } = useTranslation();
+
+  return (
+    <figure
+      className="my-3 max-w-full overflow-hidden rounded-md border border-white/10 bg-[#0b0d10]"
+      aria-busy="true"
+    >
+      <figcaption className="flex min-h-9 items-center gap-2 border-b border-white/[0.06] bg-white/[0.025] px-2.5 py-1">
+        <Workflow size={14} className="shrink-0 text-sky-300/80" aria-hidden="true" />
+        <span className="min-w-0 flex-1 truncate text-[12px] font-medium text-gray-400">
+          {t('chat.mermaidDiagram')}
+        </span>
+      </figcaption>
+      <div
+        className="flex min-h-44 items-center justify-center p-4"
+        role="status"
+        aria-label={t('chat.mermaidRendering')}
+      >
+        <RefreshCw size={16} className="animate-spin text-gray-600" aria-hidden="true" />
+      </div>
+    </figure>
+  );
+}
+
+function MarkdownCode({
+  children,
+  className,
+  inline,
+  rich,
+  ...props
+}: {
+  children: React.ReactNode;
+  className?: string;
+  inline?: boolean;
+  rich: boolean;
+  [key: string]: unknown;
+}) {
+  const language = resolveChatCodeFenceLanguage(className);
+  const isInline = inline || !language;
+
+  if (isInline) {
+    return (
+      <code
+        className="rounded bg-white/10 px-1.5 py-0.5 font-mono text-[0.92em] text-gray-100 [overflow-wrap:anywhere]"
+        {...props}
+      >
+        {children}
+      </code>
+    );
+  }
+
+  if (language.trim().toLowerCase() === 'mermaid') {
+    return (
+      <Suspense fallback={<MermaidBlockFallback />}>
+        <UniversalChatMermaid source={String(children).replace(/\n$/u, '')} />
+      </Suspense>
+    );
+  }
+
+  if (!rich) {
+    return <PlainCodeBlock language={language}>{children}</PlainCodeBlock>;
+  }
+
+  return (
+    <Suspense fallback={<PlainCodeBlock language={language}>{children}</PlainCodeBlock>}>
+      <UniversalChatCodeBlock language={language} className={className} {...props}>
+        {children}
+      </UniversalChatCodeBlock>
+    </Suspense>
   );
 }
 
@@ -227,7 +306,11 @@ export function UniversalChatMarkdown({
   if (mode === 'basic') {
     return (
       <ReactMarkdown
-        components={safeLinkComponents}
+        components={{
+          ...safeLinkComponents,
+          code: ({ node, ...props }: any) => <MarkdownCode {...props} rich={false} />,
+          pre: ({ children }: any) => <>{children}</>,
+        }}
         remarkPlugins={CHAT_MARKDOWN_REMARK_PLUGINS}
       >
         {content}
@@ -237,29 +320,7 @@ export function UniversalChatMarkdown({
 
   const markdownComponents = {
     ...safeLinkComponents,
-    code: ({ node, inline, className, children, ...props }: any) => {
-      const language = resolveChatCodeFenceLanguage(className);
-      const isInline = inline || !language;
-
-      if (isInline) {
-        return (
-          <code
-            className="rounded bg-white/10 px-1.5 py-0.5 font-mono text-[0.92em] text-gray-100 [overflow-wrap:anywhere]"
-            {...props}
-          >
-            {children}
-          </code>
-        );
-      }
-
-      return (
-        <Suspense fallback={<PlainCodeBlock language={language}>{children}</PlainCodeBlock>}>
-          <UniversalChatCodeBlock language={language} className={className} {...props}>
-            {children}
-          </UniversalChatCodeBlock>
-        </Suspense>
-      );
-    },
+    code: ({ node, ...props }: any) => <MarkdownCode {...props} rich />,
     pre: ({ children }: any) => <>{children}</>,
   };
 

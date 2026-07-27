@@ -2,6 +2,10 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
 
+import {
+  collectLegacyProviderSessionIdentity,
+} from '../../sdkwork-specs/tools/lib/provider-session-identity.mjs';
+
 const root = path.resolve(import.meta.dirname, '..');
 const spec = JSON.parse(
   fs.readFileSync(path.join(root, 'specs/agents-birdcoder-alignment.spec.json'), 'utf8'),
@@ -16,6 +20,12 @@ function readSource(relativePath) {
 }
 
 const errors = [];
+
+for (const violation of collectLegacyProviderSessionIdentity(root)) {
+  const relativePath = path.relative(root, violation.filePath).replaceAll('\\', '/');
+  const location = violation.line > 0 ? `:${violation.line}` : '';
+  errors.push(`${relativePath}${location}: retired provider Session identity ${violation.legacy}`);
+}
 
 assert.deepEqual(spec.dependencyDirection, [
   'sdkwork-birdcoder -> sdkwork-agents -> sdkwork-kernel',

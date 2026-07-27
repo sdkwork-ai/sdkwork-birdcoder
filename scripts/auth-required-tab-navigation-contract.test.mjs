@@ -38,6 +38,12 @@ assert.match(
 );
 
 assert.match(
+  authRoutingSource,
+  /const recoveredTargetTab = resolveInitialAppTab\(recoveredTab, Boolean\(user\)\);[\s\S]*?pendingAuthTargetTabRef\.current = recoveredTargetTab;[\s\S]*?setActiveTab\(recoveredTargetTab\);/u,
+  'Authenticated recovery must register its target before the same-commit auth effect can apply the default Code tab.',
+);
+
+assert.match(
   appSource,
   /useBirdCoderAuthAppTabRouting/u,
   'App shell must compose auth-required tab routing through the dedicated authAppTabRouting hook.',

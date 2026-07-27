@@ -17,8 +17,8 @@ import {
 import { ChatFileActivityList } from './ChatFileActivityList.tsx';
 import {
   resolveActivityFileChangeLineImpact,
-  revealChatActivityDetails,
 } from './activityPresentation.ts';
+import { revealChatDisclosureDetails } from '../revealChatDisclosureDetails.ts';
 
 export {
   buildFileChangeDiffPreview,
@@ -142,7 +142,7 @@ export const ChatActivitySummary = memo(function ChatActivitySummary({
         aria-controls={summaryDetailsId}
         onClick={() => {
           toggleDisclosure(summaryDisclosureKey);
-          if (!isExpanded) revealChatActivityDetails(summaryDetailsId);
+          if (!isExpanded) revealChatDisclosureDetails(summaryDetailsId);
         }}
       >
         <span className="flex h-5 w-5 shrink-0 items-center justify-center text-gray-500">

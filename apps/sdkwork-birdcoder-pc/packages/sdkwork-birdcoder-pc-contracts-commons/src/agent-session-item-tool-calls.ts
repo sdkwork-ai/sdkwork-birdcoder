@@ -10,6 +10,8 @@ import {
   resolveAgentSessionItemToolCallOutput,
   resolveAgentSessionItemToolCallResultBlocks,
 } from './agent-session-item-tool-results.ts';
+import { normalizeAgentSessionItemInteraction } from './agent-session-item-interactions.ts';
+import { isAgentSessionItemLifecycleRecord } from './agent-session-item-lifecycle.ts';
 
 export interface NormalizeAgentSessionItemToolCallOptions {
   engineId?: string;
@@ -151,6 +153,9 @@ const SEARCH_TOOL_NAMES = new Set([
 ]);
 
 const TASK_TOOL_NAMES = new Set([
+  'plan',
+  'plan_update',
+  'set_plan',
   'todo',
   'todo_read',
   'todo_write',
@@ -170,6 +175,7 @@ const TASK_TOOL_NAMES = new Set([
   'tracker_list_tasks',
   'tracker_update_task',
   'tracker_visualize',
+  'update_plan',
 ]);
 
 const AGENT_TOOL_NAMES = new Set([
@@ -231,8 +237,23 @@ const QUESTION_TOOL_NAMES = new Set([
   'ask_user_question',
   'prompt_user',
   'question',
+  'request_user_input',
+  'request_user_question',
   'user_input',
   'user_question',
+]);
+
+const OPEN_CODE_INTERACTION_EVENT_TYPES = new Set([
+  'permission_asked',
+  'permission_replied',
+  'permission_v2_asked',
+  'permission_v2_replied',
+  'question_asked',
+  'question_rejected',
+  'question_replied',
+  'question_v2_asked',
+  'question_v2_rejected',
+  'question_v2_replied',
 ]);
 
 const COMMAND_ARGUMENT_KEYS = ['command', 'cmd', 'shell', 'script'] as const;
@@ -562,7 +583,11 @@ function adaptCodexToolRecord(record: Record<string, unknown>): Record<string, u
 function adaptOpenCodeToolRecord(record: Record<string, unknown>): Record<string, unknown> | null {
   const part = readToolCallRecord(record.part);
   const recordType = normalizeToolCallName(readNonEmptyString(record.type));
-  if (!part && !['subtask', 'tool'].includes(recordType)) {
+  if (
+    !part
+    && !['patch', 'subtask', 'tool'].includes(recordType)
+    && !OPEN_CODE_INTERACTION_EVENT_TYPES.has(recordType)
+  ) {
     return null;
   }
 
@@ -570,6 +595,46 @@ function adaptOpenCodeToolRecord(record: Record<string, unknown>): Record<string
   const type = normalizeToolCallName(readNonEmptyString(source.type));
   const state = readToolCallRecord(source.state);
   const stateMetadata = readToolCallRecord(state?.metadata);
+  if (type.startsWith('permission_')) {
+    const reply = readNonEmptyString(source.reply);
+    return {
+      ...source,
+      id: source.requestID ?? source.requestId ?? source.id,
+      name: 'permission',
+      arguments: {
+        action: source.action ?? source.permission,
+        resources: source.resources ?? source.patterns,
+        metadata: source.metadata,
+        save: source.save ?? source.always,
+        source: source.source,
+      },
+      ...(reply ? { output: { reply } } : {}),
+      status: type.endsWith('_asked')
+        ? 'waiting'
+        : ['reject', 'rejected'].includes(normalizeToolCallName(reply))
+          ? 'cancelled'
+          : 'completed',
+    };
+  }
+  if (type.startsWith('question_')) {
+    const isRejected = type.endsWith('_rejected');
+    return {
+      ...source,
+      id: source.requestID ?? source.requestId ?? source.id,
+      name: 'question',
+      arguments: { questions: source.questions },
+      ...(source.answers !== undefined
+        ? { output: { answers: source.answers } }
+        : isRejected
+          ? { output: { rejected: true } }
+          : {}),
+      status: type.endsWith('_asked')
+        ? 'waiting'
+        : isRejected
+          ? 'cancelled'
+          : 'completed',
+    };
+  }
   if (stateMetadata?.interrupted === true) {
     source.status = 'cancelled';
   }
@@ -584,6 +649,14 @@ function adaptOpenCodeToolRecord(record: Record<string, unknown>): Record<string
         command: source.command,
       },
       title: source.description,
+    };
+  }
+  if (type === 'patch') {
+    return {
+      ...source,
+      name: 'apply_patch',
+      arguments: source,
+      status: source.status ?? 'completed',
     };
   }
 
@@ -1324,7 +1397,7 @@ const NON_TOOL_PROTOCOL_TYPES = new Set([
 ]);
 
 function shouldIgnoreToolProtocolRecord(record: Record<string, unknown>): boolean {
-  return NON_TOOL_PROTOCOL_TYPES.has(
+  return isAgentSessionItemLifecycleRecord(record) || NON_TOOL_PROTOCOL_TYPES.has(
     normalizeToolCallName(readNonEmptyString(record.type)),
   );
 }
@@ -1528,7 +1601,7 @@ function resolveToolCallKind(
   );
   const normalizedNames = [normalizedName, normalizedSemanticName].filter(Boolean);
   const normalizedType = normalizeToolCallName(type);
-  if (['approval_request', 'tool_call_confirmation'].includes(normalizedType)) {
+  if (['approval_request', 'permission_denied', 'tool_call_confirmation'].includes(normalizedType)) {
     return 'approval';
   }
   const resultDisplay = readToolCallRecord(record.resultDisplay);
@@ -1760,9 +1833,20 @@ export function normalizeAgentSessionItemToolCall(
     : resultBlocks.some((block) => block.type === 'error')
       ? 'error'
       : protocolStatus;
+  const id = resolveToolCallId(record, index, options.fallbackIdPrefix);
+  const interaction = normalizeAgentSessionItemInteraction({
+    argumentsValue: argumentsText,
+    id,
+    kind,
+    name: normalizedName,
+    ...(output ? { output } : {}),
+    record,
+    ...(status ? { status } : {}),
+    ...(title ? { title } : {}),
+  });
 
   return {
-    id: resolveToolCallId(record, index, options.fallbackIdPrefix),
+    id,
     type,
     name: normalizedName,
     arguments: argumentsText,
@@ -1776,6 +1860,7 @@ export function normalizeAgentSessionItemToolCall(
     ...(durationMs !== undefined ? { durationMs } : {}),
     ...(presentation ? { presentation } : {}),
     ...(resultBlocks.length > 0 ? { resultBlocks } : {}),
+    ...(interaction ? { interaction } : {}),
   };
 }
 

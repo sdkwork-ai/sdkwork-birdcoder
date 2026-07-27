@@ -2,6 +2,7 @@ import type {
   AgentSessionPageInfoView,
   AgentSessionActivityView,
   AgentSessionItemReasoningView,
+  AgentSessionItemLifecycleEventView,
   AgentSessionItemResourceView,
   AgentSessionItemView,
   AgentSessionView,
@@ -13,6 +14,7 @@ import {
   formatAgentSessionActivityDisplayTime,
   formatAgentSessionDisplayTime,
   isAgentSessionItemVisibleInTranscript,
+  normalizeAgentSessionItemLifecycleEvents,
 } from '@sdkwork/birdcoder-pc-contracts-commons';
 import type { AgentResourceUserStateRecord } from '@sdkwork/birdcoder-pc-core/sdk/agents-app';
 import type { IAgentSessionService } from '@sdkwork/birdcoder-pc-infrastructure-runtime';
@@ -232,6 +234,110 @@ function resolveItemNoticeKind(
   return 'info';
 }
 
+const PROVIDER_NATIVE_TOOL_TYPES = new Set([
+  'agent_execution_blocked',
+  'agent_execution_stopped',
+  'advisor_tool_result',
+  'bash_code_execution_tool_result',
+  'code_execution_tool_result',
+  'command_execution',
+  'compaction',
+  'context_window_will_overflow',
+  'custom_tool_call',
+  'custom_tool_call_output',
+  'dynamic_tool_call',
+  'file_change',
+  'function_call',
+  'function_call_output',
+  'finished',
+  'image_generation',
+  'image_generation_call',
+  'local_shell_call',
+  'mcp_tool_call',
+  'mcp_tool_result',
+  'mcp_tool_use',
+  'max_session_turns',
+  'patch',
+  'permission_asked',
+  'permission_replied',
+  'permission_v2_asked',
+  'permission_v2_replied',
+  'question_asked',
+  'question_rejected',
+  'question_replied',
+  'question_v2_asked',
+  'question_v2_rejected',
+  'question_v2_replied',
+  'rate_limit_event',
+  'retry',
+  'result',
+  'server_tool_use',
+  'sub_agent_activity',
+  'subtask',
+  'system',
+  'snapshot',
+  'step_finish',
+  'step_start',
+  'tool',
+  'text_editor_code_execution_tool_result',
+  'tool_progress',
+  'tool_result',
+  'tool_search_call',
+  'tool_search_output',
+  'tool_search_tool_result',
+  'tool_use',
+  'tool_use_summary',
+  'web_fetch_tool_result',
+  'web_search_call',
+  'web_search_tool_result',
+  'turn_completed',
+  'turn_failed',
+  'turn_started',
+  'user_cancelled',
+  'invalid_stream',
+  'loop_detected',
+  'chat_compressed',
+]);
+
+function readRecord(value: unknown): Record<string, unknown> | null {
+  if (typeof value !== 'object' || value === null || Array.isArray(value)) {
+    return null;
+  }
+  return value as Record<string, unknown>;
+}
+
+function readNonEmptyString(value: unknown): string {
+  return typeof value === 'string' ? value.trim() : '';
+}
+
+function readProviderNativeToolPayload(value: unknown): Record<string, unknown> | null {
+  const record = readRecord(value);
+  if (!record) {
+    return null;
+  }
+  if (readRecord(record.item) || readRecord(record.part)
+    || readRecord(record.contentBlock) || readRecord(record.content_block)) {
+    return record;
+  }
+  const type = readNonEmptyString(record.type).toLowerCase().replace(/[.\-\s]+/gu, '_');
+  return PROVIDER_NATIVE_TOOL_TYPES.has(type) ? record : null;
+}
+
+function resolveItemLifecycleEvents(
+  item: AgentSessionItemRecord,
+): AgentSessionItemLifecycleEventView[] | undefined {
+  if (item.kind !== 'tool_call' && item.kind !== 'tool_result') {
+    return undefined;
+  }
+  const providerPayload = readProviderNativeToolPayload(item.toolResult)
+    ?? readProviderNativeToolPayload(item.toolArguments);
+  if (!providerPayload) {
+    return undefined;
+  }
+  const events = normalizeAgentSessionItemLifecycleEvents([providerPayload]);
+  return events.length > 0 ? events : undefined;
+}
+
 function resolveItemToolCalls(item: AgentSessionItemRecord): unknown[] | undefined {
   if (item.kind !== 'tool_call' && item.kind !== 'tool_result') {
     return undefined;
@@ -239,6 +345,24 @@ function resolveItemToolCalls(item: AgentSessionItemRecord): unknown[] | undefin
 
   const toolName = item.toolName?.trim() || 'tool';
   const toolCallId = item.toolCallId?.trim() || item.itemId;
+  const providerPayload = readProviderNativeToolPayload(item.toolResult)
+    ?? readProviderNativeToolPayload(item.toolArguments);
+  if (providerPayload) {
+    const providerId = readNonEmptyString(providerPayload.id)
+      || readNonEmptyString(providerPayload.call_id)
+      || readNonEmptyString(providerPayload.callID)
+      || readNonEmptyString(providerPayload.callId)
+      || readNonEmptyString(providerPayload.tool_use_id)
+      || readNonEmptyString(providerPayload.toolUseId);
+    const providerName = readNonEmptyString(providerPayload.name)
+      || readNonEmptyString(providerPayload.tool);
+    return [{
+      ...providerPayload,
+      ...(providerId ? {} : { id: toolCallId }),
+      ...(providerName || toolName === 'tool' ? {} : { name: toolName }),
+      ...(readNonEmptyString(providerPayload.status) ? {} : { status: item.status }),
+    }];
+  }
   return [{
     id: toolCallId,
     type: item.kind,
@@ -354,6 +478,7 @@ export function toAgentSessionItemView(
     tool_calls: resolveItemToolCalls(item),
     tool_call_id: item.toolCallId ?? undefined,
     fileChanges: resolveItemFileChanges(item),
+    lifecycleEvents: resolveItemLifecycleEvents(item),
     reasoning: resolveItemReasoning(item),
     resources: resolveItemResources(item),
   };

@@ -205,7 +205,7 @@ export default defineConfig(({ command, mode }) => {
 
           return deps.filter(
             (dependency) =>
-              !/^assets\/(?:birdcoder-iam-surface|birdcoder-platform|birdcoder-shell-bootstrap|birdcoder-code|birdcoder-studio-surface|birdcoder-multiwindow-surface|birdcoder-settings-surface|birdcoder-terminal-desktop|birdcoder-terminal-infrastructure|ui-workbench|ui-workbench-editors|ui-workbench-preview|ui-file-explorer|ui-chat|ui-run-dialogs|vendor-terminal-xterm|vendor-tauri|vendor-monaco|vendor-markdown|vendor-code-highlight)-/u.test(
+              !/^assets\/(?:birdcoder-iam-surface|birdcoder-platform|birdcoder-shell-bootstrap|birdcoder-code|birdcoder-studio-surface|birdcoder-multiwindow-surface|birdcoder-settings-surface|birdcoder-terminal-desktop|birdcoder-terminal-infrastructure|ui-workbench|ui-workbench-editors|ui-workbench-preview|ui-file-explorer|ui-chat|ui-run-dialogs|vendor-terminal-xterm|vendor-tauri|vendor-monaco|vendor-markdown|vendor-code-highlight|vendor-mermaid)-/u.test(
                 dependency,
               ),
           );
@@ -458,6 +458,17 @@ export default defineConfig(({ command, mode }) => {
             return 'vendor-markdown';
           }
 
+          if (id.includes('/node_modules/@mermaid-js/')) {
+            return 'vendor-mermaid-parser';
+          }
+
+          if (
+            id.includes('/node_modules/mermaid/dist/mermaid.core.mjs')
+            || /\/node_modules\/mermaid\/dist\/chunks\/mermaid\.core\/chunk-[^/]+\.mjs/u.test(id)
+          ) {
+            return 'vendor-mermaid';
+          }
+
           if (isSourcePath('/packages/sdkwork-birdcoder-pc-ui/src/index.ts')) {
             return 'birdcoder-ui';
           }
@@ -499,6 +510,24 @@ export default defineConfig(({ command, mode }) => {
             isSourcePath('/packages/sdkwork-birdcoder-pc-ui/src/components/fileExplorer')
           ) {
             return 'ui-file-explorer';
+          }
+
+          if (
+            isSourcePath('/packages/sdkwork-birdcoder-pc-ui/src/components/UniversalChatMermaid.tsx')
+          ) {
+            return 'ui-chat-mermaid';
+          }
+
+          if (
+            isSourcePath('/packages/sdkwork-birdcoder-pc-ui/src/components/UniversalChatCodeBlock.tsx')
+          ) {
+            return 'ui-chat-code-highlight';
+          }
+
+          if (
+            isSourcePath('/packages/sdkwork-birdcoder-pc-ui/src/components/UniversalChatMarkdown.tsx')
+          ) {
+            return 'ui-chat-markdown';
           }
 
           if (

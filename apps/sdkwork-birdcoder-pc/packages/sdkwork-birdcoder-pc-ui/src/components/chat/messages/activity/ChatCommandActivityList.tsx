@@ -18,7 +18,7 @@ import {
   resolveChatCommandLifecycleTone,
   type ChatCommandLifecycleTone,
 } from './chatCommandLifecycle.ts';
-import { revealChatActivityDetails } from './activityPresentation.ts';
+import { revealChatDisclosureDetails } from '../revealChatDisclosureDetails.ts';
 
 const MAX_COMMAND_TEXT_PREVIEW_CHARACTERS = 4_000;
 const MAX_COMMAND_SUMMARY_CHARACTERS = 320;
@@ -182,7 +182,7 @@ const ChatCommandActivityRow = memo(function ChatCommandActivityRow({
           title={disclosureLabel}
           onClick={() => {
             toggleDisclosure(commandKey);
-            if (!isExpanded) revealChatActivityDetails(commandDetailsId);
+            if (!isExpanded) revealChatDisclosureDetails(commandDetailsId);
           }}
         >
           <span className="flex h-5 w-5 shrink-0 items-center justify-center text-gray-500">

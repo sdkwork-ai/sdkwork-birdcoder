@@ -90,6 +90,68 @@ test('multi-provider Session Inbox preserves identity while grouping, filtering,
   await expect(sessionList.getByText('OpenCode verification', { exact: true })).toBeVisible();
   await expect(sessionList.getByText('Gemini failure triage', { exact: true })).toBeVisible();
 
+  const expectedProviderVisuals = [
+    ['e2e-claude-session', 'claude-code', 'CC', 'amber'],
+    ['e2e-codex-session', 'codex', 'CX', 'emerald'],
+    ['e2e-opencode-session', 'opencode', 'OC', 'rose'],
+    ['e2e-gemini-session', 'gemini', 'GM', 'sky'],
+  ] as const;
+  const providerVisualStyles = new Map<string, {
+    backgroundColor: string;
+    boxShadow: string;
+    color: string;
+  }>();
+  for (const [sessionId, providerId, abbreviation, tone] of expectedProviderVisuals) {
+    const providerBadge = sessionList
+      .locator(`[data-agent-session-id="${sessionId}"]`)
+      .locator('[data-session-provider-badge="leading"]');
+    await expect(providerBadge).toHaveAttribute('data-session-provider-id', providerId);
+    await expect(providerBadge).toHaveAttribute(
+      'data-session-provider-abbreviation',
+      abbreviation,
+    );
+    await expect(providerBadge).toHaveAttribute('data-session-provider-tone', tone);
+    providerVisualStyles.set(providerId, await providerBadge.evaluate((element) => {
+      const style = window.getComputedStyle(element);
+      return {
+        backgroundColor: style.backgroundColor,
+        boxShadow: style.boxShadow,
+        color: style.color,
+      };
+    }));
+  }
+  expect(
+    new Set(
+      [...providerVisualStyles.values()].map(
+        (style) => `${style.backgroundColor}|${style.color}|${style.boxShadow}`,
+      ),
+    ).size,
+  ).toBe(expectedProviderVisuals.length);
+
+  const claudeSessionVisualStyle = providerVisualStyles.get('claude-code');
+  expect(claudeSessionVisualStyle).toBeDefined();
+  const sharedClaudeProviderIcons = [
+    page
+      .getByRole('button', { name: 'New Session', exact: true })
+      .first()
+      .locator('[data-provider-id="claude-code"]'),
+    page
+      .getByRole('button', { name: 'Current provider: Claude Code', exact: true })
+      .locator('[data-provider-id="claude-code"]'),
+  ];
+  for (const providerIcon of sharedClaudeProviderIcons) {
+    await expect(providerIcon).toHaveAttribute('data-provider-abbreviation', 'CC');
+    await expect(providerIcon).toHaveAttribute('data-provider-tone', 'amber');
+    expect(await providerIcon.evaluate((element) => {
+      const style = window.getComputedStyle(element);
+      return {
+        backgroundColor: style.backgroundColor,
+        boxShadow: style.boxShadow,
+        color: style.color,
+      };
+    })).toEqual(claudeSessionVisualStyle);
+  }
+
   const expectedRuntimeStates = [
     ['e2e-claude-session', 'streaming', 'busy', true],
     ['e2e-codex-session', 'initializing', 'busy', true],
@@ -259,8 +321,28 @@ test('direct Studio startup mounts the full surface and renders Session activity
   await page.setViewportSize({ width: 1_440, height: 900 });
 
   const pageErrors: string[] = [];
+  const consoleErrors: string[] = [];
+  const failedRequests: string[] = [];
+  const failedResponses: string[] = [];
   page.on('pageerror', (error) => {
     pageErrors.push(error.message);
+  });
+  page.on('console', (message) => {
+    if (message.type() === 'error') {
+      consoleErrors.push(message.text());
+    }
+  });
+  page.on('requestfailed', (request) => {
+    failedRequests.push(
+      `${request.method()} ${request.url()} ${request.failure()?.errorText ?? 'unknown error'}`,
+    );
+  });
+  page.on('response', (response) => {
+    if (response.status() >= 400) {
+      failedResponses.push(
+        `${response.status()} ${response.request().method()} ${response.url()}`,
+      );
+    }
   });
   const activityResponsePromise = page.waitForResponse((response) => {
     const url = new URL(response.url());
@@ -274,7 +356,23 @@ test('direct Studio startup mounts the full surface and renders Session activity
 
   const studioSurface = page.locator('[data-studio-surface="true"]');
   const studioHeader = studioSurface.locator('[data-studio-chat-header="true"]');
-  await expect(studioSurface).toBeVisible({ timeout: 60_000 });
+  try {
+    await expect(studioSurface).toBeVisible({ timeout: 60_000 });
+  } catch (error) {
+    const bodyText = (await page.locator('body').innerText()).slice(0, 2_000);
+    const diagnostics = JSON.stringify({
+      bodyText,
+      consoleErrors,
+      failedRequests,
+      failedResponses,
+      pageErrors,
+      title: await page.title(),
+      url: page.url(),
+    }, null, 2);
+    throw new Error(
+      `${error instanceof Error ? error.message : String(error)}\nStudio startup diagnostics:\n${diagnostics}`,
+    );
+  }
   await expect(studioHeader).toContainText('E2E Project');
 
   const activityResponse = await activityResponsePromise;
@@ -318,6 +416,14 @@ test('direct Studio startup mounts the full surface and renders Session activity
     })).toBe(true);
   }
 
+  await expect(sessionMenu.locator('[data-agent-session-id="e2e-claude-session"]'))
+    .toHaveAttribute('data-session-selected', 'true');
+  await sessionMenu.locator('[data-agent-session-id="e2e-codex-session"]').click();
+  await expect(sessionMenu).toHaveCount(0);
+  await expect(studioHeader).toContainText('Codex implementation');
+
+  await studioSurface.locator('[data-studio-session-menu-trigger="true"]').click();
+  await expect(sessionMenu).toBeVisible();
   const showMoreSessions = sessionMenu.getByRole('button', { name: 'Show more', exact: true });
   await expect(showMoreSessions).toBeVisible();
   await showMoreSessions.click();
@@ -342,17 +448,17 @@ test('direct Studio startup mounts the full surface and renders Session activity
   })).toBe(true);
 
   const staleRow = sessionMenu.locator('[data-agent-session-id="e2e-history-session-2"]');
+  let staleRevealAttempts = 0;
+  while (!(await staleRow.isVisible()) && staleRevealAttempts < 4) {
+    await expect(showMoreSessions).toBeVisible();
+    await showMoreSessions.click();
+    staleRevealAttempts += 1;
+  }
   const staleStatusSlot = staleRow.locator('[data-session-runtime-status="stale"]');
   await expect(staleRow).toBeVisible();
   await expect(staleStatusSlot).toHaveAttribute('data-session-runtime-presentation', 'neutral');
   await expect(staleStatusSlot).toHaveAttribute('data-session-runtime-status-icon', 'neutral');
   await expect(staleStatusSlot.locator('.animate-spin')).toHaveCount(0);
-
-  await expect(sessionMenu.locator('[data-agent-session-id="e2e-claude-session"]'))
-    .toHaveAttribute('data-session-selected', 'true');
-  await sessionMenu.locator('[data-agent-session-id="e2e-codex-session"]').click();
-  await expect(sessionMenu).toHaveCount(0);
-  await expect(studioHeader).toContainText('Codex implementation');
   expect(pageErrors.filter((message) => (
     !message.includes("The document is sandboxed and lacks the 'allow-same-origin' flag")
   ))).toEqual([]);

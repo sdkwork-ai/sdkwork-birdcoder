@@ -39,9 +39,9 @@ const transcriptVirtualizationSource = readFileSync(
   ),
   'utf8',
 );
-const activitySummarySource = readFileSync(
+const commandActivityListSource = readFileSync(
   new URL(
-    '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-ui/src/components/chat/messages/activity/ChatActivitySummary.tsx',
+    '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-ui/src/components/chat/messages/activity/ChatCommandActivityList.tsx',
     import.meta.url,
   ),
   'utf8',
@@ -258,25 +258,25 @@ assert.match(
 
 assert.match(
   contentBlockRenderersSource,
-  /<ChatTaskProgress taskProgress=\{block\.progress\} t=\{context\.environment\?\.t\} \/>/,
-  'Task progress payloads must render through the shared ChatTaskProgress block renderer so cross-engine planner and reviewer progress survives all the way to the transcript UI.',
+  /<ChatTaskProgress[\s\S]*isExpanded=\{context\.expandedDisclosureKeys\.has\(disclosureKey\)\}[\s\S]*onToggle=\{\(\) => context\.toggleDisclosure\(disclosureKey\)\}[\s\S]*taskProgress=\{block\.progress\}[\s\S]*t=\{context\.environment\?\.t\}[\s\S]*\/>/,
+  'Task progress payloads must render through the shared controlled ChatTaskProgress disclosure so cross-engine planner and reviewer progress survives all the way to the transcript UI.',
 );
 
 assert.match(
-  activitySummarySource,
-  /const commandKey = `\$\{cmdIdx\}\\u0001\$\{cmd\.toolCallId\?\.trim\(\) \|\| 'command'\}`;[\s\S]*renderCommandExecutionCard\(\{[\s\S]*commandKey,/,
+  commandActivityListSource,
+  /const identity = `\$\{index\}\\u0001\$\{command\.toolCallId\?\.trim\(\) \|\| 'command'\}`;[\s\S]*const disclosureKey = `\$\{disclosureScopeKey\}\\u0001command\\u0001\$\{identity\}`;/,
   'Command cards must derive stable disclosure identity from row position and provider call id without mutable command text.',
 );
 
 assert.match(
-  activitySummarySource,
-  /function renderCommandExecutionCard\([\s\S]*<div key=\{commandKey\}/,
-  'Command cards must apply the delegated command key to the helper root element.',
+  commandActivityListSource,
+  /<ChatCommandActivityRow[\s\S]*key=\{identity\}[\s\S]*commandKey=\{disclosureKey\}/,
+  'Command rows must apply stable identity to the React key and the scoped identity to disclosure state.',
 );
 
 assert.doesNotMatch(
-  activitySummarySource,
-  /key=\{cmd\.toolCallId \?\?/,
+  commandActivityListSource,
+  /key=\{command\.toolCallId \?\?/,
   'Command cards must not use provider toolCallId alone as a React key because providers may repeat it across progress snapshots.',
 );
 

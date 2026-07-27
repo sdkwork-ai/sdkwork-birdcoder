@@ -22,18 +22,18 @@ const activitySummarySource = fs.readFileSync(
   ),
   "utf8",
 );
-const activityPresentationSource = fs.readFileSync(
+const disclosurePresentationSource = fs.readFileSync(
   new URL(
-    "../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-ui/src/components/chat/messages/activity/activityPresentation.ts",
+    "../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-ui/src/components/chat/messages/revealChatDisclosureDetails.ts",
     import.meta.url,
   ),
   "utf8",
 );
 
 assert.match(
-  `${activitySummarySource}\n${activityPresentationSource}`,
-  /function revealChatActivityDetails\([\s\S]*scrollIntoView\(\{[\s\S]*block: 'nearest'/,
-  "Expanded activity details must be scrolled into the nearest visible transcript area.",
+  `${activitySummarySource}\n${disclosurePresentationSource}`,
+  /function revealChatDisclosureDetails\([\s\S]*scrollIntoView\(\{[\s\S]*block: 'nearest'/,
+  "Expanded disclosure details must be scrolled into the nearest visible transcript area.",
 );
 
 const markdown = [

@@ -9,6 +9,7 @@ import {
   type AgentSessionItemViewKind as AgentSessionItemViewKind,
   type AgentSessionItemView as AgentSessionItemView,
   type AgentSessionItemDisplayRole as AgentSessionItemDisplayRole,
+  type AgentSessionItemInteractionView,
 } from './agent-session-view.ts';
 export {
   AGENT_SESSION_ITEM_CONTENT_BLOCK_TYPES,
@@ -26,11 +27,21 @@ import {
   type AgentTurnActivityPresentation,
 } from './agent-session-item-activity-presentation.ts';
 import { resolveAgentSessionItemProtocolNoticeKind } from './agent-session-item-transcript.ts';
-import { resolveTaskProgressDisplayState } from './agent-session-item-task-progress.ts';
+import {
+  isAgentSessionTodoToolCall,
+  resolveTaskProgressDisplayState,
+  resolveToolCallsTaskProgressDisplayState,
+  type AgentSessionItemTaskProgressDisplayState,
+} from './agent-session-item-task-progress.ts';
 import {
   normalizeAgentSessionItemReasoning,
   type AgentSessionItemReasoningView as AgentSessionItemReasoningView,
 } from './agent-session-item-reasoning.ts';
+import {
+  normalizeAgentSessionItemLifecycleEvents,
+  type AgentSessionItemLifecycleEventView,
+} from './agent-session-item-lifecycle.ts';
+import { mergeAgentSessionItemInteraction } from './agent-session-item-interactions.ts';
 import {
   normalizeAgentSessionItemResources,
   type AgentSessionItemResourceView as AgentSessionItemResourceView,
@@ -80,10 +91,8 @@ export interface AgentSessionItemCommandsPresentationBlock {
   items: readonly NonNullable<AgentSessionItemViewSource['commands']>[number][];
 }
 
-export interface AgentSessionItemTaskProgressValue {
-  total: number;
-  completed: number;
-}
+export interface AgentSessionItemTaskProgressValue
+  extends AgentSessionItemTaskProgressDisplayState {}
 
 export interface AgentSessionItemTaskProgressPresentationBlock {
   type: 'task-progress';
@@ -93,6 +102,16 @@ export interface AgentSessionItemTaskProgressPresentationBlock {
 export interface AgentSessionItemResourcesPresentationBlock {
   type: 'resources';
   items: readonly AgentSessionItemResourceView[];
+}
+
+export interface AgentSessionItemLifecyclePresentationBlock {
+  type: 'lifecycle';
+  events: readonly AgentSessionItemLifecycleEventView[];
+}
+
+export interface AgentSessionItemInteractionsPresentationBlock {
+  type: 'interactions';
+  items: readonly AgentSessionItemInteractionView[];
 }
 
 export type { AgentSessionItemToolCallView } from './agent-session-item-tool-calls.ts';
@@ -125,6 +144,8 @@ export type AgentSessionItemPresentationBlock =
   | AgentSessionItemCommandsPresentationBlock
   | AgentSessionItemResourcesPresentationBlock
   | AgentSessionItemTaskProgressPresentationBlock
+  | AgentSessionItemLifecyclePresentationBlock
+  | AgentSessionItemInteractionsPresentationBlock
   | AgentSessionItemToolCallsPresentationBlock;
 
 export interface AgentSessionItemPresentationLayoutHints {
@@ -328,6 +349,24 @@ function buildAgentSessionItemPresentationBlocks(
     });
   }
 
+  const lifecycleCarrierName = item.name
+    ?.trim()
+    .toLowerCase()
+    .replace(/[.\-\s]+/gu, '_');
+  const lifecycleEvents = normalizeAgentSessionItemLifecycleEvents([
+    ...(item.lifecycleEvents ?? []),
+    ...(item.tool_calls ?? []),
+    ...(item.role === 'tool' && lifecycleCarrierName === 'provider_event'
+      ? [item.content]
+      : []),
+  ]);
+  if (lifecycleEvents.length > 0) {
+    blocks.push({
+      type: 'lifecycle',
+      events: lifecycleEvents,
+    });
+  }
+
   const fileChanges = activitySummary?.fileChanges ?? resolveAgentSessionActivityFileChangeViews(item);
   const normalizedToolCalls = normalizeAgentSessionItemToolCalls(item.tool_calls, { engineId });
   const toolResultCallId = item.tool_call_id?.trim() ?? '';
@@ -336,7 +375,9 @@ function buildAgentSessionItemPresentationBlocks(
   const hasAuthoritativeStructuredToolCall = normalizedToolCalls.length > 0 && (
     !toolResultCallId || normalizedToolCalls.some((call) => call.id === toolResultCallId)
   );
-  const normalizedToolResult = item.role === 'tool' && !hasAuthoritativeStructuredToolCall
+  const normalizedToolResult = item.role === 'tool'
+    && lifecycleEvents.length === 0
+    && !hasAuthoritativeStructuredToolCall
     ? normalizeAgentSessionItemToolResult({
         content: item.content,
         id: item.tool_call_id,
@@ -384,43 +425,49 @@ function buildAgentSessionItemPresentationBlocks(
   }
   const commands = [...commandsByKey.values()];
 
-  if (kind === 'assistant.activity' && (fileChanges.length > 0 || commands.length > 0)) {
+  if (fileChanges.length > 0 || commands.length > 0) {
     blocks.push({
       type: 'activity',
       sessionItemId: item.id,
       fileChanges,
       commands,
     });
-  } else {
-    const structuredFileChanges = filterStructuredFileChanges(item);
-    if (structuredFileChanges.length > 0) {
-      blocks.push({
-        type: 'file-changes',
-        items: structuredFileChanges,
-      });
-    }
-
-    if (commands.length > 0) {
-      blocks.push({
-        type: 'commands',
-        items: commands,
-      });
-    }
   }
 
-  const taskProgressDisplayState = resolveTaskProgressDisplayState(item.taskProgress);
+  const explicitTaskProgressDisplayState = resolveTaskProgressDisplayState(item.taskProgress);
+  const toolTaskProgressDisplayState = resolveToolCallsTaskProgressDisplayState(allNormalizedToolCalls);
+  const taskProgressDisplayState = explicitTaskProgressDisplayState?.items.length
+    ? explicitTaskProgressDisplayState
+    : toolTaskProgressDisplayState ?? explicitTaskProgressDisplayState;
   if (taskProgressDisplayState) {
     blocks.push({
       type: 'task-progress',
-      progress: {
-        total: taskProgressDisplayState.total,
-        completed: taskProgressDisplayState.completed,
-      },
+      progress: taskProgressDisplayState,
+    });
+  }
+
+  const interactionsById = new Map<string, AgentSessionItemInteractionView>();
+  for (const call of allNormalizedToolCalls) {
+    if (!call.interaction) continue;
+    const existing = interactionsById.get(call.interaction.id);
+    interactionsById.set(
+      call.interaction.id,
+      mergeAgentSessionItemInteraction(existing, call.interaction),
+    );
+  }
+  const interactions = [...interactionsById.values()];
+  if (interactions.length > 0) {
+    blocks.push({
+      type: 'interactions',
+      items: interactions,
     });
   }
 
   const commandToolCallIds = new Set(normalizedCommands.map((command) => command.toolCallId));
   const toolCalls = allNormalizedToolCalls.filter((call) => {
+    if (call.interaction) {
+      return false;
+    }
     if (call.presentation === 'notice') {
       return false;
     }
@@ -428,6 +475,9 @@ function buildAgentSessionItemPresentationBlocks(
       return false;
     }
     if (fileChanges.length > 0 && isAgentSessionItemFileMutationToolCall(call)) {
+      return false;
+    }
+    if (taskProgressDisplayState && isAgentSessionTodoToolCall(call)) {
       return false;
     }
     return true;
@@ -493,6 +543,12 @@ export function estimateAgentSessionItemPresentationHeight(
       case 'task-progress':
         extraHeight += 40;
         break;
+      case 'lifecycle':
+        extraHeight += block.events.length * 36;
+        break;
+      case 'interactions':
+        extraHeight += block.items.length * 44;
+        break;
       case 'tool-calls':
         extraHeight += block.calls.reduce((total, call) => {
           const argumentLines = call.arguments.trim()
@@ -523,7 +579,12 @@ function buildAgentSessionItemPresentationLayoutHints(
       estimatedHeight: 0,
       isCompact: layout === 'sidebar',
       hasCollapsibleSections:
-        kind === 'assistant.activity' || blocks.some((block) => block.type === 'reasoning'),
+        kind === 'assistant.activity' || blocks.some((block) =>
+          block.type === 'reasoning'
+          || block.type === 'lifecycle'
+          || block.type === 'interactions'
+          || (block.type === 'task-progress' && block.progress.items.length > 0),
+        ),
     },
     blocks,
   };
@@ -532,7 +593,12 @@ function buildAgentSessionItemPresentationLayoutHints(
     estimatedHeight: estimateAgentSessionItemPresentationHeight(view, layout),
     isCompact: layout === 'sidebar',
     hasCollapsibleSections:
-      kind === 'assistant.activity' || blocks.some((block) => block.type === 'reasoning'),
+      kind === 'assistant.activity' || blocks.some((block) =>
+        block.type === 'reasoning'
+        || block.type === 'lifecycle'
+        || block.type === 'interactions'
+        || (block.type === 'task-progress' && block.progress.items.length > 0),
+      ),
   };
 }
 
@@ -597,7 +663,13 @@ export function buildAgentSessionItemPresentationSynchronizationSignature(
         case 'resources':
           return `res:${block.items.map((item) => item.id).join(',')}`;
         case 'task-progress':
-          return `tp:${block.progress.completed}/${block.progress.total}`;
+          return `tp:${block.progress.completed}/${block.progress.total}:${block.progress.items
+            .map((item) => `${item.status}:${item.text}`)
+            .join(',')}`;
+        case 'lifecycle':
+          return `lc:${JSON.stringify(block.events)}`;
+        case 'interactions':
+          return `ix:${JSON.stringify(block.items)}`;
         case 'tool-calls':
           return `tc:${block.calls.length}`;
         default:

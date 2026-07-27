@@ -209,13 +209,13 @@ assert.ok(
   studioSessionMenuRowSource.includes(
     '<SessionRuntimeStatusSlot',
   ),
-  'Studio project menu should delegate status rendering to the shared leading slot.',
+  'Studio project menu should delegate status rendering to the shared trailing slot.',
 );
 
 assert.match(
   studioSessionMenuRowSource,
-  /<SessionRuntimeStatusSlot[\s\S]*?<SessionProviderBadge/u,
-  'Studio project menu should render status before provider identity.',
+  /<SessionProviderBadge[\s\S]*?data-session-trailing-metadata="true"[\s\S]*?<SessionRuntimeStatusSlot/u,
+  'Studio project menu should render provider identity before independent trailing metadata and its rightmost runtime status.',
 );
 
 assert.doesNotMatch(

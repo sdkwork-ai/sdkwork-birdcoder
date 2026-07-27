@@ -1,13 +1,19 @@
 export type ProviderVisualTone =
   | 'amber'
+  | 'blue'
   | 'cyan'
   | 'emerald'
+  | 'fuchsia'
   | 'indigo'
   | 'lime'
   | 'neutral'
   | 'orange'
+  | 'red'
   | 'rose'
-  | 'sky';
+  | 'sky'
+  | 'teal'
+  | 'violet'
+  | 'yellow';
 
 export interface ProviderVisualIdentityInput {
   agentId?: string | null;
@@ -30,14 +36,20 @@ export const PROVIDER_VISUAL_TONE_CLASS_NAMES: Readonly<
   Record<ProviderVisualTone, string>
 > = {
   amber: 'bg-amber-500/15 text-amber-300 ring-amber-400/30',
+  blue: 'bg-blue-500/15 text-blue-300 ring-blue-400/30',
   cyan: 'bg-cyan-500/15 text-cyan-300 ring-cyan-400/30',
   emerald: 'bg-emerald-500/15 text-emerald-300 ring-emerald-400/30',
+  fuchsia: 'bg-fuchsia-500/15 text-fuchsia-300 ring-fuchsia-400/30',
   indigo: 'bg-indigo-500/15 text-indigo-300 ring-indigo-400/30',
   lime: 'bg-lime-500/15 text-lime-300 ring-lime-400/30',
   neutral: 'bg-white/5 text-gray-400 ring-white/10',
   orange: 'bg-orange-500/15 text-orange-300 ring-orange-400/30',
+  red: 'bg-red-500/15 text-red-300 ring-red-400/30',
   rose: 'bg-rose-500/15 text-rose-300 ring-rose-400/30',
   sky: 'bg-sky-500/15 text-sky-300 ring-sky-400/30',
+  teal: 'bg-teal-500/15 text-teal-300 ring-teal-400/30',
+  violet: 'bg-violet-500/15 text-violet-300 ring-violet-400/30',
+  yellow: 'bg-yellow-500/15 text-yellow-300 ring-yellow-400/30',
 };
 
 const EXECUTION_PROVIDER_VISUAL_IDENTITIES: readonly KnownProviderVisualIdentity[] = [
@@ -71,20 +83,38 @@ const EXECUTION_PROVIDER_VISUAL_IDENTITIES: readonly KnownProviderVisualIdentity
   },
 ];
 
-const PROVIDER_VISUAL_IDENTITIES: Readonly<
-  Record<string, Omit<ProviderVisualIdentity, 'id'>>
-> = {
-  'amazon-bedrock': { abbreviation: 'AB', label: 'Amazon Bedrock', tone: 'amber' },
-  'azure-openai': { abbreviation: 'AO', label: 'Azure OpenAI', tone: 'indigo' },
-  anthropic: { abbreviation: 'AN', label: 'Anthropic', tone: 'orange' },
-  bedrock: { abbreviation: 'BR', label: 'Amazon Bedrock', tone: 'amber' },
-  deepseek: { abbreviation: 'DS', label: 'DeepSeek', tone: 'indigo' },
-  google: { abbreviation: 'GO', label: 'Google', tone: 'sky' },
-  groq: { abbreviation: 'GQ', label: 'Groq', tone: 'lime' },
-  mistral: { abbreviation: 'MI', label: 'Mistral', tone: 'orange' },
-  openai: { abbreviation: 'OA', label: 'OpenAI', tone: 'cyan' },
-  openrouter: { abbreviation: 'OR', label: 'OpenRouter', tone: 'indigo' },
-  xai: { abbreviation: 'XA', label: 'xAI', tone: 'lime' },
+const PROVIDER_VISUAL_IDENTITIES: Readonly<Record<string, ProviderVisualIdentity>> = {
+  'amazon-bedrock': {
+    abbreviation: 'AB',
+    id: 'amazon-bedrock',
+    label: 'Amazon Bedrock',
+    tone: 'violet',
+  },
+  'azure-openai': {
+    abbreviation: 'AO',
+    id: 'azure-openai',
+    label: 'Azure OpenAI',
+    tone: 'blue',
+  },
+  anthropic: { abbreviation: 'AN', id: 'anthropic', label: 'Anthropic', tone: 'orange' },
+  bedrock: {
+    abbreviation: 'AB',
+    id: 'amazon-bedrock',
+    label: 'Amazon Bedrock',
+    tone: 'violet',
+  },
+  deepseek: { abbreviation: 'DS', id: 'deepseek', label: 'DeepSeek', tone: 'indigo' },
+  google: { abbreviation: 'GO', id: 'google', label: 'Google', tone: 'red' },
+  groq: { abbreviation: 'GQ', id: 'groq', label: 'Groq', tone: 'lime' },
+  mistral: { abbreviation: 'MI', id: 'mistral', label: 'Mistral', tone: 'yellow' },
+  openai: { abbreviation: 'OA', id: 'openai', label: 'OpenAI', tone: 'cyan' },
+  openrouter: {
+    abbreviation: 'OR',
+    id: 'openrouter',
+    label: 'OpenRouter',
+    tone: 'fuchsia',
+  },
+  xai: { abbreviation: 'XA', id: 'xai', label: 'xAI', tone: 'teal' },
 };
 
 const FALLBACK_PROVIDER_VISUAL_TONES: readonly ProviderVisualTone[] = [
@@ -96,6 +126,12 @@ const FALLBACK_PROVIDER_VISUAL_TONES: readonly ProviderVisualTone[] = [
   'indigo',
   'orange',
   'lime',
+  'blue',
+  'fuchsia',
+  'red',
+  'teal',
+  'violet',
+  'yellow',
 ];
 
 function normalizeProviderIdentityId(identityId?: string | null): string {
@@ -190,7 +226,7 @@ export function resolveProviderVisualIdentity(
 
   return {
     abbreviation: knownVisualIdentity?.abbreviation ?? buildProviderAbbreviation(id),
-    id,
+    id: knownVisualIdentity?.id ?? id,
     label: knownVisualIdentity?.label ?? buildProviderLabel(id),
     tone: knownVisualIdentity?.tone ?? resolveFallbackProviderVisualTone(id),
   };

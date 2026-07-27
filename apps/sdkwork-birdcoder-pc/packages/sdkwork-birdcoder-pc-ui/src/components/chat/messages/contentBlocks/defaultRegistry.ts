@@ -2,6 +2,8 @@ import {
   ActivityContentBlockRenderer,
   CommandsContentBlockRenderer,
   FileChangesContentBlockRenderer,
+  InteractionsContentBlockRenderer,
+  LifecycleContentBlockRenderer,
   MarkdownContentBlockRenderer,
   NoticeContentBlockRenderer,
   TaskProgressContentBlockRenderer,
@@ -67,6 +69,18 @@ const DEFAULT_CONTENT_BLOCK_RENDERER_ENTRIES: readonly ChatMessageContentBlockRe
     blockType: 'task-progress',
     priority: 10,
     Component: TaskProgressContentBlockRenderer,
+  },
+  {
+    id: 'lifecycle',
+    blockType: 'lifecycle',
+    priority: 10,
+    Component: LifecycleContentBlockRenderer,
+  },
+  {
+    id: 'interactions',
+    blockType: 'interactions',
+    priority: 10,
+    Component: InteractionsContentBlockRenderer,
   },
   {
     id: 'tool-calls',

@@ -1,10 +1,12 @@
-import { List } from 'lucide-react';
+import { useId } from 'react';
 import type { AgentSessionItemViewSource } from '@sdkwork/birdcoder-pc-workbench/chat/types';
 import {
   resolveTaskProgressDisplayState,
-  type AgentSessionItemTaskProgressDisplayState,
 } from '@sdkwork/birdcoder-pc-workbench/chat/types';
 import type { ChatMessageTranslate } from '../types.ts';
+import { revealChatDisclosureDetails } from '../revealChatDisclosureDetails.ts';
+import { ChatTaskProgressItemList } from './ChatTaskProgressItemList.tsx';
+import { ChatTaskProgressSummary } from './ChatTaskProgressSummary.tsx';
 
 export {
   normalizeTaskProgressCounter,
@@ -13,59 +15,57 @@ export {
 } from '@sdkwork/birdcoder-pc-workbench/chat/types';
 
 export function ChatTaskProgress({
+  isExpanded = false,
+  onToggle,
   taskProgress,
   t,
 }: {
+  isExpanded?: boolean;
+  onToggle?: () => void;
   taskProgress: AgentSessionItemViewSource['taskProgress'];
   t?: ChatMessageTranslate;
 }) {
-  const taskProgressDisplayState = resolveTaskProgressDisplayState(taskProgress);
-  if (!taskProgressDisplayState) {
+  const detailsId = useId();
+  const displayState = resolveTaskProgressDisplayState(taskProgress);
+  if (!displayState) {
     return null;
   }
 
-  return (
-    <ChatTaskProgressInline displayState={taskProgressDisplayState} t={t} />
-  );
-}
-function ChatTaskProgressInline({
-  displayState,
-  t,
-}: {
-  displayState: AgentSessionItemTaskProgressDisplayState;
-  t?: ChatMessageTranslate;
-}) {
-  const { completed, percent, total } = displayState;
+  const canExpand = displayState.items.length > 0 && Boolean(onToggle);
+  const expanded = canExpand && isExpanded;
   const progressLabel = t?.('chat.taskProgress') ?? 'Task progress';
+  const toggleDetails = canExpand
+    ? () => {
+        onToggle?.();
+        if (!expanded) {
+          revealChatDisclosureDetails(detailsId);
+        }
+      }
+    : undefined;
 
   return (
     <div
       data-chat-task-progress="inline"
-      className="mt-2 w-full rounded-md px-1.5 py-1.5 text-xs text-gray-300"
+      className="w-full min-w-0 overflow-hidden py-1 text-xs text-gray-300"
     >
-      <div className="flex items-center justify-between gap-3">
-        <div className="flex min-w-0 items-center gap-2">
-          <List size={13} className="shrink-0 text-blue-400" aria-hidden="true" />
-          <span className="truncate">{progressLabel}</span>
-        </div>
-        <span className="shrink-0 font-mono text-[11px] text-gray-500">
-          {completed}/{total}
-        </span>
-      </div>
-      <div
-        className="mt-2 h-1 overflow-hidden rounded-full bg-white/[0.08]"
-        role="progressbar"
-        aria-label={progressLabel}
-        aria-valuemin={0}
-        aria-valuemax={total}
-        aria-valuenow={completed}
-        aria-valuetext={`${completed}/${total}`}
-      >
-        <div
-          className="h-full rounded-full bg-blue-400 transition-[width]"
-          style={{ width: `${percent}%` }}
+      <ChatTaskProgressSummary
+        activeItemText={displayState.activeItem?.text}
+        canExpand={canExpand}
+        completed={displayState.completed}
+        detailsId={detailsId}
+        expanded={expanded}
+        onToggle={toggleDetails}
+        percent={displayState.percent}
+        progressLabel={progressLabel}
+        total={displayState.total}
+      />
+      {expanded ? (
+        <ChatTaskProgressItemList
+          id={detailsId}
+          items={displayState.items}
+          t={t}
         />
-      </div>
+      ) : null}
     </div>
   );
 }

@@ -1,5 +1,7 @@
 import type { FileChange } from './file-change.ts';
 import type { AgentSessionItemViewSource } from './agent-session-view.ts';
+import { mergeAgentSessionItemInteraction } from './agent-session-item-interactions.ts';
+import { normalizeAgentSessionItemLifecycleEvents } from './agent-session-item-lifecycle.ts';
 import { mergeAgentSessionItemReasoning } from './agent-session-item-reasoning.ts';
 import {
   normalizeAgentSessionCommand,
@@ -105,6 +107,10 @@ function mergeNormalizedToolCall(
     return incoming;
   }
 
+  const interaction = incoming.interaction
+    ? mergeAgentSessionItemInteraction(previous.interaction, incoming.interaction)
+    : previous.interaction;
+
   return {
     ...previous,
     ...incoming,
@@ -134,6 +140,7 @@ function mergeNormalizedToolCall(
     ...(incoming.title?.trim() || previous.title?.trim()
       ? { title: incoming.title?.trim() || previous.title }
       : {}),
+    ...(interaction ? { interaction } : {}),
   };
 }
 
@@ -405,6 +412,7 @@ export function composeAgentSessionTranscriptActivity<TItem extends AgentSession
     number,
     Map<string, NonNullable<AgentSessionItemViewSource['resources']>[number]>
   >();
+  const slotLifecycleEventsByIndex = new Map<number, TItem['lifecycleEvents']>();
   const slotReasoningByIndex = new Map<number, TItem['reasoning']>();
   const slotTaskProgressByIndex = new Map<number, TItem['taskProgress']>();
   let previousActivitySlotIndex: number | undefined;
@@ -491,6 +499,16 @@ export function composeAgentSessionTranscriptActivity<TItem extends AgentSession
         incoming.reasoning,
       );
       slotReasoningByIndex.set(slotIndex, reasoning.length > 0 ? reasoning : undefined);
+    }
+    if (includeAncillary && (incoming.lifecycleEvents?.length ?? 0) > 0) {
+      const lifecycleEvents = normalizeAgentSessionItemLifecycleEvents([
+        ...(slotLifecycleEventsByIndex.get(slotIndex) ?? previous.lifecycleEvents ?? []),
+        ...incoming.lifecycleEvents!,
+      ]);
+      slotLifecycleEventsByIndex.set(
+        slotIndex,
+        lifecycleEvents.length > 0 ? lifecycleEvents : undefined,
+      );
     }
     if (includeAncillary && incoming.taskProgress) {
       slotTaskProgressByIndex.set(slotIndex, incoming.taskProgress);
@@ -675,6 +693,9 @@ export function composeAgentSessionTranscriptActivity<TItem extends AgentSession
         ? { reasoning: slotReasoningByIndex.get(slotIndex) }
         : {}),
       ...(resourcesByKey?.size ? { resources: [...resourcesByKey.values()] } : {}),
+      ...(slotLifecycleEventsByIndex.has(slotIndex)
+        ? { lifecycleEvents: slotLifecycleEventsByIndex.get(slotIndex) }
+        : {}),
       ...(slotTaskProgressByIndex.has(slotIndex)
         ? { taskProgress: slotTaskProgressByIndex.get(slotIndex) }
         : {}),
