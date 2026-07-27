@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { Button } from '@sdkwork/birdcoder-pc-ui-shell';
 import {
   composeAgentSessionTranscriptActivity,
+  isAgentSessionItemVisibleInTranscript,
   resolveBirdCoderCodeEngineCommandInteractionState,
 } from '@sdkwork/birdcoder-pc-workbench/chat/types';
 import type { AgentSessionItemView, FileChange } from '@sdkwork/birdcoder-pc-workbench/chat/types';
@@ -41,6 +42,7 @@ import { useBirdcoderAppSettings } from '@sdkwork/birdcoder-pc-workbench/hooks/u
 import { useWorkbenchPreferences } from '@sdkwork/birdcoder-pc-workbench/hooks/useWorkbenchPreferences';
 import {
   buildDriveMediaResourceContentBlock,
+  resolveBirdCoderChatAttachmentPreviewUrl,
   resolveChatAttachmentUploadProfile,
   uploadBirdCoderChatAttachmentToDrive,
 } from '@sdkwork/birdcoder-pc-workbench/services/birdcoderDriveUpload';
@@ -72,9 +74,19 @@ import {
   type UniversalChatNewSessionProviderOption,
 } from './UniversalChatNewSessionProviderSelector';
 import { UniversalChatComposerFooter } from './chat/composer/UniversalChatComposerFooter';
+import { ComposerAttachmentTray } from './chat/composer/ComposerAttachmentTray.tsx';
+import {
+  buildComposerSubmissionText,
+  createComposerAttachmentDraft,
+  isComposerAttachmentTextFile,
+  resolveComposerAttachmentSignature,
+  revokeComposerAttachmentPreview,
+  type ComposerAttachmentDraft,
+} from './chat/composer/composerAttachmentDraft.ts';
 import { UniversalChatPendingInteractions } from './UniversalChatPendingInteractions';
 import { ChatTranscriptAnchorRail } from './ChatTranscriptAnchorRail';
 import { ChatActivityLiveAnnouncer } from './chat/messages/activity/ChatActivityLiveAnnouncer.tsx';
+import { resolveTurnFileChangesMessagePresentations } from './chat/messages/activity/turnFileChanges.ts';
 import {
   buildWorkbenchModelPickerId,
   createWorkbenchModelPickerCatalog,
@@ -156,14 +168,14 @@ export interface UniversalChatComposerSelection {
 const AUTO_RESIZE_TEXTAREA_MAX_HEIGHT = 200;
 const RESIZABLE_COMPOSER_MIN_HEIGHT = 48;
 const RESIZABLE_COMPOSER_MAX_HEIGHT = 360;
-const FOLDER_UPLOAD_YIELD_INTERVAL = 8;
 const MAX_SINGLE_FILE_UPLOAD_BYTES = 1048576;
 const MAX_SINGLE_FILE_UPLOAD_CHARACTERS = 16000;
 const MAX_IMAGE_UPLOAD_BYTES = 1048576;
-const MAX_FOLDER_UPLOAD_FILE_CHARACTERS = 4000;
-const MAX_FOLDER_UPLOAD_INPUT_CHARACTERS = 64000;
+const MAX_IMAGE_UPLOAD_FILES = 8;
+const MAX_COMPOSER_ATTACHMENTS = 24;
 const MAX_FOLDER_UPLOAD_TEXT_FILES = 24;
 const QUEUED_TURN_DISPATCH_SETTLEMENT_CHECK_DELAY_MS = 750;
+const TERMINAL_FILE_CARD_LAYOUT_SETTLEMENT_FRAME_LIMIT = 60;
 
 export interface UniversalChatProps {
   sessionId?: string;
@@ -204,9 +216,10 @@ export interface UniversalChatProps {
   onEditMessage?: (messageId: string, content: string) => void | Promise<void>;
   onDeleteMessage?: (messageIds: string[]) => void;
   onOpenFile?: (path: string) => void;
+  onOpenUrl?: (url: string) => void;
   onRegenerateMessage?: () => void;
   onViewChanges?: (file: FileChange) => void;
-  onRestore?: (msgId: string) => void;
+  onRestore?: (msgId: string, fileChanges?: readonly FileChange[]) => void;
   className?: string;
   emptyState?: React.ReactNode;
   newSessionContext?: React.ReactNode;
@@ -241,21 +254,6 @@ function promptEntriesToSessionChatInputHistory(entries: readonly PromptEntry[])
   return entries.map((entry) => entry.text);
 }
 
-function appendChatInput(currentInputValue: string, appendedContent: string): string {
-  return `${currentInputValue}${appendedContent}`;
-}
-
-function buildFolderUploadContentBlock(
-  path: string,
-  content: string,
-  maxCharacters: number = MAX_FOLDER_UPLOAD_FILE_CHARACTERS,
-): string {
-  const normalizedMaxCharacters = Math.max(0, Math.floor(maxCharacters));
-  const needsTruncation = content.length > normalizedMaxCharacters;
-  const visibleContent = content.slice(0, normalizedMaxCharacters);
-  return `\n\nFile: ${path}\n\`\`\`\n${visibleContent}${needsTruncation ? '\n...[truncated]' : ''}\n\`\`\`\n`;
-}
-
 function buildSingleFileUploadContentBlock(
   path: string,
   content: string,
@@ -282,16 +280,27 @@ function readFileAsText(file: File): Promise<string> {
   });
 }
 
-function yieldToMainThread(): Promise<void> {
-  if (typeof window === 'undefined') {
-    return Promise.resolve();
+function createComposerImagePreviewUrl(file: File): string | undefined {
+  if (
+    !file.type.trim().toLowerCase().startsWith('image/')
+    || typeof URL === 'undefined'
+    || typeof URL.createObjectURL !== 'function'
+  ) {
+    return undefined;
   }
+  return URL.createObjectURL(file);
+}
 
-  return new Promise<void>((resolve) => {
-    window.requestAnimationFrame(() => {
-      resolve();
-    });
-  });
+function isAbortError(error: unknown): boolean {
+  return error instanceof DOMException && error.name === 'AbortError';
+}
+
+function resolveClipboardFiles(clipboardData: DataTransfer): File[] {
+  const itemFiles = Array.from(clipboardData.items)
+    .filter((item) => item.kind === 'file')
+    .map((item) => item.getAsFile())
+    .filter((file): file is File => file !== null);
+  return itemFiles.length > 0 ? itemFiles : Array.from(clipboardData.files);
 }
 
 function PlainMessageContent({ content }: { content: string }) {
@@ -304,9 +313,11 @@ interface UniversalChatTranscriptEnvironment {
   addToast: ReturnType<typeof useToast>['addToast'];
   beginEditingMessage?: (messageId: string, content: string) => void;
   onDeleteMessage?: (messageIds: string[]) => void;
+  onOpenDriveAttachment?: (nodeId: string, title: string) => void;
   onOpenFile?: (path: string) => void;
+  onOpenUrl?: (url: string) => void;
   onRegenerateMessage?: () => void;
-  onRestore?: (msgId: string) => void;
+  onRestore?: (msgId: string, fileChanges?: readonly FileChange[]) => void;
   onViewChanges?: (file: FileChange) => void;
   skills: ChatSkill[];
   t: UniversalChatTranslate;
@@ -320,6 +331,7 @@ interface UniversalChatTranscriptProps {
   isActive: boolean;
   hasMoreRemoteMessages: boolean;
   isLoadingMoreRemoteMessages: boolean;
+  isLive: boolean;
   isUserControllingScrollRef: React.MutableRefObject<boolean>;
   layout: 'sidebar' | 'main';
   localeKey: string;
@@ -332,7 +344,37 @@ interface UniversalChatTranscriptProps {
   onLoadMoreRemoteMessages?: () => void | Promise<void>;
 }
 
+interface RemoteMessageRequestState {
+  isRequesting: boolean;
+  sessionId: string;
+}
+
+interface TranscriptDisclosureState {
+  keys: ReadonlySet<string>;
+  sessionId: string;
+}
+
+interface QueuedTurnPresentationState {
+  editingIndex: number;
+  editingText: string;
+  isExpanded: boolean;
+  scopeKey: string;
+}
+
+interface SessionPromptHistoryState {
+  entries: readonly PromptEntry[];
+  scopeKey: string;
+}
+
+interface SessionPromptNavigationState {
+  historyIndex: number;
+  scopeKey: string;
+  tempInput: string;
+}
+
 const EMPTY_CHAT_MESSAGES: AgentSessionItemView[] = [];
+const EMPTY_PROMPT_ENTRIES: readonly PromptEntry[] = [];
+const EMPTY_TRANSCRIPT_DISCLOSURE_KEYS: ReadonlySet<string> = new Set();
 
 function resolveVisibleSessionMessages(
   messages: readonly AgentSessionItemView[],
@@ -342,15 +384,12 @@ function resolveVisibleSessionMessages(
     return EMPTY_CHAT_MESSAGES;
   }
 
-  if (!normalizedSessionId) {
-    return messages;
-  }
-
   let filteredMessages: AgentSessionItemView[] | null = null;
   for (let index = 0; index < messages.length; index += 1) {
     const message = messages[index]!;
     const messageSessionId = message.sessionId.trim();
-    if (messageSessionId === normalizedSessionId) {
+    const belongsToSession = !normalizedSessionId || messageSessionId === normalizedSessionId;
+    if (belongsToSession && isAgentSessionItemVisibleInTranscript(message)) {
       filteredMessages?.push(message);
       continue;
     }
@@ -410,6 +449,7 @@ const UniversalChatTranscript = memo(function UniversalChatTranscript({
   hasMoreRemoteMessages,
   isActive,
   isLoadingMoreRemoteMessages,
+  isLive,
   isUserControllingScrollRef,
   layout,
   localeKey: _localeKey,
@@ -421,21 +461,71 @@ const UniversalChatTranscript = memo(function UniversalChatTranscript({
   sessionId,
   shouldStickToBottomRef,
 }: UniversalChatTranscriptProps) {
-  const [expandedDisclosureKeys, setExpandedDisclosureKeys] = useState<ReadonlySet<string>>(
-    () => new Set(),
-  );
+  const [transcriptDisclosureState, setTranscriptDisclosureState] =
+    useState<TranscriptDisclosureState>(() => ({
+      keys: EMPTY_TRANSCRIPT_DISCLOSURE_KEYS,
+      sessionId,
+    }));
+  const expandedDisclosureKeys =
+    transcriptDisclosureState.sessionId === sessionId
+      ? transcriptDisclosureState.keys
+      : EMPTY_TRANSCRIPT_DISCLOSURE_KEYS;
+  const fileCardDisclosureScrollTimerRef = useRef<number | null>(null);
+  const terminalFileCardHydrationRef = useRef({
+    isPending: true,
+    sessionId,
+  });
   const toggleDisclosure = useCallback((key: string) => {
-    setExpandedDisclosureKeys((previousKeys) => {
+    const isFileCardDisclosure = key.endsWith('\u0001turn-file-changes');
+    const shouldFollowFileCardDisclosure =
+      isFileCardDisclosure
+      && shouldStickToBottomRef.current;
+    if (!isFileCardDisclosure) {
+      shouldStickToBottomRef.current = false;
+    }
+    setTranscriptDisclosureState((previousState) => {
+      const previousKeys =
+        previousState.sessionId === sessionId
+          ? previousState.keys
+          : EMPTY_TRANSCRIPT_DISCLOSURE_KEYS;
       const nextKeys = new Set(previousKeys);
       if (nextKeys.has(key)) {
         nextKeys.delete(key);
       } else {
         nextKeys.add(key);
       }
-      return nextKeys;
+      return {
+        keys: nextKeys,
+        sessionId,
+      };
     });
-  }, []);
-  const [isRequestingRemoteMessages, setIsRequestingRemoteMessages] = useState(false);
+    if (!shouldFollowFileCardDisclosure || typeof window === 'undefined') {
+      return;
+    }
+
+    if (fileCardDisclosureScrollTimerRef.current !== null) {
+      window.clearTimeout(fileCardDisclosureScrollTimerRef.current);
+    }
+    fileCardDisclosureScrollTimerRef.current = window.setTimeout(() => {
+      fileCardDisclosureScrollTimerRef.current = null;
+      if (!isUserControllingScrollRef.current) {
+        scrollTranscriptToBottom();
+      }
+    }, CHAT_TRANSCRIPT_USER_SCROLL_SETTLE_MS);
+  }, [
+    isUserControllingScrollRef,
+    scrollTranscriptToBottom,
+    sessionId,
+    shouldStickToBottomRef,
+  ]);
+  const [remoteMessageRequestState, setRemoteMessageRequestState] =
+    useState<RemoteMessageRequestState>(() => ({
+      isRequesting: false,
+      sessionId,
+    }));
+  const isRequestingRemoteMessages =
+    remoteMessageRequestState.sessionId === sessionId
+    && remoteMessageRequestState.isRequesting;
   const pendingRemotePrependRef = useRef<{
     firstMessageId: string;
     messageCount: number;
@@ -445,7 +535,6 @@ const UniversalChatTranscript = memo(function UniversalChatTranscript({
 
   useEffect(() => {
     pendingRemotePrependRef.current = null;
-    setIsRequestingRemoteMessages(false);
   }, [sessionId]);
 
   useLayoutEffect(() => {
@@ -502,13 +591,20 @@ const UniversalChatTranscript = memo(function UniversalChatTranscript({
       },
     };
     shouldStickToBottomRef.current = false;
-    setIsRequestingRemoteMessages(true);
+    setRemoteMessageRequestState({
+      isRequesting: true,
+      sessionId,
+    });
     void Promise.resolve(onLoadMoreRemoteMessages())
       .catch((error: unknown) => {
         console.error('Failed to load earlier transcript messages', error);
       })
       .finally(() => {
-        setIsRequestingRemoteMessages(false);
+        setRemoteMessageRequestState((previousState) => (
+          previousState.sessionId === sessionId
+            ? { ...previousState, isRequesting: false }
+            : previousState
+        ));
       });
   }, [
     firstMessageId,
@@ -517,11 +613,17 @@ const UniversalChatTranscript = memo(function UniversalChatTranscript({
     messages.length,
     onLoadMoreRemoteMessages,
     scrollContainerRef,
+    sessionId,
     shouldStickToBottomRef,
   ]);
 
   useEffect(() => {
-    setExpandedDisclosureKeys(new Set());
+    return () => {
+      if (fileCardDisclosureScrollTimerRef.current !== null) {
+        window.clearTimeout(fileCardDisclosureScrollTimerRef.current);
+        fileCardDisclosureScrollTimerRef.current = null;
+      }
+    };
   }, [sessionId]);
 
   const {
@@ -533,6 +635,22 @@ const UniversalChatTranscript = memo(function UniversalChatTranscript({
     messagesEndRef,
     isActive,
     sessionId,
+  );
+  const turnFileChangesPresentations = useMemo(
+    () => resolveTurnFileChangesMessagePresentations(renderedMessages, {
+      deferLatestTurn: isLive,
+    }),
+    [isLive, renderedMessages],
+  );
+  const turnFileChangesCardSignature = useMemo(
+    () => turnFileChangesPresentations
+      .flatMap((presentation, messageIndex) => (
+        presentation.card
+          ? [`${messageIndex}:${presentation.card.fileChanges.length}:${presentation.card.scopeKey}`]
+          : []
+      ))
+      .join('\u0001'),
+    [turnFileChangesPresentations],
   );
   const { paddingBottom, paddingTop, registerMessageElement, visibleMessages, visibleStartIndex } =
     useVirtualizedTranscriptWindow(
@@ -575,6 +693,138 @@ const UniversalChatTranscript = memo(function UniversalChatTranscript({
     visibleStartIndex,
   ]);
 
+  useLayoutEffect(() => {
+    let hydrationState = terminalFileCardHydrationRef.current;
+    if (hydrationState.sessionId !== sessionId) {
+      hydrationState = {
+        isPending: true,
+        sessionId,
+      };
+      terminalFileCardHydrationRef.current = hydrationState;
+    }
+
+    if (
+      !turnFileChangesCardSignature
+      || !isActive
+    ) {
+      return undefined;
+    }
+
+    const scrollContainer = scrollContainerRef.current;
+    if (!scrollContainer) {
+      return undefined;
+    }
+
+    let animationFrame = 0;
+    let lastObservedScrollHeight = -1;
+    let remainingSettlementFrames = 0;
+    let stableSettlementFrames = 0;
+    let isFileCardFooterVisible = false;
+    const updateFileCardFooterVisibility = () => {
+      const fileCardFooters = scrollContainer.querySelectorAll<HTMLElement>(
+        '[data-chat-turn-file-toggle="true"]',
+      );
+      const fileCardFooter = fileCardFooters[fileCardFooters.length - 1];
+      if (!fileCardFooter) {
+        isFileCardFooterVisible = false;
+        return;
+      }
+
+      const footerRect = fileCardFooter.getBoundingClientRect();
+      const transcriptRect = scrollContainer.getBoundingClientRect();
+      isFileCardFooterVisible =
+        footerRect.top >= transcriptRect.top - 1
+        && footerRect.bottom <= transcriptRect.bottom + 1;
+    };
+    updateFileCardFooterVisibility();
+    let shouldFollowFileCardResize =
+      hydrationState.isPending || shouldStickToBottomRef.current;
+    hydrationState.isPending = false;
+    const settleFileCardAtBottom = () => {
+      animationFrame = 0;
+      if (isUserControllingScrollRef.current) {
+        shouldFollowFileCardResize = false;
+        return;
+      }
+
+      scrollTranscriptToBottom();
+      updateFileCardFooterVisibility();
+      const nextScrollHeight = scrollContainer.scrollHeight;
+      const nextBottomGap = Math.max(
+        0,
+        nextScrollHeight - scrollContainer.clientHeight - scrollContainer.scrollTop,
+      );
+      stableSettlementFrames =
+        nextScrollHeight === lastObservedScrollHeight
+          && nextBottomGap <= 1
+          && isFileCardFooterVisible
+          ? stableSettlementFrames + 1
+          : 0;
+      lastObservedScrollHeight = nextScrollHeight;
+      remainingSettlementFrames -= 1;
+
+      if (remainingSettlementFrames > 0 && stableSettlementFrames < 2) {
+        animationFrame = window.requestAnimationFrame(settleFileCardAtBottom);
+        return;
+      }
+
+      shouldFollowFileCardResize = false;
+    };
+    const scheduleScrollAfterFileCardLayout = () => {
+      shouldFollowFileCardResize =
+        shouldFollowFileCardResize
+        || shouldStickToBottomRef.current;
+      if (!shouldFollowFileCardResize) {
+        return;
+      }
+
+      lastObservedScrollHeight = -1;
+      remainingSettlementFrames = TERMINAL_FILE_CARD_LAYOUT_SETTLEMENT_FRAME_LIMIT;
+      stableSettlementFrames = 0;
+      if (animationFrame === 0) {
+        animationFrame = window.requestAnimationFrame(settleFileCardAtBottom);
+      }
+    };
+
+    const resizeObserver = typeof ResizeObserver === 'function'
+      ? new ResizeObserver(scheduleScrollAfterFileCardLayout)
+      : null;
+    const observeCurrentLayoutTargets = () => {
+      const layoutTargets = scrollContainer.querySelectorAll<HTMLElement>(
+        '[data-transcript-message-index], [data-chat-turn-file-changes="true"]',
+      );
+      layoutTargets.forEach((layoutTarget) => resizeObserver?.observe(layoutTarget));
+    };
+    const mutationObserver = typeof MutationObserver === 'function'
+      ? new MutationObserver(() => {
+          observeCurrentLayoutTargets();
+          scheduleScrollAfterFileCardLayout();
+        })
+      : null;
+    resizeObserver?.observe(scrollContainer);
+    observeCurrentLayoutTargets();
+    mutationObserver?.observe(scrollContainer, { childList: true, subtree: true });
+    scrollContainer.addEventListener('scroll', updateFileCardFooterVisibility, { passive: true });
+    scheduleScrollAfterFileCardLayout();
+
+    return () => {
+      mutationObserver?.disconnect();
+      resizeObserver?.disconnect();
+      scrollContainer.removeEventListener('scroll', updateFileCardFooterVisibility);
+      if (animationFrame !== 0) {
+        window.cancelAnimationFrame(animationFrame);
+      }
+    };
+  }, [
+    isActive,
+    isUserControllingScrollRef,
+    scrollContainerRef,
+    scrollTranscriptToBottom,
+    sessionId,
+    shouldStickToBottomRef,
+    turnFileChangesCardSignature,
+  ]);
+
   const renderMarkdownContent = (
     content: string,
     mode: 'basic' | 'rich' = 'rich',
@@ -587,6 +837,10 @@ const UniversalChatTranscript = memo(function UniversalChatTranscript({
       <Suspense fallback={<PlainMessageContent content={content} />}>
         <UniversalChatMarkdown
           content={content}
+          onOpenFile={environmentRef.current?.onOpenFile}
+          onOpenUrl={environmentRef.current?.onOpenUrl}
+          openFileLabel={environmentRef.current?.t('chat.openFileInEditor') ?? 'Open file in editor'}
+          openUrlLabel={environmentRef.current?.t('chat.openLinkPreview') ?? 'Open link preview'}
           skills={environmentRef.current?.skills ?? []}
           mode={mode}
           unknownSkillDescription={environmentRef.current?.t('chat.skillDetailsUnavailable') ?? 'Skill details unavailable'}
@@ -715,6 +969,7 @@ const UniversalChatTranscript = memo(function UniversalChatTranscript({
             const messageRef = registerMessageElement(messageMeasurementKey);
             const actionTarget = messageActionTargets.get(messageIndex) ?? null;
             const showMessageActions = !!actionTarget && actionTarget.endIndex === messageIndex;
+            const turnFileChangesPresentation = turnFileChangesPresentations[messageIndex];
 
             return (
               <ChatTranscriptMessage
@@ -732,6 +987,9 @@ const UniversalChatTranscript = memo(function UniversalChatTranscript({
                   environment: environmentRef.current,
                   actionTarget,
                   showMessageActions,
+                  suppressInlineFileChanges:
+                    turnFileChangesPresentation?.suppressInlineFileChanges ?? false,
+                  turnFileChanges: turnFileChangesPresentation?.card,
                 }}
               />
             );
@@ -751,6 +1009,7 @@ const UniversalChatTranscript = memo(function UniversalChatTranscript({
 }, (previousProps, nextProps) => {
   if (
     previousProps.isActive !== nextProps.isActive ||
+    previousProps.isLive !== nextProps.isLive ||
     previousProps.layout !== nextProps.layout ||
     previousProps.localeKey !== nextProps.localeKey ||
     previousProps.sessionId !== nextProps.sessionId ||
@@ -805,6 +1064,7 @@ export const UniversalChat = memo(function UniversalChat({
   onEditMessage,
   onDeleteMessage,
   onOpenFile,
+  onOpenUrl,
   onRegenerateMessage,
   onViewChanges,
   onRestore,
@@ -820,21 +1080,33 @@ export const UniversalChat = memo(function UniversalChat({
   const composerCompositionRef = useRef(false);
   const [showModelMenu, setShowModelMenu] = useState(false);
   const [showAttachmentMenu, setShowAttachmentMenu] = useState(false);
+  const [composerAttachments, setComposerAttachments] = useState<ComposerAttachmentDraft[]>([]);
+  const composerAttachmentsRef = useRef<ComposerAttachmentDraft[]>([]);
+  const composerAttachmentScopeRef = useRef('');
+  const attachmentUploadControllersRef = useRef(new Map<string, AbortController>());
   const [showPromptModal, setShowPromptModal] = useState(false);
   const [promptTab, setPromptTab] = useState<'history' | 'mine'>('history');
-  const [historyPrompts, setHistoryPrompts] = useState<PromptEntry[]>([]);
   const [myPrompts, setMyPrompts] = useState<PromptEntry[]>([]);
   const [composerSelectionOverride, setComposerSelectionOverride] =
     useState<ComposerModelSelectionOverride | null>(null);
   const normalizedSessionId = sessionId?.trim() || '';
   const normalizedTranscriptScopeKey = sessionScopeKey?.trim() || normalizedSessionId;
+  const normalizedQueueScopeKey = normalizedTranscriptScopeKey;
+  const normalizedComposerSelectionScopeKey = normalizedTranscriptScopeKey || 'ephemeral';
+  const normalizedSessionStateScopeKey = normalizedSessionId ? normalizedTranscriptScopeKey : '';
+  const [sessionPromptHistoryState, setSessionPromptHistoryState] =
+    useState<SessionPromptHistoryState>(() => ({
+      entries: [],
+      scopeKey: normalizedSessionStateScopeKey,
+    }));
+  const historyPrompts =
+    sessionPromptHistoryState.scopeKey === normalizedSessionStateScopeKey
+      ? sessionPromptHistoryState.entries
+      : EMPTY_PROMPT_ENTRIES;
   const transcriptEnvironmentSignature = useMemo(
     () => skills.map((skill) => skill.id).join('\u0001'),
     [skills],
   );
-  const normalizedQueueScopeKey = normalizedTranscriptScopeKey;
-  const normalizedComposerSelectionScopeKey = normalizedTranscriptScopeKey || 'ephemeral';
-  const normalizedSessionStateScopeKey = normalizedSessionId ? normalizedTranscriptScopeKey : '';
   const {
     clearDraftValue: clearSessionDraftValue,
     draftValue: sessionDraftValue,
@@ -904,9 +1176,63 @@ export const UniversalChat = memo(function UniversalChat({
     restoreQueuedTurnInputsToFront,
     setQueuedTurnInputs: setAgentTurnInputQueue,
   } = useWorkbenchAgentTurnInputQueue(normalizedQueueScopeKey);
-  const [isQueueExpanded, setIsQueueExpanded] = useState(false);
-  const [editingQueueIndex, setEditingQueueIndex] = useState(-1);
-  const [editingQueueText, setEditingQueueText] = useState('');
+  const [queuedTurnPresentationState, setQueuedTurnPresentationState] =
+    useState<QueuedTurnPresentationState>(() => ({
+      editingIndex: -1,
+      editingText: '',
+      isExpanded: false,
+      scopeKey: normalizedQueueScopeKey,
+    }));
+  const isCurrentQueuedTurnPresentation =
+    queuedTurnPresentationState.scopeKey === normalizedQueueScopeKey;
+  const editingQueueIndex = isCurrentQueuedTurnPresentation
+    ? queuedTurnPresentationState.editingIndex
+    : -1;
+  const editingQueueText = isCurrentQueuedTurnPresentation
+    ? queuedTurnPresentationState.editingText
+    : '';
+  const isQueueExpanded = isCurrentQueuedTurnPresentation
+    && queuedTurnPresentationState.isExpanded;
+  const setIsQueueExpanded = useCallback((isExpanded: boolean) => {
+    setQueuedTurnPresentationState((previousState) => ({
+      editingIndex:
+        previousState.scopeKey === normalizedQueueScopeKey
+          ? previousState.editingIndex
+          : -1,
+      editingText:
+        previousState.scopeKey === normalizedQueueScopeKey
+          ? previousState.editingText
+          : '',
+      isExpanded,
+      scopeKey: normalizedQueueScopeKey,
+    }));
+  }, [normalizedQueueScopeKey]);
+  const setEditingQueueIndex = useCallback((editingIndex: number) => {
+    setQueuedTurnPresentationState((previousState) => ({
+      editingIndex,
+      editingText:
+        previousState.scopeKey === normalizedQueueScopeKey
+          ? previousState.editingText
+          : '',
+      isExpanded:
+        previousState.scopeKey === normalizedQueueScopeKey
+          && previousState.isExpanded,
+      scopeKey: normalizedQueueScopeKey,
+    }));
+  }, [normalizedQueueScopeKey]);
+  const setEditingQueueText = useCallback((editingText: string) => {
+    setQueuedTurnPresentationState((previousState) => ({
+      editingIndex:
+        previousState.scopeKey === normalizedQueueScopeKey
+          ? previousState.editingIndex
+          : -1,
+      editingText,
+      isExpanded:
+        previousState.scopeKey === normalizedQueueScopeKey
+          && previousState.isExpanded,
+      scopeKey: normalizedQueueScopeKey,
+    }));
+  }, [normalizedQueueScopeKey]);
   const [isFocused, setIsFocused] = useState(false);
   const [manualComposerHeight, setManualComposerHeight] = useState<number | null>(null);
   const [isDispatchingMessage, setIsDispatchingMessage] = useState(false);
@@ -921,6 +1247,7 @@ export const UniversalChat = memo(function UniversalChat({
   const { preferences } = useWorkbenchPreferences();
   const attachmentMenuRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const folderInputRef = useRef<HTMLInputElement>(null);
   const imageInputRef = useRef<HTMLInputElement>(null);
   const activeComposerSelectionOverride =
     composerSelectionOverride?.scopeKey === normalizedComposerSelectionScopeKey
@@ -1167,11 +1494,38 @@ export const UniversalChat = memo(function UniversalChat({
     setEditingMessage(null);
   }, [editingMessage, normalizedTranscriptScopeKey]);
 
+  const openDriveAttachment = useCallback((nodeId: string, title: string) => {
+    if (typeof window === 'undefined') {
+      return;
+    }
+    const previewWindow = window.open('about:blank', '_blank');
+    if (!previewWindow) {
+      addToast(t('chat.filePreviewUnavailable'), 'error');
+      return;
+    }
+    previewWindow.opener = null;
+    previewWindow.document.title = title;
+    void resolveBirdCoderChatAttachmentPreviewUrl(nodeId)
+      .then((previewUrl) => {
+        if (!previewUrl) {
+          throw new Error(`Drive preview grant unavailable for node ${nodeId}`);
+        }
+        previewWindow.location.replace(previewUrl);
+      })
+      .catch((error: unknown) => {
+        previewWindow.close();
+        console.error(`Failed to preview Drive attachment ${title}`, error);
+        addToast(t('chat.filePreviewUnavailable'), 'error');
+      });
+  }, [addToast, t]);
+
   transcriptEnvironmentRef.current = {
     addToast,
     beginEditingMessage,
     onDeleteMessage,
+    onOpenDriveAttachment: openDriveAttachment,
     onOpenFile,
+    onOpenUrl,
     onRegenerateMessage,
     onRestore,
     onViewChanges,
@@ -1377,9 +1731,15 @@ export const UniversalChat = memo(function UniversalChat({
   }, [submitPendingApprovalDecision]);
 
   const syncHistoryPrompts = (nextPrompts: PromptEntry[]) => {
-    setHistoryPrompts((previousPrompts) =>
-      arePromptEntriesEqual(previousPrompts, nextPrompts) ? previousPrompts : nextPrompts,
-    );
+    setSessionPromptHistoryState((previousState) => (
+      previousState.scopeKey === normalizedSessionStateScopeKey
+      && arePromptEntriesEqual(previousState.entries, nextPrompts)
+        ? previousState
+        : {
+            entries: nextPrompts,
+            scopeKey: normalizedSessionStateScopeKey,
+          }
+    ));
   };
 
   const syncMyPrompts = (nextPrompts: PromptEntry[]) => {
@@ -1404,12 +1764,8 @@ export const UniversalChat = memo(function UniversalChat({
   }, [isComposerTurnBlocked, setQueuedTurnFlushGate]);
 
   useEffect(() => {
-    setIsQueueExpanded(false);
-    setEditingQueueIndex(-1);
-    setEditingQueueText('');
     clearQueuedTurnDispatchSettlementTimer();
     queuedTurnFlushGateRef.current = createWorkbenchAgentTurnInputQueueFlushGateState();
-    setQueuedTurnFlushGateVersion((previousVersion) => previousVersion + 1);
   }, [clearQueuedTurnDispatchSettlementTimer, normalizedQueueScopeKey]);
 
   const readTranscriptScrollMetrics = useCallback((): TranscriptScrollMetrics | null => {
@@ -1519,7 +1875,16 @@ export const UniversalChat = memo(function UniversalChat({
     });
   }, [markTranscriptUserScrollIntent, updateTranscriptStickiness]);
 
-  const markTranscriptPointerScrollIntent = useCallback(() => {
+  const markTranscriptPointerScrollIntent = useCallback((event: PointerEvent) => {
+    const pointerTarget = event.target;
+    if (
+      event.pointerType === 'mouse'
+      && pointerTarget instanceof Element
+      && pointerTarget.closest('[data-chat-turn-file-toggle="true"]')
+    ) {
+      return;
+    }
+
     isTranscriptPointerScrollActiveRef.current = true;
     markTranscriptUserScrollIntent();
   }, [markTranscriptUserScrollIntent]);
@@ -1569,9 +1934,6 @@ export const UniversalChat = memo(function UniversalChat({
     hydratedSessionPromptHistoryIdRef.current = normalizedSessionStateScopeKey;
     lastScrollSnapshotRef.current = null;
     sessionChatInputHistoryRef.current = [];
-    setHistoryIndex((previousHistoryIndex) => (previousHistoryIndex === -1 ? previousHistoryIndex : -1));
-    setTempInput((previousTempInput) => (previousTempInput ? '' : previousTempInput));
-    syncHistoryPrompts([]);
     if (!normalizedSessionStateScopeKey) {
       return;
     }
@@ -1666,6 +2028,16 @@ export const UniversalChat = memo(function UniversalChat({
 
     const handleTranscriptScroll = () => {
       if (isProgrammaticTranscriptScrollRef.current) {
+        return;
+      }
+
+      if (
+        !isUserControllingTranscriptScrollRef.current
+        && !isTranscriptPointerScrollActiveRef.current
+      ) {
+        if (!shouldStickTranscriptToBottomRef.current) {
+          updateTranscriptStickiness();
+        }
         return;
       }
 
@@ -1770,160 +2142,274 @@ export const UniversalChat = memo(function UniversalChat({
       });
   };
 
-  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      if (file.size > MAX_SINGLE_FILE_UPLOAD_BYTES) {
-        addToast(t('chat.fileTooLarge'), 'error');
-        setShowAttachmentMenu(false);
-        if (fileInputRef.current) fileInputRef.current.value = '';
-        return;
-      }
+  const replaceComposerAttachments = useCallback((attachments: ComposerAttachmentDraft[]) => {
+    composerAttachmentsRef.current = attachments;
+    setComposerAttachments(attachments);
+  }, []);
 
-      try {
-        const profile = resolveChatAttachmentUploadProfile(file);
-        const driveUpload = await uploadBirdCoderChatAttachmentToDrive({
-          file,
-          sessionId: normalizedSessionId,
-          profile,
-        });
-        const driveContentBlock = buildDriveMediaResourceContentBlock(driveUpload.mediaResource);
-        const content = await readFileAsText(file);
-        const { block: fileContentBlock, isTruncated } = buildSingleFileUploadContentBlock(
-          file.name,
-          content,
-        );
-        setInputValue(
-          appendChatInput(
-            inputValueRef.current,
-            `${driveContentBlock}${fileContentBlock}`,
-          ),
-        );
-        addToast(
-          t(isTruncated ? 'chat.fileAttachedTruncated' : 'chat.fileAttached', {
-            name: file.name,
-          }),
-          'success',
-        );
-      } catch (err) {
-        console.error(`Failed to upload file ${file.name}`, err);
-        addToast(t('chat.driveUploadFailed'), 'error');
-      }
+  const updateComposerAttachment = useCallback((
+    attachmentId: string,
+    update: (attachment: ComposerAttachmentDraft) => ComposerAttachmentDraft,
+  ) => {
+    replaceComposerAttachments(
+      composerAttachmentsRef.current.map((attachment) =>
+        attachment.id === attachmentId ? update(attachment) : attachment,
+      ),
+    );
+  }, [replaceComposerAttachments]);
+
+  const clearComposerAttachments = useCallback(() => {
+    attachmentUploadControllersRef.current.forEach((controller) => controller.abort());
+    attachmentUploadControllersRef.current.clear();
+    const currentAttachments = composerAttachmentsRef.current;
+    currentAttachments.forEach(revokeComposerAttachmentPreview);
+    if (currentAttachments.length === 0) {
+      return;
     }
-    setShowAttachmentMenu(false);
-    if (fileInputRef.current) fileInputRef.current.value = '';
-  };
+    replaceComposerAttachments([]);
+  }, [replaceComposerAttachments]);
 
-  const folderInputRef = useRef<HTMLInputElement>(null);
+  const uploadComposerAttachment = useCallback(async (attachment: ComposerAttachmentDraft) => {
+    attachmentUploadControllersRef.current.get(attachment.id)?.abort();
+    const controller = new AbortController();
+    attachmentUploadControllersRef.current.set(attachment.id, controller);
+    updateComposerAttachment(attachment.id, (currentAttachment) => ({
+      ...currentAttachment,
+      contentBlock: undefined,
+      status: 'uploading',
+    }));
 
-  const handleFolderUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = e.target.files;
-    if (files && files.length > 0) {
-      addToast(t('chat.processingFiles', { count: files.length }), 'info');
-      const combinedContentParts: string[] = [];
-      let appendedInputLength = inputValueRef.current.length;
-      let processedCount = 0;
+    try {
+      const driveUpload = await uploadBirdCoderChatAttachmentToDrive({
+        file: attachment.file,
+        sessionId: normalizedSessionId,
+        profile: resolveChatAttachmentUploadProfile(attachment.file),
+        signal: controller.signal,
+      });
+      let fileContentBlock = '';
       let isTruncated = false;
-
-      for (let i = 0; i < files.length; i++) {
-        if (i > 0 && i % FOLDER_UPLOAD_YIELD_INTERVAL === 0) {
-          await yieldToMainThread();
-        }
-
-        if (
-          processedCount >= MAX_FOLDER_UPLOAD_TEXT_FILES ||
-          appendedInputLength >= MAX_FOLDER_UPLOAD_INPUT_CHARACTERS
-        ) {
-          isTruncated = true;
-          break;
-        }
-
-        const file = files[i];
-        // Skip files > 1MB or common binary extensions
-        if (file.size > 1024 * 1024) continue;
-        if (file.name.match(/\.(png|jpe?g|gif|ico|pdf|zip|tar|gz|mp4|mp3|wav)$/i)) continue;
-
-        try {
-          await uploadBirdCoderChatAttachmentToDrive({
-            file,
-            sessionId: normalizedSessionId,
-            profile: resolveChatAttachmentUploadProfile(file),
-          });
-          const content = await readFileAsText(file);
-
-          // Only append if it looks like text (not binary)
-          if (!content.includes('\x00')) {
-            const path = file.webkitRelativePath || file.name;
-            const remainingInputBudget =
-              MAX_FOLDER_UPLOAD_INPUT_CHARACTERS - appendedInputLength;
-            const nextContentBlock = buildFolderUploadContentBlock(
-              path,
-              content,
-              Math.min(MAX_FOLDER_UPLOAD_FILE_CHARACTERS, remainingInputBudget),
-            );
-            const nextInputLength = appendedInputLength + nextContentBlock.length;
-            if (nextInputLength > MAX_FOLDER_UPLOAD_INPUT_CHARACTERS) {
-              isTruncated = true;
-              break;
-            }
-
-            combinedContentParts.push(nextContentBlock);
-            appendedInputLength = nextInputLength;
-            processedCount++;
-            if (content.length > MAX_FOLDER_UPLOAD_FILE_CHARACTERS) {
-              isTruncated = true;
-            }
-          }
-        } catch (err) {
-          console.error(`Failed to read ${file.name}`, err);
+      if (isComposerAttachmentTextFile(attachment.file)) {
+        const content = await readFileAsText(attachment.file);
+        if (!content.includes('\x00')) {
+          const fileContent = buildSingleFileUploadContentBlock(
+            attachment.displayName,
+            content,
+          );
+          fileContentBlock = fileContent.block;
+          isTruncated = fileContent.isTruncated;
         }
       }
-
-      if (processedCount > 0) {
-        setInputValue(appendChatInput(inputValueRef.current, combinedContentParts.join('')));
-        addToast(
-          t(isTruncated ? 'chat.folderAttachedTruncated' : 'chat.folderAttached', {
-            count: processedCount,
-          }),
-          'success',
-        );
-      } else {
-        addToast(t('chat.noReadableFiles'), 'info');
-      }
-    }
-    setShowAttachmentMenu(false);
-    if (folderInputRef.current) folderInputRef.current.value = '';
-  };
-  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      if (file.size > MAX_IMAGE_UPLOAD_BYTES) {
-        addToast(t('chat.imageTooLarge'), 'error');
-        setShowAttachmentMenu(false);
-        if (imageInputRef.current) imageInputRef.current.value = '';
+      if (controller.signal.aborted) {
         return;
       }
-      try {
-        const driveUpload = await uploadBirdCoderChatAttachmentToDrive({
-          file,
-          sessionId: normalizedSessionId,
-          profile: 'image',
-        });
-        const imageContentBlock = buildDriveMediaResourceContentBlock(
-          driveUpload.mediaResource,
-          driveUpload.previewUrl,
-        );
 
-        setInputValue(appendChatInput(inputValueRef.current, imageContentBlock));
-        addToast(t('chat.imageAttached', { name: file.name }), 'success');
-      } catch (err) {
-        console.error(`Failed to upload image ${file.name}`, err);
-        addToast(t('chat.driveUploadFailed'), 'error');
+      const driveContentBlock = buildDriveMediaResourceContentBlock(
+        driveUpload.mediaResource,
+        driveUpload.previewUrl,
+      );
+      updateComposerAttachment(attachment.id, (currentAttachment) => ({
+        ...currentAttachment,
+        contentBlock: `${driveContentBlock}${fileContentBlock}`,
+        status: 'ready',
+      }));
+      if (isTruncated) {
+        addToast(t('chat.fileAttachedTruncated', { name: attachment.displayName }), 'info');
+      }
+    } catch (error) {
+      if (controller.signal.aborted || isAbortError(error)) {
+        return;
+      }
+      console.error(`Failed to upload attachment ${attachment.displayName}`, error);
+      updateComposerAttachment(attachment.id, (currentAttachment) => ({
+        ...currentAttachment,
+        status: 'failed',
+      }));
+    } finally {
+      if (attachmentUploadControllersRef.current.get(attachment.id) === controller) {
+        attachmentUploadControllersRef.current.delete(attachment.id);
       }
     }
+  }, [addToast, normalizedSessionId, t, updateComposerAttachment]);
+
+  const addComposerFiles = useCallback((
+    files: readonly File[],
+    options: {
+      displayName?: (file: File) => string;
+      imageOnly?: boolean;
+      maxFiles?: number;
+    } = {},
+  ): number => {
+    const currentAttachments = composerAttachmentsRef.current;
+    const attachmentSignatures = new Set(
+      currentAttachments.map((attachment) => resolveComposerAttachmentSignature(attachment.file)),
+    );
+    const drafts: ComposerAttachmentDraft[] = [];
+    const maxFiles = Math.max(0, options.maxFiles ?? MAX_COMPOSER_ATTACHMENTS);
+    let remainingImageSlots = Math.max(
+      0,
+      MAX_IMAGE_UPLOAD_FILES
+        - currentAttachments.filter((attachment) => attachment.kind === 'image').length,
+    );
+    let duplicateCount = 0;
+    let oversizedFileCount = 0;
+    let oversizedImageCount = 0;
+    let imageLimitReached = false;
+    let limitReached = false;
+
+    for (const file of files.slice(0, maxFiles)) {
+      const isImage = file.type.trim().toLowerCase().startsWith('image/');
+      if (options.imageOnly && !isImage) {
+        continue;
+      }
+      if (currentAttachments.length + drafts.length >= MAX_COMPOSER_ATTACHMENTS) {
+        limitReached = true;
+        break;
+      }
+      if (isImage && remainingImageSlots <= 0) {
+        imageLimitReached = true;
+        continue;
+      }
+      const maxBytes = isImage ? MAX_IMAGE_UPLOAD_BYTES : MAX_SINGLE_FILE_UPLOAD_BYTES;
+      if (file.size > maxBytes) {
+        if (isImage) {
+          oversizedImageCount += 1;
+        } else {
+          oversizedFileCount += 1;
+        }
+        continue;
+      }
+      const signature = resolveComposerAttachmentSignature(file);
+      if (attachmentSignatures.has(signature)) {
+        duplicateCount += 1;
+        continue;
+      }
+
+      attachmentSignatures.add(signature);
+      if (isImage) {
+        remainingImageSlots -= 1;
+      }
+      drafts.push(createComposerAttachmentDraft(file, {
+        displayName: options.displayName?.(file),
+        previewUrl: createComposerImagePreviewUrl(file),
+      }));
+    }
+
+    if (files.length > maxFiles || limitReached) {
+      addToast(t('chat.attachmentLimit', { count: MAX_COMPOSER_ATTACHMENTS }), 'info');
+    }
+    if (imageLimitReached) {
+      addToast(t('chat.imageUploadLimit', { count: MAX_IMAGE_UPLOAD_FILES }), 'info');
+    }
+    if (oversizedFileCount > 0) {
+      addToast(t('chat.fileTooLarge'), 'error');
+    }
+    if (oversizedImageCount > 0) {
+      addToast(t('chat.imageTooLarge'), 'error');
+    }
+    if (duplicateCount > 0) {
+      addToast(t('chat.duplicateAttachmentsSkipped', { count: duplicateCount }), 'info');
+    }
+    if (drafts.length === 0) {
+      setShowAttachmentMenu(false);
+      return 0;
+    }
+
+    replaceComposerAttachments([...currentAttachments, ...drafts]);
     setShowAttachmentMenu(false);
-    if (imageInputRef.current) imageInputRef.current.value = '';
+    drafts.forEach((attachment) => {
+      void uploadComposerAttachment(attachment);
+    });
+    textareaRef.current?.focus();
+    return drafts.length;
+  }, [addToast, replaceComposerAttachments, t, uploadComposerAttachment]);
+
+  const removeComposerAttachment = useCallback((attachmentId: string) => {
+    attachmentUploadControllersRef.current.get(attachmentId)?.abort();
+    attachmentUploadControllersRef.current.delete(attachmentId);
+    const attachment = composerAttachmentsRef.current.find((item) => item.id === attachmentId);
+    if (attachment) {
+      revokeComposerAttachmentPreview(attachment);
+    }
+    replaceComposerAttachments(
+      composerAttachmentsRef.current.filter((item) => item.id !== attachmentId),
+    );
+    textareaRef.current?.focus();
+  }, [replaceComposerAttachments]);
+
+  const retryComposerAttachment = useCallback((attachmentId: string) => {
+    const attachment = composerAttachmentsRef.current.find((item) => item.id === attachmentId);
+    if (attachment?.status === 'failed') {
+      void uploadComposerAttachment(attachment);
+    }
+  }, [uploadComposerAttachment]);
+
+  const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+    addComposerFiles(Array.from(event.target.files ?? []));
+    event.target.value = '';
   };
+
+  const handleFolderUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const selectedFiles = Array.from(event.target.files ?? []);
+    const readableFiles = selectedFiles
+      .filter(isComposerAttachmentTextFile)
+      .slice(0, MAX_FOLDER_UPLOAD_TEXT_FILES);
+    if (selectedFiles.length > MAX_FOLDER_UPLOAD_TEXT_FILES) {
+      addToast(
+        t('chat.folderAttachedTruncated', { count: MAX_FOLDER_UPLOAD_TEXT_FILES }),
+        'info',
+      );
+    }
+    if (readableFiles.length === 0 && selectedFiles.length > 0) {
+      addToast(t('chat.noReadableFiles'), 'info');
+    } else {
+      addComposerFiles(readableFiles, {
+        displayName: (file) => file.webkitRelativePath || file.name,
+        maxFiles: MAX_FOLDER_UPLOAD_TEXT_FILES,
+      });
+    }
+    event.target.value = '';
+  };
+
+  const handleImageUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+    addComposerFiles(Array.from(event.target.files ?? []), {
+      imageOnly: true,
+      maxFiles: MAX_IMAGE_UPLOAD_FILES,
+    });
+    event.target.value = '';
+  };
+
+  const handleComposerPaste = useCallback((event: React.ClipboardEvent<HTMLTextAreaElement>) => {
+    if (
+      disabled
+      || editingMessage
+      || hasPendingUserQuestionReplyTarget
+      || isDispatchingMessageRef.current
+    ) {
+      return;
+    }
+    const clipboardFiles = resolveClipboardFiles(event.clipboardData);
+    if (clipboardFiles.length === 0) {
+      return;
+    }
+
+    event.preventDefault();
+    addComposerFiles(clipboardFiles);
+  }, [addComposerFiles, disabled, editingMessage, hasPendingUserQuestionReplyTarget]);
+
+  useEffect(() => {
+    if (composerAttachmentScopeRef.current === normalizedTranscriptScopeKey) {
+      return;
+    }
+    composerAttachmentScopeRef.current = normalizedTranscriptScopeKey;
+    clearComposerAttachments();
+  }, [clearComposerAttachments, normalizedTranscriptScopeKey]);
+
+  useEffect(() => () => {
+    attachmentUploadControllersRef.current.forEach((controller) => controller.abort());
+    attachmentUploadControllersRef.current.clear();
+    composerAttachmentsRef.current.forEach(revokeComposerAttachmentPreview);
+    composerAttachmentsRef.current = [];
+  }, []);
   const [isListening, setIsListening] = useState(false);
   const recognitionRef = useRef<any>(null);
   const recognitionEnvironmentRef = useRef({
@@ -2035,33 +2521,68 @@ export const UniversalChat = memo(function UniversalChat({
     }
   };
 
-  const [historyIndex, setHistoryIndex] = useState(-1);
-  const [tempInput, setTempInput] = useState('');
+  const [sessionPromptNavigationState, setSessionPromptNavigationState] =
+    useState<SessionPromptNavigationState>(() => ({
+      historyIndex: -1,
+      scopeKey: normalizedSessionStateScopeKey,
+      tempInput: '',
+    }));
+  const isCurrentSessionPromptNavigation =
+    sessionPromptNavigationState.scopeKey === normalizedSessionStateScopeKey;
+  const historyIndex = isCurrentSessionPromptNavigation
+    ? sessionPromptNavigationState.historyIndex
+    : -1;
+  const tempInput = isCurrentSessionPromptNavigation
+    ? sessionPromptNavigationState.tempInput
+    : '';
+  const setHistoryIndex = useCallback((historyIndex: number) => {
+    setSessionPromptNavigationState((previousState) => ({
+      historyIndex,
+      scopeKey: normalizedSessionStateScopeKey,
+      tempInput:
+        previousState.scopeKey === normalizedSessionStateScopeKey
+          ? previousState.tempInput
+          : '',
+    }));
+  }, [normalizedSessionStateScopeKey]);
+  const setTempInput = useCallback((tempInput: string) => {
+    setSessionPromptNavigationState((previousState) => ({
+      historyIndex:
+        previousState.scopeKey === normalizedSessionStateScopeKey
+          ? previousState.historyIndex
+          : -1,
+      scopeKey: normalizedSessionStateScopeKey,
+      tempInput,
+    }));
+  }, [normalizedSessionStateScopeKey]);
 
   useEffect(() => {
-    setComposerSelectionOverride((previousOverride) => {
-      const scopedOverride =
-        previousOverride?.scopeKey === normalizedComposerSelectionScopeKey
-          ? previousOverride
-          : readComposerModelSelectionOverride(normalizedComposerSelectionScopeKey);
-      if (!scopedOverride) {
-        return null;
+    const scopedOverride =
+      composerSelectionOverride?.scopeKey === normalizedComposerSelectionScopeKey
+        ? composerSelectionOverride
+        : readComposerModelSelectionOverride(normalizedComposerSelectionScopeKey);
+    if (!scopedOverride) {
+      return;
+    }
+
+    const overrideEngineId = scopedOverride.engineId.trim();
+    const overrideModelId = scopedOverride.modelId.trim();
+    if (
+      overrideEngineId === controlledSelectedEngineId &&
+      overrideModelId.toLowerCase() === controlledSelectedModelId.toLowerCase()
+    ) {
+      deleteComposerModelSelectionOverride(normalizedComposerSelectionScopeKey);
+      if (composerSelectionOverride === scopedOverride) {
+        setComposerSelectionOverride(null);
       }
+      return;
+    }
 
-      const overrideEngineId = scopedOverride.engineId.trim();
-      const overrideModelId = scopedOverride.modelId.trim();
-
-      if (
-        overrideEngineId === controlledSelectedEngineId &&
-        overrideModelId.toLowerCase() === controlledSelectedModelId.toLowerCase()
-      ) {
-        deleteComposerModelSelectionOverride(normalizedComposerSelectionScopeKey);
-        return null;
-      }
-
-      return scopedOverride;
-    });
+    if (composerSelectionOverride !== scopedOverride) {
+      setComposerSelectionOverride(scopedOverride);
+    }
   }, [
+    composerSelectionOverride,
     controlledSelectedEngineId,
     controlledSelectedModelId,
     normalizedComposerSelectionScopeKey,
@@ -2093,6 +2614,7 @@ export const UniversalChat = memo(function UniversalChat({
   const dispatchDraftMessage = useCallback(async (
     submittedTextSnapshot: string,
     queuedAgentTurnInputsSnapshot: readonly WorkbenchQueuedAgentTurnInput[] = [],
+    submittedDisplayTextSnapshot: string = submittedTextSnapshot,
   ): Promise<boolean> => {
     if (disabled) {
       return false;
@@ -2118,7 +2640,7 @@ export const UniversalChat = memo(function UniversalChat({
         await Promise.resolve(onSendMessage(fullText, currentComposerSelection));
       } catch (error) {
         setInputValue((previousInputValue) =>
-          resolveComposerInputAfterSendFailure(submittedTextSnapshot, previousInputValue),
+          resolveComposerInputAfterSendFailure(submittedDisplayTextSnapshot, previousInputValue),
         );
         setAgentTurnInputQueue((previousQueue) =>
           restoreQueuedAgentTurnInputsAfterSendFailure(queuedAgentTurnInputsSnapshot, previousQueue),
@@ -2135,10 +2657,12 @@ export const UniversalChat = memo(function UniversalChat({
       markQueuedTurnDispatchStarted();
       didMarkQueuedTurnDispatch = true;
 
-      try {
-        await persistSubmittedPromptHistory(fullText);
-      } catch (error) {
-        console.error('Failed to persist prompt history after successful send', error);
+      if (submittedDisplayTextSnapshot.trim()) {
+        try {
+          await persistSubmittedPromptHistory(submittedDisplayTextSnapshot.trim());
+        } catch (error) {
+          console.error('Failed to persist prompt history after successful send', error);
+        }
       }
       return true;
     } finally {
@@ -2205,10 +2729,13 @@ export const UniversalChat = memo(function UniversalChat({
       markQueuedTurnDispatchStarted();
       didMarkQueuedTurnDispatch = true;
 
-      try {
-        await persistSubmittedPromptHistory(fullText);
-      } catch (error) {
-        console.error('Failed to persist prompt history after successful queued send', error);
+      const submittedDisplayText = submittedAgentTurnInput.displayText?.trim() || '';
+      if (submittedDisplayText) {
+        try {
+          await persistSubmittedPromptHistory(submittedDisplayText);
+        } catch (error) {
+          console.error('Failed to persist prompt history after successful queued send', error);
+        }
       }
       return true;
     } finally {
@@ -2319,13 +2846,43 @@ export const UniversalChat = memo(function UniversalChat({
       return;
     }
 
+    const hasUploadingAttachments = composerAttachmentsRef.current.some(
+      (attachment) => attachment.status === 'uploading',
+    );
+    if (hasUploadingAttachments) {
+      addToast(t('chat.waitForAttachments'), 'info');
+      return;
+    }
+    const hasFailedAttachments = composerAttachmentsRef.current.some(
+      (attachment) => attachment.status === 'failed',
+    );
+    if (hasFailedAttachments) {
+      addToast(t('chat.resolveFailedAttachments'), 'error');
+      return;
+    }
+
+    const readyAttachments = composerAttachmentsRef.current.filter(
+      (attachment) => attachment.status === 'ready' && attachment.contentBlock,
+    );
+    const attachmentContent = readyAttachments
+      .map((attachment) => attachment.contentBlock)
+      .join('');
+    const attachmentNames = readyAttachments.map((attachment) => attachment.displayName);
+    const currentSubmission = buildComposerSubmissionText(currentInput, readyAttachments);
+    const queuePresentation = {
+      attachmentContent,
+      attachmentNames,
+      displayText: currentInput,
+    };
+
     if (isComposerTurnBlocked || isAwaitingQueuedTurnSettlement) {
-      if (!currentInput) {
+      if (!currentSubmission) {
         return;
       }
 
-      enqueueQueuedTurnInput(currentInput, currentComposerSelection);
+      enqueueQueuedTurnInput(currentSubmission, currentComposerSelection, queuePresentation);
       clearInputValue();
+      clearComposerAttachments();
       addToast(t('chat.messageQueued'), 'success');
       return;
     }
@@ -2343,9 +2900,10 @@ export const UniversalChat = memo(function UniversalChat({
         },
       );
 
-      if (currentInput) {
-        enqueueQueuedTurnInput(currentInput, currentComposerSelection);
+      if (currentSubmission) {
+        enqueueQueuedTurnInput(currentSubmission, currentComposerSelection, queuePresentation);
         clearInputValue();
+        clearComposerAttachments();
         addToast(t('chat.messageQueued'), 'success');
       }
 
@@ -2360,12 +2918,19 @@ export const UniversalChat = memo(function UniversalChat({
       return;
     }
 
-    if (!currentInput) {
+    if (!currentSubmission) {
       return;
     }
 
     clearInputValue();
-    void dispatchDraftMessage(currentInput);
+    const didDispatchMessage = await dispatchDraftMessage(
+      currentSubmission,
+      [],
+      currentInput,
+    );
+    if (didDispatchMessage) {
+      clearComposerAttachments();
+    }
   };
 
   useEffect(() => {
@@ -2608,6 +3173,23 @@ export const UniversalChat = memo(function UniversalChat({
   };
 
   const hasTypedComposerInput = inputValue.trim().length > 0;
+  const hasReadyComposerAttachments = composerAttachments.some(
+    (attachment) => attachment.status === 'ready' && attachment.contentBlock,
+  );
+  const hasUploadingComposerAttachments = composerAttachments.some(
+    (attachment) => attachment.status === 'uploading',
+  );
+  const hasFailedComposerAttachments = composerAttachments.some(
+    (attachment) => attachment.status === 'failed',
+  );
+  const hasComposerSubmissionContent = hasTypedComposerInput || hasReadyComposerAttachments;
+  const isComposerAttachmentSubmissionBlocked =
+    hasUploadingComposerAttachments || hasFailedComposerAttachments;
+  const attachmentsDisabled =
+    disabled
+    || isDispatchingMessage
+    || Boolean(editingMessage)
+    || hasPendingUserQuestionReplyTarget;
   const isAwaitingQueuedTurnSettlement =
     queuedTurnFlushGateRef.current.awaitingTurnSettlement;
   const canSubmitEditedMessage =
@@ -2630,13 +3212,17 @@ export const UniversalChat = memo(function UniversalChat({
     !isSubmittingPendingInteraction &&
     !editingMessage &&
     !hasPendingUserQuestionReplyTarget &&
-    hasTypedComposerInput;
+    hasComposerSubmissionContent &&
+    !isComposerAttachmentSubmissionBlocked;
   const canSendQueuedOrTypedMessage =
     !disabled &&
     !isDispatchingMessage &&
     !isSubmittingPendingInteraction &&
     !editingMessage &&
-    (hasTypedComposerInput || agentTurnInputQueue.length > 0);
+    (
+      agentTurnInputQueue.length > 0
+      || (hasComposerSubmissionContent && !isComposerAttachmentSubmissionBlocked)
+    );
   const canSubmitComposerMessage =
     canSubmitEditedMessage ||
     canSubmitPendingUserQuestionAnswer ||
@@ -2758,6 +3344,7 @@ export const UniversalChat = memo(function UniversalChat({
             hasMoreRemoteMessages={hasMoreRemoteMessages}
             isActive={isActive}
             isLoadingMoreRemoteMessages={isLoadingMoreRemoteMessages}
+            isLive={isBusy || isEngineBusy}
             isUserControllingScrollRef={isUserControllingTranscriptScrollRef}
             layout={layout}
             localeKey={i18n.resolvedLanguage ?? i18n.language ?? ''}
@@ -2770,10 +3357,14 @@ export const UniversalChat = memo(function UniversalChat({
             shouldStickToBottomRef={shouldStickTranscriptToBottomRef}
           />
         </div>
-        <ChatTranscriptAnchorRail
-          messages={normalizedMessages}
-          onSelectTurn={scrollTranscriptToTurn}
-        />
+        {layout === 'main' ? (
+          <ChatTranscriptAnchorRail
+            label={t('chat.conversationMap')}
+            messages={normalizedMessages}
+            onSelectTurn={scrollTranscriptToTurn}
+            turnLabel={t('chat.goToConversationTurn')}
+          />
+        ) : null}
       </div>
 
       {!hideComposer && (
@@ -2835,7 +3426,9 @@ export const UniversalChat = memo(function UniversalChat({
                       <div className="flex items-center gap-2 overflow-hidden">
                         <List size={14} className="text-blue-400 shrink-0" />
                         <span className="text-xs text-blue-300 truncate font-medium">
-                          {agentTurnInputQueue[0]?.text}
+                          {agentTurnInputQueue[0]?.displayText
+                            || agentTurnInputQueue[0]?.attachmentNames?.join(', ')
+                            || agentTurnInputQueue[0]?.text}
                         </span>
                       </div>
                       <div className="flex items-center gap-2 shrink-0 ml-2">
@@ -2895,14 +3488,19 @@ export const UniversalChat = memo(function UniversalChat({
                                             idx < 0 ||
                                             idx >= previousQueue.length ||
                                             !currentQueuedAgentTurnInput ||
-                                            currentQueuedAgentTurnInput.text === editingQueueText
+                                            currentQueuedAgentTurnInput.displayText === editingQueueText
                                           ) {
                                             return previousQueue;
                                           }
                                           const nextQueue = [...previousQueue];
                                           nextQueue[idx] = {
                                             ...currentQueuedAgentTurnInput,
-                                            text: editingQueueText,
+                                            displayText: editingQueueText.trim() || undefined,
+                                            text: `${editingQueueText.trim()}${
+                                              currentQueuedAgentTurnInput.attachmentContent
+                                                ? `\n\n${currentQueuedAgentTurnInput.attachmentContent}`
+                                                : ''
+                                            }`.trim(),
                                           };
                                           return nextQueue;
                                         });
@@ -2914,7 +3512,25 @@ export const UniversalChat = memo(function UniversalChat({
                                   </div>
                                 </div>
                               ) : (
-                                <p className="text-xs text-gray-300 whitespace-pre-wrap break-words">{queuedAgentTurnInput.text}</p>
+                                <div className="space-y-1">
+                                  {queuedAgentTurnInput.displayText ? (
+                                    <p className="whitespace-pre-wrap break-words text-xs text-gray-300">
+                                      {queuedAgentTurnInput.displayText}
+                                    </p>
+                                  ) : null}
+                                  {queuedAgentTurnInput.attachmentNames?.length ? (
+                                    <p className="truncate text-[10px] text-zinc-500">
+                                      {t('chat.queuedAttachments', {
+                                        count: queuedAgentTurnInput.attachmentNames.length,
+                                        names: queuedAgentTurnInput.attachmentNames.join(', '),
+                                      })}
+                                    </p>
+                                  ) : !queuedAgentTurnInput.displayText ? (
+                                    <p className="whitespace-pre-wrap break-words text-xs text-gray-300">
+                                      {queuedAgentTurnInput.text}
+                                    </p>
+                                  ) : null}
+                                </div>
                               )}
                             </div>
                             {editingQueueIndex !== idx && (
@@ -2944,7 +3560,9 @@ export const UniversalChat = memo(function UniversalChat({
                                 <button 
                                   className="p-1.5 text-gray-500 hover:text-blue-400 hover:bg-blue-400/10 rounded-md transition-colors"
                                   onClick={() => {
-                                    setEditingQueueText(queuedAgentTurnInput.text);
+                                    setEditingQueueText(
+                                      queuedAgentTurnInput.displayText ?? queuedAgentTurnInput.text,
+                                    );
                                     setEditingQueueIndex(idx);
                                   }}
                                   title={t('chat.editQueuedMessage')}
@@ -2978,6 +3596,14 @@ export const UniversalChat = memo(function UniversalChat({
                   )}
                 </div>
               )}
+              {!editingMessage ? (
+                <ComposerAttachmentTray
+                  attachments={composerAttachments}
+                  disabled={disabled || isDispatchingMessage}
+                  onRemove={removeComposerAttachment}
+                  onRetry={retryComposerAttachment}
+                />
+              ) : null}
               {editingMessage ? (
                 <div className="mb-2 flex items-center justify-between gap-3 rounded-md border border-blue-500/20 bg-blue-500/10 px-3 py-2 text-xs text-blue-100">
                   <div className="flex min-w-0 items-center gap-2">
@@ -3003,6 +3629,7 @@ export const UniversalChat = memo(function UniversalChat({
               onCompositionStart={handleComposerCompositionStart}
               onCompositionEnd={handleComposerCompositionEnd}
               onKeyDown={handleKeyDown}
+              onPaste={handleComposerPaste}
               placeholder={disabled ? t('chat.placeholderDisabled') : t('chat.placeholderEnabled')}
               className={`w-full resize-none overflow-y-auto bg-transparent px-1 text-[length:var(--birdcoder-ui-font-size,12px)] leading-5 text-white outline-none placeholder:text-gray-500 custom-scrollbar ${shouldPresentNewSessionComposer ? 'min-h-[72px]' : 'min-h-12'} ${disabled ? 'cursor-not-allowed opacity-50' : ''}`}
               rows={shouldPresentNewSessionComposer ? 3 : 2}
@@ -3014,6 +3641,7 @@ export const UniversalChat = memo(function UniversalChat({
             </div>
             <UniversalChatComposerFooter
               attachmentMenuRef={attachmentMenuRef}
+              attachmentsDisabled={attachmentsDisabled}
               canQueueTypedMessage={canQueueTypedMessage}
               canSubmitComposerMessage={canSubmitComposerMessage}
               canSubmitPendingUserQuestionAnswer={canSubmitPendingUserQuestionAnswer}
@@ -3028,6 +3656,7 @@ export const UniversalChat = memo(function UniversalChat({
               isComposerProcessing={isComposerProcessing}
               isComposerTurnBlocked={isComposerTurnBlocked}
               isListening={isListening}
+              isUploadingAttachments={hasUploadingComposerAttachments}
               modelGroups={modelPickerCatalog.groups}
               onAttachmentMenuOpenChange={setShowAttachmentMenu}
               onFileUpload={handleFileUpload}

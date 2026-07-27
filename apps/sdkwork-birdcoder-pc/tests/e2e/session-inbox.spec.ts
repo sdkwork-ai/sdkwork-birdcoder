@@ -51,6 +51,25 @@ async function openOrganizeMenu(page: Page) {
   return menu;
 }
 
+async function revealSessionByLoadingMore(
+  sessionList: ReturnType<Page['locator']>,
+  title: string,
+  maxAttempts = 4,
+): Promise<number> {
+  const target = sessionList.getByText(title, { exact: true });
+  let attempts = 0;
+  while (!(await target.isVisible()) && attempts < maxAttempts) {
+    const continuation = sessionList.getByRole('button', {
+      name: /E2E Project.*Show more/iu,
+    });
+    await expect(continuation).toBeVisible();
+    await continuation.click();
+    attempts += 1;
+  }
+  await expect(target).toBeVisible();
+  return attempts;
+}
+
 test('multi-provider Session Inbox preserves identity while grouping, filtering, and sorting', async ({
   page,
   request,
@@ -69,6 +88,62 @@ test('multi-provider Session Inbox preserves identity while grouping, filtering,
   await expect(sessionList.getByText('Claude architecture review', { exact: true })).toBeVisible();
   await expect(sessionList.getByText('Codex implementation', { exact: true })).toBeVisible();
   await expect(sessionList.getByText('OpenCode verification', { exact: true })).toBeVisible();
+  await expect(sessionList.getByText('Gemini failure triage', { exact: true })).toBeVisible();
+
+  const expectedRuntimeStates = [
+    ['e2e-claude-session', 'streaming', 'busy', true],
+    ['e2e-codex-session', 'initializing', 'busy', true],
+    ['e2e-opencode-session', 'awaiting_approval', 'attention', false],
+    ['e2e-gemini-session', 'failed', 'failed', false],
+  ] as const;
+  for (const [sessionId, runtimeStatus, presentation, spins] of expectedRuntimeStates) {
+    const row = sessionList.locator(`[data-agent-session-id="${sessionId}"]`);
+    const statusSlot = row.locator('[data-session-runtime-status]');
+    const providerBadge = row.locator('[data-session-provider-badge="leading"]');
+    const trailingMetadata = row.locator('[data-session-trailing-metadata="true"]');
+    await expect(row).toBeVisible();
+    await expect(statusSlot).toHaveAttribute('data-session-runtime-status', runtimeStatus);
+    await expect(statusSlot).toHaveAttribute('data-session-runtime-presentation', presentation);
+    await expect(statusSlot.locator('.animate-spin')).toHaveCount(spins ? 1 : 0);
+    await expect(providerBadge).toBeVisible();
+    await expect(trailingMetadata).toHaveCount(1);
+    expect(await row.evaluate((element) => {
+      const provider = element.querySelector('[data-session-provider-badge="leading"]');
+      const trailing = element.querySelector('[data-session-trailing-metadata="true"]');
+      const status = element.querySelector('[data-session-runtime-status]');
+      return Boolean(
+        provider
+        && trailing
+        && status
+        && (provider.compareDocumentPosition(trailing) & Node.DOCUMENT_POSITION_FOLLOWING)
+        && status.parentElement === trailing
+        && trailing.lastElementChild === status,
+      );
+    })).toBe(true);
+  }
+
+  await page.setViewportSize({ width: 760, height: 680 });
+  for (const [sessionId, runtimeStatus] of expectedRuntimeStates) {
+    const row = sessionList.locator(`[data-agent-session-id="${sessionId}"]`);
+    const statusSlot = row.locator(`[data-session-runtime-status="${runtimeStatus}"]`);
+    const providerBadge = row.locator('[data-session-provider-badge="leading"]');
+    await expect(row).toBeVisible();
+    await expect(statusSlot).toBeVisible();
+    await expect(providerBadge).toBeVisible();
+    const [rowBounds, statusBounds, providerBounds] = await Promise.all([
+      row.boundingBox(),
+      statusSlot.boundingBox(),
+      providerBadge.boundingBox(),
+    ]);
+    expect(rowBounds).not.toBeNull();
+    expect(statusBounds).not.toBeNull();
+    expect(providerBounds).not.toBeNull();
+    expect(rowBounds!.x).toBeGreaterThanOrEqual(0);
+    expect(rowBounds!.x + rowBounds!.width).toBeLessThanOrEqual(760);
+    expect(providerBounds!.x + providerBounds!.width).toBeLessThanOrEqual(statusBounds!.x);
+  }
+  await page.setViewportSize({ width: 1_440, height: 900 });
+
   const smartOrderDetails = await sessionRows.evaluateAll((rows) =>
     rows.map((row) => row.getAttribute('title')),
   );
@@ -81,13 +156,13 @@ test('multi-provider Session Inbox preserves identity while grouping, filtering,
   });
   expect(uniqueSmartOrderDetails.slice(0, 3).map((details) => details?.split(' | ')[0])).toEqual([
     'Claude architecture review',
-    'Codex implementation',
     'OpenCode verification',
+    'Codex implementation',
   ]);
   expect(uniqueSmartOrderDetails.slice(0, 3)).toEqual([
     expect.stringContaining('anthropic'),
-    expect.stringContaining('openai'),
     expect.stringContaining('opencode'),
+    expect.stringContaining('openai'),
   ]);
 
   let menu = await openOrganizeMenu(page);
@@ -100,25 +175,11 @@ test('multi-provider Session Inbox preserves identity while grouping, filtering,
   await expect(sessionList.getByText('Codex implementation', { exact: true })).toBeVisible();
   await expect(sessionList.getByText('OpenCode verification', { exact: true })).toBeVisible();
 
-  const providerContinuation = sessionList.getByRole('button', {
-    name: /E2E Project.*Show more/iu,
-  });
-  await expect(providerContinuation).toBeVisible();
-  await providerContinuation.click();
-  await expect(providerContinuation).toBeVisible();
-  await providerContinuation.click();
-  await expect(sessionList.getByText('History page two session', { exact: true })).toBeVisible();
+  await revealSessionByLoadingMore(sessionList, 'History page two session');
 
   menu = await openOrganizeMenu(page);
   await menu.getByRole('button', { name: 'Chronological', exact: true }).click();
-  const chronologicalContinuation = sessionList.getByRole('button', {
-    name: /E2E Project.*Show more/iu,
-  });
-  await expect(chronologicalContinuation).toBeVisible();
-  await chronologicalContinuation.click();
-  await expect(chronologicalContinuation).toBeVisible();
-  await chronologicalContinuation.click();
-  await expect(sessionList.getByText('History page three session', { exact: true })).toBeVisible();
+  await revealSessionByLoadingMore(sessionList, 'History page three session');
 
   menu = await openOrganizeMenu(page);
   await menu.getByRole('button', { name: 'By Provider', exact: true }).click();
@@ -188,4 +249,79 @@ test('multi-provider Session Inbox preserves identity while grouping, filtering,
     .toHaveCount(1);
   await expect(menu.getByRole('button', { name: 'By Provider', exact: true }).locator('svg'))
     .toHaveCount(1);
+});
+
+test('direct Studio startup mounts the full surface and renders Session activity rows', async ({
+  page,
+  request,
+}) => {
+  await bootstrapAuthenticatedSession(page, request);
+  await page.setViewportSize({ width: 1_440, height: 900 });
+
+  const pageErrors: string[] = [];
+  page.on('pageerror', (error) => {
+    pageErrors.push(error.message);
+  });
+  const activityResponsePromise = page.waitForResponse((response) => {
+    const url = new URL(response.url());
+    return response.request().method() === 'GET'
+      && url.pathname === '/app/v3/api/ai/session_activity_summaries';
+  });
+
+  await page.goto(
+    '/?tab=studio&projectId=project.e2e-1&sessionId=e2e-claude-session',
+  );
+
+  const studioSurface = page.locator('[data-studio-surface="true"]');
+  const studioHeader = studioSurface.locator('[data-studio-chat-header="true"]');
+  await expect(studioSurface).toBeVisible({ timeout: 60_000 });
+  await expect(studioHeader).toContainText('E2E Project');
+
+  const activityResponse = await activityResponsePromise;
+  expect(activityResponse.ok(), await activityResponse.text()).toBe(true);
+  expect(new URL(activityResponse.url()).searchParams.get('workspace_id'))
+    .toBe('workspace.e2e-default');
+
+  await studioSurface.locator('[data-studio-session-menu-trigger="true"]').click();
+  const sessionMenu = studioSurface.locator('[data-studio-session-menu="true"]');
+  await expect(sessionMenu).toBeVisible();
+
+  const expectedRuntimeStates = [
+    ['e2e-claude-session', 'streaming', 'busy', true],
+    ['e2e-codex-session', 'initializing', 'busy', true],
+    ['e2e-opencode-session', 'awaiting_approval', 'attention', false],
+    ['e2e-gemini-session', 'failed', 'failed', false],
+  ] as const;
+  for (const [sessionId, runtimeStatus, presentation, spins] of expectedRuntimeStates) {
+    const row = sessionMenu.locator(`[data-agent-session-id="${sessionId}"]`);
+    const statusSlot = row.locator('[data-session-runtime-status]');
+    const providerBadge = row.locator(':scope > [data-session-provider-badge="leading"]');
+    const trailingMetadata = row.locator(':scope > [data-session-trailing-metadata="true"]');
+    await expect(row).toBeVisible();
+    await expect(statusSlot).toHaveAttribute('data-session-runtime-status', runtimeStatus);
+    await expect(statusSlot).toHaveAttribute('data-session-runtime-presentation', presentation);
+    await expect(statusSlot.locator('.animate-spin')).toHaveCount(spins ? 1 : 0);
+    await expect(providerBadge).toBeVisible();
+    await expect(trailingMetadata).toHaveCount(1);
+    expect(await row.evaluate((element) => {
+      const provider = element.querySelector('[data-session-provider-badge="leading"]');
+      const trailing = element.querySelector('[data-session-trailing-metadata="true"]');
+      const status = element.querySelector('[data-session-runtime-status]');
+      return Boolean(
+        provider
+        && trailing
+        && status
+        && (provider.compareDocumentPosition(trailing) & Node.DOCUMENT_POSITION_FOLLOWING)
+        && status.parentElement === trailing
+        && trailing.lastElementChild === status,
+      );
+    })).toBe(true);
+  }
+
+  await expect(sessionMenu.locator('[data-agent-session-id="e2e-claude-session"]'))
+    .toHaveAttribute('data-session-selected', 'true');
+  await sessionMenu.locator('[data-agent-session-id="e2e-codex-session"]').click();
+  await expect(sessionMenu).toHaveCount(0);
+  await expect(studioHeader).toContainText('Codex implementation');
+  expect(pageErrors).toEqual([]);
 });

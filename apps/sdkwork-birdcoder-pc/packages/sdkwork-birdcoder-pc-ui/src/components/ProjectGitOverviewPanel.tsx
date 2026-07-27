@@ -29,17 +29,20 @@ export const ProjectGitOverviewPanel = memo(function ProjectGitOverviewPanel({
   });
   const {
     currentWorktree,
+    diagnosticCode,
     isLoading,
     loadErrorMessage,
     normalizedProjectId,
     overview,
     refreshGitOverview,
+    subscriptionStatus,
   } = projectGitOverviewState ?? localProjectGitOverviewState;
 
   return (
     <ProjectGitOverviewSurface
       bodyMaxHeight={bodyMaxHeight}
       currentWorktree={currentWorktree}
+      diagnosticCode={diagnosticCode}
       isLoading={isLoading}
       loadErrorMessage={loadErrorMessage}
       normalizedProjectId={normalizedProjectId}
@@ -48,6 +51,7 @@ export const ProjectGitOverviewPanel = memo(function ProjectGitOverviewPanel({
       }}
       overview={overview}
       showHeader={showHeader}
+      subscriptionStatus={subscriptionStatus}
       visibleSections={visibleSections}
     />
   );

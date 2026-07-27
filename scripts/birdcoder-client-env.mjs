@@ -267,7 +267,7 @@ function serializeDotenv({ profileId, sourcePath, workspaceRootDir, values }) {
   const relativeSourcePath = path.relative(workspaceRootDir, sourcePath).replaceAll('\\', '/');
   const lines = [
     `# Generated from ${relativeSourcePath} (${profileId}).`,
-    '# Regenerate with: pnpm config:materialize',
+    '# Regenerate with: pnpm workflow:materialize-client-env',
   ];
   for (const [key, value] of Object.entries(values)) {
     lines.push(`${key}=${value}`);
@@ -371,7 +371,7 @@ export function materializeBirdcoderClientEnv({
           const actual = existsSync(outputPath) ? readFileSync(outputPath, 'utf8') : '';
           if (actual !== content) {
             throw new Error(
-              `${path.relative(workspaceRootDir, outputPath)} is missing or stale. Run pnpm config:materialize.`,
+              `${path.relative(workspaceRootDir, outputPath)} is missing or stale. Run pnpm workflow:materialize-client-env.`,
             );
           }
         } else {
@@ -411,7 +411,7 @@ export function loadBirdcoderViteProfileFile({
   });
   if (!existsSync(profilePath)) {
     throw new Error(
-      `BirdCoder client profile is missing: ${path.relative(workspaceRootDir, profilePath)}. Run pnpm config:materialize.`,
+      `BirdCoder client profile is missing: ${path.relative(workspaceRootDir, profilePath)}. Run pnpm workflow:materialize-client-env.`,
     );
   }
   const values = parseBirdcoderDotenv(readFileSync(profilePath, 'utf8'));

@@ -44,37 +44,37 @@ assert.match(
 
 assert.match(
   progressiveTranscriptHookSource,
-  /transcriptScopeKey[\s\S]*previousTranscriptIdentityRef[\s\S]*effectiveVisibleTranscriptStartIndex/s,
-  'Progressive transcript rendering must scope its window reset to the visible session identity, not only the first message id.',
+  /interface ProgressiveTranscriptWindowState \{[\s\S]*transcriptIdentity: string;[\s\S]*visibleTranscriptStartIndex: number;[\s\S]*\}/s,
+  'Progressive transcript rendering must scope its window state to the visible session identity, not only the first message id.',
 );
 
 assert.match(
   progressiveTranscriptHookSource,
-  /const INITIAL_TRANSCRIPT_RENDER_COUNT = \d+;/,
-  'Progressive transcript rendering must define an initial transcript render window so large histories do not block the main thread by rendering every row immediately.',
+  /resolveInitialVisibleTranscriptStartIndex\(messageCount\)/,
+  'Progressive transcript rendering must use the shared initial transcript window policy so large histories do not block the main thread.',
 );
 
 assert.match(
   progressiveTranscriptHookSource,
-  /const \[visibleTranscriptStartIndex, setVisibleTranscriptStartIndex\] = useState\(\(\) =>\s*resolveInitialVisibleTranscriptStartIndex\(messages\.length\),?\s*\);/s,
+  /useState<ProgressiveTranscriptWindowState>\(\(\) =>\s*createProgressiveTranscriptWindowState\(transcriptIdentity, messages\.length\)/s,
   'Progressive transcript rendering must initialize the first visible message index from the current message count so large histories avoid a first-frame full render.',
 );
 
 assert.match(
   progressiveTranscriptHookSource,
-  /const renderedMessages = useMemo\(\(\) => \{[\s\S]*messages\.slice\((?:visibleTranscriptStartIndex|effectiveVisibleTranscriptStartIndex)\)/s,
+  /const renderedMessages = useMemo\(\(\) => \{[\s\S]*messages\.slice\(visibleTranscriptStartIndex\)/s,
   'Progressive transcript rendering must render a sliced message window instead of always mapping the full transcript payload.',
 );
 
 assert.match(
   progressiveTranscriptHookSource,
-  /useEffect\(\(\) => \{[\s\S]*setVisibleTranscriptStartIndex\(Math\.max\(0, messages\.length - INITIAL_TRANSCRIPT_RENDER_COUNT\)\);/s,
-  'Progressive transcript rendering must reset to a recent-message window when a large session is opened so the latest content appears quickly.',
+  /createProgressiveTranscriptWindowState\([\s\S]*visibleTranscriptStartIndex: resolveInitialVisibleTranscriptStartIndex\(messageCount\)/s,
+  'Progressive transcript rendering must select a recent-message window when a large session is opened so the latest content appears quickly.',
 );
 
 assert.match(
   progressiveTranscriptHookSource,
-  /useEffect\(\(\) => \{[\s\S]*shouldLoadEarlierTranscriptPage\(scrollMetrics, visibleTranscriptStartIndex\)[\s\S]*setVisibleTranscriptStartIndex\(\(previousVisibleTranscriptStartIndex\) =>[\s\S]*resolveEarlierTranscriptStartIndex\(previousVisibleTranscriptStartIndex\)/s,
+  /useEffect\(\(\) => \{[\s\S]*shouldLoadEarlierTranscriptPage\(scrollMetrics, visibleTranscriptStartIndex\)[\s\S]*setTranscriptWindowState\(\(previousState\) =>[\s\S]*resolveEarlierTranscriptStartIndex\([\s\S]*activeState\.visibleTranscriptStartIndex/s,
   'Progressive transcript rendering must reveal earlier pages only after the transcript scroll reaches the top threshold.',
 );
 

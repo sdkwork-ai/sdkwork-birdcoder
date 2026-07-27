@@ -6,16 +6,17 @@ import {
 } from '../src/workbench/agentSessionProvisioning';
 
 describe('createBoundAgentSession', () => {
-  it('returns the Session only after its Runtime Binding is created', async () => {
+  it('returns the Session and Runtime Binding only after both are created', async () => {
     const session = { sessionId: 'session.bound' };
-    const createRuntimeBinding = vi.fn(async () => ({ runtimeBindingId: 'binding.bound' }));
+    const runtimeBinding = { runtimeBindingId: 'binding.bound' };
+    const createRuntimeBinding = vi.fn(async () => runtimeBinding);
     const deleteCreatedSession = vi.fn(async () => undefined);
 
     await expect(createBoundAgentSession({
       createRuntimeBinding,
       createSession: vi.fn(async () => session),
       deleteCreatedSession,
-    })).resolves.toBe(session);
+    })).resolves.toEqual({ runtimeBinding, session });
 
     expect(createRuntimeBinding).toHaveBeenCalledWith(session);
     expect(deleteCreatedSession).not.toHaveBeenCalled();

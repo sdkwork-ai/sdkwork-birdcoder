@@ -12,7 +12,9 @@ export {
 
 export {
   bootstrapBirdCoderMembershipSdk,
+  getBirdCoderCouponRechargeService,
   getBirdCoderMembershipCheckoutService,
+  getBirdCoderPointsRechargeService,
   resetBirdCoderMembershipSdkBootstrap,
 } from '@sdkwork/birdcoder-pc-infrastructure/services/membershipSdkBootstrap';
 
@@ -65,8 +67,10 @@ export type {
   AgentInteractionClaim,
   AgentProjectSessionPageRequest,
   AgentScopedSessionPageRequest,
+  AgentSessionActivityPageRequest,
   AgentSessionListPageRequest,
   AgentSessionPageRequest,
+  AgentSessionReadOptions,
   AgentWorkspaceSessionPageRequest,
   CreateAgentSessionInput,
   IAgentSessionService,
@@ -78,17 +82,24 @@ export type {
   IDocumentService,
   ProjectDocumentPage,
 } from '@sdkwork/birdcoder-pc-infrastructure/services/interfaces/IDocumentService';
-export type { IFileSystemService } from '@sdkwork/birdcoder-pc-infrastructure/services/interfaces/IFileSystemService';
+export type {
+  FileSystemChangeSubscriptionOptions,
+  IFileSystemService,
+} from '@sdkwork/birdcoder-pc-infrastructure/services/interfaces/IFileSystemService';
 export type {
   IProjectRuntimeLocationService,
   ProjectRuntimeLocationBindingResult,
   ProjectRuntimeLocationCapability,
   ProjectRuntimeLocationExecutionUnavailableCode,
+  ProjectRuntimeLocationInput,
+  ProjectRuntimeLocationProjectLike,
   ProjectRuntimeLocationResolution,
   ProjectRuntimeLocationResolutionRequest,
+  ProjectRuntimeLocationTarget,
   ResolvedProjectRuntimeLocation,
 } from '@sdkwork/birdcoder-pc-infrastructure/services/interfaces/IProjectRuntimeLocationService';
 export {
+  normalizeProjectRuntimeLocationInput,
   ProjectRuntimeLocationExecutionUnavailableError,
   requireProjectRuntimeLocationExecutionId,
 } from '@sdkwork/birdcoder-pc-infrastructure/services/interfaces/IProjectRuntimeLocationService';

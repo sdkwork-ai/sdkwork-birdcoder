@@ -1,0 +1,12 @@
+[submodule "external/opencode"]
+	path = external/opencode
+	url = https://github.com/anomalyco/opencode.git
+	branch = dev
+[submodule "external/codex"]
+	path = external/codex
+	url = https://github.com/openai/codex.git
+	branch = main
+[submodule "external/gemini"]
+	path = external/gemini
+	url = https://github.com/google-gemini/gemini-cli.git
+	branch = main

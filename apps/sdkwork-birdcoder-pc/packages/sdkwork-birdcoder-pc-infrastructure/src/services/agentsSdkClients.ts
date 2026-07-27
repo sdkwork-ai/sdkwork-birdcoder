@@ -2,7 +2,7 @@ import type { AuthTokenManager } from '@sdkwork/sdk-common';
 import {
   createAgentsAppSdkClient,
   type AgentsAppSdkClient,
-} from '@sdkwork/birdcoder-pc-core/sdk';
+} from '@sdkwork/birdcoder-pc-core/sdk/agents-app';
 import { getBirdCoderGlobalTokenManager } from '@sdkwork/birdcoder-pc-core/appSessionTokenManager';
 import { getDefaultBirdCoderIdeServicesRuntimeConfig } from './defaultIdeServicesRuntime.ts';
 import { resolveBirdCoderDependencySdkBaseUrl } from './sdkBaseUrls.ts';

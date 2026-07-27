@@ -143,6 +143,14 @@
       {
         "name": "membershipCheckoutPort",
         "export": "./services/membershipSdkBootstrap"
+      },
+      {
+        "name": "pointsRechargePort",
+        "export": "./services/membershipSdkBootstrap"
+      },
+      {
+        "name": "couponRedemptionPort",
+        "export": "./services/membershipSdkBootstrap"
       }
     ],
     "requiredPorts": [
@@ -270,6 +278,7 @@
   "verification": {
     "commands": [
       "pnpm --dir apps/sdkwork-birdcoder-pc typecheck",
+      "node scripts/run-local-tsx.mjs apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/src/services/impl/RuntimeProjectRuntimeLocationService.test.ts",
       "node scripts/desktop-app-session-persistence-contract.test.mjs",
       "node scripts/run-local-tsx.mjs scripts/pc-runtime-boundary-ports-contract.test.ts",
       "node scripts/pc-local-business-storage-boundary-contract.test.mjs",

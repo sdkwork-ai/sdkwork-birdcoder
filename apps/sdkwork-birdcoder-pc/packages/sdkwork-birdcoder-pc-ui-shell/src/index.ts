@@ -14,6 +14,16 @@ export { resolveSafePreviewUrl } from './components/previewUrlSecurity';
 
 export { WorkbenchCodeEngineIcon } from './components/WorkbenchCodeEngineIcon';
 export type { WorkbenchCodeEngineIconProps } from './components/WorkbenchCodeEngineIcon';
+export {
+  PROVIDER_VISUAL_TONE_CLASS_NAMES,
+  resolveProviderVisualIdentity,
+  resolveProviderVisualToneClassName,
+} from './components/providerVisualIdentity';
+export type {
+  ProviderVisualIdentity,
+  ProviderVisualIdentityInput,
+  ProviderVisualTone,
+} from './components/providerVisualIdentity';
 
 export { SessionTranscriptLoadingState } from './components/SessionTranscriptLoadingState';
 

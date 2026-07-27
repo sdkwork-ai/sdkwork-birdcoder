@@ -25,6 +25,7 @@ function createAgentSessionRecord(
   overrides: Partial<AgentSessionRecord>,
 ): AgentSessionRecord {
   return {
+    id: 'id.session.default',
     agentId: 'agent.birdcoder',
     createdAt: '2026-07-15T10:00:00.000Z',
     createdBy: '1',

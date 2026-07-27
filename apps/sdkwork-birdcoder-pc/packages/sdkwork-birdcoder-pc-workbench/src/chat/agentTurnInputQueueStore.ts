@@ -3,9 +3,18 @@ import { useCallback, useSyncExternalStore } from 'react';
 type AgentTurnInputQueueListener = () => void;
 
 export interface WorkbenchQueuedAgentTurnInput {
+  readonly attachmentContent?: string;
+  readonly attachmentNames?: readonly string[];
+  readonly displayText?: string;
   readonly id: string;
   readonly text: string;
   readonly composerSelection?: WorkbenchQueuedAgentTurnInputModelSelection;
+}
+
+export interface WorkbenchQueuedAgentTurnInputPresentation {
+  readonly attachmentContent?: string;
+  readonly attachmentNames?: readonly string[];
+  readonly displayText?: string;
 }
 
 export interface WorkbenchQueuedAgentTurnInputModelSelection {
@@ -74,6 +83,45 @@ function normalizeQueuedAgentTurnInputModelSelection(
   return Object.freeze({ engineId, modelId });
 }
 
+function normalizeQueuedAgentTurnInputPresentation(
+  presentation: WorkbenchQueuedAgentTurnInputPresentation | null | undefined,
+): WorkbenchQueuedAgentTurnInputPresentation | undefined {
+  if (!presentation) {
+    return undefined;
+  }
+
+  const displayText = presentation.displayText?.trim() || '';
+  const attachmentContent = presentation.attachmentContent?.trim() || '';
+  const attachmentNames = Array.from(new Set(
+    (presentation.attachmentNames ?? [])
+      .map((attachmentName) => attachmentName.trim())
+      .filter(Boolean),
+  ));
+  if (!displayText && !attachmentContent && attachmentNames.length === 0) {
+    return undefined;
+  }
+
+  return Object.freeze({
+    ...(attachmentContent ? { attachmentContent } : {}),
+    ...(attachmentNames.length > 0 ? { attachmentNames: Object.freeze(attachmentNames) } : {}),
+    ...(displayText ? { displayText } : {}),
+  });
+}
+
+function areQueuedAgentTurnInputPresentationsEqual(
+  first: WorkbenchQueuedAgentTurnInput,
+  second: WorkbenchQueuedAgentTurnInput,
+): boolean {
+  return (
+    (first.displayText ?? '') === (second.displayText ?? '')
+    && (first.attachmentContent ?? '') === (second.attachmentContent ?? '')
+    && (first.attachmentNames?.length ?? 0) === (second.attachmentNames?.length ?? 0)
+    && (first.attachmentNames ?? []).every(
+      (attachmentName, index) => attachmentName === second.attachmentNames?.[index],
+    )
+  );
+}
+
 function areQueuedAgentTurnInputModelSelectionsEqual(
   first: WorkbenchQueuedAgentTurnInputModelSelection | undefined,
   second: WorkbenchQueuedAgentTurnInputModelSelection | undefined,
@@ -88,15 +136,18 @@ export function createWorkbenchQueuedAgentTurnInput(
   text: string,
   id?: string | null,
   composerSelection?: WorkbenchQueuedAgentTurnInputModelSelection | null,
+  presentation?: WorkbenchQueuedAgentTurnInputPresentation | null,
 ): WorkbenchQueuedAgentTurnInput {
   const normalizedComposerSelection =
     normalizeQueuedAgentTurnInputModelSelection(composerSelection);
+  const normalizedPresentation = normalizeQueuedAgentTurnInputPresentation(presentation);
   return Object.freeze({
     id: normalizeQueuedAgentTurnInputId(id) || createWorkbenchQueuedAgentTurnInputId(),
     text: normalizeQueuedAgentTurnInputText(text),
     ...(normalizedComposerSelection
       ? { composerSelection: normalizedComposerSelection }
       : {}),
+    ...normalizedPresentation,
   });
 }
 
@@ -120,6 +171,7 @@ function normalizeQueuedAgentTurnInputs(
       normalizedText,
       nextId,
       input.composerSelection,
+      input,
     ));
     return acc;
   }, []);
@@ -277,6 +329,7 @@ export function setWorkbenchQueuedAgentTurnInputs(
           input.composerSelection,
           previousInput.composerSelection,
         )
+        && areQueuedAgentTurnInputPresentationsEqual(input, previousInput)
       );
     })
   ) {
@@ -297,6 +350,7 @@ export function enqueueWorkbenchQueuedAgentTurnInput(
   key: string | null | undefined,
   input: string,
   composerSelection?: WorkbenchQueuedAgentTurnInputModelSelection | null,
+  presentation?: WorkbenchQueuedAgentTurnInputPresentation | null,
 ): WorkbenchQueuedAgentTurnInput[] {
   const normalizedInput = normalizeQueuedAgentTurnInputText(input);
   if (!normalizedInput) {
@@ -305,7 +359,7 @@ export function enqueueWorkbenchQueuedAgentTurnInput(
 
   return setWorkbenchQueuedAgentTurnInputs(key, (previousInputs) => [
     ...previousInputs,
-    createWorkbenchQueuedAgentTurnInput(normalizedInput, null, composerSelection),
+    createWorkbenchQueuedAgentTurnInput(normalizedInput, null, composerSelection, presentation),
   ]);
 }
 
@@ -359,6 +413,7 @@ export function useWorkbenchAgentTurnInputQueue(
   enqueueQueuedTurnInput: (
     input: string,
     composerSelection?: WorkbenchQueuedAgentTurnInputModelSelection | null,
+    presentation?: WorkbenchQueuedAgentTurnInputPresentation | null,
   ) => WorkbenchQueuedAgentTurnInput[];
   queuedTurnInputs: readonly WorkbenchQueuedAgentTurnInput[];
   restoreQueuedTurnInputsToFront: (
@@ -402,7 +457,13 @@ export function useWorkbenchAgentTurnInputQueue(
     (
       input: string,
       composerSelection?: WorkbenchQueuedAgentTurnInputModelSelection | null,
-    ) => enqueueWorkbenchQueuedAgentTurnInput(normalizedKey, input, composerSelection),
+      presentation?: WorkbenchQueuedAgentTurnInputPresentation | null,
+    ) => enqueueWorkbenchQueuedAgentTurnInput(
+      normalizedKey,
+      input,
+      composerSelection,
+      presentation,
+    ),
     [normalizedKey],
   );
   const dequeueQueuedTurnInput = useCallback(
@@ -427,4 +488,3 @@ export function useWorkbenchAgentTurnInputQueue(
     setQueuedTurnInputs,
   };
 }
-

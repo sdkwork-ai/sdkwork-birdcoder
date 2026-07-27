@@ -6,6 +6,14 @@ export interface ChatMarkdownSkillLike {
   name: string;
 }
 
+export function resolveChatCodeFenceLanguage(className: unknown): string {
+  if (typeof className !== 'string') {
+    return '';
+  }
+
+  return /(?:^|\s)language-([^\s]+)/u.exec(className)?.[1]?.trim() ?? '';
+}
+
 const CHAT_RICH_MARKDOWN_PATTERNS = [
   /```/u,
   /^#{1,6}\s+/mu,

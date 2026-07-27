@@ -88,6 +88,17 @@ assert.match(
 
 const submitTurnHandlerStart = useProjectsSource.indexOf('const submitAgentTurnInput = async (');
 assert.notEqual(submitTurnHandlerStart, -1, 'useProjects must define submitAgentTurnInput.');
+const submitTurnHandlerBody = useProjectsSource.slice(submitTurnHandlerStart);
+assert.match(
+  submitTurnHandlerBody,
+  /const submittedItems = toAgentSessionTranscriptItemViews\(completed\.items\);/,
+  'completed Agent turns must exclude internal Session Items through the shared transcript projection.',
+);
+assert.doesNotMatch(
+  submitTurnHandlerBody,
+  /completed\.items\.map\(toAgentSessionItemView\)/,
+  'completed Agent turns must not append canonical internal items through the unfiltered item mapper.',
+);
 const deleteHandlerBody = useProjectsSource.slice(deleteHandlerStart, submitTurnHandlerStart);
 assert.doesNotMatch(
   deleteHandlerBody,

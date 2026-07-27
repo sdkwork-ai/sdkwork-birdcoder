@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test';
 
-test('boot shell renders the BirdCoder startup surface', async ({ page }) => {
+test('boot shell renders the Birdcoder startup surface', async ({ page }) => {
   await page.route('**/readyz', async (route) => {
     await new Promise((resolve) => globalThis.setTimeout(resolve, 1_500));
     await route.continue();
@@ -8,11 +8,13 @@ test('boot shell renders the BirdCoder startup surface', async ({ page }) => {
 
   await page.goto('/');
 
-  await expect(page).toHaveTitle(/SDKWork BirdCoder/u);
-  await expect(page.getByRole('heading', { name: 'SDKWork BirdCoder', exact: true })).toBeVisible();
+  await expect(page).toHaveTitle(/^Birdcoder$/u);
+  await expect(page.getByRole('heading', { name: 'Birdcoder', exact: true })).toBeVisible();
   await expect(page.getByRole('progressbar')).toHaveAttribute('aria-valuenow', '36');
   const bootShell = page.locator('[data-birdcoder-boot-shell]');
   await expect(bootShell).toHaveCount(1);
+  await expect(bootShell.locator('.sdkwork-startup-brand')).toHaveAccessibleName('Birdcoder');
+  await expect(bootShell.locator('.sdkwork-startup-brand-vendor')).toHaveCount(0);
   await expect(page.locator('.sdkwork-startup-progress-meta')).toBeVisible();
 
   const decorationContent = await bootShell.evaluate((element) => ({

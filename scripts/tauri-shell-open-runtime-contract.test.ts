@@ -44,6 +44,11 @@ assert.match(
   /desktop_reveal_in_file_manager/u,
   'The shared file-manager helper must call the typed BirdCoder reveal command.',
 );
+assert.match(
+  tauriFileManagerSource,
+  /resolveBirdCoderTauriInvoke/u,
+  'The shared file-manager helper must use the canonical Tauri runtime adapter.',
+);
 assert.doesNotMatch(
   tauriFileManagerSource,
   /plugin:shell\|open|openWith|\bwith:/u,
@@ -74,6 +79,11 @@ assert.match(
   birdcoderAppShellSource,
   /revealTauriPathInFileManager/u,
   'BirdCoder app shell must use the shared typed file-manager helper.',
+);
+assert.match(
+  birdcoderAppShellSource,
+  /projectRuntimeLocationService\.revealProjectInFileManager\(target\)/u,
+  'Project reveal actions must resolve and restore the local project path through the project runtime-location service.',
 );
 assert.equal(
   (birdcoderAppShellSource.match(/globalEventBus\.on\(['"]revealInExplorer['"]/gu) ?? []).length,

@@ -1,10 +1,11 @@
 import {
-  completeAgentTurn,
+  type AgentResourceUserStateRecord,
   type AgentSessionRuntimeBindingRecord,
+  type AgentTurnStreamEvent,
   type CreateAgentSessionRuntimeBindingRequest,
+  type SessionActivitySummary,
   type SdkworkAppClient as AgentsAppSdkClient,
 } from '@sdkwork/birdcoder-pc-core/sdk/agents-app';
-import { NotFoundError } from '@sdkwork/sdk-common';
 import { sha256Hash } from '@sdkwork/utils/crypto';
 import { uuid } from '@sdkwork/utils/id';
 import { normalizeOffsetListQuery } from '@sdkwork/utils/pagination';
@@ -12,21 +13,27 @@ import { normalizeOffsetListQuery } from '@sdkwork/utils/pagination';
 import type {
   AgentProjectSessionPageRequest,
   AgentScopedSessionPageRequest,
+  AgentSessionActivityPageRequest,
   AgentSessionReadOptions,
   AgentSessionPageRequest,
   AgentTurnCompletion,
   AgentWorkspaceSessionPageRequest,
   CreateAgentSessionInput,
   IAgentSessionService,
+  SubmitAgentTurnOptions,
   SubmitAgentTurnInput,
 } from './interfaces/IAgentSessionService.ts';
 
 export const BIRDCODER_ASSISTANT_AGENT_ID = 'agent.birdcoder';
+const SESSION_USER_STATE_BATCH_SIZE = 100;
+const SESSION_ACTIVITY_CURSOR_MAX_LENGTH = 2_048;
+const SESSION_ACTIVITY_DEFAULT_PAGE_SIZE = 20;
+const SESSION_ACTIVITY_MAX_PAGE_SIZE = 200;
 
 export interface BirdCoderAgentSessionServiceOptions {
   agentId?: string;
   client: AgentsAppSdkClient;
-  nativeDirectoryIdentityProvider?: (
+  providerSessionDirectoryIdentityProvider?: (
     projectId: string,
   ) => Promise<{ directoryFingerprint: string; directoryName: string } | null>;
 }
@@ -66,39 +73,73 @@ function normalizeWorkspaceId(workspaceId: string): string {
   return normalized;
 }
 
-function normalizeOptionalRuntimeBindingValue(value: string | null | undefined): string {
-  return value?.trim() ?? '';
+function normalizeOptionalActivityScopeId(
+  value: string | undefined,
+  label: string,
+): string | undefined {
+  if (value === undefined) {
+    return undefined;
+  }
+  const normalized = value.trim();
+  if (!normalized) {
+    throw new Error(`${label} must not be blank.`);
+  }
+  return normalized;
 }
 
-function isMissingSessionUserStateError(error: unknown): boolean {
-  if (!(error instanceof Error)) {
-    return false;
+function normalizeSessionActivityPageRequest(
+  request: AgentSessionActivityPageRequest = {},
+) {
+  const pageSize = request.pageSize ?? SESSION_ACTIVITY_DEFAULT_PAGE_SIZE;
+  if (
+    !Number.isSafeInteger(pageSize)
+    || pageSize < 1
+    || pageSize > SESSION_ACTIVITY_MAX_PAGE_SIZE
+  ) {
+    throw new Error('Agents Session activity page size must be between 1 and 200.');
   }
-
-  const sdkError = error as Error & {
-    code?: unknown;
-    httpStatus?: unknown;
-    problem?: unknown;
+  const cursor = request.cursor === undefined ? undefined : request.cursor.trim();
+  if (
+    cursor !== undefined
+    && (cursor.length < 1 || cursor.length > SESSION_ACTIVITY_CURSOR_MAX_LENGTH)
+  ) {
+    throw new Error('Agents Session activity cursor must be between 1 and 2048 characters.');
+  }
+  return {
+    agentId: normalizeOptionalActivityScopeId(request.agentId, 'Agents Agent ID'),
+    cursor,
+    pageSize,
+    projectId: normalizeOptionalActivityScopeId(request.projectId, 'Agents project ID'),
+    workspaceId: normalizeOptionalActivityScopeId(request.workspaceId, 'Agents workspace ID'),
   };
-  const isNotFound = error instanceof NotFoundError
-    || (
-      sdkError.name === 'NotFoundError'
-      && sdkError.code === 'NOT_FOUND'
-      && sdkError.httpStatus === 404
-    );
-  if (!isNotFound) {
+}
+
+function isAgentSessionNotFoundError(error: unknown): boolean {
+  if (!error || typeof error !== 'object') {
     return false;
   }
-
-  if (sdkError.problem && typeof sdkError.problem === 'object') {
-    const problem = sdkError.problem as Record<string, unknown>;
-    return String(problem.code) === '40401'
-      && problem.operationId === 'agents.sessionUserStates.retrieve'
-      && problem.detail === 'session user state not found';
+  const candidate = error as {
+    httpStatus?: unknown;
+    message?: unknown;
+    response?: { status?: unknown };
+    status?: unknown;
+    statusCode?: unknown;
+  };
+  const status = candidate.status
+    ?? candidate.statusCode
+    ?? candidate.httpStatus
+    ?? candidate.response?.status;
+  if (status === 404) {
+    return true;
   }
+  return (
+    typeof candidate.message === 'string'
+    && /(?:agent\s+)?session\s+not\s+found/iu.test(candidate.message)
+  );
+}
 
-  // sdk-common 1.0.2 discarded Problem Details for non-2xx responses.
-  return sdkError.code === 'NOT_FOUND' && sdkError.httpStatus === 404;
+function normalizeOptionalRuntimeBindingValue(value: string | null | undefined): string {
+  return value?.trim() ?? '';
 }
 
 function assertCreatedSessionIdentity(
@@ -132,14 +173,14 @@ function isMatchingRuntimeBinding(
     && binding.providerId === request.providerId
     && normalizeOptionalRuntimeBindingValue(binding.runtimeLocationId)
       === normalizeOptionalRuntimeBindingValue(request.runtimeLocationId)
-    && normalizeOptionalRuntimeBindingValue(binding.nativeSessionId)
-      === normalizeOptionalRuntimeBindingValue(request.nativeSessionId)
-    && normalizeOptionalRuntimeBindingValue(binding.nativeSessionTreeId)
-      === normalizeOptionalRuntimeBindingValue(request.nativeSessionTreeId)
-    && normalizeOptionalRuntimeBindingValue(binding.nativeParentSessionId)
-      === normalizeOptionalRuntimeBindingValue(request.nativeParentSessionId)
-    && normalizeOptionalRuntimeBindingValue(binding.nativeForkedFromSessionId)
-      === normalizeOptionalRuntimeBindingValue(request.nativeForkedFromSessionId)
+    && normalizeOptionalRuntimeBindingValue(binding.providerSessionId)
+      === normalizeOptionalRuntimeBindingValue(request.providerSessionId)
+    && normalizeOptionalRuntimeBindingValue(binding.providerSessionTreeId)
+      === normalizeOptionalRuntimeBindingValue(request.providerSessionTreeId)
+    && normalizeOptionalRuntimeBindingValue(binding.providerParentSessionId)
+      === normalizeOptionalRuntimeBindingValue(request.providerParentSessionId)
+    && normalizeOptionalRuntimeBindingValue(binding.providerForkedFromSessionId)
+      === normalizeOptionalRuntimeBindingValue(request.providerForkedFromSessionId)
     && binding.status === 'active'
     && binding.isCurrent;
 }
@@ -165,20 +206,70 @@ function assertAgentTurnCompletion(
   }
 }
 
+function assertAgentTurnCompletionIdentity(
+  completion: AgentTurnCompletion,
+  expectedAgentId: string,
+  expectedSessionId: string,
+  expectedTurnId?: string,
+  expectedRuntimeBindingId?: string,
+): void {
+  if (
+    completion.session.agentId !== expectedAgentId
+    || completion.session.sessionId !== expectedSessionId
+    || completion.turn.agentId !== expectedAgentId
+    || completion.turn.sessionId !== expectedSessionId
+  ) {
+    throw new Error('Agents turn completion identity does not match the submitted session.');
+  }
+  if (expectedTurnId && completion.turn.turnId !== expectedTurnId) {
+    throw new Error('Agents turn completion returned an unexpected turn ID.');
+  }
+  if (
+    expectedRuntimeBindingId
+    && completion.turn.runtimeBindingId !== expectedRuntimeBindingId
+  ) {
+    throw new Error('Agents turn completion returned an unexpected runtime binding ID.');
+  }
+  if (completion.items.some((item) => item.sessionId !== expectedSessionId)) {
+    throw new Error('Agents turn completion contains an item from another session.');
+  }
+}
+
+function readAgentTurnCompletionEvent(event: unknown): AgentTurnCompletion {
+  if (!event || typeof event !== 'object') {
+    throw new Error('Agents turn stream completion event is malformed.');
+  }
+  const streamEvent = event as AgentTurnStreamEvent;
+  const response = streamEvent.response;
+  if (
+    streamEvent.eventType !== 'completion'
+    || !response
+    || response.code !== 0
+    || !response.data
+    || typeof response.data !== 'object'
+    || !('item' in response.data)
+  ) {
+    throw new Error('Agents turn stream completion event is malformed.');
+  }
+  const completion = response.data.item;
+  assertAgentTurnCompletion(completion);
+  return completion;
+}
+
 export class BirdCoderAgentSessionService implements IAgentSessionService {
   private readonly agentId: string;
   private readonly client: AgentsAppSdkClient;
-  private readonly nativeDirectoryIdentityProvider?: BirdCoderAgentSessionServiceOptions['nativeDirectoryIdentityProvider'];
+  private readonly providerSessionDirectoryIdentityProvider?: BirdCoderAgentSessionServiceOptions['providerSessionDirectoryIdentityProvider'];
   private readonly sessionAgentIds = new Map<string, string>();
 
   constructor({
     agentId,
     client,
-    nativeDirectoryIdentityProvider,
+    providerSessionDirectoryIdentityProvider,
   }: BirdCoderAgentSessionServiceOptions) {
     this.agentId = resolveAgentId(agentId);
     this.client = client;
-    this.nativeDirectoryIdentityProvider = nativeDirectoryIdentityProvider;
+    this.providerSessionDirectoryIdentityProvider = providerSessionDirectoryIdentityProvider;
   }
 
   private rememberSession(session: { agentId: string; sessionId: string }): void {
@@ -232,13 +323,57 @@ export class BirdCoderAgentSessionService implements IAgentSessionService {
   }
 
   async getSession(sessionId: string, options: AgentSessionReadOptions = {}) {
-    const response = await this.client.ai.agents.sessions.retrieve(
-      this.resolveSessionAgentId(sessionId),
-      sessionId,
-      toApiRequestOptions(options),
-    );
-    this.rememberSession(response);
-    return response;
+    const rememberedAgentId = this.sessionAgentIds.get(sessionId);
+    const requestOptions = toApiRequestOptions(options);
+    if (rememberedAgentId) {
+      const response = await this.client.ai.agents.sessions.retrieve(
+        rememberedAgentId,
+        sessionId,
+        requestOptions,
+      );
+      this.rememberSession(response);
+      return response;
+    }
+
+    let notFoundError: unknown;
+    const retrieveFromAgent = async (agentId: string) => {
+      try {
+        const response = await this.client.ai.agents.sessions.retrieve(
+          agentId,
+          sessionId,
+          requestOptions,
+        );
+        this.rememberSession(response);
+        return response;
+      } catch (error) {
+        if (!isAgentSessionNotFoundError(error)) {
+          throw error;
+        }
+        notFoundError = error;
+        return null;
+      }
+    };
+
+    const defaultAgentResponse = await retrieveFromAgent(this.agentId);
+    if (defaultAgentResponse) {
+      return defaultAgentResponse;
+    }
+
+    const catalog = await this.client.ai.agents.codeEngines.list(requestOptions);
+    const attemptedAgentIds = new Set([this.agentId]);
+    for (const engine of catalog.engines) {
+      const agentId = engine.agentId.trim();
+      if (!agentId || attemptedAgentIds.has(agentId)) {
+        continue;
+      }
+      attemptedAgentIds.add(agentId);
+      const response = await retrieveFromAgent(agentId);
+      if (response) {
+        return response;
+      }
+    }
+
+    throw notFoundError ?? new Error(`Agent Session ${sessionId} not found.`);
   }
 
   async listSessions(
@@ -246,6 +381,24 @@ export class BirdCoderAgentSessionService implements IAgentSessionService {
     options: AgentSessionReadOptions = {},
   ) {
     return this.listSessionsByProject(request, options);
+  }
+
+  async listSessionActivitySummaries(
+    request: AgentSessionActivityPageRequest = {},
+    options: AgentSessionReadOptions = {},
+  ): Promise<Awaited<ReturnType<IAgentSessionService['listSessionActivitySummaries']>>> {
+    const response = await this.client.ai.agents.sessionActivitySummaries.list(
+      normalizeSessionActivityPageRequest(request),
+      toApiRequestOptions(options),
+    );
+    // The generated page base currently intersects typed items with unknown[].
+    // Normalize that generator boundary once instead of leaking unknown to consumers.
+    const items = response.items as SessionActivitySummary[];
+    this.rememberSessions(items.map((summary) => summary.session));
+    return {
+      items,
+      pageInfo: response.pageInfo,
+    };
   }
 
   async listSessionsByAgent(
@@ -269,15 +422,15 @@ export class BirdCoderAgentSessionService implements IAgentSessionService {
   ) {
     const projectId = normalizeProjectId(request.projectId);
     const pageRequest = normalizePageRequest(request);
-    const nativeDirectoryIdentity = pageRequest.page === 1
-      ? await this.nativeDirectoryIdentityProvider?.(projectId) ?? null
+    const providerSessionDirectoryIdentity = pageRequest.page === 1
+      ? await this.providerSessionDirectoryIdentityProvider?.(projectId) ?? null
       : null;
     const response = await this.client.ai.agents.projectSessions.list(projectId, {
       ...pageRequest,
       includeArchived: request.includeArchived,
-      ...(nativeDirectoryIdentity ? {
-        nativeDirectoryFingerprint: nativeDirectoryIdentity.directoryFingerprint,
-        nativeDirectoryName: nativeDirectoryIdentity.directoryName,
+      ...(providerSessionDirectoryIdentity ? {
+        providerSessionDirectoryFingerprint: providerSessionDirectoryIdentity.directoryFingerprint,
+        providerSessionDirectoryName: providerSessionDirectoryIdentity.directoryName,
       } : {}),
       status: request.status,
     }, toApiRequestOptions(options));
@@ -359,25 +512,110 @@ export class BirdCoderAgentSessionService implements IAgentSessionService {
     return response;
   }
 
-  async submitTurn(sessionId: string, input: SubmitAgentTurnInput) {
+  async submitTurn(
+    sessionId: string,
+    input: SubmitAgentTurnInput,
+    options: SubmitAgentTurnOptions,
+  ) {
+    const normalizedSessionId = sessionId.trim();
+    const agentId = options.agentId.trim();
+    if (!normalizedSessionId) {
+      throw new Error('Agent session ID is required for turn submission.');
+    }
+    if (!agentId) {
+      throw new Error('Agent ID is required for turn submission.');
+    }
+    const rememberedAgentId = this.sessionAgentIds.get(normalizedSessionId);
+    if (rememberedAgentId && rememberedAgentId !== agentId) {
+      throw new Error(
+        `Agent session ${normalizedSessionId} belongs to Agent "${rememberedAgentId}", not "${agentId}".`,
+      );
+    }
+
     const idempotencyKey = uuid();
     const payload = {
       ...input,
       content: input.content.trim(),
+      requestedModelId: input.requestedModelId?.trim() || undefined,
+      runtimeBindingId: input.runtimeBindingId?.trim() || undefined,
+      turnId: input.turnId?.trim() || undefined,
       turnMode: input.turnMode ?? 'interactive',
     };
     if (!payload.content) {
       throw new Error('Agent turn content is required.');
     }
-    const response = await completeAgentTurn(this.client, this.resolveSessionAgentId(sessionId), sessionId, {
+    if (!payload.runtimeBindingId) {
+      throw new Error('Agent runtime binding ID is required for turn submission.');
+    }
+    const events = await this.client.ai.agents.turns.stream(agentId, normalizedSessionId, {
       ...payload,
       idempotencyKey,
       payloadHash: hashPayload(payload),
       clientRequestId: input.clientRequestId ?? idempotencyKey,
       requestedAt: new Date().toISOString(),
-    });
-    assertAgentTurnCompletion(response);
-    return response;
+    }, { stream: true }, toApiRequestOptions(options));
+
+    let completion: AgentTurnCompletion | null = null;
+    let content = '';
+    let didNotifyAccepted = false;
+    let expectedDeltaIndex = 0;
+    const notifyAccepted = () => {
+      if (didNotifyAccepted) {
+        return;
+      }
+      didNotifyAccepted = true;
+      try {
+        options.onAccepted?.();
+      } catch {
+        // Presentation observers cannot change the outcome of an accepted backend command.
+      }
+    };
+    for await (const event of events) {
+      if (completion) {
+        throw new Error('Agents turn stream emitted an event after completion.');
+      }
+      if (!event || typeof event !== 'object') {
+        throw new Error('Agents turn stream emitted a malformed event.');
+      }
+      if (event.eventType === 'delta') {
+        if (
+          !Number.isSafeInteger(event.index)
+          || event.index !== expectedDeltaIndex
+          || typeof event.delta !== 'string'
+        ) {
+          throw new Error(
+            `Agents turn stream delta ${expectedDeltaIndex} is missing or out of order.`,
+          );
+        }
+        notifyAccepted();
+        content += event.delta;
+        try {
+          options.onDelta?.({ content, delta: event.delta, index: event.index });
+        } catch {
+          // Presentation observers cannot change the outcome of an accepted backend command.
+        }
+        expectedDeltaIndex += 1;
+        continue;
+      }
+      if (event.eventType !== 'completion') {
+        throw new Error('Agents turn stream emitted an unsupported event type.');
+      }
+      completion = readAgentTurnCompletionEvent(event);
+      notifyAccepted();
+    }
+
+    if (!completion) {
+      throw new Error('Agents turn stream ended without a completion event.');
+    }
+    assertAgentTurnCompletionIdentity(
+      completion,
+      agentId,
+      normalizedSessionId,
+      payload.turnId,
+      payload.runtimeBindingId,
+    );
+    this.rememberSession(completion.session);
+    return completion;
   }
 
   async listInteractions(
@@ -513,19 +751,68 @@ export class BirdCoderAgentSessionService implements IAgentSessionService {
     return response;
   }
 
-  async getSessionUserState(sessionId: string, options: AgentSessionReadOptions = {}) {
-    try {
-      return await this.client.ai.agents.sessionUserStates.retrieve(
-        this.resolveSessionAgentId(sessionId),
-        sessionId,
-        toApiRequestOptions(options),
-      );
-    } catch (error) {
-      if (isMissingSessionUserStateError(error)) {
-        return null;
+  async getSessionUserStates(
+    sessionIds: readonly string[],
+    options: AgentSessionReadOptions = {},
+  ) {
+    const sessionIdsByAgent = new Map<string, string[]>();
+    const normalizedSessionIds = new Set<string>();
+    for (const value of sessionIds) {
+      const sessionId = value.trim();
+      if (!sessionId) {
+        throw new Error('Agent session ID is required for user-state reads.');
       }
-      throw error;
+      if (normalizedSessionIds.has(sessionId)) {
+        continue;
+      }
+      normalizedSessionIds.add(sessionId);
+      const agentId = this.resolveSessionAgentId(sessionId);
+      const agentSessionIds = sessionIdsByAgent.get(agentId) ?? [];
+      agentSessionIds.push(sessionId);
+      sessionIdsByAgent.set(agentId, agentSessionIds);
     }
+
+    const batches = [...sessionIdsByAgent].flatMap(([agentId, agentSessionIds]) => {
+      const agentBatches: Array<{ agentId: string; sessionIds: string[] }> = [];
+      for (let index = 0; index < agentSessionIds.length; index += SESSION_USER_STATE_BATCH_SIZE) {
+        agentBatches.push({
+          agentId,
+          sessionIds: agentSessionIds.slice(index, index + SESSION_USER_STATE_BATCH_SIZE),
+        });
+      }
+      return agentBatches;
+    });
+    const pages = await Promise.all(batches.map(async ({ agentId, sessionIds: batchSessionIds }) => {
+      const page = await this.client.ai.agents.sessionUserStates.list(agentId, {
+        page: 1,
+        pageSize: batchSessionIds.length,
+        includeHidden: true,
+        sessionIds: batchSessionIds.join(','),
+      }, toApiRequestOptions(options));
+      if (page.pageInfo.hasMore || page.items.length > batchSessionIds.length) {
+        throw new Error('Agents session user-state batch exceeded its requested bounds.');
+      }
+      return { batchSessionIds, page };
+    }));
+
+    const statesBySessionId = new Map<string, AgentResourceUserStateRecord>();
+    for (const { batchSessionIds, page } of pages) {
+      const requestedSessionIds = new Set(batchSessionIds);
+      for (const state of page.items) {
+        if (state.resourceType !== 'session' || !requestedSessionIds.has(state.resourceId)) {
+          throw new Error(
+            `Agents session user-state batch returned unexpected resource ${state.resourceId}.`,
+          );
+        }
+        if (statesBySessionId.has(state.resourceId)) {
+          throw new Error(
+            `Agents session user-state batch returned duplicate resource ${state.resourceId}.`,
+          );
+        }
+        statesBySessionId.set(state.resourceId, state);
+      }
+    }
+    return statesBySessionId;
   }
 
   async updateSessionUserState(

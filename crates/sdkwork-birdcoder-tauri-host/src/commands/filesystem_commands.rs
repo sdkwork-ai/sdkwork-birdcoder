@@ -1,4 +1,5 @@
 use serde::Serialize;
+use sha2::{Digest, Sha256};
 use std::collections::HashSet;
 use std::ffi::OsString;
 use std::fs;
@@ -7,6 +8,14 @@ use std::sync::{Mutex, OnceLock};
 use std::time::UNIX_EPOCH;
 
 const USER_HOME_CONFIG_RELATIVE_ROOT: &str = ".sdkwork/birdcoder";
+const PROVIDER_SESSION_DIRECTORY_FINGERPRINT_PREFIX: &str = "sdkwork.provider-session-directory.v1\n";
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ProviderSessionDirectoryIdentity {
+    pub directory_fingerprint: String,
+    pub directory_name: String,
+}
 
 /// Error type for filesystem path safety violations. Follows
 /// sdkwork-specs/SECURITY_SPEC.md sandbox principles: paths that escape the
@@ -60,6 +69,49 @@ pub fn register_allowed_fs_root(path: PathBuf) -> Result<(), String> {
         .map_err(|_| "filesystem root registry lock poisoned".to_string())?
         .insert(canonical);
     Ok(())
+}
+
+pub(crate) fn authorize_provider_session_directory_identity(
+    path: &str,
+) -> Result<ProviderSessionDirectoryIdentity, String> {
+    let root = PathBuf::from(path.trim());
+    register_allowed_fs_root(root.clone())?;
+    let canonical_root = resolve_root_directory_path(path)?;
+    let mut entries = fs::read_dir(&canonical_root)
+        .map_err(|error| format!("failed to enumerate provider session directory: {error}"))?
+        .map(|entry| {
+            let entry = entry
+                .map_err(|error| format!("failed to inspect provider session directory: {error}"))?;
+            let entry_type = entry.file_type().map_err(|error| {
+                format!("failed to inspect provider session directory entry type: {error}")
+            })?;
+            let kind = if entry_type.is_dir() {
+                'd'
+            } else if entry_type.is_file() {
+                'f'
+            } else {
+                'o'
+            };
+            Ok((entry.file_name().to_string_lossy().into_owned(), kind))
+        })
+        .collect::<Result<Vec<_>, String>>()?;
+    entries.sort_by(|left, right| left.0.as_bytes().cmp(right.0.as_bytes()));
+
+    let mut manifest = String::from(PROVIDER_SESSION_DIRECTORY_FINGERPRINT_PREFIX);
+    for (name, kind) in entries {
+        manifest.push(kind);
+        manifest.push('\0');
+        manifest.push_str(&name);
+        manifest.push('\n');
+    }
+
+    Ok(ProviderSessionDirectoryIdentity {
+        directory_fingerprint: format!(
+            "sha256:{}",
+            hex::encode(Sha256::digest(manifest.as_bytes()))
+        ),
+        directory_name: resolve_root_directory_name(&canonical_root),
+    })
 }
 
 /// Fail-closed filesystem root validation.
@@ -1247,6 +1299,43 @@ mod tests {
 
         assert!(resolved_path.ends_with(".sdkwork/birdcoder/code-engine-models.json"));
         assert!(resolve_user_home_config_path(".ssh/config").is_err());
+    }
+
+    #[test]
+    fn provider_session_directory_identity_matches_provider_fingerprint_contract() {
+        let root = std::env::temp_dir().join(format!(
+            "sdkwork-birdcoder-provider-session-directory-{}-{}",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(UNIX_EPOCH)
+                .expect("test clock must be after the Unix epoch")
+                .as_nanos()
+        ));
+        fs::create_dir_all(root.join("src"))
+            .expect("provider Session directory fixture must be created");
+        fs::write(root.join("README.md"), "fixture")
+            .expect("provider Session directory fixture file must be written");
+
+        let identity = authorize_provider_session_directory_identity(&root.to_string_lossy())
+            .expect("provider Session directory identity must resolve");
+        assert_eq!(
+            identity.directory_fingerprint,
+            "sha256:501fa61985d3b2c255fdb3816cfa1f20953812554fbeb8dd07c2b18b89388913"
+        );
+        assert_eq!(
+            identity.directory_name,
+            root.file_name()
+                .and_then(|value| value.to_str())
+                .expect("fixture directory name")
+        );
+        assert_eq!(
+            resolve_root_directory_path(&root.to_string_lossy())
+                .expect("provider Session directory must remain authorized"),
+            root.canonicalize()
+                .expect("canonical provider Session directory fixture")
+        );
+
+        fs::remove_dir_all(root).expect("native directory fixture must be removed");
     }
 
     #[tokio::test]

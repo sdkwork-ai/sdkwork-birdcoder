@@ -2,9 +2,12 @@ use std::{
     fs::{self, OpenOptions},
     io::Write,
     path::{Path, PathBuf},
-    process::Command,
 };
 
+use crate::command_runner::{run_git, run_git_allow_exit_codes};
+use crate::repository_probe::{
+    paths_equal, probe_git_repository, GitRepositoryProbeInput, GitRepositoryProbeStatus,
+};
 use crate::types::*;
 use crate::validation::{
     validate_git_branch_name, validate_git_remote_name, validate_git_worktree_path,
@@ -17,18 +20,29 @@ pub fn inspect_project_git_overview(
     project_root_path: &str,
 ) -> Result<GitProjectOverview, GitInspectionError> {
     let root = Path::new(project_root_path);
-    let Some(current_worktree_path) = resolve_worktree_root(root) else {
-        return Ok(GitProjectOverview {
-            branches: vec![],
-            current_branch: None,
-            current_revision: None,
-            current_worktree_path: None,
-            detached_head: false,
-            repository_root_path: None,
-            status: GitOverviewStatus::NotRepository,
-            status_counts: GitStatusCounts::default(),
-            worktrees: vec![],
-        });
+    let probe = probe_git_repository(GitRepositoryProbeInput {
+        expected_root: root,
+    });
+    let current_worktree_path = match probe.status {
+        GitRepositoryProbeStatus::Ready { worktree_root } => worktree_root,
+        GitRepositoryProbeStatus::NotRepository => {
+            return Ok(empty_git_overview(
+                GitOverviewStatus::NotRepository,
+                probe.diagnostic_code,
+            ));
+        }
+        GitRepositoryProbeStatus::RepositoryRootMismatch => {
+            return Ok(empty_git_overview(
+                GitOverviewStatus::RepositoryRootMismatch,
+                probe.diagnostic_code,
+            ));
+        }
+        GitRepositoryProbeStatus::Unavailable => {
+            return Ok(empty_git_overview(
+                GitOverviewStatus::Unavailable,
+                probe.diagnostic_code,
+            ));
+        }
     };
 
     let branches = list_branches(root)?;
@@ -51,11 +65,30 @@ pub fn inspect_project_git_overview(
         current_revision,
         current_worktree_path: Some(current_worktree_path),
         detached_head,
+        diagnostic_code: None,
         repository_root_path: Some(root.to_string_lossy().to_string()),
         status: GitOverviewStatus::Ready,
         status_counts,
         worktrees,
     })
+}
+
+fn empty_git_overview(
+    status: GitOverviewStatus,
+    diagnostic_code: Option<GitOverviewDiagnosticCode>,
+) -> GitProjectOverview {
+    GitProjectOverview {
+        branches: vec![],
+        current_branch: None,
+        current_revision: None,
+        current_worktree_path: None,
+        detached_head: false,
+        diagnostic_code,
+        repository_root_path: None,
+        status,
+        status_counts: GitStatusCounts::default(),
+        worktrees: vec![],
+    }
 }
 
 pub fn inspect_project_git_diff(
@@ -328,16 +361,17 @@ pub fn prune_project_git_worktrees(
 }
 
 pub(crate) fn validate_git_repo(root: &Path) -> Result<(), GitMutationError> {
-    if resolve_worktree_root(root).is_none() {
-        return Err(GitMutationError::NotRepository);
+    let probe = probe_git_repository(GitRepositoryProbeInput {
+        expected_root: root,
+    });
+    match probe.status {
+        GitRepositoryProbeStatus::Ready { .. } => Ok(()),
+        GitRepositoryProbeStatus::NotRepository
+        | GitRepositoryProbeStatus::RepositoryRootMismatch => Err(GitMutationError::NotRepository),
+        GitRepositoryProbeStatus::Unavailable => Err(GitMutationError::Mutate(
+            "Git repository inspection is unavailable".to_owned(),
+        )),
     }
-    Ok(())
-}
-
-fn resolve_worktree_root(root: &Path) -> Option<String> {
-    let top_level = run_git(&["rev-parse", "--show-toplevel"], root).ok()?;
-    let top_level = top_level.trim();
-    paths_equal(root, Path::new(top_level)).then(|| top_level.to_owned())
 }
 
 fn git_ref_exists(root: &Path, reference: &str) -> bool {
@@ -451,36 +485,6 @@ fn worktree_exclude_pattern(root: &Path, worktree: &Path) -> Result<String, GitM
         })?;
     let relative = relative.to_string_lossy().replace('\\', "/");
     Ok(format!("/{}/", relative.trim_matches('/')))
-}
-
-pub(crate) fn run_git(args: &[&str], cwd: &Path) -> Result<String, GitCommandError> {
-    run_git_allow_exit_codes(args, cwd, &[0])
-}
-
-fn run_git_allow_exit_codes(
-    args: &[&str],
-    cwd: &Path,
-    allowed_exit_codes: &[i32],
-) -> Result<String, GitCommandError> {
-    let output = Command::new("git")
-        .args(args)
-        .current_dir(cwd)
-        .output()
-        .map_err(|e| GitCommandError {
-            message: format!("failed to execute git: {e}"),
-        })?;
-
-    if output
-        .status
-        .code()
-        .is_some_and(|code| allowed_exit_codes.contains(&code))
-    {
-        Ok(String::from_utf8_lossy(&output.stdout).to_string())
-    } else {
-        Err(GitCommandError {
-            message: String::from_utf8_lossy(&output.stderr).to_string(),
-        })
-    }
 }
 
 fn truncate_utf8(value: String, max_bytes: usize) -> (String, bool) {
@@ -598,13 +602,6 @@ pub(crate) fn list_worktrees(
     Ok(worktrees)
 }
 
-fn paths_equal(left: &Path, right: &Path) -> bool {
-    match (std::fs::canonicalize(left), std::fs::canonicalize(right)) {
-        (Ok(left), Ok(right)) => left == right,
-        _ => left == right,
-    }
-}
-
 pub(crate) fn get_status_counts(root: &Path) -> GitStatusCounts {
     let mut counts = GitStatusCounts::default();
     if let Ok(output) = run_git(&["status", "--porcelain"], root) {
@@ -646,6 +643,7 @@ mod tests {
     use super::*;
     use std::fs;
     use std::path::PathBuf;
+    use std::process::Command;
 
     fn create_temp_git_repo(name: &str) -> PathBuf {
         let temp_dir = std::env::temp_dir().join(format!(
@@ -681,7 +679,11 @@ mod tests {
 
         let overview = inspect_project_git_overview(&nested.to_string_lossy()).expect("inspect");
 
-        assert_eq!(overview.status, GitOverviewStatus::NotRepository);
+        assert_eq!(overview.status, GitOverviewStatus::RepositoryRootMismatch);
+        assert_eq!(
+            overview.diagnostic_code,
+            Some(GitOverviewDiagnosticCode::RepositoryRootMismatch)
+        );
         fs::remove_dir_all(&repo).ok();
     }
 

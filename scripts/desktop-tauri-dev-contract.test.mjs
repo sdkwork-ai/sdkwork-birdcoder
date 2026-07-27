@@ -265,13 +265,18 @@ assert.match(
 
 assert.equal(
   rootPackageJson.scripts['dev:desktop'],
-  'pnpm dev:desktop:standalone',
-  'Root dev:desktop must delegate to the canonical standalone desktop topology.',
+  'pnpm dev:desktop:postgres:standalone',
+  'Root dev:desktop must select the canonical persistent PostgreSQL standalone desktop profile.',
 );
 assert.equal(
   rootPackageJson.scripts['dev:desktop:standalone'],
+  'pnpm dev:desktop:postgres:standalone',
+  'Root standalone desktop alias must delegate to the explicit persistent PostgreSQL profile.',
+);
+assert.equal(
+  rootPackageJson.scripts['dev:desktop:postgres:standalone'],
   'pnpm exec sdkwork-app stop && pnpm exec sdkwork-app dev --runtime-target desktop --deployment-profile standalone',
-  'Root standalone desktop startup must reclaim only topology-owned development resources before launching a new managed session.',
+  'Root PostgreSQL standalone desktop startup must reclaim only topology-owned development resources before launching a new managed session.',
 );
 assert.equal(
   rootPackageJson.scripts['dev:desktop:check'],

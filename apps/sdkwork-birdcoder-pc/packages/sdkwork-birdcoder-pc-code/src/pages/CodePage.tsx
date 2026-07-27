@@ -9,8 +9,6 @@ import {
   type CreateNewAgentSessionRequest,
 } from '@sdkwork/birdcoder-pc-workbench/workbench/agentSessionCreation';
 import { createIdleProjectMountRecoveryState } from '@sdkwork/birdcoder-pc-workbench/workbench/projectMountRecovery';
-import { hydrateImportedProjectFromAuthority } from '@sdkwork/birdcoder-pc-workbench/workbench/importedProjectHydration';
-import { rebindSelectedProjectDirectory } from '@sdkwork/birdcoder-pc-workbench/workbench/projectDirectorySelection';
 import { emitRevealProjectInFileManager } from '@sdkwork/birdcoder-pc-workbench/events/projectDeviceMountEvents';
 import { emitProjectMountRecoveryState } from '@sdkwork/birdcoder-pc-workbench/events/projectMountRecoveryEvents';
 import { globalEventBus } from '@sdkwork/birdcoder-pc-workbench/utils/EventBus';
@@ -18,6 +16,7 @@ import type { TerminalCommandRequest } from '@sdkwork/birdcoder-pc-workbench/ter
 import { useAgentSessionActions } from '@sdkwork/birdcoder-pc-workbench/hooks/useAgentSessionActions';
 import { useAgentSessionEngineModelSelection } from '@sdkwork/birdcoder-pc-workbench/hooks/useAgentSessionEngineModelSelection';
 import { useFileSystem } from '@sdkwork/birdcoder-pc-workbench/hooks/useFileSystem';
+import { useImportedProjectSessionSynchronization } from '@sdkwork/birdcoder-pc-workbench/hooks/useImportedProjectSessionSynchronization';
 import { useIDEServices } from '@sdkwork/birdcoder-pc-workbench/context/IDEContext';
 import { buildBirdCoderAuthSessionInventoryScope } from '@sdkwork/birdcoder-pc-workbench/context/authSessionScope';
 import { useProjectLocalWorkingDirectory } from '@sdkwork/birdcoder-pc-workbench/hooks/useProjectLocalWorkingDirectory';
@@ -51,6 +50,7 @@ import { useCodeEditorChatLayout } from './useCodeEditorChatLayout';
 import { useCodeServerDirectoryProjectImport } from './useCodeServerDirectoryProjectImport';
 import { useCodeNewAgentSessionRequestState } from './useCodeNewAgentSessionRequestState';
 import { useCodePageSessionSelection } from './useCodePageSessionSelection';
+import { useCodeProjectMountRecoveryActions } from './useCodeProjectMountRecoveryActions';
 import { useCodePageSurfaceProps } from './useCodePageSurfaceProps';
 import { useCodeRunEntryActions } from './useCodeRunEntryActions';
 import { useCodePageTerminalActions } from './useCodePageTerminalActions';
@@ -172,7 +172,6 @@ function CodePageComponent({
   const [isDebugConfigVisible, setIsDebugConfigVisible] = useState(false);
   const [isRunTaskVisible, setIsRunTaskVisible] = useState(false);
   const [isProjectGitOverviewDrawerOpen, setIsProjectGitOverviewDrawerOpen] = useState(false);
-  const [isMountRecoveryActionPending, setIsMountRecoveryActionPending] = useState(false);
   const handleSidebarResize = useCallback((delta: number) => {
     setSidebarWidth((previousState) => {
       const preferredWidth = Math.max(
@@ -255,9 +254,6 @@ function CodePageComponent({
       ? resolveSessionInProject(agentSessionId, scopedProjectId)
       : resolveSession(agentSessionId);
   }, [currentProjectId, resolveSession, resolveSessionInProject]);
-  const projectGitOverviewState = useProjectGitOverview({
-    projectId: currentProject?.projectId,
-  });
   const session = selectedAgentSessionLocation?.agentSession;
   const {
     createAgentSessionWithSelection,
@@ -382,6 +378,9 @@ function CodePageComponent({
 
   const {
     files,
+    projectRoot,
+    isLoading: isFileTreeLoading,
+    fileTreeLoadError,
     loadingDirectoryPaths,
     openFiles,
     selectedFile,
@@ -402,11 +401,17 @@ function CodePageComponent({
     renameNode,
     searchFiles,
     restoreProjectMount,
+    refreshFiles,
     flushPendingAutosave,
   } = useFileSystem(currentProjectId, {
     isActive: isVisible,
     loadActive: isVisible && activeTab === 'editor',
+    mountRecoveryActive: isVisible,
     realtimeActive: isVisible && activeTab === 'editor',
+  });
+  const projectGitOverviewState = useProjectGitOverview({
+    isActive: isVisible,
+    projectId: currentProjectId,
   });
 
   useCodeWorkbenchCommands({
@@ -501,30 +506,55 @@ function CodePageComponent({
     selectProjectWithoutAgentSession(projectId);
   }, [latestAgentSessionIdByProjectId, selectProjectWithoutAgentSession, selectSession]);
 
-  const syncImportedProjectInBackground = useCallback((projectId: string) => {
-    void (async () => {
-      try {
-        const hydratedProject = await hydrateImportedProjectFromAuthority({
-          agentSessionService,
-          knownProjects: projects,
-          projectId,
-          projectService,
-          userScope,
-          workspaceId,
-        });
-        if (!hydratedProject) {
-          return;
-        }
+  const handleImportedProjectSessionsSynchronized = useCallback((result: {
+    latestAgentSessionId: string | null;
+    project: { projectId: string };
+  }) => {
+    const synchronizedProjectId = result.project.projectId;
+    if (currentProjectId !== synchronizedProjectId) {
+      return;
+    }
+    if (sessionId?.trim() || initialAgentSessionId?.trim()) {
+      return;
+    }
+    if (result.latestAgentSessionId) {
+      selectSession(result.latestAgentSessionId, { projectId: synchronizedProjectId });
+    }
+  }, [currentProjectId, initialAgentSessionId, selectSession, sessionId]);
+  const {
+    invalidateImportedProjectSessionSynchronization,
+    synchronizeImportedProject,
+  } = useImportedProjectSessionSynchronization({
+    agentSessionService,
+    knownProjects: projects,
+    onSynchronized: handleImportedProjectSessionsSynchronized,
+    projectService,
+    userScope,
+    workspaceId,
+  });
 
-        const latestAgentSessionId = hydratedProject.latestAgentSessionId;
-        if (latestAgentSessionId) {
-          selectSession(latestAgentSessionId, { projectId });
-        }
-      } catch (error) {
-        console.error('Failed to refresh imported project sessions', error);
-      }
-    })();
-  }, [agentSessionService, projectService, projects, selectSession, userScope, workspaceId]);
+  useEffect(() => {
+    if (!isVisible) {
+      return;
+    }
+    if (!currentProjectId) {
+      return;
+    }
+    if (mountRecoveryState.status !== 'recovered') {
+      invalidateImportedProjectSessionSynchronization(currentProjectId);
+      return;
+    }
+
+    void synchronizeImportedProject(currentProjectId).catch((error) => {
+      console.error('Failed to refresh mounted project sessions', error);
+    });
+  }, [
+    currentProjectId,
+    invalidateImportedProjectSessionSynchronization,
+    isVisible,
+    mountRecoveryState.status,
+    synchronizeImportedProject,
+  ]);
   const {
     handleLoadEarlierAgentSessionItems,
     handleRefreshAgentSessionItems,
@@ -620,7 +650,7 @@ function CodePageComponent({
       }
 
       activateImportedProject(importedProject.projectId);
-      syncImportedProjectInBackground(importedProject.projectId);
+      await synchronizeImportedProject(importedProject.projectId, true);
       addToast(`Project created successfully: ${importedProject.projectName}`, 'success');
       return importedProject.projectId;
     } catch (error) {
@@ -632,7 +662,7 @@ function CodePageComponent({
     activateImportedProject,
     addToast,
     selectFolderAndImportProject,
-    syncImportedProjectInBackground,
+    synchronizeImportedProject,
   ]);
 
   const handleOpenFolder = useCallback(async () => {
@@ -640,86 +670,32 @@ function CodePageComponent({
       const importedProject = await selectFolderAndImportProject(t('app.serverDirectory'));
       if (importedProject) {
         activateImportedProject(importedProject.projectId);
-        syncImportedProjectInBackground(importedProject.projectId);
+        await synchronizeImportedProject(importedProject.projectId, true);
         addToast(`Opened folder: ${importedProject.projectName}`, 'success');
       }
     } catch (error) {
       console.error("Failed to open folder", error);
       addToast('Failed to open folder', 'error');
     }
-  }, [addToast, activateImportedProject, selectFolderAndImportProject, syncImportedProjectInBackground, t]);
-
-  const handleRetryMountRecovery = useCallback(async () => {
-    if (!currentProjectId) {
-      addToast('Select a project before reconnecting its local folder.', 'error');
-      return;
-    }
-
-    setIsMountRecoveryActionPending(true);
-    try {
-      const recoveredFiles = await restoreProjectMount();
-      if (recoveredFiles.length === 0) {
-        addToast('Select the local folder again to restore file access on this device.', 'error');
-        return;
-      }
-      addToast(`Reconnected folder: ${currentProject?.name ?? 'Local folder'}`, 'success');
-    } catch (error) {
-      console.error('Failed to retry local project folder recovery', error);
-      addToast(
-        error instanceof Error && error.message.trim()
-          ? error.message
-          : 'Failed to reconnect the local project folder.',
-        'error',
-      );
-    } finally {
-      setIsMountRecoveryActionPending(false);
-    }
-  }, [addToast, currentProject?.name, currentProjectId, restoreProjectMount]);
-
-  const handleReimportProjectFolder = useCallback(async () => {
-    if (!currentProjectId) {
-      addToast('Select a project before choosing a folder.', 'error');
-      return;
-    }
-
-    setIsMountRecoveryActionPending(true);
-    try {
-      const selection = await selectProjectFolder();
-      if (!selection) {
-        return;
-      }
-
-      const reboundProject = await rebindSelectedProjectDirectory({
-        bindLocalProjectRuntimeLocation: (projectId, source) =>
-          projectRuntimeLocationService.bindLocalProjectRuntimeLocation(projectId, source),
-        compositionPort: projectService,
-        projectId: currentProjectId,
-        fallbackProjectName: currentProject?.name ?? 'Local Folder',
-        selection,
-      });
-
-      syncImportedProjectInBackground(currentProjectId);
-      addToast(`Opened folder: ${reboundProject.projectName}`, 'success');
-    } catch (error) {
-      console.error('Failed to rebind local project folder', error);
-      addToast(
-        error instanceof Error && error.message.trim()
-          ? error.message
-          : 'Failed to open folder',
-        'error',
-      );
-    } finally {
-      setIsMountRecoveryActionPending(false);
-    }
   }, [
     addToast,
-    currentProject?.name,
-    currentProjectId,
-    projectRuntimeLocationService,
-    projectService,
-    selectProjectFolder,
-    syncImportedProjectInBackground,
+    activateImportedProject,
+    selectFolderAndImportProject,
+    synchronizeImportedProject,
+    t,
   ]);
+
+  const {
+    handleReimportProjectFolder,
+    handleRetryMountRecovery,
+    isMountRecoveryActionPending,
+  } = useCodeProjectMountRecoveryActions({
+    currentProject,
+    currentProjectId,
+    restoreProjectMount,
+    selectProjectFolder,
+    synchronizeImportedProject,
+  });
 
   const handleArchiveProject = useCallback(async (projectId: string) => {
     const project = resolveProjectById(projectId);
@@ -745,15 +721,17 @@ function CodePageComponent({
   });
 
   const {
-    handleCopySessionId,
+    handleCopyProviderSessionId,
+    handleOpenAgentSessionInTerminal,
     handleOpenInTerminal,
     handleTopBarTerminalVisibilityChange,
   } = useCodePageTerminalActions({
     addToast,
-    currentProjectId,
+    currentProject,
     resolveProjectActionTarget,
     resolveProjectRuntimeLocation,
     resolveProjectById,
+    resolveSessionActionLocation,
     setIsTerminalOpen,
     setTerminalRequest,
     t,
@@ -765,8 +743,8 @@ function CodePageComponent({
       return;
     }
 
-    emitRevealProjectInFileManager({ projectId: project.projectId });
-  }, [resolveProjectById]);
+    emitRevealProjectInFileManager(project);
+  }, [resolveProjectActionTarget, resolveProjectById]);
 
   const handlePinSession = useCallback(async (
     agentSessionId: string,
@@ -949,13 +927,14 @@ function CodePageComponent({
     agentSessionId: string,
     projectId: string,
     messageId: string,
+    fileChanges?: readonly FileChange[],
   ) => {
     const agentSession =
       resolveSessionActionLocation(agentSessionId, projectId)?.agentSession;
     const msg = agentSession?.items.find(m => m.id === messageId);
     try {
       const didRestore = await restoreWorkbenchAgentSessionItemFiles({
-        fileChanges: msg?.fileChanges,
+        fileChanges: fileChanges ?? msg?.fileChanges,
         saveFileContent,
       });
       if (!didRestore) {
@@ -1126,9 +1105,26 @@ function CodePageComponent({
   });
   const isSelectedAgentSessionTranscriptVisible =
     isVisible && (activeTab === 'ai' || activeTab === 'editor');
+  const handleSelectedAgentSessionUnavailable = useCallback((
+    unavailableAgentSessionId: string,
+    unavailableProjectId: string,
+  ) => {
+    if (unavailableAgentSessionId !== visibleSessionId) {
+      return;
+    }
+    const fallbackProjectId = unavailableProjectId.trim() || currentProjectId;
+    selectProjectWithoutAgentSession(fallbackProjectId || null);
+    onAgentSessionChange?.('', fallbackProjectId || undefined);
+  }, [
+    currentProjectId,
+    onAgentSessionChange,
+    selectProjectWithoutAgentSession,
+    visibleSessionId,
+  ]);
   const isSelectedAgentSessionItemsLoading = useSelectedAgentSessionItems({
     agentSessionService,
     isActive: isSelectedAgentSessionTranscriptVisible,
+    onAgentSessionUnavailable: handleSelectedAgentSessionUnavailable,
     projectService,
     selectionRefreshToken,
     selectedAgentSession,
@@ -1222,9 +1218,12 @@ function CodePageComponent({
       void handleRegenerateMessage(session.id, currentProjectId);
     }
   }, [currentProjectId, handleRegenerateMessage, session]);
-  const handleRestoreSelectedAgentSessionItem = useCallback((messageId: string) => {
+  const handleRestoreSelectedAgentSessionItem = useCallback((
+    messageId: string,
+    fileChanges?: readonly FileChange[],
+  ) => {
     if (session) {
-      void handleRestoreMessage(session.id, currentProjectId, messageId);
+      void handleRestoreMessage(session.id, currentProjectId, messageId, fileChanges);
     }
   }, [currentProjectId, handleRestoreMessage, session]);
 
@@ -1269,6 +1268,8 @@ function CodePageComponent({
     chatWidth: effectiveEditorChatWidth,
     fileContent,
     files,
+    projectRootPath: projectRoot?.virtualPath ?? '',
+    fileTreeLoadError,
     filteredProjects,
     hasMoreProjects,
     hasMoreRemoteMessages: Boolean(selectedAgentSession?.itemPageInfo?.hasMore),
@@ -1284,6 +1285,7 @@ function CodePageComponent({
     isQuickOpenVisible,
     isRunConfigVisible,
     isRunTaskVisible,
+    isFileTreeLoading,
     isSearchingFiles,
     selectedEngineId,
     selectedModelId,
@@ -1337,7 +1339,7 @@ function CodePageComponent({
     onCloseTerminal: handleCloseTerminal,
     onConfirmDelete: handleConfirmDelete,
     onCopyAgentSessionDeeplink: handleCopySessionDeeplink,
-    onCopyAgentSessionSessionId: handleCopySessionId,
+    onCopyAgentSessionProviderSessionId: handleCopyProviderSessionId,
     onCopyAgentSessionWorkingDirectory: handleCopySessionWorkingDirectory,
     onCopyProjectPath: handleCopyProjectPath,
     onCopyWorkingDirectory: handleCopyWorkingDirectory,
@@ -1364,6 +1366,7 @@ function CodePageComponent({
     onLoadMoreRemoteMessages: handleLoadEarlierSelectedAgentSessionItems,
     onNotifyNoResults: handleNotifyNoCodeResults,
     onOpenFolder: handleOpenFolder,
+    onOpenAgentSessionInTerminal: handleOpenAgentSessionInTerminal,
     onOpenInFileExplorer: handleOpenInFileExplorer,
     onOpenInTerminal: handleOpenInTerminal,
     onOpenMessageFile: handleOpenMessageFile,
@@ -1377,6 +1380,7 @@ function CodePageComponent({
     onRenameAgentSession: handleRenameSession,
     onRenameNode: renameNode,
     onRenameProject: handleRenameProject,
+    onRetryFileTreeLoad: refreshFiles,
     onRestoreMessage: handleRestoreSelectedAgentSessionItem,
     onRetryMountRecovery: handleRetryMountRecoveryAction,
     onRunConfigurationDraftChange: setRunConfigurationDraft,

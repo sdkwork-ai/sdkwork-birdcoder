@@ -13,7 +13,7 @@
     "windows": [
       {
         "label": "main",
-        "title": "SDKWork BirdCoder",
+        "title": "Birdcoder",
         "decorations": false,
         "center": true,
         "minWidth": 1200,

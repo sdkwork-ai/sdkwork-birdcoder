@@ -97,7 +97,6 @@
             "binary": "sdkwork-api-birdcoder-standalone-gateway",
             "runtimeTargets": [
               "browser",
-              "desktop",
               "server",
               "test-runner",
               "capacitor-ios",
@@ -191,7 +190,7 @@
           {
             "id": "flutter-android-client",
             "applicationRoot": "apps/sdkwork-birdcoder-flutter-mobile",
-            "script": "_sdkwork:flutter-android",
+            "script": "_sdkwork:client:flutter-android",
             "runtimeTargets": [
               "flutter-android"
             ],
@@ -204,7 +203,7 @@
           {
             "id": "flutter-ios-client",
             "applicationRoot": "apps/sdkwork-birdcoder-flutter-mobile",
-            "script": "_sdkwork:flutter-ios",
+            "script": "_sdkwork:client:flutter-ios",
             "runtimeTargets": [
               "flutter-ios"
             ],
@@ -231,9 +230,7 @@
             "role": "client"
           }
         ],
-        "healthSurfaces": [
-          "application.public-ingress"
-        ]
+        "healthSurfaces": []
       },
       "cloud.development": {
         "processes": [

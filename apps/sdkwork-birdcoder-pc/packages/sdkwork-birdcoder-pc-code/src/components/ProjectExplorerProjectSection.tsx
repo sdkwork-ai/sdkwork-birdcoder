@@ -7,6 +7,7 @@ import {
   MoreHorizontal,
   Plus,
 } from 'lucide-react';
+import type { SessionRuntimeStatusLabels } from '@sdkwork/birdcoder-pc-ui';
 import type { ProjectExplorerProjectEntry } from './ProjectExplorer.shared';
 import { buildProjectExplorerSurfaceStyle } from './ProjectExplorer.shared';
 import { ProjectExplorerSessionRow } from './ProjectExplorerSessionRow';
@@ -29,12 +30,7 @@ export interface ProjectExplorerProjectSectionProps {
   defaultNewSessionEngineId: string;
   defaultNewSessionModelId: string;
   newSessionInProjectLabel: string;
-  awaitingApprovalSessionLabel: string;
-  awaitingToolSessionLabel: string;
-  awaitingUserSessionLabel: string;
-  executingSessionLabel: string;
-  initializingSessionLabel: string;
-  failedSessionLabel: string;
+  runtimeStatusLabels: SessionRuntimeStatusLabels;
   moreActionsLabel: string;
   onSelectProject: (projectId: string) => void;
   onToggleProject: (projectId: string, event?: React.MouseEvent) => void;
@@ -85,12 +81,7 @@ export const ProjectExplorerProjectSection = React.memo(function ProjectExplorer
   defaultNewSessionEngineId,
   defaultNewSessionModelId,
   newSessionInProjectLabel,
-  awaitingApprovalSessionLabel,
-  awaitingToolSessionLabel,
-  awaitingUserSessionLabel,
-  executingSessionLabel,
-  initializingSessionLabel,
-  failedSessionLabel,
+  runtimeStatusLabels,
   moreActionsLabel,
   onSelectProject,
   onToggleProject,
@@ -118,6 +109,8 @@ export const ProjectExplorerProjectSection = React.memo(function ProjectExplorer
   return (
     <div
       className="mb-1"
+      data-project-id={project.projectId}
+      data-project-selected={isSelectedProject ? 'true' : undefined}
       style={buildProjectExplorerSurfaceStyle(expanded ? '260px' : '44px')}
     >
       <div
@@ -216,12 +209,7 @@ export const ProjectExplorerProjectSection = React.memo(function ProjectExplorer
                 isRenaming={renamingVisibleSessionId === session.id}
                 renameValue={renamingVisibleSessionId === session.id ? sessionRenameValue : ''}
                 paddingClassName="pl-8 pr-2"
-                awaitingApprovalSessionLabel={awaitingApprovalSessionLabel}
-                awaitingToolSessionLabel={awaitingToolSessionLabel}
-                awaitingUserSessionLabel={awaitingUserSessionLabel}
-                executingSessionLabel={executingSessionLabel}
-                initializingSessionLabel={initializingSessionLabel}
-                failedSessionLabel={failedSessionLabel}
+                runtimeStatusLabels={runtimeStatusLabels}
                 moreActionsLabel={moreActionsLabel}
                 onSelectAgentSession={onSelectAgentSession}
                 onAgentSessionContextMenu={onAgentSessionContextMenu}

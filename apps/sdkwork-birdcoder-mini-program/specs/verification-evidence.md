@@ -6,7 +6,7 @@ This file records the intended evidence set for the initialization round. Comman
 | --- | --- | --- |
 | `node scripts/birdcoder-client-env.mjs --surface miniProgram` from repository root | Materialize all client profile inputs including eight mini-program JSON files | Passed: 8 files materialized |
 | `node scripts/birdcoder-client-env.mjs --check --surface miniProgram` from repository root | Prove generated profiles match topology authority | Passed: 8 files verified |
-| `pnpm config:check` from repository root | Verify PC, H5, Flutter, and mini-program materialization contract together | Passed: 32 files plus contract test |
+| `pnpm check:client-env` from repository root | Verify PC, H5, Flutter, and mini-program materialization contract together | Passed: 32 files plus contract test |
 | `pnpm typecheck` | Strict TypeScript package/bootstrap check | Passed |
 | `pnpm lint` | Raw HTTP, browser leakage, and platform-global boundary scan | Passed |
 | `pnpm test` | Config, route, package architecture, and session contracts | Passed: 7 tests |

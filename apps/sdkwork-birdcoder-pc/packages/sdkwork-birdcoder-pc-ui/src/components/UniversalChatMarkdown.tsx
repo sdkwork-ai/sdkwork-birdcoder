@@ -1,11 +1,20 @@
 import React, { Suspense, lazy } from 'react';
-import { Hexagon } from 'lucide-react';
+import { FileCode2, Hexagon } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 import type { ChatSkill } from './UniversalChat';
-import { resolveSafeMarkdownHref } from './markdownLinkSecurity';
+import { resolveChatCodeFenceLanguage } from './chatMarkdownHeuristics';
+import {
+  resolveMarkdownFilePath,
+  resolveSafeMarkdownHref,
+} from './markdownLinkSecurity';
 
 export interface UniversalChatMarkdownProps {
   content: string;
+  onOpenFile?: (path: string) => void;
+  onOpenUrl?: (url: string) => void;
+  openFileLabel?: string;
+  openUrlLabel?: string;
   skills?: ChatSkill[];
   mode?: 'basic' | 'rich';
   unknownSkillDescription?: string;
@@ -15,6 +24,8 @@ const UniversalChatCodeBlock = lazy(async () => {
   const module = await import('./UniversalChatCodeBlock');
   return { default: module.UniversalChatCodeBlock };
 });
+
+const CHAT_MARKDOWN_REMARK_PLUGINS = [remarkGfm];
 
 function escapeRegExp(value: string): string {
   return value.replace(/[.*+?^${}()|[\]\\]/gu, '\\$&');
@@ -73,12 +84,38 @@ function PlainCodeBlock({
 
 export function UniversalChatMarkdown({
   content,
+  onOpenFile,
+  onOpenUrl,
+  openFileLabel = 'Open file in editor',
+  openUrlLabel = 'Open link preview',
   skills = [],
   mode = 'rich',
   unknownSkillDescription = 'Skill details unavailable',
 }: UniversalChatMarkdownProps) {
   const safeLinkComponents = {
     a: ({ node, ...props }: any) => {
+      const openFile = onOpenFile;
+      const filePath = openFile ? resolveMarkdownFilePath(props.href) : null;
+      if (filePath && openFile) {
+        return (
+          <button
+            type="button"
+            className="inline max-w-full cursor-pointer border-0 bg-transparent p-0 text-left text-sky-300 hover:text-sky-200 hover:underline focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-blue-400/70 [font:inherit] [overflow-wrap:anywhere]"
+            data-chat-markdown-file-link="true"
+            title={`${openFileLabel}: ${filePath}`}
+            aria-label={`${openFileLabel}: ${filePath}`}
+            onClick={() => openFile(filePath)}
+          >
+            <FileCode2
+              size={12}
+              className="mr-1 inline-block shrink-0 align-[-0.1em] text-sky-400"
+              aria-hidden="true"
+            />
+            <span>{props.children}</span>
+          </button>
+        );
+      }
+
       const safeHref = resolveSafeMarkdownHref(props.href, {
         allowSkillLinks: true,
       });
@@ -108,6 +145,21 @@ export function UniversalChatMarkdown({
         );
       }
 
+      if (onOpenUrl && /^https?:\/\//iu.test(safeHref)) {
+        return (
+          <button
+            type="button"
+            className="inline max-w-full cursor-pointer border-0 bg-transparent p-0 text-left text-blue-400 hover:text-blue-300 hover:underline focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-blue-400/70 [font:inherit] [overflow-wrap:anywhere]"
+            data-chat-markdown-url-link="true"
+            title={`${openUrlLabel}: ${safeHref}`}
+            aria-label={`${openUrlLabel}: ${safeHref}`}
+            onClick={() => onOpenUrl(safeHref)}
+          >
+            {props.children}
+          </button>
+        );
+      }
+
       return (
         <a
           href={safeHref}
@@ -119,23 +171,80 @@ export function UniversalChatMarkdown({
         </a>
       );
     },
+    table: ({ node, children, ...props }: any) => (
+      <div
+        className="my-3 max-w-full overflow-x-auto rounded-md border border-white/10 custom-scrollbar"
+        data-chat-markdown-table="true"
+      >
+        <table className="m-0 w-full min-w-full border-collapse text-left text-[0.95em]" {...props}>
+          {children}
+        </table>
+      </div>
+    ),
+    thead: ({ node, ...props }: any) => <thead className="bg-white/[0.045]" {...props} />,
+    th: ({ node, ...props }: any) => (
+      <th
+        className="border-b border-white/10 px-3 py-2 font-semibold text-gray-200 [overflow-wrap:anywhere]"
+        {...props}
+      />
+    ),
+    td: ({ node, ...props }: any) => (
+      <td className="border-b border-white/[0.06] px-3 py-2 align-top text-gray-300 [overflow-wrap:anywhere]" {...props} />
+    ),
+    input: ({ node, ...props }: any) => (
+      <input
+        {...props}
+        disabled
+        className="mt-1 h-3.5 w-3.5 shrink-0 accent-blue-500"
+      />
+    ),
+    ul: ({ node, className, ...props }: any) => {
+      const isTaskList = typeof className === 'string'
+        && className.split(/\s+/u).includes('contains-task-list');
+      return (
+        <ul
+          {...props}
+          className={isTaskList
+            ? `my-3 flex list-none flex-col gap-1 pl-0 ${className}`
+            : className}
+        />
+      );
+    },
+    li: ({ node, className, ...props }: any) => {
+      const isTaskItem = typeof className === 'string'
+        && className.split(/\s+/u).includes('task-list-item');
+      return (
+        <li
+          {...props}
+          className={isTaskItem
+            ? `my-0 flex list-none items-start gap-2 pl-0 before:hidden marker:hidden ${className}`
+            : className}
+        />
+      );
+    },
   };
 
   if (mode === 'basic') {
-    return <ReactMarkdown components={safeLinkComponents}>{content}</ReactMarkdown>;
+    return (
+      <ReactMarkdown
+        components={safeLinkComponents}
+        remarkPlugins={CHAT_MARKDOWN_REMARK_PLUGINS}
+      >
+        {content}
+      </ReactMarkdown>
+    );
   }
 
   const markdownComponents = {
     ...safeLinkComponents,
     code: ({ node, inline, className, children, ...props }: any) => {
-      const match = /language-(\w+)/.exec(className || '');
-      const language = match ? match[1] : '';
-      const isInline = inline || !match;
+      const language = resolveChatCodeFenceLanguage(className);
+      const isInline = inline || !language;
 
       if (isInline) {
         return (
           <code
-            className="bg-white/10 px-1.5 py-0.5 rounded-md text-[13px] font-mono text-gray-200"
+            className="rounded bg-white/10 px-1.5 py-0.5 font-mono text-[0.92em] text-gray-100 [overflow-wrap:anywhere]"
             {...props}
           >
             {children}
@@ -155,7 +264,10 @@ export function UniversalChatMarkdown({
   };
 
   return (
-    <ReactMarkdown components={markdownComponents}>
+    <ReactMarkdown
+      components={markdownComponents}
+      remarkPlugins={CHAT_MARKDOWN_REMARK_PLUGINS}
+    >
       {processContent(content, skills)}
     </ReactMarkdown>
   );

@@ -2,6 +2,9 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import type { IAgentSessionService } from '@sdkwork/birdcoder-pc-infrastructure-runtime';
 
 import { useIDEServices } from '../context/ideServices.ts';
+import {
+  invalidateActiveWorkspaceSessionInboxSynchronizations,
+} from '../workbench/workspaceSessionInboxCoordinator.ts';
 
 type AgentInteractionRecord = Awaited<
   ReturnType<IAgentSessionService['listInteractions']>
@@ -254,6 +257,7 @@ export function useAgentSessionPendingInteractions(
         requestedAt: new Date().toISOString(),
       },
     );
+    void invalidateActiveWorkspaceSessionInboxSynchronizations();
     await refreshPendingInteractions();
     return result;
   }, [agentSessionService, refreshPendingInteractions, resolveInteractionAndClaimOwner, sessionId]);
@@ -289,6 +293,7 @@ export function useAgentSessionPendingInteractions(
         selectedOptionValue: input.optionValue?.trim() || undefined,
       },
     );
+    void invalidateActiveWorkspaceSessionInboxSynchronizations();
     await refreshPendingInteractions();
     return result;
   }, [agentSessionService, refreshPendingInteractions, resolveInteractionAndClaimOwner, sessionId]);

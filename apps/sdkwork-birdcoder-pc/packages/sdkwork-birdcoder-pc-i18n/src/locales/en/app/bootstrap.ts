@@ -2,7 +2,7 @@ import { defineLocaleModule } from '../../resource.ts';
 
 export default defineLocaleModule('app/bootstrap', {
   bootstrap: {
-    startingTitle: 'SDKWork BirdCoder',
+    startingTitle: 'Birdcoder',
     bootingDescription: 'Connecting to the local runtime and preparing your workspace.',
     desktopApiUnavailable:
       'The embedded runtime at {{apiBaseUrl}} did not become ready. Retry now; if the issue continues, fully quit and restart BirdCoder.',

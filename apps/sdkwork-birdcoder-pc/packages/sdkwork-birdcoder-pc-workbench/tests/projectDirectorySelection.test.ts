@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import type { SandboxSelection } from '@sdkwork/drive-pc-sandbox-contracts';
+import type { BirdCoderExecutionLocation } from '@sdkwork/birdcoder-pc-infrastructure-runtime/runtimeTopology';
 import {
   importSelectedProjectDirectory,
   rebindSelectedProjectDirectory,
@@ -17,7 +18,7 @@ const sandboxSelection: SandboxSelection = {
 };
 
 describe('projectDirectorySelection', () => {
-  it('uses only the Drive sandbox picker in Browser mode', async () => {
+  it('uses only the Drive sandbox picker for Browser cloud execution', async () => {
     const pickLocalDirectory = vi.fn(async () => ({ status: 'cancelled' as const }));
     const pickSandboxDirectory = vi.fn(async () => sandboxSelection);
 
@@ -25,8 +26,8 @@ describe('projectDirectorySelection', () => {
       pickSandboxDirectory,
       sandboxPickerTitle: 'Select server directory',
       runtime: {
-        isDesktopRuntime: vi.fn(async () => false),
         pickLocalDirectory,
+        resolveExecutionLocation: () => 'cloud-workspace',
       },
     });
 
@@ -40,7 +41,7 @@ describe('projectDirectorySelection', () => {
     expect(pickLocalDirectory).not.toHaveBeenCalled();
   });
 
-  it('uses only the host directory picker in Tauri mode', async () => {
+  it('uses only the host directory picker for standalone Tauri execution', async () => {
     const pickSandboxDirectory = vi.fn(async () => sandboxSelection);
     const source = { type: 'tauri' as const, path: 'E:\\projects\\desktop-project' };
 
@@ -48,8 +49,8 @@ describe('projectDirectorySelection', () => {
       pickSandboxDirectory,
       sandboxPickerTitle: 'Select server directory',
       runtime: {
-        isDesktopRuntime: vi.fn(async () => true),
         pickLocalDirectory: vi.fn(async () => ({ status: 'selected' as const, source })),
+        resolveExecutionLocation: () => 'local-host',
       },
     });
 
@@ -57,26 +58,67 @@ describe('projectDirectorySelection', () => {
     expect(pickSandboxDirectory).not.toHaveBeenCalled();
   });
 
+  it('uses Drive instead of a local folder picker for cloud Tauri execution', async () => {
+    const pickLocalDirectory = vi.fn(async () => ({
+      status: 'selected' as const,
+      source: { type: 'tauri' as const, path: 'E:\\projects\\wrong-local-project' },
+    }));
+    const pickSandboxDirectory = vi.fn(async () => sandboxSelection);
+
+    const selection = await selectProjectDirectory({
+      pickSandboxDirectory,
+      sandboxPickerTitle: 'Select server directory',
+      runtime: {
+        pickLocalDirectory,
+        resolveExecutionLocation: () => 'cloud-workspace',
+      },
+    });
+
+    expect(selection).toEqual({
+      kind: 'drive_sandbox',
+      selection: sandboxSelection,
+    });
+    expect(pickLocalDirectory).not.toHaveBeenCalled();
+  });
+
   it('does not create a selection after either picker is cancelled', async () => {
     const browserSelection = await selectProjectDirectory({
       pickSandboxDirectory: vi.fn(async () => null),
       sandboxPickerTitle: 'Select server directory',
       runtime: {
-        isDesktopRuntime: vi.fn(async () => false),
         pickLocalDirectory: vi.fn(async () => ({ status: 'cancelled' as const })),
+        resolveExecutionLocation: () => 'cloud-workspace',
       },
     });
     const desktopSelection = await selectProjectDirectory({
       pickSandboxDirectory: vi.fn(async () => sandboxSelection),
       sandboxPickerTitle: 'Select server directory',
       runtime: {
-        isDesktopRuntime: vi.fn(async () => true),
         pickLocalDirectory: vi.fn(async () => ({ status: 'cancelled' as const })),
+        resolveExecutionLocation: () => 'local-host',
       },
     });
 
     expect(browserSelection).toBeNull();
     expect(desktopSelection).toBeNull();
+  });
+
+  it('rejects unsupported execution locations without invoking either picker', async () => {
+    const pickLocalDirectory = vi.fn(async () => ({ status: 'cancelled' as const }));
+    const pickSandboxDirectory = vi.fn(async () => sandboxSelection);
+
+    await expect(selectProjectDirectory({
+      pickSandboxDirectory,
+      sandboxPickerTitle: 'Select server directory',
+      runtime: {
+        pickLocalDirectory,
+        resolveExecutionLocation: () => 'future-location' as BirdCoderExecutionLocation,
+      },
+    })).rejects.toThrow(
+      'Unsupported project directory execution location: future-location.',
+    );
+    expect(pickLocalDirectory).not.toHaveBeenCalled();
+    expect(pickSandboxDirectory).not.toHaveBeenCalled();
   });
 
   it('imports a Browser selection with complete Drive identity', async () => {

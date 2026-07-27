@@ -109,7 +109,7 @@ assert.match(
 
 assert.match(
   hookSource,
-  /return subscribeProjectGitOverviewRefresh\(\(refreshedProjectId\) => \{\s*if \(refreshedProjectId !== normalizedProjectId\) \{\s*return;\s*\}\s*void refreshGitOverview\(\);\s*\}\);/s,
+  /return subscribeProjectGitOverviewRefresh\(\(refreshedProjectId\) => \{\s*if \(refreshedProjectId === subscription\.normalizedProjectId\) \{\s*void subscription\.refresh\(\);\s*\}\s*\}\);/s,
   'Project Git overview hook must reload only the matching project when the shared refresh bridge emits an event.',
 );
 

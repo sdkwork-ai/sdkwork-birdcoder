@@ -50,6 +50,7 @@ test('Session transcript survives rapid reselection and completes a sent turn', 
   const consoleErrors: string[] = [];
   const pageErrors: string[] = [];
   let codexItemRequestCount = 0;
+  let codexTurnRequestCount = 0;
 
   page.on('console', (message) => {
     if (message.type() === 'error') {
@@ -57,6 +58,15 @@ test('Session transcript survives rapid reselection and completes a sent turn', 
     }
   });
   page.on('pageerror', (error) => pageErrors.push(error.message));
+  page.on('request', (request) => {
+    const url = new URL(request.url());
+    if (
+      request.method() === 'POST'
+      && url.pathname.endsWith('/e2e-codex-session/turns')
+    ) {
+      codexTurnRequestCount += 1;
+    }
+  });
   await page.route(/\/e2e-codex-session\/items(?:\?.*)?$/u, async (route) => {
     codexItemRequestCount += 1;
     if (codexItemRequestCount === 1) {
@@ -99,18 +109,35 @@ test('Session transcript survives rapid reselection and completes a sent turn', 
   );
   await expect(composer).toHaveCount(1);
   await composer.fill(message);
+  const assistantResponse = `Mock assistant response to: ${message}`;
+  const firstAssistantDelta = assistantResponse.slice(
+    0,
+    Math.max(1, Math.floor(assistantResponse.length / 2)),
+  );
   const turnResponse = page.waitForResponse((response) => {
     const url = new URL(response.url());
     return response.request().method() === 'POST'
       && url.pathname.endsWith('/e2e-codex-session/turns');
   });
   await page.locator('button[title="Send message"]:visible').click();
-  expect((await turnResponse).ok()).toBe(true);
+  await expect.poll(() => codexTurnRequestCount).toBe(1);
+  await expect(transcript.getByText(firstAssistantDelta, { exact: true })).toBeVisible();
+  const submittedTurnResponse = await turnResponse;
+  expect(submittedTurnResponse.ok()).toBe(true);
+  const submittedTurnUrl = new URL(submittedTurnResponse.url());
+  expect(submittedTurnUrl.searchParams.get('stream')).toBe('true');
+  expect(submittedTurnResponse.request().postDataJSON()).toMatchObject({
+    content: message,
+    requestedModelId: 'gpt-5-codex',
+    runtimeBindingId: 'runtime-binding.e2e-codex-session',
+    turnId: expect.stringMatching(/^turn\./u),
+  });
+  expect(codexTurnRequestCount).toBe(1);
 
-  await expect(transcript.getByText(message, { exact: true })).toBeVisible();
-  await expect(transcript.getByText(`Mock assistant response to: ${message}`, {
+  await expect(transcript.getByText(message, { exact: true })).toHaveCount(1);
+  await expect(transcript.getByText(assistantResponse, {
     exact: true,
-  })).toBeVisible();
+  })).toHaveCount(1);
   await expect(composer).toHaveValue('');
   await expect(page.getByText(/Cannot read properties of undefined/iu)).toHaveCount(0);
   expect(pageErrors).toEqual([]);

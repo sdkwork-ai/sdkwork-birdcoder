@@ -2,8 +2,8 @@
 
 Status: active
 Owner: SDKWork maintainers
-Updated: 2026-07-23
-Specs: ARCHITECTURE_DECISION_SPEC.md, APP_PC_ARCHITECTURE_SPEC.md, DESKTOP_APP_ARCHITECTURE_SPEC.md, APP_SDK_INTEGRATION_SPEC.md, API_SPEC.md, SDK_SPEC.md, DATABASE_SPEC.md, SECURITY_SPEC.md, CONFIG_SPEC.md, DEPLOYMENT_SPEC.md
+Updated: 2026-07-27
+Specs: ARCHITECTURE_DECISION_SPEC.md, APP_PC_ARCHITECTURE_SPEC.md, DESKTOP_APP_ARCHITECTURE_SPEC.md, APP_SDK_INTEGRATION_SPEC.md, API_SPEC.md, SDK_SPEC.md, PAGINATION_SPEC.md, FRONTEND_SPEC.md, DATABASE_SPEC.md, SECURITY_SPEC.md, CONFIG_SPEC.md, DEPLOYMENT_SPEC.md
 
 ## 1. Architecture Overview
 
@@ -23,7 +23,9 @@ PC browser/Tauri
 
 There is no BirdCoder server business database and no second Workspace,
 Project, Session, transcript, or runtime-location aggregate. Canonical Workspace
-and Project aggregates live in `sdkwork-agents`.
+and Project aggregates live in `sdkwork-agents`. The Agents Session Activity
+summary is the canonical cross-application list snapshot; PC consumes it as a
+disposable in-memory projection.
 
 ## 2. Technology Choices
 
@@ -163,6 +165,73 @@ When a Session needs local execution context:
 4. Native paths remain in the Tauri boundary.
 5. A missing mount, id, permission, or binding fails closed.
 
+### Session Activity Inbox
+
+The Agents App API operation
+`GET /app/v3/api/ai/session_activity_summaries` is the owner-scoped,
+cursor-paginated current-state projection for Session lists. Each row composes
+the durable Session, latest relevant Turn, deterministic pending Interaction,
+current Runtime Binding, owner Session user state, provider session identity,
+owner fact versions, freshness, and effective presentation phase. No
+server-monotonic aggregate activity revision is assumed. Managed Turn,
+Interaction, Runtime Binding, or user-state activity may therefore advance even
+when the Session version is unchanged.
+
+```text
+Agents Session Activity summary
+  -> generated Agents SDK and injected Session service
+  -> subject-and-Workspace-scoped workbench coordinator
+  -> disposable Projects Store projection
+  -> Code and Studio Session lists
+```
+
+Every refresh starts with a null cursor and may follow `nextCursor` only for
+that bounded traversal. A cursor is not a durable change-feed watermark. Head
+eligibility and ordering come from Agents-managed Session, Turn, Interaction,
+Runtime Binding, and Session user-state facts. Query-time provider observation
+may enrich only rows already selected in the current page; provider-only
+activity cannot insert or reorder an old Session at the head. The coordinator
+deduplicates subscribers, discards superseded responses, pauses while offline
+or hidden, backs off after failure, and refreshes on resume or a scoped
+invalidation.
+
+Browser contexts broadcast only
+`workspace-session-inbox.invalidate` plus a validated scope key. They never
+broadcast Session rows, transcripts, tokens, provider observations, or provider
+payloads. Receivers re-read Agents. The Projects Store projection remains
+in-memory and is not a persistence or synchronization authority.
+
+Fresh provider evidence may refine the effective phase of a row already
+returned by the managed head. It cannot establish head eligibility or replace
+the durable lifecycle. Unregistered, unavailable, non-indexable, expired, or
+stale evidence fails closed to neutral stale or unknown presentation. File
+modification timestamps and static provider history are not live activity. The
+workbench materializes finite freshness expiry centrally; it does not assign an
+invented TTL to a durable managed Turn that remains running.
+
+Code and Studio render the provider badge as the leftmost visual item and a
+present, known runtime-status icon at the far right. `queued` and `running` map
+to animated initializing and streaming states. Approval, tool, and user-input
+waits are static attention; failed is static failure; stale is static neutral.
+Unknown, `null`, or absent runtime status has no label, icon, or reserved slot.
+The title truncates in the remaining width. Time or rendered status text is in
+an auto-aligned, end-justified trailing metadata region immediately before the
+rightmost runtime icon; Studio does not render time beneath the title. Global
+views form the complete currently loaded inventory, then filter,
+globally sort, and finally render or virtualize. Background synchronization
+never replaces an explicit Session selection.
+
+#### Launch Blockers
+
+This consumer architecture is not production-complete until Agents and Kernel
+maintainers approve executable evidence for: a bounded indexed PostgreSQL P1
+head projection; collision-safe tenant/organization/provider/runtime/provider
+Session identity; Project deletion tombstone and pagination semantics; and a
+persisted server-monotonic aggregate activity revision if that revision is
+declared part of the contract. Until those items close, provider-only activity
+cannot be described as complete head discovery, and clients use returned owner
+fact versions without claiming monotonic aggregate order.
+
 ## 6. PC Host And Composition Boundaries
 
 `ProjectDeviceMountRegistry` is the only PC project-to-local-directory
@@ -195,6 +264,9 @@ and target validation.
   evidence.
 - List operations use the owner API's bounded pagination. PC derives only
   disposable in-memory views and does not build replayed read authorities.
+- Session Activity invalidation messages contain scope only. Activity rows,
+  transcripts, credentials, and provider-native payloads stay on owner SDK
+  reads and never enter cross-context messaging or local persistence.
 - Metrics identify bounded route templates and dependency health, not tenant,
   user, Project, Session, message, path, or mount values.
 
@@ -218,6 +290,7 @@ setting.
 ## 9. Architecture Decision Index
 
 - [ADR-20260722 Owner-composed stateless workbench](../decisions/ADR-20260722-domain-ownership-and-single-write-authority.md)
+- [ADR-20260727 Owner-composed cross-application Session Activity Inbox](../decisions/ADR-20260727-cross-application-session-activity-inbox.md)
 - [Runtime topology](../topology-standard.md)
 - [PC architecture supplement](../../../apps/sdkwork-birdcoder-pc/docs/architecture/tech/TECH_ARCHITECTURE.md)
 

@@ -1,6 +1,7 @@
 import { memo, useId } from 'react';
 import { ChevronDown, ChevronRight, Copy, Lightbulb } from 'lucide-react';
 import type { ChatMessageContentBlockRendererProps } from './registry.ts';
+import { buildChatContentPreview } from '../contentPreview.ts';
 
 function formatReasoningDuration(durationMs: number | undefined): string {
   if (durationMs === undefined || !Number.isFinite(durationMs) || durationMs < 0) {
@@ -36,7 +37,12 @@ export const ReasoningContentBlock = memo(function ReasoningContentBlock({
   const collapseLabel = context.environment?.t('chat.reasoningCollapse') ?? 'Hide reasoning summary';
   const copyLabel = context.environment?.t('chat.reasoningCopy') ?? 'Copy reasoning summary';
   const singleItem = block.items.length === 1 ? block.items[0] : undefined;
-  const collapsedTitle = singleItem?.title?.trim();
+  const collapsedTitle = singleItem
+    ? singleItem.title?.trim() || buildChatContentPreview(singleItem.summary, {
+        maxCharacters: 240,
+        tailCharacters: 0,
+      }).text.replace(/\s+/gu, ' ').trim()
+    : '';
   const collapsedDuration = formatReasoningDuration(singleItem?.durationMs);
 
   return (
@@ -57,18 +63,19 @@ export const ReasoningContentBlock = memo(function ReasoningContentBlock({
         <span className="flex h-5 w-5 shrink-0 items-center justify-center text-violet-300/80">
           <Lightbulb size={13} aria-hidden="true" />
         </span>
-        <span className="shrink-0 font-medium text-gray-400">{summaryLabel}</span>
-        {block.items.length > 1 ? (
-          <span className="shrink-0 tabular-nums text-[10px] text-gray-600" aria-hidden="true">
-            {block.items.length}
-          </span>
-        ) : null}
-        {collapsedTitle ? (
-          <span className="min-w-0 flex-1 truncate text-gray-600" title={collapsedTitle}>
+        {singleItem ? (
+          <span className="min-w-0 flex-1 truncate text-gray-500" title={collapsedTitle}>
             {collapsedTitle}
           </span>
         ) : (
-          <span className="min-w-0 flex-1" />
+          <>
+            <span className="min-w-0 flex-1 truncate font-medium text-gray-400">
+              {summaryLabel}
+            </span>
+            <span className="shrink-0 tabular-nums text-[10px] text-gray-600" aria-hidden="true">
+              {block.items.length}
+            </span>
+          </>
         )}
         {collapsedDuration ? (
           <span className="shrink-0 font-mono text-[10px] tabular-nums text-gray-600">

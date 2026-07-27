@@ -25,7 +25,7 @@ Conversation, Message, Session, or transcript authority.
 
 - IAM credentials use the shared mobile TokenManager and native secure storage.
 - Human IM Conversation and Message facts remain separate from AI Session Items.
-- Provider SDKs, native provider sessions, and execution credentials never enter
+- Provider SDKs, provider Sessions, and execution credentials never enter
   the Flutter feature layer.
 - Backend API and Open API consumers are absent because BirdCoder owns neither
   surface.

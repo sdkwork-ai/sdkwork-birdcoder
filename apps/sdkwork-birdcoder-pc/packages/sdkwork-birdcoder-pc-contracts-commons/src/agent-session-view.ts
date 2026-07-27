@@ -16,10 +16,87 @@ export type AgentSessionDisplayStatus = (typeof AGENT_SESSION_DISPLAY_STATUSES)[
 
 export const AGENT_SESSION_RUNTIME_DISPLAY_STATUSES = [
   'initializing', 'ready', 'streaming', 'awaiting_tool', 'awaiting_approval',
-  'awaiting_user', 'completed', 'failed', 'terminated', 'cancelled',
+  'awaiting_user', 'completed', 'failed', 'terminated', 'cancelled', 'unknown',
+  'stale',
 ] as const;
 export type AgentSessionRuntimeDisplayStatus =
   (typeof AGENT_SESSION_RUNTIME_DISPLAY_STATUSES)[number];
+
+export const AGENT_SESSION_ACTIVITY_PHASES = [
+  'ready', 'queued', 'running', 'waiting', 'awaiting_input', 'completed',
+  'failed', 'cancelled', 'idle', 'closed', 'archived', 'deleted', 'unknown',
+] as const;
+export type AgentSessionActivityPhase = (typeof AGENT_SESSION_ACTIVITY_PHASES)[number];
+
+export const AGENT_SESSION_ACTIVITY_FRESHNESS_VALUES = [
+  'fresh', 'stale', 'unsupported', 'unavailable',
+] as const;
+export type AgentSessionActivityFreshness =
+  (typeof AGENT_SESSION_ACTIVITY_FRESHNESS_VALUES)[number];
+
+export type AgentSessionActivitySource =
+  | 'session' | 'turn' | 'interaction' | 'runtime_binding' | 'user_state';
+
+export interface AgentSessionActivityVersionsView {
+  session: string;
+  latestTurn?: string;
+  latestInteractionId?: string;
+  latestInteraction?: string;
+  latestRuntimeBindingId?: string;
+  latestRuntimeBinding?: string;
+  pendingInteraction?: string;
+  currentRuntimeBinding?: string;
+  userState?: string;
+}
+
+export interface AgentSessionLatestTurnActivityView {
+  id: string;
+  status: 'requested' | 'running' | 'completed' | 'failed' | 'cancelled';
+  updatedAt: string;
+  version: string;
+}
+
+export interface AgentSessionPendingInteractionActivityView {
+  id: string;
+  kind: 'approval' | 'user_question';
+  status: string;
+  updatedAt: string;
+  version: string;
+}
+
+export interface AgentSessionRuntimeBindingActivityView {
+  id: string;
+  status: 'active' | 'deactivated' | 'failed' | 'deleted';
+  updatedAt: string;
+  version: string;
+}
+
+export interface AgentSessionProviderActivityView {
+  state?: 'idle' | 'working' | 'waiting' | 'failed';
+  freshness: AgentSessionActivityFreshness;
+  evidenceKind?: 'provider_status' | 'provider_event' | 'provider_lock' | 'provider_process';
+  interactionHint?: 'approval_required' | 'user_input_required';
+  observedAt?: string;
+  freshUntil?: string;
+}
+
+/**
+ * Disposable projection of the sdkwork-agents activity snapshot. It is not an
+ * API DTO or persistence authority.
+ */
+export interface AgentSessionActivityView {
+  activityAt: string;
+  source: AgentSessionActivitySource;
+  observedAt?: string;
+  freshUntil?: string;
+  freshness: AgentSessionActivityFreshness;
+  phase: AgentSessionActivityPhase;
+  versions: AgentSessionActivityVersionsView;
+  latestTurn?: AgentSessionLatestTurnActivityView;
+  pendingInteraction?: AgentSessionPendingInteractionActivityView;
+  runtimeBinding?: AgentSessionRuntimeBindingActivityView;
+  provider?: AgentSessionProviderActivityView;
+}
 
 export const AGENT_SESSION_ARTIFACT_DISPLAY_KINDS = [
   'diff', 'patch', 'file', 'command-log', 'todo-list', 'pty-transcript',
@@ -183,6 +260,8 @@ export interface AgentSessionView {
   id: string;
   agentId: string;
   projectId: string;
+  activity?: AgentSessionActivityView;
+  runtimeBindingId?: string;
   runtimeLocationId?: string;
   title: string;
   status: AgentSessionDisplayStatus;
@@ -192,7 +271,7 @@ export interface AgentSessionView {
   providerId: string;
   providerBindingId?: string;
   transportKind?: string;
-  nativeSessionId?: string;
+  providerSessionId?: string;
   runtimeStatus?: AgentSessionRuntimeDisplayStatus;
   createdAt: string;
   updatedAt: string;
@@ -408,6 +487,33 @@ export function deduplicateAgentSessionItemViews(
   return deduplicated.length === items.length && deduplicated.every((item, index) => item === items[index])
     ? items as AgentSessionItemView[]
     : deduplicated;
+}
+
+function isSupersededTransientAgentSessionItem(
+  existingItem: AgentSessionItemView,
+  latestItems: readonly AgentSessionItemView[],
+): boolean {
+  if (existingItem.metadata?.transient !== true) {
+    return false;
+  }
+  const turnId = existingItem.turnId?.trim() ?? '';
+  if (!turnId) {
+    return false;
+  }
+  return latestItems.some((latestItem) =>
+    latestItem.turnId?.trim() === turnId
+    && latestItem.role === existingItem.role,
+  );
+}
+
+export function mergeLatestAgentSessionItems(
+  existingItems: readonly AgentSessionItemView[],
+  latestItems: readonly AgentSessionItemView[],
+): AgentSessionItemView[] {
+  const retainedExistingItems = existingItems.filter(
+    (existingItem) => !isSupersededTransientAgentSessionItem(existingItem, latestItems),
+  );
+  return deduplicateAgentSessionItemViews([...retainedExistingItems, ...latestItems]);
 }
 
 export function formatAgentSessionDisplayTime(

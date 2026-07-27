@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 
-const commonsInterfaceSource = fs.readFileSync(
+const workbenchInterfaceProxySource = fs.readFileSync(
   new URL(
     '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-workbench/src/services/interfaces/IFileSystemService.ts',
     import.meta.url,
@@ -30,9 +30,14 @@ const fileSystemHookSource = fs.readFileSync(
   'utf8',
 );
 
+assert.match(
+  workbenchInterfaceProxySource,
+  /export type \{[\s\S]*FileSystemChangeSubscriptionOptions,[\s\S]*IFileSystemService,[\s\S]*\} from '@sdkwork\/birdcoder-pc-infrastructure-runtime';/s,
+  'Workbench must re-export the canonical runtime file-system port instead of maintaining a duplicate interface.',
+);
+
 for (const [label, source] of [
-  ['commons', commonsInterfaceSource],
-  ['infrastructure', infrastructureInterfaceSource],
+  ['canonical infrastructure', infrastructureInterfaceSource],
 ]) {
   assert.match(
     source,
@@ -73,7 +78,7 @@ assert.match(
 
 assert.match(
   runtimeServiceSource,
-  /const trackedFileChangePaths = await this\.pollTrackedProjectFiles\(projectId\);/s,
+  /const trackedFileChangePaths = await this\.pollTrackedProjectFiles\(projectId, poller\);/s,
   'RuntimeFileSystemService should poll tracked file revisions in the same project poller that already handles directory changes.',
 );
 

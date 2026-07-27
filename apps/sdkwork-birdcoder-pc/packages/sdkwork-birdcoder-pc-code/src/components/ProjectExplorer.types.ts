@@ -37,8 +37,9 @@ export interface ProjectExplorerProps {
   onArchiveAgentSession?: (id: string, projectId: string) => void;
   onMarkAgentSessionUnread?: (id: string, projectId: string) => void;
   onCopyAgentSessionWorkingDirectory?: (id: string, projectId: string) => void;
-  onCopyAgentSessionSessionId?: (id: string, projectId: string) => void;
+  onCopyAgentSessionProviderSessionId?: (id: string, projectId: string) => void;
   onCopyAgentSessionDeeplink?: (id: string, projectId: string) => void;
+  onOpenAgentSessionInTerminal?: (id: string, projectId: string) => void;
   onForkAgentSessionLocal?: (id: string, projectId: string) => void;
   onForkAgentSessionNewTree?: (id: string, projectId: string) => void;
   refreshingProjectId?: string | null;

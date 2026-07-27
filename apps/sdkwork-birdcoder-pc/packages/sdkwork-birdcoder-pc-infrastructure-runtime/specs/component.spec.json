@@ -106,6 +106,14 @@
       {
         "name": "membershipCheckoutPort",
         "export": "./membershipSdkBootstrap"
+      },
+      {
+        "name": "pointsRechargePort",
+        "export": "./membershipSdkBootstrap"
+      },
+      {
+        "name": "couponRedemptionPort",
+        "export": "./membershipSdkBootstrap"
       }
     ],
     "requiredPorts": [
@@ -117,6 +125,18 @@
       },
       {
         "name": "membershipCheckoutPort",
+        "export": "./membershipSdkBootstrap",
+        "sourcePackage": "@sdkwork/birdcoder-pc-infrastructure",
+        "sourceExport": "./services/membershipSdkBootstrap"
+      },
+      {
+        "name": "pointsRechargePort",
+        "export": "./membershipSdkBootstrap",
+        "sourcePackage": "@sdkwork/birdcoder-pc-infrastructure",
+        "sourceExport": "./services/membershipSdkBootstrap"
+      },
+      {
+        "name": "couponRedemptionPort",
         "export": "./membershipSdkBootstrap",
         "sourcePackage": "@sdkwork/birdcoder-pc-infrastructure",
         "sourceExport": "./services/membershipSdkBootstrap"

@@ -14,29 +14,120 @@ const fileExplorerNameValidationSource = read(
   'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-ui/src/components/fileExplorerNameValidation.ts',
 );
 const useFileSystemSource = read('apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-workbench/src/hooks/useFileSystem.ts');
+const projectFileSystemRootContractSource = read(
+  'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-contracts-commons/src/workbench-view.ts',
+);
+const fileSystemServiceInterfaceSource = read(
+  'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/src/services/interfaces/IFileSystemService.ts',
+);
+const workbenchFileSystemServiceProxySource = read(
+  'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-workbench/src/services/interfaces/IFileSystemService.ts',
+);
 const runtimeFileSystemSource = read(
   'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/src/services/impl/RuntimeFileSystemService.ts',
+);
+const driveFileSystemSource = read(
+  'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/src/services/impl/DriveSandboxProjectFileSystemService.ts',
 );
 const tauriFileSystemSource = read(
   'crates/sdkwork-birdcoder-tauri-host/src/commands/filesystem_commands.rs',
 );
 
+function requireSourceRegion(source, pattern, description) {
+  const region = source.match(pattern)?.[0] ?? '';
+  assert.notEqual(region, '', description);
+  return region;
+}
+
+function assertTokensInOrder(source, tokens, description) {
+  let searchFrom = 0;
+  for (const token of tokens) {
+    const tokenIndex = source.indexOf(token, searchFrom);
+    assert.notEqual(tokenIndex, -1, `${description} Missing token: ${token}`);
+    searchFrom = tokenIndex + token.length;
+  }
+}
+
+const projectFileSystemRootContract = requireSourceRegion(
+  projectFileSystemRootContractSource,
+  /export interface ProjectFileSystemRoot \{[^}]+\}/,
+  'The shared contracts package must expose a first-class ProjectFileSystemRoot descriptor.',
+);
+
+for (const field of [
+  'displayName: string',
+  "host: LocalFolderMountSource['type'] | 'server'",
+  'projectId: string',
+  'virtualPath: string',
+]) {
+  assert.equal(
+    projectFileSystemRootContract.includes(field),
+    true,
+    `ProjectFileSystemRoot must expose ${field}.`,
+  );
+}
+
+assert.doesNotMatch(
+  projectFileSystemRootContract,
+  /\b(?:handle|nativePath|path)\??\s*:/,
+  'ProjectFileSystemRoot must not expose a browser handle or a host-native path.',
+);
+
 assert.match(
-  fileExplorerSource,
-  /function resolveRootCreationParentPath\(files: FileNode\[\]\): string \{/,
-  'FileExplorer must resolve the correct root creation parent path from the file tree before creating root files.',
+  fileSystemServiceInterfaceSource,
+  /resolveProjectRoot\(projectId: string\): Promise<ProjectFileSystemRoot \| null>;/,
+  'The stable file-system port must resolve the project root through the shared descriptor.',
+);
+
+assert.match(
+  workbenchFileSystemServiceProxySource,
+  /export type \{[\s\S]*IFileSystemService,[\s\S]*\} from '@sdkwork\/birdcoder-pc-infrastructure-runtime';/s,
+  'Workbench must re-export the canonical file-system port instead of maintaining a second interface.',
+);
+
+const runtimeResolveProjectRoot = requireSourceRegion(
+  runtimeFileSystemSource,
+  /async resolveProjectRoot\(projectId: string\): Promise<ProjectFileSystemRoot \| null> \{[\s\S]*?(?=\n  private getFilesForSubjectScope\()/,
+  'The local runtime provider must implement resolveProjectRoot.',
+);
+assert.match(
+  runtimeResolveProjectRoot,
+  /host: 'browser',[\s\S]*projectId: normalizedProjectId,[\s\S]*virtualPath: browserMount\.rootPath/,
+  'Browser mounts must resolve to the shared virtual-root descriptor.',
+);
+assert.match(
+  runtimeResolveProjectRoot,
+  /host: 'tauri',[\s\S]*projectId: normalizedProjectId,[\s\S]*virtualPath: tauriMount\.rootVirtualPath/,
+  'Tauri mounts must resolve to the same shared virtual-root descriptor.',
+);
+
+const driveResolveProjectRoot = requireSourceRegion(
+  driveFileSystemSource,
+  /async resolveProjectRoot\(projectId: string\): Promise<ProjectFileSystemRoot \| null> \{[\s\S]*?(?=\n  async loadDirectory\()/,
+  'The Drive provider must implement resolveProjectRoot.',
+);
+assert.match(
+  driveResolveProjectRoot,
+  /host: 'server',[\s\S]*projectId: normalizedProjectId,[\s\S]*virtualPath: state\.context\.virtualRootPath/,
+  'Cloud workspaces must resolve to the same shared virtual-root descriptor.',
 );
 
 assert.match(
   fileExplorerSource,
-  /const rootCreationParentPath = useMemo\(\(\) => resolveRootCreationParentPath\(files\), \[files\]\);/,
-  'FileExplorer must memoize the resolved root creation parent path from the current file tree.',
+  /projectRootPath\?: string;/,
+  'FileExplorer must receive the project virtual root as a first-class prop.',
+);
+
+assert.match(
+  fileExplorerSource,
+  /const rootCreationParentPath = useMemo\(\(\) => projectRootPath\.trim\(\), \[projectRootPath\]\);/,
+  'FileExplorer must derive root creation from the explicit projectRootPath prop.',
 );
 
 assert.doesNotMatch(
   fileExplorerSource,
-  /setCreatingNode\(\{ parentPath: '', type: 'file' \}\);/,
-  'FileExplorer must not create root files against an empty path when a mounted project root exists.',
+  /resolveRootCreationParentPath|files\s*\[\s*0\s*\]/,
+  'FileExplorer must not infer the project root from the first loaded tree node.',
 );
 
 assert.doesNotMatch(
@@ -66,13 +157,13 @@ assert.match(
 assert.match(
   useFileSystemSource,
   /function resolveMountedMutationPath\(path: string, mountedRootPath: string \| null\): string \{/,
-  'useFileSystem must normalize mutation paths against the mounted project root before file operations.',
+  'useFileSystem must normalize mutation paths against the resolved project virtual root.',
 );
 
 assert.match(
   useFileSystemSource,
-  /const resolveProjectMountedRootPath = useCallback\(\(\): string \| null => \{/,
-  'useFileSystem must resolve a stable mounted root path from the loaded device-mounted file tree, not from remote project metadata.',
+  /const resolveRequiredProjectRoot = useCallback\(async \([\s\S]*fileSystemService\.resolveProjectRoot\(targetProjectId\)/,
+  'useFileSystem must resolve the first-class project root through the stable file-system port.',
 );
 
 assert.match(
@@ -83,14 +174,42 @@ assert.match(
 
 assert.match(
   useFileSystemSource,
-  /const normalizedPath = resolveMountedMutationPath\(path, resolveProjectMountedRootPath\(\)\);\s*await ensureMountedProjectRoot\(mutationProjectId\);\s*await fileSystemService\.createFile\(mutationProjectId, normalizedPath\);/,
-  'useFileSystem must ensure the project root is mounted before creating files.',
+  /const \[projectRoot, setProjectRoot\] = useState<ProjectFileSystemRoot \| null>\(null\);[\s\S]*return \{\s*files,\s*projectRoot,/,
+  'useFileSystem must retain and expose ProjectFileSystemRoot as first-class state.',
 );
 
-assert.match(
+const createFileHandler = requireSourceRegion(
   useFileSystemSource,
-  /const normalizedPath = resolveMountedMutationPath\(path, resolveProjectMountedRootPath\(\)\);\s*await ensureMountedProjectRoot\(mutationProjectId\);\s*await fileSystemService\.createFolder\(mutationProjectId, normalizedPath\);/,
-  'useFileSystem must ensure the project root is mounted before creating folders.',
+  /const createFile = useCallback\(async \(path: string\) => \{[\s\S]*?(?=\n  const createFolder = useCallback)/,
+  'useFileSystem must expose an identifiable create-file mutation boundary.',
+);
+assertTokensInOrder(
+  createFileHandler,
+  [
+    'await ensureMountedProjectRoot(mutationProjectId);',
+    'const resolvedProjectRoot = await resolveRequiredProjectRoot(mutationProjectId);',
+    'const normalizedPath = resolveMountedMutationPath(',
+    'resolvedProjectRoot.virtualPath,',
+    'await fileSystemService.createFile(mutationProjectId, normalizedPath);',
+  ],
+  'File creation must recover the mount, resolve the root, normalize the mutation path, and then create.',
+);
+
+const createFolderHandler = requireSourceRegion(
+  useFileSystemSource,
+  /const createFolder = useCallback\(async \(path: string\) => \{[\s\S]*?(?=\n  const deleteFile = useCallback)/,
+  'useFileSystem must expose an identifiable create-folder mutation boundary.',
+);
+assertTokensInOrder(
+  createFolderHandler,
+  [
+    'await ensureMountedProjectRoot(mutationProjectId);',
+    'const resolvedProjectRoot = await resolveRequiredProjectRoot(mutationProjectId);',
+    'const normalizedPath = resolveMountedMutationPath(',
+    'resolvedProjectRoot.virtualPath,',
+    'await fileSystemService.createFolder(mutationProjectId, normalizedPath);',
+  ],
+  'Folder creation must recover the mount, resolve the root, normalize the mutation path, and then create.',
 );
 
 assert.match(

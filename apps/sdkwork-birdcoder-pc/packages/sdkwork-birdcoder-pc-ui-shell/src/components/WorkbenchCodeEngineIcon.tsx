@@ -1,4 +1,8 @@
 import { cn } from '../lib/utils';
+import {
+  resolveProviderVisualIdentity,
+  resolveProviderVisualToneClassName,
+} from './providerVisualIdentity';
 
 export interface WorkbenchCodeEngineIconProps {
   engineId: string | null | undefined;
@@ -7,53 +11,10 @@ export interface WorkbenchCodeEngineIconProps {
   size?: 'sm' | 'md';
 }
 
-const THEME_CLASS_BY_ID = {
-  amber: {
-    container: 'bg-amber-500/15 text-amber-300 ring-amber-500/20',
-    label: 'text-amber-200',
-  },
-  blue: {
-    container: 'bg-blue-500/15 text-blue-300 ring-blue-500/20',
-    label: 'text-blue-200',
-  },
-  emerald: {
-    container: 'bg-emerald-500/15 text-emerald-300 ring-emerald-500/20',
-    label: 'text-emerald-200',
-  },
-  violet: {
-    container: 'bg-violet-500/15 text-violet-300 ring-violet-500/20',
-    label: 'text-violet-200',
-  },
-} as const;
-
 const SIZE_CLASS_BY_ID = {
   md: 'h-7 min-w-7 px-2 text-[11px]',
   sm: 'h-5 min-w-5 px-1.5 text-[9px]',
 } as const;
-
-const UNKNOWN_ENGINE_THEME_CLASSES = {
-  container: 'bg-white/5 text-gray-400 ring-white/10',
-  label: 'text-gray-300',
-} as const;
-
-const ENGINE_PRESENTATION: Readonly<
-  Record<string, { label: string; monogram: string; theme: keyof typeof THEME_CLASS_BY_ID }>
-> = {
-  codex: { label: 'Codex', monogram: 'CX', theme: 'blue' },
-  'claude-code': { label: 'Claude Code', monogram: 'CC', theme: 'amber' },
-  gemini: { label: 'Gemini', monogram: 'GM', theme: 'emerald' },
-  opencode: { label: 'OpenCode', monogram: 'OC', theme: 'violet' },
-};
-
-function buildUnknownEngineMonogram(engineId: string | null | undefined): string {
-  const normalizedValue = engineId?.trim() ?? '';
-  const alphanumericValue = normalizedValue.replace(/[^a-z0-9]/giu, '');
-  if (alphanumericValue.length === 0) {
-    return '??';
-  }
-
-  return alphanumericValue.slice(0, 2).toUpperCase();
-}
 
 export function WorkbenchCodeEngineIcon({
   engineId,
@@ -61,26 +22,24 @@ export function WorkbenchCodeEngineIcon({
   labelClassName,
   size = 'sm',
 }: WorkbenchCodeEngineIconProps) {
-  const normalizedEngineId = engineId?.trim().toLowerCase() ?? '';
-  const presentation = ENGINE_PRESENTATION[normalizedEngineId];
-  const themeClasses = presentation
-    ? THEME_CLASS_BY_ID[presentation.theme]
-    : UNKNOWN_ENGINE_THEME_CLASSES;
-  const label = presentation?.label ?? engineId?.trim() ?? '';
-  const monogram = presentation?.monogram ?? buildUnknownEngineMonogram(engineId);
+  const visualIdentity = resolveProviderVisualIdentity({ engineId });
 
   return (
     <span
       className={cn(
-        'inline-flex shrink-0 items-center justify-center rounded-md font-semibold uppercase tracking-[0.12em] ring-1',
+        'inline-flex shrink-0 items-center justify-center rounded font-semibold uppercase leading-none tracking-normal ring-1 ring-inset',
         SIZE_CLASS_BY_ID[size],
-        themeClasses.container,
+        resolveProviderVisualToneClassName(visualIdentity.tone),
         className,
       )}
-      title={label}
-      aria-label={label}
+      aria-label={visualIdentity.label}
+      data-provider-abbreviation={visualIdentity.abbreviation}
+      data-provider-identity-icon="true"
+      data-provider-id={visualIdentity.id}
+      data-provider-tone={visualIdentity.tone}
+      title={visualIdentity.label}
     >
-      <span className={cn(themeClasses.label, labelClassName)}>{monogram}</span>
+      <span className={cn(labelClassName)}>{visualIdentity.abbreviation}</span>
     </span>
   );
 }

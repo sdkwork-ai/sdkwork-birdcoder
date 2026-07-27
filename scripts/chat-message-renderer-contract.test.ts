@@ -10,6 +10,13 @@ import {
 import {
   resolveMessageActionTargetCopyText,
 } from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-ui/src/components/chat/messages/messageActions.ts';
+import {
+  CHAT_MESSAGE_INLINE_CODE_PROSE_CLASSNAME,
+} from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-ui/src/components/chat/messages/messageLayout.ts';
+import {
+  CHAT_ENGINE_PRESENTATION_PROFILES,
+  createEngineChatMessageRendererEntries,
+} from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-ui/src/components/chat/messages/plugins/enginePlugins.tsx';
 
 const chatMessageViewSource = readFileSync(
   new URL(
@@ -49,6 +56,27 @@ const contentBlockDefaultRegistrySource = readFileSync(
 const contentBlockRenderersSource = readFileSync(
   new URL(
     '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-ui/src/components/chat/messages/contentBlocks/ContentBlockRenderers.tsx',
+    import.meta.url,
+  ),
+  'utf8',
+);
+const activitySummarySource = readFileSync(
+  new URL(
+    '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-ui/src/components/chat/messages/activity/ChatActivitySummary.tsx',
+    import.meta.url,
+  ),
+  'utf8',
+);
+const commandActivitySource = readFileSync(
+  new URL(
+    '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-ui/src/components/chat/messages/activity/ChatCommandActivityList.tsx',
+    import.meta.url,
+  ),
+  'utf8',
+);
+const fileActivitySource = readFileSync(
+  new URL(
+    '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-ui/src/components/chat/messages/activity/ChatFileActivityList.tsx',
     import.meta.url,
   ),
   'utf8',
@@ -135,6 +163,21 @@ assert.ok(
 );
 assert.match(boundedContentPreview.text, /^preview-head:/u);
 assert.match(boundedContentPreview.text, /:preview-tail$/u);
+
+assert.deepEqual(
+  CHAT_ENGINE_PRESENTATION_PROFILES.map((profile) => profile.engineId),
+  ['codex', 'claude-code', 'opencode', 'gemini'],
+  'Provider variability must be declared in explicit engine presentation profiles.',
+);
+const engineRendererEntries = createEngineChatMessageRendererEntries();
+assert.equal(engineRendererEntries.length, CHAT_ENGINE_PRESENTATION_PROFILES.length * 3);
+for (const profile of CHAT_ENGINE_PRESENTATION_PROFILES) {
+  assert.equal(
+    engineRendererEntries.filter((entry) => entry.match.engineId === profile.engineId).length,
+    3,
+    `${profile.surfaceLabel} must explicitly own text, activity, and tool-result render matches.`,
+  );
+}
 
 const boundedSingleLineDiff = buildChatLinePreview(
   `+${'a'.repeat(MAX_CHAT_CONTENT_PREVIEW_CHARACTERS * 2)}`,
@@ -231,7 +274,7 @@ assert.match(
 );
 assert.match(
   enginePluginsSource,
-  /ENGINE_SURFACE_LABELS[\s\S]*codex:[\s\S]*'claude-code':[\s\S]*gemini:[\s\S]*opencode:/,
+  /CHAT_ENGINE_PRESENTATION_PROFILES[\s\S]*engineId: 'codex'[\s\S]*engineId: 'claude-code'[\s\S]*engineId: 'opencode'[\s\S]*engineId: 'gemini'/,
   'Engine transcript labels must cover every built-in code engine.',
 );
 assert.match(
@@ -241,8 +284,8 @@ assert.match(
 );
 assert.match(
   enginePluginsSource,
-  /const isAuthoredReply =[\s\S]*const showEngineLabel = isAuthoredReply && props\.view\.blocks\.some\([\s\S]*block\.type === 'markdown' && !block\.noticeKind/,
-  'Engine identity must follow visible authored Markdown, including mixed activity replies, and stay off protocol-only rows.',
+  /const isAuthoredReply =[\s\S]*const showEngineLabel = props\.context\.layout === 'sidebar'[\s\S]*&& isAuthoredReply[\s\S]*props\.view\.blocks\.some\([\s\S]*block\.type === 'markdown'[\s\S]*&& !block\.noticeKind/,
+  'Engine identity must stay in sidebars, follow visible authored Markdown, and stay off main or protocol-only rows.',
 );
 assert.doesNotMatch(
   enginePluginsSource,
@@ -305,9 +348,34 @@ assert.match(
   'activity block rendering must delegate to ChatActivitySummary.',
 );
 assert.match(
+  activitySummarySource,
+  /<ChatCommandActivityList[\s\S]*<ChatFileActivityList/,
+  'The activity container must delegate independently evolving command and file details.',
+);
+assert.match(
+  commandActivitySource,
+  /ranCommandPrefix[\s\S]*data-chat-command-disclosure/,
+  'Command activity must use action-oriented Ran rows with an independent disclosure.',
+);
+assert.match(
+  fileActivitySource,
+  /data-chat-file-disclosure[\s\S]*data-chat-file-inline-diff/,
+  'File activity must own its disclosure and bounded inline diff presentation.',
+);
+assert.match(
   contentBlockRenderersSource,
   /<ToolCallCard/,
   'tool-calls block rendering must delegate to structured ToolCallCard components.',
+);
+assert.match(
+  CHAT_MESSAGE_INLINE_CODE_PROSE_CLASSNAME,
+  /prose-code:before:content-none[\s\S]*prose-code:after:content-none/,
+  'Inline message code must suppress typography pseudo-content instead of showing Markdown backticks.',
+);
+assert.match(
+  contentBlockRenderersSource,
+  /CHAT_MESSAGE_INLINE_CODE_PROSE_CLASSNAME/,
+  'Content-block Markdown must reuse the inline-code presentation contract.',
 );
 assert.match(
   toolCallCardSource,

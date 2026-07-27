@@ -1,4 +1,4 @@
-export const APP_NAME = 'SDKWork BirdCoder';
+export const APP_NAME = 'Birdcoder';
 export const APP_VERSION = '1.0.0';
 
 export { parseBirdCoderApiJson } from '@sdkwork/birdcoder-pc-contracts-commons';
@@ -13,6 +13,7 @@ export * from './hooks/useProjectLocalWorkingDirectory.ts';
 export * from './hooks/useProjectRuntimeLocation.ts';
 export * from './hooks/usePersistedState.ts';
 export * from './hooks/useProjectGitOverview.ts';
+export * from './workbench/projectGitOverviewSubscription.ts';
 export * from './hooks/useProjectGitMutationActions.ts';
 export * from './hooks/useProjectRunConfigurations.ts';
 export * from './hooks/useSelectedAgentSessionItems.ts';
@@ -75,6 +76,7 @@ export * from './workbench/sessionRefresh.ts';
 export * from './workbench/projectInventoryRender.ts';
 export {
   buildDriveMediaResourceContentBlock,
+  resolveBirdCoderChatAttachmentPreviewUrl,
   resolveChatAttachmentUploadProfile,
   uploadBirdCoderChatAttachmentToDrive,
 } from '@sdkwork/birdcoder-pc-infrastructure/services/birdcoderDriveUpload';

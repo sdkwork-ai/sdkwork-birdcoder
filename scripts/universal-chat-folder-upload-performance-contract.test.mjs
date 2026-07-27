@@ -16,12 +16,6 @@ const enLocale = fs.readFileSync(
 
 assert.match(
   source,
-  /const MAX_FOLDER_UPLOAD_INPUT_CHARACTERS = \d+;/,
-  'UniversalChat should define an explicit total composer append budget for folder uploads so large directories cannot freeze the chat composer.',
-);
-
-assert.match(
-  source,
   /const MAX_SINGLE_FILE_UPLOAD_BYTES = \d+;/,
   'UniversalChat should define an explicit single-file byte limit before reading text into memory.',
 );
@@ -36,6 +30,12 @@ assert.match(
   source,
   /const MAX_IMAGE_UPLOAD_BYTES = \d+;/,
   'UniversalChat should define an explicit image byte limit before uploading attachments to Drive.',
+);
+
+assert.match(
+  source,
+  /const MAX_COMPOSER_ATTACHMENTS = \d+;/,
+  'UniversalChat should bound the number of attachment cards and concurrent uploads in one composer.',
 );
 
 assert.match(
@@ -70,49 +70,37 @@ assert.doesNotMatch(
 
 assert.match(
   source,
-  /const MAX_FOLDER_UPLOAD_FILE_CHARACTERS = \d+;/,
-  'UniversalChat should define a per-file excerpt cap for folder uploads so a single large text file cannot monopolize the composer payload.',
-);
-
-assert.match(
-  source,
-  /function buildFolderUploadContentBlock\(/,
-  'UniversalChat should centralize folder-upload block construction behind a helper so truncation and formatting remain consistent.',
-);
-
-assert.match(
-  source,
   /function buildSingleFileUploadContentBlock\(/,
   'UniversalChat should centralize single-file upload block construction so truncation and formatting remain consistent.',
 );
 
 assert.match(
   source,
-  /if \(file\.size > MAX_IMAGE_UPLOAD_BYTES\) \{[\s\S]*addToast\(t\('chat\.imageTooLarge'\), 'error'\);[\s\S]*return;/s,
-  'UniversalChat should reject oversized images before uploading them to Drive.',
+  /const maxBytes = isImage \? MAX_IMAGE_UPLOAD_BYTES : MAX_SINGLE_FILE_UPLOAD_BYTES;[\s\S]*if \(file\.size > maxBytes\)/s,
+  'UniversalChat should reject oversized images and files before uploading them to Drive.',
 );
 
 assert.match(
   source,
-  /const driveUpload = await uploadBirdCoderChatAttachmentToDrive\([\s\S]*profile: 'image',[\s\S]*\);[\s\S]*const imageContentBlock = buildDriveMediaResourceContentBlock\([\s\S]*driveUpload\.mediaResource,[\s\S]*driveUpload\.previewUrl,[\s\S]*\);/s,
-  'UniversalChat should upload images through Drive and append a bounded media resource block to composer state.',
+  /const uploadComposerAttachment = useCallback\(async[\s\S]*uploadBirdCoderChatAttachmentToDrive\(\{[\s\S]*profile: resolveChatAttachmentUploadProfile\(attachment\.file\),[\s\S]*signal: controller\.signal,[\s\S]*buildDriveMediaResourceContentBlock\(/s,
+  'UniversalChat should upload every attachment through Drive with the canonical profile and an abortable request.',
 );
 
 assert.match(
   source,
-  /addToast\(t\('chat\.driveUploadFailed'\), 'error'\);/,
-  'UniversalChat should surface Drive upload failures through a dedicated chat toast key.',
+  /catch \(error\) \{[\s\S]*updateComposerAttachment\(attachment\.id,[\s\S]*status: 'failed'/s,
+  'UniversalChat should surface Drive upload failures through a failed attachment card that remains retryable.',
+);
+
+assert.doesNotMatch(
+  source,
+  /t\('chat\.attachmentUploadFailedNamed'/,
+  'UniversalChat should not stack one toast per failed attachment because the tray already presents each failure.',
 );
 
 assert.match(
   source,
-  /if \(file\.size > MAX_SINGLE_FILE_UPLOAD_BYTES\) \{[\s\S]*addToast\(t\('chat\.fileTooLarge'\), 'error'\);[\s\S]*return;/s,
-  'UniversalChat should reject oversized single-file uploads before readFileAsText allocates file contents on the UI thread.',
-);
-
-assert.match(
-  source,
-  /const \{ block: fileContentBlock, isTruncated \} = buildSingleFileUploadContentBlock\(\s*file\.name,\s*content,\s*\);/s,
+  /const fileContent = buildSingleFileUploadContentBlock\(\s*attachment\.displayName,\s*content,\s*\);/s,
   'UniversalChat should build single-file upload content through the bounded truncating helper.',
 );
 
@@ -128,10 +116,10 @@ assert.doesNotMatch(
   'UniversalChat should not append an unbounded image data URL directly into the composer.',
 );
 
-assert.match(
+assert.doesNotMatch(
   source,
-  /if \(nextInputLength > MAX_FOLDER_UPLOAD_INPUT_CHARACTERS\) \{/,
-  'UniversalChat should stop appending folder-upload content once the composer budget is reached.',
+  /setInputValue\([\s\S]{0,200}driveContentBlock/,
+  'Attachment resource blocks must stay out of visible textarea state.',
 );
 
 assert.match(
@@ -193,5 +181,12 @@ assert.match(
   /driveUploadFailed:/,
   'English chat locale should expose a dedicated Drive upload failure message.',
 );
+
+for (const locale of [zhLocale, enLocale]) {
+  assert.match(locale, /attachmentUploading:/);
+  assert.match(locale, /attachmentUploadFailed:/);
+  assert.match(locale, /removeAttachment:/);
+  assert.match(locale, /retryAttachment:/);
+}
 
 console.log('universal chat folder upload performance contract passed.');

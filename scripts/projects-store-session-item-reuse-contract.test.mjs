@@ -125,7 +125,7 @@ assert.equal(
   'projectsStore should reuse an existing Session Item array when an authority refresh contains equivalent items.',
 );
 
-const refreshedNativeSessionProjects = upsertAgentSessionIntoCollection(
+const refreshedProviderSessionProjects = upsertAgentSessionIntoCollection(
   [
     buildProject({
       agentSessions: [buildAgentSession({ items: existingItems })],
@@ -134,22 +134,22 @@ const refreshedNativeSessionProjects = upsertAgentSessionIntoCollection(
   'project-1',
   buildAgentSession({
     items: refreshedItems,
-    nativeSessionId: 'store-native-session',
+    providerSessionId: 'store-provider-session',
   }),
 );
-const refreshedNativeSession = refreshedNativeSessionProjects[0]?.agentSessions.find(
+const refreshedProviderSession = refreshedProviderSessionProjects[0]?.agentSessions.find(
   (agentSession) => agentSession.id === 'session-1',
 );
 
 assert.notEqual(
-  refreshedNativeSession?.nativeSessionId,
+  refreshedProviderSession?.providerSessionId,
   undefined,
-  'projectsStore should adopt nativeSessionId-only authority updates instead of reusing a stale coding session object.',
+  'projectsStore should adopt providerSessionId-only authority updates instead of reusing a stale coding session object.',
 );
 assert.equal(
-  refreshedNativeSession?.items,
+  refreshedProviderSession?.items,
   existingItems,
-  'projectsStore should still reuse equivalent Session Item arrays when adopting a nativeSessionId-only update.',
+  'projectsStore should still reuse equivalent Session Item arrays when adopting a providerSessionId-only update.',
 );
 
 console.log('projects store Agent Session Item reuse contract passed.');

@@ -21,6 +21,11 @@ export default defineLocaleModule('studio/preview', {
     "alipay": "支付宝",
     "rotateDevice": "旋转设备",
     "openInNewTab": "在新标签页中打开",
+    "browserAddress": "浏览器地址",
+    "browserBack": "后退",
+    "browserForward": "前进",
+    "browserNavigate": "访问",
+    "browserPreviewTitle": "浏览器预览",
     "code": "代码"
   }
 });

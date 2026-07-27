@@ -13,6 +13,7 @@ const requiredManifestPaths = [
   'apps/sdkwork-birdcoder-pc/sdkwork.app.config.json',
   'apps/sdkwork-birdcoder-h5/sdkwork.app.config.json',
   'apps/sdkwork-birdcoder-flutter-mobile/sdkwork.app.config.json',
+  'apps/sdkwork-birdcoder-mini-program/sdkwork.app.config.json',
 ];
 const releaseBlockers = [
   'signed-production-artifact-evidence-missing',
@@ -34,6 +35,9 @@ const expectedSurfacePackages = {
     ['APP_ANDROID', 'flutter-android', 'android', 'flutter'],
     ['APP_IOS', 'flutter-ios', 'ios', 'flutter'],
   ],
+  'apps/sdkwork-birdcoder-mini-program/sdkwork.app.config.json': [
+    ['MP_WEIXIN', 'mini-program', 'mp-weixin', 'mini-program'],
+  ],
 };
 
 const discoveredPaths = listSdkworkAppManifestPaths(rootDir).map((absolutePath) =>
@@ -50,11 +54,18 @@ for (const relativePath of requiredManifestPaths) {
   assert.equal(manifest.publish?.preLaunch, true, `${relativePath} must remain pre-launch.`);
   assert.equal(manifest.metadata?.preLaunch, true, `${relativePath} metadata must remain pre-launch.`);
   assert.equal(manifest.metadata?.deploymentConfig, 'etc/sdkwork.deployment.config.json');
-  assert.deepEqual(manifest.metadata?.releaseEvidence, {
-    status: 'blocked',
-    verifiedAt: '2026-07-22',
-    blockers: releaseBlockers,
-  });
+  const expectedReleaseEvidence = relativePath === 'apps/sdkwork-birdcoder-mini-program/sdkwork.app.config.json'
+    ? {
+        status: 'blocked',
+        verifiedAt: '2026-07-26',
+        blockers: [...releaseBlockers, 'wechat-devtools-upload-evidence-missing'],
+      }
+    : {
+        status: 'blocked',
+        verifiedAt: '2026-07-22',
+        blockers: releaseBlockers,
+      };
+  assert.deepEqual(manifest.metadata?.releaseEvidence, expectedReleaseEvidence);
   assert.equal(manifest.release?.currentVersion, '0.1.0');
   assert.equal(manifest.release?.defaultChannel, 'INTERNAL');
   assert.deepEqual(manifest.release?.latest, { INTERNAL: '0.1.0' });
@@ -69,7 +80,7 @@ for (const relativePath of requiredManifestPaths) {
   for (const pkg of packages) {
     assert.equal(pkg.enabled, false, `${relativePath} package ${pkg.id} must remain disabled.`);
     assert.equal(pkg.checksum, undefined, `${relativePath} package ${pkg.id} must not use a placeholder checksum.`);
-    assert.equal(pkg.profileBinding, 'fixed');
+    assert.ok(['fixed', 'runtime-configurable'].includes(pkg.profileBinding));
     assert.equal(pkg.metadata?.releaseBuildDeferred, true);
   }
 

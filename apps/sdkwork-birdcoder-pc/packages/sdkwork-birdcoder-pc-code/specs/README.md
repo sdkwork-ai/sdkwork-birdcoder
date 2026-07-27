@@ -1,6 +1,6 @@
 # SDKWork Birdcoder Code Component Specs
 
-This directory is the local standards index for `@sdkwork/birdcoder-code`.
+This directory is the local standards index for `@sdkwork/birdcoder-pc-code`.
 
 Root SDKWork standards remain authoritative. Local component specs can narrow or document this component, but they must not contradict [the root standards](../../../../../specs/README.md).
 
@@ -8,7 +8,7 @@ Root SDKWork standards remain authoritative. Local component specs can narrow or
 
 | Field | Value |
 | --- | --- |
-| Name | `@sdkwork/birdcoder-code` |
+| Name | `@sdkwork/birdcoder-pc-code` |
 | Type | `react-package` |
 | Root | `sdkwork-birdcoder/packages/sdkwork-birdcoder-code` |
 | Domain | `platform` |
@@ -50,6 +50,25 @@ Root SDKWork standards remain authoritative. Local component specs can narrow or
 
 - No local extension specs are declared yet.
 
+## Session List Projection
+
+Code consumes the workbench's disposable projection of the canonical Agents
+Session Activity summary. It does not derive activity from the Session version,
+provider files, or local persistence. Chronological and provider views collect
+every currently loaded Session before filtering and global sorting, then
+virtualize the sorted rows. Project-local expansion and remote page
+continuation do not cap that global candidate set.
+
+Rows present provider identity as the leftmost visual item and use the shared PC
+UI runtime-status component at the far right. Initializing and streaming are
+animated busy states; waits, failure, and stale are static. Unknown, `null`, or
+absent runtime status is silent and reserves no slot. The title truncates in
+remaining space and `data-session-trailing-metadata="true"` identifies the
+auto-aligned right-side time/status-text region before the runtime icon.
+Background inventory or activity synchronization must not replace an explicit
+Code Session selection.
+
 ## Verification
 
-- `pnpm --filter @sdkwork/birdcoder-code typecheck`
+- `pnpm --filter @sdkwork/birdcoder-pc-code typecheck`
+- `node scripts/run-local-tsx.mjs scripts/session-list-presentation-contract.test.tsx`

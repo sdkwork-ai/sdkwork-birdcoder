@@ -21,8 +21,8 @@ export function createDefaultBirdCoderIdeServices(
   return {
     agentSessionService: new BirdCoderAgentSessionService({
       client: runtime.agentsClient,
-      nativeDirectoryIdentityProvider: (projectId) =>
-        runtime.projectDeviceMountRegistry.resolveBrowserNativeDirectoryIdentity(projectId),
+      providerSessionDirectoryIdentityProvider: (projectId) =>
+        runtime.projectDeviceMountRegistry.resolveProviderSessionDirectoryIdentity(projectId),
     }),
     authService: runtime.authService,
     catalogService: new ApiBackedCatalogService({

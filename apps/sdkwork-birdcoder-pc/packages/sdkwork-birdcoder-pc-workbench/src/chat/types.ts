@@ -34,6 +34,7 @@ export {
   resolveAgentTurnActivityPresentation,
   resolveAgentSessionItemPresentation,
   resolveAgentSessionItemPresentations,
+  isAgentSessionItemVisibleInTranscript,
   resolveSessionItemCopyContent,
   resolveAgentSessionActivityFileChangeViews,
   resolveTaskProgressDisplayState,

@@ -9,10 +9,10 @@ Use ignored `*.local.*` files and platform secret injection for private values.
 
 ## Client materialization
 
-Run `pnpm config:materialize` after changing a topology profile. It deterministically derives the
+Run `pnpm workflow:materialize-client-env` after changing a topology profile. It deterministically derives the
 PC and H5 `.env.<standalone|cloud>.<environment>` files plus Flutter
 `env/sdkwork.<standalone|cloud>.<environment>.json` dart-define files. These client files contain
-only safe public/runtime selectors and a blank bootstrap token field. Run `pnpm config:check` in CI
+only safe public/runtime selectors and a blank bootstrap token field. Run `pnpm check:client-env` in CI
 or before a build to reject missing or stale derived profiles.
 
 ## Code-engine sandbox policy

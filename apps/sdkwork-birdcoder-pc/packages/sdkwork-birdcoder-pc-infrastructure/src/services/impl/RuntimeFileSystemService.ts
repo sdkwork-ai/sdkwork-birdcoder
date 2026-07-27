@@ -4,6 +4,7 @@ import {
   type FileRevisionLookupResult,
   type ProjectDeviceMountRecoveryResult,
   type ProjectDeviceMountState,
+  type ProjectFileSystemRoot,
   type ProjectFileSystemChangeEvent,
   type IFileNode,
   type LocalFolderMountSource,
@@ -899,6 +900,40 @@ export class RuntimeFileSystemService implements IFileSystemService {
   async getFiles(projectId: string): Promise<IFileNode[]> {
     const scope = await this.reconcileMountedProjectSubject();
     return this.getFilesForSubjectScope(projectId, scope);
+  }
+
+  async resolveProjectRoot(projectId: string): Promise<ProjectFileSystemRoot | null> {
+    const normalizedProjectId = projectId.trim();
+    if (!normalizedProjectId) {
+      return null;
+    }
+
+    const scope = await this.reconcileMountedProjectSubject();
+    if (!this.isProjectMountOwnedByScope(normalizedProjectId, scope)) {
+      return null;
+    }
+
+    const browserMount = this.projectBrowserMounts[normalizedProjectId];
+    if (browserMount) {
+      return {
+        displayName: browserMount.tree.name,
+        host: 'browser',
+        projectId: normalizedProjectId,
+        virtualPath: browserMount.rootPath,
+      };
+    }
+
+    const tauriMount = this.projectTauriMounts[normalizedProjectId];
+    if (!tauriMount) {
+      return null;
+    }
+
+    return {
+      displayName: tauriMount.tree.name,
+      host: 'tauri',
+      projectId: normalizedProjectId,
+      virtualPath: tauriMount.rootVirtualPath,
+    };
   }
 
   private getFilesForSubjectScope(

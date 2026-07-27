@@ -17,15 +17,21 @@ import {
   bootstrapSdkworkOrderAppService,
   configureSdkworkOrderAppServiceProvider,
   configureSdkworkOrderSessionTokenProvider,
+  createSdkworkCouponRechargeService,
   createSdkworkMembershipCheckoutService,
+  createSdkworkPointsRechargeService,
+  type SdkworkCouponRechargeService,
   type SdkworkMembershipCheckoutService,
+  type SdkworkPointsRechargeService,
 } from '@sdkwork/order-service';
 import { getBirdCoderGlobalTokenManager } from '@sdkwork/birdcoder-pc-core/appSessionTokenManager';
 import { getDefaultBirdCoderIdeServicesRuntimeConfig } from './defaultIdeServicesRuntime.ts';
 import { resolveBirdCoderDependencySdkBaseUrl } from './sdkBaseUrls.ts';
 
 let membershipSdkBootstrapped = false;
+let couponRechargeService: SdkworkCouponRechargeService | null = null;
 let membershipCheckoutService: SdkworkMembershipCheckoutService | null = null;
+let pointsRechargeService: SdkworkPointsRechargeService | null = null;
 
 function resolveMembershipApiBaseUrl(): string {
   const runtimeConfig = getDefaultBirdCoderIdeServicesRuntimeConfig();
@@ -74,7 +80,14 @@ export function bootstrapBirdCoderMembershipSdk(): void {
   membershipCheckoutService = createSdkworkMembershipCheckoutService({
     appService: orderAppService,
   });
+  pointsRechargeService = createSdkworkPointsRechargeService({
+    appService: orderAppService,
+  });
+  couponRechargeService = createSdkworkCouponRechargeService({
+    appService: orderAppService,
+  });
   configureSdkworkMembershipSessionTokenProvider(resolveMembershipSessionTokens);
+  configureSdkworkOrderSessionTokenProvider(resolveMembershipSessionTokens);
   membershipSdkBootstrapped = true;
 }
 
@@ -85,11 +98,27 @@ export function getBirdCoderMembershipCheckoutService(): SdkworkMembershipChecko
   return membershipCheckoutService;
 }
 
+export function getBirdCoderPointsRechargeService(): SdkworkPointsRechargeService {
+  if (!pointsRechargeService) {
+    throw new Error('BirdCoder points recharge service is not configured.');
+  }
+  return pointsRechargeService;
+}
+
+export function getBirdCoderCouponRechargeService(): SdkworkCouponRechargeService {
+  if (!couponRechargeService) {
+    throw new Error('BirdCoder coupon recharge service is not configured.');
+  }
+  return couponRechargeService;
+}
+
 export function resetBirdCoderMembershipSdkBootstrap(): void {
   configureSdkworkMembershipAppServiceProvider(null);
   configureSdkworkMembershipSessionTokenProvider(null);
   configureSdkworkOrderAppServiceProvider(null);
   configureSdkworkOrderSessionTokenProvider(null);
+  couponRechargeService = null;
   membershipCheckoutService = null;
+  pointsRechargeService = null;
   membershipSdkBootstrapped = false;
 }

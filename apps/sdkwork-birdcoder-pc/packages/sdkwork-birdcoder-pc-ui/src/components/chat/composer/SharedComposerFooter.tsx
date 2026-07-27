@@ -21,6 +21,7 @@ interface SharedComposerFooterProps extends EngineComposerFooterProps {
 
 export function SharedComposerFooter({
   attachmentMenuRef,
+  attachmentsDisabled,
   canQueueTypedMessage,
   canSubmitComposerMessage,
   canSubmitPendingUserQuestionAnswer,
@@ -35,6 +36,7 @@ export function SharedComposerFooter({
   isComposerProcessing,
   isComposerTurnBlocked,
   isListening,
+  isUploadingAttachments,
   modelGroups,
   onAttachmentMenuOpenChange,
   onFileUpload,
@@ -52,6 +54,7 @@ export function SharedComposerFooter({
   showModelPicker,
 }: SharedComposerFooterProps) {
   const { t } = useTranslation();
+  const attachmentActionDisabled = disabled || attachmentsDisabled;
   const fallbackWorkbenchModel = useMemo(
     () => createFallbackModel(
       t('chat.modelCatalogFallback'),
@@ -73,69 +76,93 @@ export function SharedComposerFooter({
         <Button
           variant="ghost"
           size="icon"
-          className={`h-7 w-7 rounded-lg transition-colors ${disabled ? 'cursor-not-allowed opacity-50' : 'hover:bg-white/10 hover:text-white'}`}
+          aria-expanded={isAttachmentMenuOpen}
+          aria-haspopup="menu"
+          aria-label={t('chat.addAttachment')}
+          className={`h-7 w-7 rounded-lg transition-colors ${attachmentActionDisabled ? 'cursor-not-allowed opacity-50' : 'hover:bg-white/10 hover:text-white'}`}
           title={t('chat.addAttachment')}
           onClick={() => {
-            if (!disabled) {
+            if (!attachmentActionDisabled) {
               onAttachmentMenuOpenChange(!isAttachmentMenuOpen);
             }
           }}
-          disabled={disabled}
+          disabled={attachmentActionDisabled}
         >
-          <Plus size={16} />
+          <Plus aria-hidden="true" size={16} />
         </Button>
 
-        {isAttachmentMenuOpen && !disabled ? (
+        {isAttachmentMenuOpen && !attachmentActionDisabled ? (
           <div
             ref={attachmentMenuRef}
             className="absolute bottom-full left-0 z-50 mb-2 w-44 rounded-lg bg-[#29292e] py-1.5 text-sm text-gray-300 shadow-[0_18px_52px_rgba(0,0,0,0.46)] animate-in fade-in zoom-in-95 duration-100"
+            role="menu"
           >
             <button
               type="button"
               className="mx-1 flex w-[calc(100%-0.5rem)] items-center gap-2 rounded-md px-3 py-2 text-left transition-colors hover:bg-white/10"
               onClick={() => fileInputRef.current?.click()}
+              role="menuitem"
             >
-              <FileUp size={14} />
+              <FileUp aria-hidden="true" size={14} />
               <span className="text-xs">{t('chat.uploadFile')}</span>
             </button>
             <button
               type="button"
               className="mx-1 flex w-[calc(100%-0.5rem)] items-center gap-2 rounded-md px-3 py-2 text-left transition-colors hover:bg-white/10"
               onClick={() => folderInputRef.current?.click()}
+              role="menuitem"
             >
-              <FolderUp size={14} />
+              <FolderUp aria-hidden="true" size={14} />
               <span className="text-xs">{t('chat.uploadFolder')}</span>
             </button>
             <button
               type="button"
               className="mx-1 flex w-[calc(100%-0.5rem)] items-center gap-2 rounded-md px-3 py-2 text-left transition-colors hover:bg-white/10"
               onClick={() => imageInputRef.current?.click()}
+              role="menuitem"
             >
-              <ImageIcon size={14} />
+              <ImageIcon aria-hidden="true" size={14} />
               <span className="text-xs">{t('chat.uploadImage')}</span>
             </button>
           </div>
         ) : null}
 
-        <input type="file" ref={fileInputRef} className="hidden" onChange={onFileUpload} />
+        <input
+          type="file"
+          ref={fileInputRef}
+          aria-hidden="true"
+          className="hidden"
+          disabled={attachmentActionDisabled}
+          multiple
+          onChange={onFileUpload}
+          tabIndex={-1}
+        />
         <input
           type="file"
           ref={folderInputRef}
+          aria-hidden="true"
           className="hidden"
+          disabled={attachmentActionDisabled}
           onChange={onFolderUpload}
+          tabIndex={-1}
           {...({ webkitdirectory: '', directory: '' } as InputHTMLAttributes<HTMLInputElement>)}
         />
         <input
           type="file"
           ref={imageInputRef}
           accept="image/*"
+          aria-hidden="true"
+          disabled={attachmentActionDisabled}
+          multiple
           className="hidden"
           onChange={onImageUpload}
+          tabIndex={-1}
         />
 
         <Button
           variant="ghost"
           size="icon"
+          aria-label={t('chat.prompts')}
           className={`h-7 w-7 rounded-lg transition-colors ${disabled ? 'cursor-not-allowed opacity-50' : 'hover:bg-white/10 hover:text-white'}`}
           title={t('chat.prompts')}
           onClick={() => {
@@ -185,6 +212,7 @@ export function SharedComposerFooter({
         <Button
           variant="ghost"
           size="icon"
+          aria-label={isListening ? t('chat.stopListening') : t('chat.voiceInput')}
           className={`h-8 w-8 rounded-full transition-colors ${disabled ? 'cursor-not-allowed text-gray-600 opacity-50' : isListening ? 'bg-red-500/10 text-red-500 hover:bg-red-500/20' : 'text-gray-400 hover:bg-white/10 hover:text-white'}`}
           title={isListening ? t('chat.stopListening') : t('chat.voiceInput')}
           disabled={disabled}
@@ -193,9 +221,20 @@ export function SharedComposerFooter({
           <Mic size={16} className={isListening ? 'animate-pulse' : ''} />
         </Button>
 
-        {isComposerProcessing && !editingMessage && !canQueueTypedMessage && !canSubmitPendingUserQuestionAnswer ? (
+        {isUploadingAttachments ? (
           <Button
             size="icon"
+            aria-label={t('chat.attachmentUploading')}
+            className="h-8 w-8 rounded-full bg-white/10 text-gray-400 transition-all duration-200"
+            disabled
+            title={t('chat.attachmentUploading')}
+          >
+            <Loader2 size={14} className="animate-spin" />
+          </Button>
+        ) : isComposerProcessing && !editingMessage && !canQueueTypedMessage && !canSubmitPendingUserQuestionAnswer ? (
+          <Button
+            size="icon"
+            aria-label={t('chat.generatingResponse')}
             className="h-8 w-8 rounded-full bg-white/10 text-gray-400 transition-all duration-200"
             disabled
             title={t('chat.generatingResponse')}
@@ -205,6 +244,15 @@ export function SharedComposerFooter({
         ) : (
           <Button
             size="icon"
+            aria-label={
+              editingMessage
+                ? t('chat.saveEditedMessage')
+                : canSubmitPendingUserQuestionAnswer
+                  ? t('chat.submitAnswer')
+                  : isComposerTurnBlocked || isAwaitingQueuedTurnSettlement
+                    ? t('chat.queueMessage')
+                    : t('chat.sendMessage')
+            }
             className={`h-8 w-8 rounded-full transition-all duration-200 ${canSubmitComposerMessage ? 'bg-zinc-100 text-zinc-900 shadow-[0_5px_18px_rgba(255,255,255,0.14)] hover:bg-white' : 'bg-white/10 text-gray-500'}`}
             onClick={() => {
               void onSend();

@@ -33,6 +33,72 @@ assert.match(
 );
 assert.match(
   chatSource,
+  /interface RemoteMessageRequestState \{[\s\S]*isRequesting: boolean;[\s\S]*sessionId: string;[\s\S]*\}/,
+  'Remote transcript request state must be scoped to the Session that started it.',
+);
+assert.match(
+  chatSource,
+  /previousState\.sessionId === sessionId[\s\S]*isRequesting: false[\s\S]*: previousState/,
+  'A completed remote transcript request must not clear another Session request state.',
+);
+const sessionChangeEffect = chatSource.match(
+  /useEffect\(\(\) => \{\s*pendingRemotePrependRef\.current = null;([\s\S]*?)\}, \[sessionId\]\);/,
+);
+assert.ok(
+  sessionChangeEffect,
+  'UniversalChat must reset the pending remote prepend anchor when the Session changes.',
+);
+assert.doesNotMatch(
+  sessionChangeEffect[1],
+  /set[A-Z][A-Za-z0-9]*\(/,
+  'The Session-change cleanup effect must not write React state and trigger an update loop.',
+);
+assert.match(
+  chatSource,
+  /interface TranscriptDisclosureState \{[\s\S]*keys: ReadonlySet<string>;[\s\S]*sessionId: string;[\s\S]*\}/,
+  'Transcript disclosure state must be scoped to the Session that owns it.',
+);
+assert.doesNotMatch(
+  chatSource,
+  /useEffect\(\(\) => \{\s*setTranscriptDisclosureState\([\s\S]*?\}, \[sessionId\]\);/,
+  'Session changes must not reset transcript disclosure state through an effect.',
+);
+assert.match(
+  chatSource,
+  /interface QueuedTurnPresentationState \{[\s\S]*scopeKey: string;[\s\S]*\}/,
+  'Queued turn presentation state must belong to a single Session scope.',
+);
+const queueScopeEffect = chatSource.match(
+  /useEffect\(\(\) => \{\s*clearQueuedTurnDispatchSettlementTimer\(\);\s*queuedTurnFlushGateRef\.current = createWorkbenchAgentTurnInputQueueFlushGateState\(\);([\s\S]*?)\}, \[clearQueuedTurnDispatchSettlementTimer, normalizedQueueScopeKey\]\);/,
+);
+assert.ok(
+  queueScopeEffect,
+  'UniversalChat must reset queue refs when the Session queue scope changes.',
+);
+assert.doesNotMatch(
+  queueScopeEffect[1],
+  /set[A-Z][A-Za-z0-9]*\(/,
+  'Session queue scope changes must not force a render through an effect.',
+);
+assert.match(
+  chatSource,
+  /interface SessionPromptHistoryState \{[\s\S]*scopeKey: string;[\s\S]*\}[\s\S]*interface SessionPromptNavigationState \{[\s\S]*scopeKey: string;[\s\S]*\}/,
+  'Prompt history and keyboard navigation state must belong to a single Session scope.',
+);
+const promptHistoryHydrationEffect = chatSource.match(
+  /useEffect\(\(\) => \{([\s\S]*?)if \(hydratedSessionPromptHistoryIdRef\.current === normalizedSessionStateScopeKey\)([\s\S]*?)\}, \[isActive, normalizedSessionStateScopeKey\]\);/,
+);
+assert.ok(
+  promptHistoryHydrationEffect,
+  'UniversalChat must hydrate prompt history when the active Session scope changes.',
+);
+assert.doesNotMatch(
+  promptHistoryHydrationEffect[2],
+  /setHistoryIndex|setTempInput|syncHistoryPrompts\(\[\]\)/,
+  'Prompt history hydration must not reset Session state through immediate effect updates.',
+);
+assert.match(
+  chatSource,
   /!hasEarlierMessages && hasMoreRemoteMessages[\s\S]*chat\.loadEarlierMessages/,
   'The server continuation control must appear only after locally loaded messages are visible.',
 );
@@ -40,6 +106,16 @@ assert.doesNotMatch(
   progressiveWindowSource,
   /transcriptIdentity\s*=\s*`\$\{normalizedTranscriptScopeKey\}\\u0001\$\{firstMessageId\}`/,
   'Prepending a server page must not reset the local transcript window as though a new Session opened.',
+);
+assert.match(
+  progressiveWindowSource,
+  /interface ProgressiveTranscriptWindowState \{[\s\S]*transcriptIdentity: string;[\s\S]*\}/,
+  'Progressive transcript window state must belong to a single Session scope.',
+);
+assert.doesNotMatch(
+  progressiveWindowSource,
+  /useEffect\(\(\) => \{[\s\S]*previousTranscriptIdentityRef[\s\S]*set(?:IsLoadingEarlierMessages|VisibleTranscriptStartIndex)/,
+  'Session identity changes must not synchronize transcript window state through an effect.',
 );
 assert.match(
   codeSurfaceSource,

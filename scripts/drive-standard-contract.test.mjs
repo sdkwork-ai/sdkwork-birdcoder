@@ -346,6 +346,12 @@ if (!driveUploadService.includes('client.uploader')) {
 if (!driveUploadService.includes("source: 'drive'")) {
   fail('birdcoderDriveUpload must emit Drive-backed MediaResource payloads');
 }
+if (!driveUploadService.includes('client.drive.downloadGrants.create')) {
+  fail('birdcoderDriveUpload must resolve attachment previews through Drive download grants');
+}
+if (!driveUploadService.includes('resolveBirdCoderChatAttachmentPreviewUrl')) {
+  fail('birdcoderDriveUpload must expose fresh Drive preview-grant resolution for message files');
+}
 
 const universalChat = read(
   'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-ui/src/components/UniversalChat.tsx',

@@ -1,11 +1,14 @@
 import React from 'react';
-import { Archive, Loader2, MoreHorizontal, Pin } from 'lucide-react';
+import { Archive, MoreHorizontal, Pin } from 'lucide-react';
 import type { AgentSessionView } from '@sdkwork/birdcoder-pc-contracts-commons';
+import { formatAgentSessionActivityDisplayTime } from '@sdkwork/birdcoder-pc-contracts-commons';
 import {
-  formatAgentSessionActivityDisplayTime,
-  isAgentSessionViewEngineBusy,
-} from '@sdkwork/birdcoder-pc-contracts-commons';
-import { WorkbenchCodeEngineIcon } from '@sdkwork/birdcoder-pc-ui-shell';
+  SessionProviderBadge,
+  SessionRuntimeStatusSlot,
+  resolveSessionRuntimeStatusLabel,
+  resolveSessionRuntimeStatusPresentation,
+  type SessionRuntimeStatusLabels,
+} from '@sdkwork/birdcoder-pc-ui';
 import { buildProjectExplorerSurfaceStyle } from './ProjectExplorer.shared';
 
 export interface ProjectExplorerSessionRowProps {
@@ -18,12 +21,7 @@ export interface ProjectExplorerSessionRowProps {
   isRenaming: boolean;
   renameValue: string;
   paddingClassName: string;
-  awaitingApprovalSessionLabel: string;
-  awaitingToolSessionLabel: string;
-  awaitingUserSessionLabel: string;
-  executingSessionLabel: string;
-  initializingSessionLabel: string;
-  failedSessionLabel: string;
+  runtimeStatusLabels: SessionRuntimeStatusLabels;
   moreActionsLabel: string;
   onSelectAgentSession: (agentSessionId: string, projectId?: string | null) => void;
   onAgentSessionContextMenu: (
@@ -51,12 +49,7 @@ export const ProjectExplorerSessionRow = React.memo(function ProjectExplorerSess
   isRenaming,
   renameValue,
   paddingClassName,
-  awaitingApprovalSessionLabel,
-  awaitingToolSessionLabel,
-  awaitingUserSessionLabel,
-  executingSessionLabel,
-  initializingSessionLabel,
-  failedSessionLabel,
+  runtimeStatusLabels,
   moreActionsLabel,
   onSelectAgentSession,
   onAgentSessionContextMenu,
@@ -65,21 +58,11 @@ export const ProjectExplorerSessionRow = React.memo(function ProjectExplorerSess
   onRenameCancel,
 }: ProjectExplorerSessionRowProps) {
   const resolvedSessionProjectId = sessionProjectId?.trim() || session.projectId;
-  const isEngineBusySession = isAgentSessionViewEngineBusy(session);
-  const runtimeStatusLabel =
-    session.runtimeStatus === 'initializing'
-      ? initializingSessionLabel
-      : session.runtimeStatus === 'awaiting_approval'
-        ? awaitingApprovalSessionLabel
-        : session.runtimeStatus === 'awaiting_user'
-          ? awaitingUserSessionLabel
-          : session.runtimeStatus === 'awaiting_tool'
-            ? awaitingToolSessionLabel
-            : session.runtimeStatus === 'streaming'
-              ? executingSessionLabel
-              : session.runtimeStatus === 'failed'
-                ? failedSessionLabel
-                : null;
+  const runtimeStatusLabel = resolveSessionRuntimeStatusLabel(
+    session.runtimeStatus,
+    runtimeStatusLabels,
+  );
+  const runtimeStatusPresentation = resolveSessionRuntimeStatusPresentation(session.runtimeStatus);
   const sessionDetails = [
     session.title,
     projectName,
@@ -95,14 +78,20 @@ export const ProjectExplorerSessionRow = React.memo(function ProjectExplorerSess
       className={`${paddingClassName} group birdcoder-session-row relative flex w-full min-w-0 max-w-full cursor-pointer items-center justify-between overflow-hidden rounded-md py-1.5 text-[length:var(--birdcoder-ui-font-size,12px)] transition-colors ${isSelected ? 'birdcoder-session-selected' : ''} ${
         isSelected ? 'text-white' : 'text-gray-400'
       }`}
+      data-agent-session-id={session.id}
+      data-session-project-id={resolvedSessionProjectId}
+      data-session-selected={isSelected ? 'true' : undefined}
       style={buildProjectExplorerSurfaceStyle('36px')}
       title={sessionDetails}
       onClick={() => onSelectAgentSession(session.id, resolvedSessionProjectId)}
       onContextMenu={(event) => onAgentSessionContextMenu(event, session.id, resolvedSessionProjectId)}
     >
       <div className="flex min-w-0 flex-1 items-center gap-2 overflow-hidden">
-        <WorkbenchCodeEngineIcon engineId={session.engineId} />
-        {isEngineBusySession && <Loader2 size={12} className="text-emerald-400 shrink-0 animate-spin" />}
+        <SessionProviderBadge
+          agentId={session.agentId}
+          engineId={session.engineId}
+          providerId={session.providerId}
+        />
         {session.pinned && <Pin size={12} className="text-blue-400 shrink-0" />}
         {session.unread && <div className="w-1.5 h-1.5 rounded-full bg-blue-500 shrink-0" />}
         {session.archived && <Archive size={12} className="text-gray-500 shrink-0" />}
@@ -134,20 +123,30 @@ export const ProjectExplorerSessionRow = React.memo(function ProjectExplorerSess
       </div>
       {!isRenaming && (
         <span
-          className={`text-[10px] shrink-0 ml-2 ${
-            runtimeStatusLabel
-              ? session.runtimeStatus === 'failed'
-                ? 'text-red-300'
-                : session.runtimeStatus === 'awaiting_approval' ||
-                    session.runtimeStatus === 'awaiting_user'
-                  ? 'text-amber-300'
-                : 'text-emerald-300'
-              : isSelected
-                ? 'text-gray-400'
-                : 'opacity-50'
-          }`}
+          className="ml-auto inline-flex shrink-0 items-center justify-end gap-1 pl-2 text-right transition-opacity group-hover:opacity-0 group-focus-within:opacity-0"
+          data-session-trailing-metadata="true"
         >
-          {runtimeStatusLabel ?? formatAgentSessionActivityDisplayTime(session, relativeTimeNow)}
+          <span
+            className={`text-[10px] ${
+              runtimeStatusLabel
+                ? runtimeStatusPresentation === 'failed'
+                  ? 'text-red-300'
+                  : runtimeStatusPresentation === 'attention'
+                    ? 'text-amber-300'
+                    : runtimeStatusPresentation === 'busy'
+                      ? 'text-emerald-300'
+                      : 'text-gray-500'
+                : isSelected
+                  ? 'text-gray-400'
+                  : 'opacity-50'
+            }`}
+          >
+            {runtimeStatusLabel ?? formatAgentSessionActivityDisplayTime(session, relativeTimeNow)}
+          </span>
+          <SessionRuntimeStatusSlot
+            label={runtimeStatusLabel}
+            runtimeStatus={session.runtimeStatus}
+          />
         </span>
       )}
       {!isRenaming && (

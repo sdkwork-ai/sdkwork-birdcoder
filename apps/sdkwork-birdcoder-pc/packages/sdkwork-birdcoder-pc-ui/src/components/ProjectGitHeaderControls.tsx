@@ -28,6 +28,7 @@ import { useTranslation } from 'react-i18next';
 import { ProjectGitBranchMenu } from './ProjectGitBranchMenu';
 import { ProjectGitCreateBranchDialog } from './ProjectGitCreateBranchDialog';
 import { ProjectGitWorktreeMenu } from './ProjectGitWorktreeMenu';
+import { getProjectGitOverviewStatusMessageKey } from './projectGitOverviewStatus';
 
 export type ProjectGitHeaderControlsVariant = 'topbar' | 'studio';
 
@@ -81,14 +82,21 @@ export const ProjectGitHeaderControls = memo(function ProjectGitHeaderControls({
     currentBranchLabel,
     currentWorktree,
     currentWorktreeLabel,
+    diagnosticCode,
     isGitRepositoryReady,
     isLoading,
     loadErrorMessage,
     normalizedProjectId,
     overview,
     refreshGitOverview,
+    subscriptionStatus,
     worktrees,
   } = projectGitOverviewState ?? localProjectGitOverviewState;
+  const statusMessageKey = getProjectGitOverviewStatusMessageKey({
+    diagnosticCode,
+    subscriptionStatus,
+  });
+  const statusMessage = t(statusMessageKey ?? 'app.menu.gitRepositoryUnavailable');
   const {
     createBranch,
     createWorktree,
@@ -266,9 +274,7 @@ export const ProjectGitHeaderControls = memo(function ProjectGitHeaderControls({
   }, [addToast, normalizedProjectId, removeWorktree, t]);
 
   if (variant === 'topbar') {
-    const branchLabel = loadErrorMessage
-      ? t('code.gitOverviewUnavailable')
-      : currentBranchLabel || (isLoading ? '...' : t('app.menu.noRepository'));
+    const branchLabel = currentBranchLabel || (isLoading ? '...' : statusMessage);
     const compactTitle = `${t('code.gitOverview')}: ${branchLabel}`;
     const manageableWorktrees = worktrees.filter(isProjectGitWorktreeRemovable);
     const hasPrunableWorktrees = worktrees.some(isProjectGitWorktreePrunable);
@@ -363,13 +369,13 @@ export const ProjectGitHeaderControls = memo(function ProjectGitHeaderControls({
                 </div>
               </div>
 
-              {loadErrorMessage ? (
+              {subscriptionStatus === 'error' || loadErrorMessage ? (
                 <div className="m-2 flex items-start gap-2 rounded-lg bg-red-500/[0.12] px-3 py-3 text-[12px] text-red-200">
                   <AlertCircle size={14} className="mt-0.5 shrink-0" />
-                  <span className="min-w-0 break-words">{loadErrorMessage}</span>
+                  <span className="min-w-0 break-words">{statusMessage}</span>
                 </div>
               ) : !isGitRepositoryReady ? (
-                <div className="px-3 py-4 text-[12px] text-gray-500">{t('app.menu.noRepository')}</div>
+                <div className="px-3 py-4 text-[12px] text-gray-500">{statusMessage}</div>
               ) : (
                 <div className="max-h-[32rem] overflow-y-auto py-1 pr-1">
                   {onRequestCommit || onRequestPush || onRequestViewDiff ? (
@@ -597,6 +603,7 @@ export const ProjectGitHeaderControls = memo(function ProjectGitHeaderControls({
       {showBranchControl ? (
         <ProjectGitBranchMenu
           currentBranchLabel={currentBranchLabel}
+          diagnosticCode={diagnosticCode}
           isGitRepositoryReady={isGitRepositoryReady}
           isLoading={isLoading}
           isOpen={showBranchMenu}
@@ -616,6 +623,7 @@ export const ProjectGitHeaderControls = memo(function ProjectGitHeaderControls({
           }}
           onSelectBranch={handleSwitchBranch}
           overview={overview}
+          subscriptionStatus={subscriptionStatus}
           compact={compactControls}
           variant={variant}
         />
@@ -624,6 +632,7 @@ export const ProjectGitHeaderControls = memo(function ProjectGitHeaderControls({
         <ProjectGitWorktreeMenu
           currentWorktree={currentWorktree}
           currentWorktreeLabel={currentWorktreeLabel}
+          diagnosticCode={diagnosticCode}
           isGitRepositoryReady={isGitRepositoryReady}
           isLoading={isLoading}
           isOpen={showWorktreeMenu}
@@ -640,6 +649,7 @@ export const ProjectGitHeaderControls = memo(function ProjectGitHeaderControls({
           onPrune={handlePruneWorktrees}
           onRefresh={handleRefreshGitOverview}
           overview={overview}
+          subscriptionStatus={subscriptionStatus}
           compact={compactControls}
           variant={variant}
           worktrees={worktrees}

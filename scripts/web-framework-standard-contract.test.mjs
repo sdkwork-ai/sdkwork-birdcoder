@@ -66,49 +66,57 @@ for (const retiredCrate of [
 }
 
 const gatewayCargo = readText('crates/sdkwork-api-birdcoder-standalone-gateway/Cargo.toml');
-assert.match(gatewayCargo, /sdkwork-web-bootstrap\.workspace = true/u);
 assert.match(gatewayCargo, /sdkwork-api-birdcoder-assembly\.workspace = true/u);
-for (const assemblyOwnedDependency of [
-  'sdkwork-web-axum',
-  'sdkwork-web-core',
-  'sdkwork-web-contract',
-  'sdkwork-routes-system-app-api',
-]) {
-  assert.doesNotMatch(
-    gatewayCargo,
-    new RegExp(`^${assemblyOwnedDependency}(?:\\.workspace)?\\s*=`, 'mu'),
-    `Standalone gateway must not duplicate assembly dependency ${assemblyOwnedDependency}.`,
-  );
-}
-
-const assemblyCargo = readText('crates/sdkwork-api-birdcoder-assembly/Cargo.toml');
-for (const frameworkDependency of [
+for (const gatewayFrameworkDependency of [
   'sdkwork-web-bootstrap',
   'sdkwork-web-axum',
   'sdkwork-web-core',
   'sdkwork-web-contract',
 ]) {
   assert.match(
-    assemblyCargo,
-    new RegExp(`^${frameworkDependency}(?:\\.workspace)?\\s*=`, 'mu'),
-    `API assembly must own framework dependency ${frameworkDependency}.`,
+    gatewayCargo,
+    new RegExp(`^${gatewayFrameworkDependency}(?:\\.workspace)?\\s*=`, 'mu'),
+    `Standalone gateway must own process-wide framework dependency ${gatewayFrameworkDependency}.`,
   );
 }
-
-const authBootstrap = readText(
-  'crates/sdkwork-api-birdcoder-assembly/src/application_bootstrap/auth.rs',
+assert.doesNotMatch(
+  gatewayCargo,
+  /^sdkwork-routes-system-app-api(?:\.workspace)?\s*=/mu,
+  'Standalone gateway must consume BirdCoder routes through the host-neutral assembly.',
 );
-assert.match(authBootstrap, /build_web_framework_layer/u);
-assert.match(authBootstrap, /with_web_request_context/u);
-assert.match(authBootstrap, /birdcoder_app_api_route_manifest/u);
-assert.match(authBootstrap, /SecurityPolicy/u);
+
+const assemblyCargo = readText('crates/sdkwork-api-birdcoder-assembly/Cargo.toml');
+for (const frameworkDependency of ['sdkwork-web-core', 'sdkwork-web-contract']) {
+  assert.match(
+    assemblyCargo,
+    new RegExp(`^${frameworkDependency}(?:\\.workspace)?\\s*=`, 'mu'),
+    `API assembly must expose host-neutral framework contract ${frameworkDependency}.`,
+  );
+}
+assert.doesNotMatch(
+  assemblyCargo,
+  /^sdkwork-web-axum(?:\.workspace)?\s*=/mu,
+  'API assembly must not install the Axum Web Framework layer owned by its gateway host.',
+);
+
+const gatewayFramework = readText(
+  'crates/sdkwork-api-birdcoder-standalone-gateway/src/server/framework.rs',
+);
+assert.match(gatewayFramework, /WebFrameworkLayer/u);
+assert.match(gatewayFramework, /with_security_policy/u);
+assert.match(gatewayFramework, /with_web_request_context/u);
+assert.match(gatewayFramework, /build_cors_policy/u);
 
 const assemblyRouters = readText(
   'crates/sdkwork-api-birdcoder-assembly/src/application_bootstrap/routers.rs',
 );
-assert.match(assemblyRouters, /sdkwork_web_bootstrap::mount_infra_routes/u);
+assert.doesNotMatch(assemblyRouters, /with_web_request_context|CorsPolicy/u);
+const gatewayLib = readText('crates/sdkwork-api-birdcoder-standalone-gateway/src/lib.rs');
+assert.match(gatewayLib, /assemble_standalone_profile/u);
+assert.match(gatewayLib, /wrap_with_web_framework/u);
+assert.match(gatewayLib, /sdkwork_web_bootstrap::mount_infra_routes/u);
 const gatewayMain = readText('crates/sdkwork-api-birdcoder-standalone-gateway/src/main.rs');
-assert.match(gatewayMain, /assemble_api_router/u);
+assert.match(gatewayMain, /build_app/u);
 assert.match(gatewayMain, /sdkwork_web_bootstrap::init_tracing_from_env/u);
 assert.match(gatewayMain, /server::listen::serve/u);
 
@@ -148,4 +156,4 @@ const ensureSource = readText('scripts/ensure-web-framework-openapi-extensions.m
 assert.match(ensureSource, /BIRDCODER_OPENAPI_AUTHORITY_TARGETS/u);
 assert.doesNotMatch(ensureSource, /mirrorPath|mkdirSync/u);
 
-console.log('BirdCoder App-only web framework standard passed.');
+console.log('BirdCoder gateway web framework standard passed.');

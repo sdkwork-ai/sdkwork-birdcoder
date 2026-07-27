@@ -218,11 +218,13 @@ const mountedPathService = new RuntimeProjectRuntimeLocationService({
   },
 });
 const mountedPathResolution = await mountedPathService.resolveProjectRuntimeLocation(
-  'project-worktree',
+  {
+    mountedPath: 'E:\\work\\explicit-worktree',
+    projectId: 'project-worktree',
+  },
   {
     allowFolderSelection: false,
     capability: 'terminal',
-    mountedPath: 'E:\\work\\explicit-worktree',
   },
 );
 assert.equal(mountedPathResolution.status, 'resolved');

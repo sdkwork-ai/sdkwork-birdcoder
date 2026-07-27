@@ -15,10 +15,11 @@ const WORKBENCH_RECOVERY_TABS = new Set<AppTab>([
 ]);
 
 export interface WorkbenchRecoverySnapshot {
-  version: 3;
+  version: 4;
   userScope: string;
   sessionId: string;
   activeTab: AppTab;
+  activeWorkspaceId: string;
   activeProjectId: string;
   activeAgentSessionId: string;
   updatedAt: string;
@@ -30,6 +31,7 @@ type RecoveryProject = Pick<AgentProjectView, 'projectId'> & {
 };
 
 export interface ResolveStartupProjectIdOptions {
+  hasProjectsFetched?: boolean;
   projects: ReadonlyArray<RecoveryProject>;
   recoverySnapshot: WorkbenchRecoverySnapshot;
 }
@@ -51,23 +53,29 @@ export interface BuildWorkbenchRecoveryAnnouncementOptions {
 }
 
 export interface ResolveWorkbenchRecoveryPersistenceSelectionOptions {
+  currentWorkspaceId: string | null | undefined;
   currentProjectId: string | null | undefined;
   currentAgentSessionId: string | null | undefined;
   fallbackSnapshot?:
-    | Pick<WorkbenchRecoverySnapshot, 'activeProjectId' | 'activeAgentSessionId'>
+    | Pick<
+        WorkbenchRecoverySnapshot,
+        'activeWorkspaceId' | 'activeProjectId' | 'activeAgentSessionId'
+      >
     | null
     | undefined;
   hasProjectsFetched: boolean;
+  hasWorkspacesFetched: boolean;
 }
 
 const ZERO_TIMESTAMP = new Date(0).toISOString();
 const ANONYMOUS_WORKBENCH_RECOVERY_USER_SCOPE = 'anonymous';
 
 export const DEFAULT_WORKBENCH_RECOVERY_SNAPSHOT: WorkbenchRecoverySnapshot = {
-  version: 3,
+  version: 4,
   userScope: ANONYMOUS_WORKBENCH_RECOVERY_USER_SCOPE,
   sessionId: '',
   activeTab: 'code',
+  activeWorkspaceId: '',
   activeProjectId: '',
   activeAgentSessionId: '',
   updatedAt: ZERO_TIMESTAMP,
@@ -129,10 +137,11 @@ export function normalizeWorkbenchRecoverySnapshot(value: unknown): WorkbenchRec
   }
   const snapshot = value as Partial<WorkbenchRecoverySnapshot>;
   return {
-    version: 3,
+    version: 4,
     userScope: normalizeWorkbenchRecoveryUserScope(snapshot.userScope),
     sessionId: normalizeIdentifier(snapshot.sessionId),
     activeTab: normalizeActiveTab(snapshot.activeTab),
+    activeWorkspaceId: normalizeIdentifier(snapshot.activeWorkspaceId),
     activeProjectId: normalizeIdentifier(snapshot.activeProjectId),
     activeAgentSessionId: normalizeIdentifier(snapshot.activeAgentSessionId),
     updatedAt: normalizeTimestamp(snapshot.updatedAt),
@@ -167,29 +176,51 @@ export function resolveWorkbenchRecoverySnapshotForUser(
 
 export function resolveWorkbenchRecoveryPersistenceSelection(
   options: ResolveWorkbenchRecoveryPersistenceSelectionOptions,
-): Pick<WorkbenchRecoverySnapshot, 'activeProjectId' | 'activeAgentSessionId'> {
+): Pick<
+  WorkbenchRecoverySnapshot,
+  'activeWorkspaceId' | 'activeProjectId' | 'activeAgentSessionId'
+> {
+  const currentWorkspaceId = normalizeIdentifier(options.currentWorkspaceId);
   const currentProjectId = normalizeIdentifier(options.currentProjectId);
   const currentAgentSessionId = normalizeIdentifier(options.currentAgentSessionId);
+  const hasResolvedWorkspaceProjects =
+    options.hasWorkspacesFetched &&
+    (!currentWorkspaceId || options.hasProjectsFetched);
   return {
-    activeProjectId: options.hasProjectsFetched
+    activeWorkspaceId: options.hasWorkspacesFetched
+      ? currentWorkspaceId
+      : normalizeIdentifier(options.fallbackSnapshot?.activeWorkspaceId),
+    activeProjectId: hasResolvedWorkspaceProjects
       ? currentProjectId
       : normalizeIdentifier(options.fallbackSnapshot?.activeProjectId),
-    activeAgentSessionId: options.hasProjectsFetched
+    activeAgentSessionId: hasResolvedWorkspaceProjects
       ? currentAgentSessionId
       : normalizeIdentifier(options.fallbackSnapshot?.activeAgentSessionId),
   };
 }
 
 export function isWorkbenchRecoverySelectionResolutionReady(
-  options: Pick<ResolveWorkbenchRecoveryPersistenceSelectionOptions, 'hasProjectsFetched'>,
+  options: Pick<
+    ResolveWorkbenchRecoveryPersistenceSelectionOptions,
+    'currentWorkspaceId' | 'hasProjectsFetched' | 'hasWorkspacesFetched'
+  >,
 ): boolean {
-  return options.hasProjectsFetched;
+  const currentWorkspaceId = normalizeIdentifier(options.currentWorkspaceId);
+  return (
+    options.hasWorkspacesFetched &&
+    (!currentWorkspaceId || options.hasProjectsFetched)
+  );
 }
 
 export function resolveStartupProjectId(options: ResolveStartupProjectIdOptions): string {
   const recoveryProjectId = options.recoverySnapshot.activeProjectId;
-  if (recoveryProjectId && hasProjectId(options.projects, recoveryProjectId)) {
-    return recoveryProjectId;
+  if (recoveryProjectId) {
+    if (hasProjectId(options.projects, recoveryProjectId)) {
+      return recoveryProjectId;
+    }
+    if (options.hasProjectsFetched === false) {
+      return recoveryProjectId;
+    }
   }
   const recoveryAgentSessionId = options.recoverySnapshot.activeAgentSessionId;
   if (recoveryAgentSessionId) {
@@ -211,8 +242,13 @@ export function resolveStartupAgentSessionId(
     (project) => project.projectId === options.projectId,
   )?.agentSessions ?? [];
   const recoveryAgentSessionId = options.recoverySnapshot.activeAgentSessionId;
-  if (recoveryAgentSessionId && hasAgentSessionId(scopedAgentSessions, recoveryAgentSessionId)) {
-    return recoveryAgentSessionId;
+  if (recoveryAgentSessionId) {
+    if (hasAgentSessionId(scopedAgentSessions, recoveryAgentSessionId)) {
+      return recoveryAgentSessionId;
+    }
+    if (options.recoverySnapshot.activeProjectId === options.projectId) {
+      return recoveryAgentSessionId;
+    }
   }
   return scopedAgentSessions[0]?.id ?? '';
 }
@@ -240,6 +276,7 @@ export function recoverySnapshotsEqual(
     left.userScope === right.userScope
     && left.sessionId === right.sessionId
     && left.activeTab === right.activeTab
+    && left.activeWorkspaceId === right.activeWorkspaceId
     && left.activeProjectId === right.activeProjectId
     && left.activeAgentSessionId === right.activeAgentSessionId
     && left.cleanExit === right.cleanExit

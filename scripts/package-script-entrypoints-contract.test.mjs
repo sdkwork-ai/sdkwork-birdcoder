@@ -44,7 +44,7 @@ for (const requiredEntrypoint of [
   );
 }
 
-const nodeScriptPattern = /(?:^|\s)((?:\.\.\/)*scripts\/[A-Za-z0-9_./-]+\.(?:cjs|js|mjs|py|ts|tsx))/gu;
+const nodeScriptPattern = /(?:^|\s)((?:\.\.\/)*scripts\/[A-Za-z0-9_./-]+\.(?:cjs|js|mjs|py|tsx|ts))/gu;
 const internalPnpmScriptPattern = /\bpnpm\s+(?:run\s+)?([a-z][A-Za-z0-9:_-]*)/gu;
 const workspaceRootScriptPattern = /run-workspace-package-script\.mjs\s+\.\s+([^\s]+)/gu;
 

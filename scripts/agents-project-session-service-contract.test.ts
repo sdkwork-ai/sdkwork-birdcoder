@@ -1,5 +1,4 @@
 import assert from 'node:assert/strict';
-import { NotFoundError, ServerError } from '@sdkwork/sdk-common';
 
 import { BirdCoderAgentSessionService } from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/src/services/agentsSessionService.ts';
 
@@ -12,20 +11,26 @@ type ListCall = [
 
 const agentListCalls: ListCall[] = [];
 const projectListCalls: ListCall[] = [];
+const sessionActivityListCalls: Array<[
+  Record<string, unknown>,
+  { signal?: AbortSignal; timeout?: number },
+]> = [];
 const workspaceListCalls: ListCall[] = [];
 const runtimeBindingListCalls: Array<[string, string]> = [];
 const runtimeBindingCreateCalls: Array<[string, string, Record<string, unknown>]> = [];
 const runtimeBindingRetrieveCalls: Array<[string, string, string]> = [];
-const sessionUserStateRetrieveCalls: Array<[
+const sessionUserStateListCalls: ListCall[] = [];
+const sessionRetrieveCalls: Array<[
   string,
   string,
   { signal?: AbortSignal; timeout?: number },
 ]> = [];
+const codeEngineListCalls: Array<[{ signal?: AbortSignal; timeout?: number }]> = [];
+const missingSessionUserStateIds = new Set<string>();
 let runtimeBindingCreateError: Error | null = null;
 let recoveredRuntimeBinding: Record<string, unknown> | null = null;
 let createdSessionAgentIdOverride = '';
 let createdSessionProjectIdOverride = '';
-let sessionUserStateRetrieveError: Error | null = null;
 
 function sessionPage(scopeId: string) {
   return {
@@ -46,6 +51,21 @@ function sessionPage(scopeId: string) {
 }
 
 const sessions = {
+  async retrieve(
+    agentId: string,
+    sessionId: string,
+    requestOptions: { signal?: AbortSignal; timeout?: number },
+  ) {
+    sessionRetrieveCalls.push([agentId, sessionId, requestOptions]);
+    if (agentId !== 'agent.code-engine.codex' || sessionId !== 'session.recovery-target') {
+      throw Object.assign(new Error('Resource lookup failed.'), { httpStatus: 404 });
+    }
+    return {
+      agentId,
+      sessionId,
+      projectId: 'project.contract',
+    };
+  },
   async list(
     agentId: string,
     params: Record<string, unknown>,
@@ -90,7 +110,45 @@ const workspaceSessions = {
 const client = {
   ai: {
     agents: {
+      codeEngines: {
+        async list(requestOptions: { signal?: AbortSignal; timeout?: number }) {
+          codeEngineListCalls.push([requestOptions]);
+          return {
+            engines: [
+              { agentId: 'agent.birdcoder', engineKey: 'birdcoder', bindingId: '', models: [] },
+              {
+                agentId: 'agent.code-engine.codex',
+                engineKey: 'codex',
+                bindingId: 'codex',
+                models: [],
+              },
+            ],
+          };
+        },
+      },
       projectSessions,
+      sessionActivitySummaries: {
+        async list(
+          params: Record<string, unknown>,
+          requestOptions: { signal?: AbortSignal; timeout?: number },
+        ) {
+          sessionActivityListCalls.push([params, requestOptions]);
+          return {
+            items: [{
+              session: {
+                agentId: 'agent.code-engine.codex',
+                sessionId: 'session.activity-contract',
+              },
+            }],
+            pageInfo: {
+              mode: 'cursor',
+              pageSize: params.pageSize,
+              hasMore: false,
+              nextCursor: null,
+            },
+          };
+        },
+      },
       sessionRuntimeBindings: {
         async create(
           agentId: string,
@@ -124,19 +182,29 @@ const client = {
         },
       },
       sessionUserStates: {
-        async retrieve(
+        async list(
           agentId: string,
-          sessionId: string,
+          params: Record<string, unknown>,
           requestOptions: { signal?: AbortSignal; timeout?: number },
         ) {
-          sessionUserStateRetrieveCalls.push([agentId, sessionId, requestOptions]);
-          if (sessionUserStateRetrieveError) {
-            throw sessionUserStateRetrieveError;
-          }
+          sessionUserStateListCalls.push([agentId, params, requestOptions]);
+          const sessionIds = String(params.sessionIds ?? '')
+            .split(',')
+            .filter(Boolean);
           return {
-            resourceId: sessionId,
-            resourceType: 'session',
-            version: '0',
+            items: sessionIds
+              .filter((sessionId) => !missingSessionUserStateIds.has(sessionId))
+              .map((sessionId) => ({
+                resourceId: sessionId,
+                resourceType: 'session',
+                version: '0',
+              })),
+            pageInfo: {
+              mode: 'offset',
+              page: 1,
+              pageSize: Number(params.pageSize),
+              hasMore: false,
+            },
           };
         },
       },
@@ -170,71 +238,40 @@ assert.deepEqual(runtimeBindingListCalls[0], [
 ]);
 
 const userStateAbortController = new AbortController();
-const userState = await service.getSessionUserState(providerSession.sessionId, {
+const userStates = await service.getSessionUserStates([
+  providerSession.sessionId,
+  providerSession.sessionId,
+  created.sessionId,
+], {
   signal: userStateAbortController.signal,
   timeoutMs: 2_000,
 });
-assert.equal(userState?.resourceId, providerSession.sessionId);
-assert.deepEqual(sessionUserStateRetrieveCalls[0], [
+assert.equal(userStates.get(providerSession.sessionId)?.resourceId, providerSession.sessionId);
+assert.equal(userStates.get(created.sessionId)?.resourceId, created.sessionId);
+assert.deepEqual(sessionUserStateListCalls, [[
   'agent.code-engine.codex',
-  providerSession.sessionId,
+  {
+    page: 1,
+    pageSize: 1,
+    includeHidden: true,
+    sessionIds: providerSession.sessionId,
+  },
   { signal: userStateAbortController.signal, timeout: 2_000 },
-]);
-
-sessionUserStateRetrieveError = new NotFoundError('session user state not found', {
-  problem: {
-    type: 'https://docs.sdkwork.com/problems/40401',
-    title: 'Not found',
-    status: 404,
-    code: 40401,
-    detail: 'session user state not found',
-    instance: `GET /app/v3/api/ai/agents/agent.code-engine.codex/sessions/${providerSession.sessionId}/user_state`,
-    operationId: 'agents.sessionUserStates.retrieve',
-    i18nKey: 'errors.result.40401',
-    traceId: 'session-user-state-contract',
+], [
+  'agent.birdcoder',
+  {
+    page: 1,
+    pageSize: 1,
+    includeHidden: true,
+    sessionIds: created.sessionId,
   },
-});
-assert.equal(await service.getSessionUserState(providerSession.sessionId), null);
+  { signal: userStateAbortController.signal, timeout: 2_000 },
+]]);
 
-sessionUserStateRetrieveError = Object.assign(new Error('HTTP 404: Not Found'), {
-  name: 'NotFoundError',
-  code: 'NOT_FOUND',
-  httpStatus: 404,
-});
-assert.equal(await service.getSessionUserState(providerSession.sessionId), null);
-
-sessionUserStateRetrieveError = new NotFoundError('session user state not found', {
-  problem: {
-    status: 404,
-    code: 40401,
-    detail: 'session user state not found',
-    operationId: 'agents.sessions.retrieve',
-  },
-});
-await assert.rejects(
-  service.getSessionUserState(providerSession.sessionId),
-  sessionUserStateRetrieveError,
-);
-
-sessionUserStateRetrieveError = new NotFoundError('session not found', {
-  problem: {
-    status: 404,
-    code: 40401,
-    detail: 'session not found',
-    operationId: 'agents.sessionUserStates.retrieve',
-  },
-});
-await assert.rejects(
-  service.getSessionUserState(providerSession.sessionId),
-  sessionUserStateRetrieveError,
-);
-
-sessionUserStateRetrieveError = new ServerError('user state service unavailable');
-await assert.rejects(
-  service.getSessionUserState(providerSession.sessionId),
-  sessionUserStateRetrieveError,
-);
-sessionUserStateRetrieveError = null;
+missingSessionUserStateIds.add(providerSession.sessionId);
+const missingUserStates = await service.getSessionUserStates([providerSession.sessionId]);
+assert.equal(missingUserStates.has(providerSession.sessionId), false);
+missingSessionUserStateIds.clear();
 
 createdSessionAgentIdOverride = 'agent.unexpected';
 await assert.rejects(
@@ -395,6 +432,38 @@ assert.deepEqual(workspaceListCalls, [[
   { signal: undefined, timeout: undefined },
 ]]);
 
+const activityAbortController = new AbortController();
+const activityPage = await service.listSessionActivitySummaries({
+  agentId: ' agent.code-engine.codex ',
+  cursor: ' cursor.activity ',
+  pageSize: 200,
+  projectId: ' project.contract ',
+  workspaceId: ' workspace.contract ',
+}, {
+  signal: activityAbortController.signal,
+  timeoutMs: 4_000,
+});
+assert.equal(activityPage.items[0]?.session.sessionId, 'session.activity-contract');
+assert.deepEqual(sessionActivityListCalls, [[
+  {
+    agentId: 'agent.code-engine.codex',
+    cursor: 'cursor.activity',
+    pageSize: 200,
+    projectId: 'project.contract',
+    workspaceId: 'workspace.contract',
+  },
+  { signal: activityAbortController.signal, timeout: 4_000 },
+]]);
+
+await assert.rejects(
+  service.listSessionActivitySummaries({ pageSize: 201 }),
+  /page size must be between 1 and 200/u,
+);
+await assert.rejects(
+  service.listSessionActivitySummaries({ workspaceId: ' ' }),
+  /workspace ID must not be blank/u,
+);
+
 await assert.rejects(
   service.listSessions({ projectId: ' ' }),
   /project ID is required/u,
@@ -403,5 +472,53 @@ await assert.rejects(
   service.listSessionsByWorkspace({ workspaceId: ' ' }),
   /workspace ID is required/u,
 );
+
+sessionUserStateListCalls.length = 0;
+const batchingService = new BirdCoderAgentSessionService({ client });
+const batchedSessionIds = Array.from(
+  { length: 101 },
+  (_, index) => `session.user-state-batch-${index + 1}`,
+);
+const batchedUserStates = await batchingService.getSessionUserStates(batchedSessionIds);
+assert.equal(batchedUserStates.size, 101);
+assert.deepEqual(
+  sessionUserStateListCalls.map(([agentId, params]) => ({
+    agentId,
+    pageSize: params.pageSize,
+    sessionCount: String(params.sessionIds).split(',').length,
+  })),
+  [
+    { agentId: 'agent.birdcoder', pageSize: 100, sessionCount: 100 },
+    { agentId: 'agent.birdcoder', pageSize: 1, sessionCount: 1 },
+  ],
+);
+await assert.rejects(
+  batchingService.getSessionUserStates(['session.valid', ' ']),
+  /session ID is required/u,
+);
+
+const recoveryReadController = new AbortController();
+const recoveredSession = await service.getSession('session.recovery-target', {
+  signal: recoveryReadController.signal,
+  timeoutMs: 2_000,
+});
+assert.equal(recoveredSession.agentId, 'agent.code-engine.codex');
+assert.deepEqual(sessionRetrieveCalls, [[
+  'agent.birdcoder',
+  'session.recovery-target',
+  { signal: recoveryReadController.signal, timeout: 2_000 },
+], [
+  'agent.code-engine.codex',
+  'session.recovery-target',
+  { signal: recoveryReadController.signal, timeout: 2_000 },
+]]);
+assert.deepEqual(codeEngineListCalls, [[
+  { signal: recoveryReadController.signal, timeout: 2_000 },
+]]);
+await service.listRuntimeBindings(recoveredSession.sessionId);
+assert.deepEqual(runtimeBindingListCalls.at(-1), [
+  'agent.code-engine.codex',
+  recoveredSession.sessionId,
+]);
 
 console.log('agents scoped session service contract passed.');

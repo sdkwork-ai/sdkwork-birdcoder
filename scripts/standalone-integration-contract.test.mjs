@@ -42,6 +42,29 @@ const standaloneServerPlan = topologyRuntime.resolvePlan(
   'server',
 );
 
+for (const profileId of [
+  'standalone.development',
+  'standalone.test',
+  'standalone.staging',
+  'standalone.production',
+  'cloud.development',
+  'cloud.test',
+  'cloud.staging',
+  'cloud.production',
+]) {
+  const profile = topologyRuntime.loadProfile(profileId);
+  assert.equal(
+    profile.SDKWORK_ENVIRONMENT,
+    profile.SDKWORK_BIRDCODER_ENVIRONMENT,
+    `${profileId} must project the application lifecycle environment to embedded dependencies.`,
+  );
+  assert.equal(
+    profile.SDKWORK_CORS_ALLOWED_ORIGINS,
+    profile.SDKWORK_BIRDCODER_ALLOWED_ORIGINS,
+    `${profileId} must project the application CORS origins to embedded dependencies.`,
+  );
+}
+
 assert.equal(
   standaloneDevelopmentProfile.SDKWORK_BIRDCODER_PLATFORM_API_GATEWAY_HTTP_URL,
   undefined,
@@ -74,12 +97,22 @@ assert.equal(
 );
 assert.deepEqual(
   standaloneDesktopPlan.localProcesses.map((processDefinition) => processDefinition.id),
-  ['application.public-ingress', 'pc-desktop-renderer'],
-  'Desktop development must select the gateway and desktop renderer only.',
+  ['pc-desktop-renderer'],
+  'Desktop development must use the Tauri-hosted embedded application ingress without starting a second standalone gateway.',
 );
 assert.equal(
-  standaloneDesktopPlan.localProcesses[1].env.VITE_SDKWORK_BIRDCODER_RUNTIME_TARGET,
+  standaloneDesktopPlan.localProcesses[0].env.VITE_SDKWORK_BIRDCODER_RUNTIME_TARGET,
   'desktop',
+);
+assert.equal(
+  standaloneDesktopPlan.localGateway,
+  null,
+  'Desktop development must not resolve an external standalone gateway alongside the embedded Tauri ingress.',
+);
+assert.deepEqual(
+  standaloneDesktopPlan.healthChecks,
+  [],
+  'Desktop development must not wait for its embedded ingress before launching the Tauri process that owns it.',
 );
 assert.deepEqual(
   standaloneDesktopPlan.ownedBindings.map(({ id, value }) => ({ id, value })),
@@ -88,7 +121,7 @@ assert.deepEqual(
     { id: 'pc-web-renderer', value: '127.0.0.1:5173' },
     { id: 'pc-desktop-renderer', value: '127.0.0.1:1520' },
   ],
-  'Desktop development must register the gateway and renderer listeners so failed or interrupted starts release both ports.',
+  'Desktop development must register the embedded API and renderer listeners so failed or interrupted starts release both ports.',
 );
 assert.deepEqual(
   standaloneServerPlan.localProcesses.map((processDefinition) => processDefinition.id),
@@ -288,6 +321,37 @@ for (const topologyEnvPath of [
       `Test desktop capability must not inherit high-risk permission ${highRiskPermission}.`,
     );
   }
+
+  for (const [permission, command] of [
+    ['allow-project-device-mount-find', 'project_device_mount_find'],
+    [
+      'allow-project-device-mount-provider-session-directory-identity',
+      'project_device_mount_provider_session_directory_identity',
+    ],
+  ]) {
+    assert.ok(
+      productionPermissions.includes(permission),
+      `Production desktop capability must allow project mount recovery permission ${permission}.`,
+    );
+    assert.ok(
+      testPermissions.includes(permission),
+      `Test desktop capability must allow project mount recovery permission ${permission}.`,
+    );
+    assert.ok(
+      appDefaultPermissions.includes(permission),
+      `Desktop default permissions must include project mount recovery permission ${permission}.`,
+    );
+
+    const permissionBlock = defaultPermissionsSource
+      .split('[[permission]]')
+      .find((block) => block.includes(`identifier = "${permission}"`));
+    assert.ok(permissionBlock, `Desktop permissions must define ${permission}.`);
+    assert.ok(
+      extractTomlArray(permissionBlock, 'commands\\.allow').includes(command),
+      `Desktop permission ${permission} must allow Tauri command ${command}.`,
+    );
+  }
+
   assert.doesNotMatch(
     `${defaultCapabilitySource}\n${testCapabilitySource}\n${defaultPermissionsSource}`,
     /local_sql_execute_plan|allow-local-sql-execute-plan/u,

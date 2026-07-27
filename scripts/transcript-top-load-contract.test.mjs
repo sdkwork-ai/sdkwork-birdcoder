@@ -69,7 +69,7 @@ assert.match(
 
 assert.match(
   progressiveTranscriptHookSource,
-  /setVisibleTranscriptStartIndex\(\(previousVisibleTranscriptStartIndex\) =>[\s\S]*resolveEarlierTranscriptStartIndex\(previousVisibleTranscriptStartIndex\)/s,
+  /setTranscriptWindowState\(\(previousState\) =>[\s\S]*resolveEarlierTranscriptStartIndex\([\s\S]*activeState\.visibleTranscriptStartIndex/s,
   'Progressive transcript pagination must reveal exactly one earlier page for each top-threshold load request.',
 );
 

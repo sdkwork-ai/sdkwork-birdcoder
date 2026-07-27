@@ -37,6 +37,7 @@ const E2E_AUTH_TOKEN = createTestJwt({
 });
 
 let requestCounter = 0;
+let agentSessionFixtureCounter = 0;
 
 function nextRequestId() {
   requestCounter += 1;
@@ -84,6 +85,25 @@ export function createBirdCoderListEnvelope(
         pageSize: normalizedPageSize,
         totalItems: String(totalItemCount),
         totalPages,
+      },
+    },
+    traceId: nextRequestId(),
+  };
+}
+
+export function createBirdCoderCursorListEnvelope(
+  items,
+  { hasMore = false, nextCursor = null, pageSize = 100 } = {},
+) {
+  return {
+    code: 0,
+    data: {
+      items,
+      pageInfo: {
+        hasMore,
+        mode: 'cursor',
+        nextCursor,
+        pageSize,
       },
     },
     traceId: nextRequestId(),
@@ -195,12 +215,14 @@ export function createAgentWorkspaceFixture(overrides = {}) {
 
 export function createAgentSessionFixture(overrides = {}) {
   const project = createAgentProjectFixture();
+  agentSessionFixtureCounter += 1;
   return {
+    id: String(20_000 + agentSessionFixtureCounter),
     sessionId: 'e2e-coding-session-1',
     tenantId: '0',
     organizationId: '0',
     agentId: 'agent.birdcoder',
-    ownerUserId: '1',
+    ownerUserId: E2E_USER.id,
     projectId: project.projectId,
     sessionKind: 'coding',
     entrySurface: 'pc',
@@ -213,8 +235,8 @@ export function createAgentSessionFixture(overrides = {}) {
     lastItemSequence: '0',
     totalInputTokens: '0',
     totalOutputTokens: '0',
-    createdBy: '1',
-    updatedBy: '1',
+    createdBy: E2E_USER.id,
+    updatedBy: E2E_USER.id,
     version: '1',
     createdAt: '2026-01-01T00:00:00.000Z',
     updatedAt: '2026-01-01T00:00:00.000Z',
@@ -269,6 +291,22 @@ export function createCodeEngineCatalogFixture() {
             description: 'Provider-selected OpenCode model.',
             providerId: 'opencode',
             bindingId: 'opencode',
+            defaultForEngine: true,
+          },
+        ],
+      },
+      {
+        engineKey: 'gemini-cli',
+        agentId: 'agent.gemini-cli',
+        bindingId: 'gemini-cli',
+        models: [
+          {
+            engineKey: 'gemini-cli',
+            modelId: 'gemini-2.5-pro',
+            label: 'Gemini 2.5 Pro',
+            description: 'Google coding model for Gemini CLI.',
+            providerId: 'google',
+            bindingId: 'gemini-cli',
             defaultForEngine: true,
           },
         ],

@@ -28,8 +28,18 @@ assert.doesNotMatch(
 );
 assert.match(
   projectsHookSource,
-  /const incomingProjects = normalizeProjectsForInventoryStore\(page\.items\.filter\(Boolean\)\);/,
-  'Project inventory pages must be committed without hydrating their Session inventories.',
+  /const incomingProjects = normalizeProjectsForInventoryStore\(\s*filterProjectsForInventoryStore\(store, page\.items\.filter\(Boolean\)\),\s*\);/u,
+  'Project inventory pages must pass Project and Session rows through the Store tombstone filter before committing.',
+);
+assert.match(
+  projectsHookSource,
+  /upsertProjectIntoProjectsStoreByScopeKey\(storeScopeKey, synchronized\.project\);/u,
+  'Project-scoped Session pagination must commit through the current page Store tombstone boundary.',
+);
+assert.doesNotMatch(
+  projectsHookSource,
+  /mutateProjectsStoreByScopeKey\(baseStoreScopeKey, \(projects\) =>\s*upsertProjectIntoCollection\(projects, synchronized\.project\)/u,
+  'Project-scoped Session pagination must not write a non-default page into the base Store.',
 );
 assert.match(
   codeSidebarSource,

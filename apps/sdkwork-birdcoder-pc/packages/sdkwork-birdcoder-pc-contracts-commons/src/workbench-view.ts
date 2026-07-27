@@ -1,7 +1,6 @@
-import {
-  resolveAgentSessionViewSortTimestamp,
-  type AgentSessionPageInfoView,
-  type AgentSessionView,
+import type {
+  AgentSessionPageInfoView,
+  AgentSessionView,
 } from './agent-session-view.ts';
 import type { WorkbenchEntityId, WorkbenchLongIntegerString } from './workbench-values.ts';
 
@@ -16,6 +15,7 @@ export type LocalFolderMountSource = BrowserLocalFolderMountSource | TauriLocalF
 export type ProjectDeviceMountStatus = 'mounted' | 'recoverable' | 'permission_required' | 'mount_required' | 'session_required';
 export interface ProjectDeviceMountState { displayName: string | null; host: LocalFolderMountSource['type'] | 'server' | null; status: ProjectDeviceMountStatus }
 export interface ProjectDeviceMountRecoveryResult { restored: boolean; state: ProjectDeviceMountState }
+export interface ProjectFileSystemRoot { displayName: string; host: LocalFolderMountSource['type'] | 'server'; projectId: string; virtualPath: string }
 export type LocalFolderPickerResult =
   | { status: 'selected'; source: LocalFolderMountSource }
   | { status: 'cancelled' }
@@ -66,10 +66,10 @@ const WORKBENCH_PROJECT_SORT_COLLATOR = new Intl.Collator(undefined, {
 });
 
 function resolveWorkbenchProjectActivity(project: AgentProjectView): number {
+  // Session inventories are loaded lazily, so they cannot be a stable project-order authority.
   return Math.max(
     Date.parse(project.updatedAt) || 0,
     Date.parse(project.createdAt) || 0,
-    ...project.agentSessions.map(resolveAgentSessionViewSortTimestamp),
   );
 }
 

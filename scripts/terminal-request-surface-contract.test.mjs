@@ -17,6 +17,7 @@ const codeWorkbenchCommandsSource = read('../apps/sdkwork-birdcoder-pc/packages/
 const terminalActionsSource = read('../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-code/src/pages/useCodePageTerminalActions.ts');
 const studioBindingsSource = read('../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-studio/src/pages/useStudioWorkbenchEventBindings.ts');
 const fileExplorerSource = read('../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-ui/src/components/FileExplorer.tsx');
+const projectRuntimeLocationServiceSource = read('../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/src/services/impl/RuntimeProjectRuntimeLocationService.ts');
 const appSource = readBirdcoderAppShellSource();
 
 assert.match(
@@ -58,8 +59,8 @@ assert.match(runConfigsSource, /surface: 'embedded'/);
 
 assert.match(
   terminalActionsSource,
-  /resolveProjectRuntimeLocation\(projectId, \{[\s\S]*allowFolderSelection,[\s\S]*capability: 'terminal'/,
-  'Terminal launch must resolve a device-local runtime location.',
+  /resolveProjectRuntimeLocation\(project, \{[\s\S]*allowFolderSelection,[\s\S]*capability: 'terminal'/,
+  'Terminal launch must resolve a device-local runtime location from the project input.',
 );
 assert.match(
   terminalActionsSource,
@@ -73,8 +74,8 @@ assert.match(
 );
 assert.match(
   terminalActionsSource,
-  /resolveTerminalWorkingDirectory\(target\.projectId, false\)/,
-  'Tauri project terminal launch must reuse the bound absolute path without allowing folder selection.',
+  /resolveTerminalWorkingDirectory\(target, false\)/,
+  'Tauri project terminal launch must pass the normalized project target without allowing folder selection.',
 );
 assert.doesNotMatch(
   terminalActionsSource,
@@ -93,6 +94,16 @@ assert.doesNotMatch(
   shellProjectTerminalHandler,
   /allowFolderSelection: true/,
   'File-explorer project terminal actions must never open an implicit folder picker.',
+);
+assert.match(
+  appSource,
+  /projectRuntimeLocationService\.revealProjectInFileManager\(target\)/,
+  'File-manager project actions must use the canonical project runtime-location service.',
+);
+assert.match(
+  projectRuntimeLocationServiceSource,
+  /async revealProjectInFileManager\([\s\S]*?resolveProjectLocalWorkingDirectory\(target, \{[\s\S]*?allowFolderSelection: false,[\s\S]*?capability: 'file_system'/,
+  'Project reveal must recover a persisted local path without opening a folder picker.',
 );
 assert.doesNotMatch(
   requestsSource,
@@ -126,8 +137,13 @@ assert.match(
 );
 assert.match(
   terminalActionsSource,
-  /const handleCopySessionId = useCallback\(async \(agentSessionId: string\) => \{[\s\S]*const normalizedAgentSessionId = agentSessionId\.trim\(\);[\s\S]*copyTextToClipboard\(normalizedAgentSessionId\)/,
-  'Session ID copy must use the canonical Agents Session id already loaded in memory.',
+  /const handleCopyProviderSessionId = useCallback\(async \([\s\S]*const location = resolveSessionActionLocation\(agentSessionId, projectId\);[\s\S]*const providerSessionId = location\?\.agentSession\.providerSessionId\?\.trim\(\) \?\? '';[\s\S]*copyTextToClipboard\(providerSessionId\)/,
+  'Provider Session ID copy must locate the canonical Agents Session and copy its persisted providerSessionId.',
+);
+assert.doesNotMatch(
+  terminalActionsSource,
+  /copyTextToClipboard\(agentSessionId\)/,
+  'Provider Session ID copy must not copy the SDKWork Agents Session id.',
 );
 assert.doesNotMatch(
   terminalActionsSource,
@@ -137,8 +153,8 @@ assert.doesNotMatch(
 
 assert.match(
   fileExplorerSource,
-  /const resolveProjectMountTarget = \(mountedPath\?: string\) => \{[\s\S]*projectId: normalizedProjectId,[\s\S]*mountedPath/,
-  'File explorer terminal actions must preserve project and mounted-path identity.',
+  /const resolveProjectMountTarget = \(mountedPath\?: string\) => \{[\s\S]*resolveProjectDeviceMountTarget\(\{ projectId, mountedPath \}\)/,
+  'File explorer actions must normalize project and mounted-path identity through the shared target entrypoint.',
 );
 assert.doesNotMatch(
   fileExplorerSource,

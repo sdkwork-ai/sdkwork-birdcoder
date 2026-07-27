@@ -3,10 +3,13 @@ import type { AgentSessionItemView } from '@sdkwork/birdcoder-pc-workbench/chat/
 import { buildChatTranscriptTurnAnchors } from './chatTranscriptAnchors';
 
 const MAX_TURN_FILE_LABELS = 3;
+const MIN_VISIBLE_TURN_COUNT = 3;
 
 export interface ChatTranscriptAnchorRailProps {
+  label: string;
   messages: readonly AgentSessionItemView[];
   onSelectTurn: (messageIndex: number) => void;
+  turnLabel: string;
 }
 
 function resolveTurnPosition(turnIndex: number, turnCount: number): string {
@@ -18,17 +21,27 @@ function resolveTurnPosition(turnIndex: number, turnCount: number): string {
 }
 
 export const ChatTranscriptAnchorRail = memo(function ChatTranscriptAnchorRail({
+  label,
   messages,
   onSelectTurn,
+  turnLabel,
 }: ChatTranscriptAnchorRailProps) {
   const turns = useMemo(() => buildChatTranscriptTurnAnchors(messages), [messages]);
 
-  if (turns.length === 0) {
+  if (turns.length < MIN_VISIBLE_TURN_COUNT) {
     return null;
   }
 
   return (
-    <div className="pointer-events-none absolute inset-y-4 left-2 z-20 w-8">
+    <nav
+      aria-label={label}
+      className="pointer-events-none absolute inset-y-6 right-3 z-20 hidden w-4 min-[1180px]:block"
+      data-chat-transcript-anchor-rail="true"
+    >
+      <span
+        aria-hidden="true"
+        className="absolute bottom-[6%] left-1/2 top-[6%] w-px -translate-x-1/2 bg-white/[0.055]"
+      />
       {turns.map((turn, turnIndex) => {
         const isFirstTurn = turnIndex === 0;
         const isLastTurn = turnIndex === turns.length - 1;
@@ -41,16 +54,15 @@ export const ChatTranscriptAnchorRail = memo(function ChatTranscriptAnchorRail({
         return (
           <button
             key={turn.id}
-            aria-label={`Go to conversation turn ${turn.turnNumber}: ${turn.title}`}
-            className="pointer-events-auto group absolute left-0 flex h-5 w-7 items-center rounded-sm outline-none focus-visible:ring-2 focus-visible:ring-blue-400/80"
+            aria-label={`${turnLabel} ${turn.turnNumber}: ${turn.title}`}
+            className="pointer-events-auto group absolute left-1/2 flex h-4 w-4 -translate-x-1/2 items-center justify-center rounded-full outline-none focus-visible:ring-2 focus-visible:ring-blue-400/80"
             onClick={() => onSelectTurn(turn.messageIndex)}
             style={{ top: resolveTurnPosition(turnIndex, turns.length) }}
             type="button"
           >
-            <span className="h-0.5 w-5 rounded-full bg-gray-700 transition-colors group-hover:bg-blue-400 group-focus-visible:bg-blue-400" />
-            <span className="absolute left-4 h-2 w-2 rounded-full border border-[#0e0e11] bg-gray-500 transition-colors group-hover:bg-blue-300 group-focus-visible:bg-blue-300" />
+            <span className="h-1.5 w-1.5 rounded-full bg-gray-600 ring-2 ring-[#0e0e11] transition-all group-hover:h-2 group-hover:w-2 group-hover:bg-blue-300 group-focus-visible:h-2 group-focus-visible:w-2 group-focus-visible:bg-blue-300" />
             <span
-              className={`pointer-events-none absolute left-8 z-30 w-72 rounded-lg border border-white/10 bg-[#252526] p-3 text-left shadow-2xl opacity-0 transition-opacity duration-150 group-hover:opacity-100 group-focus-visible:opacity-100 ${popupPositionClass}`}
+              className={`pointer-events-none absolute right-5 z-30 w-72 rounded-md border border-white/10 bg-[#252526] p-3 text-left shadow-xl opacity-0 transition-opacity duration-150 group-hover:opacity-100 group-focus-visible:opacity-100 ${popupPositionClass}`}
             >
               <span className="block line-clamp-2 text-sm font-semibold leading-5 text-gray-100">
                 {turn.title}
@@ -81,7 +93,7 @@ export const ChatTranscriptAnchorRail = memo(function ChatTranscriptAnchorRail({
           </button>
         );
       })}
-    </div>
+    </nav>
   );
 });
 

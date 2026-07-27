@@ -1,69 +1,108 @@
 import { useEffect } from 'react';
-import { Crown, Sparkles, Wallet, X } from 'lucide-react';
+import { Sparkles, Wallet, X } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
-import { Button } from '@sdkwork/ui-pc-react';
+import { useSdkworkMembershipController } from '@sdkwork/membership-pc-membership';
 import type { SdkworkSubscriptionCatalogModalProps } from '@sdkwork/membership-pc-subscription/catalog';
+import {
+  SdkworkCouponRedemptionDialog,
+  SdkworkPointsRechargeDialog,
+} from '@sdkwork/order-pc-recharge';
+import { Button } from '@sdkwork/ui-pc-react';
+import {
+  getBirdCoderCouponRechargeService,
+  getBirdCoderPointsRechargeService,
+} from '@sdkwork/birdcoder-pc-infrastructure-runtime/membershipSdkBootstrap';
 
-type TokenPlanCommerceModalVariant = 'points-details' | 'points-purchase' | 'redeem';
+const COPY_PREFIX = 'user.tokenPlan.commerce';
 
-interface BirdCoderTokenPlanCommerceModalProps extends SdkworkSubscriptionCatalogModalProps {
-  variant: TokenPlanCommerceModalVariant;
-}
-
-const VARIANT_COPY: Record<
-  TokenPlanCommerceModalVariant,
-  {
-    ctaKey: string;
-    ctaDefault: string;
-    descriptionKey: string;
-    descriptionDefault: string;
-    titleKey: string;
-    titleDefault: string;
-  }
-> = {
-  'points-details': {
-    ctaKey: 'token_plan_open_wallet',
-    ctaDefault: '查看积分明细',
-    descriptionKey: 'token_plan_points_details_description',
-    descriptionDefault: '查看算力积分余额、充值记录与消费明细。',
-    titleKey: 'token_plan_points_details_title',
-    titleDefault: '积分明细',
-  },
-  'points-purchase': {
-    ctaKey: 'token_plan_open_wallet_recharge',
-    ctaDefault: '前往充值',
-    descriptionKey: 'token_plan_points_purchase_description',
-    descriptionDefault: '选择充值档位或自定义积分数量，支持微信、支付宝等方式。',
-    titleKey: 'token_plan_points_purchase_title',
-    titleDefault: '购买算力积分',
-  },
-  redeem: {
-    ctaKey: 'token_plan_open_wallet_redeem',
-    ctaDefault: '前往兑换',
-    descriptionKey: 'token_plan_redeem_description',
-    descriptionDefault: '使用兑换码激活会员或领取积分奖励。',
-    titleKey: 'token_plan_redeem_title',
-    titleDefault: '会员兑换',
-  },
-};
-
-export function createTokenPlanCommerceModal(variant: TokenPlanCommerceModalVariant) {
-  return function TokenPlanCommerceModal(props: SdkworkSubscriptionCatalogModalProps) {
-    return <BirdCoderTokenPlanCommerceModal {...props} variant={variant} />;
-  };
-}
-
-export const BirdCoderTokenPlanPointsPurchaseModal = createTokenPlanCommerceModal('points-purchase');
-export const BirdCoderTokenPlanPointsDetailsModal = createTokenPlanCommerceModal('points-details');
-export const BirdCoderTokenPlanRedeemModal = createTokenPlanCommerceModal('redeem');
-
-function BirdCoderTokenPlanCommerceModal({
+export function BirdCoderTokenPlanPointsPurchaseModal({
+  currentPoints,
   isOpen,
   onClose,
-  variant,
-}: BirdCoderTokenPlanCommerceModalProps) {
+}: SdkworkSubscriptionCatalogModalProps) {
   const { t } = useTranslation();
-  const copy = VARIANT_COPY[variant];
+  const membershipController = useSdkworkMembershipController();
+
+  return (
+    <SdkworkPointsRechargeDialog
+      copy={{
+        account: t(`${COPY_PREFIX}.pointsRecharge.account`),
+        agreement: t(`${COPY_PREFIX}.pointsRecharge.agreement`),
+        agreementAccepted: t(`${COPY_PREFIX}.pointsRecharge.agreementAccepted`),
+        agreementRequired: t(`${COPY_PREFIX}.pointsRecharge.agreementRequired`),
+        close: t(`${COPY_PREFIX}.close`),
+        completed: t(`${COPY_PREFIX}.pointsRecharge.completed`),
+        confirmPayment: t(`${COPY_PREFIX}.pointsRecharge.confirmPayment`),
+        creatingPayment: t(`${COPY_PREFIX}.pointsRecharge.creatingPayment`),
+        emptyPackages: t(`${COPY_PREFIX}.pointsRecharge.emptyPackages`),
+        expired: t(`${COPY_PREFIX}.pointsRecharge.expired`),
+        expiredDescription: t(`${COPY_PREFIX}.pointsRecharge.expiredDescription`),
+        expiresIn: t(`${COPY_PREFIX}.pointsRecharge.expiresIn`),
+        loadFailed: t(`${COPY_PREFIX}.pointsRecharge.loadFailed`),
+        loadingPackages: t(`${COPY_PREFIX}.pointsRecharge.loadingPackages`),
+        myPoints: t(`${COPY_PREFIX}.pointsRecharge.myPoints`),
+        notice: t(`${COPY_PREFIX}.pointsRecharge.notice`),
+        paymentUnavailable: t(`${COPY_PREFIX}.pointsRecharge.paymentUnavailable`),
+        paymentUnavailableDescription: t(
+          `${COPY_PREFIX}.pointsRecharge.paymentUnavailableDescription`,
+        ),
+        pointsUnit: t(`${COPY_PREFIX}.pointsRecharge.pointsUnit`),
+        retry: t(`${COPY_PREFIX}.pointsRecharge.retry`),
+        retryPayment: t(`${COPY_PREFIX}.pointsRecharge.retryPayment`),
+        scanPrompt: t(`${COPY_PREFIX}.pointsRecharge.scanPrompt`),
+        title: t(`${COPY_PREFIX}.pointsRecharge.title`),
+      }}
+      currentPoints={currentPoints}
+      isOpen={isOpen}
+      onClose={onClose}
+      onCompleted={async () => {
+        await membershipController.refresh();
+      }}
+      service={getBirdCoderPointsRechargeService()}
+    />
+  );
+}
+
+export function BirdCoderTokenPlanRedeemModal({
+  isOpen,
+  onClose,
+}: SdkworkSubscriptionCatalogModalProps) {
+  const { t } = useTranslation();
+  const membershipController = useSdkworkMembershipController();
+
+  return (
+    <SdkworkCouponRedemptionDialog
+      copy={{
+        close: t(`${COPY_PREFIX}.close`),
+        codeLabel: t(`${COPY_PREFIX}.couponRecharge.codeLabel`),
+        codePlaceholder: t(`${COPY_PREFIX}.couponRecharge.codePlaceholder`),
+        dailyQuota: t(`${COPY_PREFIX}.couponRecharge.dailyQuota`),
+        description: t(`${COPY_PREFIX}.couponRecharge.description`),
+        expiresAt: t(`${COPY_PREFIX}.couponRecharge.expiresAt`),
+        invalidCode: t(`${COPY_PREFIX}.couponRecharge.invalidCode`),
+        redeem: t(`${COPY_PREFIX}.couponRecharge.redeem`),
+        redeeming: t(`${COPY_PREFIX}.couponRecharge.redeeming`),
+        subscriptionActivated: t(`${COPY_PREFIX}.couponRecharge.subscriptionActivated`),
+        title: t(`${COPY_PREFIX}.couponRecharge.title`),
+        tokenBankCredited: t(`${COPY_PREFIX}.couponRecharge.tokenBankCredited`),
+        totalQuota: t(`${COPY_PREFIX}.couponRecharge.totalQuota`),
+      }}
+      isOpen={isOpen}
+      onClose={onClose}
+      onCompleted={async () => {
+        await membershipController.refresh();
+      }}
+      service={getBirdCoderCouponRechargeService()}
+    />
+  );
+}
+
+export function BirdCoderTokenPlanPointsDetailsModal({
+  currentPoints,
+  isOpen,
+  onClose,
+}: SdkworkSubscriptionCatalogModalProps) {
+  const { i18n, t } = useTranslation();
 
   useEffect(() => {
     if (!isOpen) {
@@ -80,70 +119,71 @@ function BirdCoderTokenPlanCommerceModal({
     return () => window.removeEventListener('keydown', handleEscape);
   }, [isOpen, onClose]);
 
-  function handleContinue() {
-    onClose();
+  if (!isOpen) {
+    return null;
   }
 
+  const formattedPoints = currentPoints === null || currentPoints === undefined
+    ? '--'
+    : new Intl.NumberFormat(i18n.language).format(currentPoints);
+
   return (
-    <>
-      {isOpen ? (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
-          <button
-            aria-label={t('user.tokenPlan.commerce.close')}
-            className="token-plan-overlay absolute inset-0 bg-black/60 backdrop-blur-sm"
-            onClick={onClose}
-            type="button"
-          />
+    <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
+      <button
+        aria-label={t(`${COPY_PREFIX}.close`)}
+        className="token-plan-overlay absolute inset-0 bg-black/60 backdrop-blur-sm"
+        onClick={onClose}
+        type="button"
+      />
 
-          <div
-            className="token-plan-dialog relative w-full max-w-lg overflow-hidden rounded-3xl border border-zinc-800/60 bg-[#1e1e22] shadow-2xl"
-            role="dialog"
-          >
-            <div className="flex items-center justify-between border-b border-zinc-800/60 px-6 py-5">
-              <div className="flex items-center gap-3">
-                <div className="flex h-10 w-10 items-center justify-center rounded-xl border border-zinc-700/70 bg-zinc-900/80">
-                  {variant === 'redeem' ? (
-                    <Crown aria-hidden="true" className="h-5 w-5 text-yellow-500" />
-                  ) : (
-                    <Wallet aria-hidden="true" className="h-5 w-5 text-sky-400" />
-                  )}
-                </div>
-                <div>
-                  <div className="text-xs font-semibold uppercase tracking-[0.18em] text-zinc-500">
-                    BirdCoder
-                  </div>
-                  <h2 className="text-lg font-semibold text-white">{t(copy.titleKey, copy.titleDefault)}</h2>
-                </div>
-              </div>
-              <button
-                className="rounded-lg p-1.5 text-zinc-400 transition-colors hover:bg-zinc-800 hover:text-white"
-                onClick={onClose}
-                type="button"
-              >
-                <X aria-hidden="true" className="h-5 w-5" />
-              </button>
+      <div
+        aria-modal="true"
+        className="token-plan-dialog relative w-full max-w-md overflow-hidden rounded-lg border border-zinc-800/60 bg-[#1e1e22] shadow-2xl"
+        role="dialog"
+      >
+        <div className="flex items-center justify-between border-b border-zinc-800/60 px-6 py-5">
+          <div className="flex min-w-0 items-center gap-3">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-zinc-700/70 bg-zinc-900/80">
+              <Wallet aria-hidden="true" className="h-5 w-5 text-sky-400" />
             </div>
-
-            <div className="space-y-5 px-6 py-6">
-              <p className="text-sm leading-7 text-zinc-300">{t(copy.descriptionKey, copy.descriptionDefault)}</p>
-
-              <div className="flex items-center gap-2 rounded-2xl border border-zinc-800/70 bg-zinc-900/70 px-4 py-3 text-sm text-zinc-300">
-                <Sparkles aria-hidden="true" className="h-4 w-4 shrink-0 text-sky-400" />
-                <span>{t('user.tokenPlan.commerce.walletHint')}</span>
-              </div>
-
-              <div className="flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
-                <Button onClick={onClose} type="button" variant="ghost">
-                  {t('user.tokenPlan.commerce.cancel')}
-                </Button>
-                <Button onClick={handleContinue} type="button" variant="secondary">
-                  {t(copy.ctaKey, copy.ctaDefault)}
-                </Button>
-              </div>
+            <div className="min-w-0">
+              <div className="text-xs font-semibold uppercase text-zinc-500">BirdCoder</div>
+              <h2 className="text-lg font-semibold text-white">
+                {t(`${COPY_PREFIX}.pointsDetails.title`)}
+              </h2>
             </div>
           </div>
+          <button
+            aria-label={t(`${COPY_PREFIX}.close`)}
+            className="shrink-0 rounded-lg p-1.5 text-zinc-400 transition-colors hover:bg-zinc-800 hover:text-white"
+            onClick={onClose}
+            type="button"
+          >
+            <X aria-hidden="true" className="h-5 w-5" />
+          </button>
         </div>
-      ) : null}
-    </>
+
+        <div className="space-y-5 px-6 py-6">
+          <p className="text-sm leading-7 text-zinc-300">
+            {t(`${COPY_PREFIX}.pointsDetails.description`)}
+          </p>
+          <div className="flex items-center justify-between gap-4 rounded-lg border border-zinc-800/70 bg-zinc-900/70 px-4 py-4">
+            <span className="text-sm text-zinc-400">
+              {t(`${COPY_PREFIX}.pointsDetails.balanceLabel`)}
+            </span>
+            <strong className="text-xl font-semibold text-white">{formattedPoints}</strong>
+          </div>
+          <div className="flex items-start gap-2 text-sm leading-6 text-zinc-400">
+            <Sparkles aria-hidden="true" className="mt-1 h-4 w-4 shrink-0 text-sky-400" />
+            <span>{t(`${COPY_PREFIX}.pointsDetails.hint`)}</span>
+          </div>
+          <div className="flex justify-end">
+            <Button onClick={onClose} type="button" variant="secondary">
+              {t(`${COPY_PREFIX}.close`)}
+            </Button>
+          </div>
+        </div>
+      </div>
+    </div>
   );
 }

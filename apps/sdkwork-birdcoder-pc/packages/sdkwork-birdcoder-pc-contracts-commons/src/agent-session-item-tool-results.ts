@@ -127,12 +127,27 @@ export function hasAgentSessionItemToolErrorValue(value: unknown): boolean {
   return record ? Object.keys(record).length > 0 : true;
 }
 
+function formatCommandResultRecord(record: Record<string, unknown>): string {
+  const stdout = typeof record.stdout === 'string' ? record.stdout.trimEnd() : '';
+  const stderr = typeof record.stderr === 'string' ? record.stderr.trimEnd() : '';
+  if (stdout || stderr) {
+    return [stdout, stderr].filter(Boolean).join('\n');
+  }
+
+  const exitCode = readFiniteNumber(record.exitCode) ?? readFiniteNumber(record.exit_code);
+  return exitCode === undefined ? '' : `Exit code: ${exitCode}`;
+}
+
 function formatToolResultValue(value: unknown): string {
   if (typeof value === 'string') {
     return value;
   }
   if (value === undefined || value === null) {
     return '';
+  }
+  const commandResult = formatCommandResultRecord(readRecord(value) ?? {});
+  if (commandResult) {
+    return commandResult;
   }
   try {
     return JSON.stringify(value, null, 2);
@@ -760,6 +775,11 @@ function normalizeToolResultValue(
   const hasEmbeddedError = hasAgentSessionItemToolErrorValue(record.error);
   if (hasEmbeddedError) {
     blocks.push({ type: 'error', message: readToolResultErrorMessage(record.error) });
+  }
+  const commandResult = formatCommandResultRecord(record);
+  if (commandResult) {
+    blocks.push({ type: 'text', text: commandResult });
+    return;
   }
   if (type.includes('redacted_result')) {
     return;

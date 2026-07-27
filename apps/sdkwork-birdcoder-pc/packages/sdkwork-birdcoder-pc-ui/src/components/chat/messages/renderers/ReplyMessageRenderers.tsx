@@ -4,6 +4,9 @@ import { Button } from '@sdkwork/birdcoder-pc-ui-shell';
 import type { AgentSessionItemViewSource } from '@sdkwork/birdcoder-pc-workbench/chat/types';
 import type { AgentSessionItemPresentation } from '@sdkwork/birdcoder-pc-workbench/chat/types';
 import { ContentBlockList } from '../contentBlocks/ContentBlockList.tsx';
+import { TurnFileChangesCard } from '../activity/TurnFileChangesCard.tsx';
+import { UserMessageAttachments } from '../UserMessageAttachments.tsx';
+import { resolveUserMessageDisplay } from '../userMessageDisplay.ts';
 import {
   resolveMessageActionTargetCopyText,
   resolveMessageActionTargetMessageIds,
@@ -115,13 +118,31 @@ export const UserTextMessageRenderer = memo(function UserTextMessageRenderer({
 }: ChatMessageRendererProps) {
   const message = view.source;
   const isSidebar = context.layout === 'sidebar';
+  const display = resolveUserMessageDisplay(view);
+  const textView = display.textBlocks.length > 0
+    ? { ...view, blocks: display.textBlocks }
+    : null;
+  const supplementaryView = display.supplementaryBlocks.length > 0
+    ? { ...view, blocks: display.supplementaryBlocks }
+    : null;
 
   if (isSidebar) {
     return (
       <div ref={messageRef} className="group flex w-full min-w-0 flex-col items-end">
-        <div className="max-w-[90%] min-w-0 overflow-hidden break-words bg-white/5 px-4 py-3 text-gray-200 [overflow-wrap:anywhere] rounded-xl rounded-tr-md">
-          <ContentBlockList view={view} context={context} />
-        </div>
+        <UserMessageAttachments
+          context={context}
+          files={display.fileAttachments}
+          images={display.imageAttachments}
+        />
+        {textView ? (
+          <div
+            className="max-w-[90%] min-w-0 overflow-hidden break-words rounded-lg rounded-tr-sm bg-white/[0.055] px-4 py-3 text-gray-200 [overflow-wrap:anywhere]"
+            data-chat-user-text="true"
+          >
+            <ContentBlockList view={textView} context={context} />
+          </div>
+        ) : null}
+        {supplementaryView ? <ContentBlockList view={supplementaryView} context={context} /> : null}
         {context.showMessageActions ? (
           <ChatMessageActionBar
             message={message}
@@ -137,10 +158,21 @@ export const UserTextMessageRenderer = memo(function UserTextMessageRenderer({
   }
 
   return (
-    <div ref={messageRef} className="flex w-full min-w-0 flex-col items-end">
-      <div className="max-w-[85%] min-w-0 overflow-hidden break-words rounded-xl rounded-tr-md bg-white/5 px-4 py-2.5 text-[length:var(--birdcoder-ui-font-size,12px)] leading-relaxed text-gray-200 whitespace-pre-wrap [overflow-wrap:anywhere]">
-        <ContentBlockList view={view} context={context} />
-      </div>
+    <div ref={messageRef} className="group flex w-full min-w-0 flex-col items-end">
+      <UserMessageAttachments
+        context={context}
+        files={display.fileAttachments}
+        images={display.imageAttachments}
+      />
+      {textView ? (
+        <div
+          className="max-w-[85%] min-w-0 overflow-hidden break-words rounded-lg rounded-tr-sm bg-white/[0.055] px-4 py-2.5 text-[length:calc(var(--birdcoder-ui-font-size,12px)_+_1px)] leading-6 text-gray-100 whitespace-pre-wrap [overflow-wrap:anywhere]"
+          data-chat-user-text="true"
+        >
+          <ContentBlockList view={textView} context={context} />
+        </div>
+      ) : null}
+      {supplementaryView ? <ContentBlockList view={supplementaryView} context={context} /> : null}
       {context.showMessageActions ? (
         <ChatMessageActionBar
           message={message}
@@ -180,6 +212,15 @@ export const AssistantReplyMessageRenderer = memo(function AssistantReplyMessage
         <RoleHeader viewKind={view.kind} layout={context.layout} t={context.environment?.t} />
       )}
       <ContentBlockList view={view} context={context} />
+      {context.turnFileChanges ? (
+        <TurnFileChangesCard
+          compact={isSidebar}
+          environment={context.environment}
+          expandedDisclosureKeys={context.expandedDisclosureKeys}
+          presentation={context.turnFileChanges}
+          toggleDisclosure={context.toggleDisclosure}
+        />
+      ) : null}
       {context.showMessageActions && !suppressReplyChrome ? (
         <ChatMessageActionBar
           message={message}

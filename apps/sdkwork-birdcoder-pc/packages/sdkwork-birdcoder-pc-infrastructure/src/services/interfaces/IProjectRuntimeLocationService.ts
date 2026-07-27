@@ -9,10 +9,40 @@ export type ProjectRuntimeLocationCapability =
   | 'build'
   | 'file_system';
 
+export interface ProjectRuntimeLocationProjectLike {
+  projectId: string;
+  mountedPath?: string | null;
+}
+
+export type ProjectRuntimeLocationInput =
+  | string
+  | ProjectRuntimeLocationProjectLike;
+
+export interface ProjectRuntimeLocationTarget {
+  projectId: string;
+  mountedPath?: string;
+}
+
+export function normalizeProjectRuntimeLocationInput(
+  input: ProjectRuntimeLocationInput,
+): ProjectRuntimeLocationTarget | null {
+  const projectId = (typeof input === 'string' ? input : input.projectId).trim();
+  if (!projectId) {
+    return null;
+  }
+
+  const mountedPath = typeof input === 'string'
+    ? undefined
+    : input.mountedPath?.trim();
+  return {
+    projectId,
+    ...(mountedPath ? { mountedPath } : {}),
+  };
+}
+
 export interface ProjectRuntimeLocationResolutionRequest {
   allowFolderSelection?: boolean;
   capability: ProjectRuntimeLocationCapability;
-  mountedPath?: string;
 }
 
 export interface ResolvedProjectRuntimeLocation {
@@ -122,23 +152,32 @@ export type ProjectRuntimeLocationBindingResult =
 
 export interface IProjectRuntimeLocationService {
   bindLocalProjectRuntimeLocation(
-    projectId: string,
+    project: ProjectRuntimeLocationInput,
     source: LocalFolderMountSource,
   ): Promise<ProjectRuntimeLocationBindingResult>;
 
   resolveProjectRuntimeLocation(
-    projectId: string,
+    project: ProjectRuntimeLocationInput,
     request: ProjectRuntimeLocationResolutionRequest,
   ): Promise<ProjectRuntimeLocationResolution>;
 
+  resolveProjectLocalWorkingDirectory(
+    project: ProjectRuntimeLocationInput,
+    request: ProjectRuntimeLocationResolutionRequest,
+  ): Promise<string | null>;
+
+  revealProjectInFileManager(
+    project: ProjectRuntimeLocationInput,
+  ): Promise<boolean>;
+
   resolveProjectRuntimeLocationExecutionId(
-    projectId: string,
+    project: ProjectRuntimeLocationInput,
     capability: ProjectRuntimeLocationCapability,
     options?: { allowFolderSelection?: boolean },
   ): Promise<string>;
 
   resolveProjectRuntimeLocationId(
-    projectId: string,
+    project: ProjectRuntimeLocationInput,
     capability: ProjectRuntimeLocationCapability,
   ): Promise<string | null>;
 }

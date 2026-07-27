@@ -18,13 +18,13 @@ use sdkwork_web_core::{HttpMetricsDimensions, HttpMetricsRegistry};
 pub async fn build_app(
     config: &BirdServerConfig,
 ) -> Result<Router, Box<dyn std::error::Error + Send + Sync>> {
-    build_app_with_native_session_cwd_resolver(config, None).await
+    build_app_with_provider_session_cwd_resolver(config, None).await
 }
 
-pub async fn build_app_with_native_session_cwd_resolver(
+pub async fn build_app_with_provider_session_cwd_resolver(
     config: &BirdServerConfig,
     resolver: Option<
-        std::sync::Arc<dyn sdkwork_agents_runtime_facade::NativeSessionProjectCwdResolver>,
+        std::sync::Arc<dyn sdkwork_agents_runtime_facade::ProviderSessionProjectCwdResolver>,
     >,
 ) -> Result<Router, Box<dyn std::error::Error + Send + Sync>> {
     let selected_profile = profile::assemble_standalone_profile(config, resolver)

@@ -1,18 +1,26 @@
 import type {
   AgentSessionPageInfoView,
+  AgentSessionActivityView,
+  AgentSessionItemReasoningView,
+  AgentSessionItemResourceView,
   AgentSessionItemView,
   AgentSessionView,
   AgentProjectView,
+  AgentSessionProtocolNoticeKind,
+  FileChange,
 } from '@sdkwork/birdcoder-pc-contracts-commons';
 import {
+  formatAgentSessionActivityDisplayTime,
   formatAgentSessionDisplayTime,
+  isAgentSessionItemVisibleInTranscript,
 } from '@sdkwork/birdcoder-pc-contracts-commons';
+import type { AgentResourceUserStateRecord } from '@sdkwork/birdcoder-pc-core/sdk/agents-app';
 import type { IAgentSessionService } from '@sdkwork/birdcoder-pc-infrastructure-runtime';
 import {
-  findWorkbenchCodeEngineDefinitionForAgentId,
-  loadWorkbenchCodeEngineCatalog,
   resolveWorkbenchCodeEngineForRuntimeBinding,
 } from '../workbench/codeEngineCatalog.ts';
+import { resolveAgentSessionActivityRuntimeStatus } from '../workbench/agentSessionActivity.ts';
+import { mergeAgentSessionProjectionForStore } from '../stores/projectsStore.ts';
 
 export type AgentSessionRecord = Awaited<
   ReturnType<IAgentSessionService['getSession']>
@@ -20,9 +28,10 @@ export type AgentSessionRecord = Awaited<
 export type AgentSessionItemRecord = Awaited<
   ReturnType<IAgentSessionService['listSessionItems']>
 >['items'][number];
-export type AgentSessionUserStateRecord = Awaited<
-  ReturnType<IAgentSessionService['getSessionUserState']>
->;
+export type AgentSessionUserStateRecord = AgentResourceUserStateRecord;
+export type AgentSessionActivitySummaryRecord = Awaited<
+  ReturnType<IAgentSessionService['listSessionActivitySummaries']>
+>['items'][number];
 
 export interface AgentSessionViewContext {
   projectId: string;
@@ -30,9 +39,10 @@ export interface AgentSessionViewContext {
   modelId?: string;
   providerId?: string;
   providerBindingId?: string;
+  runtimeBindingId?: string;
   hostMode?: AgentSessionView['hostMode'];
   transportKind?: string;
-  nativeSessionId?: string;
+  providerSessionId?: string;
   runtimeLocationId?: string;
   runtimeBindingStatus?: 'active' | 'deactivated' | 'failed' | 'deleted';
   runtimeBindingUpdatedAt?: string;
@@ -46,11 +56,17 @@ export interface ProjectAgentSessionPage {
 }
 
 const PROJECT_SESSION_PAGE_SIZE = 20;
-const PROJECT_SESSION_INVENTORY_CONCURRENCY = 6;
-const MAX_COMPLETE_PROJECT_SESSION_COUNT = 200_000;
+const PROJECT_SESSION_PAGE_HYDRATION_CONCURRENCY = 6;
+
+export function normalizeProjectAgentSessionTargetCount(requestedCount: number): number {
+  if (!Number.isFinite(requestedCount)) {
+    return 1;
+  }
+  return Math.max(1, Math.min(Number.MAX_SAFE_INTEGER, Math.trunc(requestedCount)));
+}
 
 function normalizePageInfo(
-  pageInfo: Awaited<ReturnType<IAgentSessionService['listSessions']>>['pageInfo'],
+  pageInfo: Awaited<ReturnType<IAgentSessionService['listSessionsByProject']>>['pageInfo'],
   requestedPage: number,
   requestedPageSize: number,
 ): AgentSessionPageInfoView {
@@ -98,7 +114,13 @@ function mergeAgentSessions(
 ): AgentSessionView[] {
   const sessionsById = new Map(existing.map((session) => [session.id, session]));
   for (const session of incoming) {
-    sessionsById.set(session.id, session);
+    const existingSession = sessionsById.get(session.id);
+    sessionsById.set(
+      session.id,
+      existingSession
+        ? mergeAgentSessionProjectionForStore(existingSession, session)
+        : session,
+    );
   }
   return [...sessionsById.values()];
 }
@@ -119,6 +141,10 @@ function resolveItemRole(
 }
 
 function resolveItemContent(item: AgentSessionItemRecord): string {
+  if (item.kind === 'reasoning') {
+    return '';
+  }
+
   const content = item.content?.trim();
   if (content) {
     return content;
@@ -128,6 +154,164 @@ function resolveItemContent(item: AgentSessionItemRecord): string {
     return JSON.stringify(structuredContent, null, 2);
   }
   return item.toolName?.trim() ?? '';
+}
+
+function resolveItemReasoning(
+  item: AgentSessionItemRecord,
+): AgentSessionItemReasoningView[] | undefined {
+  if (item.kind !== 'reasoning') {
+    return undefined;
+  }
+
+  const summary = item.content?.trim() ?? '';
+  if (!summary) {
+    return undefined;
+  }
+
+  const startedAt = item.createdAt;
+  const completedAt = item.completedAt?.trim() || undefined;
+  const startedTimestamp = Date.parse(startedAt);
+  const completedTimestamp = completedAt ? Date.parse(completedAt) : Number.NaN;
+  const durationMs = Number.isFinite(startedTimestamp)
+    && Number.isFinite(completedTimestamp)
+    && completedTimestamp >= startedTimestamp
+    ? completedTimestamp - startedTimestamp
+    : undefined;
+
+  return [{
+    id: item.itemId,
+    summary,
+    createdAt: item.createdAt,
+    startedAt,
+    ...(completedAt ? { completedAt } : {}),
+    ...(durationMs !== undefined ? { durationMs } : {}),
+  }];
+}
+
+function resolveDriveResourceKind(
+  resourceRole: AgentSessionItemRecord['driveRefs'][number]['resourceRole'],
+): AgentSessionItemResourceView['kind'] {
+  if (resourceRole === 'image' || resourceRole === 'audio') {
+    return resourceRole;
+  }
+  return 'file';
+}
+
+function resolveItemResources(
+  item: AgentSessionItemRecord,
+): AgentSessionItemResourceView[] | undefined {
+  const driveRefs = Array.isArray(item.driveRefs) ? item.driveRefs : [];
+  const resources = driveRefs
+    .filter((resource) => resource.status === 'active' && resource.driveNodeId.trim())
+    .slice()
+    .sort((left, right) => left.sortOrder - right.sortOrder)
+    .map((resource) => ({
+      id: resource.driveNodeId,
+      kind: resolveDriveResourceKind(resource.resourceRole),
+      uri: `drive://nodes/${encodeURIComponent(resource.driveNodeId)}`,
+      ...(resource.altText?.trim() ? { name: resource.altText.trim() } : {}),
+    }));
+  return resources.length > 0 ? resources : undefined;
+}
+
+function resolveItemNoticeKind(
+  item: AgentSessionItemRecord,
+): AgentSessionProtocolNoticeKind | undefined {
+  if (item.kind === 'error_notice') {
+    return 'failed';
+  }
+  if (item.kind !== 'status_notice') {
+    return undefined;
+  }
+  if (item.status === 'failed') {
+    return 'failed';
+  }
+  if (item.status === 'cancelled') {
+    return 'cancelled';
+  }
+  return 'info';
+}
+
+function resolveItemToolCalls(item: AgentSessionItemRecord): unknown[] | undefined {
+  if (item.kind !== 'tool_call' && item.kind !== 'tool_result') {
+    return undefined;
+  }
+
+  const toolName = item.toolName?.trim() || 'tool';
+  const toolCallId = item.toolCallId?.trim() || item.itemId;
+  return [{
+    id: toolCallId,
+    type: item.kind,
+    name: toolName,
+    status: item.status,
+    ...(item.toolArguments ? { arguments: item.toolArguments } : {}),
+    ...(item.toolResult ? { output: item.toolResult } : {}),
+  }];
+}
+
+function readStructuredFileChange(value: unknown): FileChange | null {
+  if (typeof value !== 'object' || value === null || Array.isArray(value)) {
+    return null;
+  }
+
+  const record = value as Record<string, unknown>;
+  const path = typeof record.path === 'string' ? record.path.trim() : '';
+  if (!path) {
+    return null;
+  }
+
+  const readLineCount = (candidate: unknown): number => (
+    typeof candidate === 'number' && Number.isFinite(candidate)
+      ? Math.max(0, Math.floor(candidate))
+      : 0
+  );
+  const additions = readLineCount(record.additions);
+  const deletions = readLineCount(record.deletions);
+  const hasKnownLineImpact = typeof record.additions === 'number'
+    && Number.isFinite(record.additions)
+    && typeof record.deletions === 'number'
+    && Number.isFinite(record.deletions);
+
+  return {
+    path,
+    additions,
+    deletions,
+    lineImpactKnown: typeof record.lineImpactKnown === 'boolean'
+      ? record.lineImpactKnown
+      : hasKnownLineImpact,
+    ...(typeof record.updateStatus === 'string' ? { updateStatus: record.updateStatus } : {}),
+    ...(typeof record.diff === 'string' ? { diff: record.diff } : {}),
+    ...(typeof record.content === 'string' ? { content: record.content } : {}),
+    ...(typeof record.originalContent === 'string'
+      ? { originalContent: record.originalContent }
+      : {}),
+  };
+}
+
+function resolveItemFileChanges(item: AgentSessionItemRecord): FileChange[] | undefined {
+  if (typeof item.toolResult !== 'object' || item.toolResult === null || Array.isArray(item.toolResult)) {
+    return undefined;
+  }
+
+  const toolResult = item.toolResult as Record<string, unknown>;
+  const nestedData = typeof toolResult.data === 'object'
+    && toolResult.data !== null
+    && !Array.isArray(toolResult.data)
+    ? toolResult.data as Record<string, unknown>
+    : null;
+  const candidate = toolResult.fileChanges
+    ?? toolResult.file_changes
+    ?? nestedData?.fileChanges
+    ?? nestedData?.file_changes;
+  if (!Array.isArray(candidate)) {
+    return undefined;
+  }
+
+  const fileChanges = candidate.flatMap((value) => {
+    const fileChange = readStructuredFileChange(value);
+    return fileChange ? [fileChange] : [];
+  });
+  return fileChanges.length > 0 ? fileChanges : undefined;
 }
 
 function resolveSessionStatus(
@@ -145,6 +329,7 @@ function resolveSessionStatus(
 export function toAgentSessionItemView(
   item: AgentSessionItemRecord,
 ): AgentSessionItemView {
+  const noticeKind = resolveItemNoticeKind(item);
   return {
     id: item.itemId,
     sessionId: item.sessionId,
@@ -161,12 +346,25 @@ export function toAgentSessionItemView(
       parentItemId: item.parentItemId ?? undefined,
       providerId: item.providerId ?? undefined,
       modelId: item.modelId ?? undefined,
+      ...(noticeKind ? { noticeKind } : {}),
     },
     createdAt: item.createdAt,
     timestamp: Date.parse(item.createdAt),
     name: item.toolName ?? undefined,
+    tool_calls: resolveItemToolCalls(item),
     tool_call_id: item.toolCallId ?? undefined,
+    fileChanges: resolveItemFileChanges(item),
+    reasoning: resolveItemReasoning(item),
+    resources: resolveItemResources(item),
   };
+}
+
+export function toAgentSessionTranscriptItemViews(
+  items: readonly AgentSessionItemRecord[],
+): AgentSessionItemView[] {
+  return items
+    .map(toAgentSessionItemView)
+    .filter(isAgentSessionItemVisibleInTranscript);
 }
 
 export function toAgentSessionView(
@@ -188,12 +386,13 @@ export function toAgentSessionView(
       const leftSequence = BigInt(left.sequence);
       const rightSequence = BigInt(right.sequence);
       return leftSequence === rightSequence ? 0 : leftSequence < rightSequence ? -1 : 1;
-    })
-    .map(toAgentSessionItemView);
+    });
+  const transcriptItems = toAgentSessionTranscriptItemViews(sessionItems);
   return {
     id: session.sessionId,
     agentId: session.agentId,
     projectId,
+    runtimeBindingId: context.runtimeBindingId?.trim() || undefined,
     runtimeLocationId: context.runtimeLocationId,
     title: context.userState?.customTitle?.trim() || session.title?.trim() || 'Untitled session',
     status: resolveSessionStatus(session.status),
@@ -203,16 +402,18 @@ export function toAgentSessionView(
     providerId: context.providerId?.trim() || 'unknown',
     providerBindingId: context.providerBindingId?.trim() || undefined,
     transportKind: context.transportKind?.trim() || undefined,
-    nativeSessionId: context.nativeSessionId?.trim() || undefined,
+    providerSessionId: context.providerSessionId?.trim() || undefined,
     runtimeStatus: session.status === 'closed' || session.status === 'archived'
       ? 'completed'
       : context.runtimeBindingStatus === 'failed'
         ? 'failed'
-        : 'ready',
+        : context.providerSessionId?.trim()
+          ? 'unknown'
+          : 'ready',
     createdAt: session.createdAt,
     updatedAt: session.updatedAt,
-    lastTurnAt: session.lastItemAt,
-    lastMessageAt: session.lastItemAt,
+    lastTurnAt: session.lastItemAt ?? undefined,
+    lastMessageAt: session.lastItemAt ?? undefined,
     lastRuntimeEventAt: context.runtimeBindingUpdatedAt,
     sortTimestamp: String(Number.isNaN(parsedActivityAt) ? 0 : parsedActivityAt),
     transcriptUpdatedAt: session.lastItemAt ?? null,
@@ -226,7 +427,149 @@ export function toAgentSessionView(
       context.userState?.lastReadItemSequence !== undefined
       && context.userState.lastReadItemSequence !== session.lastItemSequence,
     itemPageInfo: context.itemPageInfo,
-    items: sessionItems,
+    items: transcriptItems,
+  };
+}
+
+function readNullableString(value: unknown): string | undefined {
+  return typeof value === 'string' && value.trim() ? value : undefined;
+}
+
+function resolveSummaryActivityFreshness(
+  summary: AgentSessionActivitySummaryRecord,
+): AgentSessionActivityView['freshness'] {
+  if (summary.presentationPhase !== 'unknown') {
+    return 'fresh';
+  }
+  if (summary.providerActivity) {
+    return summary.providerActivity.freshness;
+  }
+  const freshUntil = readNullableString(summary.freshness.freshUntil);
+  if (freshUntil && Date.parse(freshUntil) <= Date.now()) {
+    return 'stale';
+  }
+  return 'unavailable';
+}
+
+export function toAgentSessionActivityView(
+  summary: AgentSessionActivitySummaryRecord,
+): AgentSessionActivityView {
+  const effectiveBinding = summary.currentRuntimeBinding ?? summary.latestRuntimeBinding;
+  const providerActivity = summary.providerActivity;
+  return {
+    activityAt: summary.freshness.activityAt,
+    source: summary.freshness.source,
+    observedAt: readNullableString(summary.freshness.observedAt),
+    freshUntil: readNullableString(summary.freshness.freshUntil),
+    freshness: resolveSummaryActivityFreshness(summary),
+    phase: summary.presentationPhase,
+    versions: {
+      session: summary.freshness.sessionVersion,
+      latestTurn: summary.freshness.latestTurnVersion ?? undefined,
+      latestInteractionId: summary.freshness.latestInteractionId ?? undefined,
+      latestInteraction: summary.freshness.latestInteractionVersion ?? undefined,
+      latestRuntimeBindingId: summary.freshness.latestRuntimeBindingId ?? undefined,
+      latestRuntimeBinding: summary.freshness.latestRuntimeBindingVersion ?? undefined,
+      pendingInteraction: summary.freshness.pendingInteractionVersion ?? undefined,
+      currentRuntimeBinding: summary.freshness.currentRuntimeBindingVersion ?? undefined,
+      userState: summary.freshness.userStateVersion ?? undefined,
+    },
+    latestTurn: summary.latestTurn ? {
+      id: summary.latestTurn.turnId,
+      status: summary.latestTurn.status,
+      updatedAt: summary.latestTurn.updatedAt,
+      version: summary.latestTurn.version,
+    } : undefined,
+    pendingInteraction: summary.pendingInteraction ? {
+      id: summary.pendingInteraction.interactionId,
+      kind: summary.pendingInteraction.kind,
+      status: summary.pendingInteraction.status,
+      updatedAt: summary.pendingInteraction.updatedAt,
+      version: summary.pendingInteraction.version,
+    } : undefined,
+    runtimeBinding: effectiveBinding ? {
+      id: effectiveBinding.runtimeBindingId,
+      status: effectiveBinding.status,
+      updatedAt: effectiveBinding.updatedAt,
+      version: effectiveBinding.version,
+    } : undefined,
+    provider: providerActivity ? {
+      state: providerActivity.state ?? undefined,
+      freshness: providerActivity.freshness,
+      evidenceKind: providerActivity.evidenceKind ?? undefined,
+      interactionHint: providerActivity.interactionHint ?? undefined,
+      observedAt: readNullableString(providerActivity.observedAt),
+      freshUntil: readNullableString(providerActivity.freshUntil),
+    } : undefined,
+  };
+}
+
+export function toAgentSessionViewFromActivitySummary(
+  summary: AgentSessionActivitySummaryRecord,
+): AgentSessionView {
+  const projectId = summary.session.projectId?.trim() ?? '';
+  if (!projectId) {
+    throw new Error(`Agent session ${summary.session.sessionId} has no Agents project identity.`);
+  }
+  const currentBinding = summary.currentRuntimeBinding;
+  const identity = summary.providerIdentity;
+  const hasCanonicalIdentitySource = currentBinding !== null || summary.latestTurn !== null;
+  const latestBindingMatchesIdentity = Boolean(
+    identity.runtimeBindingId
+    && summary.latestRuntimeBinding?.runtimeBindingId === identity.runtimeBindingId,
+  );
+  const identityBinding = currentBinding ?? (
+    !hasCanonicalIdentitySource || latestBindingMatchesIdentity
+      ? summary.latestRuntimeBinding
+      : null
+  );
+  const modelId = hasCanonicalIdentitySource
+    ? identity.modelId ?? undefined
+    : identityBinding?.modelId ?? undefined;
+  const providerBindingId = hasCanonicalIdentitySource
+    ? identity.providerBindingId ?? undefined
+    : identityBinding?.providerBindingId ?? undefined;
+  const providerId = hasCanonicalIdentitySource
+    ? identity.providerId ?? undefined
+    : identityBinding?.providerId ?? undefined;
+  const engine = resolveWorkbenchCodeEngineForRuntimeBinding({
+    agentId: summary.session.agentId,
+    modelId,
+    providerBindingId,
+    providerId,
+  });
+  const activity = toAgentSessionActivityView(summary);
+  const view = toAgentSessionView(summary.session, {
+    projectId,
+    engineId: engine?.id ?? providerId,
+    modelId,
+    providerId,
+    providerBindingId,
+    runtimeBindingId: currentBinding?.runtimeBindingId,
+    hostMode:
+      identityBinding?.hostMode === 'desktop' || identityBinding?.hostMode === 'server'
+        ? identityBinding.hostMode
+        : 'web',
+    transportKind: identityBinding?.transportKind,
+    providerSessionId: identity.providerSessionId ?? identityBinding?.providerSessionId ?? undefined,
+    runtimeLocationId: identityBinding?.runtimeLocationId ?? undefined,
+    runtimeBindingStatus: identityBinding?.status,
+    runtimeBindingUpdatedAt: identityBinding?.updatedAt,
+    userState: summary.userState,
+  });
+  const next: AgentSessionView = {
+    ...view,
+    activity,
+    runtimeStatus: resolveAgentSessionActivityRuntimeStatus(activity),
+    lastAttentionAt: summary.pendingInteraction?.updatedAt,
+    lastRuntimeEventAt:
+      readNullableString(summary.providerActivity?.observedAt) ?? identityBinding?.updatedAt,
+    lastUserActivityAt: summary.userState?.updatedAt,
+    sortTimestamp: String(Date.parse(summary.freshness.activityAt) || 0),
+  };
+  return {
+    ...next,
+    displayTime: formatAgentSessionActivityDisplayTime(next),
   };
 }
 
@@ -251,8 +594,8 @@ export function mergeAgentSessionRecordIntoView(
           ? 'ready'
           : existing.runtimeStatus,
     updatedAt: session.updatedAt,
-    lastTurnAt: session.lastItemAt,
-    lastMessageAt: session.lastItemAt,
+    lastTurnAt: session.lastItemAt ?? undefined,
+    lastMessageAt: session.lastItemAt ?? undefined,
     sortTimestamp: String(Number.isNaN(parsedActivityAt) ? 0 : parsedActivityAt),
     transcriptUpdatedAt: session.lastItemAt ?? null,
     serverVersion: session.version,
@@ -273,18 +616,25 @@ export async function loadAgentSessionView(
   items: readonly AgentSessionItemRecord[] = [],
   itemPageInfo?: AgentSessionPageInfoView,
   signal?: AbortSignal,
+  prefetchedUserStates?: ReadonlyMap<string, AgentSessionUserStateRecord>,
 ): Promise<AgentSessionView> {
-  const [runtimeBindingPage, userState] = await Promise.all([
+  const [runtimeBindingPage, userStates] = await Promise.all([
     agentSessionService.listRuntimeBindings(
       session.sessionId,
       { page: 1, pageSize: 20 },
       { signal },
     ),
-    agentSessionService.getSessionUserState(session.sessionId, { signal }),
+    prefetchedUserStates
+      ? Promise.resolve(prefetchedUserStates)
+      : agentSessionService.getSessionUserStates([session.sessionId], { signal }),
   ]);
+  const userState = userStates.get(session.sessionId) ?? null;
   const currentBinding = runtimeBindingPage.items.find((binding) => binding.isCurrent);
   const engine = currentBinding
-    ? resolveWorkbenchCodeEngineForRuntimeBinding(currentBinding)
+    ? resolveWorkbenchCodeEngineForRuntimeBinding({
+        ...currentBinding,
+        agentId: session.agentId,
+      })
     : null;
   return toAgentSessionView(session, {
     projectId,
@@ -292,46 +642,19 @@ export async function loadAgentSessionView(
     modelId: currentBinding?.modelId,
     providerId: currentBinding?.providerId,
     providerBindingId: currentBinding?.providerBindingId,
+    runtimeBindingId: currentBinding?.runtimeBindingId,
     hostMode:
       currentBinding?.hostMode === 'desktop' || currentBinding?.hostMode === 'server'
         ? currentBinding.hostMode
         : 'web',
     transportKind: currentBinding?.transportKind,
-    nativeSessionId: currentBinding?.nativeSessionId ?? undefined,
+    providerSessionId: currentBinding?.providerSessionId ?? undefined,
     runtimeLocationId: currentBinding?.runtimeLocationId ?? undefined,
     runtimeBindingStatus: currentBinding?.status,
     runtimeBindingUpdatedAt: currentBinding?.updatedAt,
     userState,
     itemPageInfo,
   }, items);
-}
-
-async function loadNativeHistorySessionInventoryView(
-  session: AgentSessionRecord,
-  projectId: string,
-): Promise<AgentSessionView | null> {
-  if (session.sourceContextKind?.trim() !== 'provider_native_session') {
-    return null;
-  }
-  const engine = findWorkbenchCodeEngineDefinitionForAgentId(session.agentId)
-    ?? (await loadWorkbenchCodeEngineCatalog()).find(
-      (candidate) => candidate.agentId === session.agentId,
-    )
-    ?? null;
-  if (!engine) {
-    return null;
-  }
-  const model = engine.models.find((candidate) => candidate.id === engine.defaultModelId)
-    ?? engine.models[0];
-  return toAgentSessionView(session, {
-    projectId,
-    engineId: engine.id,
-    hostMode: 'server',
-    modelId: model?.id,
-    providerBindingId: model?.bindingId || engine.bindingId,
-    providerId: model?.providerId,
-    transportKind: 'native-history',
-  });
 }
 
 export async function loadProjectAgentSessionPage(
@@ -341,7 +664,7 @@ export async function loadProjectAgentSessionPage(
   signal?: AbortSignal,
 ): Promise<ProjectAgentSessionPage> {
   signal?.throwIfAborted();
-  const targetCount = Math.max(1, Math.min(200_000, Math.trunc(requestedCount)));
+  const targetCount = normalizeProjectAgentSessionTargetCount(requestedCount);
   const projectId = project.projectId;
   const currentPageInfo = project.agentSessionPageInfo;
   if (
@@ -355,7 +678,7 @@ export async function loadProjectAgentSessionPage(
   }
 
   const requestedPage = currentPageInfo ? currentPageInfo.page + 1 : 1;
-  const sessionPage = await agentSessionService.listSessions({
+  const sessionPage = await agentSessionService.listSessionsByProject({
     page: requestedPage,
     pageSize: PROJECT_SESSION_PAGE_SIZE,
     projectId,
@@ -371,25 +694,27 @@ export async function loadProjectAgentSessionPage(
   if (sessionPage.items.length === 0 && pageInfo.hasMore) {
     throw new Error('Agents session inventory returned an empty page with hasMore=true.');
   }
+  const projectSessions = sessionPage.items.filter((session) => session.projectId === projectId);
+  const userStateSessionIds = projectSessions.map((session) => session.sessionId);
+  const userStates = userStateSessionIds.length > 0
+    ? await agentSessionService.getSessionUserStates(userStateSessionIds, { signal })
+    : new Map<string, AgentSessionUserStateRecord>();
   const visibleSessions = await mapWithConcurrency(
-    sessionPage.items.filter((session) => session.projectId === projectId),
-    PROJECT_SESSION_INVENTORY_CONCURRENCY,
-    async (session) => {
-      const nativeHistoryView = await loadNativeHistorySessionInventoryView(session, projectId);
-      return nativeHistoryView ?? loadAgentSessionView(
+    projectSessions,
+    PROJECT_SESSION_PAGE_HYDRATION_CONCURRENCY,
+    (session) =>
+      loadAgentSessionView(
         agentSessionService,
         session,
         projectId,
         [],
         undefined,
         signal,
-      );
-    },
+        userStates,
+      ),
   );
   signal?.throwIfAborted();
-  const agentSessions = requestedPage === 1
-    ? visibleSessions
-    : mergeAgentSessions(project.agentSessions, visibleSessions);
+  const agentSessions = mergeAgentSessions(project.agentSessions, visibleSessions);
   return {
     hasMore: agentSessions.length > targetCount || pageInfo.hasMore,
     project: {
@@ -398,55 +723,4 @@ export async function loadProjectAgentSessionPage(
       agentSessions,
     },
   };
-}
-
-export async function loadCompleteProjectAgentSessionInventory(
-  agentSessionService: IAgentSessionService,
-  project: AgentProjectView,
-  signal?: AbortSignal,
-): Promise<AgentProjectView> {
-  const {
-    agentSessionPageInfo: _discardedPageInfo,
-    ...projectWithoutSessionPageInfo
-  } = project;
-  let synchronizedProject: AgentProjectView = {
-    ...projectWithoutSessionPageInfo,
-    agentSessions: [],
-  };
-
-  while (true) {
-    signal?.throwIfAborted();
-    if (synchronizedProject.agentSessions.length >= MAX_COMPLETE_PROJECT_SESSION_COUNT) {
-      throw new Error(
-        `Agents project session inventory exceeded the supported ${MAX_COMPLETE_PROJECT_SESSION_COUNT} records.`,
-      );
-    }
-
-    const nextPage = await loadProjectAgentSessionPage(
-      agentSessionService,
-      synchronizedProject,
-      synchronizedProject.agentSessions.length + PROJECT_SESSION_PAGE_SIZE,
-      signal,
-    );
-    synchronizedProject = nextPage.project;
-    if (!synchronizedProject.agentSessionPageInfo?.hasMore) {
-      return synchronizedProject;
-    }
-  }
-}
-
-export async function loadProjectsAgentSessionInventory(
-  agentSessionService: IAgentSessionService,
-  projects: readonly AgentProjectView[],
-  signal?: AbortSignal,
-): Promise<AgentProjectView[]> {
-  return mapWithConcurrency(
-    projects,
-    PROJECT_SESSION_INVENTORY_CONCURRENCY,
-    (project) => loadCompleteProjectAgentSessionInventory(
-      agentSessionService,
-      project,
-      signal,
-    ),
-  );
 }

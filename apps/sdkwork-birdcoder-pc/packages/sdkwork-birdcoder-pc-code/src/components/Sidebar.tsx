@@ -1,15 +1,12 @@
 import React, { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import type { AgentSessionView, AgentProjectView } from '@sdkwork/birdcoder-pc-contracts-commons';
-import { isAgentSessionViewExecuting } from '@sdkwork/birdcoder-pc-contracts-commons';
 import { sortAgentSessionInboxEntries } from '@sdkwork/birdcoder-pc-workbench/workbench/sessionInbox';
 import {
-  getWorkbenchCodeEngineLabel,
   resolveWorkbenchCodeEngineSelectedModelId,
   resolveWorkbenchNewSessionEngineCatalog,
 } from '@sdkwork/birdcoder-pc-workbench/workbench/codeEngineCatalog';
 import {
-  deduplicateAgentSessionsForRender,
   deduplicateAgentProjectsForRender,
 } from '@sdkwork/birdcoder-pc-workbench/workbench/projectInventoryRender';
 import { useWorkbenchPreferences } from '@sdkwork/birdcoder-pc-workbench/hooks/useWorkbenchPreferences';
@@ -17,8 +14,13 @@ import { useToast } from '@sdkwork/birdcoder-pc-workbench/contexts/ToastProvider
 import {
   useFixedSizeWindowedRange,
   useRelativeMinuteNow,
-  WorkbenchCodeEngineIcon,
 } from '@sdkwork/birdcoder-pc-ui-shell';
+import {
+  SessionProviderBadge,
+  resolveSessionProviderPresentation,
+  resolveSessionRuntimeStatusPresentation,
+  type SessionRuntimeStatusLabels,
+} from '@sdkwork/birdcoder-pc-ui';
 import { ChevronDown, Loader2 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { ProjectExplorerHeader } from './ProjectExplorerHeader';
@@ -36,6 +38,10 @@ import type {
 } from './ProjectExplorer.shared';
 import type { ProjectExplorerProps } from './ProjectExplorer.types';
 import { ProjectExplorerSessionRow } from './ProjectExplorerSessionRow';
+import {
+  buildSidebarGlobalSessions,
+  canRequestMoreSidebarProjectSessions,
+} from './sessionSidebarPresentation';
 
 const SIDEBAR_CONTEXT_MENU_Z_INDEX = 2147483647;
 const SIDEBAR_CONTEXT_MENU_MARGIN = 10;
@@ -50,6 +56,7 @@ function isAbortError(error: unknown): boolean {
 }
 
 interface SidebarProviderEntry {
+  agentId: string;
   engineId: string;
   label: string;
   providerId: string;
@@ -146,17 +153,14 @@ function doesSidebarSessionMatchFilters(
   providerFilterId: string,
   sessionFilter: ProjectExplorerSessionFilter,
 ): boolean {
+  const runtimeStatusPresentation = resolveSessionRuntimeStatusPresentation(session.runtimeStatus);
   if (providerFilterId !== 'all' && session.providerId !== providerFilterId) {
     return false;
   }
-  if (
-    sessionFilter === 'attention' &&
-    session.runtimeStatus !== 'awaiting_approval' &&
-    session.runtimeStatus !== 'awaiting_user'
-  ) {
+  if (sessionFilter === 'attention' && runtimeStatusPresentation !== 'attention') {
     return false;
   }
-  if (sessionFilter === 'executing' && !isAgentSessionViewExecuting(session)) {
+  if (sessionFilter === 'executing' && runtimeStatusPresentation !== 'busy') {
     return false;
   }
   if (sessionFilter === 'failed' && session.runtimeStatus !== 'failed') {
@@ -179,51 +183,8 @@ function doesSidebarSessionMatchFilters(
     session.providerId,
     session.providerBindingId,
     session.modelId,
-    session.nativeSessionId,
+    session.providerSessionId,
   ].some((value) => value?.toLowerCase().includes(normalizedSearchQuery));
-}
-
-function collectSidebarChronologicalSessions(
-  projects: readonly AgentProjectView[],
-  showArchived: boolean,
-  normalizedSearchQuery: string,
-  visibleSessionCountByProjectId: Readonly<Record<string, number>>,
-  providerFilterId: string,
-  sessionFilter: ProjectExplorerSessionFilter,
-): AgentSessionView[] {
-  const sessions: AgentSessionView[] = [];
-  for (const project of projects) {
-    if (!showArchived && project.status === 'archived') {
-      continue;
-    }
-    const visibleSessionCount = Math.max(
-      INITIAL_VISIBLE_SESSIONS_PER_PROJECT,
-      visibleSessionCountByProjectId[project.projectId] ?? INITIAL_VISIBLE_SESSIONS_PER_PROJECT,
-    );
-    const sessionCount = Math.min(visibleSessionCount, project.agentSessions.length);
-    for (let sessionIndex = 0; sessionIndex < sessionCount; sessionIndex += 1) {
-      const agentSession = project.agentSessions[sessionIndex];
-      if (!agentSession) {
-        continue;
-      }
-      const scopedProjectId = resolveSidebarSessionProjectId(agentSession, project.projectId);
-      const scopedAgentSession = agentSession;
-      if (!showArchived && agentSession.archived) {
-        continue;
-      }
-      if (!doesSidebarSessionMatchFilters(
-        agentSession,
-        project.name,
-        normalizedSearchQuery,
-        providerFilterId,
-        sessionFilter,
-      )) {
-        continue;
-      }
-      sessions.push(scopedAgentSession);
-    }
-  }
-  return deduplicateAgentSessionsForRender(sessions);
 }
 
 function filterSidebarProjectSessions(
@@ -328,8 +289,9 @@ function areSidebarPropsEqual(left: ProjectExplorerProps, right: ProjectExplorer
     left.onArchiveAgentSession === right.onArchiveAgentSession &&
     left.onMarkAgentSessionUnread === right.onMarkAgentSessionUnread &&
     left.onCopyAgentSessionWorkingDirectory === right.onCopyAgentSessionWorkingDirectory &&
-    left.onCopyAgentSessionSessionId === right.onCopyAgentSessionSessionId &&
+    left.onCopyAgentSessionProviderSessionId === right.onCopyAgentSessionProviderSessionId &&
     left.onCopyAgentSessionDeeplink === right.onCopyAgentSessionDeeplink &&
+    left.onOpenAgentSessionInTerminal === right.onOpenAgentSessionInTerminal &&
     left.onForkAgentSessionLocal === right.onForkAgentSessionLocal &&
     left.onForkAgentSessionNewTree === right.onForkAgentSessionNewTree &&
     left.refreshingProjectId === right.refreshingProjectId &&
@@ -386,8 +348,9 @@ export const Sidebar = React.memo(function Sidebar({
   onArchiveAgentSession,
   onMarkAgentSessionUnread,
   onCopyAgentSessionWorkingDirectory,
-  onCopyAgentSessionSessionId,
+  onCopyAgentSessionProviderSessionId,
   onCopyAgentSessionDeeplink,
+  onOpenAgentSessionInTerminal,
   onForkAgentSessionLocal,
   onForkAgentSessionNewTree,
   refreshingProjectId,
@@ -417,6 +380,16 @@ export const Sidebar = React.memo(function Sidebar({
   const { t } = useTranslation();
   const refreshSessionsLabel = t('code.refreshSessions');
   const refreshingSessionsLabel = t('code.refreshingSessions');
+  const sessionRuntimeStatusLabels = useMemo<SessionRuntimeStatusLabels>(() => ({
+    awaitingApproval: t('code.awaitingApprovalSession'),
+    awaitingTool: t('code.awaitingToolSession'),
+    awaitingUser: t('code.awaitingUserSession'),
+    executing: t('code.executingSession'),
+    failed: t('code.failedSession'),
+    initializing: t('code.initializingSession'),
+    stale: t('code.staleSession'),
+    unknown: t('code.unknownSession'),
+  }), [t]);
 
   const [contextMenu, setContextMenu] = useState<{
     x: number;
@@ -440,6 +413,7 @@ export const Sidebar = React.memo(function Sidebar({
   const [renameValue, setRenameValue] = useState('');
   const deferredSearchQuery = useDeferredValue(searchQuery);
   const scrollRegionRef = useRef<HTMLDivElement>(null);
+  const lastAutoLocatedSelectionKeyRef = useRef('');
   const relativeTimeNow = useRelativeMinuteNow({ isEnabled: isVisible });
   const renderProjects = useMemo(
     () => deduplicateAgentProjectsForRender(projects),
@@ -457,7 +431,7 @@ export const Sidebar = React.memo(function Sidebar({
         if (providerId && providerId !== 'unknown' && !providers.has(providerId)) {
           providers.set(providerId, {
             id: providerId,
-            label: getWorkbenchCodeEngineLabel(session.engineId),
+            label: resolveSessionProviderPresentation(session).label,
           });
         }
       }
@@ -539,6 +513,26 @@ export const Sidebar = React.memo(function Sidebar({
       });
     }
   }, [deferredSearchQuery, renderProjects]);
+
+  useEffect(() => {
+    if (
+      !isVisible ||
+      organizeBy !== 'project' ||
+      !selectedProjectId ||
+      !projectNamesById.has(selectedProjectId)
+    ) {
+      return;
+    }
+
+    setExpandedProjects((previousExpandedProjects) =>
+      previousExpandedProjects[selectedProjectId] === true
+        ? previousExpandedProjects
+        : {
+            ...previousExpandedProjects,
+            [selectedProjectId]: true,
+          },
+    );
+  }, [isVisible, organizeBy, projectNamesById, selectedProjectId]);
 
   useEffect(() => {
     setVisibleSessionCountByProjectId((previousState) => {
@@ -1003,11 +997,6 @@ export const Sidebar = React.memo(function Sidebar({
       resolveSidebarProjectViewSessions(agentSessions, sortBy),
     [sortBy],
   );
-  const sortChronologicalSessions = useCallback(
-    (agentSessions: readonly AgentSessionView[]) =>
-      sortSidebarSessionsByMode(agentSessions, sortBy),
-    [sortBy],
-  );
   const filteredProjectSessions = useMemo<SidebarFilteredProjectSessionsEntry[]>(
     () => {
       if (organizeBy !== 'project') {
@@ -1055,16 +1044,18 @@ export const Sidebar = React.memo(function Sidebar({
         return EMPTY_SIDEBAR_AGENT_SESSIONS;
       }
 
-      return sortChronologicalSessions(
-        collectSidebarChronologicalSessions(
-          renderProjects,
-          showArchived,
+      return buildSidebarGlobalSessions({
+        matches: (session, project) => doesSidebarSessionMatchFilters(
+          session,
+          project.name,
           normalizedSearchQuery,
-          visibleSessionCountByProjectId,
           providerFilterId,
           sessionFilter,
         ),
-      );
+        projects: renderProjects,
+        showArchived,
+        sortBy,
+      });
     },
     [
       normalizedSearchQuery,
@@ -1073,8 +1064,7 @@ export const Sidebar = React.memo(function Sidebar({
       renderProjects,
       sessionFilter,
       showArchived,
-      sortChronologicalSessions,
-      visibleSessionCountByProjectId,
+      sortBy,
     ],
   );
   const chronologicalContinuationEntries = useMemo<SidebarChronologicalContinuationEntry[]>(
@@ -1085,28 +1075,18 @@ export const Sidebar = React.memo(function Sidebar({
 
       return renderProjects
         .filter((project) => showArchived || project.status !== 'archived')
-        .map((project) => {
-          const visibleSessionCount =
-            visibleSessionCountByProjectId[project.projectId] ?? INITIAL_VISIBLE_SESSIONS_PER_PROJECT;
-          return {
-            isLoading: loadingMoreSessionProjectIds[project.projectId] === true,
-            nextVisibleSessionCount: visibleSessionCount + SESSION_EXPANSION_BATCH_SIZE,
-            project,
-          };
-        })
-        .filter(
-          (entry) => canLoadMoreProjectSessions(
-            entry.project,
-            entry.nextVisibleSessionCount - SESSION_EXPANSION_BATCH_SIZE,
-          ),
-        );
+        .filter(canRequestMoreSidebarProjectSessions)
+        .map((project) => ({
+          isLoading: loadingMoreSessionProjectIds[project.projectId] === true,
+          nextVisibleSessionCount: project.agentSessions.length + SESSION_EXPANSION_BATCH_SIZE,
+          project,
+        }));
     },
     [
       loadingMoreSessionProjectIds,
       organizeBy,
       renderProjects,
       showArchived,
-      visibleSessionCountByProjectId,
     ],
   );
   const providerEntries = useMemo<SidebarProviderEntry[]>(() => {
@@ -1121,8 +1101,9 @@ export const Sidebar = React.memo(function Sidebar({
         existing.sessions.push(session);
       } else {
         entries.set(providerId, {
+          agentId: session.agentId,
           engineId: session.engineId,
-          label: getWorkbenchCodeEngineLabel(session.engineId),
+          label: resolveSessionProviderPresentation(session).label,
           providerId,
           sessions: [session],
         });
@@ -1159,6 +1140,34 @@ export const Sidebar = React.memo(function Sidebar({
       visibleSessionCountByProjectId,
     ],
   );
+  useEffect(() => {
+    if (organizeBy !== 'project' || !selectedProjectId || !selectedAgentSessionId) {
+      return;
+    }
+
+    const selectedProjectEntry = projectEntries.find(
+      (entry) => entry.project.projectId === selectedProjectId,
+    );
+    const selectedSessionIndex = selectedProjectEntry?.filteredSessions.findIndex(
+      (session) => session.id === selectedAgentSessionId,
+    ) ?? -1;
+    if (selectedSessionIndex < 0) {
+      return;
+    }
+
+    const requiredVisibleSessionCount = selectedSessionIndex + 1;
+    setVisibleSessionCountByProjectId((previousState) => {
+      const currentVisibleSessionCount =
+        previousState[selectedProjectId] ?? INITIAL_VISIBLE_SESSIONS_PER_PROJECT;
+      if (currentVisibleSessionCount >= requiredVisibleSessionCount) {
+        return previousState;
+      }
+      return {
+        ...previousState,
+        [selectedProjectId]: requiredVisibleSessionCount,
+      };
+    });
+  }, [organizeBy, projectEntries, selectedAgentSessionId, selectedProjectId]);
   const shouldWindowChronologicalSessions =
     organizeBy === 'chronological' &&
     chronologicalSessions.length >= CHRONOLOGICAL_WINDOWED_LIST_THRESHOLD;
@@ -1184,6 +1193,86 @@ export const Sidebar = React.memo(function Sidebar({
       shouldWindowChronologicalSessions,
     ],
   );
+  useEffect(() => {
+    if (!isVisible || !selectedProjectId) {
+      return undefined;
+    }
+
+    const scrollRegion = scrollRegionRef.current;
+    if (!scrollRegion) {
+      return undefined;
+    }
+
+    const selectionKey = selectedAgentSessionId
+      ? `${organizeBy}\u0001${selectedProjectId}\u0001${selectedAgentSessionId}`
+      : `${organizeBy}\u0001${selectedProjectId}`;
+    if (lastAutoLocatedSelectionKeyRef.current === selectionKey) {
+      return undefined;
+    }
+
+    if (selectedAgentSessionId && shouldWindowChronologicalSessions) {
+      const selectedSessionIndex = chronologicalSessions.findIndex(
+        (session) =>
+          session.projectId === selectedProjectId &&
+          session.id === selectedAgentSessionId,
+      );
+      const isOutsideRenderedWindow =
+        selectedSessionIndex >= 0 &&
+        (
+          selectedSessionIndex < chronologicalWindowedRange.startIndex ||
+          selectedSessionIndex >= chronologicalWindowedRange.endIndex
+        );
+      if (isOutsideRenderedWindow) {
+        scrollRegion.scrollTo({
+          behavior: 'auto',
+          top: selectedSessionIndex * CHRONOLOGICAL_SESSION_ROW_HEIGHT,
+        });
+        return undefined;
+      }
+    }
+
+    const animationFrame = window.requestAnimationFrame(() => {
+      const selectedSessionElement = selectedAgentSessionId
+        ? scrollRegion.querySelector<HTMLElement>('[data-session-selected="true"]')
+        : null;
+      if (selectedSessionElement) {
+        selectedSessionElement.scrollIntoView({
+          behavior: 'auto',
+          block: 'nearest',
+          inline: 'nearest',
+        });
+        lastAutoLocatedSelectionKeyRef.current = selectionKey;
+        return;
+      }
+
+      if (!selectedAgentSessionId && organizeBy === 'project') {
+        const selectedProjectElement = scrollRegion.querySelector<HTMLElement>(
+          '[data-project-selected="true"]',
+        );
+        if (selectedProjectElement) {
+          selectedProjectElement.scrollIntoView({
+            behavior: 'auto',
+            block: 'nearest',
+            inline: 'nearest',
+          });
+          lastAutoLocatedSelectionKeyRef.current = selectionKey;
+        }
+      }
+    });
+
+    return () => window.cancelAnimationFrame(animationFrame);
+  }, [
+    chronologicalSessions,
+    chronologicalWindowedRange.endIndex,
+    chronologicalWindowedRange.startIndex,
+    isVisible,
+    organizeBy,
+    projectEntries,
+    selectedAgentSessionId,
+    selectedProjectId,
+    shouldWindowChronologicalSessions,
+    visibleChronologicalSessions,
+  ]);
   const renderFlatSessionRow = (
     session: AgentSessionView,
     showProjectName: boolean,
@@ -1212,12 +1301,7 @@ export const Sidebar = React.memo(function Sidebar({
           : ''
       }
       paddingClassName="px-2"
-      awaitingApprovalSessionLabel={t('code.awaitingApprovalSession')}
-      awaitingToolSessionLabel={t('code.awaitingToolSession')}
-      awaitingUserSessionLabel={t('code.awaitingUserSession')}
-      executingSessionLabel={t('code.executingSession')}
-      initializingSessionLabel={t('code.initializingSession')}
-      failedSessionLabel={t('code.failedSession')}
+      runtimeStatusLabels={sessionRuntimeStatusLabels}
       moreActionsLabel={t('app.moreActions')}
       onSelectAgentSession={handleSelectAgentSession}
       onAgentSessionContextMenu={handleContextMenu}
@@ -1337,12 +1421,7 @@ export const Sidebar = React.memo(function Sidebar({
                   defaultNewSessionEngineId={newSessionEngineCatalog.preferredSelection.engineId}
                   defaultNewSessionModelId={newSessionEngineCatalog.preferredSelection.modelId}
                   newSessionInProjectLabel={t('code.newSessionInProject')}
-                  awaitingApprovalSessionLabel={t('code.awaitingApprovalSession')}
-                  awaitingToolSessionLabel={t('code.awaitingToolSession')}
-                  awaitingUserSessionLabel={t('code.awaitingUserSession')}
-                  executingSessionLabel={t('code.executingSession')}
-                  initializingSessionLabel={t('code.initializingSession')}
-                  failedSessionLabel={t('code.failedSession')}
+                  runtimeStatusLabels={sessionRuntimeStatusLabels}
                   moreActionsLabel={t('app.moreActions')}
                   onSelectProject={selectProject}
                   onToggleProject={toggleProject}
@@ -1366,7 +1445,11 @@ export const Sidebar = React.memo(function Sidebar({
               {providerEntries.map((entry) => (
                 <section key={entry.providerId} className="min-w-0">
                   <div className="sticky top-0 z-10 flex h-7 items-center gap-2 bg-[var(--birdcoder-sidebar-background,#171717)] px-2 text-[10px] font-semibold uppercase text-gray-500">
-                    <WorkbenchCodeEngineIcon engineId={entry.engineId} />
+                    <SessionProviderBadge
+                      agentId={entry.agentId}
+                      engineId={entry.engineId}
+                      providerId={entry.providerId}
+                    />
                     <span className="min-w-0 flex-1 truncate">{entry.label}</span>
                     <span className="tabular-nums text-gray-600">{entry.sessions.length}</span>
                   </div>
@@ -1490,8 +1573,9 @@ export const Sidebar = React.memo(function Sidebar({
             onArchive={onArchiveAgentSession}
             onMarkUnread={onMarkAgentSessionUnread}
             onCopyWorkingDirectory={onCopyAgentSessionWorkingDirectory}
-            onCopySessionId={onCopyAgentSessionSessionId}
+            onCopyProviderSessionId={onCopyAgentSessionProviderSessionId}
             onCopyDeeplink={onCopyAgentSessionDeeplink}
+            onOpenInTerminal={onOpenAgentSessionInTerminal}
             onForkLocal={onForkAgentSessionLocal}
             onForkNewTree={onForkAgentSessionNewTree}
             onDelete={onDeleteAgentSession}

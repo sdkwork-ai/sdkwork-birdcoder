@@ -30,12 +30,19 @@ export interface ChatMessageEnvironment {
   addToast: (message: string, type?: 'success' | 'error' | 'info') => void;
   beginEditingMessage?: (messageId: string, content: string) => void;
   onDeleteMessage?: (messageIds: string[]) => void;
+  onOpenDriveAttachment?: (nodeId: string, title: string) => void;
   onOpenFile?: (path: string) => void;
   onRegenerateMessage?: () => void;
-  onRestore?: (messageId: string) => void;
+  onRestore?: (messageId: string, fileChanges?: readonly FileChange[]) => void;
   onViewChanges?: (file: FileChange) => void;
   skills: readonly ChatSkill[];
   t: ChatMessageTranslate;
+}
+
+export interface ChatTurnFileChangesPresentation {
+  fileChanges: readonly FileChange[];
+  messageId: string;
+  scopeKey: string;
 }
 
 export interface ChatMessageRenderContext {
@@ -51,6 +58,8 @@ export interface ChatMessageRenderContext {
   expandedDisclosureKeys: ReadonlySet<string>;
   toggleDisclosure: (key: string) => void;
   renderMarkdownContent: (content: string, mode?: 'basic' | 'rich') => ReactNode;
+  suppressInlineFileChanges?: boolean;
+  turnFileChanges?: ChatTurnFileChangesPresentation;
 }
 
 export interface ChatMessageRendererProps {

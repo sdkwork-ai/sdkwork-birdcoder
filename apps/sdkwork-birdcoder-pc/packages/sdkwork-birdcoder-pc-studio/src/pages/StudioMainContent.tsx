@@ -1,5 +1,9 @@
 import type { ComponentProps } from 'react';
-import { ProjectGitOverviewDrawer } from '@sdkwork/birdcoder-pc-ui';
+import {
+  ProjectGitOverviewDrawer,
+  WorkspaceDetailSurface,
+  type WorkspaceDetailView,
+} from '@sdkwork/birdcoder-pc-ui';
 import { StudioPreviewPanel } from '../preview/StudioPreviewPanel';
 import { StudioStageHeader } from '../preview/StudioStageHeader';
 import { StudioSimulatorPanel } from '../simulator/StudioSimulatorPanel';
@@ -20,12 +24,15 @@ export interface StudioMainContentModel {
   currentProjectId: string;
   fileContent: StudioCodeWorkspacePanelProps['fileContent'];
   files: StudioWorkspaceOverlaysProps['files'];
+  projectRootPath: StudioCodeWorkspacePanelProps['projectRootPath'];
+  fileTreeLoadError: StudioCodeWorkspacePanelProps['fileTreeLoadError'];
   getLanguageFromPath: StudioCodeWorkspacePanelProps['getLanguageFromPath'];
   handleActiveTabChange: StudioStageHeaderProps['onTabChange'];
   handleAnalyzeCode: StudioStageHeaderProps['onAnalyzeCode'];
   handleCloseProjectGitOverviewDrawer: StudioGitOverviewDrawerProps['onClose'];
   handleLaunchSimulatorFromHeader: StudioStageHeaderProps['onLaunchSimulator'];
   handleOpenPreviewInNewTab: StudioStageHeaderProps['onOpenPreviewInNewTab'];
+  handlePreviewUrlChange: (url: string) => void;
   handlePreviewAppPlatformChange: StudioStageHeaderProps['onPreviewAppPlatformChange'];
   handlePreviewLandscapeToggle: StudioStageHeaderProps['onPreviewLandscapeToggle'];
   handleRefreshPreview: StudioStageHeaderProps['onRefreshPreview'];
@@ -42,6 +49,7 @@ export interface StudioMainContentModel {
   handleToggleProjectGitOverviewDrawer: StudioStageHeaderProps['onToggleProjectGitOverviewDrawer'];
   handleToggleStudioTerminal: StudioStageHeaderProps['onToggleTerminal'];
   isFindVisible: StudioWorkspaceOverlaysProps['isFindVisible'];
+  isFileTreeLoading: StudioCodeWorkspacePanelProps['isFileTreeLoading'];
   isMountRecoveryActionPending: StudioWorkspaceOverlaysProps['isMountRecoveryActionPending'];
   isProjectGitOverviewDrawerOpen: StudioStageHeaderProps['isProjectGitOverviewDrawerOpen'];
   isQuickOpenVisible: StudioWorkspaceOverlaysProps['isQuickOpenVisible'];
@@ -79,6 +87,7 @@ export interface StudioMainContentModel {
   deleteFolder: StudioCodeWorkspacePanelProps['onDeleteFolder'];
   loadDirectory: StudioCodeWorkspacePanelProps['onExpandDirectory'];
   renameNode: StudioCodeWorkspacePanelProps['onRenameNode'];
+  refreshFiles: StudioCodeWorkspacePanelProps['onRetryFileTreeLoad'];
 }
 
 interface StudioMainContentProps {
@@ -92,12 +101,15 @@ export function StudioMainContent({ model }: StudioMainContentProps) {
     currentProjectId,
     fileContent,
     files,
+    projectRootPath,
+    fileTreeLoadError,
     getLanguageFromPath,
     handleActiveTabChange,
     handleAnalyzeCode,
     handleCloseProjectGitOverviewDrawer,
     handleLaunchSimulatorFromHeader,
     handleOpenPreviewInNewTab,
+    handlePreviewUrlChange,
     handlePreviewAppPlatformChange,
     handlePreviewLandscapeToggle,
     handleRefreshPreview,
@@ -114,6 +126,7 @@ export function StudioMainContent({ model }: StudioMainContentProps) {
     handleToggleProjectGitOverviewDrawer,
     handleToggleStudioTerminal,
     isFindVisible,
+    isFileTreeLoading,
     isMountRecoveryActionPending,
     isProjectGitOverviewDrawerOpen,
     isQuickOpenVisible,
@@ -151,7 +164,61 @@ export function StudioMainContent({ model }: StudioMainContentProps) {
     deleteFolder,
     loadDirectory,
     renameNode,
+    refreshFiles,
   } = model;
+
+  const workspaceDetailViews: WorkspaceDetailView[] = [
+    {
+      id: 'preview',
+      kind: 'browser',
+      keepMounted: true,
+      content: (
+        <StudioPreviewPanel
+          devicePreviewProps={memoizedDevicePreviewProps}
+          onNavigate={handlePreviewUrlChange}
+        />
+      ),
+    },
+    {
+      id: 'simulator',
+      kind: 'simulator',
+      content: <StudioSimulatorPanel devicePreviewProps={memoizedDevicePreviewProps} />,
+    },
+    {
+      id: 'code',
+      kind: viewingDiff ? 'review' : 'file-editor',
+      keepMounted: true,
+      content: (
+        <StudioCodeWorkspacePanel
+          isActive={isVisible && activeTab === 'code'}
+          currentProjectId={currentProjectId || undefined}
+          files={files}
+          projectRootPath={projectRootPath}
+          fileTreeLoadError={fileTreeLoadError}
+          isFileTreeLoading={isFileTreeLoading}
+          loadingDirectoryPaths={loadingDirectoryPaths}
+          openFiles={openFiles}
+          explorerWidth={codeExplorerWidth}
+          selectedFile={selectedFile}
+          viewingDiff={viewingDiff}
+          fileContent={fileContent}
+          onSelectFile={handleStudioCodePanelSelectFile}
+          onExpandDirectory={loadDirectory}
+          onCloseFile={closeFile}
+          onCreateFile={createFile}
+          onCreateFolder={createFolder}
+          onDeleteFile={deleteFile}
+          onDeleteFolder={deleteFolder}
+          onRenameNode={renameNode}
+          onRetryFileTreeLoad={refreshFiles}
+          onCloseDiff={handleStudioCloseViewingDiff}
+          onFileDraftChange={updateFileDraft}
+          onExplorerResize={handleStudioCodeExplorerResize}
+          getLanguageFromPath={getLanguageFromPath}
+        />
+      ),
+    },
+  ];
 
   return (
     <div className="flex-1 flex flex-col relative bg-[#0e0e11] overflow-hidden">
@@ -203,33 +270,9 @@ export function StudioMainContent({ model }: StudioMainContentProps) {
 
       <div className="flex-1 flex flex-col overflow-hidden">
         <div className="relative flex-1 flex overflow-hidden">
-          {activeTab === 'preview' ? (
-            <StudioPreviewPanel devicePreviewProps={memoizedDevicePreviewProps} />
-          ) : isSimulatorTabActive ? (
-            <StudioSimulatorPanel devicePreviewProps={memoizedDevicePreviewProps} />
-          ) : null}
-          <StudioCodeWorkspacePanel
-            isActive={isVisible && activeTab === 'code'}
-            currentProjectId={currentProjectId || undefined}
-            files={files}
-            loadingDirectoryPaths={loadingDirectoryPaths}
-            openFiles={openFiles}
-            explorerWidth={codeExplorerWidth}
-            selectedFile={selectedFile}
-            viewingDiff={viewingDiff}
-            fileContent={fileContent}
-            onSelectFile={handleStudioCodePanelSelectFile}
-            onExpandDirectory={loadDirectory}
-            onCloseFile={closeFile}
-            onCreateFile={createFile}
-            onCreateFolder={createFolder}
-            onDeleteFile={deleteFile}
-            onDeleteFolder={deleteFolder}
-            onRenameNode={renameNode}
-            onCloseDiff={handleStudioCloseViewingDiff}
-            onFileDraftChange={updateFileDraft}
-            onExplorerResize={handleStudioCodeExplorerResize}
-            getLanguageFromPath={getLanguageFromPath}
+          <WorkspaceDetailSurface
+            activeViewId={isSimulatorTabActive ? 'simulator' : activeTab}
+            views={workspaceDetailViews}
           />
           <ProjectGitOverviewDrawer
             isOpen={isProjectGitOverviewDrawerOpen}

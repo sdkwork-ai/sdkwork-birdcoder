@@ -14,6 +14,7 @@ import {
   RefreshCw,
 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
+import { getProjectGitOverviewStatusMessageKey } from './projectGitOverviewStatus';
 
 export type ProjectGitWorktreeMenuVariant = 'topbar' | 'studio';
 
@@ -21,11 +22,13 @@ interface ProjectGitWorktreeMenuProps extends Pick<
   UseProjectGitOverviewResult,
   | 'currentWorktree'
   | 'currentWorktreeLabel'
+  | 'diagnosticCode'
   | 'isGitRepositoryReady'
   | 'isLoading'
   | 'loadErrorMessage'
   | 'normalizedProjectId'
   | 'overview'
+  | 'subscriptionStatus'
   | 'worktrees'
 > {
   compact?: boolean;
@@ -81,6 +84,7 @@ export const ProjectGitWorktreeMenu = memo(function ProjectGitWorktreeMenu({
   compact = false,
   currentWorktree,
   currentWorktreeLabel,
+  diagnosticCode,
   isGitRepositoryReady,
   isLoading,
   isOpen,
@@ -91,6 +95,7 @@ export const ProjectGitWorktreeMenu = memo(function ProjectGitWorktreeMenu({
   onPrune,
   onRefresh,
   overview,
+  subscriptionStatus,
   variant,
   worktrees,
 }: ProjectGitWorktreeMenuProps) {
@@ -99,9 +104,12 @@ export const ProjectGitWorktreeMenu = memo(function ProjectGitWorktreeMenu({
   const variantStyle = getVariantStyle(variant);
   const isCompactTopbar = variant === 'topbar' && compact;
   const hasPrunableWorktrees = worktrees.some(isProjectGitWorktreePrunable);
-  const buttonValue = loadErrorMessage
-    ? t('code.gitOverviewUnavailable')
-    : currentWorktreeLabel || (isLoading ? '...' : t('app.menu.noRepository'));
+  const statusMessageKey = getProjectGitOverviewStatusMessageKey({
+    diagnosticCode,
+    subscriptionStatus,
+  });
+  const statusMessage = t(statusMessageKey ?? 'app.menu.gitRepositoryUnavailable');
+  const buttonValue = currentWorktreeLabel || (isLoading ? '...' : statusMessage);
   const topbarButtonBaseClassName = isCompactTopbar
     ? 'inline-flex h-8 w-8 items-center justify-center rounded-md text-xs transition-colors'
     : variantStyle.button;
@@ -229,14 +237,14 @@ export const ProjectGitWorktreeMenu = memo(function ProjectGitWorktreeMenu({
             <div className="px-3 py-3 text-[12px] text-gray-500">
               {t('code.selectProjectFirst')}
             </div>
-          ) : loadErrorMessage ? (
+          ) : subscriptionStatus === 'error' || loadErrorMessage ? (
             <div className="m-3 flex items-start gap-2 rounded-lg bg-red-500/[0.12] px-3 py-3 text-[12px] text-red-200">
               <AlertCircle size={14} className="mt-0.5 shrink-0" />
-              <span className="min-w-0 break-words">{loadErrorMessage}</span>
+              <span className="min-w-0 break-words">{statusMessage}</span>
             </div>
           ) : !isGitRepositoryReady ? (
             <div className="px-3 py-3 text-[12px] text-gray-500">
-              {t('app.menu.noRepository')}
+              {statusMessage}
             </div>
           ) : (
             <div className="mt-1 max-h-80 space-y-1 overflow-y-auto py-1 pr-1">

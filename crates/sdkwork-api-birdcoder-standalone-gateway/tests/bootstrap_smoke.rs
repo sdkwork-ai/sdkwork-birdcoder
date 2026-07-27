@@ -96,6 +96,27 @@ async fn request_method(
         .expect("serve smoke request")
 }
 
+async fn cors_preflight(
+    router: &axum::Router,
+    uri: &str,
+    requested_headers: &str,
+) -> axum::response::Response {
+    router
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method(Method::OPTIONS)
+                .uri(uri)
+                .header("origin", "http://127.0.0.1:5173")
+                .header("access-control-request-method", "POST")
+                .header("access-control-request-headers", requested_headers)
+                .body(Body::empty())
+                .expect("build CORS preflight request"),
+        )
+        .await
+        .expect("serve CORS preflight request")
+}
+
 async fn json_body(response: axum::response::Response) -> serde_json::Value {
     let bytes = axum::body::to_bytes(response.into_body(), usize::MAX)
         .await
@@ -213,6 +234,7 @@ async fn gateway_mounts_selected_owner_contributions_on_one_router() {
         "/app/v3/api/drive/spaces",
         "/app/v3/api/memberships/current",
         "/app/v3/api/orders",
+        "/app/v3/api/recharges/orders",
         "/app/v3/api/prompts/templates",
         "/app/v3/api/skills",
     ] {
@@ -248,6 +270,10 @@ async fn gateway_mounts_selected_owner_contributions_on_one_router() {
             "/app/v3/api/orders",
         ),
         (
+            "/app/v3/api/recharges/orders?page=1&page_size=20",
+            "/app/v3/api/recharges/orders",
+        ),
+        (
             "/app/v3/api/prompts/templates?page=1&page_size=20",
             "/app/v3/api/prompts/templates",
         ),
@@ -265,6 +291,42 @@ async fn gateway_mounts_selected_owner_contributions_on_one_router() {
             StatusCode::UNAUTHORIZED,
         )
         .await;
+    }
+
+    let order_preflight = cors_preflight(
+        &router,
+        "/app/v3/api/recharges/orders",
+        "authorization,access-token,content-type,idempotency-key,x-content-sha256",
+    )
+    .await;
+    assert_eq!(order_preflight.status(), StatusCode::NO_CONTENT);
+    assert_eq!(
+        order_preflight
+            .headers()
+            .get("access-control-allow-origin")
+            .and_then(|value| value.to_str().ok()),
+        Some("http://127.0.0.1:5173")
+    );
+    let allowed_headers = order_preflight
+        .headers()
+        .get("access-control-allow-headers")
+        .and_then(|value| value.to_str().ok())
+        .expect("Order preflight must expose allowed request headers")
+        .to_ascii_lowercase();
+    for required_header in [
+        "authorization",
+        "access-token",
+        "content-type",
+        "idempotency-key",
+        "x-content-sha256",
+    ] {
+        assert!(
+            allowed_headers
+                .split(',')
+                .map(str::trim)
+                .any(|header| header == required_header),
+            "Order preflight must allow {required_header}"
+        );
     }
 
     let device_authorization_response = request_method(

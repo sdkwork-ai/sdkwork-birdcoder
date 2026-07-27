@@ -15,6 +15,12 @@ export interface ProjectMountRecoveryState {
   message: string | null;
 }
 
+export interface ProjectMountRecoveryActions {
+  chooseFolder: boolean;
+  requiresAttention: boolean;
+  retry: boolean;
+}
+
 const UNKNOWN_PROJECT_MOUNT_RECOVERY_ERROR_MESSAGE =
   'Unable to remount the local project folder. Re-import the folder to restore file access.';
 
@@ -67,7 +73,7 @@ export function createProjectMountRecoveryStateFromDeviceMount(
       return {
         displayName: mount.displayName,
         status: 'permission_required',
-        message: 'Folder permission is required. Select the folder again to continue.',
+        message: 'Select the folder again to restore files and local coding sessions.',
       };
     case 'session_required':
       return {
@@ -79,9 +85,31 @@ export function createProjectMountRecoveryStateFromDeviceMount(
       return {
         displayName: mount.displayName,
         status: 'mount_required',
-        message: 'Select a local folder to access project files on this device.',
+        message: 'Select this project\'s local folder to load files and local coding sessions.',
       };
     default:
       return createFailedProjectMountRecoveryState(mount.displayName);
   }
+}
+
+export function resolveProjectMountRecoveryActions(
+  status: ProjectMountRecoveryStatus,
+): ProjectMountRecoveryActions {
+  switch (status) {
+    case 'failed':
+      return { chooseFolder: true, requiresAttention: true, retry: true };
+    case 'mount_required':
+    case 'permission_required':
+      return { chooseFolder: true, requiresAttention: true, retry: false };
+    case 'session_required':
+      return { chooseFolder: false, requiresAttention: true, retry: false };
+    default:
+      return { chooseFolder: false, requiresAttention: false, retry: false };
+  }
+}
+
+export function isProjectMountReadyForSessionSynchronization(
+  mount: ProjectDeviceMountState,
+): boolean {
+  return mount.status === 'mounted';
 }

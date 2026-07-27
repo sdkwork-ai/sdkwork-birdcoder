@@ -35,31 +35,46 @@ function isProjectSessionRequest(request: Request): boolean {
   return request.method() === 'GET' && new URL(request.url()).pathname === projectSessionsPath;
 }
 
-test('Project Sessions load lazily and tolerate missing optional user state', async ({
+test('Project Sessions load lazily without per-session user-state 404s', async ({
   page,
   request,
 }) => {
   await bootstrapAuthenticatedSession(page, request);
   const projectSessionRequests: Request[] = [];
   const workspaceSessionRequests: Request[] = [];
+  const sessionUserStateListRequests: Request[] = [];
+  const legacySessionUserStateRequests: Request[] = [];
   const applicationErrors: string[] = [];
   await page.route(
     /\/app\/v3\/api\/ai\/agents\/[^/]+\/sessions\/[^/]+\/user_state(?:\?.*)?$/u,
-    (route) => route.fulfill({
-      body: JSON.stringify({
-        type: 'https://docs.sdkwork.com/problems/40401',
-        title: 'Not found',
-        status: 404,
-        code: 40401,
-        detail: 'session user state not found',
-        instance: 'GET /app/v3/api/ai/agents/{agentId}/sessions/{sessionId}/user_state',
-        operationId: 'agents.sessionUserStates.retrieve',
-        i18nKey: 'errors.result.40401',
-        traceId: 'e2e-missing-session-user-state',
-      }),
-      contentType: 'application/problem+json',
-      status: 404,
-    }),
+    (route) => {
+      legacySessionUserStateRequests.push(route.request());
+      return route.fulfill({ status: 500 });
+    },
+  );
+  await page.route(
+    /\/app\/v3\/api\/ai\/agents\/[^/]+\/sessions\/user_states(?:\?.*)?$/u,
+    (route) => {
+      sessionUserStateListRequests.push(route.request());
+      const url = new URL(route.request().url());
+      return route.fulfill({
+        json: {
+          code: 0,
+          data: {
+            items: [],
+            pageInfo: {
+              mode: 'offset',
+              page: 1,
+              pageSize: Number(url.searchParams.get('page_size') ?? 20),
+              hasMore: false,
+              totalItems: '0',
+              totalPages: 0,
+            },
+          },
+          traceId: 'e2e-empty-session-user-states',
+        },
+      });
+    },
   );
   page.on('request', (outgoingRequest) => {
     const pathname = new URL(outgoingRequest.url()).pathname;
@@ -86,6 +101,8 @@ test('Project Sessions load lazily and tolerate missing optional user state', as
   await page.waitForTimeout(500);
   expect(projectSessionRequests).toHaveLength(0);
   expect(workspaceSessionRequests).toHaveLength(0);
+  expect(legacySessionUserStateRequests).toHaveLength(0);
+  const userStateListRequestCountBeforeExpand = sessionUserStateListRequests.length;
 
   const firstPageResponse = page.waitForResponse((response) => {
     const url = new URL(response.url());
@@ -103,10 +120,28 @@ test('Project Sessions load lazily and tolerate missing optional user state', as
     message.includes('Failed to refresh project sessions')
   ))).toHaveLength(0);
   expect(projectSessionRequests).toHaveLength(1);
+  expect(legacySessionUserStateRequests).toHaveLength(0);
+  const projectUserStateListRequests = sessionUserStateListRequests.slice(
+    userStateListRequestCountBeforeExpand,
+  );
+  const requestedUserStateSessionIds = projectUserStateListRequests.flatMap((stateRequest) => {
+    const url = new URL(stateRequest.url());
+    const sessionIds = (url.searchParams.get('session_ids') ?? '').split(',').filter(Boolean);
+    expect(sessionIds.length).toBeGreaterThan(0);
+    expect(sessionIds.length).toBeLessThanOrEqual(100);
+    expect(new Set(sessionIds).size).toBe(sessionIds.length);
+    expect(url.searchParams.get('page_size')).toBe(String(sessionIds.length));
+    return sessionIds;
+  });
+  expect(projectUserStateListRequests.length)
+    .toBeLessThan(new Set(requestedUserStateSessionIds).size);
+  const initialUserStateListRequestCount = sessionUserStateListRequests.length;
 
   await page.getByRole('button', { name: 'Collapse E2E Project' }).click();
   await page.getByRole('button', { name: 'Expand E2E Project' }).click();
   await page.waitForTimeout(500);
   expect(projectSessionRequests).toHaveLength(1);
   expect(workspaceSessionRequests).toHaveLength(0);
+  expect(sessionUserStateListRequests).toHaveLength(initialUserStateListRequestCount);
+  expect(legacySessionUserStateRequests).toHaveLength(0);
 });

@@ -3,6 +3,7 @@ export * from './platform/tauriDesktopRuntimeLocationIdentity.ts';
 export * from './services/defaultIdeServicesRuntime.ts';
 export * from './services/defaultIdeServices.ts';
 export * from './services/runtimeTopology.ts';
+export * from './services/projectFileSystemServiceFactory.ts';
 export * from './services/defaultIdeServicesShared.ts';
 export * from './services/lazyDefaultIdeServices.ts';
 export * from './services/appSessionToken.ts';

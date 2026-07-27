@@ -90,8 +90,12 @@ export const AppMainBody = React.memo(function AppMainBody({
     (message: string) => addToast(message, 'error'),
     [addToast],
   );
+  const terminalAgentSessionId = terminalRequest?.agentSessionId?.trim() || agentSessionId;
+  const terminalProjectId = terminalRequest?.projectId?.trim() || projectId;
+  const terminalRuntimeLocationId =
+    terminalRequest?.runtimeLocationId?.trim() || runtimeLocationId;
   const resolveTerminalLaunchPlan = useBirdcoderTerminalLaunchPlanResolver(
-    projectId || null,
+    terminalProjectId || null,
     handleTerminalLaunchBlocked,
   );
   const [mountedPrimaryTabs, setMountedPrimaryTabs] = useState<Set<AppTab>>(() => new Set<AppTab>([activeTab]));
@@ -201,14 +205,14 @@ export const AppMainBody = React.memo(function AppMainBody({
                 onRecover={() => onActiveTabChange('code')}
               >
                 <TerminalDesktopApp
-                  agentSessionId={agentSessionId}
+                  agentSessionId={terminalAgentSessionId}
                   launchRequest={terminalRequest}
                   launchRequestKey={terminalRequest?.timestamp ?? null}
                   onWebLaunchBlocked={handleTerminalLaunchBlocked}
                   resolveLaunchPlan={resolveTerminalLaunchPlan}
                   showWindowControls={false}
-                  projectId={projectId}
-                  runtimeLocationId={runtimeLocationId}
+                  projectId={terminalProjectId}
+                  runtimeLocationId={terminalRuntimeLocationId}
                 />
               </SurfaceErrorBoundaryWithTranslation>
             </PersistentAppTabPanel>

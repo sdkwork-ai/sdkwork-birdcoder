@@ -35,6 +35,10 @@
       "import": "./src/platform/openLocalFolder.ts",
       "types": "./src/platform/openLocalFolder.ts"
     },
+    "./platform/tauriRuntime": {
+      "import": "./src/platform/tauriRuntime.ts",
+      "types": "./src/platform/tauriRuntime.ts"
+    },
     "./services/interfaces/IPromptService": {
       "import": "./src/services/interfaces/IPromptService.ts",
       "types": "./src/services/interfaces/IPromptService.ts"

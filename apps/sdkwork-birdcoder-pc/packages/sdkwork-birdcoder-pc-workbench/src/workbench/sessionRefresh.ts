@@ -4,19 +4,39 @@ import type {
   AgentSessionView,
   AgentProjectView,
 } from '@sdkwork/birdcoder-pc-contracts-commons';
-import { deduplicateAgentSessionItemViews } from '@sdkwork/birdcoder-pc-contracts-commons';
+import {
+  deduplicateAgentSessionItemViews,
+  mergeLatestAgentSessionItems,
+} from '@sdkwork/birdcoder-pc-contracts-commons';
+export { mergeLatestAgentSessionItems } from '@sdkwork/birdcoder-pc-contracts-commons';
 import type { IAgentSessionService } from '@sdkwork/birdcoder-pc-infrastructure-runtime';
 
 import type { IProjectService } from '../services/interfaces/IProjectService.ts';
 import {
-  loadCompleteProjectAgentSessionInventory,
   loadAgentSessionView,
-  toAgentSessionItemView,
+  toAgentSessionViewFromActivitySummary,
+  toAgentSessionTranscriptItemViews,
+  type AgentSessionActivitySummaryRecord,
   type AgentSessionItemRecord,
   type AgentSessionRecord,
 } from '../services/agentSessionViewModels.ts';
+import {
+  canApplyAgentSessionTombstone,
+  canCommitAgentSessionToProjectsStore,
+  recordAgentSessionTombstoneInProjectsStore,
+  removeAgentSessionFromCollection,
+  updateAgentSessionInCollection,
+  upsertAgentSessionIntoCollection,
+  upsertProjectIntoCollection,
+} from '../stores/projectsStore.ts';
+import {
+  normalizeAgentSessionActivityCursor,
+  shouldApplyAgentSessionActivitySummary,
+  validateAgentSessionActivitySummary,
+} from './workspaceSessionInboxSync.ts';
 
 const AGENT_SESSION_ITEM_PAGE_SIZE = 20;
+const PROJECT_SESSION_ACTIVITY_PAGE_SIZE = 200;
 const DEFAULT_AGENT_REFRESH_TIMEOUT_MS = 30_000;
 const MAX_AGENT_REFRESH_TIMEOUT_MS = 300_000;
 
@@ -29,7 +49,7 @@ export interface RefreshProjectSessionsOptions {
 }
 
 export interface ResolvedAgentSessionLocation {
-  agentSession: AgentSessionView;
+  agentSession?: AgentSessionView;
   project: AgentProjectView;
 }
 
@@ -49,6 +69,8 @@ export interface LoadEarlierAgentSessionItemsOptions {
 }
 
 export interface RefreshProjectSessionsResult {
+  deletedSessionIds: string[];
+  deletedSessionTombstones: AgentSessionView[];
   sessionIds: string[];
   projectIds: string[];
   projects?: AgentProjectView[];
@@ -191,21 +213,194 @@ function validateLoadedItemPageInfo(
 function normalizeSessionItemRecords(
   items: readonly AgentSessionItemRecord[],
 ): AgentSessionItemView[] {
-  return items
+  const sortedItems = items
     .slice()
     .sort((left, right) => {
       const leftSequence = BigInt(left.sequence);
       const rightSequence = BigInt(right.sequence);
       return leftSequence === rightSequence ? 0 : leftSequence < rightSequence ? -1 : 1;
-    })
-    .map(toAgentSessionItemView);
+    });
+  return toAgentSessionTranscriptItemViews(sortedItems);
 }
 
-function mergeLatestSessionItems(
-  existingItems: readonly AgentSessionItemView[],
-  latestItems: readonly AgentSessionItemView[],
-): AgentSessionItemView[] {
-  return deduplicateAgentSessionItemViews([...existingItems, ...latestItems]);
+function latestTimestamp(
+  left: string | undefined,
+  right: string | undefined,
+): string | undefined;
+function latestTimestamp(
+  left: string | null | undefined,
+  right: string | null | undefined,
+): string | null | undefined;
+function latestTimestamp(
+  left: string | null | undefined,
+  right: string | null | undefined,
+): string | null | undefined {
+  const leftTimestamp = left ? Date.parse(left) : Number.NaN;
+  const rightTimestamp = right ? Date.parse(right) : Number.NaN;
+  if (Number.isNaN(leftTimestamp)) {
+    return right;
+  }
+  if (Number.isNaN(rightTimestamp)) {
+    return left;
+  }
+  return rightTimestamp > leftTimestamp ? right : left;
+}
+
+function shouldRetainObservedRuntimeStatus(
+  current: AgentSessionView,
+  refreshed: AgentSessionView,
+): boolean {
+  if (refreshed.status === 'completed' || refreshed.status === 'archived') {
+    return false;
+  }
+  if (
+    refreshed.runtimeStatus !== undefined
+    && refreshed.runtimeStatus !== 'ready'
+  ) {
+    return false;
+  }
+  return current.runtimeStatus !== undefined && current.runtimeStatus !== 'ready';
+}
+
+/**
+ * Reconciles an authority refresh at commit time. The current Store value can
+ * contain stream deltas that arrived after the read started, so it is the merge
+ * base rather than the request-start snapshot.
+ */
+export function mergeRefreshedAgentSessionIntoCurrent(
+  current: AgentSessionView,
+  refreshed: AgentSessionView,
+): AgentSessionView {
+  if (current.id !== refreshed.id || current.projectId !== refreshed.projectId) {
+    throw new Error('Refreshed Agents session does not match the current Store identity.');
+  }
+
+  const retainedCurrentActivity = current.activity !== undefined && (
+    refreshed.activity === undefined
+    || !shouldApplyAgentSessionActivitySummary(refreshed.activity, current.activity)
+  );
+  const activity = retainedCurrentActivity ? current.activity : refreshed.activity;
+  const isTerminalRefresh = refreshed.status === 'completed' || refreshed.status === 'archived';
+
+  return {
+    ...refreshed,
+    activity,
+    runtimeStatus: retainedCurrentActivity && !isTerminalRefresh
+      ? current.runtimeStatus
+      : shouldRetainObservedRuntimeStatus(current, refreshed)
+      ? current.runtimeStatus
+      : refreshed.runtimeStatus,
+    lastAttentionAt: latestTimestamp(current.lastAttentionAt, refreshed.lastAttentionAt),
+    lastMessageAt: latestTimestamp(current.lastMessageAt, refreshed.lastMessageAt),
+    lastRuntimeEventAt: latestTimestamp(
+      current.lastRuntimeEventAt,
+      refreshed.lastRuntimeEventAt,
+    ),
+    lastTurnAt: latestTimestamp(current.lastTurnAt, refreshed.lastTurnAt),
+    lastUserActivityAt: latestTimestamp(
+      current.lastUserActivityAt,
+      refreshed.lastUserActivityAt,
+    ),
+    transcriptUpdatedAt: latestTimestamp(
+      current.transcriptUpdatedAt,
+      refreshed.transcriptUpdatedAt,
+    ),
+    itemPageInfo: refreshed.itemPageInfo ?? current.itemPageInfo,
+    items: mergeLatestAgentSessionItems(current.items, refreshed.items),
+  };
+}
+
+export function applyProjectSessionActivityRefresh(
+  projects: readonly AgentProjectView[],
+  refreshedProject: AgentProjectView,
+  deletedSessionIds: readonly string[],
+  options: {
+    deletedSessionTombstones?: readonly AgentSessionView[];
+    scopeKey?: string;
+  } = {},
+): AgentProjectView[] {
+  const refreshedSessionIds = new Set(
+    refreshedProject.agentSessions.map((session) => session.id),
+  );
+  const deletedIds = new Set<string>();
+  const tombstonesById = new Map(
+    (options.deletedSessionTombstones ?? []).map((session) => [session.id, session]),
+  );
+  for (const value of deletedSessionIds) {
+    const sessionId = value.trim();
+    if (!sessionId) {
+      throw new Error('Deleted Agents Session identity must not be blank.');
+    }
+    if (refreshedSessionIds.has(sessionId)) {
+      throw new Error('Agents Session activity refresh contains conflicting live and deleted rows.');
+    }
+    deletedIds.add(sessionId);
+    const tombstone = tombstonesById.get(sessionId);
+    if (options.scopeKey && tombstone) {
+      const version = tombstone.activity?.versions.session ?? tombstone.serverVersion;
+      if (!version) {
+        throw new Error('Deleted Agents Session tombstone is missing its Session version.');
+      }
+      recordAgentSessionTombstoneInProjectsStore(
+        options.scopeKey,
+        refreshedProject.projectId,
+        sessionId,
+        version,
+      );
+    }
+  }
+
+  let nextProjects = upsertProjectIntoCollection(projects, {
+    ...refreshedProject,
+    // The activity head is bounded and therefore never replaces full inventory.
+    agentSessions: [],
+  });
+  for (const sessionId of deletedIds) {
+    const currentSession = nextProjects
+      .find((project) => project.projectId === refreshedProject.projectId)
+      ?.agentSessions.find((session) => session.id === sessionId);
+    const tombstone = tombstonesById.get(sessionId);
+    if (
+      currentSession
+      && tombstone
+      && !canApplyAgentSessionTombstone(currentSession, tombstone)
+    ) {
+      continue;
+    }
+    nextProjects = removeAgentSessionFromCollection(
+      nextProjects,
+      refreshedProject.projectId,
+      sessionId,
+    );
+  }
+  for (const refreshedSession of refreshedProject.agentSessions) {
+    if (
+      options.scopeKey
+      && !canCommitAgentSessionToProjectsStore(
+        options.scopeKey,
+        refreshedProject.projectId,
+        refreshedSession,
+      )
+    ) {
+      continue;
+    }
+    const currentSession = nextProjects
+      .find((project) => project.projectId === refreshedProject.projectId)
+      ?.agentSessions.find((session) => session.id === refreshedSession.id);
+    nextProjects = currentSession
+      ? updateAgentSessionInCollection(
+          nextProjects,
+          refreshedProject.projectId,
+          refreshedSession.id,
+          (session) => mergeRefreshedAgentSessionIntoCurrent(session, refreshedSession),
+        )
+      : upsertAgentSessionIntoCollection(
+          nextProjects,
+          refreshedProject.projectId,
+          refreshedSession,
+        );
+  }
+  return nextProjects;
 }
 
 function prependHistoricalSessionItems(
@@ -265,6 +460,71 @@ async function loadSessionItemPage(
   };
 }
 
+function normalizeProjectActivitySummaries(
+  summaries: readonly AgentSessionActivitySummaryRecord[],
+  project: AgentProjectView,
+): {
+  deletedSessionIds: string[];
+  deletedSessionTombstones: AgentSessionView[];
+  sessions: AgentSessionView[];
+} {
+  const deletedSessionIds: string[] = [];
+  const deletedSessionTombstones: AgentSessionView[] = [];
+  const sessions: AgentSessionView[] = [];
+  const seenSessionIds = new Set<string>();
+  for (const summary of summaries) {
+    validateAgentSessionActivitySummary(summary, project);
+    const sessionId = summary.session.sessionId.trim();
+    if (seenSessionIds.has(sessionId)) {
+      throw new Error('Agents project Session activity page contains a duplicate Session identity.');
+    }
+    seenSessionIds.add(sessionId);
+    if (summary.presentationPhase === 'deleted' || summary.session.deletedAt) {
+      deletedSessionIds.push(sessionId);
+      deletedSessionTombstones.push(toAgentSessionViewFromActivitySummary(summary));
+      continue;
+    }
+    sessions.push(toAgentSessionViewFromActivitySummary(summary));
+  }
+  return { deletedSessionIds, deletedSessionTombstones, sessions };
+}
+
+async function loadProjectSessionActivityHead(
+  agentSessionService: IAgentSessionService,
+  project: AgentProjectView,
+  signal?: AbortSignal,
+): Promise<{
+  deletedSessionIds: string[];
+  deletedSessionTombstones: AgentSessionView[];
+  sessions: AgentSessionView[];
+}> {
+  const page = await agentSessionService.listSessionActivitySummaries({
+    pageSize: PROJECT_SESSION_ACTIVITY_PAGE_SIZE,
+    projectId: project.projectId,
+  }, { signal });
+  signal?.throwIfAborted();
+
+  const nextCursor = normalizeAgentSessionActivityCursor(
+    page.pageInfo.nextCursor,
+    'next cursor',
+  );
+  if (
+    page.pageInfo.mode !== 'cursor'
+    || page.pageInfo.pageSize !== PROJECT_SESSION_ACTIVITY_PAGE_SIZE
+    || typeof page.pageInfo.hasMore !== 'boolean'
+    || page.items.length > PROJECT_SESSION_ACTIVITY_PAGE_SIZE
+  ) {
+    throw new Error('Agents project Session activity snapshot returned invalid pagination metadata.');
+  }
+  if (page.pageInfo.hasMore && (page.items.length === 0 || !nextCursor)) {
+    throw new Error('Agents project Session activity snapshot returned a non-progressing cursor page.');
+  }
+  if (!page.pageInfo.hasMore && nextCursor) {
+    throw new Error('Agents project Session activity snapshot returned an unexpected terminal cursor.');
+  }
+  return normalizeProjectActivitySummaries(page.items, project);
+}
+
 async function refreshProjectSessionsWithoutTimeout({
   agentSessionService,
   projectId,
@@ -274,6 +534,8 @@ async function refreshProjectSessionsWithoutTimeout({
   const normalizedProjectId = projectId.trim();
   if (!normalizedProjectId) {
     return {
+      deletedSessionIds: [],
+      deletedSessionTombstones: [],
       sessionIds: [],
       projectIds: [],
       source: 'agents',
@@ -282,8 +544,14 @@ async function refreshProjectSessionsWithoutTimeout({
   }
 
   const project = await projectService.getProjectById(normalizedProjectId);
-  if (!project || project.projectId !== normalizedProjectId) {
+  if (
+    !project
+    || project.projectId !== normalizedProjectId
+    || project.status === 'deleted'
+  ) {
     return {
+      deletedSessionIds: [],
+      deletedSessionTombstones: [],
       sessionIds: [],
       projectIds: [],
       source: 'agents',
@@ -291,12 +559,18 @@ async function refreshProjectSessionsWithoutTimeout({
     };
   }
 
-  const synchronizedProject = await loadCompleteProjectAgentSessionInventory(
+  const snapshot = await loadProjectSessionActivityHead(
     agentSessionService,
     project,
     signal,
   );
+  const synchronizedProject: AgentProjectView = {
+    ...project,
+    agentSessions: snapshot.sessions,
+  };
   return {
+    deletedSessionIds: snapshot.deletedSessionIds,
+    deletedSessionTombstones: snapshot.deletedSessionTombstones,
     sessionIds: synchronizedProject.agentSessions.map((session) => session.id),
     projectIds: [normalizedProjectId],
     projects: [synchronizedProject],
@@ -317,6 +591,26 @@ export function refreshProjectSessions(
     refreshTimeoutMs,
     'Refreshing Agents project sessions',
     signal,
+  );
+}
+
+function isAgentSessionNotFoundError(error: unknown): boolean {
+  if (!error || typeof error !== 'object') {
+    return false;
+  }
+  const candidate = error as {
+    message?: unknown;
+    response?: { status?: unknown };
+    status?: unknown;
+    statusCode?: unknown;
+  };
+  const status = candidate.status ?? candidate.statusCode ?? candidate.response?.status;
+  if (status === 404) {
+    return true;
+  }
+  return (
+    typeof candidate.message === 'string' &&
+    /(?:agent\s+)?session\s+not\s+found/iu.test(candidate.message)
   );
 }
 
@@ -348,8 +642,22 @@ async function refreshAgentSessionItemsWithoutTimeout({
     };
   }
 
-  const session = await agentSessionService.getSession(normalizedSessionId, { signal });
   const projectId = project.projectId.trim();
+  let session: Awaited<ReturnType<IAgentSessionService['getSession']>>;
+  try {
+    session = await agentSessionService.getSession(normalizedSessionId, { signal });
+  } catch (error) {
+    if (isAgentSessionNotFoundError(error)) {
+      return {
+        agentSessionId: normalizedSessionId,
+        itemCount: 0,
+        projectId,
+        source: 'agents',
+        status: 'not-found',
+      };
+    }
+    throw error;
+  }
   if (!projectId || session.projectId?.trim() !== projectId) {
     return {
       agentSessionId: normalizedSessionId,
@@ -388,7 +696,7 @@ async function refreshAgentSessionItemsWithoutTimeout({
     ? {
         ...refreshedAgentSession,
         itemPageInfo,
-        items: mergeLatestSessionItems(
+        items: mergeLatestAgentSessionItems(
           existingAgentSession.items,
           refreshedAgentSession.items,
         ),

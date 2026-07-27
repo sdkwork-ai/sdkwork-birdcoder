@@ -11,6 +11,17 @@ use super::filesystem_commands::resolve_root_directory_path;
 pub enum DesktopGitOverviewStatus {
     Ready,
     NotRepository,
+    RepositoryRootMismatch,
+    Unavailable,
+}
+
+#[derive(Debug, Clone, Serialize, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum DesktopGitOverviewDiagnosticCode {
+    GitCommandFailed,
+    GitExecutableUnavailable,
+    NotRepository,
+    RepositoryRootMismatch,
 }
 
 #[derive(Debug, Clone, Serialize, PartialEq, Eq)]
@@ -52,6 +63,8 @@ pub struct DesktopGitProjectOverview {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub current_revision: Option<String>,
     pub detached_head: bool,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub diagnostic_code: Option<DesktopGitOverviewDiagnosticCode>,
     pub status: DesktopGitOverviewStatus,
     pub status_counts: DesktopGitStatusCounts,
     pub worktrees: Vec<DesktopGitWorktreeSummary>,
@@ -161,10 +174,30 @@ fn map_overview(
         current_branch: overview.current_branch,
         current_revision: overview.current_revision,
         detached_head: overview.detached_head,
+        diagnostic_code: overview.diagnostic_code.map(|code| match code {
+            sdkwork_birdcoder_git::GitOverviewDiagnosticCode::GitCommandFailed => {
+                DesktopGitOverviewDiagnosticCode::GitCommandFailed
+            }
+            sdkwork_birdcoder_git::GitOverviewDiagnosticCode::GitExecutableUnavailable => {
+                DesktopGitOverviewDiagnosticCode::GitExecutableUnavailable
+            }
+            sdkwork_birdcoder_git::GitOverviewDiagnosticCode::NotRepository => {
+                DesktopGitOverviewDiagnosticCode::NotRepository
+            }
+            sdkwork_birdcoder_git::GitOverviewDiagnosticCode::RepositoryRootMismatch => {
+                DesktopGitOverviewDiagnosticCode::RepositoryRootMismatch
+            }
+        }),
         status: match overview.status {
             sdkwork_birdcoder_git::GitOverviewStatus::Ready => DesktopGitOverviewStatus::Ready,
             sdkwork_birdcoder_git::GitOverviewStatus::NotRepository => {
                 DesktopGitOverviewStatus::NotRepository
+            }
+            sdkwork_birdcoder_git::GitOverviewStatus::RepositoryRootMismatch => {
+                DesktopGitOverviewStatus::RepositoryRootMismatch
+            }
+            sdkwork_birdcoder_git::GitOverviewStatus::Unavailable => {
+                DesktopGitOverviewStatus::Unavailable
             }
         },
         status_counts: DesktopGitStatusCounts {
@@ -493,6 +526,16 @@ mod tests {
             serde_json::to_value(DesktopGitOverviewStatus::NotRepository)
                 .expect("serialize status"),
             serde_json::json!("not_repository")
+        );
+        assert_eq!(
+            serde_json::to_value(DesktopGitOverviewStatus::RepositoryRootMismatch)
+                .expect("serialize status"),
+            serde_json::json!("repository_root_mismatch")
+        );
+        assert_eq!(
+            serde_json::to_value(DesktopGitOverviewDiagnosticCode::GitExecutableUnavailable)
+                .expect("serialize diagnostic code"),
+            serde_json::json!("git_executable_unavailable")
         );
     }
 }

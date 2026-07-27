@@ -3,6 +3,7 @@ import type { ModelsPickerGroup } from '@sdkwork/models-pc-picker';
 
 export interface UniversalChatComposerFooterCommonProps {
   attachmentMenuRef: RefObject<HTMLDivElement | null>;
+  attachmentsDisabled: boolean;
   canQueueTypedMessage: boolean;
   canSubmitComposerMessage: boolean;
   canSubmitPendingUserQuestionAnswer: boolean;
@@ -16,6 +17,7 @@ export interface UniversalChatComposerFooterCommonProps {
   isComposerProcessing: boolean;
   isComposerTurnBlocked: boolean;
   isListening: boolean;
+  isUploadingAttachments: boolean;
   modelGroups: ModelsPickerGroup[];
   onAttachmentMenuOpenChange: (open: boolean) => void;
   onFileUpload: (event: ChangeEvent<HTMLInputElement>) => void | Promise<void>;

@@ -1,10 +1,11 @@
 import React, { useState, useMemo, useEffect, useCallback, useDeferredValue, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
-import { ChevronRight, ChevronDown, File, Folder, Search, X, Plus, FilePlus, FolderPlus, Trash2, FileJson, FileCode2, FileImage, FileText, FileType2, ListCollapse, Copy, Terminal, ExternalLink, FileEdit, Loader2 } from 'lucide-react';
+import { AlertCircle, ChevronRight, ChevronDown, File, Folder, Search, X, Plus, FilePlus, FolderPlus, Trash2, FileJson, FileCode2, FileImage, FileText, FileType2, ListCollapse, Copy, Terminal, ExternalLink, FileEdit, Loader2, RefreshCw } from 'lucide-react';
 import {
   emitCopyProjectLocalPath,
   emitOpenProjectTerminal,
   emitRevealProjectInFileManager,
+  resolveProjectDeviceMountTarget,
 } from '@sdkwork/birdcoder-pc-workbench/events/projectDeviceMountEvents';
 import { globalEventBus } from '@sdkwork/birdcoder-pc-workbench/utils/EventBus';
 import { useToast } from '@sdkwork/birdcoder-pc-workbench/contexts/ToastProvider';
@@ -32,11 +33,15 @@ export interface FileNode {
 
 export interface FileExplorerProps {
   files: FileNode[];
+  hasLoadError?: boolean;
   isActive?: boolean;
+  isLoading?: boolean;
   width?: number;
   loadingDirectoryPaths?: Record<string, boolean>;
   onExpandDirectory?: (path: string) => void | Promise<void>;
+  onRetryLoad?: () => void | Promise<void>;
   projectId?: string;
+  projectRootPath?: string;
   scopeKey?: string;
   onSelectFile: (path: string) => void;
   selectedFile?: string;
@@ -403,27 +408,6 @@ function isFileExplorerNameConflictError(error: unknown): boolean {
   );
 }
 
-function resolveRootCreationParentPath(files: FileNode[]): string {
-  if (files.length === 1 && files[0]?.type === 'directory') {
-    return files[0].path;
-  }
-
-  return '';
-}
-
-function resolveSingleRootDirectoryPath(files: readonly FileNode[]) {
-  if (files.length !== 1) {
-    return '';
-  }
-
-  const [rootNode] = files;
-  if (!rootNode || rootNode.type !== 'directory') {
-    return '';
-  }
-
-  return rootNode.path;
-}
-
 function getFileIcon(fileName: string) {
   const ext = fileName.split('.').pop()?.toLowerCase();
   switch (ext) {
@@ -688,11 +672,15 @@ FileExplorerNodeRow.displayName = 'FileExplorerNodeRow';
 
 export const FileExplorer = React.memo(function FileExplorer({
   files,
+  hasLoadError = false,
   isActive = true,
+  isLoading = false,
   width = 256,
   loadingDirectoryPaths = {},
   onExpandDirectory,
+  onRetryLoad,
   projectId = '',
+  projectRootPath = '',
   scopeKey = '',
   onSelectFile,
   selectedFile,
@@ -727,19 +715,11 @@ export const FileExplorer = React.memo(function FileExplorer({
   const mutationGenerationRef = useRef(0);
 
   const resolveProjectMountTarget = (mountedPath?: string) => {
-    const normalizedProjectId = projectId.trim();
-    if (!normalizedProjectId) {
-      return null;
-    }
-
-    return {
-      projectId: normalizedProjectId,
-      ...(mountedPath?.trim() ? { mountedPath: mountedPath.trim() } : {}),
-    };
+    return resolveProjectDeviceMountTarget({ projectId, mountedPath });
   };
   const notifyUnavailableLocalFolder = () => addToast(t('code.projectFolderUnavailable'), 'error');
-  const rootCreationParentPath = useMemo(() => resolveRootCreationParentPath(files), [files]);
-  const singleRootDirectoryPath = useMemo(() => resolveSingleRootDirectoryPath(files), [files]);
+  const rootCreationParentPath = useMemo(() => projectRootPath.trim(), [projectRootPath]);
+  const singleRootDirectoryPath = rootCreationParentPath;
   const startCreatingRootNode = useCallback((type: 'file' | 'directory') => {
     if (isMutationPending) {
       return;
@@ -1259,6 +1239,34 @@ export const FileExplorer = React.memo(function FileExplorer({
       return null;
     }
 
+    if (isLoading && files.length === 0 && !searchQuery) {
+      return (
+        <div className="flex h-full flex-col items-center justify-center gap-3 px-4 text-center text-gray-500">
+          <Loader2 size={18} className="animate-spin text-gray-400" aria-hidden="true" />
+          <p className="text-sm text-gray-400">{t('code.loadingProjectFiles')}</p>
+        </div>
+      );
+    }
+
+    if (hasLoadError && files.length === 0 && !searchQuery) {
+      return (
+        <div className="flex h-full flex-col items-center justify-center gap-3 px-4 text-center text-gray-500">
+          <AlertCircle size={20} className="text-red-400" aria-hidden="true" />
+          <p className="text-sm text-gray-300">{t('code.projectFilesLoadFailed')}</p>
+          {onRetryLoad ? (
+            <button
+              type="button"
+              className="flex items-center gap-2 rounded border border-white/10 px-3 py-1.5 text-xs text-gray-300 transition-colors hover:bg-white/5 hover:text-white focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-blue-500"
+              onClick={() => void onRetryLoad()}
+            >
+              <RefreshCw size={13} aria-hidden="true" />
+              <span>{t('code.retryLoadingProjectFiles')}</span>
+            </button>
+          ) : null}
+        </div>
+      );
+    }
+
     if (isSearchPending && normalizedDeferredSearchQuery) {
       return (
         <div className="flex flex-col items-center justify-center h-full text-gray-500 px-4 text-center gap-3">
@@ -1370,13 +1378,16 @@ export const FileExplorer = React.memo(function FileExplorer({
     handleInputValueChange,
     handleNodePrimaryAction,
     handleRequestDeleteNode,
+    hasLoadError,
     inputValue,
     isMutationPending,
+    isLoading,
     currentExpandedFolders,
     isSearchPending,
     loadingDirectoryPaths,
     normalizedDeferredSearchQuery,
     onExpandDirectory,
+    onRetryLoad,
     renamingNode,
     searchQuery,
     selectedFile,
@@ -1386,6 +1397,8 @@ export const FileExplorer = React.memo(function FileExplorer({
     virtualizedRows.paddingBottom,
     virtualizedRows.paddingTop,
     virtualizedRows.visibleRows,
+    files.length,
+    t,
   ]);
 
   return (

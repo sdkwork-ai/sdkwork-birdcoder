@@ -9,6 +9,7 @@ import {
 import { getWorkbenchCodeEngineSessionSummary } from '@sdkwork/birdcoder-pc-workbench/workbench/codeEngineCatalog';
 import {
   DeferredUniversalChat,
+  type SessionRuntimeStatusLabels,
   WorkbenchNewSessionButton,
   type UniversalChatComposerSelection,
 } from '@sdkwork/birdcoder-pc-ui';
@@ -19,7 +20,6 @@ import {
   useRelativeMinuteNow,
 } from '@sdkwork/birdcoder-pc-ui-shell';
 import {
-  formatAgentSessionActivityDisplayTime,
   isAgentSessionViewEngineBusy,
   type AgentSessionItemView,
   type AgentSessionView,
@@ -40,6 +40,7 @@ import {
 } from 'lucide-react';
 import { memo, useCallback, useDeferredValue, useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
+import { StudioSessionMenuRow } from './StudioSessionMenuRow';
 
 const INITIAL_VISIBLE_SESSIONS_PER_PROJECT = 5;
 const SESSION_EXPANSION_BATCH_SIZE = 10;
@@ -155,11 +156,12 @@ interface StudioChatSidebarProps {
   refreshingProjectId: string | null;
   refreshingAgentSessionId: string | null;
   onOpenFile: (path: string) => void;
+  onOpenUrl: (url: string) => void;
   onViewChanges: (file: FileChange) => void;
   onEditMessage: (messageId: string, content: string) => void | Promise<void>;
   onDeleteMessage: (messageIds: string[]) => void;
   onRegenerateMessage: () => void;
-  onRestoreMessage: (messageId: string) => void;
+  onRestoreMessage: (messageId: string, fileChanges?: readonly FileChange[]) => void;
 }
 
 interface StudioProjectMenuRowProps {
@@ -197,55 +199,6 @@ const StudioProjectMenuRow = memo(function StudioProjectMenuRow({
         {isActualSelected && <Check size={14} className="text-gray-500" />}
         {isMenuSelected && <ChevronRight size={14} className="text-gray-500" />}
       </div>
-    </button>
-  );
-});
-
-interface StudioSessionMenuRowProps {
-  projectId: string;
-  relativeTimeNow: number;
-  session: AgentProjectView['agentSessions'][number];
-  isSelected: boolean;
-  onSelectAgentSession: (projectId: string, agentSessionId: string) => void;
-}
-
-const StudioSessionMenuRow = memo(function StudioSessionMenuRow({
-  projectId,
-  relativeTimeNow,
-  session,
-  isSelected,
-  onSelectAgentSession,
-}: StudioSessionMenuRowProps) {
-  const isEngineBusySession = isAgentSessionViewEngineBusy(session);
-
-  return (
-    <button
-      onClick={() => onSelectAgentSession(projectId, session.id)}
-      className={`w-full flex items-center justify-between px-3 py-2.5 rounded-lg text-sm transition-all group ${
-        isSelected
-          ? 'bg-blue-500/10 text-blue-400'
-          : 'text-gray-400 hover:bg-white/5 hover:text-gray-200'
-      }`}
-      style={buildStudioSidebarSurfaceStyle('48px')}
-    >
-      <div className="flex items-center gap-3 truncate">
-        <WorkbenchCodeEngineIcon engineId={session.engineId} />
-        <div className="flex flex-col items-start truncate">
-          <span className="truncate font-medium">{session.title}</span>
-          <span
-            className={`text-[10px] ${
-              isSelected ? 'text-blue-400/70' : 'text-gray-600 group-hover:text-gray-500'
-            }`}
-          >
-            {formatAgentSessionActivityDisplayTime(session, relativeTimeNow)}
-          </span>
-        </div>
-      </div>
-      {isEngineBusySession ? (
-        <Loader2 size={14} className="animate-spin text-emerald-400 shrink-0" />
-      ) : isSelected ? (
-        <Check size={14} className="text-blue-400 shrink-0" />
-      ) : null}
     </button>
   );
 });
@@ -292,6 +245,7 @@ function areStudioChatSidebarPropsEqual(
     left.refreshingProjectId === right.refreshingProjectId &&
     left.refreshingAgentSessionId === right.refreshingAgentSessionId &&
     left.onOpenFile === right.onOpenFile &&
+    left.onOpenUrl === right.onOpenUrl &&
     left.onViewChanges === right.onViewChanges &&
     left.onEditMessage === right.onEditMessage &&
     left.onDeleteMessage === right.onDeleteMessage &&
@@ -338,6 +292,7 @@ export const StudioChatSidebar = memo(function StudioChatSidebar({
   refreshingProjectId,
   refreshingAgentSessionId,
   onOpenFile,
+  onOpenUrl,
   onViewChanges,
   onEditMessage,
   onDeleteMessage,
@@ -345,6 +300,16 @@ export const StudioChatSidebar = memo(function StudioChatSidebar({
   onRestoreMessage,
 }: StudioChatSidebarProps) {
   const { t } = useTranslation();
+  const sessionRuntimeStatusLabels = useMemo<SessionRuntimeStatusLabels>(() => ({
+    awaitingApproval: t('code.awaitingApprovalSession'),
+    awaitingTool: t('code.awaitingToolSession'),
+    awaitingUser: t('code.awaitingUserSession'),
+    executing: t('code.executingSession'),
+    failed: t('code.failedSession'),
+    initializing: t('code.initializingSession'),
+    stale: t('code.staleSession'),
+    unknown: t('code.unknownSession'),
+  }), [t]);
   const { addToast } = useToast();
   const [showProjectMenu, setShowProjectMenu] = useState(false);
   const [visibleSessionCountByProjectId, setVisibleSessionCountByProjectId] = useState<
@@ -737,13 +702,17 @@ export const StudioChatSidebar = memo(function StudioChatSidebar({
     <>
       <div
         className="flex min-h-0 flex-col border-r border-white/10 bg-[#0e0e11] text-sm shrink-0 relative"
-        style={{ width }}
+        style={{ maxWidth: '52vw', width }}
       >
-        <div className="border-b border-white/10 px-4 py-2.5 shrink-0 bg-[#0e0e11]">
+        <div
+          className="border-b border-white/10 px-4 py-2.5 shrink-0 bg-[#0e0e11]"
+          data-studio-chat-header="true"
+        >
           <div className="flex items-center justify-between gap-3">
             <div className="relative min-w-0 flex-1" ref={projectMenuRef}>
               <button
                 onClick={handleToggleProjectMenu}
+                data-studio-session-menu-trigger="true"
                 className="flex max-w-full items-center gap-2 px-2 py-1.5 -ml-2 rounded-lg hover:bg-white/5 transition-all text-gray-200 font-medium group whitespace-nowrap overflow-hidden"
               >
                 <div className="flex min-w-0 items-center gap-1.5 overflow-hidden">
@@ -762,7 +731,10 @@ export const StudioChatSidebar = memo(function StudioChatSidebar({
               </button>
 
               {showProjectMenu && (
-                <div className="absolute top-full left-0 mt-2 w-[600px] bg-[#18181b] border border-white/10 rounded-xl shadow-2xl z-50 overflow-hidden flex flex-col animate-in fade-in slide-in-from-top-2 duration-200">
+                <div
+                  className="absolute top-full left-0 mt-2 w-[600px] bg-[#18181b] border border-white/10 rounded-xl shadow-2xl z-50 overflow-hidden flex flex-col animate-in fade-in slide-in-from-top-2 duration-200"
+                  data-studio-session-menu="true"
+                >
                   <div className="p-3 border-b border-white/10 bg-[#0e0e11]/50 backdrop-blur-sm">
                     <div className="relative">
                       <Search size={14} className="absolute left-3 top-2.5 text-gray-500" />
@@ -856,6 +828,7 @@ export const StudioChatSidebar = memo(function StudioChatSidebar({
                         <StudioSessionMenuRow
                           projectId={effectiveMenuProjectId}
                           relativeTimeNow={relativeTimeNow}
+                          runtimeStatusLabels={sessionRuntimeStatusLabels}
                           session={session}
                           isSelected={
                             currentProjectId === effectiveMenuProjectId &&
@@ -1038,6 +1011,7 @@ export const StudioChatSidebar = memo(function StudioChatSidebar({
             showComposerEngineSelector
             layout="sidebar"
             onOpenFile={onOpenFile}
+            onOpenUrl={onOpenUrl}
             onViewChanges={onViewChanges}
             onEditMessage={onEditMessage}
             onDeleteMessage={onDeleteMessage}

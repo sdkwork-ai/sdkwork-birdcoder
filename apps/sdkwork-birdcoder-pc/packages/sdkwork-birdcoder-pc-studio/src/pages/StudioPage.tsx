@@ -8,7 +8,7 @@ import {
   emitProjectMountRecoveryState,
   getDefaultRunConfigurations,
   globalEventBus,
-  hydrateImportedProjectFromAuthority,
+  isProjectMountReadyForSessionSynchronization,
   importSelectedProjectDirectory,
   rebindSelectedProjectDirectory,
   selectProjectDirectory,
@@ -39,6 +39,7 @@ import {
   useAuth,
   useToast,
 } from '@sdkwork/birdcoder-pc-workbench';
+import { useImportedProjectSessionSynchronization } from '@sdkwork/birdcoder-pc-workbench/hooks/useImportedProjectSessionSynchronization';
 import { useSandboxDirectoryPicker } from '@sdkwork/drive-pc-sandbox-explorer';
 import { buildBirdCoderAuthSessionInventoryScope } from '@sdkwork/birdcoder-pc-workbench/context/authSessionScope';
 import {
@@ -47,6 +48,7 @@ import {
   isAgentSessionViewExecuting,
 } from '@sdkwork/birdcoder-pc-contracts-commons';
 import { useTranslation } from 'react-i18next';
+import { resolveSafePreviewUrl } from '@sdkwork/birdcoder-pc-ui-shell';
 import {
   type StudioAnalyzeReport,
   type StudioDeleteConfirmation,
@@ -202,10 +204,6 @@ function StudioPageComponent({
   const normalizedInitialAgentSessionId = initialAgentSessionId?.trim() || '';
   const currentProjectId =
     normalizedSessionProjectId || normalizedSelectedSessionProjectId || normalizedProjectId;
-  const projectGitOverviewState = useProjectGitOverview({
-    isActive: activeTab === 'code',
-    projectId: currentProjectId,
-  });
   const { runConfigurations, saveRunConfiguration } = useProjectRunConfigurations(currentProjectId || null);
   const selectedSession = selectedAgentSessionLocation?.agentSession;
   const {
@@ -460,45 +458,38 @@ function StudioPageComponent({
     pendingLocalAgentSessionSelectionKeyRef.current =
       buildAgentSessionProjectScopedKey(projectId, '');
   }, [notifyProjectChange, projects, selectAgentSession]);
-  const syncImportedProjectInBackground = useCallback((projectId: string) => {
-    void (async () => {
-      try {
-        const hydratedProject = await hydrateImportedProjectFromAuthority({
-          agentSessionService,
-          knownProjects: projects,
-          projectId,
-          projectService,
-          userScope,
-          workspaceId,
-        });
-        if (!hydratedProject) {
-          return;
-        }
-
-        const latestAgentSessionId = hydratedProject.latestAgentSessionId;
-        if (latestAgentSessionId) {
-          selectAgentSession(latestAgentSessionId, { projectId });
-        } else {
-          notifyProjectChange(projectId);
-          setMenuActiveProjectId(projectId);
-          setSessionId('');
-          setSelectedSessionProjectId(projectId);
-          pendingLocalAgentSessionSelectionKeyRef.current =
-            buildAgentSessionProjectScopedKey(projectId, '');
-        }
-      } catch (error) {
-        console.error('Failed to refresh imported project sessions', error);
-      }
-    })();
+  const handleImportedProjectSessionsSynchronized = useCallback((result: {
+    latestAgentSessionId: string | null;
+    project: { projectId: string };
+  }) => {
+    const synchronizedProjectId = result.project.projectId;
+    if (currentProjectId !== synchronizedProjectId) {
+      return;
+    }
+    if (sessionId?.trim() || normalizedInitialAgentSessionId) {
+      return;
+    }
+    if (result.latestAgentSessionId) {
+      selectAgentSession(result.latestAgentSessionId, { projectId: synchronizedProjectId });
+    }
   }, [
-    agentSessionService,
-    notifyProjectChange,
-    projectService,
-    projects,
+    currentProjectId,
+    normalizedInitialAgentSessionId,
     selectAgentSession,
+    sessionId,
+  ]);
+  const {
+    invalidateImportedProjectSessionSynchronization,
+    synchronizeImportedProject,
+  } = useImportedProjectSessionSynchronization({
+    agentSessionService,
+    knownProjects: projects,
+    onSynchronized: handleImportedProjectSessionsSynchronized,
+    projectService,
     userScope,
     workspaceId,
-  ]);
+  });
+
   const restoreSelectionAfterRefresh = (
     targetProjectId: string,
     targetAgentSessionId: string | null,
@@ -519,6 +510,9 @@ function StudioPageComponent({
 
   const {
     files,
+    projectRoot,
+    isLoading: isFileTreeLoading,
+    fileTreeLoadError,
     loadingDirectoryPaths,
     openFiles,
     selectedFile,
@@ -539,12 +533,41 @@ function StudioPageComponent({
     renameNode,
     searchFiles,
     restoreProjectMount,
+    refreshFiles,
     flushPendingAutosave,
   } = useFileSystem(currentProjectId, {
     isActive: isVisible,
     loadActive: isVisible && activeTab === 'code',
+    mountRecoveryActive: isVisible,
     realtimeActive: isVisible && activeTab === 'code',
   });
+  const projectGitOverviewState = useProjectGitOverview({
+    isActive: isVisible && activeTab === 'code',
+    projectId: currentProjectId,
+  });
+
+  useEffect(() => {
+    if (!isVisible) {
+      return;
+    }
+    if (!currentProjectId) {
+      return;
+    }
+    if (mountRecoveryState.status !== 'recovered') {
+      invalidateImportedProjectSessionSynchronization(currentProjectId);
+      return;
+    }
+
+    void synchronizeImportedProject(currentProjectId).catch((error) => {
+      console.error('Failed to refresh mounted project sessions', error);
+    });
+  }, [
+    currentProjectId,
+    invalidateImportedProjectSessionSynchronization,
+    isVisible,
+    mountRecoveryState.status,
+    synchronizeImportedProject,
+  ]);
 
   useStudioWorkbenchEventBindings({
     addToast,
@@ -635,9 +658,25 @@ function StudioPageComponent({
   }, [currentProject?.name, currentProjectId, isVisible, mountRecoveryState]);
 
   const isSelectedAgentSessionTranscriptVisible = isVisible && isSidebarVisible;
+  const handleSelectedAgentSessionUnavailable = useCallback((
+    unavailableAgentSessionId: string,
+    unavailableProjectId: string,
+  ) => {
+    if (unavailableAgentSessionId !== sessionId) {
+      return;
+    }
+    const fallbackProjectId = unavailableProjectId.trim() || currentProjectId;
+    setSessionId('');
+    setSelectedSessionProjectId(fallbackProjectId || null);
+    pendingLocalAgentSessionSelectionKeyRef.current = fallbackProjectId
+      ? buildAgentSessionProjectScopedKey(fallbackProjectId, '')
+      : null;
+    onAgentSessionChange?.('', fallbackProjectId || undefined);
+  }, [currentProjectId, onAgentSessionChange, sessionId]);
   const isSelectedAgentSessionItemsLoading = useSelectedAgentSessionItems({
     agentSessionService,
     isActive: isSelectedAgentSessionTranscriptVisible,
+    onAgentSessionUnavailable: handleSelectedAgentSessionUnavailable,
     projectService,
     selectionRefreshToken,
     selectedAgentSession: selectedSession,
@@ -839,13 +878,17 @@ function StudioPageComponent({
     setSelectionRefreshToken,
   ]);
 
-  const handleRestoreMessage = useCallback(async (agentSessionId: string, messageId: string) => {
+  const handleRestoreMessage = useCallback(async (
+    agentSessionId: string,
+    messageId: string,
+    fileChanges?: readonly FileChange[],
+  ) => {
     const agentSession =
       resolveAgentSessionLocation(agentSessionId, currentProjectId)?.agentSession;
     const msg = agentSession?.items.find(m => m.id === messageId);
     try {
       const didRestore = await restoreWorkbenchAgentSessionItemFiles({
-        fileChanges: msg?.fileChanges,
+        fileChanges: fileChanges ?? msg?.fileChanges,
         saveFileContent,
       });
       if (!didRestore) {
@@ -1023,13 +1066,19 @@ function StudioPageComponent({
         return;
       }
       activateImportedProject(newProject.projectId);
-      syncImportedProjectInBackground(newProject.projectId);
+      await synchronizeImportedProject(newProject.projectId, true);
       addToast(t('studio.projectCreated'), 'success');
     } catch (error) {
       console.error('Failed to create project', error);
       addToast(t('studio.failedToCreateProject'), 'error');
     }
-  }, [activateImportedProject, addToast, selectFolderAndImportProject, syncImportedProjectInBackground, t]);
+  }, [
+    activateImportedProject,
+    addToast,
+    selectFolderAndImportProject,
+    synchronizeImportedProject,
+    t,
+  ]);
 
   const handleOpenSidebarFolder = useCallback(async () => {
     try {
@@ -1039,13 +1088,19 @@ function StudioPageComponent({
       }
 
       activateImportedProject(importedProject.projectId);
-      syncImportedProjectInBackground(importedProject.projectId);
+      await synchronizeImportedProject(importedProject.projectId, true);
       addToast(t('studio.openedFolder', { name: importedProject.projectName }), 'success');
     } catch (error) {
       console.error('Failed to open folder', error);
       addToast(t('studio.failedToOpenFolder'), 'error');
     }
-  }, [activateImportedProject, addToast, selectFolderAndImportProject, syncImportedProjectInBackground, t]);
+  }, [
+    activateImportedProject,
+    addToast,
+    selectFolderAndImportProject,
+    synchronizeImportedProject,
+    t,
+  ]);
 
   const handleRetryMountRecovery = useCallback(async () => {
     if (!currentProjectId) {
@@ -1055,11 +1110,12 @@ function StudioPageComponent({
 
     setIsMountRecoveryActionPending(true);
     try {
-      const recoveredFiles = await restoreProjectMount();
-      if (recoveredFiles.length === 0) {
+      const recoveredMount = await restoreProjectMount();
+      if (!recoveredMount || !isProjectMountReadyForSessionSynchronization(recoveredMount)) {
         addToast('Select the local folder again to restore file access on this device.', 'error');
         return;
       }
+      await synchronizeImportedProject(currentProjectId, true);
       addToast(t('studio.openedFolder', { name: currentProject?.name ?? 'Local folder' }), 'success');
     } catch (error) {
       console.error('Failed to retry local project folder recovery', error);
@@ -1072,7 +1128,14 @@ function StudioPageComponent({
     } finally {
       setIsMountRecoveryActionPending(false);
     }
-  }, [addToast, currentProject?.name, currentProjectId, restoreProjectMount, t]);
+  }, [
+    addToast,
+    currentProject?.name,
+    currentProjectId,
+    restoreProjectMount,
+    synchronizeImportedProject,
+    t,
+  ]);
 
   const handleReimportProjectFolder = useCallback(async () => {
     if (!currentProjectId) {
@@ -1099,7 +1162,8 @@ function StudioPageComponent({
         selection,
       });
 
-      syncImportedProjectInBackground(currentProjectId);
+      await restoreProjectMount();
+      await synchronizeImportedProject(currentProjectId, true);
       addToast(t('studio.openedFolder', { name: reboundProject.projectName }), 'success');
     } catch (error) {
       console.error('Failed to rebind local project folder', error);
@@ -1119,7 +1183,8 @@ function StudioPageComponent({
     pickDirectory,
     projectRuntimeLocationService,
     projectService,
-    syncImportedProjectInBackground,
+    restoreProjectMount,
+    synchronizeImportedProject,
     t,
   ]);
 
@@ -1131,19 +1196,35 @@ function StudioPageComponent({
     setViewingDiff(file);
     handleActiveTabChange('code');
   }, [handleActiveTabChange]);
+  const handleStudioOpenUrl = useCallback((url: string) => {
+    const safeUrl = resolveSafePreviewUrl(url);
+    if (safeUrl === 'about:blank') {
+      return;
+    }
+    setPreviewPlatform('web');
+    setPreviewWebDevice('desktop');
+    setPreviewUrl(safeUrl);
+    setPreviewKey((previousKey) => previousKey + 1);
+    handleActiveTabChange('preview');
+  }, [handleActiveTabChange]);
   const handleStudioOpenMessageFile = useCallback((path: string) => {
+    const activateFileEditor = () => {
+      setViewingDiff(null);
+      handleActiveTabChange('code');
+    };
     const settleSelection = (selectionResult: 'opened' | 'rejected') => {
       if (selectionResult === 'rejected') {
         addToast(t('chat.fileOpenUnavailable', { path }), 'error');
         return;
       }
-      setViewingDiff(null);
-      handleActiveTabChange('code');
+      activateFileEditor();
     };
     const selectionResult = selectMessageFile(path, settleSelection);
-    if (selectionResult !== 'pending') {
-      settleSelection(selectionResult);
+    if (selectionResult === 'pending') {
+      activateFileEditor();
+      return;
     }
+    settleSelection(selectionResult);
   }, [addToast, handleActiveTabChange, selectMessageFile, t]);
   const handleStudioEditMessage = useCallback((messageId: string, content: string) => {
     if (sessionId) {
@@ -1161,9 +1242,12 @@ function StudioPageComponent({
       void handleRegenerateMessage(sessionId);
     }
   }, [handleRegenerateMessage, sessionId]);
-  const handleStudioRestoreMessage = useCallback((messageId: string) => {
+  const handleStudioRestoreMessage = useCallback((
+    messageId: string,
+    fileChanges?: readonly FileChange[],
+  ) => {
     if (sessionId) {
-      void handleRestoreMessage(sessionId, messageId);
+      void handleRestoreMessage(sessionId, messageId, fileChanges);
     }
   }, [handleRestoreMessage, sessionId]);
   const handleStudioOverlaySelectFile = useCallback((path: string) => {
@@ -1209,7 +1293,10 @@ function StudioPageComponent({
     setIsTerminalOpen((previousState) => !previousState);
   }, []);
   return (
-    <div className="flex h-full w-full bg-[#0e0e11] text-gray-300">
+    <div
+      className="flex h-full w-full bg-[#0e0e11] text-gray-300"
+      data-studio-surface="true"
+    >
       <StudioChatSidebar
         hasMoreProjects={hasMoreProjects}
         isVisible={isVisible && isSidebarVisible}
@@ -1248,6 +1335,7 @@ function StudioPageComponent({
         refreshingProjectId={refreshingProjectId}
         refreshingAgentSessionId={refreshingAgentSessionId}
         onOpenFile={handleStudioOpenMessageFile}
+        onOpenUrl={handleStudioOpenUrl}
         onViewChanges={handleStudioViewChanges}
         onEditMessage={handleStudioEditMessage}
         onDeleteMessage={handleStudioDeleteMessage}
@@ -1262,12 +1350,15 @@ function StudioPageComponent({
           currentProjectId,
           fileContent,
           files,
+          projectRootPath: projectRoot?.virtualPath ?? '',
+          fileTreeLoadError,
           getLanguageFromPath,
           handleActiveTabChange,
           handleAnalyzeCode,
           handleCloseProjectGitOverviewDrawer,
           handleLaunchSimulatorFromHeader,
           handleOpenPreviewInNewTab,
+          handlePreviewUrlChange: handleStudioOpenUrl,
           handlePreviewAppPlatformChange,
           handlePreviewLandscapeToggle,
           handleRefreshPreview,
@@ -1284,6 +1375,7 @@ function StudioPageComponent({
           handleToggleProjectGitOverviewDrawer,
           handleToggleStudioTerminal,
           isFindVisible,
+          isFileTreeLoading,
           isMountRecoveryActionPending,
           isProjectGitOverviewDrawerOpen,
           isQuickOpenVisible,
@@ -1321,6 +1413,7 @@ function StudioPageComponent({
           deleteFolder,
           loadDirectory,
           renameNode,
+          refreshFiles,
         }}
       />
 

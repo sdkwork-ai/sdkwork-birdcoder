@@ -9,6 +9,7 @@ permissions = [
   "allow-local-store-set",
   "allow-local-store-delete",
   "allow-project-device-mount-find",
+  "allow-project-device-mount-provider-session-directory-identity",
   "allow-local-store-list",
   "allow-secure-app-session-read",
   "allow-secure-app-session-write",
@@ -68,6 +69,7 @@ permissions = [
   "allow-local-store-set",
   "allow-local-store-delete",
   "allow-project-device-mount-find",
+  "allow-project-device-mount-provider-session-directory-identity",
   "allow-local-store-list",
   "allow-user-home-config-read",
   "allow-user-home-config-write",
@@ -174,6 +176,11 @@ commands.allow = ["local_store_delete"]
 identifier = "allow-project-device-mount-find"
 description = "Enables identity-scoped recovery of a persisted project device mount."
 commands.allow = ["project_device_mount_find"]
+
+[[permission]]
+identifier = "allow-project-device-mount-provider-session-directory-identity"
+description = "Enables identity-scoped recovery of a persisted project's provider Session directory identity."
+commands.allow = ["project_device_mount_provider_session_directory_identity"]
 
 [[permission]]
 identifier = "allow-local-store-list"

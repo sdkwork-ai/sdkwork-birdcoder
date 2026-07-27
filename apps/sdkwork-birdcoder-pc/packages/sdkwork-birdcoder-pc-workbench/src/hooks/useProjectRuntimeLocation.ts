@@ -1,5 +1,6 @@
 import { useCallback } from 'react';
 import type {
+  ProjectRuntimeLocationInput,
   ProjectRuntimeLocationResolution,
   ProjectRuntimeLocationResolutionRequest,
 } from '@sdkwork/birdcoder-pc-infrastructure-runtime';
@@ -10,7 +11,7 @@ export {
 import { useIDEServices } from '../context/IDEContext.ts';
 
 export type ProjectRuntimeLocationResolver = (
-  projectId: string,
+  project: ProjectRuntimeLocationInput,
   request: ProjectRuntimeLocationResolutionRequest,
 ) => Promise<ProjectRuntimeLocationResolution>;
 
@@ -22,34 +23,34 @@ export type ProjectRuntimeLocationResolver = (
 export function useProjectRuntimeLocation(): ProjectRuntimeLocationResolver {
   const { projectRuntimeLocationService } = useIDEServices();
 
-  return useCallback(async (projectId, request) => {
-    return await projectRuntimeLocationService.resolveProjectRuntimeLocation(projectId, request);
+  return useCallback(async (project, request) => {
+    return await projectRuntimeLocationService.resolveProjectRuntimeLocation(project, request);
   }, [projectRuntimeLocationService]);
 }
 
 export function useProjectRuntimeLocationId(): (
-  projectId: string,
+  project: ProjectRuntimeLocationInput,
   capability: ProjectRuntimeLocationResolutionRequest['capability'],
 ) => Promise<string | null> {
   const { projectRuntimeLocationService } = useIDEServices();
 
-  return useCallback(async (projectId, capability) => {
+  return useCallback(async (project, capability) => {
     return await projectRuntimeLocationService.resolveProjectRuntimeLocationId(
-      projectId,
+      project,
       capability,
     );
   }, [projectRuntimeLocationService]);
 }
 
 export function useProjectRuntimeLocationExecutionId(): (
-  projectId: string,
+  project: ProjectRuntimeLocationInput,
   capability: ProjectRuntimeLocationResolutionRequest['capability'],
   options?: { allowFolderSelection?: boolean },
 ) => Promise<string> {
   const { projectRuntimeLocationService } = useIDEServices();
-  return useCallback(async (projectId, capability, options) => {
+  return useCallback(async (project, capability, options) => {
     return await projectRuntimeLocationService.resolveProjectRuntimeLocationExecutionId(
-      projectId,
+      project,
       capability,
       options,
     );
@@ -57,6 +58,7 @@ export function useProjectRuntimeLocationExecutionId(): (
 }
 
 export type {
+  ProjectRuntimeLocationInput,
   ProjectRuntimeLocationResolution,
   ProjectRuntimeLocationResolutionRequest,
 };

@@ -13,6 +13,7 @@ import {
 } from '@sdkwork/birdcoder-pc-workbench/workbench/gitWorktrees';
 import type { WorkbenchGitWorktreeView } from '@sdkwork/birdcoder-pc-contracts-commons';
 import { useTranslation } from 'react-i18next';
+import { getProjectGitOverviewStatusMessageKey } from './projectGitOverviewStatus';
 
 interface ProjectGitWorktreeManagementPanelProps {
   currentProjectId?: string;
@@ -31,8 +32,10 @@ export function ProjectGitWorktreeManagementPanel({
   const { addToast } = useToast();
   const {
     applyGitOverview,
+    diagnosticCode,
     normalizedProjectId,
     overview,
+    subscriptionStatus,
   } = useProjectGitOverview({
     projectId: currentProjectId,
   });
@@ -52,7 +55,12 @@ export function ProjectGitWorktreeManagementPanel({
     () => resolveManageableWorktrees(overview?.worktrees ?? []),
     [overview?.worktrees],
   );
-  const isRepositoryReady = overview?.status === 'ready';
+  const isRepositoryReady = subscriptionStatus === 'ready';
+  const statusMessageKey = getProjectGitOverviewStatusMessageKey({
+    diagnosticCode,
+    subscriptionStatus,
+  });
+  const statusMessage = t(statusMessageKey ?? 'app.menu.gitRepositoryUnavailable');
 
   useEffect(() => {
     setBranchName('');
@@ -187,7 +195,7 @@ export function ProjectGitWorktreeManagementPanel({
         </div>
       ) : !isRepositoryReady ? (
         <div className="mt-4 rounded-xl border border-dashed border-white/10 bg-white/[0.03] px-4 py-3 text-sm text-gray-500">
-          {t('app.menu.noRepository')}
+          {statusMessage}
         </div>
       ) : manageableWorktrees.length === 0 ? (
         <div className="mt-4 rounded-xl border border-dashed border-white/10 bg-white/[0.03] px-4 py-3 text-sm text-gray-500">

@@ -21,6 +21,11 @@ export default defineLocaleModule('studio/preview', {
     "alipay": "Alipay",
     "rotateDevice": "Rotate Device",
     "openInNewTab": "Open in new tab",
+    "browserAddress": "Browser address",
+    "browserBack": "Back",
+    "browserForward": "Forward",
+    "browserNavigate": "Navigate",
+    "browserPreviewTitle": "Browser preview",
     "code": "Code"
   }
 });

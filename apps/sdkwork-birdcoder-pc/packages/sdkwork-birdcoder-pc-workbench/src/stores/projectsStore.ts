@@ -6,10 +6,12 @@ import type {
 import {
   areAgentSessionItemsEquivalent,
   buildAgentSessionViewSynchronizationVersion,
+  compareWorkbenchLongIntegers,
   compareWorkbenchProjectsByActivity,
   compareAgentSessionViewSortTimestamps,
   deduplicateAgentSessionItemViews,
   formatAgentSessionActivityDisplayTime,
+  mergeLatestAgentSessionItems,
   resolveAgentSessionViewSortTimestampString,
 } from '@sdkwork/birdcoder-pc-contracts-commons';
 import type { AgentProjectViewPage } from '../services/interfaces/IProjectService.ts';
@@ -23,6 +25,7 @@ export interface ProjectsStoreSnapshot {
 }
 
 export interface ProjectsStore {
+  agentSessionTombstones: Map<string, string>;
   inventoryVersion: number;
   inflight: Promise<AgentProjectView[]> | null;
   inflightKey: string | null;
@@ -112,6 +115,8 @@ function areAgentSessionScalarsEqual(
     left.id === right.id &&
     left.agentId === right.agentId &&
     left.projectId === right.projectId &&
+    areAgentSessionActivitiesEqual(left.activity, right.activity) &&
+    left.runtimeBindingId === right.runtimeBindingId &&
     left.runtimeLocationId === right.runtimeLocationId &&
     left.title === right.title &&
     left.status === right.status &&
@@ -121,7 +126,7 @@ function areAgentSessionScalarsEqual(
     left.providerId === right.providerId &&
     left.providerBindingId === right.providerBindingId &&
     left.transportKind === right.transportKind &&
-    left.nativeSessionId === right.nativeSessionId &&
+    left.providerSessionId === right.providerSessionId &&
     left.createdAt === right.createdAt &&
     left.updatedAt === right.updatedAt &&
     left.lastTurnAt === right.lastTurnAt &&
@@ -140,6 +145,84 @@ function areAgentSessionScalarsEqual(
     left.archived === right.archived &&
     left.unread === right.unread &&
     hasEqualItemPageInfo
+  );
+}
+
+function areAgentSessionActivitiesEqual(
+  left: AgentSessionView['activity'],
+  right: AgentSessionView['activity'],
+): boolean {
+  if (left === right) {
+    return true;
+  }
+  if (!left || !right) {
+    return false;
+  }
+  const leftVersions = left.versions;
+  const rightVersions = right.versions;
+  const leftTurn = left.latestTurn;
+  const rightTurn = right.latestTurn;
+  const leftInteraction = left.pendingInteraction;
+  const rightInteraction = right.pendingInteraction;
+  const leftBinding = left.runtimeBinding;
+  const rightBinding = right.runtimeBinding;
+  const leftProvider = left.provider;
+  const rightProvider = right.provider;
+  return (
+    left.activityAt === right.activityAt &&
+    left.source === right.source &&
+    left.observedAt === right.observedAt &&
+    left.freshUntil === right.freshUntil &&
+    left.freshness === right.freshness &&
+    left.phase === right.phase &&
+    leftVersions.session === rightVersions.session &&
+    leftVersions.latestTurn === rightVersions.latestTurn &&
+    leftVersions.latestInteractionId === rightVersions.latestInteractionId &&
+    leftVersions.latestInteraction === rightVersions.latestInteraction &&
+    leftVersions.latestRuntimeBindingId === rightVersions.latestRuntimeBindingId &&
+    leftVersions.latestRuntimeBinding === rightVersions.latestRuntimeBinding &&
+    leftVersions.pendingInteraction === rightVersions.pendingInteraction &&
+    leftVersions.currentRuntimeBinding === rightVersions.currentRuntimeBinding &&
+    leftVersions.userState === rightVersions.userState &&
+    (
+      leftTurn === rightTurn || Boolean(
+        leftTurn && rightTurn &&
+        leftTurn.id === rightTurn.id &&
+        leftTurn.status === rightTurn.status &&
+        leftTurn.updatedAt === rightTurn.updatedAt &&
+        leftTurn.version === rightTurn.version,
+      )
+    ) &&
+    (
+      leftInteraction === rightInteraction || Boolean(
+        leftInteraction && rightInteraction &&
+        leftInteraction.id === rightInteraction.id &&
+        leftInteraction.kind === rightInteraction.kind &&
+        leftInteraction.status === rightInteraction.status &&
+        leftInteraction.updatedAt === rightInteraction.updatedAt &&
+        leftInteraction.version === rightInteraction.version,
+      )
+    ) &&
+    (
+      leftBinding === rightBinding || Boolean(
+        leftBinding && rightBinding &&
+        leftBinding.id === rightBinding.id &&
+        leftBinding.status === rightBinding.status &&
+        leftBinding.updatedAt === rightBinding.updatedAt &&
+        leftBinding.version === rightBinding.version,
+      )
+    ) &&
+    (
+      leftProvider === rightProvider || Boolean(
+        leftProvider && rightProvider &&
+        leftProvider.state === rightProvider.state &&
+        leftProvider.freshness === rightProvider.freshness &&
+        leftProvider.evidenceKind === rightProvider.evidenceKind &&
+        leftProvider.interactionHint === rightProvider.interactionHint &&
+        leftProvider.observedAt === rightProvider.observedAt &&
+        leftProvider.freshUntil === rightProvider.freshUntil,
+      )
+    )
   );
 }
 
@@ -281,6 +364,268 @@ function normalizeAgentSessionProjectScope(
   return agentSession;
 }
 
+function compareOptionalStoreVersion(
+  incoming: string | undefined,
+  existing: string | undefined,
+): number {
+  if (incoming === existing) {
+    return 0;
+  }
+  if (incoming === undefined) {
+    return -1;
+  }
+  if (existing === undefined) {
+    return 1;
+  }
+  return compareWorkbenchLongIntegers(incoming, existing);
+}
+
+function resolveLatestTimestamp(
+  existing: string | null | undefined,
+  incoming: string | null | undefined,
+): string | null | undefined {
+  const existingTimestamp = existing ? Date.parse(existing) : Number.NaN;
+  const incomingTimestamp = incoming ? Date.parse(incoming) : Number.NaN;
+  if (!Number.isFinite(existingTimestamp)) {
+    return incoming;
+  }
+  if (!Number.isFinite(incomingTimestamp)) {
+    return existing;
+  }
+  return incomingTimestamp > existingTimestamp ? incoming : existing;
+}
+
+function isSameActivityRecordVersionRegression(
+  incomingId: string | undefined,
+  incomingVersion: string | undefined,
+  existingId: string | undefined,
+  existingVersion: string | undefined,
+): boolean {
+  return incomingId !== undefined
+    && incomingId === existingId
+    && compareOptionalStoreVersion(incomingVersion, existingVersion) < 0;
+}
+
+function hasAgentSessionActivityRegression(
+  existing: NonNullable<AgentSessionView['activity']>,
+  incoming: NonNullable<AgentSessionView['activity']>,
+): boolean {
+  if (compareOptionalStoreVersion(incoming.versions.session, existing.versions.session) < 0) {
+    return true;
+  }
+  if (
+    (existing.latestTurn && !incoming.latestTurn)
+    || (existing.versions.latestInteractionId && !incoming.versions.latestInteractionId)
+    || (existing.versions.latestRuntimeBindingId && !incoming.versions.latestRuntimeBindingId)
+    || (existing.versions.userState && !incoming.versions.userState)
+  ) {
+    return true;
+  }
+  return isSameActivityRecordVersionRegression(
+    incoming.latestTurn?.id,
+    incoming.versions.latestTurn,
+    existing.latestTurn?.id,
+    existing.versions.latestTurn,
+  ) || isSameActivityRecordVersionRegression(
+    incoming.versions.latestInteractionId,
+    incoming.versions.latestInteraction,
+    existing.versions.latestInteractionId,
+    existing.versions.latestInteraction,
+  ) || isSameActivityRecordVersionRegression(
+    incoming.versions.latestRuntimeBindingId,
+    incoming.versions.latestRuntimeBinding,
+    existing.versions.latestRuntimeBindingId,
+    existing.versions.latestRuntimeBinding,
+  ) || isSameActivityRecordVersionRegression(
+    incoming.pendingInteraction?.id,
+    incoming.versions.pendingInteraction,
+    existing.pendingInteraction?.id,
+    existing.versions.pendingInteraction,
+  ) || (
+    incoming.runtimeBinding?.id !== undefined
+    && incoming.runtimeBinding.id === existing.runtimeBinding?.id
+    && compareOptionalStoreVersion(
+      incoming.versions.currentRuntimeBinding,
+      existing.versions.currentRuntimeBinding,
+    ) < 0
+  ) || compareOptionalStoreVersion(
+    incoming.versions.userState,
+    existing.versions.userState,
+  ) < 0;
+}
+
+function hasNewerAgentSessionActivityComponent(
+  existing: NonNullable<AgentSessionView['activity']>,
+  incoming: NonNullable<AgentSessionView['activity']>,
+): boolean {
+  if (compareOptionalStoreVersion(incoming.versions.session, existing.versions.session) > 0) {
+    return true;
+  }
+  const recordVersions: ReadonlyArray<readonly [
+    string | undefined,
+    string | undefined,
+    string | undefined,
+    string | undefined,
+  ]> = [
+    [incoming.latestTurn?.id, incoming.versions.latestTurn,
+      existing.latestTurn?.id, existing.versions.latestTurn],
+    [incoming.versions.latestInteractionId, incoming.versions.latestInteraction,
+      existing.versions.latestInteractionId, existing.versions.latestInteraction],
+    [incoming.versions.latestRuntimeBindingId, incoming.versions.latestRuntimeBinding,
+      existing.versions.latestRuntimeBindingId, existing.versions.latestRuntimeBinding],
+    [incoming.pendingInteraction?.id, incoming.versions.pendingInteraction,
+      existing.pendingInteraction?.id, existing.versions.pendingInteraction],
+  ];
+  if (recordVersions.some(([incomingId, incomingVersion, existingId, existingVersion]) =>
+    incomingId !== undefined
+    && incomingId === existingId
+    && compareOptionalStoreVersion(incomingVersion, existingVersion) > 0,
+  )) {
+    return true;
+  }
+  if (
+    incoming.runtimeBinding?.id !== undefined
+    && incoming.runtimeBinding.id === existing.runtimeBinding?.id
+    && compareOptionalStoreVersion(
+      incoming.versions.currentRuntimeBinding,
+      existing.versions.currentRuntimeBinding,
+    ) > 0
+  ) {
+    return true;
+  }
+  if (compareOptionalStoreVersion(incoming.versions.userState, existing.versions.userState) > 0) {
+    return true;
+  }
+  const existingProviderAt = existing.provider?.observedAt
+    ? Date.parse(existing.provider.observedAt)
+    : Number.NaN;
+  const incomingProviderAt = incoming.provider?.observedAt
+    ? Date.parse(incoming.provider.observedAt)
+    : Number.NaN;
+  return Number.isFinite(incomingProviderAt)
+    && (!Number.isFinite(existingProviderAt) || incomingProviderAt > existingProviderAt);
+}
+
+function shouldRetainExistingActivityProjection(
+  existing: AgentSessionView,
+  incoming: AgentSessionView,
+): boolean {
+  if (!existing.activity) {
+    return false;
+  }
+  if (!incoming.activity) {
+    return true;
+  }
+  if (hasAgentSessionActivityRegression(existing.activity, incoming.activity)) {
+    return true;
+  }
+  if (hasNewerAgentSessionActivityComponent(existing.activity, incoming.activity)) {
+    return false;
+  }
+  return Date.parse(incoming.activity.activityAt) <= Date.parse(existing.activity.activityAt);
+}
+
+function resolveLaterLongInteger(
+  existing: string | undefined,
+  incoming: string | undefined,
+): string | undefined {
+  return compareOptionalStoreVersion(incoming, existing) >= 0 ? incoming : existing;
+}
+
+export function mergeAgentSessionProjectionForStore(
+  existing: AgentSessionView,
+  incoming: AgentSessionView,
+): AgentSessionView {
+  if (existing.id !== incoming.id || existing.projectId !== incoming.projectId) {
+    throw new Error('Incoming Agents Session projection does not match the Store identity.');
+  }
+
+  const retainExistingActivity = shouldRetainExistingActivityProjection(existing, incoming);
+  const existingSessionVersion = existing.activity?.versions.session ?? existing.serverVersion;
+  const incomingSessionVersion = incoming.activity?.versions.session ?? incoming.serverVersion;
+  const sessionVersionComparison = compareOptionalStoreVersion(
+    incomingSessionVersion,
+    existingSessionVersion,
+  );
+  const retainExistingSession = sessionVersionComparison < 0 || (
+    sessionVersionComparison === 0
+    && Date.parse(incoming.updatedAt) < Date.parse(existing.updatedAt)
+  );
+  const hasAuthoritativeTerminalStatus = (
+    incoming.status === 'completed' || incoming.status === 'archived'
+  ) && sessionVersionComparison > 0;
+  const retainExistingRuntime = retainExistingActivity && !hasAuthoritativeTerminalStatus;
+  const lastItemSequence = resolveLaterLongInteger(
+    existing.lastItemSequence,
+    incoming.lastItemSequence,
+  );
+  const lastReadItemSequence = retainExistingActivity
+    ? existing.lastReadItemSequence
+    : incoming.lastReadItemSequence;
+  const unread = lastReadItemSequence !== undefined && lastItemSequence !== undefined
+    ? lastReadItemSequence !== lastItemSequence
+    : retainExistingActivity
+      ? existing.unread
+      : incoming.unread;
+
+  return {
+    ...incoming,
+    agentId: retainExistingSession ? existing.agentId : incoming.agentId,
+    activity: retainExistingActivity ? existing.activity : incoming.activity,
+    runtimeBindingId: retainExistingActivity
+      ? existing.runtimeBindingId
+      : incoming.runtimeBindingId,
+    runtimeLocationId: retainExistingActivity
+      ? existing.runtimeLocationId
+      : incoming.runtimeLocationId,
+    title: retainExistingActivity || retainExistingSession ? existing.title : incoming.title,
+    status: retainExistingSession ? existing.status : incoming.status,
+    hostMode: retainExistingActivity ? existing.hostMode : incoming.hostMode,
+    engineId: retainExistingActivity ? existing.engineId : incoming.engineId,
+    modelId: retainExistingActivity ? existing.modelId : incoming.modelId,
+    providerId: retainExistingActivity ? existing.providerId : incoming.providerId,
+    providerBindingId: retainExistingActivity
+      ? existing.providerBindingId
+      : incoming.providerBindingId,
+    transportKind: retainExistingActivity ? existing.transportKind : incoming.transportKind,
+    providerSessionId: retainExistingActivity
+      ? existing.providerSessionId
+      : incoming.providerSessionId,
+    runtimeStatus: retainExistingRuntime ? existing.runtimeStatus : incoming.runtimeStatus,
+    createdAt: retainExistingSession ? existing.createdAt : incoming.createdAt,
+    updatedAt: resolveLatestTimestamp(existing.updatedAt, incoming.updatedAt) ?? incoming.updatedAt,
+    lastTurnAt: resolveLatestTimestamp(existing.lastTurnAt, incoming.lastTurnAt) ?? undefined,
+    lastMessageAt: resolveLatestTimestamp(existing.lastMessageAt, incoming.lastMessageAt) ?? undefined,
+    lastRuntimeEventAt:
+      resolveLatestTimestamp(existing.lastRuntimeEventAt, incoming.lastRuntimeEventAt) ?? undefined,
+    lastAttentionAt:
+      resolveLatestTimestamp(existing.lastAttentionAt, incoming.lastAttentionAt) ?? undefined,
+    lastUserActivityAt:
+      resolveLatestTimestamp(existing.lastUserActivityAt, incoming.lastUserActivityAt) ?? undefined,
+    transcriptUpdatedAt:
+      resolveLatestTimestamp(existing.transcriptUpdatedAt, incoming.transcriptUpdatedAt),
+    serverVersion: resolveLaterLongInteger(existing.serverVersion, incoming.serverVersion),
+    lastItemSequence,
+    lastReadItemSequence,
+    pinned: retainExistingActivity ? existing.pinned : incoming.pinned,
+    archived: incoming.status === 'archived'
+      ? true
+      : retainExistingActivity
+        ? existing.archived
+        : incoming.archived,
+    unread,
+    displayTime: retainExistingActivity ? existing.displayTime : incoming.displayTime,
+    itemPageInfo: incoming.itemPageInfo ?? existing.itemPageInfo,
+    items: incoming.items.length === 0
+      ? existing.items
+      : mergeLatestAgentSessionItems(existing.items, incoming.items),
+    sortTimestamp: String(Math.max(
+      Number(existing.sortTimestamp) || 0,
+      Number(incoming.sortTimestamp) || 0,
+    )),
+  };
+}
+
 function cloneAgentSessionForStore(
   agentSession: AgentSessionView,
   existingAgentSession?: AgentSessionView,
@@ -291,25 +636,28 @@ function cloneAgentSessionForStore(
     agentSession,
     options.projectId,
   );
+  const activityScopedAgentSession = existingAgentSession
+    ? mergeAgentSessionProjectionForStore(existingAgentSession, projectScopedAgentSession)
+    : projectScopedAgentSession;
   const incomingItems =
-    projectScopedAgentSession.items.length > 0
+    activityScopedAgentSession.items.length > 0
       ? normalizeAgentSessionItemsForStore(
-          projectScopedAgentSession.id,
-          projectScopedAgentSession.items,
+          activityScopedAgentSession.id,
+          activityScopedAgentSession.items,
         )
-      : (projectScopedAgentSession.items as AgentSessionItemView[]);
+      : (activityScopedAgentSession.items as AgentSessionItemView[]);
   const scopedAgentSession =
-    incomingItems === projectScopedAgentSession.items
-      ? projectScopedAgentSession
+    incomingItems === activityScopedAgentSession.items
+      ? activityScopedAgentSession
       : {
-          ...projectScopedAgentSession,
+          ...activityScopedAgentSession,
           items: incomingItems,
         };
   const items =
-    projectScopedAgentSession.items.length === 0
+    activityScopedAgentSession.items.length === 0
       ? preserveEmptyItems
         ? normalizeAgentSessionItemsForStore(
-            projectScopedAgentSession.id,
+            activityScopedAgentSession.id,
             existingAgentSession?.items ?? [],
           )
         : []
@@ -319,9 +667,15 @@ function cloneAgentSessionForStore(
         ? existingAgentSession.items
         : incomingItems;
 
+  const sortTimestamp = resolveAgentSessionViewSortTimestampString(scopedAgentSession);
   const nextAgentSession = {
     ...scopedAgentSession,
     items,
+    sortTimestamp,
+    displayTime: formatAgentSessionActivityDisplayTime({
+      ...scopedAgentSession,
+      sortTimestamp,
+    }),
   };
 
   return existingAgentSession &&
@@ -507,9 +861,22 @@ export function filterProjectsForInventoryStore(
   store: ProjectsStore,
   projects: readonly AgentProjectView[],
 ): AgentProjectView[] {
-  return projects.filter(
-    (project) => project.status !== 'deleted' && !store.removedProjectIds.has(project.projectId),
-  );
+  return projects.flatMap((project) => {
+    if (project.status === 'deleted' || store.removedProjectIds.has(project.projectId)) {
+      return [];
+    }
+
+    const agentSessions = project.agentSessions.filter((agentSession) =>
+      canCommitAgentSessionAgainstProjectsStoreTombstones(
+        store,
+        project.projectId,
+        agentSession,
+      ),
+    );
+    return agentSessions.length === project.agentSessions.length
+      ? [project]
+      : [{ ...project, agentSessions }];
+  });
 }
 
 export function upsertAgentSessionIntoCollection(
@@ -522,7 +889,6 @@ export function upsertAgentSessionIntoCollection(
     return projects as AgentProjectView[];
   }
 
-  const nextTimestamp = new Date().toISOString();
   const project = projects[projectIndex]!;
   const existingAgentSessionIndex = project.agentSessions.findIndex(
     (candidateAgentSession) => candidateAgentSession.id === agentSession.id,
@@ -555,7 +921,6 @@ export function upsertAgentSessionIntoCollection(
   const nextProject = {
     ...project,
     agentSessions: nextAgentSessions,
-    updatedAt: agentSession.updatedAt || nextTimestamp,
   };
   const mergedProject =
     areProjectScalarsEqual(project, nextProject) &&
@@ -632,7 +997,6 @@ export function updateAgentSessionInCollection(
   const nextProject = {
     ...project,
     agentSessions: nextAgentSessions,
-    updatedAt: nextAgentSession.updatedAt || project.updatedAt,
   };
   const mergedProject =
     areProjectScalarsEqual(project, nextProject) &&
@@ -688,6 +1052,7 @@ export function getProjectsStore(scopeKey: string): ProjectsStore {
   let store = projectStoresByScopeKey.get(scopeKey);
   if (!store) {
     store = {
+      agentSessionTombstones: new Map(),
       inventoryVersion: 0,
       inflight: null,
       inflightKey: null,
@@ -719,6 +1084,114 @@ export function updateProjectsStoreSnapshot(
 
   store.snapshot = nextSnapshot;
   emitProjectsStoreSnapshot(store);
+}
+
+function buildAgentSessionTombstoneKey(projectId: string, sessionId: string): string {
+  return `${projectId}\u0001${sessionId}`;
+}
+
+function normalizeAgentSessionTombstoneVersion(version: string | undefined): string | null {
+  const normalizedVersion = version?.trim() ?? '';
+  return /^\d+$/u.test(normalizedVersion) ? normalizedVersion : null;
+}
+
+function resolveAgentSessionStoreVersion(agentSession: AgentSessionView): string | null {
+  const activityVersion = normalizeAgentSessionTombstoneVersion(
+    agentSession.activity?.versions.session,
+  );
+  const serverVersion = normalizeAgentSessionTombstoneVersion(agentSession.serverVersion);
+  if (activityVersion === null) {
+    return serverVersion;
+  }
+  if (serverVersion === null) {
+    return activityVersion;
+  }
+  return compareWorkbenchLongIntegers(activityVersion, serverVersion) >= 0
+    ? activityVersion
+    : serverVersion;
+}
+
+function canCommitAgentSessionAgainstProjectsStoreTombstones(
+  store: ProjectsStore | null,
+  projectId: string,
+  agentSession: AgentSessionView,
+): boolean {
+  const normalizedProjectId = projectId.trim();
+  const normalizedSessionId = agentSession.id.trim();
+  if (
+    !normalizedProjectId
+    || agentSession.projectId !== normalizedProjectId
+    || !normalizedSessionId
+    || agentSession.id !== normalizedSessionId
+  ) {
+    return false;
+  }
+  const tombstoneVersion = store?.agentSessionTombstones.get(
+    buildAgentSessionTombstoneKey(normalizedProjectId, normalizedSessionId),
+  );
+  if (tombstoneVersion === undefined) {
+    return true;
+  }
+  const sessionVersion = resolveAgentSessionStoreVersion(agentSession);
+  return sessionVersion !== null
+    && compareWorkbenchLongIntegers(sessionVersion, tombstoneVersion) > 0;
+}
+
+export function canApplyAgentSessionTombstone(
+  current: AgentSessionView,
+  tombstone: AgentSessionView,
+): boolean {
+  if (current.id !== tombstone.id || current.projectId !== tombstone.projectId) {
+    throw new Error('Agents Session tombstone does not match the current Store identity.');
+  }
+  const tombstoneVersion = resolveAgentSessionStoreVersion(tombstone);
+  if (tombstoneVersion === null) {
+    throw new Error('Deleted Agents Session tombstone is missing its Session version.');
+  }
+  const currentVersion = resolveAgentSessionStoreVersion(current);
+  return currentVersion === null
+    || compareWorkbenchLongIntegers(currentVersion, tombstoneVersion) <= 0;
+}
+
+export function recordAgentSessionTombstoneInProjectsStore(
+  scopeKey: string,
+  projectId: string,
+  sessionId: string,
+  version: string,
+): void {
+  const normalizedProjectId = projectId.trim();
+  const normalizedSessionId = sessionId.trim();
+  const normalizedVersion = normalizeAgentSessionTombstoneVersion(version);
+  if (!scopeKey || !normalizedProjectId || !normalizedSessionId || !normalizedVersion) {
+    throw new Error('Agents Session tombstone requires scope, identity, and version.');
+  }
+  const store = getProjectsStore(scopeKey);
+  const tombstoneKey = buildAgentSessionTombstoneKey(
+    normalizedProjectId,
+    normalizedSessionId,
+  );
+  const existingVersion = store.agentSessionTombstones.get(tombstoneKey);
+  if (
+    existingVersion === undefined
+    || compareWorkbenchLongIntegers(normalizedVersion, existingVersion) > 0
+  ) {
+    store.agentSessionTombstones.set(tombstoneKey, normalizedVersion);
+  }
+}
+
+export function canCommitAgentSessionToProjectsStore(
+  scopeKey: string,
+  projectId: string,
+  agentSession: AgentSessionView,
+): boolean {
+  if (!scopeKey) {
+    return false;
+  }
+  return canCommitAgentSessionAgainstProjectsStoreTombstones(
+    peekProjectsStore(scopeKey),
+    projectId,
+    agentSession,
+  );
 }
 
 export function mutateProjectsStoreByScopeKey(
@@ -765,11 +1238,16 @@ export function upsertAgentSessionIntoProjectsStore(
     return;
   }
 
+  const scopeKey = buildProjectsStoreScopeKey(
+    normalizeProjectsStoreUserScope(userScope),
+    normalizedWorkspaceId,
+  );
+  if (!canCommitAgentSessionToProjectsStore(scopeKey, projectId, agentSession)) {
+    return;
+  }
+
   mutateProjectsStoreByScopeKey(
-    buildProjectsStoreScopeKey(
-      normalizeProjectsStoreUserScope(userScope),
-      normalizedWorkspaceId,
-    ),
+    scopeKey,
     (projects) => upsertAgentSessionIntoCollection(projects, projectId, agentSession),
   );
 }
@@ -797,12 +1275,30 @@ export function upsertProjectIntoProjectsStore(
     return;
   }
 
+  const scopeKey = buildProjectsStoreScopeKey(
+    normalizeProjectsStoreUserScope(userScope),
+    project.workspaceId,
+  );
+
+  upsertProjectIntoProjectsStoreByScopeKey(scopeKey, project);
+}
+
+export function upsertProjectIntoProjectsStoreByScopeKey(
+  scopeKey: string,
+  project: AgentProjectView,
+): void {
+  if (!scopeKey || !project.projectId.trim()) {
+    return;
+  }
+  const store = getProjectsStore(scopeKey);
+  const filteredProject = filterProjectsForInventoryStore(store, [project])[0];
+  if (!filteredProject) {
+    return;
+  }
+
   mutateProjectsStoreByScopeKey(
-    buildProjectsStoreScopeKey(
-      normalizeProjectsStoreUserScope(userScope),
-      project.workspaceId,
-    ),
-    (projects) => upsertProjectIntoCollection(projects, project),
+    scopeKey,
+    (projects) => upsertProjectIntoCollection(projects, filteredProject),
   );
 }
 

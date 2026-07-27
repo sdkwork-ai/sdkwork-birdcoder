@@ -10,12 +10,13 @@ function read(relativePath) {
   return fs.readFileSync(path.join(rootDir, relativePath), 'utf8');
 }
 
-const sharedInterfaceSource = read(
+const workbenchInterfaceProxySource = read(
   'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-workbench/src/services/interfaces/IFileSystemService.ts',
 );
 const infrastructureInterfaceSource = read(
   'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/src/services/interfaces/IFileSystemService.ts',
 );
+const sharedInterfaceSource = infrastructureInterfaceSource;
 const sharedHookSource = read('apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-workbench/src/hooks/useFileSystem.ts');
 const appSource = readBirdcoderAppShellSource();
 const codePageSource = read('apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-code/src/pages/CodePage.tsx');
@@ -23,6 +24,12 @@ const codeServerDirectoryImportSource = read(
   'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-code/src/pages/useCodeServerDirectoryProjectImport.ts',
 );
 const studioPageSource = read('apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-studio/src/pages/StudioPage.tsx');
+
+assert.match(
+  workbenchInterfaceProxySource,
+  /export type \{[\s\S]*FileSystemChangeSubscriptionOptions,[\s\S]*IFileSystemService,[\s\S]*\} from '@sdkwork\/birdcoder-pc-infrastructure-runtime';/s,
+  'Workbench must re-export the canonical runtime file-system port instead of defining a second interface.',
+);
 
 assert.match(
   sharedInterfaceSource,
@@ -38,13 +45,13 @@ assert.match(
 
 assert.match(
   sharedInterfaceSource,
-  /searchFiles\(\s*projectId: string,\s*options: WorkspaceFileSearchOptions,\s*\)/,
+  /searchFiles\(\s*projectId: string,\s*options: ProjectFileSearchOptions,\s*\)/,
   'IFileSystemService must expose project-aware file search through a typed service boundary.',
 );
 
 assert.match(
   infrastructureInterfaceSource,
-  /searchFiles\(\s*projectId: string,\s*options: WorkspaceFileSearchOptions,\s*\)/,
+  /searchFiles\(\s*projectId: string,\s*options: ProjectFileSearchOptions,\s*\)/,
   'Infrastructure IFileSystemService must expose project-aware file search through a typed service boundary.',
 );
 
@@ -353,8 +360,8 @@ for (const [label, source] of [
 ]) {
   assert.match(
     source,
-    /importSandboxDirectoryProject/,
-    `${label} must use the shared Drive sandbox-directory import helper instead of keeping duplicate import flow logic.`,
+    /importSelectedProjectDirectory/,
+    `${label} must use the execution-location-neutral project-directory import boundary instead of calling a provider-specific import flow.`,
   );
 
   assert.doesNotMatch(
@@ -372,8 +379,8 @@ assert.doesNotMatch(
 
 assert.match(
   studioPageSource,
-  /importLocalFolderProject/,
-  'StudioPage local checkout import must continue through the shared local-folder helper.',
+  /importSelectedProjectDirectory/,
+  'StudioPage must route local and Drive imports through the execution-location-neutral project-directory boundary.',
 );
 
 assert.match(
@@ -441,8 +448,8 @@ for (const [label, source] of [
 
   assert.match(
     source,
-    /mountRecoveryState\.status === 'failed'/,
-    `${label} must render a failure surface when persisted local project remounting fails.`,
+    /resolveProjectMountRecoveryActions\(mountRecoveryState\.status\)[\s\S]*mountRecoveryActions\.requiresAttention/,
+    `${label} must render the shared attention surface for every actionable mount recovery state.`,
   );
 
   assert.match(

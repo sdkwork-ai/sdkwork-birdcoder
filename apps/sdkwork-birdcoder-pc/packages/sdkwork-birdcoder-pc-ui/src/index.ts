@@ -2,8 +2,43 @@ export type { FileExplorerProps, FileNode } from './components/FileExplorer';
 export { DeferredFileExplorer } from './components/DeferredFileExplorer';
 
 export { WorkbenchNewSessionButton } from './components/WorkbenchNewSessionButton';
+export {
+  SessionProviderBadge,
+  resolveSessionProviderPresentation,
+} from './components/SessionProviderBadge';
+export type {
+  SessionProviderBadgeProps,
+  SessionProviderIdentity,
+  SessionProviderPresentation,
+} from './components/SessionProviderBadge';
+export {
+  SessionRuntimeStatusSlot,
+  resolveSessionRuntimeStatusLabel,
+  resolveSessionRuntimeStatusPresentation,
+} from './components/SessionRuntimeStatusSlot';
+export type {
+  SessionRuntimeStatusLabels,
+  SessionRuntimeStatusPresentation,
+  SessionRuntimeStatusSlotProps,
+} from './components/SessionRuntimeStatusSlot';
 export { copyTextToClipboard } from './components/clipboard';
 export { resolveSafeMarkdownHref } from './components/markdownLinkSecurity';
+export {
+  BrowserPreviewSurface,
+  iframeBrowserPreviewAdapter,
+  resolveBrowserPreviewAddress,
+} from './components/BrowserPreviewSurface';
+export type {
+  BrowserPreviewAdapter,
+  BrowserPreviewLabels,
+  BrowserPreviewRenderContext,
+  BrowserPreviewSurfaceProps,
+} from './components/BrowserPreviewSurface';
+export { WorkspaceDetailSurface } from './components/WorkspaceDetailSurface';
+export type {
+  WorkspaceDetailSurfaceProps,
+  WorkspaceDetailView,
+} from './components/WorkspaceDetailSurface';
 
 export { ProjectGitOverviewPanel } from './components/ProjectGitOverviewPanel';
 export { ProjectGitOverviewDrawer } from './components/ProjectGitOverviewDrawer';

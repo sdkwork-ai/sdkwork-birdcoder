@@ -32,11 +32,15 @@ for (const manifestPath of listSdkworkAppManifestPaths(rootDir)) {
     'blocked',
     `${relativePath} must not claim release readiness while production evidence is missing.`,
   );
+  const expectedReleaseBlockers = [
+    'signed-production-artifact-evidence-missing',
+  ];
+  if (manifest.app?.key === 'sdkwork-birdcoder-mini-program') {
+    expectedReleaseBlockers.push('wechat-devtools-upload-evidence-missing');
+  }
   assert.deepEqual(
     manifest.metadata?.releaseEvidence?.blockers,
-    [
-      'signed-production-artifact-evidence-missing',
-    ],
+    expectedReleaseBlockers,
     `${relativePath} must enumerate the active release blockers.`,
   );
   assert.equal(manifest.release?.defaultChannel, 'INTERNAL');
@@ -75,7 +79,16 @@ for (const manifestPath of listSdkworkAppManifestPaths(rootDir)) {
       true,
       `${relativePath} package ${pkg.id} must declare deferred pre-launch build evidence.`,
     );
-    assert.equal(pkg.profileBinding, 'fixed');
+    assert.ok(
+      ['fixed', 'runtime-configurable'].includes(pkg.profileBinding),
+      `${relativePath} package ${pkg.id} must declare a supported profile binding.`,
+    );
+    if (pkg.profileBinding === 'fixed') {
+      assert.equal(typeof pkg.deploymentProfile, 'string');
+    } else {
+      assert.ok(Array.isArray(pkg.supportedDeploymentProfiles));
+      assert.ok(pkg.supportedDeploymentProfiles.length > 0);
+    }
     assert.equal(typeof pkg.targetPlatform, 'string');
     assert.equal(typeof pkg.clientArchitecture, 'string');
   }

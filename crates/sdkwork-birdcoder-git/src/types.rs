@@ -5,6 +5,17 @@ use serde::{Deserialize, Serialize};
 pub enum GitOverviewStatus {
     Ready,
     NotRepository,
+    RepositoryRootMismatch,
+    Unavailable,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum GitOverviewDiagnosticCode {
+    GitCommandFailed,
+    GitExecutableUnavailable,
+    NotRepository,
+    RepositoryRootMismatch,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]
@@ -52,6 +63,7 @@ pub struct GitProjectOverview {
     pub current_revision: Option<String>,
     pub current_worktree_path: Option<String>,
     pub detached_head: bool,
+    pub diagnostic_code: Option<GitOverviewDiagnosticCode>,
     pub repository_root_path: Option<String>,
     pub status: GitOverviewStatus,
     pub status_counts: GitStatusCounts,
@@ -79,11 +91,6 @@ pub enum GitMutationError {
     Validation(String),
     #[error("git repository mutation failed: {0}")]
     Mutate(String),
-}
-
-#[derive(Debug)]
-pub(crate) struct GitCommandError {
-    pub(crate) message: String,
 }
 
 #[derive(Debug, Clone, Default)]

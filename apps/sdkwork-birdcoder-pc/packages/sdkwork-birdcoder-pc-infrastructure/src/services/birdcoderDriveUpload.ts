@@ -100,12 +100,7 @@ function resolveUploaderMethod(
 async function resolveChatAttachmentPreviewUrl(
   client: SdkworkDriveAppClient,
   nodeId: string,
-  profile: DriveUploaderProfile,
 ): Promise<string | undefined> {
-  if (profile !== 'image' && profile !== 'thumbnail' && profile !== 'avatar') {
-    return undefined;
-  }
-
   try {
     const grant = await client.drive.downloadGrants.create(nodeId, {
       requestedTtlSeconds: CHAT_DOWNLOAD_GRANT_TTL_SECONDS,
@@ -114,6 +109,16 @@ async function resolveChatAttachmentPreviewUrl(
   } catch {
     return undefined;
   }
+}
+
+export async function resolveBirdCoderChatAttachmentPreviewUrl(
+  nodeId: string,
+): Promise<string | undefined> {
+  const normalizedNodeId = nodeId.trim();
+  if (!normalizedNodeId) {
+    return undefined;
+  }
+  return resolveChatAttachmentPreviewUrl(getBirdCoderDriveAppClient(), normalizedNodeId);
 }
 
 export async function uploadBirdCoderChatAttachmentToDrive(
@@ -144,7 +149,9 @@ export async function uploadBirdCoderChatAttachmentToDrive(
     sizeBytes: uploadResult.uploadItem.contentLength,
     checksumSha256: uploadResult.uploadItem.checksumSha256Hex,
   };
-  const previewUrl = await resolveChatAttachmentPreviewUrl(client, nodeId, options.profile);
+  const previewUrl = mediaResource.kind === 'image'
+    ? await resolveChatAttachmentPreviewUrl(client, nodeId)
+    : undefined;
 
   return {
     mediaResource,
@@ -162,7 +169,10 @@ export function buildDriveMediaResourceContentBlock(
     return `\n![${label}](${previewUrl})\n`;
   }
 
-  return `\n\n[DRIVE_MEDIA:${JSON.stringify(mediaResource)}]\n`;
+  const displayEnvelope = previewUrl
+    ? { ...mediaResource, previewUrl }
+    : mediaResource;
+  return `\n\n[DRIVE_MEDIA:${JSON.stringify(displayEnvelope)}]\n`;
 }
 
 export function resolveChatAttachmentUploadProfile(file: File): DriveUploaderProfile {

@@ -53,7 +53,7 @@ const busyObserverEffectStartIndex = indexOfSourcePattern(
 );
 const busyObserverEffectEndIndex = indexOfSourcePattern(
   universalChatSource,
-  /useEffect\(\(\) => \{\r?\n    setIsQueueExpanded\(false\);/u,
+  /useEffect\(\(\) => \{\r?\n    clearQueuedTurnDispatchSettlementTimer\(\);/u,
   busyObserverEffectStartIndex,
 );
 const busyObserverEffectSource =
@@ -187,6 +187,42 @@ assert.equal(
   ).size,
   2,
   'identity-based queued turn inputs must keep duplicate text renderable with unique React keys.',
+);
+
+clearWorkbenchQueuedAgentTurnInputs('project-a/session-attachments');
+enqueueWorkbenchQueuedAgentTurnInput(
+  'project-a/session-attachments',
+  'Review this\n\n[DRIVE_MEDIA:{"id":"design"}]',
+  { engineId: ' codex ', modelId: ' gpt-5 ' },
+  {
+    attachmentContent: ' \n\n[DRIVE_MEDIA:{"id":"design"}]\n ',
+    attachmentNames: [' design.png ', 'notes.txt', 'design.png'],
+    displayText: ' Review this ',
+  },
+);
+const queuedAttachmentTurnInput = dequeueWorkbenchQueuedAgentTurnInput(
+  'project-a/session-attachments',
+);
+assert.deepEqual(
+  queuedAttachmentTurnInput,
+  {
+    id: queuedAttachmentTurnInput?.id,
+    text: 'Review this\n\n[DRIVE_MEDIA:{"id":"design"}]',
+    composerSelection: { engineId: 'codex', modelId: 'gpt-5' },
+    attachmentContent: '[DRIVE_MEDIA:{"id":"design"}]',
+    attachmentNames: ['design.png', 'notes.txt'],
+    displayText: 'Review this',
+  },
+  'queued attachment turns must preserve a clean display value separately from their full submission payload.',
+);
+restoreWorkbenchQueuedAgentTurnInputsToFront(
+  'project-a/session-attachments',
+  queuedAttachmentTurnInput ? [queuedAttachmentTurnInput] : [],
+);
+assert.deepEqual(
+  peekWorkbenchQueuedAgentTurnInputs('project-a/session-attachments')[0],
+  queuedAttachmentTurnInput,
+  'attachment presentation and payload metadata must survive dequeue and failed-dispatch restoration.',
 );
 
 let flushGateState = createWorkbenchAgentTurnInputQueueFlushGateState();
@@ -387,7 +423,7 @@ assert.match(
 
 assert.match(
   universalChatHandleSendSource,
-  /isAwaitingQueuedTurnSettlement\s*=\s*queuedTurnFlushGateRef\.current\.awaitingTurnSettlement[\s\S]*if \(isComposerTurnBlocked \|\| isAwaitingQueuedTurnSettlement\) \{[\s\S]*enqueueQueuedTurnInput\(currentInput,\s*currentComposerSelection\);/,
+  /isAwaitingQueuedTurnSettlement\s*=\s*queuedTurnFlushGateRef\.current\.awaitingTurnSettlement[\s\S]*if \(isComposerTurnBlocked \|\| isAwaitingQueuedTurnSettlement\) \{[\s\S]*enqueueQueuedTurnInput\(currentSubmission,\s*currentComposerSelection,\s*queuePresentation\);/,
   'Manual typed sends must enter the queue with the current composer selection while a just-created turn is waiting for runtime busy observation.',
 );
 
@@ -399,7 +435,7 @@ assert.match(
 
 assert.match(
   universalChatSource,
-  /const canQueueTypedMessage =[\s\S]*\(isBusy \|\| isAwaitingQueuedTurnSettlement\)[\s\S]*!hasPendingUserQuestionReplyTarget[\s\S]*hasTypedComposerInput;/,
+  /const canQueueTypedMessage =[\s\S]*\(isBusy \|\| isAwaitingQueuedTurnSettlement\)[\s\S]*!hasPendingUserQuestionReplyTarget[\s\S]*hasComposerSubmissionContent[\s\S]*!isComposerAttachmentSubmissionBlocked;/,
   'UniversalChat must show queue affordances while a just-created turn is awaiting runtime busy observation, even if runtimeStatus has not rendered busy yet.',
 );
 
@@ -411,8 +447,8 @@ assert.match(
 
 assert.match(
   universalChatSource,
-  /setInputValue\(\(previousInputValue\) =>\s*resolveComposerInputAfterSendFailure\(submittedTextSnapshot,\s*previousInputValue\),?\s*\)/,
-  'Manual send failure recovery must restore the submitted draft without clobbering newer input.',
+  /setInputValue\(\(previousInputValue\) =>\s*resolveComposerInputAfterSendFailure\(submittedDisplayTextSnapshot,\s*previousInputValue\),?\s*\)/,
+  'Manual send failure recovery must restore only visible draft text without leaking attachment payloads into the textarea.',
 );
 
 assert.match(

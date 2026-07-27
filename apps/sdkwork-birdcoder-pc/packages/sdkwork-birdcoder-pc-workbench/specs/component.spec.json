@@ -114,6 +114,14 @@
       {
         "name": "transientTerminalGovernanceDiagnostics",
         "export": "./terminal/governanceDiagnostics"
+      },
+      {
+        "name": "projectGitOverviewSubscription",
+        "export": "./workbench/projectGitOverviewSubscription"
+      },
+      {
+        "name": "sessionActivityInboxProjection",
+        "export": "./workbench/workspaceSessionInboxCoordinator"
       }
     ],
     "requiredPorts": [
@@ -146,6 +154,9 @@
       "pnpm --filter @sdkwork/birdcoder-pc-workbench typecheck",
       "node scripts/local-store-contract.test.ts",
       "node scripts/run-config-contract.test.ts",
+      "pnpm --filter @sdkwork/birdcoder-pc-workbench test -- agentSessionActivity.test.ts workspaceSessionInboxCoordinator.test.ts sessionInbox.test.ts",
+      "node scripts/run-local-tsx.mjs scripts/session-list-presentation-contract.test.tsx",
+      "node scripts/run-local-tsx.mjs apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-workbench/tests/projectGitOverviewSubscription.test.ts",
       "node scripts/terminal-governance-runtime-contract.test.ts",
       "node scripts/pc-local-business-storage-boundary-contract.test.mjs"
     ]

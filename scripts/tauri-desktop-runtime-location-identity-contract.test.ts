@@ -26,6 +26,27 @@ const invoke = async <T>(command: string, args?: Record<string, unknown>): Promi
     storage.set(key, String(args?.value ?? ''));
     return undefined as T;
   }
+  if (command === 'project_device_mount_provider_session_directory_identity') {
+    const projectId = String(args?.projectId ?? '');
+    const ownerKeys = new Set((args?.ownerKeys as string[] | undefined) ?? []);
+    const mount = Array.from(storage.values())
+      .map((value) => JSON.parse(value) as {
+        ownerKey?: string;
+        path?: string;
+        projectId?: string;
+      })
+      .find((candidate) =>
+        candidate.projectId === projectId
+        && Boolean(candidate.ownerKey && ownerKeys.has(candidate.ownerKey)));
+    if (!mount?.path) {
+      return null as T;
+    }
+    const directoryName = mount.path.split(/[\\/]/u).filter(Boolean).at(-1) ?? '';
+    return {
+      directoryFingerprint: `sha256:${'a'.repeat(64)}`,
+      directoryName,
+    } as T;
+  }
   if (command === 'desktop_runtime_location_install_identity') {
     return { runtimeTargetId } as T;
   }

@@ -38,6 +38,36 @@ const projectedToolCalls = projectChatMessageToolCalls([
 ]);
 assert.equal(projectedToolCalls.length, 2);
 assert.equal(projectedToolCalls[1]?.name, 'tool');
+
+const canonicalCommandResult = projectChatMessageToolCall({
+  id: 'canonical-command-result',
+  name: 'shell_command',
+  arguments: { command: 'pnpm typecheck' },
+  status: 'completed',
+  output: {
+    exitCode: 0,
+    stdout: 'TypeScript check passed.\n',
+    stderr: '',
+  },
+}, 0);
+assert.equal(
+  canonicalCommandResult?.output,
+  'TypeScript check passed.',
+  'Structured command results must show stdout instead of a JSON object wall.',
+);
+assert.deepEqual(canonicalCommandResult?.resultBlocks, [{
+  type: 'text',
+  text: 'TypeScript check passed.',
+}]);
+
+const commandResultWithoutStreams = projectChatMessageToolCall({
+  id: 'canonical-command-exit-code',
+  name: 'shell_command',
+  arguments: { command: 'pnpm typecheck' },
+  status: 'completed',
+  output: { exitCode: 0 },
+}, 0);
+assert.equal(commandResultWithoutStreams?.output, 'Exit code: 0');
 assert.equal(projectedToolCalls[1]?.arguments, 'raw tool output');
 
 const toolCallView = resolveAgentSessionItemPresentation({

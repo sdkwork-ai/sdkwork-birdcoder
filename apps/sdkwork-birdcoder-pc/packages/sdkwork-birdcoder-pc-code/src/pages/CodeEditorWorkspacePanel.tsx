@@ -92,6 +92,9 @@ export const CodeEditorWorkspacePanel = memo(function CodeEditorWorkspacePanel({
   isActive,
   currentProjectId,
   files,
+  projectRootPath,
+  fileTreeLoadError,
+  isFileTreeLoading,
   loadingDirectoryPaths,
   openFiles,
   selectedFile,
@@ -121,6 +124,7 @@ export const CodeEditorWorkspacePanel = memo(function CodeEditorWorkspacePanel({
   onDeleteFile,
   onDeleteFolder,
   onRenameNode,
+  onRetryFileTreeLoad,
   onCloseDiff,
   onFileDraftChange,
   onExplorerResize,
@@ -144,11 +148,15 @@ export const CodeEditorWorkspacePanel = memo(function CodeEditorWorkspacePanel({
       <div className="flex-1 flex h-full min-w-0 overflow-hidden">
         <DeferredFileExplorer
           files={files}
+          hasLoadError={fileTreeLoadError}
           isActive={isActive}
+          isLoading={isFileTreeLoading}
           width={explorerWidth}
           loadingDirectoryPaths={loadingDirectoryPaths}
           onExpandDirectory={onExpandDirectory}
+          onRetryLoad={onRetryFileTreeLoad}
           projectId={currentProjectId}
+          projectRootPath={projectRootPath}
           scopeKey={currentProjectId}
           selectedFile={selectedFile || undefined}
           onSelectFile={onSelectFile}

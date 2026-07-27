@@ -1,6 +1,6 @@
 # SDKWork Birdcoder UI Component Specs
 
-This directory is the local standards index for `@sdkwork/birdcoder-ui`.
+This directory is the local standards index for `@sdkwork/birdcoder-pc-ui`.
 
 Root SDKWork standards remain authoritative. Local component specs can narrow or document this component, but they must not contradict [the root standards](../../../../../specs/README.md).
 
@@ -8,7 +8,7 @@ Root SDKWork standards remain authoritative. Local component specs can narrow or
 
 | Field | Value |
 | --- | --- |
-| Name | `@sdkwork/birdcoder-ui` |
+| Name | `@sdkwork/birdcoder-pc-ui` |
 | Type | `react-package` |
 | Root | `sdkwork-birdcoder/packages/sdkwork-birdcoder-ui` |
 | Domain | `platform` |
@@ -50,6 +50,23 @@ Root SDKWork standards remain authoritative. Local component specs can narrow or
 
 - No local extension specs are declared yet.
 
+## Session Runtime Status Presentation
+
+`SessionRuntimeStatusSlot` is the shared Code and Studio trailing status slot.
+Provider identity is the row's leftmost visual item. Only `initializing` and
+`streaming` animate; approval, tool, and user-question waits are static
+attention; `failed` is explicit; `stale` is static neutral. `unknown`, `null`,
+or absent runtime status renders no label, icon, or reserved slot. Session rows
+expose `data-session-trailing-metadata="true"` on the independent auto-aligned,
+end-justified, right-aligned time/status-text region immediately before the
+runtime icon.
+
+The component presents a workbench-resolved effective status. It does not
+query a provider, own freshness timers, inspect provider files, or choose a
+Session. Neutral and attention states expose localized accessible labels and
+do not depend on animation or color alone.
+
 ## Verification
 
-- `pnpm --filter @sdkwork/birdcoder-ui typecheck`
+- `pnpm --filter @sdkwork/birdcoder-pc-ui typecheck`
+- `node scripts/run-local-tsx.mjs scripts/session-list-presentation-contract.test.tsx`

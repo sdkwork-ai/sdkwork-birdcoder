@@ -70,6 +70,8 @@ interface UseCodePageSurfacePropsOptions {
   chatWidth: number;
   fileContent: string;
   files: FileNode[];
+  projectRootPath: string;
+  fileTreeLoadError: boolean;
   filteredProjects: AgentProjectView[];
   hasMoreProjects: boolean;
   hasMoreRemoteMessages: boolean;
@@ -85,6 +87,7 @@ interface UseCodePageSurfacePropsOptions {
   isQuickOpenVisible: boolean;
   isRunConfigVisible: boolean;
   isRunTaskVisible: boolean;
+  isFileTreeLoading: boolean;
   isSearchingFiles: boolean;
   isSidebarVisible: boolean;
   isTerminalOpen: boolean;
@@ -132,7 +135,8 @@ interface UseCodePageSurfacePropsOptions {
   onCloseTerminal: NonNullable<CodeTerminalIntegrationPanelComponentProps['onClose']>;
   onConfirmDelete: NonNullable<CodePageDialogsComponentProps['onConfirmDelete']>;
   onCopyAgentSessionDeeplink: NonNullable<ProjectExplorerProps['onCopyAgentSessionDeeplink']>;
-  onCopyAgentSessionSessionId: NonNullable<ProjectExplorerProps['onCopyAgentSessionSessionId']>;
+  onCopyAgentSessionProviderSessionId:
+    NonNullable<ProjectExplorerProps['onCopyAgentSessionProviderSessionId']>;
   onCopyAgentSessionWorkingDirectory:
     NonNullable<ProjectExplorerProps['onCopyAgentSessionWorkingDirectory']>;
   onCopyProjectPath: NonNullable<ProjectExplorerProps['onCopyProjectPath']>;
@@ -160,6 +164,8 @@ interface UseCodePageSurfacePropsOptions {
   onLoadMoreRemoteMessages: NonNullable<UniversalChatComponentProps['onLoadMoreRemoteMessages']>;
   onNotifyNoResults: NonNullable<CodeWorkspaceOverlaysComponentProps['onNotifyNoResults']>;
   onOpenFolder: NonNullable<ProjectExplorerProps['onOpenFolder']>;
+  onOpenAgentSessionInTerminal:
+    NonNullable<ProjectExplorerProps['onOpenAgentSessionInTerminal']>;
   onOpenInFileExplorer: NonNullable<ProjectExplorerProps['onOpenInFileExplorer']>;
   onOpenInTerminal: NonNullable<ProjectExplorerProps['onOpenInTerminal']>;
   onOpenMessageFile: NonNullable<UniversalChatComponentProps['onOpenFile']>;
@@ -175,6 +181,7 @@ interface UseCodePageSurfacePropsOptions {
   onRenameAgentSession: NonNullable<ProjectExplorerProps['onRenameAgentSession']>;
   onRenameNode: CodeEditorWorkspacePanelProps['onRenameNode'];
   onRenameProject: NonNullable<ProjectExplorerProps['onRenameProject']>;
+  onRetryFileTreeLoad: CodeEditorWorkspacePanelProps['onRetryFileTreeLoad'];
   onRestoreMessage: NonNullable<UniversalChatComponentProps['onRestore']>;
   onRetryMountRecovery:
     NonNullable<CodeWorkspaceOverlaysComponentProps['onRetryMountRecovery']>;
@@ -211,6 +218,8 @@ export function useCodePageSurfaceProps({
   chatWidth,
   fileContent,
   files,
+  projectRootPath,
+  fileTreeLoadError,
   filteredProjects,
   hasMoreProjects,
   hasMoreRemoteMessages,
@@ -226,6 +235,7 @@ export function useCodePageSurfaceProps({
   isQuickOpenVisible,
   isRunConfigVisible,
   isRunTaskVisible,
+  isFileTreeLoading,
   isSearchingFiles,
   isSidebarVisible,
   isTerminalOpen,
@@ -271,7 +281,7 @@ export function useCodePageSurfaceProps({
   onCloseTerminal,
   onConfirmDelete,
   onCopyAgentSessionDeeplink,
-  onCopyAgentSessionSessionId,
+  onCopyAgentSessionProviderSessionId,
   onCopyAgentSessionWorkingDirectory,
   onCopyProjectPath,
   onCopyWorkingDirectory,
@@ -298,6 +308,7 @@ export function useCodePageSurfaceProps({
   onLoadMoreRemoteMessages,
   onNotifyNoResults,
   onOpenFolder,
+  onOpenAgentSessionInTerminal,
   onOpenInFileExplorer,
   onOpenInTerminal,
   onOpenMessageFile,
@@ -311,6 +322,7 @@ export function useCodePageSurfaceProps({
   onRenameAgentSession,
   onRenameNode,
   onRenameProject,
+  onRetryFileTreeLoad,
   onRestoreMessage,
   onRetryMountRecovery,
   onRunConfigurationDraftChange,
@@ -432,8 +444,9 @@ export function useCodePageSurfaceProps({
     onArchiveAgentSession,
     onMarkAgentSessionUnread,
     onCopyAgentSessionWorkingDirectory,
-    onCopyAgentSessionSessionId,
+    onCopyAgentSessionProviderSessionId,
     onCopyAgentSessionDeeplink,
+    onOpenAgentSessionInTerminal,
     onForkAgentSessionLocal,
     onForkAgentSessionNewTree,
     refreshingProjectId,
@@ -450,7 +463,7 @@ export function useCodePageSurfaceProps({
     onArchiveAgentSession,
     onArchiveProject,
     onCopyAgentSessionDeeplink,
-    onCopyAgentSessionSessionId,
+    onCopyAgentSessionProviderSessionId,
     onCopyAgentSessionWorkingDirectory,
     onCopyProjectPath,
     onCopyWorkingDirectory,
@@ -464,6 +477,7 @@ export function useCodePageSurfaceProps({
     onLoadMoreProjects,
     onLoadMoreProjectSessions,
     onOpenFolder,
+    onOpenAgentSessionInTerminal,
     onOpenInFileExplorer,
     onOpenInTerminal,
     onPinAgentSession,
@@ -645,6 +659,9 @@ export function useCodePageSurfaceProps({
   const workspaceProps = useMemo<Omit<CodeEditorWorkspacePanelProps, 'isActive'>>(() => ({
     currentProjectId: currentProjectId || undefined,
     files,
+    projectRootPath,
+    fileTreeLoadError,
+    isFileTreeLoading,
     loadingDirectoryPaths,
     openFiles,
     selectedFile,
@@ -674,6 +691,7 @@ export function useCodePageSurfaceProps({
     onDeleteFile,
     onDeleteFolder,
     onRenameNode,
+    onRetryFileTreeLoad,
     onCloseDiff,
     onFileDraftChange,
     onExplorerResize,
@@ -699,12 +717,15 @@ export function useCodePageSurfaceProps({
     editorExplorerWidth,
     chatWidth,
     fileContent,
+    fileTreeLoadError,
     files,
+    projectRootPath,
     hasMoreRemoteMessages,
     isChatEngineBusy,
     isChatBusy,
     isLoadingMoreRemoteMessages,
     isNewSession,
+    isFileTreeLoading,
     loadingDirectoryPaths,
     onChatResize,
     onCloseFile,
@@ -721,6 +742,7 @@ export function useCodePageSurfaceProps({
     onRegenerateMessage,
     onCloseDiff,
     onRenameNode,
+    onRetryFileTreeLoad,
     onRestoreMessage,
     onSelectFile,
     onSelectedEngineIdChange,

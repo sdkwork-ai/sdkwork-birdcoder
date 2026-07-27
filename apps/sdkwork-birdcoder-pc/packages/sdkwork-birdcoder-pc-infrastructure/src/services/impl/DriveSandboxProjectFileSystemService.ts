@@ -10,6 +10,7 @@ import {
   type LocalFolderMountSource,
   type ProjectDeviceMountRecoveryResult,
   type ProjectDeviceMountState,
+  type ProjectFileSystemRoot,
   type ProjectFileSystemChangeEvent,
   type ProjectFileSearchExecutionResult,
   type ProjectFileSearchOptions,
@@ -150,7 +151,7 @@ export class DriveSandboxProjectFileSystemService implements IFileSystemService 
     }
     const state: RemoteProjectState = {
       binding,
-      context: createDriveSandboxProjectPathContext(binding.logicalPath, sandboxRoot.displayName),
+      context: createDriveSandboxProjectPathContext(binding.logicalPath),
       entriesByVirtualPath: new Map(),
       tree: [],
     };
@@ -231,6 +232,21 @@ export class DriveSandboxProjectFileSystemService implements IFileSystemService 
     const root = await this.loadRemoteDirectory(state, state.context.virtualRootPath);
     state.tree = [root];
     return state.tree;
+  }
+
+  async resolveProjectRoot(projectId: string): Promise<ProjectFileSystemRoot | null> {
+    const normalizedProjectId = normalizeProjectId(projectId);
+    const state = await this.resolveRemoteProject(normalizedProjectId);
+    if (!state) {
+      return null;
+    }
+
+    return {
+      displayName: state.context.virtualRootName,
+      host: 'server',
+      projectId: normalizedProjectId,
+      virtualPath: state.context.virtualRootPath,
+    };
   }
 
   async loadDirectory(projectId: string, path: string): Promise<IFileNode[]> {

@@ -1,15 +1,18 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import type { AgentSessionView, AgentProjectView } from '@sdkwork/birdcoder-pc-contracts-commons';
 import type { IAgentSessionService } from '@sdkwork/birdcoder-pc-infrastructure-runtime';
 import { useAuth } from '../context/AuthContext.ts';
 import { buildBirdCoderAuthSessionInventoryScope } from '../context/authSessionScope.ts';
 import {
+  buildProjectsStoreScopeKey,
+  mutateProjectsStoreByScopeKey,
   upsertAgentSessionIntoProjectsStore,
   upsertProjectIntoProjectsStore,
 } from '../stores/projectsStore.ts';
 import type { IProjectService } from '../services/interfaces/IProjectService.ts';
 import {
   loadEarlierAgentSessionItems,
+  applyProjectSessionActivityRefresh,
   refreshAgentSessionItems,
   refreshProjectSessions,
 } from '../workbench/sessionRefresh.ts';
@@ -37,6 +40,23 @@ interface ActiveEarlierItemsRequest {
   controller: AbortController;
   promise: Promise<void>;
   scopeKey: string;
+}
+
+interface ScopedProjectRefreshState {
+  projectId: string;
+  userScope: string;
+}
+
+interface ScopedAgentSessionRefreshState {
+  agentSessionId: string;
+  projectId: string | null;
+  userScope: string;
+}
+
+interface ScopedEarlierAgentSessionItemsState {
+  agentSessionId: string;
+  projectId: string;
+  userScope: string;
 }
 
 function isAbortError(error: unknown): boolean {
@@ -74,15 +94,15 @@ export function useSessionRefreshActions({
 }: UseSessionRefreshActionsOptions) {
   const { sessionRevision, user } = useAuth();
   const userScope = buildBirdCoderAuthSessionInventoryScope(user?.id, sessionRevision);
-  const [refreshingProjectId, setRefreshingProjectId] = useState<string | null>(null);
-  const [refreshingAgentSessionScope, setRefreshingAgentSessionScope] = useState<{
-    agentSessionId: string;
-    projectId: string | null;
-  } | null>(null);
-  const [loadingEarlierAgentSessionScope, setLoadingEarlierAgentSessionScope] = useState<{
-    agentSessionId: string;
-    projectId: string;
-  } | null>(null);
+  const getPreservedSelectionRef = useRef(getPreservedSelection);
+  const restoreSelectionAfterRefreshRef = useRef(restoreSelectionAfterRefresh);
+  const activeUserScopeRef = useRef<string | null>(userScope);
+  const [refreshingProjectScope, setRefreshingProjectScope] =
+    useState<ScopedProjectRefreshState | null>(null);
+  const [refreshingAgentSessionScope, setRefreshingAgentSessionScope] =
+    useState<ScopedAgentSessionRefreshState | null>(null);
+  const [loadingEarlierAgentSessionScope, setLoadingEarlierAgentSessionScope] =
+    useState<ScopedEarlierAgentSessionItemsState | null>(null);
   const projectRefreshGenerationRef = useRef(0);
   const agentSessionRefreshGenerationRef = useRef(0);
   const activeEarlierItemsRequestRef = useRef<ActiveEarlierItemsRequest | null>(null);
@@ -90,37 +110,64 @@ export function useSessionRefreshActions({
   const selectedAgentSessionId = currentSelection.agentSessionId?.trim() ?? '';
   const selectedProjectId = currentSelection.projectId.trim();
 
-  useEffect(() => () => {
-    activeEarlierItemsRequestRef.current?.controller.abort(new DOMException(
+  const cancelActiveEarlierItemsRequest = useCallback(() => {
+    const activeRequest = activeEarlierItemsRequestRef.current;
+    activeEarlierItemsRequestRef.current = null;
+    activeRequest?.controller.abort(new DOMException(
       'Agents session history request was superseded.',
       'AbortError',
     ));
-  }, [selectedAgentSessionId, selectedProjectId, userScope]);
+  }, []);
+
+  useLayoutEffect(() => {
+    getPreservedSelectionRef.current = getPreservedSelection;
+    restoreSelectionAfterRefreshRef.current = restoreSelectionAfterRefresh;
+  }, [getPreservedSelection, restoreSelectionAfterRefresh]);
+
+  useLayoutEffect(() => {
+    activeUserScopeRef.current = userScope;
+    return () => {
+      activeUserScopeRef.current = null;
+      projectRefreshGenerationRef.current += 1;
+      agentSessionRefreshGenerationRef.current += 1;
+      cancelActiveEarlierItemsRequest();
+    };
+  }, [cancelActiveEarlierItemsRequest, userScope]);
+
+  useEffect(() => () => {
+    cancelActiveEarlierItemsRequest();
+  }, [cancelActiveEarlierItemsRequest, selectedAgentSessionId, selectedProjectId]);
 
   const isPreservedSelectionStillCurrent = useCallback(
     (preservedSelection: PreservedSessionRefreshSelection) => {
-      const currentSelection = getPreservedSelection();
+      const currentSelection = getPreservedSelectionRef.current();
       return (
         currentSelection.projectId === preservedSelection.projectId &&
         currentSelection.agentSessionId === preservedSelection.agentSessionId
       );
     },
-    [getPreservedSelection],
+    [],
   );
 
   const handleRefreshProjectSessions = useCallback(async (targetProjectId: string) => {
-    const preservedSelection = getPreservedSelection();
+    if (activeUserScopeRef.current !== userScope) {
+      return;
+    }
+    const preservedSelection = getPreservedSelectionRef.current();
     const projectName = resolveProjectName(targetProjectId);
     const requestGeneration = ++projectRefreshGenerationRef.current;
 
-    setRefreshingProjectId(targetProjectId);
+    setRefreshingProjectScope({ projectId: targetProjectId, userScope });
     try {
       const result = await refreshProjectSessions({
         agentSessionService,
         projectId: targetProjectId,
         projectService,
       });
-      if (projectRefreshGenerationRef.current !== requestGeneration) {
+      if (
+        projectRefreshGenerationRef.current !== requestGeneration
+        || activeUserScopeRef.current !== userScope
+      ) {
         return;
       }
       if (result.status !== 'refreshed') {
@@ -129,34 +176,50 @@ export function useSessionRefreshActions({
       }
 
       for (const project of result.projects ?? []) {
-        upsertProjectIntoProjectsStore(project, userScope);
+        const scopeKey = buildProjectsStoreScopeKey(userScope, project.workspaceId);
+        mutateProjectsStoreByScopeKey(
+          scopeKey,
+          (projects) => applyProjectSessionActivityRefresh(
+            projects,
+            project,
+            result.deletedSessionIds,
+            {
+              deletedSessionTombstones: result.deletedSessionTombstones,
+              scopeKey,
+            },
+          ),
+        );
       }
       if (isPreservedSelectionStillCurrent(preservedSelection)) {
-        restoreSelectionAfterRefresh(
+        restoreSelectionAfterRefreshRef.current(
           preservedSelection.projectId,
           preservedSelection.agentSessionId,
         );
       }
       addToast(messages.projectSessionsRefreshed(projectName), 'success');
     } catch (error) {
-      if (projectRefreshGenerationRef.current !== requestGeneration) {
+      if (
+        projectRefreshGenerationRef.current !== requestGeneration
+        || activeUserScopeRef.current !== userScope
+      ) {
         return;
       }
       console.error('Failed to refresh project sessions', error);
       addToast(messages.failedToRefreshProjectSessions, 'error');
     } finally {
-      if (projectRefreshGenerationRef.current === requestGeneration) {
-        setRefreshingProjectId(null);
+      if (
+        projectRefreshGenerationRef.current === requestGeneration
+        && activeUserScopeRef.current === userScope
+      ) {
+        setRefreshingProjectScope(null);
       }
     }
   }, [
     addToast,
     agentSessionService,
-    getPreservedSelection,
     messages,
     projectService,
     resolveProjectName,
-    restoreSelectionAfterRefresh,
     isPreservedSelectionStillCurrent,
     userScope,
   ]);
@@ -165,8 +228,11 @@ export function useSessionRefreshActions({
     agentSessionId: string,
     projectId?: string | null,
   ) => {
+    if (activeUserScopeRef.current !== userScope) {
+      return;
+    }
     const normalizedProjectId = projectId?.trim() ?? '';
-    const preservedSelection = getPreservedSelection();
+    const preservedSelection = getPreservedSelectionRef.current();
     const agentSessionTitle = resolveAgentSessionTitle(agentSessionId, normalizedProjectId);
     const resolvedLocation = normalizedProjectId
       ? resolveAgentSessionLocation?.(agentSessionId, normalizedProjectId) ?? null
@@ -181,6 +247,7 @@ export function useSessionRefreshActions({
     setRefreshingAgentSessionScope({
       agentSessionId,
       projectId: normalizedProjectId || null,
+      userScope,
     });
     try {
       const result = await refreshAgentSessionItems({
@@ -188,7 +255,10 @@ export function useSessionRefreshActions({
         agentSessionId,
         ...(resolvedLocation ? { resolvedLocation } : {}),
       });
-      if (agentSessionRefreshGenerationRef.current !== requestGeneration) {
+      if (
+        agentSessionRefreshGenerationRef.current !== requestGeneration
+        || activeUserScopeRef.current !== userScope
+      ) {
         return;
       }
       if (result.status !== 'refreshed') {
@@ -206,7 +276,10 @@ export function useSessionRefreshActions({
             return null;
           },
         );
-        if (agentSessionRefreshGenerationRef.current !== requestGeneration) {
+        if (
+          agentSessionRefreshGenerationRef.current !== requestGeneration
+          || activeUserScopeRef.current !== userScope
+        ) {
           return;
         }
 
@@ -226,32 +299,36 @@ export function useSessionRefreshActions({
       }
 
       if (isPreservedSelectionStillCurrent(preservedSelection)) {
-        restoreSelectionAfterRefresh(
+        restoreSelectionAfterRefreshRef.current(
           preservedSelection.projectId,
           preservedSelection.agentSessionId,
         );
       }
       addToast(messages.sessionMessagesRefreshed(agentSessionTitle), 'success');
     } catch (error) {
-      if (agentSessionRefreshGenerationRef.current !== requestGeneration) {
+      if (
+        agentSessionRefreshGenerationRef.current !== requestGeneration
+        || activeUserScopeRef.current !== userScope
+      ) {
         return;
       }
       console.error('Failed to refresh coding session messages', error);
       addToast(messages.failedToRefreshSessionMessages, 'error');
     } finally {
-      if (agentSessionRefreshGenerationRef.current === requestGeneration) {
+      if (
+        agentSessionRefreshGenerationRef.current === requestGeneration
+        && activeUserScopeRef.current === userScope
+      ) {
         setRefreshingAgentSessionScope(null);
       }
     }
   }, [
     addToast,
     agentSessionService,
-    getPreservedSelection,
     messages,
     projectService,
     resolveAgentSessionLocation,
     resolveAgentSessionTitle,
-    restoreSelectionAfterRefresh,
     isPreservedSelectionStillCurrent,
     userScope,
   ]);
@@ -260,6 +337,9 @@ export function useSessionRefreshActions({
     agentSessionId: string,
     projectId?: string | null,
   ): Promise<void> => {
+    if (activeUserScopeRef.current !== userScope) {
+      return Promise.resolve();
+    }
     const normalizedAgentSessionId = agentSessionId.trim();
     const normalizedProjectId = projectId?.trim() ?? '';
     if (!normalizedAgentSessionId || !normalizedProjectId) {
@@ -288,6 +368,7 @@ export function useSessionRefreshActions({
     setLoadingEarlierAgentSessionScope({
       agentSessionId: normalizedAgentSessionId,
       projectId: normalizedProjectId,
+      userScope,
     });
     const promise = (async () => {
       try {
@@ -297,7 +378,10 @@ export function useSessionRefreshActions({
           signal: controller.signal,
         });
         controller.signal.throwIfAborted();
-        const latestSelection = getPreservedSelection();
+        if (activeUserScopeRef.current !== userScope) {
+          return;
+        }
+        const latestSelection = getPreservedSelectionRef.current();
         if (
           latestSelection.agentSessionId?.trim() !== normalizedAgentSessionId ||
           latestSelection.projectId.trim() !== normalizedProjectId
@@ -330,20 +414,30 @@ export function useSessionRefreshActions({
   }, [
     addToast,
     agentSessionService,
-    getPreservedSelection,
     messages.failedToRefreshSessionMessages,
     resolveAgentSessionLocation,
     userScope,
   ]);
 
+  const isRefreshingCurrentUserScope = refreshingAgentSessionScope?.userScope === userScope;
+  const isLoadingEarlierForCurrentSelection =
+    loadingEarlierAgentSessionScope?.userScope === userScope
+    && loadingEarlierAgentSessionScope.agentSessionId === selectedAgentSessionId
+    && loadingEarlierAgentSessionScope.projectId === selectedProjectId;
+
   return {
     handleLoadEarlierAgentSessionItems,
     handleRefreshAgentSessionItems,
     handleRefreshProjectSessions,
-    loadingEarlierAgentSessionId: loadingEarlierAgentSessionScope?.agentSessionId ?? null,
-    loadingEarlierAgentSessionProjectId: loadingEarlierAgentSessionScope?.projectId ?? null,
-    refreshingAgentSessionId: refreshingAgentSessionScope?.agentSessionId ?? null,
-    refreshingAgentSessionProjectId: refreshingAgentSessionScope?.projectId ?? null,
-    refreshingProjectId,
+    loadingEarlierAgentSessionId:
+      isLoadingEarlierForCurrentSelection ? loadingEarlierAgentSessionScope.agentSessionId : null,
+    loadingEarlierAgentSessionProjectId:
+      isLoadingEarlierForCurrentSelection ? loadingEarlierAgentSessionScope.projectId : null,
+    refreshingAgentSessionId:
+      isRefreshingCurrentUserScope ? refreshingAgentSessionScope.agentSessionId : null,
+    refreshingAgentSessionProjectId:
+      isRefreshingCurrentUserScope ? refreshingAgentSessionScope.projectId : null,
+    refreshingProjectId:
+      refreshingProjectScope?.userScope === userScope ? refreshingProjectScope.projectId : null,
   };
 }

@@ -7,6 +7,9 @@ export function areCodeEditorWorkspacePanelRenderInputsEqual(
   return (
     left.currentProjectId === right.currentProjectId &&
     left.files === right.files &&
+    left.projectRootPath === right.projectRootPath &&
+    left.fileTreeLoadError === right.fileTreeLoadError &&
+    left.isFileTreeLoading === right.isFileTreeLoading &&
     left.loadingDirectoryPaths === right.loadingDirectoryPaths &&
     left.openFiles === right.openFiles &&
     left.selectedFile === right.selectedFile &&
@@ -36,6 +39,7 @@ export function areCodeEditorWorkspacePanelRenderInputsEqual(
     left.onDeleteFile === right.onDeleteFile &&
     left.onDeleteFolder === right.onDeleteFolder &&
     left.onRenameNode === right.onRenameNode &&
+    left.onRetryFileTreeLoad === right.onRetryFileTreeLoad &&
     left.onCloseDiff === right.onCloseDiff &&
     left.onFileDraftChange === right.onFileDraftChange &&
     left.onExplorerResize === right.onExplorerResize &&

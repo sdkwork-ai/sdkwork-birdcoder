@@ -15,7 +15,7 @@ const BROWSER_MOUNT_STORE_NAME = 'mounts';
 const TAURI_MOUNT_STORAGE_SCOPE = 'project-device-mounts';
 const TAURI_MOUNT_STORAGE_VERSION = 1;
 const SUBJECT_KEY_PREFIX = 'sdkwork.birdcoder.project-device-mount.v1';
-const NATIVE_DIRECTORY_FINGERPRINT_PREFIX = 'sdkwork.native-session-directory.v1\n';
+const PROVIDER_SESSION_DIRECTORY_FINGERPRINT_PREFIX = 'sdkwork.provider-session-directory.v1\n';
 const PROJECT_MOUNT_CLIENT_METADATA_VERSION = 1;
 
 type ProjectMountClientArchitecture = 'aarch64' | 'arm' | 'unknown' | 'x86' | 'x86_64';
@@ -68,6 +68,11 @@ interface TauriProjectDeviceMountEntry {
   value: string;
 }
 
+interface TauriProviderSessionDirectoryIdentityResponse {
+  directoryFingerprint: string;
+  directoryName: string;
+}
+
 interface NavigatorWithUserAgentData extends Navigator {
   userAgentData?: {
     architecture?: string;
@@ -101,7 +106,7 @@ export interface TauriProjectRuntimeLocationBinding {
   rootLocator?: string;
 }
 
-export interface BrowserNativeDirectoryIdentity {
+export interface BrowserProviderSessionDirectoryIdentity {
   directoryFingerprint: string;
   directoryName: string;
 }
@@ -581,6 +586,39 @@ async function writeTauriStoredProjectMount(
   }
 }
 
+async function prepareTauriStoredProjectMount(
+  projectId: string,
+  subject: ProjectDeviceMountSubject,
+): Promise<BrowserProviderSessionDirectoryIdentity | null> {
+  const invoke = await resolveBirdCoderTauriInvoke();
+  if (!invoke) {
+    return null;
+  }
+
+  try {
+    const identity = await invoke<TauriProviderSessionDirectoryIdentityResponse | null>(
+      'project_device_mount_provider_session_directory_identity',
+      {
+        ownerKeys: resolveCompatibleMountOwnerKeys(subject),
+        projectId,
+      },
+    );
+    const directoryFingerprint = normalizeDirectoryFingerprint(
+      identity?.directoryFingerprint,
+    );
+    const directoryName = identity?.directoryName?.trim();
+    if (!directoryFingerprint || !directoryName) {
+      return null;
+    }
+    return {
+      directoryFingerprint,
+      directoryName: normalizeDisplayName(directoryName),
+    };
+  } catch {
+    return null;
+  }
+}
+
 function resolveCompatibleMountOwnerKeys(subject: ProjectDeviceMountSubject): string[] {
   const ownerKeys = new Set([sha256Hash(subject.subjectId)]);
   const subjectSegments = subject.subjectId.split('\u0001');
@@ -641,10 +679,17 @@ async function recoverTauriStoredProjectMount(
       && directMount.ownerKey === currentOwnerKey
       && directMount.projectId === projectId
     ) {
-      return directMount;
+      return (await prepareTauriStoredProjectMount(projectId, subject))
+        ? directMount
+        : null;
     }
     const canonicalMount = enrichTauriStoredProjectMount(directMount, projectId, subject);
-    return (await writeTauriStoredProjectMount(key, canonicalMount)) ? canonicalMount : null;
+    if (!(await writeTauriStoredProjectMount(key, canonicalMount))) {
+      return null;
+    }
+    return (await prepareTauriStoredProjectMount(projectId, subject))
+      ? canonicalMount
+      : null;
   }
 
   const invoke = await resolveBirdCoderTauriInvoke();
@@ -679,7 +724,9 @@ async function recoverTauriStoredProjectMount(
   if (recoveryEntry.key.toLowerCase() !== key.toLowerCase()) {
     await deleteTauriStoredProjectMount(recoveryEntry.key);
   }
-  return canonicalMount;
+  return (await prepareTauriStoredProjectMount(projectId, subject))
+    ? canonicalMount
+    : null;
 }
 
 function toTauriRuntimeLocationBinding(
@@ -718,7 +765,7 @@ export async function fingerprintBrowserDirectoryHandle(
   entries.sort((left, right) => compareUtf8(left.name, right.name));
   const manifest = entries.reduce(
     (value, entry) => `${value}${entry.kind}\0${entry.name}\n`,
-    NATIVE_DIRECTORY_FINGERPRINT_PREFIX,
+    PROVIDER_SESSION_DIRECTORY_FINGERPRINT_PREFIX,
   );
   return `sha256:${sha256Hash(manifest)}`;
 }
@@ -760,10 +807,10 @@ export class ProjectDeviceMountRegistry {
     return (await this.resolveCurrentSubject())?.key ?? null;
   }
 
-  async resolveBrowserNativeDirectoryIdentity(
+  async resolveBrowserProviderSessionDirectoryIdentity(
     projectId: string,
     expectedSubjectKey?: string | null,
-  ): Promise<BrowserNativeDirectoryIdentity | null> {
+  ): Promise<BrowserProviderSessionDirectoryIdentity | null> {
     if (await isBirdCoderTauriRuntime()) {
       return null;
     }
@@ -811,6 +858,41 @@ export class ProjectDeviceMountRegistry {
       directoryFingerprint,
       directoryName: normalizeDisplayName(storedMount.handle.name),
     };
+  }
+
+  async resolveProviderSessionDirectoryIdentity(
+    projectId: string,
+    expectedSubjectKey?: string | null,
+  ): Promise<BrowserProviderSessionDirectoryIdentity | null> {
+    if (!(await isBirdCoderTauriRuntime())) {
+      return this.resolveBrowserProviderSessionDirectoryIdentity(projectId, expectedSubjectKey);
+    }
+
+    const normalizedProjectId = normalizeProjectId(projectId);
+    const resolvedSubject = await this.resolveCurrentSubject();
+    const subjectKey = resolvedSubject?.key ?? null;
+    if (
+      !resolvedSubject
+      || (expectedSubjectKey !== undefined && subjectKey !== expectedSubjectKey)
+    ) {
+      return null;
+    }
+
+    const key = buildSubjectProjectMountKey(resolvedSubject.subject, normalizedProjectId);
+    const mount = await recoverTauriStoredProjectMount(
+      key,
+      normalizedProjectId,
+      resolvedSubject.subject,
+    );
+    if (!mount || !(await this.isCurrentSubjectKey(subjectKey))) {
+      return null;
+    }
+
+    const identity = await prepareTauriStoredProjectMount(
+      normalizedProjectId,
+      resolvedSubject.subject,
+    );
+    return identity && await this.isCurrentSubjectKey(subjectKey) ? identity : null;
   }
 
   /**
@@ -901,6 +983,11 @@ export class ProjectDeviceMountRegistry {
         resolvedSubject.subject,
       );
       persisted = nextMount ? await writeTauriStoredProjectMount(key, nextMount) : false;
+      if (persisted) {
+        persisted = Boolean(
+          await prepareTauriStoredProjectMount(normalizedProjectId, resolvedSubject.subject),
+        );
+      }
     }
 
     // A local store write cannot be cancelled once issued. Its key remains bound to

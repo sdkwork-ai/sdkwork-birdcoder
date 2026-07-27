@@ -44,13 +44,16 @@ export function resolveAgentSessionAttentionLevel(
   session: Pick<AgentSessionView, 'pinned' | 'runtimeStatus' | 'unread'>,
 ): AgentSessionInboxAttentionLevel {
   if (session.pinned) return 'pinned';
-  if (session.runtimeStatus === 'awaiting_approval' || session.runtimeStatus === 'awaiting_user') {
+  if (
+    session.runtimeStatus === 'awaiting_approval'
+    || session.runtimeStatus === 'awaiting_tool'
+    || session.runtimeStatus === 'awaiting_user'
+  ) {
     return 'attention';
   }
   if (
     session.runtimeStatus === 'initializing'
     || session.runtimeStatus === 'streaming'
-    || session.runtimeStatus === 'awaiting_tool'
   ) {
     return 'executing';
   }

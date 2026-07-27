@@ -14,6 +14,7 @@ import type {
   CreateAgentSessionRuntimeBindingRequest,
   CreateAgentTurnRequest,
   PageInfo,
+  SessionActivitySummary,
   UpdateAgentSessionUserStateRequest,
 } from '@sdkwork/birdcoder-pc-core/sdk/agents-app';
 
@@ -42,6 +43,14 @@ export interface AgentWorkspaceSessionPageRequest extends AgentSessionListPageRe
 export interface AgentScopedSessionPageRequest extends AgentSessionListPageRequest {
   agentId?: string;
   projectId?: string;
+}
+
+export interface AgentSessionActivityPageRequest {
+  agentId?: string;
+  cursor?: string;
+  pageSize?: number;
+  projectId?: string;
+  workspaceId?: string;
 }
 
 export interface AgentSessionReadOptions {
@@ -75,10 +84,24 @@ export interface SubmitAgentTurnInput
     | 'requestedModelId'
     | 'runtimeBindingId'
     | 'turnId'
-    | 'turnMode'
-  > {}
+  > {
+  turnMode?: CreateAgentTurnRequest['turnMode'];
+}
+
+export interface AgentTurnStreamDelta {
+  content: string;
+  delta: string;
+  index: number;
+}
+
+export interface SubmitAgentTurnOptions extends AgentSessionReadOptions {
+  agentId: string;
+  onAccepted?: () => void;
+  onDelta?: (delta: Readonly<AgentTurnStreamDelta>) => void;
+}
 
 export interface AgentTurnCompletion {
+  session: AgentSessionRecord;
   turn: AgentTurnRecord;
   items: AgentSessionItemRecord[];
 }
@@ -97,6 +120,10 @@ export interface AgentInteractionClaim {
 export interface IAgentSessionService {
   createSession(input: CreateAgentSessionInput): Promise<AgentSessionRecord>;
   getSession(sessionId: string, options?: AgentSessionReadOptions): Promise<AgentSessionRecord>;
+  listSessionActivitySummaries(
+    request?: AgentSessionActivityPageRequest,
+    options?: AgentSessionReadOptions,
+  ): Promise<AgentSessionPage<SessionActivitySummary>>;
   listSessions(
     request: AgentProjectSessionPageRequest,
     options?: AgentSessionReadOptions,
@@ -129,7 +156,11 @@ export interface IAgentSessionService {
     request?: AgentSessionPageRequest,
     options?: AgentSessionReadOptions,
   ): Promise<AgentSessionPage<AgentTurnRecord>>;
-  submitTurn(sessionId: string, input: SubmitAgentTurnInput): Promise<AgentTurnCompletion>;
+  submitTurn(
+    sessionId: string,
+    input: SubmitAgentTurnInput,
+    options: SubmitAgentTurnOptions,
+  ): Promise<AgentTurnCompletion>;
   listInteractions(
     sessionId: string,
     request?: AgentSessionPageRequest,
@@ -169,10 +200,10 @@ export interface IAgentSessionService {
     request?: AgentSessionPageRequest,
     options?: AgentSessionReadOptions,
   ): Promise<AgentSessionPage<AgentSessionCheckpointRecord>>;
-  getSessionUserState(
-    sessionId: string,
+  getSessionUserStates(
+    sessionIds: readonly string[],
     options?: AgentSessionReadOptions,
-  ): Promise<AgentResourceUserStateRecord | null>;
+  ): Promise<ReadonlyMap<string, AgentResourceUserStateRecord>>;
   updateSessionUserState(
     sessionId: string,
     request: UpdateAgentSessionUserStateRequest,

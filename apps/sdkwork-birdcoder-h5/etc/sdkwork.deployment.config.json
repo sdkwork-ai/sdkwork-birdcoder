@@ -7,7 +7,7 @@
   "runtimeConfig": "browser.runtime.json",
   "materialization": {
     "authority": "../../../etc/sdkwork.deployment.config.json",
-    "command": "pnpm config:materialize",
+    "command": "pnpm workflow:materialize-client-env",
     "format": "dotenv",
     "outputPattern": "../.env.{deploymentProfile}.{environment}",
     "profiles": [

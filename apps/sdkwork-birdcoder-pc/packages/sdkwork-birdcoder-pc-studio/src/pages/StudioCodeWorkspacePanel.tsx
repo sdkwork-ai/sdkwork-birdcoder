@@ -16,6 +16,9 @@ interface StudioCodeWorkspacePanelProps {
   isActive?: boolean;
   currentProjectId?: string;
   files: FileNode[];
+  projectRootPath: string;
+  fileTreeLoadError: boolean;
+  isFileTreeLoading: boolean;
   loadingDirectoryPaths: Record<string, boolean>;
   openFiles: string[];
   selectedFile?: string | null;
@@ -30,6 +33,7 @@ interface StudioCodeWorkspacePanelProps {
   onDeleteFile: (path: string) => void;
   onDeleteFolder: (path: string) => void;
   onRenameNode: (path: string, nextPath: string) => void | Promise<void>;
+  onRetryFileTreeLoad: () => void | Promise<void>;
   onCloseDiff: () => void;
   onFileDraftChange: (value: string) => void;
   onExplorerResize: (delta: number) => void;
@@ -51,6 +55,9 @@ function areStudioCodeWorkspacePanelPropsEqual(
   return (
     left.currentProjectId === right.currentProjectId &&
     left.files === right.files &&
+    left.projectRootPath === right.projectRootPath &&
+    left.fileTreeLoadError === right.fileTreeLoadError &&
+    left.isFileTreeLoading === right.isFileTreeLoading &&
     left.loadingDirectoryPaths === right.loadingDirectoryPaths &&
     left.openFiles === right.openFiles &&
     left.selectedFile === right.selectedFile &&
@@ -65,6 +72,7 @@ function areStudioCodeWorkspacePanelPropsEqual(
     left.onDeleteFile === right.onDeleteFile &&
     left.onDeleteFolder === right.onDeleteFolder &&
     left.onRenameNode === right.onRenameNode &&
+    left.onRetryFileTreeLoad === right.onRetryFileTreeLoad &&
     left.onCloseDiff === right.onCloseDiff &&
     left.onFileDraftChange === right.onFileDraftChange &&
     left.onExplorerResize === right.onExplorerResize &&
@@ -76,6 +84,9 @@ export const StudioCodeWorkspacePanel = memo(function StudioCodeWorkspacePanel({
   isActive = true,
   currentProjectId,
   files,
+  projectRootPath,
+  fileTreeLoadError,
+  isFileTreeLoading,
   loadingDirectoryPaths,
   openFiles,
   selectedFile,
@@ -90,6 +101,7 @@ export const StudioCodeWorkspacePanel = memo(function StudioCodeWorkspacePanel({
   onDeleteFile,
   onDeleteFolder,
   onRenameNode,
+  onRetryFileTreeLoad,
   onCloseDiff,
   onFileDraftChange,
   onExplorerResize,
@@ -140,11 +152,15 @@ export const StudioCodeWorkspacePanel = memo(function StudioCodeWorkspacePanel({
     <div className={isActive ? 'flex-1 flex h-full overflow-hidden' : 'hidden'}>
       <DeferredFileExplorer
         files={files}
+        hasLoadError={fileTreeLoadError}
         isActive={isActive}
+        isLoading={isFileTreeLoading}
         width={explorerWidth}
         loadingDirectoryPaths={loadingDirectoryPaths}
         onExpandDirectory={onExpandDirectory}
+        onRetryLoad={onRetryFileTreeLoad}
         projectId={currentProjectId}
+        projectRootPath={projectRootPath}
         scopeKey={currentProjectId}
         selectedFile={selectedFile || undefined}
         onSelectFile={onSelectFile}

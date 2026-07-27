@@ -53,6 +53,8 @@ permissions = [
   "allow-local-store-get",
   "allow-local-store-set",
   "allow-local-store-delete",
+  "allow-project-device-mount-find",
+  "allow-project-device-mount-provider-session-directory-identity",
   "allow-local-store-list",
 
   # OS credential-store backed IAM application session commands

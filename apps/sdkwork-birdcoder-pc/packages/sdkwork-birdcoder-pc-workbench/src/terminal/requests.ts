@@ -5,9 +5,12 @@ export type TerminalCommandSurface = 'project' | 'embedded';
 
 export interface TerminalCommandRequest {
   surface: TerminalCommandSurface;
+  agentSessionId?: string;
   path?: string;
   command?: string;
   profileId?: TerminalProfileId;
+  projectId?: string;
+  runtimeLocationId?: string;
   timestamp: number;
 }
 
@@ -40,9 +43,12 @@ export function buildDefaultTerminalCommandRequest(
 ): TerminalCommandRequest {
   return {
     surface: overrides.surface ?? 'project',
+    agentSessionId: overrides.agentSessionId?.trim() || undefined,
     path: overrides.path?.trim() || undefined,
     command: overrides.command?.trim() || undefined,
     profileId: overrides.profileId ?? resolveBrowserTerminalProfileId(),
+    projectId: overrides.projectId?.trim() || undefined,
+    runtimeLocationId: overrides.runtimeLocationId?.trim() || undefined,
     timestamp: Date.now(),
   };
 }
@@ -68,9 +74,12 @@ export function areTerminalCommandRequestsEqual(
 
   return (
     left.surface === right.surface &&
+    left.agentSessionId === right.agentSessionId &&
     left.path === right.path &&
     left.command === right.command &&
     left.profileId === right.profileId &&
+    left.projectId === right.projectId &&
+    left.runtimeLocationId === right.runtimeLocationId &&
     left.timestamp === right.timestamp
   );
 }

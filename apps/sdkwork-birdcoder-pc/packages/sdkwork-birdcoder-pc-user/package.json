@@ -24,6 +24,7 @@
     "@sdkwork/membership-pc-membership": "workspace:*",
     "@sdkwork/membership-pc-subscription": "workspace:*",
     "@sdkwork/order-pc-checkout": "workspace:*",
+    "@sdkwork/order-pc-recharge": "workspace:*",
     "@sdkwork/ui-pc-react": "workspace:*",
     "@sdkwork/appbase-pc-react": "workspace:*",
     "lucide-react": "catalog:",

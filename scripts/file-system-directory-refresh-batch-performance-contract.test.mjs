@@ -22,7 +22,7 @@ const hookSource = fs.readFileSync(
   'utf8',
 );
 
-const commonsInterfaceSource = fs.readFileSync(
+const workbenchInterfaceProxySource = fs.readFileSync(
   path.join(
     rootDir,
     'apps',
@@ -77,9 +77,9 @@ const runtimeSource = fs.readFileSync(
 );
 
 assert.match(
-  commonsInterfaceSource,
-  /refreshDirectories\(\s*projectId: string,\s*paths: readonly string\[\]\s*\): Promise<IFileNode\[]>;/s,
-  'The shared filesystem service contract must expose refreshDirectories so high-level hooks can refresh all loaded directories in one batch.',
+  workbenchInterfaceProxySource,
+  /export type \{[\s\S]*FileSystemChangeSubscriptionOptions,[\s\S]*IFileSystemService,[\s\S]*\} from '@sdkwork\/birdcoder-pc-infrastructure-runtime';/s,
+  'Workbench must consume the canonical runtime filesystem service contract.',
 );
 
 assert.match(

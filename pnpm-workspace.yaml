@@ -72,6 +72,7 @@ packages:
   - "../sdkwork-order/sdks/sdkwork-order-app-sdk/sdkwork-order-app-sdk-typescript"
   - "../sdkwork-order/sdks/sdkwork-order-backend-sdk/sdkwork-order-backend-sdk-typescript"
   - "../sdkwork-order/apps/sdkwork-order-pc/packages/sdkwork-order-pc-checkout"
+  - "../sdkwork-order/apps/sdkwork-order-pc/packages/sdkwork-order-pc-recharge"
 
 catalog:
   "@tailwindcss/vite": ^4.1.14

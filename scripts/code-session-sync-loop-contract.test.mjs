@@ -67,4 +67,16 @@ assert.match(
   'Studio session sync must not re-notify the shell for the same local project-scoped coding session key.',
 );
 
+assert.match(
+  studioSyncSource,
+  /if \(!normalizedInitialAgentSessionId\) \{[\s\S]*!normalizedSelectedAgentSessionId[\s\S]*setSelectedAgentSessionProjectId\(normalizedInitialProjectId \|\| null\);[\s\S]*return;/s,
+  'Studio session sync must preserve a valid local Session when the shell has no initial Session override.',
+);
+
+assert.doesNotMatch(
+  studioSyncSource,
+  /if \(!normalizedInitialAgentSessionId\) \{[\s\S]*setSelectedAgentSessionId\(''\);/s,
+  'Studio session sync must not clear a local Session merely because the shell initial Session is temporarily empty.',
+);
+
 console.log('code session sync loop contract passed.');

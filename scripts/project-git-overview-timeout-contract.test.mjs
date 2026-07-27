@@ -20,35 +20,48 @@ const hookSource = fs.readFileSync(
   ),
   'utf8',
 );
+const subscriptionSource = fs.readFileSync(
+  path.join(
+    rootDir,
+    'apps',
+    'sdkwork-birdcoder-pc',
+    'packages',
+    'sdkwork-birdcoder-pc-workbench',
+    'src',
+    'workbench',
+    'projectGitOverviewSubscription.ts',
+  ),
+  'utf8',
+);
 const packageJson = JSON.parse(fs.readFileSync(path.join(rootDir, 'package.json'), 'utf8'));
 
 assert.match(
-  hookSource,
-  /const PROJECT_GIT_OVERVIEW_LOAD_TIMEOUT_MS = 30_000;/,
+  subscriptionSource,
+  /export const PROJECT_GIT_OVERVIEW_LOAD_TIMEOUT_MS = 30_000;/,
   'Project Git overview loading must be bounded so Git controls and drawers cannot stay loading forever.',
 );
 
 assert.match(
-  hookSource,
-  /function loadProjectGitOverviewWithTimeout\([\s\S]*Promise\.race\(\[\s*gitService\.getProjectGitOverview\(projectId\),\s*timeoutBoundary\.promise,\s*\]\)[\s\S]*timeoutBoundary\.clear\(\);/,
-  'Project Git overview refresh must race gitService.getProjectGitOverview against a timeout boundary.',
+  subscriptionSource,
+  /async function loadWithTimeout\([\s\S]*Promise\.race\(\[\s*source\.getProjectGitOverview\(projectId\),\s*timeoutBoundary\.promise,\s*\]\)[\s\S]*timeoutBoundary\.clear\(\);/,
+  'The Git overview subscription must race its injected source against a timeout boundary.',
 );
 
 assert.match(
-  hookSource,
-  /const nextOverview = await loadProjectGitOverviewWithTimeout\(\s*gitService,\s*normalizedProjectId,\s*\);/,
-  'useProjectGitOverview must use the bounded loader for automatic and manual refreshes.',
+  subscriptionSource,
+  /const overview = await loadWithTimeout\(source, normalizedProjectId, timeoutMs\);/,
+  'The Git overview subscription must use the bounded loader for refreshes.',
 );
 
 assert.match(
-  hookSource,
+  subscriptionSource,
   /if \(entry\.requestVersion === requestVersion\) \{\s*entry\.inFlight = null;\s*\}/,
-  'useProjectGitOverview must release the current in-flight load after success, failure, or timeout.',
+  'The Git overview subscription must release the current in-flight load after success, failure, or timeout.',
 );
 
 assert.match(
-  hookSource,
-  /loadErrorMessage:[\s\S]*error instanceof Error && error\.message\.trim\(\)[\s\S]*: 'Failed to load project Git overview\.'/,
+  subscriptionSource,
+  /function loadErrorMessage\(error: unknown\): string \{[\s\S]*error instanceof Error && error\.message\.trim\(\)[\s\S]*: 'Failed to load project Git overview\.'/,
   'Project Git overview timeout errors must converge to the existing retryable load error state.',
 );
 

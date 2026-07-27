@@ -20,6 +20,9 @@ function createCheckoutCopy(
     close: translate(keys.close),
     completed: translate(keys.completed),
     creatingPayment: translate(keys.creatingPayment),
+    expired: translate(keys.expired),
+    expiredDescription: translate(keys.expiredDescription),
+    expiresIn: translate(keys.expiresIn),
     paymentUnavailable: translate(keys.paymentUnavailableTitle),
     paymentUnavailableDescription: translate(keys.paymentUnavailableDescription),
     payByQr: translate(keys.payByQr),
@@ -29,6 +32,7 @@ function createCheckoutCopy(
     secureDescription: translate(keys.secureDescription),
     secureTitle: translate(keys.secureTitle),
     selectedItem: translate(keys.selectedPlan),
+    title: translate(keys.title),
   };
 }
 

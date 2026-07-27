@@ -53,6 +53,16 @@ assert.doesNotMatch(
   /repository_root_path:|current_worktree_path:/,
   'Tauri Git DTOs must not expose device-local filesystem paths to the renderer.',
 );
+assert.match(
+  tauriGitCommandSource,
+  /RepositoryRootMismatch,[\s\S]*Unavailable,/,
+  'Tauri Git status must distinguish repository-root mismatch and Git unavailability.',
+);
+assert.match(
+  tauriGitCommandSource,
+  /GitExecutableUnavailable,[\s\S]*RepositoryRootMismatch,/,
+  'Tauri Git diagnostics must expose stable path-free diagnostic codes.',
+);
 
 const overview: BirdCoderProjectGitOverview = {
   branches: [{ isCurrent: true, isRemote: false, name: 'main' }],
@@ -119,8 +129,12 @@ assert.deepEqual(calls, [
   },
 ]);
 
+const unmountedOverview = await runtime.getProjectGitOverview('unmounted-project');
+assert.equal(unmountedOverview.status, 'unavailable');
+assert.equal(unmountedOverview.diagnosticCode, 'project_path_unavailable');
+
 await assert.rejects(
-  runtime.getProjectGitOverview('unmounted-project'),
+  runtime.commitProjectGitChanges('unmounted-project', { message: 'fail' }),
   TauriProjectGitRuntimeUnavailableError,
 );
 

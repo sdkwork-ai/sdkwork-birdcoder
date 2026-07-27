@@ -1,101 +1,41 @@
-import { useCallback, useEffect, useMemo, useSyncExternalStore } from 'react';
+import { useEffect, useMemo, useSyncExternalStore } from 'react';
 import type {
   WorkbenchGitOverviewView,
+  WorkbenchGitRepositoryDiagnosticCode,
   WorkbenchGitWorktreeView,
 } from '@sdkwork/birdcoder-pc-contracts-commons';
 import { ProjectRuntimeLocationExecutionUnavailableError } from '@sdkwork/birdcoder-pc-infrastructure-runtime/projectRuntimeLocation';
 import { useIDEServices } from '../context/ideServices.ts';
-import { subscribeProjectGitOverviewRefresh } from '../workbench/projectGitOverview.ts';
 import { getProjectGitWorktreeDisplayName } from '../workbench/gitWorktrees.ts';
-
-interface ProjectGitOverviewSnapshot {
-  isLoading: boolean;
-  loadErrorMessage: string | null;
-  overview: WorkbenchGitOverviewView | null;
-}
-
-interface ProjectGitOverviewCacheEntry {
-  inFlight: Promise<WorkbenchGitOverviewView | null> | null;
-  listeners: Set<() => void>;
-  requestVersion: number;
-  snapshot: ProjectGitOverviewSnapshot;
-}
+import {
+  createProjectGitOverviewSubscription,
+  type ProjectGitOverviewSubscriptionSnapshot,
+} from '../workbench/projectGitOverviewSubscription.ts';
+import { subscribeProjectGitOverviewRefresh } from '../workbench/projectGitOverview.ts';
 
 export interface UseProjectGitOverviewOptions {
   isActive?: boolean;
   projectId?: string | null;
 }
 
-export interface ProjectGitOverviewViewState extends ProjectGitOverviewSnapshot {
+export interface ProjectGitOverviewViewState {
   applyGitOverview: (overview: WorkbenchGitOverviewView) => void;
   branches: string[];
   currentBranchLabel: string;
   currentWorktree: WorkbenchGitWorktreeView | null;
   currentWorktreeLabel: string;
+  diagnosticCode: WorkbenchGitRepositoryDiagnosticCode | null;
   isGitRepositoryReady: boolean;
+  isLoading: boolean;
+  loadErrorMessage: string | null;
   normalizedProjectId: string;
+  overview: WorkbenchGitOverviewView | null;
   refreshGitOverview: () => Promise<WorkbenchGitOverviewView | null>;
+  subscriptionStatus: ProjectGitOverviewSubscriptionSnapshot['kind'];
   worktrees: WorkbenchGitWorktreeView[];
 }
 
 export interface UseProjectGitOverviewResult extends ProjectGitOverviewViewState {}
-
-const EMPTY_SNAPSHOT: ProjectGitOverviewSnapshot = Object.freeze({
-  isLoading: false,
-  loadErrorMessage: null,
-  overview: null,
-});
-
-const PROJECT_GIT_OVERVIEW_LOAD_TIMEOUT_MS = 30_000;
-const projectGitOverviewCache = new Map<string, ProjectGitOverviewCacheEntry>();
-
-interface ProjectGitOverviewLoadTimeoutBoundary {
-  clear: () => void;
-  promise: Promise<never>;
-}
-
-function createProjectGitOverviewLoadTimeoutPromise(
-  projectId: string,
-  timeoutMs: number,
-): ProjectGitOverviewLoadTimeoutBoundary {
-  let timeoutHandle: ReturnType<typeof setTimeout> | null = null;
-  const promise = new Promise<never>((_resolve, reject) => {
-    timeoutHandle = setTimeout(() => {
-      reject(
-        new Error(
-          `Timed out loading project Git overview for "${projectId}" after ${timeoutMs} ms.`,
-        ),
-      );
-    }, timeoutMs);
-  });
-
-  return {
-    clear: () => {
-      if (timeoutHandle) {
-        clearTimeout(timeoutHandle);
-        timeoutHandle = null;
-      }
-    },
-    promise,
-  };
-}
-
-function loadProjectGitOverviewWithTimeout(
-  gitService: ReturnType<typeof useIDEServices>['gitService'],
-  projectId: string,
-  timeoutMs: number = PROJECT_GIT_OVERVIEW_LOAD_TIMEOUT_MS,
-): Promise<WorkbenchGitOverviewView> {
-  const timeoutBoundary = createProjectGitOverviewLoadTimeoutPromise(
-    projectId,
-    timeoutMs,
-  );
-  return Promise.race([
-    gitService.getProjectGitOverview(projectId),
-    timeoutBoundary.promise,
-  ]).finally(() => {
-    timeoutBoundary.clear();
-  });
-}
 
 function shouldReportProjectGitOverviewLoadError(error: unknown): boolean {
   const errorCode = typeof error === 'object' && error !== null && 'code' in error
@@ -110,242 +50,86 @@ function shouldReportProjectGitOverviewLoadError(error: unknown): boolean {
   );
 }
 
-function peekProjectGitOverviewCacheEntry(projectId: string): ProjectGitOverviewCacheEntry | undefined {
-  return projectGitOverviewCache.get(projectId);
-}
-
-function createProjectGitOverviewCacheEntry(): ProjectGitOverviewCacheEntry {
-  return {
-    inFlight: null,
-    listeners: new Set(),
-    requestVersion: 0,
-    snapshot: {
-      ...EMPTY_SNAPSHOT,
-    },
-  };
-}
-
-function getProjectGitOverviewCacheEntry(projectId: string): ProjectGitOverviewCacheEntry {
-  let entry = peekProjectGitOverviewCacheEntry(projectId);
-  if (!entry) {
-    entry = createProjectGitOverviewCacheEntry();
-    projectGitOverviewCache.set(projectId, entry);
+function reportProjectGitOverviewLoadError(error: unknown): void {
+  if (shouldReportProjectGitOverviewLoadError(error)) {
+    console.error('Failed to load project Git overview', error);
   }
-
-  return entry;
-}
-
-function emitProjectGitOverviewCacheEntry(entry: ProjectGitOverviewCacheEntry): void {
-  for (const listener of Array.from(entry.listeners)) {
-    listener();
-  }
-}
-
-function cleanupProjectGitOverviewCacheEntry(
-  projectId: string,
-  entry: ProjectGitOverviewCacheEntry,
-): void {
-  if (entry.listeners.size > 0 || entry.inFlight) {
-    return;
-  }
-
-  projectGitOverviewCache.delete(projectId);
-}
-
-function getProjectGitOverviewSnapshot(projectId: string): ProjectGitOverviewSnapshot {
-  if (!projectId) {
-    return EMPTY_SNAPSHOT;
-  }
-
-  return peekProjectGitOverviewCacheEntry(projectId)?.snapshot ?? EMPTY_SNAPSHOT;
-}
-
-function applyProjectGitOverviewSnapshot(
-  projectId: string,
-  overview: WorkbenchGitOverviewView,
-): void {
-  if (!projectId) {
-    return;
-  }
-
-  const entry = getProjectGitOverviewCacheEntry(projectId);
-  entry.requestVersion += 1;
-  entry.inFlight = null;
-  entry.snapshot = {
-    isLoading: false,
-    loadErrorMessage: null,
-    overview,
-  };
-  emitProjectGitOverviewCacheEntry(entry);
-  cleanupProjectGitOverviewCacheEntry(projectId, entry);
 }
 
 export function useProjectGitOverview({
   isActive = true,
   projectId,
 }: UseProjectGitOverviewOptions): UseProjectGitOverviewResult {
-  const normalizedProjectId = projectId?.trim() ?? '';
   const { gitService } = useIDEServices();
-
-  const subscribe = useCallback(
-    (listener: () => void) => {
-      if (!normalizedProjectId || !isActive) {
-        return () => undefined;
-      }
-
-      const entry = getProjectGitOverviewCacheEntry(normalizedProjectId);
-      entry.listeners.add(listener);
-      return () => {
-        entry.listeners.delete(listener);
-        cleanupProjectGitOverviewCacheEntry(normalizedProjectId, entry);
-      };
-    },
-    [isActive, normalizedProjectId],
+  const subscription = useMemo(
+    () => createProjectGitOverviewSubscription({
+      activation: isActive ? 'active' : 'inactive',
+      onLoadError: reportProjectGitOverviewLoadError,
+      projectId,
+      source: gitService,
+    }),
+    [gitService, isActive, projectId],
   );
-
-  const getSnapshot = useCallback(
-    () => getProjectGitOverviewSnapshot(normalizedProjectId),
-    [normalizedProjectId],
-  );
-
-  const { isLoading, loadErrorMessage, overview } = useSyncExternalStore(
-    subscribe,
-    getSnapshot,
-    getSnapshot,
-  );
-
-  const refreshGitOverview = useCallback(async (): Promise<WorkbenchGitOverviewView | null> => {
-    if (!normalizedProjectId) {
-      return null;
-    }
-
-    const entry = getProjectGitOverviewCacheEntry(normalizedProjectId);
-    if (entry.inFlight) {
-      return entry.inFlight;
-    }
-
-    const requestVersion = entry.requestVersion + 1;
-    entry.requestVersion = requestVersion;
-    entry.snapshot = {
-      ...entry.snapshot,
-      isLoading: true,
-      loadErrorMessage: null,
-    };
-    emitProjectGitOverviewCacheEntry(entry);
-
-    const request = (async () => {
-      try {
-        const nextOverview = await loadProjectGitOverviewWithTimeout(
-          gitService,
-          normalizedProjectId,
-        );
-        if (entry.requestVersion !== requestVersion) {
-          return entry.snapshot.overview;
-        }
-
-        entry.snapshot = {
-          isLoading: false,
-          loadErrorMessage: null,
-          overview: nextOverview,
-        };
-        emitProjectGitOverviewCacheEntry(entry);
-        return nextOverview;
-      } catch (error) {
-        if (entry.requestVersion !== requestVersion) {
-          return entry.snapshot.overview;
-        }
-
-        if (shouldReportProjectGitOverviewLoadError(error)) {
-          console.error('Failed to load project Git overview', error);
-        }
-        entry.snapshot = {
-          ...entry.snapshot,
-          isLoading: false,
-          loadErrorMessage:
-            error instanceof Error && error.message.trim()
-              ? error.message
-              : 'Failed to load project Git overview.',
-        };
-        emitProjectGitOverviewCacheEntry(entry);
-        return entry.snapshot.overview;
-      } finally {
-        if (entry.requestVersion === requestVersion) {
-          entry.inFlight = null;
-        }
-        cleanupProjectGitOverviewCacheEntry(normalizedProjectId, entry);
-      }
-    })();
-
-    entry.inFlight = request;
-    return request;
-  }, [gitService, normalizedProjectId]);
-
-  const applyGitOverview = useCallback(
-    (nextOverview: WorkbenchGitOverviewView) => {
-      applyProjectGitOverviewSnapshot(normalizedProjectId, nextOverview);
-    },
-    [normalizedProjectId],
+  const snapshot = useSyncExternalStore(
+    subscription.subscribe,
+    subscription.getSnapshot,
+    subscription.getSnapshot,
   );
 
   useEffect(() => {
-    if (!isActive || !normalizedProjectId || overview || isLoading || loadErrorMessage) {
+    if (snapshot.kind !== 'idle' || !subscription.normalizedProjectId) {
       return;
     }
-
-    void refreshGitOverview();
-  }, [isActive, isLoading, loadErrorMessage, normalizedProjectId, overview, refreshGitOverview]);
+    void subscription.refresh();
+  }, [snapshot.kind, subscription]);
 
   useEffect(() => {
-    if (!isActive || !normalizedProjectId) {
+    if (!isActive || !subscription.normalizedProjectId) {
       return;
     }
-
     return subscribeProjectGitOverviewRefresh((refreshedProjectId) => {
-      if (refreshedProjectId !== normalizedProjectId) {
-        return;
+      if (refreshedProjectId === subscription.normalizedProjectId) {
+        void subscription.refresh();
       }
-
-      void refreshGitOverview();
     });
-  }, [isActive, normalizedProjectId, refreshGitOverview]);
+  }, [isActive, subscription]);
 
-  const currentWorktree =
-    overview?.worktrees.find((worktree) => worktree.isCurrent)
-    ?? null;
+  const overview = snapshot.overview;
+  const currentWorktree = overview?.worktrees.find((worktree) => worktree.isCurrent) ?? null;
   const branches = overview?.branches.map((branch) => branch.name) ?? [];
-  const currentBranchLabel =
-    overview?.currentBranch?.trim() || overview?.currentRevision?.slice(0, 8) || branches[0] || '';
+  const currentBranchLabel = overview?.currentBranch?.trim()
+    || overview?.currentRevision?.slice(0, 8)
+    || branches[0]
+    || '';
   const worktrees = overview?.worktrees ?? [];
   const currentWorktreeLabel = getProjectGitWorktreeDisplayName(currentWorktree);
-  const isGitRepositoryReady = overview?.status === 'ready';
 
   return useMemo(
     () => ({
-      applyGitOverview,
+      applyGitOverview: subscription.apply,
       branches,
       currentBranchLabel,
       currentWorktree,
       currentWorktreeLabel,
-      isGitRepositoryReady,
-      isLoading,
-      loadErrorMessage,
-      normalizedProjectId,
+      diagnosticCode: overview?.diagnosticCode ?? null,
+      isGitRepositoryReady: snapshot.kind === 'ready',
+      isLoading: snapshot.kind === 'loading',
+      loadErrorMessage: snapshot.errorMessage,
+      normalizedProjectId: subscription.normalizedProjectId,
       overview,
-      refreshGitOverview,
+      refreshGitOverview: subscription.refresh,
+      subscriptionStatus: snapshot.kind,
       worktrees,
     }),
     [
-      applyGitOverview,
       branches,
       currentBranchLabel,
       currentWorktree,
       currentWorktreeLabel,
-      isGitRepositoryReady,
-      isLoading,
-      loadErrorMessage,
-      normalizedProjectId,
       overview,
-      refreshGitOverview,
+      snapshot.errorMessage,
+      snapshot.kind,
+      subscription,
       worktrees,
     ],
   );

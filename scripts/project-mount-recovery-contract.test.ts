@@ -11,6 +11,8 @@ const {
   createProjectMountRecoveryStateFromDeviceMount,
   createRecoveredProjectMountRecoveryState,
   createRecoveringProjectMountRecoveryState,
+  isProjectMountReadyForSessionSynchronization,
+  resolveProjectMountRecoveryActions,
 } = await import(`${modulePath.href}?t=${Date.now()}`);
 
 assert.deepEqual(createIdleProjectMountRecoveryState(), {
@@ -51,7 +53,7 @@ for (const [mount, expected] of [
     {
       displayName: 'sample-app',
       status: 'permission_required',
-      message: 'Folder permission is required. Select the folder again to continue.',
+      message: 'Select the folder again to restore files and local coding sessions.',
     },
   ],
   [
@@ -67,7 +69,7 @@ for (const [mount, expected] of [
     {
       displayName: null,
       status: 'mount_required',
-      message: 'Select a local folder to access project files on this device.',
+      message: 'Select this project\'s local folder to load files and local coding sessions.',
     },
   ],
 ] as const) {
@@ -75,5 +77,37 @@ for (const [mount, expected] of [
   assert.deepEqual(state, expected);
   assert.equal(Object.hasOwn(state, 'path'), false);
 }
+
+assert.deepEqual(resolveProjectMountRecoveryActions('mount_required'), {
+  chooseFolder: true,
+  requiresAttention: true,
+  retry: false,
+});
+assert.deepEqual(resolveProjectMountRecoveryActions('permission_required'), {
+  chooseFolder: true,
+  requiresAttention: true,
+  retry: false,
+});
+assert.deepEqual(resolveProjectMountRecoveryActions('session_required'), {
+  chooseFolder: false,
+  requiresAttention: true,
+  retry: false,
+});
+assert.deepEqual(resolveProjectMountRecoveryActions('failed'), {
+  chooseFolder: true,
+  requiresAttention: true,
+  retry: true,
+});
+
+assert.equal(isProjectMountReadyForSessionSynchronization({
+  displayName: 'empty-project',
+  host: 'tauri',
+  status: 'mounted',
+}), true);
+assert.equal(isProjectMountReadyForSessionSynchronization({
+  displayName: 'empty-project',
+  host: 'tauri',
+  status: 'permission_required',
+}), false);
 
 console.log('project mount recovery contract passed.');

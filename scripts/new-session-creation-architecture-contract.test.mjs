@@ -24,6 +24,9 @@ const chatSelection = read(
 const services = read(
   "apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/src/services/defaultIdeServicesShared.ts",
 );
+const fileSystemServiceFactory = read(
+  "apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/src/services/projectFileSystemServiceFactory.ts",
+);
 const workspaceProjectPopover = read(
   "apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-shell/src/application/app/AppWorkspaceProjectPopover.tsx",
 );
@@ -143,6 +146,16 @@ assert.equal(
   "New and forked Sessions with Runtime Bindings must share the compensated provisioning transaction.",
 );
 assert.match(
+  projects,
+  /listTurns\(agentSessionId,\s*\{[\s\S]*?page:\s*1,[\s\S]*?pageSize:\s*1,[\s\S]*?sort:\s*'-sequence',[\s\S]*?\}\)[\s\S]*?parentTurnPage\.items\[0\]/,
+  "Forking a Session must read only the latest Turn through descending bounded pagination.",
+);
+assert.doesNotMatch(
+  projects,
+  /listTurns\(agentSessionId,\s*\{\s*page:\s*1,\s*pageSize:\s*200\s*\}\)/,
+  "Forking a Session must not download an arbitrary Turn window and derive the latest Turn in memory.",
+);
+assert.match(
   provisioning,
   /catch \(runtimeBindingError\)[\s\S]*deleteCreatedSession\(session\)[\s\S]*cleanupError[\s\S]*AgentSessionRuntimeBindingProvisioningError/,
   "Runtime Binding failure must delete the incomplete Session and preserve cleanup diagnostics.",
@@ -164,8 +177,18 @@ assert.doesNotMatch(
 );
 assert.match(
   services,
-  /runtimeTopology\.executionLocation === 'local-host'[\s\S]*\? localFileSystem[\s\S]*: new DriveSandboxProjectFileSystemService\(\{[\s\S]*drivePort:[\s\S]*projectService/,
-  "Runtime composition must select the local filesystem only for local-host and Drive for remote execution.",
+  /createProjectFileSystemService\(\{[\s\S]*executionLocation: runtimeTopology\.executionLocation,[\s\S]*localFileSystem,[\s\S]*createRemoteFileSystem: \(\) => new DriveSandboxProjectFileSystemService\(\{[\s\S]*drivePort:[\s\S]*projectService/,
+  "Runtime composition must delegate execution-location-specific provider selection to the file-system factory.",
+);
+assert.match(
+  fileSystemServiceFactory,
+  /switch \(executionLocation\) \{[\s\S]*case 'local-host':[\s\S]*return localFileSystem;[\s\S]*case 'cloud-workspace':[\s\S]*return createRemoteFileSystem\(\);[\s\S]*const unsupportedExecutionLocation: never = executionLocation;[\s\S]*throw new Error\(/,
+  "The file-system factory must exhaustively select local-host locally, cloud-workspace remotely, and reject unsupported locations.",
+);
+assert.doesNotMatch(
+  fileSystemServiceFactory,
+  /\btry\b|\bcatch\b|\.catch\s*\(|\bfallback\b/i,
+  "Provider selection must be explicit and must not switch providers after an operation fails.",
 );
 assert.doesNotMatch(
   services,

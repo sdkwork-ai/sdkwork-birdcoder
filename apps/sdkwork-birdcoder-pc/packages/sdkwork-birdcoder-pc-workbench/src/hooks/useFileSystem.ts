@@ -2,6 +2,8 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import type {
   IFileNode,
   LocalFolderMountSource,
+  ProjectDeviceMountState,
+  ProjectFileSystemRoot,
   ProjectFileSystemChangeEvent,
 } from '@sdkwork/birdcoder-pc-contracts-commons';
 import { useIDEServices } from '../context/IDEContext.ts';
@@ -458,6 +460,7 @@ function mergeProjectFileSystemChangeEvents(
 interface UseFileSystemOptions {
   isActive?: boolean;
   loadActive?: boolean;
+  mountRecoveryActive?: boolean;
   realtimeActive?: boolean;
 }
 
@@ -466,10 +469,13 @@ export function useFileSystem(projectId: string, options?: UseFileSystemOptions)
   const normalizedProjectId = projectId.trim();
   const isActive = options?.isActive ?? true;
   const loadActive = options?.loadActive ?? isActive;
+  const mountRecoveryActive = options?.mountRecoveryActive ?? loadActive;
   const realtimeActive = options?.realtimeActive ?? isActive;
   const selectionStorageKey = buildEditorSelectionStorageKey(normalizedProjectId);
   const [files, setFiles] = useState<IFileNode[]>([]);
+  const [projectRoot, setProjectRoot] = useState<ProjectFileSystemRoot | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [fileTreeLoadError, setFileTreeLoadError] = useState(false);
   const [loadingDirectoryPaths, setLoadingDirectoryPaths] = useState<Record<string, boolean>>({});
   const [openFiles, setOpenFiles] = useState<string[]>([]);
   const [selectedFile, setSelectedFile] = useState<string | null>(null);
@@ -1231,7 +1237,9 @@ export function useFileSystem(projectId: string, options?: UseFileSystemOptions)
     filesIndexRef.current = createEmptyFileTreeIndex();
     pendingMessageFilePathRef.current = null;
     setFiles([]);
+    setProjectRoot(null);
     setIsLoading(false);
+    setFileTreeLoadError(false);
     setLoadingDirectoryPaths({});
     setOpenFiles([]);
     setSelectedFile(null);
@@ -1277,12 +1285,15 @@ export function useFileSystem(projectId: string, options?: UseFileSystemOptions)
     };
   }, []);
 
-  const resolveProjectMountedRootPath = useCallback((): string | null => {
-    if (files.length === 1 && files[0]?.type === 'directory') {
-      return files[0].path;
+  const resolveRequiredProjectRoot = useCallback(async (
+    targetProjectId: string,
+  ): Promise<ProjectFileSystemRoot> => {
+    const root = await fileSystemService.resolveProjectRoot(targetProjectId);
+    if (!root || root.projectId !== targetProjectId) {
+      throw new Error('The current project file-system root is unavailable.');
     }
-    return null;
-  }, [files]);
+    return root;
+  }, [fileSystemService]);
 
   const recoverMountedProjectRoot = useCallback(async (
     targetProjectId: string,
@@ -1326,6 +1337,9 @@ export function useFileSystem(projectId: string, options?: UseFileSystemOptions)
           if (isTrackingCurrentProjectMountRecovery) {
             setMountRecoveryState(createProjectMountRecoveryStateFromDeviceMount(mountState));
           }
+          if (mountState.status === 'mounted') {
+            return await fileSystemService.getFiles(requestProjectId);
+          }
           return [];
         }
         emitProjectGitOverviewRefresh(requestProjectId);
@@ -1365,6 +1379,38 @@ export function useFileSystem(projectId: string, options?: UseFileSystemOptions)
   }, [recoverMountedProjectRoot]);
 
   useEffect(() => {
+    const requestProjectId = normalizedProjectId;
+    if (!requestProjectId || !mountRecoveryActive || loadActive) {
+      return;
+    }
+
+    let isMounted = true;
+    void (async () => {
+      try {
+        let mountState = await fileSystemService.getProjectMountState(requestProjectId);
+        if (!isMounted || requestProjectId !== normalizedProjectId) {
+          return;
+        }
+        if (mountState.status === 'recoverable') {
+          setMountRecoveryState(createRecoveringProjectMountRecoveryState(mountState.displayName));
+          mountState = (await fileSystemService.restoreProjectMount(requestProjectId)).state;
+        }
+        if (isMounted && requestProjectId === normalizedProjectId) {
+          setMountRecoveryState(createProjectMountRecoveryStateFromDeviceMount(mountState));
+        }
+      } catch {
+        if (isMounted && requestProjectId === normalizedProjectId) {
+          setMountRecoveryState(createFailedProjectMountRecoveryState(null));
+        }
+      }
+    })();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [fileSystemService, loadActive, mountRecoveryActive, normalizedProjectId]);
+
+  useEffect(() => {
     let isMounted = true;
     const requestProjectId = normalizedProjectId;
     const loadFiles = async () => {
@@ -1373,6 +1419,7 @@ export function useFileSystem(projectId: string, options?: UseFileSystemOptions)
       }
 
       const requestVersion = beginFileTreeRequestVersion();
+      setFileTreeLoadError(false);
       const canCommitMountRecoveryState = () =>
         isMounted && isLatestFileTreeRequest(requestProjectId, requestVersion);
 
@@ -1396,11 +1443,18 @@ export function useFileSystem(projectId: string, options?: UseFileSystemOptions)
             skipInitialFileCheck: true,
           });
         }
+        const resolvedProjectRoot = await fileSystemService.resolveProjectRoot(requestProjectId);
         if (isMounted && isLatestFileTreeRequest(requestProjectId, requestVersion)) {
+          setFileTreeLoadError(false);
+          setProjectRoot(resolvedProjectRoot);
           syncFilesAndSelection(data, undefined, persistedSelectedFilePath);
         }
-      } catch {
-        console.error('Failed to load project files.');
+      } catch (error) {
+        if (isMounted && isLatestFileTreeRequest(requestProjectId, requestVersion)) {
+          setFileTreeLoadError(true);
+          setProjectRoot(null);
+        }
+        console.error('Failed to load project files.', error);
       } finally {
         if (isMounted) {
           completeFileTreeRequestVersion(requestProjectId);
@@ -1647,14 +1701,19 @@ export function useFileSystem(projectId: string, options?: UseFileSystemOptions)
 
     const requestVersion = beginFileTreeRequestVersion();
     try {
-      const normalizedPath = resolveMountedMutationPath(path, resolveProjectMountedRootPath());
       await ensureMountedProjectRoot(mutationProjectId);
+      const resolvedProjectRoot = await resolveRequiredProjectRoot(mutationProjectId);
+      const normalizedPath = resolveMountedMutationPath(
+        path,
+        resolvedProjectRoot.virtualPath,
+      );
       await fileSystemService.createFile(mutationProjectId, normalizedPath);
       const data = await fileSystemService.getFiles(mutationProjectId);
       if (!isLatestFileTreeRequest(mutationProjectId, requestVersion)) {
         return;
       }
 
+      setProjectRoot(resolvedProjectRoot);
       syncFilesAndSelection(
         data,
         resolveEditorOpenFileStateAfterMutation({
@@ -1679,7 +1738,7 @@ export function useFileSystem(projectId: string, options?: UseFileSystemOptions)
     isLatestFileTreeRequest,
     normalizedProjectId,
     readCurrentEditorOpenFileState,
-    resolveProjectMountedRootPath,
+    resolveRequiredProjectRoot,
     syncFilesAndSelection,
   ]);
 
@@ -1691,14 +1750,19 @@ export function useFileSystem(projectId: string, options?: UseFileSystemOptions)
 
     const requestVersion = beginFileTreeRequestVersion();
     try {
-      const normalizedPath = resolveMountedMutationPath(path, resolveProjectMountedRootPath());
       await ensureMountedProjectRoot(mutationProjectId);
+      const resolvedProjectRoot = await resolveRequiredProjectRoot(mutationProjectId);
+      const normalizedPath = resolveMountedMutationPath(
+        path,
+        resolvedProjectRoot.virtualPath,
+      );
       await fileSystemService.createFolder(mutationProjectId, normalizedPath);
       const data = await fileSystemService.getFiles(mutationProjectId);
       if (!isLatestFileTreeRequest(mutationProjectId, requestVersion)) {
         return;
       }
 
+      setProjectRoot(resolvedProjectRoot);
       syncFilesAndSelection(
         data,
         resolveEditorOpenFileStateAfterMutation({
@@ -1723,7 +1787,7 @@ export function useFileSystem(projectId: string, options?: UseFileSystemOptions)
     isLatestFileTreeRequest,
     normalizedProjectId,
     readCurrentEditorOpenFileState,
-    resolveProjectMountedRootPath,
+    resolveRequiredProjectRoot,
     syncFilesAndSelection,
   ]);
 
@@ -1925,11 +1989,13 @@ export function useFileSystem(projectId: string, options?: UseFileSystemOptions)
           await fileSystemService.getProjectMountState(normalizedTargetProjectId),
         ),
       );
+      const resolvedProjectRoot = await resolveRequiredProjectRoot(normalizedTargetProjectId);
       const data = await fileSystemService.getFiles(normalizedTargetProjectId);
       if (!isLatestFileTreeRequest(normalizedTargetProjectId, requestVersion)) {
         return;
       }
 
+      setProjectRoot(resolvedProjectRoot);
       syncFilesAndSelection(
         data,
         resolveEditorOpenFileStateAfterMutation({
@@ -1959,19 +2025,41 @@ export function useFileSystem(projectId: string, options?: UseFileSystemOptions)
     isProjectActive,
     normalizedProjectId,
     readCurrentEditorOpenFileState,
+    resolveRequiredProjectRoot,
     syncFilesAndSelection,
   ]);
 
-  const restoreProjectMount = useCallback(async () => {
+  const restoreProjectMount = useCallback(async (): Promise<ProjectDeviceMountState | null> => {
     const requestProjectId = normalizedProjectId;
     if (!requestProjectId) {
-      return [];
+      return null;
     }
 
-    return await recoverMountedProjectRoot(requestProjectId, {
-      skipInitialFileCheck: true,
-    });
-  }, [normalizedProjectId, recoverMountedProjectRoot]);
+    const requestVersion = beginFileTreeRequestVersion();
+    try {
+      const recoveredFiles = await recoverMountedProjectRoot(requestProjectId, {
+        skipInitialFileCheck: true,
+      });
+      const resolvedProjectRoot = await fileSystemService.resolveProjectRoot(requestProjectId);
+      const resolvedMountState = await fileSystemService.getProjectMountState(requestProjectId);
+      if (isLatestFileTreeRequest(requestProjectId, requestVersion)) {
+        setProjectRoot(resolvedProjectRoot);
+        setMountRecoveryState(createProjectMountRecoveryStateFromDeviceMount(resolvedMountState));
+        syncFilesAndSelection(recoveredFiles);
+      }
+      return resolvedMountState;
+    } finally {
+      completeFileTreeRequestVersion(requestProjectId);
+    }
+  }, [
+    beginFileTreeRequestVersion,
+    completeFileTreeRequestVersion,
+    fileSystemService,
+    isLatestFileTreeRequest,
+    normalizedProjectId,
+    recoverMountedProjectRoot,
+    syncFilesAndSelection,
+  ]);
 
   const refreshFiles = useCallback(async () => {
     const requestProjectId = normalizedProjectId;
@@ -1983,15 +2071,20 @@ export function useFileSystem(projectId: string, options?: UseFileSystemOptions)
       return;
     }
 
+    const requestVersion = beginFileTreeRequestVersion();
+    setFileTreeLoadError(false);
     try {
       const loadedDirectoryPaths = [...filesIndexRef.current.loadedDirectoryPaths];
       const data = await fileSystemService.refreshDirectories(
         requestProjectId,
         loadedDirectoryPaths,
       );
-      if (!isProjectActive(requestProjectId)) {
+      const resolvedProjectRoot = await fileSystemService.resolveProjectRoot(requestProjectId);
+      if (!isLatestFileTreeRequest(requestProjectId, requestVersion)) {
         return;
       }
+      setFileTreeLoadError(false);
+      setProjectRoot(resolvedProjectRoot);
       syncFilesAndSelection(
         data,
         resolveEditorOpenFileStateAfterMutation({
@@ -2003,9 +2096,17 @@ export function useFileSystem(projectId: string, options?: UseFileSystemOptions)
       );
     } catch (error) {
       console.error("Failed to refresh files", error);
+      if (isLatestFileTreeRequest(requestProjectId, requestVersion)) {
+        setFileTreeLoadError(true);
+      }
+    } finally {
+      completeFileTreeRequestVersion(requestProjectId);
     }
   }, [
+    beginFileTreeRequestVersion,
+    completeFileTreeRequestVersion,
     fileSystemService,
+    isLatestFileTreeRequest,
     isProjectActive,
     normalizedProjectId,
     readCurrentEditorOpenFileState,
@@ -2119,7 +2220,9 @@ export function useFileSystem(projectId: string, options?: UseFileSystemOptions)
 
   return {
     files,
+    projectRoot,
     isLoading,
+    fileTreeLoadError,
     loadingDirectoryPaths,
     openFiles,
     selectedFile,

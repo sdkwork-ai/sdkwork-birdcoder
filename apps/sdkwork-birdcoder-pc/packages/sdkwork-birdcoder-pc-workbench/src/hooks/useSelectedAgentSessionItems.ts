@@ -10,11 +10,14 @@ import { useAuth } from '../context/AuthContext.ts';
 import { buildBirdCoderAuthSessionInventoryScope } from '../context/authSessionScope.ts';
 import type { IProjectService } from '../services/interfaces/IProjectService.ts';
 import {
+  buildProjectsStoreScopeKey,
+  peekProjectsStore,
   upsertAgentSessionIntoProjectsStore,
   upsertProjectIntoProjectsStore,
 } from '../stores/projectsStore.ts';
 import {
   buildAgentSessionItemsRefreshScopeKey,
+  mergeRefreshedAgentSessionIntoCurrent,
   refreshAgentSessionItems,
 } from '../workbench/sessionRefresh.ts';
 
@@ -24,6 +27,7 @@ const IDLE_REFRESH_INTERVAL_MS = 60_000;
 export interface UseSelectedAgentSessionItemsOptions {
   agentSessionService: IAgentSessionService;
   isActive?: boolean;
+  onAgentSessionUnavailable?: (agentSessionId: string, projectId: string) => void;
   projectService: IProjectService;
   selectionRefreshToken: number;
   selectedAgentSession?: AgentSessionView | null;
@@ -38,6 +42,7 @@ function normalize(value: string | null | undefined): string {
 export function useSelectedAgentSessionItems({
   agentSessionService,
   isActive = true,
+  onAgentSessionUnavailable,
   projectService,
   selectionRefreshToken,
   selectedAgentSession,
@@ -73,15 +78,11 @@ export function useSelectedAgentSessionItems({
     () => [
       refreshScopeKey,
       selectionRefreshToken,
-      selectedAgentSession?.updatedAt ?? '',
-      selectedAgentSession?.transcriptUpdatedAt ?? '',
       pollRevision,
     ].join('\u0001'),
     [
       pollRevision,
       refreshScopeKey,
-      selectedAgentSession?.transcriptUpdatedAt,
-      selectedAgentSession?.updatedAt,
       selectionRefreshToken,
     ],
   );
@@ -113,12 +114,25 @@ export function useSelectedAgentSessionItems({
       agentSessionId: normalizedSessionId,
       signal: controller.signal,
       resolvedLocation:
-        requestProject && requestAgentSession
-          ? { agentSession: requestAgentSession, project: requestProject }
+        requestProject
+          ? {
+              ...(requestAgentSession ? { agentSession: requestAgentSession } : {}),
+              project: requestProject,
+            }
           : undefined,
     })
       .then(async (result) => {
-        if (disposed || result.status !== 'refreshed' || !result.agentSession) {
+        if (disposed) {
+          return;
+        }
+        if (result.status === 'not-found') {
+          onAgentSessionUnavailable?.(
+            normalizedSessionId,
+            result.projectId || requestProject?.projectId || '',
+          );
+          return;
+        }
+        if (result.status !== 'refreshed' || !result.agentSession) {
           return;
         }
         const latestSelectedProject = selectedProjectRef.current;
@@ -132,10 +146,19 @@ export function useSelectedAgentSessionItems({
         if (!project) {
           return;
         }
+        const storeScopeKey = buildProjectsStoreScopeKey(userScope, project.workspaceId);
+        const currentAgentSession = peekProjectsStore(storeScopeKey)
+          ?.snapshot.projects
+          .find((candidateProject) => candidateProject.projectId === result.projectId)
+          ?.agentSessions
+          .find((candidateSession) => candidateSession.id === result.agentSessionId);
+        const committedAgentSession = currentAgentSession
+          ? mergeRefreshedAgentSessionIntoCurrent(currentAgentSession, result.agentSession)
+          : result.agentSession;
         upsertProjectIntoProjectsStore(project, userScope);
         upsertAgentSessionIntoProjectsStore(
           result.projectId,
-          result.agentSession,
+          committedAgentSession,
           project.workspaceId,
           userScope,
         );
@@ -165,6 +188,7 @@ export function useSelectedAgentSessionItems({
     agentSessionService,
     isActive,
     normalizedSessionId,
+    onAgentSessionUnavailable,
     projectService,
     requestKey,
     userScope,

@@ -13,6 +13,7 @@
 @source "../../../../sdkwork-promotion/apps/sdkwork-promotion-pc/packages/sdkwork-promotion-pc-coupon/src";
 @source "../../../../sdkwork-promotion/apps/sdkwork-promotion-pc/packages/sdkwork-promotion-pc-core/src";
 @source "../../../../sdkwork-order/apps/sdkwork-order-pc/packages/sdkwork-order-pc-order/src";
+@source "../../../../sdkwork-order/apps/sdkwork-order-pc/packages/sdkwork-order-pc-recharge/src";
 @source "../../../../sdkwork-payment/apps/sdkwork-payment-pc/packages/sdkwork-payment-pc-payment/src";
 @source "../../../../sdkwork-account/apps/sdkwork-account-pc/packages/sdkwork-account-pc-wallet/src";
 

@@ -10,10 +10,12 @@ import type {
   IProjectRuntimeLocationService,
   ProjectRuntimeLocationBindingResult,
   ProjectRuntimeLocationCapability,
+  ProjectRuntimeLocationInput,
   ProjectRuntimeLocationResolution,
   ProjectRuntimeLocationResolutionRequest,
 } from '../interfaces/IProjectRuntimeLocationService.ts';
 import {
+  normalizeProjectRuntimeLocationInput,
   ProjectRuntimeLocationExecutionUnavailableError,
   requireProjectRuntimeLocationExecutionId,
 } from '../interfaces/IProjectRuntimeLocationService.ts';
@@ -26,8 +28,8 @@ export interface RuntimeProjectRuntimeLocationServiceOptions {
   openLocalFolder?: typeof openLocalFolder;
 }
 
-function normalizeProjectId(projectId: string): string | null {
-  return projectId.trim() || null;
+function readProjectId(project: ProjectRuntimeLocationInput): string {
+  return (typeof project === 'string' ? project : project.projectId).trim();
 }
 
 function mapUnavailableMountState(
@@ -47,7 +49,7 @@ function mapUnavailableMountState(
     case 'mount_required':
       return {
         code: 'mount_required',
-        message: 'Select a local desktop folder before using this project location.',
+        message: 'The current project does not have a recoverable local path on this desktop.',
         mountState,
         projectId,
         status: 'unavailable',
@@ -103,66 +105,68 @@ export class RuntimeProjectRuntimeLocationService implements IProjectRuntimeLoca
   }
 
   async bindLocalProjectRuntimeLocation(
-    projectId: string,
+    project: ProjectRuntimeLocationInput,
     source: LocalFolderMountSource,
   ): Promise<ProjectRuntimeLocationBindingResult> {
-    const normalizedProjectId = normalizeProjectId(projectId);
-    if (!normalizedProjectId) {
+    const target = normalizeProjectRuntimeLocationInput(project);
+    if (!target) {
       return {
         code: 'unavailable',
         message: 'A project must be selected before binding a local folder.',
-        projectId: projectId.trim(),
+        projectId: readProjectId(project),
         status: 'failed',
       };
     }
+    const { projectId } = target;
 
     try {
-      await this.fileSystemService.mountFolder(normalizedProjectId, source);
-      const mountState = await this.fileSystemService.getProjectMountState(normalizedProjectId);
+      await this.fileSystemService.mountFolder(projectId, source);
+      const mountState = await this.fileSystemService.getProjectMountState(projectId);
       if (mountState.status !== 'mounted') {
         return {
           code: mountState.status === 'session_required' ? 'session_required' : 'persistence_failed',
           message: 'The local project folder was not retained as an active durable mount.',
-          projectId: normalizedProjectId,
+          projectId,
           status: 'failed',
         };
       }
 
       const runtimeLocationId = source.type === 'tauri'
-        ? await this.resolveOpaqueRuntimeLocationId(normalizedProjectId, source.path, mountState)
+        ? await this.resolveOpaqueRuntimeLocationId(projectId, source.path, mountState)
         : null;
       return {
         host: source.type,
-        projectId: normalizedProjectId,
+        projectId,
         ...(runtimeLocationId ? { runtimeLocationId } : {}),
         status: 'bound',
       };
     } catch (error) {
-      return mapBindingFailure(normalizedProjectId, error);
+      return mapBindingFailure(projectId, error);
     }
   }
 
   async resolveProjectRuntimeLocation(
-    projectId: string,
+    project: ProjectRuntimeLocationInput,
     request: ProjectRuntimeLocationResolutionRequest,
   ): Promise<ProjectRuntimeLocationResolution> {
-    const normalizedProjectId = normalizeProjectId(projectId);
-    if (!normalizedProjectId) {
+    const target = normalizeProjectRuntimeLocationInput(project);
+    if (!target) {
       return {
         code: 'unavailable',
         message: 'A project must be selected before resolving a runtime location.',
-        projectId: projectId.trim(),
+        projectId: readProjectId(project),
         status: 'unavailable',
       };
     }
+    const { mountedPath, projectId } = target;
 
     const activeWorkingDirectory = await this.resolveLocalWorkingDirectory(
-      normalizedProjectId,
-      request.mountedPath,
+      projectId,
+      mountedPath,
     );
     if (activeWorkingDirectory) {
       return this.buildResolvedLocation(
-        normalizedProjectId,
+        projectId,
         activeWorkingDirectory,
         'active_mount',
       );
@@ -171,19 +175,19 @@ export class RuntimeProjectRuntimeLocationService implements IProjectRuntimeLoca
     let recoveredMountState: ProjectDeviceMountState | undefined;
     try {
       recoveredMountState = (
-        await this.fileSystemService.restoreProjectMount(normalizedProjectId)
+        await this.fileSystemService.restoreProjectMount(projectId)
       ).state;
     } catch {
-      recoveredMountState = await this.readMountState(normalizedProjectId);
+      recoveredMountState = await this.readMountState(projectId);
     }
 
     const recoveredWorkingDirectory = await this.resolveLocalWorkingDirectory(
-      normalizedProjectId,
-      request.mountedPath,
+      projectId,
+      mountedPath,
     );
     if (recoveredWorkingDirectory) {
       return this.buildResolvedLocation(
-        normalizedProjectId,
+        projectId,
         recoveredWorkingDirectory,
         'recovered_mount',
       );
@@ -191,8 +195,8 @@ export class RuntimeProjectRuntimeLocationService implements IProjectRuntimeLoca
 
     if (!request.allowFolderSelection) {
       return mapUnavailableMountState(
-        normalizedProjectId,
-        recoveredMountState ?? (await this.readMountState(normalizedProjectId)),
+        projectId,
+        recoveredMountState ?? (await this.readMountState(projectId)),
       );
     }
 
@@ -205,50 +209,50 @@ export class RuntimeProjectRuntimeLocationService implements IProjectRuntimeLoca
         message: error instanceof Error && error.message.trim()
           ? error.message.trim()
           : 'The local folder picker could not be opened.',
-        projectId: normalizedProjectId,
+        projectId,
         status: 'unavailable',
       };
     }
 
     if (pickerResult.status === 'cancelled') {
-      return { projectId: normalizedProjectId, status: 'cancelled' };
+      return { projectId, status: 'cancelled' };
     }
     if (pickerResult.status === 'unsupported') {
       return {
         message: pickerResult.message,
-        projectId: normalizedProjectId,
+        projectId,
         status: 'unsupported',
       };
     }
 
     const binding = await this.bindLocalProjectRuntimeLocation(
-      normalizedProjectId,
+      target,
       pickerResult.source,
     );
     if (binding.status !== 'bound') {
       return {
         code: binding.code,
         message: binding.message,
-        projectId: normalizedProjectId,
+        projectId,
         status: 'unavailable',
       };
     }
 
     const selectedWorkingDirectory = await this.resolveLocalWorkingDirectory(
-      normalizedProjectId,
-      request.mountedPath,
+      projectId,
+      mountedPath,
     );
     if (!selectedWorkingDirectory) {
       return mapUnavailableMountState(
-        normalizedProjectId,
-        await this.readMountState(normalizedProjectId),
+        projectId,
+        await this.readMountState(projectId),
       );
     }
 
     return {
       location: {
         localWorkingDirectory: selectedWorkingDirectory,
-        projectId: normalizedProjectId,
+        projectId,
         ...(binding.runtimeLocationId ? { runtimeLocationId: binding.runtimeLocationId } : {}),
         source: 'selected_folder',
       },
@@ -256,15 +260,50 @@ export class RuntimeProjectRuntimeLocationService implements IProjectRuntimeLoca
     };
   }
 
+  async resolveProjectLocalWorkingDirectory(
+    project: ProjectRuntimeLocationInput,
+    request: ProjectRuntimeLocationResolutionRequest,
+  ): Promise<string | null> {
+    const resolution = await this.resolveProjectRuntimeLocation(project, request);
+    return resolution.status === 'resolved'
+      ? resolution.location.localWorkingDirectory
+      : null;
+  }
+
+  async revealProjectInFileManager(
+    project: ProjectRuntimeLocationInput,
+  ): Promise<boolean> {
+    const target = normalizeProjectRuntimeLocationInput(project);
+    if (!target) {
+      return false;
+    }
+    const localWorkingDirectory = await this.resolveProjectLocalWorkingDirectory(target, {
+      allowFolderSelection: false,
+      capability: 'file_system',
+    });
+    if (!localWorkingDirectory) {
+      return false;
+    }
+
+    try {
+      return await this.fileSystemService.revealProjectInFileManager(
+        target.projectId,
+        target.mountedPath,
+      );
+    } catch {
+      return false;
+    }
+  }
+
   async resolveProjectRuntimeLocationId(
-    projectId: string,
+    project: ProjectRuntimeLocationInput,
     capability: ProjectRuntimeLocationCapability,
   ): Promise<string | null> {
     void capability;
     if (this.executionLocation === 'cloud-workspace') {
       return null;
     }
-    const resolution = await this.resolveProjectRuntimeLocation(projectId, {
+    const resolution = await this.resolveProjectRuntimeLocation(project, {
       allowFolderSelection: false,
       capability,
     });
@@ -274,27 +313,27 @@ export class RuntimeProjectRuntimeLocationService implements IProjectRuntimeLoca
   }
 
   async resolveProjectRuntimeLocationExecutionId(
-    projectId: string,
+    project: ProjectRuntimeLocationInput,
     capability: ProjectRuntimeLocationCapability,
     options: { allowFolderSelection?: boolean } = {},
   ): Promise<string> {
-    const normalizedProjectId = normalizeProjectId(projectId);
-    if (!normalizedProjectId) {
+    const target = normalizeProjectRuntimeLocationInput(project);
+    if (!target) {
       throw new ProjectRuntimeLocationExecutionUnavailableError({
         code: 'runtime_location_unavailable',
         message: 'A project must be selected before resolving an execution location.',
-        projectId: projectId.trim(),
+        projectId: readProjectId(project),
       });
     }
     if (this.executionLocation === 'cloud-workspace') {
       throw new ProjectRuntimeLocationExecutionUnavailableError({
         code: 'missing_runtime_location_id',
         message: 'No authorized remote runtime location is configured for this project.',
-        projectId: normalizedProjectId,
+        projectId: target.projectId,
       });
     }
     return requireProjectRuntimeLocationExecutionId(
-      await this.resolveProjectRuntimeLocation(normalizedProjectId, {
+      await this.resolveProjectRuntimeLocation(target, {
         allowFolderSelection: options.allowFolderSelection ?? false,
         capability,
       }),

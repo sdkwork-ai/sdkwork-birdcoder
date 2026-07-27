@@ -14,6 +14,7 @@ const engines = [
   ['codex', 'openai'],
   ['claude-code', 'anthropic'],
   ['opencode', 'opencode'],
+  ['gemini-cli', 'google'],
 ] as const;
 
 replaceWorkbenchCodeEngineCatalogForTesting(engines.map(([engineId, provider]) => ({
@@ -45,6 +46,8 @@ for (const [engineId, provider] of engines) {
   });
   assert.equal(
     resolveWorkbenchCodeEngineForRuntimeBinding({
+      agentId: identity.agentId,
+      engineId: identity.engineId,
       modelId: identity.modelId,
       providerBindingId: identity.providerBindingId,
       providerId: identity.providerId,
@@ -52,6 +55,62 @@ for (const [engineId, provider] of engines) {
     engineId,
   );
 }
+
+replaceWorkbenchCodeEngineCatalogForTesting([
+  ...engines.map(([engineId, provider]) => ({
+    agentId: `agent.code-engine.${engineId}`,
+    bindingId: `binding.agent.${engineId}`,
+    defaultModelId: `${engineId}-default`,
+    displayName: engineId,
+    engineId,
+    healthy: true,
+    models: [{
+      bindingId: `binding.provider.${engineId}`,
+      defaultForEngine: true,
+      description: `${engineId} default model`,
+      label: `${engineId} default`,
+      modelId: `${engineId}-default`,
+      providerId: `provider.${provider}`,
+    }],
+    providerId: `provider.${provider}`,
+  })),
+  {
+    agentId: 'agent.code-engine.codex-enterprise',
+    bindingId: 'binding.agent.codex-enterprise',
+    defaultModelId: 'codex-default',
+    displayName: 'codex-enterprise',
+    engineId: 'codex-enterprise',
+    healthy: true,
+    models: [{
+      bindingId: 'binding.provider.codex-enterprise',
+      defaultForEngine: true,
+      description: 'Enterprise Codex',
+      label: 'Enterprise Codex',
+      modelId: 'codex-default',
+      providerId: 'provider.openai',
+    }],
+    providerId: 'provider.openai',
+  },
+]);
+
+assert.equal(
+  resolveWorkbenchCodeEngineForRuntimeBinding({
+    modelId: 'codex-default',
+    providerId: 'provider.openai',
+  }),
+  null,
+  'Ambiguous provider/model lookup must fail closed when more than one engine matches.',
+);
+assert.equal(
+  resolveWorkbenchCodeEngineForRuntimeBinding({
+    agentId: 'agent.code-engine.codex',
+    engineId: 'codex',
+    modelId: 'codex-default',
+    providerBindingId: 'binding.provider.codex',
+    providerId: 'provider.openai',
+  })?.id,
+  'codex',
+);
 
 assert.equal(resolveBirdcoderWorkbenchHostMode(), 'web');
 const previousWindow = Object.getOwnPropertyDescriptor(globalThis, 'window');
@@ -64,6 +123,31 @@ if (previousWindow) {
   Object.defineProperty(globalThis, 'window', previousWindow);
 } else {
   Reflect.deleteProperty(globalThis, 'window');
+}
+
+const previousIsTauri = Object.getOwnPropertyDescriptor(globalThis, 'isTauri');
+Object.defineProperty(globalThis, 'window', {
+  configurable: true,
+  value: {},
+});
+Object.defineProperty(globalThis, 'isTauri', {
+  configurable: true,
+  value: true,
+});
+assert.equal(
+  resolveBirdcoderWorkbenchHostMode(),
+  'desktop',
+  'The official Tauri runtime marker must select the desktop host even when private globals are absent.',
+);
+if (previousWindow) {
+  Object.defineProperty(globalThis, 'window', previousWindow);
+} else {
+  Reflect.deleteProperty(globalThis, 'window');
+}
+if (previousIsTauri) {
+  Object.defineProperty(globalThis, 'isTauri', previousIsTauri);
+} else {
+  Reflect.deleteProperty(globalThis, 'isTauri');
 }
 
 resetWorkbenchCodeEngineCatalog();

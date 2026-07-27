@@ -12,6 +12,7 @@ import type { BirdCoderTauriFileSystemRuntime } from '../../sdkwork-birdcoder-pc
 const projectId = 'project.desktop-persistence';
 const absolutePath = 'E:\\projects\\sdkwork-birdcoder';
 const legacyKey = '1'.repeat(64);
+const directoryFingerprint = `sha256:${'a'.repeat(64)}`;
 const subject: ProjectDeviceMountSubject = {
   realm: 'birdcoder\u0001standalone\u0001development\u0001http://127.0.0.1:49152',
   subjectId: 'tenant-1\u0001organization-1\u0001user-1',
@@ -64,6 +65,14 @@ describe('desktop project device mount persistence', () => {
           return (args?.ownerKeys as string[]).includes(ownerKey)
             && args?.projectId === projectId
             ? { key: legacyKey, value: legacyValue }
+            : null;
+        case 'project_device_mount_provider_session_directory_identity':
+          return (args?.ownerKeys as string[]).includes(ownerKey)
+            && args?.projectId === projectId
+            ? {
+                directoryFingerprint,
+                directoryName: 'sdkwork-birdcoder',
+              }
             : null;
         case 'local_store_set':
           valuesByKey.set(String(args?.key), String(args?.value));
@@ -122,8 +131,29 @@ describe('desktop project device mount persistence', () => {
       version: 1,
     });
 
+    const identityRegistry = new ProjectDeviceMountRegistry({
+      subjectProvider: async () => subject,
+    });
+    await expect(identityRegistry.resolveProviderSessionDirectoryIdentity(projectId)).resolves.toEqual({
+      directoryFingerprint,
+      directoryName: 'sdkwork-birdcoder',
+    });
+    expect(invoke).toHaveBeenCalledWith('project_device_mount_provider_session_directory_identity', {
+      ownerKeys: expect.arrayContaining([ownerKey]),
+      projectId,
+    });
+
     invoke.mockClear();
-    const restartedService = createRuntimeLocationService();
+    const restartedRegistry = new ProjectDeviceMountRegistry({
+      subjectProvider: async () => subject,
+    });
+    const restartedFileSystemService = new RuntimeFileSystemService({
+      mountRegistry: restartedRegistry,
+      tauriRuntime: createTauriFileSystemRuntime(),
+    });
+    const restartedService = new RuntimeProjectRuntimeLocationService({
+      fileSystemService: restartedFileSystemService,
+    });
     const restartedResolution = await restartedService.resolveProjectRuntimeLocation(projectId, {
       allowFolderSelection: false,
       capability: 'terminal',
@@ -136,6 +166,14 @@ describe('desktop project device mount persistence', () => {
       'project_device_mount_find',
       expect.anything(),
     );
+    await expect(restartedFileSystemService.getFiles(projectId)).resolves.toEqual([
+      {
+        children: [],
+        name: 'sdkwork-birdcoder',
+        path: '/sdkwork-birdcoder',
+        type: 'directory',
+      },
+    ]);
 
     const otherUserRegistry = new ProjectDeviceMountRegistry({
       subjectProvider: async () => ({

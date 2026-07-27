@@ -14,6 +14,7 @@ import {
   RefreshCw,
 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
+import { getProjectGitOverviewStatusMessageKey } from './projectGitOverviewStatus';
 
 export type ProjectGitOverviewSectionId =
   | 'summary'
@@ -23,7 +24,13 @@ export type ProjectGitOverviewSectionId =
 
 interface ProjectGitOverviewSurfaceProps extends Pick<
   UseProjectGitOverviewResult,
-  'currentWorktree' | 'isLoading' | 'loadErrorMessage' | 'normalizedProjectId' | 'overview'
+  | 'currentWorktree'
+  | 'diagnosticCode'
+  | 'isLoading'
+  | 'loadErrorMessage'
+  | 'normalizedProjectId'
+  | 'overview'
+  | 'subscriptionStatus'
 > {
   bodyMaxHeight?: number | null;
   onRefresh: () => void;
@@ -47,15 +54,21 @@ const DEFAULT_VISIBLE_SECTIONS: readonly ProjectGitOverviewSectionId[] = [
 export const ProjectGitOverviewSurface = memo(function ProjectGitOverviewSurface({
   bodyMaxHeight = 288,
   currentWorktree,
+  diagnosticCode,
   isLoading,
   loadErrorMessage,
   normalizedProjectId,
   onRefresh,
   overview,
   showHeader = true,
+  subscriptionStatus,
   visibleSections = DEFAULT_VISIBLE_SECTIONS,
 }: ProjectGitOverviewSurfaceProps) {
   const { t } = useTranslation();
+  const statusMessageKey = getProjectGitOverviewStatusMessageKey({
+    diagnosticCode,
+    subscriptionStatus,
+  });
   const displayedBranches = overview?.branches.slice(0, 6) ?? [];
   const remainingBranchCount = Math.max((overview?.branches.length ?? 0) - displayedBranches.length, 0);
   const visibleSectionSet = new Set<ProjectGitOverviewSectionId>(visibleSections);
@@ -104,16 +117,16 @@ export const ProjectGitOverviewSurface = memo(function ProjectGitOverviewSurface
         <div className={`${contentOffsetClassName}rounded-lg border border-dashed border-white/10 bg-white/[0.03] px-3 py-3 text-[12px] text-gray-500`}>
           {t('code.selectProjectFirst')}
         </div>
-      ) : loadErrorMessage ? (
+      ) : subscriptionStatus === 'error' || loadErrorMessage ? (
         <div className={`${contentOffsetClassName}flex items-start gap-2 rounded-lg border border-red-400/20 bg-red-500/10 px-3 py-3 text-[12px] text-red-200`}>
           <AlertCircle size={14} className="mt-0.5 shrink-0" />
           <span className="min-w-0 break-words">
-            {loadErrorMessage || t('code.gitOverviewUnavailable')}
+            {t(statusMessageKey ?? 'app.menu.gitRepositoryUnavailable')}
           </span>
         </div>
       ) : overview?.status !== 'ready' ? (
         <div className={`${contentOffsetClassName}rounded-lg border border-dashed border-white/10 bg-white/[0.03] px-3 py-3 text-[12px] text-gray-500`}>
-          {t('app.menu.noRepository')}
+          {t(statusMessageKey ?? 'app.menu.gitRepositoryUnavailable')}
         </div>
       ) : (
         <div className={`${contentOffsetClassName}space-y-3 ${contentScrollClassName}`.trim()} style={contentStyle}>

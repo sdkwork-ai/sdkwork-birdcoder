@@ -15,6 +15,7 @@ const codeEditorSurfacePath = pcPackage('sdkwork-birdcoder-pc-code', 'src/pages/
 const codeEditorWorkspacePanelPath = pcPackage('sdkwork-birdcoder-pc-code', 'src/pages/CodeEditorWorkspacePanel.tsx');
 const codeTerminalPanelPath = pcPackage('sdkwork-birdcoder-pc-code', 'src/pages/CodeTerminalIntegrationPanel.tsx');
 const studioPagePath = pcPackage('sdkwork-birdcoder-pc-studio', 'src/pages/StudioPage.tsx');
+const studioChatSidebarPath = pcPackage('sdkwork-birdcoder-pc-studio', 'src/pages/StudioChatSidebar.tsx');
 const studioCodeWorkspacePanelPath = pcPackage('sdkwork-birdcoder-pc-studio', 'src/pages/StudioCodeWorkspacePanel.tsx');
 const studioPreviewPanelPath = pcPackage('sdkwork-birdcoder-pc-studio', 'src/preview/StudioPreviewPanel.tsx');
 const studioSimulatorPanelPath = pcPackage('sdkwork-birdcoder-pc-studio', 'src/simulator/StudioSimulatorPanel.tsx');
@@ -29,6 +30,7 @@ const codeEditorSurfaceSource = fs.readFileSync(codeEditorSurfacePath, 'utf8');
 const codeEditorWorkspacePanelSource = fs.readFileSync(codeEditorWorkspacePanelPath, 'utf8');
 const codeTerminalPanelSource = fs.readFileSync(codeTerminalPanelPath, 'utf8');
 const studioPageSource = fs.readFileSync(studioPagePath, 'utf8');
+const studioChatSidebarSource = fs.readFileSync(studioChatSidebarPath, 'utf8');
 const studioCodeWorkspacePanelSource = fs.readFileSync(studioCodeWorkspacePanelPath, 'utf8');
 const studioPreviewPanelSource = fs.readFileSync(studioPreviewPanelPath, 'utf8');
 const studioSimulatorPanelSource = fs.readFileSync(studioSimulatorPanelPath, 'utf8');
@@ -190,6 +192,18 @@ assert.match(
   studioStageHeaderSource,
   /export const StudioStageHeader = memo/,
   'Studio stage header must be memoized so sidebar resizing does not rerender the preview control strip when preview state is unchanged.',
+);
+
+assert.match(
+  studioChatSidebarSource,
+  /style=\{\{ maxWidth: '52vw', width \}\}/,
+  'Studio chat must cap its responsive width so the right-side browser, editor, and review surface remains usable on narrower desktop viewports.',
+);
+
+assert.match(
+  studioStageHeaderSource,
+  /hidden items-center gap-4[^"]*min-\[1800px\]:flex/,
+  'Studio must defer advanced preview target controls to ultra-wide viewports so the stage header does not overflow the right-side detail surface.',
 );
 
 console.log('desktop resize responsiveness contract passed.');

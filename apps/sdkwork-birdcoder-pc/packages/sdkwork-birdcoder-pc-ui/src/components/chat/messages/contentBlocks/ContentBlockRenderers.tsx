@@ -8,6 +8,7 @@ import {
 } from '../activity/activityBlockSupport.ts';
 import { ChatTaskProgress } from '../blocks/ChatTaskProgress.tsx';
 import { buildChatContentPreview } from '../contentPreview.ts';
+import { CHAT_MESSAGE_INLINE_CODE_PROSE_CLASSNAME } from '../messageLayout.ts';
 import type { ChatMessageContentBlockRendererProps } from './registry.ts';
 import { ToolCallCard } from './ToolCallCard.tsx';
 
@@ -52,7 +53,8 @@ function ActivitySummaryBlock({
   fileChanges: ReturnType<typeof normalizeActivityFileChanges>;
   commands: AgentSessionCommandView[];
 }) {
-  if (fileChanges.length === 0 && commands.length === 0) {
+  const visibleFileChanges = context.suppressInlineFileChanges ? [] : fileChanges;
+  if (visibleFileChanges.length === 0 && commands.length === 0) {
     return null;
   }
 
@@ -68,7 +70,7 @@ function ActivitySummaryBlock({
   }\u0001activity`;
 
   return (
-    <div className={compact ? 'mt-1.5' : 'mt-2'}>
+    <div className={compact ? 'mt-1' : 'mt-1.5'}>
       <ChatActivitySummary
         compact={compact}
         commands={commands}
@@ -76,9 +78,10 @@ function ActivitySummaryBlock({
         copyMessageToClipboard={context.copyMessageToClipboard}
         environment={context.environment}
         expandedDisclosureKeys={context.expandedDisclosureKeys}
-        fileChanges={fileChanges}
+        fileChanges={visibleFileChanges}
         messageId={sessionItemId}
         disclosureScopeKey={disclosureScopeKey}
+        engineId={context.engineId}
         successIconSize={compact ? 13 : 14}
         toggleDisclosure={context.toggleDisclosure}
       />
@@ -181,9 +184,10 @@ export const MarkdownContentBlockRenderer = memo(function MarkdownContentBlockRe
     );
   }
 
-  const proseClassName = context.layout === 'sidebar'
-    ? 'prose prose-invert max-w-none prose-headings:my-3 prose-headings:font-semibold prose-headings:leading-snug prose-h1:text-[1rem] prose-h2:text-[0.95rem] prose-h3:text-[0.9rem] prose-h4:text-[0.85rem] prose-p:my-2 prose-p:leading-relaxed prose-li:my-0.5 prose-li:text-[length:var(--birdcoder-ui-font-size,12px)] prose-pre:bg-[#18181b] prose-pre:border prose-pre:border-white/10 text-[length:var(--birdcoder-ui-font-size,12px)] w-full'
-    : 'prose prose-invert max-w-none prose-headings:my-3 prose-headings:font-semibold prose-headings:leading-snug prose-h1:text-[1.02rem] prose-h2:text-[0.96rem] prose-h3:text-[0.9rem] prose-h4:text-[0.85rem] prose-p:my-2 prose-p:leading-relaxed prose-li:my-0.5 prose-li:text-[length:var(--birdcoder-ui-font-size,12px)] prose-pre:bg-[#18181b] prose-pre:border prose-pre:border-white/10 text-[length:var(--birdcoder-ui-font-size,12px)] text-gray-300 w-full';
+  const layoutProseClassName = context.layout === 'sidebar'
+    ? 'prose prose-invert w-full max-w-none break-words text-[length:var(--birdcoder-ui-font-size,12px)] text-gray-300 [overflow-wrap:anywhere] prose-headings:my-3 prose-headings:font-semibold prose-headings:leading-snug prose-h1:text-[1rem] prose-h2:text-[0.95rem] prose-h3:text-[0.9rem] prose-h4:text-[0.85rem] prose-p:my-2 prose-p:leading-relaxed prose-li:my-0.5 prose-li:text-[length:var(--birdcoder-ui-font-size,12px)] prose-a:break-words prose-pre:max-w-full prose-pre:bg-transparent prose-pre:p-0'
+    : 'prose prose-invert w-full max-w-none break-words text-[length:calc(var(--birdcoder-ui-font-size,12px)_+_1px)] leading-6 text-gray-200 [overflow-wrap:anywhere] prose-headings:my-3 prose-headings:font-semibold prose-headings:leading-snug prose-headings:text-gray-100 prose-h1:text-[1.08rem] prose-h2:text-[1rem] prose-h3:text-[0.94rem] prose-h4:text-[0.88rem] prose-p:my-2 prose-p:leading-6 prose-li:my-0.5 prose-li:text-[length:calc(var(--birdcoder-ui-font-size,12px)_+_1px)] prose-li:leading-6 prose-a:break-words prose-strong:text-gray-100 prose-pre:max-w-full prose-pre:bg-transparent prose-pre:p-0';
+  const proseClassName = `${layoutProseClassName} ${CHAT_MESSAGE_INLINE_CODE_PROSE_CLASSNAME}`;
 
   return (
     <div className={proseClassName}>

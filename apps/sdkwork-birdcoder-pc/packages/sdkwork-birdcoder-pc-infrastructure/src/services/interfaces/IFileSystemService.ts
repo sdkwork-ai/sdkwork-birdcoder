@@ -4,6 +4,7 @@ import type {
   LocalFolderMountSource,
   ProjectDeviceMountRecoveryResult,
   ProjectDeviceMountState,
+  ProjectFileSystemRoot,
   ProjectFileSystemChangeEvent,
   ProjectFileSearchExecutionResult,
   ProjectFileSearchOptions,
@@ -14,6 +15,12 @@ export interface FileSystemChangeSubscriptionOptions {
 }
 
 export interface IFileSystemService {
+  /**
+   * Resolves the active project root without exposing a native path or browser handle.
+   * The virtual path is the canonical path boundary for Explorer and file mutations.
+   */
+  resolveProjectRoot(projectId: string): Promise<ProjectFileSystemRoot | null>;
+
   /**
    * Retrieves the file tree for a specific project.
    * @param projectId The ID of the project.

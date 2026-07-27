@@ -1,8 +1,10 @@
-import type { AgentProjectView } from '@sdkwork/birdcoder-pc-contracts-commons';
+import type {
+  AgentProjectView,
+  AgentSessionView,
+} from '@sdkwork/birdcoder-pc-contracts-commons';
 import type { IAgentSessionService } from '@sdkwork/birdcoder-pc-infrastructure-runtime';
 
 import type { IProjectService } from '../services/interfaces/IProjectService.ts';
-import { upsertProjectIntoProjectsStore } from '../stores/projectsStore.ts';
 import { resolveLatestAgentSessionIdForProject } from './agentSessionSelection.ts';
 import { refreshProjectSessions } from './sessionRefresh.ts';
 
@@ -11,19 +13,17 @@ export interface HydrateImportedProjectFromAuthorityOptions {
   knownProjects?: readonly AgentProjectView[];
   projectId: string;
   projectService: IProjectService;
+  signal?: AbortSignal;
   userScope?: string;
   workspaceId: string;
 }
 
 export interface HydrateImportedProjectFromAuthorityResult {
+  deletedSessionIds: string[];
+  deletedSessionTombstones: AgentSessionView[];
   latestAgentSessionId: string | null;
   project: AgentProjectView;
 }
-
-const inflightHydrations = new Map<
-  string,
-  Promise<HydrateImportedProjectFromAuthorityResult | null>
->();
 
 export async function hydrateImportedProjectFromAuthority(
   options: HydrateImportedProjectFromAuthorityOptions,
@@ -33,32 +33,36 @@ export async function hydrateImportedProjectFromAuthority(
   if (!projectId || !workspaceId) {
     return null;
   }
-  const scopeKey = `${options.userScope?.trim() || 'anonymous'}:${workspaceId}:${projectId}`;
-  const inflight = inflightHydrations.get(scopeKey);
-  if (inflight) {
-    return inflight;
+  options.signal?.throwIfAborted();
+  const knownProject = options.knownProjects?.find(
+    (project) => project.projectId === projectId,
+  );
+  const project = knownProject ?? await options.projectService.getProjectById(projectId);
+  options.signal?.throwIfAborted();
+  if (!project || project.workspaceId !== workspaceId) {
+    return null;
   }
-
-  const task = (async () => {
-    const result = await refreshProjectSessions({
-      agentSessionService: options.agentSessionService,
-      projectId,
-      projectService: options.projectService,
-    });
-    const project = result.projects?.[0] ?? null;
-    if (!project || project.workspaceId !== workspaceId) {
-      return null;
-    }
-    upsertProjectIntoProjectsStore(project, options.userScope);
-    return {
-      latestAgentSessionId: resolveLatestAgentSessionIdForProject([project], projectId),
-      project,
-    };
-  })().finally(() => {
-    if (inflightHydrations.get(scopeKey) === task) {
-      inflightHydrations.delete(scopeKey);
-    }
+  const projectService = {
+    getProjectById: async (requestedProjectId: string) =>
+      requestedProjectId === projectId ? project : null,
+  } as IProjectService;
+  const refreshed = await refreshProjectSessions({
+    agentSessionService: options.agentSessionService,
+    projectId,
+    projectService,
+    signal: options.signal,
   });
-  inflightHydrations.set(scopeKey, task);
-  return task;
+  const refreshedProject = refreshed.projects?.[0];
+  if (refreshed.status !== 'refreshed' || !refreshedProject) {
+    return null;
+  }
+  return {
+    deletedSessionIds: refreshed.deletedSessionIds,
+    deletedSessionTombstones: refreshed.deletedSessionTombstones,
+    latestAgentSessionId: resolveLatestAgentSessionIdForProject(
+      [refreshedProject],
+      projectId,
+    ),
+    project: refreshedProject,
+  };
 }

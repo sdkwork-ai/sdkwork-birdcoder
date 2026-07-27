@@ -6,5 +6,6 @@ BirdCoder changes. They supplement the product outcome in
 acceptance and verification evidence.
 
 - [REQ-2026-0002: Domain ownership convergence](REQ-2026-0002-domain-ownership-convergence.md)
+- [REQ-2026-0003: Cross-application Session Activity Inbox](REQ-2026-0003-cross-application-session-activity-inbox.md)
 
 Authority: REQUIREMENTS_SPEC.md.

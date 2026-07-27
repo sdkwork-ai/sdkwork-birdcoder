@@ -21,6 +21,15 @@ const studioChatSidebarSource = readSource(
   'pages',
   'StudioChatSidebar.tsx',
 );
+const studioSessionMenuRowSource = readSource(
+  'apps',
+  'sdkwork-birdcoder-pc',
+  'packages',
+  'sdkwork-birdcoder-pc-studio',
+  'src',
+  'pages',
+  'StudioSessionMenuRow.tsx',
+);
 const studioPageSource = readSource(
   'apps',
   
@@ -197,28 +206,28 @@ assert.doesNotMatch(
 );
 
 assert.ok(
-  studioChatSidebarSource.includes(
-    'const isEngineBusySession = isAgentSessionViewEngineBusy(session);',
+  studioSessionMenuRowSource.includes(
+    '<SessionRuntimeStatusSlot',
   ),
-  'Studio project menu should identify spinner rows from the engine-busy runtime state.',
+  'Studio project menu should delegate status rendering to the shared leading slot.',
 );
 
 assert.match(
-  studioChatSidebarSource,
-  /isEngineBusySession \? \(\s*<Loader2 size=\{14\} className="animate-spin text-emerald-400 shrink-0" \/>\s*\) : isSelected \? \(\s*<Check size=\{14\} className="text-blue-400 shrink-0" \/>\s*\) : null/s,
-  'Studio project menu should replace the static selected indicator with a neutral spinner only while the engine is actively working.',
+  studioSessionMenuRowSource,
+  /<SessionRuntimeStatusSlot[\s\S]*?<SessionProviderBadge/u,
+  'Studio project menu should render status before provider identity.',
 );
 
 assert.doesNotMatch(
-  studioChatSidebarSource,
-  /isEngineBusySession \? \(\s*<RefreshCw size=\{14\} className="animate-spin text-emerald-400 shrink-0" \/>\s*\) : isSelected/s,
-  'Studio project menu must not use the refresh icon for execution state because it reads as "refreshing" on startup.',
+  studioSessionMenuRowSource,
+  /<Loader2|<RefreshCw/u,
+  'Studio project menu must not own a second execution or refresh spinner outside the shared slot.',
 );
 
 assert.doesNotMatch(
-  studioChatSidebarSource,
-  /isExecutingSession \? \(\s*<Loader2 size=\{14\} className="animate-spin text-emerald-400 shrink-0" \/>\s*\) : isSelected/s,
-  'Studio project menu must not spin for approval or user-reply waits; those are active sessions but not engine-busy sessions.',
+  studioSessionMenuRowSource,
+  /isAgentSessionViewExecuting|isAgentSessionViewEngineBusy/u,
+  'Studio project menu must use the common runtime presentation state instead of a local busy predicate.',
 );
 
 assert.doesNotMatch(

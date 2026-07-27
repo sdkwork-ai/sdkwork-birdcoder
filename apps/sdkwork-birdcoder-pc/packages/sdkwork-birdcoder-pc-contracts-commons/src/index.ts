@@ -6,6 +6,7 @@ export * from './agent-session-item-media.ts';
 export * from './agent-session-item-reasoning.ts';
 export * from './agent-session-item-resources.ts';
 export * from './agent-session-item-task-progress.ts';
+export * from './agent-session-item-transcript.ts';
 export * from './agent-session-item-tool-calls.ts';
 export * from './agent-session-item-tool-results.ts';
 export * from './agent-session-item-presentation.ts';

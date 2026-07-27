@@ -2,9 +2,12 @@ import type {
   LocalFolderMountSource,
   LocalFolderPickerResult,
 } from '@sdkwork/birdcoder-pc-contracts-commons';
+import {
+  resolveBirdCoderRuntimeTopology,
+  type BirdCoderExecutionLocation,
+} from '@sdkwork/birdcoder-pc-infrastructure-runtime/runtimeTopology';
 import type { SandboxSelection } from '@sdkwork/drive-pc-sandbox-contracts';
 import {
-  isDesktopLocalFolderPickerRuntime,
   openLocalFolder,
   resolveSelectedLocalFolderSource,
 } from '../utils/fileSystem.ts';
@@ -32,8 +35,8 @@ export type ProjectDirectorySelection =
     };
 
 interface ProjectDirectorySelectionRuntime {
-  readonly isDesktopRuntime: () => Promise<boolean>;
   readonly pickLocalDirectory: () => Promise<LocalFolderPickerResult>;
+  readonly resolveExecutionLocation: () => BirdCoderExecutionLocation;
 }
 
 export interface SelectProjectDirectoryOptions {
@@ -69,33 +72,43 @@ export interface RebindSelectedProjectDirectoryOptions {
 }
 
 const defaultSelectionRuntime: ProjectDirectorySelectionRuntime = {
-  isDesktopRuntime: isDesktopLocalFolderPickerRuntime,
   pickLocalDirectory: openLocalFolder,
+  resolveExecutionLocation: () => resolveBirdCoderRuntimeTopology().executionLocation,
 };
 
 export async function selectProjectDirectory(
   options: SelectProjectDirectoryOptions,
 ): Promise<ProjectDirectorySelection | null> {
   const runtime = options.runtime ?? defaultSelectionRuntime;
-  if (await runtime.isDesktopRuntime()) {
-    const source = resolveSelectedLocalFolderSource(await runtime.pickLocalDirectory());
-    return source
-      ? {
-          kind: 'local_folder',
-          source,
-        }
-      : null;
+  const executionLocation = runtime.resolveExecutionLocation();
+  switch (executionLocation) {
+    case 'local-host': {
+      const source = resolveSelectedLocalFolderSource(await runtime.pickLocalDirectory());
+      return source
+        ? {
+            kind: 'local_folder',
+            source,
+          }
+        : null;
+    }
+    case 'cloud-workspace': {
+      const selection = await options.pickSandboxDirectory({
+        title: options.sandboxPickerTitle,
+      });
+      return selection
+        ? {
+            kind: 'drive_sandbox',
+            selection,
+          }
+        : null;
+    }
+    default: {
+      const unsupportedExecutionLocation: never = executionLocation;
+      throw new Error(
+        `Unsupported project directory execution location: ${String(unsupportedExecutionLocation)}.`,
+      );
+    }
   }
-
-  const selection = await options.pickSandboxDirectory({
-    title: options.sandboxPickerTitle,
-  });
-  return selection
-    ? {
-        kind: 'drive_sandbox',
-        selection,
-      }
-    : null;
 }
 
 export function resolveProjectDirectorySelectionName(

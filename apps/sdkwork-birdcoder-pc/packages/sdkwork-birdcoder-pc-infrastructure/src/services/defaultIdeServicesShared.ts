@@ -29,6 +29,7 @@ import type { IPromptService } from './interfaces/IPromptService.ts';
 import type { IVipMembershipService } from './interfaces/IVipMembershipService.ts';
 import { ProjectDeviceMountRegistry } from './ProjectDeviceMountRegistry.ts';
 import { createProjectDeviceMountSubjectProvider } from './projectDeviceMountSubject.ts';
+import { createProjectFileSystemService } from './projectFileSystemServiceFactory.ts';
 import { resolveBirdCoderRuntimeTopology } from './runtimeTopology.ts';
 import { createBirdCoderSkillsAppSdkClient } from './skillsSdkClient.ts';
 
@@ -118,12 +119,14 @@ export function createBirdCoderDefaultIdeSharedRuntime(
     },
   });
   const runtimeTopology = runtimeConfig.runtimeTopology ?? resolveBirdCoderRuntimeTopology();
-  const fileSystemService = runtimeTopology.executionLocation === 'local-host'
-    ? localFileSystem
-    : new DriveSandboxProjectFileSystemService({
-        drivePort: createBirdCoderDriveSandboxExplorerPort(),
-        projectService,
-      });
+  const fileSystemService = createProjectFileSystemService({
+    executionLocation: runtimeTopology.executionLocation,
+    localFileSystem,
+    createRemoteFileSystem: () => new DriveSandboxProjectFileSystemService({
+      drivePort: createBirdCoderDriveSandboxExplorerPort(),
+      projectService,
+    }),
+  });
   const projectRuntimeLocationService = new RuntimeProjectRuntimeLocationService({
     executionLocation: runtimeTopology.executionLocation,
     fileSystemService,
@@ -132,18 +135,14 @@ export function createBirdCoderDefaultIdeSharedRuntime(
     }),
   });
   const gitService = createTauriProjectGitRuntime({
-    resolveProjectRoot: async (projectId) => {
-      const resolution = await projectRuntimeLocationService.resolveProjectRuntimeLocation(
+    resolveProjectRoot: (projectId) =>
+      projectRuntimeLocationService.resolveProjectLocalWorkingDirectory(
         projectId,
         {
           allowFolderSelection: false,
           capability: 'git',
         },
-      );
-      return resolution.status === 'resolved'
-        ? resolution.location.localWorkingDirectory
-        : null;
-    },
+      ),
   });
 
   return {

@@ -404,9 +404,9 @@ test('Browser terminal creates a remote session from the current Agents runtime 
     },
   );
   await page.route(
-    '**/app/v3/api/ai/agents/agent.birdcoder/sessions/session.e2e-terminal-ready/user_state',
+    '**/app/v3/api/ai/agents/agent.birdcoder/sessions/user_states?**',
     (route) => route.fulfill({
-      json: itemEnvelope({
+      json: pageEnvelope(route, [{
         id: '7002',
         tenantId: '0',
         organizationId: '0',
@@ -416,7 +416,7 @@ test('Browser terminal creates a remote session from the current Agents runtime 
         version: '1',
         createdAt: '2026-07-15T12:00:00.000Z',
         updatedAt: '2026-07-15T12:00:00.000Z',
-      }),
+      }]),
     }),
   );
   await page.route(
@@ -532,7 +532,7 @@ test('Browser terminal creates a remote session from the current Agents runtime 
   await page.locator('.birdcoder-workbench-header button[aria-label="Terminal"]').click();
   await expect(page.getByRole('button', { name: 'Close terminal' })).toBeVisible();
   await expect(page.getByText(
-    'Select a local desktop folder before using this project location.',
+    'The current project does not have a recoverable local path on this desktop.',
   )).toHaveCount(0);
   expect(
     await page.evaluate(() =>
@@ -546,7 +546,7 @@ test('Browser terminal creates a remote session from the current Agents runtime 
   ).toHaveClass(/bg-white\/10/);
   await expect(page.locator('[data-shell-layout="terminal-tabs"]')).toBeVisible();
   await expect(page.getByText(
-    'Select a local desktop folder before using this project location.',
+    'The current project does not have a recoverable local path on this desktop.',
   )).toHaveCount(0);
   expect(
     await page.evaluate(() =>

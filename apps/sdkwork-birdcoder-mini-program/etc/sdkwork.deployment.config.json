@@ -7,7 +7,7 @@
   "runtimeConfig": "mini-program.runtime.json",
   "materialization": {
     "authority": "../../../etc/sdkwork.deployment.config.json",
-    "command": "pnpm config:materialize",
+    "command": "pnpm workflow:materialize-client-env",
     "format": "mini-program-json",
     "outputPattern": "../config/mini-program/runtime-env.{deploymentProfile}.{environment}.json",
     "profiles": [

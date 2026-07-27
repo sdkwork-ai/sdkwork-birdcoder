@@ -18,6 +18,10 @@ interface WorkspaceInventory {
 
 const inventoryByRequestKey = new Map<string, Promise<AgentWorkspaceViewPage>>();
 
+function normalizeWorkspaceId(value: string | null | undefined): string {
+  return value?.trim() ?? '';
+}
+
 export function mergeWorkspacePages(
   current: readonly AgentWorkspaceView[],
   incoming: readonly AgentWorkspaceView[],
@@ -65,6 +69,8 @@ export function useWorkspaces(options?: {
     workspaces: [],
   });
   const [selectedWorkspaceId, setSelectedWorkspaceId] = useState('');
+  const selectedWorkspaceIdRef = useRef(selectedWorkspaceId);
+  selectedWorkspaceIdRef.current = selectedWorkspaceId;
 
   const refreshWorkspaces = useCallback(async () => {
     if (!isActive || !sessionScope) {
@@ -107,21 +113,52 @@ export function useWorkspaces(options?: {
       if (activeSessionScopeRef.current !== sessionScope) {
         return response.items;
       }
+      const preferredWorkspaceId =
+        normalizeWorkspaceId(selectedWorkspaceIdRef.current) ||
+        normalizeWorkspaceId(options?.preferredWorkspaceId);
+      let resolvedWorkspaces = response.items;
+      if (
+        preferredWorkspaceId &&
+        !resolvedWorkspaces.some(
+          (workspace) => workspace.workspaceId === preferredWorkspaceId,
+        )
+      ) {
+        try {
+          const preferredWorkspace = await workspaceService.getWorkspaceById(
+            preferredWorkspaceId,
+          );
+          if (
+            activeSessionScopeRef.current === sessionScope &&
+            preferredWorkspace.workspaceId === preferredWorkspaceId &&
+            preferredWorkspace.status === 'active'
+          ) {
+            resolvedWorkspaces = mergeWorkspacePages(
+              resolvedWorkspaces,
+              [preferredWorkspace],
+            );
+          }
+        } catch {
+          // A stale recovery reference must not block the authoritative first page.
+        }
+      }
+      if (activeSessionScopeRef.current !== sessionScope) {
+        return resolvedWorkspaces;
+      }
       setInventory({
         error: null,
         hasFetched: true,
         isLoading: false,
         isLoadingMore: false,
         pageInfo: response.pageInfo,
-        workspaces: response.items,
+        workspaces: resolvedWorkspaces,
       });
       setSelectedWorkspaceId((current) =>
         selectInitialWorkspace(
-          response.items,
+          resolvedWorkspaces,
           current || options?.preferredWorkspaceId,
         )?.workspaceId ?? '',
       );
-      return response.items;
+      return resolvedWorkspaces;
     } catch (error) {
       if (activeSessionScopeRef.current !== sessionScope) {
         throw error;

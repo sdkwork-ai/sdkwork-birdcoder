@@ -96,6 +96,8 @@ export interface WorkbenchRuntimeBindingIdentity {
 }
 
 export interface WorkbenchRuntimeBindingLookup {
+  agentId?: string | null;
+  engineId?: string | null;
   modelId?: string | null;
   providerBindingId?: string | null;
   providerId?: string | null;
@@ -149,7 +151,10 @@ function titleCaseEngineId(engineId: string): string {
 }
 
 function vendorFromProvider(providerId: string): WorkbenchModelVendor {
-  const normalized = providerId.trim().toLowerCase();
+  const normalized = providerId
+    .trim()
+    .toLowerCase()
+    .replace(/^provider[.:/-]/u, '');
   if (normalized === 'openai') return 'openai';
   if (normalized === 'anthropic') return 'anthropic';
   if (normalized === 'google') return 'google';
@@ -350,27 +355,31 @@ export function resolveWorkbenchRuntimeBindingIdentity(
 export function resolveWorkbenchCodeEngineForRuntimeBinding(
   binding: WorkbenchRuntimeBindingLookup,
 ): WorkbenchCodeEngineDefinition | null {
+  const agentId = String(binding.agentId ?? '').trim();
+  const engineId = normalizeKey(binding.engineId);
   const providerBindingId = String(binding.providerBindingId ?? '').trim();
   const providerId = String(binding.providerId ?? '').trim();
   const modelId = String(binding.modelId ?? '').trim();
   const candidates = catalogSnapshot.engines.filter((engine) => {
-    if (providerBindingId && engine.bindingId === providerBindingId) {
-      return true;
+    if (agentId && engine.agentId !== agentId) {
+      return false;
     }
-    return engine.models.some((model) =>
-      (providerBindingId && model.bindingId === providerBindingId) ||
-      (modelId && model.id === modelId && (!providerId || model.providerId === providerId)),
-    );
+    if (engineId && engine.id !== engineId) {
+      return false;
+    }
+    if (!providerBindingId && !providerId && !modelId) {
+      return Boolean(agentId || engineId);
+    }
+    return engine.models.some((model) => {
+      const bindingMatches = !providerBindingId
+        || model.bindingId === providerBindingId
+        || engine.bindingId === providerBindingId;
+      const modelMatches = !modelId || model.id === modelId;
+      const providerMatches = !providerId || model.providerId === providerId;
+      return bindingMatches && modelMatches && providerMatches;
+    });
   });
-  if (candidates.length === 1) {
-    return candidates[0] ?? null;
-  }
-  if (providerId) {
-    return candidates.find((engine) =>
-      engine.models.some((model) => model.providerId === providerId),
-    ) ?? null;
-  }
-  return null;
+  return candidates.length === 1 ? candidates[0] ?? null : null;
 }
 
 function createUnknownEngineDefinition(value: unknown): WorkbenchCodeEngineDefinition {

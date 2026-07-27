@@ -13,7 +13,7 @@
     "windows": [
       {
         "label": "main-test",
-        "title": "SDKWork BirdCoder Test",
+        "title": "Birdcoder Test",
         "decorations": false,
         "center": true,
         "minWidth": 1200,

@@ -1,6 +1,6 @@
 # SDKWork Birdcoder Studio Component Specs
 
-This directory is the local standards index for `@sdkwork/birdcoder-studio`.
+This directory is the local standards index for `@sdkwork/birdcoder-pc-studio`.
 
 Root SDKWork standards remain authoritative. Local component specs can narrow or document this component, but they must not contradict [the root standards](../../../../../specs/README.md).
 
@@ -8,7 +8,7 @@ Root SDKWork standards remain authoritative. Local component specs can narrow or
 
 | Field | Value |
 | --- | --- |
-| Name | `@sdkwork/birdcoder-studio` |
+| Name | `@sdkwork/birdcoder-pc-studio` |
 | Type | `react-package` |
 | Root | `sdkwork-birdcoder/packages/sdkwork-birdcoder-studio` |
 | Domain | `platform` |
@@ -50,6 +50,24 @@ Root SDKWork standards remain authoritative. Local component specs can narrow or
 
 - No local extension specs are declared yet.
 
+## Session Menu Presentation
+
+Studio consumes the workbench's disposable projection of the canonical Agents
+Session Activity summary. Studio Session rows place provider identity at the
+left edge and the shared PC UI runtime-status component at the far right. Busy
+animation is limited to `initializing` and `streaming`; interaction waits,
+failures, and stale freshness states are static. Unknown, `null`, or absent
+runtime status is silent and reserves no slot. Studio titles truncate in the
+remaining width; time/status text is not stacked below the title and instead
+lives in the auto-aligned, right-aligned
+`data-session-trailing-metadata="true"` region before the runtime icon.
+
+Background inventory or activity synchronization preserves an explicit Studio
+Session selection. The synchronized newest Session is only a default when its
+Project has no current or explicit selection. Studio does not infer live state
+from provider files or persist an activity projection.
+
 ## Verification
 
-- `pnpm --filter @sdkwork/birdcoder-studio typecheck`
+- `pnpm --filter @sdkwork/birdcoder-pc-studio typecheck`
+- `node scripts/run-local-tsx.mjs scripts/session-list-presentation-contract.test.tsx`

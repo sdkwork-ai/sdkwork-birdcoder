@@ -94,7 +94,7 @@
     "configKeys": []
   },
   "integration": {
-    "authority": "Owns local Git process execution, repository inspection, branch and worktree validation, and filesystem-safe Git mutations only. Canonical Project authorization comes from sdkwork-agents before this adapter is invoked; mounted path authorization and device-local mount identity remain in the PC/Tauri host. This crate owns no Project aggregate or remote API."
+    "authority": "Owns local Git process execution, repository inspection, branch and worktree validation, and filesystem-safe Git mutations only. The repository probe accepts only an already authorized project root and returns ready, not_repository, repository_root_mismatch, or unavailable with a stable path-free diagnostic code. Canonical Project authorization comes from sdkwork-agents before this adapter is invoked; mounted path authorization and device-local mount identity remain in the PC/Tauri host. This crate owns no Project aggregate or remote API."
   },
   "verification": {
     "commands": [

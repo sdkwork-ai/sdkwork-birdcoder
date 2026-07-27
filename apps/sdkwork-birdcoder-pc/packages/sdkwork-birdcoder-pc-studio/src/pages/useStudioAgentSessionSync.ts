@@ -93,13 +93,10 @@ export function useStudioAgentSessionSync({
 
     if (!normalizedInitialAgentSessionId) {
       if (
-        normalizedSelectedAgentSessionId ||
-        (
-          normalizedInitialProjectId &&
-          normalizedSelectedProjectId !== normalizedInitialProjectId
-        )
+        !normalizedSelectedAgentSessionId &&
+        normalizedInitialProjectId &&
+        normalizedSelectedProjectId !== normalizedInitialProjectId
       ) {
-        setSelectedAgentSessionId('');
         setSelectedAgentSessionProjectId(normalizedInitialProjectId || null);
       }
       return;

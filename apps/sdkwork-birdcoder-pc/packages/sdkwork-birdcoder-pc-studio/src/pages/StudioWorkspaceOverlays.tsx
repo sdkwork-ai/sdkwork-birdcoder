@@ -1,6 +1,9 @@
-import type { ProjectMountRecoveryState } from '@sdkwork/birdcoder-pc-workbench';
+import {
+  resolveProjectMountRecoveryActions,
+  type ProjectMountRecoveryState,
+} from '@sdkwork/birdcoder-pc-workbench';
 import { type FileNode } from '@sdkwork/birdcoder-pc-ui';
-import { AlertCircle, FileCode2, RefreshCw, Search, X } from 'lucide-react';
+import { AlertCircle, FileCode2, FolderOpen, RefreshCw, Search, X } from 'lucide-react';
 import { memo, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
@@ -51,6 +54,7 @@ export const StudioWorkspaceOverlays = memo(function StudioWorkspaceOverlays({
   const [quickOpenQuery, setQuickOpenQuery] = useState('');
   const [quickOpenResults, setQuickOpenResults] = useState<StudioWorkspaceSearchResult[]>([]);
   const [isQuickOpenSearching, setIsQuickOpenSearching] = useState(false);
+  const mountRecoveryActions = resolveProjectMountRecoveryActions(mountRecoveryState.status);
   const quickOpenFileMatchLabel = t('studio.fileMatch');
   useEffect(() => {
     setFindResults([]);
@@ -120,15 +124,15 @@ export const StudioWorkspaceOverlays = memo(function StudioWorkspaceOverlays({
     <>
       {mountRecoveryState.status === 'recovering' && (
         <div className="absolute top-16 left-4 z-40 max-w-xl">
-          <div className="rounded-xl border border-blue-400/20 bg-blue-500/10 px-4 py-3 shadow-2xl backdrop-blur">
+          <div className="rounded-md border border-blue-400/20 bg-blue-500/10 px-4 py-3 shadow-2xl backdrop-blur">
             <div className="flex items-start gap-3">
               <RefreshCw size={16} className="mt-0.5 shrink-0 animate-spin text-blue-300" />
               <div className="min-w-0">
                 <div className="text-sm font-medium text-blue-100">
-                  Reconnecting local project folder
+                  {t('app.localProjectFolderReconnecting')}
                 </div>
                 <div className="mt-1 text-sm leading-6 text-blue-50/90">
-                  Restoring file access for the current project.
+                  {t('app.localProjectFolderRestoring')}
                 </div>
                 {mountRecoveryState.displayName && (
                   <div className="mt-2 break-all font-mono text-xs text-blue-100/80">
@@ -141,14 +145,14 @@ export const StudioWorkspaceOverlays = memo(function StudioWorkspaceOverlays({
         </div>
       )}
 
-      {mountRecoveryState.status === 'failed' && (
+      {mountRecoveryActions.requiresAttention && (
         <div className="absolute top-16 left-4 z-40 max-w-xl">
-          <div className="rounded-xl border border-amber-400/20 bg-amber-500/10 px-4 py-3 shadow-2xl backdrop-blur">
+          <div className="rounded-md border border-amber-400/20 bg-amber-500/10 px-4 py-3 shadow-2xl backdrop-blur">
             <div className="flex items-start gap-3">
               <AlertCircle size={16} className="mt-0.5 shrink-0 text-amber-300" />
               <div className="min-w-0">
                 <div className="text-sm font-medium text-amber-100">
-                  Local project folder needs attention
+                  {t('app.localProjectFolderNeedsAttention')}
                 </div>
                 <div className="mt-1 text-sm leading-6 text-amber-50/90">
                   {mountRecoveryState.message}
@@ -159,22 +163,30 @@ export const StudioWorkspaceOverlays = memo(function StudioWorkspaceOverlays({
                   </div>
                 )}
                 <div className="mt-3 flex flex-wrap gap-2">
-                  <button
-                    type="button"
-                    disabled={isMountRecoveryActionPending}
-                    className="rounded-md border border-amber-200/30 bg-amber-200/10 px-3 py-1.5 text-xs font-semibold text-amber-50 transition-colors hover:bg-amber-200/20 disabled:cursor-not-allowed disabled:opacity-60"
-                    onClick={onRetryMountRecovery}
-                  >
-                    {isMountRecoveryActionPending ? 'Retrying...' : 'Retry Connection'}
-                  </button>
-                  <button
-                    type="button"
-                    disabled={isMountRecoveryActionPending}
-                    className="rounded-md border border-white/15 bg-white/5 px-3 py-1.5 text-xs font-semibold text-gray-100 transition-colors hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-60"
-                    onClick={onReimportProjectFolder}
-                  >
-                    Choose Folder
-                  </button>
+                  {mountRecoveryActions.retry && (
+                    <button
+                      type="button"
+                      disabled={isMountRecoveryActionPending}
+                      className="inline-flex items-center gap-1.5 rounded-md border border-amber-200/30 bg-amber-200/10 px-3 py-1.5 text-xs font-semibold text-amber-50 transition-colors hover:bg-amber-200/20 disabled:cursor-not-allowed disabled:opacity-60"
+                      onClick={onRetryMountRecovery}
+                    >
+                      <RefreshCw size={13} aria-hidden="true" />
+                      {isMountRecoveryActionPending
+                        ? t('app.retryingProjectFolder')
+                        : t('app.retryProjectFolderConnection')}
+                    </button>
+                  )}
+                  {mountRecoveryActions.chooseFolder && (
+                    <button
+                      type="button"
+                      disabled={isMountRecoveryActionPending}
+                      className="inline-flex items-center gap-1.5 rounded-md border border-white/15 bg-white/5 px-3 py-1.5 text-xs font-semibold text-gray-100 transition-colors hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-60"
+                      onClick={onReimportProjectFolder}
+                    >
+                      <FolderOpen size={13} aria-hidden="true" />
+                      {t('app.chooseProjectFolder')}
+                    </button>
+                  )}
                 </div>
               </div>
             </div>

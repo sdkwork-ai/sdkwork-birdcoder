@@ -1,18 +1,12 @@
 import type { LocalFolderPickerResult } from '@sdkwork/birdcoder-pc-contracts-commons';
-import { isBirdCoderTauriRuntime } from './tauriRuntime.ts';
+import {
+  isBirdCoderTauriRuntime,
+  resolveBirdCoderTauriInvoke,
+} from './tauriRuntime.ts';
 
 type DirectoryPickerWindow = Window &
   typeof globalThis & {
     showDirectoryPicker?: () => Promise<FileSystemDirectoryHandle>;
-  };
-
-type TauriInvoke = <T>(command: string, args?: Record<string, unknown>) => Promise<T>;
-
-type TauriDialogWindow = Window &
-  typeof globalThis & {
-    __TAURI_INTERNALS__?: {
-      invoke?: TauriInvoke;
-    };
   };
 
 type DesktopWorkingDirectoryPickerRequest = {
@@ -22,20 +16,11 @@ type DesktopWorkingDirectoryPickerRequest = {
 
 type TauriDirectoryDialogResult = string | null;
 
-async function resolveTauriInvoke(): Promise<TauriInvoke> {
-  const tauriWindow =
-    typeof window === 'undefined' ? null : (window as TauriDialogWindow);
-  const directInvoke = tauriWindow?.__TAURI_INTERNALS__?.invoke;
-  if (typeof directInvoke === 'function') {
-    return directInvoke;
-  }
-
-  const { invoke } = await import('@tauri-apps/api/core');
-  return invoke;
-}
-
 async function openTauriDirectoryDialog(): Promise<string | null> {
-  const invoke = await resolveTauriInvoke();
+  const invoke = await resolveBirdCoderTauriInvoke();
+  if (!invoke) {
+    throw new Error('The BirdCoder desktop folder picker is unavailable.');
+  }
   const selectedPath = await invoke<TauriDirectoryDialogResult>('desktop_pick_working_directory', {
     request: {} satisfies DesktopWorkingDirectoryPickerRequest,
   });

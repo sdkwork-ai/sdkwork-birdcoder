@@ -1,6 +1,15 @@
+import {
+  invoke as invokeTauriCommand,
+  isTauri,
+} from '@tauri-apps/api/core';
+
 type TauriRuntimeWindow = Window &
   typeof globalThis & {
-    __TAURI__?: unknown;
+    __TAURI__?: {
+      core?: {
+        invoke?: BirdCoderTauriInvoke;
+      };
+    };
     __TAURI_INTERNALS__?: {
       invoke?: BirdCoderTauriInvoke;
     };
@@ -19,18 +28,16 @@ function getTauriRuntimeWindow(): TauriRuntimeWindow | null {
   return window as TauriRuntimeWindow;
 }
 
-export async function isBirdCoderTauriRuntime(): Promise<boolean> {
+export function isBirdCoderTauriRuntime(): boolean {
   const tauriWindow = getTauriRuntimeWindow();
-  if (!tauriWindow) {
-    return false;
-  }
-
-  if (tauriWindow.__TAURI__ || tauriWindow.__TAURI_INTERNALS__) {
+  if (
+    typeof tauriWindow?.__TAURI__?.core?.invoke === 'function'
+    || typeof tauriWindow?.__TAURI_INTERNALS__?.invoke === 'function'
+  ) {
     return true;
   }
 
   try {
-    const { isTauri } = await import('@tauri-apps/api/core');
     return isTauri();
   } catch {
     return false;
@@ -42,19 +49,16 @@ export async function isBirdCoderTauriRuntime(): Promise<boolean> {
  * Callers retain ownership of command names and payload validation.
  */
 export async function resolveBirdCoderTauriInvoke(): Promise<BirdCoderTauriInvoke | null> {
-  if (!(await isBirdCoderTauriRuntime())) {
+  if (!isBirdCoderTauriRuntime()) {
     return null;
   }
 
-  const directInvoke = getTauriRuntimeWindow()?.__TAURI_INTERNALS__?.invoke;
+  const tauriWindow = getTauriRuntimeWindow();
+  const directInvoke = tauriWindow?.__TAURI__?.core?.invoke
+    ?? tauriWindow?.__TAURI_INTERNALS__?.invoke;
   if (typeof directInvoke === 'function') {
     return directInvoke;
   }
 
-  try {
-    const { invoke } = await import('@tauri-apps/api/core');
-    return invoke;
-  } catch {
-    return null;
-  }
+  return invokeTauriCommand;
 }

@@ -2,7 +2,7 @@ import { defineLocaleModule } from '../../resource.ts';
 
 export default defineLocaleModule('app/bootstrap', {
   bootstrap: {
-    startingTitle: 'SDKWork BirdCoder',
+    startingTitle: 'Birdcoder',
     bootingDescription: '正在连接本地运行时并准备工作区。',
     desktopApiUnavailable:
       '嵌入式运行时（{{apiBaseUrl}}）尚未就绪。请立即重试；若问题持续，请完全退出并重新启动 BirdCoder。',

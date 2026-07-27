@@ -18,8 +18,9 @@ interface ProjectExplorerSessionContextMenuProps {
   onArchive?: (id: string, projectId: string) => void;
   onMarkUnread?: (id: string, projectId: string) => void;
   onCopyWorkingDirectory?: (id: string, projectId: string) => void;
-  onCopySessionId?: (id: string, projectId: string) => void;
+  onCopyProviderSessionId?: (id: string, projectId: string) => void;
   onCopyDeeplink?: (id: string, projectId: string) => void;
+  onOpenInTerminal?: (id: string, projectId: string) => void;
   onForkLocal?: (id: string, projectId: string) => void;
   onForkNewTree?: (id: string, projectId: string) => void;
   onDelete: (id: string, projectId: string) => void;
@@ -40,8 +41,9 @@ export function ProjectExplorerSessionContextMenu({
   onArchive,
   onMarkUnread,
   onCopyWorkingDirectory,
-  onCopySessionId,
+  onCopyProviderSessionId,
   onCopyDeeplink,
+  onOpenInTerminal,
   onForkLocal,
   onForkNewTree,
   onDelete,
@@ -72,6 +74,16 @@ export function ProjectExplorerSessionContextMenu({
         {isRefreshing ? t('code.refreshingMessages') : t('code.refreshMessages')}
       </button>
       <div className="h-px bg-white/10 my-1.5"></div>
+      <button
+        type="button"
+        className="w-full px-4 py-1.5 text-left hover:bg-white/10 hover:text-white transition-colors"
+        onClick={() => {
+          onOpenInTerminal?.(sessionId, projectId);
+          onClose();
+        }}
+      >
+        {t('code.openInTerminal')}
+      </button>
       <button
         type="button"
         className="w-full px-4 py-1.5 text-left hover:bg-white/10 hover:text-white transition-colors"
@@ -127,11 +139,11 @@ export function ProjectExplorerSessionContextMenu({
         type="button"
         className="w-full px-4 py-1.5 text-left hover:bg-white/10 hover:text-white transition-colors"
         onClick={() => {
-          onCopySessionId?.(sessionId, projectId);
+          onCopyProviderSessionId?.(sessionId, projectId);
           onClose();
         }}
       >
-        {t('code.copySessionId')}
+        {t('code.copyProviderSessionId')}
       </button>
       <button
         type="button"

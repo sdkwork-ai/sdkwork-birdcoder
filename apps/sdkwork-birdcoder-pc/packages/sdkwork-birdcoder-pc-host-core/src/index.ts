@@ -33,7 +33,7 @@ export function createBirdHostDescriptor(
   return {
     mode: overrides.mode ?? 'web',
     appId: overrides.appId ?? 'sdkwork-birdcoder',
-    appName: overrides.appName ?? 'SDKWork BirdCoder',
+    appName: overrides.appName ?? 'Birdcoder',
     distributionId: overrides.distributionId ?? 'global',
     apiBaseUrl: overrides.apiBaseUrl ?? BIRDCODER_DEFAULT_LOCAL_API_BASE_URL,
   };

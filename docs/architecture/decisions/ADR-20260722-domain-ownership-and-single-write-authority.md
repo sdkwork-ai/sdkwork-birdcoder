@@ -35,9 +35,11 @@ BirdCoder becomes a stateless composition host:
 | Human communication | IM Conversation, Message, Member, and ReadCursor |
 | Device capability | PC/Tauri local mount, filesystem, Git, worktree, terminal, and allowlisted device state |
 
-The transition is a direct replacement. It introduces no projection, alias,
-shadow record, synchronized cache authority, dual write, compatibility facade,
-or cross-domain foreign key.
+The transition is a direct replacement. It introduces no persisted
+compatibility projection, alias, shadow record, synchronized cache authority,
+dual write, compatibility facade, or cross-domain foreign key. Owner-computed
+read projections and disposable in-memory UI mapping remain permitted when
+they do not become a second authority.
 
 ## Semantic Separation
 
@@ -124,7 +126,8 @@ Agents, Kernel, and provider infrastructure.
 
 ## Supersession
 
-This ADR is the only active BirdCoder domain-ownership decision. Any earlier
-proposal for a BirdCoder database, Workspace/Project authority, distributed
-project-path authority, or second AI Session/message system is superseded and
-removed from active documentation.
+This ADR remains the baseline BirdCoder domain-ownership decision. Later ADRs
+may narrow consumer behavior without changing these ownership boundaries. Any
+earlier proposal for a BirdCoder database, Workspace/Project authority,
+distributed project-path authority, or second AI Session/message system is
+superseded and removed from active documentation.

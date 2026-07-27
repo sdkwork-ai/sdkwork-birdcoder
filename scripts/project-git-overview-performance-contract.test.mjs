@@ -8,6 +8,9 @@ function readSource(relativePath) {
 const hookSource = readSource(
   'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-workbench/src/hooks/useProjectGitOverview.ts',
 );
+const subscriptionSource = readSource(
+  'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-workbench/src/workbench/projectGitOverviewSubscription.ts',
+);
 const codePageSource = readSource(
   'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-code/src/pages/CodePage.tsx',
 );
@@ -44,11 +47,20 @@ assert.match(
   /export interface UseProjectGitOverviewOptions \{[\s\S]*isActive\?: boolean;/s,
   'useProjectGitOverview must expose an isActive option so hidden surfaces can suspend Git refresh work.',
 );
-
 assert.match(
-  hookSource,
+  subscriptionSource,
   /projectGitOverviewCache\.delete\(projectId\);/,
-  'useProjectGitOverview must reclaim cache entries when no mounted consumers remain.',
+  'The Git overview subscription component must reclaim cache entries when no consumers remain.',
+);
+assert.match(
+  subscriptionSource,
+  /export interface ProjectGitOverviewSubscriptionInput \{[\s\S]*activation:[\s\S]*projectId\?:[\s\S]*source:/s,
+  'The Git overview subscription component must declare its activation, project, and source inputs.',
+);
+assert.doesNotMatch(
+  hookSource + subscriptionSource,
+  /isRuntimeReady|runtimeReadiness/,
+  'Git overview loading must resolve the saved project path itself instead of waiting on file-tree mount state.',
 );
 
 assert.match(
@@ -65,8 +77,8 @@ assert.match(
 
 assert.match(
   codePageSource,
-  /const projectGitOverviewState = useProjectGitOverview\(\{[\s\S]*projectId: currentProject\?\.id,/s,
-  'CodePage must own a shared Git overview state for the active project instead of letting multiple child surfaces subscribe independently.',
+  /const projectGitOverviewState = useProjectGitOverview\(\{\s*isActive: isVisible,\s*projectId: currentProjectId,\s*\}\);/s,
+  'CodePage must load Git from the selected project identity without a file-tree recovery gate.',
 );
 
 assert.match(
@@ -89,8 +101,8 @@ assert.doesNotMatch(
 
 assert.match(
   studioPageSource,
-  /const projectGitOverviewState = useProjectGitOverview\(\{[\s\S]*projectId: currentProjectId,/s,
-  'StudioPage must own a shared Git overview state for code mode instead of letting multiple child surfaces subscribe independently.',
+  /const projectGitOverviewState = useProjectGitOverview\(\{\s*isActive: isVisible && activeTab === 'code',\s*projectId: currentProjectId,\s*\}\);/s,
+  'StudioPage must load Git from the selected project identity without a file-tree recovery gate.',
 );
 
 assert.match(

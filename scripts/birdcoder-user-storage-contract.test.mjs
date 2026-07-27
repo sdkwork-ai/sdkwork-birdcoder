@@ -21,6 +21,10 @@ const tokenPlanCheckoutModalPath = new URL(
   '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-user/src/token-plan/BirdCoderTokenPlanCheckoutModal.tsx',
   import.meta.url,
 );
+const tokenPlanCommerceModalPath = new URL(
+  '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-user/src/token-plan/BirdCoderTokenPlanCommerceModal.tsx',
+  import.meta.url,
+);
 const tokenPlanMemberSummaryPath = new URL(
   '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-user/src/token-plan/tokenPlanMemberSummary.ts',
   import.meta.url,
@@ -56,6 +60,7 @@ const userPageSource = fs.readFileSync(userPagePath, 'utf8');
 const vipPageSource = fs.readFileSync(vipPagePath, 'utf8');
 const tokenPlanPageSource = fs.readFileSync(tokenPlanPagePath, 'utf8');
 const tokenPlanCheckoutModalSource = fs.readFileSync(tokenPlanCheckoutModalPath, 'utf8');
+const tokenPlanCommerceModalSource = fs.readFileSync(tokenPlanCommerceModalPath, 'utf8');
 const tokenPlanMemberSummarySource = fs.readFileSync(tokenPlanMemberSummaryPath, 'utf8');
 const membershipSdkBootstrapSource = fs.readFileSync(membershipSdkBootstrapPath, 'utf8');
 const vipSurfaceSource = fs.readFileSync(vipSurfacePath, 'utf8');
@@ -65,6 +70,7 @@ for (const [label, source] of [
   ['user page', userPageSource],
   ['vip page', vipPageSource],
   ['token plan page', tokenPlanPageSource],
+  ['token plan commerce modal', tokenPlanCommerceModalSource],
   ['token plan member summary', tokenPlanMemberSummarySource],
 ]) {
   assert.doesNotMatch(
@@ -120,9 +126,49 @@ assert.doesNotMatch(
   'BirdCoder checkout UI must not bypass the composed Order service boundary.',
 );
 assert.match(
+  tokenPlanCommerceModalSource,
+  /@sdkwork\/order-pc-recharge[\s\S]*SdkworkPointsRechargeDialog/u,
+  'BirdCoder points purchase must render the shared Order recharge dialog.',
+);
+assert.match(
+  tokenPlanCommerceModalSource,
+  /@sdkwork\/order-pc-recharge[\s\S]*SdkworkCouponRedemptionDialog/u,
+  'BirdCoder membership redemption must render the shared Order coupon redemption dialog.',
+);
+assert.match(
+  tokenPlanCommerceModalSource,
+  /service=\{getBirdCoderPointsRechargeService\(\)\}/u,
+  'BirdCoder points purchase must inject the composed Order points recharge service.',
+);
+assert.match(
+  tokenPlanCommerceModalSource,
+  /service=\{getBirdCoderCouponRechargeService\(\)\}/u,
+  'BirdCoder membership redemption must inject the composed Order coupon recharge service.',
+);
+assert.doesNotMatch(
+  tokenPlanCommerceModalSource,
+  /fetch\s*\(|axios\.|Authorization|Access-Token/u,
+  'BirdCoder recharge and redemption UI must not bypass the composed Order service boundary.',
+);
+assert.match(
   membershipSdkBootstrapSource,
   /const\s+orderAppService\s*=\s*bootstrapSdkworkOrderAppService\([\s\S]*createSdkworkMembershipCheckoutService\(\{[\s\S]*appService:\s*orderAppService/u,
   'BirdCoder infrastructure must compose Membership checkout from the shared Order app service.',
+);
+assert.match(
+  membershipSdkBootstrapSource,
+  /createSdkworkPointsRechargeService\(\{[\s\S]*appService:\s*orderAppService/u,
+  'BirdCoder infrastructure must compose points recharge from the shared Order app service.',
+);
+assert.match(
+  membershipSdkBootstrapSource,
+  /createSdkworkCouponRechargeService\(\{[\s\S]*appService:\s*orderAppService/u,
+  'BirdCoder infrastructure must compose coupon redemption from the shared Order app service.',
+);
+assert.match(
+  membershipSdkBootstrapSource,
+  /configureSdkworkOrderSessionTokenProvider\(resolveMembershipSessionTokens\)/u,
+  'BirdCoder Order services must share the authenticated BirdCoder IAM session tokens.',
 );
 assert.match(
   tokenPlanMemberSummarySource,
@@ -133,6 +179,11 @@ assert.match(
   tokenPlanMemberSummarySource,
   /useSdkworkMembershipController\(\)/u,
   'BirdCoder Token Plan member state must use the shared Membership controller.',
+);
+assert.match(
+  tokenPlanMemberSummarySource,
+  /pointBalance:\s*state\.dashboard\.summary\.pointBalance/u,
+  'BirdCoder Token Plan must expose the Membership-owned Compute Credits balance.',
 );
 assert.doesNotMatch(
   `${tokenPlanPageSource}\n${tokenPlanMemberSummarySource}`,

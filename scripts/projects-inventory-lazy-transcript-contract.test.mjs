@@ -59,8 +59,8 @@ assert.match(
 
 assert.match(
   source,
-  /normalizeProjectsForInventoryStore\(page\.items\.filter\(Boolean\)\)/,
-  'useProjects must normalize authoritative project inventory payloads before merging them into the shared store.',
+  /normalizeProjectsForInventoryStore\(\s*filterProjectsForInventoryStore\(store, page\.items\.filter\(Boolean\)\),\s*\)/u,
+  'useProjects must filter tombstones and normalize authoritative project inventory payloads before merging them into the shared store.',
 );
 
 console.log('projects inventory lazy transcript contract passed.');

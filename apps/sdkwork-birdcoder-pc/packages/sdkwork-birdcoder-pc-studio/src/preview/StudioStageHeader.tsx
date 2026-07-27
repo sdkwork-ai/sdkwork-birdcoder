@@ -252,7 +252,10 @@ export const StudioStageHeader = memo(function StudioStageHeader({
 
   return (
     <>
-      <div className="relative z-50 flex min-w-0 shrink-0 items-center justify-between overflow-visible border-b border-white/10 bg-[#0e0e11] px-4 py-2">
+      <div
+        className="relative z-50 flex min-w-0 shrink-0 items-center justify-between overflow-visible border-b border-white/10 bg-[#0e0e11] px-4 py-2"
+        data-studio-stage-header="true"
+      >
         <div className="flex min-w-0 flex-1 items-center gap-4 text-sm">
         <div
           className={`flex shrink-0 items-center gap-2 whitespace-nowrap px-3 py-1 rounded-full cursor-pointer transition-colors animate-in fade-in slide-in-from-top-2 fill-mode-both ${activeTab === 'preview' ? 'text-white bg-white/10' : 'text-gray-500 hover:text-gray-300'}`}
@@ -318,7 +321,7 @@ export const StudioStageHeader = memo(function StudioStageHeader({
       <div className="ml-4 flex shrink-0 items-center gap-3 text-sm">
         {(activeTab === 'preview' || activeTab === 'simulator') && (
           <div
-            className="flex items-center gap-4 mr-2 animate-in fade-in slide-in-from-top-2 fill-mode-both"
+            className="mr-2 hidden items-center gap-4 animate-in fade-in slide-in-from-top-2 fill-mode-both min-[1800px]:flex"
             style={{ animationDelay: '150ms' }}
           >
             <div className="flex items-center rounded-full border border-white/6 bg-black/40 p-1 shadow-sm shadow-black/20">

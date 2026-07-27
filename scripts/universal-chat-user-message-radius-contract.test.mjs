@@ -8,20 +8,26 @@ const replyMessageRenderersSource = fs.readFileSync(
 
 assert.match(
   replyMessageRenderersSource,
-  /max-w-\[85%\] min-w-0 overflow-hidden break-words bg-white\/5 px-4 py-2\.5 text-\[14px\] leading-relaxed text-gray-200 whitespace-pre-wrap \[overflow-wrap:anywhere\] rounded-xl rounded-tr-md/,
+  /className="[^"]*max-w-\[85%\][^"]*rounded-lg rounded-tr-sm[^"]*"\s*data-chat-user-text="true"/,
   'UniversalChat main sent-message bubble must use a restrained radius so short messages do not render as circles.',
 );
 
 assert.match(
   replyMessageRenderersSource,
-  /max-w-\[90%\] min-w-0 overflow-hidden break-words bg-white\/5 px-4 py-3 text-gray-200 \[overflow-wrap:anywhere\] rounded-xl rounded-tr-md/,
+  /className="[^"]*max-w-\[90%\][^"]*rounded-lg rounded-tr-sm[^"]*"\s*data-chat-user-text="true"/,
   'UniversalChat sidebar sent-message bubble must use a restrained radius so short messages do not render as circles.',
 );
 
 assert.match(
   replyMessageRenderersSource,
-  /if \(isSidebar\) \{\s*return \([\s\S]*?<div className="max-w-\[90%\][^"]*rounded-xl rounded-tr-md">\s*<ContentBlockList view=\{view\} context=\{context\} \/>\s*<\/div>\s*\{context\.showMessageActions \? \(\s*<ChatMessageActionBar/,
+  /if \(isSidebar\) \{[\s\S]*?<UserMessageAttachments[\s\S]*?data-chat-user-text="true"[\s\S]*?<ContentBlockList view=\{textView\} context=\{context\} \/>[\s\S]*?\{context\.showMessageActions \? \(/,
   'UniversalChat sidebar sent-message hover actions must render outside the bubble so narrow chat panes do not wrap the toolbar into the message bubble.',
+);
+
+assert.match(
+  replyMessageRenderersSource,
+  /<UserMessageAttachments[\s\S]*?data-chat-user-text="true"/,
+  'User attachments must render before the standalone text bubble.',
 );
 
 assert.doesNotMatch(

@@ -154,13 +154,13 @@ pub fn start_embedded_application_gateway(app: &AppHandle) -> Result<DesktopRunt
         rate_limit_window_secs: sdkwork_api_birdcoder_standalone_gateway::bootstrap::config::DEFAULT_RATE_LIMIT_WINDOW_SECS,
     };
     drop(open_device_state(app)?);
-    let native_session_cwd_resolver = Arc::new(super::TauriNativeSessionProjectCwdResolver::new(
+    let provider_session_cwd_resolver = Arc::new(super::TauriProviderSessionProjectCwdResolver::new(
         device_state_path(app)?,
     ));
     let router = tauri::async_runtime::block_on(
-        sdkwork_api_birdcoder_standalone_gateway::build_app_with_native_session_cwd_resolver(
+        sdkwork_api_birdcoder_standalone_gateway::build_app_with_provider_session_cwd_resolver(
             &config,
-            Some(native_session_cwd_resolver),
+            Some(provider_session_cwd_resolver),
         ),
     )
     .map_err(|error| format!("failed to build embedded BirdCoder API router: {error}"))?;

@@ -306,7 +306,7 @@
       "forbiddenLocalPathPrefixes": [
         "/app/v3/api/models",
         "/app/v3/api/engines",
-        "/app/v3/api/native_session_providers"
+        "/app/v3/api/provider_session_providers"
       ]
     },
     {
@@ -409,7 +409,7 @@
     "sdkwork-birdcoder-coding-sessions-repository-sqlx",
     "sdkwork-routes-coding-sessions-app-api",
     "sdkwork-birdcoder-engine-catalog-service",
-    "sdkwork-birdcoder-native-sessions-service",
+    "sdkwork-birdcoder-provider-sessions-service",
     "sdkwork-birdcoder-codeengine",
     "sdkwork-birdcoder-kernel-bridge",
     "sdkwork-birdcoder-chat-service",

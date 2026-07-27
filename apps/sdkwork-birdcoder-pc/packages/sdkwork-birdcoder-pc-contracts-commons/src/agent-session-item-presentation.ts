@@ -25,6 +25,7 @@ import {
   resolveAgentSessionItemVisibleMarkdownContent,
   type AgentTurnActivityPresentation,
 } from './agent-session-item-activity-presentation.ts';
+import { resolveAgentSessionItemProtocolNoticeKind } from './agent-session-item-transcript.ts';
 import { resolveTaskProgressDisplayState } from './agent-session-item-task-progress.ts';
 import {
   normalizeAgentSessionItemReasoning,
@@ -215,21 +216,6 @@ function hasStructuredActivity(
       .some((call) => call.kind === 'command');
 }
 
-function resolveProtocolNoticeKind(
-  item: AgentSessionItemViewSource,
-): AgentSessionProtocolNoticeKind | undefined {
-  if (item.role !== 'system' || typeof item.metadata !== 'object' || !item.metadata) {
-    return undefined;
-  }
-
-  const noticeKind = (item.metadata as Record<string, unknown>).noticeKind;
-  return ['blocked', 'cancelled', 'compression', 'failed', 'info', 'retry', 'stopped', 'warning'].includes(
-    typeof noticeKind === 'string' ? noticeKind : '',
-  )
-    ? noticeKind as AgentSessionProtocolNoticeKind
-    : undefined;
-}
-
 function resolveToolNoticeFallback(call: AgentSessionItemToolCallView): string {
   for (const block of call.resultBlocks ?? []) {
     if (block.type === 'text' && block.text.trim()) {
@@ -313,7 +299,7 @@ function buildAgentSessionItemPresentationBlocks(
   const markdownContent = item.role === 'tool'
     ? ''
     : resolveAgentSessionItemVisibleMarkdownContent(item);
-  const noticeKind = resolveProtocolNoticeKind(item);
+  const noticeKind = resolveAgentSessionItemProtocolNoticeKind(item);
 
   const reasoning = ['assistant', 'planner', 'reviewer'].includes(item.role)
     ? normalizeAgentSessionItemReasoning(item.reasoning)

@@ -1,4 +1,6 @@
 import { useCallback } from 'react';
+import type { AgentSessionView } from '@sdkwork/birdcoder-pc-contracts-commons';
+import { resolveAgentSessionTerminalResume } from '@sdkwork/birdcoder-pc-workbench/terminal/agentSessionResume';
 import { emitOpenTerminalRequest } from '@sdkwork/birdcoder-pc-workbench/terminal/runtime';
 import { getTerminalProfile } from '@sdkwork/birdcoder-pc-workbench/terminal/profiles';
 import { resolveBirdcoderWorkbenchHostMode } from '@sdkwork/birdcoder-pc-workbench/terminal/runtimeTarget';
@@ -16,14 +18,23 @@ interface CodePageTerminalProjectLike {
   name: string;
 }
 
+interface CodePageTerminalSessionLocation {
+  agentSession: AgentSessionView;
+  project: CodePageTerminalProjectLike;
+}
+
 interface UseCodePageTerminalActionsOptions {
   addToast: (message: string, type?: ToastType) => void;
-  currentProjectId: string;
+  currentProject: CodePageTerminalProjectLike | null;
   resolveProjectActionTarget: (
     project?: CodePageTerminalProjectLike | null,
   ) => CodePageTerminalProjectLike | null;
   resolveProjectRuntimeLocation: ProjectRuntimeLocationResolver;
   resolveProjectById: (projectId: string) => CodePageTerminalProjectLike | null;
+  resolveSessionActionLocation: (
+    agentSessionId: string,
+    projectId?: string | null,
+  ) => CodePageTerminalSessionLocation | null;
   setIsTerminalOpen: (isOpen: boolean) => void;
   setTerminalRequest: (request: TerminalCommandRequest) => void;
   t: (key: string, values?: Record<string, string>) => string;
@@ -31,19 +42,20 @@ interface UseCodePageTerminalActionsOptions {
 
 export function useCodePageTerminalActions({
   addToast,
-  currentProjectId,
+  currentProject,
   resolveProjectRuntimeLocation,
   resolveProjectActionTarget,
   resolveProjectById,
+  resolveSessionActionLocation,
   setIsTerminalOpen,
   setTerminalRequest,
   t,
 }: UseCodePageTerminalActionsOptions) {
   const resolveTerminalWorkingDirectory = useCallback(async (
-    projectId: string,
+    project: CodePageTerminalProjectLike,
     allowFolderSelection: boolean,
   ) => {
-    const resolution = await resolveProjectRuntimeLocation(projectId, {
+    const resolution = await resolveProjectRuntimeLocation(project, {
       allowFolderSelection,
       capability: 'terminal',
     });
@@ -64,7 +76,7 @@ export function useCodePageTerminalActions({
 
   const handleTopBarTerminalVisibilityChange = useCallback(async (nextIsOpen: boolean) => {
     if (nextIsOpen) {
-      if (!currentProjectId) {
+      if (!currentProject) {
         return;
       }
       if (resolveBirdcoderWorkbenchHostMode() === 'web') {
@@ -77,7 +89,7 @@ export function useCodePageTerminalActions({
       }
 
       const localWorkingDirectory = await resolveTerminalWorkingDirectory(
-        currentProjectId,
+        currentProject,
         false,
       );
       if (!localWorkingDirectory) {
@@ -92,7 +104,7 @@ export function useCodePageTerminalActions({
 
     setIsTerminalOpen(nextIsOpen);
   }, [
-    currentProjectId,
+    currentProject,
     resolveTerminalWorkingDirectory,
     setIsTerminalOpen,
     setTerminalRequest,
@@ -109,6 +121,7 @@ export function useCodePageTerminalActions({
       emitOpenTerminalRequest({
         surface: 'project',
         profileId: terminalProfile?.id,
+        projectId: target.projectId,
         timestamp: Date.now(),
       });
       addToast(
@@ -120,7 +133,7 @@ export function useCodePageTerminalActions({
       return;
     }
 
-    const localWorkingDirectory = await resolveTerminalWorkingDirectory(target.projectId, false);
+    const localWorkingDirectory = await resolveTerminalWorkingDirectory(target, false);
     if (!localWorkingDirectory) {
       return;
     }
@@ -129,6 +142,7 @@ export function useCodePageTerminalActions({
       surface: 'project',
       path: localWorkingDirectory,
       profileId: terminalProfile?.id,
+      projectId: target.projectId,
       timestamp: Date.now(),
     });
     addToast(
@@ -139,23 +153,84 @@ export function useCodePageTerminalActions({
     );
   }, [addToast, resolveProjectActionTarget, resolveProjectById, resolveTerminalWorkingDirectory]);
 
-  const handleCopySessionId = useCallback(async (agentSessionId: string) => {
-    const normalizedAgentSessionId = agentSessionId.trim();
-    if (!normalizedAgentSessionId) {
+  const handleOpenAgentSessionInTerminal = useCallback(async (
+    agentSessionId: string,
+    projectId: string,
+  ) => {
+    const location = resolveSessionActionLocation(agentSessionId, projectId);
+    if (!location) {
+      addToast(t('chat.sendMessageSessionUnavailable'), 'error');
       return;
     }
 
-    const didCopy = await copyTextToClipboard(normalizedAgentSessionId);
+    const resumeResolution = resolveAgentSessionTerminalResume(location.agentSession);
+    if (resumeResolution.status === 'unsupported') {
+      const message = resumeResolution.reason === 'invalid-provider-session-id'
+        ? t('code.providerSessionIdInvalid')
+        : t('code.sessionTerminalProviderUnsupported', {
+            provider: location.agentSession.engineId || location.agentSession.providerId,
+          });
+      addToast(message, 'error');
+      return;
+    }
+
+    const target = resolveProjectActionTarget(location.project);
+    if (!target) {
+      return;
+    }
+
+    const hostMode = resolveBirdcoderWorkbenchHostMode();
+    const localWorkingDirectory = hostMode === 'web'
+      ? null
+      : await resolveTerminalWorkingDirectory(target, false);
+    if (hostMode !== 'web' && !localWorkingDirectory) {
+      return;
+    }
+
+    emitOpenTerminalRequest({
+      agentSessionId: location.agentSession.id,
+      command: resumeResolution.command,
+      path: localWorkingDirectory ?? undefined,
+      projectId: target.projectId,
+      runtimeLocationId: location.agentSession.runtimeLocationId,
+      surface: 'project',
+      timestamp: Date.now(),
+    });
+    addToast(t('code.openedSessionInProviderTerminal', {
+      engine: resumeResolution.providerLabel,
+      name: location.agentSession.title,
+    }), 'info');
+  }, [
+    addToast,
+    resolveProjectActionTarget,
+    resolveSessionActionLocation,
+    resolveTerminalWorkingDirectory,
+    t,
+  ]);
+
+  const handleCopyProviderSessionId = useCallback(async (
+    agentSessionId: string,
+    projectId: string,
+  ) => {
+    const location = resolveSessionActionLocation(agentSessionId, projectId);
+    const providerSessionId = location?.agentSession.providerSessionId?.trim() ?? '';
+    if (!providerSessionId) {
+      addToast(t('code.providerSessionIdInvalid'), 'error');
+      return;
+    }
+
+    const didCopy = await copyTextToClipboard(providerSessionId);
     addToast(
       didCopy
-        ? t('code.copiedSessionId', { id: normalizedAgentSessionId })
-        : 'Unable to copy session id',
+        ? t('code.copiedProviderSessionId', { id: providerSessionId })
+        : t('code.copyProviderSessionIdFailed'),
       didCopy ? 'success' : 'error',
     );
-  }, [addToast, t]);
+  }, [addToast, resolveSessionActionLocation, t]);
 
   return {
-    handleCopySessionId,
+    handleCopyProviderSessionId,
+    handleOpenAgentSessionInTerminal,
     handleOpenInTerminal,
     handleTopBarTerminalVisibilityChange,
   };

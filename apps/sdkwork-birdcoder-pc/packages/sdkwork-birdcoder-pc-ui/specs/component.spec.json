@@ -115,6 +115,10 @@
       {
         "name": "codingWorkbenchUi",
         "export": "."
+      },
+      {
+        "name": "sessionRuntimeStatusPresentation",
+        "export": "."
       }
     ],
     "requiredPorts": [],
@@ -142,7 +146,8 @@
   },
   "verification": {
     "commands": [
-      "pnpm --filter @sdkwork/sdkwork-birdcoder-pc-ui typecheck"
+      "pnpm --filter @sdkwork/birdcoder-pc-ui typecheck",
+      "node scripts/run-local-tsx.mjs scripts/session-list-presentation-contract.test.tsx"
     ]
   },
   "metadata": {

@@ -25,6 +25,10 @@ interface TranscriptMeasurementState {
   version: number;
 }
 
+interface ScopedTranscriptViewport extends TranscriptViewport {
+  measurementScopeKey: string;
+}
+
 export function useVirtualizedTranscriptWindow(
   messages: readonly AgentSessionItemView[],
   scrollContainerRef: RefObject<HTMLDivElement | null>,
@@ -34,8 +38,9 @@ export function useVirtualizedTranscriptWindow(
   engineId?: string,
 ): VirtualizedTranscriptWindowResult {
   const normalizedMeasurementScopeKey = measurementScopeKey.trim();
-  const [viewport, setViewport] = useState<TranscriptViewport>({
+  const [viewport, setViewport] = useState<ScopedTranscriptViewport>({
     clientHeight: 0,
+    measurementScopeKey: normalizedMeasurementScopeKey,
     scrollTop: 0,
   });
   const [measurementState, setMeasurementState] = useState<TranscriptMeasurementState>({
@@ -65,7 +70,7 @@ export function useVirtualizedTranscriptWindow(
     measuredHeightsRef.current.clear();
     prefixHeightsCacheRef.current = null;
   }
-  const effectiveViewport = didResetMeasurementScope
+  const effectiveViewport = viewport.measurementScopeKey !== normalizedMeasurementScopeKey
     ? {
         clientHeight: viewport.clientHeight,
         scrollTop: 0,
@@ -107,17 +112,6 @@ export function useVirtualizedTranscriptWindow(
   useEffect(() => {
     isActiveRef.current = isActive;
   }, [isActive]);
-
-  useEffect(() => {
-    setViewport((previousViewport) =>
-      previousViewport.scrollTop === 0
-        ? previousViewport
-        : {
-            ...previousViewport,
-            scrollTop: 0,
-          },
-    );
-  }, [normalizedMeasurementScopeKey]);
 
   useLayoutEffect(() => {
     const scrollContainer = scrollContainerRef.current;
@@ -299,9 +293,11 @@ export function useVirtualizedTranscriptWindow(
       setViewport((previousViewport) => {
         const nextViewport = {
           clientHeight: scrollContainer.clientHeight,
+          measurementScopeKey: normalizedMeasurementScopeKey,
           scrollTop: scrollContainer.scrollTop,
         };
         if (
+          previousViewport.measurementScopeKey === nextViewport.measurementScopeKey &&
           previousViewport.clientHeight === nextViewport.clientHeight &&
           previousViewport.scrollTop === nextViewport.scrollTop
         ) {
@@ -334,7 +330,13 @@ export function useVirtualizedTranscriptWindow(
         window.cancelAnimationFrame(animationFrameId);
       }
     };
-  }, [isActive, messages.length, scrollContainerRef, totalTranscriptHeight]);
+  }, [
+    isActive,
+    messages.length,
+    normalizedMeasurementScopeKey,
+    scrollContainerRef,
+    totalTranscriptHeight,
+  ]);
 
   const windowedTranscript = useMemo(
     () =>

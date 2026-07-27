@@ -7,7 +7,7 @@
   "runtimeConfig": "flutter.runtime.json",
   "materialization": {
     "authority": "../../../etc/sdkwork.deployment.config.json",
-    "command": "pnpm config:materialize",
+    "command": "pnpm workflow:materialize-client-env",
     "format": "dart-define-json",
     "outputPattern": "../env/sdkwork.{deploymentProfile}.{environment}.json",
     "profiles": [

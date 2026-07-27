@@ -1,8 +1,8 @@
-mod native_session_cwd;
+mod provider_session_cwd;
 pub mod state;
 pub mod terminal_runtime;
 
-pub use native_session_cwd::TauriNativeSessionProjectCwdResolver;
+pub use provider_session_cwd::TauriProviderSessionProjectCwdResolver;
 
 pub use state::{
     ensure_desktop_runtime_config, request_embedded_api_shutdown,

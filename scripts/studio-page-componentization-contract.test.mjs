@@ -59,6 +59,24 @@ assert.match(
   'StudioMainContent must render terminal integration through StudioTerminalIntegrationPanel instead of inlining the external terminal boundary in StudioPage.',
 );
 
+assert.match(
+  studioMainContentSource,
+  /WorkspaceDetailSurface/,
+  'StudioMainContent must compose browser, file editor, review, and simulator content through the extensible workspace detail surface.',
+);
+
+assert.match(
+  studioMainContentSource,
+  /kind: viewingDiff \? 'review' : 'file-editor'/,
+  'StudioMainContent must expose distinct review and file-editor view kinds without coupling the shared surface to editor implementation details.',
+);
+
+assert.match(
+  studioPageSource,
+  /const handleStudioOpenUrl = useCallback\([\s\S]*setPreviewUrl\(safeUrl\);[\s\S]*handleActiveTabChange\('preview'\);/,
+  'Studio message links must select the browser detail view while preserving the chat and stage header composition.',
+);
+
 assert.ok(
   studioPageSize < 50000,
   `StudioPage should stay below 50000 bytes after componentization, received ${studioPageSize}.`,

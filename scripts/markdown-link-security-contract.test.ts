@@ -1,6 +1,9 @@
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
-import { resolveSafeMarkdownHref } from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-ui/src/components/markdownLinkSecurity.ts';
+import {
+  resolveMarkdownFilePath,
+  resolveSafeMarkdownHref,
+} from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-ui/src/components/markdownLinkSecurity.ts';
 
 const contentMarkdownPreviewSource = fs.readFileSync(
   new URL('../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-ui/src/components/ContentMarkdownPreview.tsx', import.meta.url),
@@ -26,6 +29,16 @@ assert.equal(resolveSafeMarkdownHref('javascript:alert(1)'), null);
 assert.equal(resolveSafeMarkdownHref('JaVaScRiPt:alert(1)'), null);
 assert.equal(resolveSafeMarkdownHref('data:text/html,<script>alert(1)</script>'), null);
 assert.equal(resolveSafeMarkdownHref('vbscript:msgbox(1)'), null);
+assert.equal(resolveMarkdownFilePath('apps/sdkwork-birdcoder-pc/src/App.tsx'), 'apps/sdkwork-birdcoder-pc/src/App.tsx');
+assert.equal(resolveMarkdownFilePath('App.tsx:27:4'), 'App.tsx');
+assert.equal(resolveMarkdownFilePath('./src/App.tsx#L12-L18'), './src/App.tsx');
+assert.equal(resolveMarkdownFilePath('/workspace/src/App.tsx:27'), '/workspace/src/App.tsx');
+assert.equal(resolveMarkdownFilePath('E:\\workspace\\src\\App.tsx:27:4'), 'E:\\workspace\\src\\App.tsx');
+assert.equal(resolveMarkdownFilePath('file:///E:/workspace/src/App.tsx#L27'), 'E:/workspace/src/App.tsx');
+assert.equal(resolveMarkdownFilePath('https://sdkwork.com/App.tsx'), null);
+assert.equal(resolveMarkdownFilePath('javascript:alert(1)'), null);
+assert.equal(resolveMarkdownFilePath('javascript%3Aalert(1)'), null);
+assert.equal(resolveMarkdownFilePath('#section'), null);
 
 assert.match(
   contentMarkdownPreviewSource,
@@ -46,6 +59,11 @@ assert.match(
   universalChatMarkdownSource,
   /function decodeSkillHrefName\(/,
   'UniversalChatMarkdown must defensively decode internal skill link names instead of letting malformed URI components crash rendering.',
+);
+assert.match(
+  universalChatMarkdownSource,
+  /resolveMarkdownFilePath\(props\.href\)[\s\S]*onClick=\{\(\) => openFile\(filePath\)\}/,
+  'UniversalChatMarkdown must route local file links through the editor preview callback.',
 );
 assert.doesNotMatch(
   universalChatMarkdownSource,

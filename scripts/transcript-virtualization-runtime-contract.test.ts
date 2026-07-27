@@ -204,8 +204,14 @@ assert.match(
 
 assert.match(
   virtualizationSource,
-  /const effectiveViewport = didResetMeasurementScope\s*\?\s*\{\s*clientHeight: viewport\.clientHeight,\s*scrollTop: 0,\s*\}\s*: viewport;/s,
+  /interface ScopedTranscriptViewport extends TranscriptViewport \{[\s\S]*measurementScopeKey: string;[\s\S]*\}[\s\S]*const effectiveViewport = viewport\.measurementScopeKey !== normalizedMeasurementScopeKey\s*\?\s*\{\s*clientHeight: viewport\.clientHeight,\s*scrollTop: 0,\s*\}\s*: viewport;/s,
   'useVirtualizedTranscriptWindow must clamp the first visible window after a session switch to scrollTop 0 instead of reusing the previous session scroll position.',
+);
+
+assert.doesNotMatch(
+  virtualizationSource,
+  /useEffect\(\(\) => \{\s*setViewport\([\s\S]*?\}, \[normalizedMeasurementScopeKey\]\);/s,
+  'Measurement scope changes must not synchronize viewport state through an effect.',
 );
 
 assert.match(

@@ -6,6 +6,8 @@ export interface DriveSandboxProjectPathContext {
   readonly virtualRootPath: string;
 }
 
+const ROOT_BOUND_PROJECT_NAME = 'Project Files';
+
 function assertCanonicalLogicalPath(value: string, allowRoot: boolean): string {
   if (value === '' && allowRoot) return value;
   if (
@@ -33,11 +35,10 @@ function sanitizeVirtualRootName(value: string): string {
 
 export function createDriveSandboxProjectPathContext(
   bindingLogicalPath: string,
-  sandboxDisplayName: string,
 ): DriveSandboxProjectPathContext {
   const canonicalBindingPath = assertCanonicalLogicalPath(bindingLogicalPath, true);
   const pathName = canonicalBindingPath.split('/').filter(Boolean).at(-1) ?? '';
-  const virtualRootName = sanitizeVirtualRootName(pathName || sandboxDisplayName);
+  const virtualRootName = sanitizeVirtualRootName(pathName || ROOT_BOUND_PROJECT_NAME);
   return {
     bindingLogicalPath: canonicalBindingPath,
     virtualRootName,

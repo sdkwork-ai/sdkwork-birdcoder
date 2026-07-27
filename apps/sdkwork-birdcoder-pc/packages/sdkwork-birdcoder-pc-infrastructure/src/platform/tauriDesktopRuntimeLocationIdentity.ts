@@ -23,7 +23,7 @@ interface DesktopRuntimeLocationInstallIdentityResponse {
 
 export interface TauriDesktopRuntimeLocationIdentityPortOptions {
   invoke?: () => Promise<BirdCoderTauriInvoke | null>;
-  isTauriRuntime?: () => Promise<boolean>;
+  isTauriRuntime?: () => boolean | Promise<boolean>;
   mountRegistry: ProjectDeviceMountRegistry;
 }
 
@@ -88,7 +88,7 @@ function toIdentity(
 export class TauriDesktopRuntimeLocationIdentityPort
   implements DesktopRuntimeLocationIdentityPort {
   private readonly invoke: () => Promise<BirdCoderTauriInvoke | null>;
-  private readonly isTauriRuntime: () => Promise<boolean>;
+  private readonly isTauriRuntime: () => boolean | Promise<boolean>;
   private readonly mountRegistry: ProjectDeviceMountRegistry;
 
   constructor({

@@ -1,12 +1,33 @@
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 
+
 const projectExplorerSessionRowSource = fs.readFileSync(
   new URL('../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-code/src/components/ProjectExplorerSessionRow.tsx', import.meta.url),
   'utf8',
 );
+const sidebarSource = fs.readFileSync(
+  new URL('../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-code/src/components/Sidebar.tsx', import.meta.url),
+  'utf8',
+);
 const topBarSource = fs.readFileSync(
   new URL('../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-code/src/components/TopBar.tsx', import.meta.url),
+  'utf8',
+);
+const sessionRuntimeStatusSlotSource = fs.readFileSync(
+  new URL('../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-ui/src/components/SessionRuntimeStatusSlot.tsx', import.meta.url),
+  'utf8',
+);
+const sessionProviderBadgeSource = fs.readFileSync(
+  new URL('../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-ui/src/components/SessionProviderBadge.tsx', import.meta.url),
+  'utf8',
+);
+const providerVisualIdentitySource = fs.readFileSync(
+  new URL('../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-ui-shell/src/components/providerVisualIdentity.ts', import.meta.url),
+  'utf8',
+);
+const workbenchCodeEngineIconSource = fs.readFileSync(
+  new URL('../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-ui-shell/src/components/WorkbenchCodeEngineIcon.tsx', import.meta.url),
   'utf8',
 );
 const enLocaleSource = fs.readFileSync(
@@ -23,14 +44,62 @@ const legacyExecutionSelectionPattern = new RegExp(
 
 assert.match(
   projectExplorerSessionRowSource,
-  /const isEngineBusySession = isAgentSessionViewEngineBusy\(session\);/,
-  'Code ProjectExplorer session rows should derive spinning rows from the engine-busy runtime state.',
+  /<SessionRuntimeStatusSlot\s+label=\{runtimeStatusLabel\}\s+runtimeStatus=\{session\.runtimeStatus\}/s,
+  'Code ProjectExplorer session rows should delegate execution status rendering to the shared icon component.',
 );
 
 assert.match(
   projectExplorerSessionRowSource,
-  /isEngineBusySession && <Loader2 size=\{12\} className="text-emerald-400 shrink-0 animate-spin" \/>/,
-  'Code ProjectExplorer session rows should render a neutral spinning icon only while the engine is actively working.',
+  /<SessionProviderBadge[\s\S]*?<SessionRuntimeStatusSlot\s+label=\{runtimeStatusLabel\}\s+runtimeStatus=\{session\.runtimeStatus\}\s*\/>/u,
+  'Code ProjectExplorer session rows should render provider identity before the trailing runtime status.',
+);
+
+assert.doesNotMatch(
+  projectExplorerSessionRowSource,
+  /WorkbenchCodeEngineIcon|data-session-engine-slot=/u,
+  'Code ProjectExplorer session rows must not present engine identity where provider identity belongs.',
+);
+
+assert.match(
+  providerVisualIdentitySource,
+  /abbreviation: 'CX',[\s\S]*?aliases: \['codex', 'openai-codex'\],[\s\S]*?label: 'Codex',[\s\S]*?tone: 'emerald'/u,
+  'The shared provider visual registry must present Codex as CX with its canonical tone.',
+);
+
+assert.match(
+  providerVisualIdentitySource,
+  /resolveExecutionProviderVisualIdentity\(identity\.engineId\)[\s\S]*?resolveExecutionProviderVisualIdentity\(identity\.agentId\)[\s\S]*?resolveExecutionProviderVisualIdentity\(identity\.providerId\)/u,
+  'The shared provider visual registry must prefer engine and agent identity before provider fallback.',
+);
+
+assert.match(
+  sessionProviderBadgeSource,
+  /resolveProviderVisualIdentity\(\{ agentId, engineId, providerId \}\)/u,
+  'Session provider badges must consume the shared provider visual registry.',
+);
+
+assert.match(
+  workbenchCodeEngineIconSource,
+  /resolveProviderVisualIdentity\(\{ engineId \}\)/u,
+  'New-session and engine icons must consume the shared provider visual registry.',
+);
+
+assert.doesNotMatch(
+  `${sessionProviderBadgeSource}\n${workbenchCodeEngineIconSource}`,
+  /THEME_CLASS_BY_ID|ENGINE_PRESENTATION|KNOWN_SESSION_PROVIDER_BADGE_TONES/u,
+  'Provider icon consumers must not maintain local theme registries.',
+);
+
+assert.match(
+  sidebarSource,
+  /<SessionProviderBadge\s+agentId=\{entry\.agentId\}\s+engineId=\{entry\.engineId\}\s+providerId=\{entry\.providerId\}\s*\/>/u,
+  'Provider-group headings must use the complete execution-provider identity.',
+);
+
+assert.doesNotMatch(
+  sidebarSource,
+  /<WorkbenchCodeEngineIcon engineId=\{entry\.engineId\} \/>/u,
+  'Provider-group headings must not derive a misleading PR badge from an engine fallback.',
 );
 
 assert.doesNotMatch(
@@ -41,8 +110,8 @@ assert.doesNotMatch(
 
 assert.doesNotMatch(
   projectExplorerSessionRowSource,
-  /isExecutingSession && <Loader2 size=\{12\} className="text-emerald-400 shrink-0 animate-spin" \/>/,
-  'Code ProjectExplorer session rows must not spin for approval or user-reply waits; those states use explicit labels instead.',
+  /<Loader2/u,
+  'Code ProjectExplorer session rows must not own a second spinner outside the shared status slot.',
 );
 
 assert.match(
@@ -73,8 +142,8 @@ assert.ok(
 );
 
 assert.ok(
-  enLocaleSource.includes("awaitingToolSession: 'Ready'"),
-  'English Code locale must define a non-spinning settled tool state label.',
+  enLocaleSource.includes("awaitingToolSession: 'Waiting for tool'"),
+  'English Code locale must describe tool waiting as static attention rather than ready or active execution.',
 );
 
 assert.ok(
@@ -94,25 +163,54 @@ assert.ok(
 
 assert.ok(
   zhLocaleSource.includes('awaitingToolSession:'),
-  'Chinese Code locale must define a non-spinning settled tool state label.',
+  'Chinese Code locale must define a static tool-attention label.',
+);
+
+assert.ok(
+  zhLocaleSource.includes('staleSession:'),
+  'Chinese Code locale must define the stale runtime-status label.',
 );
 
 assert.match(
   projectExplorerSessionRowSource,
-  /session\.runtimeStatus === 'awaiting_approval'\s*\?\s*awaitingApprovalSessionLabel/s,
-  'Code ProjectExplorer session rows must show an explicit approval-waiting label.',
+  /resolveSessionRuntimeStatusLabel\(\s*session\.runtimeStatus,\s*runtimeStatusLabels,\s*\)/u,
+  'Code ProjectExplorer session rows must resolve status labels through the shared presentation contract.',
 );
 
 assert.match(
-  projectExplorerSessionRowSource,
-  /session\.runtimeStatus === 'awaiting_user'\s*\?\s*awaitingUserSessionLabel/s,
-  'Code ProjectExplorer session rows must show an explicit user-reply waiting label.',
+  sessionRuntimeStatusSlotSource,
+  /const isBusy = presentation === 'busy'/u,
+  'The shared status slot must use the common busy presentation for initializing and streaming.',
 );
 
 assert.match(
-  projectExplorerSessionRowSource,
-  /session\.runtimeStatus === 'awaiting_tool'\s*\?\s*awaitingToolSessionLabel/s,
-  'Code ProjectExplorer session rows must show awaiting_tool as a settled non-spinning label instead of the generic executing state.',
+  sessionRuntimeStatusSlotSource,
+  /CircleAlert[\s\S]*?TriangleAlert[\s\S]*?Clock3/u,
+  'The shared status slot must expose static attention, failed, and stale icons.',
+);
+
+assert.doesNotMatch(
+  sessionRuntimeStatusSlotSource,
+  /CircleHelp/u,
+  'The unavailable runtime status must not render an icon.',
+);
+
+assert.match(
+  sessionRuntimeStatusSlotSource,
+  /Unavailable runtime states \(`unknown`, `null`, or `undefined`\)[\s\S]*?no label, icon, or reserved icon space/u,
+  'The unavailable runtime-status silence rule must be documented at its shared authority.',
+);
+
+assert.match(
+  sessionRuntimeStatusSlotSource,
+  /if \(isSilentSessionRuntimeStatus\(runtimeStatus\)\) \{\s*return null;\s*\}/u,
+  'The unavailable runtime status must resolve no label and render no status slot.',
+);
+
+assert.match(
+  sessionRuntimeStatusSlotSource,
+  /<Loader2 className="h-3 w-3 animate-spin text-emerald-400"/u,
+  'The shared status slot must animate only the busy Loader2 icon.',
 );
 
 assert.doesNotMatch(

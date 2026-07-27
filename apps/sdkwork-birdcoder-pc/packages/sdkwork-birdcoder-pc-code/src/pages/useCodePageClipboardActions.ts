@@ -1,5 +1,6 @@
 import { useCallback } from 'react';
 import type { ToastType } from '@sdkwork/birdcoder-pc-workbench/contexts/ToastProvider';
+import type { ProjectLocalWorkingDirectoryResolver } from '@sdkwork/birdcoder-pc-workbench/hooks/useProjectLocalWorkingDirectory';
 import { copyTextToClipboard } from '@sdkwork/birdcoder-pc-ui/components/clipboard';
 
 interface CodePageClipboardProjectLike {
@@ -16,7 +17,7 @@ interface UseCodePageClipboardActionsOptions {
   resolveProjectActionTarget: (
     project?: CodePageClipboardProjectLike | null,
   ) => CodePageClipboardProjectLike | null;
-  resolveLocalWorkingDirectory: (projectId: string) => Promise<string | null>;
+  resolveLocalWorkingDirectory: ProjectLocalWorkingDirectoryResolver;
   resolveProjectById: (projectId: string) => CodePageClipboardProjectLike | null;
   resolveSession: (
     agentSessionId: string,
@@ -39,7 +40,7 @@ export function useCodePageClipboardActions({
       return;
     }
 
-    const localWorkingDirectory = await resolveLocalWorkingDirectory(target.projectId);
+    const localWorkingDirectory = await resolveLocalWorkingDirectory(target);
     if (!localWorkingDirectory) {
       addToast('A local desktop folder must be mounted before copying its directory.', 'error');
       return;
@@ -58,7 +59,7 @@ export function useCodePageClipboardActions({
       return;
     }
 
-    const localWorkingDirectory = await resolveLocalWorkingDirectory(target.projectId);
+    const localWorkingDirectory = await resolveLocalWorkingDirectory(target);
     if (!localWorkingDirectory) {
       addToast('A local desktop folder must be mounted before copying its path.', 'error');
       return;
@@ -82,7 +83,7 @@ export function useCodePageClipboardActions({
       return;
     }
 
-    const localWorkingDirectory = await resolveLocalWorkingDirectory(target.projectId);
+    const localWorkingDirectory = await resolveLocalWorkingDirectory(target);
     if (!localWorkingDirectory) {
       addToast('A local desktop folder must be mounted before copying its directory.', 'error');
       return;

@@ -7,6 +7,7 @@ import {
   createAppbaseSuccess,
   createAgentProjectFixture,
   createAppTemplateFixture,
+  createBirdCoderCursorListEnvelope,
   createBirdCoderDataEnvelope,
   createBirdCoderListEnvelope,
   createAgentSessionFixture,
@@ -30,12 +31,49 @@ const allowedOrigins = new Set(
 const defaultWorkspace = createAgentWorkspaceFixture();
 const workspaces = [defaultWorkspace];
 const projects = [createAgentProjectFixture()];
+const projectDriveId = 'drive.e2e-project';
+const projectDriveRootEntryId = 'drive-entry-project-root';
+const projectDriveLogicalPath = 'sdkwork-birdcoder';
+const projectDriveEntries = [
+  {
+    id: 'drive-entry-src',
+    sandboxId: projectDriveId,
+    parentId: projectDriveRootEntryId,
+    name: 'src',
+    kind: 'directory',
+    logicalPath: `${projectDriveLogicalPath}/src`,
+    revision: 'revision-src-1',
+  },
+  {
+    id: 'drive-entry-readme',
+    sandboxId: projectDriveId,
+    parentId: projectDriveRootEntryId,
+    name: 'README.md',
+    kind: 'file',
+    logicalPath: `${projectDriveLogicalPath}/README.md`,
+    revision: 'revision-readme-1',
+  },
+  {
+    id: 'drive-entry-index',
+    sandboxId: projectDriveId,
+    parentId: 'drive-entry-src',
+    name: 'index.ts',
+    kind: 'file',
+    logicalPath: `${projectDriveLogicalPath}/src/index.ts`,
+    revision: 'revision-index-1',
+  },
+];
+const projectDriveFileContents = new Map([
+  ['drive-entry-readme', '# SDKWork BirdCoder\n'],
+  ['drive-entry-index', "export const applicationName = 'BirdCoder';\n"],
+]);
 const sessions = [
   createAgentSessionFixture({
     sessionId: 'e2e-claude-session',
     agentId: 'agent.claude-code',
     title: 'Claude architecture review',
-    lastItemSequence: '3',
+    itemCount: '6',
+    lastItemSequence: '6',
     lastItemAt: '2026-01-01T00:30:00.000Z',
     version: '3',
     updatedAt: '2026-01-01T00:30:00.000Z',
@@ -58,6 +96,15 @@ const sessions = [
     version: '2',
     updatedAt: '2026-01-01T00:10:00.000Z',
   }),
+  createAgentSessionFixture({
+    sessionId: 'e2e-gemini-session',
+    agentId: 'agent.gemini-cli',
+    title: 'Gemini failure triage',
+    lastItemSequence: '1',
+    lastItemAt: '2026-01-01T00:05:00.000Z',
+    version: '2',
+    updatedAt: '2026-01-01T00:05:00.000Z',
+  }),
   ...Array.from({ length: 38 }, (_, index) => {
     const historyNumber = index + 1;
     const updatedAt = new Date(Date.UTC(2025, 11, 31, 23, 59 - index)).toISOString();
@@ -78,6 +125,145 @@ const sessions = [
 ];
 const sessionItemsBySessionId = new Map([
   [
+    'e2e-claude-session',
+    [
+      {
+        sessionId: 'e2e-claude-session',
+        itemId: 'e2e-claude-item-6',
+        turnId: 'e2e-claude-turn-1',
+        kind: 'system_instruction',
+        status: 'completed',
+        sequence: '6',
+        content: 'INTERNAL_SYSTEM_INSTRUCTION_MUST_NOT_RENDER',
+        contentType: 'text/plain',
+        createdAt: '2026-01-01T00:30:06.000Z',
+      },
+      {
+        sessionId: 'e2e-claude-session',
+        itemId: 'e2e-claude-item-5',
+        turnId: 'e2e-claude-turn-1',
+        kind: 'assistant_output',
+        status: 'completed',
+        sequence: '5',
+        content: "The transcript now keeps `sdkwork-agents` rich content and BirdCoder's command evidence together.",
+        contentType: 'text/markdown',
+        createdAt: '2026-01-01T00:30:05.000Z',
+      },
+      {
+        sessionId: 'e2e-claude-session',
+        itemId: 'e2e-claude-item-4',
+        turnId: 'e2e-claude-turn-1',
+        kind: 'tool_result',
+        status: 'completed',
+        sequence: '4',
+        content: null,
+        contentType: 'application/json',
+        toolName: 'shell_command',
+        toolCallId: 'e2e-claude-command-1',
+        toolResult: {
+          exitCode: 0,
+          stdout: 'TypeScript check passed.',
+          fileChanges: [
+            {
+              path: 'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-ui/src/components/UniversalChat.tsx',
+              additions: 42,
+              deletions: 8,
+              originalContent: 'previous UniversalChat content',
+              content: 'updated UniversalChat content',
+              diff: '@@ -1 +1 @@\n-previous UniversalChat content\n+updated UniversalChat content',
+            },
+            {
+              path: 'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-ui/src/components/UniversalChatMarkdown.tsx',
+              additions: 31,
+              deletions: 6,
+              originalContent: 'previous Markdown content',
+              content: 'updated Markdown content',
+            },
+            {
+              path: 'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-ui/src/components/chatMarkdownHeuristics.ts',
+              additions: 18,
+              deletions: 3,
+              originalContent: 'previous heuristics content',
+              content: 'updated heuristics content',
+            },
+            {
+              path: 'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-ui/src/components/UniversalChatCodeBlock.tsx',
+              additions: 24,
+              deletions: 5,
+              originalContent: 'previous code block content',
+              content: 'updated code block content',
+            },
+            {
+              path: 'apps/sdkwork-birdcoder-pc/tests/e2e/message-presentation.spec.ts',
+              additions: 16,
+              deletions: 2,
+              originalContent: 'previous test content',
+              content: 'updated test content',
+            },
+          ],
+        },
+        createdAt: '2026-01-01T00:30:04.000Z',
+      },
+      {
+        sessionId: 'e2e-claude-session',
+        itemId: 'e2e-claude-item-3',
+        turnId: 'e2e-claude-turn-1',
+        kind: 'tool_call',
+        status: 'pending',
+        sequence: '3',
+        content: null,
+        contentType: 'application/json',
+        toolName: 'shell_command',
+        toolCallId: 'e2e-claude-command-1',
+        toolArguments: {
+          command: 'pnpm typecheck',
+        },
+        createdAt: '2026-01-01T00:30:03.000Z',
+      },
+      {
+        sessionId: 'e2e-claude-session',
+        itemId: 'e2e-claude-item-2',
+        turnId: 'e2e-claude-turn-1',
+        kind: 'status_notice',
+        status: 'completed',
+        sequence: '2',
+        content: 'The agent connection was restored.',
+        contentType: 'text/plain',
+        createdAt: '2026-01-01T00:30:02.000Z',
+      },
+      {
+        sessionId: 'e2e-claude-session',
+        itemId: 'e2e-claude-item-1',
+        turnId: 'e2e-claude-turn-1',
+        kind: 'user_input',
+        status: 'completed',
+        sequence: '1',
+        content: [
+          'Review the message presentation:',
+          '',
+          '| Area | Status |',
+          '| --- | --- |',
+          '| Commands | Ready |',
+          '',
+          '- [x] Preserve activity output',
+          `- [ ] Open [README](./README.md) [preview](http://127.0.0.1:${port}/readyz)`,
+          '',
+          '![first upload](data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAusB9Y9ZQmcAAAAASUVORK5CYII=)',
+          '![second upload](data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=)',
+          '',
+          `[DRIVE_MEDIA:{"id":"e2e-uploaded-file","kind":"document","fileName":"message-notes.txt","mimeType":"text/plain","uri":"drive://nodes/e2e-uploaded-file","previewUrl":"http://127.0.0.1:${port}/fixtures/message-notes.txt"}]`,
+          '',
+          'File: message-notes.txt',
+          '```text',
+          'This attachment payload is provided to the model but hidden from the transcript bubble.',
+          '```',
+        ].join('\n'),
+        contentType: 'text/markdown',
+        createdAt: '2026-01-01T00:30:01.000Z',
+      },
+    ],
+  ],
+  [
     'e2e-codex-session',
     Array.from({ length: 45 }, (_, index) => {
       const sequence = 45 - index;
@@ -97,6 +283,7 @@ const sessionItemsBySessionId = new Map([
 ]);
 let createdWorkspaceSequence = 0;
 let createdProjectSequence = 0;
+let createdDriveEntrySequence = 0;
 let completedTurnSequence = 0;
 
 function createSessionRuntimeBinding(session) {
@@ -116,6 +303,11 @@ function createSessionRuntimeBinding(session) {
       providerBindingId: 'opencode',
       providerId: 'opencode',
     },
+    'agent.gemini-cli': {
+      modelId: 'gemini-2.5-pro',
+      providerBindingId: 'gemini-cli',
+      providerId: 'google',
+    },
   };
   const runtime = runtimeByAgentId[session.agentId] ?? runtimeByAgentId['agent.codex'];
   return {
@@ -129,7 +321,7 @@ function createSessionRuntimeBinding(session) {
     providerBindingId: runtime.providerBindingId,
     modelId: runtime.modelId,
     providerId: runtime.providerId,
-    nativeSessionId: `native.${session.sessionId}`,
+    providerSessionId: `provider.${session.sessionId}`,
     status: 'active',
     isCurrent: true,
     version: session.version,
@@ -139,9 +331,149 @@ function createSessionRuntimeBinding(session) {
   };
 }
 
+function createSessionActivityTurn(session, runtimeBinding, status) {
+  const isTerminal = status === 'completed' || status === 'failed' || status === 'cancelled';
+  return {
+    turnId: `activity-turn.${session.sessionId}`,
+    tenantId: session.tenantId,
+    organizationId: session.organizationId,
+    sessionId: session.sessionId,
+    agentId: session.agentId,
+    ownerUserId: session.ownerUserId,
+    runtimeBindingId: runtimeBinding.runtimeBindingId,
+    clientRequestId: null,
+    idempotencyKey: `activity-idempotency.${session.sessionId}`,
+    payloadHash: `activity-payload.${session.sessionId}`,
+    requestItemId: `activity-request-item.${session.sessionId}`,
+    responseItemId: isTerminal ? `activity-response-item.${session.sessionId}` : null,
+    turnMode: 'interactive',
+    status,
+    requestedModelId: runtimeBinding.modelId,
+    providerBindingId: runtimeBinding.providerBindingId,
+    modelId: runtimeBinding.modelId,
+    providerId: runtimeBinding.providerId,
+    inputTokens: '0',
+    outputTokens: '0',
+    cachedTokens: '0',
+    finishReason: isTerminal ? 'stop' : null,
+    errorCode: status === 'failed' ? 'provider_runtime_failed' : null,
+    errorDetail: status === 'failed' ? 'Sanitized E2E provider failure.' : null,
+    traceId: `activity-trace.${session.sessionId}`,
+    attemptCount: 1,
+    maxAttempts: 1,
+    nextRetryAt: null,
+    availableAt: session.updatedAt,
+    leaseOwner: status === 'running' ? 'e2e-worker' : null,
+    leaseExpiresAt: status === 'running' ? '2099-01-01T00:00:00.000Z' : null,
+    fencingToken: '1',
+    version: '1',
+    createdAt: session.createdAt,
+    updatedAt: session.updatedAt,
+    startedAt: status === 'requested' ? null : session.updatedAt,
+    completedAt: isTerminal ? session.updatedAt : null,
+    cancelRequestedAt: null,
+    cancelledAt: status === 'cancelled' ? session.updatedAt : null,
+    retentionUntil: null,
+  };
+}
+
+function createSessionActivityInteraction(session, runtimeBinding) {
+  return {
+    interactionId: `activity-interaction.${session.sessionId}`,
+    tenantId: session.tenantId,
+    organizationId: session.organizationId,
+    sessionId: session.sessionId,
+    turnId: `activity-turn.${session.sessionId}`,
+    runtimeBindingId: runtimeBinding.runtimeBindingId,
+    providerInteractionId: `provider-interaction.${session.sessionId}`,
+    kind: 'approval',
+    status: 'pending',
+    prompt: 'Approve the pending E2E tool operation.',
+    options: [],
+    resolution: null,
+    claimOwner: null,
+    claimExpiresAt: null,
+    fencingToken: '1',
+    version: '1',
+    createdAt: session.updatedAt,
+    updatedAt: session.updatedAt,
+    resolvedAt: null,
+    retentionUntil: null,
+  };
+}
+
+function createSessionActivitySummary(session) {
+  const runtimeBinding = createSessionRuntimeBinding(session);
+  const userState = createSessionUserState(session);
+  const presentationBySessionId = {
+    'e2e-claude-session': { phase: 'running', state: 'working', turnStatus: 'running' },
+    'e2e-codex-session': { phase: 'queued', state: 'working', turnStatus: 'requested' },
+    'e2e-opencode-session': { phase: 'waiting', state: 'waiting', turnStatus: 'running' },
+    'e2e-gemini-session': { phase: 'failed', state: 'failed', turnStatus: 'failed' },
+  };
+  const presentation = presentationBySessionId[session.sessionId] ?? {
+    phase: 'idle',
+    state: 'idle',
+    turnStatus: 'completed',
+  };
+  const latestTurn = createSessionActivityTurn(
+    session,
+    runtimeBinding,
+    presentation.turnStatus,
+  );
+  const pendingInteraction = session.agentId === 'agent.opencode'
+    ? createSessionActivityInteraction(session, runtimeBinding)
+    : null;
+  const observedAt = session.updatedAt;
+  const freshUntil = '2099-01-01T00:00:00.000Z';
+  return {
+    session,
+    latestTurn,
+    pendingInteraction,
+    currentRuntimeBinding: runtimeBinding,
+    latestRuntimeBinding: runtimeBinding,
+    userState,
+    providerIdentity: {
+      runtimeBindingId: runtimeBinding.runtimeBindingId,
+      providerBindingId: runtimeBinding.providerBindingId,
+      providerId: runtimeBinding.providerId,
+      modelId: runtimeBinding.modelId,
+      providerSessionId: runtimeBinding.providerSessionId,
+      providerSessionTreeId: null,
+      providerParentSessionId: null,
+      providerForkedFromSessionId: null,
+    },
+    freshness: {
+      activityAt: session.updatedAt,
+      source: pendingInteraction ? 'interaction' : 'turn',
+      observedAt,
+      freshUntil,
+      sessionVersion: session.version,
+      latestTurnVersion: latestTurn.version,
+      latestInteractionId: pendingInteraction?.interactionId ?? null,
+      latestInteractionVersion: pendingInteraction?.version ?? null,
+      latestRuntimeBindingId: runtimeBinding.runtimeBindingId,
+      latestRuntimeBindingVersion: runtimeBinding.version,
+      pendingInteractionVersion: pendingInteraction?.version ?? null,
+      currentRuntimeBindingVersion: runtimeBinding.version,
+      userStateVersion: userState.version,
+    },
+    providerActivity: {
+      providerSessionId: runtimeBinding.providerSessionId,
+      state: presentation.state,
+      freshness: 'fresh',
+      evidenceKind: 'provider_event',
+      interactionHint: pendingInteraction ? 'approval_required' : null,
+      observedAt,
+      freshUntil,
+    },
+    presentationPhase: presentation.phase,
+  };
+}
+
 function createSessionUserState(session) {
   return {
-    id: `user-state.${session.sessionId}`,
+    id: session.id,
     tenantId: session.tenantId,
     organizationId: session.organizationId,
     userId: session.ownerUserId,
@@ -178,6 +510,37 @@ function writeJson(request, response, statusCode, payload) {
     'Access-Control-Allow-Headers': 'Authorization, Access-Token, Content-Type, X-Request-Id',
   });
   response.end(body);
+}
+
+async function writeSse(
+  request,
+  response,
+  statusCode,
+  events,
+  eventIntervalMs = 0,
+  onCompletion,
+) {
+  response.writeHead(statusCode, {
+    'Content-Type': 'text/event-stream; charset=utf-8',
+    'Cache-Control': 'no-store',
+    Connection: 'keep-alive',
+    'X-Accel-Buffering': 'no',
+    'X-Content-Type-Options': 'nosniff',
+    ...corsHeaders(request),
+    'Access-Control-Allow-Methods': 'GET, POST, PATCH, DELETE, OPTIONS',
+    'Access-Control-Allow-Headers': 'Authorization, Access-Token, Content-Type, X-Request-Id',
+  });
+  response.flushHeaders();
+  for (const [index, event] of events.entries()) {
+    if (event.eventType === 'completion') {
+      onCompletion?.();
+    }
+    response.write(`data: ${JSON.stringify(event)}\n\n`);
+    if (eventIntervalMs > 0 && index < events.length - 1) {
+      await new Promise((resolve) => setTimeout(resolve, eventIntervalMs));
+    }
+  }
+  response.end();
 }
 
 async function readJsonBody(request) {
@@ -433,6 +796,166 @@ function handleRoute(method, url, request, body) {
     };
   }
 
+  const projectCompositionSlotMatch = /^\/app\/v3\/api\/ai\/projects\/(?<projectId>[^/]+)\/composition_slots\/(?<slotId>[^/]+)$/u.exec(pathname);
+  if (projectCompositionSlotMatch && method === 'GET') {
+    if (!isAuthenticatedRequest(request)) {
+      return {
+        statusCode: 401,
+        payload: createAppbaseFailure('No authenticated SDKWork IAM user.', '401'),
+      };
+    }
+
+    if (
+      projectCompositionSlotMatch.groups.projectId !== 'project.e2e-1'
+      || projectCompositionSlotMatch.groups.slotId !== 'primary-drive'
+    ) {
+      return {
+        statusCode: 404,
+        payload: createAppbaseFailure('Project composition slot not found.', '404'),
+      };
+    }
+
+    return {
+      statusCode: 200,
+      payload: createBirdCoderDataEnvelope({
+        enabled: true,
+        policyJson: JSON.stringify({
+          logicalPath: projectDriveLogicalPath,
+          rootEntryId: projectDriveRootEntryId,
+          schema: 'sdkwork.agents.project-drive/v1',
+        }),
+        projectId: 'project.e2e-1',
+        slotId: 'primary-drive',
+        slotKind: 'drive',
+        targetModule: 'drive',
+        targetRef: projectDriveId,
+        version: '1',
+      }),
+    };
+  }
+
+  if (pathname === '/app/v3/api/drive/sandboxes' && method === 'GET') {
+    if (!isAuthenticatedRequest(request)) {
+      return {
+        statusCode: 401,
+        payload: createAppbaseFailure('No authenticated SDKWork IAM user.', '401'),
+      };
+    }
+
+    return {
+      statusCode: 200,
+      payload: createBirdCoderListEnvelope([
+        {
+          capabilities: {
+            browse: true,
+            createDirectory: true,
+            createFile: true,
+            deleteEntry: true,
+            moveEntry: true,
+            readFile: true,
+            selectDirectory: true,
+            writeFile: true,
+          },
+          displayName: 'E2E Project Drive',
+          id: projectDriveId,
+          rootEntryId: 'drive-entry-sandbox-root',
+        },
+      ], {
+        page: Number(searchParams.get('page') ?? 1),
+        pageSize: Number(searchParams.get('page_size') ?? 20),
+      }),
+    };
+  }
+
+  const sandboxEntriesMatch = /^\/app\/v3\/api\/drive\/sandboxes\/(?<sandboxId>[^/]+)\/entries$/u.exec(pathname);
+  if (sandboxEntriesMatch && method === 'GET') {
+    if (!isAuthenticatedRequest(request)) {
+      return {
+        statusCode: 401,
+        payload: createAppbaseFailure('No authenticated SDKWork IAM user.', '401'),
+      };
+    }
+
+    const parentPath = searchParams.get('parent_path') ?? '';
+    const items = sandboxEntriesMatch.groups.sandboxId === projectDriveId
+      ? projectDriveEntries.filter((entry) => {
+          const separatorIndex = entry.logicalPath.lastIndexOf('/');
+          return entry.logicalPath.slice(0, separatorIndex) === parentPath;
+        })
+      : [];
+    return {
+      statusCode: 200,
+      payload: createBirdCoderListEnvelope(items, {
+        pageSize: Number(searchParams.get('page_size') ?? 200),
+      }),
+    };
+  }
+
+  const sandboxCreateMatch = /^\/app\/v3\/api\/drive\/sandboxes\/(?<sandboxId>[^/]+)\/(?<entryKind>directories|files)$/u.exec(pathname);
+  if (sandboxCreateMatch && method === 'POST') {
+    if (!isAuthenticatedRequest(request)) {
+      return {
+        statusCode: 401,
+        payload: createAppbaseFailure('No authenticated SDKWork IAM user.', '401'),
+      };
+    }
+
+    createdDriveEntrySequence += 1;
+    const parentPath = String(body.parentPath ?? '').trim();
+    const name = String(body.name ?? '').trim();
+    const parent = projectDriveEntries.find((entry) => entry.logicalPath === parentPath);
+    const entry = {
+      id: `drive-entry-created-${createdDriveEntrySequence}`,
+      sandboxId: sandboxCreateMatch.groups.sandboxId,
+      parentId: parent?.id ?? projectDriveRootEntryId,
+      name,
+      kind: sandboxCreateMatch.groups.entryKind === 'directories' ? 'directory' : 'file',
+      logicalPath: `${parentPath}/${name}`,
+      revision: `revision-created-${createdDriveEntrySequence}`,
+    };
+    projectDriveEntries.push(entry);
+    if (entry.kind === 'file') {
+      projectDriveFileContents.set(entry.id, String(body.content ?? ''));
+    }
+    return {
+      statusCode: 201,
+      payload: createBirdCoderDataEnvelope(entry),
+    };
+  }
+
+  const sandboxFileContentMatch = /^\/app\/v3\/api\/drive\/sandboxes\/(?<sandboxId>[^/]+)\/files\/(?<entryId>[^/]+)\/content$/u.exec(pathname);
+  if (sandboxFileContentMatch && method === 'GET') {
+    if (!isAuthenticatedRequest(request)) {
+      return {
+        statusCode: 401,
+        payload: createAppbaseFailure('No authenticated SDKWork IAM user.', '401'),
+      };
+    }
+
+    const entry = projectDriveEntries.find((candidate) => (
+      candidate.id === sandboxFileContentMatch.groups.entryId
+      && candidate.sandboxId === sandboxFileContentMatch.groups.sandboxId
+      && candidate.kind === 'file'
+    ));
+    if (!entry) {
+      return {
+        statusCode: 404,
+        payload: createAppbaseFailure('Sandbox file not found.', '404'),
+      };
+    }
+    const content = projectDriveFileContents.get(entry.id) ?? '';
+    return {
+      statusCode: 200,
+      payload: createBirdCoderDataEnvelope({
+        checksumSha256: '0'.repeat(64),
+        content,
+        encoding: 'utf8',
+        entry,
+        sizeBytes: String(Buffer.byteLength(content, 'utf8')),
+      }),
+    };
+  }
+
   const projectSessionsMatch = /^\/app\/v3\/api\/ai\/projects\/(?<projectId>[^/]+)\/sessions$/u.exec(pathname);
   const workspaceSessionsMatch = /^\/app\/v3\/api\/ai\/workspaces\/(?<workspaceId>[^/]+)\/sessions$/u.exec(pathname);
   const agentSessionsMatch = /^\/app\/v3\/api\/ai\/agents\/(?<agentId>[^/]+)\/sessions$/u.exec(pathname);
@@ -458,6 +981,91 @@ function handleRoute(method, url, request, body) {
     return {
       statusCode: 200,
       payload: createBirdCoderListEnvelope(scopedSessions, {
+        page: Number(searchParams.get('page') ?? 1),
+        pageSize: Number(searchParams.get('page_size') ?? 20),
+      }),
+    };
+  }
+
+  if (pathname === '/app/v3/api/ai/session_activity_summaries' && method === 'GET') {
+    if (!isAuthenticatedRequest(request)) {
+      return {
+        statusCode: 401,
+        payload: createAppbaseFailure('No authenticated SDKWork IAM user.', '401'),
+      };
+    }
+
+    const workspaceId = searchParams.get('workspace_id')?.trim();
+    const projectId = searchParams.get('project_id')?.trim();
+    const agentId = searchParams.get('agent_id')?.trim();
+    const pageSize = Number(searchParams.get('page_size') ?? 100);
+    const cursor = searchParams.get('cursor')?.trim() ?? '';
+    if (!Number.isSafeInteger(pageSize) || pageSize < 1 || pageSize > 200) {
+      return {
+        statusCode: 400,
+        payload: createAppbaseFailure('Session activity page_size must be between 1 and 200.', '400'),
+      };
+    }
+    const cursorOffset = cursor ? Number(cursor) : 0;
+    if (!Number.isSafeInteger(cursorOffset) || cursorOffset < 0) {
+      return {
+        statusCode: 400,
+        payload: createAppbaseFailure('Session activity cursor is invalid.', '400'),
+      };
+    }
+    const scopedSessions = sessions.filter((session) => {
+      if (projectId && session.projectId !== projectId) {
+        return false;
+      }
+      if (agentId && session.agentId !== agentId) {
+        return false;
+      }
+      if (!workspaceId) {
+        return true;
+      }
+      const project = projects.find((item) => item.projectId === session.projectId);
+      return project?.workspaceId === workspaceId;
+    });
+    const pageItems = scopedSessions.slice(cursorOffset, cursorOffset + pageSize);
+    const nextOffset = cursorOffset + pageItems.length;
+    const hasMore = nextOffset < scopedSessions.length;
+    return {
+      statusCode: 200,
+      payload: createBirdCoderCursorListEnvelope(
+        pageItems.map(createSessionActivitySummary),
+        {
+          hasMore,
+          nextCursor: hasMore ? String(nextOffset) : null,
+          pageSize,
+        },
+      ),
+    };
+  }
+
+  const sessionUserStatesMatch = /^\/app\/v3\/api\/ai\/agents\/(?<agentId>[^/]+)\/sessions\/user_states$/u.exec(pathname);
+  if (sessionUserStatesMatch && method === 'GET') {
+    if (!isAuthenticatedRequest(request)) {
+      return {
+        statusCode: 401,
+        payload: createAppbaseFailure('No authenticated SDKWork IAM user.', '401'),
+      };
+    }
+
+    const requestedSessionIds = new Set(
+      (searchParams.get('session_ids') ?? '')
+        .split(',')
+        .map((sessionId) => sessionId.trim())
+        .filter(Boolean),
+    );
+    const userStates = sessions
+      .filter((session) => (
+        session.agentId === sessionUserStatesMatch.groups.agentId
+        && (requestedSessionIds.size === 0 || requestedSessionIds.has(session.sessionId))
+      ))
+      .map(createSessionUserState);
+    return {
+      statusCode: 200,
+      payload: createBirdCoderListEnvelope(userStates, {
         page: Number(searchParams.get('page') ?? 1),
         pageSize: Number(searchParams.get('page_size') ?? 20),
       }),
@@ -523,7 +1131,7 @@ function handleRoute(method, url, request, body) {
     const userSequence = previousSequence + 1;
     const assistantSequence = previousSequence + 2;
     const completedAt = new Date().toISOString();
-    const turnId = `turn.e2e-${completedTurnSequence}`;
+    const turnId = String(body.turnId ?? `turn.e2e-${completedTurnSequence}`);
     const userItemId = `item.e2e-${completedTurnSequence}-user`;
     const assistantItemId = `item.e2e-${completedTurnSequence}-assistant`;
     const commonItemFields = {
@@ -566,6 +1174,7 @@ function handleRoute(method, url, request, body) {
       sessionId: session.sessionId,
       agentId: session.agentId,
       ownerUserId: session.ownerUserId,
+      runtimeBindingId: body.runtimeBindingId ?? null,
       clientRequestId: body.clientRequestId ?? null,
       idempotencyKey: String(body.idempotencyKey ?? `e2e-${completedTurnSequence}`),
       payloadHash: String(body.payloadHash ?? `e2e-${completedTurnSequence}`),
@@ -590,27 +1199,60 @@ function handleRoute(method, url, request, body) {
       completedAt,
     };
 
-    Object.assign(session, {
+    const sessionUpdate = {
       itemCount: String(currentItems.length + 2),
       lastItemSequence: String(assistantSequence),
       lastItemAt: completedAt,
       totalOutputTokens: String(Number(session.totalOutputTokens ?? 0) + 6),
       updatedAt: completedAt,
       version: String(Number(session.version ?? 0) + 1),
-    });
-    sessionItemsBySessionId.set(
-      session.sessionId,
-      [assistantItem, userItem, ...currentItems],
-    );
-
-    return {
-      statusCode: 200,
-      payload: createBirdCoderDataEnvelope({
-        session,
-        turn,
-        items: [userItem, assistantItem],
-      }),
     };
+    const completedSession = { ...session, ...sessionUpdate };
+    let isCommitted = false;
+    const commitTurn = () => {
+      if (isCommitted) {
+        return;
+      }
+      isCommitted = true;
+      Object.assign(session, sessionUpdate);
+      sessionItemsBySessionId.set(
+        session.sessionId,
+        [assistantItem, userItem, ...currentItems],
+      );
+    };
+
+    const completion = createBirdCoderDataEnvelope({
+      session: completedSession,
+      turn,
+      items: [userItem, assistantItem],
+    });
+    if (searchParams.get('stream') === 'true') {
+      const deltaBoundary = Math.max(1, Math.floor(assistantItem.content.length / 2));
+      return {
+        statusCode: 200,
+        onSseCompletion: commitTurn,
+        sseEventIntervalMs: 2_000,
+        sseEvents: [
+          {
+            eventType: 'delta',
+            index: 0,
+            delta: assistantItem.content.slice(0, deltaBoundary),
+          },
+          {
+            eventType: 'delta',
+            index: 1,
+            delta: assistantItem.content.slice(deltaBoundary),
+          },
+          {
+            eventType: 'completion',
+            response: completion,
+          },
+        ],
+      };
+    }
+
+    commitTurn();
+    return { statusCode: 200, payload: completion };
   }
 
   const sessionChildMatch = /^\/app\/v3\/api\/ai\/agents\/(?<agentId>[^/]+)\/sessions\/(?<sessionId>[^/]+)\/(?<resource>checkpoints|interactions|items|runtime_bindings|turns|user_state)$/u.exec(pathname);
@@ -664,6 +1306,18 @@ const server = http.createServer(async (request, response) => {
     ? await readJsonBody(request)
     : {};
   const route = handleRoute(request.method ?? 'GET', url, request, body);
+
+  if (route.sseEvents) {
+    await writeSse(
+      request,
+      response,
+      route.statusCode,
+      route.sseEvents,
+      route.sseEventIntervalMs,
+      route.onSseCompletion,
+    );
+    return;
+  }
 
   if (route.payload === null) {
     response.writeHead(204, {

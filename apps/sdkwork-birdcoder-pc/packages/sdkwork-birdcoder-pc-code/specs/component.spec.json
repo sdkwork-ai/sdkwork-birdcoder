@@ -115,6 +115,10 @@
       {
         "name": "codeFeature",
         "export": "."
+      },
+      {
+        "name": "sessionListPresentation",
+        "export": "."
       }
     ],
     "requiredPorts": [],
@@ -142,7 +146,8 @@
   },
   "verification": {
     "commands": [
-      "pnpm --filter @sdkwork/sdkwork-birdcoder-pc-code typecheck"
+      "pnpm --filter @sdkwork/birdcoder-pc-code typecheck",
+      "node scripts/run-local-tsx.mjs scripts/session-list-presentation-contract.test.tsx"
     ]
   },
   "metadata": {

@@ -1,22 +1,11 @@
 import type { ProjectDeviceMountSubjectProvider } from './ProjectDeviceMountRegistry.ts';
+import { isBirdCoderTauriRuntime } from '../platform/tauriRuntime.ts';
 import { getDefaultBirdCoderIdeServicesRuntimeConfig } from './defaultIdeServicesRuntime.ts';
 import { getBirdCoderIamRuntime } from './iamRuntime.ts';
 
-function isDesktopMountRealm(): boolean {
-  if (typeof window === 'undefined') {
-    return false;
-  }
-  const runtimeWindow = window as Window & {
-    __TAURI__?: { core?: { invoke?: unknown } };
-    __TAURI_INTERNALS__?: { invoke?: unknown };
-  };
-  return typeof runtimeWindow.__TAURI__?.core?.invoke === 'function'
-    || typeof runtimeWindow.__TAURI_INTERNALS__?.invoke === 'function';
-}
-
 function resolveDeviceMountRealm(): string {
   const iamRuntime = getBirdCoderIamRuntime();
-  if (!isDesktopMountRealm()) {
+  if (!isBirdCoderTauriRuntime()) {
     const configuredApiBaseUrl = getDefaultBirdCoderIdeServicesRuntimeConfig()
       .applicationApiBaseUrl?.trim();
     if (configuredApiBaseUrl) {

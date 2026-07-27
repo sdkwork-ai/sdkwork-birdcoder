@@ -44,8 +44,7 @@ export function StartupScreen({
         <header className="sdkwork-startup-brand" aria-label={title}>
           <span className="sdkwork-startup-mark" aria-hidden="true">B</span>
           <span className="sdkwork-startup-brand-copy">
-            <span className="sdkwork-startup-brand-vendor">SDKWork</span>
-            <span className="sdkwork-startup-brand-product">BirdCoder</span>
+            <span className="sdkwork-startup-brand-product">Birdcoder</span>
           </span>
         </header>
 

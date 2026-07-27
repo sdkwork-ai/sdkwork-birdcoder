@@ -24,10 +24,9 @@ const browserFolderInfo = {
 
 const browserCalls: string[] = [];
 const browserImportResult = await importLocalFolderProject({
-  createProject: async (name: string, options) => {
-    assert.equal(options, undefined, 'browser imports must not send a local path to createProject.');
+  ensureProject: async (name: string) => {
     browserCalls.push(`create:${name}`);
-    return { projectId: 'browser-project' };
+    return { projectId: 'browser-project', reusedExistingProject: false };
   },
   fallbackProjectName: 'Local Folder',
   folderInfo: browserFolderInfo,
@@ -58,10 +57,9 @@ const tauriFolderInfo = {
 
 const tauriCalls: string[] = [];
 const tauriImportResult = await importLocalFolderProject({
-  createProject: async (name: string, options) => {
-    assert.equal(options, undefined, 'Tauri imports must not send a local path to createProject.');
+  ensureProject: async (name: string) => {
     tauriCalls.push(`create:${name}`);
-    return { projectId: 'desktop-project' };
+    return { projectId: 'desktop-project', reusedExistingProject: false };
   },
   fallbackProjectName: 'Local Folder',
   folderInfo: tauriFolderInfo,
@@ -147,10 +145,10 @@ await assert.rejects(
         status: 'failed',
       };
     },
-    createProject: async () => ({ projectId: 'failed-desktop-project' }),
-    deleteCreatedProject: async (projectId) => {
-      failedImportCalls.push(`delete:${projectId}`);
-    },
+    ensureProject: async () => ({
+      projectId: 'failed-desktop-project',
+      reusedExistingProject: false,
+    }),
     fallbackProjectName: 'Local Folder',
     folderInfo: tauriFolderInfo,
   }),
@@ -164,7 +162,6 @@ await assert.rejects(
 );
 assert.deepEqual(failedImportCalls, [
   'bind:failed-desktop-project',
-  'delete:failed-desktop-project',
 ]);
 
 console.log('local folder project import contract passed.');

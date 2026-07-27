@@ -1,4 +1,15 @@
-export type WorkbenchGitRepositoryStatus = 'ready' | 'not_repository';
+export type WorkbenchGitRepositoryStatus =
+  | 'ready'
+  | 'not_repository'
+  | 'repository_root_mismatch'
+  | 'unavailable';
+
+export type WorkbenchGitRepositoryDiagnosticCode =
+  | 'git_command_failed'
+  | 'git_executable_unavailable'
+  | 'not_repository'
+  | 'project_path_unavailable'
+  | 'repository_root_mismatch';
 
 export interface WorkbenchGitStatusCountsView {
   staged: number;
@@ -25,6 +36,7 @@ export interface WorkbenchGitOverviewView {
   currentBranch?: string;
   currentRevision?: string;
   detachedHead: boolean;
+  diagnosticCode?: WorkbenchGitRepositoryDiagnosticCode;
   status: WorkbenchGitRepositoryStatus;
   statusCounts: WorkbenchGitStatusCountsView;
   worktrees: WorkbenchGitWorktreeView[];

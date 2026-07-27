@@ -1,13 +1,38 @@
-# External Source Snapshot
+# External Source Dependencies
 
-- `codex/`: copied from `../claw-studio/.codex-tools/vendor-analysis/codex`
-- `gemini/`: copied from `../claw-studio/.codex-tools/gemini-cli-official`
-- `opencode/`: copied from `../claw-studio/.codex-tools/vendor-analysis/openclaw/extensions/opencode`
-- `claude-code/`: reserved mirror path for Claude Code. No local source mirror is available in the current offline workspace; use the current workspace Claw Router open SDK until a local mirror is added.
+These directories are read-only Git submodules. Do not patch, commit, or generate source changes
+inside them from the BirdCoder repository. BirdCoder-owned integrations and adaptations must live
+outside `external/`.
 
-Notes:
-- Copies exclude `.git`, `node_modules`, `target`, `dist`, `build`, and `.cache`.
-- `opencode/` is the locally available `@openclaw/opencode-provider` extension source. No standalone local `opencode` git repository was found in the inspected upstream cache.
-- Claude/OpenAI-compatible SDK reference path: `<workspace-root>/sdkwork-clawrouter/sdks/clawrouter-open-sdk/clawrouter-open-sdk-typescript`.
-  This is a reference-only snapshot note, not a BirdCoder source/build dependency. Add it to
-  `sdkwork.workflow.json` before consuming it as a release dependency.
+- `codex/`: `https://github.com/openai/codex.git`, branch `main`
+- `gemini/`: `https://github.com/google-gemini/gemini-cli.git`, branch `main`
+- `opencode/`: `https://github.com/anomalyco/opencode.git`, branch `dev`
+
+Claude Code source is intentionally not mirrored because Claude Code is not open source. Claude
+capabilities must use Anthropic's official SDK packages through the native package workspace. The
+current workspace catalog authority is `@anthropic-ai/claude-agent-sdk` in `pnpm-workspace.yaml`.
+
+Clone all external submodules with the repository:
+
+```shell
+git clone --recurse-submodules <sdkwork-birdcoder-repository-url>
+```
+
+Initialize them in an existing checkout:
+
+```shell
+git submodule sync --recursive
+git submodule update --init --recursive
+```
+
+Update all external dependencies to the latest commit on their configured branches:
+
+```shell
+git submodule sync --recursive
+git submodule update --init --recursive
+git submodule update --remote --checkout --recursive
+git add .gitmodules external/codex external/gemini external/opencode
+```
+
+Normal clone and update operations use the exact commits pinned by the parent repository gitlinks.
+The branch entries in `.gitmodules` are the authority only when an explicit remote update is run.

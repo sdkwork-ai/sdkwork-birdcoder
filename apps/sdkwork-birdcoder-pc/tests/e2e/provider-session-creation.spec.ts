@@ -147,17 +147,17 @@ test('selected code providers create their own Agent Sessions without a runtime 
       const body = route.request().postDataJSON() as Record<string, unknown>;
       const sequence = turnRequests.length + 1;
       const completedAt = new Date(Date.parse(createdAt) + sequence * 1_000).toISOString();
-      const turnId = `turn.e2e-provider-${sequence}`;
+      const turnId = String(body.turnId ?? `turn.e2e-provider-${sequence}`);
       const userItemId = `item.e2e-provider-${sequence}-user`;
       const assistantItemId = `item.e2e-provider-${sequence}-assistant`;
       const createdSessionSequence = Number(sessionId.match(/-(\d+)$/u)?.[1] ?? 0);
       const createdSessionBody = sessionCreateBodies[createdSessionSequence - 1] ?? {};
       turnRequests.push({ agentId, body, sessionId });
 
-      await route.fulfill({
-        json: {
-          code: 0,
-          data: {
+      const completion = {
+        code: 0,
+        data: {
+          item: {
             session: {
               sessionId,
               tenantId: '0',
@@ -189,6 +189,7 @@ test('selected code providers create their own Agent Sessions without a runtime 
               sessionId,
               agentId,
               ownerUserId: '1',
+              runtimeBindingId: body.runtimeBindingId,
               clientRequestId: body.clientRequestId,
               idempotencyKey: body.idempotencyKey,
               payloadHash: body.payloadHash,
@@ -256,8 +257,33 @@ test('selected code providers create their own Agent Sessions without a runtime 
               },
             ],
           },
-          traceId: `provider-turn-${sequence}`,
         },
+        traceId: `provider-turn-${sequence}`,
+      };
+
+      await route.fulfill({
+        status: 200,
+        contentType: 'text/event-stream',
+        body: [
+          `data: ${JSON.stringify({
+            eventType: 'delta',
+            index: 0,
+            delta: 'Provider selection ',
+          })}`,
+          '',
+          `data: ${JSON.stringify({
+            eventType: 'delta',
+            index: 1,
+            delta: 'verified.',
+          })}`,
+          '',
+          `data: ${JSON.stringify({
+            eventType: 'completion',
+            response: completion,
+          })}`,
+          '',
+          '',
+        ].join('\n'),
       });
     },
   );
@@ -429,6 +455,7 @@ test('selected code providers create their own Agent Sessions without a runtime 
     submittedProviderTurnResponse.status(),
     await submittedProviderTurnResponse.text(),
   ).toBe(200);
+  expect(new URL(submittedProviderTurnResponse.url()).searchParams.get('stream')).toBe('true');
   await expect.poll(() => runtimeBindingBodies.length).toBe(4);
   expect(sessionCreateBodies[3]).toMatchObject({ agentId: providers[1].agentId });
   expect(runtimeBindingBodies[3]).toMatchObject({
@@ -442,9 +469,13 @@ test('selected code providers create their own Agent Sessions without a runtime 
     body: {
       content: 'Verify the selected provider',
       requestedModelId: providers[1].modelId,
+      runtimeBindingId: runtimeBindingBodies[3].runtimeBindingId,
+      turnId: expect.stringMatching(/^turn\./u),
     },
     sessionId: 'e2e-provider-created-4',
   });
+  await expect(page.getByText('Verify the selected provider', { exact: true })).toHaveCount(1);
+  await expect(page.getByText('Provider selection verified.', { exact: true })).toHaveCount(1);
 
   failNextRuntimeBinding = true;
   await providerMenuButton.click();

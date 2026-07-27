@@ -188,7 +188,10 @@ export function AppContent() {
     selectWorkspace,
     updateWorkspace,
     workspaces,
-  } = useWorkspaces({ isActive: Boolean(user) });
+  } = useWorkspaces({
+    isActive: Boolean(user) && isRecoveryHydrated,
+    preferredWorkspaceId: normalizedRecoverySnapshot.activeWorkspaceId,
+  });
   const {
     projects,
     error: projectsError,
@@ -206,11 +209,12 @@ export function AppContent() {
     deleteProject,
     createAgentSession,
   } = useProjects({
-    isActive: Boolean(user),
+    isActive: Boolean(user) && isRecoveryHydrated,
     targetProjectId:
       scopedActiveProjectId || normalizedRecoverySnapshot.activeProjectId,
     workspaceId: selectedWorkspaceId,
   });
+  const isRecoveryProjectInventoryReady = isRecoveryHydrated && projectsHasFetched;
   const projectsIndex = useMemo(
     () => buildProjectAgentSessionIndex(projects),
     [projects],
@@ -308,10 +312,10 @@ export function AppContent() {
   const pendingImportedProjectIdRef = useRef('');
   const projectMountRecoveryIdentityRef = useRef('');
   const projectMountRecoveryActiveSurfaceRef = useRef('');
-  const activeAgentSessionSelectionScopeKeyRef = useRef('');
+  const activeAgentSessionSelectionProjectIdRef = useRef('');
 
   const clearActiveAgentSessionSelection = useCallback(() => {
-    activeAgentSessionSelectionScopeKeyRef.current = '';
+    activeAgentSessionSelectionProjectIdRef.current = '';
     setActiveAgentSessionId('');
   }, []);
 
@@ -321,10 +325,7 @@ export function AppContent() {
   ) => {
     const normalizedProjectId = projectId.trim();
     const normalizedAgentSessionId = agentSessionId.trim();
-    activeAgentSessionSelectionScopeKeyRef.current =
-      normalizedProjectId && normalizedAgentSessionId
-        ? buildAgentSessionProjectScopedKey(normalizedProjectId, normalizedAgentSessionId)
-        : '';
+    activeAgentSessionSelectionProjectIdRef.current = normalizedProjectId;
     setActiveAgentSessionId(normalizedAgentSessionId);
   }, []);
 
@@ -360,38 +361,27 @@ export function AppContent() {
     setNewProjectSourceFolder(null);
   }, []);
 
-  const resolvedProjectId = resolveStartupProjectId({
-    projects,
-    recoverySnapshot: normalizedRecoverySnapshot,
-  });
+  const resolvedProjectId = selectedWorkspaceId
+    ? resolveStartupProjectId({
+        hasProjectsFetched: projectsHasFetched,
+        projects,
+        recoverySnapshot: normalizedRecoverySnapshot,
+      })
+    : '';
   const effectiveProjectId = (scopedActiveProjectId || resolvedProjectId).trim();
   const activeProjectAgentSessions =
     projectsIndex.projectsById.get(effectiveProjectId)?.agentSessions ?? [];
-  const activeProjectAgentSessionIds = useMemo(
-    () => new Set(activeProjectAgentSessions.map((agentSession) => agentSession.id)),
-    [activeProjectAgentSessions],
-  );
   const resolvedAgentSessionId = resolveStartupAgentSessionId({
     projectId: effectiveProjectId,
     projects,
     recoverySnapshot: normalizedRecoverySnapshot,
   });
-  const scopedActiveAgentSessionScopeKey =
-    effectiveProjectId && scopedActiveAgentSessionId
-      ? buildAgentSessionProjectScopedKey(effectiveProjectId, scopedActiveAgentSessionId)
-      : '';
-  const isScopedActiveAgentSessionInProject = Boolean(
-    scopedActiveAgentSessionId &&
-    activeProjectAgentSessionIds.has(scopedActiveAgentSessionId),
-  );
-  const isPendingScopedActiveAgentSession = Boolean(
-    scopedActiveAgentSessionId &&
-    scopedActiveAgentSessionScopeKey &&
-    activeAgentSessionSelectionScopeKeyRef.current === scopedActiveAgentSessionScopeKey &&
-    projectsIndex.projectsById.has(effectiveProjectId),
+  const hasInitializedActiveAgentSessionSelection = Boolean(
+    effectiveProjectId &&
+    activeAgentSessionSelectionProjectIdRef.current === effectiveProjectId,
   );
   const effectiveAgentSessionId = (
-    isScopedActiveAgentSessionInProject || isPendingScopedActiveAgentSession
+    hasInitializedActiveAgentSessionSelection
       ? scopedActiveAgentSessionId
       : resolvedAgentSessionId
   ).trim();
@@ -403,21 +393,27 @@ export function AppContent() {
       ? lastPersistedRecoverySnapshotRef.current
       : normalizedRecoverySnapshot;
   const persistedRecoverySelection = useMemo(() => resolveWorkbenchRecoveryPersistenceSelection({
+      currentWorkspaceId: selectedWorkspaceId,
       currentProjectId: effectiveProjectId,
       currentAgentSessionId: effectiveAgentSessionId,
       fallbackSnapshot: currentUserFallbackRecoverySnapshot,
       hasProjectsFetched: projectsHasFetched,
+      hasWorkspacesFetched: workspacesHasFetched,
     }), [
       currentUserFallbackRecoverySnapshot,
       effectiveAgentSessionId,
       effectiveProjectId,
       projectsHasFetched,
+      selectedWorkspaceId,
+      workspacesHasFetched,
     ]);
   const recoverySelectionResolutionReady = useMemo(
     () => isWorkbenchRecoverySelectionResolutionReady({
+      currentWorkspaceId: selectedWorkspaceId,
       hasProjectsFetched: projectsHasFetched,
+      hasWorkspacesFetched: workspacesHasFetched,
     }),
-    [projectsHasFetched],
+    [projectsHasFetched, selectedWorkspaceId, workspacesHasFetched],
   );
   const recoveryAnnouncement = buildWorkbenchRecoveryAnnouncement({
     recoverySnapshot: normalizedRecoverySnapshot,
@@ -437,35 +433,33 @@ export function AppContent() {
     [commitActiveAgentSessionSelection, projectsIndex],
   );
 
-  const hydrateImportedProjectSelectionInBackground = useCallback(
-    (projectId: string) => {
-      void (async () => {
-        try {
-          if (pendingImportedProjectIdRef.current !== projectId) {
-            return;
-          }
+  const hydrateImportedProjectSelection = useCallback(
+    async (projectId: string) => {
+      if (pendingImportedProjectIdRef.current !== projectId) {
+        return null;
+      }
 
-          const hydratedProject = await hydrateImportedProjectFromAuthority({
-            agentSessionService,
-            knownProjects: projects,
-            projectId,
-            projectService,
-            userScope: currentWorkbenchSessionScope,
-            workspaceId: selectedWorkspaceId,
-          });
-          if (!hydratedProject) {
-            return;
-          }
+      const hydratedProject = await hydrateImportedProjectFromAuthority({
+        agentSessionService,
+        knownProjects: projects,
+        projectId,
+        projectService,
+        userScope: currentWorkbenchSessionScope,
+        workspaceId: selectedWorkspaceId,
+      });
+      if (!hydratedProject) {
+        throw new Error('The imported project Session inventory could not be refreshed.');
+      }
+      if (pendingImportedProjectIdRef.current !== projectId) {
+        return hydratedProject;
+      }
 
-          commitActiveAgentSessionSelection(
-            projectId,
-            hydratedProject.latestAgentSessionId ?? '',
-          );
-          pendingImportedProjectIdRef.current = '';
-        } catch (error) {
-          console.error('Failed to hydrate imported project state from server authority', error);
-        }
-      })();
+      commitActiveAgentSessionSelection(
+        projectId,
+        hydratedProject.latestAgentSessionId ?? '',
+      );
+      pendingImportedProjectIdRef.current = '';
+      return hydratedProject;
     },
     [
       agentSessionService,
@@ -520,6 +514,7 @@ export function AppContent() {
       userScope: currentWorkbenchUserScope,
       sessionId: recoverySessionIdRef.current,
       activeTab: normalizedRecoverySnapshot.activeTab,
+      activeWorkspaceId: normalizedRecoverySnapshot.activeWorkspaceId,
       activeProjectId: normalizedRecoverySnapshot.activeProjectId,
       activeAgentSessionId: normalizedRecoverySnapshot.activeAgentSessionId,
       cleanExit: normalizedRecoverySnapshot.cleanExit,
@@ -546,7 +541,7 @@ export function AppContent() {
   ]);
 
   useEffect(() => {
-    if (!projectsHasFetched) {
+    if (!isRecoveryProjectInventoryReady) {
       return;
     }
 
@@ -580,66 +575,37 @@ export function AppContent() {
     }
   }, [
     activeProjectId,
+    isRecoveryProjectInventoryReady,
     projects,
     projectsHasMore,
-    projectsHasFetched,
     projectsIndex,
     resolvedProjectId,
   ]);
 
   useEffect(() => {
-    if (!projectsHasFetched) {
+    if (!isRecoveryProjectInventoryReady) {
       return;
     }
 
     if (!effectiveProjectId) {
-      if (activeAgentSessionId) {
+      if (activeAgentSessionId || activeAgentSessionSelectionProjectIdRef.current) {
         clearActiveAgentSessionSelection();
       }
       return;
     }
 
-    if (activeAgentSessionId) {
-      const activeSelectionScopeKey = buildAgentSessionProjectScopedKey(
-        effectiveProjectId,
-        activeAgentSessionId,
-      );
-      if (activeProjectAgentSessionIds.has(activeAgentSessionId)) {
-        activeAgentSessionSelectionScopeKeyRef.current = activeSelectionScopeKey;
-        return;
-      }
-
-      if (
-        activeAgentSessionSelectionScopeKeyRef.current === activeSelectionScopeKey &&
-        projectsIndex.projectsById.has(effectiveProjectId)
-      ) {
-        return;
-      }
-
-      if (resolvedAgentSessionId) {
-        commitActiveAgentSessionSelection(effectiveProjectId, resolvedAgentSessionId);
-        return;
-      }
-
-      clearActiveAgentSessionSelection();
+    if (hasInitializedActiveAgentSessionSelection) {
       return;
     }
 
-    if (
-      activeProjectAgentSessions.length > 0 &&
-      resolvedAgentSessionId
-    ) {
-      commitActiveAgentSessionSelection(effectiveProjectId, resolvedAgentSessionId);
-    }
+    commitActiveAgentSessionSelection(effectiveProjectId, resolvedAgentSessionId);
   }, [
     activeAgentSessionId,
-    activeProjectAgentSessionIds,
-    activeProjectAgentSessions.length,
     clearActiveAgentSessionSelection,
     commitActiveAgentSessionSelection,
     effectiveProjectId,
-    projectsHasFetched,
-    projectsIndex,
+    hasInitializedActiveAgentSessionSelection,
+    isRecoveryProjectInventoryReady,
     resolvedAgentSessionId,
   ]);
 
@@ -665,6 +631,7 @@ export function AppContent() {
       normalizedRecoverySnapshot.sessionId ||
       createWorkbenchRecoverySessionId(),
       activeTab,
+      activeWorkspaceId: persistedRecoverySelection.activeWorkspaceId,
       activeProjectId: persistedRecoverySelection.activeProjectId,
       activeAgentSessionId: persistedRecoverySelection.activeAgentSessionId,
       cleanExit: false,
@@ -720,6 +687,7 @@ export function AppContent() {
             normalizedRecoverySnapshot.sessionId ||
             createWorkbenchRecoverySessionId(),
           activeTab,
+          activeWorkspaceId: persistedRecoverySelection.activeWorkspaceId,
           activeProjectId: persistedRecoverySelection.activeProjectId,
           activeAgentSessionId: persistedRecoverySelection.activeAgentSessionId,
           cleanExit: true,
@@ -783,11 +751,10 @@ export function AppContent() {
       }
 
       const resolution = await projectRuntimeLocationService.resolveProjectRuntimeLocation(
-        target.projectId,
+        target,
         {
           allowFolderSelection: false,
           capability: 'terminal',
-          mountedPath: target.mountedPath,
         },
       );
       if (resolution.status === 'cancelled') {
@@ -811,12 +778,7 @@ export function AppContent() {
       focusTerminalSurface({ forceProjectTerminal: true });
     };
     const handleRevealProjectInFileManager = async (target: ProjectDeviceMountTarget) => {
-      if (
-        !(await fileSystemService.revealProjectInFileManager(
-          target.projectId,
-          target.mountedPath,
-        ))
-      ) {
+      if (!(await projectRuntimeLocationService.revealProjectInFileManager(target))) {
         addToast(t('app.revealInExplorerDesktopOnly'), 'info');
         return;
       }
@@ -824,10 +786,11 @@ export function AppContent() {
       addToast(t('app.revealedInExplorer', { path: 'project' }), 'info');
     };
     const handleCopyProjectLocalPath = async (target: ProjectDeviceMountTarget) => {
-      const localWorkingDirectory = await fileSystemService.resolveLocalWorkingDirectory(
-        target.projectId,
-        target.mountedPath,
-      );
+      const localWorkingDirectory =
+        await projectRuntimeLocationService.resolveProjectLocalWorkingDirectory(target, {
+          allowFolderSelection: false,
+          capability: 'file_system',
+        });
       if (!localWorkingDirectory || !(await copyLocalPath(localWorkingDirectory))) {
         addToast(t('code.projectFolderUnavailable'), 'error');
         return;
@@ -894,7 +857,7 @@ export function AppContent() {
       unsubscribeSettings();
       unsubscribeTerminalReq();
     };
-  }, [addToast, fileSystemService, projectRuntimeLocationService, t]);
+  }, [addToast, projectRuntimeLocationService, t]);
 
   const hasOpenHeaderSelectionSurface =
     showWorkspaceProjectPopover ||
@@ -919,7 +882,7 @@ export function AppContent() {
 
     try {
       const resolution = await projectRuntimeLocationService.resolveProjectRuntimeLocation(
-        effectiveProjectId,
+        { projectId: effectiveProjectId },
         {
           allowFolderSelection: false,
           capability: 'terminal',
@@ -1142,7 +1105,7 @@ export function AppContent() {
           workspaceId: selectedWorkspaceId,
         });
         activateImportedProject(importedProject.projectId);
-        hydrateImportedProjectSelectionInBackground(importedProject.projectId);
+        await hydrateImportedProjectSelection(importedProject.projectId);
         closeCreateProjectDialog();
         addToast(t('app.folderProjectCreated', { name: importedProject.projectName }), 'success');
       } else {
@@ -1170,7 +1133,7 @@ export function AppContent() {
     closeCreateProjectDialog,
     createProject,
     ensureProject,
-    hydrateImportedProjectSelectionInBackground,
+    hydrateImportedProjectSelection,
     importProject,
     isProjectCreationPending,
     newProjectName,
@@ -1701,7 +1664,7 @@ export function AppContent() {
       const importedProject = await selectFolderAndImportProject(t('app.serverDirectory'));
       if (importedProject) {
         activateImportedProject(importedProject.projectId);
-        hydrateImportedProjectSelectionInBackground(importedProject.projectId);
+        await hydrateImportedProjectSelection(importedProject.projectId);
         addToast(t('app.openedFolder', { name: importedProject.projectName }), 'success');
       }
     } catch (e) {
@@ -1711,7 +1674,7 @@ export function AppContent() {
   }, [
     activateImportedProject,
     addToast,
-    hydrateImportedProjectSelectionInBackground,
+    hydrateImportedProjectSelection,
     selectFolderAndImportProject,
     t,
   ]);

@@ -6,6 +6,8 @@ use uuid::Uuid;
 
 use crate::host::state::open_device_state;
 
+use super::filesystem_commands::{authorize_provider_session_directory_identity, ProviderSessionDirectoryIdentity};
+
 const RESERVED_AUTHORITY_LOCAL_STORE_KEY_PREFIX: &str = "table.sqlite.";
 const APP_SETTINGS_SCOPE: &str = "settings";
 const APP_SETTINGS_KEY: &str = "app";
@@ -289,6 +291,47 @@ pub async fn project_device_mount_find(
     .map_err(|error| format!("failed to join project mount recovery task: {error}"))?
 }
 
+fn resolve_project_mount_provider_session_directory_identity(
+    connection: &rusqlite::Connection,
+    project_id: &str,
+    owner_keys: &BTreeSet<String>,
+) -> Result<Option<ProviderSessionDirectoryIdentity>, String> {
+    let Some(entry) = read_project_device_mount_by_identity(connection, project_id, owner_keys)?
+    else {
+        return Ok(None);
+    };
+    let mount = serde_json::from_str::<StoredProjectDeviceMountIdentity>(&entry.value)
+        .map_err(|error| format!("failed to decode persisted project mount: {error}"))?;
+    let path = mount
+        .path
+        .as_deref()
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+        .ok_or_else(|| "persisted project mount path is missing".to_string())?;
+    authorize_provider_session_directory_identity(path).map(Some)
+}
+
+/// Re-authorizes one persisted, subject-owned mount after a desktop restart
+/// and returns only safe directory identity metadata to the renderer.
+#[tauri::command]
+pub async fn project_device_mount_provider_session_directory_identity(
+    app: AppHandle,
+    project_id: String,
+    owner_keys: Vec<String>,
+) -> Result<Option<ProviderSessionDirectoryIdentity>, String> {
+    let project_id = project_id.trim().to_string();
+    if project_id.is_empty() {
+        return Err("provider Session directory identity requires a project ID".to_string());
+    }
+    let owner_keys = normalize_project_device_mount_owner_keys(owner_keys)?;
+    tauri::async_runtime::spawn_blocking(move || {
+        let connection = open_device_state(&app)?;
+        resolve_project_mount_provider_session_directory_identity(&connection, &project_id, &owner_keys)
+    })
+    .await
+    .map_err(|error| format!("failed to join provider Session directory identity task: {error}"))?
+}
+
 #[tauri::command]
 pub async fn local_store_list(
     app: AppHandle,
@@ -402,9 +445,10 @@ mod tests {
     use super::{
         create_prefixed_uuid, is_valid_prefixed_uuid, local_store_scope_and_key_are_allowed,
         local_store_scope_is_enumerable, normalize_project_device_mount_owner_keys,
-        read_project_device_mount_by_identity, APP_SETTINGS_KEY, APP_SETTINGS_SCOPE,
-        DESKTOP_RUNTIME_LOCATION_IDENTITY_SCOPE, DESKTOP_RUNTIME_ROOT_LOCATOR_PREFIX,
-        DESKTOP_RUNTIME_TARGET_ID_PREFIX, PROJECT_DEVICE_MOUNTS_SCOPE,
+        read_project_device_mount_by_identity, resolve_project_mount_provider_session_directory_identity,
+        APP_SETTINGS_KEY, APP_SETTINGS_SCOPE, DESKTOP_RUNTIME_LOCATION_IDENTITY_SCOPE,
+        DESKTOP_RUNTIME_ROOT_LOCATOR_PREFIX, DESKTOP_RUNTIME_TARGET_ID_PREFIX,
+        PROJECT_DEVICE_MOUNTS_SCOPE,
     };
 
     #[test]
@@ -562,5 +606,78 @@ mod tests {
             &accepted_owner_keys,
         )
         .is_err());
+    }
+
+    #[test]
+    fn project_mount_identity_reauthorizes_only_the_matching_subject_root() {
+        let connection = rusqlite::Connection::open_in_memory().expect("in-memory device state");
+        connection
+            .execute_batch(
+                r#"
+                CREATE TABLE device_state_entry (
+                    scope TEXT NOT NULL,
+                    key TEXT NOT NULL,
+                    value TEXT NOT NULL,
+                    updated_at TEXT NOT NULL,
+                    PRIMARY KEY (scope, key)
+                );
+                "#,
+            )
+            .expect("device-state test table");
+        let root = std::env::temp_dir().join(format!(
+            "sdkwork-birdcoder-persisted-mount-{}-{}",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .expect("test clock")
+                .as_nanos()
+        ));
+        std::fs::create_dir_all(root.join("src")).expect("persisted mount fixture");
+        let owner_key = "c".repeat(64);
+        connection
+            .execute(
+                "INSERT INTO device_state_entry VALUES (?1, ?2, ?3, ?4)",
+                rusqlite::params![
+                    PROJECT_DEVICE_MOUNTS_SCOPE,
+                    "4".repeat(64),
+                    serde_json::json!({
+                        "ownerKey": owner_key,
+                        "path": root.to_string_lossy(),
+                        "projectId": "project-native",
+                        "version": 1
+                    })
+                    .to_string(),
+                    "1"
+                ],
+            )
+            .expect("persisted project mount");
+
+        let accepted_owner_keys =
+            normalize_project_device_mount_owner_keys(vec![owner_key]).expect("valid owner key");
+        let identity = resolve_project_mount_provider_session_directory_identity(
+            &connection,
+            "project-native",
+            &accepted_owner_keys,
+        )
+        .expect("provider Session directory identity lookup")
+        .expect("matching provider Session directory identity");
+        assert_eq!(
+            identity.directory_name,
+            root.file_name()
+                .and_then(|value| value.to_str())
+                .expect("fixture directory name")
+        );
+
+        let rejected_owner_keys = normalize_project_device_mount_owner_keys(vec!["d".repeat(64)])
+            .expect("valid other owner key");
+        assert!(resolve_project_mount_provider_session_directory_identity(
+            &connection,
+            "project-native",
+            &rejected_owner_keys,
+        )
+        .expect("other owner identity lookup")
+        .is_none());
+
+        std::fs::remove_dir_all(root).expect("persisted mount fixture must be removed");
     }
 }

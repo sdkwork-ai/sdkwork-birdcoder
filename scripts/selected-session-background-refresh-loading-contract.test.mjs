@@ -49,8 +49,8 @@ const studioPageSource = fs.readFileSync(
 
 assert.match(
   hookSource,
-  /selectedAgentSession\?\.items\.length \?\? 0,[\s\S]*pollRevision,[\s\S]*selectedAgentSession\?\.items\.length,/,
-  'selected session refresh identity must observe canonical Session Item inventory and polling revision.',
+  /refreshScopeKey,[\s\S]*selectionRefreshToken,[\s\S]*pollRevision,/,
+  'selected session refresh identity must use stable scope, explicit invalidation, and bounded polling.',
 );
 
 assert.match(

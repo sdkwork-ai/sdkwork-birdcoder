@@ -50,6 +50,21 @@ function isOpaqueMediaLocation(value: string | undefined): boolean {
   return Boolean(value && /^(?:data|blob):/iu.test(value.trim()));
 }
 
+function resolveDriveNodeId(resource: AgentSessionItemResourceView): string | undefined {
+  for (const value of [resource.uri, resource.origin?.uri]) {
+    const match = /^drive:\/\/nodes\/([^/?#]+)/iu.exec(value?.trim() ?? '');
+    if (!match?.[1]) {
+      continue;
+    }
+    try {
+      return decodeURIComponent(match[1]);
+    } catch {
+      return match[1];
+    }
+  }
+  return undefined;
+}
+
 function resolveOpenableFilePath(resource: AgentSessionItemResourceView): string | undefined {
   for (const value of [resource.path, resource.origin?.path]) {
     const path = value?.trim();
@@ -87,8 +102,12 @@ function formatLineLocation(resource: AgentSessionItemResourceView): string {
 
 function resolvePrimaryLocation(resource: AgentSessionItemResourceView): string {
   return resolveOpenableFilePath(resource)
-    ?? (!isOpaqueMediaLocation(resource.uri) ? resource.uri : undefined)
-    ?? (!isOpaqueMediaLocation(resource.origin?.uri) ? resource.origin?.uri : undefined)
+    ?? (!isOpaqueMediaLocation(resource.uri) && !resource.uri?.startsWith('drive://')
+      ? resource.uri
+      : undefined)
+    ?? (!isOpaqueMediaLocation(resource.origin?.uri) && !resource.origin?.uri?.startsWith('drive://')
+      ? resource.origin?.uri
+      : undefined)
     ?? '';
 }
 
@@ -133,6 +152,8 @@ export const MessageResourcesBlock = memo(function MessageResourcesBlock({
   }
   const resourcesLabel = context.environment?.t('chat.messageResources') ?? 'Message resources';
   const openFileLabel = context.environment?.t('chat.openFileInEditor') ?? 'Open file in editor';
+  const openResourceLabel = context.environment?.t('chat.openMessageResource')
+    ?? 'Open message resource';
 
   return (
     <div
@@ -154,7 +175,11 @@ export const MessageResourcesBlock = memo(function MessageResourcesBlock({
         const mediaSource = resolveSafeMediaSource(resource);
         const externalUri = resolveSafeExternalUri(resource);
         const openableFilePath = resolveOpenableFilePath(resource);
+        const driveNodeId = resolveDriveNodeId(resource);
         const canOpenFile = Boolean(openableFilePath && context.environment?.onOpenFile);
+        const canOpenDriveResource = Boolean(
+          driveNodeId && context.environment?.onOpenDriveAttachment,
+        );
         const titleContent = (
           <>
             <span className="min-w-0 truncate font-medium text-gray-300" title={title}>
@@ -197,6 +222,16 @@ export const MessageResourcesBlock = memo(function MessageResourcesBlock({
                     title={`${openFileLabel}: ${openableFilePath}`}
                     aria-label={`${openFileLabel}: ${openableFilePath}`}
                     onClick={() => context.environment?.onOpenFile?.(openableFilePath!)}
+                  >
+                    {titleContent}
+                  </button>
+                ) : canOpenDriveResource ? (
+                  <button
+                    type="button"
+                    className="flex min-w-0 items-baseline gap-1 text-left hover:text-gray-100 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-blue-400/70"
+                    title={`${openResourceLabel}: ${title}`}
+                    aria-label={`${openResourceLabel}: ${title}`}
+                    onClick={() => context.environment?.onOpenDriveAttachment?.(driveNodeId!, title)}
                   >
                     {titleContent}
                   </button>

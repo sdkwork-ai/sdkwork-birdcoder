@@ -2,10 +2,18 @@ interface CreatedAgentSession {
   sessionId: string;
 }
 
-export interface CreateBoundAgentSessionOptions<TSession extends CreatedAgentSession> {
-  createRuntimeBinding: (session: TSession) => Promise<unknown>;
+export interface CreateBoundAgentSessionOptions<
+  TSession extends CreatedAgentSession,
+  TRuntimeBinding,
+> {
+  createRuntimeBinding: (session: TSession) => Promise<TRuntimeBinding>;
   createSession: () => Promise<TSession>;
   deleteCreatedSession: (session: TSession) => Promise<void>;
+}
+
+export interface BoundAgentSession<TSession, TRuntimeBinding> {
+  runtimeBinding: TRuntimeBinding;
+  session: TSession;
 }
 
 export class AgentSessionRuntimeBindingProvisioningError extends Error {
@@ -29,13 +37,17 @@ export class AgentSessionRuntimeBindingProvisioningError extends Error {
   }
 }
 
-export async function createBoundAgentSession<TSession extends CreatedAgentSession>(
-  options: CreateBoundAgentSessionOptions<TSession>,
-): Promise<TSession> {
+export async function createBoundAgentSession<
+  TSession extends CreatedAgentSession,
+  TRuntimeBinding,
+>(
+  options: CreateBoundAgentSessionOptions<TSession, TRuntimeBinding>,
+): Promise<BoundAgentSession<TSession, TRuntimeBinding>> {
   const session = await options.createSession();
 
   try {
-    await options.createRuntimeBinding(session);
+    const runtimeBinding = await options.createRuntimeBinding(session);
+    return { runtimeBinding, session };
   } catch (runtimeBindingError) {
     let cleanupError: unknown = null;
     try {
@@ -50,6 +62,4 @@ export async function createBoundAgentSession<TSession extends CreatedAgentSessi
       cleanupError,
     );
   }
-
-  return session;
 }

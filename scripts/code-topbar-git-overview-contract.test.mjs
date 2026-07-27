@@ -63,6 +63,15 @@ const hookSource = readSource(
   'hooks',
   'useProjectGitOverview.ts',
 );
+const subscriptionSource = readSource(
+  'apps',
+  'sdkwork-birdcoder-pc',
+  'packages',
+  'sdkwork-birdcoder-pc-workbench',
+  'src',
+  'workbench',
+  'projectGitOverviewSubscription.ts',
+);
 const eventSource = readSource(
   'apps',
   'sdkwork-birdcoder-pc',
@@ -141,9 +150,9 @@ const legacyPanelPath = path.join(
 );
 
 assert.match(
-  hookSource,
+  subscriptionSource,
   /const projectGitOverviewCache = new Map<string, ProjectGitOverviewCacheEntry>\(\);/,
-  'Project Git overview state must be cached in the shared commons module so multiple consumers stay consistent.',
+  'Project Git overview state must be cached in the shared subscription component so multiple consumers stay consistent.',
 );
 
 assert.match(

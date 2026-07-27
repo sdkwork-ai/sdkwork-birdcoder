@@ -4,7 +4,7 @@ import type { DistributionManifest } from '../index';
 export const globalManifest: DistributionManifest = {
   id: 'global',
   appId: 'sdkwork-birdcoder',
-  appName: 'SDKWork BirdCoder',
+  appName: 'Birdcoder',
   bundleIdentifier: 'com.sdkwork.birdcoder',
   updateSource: 'github',
   mirrorStrategy: 'global',

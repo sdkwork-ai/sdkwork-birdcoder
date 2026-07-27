@@ -1,29 +1,24 @@
+import {
+  normalizeProjectRuntimeLocationInput,
+  type ProjectRuntimeLocationInput,
+  type ProjectRuntimeLocationTarget,
+} from '@sdkwork/birdcoder-pc-infrastructure-runtime/projectRuntimeLocation';
 import { globalEventBus } from '../utils/EventBus.ts';
 
 export const COPY_PROJECT_LOCAL_PATH_EVENT = 'copyProjectLocalPath';
 export const OPEN_PROJECT_TERMINAL_EVENT = 'openProjectTerminal';
 export const REVEAL_PROJECT_IN_FILE_MANAGER_EVENT = 'revealProjectInFileManager';
 
-export interface ProjectDeviceMountTarget {
-  mountedPath?: string;
-  projectId: string;
+export type ProjectDeviceMountTarget = ProjectRuntimeLocationTarget;
+
+export function resolveProjectDeviceMountTarget(
+  project: ProjectRuntimeLocationInput,
+): ProjectDeviceMountTarget | null {
+  return normalizeProjectRuntimeLocationInput(project);
 }
 
-function normalizeTarget(target: ProjectDeviceMountTarget): ProjectDeviceMountTarget | null {
-  const projectId = target.projectId.trim();
-  if (!projectId) {
-    return null;
-  }
-
-  const mountedPath = target.mountedPath?.trim();
-  return {
-    projectId,
-    ...(mountedPath ? { mountedPath } : {}),
-  };
-}
-
-export function emitCopyProjectLocalPath(target: ProjectDeviceMountTarget): boolean {
-  const normalizedTarget = normalizeTarget(target);
+export function emitCopyProjectLocalPath(project: ProjectRuntimeLocationInput): boolean {
+  const normalizedTarget = resolveProjectDeviceMountTarget(project);
   if (!normalizedTarget) {
     return false;
   }
@@ -32,8 +27,8 @@ export function emitCopyProjectLocalPath(target: ProjectDeviceMountTarget): bool
   return true;
 }
 
-export function emitOpenProjectTerminal(target: ProjectDeviceMountTarget): boolean {
-  const normalizedTarget = normalizeTarget(target);
+export function emitOpenProjectTerminal(project: ProjectRuntimeLocationInput): boolean {
+  const normalizedTarget = resolveProjectDeviceMountTarget(project);
   if (!normalizedTarget) {
     return false;
   }
@@ -42,8 +37,8 @@ export function emitOpenProjectTerminal(target: ProjectDeviceMountTarget): boole
   return true;
 }
 
-export function emitRevealProjectInFileManager(target: ProjectDeviceMountTarget): boolean {
-  const normalizedTarget = normalizeTarget(target);
+export function emitRevealProjectInFileManager(project: ProjectRuntimeLocationInput): boolean {
+  const normalizedTarget = resolveProjectDeviceMountTarget(project);
   if (!normalizedTarget) {
     return false;
   }

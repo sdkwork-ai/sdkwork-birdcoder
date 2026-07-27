@@ -51,6 +51,15 @@ async fn project_device_mount_find(
 }
 
 #[tauri::command]
+async fn project_device_mount_provider_session_directory_identity(
+    app: tauri::AppHandle,
+    project_id: String,
+    owner_keys: Vec<String>,
+) -> Result<Option<host::ProviderSessionDirectoryIdentity>, String> {
+    host::project_device_mount_provider_session_directory_identity(app, project_id, owner_keys).await
+}
+
+#[tauri::command]
 async fn local_store_list(
     app: tauri::AppHandle,
     scope: String,
@@ -427,6 +436,7 @@ pub fn run() {
             local_store_set,
             local_store_delete,
             project_device_mount_find,
+            project_device_mount_provider_session_directory_identity,
             local_store_list,
             secure_app_session_read,
             secure_app_session_write,

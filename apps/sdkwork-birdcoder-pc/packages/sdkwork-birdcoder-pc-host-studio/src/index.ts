@@ -72,13 +72,13 @@ const HOST_STUDIO_DISTRIBUTIONS = {
   global: {
     id: 'global',
     appId: 'sdkwork-birdcoder',
-    appName: 'SDKWork BirdCoder',
+    appName: 'Birdcoder',
     apiBaseUrl: 'http://127.0.0.1:10240',
   },
   cn: {
     id: 'cn',
     appId: 'sdkwork-birdcoder-cn',
-    appName: 'SDKWork BirdCoder',
+    appName: 'Birdcoder',
     apiBaseUrl: 'http://127.0.0.1:10240',
   },
 } as const;

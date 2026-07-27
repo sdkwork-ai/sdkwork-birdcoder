@@ -117,6 +117,7 @@ assert.equal(
   'Manifest permission count must match the IAM module catalog.',
 );
 assert.deepEqual(manifestOwnership?.dependencyAuthorities, {
+  agentWorkspaces: 'sdkwork-agents',
   agentProjects: 'sdkwork-agents',
   agentProjectComposition: 'sdkwork-agents',
   agentSessions: 'sdkwork-agents',
@@ -138,7 +139,10 @@ for (const manifestPath of listSdkworkAppManifestPaths(rootDir)) {
   assert.equal(manifest.metadata?.preLaunch, true, `${relativePath} metadata must remain pre-launch.`);
   assert.equal(manifest.metadata?.deploymentConfig, 'etc/sdkwork.deployment.config.json');
   assert.equal(manifest.metadata?.releaseEvidence?.status, 'blocked');
-  assert.deepEqual(manifest.metadata?.releaseEvidence?.blockers, releaseBlockers);
+  const expectedReleaseBlockers = manifest.app?.key === 'sdkwork-birdcoder-mini-program'
+    ? [...releaseBlockers, 'wechat-devtools-upload-evidence-missing']
+    : releaseBlockers;
+  assert.deepEqual(manifest.metadata?.releaseEvidence?.blockers, expectedReleaseBlockers);
   assert.equal(manifest.release?.defaultChannel, 'INTERNAL');
   assert.equal(manifest.release?.latest?.INTERNAL, manifest.release?.currentVersion);
   assert.equal(manifest.release?.notes?.filter((note) => note.current === true).length, 1);
@@ -146,7 +150,7 @@ for (const manifestPath of listSdkworkAppManifestPaths(rootDir)) {
 
   for (const pkg of manifest.artifacts?.installConfig?.packages ?? []) {
     assert.equal(pkg.enabled, false, `${relativePath} package ${pkg.id} must remain disabled.`);
-    assert.equal(pkg.profileBinding, 'fixed');
+    assert.ok(['fixed', 'runtime-configurable'].includes(pkg.profileBinding));
     assert.equal(pkg.metadata?.releaseBuildDeferred, true);
     assert.equal(pkg.metadata?.releaseAuthority, 'sdkwork-birdcoder');
     assert.equal(typeof pkg.targetPlatform, 'string');

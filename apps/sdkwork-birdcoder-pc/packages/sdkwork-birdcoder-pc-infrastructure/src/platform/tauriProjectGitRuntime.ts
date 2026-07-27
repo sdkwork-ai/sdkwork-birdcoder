@@ -12,12 +12,26 @@ import { isBirdCoderTauriRuntime } from './tauriRuntime.ts';
 
 type TauriInvoke = <T>(command: string, args?: Record<string, unknown>) => Promise<T>;
 
+export type TauriProjectGitRuntimeUnavailableReason =
+  | 'runtime_unavailable'
+  | 'project_path_unavailable';
+
 export class TauriProjectGitRuntimeUnavailableError extends Error {
   readonly code = 'tauri_project_git_runtime_unavailable';
+  readonly reason: TauriProjectGitRuntimeUnavailableReason;
 
-  constructor(message = 'The Tauri project Git runtime is unavailable.') {
-    super(message);
+  constructor(
+    reason: TauriProjectGitRuntimeUnavailableReason = 'runtime_unavailable',
+    message?: string,
+  ) {
+    super(
+      message
+      ?? (reason === 'project_path_unavailable'
+        ? 'The current project does not have a recoverable local path. Mount a local folder for this project first.'
+        : 'The Tauri project Git runtime is unavailable.'),
+    );
     this.name = 'TauriProjectGitRuntimeUnavailableError';
+    this.reason = reason;
   }
 }
 
@@ -57,8 +71,21 @@ export interface TauriProjectGitRuntime {
 
 export interface CreateTauriProjectGitRuntimeOptions {
   invoke?: TauriInvoke;
-  isTauriRuntime?: () => Promise<boolean>;
+  isTauriRuntime?: () => boolean | Promise<boolean>;
   resolveProjectRoot: (projectId: string) => Promise<string | null>;
+}
+
+function createProjectPathUnavailableOverview(): WorkbenchGitOverviewView {
+  return {
+    branches: [],
+    currentBranch: undefined,
+    currentRevision: undefined,
+    detachedHead: false,
+    diagnosticCode: 'project_path_unavailable',
+    status: 'unavailable',
+    statusCounts: { staged: 0, unstaged: 0, untracked: 0 },
+    worktrees: [],
+  };
 }
 
 async function resolveTauriInvoke(explicitInvoke?: TauriInvoke): Promise<TauriInvoke> {
@@ -89,7 +116,7 @@ export function createTauriProjectGitRuntime({
     const rootPath = (await resolveProjectRoot(projectId))?.trim() ?? '';
     if (!rootPath) {
       throw new TauriProjectGitRuntimeUnavailableError(
-        'The project does not have an active Tauri folder mount.',
+        'project_path_unavailable',
       );
     }
     const invoke = await resolveTauriInvoke(explicitInvoke);
@@ -117,7 +144,18 @@ export function createTauriProjectGitRuntime({
       return invokeProjectGit(projectId, 'git_project_diff');
     },
     getProjectGitOverview(projectId) {
-      return invokeProjectGit(projectId, 'git_project_overview');
+      return invokeProjectGit<WorkbenchGitOverviewView>(
+        projectId,
+        'git_project_overview',
+      ).catch((error: unknown) => {
+        if (
+          error instanceof TauriProjectGitRuntimeUnavailableError
+          && error.reason === 'project_path_unavailable'
+        ) {
+          return createProjectPathUnavailableOverview();
+        }
+        throw error;
+      });
     },
     pruneProjectGitWorktrees(projectId) {
       return invokeProjectGit(projectId, 'git_prune_worktrees');

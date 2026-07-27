@@ -13,6 +13,9 @@ export interface CodeEditorWorkspacePanelProps {
   isActive: boolean;
   currentProjectId?: string;
   files: FileNode[];
+  projectRootPath: string;
+  fileTreeLoadError: boolean;
+  isFileTreeLoading: boolean;
   loadingDirectoryPaths: Record<string, boolean>;
   openFiles: string[];
   selectedFile?: string | null;
@@ -42,6 +45,7 @@ export interface CodeEditorWorkspacePanelProps {
   onDeleteFile: (path: string) => void;
   onDeleteFolder: (path: string) => void;
   onRenameNode: (path: string, nextPath: string) => void | Promise<void>;
+  onRetryFileTreeLoad: () => void | Promise<void>;
   onCloseDiff: () => void;
   onFileDraftChange: (value: string) => void;
   onExplorerResize: (delta: number) => void;
@@ -62,7 +66,7 @@ export interface CodeEditorWorkspacePanelProps {
     request: AgentQuestionAnswerInput,
   ) => void | Promise<void>;
   onViewChanges: (file: FileChange) => void;
-  onRestoreMessage: (messageId: string) => void;
+  onRestoreMessage: (messageId: string, fileChanges?: readonly FileChange[]) => void;
   onEditMessage: (messageId: string, content: string) => void | Promise<void>;
   onDeleteMessage: (messageIds: string[]) => void;
   onRegenerateMessage: () => void;
@@ -89,7 +93,7 @@ export interface EditorChatProps {
   onDeleteMessage: (messageIds: string[]) => void;
   onEditMessage: (messageId: string, content: string) => void | Promise<void>;
   onRegenerateMessage: () => void;
-  onRestoreMessage: (messageId: string) => void;
+  onRestoreMessage: (messageId: string, fileChanges?: readonly FileChange[]) => void;
   onSelectedEngineIdChange: (engineId: string) => void;
   onSelectedModelIdChange: (modelId: string, engineId?: string) => void;
   onSendMessage: (

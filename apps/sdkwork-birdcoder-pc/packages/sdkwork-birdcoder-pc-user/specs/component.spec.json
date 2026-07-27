@@ -143,9 +143,24 @@
         "package": "@sdkwork/birdcoder-pc-infrastructure-runtime"
       },
       {
+        "name": "pointsRechargePort",
+        "export": ".",
+        "package": "@sdkwork/birdcoder-pc-infrastructure-runtime"
+      },
+      {
+        "name": "couponRedemptionPort",
+        "export": ".",
+        "package": "@sdkwork/birdcoder-pc-infrastructure-runtime"
+      },
+      {
         "name": "orderCheckoutDialog",
         "export": ".",
         "package": "@sdkwork/order-pc-checkout"
+      },
+      {
+        "name": "orderRechargeDialogs",
+        "export": ".",
+        "package": "@sdkwork/order-pc-recharge"
       }
     ],
     "publicExports": [
@@ -161,7 +176,7 @@
     "sdkDependencies": [],
     "dependencyApiExports": [],
     "dependencyApiSurfaces": [],
-    "compositionBoundary": "The BirdCoder application adapter injects the order-owned checkout service and dialog into the membership catalog. Membership packages do not depend on order packages."
+    "compositionBoundary": "The BirdCoder application adapter injects order-owned checkout, points recharge, and coupon redemption services and dialogs into the membership catalog. Membership packages do not depend on order packages."
   },
   "integration": {
     "authority": "Root SDKWork specs remain authoritative. Local specs may extend but must not contradict them.",

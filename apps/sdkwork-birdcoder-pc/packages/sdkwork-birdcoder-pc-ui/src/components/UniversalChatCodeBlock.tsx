@@ -4,16 +4,26 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { Check, Copy } from 'lucide-react';
 import SyntaxHighlighter from 'react-syntax-highlighter/dist/esm/prism-light';
 import bash from 'react-syntax-highlighter/dist/esm/languages/prism/bash';
+import c from 'react-syntax-highlighter/dist/esm/languages/prism/c';
+import cpp from 'react-syntax-highlighter/dist/esm/languages/prism/cpp';
+import csharp from 'react-syntax-highlighter/dist/esm/languages/prism/csharp';
 import css from 'react-syntax-highlighter/dist/esm/languages/prism/css';
 import diff from 'react-syntax-highlighter/dist/esm/languages/prism/diff';
+import go from 'react-syntax-highlighter/dist/esm/languages/prism/go';
+import java from 'react-syntax-highlighter/dist/esm/languages/prism/java';
 import javascript from 'react-syntax-highlighter/dist/esm/languages/prism/javascript';
 import json from 'react-syntax-highlighter/dist/esm/languages/prism/json';
 import jsx from 'react-syntax-highlighter/dist/esm/languages/prism/jsx';
+import kotlin from 'react-syntax-highlighter/dist/esm/languages/prism/kotlin';
 import markdown from 'react-syntax-highlighter/dist/esm/languages/prism/markdown';
 import markup from 'react-syntax-highlighter/dist/esm/languages/prism/markup';
+import php from 'react-syntax-highlighter/dist/esm/languages/prism/php';
+import powershell from 'react-syntax-highlighter/dist/esm/languages/prism/powershell';
 import python from 'react-syntax-highlighter/dist/esm/languages/prism/python';
+import ruby from 'react-syntax-highlighter/dist/esm/languages/prism/ruby';
 import rust from 'react-syntax-highlighter/dist/esm/languages/prism/rust';
 import sql from 'react-syntax-highlighter/dist/esm/languages/prism/sql';
+import swift from 'react-syntax-highlighter/dist/esm/languages/prism/swift';
 import toml from 'react-syntax-highlighter/dist/esm/languages/prism/toml';
 import tsx from 'react-syntax-highlighter/dist/esm/languages/prism/tsx';
 import typescript from 'react-syntax-highlighter/dist/esm/languages/prism/typescript';
@@ -34,22 +44,38 @@ const LANGUAGE_ALIASES = new Map<string, string>([
   ['sh', 'bash'],
   ['shell', 'bash'],
   ['shell-session', 'bash'],
+  ['c', 'c'],
+  ['cpp', 'cpp'],
+  ['c++', 'cpp'],
+  ['csharp', 'csharp'],
+  ['cs', 'csharp'],
   ['css', 'css'],
   ['diff', 'diff'],
+  ['go', 'go'],
+  ['golang', 'go'],
+  ['java', 'java'],
   ['javascript', 'javascript'],
   ['js', 'javascript'],
   ['json', 'json'],
   ['jsx', 'jsx'],
+  ['kotlin', 'kotlin'],
+  ['kt', 'kotlin'],
   ['markdown', 'markdown'],
   ['md', 'markdown'],
   ['markup', 'markup'],
   ['html', 'markup'],
   ['xml', 'markup'],
+  ['php', 'php'],
+  ['powershell', 'powershell'],
+  ['ps1', 'powershell'],
   ['python', 'python'],
   ['py', 'python'],
+  ['ruby', 'ruby'],
+  ['rb', 'ruby'],
   ['rust', 'rust'],
   ['rs', 'rust'],
   ['sql', 'sql'],
+  ['swift', 'swift'],
   ['toml', 'toml'],
   ['typescript', 'typescript'],
   ['ts', 'typescript'],
@@ -60,16 +86,26 @@ const LANGUAGE_ALIASES = new Map<string, string>([
 
 const LANGUAGE_REGISTRATIONS = [
   ['bash', bash],
+  ['c', c],
+  ['cpp', cpp],
+  ['csharp', csharp],
   ['css', css],
   ['diff', diff],
+  ['go', go],
+  ['java', java],
   ['javascript', javascript],
   ['json', json],
   ['jsx', jsx],
+  ['kotlin', kotlin],
   ['markdown', markdown],
   ['markup', markup],
+  ['php', php],
+  ['powershell', powershell],
   ['python', python],
+  ['ruby', ruby],
   ['rust', rust],
   ['sql', sql],
+  ['swift', swift],
   ['toml', toml],
   ['tsx', tsx],
   ['typescript', typescript],
@@ -138,18 +174,21 @@ export function UniversalChatCodeBlock({
   }, [clearCopyFeedbackTimeout]);
 
   return (
-    <div className="relative group/code rounded-xl overflow-hidden border border-white/10 my-4 bg-[#0d0d0d] shadow-lg">
-      <div className="flex items-center justify-between px-4 py-2 bg-white/5 border-b border-white/5">
-        <span className="text-xs font-mono text-gray-400">{language || 'text'}</span>
+    <div className="relative group/code my-3 max-w-full overflow-hidden rounded-md border border-white/10 bg-[#0d0d0d]">
+      <div className="flex min-h-8 items-center justify-between border-b border-white/5 bg-white/[0.035] px-3 py-1.5">
+        <span className="font-mono text-[11px] text-gray-500">{language || 'text'}</span>
         <div className="flex items-center gap-2">
           <Button
             variant="ghost"
             size="icon"
-            className="h-6 w-6 text-gray-500 hover:text-gray-300 hover:bg-white/10 rounded-md transition-colors opacity-0 group-hover/code:opacity-100"
+            className="h-6 w-6 rounded-md text-gray-500 opacity-0 transition-colors hover:bg-white/10 hover:text-gray-300 group-hover/code:opacity-100 group-focus-within/code:opacity-100 [@media(hover:none)]:opacity-100"
             onClick={handleCopy}
             title={t('chat.copyCode')}
+            aria-label={t('chat.copyCode')}
           >
-            {copied ? <Check size={12} className="text-green-400" /> : <Copy size={12} />}
+            {copied
+              ? <Check size={12} className="text-emerald-400" aria-hidden="true" />
+              : <Copy size={12} aria-hidden="true" />}
           </Button>
         </div>
       </div>

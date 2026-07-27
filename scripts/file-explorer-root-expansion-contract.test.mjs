@@ -23,14 +23,20 @@ const fileExplorerSource = fs.readFileSync(
 
 assert.match(
   fileExplorerSource,
-  /function resolveSingleRootDirectoryPath\(files: readonly FileNode\[\]\)/,
-  'FileExplorer must derive a single project-root directory candidate so mounted projects can auto-expand their root once.',
+  /projectRootPath\?: string;/,
+  'FileExplorer must accept the canonical host-neutral project root explicitly.',
 );
 
 assert.match(
   fileExplorerSource,
-  /const singleRootDirectoryPath = useMemo\(\(\) => resolveSingleRootDirectoryPath\(files\), \[files\]\);/,
-  'FileExplorer must memoize the current single-root directory path from the file tree.',
+  /const rootCreationParentPath = useMemo\(\(\) => projectRootPath\.trim\(\), \[projectRootPath\]\);\s*const singleRootDirectoryPath = rootCreationParentPath;/s,
+  'FileExplorer must use the explicit virtual root for creation and expansion.',
+);
+
+assert.doesNotMatch(
+  fileExplorerSource,
+  /files\[0\][\s\S]{0,120}\.path|resolveProjectFileTreeRootPath\(files\)/,
+  'FileExplorer must not infer the project root from the first rendered file-tree node.',
 );
 
 assert.match(
@@ -39,27 +45,25 @@ assert.match(
   'FileExplorer must auto-expand the current project root once, while preserving explicit user collapse state for already-known roots.',
 );
 
-const scopeResetEffectIndex = fileExplorerSource.indexOf(
-  "useEffect(() => {\n    setExpandedFolders({});",
+const scopeResetEffectMatch = /useEffect\(\(\) => \{\s*mutationGenerationRef\.current \+= 1;\s*setExpandedFolders\(\{\}\);[\s\S]*?\}, \[closeFloatingMenus, scopeKey\]\);/.exec(
+  fileExplorerSource,
 );
-const rootExpansionEffectIndex = fileExplorerSource.indexOf(
-  "useEffect(() => {\n    if (!singleRootDirectoryPath) {",
+const rootExpansionEffectMatch = /useEffect\(\(\) => \{\s*if \(!singleRootDirectoryPath\) \{[\s\S]*?\}, \[singleRootDirectoryPath\]\);/.exec(
+  fileExplorerSource,
 );
 
-assert.notEqual(
-  scopeResetEffectIndex,
-  -1,
+assert.ok(
+  scopeResetEffectMatch,
   'FileExplorer must reset expanded folder state when the file explorer scope changes.',
 );
 
-assert.notEqual(
-  rootExpansionEffectIndex,
-  -1,
+assert.ok(
+  rootExpansionEffectMatch,
   'FileExplorer must declare a dedicated root auto-expansion effect.',
 );
 
 assert.equal(
-  scopeResetEffectIndex < rootExpansionEffectIndex,
+  scopeResetEffectMatch.index < rootExpansionEffectMatch.index,
   true,
   'FileExplorer must reset scope state before registering the root auto-expansion effect, otherwise the scope reset immediately wipes the root expansion on editor-mode entry.',
 );

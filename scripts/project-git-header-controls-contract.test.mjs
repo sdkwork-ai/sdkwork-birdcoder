@@ -213,6 +213,24 @@ assert.match(
 );
 
 assert.match(
+  createBranchDialogSource,
+  /createPortal\([\s\S]*document\.body/s,
+  'Shared create-branch dialog must render outside topbar layout and inherited whitespace styles.',
+);
+
+assert.match(
+  createBranchDialogSource,
+  /max-w-\[35rem\]/,
+  'Shared create-branch dialog must provide a comfortably sized desktop form surface.',
+);
+
+assert.match(
+  createBranchDialogSource,
+  /htmlFor=\{branchNameInputId\}[\s\S]*id=\{branchNameInputId\}/s,
+  'Shared create-branch dialog must associate its visible branch label with the input.',
+);
+
+assert.match(
   topBarSource,
   /import \{ ProjectGitHeaderControls \} from '@sdkwork\/birdcoder-pc-ui\/components\/ProjectGitHeaderControls';/,
   'Code top bar must import the shared ProjectGitHeaderControls component through its controlled subpath.',
