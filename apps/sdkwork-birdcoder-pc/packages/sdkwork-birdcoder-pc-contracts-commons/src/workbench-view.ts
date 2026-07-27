@@ -1,4 +1,8 @@
-import type { AgentSessionPageInfoView, AgentSessionView } from './agent-session-view.ts';
+import {
+  resolveAgentSessionViewSortTimestamp,
+  type AgentSessionPageInfoView,
+  type AgentSessionView,
+} from './agent-session-view.ts';
 import type { WorkbenchEntityId, WorkbenchLongIntegerString } from './workbench-values.ts';
 
 export type AppTab = 'code' | 'studio' | 'multiwindow' | 'terminal' | 'settings' | 'auth' | 'user' | 'vip';
@@ -65,13 +69,7 @@ function resolveWorkbenchProjectActivity(project: AgentProjectView): number {
   return Math.max(
     Date.parse(project.updatedAt) || 0,
     Date.parse(project.createdAt) || 0,
-    ...project.agentSessions.map((session) =>
-      Math.max(
-        Number(session.sortTimestamp) || 0,
-        Date.parse(session.lastTurnAt ?? '') || 0,
-        Date.parse(session.updatedAt) || 0,
-      ),
-    ),
+    ...project.agentSessions.map(resolveAgentSessionViewSortTimestamp),
   );
 }
 

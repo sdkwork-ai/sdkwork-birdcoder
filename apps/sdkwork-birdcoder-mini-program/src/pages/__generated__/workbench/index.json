@@ -1,0 +1,7 @@
+{
+  "navigationBarTitleText": "BirdCoder",
+  "navigationBarBackgroundColor": "#0b1020",
+  "navigationBarTextStyle": "white",
+  "enablePullDownRefresh": true,
+  "backgroundColor": "#0b1020"
+}

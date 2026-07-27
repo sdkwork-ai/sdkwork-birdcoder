@@ -48,6 +48,7 @@
     "defaultPlatform": "APP_ANDROID",
     "defaultArchitecture": "universal",
     "supportedDeploymentProfiles": [
+      "cloud",
       "standalone"
     ],
     "defaultDeploymentProfile": "standalone"

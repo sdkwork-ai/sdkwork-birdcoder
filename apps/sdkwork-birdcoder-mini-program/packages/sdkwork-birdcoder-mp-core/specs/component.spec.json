@@ -1,0 +1,51 @@
+{
+  "schemaVersion": 1,
+  "kind": "sdkwork.component.spec",
+  "component": {
+    "name": "sdkwork-birdcoder-mp-core",
+    "displayName": "BirdCoder Mini Program Core",
+    "version": "0.1.0",
+    "type": "typescript-package",
+    "root": "apps/sdkwork-birdcoder-mini-program/packages/sdkwork-birdcoder-mp-core",
+    "domain": "intelligence",
+    "capability": "core",
+    "surface": "app",
+    "status": "ACTIVE",
+    "languages": ["typescript"],
+    "generated": false,
+    "private": true,
+    "manifests": ["package.json"]
+  },
+  "canonicalSpecs": [
+    { "file": "MINI_PROGRAM_APP_ARCHITECTURE_SPEC.md", "path": "../../../../../sdkwork-specs/MINI_PROGRAM_APP_ARCHITECTURE_SPEC.md", "purpose": "Core package ownership." },
+    { "file": "APP_SDK_INTEGRATION_SPEC.md", "path": "../../../../../sdkwork-specs/APP_SDK_INTEGRATION_SPEC.md", "purpose": "SDK ports and session runtime." },
+    { "file": "CODE_STYLE_SPEC.md", "path": "../../../../../sdkwork-specs/CODE_STYLE_SPEC.md", "purpose": "Authored source structure." },
+    { "file": "NAMING_SPEC.md", "path": "../../../../../sdkwork-specs/NAMING_SPEC.md", "purpose": "Canonical naming." },
+    { "file": "TYPESCRIPT_CODE_SPEC.md", "path": "../../../../../sdkwork-specs/TYPESCRIPT_CODE_SPEC.md", "purpose": "TypeScript rules." },
+    { "file": "TEST_SPEC.md", "path": "../../../../../sdkwork-specs/TEST_SPEC.md", "purpose": "Contract verification." }
+  ],
+  "contracts": {
+    "layerRole": "frontend-core",
+    "publicExports": ["."],
+    "providedPorts": [
+      { "name": "runtimeConfig", "export": "." },
+      { "name": "sessionScope", "export": "." },
+      { "name": "sdkPorts", "export": "." }
+    ],
+    "requiredPorts": [],
+    "runtimeEntrypoints": [],
+    "routeManifest": null,
+    "sdkClients": [],
+    "sdkDependencies": [
+      { "workspace": "sdkwork-birdcoder-app-sdk", "surface": "app-api", "credentialMode": "authenticated-app-api", "required": true },
+      { "workspace": "sdkwork-agents-app-sdk", "surface": "app-api", "credentialMode": "authenticated-app-api", "required": true },
+      { "workspace": "sdkwork-iam-app-sdk", "surface": "app-api", "credentialMode": "authenticated-app-api", "required": true },
+      { "workspace": "sdkwork-drive-app-sdk", "surface": "app-api", "credentialMode": "authenticated-app-api", "required": true }
+    ],
+    "dependencyApiExports": [],
+    "dependencyApiSurfaces": [],
+    "events": [],
+    "configKeys": ["SDKWORK_BIRDCODER_PROFILE_ID"]
+  },
+  "verification": { "commands": ["pnpm --filter @sdkwork/birdcoder-mini-program typecheck"] }
+}

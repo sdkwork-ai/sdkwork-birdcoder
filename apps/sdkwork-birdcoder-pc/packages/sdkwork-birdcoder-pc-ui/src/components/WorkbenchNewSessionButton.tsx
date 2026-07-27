@@ -217,6 +217,8 @@ function WorkbenchNewSessionButtonComponent({
           disabled={disabled}
           title={buttonTitle}
           aria-label={resolvedMenuLabel}
+          aria-expanded={isOpen}
+          aria-haspopup="menu"
           className={secondaryButtonClassName}
           onClick={handleToggleMenu}
         >
@@ -227,7 +229,11 @@ function WorkbenchNewSessionButtonComponent({
         </button>
       </div>
       {isOpen && !disabled ? (
-        <div className={variantStyle.menu}>
+        <div
+          aria-label={resolvedMenuLabel}
+          className={variantStyle.menu}
+          role="menu"
+        >
           <div className="px-3 py-1 text-[11px] font-semibold uppercase tracking-wider text-gray-500">
             {resolvedMenuLabel}
           </div>
@@ -244,7 +250,9 @@ function WorkbenchNewSessionButtonComponent({
               <button
                 key={`new-session-engine-${variant}-${engine.id}`}
                 type="button"
+                aria-checked={engine.id === preferredSelection.engine.id}
                 className="flex w-full items-center justify-between gap-3 px-3 py-2 text-left transition-colors hover:bg-white/10 hover:text-white"
+                role="menuitemradio"
                 onClick={() => {
                   setIsOpen(false);
                   void onCreateSession(engine.id, engineModelId);

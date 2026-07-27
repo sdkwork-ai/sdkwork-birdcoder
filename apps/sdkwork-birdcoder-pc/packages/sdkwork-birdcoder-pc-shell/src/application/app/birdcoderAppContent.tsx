@@ -24,16 +24,18 @@ import {
   buildProjectAgentSessionIndex,
 } from '@sdkwork/birdcoder-pc-workbench/workbench/agentSessionSelection';
 import { hydrateImportedProjectFromAuthority } from '@sdkwork/birdcoder-pc-workbench/workbench/importedProjectHydration';
-import { importLocalFolderProject } from '@sdkwork/birdcoder-pc-workbench/workbench/localFolderProjectImport';
 import {
-  openLocalFolder,
-  resolveSelectedLocalFolderSource,
-} from '@sdkwork/birdcoder-pc-workbench/utils/fileSystem';
+  importSelectedProjectDirectory,
+  resolveProjectDirectorySelectionName,
+  selectProjectDirectory,
+  type ProjectDirectorySelection,
+} from '@sdkwork/birdcoder-pc-workbench/workbench/projectDirectorySelection';
 import {
   buildDefaultTerminalCommandRequest,
   emitOpenTerminalRequest,
   type TerminalCommandRequest,
 } from '@sdkwork/birdcoder-pc-workbench/terminal/runtime';
+import { resolveBirdcoderWorkbenchHostMode } from '@sdkwork/birdcoder-pc-workbench/terminal/runtimeTarget';
 import {
   emitRevealProjectInFileManager,
   subscribeCopyProjectLocalPath,
@@ -60,6 +62,7 @@ import type { CreateNewAgentSessionRequest } from '@sdkwork/birdcoder-pc-workben
 import { useWorkbenchPreferences } from '@sdkwork/birdcoder-pc-workbench/hooks/useWorkbenchPreferences';
 import { Button, TopMenu, type TopMenuItem } from '@sdkwork/birdcoder-pc-ui-shell';
 import { copyTextToClipboard } from '@sdkwork/birdcoder-pc-ui/components/clipboard';
+import { useSandboxDirectoryPicker } from '@sdkwork/drive-pc-sandbox-explorer';
 import type {
   AppTab,
   AgentProjectView,
@@ -82,6 +85,7 @@ import {
 } from './authAppTabRouting.ts';
 import { AppShellDialogs } from './AppShellDialogs.tsx';
 import { AppWorkspaceProjectPopover } from './AppWorkspaceProjectPopover.tsx';
+import { CreateProjectDialog } from './CreateProjectDialog.tsx';
 import {
   performNativeWindowControlAction,
   useNativeWindowControlsBridge,
@@ -104,6 +108,7 @@ import {
 
 export function AppContent() {
   const { t } = useTranslation();
+  const { pickDirectory } = useSandboxDirectoryPicker();
   const {
     agentSessionService,
     fileSystemService,
@@ -192,6 +197,8 @@ export function AppContent() {
     isLoading: isProjectsLoading,
     isLoadingMore: isProjectsLoadingMore,
     createProject,
+    ensureProject,
+    importProject,
     loadMoreProjects,
     refreshProjects,
     renameProject,
@@ -199,7 +206,7 @@ export function AppContent() {
     deleteProject,
     createAgentSession,
   } = useProjects({
-    isActive: Boolean(user) && Boolean(selectedWorkspaceId),
+    isActive: Boolean(user),
     targetProjectId:
       scopedActiveProjectId || normalizedRecoverySnapshot.activeProjectId,
     workspaceId: selectedWorkspaceId,
@@ -237,13 +244,21 @@ export function AppContent() {
     }
   }, [addToast, loadMoreWorkspaces, t]);
 
-  const [isCreatingProject, setIsCreatingProject] = useState(false);
+  const [showCreateProjectDialog, setShowCreateProjectDialog] = useState(false);
   const [isProjectCreationPending, setIsProjectCreationPending] = useState(false);
-  const [projectCreationOptionsVisible, setProjectCreationOptionsVisible] = useState(false);
+  const [isProjectFolderPickerPending, setIsProjectFolderPickerPending] = useState(false);
   const [newProjectName, setNewProjectName] = useState('');
+  const [newProjectSourceFolder, setNewProjectSourceFolder] =
+    useState<ProjectDirectorySelection | null>(null);
+  const newProjectSourceFolderName = useMemo(
+    () => newProjectSourceFolder
+      ? resolveProjectDirectorySelectionName(newProjectSourceFolder, t('app.localFolder'))
+      : null,
+    [newProjectSourceFolder, t],
+  );
   const [renamingProjectId, setRenamingProjectId] = useState<string | null>(null);
   const [renameProjectValue, setRenameProjectValue] = useState('');
-  const [projectToDelete, setProjectToDelete] = useState<string | null>(null);
+  const [projectToRemove, setProjectToRemove] = useState<string | null>(null);
   const [projectActionsMenuId, setProjectActionsMenuId] = useState<string | null>(null);
   const [isCreatingWorkspace, setIsCreatingWorkspace] = useState(false);
   const [newWorkspaceName, setNewWorkspaceName] = useState('');
@@ -329,9 +344,6 @@ export function AppContent() {
 
   const closeWorkspaceProjectPopover = useCallback(() => {
     setShowWorkspaceProjectPopover(false);
-    setIsCreatingProject(false);
-    setProjectCreationOptionsVisible(false);
-    setNewProjectName('');
     setRenamingProjectId(null);
     setRenameProjectValue('');
     setProjectActionsMenuId(null);
@@ -340,6 +352,12 @@ export function AppContent() {
     setRenamingWorkspaceId(null);
     setWorkspaceRenameValue('');
     setWorkspaceActionsMenuId(null);
+  }, []);
+
+  const closeCreateProjectDialog = useCallback(() => {
+    setShowCreateProjectDialog(false);
+    setNewProjectName('');
+    setNewProjectSourceFolder(null);
   }, []);
 
   const resolvedProjectId = resolveStartupProjectId({
@@ -377,6 +395,9 @@ export function AppContent() {
       ? scopedActiveAgentSessionId
       : resolvedAgentSessionId
   ).trim();
+  const effectiveAgentSessionRuntimeLocationId = activeProjectAgentSessions.find(
+    (agentSession) => agentSession.id === effectiveAgentSessionId,
+  )?.runtimeLocationId;
   const currentUserFallbackRecoverySnapshot =
     lastPersistedRecoverySnapshotRef.current?.userScope === currentWorkbenchUserScope
       ? lastPersistedRecoverySnapshotRef.current
@@ -753,10 +774,18 @@ export function AppContent() {
     };
     const copyLocalPath = copyTextToClipboard;
     const handleOpenProjectTerminal = async (target: ProjectDeviceMountTarget) => {
+      if (resolveBirdcoderWorkbenchHostMode() === 'web') {
+        emitOpenTerminalRequest({
+          surface: 'project',
+          timestamp: Date.now(),
+        });
+        return;
+      }
+
       const resolution = await projectRuntimeLocationService.resolveProjectRuntimeLocation(
         target.projectId,
         {
-          allowFolderSelection: true,
+          allowFolderSelection: false,
           capability: 'terminal',
           mountedPath: target.mountedPath,
         },
@@ -869,8 +898,6 @@ export function AppContent() {
 
   const hasOpenHeaderSelectionSurface =
     showWorkspaceProjectPopover ||
-    isCreatingProject ||
-    projectCreationOptionsVisible ||
     projectActionsMenuId !== null ||
     isCreatingWorkspace ||
     workspaceActionsMenuId !== null ||
@@ -882,11 +909,19 @@ export function AppContent() {
       return;
     }
 
+    if (resolveBirdcoderWorkbenchHostMode() === 'web') {
+      emitOpenTerminalRequest({
+        surface: 'project',
+        timestamp: Date.now(),
+      });
+      return;
+    }
+
     try {
       const resolution = await projectRuntimeLocationService.resolveProjectRuntimeLocation(
         effectiveProjectId,
         {
-          allowFolderSelection: true,
+          allowFolderSelection: false,
           capability: 'terminal',
         },
       );
@@ -1012,7 +1047,7 @@ export function AppContent() {
       } else if (cmdOrCtrl && e.key === 'F5') {
         e.preventDefault();
         globalEventBus.emit('runWithoutDebugging');
-      } else if (cmdOrCtrl && e.shiftKey && e.key === '`') {
+      } else if (cmdOrCtrl && e.shiftKey && e.code === 'Backquote') {
         e.preventDefault();
         void handleCreateTerminal();
       }
@@ -1022,69 +1057,108 @@ export function AppContent() {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [handleCreateTerminal]);
 
-  const selectFolderAndImportProject = async (fallbackProjectName: string) => {
+  const selectFolderAndImportProject = useCallback(async (fallbackProjectName: string) => {
     if (!selectedWorkspaceId) {
       throw new Error('Select a Workspace before importing a Project.');
     }
-    const folderInfo = resolveSelectedLocalFolderSource(await openLocalFolder());
-    if (!folderInfo) {
+    const selection = await selectProjectDirectory({
+      pickSandboxDirectory: pickDirectory,
+      sandboxPickerTitle: t('app.selectServerDirectory'),
+    });
+    if (!selection) {
       return null;
     }
 
-    const importedProject = await importLocalFolderProject({
+    return importSelectedProjectDirectory({
       bindLocalProjectRuntimeLocation: (projectId, source) =>
         projectRuntimeLocationService.bindLocalProjectRuntimeLocation(projectId, source),
-      createProject: (name) => createProject(name),
-      deleteCreatedProject: deleteProject,
+      ensureProject,
       fallbackProjectName,
-      folderInfo,
+      importPort: { importProject },
+      selection,
+      workspaceId: selectedWorkspaceId,
     });
-    return importedProject;
-  };
+  }, [
+    ensureProject,
+    importProject,
+    pickDirectory,
+    projectRuntimeLocationService,
+    selectedWorkspaceId,
+    t,
+  ]);
 
-  const handleCreateProject = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSelectProjectSourceFolder = useCallback(async () => {
+    if (isProjectFolderPickerPending || isProjectCreationPending) {
+      return;
+    }
+
+    setIsProjectFolderPickerPending(true);
+    try {
+      const selection = await selectProjectDirectory({
+        pickSandboxDirectory: pickDirectory,
+        sandboxPickerTitle: t('app.selectServerDirectory'),
+      });
+      if (!selection) {
+        return;
+      }
+
+      const folderName = resolveProjectDirectorySelectionName(selection, t('app.localFolder'));
+      setNewProjectSourceFolder(selection);
+      setNewProjectName((currentName) => currentName.trim() ? currentName : folderName);
+    } catch (error) {
+      console.error('Failed to select project source folder', error);
+      addToast(
+        error instanceof Error && error.message.trim()
+          ? error.message
+          : t('app.failedToSelectSourceFolder'),
+        'error',
+      );
+    } finally {
+      setIsProjectFolderPickerPending(false);
+    }
+  }, [addToast, isProjectCreationPending, isProjectFolderPickerPending, pickDirectory, t]);
+
+  const handleCreateProject = useCallback(async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
     const normalizedProjectName = newProjectName.trim();
-    if (!normalizedProjectName || isProjectCreationPending) return;
+    if (!normalizedProjectName || isProjectCreationPending) {
+      return;
+    }
+
     setIsProjectCreationPending(true);
     try {
-      const project = await createProject(normalizedProjectName);
-      activateImportedProject(project.projectId);
-      closeWorkspaceProjectPopover();
-      addToast(t('app.projectCreated'), 'success');
+      if (newProjectSourceFolder) {
+        if (!selectedWorkspaceId) {
+          throw new Error(t('app.selectWorkspaceBeforeCreatingProject'));
+        }
+        const importedProject = await importSelectedProjectDirectory({
+          bindLocalProjectRuntimeLocation: (projectId, source) =>
+            projectRuntimeLocationService.bindLocalProjectRuntimeLocation(projectId, source),
+          ensureProject,
+          fallbackProjectName: normalizedProjectName,
+          importPort: { importProject },
+          projectName: normalizedProjectName,
+          selection: newProjectSourceFolder,
+          workspaceId: selectedWorkspaceId,
+        });
+        activateImportedProject(importedProject.projectId);
+        hydrateImportedProjectSelectionInBackground(importedProject.projectId);
+        closeCreateProjectDialog();
+        addToast(t('app.folderProjectCreated', { name: importedProject.projectName }), 'success');
+      } else {
+        const project = await createProject(normalizedProjectName);
+        activateImportedProject(project.projectId);
+        closeCreateProjectDialog();
+        addToast(t('app.projectCreated'), 'success');
+      }
     } catch (error) {
       console.error('Failed to create project', error);
       addToast(
         error instanceof Error && error.message.trim()
           ? error.message
-          : t('app.failedToCreateProject'),
-        'error',
-      );
-    } finally {
-      setIsProjectCreationPending(false);
-    }
-  };
-
-  const handleCreateProjectFromFolder = useCallback(async () => {
-    if (isProjectCreationPending) {
-      return;
-    }
-    setIsProjectCreationPending(true);
-    try {
-      const importedProject = await selectFolderAndImportProject(t('app.localFolder'));
-      if (!importedProject) {
-        return;
-      }
-      activateImportedProject(importedProject.projectId);
-      hydrateImportedProjectSelectionInBackground(importedProject.projectId);
-      closeWorkspaceProjectPopover();
-      addToast(t('app.folderProjectCreated', { name: importedProject.projectName }), 'success');
-    } catch (error) {
-      console.error('Failed to create project from folder', error);
-      addToast(
-        error instanceof Error && error.message.trim()
-          ? error.message
-          : t('app.failedToCreateProjectFromFolder'),
+          : newProjectSourceFolder
+            ? t('app.failedToCreateProjectFromFolder')
+            : t('app.failedToCreateProject'),
         'error',
       );
     } finally {
@@ -1093,16 +1167,22 @@ export function AppContent() {
   }, [
     activateImportedProject,
     addToast,
+    closeCreateProjectDialog,
+    createProject,
+    ensureProject,
     hydrateImportedProjectSelectionInBackground,
+    importProject,
     isProjectCreationPending,
-    closeWorkspaceProjectPopover,
-    selectFolderAndImportProject,
+    newProjectName,
+    newProjectSourceFolder,
+    projectRuntimeLocationService,
+    selectedWorkspaceId,
     t,
   ]);
 
-  const confirmDeleteProject = (e: React.MouseEvent, id: string) => {
+  const confirmRemoveProject = (e: React.MouseEvent, id: string) => {
     e.stopPropagation();
-    setProjectToDelete(id);
+    setProjectToRemove(id);
     closeWorkspaceProjectPopover();
   };
 
@@ -1130,20 +1210,20 @@ export function AppContent() {
     }
   };
 
-  const executeDeleteProject = async () => {
-    if (!projectToDelete) return;
+  const executeRemoveProject = async () => {
+    if (!projectToRemove) return;
     try {
-      await deleteProject(projectToDelete);
-      if (activeProjectId === projectToDelete) {
+      await deleteProject(projectToRemove);
+      if (activeProjectId === projectToRemove) {
         setActiveProjectId('');
         clearActiveAgentSessionSelection();
       }
-      addToast(t('app.projectDeleted'), "success");
+      addToast(t('app.projectRemoved'), 'success');
     } catch (error) {
-      console.error("Failed to delete project", error);
-      addToast(t('app.failedToDeleteProject'), "error");
+      console.error('Failed to remove project', error);
+      addToast(t('app.failedToRemoveProject'), 'error');
     } finally {
-      setProjectToDelete(null);
+      setProjectToRemove(null);
     }
   };
 
@@ -2035,9 +2115,6 @@ export function AppContent() {
       return;
     }
     selectWorkspace(normalizedWorkspaceId);
-    setIsCreatingProject(false);
-    setProjectCreationOptionsVisible(false);
-    setNewProjectName('');
     setProjectActionsMenuId(null);
     setWorkspaceActionsMenuId(null);
   }, [selectWorkspace, selectedWorkspaceId]);
@@ -2179,27 +2256,20 @@ export function AppContent() {
   const handleToggleProjectActionsMenu = useCallback((projectId: string) => {
     setProjectActionsMenuId((currentValue) => (currentValue === projectId ? null : projectId));
   }, []);
-  const handleStartCreatingProject = useCallback(() => {
-    setProjectCreationOptionsVisible(true);
-    setIsCreatingProject(false);
+  const handleOpenCreateProjectDialog = useCallback(() => {
+    closeWorkspaceProjectPopover();
     setNewProjectName('');
-    setProjectActionsMenuId(null);
-  }, []);
-  const handleStartBlankProject = useCallback(() => {
-    setProjectCreationOptionsVisible(false);
-    setIsCreatingProject(true);
-    setNewProjectName('');
-  }, []);
-  const handleCancelCreatingProject = useCallback(() => {
-    setIsCreatingProject(false);
-    setProjectCreationOptionsVisible(false);
-    setNewProjectName('');
+    setNewProjectSourceFolder(null);
+    setShowCreateProjectDialog(true);
+  }, [closeWorkspaceProjectPopover]);
+  const handleClearProjectSourceFolder = useCallback(() => {
+    setNewProjectSourceFolder(null);
   }, []);
   const handleProjectNameChange = useCallback((value: string) => {
     setNewProjectName(value);
   }, []);
-  const handleCloseProjectDeleteDialog = useCallback(() => {
-    setProjectToDelete(null);
+  const handleCloseProjectRemoveDialog = useCallback(() => {
+    setProjectToRemove(null);
   }, []);
 
   return (
@@ -2217,25 +2287,20 @@ export function AppContent() {
               hasMoreWorkspaces={workspacesHasMore}
               hasProjectsFetched={projectsHasFetched}
               hasWorkspacesFetched={workspacesHasFetched}
-              isCreatingBlankProject={isCreatingProject}
               isLoadingMoreProjects={isProjectsLoadingMore}
               isLoadingMoreWorkspaces={isWorkspacesLoadingMore}
               isProjectCreationPending={isProjectCreationPending}
               isProjectsLoading={isProjectsLoading}
               isWorkspaceCreating={isCreatingWorkspace}
               isWorkspacesLoading={isWorkspacesLoading}
-              newProjectName={newProjectName}
               newWorkspaceName={newWorkspaceName}
               onArchiveProject={handleArchiveProject}
               onArchiveWorkspace={handleArchiveWorkspace}
-              onCancelBlankProject={handleCancelCreatingProject}
               onCancelWorkspaceCreation={handleCancelCreatingWorkspace}
               onClosePopover={closeWorkspaceProjectPopover}
               onCommitProjectRename={handleRenameProject}
               onCommitWorkspaceRename={handleRenameWorkspace}
-              onConfirmDeleteProject={confirmDeleteProject}
-              onCreateBlankProject={handleCreateProject}
-              onCreateProjectFromFolder={handleCreateProjectFromFolder}
+              onConfirmDeleteProject={confirmRemoveProject}
               onCreateProjectSession={handleCreateProjectSession}
               onCreateWorkspace={handleCreateWorkspace}
               onDeleteWorkspace={handleDeleteWorkspace}
@@ -2243,7 +2308,6 @@ export function AppContent() {
               onFinishWorkspaceRename={handleFinishWorkspaceRename}
               onLoadMoreProjects={handleLoadMoreProjects}
               onLoadMoreWorkspaces={handleLoadMoreWorkspaces}
-              onNewProjectNameChange={handleProjectNameChange}
               onNewWorkspaceNameChange={setNewWorkspaceName}
               onOpenProjectInExplorer={handleOpenProjectInExplorer}
               onProjectRenameValueChange={setRenameProjectValue}
@@ -2251,8 +2315,7 @@ export function AppContent() {
               onRefreshWorkspaces={refreshWorkspaces}
               onSelectProject={handleSelectPopoverProject}
               onSelectWorkspace={handleSelectWorkspace}
-              onShowProjectCreationOptions={handleStartCreatingProject}
-              onStartBlankProject={handleStartBlankProject}
+              onRequestProjectCreation={handleOpenCreateProjectDialog}
               onStartProjectRename={handleStartProjectRename}
               onStartWorkspaceCreation={handleStartCreatingWorkspace}
               onStartWorkspaceRename={handleStartWorkspaceRename}
@@ -2264,7 +2327,6 @@ export function AppContent() {
               preferredEngineId={newSessionEngineCatalog.preferredSelection.engineId}
               preferredModelId={newSessionEngineCatalog.preferredSelection.modelId}
               projectActionsMenuId={projectActionsMenuId}
-              projectCreationOptionsVisible={projectCreationOptionsVisible}
               projectMountRecoveryNotice={projectMountRecoveryNotice}
               projectMountRecoveryStartedAt={projectMountRecoveryStartedAt}
               projects={projects}
@@ -2318,19 +2380,35 @@ export function AppContent() {
         projectId={effectiveProjectId}
         projectName={activeProject?.name}
         agentSessionId={effectiveAgentSessionId}
+        runtimeLocationId={effectiveAgentSessionRuntimeLocationId}
         onActiveTabChange={handleActiveTabChange}
         onRequireAuth={openAuthenticationSurface}
         onProjectChange={handleActiveProjectChange}
         onAgentSessionChange={handleActiveAgentSessionChange}
       />
 
+      <CreateProjectDialog
+        isCreating={isProjectCreationPending}
+        isOpen={showCreateProjectDialog}
+        isSelectingSourceFolder={isProjectFolderPickerPending}
+        onClearSourceFolder={handleClearProjectSourceFolder}
+        onClose={closeCreateProjectDialog}
+        onNameChange={handleProjectNameChange}
+        onSelectSourceFolder={handleSelectProjectSourceFolder}
+        onSubmit={handleCreateProject}
+        projectName={newProjectName}
+        sourceFolderName={newProjectSourceFolderName}
+      />
+
       <AppShellDialogs
-        projectToDelete={projectToDelete}
+        projectToRemoveName={projectToRemove
+          ? projectsIndex.projectsById.get(projectToRemove)?.name ?? t('app.projectType')
+          : null}
         showAboutModal={showAboutModal}
         showWhatsNewModal={showWhatsNewModal}
         showShortcutsModal={showShortcutsModal}
-        onCloseProjectDelete={handleCloseProjectDeleteDialog}
-        onConfirmProjectDelete={executeDeleteProject}
+        onCloseProjectRemove={handleCloseProjectRemoveDialog}
+        onConfirmProjectRemove={executeRemoveProject}
         onCloseAbout={() => setShowAboutModal(false)}
         onCloseWhatsNew={() => setShowWhatsNewModal(false)}
         onCloseShortcuts={() => setShowShortcutsModal(false)}

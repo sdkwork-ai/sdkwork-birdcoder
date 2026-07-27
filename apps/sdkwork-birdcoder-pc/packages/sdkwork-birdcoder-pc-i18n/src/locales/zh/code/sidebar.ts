@@ -3,8 +3,11 @@ import { defineLocaleModule } from '../../resource.ts';
 export default defineLocaleModule('code/sidebar', {
   code: {
     organizedByProject: '\u6309\u9879\u76ee\u5206\u7ec4',
+    organizedByProvider: '\u6309 Provider \u5206\u7ec4',
     organizedChronologically: '\u6309\u65f6\u95f4\u987a\u5e8f\u5206\u7ec4',
     sortedByCreatedDate: '\u6309\u521b\u5efa\u65f6\u95f4\u6392\u5e8f',
+    sortedBySmartPriority: '\u6309\u667a\u80fd\u4f18\u5148\u7ea7\u6392\u5e8f',
+    sortedByRecentActivity: '\u6309\u6700\u8fd1\u6d3b\u52a8\u6392\u5e8f',
     sortedByUpdatedDate: '\u6309\u66f4\u65b0\u65f6\u95f4\u6392\u5e8f',
     showingAllSessions: '\u663e\u793a\u5168\u90e8\u4f1a\u8bdd',
     showingRelevantSessions: '\u663e\u793a\u76f8\u5173\u4f1a\u8bdd',

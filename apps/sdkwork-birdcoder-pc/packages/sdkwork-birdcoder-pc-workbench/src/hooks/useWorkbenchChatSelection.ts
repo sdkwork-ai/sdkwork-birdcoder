@@ -6,10 +6,14 @@ import {
   getDefaultWorkbenchServerImplementedCodeEngineId,
   getWorkbenchCodeEngineLabel,
   isWorkbenchServerImplementedEngineId,
+  loadWorkbenchCodeEngineCatalog,
   normalizeWorkbenchCodeModelId,
   normalizeWorkbenchServerImplementedCodeEngineId,
   resolveWorkbenchPreferredNewSessionSelection,
+  resolveWorkbenchRuntimeBindingIdentity,
+  useWorkbenchCodeEngineCatalog,
 } from '../workbench/codeEngineCatalog.ts';
+import { resolveBirdcoderWorkbenchHostMode } from '../terminal/runtimeTarget.ts';
 
 import { useToast } from '../contexts/ToastProvider.ts';
 import {
@@ -29,8 +33,12 @@ type CreateAgentSessionFn = (
   projectId: string,
   title: string,
   options: {
+    agentId: string;
     engineId: string;
+    hostMode: AgentSessionView['hostMode'];
     modelId: string;
+    providerBindingId: string;
+    providerId: string;
   },
 ) => Promise<AgentSessionView>;
 
@@ -56,6 +64,7 @@ export function useWorkbenchChatSelection({
 }: UseWorkbenchChatSelectionOptions) {
   const { t } = useTranslation();
   const { addToast } = useToast();
+  const codeEngineCatalog = useWorkbenchCodeEngineCatalog();
   const selectedEngineId = normalizeWorkbenchServerImplementedCodeEngineId(
     preferences.codeEngineId,
     preferences,
@@ -118,11 +127,14 @@ export function useWorkbenchChatSelection({
   );
 
   const createAgentSessionWithSelection = useCallback(
-    (
+    async (
       projectId: string,
       title?: string,
       options?: CreateAgentSessionWithSelectionOptions,
     ) => {
+      if (!codeEngineCatalog.loaded) {
+        await loadWorkbenchCodeEngineCatalog();
+      }
       const requestedEngineId = options?.engineId?.trim() || undefined;
       const requestedModelId = options?.modelId?.trim() || undefined;
       const hasExplicitEngineSelection = Boolean(requestedEngineId);
@@ -155,17 +167,23 @@ export function useWorkbenchChatSelection({
         setWorkbenchActiveChatSelection(previousState, resolvedEngineId, resolvedModelId),
       );
 
+      const runtimeIdentity = resolveWorkbenchRuntimeBindingIdentity(
+        resolvedEngineId,
+        resolvedModelId,
+      );
+
       return createAgentSession(projectId, resolvedTitle, {
-        engineId: resolvedEngineId,
-        modelId: resolvedModelId,
+        ...runtimeIdentity,
+        hostMode: resolveBirdcoderWorkbenchHostMode(),
       });
     },
     [
       createAgentSession,
-    currentSessionEngineId,
-    currentSessionModelId,
-    preferences,
-    selectedEngineId,
+      codeEngineCatalog.loaded,
+      currentSessionEngineId,
+      currentSessionModelId,
+      preferences,
+      selectedEngineId,
       selectedModelId,
       updatePreferences,
     ],

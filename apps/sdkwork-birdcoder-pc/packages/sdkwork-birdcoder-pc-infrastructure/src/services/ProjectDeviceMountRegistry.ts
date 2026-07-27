@@ -15,19 +15,64 @@ const BROWSER_MOUNT_STORE_NAME = 'mounts';
 const TAURI_MOUNT_STORAGE_SCOPE = 'project-device-mounts';
 const TAURI_MOUNT_STORAGE_VERSION = 1;
 const SUBJECT_KEY_PREFIX = 'sdkwork.birdcoder.project-device-mount.v1';
+const NATIVE_DIRECTORY_FINGERPRINT_PREFIX = 'sdkwork.native-session-directory.v1\n';
+const PROJECT_MOUNT_CLIENT_METADATA_VERSION = 1;
+
+type ProjectMountClientArchitecture = 'aarch64' | 'arm' | 'unknown' | 'x86' | 'x86_64';
+type ProjectMountClientOperatingSystem =
+  | 'android'
+  | 'chromeos'
+  | 'ios'
+  | 'linux'
+  | 'macos'
+  | 'unknown'
+  | 'windows';
+
+interface ProjectMountClientMetadata {
+  application: 'sdkwork-birdcoder-pc';
+  architecture: ProjectMountClientArchitecture;
+  operatingSystem: ProjectMountClientOperatingSystem;
+  runtime: 'browser' | 'tauri';
+  version: number;
+}
 
 interface BrowserStoredProjectMount {
+  client?: ProjectMountClientMetadata;
+  createdAt?: string;
+  createdSurface?: 'browser';
+  directoryFingerprint?: string;
   displayName: string;
   handle: FileSystemDirectoryHandle;
   key: string;
+  ownerKey?: string;
+  projectId?: string;
+  updatedAt?: string;
   version: number;
 }
 
 interface TauriStoredProjectMount {
+  client?: ProjectMountClientMetadata;
+  createdAt?: string;
+  createdSurface?: 'desktop';
   displayName: string;
+  ownerKey?: string;
   path: string;
+  projectId?: string;
   rootLocator?: string;
+  updatedAt?: string;
   version: number;
+}
+
+interface TauriProjectDeviceMountEntry {
+  key: string;
+  value: string;
+}
+
+interface NavigatorWithUserAgentData extends Navigator {
+  userAgentData?: {
+    architecture?: string;
+    platform?: string;
+  };
 }
 
 interface BrowserDirectoryPermissionHandle {
@@ -54,6 +99,11 @@ export interface ProjectDeviceMountRecoverySource {
 export interface TauriProjectRuntimeLocationBinding {
   displayName: string;
   rootLocator?: string;
+}
+
+export interface BrowserNativeDirectoryIdentity {
+  directoryFingerprint: string;
+  directoryName: string;
 }
 
 export interface ResolveTauriProjectRuntimeLocationBindingInput {
@@ -150,6 +200,110 @@ function normalizeRootLocator(value: unknown): string | undefined {
     : undefined;
 }
 
+function normalizeStoredTimestamp(value: unknown): string | undefined {
+  if (typeof value !== 'string' || !value.trim()) {
+    return undefined;
+  }
+  const timestamp = Date.parse(value);
+  return Number.isFinite(timestamp) ? new Date(timestamp).toISOString() : undefined;
+}
+
+function resolveProjectMountClientMetadata(
+  runtime: ProjectMountClientMetadata['runtime'],
+): ProjectMountClientMetadata {
+  const runtimeNavigator = typeof navigator === 'undefined'
+    ? null
+    : navigator as NavigatorWithUserAgentData;
+  const platform = [
+    runtimeNavigator?.userAgentData?.platform,
+    runtimeNavigator?.platform,
+    runtimeNavigator?.userAgent,
+  ]
+    .filter((value): value is string => Boolean(value?.trim()))
+    .join(' ')
+    .toLowerCase();
+  const architectureSource = [
+    runtimeNavigator?.userAgentData?.architecture,
+    runtimeNavigator?.platform,
+    runtimeNavigator?.userAgent,
+  ]
+    .filter((value): value is string => Boolean(value?.trim()))
+    .join(' ')
+    .toLowerCase();
+
+  let operatingSystem: ProjectMountClientOperatingSystem = 'unknown';
+  if (/windows|win32|win64/iu.test(platform)) operatingSystem = 'windows';
+  else if (/android/iu.test(platform)) operatingSystem = 'android';
+  else if (/iphone|ipad|ios/iu.test(platform)) operatingSystem = 'ios';
+  else if (/macintosh|macintel|macos/iu.test(platform)) operatingSystem = 'macos';
+  else if (/cros|chromeos/iu.test(platform)) operatingSystem = 'chromeos';
+  else if (/linux/iu.test(platform)) operatingSystem = 'linux';
+
+  let architecture: ProjectMountClientArchitecture = 'unknown';
+  if (/aarch64|arm64/iu.test(architectureSource)) architecture = 'aarch64';
+  else if (/arm/iu.test(architectureSource)) architecture = 'arm';
+  else if (/x86_64|x86-64|amd64|win64|x64/iu.test(architectureSource)) architecture = 'x86_64';
+  else if (/i[3-6]86|x86|win32/iu.test(architectureSource)) architecture = 'x86';
+
+  return {
+    application: 'sdkwork-birdcoder-pc',
+    architecture,
+    operatingSystem,
+    runtime,
+    version: PROJECT_MOUNT_CLIENT_METADATA_VERSION,
+  };
+}
+
+function normalizeProjectMountClientMetadata(
+  value: unknown,
+  expectedRuntime: ProjectMountClientMetadata['runtime'],
+): ProjectMountClientMetadata | undefined {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    return undefined;
+  }
+  const client = value as Partial<ProjectMountClientMetadata>;
+  if (
+    client.application !== 'sdkwork-birdcoder-pc'
+    || client.runtime !== expectedRuntime
+    || client.version !== PROJECT_MOUNT_CLIENT_METADATA_VERSION
+  ) {
+    return undefined;
+  }
+  const operatingSystem = client.operatingSystem;
+  const architecture = client.architecture;
+  if (
+    !['android', 'chromeos', 'ios', 'linux', 'macos', 'unknown', 'windows'].includes(
+      operatingSystem ?? '',
+    )
+    || !['aarch64', 'arm', 'unknown', 'x86', 'x86_64'].includes(architecture ?? '')
+  ) {
+    return undefined;
+  }
+  return {
+    application: 'sdkwork-birdcoder-pc',
+    architecture: architecture!,
+    operatingSystem: operatingSystem!,
+    runtime: expectedRuntime,
+    version: PROJECT_MOUNT_CLIENT_METADATA_VERSION,
+  };
+}
+
+function normalizeStoredProjectId(value: unknown): string | undefined {
+  return typeof value === 'string' && value.trim() ? value.trim() : undefined;
+}
+
+function normalizeMountOwnerKey(value: unknown): string | undefined {
+  return typeof value === 'string' && /^[0-9a-f]{64}$/iu.test(value.trim())
+    ? value.trim().toLowerCase()
+    : undefined;
+}
+
+function normalizeDirectoryFingerprint(value: unknown): string | undefined {
+  return typeof value === 'string' && /^sha256:[0-9a-f]{64}$/iu.test(value.trim())
+    ? value.trim().toLowerCase()
+    : undefined;
+}
+
 function normalizeMountSubject(
   subject: ProjectDeviceMountSubject | null,
 ): ProjectDeviceMountSubject | null {
@@ -192,10 +346,21 @@ function parseTauriStoredProjectMount(value: string | null): TauriStoredProjectM
     }
 
     const rootLocator = normalizeRootLocator(parsed.rootLocator);
+    const projectId = normalizeStoredProjectId(parsed.projectId);
+    const ownerKey = normalizeMountOwnerKey(parsed.ownerKey);
+    const client = normalizeProjectMountClientMetadata(parsed.client, 'tauri');
+    const createdAt = normalizeStoredTimestamp(parsed.createdAt);
+    const updatedAt = normalizeStoredTimestamp(parsed.updatedAt);
     return {
+      ...(client ? { client } : {}),
+      ...(createdAt ? { createdAt } : {}),
+      ...(parsed.createdSurface === 'desktop' ? { createdSurface: 'desktop' as const } : {}),
       displayName: normalizeDisplayName(parsed.displayName),
       path,
+      ...(ownerKey ? { ownerKey } : {}),
+      ...(projectId ? { projectId } : {}),
       ...(rootLocator ? { rootLocator } : {}),
+      ...(updatedAt ? { updatedAt } : {}),
       version: TAURI_MOUNT_STORAGE_VERSION,
     };
   } catch {
@@ -255,10 +420,23 @@ async function readBrowserStoredProjectMount(
       return null;
     }
 
+    const directoryFingerprint = normalizeDirectoryFingerprint(record.directoryFingerprint);
+    const client = normalizeProjectMountClientMetadata(record.client, 'browser');
+    const createdAt = normalizeStoredTimestamp(record.createdAt);
+    const updatedAt = normalizeStoredTimestamp(record.updatedAt);
+    const projectId = normalizeStoredProjectId(record.projectId);
+    const ownerKey = normalizeMountOwnerKey(record.ownerKey);
     return {
+      ...(client ? { client } : {}),
+      ...(createdAt ? { createdAt } : {}),
+      ...(record.createdSurface === 'browser' ? { createdSurface: 'browser' as const } : {}),
+      ...(directoryFingerprint ? { directoryFingerprint } : {}),
       displayName: normalizeDisplayName(record.displayName),
       handle: record.handle,
       key,
+      ...(ownerKey ? { ownerKey } : {}),
+      ...(projectId ? { projectId } : {}),
+      ...(updatedAt ? { updatedAt } : {}),
       version: BROWSER_DATABASE_VERSION,
     };
   } catch {
@@ -271,7 +449,21 @@ async function readBrowserStoredProjectMount(
 async function writeBrowserStoredProjectMount(
   key: string,
   source: Extract<LocalFolderMountSource, { type: 'browser' }>,
+  knownDirectoryFingerprint?: string,
+  identity?: {
+    previousMount?: BrowserStoredProjectMount | null;
+    projectId: string;
+    subject: ProjectDeviceMountSubject;
+  },
 ): Promise<boolean> {
+  let directoryFingerprint = normalizeDirectoryFingerprint(knownDirectoryFingerprint);
+  if (!directoryFingerprint) {
+    try {
+      directoryFingerprint = await fingerprintBrowserDirectoryHandle(source.handle);
+    } catch {
+      directoryFingerprint = undefined;
+    }
+  }
   const database = await openBrowserMountDatabase();
   if (!database) {
     return false;
@@ -280,11 +472,23 @@ async function writeBrowserStoredProjectMount(
   try {
     const transaction = database.transaction(BROWSER_MOUNT_STORE_NAME, 'readwrite');
     const store = transaction.objectStore(BROWSER_MOUNT_STORE_NAME);
+    const now = new Date().toISOString();
     await awaitIndexedDbRequest(
       store.put({
+        client: resolveProjectMountClientMetadata('browser'),
+        createdAt: identity?.previousMount?.createdAt ?? now,
+        createdSurface: 'browser',
+        ...(directoryFingerprint ? { directoryFingerprint } : {}),
         displayName: normalizeDisplayName(source.handle.name),
         handle: source.handle,
         key,
+        ...(identity
+          ? {
+              ownerKey: sha256Hash(identity.subject.subjectId),
+              projectId: identity.projectId,
+            }
+          : {}),
+        updatedAt: now,
         version: BROWSER_DATABASE_VERSION,
       } satisfies BrowserStoredProjectMount),
     );
@@ -331,6 +535,21 @@ async function readTauriStoredProjectMount(key: string): Promise<TauriStoredProj
   }
 }
 
+async function deleteTauriStoredProjectMount(key: string): Promise<void> {
+  const invoke = await resolveBirdCoderTauriInvoke();
+  if (!invoke) {
+    return;
+  }
+  try {
+    await invoke('local_store_delete', {
+      key,
+      scope: TAURI_MOUNT_STORAGE_SCOPE,
+    });
+  } catch {
+    // The canonical replacement is already durable; stale-key cleanup is best effort.
+  }
+}
+
 async function writeTauriStoredProjectMount(
   key: string,
   mount: TauriStoredProjectMount,
@@ -362,6 +581,107 @@ async function writeTauriStoredProjectMount(
   }
 }
 
+function resolveCompatibleMountOwnerKeys(subject: ProjectDeviceMountSubject): string[] {
+  const ownerKeys = new Set([sha256Hash(subject.subjectId)]);
+  const subjectSegments = subject.subjectId.split('\u0001');
+  if (subjectSegments.length === 3 && subjectSegments[0] && subjectSegments[2]) {
+    ownerKeys.add(sha256Hash([subjectSegments[0], '0', subjectSegments[2]].join('\u0001')));
+  }
+  return [...ownerKeys];
+}
+
+function mountMatchesProjectIdentity(
+  mount: TauriStoredProjectMount,
+  projectId: string,
+  ownerKeys: readonly string[],
+  allowMissingIdentity: boolean,
+): boolean {
+  const storedProjectId = normalizeStoredProjectId(mount.projectId);
+  const storedOwnerKey = normalizeMountOwnerKey(mount.ownerKey);
+  if (!storedProjectId || !storedOwnerKey) {
+    return allowMissingIdentity;
+  }
+  return storedProjectId === projectId && ownerKeys.includes(storedOwnerKey);
+}
+
+function enrichTauriStoredProjectMount(
+  mount: TauriStoredProjectMount,
+  projectId: string,
+  subject: ProjectDeviceMountSubject,
+): TauriStoredProjectMount {
+  const now = new Date().toISOString();
+  return {
+    ...mount,
+    client: resolveProjectMountClientMetadata('tauri'),
+    createdAt: mount.createdAt ?? now,
+    createdSurface: 'desktop',
+    ownerKey: sha256Hash(subject.subjectId),
+    projectId,
+    updatedAt: now,
+    version: TAURI_MOUNT_STORAGE_VERSION,
+  };
+}
+
+async function recoverTauriStoredProjectMount(
+  key: string,
+  projectId: string,
+  subject: ProjectDeviceMountSubject,
+): Promise<TauriStoredProjectMount | null> {
+  const ownerKeys = resolveCompatibleMountOwnerKeys(subject);
+  const directMount = await readTauriStoredProjectMount(key);
+  if (directMount) {
+    if (!mountMatchesProjectIdentity(directMount, projectId, ownerKeys, true)) {
+      return null;
+    }
+    const currentOwnerKey = sha256Hash(subject.subjectId);
+    if (
+      directMount.client
+      && directMount.createdAt
+      && directMount.createdSurface === 'desktop'
+      && directMount.ownerKey === currentOwnerKey
+      && directMount.projectId === projectId
+    ) {
+      return directMount;
+    }
+    const canonicalMount = enrichTauriStoredProjectMount(directMount, projectId, subject);
+    return (await writeTauriStoredProjectMount(key, canonicalMount)) ? canonicalMount : null;
+  }
+
+  const invoke = await resolveBirdCoderTauriInvoke();
+  if (!invoke) {
+    return null;
+  }
+  let recoveryEntry: TauriProjectDeviceMountEntry | null;
+  try {
+    recoveryEntry = await invoke<TauriProjectDeviceMountEntry | null>('project_device_mount_find', {
+      ownerKeys,
+      projectId,
+    });
+  } catch {
+    return null;
+  }
+  if (
+    !recoveryEntry
+    || !/^[0-9a-f]{64}$/iu.test(recoveryEntry.key)
+    || typeof recoveryEntry.value !== 'string'
+  ) {
+    return null;
+  }
+  const recoveredMount = parseTauriStoredProjectMount(recoveryEntry.value);
+  if (!recoveredMount || !mountMatchesProjectIdentity(recoveredMount, projectId, ownerKeys, false)) {
+    return null;
+  }
+
+  const canonicalMount = enrichTauriStoredProjectMount(recoveredMount, projectId, subject);
+  if (!(await writeTauriStoredProjectMount(key, canonicalMount))) {
+    return null;
+  }
+  if (recoveryEntry.key.toLowerCase() !== key.toLowerCase()) {
+    await deleteTauriStoredProjectMount(recoveryEntry.key);
+  }
+  return canonicalMount;
+}
+
 function toTauriRuntimeLocationBinding(
   mount: TauriStoredProjectMount,
 ): TauriProjectRuntimeLocationBinding {
@@ -371,21 +691,56 @@ function toTauriRuntimeLocationBinding(
   };
 }
 
+function compareUtf8(left: string, right: string): number {
+  const encoder = new TextEncoder();
+  const leftBytes = encoder.encode(left);
+  const rightBytes = encoder.encode(right);
+  const length = Math.min(leftBytes.length, rightBytes.length);
+  for (let index = 0; index < length; index += 1) {
+    const difference = leftBytes[index]! - rightBytes[index]!;
+    if (difference !== 0) {
+      return difference;
+    }
+  }
+  return leftBytes.length - rightBytes.length;
+}
+
+export async function fingerprintBrowserDirectoryHandle(
+  handle: FileSystemDirectoryHandle,
+): Promise<string> {
+  const entries: Array<{ kind: 'd' | 'f' | 'o'; name: string }> = [];
+  for await (const [name, entry] of handle.entries()) {
+    entries.push({
+      kind: entry.kind === 'directory' ? 'd' : entry.kind === 'file' ? 'f' : 'o',
+      name,
+    });
+  }
+  entries.sort((left, right) => compareUtf8(left.name, right.name));
+  const manifest = entries.reduce(
+    (value, entry) => `${value}${entry.kind}\0${entry.name}\n`,
+    NATIVE_DIRECTORY_FINGERPRINT_PREFIX,
+  );
+  return `sha256:${sha256Hash(manifest)}`;
+}
+
 function createTauriStoredProjectMount(
   source: Extract<LocalFolderMountSource, { type: 'tauri' }>,
   previousMount: TauriStoredProjectMount | null,
+  projectId: string,
+  subject: ProjectDeviceMountSubject,
 ): TauriStoredProjectMount | null {
   const path = normalizeAbsoluteTauriPath(source.path);
   if (!path) {
     return null;
   }
 
-  return {
+  return enrichTauriStoredProjectMount({
     displayName: resolveTauriMountDisplayName(path),
     path,
+    ...(previousMount?.createdAt ? { createdAt: previousMount.createdAt } : {}),
     ...(previousMount?.rootLocator ? { rootLocator: previousMount.rootLocator } : {}),
     version: TAURI_MOUNT_STORAGE_VERSION,
-  };
+  }, projectId, subject);
 }
 
 /**
@@ -403,6 +758,59 @@ export class ProjectDeviceMountRegistry {
 
   async getCurrentSubjectKey(): Promise<string | null> {
     return (await this.resolveCurrentSubject())?.key ?? null;
+  }
+
+  async resolveBrowserNativeDirectoryIdentity(
+    projectId: string,
+    expectedSubjectKey?: string | null,
+  ): Promise<BrowserNativeDirectoryIdentity | null> {
+    if (await isBirdCoderTauriRuntime()) {
+      return null;
+    }
+    const normalizedProjectId = normalizeProjectId(projectId);
+    const resolvedSubject = await this.resolveCurrentSubject();
+    const currentSubjectKey = resolvedSubject?.key ?? null;
+    if (
+      !resolvedSubject
+      || (expectedSubjectKey !== undefined && currentSubjectKey !== expectedSubjectKey)
+    ) {
+      return null;
+    }
+
+    const key = buildSubjectProjectMountKey(resolvedSubject.subject, normalizedProjectId);
+    const storedMount = await readBrowserStoredProjectMount(key);
+    if (!storedMount || !(await this.isCurrentSubjectKey(currentSubjectKey))) {
+      return null;
+    }
+    if ((await queryBrowserMountPermission(storedMount.handle)) !== 'granted') {
+      return storedMount.directoryFingerprint
+        ? {
+            directoryFingerprint: storedMount.directoryFingerprint,
+            directoryName: normalizeDisplayName(storedMount.handle.name),
+          }
+        : null;
+    }
+    const directoryFingerprint = await fingerprintBrowserDirectoryHandle(storedMount.handle);
+    if (!(await this.isCurrentSubjectKey(currentSubjectKey))) {
+      return null;
+    }
+    await writeBrowserStoredProjectMount(
+      key,
+      { handle: storedMount.handle, type: 'browser' },
+      directoryFingerprint,
+      {
+        previousMount: storedMount,
+        projectId: normalizedProjectId,
+        subject: resolvedSubject.subject,
+      },
+    );
+    if (!(await this.isCurrentSubjectKey(currentSubjectKey))) {
+      return null;
+    }
+    return {
+      directoryFingerprint,
+      directoryName: normalizeDisplayName(storedMount.handle.name),
+    };
   }
 
   /**
@@ -470,14 +878,28 @@ export class ProjectDeviceMountRegistry {
     const key = buildSubjectProjectMountKey(resolvedSubject.subject, normalizedProjectId);
     let persisted: boolean;
     if (source.type === 'browser') {
-      persisted = await writeBrowserStoredProjectMount(key, source);
+      const previousMount = await readBrowserStoredProjectMount(key);
+      persisted = await writeBrowserStoredProjectMount(key, source, undefined, {
+        previousMount,
+        projectId: normalizedProjectId,
+        subject: resolvedSubject.subject,
+      });
     } else {
-      const previousMount = await readTauriStoredProjectMount(key);
+      const previousMount = await recoverTauriStoredProjectMount(
+        key,
+        normalizedProjectId,
+        resolvedSubject.subject,
+      );
       if (!(await this.isCurrentSubjectKey(currentSubjectKey))) {
         return createMountState('mount_required');
       }
 
-      const nextMount = createTauriStoredProjectMount(source, previousMount);
+      const nextMount = createTauriStoredProjectMount(
+        source,
+        previousMount,
+        normalizedProjectId,
+        resolvedSubject.subject,
+      );
       persisted = nextMount ? await writeTauriStoredProjectMount(key, nextMount) : false;
     }
 
@@ -532,7 +954,11 @@ export class ProjectDeviceMountRegistry {
         };
       }
 
-      const storedMount = await readTauriStoredProjectMount(key);
+      const storedMount = await recoverTauriStoredProjectMount(
+        key,
+        normalizedProjectId,
+        resolvedSubject.subject,
+      );
       if (!(await this.isCurrentSubjectKey(currentSubjectKey))) {
         return {
           source: null,
@@ -623,7 +1049,11 @@ export class ProjectDeviceMountRegistry {
     }
 
     const key = buildSubjectProjectMountKey(resolvedSubject.subject, normalizedProjectId);
-    const mount = await readTauriStoredProjectMount(key);
+    const mount = await recoverTauriStoredProjectMount(
+      key,
+      normalizedProjectId,
+      resolvedSubject.subject,
+    );
     if (!(await this.isCurrentSubjectKey(subjectKey))) {
       return null;
     }

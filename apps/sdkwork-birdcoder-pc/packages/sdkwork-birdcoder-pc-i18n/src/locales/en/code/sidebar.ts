@@ -3,8 +3,11 @@ import { defineLocaleModule } from '../../resource.ts';
 export default defineLocaleModule('code/sidebar', {
   code: {
     organizedByProject: 'Organized by project',
+    organizedByProvider: 'Organized by provider',
     organizedChronologically: 'Organized chronologically',
     sortedByCreatedDate: 'Sorted by created date',
+    sortedBySmartPriority: 'Sorted by smart priority',
+    sortedByRecentActivity: 'Sorted by recent activity',
     sortedByUpdatedDate: 'Sorted by updated date',
     showingAllSessions: 'Showing all sessions',
     showingRelevantSessions: 'Showing relevant sessions',

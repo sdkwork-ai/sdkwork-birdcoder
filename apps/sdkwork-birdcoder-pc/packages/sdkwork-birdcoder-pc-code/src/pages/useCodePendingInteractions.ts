@@ -26,6 +26,7 @@ export function useCodePendingInteractions({
 }: UseCodePendingInteractionsOptions) {
   const {
     approvals: pendingApprovals,
+    isLoading: arePendingInteractionsLoading,
     questions: pendingUserQuestions,
     submitApprovalDecision,
     submitQuestionAnswer,
@@ -61,5 +62,6 @@ export function useCodePendingInteractions({
     onSubmitUserQuestionAnswer,
     pendingApprovals,
     pendingUserQuestions,
+    arePendingInteractionsLoading,
   };
 }

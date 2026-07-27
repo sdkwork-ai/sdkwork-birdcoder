@@ -27,6 +27,7 @@ export interface ProjectsStore {
   inflight: Promise<AgentProjectView[]> | null;
   inflightKey: string | null;
   listeners: Set<(snapshot: ProjectsStoreSnapshot) => void>;
+  removedProjectIds: Set<string>;
   snapshot: ProjectsStoreSnapshot;
 }
 
@@ -68,6 +69,13 @@ function areProjectScalarsEqual(
   left: AgentProjectView,
   right: AgentProjectView,
 ): boolean {
+  const hasEqualAgentSessionPageInfo =
+    left.agentSessionPageInfo === right.agentSessionPageInfo ||
+    (
+      left.agentSessionPageInfo?.page === right.agentSessionPageInfo?.page &&
+      left.agentSessionPageInfo?.pageSize === right.agentSessionPageInfo?.pageSize &&
+      left.agentSessionPageInfo?.hasMore === right.agentSessionPageInfo?.hasMore
+    );
   return (
     left.projectId === right.projectId &&
     left.workspaceId === right.workspaceId &&
@@ -84,7 +92,8 @@ function areProjectScalarsEqual(
     left.version === right.version &&
     left.createdAt === right.createdAt &&
     left.updatedAt === right.updatedAt &&
-    left.archivedAt === right.archivedAt
+    left.archivedAt === right.archivedAt &&
+    hasEqualAgentSessionPageInfo
   );
 }
 
@@ -92,8 +101,16 @@ function areAgentSessionScalarsEqual(
   left: AgentSessionView,
   right: AgentSessionView,
 ): boolean {
+  const hasEqualItemPageInfo =
+    left.itemPageInfo === right.itemPageInfo ||
+    (
+      left.itemPageInfo?.page === right.itemPageInfo?.page &&
+      left.itemPageInfo?.pageSize === right.itemPageInfo?.pageSize &&
+      left.itemPageInfo?.hasMore === right.itemPageInfo?.hasMore
+    );
   return (
     left.id === right.id &&
+    left.agentId === right.agentId &&
     left.projectId === right.projectId &&
     left.runtimeLocationId === right.runtimeLocationId &&
     left.title === right.title &&
@@ -101,17 +118,28 @@ function areAgentSessionScalarsEqual(
     left.hostMode === right.hostMode &&
     left.engineId === right.engineId &&
     left.modelId === right.modelId &&
+    left.providerId === right.providerId &&
+    left.providerBindingId === right.providerBindingId &&
+    left.transportKind === right.transportKind &&
     left.nativeSessionId === right.nativeSessionId &&
     left.createdAt === right.createdAt &&
     left.updatedAt === right.updatedAt &&
     left.lastTurnAt === right.lastTurnAt &&
     left.sortTimestamp === right.sortTimestamp &&
     left.transcriptUpdatedAt === right.transcriptUpdatedAt &&
+    left.lastMessageAt === right.lastMessageAt &&
+    left.lastRuntimeEventAt === right.lastRuntimeEventAt &&
+    left.lastAttentionAt === right.lastAttentionAt &&
+    left.lastUserActivityAt === right.lastUserActivityAt &&
+    left.serverVersion === right.serverVersion &&
+    left.lastItemSequence === right.lastItemSequence &&
+    left.lastReadItemSequence === right.lastReadItemSequence &&
     left.runtimeStatus === right.runtimeStatus &&
     left.displayTime === right.displayTime &&
     left.pinned === right.pinned &&
     left.archived === right.archived &&
-    left.unread === right.unread
+    left.unread === right.unread &&
+    hasEqualItemPageInfo
   );
 }
 
@@ -389,6 +417,8 @@ function mergeProjectForStore(
   );
   const nextProject = {
     ...incomingProject,
+    agentSessionPageInfo:
+      incomingProject.agentSessionPageInfo ?? existingProject?.agentSessionPageInfo,
     agentSessions: nextAgentSessions,
   };
 
@@ -470,6 +500,15 @@ export function removeProjectFromCollection(
   return reuseProjectCollectionIfUnchanged(
     projects,
     sortProjectsForStore(projects.filter((project) => project.projectId !== projectId)),
+  );
+}
+
+export function filterProjectsForInventoryStore(
+  store: ProjectsStore,
+  projects: readonly AgentProjectView[],
+): AgentProjectView[] {
+  return projects.filter(
+    (project) => project.status !== 'deleted' && !store.removedProjectIds.has(project.projectId),
   );
 }
 
@@ -653,6 +692,7 @@ export function getProjectsStore(scopeKey: string): ProjectsStore {
       inflight: null,
       inflightKey: null,
       listeners: new Set(),
+      removedProjectIds: new Set(),
       snapshot: createProjectsStoreSnapshot(),
     };
     projectStoresByScopeKey.set(scopeKey, store);
@@ -731,6 +771,21 @@ export function upsertAgentSessionIntoProjectsStore(
       normalizedWorkspaceId,
     ),
     (projects) => upsertAgentSessionIntoCollection(projects, projectId, agentSession),
+  );
+}
+
+export function removeProjectFromProjectsStore(scopeKey: string, projectId: string): void {
+  const normalizedProjectId = projectId.trim();
+  if (!scopeKey || !normalizedProjectId) {
+    return;
+  }
+
+  const store = getProjectsStore(scopeKey);
+  store.removedProjectIds.add(normalizedProjectId);
+  mutateProjectsStoreByScopeKey(
+    scopeKey,
+    (projects) => removeProjectFromCollection(projects, normalizedProjectId),
+    { invalidatePagination: true },
   );
 }
 

@@ -53,6 +53,16 @@ assert.match(
 );
 assert.match(
   hookSource,
+  /selectedAgentSessionRef = useRef\(selectedAgentSession\)[\s\S]*selectedProjectRef = useRef\(selectedProject\)[\s\S]*const requestAgentSession = selectedAgentSessionRef\.current;[\s\S]*const requestProject = selectedProjectRef\.current;/s,
+  'Selected Session Item hydration must read current objects through refs so equivalent Store replacements do not cancel an active request.',
+);
+assert.doesNotMatch(
+  hookSource,
+  /const requestKey = useMemo\([\s\S]*selectedAgentSession\?\.items\.length[\s\S]*\);/s,
+  'Loading older transcript pages must not trigger a redundant latest-page refresh through the request key.',
+);
+assert.match(
+  hookSource,
   /refreshAgentSessionItems\(\{[\s\S]*agentSessionService,[\s\S]*agentSessionId: normalizedSessionId,/s,
   'Selected Session Item hydration must read through the canonical Agents Session service.',
 );

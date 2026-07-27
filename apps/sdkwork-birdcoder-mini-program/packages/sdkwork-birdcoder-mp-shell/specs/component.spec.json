@@ -1,0 +1,43 @@
+{
+  "schemaVersion": 1,
+  "kind": "sdkwork.component.spec",
+  "component": {
+    "name": "sdkwork-birdcoder-mp-shell",
+    "displayName": "BirdCoder Mini Program Shell",
+    "version": "0.1.0",
+    "type": "typescript-package",
+    "root": "apps/sdkwork-birdcoder-mini-program/packages/sdkwork-birdcoder-mp-shell",
+    "domain": "intelligence",
+    "capability": "shell",
+    "surface": "app",
+    "status": "ACTIVE",
+    "languages": ["typescript"],
+    "generated": false,
+    "private": true,
+    "manifests": ["package.json"]
+  },
+  "canonicalSpecs": [
+    { "file": "MINI_PROGRAM_APP_ARCHITECTURE_SPEC.md", "path": "../../../../../sdkwork-specs/MINI_PROGRAM_APP_ARCHITECTURE_SPEC.md", "purpose": "Shell and route projection ownership." },
+    { "file": "APP_MINI_PROGRAM_UI_SPEC.md", "path": "../../../../../sdkwork-specs/APP_MINI_PROGRAM_UI_SPEC.md", "purpose": "Mini program route assembly." },
+    { "file": "UI_ARCHITECTURE_SPEC.md", "path": "../../../../../sdkwork-specs/UI_ARCHITECTURE_SPEC.md", "purpose": "UI architecture selection." },
+    { "file": "CODE_STYLE_SPEC.md", "path": "../../../../../sdkwork-specs/CODE_STYLE_SPEC.md", "purpose": "Authored source structure." },
+    { "file": "NAMING_SPEC.md", "path": "../../../../../sdkwork-specs/NAMING_SPEC.md", "purpose": "Canonical naming." },
+    { "file": "TYPESCRIPT_CODE_SPEC.md", "path": "../../../../../sdkwork-specs/TYPESCRIPT_CODE_SPEC.md", "purpose": "TypeScript rules." },
+    { "file": "TEST_SPEC.md", "path": "../../../../../sdkwork-specs/TEST_SPEC.md", "purpose": "Route tests." }
+  ],
+  "contracts": {
+    "layerRole": "frontend-shell",
+    "publicExports": [".", "@sdkwork/birdcoder-mp-workbench"],
+    "providedPorts": [{ "name": "routeCatalog", "export": "." }],
+    "requiredPorts": [{ "name": "workbenchRoutes", "export": "@sdkwork/birdcoder-mp-workbench" }],
+    "runtimeEntrypoints": [],
+    "routeManifest": null,
+    "sdkClients": [],
+    "sdkDependencies": [],
+    "dependencyApiExports": [],
+    "dependencyApiSurfaces": [],
+    "events": [],
+    "configKeys": []
+  },
+  "verification": { "commands": ["pnpm --filter @sdkwork/birdcoder-mini-program test:routes"] }
+}

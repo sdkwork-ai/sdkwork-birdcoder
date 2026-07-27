@@ -1,0 +1,14 @@
+{
+  "pages": [
+    "pages/__generated__/workbench/index"
+  ],
+  "window": {
+    "navigationBarTitleText": "BirdCoder",
+    "navigationBarBackgroundColor": "#0b1020",
+    "navigationBarTextStyle": "white",
+    "backgroundColor": "#0b1020",
+    "backgroundTextStyle": "light"
+  },
+  "style": "v2",
+  "sitemapLocation": "sitemap.json"
+}

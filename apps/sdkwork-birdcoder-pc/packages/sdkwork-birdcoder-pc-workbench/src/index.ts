@@ -60,6 +60,7 @@ export * from './workbench/fileChangeRestore.ts';
 export * from './workbench/fileSearch.ts';
 export * from './workbench/importedProjectHydration.ts';
 export * from './workbench/localFolderProjectImport.ts';
+export * from './workbench/projectDirectorySelection.ts';
 export * from './workbench/projectMountRecovery.ts';
 export * from './workbench/projectRuntimeLocationResolution.ts';
 export * from './workbench/gitBranches.ts';

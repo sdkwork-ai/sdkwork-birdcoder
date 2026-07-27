@@ -138,7 +138,7 @@ export const UserTextMessageRenderer = memo(function UserTextMessageRenderer({
 
   return (
     <div ref={messageRef} className="flex w-full min-w-0 flex-col items-end">
-      <div className="max-w-[85%] min-w-0 overflow-hidden break-words bg-white/5 px-4 py-2.5 text-[14px] leading-relaxed text-gray-200 whitespace-pre-wrap [overflow-wrap:anywhere] rounded-xl rounded-tr-md">
+      <div className="max-w-[85%] min-w-0 overflow-hidden break-words rounded-xl rounded-tr-md bg-white/5 px-4 py-2.5 text-[length:var(--birdcoder-ui-font-size,12px)] leading-relaxed text-gray-200 whitespace-pre-wrap [overflow-wrap:anywhere]">
         <ContentBlockList view={view} context={context} />
       </div>
       {context.showMessageActions ? (

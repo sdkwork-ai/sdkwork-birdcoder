@@ -2,7 +2,7 @@ import {
   DeferredRunConfigurationDialog,
   DeferredRunTaskDialog,
 } from '@sdkwork/birdcoder-pc-ui/components/DeferredRunDialogs';
-import { Button } from '@sdkwork/birdcoder-pc-ui-shell';
+import { Button, ConfirmationDialog } from '@sdkwork/birdcoder-pc-ui-shell';
 import type { RunConfigurationRecord } from '@sdkwork/birdcoder-pc-workbench';
 import { X } from 'lucide-react';
 import { memo } from 'react';
@@ -11,6 +11,7 @@ import { useTranslation } from 'react-i18next';
 export interface CodeDeleteConfirmation {
   type: 'session' | 'project' | 'message';
   id: string;
+  name?: string;
   ids?: string[];
   parentId?: string;
   projectId?: string;
@@ -31,7 +32,7 @@ export interface CodePageDialogsProps {
   onRunTask: (configuration: RunConfigurationRecord) => void;
   deleteConfirmation: CodeDeleteConfirmation | null;
   onCancelDelete: () => void;
-  onConfirmDelete: () => void;
+  onConfirmDelete: () => Promise<void> | void;
 }
 
 export const CodePageDialogs = memo(function CodePageDialogs({
@@ -52,15 +53,11 @@ export const CodePageDialogs = memo(function CodePageDialogs({
   onConfirmDelete,
 }: CodePageDialogsProps) {
   const { t } = useTranslation();
-  const isProjectDeletion = deleteConfirmation?.type === 'project';
-  const deleteDialogTitle = isProjectDeletion
-    ? t('app.deleteProjectTitle')
-    : `${t('app.delete')} ${
-        deleteConfirmation?.type.charAt(0).toUpperCase() ?? ''
-      }${deleteConfirmation?.type.slice(1) ?? ''}`;
-  const deleteDialogDescription = isProjectDeletion
-    ? t('app.deleteProjectConfirm')
-    : `Are you sure you want to delete this ${deleteConfirmation?.type}? This action cannot be undone.`;
+  const isProjectRemoval = deleteConfirmation?.type === 'project';
+  const deleteDialogTitle = `${t('app.delete')} ${
+    deleteConfirmation?.type.charAt(0).toUpperCase() ?? ''
+  }${deleteConfirmation?.type.slice(1) ?? ''}`;
+  const deleteDialogDescription = `Are you sure you want to delete this ${deleteConfirmation?.type}? This action cannot be undone.`;
   const deleteDialogActionLabel = t('app.delete');
 
   return (
@@ -155,7 +152,19 @@ export const CodePageDialogs = memo(function CodePageDialogs({
         onRun={onRunTask}
       />
 
-      {deleteConfirmation && (
+      {isProjectRemoval && deleteConfirmation ? (
+        <ConfirmationDialog
+          cancelLabel={t('common.cancel')}
+          closeLabel={t('app.closeRemoveProjectDialog')}
+          confirmLabel={t('app.removeProjectAction')}
+          description={t('app.removeProjectDescription')}
+          onCancel={onCancelDelete}
+          onConfirm={onConfirmDelete}
+          title={t('app.removeProjectTitle', {
+            name: deleteConfirmation.name ?? t('app.projectType'),
+          })}
+        />
+      ) : deleteConfirmation ? (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[100]">
           <div className="bg-[#18181b] border border-white/10 rounded-2xl p-6 max-w-sm w-full shadow-2xl animate-in fade-in zoom-in-95 duration-200">
             <h3 className="text-lg font-semibold text-white mb-2">
@@ -182,7 +191,7 @@ export const CodePageDialogs = memo(function CodePageDialogs({
             </div>
           </div>
         </div>
-      )}
+      ) : null}
     </>
   );
 });

@@ -581,9 +581,12 @@ export const StudioChatSidebar = memo(function StudioChatSidebar({
       visibleSessions,
     ],
   );
-  const canShowMoreSessions =
+  const canShowMoreSessions = menuProject !== null && (
+    menuProject.agentSessionPageInfo === undefined ||
     visibleSessionCount < menuProjectSessions.length ||
-    visibleSessionCount < (menuProject?.agentSessions.length ?? 0);
+    visibleSessionCount < menuProject.agentSessions.length ||
+    menuProject.agentSessionPageInfo.hasMore === true
+  );
   const hasEffectiveMenuProject = effectiveMenuProjectId.trim().length > 0;
   const showEngineBusyCurrentSessionIndicator =
     isEngineBusyCurrentSession && Boolean(selectedAgentSessionId);
@@ -688,6 +691,21 @@ export const StudioChatSidebar = memo(function StudioChatSidebar({
     },
     [addToast, onLoadMoreProjectSessions, t],
   );
+
+  useEffect(() => {
+    if (
+      !showProjectMenu ||
+      !menuProject ||
+      menuProject.agentSessionPageInfo !== undefined
+    ) {
+      return;
+    }
+
+    void handleLoadMoreMenuProjectSessions(
+      menuProject.projectId,
+      INITIAL_VISIBLE_SESSIONS_PER_PROJECT,
+    );
+  }, [handleLoadMoreMenuProjectSessions, menuProject, showProjectMenu]);
 
   const handleRefreshCurrentContext = () => {
     if (selectedAgentSessionId) {
@@ -849,6 +867,14 @@ export const StudioChatSidebar = memo(function StudioChatSidebar({
                     ))}
                     {shouldWindowMenuSessions ? (
                       <div style={{ height: menuSessionsWindowedRange.paddingBottom }} />
+                    ) : null}
+                    {menuProject &&
+                    menuProject.agentSessionPageInfo !== undefined &&
+                    renderedMenuSessions.length === 0 &&
+                    !isLoadingMoreSessions ? (
+                      <div className="px-3 py-8 text-center text-xs italic text-gray-500">
+                        {t('app.noSessions')}
+                      </div>
                     ) : null}
                     {canShowMoreSessions && (
                       <button

@@ -63,6 +63,7 @@ export interface BirdCoderDefaultIdeSharedRuntime {
   gitService: IGitService;
   promptsClient: SdkworkPromptsAppClient;
   projectRuntimeLocationService: IProjectRuntimeLocationService;
+  projectDeviceMountRegistry: ProjectDeviceMountRegistry;
   projectService: IProjectService;
   skillsClient: SdkworkSkillsAppClient;
   workspaceService: IWorkspaceService;
@@ -153,6 +154,7 @@ export function createBirdCoderDefaultIdeSharedRuntime(
     gitService,
     promptsClient,
     projectRuntimeLocationService,
+    projectDeviceMountRegistry,
     projectService,
     skillsClient,
     workspaceService,

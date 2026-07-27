@@ -29,7 +29,7 @@ export default defineLocaleModule('settings/extra', {
       usePointerCursor: 'Use pointer cursor',
       usePointerCursorDesc: 'Switch to pointer cursor when hovering interactive elements',
       uiFontSize: 'UI font size',
-      uiFontSizeDesc: 'Adjust the base size used for the Codex UI',
+      uiFontSizeDesc: 'Adjust the default text size for chats, the composer, sessions, and projects',
       codeFontSize: 'Code font size',
       codeFontSizeDesc: 'Adjust the base size used for code across chats and diffs',
       showLineNumbers: 'Show line numbers',

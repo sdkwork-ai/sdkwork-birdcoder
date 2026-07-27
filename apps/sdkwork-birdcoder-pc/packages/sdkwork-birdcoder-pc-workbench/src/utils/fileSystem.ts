@@ -1,4 +1,7 @@
-import { openLocalFolder as openInfrastructureLocalFolder } from '@sdkwork/birdcoder-pc-infrastructure/platform/openLocalFolder';
+import {
+  isDesktopLocalFolderPickerRuntime as isInfrastructureDesktopLocalFolderPickerRuntime,
+  openLocalFolder as openInfrastructureLocalFolder,
+} from '@sdkwork/birdcoder-pc-infrastructure/platform/openLocalFolder';
 import type {
   LocalFolderMountSource,
   LocalFolderPickerResult,
@@ -30,5 +33,9 @@ export function resolveSelectedLocalFolderSource(
 
 export async function openLocalFolder(): Promise<LocalFolderPickerResult> {
   return openInfrastructureLocalFolder();
+}
+
+export async function isDesktopLocalFolderPickerRuntime(): Promise<boolean> {
+  return isInfrastructureDesktopLocalFolderPickerRuntime();
 }
 

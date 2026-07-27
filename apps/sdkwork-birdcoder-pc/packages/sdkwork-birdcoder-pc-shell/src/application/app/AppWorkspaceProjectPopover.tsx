@@ -6,8 +6,8 @@ import {
   ChevronDown,
   Edit3,
   FolderGit2,
+  FolderMinus,
   FolderOpen,
-  FolderPlus,
   Loader2,
   MoreHorizontal,
   Plus,
@@ -38,18 +38,15 @@ interface AppWorkspaceProjectPopoverProps {
   hasMoreWorkspaces: boolean;
   hasProjectsFetched: boolean;
   hasWorkspacesFetched: boolean;
-  isCreatingBlankProject: boolean;
   isLoadingMoreProjects: boolean;
   isLoadingMoreWorkspaces: boolean;
   isProjectCreationPending: boolean;
   isProjectsLoading: boolean;
   isWorkspaceCreating: boolean;
   isWorkspacesLoading: boolean;
-  newProjectName: string;
   newWorkspaceName: string;
   onArchiveProject: (projectId: string) => void | Promise<void>;
   onArchiveWorkspace: (workspace: AgentWorkspaceView) => void;
-  onCancelBlankProject: () => void;
   onCancelWorkspaceCreation: () => void;
   onClosePopover: () => void;
   onCommitProjectRename: (projectId: string, nextName: string) => void | Promise<void>;
@@ -58,8 +55,6 @@ interface AppWorkspaceProjectPopoverProps {
     event: MouseEvent<HTMLButtonElement>,
     projectId: string,
   ) => void;
-  onCreateBlankProject: (event: FormEvent<HTMLFormElement>) => void | Promise<void>;
-  onCreateProjectFromFolder: () => void | Promise<void>;
   onCreateProjectSession: (
     projectId: string,
     requestedEngineId?: string,
@@ -71,7 +66,6 @@ interface AppWorkspaceProjectPopoverProps {
   onFinishWorkspaceRename: () => void;
   onLoadMoreProjects: () => Promise<unknown>;
   onLoadMoreWorkspaces: () => Promise<unknown>;
-  onNewProjectNameChange: (value: string) => void;
   onNewWorkspaceNameChange: (value: string) => void;
   onOpenProjectInExplorer: (projectId: string, projectName?: string) => void;
   onProjectRenameValueChange: (value: string) => void;
@@ -79,8 +73,7 @@ interface AppWorkspaceProjectPopoverProps {
   onRefreshWorkspaces: () => Promise<unknown>;
   onSelectProject: (projectId: string) => void;
   onSelectWorkspace: (workspaceId: string) => void;
-  onShowProjectCreationOptions: () => void;
-  onStartBlankProject: () => void;
+  onRequestProjectCreation: () => void;
   onStartProjectRename: (projectId: string, currentName: string) => void;
   onStartWorkspaceCreation: () => void;
   onStartWorkspaceRename: (workspace: AgentWorkspaceView) => void;
@@ -92,7 +85,6 @@ interface AppWorkspaceProjectPopoverProps {
   preferredEngineId: string;
   preferredModelId: string;
   projectActionsMenuId: string | null;
-  projectCreationOptionsVisible: boolean;
   projectMountRecoveryNotice: ProjectMountRecoveryEventPayload | null;
   projectMountRecoveryStartedAt: number | null;
   projects: readonly AgentProjectView[];
@@ -108,9 +100,6 @@ interface AppWorkspaceProjectPopoverProps {
   workspaces: readonly AgentWorkspaceView[];
 }
 
-const panelButtonClass =
-  'flex min-h-16 flex-1 items-start gap-3 rounded-xl border border-white/10 bg-white/[0.035] p-3 text-left transition-all hover:-translate-y-px hover:border-blue-400/35 hover:bg-blue-500/[0.08] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400/50 disabled:cursor-not-allowed disabled:opacity-50';
-
 export const AppWorkspaceProjectPopover = memo(function AppWorkspaceProjectPopover({
   activeProjectName,
   availableNewSessionEngines,
@@ -119,25 +108,20 @@ export const AppWorkspaceProjectPopover = memo(function AppWorkspaceProjectPopov
   hasMoreWorkspaces,
   hasProjectsFetched,
   hasWorkspacesFetched,
-  isCreatingBlankProject,
   isLoadingMoreProjects,
   isLoadingMoreWorkspaces,
   isProjectCreationPending,
   isProjectsLoading,
   isWorkspaceCreating,
   isWorkspacesLoading,
-  newProjectName,
   newWorkspaceName,
   onArchiveProject,
   onArchiveWorkspace,
-  onCancelBlankProject,
   onCancelWorkspaceCreation,
   onClosePopover,
   onCommitProjectRename,
   onCommitWorkspaceRename,
   onConfirmDeleteProject,
-  onCreateBlankProject,
-  onCreateProjectFromFolder,
   onCreateProjectSession,
   onCreateWorkspace,
   onDeleteWorkspace,
@@ -145,7 +129,6 @@ export const AppWorkspaceProjectPopover = memo(function AppWorkspaceProjectPopov
   onFinishWorkspaceRename,
   onLoadMoreProjects,
   onLoadMoreWorkspaces,
-  onNewProjectNameChange,
   onNewWorkspaceNameChange,
   onOpenProjectInExplorer,
   onProjectRenameValueChange,
@@ -153,8 +136,7 @@ export const AppWorkspaceProjectPopover = memo(function AppWorkspaceProjectPopov
   onRefreshWorkspaces,
   onSelectProject,
   onSelectWorkspace,
-  onShowProjectCreationOptions,
-  onStartBlankProject,
+  onRequestProjectCreation,
   onStartProjectRename,
   onStartWorkspaceCreation,
   onStartWorkspaceRename,
@@ -166,7 +148,6 @@ export const AppWorkspaceProjectPopover = memo(function AppWorkspaceProjectPopov
   preferredEngineId,
   preferredModelId,
   projectActionsMenuId,
-  projectCreationOptionsVisible,
   projectMountRecoveryNotice,
   projectMountRecoveryStartedAt,
   projects,
@@ -494,7 +475,7 @@ export const AppWorkspaceProjectPopover = memo(function AppWorkspaceProjectPopov
                   </button>
                   <button
                     type="button"
-                    onClick={onShowProjectCreationOptions}
+                    onClick={onRequestProjectCreation}
                     disabled={!canCreateProject}
                     className="flex h-8 items-center gap-2 rounded-lg bg-blue-500 px-3 text-[11px] font-semibold text-white shadow-sm shadow-blue-950/30 transition-colors hover:bg-blue-400 disabled:cursor-not-allowed disabled:opacity-40"
                   >
@@ -503,91 +484,6 @@ export const AppWorkspaceProjectPopover = memo(function AppWorkspaceProjectPopov
                   </button>
                 </div>
               </div>
-
-              {projectCreationOptionsVisible ? (
-                <div className="shrink-0 border-b border-white/[0.07] bg-blue-500/[0.025] p-3">
-                  <div className="mb-2 flex items-center justify-between">
-                    <div>
-                      <h4 className="text-xs font-semibold text-white">{t('app.createProjectTitle')}</h4>
-                      <p className="mt-0.5 text-[10px] text-gray-500">{t('app.createProjectDescription')}</p>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={onCancelBlankProject}
-                      disabled={isProjectCreationPending}
-                      className="flex h-7 w-7 items-center justify-center rounded-md text-gray-600 hover:bg-white/[0.07] hover:text-gray-300"
-                      aria-label={t('app.cancel')}
-                    >
-                      <X size={13} />
-                    </button>
-                  </div>
-                  <div className="flex flex-col gap-2 sm:flex-row">
-                    <button
-                      type="button"
-                      onClick={onStartBlankProject}
-                      disabled={!canCreateProject}
-                      className={panelButtonClass}
-                    >
-                      <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-violet-500/10 text-violet-300 ring-1 ring-inset ring-violet-400/15">
-                        <Sparkles size={16} />
-                      </span>
-                      <span className="min-w-0">
-                        <span className="block text-xs font-semibold text-gray-100">{t('app.createBlankProject')}</span>
-                        <span className="mt-1 block text-[10px] leading-4 text-gray-500">{t('app.createBlankProjectDescription')}</span>
-                      </span>
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => void onCreateProjectFromFolder()}
-                      disabled={!canCreateProject}
-                      className={panelButtonClass}
-                    >
-                      <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-blue-500/10 text-blue-300 ring-1 ring-inset ring-blue-400/15">
-                        {isProjectCreationPending ? <Loader2 size={16} className="animate-spin" /> : <FolderPlus size={16} />}
-                      </span>
-                      <span className="min-w-0">
-                        <span className="block text-xs font-semibold text-gray-100">{t('app.createFromFolder')}</span>
-                        <span className="mt-1 block text-[10px] leading-4 text-gray-500">{t('app.createFromFolderDescription')}</span>
-                      </span>
-                    </button>
-                  </div>
-                </div>
-              ) : null}
-
-              {isCreatingBlankProject ? (
-                <form onSubmit={onCreateBlankProject} className="shrink-0 border-b border-white/[0.07] bg-blue-500/[0.025] p-3">
-                  <label className="mb-2 block text-[11px] font-medium text-gray-300" htmlFor="birdcoder-new-project-name">
-                    {t('app.createBlankProject')}
-                  </label>
-                  <div className="flex flex-col gap-2 sm:flex-row">
-                    <input
-                      id="birdcoder-new-project-name"
-                      type="text"
-                      autoFocus
-                      value={newProjectName}
-                      onChange={(event) => onNewProjectNameChange(event.target.value)}
-                      placeholder={t('app.projectNamePlaceholder')}
-                      className="h-9 min-w-0 flex-1 rounded-lg border border-white/10 bg-black/30 px-3 text-xs text-white outline-none placeholder:text-gray-600 focus:border-blue-400/40 focus:ring-2 focus:ring-blue-500/10"
-                    />
-                    <button
-                      type="button"
-                      onClick={onCancelBlankProject}
-                      disabled={isProjectCreationPending}
-                      className="h-9 rounded-lg px-3 text-[11px] text-gray-500 hover:bg-white/[0.05] hover:text-gray-200 disabled:opacity-40"
-                    >
-                      {t('app.cancel')}
-                    </button>
-                    <button
-                      type="submit"
-                      disabled={!newProjectName.trim() || isProjectCreationPending}
-                      className="flex h-9 items-center gap-2 rounded-lg bg-blue-500 px-4 text-[11px] font-semibold text-white hover:bg-blue-400 disabled:cursor-not-allowed disabled:opacity-40"
-                    >
-                      {isProjectCreationPending ? <Loader2 size={12} className="animate-spin" /> : null}
-                      {isProjectCreationPending ? t('app.creatingProject') : t('app.create')}
-                    </button>
-                  </div>
-                </form>
-              ) : null}
 
               <div className="custom-scrollbar min-h-0 flex-1 overflow-y-auto p-2.5">
                 {!selectedWorkspace ? (
@@ -621,6 +517,7 @@ export const AppWorkspaceProjectPopover = memo(function AppWorkspaceProjectPopov
                     return (
                       <article
                         key={project.projectId}
+                        aria-label={project.name}
                         className={`mb-1.5 overflow-hidden rounded-xl border transition-colors ${
                           isSelected
                             ? 'border-blue-400/20 bg-blue-500/[0.085]'
@@ -763,8 +660,8 @@ export const AppWorkspaceProjectPopover = memo(function AppWorkspaceProjectPopov
                               onClick={(event) => onConfirmDeleteProject(event, project.projectId)}
                               className="flex items-center gap-2 rounded-lg px-2.5 py-2 text-left text-[11px] text-red-400 hover:bg-red-500/10"
                             >
-                              <Trash2 size={12} />
-                              {t('app.deleteProject')}
+                              <FolderMinus size={12} />
+                              {t('app.removeProject')}
                             </button>
                           </div>
                         ) : null}
@@ -780,7 +677,7 @@ export const AppWorkspaceProjectPopover = memo(function AppWorkspaceProjectPopov
                     <p className="mt-1 max-w-xs text-[11px] leading-5 text-gray-600">{t('app.emptyWorkspaceDescription')}</p>
                     <button
                       type="button"
-                      onClick={onShowProjectCreationOptions}
+                      onClick={onRequestProjectCreation}
                       className="mt-4 flex h-8 items-center gap-2 rounded-lg bg-white/[0.07] px-3 text-[11px] font-medium text-gray-200 hover:bg-white/10"
                     >
                       <Plus size={12} />

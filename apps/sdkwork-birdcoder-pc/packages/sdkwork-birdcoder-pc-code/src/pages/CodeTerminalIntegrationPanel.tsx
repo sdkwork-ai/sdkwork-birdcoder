@@ -14,6 +14,7 @@ export interface CodeTerminalIntegrationPanelProps {
   height: number;
   terminalRequest?: TerminalCommandRequest;
   projectId?: string;
+  runtimeLocationId?: string;
   onResize: (delta: number) => void;
   onClose: () => void;
 }
@@ -26,6 +27,7 @@ function areCodeTerminalIntegrationPanelPropsEqual(
     left.isOpen === right.isOpen &&
     left.height === right.height &&
     left.projectId === right.projectId &&
+    left.runtimeLocationId === right.runtimeLocationId &&
     left.onClose === right.onClose &&
     areTerminalCommandRequestsEqual(left.terminalRequest, right.terminalRequest)
   );
@@ -36,6 +38,7 @@ export const CodeTerminalIntegrationPanel = memo(function CodeTerminalIntegratio
   height,
   terminalRequest,
   projectId,
+  runtimeLocationId,
   onResize,
   onClose,
 }: CodeTerminalIntegrationPanelProps) {
@@ -77,9 +80,11 @@ export const CodeTerminalIntegrationPanel = memo(function CodeTerminalIntegratio
               <BirdcoderTerminalApp
                 launchRequest={terminalRequest}
                 launchRequestKey={terminalRequest?.timestamp ?? null}
+                onWebLaunchBlocked={handleLaunchBlocked}
                 resolveLaunchPlan={resolveTerminalLaunchPlan}
                 showWindowControls={false}
                 projectId={projectId}
+                runtimeLocationId={runtimeLocationId}
               />
             </div>
           </>

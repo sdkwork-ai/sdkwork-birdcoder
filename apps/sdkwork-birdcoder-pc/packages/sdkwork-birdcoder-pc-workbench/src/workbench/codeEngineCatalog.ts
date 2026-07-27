@@ -87,6 +87,20 @@ export interface WorkbenchCodeEngineCatalogSnapshot {
   loaded: boolean;
 }
 
+export interface WorkbenchRuntimeBindingIdentity {
+  agentId: string;
+  engineId: WorkbenchCodeEngineId;
+  modelId: string;
+  providerBindingId: string;
+  providerId: string;
+}
+
+export interface WorkbenchRuntimeBindingLookup {
+  modelId?: string | null;
+  providerBindingId?: string | null;
+  providerId?: string | null;
+}
+
 const EMPTY_CATALOG_SNAPSHOT: WorkbenchCodeEngineCatalogSnapshot = {
   engines: [],
   loaded: false,
@@ -291,6 +305,72 @@ export function findWorkbenchCodeEngineDefinition(
   return catalogSnapshot.engines.find(
     (engine) => engine.id === key || engine.aliases.some((alias) => normalizeKey(alias) === key),
   ) ?? null;
+}
+
+export function findWorkbenchCodeEngineDefinitionForAgentId(
+  value: unknown,
+): WorkbenchCodeEngineDefinition | null {
+  const agentId = String(value ?? '').trim();
+  if (!agentId) {
+    return null;
+  }
+  return catalogSnapshot.engines.find((engine) => engine.agentId === agentId) ?? null;
+}
+
+export function resolveWorkbenchRuntimeBindingIdentity(
+  engineId: unknown,
+  modelId: unknown,
+): WorkbenchRuntimeBindingIdentity {
+  const engine = findWorkbenchCodeEngineDefinition(engineId);
+  if (!engine) {
+    throw new Error(`Agents did not publish code engine "${String(engineId)}".`);
+  }
+  const normalizedModelId = String(modelId ?? '').trim() || engine.defaultModelId;
+  const model = engine.models.find((candidate) => candidate.id === normalizedModelId);
+  if (!model) {
+    throw new Error(
+      `Agents did not publish model "${normalizedModelId}" for code engine "${engine.id}".`,
+    );
+  }
+  const providerBindingId = model.bindingId.trim() || engine.bindingId.trim();
+  const providerId = model.providerId.trim();
+  const agentId = engine.agentId.trim();
+  if (!agentId || !providerBindingId || !providerId) {
+    throw new Error(`Agents published incomplete runtime identity for code engine "${engine.id}".`);
+  }
+  return {
+    agentId,
+    engineId: engine.id,
+    modelId: model.id,
+    providerBindingId,
+    providerId,
+  };
+}
+
+export function resolveWorkbenchCodeEngineForRuntimeBinding(
+  binding: WorkbenchRuntimeBindingLookup,
+): WorkbenchCodeEngineDefinition | null {
+  const providerBindingId = String(binding.providerBindingId ?? '').trim();
+  const providerId = String(binding.providerId ?? '').trim();
+  const modelId = String(binding.modelId ?? '').trim();
+  const candidates = catalogSnapshot.engines.filter((engine) => {
+    if (providerBindingId && engine.bindingId === providerBindingId) {
+      return true;
+    }
+    return engine.models.some((model) =>
+      (providerBindingId && model.bindingId === providerBindingId) ||
+      (modelId && model.id === modelId && (!providerId || model.providerId === providerId)),
+    );
+  });
+  if (candidates.length === 1) {
+    return candidates[0] ?? null;
+  }
+  if (providerId) {
+    return candidates.find((engine) =>
+      engine.models.some((model) => model.providerId === providerId),
+    ) ?? null;
+  }
+  return null;
 }
 
 function createUnknownEngineDefinition(value: unknown): WorkbenchCodeEngineDefinition {

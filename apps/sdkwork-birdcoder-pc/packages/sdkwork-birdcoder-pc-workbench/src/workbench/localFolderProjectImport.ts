@@ -2,23 +2,20 @@ import type { LocalFolderMountSource } from '@sdkwork/birdcoder-pc-contracts-com
 import type { ProjectRuntimeLocationBindingResult } from '@sdkwork/birdcoder-pc-infrastructure-runtime';
 import { emitProjectGitOverviewRefresh } from './projectGitOverview.ts';
 
-interface ProjectIdentifier {
+interface EnsuredProjectIdentifier {
   projectId: string;
+  reusedExistingProject: boolean;
 }
 
 export interface ImportLocalFolderProjectOptions {
-  createProject: (name: string) => Promise<ProjectIdentifier>;
+  ensureProject: (name: string) => Promise<EnsuredProjectIdentifier>;
   fallbackProjectName: string;
   folderInfo: LocalFolderMountSource;
+  projectName?: string;
   bindLocalProjectRuntimeLocation: (
     projectId: string,
     folderInfo: LocalFolderMountSource,
   ) => Promise<ProjectRuntimeLocationBindingResult>;
-  /**
-   * Only supply this for the project created by createProject in this import
-   * transaction. Existing project rebinds must never use compensation.
-   */
-  deleteCreatedProject?: (projectId: string) => Promise<void>;
 }
 
 export interface ImportedLocalFolderProject {
@@ -122,7 +119,7 @@ function normalizeFolderInfo(folderInfo: LocalFolderMountSource): LocalFolderMou
   };
 }
 
-function resolveImportedProjectName(
+export function resolveLocalFolderMountDisplayName(
   folderInfo: LocalFolderMountSource,
   fallbackProjectName: string,
 ): string {
@@ -137,7 +134,7 @@ function resolveLocalProjectMount(
   folderInfo: LocalFolderMountSource,
   fallbackProjectName: string,
 ): LocalProjectMount {
-  const displayName = resolveImportedProjectName(folderInfo, fallbackProjectName);
+  const displayName = resolveLocalFolderMountDisplayName(folderInfo, fallbackProjectName);
   if (folderInfo.type === 'browser') {
     return {
       displayName,
@@ -172,8 +169,9 @@ export async function importLocalFolderProject(
     normalizedFolderInfo,
     options.fallbackProjectName,
   );
-  const projectName = localMount.displayName;
-  const targetProjectId = (await options.createProject(projectName)).projectId;
+  const projectName = options.projectName?.trim() || localMount.displayName;
+  const ensuredProject = await options.ensureProject(projectName);
+  const targetProjectId = ensuredProject.projectId;
 
   try {
     await bindImportedProjectFolder(
@@ -182,16 +180,7 @@ export async function importLocalFolderProject(
       options.bindLocalProjectRuntimeLocation,
     );
   } catch (error) {
-    let cleanupError: unknown = null;
-    if (options.deleteCreatedProject) {
-      try {
-        await options.deleteCreatedProject(targetProjectId);
-      } catch (deleteError) {
-        cleanupError = deleteError;
-      }
-    }
-
-    throw new LocalFolderProjectImportError(targetProjectId, error, cleanupError);
+    throw new LocalFolderProjectImportError(targetProjectId, error);
   }
 
   emitProjectGitOverviewRefresh(targetProjectId);
@@ -200,7 +189,7 @@ export async function importLocalFolderProject(
     localMount,
     projectId: targetProjectId,
     projectName,
-    reusedExistingProject: false,
+    reusedExistingProject: ensuredProject.reusedExistingProject,
   };
 }
 

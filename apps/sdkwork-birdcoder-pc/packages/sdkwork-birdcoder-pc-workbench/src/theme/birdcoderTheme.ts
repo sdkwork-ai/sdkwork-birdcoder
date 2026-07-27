@@ -257,7 +257,7 @@ export function resolveBirdcoderThemeState(
     || "-apple-system, BlinkMacSystemFont";
   const codeFontFamily = (isDarkMode ? settings.darkCodeFont : settings.lightCodeFont)?.trim()
     || "ui-monospace, SFMono-Regular";
-  const uiFontSize = settings.uiFontSize?.trim() || "13";
+  const uiFontSize = settings.uiFontSize?.trim() || "12";
   const codeFontSize = settings.codeFontSize?.trim() || "12";
   const contrastValue = clamp(
     Number.isFinite(isDarkMode ? settings.darkContrast : settings.lightContrast)
@@ -352,7 +352,7 @@ export function resolveBirdcoderThemeState(
     "--birdcoder-theme-foreground": foregroundColor,
     "--birdcoder-theme-surface": shellSurface,
     "--birdcoder-ui-font-family": uiFontFamily,
-    "--birdcoder-ui-font-size": `${Number.parseInt(uiFontSize, 10) || 13}px`,
+    "--birdcoder-ui-font-size": `${Number.parseInt(uiFontSize, 10) || 12}px`,
   };
   return {
     codeFontFamily,

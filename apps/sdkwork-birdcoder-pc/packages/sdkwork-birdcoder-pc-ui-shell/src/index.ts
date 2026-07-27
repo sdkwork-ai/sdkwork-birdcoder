@@ -17,6 +17,9 @@ export type { WorkbenchCodeEngineIconProps } from './components/WorkbenchCodeEng
 
 export { SessionTranscriptLoadingState } from './components/SessionTranscriptLoadingState';
 
+export { ConfirmationDialog } from './components/ConfirmationDialog';
+export type { ConfirmationDialogProps } from './components/ConfirmationDialog';
+
 export { StartupScreen } from './components/StartupScreen';
 export type { StartupScreenProps, StartupStage } from './components/StartupScreen';
 

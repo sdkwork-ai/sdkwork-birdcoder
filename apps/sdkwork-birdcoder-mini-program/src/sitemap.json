@@ -1,0 +1,9 @@
+{
+  "desc": "BirdCoder native WeChat Mini Program route index",
+  "rules": [
+    {
+      "action": "allow",
+      "page": "*"
+    }
+  ]
+}

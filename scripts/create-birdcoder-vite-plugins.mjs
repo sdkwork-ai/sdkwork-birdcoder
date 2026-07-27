@@ -125,6 +125,7 @@ const BIRDCODER_PUBLIC_RUNTIME_ENV_ALLOWED_KEYS = new Set([
   'VITE_SDKWORK_APPBASE_APP_API_BASE_URL',
   'VITE_SDKWORK_BIRDCODER_APPLICATION_PUBLIC_HTTP_URL',
   'VITE_SDKWORK_BIRDCODER_DEPLOYMENT_PROFILE',
+  'VITE_SDKWORK_BIRDCODER_ENVIRONMENT',
   'VITE_SDKWORK_BIRDCODER_OFFICIAL_WEBSITE_URL',
   'VITE_SDKWORK_BIRDCODER_PLATFORM_API_GATEWAY_HTTP_URL',
   'VITE_SDKWORK_BIRDCODER_PRIVACY_POLICY_URL',
@@ -459,27 +460,6 @@ function createBirdcoderWorkspaceAliasEntries(appRootDir = defaultBirdcoderAppRo
       find: '@sdkwork/wallet-pc-react',
       replacement: resolveDependencyPath('sdkwork-appbase', 'packages/pc-react/commerce/sdkwork-wallet-pc-react/src/index.ts'),
     },
-    // --- sdkwork-membership (membership + subscription PC packages) ---
-    {
-      find: /^@sdkwork\/membership-pc-membership\/(.+)$/u,
-      replacement: resolveDependencyPath('sdkwork-membership', 'apps/sdkwork-membership-pc/packages/sdkwork-membership-pc-membership/src/$1'),
-    },
-    {
-      find: '@sdkwork/membership-pc-membership',
-      replacement: resolveDependencyPath('sdkwork-membership', 'apps/sdkwork-membership-pc/packages/sdkwork-membership-pc-membership/src/index.ts'),
-    },
-    {
-      find: /^@sdkwork\/membership-pc-subscription\/catalog$/u,
-      replacement: resolveDependencyPath('sdkwork-membership', 'apps/sdkwork-membership-pc/packages/sdkwork-membership-pc-subscription/src/catalog.ts'),
-    },
-    {
-      find: /^@sdkwork\/membership-pc-subscription\/(.+)$/u,
-      replacement: resolveDependencyPath('sdkwork-membership', 'apps/sdkwork-membership-pc/packages/sdkwork-membership-pc-subscription/src/$1'),
-    },
-    {
-      find: '@sdkwork/membership-pc-subscription',
-      replacement: resolveDependencyPath('sdkwork-membership', 'apps/sdkwork-membership-pc/packages/sdkwork-membership-pc-subscription/src/index.ts'),
-    },
     // --- sdkwork-promotion (promotion PC coupon + service + core) ---
     {
       find: /^@sdkwork\/promotion-pc-coupon\/(.+)$/u,
@@ -520,49 +500,6 @@ function createBirdcoderWorkspaceAliasEntries(appRootDir = defaultBirdcoderAppRo
     {
       find: '@sdkwork/promotion-sdk-ports',
       replacement: resolveDependencyPath('sdkwork-promotion', 'apps/sdkwork-promotion-common/packages/sdkwork-promotion-sdk-ports/src/index.ts'),
-    },
-    // --- sdkwork-membership-service (membership service layer) ---
-    {
-      find: /^@sdkwork\/membership-service\/(.+)$/u,
-      replacement: resolveDependencyPath('sdkwork-membership', 'apps/sdkwork-membership-common/packages/sdkwork-membership-service/src/$1'),
-    },
-    {
-      find: '@sdkwork/membership-service',
-      replacement: resolveDependencyPath('sdkwork-membership', 'apps/sdkwork-membership-common/packages/sdkwork-membership-service/src/index.ts'),
-    },
-    {
-      find: /^@sdkwork\/membership-sdk-ports\/(.+)$/u,
-      replacement: resolveDependencyPath('sdkwork-membership', 'apps/sdkwork-membership-common/packages/sdkwork-membership-sdk-ports/src/$1'),
-    },
-    {
-      find: '@sdkwork/membership-sdk-ports',
-      replacement: resolveDependencyPath('sdkwork-membership', 'apps/sdkwork-membership-common/packages/sdkwork-membership-sdk-ports/src/index.ts'),
-    },
-    {
-      find: /^@sdkwork\/membership-contracts\/(.+)$/u,
-      replacement: resolveDependencyPath('sdkwork-membership', 'apps/sdkwork-membership-common/packages/sdkwork-membership-contracts/src/$1'),
-    },
-    {
-      find: '@sdkwork/membership-contracts',
-      replacement: resolveDependencyPath('sdkwork-membership', 'apps/sdkwork-membership-common/packages/sdkwork-membership-contracts/src/index.ts'),
-    },
-    // --- sdkwork-order (order app SDK, dependency of membership-service) ---
-    {
-      find: /^@sdkwork\/order-app-sdk\/(.+)$/u,
-      replacement: resolveDependencyPath('sdkwork-order', 'sdks/sdkwork-order-app-sdk/sdkwork-order-app-sdk-typescript/src/$1'),
-    },
-    {
-      find: '@sdkwork/order-app-sdk',
-      replacement: resolveDependencyPath('sdkwork-order', 'sdks/sdkwork-order-app-sdk/sdkwork-order-app-sdk-typescript/src/index.ts'),
-    },
-    // --- sdkwork-membership SDK (membership app SDK, dependency of membership-service) ---
-    {
-      find: /^@sdkwork\/membership-app-sdk\/(.+)$/u,
-      replacement: resolveDependencyPath('sdkwork-membership', 'sdks/sdkwork-membership-app-sdk/sdkwork-membership-app-sdk-typescript/src/$1'),
-    },
-    {
-      find: '@sdkwork/membership-app-sdk',
-      replacement: resolveDependencyPath('sdkwork-membership', 'sdks/sdkwork-membership-app-sdk/sdkwork-membership-app-sdk-typescript/src/index.ts'),
     },
     {
       find: /^@sdkwork\/search-pc-react\/(.+)$/u,

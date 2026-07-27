@@ -1,5 +1,10 @@
 import type { CSSProperties } from 'react';
 import type { AgentSessionView, AgentProjectView } from '@sdkwork/birdcoder-pc-contracts-commons';
+import type {
+  AgentSessionInboxFilter,
+  AgentSessionInboxGroupMode,
+  AgentSessionInboxSortMode,
+} from '@sdkwork/birdcoder-pc-workbench/workbench/sessionInbox';
 
 export interface ProjectExplorerProjectEntry {
   canShowMoreSessions: boolean;
@@ -10,9 +15,18 @@ export interface ProjectExplorerProjectEntry {
   visibleSessions: AgentSessionView[];
 }
 
-export type ProjectExplorerOrganizeBy = 'project' | 'chronological';
+export function canLoadMoreProjectSessions(
+  project: AgentProjectView,
+  visibleSessionCount: number,
+): boolean {
+  return project.agentSessionPageInfo === undefined
+    || visibleSessionCount < project.agentSessions.length
+    || project.agentSessionPageInfo?.hasMore === true;
+}
 
-export type ProjectExplorerSortBy = 'created' | 'updated';
+export type ProjectExplorerOrganizeBy = AgentSessionInboxGroupMode;
+export type ProjectExplorerSessionFilter = AgentSessionInboxFilter;
+export type ProjectExplorerSortBy = AgentSessionInboxSortMode;
 
 export interface ProjectExplorerEngineOption {
   id: string;

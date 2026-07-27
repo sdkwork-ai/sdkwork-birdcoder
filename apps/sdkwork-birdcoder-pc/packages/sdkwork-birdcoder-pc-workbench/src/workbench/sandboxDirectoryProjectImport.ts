@@ -21,13 +21,18 @@ export interface SandboxDirectoryProjectImportPort {
 export interface ProjectDriveCompositionPort {
   bindProjectDrive(
     projectId: string,
-    selection: SandboxSelection,
-  ): Promise<void>;
+    input: {
+      readonly driveId: string;
+      readonly logicalPath: string;
+      readonly rootEntryId: string;
+    },
+  ): Promise<unknown>;
 }
 
 export interface ImportSandboxDirectoryProjectOptions {
   readonly fallbackProjectName: string;
   readonly importPort: SandboxDirectoryProjectImportPort;
+  readonly projectName?: string;
   readonly selection: SandboxSelection;
   readonly workspaceId: string;
 }
@@ -52,8 +57,13 @@ function normalizeRequired(value: string, label: string): string {
   return normalized;
 }
 
-function resolveProjectName(selection: SandboxSelection, fallbackProjectName: string): string {
-  return selection.directoryName.trim()
+function resolveProjectName(
+  selection: SandboxSelection,
+  fallbackProjectName: string,
+  projectName?: string,
+): string {
+  return projectName?.trim()
+    || selection.directoryName.trim()
     || fallbackProjectName.trim()
     || 'Server project';
 }
@@ -68,7 +78,11 @@ export async function importSandboxDirectoryProject(
   options: ImportSandboxDirectoryProjectOptions,
 ): Promise<ImportedSandboxDirectoryProject> {
   const workspaceId = normalizeRequired(options.workspaceId, 'Workspace ID');
-  const projectName = resolveProjectName(options.selection, options.fallbackProjectName);
+  const projectName = resolveProjectName(
+    options.selection,
+    options.fallbackProjectName,
+    options.projectName,
+  );
   const importedProject = await options.importPort.importProject({
     driveLogicalPath: options.selection.logicalPath.trim(),
     driveRootEntryId: normalizeRequired(options.selection.entryId, 'Drive root entry ID'),
@@ -91,5 +105,9 @@ export async function rebindSandboxDirectoryProject(
   options: RebindSandboxDirectoryProjectOptions,
 ): Promise<void> {
   const projectId = normalizeRequired(options.projectId, 'Project ID');
-  await options.compositionPort.bindProjectDrive(projectId, options.selection);
+  await options.compositionPort.bindProjectDrive(projectId, {
+    driveId: normalizeRequired(options.selection.sandboxId, 'Drive space ID'),
+    logicalPath: options.selection.logicalPath.trim(),
+    rootEntryId: normalizeRequired(options.selection.entryId, 'Drive root entry ID'),
+  });
 }

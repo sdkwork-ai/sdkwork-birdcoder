@@ -121,7 +121,7 @@ export const ProjectExplorerProjectSection = React.memo(function ProjectExplorer
       style={buildProjectExplorerSurfaceStyle(expanded ? '260px' : '44px')}
     >
       <div
-        className={`birdcoder-session-row ${isSelectedProject ? 'birdcoder-session-selected' : ''} relative flex items-center gap-2 px-2 py-1.5 rounded-md cursor-pointer transition-colors group ${
+        className={`birdcoder-session-row group relative flex cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-[length:var(--birdcoder-ui-font-size,12px)] transition-colors ${isSelectedProject ? 'birdcoder-session-selected' : ''} ${
           isSelectedProject ? 'text-white' : 'text-gray-300'
         }`}
         onClick={handleProjectRowClick}
@@ -157,7 +157,7 @@ export const ProjectExplorerProjectSection = React.memo(function ProjectExplorer
               }
             }}
             onBlur={onProjectRenameCancel}
-            className="flex-1 bg-transparent border-none outline-none text-white focus:ring-1 focus:ring-blue-500 rounded px-1 text-sm min-w-0 font-medium"
+            className="min-w-0 flex-1 rounded border-none bg-transparent px-1 text-[length:var(--birdcoder-ui-font-size,12px)] font-medium text-white outline-none focus:ring-1 focus:ring-blue-500"
             onClick={(event) => event.stopPropagation()}
           />
         ) : (
@@ -211,6 +211,7 @@ export const ProjectExplorerProjectSection = React.memo(function ProjectExplorer
                 relativeTimeNow={relativeTimeNow}
                 session={session}
                 sessionProjectId={project.projectId}
+                projectName={project.name}
                 isSelected={selectedVisibleSessionId === session.id}
                 isRenaming={renamingVisibleSessionId === session.id}
                 renameValue={renamingVisibleSessionId === session.id ? sessionRenameValue : ''}

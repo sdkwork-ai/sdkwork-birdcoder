@@ -4,6 +4,9 @@ import {
 } from './runtimeConfig.ts';
 
 interface BirdCoderPublicRuntimeEnv {
+  VITE_SDKWORK_BIRDCODER_ENVIRONMENT?: string;
+  VITE_SDKWORK_BIRDCODER_DEPLOYMENT_PROFILE?: string;
+  VITE_SDKWORK_BIRDCODER_RUNTIME_TARGET?: string;
   VITE_SDKWORK_BIRDCODER_APPLICATION_PUBLIC_HTTP_URL?: string;
   VITE_BIRDCODER_API_BASE_URL?: string;
   VITE_SDKWORK_DEPLOYMENT_PROFILE?: string;
@@ -24,12 +27,18 @@ export function resolveBirdCoderH5Environment() {
       ?? publicRuntimeEnv?.VITE_SDKWORK_BIRDCODER_APPLICATION_PUBLIC_HTTP_URL
       ?? publicRuntimeEnv?.VITE_BIRDCODER_API_BASE_URL
       ?? resolveBirdCoderH5ApplicationApiBaseUrl(),
-    deploymentProfile: publicRuntimeEnv?.VITE_SDKWORK_DEPLOYMENT_PROFILE ?? 'cloud',
-    environment: mode,
+    deploymentProfile:
+      publicRuntimeEnv?.VITE_SDKWORK_BIRDCODER_DEPLOYMENT_PROFILE
+      ?? publicRuntimeEnv?.VITE_SDKWORK_DEPLOYMENT_PROFILE
+      ?? 'cloud',
+    environment: publicRuntimeEnv?.VITE_SDKWORK_BIRDCODER_ENVIRONMENT ?? mode,
     executionAuthorityMode: runtimeConfig.executionAuthorityMode ?? 'auto',
     isDevelopment: import.meta.env.DEV,
     isProduction: import.meta.env.PROD,
     mode,
-    runtimeTarget: publicRuntimeEnv?.VITE_SDKWORK_RUNTIME_TARGET ?? 'h5',
+    runtimeTarget:
+      publicRuntimeEnv?.VITE_SDKWORK_BIRDCODER_RUNTIME_TARGET
+      ?? publicRuntimeEnv?.VITE_SDKWORK_RUNTIME_TARGET
+      ?? 'browser',
   };
 }

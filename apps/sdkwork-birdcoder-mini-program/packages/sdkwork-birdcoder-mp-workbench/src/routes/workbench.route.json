@@ -1,0 +1,11 @@
+{
+  "id": "app.im.chat.index",
+  "titleKey": "route.chat",
+  "auth": "required",
+  "permissionHint": "birdcoder.system-descriptor.read",
+  "placement": {
+    "package": "root",
+    "pagePath": "pages/__generated__/workbench/index",
+    "navigationBarTitleText": "BirdCoder"
+  }
+}

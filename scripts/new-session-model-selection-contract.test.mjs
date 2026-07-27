@@ -17,6 +17,9 @@ const projectContextMenuSource = readSource(
 const universalChatSource = readSource(
   'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-ui/src/components/UniversalChat.tsx',
 );
+const chatSelectionSource = readSource(
+  'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-workbench/src/hooks/useWorkbenchChatSelection.ts',
+);
 
 assert.match(
   newSessionButtonSource,
@@ -72,6 +75,11 @@ assert.match(
   universalChatSource,
   /const selectedProviderModelId = resolveWorkbenchCodeEngineSelectedModelId\(\s*selectedProvider,\s*preferences,\s*selectedProvider === resolvedSelectedEngineId \? currentModelId : undefined,\s*\)/s,
   'UniversalChat model menu must compute the selected model for the provider being viewed instead of reusing the active engine model.',
+);
+assert.match(
+  chatSelectionSource,
+  /useWorkbenchCodeEngineCatalog\(\)[\s\S]*if \(!codeEngineCatalog\.loaded\) \{\s*await loadWorkbenchCodeEngineCatalog\(\);\s*\}/,
+  'Provider Session creation must subscribe to and await the Agents code-engine catalog before resolving runtime identity.',
 );
 
 console.log('new session model selection contract passed.');

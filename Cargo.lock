@@ -5618,6 +5618,7 @@ dependencies = [
 name = "sdkwork-agent-provider-codex"
 version = "0.2.0"
 dependencies = [
+ "rusqlite",
  "sdkwork-agent-kernel",
  "sdkwork-agent-plugin-core",
  "sdkwork-agent-provider-core",
@@ -5636,6 +5637,7 @@ dependencies = [
  "sdkwork-agent-kernel",
  "sdkwork-utils-rust",
  "serde_json",
+ "time",
 ]
 
 [[package]]
@@ -5683,6 +5685,7 @@ dependencies = [
 name = "sdkwork-agent-provider-opencode"
 version = "0.2.0"
 dependencies = [
+ "rusqlite",
  "sdkwork-agent-kernel",
  "sdkwork-agent-plugin-core",
  "sdkwork-agent-provider-core",
@@ -5871,6 +5874,7 @@ dependencies = [
  "sdkwork-agent-kernel",
  "sdkwork-agent-provider-claude-code",
  "sdkwork-agent-provider-codex",
+ "sdkwork-agent-provider-core",
  "sdkwork-agent-provider-gemini-cli",
  "sdkwork-agent-provider-hermes",
  "sdkwork-agent-provider-openclaw",
@@ -5925,6 +5929,7 @@ name = "sdkwork-api-birdcoder-standalone-gateway"
 version = "0.1.0"
 dependencies = [
  "axum 0.8.9",
+ "sdkwork-agents-runtime-facade",
  "sdkwork-api-agents-assembly",
  "sdkwork-api-birdcoder-assembly",
  "sdkwork-api-documents-assembly",
@@ -6138,6 +6143,7 @@ dependencies = [
  "notify",
  "rfd",
  "rusqlite",
+ "sdkwork-agents-runtime-facade",
  "sdkwork-api-birdcoder-standalone-gateway",
  "sdkwork-birdcoder-git",
  "sdkwork-terminal-control-plane",
@@ -6839,6 +6845,8 @@ version = "0.1.0"
 dependencies = [
  "reqwest 0.12.28",
  "sdkwork-contract-service",
+ "sdkwork-database-sqlx",
+ "sdkwork-membership-repository-sqlx",
  "sdkwork-order-service",
  "sdkwork-utils-rust",
  "serde",
@@ -6949,6 +6957,7 @@ dependencies = [
  "serde",
  "serde_json",
  "sqlx",
+ "tokio",
  "uuid",
 ]
 
@@ -7351,6 +7360,7 @@ dependencies = [
  "sdkwork-order-repository-sqlx",
  "sdkwork-order-service",
  "sdkwork-order-service-host",
+ "sdkwork-payment-providers",
  "sdkwork-payment-repository-sqlx",
  "sdkwork-payment-service",
  "sdkwork-utils-rust",

@@ -17,6 +17,9 @@ export const TERMINAL_COMMAND_GUARD_SETTINGS = [
 export type TerminalCommandGuardSetting =
   (typeof TERMINAL_COMMAND_GUARD_SETTINGS)[number];
 
+export const APP_FONT_SIZE_MIN = 8;
+export const APP_FONT_SIZE_MAX = 32;
+
 const TERMINAL_APPROVAL_POLICY_ALIASES: Readonly<
   Record<string, TerminalApprovalPolicySetting>
 > = {
@@ -134,7 +137,7 @@ export const DEFAULT_APP_SETTINGS: AppSettings = {
   enablePermissionNotifications: true,
   theme: "Dark",
   usePointerCursor: false,
-  uiFontSize: "13",
+  uiFontSize: "12",
   codeFontSize: "12",
   approvalPolicy: "OnRequest",
   sandboxSettings: "FullAccess",
@@ -292,7 +295,7 @@ export function parseAppSettingValue<K extends keyof AppSettings>(
     }
 
     const numericValue = Number(value);
-    return numericValue >= 8 && numericValue <= 32
+    return numericValue >= APP_FONT_SIZE_MIN && numericValue <= APP_FONT_SIZE_MAX
       ? value.trim() as AppSettings[K]
       : null;
   }

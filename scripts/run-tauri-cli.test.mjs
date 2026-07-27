@@ -2,7 +2,10 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
 
-import { createTauriCliPlan } from './run-tauri-cli.mjs';
+import {
+  createTauriCliPlan,
+  resolveDesktopApplicationRootEnv,
+} from './run-tauri-cli.mjs';
 
 const modulePath = path.resolve(import.meta.dirname, 'run-tauri-cli.mjs');
 
@@ -19,9 +22,43 @@ assert.deepEqual(defaultPlan.args, ['/workspace/sdkwork-birdcoder/node_modules/@
 assert.equal(defaultPlan.env.SDKWORK_VITE_MODE, 'development');
 assert.equal(defaultPlan.shell, false);
 
+assert.deepEqual(
+  resolveDesktopApplicationRootEnv({
+    env: {
+      SDKWORK_APP_ROOT: '.',
+      SDKWORK_BIRDCODER_APP_ROOT: './apps/..',
+    },
+    platform: 'win32',
+    workspaceRootDir: 'D:\\workspace\\sdkwork-birdcoder',
+  }),
+  {
+    SDKWORK_APP_ROOT: 'D:\\workspace\\sdkwork-birdcoder',
+    SDKWORK_BIRDCODER_APP_ROOT: 'D:\\workspace\\sdkwork-birdcoder',
+  },
+  'desktop application roots from source profiles must resolve against the repository root',
+);
+
+assert.deepEqual(
+  resolveDesktopApplicationRootEnv({
+    env: {
+      SDKWORK_APP_ROOT: '/opt/sdkwork/birdcoder',
+      SDKWORK_BIRDCODER_APP_ROOT: '',
+    },
+    platform: 'linux',
+    workspaceRootDir: '/workspace/sdkwork-birdcoder',
+  }),
+  {
+    SDKWORK_APP_ROOT: '/opt/sdkwork/birdcoder',
+  },
+  'absolute application roots must remain absolute and blank overrides must stay absent',
+);
+
 const testPlan = createTauriCliPlan({
   argv: ['dev', '--config', 'src-tauri/tauri.test.conf.json', '--vite-mode', 'test'],
-  env: {},
+  env: {
+    SDKWORK_APP_ROOT: '.',
+    SDKWORK_BIRDCODER_APP_ROOT: '.',
+  },
   platform: 'win32',
   cwd: 'D:\\workspace\\sdkwork-birdcoder\\packages\\sdkwork-birdcoder-pc-desktop',
   execPath: 'C:\\Program Files\\nodejs\\node.exe',
@@ -34,6 +71,14 @@ assert.deepEqual(
   ['D:\\workspace\\sdkwork-birdcoder\\node_modules\\@tauri-apps\\cli\\tauri.js', 'dev', '--config', 'src-tauri/tauri.test.conf.json'],
 );
 assert.equal(testPlan.env.SDKWORK_VITE_MODE, 'test');
+assert.equal(
+  testPlan.env.SDKWORK_APP_ROOT,
+  path.resolve(import.meta.dirname, '..'),
+);
+assert.equal(
+  testPlan.env.SDKWORK_BIRDCODER_APP_ROOT,
+  path.resolve(import.meta.dirname, '..'),
+);
 assert.equal(
   testPlan.env.SDKWORK_BIRDCODER_DEVICE_STATE_FILE,
   'D:\\workspace\\sdkwork-birdcoder\\packages\\sdkwork-birdcoder-pc-desktop\\.local\\birdcoder-device-state.sqlite3',

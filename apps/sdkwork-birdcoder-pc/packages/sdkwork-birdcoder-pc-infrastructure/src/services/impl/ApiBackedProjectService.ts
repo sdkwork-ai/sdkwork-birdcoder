@@ -52,6 +52,10 @@ function normalizeRequired(value: string, label: string): string {
   return normalized;
 }
 
+function normalizeProjectName(value: string): string {
+  return normalizeRequired(value, 'Project name').toLowerCase();
+}
+
 function buildProjectDrivePolicy(
   input: BindProjectDriveCompositionInput,
 ): ProjectDrivePolicy {
@@ -151,6 +155,21 @@ export class ApiBackedProjectService implements IProjectService {
     this.projects = projects;
   }
 
+  private rememberProjectVersion(projectId: string, version: string): void {
+    const knownVersion = this.versions.get(projectId);
+    if (knownVersion === undefined) {
+      this.versions.set(projectId, version);
+      return;
+    }
+    try {
+      if (BigInt(version) >= BigInt(knownVersion)) {
+        this.versions.set(projectId, version);
+      }
+    } catch {
+      this.versions.set(projectId, version);
+    }
+  }
+
   async getProjectsPage(request: AgentProjectPageRequest): Promise<AgentProjectViewPage> {
     const pagination = normalizeOffsetListQuery({
       page: request.page,
@@ -159,7 +178,9 @@ export class ApiBackedProjectService implements IProjectService {
     const response = await this.projects.list({
       page: pagination.page,
       pageSize: pagination.page_size,
-      workspaceId: request.workspaceId,
+      ...(request.workspaceId?.trim()
+        ? { workspaceId: request.workspaceId.trim() }
+        : {}),
       ...(request.q?.trim() ? { q: request.q.trim() } : {}),
       ...(request.status ? { status: request.status } : {}),
       ...(request.includeDeleted === undefined
@@ -167,7 +188,7 @@ export class ApiBackedProjectService implements IProjectService {
         : { includeDeleted: request.includeDeleted }),
     });
     for (const project of response.items) {
-      this.versions.set(project.projectId, project.version);
+      this.rememberProjectVersion(project.projectId, project.version);
     }
     return {
       items: response.items.map(mapProject),
@@ -178,7 +199,7 @@ export class ApiBackedProjectService implements IProjectService {
   async getProjectById(projectId: string): Promise<AgentProjectView | null> {
     try {
       const project = await this.projects.retrieve(projectId);
-      this.versions.set(project.projectId, project.version);
+      this.rememberProjectVersion(project.projectId, project.version);
       return mapProject(project);
     } catch (error) {
       if (readBirdCoderApiTransportErrorHttpStatus(error) === 404) {
@@ -186,6 +207,34 @@ export class ApiBackedProjectService implements IProjectService {
       }
       throw error;
     }
+  }
+
+  async getProjectByName(
+    workspaceId: string,
+    name: string,
+  ): Promise<AgentProjectView | null> {
+    const normalizedWorkspaceId = normalizeRequired(workspaceId, 'Workspace ID');
+    const normalizedName = normalizeProjectName(name);
+    const response = await this.projects.list({
+      includeDeleted: false,
+      page: 1,
+      pageSize: 100,
+      q: normalizeRequired(name, 'Project name'),
+      workspaceId: normalizedWorkspaceId,
+    });
+    const projects = response.items as AgentProjectRecord[];
+    const project = projects
+      .filter((candidate) => normalizeProjectName(candidate.name) === normalizedName)
+      .sort((left, right) =>
+        Number(right.status === 'active') - Number(left.status === 'active')
+          || left.createdAt.localeCompare(right.createdAt)
+          || left.projectId.localeCompare(right.projectId),
+      )[0];
+    if (!project) {
+      return null;
+    }
+    this.rememberProjectVersion(project.projectId, project.version);
+    return mapProject(project);
   }
 
   async createProject(
@@ -199,30 +248,54 @@ export class ApiBackedProjectService implements IProjectService {
         ? { description: options.description.trim() }
         : {}),
     });
-    this.versions.set(project.projectId, project.version);
+    this.rememberProjectVersion(project.projectId, project.version);
     return mapProject(project);
   }
 
   async importProject(options: ImportProjectOptions): Promise<AgentProjectView> {
+    const workspaceId = normalizeRequired(options.workspaceId, 'Workspace ID');
+    const name = normalizeRequired(options.name, 'Project name');
+    const driveId = normalizeRequired(options.driveSpaceId, 'Drive space ID');
+    const rootEntryId = normalizeRequired(options.driveRootEntryId, 'Drive root entry ID');
+    const logicalPath = options.driveLogicalPath?.trim() ?? '';
+    const existingProject = await this.getProjectByName(workspaceId, name);
+    if (existingProject) {
+      await this.bindProjectDrive(existingProject.projectId, {
+        driveId,
+        logicalPath,
+        rootEntryId,
+      });
+      return existingProject;
+    }
     const project = await this.projects.import({
-      workspaceId: normalizeRequired(options.workspaceId, 'Workspace ID'),
-      name: normalizeRequired(options.name, 'Project name'),
+      workspaceId,
+      name,
       sourceKind: normalizeRequired(options.sourceKind, 'Import source kind'),
       sourceRef: normalizeRequired(options.sourceRef, 'Import source reference'),
-      driveSpaceId: normalizeRequired(options.driveSpaceId, 'Drive space ID'),
-      driveRootEntryId: normalizeRequired(
-        options.driveRootEntryId,
-        'Drive root entry ID',
-      ),
+      driveSpaceId: driveId,
+      driveRootEntryId: rootEntryId,
       ...(options.description?.trim()
         ? { description: options.description.trim() }
         : {}),
-      ...(options.driveLogicalPath?.trim()
-        ? { driveLogicalPath: options.driveLogicalPath.trim() }
+      ...(logicalPath
+        ? { driveLogicalPath: logicalPath }
         : {}),
     });
-    this.versions.set(project.projectId, project.version);
-    return mapProject(project);
+    this.rememberProjectVersion(project.projectId, project.version);
+    const importedProject = mapProject(project);
+    if (
+      importedProject.importSourceRef !== normalizeRequired(
+        options.sourceRef,
+        'Import source reference',
+      )
+    ) {
+      await this.bindProjectDrive(importedProject.projectId, {
+        driveId,
+        logicalPath,
+        rootEntryId,
+      });
+    }
+    return importedProject;
   }
 
   async renameProject(projectId: string, name: string): Promise<void> {
@@ -237,14 +310,14 @@ export class ApiBackedProjectService implements IProjectService {
         ? {}
         : { description: updates.description }),
     });
-    this.versions.set(project.projectId, project.version);
+    this.rememberProjectVersion(project.projectId, project.version);
   }
 
   async archiveProject(projectId: string): Promise<void> {
     const project = await this.projects.archive(projectId, {
       expectedVersion: await this.resolveVersion(projectId),
     });
-    this.versions.set(project.projectId, project.version);
+    this.rememberProjectVersion(project.projectId, project.version);
   }
 
   async deleteProject(projectId: string): Promise<void> {
@@ -293,17 +366,6 @@ export class ApiBackedProjectService implements IProjectService {
 
   async getProjectDrive(projectId: string): Promise<ProjectDriveComposition | null> {
     const normalizedProjectId = normalizeRequired(projectId, 'Project ID');
-    const project = await this.projects.retrieve(normalizedProjectId);
-    if (project.driveSpaceId && project.driveRootEntryId) {
-      return {
-        driveId: project.driveSpaceId,
-        logicalPath: project.driveLogicalPath ?? '',
-        projectId: project.projectId,
-        rootEntryId: project.driveRootEntryId,
-        slotId: 'import-source',
-        version: project.version,
-      };
-    }
     const slot = await this.projectCompositionSlots
       .retrieve(normalizedProjectId, PRIMARY_DRIVE_SLOT_ID)
       .catch((error: unknown) => {
@@ -312,7 +374,20 @@ export class ApiBackedProjectService implements IProjectService {
         }
         throw error;
       });
-    return slot ? mapProjectDriveComposition(slot) : null;
+    if (slot) {
+      return mapProjectDriveComposition(slot);
+    }
+    const project = await this.projects.retrieve(normalizedProjectId);
+    return project.driveSpaceId && project.driveRootEntryId
+      ? {
+          driveId: project.driveSpaceId,
+          logicalPath: project.driveLogicalPath ?? '',
+          projectId: project.projectId,
+          rootEntryId: project.driveRootEntryId,
+          slotId: 'import-source',
+          version: project.version,
+        }
+      : null;
   }
 
   private async resolveVersion(projectId: string): Promise<string> {
@@ -321,7 +396,7 @@ export class ApiBackedProjectService implements IProjectService {
       return knownVersion;
     }
     const project = await this.projects.retrieve(projectId);
-    this.versions.set(project.projectId, project.version);
+    this.rememberProjectVersion(project.projectId, project.version);
     return project.version;
   }
 }

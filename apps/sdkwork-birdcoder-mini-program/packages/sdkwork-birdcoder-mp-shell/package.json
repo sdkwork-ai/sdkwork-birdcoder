@@ -1,0 +1,13 @@
+{
+  "name": "@sdkwork/birdcoder-mp-shell",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "dependencies": {
+    "@sdkwork/birdcoder-mp-core": "workspace:*",
+    "@sdkwork/birdcoder-mp-workbench": "workspace:*"
+  },
+  "exports": {
+    ".": "./src/index.ts"
+  }
+}

@@ -60,6 +60,12 @@ assert.match(
 
 assert.match(
   hookSource,
+  /errorCode === 'tauri_project_git_runtime_unavailable'/,
+  'Browser mode must treat an unavailable Tauri Git host as an expected capability state.',
+);
+
+assert.match(
+  hookSource,
   /if \(shouldReportProjectGitOverviewLoadError\(error\)\) \{\s*console\.error\('Failed to load project Git overview', error\);\s*\}/,
   'Project Git overview loading must log real failures without logging the expected runtime-selection state.',
 );

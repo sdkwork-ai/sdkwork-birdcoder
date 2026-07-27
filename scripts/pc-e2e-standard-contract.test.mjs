@@ -81,8 +81,13 @@ assert.match(
 );
 assert.match(
   mockServer,
-  /ai\/agents\/agent\.birdcoder\/sessions/u,
-  'PC e2e mock API server must mock the canonical Agents coding session catalog.',
+  /projectSessionsMatch[\s\S]*workspaceSessionsMatch[\s\S]*agentSessionsMatch/u,
+  'PC e2e mock API server must mock the canonical Project, Workspace, and Agent Session catalogs.',
+);
+assert.match(
+  mockServer,
+  /runtime_bindings\|turns\|user_state/u,
+  'PC e2e mock API server must hydrate runtime identity and per-user Session state.',
 );
 assert.doesNotMatch(
   mockServer,
@@ -150,6 +155,21 @@ assert.match(
   playwrightConfig,
   /SDKWORK_BIRDCODER_DEPLOYMENT_PROFILE: 'standalone'/u,
   'PC Playwright must select the standalone profile for its single mock application ingress.',
+);
+assert.match(
+  playwrightConfig,
+  /mergeRepoBootstrapAccessTokenEnv/u,
+  'PC Playwright must bootstrap IAM credential entry through the canonical helper.',
+);
+assert.match(
+  playwrightConfig,
+  /allowTestTokenGeneration: true/u,
+  'PC Playwright may generate a bootstrap Access-Token only for its isolated test runtime.',
+);
+assert.match(
+  playwrightConfig,
+  /SDKWORK_ACCESS_TOKEN: e2eBootstrapAccessToken/u,
+  'PC Playwright must pass the private bootstrap Access-Token to the Vite host.',
 );
 assert.doesNotMatch(
   playwrightConfig,
@@ -271,6 +291,21 @@ assert.match(
   terminalSpec,
   /terminalRequests[\s\S]*toEqual\(\[\]\)/u,
   'PC browser terminal must fail closed before invoking a device terminal without a governed runtime binding.',
+);
+assert.match(
+  terminalSpec,
+  /runtimeLocationId:\s*'runtime-location\.e2e-terminal-ready'[\s\S]*terminalCreateBodies/u,
+  'PC browser terminal e2e must provide a current Agents Session Runtime Binding and capture the terminal create request.',
+);
+assert.match(
+  terminalSpec,
+  /terminalCreateBodies\[0\][\s\S]*projectId:[\s\S]*runtimeLocationId:[\s\S]*command:\s*\['\/bin\/bash', '-l'\]/u,
+  'PC browser terminal e2e must prove the governed runtime binding launches the expected remote shell.',
+);
+assert.match(
+  terminalSpec,
+  /not\.toHaveProperty\('path'\)[\s\S]*not\.toHaveProperty\('workingDirectory'\)/u,
+  'PC browser terminal e2e must prove client filesystem paths never cross the Browser runtime boundary.',
 );
 
 console.log('pc e2e standard contract passed.');

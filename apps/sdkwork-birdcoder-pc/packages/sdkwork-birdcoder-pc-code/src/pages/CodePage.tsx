@@ -10,8 +10,7 @@ import {
 } from '@sdkwork/birdcoder-pc-workbench/workbench/agentSessionCreation';
 import { createIdleProjectMountRecoveryState } from '@sdkwork/birdcoder-pc-workbench/workbench/projectMountRecovery';
 import { hydrateImportedProjectFromAuthority } from '@sdkwork/birdcoder-pc-workbench/workbench/importedProjectHydration';
-import { rebindLocalFolderProject } from '@sdkwork/birdcoder-pc-workbench/workbench/localFolderProjectImport';
-import { openLocalFolder } from '@sdkwork/birdcoder-pc-workbench/utils/fileSystem';
+import { rebindSelectedProjectDirectory } from '@sdkwork/birdcoder-pc-workbench/workbench/projectDirectorySelection';
 import { emitRevealProjectInFileManager } from '@sdkwork/birdcoder-pc-workbench/events/projectDeviceMountEvents';
 import { emitProjectMountRecoveryState } from '@sdkwork/birdcoder-pc-workbench/events/projectMountRecoveryEvents';
 import { globalEventBus } from '@sdkwork/birdcoder-pc-workbench/utils/EventBus';
@@ -57,6 +56,43 @@ import { useCodeRunEntryActions } from './useCodeRunEntryActions';
 import { useCodePageTerminalActions } from './useCodePageTerminalActions';
 import { useCodeWorkbenchCommands } from './useCodeWorkbenchCommands';
 
+const PROJECT_SIDEBAR_ADAPTIVE_MIN_WIDTH = 288;
+const PROJECT_SIDEBAR_ADAPTIVE_MAX_WIDTH = 420;
+const PROJECT_SIDEBAR_VIEWPORT_RATIO = 0.24;
+const PROJECT_SIDEBAR_MANUAL_MIN_WIDTH = 200;
+const PROJECT_SIDEBAR_MANUAL_MAX_WIDTH = 600;
+const PROJECT_SIDEBAR_MAX_VIEWPORT_RATIO = 0.45;
+const FALLBACK_VIEWPORT_WIDTH = 1_440;
+
+function constrainProjectSidebarWidth(width: number, viewportWidth: number): number {
+  const viewportMaximum = Math.max(
+    PROJECT_SIDEBAR_MANUAL_MIN_WIDTH,
+    Math.min(
+      PROJECT_SIDEBAR_MANUAL_MAX_WIDTH,
+      Math.floor(viewportWidth * PROJECT_SIDEBAR_MAX_VIEWPORT_RATIO),
+    ),
+  );
+
+  return Math.max(
+    PROJECT_SIDEBAR_MANUAL_MIN_WIDTH,
+    Math.min(viewportMaximum, width),
+  );
+}
+
+function resolveAdaptiveProjectSidebarWidth(viewportWidth: number): number {
+  const preferredWidth = Math.round(viewportWidth * PROJECT_SIDEBAR_VIEWPORT_RATIO);
+  const adaptiveWidth = Math.max(
+    PROJECT_SIDEBAR_ADAPTIVE_MIN_WIDTH,
+    Math.min(PROJECT_SIDEBAR_ADAPTIVE_MAX_WIDTH, preferredWidth),
+  );
+
+  return constrainProjectSidebarWidth(adaptiveWidth, viewportWidth);
+}
+
+function readViewportWidth(): number {
+  return typeof window === 'undefined' ? FALLBACK_VIEWPORT_WIDTH : window.innerWidth;
+}
+
 function CodePageComponent({
   isVisible = true,
   workspaceId,
@@ -74,7 +110,7 @@ function CodePageComponent({
     filteredProjects,
     searchQuery,
     setSearchQuery,
-    createProject,
+    ensureProject,
     importProject,
     createAgentSession,
     renameProject,
@@ -82,6 +118,7 @@ function CodePageComponent({
     deleteProject,
     renameAgentSession,
     updateAgentSession,
+    updateAgentSessionRuntimeStatus,
     deleteAgentSession,
     editAgentSessionItem,
     deleteAgentSessionItem,
@@ -123,7 +160,10 @@ function CodePageComponent({
   const [isTerminalOpen, setIsTerminalOpen] = useState(false);
   const [terminalRequest, setTerminalRequest] = useState<TerminalCommandRequest>();
   const [terminalHeight, setTerminalHeight] = useState(256);
-  const [sidebarWidth, setSidebarWidth] = useState(256);
+  const manualSidebarWidthRef = useRef<number | null>(null);
+  const [sidebarWidth, setSidebarWidth] = useState(() =>
+    resolveAdaptiveProjectSidebarWidth(readViewportWidth()),
+  );
   const [editorExplorerWidth, setEditorExplorerWidth] = useState(256);
   const [isSidebarVisible, setIsSidebarVisible] = useState(true);
   const [isFindVisible, setIsFindVisible] = useState(false);
@@ -134,7 +174,27 @@ function CodePageComponent({
   const [isProjectGitOverviewDrawerOpen, setIsProjectGitOverviewDrawerOpen] = useState(false);
   const [isMountRecoveryActionPending, setIsMountRecoveryActionPending] = useState(false);
   const handleSidebarResize = useCallback((delta: number) => {
-    setSidebarWidth((previousState) => Math.max(200, Math.min(600, previousState + delta)));
+    setSidebarWidth((previousState) => {
+      const preferredWidth = Math.max(
+        PROJECT_SIDEBAR_MANUAL_MIN_WIDTH,
+        Math.min(PROJECT_SIDEBAR_MANUAL_MAX_WIDTH, previousState + delta),
+      );
+      manualSidebarWidthRef.current = preferredWidth;
+      return constrainProjectSidebarWidth(preferredWidth, readViewportWidth());
+    });
+  }, []);
+  useEffect(() => {
+    const handleViewportResize = () => {
+      const viewportWidth = readViewportWidth();
+      setSidebarWidth(
+        manualSidebarWidthRef.current === null
+          ? resolveAdaptiveProjectSidebarWidth(viewportWidth)
+          : constrainProjectSidebarWidth(manualSidebarWidthRef.current, viewportWidth),
+      );
+    };
+
+    window.addEventListener('resize', handleViewportResize);
+    return () => window.removeEventListener('resize', handleViewportResize);
   }, []);
   const handleTerminalResize = useCallback((delta: number) => {
     setTerminalHeight((previousState) => Math.max(100, Math.min(800, previousState - delta)));
@@ -420,7 +480,13 @@ function CodePageComponent({
     return resolveCodeProjectActionTarget(project, addToast);
   }, [addToast]);
 
-  const { selectFolderAndImportProject } = useCodeServerDirectoryProjectImport({
+  const {
+    selectFolderAndImportProject,
+    selectProjectFolder,
+  } = useCodeServerDirectoryProjectImport({
+    bindLocalProjectRuntimeLocation: (projectId, source) =>
+      projectRuntimeLocationService.bindLocalProjectRuntimeLocation(projectId, source),
+    ensureProject,
     importProject,
     workspaceId,
   });
@@ -460,8 +526,11 @@ function CodePageComponent({
     })();
   }, [agentSessionService, projectService, projects, selectSession, userScope, workspaceId]);
   const {
+    handleLoadEarlierAgentSessionItems,
     handleRefreshAgentSessionItems,
     handleRefreshProjectSessions,
+    loadingEarlierAgentSessionId,
+    loadingEarlierAgentSessionProjectId,
     refreshingAgentSessionId,
     refreshingProjectId,
   } = useSessionRefreshActions({
@@ -489,7 +558,6 @@ function CodePageComponent({
       resolveProjectById(targetProjectId)?.name ?? targetProjectId,
     restoreSelectionAfterRefresh,
   });
-
   const handleRenameSession = useCallback(async (
     agentSessionId: string,
     projectId: string,
@@ -523,7 +591,8 @@ function CodePageComponent({
     deleteAgentSessionItem,
     deleteProject,
     onProjectChange,
-    projectDeletedMessage: t('code.projectDeleted'),
+    projectRemoveFailedMessage: t('app.failedToRemoveProject'),
+    projectRemovedMessage: t('app.projectRemoved'),
     resolveProjectById,
     resolveSession: resolveSessionActionLocation,
     sessionId,
@@ -615,21 +684,18 @@ function CodePageComponent({
 
     setIsMountRecoveryActionPending(true);
     try {
-      const pickerResult = await openLocalFolder();
-      if (pickerResult.status === 'cancelled') {
-        return;
-      }
-      if (pickerResult.status === 'unsupported') {
-        addToast(pickerResult.message, 'error');
+      const selection = await selectProjectFolder();
+      if (!selection) {
         return;
       }
 
-      const reboundProject = await rebindLocalFolderProject({
+      const reboundProject = await rebindSelectedProjectDirectory({
         bindLocalProjectRuntimeLocation: (projectId, source) =>
           projectRuntimeLocationService.bindLocalProjectRuntimeLocation(projectId, source),
+        compositionPort: projectService,
         projectId: currentProjectId,
         fallbackProjectName: currentProject?.name ?? 'Local Folder',
-        folderInfo: pickerResult.source,
+        selection,
       });
 
       syncImportedProjectInBackground(currentProjectId);
@@ -650,6 +716,8 @@ function CodePageComponent({
     currentProject?.name,
     currentProjectId,
     projectRuntimeLocationService,
+    projectService,
+    selectProjectFolder,
     syncImportedProjectInBackground,
   ]);
 
@@ -995,6 +1063,57 @@ function CodePageComponent({
   ]);
   const visibleSessionId = isNewAgentSessionCreating ? null : sessionId;
   const selectedAgentSession = isNewAgentSessionCreating ? null : session;
+  const handleLoadEarlierSelectedAgentSessionItems = useCallback(() => {
+    const targetAgentSessionId = visibleSessionId?.trim() ?? '';
+    const targetProjectId = selectedAgentSession?.projectId.trim() || currentProjectId.trim();
+    if (!targetAgentSessionId || !targetProjectId) {
+      return Promise.resolve();
+    }
+    return handleLoadEarlierAgentSessionItems(targetAgentSessionId, targetProjectId);
+  }, [
+    currentProjectId,
+    handleLoadEarlierAgentSessionItems,
+    selectedAgentSession?.projectId,
+    visibleSessionId,
+  ]);
+  const isLoadingEarlierSelectedAgentSessionItems = Boolean(
+    visibleSessionId &&
+    loadingEarlierAgentSessionId === visibleSessionId &&
+    loadingEarlierAgentSessionProjectId === selectedAgentSession?.projectId,
+  );
+  const lastAutoReadSessionVersionRef = useRef('');
+  useEffect(() => {
+    if (
+      !isVisible
+      || !selectedAgentSession?.unread
+      || !visibleSessionId
+      || !selectedAgentSession.projectId
+    ) {
+      return;
+    }
+    const readVersion = [
+      selectedAgentSession.projectId,
+      visibleSessionId,
+      selectedAgentSession.lastItemSequence ?? selectedAgentSession.transcriptUpdatedAt ?? '',
+    ].join('\u0001');
+    if (lastAutoReadSessionVersionRef.current === readVersion) {
+      return;
+    }
+    lastAutoReadSessionVersionRef.current = readVersion;
+    void updateAgentSession(
+      selectedAgentSession.projectId,
+      visibleSessionId,
+      { unread: false },
+    );
+  }, [
+    isVisible,
+    selectedAgentSession?.lastItemSequence,
+    selectedAgentSession?.projectId,
+    selectedAgentSession?.transcriptUpdatedAt,
+    selectedAgentSession?.unread,
+    updateAgentSession,
+    visibleSessionId,
+  ]);
   const {
     handleSelectedEngineChange,
     handleSelectedModelChange,
@@ -1028,6 +1147,8 @@ function CodePageComponent({
       selectedAgentSessionItems.length === 0
     )
   );
+  const isSelectedAgentSessionNew =
+    !isSelectedAgentSessionHydrating && selectedAgentSessionItems.length === 0;
   const {
     mainChatEmptyState,
     editorChatEmptyState,
@@ -1150,6 +1271,7 @@ function CodePageComponent({
     files,
     filteredProjects,
     hasMoreProjects,
+    hasMoreRemoteMessages: Boolean(selectedAgentSession?.itemPageInfo?.hasMore),
     isChatBusy,
     isChatEngineBusy,
     isEngineBusyCurrentSession: isSelectedSessionEngineBusy,
@@ -1157,6 +1279,8 @@ function CodePageComponent({
     isFindVisible,
     isMountRecoveryActionPending,
     isLoadingMoreProjects,
+    isLoadingMoreRemoteMessages: isLoadingEarlierSelectedAgentSessionItems,
+    isNewSession: isSelectedAgentSessionNew,
     isQuickOpenVisible,
     isRunConfigVisible,
     isRunTaskVisible,
@@ -1181,9 +1305,19 @@ function CodePageComponent({
     selectedSessionTitle: selectedAgentSession?.title,
     selectedSessionEngineId: selectedAgentSession?.engineId,
     selectedSessionModelId: selectedAgentSession?.modelId,
+    selectedSessionRuntimeLocationId: selectedAgentSession?.runtimeLocationId,
     selectedSessionRuntimeStatus: selectedAgentSession?.runtimeStatus,
     selectedSessionTranscriptUpdatedAt: selectedAgentSession?.transcriptUpdatedAt,
     selectedSessionUpdatedAt: selectedAgentSession?.updatedAt,
+    onSelectedSessionRuntimeStatusChange: (runtimeStatus) => {
+      if (selectedAgentSession?.projectId && visibleSessionId) {
+        updateAgentSessionRuntimeStatus(
+          selectedAgentSession.projectId,
+          visibleSessionId,
+          runtimeStatus,
+        );
+      }
+    },
     sessionId: visibleSessionId,
     showComposerEngineSelector: true,
     sidebarWidth,
@@ -1227,6 +1361,7 @@ function CodePageComponent({
     onNewProject: handleNewProject,
     onLoadMoreProjects: loadMoreProjects,
     onLoadMoreProjectSessions: loadMoreProjectSessions,
+    onLoadMoreRemoteMessages: handleLoadEarlierSelectedAgentSessionItems,
     onNotifyNoResults: handleNotifyNoCodeResults,
     onOpenFolder: handleOpenFolder,
     onOpenInFileExplorer: handleOpenInFileExplorer,

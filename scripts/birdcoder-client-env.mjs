@@ -40,6 +40,11 @@ const surfaceDefinitions = {
     format: 'dart-define-json',
     runtimeTarget: 'flutter-android',
   },
+  miniProgram: {
+    appRoot: 'apps/sdkwork-birdcoder-mini-program',
+    format: 'mini-program-json',
+    runtimeTarget: 'mini-program',
+  },
 };
 
 function normalizeFromAllowed(value, allowed, label) {
@@ -178,6 +183,7 @@ function createCommonProfileValues({
   return {
     SDKWORK_ENVIRONMENT: environment,
     SDKWORK_DEPLOYMENT_PROFILE: deploymentProfile,
+    SDKWORK_PROFILE_ID: profileId,
     SDKWORK_RUNTIME_TARGET: runtimeTarget,
     SDKWORK_BIRDCODER_ENVIRONMENT: environment,
     SDKWORK_BIRDCODER_DEPLOYMENT_PROFILE: deploymentProfile,
@@ -210,6 +216,7 @@ export function createBirdcoderViteProfileValues({
     ...(devBind ? { SDKWORK_BIRDCODER_PC_DEV_BIND: devBind } : {}),
     VITE_SDKWORK_ENVIRONMENT: environment,
     VITE_SDKWORK_DEPLOYMENT_PROFILE: deploymentProfile,
+    VITE_SDKWORK_PROFILE_ID: commonValues.SDKWORK_PROFILE_ID,
     VITE_SDKWORK_RUNTIME_TARGET: runtimeTarget,
     VITE_SDKWORK_BIRDCODER_ENVIRONMENT: environment,
     VITE_SDKWORK_BIRDCODER_DEPLOYMENT_PROFILE: deploymentProfile,
@@ -242,6 +249,20 @@ export function createBirdcoderFlutterProfileValues({
   };
 }
 
+export function createBirdcoderMiniProgramProfileValues({
+  deploymentProfile,
+  environment,
+  runtimeTarget = 'mini-program',
+  topologyValues,
+}) {
+  return createCommonProfileValues({
+    deploymentProfile,
+    environment,
+    runtimeTarget,
+    topologyValues,
+  });
+}
+
 function serializeDotenv({ profileId, sourcePath, workspaceRootDir, values }) {
   const relativeSourcePath = path.relative(workspaceRootDir, sourcePath).replaceAll('\\', '/');
   const lines = [
@@ -255,15 +276,10 @@ function serializeDotenv({ profileId, sourcePath, workspaceRootDir, values }) {
 }
 
 function serializeJson({ profileId, sourcePath, workspaceRootDir, values }) {
-  const relativeSourcePath = path.relative(workspaceRootDir, sourcePath).replaceAll('\\', '/');
-  return `${JSON.stringify({
-    _generated: {
-      command: 'pnpm config:materialize',
-      profileId,
-      source: relativeSourcePath,
-    },
-    ...values,
-  }, null, 2)}\n`;
+  void profileId;
+  void sourcePath;
+  void workspaceRootDir;
+  return `${JSON.stringify(values, null, 2)}\n`;
 }
 
 export function resolveBirdcoderSurfaceProfilePath({
@@ -280,6 +296,14 @@ export function resolveBirdcoderSurfaceProfilePath({
   const appRootDir = path.join(workspaceRootDir, definition.appRoot);
   if (definition.format === 'dotenv') {
     return path.join(appRootDir, `.env.${profileId}`);
+  }
+  if (definition.format === 'mini-program-json') {
+    return path.join(
+      appRootDir,
+      'config',
+      'mini-program',
+      `runtime-env.${profileId}.json`,
+    );
   }
   return path.join(appRootDir, 'env', `sdkwork.${profileId}.json`);
 }
@@ -316,7 +340,14 @@ export function materializeBirdcoderClientEnv({
               devBind: definition.devBind,
               topologyValues: topologyProfile.values,
             })
-          : createBirdcoderFlutterProfileValues({
+          : definition.format === 'mini-program-json'
+            ? createBirdcoderMiniProgramProfileValues({
+                deploymentProfile,
+                environment,
+                runtimeTarget: definition.runtimeTarget,
+                topologyValues: topologyProfile.values,
+              })
+            : createBirdcoderFlutterProfileValues({
               deploymentProfile,
               environment,
               runtimeTarget: definition.runtimeTarget,

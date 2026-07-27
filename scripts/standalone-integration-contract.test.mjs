@@ -62,6 +62,16 @@ assert.equal(
   undefined,
   'Runtime target is selected by the lifecycle command and must not be frozen in a deployment profile.',
 );
+assert.equal(
+  standaloneDevelopmentProfile.SDKWORK_AGENTS_DEV_AUTH_BYPASS,
+  'false',
+  'Standalone development must use the persistent Agents PostgreSQL repository.',
+);
+assert.equal(
+  standaloneDevelopmentProfile.SDKWORK_AGENTS_DATABASE_URL,
+  undefined,
+  'Tracked topology must not contain the private Agents database credential.',
+);
 assert.deepEqual(
   standaloneDesktopPlan.localProcesses.map((processDefinition) => processDefinition.id),
   ['application.public-ingress', 'pc-desktop-renderer'],
@@ -70,6 +80,15 @@ assert.deepEqual(
 assert.equal(
   standaloneDesktopPlan.localProcesses[1].env.VITE_SDKWORK_BIRDCODER_RUNTIME_TARGET,
   'desktop',
+);
+assert.deepEqual(
+  standaloneDesktopPlan.ownedBindings.map(({ id, value }) => ({ id, value })),
+  [
+    { id: 'application.public-ingress', value: '0.0.0.0:10240' },
+    { id: 'pc-web-renderer', value: '127.0.0.1:5173' },
+    { id: 'pc-desktop-renderer', value: '127.0.0.1:1520' },
+  ],
+  'Desktop development must register the gateway and renderer listeners so failed or interrupted starts release both ports.',
 );
 assert.deepEqual(
   standaloneServerPlan.localProcesses.map((processDefinition) => processDefinition.id),

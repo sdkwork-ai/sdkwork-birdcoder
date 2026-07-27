@@ -69,6 +69,7 @@ export interface StudioMainContentModel {
   setPreviewWebDevice: StudioStageHeaderProps['onPreviewWebDeviceChange'];
   terminalHeight: StudioTerminalIntegrationPanelProps['height'];
   terminalRequest: StudioTerminalIntegrationPanelProps['terminalRequest'];
+  terminalRuntimeLocationId: StudioTerminalIntegrationPanelProps['runtimeLocationId'];
   updateFileDraft: StudioCodeWorkspacePanelProps['onFileDraftChange'];
   viewingDiff: StudioCodeWorkspacePanelProps['viewingDiff'];
   closeFile: StudioCodeWorkspacePanelProps['onCloseFile'];
@@ -140,6 +141,7 @@ export function StudioMainContent({ model }: StudioMainContentProps) {
     setPreviewWebDevice,
     terminalHeight,
     terminalRequest,
+    terminalRuntimeLocationId,
     updateFileDraft,
     viewingDiff,
     closeFile,
@@ -242,6 +244,7 @@ export function StudioMainContent({ model }: StudioMainContentProps) {
           height={terminalHeight}
           terminalRequest={terminalRequest}
           projectId={currentProjectId}
+          runtimeLocationId={terminalRuntimeLocationId}
           onResize={handleStudioTerminalResize}
         />
       </div>

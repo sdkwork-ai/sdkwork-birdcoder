@@ -1,4 +1,4 @@
-import { useCallback, useRef } from 'react';
+import { useCallback, useEffect, useRef } from 'react';
 import type { AgentSessionView } from '@sdkwork/birdcoder-pc-contracts-commons';
 import { ProjectRuntimeLocationExecutionUnavailableError } from '@sdkwork/birdcoder-pc-infrastructure-runtime/projectRuntimeLocation';
 
@@ -14,6 +14,7 @@ import {
   type ShouldSelectWorkbenchAgentSession,
   type WorkbenchAgentSessionSelectionContext,
 } from '../workbench/agentSessionCreation.ts';
+import { AgentSessionRuntimeBindingProvisioningError } from '../workbench/agentSessionProvisioning.ts';
 
 interface InFlightAgentSessionCreation {
   failureLogged: boolean;
@@ -42,17 +43,28 @@ export function useWorkbenchAgentSessionCreationActions({
   selectAgentSession,
   labels,
 }: UseWorkbenchAgentSessionCreationActionsOptions) {
+  const currentProjectIdRef = useRef(currentProjectId);
+  currentProjectIdRef.current = currentProjectId;
+  const isMountedRef = useRef(false);
   const inFlightCreationsRef = useRef(
     new Map<string, InFlightAgentSessionCreation>(),
   );
+
+  useEffect(() => {
+    isMountedRef.current = true;
+    return () => {
+      isMountedRef.current = false;
+    };
+  }, []);
   const createAgentSessionFromRequest = useCallback(
     async (
       request?: CreateNewAgentSessionRequest,
       actionOptions?: CreateAgentSessionActionOptions,
     ): Promise<AgentSessionView | null> => {
+      const selectionAnchorProjectId = currentProjectIdRef.current.trim();
       const normalizedRequest = normalizeCreateNewAgentSessionRequest(
         request,
-        currentProjectId,
+        selectionAnchorProjectId,
       );
       if (!normalizedRequest) {
         if (actionOptions?.showFailureToast !== false) {
@@ -104,12 +116,14 @@ export function useWorkbenchAgentSessionCreationActions({
         }
         if (
           !cancelled
+          && isMountedRef.current
           && !creation.failureNotified
           && actionOptions?.showFailureToast !== false
         ) {
           try {
             addToast(
               error instanceof ProjectRuntimeLocationExecutionUnavailableError
+                || error instanceof AgentSessionRuntimeBindingProvisioningError
                 ? error.message
                 : labels.creationFailed,
               'error',
@@ -139,7 +153,9 @@ export function useWorkbenchAgentSessionCreationActions({
         let shouldSelectCreatedSession = false;
         try {
           shouldSelectCreatedSession =
-            actionOptions?.shouldSelectCreatedSession?.(newSession, selectionContext) !== false;
+            isMountedRef.current
+            && currentProjectIdRef.current.trim() === selectionAnchorProjectId
+            && actionOptions?.shouldSelectCreatedSession?.(newSession, selectionContext) !== false;
         } catch (selectionGuardError) {
           console.error('Failed to evaluate coding session selection', selectionGuardError);
         }
@@ -153,7 +169,11 @@ export function useWorkbenchAgentSessionCreationActions({
           }
         }
       }
-      if (!creation.successNotified && actionOptions?.showSuccessToast !== false) {
+      if (
+        isMountedRef.current
+        && !creation.successNotified
+        && actionOptions?.showSuccessToast !== false
+      ) {
         try {
           addToast(labels.creationSucceeded, 'success');
           creation.successNotified = true;
@@ -170,7 +190,6 @@ export function useWorkbenchAgentSessionCreationActions({
       labels.creationSucceeded,
       labels.noProjectSelected,
       selectAgentSession,
-      currentProjectId,
     ],
   );
 

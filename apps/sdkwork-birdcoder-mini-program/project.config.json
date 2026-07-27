@@ -1,0 +1,25 @@
+{
+  "miniprogramRoot": "dist/",
+  "projectname": "sdkwork-birdcoder-mini-program",
+  "appid": "touristappid",
+  "compileType": "miniprogram",
+  "setting": {
+    "urlCheck": false,
+    "es6": true,
+    "minified": true,
+    "postcss": true,
+    "compileHotReLoad": true
+  },
+  "condition": {
+    "miniprogram": {
+      "list": [
+        {
+          "name": "workbench",
+          "pathName": "pages/__generated__/workbench/index",
+          "query": "",
+          "scene": 1001
+        }
+      ]
+    }
+  }
+}

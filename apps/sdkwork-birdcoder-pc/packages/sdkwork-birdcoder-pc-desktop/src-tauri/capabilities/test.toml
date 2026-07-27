@@ -55,6 +55,11 @@ permissions = [
   "allow-local-store-delete",
   "allow-local-store-list",
 
+  # OS credential-store backed IAM application session commands
+  "allow-secure-app-session-read",
+  "allow-secure-app-session-write",
+  "allow-secure-app-session-delete",
+
   # User home config (read-only — write excluded for test mode)
   "allow-user-home-config-read",
 

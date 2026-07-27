@@ -1,0 +1,23 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "lib": ["ES2022"],
+    "strict": true,
+    "isolatedModules": true,
+    "noEmit": true,
+    "skipLibCheck": true,
+    "allowImportingTsExtensions": true,
+    "resolveJsonModule": true,
+    "paths": {
+      "@sdkwork/birdcoder-mp-core": ["./packages/sdkwork-birdcoder-mp-core/src/index.ts"],
+      "@sdkwork/birdcoder-mp-commons": ["./packages/sdkwork-birdcoder-mp-commons/src/index.ts"],
+      "@sdkwork/birdcoder-mp-shell": ["./packages/sdkwork-birdcoder-mp-shell/src/index.ts"],
+      "@sdkwork/birdcoder-mp-workbench": ["./packages/sdkwork-birdcoder-mp-workbench/src/index.ts"],
+      "@sdkwork/birdcoder-mp-host": ["./packages/sdkwork-birdcoder-mp-host/src/index.ts"]
+    }
+  },
+  "include": ["src/**/*.ts", "packages/**/*.ts"],
+  "exclude": ["dist", "node_modules"]
+}

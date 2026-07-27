@@ -1,5 +1,6 @@
 use rusqlite::{params, OptionalExtension};
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
+use std::collections::BTreeSet;
 use tauri::AppHandle;
 use uuid::Uuid;
 
@@ -27,6 +28,22 @@ pub struct LocalStoreEntry {
 
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
+pub struct ProjectDeviceMountEntry {
+    pub key: String,
+    pub value: String,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct StoredProjectDeviceMountIdentity {
+    owner_key: Option<String>,
+    path: Option<String>,
+    project_id: Option<String>,
+    version: Option<u32>,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct DesktopRuntimeLocationInstallIdentity {
     pub runtime_target_id: String,
 }
@@ -49,6 +66,100 @@ fn local_store_key_targets_authority_tables(key: &str) -> bool {
 fn is_project_device_mount_key(key: &str) -> bool {
     key.len() == PROJECT_DEVICE_MOUNT_KEY_HEX_LENGTH
         && key.bytes().all(|byte| byte.is_ascii_hexdigit())
+}
+
+fn normalize_project_device_mount_owner_keys(
+    owner_keys: Vec<String>,
+) -> Result<BTreeSet<String>, String> {
+    if owner_keys.is_empty() || owner_keys.len() > 4 {
+        return Err("project mount recovery requires between one and four owner keys".to_string());
+    }
+
+    let normalized = owner_keys
+        .into_iter()
+        .map(|owner_key| owner_key.trim().to_ascii_lowercase())
+        .collect::<BTreeSet<_>>();
+    if normalized
+        .iter()
+        .any(|owner_key| !is_project_device_mount_key(owner_key))
+    {
+        return Err("project mount recovery owner keys must be SHA-256 hex digests".to_string());
+    }
+    Ok(normalized)
+}
+
+fn normalize_project_device_mount_path_identity(path: &str) -> String {
+    let mut normalized = path.trim().replace('\\', "/");
+    while normalized.ends_with('/')
+        && normalized.len() > 1
+        && !(normalized.len() == 3 && normalized.as_bytes().get(1) == Some(&b':'))
+    {
+        normalized.pop();
+    }
+    if cfg!(windows) {
+        normalized.make_ascii_lowercase();
+    }
+    normalized
+}
+
+fn read_project_device_mount_by_identity(
+    connection: &rusqlite::Connection,
+    project_id: &str,
+    owner_keys: &BTreeSet<String>,
+) -> Result<Option<ProjectDeviceMountEntry>, String> {
+    let mut statement = connection
+        .prepare(
+            r#"
+            SELECT key, value
+            FROM device_state_entry
+            WHERE scope = ?1
+            ORDER BY updated_at DESC, key ASC
+            "#,
+        )
+        .map_err(|error| format!("failed to prepare project mount recovery: {error}"))?;
+    let rows = statement
+        .query_map(params![PROJECT_DEVICE_MOUNTS_SCOPE], |row| {
+            Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?))
+        })
+        .map_err(|error| format!("failed to query project mount recovery: {error}"))?;
+
+    let mut matched_entry = None;
+    let mut matched_paths = BTreeSet::new();
+    for row in rows {
+        let (key, value) =
+            row.map_err(|error| format!("failed to decode project mount recovery row: {error}"))?;
+        let Ok(mount) = serde_json::from_str::<StoredProjectDeviceMountIdentity>(&value) else {
+            continue;
+        };
+        let owner_key = mount
+            .owner_key
+            .as_deref()
+            .map(str::trim)
+            .map(str::to_ascii_lowercase);
+        if mount.version != Some(1)
+            || mount.project_id.as_deref().map(str::trim) != Some(project_id)
+            || !owner_key
+                .as_ref()
+                .is_some_and(|value| owner_keys.contains(value))
+        {
+            continue;
+        }
+        let path = mount.path.as_deref().map(str::trim).unwrap_or_default();
+        if path.is_empty() {
+            continue;
+        }
+        matched_paths.insert(normalize_project_device_mount_path_identity(path));
+        if matched_entry.is_none() {
+            matched_entry = Some(ProjectDeviceMountEntry { key, value });
+        }
+    }
+
+    if matched_paths.len() > 1 {
+        return Err(format!(
+            "multiple desktop folders are bound to project {project_id} for the active user"
+        ));
+    }
+    Ok(matched_entry)
 }
 
 fn local_store_scope_and_key_are_allowed(scope: &str, key: &str) -> bool {
@@ -154,6 +265,28 @@ pub async fn local_store_delete(app: AppHandle, scope: String, key: String) -> R
     })
     .await
     .map_err(|error| format!("failed to join local store delete task: {error}"))?
+}
+
+/// Recovers one subject-owned project mount after a renderer realm-key change.
+/// The command accepts only hashed owner identities and never exposes an
+/// enumerable project-mount collection to the renderer.
+#[tauri::command]
+pub async fn project_device_mount_find(
+    app: AppHandle,
+    project_id: String,
+    owner_keys: Vec<String>,
+) -> Result<Option<ProjectDeviceMountEntry>, String> {
+    let project_id = project_id.trim().to_string();
+    if project_id.is_empty() {
+        return Err("project mount recovery requires a project ID".to_string());
+    }
+    let owner_keys = normalize_project_device_mount_owner_keys(owner_keys)?;
+    tauri::async_runtime::spawn_blocking(move || {
+        let connection = open_device_state(&app)?;
+        read_project_device_mount_by_identity(&connection, &project_id, &owner_keys)
+    })
+    .await
+    .map_err(|error| format!("failed to join project mount recovery task: {error}"))?
 }
 
 #[tauri::command]
@@ -268,7 +401,8 @@ pub fn desktop_runtime_location_create_root_locator() -> String {
 mod tests {
     use super::{
         create_prefixed_uuid, is_valid_prefixed_uuid, local_store_scope_and_key_are_allowed,
-        local_store_scope_is_enumerable, APP_SETTINGS_KEY, APP_SETTINGS_SCOPE,
+        local_store_scope_is_enumerable, normalize_project_device_mount_owner_keys,
+        read_project_device_mount_by_identity, APP_SETTINGS_KEY, APP_SETTINGS_SCOPE,
         DESKTOP_RUNTIME_LOCATION_IDENTITY_SCOPE, DESKTOP_RUNTIME_ROOT_LOCATOR_PREFIX,
         DESKTOP_RUNTIME_TARGET_ID_PREFIX, PROJECT_DEVICE_MOUNTS_SCOPE,
     };
@@ -341,5 +475,92 @@ mod tests {
                 "aggregate"
             ));
         }
+    }
+
+    #[test]
+    fn project_mount_recovery_is_identity_scoped_and_rejects_ambiguous_paths() {
+        let connection = rusqlite::Connection::open_in_memory().expect("in-memory device state");
+        connection
+            .execute_batch(
+                r#"
+                CREATE TABLE device_state_entry (
+                    scope TEXT NOT NULL,
+                    key TEXT NOT NULL,
+                    value TEXT NOT NULL,
+                    updated_at TEXT NOT NULL,
+                    PRIMARY KEY (scope, key)
+                );
+                "#,
+            )
+            .expect("device-state test table");
+        let owner_key = "a".repeat(64);
+        let other_owner_key = "b".repeat(64);
+        let first_value = serde_json::json!({
+            "ownerKey": owner_key,
+            "path": "C:\\work\\birdcoder",
+            "projectId": "project-1",
+            "version": 1
+        })
+        .to_string();
+        connection
+            .execute(
+                "INSERT INTO device_state_entry VALUES (?1, ?2, ?3, ?4)",
+                rusqlite::params![
+                    PROJECT_DEVICE_MOUNTS_SCOPE,
+                    "1".repeat(64),
+                    first_value,
+                    "2"
+                ],
+            )
+            .expect("first project mount");
+        connection
+            .execute(
+                "INSERT INTO device_state_entry VALUES (?1, ?2, ?3, ?4)",
+                rusqlite::params![
+                    PROJECT_DEVICE_MOUNTS_SCOPE,
+                    "2".repeat(64),
+                    serde_json::json!({
+                        "ownerKey": other_owner_key,
+                        "path": "C:\\private\\other",
+                        "projectId": "project-1",
+                        "version": 1
+                    })
+                    .to_string(),
+                    "3"
+                ],
+            )
+            .expect("other-user project mount");
+
+        let accepted_owner_keys =
+            normalize_project_device_mount_owner_keys(vec![owner_key]).expect("valid owner key");
+        let recovered =
+            read_project_device_mount_by_identity(&connection, "project-1", &accepted_owner_keys)
+                .expect("project mount lookup")
+                .expect("matching project mount");
+        assert_eq!(recovered.key, "1".repeat(64));
+
+        connection
+            .execute(
+                "INSERT INTO device_state_entry VALUES (?1, ?2, ?3, ?4)",
+                rusqlite::params![
+                    PROJECT_DEVICE_MOUNTS_SCOPE,
+                    "3".repeat(64),
+                    serde_json::json!({
+                        "ownerKey": "a".repeat(64),
+                        "path": "D:\\different\\birdcoder",
+                        "projectId": "project-1",
+                        "version": 1
+                    })
+                    .to_string(),
+                    "4"
+                ],
+            )
+            .expect("ambiguous project mount");
+        assert!(read_project_device_mount_by_identity(
+            &connection,
+            "project-1",
+            &accepted_owner_keys,
+        )
+        .is_err());
     }
 }

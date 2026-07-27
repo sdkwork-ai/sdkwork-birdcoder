@@ -12,8 +12,14 @@ const hook = read(
 const creation = read(
   "apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-workbench/src/workbench/agentSessionCreation.ts",
 );
+const provisioning = read(
+  "apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-workbench/src/workbench/agentSessionProvisioning.ts",
+);
 const projects = read(
   "apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-workbench/src/hooks/useProjects.ts",
+);
+const chatSelection = read(
+  "apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-workbench/src/hooks/useWorkbenchChatSelection.ts",
 );
 const services = read(
   "apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/src/services/defaultIdeServicesShared.ts",
@@ -56,6 +62,16 @@ assert.match(workspaceProjectPopover, /engine\.modelId/);
 assert.match(hook, /normalizeCreateNewAgentSessionRequest\(/);
 assert.match(hook, /inFlightCreationsRef/);
 assert.match(hook, /creation\.promise/);
+assert.match(
+  hook,
+  /isMountedRef\.current[\s\S]*currentProjectIdRef\.current\.trim\(\) === selectionAnchorProjectId[\s\S]*actionOptions\?\.shouldSelectCreatedSession/,
+  "A completed creation must not take selection back from a Project chosen while the request was pending.",
+);
+assert.match(
+  hook,
+  /useEffect\(\(\) => \{[\s\S]*isMountedRef\.current = true;[\s\S]*isMountedRef\.current = false;[\s\S]*\}, \[\]\);/,
+  "A creation that completes after its surface unmounts must not select, focus, or notify through that surface.",
+);
 assert.match(hook, /!creation\.selected[\s\S]*actionOptions\?\.shouldSelectCreatedSession/);
 assert.match(hook, /actionOptions\?\.showSuccessToast !== false/);
 assert.match(multiWindow, /useWorkbenchAgentSessionCreationActions\(/);
@@ -93,7 +109,6 @@ assert.doesNotMatch(
   /ensureWorkbenchAgentSessionForTurnInput\([\s\S]*createWorkbenchAgentSessionInProject\(/,
   "Implicit turn submission must not bypass the unified request command.",
 );
-assert.match(projects, /resolveProjectRuntimeLocationExecutionId\(/);
 const createAgentSessionHandler = projects.match(
   /const createAgentSession = async \([\s\S]*?(?=\n  const renameProject = async)/,
 )?.[0] ?? '';
@@ -106,6 +121,41 @@ assert.equal(
   (createAgentSessionHandler.match(/agentSessionService\.createSession\(/g) ?? []).length,
   1,
   "All useProjects new-session consumers must converge on the sdkwork-agents Session authority.",
+);
+assert.doesNotMatch(
+  createAgentSessionHandler,
+  /resolveProjectRuntimeLocationExecutionId|runtimeLocationId/,
+  "Provider Session creation must not require a Project terminal runtime location.",
+);
+assert.match(
+  createAgentSessionHandler,
+  /agentId: options\.agentId[\s\S]*createRuntimeBinding\([\s\S]*providerBindingId: options\.providerBindingId[\s\S]*modelId: options\.modelId[\s\S]*providerId: options\.providerId/,
+  "Provider Session creation must persist the selected Agent, Provider Binding, Model, and Provider identity.",
+);
+assert.match(
+  createAgentSessionHandler,
+  /createBoundAgentSession\([\s\S]*deleteCreatedSession:[\s\S]*agentSessionService\.deleteSession/,
+  "Provider Session creation must compensate when Runtime Binding provisioning fails.",
+);
+assert.equal(
+  (projects.match(/createBoundAgentSession\(/g) ?? []).length,
+  2,
+  "New and forked Sessions with Runtime Bindings must share the compensated provisioning transaction.",
+);
+assert.match(
+  provisioning,
+  /catch \(runtimeBindingError\)[\s\S]*deleteCreatedSession\(session\)[\s\S]*cleanupError[\s\S]*AgentSessionRuntimeBindingProvisioningError/,
+  "Runtime Binding failure must delete the incomplete Session and preserve cleanup diagnostics.",
+);
+assert.match(
+  hook,
+  /error instanceof AgentSessionRuntimeBindingProvisioningError[\s\S]*\? error\.message/,
+  "Provider provisioning failures must retain their actionable message in the UI.",
+);
+assert.match(
+  chatSelection,
+  /resolveWorkbenchRuntimeBindingIdentity\([\s\S]*resolvedEngineId,[\s\S]*resolvedModelId[\s\S]*createAgentSession\([\s\S]*\.\.\.runtimeIdentity/,
+  "The selected engine and model must resolve the corresponding Provider runtime identity before Session creation.",
 );
 assert.doesNotMatch(
   projects,

@@ -1,0 +1,11 @@
+{
+  "schemaVersion": 1,
+  "kind": "sdkwork.mini-program-runtime",
+  "platform": "MP_WEIXIN",
+  "framework": "weixin-mini-program",
+  "runtimeTarget": "mini-program",
+  "runtimeBindings": {
+    "applicationHttp": "SDKWORK_BIRDCODER_APPLICATION_PUBLIC_HTTP_URL",
+    "platformApiGatewayHttp": "SDKWORK_BIRDCODER_PLATFORM_API_GATEWAY_HTTP_URL"
+  }
+}

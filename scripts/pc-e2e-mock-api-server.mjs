@@ -30,8 +30,131 @@ const allowedOrigins = new Set(
 const defaultWorkspace = createAgentWorkspaceFixture();
 const workspaces = [defaultWorkspace];
 const projects = [createAgentProjectFixture()];
+const sessions = [
+  createAgentSessionFixture({
+    sessionId: 'e2e-claude-session',
+    agentId: 'agent.claude-code',
+    title: 'Claude architecture review',
+    lastItemSequence: '3',
+    lastItemAt: '2026-01-01T00:30:00.000Z',
+    version: '3',
+    updatedAt: '2026-01-01T00:30:00.000Z',
+  }),
+  createAgentSessionFixture({
+    sessionId: 'e2e-codex-session',
+    agentId: 'agent.codex',
+    title: 'Codex implementation',
+    lastItemSequence: '45',
+    lastItemAt: '2026-01-01T00:20:00.000Z',
+    version: '45',
+    updatedAt: '2026-01-01T00:20:00.000Z',
+  }),
+  createAgentSessionFixture({
+    sessionId: 'e2e-opencode-session',
+    agentId: 'agent.opencode',
+    title: 'OpenCode verification',
+    lastItemSequence: '2',
+    lastItemAt: '2026-01-01T00:10:00.000Z',
+    version: '2',
+    updatedAt: '2026-01-01T00:10:00.000Z',
+  }),
+  ...Array.from({ length: 38 }, (_, index) => {
+    const historyNumber = index + 1;
+    const updatedAt = new Date(Date.UTC(2025, 11, 31, 23, 59 - index)).toISOString();
+    return createAgentSessionFixture({
+      sessionId: `e2e-history-session-${historyNumber}`,
+      agentId: 'agent.codex',
+      title: index === 17
+        ? 'History page two session'
+        : index === 37
+          ? 'History page three session'
+          : `History session ${historyNumber}`,
+      lastItemSequence: String(historyNumber),
+      lastItemAt: updatedAt,
+      version: String(historyNumber),
+      updatedAt,
+    });
+  }),
+];
+const sessionItemsBySessionId = new Map([
+  [
+    'e2e-codex-session',
+    Array.from({ length: 45 }, (_, index) => {
+      const sequence = 45 - index;
+      const createdAt = new Date(Date.UTC(2026, 0, 1, 0, 0, sequence)).toISOString();
+      return {
+        sessionId: 'e2e-codex-session',
+        itemId: `e2e-codex-item-${sequence}`,
+        kind: sequence % 2 === 0 ? 'assistant_output' : 'user_input',
+        status: 'completed',
+        sequence: String(sequence),
+        content: `Codex historical message ${sequence}`,
+        contentType: 'text/plain',
+        createdAt,
+      };
+    }),
+  ],
+]);
 let createdWorkspaceSequence = 0;
 let createdProjectSequence = 0;
+let completedTurnSequence = 0;
+
+function createSessionRuntimeBinding(session) {
+  const runtimeByAgentId = {
+    'agent.claude-code': {
+      modelId: 'claude-sonnet-4-5',
+      providerBindingId: 'claude-code',
+      providerId: 'anthropic',
+    },
+    'agent.codex': {
+      modelId: 'gpt-5-codex',
+      providerBindingId: 'codex',
+      providerId: 'openai',
+    },
+    'agent.opencode': {
+      modelId: 'auto',
+      providerBindingId: 'opencode',
+      providerId: 'opencode',
+    },
+  };
+  const runtime = runtimeByAgentId[session.agentId] ?? runtimeByAgentId['agent.codex'];
+  return {
+    runtimeBindingId: `runtime-binding.${session.sessionId}`,
+    tenantId: session.tenantId,
+    organizationId: session.organizationId,
+    sessionId: session.sessionId,
+    runtimeLocationId: `runtime-location.${session.sessionId}`,
+    hostMode: 'web',
+    transportKind: 'sdk-stream',
+    providerBindingId: runtime.providerBindingId,
+    modelId: runtime.modelId,
+    providerId: runtime.providerId,
+    nativeSessionId: `native.${session.sessionId}`,
+    status: 'active',
+    isCurrent: true,
+    version: session.version,
+    createdAt: session.createdAt,
+    updatedAt: session.updatedAt,
+    activatedAt: session.createdAt,
+  };
+}
+
+function createSessionUserState(session) {
+  return {
+    id: `user-state.${session.sessionId}`,
+    tenantId: session.tenantId,
+    organizationId: session.organizationId,
+    userId: session.ownerUserId,
+    resourceType: 'session',
+    resourceId: session.sessionId,
+    pinnedAt: session.agentId === 'agent.claude-code' ? session.updatedAt : undefined,
+    lastOpenedAt: session.updatedAt,
+    lastReadItemSequence: session.lastItemSequence,
+    version: session.version,
+    createdAt: session.createdAt,
+    updatedAt: session.updatedAt,
+  };
+}
 
 function corsHeaders(request) {
   const origin = request.headers.origin?.trim();
@@ -310,37 +433,12 @@ function handleRoute(method, url, request, body) {
     };
   }
 
-  if (pathname === '/app/v3/api/ai/agents/agent.birdcoder/sessions' && method === 'GET') {
-    if (!isAuthenticatedRequest(request)) {
-      return {
-        statusCode: 401,
-        payload: createAppbaseFailure('No authenticated SDKWork IAM user.', '401'),
-      };
-    }
-
-    return {
-      statusCode: 200,
-      payload: createBirdCoderListEnvelope([createAgentSessionFixture()]),
-    };
-  }
-
-  if (pathname === '/app/v3/api/ai/agents/agent.birdcoder/sessions/e2e-coding-session-1' && method === 'GET') {
-    if (!isAuthenticatedRequest(request)) {
-      return {
-        statusCode: 401,
-        payload: createAppbaseFailure('No authenticated SDKWork IAM user.', '401'),
-      };
-    }
-
-    return {
-      statusCode: 200,
-      payload: createBirdCoderDataEnvelope(createAgentSessionFixture()),
-    };
-  }
-
+  const projectSessionsMatch = /^\/app\/v3\/api\/ai\/projects\/(?<projectId>[^/]+)\/sessions$/u.exec(pathname);
+  const workspaceSessionsMatch = /^\/app\/v3\/api\/ai\/workspaces\/(?<workspaceId>[^/]+)\/sessions$/u.exec(pathname);
+  const agentSessionsMatch = /^\/app\/v3\/api\/ai\/agents\/(?<agentId>[^/]+)\/sessions$/u.exec(pathname);
   if (
     method === 'GET'
-    && /^\/app\/v3\/api\/ai\/agents\/agent\.birdcoder\/sessions\/e2e-coding-session-1\/(?:checkpoints|interactions|items|runtime_bindings|turns)$/u.test(pathname)
+    && (projectSessionsMatch || workspaceSessionsMatch || agentSessionsMatch)
   ) {
     if (!isAuthenticatedRequest(request)) {
       return {
@@ -349,9 +447,205 @@ function handleRoute(method, url, request, body) {
       };
     }
 
+    const scopedSessions = projectSessionsMatch
+      ? sessions.filter((session) => session.projectId === projectSessionsMatch.groups.projectId)
+      : workspaceSessionsMatch
+        ? sessions.filter((session) => {
+            const project = projects.find((item) => item.projectId === session.projectId);
+            return project?.workspaceId === workspaceSessionsMatch.groups.workspaceId;
+          })
+        : sessions.filter((session) => session.agentId === agentSessionsMatch.groups.agentId);
     return {
       statusCode: 200,
-      payload: createBirdCoderListEnvelope([], {
+      payload: createBirdCoderListEnvelope(scopedSessions, {
+        page: Number(searchParams.get('page') ?? 1),
+        pageSize: Number(searchParams.get('page_size') ?? 20),
+      }),
+    };
+  }
+
+  const sessionResourceMatch = /^\/app\/v3\/api\/ai\/agents\/(?<agentId>[^/]+)\/sessions\/(?<sessionId>[^/]+)$/u.exec(pathname);
+  if (sessionResourceMatch && method === 'GET') {
+    if (!isAuthenticatedRequest(request)) {
+      return {
+        statusCode: 401,
+        payload: createAppbaseFailure('No authenticated SDKWork IAM user.', '401'),
+      };
+    }
+
+    const session = sessions.find((item) =>
+      item.agentId === sessionResourceMatch.groups.agentId
+      && item.sessionId === sessionResourceMatch.groups.sessionId,
+    );
+    if (!session) {
+      return {
+        statusCode: 404,
+        payload: createAppbaseFailure('Agent Session not found.', '404'),
+      };
+    }
+    return {
+      statusCode: 200,
+      payload: createBirdCoderDataEnvelope(session),
+    };
+  }
+
+  const sessionTurnsMatch = /^\/app\/v3\/api\/ai\/agents\/(?<agentId>[^/]+)\/sessions\/(?<sessionId>[^/]+)\/turns$/u.exec(pathname);
+  if (sessionTurnsMatch && method === 'POST') {
+    if (!isAuthenticatedRequest(request)) {
+      return {
+        statusCode: 401,
+        payload: createAppbaseFailure('No authenticated SDKWork IAM user.', '401'),
+      };
+    }
+
+    const session = sessions.find((item) =>
+      item.agentId === sessionTurnsMatch.groups.agentId
+      && item.sessionId === sessionTurnsMatch.groups.sessionId,
+    );
+    if (!session) {
+      return {
+        statusCode: 404,
+        payload: createAppbaseFailure('Agent Session not found.', '404'),
+      };
+    }
+
+    const content = String(body.content ?? '').trim();
+    if (!content) {
+      return {
+        statusCode: 400,
+        payload: createAppbaseFailure('Agent turn content is required.', '400'),
+      };
+    }
+
+    completedTurnSequence += 1;
+    const currentItems = sessionItemsBySessionId.get(session.sessionId) ?? [];
+    const previousSequence = Number(session.lastItemSequence ?? 0);
+    const userSequence = previousSequence + 1;
+    const assistantSequence = previousSequence + 2;
+    const completedAt = new Date().toISOString();
+    const turnId = `turn.e2e-${completedTurnSequence}`;
+    const userItemId = `item.e2e-${completedTurnSequence}-user`;
+    const assistantItemId = `item.e2e-${completedTurnSequence}-assistant`;
+    const commonItemFields = {
+      tenantId: session.tenantId,
+      organizationId: session.organizationId,
+      sessionId: session.sessionId,
+      status: 'completed',
+      contentType: 'text/plain',
+      driveRefs: [],
+      createdBy: session.ownerUserId,
+      version: '1',
+      createdAt: completedAt,
+      updatedAt: completedAt,
+      completedAt,
+      turnId,
+    };
+    const userItem = {
+      ...commonItemFields,
+      itemId: userItemId,
+      kind: 'user_input',
+      sequence: String(userSequence),
+      content,
+      inputTokens: '0',
+      outputTokens: '0',
+    };
+    const assistantItem = {
+      ...commonItemFields,
+      itemId: assistantItemId,
+      kind: 'assistant_output',
+      sequence: String(assistantSequence),
+      content: `Mock assistant response to: ${content}`,
+      inputTokens: '0',
+      outputTokens: '6',
+      modelId: body.requestedModelId ?? null,
+    };
+    const turn = {
+      turnId,
+      tenantId: session.tenantId,
+      organizationId: session.organizationId,
+      sessionId: session.sessionId,
+      agentId: session.agentId,
+      ownerUserId: session.ownerUserId,
+      clientRequestId: body.clientRequestId ?? null,
+      idempotencyKey: String(body.idempotencyKey ?? `e2e-${completedTurnSequence}`),
+      payloadHash: String(body.payloadHash ?? `e2e-${completedTurnSequence}`),
+      requestItemId: userItemId,
+      responseItemId: assistantItemId,
+      turnMode: body.turnMode ?? 'interactive',
+      status: 'completed',
+      requestedModelId: body.requestedModelId ?? null,
+      modelId: body.requestedModelId ?? null,
+      inputTokens: '0',
+      outputTokens: '6',
+      cachedTokens: '0',
+      finishReason: 'stop',
+      attemptCount: 1,
+      maxAttempts: 1,
+      availableAt: completedAt,
+      fencingToken: '1',
+      version: '1',
+      createdAt: completedAt,
+      updatedAt: completedAt,
+      startedAt: completedAt,
+      completedAt,
+    };
+
+    Object.assign(session, {
+      itemCount: String(currentItems.length + 2),
+      lastItemSequence: String(assistantSequence),
+      lastItemAt: completedAt,
+      totalOutputTokens: String(Number(session.totalOutputTokens ?? 0) + 6),
+      updatedAt: completedAt,
+      version: String(Number(session.version ?? 0) + 1),
+    });
+    sessionItemsBySessionId.set(
+      session.sessionId,
+      [assistantItem, userItem, ...currentItems],
+    );
+
+    return {
+      statusCode: 200,
+      payload: createBirdCoderDataEnvelope({
+        session,
+        turn,
+        items: [userItem, assistantItem],
+      }),
+    };
+  }
+
+  const sessionChildMatch = /^\/app\/v3\/api\/ai\/agents\/(?<agentId>[^/]+)\/sessions\/(?<sessionId>[^/]+)\/(?<resource>checkpoints|interactions|items|runtime_bindings|turns|user_state)$/u.exec(pathname);
+  if (sessionChildMatch && (method === 'GET' || method === 'PATCH')) {
+    if (!isAuthenticatedRequest(request)) {
+      return {
+        statusCode: 401,
+        payload: createAppbaseFailure('No authenticated SDKWork IAM user.', '401'),
+      };
+    }
+
+    const session = sessions.find((item) =>
+      item.agentId === sessionChildMatch.groups.agentId
+      && item.sessionId === sessionChildMatch.groups.sessionId,
+    );
+    if (!session) {
+      return {
+        statusCode: 404,
+        payload: createAppbaseFailure('Agent Session not found.', '404'),
+      };
+    }
+    if (sessionChildMatch.groups.resource === 'user_state') {
+      return {
+        statusCode: 200,
+        payload: createBirdCoderDataEnvelope(createSessionUserState(session)),
+      };
+    }
+    const items = sessionChildMatch.groups.resource === 'runtime_bindings'
+      ? [createSessionRuntimeBinding(session)]
+      : sessionChildMatch.groups.resource === 'items'
+        ? sessionItemsBySessionId.get(session.sessionId) ?? []
+        : [];
+    return {
+      statusCode: 200,
+      payload: createBirdCoderListEnvelope(items, {
         page: Number(searchParams.get('page') ?? 1),
         pageSize: Number(searchParams.get('page_size') ?? 20),
       }),

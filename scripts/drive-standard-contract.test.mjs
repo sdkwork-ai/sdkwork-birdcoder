@@ -98,7 +98,7 @@ const appContent = read(
 if (!appContent.includes('useSandboxDirectoryPicker')) {
   fail('BirdCoder shell folder import must invoke the reusable server directory picker');
 }
-if (!appContent.includes('importSandboxDirectoryProject')) {
+if (!appContent.includes('importSelectedProjectDirectory')) {
   fail('BirdCoder shell folder import must bind the selected Drive sandbox directory');
 }
 if (appContent.includes('openLocalFolder')) {
@@ -285,11 +285,43 @@ const codeServerDirectoryImport = read(
 if (!codeServerDirectoryImport.includes('useSandboxDirectoryPicker')) {
   fail('Code project import must invoke the reusable server directory picker');
 }
-if (!codeServerDirectoryImport.includes('rootEntryId: selectedDirectory.entryId')) {
-  fail('Code project import must bind the opaque selected Drive root entry');
+if (!codeServerDirectoryImport.includes('selectProjectDirectory')
+  || !codeServerDirectoryImport.includes('importSelectedProjectDirectory')) {
+  fail('Code project import must use the shared runtime-aware directory import flow');
 }
 if (/absolutePath|physicalPath|providerRootRef|fileSystemHandle/u.test(codeServerDirectoryImport)) {
   fail('Code server directory import must not accept or persist physical provider paths');
+}
+
+const codePage = read(
+  'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-code/src/pages/CodePage.tsx',
+);
+if (codePage.includes('openLocalFolder')) {
+  fail('Code Browser folder selection must not bypass the Drive sandbox picker');
+}
+
+const projectDirectorySelection = read(
+  'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-workbench/src/workbench/projectDirectorySelection.ts',
+);
+if (!projectDirectorySelection.includes("kind: 'drive_sandbox'")) {
+  fail('Shared Project directory selection must preserve the Drive sandbox identity');
+}
+const sandboxDirectoryProjectImport = read(
+  'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-workbench/src/workbench/sandboxDirectoryProjectImport.ts',
+);
+if (!sandboxDirectoryProjectImport.includes('driveRootEntryId:')) {
+  fail('Shared Project directory import must bind the opaque selected Drive root entry');
+}
+
+const studioPage = read(
+  'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-studio/src/pages/StudioPage.tsx',
+);
+if (!studioPage.includes('useSandboxDirectoryPicker')
+  || !studioPage.includes('selectProjectDirectory')) {
+  fail('Studio Project creation must use the reusable Drive sandbox directory picker');
+}
+if (studioPage.includes('openLocalFolder')) {
+  fail('Studio Browser folder selection must not bypass the Drive sandbox picker');
 }
 
 for (const localePath of [

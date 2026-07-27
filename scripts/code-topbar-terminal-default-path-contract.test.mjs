@@ -30,14 +30,46 @@ assert.ok(
 
 assert.match(
   terminalActionsSource,
-  /const resolveTerminalWorkingDirectory = useCallback\(async \(projectId: string\) => \{[\s\S]*await resolveProjectRuntimeLocation\(projectId, \{[\s\S]*allowFolderSelection: true,[\s\S]*capability: 'terminal',/,
-  'Code page terminal actions must use the injected project runtime-location resolver for the selected project terminal capability.',
+  /const resolveTerminalWorkingDirectory = useCallback\(async \([\s\S]*projectId: string,[\s\S]*allowFolderSelection: boolean,[\s\S]*await resolveProjectRuntimeLocation\(projectId, \{[\s\S]*allowFolderSelection,[\s\S]*capability: 'terminal',/,
+  'Code page terminal actions must pass an explicit folder-selection policy to the injected runtime-location resolver.',
 );
 
 assert.match(
   terminalActionsSource,
-  /const handleTopBarTerminalVisibilityChange = useCallback\(async \(nextIsOpen: boolean\) => \{[\s\S]*if \(nextIsOpen\) \{[\s\S]*const localWorkingDirectory = currentProjectId[\s\S]*await resolveTerminalWorkingDirectory\(currentProjectId\)[\s\S]*if \(!localWorkingDirectory\) \{[\s\S]*return;[\s\S]*\}[\s\S]*setTerminalRequest\(\{\s*surface: 'embedded',\s*path: localWorkingDirectory,\s*timestamp: Date\.now\(\),\s*\}\);/,
-  'Code page top bar terminal handler must create an embedded terminal request only from a resolved project runtime location.',
+  /const handleTopBarTerminalVisibilityChange = useCallback\(async \(nextIsOpen: boolean\) => \{[\s\S]*resolveBirdcoderWorkbenchHostMode\(\) === 'web'[\s\S]*setTerminalRequest\(\{\s*surface: 'embedded',\s*timestamp: Date\.now\(\),\s*\}\);[\s\S]*resolveTerminalWorkingDirectory\([\s\S]*currentProjectId,[\s\S]*false,[\s\S]*\)[\s\S]*setTerminalRequest\(\{\s*surface: 'embedded',\s*path: localWorkingDirectory,/,
+  'Code page top bar terminal handler must use the remote project target in Browser and the recorded absolute path in Tauri without folder selection.',
+);
+
+const projectContextTerminalStart = terminalActionsSource.indexOf(
+  'const handleOpenInTerminal = useCallback',
+);
+const projectContextTerminalEnd = terminalActionsSource.indexOf(
+  'const handleCopySessionId = useCallback',
+  projectContextTerminalStart,
+);
+const projectContextTerminalSource = terminalActionsSource.slice(
+  projectContextTerminalStart,
+  projectContextTerminalEnd,
+);
+
+assert.ok(
+  projectContextTerminalStart >= 0 && projectContextTerminalEnd > projectContextTerminalStart,
+  'Code page must keep a dedicated project-context terminal action.',
+);
+assert.match(
+  projectContextTerminalSource,
+  /resolveBirdcoderWorkbenchHostMode\(\) === 'web'[\s\S]*emitOpenTerminalRequest\(\{\s*surface: 'project',[\s\S]*timestamp: Date\.now\(\),\s*\}\);/,
+  'Browser project terminal actions must route directly to the project terminal view without resolving a local folder.',
+);
+assert.match(
+  projectContextTerminalSource,
+  /resolveTerminalWorkingDirectory\(target\.projectId, false\)/,
+  'Desktop project terminal actions must use the existing absolute project path without allowing a folder picker.',
+);
+assert.doesNotMatch(
+  projectContextTerminalSource,
+  /resolveTerminalWorkingDirectory\(target\.projectId, true\)/,
+  'Project context terminal actions must never enable folder selection.',
 );
 
 assert.doesNotMatch(
@@ -72,8 +104,14 @@ assert.match(
 
 assert.match(
   appShellCreateTerminalSource,
-  /projectRuntimeLocationService\.resolveProjectRuntimeLocation\([\s\S]*effectiveProjectId,[\s\S]*allowFolderSelection: true,[\s\S]*capability: 'terminal',[\s\S]*resolution\.status === 'cancelled'[\s\S]*resolution\.status !== 'resolved'[\s\S]*buildDefaultTerminalCommandRequest\(\{[\s\S]*path: resolution\.location\.localWorkingDirectory/,
-  'Global new-terminal actions must resolve the selected project terminal location through the central service before creating a terminal request.',
+  /resolveBirdcoderWorkbenchHostMode\(\) === 'web'[\s\S]*emitOpenTerminalRequest\(\{\s*surface: 'project',[\s\S]*timestamp: Date\.now\(\),\s*\}\);[\s\S]*projectRuntimeLocationService\.resolveProjectRuntimeLocation\([\s\S]*effectiveProjectId,[\s\S]*allowFolderSelection: false,[\s\S]*capability: 'terminal',[\s\S]*buildDefaultTerminalCommandRequest\(\{[\s\S]*path: resolution\.location\.localWorkingDirectory/,
+  'Global new-terminal actions must use the remote project target in Browser and the recorded absolute path in Tauri without folder selection.',
+);
+
+assert.doesNotMatch(
+  appShellCreateTerminalSource,
+  /allowFolderSelection: true/,
+  'Global new-terminal actions must never open an implicit folder picker.',
 );
 
 assert.doesNotMatch(
@@ -84,7 +122,7 @@ assert.doesNotMatch(
 
 assert.match(
   appShellSource,
-  /cmdOrCtrl && e\.shiftKey && e\.key === '`'[\s\S]*void handleCreateTerminal\(\);/,
+  /cmdOrCtrl && e\.shiftKey && e\.code === 'Backquote'[\s\S]*void handleCreateTerminal\(\);/,
   'The new-terminal keyboard shortcut must use the selected-project terminal handler.',
 );
 

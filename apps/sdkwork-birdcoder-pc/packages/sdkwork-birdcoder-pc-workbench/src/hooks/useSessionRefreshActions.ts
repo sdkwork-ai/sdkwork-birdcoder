@@ -1,4 +1,4 @@
-import { useCallback, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import type { AgentSessionView, AgentProjectView } from '@sdkwork/birdcoder-pc-contracts-commons';
 import type { IAgentSessionService } from '@sdkwork/birdcoder-pc-infrastructure-runtime';
 import { useAuth } from '../context/AuthContext.ts';
@@ -9,6 +9,7 @@ import {
 } from '../stores/projectsStore.ts';
 import type { IProjectService } from '../services/interfaces/IProjectService.ts';
 import {
+  loadEarlierAgentSessionItems,
   refreshAgentSessionItems,
   refreshProjectSessions,
 } from '../workbench/sessionRefresh.ts';
@@ -30,6 +31,16 @@ interface SessionRefreshMessages {
   failedToRefreshSessionMessages: string;
   projectSessionsRefreshed: (projectName: string) => string;
   sessionMessagesRefreshed: (agentSessionTitle: string) => string;
+}
+
+interface ActiveEarlierItemsRequest {
+  controller: AbortController;
+  promise: Promise<void>;
+  scopeKey: string;
+}
+
+function isAbortError(error: unknown): boolean {
+  return (error instanceof DOMException || error instanceof Error) && error.name === 'AbortError';
 }
 
 export interface UseSessionRefreshActionsOptions {
@@ -68,8 +79,23 @@ export function useSessionRefreshActions({
     agentSessionId: string;
     projectId: string | null;
   } | null>(null);
+  const [loadingEarlierAgentSessionScope, setLoadingEarlierAgentSessionScope] = useState<{
+    agentSessionId: string;
+    projectId: string;
+  } | null>(null);
   const projectRefreshGenerationRef = useRef(0);
   const agentSessionRefreshGenerationRef = useRef(0);
+  const activeEarlierItemsRequestRef = useRef<ActiveEarlierItemsRequest | null>(null);
+  const currentSelection = getPreservedSelection();
+  const selectedAgentSessionId = currentSelection.agentSessionId?.trim() ?? '';
+  const selectedProjectId = currentSelection.projectId.trim();
+
+  useEffect(() => () => {
+    activeEarlierItemsRequestRef.current?.controller.abort(new DOMException(
+      'Agents session history request was superseded.',
+      'AbortError',
+    ));
+  }, [selectedAgentSessionId, selectedProjectId, userScope]);
 
   const isPreservedSelectionStillCurrent = useCallback(
     (preservedSelection: PreservedSessionRefreshSelection) => {
@@ -230,9 +256,92 @@ export function useSessionRefreshActions({
     userScope,
   ]);
 
+  const handleLoadEarlierAgentSessionItems = useCallback((
+    agentSessionId: string,
+    projectId?: string | null,
+  ): Promise<void> => {
+    const normalizedAgentSessionId = agentSessionId.trim();
+    const normalizedProjectId = projectId?.trim() ?? '';
+    if (!normalizedAgentSessionId || !normalizedProjectId) {
+      return Promise.resolve();
+    }
+
+    const scopeKey = `${userScope}\u0001${normalizedProjectId}\u0001${normalizedAgentSessionId}`;
+    const activeRequest = activeEarlierItemsRequestRef.current;
+    if (activeRequest?.scopeKey === scopeKey) {
+      return activeRequest.promise;
+    }
+    activeRequest?.controller.abort(new DOMException(
+      'Agents session history request was superseded.',
+      'AbortError',
+    ));
+
+    const resolvedLocation = resolveAgentSessionLocation?.(
+      normalizedAgentSessionId,
+      normalizedProjectId,
+    ) ?? null;
+    if (!resolvedLocation?.agentSession.itemPageInfo?.hasMore) {
+      return Promise.resolve();
+    }
+
+    const controller = new AbortController();
+    setLoadingEarlierAgentSessionScope({
+      agentSessionId: normalizedAgentSessionId,
+      projectId: normalizedProjectId,
+    });
+    const promise = (async () => {
+      try {
+        const result = await loadEarlierAgentSessionItems({
+          agentSession: resolvedLocation.agentSession,
+          agentSessionService,
+          signal: controller.signal,
+        });
+        controller.signal.throwIfAborted();
+        const latestSelection = getPreservedSelection();
+        if (
+          latestSelection.agentSessionId?.trim() !== normalizedAgentSessionId ||
+          latestSelection.projectId.trim() !== normalizedProjectId
+        ) {
+          return;
+        }
+        if (result.status === 'loaded') {
+          upsertAgentSessionIntoProjectsStore(
+            result.projectId,
+            result.agentSession,
+            resolvedLocation.project.workspaceId,
+            userScope,
+          );
+        }
+      } catch (error) {
+        if (controller.signal.aborted || isAbortError(error)) {
+          return;
+        }
+        console.error('Failed to load earlier coding session messages', error);
+        addToast(messages.failedToRefreshSessionMessages, 'error');
+      } finally {
+        if (activeEarlierItemsRequestRef.current?.controller === controller) {
+          activeEarlierItemsRequestRef.current = null;
+          setLoadingEarlierAgentSessionScope(null);
+        }
+      }
+    })();
+    activeEarlierItemsRequestRef.current = { controller, promise, scopeKey };
+    return promise;
+  }, [
+    addToast,
+    agentSessionService,
+    getPreservedSelection,
+    messages.failedToRefreshSessionMessages,
+    resolveAgentSessionLocation,
+    userScope,
+  ]);
+
   return {
+    handleLoadEarlierAgentSessionItems,
     handleRefreshAgentSessionItems,
     handleRefreshProjectSessions,
+    loadingEarlierAgentSessionId: loadingEarlierAgentSessionScope?.agentSessionId ?? null,
+    loadingEarlierAgentSessionProjectId: loadingEarlierAgentSessionScope?.projectId ?? null,
     refreshingAgentSessionId: refreshingAgentSessionScope?.agentSessionId ?? null,
     refreshingAgentSessionProjectId: refreshingAgentSessionScope?.projectId ?? null,
     refreshingProjectId,

@@ -3,6 +3,7 @@ import { Check, Folder, FolderPlus, ListFilter, RefreshCw, Search, X } from 'luc
 import { WorkbenchNewSessionButton } from '@sdkwork/birdcoder-pc-ui/components/WorkbenchNewSessionButton';
 import type {
   ProjectExplorerOrganizeBy,
+  ProjectExplorerSessionFilter,
   ProjectExplorerSortBy,
 } from './ProjectExplorer.shared';
 
@@ -16,6 +17,9 @@ interface ProjectExplorerHeaderProps {
   organizeBy: ProjectExplorerOrganizeBy;
   sortBy: ProjectExplorerSortBy;
   showArchived: boolean;
+  providerFilterId: string;
+  providerOptions: readonly { id: string; label: string }[];
+  sessionFilter: ProjectExplorerSessionFilter;
   isRefreshingSelectedProject: boolean;
   refreshSessionsLabel: string;
   refreshingSessionsLabel: string;
@@ -33,13 +37,23 @@ interface ProjectExplorerHeaderProps {
   openFolderLabel: string;
   organizeLabel: string;
   byProjectLabel: string;
+  byProviderLabel: string;
   chronologicalLabel: string;
   sortByLabel: string;
+  smartLabel: string;
+  recentLabel: string;
   createdLabel: string;
-  updatedLabel: string;
   showLabel: string;
   allSessionsLabel: string;
   relevantLabel: string;
+  providerLabel: string;
+  anyProviderLabel: string;
+  statusLabel: string;
+  attentionLabel: string;
+  executingLabel: string;
+  failedLabel: string;
+  pinnedLabel: string;
+  unreadLabel: string;
   filterMenuRef: RefObject<HTMLDivElement | null>;
   onCreateSession: (engineId: string, modelId: string) => void | Promise<void>;
   onRefreshSelectedProject?: () => void;
@@ -50,11 +64,15 @@ interface ProjectExplorerHeaderProps {
   onOpenFolder?: () => void;
   onToggleFilterMenu: () => void;
   onOrganizeByProject: () => void;
+  onOrganizeByProvider: () => void;
   onOrganizeChronologically: () => void;
   onSortByCreated: () => void;
-  onSortByUpdated: () => void;
+  onSortBySmart: () => void;
+  onSortByRecent: () => void;
   onShowAllSessions: () => void;
   onShowRelevantSessions: () => void;
+  onProviderFilterChange: (providerId: string) => void;
+  onSessionFilterChange: (filter: ProjectExplorerSessionFilter) => void;
 }
 
 export function ProjectExplorerHeader({
@@ -67,6 +85,9 @@ export function ProjectExplorerHeader({
   organizeBy,
   sortBy,
   showArchived,
+  providerFilterId,
+  providerOptions,
+  sessionFilter,
   isRefreshingSelectedProject,
   refreshSessionsLabel,
   refreshingSessionsLabel,
@@ -84,13 +105,23 @@ export function ProjectExplorerHeader({
   openFolderLabel,
   organizeLabel,
   byProjectLabel,
+  byProviderLabel,
   chronologicalLabel,
   sortByLabel,
+  smartLabel,
+  recentLabel,
   createdLabel,
-  updatedLabel,
   showLabel,
   allSessionsLabel,
   relevantLabel,
+  providerLabel,
+  anyProviderLabel,
+  statusLabel,
+  attentionLabel,
+  executingLabel,
+  failedLabel,
+  pinnedLabel,
+  unreadLabel,
   filterMenuRef,
   onCreateSession,
   onRefreshSelectedProject,
@@ -101,11 +132,15 @@ export function ProjectExplorerHeader({
   onOpenFolder,
   onToggleFilterMenu,
   onOrganizeByProject,
+  onOrganizeByProvider,
   onOrganizeChronologically,
   onSortByCreated,
-  onSortByUpdated,
+  onSortBySmart,
+  onSortByRecent,
   onShowAllSessions,
   onShowRelevantSessions,
+  onProviderFilterChange,
+  onSessionFilterChange,
 }: ProjectExplorerHeaderProps) {
   const newSessionTitle = selectedProjectId
     ? newSessionInCurrentProjectLabel
@@ -243,7 +278,7 @@ export function ProjectExplorerHeader({
           {showFilterMenu && (
             <div
               ref={filterMenuRef}
-              className="birdcoder-chrome-menu absolute right-0 top-6 w-48 backdrop-blur-xl border rounded-lg shadow-2xl z-50 py-1.5 text-[13px] text-gray-300 animate-in fade-in zoom-in-95 duration-150 origin-top-right"
+              className="birdcoder-chrome-menu absolute right-0 top-6 max-h-[min(70vh,560px)] w-52 overflow-y-auto backdrop-blur-xl border rounded-lg shadow-2xl z-50 py-1.5 text-[13px] text-gray-300 animate-in fade-in zoom-in-95 duration-150 origin-top-right"
             >
               <div className="px-3 py-1 text-[11px] font-semibold uppercase tracking-wider text-gray-500">{organizeLabel}</div>
               <button
@@ -257,6 +292,14 @@ export function ProjectExplorerHeader({
               <button
                 type="button"
                 className="flex w-full cursor-pointer items-center justify-between px-3 py-1.5 text-left transition-colors hover:bg-white/10 hover:text-white"
+                onClick={onOrganizeByProvider}
+              >
+                <span>{byProviderLabel}</span>
+                {organizeBy === 'provider' && <Check size={14} className="text-gray-400" />}
+              </button>
+              <button
+                type="button"
+                className="flex w-full cursor-pointer items-center justify-between px-3 py-1.5 text-left transition-colors hover:bg-white/10 hover:text-white"
                 onClick={onOrganizeChronologically}
               >
                 <span>{chronologicalLabel}</span>
@@ -264,7 +307,66 @@ export function ProjectExplorerHeader({
               </button>
 
               <div className="h-px bg-white/10 my-1.5"></div>
+              <div className="px-3 py-1 text-[11px] font-semibold uppercase tracking-wider text-gray-500">{providerLabel}</div>
+              <button
+                type="button"
+                className="flex w-full cursor-pointer items-center justify-between px-3 py-1.5 text-left transition-colors hover:bg-white/10 hover:text-white"
+                onClick={() => onProviderFilterChange('all')}
+              >
+                <span>{anyProviderLabel}</span>
+                {providerFilterId === 'all' && <Check size={14} className="text-gray-400" />}
+              </button>
+              {providerOptions.map((provider) => (
+                <button
+                  key={provider.id}
+                  type="button"
+                  className="flex w-full cursor-pointer items-center justify-between px-3 py-1.5 text-left transition-colors hover:bg-white/10 hover:text-white"
+                  onClick={() => onProviderFilterChange(provider.id)}
+                >
+                  <span className="truncate">{provider.label}</span>
+                  {providerFilterId === provider.id && <Check size={14} className="shrink-0 text-gray-400" />}
+                </button>
+              ))}
+
+              <div className="h-px bg-white/10 my-1.5"></div>
+              <div className="px-3 py-1 text-[11px] font-semibold uppercase tracking-wider text-gray-500">{statusLabel}</div>
+              {([
+                ['all', allSessionsLabel],
+                ['attention', attentionLabel],
+                ['executing', executingLabel],
+                ['failed', failedLabel],
+                ['pinned', pinnedLabel],
+                ['unread', unreadLabel],
+              ] as const).map(([filter, label]) => (
+                <button
+                  key={filter}
+                  type="button"
+                  className="flex w-full cursor-pointer items-center justify-between px-3 py-1.5 text-left transition-colors hover:bg-white/10 hover:text-white"
+                  onClick={() => onSessionFilterChange(filter)}
+                >
+                  <span>{label}</span>
+                  {sessionFilter === filter && <Check size={14} className="text-gray-400" />}
+                </button>
+              ))}
+
+              <div className="h-px bg-white/10 my-1.5"></div>
               <div className="px-3 py-1 text-[11px] font-semibold uppercase tracking-wider text-gray-500">{sortByLabel}</div>
+              <button
+                type="button"
+                className="flex w-full cursor-pointer items-center justify-between px-3 py-1.5 text-left transition-colors hover:bg-white/10 hover:text-white"
+                onClick={onSortBySmart}
+              >
+                <span>{smartLabel}</span>
+                {sortBy === 'smart' && <Check size={14} className="text-gray-400" />}
+              </button>
+              <button
+                type="button"
+                className="flex w-full cursor-pointer items-center justify-between px-3 py-1.5 text-left transition-colors hover:bg-white/10 hover:text-white"
+                onClick={onSortByRecent}
+              >
+                <span>{recentLabel}</span>
+                {sortBy === 'recent' && <Check size={14} className="text-gray-400" />}
+              </button>
               <button
                 type="button"
                 className="flex w-full cursor-pointer items-center justify-between px-3 py-1.5 text-left transition-colors hover:bg-white/10 hover:text-white"
@@ -273,15 +375,6 @@ export function ProjectExplorerHeader({
                 <span>{createdLabel}</span>
                 {sortBy === 'created' && <Check size={14} className="text-gray-400" />}
               </button>
-              <button
-                type="button"
-                className="flex w-full cursor-pointer items-center justify-between px-3 py-1.5 text-left transition-colors hover:bg-white/10 hover:text-white"
-                onClick={onSortByUpdated}
-              >
-                <span>{updatedLabel}</span>
-                {sortBy === 'updated' && <Check size={14} className="text-gray-400" />}
-              </button>
-
               <div className="h-px bg-white/10 my-1.5"></div>
               <div className="px-3 py-1 text-[11px] font-semibold uppercase tracking-wider text-gray-500">{showLabel}</div>
               <button

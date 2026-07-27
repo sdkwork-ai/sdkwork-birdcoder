@@ -1,5 +1,5 @@
 {
-  "identifier": "com.sdkwork.sdkwork.birdcoder.desktop",
+  "identifier": "com.sdkwork.birdcoder.desktop",
   "productName": "SDKWork BirdCoder",
   "bundle": {
     "active": true,

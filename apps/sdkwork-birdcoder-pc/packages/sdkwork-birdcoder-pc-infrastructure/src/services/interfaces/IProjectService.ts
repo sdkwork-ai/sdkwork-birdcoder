@@ -54,6 +54,7 @@ export interface AgentProjectViewPage {
 export interface IProjectService {
   getProjectsPage(request: AgentProjectPageRequest): Promise<AgentProjectViewPage>;
   getProjectById(projectId: string): Promise<AgentProjectView | null>;
+  getProjectByName(workspaceId: string, name: string): Promise<AgentProjectView | null>;
   createProject(name: string, options: CreateProjectOptions): Promise<AgentProjectView>;
   importProject(options: ImportProjectOptions): Promise<AgentProjectView>;
   renameProject(projectId: string, name: string): Promise<void>;

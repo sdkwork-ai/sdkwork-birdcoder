@@ -11,10 +11,23 @@ const source = fs.readFileSync(
   'utf8',
 );
 
-assert.match(
+assert.doesNotMatch(
   source,
-  /if \(\s*!isBrowserRuntime\(\)\s*&&\s*!hasConfiguredRemoteBackendAccess\(runtimeConfig, options\)\s*\)/u,
-  'Browser user-facing IDE bootstrap must not require backend SDK bindings; backend-admin surfaces own backend SDK composition.',
+  /BackendSdk|backendClient|createBirdCoderBackend/iu,
+  'Browser user-facing IDE bootstrap must not import or compose backend SDK clients.',
 );
+
+for (const appSdkBoundary of [
+  'createBirdCoderAgentsAppSdkClient',
+  'createBirdCoderDocumentsAppSdkClient',
+  'createBirdCoderSkillsAppSdkClient',
+  'SdkworkPromptsAppClient',
+]) {
+  assert.match(
+    source,
+    new RegExp(`\\b${appSdkBoundary}\\b`, 'u'),
+    `Browser user-facing IDE bootstrap must retain the ${appSdkBoundary} App SDK boundary.`,
+  );
+}
 
 console.log('default IDE services browser backend boundary contract passed.');

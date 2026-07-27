@@ -12,6 +12,7 @@ export {
 
 export {
   bootstrapBirdCoderMembershipSdk,
+  getBirdCoderMembershipCheckoutService,
   resetBirdCoderMembershipSdkBootstrap,
 } from '@sdkwork/birdcoder-pc-infrastructure/services/membershipSdkBootstrap';
 
@@ -62,7 +63,11 @@ export type {
 export type { IAuthService } from '@sdkwork/birdcoder-pc-infrastructure/services/interfaces/IAuthService';
 export type {
   AgentInteractionClaim,
+  AgentProjectSessionPageRequest,
+  AgentScopedSessionPageRequest,
+  AgentSessionListPageRequest,
   AgentSessionPageRequest,
+  AgentWorkspaceSessionPageRequest,
   CreateAgentSessionInput,
   IAgentSessionService,
   SubmitAgentTurnInput,

@@ -1,6 +1,7 @@
 import {
   buildTerminalExecutionPlan,
   getTerminalProfile,
+  type TerminalProfileId,
 } from './profiles.ts';
 import {
   buildTerminalCommandAuditEvent,
@@ -16,7 +17,10 @@ import type {
   DesktopLocalProcessSessionCreateRequest,
   DesktopLocalShellSessionCreateRequest,
 } from '@sdkwork/terminal-pc-infrastructure';
-import type { DesktopTerminalLaunchPlan } from './contracts/sdkworkTerminalShell.d.ts';
+import type {
+  DesktopTerminalLaunchPlan,
+  WebRuntimeSessionIntent,
+} from './contracts/sdkworkTerminalShell.d.ts';
 
 export interface BirdcoderTerminalSessionMetadata {
   projectId?: string | null;
@@ -31,6 +35,17 @@ export interface ResolveBirdcoderTerminalLaunchRequestOptions
 export interface BirdcoderTerminalLaunchResolution {
   blockedMessage: string | null;
   plan: DesktopTerminalLaunchPlan | null;
+}
+
+export interface ResolveBirdcoderWebTerminalLaunchRequestOptions {
+  projectId: string;
+  requestId: string;
+  runtimeLocationId: string;
+}
+
+export interface BirdcoderWebTerminalLaunchResolution {
+  blockedMessage: string | null;
+  intent: WebRuntimeSessionIntent | null;
 }
 
 export interface BirdcoderTerminalGovernanceRuntime {
@@ -51,6 +66,8 @@ const DEFAULT_TERMINAL_GOVERNANCE_RUNTIME: BirdcoderTerminalGovernanceRuntime = 
 
 const TERMINAL_GOVERNANCE_UNAVAILABLE_MESSAGE =
   'The command was not launched because terminal governance could not be evaluated or recorded.';
+const REMOTE_TERMINAL_TARGET_UNAVAILABLE_MESSAGE =
+  'The command was not launched because the remote terminal target is unavailable.';
 
 function mapTerminalProfileIdToShellAppProfile(
   profileId: string,
@@ -117,6 +134,98 @@ function buildLocalShellRequest(
   };
 }
 
+async function evaluateAndRecordTerminalCommand(
+  command: string,
+  profileId: TerminalProfileId,
+  auditScope: string,
+  governanceRuntime: BirdcoderTerminalGovernanceRuntime,
+): Promise<string | null> {
+  try {
+    const decision = await governanceRuntime.evaluateCommand(command);
+    const recordedAt = governanceRuntime.now();
+    const auditEvent = buildTerminalCommandAuditEvent(
+      {
+        profileId,
+        cwd: auditScope,
+        command,
+        decision,
+      },
+      recordedAt,
+    );
+
+    await governanceRuntime.recordDiagnostic({
+      ...auditEvent,
+      recordedAt,
+      profileId,
+      cwd: auditScope,
+      command: sanitizeTerminalCommandForAudit(command),
+      reason: decision.reason,
+      approvalPolicy: decision.approvalPolicy,
+      sandboxSettings: decision.sandboxSettings,
+    });
+
+    return decision.allowed
+      ? null
+      : decision.reason ?? 'Terminal governance blocked the command.';
+  } catch {
+    return TERMINAL_GOVERNANCE_UNAVAILABLE_MESSAGE;
+  }
+}
+
+export async function resolveBirdcoderWebTerminalLaunchRequest(
+  request: TerminalCommandRequest,
+  options: ResolveBirdcoderWebTerminalLaunchRequestOptions,
+  governanceRuntime: BirdcoderTerminalGovernanceRuntime =
+    DEFAULT_TERMINAL_GOVERNANCE_RUNTIME,
+): Promise<BirdcoderWebTerminalLaunchResolution> {
+  const projectId = options.projectId.trim();
+  const runtimeLocationId = options.runtimeLocationId.trim();
+  const requestId = options.requestId.trim();
+  if (!projectId || !runtimeLocationId || !requestId) {
+    return {
+      blockedMessage: REMOTE_TERMINAL_TARGET_UNAVAILABLE_MESSAGE,
+      intent: null,
+    };
+  }
+
+  const normalizedCommand = request.command?.trim();
+  const profileId = getTerminalProfile(request.profileId ?? 'bash').id;
+  if (normalizedCommand) {
+    const blockedMessage = await evaluateAndRecordTerminalCommand(
+      normalizedCommand,
+      profileId,
+      `remote-runtime:${runtimeLocationId}`,
+      governanceRuntime,
+    );
+    if (blockedMessage) {
+      return {
+        blockedMessage,
+        intent: null,
+      };
+    }
+  }
+
+  const title = normalizedCommand?.split(/\s+/u, 1)[0] || 'bash';
+  return {
+    blockedMessage: null,
+    intent: {
+      requestId,
+      profile: 'bash',
+      title,
+      targetLabel: runtimeLocationId,
+      request: {
+        projectId,
+        runtimeLocationId,
+        command: normalizedCommand
+          ? ['/bin/bash', '-lc', normalizedCommand]
+          : ['/bin/bash', '-l'],
+        modeTags: ['cli-native'],
+        tags: ['birdcoder', 'profile:bash'],
+      },
+    },
+  };
+}
+
 export function buildBirdcoderTerminalLaunchPlan(
   request: TerminalCommandRequest,
   options: ResolveBirdcoderTerminalLaunchRequestOptions = {},
@@ -176,44 +285,20 @@ export async function resolveBirdcoderTerminalLaunchRequest(
   const plan = buildBirdcoderTerminalLaunchPlan(request, options);
   const normalizedCommand = request.command?.trim();
   if (normalizedCommand) {
-    try {
-      const decision = await governanceRuntime.evaluateCommand(normalizedCommand);
-      const recordedAt = governanceRuntime.now();
-      const profileId = getTerminalProfile(request.profileId ?? 'powershell').id;
-      const cwd =
-        plan.kind === 'local-process'
-          ? plan.localProcessRequest.workingDirectory?.trim() || plan.targetLabel
-          : plan.localShellRequest.workingDirectory?.trim() || plan.targetLabel;
-      const auditEvent = buildTerminalCommandAuditEvent(
-        {
-          profileId,
-          cwd,
-          command: normalizedCommand,
-          decision,
-        },
-        recordedAt,
-      );
-
-      await governanceRuntime.recordDiagnostic({
-        ...auditEvent,
-        recordedAt,
-        profileId,
-        cwd,
-        command: sanitizeTerminalCommandForAudit(normalizedCommand),
-        reason: decision.reason,
-        approvalPolicy: decision.approvalPolicy,
-        sandboxSettings: decision.sandboxSettings,
-      });
-
-      if (!decision.allowed) {
-        return {
-          blockedMessage: decision.reason ?? 'Terminal governance blocked the command.',
-          plan: null,
-        };
-      }
-    } catch {
+    const profileId = getTerminalProfile(request.profileId ?? 'powershell').id;
+    const cwd =
+      plan.kind === 'local-process'
+        ? plan.localProcessRequest.workingDirectory?.trim() || plan.targetLabel
+        : plan.localShellRequest.workingDirectory?.trim() || plan.targetLabel;
+    const blockedMessage = await evaluateAndRecordTerminalCommand(
+      normalizedCommand,
+      profileId,
+      cwd,
+      governanceRuntime,
+    );
+    if (blockedMessage) {
       return {
-        blockedMessage: TERMINAL_GOVERNANCE_UNAVAILABLE_MESSAGE,
+        blockedMessage,
         plan: null,
       };
     }

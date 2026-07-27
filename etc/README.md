@@ -7,6 +7,14 @@ live beside the index. Environment variables and CLI flags are runtime overrides
 Committed config contains no passwords, tokens, API keys, private keys, or local absolute paths.
 Use ignored `*.local.*` files and platform secret injection for private values.
 
+## Client materialization
+
+Run `pnpm config:materialize` after changing a topology profile. It deterministically derives the
+PC and H5 `.env.<standalone|cloud>.<environment>` files plus Flutter
+`env/sdkwork.<standalone|cloud>.<environment>.json` dart-define files. These client files contain
+only safe public/runtime selectors and a blank bootstrap token field. Run `pnpm config:check` in CI
+or before a build to reject missing or stale derived profiles.
+
 ## Code-engine sandbox policy
 
 `code-engine-sandbox.json` defines the safe, tracked default for code-agent process access. The

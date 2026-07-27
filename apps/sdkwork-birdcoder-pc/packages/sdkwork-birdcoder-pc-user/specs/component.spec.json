@@ -131,7 +131,23 @@
         "export": "."
       }
     ],
-    "requiredPorts": [],
+    "requiredPorts": [
+      {
+        "name": "membershipSubscriptionCatalog",
+        "export": ".",
+        "package": "@sdkwork/membership-pc-subscription"
+      },
+      {
+        "name": "membershipCheckoutPort",
+        "export": ".",
+        "package": "@sdkwork/birdcoder-pc-infrastructure-runtime"
+      },
+      {
+        "name": "orderCheckoutDialog",
+        "export": ".",
+        "package": "@sdkwork/order-pc-checkout"
+      }
+    ],
     "publicExports": [
       "."
     ],
@@ -144,7 +160,8 @@
     "routeManifest": null,
     "sdkDependencies": [],
     "dependencyApiExports": [],
-    "dependencyApiSurfaces": []
+    "dependencyApiSurfaces": [],
+    "compositionBoundary": "The BirdCoder application adapter injects the order-owned checkout service and dialog into the membership catalog. Membership packages do not depend on order packages."
   },
   "integration": {
     "authority": "Root SDKWork specs remain authoritative. Local specs may extend but must not contradict them.",

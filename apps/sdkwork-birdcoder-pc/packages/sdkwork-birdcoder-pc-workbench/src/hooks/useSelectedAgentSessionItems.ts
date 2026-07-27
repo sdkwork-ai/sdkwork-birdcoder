@@ -47,7 +47,11 @@ export function useSelectedAgentSessionItems({
   const { sessionRevision, user } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
   const [pollRevision, setPollRevision] = useState(0);
-  const activeRequestKeyRef = useRef('');
+  const activeRequestKeyRef = useRef<string | null>(null);
+  const selectedAgentSessionRef = useRef(selectedAgentSession);
+  const selectedProjectRef = useRef(selectedProject);
+  selectedAgentSessionRef.current = selectedAgentSession;
+  selectedProjectRef.current = selectedProject;
   const normalizedSessionId = normalize(selectedAgentSessionId);
   const userScope = buildBirdCoderAuthSessionInventoryScope(user?.id, sessionRevision);
   const resolvedProjectId =
@@ -71,13 +75,11 @@ export function useSelectedAgentSessionItems({
       selectionRefreshToken,
       selectedAgentSession?.updatedAt ?? '',
       selectedAgentSession?.transcriptUpdatedAt ?? '',
-      selectedAgentSession?.items.length ?? 0,
       pollRevision,
     ].join('\u0001'),
     [
       pollRevision,
       refreshScopeKey,
-      selectedAgentSession?.items.length,
       selectedAgentSession?.transcriptUpdatedAt,
       selectedAgentSession?.updatedAt,
       selectionRefreshToken,
@@ -102,6 +104,8 @@ export function useSelectedAgentSessionItems({
     activeRequestKeyRef.current = requestKey;
     let disposed = false;
     const controller = new AbortController();
+    const requestAgentSession = selectedAgentSessionRef.current;
+    const requestProject = selectedProjectRef.current;
     setIsLoading(true);
 
     void refreshAgentSessionItems({
@@ -109,17 +113,18 @@ export function useSelectedAgentSessionItems({
       agentSessionId: normalizedSessionId,
       signal: controller.signal,
       resolvedLocation:
-        selectedProject && selectedAgentSession
-          ? { agentSession: selectedAgentSession, project: selectedProject }
+        requestProject && requestAgentSession
+          ? { agentSession: requestAgentSession, project: requestProject }
           : undefined,
     })
       .then(async (result) => {
         if (disposed || result.status !== 'refreshed' || !result.agentSession) {
           return;
         }
+        const latestSelectedProject = selectedProjectRef.current;
         const project =
-          selectedProject?.projectId === result.projectId
-            ? selectedProject
+          latestSelectedProject?.projectId === result.projectId
+            ? latestSelectedProject
             : await projectService.getProjectById(result.projectId);
         if (disposed) {
           return;
@@ -142,12 +147,18 @@ export function useSelectedAgentSessionItems({
       })
       .finally(() => {
         if (!disposed) {
+          if (activeRequestKeyRef.current === requestKey) {
+            activeRequestKeyRef.current = null;
+          }
           setIsLoading(false);
         }
       });
 
     return () => {
       disposed = true;
+      if (activeRequestKeyRef.current === requestKey) {
+        activeRequestKeyRef.current = null;
+      }
       controller.abort(new Error('Selected Agents session item request was superseded.'));
     };
   }, [
@@ -156,8 +167,6 @@ export function useSelectedAgentSessionItems({
     normalizedSessionId,
     projectService,
     requestKey,
-    selectedAgentSession,
-    selectedProject,
     userScope,
   ]);
 

@@ -9,9 +9,9 @@ import {
   getDefaultRunConfigurations,
   globalEventBus,
   hydrateImportedProjectFromAuthority,
-  importLocalFolderProject,
-  openLocalFolder,
-  rebindLocalFolderProject,
+  importSelectedProjectDirectory,
+  rebindSelectedProjectDirectory,
+  selectProjectDirectory,
   resolveLatestAgentSessionIdForProject,
   restoreWorkbenchAgentSessionItemFiles,
   type AgentApprovalDecisionInput,
@@ -39,6 +39,7 @@ import {
   useAuth,
   useToast,
 } from '@sdkwork/birdcoder-pc-workbench';
+import { useSandboxDirectoryPicker } from '@sdkwork/drive-pc-sandbox-explorer';
 import { buildBirdCoderAuthSessionInventoryScope } from '@sdkwork/birdcoder-pc-workbench/context/authSessionScope';
 import {
   FileChange,
@@ -75,6 +76,7 @@ function StudioPageComponent({
   onAgentSessionChange,
 }: StudioPageProps) {
   const { t } = useTranslation();
+  const { pickDirectory } = useSandboxDirectoryPicker();
   const [activeTab, setActiveTab] = useState<'preview' | 'simulator' | 'code'>('preview');
   const isSimulatorTabActive = activeTab === 'simulator';
   const handleActiveTabChange = useCallback((nextTab: 'preview' | 'simulator' | 'code') => {
@@ -92,9 +94,9 @@ function StudioPageComponent({
     searchQuery: projectSearchQuery,
     setSearchQuery: setProjectSearchQuery,
     submitAgentTurnInput,
-    createProject,
+    ensureProject,
+    importProject,
     createAgentSession,
-    deleteProject,
     editAgentSessionItem,
     deleteAgentSessionItem,
     loadMoreProjects,
@@ -568,24 +570,31 @@ function StudioPageComponent({
   const previousMountRecoveryStatusRef = useRef(mountRecoveryState.status);
 
   const selectFolderAndImportProject = useCallback(async (fallbackProjectName: string) => {
-    const pickerResult = await openLocalFolder();
-    if (pickerResult.status === 'cancelled') {
-      return null;
-    }
-    if (pickerResult.status === 'unsupported') {
-      addToast(pickerResult.message, 'error');
+    const selection = await selectProjectDirectory({
+      pickSandboxDirectory: pickDirectory,
+      sandboxPickerTitle: t('app.selectServerDirectory'),
+    });
+    if (!selection) {
       return null;
     }
 
-    return importLocalFolderProject({
+    return importSelectedProjectDirectory({
       bindLocalProjectRuntimeLocation: (projectId, source) =>
         projectRuntimeLocationService.bindLocalProjectRuntimeLocation(projectId, source),
-      createProject,
-      deleteCreatedProject: deleteProject,
+      ensureProject,
       fallbackProjectName,
-      folderInfo: pickerResult.source,
+      importPort: { importProject },
+      selection,
+      workspaceId,
     });
-  }, [addToast, createProject, deleteProject, projectRuntimeLocationService]);
+  }, [
+    ensureProject,
+    importProject,
+    pickDirectory,
+    projectRuntimeLocationService,
+    t,
+    workspaceId,
+  ]);
 
   useEffect(() => {
     if (
@@ -1073,21 +1082,21 @@ function StudioPageComponent({
 
     setIsMountRecoveryActionPending(true);
     try {
-      const pickerResult = await openLocalFolder();
-      if (pickerResult.status === 'cancelled') {
-        return;
-      }
-      if (pickerResult.status === 'unsupported') {
-        addToast(pickerResult.message, 'error');
+      const selection = await selectProjectDirectory({
+        pickSandboxDirectory: pickDirectory,
+        sandboxPickerTitle: t('app.selectServerDirectory'),
+      });
+      if (!selection) {
         return;
       }
 
-      const reboundProject = await rebindLocalFolderProject({
+      const reboundProject = await rebindSelectedProjectDirectory({
         bindLocalProjectRuntimeLocation: (projectId, source) =>
           projectRuntimeLocationService.bindLocalProjectRuntimeLocation(projectId, source),
+        compositionPort: projectService,
         projectId: currentProjectId,
         fallbackProjectName: currentProject?.name ?? t('studio.localFolder'),
-        folderInfo: pickerResult.source,
+        selection,
       });
 
       syncImportedProjectInBackground(currentProjectId);
@@ -1107,7 +1116,9 @@ function StudioPageComponent({
     addToast,
     currentProject?.name,
     currentProjectId,
+    pickDirectory,
     projectRuntimeLocationService,
+    projectService,
     syncImportedProjectInBackground,
     t,
   ]);
@@ -1300,6 +1311,7 @@ function StudioPageComponent({
           setPreviewWebDevice,
           terminalHeight,
           terminalRequest,
+          terminalRuntimeLocationId: selectedSession?.runtimeLocationId,
           updateFileDraft,
           viewingDiff,
           closeFile,

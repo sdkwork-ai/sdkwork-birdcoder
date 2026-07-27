@@ -96,6 +96,12 @@ assert.doesNotMatch(
 
 assert.doesNotMatch(
   desktopMainSource,
+  /waitForBirdCoderApiReady/u,
+  'Desktop shell bootstrap must trust the native desktop_runtime_config startup boundary instead of issuing a cross-origin WebView readiness request.',
+);
+
+assert.doesNotMatch(
+  desktopMainSource,
   /import\('@tauri-apps\/api\/core'\)/u,
   'Desktop shell bootstrap must resolve Tauri invoke through the shared desktop runtime helper instead of importing @tauri-apps/api/core directly.',
 );

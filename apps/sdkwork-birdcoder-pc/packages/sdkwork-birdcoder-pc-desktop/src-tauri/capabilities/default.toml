@@ -53,6 +53,11 @@ permissions = [
   "allow-local-store-delete",
   "allow-local-store-list",
 
+  # OS credential-store backed IAM application session commands
+  "allow-secure-app-session-read",
+  "allow-secure-app-session-write",
+  "allow-secure-app-session-delete",
+
   # User home config commands
   "allow-user-home-config-read",
   "allow-user-home-config-write",

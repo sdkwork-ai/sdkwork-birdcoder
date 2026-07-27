@@ -1,4 +1,6 @@
 import { defineConfig, devices } from '@playwright/test';
+import { mergeRepoBootstrapAccessTokenEnv } from '@sdkwork/iam-credential-entry/node-bootstrap';
+import { fileURLToPath } from 'node:url';
 
 const port = Number(process.env.PLAYWRIGHT_PORT ?? 4175);
 const mockApiPort = Number(process.env.PC_E2E_MOCK_API_PORT ?? 11240);
@@ -6,6 +8,21 @@ const baseURL = process.env.PLAYWRIGHT_BASE_URL ?? `http://127.0.0.1:${port}`;
 const mockApiBaseUrl = `http://127.0.0.1:${mockApiPort}`;
 const reuse = !process.env.CI;
 const skipWebServer = process.env.PLAYWRIGHT_SKIP_WEB_SERVER === '1';
+const repositoryRoot = fileURLToPath(new URL('../..', import.meta.url));
+const { SDKWORK_ACCESS_TOKEN: e2eBootstrapAccessToken } = mergeRepoBootstrapAccessTokenEnv({
+  allowTestTokenGeneration: true,
+  env: {
+    SDKWORK_ACCESS_TOKEN: process.env.SDKWORK_ACCESS_TOKEN,
+  },
+  environment: 'test',
+  manifestPath: 'apps/sdkwork-birdcoder-pc/sdkwork.app.config.json',
+  repoRoot: repositoryRoot,
+  runtimeTarget: 'browser',
+});
+
+if (!e2eBootstrapAccessToken) {
+  throw new Error('PC Playwright requires an isolated IAM credential-entry bootstrap token.');
+}
 
 export default defineConfig({
   testDir: './tests/e2e',
@@ -38,6 +55,7 @@ export default defineConfig({
       env: {
         SDKWORK_BIRDCODER_APPLICATION_PUBLIC_HTTP_URL: mockApiBaseUrl,
         SDKWORK_BIRDCODER_DEPLOYMENT_PROFILE: 'standalone',
+        SDKWORK_ACCESS_TOKEN: e2eBootstrapAccessToken,
       },
     },
   ],

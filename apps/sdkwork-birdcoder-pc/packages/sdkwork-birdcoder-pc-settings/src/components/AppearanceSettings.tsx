@@ -4,6 +4,7 @@ import { copyTextToClipboard } from '@sdkwork/birdcoder-pc-ui';
 import { Button } from '@sdkwork/birdcoder-pc-ui-shell';
 import { useToast } from '@sdkwork/birdcoder-pc-workbench';
 import { useTranslation } from 'react-i18next';
+import { APP_FONT_SIZE_MAX, APP_FONT_SIZE_MIN } from './appSettings';
 import { SettingsProps } from './types';
 
 const LIGHT_THEME_PRESETS = {
@@ -403,8 +404,12 @@ export function AppearanceSettings({ settings, updateSetting }: SettingsProps) {
             <div className="flex items-center gap-2">
               <input 
                 type="number" 
+                min={APP_FONT_SIZE_MIN}
+                max={APP_FONT_SIZE_MAX}
+                step="1"
                 value={settings.uiFontSize} 
                 onChange={(e) => updateSetting('uiFontSize', e.target.value)}
+                aria-label={t('settings.appearance.uiFontSize')}
                 className="bg-[#0e0e11] border border-white/10 rounded-lg px-3 py-1.5 text-sm text-white outline-none w-20 text-center focus:border-blue-500/50" 
               />
               <span className="text-sm text-gray-500">px</span>
@@ -419,8 +424,12 @@ export function AppearanceSettings({ settings, updateSetting }: SettingsProps) {
             <div className="flex items-center gap-2">
               <input 
                 type="number" 
+                min={APP_FONT_SIZE_MIN}
+                max={APP_FONT_SIZE_MAX}
+                step="1"
                 value={settings.codeFontSize} 
                 onChange={(e) => updateSetting('codeFontSize', e.target.value)}
+                aria-label={t('settings.appearance.codeFontSize')}
                 className="bg-[#0e0e11] border border-white/10 rounded-lg px-3 py-1.5 text-sm text-white outline-none w-20 text-center focus:border-blue-500/50" 
               />
               <span className="text-sm text-gray-500">px</span>

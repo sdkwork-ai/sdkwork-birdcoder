@@ -1,0 +1,203 @@
+{
+  "$schema": "../../../sdkwork-specs/schemas/sdkwork.app.config.schema.v3.json",
+  "schemaVersion": 3,
+  "kind": "sdkwork.app",
+  "app": {
+    "key": "sdkwork-birdcoder-mini-program",
+    "name": "SDKWork Birdcoder Mini Program",
+    "displayName": "SDKWork BirdCoder WeChat Mini Program",
+    "description": "SDKWork BirdCoder native WeChat Mini Program application.",
+    "vendor": "SDKWork",
+    "officialWebsiteUrl": "https://sdkwork.com/apps/sdkwork-birdcoder",
+    "supportUrl": "https://sdkwork.com/support",
+    "privacyPolicyUrl": "https://sdkwork.com/privacy",
+    "termsOfServiceUrl": "https://sdkwork.com/terms",
+    "appType": "NONE",
+    "versionSource": "package.json",
+    "identifiers": {
+      "packageName": null,
+      "bundleId": null,
+      "desktopAppId": null,
+      "containerImage": null
+    }
+  },
+  "backend": {
+    "profileKey": "backend-root-admin",
+    "ownerMode": "tenant",
+    "grantMode": "current",
+    "platform": "MP_WEIXIN",
+    "appId": "sdkwork-birdcoder-mini-program",
+    "organizationId": "0",
+    "tenantId": "100001",
+    "accessTokenPermissionScope": [
+      "iam.users.read",
+      "iam.organizations.read",
+      "iam.roles.read",
+      "iam.permissions.read"
+    ]
+  },
+  "runtime": {
+    "family": "mini-program",
+    "framework": "weixin-mini-program",
+    "runtimes": [
+      "MP_WEIXIN"
+    ],
+    "deliveryModes": [
+      "MINI_PROGRAM"
+    ],
+    "defaultPlatform": "MP_WEIXIN",
+    "defaultArchitecture": "universal",
+    "supportedDeploymentProfiles": [
+      "standalone",
+      "cloud"
+    ],
+    "defaultDeploymentProfile": "cloud"
+  },
+  "media": {
+    "icons": {
+      "primary": {
+        "id": "birdcoder-mini-program-primary-icon",
+        "type": "ICON",
+        "purpose": "PRIMARY",
+        "platform": "MP_WEIXIN",
+        "locale": "zh-CN",
+        "width": 1024,
+        "height": 1024,
+        "format": "PNG",
+        "enabled": true,
+        "url": "https://cdn.sdkwork.com/apps/sdkwork-birdcoder/assets/icon-1024.png",
+        "metadata": {
+          "sharedProductAsset": true
+        }
+      },
+      "platform": []
+    },
+    "screenshots": [],
+    "previews": [],
+    "metadata": {
+      "assetVersion": "0.1.0",
+      "defaultLocale": "zh-CN"
+    }
+  },
+  "publish": {
+    "status": "DRAFT",
+    "preLaunch": true,
+    "platforms": [
+      "MP_WEIXIN"
+    ],
+    "installPlatforms": [
+      "MP_WEIXIN"
+    ],
+    "defaultPackageId": "mp-weixin-universal-dual-mini-program-mini-program-package",
+    "storeUrl": "https://sdkwork.com/apps/sdkwork-birdcoder-mini-program",
+    "stores": [],
+    "config": {
+      "workspaceRoot": "apps/sdkwork-birdcoder-mini-program",
+      "framework": "weixin-mini-program",
+      "managedBy": "sdkwork-app-standard-v3",
+      "platformImplementation": "native"
+    }
+  },
+  "artifacts": {
+    "installConfig": {
+      "defaultPackageId": "mp-weixin-universal-dual-mini-program-mini-program-package",
+      "installCommand": "sdkwork install sdkwork-birdcoder-mini-program",
+      "launchCommand": "sdkwork open sdkwork-birdcoder-mini-program",
+      "uninstallCommand": "sdkwork uninstall sdkwork-birdcoder-mini-program",
+      "packages": [
+        {
+          "id": "mp-weixin-universal-dual-mini-program-mini-program-package",
+          "name": "SDKWork BirdCoder WeChat Mini Program Package",
+          "sourceType": "MINI_PROGRAM",
+          "packageFormat": "MINI_PROGRAM_PACKAGE",
+          "platform": "MP_WEIXIN",
+          "url": "https://cdn.sdkwork.com/apps/sdkwork-birdcoder-mini-program/INTERNAL/0.1.0/mp-weixin.zip",
+          "enabled": false,
+          "metadata": {
+            "preLaunch": true,
+            "artifactPending": true,
+            "releaseBuildDeferred": true,
+            "releaseAuthority": "sdkwork-birdcoder",
+            "standaloneDistribution": "private-wechat-tenant-profile"
+          },
+          "architecture": "universal",
+          "profileBinding": "runtime-configurable",
+          "supportedDeploymentProfiles": [
+            "standalone",
+            "cloud"
+          ],
+          "defaultDeploymentProfile": "cloud",
+          "runtimeTarget": "mini-program",
+          "targetPlatform": "mp-weixin",
+          "clientArchitecture": "mini-program"
+        }
+      ],
+      "metadata": {
+        "workspaceRoot": "apps/sdkwork-birdcoder-mini-program",
+        "framework": "weixin-mini-program",
+        "packageManager": "pnpm@10.33.0",
+        "preLaunch": true
+      }
+    }
+  },
+  "release": {
+    "currentVersion": "0.1.0",
+    "defaultChannel": "INTERNAL",
+    "latest": {
+      "INTERNAL": "0.1.0"
+    },
+    "notes": [
+      {
+        "version": "0.1.0",
+        "releaseChannel": "INTERNAL",
+        "title": "SDKWork BirdCoder WeChat Mini Program initialization",
+        "summary": "Native WeChat Mini Program architecture, environment profiles, route projection, and workbench state scaffold.",
+        "content": "This initialization establishes SDKWork package and host boundaries. Generated SDK and full H5 capability parity remain deferred.",
+        "highlights": [
+          "Native WeChat Mini Program runtime",
+          "Eight standalone and cloud environment profiles",
+          "Deterministic route projection and build"
+        ],
+        "packageIds": [
+          "mp-weixin-universal-dual-mini-program-mini-program-package"
+        ],
+        "current": true,
+        "forceUpdate": false,
+        "minSupportedVersion": "0.1.0",
+        "metadata": {}
+      }
+    ]
+  },
+  "security": {
+    "checksumRequired": true,
+    "signatureRequired": true,
+    "sbomRequired": true
+  },
+  "devApp": {
+    "build": {
+      "targets": [
+        {
+          "platform": "MP_WEIXIN",
+          "runtimeTarget": "mini-program",
+          "command": "pnpm build"
+        }
+      ]
+    },
+    "sourceRoot": "apps/sdkwork-birdcoder-mini-program"
+  },
+  "metadata": {
+    "standardOwner": "sdkwork-birdcoder",
+    "initializedAt": "2026-07-26T00:00:00Z",
+    "deploymentConfig": "etc/sdkwork.deployment.config.json",
+    "preLaunch": true,
+    "appTypeCompatibility": "PlusProjectType has no native mini-program value; NONE is used while runtime and package metadata are authoritative.",
+    "releaseEvidence": {
+      "status": "blocked",
+      "verifiedAt": "2026-07-26",
+      "blockers": [
+        "signed-production-artifact-evidence-missing",
+        "wechat-devtools-upload-evidence-missing"
+      ]
+    }
+  }
+}

@@ -67,12 +67,22 @@ assert.match(
 );
 assert.match(
   runnerSource,
-  /isReleaseBuild[\s\S]*--dart-define=FLUTTER_ENV=production/u,
-  "Flutter release builds must compile with production credential-entry policy.",
+  /--dart-define-from-file=/u,
+  "Flutter runtime commands must load the selected tracked profile through dart-define-from-file.",
 );
 assert.match(
   runnerSource,
-  /\[\.\.\.configuredFlutterArgs, \.\.\.args, \.\.\.runtimeDefines\]/u,
+  /--deployment-profile/u,
+  "Flutter runtime commands must allow an explicit standalone or cloud profile selection.",
+);
+assert.match(
+  runnerSource,
+  /--environment/u,
+  "Flutter runtime commands must allow an explicit lifecycle environment selection.",
+);
+assert.match(
+  runnerSource,
+  /\[\.\.\.configuredFlutterArgs, \.\.\.runtimeOptions\.forwardedArgs, \.\.\.runtimeDefines\]/u,
   "Flutter runner-owned environment defines must follow caller arguments so they cannot be overridden.",
 );
 

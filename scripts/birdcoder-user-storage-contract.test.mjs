@@ -17,8 +17,16 @@ const tokenPlanPagePath = new URL(
   '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-user/src/token-plan/BirdCoderTokenPlanPage.tsx',
   import.meta.url,
 );
+const tokenPlanCheckoutModalPath = new URL(
+  '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-user/src/token-plan/BirdCoderTokenPlanCheckoutModal.tsx',
+  import.meta.url,
+);
 const tokenPlanMemberSummaryPath = new URL(
   '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-user/src/token-plan/tokenPlanMemberSummary.ts',
+  import.meta.url,
+);
+const membershipSdkBootstrapPath = new URL(
+  '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/src/services/membershipSdkBootstrap.ts',
   import.meta.url,
 );
 const vipSurfacePath = new URL(
@@ -47,7 +55,9 @@ const userIndexSource = fs.readFileSync(userIndexPath, 'utf8');
 const userPageSource = fs.readFileSync(userPagePath, 'utf8');
 const vipPageSource = fs.readFileSync(vipPagePath, 'utf8');
 const tokenPlanPageSource = fs.readFileSync(tokenPlanPagePath, 'utf8');
+const tokenPlanCheckoutModalSource = fs.readFileSync(tokenPlanCheckoutModalPath, 'utf8');
 const tokenPlanMemberSummarySource = fs.readFileSync(tokenPlanMemberSummaryPath, 'utf8');
+const membershipSdkBootstrapSource = fs.readFileSync(membershipSdkBootstrapPath, 'utf8');
 const vipSurfaceSource = fs.readFileSync(vipSurfacePath, 'utf8');
 
 for (const [label, source] of [
@@ -88,6 +98,31 @@ assert.match(
   tokenPlanPageSource,
   /<SdkworkSubscriptionCatalogPage\b/u,
   'BirdCoder Token Plan must render the shared Membership subscription catalog component.',
+);
+assert.match(
+  tokenPlanPageSource,
+  /checkoutPort=\{getBirdCoderMembershipCheckoutService\(\)\}/u,
+  'BirdCoder Token Plan must inject the Order-owned Membership checkout port.',
+);
+assert.match(
+  tokenPlanPageSource,
+  /checkoutModal:\s*BirdCoderTokenPlanCheckoutModal/u,
+  'BirdCoder Token Plan must replace the Membership placeholder checkout host.',
+);
+assert.match(
+  tokenPlanCheckoutModalSource,
+  /@sdkwork\/order-pc-checkout[\s\S]*<SdkworkOrderCheckoutDialog/u,
+  'BirdCoder composition must render the shared Order checkout dialog.',
+);
+assert.doesNotMatch(
+  tokenPlanCheckoutModalSource,
+  /fetch\s*\(|axios\.|Authorization|Access-Token/u,
+  'BirdCoder checkout UI must not bypass the composed Order service boundary.',
+);
+assert.match(
+  membershipSdkBootstrapSource,
+  /const\s+orderAppService\s*=\s*bootstrapSdkworkOrderAppService\([\s\S]*createSdkworkMembershipCheckoutService\(\{[\s\S]*appService:\s*orderAppService/u,
+  'BirdCoder infrastructure must compose Membership checkout from the shared Order app service.',
 );
 assert.match(
   tokenPlanMemberSummarySource,

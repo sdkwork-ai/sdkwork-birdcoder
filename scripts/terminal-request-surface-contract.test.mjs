@@ -58,13 +58,41 @@ assert.match(runConfigsSource, /surface: 'embedded'/);
 
 assert.match(
   terminalActionsSource,
-  /resolveProjectRuntimeLocation\(projectId, \{[\s\S]*capability: 'terminal'/,
+  /resolveProjectRuntimeLocation\(projectId, \{[\s\S]*allowFolderSelection,[\s\S]*capability: 'terminal'/,
   'Terminal launch must resolve a device-local runtime location.',
 );
 assert.match(
   terminalActionsSource,
   /emitOpenTerminalRequest\(\{[\s\S]*surface: 'project'[\s\S]*path: localWorkingDirectory/,
   'Project terminal launch must use the resolved local directory.',
+);
+assert.match(
+  terminalActionsSource,
+  /resolveBirdcoderWorkbenchHostMode\(\) === 'web'[\s\S]*emitOpenTerminalRequest\(\{\s*surface: 'project',[\s\S]*timestamp: Date\.now\(\),\s*\}\);/,
+  'Browser project terminal launch must switch to the project terminal without invoking local folder resolution.',
+);
+assert.match(
+  terminalActionsSource,
+  /resolveTerminalWorkingDirectory\(target\.projectId, false\)/,
+  'Tauri project terminal launch must reuse the bound absolute path without allowing folder selection.',
+);
+assert.doesNotMatch(
+  terminalActionsSource,
+  /resolveTerminalWorkingDirectory\([^)]*, true\)/,
+  'Terminal actions must never implicitly open a folder picker after a project has been selected.',
+);
+assert.match(
+  appSource,
+  /const handleOpenProjectTerminal = async \(target: ProjectDeviceMountTarget\) => \{[\s\S]*resolveBirdcoderWorkbenchHostMode\(\) === 'web'[\s\S]*emitOpenTerminalRequest\(\{\s*surface: 'project',[\s\S]*timestamp: Date\.now\(\),\s*\}\);[\s\S]*allowFolderSelection: false,[\s\S]*path: resolution\.location\.localWorkingDirectory/,
+  'File-explorer project terminal actions must use the remote project target in Browser and the recorded absolute path in Tauri.',
+);
+const shellProjectTerminalHandler = appSource.match(
+  /const handleOpenProjectTerminal = async[\s\S]*?const handleRevealProjectInFileManager/,
+)?.[0] ?? '';
+assert.doesNotMatch(
+  shellProjectTerminalHandler,
+  /allowFolderSelection: true/,
+  'File-explorer project terminal actions must never open an implicit folder picker.',
 );
 assert.doesNotMatch(
   requestsSource,

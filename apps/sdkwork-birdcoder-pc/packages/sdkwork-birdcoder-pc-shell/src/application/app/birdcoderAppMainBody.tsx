@@ -41,6 +41,7 @@ interface AppMainBodyProps {
   projectId: string;
   projectName?: string;
   agentSessionId: string;
+  runtimeLocationId?: string;
   onActiveTabChange: (tab: AppTab) => void;
   onRequireAuth: (targetTab: AppTab) => void;
   onProjectChange: (projectId: string) => void;
@@ -77,6 +78,7 @@ export const AppMainBody = React.memo(function AppMainBody({
   projectId,
   projectName,
   agentSessionId,
+  runtimeLocationId,
   onActiveTabChange,
   onRequireAuth,
   onProjectChange,
@@ -199,11 +201,14 @@ export const AppMainBody = React.memo(function AppMainBody({
                 onRecover={() => onActiveTabChange('code')}
               >
                 <TerminalDesktopApp
+                  agentSessionId={agentSessionId}
                   launchRequest={terminalRequest}
                   launchRequestKey={terminalRequest?.timestamp ?? null}
+                  onWebLaunchBlocked={handleTerminalLaunchBlocked}
                   resolveLaunchPlan={resolveTerminalLaunchPlan}
                   showWindowControls={false}
                   projectId={projectId}
+                  runtimeLocationId={runtimeLocationId}
                 />
               </SurfaceErrorBoundaryWithTranslation>
             </PersistentAppTabPanel>

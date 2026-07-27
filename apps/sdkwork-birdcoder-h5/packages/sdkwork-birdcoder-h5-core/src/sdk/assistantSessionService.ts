@@ -117,11 +117,27 @@ export async function ensureBirdCoderAssistantSession(
 ): Promise<BirdCoderAssistantSessionView> {
   const agentId = resolveAgentId(options.agentId);
   const client = resolveClient(options);
-  const { page, page_size: pageSize } = normalizeOffsetListQuery();
-  const listed = await client.ai.agents.sessions.list(agentId, { page, pageSize });
-  const existing = listed.items.find(isReusableAssistantSession);
-  if (existing) {
-    return toAssistantSessionView(existing);
+  const { page_size: pageSize } = normalizeOffsetListQuery();
+  let page = 1;
+
+  for (;;) {
+    const listed = await client.ai.agents.sessions.list(agentId, { page, pageSize });
+    const existing = listed.items.find(isReusableAssistantSession);
+    if (existing) {
+      return toAssistantSessionView(existing);
+    }
+
+    const hasMore = listed.pageInfo.hasMore
+      ?? (listed.pageInfo.totalPages === undefined
+        ? undefined
+        : page < listed.pageInfo.totalPages);
+    if (hasMore === false) {
+      break;
+    }
+    if (hasMore !== true) {
+      throw new Error('Agents session pagination response is missing a usable continuation state.');
+    }
+    page += 1;
   }
 
   const requestedAt = new Date().toISOString();
@@ -195,5 +211,5 @@ export async function submitBirdCoderAssistantTurn(
       requestedAt: new Date().toISOString(),
     },
   );
-  return completed.item.items.map(toSessionItemView).filter((item) => item.content.length > 0);
+  return completed.items.map(toSessionItemView).filter((item) => item.content.length > 0);
 }

@@ -40,7 +40,7 @@ export function ThemeManager() {
     root.style.fontFamily = uiFontFamily;
     root.style.setProperty("--birdcoder-ui-font-family", uiFontFamily);
     root.style.setProperty("--birdcoder-code-font-family", codeFontFamily);
-    root.style.setProperty("--birdcoder-ui-font-size", `${Number.parseInt(uiFontSize, 10) || 13}px`);
+    root.style.setProperty("--birdcoder-ui-font-size", `${Number.parseInt(uiFontSize, 10) || 12}px`);
     root.style.setProperty("--birdcoder-code-font-size", `${Number.parseInt(codeFontSize, 10) || 12}px`);
 
     Object.entries(hostStyle).forEach(([name, value]) => {

@@ -1,12 +1,8 @@
 {
-  "_generated": {
-    "command": "pnpm config:materialize",
-    "profileId": "cloud.production",
-    "source": "etc/topology/cloud.production.env"
-  },
   "FLUTTER_ENV": "production",
   "SDKWORK_ENVIRONMENT": "production",
   "SDKWORK_DEPLOYMENT_PROFILE": "cloud",
+  "SDKWORK_PROFILE_ID": "cloud.production",
   "SDKWORK_RUNTIME_TARGET": "flutter-android",
   "SDKWORK_BIRDCODER_ENVIRONMENT": "production",
   "SDKWORK_BIRDCODER_DEPLOYMENT_PROFILE": "cloud",

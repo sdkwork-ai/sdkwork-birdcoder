@@ -23,6 +23,9 @@ export interface CodeEditorWorkspacePanelProps {
   selectedAgentSessionId?: string | null;
   selectedAgentSessionScopeKey?: string | null;
   messages: AgentSessionItemView[];
+  hasMoreRemoteMessages: boolean;
+  isLoadingMoreRemoteMessages: boolean;
+  isNewSession: boolean;
   pendingApprovals?: AgentSessionPendingApproval[];
   pendingUserQuestions?: AgentSessionPendingQuestion[];
   chatEmptyState?: ReactNode;
@@ -53,6 +56,7 @@ export interface CodeEditorWorkspacePanelProps {
     interactionId: string,
     request: AgentApprovalDecisionInput,
   ) => void | Promise<void>;
+  onLoadMoreRemoteMessages: () => void | Promise<void>;
   onSubmitUserQuestionAnswer: (
     interactionId: string,
     request: AgentQuestionAnswerInput,
@@ -72,6 +76,9 @@ export interface EditorChatProps {
   isBusy: boolean;
   isEngineBusy: boolean;
   messages: AgentSessionItemView[];
+  hasMoreRemoteMessages: boolean;
+  isLoadingMoreRemoteMessages: boolean;
+  isNewSession: boolean;
   showComposerEngineSelector: boolean;
   selectedAgentSessionId?: string | null;
   selectedAgentSessionScopeKey?: string | null;
@@ -93,6 +100,7 @@ export interface EditorChatProps {
     interactionId: string,
     request: AgentApprovalDecisionInput,
   ) => void | Promise<void>;
+  onLoadMoreRemoteMessages: () => void | Promise<void>;
   onSubmitUserQuestionAnswer: (
     interactionId: string,
     request: AgentQuestionAnswerInput,

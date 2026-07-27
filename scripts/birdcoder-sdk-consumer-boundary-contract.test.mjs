@@ -59,7 +59,8 @@ for (const surfaceRoot of [
   'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-web',
   'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-desktop',
 ]) {
-  const appSdkAlias = createBirdcoderWorkspaceAliasEntries(absolutePath(surfaceRoot))
+  const aliasEntries = createBirdcoderWorkspaceAliasEntries(absolutePath(surfaceRoot));
+  const appSdkAlias = aliasEntries
     .find((entry) => entry.find === '@sdkwork/birdcoder-app-sdk');
   assert.ok(appSdkAlias, `${surfaceRoot} must define the BirdCoder App SDK Vite alias.`);
   assert.equal(
@@ -72,6 +73,25 @@ for (const surfaceRoot of [
     true,
     `${surfaceRoot} BirdCoder App SDK Vite alias must resolve to an existing source entry.`,
   );
+
+  for (const tokenPlanPackagePattern of [
+    /@sdkwork\/membership-app-sdk/u,
+    /@sdkwork\/membership-contracts/u,
+    /@sdkwork\/membership-pc-/u,
+    /@sdkwork\/membership-sdk-ports/u,
+    /@sdkwork\/membership-service/u,
+    /@sdkwork\/order-app-sdk/u,
+  ]) {
+    const matchingAlias = aliasEntries.find((entry) => {
+      const source = entry.find instanceof RegExp ? entry.find.source : String(entry.find);
+      return tokenPlanPackagePattern.test(source);
+    });
+    assert.equal(
+      matchingAlias,
+      undefined,
+      `${surfaceRoot} must resolve Token Plan dependencies through pnpm workspace package exports.`,
+    );
+  }
 }
 
 const workspace = readText('pnpm-workspace.yaml');

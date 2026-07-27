@@ -14,6 +14,7 @@ import {
   resolveViteWindowsRealpathPatchEntry,
   stripCwdArg,
   stripModeArg,
+  stripProfileArgs,
 } from './run-vite-host.mjs';
 
 assert.equal(normalizeViteMode('dev'), 'development');
@@ -28,6 +29,23 @@ assert.deepEqual(stripCwdArg(['--cwd', 'apps/sdkwork-birdcoder-pc/packages/sdkwo
   args: ['build', '--mode', 'production'],
   explicitCwd: 'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-web',
 });
+assert.deepEqual(
+  stripProfileArgs([
+    'build',
+    '--deployment-profile',
+    'cloud',
+    '--environment',
+    'staging',
+    '--runtime-target',
+    'browser',
+  ]),
+  {
+    args: ['build'],
+    deploymentProfile: 'cloud',
+    environment: 'staging',
+    runtimeTarget: 'browser',
+  },
+);
 
 const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'birdcoder-vite-host-'));
 const vitePackageRoot = path.join(tempRoot, 'node_modules', 'vite');
@@ -84,6 +102,8 @@ assert.equal(devPlan.args[7], 'native');
 assert.equal(devPlan.args[8], '--host');
 assert.equal(devPlan.args[9], '0.0.0.0');
 assert.equal(devPlan.env.SDKWORK_VITE_MODE, 'development');
+assert.equal(devPlan.env.SDKWORK_DEPLOYMENT_PROFILE, 'standalone');
+assert.equal(devPlan.env.SDKWORK_ENVIRONMENT, 'development');
 
 const buildPlan = createViteHostPlan({
   argv: ['build', '--mode', 'test', '--emptyOutDir'],

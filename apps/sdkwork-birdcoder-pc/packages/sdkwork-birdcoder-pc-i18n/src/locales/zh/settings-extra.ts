@@ -29,7 +29,7 @@ export default defineLocaleModule('settings/extra', {
       usePointerCursor: '使用指针光标',
       usePointerCursorDesc: '悬停交互元素时切换为指针光标',
       uiFontSize: '界面字号',
-      uiFontSizeDesc: '调整 BirdCoder 界面的基础字号',
+      uiFontSizeDesc: '调整对话、输入框、会话和项目列表的默认字号',
       codeFontSize: '代码字号',
       codeFontSizeDesc: '调整聊天和 diff 中代码的基础字号',
       showLineNumbers: '显示行号',

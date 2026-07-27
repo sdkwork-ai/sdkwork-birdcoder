@@ -9,6 +9,7 @@ import {
 } from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-workbench/src/terminal/runtime.ts';
 import {
   resolveBirdcoderTerminalLaunchRequest,
+  resolveBirdcoderWebTerminalLaunchRequest,
   type BirdcoderTerminalGovernanceRuntime,
 } from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-workbench/src/terminal/sdkworkTerminalLaunch.ts';
 import type { TerminalGovernanceDiagnosticRecord } from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-workbench/src/terminal/governanceDiagnostics.ts';
@@ -174,6 +175,70 @@ assert.equal(allowedResolution.plan?.kind, 'local-process');
 assert.equal(allowedDiagnostics.length, 1);
 assert.equal(allowedDiagnostics[0]?.command, 'TOKEN=<redacted> npm test');
 assert.equal(allowedDiagnostics[0]?.approvalDecision, 'auto_allowed');
+
+const webDiagnostics: TerminalGovernanceDiagnosticRecord[] = [];
+const webResolution = await resolveBirdcoderWebTerminalLaunchRequest(
+  {
+    surface: 'embedded',
+    path: 'C:\\must-not-cross-browser-boundary',
+    command: 'git status',
+    profileId: 'powershell',
+    timestamp: 4,
+  },
+  {
+    projectId: 'project-alpha',
+    requestId: 'browser-request:4:1',
+    runtimeLocationId: 'runtime-cloud-alpha',
+  },
+  createGovernanceRuntime(
+    {
+      approvalPolicy: 'AutoAllow',
+      sandboxSettings: 'ReadOnly',
+    },
+    webDiagnostics,
+  ),
+);
+assert.equal(webResolution.blockedMessage, null);
+assert.deepEqual(webResolution.intent, {
+  requestId: 'browser-request:4:1',
+  profile: 'bash',
+  title: 'git',
+  targetLabel: 'runtime-cloud-alpha',
+  request: {
+    projectId: 'project-alpha',
+    runtimeLocationId: 'runtime-cloud-alpha',
+    command: ['/bin/bash', '-lc', 'git status'],
+    modeTags: ['cli-native'],
+    tags: ['birdcoder', 'profile:bash'],
+  },
+});
+assert.equal('path' in (webResolution.intent?.request ?? {}), false);
+assert.equal('workingDirectory' in (webResolution.intent?.request ?? {}), false);
+assert.equal(webDiagnostics[0]?.cwd, 'remote-runtime:runtime-cloud-alpha');
+assert.doesNotMatch(JSON.stringify(webResolution.intent), /must-not-cross-browser-boundary/u);
+
+const blockedWebResolution = await resolveBirdcoderWebTerminalLaunchRequest(
+  {
+    surface: 'embedded',
+    command: 'npm test',
+    profileId: 'powershell',
+    timestamp: 5,
+  },
+  {
+    projectId: 'project-alpha',
+    requestId: 'browser-request:5:2',
+    runtimeLocationId: 'runtime-cloud-alpha',
+  },
+  createGovernanceRuntime(
+    {
+      approvalPolicy: 'AutoAllow',
+      sandboxSettings: 'ReadOnly',
+    },
+    [],
+  ),
+);
+assert.equal(blockedWebResolution.intent, null);
+assert.match(blockedWebResolution.blockedMessage ?? '', /read-only command guard/iu);
 
 const auditFailureResolution = await resolveBirdcoderTerminalLaunchRequest(
   {

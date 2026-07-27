@@ -54,7 +54,12 @@ function preferencesEqual(left: WorkbenchPreferences, right: WorkbenchPreference
     areWorkbenchCodeEngineSettingsEqual(left.codeEngineSettings, right.codeEngineSettings) &&
     left.terminalProfileId === right.terminalProfileId &&
     left.codeEditorChatWidth === right.codeEditorChatWidth &&
-    left.defaultWorkingDirectory === right.defaultWorkingDirectory
+    left.defaultWorkingDirectory === right.defaultWorkingDirectory &&
+    left.sessionInboxFilter === right.sessionInboxFilter &&
+    left.sessionInboxGroupMode === right.sessionInboxGroupMode &&
+    left.sessionInboxProviderId === right.sessionInboxProviderId &&
+    left.sessionInboxShowArchived === right.sessionInboxShowArchived &&
+    left.sessionInboxSortMode === right.sessionInboxSortMode
   );
 }
 

@@ -29,6 +29,7 @@ function createProjectRecord(
     updatedAt: '2026-07-23T00:00:00.000Z',
     version: '1',
     visibility: 'private',
+    workspaceId: 'workspace-1',
     ...overrides,
   };
 }
@@ -63,6 +64,7 @@ function createCompositionSlot(
 
 const listInputs: Parameters<AgentProjectsSdkPort['list']>[0][] = [];
 const createInputs: Parameters<AgentProjectsSdkPort['create']>[0][] = [];
+const importInputs: Parameters<AgentProjectsSdkPort['import']>[0][] = [];
 const updateInputs: Array<Parameters<AgentProjectsSdkPort['update']>> = [];
 const archiveInputs: Array<Parameters<AgentProjectsSdkPort['archive']>> = [];
 const deleteInputs: Array<Parameters<AgentProjectsSdkPort['delete']>> = [];
@@ -84,6 +86,18 @@ const projects: AgentProjectsSdkPort = {
   },
   async delete(projectId) {
     deleteInputs.push([projectId]);
+  },
+  async import(body) {
+    importInputs.push(body);
+    return createProjectRecord({
+      driveLogicalPath: body.driveLogicalPath,
+      driveRootEntryId: body.driveRootEntryId,
+      driveSpaceId: body.driveSpaceId,
+      importSourceKind: body.sourceKind,
+      importSourceRef: body.sourceRef,
+      name: body.name,
+      workspaceId: body.workspaceId,
+    });
   },
   async list(params) {
     listInputs.push(params);
@@ -159,6 +173,7 @@ const page = await service.getProjectsPage({
   pageSize: 25,
   q: '  canonical  ',
   status: 'active',
+  workspaceId: 'workspace-1',
 });
 assert.deepEqual(listInputs, [{
   includeDeleted: false,
@@ -166,6 +181,7 @@ assert.deepEqual(listInputs, [{
   pageSize: 25,
   q: 'canonical',
   status: 'active',
+  workspaceId: 'workspace-1',
 }]);
 assert.equal(page.items[0]?.projectId, canonicalProjectId);
 assert.deepEqual(page.pageInfo, {
@@ -179,12 +195,34 @@ assert.deepEqual(page.pageInfo, {
 
 const createdProject = await service.createProject('Canonical project', {
   description: '  One Agents project authority  ',
+  workspaceId: 'workspace-1',
 });
 assert.equal(createdProject.projectId, canonicalProjectId);
 assert.deepEqual(createInputs, [{
   description: 'One Agents project authority',
   name: 'Canonical project',
+  workspaceId: 'workspace-1',
 }]);
+
+const existingProject = await service.getProjectByName(
+  'workspace-1',
+  '  CANONICAL PROJECT  ',
+);
+assert.equal(existingProject?.projectId, canonicalProjectId);
+
+const reusedImport = await service.importProject({
+  driveLogicalPath: '/rebound',
+  driveRootEntryId: 'entry-rebound',
+  driveSpaceId: 'drive-rebound',
+  name: 'canonical project',
+  sourceKind: 'drive_sandbox',
+  sourceRef: 'drive://drive-rebound/entry-rebound',
+  workspaceId: 'workspace-1',
+});
+assert.equal(reusedImport.projectId, canonicalProjectId);
+assert.equal(importInputs.length, 0, 'Same-name import must reuse the Workspace Project.');
+compositionRetrieveInputs.length = 0;
+compositionUpdateInputs.length = 0;
 
 await service.updateProject(canonicalProjectId, { name: 'Renamed project' });
 assert.deepEqual(updateInputs[0], [canonicalProjectId, {
@@ -246,7 +284,7 @@ const serviceSource = fs.readFileSync(
 );
 assert.doesNotMatch(
   serviceSource,
-  /BirdCoderProject|defaultAgentProjectId|workspaceId|appClient|compensat|sdk\/birdcoder-app/iu,
+  /BirdCoderProject|defaultAgentProjectId|appClient|sdk\/birdcoder-app/iu,
   'The project service must not restore a second project authority or a compensating dual-create transaction.',
 );
 

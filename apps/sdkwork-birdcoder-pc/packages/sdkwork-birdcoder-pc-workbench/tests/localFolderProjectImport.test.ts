@@ -6,19 +6,19 @@ import {
 
 describe('importLocalFolderProject', () => {
   it('creates an Agents Project and binds the selected device folder', async () => {
-    const createProject = vi.fn(async () => ({ projectId: 'project-local-1' }));
+    const ensureProject = vi.fn(async () => ({
+      projectId: 'project-local-1',
+      reusedExistingProject: false,
+    }));
     const bindLocalProjectRuntimeLocation = vi.fn(async (projectId: string) => ({
       host: 'tauri' as const,
       projectId,
       runtimeLocationId: 'runtime-location-1',
       status: 'bound' as const,
     }));
-    const deleteCreatedProject = vi.fn(async () => undefined);
-
     const result = await importLocalFolderProject({
       bindLocalProjectRuntimeLocation,
-      createProject,
-      deleteCreatedProject,
+      ensureProject,
       fallbackProjectName: 'Fallback',
       folderInfo: { type: 'tauri', path: 'E:\\projects\\bird-demo' },
     });
@@ -29,17 +29,40 @@ describe('importLocalFolderProject', () => {
       projectName: 'bird-demo',
       reusedExistingProject: false,
     });
-    expect(createProject).toHaveBeenCalledWith('bird-demo');
+    expect(ensureProject).toHaveBeenCalledWith('bird-demo');
     expect(bindLocalProjectRuntimeLocation).toHaveBeenCalledWith(
       'project-local-1',
       { type: 'tauri', path: 'E:\\projects\\bird-demo' },
     );
-    expect(deleteCreatedProject).not.toHaveBeenCalled();
   });
 
-  it('deletes the newly created Project when local folder binding fails', async () => {
-    const deleteCreatedProject = vi.fn(async () => undefined);
+  it('keeps an explicit Project name separate from the selected folder name', async () => {
+    const ensureProject = vi.fn(async () => ({
+      projectId: 'project-local-named',
+      reusedExistingProject: false,
+    }));
 
+    const result = await importLocalFolderProject({
+      bindLocalProjectRuntimeLocation: vi.fn(async (projectId: string) => ({
+        host: 'tauri' as const,
+        projectId,
+        runtimeLocationId: 'runtime-location-named',
+        status: 'bound' as const,
+      })),
+      ensureProject,
+      fallbackProjectName: 'Fallback',
+      folderInfo: { type: 'tauri', path: 'E:\\projects\\bird-demo' },
+      projectName: 'My Bird Project',
+    });
+
+    expect(ensureProject).toHaveBeenCalledWith('My Bird Project');
+    expect(result).toMatchObject({
+      localMount: { displayName: 'bird-demo', type: 'tauri' },
+      projectName: 'My Bird Project',
+    });
+  });
+
+  it('keeps the newly created Project for retry when local folder binding fails', async () => {
     await expect(importLocalFolderProject({
       bindLocalProjectRuntimeLocation: vi.fn(async (projectId: string) => ({
         code: 'persistence_failed' as const,
@@ -47,8 +70,10 @@ describe('importLocalFolderProject', () => {
         projectId,
         status: 'failed' as const,
       })),
-      createProject: vi.fn(async () => ({ projectId: 'project-local-2' })),
-      deleteCreatedProject,
+      ensureProject: vi.fn(async () => ({
+        projectId: 'project-local-2',
+        reusedExistingProject: false,
+      })),
       fallbackProjectName: 'Fallback',
       folderInfo: { type: 'tauri', path: 'E:\\projects\\permission-failure' },
     })).rejects.toMatchObject({
@@ -57,21 +82,18 @@ describe('importLocalFolderProject', () => {
       name: 'LocalFolderProjectImportError',
       projectId: 'project-local-2',
     });
-    expect(deleteCreatedProject).toHaveBeenCalledWith('project-local-2');
   });
 
-  it('preserves cleanup diagnostics when compensation also fails', async () => {
-    const cleanupError = new Error('Project cleanup failed.');
-
+  it('preserves binding diagnostics without attempting remote compensation', async () => {
     try {
       await importLocalFolderProject({
         bindLocalProjectRuntimeLocation: vi.fn(async () => {
           throw new Error('Folder binding failed.');
         }),
-        createProject: vi.fn(async () => ({ projectId: 'project-local-3' })),
-        deleteCreatedProject: vi.fn(async () => {
-          throw cleanupError;
-        }),
+        ensureProject: vi.fn(async () => ({
+          projectId: 'project-local-3',
+          reusedExistingProject: false,
+        })),
         fallbackProjectName: 'Fallback',
         folderInfo: { type: 'tauri', path: 'E:\\projects\\cleanup-failure' },
       });
@@ -79,10 +101,31 @@ describe('importLocalFolderProject', () => {
     } catch (error) {
       expect(error).toBeInstanceOf(LocalFolderProjectImportError);
       expect(error).toMatchObject({
-        cleanupError,
+        cleanupError: null,
         message: 'Folder binding failed.',
         projectId: 'project-local-3',
       });
     }
+  });
+
+  it('reuses a same-name Workspace Project and reports the reuse', async () => {
+    const result = await importLocalFolderProject({
+      bindLocalProjectRuntimeLocation: vi.fn(async (projectId: string) => ({
+        host: 'tauri' as const,
+        projectId,
+        runtimeLocationId: 'runtime-location-existing',
+        status: 'bound' as const,
+      })),
+      ensureProject: vi.fn(async () => ({
+        projectId: 'project-existing',
+        reusedExistingProject: true,
+      })),
+      fallbackProjectName: 'Fallback',
+      folderInfo: { type: 'tauri', path: 'E:\\projects\\bird-demo' },
+    });
+    expect(result).toMatchObject({
+      projectId: 'project-existing',
+      reusedExistingProject: true,
+    });
   });
 });

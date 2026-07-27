@@ -17,6 +17,9 @@ export function areCodeEditorWorkspacePanelRenderInputsEqual(
     left.selectedAgentSessionId === right.selectedAgentSessionId &&
     left.selectedAgentSessionScopeKey === right.selectedAgentSessionScopeKey &&
     left.messages === right.messages &&
+    left.hasMoreRemoteMessages === right.hasMoreRemoteMessages &&
+    left.isLoadingMoreRemoteMessages === right.isLoadingMoreRemoteMessages &&
+    left.isNewSession === right.isNewSession &&
     left.pendingApprovals === right.pendingApprovals &&
     left.pendingUserQuestions === right.pendingUserQuestions &&
     left.chatEmptyState === right.chatEmptyState &&
@@ -40,6 +43,7 @@ export function areCodeEditorWorkspacePanelRenderInputsEqual(
     left.onSelectedEngineIdChange === right.onSelectedEngineIdChange &&
     left.onSelectedModelIdChange === right.onSelectedModelIdChange &&
     left.onSendMessage === right.onSendMessage &&
+    left.onLoadMoreRemoteMessages === right.onLoadMoreRemoteMessages &&
     left.onSubmitApprovalDecision === right.onSubmitApprovalDecision &&
     left.onSubmitUserQuestionAnswer === right.onSubmitUserQuestionAnswer &&
     left.onViewChanges === right.onViewChanges &&

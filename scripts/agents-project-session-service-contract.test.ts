@@ -1,0 +1,407 @@
+import assert from 'node:assert/strict';
+import { NotFoundError, ServerError } from '@sdkwork/sdk-common';
+
+import { BirdCoderAgentSessionService } from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/src/services/agentsSessionService.ts';
+
+const createCalls: Array<[string, Record<string, unknown>]> = [];
+type ListCall = [
+  string,
+  Record<string, unknown>,
+  { signal?: AbortSignal; timeout?: number },
+];
+
+const agentListCalls: ListCall[] = [];
+const projectListCalls: ListCall[] = [];
+const workspaceListCalls: ListCall[] = [];
+const runtimeBindingListCalls: Array<[string, string]> = [];
+const runtimeBindingCreateCalls: Array<[string, string, Record<string, unknown>]> = [];
+const runtimeBindingRetrieveCalls: Array<[string, string, string]> = [];
+const sessionUserStateRetrieveCalls: Array<[
+  string,
+  string,
+  { signal?: AbortSignal; timeout?: number },
+]> = [];
+let runtimeBindingCreateError: Error | null = null;
+let recoveredRuntimeBinding: Record<string, unknown> | null = null;
+let createdSessionAgentIdOverride = '';
+let createdSessionProjectIdOverride = '';
+let sessionUserStateRetrieveError: Error | null = null;
+
+function sessionPage(scopeId: string) {
+  return {
+    items: [
+      {
+        sessionId: 'session.coding',
+        projectId: scopeId,
+        sessionKind: 'coding',
+      },
+      {
+        sessionId: 'session.assistant',
+        projectId: scopeId,
+        sessionKind: 'assistant',
+      },
+    ],
+    pageInfo: { mode: 'offset', page: 2, pageSize: 20, hasMore: false },
+  };
+}
+
+const sessions = {
+  async list(
+    agentId: string,
+    params: Record<string, unknown>,
+    requestOptions: { signal?: AbortSignal; timeout?: number },
+  ) {
+    agentListCalls.push([agentId, params, requestOptions]);
+    return sessionPage('project.agent-scope');
+  },
+};
+
+const projectSessions = {
+  async create(projectId: string, body: Record<string, unknown>) {
+    createCalls.push([projectId, body]);
+    return {
+      ...body,
+      agentId: createdSessionAgentIdOverride || body.agentId,
+      sessionId: `session.project-route-${createCalls.length}`,
+      projectId: createdSessionProjectIdOverride || projectId,
+      itemCount: '0',
+    };
+  },
+  async list(
+    projectId: string,
+    params: Record<string, unknown>,
+    requestOptions: { signal?: AbortSignal; timeout?: number },
+  ) {
+    projectListCalls.push([projectId, params, requestOptions]);
+    return sessionPage(projectId);
+  },
+};
+
+const workspaceSessions = {
+  async list(
+    workspaceId: string,
+    params: Record<string, unknown>,
+    requestOptions: { signal?: AbortSignal; timeout?: number },
+  ) {
+    workspaceListCalls.push([workspaceId, params, requestOptions]);
+    return sessionPage('project.workspace-scope');
+  },
+};
+const client = {
+  ai: {
+    agents: {
+      projectSessions,
+      sessionRuntimeBindings: {
+        async create(
+          agentId: string,
+          sessionId: string,
+          body: Record<string, unknown>,
+        ) {
+          runtimeBindingCreateCalls.push([agentId, sessionId, body]);
+          if (runtimeBindingCreateError) {
+            throw runtimeBindingCreateError;
+          }
+          return {
+            ...body,
+            sessionId,
+            status: 'active',
+            isCurrent: true,
+          };
+        },
+        async list(agentId: string, sessionId: string) {
+          runtimeBindingListCalls.push([agentId, sessionId]);
+          return {
+            items: [],
+            pageInfo: { mode: 'offset', page: 1, pageSize: 20, hasMore: false },
+          };
+        },
+        async retrieve(agentId: string, sessionId: string, runtimeBindingId: string) {
+          runtimeBindingRetrieveCalls.push([agentId, sessionId, runtimeBindingId]);
+          if (!recoveredRuntimeBinding) {
+            throw new Error('Runtime Binding not found.');
+          }
+          return recoveredRuntimeBinding;
+        },
+      },
+      sessionUserStates: {
+        async retrieve(
+          agentId: string,
+          sessionId: string,
+          requestOptions: { signal?: AbortSignal; timeout?: number },
+        ) {
+          sessionUserStateRetrieveCalls.push([agentId, sessionId, requestOptions]);
+          if (sessionUserStateRetrieveError) {
+            throw sessionUserStateRetrieveError;
+          }
+          return {
+            resourceId: sessionId,
+            resourceType: 'session',
+            version: '0',
+          };
+        },
+      },
+      sessions,
+      workspaceSessions,
+    },
+  },
+} as unknown as ConstructorParameters<typeof BirdCoderAgentSessionService>[0]['client'];
+const service = new BirdCoderAgentSessionService({ client });
+
+const created = await service.createSession({
+  projectId: ' project.contract ',
+  title: 'Project-scoped session',
+});
+assert.equal(created.projectId, 'project.contract');
+assert.equal(createCalls.length, 1);
+assert.equal(createCalls[0]?.[0], 'project.contract');
+assert.equal(createCalls[0]?.[1].agentId, 'agent.birdcoder');
+assert.equal('projectId' in (createCalls[0]?.[1] ?? {}), false);
+
+const providerSession = await service.createSession({
+  agentId: ' agent.code-engine.codex ',
+  projectId: 'project.contract',
+  title: 'Codex session',
+});
+await service.listRuntimeBindings(providerSession.sessionId);
+assert.equal(createCalls[1]?.[1].agentId, 'agent.code-engine.codex');
+assert.deepEqual(runtimeBindingListCalls[0], [
+  'agent.code-engine.codex',
+  providerSession.sessionId,
+]);
+
+const userStateAbortController = new AbortController();
+const userState = await service.getSessionUserState(providerSession.sessionId, {
+  signal: userStateAbortController.signal,
+  timeoutMs: 2_000,
+});
+assert.equal(userState?.resourceId, providerSession.sessionId);
+assert.deepEqual(sessionUserStateRetrieveCalls[0], [
+  'agent.code-engine.codex',
+  providerSession.sessionId,
+  { signal: userStateAbortController.signal, timeout: 2_000 },
+]);
+
+sessionUserStateRetrieveError = new NotFoundError('session user state not found', {
+  problem: {
+    type: 'https://docs.sdkwork.com/problems/40401',
+    title: 'Not found',
+    status: 404,
+    code: 40401,
+    detail: 'session user state not found',
+    instance: `GET /app/v3/api/ai/agents/agent.code-engine.codex/sessions/${providerSession.sessionId}/user_state`,
+    operationId: 'agents.sessionUserStates.retrieve',
+    i18nKey: 'errors.result.40401',
+    traceId: 'session-user-state-contract',
+  },
+});
+assert.equal(await service.getSessionUserState(providerSession.sessionId), null);
+
+sessionUserStateRetrieveError = Object.assign(new Error('HTTP 404: Not Found'), {
+  name: 'NotFoundError',
+  code: 'NOT_FOUND',
+  httpStatus: 404,
+});
+assert.equal(await service.getSessionUserState(providerSession.sessionId), null);
+
+sessionUserStateRetrieveError = new NotFoundError('session user state not found', {
+  problem: {
+    status: 404,
+    code: 40401,
+    detail: 'session user state not found',
+    operationId: 'agents.sessions.retrieve',
+  },
+});
+await assert.rejects(
+  service.getSessionUserState(providerSession.sessionId),
+  sessionUserStateRetrieveError,
+);
+
+sessionUserStateRetrieveError = new NotFoundError('session not found', {
+  problem: {
+    status: 404,
+    code: 40401,
+    detail: 'session not found',
+    operationId: 'agents.sessionUserStates.retrieve',
+  },
+});
+await assert.rejects(
+  service.getSessionUserState(providerSession.sessionId),
+  sessionUserStateRetrieveError,
+);
+
+sessionUserStateRetrieveError = new ServerError('user state service unavailable');
+await assert.rejects(
+  service.getSessionUserState(providerSession.sessionId),
+  sessionUserStateRetrieveError,
+);
+sessionUserStateRetrieveError = null;
+
+createdSessionAgentIdOverride = 'agent.unexpected';
+await assert.rejects(
+  service.createSession({
+    agentId: 'agent.code-engine.codex',
+    projectId: 'project.contract',
+  }),
+  /instead of requested Agent "agent\.code-engine\.codex"/u,
+);
+createdSessionAgentIdOverride = '';
+await service.listRuntimeBindings('session.project-route-3');
+assert.deepEqual(runtimeBindingListCalls[1], [
+  'agent.birdcoder',
+  'session.project-route-3',
+]);
+
+createdSessionProjectIdOverride = 'project.unexpected';
+await assert.rejects(
+  service.createSession({
+    agentId: 'agent.code-engine.codex',
+    projectId: 'project.contract',
+  }),
+  /instead of requested Project "project\.contract"/u,
+);
+createdSessionProjectIdOverride = '';
+
+const runtimeBindingInput = {
+  hostMode: 'web',
+  transportKind: 'sdk-stream',
+  providerBindingId: 'binding.codex',
+  modelId: 'gpt-5-codex',
+  providerId: 'provider.openai',
+  requestedAt: '2026-07-27T00:00:00.000Z',
+};
+const createdRuntimeBinding = await service.createRuntimeBinding(
+  providerSession.sessionId,
+  runtimeBindingInput,
+);
+assert.match(createdRuntimeBinding.runtimeBindingId, /^runtime_binding\.[0-9a-f-]+$/u);
+assert.deepEqual(runtimeBindingCreateCalls[0]?.slice(0, 2), [
+  'agent.code-engine.codex',
+  providerSession.sessionId,
+]);
+assert.equal(
+  runtimeBindingCreateCalls[0]?.[2].runtimeBindingId,
+  createdRuntimeBinding.runtimeBindingId,
+);
+
+runtimeBindingCreateError = new Error('Runtime Binding response was lost.');
+recoveredRuntimeBinding = {
+  ...runtimeBindingInput,
+  runtimeBindingId: 'runtime_binding.recovered-contract',
+  sessionId: providerSession.sessionId,
+  status: 'active',
+  isCurrent: true,
+};
+const replayedRuntimeBinding = await service.createRuntimeBinding(
+  providerSession.sessionId,
+  {
+    ...runtimeBindingInput,
+    runtimeBindingId: 'runtime_binding.recovered-contract',
+  },
+);
+assert.equal(replayedRuntimeBinding.runtimeBindingId, 'runtime_binding.recovered-contract');
+assert.deepEqual(runtimeBindingRetrieveCalls[0], [
+  'agent.code-engine.codex',
+  providerSession.sessionId,
+  'runtime_binding.recovered-contract',
+]);
+
+recoveredRuntimeBinding = {
+  ...recoveredRuntimeBinding,
+  modelId: 'different-model',
+};
+await assert.rejects(
+  service.createRuntimeBinding(providerSession.sessionId, {
+    ...runtimeBindingInput,
+    runtimeBindingId: 'runtime_binding.recovered-contract',
+  }),
+  runtimeBindingCreateError,
+);
+
+const abortController = new AbortController();
+const listed = await service.listSessions(
+  { projectId: ' project.contract ', page: 2, pageSize: 20 },
+  { signal: abortController.signal, timeoutMs: 3_000 },
+);
+assert.deepEqual(listed.items.map((session) => session.sessionId), [
+  'session.coding',
+  'session.assistant',
+]);
+assert.equal(projectListCalls.length, 1);
+assert.equal(projectListCalls[0]?.[0], 'project.contract');
+assert.deepEqual(projectListCalls[0]?.[1], {
+  page: 2,
+  pageSize: 20,
+  includeArchived: undefined,
+  status: undefined,
+});
+assert.equal(projectListCalls[0]?.[2].signal, abortController.signal);
+assert.equal(projectListCalls[0]?.[2].timeout, 3_000);
+
+await service.listSessionsByAgent({
+  agentId: ' agent.custom ',
+  projectId: ' project.agent-filter ',
+  page: 3,
+  pageSize: 50,
+  status: 'idle',
+  includeArchived: true,
+});
+assert.deepEqual(agentListCalls, [[
+  'agent.custom',
+  {
+    page: 3,
+    pageSize: 50,
+    includeArchived: true,
+    projectId: 'project.agent-filter',
+    status: 'idle',
+  },
+  { signal: undefined, timeout: undefined },
+]]);
+
+await service.listSessionsByProject({
+  projectId: ' project.explicit ',
+  status: 'active',
+  includeArchived: false,
+});
+assert.deepEqual(projectListCalls[1], [
+  'project.explicit',
+  {
+    page: 1,
+    pageSize: 20,
+    includeArchived: false,
+    status: 'active',
+  },
+  { signal: undefined, timeout: undefined },
+]);
+
+const workspacePage = await service.listSessionsByWorkspace({
+  workspaceId: ' workspace.contract ',
+  page: 4,
+  pageSize: 100,
+  status: 'archived',
+  includeArchived: true,
+});
+assert.deepEqual(workspacePage.items.map((session) => session.sessionId), [
+  'session.coding',
+  'session.assistant',
+]);
+assert.deepEqual(workspaceListCalls, [[
+  'workspace.contract',
+  {
+    page: 4,
+    pageSize: 100,
+    includeArchived: true,
+    status: 'archived',
+  },
+  { signal: undefined, timeout: undefined },
+]]);
+
+await assert.rejects(
+  service.listSessions({ projectId: ' ' }),
+  /project ID is required/u,
+);
+await assert.rejects(
+  service.listSessionsByWorkspace({ workspaceId: ' ' }),
+  /workspace ID is required/u,
+);
+
+console.log('agents scoped session service contract passed.');

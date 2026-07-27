@@ -26,6 +26,12 @@ const desktopHostSource = read(
 const permissionsSource = read(
   'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-desktop/src-tauri/permissions/default.toml',
 );
+const productionCapabilitySource = read(
+  'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-desktop/src-tauri/capabilities/default.toml',
+);
+const testCapabilitySource = read(
+  'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-desktop/src-tauri/capabilities/test.toml',
+);
 
 assert.match(
   bindingSource,
@@ -50,7 +56,10 @@ for (const command of [
 ]) {
   assert.match(secureStoreSource, new RegExp(`'${command}'`, 'u'));
   assert.match(desktopHostSource, new RegExp(`\\b${command}\\b`, 'u'));
-  assert.match(permissionsSource, new RegExp(command.replaceAll('_', '-'), 'u'));
+  const permission = command.replaceAll('_', '-');
+  assert.match(permissionsSource, new RegExp(permission, 'u'));
+  assert.match(productionCapabilitySource, new RegExp(permission, 'u'));
+  assert.match(testCapabilitySource, new RegExp(permission, 'u'));
 }
 assert.match(
   hostStoreSource,

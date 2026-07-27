@@ -60,12 +60,17 @@ import { shouldUseRichChatMarkdown } from './chatMarkdownHeuristics';
 import {
   CHAT_TRANSCRIPT_USER_SCROLL_SETTLE_MS,
   computeTranscriptBottomScrollTop,
+  computeTranscriptRepairScrollTop,
   isTranscriptNearBottom,
   shouldDeferTranscriptAutoScrollForUserIntent,
   type TranscriptScrollMetrics,
 } from './chatScrollBehavior';
 import { resolveTranscriptMessageKey } from './transcriptVirtualization';
 import { UniversalChatComposerChrome } from './UniversalChatComposerChrome';
+import {
+  UniversalChatNewSessionProviderSelector,
+  type UniversalChatNewSessionProviderOption,
+} from './UniversalChatNewSessionProviderSelector';
 import { UniversalChatComposerFooter } from './chat/composer/UniversalChatComposerFooter';
 import { UniversalChatPendingInteractions } from './UniversalChatPendingInteractions';
 import { ChatTranscriptAnchorRail } from './ChatTranscriptAnchorRail';
@@ -164,7 +169,11 @@ export interface UniversalChatProps {
   sessionId?: string;
   sessionScopeKey?: string;
   isActive?: boolean;
+  isNewSession?: boolean;
   messages: AgentSessionItemView[];
+  hasMoreRemoteMessages?: boolean;
+  isLoadingMoreRemoteMessages?: boolean;
+  onLoadMoreRemoteMessages?: () => void | Promise<void>;
   pendingApprovals?: AgentSessionPendingApproval[];
   pendingUserQuestions?: AgentSessionPendingQuestion[];
   inputValue?: string;
@@ -200,6 +209,7 @@ export interface UniversalChatProps {
   onRestore?: (msgId: string) => void;
   className?: string;
   emptyState?: React.ReactNode;
+  newSessionContext?: React.ReactNode;
   skills?: ChatSkill[];
   disabled?: boolean;
 }
@@ -308,6 +318,8 @@ interface UniversalChatTranscriptProps {
   environmentSignature: string;
   environmentRef: React.MutableRefObject<UniversalChatTranscriptEnvironment | null>;
   isActive: boolean;
+  hasMoreRemoteMessages: boolean;
+  isLoadingMoreRemoteMessages: boolean;
   isUserControllingScrollRef: React.MutableRefObject<boolean>;
   layout: 'sidebar' | 'main';
   localeKey: string;
@@ -317,6 +329,7 @@ interface UniversalChatTranscriptProps {
   scrollTranscriptToBottom: () => void;
   sessionId: string;
   shouldStickToBottomRef: React.MutableRefObject<boolean>;
+  onLoadMoreRemoteMessages?: () => void | Promise<void>;
 }
 
 const EMPTY_CHAT_MESSAGES: AgentSessionItemView[] = [];
@@ -394,12 +407,15 @@ const UniversalChatTranscript = memo(function UniversalChatTranscript({
   engineId,
   environmentSignature,
   environmentRef,
+  hasMoreRemoteMessages,
   isActive,
+  isLoadingMoreRemoteMessages,
   isUserControllingScrollRef,
   layout,
   localeKey: _localeKey,
   messages,
   messagesEndRef,
+  onLoadMoreRemoteMessages,
   scrollContainerRef,
   scrollTranscriptToBottom,
   sessionId,
@@ -419,6 +435,90 @@ const UniversalChatTranscript = memo(function UniversalChatTranscript({
       return nextKeys;
     });
   }, []);
+  const [isRequestingRemoteMessages, setIsRequestingRemoteMessages] = useState(false);
+  const pendingRemotePrependRef = useRef<{
+    firstMessageId: string;
+    messageCount: number;
+    metrics: TranscriptScrollMetrics;
+  } | null>(null);
+  const firstMessageId = messages[0]?.id ?? '';
+
+  useEffect(() => {
+    pendingRemotePrependRef.current = null;
+    setIsRequestingRemoteMessages(false);
+  }, [sessionId]);
+
+  useLayoutEffect(() => {
+    const pendingPrepend = pendingRemotePrependRef.current;
+    if (
+      !isActive ||
+      !pendingPrepend ||
+      (
+        pendingPrepend.messageCount === messages.length &&
+        pendingPrepend.firstMessageId === firstMessageId
+      )
+    ) {
+      return;
+    }
+
+    pendingRemotePrependRef.current = null;
+    const scrollContainer = scrollContainerRef.current;
+    if (!scrollContainer) {
+      return;
+    }
+    const nextScrollTop = computeTranscriptRepairScrollTop(
+      pendingPrepend.metrics,
+      {
+        clientHeight: scrollContainer.clientHeight,
+        scrollHeight: scrollContainer.scrollHeight,
+        scrollTop: scrollContainer.scrollTop,
+      },
+    );
+    if (Math.abs(scrollContainer.scrollTop - nextScrollTop) > 1) {
+      scrollContainer.scrollTop = nextScrollTop;
+    }
+    shouldStickToBottomRef.current = false;
+  }, [firstMessageId, isActive, messages.length, scrollContainerRef, shouldStickToBottomRef]);
+
+  const handleLoadMoreRemoteMessages = useCallback(() => {
+    if (
+      !onLoadMoreRemoteMessages ||
+      isLoadingMoreRemoteMessages ||
+      isRequestingRemoteMessages
+    ) {
+      return;
+    }
+    const scrollContainer = scrollContainerRef.current;
+    if (!scrollContainer) {
+      return;
+    }
+    pendingRemotePrependRef.current = {
+      firstMessageId,
+      messageCount: messages.length,
+      metrics: {
+        clientHeight: scrollContainer.clientHeight,
+        scrollHeight: scrollContainer.scrollHeight,
+        scrollTop: scrollContainer.scrollTop,
+      },
+    };
+    shouldStickToBottomRef.current = false;
+    setIsRequestingRemoteMessages(true);
+    void Promise.resolve(onLoadMoreRemoteMessages())
+      .catch((error: unknown) => {
+        console.error('Failed to load earlier transcript messages', error);
+      })
+      .finally(() => {
+        setIsRequestingRemoteMessages(false);
+      });
+  }, [
+    firstMessageId,
+    isLoadingMoreRemoteMessages,
+    isRequestingRemoteMessages,
+    messages.length,
+    onLoadMoreRemoteMessages,
+    scrollContainerRef,
+    shouldStickToBottomRef,
+  ]);
 
   useEffect(() => {
     setExpandedDisclosureKeys(new Set());
@@ -534,6 +634,27 @@ const UniversalChatTranscript = memo(function UniversalChatTranscript({
 
   return (
     <>
+      {!hasEarlierMessages && hasMoreRemoteMessages && messages.length > 0 ? (
+        <div className="flex shrink-0 items-center justify-center px-4 py-2">
+          <button
+            type="button"
+            className="inline-flex h-7 items-center justify-center gap-1.5 rounded border border-white/10 bg-white/[0.03] px-2.5 text-xs text-gray-400 transition-colors hover:border-white/20 hover:bg-white/[0.06] hover:text-gray-200 disabled:cursor-wait disabled:opacity-60"
+            disabled={isLoadingMoreRemoteMessages || isRequestingRemoteMessages}
+            onClick={handleLoadMoreRemoteMessages}
+          >
+            {isLoadingMoreRemoteMessages || isRequestingRemoteMessages ? (
+              <Loader2 size={12} className="animate-spin" />
+            ) : (
+              <ChevronUp size={12} />
+            )}
+            <span>
+              {isLoadingMoreRemoteMessages || isRequestingRemoteMessages
+                ? environmentRef.current?.t('chat.loadingEarlierMessages') ?? 'Loading earlier messages...'
+                : environmentRef.current?.t('chat.loadEarlierMessages') ?? 'Load earlier messages'}
+            </span>
+          </button>
+        </div>
+      ) : null}
       {isLoadingEarlierMessages ? (
         <div className="flex items-center justify-center gap-2 px-4 py-2 text-xs text-gray-500">
           <Loader2 size={12} className="animate-spin" />
@@ -658,7 +779,11 @@ export const UniversalChat = memo(function UniversalChat({
   sessionId,
   sessionScopeKey,
   isActive = true,
+  isNewSession = false,
   messages,
+  hasMoreRemoteMessages = false,
+  isLoadingMoreRemoteMessages = false,
+  onLoadMoreRemoteMessages,
   pendingApprovals = [],
   pendingUserQuestions = [],
   inputValue: controlledInputValue,
@@ -685,6 +810,7 @@ export const UniversalChat = memo(function UniversalChat({
   onRestore,
   className = '',
   emptyState,
+  newSessionContext,
   skills = [],
   disabled = false
 }: UniversalChatProps) {
@@ -866,27 +992,74 @@ export const UniversalChat = memo(function UniversalChat({
     resolvedSelectedEngineId,
     currentModelId,
   );
+  const newSessionProviderOptions = useMemo<UniversalChatNewSessionProviderOption[]>(
+    () => availableEngines.map((engine) => {
+      const modelId = resolveWorkbenchCodeEngineSelectedModelId(
+        engine.id,
+        preferences,
+        engine.id === resolvedSelectedEngineId ? currentModelId : undefined,
+      );
+      return {
+        engineId: engine.id,
+        label: engine.label,
+        modelLabel: getWorkbenchCodeModelLabel(engine.id, modelId, preferences) || modelId,
+      };
+    }),
+    [availableEngines, currentModelId, preferences, resolvedSelectedEngineId],
+  );
+  const applyComposerSelection = useCallback((engineId: string, modelId: string) => {
+    const normalizedEngineId = normalizeWorkbenchServerImplementedCodeEngineId(
+      engineId,
+      preferences,
+    );
+    const normalizedModelId = normalizeWorkbenchCodeModelId(
+      normalizedEngineId,
+      modelId,
+      preferences,
+    );
+    if (!normalizedEngineId || !normalizedModelId) {
+      return;
+    }
+
+    setComposerSelectionOverride(writeComposerModelSelectionOverride({
+      engineId: normalizedEngineId,
+      modelId: normalizedModelId,
+      scopeKey: normalizedComposerSelectionScopeKey,
+    }));
+    if (setSelectedModelId) {
+      setSelectedModelId(normalizedModelId, normalizedEngineId);
+    } else {
+      setSelectedEngineId?.(normalizedEngineId);
+    }
+  }, [
+    normalizedComposerSelectionScopeKey,
+    preferences,
+    setSelectedEngineId,
+    setSelectedModelId,
+  ]);
   const handleComposerModelSelect = useCallback((pickerId: string) => {
     const selection = modelPickerCatalog.selectionByPickerId.get(pickerId);
     if (!selection) {
       return;
     }
 
-    setComposerSelectionOverride(writeComposerModelSelectionOverride({
-      engineId: selection.engineId,
-      modelId: selection.modelId,
-      scopeKey: normalizedComposerSelectionScopeKey,
-    }));
-    if (setSelectedModelId) {
-      setSelectedModelId(selection.modelId, selection.engineId);
-    } else {
-      setSelectedEngineId?.(selection.engineId);
-    }
+    applyComposerSelection(selection.engineId, selection.modelId);
   }, [
+    applyComposerSelection,
     modelPickerCatalog.selectionByPickerId,
-    normalizedComposerSelectionScopeKey,
-    setSelectedEngineId,
-    setSelectedModelId,
+  ]);
+  const handleNewSessionProviderSelect = useCallback((engineId: string) => {
+    const modelId = resolveWorkbenchCodeEngineSelectedModelId(
+      engineId,
+      preferences,
+      engineId === resolvedSelectedEngineId ? currentModelId : undefined,
+    );
+    applyComposerSelection(engineId, modelId);
+  }, [
+    applyComposerSelection,
+    currentModelId,
+    preferences,
+    resolvedSelectedEngineId,
   ]);
   const firstPendingUserQuestion = pendingUserQuestions.find(
     (question) => question.interactionId.trim().length > 0,
@@ -917,6 +1090,47 @@ export const UniversalChat = memo(function UniversalChat({
   const lastUserTranscriptScrollAtRef = useRef(0);
   const userTranscriptScrollSettleTimerRef = useRef<number | null>(null);
   const userTranscriptScrollAnimationFrameRef = useRef<number | null>(null);
+  const focusedNewSessionScopeRef = useRef('');
+  const shouldPresentNewSessionComposer =
+    isNewSession && normalizedMessages.length === 0 && layout === 'main';
+
+  useEffect(() => {
+    if (!isActive || !isNewSession || disabled || hideComposer) {
+      focusedNewSessionScopeRef.current = '';
+      return undefined;
+    }
+
+    const focusScopeKey = normalizedTranscriptScopeKey || 'ephemeral-new-session';
+    if (focusedNewSessionScopeRef.current === focusScopeKey) {
+      return undefined;
+    }
+
+    const focusComposer = () => {
+      const textarea = textareaRef.current;
+      if (!textarea) {
+        return;
+      }
+      textarea.focus({ preventScroll: true });
+      textarea.setSelectionRange(textarea.value.length, textarea.value.length);
+      focusedNewSessionScopeRef.current = focusScopeKey;
+    };
+
+    if (typeof window === 'undefined') {
+      focusComposer();
+      return undefined;
+    }
+
+    const animationFrame = window.requestAnimationFrame(focusComposer);
+    return () => {
+      window.cancelAnimationFrame(animationFrame);
+    };
+  }, [
+    disabled,
+    hideComposer,
+    isActive,
+    isNewSession,
+    normalizedTranscriptScopeKey,
+  ]);
 
   const beginEditingMessage = useCallback((messageId: string, content: string) => {
     if (disabled || !onEditMessage) {
@@ -2521,7 +2735,13 @@ export const UniversalChat = memo(function UniversalChat({
         </div>
       ) : null}
 
-      <div className="relative flex-1 min-h-0 min-w-0">
+      <div
+        className={
+          shouldPresentNewSessionComposer
+            ? 'hidden'
+            : 'relative flex-1 min-h-0 min-w-0'
+        }
+      >
         <div
           ref={transcriptScrollContainerRef}
           aria-label={t('chat.transcriptRegion')}
@@ -2535,12 +2755,15 @@ export const UniversalChat = memo(function UniversalChat({
             engineId={resolvedSelectedEngineId}
             environmentSignature={transcriptEnvironmentSignature}
             environmentRef={transcriptEnvironmentRef}
+            hasMoreRemoteMessages={hasMoreRemoteMessages}
             isActive={isActive}
+            isLoadingMoreRemoteMessages={isLoadingMoreRemoteMessages}
             isUserControllingScrollRef={isUserControllingTranscriptScrollRef}
             layout={layout}
             localeKey={i18n.resolvedLanguage ?? i18n.language ?? ''}
             messages={normalizedMessages}
             messagesEndRef={messagesEndRef}
+            onLoadMoreRemoteMessages={onLoadMoreRemoteMessages}
             scrollContainerRef={transcriptScrollContainerRef}
             scrollTranscriptToBottom={scrollTranscriptToBottom}
             sessionId={normalizedTranscriptScopeKey}
@@ -2556,8 +2779,39 @@ export const UniversalChat = memo(function UniversalChat({
       {!hideComposer && (
         <>
       {/* Input Area */}
-      <div className={`shrink-0 ${layout === 'sidebar' ? 'px-4 pb-4 pt-3' : 'px-5 pb-5 pt-4'} bg-transparent`}>
-        <div className={`mx-auto ${layout === 'main' ? 'max-w-[880px]' : 'w-full'}`}>
+      <div
+        className={
+          shouldPresentNewSessionComposer
+            ? 'flex min-h-0 flex-1 items-center bg-transparent px-5 py-8 sm:px-8'
+            : `shrink-0 ${layout === 'sidebar' ? 'px-4 pb-2 pt-3' : 'px-5 pb-2.5 pt-4'} bg-transparent`
+        }
+        data-new-session-composer={shouldPresentNewSessionComposer ? 'true' : undefined}
+      >
+        <div
+          className={`mx-auto w-full ${layout === 'main' ? 'max-w-[880px]' : ''} ${
+            shouldPresentNewSessionComposer
+              ? '-translate-y-[clamp(0rem,4vh,2.5rem)] animate-in fade-in slide-in-from-bottom-2 duration-300'
+              : ''
+          }`}
+        >
+          {shouldPresentNewSessionComposer && (newSessionContext || newSessionProviderOptions.length > 0) ? (
+            <div
+              className="mb-2 flex min-w-0 flex-wrap items-center gap-2 animate-in fade-in slide-in-from-bottom-1 duration-300"
+              data-new-session-context="true"
+            >
+              {newSessionContext ? (
+                <div className="min-w-0 flex-[1_1_24rem]">{newSessionContext}</div>
+              ) : (
+                <div className="min-w-0 flex-1" />
+              )}
+              <UniversalChatNewSessionProviderSelector
+                disabled={disabled}
+                options={newSessionProviderOptions}
+                selectedEngineId={resolvedSelectedEngineId}
+                onSelectProvider={handleNewSessionProviderSelect}
+              />
+            </div>
+          ) : null}
           <UniversalChatPendingInteractions
             disabled={disabled}
             isSubmitting={isSubmittingPendingInteraction}
@@ -2750,8 +3004,8 @@ export const UniversalChat = memo(function UniversalChat({
               onCompositionEnd={handleComposerCompositionEnd}
               onKeyDown={handleKeyDown}
               placeholder={disabled ? t('chat.placeholderDisabled') : t('chat.placeholderEnabled')}
-              className={`min-h-12 w-full resize-none overflow-y-auto bg-transparent px-1 text-[15px] leading-6 text-white outline-none placeholder:text-gray-500 custom-scrollbar ${disabled ? 'cursor-not-allowed opacity-50' : ''}`}
-              rows={2}
+              className={`w-full resize-none overflow-y-auto bg-transparent px-1 text-[length:var(--birdcoder-ui-font-size,12px)] leading-5 text-white outline-none placeholder:text-gray-500 custom-scrollbar ${shouldPresentNewSessionComposer ? 'min-h-[72px]' : 'min-h-12'} ${disabled ? 'cursor-not-allowed opacity-50' : ''}`}
+              rows={shouldPresentNewSessionComposer ? 3 : 2}
               disabled={disabled}
               style={{
                 maxHeight: `${manualComposerHeight ?? AUTO_RESIZE_TEXTAREA_MAX_HEIGHT}px`,

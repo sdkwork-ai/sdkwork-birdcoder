@@ -43,6 +43,7 @@
     "@sdkwork/birdcoder-pc-host-studio": "workspace:*",
     "@sdkwork/birdcoder-pc-ui-shell": "workspace:*",
     "@sdkwork/birdcoder-pc-ui": "workspace:*",
+    "@sdkwork/drive-pc-sandbox-explorer": "workspace:*",
     "@sdkwork/terminal-pc-desktop": "workspace:*",
     "mdast-util-from-markdown": "catalog:",
     "mdast-util-mdx-expression": "catalog:",

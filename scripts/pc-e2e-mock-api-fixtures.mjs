@@ -67,17 +67,23 @@ export function createBirdCoderListEnvelope(
   items,
   { page = 1, pageSize = 20 } = {},
 ) {
+  const normalizedPage = Math.max(1, Math.trunc(page));
+  const normalizedPageSize = Math.max(1, Math.trunc(pageSize));
+  const pageStart = (normalizedPage - 1) * normalizedPageSize;
+  const totalItemCount = items.length;
+  const totalPages = totalItemCount > 0 ? Math.ceil(totalItemCount / normalizedPageSize) : 0;
+  items = items.slice(pageStart, pageStart + normalizedPageSize);
   return {
     code: 0,
     data: {
       items,
       pageInfo: {
-        hasMore: false,
+        hasMore: normalizedPage < totalPages,
         mode: 'offset',
-        page,
-        pageSize,
-        totalItems: String(items.length),
-        totalPages: items.length > 0 ? 1 : 0,
+        page: normalizedPage,
+        pageSize: normalizedPageSize,
+        totalItems: String(totalItemCount),
+        totalPages,
       },
     },
     traceId: nextRequestId(),
@@ -218,7 +224,56 @@ export function createAgentSessionFixture(overrides = {}) {
 
 export function createCodeEngineCatalogFixture() {
   return {
-    engines: [],
+    engines: [
+      {
+        engineKey: 'claude-code',
+        agentId: 'agent.claude-code',
+        bindingId: 'claude-code',
+        models: [
+          {
+            engineKey: 'claude-code',
+            modelId: 'claude-sonnet-4-5',
+            label: 'Claude Sonnet 4.5',
+            description: 'Anthropic coding model for Claude Code.',
+            providerId: 'anthropic',
+            bindingId: 'claude-code',
+            defaultForEngine: true,
+          },
+        ],
+      },
+      {
+        engineKey: 'codex',
+        agentId: 'agent.codex',
+        bindingId: 'codex',
+        models: [
+          {
+            engineKey: 'codex',
+            modelId: 'gpt-5-codex',
+            label: 'GPT-5 Codex',
+            description: 'OpenAI coding model for Codex.',
+            providerId: 'openai',
+            bindingId: 'codex',
+            defaultForEngine: true,
+          },
+        ],
+      },
+      {
+        engineKey: 'opencode',
+        agentId: 'agent.opencode',
+        bindingId: 'opencode',
+        models: [
+          {
+            engineKey: 'opencode',
+            modelId: 'auto',
+            label: 'Automatic',
+            description: 'Provider-selected OpenCode model.',
+            providerId: 'opencode',
+            bindingId: 'opencode',
+            defaultForEngine: true,
+          },
+        ],
+      },
+    ],
   };
 }
 

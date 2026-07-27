@@ -1,6 +1,7 @@
 import { getDefaultBirdCoderIdeServicesRuntimeConfig } from '@sdkwork/birdcoder-pc-infrastructure/services/defaultIdeServicesRuntime';
 
 interface BirdCoderPublicRuntimeEnv {
+  VITE_SDKWORK_BIRDCODER_ENVIRONMENT?: string;
   VITE_SDKWORK_BIRDCODER_APPLICATION_PUBLIC_HTTP_URL?: string;
   VITE_SDKWORK_BIRDCODER_PLATFORM_API_GATEWAY_HTTP_URL?: string;
   VITE_SDKWORK_BIRDCODER_DEPLOYMENT_PROFILE?: string;
@@ -25,7 +26,7 @@ export function resolveEnvironment() {
       publicRuntimeEnv?.VITE_SDKWORK_BIRDCODER_DEPLOYMENT_PROFILE
       ?? publicRuntimeEnv?.VITE_SDKWORK_DEPLOYMENT_PROFILE
       ?? 'cloud',
-    environment: mode,
+    environment: publicRuntimeEnv?.VITE_SDKWORK_BIRDCODER_ENVIRONMENT ?? mode,
     isDevelopment: import.meta.env.DEV,
     isProduction: import.meta.env.PROD,
     mode,

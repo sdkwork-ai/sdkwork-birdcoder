@@ -19,6 +19,7 @@ axum = { workspace = true }
 notify = "8"
 rfd = "0.16"
 sdkwork-api-birdcoder-standalone-gateway = { workspace = true }
+sdkwork-agents-runtime-facade = { workspace = true }
 sdkwork-birdcoder-git = { workspace = true }
 sdkwork-terminal-control-plane = { workspace = true }
 sdkwork-terminal-pty-runtime = { workspace = true }

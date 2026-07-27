@@ -1,0 +1,48 @@
+{
+  "schemaVersion": 1,
+  "kind": "sdkwork.component.spec",
+  "component": {
+    "name": "sdkwork-birdcoder-mp-host",
+    "displayName": "BirdCoder Mini Program WeChat Host",
+    "version": "0.1.0",
+    "type": "typescript-package",
+    "root": "apps/sdkwork-birdcoder-mini-program/packages/sdkwork-birdcoder-mp-host",
+    "domain": "intelligence",
+    "capability": "host",
+    "surface": "app",
+    "status": "ACTIVE",
+    "languages": ["typescript"],
+    "generated": false,
+    "private": true,
+    "manifests": ["package.json"]
+  },
+  "canonicalSpecs": [
+    { "file": "MINI_PROGRAM_APP_ARCHITECTURE_SPEC.md", "path": "../../../../../sdkwork-specs/MINI_PROGRAM_APP_ARCHITECTURE_SPEC.md", "purpose": "Mini program host boundary." },
+    { "file": "APP_CLIENT_ARCHITECTURE_ALIGNMENT_SPEC.md", "path": "../../../../../sdkwork-specs/APP_CLIENT_ARCHITECTURE_ALIGNMENT_SPEC.md", "purpose": "Cross-client host dependency direction." },
+    { "file": "APP_MINI_PROGRAM_UI_SPEC.md", "path": "../../../../../sdkwork-specs/APP_MINI_PROGRAM_UI_SPEC.md", "purpose": "Platform adapter behavior." },
+    { "file": "UI_ARCHITECTURE_SPEC.md", "path": "../../../../../sdkwork-specs/UI_ARCHITECTURE_SPEC.md", "purpose": "UI architecture selection." },
+    { "file": "CODE_STYLE_SPEC.md", "path": "../../../../../sdkwork-specs/CODE_STYLE_SPEC.md", "purpose": "Authored source structure." },
+    { "file": "NAMING_SPEC.md", "path": "../../../../../sdkwork-specs/NAMING_SPEC.md", "purpose": "Canonical naming." },
+    { "file": "TYPESCRIPT_CODE_SPEC.md", "path": "../../../../../sdkwork-specs/TYPESCRIPT_CODE_SPEC.md", "purpose": "TypeScript rules." },
+    { "file": "TEST_SPEC.md", "path": "../../../../../sdkwork-specs/TEST_SPEC.md", "purpose": "Host adapter tests." }
+  ],
+  "contracts": {
+    "layerRole": "frontend-host",
+    "publicExports": ["."],
+    "providedPorts": [{ "name": "weixinHost", "export": "." }],
+    "requiredPorts": [],
+    "runtimeEntrypoints": [],
+    "routeManifest": null,
+    "sdkClients": [],
+    "sdkDependencies": [],
+    "dependencyApiExports": [],
+    "dependencyApiSurfaces": [],
+    "events": [],
+    "configKeys": []
+  },
+  "integration": {
+    "platform": "MP_WEIXIN",
+    "platformApiPolicy": "All authored wx.* access is isolated in this package or generated native entry wrappers."
+  },
+  "verification": { "commands": ["pnpm --filter @sdkwork/birdcoder-mini-program lint"] }
+}

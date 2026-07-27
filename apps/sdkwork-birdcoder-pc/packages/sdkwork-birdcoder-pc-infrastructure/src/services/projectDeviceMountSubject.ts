@@ -2,26 +2,39 @@ import type { ProjectDeviceMountSubjectProvider } from './ProjectDeviceMountRegi
 import { getDefaultBirdCoderIdeServicesRuntimeConfig } from './defaultIdeServicesRuntime.ts';
 import { getBirdCoderIamRuntime } from './iamRuntime.ts';
 
+function isDesktopMountRealm(): boolean {
+  if (typeof window === 'undefined') {
+    return false;
+  }
+  const runtimeWindow = window as Window & {
+    __TAURI__?: { core?: { invoke?: unknown } };
+    __TAURI_INTERNALS__?: { invoke?: unknown };
+  };
+  return typeof runtimeWindow.__TAURI__?.core?.invoke === 'function'
+    || typeof runtimeWindow.__TAURI_INTERNALS__?.invoke === 'function';
+}
+
 function resolveDeviceMountRealm(): string {
   const iamRuntime = getBirdCoderIamRuntime();
-  const configuredApiBaseUrl = getDefaultBirdCoderIdeServicesRuntimeConfig()
-    .applicationApiBaseUrl?.trim();
-  if (configuredApiBaseUrl) {
-    return [
-      iamRuntime.config.appId,
-      iamRuntime.config.deploymentMode,
-      iamRuntime.config.environment,
-      configuredApiBaseUrl.replace(/\/+$/u, ''),
-    ].join('\u0001');
-  }
-
-  if (typeof location !== 'undefined' && location.origin) {
-    return [
-      iamRuntime.config.appId,
-      iamRuntime.config.deploymentMode,
-      iamRuntime.config.environment,
-      location.origin,
-    ].join('\u0001');
+  if (!isDesktopMountRealm()) {
+    const configuredApiBaseUrl = getDefaultBirdCoderIdeServicesRuntimeConfig()
+      .applicationApiBaseUrl?.trim();
+    if (configuredApiBaseUrl) {
+      return [
+        iamRuntime.config.appId,
+        iamRuntime.config.deploymentMode,
+        iamRuntime.config.environment,
+        configuredApiBaseUrl.replace(/\/+$/u, ''),
+      ].join('\u0001');
+    }
+    if (typeof location !== 'undefined' && location.origin) {
+      return [
+        iamRuntime.config.appId,
+        iamRuntime.config.deploymentMode,
+        iamRuntime.config.environment,
+        location.origin,
+      ].join('\u0001');
+    }
   }
 
   return [

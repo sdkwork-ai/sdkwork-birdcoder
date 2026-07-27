@@ -269,6 +269,11 @@ assert.equal(
   'Root dev:desktop must delegate to the canonical standalone desktop topology.',
 );
 assert.equal(
+  rootPackageJson.scripts['dev:desktop:standalone'],
+  'pnpm exec sdkwork-app stop && pnpm exec sdkwork-app dev --runtime-target desktop --deployment-profile standalone',
+  'Root standalone desktop startup must reclaim only topology-owned development resources before launching a new managed session.',
+);
+assert.equal(
   rootPackageJson.scripts['dev:desktop:check'],
   'node scripts/run-workspace-package-script.mjs apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-desktop dev:desktop:check',
   'Root dev:desktop:check must enter the desktop package through the bounded workspace package-script runner instead of reopening pnpm --dir on Windows.',

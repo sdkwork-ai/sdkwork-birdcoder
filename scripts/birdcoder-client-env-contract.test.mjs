@@ -6,6 +6,7 @@ import {
   BIRDCODER_DEPLOYMENT_PROFILES,
   BIRDCODER_ENVIRONMENTS,
   createBirdcoderFlutterProfileValues,
+  createBirdcoderMiniProgramProfileValues,
   createBirdcoderProfileId,
   createBirdcoderViteProfileValues,
   loadBirdcoderTopologyProfile,
@@ -38,6 +39,7 @@ const viteValues = createBirdcoderViteProfileValues({
 });
 assert.equal(viteValues.VITE_SDKWORK_BIRDCODER_DEPLOYMENT_PROFILE, 'cloud');
 assert.equal(viteValues.VITE_SDKWORK_BIRDCODER_ENVIRONMENT, 'development');
+assert.equal(viteValues.VITE_SDKWORK_PROFILE_ID, 'cloud.development');
 assert.equal(viteValues.VITE_SDKWORK_BIRDCODER_RUNTIME_TARGET, 'browser');
 assert.equal(viteValues.SDKWORK_ACCESS_TOKEN, '');
 
@@ -53,16 +55,31 @@ const flutterValues = createBirdcoderFlutterProfileValues({
 });
 assert.equal(flutterValues.FLUTTER_ENV, 'production');
 assert.equal(flutterValues.SDKWORK_DEPLOYMENT_PROFILE, 'standalone');
+assert.equal(flutterValues.SDKWORK_PROFILE_ID, 'standalone.production');
 assert.equal(flutterValues.SDKWORK_RUNTIME_TARGET, 'flutter-android');
 assert.equal(flutterValues.API_BASE_URL, flutterValues.SDKWORK_BIRDCODER_APPLICATION_PUBLIC_HTTP_URL);
+
+const miniProgramValues = createBirdcoderMiniProgramProfileValues({
+  deploymentProfile: 'cloud',
+  environment: 'staging',
+  topologyValues: loadBirdcoderTopologyProfile({
+    workspaceRootDir,
+    deploymentProfile: 'cloud',
+    environment: 'staging',
+  }).values,
+});
+assert.equal(miniProgramValues.SDKWORK_DEPLOYMENT_PROFILE, 'cloud');
+assert.equal(miniProgramValues.SDKWORK_ENVIRONMENT, 'staging');
+assert.equal(miniProgramValues.SDKWORK_PROFILE_ID, 'cloud.staging');
+assert.equal(miniProgramValues.SDKWORK_RUNTIME_TARGET, 'mini-program');
 
 const verifiedFiles = materializeBirdcoderClientEnv({
   workspaceRootDir,
   check: true,
 });
-assert.equal(verifiedFiles.length, expectedProfileCount * 3);
+assert.equal(verifiedFiles.length, expectedProfileCount * 4);
 
-for (const surface of ['pc', 'h5', 'flutter']) {
+for (const surface of ['pc', 'h5', 'flutter', 'miniProgram']) {
   for (const deploymentProfile of BIRDCODER_DEPLOYMENT_PROFILES) {
     for (const environment of BIRDCODER_ENVIRONMENTS) {
       const profilePath = resolveBirdcoderSurfaceProfilePath({
@@ -73,6 +90,12 @@ for (const surface of ['pc', 'h5', 'flutter']) {
       });
       assert.ok(fs.existsSync(profilePath), `${path.relative(workspaceRootDir, profilePath)} must exist.`);
       const content = fs.readFileSync(profilePath, 'utf8');
+      const profileId = createBirdcoderProfileId(deploymentProfile, environment);
+      if (surface === 'pc' || surface === 'h5') {
+        assert.match(content, new RegExp(`^VITE_SDKWORK_PROFILE_ID=${profileId}$`, 'mu'));
+      } else {
+        assert.match(content, new RegExp(`"SDKWORK_PROFILE_ID":\\s*"${profileId}"`, 'u'));
+      }
       assert.doesNotMatch(content, /SDKWORK_ACCESS_TOKEN=\S+/u);
       assert.doesNotMatch(content, /"SDKWORK_ACCESS_TOKEN":\s*"[^"]+"/u);
     }

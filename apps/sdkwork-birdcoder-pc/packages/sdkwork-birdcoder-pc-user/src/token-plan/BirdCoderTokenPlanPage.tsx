@@ -14,11 +14,13 @@ import {
   SdkworkSubscriptionCatalogPage,
   sdkworkSubscriptionCatalogHostComponents,
 } from '@sdkwork/membership-pc-subscription/catalog';
+import { getBirdCoderMembershipCheckoutService } from '@sdkwork/birdcoder-pc-infrastructure-runtime/membershipSdkBootstrap';
 import {
   BirdCoderTokenPlanPointsDetailsModal,
   BirdCoderTokenPlanPointsPurchaseModal,
   BirdCoderTokenPlanRedeemModal,
 } from './BirdCoderTokenPlanCommerceModal.tsx';
+import { BirdCoderTokenPlanCheckoutModal } from './BirdCoderTokenPlanCheckoutModal.tsx';
 import { useTokenPlanMemberSummary } from './tokenPlanMemberSummary.ts';
 import { useTokenPlanNotify } from './tokenPlanNotify.tsx';
 
@@ -42,8 +44,10 @@ export function BirdCoderTokenPlanPage({
     <div className={wrapperClass}>
       <div className="mx-auto w-full max-w-7xl">
         <SdkworkSubscriptionCatalogPage
+          checkoutPort={getBirdCoderMembershipCheckoutService()}
           components={{
             ...sdkworkSubscriptionCatalogHostComponents,
+            checkoutModal: BirdCoderTokenPlanCheckoutModal,
             pointsDetailsModal: BirdCoderTokenPlanPointsDetailsModal,
             pointsPurchaseModal: BirdCoderTokenPlanPointsPurchaseModal,
             redeemModal: BirdCoderTokenPlanRedeemModal,

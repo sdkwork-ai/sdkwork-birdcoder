@@ -5,6 +5,7 @@ import type {
   AgentSessionItemRecord,
   AgentSessionRecord,
   AgentSessionRuntimeBindingRecord,
+  AgentSessionStatus,
   AgentTurnRecord,
   AnswerAgentInteractionRequest,
   AppUpdateAgentSessionRequest,
@@ -23,6 +24,26 @@ export interface AgentSessionPageRequest {
   sort?: 'sequence' | '-sequence';
 }
 
+export interface AgentSessionListPageRequest {
+  page?: number;
+  pageSize?: number;
+  status?: AgentSessionStatus;
+  includeArchived?: boolean;
+}
+
+export interface AgentProjectSessionPageRequest extends AgentSessionListPageRequest {
+  projectId: string;
+}
+
+export interface AgentWorkspaceSessionPageRequest extends AgentSessionListPageRequest {
+  workspaceId: string;
+}
+
+export interface AgentScopedSessionPageRequest extends AgentSessionListPageRequest {
+  agentId?: string;
+  projectId?: string;
+}
+
 export interface AgentSessionReadOptions {
   signal?: AbortSignal;
   timeoutMs?: number;
@@ -34,7 +55,8 @@ export interface AgentSessionPage<TItem> {
 }
 
 export interface CreateAgentSessionInput {
-  projectId?: string;
+  agentId?: string;
+  projectId: string;
   sessionId?: string;
   title?: string;
   sourceContextId?: string;
@@ -76,7 +98,19 @@ export interface IAgentSessionService {
   createSession(input: CreateAgentSessionInput): Promise<AgentSessionRecord>;
   getSession(sessionId: string, options?: AgentSessionReadOptions): Promise<AgentSessionRecord>;
   listSessions(
-    request?: AgentSessionPageRequest,
+    request: AgentProjectSessionPageRequest,
+    options?: AgentSessionReadOptions,
+  ): Promise<AgentSessionPage<AgentSessionRecord>>;
+  listSessionsByAgent(
+    request?: AgentScopedSessionPageRequest,
+    options?: AgentSessionReadOptions,
+  ): Promise<AgentSessionPage<AgentSessionRecord>>;
+  listSessionsByProject(
+    request: AgentProjectSessionPageRequest,
+    options?: AgentSessionReadOptions,
+  ): Promise<AgentSessionPage<AgentSessionRecord>>;
+  listSessionsByWorkspace(
+    request: AgentWorkspaceSessionPageRequest,
     options?: AgentSessionReadOptions,
   ): Promise<AgentSessionPage<AgentSessionRecord>>;
   updateSession(
@@ -138,7 +172,7 @@ export interface IAgentSessionService {
   getSessionUserState(
     sessionId: string,
     options?: AgentSessionReadOptions,
-  ): Promise<AgentResourceUserStateRecord>;
+  ): Promise<AgentResourceUserStateRecord | null>;
   updateSessionUserState(
     sessionId: string,
     request: UpdateAgentSessionUserStateRequest,

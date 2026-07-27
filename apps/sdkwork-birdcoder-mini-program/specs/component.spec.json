@@ -1,0 +1,92 @@
+{
+  "schemaVersion": 1,
+  "kind": "sdkwork.component.spec",
+  "component": {
+    "name": "sdkwork-birdcoder-mini-program",
+    "displayName": "SDKWork BirdCoder WeChat Mini Program",
+    "version": "0.1.0",
+    "type": "mini-program-app-root",
+    "root": "apps/sdkwork-birdcoder-mini-program",
+    "domain": "intelligence",
+    "declaredDomain": "intelligence",
+    "capability": "coding-workbench",
+    "surface": "app",
+    "status": "ACTIVE",
+    "languages": ["typescript"],
+    "generated": false,
+    "private": true,
+    "manifests": [
+      "package.json",
+      "sdkwork.app.config.json",
+      "project.config.json"
+    ]
+  },
+  "canonicalSpecs": [
+    { "file": "MINI_PROGRAM_APP_ARCHITECTURE_SPEC.md", "path": "../../../sdkwork-specs/MINI_PROGRAM_APP_ARCHITECTURE_SPEC.md", "purpose": "Mini program root and package architecture." },
+    { "file": "APP_MINI_PROGRAM_UI_SPEC.md", "path": "../../../sdkwork-specs/APP_MINI_PROGRAM_UI_SPEC.md", "purpose": "Mini program UI package and state rules." },
+    { "file": "APP_CLIENT_ARCHITECTURE_ALIGNMENT_SPEC.md", "path": "../../../sdkwork-specs/APP_CLIENT_ARCHITECTURE_ALIGNMENT_SPEC.md", "purpose": "Cross-client route and package alignment." },
+    { "file": "APP_SDK_INTEGRATION_SPEC.md", "path": "../../../sdkwork-specs/APP_SDK_INTEGRATION_SPEC.md", "purpose": "Generated app SDK and IAM integration." },
+    { "file": "UI_ARCHITECTURE_SPEC.md", "path": "../../../sdkwork-specs/UI_ARCHITECTURE_SPEC.md", "purpose": "UI architecture selection." },
+    { "file": "COMPONENT_SPEC.md", "path": "../../../sdkwork-specs/COMPONENT_SPEC.md", "purpose": "Component contract shape." },
+    { "file": "CODE_STYLE_SPEC.md", "path": "../../../sdkwork-specs/CODE_STYLE_SPEC.md", "purpose": "Authored source and build integrity." },
+    { "file": "NAMING_SPEC.md", "path": "../../../sdkwork-specs/NAMING_SPEC.md", "purpose": "Canonical naming." },
+    { "file": "TYPESCRIPT_CODE_SPEC.md", "path": "../../../sdkwork-specs/TYPESCRIPT_CODE_SPEC.md", "purpose": "TypeScript source rules." },
+    { "file": "FRONTEND_CODE_SPEC.md", "path": "../../../sdkwork-specs/FRONTEND_CODE_SPEC.md", "purpose": "Frontend source boundaries." },
+    { "file": "TEST_SPEC.md", "path": "../../../sdkwork-specs/TEST_SPEC.md", "purpose": "Verification rules." }
+  ],
+  "contracts": {
+    "layerRole": "runtime-composition",
+    "publicExports": [
+      "@sdkwork/birdcoder-app-sdk",
+      "@sdkwork/agents-app-sdk",
+      "@sdkwork/iam-app-sdk",
+      "@sdkwork/drive-app-sdk"
+    ],
+    "providedPorts": [],
+    "requiredPorts": [
+      { "name": "birdCoderAppSdk", "export": "@sdkwork/birdcoder-app-sdk" },
+      { "name": "agentsAppSdk", "export": "@sdkwork/agents-app-sdk" },
+      { "name": "iamAppSdk", "export": "@sdkwork/iam-app-sdk" },
+      { "name": "driveAppSdk", "export": "@sdkwork/drive-app-sdk" }
+    ],
+    "runtimeEntrypoints": [
+      "package.json#scripts.dev",
+      "package.json#scripts.build"
+    ],
+    "routeManifest": null,
+    "sdkClients": [],
+    "sdkDependencies": [
+      { "workspace": "sdkwork-birdcoder-app-sdk", "surface": "app-api", "credentialMode": "authenticated-app-api", "required": true },
+      { "workspace": "sdkwork-agents-app-sdk", "surface": "app-api", "credentialMode": "authenticated-app-api", "required": true },
+      { "workspace": "sdkwork-iam-app-sdk", "surface": "app-api", "credentialMode": "authenticated-app-api", "required": true },
+      { "workspace": "sdkwork-drive-app-sdk", "surface": "app-api", "credentialMode": "authenticated-app-api", "required": true }
+    ],
+    "dependencyApiExports": [],
+    "dependencyApiSurfaces": [],
+    "events": [],
+    "configKeys": [
+      "SDKWORK_BIRDCODER_DEPLOYMENT_PROFILE",
+      "SDKWORK_BIRDCODER_ENVIRONMENT",
+      "SDKWORK_BIRDCODER_APPLICATION_PUBLIC_HTTP_URL",
+      "SDKWORK_BIRDCODER_PLATFORM_API_GATEWAY_HTTP_URL"
+    ]
+  },
+  "integration": {
+    "authority": "Root SDKWork specs and repository BirdCoder contracts remain authoritative.",
+    "dependencyPolicy": "Generated app SDKs are injected through mp-core ports; feature packages do not construct transports.",
+    "hostPolicy": "WeChat globals are isolated in sdkwork-birdcoder-mp-host and native projection wrappers.",
+    "frameworkPolicy": "This root is native WeChat Mini Program; uni-app belongs in a separate future multi-platform root."
+  },
+  "verification": {
+    "commands": [
+      "pnpm typecheck",
+      "pnpm lint",
+      "pnpm test",
+      "pnpm build"
+    ]
+  },
+  "metadata": {
+    "standardVersion": "2026-07-26",
+    "initializationOnly": true
+  }
+}

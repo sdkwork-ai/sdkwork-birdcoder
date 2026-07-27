@@ -12,6 +12,8 @@ export interface ProjectExplorerSessionRowProps {
   relativeTimeNow: number;
   session: AgentSessionView;
   sessionProjectId?: string | null;
+  projectName?: string;
+  showProjectName?: boolean;
   isSelected: boolean;
   isRenaming: boolean;
   renameValue: string;
@@ -43,6 +45,8 @@ export const ProjectExplorerSessionRow = React.memo(function ProjectExplorerSess
   relativeTimeNow,
   session,
   sessionProjectId,
+  projectName,
+  showProjectName = false,
   isSelected,
   isRenaming,
   renameValue,
@@ -76,13 +80,23 @@ export const ProjectExplorerSessionRow = React.memo(function ProjectExplorerSess
               : session.runtimeStatus === 'failed'
                 ? failedSessionLabel
                 : null;
+  const sessionDetails = [
+    session.title,
+    projectName,
+    session.engineId,
+    session.providerId,
+    session.modelId,
+    session.hostMode,
+    session.runtimeStatus,
+  ].filter(Boolean).join(' | ');
 
   return (
     <div
-      className={`${paddingClassName} py-1.5 relative group flex w-full min-w-0 max-w-full items-center justify-between overflow-hidden birdcoder-session-row ${isSelected ? 'birdcoder-session-selected' : ''} cursor-pointer rounded-md transition-colors ${
+      className={`${paddingClassName} group birdcoder-session-row relative flex w-full min-w-0 max-w-full cursor-pointer items-center justify-between overflow-hidden rounded-md py-1.5 text-[length:var(--birdcoder-ui-font-size,12px)] transition-colors ${isSelected ? 'birdcoder-session-selected' : ''} ${
         isSelected ? 'text-white' : 'text-gray-400'
       }`}
       style={buildProjectExplorerSurfaceStyle('36px')}
+      title={sessionDetails}
       onClick={() => onSelectAgentSession(session.id, resolvedSessionProjectId)}
       onContextMenu={(event) => onAgentSessionContextMenu(event, session.id, resolvedSessionProjectId)}
     >
@@ -106,11 +120,16 @@ export const ProjectExplorerSessionRow = React.memo(function ProjectExplorerSess
               }
             }}
             onBlur={onRenameCancel}
-            className="flex-1 bg-transparent border-none outline-none text-white focus:ring-1 focus:ring-blue-500 rounded px-1 text-sm min-w-0"
+            className="min-w-0 flex-1 rounded border-none bg-transparent px-1 text-[length:var(--birdcoder-ui-font-size,12px)] text-white outline-none focus:ring-1 focus:ring-blue-500"
             onClick={(event) => event.stopPropagation()}
           />
         ) : (
-          <span className="min-w-0 flex-1 truncate">{session.title}</span>
+          <span className="flex min-w-0 flex-1 items-baseline gap-1.5 overflow-hidden">
+            <span className="min-w-0 truncate">{session.title}</span>
+            {showProjectName && projectName ? (
+              <span className="min-w-0 truncate text-[10px] text-gray-500">{projectName}</span>
+            ) : null}
+          </span>
         )}
       </div>
       {!isRenaming && (

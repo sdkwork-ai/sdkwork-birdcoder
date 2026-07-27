@@ -11,3 +11,7 @@ export function isBirdcoderTauriRuntime(): boolean {
   return typeof host.__TAURI__?.core?.invoke === 'function'
     || typeof host.__TAURI_INTERNALS__?.invoke === 'function';
 }
+
+export function resolveBirdcoderWorkbenchHostMode(): 'desktop' | 'web' {
+  return isBirdcoderTauriRuntime() ? 'desktop' : 'web';
+}

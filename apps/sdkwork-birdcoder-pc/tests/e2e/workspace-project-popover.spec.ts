@@ -3,7 +3,7 @@ import { expect, test } from '@playwright/test';
 const mockApiPort = Number(process.env.PC_E2E_MOCK_API_PORT ?? 11240);
 const mockApiBaseUrl = `http://127.0.0.1:${mockApiPort}`;
 
-test('unified Workspace and Project Popover supports scoped Project creation', async ({
+test('Workspace and Project Popover opens the dedicated Create project dialog', async ({
   page,
   request,
 }, testInfo) => {
@@ -44,7 +44,7 @@ test('unified Workspace and Project Popover supports scoped Project creation', a
   await expect(trigger).toBeVisible({ timeout: 60_000 });
   await expect(trigger).toContainText('Default Workspace');
   await expect(trigger).toContainText('E2E Project');
-  await expect(page.getByRole('button', { name: 'New Project' })).toHaveCount(0);
+  await expect(page.getByRole('dialog', { name: 'Create project' })).toHaveCount(0);
 
   await trigger.click();
   const switcher = page.getByRole('dialog', { name: 'Workspace and Projects' });
@@ -57,24 +57,33 @@ test('unified Workspace and Project Popover supports scoped Project creation', a
 
   const newProjectButton = switcher.getByRole('button', { name: 'New Project' });
   await newProjectButton.click();
-  await expect(switcher.getByRole('button', { name: 'Blank Project' })).toBeVisible();
-  await expect(switcher.getByRole('button', { name: 'Project from Folder' })).toBeVisible();
+  await expect(switcher).toHaveCount(0);
+
+  const createProjectDialog = page.getByRole('dialog', { name: 'Create project' });
+  await expect(createProjectDialog).toBeVisible();
+  await expect(createProjectDialog.getByRole('textbox', { name: 'Project name' })).toBeFocused();
+  await expect(createProjectDialog.getByRole('button', {
+    name: 'Add a folder BirdCoder can read and edit',
+  })).toBeVisible();
+  await expect(createProjectDialog.getByRole('button', {
+    exact: true,
+    name: 'Create project',
+  })).toBeDisabled();
 
   await page.screenshot({
-    path: testInfo.outputPath('workspace-project-popover-desktop.png'),
+    path: testInfo.outputPath('create-project-dialog-desktop.png'),
     fullPage: true,
   });
 
-  await switcher.getByRole('button', { name: 'Blank Project' }).click();
-  await switcher.getByRole('textbox', { name: 'Blank Project' }).fill('Popover Project');
+  await createProjectDialog.getByRole('textbox', { name: 'Project name' }).fill('Dialog Project');
   const projectCreateResponse = page.waitForResponse((response) => (
     response.request().method() === 'POST'
     && new URL(response.url()).pathname === '/app/v3/api/ai/projects'
   ));
-  await switcher.getByRole('button', { name: 'Create' }).click();
+  await createProjectDialog.getByRole('button', { exact: true, name: 'Create project' }).click();
   expect((await projectCreateResponse).ok()).toBe(true);
-  await expect(switcher).toHaveCount(0);
-  await expect(trigger).toContainText('Popover Project');
+  await expect(createProjectDialog).toHaveCount(0);
+  await expect(trigger).toContainText('Dialog Project');
 
   await page.setViewportSize({ width: 760, height: 680 });
   await trigger.click();
@@ -85,11 +94,20 @@ test('unified Workspace and Project Popover supports scoped Project creation', a
   expect((switcherBox?.x ?? 0) + (switcherBox?.width ?? 0)).toBeLessThanOrEqual(760);
   expect((switcherBox?.y ?? 0) + (switcherBox?.height ?? 0)).toBeLessThanOrEqual(680);
 
+  await switcher.getByRole('button', { name: 'New Project' }).click();
+  await expect(createProjectDialog).toBeVisible();
+  const dialogBox = await createProjectDialog.boundingBox();
+  expect(dialogBox).not.toBeNull();
+  expect(dialogBox?.x).toBeGreaterThanOrEqual(0);
+  expect((dialogBox?.x ?? 0) + (dialogBox?.width ?? 0)).toBeLessThanOrEqual(760);
+  expect(dialogBox?.y).toBeGreaterThanOrEqual(0);
+  expect((dialogBox?.y ?? 0) + (dialogBox?.height ?? 0)).toBeLessThanOrEqual(680);
+
   await page.screenshot({
-    path: testInfo.outputPath('workspace-project-popover-narrow.png'),
+    path: testInfo.outputPath('create-project-dialog-narrow.png'),
     fullPage: true,
   });
 
   await page.keyboard.press('Escape');
-  await expect(switcher).toHaveCount(0);
+  await expect(createProjectDialog).toHaveCount(0);
 });

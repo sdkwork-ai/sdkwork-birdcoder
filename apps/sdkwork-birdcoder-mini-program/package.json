@@ -1,0 +1,39 @@
+{
+  "name": "@sdkwork/birdcoder-mini-program",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "pnpm dev:standalone",
+    "dev:standalone": "node scripts/build-mini-program.mjs --deployment-profile standalone --environment development --watch",
+    "dev:cloud": "node scripts/build-mini-program.mjs --deployment-profile cloud --environment development --watch",
+    "stop": "node scripts/stop-dev.mjs",
+    "build": "node scripts/build-mini-program.mjs --deployment-profile cloud --environment production",
+    "build:staging": "node scripts/build-mini-program.mjs --deployment-profile cloud --environment staging",
+    "build:prod": "pnpm build",
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "lint": "node scripts/static-boundary-check.mjs",
+    "test": "node --test tests/*.test.mjs",
+    "test:config": "node --test tests/config.test.mjs",
+    "test:routes": "node --test tests/routes.test.mjs",
+    "check": "pnpm typecheck && pnpm lint && pnpm test && node ../../../sdkwork-specs/tools/check-source-config-standard.mjs --root . && node ../../../sdkwork-specs/tools/check-app-manifest-standard.mjs --root .",
+    "verify": "pnpm check && pnpm build",
+    "clean": "node scripts/clean.mjs",
+    "_sdkwork:build": "pnpm build",
+    "_sdkwork:test": "pnpm test",
+    "_sdkwork:check": "pnpm check",
+    "_sdkwork:verify": "pnpm verify",
+    "_sdkwork:clean": "pnpm clean"
+  },
+  "dependencies": {
+    "@sdkwork/birdcoder-mp-commons": "workspace:*",
+    "@sdkwork/birdcoder-mp-core": "workspace:*",
+    "@sdkwork/birdcoder-mp-host": "workspace:*",
+    "@sdkwork/birdcoder-mp-shell": "workspace:*",
+    "@sdkwork/birdcoder-mp-workbench": "workspace:*"
+  },
+  "devDependencies": {
+    "esbuild": "^0.28.1",
+    "typescript": "catalog:"
+  }
+}

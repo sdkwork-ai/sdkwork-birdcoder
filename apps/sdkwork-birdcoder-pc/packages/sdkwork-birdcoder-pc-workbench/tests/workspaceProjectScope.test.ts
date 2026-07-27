@@ -57,12 +57,14 @@ function createProject(workspaceId: string, projectId: string): AgentProjectView
 function createSession(projectId: string): AgentSessionView {
   return {
     id: 'session-1',
+    agentId: 'agent.code-engine.codex',
     projectId,
     title: 'Session 1',
     status: 'active',
     hostMode: 'web',
     engineId: 'codex',
     modelId: 'gpt-5',
+    providerId: 'provider.openai',
     createdAt: '2026-07-25T00:00:00.000Z',
     updatedAt: '2026-07-25T00:01:00.000Z',
     displayTime: 'Just now',

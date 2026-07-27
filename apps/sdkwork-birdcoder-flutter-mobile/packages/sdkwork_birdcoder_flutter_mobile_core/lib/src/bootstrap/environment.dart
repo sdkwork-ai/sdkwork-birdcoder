@@ -16,18 +16,30 @@ class BirdCoderFlutterEnvironment {
   });
 
   static BirdCoderFlutterEnvironment resolve() {
-    const mode = String.fromEnvironment('FLUTTER_ENV', defaultValue: 'development');
+    const mode = String.fromEnvironment(
+      'FLUTTER_ENV',
+      defaultValue: String.fromEnvironment(
+        'SDKWORK_BIRDCODER_ENVIRONMENT',
+        defaultValue: 'development',
+      ),
+    );
     const deploymentProfile = String.fromEnvironment(
       'SDKWORK_DEPLOYMENT_PROFILE',
-      defaultValue: 'cloud',
+      defaultValue: String.fromEnvironment(
+        'SDKWORK_BIRDCODER_DEPLOYMENT_PROFILE',
+        defaultValue: 'cloud',
+      ),
     );
     const runtimeTarget = String.fromEnvironment(
       'SDKWORK_RUNTIME_TARGET',
-      defaultValue: 'flutter-mobile',
+      defaultValue: String.fromEnvironment(
+        'SDKWORK_BIRDCODER_RUNTIME_TARGET',
+        defaultValue: 'flutter-android',
+      ),
     );
     const configuredApiBaseUrl = String.fromEnvironment(
-      'API_BASE_URL',
-      defaultValue: '',
+      'SDKWORK_BIRDCODER_APPLICATION_PUBLIC_HTTP_URL',
+      defaultValue: String.fromEnvironment('API_BASE_URL', defaultValue: ''),
     );
 
     return BirdCoderFlutterEnvironment(

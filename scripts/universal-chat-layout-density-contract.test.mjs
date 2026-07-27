@@ -70,8 +70,8 @@ assert.match(
 
 assert.match(
   universalChatSource,
-  /layout === 'sidebar' \? 'px-4 pb-4 pt-3' : 'px-5 pb-5 pt-4'/,
-  'UniversalChat composer must use compact flow spacing so the input stays visually connected to the latest Session Items.',
+  /layout === 'sidebar' \? 'px-4 pb-2 pt-3' : 'px-5 pb-2\.5 pt-4'/,
+  'UniversalChat composer must keep its bottom inset at half of the previous spacing so the input stays close to the workbench edge.',
 );
 
 assert.doesNotMatch(

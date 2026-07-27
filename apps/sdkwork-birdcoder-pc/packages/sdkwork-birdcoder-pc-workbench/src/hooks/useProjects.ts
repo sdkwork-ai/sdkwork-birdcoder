@@ -19,13 +19,14 @@ import {
   buildProjectsStoreScopeKey,
   createProjectsStoreSnapshot,
   deleteProjectsStore,
+  filterProjectsForInventoryStore,
   getProjectsStore,
   mergeProjectsForStore,
   mutateProjectsStoreByScopeKey,
   normalizeProjectsStoreUserScope,
   peekProjectsStore,
   removeAgentSessionFromCollection,
-  removeProjectFromCollection,
+  removeProjectFromProjectsStore,
   type ProjectsStore,
   type ProjectsStoreSnapshot,
   updateAgentSessionInCollection,
@@ -43,28 +44,24 @@ import type {
 } from '../services/interfaces/IProjectService.ts';
 import {
   loadProjectAgentSessionPage,
-  loadProjectsAgentSessionInventory,
   toAgentSessionItemView,
   toAgentSessionView,
 } from '../services/agentSessionViewModels.ts';
-import { useProjectRuntimeLocationExecutionId } from './useProjectRuntimeLocation.ts';
 import type { WorkbenchAgentSessionTurnContext } from '../workbench/agentSessionCreation.ts';
+import { createBoundAgentSession } from '../workbench/agentSessionProvisioning.ts';
 
 export interface LoadMoreProjectSessionsResult {
   hasMore: boolean;
   loadedCount: number;
 }
 
-type CreateProjectAgentSessionOptions = Omit<
-  CreateAgentSessionOptions,
-  'runtimeLocationId'
->;
-
-interface CreateAgentSessionOptions {
+interface CreateProjectAgentSessionOptions {
+  agentId: AgentSessionView['agentId'];
   engineId: AgentSessionView['engineId'];
   hostMode?: AgentSessionView['hostMode'];
   modelId: string;
-  runtimeLocationId: string;
+  providerBindingId: string;
+  providerId: string;
 }
 
 interface UpdateAgentSessionOptions {
@@ -77,6 +74,7 @@ interface UpdateAgentSessionOptions {
 }
 
 interface ProjectSessionLoadInflightEntry {
+  controller: AbortController;
   promise: Promise<LoadMoreProjectSessionsResult>;
   targetCount: number;
 }
@@ -530,6 +528,14 @@ function rollbackOptimisticAgentSessionItem(
       canRestoreOwnedActivity && agentSession.lastTurnAt === optimisticItem.createdAt
         ? previousAgentSession?.lastTurnAt
         : agentSession.lastTurnAt,
+    lastMessageAt:
+      canRestoreOwnedActivity && agentSession.lastMessageAt === optimisticItem.createdAt
+        ? previousAgentSession?.lastMessageAt
+        : agentSession.lastMessageAt,
+    lastUserActivityAt:
+      canRestoreOwnedActivity && agentSession.lastUserActivityAt === optimisticItem.createdAt
+        ? previousAgentSession?.lastUserActivityAt
+        : agentSession.lastUserActivityAt,
     sortTimestamp:
       canRestoreOwnedActivity &&
       optimisticSortTimestamp !== undefined &&
@@ -598,7 +604,6 @@ async function fetchProjects(
   projectService: ReturnType<typeof useIDEServices>['projectService'],
   pageRequest: AgentProjectPageRequest,
   mode: 'append' | 'replace',
-  agentSessionService: ReturnType<typeof useIDEServices>['agentSessionService'],
 ): Promise<AgentProjectView[]> {
   const requestKey = `${mode}:${pageRequest.page}:${pageRequest.pageSize}`;
   if (store.inflight) {
@@ -612,7 +617,6 @@ async function fetchProjects(
       projectService,
       pageRequest,
       mode,
-      agentSessionService,
     );
   }
 
@@ -628,7 +632,7 @@ async function fetchProjects(
     pageRequest,
     PROJECTS_FETCH_TIMEOUT_MS,
   )
-    .then(async (page) => {
+    .then((page) => {
       if (store.inventoryVersion !== requestInventoryVersion) {
         updateProjectsStoreSnapshot(store, (previousSnapshot) => ({
           ...previousSnapshot,
@@ -638,19 +642,9 @@ async function fetchProjects(
         return store.snapshot.projects;
       }
 
-      const fetchedProjects = normalizeProjectsForInventoryStore(page.items.filter(Boolean));
-      const incomingProjects = await loadProjectsAgentSessionInventory(
-        agentSessionService,
-        fetchedProjects,
+      const incomingProjects = normalizeProjectsForInventoryStore(
+        filterProjectsForInventoryStore(store, page.items.filter(Boolean)),
       );
-      if (store.inventoryVersion !== requestInventoryVersion) {
-        updateProjectsStoreSnapshot(store, (previousSnapshot) => ({
-          ...previousSnapshot,
-          isLoading: false,
-          pageInfo: null,
-        }));
-        return store.snapshot.projects;
-      }
       const nextProjects = mergeProjectsForStore(
         store.snapshot.projects,
         mode === 'append'
@@ -727,7 +721,6 @@ export interface UseProjectsOptions {
 
 export function useProjects(options?: UseProjectsOptions) {
   const { agentSessionService, projectService } = useIDEServices();
-  const resolveProjectRuntimeLocationExecutionId = useProjectRuntimeLocationExecutionId();
   const { sessionRevision, user } = useAuth();
   const normalizedUserScope = normalizeProjectsStoreUserScope(
     buildBirdCoderAuthSessionInventoryScope(user?.id, sessionRevision),
@@ -773,6 +766,22 @@ export function useProjects(options?: UseProjectsOptions) {
   );
 
   useEffect(() => {
+    const abortInflightSessionLoads = () => {
+      for (const entry of projectSessionLoadInflightRef.current.values()) {
+        entry.controller.abort(new DOMException(
+          'Project Session inventory loading stopped.',
+          'AbortError',
+        ));
+      }
+      projectSessionLoadInflightRef.current.clear();
+    };
+    if (!isActive || !storeScopeKey) {
+      abortInflightSessionLoads();
+    }
+    return abortInflightSessionLoads;
+  }, [isActive, storeScopeKey]);
+
+  useEffect(() => {
     if (!storeScopeKey) {
       setStoreSnapshot(createProjectsStoreSnapshot());
       return;
@@ -805,7 +814,6 @@ export function useProjects(options?: UseProjectsOptions) {
         projectService,
         pageRequest,
         'replace',
-        agentSessionService,
       ).catch(() => {
         // Error state is already propagated through the shared store snapshot.
       });
@@ -816,7 +824,6 @@ export function useProjects(options?: UseProjectsOptions) {
       disposeProjectsStoreIfUnused(storeScopeKey);
     };
   }, [
-    agentSessionService,
     projectService,
     shouldFetchOnMount,
     isActive,
@@ -837,10 +844,8 @@ export function useProjects(options?: UseProjectsOptions) {
       projectService,
       pageRequest,
       'replace',
-      agentSessionService,
     );
   }, [
-    agentSessionService,
     projectService,
     storeScopeKey,
     pageRequest,
@@ -866,9 +871,8 @@ export function useProjects(options?: UseProjectsOptions) {
         workspaceId,
       },
       'append',
-      agentSessionService,
     );
-  }, [agentSessionService, pageRequest.pageSize, projectService, storeScopeKey, workspaceId]);
+  }, [pageRequest.pageSize, projectService, storeScopeKey, workspaceId]);
 
   const loadMoreProjectSessions = useCallback(
     async (
@@ -901,6 +905,7 @@ export function useProjects(options?: UseProjectsOptions) {
         }
       }
 
+      const controller = new AbortController();
       const request = (async (): Promise<LoadMoreProjectSessionsResult> => {
         const store = getProjectsStore(storeScopeKey);
         let project = store.snapshot.projects.find(
@@ -919,6 +924,7 @@ export function useProjects(options?: UseProjectsOptions) {
             agentSessionService,
             project,
             targetCount,
+            controller.signal,
           );
           const currentProject = store.snapshot.projects.find(
             (candidate) => candidate.projectId === normalizedProjectId,
@@ -957,6 +963,7 @@ export function useProjects(options?: UseProjectsOptions) {
       })();
 
       const entry: ProjectSessionLoadInflightEntry = {
+        controller,
         promise: request,
         targetCount,
       };
@@ -998,13 +1005,11 @@ export function useProjects(options?: UseProjectsOptions) {
         workspaceId,
       },
       'replace',
-      agentSessionService,
     ).catch(() => {
       // Error state is already propagated through the shared store snapshot.
     });
   }, [
     isActive,
-    agentSessionService,
     pageRequest.pageSize,
     projectService,
     storeScopeKey,
@@ -1077,14 +1082,18 @@ export function useProjects(options?: UseProjectsOptions) {
           return;
         }
 
-        if (!project || project.workspaceId !== workspaceId) {
+        const store = getProjectsStore(storeScopeKey);
+        if (
+          !project ||
+          project.workspaceId !== workspaceId ||
+          filterProjectsForInventoryStore(store, [project]).length === 0
+        ) {
           currentState.lookupStatus = 'missing';
           setTargetResolutionRevision((revision) => revision + 1);
           return;
         }
 
         currentState.lookupStatus = 'found';
-        const store = getProjectsStore(storeScopeKey);
         updateProjectsStoreSnapshot(store, (previousSnapshot) => ({
           ...previousSnapshot,
           projects: mergeProjectsForStore(
@@ -1184,6 +1193,52 @@ export function useProjects(options?: UseProjectsOptions) {
     }
   };
 
+  const ensureProject = async (name: string) => {
+    if (!workspaceId) {
+      throw new Error('Select a Workspace before importing a Project.');
+    }
+    const normalizedName = normalizeSearchValue(name);
+    if (!normalizedName) {
+      throw new Error('Project name is required.');
+    }
+    const loadedProject = storeSnapshot.projects.find(
+      (project) => normalizeSearchValue(project.name) === normalizedName,
+    );
+    const existingProject = loadedProject
+      ?? await projectService.getProjectByName(workspaceId, name);
+    if (existingProject) {
+      mutateProjectsStoreByScopeKey(baseStoreScopeKey, (projects) =>
+        upsertProjectIntoCollection(projects, existingProject),
+      );
+      return {
+        projectId: existingProject.projectId,
+        reusedExistingProject: true,
+      };
+    }
+
+    try {
+      const createdProject = await createProject(name);
+      return {
+        projectId: createdProject.projectId,
+        reusedExistingProject: false,
+      };
+    } catch (createError) {
+      const concurrentlyCreatedProject = await projectService
+        .getProjectByName(workspaceId, name)
+        .catch(() => null);
+      if (!concurrentlyCreatedProject) {
+        throw createError;
+      }
+      mutateProjectsStoreByScopeKey(baseStoreScopeKey, (projects) =>
+        upsertProjectIntoCollection(projects, concurrentlyCreatedProject),
+      );
+      return {
+        projectId: concurrentlyCreatedProject.projectId,
+        reusedExistingProject: true,
+      };
+    }
+  };
+
   const importProject = async (
     options: Omit<ImportProjectOptions, 'workspaceId'>,
   ) => {
@@ -1225,31 +1280,34 @@ export function useProjects(options?: UseProjectsOptions) {
       if (!project) {
         throw new Error(`Agents project ${projectId} is not loaded.`);
       }
-      const runtimeLocationId = await resolveProjectRuntimeLocationExecutionId(
-        project.projectId,
-        'terminal',
-        { allowFolderSelection: true },
-      );
-      const session = await agentSessionService.createSession({
-        projectId: project.projectId,
-        sourceContextId: project.projectId,
-        sourceContextKind: 'agent-project',
-        title,
-      });
-      await agentSessionService.createRuntimeBinding(session.sessionId, {
-        runtimeLocationId,
-        hostMode: options.hostMode ?? 'desktop',
-        transportKind: 'sdk-stream',
-        providerBindingId: options.engineId,
-        modelId: options.modelId,
-        providerId: options.engineId,
-        requestedAt: new Date().toISOString(),
+      const session = await createBoundAgentSession({
+        createSession: () => agentSessionService.createSession({
+          agentId: options.agentId,
+          projectId: project.projectId,
+          sourceContextId: project.projectId,
+          sourceContextKind: 'agent-project',
+          title,
+        }),
+        createRuntimeBinding: (createdSession) =>
+          agentSessionService.createRuntimeBinding(createdSession.sessionId, {
+            hostMode: options.hostMode ?? 'web',
+            transportKind: 'sdk-stream',
+            providerBindingId: options.providerBindingId,
+            modelId: options.modelId,
+            providerId: options.providerId,
+            requestedAt: new Date().toISOString(),
+          }),
+        deleteCreatedSession: (createdSession) =>
+          agentSessionService.deleteSession(createdSession.sessionId),
       });
       const agentSession = toAgentSessionView(session, {
         projectId: project.projectId,
         engineId: options.engineId,
         modelId: options.modelId,
-        runtimeLocationId,
+        providerId: options.providerId,
+        providerBindingId: options.providerBindingId,
+        hostMode: options.hostMode ?? 'web',
+        transportKind: 'sdk-stream',
       });
       mutateProjectsStoreByScopeKey(baseStoreScopeKey, (projects) =>
         upsertAgentSessionIntoCollection(projects, project.projectId, agentSession),
@@ -1331,19 +1389,17 @@ export function useProjects(options?: UseProjectsOptions) {
   const deleteProject = async (projectId: string) => {
     try {
       await projectService.deleteProject(projectId);
-      mutateProjectsStoreByScopeKey(baseStoreScopeKey, (projects) =>
-        removeProjectFromCollection(projects, projectId),
-        { invalidatePagination: true },
-      );
+      removeProjectFromProjectsStore(baseStoreScopeKey, projectId);
     } catch (error: unknown) {
       const message =
         error instanceof Error && error.message.trim()
           ? error.message
-          : 'Failed to delete project';
+          : 'Failed to remove project';
       setStoreSnapshot((previousSnapshot) => ({
         ...previousSnapshot,
         error: message,
       }));
+      throw error;
     }
   };
 
@@ -1404,7 +1460,7 @@ export function useProjects(options?: UseProjectsOptions) {
         updates.unread !== undefined ||
         updates.status === 'archived'
       ) {
-        await agentSessionService.updateSessionUserState(agentSessionId, {
+        const userState = await agentSessionService.updateSessionUserState(agentSessionId, {
           hidden: updates.archived ?? updates.status === 'archived',
           pinned: updates.pinned,
           markOpened: updates.unread === false ? true : undefined,
@@ -1415,6 +1471,17 @@ export function useProjects(options?: UseProjectsOptions) {
                 ? '0'
                 : session.lastItemSequence,
         });
+        mutateProjectsStoreByScopeKey(baseStoreScopeKey, (projects) =>
+          updateAgentSessionInCollection(projects, projectId, agentSessionId, (agentSession) => ({
+            ...agentSession,
+            pinned: Boolean(userState.pinnedAt),
+            archived: session.status === 'archived' || Boolean(userState.hiddenAt),
+            lastReadItemSequence: userState.lastReadItemSequence,
+            unread:
+              userState.lastReadItemSequence !== undefined
+              && userState.lastReadItemSequence !== session.lastItemSequence,
+          })),
+        );
       }
       mutateProjectsStoreByScopeKey(baseStoreScopeKey, (projects) =>
         updateAgentSessionInCollection(projects, projectId, agentSessionId, (agentSession) => ({
@@ -1459,7 +1526,9 @@ export function useProjects(options?: UseProjectsOptions) {
           `Agent session ${agentSessionId} does not belong to Agents project ${project.projectId}.`,
         );
       }
-      const forkedSession = await agentSessionService.createSession({
+      const currentBinding = runtimeBindingPage.items.find((binding) => binding.isCurrent);
+      const createForkedSession = () => agentSessionService.createSession({
+        agentId: parentSession.agentId,
         forkedFromTurnId: lastTurn?.turnId,
         parentSessionId: parentSession.sessionId,
         projectId: project.projectId,
@@ -1467,25 +1536,38 @@ export function useProjects(options?: UseProjectsOptions) {
         sourceContextKind: 'agent-project',
         title: newTitle?.trim() || `${parentSession.title?.trim() || 'Session'} (fork)`,
       });
-      const currentBinding = runtimeBindingPage.items.find((binding) => binding.isCurrent);
-      if (currentBinding) {
-        await agentSessionService.createRuntimeBinding(forkedSession.sessionId, {
-          runtimeLocationId: currentBinding.runtimeLocationId ?? undefined,
-          hostMode: currentBinding.hostMode,
-          transportKind: currentBinding.transportKind,
-          providerBindingId: currentBinding.providerBindingId,
-          modelId: currentBinding.modelId,
-          providerId: currentBinding.providerId,
-          nativeParentSessionId: currentBinding.nativeSessionId ?? undefined,
-          nativeForkedFromSessionId: currentBinding.nativeSessionId ?? undefined,
-          requestedAt: new Date().toISOString(),
-        });
-      }
+      const forkedSession = currentBinding
+        ? await createBoundAgentSession({
+            createSession: createForkedSession,
+            createRuntimeBinding: (createdSession) =>
+              agentSessionService.createRuntimeBinding(createdSession.sessionId, {
+                runtimeLocationId: currentBinding.runtimeLocationId ?? undefined,
+                hostMode: currentBinding.hostMode,
+                transportKind: currentBinding.transportKind,
+                providerBindingId: currentBinding.providerBindingId,
+                modelId: currentBinding.modelId,
+                providerId: currentBinding.providerId,
+                nativeParentSessionId: currentBinding.nativeSessionId ?? undefined,
+                nativeForkedFromSessionId: currentBinding.nativeSessionId ?? undefined,
+                requestedAt: new Date().toISOString(),
+              }),
+            deleteCreatedSession: (createdSession) =>
+              agentSessionService.deleteSession(createdSession.sessionId),
+          })
+        : await createForkedSession();
       const agentSession = toAgentSessionView(forkedSession, {
         projectId: project.projectId,
-        engineId: currentBinding?.providerId,
+        engineId: project.agentSessions.find((candidate) => candidate.id === agentSessionId)?.engineId,
         modelId: currentBinding?.modelId,
+        providerId: currentBinding?.providerId,
+        providerBindingId: currentBinding?.providerBindingId,
+        hostMode: currentBinding?.hostMode === 'desktop' || currentBinding?.hostMode === 'server'
+          ? currentBinding.hostMode
+          : 'web',
+        transportKind: currentBinding?.transportKind,
+        nativeSessionId: currentBinding?.nativeSessionId ?? undefined,
         runtimeLocationId: currentBinding?.runtimeLocationId ?? undefined,
+        runtimeBindingStatus: currentBinding?.status,
       });
       mutateProjectsStoreByScopeKey(baseStoreScopeKey, (projects) =>
         upsertAgentSessionIntoCollection(projects, project.projectId, agentSession),
@@ -1522,6 +1604,29 @@ export function useProjects(options?: UseProjectsOptions) {
     }
   };
 
+  const updateAgentSessionRuntimeStatus = useCallback((
+    projectId: string,
+    agentSessionId: string,
+    runtimeStatus: AgentSessionView['runtimeStatus'],
+  ) => {
+    const activityAt = new Date().toISOString();
+    mutateProjectsStoreByScopeKey(baseStoreScopeKey, (projects) =>
+      updateAgentSessionInCollection(projects, projectId, agentSessionId, (agentSession) => {
+        if (agentSession.runtimeStatus === runtimeStatus) {
+          return agentSession;
+        }
+        const requiresAttention =
+          runtimeStatus === 'awaiting_approval' || runtimeStatus === 'awaiting_user';
+        return {
+          ...agentSession,
+          runtimeStatus,
+          lastRuntimeEventAt: activityAt,
+          lastAttentionAt: requiresAttention ? activityAt : agentSession.lastAttentionAt,
+        };
+      }),
+    );
+  }, [baseStoreScopeKey]);
+
   const editAgentSessionItem = async (
     _projectId: string,
     _agentSessionId: string,
@@ -1546,6 +1651,31 @@ export function useProjects(options?: UseProjectsOptions) {
     context?: WorkbenchAgentTurnSubmissionContext,
     options?: WorkbenchAgentTurnSubmissionOptions,
   ) => {
+    const optimisticItem = buildOptimisticAgentSessionItem(
+      agentSessionId,
+      content,
+      context,
+      options,
+    );
+    let previousAgentSession: AgentSessionView | null = null;
+    mutateProjectsStoreByScopeKey(baseStoreScopeKey, (projects) =>
+      updateAgentSessionInCollection(projects, projectId, agentSessionId, (agentSession) => {
+        previousAgentSession = agentSession;
+        return {
+          ...agentSession,
+          items: appendAgentSessionItemIfMissing(agentSession.items, optimisticItem),
+          runtimeStatus: 'streaming',
+          updatedAt: optimisticItem.createdAt,
+          lastTurnAt: optimisticItem.createdAt,
+          lastMessageAt: optimisticItem.createdAt,
+          lastUserActivityAt: optimisticItem.createdAt,
+          sortTimestamp:
+            resolveAgentSessionItemActivitySortTimestamp(optimisticItem.createdAt)
+            ?? agentSession.sortTimestamp,
+          transcriptUpdatedAt: optimisticItem.createdAt,
+        };
+      }),
+    );
     try {
       const selectedSession = findAgentSessionInCollection(
         storeScopeKey
@@ -1563,22 +1693,39 @@ export function useProjects(options?: UseProjectsOptions) {
       const submittedItems = completed.items.map(toAgentSessionItemView);
       const activityAt = completed.turn.completedAt ?? completed.turn.updatedAt;
       mutateProjectsStoreByScopeKey(baseStoreScopeKey, (projects) =>
-        updateAgentSessionInCollection(projects, projectId, agentSessionId, (agentSession) => ({
-          ...agentSession,
-          items: submittedItems.reduce(
-            (items, item) => appendAgentSessionItemIfMissing(items, item),
-            agentSession.items,
-          ),
-          runtimeStatus: completed.turn.status === 'failed' ? 'failed' : 'ready',
-          updatedAt: activityAt,
-          lastTurnAt: activityAt,
-          sortTimestamp:
-            resolveAgentSessionItemActivitySortTimestamp(activityAt) ?? agentSession.sortTimestamp,
-          transcriptUpdatedAt: activityAt,
-        })),
+        updateAgentSessionInCollection(projects, projectId, agentSessionId, (agentSession) => {
+          const resolvedUserItem = submittedItems.find((item) => item.role === 'user');
+          const reconciledItems = resolvedUserItem
+            ? reconcileAgentSessionItem(agentSession.items, optimisticItem.id, resolvedUserItem)
+            : removeAgentSessionItemById(agentSession.items, optimisticItem.id);
+          return {
+            ...agentSession,
+            items: submittedItems.reduce(
+              (items, item) => appendAgentSessionItemIfMissing(items, item),
+              reconciledItems,
+            ),
+            runtimeStatus: completed.turn.status === 'failed' ? 'failed' : 'ready',
+            updatedAt: activityAt,
+            lastTurnAt: activityAt,
+            lastMessageAt: activityAt,
+            lastUserActivityAt: activityAt,
+            sortTimestamp:
+              resolveAgentSessionItemActivitySortTimestamp(activityAt) ?? agentSession.sortTimestamp,
+            transcriptUpdatedAt: activityAt,
+          };
+        }),
       );
       return submittedItems.find((item) => item.role === 'user') ?? submittedItems.at(-1);
     } catch (error: unknown) {
+      mutateProjectsStoreByScopeKey(baseStoreScopeKey, (projects) =>
+        updateAgentSessionInCollection(projects, projectId, agentSessionId, (agentSession) =>
+          rollbackOptimisticAgentSessionItem(
+            agentSession,
+            previousAgentSession,
+            optimisticItem,
+          ),
+        ),
+      );
       const message =
         error instanceof Error && error.message.trim()
           ? error.message
@@ -1606,6 +1753,7 @@ export function useProjects(options?: UseProjectsOptions) {
     searchQuery,
     setSearchQuery,
     createProject,
+    ensureProject,
     importProject,
     createAgentSession,
     renameProject,
@@ -1614,6 +1762,7 @@ export function useProjects(options?: UseProjectsOptions) {
     deleteProject,
     renameAgentSession,
     updateAgentSession,
+    updateAgentSessionRuntimeStatus,
     forkAgentSession,
     deleteAgentSession,
     editAgentSessionItem,

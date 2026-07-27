@@ -17,12 +17,25 @@ import {
   type WorkbenchCodeEngineId,
   type WorkbenchCodeEngineSettingsMap,
 } from './codeEngineCatalog.ts';
+import {
+  AGENT_SESSION_INBOX_FILTERS,
+  AGENT_SESSION_INBOX_GROUP_MODES,
+  AGENT_SESSION_INBOX_SORT_MODES,
+  type AgentSessionInboxFilter,
+  type AgentSessionInboxGroupMode,
+  type AgentSessionInboxSortMode,
+} from './sessionInbox.ts';
 
 export interface WorkbenchPreferences extends WorkbenchChatSelection {
   codeEngineSettings: WorkbenchCodeEngineSettingsMap;
   terminalProfileId: TerminalProfileId;
   defaultWorkingDirectory: string;
   codeEditorChatWidth: number;
+  sessionInboxFilter: AgentSessionInboxFilter;
+  sessionInboxGroupMode: AgentSessionInboxGroupMode;
+  sessionInboxProviderId: string;
+  sessionInboxShowArchived: boolean;
+  sessionInboxSortMode: AgentSessionInboxSortMode;
 }
 
 interface WorkbenchPreferencesInput {
@@ -32,6 +45,11 @@ interface WorkbenchPreferencesInput {
   terminalProfileId?: string | null;
   defaultWorkingDirectory?: string | null;
   codeEditorChatWidth?: number | null;
+  sessionInboxFilter?: string | null;
+  sessionInboxGroupMode?: string | null;
+  sessionInboxProviderId?: string | null;
+  sessionInboxShowArchived?: boolean | null;
+  sessionInboxSortMode?: string | null;
 }
 
 export interface WorkbenchPreferencesStore {
@@ -68,7 +86,26 @@ export const DEFAULT_WORKBENCH_PREFERENCES: WorkbenchPreferences = {
   terminalProfileId: DEFAULT_TERMINAL_PROFILE_ID,
   defaultWorkingDirectory: DEFAULT_WORKING_DIRECTORY,
   codeEditorChatWidth: DEFAULT_WORKBENCH_CODE_EDITOR_CHAT_WIDTH,
+  sessionInboxFilter: 'all',
+  sessionInboxGroupMode: 'project',
+  sessionInboxProviderId: 'all',
+  sessionInboxShowArchived: false,
+  sessionInboxSortMode: 'smart',
 };
+
+function normalizeStringEnum<TValue extends string>(
+  value: string | null | undefined,
+  allowedValues: readonly TValue[],
+  fallback: TValue,
+): TValue {
+  const normalized = value?.trim().toLowerCase();
+  return allowedValues.includes(normalized as TValue) ? normalized as TValue : fallback;
+}
+
+function normalizeSessionInboxProviderId(value: string | null | undefined): string {
+  const normalized = value?.trim();
+  return normalized && normalized.length <= 160 ? normalized : 'all';
+}
 
 export function normalizeWorkbenchCodeEditorChatWidth(
   value: number | null | undefined,
@@ -105,6 +142,23 @@ export function normalizeWorkbenchPreferences(
     defaultWorkingDirectory:
       defaultWorkingDirectory || DEFAULT_WORKBENCH_PREFERENCES.defaultWorkingDirectory,
     codeEditorChatWidth: normalizeWorkbenchCodeEditorChatWidth(value?.codeEditorChatWidth),
+    sessionInboxFilter: normalizeStringEnum(
+      value?.sessionInboxFilter,
+      AGENT_SESSION_INBOX_FILTERS,
+      DEFAULT_WORKBENCH_PREFERENCES.sessionInboxFilter,
+    ),
+    sessionInboxGroupMode: normalizeStringEnum(
+      value?.sessionInboxGroupMode,
+      AGENT_SESSION_INBOX_GROUP_MODES,
+      DEFAULT_WORKBENCH_PREFERENCES.sessionInboxGroupMode,
+    ),
+    sessionInboxProviderId: normalizeSessionInboxProviderId(value?.sessionInboxProviderId),
+    sessionInboxShowArchived: value?.sessionInboxShowArchived === true,
+    sessionInboxSortMode: normalizeStringEnum(
+      value?.sessionInboxSortMode,
+      AGENT_SESSION_INBOX_SORT_MODES,
+      DEFAULT_WORKBENCH_PREFERENCES.sessionInboxSortMode,
+    ),
   };
 }
 

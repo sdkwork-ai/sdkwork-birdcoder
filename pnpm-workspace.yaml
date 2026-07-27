@@ -5,6 +5,8 @@ packages:
   - "apps/sdkwork-birdcoder-flutter-mobile/packages/*"
   - "apps/sdkwork-birdcoder-h5"
   - "apps/sdkwork-birdcoder-h5/packages/*"
+  - "apps/sdkwork-birdcoder-mini-program"
+  - "apps/sdkwork-birdcoder-mini-program/packages/*"
   - "apps/sdkwork-birdcoder-pc"
   - "apps/sdkwork-birdcoder-pc/packages/*"
   - "apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-*"

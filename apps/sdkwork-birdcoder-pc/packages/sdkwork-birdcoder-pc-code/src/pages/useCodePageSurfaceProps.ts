@@ -1,9 +1,21 @@
-import { useMemo, type ComponentProps, type ReactNode } from 'react';
+import {
+  createElement,
+  useEffect,
+  useMemo,
+  useRef,
+  type ComponentProps,
+  type ReactNode,
+} from 'react';
 import type {
   ProjectGitOverviewViewState,
   TerminalCommandRequest,
 } from '@sdkwork/birdcoder-pc-workbench';
-import type { AgentSessionItemView, AgentProjectView, FileChange } from '@sdkwork/birdcoder-pc-contracts-commons';
+import type {
+  AgentSessionItemView,
+  AgentSessionRuntimeDisplayStatus,
+  AgentProjectView,
+  FileChange,
+} from '@sdkwork/birdcoder-pc-contracts-commons';
 import type { FileNode } from '@sdkwork/birdcoder-pc-ui/components/FileExplorer';
 import { ProjectGitOverviewDrawer } from '@sdkwork/birdcoder-pc-ui/components/ProjectGitOverviewDrawer';
 import type { UniversalChatProps } from '@sdkwork/birdcoder-pc-ui/components/UniversalChat';
@@ -16,6 +28,7 @@ import type {
 } from './CodePageDialogs';
 import { CodeTerminalIntegrationPanel } from './CodeTerminalIntegrationPanel';
 import type { CodeWorkspaceOverlaysProps } from './CodeWorkspaceOverlays';
+import { CodeNewSessionContext } from './CodeNewSessionContext';
 import { getLanguageFromPath } from './CodePageShared';
 import type { CodeEditorWorkspacePanelProps } from './codeEditorWorkspacePanel.types';
 import { useCodePendingInteractions } from './useCodePendingInteractions';
@@ -59,6 +72,7 @@ interface UseCodePageSurfacePropsOptions {
   files: FileNode[];
   filteredProjects: AgentProjectView[];
   hasMoreProjects: boolean;
+  hasMoreRemoteMessages: boolean;
   isChatBusy: boolean;
   isChatEngineBusy: boolean;
   isEngineBusyCurrentSession: boolean;
@@ -66,6 +80,8 @@ interface UseCodePageSurfacePropsOptions {
   isFindVisible: boolean;
   isMountRecoveryActionPending: boolean;
   isLoadingMoreProjects: boolean;
+  isLoadingMoreRemoteMessages: boolean;
+  isNewSession: boolean;
   isQuickOpenVisible: boolean;
   isRunConfigVisible: boolean;
   isRunTaskVisible: boolean;
@@ -90,9 +106,13 @@ interface UseCodePageSurfacePropsOptions {
   selectedSessionTitle?: string;
   selectedSessionEngineId?: string;
   selectedSessionModelId?: string;
+  selectedSessionRuntimeLocationId?: string;
   selectedSessionRuntimeStatus?: string;
   selectedSessionTranscriptUpdatedAt?: string | null;
   selectedSessionUpdatedAt?: string;
+  onSelectedSessionRuntimeStatusChange?: (
+    runtimeStatus: AgentSessionRuntimeDisplayStatus,
+  ) => void;
   sessionId: string | null;
   showComposerEngineSelector: boolean;
   sidebarWidth: number;
@@ -137,6 +157,7 @@ interface UseCodePageSurfacePropsOptions {
   onNewProject: NonNullable<ProjectExplorerProps['onNewProject']>;
   onLoadMoreProjects: NonNullable<ProjectExplorerProps['onLoadMoreProjects']>;
   onLoadMoreProjectSessions: NonNullable<ProjectExplorerProps['onLoadMoreProjectSessions']>;
+  onLoadMoreRemoteMessages: NonNullable<UniversalChatComponentProps['onLoadMoreRemoteMessages']>;
   onNotifyNoResults: NonNullable<CodeWorkspaceOverlaysComponentProps['onNotifyNoResults']>;
   onOpenFolder: NonNullable<ProjectExplorerProps['onOpenFolder']>;
   onOpenInFileExplorer: NonNullable<ProjectExplorerProps['onOpenInFileExplorer']>;
@@ -192,6 +213,7 @@ export function useCodePageSurfaceProps({
   files,
   filteredProjects,
   hasMoreProjects,
+  hasMoreRemoteMessages,
   isChatBusy,
   isChatEngineBusy,
   isEngineBusyCurrentSession,
@@ -199,6 +221,8 @@ export function useCodePageSurfaceProps({
   isFindVisible,
   isMountRecoveryActionPending,
   isLoadingMoreProjects,
+  isLoadingMoreRemoteMessages,
+  isNewSession,
   isQuickOpenVisible,
   isRunConfigVisible,
   isRunTaskVisible,
@@ -223,9 +247,11 @@ export function useCodePageSurfaceProps({
   selectedSessionTitle,
   selectedSessionEngineId,
   selectedSessionModelId,
+  selectedSessionRuntimeLocationId,
   selectedSessionRuntimeStatus,
   selectedSessionTranscriptUpdatedAt,
   selectedSessionUpdatedAt,
+  onSelectedSessionRuntimeStatusChange,
   sessionId,
   showComposerEngineSelector,
   sidebarWidth,
@@ -269,6 +295,7 @@ export function useCodePageSurfaceProps({
   onNewProject,
   onLoadMoreProjects,
   onLoadMoreProjectSessions,
+  onLoadMoreRemoteMessages,
   onNotifyNoResults,
   onOpenFolder,
   onOpenInFileExplorer,
@@ -331,6 +358,7 @@ export function useCodePageSurfaceProps({
     sessionId,
   ]);
   const {
+    arePendingInteractionsLoading,
     onSubmitApprovalDecision,
     onSubmitUserQuestionAnswer,
     pendingApprovals,
@@ -342,6 +370,37 @@ export function useCodePageSurfaceProps({
     sessionId,
     sessionScopeKey: transcriptSessionScopeKey,
   });
+  const lastInteractionRuntimeStatusRef = useRef('');
+  useEffect(() => {
+    if (!sessionId || !onSelectedSessionRuntimeStatusChange) {
+      lastInteractionRuntimeStatusRef.current = '';
+      return;
+    }
+    if (arePendingInteractionsLoading) {
+      return;
+    }
+    const nextRuntimeStatus: AgentSessionRuntimeDisplayStatus = pendingApprovals.length > 0
+      ? 'awaiting_approval'
+      : pendingUserQuestions.length > 0
+        ? 'awaiting_user'
+        : selectedSessionRuntimeStatus === 'awaiting_approval'
+          || selectedSessionRuntimeStatus === 'awaiting_user'
+          ? 'ready'
+          : (selectedSessionRuntimeStatus as AgentSessionRuntimeDisplayStatus) || 'ready';
+    const statusKey = `${sessionId}\u0001${nextRuntimeStatus}`;
+    if (lastInteractionRuntimeStatusRef.current === statusKey) {
+      return;
+    }
+    lastInteractionRuntimeStatusRef.current = statusKey;
+    onSelectedSessionRuntimeStatusChange(nextRuntimeStatus);
+  }, [
+    onSelectedSessionRuntimeStatusChange,
+    arePendingInteractionsLoading,
+    pendingApprovals.length,
+    pendingUserQuestions.length,
+    selectedSessionRuntimeStatus,
+    sessionId,
+  ]);
 
   const projectExplorerProps = useMemo<ProjectExplorerProps>(() => ({
     hasMoreProjects,
@@ -518,6 +577,9 @@ export function useCodePageSurfaceProps({
     sessionId: sessionId || undefined,
     sessionScopeKey: transcriptSessionScopeKey,
     messages: mainChatMessages,
+    hasMoreRemoteMessages,
+    isLoadingMoreRemoteMessages,
+    onLoadMoreRemoteMessages,
     pendingApprovals: activeTab === 'ai' ? pendingApprovals : [],
     pendingUserQuestions: activeTab === 'ai' ? pendingUserQuestions : [],
     onSendMessage,
@@ -525,6 +587,7 @@ export function useCodePageSurfaceProps({
     onSubmitUserQuestionAnswer,
     isBusy: isChatBusy,
     isEngineBusy: isChatEngineBusy,
+    isNewSession,
     selectedEngineId: selectedSessionEngineId ?? selectedEngineId,
     selectedModelId: selectedSessionModelId ?? selectedModelId,
     showEngineHeader: false,
@@ -539,10 +602,18 @@ export function useCodePageSurfaceProps({
     onViewChanges: onViewChangesAndOpenEditor,
     onRestore: onRestoreMessage,
     emptyState: mainChatEmptyState,
+    newSessionContext: createElement(CodeNewSessionContext, {
+      projectGitOverviewState,
+      projectId: currentProjectId || projectId,
+      projectName,
+    }),
   }), [
     activeTab,
+    hasMoreRemoteMessages,
+    isLoadingMoreRemoteMessages,
     isChatEngineBusy,
     isChatBusy,
+    isNewSession,
     mainChatEmptyState,
     mainChatMessages,
     onSubmitApprovalDecision,
@@ -551,6 +622,7 @@ export function useCodePageSurfaceProps({
     onEditMessage,
     onRegenerateMessage,
     onOpenMessageFile,
+    onLoadMoreRemoteMessages,
     onRestoreMessage,
     onSelectedEngineIdChange,
     onSelectedModelIdChange,
@@ -558,6 +630,9 @@ export function useCodePageSurfaceProps({
     onViewChangesAndOpenEditor,
     pendingApprovals,
     pendingUserQuestions,
+    projectGitOverviewState,
+    projectId,
+    projectName,
     selectedEngineId,
     selectedModelId,
     selectedSessionEngineId,
@@ -580,6 +655,9 @@ export function useCodePageSurfaceProps({
     selectedAgentSessionId: sessionId,
     selectedAgentSessionScopeKey: transcriptSessionScopeKey,
     messages: editorChatMessages,
+    hasMoreRemoteMessages,
+    isLoadingMoreRemoteMessages,
+    isNewSession,
     pendingApprovals: activeTab === 'editor' ? pendingApprovals : [],
     pendingUserQuestions: activeTab === 'editor' ? pendingUserQuestions : [],
     chatEmptyState: editorChatEmptyState,
@@ -603,6 +681,7 @@ export function useCodePageSurfaceProps({
     onSelectedEngineIdChange,
     onSelectedModelIdChange,
     onSendMessage,
+    onLoadMoreRemoteMessages,
     onSubmitApprovalDecision,
     onSubmitUserQuestionAnswer,
     onViewChanges,
@@ -621,8 +700,11 @@ export function useCodePageSurfaceProps({
     chatWidth,
     fileContent,
     files,
+    hasMoreRemoteMessages,
     isChatEngineBusy,
     isChatBusy,
+    isLoadingMoreRemoteMessages,
+    isNewSession,
     loadingDirectoryPaths,
     onChatResize,
     onCloseFile,
@@ -644,6 +726,7 @@ export function useCodePageSurfaceProps({
     onSelectedEngineIdChange,
     onSelectedModelIdChange,
     onSendMessage,
+    onLoadMoreRemoteMessages,
     onSubmitApprovalDecision,
     onSubmitUserQuestionAnswer,
     onViewChanges,
@@ -692,6 +775,7 @@ export function useCodePageSurfaceProps({
     height: terminalHeight,
     terminalRequest,
     projectId: currentProjectId,
+    runtimeLocationId: selectedSessionRuntimeLocationId,
     onResize: onTerminalResize,
     onClose: onCloseTerminal,
   }), [
@@ -699,6 +783,7 @@ export function useCodePageSurfaceProps({
     isTerminalOpen,
     onCloseTerminal,
     onTerminalResize,
+    selectedSessionRuntimeLocationId,
     terminalHeight,
     terminalRequest,
   ]);

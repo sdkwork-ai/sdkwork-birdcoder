@@ -55,6 +55,16 @@ try {
     path: 'E:\\work\\identity-project',
     type: 'tauri',
   });
+  const storedMount = JSON.parse(Array.from(storage.values())[0] ?? '{}') as {
+    ownerKey?: string;
+    projectId?: string;
+  };
+  assert.equal(storedMount.projectId, 'project-identity');
+  assert.match(
+    storedMount.ownerKey ?? '',
+    /^[0-9a-f]{64}$/u,
+    'Desktop mount ownership must be persisted as a one-way hash.',
+  );
   const firstIdentity = await identityPort.resolveDesktopRuntimeLocationBinding({
     absolutePath: 'E:\\work\\identity-project',
     projectId: 'project-identity',

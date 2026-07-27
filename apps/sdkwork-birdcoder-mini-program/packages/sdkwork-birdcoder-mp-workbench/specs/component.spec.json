@@ -1,0 +1,63 @@
+{
+  "schemaVersion": 1,
+  "kind": "sdkwork.component.spec",
+  "component": {
+    "name": "sdkwork-birdcoder-mp-workbench",
+    "displayName": "BirdCoder Mini Program Workbench",
+    "version": "0.1.0",
+    "type": "mini-program-ui-package",
+    "root": "apps/sdkwork-birdcoder-mini-program/packages/sdkwork-birdcoder-mp-workbench",
+    "domain": "intelligence",
+    "declaredDomain": "intelligence",
+    "capability": "coding-workbench",
+    "surface": "app",
+    "status": "ACTIVE",
+    "languages": ["typescript"],
+    "generated": false,
+    "private": true,
+    "manifests": ["package.json"]
+  },
+  "canonicalSpecs": [
+    { "file": "MINI_PROGRAM_APP_ARCHITECTURE_SPEC.md", "path": "../../../../../sdkwork-specs/MINI_PROGRAM_APP_ARCHITECTURE_SPEC.md", "purpose": "Capability package ownership." },
+    { "file": "APP_MINI_PROGRAM_UI_SPEC.md", "path": "../../../../../sdkwork-specs/APP_MINI_PROGRAM_UI_SPEC.md", "purpose": "Pages, services, states, i18n, and routes." },
+    { "file": "UI_ARCHITECTURE_SPEC.md", "path": "../../../../../sdkwork-specs/UI_ARCHITECTURE_SPEC.md", "purpose": "UI architecture selection." },
+    { "file": "APP_SDK_INTEGRATION_SPEC.md", "path": "../../../../../sdkwork-specs/APP_SDK_INTEGRATION_SPEC.md", "purpose": "Injected app SDK boundary." },
+    { "file": "CODE_STYLE_SPEC.md", "path": "../../../../../sdkwork-specs/CODE_STYLE_SPEC.md", "purpose": "Authored source structure." },
+    { "file": "NAMING_SPEC.md", "path": "../../../../../sdkwork-specs/NAMING_SPEC.md", "purpose": "Route and capability naming." },
+    { "file": "TYPESCRIPT_CODE_SPEC.md", "path": "../../../../../sdkwork-specs/TYPESCRIPT_CODE_SPEC.md", "purpose": "TypeScript rules." },
+    { "file": "FRONTEND_CODE_SPEC.md", "path": "../../../../../sdkwork-specs/FRONTEND_CODE_SPEC.md", "purpose": "Frontend service and UI flow." },
+    { "file": "TEST_SPEC.md", "path": "../../../../../sdkwork-specs/TEST_SPEC.md", "purpose": "UI state and route tests." }
+  ],
+  "contracts": {
+    "layerRole": "frontend-feature",
+    "publicExports": [".", "@sdkwork/birdcoder-mp-core"],
+    "providedPorts": [
+      { "name": "workbenchRoute", "export": "." },
+      { "name": "workbenchController", "export": "." }
+    ],
+    "requiredPorts": [
+      { "name": "birdCoderWorkbenchSdk", "export": "@sdkwork/birdcoder-mp-core" }
+    ],
+    "runtimeEntrypoints": [],
+    "routeManifest": null,
+    "sdkClients": [],
+    "sdkDependencies": [
+      { "workspace": "sdkwork-birdcoder-app-sdk", "surface": "app-api", "credentialMode": "authenticated-app-api", "required": true }
+    ],
+    "dependencyApiExports": [],
+    "dependencyApiSurfaces": [],
+    "events": [],
+    "configKeys": []
+  },
+  "integration": {
+    "authority": "BirdCoder owns only system descriptor/runtime metadata; Agents owns AI sessions and projects.",
+    "sdkPolicy": "The controller consumes an injected BirdCoder app SDK port and never constructs HTTP transport.",
+    "routePolicy": "app.im.chat.index aligns with the current H5 and Flutter route identity; this initialization does not yet implement the full chat workflow."
+  },
+  "verification": {
+    "commands": [
+      "pnpm --filter @sdkwork/birdcoder-mini-program typecheck",
+      "pnpm --filter @sdkwork/birdcoder-mini-program test:routes"
+    ]
+  }
+}

@@ -15,6 +15,9 @@ const CodeEditorWorkspaceChatPanel = memo(function CodeEditorWorkspaceChatPanel(
   isBusy,
   isEngineBusy,
   messages,
+  hasMoreRemoteMessages,
+  isLoadingMoreRemoteMessages,
+  isNewSession,
   pendingApprovals,
   pendingUserQuestions,
   showComposerEngineSelector,
@@ -30,6 +33,7 @@ const CodeEditorWorkspaceChatPanel = memo(function CodeEditorWorkspaceChatPanel(
   onSelectedEngineIdChange,
   onSelectedModelIdChange,
   onSendMessage,
+  onLoadMoreRemoteMessages,
   onSubmitApprovalDecision,
   onSubmitUserQuestionAnswer,
   onViewChanges,
@@ -39,7 +43,11 @@ const CodeEditorWorkspaceChatPanel = memo(function CodeEditorWorkspaceChatPanel(
       sessionId={selectedAgentSessionId || undefined}
       sessionScopeKey={selectedAgentSessionScopeKey || undefined}
       isActive={isActive}
+      isNewSession={isNewSession}
       messages={messages}
+      hasMoreRemoteMessages={hasMoreRemoteMessages}
+      isLoadingMoreRemoteMessages={isLoadingMoreRemoteMessages}
+      onLoadMoreRemoteMessages={onLoadMoreRemoteMessages}
       pendingApprovals={pendingApprovals}
       pendingUserQuestions={pendingUserQuestions}
       onSendMessage={onSendMessage}
@@ -94,6 +102,9 @@ export const CodeEditorWorkspacePanel = memo(function CodeEditorWorkspacePanel({
   selectedAgentSessionId,
   selectedAgentSessionScopeKey,
   messages,
+  hasMoreRemoteMessages,
+  isLoadingMoreRemoteMessages,
+  isNewSession,
   pendingApprovals,
   pendingUserQuestions,
   chatEmptyState,
@@ -117,6 +128,7 @@ export const CodeEditorWorkspacePanel = memo(function CodeEditorWorkspacePanel({
   onSelectedEngineIdChange,
   onSelectedModelIdChange,
   onSendMessage,
+  onLoadMoreRemoteMessages,
   onSubmitApprovalDecision,
   onSubmitUserQuestionAnswer,
   onViewChanges,
@@ -168,6 +180,9 @@ export const CodeEditorWorkspacePanel = memo(function CodeEditorWorkspacePanel({
               selectedAgentSessionId={selectedAgentSessionId}
               selectedAgentSessionScopeKey={selectedAgentSessionScopeKey}
               messages={messages}
+              hasMoreRemoteMessages={hasMoreRemoteMessages}
+              isLoadingMoreRemoteMessages={isLoadingMoreRemoteMessages}
+              isNewSession={isNewSession}
               pendingApprovals={pendingApprovals}
               pendingUserQuestions={pendingUserQuestions}
               chatEmptyState={chatEmptyState}
@@ -178,6 +193,7 @@ export const CodeEditorWorkspacePanel = memo(function CodeEditorWorkspacePanel({
               selectedEngineId={selectedEngineId}
               selectedModelId={selectedModelId}
               onSendMessage={onSendMessage}
+              onLoadMoreRemoteMessages={onLoadMoreRemoteMessages}
               onSubmitApprovalDecision={onSubmitApprovalDecision}
               onSubmitUserQuestionAnswer={onSubmitUserQuestionAnswer}
               onSelectedEngineIdChange={onSelectedEngineIdChange}

@@ -181,6 +181,7 @@ export type AgentSessionProtocolNoticeKind =
 
 export interface AgentSessionView {
   id: string;
+  agentId: string;
   projectId: string;
   runtimeLocationId?: string;
   title: string;
@@ -188,13 +189,23 @@ export interface AgentSessionView {
   hostMode: WorkbenchHostMode;
   engineId: string;
   modelId: string;
+  providerId: string;
+  providerBindingId?: string;
+  transportKind?: string;
   nativeSessionId?: string;
   runtimeStatus?: AgentSessionRuntimeDisplayStatus;
   createdAt: string;
   updatedAt: string;
   lastTurnAt?: string;
+  lastMessageAt?: string;
+  lastRuntimeEventAt?: string;
+  lastAttentionAt?: string;
+  lastUserActivityAt?: string;
   sortTimestamp?: string;
   transcriptUpdatedAt?: string | null;
+  serverVersion?: string;
+  lastItemSequence?: string;
+  lastReadItemSequence?: string;
   displayTime: string;
   pinned?: boolean;
   archived?: boolean;
@@ -209,17 +220,36 @@ function parseTimestamp(value: string | null | undefined): number {
 }
 
 export function resolveAgentSessionViewSortTimestamp(
-  session: Pick<AgentSessionView, 'lastTurnAt' | 'sortTimestamp' | 'updatedAt' | 'createdAt'>,
+  session: Pick<
+    AgentSessionView,
+    | 'lastAttentionAt'
+    | 'lastMessageAt'
+    | 'lastRuntimeEventAt'
+    | 'lastTurnAt'
+    | 'lastUserActivityAt'
+    | 'sortTimestamp'
+    | 'transcriptUpdatedAt'
+    | 'updatedAt'
+    | 'createdAt'
+  >,
 ): number {
   const explicit = Number(session.sortTimestamp);
-  return Number.isFinite(explicit) && explicit > 0
-    ? explicit
-    : Math.max(parseTimestamp(session.lastTurnAt), parseTimestamp(session.updatedAt), parseTimestamp(session.createdAt));
+  return Math.max(
+    Number.isFinite(explicit) && explicit > 0 ? explicit : 0,
+    parseTimestamp(session.lastMessageAt),
+    parseTimestamp(session.lastRuntimeEventAt),
+    parseTimestamp(session.lastAttentionAt),
+    parseTimestamp(session.lastUserActivityAt),
+    parseTimestamp(session.lastTurnAt),
+    parseTimestamp(session.transcriptUpdatedAt),
+    parseTimestamp(session.updatedAt),
+    parseTimestamp(session.createdAt),
+  );
 }
 
 export function compareAgentSessionViewsByActivity(
-  left: Pick<AgentSessionView, 'lastTurnAt' | 'sortTimestamp' | 'updatedAt' | 'createdAt'>,
-  right: Pick<AgentSessionView, 'lastTurnAt' | 'sortTimestamp' | 'updatedAt' | 'createdAt'>,
+  left: Parameters<typeof resolveAgentSessionViewSortTimestamp>[0],
+  right: Parameters<typeof resolveAgentSessionViewSortTimestamp>[0],
 ): number {
   return resolveAgentSessionViewSortTimestamp(left) - resolveAgentSessionViewSortTimestamp(right);
 }
@@ -248,20 +278,20 @@ export function isAgentSessionViewEngineBusy(
 }
 
 export function resolveAgentSessionViewSortTimestampString(
-  session: Pick<AgentSessionView, 'lastTurnAt' | 'sortTimestamp' | 'updatedAt' | 'createdAt'>,
+  session: Parameters<typeof resolveAgentSessionViewSortTimestamp>[0],
 ): string {
   return String(resolveAgentSessionViewSortTimestamp(session));
 }
 
 export function compareAgentSessionViewSortTimestamps(
-  left: Pick<AgentSessionView, 'lastTurnAt' | 'sortTimestamp' | 'updatedAt' | 'createdAt'>,
-  right: Pick<AgentSessionView, 'lastTurnAt' | 'sortTimestamp' | 'updatedAt' | 'createdAt'>,
+  left: Parameters<typeof resolveAgentSessionViewSortTimestamp>[0],
+  right: Parameters<typeof resolveAgentSessionViewSortTimestamp>[0],
 ): number {
   return resolveAgentSessionViewSortTimestamp(left) - resolveAgentSessionViewSortTimestamp(right);
 }
 
 export function buildAgentSessionViewSynchronizationVersion(
-  session: Pick<AgentSessionView, 'lastTurnAt' | 'sortTimestamp' | 'updatedAt' | 'createdAt' | 'transcriptUpdatedAt'>,
+  session: Parameters<typeof resolveAgentSessionViewSortTimestamp>[0],
   itemCount: number = 0,
 ): string {
   const normalizedItemCount = Number.isFinite(itemCount) && itemCount > 0
@@ -411,7 +441,15 @@ export function formatAgentSessionDisplayTime(
 export function formatAgentSessionActivityDisplayTime(
   session: Pick<
     AgentSessionView,
-    'lastTurnAt' | 'sortTimestamp' | 'updatedAt' | 'createdAt' | 'transcriptUpdatedAt'
+    | 'lastAttentionAt'
+    | 'lastMessageAt'
+    | 'lastRuntimeEventAt'
+    | 'lastTurnAt'
+    | 'lastUserActivityAt'
+    | 'sortTimestamp'
+    | 'transcriptUpdatedAt'
+    | 'updatedAt'
+    | 'createdAt'
   >,
   now: number = Date.now(),
 ): string {

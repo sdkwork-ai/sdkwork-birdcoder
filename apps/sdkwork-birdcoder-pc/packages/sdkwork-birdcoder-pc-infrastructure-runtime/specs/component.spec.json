@@ -102,6 +102,10 @@
       {
         "name": "sdkConnectivityPlaneRuntime",
         "export": "."
+      },
+      {
+        "name": "membershipCheckoutPort",
+        "export": "./membershipSdkBootstrap"
       }
     ],
     "requiredPorts": [
@@ -110,6 +114,12 @@
         "export": "./defaultIdeServices",
         "sourcePackage": "@sdkwork/birdcoder-pc-infrastructure",
         "sourceExport": "./services/dependencyAppSdkClients"
+      },
+      {
+        "name": "membershipCheckoutPort",
+        "export": "./membershipSdkBootstrap",
+        "sourcePackage": "@sdkwork/birdcoder-pc-infrastructure",
+        "sourceExport": "./services/membershipSdkBootstrap"
       }
     ],
     "publicExports": [
@@ -122,7 +132,8 @@
     ],
     "layerRole": "runtime-composition",
     "runtimeEntrypoints": [
-      "src/defaultIdeServices.ts"
+      "src/defaultIdeServices.ts",
+      "src/membershipSdkBootstrap.ts"
     ],
     "sdkClients": [],
     "events": [],

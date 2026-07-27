@@ -8,6 +8,11 @@ import {
   formatAgentSessionDisplayTime,
 } from '@sdkwork/birdcoder-pc-contracts-commons';
 import type { IAgentSessionService } from '@sdkwork/birdcoder-pc-infrastructure-runtime';
+import {
+  findWorkbenchCodeEngineDefinitionForAgentId,
+  loadWorkbenchCodeEngineCatalog,
+  resolveWorkbenchCodeEngineForRuntimeBinding,
+} from '../workbench/codeEngineCatalog.ts';
 
 export type AgentSessionRecord = Awaited<
   ReturnType<IAgentSessionService['getSession']>
@@ -23,7 +28,14 @@ export interface AgentSessionViewContext {
   projectId: string;
   engineId?: string;
   modelId?: string;
+  providerId?: string;
+  providerBindingId?: string;
+  hostMode?: AgentSessionView['hostMode'];
+  transportKind?: string;
+  nativeSessionId?: string;
   runtimeLocationId?: string;
+  runtimeBindingStatus?: 'active' | 'deactivated' | 'failed' | 'deleted';
+  runtimeBindingUpdatedAt?: string;
   userState?: AgentSessionUserStateRecord | null;
   itemPageInfo?: AgentSessionPageInfoView;
 }
@@ -35,6 +47,7 @@ export interface ProjectAgentSessionPage {
 
 const PROJECT_SESSION_PAGE_SIZE = 20;
 const PROJECT_SESSION_INVENTORY_CONCURRENCY = 6;
+const MAX_COMPLETE_PROJECT_SESSION_COUNT = 200_000;
 
 function normalizePageInfo(
   pageInfo: Awaited<ReturnType<IAgentSessionService['listSessions']>>['pageInfo'],
@@ -179,35 +192,155 @@ export function toAgentSessionView(
     .map(toAgentSessionItemView);
   return {
     id: session.sessionId,
+    agentId: session.agentId,
     projectId,
     runtimeLocationId: context.runtimeLocationId,
     title: context.userState?.customTitle?.trim() || session.title?.trim() || 'Untitled session',
     status: resolveSessionStatus(session.status),
-    hostMode: 'desktop',
-    engineId: context.engineId?.trim() || 'codex',
+    hostMode: context.hostMode ?? 'web',
+    engineId: context.engineId?.trim() || context.providerId?.trim() || 'unknown',
     modelId: context.modelId?.trim() || 'auto',
+    providerId: context.providerId?.trim() || 'unknown',
+    providerBindingId: context.providerBindingId?.trim() || undefined,
+    transportKind: context.transportKind?.trim() || undefined,
+    nativeSessionId: context.nativeSessionId?.trim() || undefined,
     runtimeStatus: session.status === 'closed' || session.status === 'archived'
       ? 'completed'
-      : 'ready',
+      : context.runtimeBindingStatus === 'failed'
+        ? 'failed'
+        : 'ready',
     createdAt: session.createdAt,
     updatedAt: session.updatedAt,
     lastTurnAt: session.lastItemAt,
+    lastMessageAt: session.lastItemAt,
+    lastRuntimeEventAt: context.runtimeBindingUpdatedAt,
     sortTimestamp: String(Number.isNaN(parsedActivityAt) ? 0 : parsedActivityAt),
     transcriptUpdatedAt: session.lastItemAt ?? null,
+    serverVersion: session.version,
+    lastItemSequence: session.lastItemSequence,
+    lastReadItemSequence: context.userState?.lastReadItemSequence,
     displayTime: formatAgentSessionDisplayTime(activityAt, session.createdAt),
     pinned: Boolean(context.userState?.pinnedAt),
     archived: session.status === 'archived' || Boolean(context.userState?.hiddenAt),
-    unread: context.userState?.lastReadItemSequence !== session.lastItemSequence,
+    unread:
+      context.userState?.lastReadItemSequence !== undefined
+      && context.userState.lastReadItemSequence !== session.lastItemSequence,
     itemPageInfo: context.itemPageInfo,
     items: sessionItems,
   };
+}
+
+export function mergeAgentSessionRecordIntoView(
+  existing: AgentSessionView,
+  session: AgentSessionRecord,
+): AgentSessionView {
+  if (session.projectId?.trim() !== existing.projectId || session.sessionId !== existing.id) {
+    throw new Error(`Agents session ${session.sessionId} does not match the loaded Session Inbox entry.`);
+  }
+  const didAppendItem = session.lastItemSequence !== existing.lastItemSequence;
+  const activityAt = session.lastItemAt ?? session.updatedAt;
+  const parsedActivityAt = Date.parse(activityAt);
+  return {
+    ...existing,
+    agentId: session.agentId,
+    status: resolveSessionStatus(session.status),
+    runtimeStatus:
+      session.status === 'closed' || session.status === 'archived'
+        ? 'completed'
+        : didAppendItem && existing.runtimeStatus === 'failed'
+          ? 'ready'
+          : existing.runtimeStatus,
+    updatedAt: session.updatedAt,
+    lastTurnAt: session.lastItemAt,
+    lastMessageAt: session.lastItemAt,
+    sortTimestamp: String(Number.isNaN(parsedActivityAt) ? 0 : parsedActivityAt),
+    transcriptUpdatedAt: session.lastItemAt ?? null,
+    serverVersion: session.version,
+    lastItemSequence: session.lastItemSequence,
+    unread:
+      existing.lastReadItemSequence !== undefined
+        ? existing.lastReadItemSequence !== session.lastItemSequence
+        : existing.unread,
+    archived: session.status === 'archived' || existing.archived,
+    displayTime: formatAgentSessionDisplayTime(activityAt, session.createdAt),
+  };
+}
+
+export async function loadAgentSessionView(
+  agentSessionService: IAgentSessionService,
+  session: AgentSessionRecord,
+  projectId: string,
+  items: readonly AgentSessionItemRecord[] = [],
+  itemPageInfo?: AgentSessionPageInfoView,
+  signal?: AbortSignal,
+): Promise<AgentSessionView> {
+  const [runtimeBindingPage, userState] = await Promise.all([
+    agentSessionService.listRuntimeBindings(
+      session.sessionId,
+      { page: 1, pageSize: 20 },
+      { signal },
+    ),
+    agentSessionService.getSessionUserState(session.sessionId, { signal }),
+  ]);
+  const currentBinding = runtimeBindingPage.items.find((binding) => binding.isCurrent);
+  const engine = currentBinding
+    ? resolveWorkbenchCodeEngineForRuntimeBinding(currentBinding)
+    : null;
+  return toAgentSessionView(session, {
+    projectId,
+    engineId: engine?.id ?? currentBinding?.providerId,
+    modelId: currentBinding?.modelId,
+    providerId: currentBinding?.providerId,
+    providerBindingId: currentBinding?.providerBindingId,
+    hostMode:
+      currentBinding?.hostMode === 'desktop' || currentBinding?.hostMode === 'server'
+        ? currentBinding.hostMode
+        : 'web',
+    transportKind: currentBinding?.transportKind,
+    nativeSessionId: currentBinding?.nativeSessionId ?? undefined,
+    runtimeLocationId: currentBinding?.runtimeLocationId ?? undefined,
+    runtimeBindingStatus: currentBinding?.status,
+    runtimeBindingUpdatedAt: currentBinding?.updatedAt,
+    userState,
+    itemPageInfo,
+  }, items);
+}
+
+async function loadNativeHistorySessionInventoryView(
+  session: AgentSessionRecord,
+  projectId: string,
+): Promise<AgentSessionView | null> {
+  if (session.sourceContextKind?.trim() !== 'provider_native_session') {
+    return null;
+  }
+  const engine = findWorkbenchCodeEngineDefinitionForAgentId(session.agentId)
+    ?? (await loadWorkbenchCodeEngineCatalog()).find(
+      (candidate) => candidate.agentId === session.agentId,
+    )
+    ?? null;
+  if (!engine) {
+    return null;
+  }
+  const model = engine.models.find((candidate) => candidate.id === engine.defaultModelId)
+    ?? engine.models[0];
+  return toAgentSessionView(session, {
+    projectId,
+    engineId: engine.id,
+    hostMode: 'server',
+    modelId: model?.id,
+    providerBindingId: model?.bindingId || engine.bindingId,
+    providerId: model?.providerId,
+    transportKind: 'native-history',
+  });
 }
 
 export async function loadProjectAgentSessionPage(
   agentSessionService: IAgentSessionService,
   project: AgentProjectView,
   requestedCount: number,
+  signal?: AbortSignal,
 ): Promise<ProjectAgentSessionPage> {
+  signal?.throwIfAborted();
   const targetCount = Math.max(1, Math.min(200_000, Math.trunc(requestedCount)));
   const projectId = project.projectId;
   const currentPageInfo = project.agentSessionPageInfo;
@@ -226,7 +359,7 @@ export async function loadProjectAgentSessionPage(
     page: requestedPage,
     pageSize: PROJECT_SESSION_PAGE_SIZE,
     projectId,
-  });
+  }, { signal });
   const pageInfo = normalizePageInfo(
     sessionPage.pageInfo,
     requestedPage,
@@ -238,11 +371,22 @@ export async function loadProjectAgentSessionPage(
   if (sessionPage.items.length === 0 && pageInfo.hasMore) {
     throw new Error('Agents session inventory returned an empty page with hasMore=true.');
   }
-  const visibleSessions = sessionPage.items
-    .filter((session) => session.projectId === projectId)
-    .map((session) => toAgentSessionView(session, {
-      projectId,
-    }));
+  const visibleSessions = await mapWithConcurrency(
+    sessionPage.items.filter((session) => session.projectId === projectId),
+    PROJECT_SESSION_INVENTORY_CONCURRENCY,
+    async (session) => {
+      const nativeHistoryView = await loadNativeHistorySessionInventoryView(session, projectId);
+      return nativeHistoryView ?? loadAgentSessionView(
+        agentSessionService,
+        session,
+        projectId,
+        [],
+        undefined,
+        signal,
+      );
+    },
+  );
+  signal?.throwIfAborted();
   const agentSessions = requestedPage === 1
     ? visibleSessions
     : mergeAgentSessions(project.agentSessions, visibleSessions);
@@ -256,15 +400,53 @@ export async function loadProjectAgentSessionPage(
   };
 }
 
+export async function loadCompleteProjectAgentSessionInventory(
+  agentSessionService: IAgentSessionService,
+  project: AgentProjectView,
+  signal?: AbortSignal,
+): Promise<AgentProjectView> {
+  const {
+    agentSessionPageInfo: _discardedPageInfo,
+    ...projectWithoutSessionPageInfo
+  } = project;
+  let synchronizedProject: AgentProjectView = {
+    ...projectWithoutSessionPageInfo,
+    agentSessions: [],
+  };
+
+  while (true) {
+    signal?.throwIfAborted();
+    if (synchronizedProject.agentSessions.length >= MAX_COMPLETE_PROJECT_SESSION_COUNT) {
+      throw new Error(
+        `Agents project session inventory exceeded the supported ${MAX_COMPLETE_PROJECT_SESSION_COUNT} records.`,
+      );
+    }
+
+    const nextPage = await loadProjectAgentSessionPage(
+      agentSessionService,
+      synchronizedProject,
+      synchronizedProject.agentSessions.length + PROJECT_SESSION_PAGE_SIZE,
+      signal,
+    );
+    synchronizedProject = nextPage.project;
+    if (!synchronizedProject.agentSessionPageInfo?.hasMore) {
+      return synchronizedProject;
+    }
+  }
+}
+
 export async function loadProjectsAgentSessionInventory(
   agentSessionService: IAgentSessionService,
   projects: readonly AgentProjectView[],
-  requestedCount = 20,
+  signal?: AbortSignal,
 ): Promise<AgentProjectView[]> {
   return mapWithConcurrency(
     projects,
     PROJECT_SESSION_INVENTORY_CONCURRENCY,
-    async (project) =>
-      (await loadProjectAgentSessionPage(agentSessionService, project, requestedCount)).project,
+    (project) => loadCompleteProjectAgentSessionInventory(
+      agentSessionService,
+      project,
+      signal,
+    ),
   );
 }

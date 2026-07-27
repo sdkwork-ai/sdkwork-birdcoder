@@ -139,6 +139,10 @@
       {
         "name": "dependencyAppSdkClientFactory",
         "export": "./services/dependencyAppSdkClients"
+      },
+      {
+        "name": "membershipCheckoutPort",
+        "export": "./services/membershipSdkBootstrap"
       }
     ],
     "requiredPorts": [
@@ -161,6 +165,7 @@
     "runtimeEntrypoints": [
       "src/services/defaultIdeServicesRuntime.ts",
       "src/services/iamRuntime.ts",
+      "src/services/membershipSdkBootstrap.ts",
       "src/bootstrap/appSessionPersistenceBinding.ts"
     ],
     "routeManifest": null,

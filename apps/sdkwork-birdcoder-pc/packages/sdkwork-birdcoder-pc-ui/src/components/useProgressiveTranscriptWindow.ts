@@ -44,7 +44,7 @@ export function useProgressiveTranscriptWindow(
 ) {
   const firstMessageId = messages[0]?.id ?? '';
   const normalizedTranscriptScopeKey = transcriptScopeKey.trim();
-  const transcriptIdentity = `${normalizedTranscriptScopeKey}\u0001${firstMessageId}`;
+  const transcriptIdentity = normalizedTranscriptScopeKey || firstMessageId;
   const previousTranscriptIdentityRef = useRef(transcriptIdentity);
   const pendingPrependedScrollMetricsRef = useRef<TranscriptScrollMetrics | null>(null);
   const isTranscriptPointerDragActiveRef = useRef(false);

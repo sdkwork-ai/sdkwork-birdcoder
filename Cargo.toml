@@ -34,6 +34,7 @@ keyring = "4.1.5"
 sdkwork-api-birdcoder-assembly = { path = "crates/sdkwork-api-birdcoder-assembly" }
 sdkwork-api-birdcoder-standalone-gateway = { path = "crates/sdkwork-api-birdcoder-standalone-gateway" }
 sdkwork-api-agents-assembly = { path = "../sdkwork-agents/crates/sdkwork-api-agents-assembly" }
+sdkwork-agents-runtime-facade = { path = "../sdkwork-agents/crates/sdkwork-agents-runtime-facade" }
 sdkwork-api-iam-assembly = { path = "../sdkwork-iam/crates/sdkwork-api-iam-assembly" }
 sdkwork-api-documents-assembly = { path = "../sdkwork-documents/crates/sdkwork-api-documents-assembly" }
 sdkwork-api-drive-assembly = { path = "../sdkwork-drive/crates/sdkwork-api-drive-assembly" }

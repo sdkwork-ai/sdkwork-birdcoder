@@ -103,3 +103,7 @@ export async function openLocalFolder(): Promise<LocalFolderPickerResult> {
 
   return createUnsupportedLocalFolderPickerResult();
 }
+
+export async function isDesktopLocalFolderPickerRuntime(): Promise<boolean> {
+  return isBirdCoderTauriRuntime();
+}

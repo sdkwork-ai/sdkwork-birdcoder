@@ -20,7 +20,8 @@ interface UseCodeDeleteConfirmationOptions {
   ) => Promise<void>;
   deleteProject: (projectId: string) => Promise<void>;
   onProjectChange?: (projectId: string) => void;
-  projectDeletedMessage: string;
+  projectRemoveFailedMessage: string;
+  projectRemovedMessage: string;
   resolveProjectById: (projectId: string) => AgentProjectView | null;
   resolveSession: (
     agentSessionId: string,
@@ -39,7 +40,8 @@ export function useCodeDeleteConfirmation({
   deleteAgentSessionItem,
   deleteProject,
   onProjectChange,
-  projectDeletedMessage,
+  projectRemoveFailedMessage,
+  projectRemovedMessage,
   resolveProjectById,
   resolveSession,
   sessionId,
@@ -54,8 +56,12 @@ export function useCodeDeleteConfirmation({
   }, []);
 
   const requestDeleteProject = useCallback((projectId: string) => {
-    setDeleteConfirmation({ type: 'project', id: projectId });
-  }, []);
+    setDeleteConfirmation({
+      type: 'project',
+      id: projectId,
+      name: resolveProjectById(projectId)?.name,
+    });
+  }, [resolveProjectById]);
 
   const requestDeleteMessage = useCallback((
     agentSessionId: string,
@@ -103,21 +109,26 @@ export function useCodeDeleteConfirmation({
     }
 
     if (confirmation.type === 'project') {
-      await deleteProject(confirmation.id);
       const project = resolveProjectById(confirmation.id);
-      if (
-        currentProjectId === confirmation.id &&
-        project &&
-        project.agentSessions.some((agentSession) => agentSession.id === sessionId)
-      ) {
-        setSelectedSessionId(null);
-        setSelectedSessionProjectId(null);
+      try {
+        await deleteProject(confirmation.id);
+        if (
+          currentProjectId === confirmation.id &&
+          project &&
+          project.agentSessions.some((agentSession) => agentSession.id === sessionId)
+        ) {
+          setSelectedSessionId(null);
+          setSelectedSessionProjectId(null);
+        }
+        if (currentProjectId === confirmation.id) {
+          onProjectChange?.('');
+        }
+        addToast(projectRemovedMessage, 'success');
+        setDeleteConfirmation(null);
+      } catch (error) {
+        console.error('Failed to remove project', error);
+        addToast(projectRemoveFailedMessage, 'error');
       }
-      if (currentProjectId === confirmation.id) {
-        onProjectChange?.('');
-      }
-      addToast(projectDeletedMessage, 'success');
-      setDeleteConfirmation(null);
       return;
     }
 
@@ -153,7 +164,8 @@ export function useCodeDeleteConfirmation({
     deleteConfirmation,
     deleteProject,
     onProjectChange,
-    projectDeletedMessage,
+    projectRemoveFailedMessage,
+    projectRemovedMessage,
     resolveProjectById,
     resolveSession,
     sessionId,

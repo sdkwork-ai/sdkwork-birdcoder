@@ -98,9 +98,15 @@ function loadProjectGitOverviewWithTimeout(
 }
 
 function shouldReportProjectGitOverviewLoadError(error: unknown): boolean {
+  const errorCode = typeof error === 'object' && error !== null && 'code' in error
+    ? (error as { code?: unknown }).code
+    : undefined;
   return !(
-    error instanceof ProjectRuntimeLocationExecutionUnavailableError
-    && error.code === 'missing_runtime_location_id'
+    errorCode === 'tauri_project_git_runtime_unavailable'
+    || (
+      error instanceof ProjectRuntimeLocationExecutionUnavailableError
+      && error.code === 'missing_runtime_location_id'
+    )
   );
 }
 

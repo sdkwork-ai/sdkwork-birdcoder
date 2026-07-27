@@ -15,6 +15,10 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const rootDir = path.resolve(__dirname, '..');
 const DESKTOP_DEVICE_STATE_OVERRIDE_ENV = 'SDKWORK_BIRDCODER_DEVICE_STATE_FILE';
+const DESKTOP_APPLICATION_ROOT_ENV_KEYS = [
+  'SDKWORK_APP_ROOT',
+  'SDKWORK_BIRDCODER_APP_ROOT',
+];
 
 function resolveFromRequire(requireImpl, specifier) {
   try {
@@ -105,6 +109,27 @@ function resolveDesktopDevDeviceStatePath({
   return pathModule.join(cwd, '.local', 'birdcoder-device-state.sqlite3');
 }
 
+export function resolveDesktopApplicationRootEnv({
+  env = process.env,
+  platform = process.platform,
+  workspaceRootDir = rootDir,
+} = {}) {
+  const pathModule = platform === 'win32' ? path.win32 : path.posix;
+  const normalizedEnv = {};
+
+  for (const key of DESKTOP_APPLICATION_ROOT_ENV_KEYS) {
+    const configuredValue = String(env[key] ?? '').trim();
+    if (!configuredValue) {
+      continue;
+    }
+    normalizedEnv[key] = pathModule.isAbsolute(configuredValue)
+      ? pathModule.normalize(configuredValue)
+      : pathModule.resolve(workspaceRootDir, configuredValue);
+  }
+
+  return normalizedEnv;
+}
+
 export function createTauriCliPlan({
   argv = [],
   env = process.env,
@@ -129,6 +154,11 @@ export function createTauriCliPlan({
   const desktopDevDeviceStatePath = explicitDesktopDeviceStatePath
     ? explicitDesktopDeviceStatePath
     : resolveDesktopDevDeviceStatePath({ cwd, args, platform });
+  const desktopApplicationRootEnv = resolveDesktopApplicationRootEnv({
+    env: tauriEnv,
+    platform,
+    workspaceRootDir: rootDir,
+  });
 
   if (!tauriCliEntrypoint) {
     throw new Error('Unable to resolve the local @tauri-apps/cli entrypoint.');
@@ -140,6 +170,7 @@ export function createTauriCliPlan({
     cwd,
     env: {
       ...tauriEnv,
+      ...desktopApplicationRootEnv,
       SDKWORK_VITE_MODE: resolvedMode,
       ...(desktopDevDeviceStatePath
         ? { [DESKTOP_DEVICE_STATE_OVERRIDE_ENV]: desktopDevDeviceStatePath }

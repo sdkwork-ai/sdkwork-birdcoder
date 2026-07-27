@@ -3,6 +3,7 @@ import {
   configureSdkworkMembershipSessionTokenProvider,
   type SdkworkMembershipAppService,
 } from '@sdkwork/membership-service';
+import type { SdkworkPromptsAppClient } from '@sdkwork/birdcoder-pc-core/sdk/prompts-app';
 import assert from 'node:assert/strict';
 import { ApiBackedVipMembershipService } from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/src/services/impl/ApiBackedVipMembershipService.ts';
 import { createDefaultBirdCoderIdeServices } from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/src/services/defaultIdeServices.ts';
@@ -46,6 +47,13 @@ const membershipService = {
   },
 } as unknown as SdkworkMembershipAppService;
 
+const promptsClient = {
+  prompts: {
+    templates: {},
+    templateVersions: {},
+  },
+} as unknown as SdkworkPromptsAppClient;
+
 configureSdkworkMembershipAppServiceProvider(() => membershipService);
 configureSdkworkMembershipSessionTokenProvider(() => ({
   accessToken: 'vip-contract-access-token',
@@ -65,7 +73,7 @@ try {
   assert.equal(currentRetrieveCalls, 1);
   assert.equal(packageGroupsListCalls, 1);
 
-  const defaultServices = createDefaultBirdCoderIdeServices();
+  const defaultServices = createDefaultBirdCoderIdeServices({ promptsClient });
   assert.equal(
     typeof defaultServices.vipMembershipService.loadMembershipState,
     'function',

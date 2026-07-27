@@ -49,7 +49,11 @@ export function loadDefaultBirdCoderIdeService<K extends BirdCoderDefaultIdeServ
   const servicePromise = loadSharedRuntime(options).then((runtime) => {
     switch (serviceKey) {
       case 'agentSessionService':
-        return new BirdCoderAgentSessionService({ client: runtime.agentsClient });
+        return new BirdCoderAgentSessionService({
+          client: runtime.agentsClient,
+          nativeDirectoryIdentityProvider: (projectId) =>
+            runtime.projectDeviceMountRegistry.resolveBrowserNativeDirectoryIdentity(projectId),
+        });
       case 'authService':
         return runtime.authService;
       case 'catalogService':

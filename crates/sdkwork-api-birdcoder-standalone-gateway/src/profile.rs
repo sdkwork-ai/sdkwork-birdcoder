@@ -31,6 +31,9 @@ struct OwnerApiContribution {
 /// Assembles the exact standalone HTTP unit from owner assembly entrypoints.
 pub(crate) async fn assemble_standalone_profile(
     config: &BirdServerConfig,
+    native_session_cwd_resolver: Option<
+        Arc<dyn sdkwork_agents_runtime_facade::NativeSessionProjectCwdResolver>,
+    >,
 ) -> Result<StandaloneApiProfile, String> {
     let birdcoder = sdkwork_api_birdcoder_assembly::assemble_api_router(config)
         .await
@@ -38,9 +41,16 @@ pub(crate) async fn assemble_standalone_profile(
     let iam = sdkwork_api_iam_assembly::assemble_app_api_contribution()
         .await
         .map_err(|error| format!("assemble IAM owner App API failed: {error}"))?;
-    let agents = sdkwork_api_agents_assembly::assemble_app_api_contribution()
-        .await
-        .map_err(|error| format!("assemble Agents owner App API failed: {error}"))?;
+    let agents = match native_session_cwd_resolver {
+        Some(resolver) => {
+            sdkwork_api_agents_assembly::assemble_app_api_contribution_with_native_session_cwd_resolver(
+                resolver,
+            )
+            .await
+        }
+        None => sdkwork_api_agents_assembly::assemble_app_api_contribution().await,
+    }
+    .map_err(|error| format!("assemble Agents owner App API failed: {error}"))?;
     let documents = sdkwork_api_documents_assembly::assemble_app_api_contribution()
         .await
         .map_err(|error| format!("assemble Documents owner App API failed: {error}"))?;

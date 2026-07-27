@@ -78,6 +78,9 @@
       "httpHost": "api.sdkwork.com"
     }
   },
+  "database": {
+    "appPrefix": "SDKWORK_BIRDCODER"
+  },
   "components": {
     "applicationServer": {
       "crate": "sdkwork-api-birdcoder-standalone-gateway",
@@ -181,6 +184,7 @@
               "SDKWORK_BIRDCODER_RUNTIME_TARGET": "desktop",
               "VITE_SDKWORK_BIRDCODER_RUNTIME_TARGET": "desktop"
             },
+            "bindEnv": "SDKWORK_BIRDCODER_PC_DESKTOP_DEV_BIND",
             "required": true,
             "role": "client"
           },
@@ -287,6 +291,7 @@
               "SDKWORK_BIRDCODER_RUNTIME_TARGET": "desktop",
               "VITE_SDKWORK_BIRDCODER_RUNTIME_TARGET": "desktop"
             },
+            "bindEnv": "SDKWORK_BIRDCODER_PC_DESKTOP_DEV_BIND",
             "required": true,
             "role": "client"
           },

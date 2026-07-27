@@ -84,6 +84,7 @@
       "request_embedded_api_shutdown",
       "desktop_runtime_location_install_identity",
       "desktop_runtime_location_create_root_locator",
+      "project_device_mount_find",
       "secure_app_session_read",
       "secure_app_session_write",
       "secure_app_session_delete"
@@ -129,6 +130,7 @@
       "src/host/state.rs#open_device_state",
       "src/commands/local_store_commands.rs#desktop_runtime_location_install_identity",
       "src/commands/local_store_commands.rs#desktop_runtime_location_create_root_locator",
+      "src/commands/local_store_commands.rs#project_device_mount_find",
       "src/commands/secure_app_session_commands.rs#secure_app_session_read",
       "src/commands/secure_app_session_commands.rs#secure_app_session_write",
       "src/commands/secure_app_session_commands.rs#secure_app_session_delete",

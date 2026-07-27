@@ -9,15 +9,23 @@
 
 import {
   bootstrapSdkworkMembershipAppService,
+  configureSdkworkMembershipAppServiceProvider,
   configureSdkworkMembershipSessionTokenProvider,
   type SdkworkMembershipSessionTokens,
 } from '@sdkwork/membership-service';
-import { bootstrapSdkworkOrderAppService } from '@sdkwork/order-service';
+import {
+  bootstrapSdkworkOrderAppService,
+  configureSdkworkOrderAppServiceProvider,
+  configureSdkworkOrderSessionTokenProvider,
+  createSdkworkMembershipCheckoutService,
+  type SdkworkMembershipCheckoutService,
+} from '@sdkwork/order-service';
 import { getBirdCoderGlobalTokenManager } from '@sdkwork/birdcoder-pc-core/appSessionTokenManager';
 import { getDefaultBirdCoderIdeServicesRuntimeConfig } from './defaultIdeServicesRuntime.ts';
 import { resolveBirdCoderDependencySdkBaseUrl } from './sdkBaseUrls.ts';
 
 let membershipSdkBootstrapped = false;
+let membershipCheckoutService: SdkworkMembershipCheckoutService | null = null;
 
 function resolveMembershipApiBaseUrl(): string {
   const runtimeConfig = getDefaultBirdCoderIdeServicesRuntimeConfig();
@@ -59,14 +67,29 @@ export function bootstrapBirdCoderMembershipSdk(): void {
     baseUrl: membershipBaseUrl,
     tokenManager,
   });
-  bootstrapSdkworkOrderAppService({
+  const orderAppService = bootstrapSdkworkOrderAppService({
     baseUrl: orderBaseUrl,
     tokenManager,
+  });
+  membershipCheckoutService = createSdkworkMembershipCheckoutService({
+    appService: orderAppService,
   });
   configureSdkworkMembershipSessionTokenProvider(resolveMembershipSessionTokens);
   membershipSdkBootstrapped = true;
 }
 
+export function getBirdCoderMembershipCheckoutService(): SdkworkMembershipCheckoutService {
+  if (!membershipCheckoutService) {
+    throw new Error('BirdCoder membership checkout service is not configured.');
+  }
+  return membershipCheckoutService;
+}
+
 export function resetBirdCoderMembershipSdkBootstrap(): void {
+  configureSdkworkMembershipAppServiceProvider(null);
+  configureSdkworkMembershipSessionTokenProvider(null);
+  configureSdkworkOrderAppServiceProvider(null);
+  configureSdkworkOrderSessionTokenProvider(null);
+  membershipCheckoutService = null;
   membershipSdkBootstrapped = false;
 }

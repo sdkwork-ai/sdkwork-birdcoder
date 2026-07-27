@@ -1,0 +1,62 @@
+<view class="page-shell">
+  <view class="hero-card">
+    <view class="brand-row">
+      <view class="brand-mark">B</view>
+      <view class="brand-copy">
+        <text class="eyebrow">SDKWORK NATIVE WECHAT</text>
+        <text class="title">{{productName}}</text>
+      </view>
+    </view>
+    <text class="summary">面向智能编码工作流的轻量移动入口</text>
+    <view class="profile-pill">{{profileLabel}}</view>
+  </view>
+
+  <view wx:if="{{state === 'loading'}}" class="state-card">
+    <view class="spinner"></view>
+    <text class="state-title">正在初始化工作台</text>
+    <text class="state-copy">正在解析运行环境与应用能力...</text>
+  </view>
+
+  <view wx:elif="{{state === 'ready'}}" class="state-card ready">
+    <text class="state-kicker">READY</text>
+    <text class="state-title">BirdCoder 已就绪</text>
+    <text class="state-copy">版本 {{version || '0.1.0' }}</text>
+  </view>
+
+  <view wx:elif="{{state === 'empty'}}" class="state-card">
+    <text class="state-kicker">INITIALIZED</text>
+    <text class="state-title">原生小程序基线已完成</text>
+    <text class="state-copy">{{message}}</text>
+    <view class="capability-list">
+      <view class="capability-item"><text class="dot"></text><text>微信原生运行时与宿主边界</text></view>
+      <view class="capability-item"><text class="dot"></text><text>standalone / cloud 八套环境</text></view>
+      <view class="capability-item"><text class="dot"></text><text>SDKWork 包架构与路由投影</text></view>
+    </view>
+    <button wx:if="{{retryable}}" class="primary-action" bindtap="retry">重新加载</button>
+  </view>
+
+  <view wx:elif="{{state === 'permission-denied'}}" class="state-card warning">
+    <text class="state-kicker">PERMISSION</text>
+    <text class="state-title">需要访问权限</text>
+    <text class="state-copy">{{message}}</text>
+  </view>
+
+  <view wx:elif="{{state === 'unavailable'}}" class="state-card warning">
+    <text class="state-kicker">UNAVAILABLE</text>
+    <text class="state-title">服务暂时不可用</text>
+    <text class="state-copy">{{message}}</text>
+    <button wx:if="{{retryable}}" class="primary-action" bindtap="retry">重新加载</button>
+  </view>
+
+  <view wx:else class="state-card error">
+    <text class="state-kicker">ERROR</text>
+    <text class="state-title">工作台加载失败</text>
+    <text class="state-copy">{{message}}</text>
+    <button wx:if="{{retryable}}" class="primary-action" bindtap="retry">重试</button>
+  </view>
+
+  <view class="footer-note">
+    <text>当前为原生微信小程序初始化版本</text>
+    <text>多端小程序将由独立 uni-app 工程承载</text>
+  </view>
+</view>

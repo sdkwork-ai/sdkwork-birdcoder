@@ -9,6 +9,12 @@ import {
   formatViteHostPreflightFailure,
   runViteHostBuildPreflight,
 } from './vite-host-preflight.mjs';
+import {
+  loadBirdcoderViteProfileFile,
+  normalizeBirdcoderDeploymentProfile,
+  normalizeBirdcoderEnvironment,
+  resolveBirdcoderAppRootFromPath,
+} from './birdcoder-client-env.mjs';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -85,6 +91,40 @@ export function stripCwdArg(argv) {
   return {
     args,
     explicitCwd,
+  };
+}
+
+export function stripProfileArgs(argv) {
+  const args = [];
+  let deploymentProfile = '';
+  let environment = '';
+  let runtimeTarget = '';
+
+  for (let index = 0; index < argv.length; index += 1) {
+    const token = argv[index];
+    if (token === '--deployment-profile') {
+      deploymentProfile = readOptionValue(argv, index, '--deployment-profile');
+      index += 1;
+      continue;
+    }
+    if (token === '--environment') {
+      environment = readOptionValue(argv, index, '--environment');
+      index += 1;
+      continue;
+    }
+    if (token === '--runtime-target') {
+      runtimeTarget = readOptionValue(argv, index, '--runtime-target');
+      index += 1;
+      continue;
+    }
+    args.push(token);
+  }
+
+  return {
+    args,
+    deploymentProfile,
+    environment,
+    runtimeTarget,
   };
 }
 
@@ -309,17 +349,50 @@ export function createViteHostPlan({
     argsWithoutCwd.length === 0 || String(argsWithoutCwd[0]).startsWith('-')
       ? 'serve'
       : String(argsWithoutCwd.shift());
-  const { args: restArgs, explicitMode } = stripModeArg(argsWithoutCwd);
+  const { args: argsWithoutProfiles, deploymentProfile, environment, runtimeTarget } =
+    stripProfileArgs(argsWithoutCwd);
+  const { args: restArgs, explicitMode } = stripModeArg(argsWithoutProfiles);
   const mode = normalizeViteMode(
     explicitMode || env.SDKWORK_VITE_MODE,
     resolveDefaultMode(command),
   );
+  const normalizedEnvironment = normalizeBirdcoderEnvironment(
+    environment
+    || env.SDKWORK_BIRDCODER_ENVIRONMENT
+    || env.SDKWORK_ENVIRONMENT
+    || mode,
+  );
+  const normalizedDeploymentProfile = normalizeBirdcoderDeploymentProfile(
+    deploymentProfile
+    || env.SDKWORK_BIRDCODER_DEPLOYMENT_PROFILE
+    || env.SDKWORK_DEPLOYMENT_PROFILE
+    || 'standalone',
+  );
+  const appRootDir = resolveBirdcoderAppRootFromPath({
+    workspaceRootDir,
+    startDir: resolvedCwd,
+  });
+  const profileEnv = appRootDir
+    ? loadBirdcoderViteProfileFile({
+        workspaceRootDir,
+        appRootDir,
+        deploymentProfile: normalizedDeploymentProfile,
+        environment: normalizedEnvironment,
+        runtimeTarget:
+          runtimeTarget
+          || env.SDKWORK_BIRDCODER_RUNTIME_TARGET
+          || env.SDKWORK_RUNTIME_TARGET,
+      })
+    : {};
   const viteCliPath = resolveViteCliEntry({
     cwd: resolvedCwd,
     workspaceRootDir,
   });
   const childEnv = buildViteHostChildEnv({
-    env,
+    env: {
+      ...profileEnv,
+      ...env,
+    },
     viteCommand: command,
     workspaceRootDir,
   });
@@ -338,6 +411,8 @@ export function createViteHostPlan({
     viteCommand: command,
     env: {
       ...childEnv,
+      SDKWORK_DEPLOYMENT_PROFILE: normalizedDeploymentProfile,
+      SDKWORK_ENVIRONMENT: normalizedEnvironment,
       SDKWORK_VITE_MODE: mode,
     },
   };

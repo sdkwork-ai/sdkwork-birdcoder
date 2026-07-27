@@ -1,6 +1,7 @@
 import { useCallback } from 'react';
 import { emitOpenTerminalRequest } from '@sdkwork/birdcoder-pc-workbench/terminal/runtime';
 import { getTerminalProfile } from '@sdkwork/birdcoder-pc-workbench/terminal/profiles';
+import { resolveBirdcoderWorkbenchHostMode } from '@sdkwork/birdcoder-pc-workbench/terminal/runtimeTarget';
 import type { ToastType } from '@sdkwork/birdcoder-pc-workbench/contexts/ToastProvider';
 import type { TerminalCommandRequest } from '@sdkwork/birdcoder-pc-workbench/terminal/runtime';
 import { copyTextToClipboard } from '@sdkwork/birdcoder-pc-ui/components/clipboard';
@@ -38,9 +39,12 @@ export function useCodePageTerminalActions({
   setTerminalRequest,
   t,
 }: UseCodePageTerminalActionsOptions) {
-  const resolveTerminalWorkingDirectory = useCallback(async (projectId: string) => {
+  const resolveTerminalWorkingDirectory = useCallback(async (
+    projectId: string,
+    allowFolderSelection: boolean,
+  ) => {
     const resolution = await resolveProjectRuntimeLocation(projectId, {
-      allowFolderSelection: true,
+      allowFolderSelection,
       capability: 'terminal',
     });
     const localWorkingDirectory = getResolvedProjectRuntimeLocationWorkingDirectory(resolution);
@@ -60,9 +64,22 @@ export function useCodePageTerminalActions({
 
   const handleTopBarTerminalVisibilityChange = useCallback(async (nextIsOpen: boolean) => {
     if (nextIsOpen) {
-      const localWorkingDirectory = currentProjectId
-        ? await resolveTerminalWorkingDirectory(currentProjectId)
-        : null;
+      if (!currentProjectId) {
+        return;
+      }
+      if (resolveBirdcoderWorkbenchHostMode() === 'web') {
+        setTerminalRequest({
+          surface: 'embedded',
+          timestamp: Date.now(),
+        });
+        setIsTerminalOpen(true);
+        return;
+      }
+
+      const localWorkingDirectory = await resolveTerminalWorkingDirectory(
+        currentProjectId,
+        false,
+      );
       if (!localWorkingDirectory) {
         return;
       }
@@ -87,12 +104,27 @@ export function useCodePageTerminalActions({
       return;
     }
 
-    const localWorkingDirectory = await resolveTerminalWorkingDirectory(target.projectId);
+    const terminalProfile = profileId ? getTerminalProfile(profileId) : null;
+    if (resolveBirdcoderWorkbenchHostMode() === 'web') {
+      emitOpenTerminalRequest({
+        surface: 'project',
+        profileId: terminalProfile?.id,
+        timestamp: Date.now(),
+      });
+      addToast(
+        terminalProfile
+          ? `Opened ${terminalProfile.title} terminal: ${target.name}`
+          : `Opened project in terminal: ${target.name}`,
+        'info',
+      );
+      return;
+    }
+
+    const localWorkingDirectory = await resolveTerminalWorkingDirectory(target.projectId, false);
     if (!localWorkingDirectory) {
       return;
     }
 
-    const terminalProfile = profileId ? getTerminalProfile(profileId) : null;
     emitOpenTerminalRequest({
       surface: 'project',
       path: localWorkingDirectory,

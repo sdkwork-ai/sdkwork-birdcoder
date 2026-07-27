@@ -18,11 +18,20 @@ use sdkwork_web_core::{HttpMetricsDimensions, HttpMetricsRegistry};
 pub async fn build_app(
     config: &BirdServerConfig,
 ) -> Result<Router, Box<dyn std::error::Error + Send + Sync>> {
-    let selected_profile = profile::assemble_standalone_profile(config).await.map_err(
-        |error| -> Box<dyn std::error::Error + Send + Sync> {
+    build_app_with_native_session_cwd_resolver(config, None).await
+}
+
+pub async fn build_app_with_native_session_cwd_resolver(
+    config: &BirdServerConfig,
+    resolver: Option<
+        std::sync::Arc<dyn sdkwork_agents_runtime_facade::NativeSessionProjectCwdResolver>,
+    >,
+) -> Result<Router, Box<dyn std::error::Error + Send + Sync>> {
+    let selected_profile = profile::assemble_standalone_profile(config, resolver)
+        .await
+        .map_err(|error| -> Box<dyn std::error::Error + Send + Sync> {
             Box::new(std::io::Error::other(error.to_string()))
-        },
-    )?;
+        })?;
     build_app_from_profile(config, selected_profile).await
 }
 

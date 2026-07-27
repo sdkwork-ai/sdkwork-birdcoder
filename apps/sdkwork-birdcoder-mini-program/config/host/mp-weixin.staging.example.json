@@ -1,0 +1,6 @@
+{
+  "platform": "MP_WEIXIN",
+  "environment": "staging",
+  "appId": "touristappid",
+  "privateConfig": "project.private.config.json"
+}
