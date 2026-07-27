@@ -6,7 +6,6 @@ import {
 } from '@sdkwork/birdcoder-pc-infrastructure/services/agentsCatalogService';
 
 export type WorkbenchCodeEngineId = string;
-export type WorkbenchCodeEngineThemeId = 'amber' | 'blue' | 'emerald' | 'violet';
 export type WorkbenchModelVendor = 'openai' | 'anthropic' | 'google' | 'opencode' | 'unknown';
 export type ModelVendor = WorkbenchModelVendor;
 
@@ -29,11 +28,9 @@ export interface WorkbenchCodeEngineDefinition {
   label: string;
   aliases: readonly string[];
   defaultModelId: string;
-  monogram: string;
   models: readonly WorkbenchCodeEngineModelDefinition[];
   modelCatalog: readonly WorkbenchCodeEngineModelDefinition[];
   modelIds: readonly string[];
-  theme: WorkbenchCodeEngineThemeId;
 }
 
 export interface WorkbenchCodeEngineSettings {
@@ -125,23 +122,6 @@ function normalizeKey(value: unknown): string {
     .replace(/\s+/gu, '-');
 }
 
-function buildMonogram(engineId: string): string {
-  const segments = engineId.split(/[^a-z0-9]+/giu).filter(Boolean);
-  if (segments.length > 1) {
-    return segments.slice(0, 2).map((segment) => segment[0]).join('').toUpperCase();
-  }
-  return engineId.replace(/[^a-z0-9]/giu, '').slice(0, 2).toUpperCase() || 'AI';
-}
-
-function resolveTheme(engineId: string): WorkbenchCodeEngineThemeId {
-  const themes: readonly WorkbenchCodeEngineThemeId[] = ['blue', 'amber', 'emerald', 'violet'];
-  let hash = 0;
-  for (const character of engineId) {
-    hash = (hash * 31 + character.codePointAt(0)!) >>> 0;
-  }
-  return themes[hash % themes.length] ?? 'blue';
-}
-
 function titleCaseEngineId(engineId: string): string {
   return engineId
     .split(/[-_.\s]+/gu)
@@ -198,11 +178,9 @@ function toWorkbenchDefinition(
     label: titleCaseEngineId(id) || id,
     aliases: [id],
     defaultModelId,
-    monogram: buildMonogram(id),
     models,
     modelCatalog: models,
     modelIds: models.map((model) => model.id),
-    theme: resolveTheme(id),
   };
 }
 
@@ -391,11 +369,9 @@ function createUnknownEngineDefinition(value: unknown): WorkbenchCodeEngineDefin
     label: titleCaseEngineId(id) || id,
     aliases: id ? [id] : [],
     defaultModelId: '',
-    monogram: buildMonogram(id),
     models: [],
     modelCatalog: [],
     modelIds: [],
-    theme: resolveTheme(id),
   };
 }
 

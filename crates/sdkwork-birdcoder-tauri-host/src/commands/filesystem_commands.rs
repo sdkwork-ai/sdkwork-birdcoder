@@ -8,7 +8,8 @@ use std::sync::{Mutex, OnceLock};
 use std::time::UNIX_EPOCH;
 
 const USER_HOME_CONFIG_RELATIVE_ROOT: &str = ".sdkwork/birdcoder";
-const PROVIDER_SESSION_DIRECTORY_FINGERPRINT_PREFIX: &str = "sdkwork.provider-session-directory.v1\n";
+const PROVIDER_SESSION_DIRECTORY_FINGERPRINT_PREFIX: &str =
+    "sdkwork.provider-session-directory.v1\n";
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -80,8 +81,9 @@ pub(crate) fn authorize_provider_session_directory_identity(
     let mut entries = fs::read_dir(&canonical_root)
         .map_err(|error| format!("failed to enumerate provider session directory: {error}"))?
         .map(|entry| {
-            let entry = entry
-                .map_err(|error| format!("failed to inspect provider session directory: {error}"))?;
+            let entry = entry.map_err(|error| {
+                format!("failed to inspect provider session directory: {error}")
+            })?;
             let entry_type = entry.file_type().map_err(|error| {
                 format!("failed to inspect provider session directory entry type: {error}")
             })?;

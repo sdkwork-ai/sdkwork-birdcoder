@@ -30,6 +30,10 @@ const workbenchCodeEngineIconSource = fs.readFileSync(
   new URL('../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-ui-shell/src/components/WorkbenchCodeEngineIcon.tsx', import.meta.url),
   'utf8',
 );
+const codeEngineCatalogSource = fs.readFileSync(
+  new URL('../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-workbench/src/workbench/codeEngineCatalog.ts', import.meta.url),
+  'utf8',
+);
 const enLocaleSource = fs.readFileSync(
   new URL('../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-i18n/src/locales/en/code/sidebar.ts', import.meta.url),
   'utf8',
@@ -88,6 +92,12 @@ assert.doesNotMatch(
   `${sessionProviderBadgeSource}\n${workbenchCodeEngineIconSource}`,
   /THEME_CLASS_BY_ID|ENGINE_PRESENTATION|KNOWN_SESSION_PROVIDER_BADGE_TONES/u,
   'Provider icon consumers must not maintain local theme registries.',
+);
+
+assert.doesNotMatch(
+  codeEngineCatalogSource,
+  /WorkbenchCodeEngineThemeId|\bmonogram:|\btheme:\s*resolveTheme|function\s+(?:buildMonogram|resolveTheme)\b/u,
+  'The engine catalog must not retain a second provider abbreviation or color authority.',
 );
 
 assert.match(

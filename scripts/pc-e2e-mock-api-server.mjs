@@ -410,6 +410,8 @@ function createSessionActivitySummary(session) {
     'e2e-codex-session': { phase: 'queued', state: 'working', turnStatus: 'requested' },
     'e2e-opencode-session': { phase: 'waiting', state: 'waiting', turnStatus: 'running' },
     'e2e-gemini-session': { phase: 'failed', state: 'failed', turnStatus: 'failed' },
+    'e2e-history-session-1': { phase: 'unknown', state: null, turnStatus: 'completed' },
+    'e2e-history-session-2': { phase: 'running', state: 'working', turnStatus: 'running' },
   };
   const presentation = presentationBySessionId[session.sessionId] ?? {
     phase: 'idle',
@@ -424,8 +426,13 @@ function createSessionActivitySummary(session) {
   const pendingInteraction = session.agentId === 'agent.opencode'
     ? createSessionActivityInteraction(session, runtimeBinding)
     : null;
-  const observedAt = session.updatedAt;
-  const freshUntil = '2099-01-01T00:00:00.000Z';
+  const isUnknownPresentation = presentation.phase === 'unknown';
+  const observedAt = isUnknownPresentation ? null : session.updatedAt;
+  const freshUntil = isUnknownPresentation
+    ? null
+    : session.sessionId === 'e2e-history-session-2'
+      ? '2026-01-01T00:00:00.000Z'
+      : '2099-01-01T00:00:00.000Z';
   return {
     session,
     latestTurn,
@@ -458,15 +465,17 @@ function createSessionActivitySummary(session) {
       currentRuntimeBindingVersion: runtimeBinding.version,
       userStateVersion: userState.version,
     },
-    providerActivity: {
-      providerSessionId: runtimeBinding.providerSessionId,
-      state: presentation.state,
-      freshness: 'fresh',
-      evidenceKind: 'provider_event',
-      interactionHint: pendingInteraction ? 'approval_required' : null,
-      observedAt,
-      freshUntil,
-    },
+    providerActivity: isUnknownPresentation
+      ? null
+      : {
+          providerSessionId: runtimeBinding.providerSessionId,
+          state: presentation.state,
+          freshness: 'fresh',
+          evidenceKind: 'provider_event',
+          interactionHint: pendingInteraction ? 'approval_required' : null,
+          observedAt,
+          freshUntil,
+        },
     presentationPhase: presentation.phase,
   };
 }

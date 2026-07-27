@@ -6,7 +6,9 @@ use uuid::Uuid;
 
 use crate::host::state::open_device_state;
 
-use super::filesystem_commands::{authorize_provider_session_directory_identity, ProviderSessionDirectoryIdentity};
+use super::filesystem_commands::{
+    authorize_provider_session_directory_identity, ProviderSessionDirectoryIdentity,
+};
 
 const RESERVED_AUTHORITY_LOCAL_STORE_KEY_PREFIX: &str = "table.sqlite.";
 const APP_SETTINGS_SCOPE: &str = "settings";
@@ -326,7 +328,11 @@ pub async fn project_device_mount_provider_session_directory_identity(
     let owner_keys = normalize_project_device_mount_owner_keys(owner_keys)?;
     tauri::async_runtime::spawn_blocking(move || {
         let connection = open_device_state(&app)?;
-        resolve_project_mount_provider_session_directory_identity(&connection, &project_id, &owner_keys)
+        resolve_project_mount_provider_session_directory_identity(
+            &connection,
+            &project_id,
+            &owner_keys,
+        )
     })
     .await
     .map_err(|error| format!("failed to join provider Session directory identity task: {error}"))?
@@ -445,8 +451,9 @@ mod tests {
     use super::{
         create_prefixed_uuid, is_valid_prefixed_uuid, local_store_scope_and_key_are_allowed,
         local_store_scope_is_enumerable, normalize_project_device_mount_owner_keys,
-        read_project_device_mount_by_identity, resolve_project_mount_provider_session_directory_identity,
-        APP_SETTINGS_KEY, APP_SETTINGS_SCOPE, DESKTOP_RUNTIME_LOCATION_IDENTITY_SCOPE,
+        read_project_device_mount_by_identity,
+        resolve_project_mount_provider_session_directory_identity, APP_SETTINGS_KEY,
+        APP_SETTINGS_SCOPE, DESKTOP_RUNTIME_LOCATION_IDENTITY_SCOPE,
         DESKTOP_RUNTIME_ROOT_LOCATOR_PREFIX, DESKTOP_RUNTIME_TARGET_ID_PREFIX,
         PROJECT_DEVICE_MOUNTS_SCOPE,
     };

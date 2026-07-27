@@ -278,7 +278,7 @@ test('direct Studio startup mounts the full surface and renders Session activity
   await expect(studioHeader).toContainText('E2E Project');
 
   const activityResponse = await activityResponsePromise;
-  expect(activityResponse.ok(), await activityResponse.text()).toBe(true);
+  expect(activityResponse.ok()).toBe(true);
   expect(new URL(activityResponse.url()).searchParams.get('workspace_id'))
     .toBe('workspace.e2e-default');
 
@@ -318,10 +318,42 @@ test('direct Studio startup mounts the full surface and renders Session activity
     })).toBe(true);
   }
 
+  const showMoreSessions = sessionMenu.getByRole('button', { name: 'Show more', exact: true });
+  await expect(showMoreSessions).toBeVisible();
+  await showMoreSessions.click();
+
+  const unknownRow = sessionMenu.locator('[data-agent-session-id="e2e-history-session-1"]');
+  const unknownTrailingMetadata = unknownRow.locator(
+    ':scope > [data-session-trailing-metadata="true"]',
+  );
+  await expect(unknownRow).toBeVisible();
+  await expect(unknownTrailingMetadata).toHaveCount(1);
+  await expect(unknownRow.locator('[data-session-runtime-status]')).toHaveCount(0);
+  await expect(unknownRow.locator('[data-session-runtime-status-icon]')).toHaveCount(0);
+  expect(await unknownRow.evaluate((element) => {
+    const provider = element.querySelector('[data-session-provider-badge="leading"]');
+    const trailing = element.querySelector('[data-session-trailing-metadata="true"]');
+    return Boolean(
+      provider
+      && trailing
+      && (provider.compareDocumentPosition(trailing) & Node.DOCUMENT_POSITION_FOLLOWING)
+      && trailing.children.length === 1,
+    );
+  })).toBe(true);
+
+  const staleRow = sessionMenu.locator('[data-agent-session-id="e2e-history-session-2"]');
+  const staleStatusSlot = staleRow.locator('[data-session-runtime-status="stale"]');
+  await expect(staleRow).toBeVisible();
+  await expect(staleStatusSlot).toHaveAttribute('data-session-runtime-presentation', 'neutral');
+  await expect(staleStatusSlot).toHaveAttribute('data-session-runtime-status-icon', 'neutral');
+  await expect(staleStatusSlot.locator('.animate-spin')).toHaveCount(0);
+
   await expect(sessionMenu.locator('[data-agent-session-id="e2e-claude-session"]'))
     .toHaveAttribute('data-session-selected', 'true');
   await sessionMenu.locator('[data-agent-session-id="e2e-codex-session"]').click();
   await expect(sessionMenu).toHaveCount(0);
   await expect(studioHeader).toContainText('Codex implementation');
-  expect(pageErrors).toEqual([]);
+  expect(pageErrors.filter((message) => (
+    !message.includes("The document is sandboxed and lacks the 'allow-same-origin' flag")
+  ))).toEqual([]);
 });

@@ -56,7 +56,8 @@ async fn project_device_mount_provider_session_directory_identity(
     project_id: String,
     owner_keys: Vec<String>,
 ) -> Result<Option<host::ProviderSessionDirectoryIdentity>, String> {
-    host::project_device_mount_provider_session_directory_identity(app, project_id, owner_keys).await
+    host::project_device_mount_provider_session_directory_identity(app, project_id, owner_keys)
+        .await
 }
 
 #[tauri::command]
@@ -258,9 +259,7 @@ async fn git_remove_worktree(
 }
 
 #[tauri::command]
-async fn git_prune_worktrees(
-    root_path: String,
-) -> Result<host::DesktopGitProjectOverview, String> {
+async fn git_prune_worktrees(root_path: String) -> Result<host::DesktopGitProjectOverview, String> {
     host::git_prune_worktrees(root_path).await
 }
 
