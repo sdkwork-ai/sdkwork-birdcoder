@@ -12,7 +12,6 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { useImportedProjectSessionSynchronization } from '../src/hooks/useImportedProjectSessionSynchronization.ts';
 import { useSessionRefreshActions } from '../src/hooks/useSessionRefreshActions.ts';
 import type { HydrateImportedProjectFromAuthorityResult } from '../src/workbench/importedProjectHydration.ts';
-import type { RefreshProjectSessionsResult } from '../src/workbench/sessionRefresh.ts';
 
 const mocks = vi.hoisted(() => ({
   applyProjectSessionActivityRefresh: vi.fn((projects: readonly AgentProjectView[]) => projects),
@@ -24,7 +23,7 @@ const mocks = vi.hoisted(() => ({
   loadEarlierAgentSessionItems: vi.fn(),
   mutateProjectsStoreByScopeKey: vi.fn(),
   refreshAgentSessionItems: vi.fn(),
-  refreshProjectSessions: vi.fn(),
+  synchronizeProjectSessions: vi.fn(),
   upsertAgentSessionIntoProjectsStore: vi.fn(),
   upsertProjectIntoProjectsStore: vi.fn(),
 }));
@@ -49,7 +48,6 @@ vi.mock('../src/workbench/sessionRefresh.ts', () => ({
   applyProjectSessionActivityRefresh: mocks.applyProjectSessionActivityRefresh,
   loadEarlierAgentSessionItems: mocks.loadEarlierAgentSessionItems,
   refreshAgentSessionItems: mocks.refreshAgentSessionItems,
-  refreshProjectSessions: mocks.refreshProjectSessions,
 }));
 
 interface Deferred<T> {
@@ -86,20 +84,6 @@ function createProject(projectId: string, workspaceId = 'workspace-a'): AgentPro
   };
 }
 
-function createProjectRefreshResult(
-  projects: AgentProjectView[] = [],
-): RefreshProjectSessionsResult {
-  return {
-    deletedSessionIds: [],
-    deletedSessionTombstones: [],
-    projectIds: projects.map((project) => project.projectId),
-    projects,
-    sessionIds: [],
-    source: 'agents',
-    status: 'refreshed',
-  };
-}
-
 function createImportedProjectResult(
   projectId = 'project-a',
   workspaceId = 'workspace-a',
@@ -130,11 +114,11 @@ afterEach(() => {
 
 describe('useSessionRefreshActions request lifecycle', () => {
   it('does not restore Session A after the live selection changes to Session B', async () => {
-    const deferred = createDeferred<RefreshProjectSessionsResult>();
+    const deferred = createDeferred<HydrateImportedProjectFromAuthorityResult | null>();
     const addToast = vi.fn();
     const restoreSelectionA = vi.fn();
     const restoreSelectionB = vi.fn();
-    mocks.refreshProjectSessions.mockReturnValueOnce(deferred.promise);
+    mocks.synchronizeProjectSessions.mockReturnValueOnce(deferred.promise);
 
     const { result, rerender } = renderHook((props: {
       restoreSelection: (projectId: string, sessionId: string | null) => void;
@@ -148,6 +132,7 @@ describe('useSessionRefreshActions request lifecycle', () => {
       resolveAgentSessionTitle: (sessionId) => sessionId,
       resolveProjectName: (projectId) => projectId,
       restoreSelectionAfterRefresh: props.restoreSelection,
+      synchronizeProjectSessions: mocks.synchronizeProjectSessions,
     }), {
       initialProps: {
         restoreSelection: restoreSelectionA,
@@ -166,7 +151,7 @@ describe('useSessionRefreshActions request lifecycle', () => {
       selection: { agentSessionId: 'session-b', projectId: 'project-b' },
     });
     await act(async () => {
-      deferred.resolve(createProjectRefreshResult());
+      deferred.resolve(createImportedProjectResult());
       await request;
     });
 
@@ -176,10 +161,10 @@ describe('useSessionRefreshActions request lifecycle', () => {
   });
 
   it('suppresses Store, callback, toast, and state commits after the auth scope changes', async () => {
-    const deferred = createDeferred<RefreshProjectSessionsResult>();
+    const deferred = createDeferred<HydrateImportedProjectFromAuthorityResult | null>();
     const addToast = vi.fn();
     const restoreSelection = vi.fn();
-    mocks.refreshProjectSessions.mockReturnValueOnce(deferred.promise);
+    mocks.synchronizeProjectSessions.mockReturnValueOnce(deferred.promise);
     const props = {
       selection: { agentSessionId: 'session-a', projectId: 'project-a' },
     };
@@ -192,6 +177,7 @@ describe('useSessionRefreshActions request lifecycle', () => {
       resolveAgentSessionTitle: (sessionId) => sessionId,
       resolveProjectName: (projectId) => projectId,
       restoreSelectionAfterRefresh: restoreSelection,
+      synchronizeProjectSessions: mocks.synchronizeProjectSessions,
     }));
 
     let request!: Promise<void>;
@@ -204,10 +190,10 @@ describe('useSessionRefreshActions request lifecycle', () => {
     rerender();
     expect(result.current.refreshingProjectId).toBeNull();
     await expect(staleRefreshProjectSessions('project-a')).resolves.toBeUndefined();
-    expect(mocks.refreshProjectSessions).toHaveBeenCalledTimes(1);
+    expect(mocks.synchronizeProjectSessions).toHaveBeenCalledTimes(1);
 
     await act(async () => {
-      deferred.resolve(createProjectRefreshResult([createProject('project-a')]));
+      deferred.resolve(createImportedProjectResult());
       await request;
     });
 
@@ -218,10 +204,10 @@ describe('useSessionRefreshActions request lifecycle', () => {
   });
 
   it('suppresses completion after unmount even when the refresh source ignores cancellation', async () => {
-    const deferred = createDeferred<RefreshProjectSessionsResult>();
+    const deferred = createDeferred<HydrateImportedProjectFromAuthorityResult | null>();
     const addToast = vi.fn();
     const restoreSelection = vi.fn();
-    mocks.refreshProjectSessions.mockReturnValueOnce(deferred.promise);
+    mocks.synchronizeProjectSessions.mockReturnValueOnce(deferred.promise);
     const { result, unmount } = renderHook(() => useSessionRefreshActions({
       addToast,
       agentSessionService,
@@ -234,6 +220,7 @@ describe('useSessionRefreshActions request lifecycle', () => {
       resolveAgentSessionTitle: (sessionId) => sessionId,
       resolveProjectName: (projectId) => projectId,
       restoreSelectionAfterRefresh: restoreSelection,
+      synchronizeProjectSessions: mocks.synchronizeProjectSessions,
     }));
 
     let request!: Promise<void>;
@@ -241,12 +228,73 @@ describe('useSessionRefreshActions request lifecycle', () => {
       request = result.current.handleRefreshProjectSessions('project-a');
     });
     unmount();
-    deferred.resolve(createProjectRefreshResult([createProject('project-a')]));
+    deferred.resolve(createImportedProjectResult());
     await expect(request).resolves.toBeUndefined();
 
     expect(mocks.mutateProjectsStoreByScopeKey).not.toHaveBeenCalled();
     expect(restoreSelection).not.toHaveBeenCalled();
     expect(addToast).not.toHaveBeenCalled();
+  });
+
+  it('treats a superseded coordinated refresh as a neutral completion', async () => {
+    const addToast = vi.fn();
+    const restoreSelection = vi.fn();
+    mocks.synchronizeProjectSessions.mockResolvedValueOnce(null);
+    const { result } = renderHook(() => useSessionRefreshActions({
+      addToast,
+      agentSessionService,
+      getPreservedSelection: () => ({
+        agentSessionId: 'session-a',
+        projectId: 'project-a',
+      }),
+      messages: refreshMessages,
+      projectService,
+      resolveAgentSessionTitle: (sessionId) => sessionId,
+      resolveProjectName: (projectId) => projectId,
+      restoreSelectionAfterRefresh: restoreSelection,
+      synchronizeProjectSessions: mocks.synchronizeProjectSessions,
+    }));
+
+    await act(async () => {
+      await result.current.handleRefreshProjectSessions('project-a');
+    });
+
+    expect(mocks.synchronizeProjectSessions).toHaveBeenCalledWith('project-a', true);
+    expect(addToast).not.toHaveBeenCalled();
+    expect(restoreSelection).not.toHaveBeenCalled();
+    expect(result.current.refreshingProjectId).toBeNull();
+  });
+
+  it('surfaces a genuine coordinated refresh failure once', async () => {
+    const addToast = vi.fn();
+    const restoreSelection = vi.fn();
+    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    const refreshError = new Error('Agents unavailable');
+    mocks.synchronizeProjectSessions.mockRejectedValueOnce(refreshError);
+    const { result } = renderHook(() => useSessionRefreshActions({
+      addToast,
+      agentSessionService,
+      getPreservedSelection: () => ({
+        agentSessionId: 'session-a',
+        projectId: 'project-a',
+      }),
+      messages: refreshMessages,
+      projectService,
+      resolveAgentSessionTitle: (sessionId) => sessionId,
+      resolveProjectName: (projectId) => projectId,
+      restoreSelectionAfterRefresh: restoreSelection,
+      synchronizeProjectSessions: mocks.synchronizeProjectSessions,
+    }));
+
+    await act(async () => {
+      await result.current.handleRefreshProjectSessions('project-a');
+    });
+
+    expect(addToast).toHaveBeenCalledTimes(1);
+    expect(addToast).toHaveBeenCalledWith(refreshMessages.failedToRefreshProjectSessions, 'error');
+    expect(restoreSelection).not.toHaveBeenCalled();
+    expect(consoleError).toHaveBeenCalledWith('Failed to refresh project sessions', refreshError);
+    consoleError.mockRestore();
   });
 });
 

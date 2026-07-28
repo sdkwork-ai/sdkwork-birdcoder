@@ -10,6 +10,7 @@ import {
 import { globalEventBus } from '@sdkwork/birdcoder-pc-workbench/utils/EventBus';
 import { useToast } from '@sdkwork/birdcoder-pc-workbench/contexts/ToastProvider';
 import { copyTextToClipboard } from './clipboard';
+import { resolveFileExplorerRelativePath } from './fileExplorerPaths';
 import {
   buildVisibleFileExplorerRows,
   FILE_EXPLORER_OVERSCAN_ROWS,
@@ -125,6 +126,7 @@ type FileExplorerNodeRowProps = {
   hasDirectoryLoadError: boolean;
   isExpanded: boolean;
   isMutationPending: boolean;
+  isProtectedRoot: boolean;
   isSelected: boolean;
   renamingNode: FileExplorerRenameDraft | null;
   onNodePrimaryAction: (node: FileNode, isExpanded: boolean) => void;
@@ -544,6 +546,7 @@ const FileExplorerNodeRow = React.memo(function FileExplorerNodeRow({
   hasDirectoryLoadError,
   isExpanded,
   isMutationPending,
+  isProtectedRoot,
   isSelected,
   renamingNode,
   onNodePrimaryAction,
@@ -668,22 +671,24 @@ const FileExplorerNodeRow = React.memo(function FileExplorerNodeRow({
               </button>
             </>
           ) : null}
-          <button
-            type="button"
-            tabIndex={-1}
-            title={node.type === 'directory' ? t('code.deleteFolder') : t('code.deleteFile')}
-            aria-label={t('code.deleteNamedNode', { name: node.name })}
-            className="rounded p-1 text-gray-400 transition-colors hover:text-red-400 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-red-400"
-            onClick={(event) => {
-              event.stopPropagation();
-              onRequestDeleteNode(node);
-            }}
-          >
-            <Trash2
-              size={12}
-              aria-hidden="true"
-            />
-          </button>
+          {!isProtectedRoot ? (
+            <button
+              type="button"
+              tabIndex={-1}
+              title={node.type === 'directory' ? t('code.deleteFolder') : t('code.deleteFile')}
+              aria-label={t('code.deleteNamedNode', { name: node.name })}
+              className="rounded p-1 text-gray-400 transition-colors hover:text-red-400 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-red-400"
+              onClick={(event) => {
+                event.stopPropagation();
+                onRequestDeleteNode(node);
+              }}
+            >
+              <Trash2
+                size={12}
+                aria-hidden="true"
+              />
+            </button>
+          ) : null}
         </div>
       </div>
     </div>
@@ -711,6 +716,7 @@ const FileExplorerNodeRow = React.memo(function FileExplorerNodeRow({
     left.hasDirectoryLoadError !== right.hasDirectoryLoadError ||
     left.isExpanded !== right.isExpanded ||
     left.isMutationPending !== right.isMutationPending ||
+    left.isProtectedRoot !== right.isProtectedRoot ||
     left.isSelected !== right.isSelected ||
     left.onNodePrimaryAction !== right.onNodePrimaryAction ||
     left.onNodeFocus !== right.onNodeFocus ||
@@ -966,12 +972,14 @@ export const FileExplorer = React.memo(function FileExplorer({
     floatingMenuReturnFocusPathRef.current = node.path;
     setRootContextMenu(null);
     const position = resolveFileExplorerContextMenuPosition({
-      estimatedHeight: node.type === 'directory' ? 360 : 290,
+      estimatedHeight: node.type === 'directory'
+        ? node.path === rootCreationParentPath ? 270 : 360
+        : 290,
       x,
       y,
     });
     setContextMenu({ ...position, node });
-  }, []);
+  }, [rootCreationParentPath]);
 
   const handleContextMenu = useCallback((e: React.MouseEvent, node: FileNode) => {
     e.preventDefault();
@@ -1213,12 +1221,12 @@ export const FileExplorer = React.memo(function FileExplorer({
   }, []);
 
   const handleRequestDeleteNode = useCallback((node: FileNode) => {
-    if (isMutationPending) {
+    if (isMutationPending || node.path === rootCreationParentPath) {
       return;
     }
     deleteDialogReturnFocusPathRef.current = node.path;
     setNodeToDelete(node);
-  }, [isMutationPending]);
+  }, [isMutationPending, rootCreationParentPath]);
 
   const handleCancelDeleteNode = useCallback(() => {
     if (!isMutationPending) {
@@ -1309,13 +1317,13 @@ export const FileExplorer = React.memo(function FileExplorer({
   }, [handleCancelDeleteNode]);
 
   const handleBeginRenameNode = useCallback((node: FileNode) => {
-    if (isMutationPending || !onRenameNode) {
+    if (isMutationPending || !onRenameNode || node.path === rootCreationParentPath) {
       return;
     }
 
     setRenamingNode({ path: node.path, name: node.name });
     setInputValue(node.name);
-  }, [isMutationPending, onRenameNode]);
+  }, [isMutationPending, onRenameNode, rootCreationParentPath]);
 
   const handleInputValueChange = useCallback((value: string) => {
     setInputValue(value);
@@ -1557,12 +1565,13 @@ export const FileExplorer = React.memo(function FileExplorer({
       openNodeContextMenu(node, bounds.left + 20, bounds.bottom);
       return;
     }
-    if (event.key === 'Delete') {
+    const isProtectedRoot = node.path === rootCreationParentPath;
+    if (event.key === 'Delete' && !isProtectedRoot) {
       event.preventDefault();
       handleRequestDeleteNode(node);
       return;
     }
-    if (event.key === 'F2') {
+    if (event.key === 'F2' && !isProtectedRoot) {
       event.preventDefault();
       handleBeginRenameNode(node);
       return;
@@ -1618,6 +1627,7 @@ export const FileExplorer = React.memo(function FileExplorer({
     handleRequestDeleteNode,
     navigableRows,
     openNodeContextMenu,
+    rootCreationParentPath,
   ]);
   const totalVisibleRowHeight = visibleRows.length * FILE_EXPLORER_ROW_HEIGHT;
   const shouldTrackViewportScroll = viewport.clientHeight > 0 && totalVisibleRowHeight > viewport.clientHeight;
@@ -1818,6 +1828,7 @@ export const FileExplorer = React.memo(function FileExplorer({
                 hasDirectoryLoadError={directoryLoadErrors[row.node.path] === true}
                 isExpanded={currentExpandedFolders[row.node.path] === true}
                 isMutationPending={isMutationPending}
+                isProtectedRoot={row.node.path === rootCreationParentPath}
                 isSelected={selectedFile === row.node.path}
                 renamingNode={renamingNode}
                 onNodePrimaryAction={handleNodePrimaryAction}
@@ -1900,6 +1911,7 @@ export const FileExplorer = React.memo(function FileExplorer({
     directoryLoadErrors,
     isSearchActive,
     onRetryLoad,
+    rootCreationParentPath,
     renamingNode,
     searchQuery,
     selectedFile,
@@ -2142,7 +2154,16 @@ export const FileExplorer = React.memo(function FileExplorer({
             role="menuitem"
             className="flex w-full items-center gap-2 px-4 py-1.5 text-left transition-colors hover:bg-white/10 hover:text-white focus-visible:bg-white/10 focus-visible:text-white focus-visible:outline-none"
             onClick={() => {
-              void copyTextToClipboard(contextMenu.node.path).then((didCopy) => {
+              const relativePath = resolveFileExplorerRelativePath(
+                rootCreationParentPath,
+                contextMenu.node.path,
+              );
+              if (!relativePath) {
+                addToast(t('code.unableToCopyRelativePath'), 'error');
+                setContextMenu(null);
+                return;
+              }
+              void copyTextToClipboard(relativePath).then((didCopy) => {
                 if (!didCopy) {
                   addToast(t('code.unableToCopyRelativePath'), 'error');
                   return;
@@ -2173,33 +2194,37 @@ export const FileExplorer = React.memo(function FileExplorer({
             <Copy size={14} className="text-gray-400" aria-hidden="true" />
             <span>{t('code.copyFullPath')}</span>
           </button>
-          <div role="separator" className="my-1.5 h-px bg-white/10" />
-          <button
-            type="button"
-            tabIndex={-1}
-            role="menuitem"
-            className="flex w-full items-center gap-2 px-4 py-1.5 text-left transition-colors hover:bg-white/10 hover:text-white focus-visible:bg-white/10 focus-visible:text-white focus-visible:outline-none"
-            onClick={() => {
-              handleBeginRenameNode(contextMenu.node);
-              setContextMenu(null);
-            }}
-          >
-            <FileEdit size={14} className="text-gray-400" aria-hidden="true" />
-            <span>{t('code.renameNode')}</span>
-          </button>
-          <button
-            type="button"
-            tabIndex={-1}
-            role="menuitem"
-            className="flex w-full items-center gap-2 px-4 py-1.5 text-left text-red-500/80 transition-colors hover:bg-red-500/20 hover:text-red-400 focus-visible:bg-red-500/20 focus-visible:text-red-400 focus-visible:outline-none"
-            onClick={() => {
-              handleRequestDeleteNode(contextMenu.node);
-              setContextMenu(null);
-            }}
-          >
-            <Trash2 size={14} aria-hidden="true" />
-            <span>{t('code.deleteNode')}</span>
-          </button>
+          {contextMenu.node.path !== rootCreationParentPath ? (
+            <>
+              <div role="separator" className="my-1.5 h-px bg-white/10" />
+              <button
+                type="button"
+                tabIndex={-1}
+                role="menuitem"
+                className="flex w-full items-center gap-2 px-4 py-1.5 text-left transition-colors hover:bg-white/10 hover:text-white focus-visible:bg-white/10 focus-visible:text-white focus-visible:outline-none"
+                onClick={() => {
+                  handleBeginRenameNode(contextMenu.node);
+                  setContextMenu(null);
+                }}
+              >
+                <FileEdit size={14} className="text-gray-400" aria-hidden="true" />
+                <span>{t('code.renameNode')}</span>
+              </button>
+              <button
+                type="button"
+                tabIndex={-1}
+                role="menuitem"
+                className="flex w-full items-center gap-2 px-4 py-1.5 text-left text-red-500/80 transition-colors hover:bg-red-500/20 hover:text-red-400 focus-visible:bg-red-500/20 focus-visible:text-red-400 focus-visible:outline-none"
+                onClick={() => {
+                  handleRequestDeleteNode(contextMenu.node);
+                  setContextMenu(null);
+                }}
+              >
+                <Trash2 size={14} aria-hidden="true" />
+                <span>{t('code.deleteNode')}</span>
+              </button>
+            </>
+          ) : null}
           <div role="separator" className="my-1.5 h-px bg-white/10" />
           <button
             type="button"

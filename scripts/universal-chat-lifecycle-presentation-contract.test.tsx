@@ -91,6 +91,42 @@ assert.equal(normalized[2]?.durationMs, 3_500);
 assert.equal(normalized[2]?.cost, 0.07);
 assert.equal(normalized[3]?.detail, '10000 -> 2200 tokens');
 
+const duplicateCodexLifecyclePresentation = resolveAgentSessionItemPresentation({
+  id: 'codex-duplicate-lifecycle-item',
+  role: 'assistant',
+  content: '',
+  lifecycleEvents: [{
+    id: 'codex-turn-completed',
+    kind: 'completed',
+    usage: {
+      inputTokens: 2_000,
+      outputTokens: 200,
+      reasoningTokens: 50,
+      cacheReadTokens: 1_000,
+    },
+  }],
+  tool_calls: [{
+    item: {
+      id: 'codex-turn-completed',
+      type: 'turn.completed',
+      usage: {
+        input_tokens: 2_000,
+        output_tokens: 200,
+        reasoning_output_tokens: 50,
+      },
+    },
+  }],
+});
+const duplicateCodexLifecycleBlock = duplicateCodexLifecyclePresentation.blocks.find(
+  (block) => block.type === 'lifecycle',
+);
+assert.equal(duplicateCodexLifecycleBlock?.type, 'lifecycle');
+assert.equal(
+  duplicateCodexLifecycleBlock.events[0]?.usage?.cacheReadTokens,
+  1_000,
+  'A duplicate tool-call lifecycle record must not discard richer canonical usage fields.',
+);
+
 for (const fixture of Object.values(protocolFixtures)) {
   assert.equal(
     normalizeAgentSessionItemToolCall(fixture, 0),

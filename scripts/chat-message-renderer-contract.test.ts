@@ -104,6 +104,13 @@ const fileActivitySource = readFileSync(
   ),
   'utf8',
 );
+const fileChangeDisclosureRowSource = readFileSync(
+  new URL(
+    '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-ui/src/components/chat/messages/activity/FileChangeDisclosureRow.tsx',
+    import.meta.url,
+  ),
+  'utf8',
+);
 const reasoningContentBlockSource = readFileSync(
   new URL(
     '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-ui/src/components/chat/messages/contentBlocks/ReasoningContentBlock.tsx',
@@ -418,8 +425,13 @@ assert.match(
 );
 assert.match(
   fileActivitySource,
+  /<FileChangeDisclosureRow[\s\S]*rowKind="inline"/,
+  'File activity must delegate provider-neutral rows to the canonical file disclosure component.',
+);
+assert.match(
+  fileChangeDisclosureRowSource,
   /data-chat-file-disclosure[\s\S]*data-chat-file-inline-diff/,
-  'File activity must own its disclosure and bounded inline diff presentation.',
+  'The canonical file row must own its disclosure and bounded inline diff presentation.',
 );
 assert.match(
   contentBlockRenderersSource,

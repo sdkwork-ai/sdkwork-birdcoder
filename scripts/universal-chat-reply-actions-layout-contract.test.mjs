@@ -21,6 +21,21 @@ const replyMessageRenderersSource = fs.readFileSync(
   ),
   'utf8',
 );
+const chatTranscriptMessageSource = fs.readFileSync(
+  path.join(
+    rootDir,
+    'apps',
+    'sdkwork-birdcoder-pc',
+    'packages',
+    'sdkwork-birdcoder-pc-ui',
+    'src',
+    'components',
+    'chat',
+    'messages',
+    'ChatTranscriptMessage.tsx',
+  ),
+  'utf8',
+);
 const assistantReplyRendererSource = replyMessageRenderersSource.match(
   /export const AssistantReplyMessageRenderer[\s\S]*$/u,
 )?.[0];
@@ -37,8 +52,20 @@ assert.doesNotMatch(
 
 assert.match(
   assistantReplyRendererSource,
-  /<ContentBlockList view=\{view\} context=\{context\} \/>[\s\S]*?<TurnFileChangesCard[\s\S]*?\{context\.showMessageActions && !suppressReplyChrome \? \(\s*<ChatMessageActionBar/,
-  'UniversalChat assistant reply actions must render after structured Session Item blocks and the optional turn file-change summary.',
+  /<ContentBlockList view=\{view\} context=\{context\} \/>[\s\S]*?\{context\.showMessageActions && !suppressReplyChrome \? \(\s*<ChatMessageActionBar/,
+  'UniversalChat assistant reply actions must render after structured Session Item blocks.',
+);
+
+assert.doesNotMatch(
+  assistantReplyRendererSource,
+  /TurnFileChangesCard/,
+  'Provider reply renderers must not own the provider-neutral turn file-change summary.',
+);
+
+assert.match(
+  chatTranscriptMessageSource,
+  /<Renderer[\s\S]*?resolvedContext\.turnFileChanges[\s\S]*?<TurnFileChangesCard/,
+  'The transcript turn surface must render the file-change summary after the terminal provider item.',
 );
 
 assert.match(

@@ -88,6 +88,24 @@ describe('project session synchronization coordinator', () => {
     await expect(second).resolves.toBe(2);
   });
 
+  it('treats a task rejection caused by superseding abort as a neutral result', async () => {
+    const coordinator = createProjectSessionSynchronizationCoordinator<number>();
+    let firstSignal: AbortSignal | undefined;
+    const first = coordinator.synchronize(scope, ({ signal }) => {
+      firstSignal = signal;
+      return new Promise<number>((_resolve, reject) => {
+        signal.addEventListener('abort', () => reject(signal.reason), { once: true });
+      });
+    });
+    await Promise.resolve();
+
+    const second = coordinator.synchronize(scope, async () => 2, { force: true });
+
+    expect(firstSignal?.aborted).toBe(true);
+    await expect(first).resolves.toBeNull();
+    await expect(second).resolves.toBe(2);
+  });
+
   it('expires successful cache entries after the configured TTL', async () => {
     vi.useFakeTimers();
     try {

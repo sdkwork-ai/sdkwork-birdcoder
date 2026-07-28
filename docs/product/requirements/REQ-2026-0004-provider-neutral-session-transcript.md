@@ -63,9 +63,17 @@ framework implementation.
    impact, review, undo, and expansion behavior.
 7. Lifecycle, interaction, task, resource, Markdown, attachment, copy, edit,
    delete, regenerate, and virtualization behavior remains functional.
-8. The fixed provider E2E fixture renders without horizontal overflow at
+8. Opening or switching to a populated Session positions the transcript at
+   the latest message after progressive rendering and row measurement settle.
+9. New or streaming content follows the viewport only while the user remains
+   near the bottom; reading older content is never interrupted by autoscroll.
+10. Reaching the transcript top automatically reveals the next local window or
+    requests exactly one earlier server page while history remains available.
+11. Revealing or prepending history preserves the current reading anchor and
+    does not jump the viewport to the newly inserted first message.
+12. The fixed provider E2E fixture renders without horizontal overflow at
    1440x900 and 900x800 and produces reviewable visual evidence.
-9. Focused transcript contracts, PC typecheck, lint, architecture checks, and
+13. Focused transcript contracts, PC typecheck, lint, architecture checks, and
    production build pass.
 
 ## Non-Functional Requirements
@@ -74,8 +82,8 @@ framework implementation.
 | --- | --- |
 | Cohesion | Protocol normalization, presentation policy, and React rendering remain separate focused modules. |
 | Extensibility | A future provider adds a profile and adapter without modifying shared render branches. |
-| Performance | Existing progressive loading, virtualization, bounded previews, and lazy Markdown rendering remain intact. |
-| Reliability | Missing provider fields degrade to neutral generic labels and never invent completion. |
+| Performance | Existing progressive loading, server pagination, virtualization, bounded previews, and lazy Markdown rendering remain intact; each top threshold crossing loads at most one page. |
+| Reliability | Missing provider fields degrade to neutral generic labels and never invent completion; scroll anchoring survives local-window and server-page prepends. |
 | Accessibility | Disclosures, status, actions, and the active-turn tail remain keyboard and screen-reader operable. |
 | Security | Provider payloads are rendered only through normalized, bounded, sanitized presentation paths. |
 

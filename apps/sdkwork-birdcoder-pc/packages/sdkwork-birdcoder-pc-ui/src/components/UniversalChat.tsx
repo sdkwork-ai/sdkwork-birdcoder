@@ -579,7 +579,7 @@ const UniversalChatTranscript = memo(function UniversalChatTranscript({
     shouldStickToBottomRef.current = false;
   }, [firstMessageId, isActive, messages.length, scrollContainerRef, shouldStickToBottomRef]);
 
-  const handleLoadMoreRemoteMessages = useCallback(() => {
+  const handleLoadMoreRemoteMessages = useCallback(async (): Promise<void> => {
     if (
       !onLoadMoreRemoteMessages ||
       isLoadingMoreRemoteMessages ||
@@ -605,17 +605,17 @@ const UniversalChatTranscript = memo(function UniversalChatTranscript({
       isRequesting: true,
       sessionId,
     });
-    void Promise.resolve(onLoadMoreRemoteMessages())
-      .catch((error: unknown) => {
-        console.error('Failed to load earlier transcript messages', error);
-      })
-      .finally(() => {
-        setRemoteMessageRequestState((previousState) => (
-          previousState.sessionId === sessionId
-            ? { ...previousState, isRequesting: false }
-            : previousState
-        ));
-      });
+    try {
+      await onLoadMoreRemoteMessages();
+    } catch (error) {
+      console.error('Failed to load earlier transcript messages', error);
+    } finally {
+      setRemoteMessageRequestState((previousState) => (
+        previousState.sessionId === sessionId
+          ? { ...previousState, isRequesting: false }
+          : previousState
+      ));
+    }
   }, [
     firstMessageId,
     isLoadingMoreRemoteMessages,
@@ -645,6 +645,11 @@ const UniversalChatTranscript = memo(function UniversalChatTranscript({
     messagesEndRef,
     isActive,
     sessionId,
+    {
+      hasMoreMessages: hasMoreRemoteMessages,
+      isLoadingMessages: isLoadingMoreRemoteMessages || isRequestingRemoteMessages,
+      onLoadMoreMessages: handleLoadMoreRemoteMessages,
+    },
   );
   const turnFileChangesPresentations = useMemo(
     () => resolveTurnFileChangesMessagePresentations(renderedMessages, {
@@ -662,8 +667,14 @@ const UniversalChatTranscript = memo(function UniversalChatTranscript({
       .join('\u0001'),
     [turnFileChangesPresentations],
   );
-  const { paddingBottom, paddingTop, registerMessageElement, visibleMessages, visibleStartIndex } =
-    useVirtualizedTranscriptWindow(
+  const {
+    measurementVersion,
+    paddingBottom,
+    paddingTop,
+    registerMessageElement,
+    visibleMessages,
+    visibleStartIndex,
+  } = useVirtualizedTranscriptWindow(
       renderedMessages,
       scrollContainerRef,
       isActive,
@@ -703,6 +714,7 @@ const UniversalChatTranscript = memo(function UniversalChatTranscript({
     isActive,
     isLive,
     isUserControllingScrollRef,
+    measurementVersion,
     paddingBottom,
     paddingTop,
     renderedMessages.length,

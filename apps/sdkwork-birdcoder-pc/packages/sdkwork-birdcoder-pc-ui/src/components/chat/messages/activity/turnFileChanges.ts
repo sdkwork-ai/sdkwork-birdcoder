@@ -56,7 +56,7 @@ function isAuthoredTurnReply(message: AgentSessionItemView): boolean {
 }
 
 /**
- * Assigns one aggregate file card to the terminal authored reply in each turn.
+ * Assigns one aggregate file card after the terminal visible item in each authored turn.
  * File activity remains inline while the latest turn is still running.
  */
 export function resolveTurnFileChangesMessagePresentations(
@@ -86,16 +86,17 @@ export function resolveTurnFileChangesMessagePresentations(
       continue;
     }
 
-    let terminalMessageIndex: number | undefined;
+    let terminalAuthoredMessageIndex: number | undefined;
     for (let index = messageIndexes.length - 1; index >= 0; index -= 1) {
       const messageIndex = messageIndexes[index]!;
       const message = messages[messageIndex];
       if (message && isAuthoredTurnReply(message)) {
-        terminalMessageIndex = messageIndex;
+        terminalAuthoredMessageIndex = messageIndex;
         break;
       }
     }
-    if (terminalMessageIndex === undefined) {
+    const terminalMessageIndex = messageIndexes.at(-1);
+    if (terminalAuthoredMessageIndex === undefined || terminalMessageIndex === undefined) {
       continue;
     }
 
@@ -127,12 +128,12 @@ export function resolveTurnFileChangesMessagePresentations(
       };
     }
 
-    const terminalMessage = messages[terminalMessageIndex]!;
+    const terminalAuthoredMessage = messages[terminalAuthoredMessageIndex]!;
     presentations[terminalMessageIndex] = {
       suppressInlineFileChanges: true,
       card: {
         fileChanges,
-        messageId: terminalMessage.id,
+        messageId: terminalAuthoredMessage.id,
         scopeKey,
       },
     };

@@ -443,7 +443,7 @@ assert.match(
   /aria-label="Go to conversation turn 3: Third turn"/u,
 );
 
-const turnFileChanges = Array.from({ length: 5 }, (_, index) => ({
+const turnFileChanges = Array.from({ length: 12 }, (_, index) => ({
   path: `src/messages/file-${index + 1}.tsx`,
   additions: index + 1,
   deletions: 1,
@@ -472,7 +472,7 @@ const fileChangeTurn: AgentSessionItemView[] = [
 const completedTurnPresentations =
   resolveTurnFileChangesMessagePresentations(fileChangeTurn);
 assert.equal(completedTurnPresentations[1]?.suppressInlineFileChanges, true);
-assert.equal(completedTurnPresentations[2]?.card?.fileChanges.length, 5);
+assert.equal(completedTurnPresentations[2]?.card?.fileChanges.length, 12);
 assert.equal(completedTurnPresentations[2]?.card?.messageId, "file-assistant");
 
 const twoCompletedFileChangeTurns: AgentSessionItemView[] = [
@@ -573,6 +573,33 @@ assert.equal(
   "A completed authored reply must receive the file summary even without visible Markdown.",
 );
 
+const lifecycleTerminatedTurnPresentations =
+  resolveTurnFileChangesMessagePresentations([
+    {
+      ...createMessage("lifecycle-user", "user", "Apply the lifecycle update"),
+      turnId: "lifecycle-turn",
+    },
+    {
+      ...createMessage("lifecycle-tool", "tool", ""),
+      turnId: "lifecycle-turn",
+      fileChanges: [turnFileChanges[0]!],
+    },
+    {
+      ...createMessage("lifecycle-assistant", "assistant", "Update applied."),
+      turnId: "lifecycle-turn",
+    },
+    {
+      ...createMessage("lifecycle-finish", "tool", ""),
+      turnId: "lifecycle-turn",
+    },
+  ]);
+assert.equal(lifecycleTerminatedTurnPresentations[2]?.card, undefined);
+assert.equal(
+  lifecycleTerminatedTurnPresentations[3]?.card?.messageId,
+  "lifecycle-assistant",
+  "A turn summary must render after terminal lifecycle items while retaining the authored reply as its restore checkpoint.",
+);
+
 const liveTurnPresentations = resolveTurnFileChangesMessagePresentations(
   fileChangeTurn,
   {
@@ -607,9 +634,13 @@ const cardEnvironment = {
     }
     const labels: Record<string, string> = {
       "chat.changedLinesUnknown": "Line impact not captured",
+      "chat.contentPreviewFallback": "content preview",
+      "chat.diffPreview": "Diff preview",
+      "chat.noInlineDiff": "No inline diff available",
+      "chat.openFullDiff": "Open full diff",
       "chat.openFileInEditor": "Open file in editor",
-      "chat.reviewChanges": "Review",
       "chat.showFewerFiles": "Show fewer files",
+      "chat.toggleDiffPreview": "Toggle diff preview",
       "chat.undoChanges": "Undo",
     };
     return labels[key] ?? key;
@@ -626,14 +657,38 @@ const collapsedFileCardHtml = renderToStaticMarkup(
 assert.equal(
   [...collapsedFileCardHtml.matchAll(/data-chat-file-change-row="turn-card"/gu)]
     .length,
-  3,
+  10,
 );
-assert.match(collapsedFileCardHtml, /Edited 5 files/u);
-assert.match(collapsedFileCardHtml, /\+15/u);
-assert.match(collapsedFileCardHtml, /-5/u);
+assert.match(collapsedFileCardHtml, /Edited 12 files/u);
+assert.match(collapsedFileCardHtml, /\+78/u);
+assert.match(collapsedFileCardHtml, /-12/u);
 assert.match(collapsedFileCardHtml, /Show 2 more files/u);
 assert.match(collapsedFileCardHtml, /data-chat-turn-file-undo="true"/u);
-assert.match(collapsedFileCardHtml, /data-chat-turn-file-review="true"/u);
+assert.equal(
+  [...collapsedFileCardHtml.matchAll(/data-chat-file-open="true"/gu)].length,
+  10,
+);
+assert.equal(
+  [...collapsedFileCardHtml.matchAll(/data-chat-file-diff="true"/gu)].length,
+  10,
+);
+assert.doesNotMatch(collapsedFileCardHtml, /data-chat-file-inline-diff="true"/u);
+
+const firstFileKey = JSON.stringify([0, turnFileChanges[0]!.path]);
+const firstDiffExpandedFileCardHtml = renderToStaticMarkup(
+  <TurnFileChangesCard
+    environment={cardEnvironment}
+    expandedDisclosureKeys={
+      new Set([`${fileChangesPresentation.scopeKey}\u0001turn-file\u0001${firstFileKey}`])
+    }
+    presentation={fileChangesPresentation}
+    toggleDisclosure={() => undefined}
+  />,
+);
+assert.match(firstDiffExpandedFileCardHtml, /data-chat-file-inline-diff="true"/u);
+assert.match(firstDiffExpandedFileCardHtml, /data-chat-file-before-after="true"/u);
+assert.match(firstDiffExpandedFileCardHtml, /before 1/u);
+assert.match(firstDiffExpandedFileCardHtml, /after 1/u);
 
 const expandedFileCardHtml = renderToStaticMarkup(
   <TurnFileChangesCard
@@ -648,7 +703,7 @@ const expandedFileCardHtml = renderToStaticMarkup(
 assert.equal(
   [...expandedFileCardHtml.matchAll(/data-chat-file-change-row="turn-card"/gu)]
     .length,
-  5,
+  12,
 );
 assert.match(expandedFileCardHtml, /Show fewer files/u);
 

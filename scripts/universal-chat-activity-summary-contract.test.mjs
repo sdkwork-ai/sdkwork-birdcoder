@@ -14,6 +14,30 @@ const activityAnnouncerSource = await readFile(
   resolve('apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-ui/src/components/chat/messages/activity/ChatActivityLiveAnnouncer.tsx'),
   'utf8',
 );
+const chatFileActivityListSource = await readFile(
+  resolve('apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-ui/src/components/chat/messages/activity/ChatFileActivityList.tsx'),
+  'utf8',
+);
+const chatCommandActivityListSource = await readFile(
+  resolve('apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-ui/src/components/chat/messages/activity/ChatCommandActivityList.tsx'),
+  'utf8',
+);
+const fileChangeDisclosureRowSource = await readFile(
+  resolve('apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-ui/src/components/chat/messages/activity/FileChangeDisclosureRow.tsx'),
+  'utf8',
+);
+const turnFileChangesCardSource = await readFile(
+  resolve('apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-ui/src/components/chat/messages/activity/TurnFileChangesCard.tsx'),
+  'utf8',
+);
+const fileChangePresentationSource = await readFile(
+  resolve('apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-ui/src/components/fileChangePresentation.ts'),
+  'utf8',
+);
+const chatTranscriptMessageSource = await readFile(
+  resolve('apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-ui/src/components/chat/messages/ChatTranscriptMessage.tsx'),
+  'utf8',
+);
 
 const agentSessionItemActivityPresentationSource = await readFile(
   resolve('apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-contracts-commons/src/agent-session-item-activity-presentation.ts'),
@@ -111,38 +135,38 @@ assert.match(
 );
 assert.match(
   universalChatSource,
-  /<ChatActivityLiveAnnouncer[\s\S]*<div className="relative flex-1 min-h-0 min-w-0">[\s\S]*<UniversalChatTranscript/,
+  /<ChatActivityLiveAnnouncer[\s\S]*shouldPresentNewSessionComposer[\s\S]*'relative flex-1 min-h-0 min-w-0'[\s\S]*<UniversalChatTranscript/,
   'UniversalChat must mount the command announcer outside the virtualized transcript rows.',
 );
 
 assert.match(
   activitySummarySource,
-  /const editedFilesLabel = environment\?\.t\('chat\.editedFilesSummary'[\s\S]*const ranCommandsLabel = environment\?\.t\('chat\.ranCommandsSummary'/,
+  /const editedFilesCountLabel = environment\?\.t\('chat\.editedFilesSummary'[\s\S]*const ranCommandsCountLabel = environment\?\.t\('chat\.ranCommandsSummary'/,
   'The activity summary header must report edited-file and command counts with localized copy.',
 );
 
 assert.match(
   activitySummarySource,
-  /const totalAdditions = fileChangesWithKnownLineImpact\.reduce\(/,
+  /const totalAdditions = knownLineImpacts\.reduce\(/,
   'The activity summary must aggregate additions so the transcript can show total changed lines.',
 );
 
 assert.match(
   activitySummarySource,
-  /const totalDeletions = fileChangesWithKnownLineImpact\.reduce\(/,
+  /const totalDeletions = knownLineImpacts\.reduce\(/,
   'The activity summary must aggregate deletions so the transcript can show total removed lines.',
 );
 
 assert.match(
   activitySummarySource,
-  /const hasCompleteLineImpact = fileChanges\.length > 0\s*&& fileChangesWithKnownLineImpact\.length === fileChanges\.length;/,
+  /const hasCompleteLineImpact = fileChanges\.length > 0\s*&& knownLineImpacts\.length === fileChanges\.length;/,
   'The collapsed activity summary must show an exact line total only when every changed file has captured line impact.',
 );
 
 assert.match(
-  activitySummarySource,
-  /function buildFileChangeDiffPreview\(/,
-  'File rows must be expandable and able to show professional plus/minus diff details.',
+  fileChangePresentationSource,
+  /export function buildFileChangeDiffPreview\(/,
+  'Provider-neutral file presentation must own professional plus/minus diff details.',
 );
 
 assert.match(
@@ -152,20 +176,20 @@ assert.match(
 );
 
 assert.match(
-  activitySummarySource,
-  /data-chat-file-change-row="inline"/,
-  'Each file change must render as a flat clickable inline row inside the message stream.',
+  fileChangeDisclosureRowSource,
+  /FileChangeDisclosureRowKind = 'inline' \| 'turn-card'[\s\S]*data-chat-file-change-row=\{rowKind\}/,
+  'The canonical file row must expose activity and turn-summary variants through one explicit interface.',
 );
 
 assert.match(
-  activitySummarySource,
+  fileChangeDisclosureRowSource,
   /data-chat-file-inline-diff="true"/,
   'Clicking an edited-file row must reveal the diff inline below that row.',
 );
 
 assert.match(
-  activitySummarySource,
-  /const diffPreview = isFileExpanded\s*\? buildFileChangeDiffPreview\(fileChange\)\s*: null;/,
+  fileChangeDisclosureRowSource,
+  /\(\) => \(isExpanded \? buildFileChangeDiffPreview\(fileChange\) : null\)/,
   'Collapsed file rows must defer diff parsing until their independent inline preview is expanded.',
 );
 
@@ -176,14 +200,14 @@ assert.doesNotMatch(
 );
 
 assert.doesNotMatch(
-  activitySummarySource,
-  /data-chat-file-change-row="inline"[\s\S]{0,180}border border-white\/10/,
+  fileChangeDisclosureRowSource,
+  /data-chat-file-change-row=\{rowKind\}[\s\S]{0,180}border border-white\/10/,
   'Inline file rows must not be rendered as bordered nested cards.',
 );
 
 assert.match(
-  activitySummarySource,
-  /expandedDisclosureKeys\.has\([\s\S]{0,140}disclosureScopeKey[\s\S]{0,80}file/,
+  chatFileActivityListSource,
+  /const disclosureKey = `\$\{disclosureScopeKey\}\\u0001file[\s\S]*expandedDisclosureKeys\.has\(disclosureKey\)/,
   'Each edited-file row must use transcript-owned stable expansion state.',
 );
 
@@ -194,13 +218,13 @@ assert.match(
 );
 
 assert.match(
-  activitySummarySource,
-  /expandedDisclosureKeys\.has\([\s\S]{0,140}disclosureScopeKey[\s\S]{0,80}command/,
+  chatCommandActivityListSource,
+  /const disclosureKey = `\$\{disclosureScopeKey\}\\u0001command[\s\S]*expandedDisclosureKeys\.has\(disclosureKey\)/,
   'Each command row must use transcript-owned stable expansion state.',
 );
 
 assert.match(
-  activitySummarySource,
+  chatCommandActivityListSource,
   /data-chat-command-details="true"/,
   'Clicking a command row must reveal the full command and captured output.',
 );
@@ -216,35 +240,56 @@ assert.match(
   'The activity disclosure must explicitly associate its control with the expanded detail region.',
 );
 assert.match(
-  activitySummarySource,
+  chatCommandActivityListSource,
   /aria-controls=\{commandDetailsId\}[\s\S]*id=\{commandDetailsId\}/,
   'Every command disclosure must explicitly associate its control with its own details.',
 );
 assert.match(
-  activitySummarySource,
-  /aria-controls=\{fileDetailsId\}[\s\S]*id=\{fileDetailsId\}/,
+  fileChangeDisclosureRowSource,
+  /aria-controls=\{detailsId\}[\s\S]*id=\{detailsId\}/,
   'Every file diff disclosure must explicitly associate its control with its own preview.',
 );
 assert.match(
   activitySummarySource,
-  /data-chat-activity-counts="true"/,
+  /const activityAccessibleLabel =[\s\S]*editedFilesCountLabel[\s\S]*ranCommandsCountLabel/,
   'Mixed command and file activity must keep both counts visible in compact and narrow layouts.',
 );
 
 assert.match(
-  activitySummarySource,
-  /environment\?\.onViewChanges\?\.\(fileChange\)/,
+  fileChangeDisclosureRowSource,
+  /environment\.onViewChanges\?\.\(fileChange\)/,
   'Edited-file rows must still be connected to the existing full diff viewer action.',
 );
 assert.match(
-  activitySummarySource,
-  /environment\.onOpenFile\(fileChange\.path\)/,
+  fileChangeDisclosureRowSource,
+  /environment\.onOpenFile\?\.\(fileChange\.path\)/,
   'Clicking a changed-file name must open that file in the editor.',
 );
 assert.match(
-  activitySummarySource,
+  fileChangeDisclosureRowSource,
   /aria-label=\{`\$\{toggleDiffPreviewLabel\}: \$\{fileChange\.path\}`\}/,
   'The inline diff disclosure must remain a separate accessible action.',
+);
+
+assert.match(
+  chatFileActivityListSource,
+  /<FileChangeDisclosureRow/,
+  'Incremental file activity must reuse the canonical file disclosure row.',
+);
+assert.match(
+  turnFileChangesCardSource,
+  /TURN_FILE_CHANGES_PREVIEW_LIMIT = 10[\s\S]*<FileChangeDisclosureRow/,
+  'Completed turns must use the OpenCode-aligned ten-file preview and the canonical file disclosure row.',
+);
+assert.doesNotMatch(
+  replyMessageRenderersSource,
+  /TurnFileChangesCard/,
+  'Provider reply renderers must not own turn-level file summaries.',
+);
+assert.match(
+  chatTranscriptMessageSource,
+  /<Renderer[\s\S]*<TurnFileChangesCard[\s\S]*<ChatTurnActiveTail/,
+  'The shared transcript surface must place turn file summaries after provider output and before the live tail.',
 );
 assert.match(
   universalChatSource,
@@ -268,13 +313,13 @@ assert.match(
 );
 assert.match(
   studioPageSource,
-  /handleStudioOpenMessageFile[\s\S]*selectMessageFile\(path, settleSelection\)[\s\S]*selectionResult !== 'pending'[\s\S]*settleSelection\(selectionResult\)/,
-  'Studio chat file navigation must wait for the message-aware selection boundary to settle.',
+  /handleStudioOpenMessageFile[\s\S]*selectMessageFile\(path, settleSelection\)[\s\S]*selectionResult === 'pending'[\s\S]*activateFileEditor\(\)[\s\S]*settleSelection\(selectionResult\)/,
+  'Studio chat file navigation must keep pending cold-start selection visible while retaining the settlement callback.',
 );
 assert.match(
   studioPageSource,
-  /settleSelection[\s\S]*selectionResult === 'rejected'[\s\S]*chat\.fileOpenUnavailable[\s\S]*setViewingDiff\(null\)[\s\S]*handleActiveTabChange\('code'\)/,
-  'Studio chat file navigation must keep the current surface for rejected paths and switch only after opening succeeds.',
+  /activateFileEditor[\s\S]*setViewingDiff\(null\)[\s\S]*handleActiveTabChange\('code'\)[\s\S]*settleSelection[\s\S]*selectionResult === 'rejected'[\s\S]*chat\.fileOpenUnavailable[\s\S]*return;[\s\S]*activateFileEditor\(\)/,
+  'Studio chat file navigation must report rejected paths and activate the editor only for pending or opened selections.',
 );
 assert.match(
   fileSystemHookSource,
@@ -361,13 +406,13 @@ assert.match(
 );
 
 assert.doesNotMatch(
-  activitySummarySource.match(/export function resolveActivityFileChangeKey[\s\S]*?\n\}/)?.[0] ?? '',
+  fileChangePresentationSource.match(/export function resolveActivityFileChangeKey[\s\S]*?\n\}/)?.[0] ?? '',
   /fileChange\.(?:diff|content|originalContent|additions|deletions)/,
   'File disclosure identity must not change while provider diff content is streaming.',
 );
 assert.match(
   universalChatSource,
-  /expandedDisclosureKeys[\s\S]*toggleDisclosure[\s\S]*setExpandedDisclosureKeys\(new Set\(\)\)/,
+  /const expandedDisclosureKeys =\s*transcriptDisclosureState\.sessionId === sessionId[\s\S]*toggleDisclosure[\s\S]*previousState\.sessionId === sessionId[\s\S]*keys: nextKeys,[\s\S]*sessionId/,
   'Transcript-owned disclosure state must survive row virtualization and reset on session changes.',
 );
 assert.match(
@@ -419,19 +464,19 @@ assert.match(
 );
 
 assert.match(
-  activitySummarySource,
-  /function countDiffLineImpacts\(/,
+  fileChangePresentationSource,
+  /export function countDiffLineImpacts\(/,
   'The activity summary must derive + and - line impact from inline diff metadata when explicit line counts are missing.',
 );
 
 assert.match(
-  activitySummarySource,
+  fileChangeDisclosureRowSource,
   /chat\.changedLinesUnknown/,
   'File rows without diff metadata must use localized unknown line-impact copy instead of misleading +0/-0 counts.',
 );
 assert.match(
-  activitySummarySource,
-  /function resolveActivityFileChangeStatusLabel\([\s\S]*fileOperationMovedFrom[\s\S]*fileOperationCreated[\s\S]*fileOperationModified/,
+  fileChangePresentationSource,
+  /export function resolveActivityFileChangeStatusLabel\([\s\S]*fileOperationMovedFrom[\s\S]*fileOperationCreated[\s\S]*fileOperationModified/,
   'Provider file status tokens must be normalized into localized activity labels at the rendering boundary.',
 );
 

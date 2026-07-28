@@ -441,6 +441,300 @@ assert.deepEqual(commandResultView.fileChanges, [{
   originalContent: 'before',
   content: 'after',
 }]);
+
+const openCodeSnapshotDiffView = toAgentSessionItemView({
+  ...canonicalCommandResult,
+  itemId: 'agent-item-opencode-snapshot-diff',
+  toolResult: {
+    message: {
+      summary: {
+        diffs: [{
+          file: 'src/opencode-message.tsx',
+          patch: '@@ -1 +1 @@\n-before\n+after',
+          additions: 1,
+          deletions: 1,
+          status: 'modified',
+        }],
+      },
+    },
+  },
+});
+assert.deepEqual(openCodeSnapshotDiffView.fileChanges, [{
+  path: 'src/opencode-message.tsx',
+  additions: 1,
+  deletions: 1,
+  lineImpactKnown: true,
+  updateStatus: 'M',
+  diff: '@@ -1 +1 @@\n-before\n+after',
+}]);
+
+const codexAppServerFileChangeView = toAgentSessionItemView({
+  ...canonicalCommandResult,
+  itemId: 'agent-item-codex-app-server-file-change',
+  toolResult: {
+    method: 'item/completed',
+    params: {
+      threadId: 'thread-codex-1',
+      turnId: 'turn-codex-1',
+      item: {
+        id: 'codex-file-change-1',
+        type: 'fileChange',
+        status: 'completed',
+        changes: [{
+          path: 'src/codex-app-server.ts',
+          kind: { type: 'update', movePath: null },
+          diff: '@@ -1 +1 @@\n-before\n+after',
+        }],
+      },
+    },
+  },
+});
+assert.deepEqual(codexAppServerFileChangeView.fileChanges, [{
+  path: 'src/codex-app-server.ts',
+  additions: 1,
+  deletions: 1,
+  lineImpactKnown: true,
+  updateStatus: 'M',
+  diff: '@@ -1 +1 @@\n-before\n+after',
+}]);
+
+const codexAppServerCreatedFileView = toAgentSessionItemView({
+  ...canonicalCommandResult,
+  itemId: 'agent-item-codex-app-server-created-file',
+  toolResult: {
+    item: {
+      id: 'codex-file-change-created-1',
+      type: 'fileChange',
+      status: 'completed',
+      changes: [{
+        path: 'src/codex-created-v2.ts',
+        kind: { type: 'add' },
+        diff: 'export const created = true;\n',
+      }],
+    },
+  },
+});
+assert.deepEqual(codexAppServerCreatedFileView.fileChanges, [{
+  path: 'src/codex-created-v2.ts',
+  additions: 1,
+  deletions: 0,
+  lineImpactKnown: true,
+  updateStatus: 'A',
+  content: 'export const created = true;\n',
+  originalContent: '',
+}]);
+
+const codexAppServerMovedFileView = toAgentSessionItemView({
+  ...canonicalCommandResult,
+  itemId: 'agent-item-codex-app-server-moved-file',
+  toolResult: {
+    item: {
+      id: 'codex-file-change-moved-1',
+      type: 'fileChange',
+      status: 'completed',
+      changes: [{
+        path: 'src/codex-before-move.ts',
+        kind: { type: 'update', movePath: 'src/codex-after-move.ts' },
+        diff: '@@ -1 +1 @@\n-before\n+after',
+      }],
+    },
+  },
+});
+assert.deepEqual(codexAppServerMovedFileView.fileChanges, [{
+  path: 'src/codex-after-move.ts',
+  additions: 1,
+  deletions: 1,
+  lineImpactKnown: true,
+  updateStatus: 'R',
+  diff: '@@ -1 +1 @@\n-before\n+after',
+}]);
+
+const codexCoreFileChangeMapView = toAgentSessionItemView({
+  ...canonicalCommandResult,
+  itemId: 'agent-item-codex-core-file-change-map',
+  toolResult: {
+    type: 'patch',
+    changes: {
+      'src/codex-created.ts': {
+        type: 'add',
+        content: 'export const created = true;\n',
+      },
+    },
+  },
+});
+assert.deepEqual(codexCoreFileChangeMapView.fileChanges, [{
+  path: 'src/codex-created.ts',
+  additions: 1,
+  deletions: 0,
+  lineImpactKnown: true,
+  updateStatus: 'A',
+  content: 'export const created = true;\n',
+  originalContent: '',
+}]);
+
+const geminiCliFileDiffView = toAgentSessionItemView({
+  ...canonicalCommandResult,
+  itemId: 'agent-item-gemini-cli-file-diff',
+  toolResult: {
+    response: {
+      callId: 'gemini-write-file-1',
+      display: {
+        name: 'WriteFile',
+        result: {
+          type: 'diff',
+          path: 'src/gemini-cli.ts',
+          beforeText: 'const state = "before";\n',
+          afterText: 'const state = "after";\n',
+        },
+      },
+      resultDisplay: {
+        fileDiff: '@@ -1 +1 @@\n-const state = "before";\n+const state = "after";',
+        fileName: 'gemini-cli.ts',
+        filePath: 'src/gemini-cli.ts',
+        originalContent: 'const state = "before";\n',
+        newContent: 'const state = "after";\n',
+        diffStat: {
+          model_added_lines: 1,
+          model_removed_lines: 1,
+        },
+      },
+    },
+  },
+});
+assert.deepEqual(geminiCliFileDiffView.fileChanges, [{
+  path: 'src/gemini-cli.ts',
+  additions: 1,
+  deletions: 1,
+  lineImpactKnown: true,
+  updateStatus: 'M',
+  diff: '@@ -1 +1 @@\n-const state = "before";\n+const state = "after";',
+  content: 'const state = "after";\n',
+  originalContent: 'const state = "before";\n',
+}]);
+
+const claudeAgentSdkEditView = toAgentSessionItemView({
+  ...canonicalCommandResult,
+  itemId: 'agent-item-claude-agent-sdk-edit',
+  toolResult: {
+    type: 'user',
+    parent_tool_use_id: null,
+    tool_use_result: {
+      filePath: 'src/claude-agent-sdk.ts',
+      oldString: 'before',
+      newString: 'after',
+      originalFile: 'export const state = "before";\n',
+      structuredPatch: [{
+        oldStart: 1,
+        oldLines: 1,
+        newStart: 1,
+        newLines: 1,
+        lines: ['-export const state = "before";', '+export const state = "after";'],
+      }],
+      userModified: false,
+      replaceAll: false,
+      gitDiff: {
+        filename: 'src/claude-agent-sdk.ts',
+        status: 'modified',
+        additions: 1,
+        deletions: 1,
+        changes: 2,
+        patch: '@@ -1 +1 @@\n-export const state = "before";\n+export const state = "after";',
+      },
+    },
+  },
+});
+assert.deepEqual(claudeAgentSdkEditView.fileChanges, [{
+  path: 'src/claude-agent-sdk.ts',
+  additions: 1,
+  deletions: 1,
+  lineImpactKnown: true,
+  updateStatus: 'M',
+  diff: '@@ -1 +1 @@\n-export const state = "before";\n+export const state = "after";',
+  content: 'export const state = "after";\n',
+  originalContent: 'export const state = "before";\n',
+}]);
+
+const claudeAgentSdkWriteView = toAgentSessionItemView({
+  ...canonicalCommandResult,
+  itemId: 'agent-item-claude-agent-sdk-write',
+  toolResult: {
+    toolUseResult: {
+      type: 'create',
+      filePath: 'src/claude-created.ts',
+      content: 'export const created = true;\n',
+      originalFile: null,
+      structuredPatch: [{
+        oldStart: 0,
+        oldLines: 0,
+        newStart: 1,
+        newLines: 1,
+        lines: ['+export const created = true;'],
+      }],
+    },
+  },
+});
+assert.deepEqual(claudeAgentSdkWriteView.fileChanges, [{
+  path: 'src/claude-created.ts',
+  additions: 1,
+  deletions: 0,
+  lineImpactKnown: true,
+  updateStatus: 'A',
+  diff: '@@ -0,0 +1,1 @@\n+export const created = true;',
+  content: 'export const created = true;\n',
+  originalContent: '',
+}]);
+
+const snakeCaseFileChangeView = toAgentSessionItemView({
+  ...canonicalCommandResult,
+  itemId: 'agent-item-snake-case-file-change',
+  toolResult: {
+    data: {
+      file_changes: {
+        primary: {
+          file_path: 'src/provider-adapter.ts',
+          lines_added: 2,
+          lines_deleted: 1,
+          original_content: 'before\n',
+          new_content: '',
+          unified_diff: '@@ -1 +0,0 @@\n-before',
+          update_status: 'deleted',
+        },
+      },
+    },
+  },
+});
+assert.deepEqual(snakeCaseFileChangeView.fileChanges, [{
+  path: 'src/provider-adapter.ts',
+  additions: 2,
+  deletions: 1,
+  lineImpactKnown: true,
+  updateStatus: 'D',
+  diff: '@@ -1 +0,0 @@\n-before',
+  content: '',
+  originalContent: 'before\n',
+}]);
+
+const beforeAfterFileChangeView = toAgentSessionItemView({
+  ...canonicalCommandResult,
+  itemId: 'agent-item-before-after-file-change',
+  toolResult: {
+    changes: [{
+      path: 'src/gemini-message.ts',
+      before: 'old value',
+      after: 'new value',
+      status: 'added',
+    }],
+  },
+});
+assert.deepEqual(beforeAfterFileChangeView.fileChanges, [{
+  path: 'src/gemini-message.ts',
+  additions: 0,
+  deletions: 0,
+  lineImpactKnown: false,
+  updateStatus: 'A',
+  content: 'new value',
+  originalContent: 'old value',
+}]);
 const commandTranscript = composeAgentSessionTranscriptActivity(
   [commandCallView, commandResultView],
   { engineId: 'codex' },

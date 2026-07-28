@@ -16,14 +16,22 @@ export function resolveEarlierTranscriptStartIndex(
   );
 }
 
+export function isTranscriptWithinTopLoadThreshold(
+  metrics: TranscriptScrollMetrics | null,
+  thresholdPx: number = TRANSCRIPT_LOAD_MORE_THRESHOLD_PX,
+): boolean {
+  if (!metrics) {
+    return false;
+  }
+
+  return metrics.scrollTop <= Math.max(0, thresholdPx);
+}
+
 export function shouldLoadEarlierTranscriptPage(
   metrics: TranscriptScrollMetrics | null,
   visibleTranscriptStartIndex: number,
   thresholdPx: number = TRANSCRIPT_LOAD_MORE_THRESHOLD_PX,
 ): boolean {
-  if (!metrics || visibleTranscriptStartIndex <= 0) {
-    return false;
-  }
-
-  return metrics.scrollTop <= Math.max(0, thresholdPx);
+  return visibleTranscriptStartIndex > 0
+    && isTranscriptWithinTopLoadThreshold(metrics, thresholdPx);
 }

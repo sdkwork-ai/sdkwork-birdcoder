@@ -4,17 +4,14 @@ import type { IAgentSessionService } from '@sdkwork/birdcoder-pc-infrastructure-
 import { useAuth } from '../context/AuthContext.ts';
 import { buildBirdCoderAuthSessionInventoryScope } from '../context/authSessionScope.ts';
 import {
-  buildProjectsStoreScopeKey,
-  mutateProjectsStoreByScopeKey,
   upsertAgentSessionIntoProjectsStore,
   upsertProjectIntoProjectsStore,
 } from '../stores/projectsStore.ts';
 import type { IProjectService } from '../services/interfaces/IProjectService.ts';
+import type { HydrateImportedProjectFromAuthorityResult } from '../workbench/importedProjectHydration.ts';
 import {
   loadEarlierAgentSessionItems,
-  applyProjectSessionActivityRefresh,
   refreshAgentSessionItems,
-  refreshProjectSessions,
 } from '../workbench/sessionRefresh.ts';
 
 type ToastTone = 'error' | 'success';
@@ -79,6 +76,10 @@ export interface UseSessionRefreshActionsOptions {
     projectId: string,
     agentSessionId: string | null,
   ) => void;
+  synchronizeProjectSessions: (
+    projectId: string,
+    force?: boolean,
+  ) => Promise<HydrateImportedProjectFromAuthorityResult | null>;
 }
 
 export function useSessionRefreshActions({
@@ -91,6 +92,7 @@ export function useSessionRefreshActions({
   resolveAgentSessionTitle,
   resolveProjectName,
   restoreSelectionAfterRefresh,
+  synchronizeProjectSessions,
 }: UseSessionRefreshActionsOptions) {
   const { sessionRevision, user } = useAuth();
   const userScope = buildBirdCoderAuthSessionInventoryScope(user?.id, sessionRevision);
@@ -159,36 +161,15 @@ export function useSessionRefreshActions({
 
     setRefreshingProjectScope({ projectId: targetProjectId, userScope });
     try {
-      const result = await refreshProjectSessions({
-        agentSessionService,
-        projectId: targetProjectId,
-        projectService,
-      });
+      const result = await synchronizeProjectSessions(targetProjectId, true);
       if (
         projectRefreshGenerationRef.current !== requestGeneration
         || activeUserScopeRef.current !== userScope
       ) {
         return;
       }
-      if (result.status !== 'refreshed') {
-        addToast(messages.failedToRefreshProjectSessions, 'error');
+      if (!result) {
         return;
-      }
-
-      for (const project of result.projects ?? []) {
-        const scopeKey = buildProjectsStoreScopeKey(userScope, project.workspaceId);
-        mutateProjectsStoreByScopeKey(
-          scopeKey,
-          (projects) => applyProjectSessionActivityRefresh(
-            projects,
-            project,
-            result.deletedSessionIds,
-            {
-              deletedSessionTombstones: result.deletedSessionTombstones,
-              scopeKey,
-            },
-          ),
-        );
       }
       if (isPreservedSelectionStillCurrent(preservedSelection)) {
         restoreSelectionAfterRefreshRef.current(
@@ -216,11 +197,10 @@ export function useSessionRefreshActions({
     }
   }, [
     addToast,
-    agentSessionService,
     messages,
-    projectService,
     resolveProjectName,
     isPreservedSelectionStillCurrent,
+    synchronizeProjectSessions,
     userScope,
   ]);
 

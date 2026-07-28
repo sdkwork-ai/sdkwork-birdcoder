@@ -717,6 +717,7 @@ function StudioPageComponent({
     resolveProjectName: (targetProjectId: string) =>
       resolveProjectById(targetProjectId)?.name ?? targetProjectId,
     restoreSelectionAfterRefresh,
+    synchronizeProjectSessions: synchronizeImportedProject,
   });
   const pendingInteractionRefreshToken = useMemo(() => [
     currentProjectId,

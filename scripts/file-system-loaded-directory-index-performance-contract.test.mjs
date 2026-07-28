@@ -115,4 +115,74 @@ assert.doesNotMatch(
   'Drive directory refreshes must not scan the complete project entry cache.',
 );
 
+const driveSearchStart = driveSource.indexOf('  private async buildRemoteSearchTree(');
+const driveSearchEnd = driveSource.indexOf('\n  async searchFiles(', driveSearchStart);
+assert.notEqual(driveSearchStart, -1, 'DriveSandboxProjectFileSystemService must build search snapshots.');
+assert.notEqual(driveSearchEnd, -1, 'The Drive search snapshot builder must have a bounded method body.');
+const driveSearchBody = driveSource.slice(driveSearchStart, driveSearchEnd);
+assert.match(
+  driveSearchBody,
+  /const entriesByVirtualPath = new Map<string, SandboxEntry>\(\);/u,
+  'Drive search must use a request-local entry identity map.',
+);
+assert.doesNotMatch(
+  driveSearchBody,
+  /(?:entryToFileNode|cacheRemoteEntry)\(/u,
+  'Drive search snapshots must not permanently populate the interactive directory cache.',
+);
+assert.doesNotMatch(
+  driveSearchBody,
+  /queue\.shift\(\)/u,
+  'Drive search breadth-first traversal must use an O(1) cursor instead of Array.shift().',
+);
+assert.match(
+  driveSource,
+  /mutationGeneration[\s\S]*?MAX_SEARCH_SNAPSHOT_ATTEMPTS/u,
+  'Drive search must reject or retry a snapshot invalidated by an in-process mutation.',
+);
+assert.match(
+  driveSource,
+  /private async probeRemoteDirectory\([\s\S]*?pageSize: DIRECTORY_PAGE_SIZE,[\s\S]*?validateDirectoryEntry\(state, logicalPath, entry\);/u,
+  'Drive mount-state checks must use one bounded and validated directory page.',
+);
+const driveMountStateStart = driveSource.indexOf('  async getProjectMountState(');
+const driveMountStateEnd = driveSource.indexOf('\n  async restoreProjectMount(', driveMountStateStart);
+const driveMountStateBody = driveSource.slice(driveMountStateStart, driveMountStateEnd);
+assert.match(
+  driveMountStateBody,
+  /await this\.probeRemoteDirectory\(state, state\.binding\.logicalPath\);/u,
+  'Drive mount-state checks must not traverse every root directory page.',
+);
+assert.doesNotMatch(
+  driveMountStateBody,
+  /collectDirectoryChildrenBounded/u,
+  'Drive mount-state checks must remain independent of full directory collection.',
+);
+const driveRestoreMountStart = driveSource.indexOf('  async restoreProjectMount(');
+const driveRestoreMountEnd = driveSource.indexOf('\n  resolveLocalWorkingDirectory(', driveRestoreMountStart);
+const driveRestoreMountBody = driveSource.slice(driveRestoreMountStart, driveRestoreMountEnd);
+assert.match(
+  driveRestoreMountBody,
+  /await this\.probeRemoteDirectory\(state, state\.binding\.logicalPath\);/u,
+  'Mount restoration must verify current Drive access even when the file tree is cached.',
+);
+assert.match(
+  driveSource,
+  /function selectRemoteTrackedFilePollPaths\([\s\S]*?const primaryPath = trackedFilePaths\[0\]![\s\S]*?nextCursor:/u,
+  'Drive file polling must keep the primary file hot while rotating through additional tracked files.',
+);
+const driveSubscriptionStart = driveSource.indexOf('  subscribeToFileChanges(');
+const driveSubscriptionEnd = driveSource.indexOf('\n  async getProjectMountState(', driveSubscriptionStart);
+const driveSubscriptionBody = driveSource.slice(driveSubscriptionStart, driveSubscriptionEnd);
+assert.match(
+  driveSubscriptionBody,
+  /let trackedFilePollCursor = 0;/u,
+  'Drive file polling must retain a round-robin cursor across cycles.',
+);
+assert.doesNotMatch(
+  driveSubscriptionBody,
+  /\.slice\(0, MAX_REMOTE_POLLED_FILES\)/u,
+  'Drive file polling must not permanently starve tracked files beyond the first batch.',
+);
+
 console.log('file-system loaded directory index performance contract passed.');

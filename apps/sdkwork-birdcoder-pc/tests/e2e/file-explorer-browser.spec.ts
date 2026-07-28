@@ -1,6 +1,16 @@
 import { expect, test } from '@playwright/test';
 
 test('Browser Explorer renders and mutates the current project Drive root', async ({ page }) => {
+  await page.addInitScript(() => {
+    Object.defineProperty(navigator, 'clipboard', {
+      configurable: true,
+      value: {
+        writeText: async (text: string) => {
+          window.localStorage.setItem('birdcoder-e2e-clipboard', text);
+        },
+      },
+    });
+  });
   await page.goto('/#/auth/login');
   await expect(page.locator('.sdkwork-birdcoder-auth-shell')).toBeVisible({
     timeout: 45_000,
@@ -27,6 +37,25 @@ test('Browser Explorer renders and mutates the current project Drive root', asyn
   await expect(projectTree.getByText('src', { exact: true })).toBeVisible();
   await expect(projectTree.getByText('README.md', { exact: true })).toBeVisible();
 
+  const projectRoot = projectTree.getByRole('treeitem', {
+    name: 'sdkwork-birdcoder',
+    exact: true,
+  });
+  await expect(projectRoot.getByRole('button', { name: 'Delete sdkwork-birdcoder' }))
+    .toHaveCount(0);
+  await projectRoot.focus();
+  await projectRoot.press('F2');
+  await expect(projectTree.getByRole('textbox')).toHaveCount(0);
+  await projectRoot.press('Delete');
+  await expect(page.getByRole('dialog')).toHaveCount(0);
+  await projectRoot.press('Shift+F10');
+  const rootActions = page.getByRole('menu', { name: 'Actions for sdkwork-birdcoder' });
+  await expect(rootActions).toBeVisible();
+  await expect(rootActions.getByRole('menuitem', { name: 'Rename' })).toHaveCount(0);
+  await expect(rootActions.getByRole('menuitem', { name: 'Delete' })).toHaveCount(0);
+  await page.keyboard.press('Escape');
+  await expect(projectRoot).toBeFocused();
+
   const sourceDirectory = projectTree.getByRole('treeitem', { name: 'src', exact: true });
   await sourceDirectory.click();
   await expect(sourceDirectory).toHaveAttribute('aria-expanded', 'true');
@@ -36,6 +65,15 @@ test('Browser Explorer renders and mutates the current project Drive root', asyn
   await expect(projectTree.getByText('index.ts', { exact: true })).toHaveCount(0);
   await sourceDirectory.click();
   await expect(projectTree.getByText('index.ts', { exact: true })).toBeVisible();
+
+  const sourceFile = projectTree.getByRole('treeitem', { name: 'index.ts', exact: true });
+  await sourceFile.click({ button: 'right' });
+  const sourceFileActions = page.getByRole('menu', { name: 'Actions for index.ts' });
+  await expect(sourceFileActions).toBeVisible();
+  await sourceFileActions.getByRole('menuitem', { name: 'Copy Relative Path' }).click();
+  await expect.poll(() => page.evaluate(() => (
+    window.localStorage.getItem('birdcoder-e2e-clipboard')
+  ))).toBe('src/index.ts');
 
   await sourceDirectory.focus();
   await sourceDirectory.press('ArrowLeft');

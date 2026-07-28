@@ -105,11 +105,14 @@ export const FileChangeDisclosureRow = memo(function FileChangeDisclosureRow({
           </span>
           <span className="flex min-w-0 flex-1 items-baseline font-mono text-[12px]">
             {pathParts.parentPath ? (
-              <span className="min-w-0 truncate text-left text-gray-500 [direction:rtl]">
-                {pathParts.parentPath}/
-              </span>
+              <>
+                <span className="min-w-0 max-w-[45%] shrink truncate text-right text-gray-500 [direction:rtl]">
+                  <span className="[direction:ltr]">{pathParts.parentPath}</span>
+                </span>
+                <span className="shrink-0 text-gray-500">/</span>
+              </>
             ) : null}
-            <span className="min-w-0 shrink-0 truncate font-medium text-gray-200 group-hover/file:text-white">
+            <span className="min-w-0 flex-1 truncate font-medium text-gray-200 group-hover/file:text-white">
               {pathParts.fileName}
             </span>
           </span>

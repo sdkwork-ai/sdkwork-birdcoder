@@ -84,7 +84,7 @@ export const TurnFileChangesCard = memo(function TurnFileChangesCard({
         {hiddenFileCount > 0 ? (
           <button
             type="button"
-            className="shrink-0 rounded-md px-1.5 py-1 text-[12px] text-gray-400 transition-colors hover:bg-white/[0.05] hover:text-gray-200 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-blue-400/70"
+            className="inline-flex shrink-0 items-center gap-1 rounded-md px-1.5 py-1 text-[12px] text-gray-400 transition-colors hover:bg-white/[0.05] hover:text-gray-200 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-blue-400/70"
             data-chat-turn-file-toggle="true"
             aria-expanded={isExpanded}
             aria-controls={detailsId}

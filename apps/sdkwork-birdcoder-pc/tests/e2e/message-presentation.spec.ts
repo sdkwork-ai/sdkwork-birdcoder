@@ -78,6 +78,19 @@ async function selectSessionByTitle(page: Page, title: string): Promise<void> {
   }
 }
 
+async function selectStudioSessionByTitle(page: Page, title: string): Promise<void> {
+  const sessionPicker = page.locator('[data-studio-chat-header="true"] button').filter({
+    hasText: '/',
+  }).first();
+  await expect(sessionPicker).toBeVisible();
+  await sessionPicker.click();
+  const sessionMenu = page.locator('[data-studio-session-menu="true"]');
+  await expect(sessionMenu).toBeVisible();
+  const sessionRow = sessionMenu.locator('button[data-agent-session-id]').filter({ hasText: title });
+  await expect(sessionRow).toBeVisible();
+  await sessionRow.click();
+}
+
 test('Conversation messages render rich content and expandable command evidence', async ({
   page,
   request,
@@ -435,19 +448,62 @@ test('Provider lifecycle protocols share one structured expandable presentation'
   await openCodeContextDisclosure.click();
   await expect(openCodeContextDisclosure).toHaveAttribute('aria-expanded', 'true');
   await expect(openCodeContextGroup.locator('[data-chat-tool-kind]')).toHaveCount(2);
+  const openCodeFileCard = transcript.locator('[data-chat-turn-file-changes="true"]');
+  await expect(openCodeFileCard).toHaveCount(1);
+  await expect(openCodeFileCard).toHaveAttribute('data-chat-turn-file-count', '2');
+  await expect(openCodeFileCard).toContainText('Edited 2 files');
+  await expect(openCodeFileCard.locator('[data-chat-turn-file-impact="true"]')).toContainText('+2');
+  await expect(openCodeFileCard.locator('[data-chat-turn-file-impact="true"]')).toContainText('-1');
+  await expect(openCodeFileCard.locator('[data-chat-file-change-row="turn-card"]')).toHaveCount(2);
+  await expect.poll(async () => transcript.locator(
+    '[data-chat-lifecycle-event="completed"], [data-chat-turn-file-changes="true"]',
+  ).evaluateAll((elements) => elements.map((element) => (
+    element.hasAttribute('data-chat-turn-file-changes') ? 'files' : 'lifecycle'
+  )))).toEqual(['lifecycle', 'files']);
+  await openCodeFileCard.locator('[data-chat-file-disclosure="true"]').first().click();
+  const openCodeInlineDiff = openCodeFileCard.locator('[data-chat-file-inline-diff="true"]');
+  await expect(openCodeInlineDiff).toBeVisible();
+  await expect(openCodeInlineDiff).toContainText("applicationName = 'BirdCoder'");
+  await expect(openCodeInlineDiff).toContainText("applicationName = 'BirdCoder Pro'");
   await expect.poll(() => openCodeContextGroup.evaluate((element) => (
+    element.scrollWidth <= element.clientWidth
+  ))).toBe(true);
+  await expect.poll(() => openCodeFileCard.evaluate((element) => (
     element.scrollWidth <= element.clientWidth
   ))).toBe(true);
   await captureVisualEvidenceScreenshot(page, 'message-lifecycle-opencode-1200x820');
 
   await selectSessionByTitle(page, 'Codex implementation');
-  await expect(transcript.getByText('Codex historical message 45', { exact: true })).toBeVisible();
+  await expect(transcript.getByText(
+    'Codex completed the provider-neutral file presentation.',
+    { exact: true },
+  )).toBeVisible();
   const codexCompleted = transcript.locator('[data-chat-lifecycle-event="completed"]');
   await expect(codexCompleted).toContainText('Turn completed');
   await expect(codexCompleted).toContainText('2.3k tokens');
   await codexCompleted.locator('[data-chat-lifecycle-toggle="true"]').click();
   await expect(codexCompleted.locator('[data-chat-lifecycle-usage="true"]')).toContainText('Cache read');
   await expect(codexCompleted.locator('[data-chat-lifecycle-usage="true"]')).toContainText('1.0k');
+  const codexFileCard = transcript.locator('[data-chat-turn-file-changes="true"]');
+  await expect(codexFileCard).toHaveCount(1);
+  await expect(codexFileCard).toHaveAttribute('data-chat-turn-file-count', '1');
+  await expect(codexFileCard).toContainText('src/');
+  await expect(codexFileCard).toContainText('index.ts');
+  await expect(codexFileCard).toContainText('M');
+  await expect(codexFileCard.locator('[data-chat-turn-file-impact="true"]')).toContainText('+1');
+  await expect(codexFileCard.locator('[data-chat-turn-file-impact="true"]')).toContainText('-1');
+  await expect(codexFileCard.locator('[data-chat-turn-file-undo="true"]')).toHaveCount(1);
+  await codexFileCard.locator('[data-chat-file-disclosure="true"]').click();
+  await expect(codexFileCard.locator('[data-chat-file-inline-diff="true"]')).toContainText(
+    "applicationName = 'BirdCoder Codex'",
+  );
+  await expect.poll(() => codexFileCard.evaluate((element) => {
+    const messageSurface = element.closest('[data-chat-engine]');
+    return [
+      messageSurface?.getAttribute('data-chat-engine'),
+      messageSurface?.getAttribute('data-chat-engine-protocol'),
+    ];
+  })).toEqual(['codex', 'codex.item']);
 
   await selectSessionByTitle(page, 'Gemini failure triage');
   const geminiBlocked = transcript.locator('[data-chat-lifecycle-event="blocked"]');
@@ -467,12 +523,28 @@ test('Provider lifecycle protocols share one structured expandable presentation'
       '[data-chat-engine="gemini"][data-chat-engine-protocol="gemini.event"][data-chat-transcript-style="opencode-aligned"]',
     ),
   ).not.toHaveCount(0);
+  const geminiFileCard = transcript.locator('[data-chat-turn-file-changes="true"]');
+  await expect(geminiFileCard).toHaveCount(1);
+  await expect(geminiFileCard).toHaveAttribute('data-chat-turn-file-count', '1');
+  await expect(geminiFileCard).toContainText('gemini-message.ts');
+  await expect(geminiFileCard.locator('[data-chat-turn-file-impact="true"]')).toContainText('+1');
+  await expect(geminiFileCard.locator('[data-chat-turn-file-impact="true"]')).toContainText('-1');
+  await expect(geminiFileCard.locator('[data-chat-turn-file-undo="true"]')).toHaveCount(1);
+  await geminiFileCard.locator('[data-chat-file-disclosure="true"]').click();
+  const geminiInlineDiff = geminiFileCard.locator(
+    '[data-chat-file-inline-diff="true"][data-chat-file-before-after="true"]',
+  );
+  await expect(geminiInlineDiff).toContainText('state = "before"');
+  await expect(geminiInlineDiff).toContainText('state = "after"');
 
   await page.setViewportSize({ width: 900, height: 800 });
   await expect.poll(() => transcript.evaluate((element) => (
     element.scrollWidth <= element.clientWidth
   ))).toBe(true);
   await expect.poll(() => geminiCompacted.evaluate((element) => (
+    element.scrollWidth <= element.clientWidth
+  ))).toBe(true);
+  await expect.poll(() => geminiFileCard.evaluate((element) => (
     element.scrollWidth <= element.clientWidth
   ))).toBe(true);
   await captureVisualEvidenceScreenshot(page, 'message-lifecycle-gemini-900x800');
@@ -546,6 +618,32 @@ test('Studio message resources switch the reusable right-side detail surface', a
   await activityDisclosure.click();
   await transcript.locator('[data-chat-file-diff="true"]').first().click();
   await expect(detailSurface).toHaveAttribute('data-workspace-detail-active-kind', 'review');
+  await expect(detailSurface.locator('[data-chat-full-before-after-diff="true"]')).toBeVisible();
+  await expect(chatHeader).toBeVisible();
+  await expect(stageHeader).toBeVisible();
+  await expect(transcript).toBeVisible();
+
+  await selectStudioSessionByTitle(page, 'OpenCode verification');
+  await expect(transcript.getByText(
+    'The OpenCode-aligned message presentation is ready.',
+    { exact: true },
+  )).toBeVisible();
+  const openCodeFileCard = transcript.locator('[data-chat-turn-file-changes="true"]');
+  await expect(openCodeFileCard).toHaveCount(1);
+  await openCodeFileCard.locator('[data-chat-file-diff="true"]').first().click();
+  await expect(detailSurface).toHaveAttribute('data-workspace-detail-active-kind', 'review');
+  await expect(detailSurface.locator('[data-chat-full-unified-diff="true"]')).toBeVisible();
+  await expect(detailSurface.locator('[data-chat-full-unified-diff="true"]')).toContainText(
+    "applicationName = 'BirdCoder Pro'",
+  );
+  for (const tone of ['addition', 'deletion', 'hunk', 'meta']) {
+    await expect(
+      detailSurface.locator(`[data-chat-full-diff-line-tone="${tone}"]`),
+    ).not.toHaveCount(0);
+  }
+
+  await openCodeFileCard.locator('[data-chat-file-open="true"]').first().click();
+  await expect(detailSurface).toHaveAttribute('data-workspace-detail-active-kind', 'file-editor');
   await expect(chatHeader).toBeVisible();
   await expect(stageHeader).toBeVisible();
   await expect(transcript).toBeVisible();

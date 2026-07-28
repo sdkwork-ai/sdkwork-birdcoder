@@ -91,21 +91,21 @@ const sessions = [
     sessionId: 'e2e-opencode-session',
     agentId: 'agent.opencode',
     title: 'OpenCode verification',
-    itemCount: '5',
-    lastItemSequence: '5',
-    lastItemAt: '2026-01-01T00:10:05.000Z',
-    version: '5',
-    updatedAt: '2026-01-01T00:10:05.000Z',
+    itemCount: '6',
+    lastItemSequence: '6',
+    lastItemAt: '2026-01-01T00:10:06.000Z',
+    version: '6',
+    updatedAt: '2026-01-01T00:10:06.000Z',
   }),
   createAgentSessionFixture({
     sessionId: 'e2e-gemini-session',
     agentId: 'agent.gemini-cli',
     title: 'Gemini failure triage',
-    itemCount: '2',
-    lastItemSequence: '2',
-    lastItemAt: '2026-01-01T00:05:00.000Z',
-    version: '2',
-    updatedAt: '2026-01-01T00:05:00.000Z',
+    itemCount: '3',
+    lastItemSequence: '3',
+    lastItemAt: '2026-01-01T00:05:03.000Z',
+    version: '3',
+    updatedAt: '2026-01-01T00:05:03.000Z',
   }),
   ...Array.from({ length: 38 }, (_, index) => {
     const historyNumber = index + 1;
@@ -323,11 +323,11 @@ const sessionItemsBySessionId = new Map([
     [
       {
         sessionId: 'e2e-opencode-session',
-        itemId: 'e2e-opencode-item-5',
+        itemId: 'e2e-opencode-item-6',
         turnId: 'e2e-opencode-turn-1',
         kind: 'tool_result',
         status: 'completed',
-        sequence: '5',
+        sequence: '6',
         content: null,
         contentType: 'application/json',
         toolName: 'provider_event',
@@ -345,7 +345,38 @@ const sessionItemsBySessionId = new Map([
               cache: { read: 500, write: 20 },
             },
           },
+          message: {
+            summary: {
+              diffs: [
+                {
+                  file: 'src/index.ts',
+                  patch: "--- a/src/index.ts\n+++ b/src/index.ts\n@@ -1 +1 @@\n-export const applicationName = 'BirdCoder';\n+export const applicationName = 'BirdCoder Pro';",
+                  additions: 1,
+                  deletions: 1,
+                  status: 'modified',
+                },
+                {
+                  file: 'README.md',
+                  patch: '--- a/README.md\n+++ b/README.md\n@@ -1 +1,2 @@\n # SDKWork BirdCoder\n+Commercial message presentation ready.',
+                  additions: 1,
+                  deletions: 0,
+                  status: 'modified',
+                },
+              ],
+            },
+          },
         },
+        createdAt: '2026-01-01T00:10:06.000Z',
+      },
+      {
+        sessionId: 'e2e-opencode-session',
+        itemId: 'e2e-opencode-item-5',
+        turnId: 'e2e-opencode-turn-1',
+        kind: 'assistant_output',
+        status: 'completed',
+        sequence: '5',
+        content: 'The OpenCode-aligned message presentation is ready.',
+        contentType: 'text/markdown',
         createdAt: '2026-01-01T00:10:05.000Z',
       },
       {
@@ -458,6 +489,33 @@ const sessionItemsBySessionId = new Map([
     Array.from({ length: 45 }, (_, index) => {
       const sequence = 45 - index;
       const createdAt = new Date(Date.UTC(2026, 0, 1, 0, 0, sequence)).toISOString();
+      if (sequence === 45) {
+        return {
+          sessionId: 'e2e-codex-session',
+          itemId: 'e2e-codex-item-45',
+          turnId: 'e2e-codex-turn-1',
+          kind: 'tool_result',
+          status: 'completed',
+          sequence: '45',
+          content: null,
+          contentType: 'application/json',
+          toolName: 'provider_event',
+          toolCallId: 'e2e-codex-turn-completed-1',
+          toolResult: {
+            item: {
+              id: 'e2e-codex-turn-completed-1',
+              type: 'turn.completed',
+              usage: {
+                inputTokens: 2_000,
+                cachedInputTokens: 1_000,
+                outputTokens: 200,
+                reasoningOutputTokens: 50,
+              },
+            },
+          },
+          createdAt,
+        };
+      }
       if (sequence === 44) {
         return {
           sessionId: 'e2e-codex-session',
@@ -468,20 +526,37 @@ const sessionItemsBySessionId = new Map([
           sequence: '44',
           content: null,
           contentType: 'application/json',
-          toolName: 'provider_event',
-          toolCallId: 'e2e-codex-turn-completed-1',
+          toolName: 'apply_patch',
+          toolCallId: 'e2e-codex-file-change-1',
           toolResult: {
+            threadId: 'e2e-codex-session',
+            turnId: 'e2e-codex-turn-1',
             item: {
-              id: 'e2e-codex-turn-completed-1',
-              type: 'turn.completed',
-              usage: {
-                input_tokens: 2_000,
-                cached_input_tokens: 1_000,
-                output_tokens: 200,
-                reasoning_output_tokens: 50,
-              },
+              id: 'e2e-codex-file-change-1',
+              type: 'fileChange',
+              status: 'completed',
+              changes: [
+                {
+                  path: 'src/index.ts',
+                  kind: { type: 'update', movePath: null },
+                  diff: "--- a/src/index.ts\n+++ b/src/index.ts\n@@ -1 +1 @@\n-export const applicationName = 'BirdCoder';\n+export const applicationName = 'BirdCoder Codex';",
+                },
+              ],
             },
           },
+          createdAt,
+        };
+      }
+      if (sequence === 43) {
+        return {
+          sessionId: 'e2e-codex-session',
+          itemId: 'e2e-codex-item-43',
+          turnId: 'e2e-codex-turn-1',
+          kind: 'assistant_output',
+          status: 'completed',
+          sequence: '43',
+          content: 'Codex completed the provider-neutral file presentation.',
+          contentType: 'text/markdown',
           createdAt,
         };
       }
@@ -500,6 +575,17 @@ const sessionItemsBySessionId = new Map([
   [
     'e2e-gemini-session',
     [
+      {
+        sessionId: 'e2e-gemini-session',
+        itemId: 'e2e-gemini-item-3',
+        turnId: 'e2e-gemini-turn-1',
+        kind: 'assistant_output',
+        status: 'completed',
+        sequence: '3',
+        content: 'Gemini preserved the file change before the blocked event.',
+        contentType: 'text/markdown',
+        createdAt: '2026-01-01T00:05:03.000Z',
+      },
       {
         sessionId: 'e2e-gemini-session',
         itemId: 'e2e-gemini-item-2',
@@ -536,6 +622,31 @@ const sessionItemsBySessionId = new Map([
         toolResult: {
           id: 'e2e-gemini-blocked-1',
           type: 'agent_execution_blocked',
+          response: {
+            callId: 'e2e-gemini-write-file-1',
+            responseParts: [],
+            display: {
+              name: 'WriteFile',
+              resultSummary: '1 added, 1 removed',
+              result: {
+                type: 'diff',
+                path: 'src/gemini-message.ts',
+                beforeText: 'export const state = "before";\n',
+                afterText: 'export const state = "after";\n',
+              },
+            },
+            resultDisplay: {
+              fileDiff: '@@ -1 +1 @@\n-export const state = "before";\n+export const state = "after";',
+              fileName: 'gemini-message.ts',
+              filePath: 'src/gemini-message.ts',
+              originalContent: 'export const state = "before";\n',
+              newContent: 'export const state = "after";\n',
+              diffStat: {
+                model_added_lines: 1,
+                model_removed_lines: 1,
+              },
+            },
+          },
           value: {
             reason: 'Policy denied the requested action.',
             systemMessage: 'Review the command before continuing.',
@@ -673,7 +784,7 @@ function createSessionActivitySummary(session) {
   const presentationBySessionId = {
     'e2e-claude-session': { phase: 'running', state: 'working', turnStatus: 'running' },
     'e2e-codex-session': { phase: 'queued', state: 'working', turnStatus: 'requested' },
-    'e2e-opencode-session': { phase: 'waiting', state: 'waiting', turnStatus: 'running' },
+    'e2e-opencode-session': { phase: 'idle', state: 'idle', turnStatus: 'completed' },
     'e2e-gemini-session': { phase: 'failed', state: 'failed', turnStatus: 'failed' },
     'e2e-history-session-1': { phase: 'unknown', state: null, turnStatus: 'completed' },
     'e2e-history-session-2': { phase: 'running', state: 'working', turnStatus: 'running' },

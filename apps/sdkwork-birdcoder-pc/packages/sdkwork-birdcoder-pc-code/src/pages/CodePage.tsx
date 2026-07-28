@@ -587,6 +587,7 @@ function CodePageComponent({
     resolveProjectName: (targetProjectId: string) =>
       resolveProjectById(targetProjectId)?.name ?? targetProjectId,
     restoreSelectionAfterRefresh,
+    synchronizeProjectSessions: synchronizeImportedProject,
   });
   const handleRenameSession = useCallback(async (
     agentSessionId: string,

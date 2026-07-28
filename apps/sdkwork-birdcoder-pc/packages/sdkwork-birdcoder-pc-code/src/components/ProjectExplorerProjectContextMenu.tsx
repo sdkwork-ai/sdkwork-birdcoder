@@ -58,6 +58,8 @@ export function ProjectExplorerProjectContextMenu({
     >
       <button
         type="button"
+        aria-busy={isRefreshing}
+        disabled={isRefreshing}
         className={`w-full px-4 py-1.5 text-left transition-colors ${
           isRefreshing
             ? 'cursor-not-allowed text-gray-500'

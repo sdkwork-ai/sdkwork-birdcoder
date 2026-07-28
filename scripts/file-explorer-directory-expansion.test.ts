@@ -17,6 +17,7 @@ import {
   resolveFileExplorerExpandedFolders,
   setFileExplorerFolderExpanded,
 } from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-ui/src/components/fileExplorerExpansionState.ts';
+import { resolveFileExplorerRelativePath } from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-ui/src/components/fileExplorerPaths.ts';
 
 const nestedFile: IFileNode = {
   name: 'nested.ts',
@@ -94,6 +95,13 @@ assert.deepEqual(resolveFileExplorerExpandedFolders({
     true,
   ),
 }), { '/birdcoder': false, '/birdcoder/src': true });
+assert.equal(resolveFileExplorerRelativePath('/birdcoder', '/birdcoder'), '.');
+assert.equal(
+  resolveFileExplorerRelativePath('/birdcoder/', '/birdcoder/src/index.ts'),
+  'src/index.ts',
+);
+assert.equal(resolveFileExplorerRelativePath('/birdcoder', '/birdcoder-next/index.ts'), null);
+assert.equal(resolveFileExplorerRelativePath('/birdcoder', '/birdcoder/../private.txt'), null);
 
 let revision = 1;
 const entry = (
@@ -115,6 +123,7 @@ const entries = new Map<string, SandboxEntry>([
   ['projects/birdcoder/src/index.ts', entry('projects/birdcoder/src/index.ts', 'file')],
 ]);
 const listChildrenCalls = new Map<string, number>();
+const lastListChildrenPageSize = new Map<string, number>();
 const listChildren = (parentPath: string): SandboxEntry[] => {
   listChildrenCalls.set(parentPath, (listChildrenCalls.get(parentPath) ?? 0) + 1);
   const prefix = parentPath ? `${parentPath}/` : '';
@@ -130,6 +139,7 @@ let nextListChildrenTransform:
 let nextRepeatedListChildrenCursor: string | null = null;
 let nextListChildrenError: Error | null = null;
 let nextCreateFileBarrier: (() => Promise<void>) | null = null;
+let nextReadFileBarrier: ((logicalPath: string) => Promise<void>) | null = null;
 
 const drivePort: SandboxExplorerPort = {
   async listSandboxes() {
@@ -156,10 +166,11 @@ const drivePort: SandboxExplorerPort = {
     };
   },
   async listChildren(input) {
+    lastListChildrenPageSize.set(input.parentPath, input.pageSize);
     const listError = nextListChildrenError;
     nextListChildrenError = null;
     if (listError) throw listError;
-    const listedItems = listChildren(input.parentPath);
+    const listedItems = listChildren(input.parentPath).slice(0, input.pageSize);
     const transform = nextListChildrenTransform;
     nextListChildrenTransform = null;
     const items = transform ? transform(listedItems, input.parentPath) : listedItems;
@@ -222,11 +233,16 @@ const drivePort: SandboxExplorerPort = {
     return moved;
   },
   async readFile(input) {
+    const barrier = nextReadFileBarrier;
+    nextReadFileBarrier = null;
+    await barrier?.(input.logicalPath);
+    const currentEntry = entries.get(input.logicalPath);
+    if (!currentEntry) throw new Error('sensitive stale Drive read failure');
     return {
       checksumSha256: 'checksum',
       content: input.logicalPath,
       encoding: 'utf8',
-      entry: entries.get(input.logicalPath)!,
+      entry: currentEntry,
       sizeBytes: '0',
     };
   },
@@ -262,6 +278,35 @@ const expandedTree = await service.loadDirectory('project-1', '/birdcoder/src');
 assert.equal(expandedTree[0]!.children![0]!.children![0]!.name, 'index.ts');
 assert.equal(await service.getFiles('project-1'), expandedTree);
 assert.equal(listChildrenCalls.get('projects/birdcoder'), 1);
+
+assert.equal((await service.getProjectMountState('project-1')).status, 'mounted');
+assert.equal(
+  lastListChildrenPageSize.get('projects/birdcoder'),
+  200,
+  'Mount-state checks must use one bounded page instead of traversing the root.',
+);
+
+const mountProbeCallsBefore = listChildrenCalls.get('projects/birdcoder') ?? 0;
+nextListChildrenError = new Error('sensitive C:\\server\\workspace\\project');
+await assert.rejects(
+  service.restoreProjectMount('project-1'),
+  (error: unknown) => (
+    error instanceof Error
+    && error.message === 'Unable to verify access to the project Drive root.'
+    && !error.message.includes('server\\workspace')
+  ),
+  'A cached tree must not bypass a fresh, sanitized mount-access probe.',
+);
+assert.equal(
+  (listChildrenCalls.get('projects/birdcoder') ?? 0) - mountProbeCallsBefore,
+  0,
+);
+assert.equal((await service.restoreProjectMount('project-1')).restored, true);
+assert.equal(
+  (listChildrenCalls.get('projects/birdcoder') ?? 0) - mountProbeCallsBefore,
+  1,
+  'A successful cached mount restore must still read the remote project root once.',
+);
 
 await service.createFile('project-1', '/birdcoder/src/created.ts');
 assert.equal(listChildrenCalls.get('projects/birdcoder/src'), 1);
@@ -525,6 +570,84 @@ assert.deepEqual(
   'A transport failure must not be reported as a deleted file or expose raw server details.',
 );
 
+await service.createFile('project-1', '/birdcoder/src/revision-delete-race.ts');
+let releaseRevisionLookup!: () => void;
+let markRevisionLookupStarted!: () => void;
+const revisionLookupBarrier = new Promise<void>((resolve) => {
+  releaseRevisionLookup = resolve;
+});
+const revisionLookupStarted = new Promise<void>((resolve) => {
+  markRevisionLookupStarted = resolve;
+});
+nextListChildrenBarrier = async (parentPath) => {
+  assert.equal(parentPath, 'projects/birdcoder/src');
+  markRevisionLookupStarted();
+  await revisionLookupBarrier;
+};
+const revisionDeleteRaceLookup = service.getFileRevisions(
+  'project-1',
+  ['/birdcoder/src/revision-delete-race.ts'],
+);
+await revisionLookupStarted;
+await service.deleteFile('project-1', '/birdcoder/src/revision-delete-race.ts');
+releaseRevisionLookup();
+assert.deepEqual(await revisionDeleteRaceLookup, [{
+  path: '/birdcoder/src/revision-delete-race.ts',
+  revision: null,
+  missing: true,
+}], 'A revision response captured before deletion must retry instead of restoring stale identity.');
+
+let releaseSearchRoot!: () => void;
+let markSearchRootStarted!: () => void;
+const searchRootBarrier = new Promise<void>((resolve) => {
+  releaseSearchRoot = resolve;
+});
+const searchRootStarted = new Promise<void>((resolve) => {
+  markSearchRootStarted = resolve;
+});
+nextListChildrenBarrier = async (parentPath) => {
+  assert.equal(parentPath, 'projects/birdcoder');
+  markSearchRootStarted();
+  await searchRootBarrier;
+};
+const concurrentSearch = service.searchFiles('project-1', {
+  maxResults: 20,
+  query: 'search-race',
+});
+await searchRootStarted;
+await service.createFile('project-1', '/birdcoder/search-race.ts');
+releaseSearchRoot();
+assert.ok(
+  (await concurrentSearch).results.some((result) => result.path === '/birdcoder/search-race.ts'),
+  'A search invalidated by a local mutation must retry from one coherent Drive snapshot.',
+);
+
+let releaseSearchRead!: () => void;
+let markSearchReadStarted!: (logicalPath: string) => void;
+const searchReadBarrier = new Promise<void>((resolve) => {
+  releaseSearchRead = resolve;
+});
+const searchReadStarted = new Promise<string>((resolve) => {
+  markSearchReadStarted = resolve;
+});
+nextReadFileBarrier = async (logicalPath) => {
+  markSearchReadStarted(logicalPath);
+  await searchReadBarrier;
+};
+const deleteDuringSearch = service.searchFiles('project-1', {
+  maxResults: 20,
+  query: 'query-with-no-match',
+});
+const blockedLogicalPath = await searchReadStarted;
+const blockedVirtualPath = `/birdcoder${blockedLogicalPath.slice('projects/birdcoder'.length)}`;
+await service.deleteFile('project-1', blockedVirtualPath);
+releaseSearchRead();
+assert.deepEqual(
+  (await deleteDuringSearch).results,
+  [],
+  'A stale read failure caused by a concurrent deletion must retry instead of leaking the adapter error.',
+);
+
 await assert.rejects(
   service.createFile('project-1', `/birdcoder/src/${'a'.repeat(256)}`),
   /supported portable length/u,
@@ -533,6 +656,79 @@ await assert.rejects(
   service.createFolder('project-1', '/birdcoder/src/CON'),
   /not portable across supported hosts/u,
 );
+
+async function waitForCondition(
+  condition: () => boolean,
+  failureMessage: string,
+  timeoutMs = 4_000,
+): Promise<void> {
+  const deadline = Date.now() + timeoutMs;
+  while (!condition()) {
+    if (Date.now() >= deadline) throw new Error(failureMessage);
+    await new Promise<void>((resolve) => setTimeout(resolve, 10));
+  }
+}
+
+const pollEntries = new Map<string, SandboxEntry>();
+const trackedPollPaths = Array.from({ length: 21 }, (_, index) => {
+  const name = `tracked-${String(index).padStart(2, '0')}.ts`;
+  const logicalPath = `projects/birdcoder/poll/${name}`;
+  pollEntries.set(logicalPath, entry(logicalPath, 'file'));
+  return `/birdcoder/poll/${name}`;
+});
+let pollDirectoryRequestCount = 0;
+const pollingDrivePort: SandboxExplorerPort = {
+  ...drivePort,
+  async listChildren(input) {
+    assert.equal(input.parentPath, 'projects/birdcoder/poll');
+    pollDirectoryRequestCount += 1;
+    return { items: [...pollEntries.values()] };
+  },
+};
+const pollingService = new DriveSandboxProjectFileSystemService({
+  drivePort: pollingDrivePort,
+  projectService: {
+    async getProjectDrive() {
+      return {
+        driveId: 'drive-1',
+        logicalPath: 'projects/birdcoder',
+        projectId: 'project-1',
+        rootEntryId: 'root-entry',
+        slotId: 'primary',
+        version: '1',
+      };
+    },
+  },
+  remotePollIntervalMs: 500,
+});
+const tailTrackedPath = trackedPollPaths.at(-1)!;
+let tailChangeObserved = false;
+const stopPolling = pollingService.subscribeToFileChanges(
+  'project-1',
+  (event) => {
+    if (event.paths.includes(tailTrackedPath)) tailChangeObserved = true;
+  },
+  { getTrackedFilePaths: () => trackedPollPaths },
+);
+try {
+  await waitForCondition(
+    () => pollDirectoryRequestCount >= 2,
+    'Polling did not rotate far enough to establish a baseline for the tail file.',
+  );
+  await new Promise<void>((resolve) => setTimeout(resolve, 0));
+  const tailLogicalPath = `projects/birdcoder/poll/${tailTrackedPath.split('/').at(-1)!}`;
+  const previousTailEntry = pollEntries.get(tailLogicalPath)!;
+  pollEntries.set(tailLogicalPath, {
+    ...previousTailEntry,
+    revision: `revision:${revision++}`,
+  });
+  await waitForCondition(
+    () => tailChangeObserved,
+    'Round-robin polling starved a tracked file beyond the first 16 paths.',
+  );
+} finally {
+  stopPolling();
+}
 
 const useFileSystemSource = await readFile(
   new URL('../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-workbench/src/hooks/useFileSystem.ts', import.meta.url),

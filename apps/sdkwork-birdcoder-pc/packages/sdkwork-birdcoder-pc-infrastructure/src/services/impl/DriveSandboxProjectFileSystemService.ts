@@ -39,6 +39,7 @@ const DIRECTORY_PAGE_SIZE = 200;
 const MAX_DIRECTORY_PAGES = 100;
 const MAX_DIRECTORY_ENTRIES = DIRECTORY_PAGE_SIZE * MAX_DIRECTORY_PAGES;
 const MAX_SEARCH_TREE_NODES = 20_000;
+const MAX_SEARCH_SNAPSHOT_ATTEMPTS = 2;
 const REMOTE_POLL_INTERVAL_MS = 2_000;
 const MAX_REMOTE_POLLED_FILES = 16;
 const MAX_REVISION_DIRECTORY_CONCURRENCY = 4;
@@ -50,11 +51,15 @@ interface DriveSandboxProjectFileSystemServiceOptions {
 }
 
 interface RemoteProjectState {
+  activeMutationCount: number;
   readonly binding: ProjectDriveComposition;
   readonly context: DriveSandboxProjectPathContext;
   readonly directChildPathsByDirectoryPath: Map<string, Set<string>>;
   readonly directoryRequestGenerations: Map<string, symbol>;
   readonly entriesByVirtualPath: Map<string, SandboxEntry>;
+  mutationGeneration: number;
+  mutationSettledPromise: Promise<void>;
+  resolveMutationSettled: (() => void) | null;
   tree: IFileNode[];
 }
 
@@ -87,6 +92,57 @@ function bindingIdentity(binding: ProjectDriveComposition): string {
 function compareFileNodes(left: IFileNode, right: IFileNode): number {
   if (left.type !== right.type) return left.type === 'directory' ? -1 : 1;
   return left.name.localeCompare(right.name);
+}
+
+async function waitForPromiseWithAbort(
+  promise: Promise<void>,
+  signal?: AbortSignal,
+): Promise<void> {
+  signal?.throwIfAborted();
+  if (!signal) {
+    await promise;
+    return;
+  }
+  await new Promise<void>((resolve, reject) => {
+    const handleAbort = () => {
+      try {
+        signal.throwIfAborted();
+      } catch (error) {
+        reject(error);
+      }
+    };
+    signal.addEventListener('abort', handleAbort, { once: true });
+    void promise.then(() => {
+      signal.removeEventListener('abort', handleAbort);
+      resolve();
+    }, (error: unknown) => {
+      signal.removeEventListener('abort', handleAbort);
+      reject(error);
+    });
+  });
+}
+
+function selectRemoteTrackedFilePollPaths(
+  trackedFilePaths: readonly string[],
+  cursor: number,
+): { readonly nextCursor: number; readonly paths: readonly string[] } {
+  if (trackedFilePaths.length <= MAX_REMOTE_POLLED_FILES) {
+    return { nextCursor: 0, paths: trackedFilePaths };
+  }
+  const primaryPath = trackedFilePaths[0]!;
+  const secondaryPaths = trackedFilePaths.slice(1);
+  const secondaryBatchSize = MAX_REMOTE_POLLED_FILES - 1;
+  const normalizedCursor = (
+    (Math.trunc(cursor) % secondaryPaths.length) + secondaryPaths.length
+  ) % secondaryPaths.length;
+  const paths = [primaryPath];
+  for (let index = 0; index < secondaryBatchSize; index += 1) {
+    paths.push(secondaryPaths[(normalizedCursor + index) % secondaryPaths.length]!);
+  }
+  return {
+    nextCursor: (normalizedCursor + secondaryBatchSize) % secondaryPaths.length,
+    paths,
+  };
 }
 
 function assertRemoteEntryIdentity(
@@ -126,6 +182,28 @@ function cacheRemoteEntry(
   directChildPaths.add(path);
   state.directChildPathsByDirectoryPath.set(parentPath, directChildPaths);
   return path;
+}
+
+function validateDirectoryEntry(
+  state: RemoteProjectState,
+  requestedLogicalPath: string,
+  entry: SandboxEntry,
+): string {
+  if (entry.sandboxId !== state.binding.driveId) {
+    throw new Error('Drive returned an entry from an unexpected sandbox.');
+  }
+  const virtualPath = toVirtualProjectPath(state.context, entry.logicalPath);
+  const separatorIndex = entry.logicalPath.lastIndexOf('/');
+  const entryParentPath = separatorIndex < 0
+    ? ''
+    : entry.logicalPath.slice(0, separatorIndex);
+  const expectedName = separatorIndex < 0
+    ? entry.logicalPath
+    : entry.logicalPath.slice(separatorIndex + 1);
+  if (entryParentPath !== requestedLogicalPath || entry.name !== expectedName) {
+    throw new Error('Drive returned an entry outside the requested directory.');
+  }
+  return virtualPath;
 }
 
 function entryToFileNode(
@@ -195,11 +273,15 @@ export class DriveSandboxProjectFileSystemService implements IFileSystemService 
       throw new Error('Project workspace root identity no longer matches the Drive sandbox root.');
     }
     const state: RemoteProjectState = {
+      activeMutationCount: 0,
       binding,
       context: createDriveSandboxProjectPathContext(binding.logicalPath),
       directChildPathsByDirectoryPath: new Map(),
       directoryRequestGenerations: new Map(),
       entriesByVirtualPath: new Map(),
+      mutationGeneration: 0,
+      mutationSettledPromise: Promise.resolve(),
+      resolveMutationSettled: null,
       tree: [],
     };
     this.projectStates.set(normalizedProjectId, state);
@@ -227,20 +309,7 @@ export class DriveSandboxProjectFileSystemService implements IFileSystemService 
       }
       receivedEntryCount += result.items.length;
       for (const entry of result.items) {
-        if (entry.sandboxId !== state.binding.driveId) {
-          throw new Error('Drive returned an entry from an unexpected sandbox.');
-        }
-        const virtualPath = toVirtualProjectPath(state.context, entry.logicalPath);
-        const separatorIndex = entry.logicalPath.lastIndexOf('/');
-        const entryParentPath = separatorIndex < 0
-          ? ''
-          : entry.logicalPath.slice(0, separatorIndex);
-        const expectedName = separatorIndex < 0
-          ? entry.logicalPath
-          : entry.logicalPath.slice(separatorIndex + 1);
-        if (entryParentPath !== logicalPath || entry.name !== expectedName) {
-          throw new Error('Drive returned an entry outside the requested directory.');
-        }
+        const virtualPath = validateDirectoryEntry(state, logicalPath, entry);
 
         const existingEntry = entriesByVirtualPath.get(virtualPath);
         if (existingEntry) {
@@ -268,6 +337,27 @@ export class DriveSandboxProjectFileSystemService implements IFileSystemService 
       seenCursors.add(cursor);
     }
     throw new Error('Server directory exceeds the supported bounded page traversal limit.');
+  }
+
+  private async probeRemoteDirectory(
+    state: RemoteProjectState,
+    logicalPath: string,
+  ): Promise<void> {
+    try {
+      const result = await this.drivePort.listChildren({
+        sandboxId: state.binding.driveId,
+        parentPath: logicalPath,
+        pageSize: DIRECTORY_PAGE_SIZE,
+      });
+      if (result.items.length > DIRECTORY_PAGE_SIZE) {
+        throw new Error('Drive returned an oversized directory access probe.');
+      }
+      for (const entry of result.items) {
+        validateDirectoryEntry(state, logicalPath, entry);
+      }
+    } catch {
+      throw new Error('Unable to verify access to the project Drive root.');
+    }
   }
 
   private async loadRemoteDirectory(
@@ -323,6 +413,23 @@ export class DriveSandboxProjectFileSystemService implements IFileSystemService 
     };
   }
 
+  private async collectDirectoryChildrenConsistent(
+    state: RemoteProjectState,
+    logicalPath: string,
+  ): Promise<readonly SandboxEntry[]> {
+    const virtualPath = logicalPath === state.binding.logicalPath
+      ? state.context.virtualRootPath
+      : toVirtualProjectPath(state.context, logicalPath);
+    for (let attempt = 0; attempt < 2; attempt += 1) {
+      const requestGeneration = state.directoryRequestGenerations.get(virtualPath);
+      const entries = await this.collectDirectoryChildrenBounded(state, logicalPath);
+      if (state.directoryRequestGenerations.get(virtualPath) === requestGeneration) {
+        return entries;
+      }
+    }
+    throw new Error('Project Drive directory changed while the request was in progress.');
+  }
+
   private async refreshRemoteDirectoryState(
     state: RemoteProjectState,
     virtualPath: string,
@@ -353,6 +460,49 @@ export class DriveSandboxProjectFileSystemService implements IFileSystemService 
     const nextGeneration = Symbol(virtualPath);
     state.directoryRequestGenerations.set(virtualPath, nextGeneration);
     return nextGeneration;
+  }
+
+  private beginRemoteMutation(state: RemoteProjectState): () => void {
+    if (state.activeMutationCount === 0) {
+      state.mutationSettledPromise = new Promise<void>((resolve) => {
+        state.resolveMutationSettled = resolve;
+      });
+    }
+    state.activeMutationCount += 1;
+    state.mutationGeneration += 1;
+    let settled = false;
+    return () => {
+      if (settled) return;
+      settled = true;
+      state.activeMutationCount -= 1;
+      state.mutationGeneration += 1;
+      if (state.activeMutationCount === 0) {
+        const resolve = state.resolveMutationSettled;
+        state.resolveMutationSettled = null;
+        resolve?.();
+      }
+    };
+  }
+
+  private async waitForRemoteMutations(
+    state: RemoteProjectState,
+    signal?: AbortSignal,
+  ): Promise<void> {
+    while (state.activeMutationCount > 0) {
+      await waitForPromiseWithAbort(state.mutationSettledPromise, signal);
+    }
+  }
+
+  private async runRemoteMutation<T>(
+    state: RemoteProjectState,
+    mutation: () => Promise<T>,
+  ): Promise<T> {
+    const endMutation = this.beginRemoteMutation(state);
+    try {
+      return await mutation();
+    } finally {
+      endMutation();
+    }
   }
 
   private invalidateDirectoryRequestTree(
@@ -464,7 +614,7 @@ export class DriveSandboxProjectFileSystemService implements IFileSystemService 
     }
     const separatorIndex = logicalPath.lastIndexOf('/');
     const parentPath = separatorIndex < 0 ? '' : logicalPath.slice(0, separatorIndex);
-    const entries = await this.collectDirectoryChildrenBounded(state, parentPath);
+    const entries = await this.collectDirectoryChildrenConsistent(state, parentPath);
     const entry = entries.find((candidate) => candidate.logicalPath === logicalPath);
     if (!entry) throw new Error('The requested project Drive entry no longer exists.');
     cacheRemoteEntry(state, entry);
@@ -622,7 +772,7 @@ export class DriveSandboxProjectFileSystemService implements IFileSystemService 
         nextDirectoryIndex += 1;
         const [parentPath, requests] = directoryRequests[requestIndex]!;
         try {
-          const entries = await this.collectDirectoryChildrenBounded(state, parentPath);
+          const entries = await this.collectDirectoryChildrenConsistent(state, parentPath);
           const entriesByLogicalPath = new Map(
             entries.map((entry) => [entry.logicalPath, entry]),
           );
@@ -670,7 +820,7 @@ export class DriveSandboxProjectFileSystemService implements IFileSystemService 
   async saveFileContent(projectId: string, path: string, content: string): Promise<void> {
     await this.requireRemote(
       projectId,
-      async (state) => {
+      (state) => this.runRemoteMutation(state, async () => {
         const entry = await this.resolveKnownRemoteEntry(state, path);
         if (entry.kind !== 'file') throw new Error('The requested project Drive entry is not a file.');
         const updated = await this.drivePort.updateFile({
@@ -691,14 +841,14 @@ export class DriveSandboxProjectFileSystemService implements IFileSystemService 
         if (state.entriesByVirtualPath.get(entryPath)?.id === entry.id) {
           cacheRemoteEntry(state, updated);
         }
-      },
+      }),
     );
   }
 
   async createFile(projectId: string, path: string): Promise<void> {
     await this.requireRemote(
       projectId,
-      async (state) => {
+      (state) => this.runRemoteMutation(state, async () => {
         const target = splitVirtualMutationPath(state.context, path);
         this.advanceDirectoryRequestGeneration(state, target.virtualParentPath);
         const entry = await this.drivePort.createFile({
@@ -718,14 +868,14 @@ export class DriveSandboxProjectFileSystemService implements IFileSystemService 
         });
         const node = entryToFileNode(state, entry);
         state.tree = upsertNodeInDirectory(state.tree, target.virtualParentPath, node);
-      },
+      }),
     );
   }
 
   async createFolder(projectId: string, path: string): Promise<void> {
     await this.requireRemote(
       projectId,
-      async (state) => {
+      (state) => this.runRemoteMutation(state, async () => {
         const target = splitVirtualMutationPath(state.context, path);
         this.advanceDirectoryRequestGeneration(state, target.virtualParentPath);
         const entry = await this.drivePort.createDirectory({
@@ -743,7 +893,7 @@ export class DriveSandboxProjectFileSystemService implements IFileSystemService 
         });
         const node = entryToFileNode(state, entry);
         state.tree = upsertNodeInDirectory(state.tree, target.virtualParentPath, node);
-      },
+      }),
     );
   }
 
@@ -753,21 +903,23 @@ export class DriveSandboxProjectFileSystemService implements IFileSystemService 
     recursive: boolean,
     expectedKind: SandboxEntry['kind'],
   ): Promise<void> {
-    const target = splitVirtualMutationPath(state.context, path);
-    const canonicalPath = `${target.virtualParentPath}/${target.name}`;
-    const entry = await this.resolveKnownRemoteEntry(state, canonicalPath);
-    if (entry.kind !== expectedKind) throw new Error(`The requested entry is not a ${expectedKind}.`);
-    this.advanceDirectoryRequestGeneration(state, target.virtualParentPath);
-    await this.drivePort.deleteEntry({
-      sandboxId: state.binding.driveId,
-      entryId: entry.id,
-      logicalPath: entry.logicalPath,
-      revision: entry.revision,
-      recursive,
+    await this.runRemoteMutation(state, async () => {
+      const target = splitVirtualMutationPath(state.context, path);
+      const canonicalPath = `${target.virtualParentPath}/${target.name}`;
+      const entry = await this.resolveKnownRemoteEntry(state, canonicalPath);
+      if (entry.kind !== expectedKind) throw new Error(`The requested entry is not a ${expectedKind}.`);
+      this.advanceDirectoryRequestGeneration(state, target.virtualParentPath);
+      await this.drivePort.deleteEntry({
+        sandboxId: state.binding.driveId,
+        entryId: entry.id,
+        logicalPath: entry.logicalPath,
+        revision: entry.revision,
+        recursive,
+      });
+      this.advanceDirectoryRequestGeneration(state, target.virtualParentPath);
+      this.removeCachedEntryTree(state, canonicalPath);
+      state.tree = removeNodeFromTree(state.tree, canonicalPath);
     });
-    this.advanceDirectoryRequestGeneration(state, target.virtualParentPath);
-    this.removeCachedEntryTree(state, canonicalPath);
-    state.tree = removeNodeFromTree(state.tree, canonicalPath);
   }
 
   async deleteFile(projectId: string, path: string): Promise<void> {
@@ -787,7 +939,7 @@ export class DriveSandboxProjectFileSystemService implements IFileSystemService 
   async renameNode(projectId: string, oldPath: string, newPath: string): Promise<void> {
     await this.requireRemote(
       projectId,
-      async (state) => {
+      (state) => this.runRemoteMutation(state, async () => {
         const entry = await this.resolveKnownRemoteEntry(state, oldPath);
         const currentTarget = splitVirtualMutationPath(state.context, oldPath);
         const target = splitVirtualMutationPath(state.context, newPath);
@@ -831,38 +983,53 @@ export class DriveSandboxProjectFileSystemService implements IFileSystemService 
           target.virtualParentPath,
           entryToFileNode(state, moved),
         );
-      },
+      }),
     );
   }
 
   private async buildRemoteSearchTree(
     state: RemoteProjectState,
     signal?: AbortSignal,
-  ): Promise<{ readonly files: IFileNode[]; readonly limitReached: boolean }> {
+  ): Promise<{
+    readonly entriesByVirtualPath: ReadonlyMap<string, SandboxEntry>;
+    readonly files: IFileNode[];
+    readonly limitReached: boolean;
+  }> {
     const root = createRootNode(state, []);
+    const entriesByVirtualPath = new Map<string, SandboxEntry>();
     const queue: Array<{ logicalPath: string; node: IFileNode }> = [{
       logicalPath: state.binding.logicalPath,
       node: root,
     }];
+    let queueIndex = 0;
     let visited = 1;
     let limitReached = false;
-    while (queue.length > 0 && !signal?.aborted) {
-      const current = queue.shift()!;
+    while (queueIndex < queue.length && !signal?.aborted) {
+      const current = queue[queueIndex]!;
+      queueIndex += 1;
       const children: IFileNode[] = [];
-      for (const entry of await this.collectDirectoryChildrenBounded(state, current.logicalPath)) {
+      const entries = await this.collectDirectoryChildrenBounded(state, current.logicalPath);
+      if (signal?.aborted) break;
+      for (const entry of entries) {
         if (visited >= MAX_SEARCH_TREE_NODES) {
           limitReached = true;
           break;
         }
         visited += 1;
-        const child = entryToFileNode(state, entry);
+        const path = toVirtualProjectPath(state.context, entry.logicalPath);
+        entriesByVirtualPath.set(path, entry);
+        const child: IFileNode = {
+          name: entry.name,
+          path,
+          type: entry.kind,
+        };
         children.push(child);
         if (entry.kind === 'directory') queue.push({ logicalPath: entry.logicalPath, node: child });
       }
       current.node.children = children.sort(compareFileNodes);
       if (limitReached) break;
     }
-    return { files: [root], limitReached };
+    return { entriesByVirtualPath, files: [root], limitReached };
   }
 
   async searchFiles(
@@ -872,29 +1039,54 @@ export class DriveSandboxProjectFileSystemService implements IFileSystemService 
     return this.requireRemote(
       projectId,
       async (state) => {
-        const snapshot = await this.buildRemoteSearchTree(state, options.signal);
-        const result = await searchProjectFiles({
-          ...options,
-          files: snapshot.files,
-          readFileContent: async (path) => {
-            const entry = state.entriesByVirtualPath.get(path)
-              ?? await this.resolveRemoteEntry(state, path);
-            const content = await this.drivePort.readFile({
-              sandboxId: state.binding.driveId,
-              entryId: entry.id,
-              logicalPath: entry.logicalPath,
-              encoding: 'utf8',
+        for (let attempt = 0; attempt < MAX_SEARCH_SNAPSHOT_ATTEMPTS; attempt += 1) {
+          await this.waitForRemoteMutations(state, options.signal);
+          const mutationGeneration = state.mutationGeneration;
+          try {
+            const snapshot = await this.buildRemoteSearchTree(state, options.signal);
+            if (
+              state.activeMutationCount > 0
+              || state.mutationGeneration !== mutationGeneration
+            ) {
+              continue;
+            }
+            const result = await searchProjectFiles({
+              ...options,
+              files: snapshot.files,
+              readFileContent: async (path) => {
+                const entry = snapshot.entriesByVirtualPath.get(path)
+                  ?? await this.resolveRemoteEntry(state, path);
+                const content = await this.drivePort.readFile({
+                  sandboxId: state.binding.driveId,
+                  entryId: entry.id,
+                  logicalPath: entry.logicalPath,
+                  encoding: 'utf8',
+                });
+                assertRemoteEntryIdentity(content.entry, {
+                  sandboxId: state.binding.driveId,
+                  logicalPath: entry.logicalPath,
+                  kind: 'file',
+                  id: entry.id,
+                });
+                return content.content;
+              },
             });
-            assertRemoteEntryIdentity(content.entry, {
-              sandboxId: state.binding.driveId,
-              logicalPath: entry.logicalPath,
-              kind: 'file',
-              id: entry.id,
-            });
-            return content.content;
-          },
-        });
-        return { ...result, limitReached: result.limitReached || snapshot.limitReached };
+            if (
+              state.activeMutationCount === 0
+              && state.mutationGeneration === mutationGeneration
+            ) {
+              return { ...result, limitReached: result.limitReached || snapshot.limitReached };
+            }
+          } catch (error) {
+            if (
+              state.activeMutationCount === 0
+              && state.mutationGeneration === mutationGeneration
+            ) {
+              throw error;
+            }
+          }
+        }
+        throw new Error('Project Drive changed while the search was in progress.');
       },
     );
   }
@@ -907,6 +1099,7 @@ export class DriveSandboxProjectFileSystemService implements IFileSystemService 
     const normalizedProjectId = normalizeProjectId(projectId);
     let closed = false;
     let polling = false;
+    let trackedFilePollCursor = 0;
     const knownRevisions = new Map<string, string | null>();
     const timer = setInterval(() => {
       if (closed || polling) return;
@@ -914,16 +1107,23 @@ export class DriveSandboxProjectFileSystemService implements IFileSystemService 
       void (async () => {
         const state = await this.resolveRemoteProject(normalizedProjectId);
         if (!state) return;
-        const paths = [...new Set((options?.getTrackedFilePaths?.() ?? [])
+        const allTrackedPaths = [...new Set((options?.getTrackedFilePaths?.() ?? [])
           .map((path) => path.trim())
-          .filter(Boolean))]
-          .slice(0, MAX_REMOTE_POLLED_FILES);
-        const trackedPaths = new Set(paths);
+          .filter(Boolean))];
+        const selectedPaths = selectRemoteTrackedFilePollPaths(
+          allTrackedPaths,
+          trackedFilePollCursor,
+        );
+        trackedFilePollCursor = selectedPaths.nextCursor;
+        const trackedPaths = new Set(allTrackedPaths);
         for (const knownPath of knownRevisions.keys()) {
           if (!trackedPaths.has(knownPath)) knownRevisions.delete(knownPath);
         }
         const changedPaths: string[] = [];
-        const revisionLookups = await this.resolveRemoteFileRevisions(state, paths);
+        const revisionLookups = await this.resolveRemoteFileRevisions(
+          state,
+          selectedPaths.paths,
+        );
         for (const lookup of revisionLookups) {
           if (lookup.error) continue;
           const revision = lookup.missing ? null : lookup.revision;
@@ -950,7 +1150,7 @@ export class DriveSandboxProjectFileSystemService implements IFileSystemService 
     const normalizedProjectId = normalizeProjectId(projectId);
     const state = await this.resolveRemoteProject(normalizedProjectId);
     if (state) {
-      await this.collectDirectoryChildrenBounded(state, state.binding.logicalPath);
+      await this.probeRemoteDirectory(state, state.binding.logicalPath);
       return {
         displayName: state.context.virtualRootName,
         host: 'server',
@@ -963,7 +1163,10 @@ export class DriveSandboxProjectFileSystemService implements IFileSystemService 
   async restoreProjectMount(projectId: string): Promise<ProjectDeviceMountRecoveryResult> {
     const state = await this.resolveRemoteProject(projectId);
     if (state) {
-      await this.getFiles(projectId);
+      await this.probeRemoteDirectory(state, state.binding.logicalPath);
+      if (state.tree.length === 0) {
+        await this.refreshRemoteDirectoryState(state, state.context.virtualRootPath);
+      }
       return {
         restored: true,
         state: {

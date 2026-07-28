@@ -11,6 +11,7 @@ import {
 } from './transcriptVirtualization';
 
 interface VirtualizedTranscriptWindowResult {
+  measurementVersion: number;
   paddingBottom: number;
   paddingTop: number;
   registerMessageElement: (messageId: string) => (element: HTMLDivElement | null) => void;
@@ -351,6 +352,7 @@ export function useVirtualizedTranscriptWindow(
 
   return {
     ...windowedTranscript,
+    measurementVersion: measurementState.version,
     registerMessageElement,
   };
 }

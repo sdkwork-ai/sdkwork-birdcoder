@@ -5,6 +5,10 @@ const sidebarSource = fs.readFileSync(
   new URL('../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-code/src/components/Sidebar.tsx', import.meta.url),
   'utf8',
 );
+const codePageSource = fs.readFileSync(
+  new URL('../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-code/src/pages/CodePage.tsx', import.meta.url),
+  'utf8',
+);
 const projectContextMenuSource = fs.readFileSync(
   new URL('../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-code/src/components/ProjectExplorerProjectContextMenu.tsx', import.meta.url),
   'utf8',
@@ -57,6 +61,12 @@ assert.match(
 );
 
 assert.match(
+  projectContextMenuSource,
+  /aria-busy=\{isRefreshing\}[\s\S]*disabled=\{isRefreshing\}/,
+  'Code project context menu must expose a genuinely disabled busy refresh action.',
+);
+
+assert.match(
   sessionContextMenuSource,
   /t\('code\.refreshMessages'\)/,
   'Code session context menu must surface a refresh messages action.',
@@ -84,6 +94,12 @@ assert.match(
   sidebarSource,
   /refreshingAgentSessionId === contextMenu\.agentSessionId/,
   'Code sidebar session menu must disable only the active session refresh target.',
+);
+
+assert.match(
+  codePageSource,
+  /synchronizeProjectSessions:\s*synchronizeImportedProject,/,
+  'Code project refresh actions must share the mounted-project synchronization coordinator.',
 );
 
 assert.match(

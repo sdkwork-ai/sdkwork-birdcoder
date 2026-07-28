@@ -7,6 +7,7 @@ import {
   type TranscriptScrollMetrics,
 } from './chatScrollBehavior';
 import {
+  isTranscriptWithinTopLoadThreshold,
   resolveEarlierTranscriptStartIndex,
   resolveInitialVisibleTranscriptStartIndex,
   shouldLoadEarlierTranscriptPage,
@@ -16,6 +17,12 @@ interface ProgressiveTranscriptWindowState {
   isLoadingEarlierMessages: boolean;
   transcriptIdentity: string;
   visibleTranscriptStartIndex: number;
+}
+
+export interface ProgressiveTranscriptRemoteHistory {
+  hasMoreMessages: boolean;
+  isLoadingMessages: boolean;
+  onLoadMoreMessages?: () => void | Promise<void>;
 }
 
 function createProgressiveTranscriptWindowState(
@@ -56,6 +63,7 @@ export function useProgressiveTranscriptWindow(
   messagesEndRef: RefObject<HTMLDivElement | null>,
   isActive = true,
   transcriptScopeKey = '',
+  remoteHistory?: ProgressiveTranscriptRemoteHistory,
 ) {
   const firstMessageId = messages[0]?.id ?? '';
   const normalizedTranscriptScopeKey = transcriptScopeKey.trim();
@@ -67,6 +75,14 @@ export function useProgressiveTranscriptWindow(
   const isTranscriptPointerDragActiveRef = useRef(false);
   const pendingTopLoadAfterPointerReleaseRef = useRef(false);
   const topLoadAnimationFrameRef = useRef<number | null>(null);
+  const remoteHistoryRef = useRef(remoteHistory);
+  const remoteLoadRequestRef = useRef<Promise<void> | null>(null);
+  const remoteLoadRequestScopeRef = useRef(transcriptIdentity);
+  remoteHistoryRef.current = remoteHistory;
+  if (remoteLoadRequestScopeRef.current !== transcriptIdentity) {
+    remoteLoadRequestScopeRef.current = transcriptIdentity;
+    remoteLoadRequestRef.current = null;
+  }
   const [transcriptWindowState, setTranscriptWindowState] =
     useState<ProgressiveTranscriptWindowState>(() =>
       createProgressiveTranscriptWindowState(transcriptIdentity, messages.length),
@@ -115,7 +131,15 @@ export function useProgressiveTranscriptWindow(
   }, [isActive, messages.length, transcriptIdentity, visibleTranscriptStartIndex]);
 
   useEffect(() => {
-    if (!isActive || visibleTranscriptStartIndex === 0 || typeof window === 'undefined') {
+    const canLoadRemoteMessages = Boolean(
+      remoteHistory?.hasMoreMessages
+      && remoteHistory.onLoadMoreMessages,
+    );
+    if (
+      !isActive
+      || (visibleTranscriptStartIndex === 0 && !canLoadRemoteMessages)
+      || typeof window === 'undefined'
+    ) {
       return;
     }
 
@@ -124,17 +148,74 @@ export function useProgressiveTranscriptWindow(
       return;
     }
 
+    const canRequestRemoteMessages = () => {
+      const currentRemoteHistory = remoteHistoryRef.current;
+      return Boolean(
+        currentRemoteHistory?.hasMoreMessages
+        && !currentRemoteHistory.isLoadingMessages
+        && currentRemoteHistory.onLoadMoreMessages
+        && !remoteLoadRequestRef.current,
+      );
+    };
+    const isEarlierPageThresholdReached = () => {
+      const scrollMetrics = readTranscriptScrollMetrics(messagesEndRef);
+      if (!isTranscriptWithinTopLoadThreshold(scrollMetrics)) {
+        return false;
+      }
+
+      return visibleTranscriptStartIndex > 0 || canRequestRemoteMessages();
+    };
+    const requestRemoteMessages = () => {
+      const currentRemoteHistory = remoteHistoryRef.current;
+      if (
+        !currentRemoteHistory?.hasMoreMessages
+        || currentRemoteHistory.isLoadingMessages
+        || !currentRemoteHistory.onLoadMoreMessages
+        || remoteLoadRequestRef.current
+      ) {
+        return;
+      }
+
+      const requestScope = transcriptIdentity;
+      const request = Promise.resolve()
+        .then(() => currentRemoteHistory.onLoadMoreMessages?.())
+        .catch((error: unknown) => {
+          console.error('Failed to load earlier transcript messages', error);
+        })
+        .finally(() => {
+          if (
+            remoteLoadRequestScopeRef.current === requestScope
+            && remoteLoadRequestRef.current === request
+          ) {
+            remoteLoadRequestRef.current = null;
+          }
+        });
+      remoteLoadRequestRef.current = request;
+    };
     const requestEarlierTranscriptPage = () => {
-      if (pendingPrependedScrollMetricsRef.current || isLoadingEarlierMessages) {
+      if (
+        pendingPrependedScrollMetricsRef.current
+        || isLoadingEarlierMessages
+        || remoteHistoryRef.current?.isLoadingMessages
+        || remoteLoadRequestRef.current
+      ) {
         return;
       }
 
       const scrollMetrics = readTranscriptScrollMetrics(messagesEndRef);
-      if (!shouldLoadEarlierTranscriptPage(scrollMetrics, visibleTranscriptStartIndex)) {
+      if (!isTranscriptWithinTopLoadThreshold(scrollMetrics)) {
         return;
       }
 
-      if (!scrollMetrics) {
+      if (visibleTranscriptStartIndex === 0) {
+        requestRemoteMessages();
+        return;
+      }
+
+      if (
+        !scrollMetrics
+        || !shouldLoadEarlierTranscriptPage(scrollMetrics, visibleTranscriptStartIndex)
+      ) {
         return;
       }
 
@@ -167,10 +248,7 @@ export function useProgressiveTranscriptWindow(
       topLoadAnimationFrameRef.current = window.requestAnimationFrame(() => {
         topLoadAnimationFrameRef.current = null;
         if (isTranscriptPointerDragActiveRef.current) {
-          pendingTopLoadAfterPointerReleaseRef.current = shouldLoadEarlierTranscriptPage(
-            readTranscriptScrollMetrics(messagesEndRef),
-            visibleTranscriptStartIndex,
-          );
+          pendingTopLoadAfterPointerReleaseRef.current = isEarlierPageThresholdReached();
           return;
         }
 
@@ -210,6 +288,7 @@ export function useProgressiveTranscriptWindow(
     scrollContainer.addEventListener('pointerdown', handleTranscriptPointerDown, { passive: true });
     window.addEventListener('pointerup', handleTranscriptPointerRelease, true);
     window.addEventListener('pointercancel', handleTranscriptPointerRelease, true);
+    scheduleEarlierTranscriptPageRequest();
 
     return () => {
       isTranscriptPointerDragActiveRef.current = false;
@@ -228,6 +307,7 @@ export function useProgressiveTranscriptWindow(
     isLoadingEarlierMessages,
     messages.length,
     messagesEndRef,
+    remoteHistory?.hasMoreMessages,
     transcriptIdentity,
     visibleTranscriptStartIndex,
   ]);

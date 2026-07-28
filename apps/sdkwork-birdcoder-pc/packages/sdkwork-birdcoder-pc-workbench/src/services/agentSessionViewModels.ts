@@ -8,7 +8,6 @@ import type {
   AgentSessionView,
   AgentProjectView,
   AgentSessionProtocolNoticeKind,
-  FileChange,
 } from '@sdkwork/birdcoder-pc-contracts-commons';
 import {
   formatAgentSessionActivityDisplayTime,
@@ -23,6 +22,7 @@ import {
 } from '../workbench/codeEngineCatalog.ts';
 import { resolveAgentSessionActivityRuntimeStatus } from '../workbench/agentSessionActivity.ts';
 import { mergeAgentSessionProjectionForStore } from '../stores/projectsStore.ts';
+import { resolveAgentSessionFileChanges } from './agentSessionFileChanges.ts';
 
 export type AgentSessionRecord = Awaited<
   ReturnType<IAgentSessionService['getSession']>
@@ -373,133 +373,6 @@ function resolveItemToolCalls(item: AgentSessionItemRecord): unknown[] | undefin
   }];
 }
 
-function readStructuredFileChange(value: unknown): FileChange | null {
-  const record = readRecord(value);
-  if (!record) {
-    return null;
-  }
-
-  const readFirstString = (keys: readonly string[]): string => {
-    for (const key of keys) {
-      if (typeof record[key] === 'string') {
-        return record[key].trim();
-      }
-    }
-    return '';
-  };
-  const readFirstContent = (keys: readonly string[]): string | undefined => {
-    for (const key of keys) {
-      if (typeof record[key] === 'string') {
-        return record[key];
-      }
-    }
-    return undefined;
-  };
-  const path = readFirstString(['path', 'file', 'filePath', 'file_path']);
-  if (!path) {
-    return null;
-  }
-
-  const readLineCount = (candidate: unknown): number => (
-    typeof candidate === 'number' && Number.isFinite(candidate)
-      ? Math.max(0, Math.floor(candidate))
-      : 0
-  );
-  const additionsCandidate = record.additions
-    ?? record.linesAdded
-    ?? record.lines_added;
-  const deletionsCandidate = record.deletions
-    ?? record.linesDeleted
-    ?? record.lines_deleted;
-  const additions = readLineCount(additionsCandidate);
-  const deletions = readLineCount(deletionsCandidate);
-  const hasKnownLineImpact = typeof additionsCandidate === 'number'
-    && Number.isFinite(additionsCandidate)
-    && typeof deletionsCandidate === 'number'
-    && Number.isFinite(deletionsCandidate);
-  const lineImpactKnown = record.lineImpactKnown ?? record.line_impact_known;
-  const rawUpdateStatus = readFirstString(['updateStatus', 'update_status', 'status']);
-  const normalizedStatusByProviderValue: Readonly<Record<string, string>> = {
-    added: 'A',
-    created: 'A',
-    deleted: 'D',
-    modified: 'M',
-    moved: 'R',
-    renamed: 'R',
-  };
-  const updateStatus = normalizedStatusByProviderValue[rawUpdateStatus.toLowerCase()]
-    ?? rawUpdateStatus;
-  const diff = readFirstContent(['diff', 'patch', 'unifiedDiff', 'unified_diff']);
-  const content = readFirstContent([
-    'content',
-    'after',
-    'afterContent',
-    'after_content',
-    'newContent',
-    'new_content',
-  ]);
-  const originalContent = readFirstContent([
-    'originalContent',
-    'original_content',
-    'before',
-    'beforeContent',
-    'before_content',
-    'oldContent',
-    'old_content',
-  ]);
-
-  return {
-    path,
-    additions,
-    deletions,
-    lineImpactKnown: typeof lineImpactKnown === 'boolean'
-      ? lineImpactKnown
-      : hasKnownLineImpact,
-    ...(updateStatus ? { updateStatus } : {}),
-    ...(typeof diff === 'string' ? { diff } : {}),
-    ...(typeof content === 'string' ? { content } : {}),
-    ...(typeof originalContent === 'string' ? { originalContent } : {}),
-  };
-}
-
-function resolveItemFileChanges(item: AgentSessionItemRecord): FileChange[] | undefined {
-  const toolResult = readRecord(item.toolResult);
-  if (!toolResult) {
-    return undefined;
-  }
-
-  const nestedData = readRecord(toolResult.data);
-  const nestedMessage = readRecord(toolResult.message) ?? readRecord(nestedData?.message);
-  const nestedSummary = readRecord(toolResult.summary)
-    ?? readRecord(nestedData?.summary)
-    ?? readRecord(nestedMessage?.summary);
-  const candidate = toolResult.fileChanges
-    ?? toolResult.file_changes
-    ?? toolResult.diffs
-    ?? toolResult.changes
-    ?? nestedData?.fileChanges
-    ?? nestedData?.file_changes
-    ?? nestedData?.diffs
-    ?? nestedData?.changes
-    ?? nestedSummary?.diffs
-    ?? nestedSummary?.fileChanges
-    ?? nestedSummary?.file_changes;
-  const candidateValues = Array.isArray(candidate)
-    ? candidate
-    : readRecord(candidate)
-      ? Object.values(candidate)
-      : [];
-  if (candidateValues.length === 0) {
-    return undefined;
-  }
-
-  const fileChanges = candidateValues.flatMap((value) => {
-    const fileChange = readStructuredFileChange(value);
-    return fileChange ? [fileChange] : [];
-  });
-  return fileChanges.length > 0 ? fileChanges : undefined;
-}
-
 function resolveSessionStatus(
   status: AgentSessionRecord['status'],
 ): AgentSessionView['status'] {
@@ -539,7 +412,7 @@ export function toAgentSessionItemView(
     name: item.toolName ?? undefined,
     tool_calls: resolveItemToolCalls(item),
     tool_call_id: item.toolCallId ?? undefined,
-    fileChanges: resolveItemFileChanges(item),
+    fileChanges: resolveAgentSessionFileChanges(item.toolResult),
     lifecycleEvents: resolveItemLifecycleEvents(item),
     reasoning: resolveItemReasoning(item),
     resources: resolveItemResources(item),

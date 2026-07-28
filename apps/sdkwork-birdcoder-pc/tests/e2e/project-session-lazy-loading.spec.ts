@@ -145,3 +145,88 @@ test('Project Sessions load lazily without per-session user-state 404s', async (
   expect(sessionUserStateListRequests).toHaveLength(initialUserStateListRequestCount);
   expect(legacySessionUserStateRequests).toHaveLength(0);
 });
+
+test('project context-menu refresh coordinates mounted synchronization without abort errors', async ({
+  page,
+  request,
+}) => {
+  await bootstrapAuthenticatedSession(page, request);
+  const applicationErrors: string[] = [];
+  const failedRequests: string[] = [];
+  let delayNextProjectActivityRequest = false;
+  let releaseProjectActivityRequest: (() => void) | undefined;
+  let notifyProjectActivityRequestStarted: (() => void) | undefined;
+  const projectActivityRequestStarted = new Promise<void>((resolve) => {
+    notifyProjectActivityRequestStarted = resolve;
+  });
+  const projectActivityRequestReleased = new Promise<void>((resolve) => {
+    releaseProjectActivityRequest = resolve;
+  });
+
+  page.on('console', (message) => {
+    if (message.type() === 'error') {
+      applicationErrors.push(message.text());
+    }
+  });
+  page.on('requestfailed', (failedRequest) => {
+    failedRequests.push(
+      `${failedRequest.method()} ${failedRequest.url()} ${failedRequest.failure()?.errorText ?? 'unknown error'}`,
+    );
+  });
+  await page.route('**/app/v3/api/ai/session_activity_summaries**', async (route) => {
+    const url = new URL(route.request().url());
+    if (
+      delayNextProjectActivityRequest
+      && url.searchParams.get('project_id') === projectId
+    ) {
+      delayNextProjectActivityRequest = false;
+      notifyProjectActivityRequestStarted?.();
+      await projectActivityRequestReleased;
+    }
+    await route.continue();
+  });
+
+  await page.goto('/#/app/code');
+  await expect(page.getByRole('button', { name: 'Workspace and Projects' })).toBeVisible({
+    timeout: 60_000,
+  });
+  const projectRow = page.locator(`[data-project-id="${projectId}"]`).locator(':scope > div').first();
+  await expect(projectRow).toContainText('E2E Project');
+
+  await projectRow.click({ button: 'right' });
+  const projectMenu = page.locator('.birdcoder-chrome-menu').filter({ hasText: 'Refresh Sessions' });
+  const refreshAction = projectMenu.getByRole('button', { name: 'Refresh Sessions' });
+  await expect(refreshAction).toBeVisible();
+  delayNextProjectActivityRequest = true;
+  await refreshAction.click();
+  await projectActivityRequestStarted;
+
+  await projectRow.click({ button: 'right' });
+  const refreshingProjectMenu = page.locator('.birdcoder-chrome-menu').filter({
+    hasText: 'Refreshing Sessions',
+  });
+  const refreshingAction = refreshingProjectMenu.getByRole('button', {
+    name: 'Refreshing Sessions',
+  });
+  await expect(refreshingAction).toBeVisible();
+  await expect(refreshingAction).toBeDisabled();
+
+  const refreshResponse = page.waitForResponse((response) => {
+    const url = new URL(response.url());
+    return response.request().method() === 'GET'
+      && url.pathname === '/app/v3/api/ai/session_activity_summaries'
+      && url.searchParams.get('project_id') === projectId;
+  });
+  releaseProjectActivityRequest?.();
+  expect((await refreshResponse).ok()).toBe(true);
+  await expect(page.getByText('Refreshed sessions for project: E2E Project')).toBeVisible();
+
+  expect(applicationErrors.filter((message) => (
+    message.includes('AbortError')
+    || message.includes('superseded')
+    || message.includes('Failed to refresh mounted project sessions')
+    || message.includes('Failed to refresh project sessions')
+  ))).toHaveLength(0);
+  expect(failedRequests.filter((message) => message.includes('session_activity_summaries')))
+    .toHaveLength(0);
+});

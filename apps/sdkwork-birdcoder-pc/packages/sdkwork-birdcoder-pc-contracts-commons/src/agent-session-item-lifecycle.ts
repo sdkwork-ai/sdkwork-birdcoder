@@ -156,11 +156,12 @@ function readUsage(record: Record<string, unknown>): AgentSessionItemTokenUsageV
     'reasoning_output_tokens', 'thoughtsTokenCount', 'thoughts_token_count',
   ]);
   const cacheReadTokens = readFirstNumber(usage, [
-    'cacheRead', 'cache_read', 'cachedInputTokens', 'cached_input_tokens',
+    'cacheRead', 'cache_read', 'cacheReadTokens', 'cachedInputTokens', 'cached_input_tokens',
     'cachedContentTokenCount', 'cached_content_token_count',
   ]) ?? readFirstNumber(cache, ['read']);
   const cacheWriteTokens = readFirstNumber(usage, [
-    'cacheWrite', 'cache_write', 'cacheWriteInputTokens', 'cache_write_input_tokens',
+    'cacheWrite', 'cache_write', 'cacheWriteTokens', 'cacheWriteInputTokens',
+    'cache_write_input_tokens',
   ]) ?? readFirstNumber(cache, ['write']);
   const totalTokens = readFirstNumber(usage, [
     'total', 'totalTokens', 'total_tokens', 'totalTokenCount', 'total_token_count',
@@ -365,6 +366,20 @@ function normalizeLifecycleEvent(
   };
 }
 
+function mergeLifecycleEvents(
+  current: AgentSessionItemLifecycleEventView,
+  incoming: AgentSessionItemLifecycleEventView,
+): AgentSessionItemLifecycleEventView {
+  const usage = current.usage || incoming.usage
+    ? { ...current.usage, ...incoming.usage }
+    : undefined;
+  return {
+    ...current,
+    ...incoming,
+    ...(usage ? { usage } : {}),
+  };
+}
+
 export function isAgentSessionItemLifecycleRecord(value: unknown): boolean {
   return normalizeLifecycleEvent(value, 0) !== null;
 }
@@ -388,7 +403,8 @@ export function normalizeAgentSessionItemLifecycleEvents(
       }
       order.push(event.id);
     }
-    eventsById.set(event.id, event);
+    const current = eventsById.get(event.id);
+    eventsById.set(event.id, current ? mergeLifecycleEvents(current, event) : event);
   });
   return order.flatMap((id) => {
     const event = eventsById.get(id);

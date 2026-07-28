@@ -5,6 +5,10 @@ const sidebarSource = fs.readFileSync(
   new URL('../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-studio/src/pages/StudioChatSidebar.tsx', import.meta.url),
   'utf8',
 );
+const studioPageSource = fs.readFileSync(
+  new URL('../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-studio/src/pages/StudioPage.tsx', import.meta.url),
+  'utf8',
+);
 const enLocaleSource = fs.readFileSync(
   new URL('../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-i18n/src/locales/en/studio/workspace.ts', import.meta.url),
   'utf8',
@@ -66,6 +70,12 @@ assert.match(
   sidebarSource,
   /title=\{t\(refreshActionKey\)\}/,
   'Studio sidebar header refresh button must expose the correct label for the active context.',
+);
+
+assert.match(
+  studioPageSource,
+  /synchronizeProjectSessions:\s*synchronizeImportedProject,/,
+  'Studio project refresh actions must share the mounted-project synchronization coordinator.',
 );
 
 assert.match(

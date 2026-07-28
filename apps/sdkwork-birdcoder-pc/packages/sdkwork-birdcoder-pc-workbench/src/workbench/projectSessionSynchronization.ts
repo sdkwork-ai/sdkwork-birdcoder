@@ -103,6 +103,15 @@ export function createProjectSessionSynchronizationCoordinator<TResult>()
           }
           return result;
         })
+        .catch((error: unknown) => {
+          if (
+            controller.signal.aborted
+            || generationByScopeKey.get(scopeKey) !== generation
+          ) {
+            return null;
+          }
+          throw error;
+        })
         .finally(() => {
           if (inFlightByScopeKey.get(scopeKey) === synchronization) {
             inFlightByScopeKey.delete(scopeKey);

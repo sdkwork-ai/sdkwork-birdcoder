@@ -12,6 +12,7 @@ import type {
 import type { ChatMessageRendererRegistry } from './registry.ts';
 import { ChatTurnActiveTail } from './renderers/ChatTurnActiveTail.tsx';
 import { ChatTranscriptSurface } from './ChatTranscriptSurface.tsx';
+import { TurnFileChangesCard } from './activity/TurnFileChangesCard.tsx';
 
 export interface ChatTranscriptMessageProps {
   message: AgentSessionItemView;
@@ -70,6 +71,15 @@ export const ChatTranscriptMessage = memo(function ChatTranscriptMessage({
         view={view}
         context={resolvedContext}
       />
+      {resolvedContext.turnFileChanges ? (
+        <TurnFileChangesCard
+          compact={layout === 'sidebar'}
+          environment={resolvedContext.environment}
+          expandedDisclosureKeys={resolvedContext.expandedDisclosureKeys}
+          presentation={resolvedContext.turnFileChanges}
+          toggleDisclosure={resolvedContext.toggleDisclosure}
+        />
+      ) : null}
       {resolvedContext.turn.isActiveTail ? (
         <ChatTurnActiveTail
           layout={layout}

@@ -4,7 +4,6 @@ import { Button } from '@sdkwork/birdcoder-pc-ui-shell';
 import type { AgentSessionItemViewSource } from '@sdkwork/birdcoder-pc-workbench/chat/types';
 import type { AgentSessionItemPresentation } from '@sdkwork/birdcoder-pc-workbench/chat/types';
 import { ContentBlockList } from '../contentBlocks/ContentBlockList.tsx';
-import { TurnFileChangesCard } from '../activity/TurnFileChangesCard.tsx';
 import { UserMessageAttachments } from '../UserMessageAttachments.tsx';
 import { resolveUserMessageDisplay } from '../userMessageDisplay.ts';
 import {
@@ -212,15 +211,6 @@ export const AssistantReplyMessageRenderer = memo(function AssistantReplyMessage
         <RoleHeader viewKind={view.kind} layout={context.layout} t={context.environment?.t} />
       )}
       <ContentBlockList view={view} context={context} />
-      {context.turnFileChanges ? (
-        <TurnFileChangesCard
-          compact={isSidebar}
-          environment={context.environment}
-          expandedDisclosureKeys={context.expandedDisclosureKeys}
-          presentation={context.turnFileChanges}
-          toggleDisclosure={context.toggleDisclosure}
-        />
-      ) : null}
       {context.showMessageActions && !suppressReplyChrome ? (
         <ChatMessageActionBar
           message={message}
