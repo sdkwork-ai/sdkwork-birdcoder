@@ -2,47 +2,16 @@ import React, { memo } from 'react';
 import { estimateAgentSessionItemPresentationHeight } from '@sdkwork/birdcoder-pc-workbench/chat/types';
 import type { ChatMessageRendererEntry, ChatMessageRendererProps } from '../types.ts';
 import { AssistantReplyMessageRenderer } from '../renderers/ReplyMessageRenderers.tsx';
+import {
+  CHAT_PROVIDER_PRESENTATION_PROFILES,
+  resolveChatProviderPresentationProfile,
+  type ChatProviderPresentationProfile,
+} from '../presentation/providerPresentationProfiles.ts';
 
-export interface ChatEnginePresentationProfile {
-  engineId: 'claude-code' | 'codex' | 'gemini' | 'opencode';
-  protocolAdapterId:
-    | 'claude.content-block'
-    | 'codex.item'
-    | 'gemini.event'
-    | 'opencode.part';
-  surfaceLabel: string;
-}
+export const CHAT_ENGINE_PRESENTATION_PROFILES = CHAT_PROVIDER_PRESENTATION_PROFILES;
+export const resolveChatEnginePresentationProfile = resolveChatProviderPresentationProfile;
 
-export const CHAT_ENGINE_PRESENTATION_PROFILES: readonly ChatEnginePresentationProfile[] = [
-  {
-    engineId: 'codex',
-    protocolAdapterId: 'codex.item',
-    surfaceLabel: 'Codex',
-  },
-  {
-    engineId: 'claude-code',
-    protocolAdapterId: 'claude.content-block',
-    surfaceLabel: 'Claude Code',
-  },
-  {
-    engineId: 'opencode',
-    protocolAdapterId: 'opencode.part',
-    surfaceLabel: 'OpenCode',
-  },
-  {
-    engineId: 'gemini',
-    protocolAdapterId: 'gemini.event',
-    surfaceLabel: 'Gemini',
-  },
-];
-
-export function resolveChatEnginePresentationProfile(
-  engineId: string | undefined,
-): ChatEnginePresentationProfile | undefined {
-  return CHAT_ENGINE_PRESENTATION_PROFILES.find((profile) => profile.engineId === engineId);
-}
-
-function createEngineTaggedRenderer(profile: ChatEnginePresentationProfile) {
+function createEngineTaggedRenderer(profile: ChatProviderPresentationProfile) {
   return memo(function EngineTaggedAssistantReplyMessageRenderer(
     props: ChatMessageRendererProps,
   ) {
@@ -62,6 +31,7 @@ function createEngineTaggedRenderer(profile: ChatEnginePresentationProfile) {
         className="flex w-full min-w-0 max-w-full flex-col"
         data-chat-engine={profile.engineId}
         data-chat-engine-protocol={profile.protocolAdapterId}
+        data-chat-transcript-style={profile.transcriptStyle}
       >
         {showEngineLabel ? (
           <div className="mb-1 text-[11px] font-medium text-gray-500" data-chat-engine-label="true">

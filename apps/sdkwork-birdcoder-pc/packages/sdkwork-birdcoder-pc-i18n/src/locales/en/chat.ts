@@ -71,6 +71,7 @@ export default defineLocaleModule('chat', {
     stopListening: 'Stop listening',
     voiceInput: 'Voice input',
     generatingResponse: 'Generating response',
+    providerWorking: 'Working',
     queueMessage: 'Queue message',
     sendMessage: 'Send message',
     sendMessageBusy: 'The coding session is still working. The message was restored.',

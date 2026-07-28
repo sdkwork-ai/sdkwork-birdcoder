@@ -437,8 +437,11 @@ function adaptCodexToolRecord(record: Record<string, unknown>): Record<string, u
   }
   if (type === 'sub_agent_activity') {
     const activityKind = normalizeToolCallName(readNonEmptyString(source.kind));
+    const sourceWithoutProtocolWrapper = { ...source };
+    delete sourceWithoutProtocolWrapper.item;
+    delete sourceWithoutProtocolWrapper.kind;
     return {
-      ...source,
+      ...sourceWithoutProtocolWrapper,
       name: activityKind ? `subagent_${activityKind}` : 'subagent_activity',
       type: 'agent',
       arguments: {

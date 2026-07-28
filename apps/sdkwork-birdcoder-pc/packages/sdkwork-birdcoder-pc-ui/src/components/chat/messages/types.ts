@@ -6,6 +6,8 @@ import type {
   AgentSessionItemViewSource,
   FileChange,
 } from '@sdkwork/birdcoder-pc-workbench/chat/types';
+import type { ChatTranscriptTurnPresentation } from './presentation/transcriptTurnPresentation.ts';
+import type { ChatProviderPresentationProfile } from './presentation/providerPresentationProfiles.ts';
 
 export interface ChatSkill {
   id: string;
@@ -58,7 +60,9 @@ export interface ChatMessageRenderContext {
   expandedDisclosureKeys: ReadonlySet<string>;
   toggleDisclosure: (key: string) => void;
   renderMarkdownContent: (content: string, mode?: 'basic' | 'rich') => ReactNode;
+  providerProfile?: ChatProviderPresentationProfile;
   suppressInlineFileChanges?: boolean;
+  turn: ChatTranscriptTurnPresentation;
   turnFileChanges?: ChatTurnFileChangesPresentation;
 }
 

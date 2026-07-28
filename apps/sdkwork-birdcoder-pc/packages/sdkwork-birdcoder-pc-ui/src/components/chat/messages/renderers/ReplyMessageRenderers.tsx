@@ -136,7 +136,7 @@ export const UserTextMessageRenderer = memo(function UserTextMessageRenderer({
         />
         {textView ? (
           <div
-            className="max-w-[90%] min-w-0 overflow-hidden break-words rounded-lg rounded-tr-sm bg-white/[0.055] px-4 py-3 text-gray-200 [overflow-wrap:anywhere]"
+            className="max-w-[min(82%,64ch)] min-w-0 overflow-hidden break-words rounded-[10px] bg-white/[0.065] px-3 py-2 text-gray-200 [overflow-wrap:anywhere]"
             data-chat-user-text="true"
           >
             <ContentBlockList view={textView} context={context} />
@@ -166,7 +166,7 @@ export const UserTextMessageRenderer = memo(function UserTextMessageRenderer({
       />
       {textView ? (
         <div
-          className="max-w-[85%] min-w-0 overflow-hidden break-words rounded-lg rounded-tr-sm bg-white/[0.055] px-4 py-2.5 text-[length:calc(var(--birdcoder-ui-font-size,12px)_+_1px)] leading-6 text-gray-100 whitespace-pre-wrap [overflow-wrap:anywhere]"
+          className="max-w-[min(82%,64ch)] min-w-0 overflow-hidden break-words rounded-[10px] bg-white/[0.065] px-3 py-2 text-[length:calc(var(--birdcoder-ui-font-size,12px)_+_1px)] leading-6 text-gray-100 whitespace-pre-wrap [overflow-wrap:anywhere]"
           data-chat-user-text="true"
         >
           <ContentBlockList view={textView} context={context} />

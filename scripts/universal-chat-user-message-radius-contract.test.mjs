@@ -8,14 +8,14 @@ const replyMessageRenderersSource = fs.readFileSync(
 
 assert.match(
   replyMessageRenderersSource,
-  /className="[^"]*max-w-\[85%\][^"]*rounded-lg rounded-tr-sm[^"]*"\s*data-chat-user-text="true"/,
-  'UniversalChat main sent-message bubble must use a restrained radius so short messages do not render as circles.',
+  /className="[^"]*max-w-\[min\(82%,64ch\)\][^"]*rounded-\[10px\][^"]*px-3 py-2[^"]*"\s*data-chat-user-text="true"/,
+  'UniversalChat main sent-message bubble must use the OpenCode-aligned readable width, radius, and compact padding.',
 );
 
 assert.match(
   replyMessageRenderersSource,
-  /className="[^"]*max-w-\[90%\][^"]*rounded-lg rounded-tr-sm[^"]*"\s*data-chat-user-text="true"/,
-  'UniversalChat sidebar sent-message bubble must use a restrained radius so short messages do not render as circles.',
+  /className="[^"]*max-w-\[min\(82%,64ch\)\][^"]*rounded-\[10px\][^"]*px-3 py-2[^"]*"\s*data-chat-user-text="true"/,
+  'UniversalChat sidebar sent-message bubble must use the same provider-neutral OpenCode-aligned geometry.',
 );
 
 assert.match(

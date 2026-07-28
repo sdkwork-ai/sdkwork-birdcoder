@@ -69,20 +69,20 @@ export const TurnFileChangesCard = memo(function TurnFileChangesCard({
   return (
     <section
       aria-label={editedFilesLabel}
-      className={`mt-3 w-full overflow-hidden rounded-lg border border-white/10 bg-[#17171a] shadow-sm ${
+      className={`mt-4 w-full overflow-hidden border-y border-white/[0.07] bg-transparent ${
         compact ? 'text-xs' : 'text-sm'
       }`}
       data-chat-turn-file-changes="true"
     >
-      <div className={`flex min-w-0 flex-wrap items-center gap-3 border-b border-white/10 ${
-        compact ? 'px-3 py-3' : 'px-4 py-3.5'
+      <div className={`flex min-w-0 flex-wrap items-center gap-3 border-b border-white/[0.055] ${
+        compact ? 'px-1 py-2.5' : 'px-0 py-3'
       }`}>
         <div className="flex min-w-0 flex-1 items-center gap-3">
-          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-black/25 text-gray-300">
-            <FileDiff size={19} aria-hidden="true" />
+          <span className="flex h-7 w-7 shrink-0 items-center justify-center text-gray-500">
+            <FileDiff size={16} aria-hidden="true" />
           </span>
           <span className="min-w-0">
-            <span className="block truncate font-semibold text-gray-100">{editedFilesLabel}</span>
+            <span className="block truncate text-[13px] font-medium text-gray-200">{editedFilesLabel}</span>
             <span
               className="mt-0.5 flex items-center gap-1.5 font-mono text-[12px]"
               data-chat-turn-file-impact="true"
@@ -134,7 +134,7 @@ export const TurnFileChangesCard = memo(function TurnFileChangesCard({
             <button
               type="button"
               key={resolveActivityFileChangeKey(fileChange, fileIndex)}
-              className="group/file flex min-h-11 w-full min-w-0 items-center gap-2 border-b border-white/[0.055] px-4 text-left transition-colors last:border-b-0 hover:bg-white/[0.045] focus-visible:z-10 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-inset focus-visible:ring-blue-400/70"
+              className="group/file flex min-h-10 w-full min-w-0 items-center gap-2 border-b border-white/[0.045] px-1 text-left transition-colors last:border-b-0 hover:bg-white/[0.035] focus-visible:z-10 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-inset focus-visible:ring-blue-400/70"
               data-chat-file-change-row="turn-card"
               data-chat-file-open="true"
               aria-label={`${openFileLabel}: ${fileChange.path}`}
@@ -168,7 +168,7 @@ export const TurnFileChangesCard = memo(function TurnFileChangesCard({
       {hiddenFileCount > 0 ? (
         <button
           type="button"
-          className="flex h-11 w-full items-center gap-2 px-4 text-left text-gray-200 transition-colors hover:bg-white/[0.045] hover:text-white focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-inset focus-visible:ring-blue-400/70"
+          className="flex h-10 w-full items-center gap-2 px-1 text-left text-[12px] text-gray-400 transition-colors hover:bg-white/[0.035] hover:text-white focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-inset focus-visible:ring-blue-400/70"
           data-chat-turn-file-toggle="true"
           aria-expanded={isExpanded}
           aria-controls={detailsId}

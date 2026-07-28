@@ -28,13 +28,13 @@ assert.match(
 
 assert.match(
   universalChatSource,
-  /layout === 'main' \? 'max-w-\[880px\]' : 'w-full'/u,
+  /mx-auto w-full \$\{layout === 'main' \? 'max-w-\[880px\]' : ''\}/u,
   'Main-layout composer must keep the canonical 880px centered content track.',
 );
 
 assert.match(
   transcriptMessageSource,
-  /className=\{`[^`]*px-5[^`]*\$\{isUser \? 'py-2' : 'py-2\.5'\}[^`]*`\}/u,
+  /className=\{`group flex w-full min-w-0 px-5 \$\{[\s\S]*?resolvedContext\.turn\.isStart \? 'pt-6' : 'pt-3'[\s\S]*?\}`\}/u,
   'Main transcript rows must use the same 20px responsive horizontal inset as the composer.',
 );
 

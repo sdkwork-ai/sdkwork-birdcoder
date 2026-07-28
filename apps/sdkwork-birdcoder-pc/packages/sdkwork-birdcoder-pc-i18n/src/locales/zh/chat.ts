@@ -72,6 +72,7 @@ export default defineLocaleModule('chat', {
     stopListening: '\u505c\u6b62\u76d1\u542c',
     voiceInput: '\u8bed\u97f3\u8f93\u5165',
     generatingResponse: '\u6b63\u5728\u751f\u6210\u56de\u590d',
+    providerWorking: '\u6b63\u5728\u5904\u7406',
     queueMessage: '\u52a0\u5165\u961f\u5217',
     sendMessage: '\u53d1\u9001\u6d88\u606f',
     sendMessageBusy: '\u4ee3\u7801\u4f1a\u8bdd\u4ecd\u5728\u6267\u884c\uff0c\u6d88\u606f\u5df2\u6062\u590d\u3002',

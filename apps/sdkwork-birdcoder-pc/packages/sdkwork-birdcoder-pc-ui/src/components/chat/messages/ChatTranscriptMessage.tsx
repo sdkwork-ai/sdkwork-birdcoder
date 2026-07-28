@@ -14,6 +14,7 @@ import type {
   ChatMessageRenderContext,
 } from './types.ts';
 import type { ChatMessageRendererRegistry } from './registry.ts';
+import { ChatTurnActiveTail } from './renderers/ChatTurnActiveTail.tsx';
 
 export interface ChatTranscriptMessageProps {
   message: AgentSessionItemView;
@@ -67,12 +68,19 @@ export const ChatTranscriptMessage = memo(function ChatTranscriptMessage({
         className={isUser
           ? 'group flex w-full min-w-0 flex-col items-end'
           : 'group flex w-full min-w-0 max-w-full flex-col items-start'}
+        data-chat-turn-end={resolvedContext.turn.isEnd ? 'true' : undefined}
+        data-chat-turn-key={resolvedContext.turn.key}
+        data-chat-turn-position={resolvedContext.turn.position}
+        data-chat-turn-start={resolvedContext.turn.isStart ? 'true' : undefined}
         style={buildTranscriptSurfaceStyle(resolveTranscriptSurfaceIntrinsicSize(layout, isUser))}
       >
         <Renderer
           view={view}
           context={resolvedContext}
         />
+        {resolvedContext.turn.isActiveTail ? (
+          <ChatTurnActiveTail layout={layout} t={resolvedContext.environment?.t} />
+        ) : null}
       </div>
     );
   }
@@ -82,14 +90,29 @@ export const ChatTranscriptMessage = memo(function ChatTranscriptMessage({
       data-transcript-message-index={index}
       ref={messageRef}
       key={messageRenderKey ?? `${sessionId}\u0001${index}\u0001${message.id || 'message'}`}
-      className={`group flex w-full min-w-0 px-5 ${isUser ? 'py-2' : 'py-2.5'}`}
+      className={`group flex w-full min-w-0 px-5 ${
+        isUser
+          ? `${resolvedContext.turn.isStart ? 'pt-6' : 'pt-3'} pb-0`
+          : `${resolvedContext.turn.isStart ? 'pt-6' : 'pt-3'} ${resolvedContext.turn.isEnd ? 'pb-3' : 'pb-0'}`
+      }`}
+      data-chat-turn-end={resolvedContext.turn.isEnd ? 'true' : undefined}
+      data-chat-turn-key={resolvedContext.turn.key}
+      data-chat-turn-position={resolvedContext.turn.position}
+      data-chat-turn-start={resolvedContext.turn.isStart ? 'true' : undefined}
       style={buildTranscriptSurfaceStyle(resolveTranscriptSurfaceIntrinsicSize(layout, isUser))}
     >
-      <div className={`mx-auto flex w-full min-w-0 max-w-[880px] ${isUser ? 'justify-end' : 'justify-start'}`}>
+      <div
+        className={`mx-auto flex w-full min-w-0 max-w-[880px] flex-col ${
+          isUser ? 'items-end' : 'items-start'
+        }`}
+      >
         <Renderer
           view={view}
           context={resolvedContext}
         />
+        {resolvedContext.turn.isActiveTail ? (
+          <ChatTurnActiveTail layout={layout} t={resolvedContext.environment?.t} />
+        ) : null}
       </div>
     </div>
   );

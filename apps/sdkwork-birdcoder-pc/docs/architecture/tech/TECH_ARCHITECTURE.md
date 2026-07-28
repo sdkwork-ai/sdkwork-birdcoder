@@ -139,6 +139,21 @@ owned by `sdkwork-skills`. The only PC physical table is the allowlisted local
 `device_state_entry` host store described above; it is not synchronized as a
 business record.
 
+## Provider-Neutral Transcript Presentation
+
+The PC transcript consumes only the disposable Agents Session Item view. Its
+provider integration is split into protocol adapters, a presentation profile
+registry, and shared React renderers. OpenCode parts, Codex items, Claude
+content blocks, and Gemini events normalize before they reach user, assistant,
+reasoning, tool, lifecycle, interaction, task, resource, or file-change
+components.
+
+Canonical `turnId` groups transcript rows when available. A user-to-user
+boundary is the rendering-only fallback. Turn position, disclosure state, and
+active-tail state remain memory-only UI facts and are never persisted. The
+shared presentation follows the OpenCode App hierarchy without importing its
+SolidJS components, SDK types, session authority, or theme packages.
+
 ## Verification
 
 ```bash

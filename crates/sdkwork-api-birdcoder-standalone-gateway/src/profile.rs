@@ -37,10 +37,10 @@ pub(crate) async fn assemble_standalone_profile(
 ) -> Result<StandaloneApiProfile, String> {
     let birdcoder = sdkwork_api_birdcoder_assembly::assemble_api_router(config)
         .await
-        .map_err(|error| format!("assemble BirdCoder owner App API failed: {error}"))?;
+        .map_err(|error| format!("assemble BirdCoder owner App API failed: {error:#}"))?;
     let iam = sdkwork_api_iam_assembly::assemble_app_api_contribution()
         .await
-        .map_err(|error| format!("assemble IAM owner App API failed: {error}"))?;
+        .map_err(|error| format!("assemble IAM owner App API failed: {error:#}"))?;
     let agents = match provider_session_cwd_resolver {
         Some(resolver) => {
             sdkwork_api_agents_assembly::assemble_app_api_contribution_with_provider_session_cwd_resolver(
@@ -50,25 +50,25 @@ pub(crate) async fn assemble_standalone_profile(
         }
         None => sdkwork_api_agents_assembly::assemble_app_api_contribution().await,
     }
-    .map_err(|error| format!("assemble Agents owner App API failed: {error}"))?;
+    .map_err(|error| format!("assemble Agents owner App API failed: {error:#}"))?;
     let documents = sdkwork_api_documents_assembly::assemble_app_api_contribution()
         .await
-        .map_err(|error| format!("assemble Documents owner App API failed: {error}"))?;
+        .map_err(|error| format!("assemble Documents owner App API failed: {error:#}"))?;
     let drive = sdkwork_api_drive_assembly::assemble_app_api_contribution()
         .await
-        .map_err(|error| format!("assemble Drive owner App API failed: {error}"))?;
+        .map_err(|error| format!("assemble Drive owner App API failed: {error:#}"))?;
     let membership = sdkwork_api_membership_assembly::assemble_app_api_contribution()
         .await
-        .map_err(|error| format!("assemble Membership owner App API failed: {error}"))?;
+        .map_err(|error| format!("assemble Membership owner App API failed: {error:#}"))?;
     let order = sdkwork_api_order_assembly::assemble_app_api_contribution()
         .await
-        .map_err(|error| format!("assemble Order owner App API failed: {error}"))?;
+        .map_err(|error| format!("assemble Order owner App API failed: {error:#}"))?;
     let prompts = sdkwork_api_prompts_assembly::assemble_app_api_contribution()
         .await
-        .map_err(|error| format!("assemble Prompts owner App API failed: {error}"))?;
+        .map_err(|error| format!("assemble Prompts owner App API failed: {error:#}"))?;
     let skills = sdkwork_api_skills_assembly::assemble_app_api_contribution()
         .await
-        .map_err(|error| format!("assemble Skills owner App API failed: {error}"))?;
+        .map_err(|error| format!("assemble Skills owner App API failed: {error:#}"))?;
 
     compose_owner_contributions(vec![
         OwnerApiContribution {

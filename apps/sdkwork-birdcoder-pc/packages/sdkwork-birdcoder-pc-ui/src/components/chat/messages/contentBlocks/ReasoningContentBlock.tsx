@@ -52,7 +52,7 @@ export const ReasoningContentBlock = memo(function ReasoningContentBlock({
     >
       <button
         type="button"
-        className="flex w-full min-w-0 items-center gap-2 rounded-md px-1.5 py-1.5 text-left text-[12px] text-gray-500 transition-colors hover:bg-white/[0.04] hover:text-gray-300 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-blue-400/70"
+        className="flex min-h-7 w-full min-w-0 items-center gap-2 rounded-md py-1 text-left text-[12px] text-gray-600 transition-colors hover:bg-white/[0.035] hover:text-gray-400 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-blue-400/70"
         data-chat-reasoning-disclosure
         aria-expanded={isExpanded}
         aria-controls={detailsId}
@@ -60,7 +60,7 @@ export const ReasoningContentBlock = memo(function ReasoningContentBlock({
         title={isExpanded ? collapseLabel : expandLabel}
         onClick={() => context.toggleDisclosure(disclosureKey)}
       >
-        <span className="flex h-5 w-5 shrink-0 items-center justify-center text-violet-300/80">
+        <span className="flex h-4 w-4 shrink-0 items-center justify-center text-gray-600">
           <Lightbulb size={13} aria-hidden="true" />
         </span>
         {singleItem ? (
@@ -92,7 +92,7 @@ export const ReasoningContentBlock = memo(function ReasoningContentBlock({
       {isExpanded ? (
         <div
           id={detailsId}
-          className={`ml-3 overflow-y-auto border-l border-white/[0.08] pl-3 pr-1 custom-scrollbar ${
+          className={`ml-2 overflow-y-auto border-l border-white/[0.07] pl-5 pr-1 custom-scrollbar ${
             context.layout === 'sidebar' ? 'max-h-72' : 'max-h-96'
           }`}
           role="region"

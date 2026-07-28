@@ -275,22 +275,22 @@ export const ToolCallCard = memo(function ToolCallCard({
       <button
         type="button"
         data-chat-tool-disclosure="true"
-        className="flex w-full min-w-0 items-center gap-2 rounded-md px-1.5 py-1.5 text-left transition-colors hover:bg-white/[0.04] focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-blue-400/70"
+        className="flex min-h-7 w-full min-w-0 items-center gap-2 rounded-md py-1 text-left transition-colors hover:bg-white/[0.035] focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-blue-400/70"
         title={detailLabel}
         aria-label={`${toolLabel}: ${primaryDisplayName}${statusLabel ? `. ${statusLabel}` : ''}. ${detailLabel}`}
         aria-expanded={isExpanded}
         aria-controls={detailsId}
         onClick={onToggle}
       >
-        <span className="flex h-5 w-5 shrink-0 items-center justify-center text-blue-300">
+        <span className="flex h-4 w-4 shrink-0 items-center justify-center text-gray-500">
           {renderToolCallIcon(call, compact ? 12 : 13)}
         </span>
-        <span className="shrink-0 text-[11px] font-medium text-gray-400">{toolLabel}</span>
-        <span className={`min-w-0 shrink truncate text-[12px] font-medium text-gray-200${taskTitle ? '' : ' font-mono'}`}>
+        <span className="shrink-0 text-[13px] font-medium text-gray-300">{toolLabel}</span>
+        <span className={`min-w-0 shrink truncate text-[13px] text-gray-500${taskTitle ? '' : ''}`}>
           {primaryDisplayName}
         </span>
         {argumentSummary ? (
-          <span className="min-w-0 flex-1 truncate font-mono text-[11px] text-gray-500 max-[760px]:hidden">
+          <span className="min-w-0 flex-1 truncate text-[12px] text-gray-600 max-[760px]:hidden">
             {argumentSummary}
           </span>
         ) : call.arguments.trim() ? (
@@ -299,15 +299,15 @@ export const ToolCallCard = memo(function ToolCallCard({
           <span className="min-w-0 flex-1 text-[11px] text-gray-400/80">{noInputLabel}</span>
         )}
         {durationLabel ? (
-          <span className="shrink-0 font-mono text-[10px] text-gray-400/80">{durationLabel}</span>
+          <span className="shrink-0 font-mono text-[10px] text-gray-600">{durationLabel}</span>
         ) : null}
         {statusLabel ? renderToolCallStatus(call, statusLabel) : null}
-        <span className="shrink-0 text-gray-500">
+        <span className="shrink-0 text-gray-600">
           {isExpanded ? <ChevronUp size={13} /> : <ChevronDown size={13} />}
         </span>
       </button>
       {isExpanded ? (
-        <div id={detailsId} className="space-y-2 px-7 pb-2 pt-1">
+        <div id={detailsId} className="ml-2 space-y-2 border-l border-white/[0.07] pb-2 pl-5 pr-1 pt-2">
           {call.arguments.trim() ? (
             <div>
               <div className="mb-1 flex items-center justify-between gap-2 text-[11px] font-medium text-gray-500">

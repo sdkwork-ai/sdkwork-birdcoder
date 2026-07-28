@@ -14,9 +14,11 @@ import {
   CHAT_MESSAGE_INLINE_CODE_PROSE_CLASSNAME,
 } from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-ui/src/components/chat/messages/messageLayout.ts';
 import {
-  CHAT_ENGINE_PRESENTATION_PROFILES,
-  createEngineChatMessageRendererEntries,
-} from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-ui/src/components/chat/messages/plugins/enginePlugins.tsx';
+  CHAT_PROVIDER_PRESENTATION_PROFILES,
+} from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-ui/src/components/chat/messages/presentation/providerPresentationProfiles.ts';
+import {
+  buildChatTranscriptTurnPresentations,
+} from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-ui/src/components/chat/messages/presentation/transcriptTurnPresentation.ts';
 
 const chatMessageViewSource = readFileSync(
   new URL(
@@ -42,6 +44,27 @@ const defaultRegistrySource = readFileSync(
 const enginePluginsSource = readFileSync(
   new URL(
     '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-ui/src/components/chat/messages/plugins/enginePlugins.tsx',
+    import.meta.url,
+  ),
+  'utf8',
+);
+const providerPresentationProfilesSource = readFileSync(
+  new URL(
+    '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-ui/src/components/chat/messages/presentation/providerPresentationProfiles.ts',
+    import.meta.url,
+  ),
+  'utf8',
+);
+const transcriptMessageSource = readFileSync(
+  new URL(
+    '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-ui/src/components/chat/messages/ChatTranscriptMessage.tsx',
+    import.meta.url,
+  ),
+  'utf8',
+);
+const activeTailSource = readFileSync(
+  new URL(
+    '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-ui/src/components/chat/messages/renderers/ChatTurnActiveTail.tsx',
     import.meta.url,
   ),
   'utf8',
@@ -165,19 +188,40 @@ assert.match(boundedContentPreview.text, /^preview-head:/u);
 assert.match(boundedContentPreview.text, /:preview-tail$/u);
 
 assert.deepEqual(
-  CHAT_ENGINE_PRESENTATION_PROFILES.map((profile) => profile.engineId),
+  CHAT_PROVIDER_PRESENTATION_PROFILES.map((profile) => profile.engineId),
   ['codex', 'claude-code', 'opencode', 'gemini'],
-  'Provider variability must be declared in explicit engine presentation profiles.',
+  'Provider variability must be declared in explicit provider presentation profiles.',
 );
-const engineRendererEntries = createEngineChatMessageRendererEntries();
-assert.equal(engineRendererEntries.length, CHAT_ENGINE_PRESENTATION_PROFILES.length * 3);
-for (const profile of CHAT_ENGINE_PRESENTATION_PROFILES) {
-  assert.equal(
-    engineRendererEntries.filter((entry) => entry.match.engineId === profile.engineId).length,
-    3,
-    `${profile.surfaceLabel} must explicitly own text, activity, and tool-result render matches.`,
-  );
+for (const profile of CHAT_PROVIDER_PRESENTATION_PROFILES) {
+  assert.equal(profile.transcriptStyle, 'opencode-aligned');
 }
+
+const canonicalTurnPresentation = buildChatTranscriptTurnPresentations([
+  { id: 'user-1', sessionId: 'session-1', turnId: 'turn-1', role: 'user', content: 'Prompt', createdAt: '' },
+  { id: 'tool-1', sessionId: 'session-1', turnId: 'turn-1', role: 'tool', content: 'Result', createdAt: '' },
+  { id: 'assistant-1', sessionId: 'session-1', turnId: 'turn-1', role: 'assistant', content: 'Reply', createdAt: '' },
+] as const, true);
+assert.deepEqual(
+  canonicalTurnPresentation.map(({ isActiveTail, position }) => ({ isActiveTail, position })),
+  [
+    { isActiveTail: false, position: 'start' },
+    { isActiveTail: false, position: 'middle' },
+    { isActiveTail: true, position: 'end' },
+  ],
+  'Canonical turn ids must form one visual turn with exactly one active tail.',
+);
+
+const fallbackTurnPresentation = buildChatTranscriptTurnPresentations([
+  { id: 'user-a', sessionId: 'session-1', role: 'user', content: 'A', createdAt: '' },
+  { id: 'assistant-a', sessionId: 'session-1', role: 'assistant', content: 'A reply', createdAt: '' },
+  { id: 'user-b', sessionId: 'session-1', role: 'user', content: 'B', createdAt: '' },
+  { id: 'assistant-b', sessionId: 'session-1', role: 'assistant', content: 'B reply', createdAt: '' },
+] as const, false);
+assert.deepEqual(
+  fallbackTurnPresentation.map(({ position }) => position),
+  ['start', 'end', 'start', 'end'],
+  'Messages without canonical turn ids must fall back to user-to-user visual boundaries.',
+);
 
 const boundedSingleLineDiff = buildChatLinePreview(
   `+${'a'.repeat(MAX_CHAT_CONTENT_PREVIEW_CHARACTERS * 2)}`,
@@ -273,9 +317,24 @@ assert.match(
   'default chat message renderer registry must register per-engine plugins.',
 );
 assert.match(
+  providerPresentationProfilesSource,
+  /engineId: 'codex'[\s\S]*engineId: 'claude-code'[\s\S]*engineId: 'opencode'[\s\S]*engineId: 'gemini'/,
+  'Provider presentation profiles must cover every built-in code engine.',
+);
+assert.match(
   enginePluginsSource,
-  /CHAT_ENGINE_PRESENTATION_PROFILES[\s\S]*engineId: 'codex'[\s\S]*engineId: 'claude-code'[\s\S]*engineId: 'opencode'[\s\S]*engineId: 'gemini'/,
-  'Engine transcript labels must cover every built-in code engine.',
+  /CHAT_PROVIDER_PRESENTATION_PROFILES[\s\S]*createEngineTaggedRenderer/,
+  'Engine renderer plugins must be generated from the provider profile registry.',
+);
+assert.match(
+  transcriptMessageSource,
+  /data-chat-turn-position=\{resolvedContext\.turn\.position\}[\s\S]*ChatTurnActiveTail/,
+  'Transcript rows must expose turn position and delegate the shared active-tail presentation.',
+);
+assert.match(
+  activeTailSource,
+  /aria-hidden="true"[\s\S]*data-chat-turn-active-tail="true"/,
+  'The visual active tail must stay out of the accessibility tree because the shared live announcer owns status announcements.',
 );
 assert.match(
   enginePluginsSource,

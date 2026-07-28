@@ -96,6 +96,8 @@ import {
   ChatTranscriptMessage,
   type ChatMessageRenderContext,
 } from './chat/messages/index.ts';
+import { resolveChatProviderPresentationProfile } from './chat/messages/presentation/providerPresentationProfiles.ts';
+import { buildChatTranscriptTurnPresentations } from './chat/messages/presentation/transcriptTurnPresentation.ts';
 import { useProgressiveTranscriptWindow } from './useProgressiveTranscriptWindow';
 import { useVirtualizedTranscriptWindow } from './useVirtualizedTranscriptWindow';
 
@@ -670,6 +672,14 @@ const UniversalChatTranscript = memo(function UniversalChatTranscript({
       ),
     [renderedMessages, visibleMessages.length, visibleStartIndex],
   );
+  const transcriptTurnPresentations = useMemo(
+    () => buildChatTranscriptTurnPresentations(renderedMessages, isLive),
+    [isLive, renderedMessages],
+  );
+  const providerProfile = useMemo(
+    () => resolveChatProviderPresentationProfile(engineId),
+    [engineId],
+  );
 
   useLayoutEffect(() => {
     if (
@@ -876,14 +886,24 @@ const UniversalChatTranscript = memo(function UniversalChatTranscript({
     expandedDisclosureKeys,
     toggleDisclosure,
     renderMarkdownContent,
+    providerProfile,
+    turn: transcriptTurnPresentations[0] ?? {
+      isActiveTail: false,
+      isEnd: true,
+      isStart: true,
+      key: 'turn:empty',
+      position: 'only',
+    },
   }), [
     copyMessageToClipboard,
     engineId,
     expandedDisclosureKeys,
     layout,
+    providerProfile,
     renderedMessages,
     sessionId,
     toggleDisclosure,
+    transcriptTurnPresentations,
   ]);
 
   return (
@@ -970,6 +990,8 @@ const UniversalChatTranscript = memo(function UniversalChatTranscript({
             const actionTarget = messageActionTargets.get(messageIndex) ?? null;
             const showMessageActions = !!actionTarget && actionTarget.endIndex === messageIndex;
             const turnFileChangesPresentation = turnFileChangesPresentations[messageIndex];
+            const turnPresentation = transcriptTurnPresentations[messageIndex]
+              ?? messageRenderContext.turn;
 
             return (
               <ChatTranscriptMessage
@@ -987,6 +1009,7 @@ const UniversalChatTranscript = memo(function UniversalChatTranscript({
                   environment: environmentRef.current,
                   actionTarget,
                   showMessageActions,
+                  turn: turnPresentation,
                   suppressInlineFileChanges:
                     turnFileChangesPresentation?.suppressInlineFileChanges ?? false,
                   turnFileChanges: turnFileChangesPresentation?.card,
@@ -3331,7 +3354,7 @@ export const UniversalChat = memo(function UniversalChat({
         <div
           ref={transcriptScrollContainerRef}
           aria-label={t('chat.transcriptRegion')}
-          className={`flex h-full min-h-0 min-w-0 flex-col overflow-x-hidden overflow-y-auto custom-scrollbar ${layout === 'sidebar' ? 'gap-4 p-4 pb-4 pl-11' : 'pb-6'}`}
+          className={`flex h-full min-h-0 min-w-0 flex-col overflow-x-hidden overflow-y-auto custom-scrollbar ${layout === 'sidebar' ? 'gap-4 p-4 pb-4 pl-11' : 'pb-6 pt-1'}`}
           role="region"
           style={{ overscrollBehavior: 'contain', scrollbarGutter: 'stable' }}
           tabIndex={0}

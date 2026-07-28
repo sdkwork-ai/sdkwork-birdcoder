@@ -52,8 +52,8 @@ const replyMessageRenderersSource = fs.readFileSync(
 
 assert.match(
   transcriptMessageSource,
-  /className=\{`mx-auto flex w-full min-w-0 max-w-\[880px\] \$\{isUser \? 'justify-end' : 'justify-start'\}`\}/,
-  'UniversalChat transcript rows must use one centered reading lane, right-align user items, and left-align assistant items within that lane.',
+  /className=\{`mx-auto flex w-full min-w-0 max-w-\[880px\] flex-col \$\{[\s\S]*?isUser \? 'items-end' : 'items-start'[\s\S]*?\}`\}/,
+  'UniversalChat transcript rows must use one centered vertical reading lane and align user and assistant items within that lane.',
 );
 
 assert.match(
@@ -64,7 +64,7 @@ assert.match(
 
 assert.match(
   universalChatSource,
-  /layout === 'sidebar' \? 'gap-4 p-4 pb-4 pl-11' : 'pb-6'/,
+  /layout === 'sidebar' \? 'gap-4 p-4 pb-4 pl-11' : 'pb-6 pt-1'/,
   'UniversalChat transcript body must keep compact flow spacing and reserve the sidebar anchor-rail gutter.',
 );
 

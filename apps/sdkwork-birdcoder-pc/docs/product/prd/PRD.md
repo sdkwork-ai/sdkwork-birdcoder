@@ -26,6 +26,9 @@ their business semantics.
 - See owner-scoped Session activity from BirdCoder, Codex, Claude Code,
   OpenCode, Gemini, and future providers in one synchronized Inbox.
 - Render Session Items without a local transcript authority.
+- Render Codex, Claude Code, OpenCode, and Gemini Session Items through one
+  provider-neutral turn hierarchy with semantic tools, reasoning, lifecycle,
+  interactions, resources, and file-change presentation.
 - Bind a Session to an opaque local runtime id through Agents.
 - Authorize a local directory on the current device and use it for filesystem,
   Git, worktree, and terminal actions.
@@ -66,6 +69,10 @@ their business semantics.
 - Codex, Claude Code, and other provider Sessions share one activity contract;
   stale, unsupported, unavailable, or expired provider evidence is neutral and
   never leaves a permanent running animation.
+- Codex, Claude Code, OpenCode, and Gemini transcripts share one message and
+  turn presentation contract. Provider protocol differences stay behind
+  adapters, while provider identity remains contextual metadata rather than a
+  separate transcript skin.
 - Production acceptance remains blocked on the REQ-2026-0003 PostgreSQL P1
   indexed head, collision-safe cross-tenant provider Session identity, Project deletion
   tombstone, and any declared server-monotonic activity revision. Agents and
@@ -89,4 +96,6 @@ their business semantics.
 - [PC architecture](../../architecture/tech/TECH_ARCHITECTURE.md)
 - [Cross-application Session Activity requirement](../../../../../docs/product/requirements/REQ-2026-0003-cross-application-session-activity-inbox.md)
 - [Cross-application Session Activity ADR](../../../../../docs/architecture/decisions/ADR-20260727-cross-application-session-activity-inbox.md)
+- [Provider-neutral transcript requirement](../../../../../docs/product/requirements/REQ-2026-0004-provider-neutral-session-transcript.md)
+- [Provider-neutral transcript ADR](../../../../../docs/architecture/decisions/ADR-20260728-provider-neutral-session-transcript.md)
 - [Runtime bindings and device mounts](../../../../../docs/guides/operator/runtime-bindings-and-device-mounts.md)
