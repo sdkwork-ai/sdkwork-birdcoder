@@ -73,6 +73,7 @@ import {
 } from './chatScrollBehavior';
 import { resolveTranscriptMessageKey } from './transcriptVirtualization';
 import {
+  TRANSCRIPT_ANCHOR_SETTLEMENT_FRAME_LIMIT,
   captureTranscriptScrollAnchor,
   restoreTranscriptScrollAnchor,
   type TranscriptScrollAnchorSnapshot,
@@ -591,29 +592,24 @@ const UniversalChatTranscript = memo(function UniversalChatTranscript({
       pendingRemotePrependRef.current = null;
       remotePrependAnchorRepairAnimationFrameRef.current = null;
     };
-    if (!restoreTranscriptScrollAnchor(scrollContainer, messages, pendingPrepend.anchor)) {
-      let remainingFrames = 4;
-      const settleAnchor = () => {
-        remotePrependAnchorRepairAnimationFrameRef.current = null;
-        if (
-          restoreTranscriptScrollAnchor(scrollContainer, messages, pendingPrepend.anchor)
-          || remainingFrames <= 0
-        ) {
-          finishAnchorRepair();
-          return;
-        }
+    restoreTranscriptScrollAnchor(scrollContainer, messages, pendingPrepend.anchor);
+    let remainingFrames = TRANSCRIPT_ANCHOR_SETTLEMENT_FRAME_LIMIT;
+    const settleAnchor = () => {
+      remotePrependAnchorRepairAnimationFrameRef.current = null;
+      restoreTranscriptScrollAnchor(scrollContainer, messages, pendingPrepend.anchor);
+      remainingFrames -= 1;
+      if (remainingFrames <= 0) {
+        finishAnchorRepair();
+        return;
+      }
 
-        remainingFrames -= 1;
-        remotePrependAnchorRepairAnimationFrameRef.current = window.requestAnimationFrame(
-          settleAnchor,
-        );
-      };
       remotePrependAnchorRepairAnimationFrameRef.current = window.requestAnimationFrame(
         settleAnchor,
       );
-    } else {
-      finishAnchorRepair();
-    }
+    };
+    remotePrependAnchorRepairAnimationFrameRef.current = window.requestAnimationFrame(
+      settleAnchor,
+    );
     shouldStickToBottomRef.current = false;
   }, [firstMessageId, isActive, messages.length, scrollContainerRef, shouldStickToBottomRef]);
 

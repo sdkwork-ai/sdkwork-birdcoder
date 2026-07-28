@@ -1,7 +1,10 @@
 import assert from 'node:assert/strict';
 import type { AgentSessionItemView } from '@sdkwork/birdcoder-pc-workbench/chat/types';
 
-import { findTranscriptScrollAnchorMessageIndex } from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-ui/src/components/transcriptScrollAnchor.ts';
+import {
+  TRANSCRIPT_ANCHOR_SETTLEMENT_FRAME_LIMIT,
+  findTranscriptScrollAnchorMessageIndex,
+} from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-ui/src/components/transcriptScrollAnchor.ts';
 
 function createMessage(
   id: string,
@@ -18,6 +21,12 @@ function createMessage(
 }
 
 const anchorMessage = createMessage('message-6', '2026-07-28T00:00:06.000Z', 'six');
+
+assert.equal(
+  TRANSCRIPT_ANCHOR_SETTLEMENT_FRAME_LIMIT >= 4,
+  true,
+  'transcript anchoring must span deferred loading-indicator and pagination-metadata layout updates.',
+);
 const prependedMessages = [
   createMessage('message-1', '2026-07-28T00:00:01.000Z', 'one'),
   createMessage('message-2', '2026-07-28T00:00:02.000Z', 'two'),

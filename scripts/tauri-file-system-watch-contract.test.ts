@@ -6,6 +6,7 @@ const tauriFileSystemRuntimeModulePath = new URL(
 );
 
 const originalWindowDescriptor = Object.getOwnPropertyDescriptor(globalThis, 'window');
+const watchStartOrder: string[] = [];
 
 async function withWindow<T>(value: Window & typeof globalThis, operation: () => Promise<T>): Promise<T> {
   Object.defineProperty(globalThis, 'window', {
@@ -32,18 +33,19 @@ await withWindow(
   {
     __TAURI_INTERNALS__: {
       async invoke(command: string, payload: Record<string, unknown>) {
+        watchStartOrder.push(command);
         if (command === 'fs_watch_start') {
           assert.deepEqual(payload, {
             rootPath: 'D:/workspace/sample-app',
           });
           return {
-            watchId: 'watch-sample',
+            watchId: 'fs-watch-1',
           };
         }
 
         if (command === 'fs_watch_stop') {
           assert.deepEqual(payload, {
-            watchId: 'watch-sample',
+            watchId: 'fs-watch-1',
           });
           return null;
         }
@@ -55,6 +57,7 @@ await withWindow(
           eventName: string,
           listener: (event: { payload: unknown }) => void,
         ): Promise<() => void> {
+          watchStartOrder.push('listen');
           assert.equal(
             eventName,
             'birdcoder:file-system-watch',
@@ -63,7 +66,7 @@ await withWindow(
 
           listener({
             payload: {
-              watchId: 'watch-sample',
+              watchId: 'fs-watch-1',
               kind: 'modify',
               paths: ['/sample-app/src/index.ts'],
             },
@@ -97,7 +100,20 @@ await withWindow(
       },
     ]);
 
+    assert.deepEqual(
+      watchStartOrder.slice(0, 2),
+      ['listen', 'fs_watch_start'],
+      'The event listener must be active before the native watcher starts so initial changes are buffered instead of lost.',
+    );
     await dispose();
+    await dispose();
+    assert.equal(
+      watchStartOrder.filter(
+        (entry) => entry === 'fs_watch_stop',
+      ).length,
+      1,
+      'Watcher disposal must be idempotent.',
+    );
   },
 );
 

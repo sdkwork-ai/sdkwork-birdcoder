@@ -47,6 +47,20 @@ interface BirdCoderTauriFileSystemWatchEventPayload extends BirdCoderTauriFileSy
   watchId: string;
 }
 
+const MAX_BUFFERED_WATCH_EVENTS_DURING_REGISTRATION = 256;
+const TAURI_FILE_SYSTEM_METADATA_ERROR = 'Desktop file metadata is unavailable.';
+
+export class BirdCoderTauriFileSystemRuntimeError extends Error {
+  readonly code = 'tauri_file_system_runtime_error';
+  readonly operation: string;
+
+  constructor(operation: string) {
+    super(`The desktop file-system operation "${operation}" could not be completed.`);
+    this.name = 'BirdCoderTauriFileSystemRuntimeError';
+    this.operation = operation;
+  }
+}
+
 export interface BirdCoderTauriFileSystemRuntime {
   createDirectory(
     rootSystemPath: string,
@@ -223,7 +237,23 @@ async function invokeTauriFileSystemCommand<T>(
     throw new Error(`Tauri filesystem bridge is unavailable for "${command}".`);
   }
 
-  return invoke<T>(command, args);
+  try {
+    return await invoke<T>(command, args);
+  } catch {
+    // Native errors can contain device-private absolute paths. Keep them behind
+    // the host boundary and expose only a stable operation identifier.
+    throw new BirdCoderTauriFileSystemRuntimeError(command);
+  }
+}
+
+function normalizeWatchRegistration(
+  value: BirdCoderTauriFileSystemWatchRegistration,
+): BirdCoderTauriFileSystemWatchRegistration {
+  const watchId = typeof value?.watchId === 'string' ? value.watchId.trim() : '';
+  if (!/^fs-watch-\d+$/u.test(watchId)) {
+    throw new BirdCoderTauriFileSystemRuntimeError('fs_watch_start');
+  }
+  return { watchId };
 }
 
 function normalizeWatchEventKind(
@@ -299,47 +329,66 @@ export function createBirdCoderTauriFileSystemRuntime(): BirdCoderTauriFileSyste
         throw new Error('Tauri filesystem watch bridge is unavailable.');
       }
 
-      const registration =
-        await invokeTauriFileSystemCommand<BirdCoderTauriFileSystemWatchRegistration>(
-          'fs_watch_start',
-          {
-            rootPath: rootSystemPath,
-          },
-        );
       let unlisten: (() => void) | null = null;
+      let registration: BirdCoderTauriFileSystemWatchRegistration | null = null;
+      const pendingPayloads: BirdCoderTauriFileSystemWatchEventPayload[] = [];
+      const publishPayload = (payload: BirdCoderTauriFileSystemWatchEventPayload) => {
+        if (!registration) {
+          if (pendingPayloads.length < MAX_BUFFERED_WATCH_EVENTS_DURING_REGISTRATION) {
+            pendingPayloads.push(payload);
+          }
+          return;
+        }
+        if (payload.watchId !== registration.watchId) {
+          return;
+        }
+        listener({
+          kind: normalizeWatchEventKind(payload.kind),
+          paths: normalizeWatchEventPaths(payload.paths),
+        });
+      };
 
       try {
         unlisten = await listen<BirdCoderTauriFileSystemWatchEventPayload>(
           'birdcoder:file-system-watch',
           (event) => {
             const payload = event.payload;
-            if (!payload || payload.watchId !== registration.watchId) {
+            if (!payload) {
               return;
             }
-
-            listener({
-              kind: normalizeWatchEventKind(payload.kind),
-              paths: normalizeWatchEventPaths(payload.paths),
-            });
+            publishPayload(payload);
           },
         );
+        registration = normalizeWatchRegistration(
+          await invokeTauriFileSystemCommand<BirdCoderTauriFileSystemWatchRegistration>(
+            'fs_watch_start',
+            { rootPath: rootSystemPath },
+          ),
+        );
+        pendingPayloads.splice(0).forEach(publishPayload);
       } catch (error) {
-        await invokeTauriFileSystemCommand('fs_watch_stop', {
-          watchId: registration.watchId,
-        }).catch(() => undefined);
-        throw error;
+        unlisten?.();
+        if (error instanceof BirdCoderTauriFileSystemRuntimeError) {
+          throw error;
+        }
+        throw new BirdCoderTauriFileSystemRuntimeError('fs_watch_listen');
       }
 
+      const activeRegistration = registration;
+      let disposed = false;
       return async () => {
+        if (disposed) {
+          return;
+        }
+        disposed = true;
         try {
           unlisten?.();
         } finally {
           await invokeTauriFileSystemCommand('fs_watch_stop', {
-            watchId: registration.watchId,
-          }).catch((error) => {
+            watchId: activeRegistration.watchId,
+          }).catch(() => {
             console.error(
-              `Failed to stop Tauri filesystem watcher "${registration.watchId}"`,
-              error,
+              `Failed to stop Tauri filesystem watcher "${activeRegistration.watchId}".`,
             );
           });
         }
@@ -388,7 +437,7 @@ export function createBirdCoderTauriFileSystemRuntime(): BirdCoderTauriFileSyste
           path: mountedPath,
           revision: probe.revision,
           missing: probe.missing,
-          ...(probe.error ? { error: probe.error } : {}),
+          ...(probe.error ? { error: TAURI_FILE_SYSTEM_METADATA_ERROR } : {}),
         };
       });
     },
@@ -422,7 +471,7 @@ export function createBirdCoderTauriFileSystemRuntime(): BirdCoderTauriFileSyste
           path: mountedPath,
           revision: probe.revision,
           missing: probe.missing,
-          ...(probe.error ? { error: probe.error } : {}),
+          ...(probe.error ? { error: TAURI_FILE_SYSTEM_METADATA_ERROR } : {}),
         };
       });
     },

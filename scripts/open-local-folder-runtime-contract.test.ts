@@ -164,8 +164,8 @@ await withWindow(
     try {
       await assert.rejects(
         () => openLocalFolder(),
-        /dialog bridge failed/u,
-        'desktop folder import must surface native dialog failures instead of silently falling back to browser authorization prompts.',
+        /desktop folder picker could not be opened/u,
+        'desktop folder import must surface a sanitized failure instead of leaking native details or silently falling back to browser authorization prompts.',
       );
       assert.equal(
         desktopFailureFallbackBrowserPickerCalls,

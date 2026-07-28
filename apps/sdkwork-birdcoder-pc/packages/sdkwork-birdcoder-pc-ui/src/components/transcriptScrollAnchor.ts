@@ -1,5 +1,7 @@
 import type { AgentSessionItemView } from '@sdkwork/birdcoder-pc-workbench/chat/types';
 
+export const TRANSCRIPT_ANCHOR_SETTLEMENT_FRAME_LIMIT = 8;
+
 export interface TranscriptScrollAnchorSnapshot {
   messageIdentity: string;
   occurrence: number;

@@ -13,6 +13,7 @@ import {
   shouldLoadEarlierTranscriptPage,
 } from './transcriptPagination';
 import {
+  TRANSCRIPT_ANCHOR_SETTLEMENT_FRAME_LIMIT,
   captureTranscriptScrollAnchor,
   restoreTranscriptScrollAnchor,
   type TranscriptScrollAnchorSnapshot,
@@ -361,25 +362,20 @@ export function useProgressiveTranscriptWindow(
       pendingPrependedScrollMetricsRef.current = null;
       prependAnchorRepairAnimationFrameRef.current = null;
     };
-    if (!restoreTranscriptScrollAnchor(scrollContainer, renderedMessages, pendingPrepend.anchor)) {
-      let remainingFrames = 4;
-      const settleAnchor = () => {
-        prependAnchorRepairAnimationFrameRef.current = null;
-        if (
-          restoreTranscriptScrollAnchor(scrollContainer, renderedMessages, pendingPrepend.anchor)
-          || remainingFrames <= 0
-        ) {
-          finishAnchorRepair();
-          return;
-        }
+    restoreTranscriptScrollAnchor(scrollContainer, renderedMessages, pendingPrepend.anchor);
+    let remainingFrames = TRANSCRIPT_ANCHOR_SETTLEMENT_FRAME_LIMIT;
+    const settleAnchor = () => {
+      prependAnchorRepairAnimationFrameRef.current = null;
+      restoreTranscriptScrollAnchor(scrollContainer, renderedMessages, pendingPrepend.anchor);
+      remainingFrames -= 1;
+      if (remainingFrames <= 0) {
+        finishAnchorRepair();
+        return;
+      }
 
-        remainingFrames -= 1;
-        prependAnchorRepairAnimationFrameRef.current = window.requestAnimationFrame(settleAnchor);
-      };
       prependAnchorRepairAnimationFrameRef.current = window.requestAnimationFrame(settleAnchor);
-    } else {
-      finishAnchorRepair();
-    }
+    };
+    prependAnchorRepairAnimationFrameRef.current = window.requestAnimationFrame(settleAnchor);
 
     setTranscriptWindowState((previousState) => (
       previousState.transcriptIdentity === transcriptIdentity

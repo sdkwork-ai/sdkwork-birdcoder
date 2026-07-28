@@ -25,7 +25,9 @@ async function openTauriDirectoryDialog(): Promise<string | null> {
     request: {} satisfies DesktopWorkingDirectoryPickerRequest,
   });
 
-  return typeof selectedPath === 'string' && selectedPath.length > 0 ? selectedPath : null;
+  return typeof selectedPath === 'string' && selectedPath.trim().length > 0
+    ? selectedPath
+    : null;
 }
 
 function createUnsupportedLocalFolderPickerResult(): LocalFolderPickerResult {
@@ -63,8 +65,8 @@ export async function openLocalFolder(): Promise<LocalFolderPickerResult> {
         return { status: 'cancelled' };
       }
 
-      console.error('Error opening directory with BirdCoder desktop folder picker:', pickerError);
-      throw pickerError;
+      console.error('The BirdCoder desktop folder picker could not be opened.');
+      throw new Error('The BirdCoder desktop folder picker could not be opened.');
     }
   }
 
@@ -81,8 +83,8 @@ export async function openLocalFolder(): Promise<LocalFolderPickerResult> {
         return { status: 'cancelled' };
       }
 
-      console.error('Error opening directory with browser File System Access API:', pickerError);
-      throw pickerError;
+      console.error('The browser folder picker could not be opened.');
+      throw new Error('The browser folder picker could not be opened.');
     }
   }
 
