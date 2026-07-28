@@ -123,6 +123,7 @@ const listChildren = (parentPath: string): SandboxEntry[] => {
     return !candidate.logicalPath.slice(prefix.length).includes('/');
   });
 };
+let nextListChildrenBarrier: ((parentPath: string) => Promise<void>) | null = null;
 
 const drivePort: SandboxExplorerPort = {
   async listSandboxes() {
@@ -149,7 +150,11 @@ const drivePort: SandboxExplorerPort = {
     };
   },
   async listChildren(input) {
-    return { items: listChildren(input.parentPath) };
+    const items = listChildren(input.parentPath);
+    const barrier = nextListChildrenBarrier;
+    nextListChildrenBarrier = null;
+    await barrier?.(input.parentPath);
+    return { items };
   },
   async createDirectory(input) {
     const created = entry(`${input.parentPath}/${input.name}`, 'directory');
@@ -276,6 +281,63 @@ assert.equal(
 );
 const reloadedSourceTree = await service.loadDirectory('project-1', '/birdcoder/src');
 assert.equal(reloadedSourceTree[0]!.children![0]!.children![0]!.name, 'main.ts');
+
+async function startBlockedSourceRefresh(): Promise<{
+  readonly release: () => void;
+  readonly refresh: Promise<IFileNode[]>;
+}> {
+  let releaseRefresh!: () => void;
+  let markRefreshStarted!: () => void;
+  const refreshBarrier = new Promise<void>((resolve) => {
+    releaseRefresh = resolve;
+  });
+  const refreshStarted = new Promise<void>((resolve) => {
+    markRefreshStarted = resolve;
+  });
+  nextListChildrenBarrier = async (parentPath) => {
+    assert.equal(parentPath, 'projects/birdcoder/src');
+    markRefreshStarted();
+    await refreshBarrier;
+  };
+  const refresh = service.refreshDirectory('project-1', '/birdcoder/src');
+  await refreshStarted;
+  return { release: releaseRefresh, refresh };
+}
+
+const staleCreateRefresh = await startBlockedSourceRefresh();
+await service.createFile('project-1', '/birdcoder/src/created-during-refresh.ts');
+staleCreateRefresh.release();
+await staleCreateRefresh.refresh;
+assert.ok(
+  (await service.getFiles('project-1'))[0]!.children![0]!.children!
+    .some((node) => node.name === 'created-during-refresh.ts'),
+  'A stale directory response must not remove a file created after the request started.',
+);
+
+const staleDeleteRefresh = await startBlockedSourceRefresh();
+await service.deleteFile('project-1', '/birdcoder/src/created-during-refresh.ts');
+staleDeleteRefresh.release();
+await staleDeleteRefresh.refresh;
+assert.equal(
+  (await service.getFiles('project-1'))[0]!.children![0]!.children!
+    .some((node) => node.name === 'created-during-refresh.ts'),
+  false,
+  'A stale directory response must not restore a file deleted after the request started.',
+);
+
+const staleRenameRefresh = await startBlockedSourceRefresh();
+await service.renameNode(
+  'project-1',
+  '/birdcoder/src/main.ts',
+  '/birdcoder/src/renamed-during-refresh.ts',
+);
+staleRenameRefresh.release();
+await staleRenameRefresh.refresh;
+assert.deepEqual(
+  (await service.getFiles('project-1'))[0]!.children![0]!.children!.map((node) => node.name),
+  ['renamed-during-refresh.ts'],
+  'A stale directory response must not revert a rename completed after the request started.',
+);
 
 const useFileSystemSource = await readFile(
   new URL('../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-workbench/src/hooks/useFileSystem.ts', import.meta.url),

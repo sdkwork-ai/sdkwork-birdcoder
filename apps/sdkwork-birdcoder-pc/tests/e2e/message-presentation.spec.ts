@@ -423,6 +423,21 @@ test('Provider lifecycle protocols share one structured expandable presentation'
   await expect(openCodeQuestion.locator('[data-selected="true"]')).toContainText('Structured');
   await expect(transcript).not.toContainText('provider_event');
   await expect(transcript.locator('[data-chat-tool-kind="question"]')).toHaveCount(0);
+  const openCodeContextGroup = transcript.locator('[data-chat-context-tool-group="true"]');
+  await expect(openCodeContextGroup).toHaveCount(1);
+  await expect(openCodeContextGroup).toContainText('Gathered context');
+  await expect(openCodeContextGroup).toContainText('1 read');
+  await expect(openCodeContextGroup).toContainText('1 search');
+  const openCodeContextDisclosure = openCodeContextGroup.locator(
+    '[data-chat-context-tool-disclosure="true"]',
+  );
+  await expect(openCodeContextDisclosure).toHaveAttribute('aria-expanded', 'false');
+  await openCodeContextDisclosure.click();
+  await expect(openCodeContextDisclosure).toHaveAttribute('aria-expanded', 'true');
+  await expect(openCodeContextGroup.locator('[data-chat-tool-kind]')).toHaveCount(2);
+  await expect.poll(() => openCodeContextGroup.evaluate((element) => (
+    element.scrollWidth <= element.clientWidth
+  ))).toBe(true);
   await captureVisualEvidenceScreenshot(page, 'message-lifecycle-opencode-1200x820');
 
   await selectSessionByTitle(page, 'Codex implementation');

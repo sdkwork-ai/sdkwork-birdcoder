@@ -49,32 +49,32 @@ export interface ChatProviderPresentationProfile {
 }
 
 export const CHAT_PROVIDER_PRESENTATION_PROFILES:
-  readonly ChatProviderPresentationProfile[] = [
-  {
+  readonly ChatProviderPresentationProfile[] = Object.freeze([
+  Object.freeze({
     engineId: 'codex',
     presentation: OPENCODE_ALIGNED_CHAT_TRANSCRIPT_POLICY,
     protocolAdapterId: AGENT_SESSION_ITEM_TOOL_PROTOCOL_ADAPTER_ID_BY_ENGINE.codex,
     surfaceLabel: 'Codex',
-  },
-  {
+  }),
+  Object.freeze({
     engineId: 'claude-code',
     presentation: OPENCODE_ALIGNED_CHAT_TRANSCRIPT_POLICY,
     protocolAdapterId: AGENT_SESSION_ITEM_TOOL_PROTOCOL_ADAPTER_ID_BY_ENGINE['claude-code'],
     surfaceLabel: 'Claude Code',
-  },
-  {
+  }),
+  Object.freeze({
     engineId: 'opencode',
     presentation: OPENCODE_ALIGNED_CHAT_TRANSCRIPT_POLICY,
     protocolAdapterId: AGENT_SESSION_ITEM_TOOL_PROTOCOL_ADAPTER_ID_BY_ENGINE.opencode,
     surfaceLabel: 'OpenCode',
-  },
-  {
+  }),
+  Object.freeze({
     engineId: 'gemini',
     presentation: OPENCODE_ALIGNED_CHAT_TRANSCRIPT_POLICY,
     protocolAdapterId: AGENT_SESSION_ITEM_TOOL_PROTOCOL_ADAPTER_ID_BY_ENGINE.gemini,
     surfaceLabel: 'Gemini',
-  },
-];
+  }),
+]);
 
 export function shouldShowChatProviderByline(
   profile: ChatProviderPresentationProfile,
