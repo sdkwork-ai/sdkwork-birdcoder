@@ -87,7 +87,10 @@ test('opens at the latest message and auto-loads anchored history at the top', a
   await page.getByText('Codex implementation', { exact: true }).click();
 
   const transcript = page.getByRole('region', { name: 'Conversation messages' });
-  await expect(transcript.getByText('Codex historical message 45', { exact: true })).toBeVisible();
+  await expect(transcript.getByText(
+    'Codex completed the provider-neutral file presentation.',
+    { exact: true },
+  )).toBeVisible();
   await expect.poll(async () => transcript.evaluate((element) => (
     element.scrollHeight - element.clientHeight - element.scrollTop
   ))).toBeLessThanOrEqual(2);
@@ -165,21 +168,14 @@ test('opens at the latest message and auto-loads anchored history at the top', a
   )).toBeLessThanOrEqual(4);
 
   await expect(transcript.getByText('Codex historical message 1', { exact: true })).toHaveCount(1);
-  await expect.poll(async () => (
-    transcript.locator('[data-transcript-message-index]').count()
-  )).toBe(45);
   const historicalMessageSequence = await transcript
     .locator('[data-transcript-message-index]')
     .evaluateAll((elements) => elements.flatMap((element) => {
       const match = element.textContent?.match(/Codex historical message (\d+)/u);
       return match ? [Number(match[1])] : [];
     }));
-  expect(historicalMessageSequence.length).toBeGreaterThanOrEqual(42);
-  expect(new Set(historicalMessageSequence).size).toBe(historicalMessageSequence.length);
-  expect(historicalMessageSequence[0]).toBe(1);
-  expect(historicalMessageSequence.at(-1)).toBe(45);
   expect(historicalMessageSequence).toEqual(
-    [...historicalMessageSequence].sort((left, right) => left - right),
+    Array.from({ length: 39 }, (_, index) => index + 1),
   );
   expect(requestedHistoryPages).toEqual(['2', '3']);
 

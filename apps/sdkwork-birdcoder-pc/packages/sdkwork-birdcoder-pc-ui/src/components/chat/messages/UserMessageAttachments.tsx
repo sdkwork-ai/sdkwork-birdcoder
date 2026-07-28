@@ -26,7 +26,7 @@ const FILE_ICON_BY_KIND = {
 } as const;
 
 interface UserMessageAttachmentsProps {
-  audios: readonly UserMessageAudioAttachment[];
+  audios?: readonly UserMessageAudioAttachment[];
   context: ChatMessageRenderContext;
   files: readonly UserMessageFileAttachment[];
   images: readonly UserMessageImageAttachment[];
@@ -333,7 +333,7 @@ function UserMessageFileList({
 }
 
 export const UserMessageAttachments = memo(function UserMessageAttachments({
-  audios,
+  audios = [],
   context,
   files,
   images,

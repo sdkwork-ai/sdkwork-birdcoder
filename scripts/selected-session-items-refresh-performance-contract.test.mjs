@@ -48,6 +48,16 @@ assert.match(
 );
 assert.match(
   hookSource,
+  /window\.addEventListener\('focus', refreshOnResume\);[\s\S]*window\.addEventListener\('online', refreshOnResume\);[\s\S]*document\.addEventListener\('visibilitychange', refreshOnResume\);/s,
+  'Selected Session Item hydration must reconcile immediately when a hidden desktop window becomes active again.',
+);
+assert.match(
+  hookSource,
+  /if \(document\.visibilityState !== 'hidden'\) \{\s*setPollRevision\(\(revision\) => revision \+ 1\);/s,
+  'Desktop resume reconciliation must advance the canonical Session Item refresh identity.',
+);
+assert.match(
+  hookSource,
   /activeRequestKeyRef\.current === requestKey[\s\S]*activeRequestKeyRef\.current = requestKey/s,
   'Selected Session Item hydration must deduplicate identical authority reads.',
 );
