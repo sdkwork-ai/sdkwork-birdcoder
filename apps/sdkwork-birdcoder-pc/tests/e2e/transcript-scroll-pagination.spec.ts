@@ -148,6 +148,7 @@ test('opens at the latest message and auto-loads anchored history at the top', a
       (element) => element.getBoundingClientRect().top,
     )) - secondPageAnchorTop)
   )).toBeLessThanOrEqual(4);
+  expect(requestedHistoryPages).toEqual(['2']);
 
   const thirdPageResponse = page.waitForResponse((response) => {
     const url = new URL(response.url());
