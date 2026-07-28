@@ -20,7 +20,7 @@ const progressiveTranscriptHookSource = fs.readFileSync(progressiveTranscriptHoo
 
 assert.match(
   progressiveTranscriptHookSource,
-  /import \{[\s\S]*resolveEarlierTranscriptStartIndex,[\s\S]*shouldLoadEarlierTranscriptPage[\s\S]*\} from '\.\/transcriptPagination';/s,
+  /import \{[\s\S]*isTranscriptWithinTopLoadThreshold,[\s\S]*resolveEarlierTranscriptStartIndex,[\s\S]*shouldLoadEarlierTranscriptPage[\s\S]*\} from '\.\/transcriptPagination';/s,
   'Progressive transcript pagination must import the shared top-load pagination helpers instead of open-coding a separate history expansion policy.',
 );
 
@@ -77,6 +77,18 @@ assert.match(
   progressiveTranscriptHookSource,
   /scrollContainer\.addEventListener\('scroll', handleTranscriptScroll, \{ passive: true \}\);/s,
   'Progressive transcript pagination must listen to transcript scroll events so older history is revealed on demand.',
+);
+
+assert.match(
+  progressiveTranscriptHookSource,
+  /scrollContainer\.addEventListener\('scroll',[\s\S]*scheduleEarlierTranscriptPageRequest\(\);/s,
+  'Progressive transcript pagination must evaluate an already-top or underfilled viewport after listener setup instead of requiring a synthetic first scroll.',
+);
+
+assert.match(
+  progressiveTranscriptHookSource,
+  /currentRemoteHistory\?\.hasMoreMessages[\s\S]*!currentRemoteHistory\.isLoadingMessages[\s\S]*!remoteLoadRequestRef\.current/s,
+  'Progressive transcript pagination must require remote page metadata and an idle request gate before dispatching another server page.',
 );
 
 assert.match(

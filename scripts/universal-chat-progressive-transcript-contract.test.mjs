@@ -38,7 +38,7 @@ assert.match(
 
 assert.match(
   universalChatSource,
-  /const \{[\s\S]*renderedMessages[\s\S]*\} = useProgressiveTranscriptWindow\(\s*messages,\s*messagesEndRef,\s*isActive,\s*sessionId,\s*\);/s,
+  /const \{[\s\S]*renderedMessages[\s\S]*\} = useProgressiveTranscriptWindow\(\s*messages,\s*messagesEndRef,\s*isActive,\s*sessionId,\s*\{[\s\S]*hasMoreMessages:\s*hasMoreRemoteMessages,[\s\S]*isLoadingMessages:\s*isLoadingMoreRemoteMessages \|\| isRequestingRemoteMessages,[\s\S]*onLoadMoreMessages:\s*handleLoadMoreRemoteMessages,[\s\S]*\},\s*\);/s,
   'UniversalChat transcript must delegate progressive transcript windowing to the dedicated hook.',
 );
 
@@ -76,6 +76,18 @@ assert.match(
   progressiveTranscriptHookSource,
   /useEffect\(\(\) => \{[\s\S]*shouldLoadEarlierTranscriptPage\(scrollMetrics, visibleTranscriptStartIndex\)[\s\S]*setTranscriptWindowState\(\(previousState\) =>[\s\S]*resolveEarlierTranscriptStartIndex\([\s\S]*activeState\.visibleTranscriptStartIndex/s,
   'Progressive transcript rendering must reveal earlier pages only after the transcript scroll reaches the top threshold.',
+);
+
+assert.match(
+  progressiveTranscriptHookSource,
+  /if \(visibleTranscriptStartIndex === 0\) \{\s*requestRemoteMessages\(\);\s*return;\s*\}/s,
+  'Progressive transcript rendering must continue from local window expansion into remote history pagination at the same top threshold.',
+);
+
+assert.match(
+  progressiveTranscriptHookSource,
+  /const remoteLoadRequestRef = useRef<Promise<void> \| null>\(null\);/,
+  'Progressive transcript rendering must gate remote history requests so one top-threshold crossing cannot dispatch duplicate pages.',
 );
 
 assert.doesNotMatch(

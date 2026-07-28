@@ -24,7 +24,7 @@ assert.match(
 
 assert.match(
   universalChatSource,
-  /useProgressiveTranscriptWindow\(\s*messages,\s*messagesEndRef,\s*isActive,\s*sessionId,\s*\)/s,
+  /useProgressiveTranscriptWindow\(\s*messages,\s*messagesEndRef,\s*isActive,\s*sessionId,/s,
   'UniversalChat transcript rendering must forward the activity flag into the progressive transcript window hook.',
 );
 
@@ -42,13 +42,13 @@ assert.match(
 
 assert.match(
   progressiveTranscriptSource,
-  /export function useProgressiveTranscriptWindow\(\s*messages: readonly AgentSessionItemView\[\],\s*messagesEndRef: RefObject<HTMLDivElement \| null>,\s*isActive = true,\s*transcriptScopeKey = '',\s*\)/s,
+  /export function useProgressiveTranscriptWindow\(\s*messages: readonly AgentSessionItemView\[\],\s*messagesEndRef: RefObject<HTMLDivElement \| null>,\s*isActive = true,\s*transcriptScopeKey = '',\s*remoteHistory\?: ProgressiveTranscriptRemoteHistory,\s*\)/s,
   'useProgressiveTranscriptWindow must accept an activity flag so transcript repair work can be disabled while hidden.',
 );
 
 assert.match(
   progressiveTranscriptSource,
-  /if \(!isActive \|\| visibleTranscriptStartIndex === 0 \|\| typeof window === 'undefined'\)/,
+  /!isActive[\s\S]*\|\| \(visibleTranscriptStartIndex === 0 && !canLoadRemoteMessages\)[\s\S]*\|\| typeof window === 'undefined'/s,
   'Progressive transcript repair and scroll effects must bail out immediately while the chat surface is inactive.',
 );
 

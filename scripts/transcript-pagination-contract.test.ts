@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import {
   INITIAL_TRANSCRIPT_RENDER_COUNT,
   TRANSCRIPT_LOAD_MORE_THRESHOLD_PX,
+  isTranscriptWithinTopLoadThreshold,
   resolveEarlierTranscriptStartIndex,
   resolveInitialVisibleTranscriptStartIndex,
   shouldLoadEarlierTranscriptPage,
@@ -30,6 +31,22 @@ assert.equal(
   resolveEarlierTranscriptStartIndex(INITIAL_TRANSCRIPT_RENDER_COUNT + 21),
   21,
   'loading an earlier page must reveal exactly one additional page of history.',
+);
+
+assert.equal(
+  isTranscriptWithinTopLoadThreshold({
+    clientHeight: 640,
+    scrollHeight: 2400,
+    scrollTop: TRANSCRIPT_LOAD_MORE_THRESHOLD_PX,
+  }),
+  true,
+  'the shared top threshold must remain available after local history is exhausted so remote paging can continue.',
+);
+
+assert.equal(
+  isTranscriptWithinTopLoadThreshold(null),
+  false,
+  'the shared top threshold must not request history before the transcript container is mounted.',
 );
 
 assert.equal(

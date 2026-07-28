@@ -99,4 +99,16 @@ assert.match(
   'Progressive transcript pagination must defer top-load requests until after an active scrollbar pointer drag releases.',
 );
 
+assert.match(
+  universalChatSource,
+  /const \{[\s\S]*measurementVersion,[\s\S]*\} = useVirtualizedTranscriptWindow\(/s,
+  'UniversalChat must consume transcript row measurement changes so asynchronous message layout can finish bottom alignment.',
+);
+
+assert.match(
+  universalChatSource,
+  /useLayoutEffect\(\(\) => \{[\s\S]*shouldStickToBottomRef\.current[\s\S]*scrollTranscriptToBottom\(\);[\s\S]*\}, \[[\s\S]*measurementVersion,/s,
+  'UniversalChat must rerun sticky bottom alignment after transcript row measurements change without overriding user-owned scroll.',
+);
+
 console.log('universal chat scroll ownership source contract passed.');
