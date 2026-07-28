@@ -11,7 +11,10 @@ import { ProjectDeviceMountRegistry } from '../../sdkwork-birdcoder-pc-infrastru
 import { DriveSandboxProjectFileSystemService } from '../../sdkwork-birdcoder-pc-infrastructure/src/services/impl/DriveSandboxProjectFileSystemService.ts';
 import { RuntimeFileSystemService } from '../../sdkwork-birdcoder-pc-infrastructure/src/services/impl/RuntimeFileSystemService.ts';
 import type { IFileSystemService } from '../../sdkwork-birdcoder-pc-infrastructure/src/services/interfaces/IFileSystemService.ts';
-import { createProjectFileSystemService } from '../../sdkwork-birdcoder-pc-infrastructure/src/services/projectFileSystemServiceFactory.ts';
+import {
+  createProjectFileSystemService,
+  resolveProjectFileSystemProvider,
+} from '../../sdkwork-birdcoder-pc-infrastructure/src/services/projectFileSystemServiceFactory.ts';
 import type { BirdCoderExecutionLocation } from '../../sdkwork-birdcoder-pc-infrastructure/src/services/runtimeTopology.ts';
 
 const rootKeys = ['displayName', 'host', 'projectId', 'virtualPath'];
@@ -203,14 +206,37 @@ describe('project file-system root contract', () => {
   });
 
   it('rejects an unsupported execution location without creating a provider', () => {
-    const localFileSystem = {} as IFileSystemService;
+    const createLocalFileSystem = vi.fn(() => ({} as IFileSystemService));
     const createRemoteFileSystem = vi.fn(() => ({} as IFileSystemService));
 
     expect(() => createProjectFileSystemService({
+      createLocalFileSystem,
       createRemoteFileSystem,
       executionLocation: 'future-location' as BirdCoderExecutionLocation,
-      localFileSystem,
     })).toThrow('Unsupported project file-system execution location: future-location.');
+    expect(createLocalFileSystem).not.toHaveBeenCalled();
     expect(createRemoteFileSystem).not.toHaveBeenCalled();
   });
+
+  it.each([
+    ['local-host', 'device-mount'],
+    ['cloud-workspace', 'drive-sandbox'],
+  ] as const)(
+    'maps %s to the explicit %s provider without constructing the unused adapter',
+    (executionLocation, expectedProvider) => {
+      const localFileSystem = { provider: 'local' } as unknown as IFileSystemService;
+      const remoteFileSystem = { provider: 'remote' } as unknown as IFileSystemService;
+      const createLocalFileSystem = vi.fn(() => localFileSystem);
+      const createRemoteFileSystem = vi.fn(() => remoteFileSystem);
+
+      expect(resolveProjectFileSystemProvider(executionLocation)).toBe(expectedProvider);
+      expect(createProjectFileSystemService({
+        createLocalFileSystem,
+        createRemoteFileSystem,
+        executionLocation,
+      })).toBe(expectedProvider === 'device-mount' ? localFileSystem : remoteFileSystem);
+      expect(createLocalFileSystem).toHaveBeenCalledTimes(expectedProvider === 'device-mount' ? 1 : 0);
+      expect(createRemoteFileSystem).toHaveBeenCalledTimes(expectedProvider === 'drive-sandbox' ? 1 : 0);
+    },
+  );
 });

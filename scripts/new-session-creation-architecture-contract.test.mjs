@@ -177,13 +177,13 @@ assert.doesNotMatch(
 );
 assert.match(
   services,
-  /createProjectFileSystemService\(\{[\s\S]*executionLocation: runtimeTopology\.executionLocation,[\s\S]*localFileSystem,[\s\S]*createRemoteFileSystem: \(\) => new DriveSandboxProjectFileSystemService\(\{[\s\S]*drivePort:[\s\S]*projectService/,
+  /createProjectFileSystemService\(\{[\s\S]*createLocalFileSystem: \(\) => new RuntimeFileSystemService\(\{[\s\S]*mountRegistry: projectDeviceMountRegistry,[\s\S]*createRemoteFileSystem: \(\) => new DriveSandboxProjectFileSystemService\(\{[\s\S]*drivePort:[\s\S]*projectService,[\s\S]*executionLocation: runtimeTopology\.executionLocation/,
   "Runtime composition must delegate execution-location-specific provider selection to the file-system factory.",
 );
 assert.match(
   fileSystemServiceFactory,
-  /switch \(executionLocation\) \{[\s\S]*case 'local-host':[\s\S]*return localFileSystem;[\s\S]*case 'cloud-workspace':[\s\S]*return createRemoteFileSystem\(\);[\s\S]*const unsupportedExecutionLocation: never = executionLocation;[\s\S]*throw new Error\(/,
-  "The file-system factory must exhaustively select local-host locally, cloud-workspace remotely, and reject unsupported locations.",
+  /resolveProjectFileSystemProvider\(executionLocation\)[\s\S]*case 'device-mount':[\s\S]*return createLocalFileSystem\(\);[\s\S]*case 'drive-sandbox':[\s\S]*return createRemoteFileSystem\(\)/,
+  "The file-system factory must lazily select the device mount locally and Drive remotely without constructing the unused provider.",
 );
 assert.doesNotMatch(
   fileSystemServiceFactory,

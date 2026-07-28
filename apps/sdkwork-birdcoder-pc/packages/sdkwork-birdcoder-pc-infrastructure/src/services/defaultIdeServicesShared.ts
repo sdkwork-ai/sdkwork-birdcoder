@@ -102,9 +102,6 @@ export function createBirdCoderDefaultIdeSharedRuntime(
   const projectDeviceMountRegistry = new ProjectDeviceMountRegistry({
     subjectProvider: createProjectDeviceMountSubjectProvider(),
   });
-  const localFileSystem = new RuntimeFileSystemService({
-    mountRegistry: projectDeviceMountRegistry,
-  });
   const projectService = new ApiBackedProjectService({
     projectCompositionSlots: agentsClient.ai.agents.projectCompositionSlots,
     projects: agentsClient.ai.agents.projects,
@@ -124,12 +121,14 @@ export function createBirdCoderDefaultIdeSharedRuntime(
   });
   const runtimeTopology = runtimeConfig.runtimeTopology ?? resolveBirdCoderRuntimeTopology();
   const fileSystemService = createProjectFileSystemService({
-    executionLocation: runtimeTopology.executionLocation,
-    localFileSystem,
+    createLocalFileSystem: () => new RuntimeFileSystemService({
+      mountRegistry: projectDeviceMountRegistry,
+    }),
     createRemoteFileSystem: () => new DriveSandboxProjectFileSystemService({
       drivePort: createBirdCoderDriveSandboxExplorerPort(),
       projectService,
     }),
+    executionLocation: runtimeTopology.executionLocation,
   });
   const projectRuntimeLocationService = new RuntimeProjectRuntimeLocationService({
     executionLocation: runtimeTopology.executionLocation,
