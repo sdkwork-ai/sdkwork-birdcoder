@@ -12,6 +12,11 @@ import {
   resolveInitialVisibleTranscriptStartIndex,
   shouldLoadEarlierTranscriptPage,
 } from './transcriptPagination';
+import {
+  captureTranscriptScrollAnchor,
+  restoreTranscriptScrollAnchor,
+  type TranscriptScrollAnchorSnapshot,
+} from './transcriptScrollAnchor';
 
 interface ProgressiveTranscriptWindowState {
   isLoadingEarlierMessages: boolean;
@@ -69,9 +74,11 @@ export function useProgressiveTranscriptWindow(
   const normalizedTranscriptScopeKey = transcriptScopeKey.trim();
   const transcriptIdentity = normalizedTranscriptScopeKey || firstMessageId;
   const pendingPrependedScrollMetricsRef = useRef<{
+    anchor: TranscriptScrollAnchorSnapshot | null;
     metrics: TranscriptScrollMetrics;
     transcriptIdentity: string;
   } | null>(null);
+  const prependAnchorRepairAnimationFrameRef = useRef<number | null>(null);
   const isTranscriptPointerDragActiveRef = useRef(false);
   const pendingTopLoadAfterPointerReleaseRef = useRef(false);
   const topLoadAnimationFrameRef = useRef<number | null>(null);
@@ -220,6 +227,7 @@ export function useProgressiveTranscriptWindow(
       }
 
       pendingPrependedScrollMetricsRef.current = {
+        anchor: captureTranscriptScrollAnchor(scrollContainer, renderedMessages),
         metrics: scrollMetrics,
         transcriptIdentity,
       };
@@ -326,8 +334,8 @@ export function useProgressiveTranscriptWindow(
     }
 
     const scrollContainer = resolveTranscriptScrollContainer(messagesEndRef);
-    pendingPrependedScrollMetricsRef.current = null;
     if (!scrollContainer) {
+      pendingPrependedScrollMetricsRef.current = null;
       setTranscriptWindowState((previousState) => (
         previousState.transcriptIdentity === transcriptIdentity
           ? { ...previousState, isLoadingEarlierMessages: false }
@@ -349,6 +357,30 @@ export function useProgressiveTranscriptWindow(
       scrollContainer.scrollTop = nextScrollTop;
     }
 
+    const finishAnchorRepair = () => {
+      pendingPrependedScrollMetricsRef.current = null;
+      prependAnchorRepairAnimationFrameRef.current = null;
+    };
+    if (!restoreTranscriptScrollAnchor(scrollContainer, renderedMessages, pendingPrepend.anchor)) {
+      let remainingFrames = 4;
+      const settleAnchor = () => {
+        prependAnchorRepairAnimationFrameRef.current = null;
+        if (
+          restoreTranscriptScrollAnchor(scrollContainer, renderedMessages, pendingPrepend.anchor)
+          || remainingFrames <= 0
+        ) {
+          finishAnchorRepair();
+          return;
+        }
+
+        remainingFrames -= 1;
+        prependAnchorRepairAnimationFrameRef.current = window.requestAnimationFrame(settleAnchor);
+      };
+      prependAnchorRepairAnimationFrameRef.current = window.requestAnimationFrame(settleAnchor);
+    } else {
+      finishAnchorRepair();
+    }
+
     setTranscriptWindowState((previousState) => (
       previousState.transcriptIdentity === transcriptIdentity
         ? { ...previousState, isLoadingEarlierMessages: false }
@@ -360,6 +392,16 @@ export function useProgressiveTranscriptWindow(
     renderedMessages.length,
     transcriptIdentity,
   ]);
+
+  useEffect(() => () => {
+    if (
+      prependAnchorRepairAnimationFrameRef.current !== null
+      && typeof window !== 'undefined'
+    ) {
+      window.cancelAnimationFrame(prependAnchorRepairAnimationFrameRef.current);
+      prependAnchorRepairAnimationFrameRef.current = null;
+    }
+  }, []);
 
   return {
     hasEarlierMessages: visibleTranscriptStartIndex > 0,

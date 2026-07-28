@@ -72,6 +72,11 @@ import {
   type TranscriptScrollMetrics,
 } from './chatScrollBehavior';
 import { resolveTranscriptMessageKey } from './transcriptVirtualization';
+import {
+  captureTranscriptScrollAnchor,
+  restoreTranscriptScrollAnchor,
+  type TranscriptScrollAnchorSnapshot,
+} from './transcriptScrollAnchor';
 import { UniversalChatComposerChrome } from './UniversalChatComposerChrome';
 import {
   UniversalChatNewSessionProviderSelector,
@@ -537,14 +542,20 @@ const UniversalChatTranscript = memo(function UniversalChatTranscript({
     remoteMessageRequestState.sessionId === sessionId
     && remoteMessageRequestState.isRequesting;
   const pendingRemotePrependRef = useRef<{
+    anchor: TranscriptScrollAnchorSnapshot | null;
     firstMessageId: string;
     messageCount: number;
     metrics: TranscriptScrollMetrics;
   } | null>(null);
+  const remotePrependAnchorRepairAnimationFrameRef = useRef<number | null>(null);
   const firstMessageId = messages[0]?.id ?? '';
 
   useEffect(() => {
     pendingRemotePrependRef.current = null;
+    if (remotePrependAnchorRepairAnimationFrameRef.current !== null) {
+      window.cancelAnimationFrame(remotePrependAnchorRepairAnimationFrameRef.current);
+      remotePrependAnchorRepairAnimationFrameRef.current = null;
+    }
   }, [sessionId]);
 
   useLayoutEffect(() => {
@@ -560,9 +571,9 @@ const UniversalChatTranscript = memo(function UniversalChatTranscript({
       return;
     }
 
-    pendingRemotePrependRef.current = null;
     const scrollContainer = scrollContainerRef.current;
     if (!scrollContainer) {
+      pendingRemotePrependRef.current = null;
       return;
     }
     const nextScrollTop = computeTranscriptRepairScrollTop(
@@ -575,6 +586,33 @@ const UniversalChatTranscript = memo(function UniversalChatTranscript({
     );
     if (Math.abs(scrollContainer.scrollTop - nextScrollTop) > 1) {
       scrollContainer.scrollTop = nextScrollTop;
+    }
+    const finishAnchorRepair = () => {
+      pendingRemotePrependRef.current = null;
+      remotePrependAnchorRepairAnimationFrameRef.current = null;
+    };
+    if (!restoreTranscriptScrollAnchor(scrollContainer, messages, pendingPrepend.anchor)) {
+      let remainingFrames = 4;
+      const settleAnchor = () => {
+        remotePrependAnchorRepairAnimationFrameRef.current = null;
+        if (
+          restoreTranscriptScrollAnchor(scrollContainer, messages, pendingPrepend.anchor)
+          || remainingFrames <= 0
+        ) {
+          finishAnchorRepair();
+          return;
+        }
+
+        remainingFrames -= 1;
+        remotePrependAnchorRepairAnimationFrameRef.current = window.requestAnimationFrame(
+          settleAnchor,
+        );
+      };
+      remotePrependAnchorRepairAnimationFrameRef.current = window.requestAnimationFrame(
+        settleAnchor,
+      );
+    } else {
+      finishAnchorRepair();
     }
     shouldStickToBottomRef.current = false;
   }, [firstMessageId, isActive, messages.length, scrollContainerRef, shouldStickToBottomRef]);
@@ -592,6 +630,7 @@ const UniversalChatTranscript = memo(function UniversalChatTranscript({
       return;
     }
     pendingRemotePrependRef.current = {
+      anchor: captureTranscriptScrollAnchor(scrollContainer, messages),
       firstMessageId,
       messageCount: messages.length,
       metrics: {
