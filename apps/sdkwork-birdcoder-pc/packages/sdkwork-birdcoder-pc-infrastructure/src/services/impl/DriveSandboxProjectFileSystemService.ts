@@ -41,6 +41,7 @@ const MAX_DIRECTORY_ENTRIES = DIRECTORY_PAGE_SIZE * MAX_DIRECTORY_PAGES;
 const MAX_SEARCH_TREE_NODES = 20_000;
 const REMOTE_POLL_INTERVAL_MS = 2_000;
 const MAX_REMOTE_POLLED_FILES = 16;
+const MAX_REVISION_DIRECTORY_CONCURRENCY = 4;
 
 interface DriveSandboxProjectFileSystemServiceOptions {
   readonly drivePort: SandboxExplorerPort;
@@ -579,6 +580,81 @@ export class DriveSandboxProjectFileSystemService implements IFileSystemService 
     );
   }
 
+  private async resolveRemoteFileRevisions(
+    state: RemoteProjectState,
+    paths: readonly string[],
+  ): Promise<ReadonlyArray<FileRevisionLookupResult>> {
+    const results = new Array<FileRevisionLookupResult | undefined>(paths.length);
+    const requestsByParentPath = new Map<
+      string,
+      Array<{ readonly index: number; readonly logicalPath: string; readonly path: string }>
+    >();
+    paths.forEach((path, index) => {
+      try {
+        const logicalPath = toSandboxLogicalPath(state.context, path);
+        if (logicalPath === state.binding.logicalPath) {
+          throw new Error('The project root is not a file entry.');
+        }
+        const separatorIndex = logicalPath.lastIndexOf('/');
+        const parentPath = separatorIndex < 0 ? '' : logicalPath.slice(0, separatorIndex);
+        const requests = requestsByParentPath.get(parentPath) ?? [];
+        requests.push({ index, logicalPath, path });
+        requestsByParentPath.set(parentPath, requests);
+      } catch {
+        results[index] = {
+          path,
+          revision: null,
+          missing: false,
+          error: 'Unable to query the project Drive file revision.',
+        };
+      }
+    });
+
+    const directoryRequests = [...requestsByParentPath.entries()];
+    let nextDirectoryIndex = 0;
+    const workerCount = Math.min(
+      MAX_REVISION_DIRECTORY_CONCURRENCY,
+      directoryRequests.length,
+    );
+    await Promise.all(Array.from({ length: workerCount }, async () => {
+      while (nextDirectoryIndex < directoryRequests.length) {
+        const requestIndex = nextDirectoryIndex;
+        nextDirectoryIndex += 1;
+        const [parentPath, requests] = directoryRequests[requestIndex]!;
+        try {
+          const entries = await this.collectDirectoryChildrenBounded(state, parentPath);
+          const entriesByLogicalPath = new Map(
+            entries.map((entry) => [entry.logicalPath, entry]),
+          );
+          for (const request of requests) {
+            const entry = entriesByLogicalPath.get(request.logicalPath);
+            if (entry) cacheRemoteEntry(state, entry);
+            results[request.index] = {
+              path: request.path,
+              revision: entry?.revision ?? null,
+              missing: entry === undefined,
+            };
+          }
+        } catch {
+          for (const request of requests) {
+            results[request.index] = {
+              path: request.path,
+              revision: null,
+              missing: false,
+              error: 'Unable to query the project Drive file revision.',
+            };
+          }
+        }
+      }
+    }));
+    return results.map((result, index) => result ?? {
+      path: paths[index]!,
+      revision: null,
+      missing: false,
+      error: 'Unable to query the project Drive file revision.',
+    });
+  }
+
   async getFileRevisions(
     projectId: string,
     paths: readonly string[],
@@ -588,18 +664,7 @@ export class DriveSandboxProjectFileSystemService implements IFileSystemService 
     if (!state) {
       throw new ProjectDriveCompositionRequiredError(normalizedProjectId);
     }
-    return Promise.all(paths.map(async (path): Promise<FileRevisionLookupResult> => {
-      try {
-        return { path, revision: (await this.resolveRemoteEntry(state, path)).revision, missing: false };
-      } catch (error) {
-        return {
-          path,
-          revision: null,
-          missing: true,
-          error: error instanceof Error ? error.message : 'Unable to resolve server file revision.',
-        };
-      }
-    }));
+    return this.resolveRemoteFileRevisions(state, paths);
   }
 
   async saveFileContent(projectId: string, path: string, content: string): Promise<void> {
@@ -820,6 +885,12 @@ export class DriveSandboxProjectFileSystemService implements IFileSystemService 
               logicalPath: entry.logicalPath,
               encoding: 'utf8',
             });
+            assertRemoteEntryIdentity(content.entry, {
+              sandboxId: state.binding.driveId,
+              logicalPath: entry.logicalPath,
+              kind: 'file',
+              id: entry.id,
+            });
             return content.content;
           },
         });
@@ -843,17 +914,20 @@ export class DriveSandboxProjectFileSystemService implements IFileSystemService 
       void (async () => {
         const state = await this.resolveRemoteProject(normalizedProjectId);
         if (!state) return;
-        const paths = (options?.getTrackedFilePaths?.() ?? [])
-          .filter(Boolean)
+        const paths = [...new Set((options?.getTrackedFilePaths?.() ?? [])
+          .map((path) => path.trim())
+          .filter(Boolean))]
           .slice(0, MAX_REMOTE_POLLED_FILES);
+        const trackedPaths = new Set(paths);
+        for (const knownPath of knownRevisions.keys()) {
+          if (!trackedPaths.has(knownPath)) knownRevisions.delete(knownPath);
+        }
         const changedPaths: string[] = [];
-        for (const path of paths) {
-          let revision: string | null = null;
-          try {
-            revision = (await this.resolveRemoteEntry(state, path)).revision;
-          } catch {
-            revision = null;
-          }
+        const revisionLookups = await this.resolveRemoteFileRevisions(state, paths);
+        for (const lookup of revisionLookups) {
+          if (lookup.error) continue;
+          const revision = lookup.missing ? null : lookup.revision;
+          const path = lookup.path;
           if (knownRevisions.has(path) && knownRevisions.get(path) !== revision) {
             changedPaths.push(path);
           }

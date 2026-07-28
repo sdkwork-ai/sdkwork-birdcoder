@@ -128,6 +128,7 @@ let nextListChildrenTransform:
   | ((items: readonly SandboxEntry[], parentPath: string) => readonly SandboxEntry[])
   | null = null;
 let nextRepeatedListChildrenCursor: string | null = null;
+let nextListChildrenError: Error | null = null;
 let nextCreateFileBarrier: (() => Promise<void>) | null = null;
 
 const drivePort: SandboxExplorerPort = {
@@ -155,6 +156,9 @@ const drivePort: SandboxExplorerPort = {
     };
   },
   async listChildren(input) {
+    const listError = nextListChildrenError;
+    nextListChildrenError = null;
+    if (listError) throw listError;
     const listedItems = listChildren(input.parentPath);
     const transform = nextListChildrenTransform;
     nextListChildrenTransform = null;
@@ -488,6 +492,37 @@ nextRepeatedListChildrenCursor = 'repeated-cursor';
 await assert.rejects(
   service.refreshDirectory('project-1', '/birdcoder/src'),
   /invalid directory pagination cursor/u,
+);
+
+const revisionListCallsBefore = listChildrenCalls.get('projects/birdcoder/src') ?? 0;
+const revisionLookups = await service.getFileRevisions('project-1', [
+  '/birdcoder/src/renamed-during-refresh.ts',
+  '/birdcoder/src/created-with-overlapping-refresh.ts',
+  '/birdcoder/src/missing.ts',
+]);
+assert.equal(
+  (listChildrenCalls.get('projects/birdcoder/src') ?? 0) - revisionListCallsBefore,
+  1,
+  'Revision lookups in one directory must share a single bounded directory request.',
+);
+assert.equal(revisionLookups[0]?.missing, false);
+assert.equal(revisionLookups[1]?.missing, false);
+assert.deepEqual(revisionLookups[2], {
+  path: '/birdcoder/src/missing.ts',
+  revision: null,
+  missing: true,
+});
+
+nextListChildrenError = new Error('sensitive C:\\workspace\\server-path');
+assert.deepEqual(
+  await service.getFileRevisions('project-1', ['/birdcoder/src/network-error.ts']),
+  [{
+    path: '/birdcoder/src/network-error.ts',
+    revision: null,
+    missing: false,
+    error: 'Unable to query the project Drive file revision.',
+  }],
+  'A transport failure must not be reported as a deleted file or expose raw server details.',
 );
 
 await assert.rejects(
