@@ -166,22 +166,21 @@ const FILE_EXPLORER_NAME_VALIDATION_MESSAGE_KEYS: Record<
   'windows-reserved-name': 'code.fileNameWindowsReserved',
 };
 
-// Advanced fuzzy search algorithm with scoring
-function fuzzyScore(pattern: string, str: string): number {
-  if (!pattern) return 1;
-  if (!str) return 0;
+function fuzzyScore(normalizedPattern: string, normalizedCandidate: string): number {
+  if (!normalizedPattern) return 1;
+  if (!normalizedCandidate) return 0;
   
   let patternIdx = 0;
   let strIdx = 0;
   let score = 0;
-  const patternLen = pattern.length;
-  const strLen = str.length;
+  const patternLen = normalizedPattern.length;
+  const strLen = normalizedCandidate.length;
 
   while (patternIdx < patternLen && strIdx < strLen) {
-    if (pattern[patternIdx].toLowerCase() === str[strIdx].toLowerCase()) {
-      score += 10; // Base score for a match
+    if (normalizedPattern[patternIdx] === normalizedCandidate[strIdx]) {
+      score += 10;
       if (patternIdx === strIdx) {
-        score += 5; // Bonus for exact position match
+        score += 5;
       }
       patternIdx++;
     }
@@ -794,6 +793,7 @@ export const FileExplorer = React.memo(function FileExplorer({
   };
   const notifyUnavailableLocalFolder = () => addToast(t('code.projectFolderUnavailable'), 'error');
   const rootCreationParentPath = useMemo(() => projectRootPath.trim(), [projectRootPath]);
+  const fileExplorerScopeIdentity = `${scopeKey}\u0000${rootCreationParentPath}`;
   const singleRootDirectoryPath = rootCreationParentPath;
   const startCreatingRootNode = useCallback((type: 'file' | 'directory') => {
     if (isMutationPending) {
@@ -854,7 +854,7 @@ export const FileExplorer = React.memo(function FileExplorer({
     setInputValue('');
     setIsMutationPending(false);
     closeFloatingMenus();
-  }, [closeFloatingMenus, scopeKey]);
+  }, [closeFloatingMenus, fileExplorerScopeIdentity]);
 
   useEffect(() => {
     if (!singleRootDirectoryPath) {
@@ -1028,6 +1028,17 @@ export const FileExplorer = React.memo(function FileExplorer({
       : (currentIndex + offset + menuItems.length) % menuItems.length;
     menuItems[nextIndex]?.focus();
   }, [closeFloatingMenus, restoreTreeFocus]);
+
+  const handleFloatingMenuBlur = useCallback((event: React.FocusEvent<HTMLDivElement>) => {
+    const nextFocusedElement = event.relatedTarget;
+    if (
+      nextFocusedElement instanceof Node
+      && event.currentTarget.contains(nextFocusedElement)
+    ) {
+      return;
+    }
+    closeFloatingMenus();
+  }, [closeFloatingMenus]);
 
   const setFolderExpanded = useCallback((
     path: string,
@@ -2005,6 +2016,7 @@ export const FileExplorer = React.memo(function FileExplorer({
           className="fixed max-h-[calc(100vh_-_16px)] w-[min(14rem,calc(100vw_-_16px))] overflow-y-auto rounded-lg border border-white/10 bg-[#18181b]/95 py-1.5 text-[13px] text-gray-300 shadow-2xl backdrop-blur-xl animate-in fade-in zoom-in-95 duration-150 origin-top-left"
           style={{ top: rootContextMenu.y, left: rootContextMenu.x, zIndex: FILE_EXPLORER_CONTEXT_MENU_Z_INDEX }}
           onClick={(e) => e.stopPropagation()}
+          onBlur={handleFloatingMenuBlur}
           onKeyDown={handleFloatingMenuKeyDown}
         >
           <button
@@ -2081,6 +2093,7 @@ export const FileExplorer = React.memo(function FileExplorer({
           className="fixed max-h-[calc(100vh_-_16px)] w-[min(14rem,calc(100vw_-_16px))] overflow-y-auto rounded-lg border border-white/10 bg-[#18181b]/95 py-1.5 text-[13px] text-gray-300 shadow-2xl backdrop-blur-xl animate-in fade-in zoom-in-95 duration-150 origin-top-left"
           style={{ top: contextMenu.y, left: contextMenu.x, zIndex: FILE_EXPLORER_CONTEXT_MENU_Z_INDEX }}
           onClick={(e) => e.stopPropagation()}
+          onBlur={handleFloatingMenuBlur}
           onKeyDown={handleFloatingMenuKeyDown}
         >
           {contextMenu.node.type === 'directory' && (

@@ -45,7 +45,7 @@ assert.match(
   'FileExplorer must auto-expand the current project root once, while preserving explicit user collapse state for already-known roots.',
 );
 
-const scopeResetEffectMatch = /useEffect\(\(\) => \{\s*mutationGenerationRef\.current \+= 1;\s*setExpandedFolders\(\{\}\);[\s\S]*?\}, \[closeFloatingMenus, scopeKey\]\);/.exec(
+const scopeResetEffectMatch = /useEffect\(\(\) => \{\s*mutationGenerationRef\.current \+= 1;\s*setExpandedFolders\(\{\}\);[\s\S]*?\}, \[closeFloatingMenus, fileExplorerScopeIdentity\]\);/.exec(
   fileExplorerSource,
 );
 const rootExpansionEffectMatch = /useEffect\(\(\) => \{\s*if \(!singleRootDirectoryPath\) \{[\s\S]*?\}, \[singleRootDirectoryPath\]\);/.exec(
@@ -54,7 +54,7 @@ const rootExpansionEffectMatch = /useEffect\(\(\) => \{\s*if \(!singleRootDirect
 
 assert.ok(
   scopeResetEffectMatch,
-  'FileExplorer must reset expanded folder state when the file explorer scope changes.',
+  'FileExplorer must reset expanded folder state when the project or mounted root scope changes.',
 );
 
 assert.ok(
