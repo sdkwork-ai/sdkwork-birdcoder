@@ -25,7 +25,10 @@ async function withWindow<T>(value: Window & typeof globalThis, operation: () =>
   }
 }
 
-const { createBirdCoderTauriFileSystemRuntime } = await import(
+const {
+  BirdCoderTauriFileSystemRuntimeError,
+  createBirdCoderTauriFileSystemRuntime,
+} = await import(
   `${tauriFileSystemRuntimeModulePath.href}?t=${Date.now()}`
 );
 
@@ -116,5 +119,44 @@ await withWindow(
     );
   },
 );
+
+let invalidRegistrationUnlistenCalls = 0;
+let invalidRegistrationStopCalls = 0;
+await withWindow(
+  {
+    __TAURI_INTERNALS__: {
+      async invoke(command: string, payload: Record<string, unknown>) {
+        if (command === 'fs_watch_start') {
+          return { watchId: 'D:/private/invalid-watch-id' };
+        }
+        if (command === 'fs_watch_stop') {
+          invalidRegistrationStopCalls += 1;
+          assert.deepEqual(payload, { watchId: 'D:/private/invalid-watch-id' });
+          return null;
+        }
+        throw new Error(`Unexpected command: ${command}`);
+      },
+      event: {
+        async listen(): Promise<() => void> {
+          return () => {
+            invalidRegistrationUnlistenCalls += 1;
+          };
+        },
+      },
+    },
+  } as unknown as Window & typeof globalThis,
+  async () => {
+    const runtime = createBirdCoderTauriFileSystemRuntime();
+    await assert.rejects(
+      () => runtime.watchProjectTree('D:/workspace/sample-app', () => undefined),
+      (error: unknown) =>
+        error instanceof BirdCoderTauriFileSystemRuntimeError
+        && error.operation === 'fs_watch_start'
+        && !error.message.includes('D:/private'),
+    );
+  },
+);
+assert.equal(invalidRegistrationUnlistenCalls, 1);
+assert.equal(invalidRegistrationStopCalls, 1);
 
 console.log('tauri file system watch contract passed.');

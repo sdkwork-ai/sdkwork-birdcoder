@@ -440,9 +440,10 @@ export async function restoreWorkbenchAgentSessionItemFiles({
     return false;
   }
 
+  const preparedWrites: Array<{ content: string; path: string }> = [];
   for (const operation of restorePlan.operations) {
     if (operation.type === 'write') {
-      await saveFileContent(operation.path, operation.content);
+      preparedWrites.push({ content: operation.content, path: operation.path });
       continue;
     }
     const currentContent = await loadFileContent(operation.path);
@@ -450,7 +451,10 @@ export async function restoreWorkbenchAgentSessionItemFiles({
     if (restoredContent === null) {
       return false;
     }
-    await saveFileContent(operation.path, restoredContent);
+    preparedWrites.push({ content: restoredContent, path: operation.path });
+  }
+  for (const write of preparedWrites) {
+    await saveFileContent(write.path, write.content);
   }
 
   return true;
